@@ -22,6 +22,7 @@ from app.services.brokers.catalog import get_broker_catalog, get_broker_codes
 from app.services import notification
 from app.services.audit import audit
 from app.services import paper_trading
+from app.services import trading_cost
 from app.services.data_cache import cache_get, cache_set
 from app.services.sync_scheduler import KEY_MARKET_INDICES
 
@@ -730,6 +731,20 @@ async def quant_auto_status(user=Depends(get_current_user)):
     return {"running": status["running"], "logs": logs[-50:], "signals": signals[-20:]}
 
 
+def _market_of(symbol: str) -> str:
+    """종목코드 접미사로 시장을 가른다 — 매도세가 시장마다 다르기 때문이다.
+
+    코스피와 코스닥은 세목 구성이 달라도 합계가 같지만(농특세는 코스피만, 코스닥은
+    거래세가 그만큼 높다), 코넥스는 합계 자체가 0.10% 로 낮다.
+    """
+    s = (symbol or "").upper()
+    if s.endswith(".KQ"):
+        return "KOSDAQ"
+    if s.endswith(".KN"):
+        return "KONEX"
+    return "KOSPI"
+
+
 @router.get("/quant/pipeline")
 async def quant_pipeline_indicator_backtest(
     symbol: str = Query("005930.KS"),
@@ -740,22 +755,40 @@ async def quant_pipeline_indicator_backtest(
     rsi: int = Query(14, ge=5, le=40),
     buy_th: float = Query(35.0, ge=5.0, le=50.0),
     strategy: str = Query("custom", description="custom | rsi | ma | bollinger | composite"),
-    cost_bps: float = Query(10.0, ge=0.0, le=500.0),
+    cost_bps: float = Query(10.0, ge=0.0, le=500.0,
+                            description="cost_model=flat 일 때만 쓰는 왕복 대칭 비용(bp)"),
+    cost_model: str = Query("real",
+                            description="real(연도별 실제 요율) | flat(왕복 대칭 cost_bps) | none(무비용)"),
+    slippage_bps: float = Query(10.0, ge=0.0, le=500.0,
+                                description="편도 슬리피지(bp). cost_model=real 에서만 쓴다"),
+    market: str | None = Query(None, description="KOSPI | KOSDAQ | KONEX. 비우면 종목코드에서 추론"),
     _user=Depends(get_current_user),
 ):
-    """커스텀 인디케이터 실백테스트."""
+    """커스텀 인디케이터 실백테스트.
+
+    두 화면(커스텀 인디케이터 · 성과 검증)이 같은 이 엔드포인트를 쓰는데, 예전에는
+    strategy=custom 경로에만 비용을 넘길 방법이 없어 화면에 따라 비용 가정이 달랐다.
+    이제 두 경로가 같은 비용 모델을 받는다.
+    """
     candle_data = await get_candles(symbol, period=period, interval="1d")
     candles = candle_data.get("candles", [])
     if not candles:
         raise HTTPException(404, f"종목 데이터 없음: {symbol}")
+    try:
+        cost = trading_cost.build(
+            cost_model, slippage_bps=slippage_bps, cost_bps=cost_bps,
+            market=market or _market_of(symbol),
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
     if strategy != "custom":
         if strategy not in ("rsi", "ma", "bollinger", "composite"):
             raise HTTPException(422, "strategy는 custom, rsi, ma, bollinger, composite 중 하나여야 합니다.")
-        result = backtest_strategy(candles, strategy=strategy, cost_bps=cost_bps)
+        result = backtest_strategy(candles, strategy=strategy, cost_bps=cost_bps, cost=cost)
     else:
         result = backtest_custom_indicator(
             candles=candles, base=base, short_window=short, mid_window=mid,
-            rsi_period=rsi, buy_threshold=buy_th,
+            rsi_period=rsi, buy_threshold=buy_th, cost=cost,
         )
     if "error" in result:
         raise HTTPException(422, result["error"])
