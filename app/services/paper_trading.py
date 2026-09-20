@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.services.krx_companies import get_krx_companies
 from app.services.stock import HEADERS, _yahoo_chart, get_candles, get_quote
+from app.services import trading_cost
 
 BUY = "BUY"
 SELL = "SELL"
@@ -214,35 +215,50 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
         raise PaperTradeError("quantity는 1 이상의 정수여야 합니다.")
     info = await resolve_stock(symbol)
     price = _price_unit(info["price"])
-    amount = price * quantity
+    gross = price * quantity
+    # 정산금액을 따로 구한다 — 현금은 `가격 × 수량` 이 아니라 이 값으로 움직인다.
+    # 모의투자도 비용을 뗀다(KIS 모의투자 규정: 수수료 0.0142% · 세금 0.20%).
+    cost = trading_cost.order_costs(
+        side=side.lower(), price=price, quantity=quantity,
+        when=trading_cost.today_kst(), market=trading_cost.market_of(info["symbol"]),
+    )
 
     account = await get_account(db, user_id, lock=True)
     position = await _stock_position(db, user_id, info["symbol"])
 
     if side == BUY:
-        if amount > account.cash:
-            raise PaperTradeError("보유 현금이 부족합니다.")
-        account.cash = float(account.cash - amount)
+        if cost.net_amount > account.cash:
+            raise PaperTradeError(
+                f"보유 현금이 부족합니다. 필요 {cost.net_amount:,.0f}원"
+                f"(체결 {gross:,.0f}원 + 비용 {cost.total_cost:,.0f}원) / "
+                f"보유 {account.cash:,.0f}원"
+            )
+        account.cash = float(account.cash - cost.net_amount)
         if position is None:
             db.add(Portfolio(user_id=user_id, symbol=info["symbol"], name=info["name"], quantity=quantity, avg_price=price))
         else:
             total_qty = position.quantity + quantity
-            position.avg_price = (position.avg_price * position.quantity + amount) / total_qty
+            # 평균단가는 체결가 기준으로 둔다. 매입부대비용을 단가에 녹이면 화면의
+            # "평균단가" 가 체결가와 달라져 읽는 사람이 혼동한다 — 비용은 주문 행의
+            # 비용 칸에 남고, 현금이 그만큼 덜 남으므로 총자산에는 이미 반영된다.
+            position.avg_price = (position.avg_price * position.quantity + gross) / total_qty
             position.quantity = total_qty
     else:
         if position is None or position.quantity < quantity:
             raise PaperTradeError("매도 가능한 수량이 부족합니다.")
         position.quantity -= quantity
-        account.cash = float(account.cash + amount)
+        account.cash = float(account.cash + cost.net_amount)
         if position.quantity == 0:
             await db.delete(position)
 
     db.add(Order(
         user_id=user_id, symbol=info["symbol"], name=info["name"], order_type=side.lower(),
         quantity=quantity, price=price, status="filled", broker="virtual", source=source,
+        **trading_cost.order_fields(cost, price, quantity),
     ))
     return {"status": "ok", "symbol": info["symbol"], "name": info["name"], "side": side,
-            "quantity": quantity, "price": price, "amount": amount, "cash": account.cash}
+            "quantity": quantity, "price": price, "amount": gross,
+            "net_amount": cost.net_amount, "cost": cost.as_dict(), "cash": account.cash}
 
 
 async def stock_order_history(db: AsyncSession, user_id: uuid.UUID, limit: int = 50) -> list[dict]:

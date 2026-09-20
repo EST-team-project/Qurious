@@ -285,9 +285,15 @@ async def place_order(
     db: AsyncSession = Depends(get_pg_session),
 ):
     uid = _uid(user["id"])
+    # 매매비용을 먼저 계산한다 — 현금 증감은 `가격 × 수량` 이 아니라 정산금액이다.
+    # 매수는 수수료·유관기관비가 더 나가고, 매도는 그것에 세금까지 빼고 들어온다.
+    cost = trading_cost.order_costs(
+        side=body.order_type, price=body.price, quantity=body.quantity,
+        when=trading_cost.today_kst(), market=trading_cost.market_of(body.symbol),
+    )
     # 가상 매매는 모의투자 계좌(PaperAccount)의 현금과 연동한다 — 매수 시 차감, 매도 시 가산.
     if body.broker == "virtual":
-        delta = -body.price * body.quantity if body.order_type == "buy" else body.price * body.quantity
+        delta = -cost.net_amount if body.order_type == "buy" else cost.net_amount
         try:
             await paper_trading.apply_cash(db, uid, delta)
         except paper_trading.PaperTradeError as exc:
@@ -296,6 +302,7 @@ async def place_order(
     db.add(Order(
         user_id=uid, symbol=body.symbol, name=body.name, order_type=body.order_type,
         quantity=body.quantity, price=body.price, status="filled", broker=body.broker, source="WEB",
+        **trading_cost.order_fields(cost, body.price, body.quantity),
     ))
     await _apply_portfolio(db, uid, body.symbol, body.name,
                            body.order_type, body.quantity, body.price)
@@ -303,8 +310,10 @@ async def place_order(
     await audit(user["id"], "", "order.manual", {
         "symbol": body.symbol, "order_type": body.order_type,
         "quantity": body.quantity, "price": body.price, "broker": body.broker,
+        "net_amount": cost.net_amount, "total_cost": cost.total_cost,
+        "cost_basis": cost.cost_basis,
     })
-    return {"ok": True, "status": "filled"}
+    return {"ok": True, "status": "filled", "cost": cost.as_dict()}
 
 
 @router.get("/orders")
@@ -731,20 +740,6 @@ async def quant_auto_status(user=Depends(get_current_user)):
     return {"running": status["running"], "logs": logs[-50:], "signals": signals[-20:]}
 
 
-def _market_of(symbol: str) -> str:
-    """종목코드 접미사로 시장을 가른다 — 매도세가 시장마다 다르기 때문이다.
-
-    코스피와 코스닥은 세목 구성이 달라도 합계가 같지만(농특세는 코스피만, 코스닥은
-    거래세가 그만큼 높다), 코넥스는 합계 자체가 0.10% 로 낮다.
-    """
-    s = (symbol or "").upper()
-    if s.endswith(".KQ"):
-        return "KOSDAQ"
-    if s.endswith(".KN"):
-        return "KONEX"
-    return "KOSPI"
-
-
 @router.get("/quant/pipeline")
 async def quant_pipeline_indicator_backtest(
     symbol: str = Query("005930.KS"),
@@ -777,7 +772,7 @@ async def quant_pipeline_indicator_backtest(
     try:
         cost = trading_cost.build(
             cost_model, slippage_bps=slippage_bps, cost_bps=cost_bps,
-            market=market or _market_of(symbol),
+            market=market or trading_cost.market_of(symbol),
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc))

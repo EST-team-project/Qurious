@@ -14,6 +14,7 @@ from app.models.base import SYSTEM_USER_ID
 from app.services import notification
 from app.services.audit import audit
 from app.services.brokers.factory import get_broker_client
+from app.services import trading_cost
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +71,24 @@ async def _execute_virtual_trade(
     cash_balance = account.cash_balance
     executed_quantity = quantity
 
+    market = trading_cost.market_of(symbol)
+    today = trading_cost.today_kst()
+
+    def _net(side: str, qty: int) -> float:
+        """정산금액. 매수는 나가는 현금, 매도는 들어오는 현금."""
+        return trading_cost.order_costs(
+            side=side, price=price, quantity=qty, when=today, market=market,
+        ).net_amount
+
     if action == "buy":
-        cost = price * quantity
+        cost = _net("buy", quantity)
         if cash_balance < cost:
-            max_qty = int(cash_balance // price) if price > 0 else 0
+            # 수수료까지 감당할 수 있는 수량을 구한다. 단가로만 나누면 수수료만큼
+            # 초과해 주문이 잔고를 넘긴다.
+            buy_rate = trading_cost.cost_rate("buy", today, slippage_bps=0.0, market=market)
+            max_qty = int(cash_balance // (price * (1 + buy_rate))) if price > 0 else 0
+            while max_qty > 0 and _net("buy", max_qty) > cash_balance:
+                max_qty -= 1
             if max_qty <= 0:
                 shortfall = cost - cash_balance
                 await db.commit()
@@ -104,9 +119,13 @@ async def _execute_virtual_trade(
             }
         executed_quantity = min(quantity, existing.quantity)
 
+    order_cost = trading_cost.order_costs(
+        side=action, price=price, quantity=executed_quantity, when=today, market=market,
+    )
     db.add(Order(
         user_id=user_id, symbol=symbol, name=name, order_type=action,
         quantity=executed_quantity, price=price, status="filled", broker="quant_ai", source="QUANT",
+        **trading_cost.order_fields(order_cost, price, executed_quantity),
     ))
 
     if action == "buy":
@@ -116,14 +135,14 @@ async def _execute_virtual_trade(
             existing.quantity = new_qty
         else:
             db.add(Portfolio(user_id=user_id, symbol=symbol, name=name, quantity=executed_quantity, avg_price=price))
-        cash_balance -= price * executed_quantity
+        cash_balance -= order_cost.net_amount
     elif action == "sell":
         new_qty = max(0, existing.quantity - executed_quantity)
         if new_qty == 0:
             await db.delete(existing)
         else:
             existing.quantity = new_qty
-        cash_balance += price * executed_quantity
+        cash_balance += order_cost.net_amount
 
     account.cash_balance = cash_balance
     await db.commit()
@@ -133,6 +152,7 @@ async def _execute_virtual_trade(
         "action": action, "quantity": executed_quantity, "price": price, "reason": reason,
         "status": "filled",
         "cash_balance": round(cash_balance, 2),
+        "cost": order_cost.as_dict(),
     }
 
 

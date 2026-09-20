@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.trading import (
     Portfolio,
     Order,
+    OrderFill,
     BrokerSettings,
     QuantVirtualAccount,
     CustomIndicator,
@@ -39,6 +40,7 @@ __all__ = [
     "User",
     "Portfolio",
     "Order",
+    "OrderFill",
     "BrokerSettings",
     "QuantVirtualAccount",
     "CustomIndicator",
