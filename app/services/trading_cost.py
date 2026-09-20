@@ -27,7 +27,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Protocol
 
 import numpy as np
@@ -92,6 +92,35 @@ _MARKET_COL = {"KOSPI": 1, "KOSDAQ": 2, "KONEX": 3}
 #: 호가단위가 만드는 구조적 하한이 반스프레드 2.5~12.5bp, 실증 추정치가 대형주 11.21bp ·
 #: 소형주 21.27bp 이므로 10bp 는 "대형주에 낙관적인 편"이다. 종목 규모로 바꿔 써야 한다.
 DEFAULT_SLIPPAGE_BPS = 10.0
+
+
+#: 한국 표준시. 세율 구간이 날짜로 갈리므로, UTC 로 판정하면 연말연시에 한 해가 어긋난다.
+KST = timezone(timedelta(hours=9))
+
+
+def today_kst() -> date:
+    """오늘 (KST). 세율·요율 조회의 기준일."""
+    return datetime.now(KST).date()
+
+
+def now_kst() -> datetime:
+    """지금 (KST). 체결시각으로 쓴다."""
+    return datetime.now(KST)
+
+
+def market_of(symbol: str) -> str:
+    """종목코드 접미사로 시장을 가른다 — 매도세가 시장마다 다르다.
+
+    코스피와 코스닥은 세목 구성이 달라도 합계가 같지만(농특세는 코스피만, 코스닥은
+    거래세가 그만큼 높다), 코넥스는 합계 자체가 0.10% 로 낮다.
+    접미사가 없으면 코스피로 본다 — 합계가 같으니 코스닥을 코스피로 봐도 값은 맞다.
+    """
+    s = (symbol or "").upper()
+    if s.endswith(".KQ"):
+        return "KOSDAQ"
+    if s.endswith(".KN"):
+        return "KONEX"
+    return "KOSPI"
 
 
 # ── 2. 요율 조회 ──────────────────────────────────────────────────────
@@ -261,6 +290,37 @@ def order_costs(
         side=s, gross_amount=gross, commission=commission, fee_clearing=clearing,
         tax_transfer=transfer, tax_rural=rural, net_amount=net, cost_basis=cost_basis,
     )
+
+
+def order_fields(
+    oc: OrderCost,
+    price: float,
+    quantity: int,
+    filled_at: datetime | None = None,
+    slippage_bps: float | None = None,
+) -> dict[str, Any]:
+    """`Order` 모델에 넣을 체결·비용 칸을 만든다.
+
+    주문 경로가 세 곳(직접매매 화면 · 자동매매 · 모의투자 화면)이라 같은 칸을 세 번
+    채워야 한다. 한 곳에서 만들어 세 곳이 어긋나지 않게 한다.
+
+    `price` 를 주문가이자 체결가로 본다 — 세 경로 모두 시장가/지정가 즉시 체결을
+    가정하고 있어 둘을 구분할 정보가 없다. 실제 체결가를 받아 오게 되면
+    `avg_fill_price` 만 따로 채운다.
+    """
+    return {
+        "order_price": float(price),
+        "avg_fill_price": float(price),
+        "filled_quantity": int(quantity),
+        "filled_at": filled_at or now_kst(),
+        "commission": oc.commission,
+        "tax_transfer": oc.tax_transfer,
+        "tax_rural": oc.tax_rural,
+        "fee_clearing": oc.fee_clearing,
+        "slippage_bps": slippage_bps,
+        "net_amount": oc.net_amount,
+        "cost_basis": oc.cost_basis,
+    }
 
 
 # ── 4. 백테스트용 비용 모델 ───────────────────────────────────────────
