@@ -214,16 +214,19 @@ async def issue_token(body: LoginBody):
 @router.post("/auth/token/refresh")
 async def refresh_token(body: TokenRefreshBody):
     """리프레시 토큰으로 새 액세스 토큰을 발급합니다."""
-    if await is_revoked(body.refresh_token):
-        raise HTTPException(401, "만료(폐기)된 리프레시 토큰입니다.")
-
+    # 서명을 먼저 검증해야 폐기 목록 키를 믿을 수 있다 (jwt_auth._bl_key 주석 참고).
     payload = decode_token(body.refresh_token)
     if payload.get("type") != "refresh":
         raise HTTPException(401, "리프레시 토큰이 아닙니다.")
+    if await is_revoked(body.refresh_token, payload):
+        raise HTTPException(401, "만료(폐기)된 리프레시 토큰입니다.")
 
-    # 기존 리프레시 토큰은 유지, 새 액세스 토큰만 발급
+    # 기존 리프레시 토큰은 유지, 새 액세스 토큰만 발급.
+    # ★ jti 를 빼고 넘긴다 — 남기면 리프레시의 jti 가 새 액세스에 복사되어,
+    #   액세스 하나를 폐기할 때 리프레시까지 함께 끊긴다.
+    _CARRY_OVER_EXCLUDE = ("type", "jti", "iat", "exp")
     from app.lib.jwt_auth import create_access_token
-    user_payload = {k: v for k, v in payload.items() if k not in ("type", "iat", "exp")}
+    user_payload = {k: v for k, v in payload.items() if k not in _CARRY_OVER_EXCLUDE}
     return {
         "access_token": create_access_token(user_payload),
         "token_type": "bearer",
@@ -232,14 +235,42 @@ async def refresh_token(body: TokenRefreshBody):
 
 
 @router.post("/auth/token/revoke")
-async def revoke_tokens(body: TokenRevokeBody):
-    """토큰을 블랙리스트에 등록합니다 (JWT 로그아웃)."""
-    await revoke_token(body.access_token)
-    if body.refresh_token:
-        payload = decode_token(body.refresh_token)
-        await mark_offline(payload.get("id", ""))
-        await revoke_token(body.refresh_token)
-    return {"ok": True}
+async def revoke_tokens(body: TokenRevokeBody, user=Depends(get_current_user_any)):
+    """내 토큰을 폐기 목록에 올립니다 (JWT 로그아웃).
+
+    예전에는 인증이 없어서, 유효한 토큰 문자열 하나만 있으면 **누구나** 부를 수 있었습니다.
+    폐기 목록 키가 전 사용자 공통이던 결함과 겹쳐, 호출 한 번으로 서비스 전체의 JWT 를
+    최대 7일간 막을 수 있었습니다.
+
+    이제 두 가지를 함께 요구합니다 (RFC 7009 §2.1 이 폐기 요청에 요구하는 바와 같습니다):
+
+    1. **호출자 인증** — Bearer 토큰이나 세션 쿠키로 자신을 밝혀야 합니다.
+    2. **소유 확인** — 제출한 토큰의 주인이 호출자 자신이어야 합니다.
+
+    액세스 토큰이 이미 만료된 채로 로그아웃하는 흐름을 살리려고, 제출된 토큰은
+    ``verify_exp=False`` 로 읽습니다. 서명은 그대로 검증하므로 위조는 통하지 않습니다.
+    """
+    caller_id = str(user.get("id") or user.get("sub") or "")
+    revoked = 0
+
+    def _assert_mine(payload: dict) -> None:
+        owner = str(payload.get("id") or payload.get("sub") or "")
+        if not owner or owner != caller_id:
+            # 남의 토큰인지 알려 주지 않으려고 존재 여부를 흐린다.
+            raise HTTPException(403, "내 토큰만 폐기할 수 있습니다.")
+
+    for token in (body.access_token, body.refresh_token):
+        if not token:
+            continue
+        # 폐기하기 **전에** 주인을 확인한다. revoke_token 이 다시 디코드하지만,
+        # 순서를 지키려면 여기서 한 번 읽는 편이 분명하다.
+        _assert_mine(decode_token(token, verify_exp=False))
+        await revoke_token(token)
+        revoked += 1
+
+    # 오프라인 표시는 **호출자 자신**에게만 한다 (예전에는 본문 토큰의 id 를 썼다).
+    await mark_offline(caller_id)
+    return {"ok": True, "revoked": revoked}
 
 
 # ── 공용 엔드포인트 ────────────────────────────────────────────────────────────

@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://lumina:lumina@localhost:5432/lumina"
 
     # ── JWT ──────────────────────────────────────────────────────────────────
+    # ⚠️ 아래 기본값은 공개 저장소에 그대로 들어 있습니다. 그 값으로 서명하면 누구나
+    #    토큰을 위조할 수 있어, 기본값이면 토큰 발급·검증이 막힙니다.
+    #    (app/lib/jwt_auth.py 의 _require_real_secret)
     JWT_SECRET: str = "change-me-jwt-secret-32chars-min!!"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TTL: int = 900       # 15분 (초)
     JWT_REFRESH_TTL: int = 604800   # 7일 (초)
+    # 로컬 실험용 탈출구. 운영에서는 절대 켜지 않습니다.
+    JWT_ALLOW_INSECURE_SECRET: bool = False
 
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     LLM_MODEL: str = "llama3.1"
