@@ -54,3 +54,10 @@ Thumbs.db
 # KIS 접근토큰 캐시 (발급 간격 제한이 있어 재사용한다 — 절대 커밋 금지)
 .kis_token_mock.json
 .kis_token_real.json
+
+# 강사님 배포 양식·교재 (교재·강의자료 커밋 금지 규칙 — 우리 계획서는 Markdown 으로 따로 쓴다)
+docs/계획서/*.docx
+docs/계획서/*.doc
+docs/계획서/*.hwp
+docs/계획서/*.pptx
+docs/계획서/*.pdf
