@@ -8,8 +8,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from typing import Any
+
 from app.services.quant_pipeline import preprocess
 from app.services import ta_utils as ta
+from app.services import trading_cost as tcost
 
 
 def indicators(candles: list[dict]) -> pd.DataFrame:
@@ -47,8 +50,20 @@ def _position(df: pd.DataFrame, strategy: str) -> pd.Series:
     return state.ffill().fillna(0.0)
 
 
-def backtest_strategy(candles: list[dict], strategy: str = "composite", cost_bps: float = 10.0) -> dict:
-    """롱온리 일봉 백테스트. 매매비용은 포지션 변동 시 차감한다."""
+def backtest_strategy(
+    candles: list[dict],
+    strategy: str = "composite",
+    cost_bps: float = 10.0,
+    cost: Any | None = None,
+) -> dict:
+    """롱온리 일봉 백테스트. 매매비용은 포지션 변동 시 차감한다.
+
+    cost: 매매비용 모델(`app.services.trading_cost`). 주면 이것을 쓴다.
+          None 이면(= 인자를 생략하면) 예전 동작 그대로 `cost_bps` 를 왕복 대칭으로
+          뗀다 — 국내주식 실제 비용은 대칭이 아니므로(매도에만 세금) 그것은 근사다.
+          **무비용을 원하면 `trading_cost.NoCostModel()` 을 넘긴다.** None 으로는
+          무비용을 고를 수 없다(그러면 인자 생략과 구분되지 않는다).
+    """
     df = indicators(candles).dropna()
     if len(df) < 60:
         return {"error": f"데이터 부족: {len(df)}행 (최소 60 필요)"}
@@ -56,19 +71,28 @@ def backtest_strategy(candles: list[dict], strategy: str = "composite", cost_bps
     returns = df["close"].pct_change().fillna(0.0)
     # t일 장 마감 신호는 t+1일 수익률에만 적용
     held = position.shift(1).fillna(0.0)
-    turnover = held.diff().abs().fillna(held.abs())
-    net = returns * held - turnover * (max(0.0, float(cost_bps)) / 10_000)
+    if cost is None:
+        cost = tcost.FlatCostModel(cost_bps=cost_bps)
+    buy_turn, sell_turn = tcost.position_delta(held)
+    gross = returns * held
+    # 비용은 방향별로 뗀다 — 매수와 매도의 요율이 다르다
+    net = gross - cost.turnover_cost(held)
     equity = (1 + net).cumprod()
-    benchmark = (1 + returns).cumprod()
+    # 벤치마크(매수후보유)에도 같은 잣대를 댄다: 첫날 매수 1회 + 마지막날 매도 1회
+    benchmark = (1 + (returns - cost.buy_hold_cost(returns.index))).cumprod()
+    gross_equity = (1 + gross).cumprod()
     drawdown = equity / equity.cummax() - 1
     active = net[held > 0]
-    trade_count = int((turnover > 0).sum())
+    trade_count = int(((buy_turn + sell_turn) > 0).sum())
     latest = df.iloc[-1]
     action = "BUY" if bool(position.iloc[-1]) and not bool(position.iloc[-2]) else "SELL" if not bool(position.iloc[-1]) and bool(position.iloc[-2]) else "HOLD"
     return {
         "strategy": strategy,
         "cost_bps": float(cost_bps),
+        "cost": tcost.describe(cost),
         "total_return_pct": round((equity.iloc[-1] - 1) * 100, 2),
+        "gross_return_pct": round((gross_equity.iloc[-1] - 1) * 100, 2),
+        "cost_drag_pct": round((gross_equity.iloc[-1] - equity.iloc[-1]) * 100, 2),
         "buy_hold_return_pct": round((benchmark.iloc[-1] - 1) * 100, 2),
         "sharpe_ratio": round(ta.sharpe_ratio(net), 3),
         "mdd_pct": round(ta.max_drawdown(equity) * 100, 2),

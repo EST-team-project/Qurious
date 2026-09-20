@@ -2000,6 +2000,7 @@
         <div id="ci-backtest-result" class="hidden card">
           <h3 class="font-semibold mb-3 text-sm">📊 백테스트 결과</h3>
           <div id="ci-bt-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3"></div>
+          <p id="ci-bt-cost" class="text-xs" style="color:var(--text-mute);"></p>
         </div>
       </div>
     </div>
@@ -2770,7 +2771,8 @@ const TERMS = {
   sharpe:           { title: "샤프지수", body: "전략 수익률을 수익률 변동성으로 나눈 뒤 연환산한, 위험 대비 수익을 나타내는 대표 성과지표입니다. 값이 높을수록 같은 위험에서 더 많은 수익을 낸 것입니다." },
   mdd:              { title: "MDD (최대낙폭)", body: "전략 운용 기간 중 고점 대비 최대로 떨어진 비율입니다. 손실을 얼마나 견뎌야 하는지 보여주는 리스크 지표로, 절댓값이 작을수록 안전합니다." },
   win_rate:         { title: "승률", body: "보유 기간(또는 거래) 중 수익이 난 비율입니다. 승률이 높아도 손익비가 나쁘면 전체 수익은 마이너스일 수 있습니다." },
-  cost_bps:         { title: "매매비용 (bps)", body: "1bp = 0.01%. 매수·매도 시 발생하는 수수료·슬리피지를 반영한 값으로, 실전에서는 반드시 차감해야 현실적인 수익률이 나옵니다." },
+  cost_bps:         { title: "매매비용 (bps)", body: "1bp = 0.01%. 국내주식 비용은 매수와 매도가 대칭이 아닙니다 — 위탁수수료(0.0140527%)와 유관기관 제비용(0.0036396%)은 양쪽에 붙지만, 증권거래세+농어촌특별세는 매도에만 붙고 세율이 해마다 바뀝니다(2024년 0.18% · 2025년 0.15% · 2026년 0.20%). 실전에서는 반드시 차감해야 현실적인 수익률이 나옵니다." },
+  slippage:         { title: "슬리피지", body: "주문을 낸 가격과 실제 체결된 가격의 차이입니다. 호가 데이터가 없으면 직접 측정할 수 없어 가정값(편도 10bp)을 씁니다. 실증 추정치는 대형주 약 11bp · 소형주 약 21bp로, 소형주는 이 화면 값보다 비용이 더 큽니다." },
   lightgbm:         { title: "LightGBM", body: "여러 개의 약한 결정트리를 순차적으로 결합하는 그래디언트 부스팅 알고리즘입니다. 이 앱에서는 며칠 뒤 방향성(매수/관망/매도)을 3-class로 분류하는 데 사용합니다." },
   mlp:              { title: "MLP (다층 퍼셉트론)", body: "입력층-은닉층(64→32)-출력층으로 구성된 기본적인 신경망 구조입니다. scikit-learn의 MLPClassifier로 경량 딥러닝을 구현했습니다." },
   kmeans:           { title: "KMeans 군집화", body: "유사한 특징(수익률·변동성 패턴)을 가진 종목끼리 K개의 그룹으로 자동 분류하는 비지도학습 알고리즘입니다." },
@@ -2846,7 +2848,7 @@ const VIEW_GUIDES = {
   "us-portfolio":    { summary: "미국 주식 모의 계좌의 잔고와 평가손익을 확인합니다.", steps: ["계좌 요약과 보유 종목별 평가손익을 확인하세요."], relatedTerms: ["virtual_account"] },
   "indicator-strategy": { summary: "MA·RSI 등 기본 인디케이터로 매매 전략을 직접 설계하고 신호를 확인합니다.", steps: ["종목·기간을 선택하고 사용할 인디케이터를 체크하세요.", "'분석 실행'으로 지표값과 매수/매도 판단 근거를 확인하세요."], relatedTerms: ["rsi", "ma", "macd", "bollinger", "golden_cross", "dead_cross"] },
   "indicator-custom": { summary: "나만의 파라미터로 커스텀 인디케이터를 만들고 PineScript/Python 코드를 생성합니다.", steps: ["기준 조합(RSI+MA, MACD+BB 등)과 기간·임계값을 조정하세요.", "생성된 PineScript는 트레이딩뷰에, Python 코드는 직접 백테스트에 활용할 수 있습니다.", "'백테스트 실행'으로 이 앱에서 바로 성과를 검증할 수 있습니다.", "마음에 드는 조합은 '저장'해두면 다음에 목록에서 바로 불러올 수 있습니다."], relatedTerms: ["custom_indicator", "pine_script", "backtest"] },
-  "indicator-backtest": { summary: "설계한 전략(기본/커스텀)의 파이썬 기반 성과를 검증합니다.", steps: ["종목과 전략을 선택하면 자동으로 백테스트가 실행됩니다.", "수익률·샤프지수·MDD·승률로 전략의 위험 대비 성과를 판단하세요.", "'비교에 추가'로 여러 전략의 성과를 나란히 비교할 수 있습니다."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate", "cost_bps"] },
+  "indicator-backtest": { summary: "설계한 전략(기본/커스텀)의 파이썬 기반 성과를 검증합니다.", steps: ["종목과 전략을 선택하면 자동으로 백테스트가 실행됩니다.", "수익률·샤프지수·MDD·승률로 전략의 위험 대비 성과를 판단하세요.", "'비교에 추가'로 여러 전략의 성과를 나란히 비교할 수 있습니다."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate", "cost_bps", "slippage"] },
   "indicator-api":   { summary: "완성한 인디케이터 전략을 증권사 API와 연결해 자동화하는 방법을 안내합니다.", steps: ["3단계 아키텍처(신호 계산→주문 생성→증권사 API 전송)를 확인하세요.", "하단에서 증권사 키를 등록하고 연결을 테스트하세요."], relatedTerms: ["broker_api", "custom_indicator"] },
   "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "개요/밸류에이션/수익성 탭과 분기·재무상태표 데이터를 확인하세요."], relatedTerms: ["dcf", "fcf"] },
   "company-compare": { summary: "여러 기업의 핵심 지표를 표로 나란히 비교합니다.", steps: ["비교 표에서 기업별 지표 값을 확인하며 상대적 위치를 파악하세요."], relatedTerms: ["dcf", "eva"] },
@@ -3408,7 +3410,7 @@ document.getElementById("ci-test-btn").addEventListener("click", async () => {
   const buyTh = parseFloat(document.getElementById("ci-buy-th").value || "35");
   const symbol = document.getElementById("ibt-symbol")?.value || "005930.KS";
   try {
-    const r = await api(`/api/quant/pipeline?symbol=${encodeURIComponent(symbol)}&period=10y&base=${encodeURIComponent(base)}&short=${short}&mid=${mid}&rsi=${rsi}&buy_th=${buyTh}`);
+    const r = await api(`/api/quant/pipeline?symbol=${encodeURIComponent(symbol)}&period=10y&base=${encodeURIComponent(base)}&short=${short}&mid=${mid}&rsi=${rsi}&buy_th=${buyTh}&cost_model=real&slippage_bps=10`);
     const data = [
       { label:"누적 수익률", value: `${(r.return_total*100 >= 0 ? "+" : "")}${(r.return_total*100).toFixed(1)}%`, color:"var(--green)" },
       { label:tt("샤프 비율","위험 대비 수익 지표. 높을수록 좋음","sharpe"),   value: Number(r.sharpe || 0).toFixed(2), color:"var(--accent)" },
@@ -3420,6 +3422,14 @@ document.getElementById("ci-test-btn").addEventListener("click", async () => {
         <div class="text-xs mb-1" style="color:var(--text-mute);">${d.label}</div>
         <div style="font-size:18px;font-weight:700;color:${d.color};">${d.value}</div>
       </div>`).join("");
+    const ciCost = document.getElementById("ci-bt-cost");
+    if (ciCost) {
+      const drag = Number(r.cost_drag_pct ?? 0);
+      const gross = Number(r.return_gross ?? 0) * 100;
+      ciCost.textContent = r.cost
+        ? `매매비용: ${r.cost.label} — 비용 전 ${gross.toFixed(1)}% 에서 ${drag.toFixed(1)}%p 를 뺀 값입니다. 신호는 다음 거래일 수익률에 적용됩니다.`
+        : "";
+    }
     document.getElementById("ci-backtest-result").classList.remove("hidden");
     setToast(`${name} 백테스트 완료 (${symbol})`, "ok");
   } catch (e) {
@@ -3507,7 +3517,7 @@ async function loadIndicatorBacktest() {
   const strategy = document.getElementById("ibt-strategy")?.value;
   if (!sym) return;
   try {
-    const data = await api(`/api/quant/pipeline?symbol=${encodeURIComponent(sym)}&period=10y&strategy=${encodeURIComponent(strategy)}&cost_bps=10`);
+    const data = await api(`/api/quant/pipeline?symbol=${encodeURIComponent(sym)}&period=10y&strategy=${encodeURIComponent(strategy)}&cost_model=real&slippage_bps=10`);
     renderIndicatorBacktest(data);
   } catch {}
 }
@@ -3530,7 +3540,7 @@ function renderIndicatorBacktest(data) {
       <h3 class="font-semibold mb-2 text-sm">📊 Python 백테스트 상세</h3>
       <table><thead><tr><th>비교 대상</th><th style="text-align:right;">누적 수익률</th><th style="text-align:right;">거래 횟수</th><th style="text-align:right;">${tt("승률","수익이 난 거래의 비율","win_rate")}</th></tr></thead>
       <tbody><tr><td>${strategyLabel}</td><td style="text-align:right;color:${Number(data.total_return_pct)>=0?"var(--green)":"var(--red)"};">${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(2)}%</td><td style="text-align:right;">${data.trade_count}회</td><td style="text-align:right;">${Number(data.win_rate_pct).toFixed(1)}%</td></tr><tr><td>매수 후 보유</td><td style="text-align:right;">${Number(data.buy_hold_return_pct).toFixed(2)}%</td><td style="text-align:right;">-</td><td style="text-align:right;">-</td></tr></tbody></table>
-      <p class="text-xs mt-2" style="color:var(--text-mute);">매매비용 왕복 기준 10bp를 반영했으며, 신호는 다음 거래일 수익률에 적용됩니다.</p>
+      <p class="text-xs mt-2" style="color:var(--text-mute);">매매비용: ${data.cost ? data.cost.label : "미반영"} — 비용 전 ${Number(data.gross_return_pct ?? 0).toFixed(2)}% 에서 ${Number(data.cost_drag_pct ?? 0).toFixed(2)}%p 를 뺀 값입니다. 매수 후 보유에도 같은 잣대(첫날 매수·마지막날 매도)를 적용했습니다. 신호는 다음 거래일 수익률에 적용됩니다.</p>
       <button type="button" class="btn-secondary text-xs mt-2" onclick='compareTrayAdd(${JSON.stringify({
         source: "성과 검증 (Python)", label: `${strategyLabel}`,
         summary: `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`,

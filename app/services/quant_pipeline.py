@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Any
 
 from app.services import ta_utils as ta
+from app.services import trading_cost as tcost
 
 try:
     import lightgbm as lgb
@@ -228,34 +229,50 @@ def rule_based_signals(df: pd.DataFrame) -> pd.Series:
 
 # ── 6. 백테스트 ───────────────────────────────────────────────────────
 
-def backtest(df: pd.DataFrame, signals: pd.Series) -> dict:
+def backtest(df: pd.DataFrame, signals: pd.Series, cost: Any | None = None) -> dict:
     """
     벡터화 백테스트: 롱 전략 (signal=+1 보유, 그 외 현금).
 
-    Returns: 수익률, 샤프지수, MDD, 승률, 누적수익 시계열
+    cost: 매매비용 모델 (`app.services.trading_cost`). None 이면 비용을 떼지 않는다 —
+          그 경우 응답의 `cost.model` 이 "none" 으로 나가므로 무비용임을 숨길 수 없다.
+          비용을 넣으면 전략과 매수후보유 **양쪽**에서 뗀다 (같은 잣대로 비교).
+
+    Returns: 수익률, 샤프지수, MDD, 승률, 누적수익 시계열, 비용 내역
     """
     ret = df["close"].pct_change().fillna(0)
     # 전날 시그널로 오늘 포지션 (룩어헤드 방지)
     pos = signals.shift(1).fillna(0).reindex(ret.index, fill_value=0)
 
-    strat_ret = ret * (pos == 1).astype(float)
+    held      = (pos == 1).astype(float)
+    gross_ret = ret * held          # 비용 이전 (얼마나 깎였는지 보이려고 남긴다)
+    strat_ret = gross_ret
     bh_ret    = ret
+
+    if cost is not None:
+        # 전략: 포지션이 바뀌는 날에만 방향별(매수/매도) 비용을 뗀다.
+        strat_ret = strat_ret - cost.turnover_cost(held)
+        # 매수후보유: 첫날 매수 1회 + 마지막날 매도 1회.
+        bh_ret    = bh_ret - cost.buy_hold_cost(ret.index)
 
     cum_strat = (1 + strat_ret).cumprod()
     cum_bh    = (1 + bh_ret).cumprod()
+    cum_gross = (1 + gross_ret).cumprod()
 
     total_strat = float(cum_strat.iloc[-1] - 1) * 100
     total_bh    = float(cum_bh.iloc[-1] - 1)    * 100
+    total_gross = float(cum_gross.iloc[-1] - 1) * 100
 
     sharpe = ta.sharpe_ratio(strat_ret)
     mdd    = ta.max_drawdown(cum_strat) * 100
 
-    # 승률 (보유 구간만)
+    # 승률 (보유 구간만) — 비용을 뗀 뒤의 수익률로 센다
     held_rets = strat_ret[pos == 1]
     win_rate  = float((held_rets > 0).sum() / max(len(held_rets), 1)) * 100
 
-    # 매매 횟수 (포지션 변화)
-    trade_count = int((pos.diff().abs() > 0).sum())
+    # 매매 횟수 — 비용을 세는 기준(held)과 같게 맞춘다.
+    # 예전에는 pos 를 썼는데, signals 가 -1 을 내는 전략에서는 0→-1 처럼
+    # 실제 매매가 없는 변화까지 세어 비용 차감 횟수와 어긋났다.
+    trade_count = int((held.diff().abs().fillna(held.abs()) > 0).sum())
 
     # 최근 252 거래일 시계열
     idx = df.index[-252:]
@@ -273,6 +290,11 @@ def backtest(df: pd.DataFrame, signals: pd.Series) -> dict:
         "times":                times,
         "cum_returns":          cum_series,
         "bh_returns":           bh_series,
+        # 비용을 떼기 전 수익률과 그 차이를 함께 돌려준다 — 비용이 얼마나 깎았는지
+        # 응답만 보고 알 수 있어야, 화면이 "반영했다"고만 적고 넘어가지 못한다.
+        "gross_return_pct":     round(total_gross, 2),
+        "cost_drag_pct":        round(total_gross - total_strat, 2),
+        "cost":                 tcost.describe(cost),
     }
 
 
@@ -339,11 +361,13 @@ async def run_pipeline(
     symbol: str,
     candles: list[dict],
     model_type: str = "lgb",
+    cost: Any | None = None,
 ) -> dict:
     """
     OHLCV → 전처리 → 피처 → ML/DL 학습 → 시그널 → 백테스트 순서로 실행.
 
     model_type: 'lgb' | 'mlp' | 'rule'
+    cost: 매매비용 모델. ML 이 낸 시그널도 매매이므로 같은 비용을 뗀다.
     """
     if len(candles) < 80:
         return {"symbol": symbol, "error": f"데이터 부족: {len(candles)}개 (최소 80개 필요)"}
@@ -373,7 +397,7 @@ async def run_pipeline(
         metrics = {"note": "ML 라이브러리 미설치 — 규칙 기반 대체"}
 
     # 4) 백테스트
-    bt = backtest(df, signals)
+    bt = backtest(df, signals, cost=cost)
 
     # 5) 최신 시그널 + Alpaca 주문 (mockup)
     latest_signal  = int(signals.iloc[-1])
@@ -407,10 +431,13 @@ def backtest_custom_indicator(
     mid_window: int = 20,
     rsi_period: int = 14,
     buy_threshold: float = 35.0,
+    cost: Any | None = None,
 ) -> dict:
     """사용자 지정 인디케이터 전략 백테스트.
 
     base: rsi_ma | macd_bb | volume_rsi | triple_ma
+    cost: 매매비용 모델. 예전에는 이 경로에 비용을 넣을 방법이 아예 없어서,
+          같은 API 를 쓰는 두 화면이 서로 다른 비용 가정으로 답하고 있었다.
     """
     if len(candles) < 80:
         return {"error": f"데이터 부족: {len(candles)}개 (최소 80개 필요)"}
@@ -453,7 +480,7 @@ def backtest_custom_indicator(
     regime.loc[sell_cond] = 0.0
     position = regime.ffill().fillna(0.0).rename("ml_signal")
 
-    bt = backtest(df, position)
+    bt = backtest(df, position, cost=cost)
     return {
         "strategy": {
             "name": f"custom_{base}",
@@ -473,4 +500,7 @@ def backtest_custom_indicator(
         "times": bt["times"],
         "cum_returns": bt["cum_returns"],
         "bh_returns": bt["bh_returns"],
+        "return_gross": round(bt["gross_return_pct"] / 100.0, 4),
+        "cost_drag_pct": bt["cost_drag_pct"],
+        "cost": bt["cost"],
     }
