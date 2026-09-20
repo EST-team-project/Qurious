@@ -55,9 +55,12 @@ Thumbs.db
 .kis_token_mock.json
 .kis_token_real.json
 
-# 강사님 배포 양식·교재 (교재·강의자료 커밋 금지 규칙 — 우리 계획서는 Markdown 으로 따로 쓴다)
+# 강사님 배포 양식·교재 (교재·강의자료 커밋 금지 규칙)
+# 우리가 만든 계획서는 아래 예외로 통과시킨다 — 정본은 .md 이고 .docx 는
+# scripts/build_plan_docx.py 가 만드는 제출본이다.
 docs/계획서/*.docx
 docs/계획서/*.doc
 docs/계획서/*.hwp
 docs/계획서/*.pptx
 docs/계획서/*.pdf
+!docs/계획서/프로젝트계획서_v*.docx
