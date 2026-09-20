@@ -80,6 +80,7 @@ docs/TIL/<작성자>/YYYY-MM-DD-짧은-제목.md
 | 2026-09-20 | [비용 가정이 화면마다 달랐다 — 매매비용을 한 요율표로 모은 날](이동원/2026-09-20-비용-가정이-화면마다-달랐다.md) | [#41](https://github.com/devlee328288/Qurious/pull/41) · [#42](https://github.com/devlee328288/Qurious/pull/42) · [#43](https://github.com/devlee328288/Qurious/pull/43) · [#44](https://github.com/devlee328288/Qurious/pull/44) |
 | 2026-09-20 | [성공으로 보이던 거부 — 증권사 체결을 들여오며](이동원/2026-09-20-성공으로-보이던-거부.md) | [#45](https://github.com/devlee328288/Qurious/pull/45) |
 | 2026-09-20 | [하나를 고치면 다음 하나가 모양을 바꿔 되살아난다 — JWT 폐기 이름표](이동원/2026-09-20-하나를-고치면-다음-하나가-모양을-바꾼다.md) | [#47](https://github.com/devlee328288/Qurious/pull/47) |
+| 2026-09-20 | [계획서의 빈칸이 곧 계획이다 — 양식 9칸을 실측으로 채운 날](이동원/2026-09-20-계획서의-빈칸이-계획이다.md) | [#50](https://github.com/devlee328288/Qurious/pull/50) |
 
 ### 오준영/ · 신장환/ · 강민석/
 
