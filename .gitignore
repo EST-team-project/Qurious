@@ -51,3 +51,6 @@ Thumbs.db
 *.pem
 
 *.key
+# KIS 접근토큰 캐시 (발급 간격 제한이 있어 재사용한다 — 절대 커밋 금지)
+.kis_token_mock.json
+.kis_token_real.json

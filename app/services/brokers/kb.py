@@ -11,7 +11,7 @@ KB증권 Open API 클라이언트
 """
 import httpx
 from datetime import datetime, timezone
-from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem
+from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo
 
 KB_API_BASE_URL = "https://developer.kbsec.com:32484"
 
@@ -78,3 +78,9 @@ class KBClient(BrokerClient):
     async def get_daily_ohlcv(self, symbol: str, start: str, end: str) -> list[dict]:
         await self._ensure_token()
         self._not_ready("일봉 시세 조회")
+
+    async def get_daily_fills(
+        self, account_no: str, start: str, end: str, symbol: str | None = None
+    ) -> list[FillInfo]:
+        await self._ensure_token()
+        self._not_ready("주문체결 내역 조회")

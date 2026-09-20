@@ -4,7 +4,7 @@
 """
 import random
 from datetime import date, timedelta
-from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem
+from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo
 
 _NAMES = {
     "005930": "삼성전자",
@@ -86,3 +86,14 @@ class MockBrokerClient(BrokerClient):
                 price = close
             d += timedelta(days=1)
         return rows
+
+    async def get_daily_fills(
+        self, account_no: str, start: str, end: str, symbol: str | None = None
+    ) -> list[FillInfo]:
+        # 모의 클라이언트는 주문을 만들어 내기만 하고 어디에도 보관하지 않는다.
+        # 빈 리스트를 돌려주면 "체결이 없었다" 로 읽혀 비용 검증이 통과한 것처럼
+        # 보이므로, 조회할 수 없다는 사실을 그대로 드러낸다.
+        raise NotImplementedError(
+            "모의 브로커는 체결 내역을 보관하지 않습니다. "
+            "실제 체결 대조는 KIS 모의투자 계좌(KIS_MOCK_*)로 하세요."
+        )
