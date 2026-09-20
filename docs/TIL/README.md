@@ -73,7 +73,13 @@ docs/TIL/<작성자>/YYYY-MM-DD-짧은-제목.md
 
 | 날짜 | 제목 | PR |
 |---|---|---|
-| 2026-09-15 | [사본은 원본을 따라가지 않는다 — 강사님 최신본 반영과 AWS 걷어내기](이동원/2026-09-15-사본은-원본을-따라가지-않는다.md) | `chore/lumina-latest-without-aws` |
+| 2026-09-15 | [사본은 원본을 따라가지 않는다 — 강사님 최신본 반영과 AWS 걷어내기](이동원/2026-09-15-사본은-원본을-따라가지-않는다.md) | [#2](https://github.com/devlee328288/Qurious/pull/2) |
+| 2026-09-19 | [데이터가 알려 주는 조정계수 — 시세 수집기를 세우며 배운 것](이동원/2026-09-19-데이터가-알려주는-조정계수.md) | [#34](https://github.com/devlee328288/Qurious/pull/34) |
+| 2026-09-19 | [우연히 맞는 규칙이 가장 위험하다 — 배당 하나를 제대로 모으기까지](이동원/2026-09-19-우연히-맞는-규칙이-가장-위험하다.md) | [#35](https://github.com/devlee328288/Qurious/pull/35) · [#36](https://github.com/devlee328288/Qurious/pull/36) · [#37](https://github.com/devlee328288/Qurious/pull/37) |
+| 2026-09-19 | [모아 둔 배당 9,188건이 드디어 쓰인다 — 검산이 남의 배당을 잡았다](이동원/2026-09-19-모아-둔-배당이-드디어-쓰인다.md) | [#39](https://github.com/devlee328288/Qurious/pull/39) |
+| 2026-09-20 | [비용 가정이 화면마다 달랐다 — 매매비용을 한 요율표로 모은 날](이동원/2026-09-20-비용-가정이-화면마다-달랐다.md) | [#41](https://github.com/devlee328288/Qurious/pull/41) · [#42](https://github.com/devlee328288/Qurious/pull/42) · [#43](https://github.com/devlee328288/Qurious/pull/43) · [#44](https://github.com/devlee328288/Qurious/pull/44) |
+| 2026-09-20 | [성공으로 보이던 거부 — 증권사 체결을 들여오며](이동원/2026-09-20-성공으로-보이던-거부.md) | [#45](https://github.com/devlee328288/Qurious/pull/45) |
+| 2026-09-20 | [하나를 고치면 다음 하나가 모양을 바꿔 되살아난다 — JWT 폐기 이름표](이동원/2026-09-20-하나를-고치면-다음-하나가-모양을-바꾼다.md) | [#47](https://github.com/devlee328288/Qurious/pull/47) |
 
 ### 오준영/ · 신장환/ · 강민석/
 
