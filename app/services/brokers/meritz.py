@@ -29,3 +29,6 @@ class MeritzClient(BrokerClient):
     async def get_daily_ohlcv(self, symbol: str, start: str, end: str):
         self._raise_not_ready()
 
+    async def get_daily_fills(self, account_no: str, start: str, end: str, symbol: str | None = None):
+        self._raise_not_ready()
+

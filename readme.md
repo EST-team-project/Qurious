@@ -223,7 +223,8 @@ flowchart TD
 나가므로, 무비용 수치가 아무 표시 없이 화면에 나가지 않는다.
 
 `cost_basis` 는 그 비용이 어디서 왔는지다 — `none`(안 뗌) · `estimated`(요율표로 계산) ·
-`broker`(증권사가 준 실제 금액). 지금 나오는 값은 모두 `estimated` 다.
+`broker`(증권사가 준 실제 금액). 백테스트와 화면이 만드는 값은 모두 `estimated` 이고,
+`broker` 는 증권사 체결을 들여왔을 때만 붙는다 (아래 「증권사 체결 들여오기」).
 
 ### 주문 쪽 — 현금은 `net_amount` 로 움직인다
 
@@ -243,12 +244,66 @@ flowchart TD
 "평균단가"가 체결가와 달라져 읽는 사람이 혼동한다 — 비용은 주문 행에 남고, 현금이
 그만큼 덜 남으므로 총자산에는 이미 반영된다.
 
+### 증권사 체결 들여오기 (`app/services/fill_sync.py`)
+
+실전 주문 경로(직접매매 화면의 증권사 주문 · 자동매매)는 **증권사에 주문만 내고 DB 에는
+아무것도 남기지 않는다.** 그래서 실제 체결은 우리 쪽에 기록이 없다. 체결 조회가 그
+구멍을 메운다.
+
+```
+BrokerClient.get_daily_fills(계좌, 시작일, 종료일) → list[FillInfo]
+        │
+        └─ fill_sync.sync_daily_fills() ─→ orders (증권사 주문번호로 갱신)
+                                        └─ order_fills (근거)
+```
+
+KIS 는 주식일별주문체결조회에서 **추정제비용합계(`prsm_tlex_smtl`)** 를 함께 준다.
+우리 요율표로 계산한 값과 이것을 맞대어 보고, **합계가 맞을 때만** `cost_basis="broker"`
+를 붙인다. 어긋나면 `estimated` 로 두고 차액을 `mismatched` 에 담아 돌려준다 — 틀린
+값을 "증권사가 준 값" 이라 부르면 검증이 무의미해진다.
+
+| 상황 | `cost_basis` | `net_amount` |
+|---|---|---|
+| 증권사 합계 = 우리 추정 (±1원) | `broker` | 증권사 합계 기준 |
+| 어긋남 | `estimated` | 우리 추정 기준 + 차액 보고 |
+| 증권사가 제비용을 안 줌 | `estimated` | 우리 추정 기준 |
+
+어긋났을 때 증권사 합계를 `net_amount` 에 쓰지 않는 이유는, 그러면 `net = 체결금액 ±
+세목합` 이라는 불변식이 깨져 **어느 세목이 틀렸는지 알 수 없게** 되기 때문이다.
+
+**TR 이 기간으로 갈린다.** 같은 URL 인데 최근 3개월과 그 이전이 서로 다른 TR 이다
+(`TTTC0081R` / `CTSC9215R`, 모의는 `V` 접두사). 한쪽만 알면 과거 체결을 못 본다.
+
+구현하지 않은 증권사는 `NotImplementedError` 를 던진다. 빈 리스트를 돌려주면 "체결이
+없다" 와 "조회할 수 없다" 가 구분되지 않아 비용 검증이 조용히 건너뛰어진다.
+
+#### KIS 응답을 다룰 때 조심할 것
+
+- 🔴 **KIS 는 실패해도 HTTP 200 을 준다.** 성공 여부는 본문 `rt_cd` 에 있다
+  (`0` 이 성공). `raise_for_status()` 만 보면 거부된 주문이 성공으로 올라간다 —
+  2026-09-20(일) 모의계좌 주문이 `모의투자 영업일이 아닙니다`(`rt_cd=1`) 로 거부됐는데
+  화면에는 `{"ok": true}` 가 뜨고 "주문 완료" 알림까지 나갔다. 지금은 모든 호출이
+  `KISClient._check()` 를 지난다.
+- 🔴 **계좌번호는 8자리 + 상품코드 2자리다.** `.env` 에 8자리만 있으면 `ACNT_PRDT_CD`
+  가 빈 칸으로 나가고 **잔고 조회가 HTTP 500** 으로 떨어진다. `_split_account()` 가
+  8자리일 때 `01`(종합위탁)을 채운다.
+- 🟡 체결시각을 주지 않는다. `ord_tmd` 는 **주문시각**이라 지정가가 나중에 체결되면
+  둘이 다르다. 지금은 이 값을 체결시각 자리에 쓴다.
+- 🟡 일별주문체결조회는 **주문 단위 집계**(총체결수량·체결평균가)를 준다. 개별
+  부분체결 한 건씩이 아니다 — 그래서 `order_fills` 에는 집계 행 하나(`seq=1`)만 남고,
+  `broker_exec_id` 가 비어 있는 것이 그 표시다.
+
 ### 검증
 
 ```bash
 PYTHONPATH=. python scripts/verify_trading_cost.py            # 요율표·방향·경계
 PYTHONPATH=. python scripts/verify_trading_cost.py --repro     # 실데이터 재현 (수집기 DB 필요)
+PYTHONPATH=. python scripts/verify_fill_sync.py               # 체결 동기화 (임시 Postgres 필요)
+PYTHONPATH=. python scripts/sync_fills.py --days 90           # KIS 모의계좌 실조회·비용 대조
 ```
+
+`sync_fills.py` 는 기본이 **모의계좌**(`KIS_MOCK_*`)다. 실계좌(`--real`)는 승인 없이
+쓰지 않는다.
 
 ---
 

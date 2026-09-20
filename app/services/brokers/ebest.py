@@ -5,7 +5,7 @@ LS증권 eBest Open API 클라이언트
 실전투자: base_url = https://openapi.ebestsec.co.kr/
 """
 import httpx
-from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem
+from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo
 
 BASE_URL = "https://openapi.ebestsec.co.kr"
 
@@ -178,3 +178,12 @@ class EBestClient(BrokerClient):
                 "volume": int(row.get("jdiff_vol", 0)),
             })
         return out
+
+    async def get_daily_fills(
+        self, account_no: str, start: str, end: str, symbol: str | None = None
+    ) -> list[FillInfo]:
+        # LS증권(구 이베스트)에도 체결 조회 TR(t0425 등)이 있으나 스펙을 확인하지
+        # 않았다. 추측으로 구현하면 비용 대조가 틀린 값으로 통과해 버린다.
+        raise NotImplementedError(
+            "LS증권 체결 조회는 아직 구현하지 않았습니다 (TR 스펙 미확인)."
+        )
