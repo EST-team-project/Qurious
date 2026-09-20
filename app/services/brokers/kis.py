@@ -138,10 +138,14 @@ class KISClient(BrokerClient):
         await self._ensure_token()
         cano, acnt_prdt = account_no[:8], account_no[8:]
         code = symbol.replace(".KS", "").replace(".KQ", "")
+        # 신 TR ID 를 쓴다. 구 TR(TTTC0802U 매수 · TTTC0801U 매도)은 KIS 스펙에
+        # "구TR은 사전고지 없이 막힐 수 있으므로 반드시 신TR로 변경이용" 이라고 적혀 있다.
+        #   (구) TTTC0802U 매수 → (신) TTTC0012U  ·  (구) TTTC0801U 매도 → (신) TTTC0011U
+        # 모의투자는 접두사만 V 로 바뀐다 (VTTC0012U · VTTC0011U).
         if side == "buy":
-            tr_id = "VTTC0802U" if self.paper else "TTTC0802U"
+            tr_id = "VTTC0012U" if self.paper else "TTTC0012U"
         else:
-            tr_id = "VTTC0801U" if self.paper else "TTTC0801U"
+            tr_id = "VTTC0011U" if self.paper else "TTTC0011U"
 
         async with httpx.AsyncClient(verify=False, timeout=10) as cli:
             r = await cli.post(
@@ -154,6 +158,11 @@ class KISClient(BrokerClient):
                     "ORD_DVSN":     "00",   # 지정가
                     "ORD_QTY":      str(quantity),
                     "ORD_UNPR":     str(int(price)),
+                    # 거래소를 KRX 로 못 박는다. 넥스트레이드(NXT) 출범 뒤로는 이 칸을
+                    # 비우면 어느 거래소로 갈지 모르고, 위탁수수료 요율이 갈린다
+                    # (뱅키스 온라인 KRX 0.0140527% vs NXT 0.0130527%).
+                    # 우리 비용 계산이 KRX 요율을 기준으로 하므로 거래소를 고정한다.
+                    "EXCG_ID_DVSN_CD": "KRX",
                 },
             )
             r.raise_for_status()
