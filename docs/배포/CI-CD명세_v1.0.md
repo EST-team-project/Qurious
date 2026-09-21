@@ -67,7 +67,7 @@ flowchart LR
 
 | 항목 | 값 | 이유 |
 |------|-----|------|
-| 트리거 | `pull_request` · `push: [main]` | PR 에서 막고, main 에서 회귀를 확인 |
+| 트리거 | `pull_request` · `push: [main]` · `workflow_dispatch` | PR 에서 막고, main 에서 회귀를 확인. 수동 실행은 진단용 |
 | 러너 | `ubuntu-latest` | 무료 한도가 가장 크다 (Windows 는 2배, macOS 는 10배 차감) |
 | Python | 3.12 | 로컬 개발 환경(3.12.13)과 맞춘다 |
 | 캐시 | `pip` (`requirements*.txt` 해시 기준) | 의존이 무거워 매번 받으면 느리다 |
