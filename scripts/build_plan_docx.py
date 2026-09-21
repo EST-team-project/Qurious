@@ -21,7 +21,7 @@
 사용법
 ------
     python scripts/build_plan_docx.py
-    python scripts/build_plan_docx.py --src docs/계획서/프로젝트계획서_v1.0.md
+    python scripts/build_plan_docx.py --src docs/계획서/프로젝트계획서_v1.1.md
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ except ImportError:  # pragma: no cover - 환경 안내
     )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SRC = REPO_ROOT / "docs" / "계획서" / "프로젝트계획서_v1.0.md"
+DEFAULT_SRC = REPO_ROOT / "docs" / "계획서" / "프로젝트계획서_v1.1.md"
 
 #: 한글이 깨지지 않게 본문 글꼴을 동아시아 글꼴까지 지정한다.
 BODY_FONT = "맑은 고딕"

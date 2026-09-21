@@ -290,6 +290,9 @@ async def place_order(
     cost = trading_cost.order_costs(
         side=body.order_type, price=body.price, quantity=body.quantity,
         when=trading_cost.today_kst(), market=trading_cost.market_of(body.symbol),
+        # ETF·ETN 은 증권거래세 과세대상이 아니다. 넘기지 않으면 기본값 False 가 되어
+        # **매도 정산에서 0.20%p 를 더 떼게 된다** (2026-09-21 까지 그랬다).
+        is_etf=trading_cost.is_etf_name(body.name),
     )
     # 가상 매매는 모의투자 계좌(PaperAccount)의 현금과 연동한다 — 매수 시 차감, 매도 시 가산.
     if body.broker == "virtual":

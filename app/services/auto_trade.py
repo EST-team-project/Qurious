@@ -73,11 +73,14 @@ async def _execute_virtual_trade(
 
     market = trading_cost.market_of(symbol)
     today = trading_cost.today_kst()
+    # ETF·ETN 은 증권거래세 과세대상이 아니다. 넘기지 않으면 기본값 False 가 되어
+    # **매도 정산에서 0.20%p 를 더 떼게 된다** (2026-09-21 까지 그랬다).
+    is_etf = trading_cost.is_etf_name(name)
 
     def _net(side: str, qty: int) -> float:
         """정산금액. 매수는 나가는 현금, 매도는 들어오는 현금."""
         return trading_cost.order_costs(
-            side=side, price=price, quantity=qty, when=today, market=market,
+            side=side, price=price, quantity=qty, when=today, market=market, is_etf=is_etf,
         ).net_amount
 
     if action == "buy":
@@ -121,6 +124,7 @@ async def _execute_virtual_trade(
 
     order_cost = trading_cost.order_costs(
         side=action, price=price, quantity=executed_quantity, when=today, market=market,
+        is_etf=is_etf,
     )
     db.add(Order(
         user_id=user_id, symbol=symbol, name=name, order_type=action,

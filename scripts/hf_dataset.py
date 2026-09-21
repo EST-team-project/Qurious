@@ -1697,10 +1697,17 @@ def _readme_yaml(man: Dict) -> str:
     rows = {k: v["rows"] for k, v in man["tables"].items()}
     decision = "\n".join(f"{i+1}. {line}" for i, line in enumerate(
         man.get("sharing_decision") or SHARING_DECISION))
+    # 🔴 **YAML 머리말에 한글을 넣을 수 있는 칸과 못 넣는 칸이 다르다** (2026-09-21 실측).
+    #    `license_name` 은 서버가 `/^[a-z0-9-.]+$/` 로 검사한다 — 한글·공백·대문자를 넣으면
+    #    커밋이 거부된다. 그런데 `upload_large_folder` 는 그 거부를 **조용히 재시도**하고,
+    #    끝내 **종료코드 0** 으로 끝난다. 실제로 한 번 이 때문에 4시간 반 동안
+    #    같은 커밋을 반복하며 아무것도 올리지 못했다(파일 21/27 에서 정지).
+    #    → 라이선스 설명은 **본문에** 적고, 이 칸에는 slug 만 넣는다.
+    #    `pretty_name` 과 본문은 한글이 허용된다.
     return f"""---
 pretty_name: "KRX 일별 시세·수정주가·총수익지수·벤치마크 (2020–2026)"
 license: other
-license_name: "공공데이터포털·OpenDART 파생 — 출처별 이용약관 준수"
+license_name: kogl-type1-and-opendart-derived
 language: [ko]
 size_categories: ["1M<n<10M"]
 tags: [finance, korea, krx, quant]
@@ -1711,6 +1718,11 @@ configs:
 # KRX 일별 시세 데이터셋 (Qurious 수집기)
 
 🔴 **이 저장소는 private 이어야 한다. 절대 public 으로 바꾸지 않는다.**
+
+**이용 조건** — 머리말의 `license_name: kogl-type1-and-opendart-derived` 는 HF 가 소문자
+slug 만 받아서 줄인 표기다. 실제 조건은 이렇다: 공공데이터포털 자료는 **공공누리 제1유형**,
+배당은 **OpenDART** 이용약관을 따르며, 이 저장소는 그 **파생물과 응답 원문**을 담는다.
+**팀(private Organization) 안에서 학습 목적으로만** 쓰고 밖으로 재배포하지 않는다.
 
 원자료는 공공데이터포털(금융위 주식시세정보)과 OpenDART 에서 받았다. 이 저장소는 그
 응답을 정규화·가공한 파생물 **과 응답 원문 자체**(`raw_response`)를 함께 담는다.
