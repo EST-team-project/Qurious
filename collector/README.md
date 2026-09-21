@@ -112,10 +112,10 @@ flowchart TD
 | [`Qurious/app/celery_app.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/celery_app.py) | 74 | 🟢 **그대로 얹음** | Beat 스케줄에 3줄 추가. `timezone="Asia/Seoul"` 이 이미 잡혀 있어 KST 로 그냥 돈다 |
 | [`Qurious/app/tasks/ingest_tasks.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/tasks/ingest_tasks.py) | 151 | 🟢 **패턴 모방** → `app/tasks/collector_tasks.py` (83줄) | 태스크 안에서 늦게 import 하는 방식을 따랐다. 단 `asyncio.run` 은 안 쓴다 — 수집 코어가 동기라서 |
 | [`edumgt/stock-coin-trade` `scheduler.py`](https://github.com/edumgt/stock-coin-trade/blob/ebb40c3/python-stock-backend/scheduler.py) | 72 | 🔴 **쓰지 않음** | APScheduler 선례였지만, 이 저장소에 **이미 Celery Beat 가 돌고 있다**. 스케줄러를 하나 더 들이면 같은 일을 하는 물건이 둘이 되고 "어느 쪽이 안 돌았나" 를 찾는 일이 늘어난다 |
-| [`Alpha_Stack/scripts/upload_to_hf.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/upload_to_hf.py) · [`supply/hf_model_data.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/supply/hf_model_data.py) · [`scripts/check_hf_access.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/check_hf_access.py) | 890 / 278 / 160 | ~~⏸ **보류**~~ → 🔴 **쓰지 않음** (2026-09-20) | ~~HF 업로드 경로다. "팀원이 제3자인가" 가 판단되기 전에는 원자료를 밖으로 내보내지 않는다(§8). 매니페스트(지문)만으로 대조가 되므로 급하지 않다~~ → **보류 사유는 2026-09-20 팀 결정으로 해소됐다**(§9.2). 다만 이 세 파일을 **이식하지는 않았다** — HF 경로는 `scripts/hf_dataset.py`(1,062줄)로 **새로 썼다**(Alpha_Stack 코드 참조 0건). 설계가 다르다: 파케이 연도 파티션 · Xet 청크 중복제거 · dry-run 기본 |
+| [`Alpha_Stack/scripts/upload_to_hf.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/upload_to_hf.py) · [`supply/hf_model_data.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/supply/hf_model_data.py) · [`scripts/check_hf_access.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/check_hf_access.py) | 890 / 278 / 160 | ~~⏸ **보류**~~ → 🔴 **쓰지 않음** (2026-09-20) | ~~HF 업로드 경로다. "팀원이 제3자인가" 가 판단되기 전에는 원자료를 밖으로 내보내지 않는다(§8). 매니페스트(지문)만으로 대조가 되므로 급하지 않다~~ → **보류 사유는 2026-09-20 팀 결정으로 해소됐다**(§9.2). 다만 이 세 파일을 **이식하지는 않았다** — HF 경로는 `scripts/hf_dataset.py`(2,099줄)로 **새로 썼다**(Alpha_Stack 코드 참조 0건). 설계가 다르다: 파케이 연도 파티션 · Xet 청크 중복제거 · dry-run 기본 |
 
 새로 쓴 코드 **1,972줄** 중 이식·모방이 약 **480줄**, 나머지는 새 로직이다.
-(이 셈은 수집기 본체만이다 — 나중에 더한 `scripts/hf_dataset.py` 1,062줄은 들어 있지 않다.)
+(이 셈은 수집기 본체만이다 — 나중에 더한 `scripts/hf_dataset.py` 2,099줄은 들어 있지 않다.)
 
 ---
 
@@ -367,9 +367,16 @@ KIS 는 당일 실시간 시세와 모의 주문에만 쓰고 표에 적재하�
 
 ### 9.3 그래서 실제로 무엇을 올리는가
 
-**`RAW_SHARING` 은 원자료(`raw_response`) 스위치다.** HF 내보내기는 `raw_response` 를 애초에
-제외하므로 **파생물 반출**이고, 둘은 다른 문제다. 다만 `price_daily` 가 사실상 포털 응답의
-정규화본이라 공개하면 원자료 재배포에 가까워진다 — 그래서 저장소가 `private` 이다.
+~~**`RAW_SHARING` 은 원자료(`raw_response`) 스위치다.** HF 내보내기는 `raw_response` 를 애초에
+제외하므로 **파생물 반출**이고, 둘은 다른 문제다.~~ → **이 구분은 2026-09-20 에 무너졌다.**
+백업의 완전성을 위해 `raw_response`·`ingest_day` 를 내보내기 대상에 넣었으므로, HF 업로드는
+이제 **파생물 반출이 아니라 원자료 반출을 포함한다.** "파생물이니 괜찮다" 는 논거는 더 이상
+쓸 수 없고, 남는 근거는 **저장소가 `private` 이고 공유 범위가 팀(org `qurious-quant`)** 이라는
+점 하나뿐이다. `price_daily` 가 사실상 포털 응답의 정규화본이라는 사정은 그대로다.
+
+⚠️ **그러므로 저장소를 public 으로 바꾸면 그 순간 원자료 재배포가 된다** 🔴 — 공개 범위 변경은
+약관 판단을 처음부터 다시 해야 하는 일이다(§9.2). `RAW_SHARING` 깃발은 이 사실을 **기록만**
+하고 막지는 않는다(아래).
 
 | 무엇 | 어디 | 기본값 | 켜는 법 |
 |---|---|---|---|
@@ -377,9 +384,22 @@ KIS 는 당일 실시간 시세와 모의 주문에만 쓰고 표에 적재하�
 | HF 저장소 | `scripts/hf_dataset.py` 의 `REPO_ID` | `qurious-quant/krx-daily-market` | dataset 타입 · `private=True` 로 생성. 계정 `data-student` 가 org `qurious-quant` 의 admin |
 | HF 토큰 | `HUGGINGFACE_ACCESS_TOKEN` | 없음 | 환경변수 또는 저장소 루트 `.env`. **어떤 경로로도 출력하지 않는다** |
 
-⚠️ **지금 `RAW_SHARING` 은 아무것도 막지 않는다** 🔴 — 코드에서 쓰이는 곳이 `manifest.py`
-세 줄뿐이다. 매니페스트 JSON 에 `"raw_sharing": true/false` 로 **기록하고 화면에 표시할 뿐**,
-반출 경로를 차단하지는 않는다. **선언용 깃발이지 자물쇠가 아니다.**
+~~⚠️ **지금 `RAW_SHARING` 은 아무것도 막지 않는다** 🔴 — 매니페스트에 기록하고 화면에 표시할
+뿐, 반출 경로를 차단하지는 않는다. **선언용 깃발이지 자물쇠가 아니다.**~~
+→ ✅ **이제는 자물쇠다** (2026-09-20). [`scripts/hf_dataset.py:629`](../scripts/hf_dataset.py)
+의 `_sharing_on()` 이 게이트로 쓰이고, 꺼져 있으면 `export` 와 `upload` 가 **실행되지 않는다.**
+2026-09-21 업로드가 실제로 여기서 한 번 멈췄다 — 설계대로였다.
+
+⚠️ **환경변수로만 켜진다. `.env` 에 적어도 켜지지 않는다** — `collector/manifest.py:45` 가
+`os.environ` 만 읽는다. 실수로 켜진 채 커밋되는 것을 막으려는 설계다.
+
+```bash
+export QURIOUS_RAW_SHARING=1          # bash
+$env:QURIOUS_RAW_SHARING="1"          # PowerShell
+```
+
+🟡 다만 막힌 경로는 **종료코드 0 으로** 끝난다 — "막혔다" 가 아니라 "하지 않았다" 로 취급한다.
+CI 에서 성공과 구분하려면 종료코드가 아니라 출력을 봐야 한다.
 
 **올리는 것** (`scripts/hf_dataset.py` 의 `TABLES`)
 
@@ -391,19 +411,31 @@ KIS 는 당일 실시간 시세와 모의 주문에만 쓰고 표에 적재하�
 | `dividend` | 한 파일 | 배당 공시에서 읽은 사실(§13) |
 | `corporate_action` | 한 파일 | 가격이 끊긴 날과 그 계수 |
 | `benchmark_index` | 한 파일 · 선택 | 자체 재현 벤치마크. 없으면 조용히 건너뛴다 |
+| `raw_response` | 출처별 파일 | ★ 응답 **원문**(gzip BLOB). 감사·재정규화의 유일한 근거 |
+| `ingest_day` | 한 파일 | ★ 기준일별 수집 상태. 어디까지 받았는지의 기록 |
+
+★ 표시 둘은 **2026-09-20 에 대상으로 옮겼다.** 파케이로 바꾸면 297.3MB → 298.6MB 로 오히려
+커지지만, 그 대가로 **백업이 완전해진다** — 아래가 그 이유다.
 
 **올리지 않는 것** (`scripts/hf_dataset.py` 의 `EXCLUDED`)
 
 | 표 | 왜 |
 |---|---|
-| `raw_response` | 응답 **원문** 자체다. gzip BLOB 라 파케이로 바꾸면 297.3MB → 298.6MB 로 오히려 커지고, 이것이 곧 원자료다 — **감사 근거로 로컬 SQLite 에만 남긴다** |
-| `ingest_day` | 수집 상태 로그. 키·개인정보는 없지만 분석에 쓰이지 않는다 |
+| — | **지금은 비어 있다.** 모든 표를 올린다 |
 
-⚠️ **그래서 백업을 올렸다고 로컬 SQLite 를 지우면 안 된다** 🔴 — `raw_response`(297MB ·
-무결성 검증의 유일한 근거)와 `ingest_day`(어디까지 받았는지)는 **내보내기 대상이 아니다.**
-HF 에 올린 파케이만 남기고 DB 를 지우면 그 둘은 **영구 손실**이고, 다시 만들려면 포털 하루
-10,000건 한도로 1,648 거래일을 처음부터 다시 긁어야 한다. 디스크 확보가 목적이라면
-`raw_response` 만 따로 옮기는 방법을 먼저 설계해야 한다.
+✅ **그래서 이제는 로컬 SQLite 를 지워도 복원된다** (2026-09-20 실측) — 예전에는
+`raw_response`·`ingest_day` 가 빠져 HF 백업이 "부분 사본" 이었고, 그것만 남기고 DB 를 지우면
+감사 근거가 **영구 손실**이었다. 둘을 대상에 넣으면서 그 구멍이 막혔다.
+
+    restore 실측 : 13,428,316행 · 2.2GB · 184.6초
+    원문 sha256  : 12,697 / 12,697 일치 (gzip 해제 후 재계산)
+
+즉 **파케이만으로 SQLite 를 통째로 되살릴 수 있다.** 이것이 로컬 삭제를 정당화하는 유일한
+근거이고, 그래서 `verify` 가 sha256 전량을 다시 계산한다 — 행 수만 맞는 사본은 백업이 아니다.
+
+⚠️ 그래도 **올리기 전에 지우지는 않는다.** 순서는 `export` → `upload --yes` → `verify` →
+(원하면) 삭제다. 되살리려면 포털 하루 10,000건 한도로 1,648 거래일을 다시 긁어야 하므로,
+검증 전에 지운 실수는 되돌릴 방법이 없다.
 
 ```bash
 PYTHONPATH=. python scripts/hf_dataset.py export        # SQLite → 파케이 (data/hf_export/)
@@ -413,13 +445,15 @@ PYTHONPATH=. python scripts/hf_dataset.py upload        # ← dry-run 이 기본
 PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 ```
 
-⚠️ `data/hf_export/` 는 271MB 다. **이 팀 저장소는 Public** 이므로 `.gitignore` 에 반드시
+⚠️ `data/hf_export/` 는 556MB 다. **이 팀 저장소는 Public** 이므로 `.gitignore` 에 반드시
 들어 있어야 한다 — `status` 가 매번 확인해서 경고한다.
 
 **남은 일** 🟡
 
-- `scripts/hf_dataset.py` 가 `RAW_SHARING` 을 읽지 않는다. 파생물 반출이라 곧바로 위반은
-  아니지만, **한 곳에서 켜고 끄는 스위치**가 되는 편이 사고가 적다.
+- ~~`scripts/hf_dataset.py` 가 `RAW_SHARING` 을 읽지 않는다.~~ → ✅ **읽는다**
+  (2026-09-20 · 위 게이트). 한 곳에서 켜고 끄는 스위치가 됐다.
+- 🟡 게이트에 막혀 아무것도 올리지 않은 실행이 **종료코드 0** 을 낸다. 자동화에서 성공과
+  구분되지 않는다.
 - `collector/manifest.py` 머리말이 아직 "판단이 서기 전까지 매니페스트만 주고받는다" 로 남아
   있다 — 이 절과 어긋나므로 같은 취소선 방식으로 갱신해야 한다.
 
