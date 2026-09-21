@@ -1,0 +1,4 @@
+# 개발·CI 전용 의존. 운영 이미지에는 넣지 않는다.
+-r requirements.txt
+
+pytest>=8.3.0

@@ -13,7 +13,7 @@ from app.models import BrokerSettings, Order, Portfolio, QuantVirtualAccount
 from app.models.base import SYSTEM_USER_ID
 from app.services import notification
 from app.services.audit import audit
-from app.services.brokers.factory import get_broker_client
+from app.services.brokers.factory import get_broker_client, live_trading_allowed
 from app.services import trading_cost
 
 logger = logging.getLogger(__name__)
@@ -174,6 +174,11 @@ async def _place_live_order(
     가상계좌 기록(포트폴리오/현금)은 앱 대시보드 표시용으로 항상 남기고,
     이 함수는 그 위에 실제 브로커 주문을 얹는다. 브로커 미승인/오류 시에도
     자동매매 사이클 자체는 계속 진행되도록 예외를 여기서 흡수한다.
+
+    ★ 실거래 주문은 rfp-2 §4.2 의 **제외 범위**다. 그래서 `quant_mode == "live"` 라
+    해도 실계좌로 나가지 않는다 — `QURIOUS_ALLOW_LIVE_TRADING` 이 켜져 있지 않으면
+    모의투자 경로로 요청한다. 팩토리에도 같은 관문이 있어 두 겹으로 막힌다
+    (`app/services/brokers/factory.py` 모듈 설명 참조).
     """
     if not broker_row or broker_row.quant_mode != "live":
         return None
@@ -184,7 +189,11 @@ async def _place_live_order(
     if broker == "mock" or not app_key or not app_secret or not account_no:
         return None
 
-    client = get_broker_client(broker, app_key, app_secret, paper=False)
+    # 승인되지 않은 동안에는 모의투자(paper=True)로 요청한다. 의도를 호출부에도
+    # 드러내 둔다 — 팩토리만 믿으면 여기 코드는 여전히 "실계좌를 원한다"고 읽힌다.
+    client = get_broker_client(
+        broker, app_key, app_secret, paper=not live_trading_allowed()
+    )
     try:
         result = await client.place_order(account_no, symbol, side, quantity, price)
         await notification.notify_order_placed(

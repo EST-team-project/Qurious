@@ -1,0 +1,51 @@
+# Qurious CI — PR 병합 게이트
+#
+# 왜 필요한가 —
+# 팀원 넷의 작업 시간대가 달라 PR 에 사람 승인을 필수로 걸면 병합이 멈춘다.
+# 그래서 사람 대신 이 워크플로가 막는다. 다만 **워크플로만 있어서는 아무것도
+# 막지 못한다** — 저장소 룰셋에서 이 잡을 필수 상태 검사로 지정해야 비로소
+# 게이트가 된다. 절차는 docs/배포/CI-CD명세_v1.0.md 4절.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # 수동 실행. 워크플로가 실제로 등록·동작하는지 확인할 때 쓴다.
+  # ⚠️ 이 버튼은 **기본 브랜치에 이 파일이 있어야** 나타난다 — 저장소에 워크플로가
+  #    하나도 없던 상태에서 새로 들이는 중이라, main 에 들어가기 전에는 보이지 않는다.
+  workflow_dispatch:
+
+# 같은 PR 에 연달아 푸시하면 앞 실행을 취소한다. 러너 시간을 아끼고,
+# 마지막 커밋의 결과만 남아 판정이 헷갈리지 않는다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: pytest
+        # 실거래 승인 변수는 절대 켜지 않는다. 켜면 차단 시험이 통과해 버린다.
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -m pytest
