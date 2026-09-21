@@ -112,9 +112,10 @@ flowchart TD
 | [`Qurious/app/celery_app.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/celery_app.py) | 74 | 🟢 **그대로 얹음** | Beat 스케줄에 3줄 추가. `timezone="Asia/Seoul"` 이 이미 잡혀 있어 KST 로 그냥 돈다 |
 | [`Qurious/app/tasks/ingest_tasks.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/tasks/ingest_tasks.py) | 151 | 🟢 **패턴 모방** → `app/tasks/collector_tasks.py` (83줄) | 태스크 안에서 늦게 import 하는 방식을 따랐다. 단 `asyncio.run` 은 안 쓴다 — 수집 코어가 동기라서 |
 | [`edumgt/stock-coin-trade` `scheduler.py`](https://github.com/edumgt/stock-coin-trade/blob/ebb40c3/python-stock-backend/scheduler.py) | 72 | 🔴 **쓰지 않음** | APScheduler 선례였지만, 이 저장소에 **이미 Celery Beat 가 돌고 있다**. 스케줄러를 하나 더 들이면 같은 일을 하는 물건이 둘이 되고 "어느 쪽이 안 돌았나" 를 찾는 일이 늘어난다 |
-| [`Alpha_Stack/scripts/upload_to_hf.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/upload_to_hf.py) · [`supply/hf_model_data.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/supply/hf_model_data.py) · [`scripts/check_hf_access.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/check_hf_access.py) | 890 / 278 / 160 | ⏸ **보류** | HF 업로드 경로다. "팀원이 제3자인가" 가 판단되기 전에는 원자료를 밖으로 내보내지 않는다(§8). 매니페스트(지문)만으로 대조가 되므로 급하지 않다 |
+| [`Alpha_Stack/scripts/upload_to_hf.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/upload_to_hf.py) · [`supply/hf_model_data.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/supply/hf_model_data.py) · [`scripts/check_hf_access.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/check_hf_access.py) | 890 / 278 / 160 | ~~⏸ **보류**~~ → 🔴 **쓰지 않음** (2026-09-20) | ~~HF 업로드 경로다. "팀원이 제3자인가" 가 판단되기 전에는 원자료를 밖으로 내보내지 않는다(§8). 매니페스트(지문)만으로 대조가 되므로 급하지 않다~~ → **보류 사유는 2026-09-20 팀 결정으로 해소됐다**(§9.2). 다만 이 세 파일을 **이식하지는 않았다** — HF 경로는 `scripts/hf_dataset.py`(2,099줄)로 **새로 썼다**(Alpha_Stack 코드 참조 0건). 설계가 다르다: 파케이 연도 파티션 · Xet 청크 중복제거 · dry-run 기본 |
 
 새로 쓴 코드 **1,972줄** 중 이식·모방이 약 **480줄**, 나머지는 새 로직이다.
+(이 셈은 수집기 본체만이다 — 나중에 더한 `scripts/hf_dataset.py` 2,099줄은 들어 있지 않다.)
 
 ---
 
@@ -276,7 +277,7 @@ S26 규격은 `fltRt` 누적이었다. 실측해 보니 그쪽이 덜 정확하�
 
 | 조항 | 내용 | 이 설계에 미친 영향 |
 |---|---|---|
-| 제5조③ | 시세는 "개인의 업무에 한하여" · **제3자 제공 금지** | 원자료 공유 기본 꺼짐 |
+| 제5조③ | 시세는 "개인의 업무에 한하여" · **제3자 제공 금지** | 원자료 공유 기본 꺼짐. 그리고 **HF 로 내보내는 표에 KIS 값은 0건**이다(§9.2 실측) |
 | 제5조② | 키 양도 금지 | 키는 `.env` 에만, 캐시에도 안 담는다 |
 | 제9조①4 | **서버 부하 시 이용 중지** | 수천 번 호출하는 백필이 정확히 그 모양 → **금지** |
 | 제12조 | 유량은 "회사가 정하여 게시" — **게시된 수치 없음** | 직접 실측: 모의 **초당 약 2건**. 모르는 한도에 대량 호출을 걸지 않는다 |
@@ -294,23 +295,167 @@ KIS 는 실패해도 HTTP 200 으로 주는 경우가 있고, 유량 초과(`EGW
 
 ---
 
-## 9. 원자료를 밖으로 내보낼 것인가 — `RAW_SHARING` 🔴
+## 9. 원자료를 밖으로 내보낼 것인가 — `RAW_SHARING` 🟡  ★ 2026-09-20 팀 결정으로 갱신
+
+### 9.1 남아 있던 질문 — 기록은 지우지 않는다
+
+> 아래는 **2026-09-19 시점의 판단**이다. 두 질문 중 하나는 2026-09-20 팀 결정으로 닫혔고
+> 하나는 아직 열려 있다. 무엇이 어떻게 바뀌었는지 보이게 하려고 원문을 남긴다.
 
 **기본은 꺼짐**이고, 켜기 전에 답해야 할 질문이 남아 있다.
 
-- 🔴 **"팀원이 제3자인가"** — 1차 프로젝트 주석은 "private 저장소면 제3자 제공이 아니다"
+- ~~🔴 **"팀원이 제3자인가"**~~ → 🟡 **2026-09-20 팀 운영 결정으로 닫음**(9.2).
+  1차 프로젝트 주석은 "private 저장소면 제3자 제공이 아니다"
   였고, 2026-09 에 약관을 다시 읽은 결과는 "팀원도 제3자일 수 있다" 였다.
   **법률 판단이라 우리가 정할 일이 아니다. 강사님께 여쭐 항목이다.**
-- 🔴 **공공누리 "변경금지"가 지표 계산까지 막는가** — 미확정.
-
-그때까지 팀은 **매니페스트(지문)만** 주고받으면 된다. 값이 아니라 값의 지문이므로 저장소에
-올려도 되고, 그것만으로 "같은 자료를 봤는가" 는 확인된다.
+  ↳ 이 마지막 문장은 **취소하지 않는다.** 닫힌 것은 *팀이 어떻게 운영할 것인가* 이지
+  법률 해석이 아니다. **강사님께 여쭐 항목으로 그대로 남긴다.**
+- 🔴 **공공누리 "변경금지"가 지표 계산까지 막는가** — **여전히 미확정이다.**
+  2026-09-20 결정은 이 해석을 바꾸지 않았다. 학습 용도·비공개 공유라는 **운영 조건 아래**
+  진행하기로 한 것뿐이다.
+- ~~그때까지 팀은 **매니페스트(지문)만** 주고받으면 된다.~~ → 🟡 **"지문만" 이라는 제한은
+  풀렸다**(9.2). 다만 매니페스트 자체는 계속 쓴다 — 백업과 목적이 다르다. 값이 아니라 값의
+  지문이므로 저장소에 올려도 되고, 그것만으로 "같은 자료를 봤는가" 는 확인된다.
 
 ```bash
 python -m collector.manifest write                       # 내 지문 남기기
 python -m collector.manifest compare --theirs ./their.json  # 어느 날이 다른지
 python -m collector.manifest verify                      # 디스크가 썩지 않았는지
 ```
+
+### 9.2 2026-09-20 팀 결정 — 무엇을 정했고, 무엇은 정하지 않았나
+
+데이터 파트 담당자(수집기 관리자)가 **팀 운영 방침**으로 정했다.
+
+**정한 것**
+
+| | 내용 |
+|---|---|
+| 🟡 | **팀원은 제3자가 아니다.** 같은 과제를 같은 조건으로 수행하는 내부 구성원으로 본다 |
+| 🟡 | 공공누리 '변경금지' 건은 **학습 용도로 private Organization 에 두고 공유·회수하는 방식**으로 진행한다. 1차 프로젝트에서 이미 같은 방식으로 운영해 온 전례가 있다 |
+| 🟡 | 데이터 파트 담당자로서 **공유를 위한 백업이 필요하다** — 지금 2.4GB SQLite 는 한 사람의 노트북 디스크에만 있고, 그 디스크가 죽으면 6.7년치가 같이 죽는다 |
+| 🟢 | 그래서 **HF private dataset 업로드 보류를 해제한다**(§4 표·9.3) |
+
+**정하지 않은 것 — 이 결정의 한계**
+
+- 🟡 **이것은 팀 내부 운영 결정이지 법률 자문이 아니다.** 우리에게 약관을 유권해석할
+  자격은 없다. "이렇게 운영하기로 했다" 까지가 이 절이 말할 수 있는 전부다.
+- 🔴 **`private` 이라는 전제가 깨지면 결정도 깨진다.** 저장소를 public 으로 바꾸거나, org
+  밖 사람을 초대하거나, 링크를 외부에 내보내는 순간 **이 결정은 근거를 잃고 처음부터 다시
+  판단해야 한다.** Dataset Viewer 를 쓰려고 public 으로 바꾸지 않는 이유가 이것이다
+  (`scripts/hf_dataset.py` 의 `REPO_ID` 주석).
+- 🔴 **공공누리 '변경금지'의 법적 해석 자체는 여전히 미확정이다.** 학습 용도·비공개 공유라는
+  **운영 조건**을 달아 진행하는 것이고, 조건이 바뀌면 다시 본다.
+- 🟡 **강사님께 확인할 항목은 살아 있다.** 팀의 운영 판단이 법률 판단을 대신하지 않는다.
+- 🟢 **출처 표시는 계속한다.** 내보낸 데이터셋 README 에 출처·가공 사실·private 임을 적는다
+  (`scripts/hf_dataset.py` 의 `_readme_yaml`).
+
+**실측 — 이 결정이 실제로 건드리는 자료의 범위** 🟢
+
+가장 엄격한 조항은 KIS 약관 제5조③(제3자 제공 금지)인데, **내보낼 자료에 KIS 는 한 건도
+없다.** DB 를 직접 세어 확인했다(2026-09-20):
+
+```
+raw_response 출처별 :  portal 1,767건 · dart 10,930건      ← kis 0건
+ingest_day   출처별 :  portal 1,755일 · dart_dividend 81건  ← kis 0건
+price_daily  고유 원문 해시 : 1,648개  (포털 응답 1거래일 1건)
+```
+
+즉 지금 내보내는 것은 **공공데이터포털(공공누리) + OpenDART** 에서 온 자료의 파생물이다.
+KIS 는 당일 실시간 시세와 모의 주문에만 쓰고 표에 적재하지 않으므로(§8), **제5조③ 은 이번
+업로드 범위 밖이다.** 앞으로 KIS 값을 표에 넣게 되면 **이 절을 다시 써야 한다.**
+
+### 9.3 그래서 실제로 무엇을 올리는가
+
+~~**`RAW_SHARING` 은 원자료(`raw_response`) 스위치다.** HF 내보내기는 `raw_response` 를 애초에
+제외하므로 **파생물 반출**이고, 둘은 다른 문제다.~~ → **이 구분은 2026-09-20 에 무너졌다.**
+백업의 완전성을 위해 `raw_response`·`ingest_day` 를 내보내기 대상에 넣었으므로, HF 업로드는
+이제 **파생물 반출이 아니라 원자료 반출을 포함한다.** "파생물이니 괜찮다" 는 논거는 더 이상
+쓸 수 없고, 남는 근거는 **저장소가 `private` 이고 공유 범위가 팀(org `qurious-quant`)** 이라는
+점 하나뿐이다. `price_daily` 가 사실상 포털 응답의 정규화본이라는 사정은 그대로다.
+
+⚠️ **그러므로 저장소를 public 으로 바꾸면 그 순간 원자료 재배포가 된다** 🔴 — 공개 범위 변경은
+약관 판단을 처음부터 다시 해야 하는 일이다(§9.2). `RAW_SHARING` 깃발은 이 사실을 **기록만**
+하고 막지는 않는다(아래).
+
+| 무엇 | 어디 | 기본값 | 켜는 법 |
+|---|---|---|---|
+| 원자료 반출 의사 표시 | `collector/manifest.py` 의 `RAW_SHARING` | **꺼짐** | 환경변수 `QURIOUS_RAW_SHARING` 을 `1`·`true`·`yes` 중 하나로 |
+| HF 저장소 | `scripts/hf_dataset.py` 의 `REPO_ID` | `qurious-quant/krx-daily-market` | dataset 타입 · `private=True` 로 생성. 계정 `data-student` 가 org `qurious-quant` 의 admin |
+| HF 토큰 | `HUGGINGFACE_ACCESS_TOKEN` | 없음 | 환경변수 또는 저장소 루트 `.env`. **어떤 경로로도 출력하지 않는다** |
+
+~~⚠️ **지금 `RAW_SHARING` 은 아무것도 막지 않는다** 🔴 — 매니페스트에 기록하고 화면에 표시할
+뿐, 반출 경로를 차단하지는 않는다. **선언용 깃발이지 자물쇠가 아니다.**~~
+→ ✅ **이제는 자물쇠다** (2026-09-20). [`scripts/hf_dataset.py:629`](../scripts/hf_dataset.py)
+의 `_sharing_on()` 이 게이트로 쓰이고, 꺼져 있으면 `export` 와 `upload` 가 **실행되지 않는다.**
+2026-09-21 업로드가 실제로 여기서 한 번 멈췄다 — 설계대로였다.
+
+⚠️ **환경변수로만 켜진다. `.env` 에 적어도 켜지지 않는다** — `collector/manifest.py:45` 가
+`os.environ` 만 읽는다. 실수로 켜진 채 커밋되는 것을 막으려는 설계다.
+
+```bash
+export QURIOUS_RAW_SHARING=1          # bash
+$env:QURIOUS_RAW_SHARING="1"          # PowerShell
+```
+
+🟡 다만 막힌 경로는 **종료코드 0 으로** 끝난다 — "막혔다" 가 아니라 "하지 않았다" 로 취급한다.
+CI 에서 성공과 구분하려면 종료코드가 아니라 출력을 봐야 한다.
+
+**올리는 것** (`scripts/hf_dataset.py` 의 `TABLES`)
+
+| 표 | 쪼개기 | 무엇인가 |
+|---|---|---|
+| `price_daily` | 연도별 | 정규화한 일별 시세. 모든 파생표의 뿌리 |
+| `price_adjusted` | 연도별 | 수정주가(PR) — 분할·권리락만 고친 계열 |
+| `price_total_return` | 연도별 | 총수익(TR) — 배당까지 더한 계열 |
+| `dividend` | 한 파일 | 배당 공시에서 읽은 사실(§13) |
+| `corporate_action` | 한 파일 | 가격이 끊긴 날과 그 계수 |
+| `benchmark_index` | 한 파일 · 선택 | 자체 재현 벤치마크. 없으면 조용히 건너뛴다 |
+| `raw_response` | 출처별 파일 | ★ 응답 **원문**(gzip BLOB). 감사·재정규화의 유일한 근거 |
+| `ingest_day` | 한 파일 | ★ 기준일별 수집 상태. 어디까지 받았는지의 기록 |
+
+★ 표시 둘은 **2026-09-20 에 대상으로 옮겼다.** 파케이로 바꾸면 297.3MB → 298.6MB 로 오히려
+커지지만, 그 대가로 **백업이 완전해진다** — 아래가 그 이유다.
+
+**올리지 않는 것** (`scripts/hf_dataset.py` 의 `EXCLUDED`)
+
+| 표 | 왜 |
+|---|---|
+| — | **지금은 비어 있다.** 모든 표를 올린다 |
+
+✅ **그래서 이제는 로컬 SQLite 를 지워도 복원된다** (2026-09-20 실측) — 예전에는
+`raw_response`·`ingest_day` 가 빠져 HF 백업이 "부분 사본" 이었고, 그것만 남기고 DB 를 지우면
+감사 근거가 **영구 손실**이었다. 둘을 대상에 넣으면서 그 구멍이 막혔다.
+
+    restore 실측 : 13,428,316행 · 2.2GB · 184.6초
+    원문 sha256  : 12,697 / 12,697 일치 (gzip 해제 후 재계산)
+
+즉 **파케이만으로 SQLite 를 통째로 되살릴 수 있다.** 이것이 로컬 삭제를 정당화하는 유일한
+근거이고, 그래서 `verify` 가 sha256 전량을 다시 계산한다 — 행 수만 맞는 사본은 백업이 아니다.
+
+⚠️ 그래도 **올리기 전에 지우지는 않는다.** 순서는 `export` → `upload --yes` → `verify` →
+(원하면) 삭제다. 되살리려면 포털 하루 10,000건 한도로 1,648 거래일을 다시 긁어야 하므로,
+검증 전에 지운 실수는 되돌릴 방법이 없다.
+
+```bash
+PYTHONPATH=. python scripts/hf_dataset.py export        # SQLite → 파케이 (data/hf_export/)
+PYTHONPATH=. python scripts/hf_dataset.py status        # 로컬 현황 · gitignore 여부까지
+PYTHONPATH=. python scripts/hf_dataset.py verify        # 내보낸 것이 온전한가
+PYTHONPATH=. python scripts/hf_dataset.py upload        # ← dry-run 이 기본. 아무것도 안 올라간다
+PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
+```
+
+⚠️ `data/hf_export/` 는 556MB 다. **이 팀 저장소는 Public** 이므로 `.gitignore` 에 반드시
+들어 있어야 한다 — `status` 가 매번 확인해서 경고한다.
+
+**남은 일** 🟡
+
+- ~~`scripts/hf_dataset.py` 가 `RAW_SHARING` 을 읽지 않는다.~~ → ✅ **읽는다**
+  (2026-09-20 · 위 게이트). 한 곳에서 켜고 끄는 스위치가 됐다.
+- 🟡 게이트에 막혀 아무것도 올리지 않은 실행이 **종료코드 0** 을 낸다. 자동화에서 성공과
+  구분되지 않는다.
+- `collector/manifest.py` 머리말이 아직 "판단이 서기 전까지 매니페스트만 주고받는다" 로 남아
+  있다 — 이 절과 어긋나므로 같은 취소선 방식으로 갱신해야 한다.
 
 ---
 
@@ -332,6 +477,8 @@ python -m collector.manifest verify                      # 디스크가 썩지 �
 | 🔴 | 포털 **오류 응답이 한도를 깎는지** 미확정 |
 | 🔴 | 상장폐지 종목의 **사유** 미확보 (KIND 필요) |
 | 🟢 | Celery Beat 어댑터 **검증 완료** — Redis 컨테이너로 태스크 3/3 실행 성공 (§12) |
+| 🟡 | **HF private 백업은 팀 운영 결정으로 열렸다**(§9.2). 팀 내부 판단이지 법률 자문이 아니고, `private` 전제가 깨지면 다시 판단해야 한다 |
+| 🔴 | **공공누리 "변경금지"의 법적 해석은 여전히 미확정** — 학습 용도·비공개 공유라는 운영 조건 아래 진행하는 것이다. 강사님께 여쭐 항목으로 남아 있다 |
 
 ### 이 설계를 뒤집을 조건
 
