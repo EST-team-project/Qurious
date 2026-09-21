@@ -40,17 +40,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOLERANCE_WON = 1.0
 
 
-def _is_etf(name: str) -> bool:
-    """종목명으로 ETF 를 가른다 — ETF 는 증권거래세가 면제라 합계가 달라진다.
-
-    🔴 이름 규칙에 기대는 임시 판정이다. 국내 ETF 는 대부분 운용사 브랜드로 시작하지만
-       (KODEX·TIGER·ACE·PLUS·RISE·SOL·HANARO·KOSEF·ARIRANG…) 규칙이 아니라 관행이다.
-       `reference` 계열에 상품 구분을 적재하면 그것으로 바꾼다 (#32 8.3 유니버스 필드).
-    """
-    n = (name or "").upper().replace(" ", "")
-    brands = ("KODEX", "TIGER", "ACE", "PLUS", "RISE", "SOL", "HANARO",
-              "KOSEF", "ARIRANG", "KBSTAR", "TIMEFOLIO", "WOORI", "히어로즈")
-    return n.startswith(brands) or "ETN" in n
+#: ETF 판정은 `trading_cost` 로 옮겼다 — 요율표를 쓰는 쪽이 넷 더 있는데 이 모듈의
+#: private 함수라 아무도 쓸 수 없었고, 그래서 **ETF 매도 정산이 0.20%p 과대 계상**되고
+#: 있었다(2026-09-21 수정). 이 이름은 호출부 호환을 위해 남긴다.
+_is_etf = trading_cost.is_etf_name
 
 
 def _filled_at(fill: FillInfo) -> datetime:

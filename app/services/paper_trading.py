@@ -221,6 +221,9 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     cost = trading_cost.order_costs(
         side=side.lower(), price=price, quantity=quantity,
         when=trading_cost.today_kst(), market=trading_cost.market_of(info["symbol"]),
+        # ETF·ETN 은 증권거래세 과세대상이 아니다. 넘기지 않으면 기본값 False 가 되어
+        # **매도 정산에서 0.20%p 를 더 떼게 된다** (2026-09-21 까지 그랬다).
+        is_etf=trading_cost.is_etf_name(info.get("name", "")),
     )
 
     account = await get_account(db, user_id, lock=True)
