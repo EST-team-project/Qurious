@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services import trading_cost                      # noqa: E402
 from app.services.brokers.kis import KISClient             # noqa: E402
-from app.services.fill_sync import _is_etf                 # noqa: E402
+from app.services.fill_sync import DEFAULT_TOLERANCE_WON, _is_etf  # noqa: E402
 
 KST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parents[1]
@@ -114,8 +114,27 @@ async def main() -> int:
     print(f"  기간 {start} ~ {end}" + (f" · 종목 {args.symbol}" if args.symbol else ""))
     client, account = await make_client(paper)
 
-    fills = await client.get_daily_fills(account, start, end, args.symbol)
+    fills, summary = await client.get_daily_fills_with_summary(account, start, end, args.symbol)
     print(f"  받은 행 {len(fills)}건\n")
+
+    # ── 요약 칸(output2) — 제비용이 여기 있다 ──────────────────────────────
+    # 체결이 0건이어도 이 칸은 오므로, **주문을 한 건도 내지 않고** 필드가
+    # 어느 쪽에 있는지 확인할 수 있다. 그것이 이 블록의 존재 이유다.
+    print("― 요약 칸(output2) ―")
+    if summary is None:
+        print("  🔴 output2 가 응답에 없습니다 — KIS 가 스펙을 바꿨거나 TR 이 다릅니다.")
+    else:
+        print(f"  총주문수량 {summary.total_order_quantity:,} · 총체결수량 {summary.total_filled_quantity:,}")
+        print(f"  총체결금액 {summary.gross_amount:,.0f} · 매입평균가 {summary.avg_buy_price:,.2f}")
+        if summary.has_fee_info:
+            print(f"  🟢 추정제비용합계(prsm_tlex_smtl) = {summary.total_fees:,.2f} 원"
+                  "  ← 칸이 output2 에 있음이 확인됐습니다")
+        else:
+            print("  🟡 prsm_tlex_smtl 칸이 비어 있습니다 (None). 체결이 0건이면 정상입니다.")
+        if args.raw:
+            print("  원문:", json.dumps(summary.raw, ensure_ascii=False))
+    print()
+
     if not fills:
         print("  체결 내역이 없습니다.")
         print("  → 조회 경로 자체는 동작했습니다 (rt_cd=0). 주문을 낸 뒤 다시 실행하세요.")
@@ -127,6 +146,8 @@ async def main() -> int:
     print("─" * 100)
 
     matched = mismatched = no_info = 0
+    est_sum = 0.0   # 우리 추정 비용의 합 — output2 요약과 맞대기 위해 쌓는다
+    counted = 0     # 체결된 주문 수 (취소·미체결 제외)
     for f in fills:
         if f.cancelled or f.filled_quantity <= 0:
             continue
@@ -135,12 +156,14 @@ async def main() -> int:
             when=f.order_date or today, market=trading_cost.market_of(f.symbol),
             is_etf=_is_etf(f.name),
         )
+        est_sum += est.total_cost
+        counted += 1
         if f.total_fees is None:
             no_info += 1
             shown, diff_s = "없음", "-"
         else:
             diff = f.total_fees - est.total_cost
-            if abs(diff) <= 1.0:
+            if abs(diff) <= DEFAULT_TOLERANCE_WON:
                 matched += 1
             else:
                 mismatched += 1
@@ -152,11 +175,36 @@ async def main() -> int:
             print("    원문:", json.dumps(f.raw, ensure_ascii=False))
 
     print("─" * 100)
-    print(f"  일치 {matched}건 · 불일치 {mismatched}건 · 제비용 미제공 {no_info}건")
+    print(f"  일치 {matched}건 · 불일치 {mismatched}건 · 제비용 미제공 {no_info}건"
+          f" (허용오차 {DEFAULT_TOLERANCE_WON:g}원)")
+
+    # ── 요약 대조: output2 의 제비용 합계 vs 우리 추정의 합계 ────────────────
+    # 주문별 칸이 비어 있어도 여기서는 대조가 된다. 단 **여러 건이 섞이면
+    # 어느 건이 틀렸는지는 알 수 없다** — 한 건만 걸리게 좁혀 조회해야 한다.
+    if summary is not None and summary.has_fee_info and counted:
+        diff = summary.total_fees - est_sum
+        print(f"\n― 요약 대조 (체결 {counted}건 합계) ―")
+        print(f"  증권사 제비용 {summary.total_fees:,.2f} · 우리 추정 {est_sum:,.2f}"
+              f" · 차이 {diff:+,.2f}")
+        if abs(diff) <= DEFAULT_TOLERANCE_WON * max(counted, 1):
+            print("  🟢 합계가 맞습니다." + ("" if counted == 1 else
+                  " 다만 건별 검증은 아닙니다 — 상쇄된 오차는 가려집니다."))
+        else:
+            print("  🔴 합계가 어긋납니다 — app/services/trading_cost.py 를 다시 봐야 합니다.")
+            if counted > 1:
+                print("  → 어느 건인지 가리려면 --symbol 로 한 건만 걸리게 좁혀 다시 조회하세요.")
+
+    # 🔴 예전에는 matched·mismatched 가 둘 다 0 이면 여기서 **아무 말도 없이** 끝났다.
+    #    "검증했고 통과" 와 "검증 자체를 못 했다" 가 화면에서 구분되지 않았다.
     if mismatched:
-        print("  🔴 불일치가 있습니다 — 요율표(app/services/trading_cost.py)를 다시 봐야 합니다.")
-    elif matched:
-        print("  🟢 우리 요율표가 증권사 정산과 일치합니다.")
+        print("\n  🔴 불일치가 있습니다 — 요율표(app/services/trading_cost.py)를 다시 봐야 합니다.")
+        return 1
+    if matched:
+        print("\n  🟢 우리 요율표가 증권사 정산과 일치합니다.")
+        return 0
+    print("\n  🟡 **건별 대조를 한 건도 못 했습니다.** 요율표가 맞다는 뜻이 아닙니다.")
+    print(f"     체결 {counted}건을 받았으나 주문별 제비용 칸(output1.prsm_tlex_smtl)이 비어 있습니다.")
+    print("     → 제비용은 output2 요약에만 옵니다. 위 「요약 대조」를 근거로 쓰세요.")
     return 0
 
 

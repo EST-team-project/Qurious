@@ -7,7 +7,9 @@
 import asyncio
 import httpx
 from datetime import datetime, timedelta, timezone
-from .base import BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo
+from .base import (
+    BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo, FillSummary,
+)
 
 REAL_URL  = "https://openapi.koreainvestment.com:9443"
 PAPER_URL = "https://openapivts.koreainvestment.com:29443"
@@ -257,11 +259,31 @@ class KISClient(BrokerClient):
     async def get_daily_fills(
         self, account_no: str, start: str, end: str, symbol: str | None = None
     ) -> list[FillInfo]:
-        """기간 내 주문·체결 내역을 증권사에서 그대로 받아 온다.
+        """기간 내 주문·체결 내역 (요약은 버린다 — 추상 인터페이스 호환용)."""
+        fills, _ = await self.get_daily_fills_with_summary(account_no, start, end, symbol)
+        return fills
+
+    async def get_daily_fills_with_summary(
+        self, account_no: str, start: str, end: str, symbol: str | None = None
+    ) -> tuple[list[FillInfo], FillSummary | None]:
+        """기간 내 주문·체결 내역을 **요약 한 줄까지** 증권사에서 그대로 받아 온다.
 
         우리가 낸 주문이 `orders` 테이블에 없어도 여기서 되찾을 수 있다 —
         실전 주문 경로(`stocks.py` · `auto_trade.py`)는 증권사에 주문만 내고
         DB 에는 아무것도 남기지 않기 때문이다.
+
+        응답이 두 칸으로 나뉜다
+        ----------------------
+        - `output1` : 주문별 목록 → `FillInfo` 들
+        - `output2` : 조회 범위 전체 합계 → `FillSummary`
+
+        🔴 **제비용 칸(`prsm_tlex_smtl`)은 `output2` 에 있다.** 2026-09-20 까지
+           이 함수는 `output1` 만 모으고 `output2` 를 버렸다. 그래서 체결이 있어도
+           대조할 값이 오지 않았다. 실계좌로 바꿔도 결과는 같았을 것이다 —
+           버리는 쪽이 코드였기 때문이다.
+
+        연속조회에서는 **마지막 쪽의 `output2`** 를 쓴다. KIS 는 쪽마다 그 시점까지의
+        누적 합계를 주므로, 중간 쪽 값을 쓰면 일부만 더한 값이 된다.
         """
         await self._ensure_token()
         cano, acnt_prdt = self._split_account(account_no)
@@ -295,6 +317,7 @@ class KISClient(BrokerClient):
         }
 
         rows: list[dict] = []
+        summary_raw: dict | None = None
         tr_cont = ""
         async with httpx.AsyncClient(verify=False, timeout=15) as cli:
             for page in range(20):  # 무한루프 방지. 20쪽이면 하루 체결로는 충분하다
@@ -306,6 +329,14 @@ class KISClient(BrokerClient):
                 r.raise_for_status()
                 body = self._check(r.json(), "체결 조회")
                 rows.extend(body.get("output1") or [])
+                # output2 는 요약 한 줄이다. 객체로 올 수도, 1행 배열로 올 수도 있어
+                # 둘 다 받는다. 체결이 0건이어도 이 칸은 (0 으로 채워져) 온다 —
+                # 그래서 **주문을 내지 않고도 칸의 위치를 확인할 수 있다.**
+                o2 = body.get("output2")
+                if isinstance(o2, list):
+                    o2 = o2[0] if o2 else None
+                if isinstance(o2, dict) and o2:
+                    summary_raw = o2  # 마지막 쪽이 최종 누적값
 
                 # 연속조회: 응답 헤더 tr_cont 가 M/F 면 다음 쪽이 있다.
                 nxt = (r.headers.get("tr_cont") or "").strip().upper()
@@ -325,6 +356,9 @@ class KISClient(BrokerClient):
             # 🟡 prsm_tlex_smtl = 추정제비용합계. 강사님 카탈로그의 한글 라벨은 이 칸을
             #    "총체결금액" 이라 적어 두었으나 필드명(prsm 추정 · tlex 제비용 · smtl 합계)과
             #    어긋난다. 라벨이 아니라 필드명을 따르고, 원문을 raw 에 남겨 둔다.
+            # 🔴 이 칸은 실제로는 output1(주문별)이 아니라 output2(요약)에 있다.
+            #    주문별로도 올 경우를 대비해 계속 읽지만, 평소에는 None 이 되고
+            #    대조는 `FillSummary.total_fees` 로 한다.
             fee_raw = str(row.get("prsm_tlex_smtl", "")).strip()
             out.append(FillInfo(
                 broker_order_id = str(row.get("odno", "")).strip(),
@@ -345,4 +379,17 @@ class KISClient(BrokerClient):
                 exchange        = (str(row.get("excg_id_dvsn_Cd") or row.get("excg_id_dvsn_cd") or "").strip() or None),
                 raw             = row,
             ))
-        return out
+
+        summary = None
+        if summary_raw is not None:
+            s_fee = str(summary_raw.get("prsm_tlex_smtl", "")).strip()
+            summary = FillSummary(
+                total_order_quantity  = self._parse_num(summary_raw.get("tot_ord_qty"), int),
+                total_filled_quantity = self._parse_num(summary_raw.get("tot_ccld_qty"), int),
+                avg_buy_price         = self._parse_num(summary_raw.get("pchs_avg_pric")),
+                gross_amount          = self._parse_num(summary_raw.get("tot_ccld_amt")),
+                # 빈 칸이면 None (알려주지 않음) — 0.0 (0원을 뗌) 과 구분한다
+                total_fees            = self._parse_num(s_fee) if s_fee else None,
+                raw                   = summary_raw,
+            )
+        return out, summary

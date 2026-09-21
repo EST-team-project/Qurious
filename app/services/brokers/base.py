@@ -74,6 +74,37 @@ class FillInfo:
     raw: dict[str, Any] | None = None  # 원문 보존 (칸 해석이 틀려도 되돌릴 수 있게)
 
 
+@dataclass
+class FillSummary:
+    """체결 조회의 **요약 한 줄**. 주문 1건의 값이 아니다.
+
+    왜 따로 있는가
+    --------------
+    KIS 체결조회(`inquire-daily-ccld`)는 응답을 두 칸으로 나눠 준다.
+    `output1` 이 주문별 목록이고, `output2` 가 조회 범위 전체의 합계다.
+    **제비용 칸(`prsm_tlex_smtl`)은 `output2` 에만 있다.** 주문별 목록에는
+    없으므로, `output1` 만 모으면 우리 요율표와 대조할 값이 영영 오지 않는다.
+    (2026-09-20 까지 `get_daily_fills` 가 그랬다 — 체결이 있어도 "제비용 미제공"
+    만 나왔을 것이다.)
+
+    🔴 **주문별 값이 아니라는 점이 이 자료형의 전부다.** 기간에 체결이 여러 건이면
+       `total_fees` 는 그 전부의 합이다. 한 건의 제비용을 알고 싶으면 조회할 때
+       종목·주문번호를 좁혀 **그 한 건만 걸리게** 해야 한다.
+    """
+
+    total_order_quantity: int         # 총주문수량
+    total_filled_quantity: int        # 총체결수량
+    avg_buy_price: float              # 매입평균가격
+    gross_amount: float               # 총체결금액
+    total_fees: float | None = None   # 추정제비용합계 — 칸이 비면 None
+    raw: dict[str, Any] | None = None
+
+    @property
+    def has_fee_info(self) -> bool:
+        """증권사가 제비용을 알려줬는가. 0.0(0원을 뗌)과 None(안 알려줌)을 가른다."""
+        return self.total_fees is not None
+
+
 class BrokerClient(ABC):
     """모든 증권사 클라이언트의 공통 인터페이스."""
 
