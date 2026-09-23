@@ -8,19 +8,21 @@
 
 2026-09-23 에 논의마다 결론 초안을 올렸는데, 곧바로 옛 저장소가 닫혀 팀원이 읽을 수 없게 됐습니다.
 **GitHub 에 댓글을 달 수 없으니 의견은 팀 대화방에 남겨 주세요** — 이동원이 결정 대장에 옮깁니다.
-결정 대장 v0.9 는 열린 PR [#75](pulls/075.md) 의 브랜치 `docs/discussion-conclusions-v0-9` 에 있습니다.
+결정 대장 v0.9 는 [`docs/계획서/논의결정대장_v0.9.md`](../계획서/논의결정대장_v0.9.md) 입니다 — 옛 PR [#75](pulls/075.md) 는 머지되기 전에 옛 저장소가 닫혔습니다.
 
 | 논의 | 번호 | 주제 | 초안 | 의견 기한 (KST) |
 |---|---|---|---|---|
-| D0 | [#6](discussions/006.md) | 팀 운영·기록 방식 | [결론 초안](discussions/006.md#discussioncomment-18561533) | **09-27(일) 23:59** |
-| D1 | [#7](discussions/007.md) | Qurious 2.0은 누구의 어떤 문제를 푸는가 | [결론 초안](discussions/007.md#discussioncomment-18561553) | **09-27(일) 23:59** |
-| D2 | [#10](discussions/010.md) | 유료 서비스(AWS 등)를 어디까지 쓸지와 데모 방식 | [결론 초안](discussions/010.md#discussioncomment-18561567) | **09-27(일) 23:59** |
-| D3 | [#30](discussions/030.md) | lumina-invest 기능 범위 — 화면이 한 번도 부르지 않는 API가 31개입니다 | [결론 초안](discussions/030.md#discussioncomment-18561638) | **09-27(일) 23:59** |
-| D4 | [#17](discussions/017.md) | 1차 프로젝트 매듭짓기 — 비용·누수·검정 규격을 2·3차 공통으로 정합니다 | [결론 초안](discussions/017.md#discussioncomment-18561510) | **09-26(토) 18:00** |
-| D5 | [#18](discussions/018.md) | 2차 로보어드바이저 설계 — 무엇에 투자하고, 무엇으로 계산하고, 무엇과 비교할까 | [결론 초안](discussions/018.md#discussioncomment-18561594) | **09-27(일) 23:59** |
-| D6 | [#20](discussions/020.md) | 3차 커스텀 인디케이터 설계 — 같은 'RSI 14'가 세 벌이라 결론이 58.3% 뒤집힙니다 | [결론 초안](discussions/020.md#discussioncomment-18561614) | **09-27(일) 23:59** |
-| D7 | [#13](discussions/013.md) | 모의투자는 무엇으로 체결하고 무엇을 기록할까 — 실행 데모와 포워드 데이터 축적 | [결론 초안](discussions/013.md#discussioncomment-18561493) | **09-26(토) 18:00** |
+| D0 | [#6](discussions/006.md) | 팀 운영·기록 방식 | [결론 초안](discussions/006.md#discussioncomment-18561533) | ~~09-27(일) 23:59~~ **09-30(수) 23:59** |
+| D1 | [#7](discussions/007.md) | Qurious 2.0은 누구의 어떤 문제를 푸는가 | [결론 초안](discussions/007.md#discussioncomment-18561553) | ~~09-27(일) 23:59~~ **09-30(수) 23:59** |
+| D2 | [#10](discussions/010.md) | 유료 서비스(AWS 등)를 어디까지 쓸지와 데모 방식 | [결론 초안](discussions/010.md#discussioncomment-18561567) | ~~09-27(일) 23:59~~ **09-30(수) 23:59** |
+| D3 | [#30](discussions/030.md) | lumina-invest 기능 범위 — 화면이 한 번도 부르지 않는 API가 31개입니다 | [결론 초안](discussions/030.md#discussioncomment-18561638) | ~~09-27(일) 23:59~~ **09-30(수) 23:59** |
+| D4 | [#17](discussions/017.md) | 1차 프로젝트 매듭짓기 — 비용·누수·검정 규격을 2·3차 공통으로 정합니다 | [결론 초안](discussions/017.md#discussioncomment-18561510) | ~~09-26(토) 18:00~~ **09-30(수) 23:59** |
+| D5 | [#18](discussions/018.md) | 2차 로보어드바이저 설계 — 무엇에 투자하고, 무엇으로 계산하고, 무엇과 비교할까 | [결론 초안](discussions/018.md#discussioncomment-18561594) | ~~09-27(일) 23:59~~ **09-30(수) 23:59** |
+| D6 | [#20](discussions/020.md) | 3차 커스텀 인디케이터 설계 — 같은 'RSI 14'가 세 벌이라 결론이 58.3% 뒤집힙니다 | [결론 초안](discussions/020.md#discussioncomment-18561614) | ~~09-27(일) 23:59~~ **09-30(수) 23:59** |
+| D7 | [#13](discussions/013.md) | 모의투자는 무엇으로 체결하고 무엇을 기록할까 — 실행 데모와 포워드 데이터 축적 | [결론 초안](discussions/013.md#discussioncomment-18561493) | ~~09-26(토) 18:00~~ **09-30(수) 23:59** |
 | D8 | [#69](discussions/069.md) | CI(자동 시험)를 둘 것인가, 둔다면 어떤 식으로 — 먼저 세웠던 것을 걷어내고 여쭙습니다 | 초안 없음 | — |
+
+의견 기한은 2026-09-23(S49)에 전부 **09-30(수) 23:59** 로 늦췄습니다(D4·D7 포함) — 옛 값은 취소선으로 남겼습니다. 2차 시작일 09-27 은 그대로입니다.
 
 ## 2. 읽는 법
 
