@@ -1838,6 +1838,23 @@ def _incremental_selection(man: Dict) -> Tuple[List[str], str]:
         f"업로드 기록이 없다 — 열린 연도({', '.join(pats)})와 작은 표로 고른다"
 
 
+def changed_since_upload(man: Optional[Dict] = None) -> Optional[List[str]]:
+    """마지막 업로드 기록과 sha256 이 다른 파케이 경로(메타 제외).
+
+    `scripts/daily_update.py` 가 "올릴 것이 있는가" 를 묻는 곳이다. 빈 목록이면 원격에
+    이미 같은 내용이 있으므로 올리지 않는다 — `upload --incremental` 은 바뀐 파케이가
+    0개여도 `meta/*`·`README.md` 를 올려 **내용 없는 커밋과 태그**를 매일 남긴다.
+    업로드 기록이 아예 없으면 `None` 이다(판단 불가 → 올려야 한다).
+    """
+    man = man if man is not None else _load_manifest()
+    up = (man.get("uploaded") or {}).get("files") or {}
+    if not up:
+        return None
+    files = {f["path"]: f["sha256"]
+             for t in man.get("tables", {}).values() for f in t.get("files", [])}
+    return sorted(p for p, s in files.items() if up.get(p) != s)
+
+
 def _select(man: Dict, patterns: Optional[List[str]]) -> List[Tuple[str, List[Dict]]]:
     """(표 이름, 올릴 파일들). `patterns` 가 None 이면 전부."""
     out = []
