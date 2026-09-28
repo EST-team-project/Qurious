@@ -1,4 +1,5 @@
 """주가 데이터 서비스: Yahoo Finance API 기반."""
+import math
 import time
 import httpx
 from datetime import datetime, timezone
@@ -67,20 +68,48 @@ async def _yahoo_chart(symbol: str, interval: str, range_: str) -> dict | None:
             return None
 
 
+def _change_from_prev(price: Any, prev_close: Any) -> tuple[float | None, float | None]:
+    """현재가와 전일 종가로 (전일 대비 값, 등락률 %)를 만든다.
+
+    둘 중 하나라도 없거나, 숫자가 아니거나, 0 이하이면 (None, None) 이다 —
+    **0 으로 채우지 않는다.** 모르는 값을 0 으로 채우면 화면에 '보합 0.00%' 로 보여
+    사실과 다른 정보가 된다(#26 A1·C3).
+
+    거래소·증권사 앱의 공식 등락률은 전일 종가가 아니라 '기준가' 대비다. 둘은 보통
+    같지만 권리락·주식배당락·액면분할·병합 날에는 기준가가 조정되므로, 그날은 이 값이
+    증권사 앱과 다를 수 있다.
+    """
+    try:
+        price, prev_close = float(price), float(prev_close)
+    except (TypeError, ValueError):
+        return None, None
+    if not (math.isfinite(price) and math.isfinite(prev_close)) or price <= 0 or prev_close <= 0:
+        return None, None
+    change = price - prev_close
+    return round(change, 4), round(change / prev_close * 100, 2)
+
+
 async def get_quote(symbol: str) -> dict:
-    """현재 주가 정보."""
+    """현재 주가 정보 — 전일 대비 값·등락률까지."""
     data = await _yahoo_chart(symbol, "1d", "1d")
     if not data:
         return {"symbol": symbol, "error": "데이터 없음"}
 
     meta = data.get("meta", {})
+    price = meta.get("regularMarketPrice")
+    # 전일 종가. 2026-09-28 실측에서 `previousClose` 는 6종목 모두 null 이었고
+    # `chartPreviousClose` 만 왔다. 그런데 `chartPreviousClose` 는 '차트 첫 봉 바로 앞의
+    # 종가'라서, 위 요청의 기간(range)이 1일일 때만 전일 종가다 — 5일로 받으면 5거래일 전
+    # 종가가 된다(같은 날 실측: 285,500 → 252,500). 그래서 위 요청의 기간을 바꾸지 않는다.
+    prev_close = meta.get("previousClose") or meta.get("chartPreviousClose")
+    change, change_pct = _change_from_prev(price, prev_close)
     return {
         "symbol": symbol,
         "name": meta.get("longName") or meta.get("shortName") or symbol,
-        "price": meta.get("regularMarketPrice"),
-        "prev_close": meta.get("previousClose") or meta.get("chartPreviousClose"),
-        "change": None,
-        "change_pct": None,
+        "price": price,
+        "prev_close": prev_close,
+        "change": change,
+        "change_pct": change_pct,
         "currency": meta.get("currency", "KRW"),
         "market": meta.get("exchangeName"),
     }
@@ -251,20 +280,15 @@ async def get_candles(symbol: str, period: str = "1y", interval: str = "1d") -> 
 
 
 async def get_market_summary() -> list[dict]:
-    """시장 지수 요약."""
+    """시장 지수 요약. 등락률은 `get_quote` 가 계산한 값을 그대로 쓴다(식은 한 곳에만)."""
     results = []
     for idx in MARKET_INDICES:
         q = await get_quote(idx["symbol"])
-        prev = q.get("prev_close")
-        price = q.get("price")
-        change_pct = None
-        if prev and price and prev != 0:
-            change_pct = round((price - prev) / prev * 100, 2)
         results.append({
             "symbol": idx["symbol"],
             "name": idx["name"],
-            "price": price,
-            "change_pct": change_pct,
+            "price": q.get("price"),
+            "change_pct": q.get("change_pct"),
         })
     return results
 
