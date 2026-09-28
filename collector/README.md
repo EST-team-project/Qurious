@@ -112,9 +112,9 @@ flowchart TD
 | 가져온 곳 | 줄 수 | 판정 | 무엇을·왜 |
 |---|---:|---|---|
 | [`Alpha_Stack/common/raw_store.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/common/raw_store.py) | 300 | 🟢 **이식** → `collector/raw_store.py` (198줄) | gzip+sha256 보존·무결성 검증·통계를 그대로. **바꾼 곳**: ① 연결을 스스로 열던 길을 막고 `conn` 을 **반드시** 받게 했다(트랜잭션을 함께 묶으려고) ② `ALLOWED_SOURCES` 를 이 프로젝트 출처로 교체 ③ `common.paths`·`ingest.store.migrations` 의존 제거(그 패키지가 여기 없다) |
-| [`Qurious/app/services/brokers/kis.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/services/brokers/kis.py) | 190 | 🟡 **규격만 재사용** → `collector/sources/kis.py` (241줄) | 엔드포인트 경로·TR ID(`FHKST01010100`·`VTTC8434R`)·응답 필드 이름을 그대로 썼다. **코드는 다시 썼다** — 원본은 `httpx` 비동기에 `app.config` 를 import 해서 스택 없이는 못 돈다. 그리고 원본에는 **`rt_cd` 검사가 없다**(`r.json()["output"]` 을 바로 꺼낸다). 유량 초과가 HTTP 500 + 빈 배열로 오므로 그 경로는 조용히 틀린다 |
-| [`Qurious/app/celery_app.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/celery_app.py) | 74 | 🟢 **그대로 얹음** | Beat 스케줄에 3줄 추가. `timezone="Asia/Seoul"` 이 이미 잡혀 있어 KST 로 그냥 돈다 |
-| [`Qurious/app/tasks/ingest_tasks.py`](https://github.com/devlee328288/Qurious/blob/b41fda1/app/tasks/ingest_tasks.py) | 151 | 🟢 **패턴 모방** → `app/tasks/collector_tasks.py` (83줄) | 태스크 안에서 늦게 import 하는 방식을 따랐다. 단 `asyncio.run` 은 안 쓴다 — 수집 코어가 동기라서 |
+| [`Qurious/app/services/brokers/kis.py`](https://github.com/EST-team-project/Qurious/blob/04f476a/app/services/brokers/kis.py) | 190 | 🟡 **규격만 재사용** → `collector/sources/kis.py` (241줄) | 엔드포인트 경로·TR ID(`FHKST01010100`·`VTTC8434R`)·응답 필드 이름을 그대로 썼다. **코드는 다시 썼다** — 원본은 `httpx` 비동기에 `app.config` 를 import 해서 스택 없이는 못 돈다. 그리고 원본에는 **`rt_cd` 검사가 없다**(`r.json()["output"]` 을 바로 꺼낸다). 유량 초과가 HTTP 500 + 빈 배열로 오므로 그 경로는 조용히 틀린다 |
+| [`Qurious/app/celery_app.py`](https://github.com/EST-team-project/Qurious/blob/04f476a/app/celery_app.py) | 74 | 🟢 **그대로 얹음** | Beat 스케줄에 3줄 추가. `timezone="Asia/Seoul"` 이 이미 잡혀 있어 KST 로 그냥 돈다 |
+| [`Qurious/app/tasks/ingest_tasks.py`](https://github.com/EST-team-project/Qurious/blob/04f476a/app/tasks/ingest_tasks.py) | 151 | 🟢 **패턴 모방** → `app/tasks/collector_tasks.py` (83줄) | 태스크 안에서 늦게 import 하는 방식을 따랐다. 단 `asyncio.run` 은 안 쓴다 — 수집 코어가 동기라서 |
 | [`edumgt/stock-coin-trade` `scheduler.py`](https://github.com/edumgt/stock-coin-trade/blob/ebb40c3/python-stock-backend/scheduler.py) | 72 | 🔴 **쓰지 않음** | APScheduler 선례였지만, 이 저장소에 **이미 Celery Beat 가 돌고 있다**. 스케줄러를 하나 더 들이면 같은 일을 하는 물건이 둘이 되고 "어느 쪽이 안 돌았나" 를 찾는 일이 늘어난다 |
 | [`Alpha_Stack/scripts/upload_to_hf.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/upload_to_hf.py) · [`supply/hf_model_data.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/supply/hf_model_data.py) · [`scripts/check_hf_access.py`](https://github.com/devlee328288/Alpha_Stack/blob/3bb08f8/scripts/check_hf_access.py) | 890 / 278 / 160 | ~~⏸ **보류**~~ → 🔴 **쓰지 않음** (2026-09-20) | ~~HF 업로드 경로다. "팀원이 제3자인가" 가 판단되기 전에는 원자료를 밖으로 내보내지 않는다(§8). 매니페스트(지문)만으로 대조가 되므로 급하지 않다~~ → **보류 사유는 2026-09-20 팀 결정으로 해소됐다**(§9.2). 다만 이 세 파일을 **이식하지는 않았다** — HF 경로는 `scripts/hf_dataset.py`(2,099줄)로 **새로 썼다**(Alpha_Stack 코드 참조 0건). 설계가 다르다: 파케이 연도 파티션 · Xet 청크 중복제거 · dry-run 기본 |
 
@@ -295,7 +295,7 @@ S26 규격은 `fltRt` 누적이었다. 실측해 보니 그쪽이 덜 정확하�
 KIS 는 실패해도 HTTP 200 으로 주는 경우가 있고, 유량 초과(`EGW00201`)는 **HTTP 500 에
 `output2` 가 빈 배열**로 온다. 상태 코드만 보거나 `output` 을 바로 꺼내면 **빈 결과를
 참으로 받아들인다.** 기존 `app/services/brokers/kis.py` 가 그 경로다
-([L66-L67](https://github.com/devlee328288/Qurious/blob/b41fda1/app/services/brokers/kis.py#L66-L67)).
+([L66-L67](https://github.com/EST-team-project/Qurious/blob/04f476a/app/services/brokers/kis.py#L66-L67)).
 
 ---
 
@@ -576,7 +576,7 @@ docker stop qurious-redis-test && docker rm qurious-redis-test   # ★ 끝나면
 **불일치 0건.** 다만 `sync.*` 두 개는 **이름만 맞췄고 실행하지는 않았다** — 그 경로가
 A4 가 문제 삼은 Yahoo 비공식 API 를 타기 때문이다. 실행은 그 소스 판단이 끝난 뒤에 한다.
 
-[A4 #23]: https://github.com/devlee328288/Qurious/issues/23
+[A4 #23]: ../docs/github-archive/2026-09-17/이슈-023/00-기록.md
 
 > 같은 함정을 한 번 더 겪었다: 첫 워커를 `pkill` 로 죽였다고 생각했는데 Windows 에서는
 > 안 죽어, 구·신 워커가 같은 큐를 나눠 먹으며 3건 중 1건만 성공했다. `Get-CimInstance`
