@@ -1,10 +1,16 @@
-"""주가 데이터 서비스: Yahoo Finance API 기반."""
+"""주가 데이터 서비스.
+
+국내 주식 일봉(`get_candles`)은 수집 DB 에서 읽는다(`collector_db` · DF-08 · 2026-09-28).
+실시간 시세(`get_quote`) · 지수 · 환율 · 해외 · 펀더멘털은 아직 외부 시세 API 를 부른다 — 수집기는
+다음 날 낮에 전일 값을 받으므로 장중 시세를 대신할 수 없다.
+"""
 import math
 import time
 import httpx
 from datetime import datetime, timezone
 from typing import Any
 
+from app.services import collector_db
 from app.services.data_cache import cache_get, cache_set
 
 YAHOO_CHART = "https://query2.finance.yahoo.com/v8/finance/chart"
@@ -241,7 +247,17 @@ async def get_fundamentals(symbol: str) -> dict:
 
 
 async def get_candles(symbol: str, period: str = "1y", interval: str = "1d") -> dict:
-    """캔들 차트 데이터 (OHLCV). 반복 스캔 시 Yahoo 호출을 줄이기 위해 캐시를 우선 사용한다."""
+    """캔들 차트 데이터 (OHLCV) — 국내 주식 일봉은 **수집 DB 에서 먼저** 읽는다(DF-08).
+
+    수집 DB 경로는 수정주가이고, 돌려주는 사전에 `source`·`as_of`(마지막 봉 날짜)가 더 붙는다.
+    캐시를 거치지 않는다 — 파일 읽기가 캐시 조회보다 싸고, 12:30 일일 갱신이 바로 보인다.
+    수집 DB 에 없는 기호(지수 · 환율 · 해외 · ETF)나 일봉이 아닌 요청만 아래 옛 경로로 간다
+    — 옛 경로는 캐시를 먼저 본다(반복 스캔 때 외부 호출을 줄이려고).
+    """
+    local = await collector_db.get_daily_candles(symbol, period, interval)
+    if local is not None:
+        return local
+
     cache_key = f"candles:{symbol}:{period}:{interval}"
     cached = await cache_get(cache_key, max_age_hours=6)
     if cached is not None:
@@ -367,6 +383,9 @@ async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
         "signal": signal,
         "current_price": closes[-1],
         "current_rsi": rsi[-1],
+        # current_price 는 마지막 봉 종가다. 수집 DB 에서 왔으면 오늘이 아니라 as_of 의 값이다.
+        "as_of": data.get("as_of"),
+        "source": data.get("source"),
     }
 
 

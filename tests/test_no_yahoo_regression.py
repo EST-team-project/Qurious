@@ -31,8 +31,11 @@ PATTERN = re.compile(r"yahoo|yfinance|query[12]\.finance", re.IGNORECASE)
 
 # ── 기준선 (2026-09-21 실측 · 줄 단위) ──────────────────────────────
 # 한 줄에 여러 번 나와도 1 로 센다.
+# 2026-09-28 S57: stock.py 20 → 18 — 국내 주식 일봉이 수집 DB 로 옮겨 가며(DF-08) 설명 두 줄이 바뀌었다.
+#   ⚠️ 이 시험은 '줄'을 센다. 실제로 줄어든 것은 **호출**이다 — get_candles 를 부르는 14곳 가운데
+#   국내 주식 일봉 요청은 이제 외부로 나가지 않는다(tests/test_collector_candles_df08.py).
 BASELINE: dict[str, int] = {
-    "app/services/stock.py": 20,
+    "app/services/stock.py": 18,
     "app/services/lean_backtest.py": 19,
     "app/services/paper_trading.py": 10,
     "app/services/sync_scheduler.py": 7,
