@@ -32,11 +32,12 @@ docs/github-archive/
     ├── PR-docs-wireframe-v0-2/    00-본문.md  (#28)
     ├── PR-docs-records-26-28/     00-본문.md  (#29)
     ├── PR-fix-quote-change-a1/    00-본문.md  (#30)
-    ├── 이슈-DF08-다리-뒤-기준일/   00-본문.md  (S57 · 번호 확인 전)
+    ├── 이슈-DF08-다리-뒤-기준일/   00-본문.md  (#35)
     ├── PR-feat-collector-candles-df08/  00-본문.md  (#33)
     ├── PR-docs-erd-v1-1-and-meetings/   00-본문.md  (#34)
     ├── 이슈-HF-데이터셋-private/   00-본문.md  (S58 · 웹에서 올린 뒤 번호)
-    └── PR-docs-archive-refresh-s58/  00-본문.md  (S58 · 번호는 올린 뒤)
+    ├── PR-docs-archive-refresh-s58/  00-본문.md  (#36)
+    └── PR-fix-collector-df01-shares/  00-본문.md  (S59 · 번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -47,7 +48,7 @@ docs/github-archive/
 | 새 저장소에 올렸는지 | 3절 「새 저장소」 칸 | 3절 「새 저장소」 칸 |
 
 - 다시 올린 옛 글에 답글이 오면 **그 글 폴더**에 `01-날짜-답글-이름.md` 부터 쌓는다 (옛 기록 `00-기록.md` 는 고치지 않는다).
-- 올림 현황 (2026-09-28 S58 · 사용자 보고): 옛 글 75건 중 **17건** — 이슈 8(원 작성 09-15 전부: 옛 `#1` · `#3` · `#4` · `#5` · `#8` · `#9` · `#11` · `#12`) · 논의 9(원 작성 09-17 까지 전부: 옛 `#6` · `#7` · `#10` · `#13` · `#17` · `#18` · `#20` · `#29` · `#30`) — 새 번호 미기입. ~~S57: 6건~~. 새 글 16건 중 올림 15(… PR #30 · **#33 · #34**) · S57 이슈 1건은 번호 확인 전.
+- 올림 현황 (2026-09-28 S58 · 사용자 보고): 옛 글 75건 중 **17건** — 이슈 8(원 작성 09-15 전부: 옛 `#1` · `#3` · `#4` · `#5` · `#8` · `#9` · `#11` · `#12`) · 논의 9(원 작성 09-17 까지 전부: 옛 `#6` · `#7` · `#10` · `#13` · `#17` · `#18` · `#20` · `#29` · `#30`) — 새 번호 미기입. ~~S57: 6건~~. 새 글 16건 중 올림 15(… PR #30 · **#33 · #34**) · S57 이슈 1건은 번호 확인 전. → **S59 채움**: S57 이슈 「다리 뒤 기준일」 = **#35**(사용자 보고) · S58 PR = **#36**(머지 `abc4853`). 옛 글 17건의 새 번호 · HF 이슈 번호는 아직.
 - **올린 글도 최신으로** (S58~): 올린 뒤 바뀐 사실은 그 글 폴더에 `01-날짜-갱신.md` 댓글 파일로 남긴다 — 점검 결과와 순서는 [갱신 대장](갱신대장.md).
 - 글 폴더를 더한 PR 은 **그 PR 안에서 3절 표에 줄을 더한다** — 번호 칸은 「(올린 뒤 적음)」으로 두면 된다. 줄이 빠지면 `python scripts/post_check.py` 가 `📇 색인 없음` 으로 알린다(S55 · PR #28 이 폴더 2개를 색인 없이 더했다).
 
@@ -233,11 +234,12 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-wireframe-v0-2](2026-09-28/PR-docs-wireframe-v0-2/00-본문.md) | docs: 와이어프레임 v0.2 — 주 경로 12개를 다 그렸더니 IA 판정 셋이 틀렸다 | 2,191 | [#28](https://github.com/EST-team-project/Qurious/pull/28) · 머지 `33d495f` (S55 에 채움) |
 | [PR docs-records-26-28](2026-09-28/PR-docs-records-26-28/00-본문.md) | docs: 기록 색인에 #26~#28 — 폴더 둘이 색인 없이 들어온 것을 post_check 가 알린다 | 2,675 | [#29](https://github.com/EST-team-project/Qurious/pull/29) · 머지 `508d858` (S56 에 채움) |
 | [PR fix-quote-change-a1](2026-09-28/PR-fix-quote-change-a1/00-본문.md) | fix: 등락률이 늘 비어 있었다 — 전일 종가는 전일 종가가 아니었다 (A1) · 테스트계획서 v1.1 · 산출물목록 v1.4 | 3,672 | [#30](https://github.com/EST-team-project/Qurious/pull/30) · 머지 `df345b4` (S57 에 채움) |
-| [이슈 DF08-다리-뒤-기준일](2026-09-28/이슈-DF08-다리-뒤-기준일/00-본문.md) | [작업] 수집 DB 다리(DF-08) 뒤 — 「현재가」가 어제 종가가 된 곳 5곳 (파트별 체크리스트) | 4,533 | (올린 뒤 적음) · Assignee 비움 |
+| [이슈 DF08-다리-뒤-기준일](2026-09-28/이슈-DF08-다리-뒤-기준일/00-본문.md) | [작업] 수집 DB 다리(DF-08) 뒤 — 「현재가」가 어제 종가가 된 곳 5곳 (파트별 체크리스트) | 4,533 | [#35](https://github.com/EST-team-project/Qurious/issues/35) · Assignee 비움 (S59 에 채움) |
 | [PR feat-collector-candles-df08](2026-09-28/PR-feat-collector-candles-df08/00-본문.md) | feat: 국내 주식 일봉을 수집 DB 에서 읽는다 — 모아 둔 446만 행이 처음으로 화면에 닿는다 (DF-08) | 5,640 | [#33](https://github.com/EST-team-project/Qurious/pull/33) · 머지 `0d95471` (S58 에 채움) |
 | [PR docs-erd-v1-1-and-meetings](2026-09-28/PR-docs-erd-v1-1-and-meetings/00-본문.md) | docs: ERD v1.1 · 데이터 사전 v1.1 — 그림은 그대로, 길과 값이 바뀌었다 · 회의 폴더 · 일일 기록 양식(제안) | 3,840 | [#34](https://github.com/EST-team-project/Qurious/pull/34) · 머지 `1238b04` (S58 에 채움) |
 | [이슈 HF-데이터셋-private](2026-09-28/이슈-HF-데이터셋-private/00-본문.md) | [작업] HF 데이터셋은 private 으로 만든다 — 만들 때 지정 · 올리기 전 검사 (팀 체크리스트) | 3,061 | (올린 뒤 적음) · Assignee 비움 |
-| [PR docs-archive-refresh-s58](2026-09-28/PR-docs-archive-refresh-s58/00-본문.md) | docs: 올린 글도 최신으로 — 옛 글 43건 갱신 댓글 · 갱신 대장 · HF private 이슈 초안 · 옛 링크 28곳 | 1,876 | (올린 뒤 적음) |
+| [PR docs-archive-refresh-s58](2026-09-28/PR-docs-archive-refresh-s58/00-본문.md) | docs: 올린 글도 최신으로 — 옛 글 43건 갱신 댓글 · 갱신 대장 · HF private 이슈 초안 · 옛 링크 28곳 | 1,876 | [#36](https://github.com/EST-team-project/Qurious/pull/36) · 머지 `abc4853` (S59 에 채움) |
+| [PR fix-collector-df01-shares](2026-09-28/PR-fix-collector-df01-shares/00-본문.md) | fix: DF-01 — 정지 뒤 감자·병합을 주식 수로 잡는다 (052670 300배 → −80% · 086460) | 6,076 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

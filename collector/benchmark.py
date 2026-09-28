@@ -191,6 +191,14 @@ KRX 가 내는 공식 코스피 지수는 이 프로젝트가 **약관 때문에
 감자 미흡수는 반드시 *위로* 튀므로 그 방향만 막으면 된다 — 아래로 튀는 것은 정리매매의
 진짜 −99% 와 구별할 수 없고, 구별하려 들면 진짜 손실을 지우게 된다.
 
+★ **S59(2026-09-28) — 원천에서 고쳤다. 이 보정은 이제 안전망이다.** ``preprocess`` 가
+정지 뒤 첫 거래일의 주식 수로 감자·병합을 잡게 됐다(``EV_SHARES`` · DF-01). 제일바이오는
+``cum_factor`` 가 그날 움직이므로 ① 에서 빠지고, 이 보정이 고치는 건수는 **0** 이 된다.
+그리고 위 "반드시 위로 튄다" 는 **틀렸다** — 큐러블 086460 20250807(KONEX · 20:1)은 미흡수
+가격비가 ρ = 0.86(−14%)이라 ③ 도 게이트 6 도 못 잡았는데, 실제로는 20주가 1주가 된 날이라
+**−95.7%** 다. 정리매매로 곧장 가는 종목은 거래소 기준가 없이 시장이 값을 다시 매기므로
+미흡수 가격비가 어느 쪽으로든 나올 수 있다. 그래서 판정 근거를 가격이 아니라 주식 수로 옮겼다.
+
 무엇을 하지 않는가
 ------------------
 - **±60% 클리핑을 하지 않는다.** 위 §주식수 사건 보정을 거친 뒤 남는 것은 전부
@@ -963,20 +971,33 @@ def status(conn: sqlite3.Connection) -> None:
 #: 수학적으로 동일해야 한다(preprocess.factors 의 f = base/prev_clpr 를 대입하면
 #: cum 이 약분돼 clpr(t)/(clpr(t)−vs(t)) 만 남는다). 어긋나면 누적 방향 오류·
 #: cum_factor 손상·조인 어긋남·날짜 정렬 오류 중 하나다.
+#:
+#: ★ 예외 하나 (S59) — ``corporate_action.kind = 'shares'`` 인 날은 preprocess 가 **일부러
+#: vs 를 믿지 않은** 날이다(포털이 감자를 기준가에 반영하지 않았다 · DF-01). 그날 B 를
+#: ``clpr − vs`` 로 두면 제일바이오는 300.48 이고 A 는 0.2003 이라 게이트가 늘 실패한다.
+#: 그래서 그날만 기준가를 ``prev_clpr × factor``(= 전일 종가 × 주식 수로 되짚은 병합 비율)로
+#: 읽는다. 누적 방향 · 조인 · 정렬을 재는 이 게이트의 목적은 그대로 남는다. 몇 쌍을 그렇게
+#: 읽었는지는 **항상 찍는다** — 늘어나면 사람이 본다.
 _GATE1_SQL = """
 WITH s AS (
-  SELECT p.srtn_cd cd, c.di di, p.clpr clpr, p.vs vs, a.adj_clpr adj
+  SELECT p.srtn_cd cd, c.di di, p.clpr clpr, a.adj_clpr adj,
+         CASE WHEN ca.srtn_cd IS NULL THEN p.clpr - p.vs
+              ELSE ca.prev_clpr * ca.factor END base,
+         (ca.srtn_cd IS NOT NULL) by_shares
     FROM price_daily p
     JOIN temp.bm_cal c         ON c.bas_dt = p.bas_dt
     LEFT JOIN price_adjusted a ON a.bas_dt = p.bas_dt AND a.srtn_cd = p.srtn_cd
+    LEFT JOIN corporate_action ca
+           ON ca.bas_dt = p.bas_dt AND ca.srtn_cd = p.srtn_cd AND ca.kind = 'shares'
    WHERE p.mrkt_ctg = ? AND substr(p.srtn_cd, 6, 1) = '0'
 ), g AS (
-  SELECT cd, di, clpr, vs, adj, LAG(di) OVER w p_di, LAG(adj) OVER w p_adj
+  SELECT cd, di, clpr, base, by_shares, adj, LAG(di) OVER w p_di, LAG(adj) OVER w p_adj
     FROM s WINDOW w AS (PARTITION BY cd ORDER BY di)
 )
-SELECT COUNT(*) n, MAX(ABS(adj / p_adj - clpr * 1.0 / (clpr - vs))) worst
+SELECT COUNT(*) n, MAX(ABS(adj / p_adj - clpr * 1.0 / base)) worst,
+       COALESCE(SUM(by_shares), 0) n_shares
   FROM g
- WHERE p_di = di - 1 AND adj > 0 AND p_adj > 0 AND clpr > 0 AND (clpr - vs) > 0
+ WHERE p_di = di - 1 AND adj > 0 AND p_adj > 0 AND clpr > 0 AND base > 0
 """
 
 
@@ -994,7 +1015,9 @@ def _gate1(conn: sqlite3.Connection, markets: Sequence[str]) -> bool:
     ok = r["worst"] < 1e-9
     ok_all &= ok
     print(f"  {m:<7} 대조 {r['n']:,}쌍  최대차 {r['worst']:.3e}  "
-          f"→ {'✅ 일치' if ok else '❌ 어긋남'}")
+          f"→ {'✅ 일치' if ok else '❌ 어긋남'}"
+          + (f"  (그중 {r['n_shares']:,}쌍은 주식 수로 조정한 날 — 기준가를 "
+             f"corporate_action 에서 읽음)" if r["n_shares"] else ""))
   return ok_all
 
 
