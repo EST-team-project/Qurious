@@ -58,6 +58,9 @@ S26 까지의 규격은 ``fltRt``(등락률 %) 를 누적하는 것이었다. �
    거래소 기준가와도 다르면, ``vs`` 기반 조정은 배당락·권리락을 못 잡는 것이다.
 🔴 **배당은 이 조정에 들어 있지 않다.** 여기서 만드는 것은 가격수익(PR) 계열이지
    총수익(TR) 이 아니다. 배당까지 반영하려면 별도 배당 자료가 필요하다(#33 열린 질문).
+🟢 **장기 정지 뒤 감자는 ``vs`` 가 말해 주지 않을 때가 있다** (DF-01 · S59) — 포털이 감자
+   **전** 종가로 ``vs`` 를 계산해 계수가 1.0 이 된다. 그날은 주식 수로 조정한다(``EV_SHARES``).
+   전 종목 실측 2곳(제일바이오 1,500:1 · 큐러블 20:1). 판정 조건은 ``_unabsorbed_consolidation``.
 """
 
 from __future__ import annotations
@@ -124,7 +127,25 @@ LSTG_SAME_TOL = 0.01
 #:              계속 0** 이었다. vs 가 0 이면 "가격이 이어진다" 와 "조정 정보가 없다" 가
 #:              구별되지 않는다. 정지 해제일에 가격이 달라져 있으면, 그것이 조정 때문인지
 #:              실제 등락인지 이 데이터만으로는 알 수 없다.
+#: ``shares``   정지 뒤 첫 거래일에 ``vs`` 는 아무것도 말하지 않는데(f = 1) 주식 수가
+#:              절반 아래로 줄었다. 포털이 감자·병합을 기준가에 **반영하지 않은** 날이다.
+#:              가격 신호가 없으니 **주식 수 비율로** 조정한다 (DF-01 · S59).
+#:              → ``_unabsorbed_consolidation`` 머리말.
 EV_SPLIT, EV_RIGHTS, EV_REVIEW = "split", "rights", "review"
+EV_SHARES = "shares"
+
+#: 정지 뒤 첫 거래일에 주식 수가 이 비율 **이하**로 줄었으면 병합·감자로 본다.
+#:
+#: 왜 0.55 인가 — 가장 작은 병합(2:1)이 0.5 이고, 단주를 버리므로 0.5 보다 **조금 크게**
+#: 나온다. 반대쪽 끝은 자사주 소각이다. 실측 2026-09-28 전 종목 — 정지 뒤 재개일에
+#: 주식 수가 줄었는데 ``vs`` 가 조용한 날 중 소각으로 보이는 것은 0.815(세종텔레콤
+#: 20230908) · 0.868(유니포인트 20260520) 로 0.55 와 멀고, 병합은 0.05 · 0.00067 이었다.
+SHRINK_MAX = 0.55
+
+#: 병합 비율(``1/Q``)이 가장 가까운 정수에서 이만큼 안이면 "깨끗한 병합" 이다.
+#: 단주는 버려지므로 주식 수가 비율로 딱 나눠떨어지지 않는다 — 제일바이오는
+#: 29,129,064 ÷ 1,500 = 19,419.38 → 19,419 라서 ``1/Q`` = 1,500.03 이다.
+RATIO_TOL = 0.01
 
 
 def classify(f: float, q):
@@ -141,6 +162,57 @@ def classify(f: float, q):
     if abs(q - 1.0) <= LSTG_SAME_TOL:
         return EV_RIGHTS, cross
     return EV_REVIEW, cross
+
+
+def _unabsorbed_consolidation(r, prev_clpr: int, lstg_before: Optional[int]) -> Optional[Dict]:
+    """정지 뒤 첫 거래일에 포털이 반영하지 않은 감자·병합을 **주식 수로** 잡는다.
+
+    실측 2026-09-28 — 전 종목에서 두 곳이다. 둘 다 **장기 정지 → 감자 → 정리매매 7거래일
+    → 상장폐지** 순서였고, 포털은 ``vs`` 를 감자 **전** 종가 기준으로 줬다::
+
+        제일바이오 052670  20260209  2,080 → 625,000  vs +622,920   주식 수 ÷1,500.03
+        큐러블     086460  20250807  1,454 →   1,250  vs −204       주식 수 ÷20.00
+
+    그래서 ``f = (종가 − vs) ÷ 직전 종가 = 1.0`` — "가격이 이어진다" 로 읽혔고, 제일바이오는
+    수정 종가가 하루 **300배**, 큐러블은 −14%(실제 −95.7%)로 남았다. 벤치마크는 제일바이오만
+    따로 막고 있었다(``benchmark`` §주식수 사건 보정의 ③ 가격제한폭 조건 — 큐러블은 못 넘는다).
+
+    **세 가지를 전부** 만족할 때만 조정한다. 하나라도 빠지면 멀쩡한 날을 부순다::
+
+        ① 정지 뒤 첫 거래일이다         우선주 소각(한화우 20241219 ×0.441 · 삼양홀딩스우
+                                        20250520 ×0.587)은 정지 없이 주식 수만 줄고 가격은
+                                        그대로다 — 실제 사건이지 가격 조정이 아니다.
+        ② 정지 구간에 이미 반영된 계수가 없다   재개일 ``vs`` 가 반영했거나(보통의 감자),
+                                        정지 중 기준가를 다시 매긴 날이 있으면 이중 조정이다.
+        ③ 주식 수 비율 Q ≤ SHRINK_MAX   자사주 소각은 절반 넘게 남는다.
+
+    Q 는 재개일 하루가 아니라 **정지 전 마지막 거래일**과 비교한다 — 주식 수가 정지 도중에
+    먼저 바뀌면(어스앤에어로스페이스 20230209 ×0.27) 재개일 하루의 비율은 1 이다.
+
+    계수는 **선언된 병합 비율**(가장 가까운 정수 n)이다. 1,500주를 들고 있던 사람이 1주를
+    받았으니 ``2,080 × 1,500`` 이 그 1주의 전날 값이다. ``1/Q`` 가 정수에서 멀면(감자와 신주
+    상장이 같은 날 겹쳤을 수 있다) ``1/Q`` 로 조정하되 **확인 필요**로 남긴다 — 300배로
+    남기는 것보다는 덜 틀리지만 정답이라고 말할 근거가 없다.
+    """
+    lstg_after = r["lstg_st_cnt"]
+    if not (lstg_before and lstg_after and prev_clpr):
+        return None
+    q = lstg_after / lstg_before
+    if q > SHRINK_MAX:
+        return None
+    ratio = 1.0 / q
+    n = round(ratio)
+    clean = n >= 2 and abs(ratio - n) / n <= RATIO_TOL
+    f = float(n) if clean else ratio
+    return {
+        "bas_dt": r["bas_dt"], "itms_nm": r["itms_nm"],
+        # base_price 는 '포털이 준 기준가' 가 아니라 **우리가 주식 수로 되짚은 값**이다.
+        "prev_clpr": prev_clpr, "base_price": round(prev_clpr * f), "factor": f,
+        "lstg_before": lstg_before, "lstg_after": lstg_after,
+        "lstg_cross": f * q,
+        "kind": EV_SHARES if clean else EV_REVIEW,
+        "needs_review": 0 if clean else 1,
+    }
 
 
 def _series(conn: sqlite3.Connection, code: str) -> List[sqlite3.Row]:
@@ -160,10 +232,15 @@ def factors(rows: List[sqlite3.Row]) -> List[Tuple[str, float, Optional[Dict]]]:
 
     첫 날은 비교 대상이 없으므로 1.0 으로 둔다. 상장 첫날의 ``vs`` 는 공모가 대비인
     경우가 있는데, 그걸 조정으로 읽으면 상장일에 가짜 이벤트가 생긴다.
+
+    정지 뒤 첫 거래일에 ``vs`` 가 조용하면 주식 수를 한 번 더 본다 (``_unabsorbed_consolidation``).
     """
     out: List[Tuple[str, float, Optional[Dict]]] = []
     prev_clpr: Optional[int] = None
     prev_lstg: Optional[int] = None
+    prev_halted = False
+    traded_lstg: Optional[int] = None   # 마지막 거래일의 주식 수 — 정지 구간 전체를 한 번에 비교
+    halt_f = 1.0                        # 정지 구간에 이미 반영된 계수의 곱
     for r in rows:
         clpr, vs = r["clpr"], r["vs"]
         f, ev = 1.0, None
@@ -182,7 +259,20 @@ def factors(rows: List[sqlite3.Row]) -> List[Tuple[str, float, Optional[Dict]]]:
                         "lstg_cross": cross, "kind": kind,
                         "needs_review": 1 if kind == EV_REVIEW else 0,
                     }
+        halted = bool(r["halted"])
+        if (ev is None and prev_halted and not halted
+                and abs(halt_f - 1.0) <= EVENT_EPS and clpr is not None):
+            ev = _unabsorbed_consolidation(r, prev_clpr, traded_lstg)
+            if ev is not None:
+                f = ev["factor"]
         out.append((r["bas_dt"], f, ev))
+        if halted:
+            halt_f *= f
+        else:
+            halt_f = 1.0
+            if r["lstg_st_cnt"]:
+                traded_lstg = r["lstg_st_cnt"]
+        prev_halted = halted
         if clpr:
             prev_clpr = clpr
         if r["lstg_st_cnt"]:
@@ -213,7 +303,7 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
     codes = list(codes)
 
     tally = {"codes": 0, "rows": 0, "events": 0, "suspect": 0,
-             EV_SPLIT: 0, EV_RIGHTS: 0, EV_REVIEW: 0}
+             EV_SPLIT: 0, EV_RIGHTS: 0, EV_REVIEW: 0, EV_SHARES: 0}
     conn.execute("BEGIN IMMEDIATE")
     try:
         for code in codes:
@@ -308,6 +398,7 @@ def main() -> int:
     print(f"  종목 {t['codes']:,} · 행 {t['rows']:,} · 조정 이벤트 {t['events']:,}")
     print(f"    분할·병합(두 신호 일치) {t[EV_SPLIT]:,} · "
           f"권리락(주식수 불변) {t[EV_RIGHTS]:,} · "
+          f"정지 뒤 병합(주식 수로 잡음) {t[EV_SHARES]:,} · "
           f"⚠️ 확인 필요 {t[EV_REVIEW]:,}"
           + (f" · ⚠️ 상식 밖 {t['suspect']:,}" if t["suspect"] else ""))
     d = delisted(conn)

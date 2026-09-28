@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS corporate_action (
     lstg_cross  REAL,
     needs_review INTEGER NOT NULL DEFAULT 0,
     -- split=주식수 변화와 일치 / rights=권리락(주식수 불변) / review=두 신호 모두 어긋남
+    -- / shares=정지 뒤 vs 가 조용한데 주식수가 줄었다 → 주식수로 조정 (DF-01 · S59)
     kind        TEXT    NOT NULL DEFAULT 'review',
     PRIMARY KEY (bas_dt, srtn_cd)
 );
