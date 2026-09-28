@@ -623,7 +623,21 @@ def status() -> int:
 # ==================================================
 # 5. CLI
 # ==================================================
+def utf8_stdio() -> None:
+    """표준출력·표준오류를 UTF-8 로 맞춘다.
+
+    git bash(mintty)에서 파이썬은 표준출력을 콘솔이 아니라 파이프로 보고 cp949 를 고른다 → `status` 가
+    ✅ 에서 UnicodeEncodeError 로 죽고 한글은 `▒▒` 로 깨졌다(2026-09-28 S54 실측). 작업 스케줄러의
+    ``pythonw`` 는 표준출력이 None 이라 ``hasattr`` 에서 걸러진다 — 예약 실행은 그대로다
+    (자식 단계에는 ``_run_step`` 이 ``PYTHONIOENCODING=utf-8`` 을 따로 넣는다).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    utf8_stdio()
     p = argparse.ArgumentParser(prog="python scripts/daily_update.py",
                                 description="수집기 일일 갱신 — 시세·배당·파생 표 + HF 증분 업로드")
     sub = p.add_subparsers(dest="cmd", required=True)
