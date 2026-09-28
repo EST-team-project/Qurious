@@ -32,6 +32,10 @@ python -m collector.total_return build
 
 # 7) 지문을 남긴다 — 팀원과 "같은 자료를 봤는가" 맞출 때
 python -m collector.manifest write
+
+# 8) 위 전부를 매일 자동으로 — 작업 스케줄러에 한 번 등록한다 (§15)
+python scripts/daily_update.py install     # 매일 12:30 · HF 증분 업로드 포함
+python scripts/daily_update.py status      # 마지막 실행 결과 · 다음 실행 시각
 ```
 
 필요한 것은 `.env` 의 `DATA_GO_KR_API_KEY` **하나**다(배당까지 받으려면
@@ -503,10 +507,12 @@ PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 | `sources/dart.py` | 752 | DART 배당 공시 — 목록·본문·파싱·배당락일 역산 (§13) |
 | `backfill.py` | 304 | 러너·재개·휴장 확정·CLI |
 | `preprocess.py` | 320 | 수정주가·이벤트 분류·상폐 목록 — **PR** 계열 |
-| `dividend.py` | 527 | 배당 러너·재개·재파싱·교차검증·CLI (§13) |
+| `dividend.py` | 562 | 배당 러너·재개·재파싱·교차검증·CLI (§13) · `--recent` 로 최근 달 재스캔 (§15) |
 | `total_return.py` | 457 | **TR 계열** — 수정주가 + 배당, 세전·세후 (§14) |
 | `manifest.py` | 155 | 지문 생성·대조·무결성 |
 | `../app/tasks/collector_tasks.py` | 83 | Celery Beat 어댑터 (얇음) |
+| `../scripts/hf_dataset.py` | 2,128 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 |
+| `../scripts/daily_update.py` | 654 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 (§15) |
 
 `data/collector/` 는 `.gitignore` 에 있다 — **원자료는 커밋하지 않는다.**
 
@@ -1120,3 +1126,88 @@ python -m collector.total_return status
 | 🟡 | 우선주 TR 이 **실제보다 낮다** — 배당을 못 붙인다 |
 | 🔴 | **거래비용 미반영.** 1차 결론(#32 숙제 ①)을 막는 것은 배당이 아니라 이쪽이다 |
 | 🔴 | **벤치마크가 아직 없다.** TR 을 만들었어도 KOSPI TR 과 비교할 공식값이 없다 (#16 6.3.1) |
+
+---
+
+## 15. 일일 자동 갱신 — 작업 스케줄러  ★ S53 추가
+
+### 왜 필요한가 (비전문가용)
+
+1~7 단계는 전부 있었는데 **이어 부르는 손**이 없었다. 2026-09-28 에 확인해 보니 HF 스냅샷은 09-21, 로컬 시세는 09-22,
+수정주가·TR·벤치마크는 09-17 에 멈춰 있었다 — **단계마다 멈춘 날이 달랐다.** 사람이 세션마다 기억해서 돌리면 결국 빠진다.
+
+그래서 `scripts/daily_update.py` 가 1~7 단계와 HF 업로드를 **순서대로** 부르고, Windows 작업 스케줄러가 그것을 **매일 한 번**
+부른다. Claude 세션·터미널·앱 스택(Postgres·Redis)과 **아무 관계가 없다** — §2 의 "스택이 안 뜨는 날 시세를 놓친다" 와 같은 이유다.
+
+> **작업 스케줄러** — Windows 에 들어 있는 예약 실행기. cron 과 같은 일을 한다.
+> **StartWhenAvailable** — 예약 시각에 PC 가 꺼져 있었으면 **켜진 뒤 곧바로** 돌리라는 설정. 노트북을 닫아 둔 날도 건너뛰지 않는다.
+> ⚠️ 로그인해 있을 때만 돈다(`InteractiveToken` — 비밀번호를 저장하지 않으려고 고른 방식).
+
+### 흐름
+
+```mermaid
+flowchart LR
+    S["작업 스케줄러<br/>매일 12:30"] --> R["daily_update.py run --upload"]
+    R --> P["① price<br/>backfill recent"] --> D["② dividend<br/>scan --recent 2"]
+    D --> J{"새 자료가 있나<br/>파생 표가 뒤처졌나"}
+    J -- 예 --> A["③ adjusted"] --> T["④ total_return"] --> B["⑤ benchmark"]
+    J -- 아니오 --> M
+    B --> M["⑥ manifest"] --> E["⑦ export<br/>바뀐 파티션만"] --> V["⑧ verify"]
+    V --> U{"바뀐 파케이가 있나"}
+    U -- 예 --> H["⑨ HF 증분 업로드<br/>+ snapshot 태그"]
+    U -- 아니오 --> X["건너뜀<br/>빈 커밋 없음"]
+```
+
+| 단계 | 명령 | 첫 실행 (2026-09-28 11:19) | 실패하면 |
+|---|---|---:|---|
+| ① price | `backfill recent` | 2초 · 09-23 1일 적재 · 빈 응답 3일(09-24·25 추석) | 멈춘다 |
+| ② dividend | `dividend scan --recent 2` | 17초 · 목록 49회 · 새 공시 0 | **계속 간다** (🟡 로 남긴다) |
+| ③ adjusted | `preprocess` | 398초 | 멈춘다 |
+| ④ total_return | `total_return build` | 407초 | 멈춘다 |
+| ⑤ benchmark | `benchmark build` | 253초 | 멈춘다 |
+| ⑥ manifest | `manifest write` | 14초 | 계속 간다 |
+| ⑦ export | `hf_dataset export` | 274초 | 멈춘다 |
+| ⑧ verify | `hf_dataset verify` | 14초 | 멈춘다 — **검증을 못 넘으면 올리지 않는다** |
+| ⑨ upload | `hf_dataset upload --yes --incremental` | 20초 · 바뀐 파케이 14개(340.6MB 선택 · xet 로 바뀐 청크만) · 커밋 `6d612d36` · 태그 `snapshot-2026-09-28` | — |
+
+합계 **23분 18초**(11:19:52 → 11:43:10). 끝난 뒤 원격: private · 파케이 27개 557.1MB · 로컬 매니페스트와 일치.
+
+### 설계에서 되돌리면 안 되는 것
+
+1. **배당은 최근 두 달을 늘 다시 훑는다(`--recent 2`).** `scan` 은 다 훑은 달을 `done` 으로 찍고 다시 안 본다. 09-19 에 훑은
+   2026-09 가 `done` 이면 **그 뒤 나온 9월 배당 공시는 영원히 안 들어온다.** 목록 호출만 다시 들고 본문은 보존본을 쓴다(§13).
+2. **배당이 수정주가보다 앞이다.** 파생 단계를 돌릴지는 ③ 직전에 한 번 판정한다. 배당을 뒤에 두면 "시세는 그대로 · 배당만 새로
+   옴" 인 날 TR 이 건너뛰어진다. 배당 스캔은 배당락일 계산에 시세 **달력**만 쓰므로 ① 뒤면 충분하다.
+3. **파생 표가 시세보다 뒤처져 있으면 새 자료가 없어도 다시 만든다.** 이것을 빼면 한 번 어긋난 표가 다음 거래일까지 뒤처진 채로 남는다
+   — 09-28 이 정확히 그 상태였다(시세 09-22 · 파생 09-17).
+4. **바뀐 파케이가 0개면 올리지 않는다.** `upload --incremental` 은 바뀐 파일이 없어도 `meta/*`·`README.md` 를 올려 **내용 없는
+   커밋과 태그**를 매일 남긴다. 판정은 `hf_dataset.changed_since_upload()` 한 곳이다.
+5. **공유 스위치는 러너가 켠다 — `.env` 가 아니다.** `QURIOUS_RAW_SHARING` 은 `--upload` 를 준 실행의 ⑦⑨ 자식에게만 넘긴다.
+   켠 흔적은 작업 스케줄러에 등록된 **명령줄 자체**다(`status` 가 보여 준다). private 확인·xet 확인은 `upload()` 가 그대로 건다(§9).
+6. **겹쳐 돌지 않는다.** 잠금 파일에 PID 를 적는다. ⚠️ Windows 의 `os.kill(pid, 0)` 은 살아 있는지 묻지 않고 **그 프로세스를
+   죽인다**(TerminateProcess) — 생존 확인은 `OpenProcess` 로 한다.
+
+### 쓰는 법
+
+```bash
+python scripts/daily_update.py install              # 매일 12:30 · 업로드 포함 (한 번만)
+python scripts/daily_update.py install --time 18:30 --no-upload
+python scripts/daily_update.py start                # 등록된 작업을 지금 한 번 (이 터미널과 무관하게 돈다)
+python scripts/daily_update.py status               # 예약 상태 + 마지막 실행 단계별 결과
+python scripts/daily_update.py run                  # 이 터미널에서 직접 (업로드 없이)
+python scripts/daily_update.py uninstall            # 등록 해제
+```
+
+로그 `data/collector/logs/daily_update-*.log`(최근 30개) · 마지막 결과 `data/collector/state/daily_update_last.json` ·
+이력 `data/collector/state/daily_update_history.jsonl`. 모두 gitignore 된 `data/collector/` 아래다.
+
+### 한계 · 뒤집을 조건
+
+| | 내용 |
+|---|---|
+| 🟡 | **한 사람 PC 에서만 돈다.** 팀원 PC 에 같은 작업을 걸면 같은 HF 저장소에 두 곳이 올린다 — 올리는 사람은 하나로 둔다(D0 ⑥ 담당) |
+| 🟡 | 로그인해 있지 않으면 안 돈다. 로그인하면 `StartWhenAvailable` 로 곧바로 따라잡는다 |
+| 🟡 | 태그 `snapshot-YYYY-MM-DD` 가 **올린 날마다** 하나씩 쌓인다(바뀐 게 없는 날은 안 올리므로 안 생긴다) |
+| 🟡 | **수정주가는 닫힌 연도도 바뀐다.** 오늘을 1.0 으로 거꾸로 누적하므로(§5) 새 조정 이벤트가 생기면 2020년 값까지 달라진다 — 첫 실행에서 `price_adjusted` 7개 연도 파일 **전부**(50.6MB)가 바뀌었다. `hf_dataset.py` 머리말의 "닫힌 연도는 업로드 0바이트" 는 시세·TR 에만 맞는 말이다. xet 가 바뀐 청크만 보내서 업로드는 20초였다 |
+| 🔴 | **앱 화면은 아직 이 데이터를 읽지 않는다** — 앱 쪽 참조는 수집을 **부르는** Celery 어댑터 둘(`app/celery_app.py` · `app/tasks/collector_tasks.py`)뿐이고, HF 참조는 0건이다. 화면 시세는 여전히 야후 경로다(`tests/test_no_yahoo_regression.py` 봉인선) |
+| ↩ | 팀이 스택을 늘 띄워 두기로 하면 Celery Beat(`app/celery_app.py` 의 `collector-*`)로 옮길 수 있다. 그때는 **둘 중 하나만** 남긴다 |

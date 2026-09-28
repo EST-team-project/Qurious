@@ -163,13 +163,41 @@ def _code_index() -> Dict[str, str]:
 # ==================================================
 # 2. 러너
 # ==================================================
+def recent_months(n: int, today: Optional[datetime] = None) -> List[str]:
+    """이번 달을 포함한 최근 ``n`` 달(``YYYYMM``, 과거→현재).
+
+    ★ 일일 갱신이 이것을 쓰는 이유 — ``process_month`` 는 달을 다 훑으면 ``done`` 을
+      찍고, ``run_scan`` 은 ``done`` 인 달을 다시 보지 않는다. 그런데 **이번 달은 아직
+      끝나지 않았다.** 09-19 에 훑은 2026-09 가 ``done`` 이 되면 09-20 이후 나온 9월
+      배당 공시는 영원히 안 들어온다. 그래서 최근 달은 ``done`` 이어도 다시 훑는다.
+      지난달까지 넣는 것은 월말에 접수된 공시가 목록에 늦게 잡히는 경우를 덮기 위해서다.
+    """
+    if n < 1:
+        raise ValueError("n 은 1 이상이어야 한다")
+    now = today or datetime.now()
+    y, m = now.year, now.month
+    out = []
+    for _ in range(n):
+        out.append(f"{y}{m:02d}")
+        y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+    return sorted(out)
+
+
 def run_scan(*, from_year: int = DEFAULT_FROM_YEAR, to_year: Optional[int] = None,
              months: Optional[Tuple[int, ...]] = None, limit: Optional[int] = None,
              max_calls: Optional[int] = None, rescan: bool = False,
-             quiet: bool = False) -> Dict[str, int]:
-    """달 단위로 훑는다. 한도에 닿으면 **깔끔히 멈추고** 지금까지를 보고한다."""
+             recent: Optional[int] = None, quiet: bool = False) -> Dict[str, int]:
+    """달 단위로 훑는다. 한도에 닿으면 **깔끔히 멈추고** 지금까지를 보고한다.
+
+    ``recent=N`` 이면 연도·달 지정을 무시하고 **최근 N달만, done 이어도 다시** 훑는다
+    (일일 갱신용 — ``recent_months`` 머리말). 목록 호출만 다시 들고, 이미 받은 본문은
+    ``fetch_document`` 가 보존본을 쓰므로 새 공시의 본문만 받는다.
+    """
     to_year = to_year or datetime.now().year
-    if months:
+    if recent:
+        wanted = recent_months(recent)
+        rescan = True
+    elif months:
         wanted = [f"{y}{m:02d}" for y in range(from_year, to_year + 1) for m in months]
     else:
         wanted = dart.dividend_months(from_year, to_year)
@@ -225,6 +253,7 @@ def run_scan(*, from_year: int = DEFAULT_FROM_YEAR, to_year: Optional[int] = Non
     print(limiter.report())
     if stopped:
         print(f"\n중단됨:\n{stopped}")
+        total["stopped"] = 1
     return total
 
 
@@ -497,6 +526,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                    help="이번 실행의 호출 상한. DART 는 남은 유량을 알려 주지 않아 직접 센다")
     p.add_argument("--rescan", action="store_true",
                    help="이미 훑은 달도 다시 훑는다 (본문은 보존본을 써서 목록만 다시 든다)")
+    p.add_argument("--recent", type=int,
+                   help="이번 달 포함 최근 N달만 done 이어도 다시 훑는다 — 일일 갱신용 "
+                        "(--from-year·--months 는 무시된다)")
     p.add_argument("--codes", help="crosscheck 에서 대조할 종목코드 (예: 005930,033780)")
     p.add_argument("--quiet", action="store_true")
     a = p.parse_args(argv)
@@ -518,9 +550,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
 
     months = tuple(int(x) for x in a.months.split(",")) if a.months else None
-    run_scan(from_year=a.from_year, to_year=a.to_year, months=months,
-             limit=a.limit, max_calls=a.max_calls, rescan=a.rescan, quiet=a.quiet)
-    return 0
+    t = run_scan(from_year=a.from_year, to_year=a.to_year, months=months,
+                 limit=a.limit, max_calls=a.max_calls, rescan=a.rescan,
+                 recent=a.recent, quiet=a.quiet)
+    # 한도에 닿아 멈췄으면 0 이 아닌 값을 돌려준다 — 일일 갱신이 "다 훑었다" 로
+    # 오독하지 않게. 다시 돌리면 이어서 가므로 오류(1)와는 구분한다.
+    return 3 if t.get("stopped") else 0
 
 
 if __name__ == "__main__":
