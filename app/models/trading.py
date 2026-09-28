@@ -112,6 +112,13 @@ class BrokerSettings(Base, UUIDPkMixin, UpdatedAtMixin):
 
 
 class QuantVirtualAccount(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
+    """⚠️ 쓰지 않는다 (I14 · 2026-09-28). 자동매매 현금도 이제 `PaperAccount` 에서 빠진다.
+
+    보유(`Portfolio`)는 하나인데 현금 장부가 둘이라 모의투자 화면에 없는 수익이 찍혔다
+    (`app/services/auto_trade.py` 머리말). 표는 마이그레이션 없이 남겨 둔다 — 지우는 일은
+    D7 원장 설계가 확정된 뒤 따로 한다.
+    """
+
     __tablename__ = "quant_virtual_accounts"
 
     user_id: Mapped[uuid.UUID] = mapped_column(

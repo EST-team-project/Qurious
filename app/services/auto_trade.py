@@ -1,4 +1,23 @@
-"""10분 주기 자동매매 Agentic AI - PostgreSQL 기반."""
+"""10분 주기 자동매매 Agentic AI - PostgreSQL 기반.
+
+★ 현금 장부는 `PaperAccount` 하나다 (I14 · 2026-09-28 수정)
+------------------------------------------------------------
+전에는 자동매매가 현금을 `QuantVirtualAccount`(초기 1천만 원)에서 빼고, 보유 종목은
+수동 모의주문과 **같은** `Portfolio` 표에 넣었다. 모의투자 화면(`paper-dashboard`)은
+`PaperAccount`(초기 1억 원) 현금 + `Portfolio` 보유로 총자산을 계산하므로
+(`paper_trading.account_snapshot`), **자동매매가 산 주식 값이 그대로 없는 수익**이 됐다.
+IA v0.2 브라우저 확인: 자동매매 3건 뒤 보유 현금 100,000,000원 그대로 · 총 손익 +3.19%.
+
+문제는 "표가 둘" 이 아니라 **현금과 보유가 서로 다른 장부를 본다**는 것이다. 그래서
+보유 표를 쪼개지 않고 현금을 합쳤다 — 자동매매 체결도 `paper_trading.get_account(lock=True)`
+로 **같은 행을 같은 방식(FOR UPDATE)으로** 잠그고 쓴다. 수동 주문과 자동매매가 동시에
+들어와도 잔고가 음수가 되거나 한쪽 차감이 덮어써지지 않는다. D7 ③ C1("`paper_accounts`
+하나")과 같은 방향이다.
+
+`QuantVirtualAccount` 표는 남겨 두지만(마이그레이션 없음) **더는 읽지도 쓰지도 않는다.**
+⚠️ 이 수정 전에 자동매매를 돌린 DB 는 보유만 있고 현금이 안 빠진 상태가 그대로 남는다 —
+모의투자 화면의 「초기화」(`reset_account`)로 되돌린다. 자동으로 고치지 않는다.
+"""
 import asyncio
 import logging
 import uuid
@@ -9,9 +28,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.stock import get_quant_indicators, QUANT_STOCKS
 from app.database.postgres import get_session_factory
-from app.models import BrokerSettings, Order, Portfolio, QuantVirtualAccount
+from app.models import BrokerSettings, Order, Portfolio, PAPER_INITIAL_CASH
 from app.models.base import SYSTEM_USER_ID
 from app.services import notification
+from app.services import paper_trading
 from app.services.audit import audit
 from app.services.brokers.factory import get_broker_client, live_trading_allowed
 from app.services import trading_cost
@@ -23,7 +43,6 @@ _trade_log: list[dict] = []
 _is_running = False
 _auto_trade_user_id = "quant_system"
 _INTERVAL_SEC = 600
-_INITIAL_CAPITAL = 10_000_000
 
 
 def _resolve_user_id(raw: str) -> uuid.UUID:
@@ -56,19 +75,16 @@ async def _execute_virtual_trade(
     quantity: int,
     reason: str,
 ) -> dict:
-    """가상계좌 체결. 주문 삽입 + 포트폴리오 갱신 + 현금 갱신을 한 트랜잭션으로 커밋한다."""
+    """모의계좌 체결. 주문 삽입 + 포트폴리오 갱신 + 현금 갱신을 한 트랜잭션으로 커밋한다.
+
+    현금은 수동 모의주문과 같은 `PaperAccount` 에서 빠진다(모듈 머리말 I14). 계좌 행을
+    FOR UPDATE 로 잠그므로, 아래 모든 반환 경로가 `commit` 으로 잠금을 푼다.
+    """
     now = datetime.now(timezone.utc).isoformat()
 
-    result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == user_id))
-    account = result.scalar_one_or_none()
-    if not account:
-        account = QuantVirtualAccount(
-            user_id=user_id, initial_capital=float(_INITIAL_CAPITAL), cash_balance=float(_INITIAL_CAPITAL),
-        )
-        db.add(account)
-        await db.flush()
+    account = await paper_trading.get_account(db, user_id, lock=True)
 
-    cash_balance = account.cash_balance
+    cash_balance = float(account.cash)
     executed_quantity = quantity
 
     market = trading_cost.market_of(symbol)
@@ -148,7 +164,7 @@ async def _execute_virtual_trade(
             existing.quantity = new_qty
         cash_balance += order_cost.net_amount
 
-    account.cash_balance = cash_balance
+    account.cash = float(cash_balance)
     await db.commit()
 
     return {
@@ -222,13 +238,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
     uid = _resolve_user_id(user_id)
 
     async with session_factory() as db:
-        # 가상계좌 idempotent 초기화
-        result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
-        if not result.scalar_one_or_none():
-            db.add(QuantVirtualAccount(
-                user_id=uid, initial_capital=float(_INITIAL_CAPITAL), cash_balance=float(_INITIAL_CAPITAL),
-            ))
-            await db.commit()
+        # 모의계좌 idempotent 초기화 — 수동 모의주문과 같은 `PaperAccount` (I14)
+        await paper_trading.get_account(db, uid)
+        await db.commit()
 
         bs_result = await db.execute(select(BrokerSettings).where(BrokerSettings.user_id == uid))
         broker_row = bs_result.scalar_one_or_none()
@@ -359,9 +371,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         if live_result:
                             cycle_log["trades"][-1]["live_order"] = live_result
 
-        acc_result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
-        account = acc_result.scalar_one_or_none()
-        cash_balance = float(account.cash_balance) if account else float(_INITIAL_CAPITAL)
+        account = await paper_trading.get_account(db, uid)
+        cash_balance = float(account.cash)
+        initial_capital = float(account.initial_cash or PAPER_INITIAL_CASH)
 
         holdings_value = 0.0
         pf_result = await db.execute(select(Portfolio).where(Portfolio.user_id == uid))
@@ -373,10 +385,15 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             mark_price = float(price_map.get(p.symbol, p.avg_price))
             holdings_value += p.quantity * mark_price
 
+    # ⚠️ 여기 총자산은 **현금 + 국내주식**만이다. 같은 `PaperAccount` 현금을 코인·대체자산도
+    #    쓰므로, 그쪽 보유가 있으면 `paper-dashboard` 의 총자산(`account_snapshot`)보다
+    #    작게 나온다. 코인·대체자산 시세를 여기서 부르지 않는 것은 10분 주기 루프에
+    #    외부 호출을 더 얹지 않기 위해서다 — 대신 범위를 `scope` 로 밝혀 둔다.
     total_equity = cash_balance + holdings_value
-    initial_capital = float(account.initial_capital) if account else float(_INITIAL_CAPITAL)
     pnl_pct = round((total_equity / initial_capital - 1) * 100, 2) if initial_capital > 0 else None
     cycle_log["account"] = {
+        "ledger": "paper_accounts",
+        "scope": "현금+국내주식 (코인·대체자산 제외)",
         "initial_capital": initial_capital,
         "cash_balance": round(cash_balance, 2),
         "holdings_value": round(holdings_value, 2),

@@ -296,6 +296,17 @@ async def place_order(
     )
     # 가상 매매는 모의투자 계좌(PaperAccount)의 현금과 연동한다 — 매수 시 차감, 매도 시 가산.
     if body.broker == "virtual":
+        if body.order_type == "sell":
+            # 보유보다 많이 팔면 현금은 주문 수량만큼 늘고 보유는 0 에서 멈춘다
+            # (`_apply_portfolio` 는 없는 보유를 음수로 만들지 않는다) — **없는 돈**이 생긴다.
+            # 자동매매가 현금을 안 빼던 I14 와 같은 부류라 함께 막는다(옛 A9 분석이 찾은 구멍).
+            held = (await db.execute(
+                select(Portfolio.quantity).where(Portfolio.user_id == uid,
+                                                 Portfolio.symbol == body.symbol)
+            )).scalar_one_or_none() or 0
+            if held < body.quantity:
+                raise HTTPException(
+                    400, f"매도 가능한 수량이 부족합니다 (보유 {held}주 · 주문 {body.quantity}주).")
         delta = -cost.net_amount if body.order_type == "buy" else cost.net_amount
         try:
             await paper_trading.apply_cash(db, uid, delta)
