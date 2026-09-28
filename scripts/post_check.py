@@ -81,6 +81,11 @@ def targets(paths: list[str]) -> list[Path]:
 
 
 def main() -> int:
+  # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ 에서 UnicodeEncodeError.
+  # S51 부터 PR 블록의 이 단계가 사용자 셸에서 한 번도 끝까지 돌지 않았다(2026-09-28 S54 실측).
+  for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+      stream.reconfigure(encoding="utf-8")
   parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
   parser.add_argument("paths", nargs="*", help="파일이나 폴더 (기본: docs/github-archive 전체)")
   parser.add_argument("--limit", type=int, default=GITHUB_LIMIT, help="한 글의 최대 글자 수 (기본 65536)")
