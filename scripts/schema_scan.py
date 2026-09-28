@@ -217,6 +217,17 @@ def _모델_주석_추출() -> dict[tuple[str, str], str]:
     return 결과
 
 
+def _기본값_글자(arg: Any) -> str:
+    """모델 기본값을 글자로. 함수(`default=dict`)는 `dict()` 처럼 이름으로 적는다.
+
+    그냥 `str()` 하면 `<function dict at 0x0000023781BC0B80>` 이 나온다 — 주소가 실행마다 달라져
+    「의심스러우면 다시 돌리면 된다」는 문서가 돌릴 때마다 7줄씩 달라졌다(2026-09-28 S57 발견).
+    """
+    if callable(arg):
+        return f"{getattr(arg, '__name__', type(arg).__name__)}()"
+    return str(arg)
+
+
 def 앱_스키마() -> list[표]:
     sys.path.insert(0, str(ROOT))
     from app.models.base import Base                      # noqa: E402
@@ -234,9 +245,9 @@ def 앱_스키마() -> list[표]:
                 fk = next(iter(c.foreign_keys)).target_fullname
             기본값 = None
             if c.server_default is not None:
-                기본값 = str(getattr(c.server_default, "arg", c.server_default))
+                기본값 = _기본값_글자(getattr(c.server_default, "arg", c.server_default))
             elif c.default is not None:
-                기본값 = str(getattr(c.default, "arg", c.default))
+                기본값 = _기본값_글자(getattr(c.default, "arg", c.default))
             칸들.append(칸(
                 이름=c.name, 타입=str(c.type), 널허용=c.nullable,
                 기본값=기본값, 기본키=c.primary_key, 외래키=fk,
