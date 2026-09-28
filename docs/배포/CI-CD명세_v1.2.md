@@ -205,7 +205,7 @@ export QURIOUS_ALLOW_LIVE_TRADING=1
 
 ### A.1 순서
 
-1. `https://github.com/devlee328288/Qurious/settings/rules` → **New ruleset** → *New branch ruleset*
+1. `https://github.com/EST-team-project/Qurious/settings/rules` → **New ruleset** → *New branch ruleset*
 2. **Ruleset Name**: `main-gate`
 3. **Enforcement status**: `Active`
 4. **Target branches**: *Include default branch* (= `main`)
@@ -247,4 +247,4 @@ GH_TOKEN=$(gh auth token --user devlee328288) \
 - `docs/ADR/ADR-0002-CI를-게이트가-아니라-신호로-둔다.md` — 대체됨 (분석은 논의 재료로 유효)
 - `docs/배포/CI-CD명세_v1.1.md` · `v1.0.md` — 이전 판 (이력으로 보존)
 - `docs/시험/테스트계획서_v1.0.md` — 시험 23건의 내역
-- 이슈 [#67](https://github.com/devlee328288/Qurious/issues/67)
+- 이슈 [#67](../github-archive/2026-09-21/이슈-067/00-기록.md)

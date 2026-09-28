@@ -21,7 +21,7 @@
 
 ## 1. 이 문서가 풀어야 했던 문제
 
-이슈 [#62 §3.0](https://github.com/devlee328288/Qurious/issues/62) 이 이렇게 적어 두었다.
+이슈 [#62 §3.0](../github-archive/2026-09-21/이슈-062/00-기록.md) 이 이렇게 적어 두었다.
 
 > 강사님 문서 머리글은 **P01 세부 14개 + P02 세부 13개 = 27개**인데, 열거된 항목을 세면
 > P02 가 ①~⑤ 각 3개씩 15개라 합계 **29개**입니다.
@@ -363,8 +363,8 @@ python scripts/rtm_scan.py --json   # 기계용
 
 - `scripts/rtm_scan.py` — 이 표의 실측 근거 (다시 돌릴 수 있다)
 - `docs/rfp-1.md` · `docs/rfp-2.md` — A계열 원천
-- 이슈 [#62](https://github.com/devlee328288/Qurious/issues/62) — B계열 전재 · 파트 배정 · 27 vs 29 제기
-- 이슈 [#61](https://github.com/devlee328288/Qurious/issues/61) — 격차 진단 (코드 실측의 출처)
+- 이슈 [#62](../github-archive/2026-09-21/이슈-062/00-기록.md) — B계열 전재 · 파트 배정 · 27 vs 29 제기
+- 이슈 [#61](../github-archive/2026-09-21/이슈-061/00-기록.md) — 격차 진단 (코드 실측의 출처)
 - `docs/시험/테스트계획서_v1.0.md` — TC-LT · TC-YH
 - `docs/ADR/ADR-0001-실거래-주문-경로-차단.md` — `P01-④-3` · `P02-⑤-1` 의 설계 근거
 - `docs/산출물목록.md` — 정본 인덱스
