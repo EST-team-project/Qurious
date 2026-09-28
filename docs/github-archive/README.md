@@ -18,15 +18,18 @@ docs/github-archive/
 ├── 2026-09-20/   ← 옛 글 11건
 ├── 2026-09-21/   ← 옛 글 23건
 ├── 2026-09-23/   ← 옛 글 1건
-└── 2026-09-28/        ← 새 글 9건
-    ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md
+└── 2026-09-28/        ← 새 글 12건
+    ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md  (#14 · 댓글 01 올림)
     ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
     ├── PR-docs-screen-ia-v0-1/    00-본문.md  (#16)
     ├── PR-docs-screen-ia-v0-2/    00-본문.md  (#19)
     ├── PR-feat-daily-data-update/ 00-본문.md  (#23)
     ├── 이슈-I14-모의계좌-장부/     00-본문.md  (#24 · #25 머지로 닫힘)
     ├── PR-fix-i14-paper-ledger/   00-본문.md  (#25)
-    └── PR-fix-git-bash-utf8-and-records/  00-본문.md  (S54 · 번호는 올린 뒤)
+    ├── 이슈-화면결함-파트별/       00-본문.md  (#26)
+    ├── PR-fix-git-bash-utf8-and-records/  00-본문.md  (#27)
+    ├── PR-docs-wireframe-v0-2/    00-본문.md  (#28)
+    └── PR-docs-records-26-28/     00-본문.md  (S55 · 번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -37,7 +40,8 @@ docs/github-archive/
 | 새 저장소에 올렸는지 | 3절 「새 저장소」 칸 | 3절 「새 저장소」 칸 |
 
 - 다시 올린 옛 글에 답글이 오면 **그 글 폴더**에 `01-날짜-답글-이름.md` 부터 쌓는다 (옛 기록 `00-기록.md` 는 고치지 않는다).
-- 올림 현황 (2026-09-28 S54): 옛 글 75건 중 **6건**(이슈 #1 · #3 · #4 · #5 · #8 · #9 — 새 번호 미기입) · 새 글 9건 중 올림 7(#14 · 추적 이슈(닫음) · PR #16 · #19 · #23 · 이슈 #24 · PR #25) · 확인 전 1(#14 댓글 01) · 초안 1(S54 PR).
+- 올림 현황 (2026-09-28 S55): 옛 글 75건 중 **6건**(이슈 #1 · #3 · #4 · #5 · #8 · #9 — 새 번호 미기입) · 새 글 12건 중 올림 11(#14 · #14 댓글 01 · 추적 이슈(닫음) · PR #16 · #19 · #23 · 이슈 #24 · PR #25 · 이슈 #26 · PR #27 · #28) · 초안 1(S55 PR).
+- 글 폴더를 더한 PR 은 **그 PR 안에서 3절 표에 줄을 더한다** — 번호 칸은 「(올린 뒤 적음)」으로 두면 된다. 줄이 빠지면 `python scripts/post_check.py` 가 `📇 색인 없음` 으로 알린다(S55 · PR #28 이 폴더 2개를 색인 없이 더했다).
 
 ## 1. 지금 답이 필요한 논의 — 결론 초안 8건
 
@@ -74,7 +78,7 @@ docs/github-archive/
 
 ```bash
 cd /c/Users/kik32/workspace/EST-Camp-AI-Quant/team_project/Qurious
-python scripts/post_check.py                                   # 길이·링크·멘션 검사 (새 글 전부 + 한도 넘는 옛 글)
+python scripts/post_check.py                                   # 길이·링크·멘션 검사 (새 글 전부 + 한도 넘는 옛 글) + 색인 없는 글 폴더
 T=$(gh auth token --user dev-dongwon05253); [ -n "$T" ] && echo "토큰 OK" || echo "토큰 없음 — 여기서 멈춤"
 
 # 이슈 · 논의 · 댓글은 웹에서 (S52~) — 파일 내용을 붙여 넣고, 새 번호를 3절 색인에 적는다
@@ -202,19 +206,24 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---|---|---|---:|---|
 | [PR #75](2026-09-23/PR-075/00-기록.md) | docs: 논의 결정 대장 v0.9 — 결론 초안 8건을 한 표로 모으고, 1차 비용이 2배였음을 찾았다 | 열림 | 이동원(`devlee328288`) | 0 | 3,350 |  |
 
-### 2026-09-28 — 새 글 9건
+### 2026-09-28 — 새 글 12건
+
+글자 수 넷(IA 이슈 · 추적 이슈 · #16 · #27)은 S55 에 다시 쟀다 — 앞서 적은 값은 파일을 마지막으로 고치기 전에 잰 것이었다.
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [이슈 화면IA-v0.1](2026-09-28/이슈-화면IA-v0.1/00-본문.md) | [설계] 화면 정보구조(IA) v0.1 — 49개 화면을 「규칙 → 검증 → 기록」으로 다시 묶는 안 · 💬 6개 | 1,922 | [#14](https://github.com/EST-team-project/Qurious/issues/14) · 💬 답 대기 — v0.2(S52)에서 Q7 을 더해 **열어 둔다** · 댓글 `01-2026-09-28-v0.2.md` |
-| [이슈 강사님자료-변경추적](2026-09-28/이슈-강사님자료-변경추적/00-본문.md) | [추적] 강사님 자료(learning/th01~th23) 변경 — 확인할 때마다 댓글로 남깁니다 | 1,308 | 올린 뒤 **닫음**(S52 · 사용자 판단) — 강사님 자료 변경은 [#6](https://github.com/EST-team-project/Qurious/issues/6) 에서 이어 간다 |
-| [PR docs-screen-ia-v0-1](2026-09-28/PR-docs-screen-ia-v0-1/00-본문.md) | docs: 화면 IA v0.1 · GitHub 기록 폴더를 날짜별로 · 강사님 자료 변경 추적 | 2,288 | [#16](https://github.com/EST-team-project/Qurious/pull/16) · 머지 `db00327` · ⚠️ 본문의 `#번호` 는 채우지 못한 채 올라갔다(S52 발견 · 웹 본문은 고치지 않기로) |
-| [이슈 화면IA-v0.1 댓글 01](2026-09-28/이슈-화면IA-v0.1/01-2026-09-28-v0.2.md) | IA v0.2 올렸습니다 — 주 경로 12개를 브라우저로 눌러 봤습니다 (S52 · #14 에 웹으로 · PR 머지 뒤) | 1,147 | (올린 뒤 적음) |
+| [이슈 화면IA-v0.1](2026-09-28/이슈-화면IA-v0.1/00-본문.md) | [설계] 화면 정보구조(IA) v0.1 — 49개 화면을 「규칙 → 검증 → 기록」으로 다시 묶는 안 · 💬 6개 | 1,921 | [#14](https://github.com/EST-team-project/Qurious/issues/14) · 💬 답 대기 — v0.2(S52)에서 Q7 을 더해 **열어 둔다** · 댓글 `01-2026-09-28-v0.2.md` |
+| [이슈 강사님자료-변경추적](2026-09-28/이슈-강사님자료-변경추적/00-본문.md) | [추적] 강사님 자료(learning/th01~th23) 변경 — 확인할 때마다 댓글로 남깁니다 | 1,307 | 올린 뒤 **닫음**(S52 · 사용자 판단) — 강사님 자료 변경은 [#6](https://github.com/EST-team-project/Qurious/issues/6) 에서 이어 간다 |
+| [PR docs-screen-ia-v0-1](2026-09-28/PR-docs-screen-ia-v0-1/00-본문.md) | docs: 화면 IA v0.1 · GitHub 기록 폴더를 날짜별로 · 강사님 자료 변경 추적 | 2,573 | [#16](https://github.com/EST-team-project/Qurious/pull/16) · 머지 `db00327` · ⚠️ 본문의 `#번호` 는 채우지 못한 채 올라갔다(S52 발견 · 웹 본문은 고치지 않기로) |
+| [이슈 화면IA-v0.1 댓글 01](2026-09-28/이슈-화면IA-v0.1/01-2026-09-28-v0.2.md) | IA v0.2 올렸습니다 — 주 경로 12개를 브라우저로 눌러 봤습니다 (S52 · #14 에 웹으로 · PR 머지 뒤) | 1,147 | [#14](https://github.com/EST-team-project/Qurious/issues/14) 에 올림 09-28 (S55 에 확인 · 댓글 고정 링크는 미기입) |
 | [PR docs-screen-ia-v0-2](2026-09-28/PR-docs-screen-ia-v0-2/00-본문.md) | docs: 화면 IA v0.2 · 와이어프레임 착수 · 계획서 v1.2 (강사님 공식 일정) | 2,792 | [#19](https://github.com/EST-team-project/Qurious/pull/19) · 머지 `1f339ee` (S54 에 채움) |
 | [PR feat-daily-data-update](2026-09-28/PR-feat-daily-data-update/00-본문.md) | feat: 수집기 일일 자동 갱신 — 단계마다 멈춘 날이 달랐다 | 3,428 | [#23](https://github.com/EST-team-project/Qurious/pull/23) · 머지 `773bc08` (S54 에 채움) |
 | [이슈 I14-모의계좌-장부](2026-09-28/이슈-I14-모의계좌-장부/00-본문.md) | [작업] I14 모의계좌 현금 장부를 하나로 — 자동매매 현금 → `paper_accounts` · 보유 초과 매도 400 (웹 제목은 파일에 없어 요약으로 적음) | 5,503 | [#24](https://github.com/EST-team-project/Qurious/issues/24) · #25 머지로 닫힘(`Closes #24`) (S54 에 채움) |
 | [PR fix-i14-paper-ledger](2026-09-28/PR-fix-i14-paper-ledger/00-본문.md) | fix: 모의투자 현금 장부를 하나로 — 자동매매가 산 주식은 공짜였다 (I14) | 3,504 | [#25](https://github.com/EST-team-project/Qurious/pull/25) · 머지 `e764e5f` (S54 에 채움) |
-| [PR fix-git-bash-utf8-and-records](2026-09-28/PR-fix-git-bash-utf8-and-records/00-본문.md) | fix: 내 셸에선 되고 사용자 셸에선 죽었다 — status·post_check UTF-8 · 기록 색인 19~25 줄 | 3,116 | (올린 뒤 적음) |
+| [이슈 화면결함-파트별](2026-09-28/이슈-화면결함-파트별/00-본문.md) | [작업] 화면이 실제보다 더 말하는 곳 18건 — 파트별 체크리스트 (와이어프레임 v0.2 조사) (웹 제목은 S54 안내문 기준) | 7,919 | [#26](https://github.com/EST-team-project/Qurious/issues/26) · 열림 · Assignee 비움 · 데이터 파트 몫은 A1 하나 (S55 에 채움) |
+| [PR fix-git-bash-utf8-and-records](2026-09-28/PR-fix-git-bash-utf8-and-records/00-본문.md) | fix: 내 셸에선 되고 사용자 셸에선 죽었다 — status·post_check UTF-8 · 기록 색인 19~25 줄 | 3,141 | [#27](https://github.com/EST-team-project/Qurious/pull/27) · 머지 `67ea840` (S55 에 채움) |
+| [PR docs-wireframe-v0-2](2026-09-28/PR-docs-wireframe-v0-2/00-본문.md) | docs: 와이어프레임 v0.2 — 주 경로 12개를 다 그렸더니 IA 판정 셋이 틀렸다 | 2,191 | [#28](https://github.com/EST-team-project/Qurious/pull/28) · 머지 `33d495f` (S55 에 채움) |
+| [PR docs-records-26-28](2026-09-28/PR-docs-records-26-28/00-본문.md) | docs: 기록 색인에 #26~#28 — 폴더 둘이 색인 없이 들어온 것을 post_check 가 알린다 | 2,675 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

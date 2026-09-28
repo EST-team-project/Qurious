@@ -18,8 +18,10 @@ git bash 나 웹에서 올린다(docs/github-archive/README.md). 이 스크립�
   `--- 메시지 N ---` 줄이 있으면(Discord 글 관례) 그 사이를 한 덩어리로 따로 잰다.
 - 상대 링크: `](../x.md)` 같은 링크는 저장소 안에서는 열리지만 **GitHub 글 안에서는 깨진다** → 절대 주소로.
 - 멘션: 백틱 밖의 `@아이디` 는 올리는 순간 알림이 간다 → 부를 사람만 사용자가 직접 붙인다.
+- 색인: 인자 없이 돌리면 `<날짜>/<글 폴더>/` 가 README.md 에 한 번도 안 나오는 폴더를 알린다.
+  2026-09-28 S54 의 PR #28 이 글 폴더 2개를 더하면서 색인을 비워 둬 S55 에 뒤늦게 채웠다.
 
-⚠️ 길이 초과만 실패(종료 코드 1)로 본다. 링크·멘션은 알림일 뿐이다 — 옛 기록 문서는 상대 링크가 정상이다.
+⚠️ 길이 초과만 실패(종료 코드 1)로 본다. 링크·멘션·색인은 알림일 뿐이다 — 옛 기록 문서는 상대 링크가 정상이다.
 """
 
 from __future__ import annotations
@@ -65,6 +67,17 @@ def check_file(path: Path, limit: int) -> dict:
     "relative_links": sorted(set(RELATIVE_LINK_RE.findall(prose))),
     "mentions": sorted(set(MENTION_RE.findall(prose))),
   }
+
+
+def unindexed_folders(base: Path) -> list[str]:
+  """README.md 에 `<날짜>/<글 폴더>/` 가 한 번도 안 나오는 글 폴더 — 색인 표의 링크가 이 꼴이다."""
+  readme = base / "README.md"
+  if not readme.is_file():
+    return []
+  text = readme.read_text(encoding="utf-8")
+  days = sorted(d for d in base.iterdir() if d.is_dir() and re.fullmatch(r"\d{4}-\d{2}-\d{2}", d.name))
+  return [f"{day.name}/{post.name}/" for day in days for post in sorted(day.iterdir())
+          if post.is_dir() and f"{day.name}/{post.name}/" not in text]
 
 
 def targets(paths: list[str]) -> list[Path]:
@@ -116,6 +129,11 @@ def main() -> int:
       print(f"     백틱 밖 멘션 — 올리면 알림이 간다: {', '.join('@' + m for m in r['mentions'])}")
     over += r["status"] == "초과"
   note = f" · 한도 안의 옛 글 {hidden}개는 줄임" if hidden else ""
+  if whole_archive:
+    missing = unindexed_folders(DEFAULT_TARGET)
+    for m in missing:
+      print(f"📇 색인 없음  {m} — README.md 3절 표(와 0절 폴더 지도)에 줄을 더한다")
+    note += f" · 색인 없는 글 폴더 {len(missing)}개"
   print(f"\n파일 {len(files)}개 · 초과 {over}개{note}")
   return 1 if over else 0
 
