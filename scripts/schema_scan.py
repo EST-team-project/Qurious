@@ -7,10 +7,12 @@
 **모든 숫자와 칸 이름을 이 스크립트가 만든다.** 문서는 이 출력을 붙여 넣은 것이고,
 의심스러우면 다시 돌리면 된다.
 
-    python scripts/schema_scan.py           # 사람이 읽는 요약
-    python scripts/schema_scan.py --md      # 데이터 사전용 마크다운
-    python scripts/schema_scan.py --erd     # Mermaid ERD
+    python scripts/schema_scan.py           # 사람이 읽는 요약 + 어긋난 곳
+    python scripts/schema_scan.py --list    # 데이터 사전 1절 — 표 목록 · 운영 속성
+    python scripts/schema_scan.py --md      # 데이터 사전 3절 — 표마다 칸 전체
+    python scripts/schema_scan.py --erd     # ERD 문서의 그림 (앱 DB 는 업무 영역별)
     python scripts/schema_scan.py --json    # 기계용
+    python scripts/schema_scan.py --doc docs/데이터/ERD_v1.2.md   # 문서의 표시 사이를 다시 채운다 (--check: 비교만)
 
 두 데이터베이스를 갈라 본다
 ---------------------------
@@ -26,16 +28,33 @@
 스크립트는 alembic 마이그레이션도 따로 읽어 **모델과 대조하고, 어긋나면 보고한다.**
 대조가 통과해도 "실제 DB 를 봤다"가 되지는 않는다. 그건 `alembic check` 의 일이다.
 
+칸 설명은 코드 주석이 정본이다
+------------------------------
+사전의 설명 칸은 코드 주석에서 온다 — 수집기는 `collector/*.py` 의 CREATE 문 주석,
+앱은 모델의 `#` 주석. 수집기 표의 **구조**(칸 · 타입 · 키 · 행 수)는 DB 파일에서 재지만,
+**설명**은 DB 파일이 아니라 코드에서 읽는다. 이유는 `_코드_DDL` 머리말에 있다.
+
+표 속성 대장
+------------
+표마다 한글명 · 업무 영역 · 유형 · 발생 주기 · 보존 기간 · 공개 여부는 코드에서 잴 수 없어
+사람이 `docs/데이터/표-속성대장.tsv` 에 적는다(공공기관 DB 표준화 지침의 테이블정의서 칸).
+스캐너는 대장을 읽어 사전 · ERD 에 싣고, **대장이 표를 빠짐없이 덮는지** 알린다 — 표를
+더했는데 대장 줄이 없으면 요약 출력에 ⚠️ 가 뜬다. 멈추지는 않는다.
+
 한계 — 이 스크립트가 판정하지 않는 것
 ------------------------------------
 - **값이 맞는지**는 보지 않는다. 칸이 있다는 것과 그 칸에 옳은 값이 들어 있다는 것은
-  다르다(예: `price_adjusted.adj_clpr` 의 052670 오염 · Issue #55).
+  다르다 — 값은 수집기의 `verify` 명령과 시험(예: TC-DF01 · 감자 뒤 조정 계수)이 본다.
 - **쓰이는지**도 보지 않는다. 아무도 읽지 않는 칸도 똑같이 세어 준다.
+- **대장에 적힌 운영 속성이 사실인지**도 보지 않는다. 대장의 근거 칸이 가리키는 코드를 사람이 읽고 적는다.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
+import csv
+import io
 import json
 import re
 import sqlite3
@@ -46,8 +65,21 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 수집기_DB = ROOT / "data" / "collector" / "market.sqlite3"
+수집기_코드_디렉터리 = ROOT / "collector"
 모델_디렉터리 = ROOT / "app" / "models"
 ALEMBIC_디렉터리 = ROOT / "alembic" / "versions"
+표속성_대장 = ROOT / "docs" / "데이터" / "표-속성대장.tsv"
+
+#: 대장의 머리 줄. 순서까지 이대로다 — 바꾸면 `표속성_대조` 가 알린다.
+표속성_칸 = ("표", "DB", "한글명", "업무영역", "유형", "발생주기", "보존기간", "공개", "공개_근거", "관련표")
+#: 「유형」 칸에 쓰는 말. 원본 = 밖에서 받은 값 그대로 · 파생 = 다른 표에서 계산(지우고 다시 만든다)
+#: · 운영 기록 = 시스템이 남기는 상태 · 이력 · 사용자 = 사용자 동작으로 생김 · 참조 = 밖에서 받아
+#: 조회만 하는 목록(통째로 다시 적재) · 캐시 = 다시 조회하면 되는 임시 값.
+표속성_유형 = ("원본", "파생", "운영 기록", "사용자", "참조", "캐시")
+#: 「공개」 칸에 쓰는 말. 미확인 = 원천의 재배포 조건을 아직 확인하지 못했다.
+표속성_공개 = ("비공개", "공개 가능", "미확인")
+#: DB 칸의 값 — 표가 실제로 있는 곳과 맞아야 한다.
+표속성_DB = {"수집기": "수집", "앱": "앱"}
 
 
 @dataclass
@@ -122,17 +154,46 @@ def _ddl_주석_추출(ddl: str) -> dict[str, str]:
     return 설명
 
 
-def 수집기_스키마() -> list[표]:
-    if not 수집기_DB.exists():
+def _코드_DDL(폴더: Path | None = None) -> dict[str, str]:
+    """수집기 코드(`collector/**/*.py`)에 적힌 CREATE TABLE 문을 표마다 모은다.
+
+    칸 설명의 정본은 **코드의 주석**이다. DB 파일(`sqlite_master`)에 저장된 CREATE 문은
+    표를 **처음 만들 때** 것이라, 그 뒤 코드에서 고친 주석이 들어가지 않는다 —
+
+    - `CREATE TABLE IF NOT EXISTS` 는 이미 있는 표를 건드리지 않는다.
+    - `ALTER TABLE ADD COLUMN` 으로 나중에 더한 칸은 주석 없이 CREATE 문 끝에 붙는다.
+
+    그래서 DB 파일에서 설명을 읽으면 `corporate_action.kind` 의 네 번째 값(`shares`)과
+    `benchmark_index` 에 나중에 더한 세 칸(`n_fixed` · `base_dt` · `base_level`)의 설명이
+    사전에서 빠진다(2026-09-29 확인). 「설명을 고치려면 코드 주석을 고친다」 는 사전의 약속이
+    수집기 쪽에서는 지켜지지 않고 있었다.
+    """
+    폴더 = 폴더 or 수집기_코드_디렉터리
+    결과: dict[str, str] = {}
+    for p in sorted(폴더.rglob("*.py")):
+        소스 = p.read_text(encoding="utf-8")
+        for m in re.finditer(
+            r"^[ \t]*CREATE TABLE IF NOT EXISTS (\w+)\s*\((.*?)^[ \t]*\);",
+            소스, re.MULTILINE | re.DOTALL,
+        ):
+            결과[m.group(1)] = f"CREATE TABLE {m.group(1)} (" + m.group(2)
+    return 결과
+
+
+def 수집기_스키마(db_path: Path | None = None, 코드: dict[str, str] | None = None) -> list[표]:
+    db_path = db_path or 수집기_DB
+    if not db_path.exists():
         return []
-    conn = sqlite3.connect(f"file:{수집기_DB}?mode=ro", uri=True)
+    코드 = _코드_DDL() if 코드 is None else 코드
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     표들: list[표] = []
     행 = conn.execute(
         "select name, sql from sqlite_master where type='table' "
         "and name not like 'sqlite_%' order by name"
     ).fetchall()
     for 표이름, ddl in 행:
-        주석 = _ddl_주석_추출(ddl or "")
+        # 구조는 DB 파일에서, 설명은 코드에서 — 코드에 CREATE 문이 없는 표만 파일의 주석을 쓴다
+        주석 = _ddl_주석_추출(코드[표이름] if 표이름 in 코드 else (ddl or ""))
         칸들: list[칸] = []
         for _, 칸이름, 타입, 널아님, 기본값, pk in conn.execute(
             f'PRAGMA table_info("{표이름}")'
@@ -179,6 +240,87 @@ def 수집기_정의와_실물_대조(수집기표들: list[표]) -> dict[str, A
         "상수에_없는_실물표": sorted(실물표 - 상수표),
         "다른_모듈이_만드는_표": 기타,
         "정의만_있고_실물없음": sorted(상수표 - 실물표),
+    }
+
+
+def 수집기_주석_대조(db_path: Path | None = None,
+                     코드: dict[str, str] | None = None) -> dict[str, list]:
+    """코드의 CREATE 문과 DB 파일의 CREATE 문을 칸 단위로 맞대어 본다.
+
+    - **설명이 다른 칸** — 표를 만든 뒤 코드에서 주석을 고쳤거나, 칸을 나중에 더했다.
+      사전은 코드 쪽을 쓰므로 틀린 것이 아니다. 알림만 한다(ℹ️).
+    - **칸이 한쪽에만 있음** — 코드가 선언한 칸이 DB 파일에 없으면 그 칸에 쓰는 INSERT 가
+      터진다. 구조가 갈라진 것이라 경고한다(⚠️).
+    - **코드에 없는 표** — 설명을 DB 파일에서 읽는다(`수집기_스키마`).
+    """
+    db_path = db_path or 수집기_DB
+    결과: dict[str, list] = {"설명이_다른_칸": [], "코드에만_있는_칸": [],
+                            "파일에만_있는_칸": [], "코드에_없는_표": []}
+    if not db_path.exists():
+        return 결과
+    코드 = _코드_DDL() if 코드 is None else 코드
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    행 = conn.execute(
+        "select name, sql from sqlite_master where type='table' "
+        "and name not like 'sqlite_%' order by name"
+    ).fetchall()
+    for 표이름, ddl in 행:
+        if 표이름 not in 코드:
+            결과["코드에_없는_표"].append(표이름)
+            continue
+        실제칸 = [r[1] for r in conn.execute(f'PRAGMA table_info("{표이름}")')]
+        파일 = _ddl_주석_추출(ddl or "")
+        코드주석 = _ddl_주석_추출(코드[표이름])
+        결과["코드에만_있는_칸"] += [f"{표이름}.{c}" for c in 코드주석 if c not in 실제칸]
+        결과["파일에만_있는_칸"] += [f"{표이름}.{c}" for c in 실제칸 if c not in 코드주석]
+        for c in 실제칸:
+            if c in 코드주석 and 파일.get(c, "") != 코드주석[c]:
+                결과["설명이_다른_칸"].append(
+                    {"표": 표이름, "칸": c, "DB파일": 파일.get(c, ""), "코드": 코드주석[c]})
+    conn.close()
+    return 결과
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 1-1. 표 속성 대장 — 사람이 적는다 · 스캐너는 싣고 빠진 곳을 알린다
+# ─────────────────────────────────────────────────────────────────────
+
+def 표속성_읽기(경로: Path | None = None) -> list[dict[str, str]]:
+    """`docs/데이터/표-속성대장.tsv` 를 줄 목록으로. 파일이 없으면 빈 목록 — 멈추지 않는다."""
+    경로 = 경로 or 표속성_대장
+    if not 경로.exists():
+        return []
+    with 경로.open(encoding="utf-8", newline="") as f:
+        return [{k: (v or "").strip() for k, v in 줄.items()}
+                for 줄 in csv.DictReader(f, delimiter="\t")]
+
+
+def 표속성_대조(대장: list[dict[str, str]], 수집기표: list[str],
+                앱표: list[str]) -> dict[str, list[str]]:
+    """대장이 표를 **빠짐없이 · 한 번씩 · 맞는 DB 로** 적었는지 본다.
+
+    틀려도 멈추지 않는다 — 요약 출력에 ⚠️ 로 알린다. 실제 저장소에 「대장이 모든 표를 덮는다」
+    는 시험을 걸지 않은 이유: 팀원이 표를 더하는 것은 좋은 일인데 그 순간 시험이 깨진다
+    (API 명세 스캐너 시험과 같은 원칙). 판정 규칙은 합성 대장으로 시험한다.
+    """
+    어디 = {n: 표속성_DB["수집기"] for n in 수집기표} | {n: 표속성_DB["앱"] for n in 앱표}
+    이름들 = [줄.get("표", "") for 줄 in 대장]
+    머리 = list(대장[0].keys()) if 대장 else list(표속성_칸)
+    return {
+        "머리_다름": [] if 머리 == list(표속성_칸) else [" · ".join(머리)],
+        "대장에_없는_표": sorted(set(어디) - set(이름들)),
+        "대장에만_있는_표": sorted(set(이름들) - set(어디)),
+        "겹친_줄": sorted({n for n in 이름들 if 이름들.count(n) > 1}),
+        "DB_다름": sorted(f'{줄["표"]}({줄.get("DB", "")} → {어디[줄["표"]]})'
+                          for 줄 in 대장 if 줄.get("표") in 어디
+                          and 줄.get("DB") != 어디[줄["표"]]),
+        "빈_칸": sorted(f'{줄.get("표", "?")}.{k}' for 줄 in 대장 for k in 표속성_칸
+                        if not 줄.get(k)),
+        "모르는_값": sorted(
+            [f'{줄.get("표", "?")}.유형={줄.get("유형")}' for 줄 in 대장
+             if 줄.get("유형") and 줄["유형"] not in 표속성_유형]
+            + [f'{줄.get("표", "?")}.공개={줄.get("공개")}' for 줄 in 대장
+               if 줄.get("공개") and 줄["공개"] not in 표속성_공개]),
     }
 
 
@@ -335,13 +477,14 @@ def _타입짧게(t: str) -> str:
     return t.replace("DOUBLE PRECISION", "FLOAT").replace("CHARACTER VARYING", "VARCHAR")
 
 
-def 사람용출력(수집기: list[표], 앱: list[표], 대조1: dict, 대조2: dict) -> None:
+def 사람용출력(수집기: list[표], 앱: list[표], 대조1: dict, 대조2: dict,
+              주석대조: dict | None = None, 대장대조: dict | None = None) -> None:
     print("― 데이터베이스 스키마 실측 ―\n")
     총행 = sum(t.행수 or 0 for t in 수집기)
     총칸_수 = sum(len(t.칸들) for t in 수집기)
     총칸_앱 = sum(len(t.칸들) for t in 앱)
-    print(f"  수집기 SQLite  🟢 실측   표 {len(수집기):>2}개 · 칸 {총칸_수:>3}개 · {총행:>12,}행")
-    print(f"  앱 PostgreSQL  🟡 정의   표 {len(앱):>2}개 · 칸 {총칸_앱:>3}개 · 행수는 모델로 알 수 없음\n")
+    print(f"  수집 DB SQLite  🟢 실측   표 {len(수집기):>2}개 · 칸 {총칸_수:>3}개 · {총행:>12,}행")
+    print(f"  앱 DB PostgreSQL 🟡 정의  표 {len(앱):>2}개 · 칸 {총칸_앱:>3}개 · 행수는 모델로 알 수 없음\n")
 
     print(f"  {'표':26} {'칸':>3} {'행':>12}  대표 설명")
     print("  " + "─" * 92)
@@ -356,12 +499,12 @@ def 사람용출력(수집기: list[표], 앱: list[표], 대조1: dict, 대조2
 
     print("  ― 설명이 붙어 있는 칸 ―")
     print("  (DDL 주석·모델 주석에서 자동으로 딸려 온다. 코드에 주석이 없으면 사전도 빈칸이다)")
-    for 이름, 표들 in (("수집기", 수집기), ("앱", 앱)):
+    for 이름, 표들 in (("수집 DB", 수집기), ("앱 DB", 앱)):
         칸전부 = [c for t in 표들 for c in t.칸들]
         있음 = [c for c in 칸전부 if c.설명.strip()]
         빈표 = [t.이름 for t in 표들 if not any(c.설명.strip() for c in t.칸들)]
         비율 = len(있음) * 100 // len(칸전부) if 칸전부 else 0
-        print(f"  {이름:5} {len(있음):>3}/{len(칸전부):<3} ({비율:>2}%)"
+        print(f"  {이름:7} {len(있음):>3}/{len(칸전부):<3} ({비율:>2}%)"
               f"   설명이 한 칸도 없는 표 {len(빈표)}개")
     print()
 
@@ -388,20 +531,119 @@ def 사람용출력(수집기: list[표], 앱: list[표], 대조1: dict, 대조2
     if not 어긋남:
         print("  ✅ 어긋나는 곳 없음")
     print()
+
+    if 주석대조 is not None:
+        print("  ― 칸 설명: 코드 ↔ DB 파일 (사전은 코드 쪽을 쓴다) ―")
+        다른 = 주석대조["설명이_다른_칸"]
+        if 다른:
+            print(f"  ℹ️ 설명이 다른 칸 {len(다른)}개 — 표를 만든 뒤 고친 주석 · 나중에 더한 칸")
+            print(f"     {', '.join(d['표'] + '.' + d['칸'] for d in 다른)}")
+        for 키, 말 in (("코드에만_있는_칸", "코드에만 있는 칸 — DB 파일에 없어 그 칸에 쓰는 INSERT 가 터진다"),
+                       ("파일에만_있는_칸", "DB 파일에만 있는 칸 — 코드의 CREATE 문에 없다"),
+                       ("코드에_없는_표", "코드에 CREATE 문이 없는 표 — 설명을 DB 파일에서 읽었다")):
+            if 주석대조[키]:
+                print(f"  ⚠️ {말}: {', '.join(주석대조[키])}")
+        if not any(주석대조.values()):
+            print("  ✅ 같다")
+        print()
+
+    if 대장대조 is not None:
+        print("  ― 표 속성 대장 (docs/데이터/표-속성대장.tsv) ―")
+        말 = {"머리_다름": "머리 줄이 정한 칸과 다르다", "대장에_없는_표": "대장에 줄이 없는 표 — 줄을 더한다",
+              "대장에만_있는_표": "DB 에 없는 표", "겹친_줄": "두 번 적힌 표", "DB_다름": "DB 칸이 틀렸다",
+              "빈_칸": "빈 칸", "모르는_값": "정한 말 밖의 값"}
+        if any(대장대조.values()):
+            for 키, 목록 in 대장대조.items():
+                if 목록:
+                    print(f"  ⚠️ {말[키]} {len(목록)}: {', '.join(목록)}")
+        else:
+            print("  ✅ 모든 표가 한 줄씩 · 빈 칸 없음")
+        print()
+
     print("  ⚠️ 이 출력은 「칸이 있는가」이지 「값이 옳은가」가 아니다.")
-    print("     값 오염은 따로 본다 (예: price_adjusted.adj_clpr · Issue #55).")
+    print("     값은 수집기 verify 명령과 시험이 본다 (예: TC-DF01 · 감자 뒤 조정 계수).")
 
 
-def 사전마크다운(수집기: list[표], 앱: list[표]) -> None:
+def _칸(값: str | None) -> str:
+    """마크다운 표의 칸 하나. 비었으면 「—」, 세로줄은 이스케이프한다."""
+    return (값 or "—").replace("|", "\\|")
+
+
+def _대장_사전(대장: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+    return {줄["표"]: 줄 for 줄 in 대장 if 줄.get("표")}
+
+
+def _영역_차례(대장: list[dict[str, str]]) -> list[str]:
+    """업무 영역을 대장에 처음 나온 차례로. 대장을 영역별로 묶어 적으면 그 차례가 문서의 차례가 된다."""
+    차례: list[str] = []
+    for 줄 in 대장:
+        영역 = 줄.get("업무영역", "")
+        if 영역 and 영역 not in 차례:
+            차례.append(영역)
+    return 차례
+
+
+def _영역별로(표들: list[표], 대장: list[dict[str, str]]) -> list[tuple[str, list[표]]]:
+    """(업무 영역, 그 영역의 표들) — 대장 차례 · 표 이름 차례. 대장에 없는 표는 「업무 영역 미정」 으로 맨 뒤."""
+    속성 = _대장_사전(대장)
+    차례 = _영역_차례(대장)
+    묶음: dict[str, list[표]] = {}
+    for t in sorted(표들, key=lambda t: t.이름):
+        묶음.setdefault(속성.get(t.이름, {}).get("업무영역") or "업무 영역 미정", []).append(t)
+    return sorted(묶음.items(), key=lambda kv: 차례.index(kv[0]) if kv[0] in 차례 else len(차례))
+
+
+def 표목록마크다운(수집기: list[표], 앱: list[표], 대장: list[dict[str, str]]) -> None:
+    """데이터 사전 1절 — 표 목록과 운영 속성.
+
+    칸은 공공기관 DB 표준화 지침 별표 제8호 서식(테이블정의서)의 표 단위 칸을 따랐다 — 한글명 ·
+    유형 · 업무 분류 · 테이블 볼륨(행) · 관련 엔터티 · 발생 주기 · 보존 기간 · 공개/비공개 사유.
+    업무 분류는 담당 파트 대신 **업무 영역**으로 둔다(파트는 역할 결정 뒤에 정해진다).
+    """
+    속성 = _대장_사전(대장)
+    총행 = sum(t.행수 or 0 for t in 수집기)
+    print(f"> 실측: `python scripts/schema_scan.py --list` · 표 속성 대장 `docs/데이터/표-속성대장.tsv` {len(대장)}줄")
+    print(f"> 수집 DB {len(수집기)}표 {총행:,}행 🟢 실측 · 앱 DB {len(앱)}표 🟡 모델 정의(행 수는 모른다 — 「—」)")
+    묶음 = [(t, "수집") for _, ts in _영역별로(수집기, 대장) for t in ts] + \
+           [(t, "앱") for _, ts in _영역별로(앱, 대장) for t in ts]
+    print("\n**표 목록 — 두 DB 의 표 전부** · 범례: 유형 = 원본 · 파생 · 운영 기록 · 사용자 · 참조 · 캐시 · "
+          "설명 = 설명이 붙은 칸 / 전체 칸 · ⚠️ = 대장에 줄이 없다\n")
+    print("| 표 | 한글명 | DB | 업무 영역 | 유형 | 행 | 설명 | 관련 표 |")
+    print("|---|---|:-:|---|---|--:|--:|---|")
+    for t, db in 묶음:
+        줄 = 속성.get(t.이름, {})
+        행 = f"{t.행수:,}" if t.행수 is not None else "—"
+        설명수 = sum(1 for c in t.칸들 if c.설명.strip())
+        한글 = 줄.get("한글명") or "⚠️ 대장에 없음"
+        print(f"| `{t.이름}` | {_칸(한글)} | {db} | {_칸(줄.get('업무영역'))} | {_칸(줄.get('유형'))} "
+              f"| {행} | {설명수}/{len(t.칸들)} | {_칸(줄.get('관련표'))} |")
+    print("\n**운영 속성 — 언제 생기고 · 얼마나 남고 · 공개해도 되나** · 범례: 공개 = 비공개 · 공개 가능 · "
+          "미확인(원천의 재배포 조건을 확인하지 못함)\n")
+    print("| 표 | 발생 주기 | 보존 기간 | 공개 | 근거 |")
+    print("|---|---|---|:-:|---|")
+    for t, _ in 묶음:
+        줄 = 속성.get(t.이름, {})
+        print(f"| `{t.이름}` | {_칸(줄.get('발생주기'))} | {_칸(줄.get('보존기간'))} "
+              f"| {_칸(줄.get('공개'))} | {_칸(줄.get('공개_근거'))} |")
+
+
+def 사전마크다운(수집기: list[표], 앱: list[표], 대장: list[dict[str, str]] | None = None) -> None:
+    """데이터 사전 3절 — 표마다 칸 전체. 문서의 3절 아래에 들어가므로 제목은 ### · #### 이다."""
+    속성 = _대장_사전(대장 or [])
     총행 = sum(t.행수 or 0 for t in 수집기)
     print("> 실측: `python scripts/schema_scan.py --md`")
-    print(f"> 수집기 {len(수집기)}표 {총행:,}행 🟢 실측 · 앱 {len(앱)}표 🟡 모델 정의")
-    for 구역, 표들, 배지 in (("수집기 DB (SQLite)", 수집기, "🟢 실측"),
+    print(f"> 수집 DB {len(수집기)}표 {총행:,}행 🟢 실측 · 앱 DB {len(앱)}표 🟡 모델 정의")
+    for 구역, 표들, 배지 in (("수집 DB (SQLite)", 수집기, "🟢 실측"),
                               ("앱 DB (PostgreSQL)", 앱, "🟡 정의")):
-        print(f"\n## {구역} — {배지}")
+        print(f"\n### {구역} — {배지}")
         for t in 표들:
+            줄 = 속성.get(t.이름, {})
+            한글 = f" · {줄['한글명']}" if 줄.get("한글명") else ""
             행 = f" · **{t.행수:,}행**" if t.행수 is not None else ""
-            print(f"\n### `{t.이름}`{행}\n")
+            print(f"\n#### `{t.이름}`{한글}{행}\n")
+            if 줄:
+                print(f"{줄.get('유형') or '—'} · {줄.get('업무영역') or '—'} · 발생 주기: {줄.get('발생주기') or '—'} · "
+                      f"보존 기간: {줄.get('보존기간') or '—'} · 공개: {줄.get('공개') or '—'}\n")
             if t.기본키칸:
                 print(f"기본키: {' + '.join(f'`{c}`' for c in t.기본키칸)}\n")
             print("| 칸 | 타입 | NULL | 기본값 | 키 | 설명 |")
@@ -418,42 +660,115 @@ def 사전마크다운(수집기: list[표], 앱: list[표]) -> None:
                 print(f"\n인덱스: {', '.join(f'`{i}`' for i in t.인덱스)}")
 
 
-def erd출력(수집기: list[표], 앱: list[표]) -> None:
-    """Mermaid ERD. 칸이 너무 많으면 읽을 수 없으므로 **키와 대표 칸만** 그린다.
+def _erd_그림(표들: list[표], 다른표: list[표] | None = None) -> None:
+    """Mermaid erDiagram 하나. 칸이 많으면 읽을 수 없으므로 **키와 대표 칸만** 그린다.
 
-    전체 칸은 데이터 사전이 맡는다. 여기서 보여야 하는 것은 *표끼리 어떻게 이어지는가*다.
+    `다른표` 는 이 그림 밖의 표 중 외래키가 가리키는 것 — 기본키 한 칸만 그려 선이 끊기지 않게 한다.
     """
-    for 제목, 표들 in (("수집기 DB — 시세·배당·지수 🟢 실측", 수집기),
-                        ("앱 DB — 사용자·주문·대화 🟡 모델 정의", 앱)):
-        print(f"\n### {제목}\n")
-        print("```mermaid")
-        print("erDiagram")
-        for t in 표들:
-            print(f"  {t.이름} {{")
-            보일칸 = [c for c in t.칸들 if c.기본키 or c.외래키][:6]
-            보인이름 = {c.이름 for c in 보일칸}
-            나머지 = [c for c in t.칸들 if c.이름 not in 보인이름][:4]
-            for c in 보일칸 + 나머지:
+    print("```mermaid")
+    print("erDiagram")
+    for t in 표들:
+        print(f"  {t.이름} {{")
+        보일칸 = [c for c in t.칸들 if c.기본키 or c.외래키][:6]
+        보인이름 = {c.이름 for c in 보일칸}
+        나머지 = [c for c in t.칸들 if c.이름 not in 보인이름][:4]
+        for c in 보일칸 + 나머지:
+            타입 = re.sub(r"\W+", "_", _타입짧게(c.타입)).strip("_")[:16] or "x"
+            키 = "PK" if c.기본키 else ("FK" if c.외래키 else "")
+            print(f"    {타입} {c.이름} {키}".rstrip())
+        숨김 = len(t.칸들) - len(보일칸) - len(나머지)
+        if 숨김 > 0:
+            print(f"    _ 외{숨김}칸")
+        print("  }")
+    for t in 다른표 or []:
+        print(f"  {t.이름} {{")
+        for c in t.칸들:
+            if c.기본키:
                 타입 = re.sub(r"\W+", "_", _타입짧게(c.타입)).strip("_")[:16] or "x"
-                키 = "PK" if c.기본키 else ("FK" if c.외래키 else "")
-                print(f"    {타입} {c.이름} {키}".rstrip())
-            숨김 = len(t.칸들) - len(보일칸) - len(나머지)
-            if 숨김 > 0:
-                print(f"    _ 외{숨김}칸")
-            print("  }")
-        for t in 표들:
-            for 내칸, 상대 in t.외래키들:
-                상대표 = 상대.split(".")[0]
-                print(f'  {상대표} ||--o{{ {t.이름} : "{내칸}"')
-        print("```")
-        축 = 논리관계_추론(표들)
-        if 축 and not any(t.외래키들 for t in 표들):
+                print(f"    {타입} {c.이름} PK")
+        print("  }")
+    for t in 표들:
+        for 내칸, 상대 in t.외래키들:
+            상대표 = 상대.split(".")[0]
+            print(f'  {상대표} ||--o{{ {t.이름} : "{내칸}"')
+    print("```")
+
+
+def erd출력(수집기: list[표], 앱: list[표], 대장: list[dict[str, str]] | None = None,
+            어느쪽: str = "모두") -> None:
+    """ERD 문서의 그림. 전체 칸은 데이터 사전이 맡고, 여기서는 *표끼리 어떻게 이어지는가* 만 보인다.
+
+    앱 DB 는 **업무 영역마다 그림 하나**다. 26표를 한 그림에 넣으면 선이 엉켜 읽을 수 없다
+    (문서 작성 기준 6.3 — 노드 15개 안팎을 넘으면 나눈다). 영역은 표 속성 대장에서 온다.
+    그림 제목에는 번호를 붙이지 않는다 — 번호는 문서가 정하고, 스캐너는 그것을 모른다.
+    """
+    대장 = 대장 or []
+    if 어느쪽 in ("모두", "수집") and 수집기:
+        print(f"\n**수집 DB — 시세 · 배당 · 지수 · {len(수집기)}표** 🟢 실측 · "
+              "범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다\n")
+        _erd_그림(수집기)
+        축 = 논리관계_추론(수집기)
+        if 축 and not any(t.외래키들 for t in 수집기):
             print("\n이 DB 는 **외래키를 선언하지 않는다.** 위 그림에 연결선이 없는 이유다. "
                   "실제로는 아래 칸들이 표를 잇는 축이다 — 선언이 아니라 **이름으로 추론한 것**이다.\n")
             print("| 연결 축 | 이 칸을 기본키로 쓰는 표 |")
             print("|---|---|")
             for a in 축:
                 print(f"| `{a['칸']}` ({a['표수']}표) | {', '.join(f'`{n}`' for n in a['표'])} |")
+    if 어느쪽 in ("모두", "앱") and 앱:
+        이름표 = {t.이름: t for t in 앱}
+        for 영역, 표들 in _영역별로(앱, 대장):
+            안 = {t.이름 for t in 표들}
+            밖 = sorted({상대.split(".")[0] for t in 표들 for _, 상대 in t.외래키들} - 안)
+            관계 = sum(len(t.외래키들) for t in 표들)
+            덧 = f" · 다른 영역의 표 {', '.join(f'`{n}`' for n in 밖)} 는 기본키만" if 밖 else ""
+            선 = ("FK 외래키 · `||--o{` 하나 대 여럿" if 관계
+                  else "선이 없다 = 외래키가 없는 표(사용자에 매이지 않는다)")
+            print(f"\n**앱 DB — {영역} · {len(표들)}표 · 관계 {관계}개** 🟡 모델 정의 · "
+                  f"범례: PK 기본키 · {선}{덧}\n")
+            _erd_그림(표들, [이름표[n] for n in 밖 if n in 이름표])
+
+
+def _출력_글(함수, *인자) -> str:
+    """출력 함수가 print 하는 글을 문자열로 받는다(문서 채우기용)."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        함수(*인자)
+    return buf.getvalue().strip("\n")
+
+
+def _행수_가림(text: str) -> str:
+    """천 단위 쉼표가 붙은 수(행 수 · 합계)를 가린다 — `--check` 가 「구조는 같고 행 수만 다르다」 를 가르게.
+
+    수집 DB 는 매일 12:30 에 행이 는다. 사전의 표 목록 · 칸 전체에는 행 수가 들어 있어, 그것까지
+    같아야 「같다」 로 치면 다음 날에는 코드가 그대로여도 늘 「뒤처졌다」 가 된다.
+    """
+    return re.sub(r"\d{1,3}(?:,\d{3})+", "#", text)
+
+
+def fill_doc(text: str, blocks: dict[str, str]) -> tuple[str, int]:
+    """문서 안 `<!-- schema_scan:이름 -->` … `<!-- /schema_scan:이름 -->` 사이를 새 출력으로 바꾼다.
+
+    문서에 있는 표시만 채운다 — ERD 는 그림 두 곳, 데이터 사전은 표 목록 · 칸 전체 두 곳을 쓴다.
+    표시 밖의 사람이 쓴 글은 건드리지 않고, 줄 끝은 문서가 쓰던 것(CRLF · LF)을 따른다
+    (API 명세 스캐너의 `fill_doc` 과 같은 규칙).
+    """
+    nl = "\r\n" if "\r\n" in text else "\n"
+    채운수 = 0
+    for name, body in blocks.items():
+        start, end = f"<!-- schema_scan:{name} -->", f"<!-- /schema_scan:{name} -->"
+        if start not in text:
+            continue
+        if text.count(start) != 1 or text.count(end) != 1:
+            raise SystemExit(f"문서에 {start} · {end} 표시가 한 쌍 있어야 한다")
+        head, rest = text.split(start, 1)
+        _old, tail = rest.split(end, 1)
+        text = head + start + nl + body.replace("\n", nl) + nl + end + tail
+        채운수 += 1
+    if not 채운수:
+        raise SystemExit("문서에 schema_scan 표시가 없다 — "
+                         f"{', '.join(f'<!-- schema_scan:{n} -->' for n in blocks)} 중 하나를 둔다")
+    return text, 채운수
 
 
 def main() -> int:
@@ -462,29 +777,63 @@ def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    ap = argparse.ArgumentParser(description="DB 스키마 실측 추출기")
-    ap.add_argument("--md", action="store_true", help="데이터 사전용 마크다운")
-    ap.add_argument("--erd", action="store_true", help="Mermaid ERD")
+    ap = argparse.ArgumentParser(description="DB 스키마 실측 추출기 — ERD · 데이터 사전의 출처")
+    ap.add_argument("--list", action="store_true", help="데이터 사전 1절 — 표 목록 · 운영 속성(표 속성 대장)")
+    ap.add_argument("--md", action="store_true", help="데이터 사전 3절 — 표마다 칸 전체")
+    ap.add_argument("--erd", nargs="?", const="모두", choices=("모두", "수집", "앱"),
+                    help="ERD 그림 (앱 DB 는 업무 영역별) — 한쪽만: --erd 수집 · --erd 앱")
     ap.add_argument("--json", action="store_true", help="JSON")
+    ap.add_argument("--doc", metavar="문서", help="문서 안 schema_scan 표시 사이를 새 출력으로 채운다")
+    ap.add_argument("--check", action="store_true", help="--doc 과 함께: 고치지 않고 어긋나면 종료코드 1")
     args = ap.parse_args()
 
-    수집기 = 수집기_스키마()
+    코드 = _코드_DDL()
+    수집기 = 수집기_스키마(코드=코드)
     앱 = 앱_스키마()
+    대장 = 표속성_읽기()
     대조1 = 수집기_정의와_실물_대조(수집기) if 수집기 else {}
     대조2 = alembic_대조(앱)
+    주석대조 = 수집기_주석_대조(코드=코드)
+    # DB 파일이 없는 PC 에서도 대장을 대조할 수 있게, 수집 DB 의 표 목록은 코드의 CREATE 문과 합친다
+    수집기표 = sorted(set(코드) | {t.이름 for t in 수집기})
+    대장대조 = 표속성_대조(대장, 수집기표, [t.이름 for t in 앱])
 
+    if args.doc:
+        문서 = Path(args.doc)
+        옛글 = 문서.read_bytes().decode("utf-8")
+        새글, 채운수 = fill_doc(옛글, {
+            "erd-수집": _출력_글(erd출력, 수집기, 앱, 대장, "수집"),
+            "erd-앱": _출력_글(erd출력, 수집기, 앱, 대장, "앱"),
+            "list": _출력_글(표목록마크다운, 수집기, 앱, 대장),
+            "md": _출력_글(사전마크다운, 수집기, 앱, 대장),
+        })
+        if args.check:
+            if 새글 == 옛글:
+                print("✅ 문서가 코드 · DB 와 같다")
+                return 0
+            if _행수_가림(새글) == _행수_가림(옛글):
+                print("✅ 구조 · 설명 · 대장은 같다 — 행 수만 다르다(데이터가 매일 는다 · 판을 올릴 때 --doc 로 다시 채운다)")
+                return 0
+            print("⚠️ 문서가 코드 · DB 보다 뒤처졌다 — --doc 로 다시 채운다")
+            return 1
+        문서.write_bytes(새글.encode("utf-8"))
+        print(f"채움: {문서} · 표시 {채운수}곳")
+        return 0
     if args.json:
         print(json.dumps({
             "수집기": [asdict(t) for t in 수집기],
             "앱": [asdict(t) for t in 앱],
             "수집기_대조": 대조1, "alembic_대조": 대조2,
+            "칸설명_대조": 주석대조, "표속성_대장": 대장, "표속성_대조": 대장대조,
         }, ensure_ascii=False, indent=2))
+    elif args.list:
+        표목록마크다운(수집기, 앱, 대장)
     elif args.md:
-        사전마크다운(수집기, 앱)
+        사전마크다운(수집기, 앱, 대장)
     elif args.erd:
-        erd출력(수집기, 앱)
+        erd출력(수집기, 앱, 대장, args.erd)
     else:
-        사람용출력(수집기, 앱, 대조1, 대조2)
+        사람용출력(수집기, 앱, 대조1, 대조2, 주석대조, 대장대조)
     return 0
 
 

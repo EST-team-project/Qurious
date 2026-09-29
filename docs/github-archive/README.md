@@ -48,7 +48,8 @@ docs/github-archive/
     ├── 논의-기능목록-역할희망/         00-본문.md  (D9 · #52)
     ├── PR-docs-api-spec-and-design-s63/  00-본문.md  (#51)
     ├── PR-fix-route-cache-df17/        00-본문.md  (#53)
-    └── PR-docs-writing-standard-v0-1/  00-본문.md  (S65 · 번호는 올린 뒤)
+    ├── PR-docs-writing-standard-v0-1/  00-본문.md  (#55)
+    └── PR-docs-erd-dictionary-v1-2/    00-본문.md  (S66 · 번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -264,7 +265,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [논의 기능목록-역할희망](2026-09-29/논의-기능목록-역할희망/00-본문.md) | [논의] D9 기능 전체 목록과 역할 희망 — 2차 · 3차에서 하고 싶은 것을 골라 주세요 | 15,658 | [#52](https://github.com/EST-team-project/Qurious/discussions/52) (General · 09-29 게시 · S64 채움 · 사용자 `Github-링크.md` · 페이지 확인) |
 | [PR docs-api-spec-and-design-s63](2026-09-29/PR-docs-api-spec-and-design-s63/00-본문.md) | docs: API 명세서 v0.1 · 기능 설계서 v0.1 — 요구 29개의 흩어진 설계를 모으고 API 146개에 요구 ID 를 붙인다 · D9 역할 희망 본문 | 4,795 | [#51](https://github.com/EST-team-project/Qurious/pull/51) · 머지 `2c83f75` (S64 에 채움 · 사용자 확인) |
 | [PR fix-route-cache-df17](2026-09-29/PR-fix-route-cache-df17/00-본문.md) | fix: 일봉 · 지표 API 가 12:30 갱신을 바로 보여 주게 — 수집 DB 가 받는 요청은 라우트 캐시를 거치지 않는다 (DF-17) | 5,431 | [#53](https://github.com/EST-team-project/Qurious/pull/53) · 머지 `1108c02` (S65 에 채움 · GitLab 동기화) |
-| [PR docs-writing-standard-v0-1](2026-09-29/PR-docs-writing-standard-v0-1/00-본문.md) | docs: 문서 작성 기준 v0.1(제안) — 산출물을 팀원이 읽는 틀로 (실무 양식 25곳 조사) | 3,231 | (올린 뒤 적음) |
+| [PR docs-writing-standard-v0-1](2026-09-29/PR-docs-writing-standard-v0-1/00-본문.md) | docs: 문서 작성 기준 v0.1(제안) — 산출물을 팀원이 읽는 틀로 (실무 양식 25곳 조사) | 3,231 | [#55](https://github.com/EST-team-project/Qurious/pull/55) · 머지 `42fc3e6` (S66 에 채움) |
+| [PR docs-erd-dictionary-v1-2](2026-09-29/PR-docs-erd-dictionary-v1-2/00-본문.md) | docs: ERD · 데이터 사전 v1.2 — 문서 작성 기준을 처음 적용 · 표 속성 대장 · 코드 정의 (칸 설명은 코드에서 읽는다) | 4,532 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

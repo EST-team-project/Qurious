@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS corporate_action (
     lstg_cross  REAL,
     needs_review INTEGER NOT NULL DEFAULT 0,
     -- split=주식수 변화와 일치 / rights=권리락(주식수 불변) / review=두 신호 모두 어긋남
-    -- / shares=정지 뒤 vs 가 조용한데 주식수가 줄었다 → 주식수로 조정 (DF-01 · S59)
+    -- / shares=정지 뒤 vs 가 조용한데 주식수가 줄었다 → 주식수로 조정 (결함 DF-01)
     kind        TEXT    NOT NULL DEFAULT 'review',
     PRIMARY KEY (bas_dt, srtn_cd)
 );
@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS dividend (
     itms_nm     TEXT    NOT NULL DEFAULT '',
     report_nm   TEXT    NOT NULL DEFAULT '',   -- 공시 제목. 정정공시 여부가 여기 보인다
     div_kind    TEXT    NOT NULL DEFAULT '',   -- 결산배당 | 분기배당 | 중간배당
-    div_type    TEXT    NOT NULL DEFAULT '',   -- 현금배당 | 현물배당
+    div_type    TEXT    NOT NULL DEFAULT '',   -- 현금배당 | 현물배당 | 현금ㆍ현물배당 (본문 「배당종류」 칸 그대로)
     dps         REAL,                      -- 1주당 배당금(원) 보통주식
     dps_pref    REAL,                      -- 1주당 배당금(원) 종류주식(우선주)
     yield_pct   REAL,                      -- 시가배당율(%). 검증용 — 주가와 대조하면 맞는다
