@@ -237,9 +237,15 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 DF08-다리-뒤-기준일](2026-09-28/이슈-DF08-다리-뒤-기준일/00-본문.md) | [작업] 수집 DB 다리(DF-08) 뒤 — 「현재가」가 어제 종가가 된 곳 5곳 (파트별 체크리스트) | 4,533 | [#35](https://github.com/EST-team-project/Qurious/issues/35) · Assignee 비움 (S59 에 채움) |
 | [PR feat-collector-candles-df08](2026-09-28/PR-feat-collector-candles-df08/00-본문.md) | feat: 국내 주식 일봉을 수집 DB 에서 읽는다 — 모아 둔 446만 행이 처음으로 화면에 닿는다 (DF-08) | 5,640 | [#33](https://github.com/EST-team-project/Qurious/pull/33) · 머지 `0d95471` (S58 에 채움) |
 | [PR docs-erd-v1-1-and-meetings](2026-09-28/PR-docs-erd-v1-1-and-meetings/00-본문.md) | docs: ERD v1.1 · 데이터 사전 v1.1 — 그림은 그대로, 길과 값이 바뀌었다 · 회의 폴더 · 일일 기록 양식(제안) | 3,840 | [#34](https://github.com/EST-team-project/Qurious/pull/34) · 머지 `1238b04` (S58 에 채움) |
-| [이슈 HF-데이터셋-private](2026-09-28/이슈-HF-데이터셋-private/00-본문.md) | [작업] HF 데이터셋은 private 으로 만든다 — 만들 때 지정 · 올리기 전 검사 (팀 체크리스트) | 3,061 | (올린 뒤 적음) · Assignee 비움 |
+| [이슈 HF-데이터셋-private](2026-09-28/이슈-HF-데이터셋-private/00-본문.md) | [작업] HF 데이터셋은 private 으로 만든다 — 만들 때 지정 · 올리기 전 검사 (팀 체크리스트) | 3,061 | [#37](https://github.com/EST-team-project/Qurious/issues/37) · 열림 · Assignee 비움 (S60 에 채움 · 09-29 이슈 목록으로 확인) |
 | [PR docs-archive-refresh-s58](2026-09-28/PR-docs-archive-refresh-s58/00-본문.md) | docs: 올린 글도 최신으로 — 옛 글 43건 갱신 댓글 · 갱신 대장 · HF private 이슈 초안 · 옛 링크 28곳 | 1,876 | [#36](https://github.com/EST-team-project/Qurious/pull/36) · 머지 `abc4853` (S59 에 채움) |
-| [PR fix-collector-df01-shares](2026-09-28/PR-fix-collector-df01-shares/00-본문.md) | fix: DF-01 — 정지 뒤 감자·병합을 주식 수로 잡는다 (052670 300배 → −80% · 086460) | 6,076 | (올린 뒤 적음) |
+| [PR fix-collector-df01-shares](2026-09-28/PR-fix-collector-df01-shares/00-본문.md) | fix: DF-01 — 정지 뒤 감자·병합을 주식 수로 잡는다 (052670 300배 → −80% · 086460) | 6,076 | [#39](https://github.com/EST-team-project/Qurious/pull/39) · 머지 `33772be` (S60 에 채움) |
+
+### 2026-09-29 — 새 글 1건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR docs-test-plan-v1-2](2026-09-29/PR-docs-test-plan-v1-2/00-본문.md) | docs: 테스트계획서 v1.2 — 결함대장을 처음 다시 쟀다 · 강사님 th03 기능 대조 v0.1 | 3,829 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
