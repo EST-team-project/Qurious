@@ -43,6 +43,10 @@ BASELINE: dict[str, int] = {
     "app/routes/stocks.py": 4,
     "app/services/krx_companies.py": 3,
     "app/services/data_cache.py": 2,
+    # 2026-09-29 S63: API 명세 스캐너가 라우트마다 「야후에 닿는가」를 표시하려고 호스트 글자 조각을
+    #   한 줄에 둔다(`HOST_SYSTEMS`). 부르는 코드가 아니라 **찾는** 코드다 — 호출은 0.
+    #   봉인을 푸는 것이 아니라 봉인선을 재는 자를 들인 것이라 1줄만 연다.
+    "scripts/api_scan.py": 1,
 }
 
 

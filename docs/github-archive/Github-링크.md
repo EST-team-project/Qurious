@@ -17,6 +17,9 @@
 16. https://github.com/EST-team-project/Qurious/issues/43
 17. https://github.com/EST-team-project/Qurious/issues/44
 18. https://github.com/EST-team-project/Qurious/issues/45
+19. https://github.com/EST-team-project/Qurious/issues/47
+20. https://github.com/EST-team-project/Qurious/issues/49
+21. https://github.com/EST-team-project/Qurious/issues/50
 
 
 # 논의
