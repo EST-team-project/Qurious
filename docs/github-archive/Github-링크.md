@@ -1,0 +1,31 @@
+# 이슈
+1. https://github.com/EST-team-project/Qurious/issues/4
+2. https://github.com/EST-team-project/Qurious/issues/5
+3. https://github.com/EST-team-project/Qurious/issues/6
+4. https://github.com/EST-team-project/Qurious/issues/7
+5. https://github.com/EST-team-project/Qurious/issues/8
+6. https://github.com/EST-team-project/Qurious/issues/9
+7. https://github.com/EST-team-project/Qurious/issues/14
+8. https://github.com/EST-team-project/Qurious/issues/17
+9. https://github.com/EST-team-project/Qurious/issues/18
+10. https://github.com/EST-team-project/Qurious/issues/26
+11. https://github.com/EST-team-project/Qurious/issues/35
+12. https://github.com/EST-team-project/Qurious/issues/37
+13. https://github.com/EST-team-project/Qurious/issues/38
+14. https://github.com/EST-team-project/Qurious/issues/40
+15. https://github.com/EST-team-project/Qurious/issues/41
+16. https://github.com/EST-team-project/Qurious/issues/43
+17. https://github.com/EST-team-project/Qurious/issues/44
+18. https://github.com/EST-team-project/Qurious/issues/45
+
+
+# 논의
+1. https://github.com/EST-team-project/Qurious/discussions/10
+2. https://github.com/EST-team-project/Qurious/discussions/11
+3. https://github.com/EST-team-project/Qurious/discussions/12
+4. https://github.com/EST-team-project/Qurious/discussions/13
+5. https://github.com/EST-team-project/Qurious/discussions/20
+6. https://github.com/EST-team-project/Qurious/discussions/21
+7. https://github.com/EST-team-project/Qurious/discussions/22
+8. https://github.com/EST-team-project/Qurious/discussions/31
+9. https://github.com/EST-team-project/Qurious/discussions/32
