@@ -2,6 +2,7 @@
 Lumina Invest — 스크린샷 자동 캡처 (GNB/LNB 버튼 클릭 방식)
 Usage: .venv/bin/python scripts/take_screenshots.py
 """
+import sys
 import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -53,6 +54,11 @@ def shot(page, name):
     print(f"  ✓ {out.name}")
 
 def main():
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → 그림 글자 · 줄표(—) 한 글자에서
+    # UnicodeEncodeError (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
         ctx = browser.new_context(viewport={"width": W, "height": H})

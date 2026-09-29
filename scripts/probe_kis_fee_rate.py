@@ -105,6 +105,11 @@ def bracket(cash: float, price: int, qty: int) -> tuple[float, float] | None:
 
 
 async def main() -> int:
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 UnicodeEncodeError.
+    # 도움말에도 그 글자가 있어 argparse 보다 먼저 맞춘다 (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     ap.add_argument("--symbol", default="005930", help="종목코드 6자리 (기본 005930 삼성전자)")
     ap.add_argument("--raw", action="store_true", help="응답 원문도 출력")

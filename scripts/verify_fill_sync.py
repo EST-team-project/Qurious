@@ -58,6 +58,11 @@ def mk(odno, side, qty, price, fees, *, symbol="005930", name="삼성전자",
 
 
 async def main():
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → 그림 글자 · 줄표(—) 한 글자에서
+    # UnicodeEncodeError (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     engine = create_async_engine(DSN, echo=False)
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))

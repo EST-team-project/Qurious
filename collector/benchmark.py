@@ -234,6 +234,7 @@ import unicodedata
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from collector import db
+from collector.console import utf8_stdio
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 표 — collector/db.py 의 SCHEMA 와 같은 결로 쓰되, 이 모듈이 스스로 보장한다.
@@ -1408,6 +1409,7 @@ def verify(conn: sqlite3.Connection, markets: Sequence[str]) -> bool:
 # CLI
 # ==================================================
 def main(argv: Optional[List[str]] = None) -> int:
+  utf8_stdio()
   p = argparse.ArgumentParser(
       prog="python -m collector.benchmark",
       description="벤치마크 지수 — 시장 전체를 하나의 수로 접는다")

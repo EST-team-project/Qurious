@@ -43,6 +43,7 @@ from typing import Dict, List, Optional, Tuple
 import requests
 
 from collector import config, db, raw_store
+from collector.console import utf8_stdio
 from collector.sources import dart
 from collector.ratelimit import RateLimiter
 
@@ -509,6 +510,7 @@ def print_status() -> None:
 # 5. CLI
 # ==================================================
 def main(argv: Optional[List[str]] = None) -> int:
+    utf8_stdio()
     p = argparse.ArgumentParser(
         prog="python -m collector.dividend",
         description="DART 배당 공시 수집 (중단·재개 가능)")

@@ -168,6 +168,11 @@ def repro_issue40(limit: int = 300) -> None:
 
 
 if __name__ == "__main__":
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → 그림 글자 · 줄표(—) 한 글자에서
+    # UnicodeEncodeError (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     passed = check_tax_table()
     print(f"\n요율표 검증: {'통과' if passed else '실패'}")
     if "--repro" in sys.argv:
