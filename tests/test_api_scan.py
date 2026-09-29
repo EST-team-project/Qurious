@@ -292,6 +292,48 @@ def test_ap13_요구_ID_는_기능_설계서_부록_블록에서만_읽는다(tm
   assert r["GET /api/broker/price"].requirements == []        # v0.1 은 낮은 판 · v0.2 블록 밖 언급
 
 
+def test_ap14_다리_요청을_캐시보다_먼저_가르면_라우트_캐시는_옛_경로_몫이다(tmp_path):
+  """DF-17 — `collector_db.handles(...)` 로 다리 요청을 **캐시보다 먼저** 돌려보내는 라우트는 경고하지 않는다.
+  캐시를 먼저 보고 나서 가르면 옛 값이 이미 나간 뒤라 그대로 경고한다."""
+  src = ROUTES_SRC + '''
+from app.services import collector_db
+from app.services.data_cache import cache_get
+
+
+@router.get("/cached")
+async def cached(symbol: str):
+    hit = await cache_get("k", max_age_hours=6)
+    return hit or await get_candles(symbol)
+
+
+@router.get("/cached-bridge-first")
+async def cached_bridge_first(symbol: str):
+    if collector_db.handles(symbol):
+        return await get_candles(symbol)
+    hit = await cache_get("k", max_age_hours=6)
+    return hit or await get_candles(symbol)
+
+
+@router.get("/cached-bridge-late")
+async def cached_bridge_late(symbol: str):
+    hit = await cache_get("k", max_age_hours=6)
+    if hit is None and collector_db.handles(symbol):
+        return await get_candles(symbol)
+    return hit
+'''
+  extra = {
+    "app/routes/stocks.py": src,
+    "app/services/data_cache.py": "async def cache_get(key, max_age_hours=24):\n    return None\n",
+  }
+  _cb, routes, _reg = api_scan.scan(_repo(tmp_path, extra))
+  r = _by_path(routes)
+  plain, first, late = r["GET /api/cached"], r["GET /api/cached-bridge-first"], r["GET /api/cached-bridge-late"]
+  assert plain.route_cache_hours == first.route_cache_hours == late.route_cache_hours == "6"
+  assert (plain.cache_after_bridge, first.cache_after_bridge, late.cache_after_bridge) == (False, True, False)
+  assert "라우트 캐시 6h (다리 요청 제외)" in api_scan._reach_cell(first)
+  assert "다리 요청 제외" not in api_scan._reach_cell(late)
+
+
 def test_ap10_openapi_대조가_빠진_것과_인자_차이를_잡는다(tmp_path):
   _cb, routes, _reg = api_scan.scan(_repo(tmp_path))
   spec = {"paths": {

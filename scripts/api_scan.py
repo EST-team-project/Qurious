@@ -202,6 +202,7 @@ class Route:
   hosts: list[str] = field(default_factory=list)
   bridge_passthrough: bool = False
   route_cache_hours: str = ""    # 라우트 본문이 직접 cache_get 을 부르면 그 max_age_hours
+  cache_after_bridge: bool = False  # 캐시를 보기 전에 collector_db.handles(...) 로 다리 요청을 돌려보낸다 (DF-17)
   in_schema: bool = True
   part: str = ""
   part_basis: str = ""
@@ -682,6 +683,18 @@ def _route_cache_hours(cb: Codebase, mod: str, fn: ast.AST) -> str:
   return ""
 
 
+def _cache_after_bridge(fn: ast.AST) -> bool:
+  """캐시를 보기 **전에** `collector_db.handles(...)` 로 다리 요청을 돌려보내는가 (DF-17).
+
+  그러면 라우트 캐시는 옛 경로(야후 · DB 없음) 몫이라 다리의 `as_of` 를 가리지 않는다. 순서만 본다 —
+  `handles` 호출이 첫 `cache_get` 보다 앞 줄에 있어야 참이다(캐시를 먼저 보면 옛 값이 이미 나간 뒤다).
+  """
+  calls = [n for n in ast.walk(fn) if isinstance(n, ast.Call)]
+  gets = [n.lineno for n in calls if _call_name(n) == "cache_get"]
+  gates = [n.lineno for n in calls if _dotted(n.func) == "collector_db.handles"]
+  return bool(gets and gates) and min(gates) < min(gets)
+
+
 def _carries_as_of(cb: Codebase, mod: str, fn: ast.AST, carriers: set[str], reaches_db: bool) -> bool:
   """이 함수의 응답에 다리의 `as_of` 가 실리는가 — 세 모양만 참으로 본다.
 
@@ -798,7 +811,7 @@ def extract_routes(cb: Codebase) -> list[Route]:
             status_code=_status_code(_kw(dec, "status_code")),
             response_kind=kind, return_keys=keys, errors=_errors(cb, mod, s),
             reaches=reaches, hosts=hosts, bridge_passthrough=f"{mod}.{s.name}" in carriers,
-            route_cache_hours=_route_cache_hours(cb, mod, s),
+            route_cache_hours=_route_cache_hours(cb, mod, s), cache_after_bridge=_cache_after_bridge(s),
             in_schema=in_schema is not False, part=part, part_basis=basis,
           ))
   return routes
@@ -1041,7 +1054,7 @@ def _reach_cell(rt: Route) -> str:
   if others:
     bits.append("외부(" + ", ".join(others[:2]) + (" …" if len(others) > 2 else "") + ")")
   if rt.route_cache_hours:
-    bits.append(f"라우트 캐시 {rt.route_cache_hours}h")
+    bits.append(f"라우트 캐시 {rt.route_cache_hours}h" + (" (다리 요청 제외)" if rt.cache_after_bridge else ""))
   return " · ".join(bits) if bits else "—"
 
 
@@ -1161,7 +1174,10 @@ def summary(routes: list[Route], cb: Codebase, reg: dict[str, list], chk: dict[s
   for r in routes:
     if "수집DB" in r.reaches:
       extra = " · 응답에 source·as_of" if r.bridge_passthrough else " · 응답 모양은 코드 확인"
-      cache = f" · ⚠️ 라우트 캐시 {r.route_cache_hours}h" if r.route_cache_hours else ""
+      cache = ""
+      if r.route_cache_hours:
+        cache = (f" · 라우트 캐시 {r.route_cache_hours}h 는 옛 경로만(다리 요청 제외 · DF-17)" if r.cache_after_bridge
+                 else f" · ⚠️ 라우트 캐시 {r.route_cache_hours}h")
       print(f"  {r.api_id or '(미등록)'} {r.method} {r.path}{extra}{cache}")
   print()
   print("── 화면이 부르는데 맞는 라우트가 없는 경로 ──")

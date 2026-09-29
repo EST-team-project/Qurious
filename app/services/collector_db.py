@@ -31,6 +31,9 @@ None 을 돌려주는 때 — 호출자(`get_candles`)가 옛 경로로 넘어�
 **예외를 올리지 않는다.** 어댑터가 죽어서 화면이 비는 것보다 옛 경로로 넘어가는 쪽이 낫다.
 대신 DB 를 못 연 이유는 로그에 남긴다.
 
+다리 앞에 캐시를 두지 않는다 — 라우트 · 캐시 데우기는 `handles()` 가 참이면 캐시를 건너뛴다(DF-17).
+캐시가 앞에 있으면 12:30 일일 갱신 뒤에도 캐시가 살아 있는 동안 옛 `as_of` 가 나간다.
+
 DB 는 어디서 찾나
 -----------------
 1. 환경 변수 `COLLECTOR_DB_PATH` 가 있으면 그 파일만 본다(시험 · 다른 배치).
@@ -98,6 +101,22 @@ def db_path() -> Path | None:
     return None
 
 
+def _match(symbol: str, period: str, interval: str) -> re.Match | None:
+    """다리가 받는 요청 모양이면 기호 일치 결과, 아니면 None — 국내 주식 기호 · 일봉 · 아는 기간."""
+    m = _SYMBOL.match(symbol or "")
+    return m if m and interval == "1d" and period in _PERIOD_MONTHS else None
+
+
+def handles(symbol: str, period: str = "1y", interval: str = "1d") -> bool:
+    """이 요청을 다리가 **먼저** 받는가 — 요청 모양이 맞고 DB 파일이 있다 (DF-17).
+
+    다리 위에 캐시를 두는 쪽(일봉 · 지표 라우트, `sync_scheduler` 의 캐시 데우기)이 캐시를 건너뛸지 정할 때 쓴다.
+    그 종목 행이 있는지는 보지 않는다(파일을 열어야 안다). 행이 없으면(ETF 등) `get_candles` 가 옛 경로로
+    넘어가고, 옛 경로는 같은 키로 스스로 캐시하므로 외부 호출은 늘지 않는다.
+    """
+    return _match(symbol, period, interval) is not None and db_path() is not None
+
+
 def _months_before(d: date, months: int) -> date:
     """`d` 에서 `months` 달 전. 그 달에 같은 날이 없으면 말일로(3-31 의 한 달 전 = 2-28)."""
     y, m = divmod(d.year * 12 + (d.month - 1) - months, 12)
@@ -142,8 +161,8 @@ def read_daily_candles(
 ) -> dict | None:
     """수집 DB 에서 일봉을 읽는다. 쓸 수 없으면 None(예외 없음) — 머리말 참고."""
     global _warned_missing
-    m = _SYMBOL.match(symbol or "")
-    if not m or interval != "1d" or period not in _PERIOD_MONTHS:
+    m = _match(symbol, period, interval)
+    if m is None:
         return None
 
     path = path or db_path()
