@@ -11,6 +11,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+from app.services import collector_db
 from app.services.data_cache import cache_set, is_internet_available
 from app.services.stock import (
     _yahoo_chart,
@@ -186,8 +187,15 @@ async def _sync_stock_candles() -> None:
             except Exception as e:
                 logger.warning("[sync] indicators %s failed: %s", sym, e)
 
-    await asyncio.gather(*(_warm_candles(s["symbol"]) for s in QUANT_STOCKS))
-    await asyncio.gather(*(_warm_indicators(s["symbol"]) for s in QUANT_STOCKS))
+    # 수집 DB 다리가 받는 종목은 데우지 않는다(DF-17). 일봉은 다리가 파일에서 바로 읽고, 지표 라우트는
+    # 그 요청에 캐시를 쓰지 않으므로 여기서 쓴 `indicators:` 키를 아무도 읽지 않는다.
+    # DB 가 없는 환경은 옛 경로(외부 차트)라 그대로 데운다.
+    symbols = [s["symbol"] for s in QUANT_STOCKS if not collector_db.handles(s["symbol"], "2y", "1d")]
+    if len(symbols) < len(QUANT_STOCKS):
+        logger.info("[sync] candles: 수집 DB 다리가 받는 %d종목은 데우지 않는다",
+                    len(QUANT_STOCKS) - len(symbols))
+    await asyncio.gather(*(_warm_candles(s) for s in symbols))
+    await asyncio.gather(*(_warm_indicators(s) for s in symbols))
 
 
 # ── Public sync entrypoint ────────────────────────────────────────────────────

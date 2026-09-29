@@ -23,6 +23,7 @@ from app.services import notification
 from app.services.audit import audit
 from app.services import paper_trading
 from app.services import trading_cost
+from app.services import collector_db
 from app.services.data_cache import cache_get, cache_set
 from app.services.sync_scheduler import KEY_MARKET_INDICES
 
@@ -59,6 +60,10 @@ async def stock_candles(
     period: str = Query("1y"),
     interval: str = Query("1d"),
 ):
+    # 국내 주식 일봉은 수집 DB 다리(DF-08)가 먼저 받는다 — 라우트 캐시를 거치지 않는다(DF-17).
+    # 다리 앞에 캐시를 두면 12:30 일일 갱신 뒤에도 최대 6시간 옛 as_of 가 나간다.
+    if collector_db.handles(symbol, period, interval):
+        return await get_candles(symbol, period=period, interval=interval)
     cache_key = f"candles:{symbol}:{period}:{interval}"
     cached = await cache_get(cache_key, max_age_hours=6)
     if cached is not None:
@@ -75,6 +80,9 @@ async def quant_indicators(
     symbol: str = Query(...),
     period: str = Query("2y"),
 ):
+    # 지표는 일봉으로 계산한다 — 다리가 받는 요청이면 위와 같은 이유로 캐시를 건너뛴다(DF-17).
+    if collector_db.handles(symbol, period, "1d"):
+        return await get_quant_indicators(symbol, period=period)
     cache_key = f"indicators:{symbol}:{period}"
     cached = await cache_get(cache_key, max_age_hours=6)
     if cached is not None:
