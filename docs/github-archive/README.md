@@ -40,7 +40,7 @@ docs/github-archive/
 │   ├── 이슈-HF-데이터셋-private/   00-본문.md  (#37)
 │   ├── PR-docs-archive-refresh-s58/  00-본문.md  (#36)
 │   └── PR-fix-collector-df01-shares/  00-본문.md  (#39)
-└── 2026-09-29/        ← 새 글 8건
+└── 2026-09-29/        ← 새 글 10건
     ├── PR-docs-test-plan-v1-2/        00-본문.md  (#42)
     ├── 이슈-로드맵-인덱스-v2/          00-본문.md  (#47 · 옛 `#1` → #4 를 대신)
     ├── PR-docs-archive-new-numbers-s61/  00-본문.md  (#46)
@@ -49,7 +49,8 @@ docs/github-archive/
     ├── PR-docs-api-spec-and-design-s63/  00-본문.md  (#51)
     ├── PR-fix-route-cache-df17/        00-본문.md  (#53)
     ├── PR-docs-writing-standard-v0-1/  00-본문.md  (#55)
-    └── PR-docs-erd-dictionary-v1-2/    00-본문.md  (S66 · 번호는 올린 뒤)
+    ├── PR-docs-erd-dictionary-v1-2/    00-본문.md  (#56)
+    └── PR-docs-rtm-v1-1-test-plan-v1-3/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -126,7 +127,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR #2](2026-09-15/PR-002/00-기록.md) | chore: 강사님 lumina-invest 최신본(6d91401)을 반영하고 AWS 인프라·연동을 걷어낸다 | 머지됨 · 2026-09-15 11:27 | 이동원(`devlee328288`) | 0 | 6,569 |  |
 | [이슈 #3](2026-09-15/이슈-003/00-기록.md) | [분석] A16 1차 Alpha_Stack 유산 인벤토리 | 열림 | 이동원(`devlee328288`) | 0 | 17,420 | [#5](https://github.com/EST-team-project/Qurious/issues/5) · 갱신 댓글 ⏳ |
 | [이슈 #4](2026-09-15/이슈-004/00-기록.md) | [분석] A17 강사님 배포 자료 인벤토리: 2·3차 평가 관점과 재사용 자산 | 열림 | 이동원(`devlee328288`) | 0 | 14,679 | [#6](https://github.com/EST-team-project/Qurious/issues/6) · 갱신 댓글 ⏳ · 강사님 자료 추적 댓글도 여기 |
-| [이슈 #5](2026-09-15/이슈-005/00-기록.md) | [분석] A15 과제 명세·문서 현황과 RFP 대비 구현 격차표 | 열림 | 이동원(`devlee328288`) | 0 | 35,117 | [#7](https://github.com/EST-team-project/Qurious/issues/7) · 갱신 댓글 🟡 |
+| [이슈 #5](2026-09-15/이슈-005/00-기록.md) | [분석] A15 과제 명세·문서 현황과 RFP 대비 구현 격차표 | 열림 | 이동원(`devlee328288`) | 0 | 35,117 | [#7](https://github.com/EST-team-project/Qurious/issues/7) · 갱신 댓글 🟡 · [닫기 댓글](2026-09-15/이슈-005/02-2026-09-29-닫기.md) 준비(S67 · RTM v1.1 머지 뒤 닫기) |
 | [논의 #6](2026-09-15/논의-006/00-기록.md) | [논의] D0 팀 운영·기록 방식 | General | 이동원(`devlee328288`) | 6·6 | ⚠️ 6.1만 — 본문 4.1만 · 댓글 6건(최대 7,164) | [#10](https://github.com/EST-team-project/Qurious/discussions/10) · 갱신 댓글 🟢 |
 | [논의 #7](2026-09-15/논의-007/00-기록.md) | [논의] D1 Qurious 2.0은 누구의 어떤 문제를 푸는가 | 방향성·목표 | 이동원(`devlee328288`) | 6·2 | 53,914 | [#11](https://github.com/EST-team-project/Qurious/discussions/11) · 갱신 댓글 🟢 |
 | [이슈 #8](2026-09-15/이슈-008/00-기록.md) | [분석] A14 클라우드 인프라·CI/CD — 걷어낸 것·남은 것·무료로 할 수 있는 것 | 열림 | 이동원(`devlee328288`) | 0 | 21,692 | [#8](https://github.com/EST-team-project/Qurious/issues/8) · 갱신 댓글 🟡 |
@@ -262,11 +263,12 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 로드맵-인덱스-v2](2026-09-29/이슈-로드맵-인덱스-v2/00-본문.md) | [로드맵] Qurious 2.0 인덱스 v2 — 새 번호로 다시 묶은 이슈·논의 목록과 닫는 조건 | 8,245 | [#47](https://github.com/EST-team-project/Qurious/issues/47) (S63 채움 · 사용자 `Github-링크.md` · 목록 페이지) — #4 [닫기 댓글](2026-09-15/이슈-001/02-2026-09-29-v2-로-옮김.md) · ~~닫기는 확인 전~~ **#4 닫힘**(S64 확인 · 페이지 · `Github-링크.md` 에서 빠짐) · [갱신 댓글](2026-09-29/이슈-로드맵-인덱스-v2/01-2026-09-29-갱신.md)(#49 · #50 · D9) 준비 · [갱신 댓글 (2)](2026-09-29/이슈-로드맵-인덱스-v2/02-2026-09-29-갱신.md)(D8 = #54 · S65 · 다음 새 번호와 묶어 올림) |
 | [PR docs-archive-new-numbers-s61](2026-09-29/PR-docs-archive-new-numbers-s61/00-본문.md) | docs: 올린 글 23건에 새 번호 · 인덱스 v2 · 닫아도 되는 글 — 갱신 대장 v0.2 | 3,068 | [#46](https://github.com/EST-team-project/Qurious/pull/46) · 머지 `29a7e8a` (S62 에 채움) |
 | [PR fix-collector-utf8-df11-df16](2026-09-29/PR-fix-collector-utf8-df11-df16/00-본문.md) | fix: 사람이 돌리는 명령 15곳이 한 글자에 죽지 않게 · preprocess 가 인자를 본다 (DF-11 · DF-16) | 6,033 | [#48](https://github.com/EST-team-project/Qurious/pull/48) · 머지 `5adfb81` (S63 에 채움) |
-| [논의 기능목록-역할희망](2026-09-29/논의-기능목록-역할희망/00-본문.md) | [논의] D9 기능 전체 목록과 역할 희망 — 2차 · 3차에서 하고 싶은 것을 골라 주세요 | 15,658 | [#52](https://github.com/EST-team-project/Qurious/discussions/52) (General · 09-29 게시 · S64 채움 · 사용자 `Github-링크.md` · 페이지 확인) |
+| [논의 기능목록-역할희망](2026-09-29/논의-기능목록-역할희망/00-본문.md) | [논의] D9 기능 전체 목록과 역할 희망 — 2차 · 3차에서 하고 싶은 것을 골라 주세요 | 15,658 | [#52](https://github.com/EST-team-project/Qurious/discussions/52) (General · 09-29 게시 · S64 채움 · 사용자 `Github-링크.md` · 페이지 확인) · [갱신 댓글](2026-09-29/논의-기능목록-역할희망/01-2026-09-29-갱신.md) 준비(S67 · 일정표 요구 5 · 차트 라이브러리 · RTM v1.1 머지 뒤) |
 | [PR docs-api-spec-and-design-s63](2026-09-29/PR-docs-api-spec-and-design-s63/00-본문.md) | docs: API 명세서 v0.1 · 기능 설계서 v0.1 — 요구 29개의 흩어진 설계를 모으고 API 146개에 요구 ID 를 붙인다 · D9 역할 희망 본문 | 4,795 | [#51](https://github.com/EST-team-project/Qurious/pull/51) · 머지 `2c83f75` (S64 에 채움 · 사용자 확인) |
 | [PR fix-route-cache-df17](2026-09-29/PR-fix-route-cache-df17/00-본문.md) | fix: 일봉 · 지표 API 가 12:30 갱신을 바로 보여 주게 — 수집 DB 가 받는 요청은 라우트 캐시를 거치지 않는다 (DF-17) | 5,431 | [#53](https://github.com/EST-team-project/Qurious/pull/53) · 머지 `1108c02` (S65 에 채움 · GitLab 동기화) |
 | [PR docs-writing-standard-v0-1](2026-09-29/PR-docs-writing-standard-v0-1/00-본문.md) | docs: 문서 작성 기준 v0.1(제안) — 산출물을 팀원이 읽는 틀로 (실무 양식 25곳 조사) | 3,231 | [#55](https://github.com/EST-team-project/Qurious/pull/55) · 머지 `42fc3e6` (S66 에 채움) |
-| [PR docs-erd-dictionary-v1-2](2026-09-29/PR-docs-erd-dictionary-v1-2/00-본문.md) | docs: ERD · 데이터 사전 v1.2 — 문서 작성 기준을 처음 적용 · 표 속성 대장 · 코드 정의 (칸 설명은 코드에서 읽는다) | 4,532 | (올린 뒤 적음) |
+| [PR docs-erd-dictionary-v1-2](2026-09-29/PR-docs-erd-dictionary-v1-2/00-본문.md) | docs: ERD · 데이터 사전 v1.2 — 문서 작성 기준을 처음 적용 · 표 속성 대장 · 코드 정의 (칸 설명은 코드에서 읽는다) | 4,532 | [#56](https://github.com/EST-team-project/Qurious/pull/56) · 머지 `e8e79fc` (S67 에 채움 · GitLab 동기화) |
+| [PR docs-rtm-v1-1-test-plan-v1-3](2026-09-29/PR-docs-rtm-v1-1-test-plan-v1-3/00-본문.md) | docs: RTM v1.1 · 테스트계획서 v1.3 — 요구 59개를 대장으로 잇고, 시험 188건이 어느 요구를 재는지 다시 센다 | 5,000 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

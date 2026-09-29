@@ -4,218 +4,373 @@ RTM 은 「이 요구는 구현됐는가」에 **증거로** 답하는 문서다
 손으로 적어 두면, 코드가 바뀌어도 표는 그대로 남아 거짓이 된다. 한 달 뒤 그 표를
 믿을 수 있으려면 **다시 돌려서 확인할 수 있어야** 한다.
 
-그래서 요구마다 「이 요구가 구현됐다면 저장소에 무엇이 보여야 하는가」를 탐지
-규칙으로 적어 두고, 이 스크립트가 실제로 훑어 센다. RTM 문서의 「코드」·「상태」
-칸은 이 출력에서 온다.
+그래서 사람이 적는 것과 스크립트가 재는 것을 나눈다.
 
-    python scripts/rtm_scan.py            # 사람이 읽는 표
-    python scripts/rtm_scan.py --md       # RTM 문서에 붙일 마크다운
-    python scripts/rtm_scan.py --json     # 기계용
+- 사람이 적는다 — 요구의 정의(이름 · 내용 · 유형 · 출처 · 우선순위 · 상태 · 검증 방법 · 관련 요구)는
+  `docs/요구사항/요구-대장.tsv` 에, 시험 파일이 어느 요구를 재는지는 `docs/요구사항/시험-요구대장.tsv` 에.
+- 스크립트가 잰다 — ① 코드 흔적(이름 검색) ② 시험 건수(pytest 수집) ③ 설계 절(기능 설계서의
+  가장 높은 판에서 요구 ID 가 제목인 절) ④ 받는 API(기능 설계서 부록 A 의 `<!-- req-api-map -->` 블록).
 
-⚠️ **이 스캐너가 판정하는 것은 「흔적이 있는가」이지 「제대로 동작하는가」가 아니다.**
-grep 이 잡는 것은 이름뿐이다. 실제 동작은 시험(TC)이 판정하고, RTM 은 그 둘을
-나란히 놓는다 — 흔적은 있는데 시험이 없는 칸이 곧 위험한 칸이다.
+    python scripts/rtm_scan.py                     # 사람이 읽는 요약 + 대장 점검
+    python scripts/rtm_scan.py --md                # RTM 문서에 붙일 표 전부
+    python scripts/rtm_scan.py --json              # 기계용
+    python scripts/rtm_scan.py --doc <RTM 문서>     # 문서의 <!-- rtm_scan:이름 --> 사이를 다시 채운다
+    python scripts/rtm_scan.py --check <RTM 문서>   # 다시 채울 곳이 있으면 종료코드 1
+
+⚠️ **흔적은 「이름이 보이는가」이지 「제대로 동작하는가」가 아니다.** grep 이 잡는 것은 이름뿐이다.
+실제 동작은 시험(TC)이 판정하고, RTM 은 그 둘을 나란히 놓는다 — 흔적은 있는데 시험이 없는
+칸이 곧 위험한 칸이다.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
+import csv
 import json
+import os
 import re
 import subprocess
 import sys
-from dataclasses import dataclass, field
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+요구_대장 = ROOT / "docs" / "요구사항" / "요구-대장.tsv"
+시험_대장 = ROOT / "docs" / "요구사항" / "시험-요구대장.tsv"
+설계_폴더 = ROOT / "docs" / "설계"
 
-# 훑지 않을 곳. 가상환경·캐시·데이터·강의자료는 우리 구현이 아니다.
+요구_칸 = ("요구ID", "계열", "차수", "이름", "내용", "유형", "출처", "우선순위", "상태",
+          "검증방법", "검사결과", "관련요구", "설계_추가", "제안시험", "비고")
+요구_필수칸 = ("요구ID", "계열", "차수", "이름", "내용", "유형", "출처", "우선순위", "상태", "검증방법")
+시험_칸 = ("묶음", "파일", "요구ID", "확실도", "무엇을_확인")
+
+계열_이름 = {"B": "강사님 원문", "A": "제안요청서", "C": "강사님 공식 일정표"}
+# 대장 칸마다 쓸 수 있는 말 — 유형 기호는 「제안요청서의 요구사항 작성 가이드」(2011)를 따른다
+정한말 = {
+    "계열": ("A", "B", "C"),
+    "차수": ("2차", "3차", "공통"),
+    "유형": ("FR", "PR", "QR", "IR", "DR", "OR", "CO"),
+    "우선순위": ("필수", "선택", "미정"),
+    "상태": ("확정", "제안"),
+}
+검증_방법 = ("시험", "시연", "검사", "분석")
+확실도_값 = ("🟢", "🟡", "—")
+진행_차례 = ("검증 끝(검사)", "시험 있음", "시험 일부", "흔적 있음", "구현 전")
+
+# 훑지 않을 곳. 가상환경 · 캐시 · 데이터는 우리 구현이 아니다.
 제외_디렉터리 = {
     ".git", "__pycache__", "node_modules", ".pytest_cache", ".serena",
     "data", "screenshots", ".playwright-mcp", ".venv", "venv",
+    # 시험은 「시험」 칸에서 따로 센다 — 흔적으로 세면 시험이 구현처럼 보인다
+    "tests",
 }
+# 문서 · 기록 도구는 요구 이름을 글자로 들고 있다(화면 키 목록 · 탐지 규칙 · 스크린샷 대상).
+# ⚠️ v1.0 에서 스캐너 자신의 탐지 패턴 `rebalanc` 가 흔적으로 잡혀 「리밸런싱 0줄」이 「1줄」로 보였다.
+문서_도구 = ("*_scan.py", "post_check.py", "take_screenshots.py")
 
-# 훑을 확장자. 문서는 따로 센다(구현 증거가 아니므로).
+# 훑을 확장자. 문서(.md)는 구현 증거가 아니라 뺀다.
 코드_확장자 = {".py", ".html", ".js", ".yml", ".yaml", ".sql", ".toml", ".ini", ".cfg"}
 
-
-@dataclass
-class 요구:
-    """요구 한 줄과, 그것이 구현됐다면 저장소에 보여야 할 흔적."""
-
-    id: str
-    이름: str
-    출처: str          # 어느 문서 어느 절에서 왔는가
-    파트: str          # #62 가 배정한 담당 파트
-    패턴: list[str]     # 이 요구의 구현 흔적 (정규식)
-    시험: list[str] = field(default_factory=list)   # 대응하는 TC ID
-    비고: str = ""
+# ─────────────────────────────────────────────────────────────────────
+# 코드 흔적 — 요구가 구현됐다면 저장소에 보여야 할 이름 (정규식 · 대소문자 무시)
+#   규칙이 없는 요구(검사로 보는 제약 · 문서화)는 흔적 칸이 「—」 다.
+# ─────────────────────────────────────────────────────────────────────
+탐지_패턴: dict[str, list[str]] = {
+    # 원문 PROJECT 01 (2차)
+    "P01-①-1": [r"glossary", r"용어\s*사전", r"연관\s*개념", r"related_term"],
+    "P01-①-2": [r"collector\.", r"from collector", r"def collect", r"news"],
+    "P01-①-3": [r"citations", r"qdrant", r"retriev"],
+    "P01-①-4": [r"beat_schedule", r"ingest_day", r"doc_version", r"문서\s*버전"],
+    "P01-①-5": [r"\bxai\b", r"explain(ab|ation)", r"추천\s*이유"],
+    # ta_utils 6종은 강사님 원본과 바이트가 같다 — 흔적이 있어도 팀 작업으로 세지 않는다
+    "P01-②-1": [r"\brsi\b", r"\bmacd\b", r"bollinger", r"moving_average"],
+    "P01-②-2": [r"candle_?pattern", r"support_?level", r"resistance", r"breakout", r"golden_?cross"],
+    "P01-②-3": [r"multi_?tf", r"timeframe", r"resample", r"confidence"],
+    "P01-③-1": [r"rebalanc"],
+    "P01-③-2": [r"drift_?toleran", r"target_?weight", r"이탈률"],
+    "P01-③-3": [r"cash_?flow", r"deposit", r"withdraw", r"재투자"],
+    "P01-④-1": [r"slippage", r"\bmdd\b", r"sharpe", r"max_?drawdown"],
+    # 매수 · 매도 · 보유 글자는 화면 버튼에도 널려 있어 변환 로직 쪽으로 좁혔다
+    "P01-④-2": [r"opinion", r"투자\s*의견", r"recommendation", r"signal_to_", r"decide_action"],
+    "P01-④-3": [r"paper_?trading", r"place_order"],
+    # 원문 PROJECT 02 (3차)
+    "P02-①-1": [r"ta_utils", r"\brsi\b", r"\bmacd\b"],
+    "P02-①-2": [r"stop_?loss", r"take_?profit", r"position_?siz", r"손절", r"익절"],
+    "P02-①-3": [r"lean_?backtest", r"backtest"],
+    "P02-②-1": [r"custom_?indicator", r"normaliz", r"정규화\s*산식"],
+    "P02-②-2": [r"look_?ahead", r"lookahead", r"미래\s*데이터"],
+    "P02-②-3": [r"indicator_?version", r"/indicators?", r"indicator_?api"],
+    "P02-③-1": [r"pine", r"//@version"],
+    "P02-③-2": [r"\blean\b", r"교차\s*검증", r"cross_?valid"],
+    "P02-③-3": [r"webhook", r"notification", r"알림"],
+    "P02-④-1": [r"commission", r"fee_?rate", r"요율"],
+    "P02-④-2": [r"win_?rate", r"cumulative_?return", r"profit_?factor", r"승률"],
+    "P02-④-3": [r"tradingview.*lean", r"lean.*tradingview", r"대조표"],
+    "P02-⑤-1": [r"brokers?\.", r"get_broker_client", r"place_order"],
+    "P02-⑤-2": [r"idempot", r"dedup", r"loss_?limit", r"kill_?switch", r"비상\s*정지"],
+    # `logging.` 은 어느 파일에나 있어 뺐다 — 일정 · 배포 · 장애 알림만 센다
+    "P02-⑤-3": [r"beat_schedule", r"docker-compose", r"장애\s*알림", r"alert_", r"healthcheck"],
+    # 원문 UI/UX 요소 — 화면 키(view)와 화면 글자
+    "U1": [r"성향\s*진단", r"risk_?survey"],
+    "U2": [r"robo-portfolio", r"paper-dashboard"],
+    "U3": [r"시뮬레이션"],
+    "U4": [r"목표\s*수익률", r"target_?return"],
+    "U5": [r"rebalanc"],
+    "U6": [r"indicator-custom", r"indicator-strategy"],
+    "U7": [r"trading-chart"],
+    "U8": [r"indicator-backtest", r"quant-lean"],
+    "U9": [r"성과\s*대시보드", r"performance-dashboard"],
+    "U10": [r"robo-decision", r"quant-auto"],
+    # 제안요청서 — 자산배분 · 스크리닝
+    "RFP2-3.1.3-①": [r"markowitz", r"mean.?variance", r"efficient.?frontier", r"riskfolio",
+                     r"pypfopt", r"cvxpy"],
+    "RFP2-3.1.3-②": [r"risk.?parity", r"min(imum)?.?variance", r"최소\s*분산"],
+    "RFP2-3.1.3-③": [r"black.?litterman", r"블랙.?리터만"],
+    "RFP2-3.1.3-④": [r"market_?regime", r"국면", r"dynamic_?alloc"],
+    "RFP2-3.1.4-①": [r"factor_?scor", r"value_?factor", r"quality_?factor", r"팩터"],
+    # PER · PBR · ROE 는 영어 낱말(per)과 겹쳐 대문자만 센다
+    "RFP2-3.1.4-②": [r"(?-i:\bPER\b|\bPBR\b|\bROE\b)", r"debt_?ratio", r"부채\s*비율"],
+    "RFP2-3.1.4-③": [r"52.?week", r"52주", r"신고가", r"정배열"],
+    "RFP2-3.1.4-④": [r"composite_?score", r"복합\s*점수", r"랭킹"],
+    # 제안요청서 — 비기능 · 제외 범위 (이름으로 볼 수 있는 것만)
+    "RFP2-3.2-③": [r"random_state", r"random\.seed", r"manual_seed"],
+    "RFP2-4.2-①": [r"QURIOUS_ALLOW_LIVE_TRADING"],
+    # 강사님 공식 일정표
+    "SCH-STR": [r"stress_?test", r"스트레스\s*(테스트|검증|시나리오)"],
+    "SCH-DQ": [r"SANITY_(LO|HI)", r"needs_review", r"게이트"],
+    "SCH-ROB": [r"walk.?forward", r"워크\s*포워드", r"monte.?carlo", r"몬테\s*카를로", r"out.?of.?sample"],
+    "SCH-ORD": [r"cancel_?order", r"modify_?order", r"정정\s*주문", r"주문\s*취소"],
+    "SCH-RT": [r"websocket", r"웹소켓", r"stream_?quote"],
+}
 
 
 # ─────────────────────────────────────────────────────────────────────
-# B계열 — 강사님 목표기능표 29개 (#62 §3.1·§3.2 에 전재된 열거 기준)
-#   머리글 합계는 27 이나 열거하면 29 다. RTM 은 **열거 기준 29** 를 정본으로 삼는다.
-#   근거는 RTM 문서 §2 참조.
+# 대장 — 사람이 적는 두 파일
 # ─────────────────────────────────────────────────────────────────────
-B계열: list[요구] = [
-    # ── PROJECT 01 — 로보 어드바이저 (14개)
-    요구("P01-1-1", "용어사전·연관개념 탐색", "목표기능표 P01-①-1", "P-A",
-        [r"glossary", r"용어\s*사전", r"연관\s*개념", r"related_term"]),
-    요구("P01-1-2", "가격·거래량·재무·뉴스 수집·분류·전처리·검색(적재)", "목표기능표 P01-①-2", "P-A",
-        [r"collector\.", r"from collector", r"def collect", r"news"]),
-    요구("P01-1-3", "근거문서·출처 포함 RAG 질의응답", "목표기능표 P01-①-3", "P-A",
-        [r"citations", r"qdrant", r"retriev"]),
-    요구("P01-1-4", "갱신일·문서버전·캘린더·정기배치", "목표기능표 P01-①-4", "P-A",
-        [r"beat_schedule", r"ingest_day", r"doc_version", r"문서\s*버전"]),
-    요구("P01-1-5", "XAI 로 추천 이유를 쉬운 말로 설명", "목표기능표 P01-①-5", "P-D",
-        [r"\bxai\b", r"explain(ab|ation)", r"추천\s*이유"]),
-    요구("P01-2-1", "MA·RSI·MACD·볼린저·거래량 지표", "목표기능표 P01-②-1", "P-B",
-        [r"\brsi\b", r"\bmacd\b", r"bollinger", r"moving_average"],
-        비고="⚠️ ta_utils 6종은 강사님 원본과 바이트 동일 — 우리 공적으로 계상 금지(#62)"),
-    요구("P01-2-2", "캔들패턴·지지·저항·돌파·골든크로스 탐지", "목표기능표 P01-②-2", "P-B",
-        [r"candle_?pattern", r"support_?level", r"resistance", r"breakout", r"golden_?cross"]),
-    요구("P01-2-3", "분·일·주봉 종합 → 신호 + 신뢰도", "목표기능표 P01-②-3", "P-B",
-        [r"multi_?tf", r"timeframe", r"resample", r"confidence"]),
-    요구("P01-3-1", "시간 기반 리밸런싱 (월·분기·연)", "목표기능표 P01-③-1", "P-C",
-        [r"rebalanc"]),
-    요구("P01-3-2", "이탈률 기반 리밸런싱", "목표기능표 P01-③-2", "P-C",
-        [r"drift_?toleran", r"target_?weight", r"이탈률"]),
-    요구("P01-3-3", "입출금·배당금 기반 리밸런싱", "목표기능표 P01-③-3", "P-C",
-        [r"cash_?flow", r"deposit", r"withdraw", r"재투자"]),
-    요구("P01-4-1", "거래비용·슬리피지 반영 수익률·MDD·샤프", "목표기능표 P01-④-1", "P-D",
-        [r"slippage", r"\bmdd\b", r"sharpe", r"max_?drawdown"],
-        비고="⚠️ 샤프 정의가 4개 공존(#62 P-D) — 흔적은 있으나 정합성 미확인"),
-    요구("P01-4-2", "신호 → 매수·매도·보유 의견 변환", "목표기능표 P01-④-2", "P-C",
-        [r"opinion", r"투자\s*의견", r"recommendation", r"signal_to_", r"decide_action"],
-        비고="매수·매도·보유 문자열은 화면 버튼에도 널려 있어 변환 로직 쪽으로 좁혔다"),
-    요구("P01-4-3", "모의 주문 체결·포트폴리오 운용", "목표기능표 P01-④-3", "P-E",
-        [r"paper_?trading", r"place_order"],
-        시험=["TC-LT-01~10"],
-        비고="⚠️ 체결가 소스가 야후(#62) — TC-YH 봉인 대상"),
+def 대장_읽기(경로: Path) -> list[dict[str, str]]:
+    """TSV 대장을 줄마다 사전으로. 파일이 없으면 빈 목록(새 clone · 다른 파트 PC)."""
+    if not 경로.exists():
+        return []
+    with 경로.open(encoding="utf-8", newline="") as f:
+        return [{k: (v or "").strip() for k, v in 줄.items()}
+                for 줄 in csv.DictReader(f, delimiter="\t")]
 
-    # ── PROJECT 02 — 인디케이터·자동화 (15개)
-    요구("P02-1-1", "기본 인디케이터 지표계산", "목표기능표 P02-①-1", "P-B",
-        [r"ta_utils", r"\brsi\b", r"\bmacd\b"]),
-    요구("P02-1-2", "조건조합·손절·익절·포지션크기", "목표기능표 P02-①-2", "P-B",
-        [r"stop_?loss", r"take_?profit", r"position_?siz", r"손절", r"익절"]),
-    요구("P02-1-3", "백테스트로 기준전략 선정", "목표기능표 P02-①-3", "P-D",
-        [r"lean_?backtest", r"backtest"]),
-    요구("P02-2-1", "커스텀 인디케이터 정규화 산식", "목표기능표 P02-②-1", "P-B",
-        [r"custom_?indicator", r"normaliz", r"정규화\s*산식"]),
-    요구("P02-2-2", "미래데이터 참조 방지·실시간갱신·단위테스트 ★", "목표기능표 P02-②-2", "P-B",
-        [r"look_?ahead", r"lookahead", r"미래\s*데이터"],
-        비고="★ 3차 채점 항목. 단위시험 존재 여부는 별도 칸에서 센다"),
-    요구("P02-2-3", "인디케이터 API 제공·버전 저장", "목표기능표 P02-②-3", "P-B",
-        [r"indicator_?version", r"/indicators?", r"indicator_?api"]),
-    요구("P02-3-1", "Pine 지표·전략 구현", "목표기능표 P02-③-1", "P-B",
-        [r"pine", r"//@version"],
-        비고="⚠️ 생성기가 indicator() 라 Strategy Tester 안 켜짐(#61)"),
-    요구("P02-3-2", "Strategy Tester → LEAN 교차검증", "목표기능표 P02-③-2", "P-D",
-        [r"\blean\b", r"교차\s*검증", r"cross_?valid"]),
-    요구("P02-3-3", "알림·Webhook", "목표기능표 P02-③-3", "P-B",
-        [r"webhook", r"notification", r"알림"],
-        비고="수신부는 약관 가름 보류(#62 §3.4)"),
-    요구("P02-4-1", "동일 데이터·기간·수수료 조건 ★", "목표기능표 P02-④-1", "P-A+P-D",
-        [r"commission", r"fee_?rate", r"요율"],
-        시험=["TC-YH-01~02"],
-        비고="★ lean_backtest.py 야후 직호출 제거 대상(#61 P1-1)"),
-    요구("P02-4-2", "누적수익률·MDD·샤프·승률", "목표기능표 P02-④-2", "P-D",
-        [r"win_?rate", r"cumulative_?return", r"profit_?factor", r"승률"]),
-    요구("P02-4-3", "TradingView vs LEAN 비교", "목표기능표 P02-④-3", "P-D",
-        [r"tradingview.*lean", r"lean.*tradingview", r"대조표"]),
-    요구("P02-5-1", "신호 → 계좌·시세·주문", "목표기능표 P02-⑤-1", "P-E",
-        [r"brokers?\.", r"get_broker_client", r"place_order"],
-        시험=["TC-LT-01~10"]),
-    요구("P02-5-2", "중복주문 방지·손실한도·비상정지 ★", "목표기능표 P02-⑤-2", "P-E",
-        [r"idempot", r"dedup", r"loss_?limit", r"kill_?switch", r"비상\s*정지"],
-        비고="★ 사고 방지 항목"),
-    요구("P02-5-3", "실행일정·배포·로그·장애알림", "목표기능표 P02-⑤-3", "P-E",
-        [r"beat_schedule", r"docker-compose", r"장애\s*알림", r"alert_", r"healthcheck"],
-        비고="`logging.` 은 어느 파일에나 있어 뺐다 — 일정·배포·장애알림만 센다"),
-]
+
+def 나누기(칸: str) -> list[str]:
+    """「A · B · C」 모양의 칸을 목록으로. 비었거나 「—」 면 빈 목록."""
+    return [x.strip() for x in 칸.split("·") if x.strip() and x.strip() != "—"]
+
+
+def 요구대장_점검(요구들: list[dict[str, str]]) -> list[str]:
+    """요구 대장의 형식 문제를 모은다 — 빈 필수 칸 · 겹친 ID · 정한 말 밖 · 없는 관련 요구."""
+    문제: list[str] = []
+    if 요구들 and tuple(요구들[0]) != 요구_칸:
+        문제.append(f"요구 대장 머리 줄이 다르다 — {' · '.join(요구_칸)}")
+    본 = set()
+    for q in 요구들:
+        qid = q.get("요구ID", "")
+        if qid in 본:
+            문제.append(f"요구 ID 가 겹친다: {qid}")
+        본.add(qid)
+        for 칸 in 요구_필수칸:
+            if not q.get(칸):
+                문제.append(f"{qid or '(ID 없음)'} — 「{칸}」 칸이 비었다")
+        for 칸, 말들 in 정한말.items():
+            if q.get(칸) and q[칸] not in 말들:
+                문제.append(f"{qid} — 「{칸}」 은 {' · '.join(말들)} 중 하나 (지금 {q[칸]})")
+        for 방법 in 나누기(q.get("검증방법", "")):
+            if 방법 not in 검증_방법:
+                문제.append(f"{qid} — 검증 방법 「{방법}」 은 {' · '.join(검증_방법)} 밖이다")
+    for q in 요구들:
+        for 관련 in 나누기(q.get("관련요구", "")):
+            if 관련 not in 본:
+                문제.append(f"{q['요구ID']} — 관련 요구 {관련} 가 대장에 없다")
+    return 문제
+
+
+def 시험대장_점검(짝들: list[dict[str, str]], 요구ID들: set[str],
+               시험파일들: list[str]) -> tuple[list[str], list[str]]:
+    """(문제, 대장에 없는 시험 파일). 없는 파일은 문제가 아니라 알림이다 — 팀원이 시험을
+    더하는 것은 좋은 일인데, 그때마다 시험이 깨지면 안 된다(API · 스키마 스캐너와 같은 원칙)."""
+    문제: list[str] = []
+    if 짝들 and tuple(짝들[0]) != 시험_칸:
+        문제.append(f"시험 대장 머리 줄이 다르다 — {' · '.join(시험_칸)}")
+    묶음_파일: dict[str, str] = {}
+    for 짝 in 짝들:
+        묶음, 파일, qid = 짝.get("묶음", ""), 짝.get("파일", ""), 짝.get("요구ID", "")
+        if 묶음 in 묶음_파일 and 묶음_파일[묶음] != 파일:
+            문제.append(f"{묶음} 이 두 파일을 가리킨다: {묶음_파일[묶음]} · {파일}")
+        묶음_파일.setdefault(묶음, 파일)
+        if 파일 not in 시험파일들:
+            문제.append(f"{묶음} — 시험 파일 {파일} 이 없다")
+        if qid != "—" and qid not in 요구ID들:
+            문제.append(f"{묶음} — 요구 {qid} 가 요구 대장에 없다")
+        if 짝.get("확실도") not in 확실도_값:
+            문제.append(f"{묶음} · {qid} — 확실도는 {' · '.join(확실도_값)} 중 하나")
+    빠진 = sorted(set(시험파일들) - {짝.get("파일", "") for 짝 in 짝들})
+    return 문제, 빠진
 
 
 # ─────────────────────────────────────────────────────────────────────
-# A계열 — 저장소 안 제안요청서 `docs/rfp-2.md` 의 체크박스
-#   B계열과 달리 **원문이 저장소에 있어 개수를 기계로 셀 수 있다.**
-#   여기서는 개수만 세고, 항목별 매핑은 RTM 문서 §4 대응표에서 다룬다.
+# 시험 — 파일마다 몇 건인가 (pytest 수집)
 # ─────────────────────────────────────────────────────────────────────
-def a계열_세기() -> dict:
-    """rfp-2.md 의 체크박스를 절별로 센다. 요구 개수 논쟁의 한쪽 축."""
-    본문 = (ROOT / "docs" / "rfp-2.md").read_text(encoding="utf-8").splitlines()
-    현재절, 순서, 개수 = None, [], {}
-    for 줄 in 본문:
-        m = re.match(r"^(#{2,4})\s+(.*)", 줄)
+def 수집_출력_해석(글: str) -> dict[str, int]:
+    """`pytest --collect-only` 출력 → {시험 파일: 건수}.
+
+    `pytest.ini` 의 `-q` 에 따라 모양이 둘로 갈린다 —
+    `tests/test_x.py: 21` (조용한 모양) · `tests/test_x.py::test_이름` (노드 ID 한 줄씩).
+    """
+    건수: dict[str, int] = {}
+    for 줄 in 글.splitlines():
+        줄 = 줄.strip()
+        m = re.match(r"^(\S+\.py):\s*(\d+)$", 줄)
         if m:
-            현재절 = m.group(2).strip()
-            if 현재절 not in 개수:
-                개수[현재절] = 0
-                순서.append(현재절)
-        if 줄.startswith("- [ ]") and 현재절:
-            개수[현재절] += 1
-    return {"절별": [(k, 개수[k]) for k in 순서 if 개수[k]], "합계": sum(개수.values())}
+            건수[m.group(1)] = 건수.get(m.group(1), 0) + int(m.group(2))
+            continue
+        m = re.match(r"^(\S+\.py)::", 줄)
+        if m:
+            건수[m.group(1)] = 건수.get(m.group(1), 0) + 1
+    return 건수
+
+
+def 시험_파일별_건수() -> dict[str, int]:
+    """pytest 로 실제 수집해 센다. 못 세면 빈 사전 — 요약이 「시험 수를 못 셌다」 고 알린다."""
+    환경 = dict(os.environ, PYTHONIOENCODING="utf-8")
+    try:
+        결과 = subprocess.run(
+            [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:warnings"],
+            cwd=ROOT, capture_output=True, encoding="utf-8", errors="replace",
+            env=환경, timeout=300,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return {}
+    return 수집_출력_해석(결과.stdout)
+
+
+def 시험_파일들() -> list[str]:
+    return sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "tests").glob("test_*.py"))
+
+
+def 요구별_시험(짝들: list[dict[str, str]], 건수: dict[str, int]) -> dict[str, list[tuple[str, int, str]]]:
+    """{요구 ID: [(묶음, 건수, 확실도)]}. 한 묶음이 요구 둘을 재면 둘 다에 센다."""
+    out: dict[str, list[tuple[str, int, str]]] = {}
+    for 짝 in 짝들:
+        if 짝["요구ID"] == "—":
+            continue
+        out.setdefault(짝["요구ID"], []).append((짝["묶음"], 건수.get(짝["파일"], 0), 짝["확실도"]))
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 스캔
+# 설계 — 기능 설계서의 가장 높은 판
+# ─────────────────────────────────────────────────────────────────────
+def 가장_높은_판(폴더: Path, 머리: str) -> Path | None:
+    판들 = []
+    for p in 폴더.glob(f"{머리}_v*.md"):
+        m = re.search(r"_v(\d+)\.(\d+)\.md$", p.name)
+        if m:
+            판들.append(((int(m.group(1)), int(m.group(2))), p))
+    return max(판들)[1] if 판들 else None
+
+
+_요구_ID = r"(?:P0[12]-[①-⑤]-\d|RFP2-[\d.]+-[①-④]|U\d+|SCH-[A-Z]+)"
+
+
+def 설계_절(글: str) -> dict[str, str]:
+    """{요구 ID: 절 번호}. 요구 ID 가 제목(`#### \\`P01-①-1\\` …`)인 곳의 위 절, 없으면 그 ID 로
+    시작하는 표 줄이 있는 첫 절. 한눈 표(2절) · 부록은 요구의 설계 절이 아니라 세지 않는다."""
+    절 = ""
+    out: dict[str, str] = {}
+    for 줄 in 글.splitlines():
+        m = re.match(r"^#{2,3}\s+(\d+(?:\.\d+)?)[.\s]", 줄)
+        if m:
+            절 = m.group(1)
+            continue
+        if re.match(r"^#{2,3}\s+부록", 줄):
+            절 = "부록"
+            continue
+        m = re.match(rf"^####\s+`({_요구_ID})`", 줄)
+        if m and 절 and 절 != "부록":
+            out[m.group(1)] = 절
+            continue
+        m = re.match(rf"^\|\s*`({_요구_ID})`", 줄)
+        if m and 절 not in ("", "부록") and not 절.startswith("2") and m.group(1) not in out:
+            out[m.group(1)] = 절
+    return out
+
+
+def 요구_API(글: str) -> dict[str, tuple[list[str], int]]:
+    """부록 A `<!-- req-api-map -->` 블록 → {요구 ID: ([있는 API ID], 새 API 안 개수)}.
+
+    API 명세 스캐너(`api_scan.load_requirement_map`)가 같은 블록을 거꾸로(API → 요구) 읽는다.
+    블록 밖의 API ID 언급은 세지 않는다.
+    """
+    시작, 끝 = "<!-- req-api-map -->", "<!-- /req-api-map -->"
+    if 시작 not in 글 or 끝 not in 글:
+        return {}
+    out: dict[str, tuple[list[str], int]] = {}
+    for 줄 in 글.split(시작, 1)[1].split(끝, 1)[0].splitlines():
+        칸들 = 줄.split("|")
+        if len(칸들) < 3:
+            continue
+        m = re.search(rf"`({_요구_ID})`", 칸들[1])
+        if not m:
+            continue
+        나머지 = "|".join(칸들[2:])
+        out[m.group(1)] = (re.findall(r"\bAPI-[A-Z]+-\d{2,}\b", 나머지), 나머지.count("(새)"))
+    return out
+
+
+def API_줄이기(ids: list[str]) -> str:
+    """API ID 목록을 짧게 — `API-STK-01 · 02 · 03 · 05` → `STK-01~03 · 05`."""
+    묶음: dict[str, list[int]] = {}
+    폭: dict[str, int] = {}
+    for x in ids:
+        m = re.match(r"API-([A-Z]+)-(\d+)$", x)
+        if m:
+            묶음.setdefault(m.group(1), []).append(int(m.group(2)))
+            폭[m.group(1)] = len(m.group(2))
+    조각: list[str] = []
+    for 앞 in 묶음:
+        수들 = sorted(set(묶음[앞]))
+        구간: list[str] = []
+        처음 = 이전 = 수들[0]
+        for n in 수들[1:] + [None]:
+            if n is not None and n == 이전 + 1:
+                이전 = n
+                continue
+            w = 폭[앞]
+            구간.append(f"{처음:0{w}d}" if 처음 == 이전 else f"{처음:0{w}d}~{이전:0{w}d}")
+            if n is not None:
+                처음 = 이전 = n
+        조각.append(f"{앞}-" + " · ".join(구간))
+    return " · ".join(조각)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 코드 흔적
 # ─────────────────────────────────────────────────────────────────────
 def 훑을_파일들() -> list[Path]:
+    도구 = {p.resolve() for 무늬 in 문서_도구 for p in (ROOT / "scripts").glob(무늬)}
+    도구.add(Path(__file__).resolve())
     결과 = []
     for p in ROOT.rglob("*"):
         if not p.is_file() or p.suffix.lower() not in 코드_확장자:
             continue
-        if any(부분 in 제외_디렉터리 for 부분 in p.parts):
+        if any(부분 in 제외_디렉터리 for 부분 in p.relative_to(ROOT).parts):
             continue
-        # 강의자료는 우리 구현이 아니다
+        # 강의자료(제안요청서 원문)는 우리 구현이 아니다
         if p.parent == ROOT / "docs":
             continue
-        # ⚠️ 스캐너 자신을 빼지 않으면 탐지 패턴 문자열이 그대로 흔적으로 잡힌다.
-        #    「리밸런싱 코드 0건」이 「1건」으로 보이는 거짓 양성이 실제로 났다.
-        if p.resolve() == Path(__file__).resolve():
+        if p.resolve() in 도구:
             continue
         결과.append(p)
     return 결과
 
 
-def 요구_스캔(요구목록: list[요구], 파일들: list[Path]) -> list[dict]:
-    캐시: dict[Path, str] = {}
-    출력 = []
-    for r in 요구목록:
-        정규식 = [re.compile(p, re.IGNORECASE) for p in r.패턴]
-        적중: dict[str, int] = {}
-        for f in 파일들:
-            if f not in 캐시:
-                try:
-                    캐시[f] = f.read_text(encoding="utf-8", errors="replace")
-                except OSError:
-                    캐시[f] = ""
-            본문 = 캐시[f]
-            코드수 = 주석수 = 0
-            for 줄 in 본문.splitlines():
-                if not any(x.search(줄) for x in 정규식):
-                    continue
-                # ⚠️ 주석 속 단어를 구현으로 세면 안 된다. 실제로 「중복주문 방지」의
-                #    흔적 2건이 전부 주석 속 "idempotent" 였다 — 구현은 0건이다.
-                if 주석_줄인가(줄, f.suffix):
-                    주석수 += 1
-                else:
-                    코드수 += 1
-            if 코드수 or 주석수:
-                적중[f.relative_to(ROOT).as_posix()] = (코드수, 주석수)
-        상위 = sorted(적중.items(), key=lambda kv: -(kv[1][0] * 100 + kv[1][1]))[:4]
-        출력.append({
-            "id": r.id, "이름": r.이름, "출처": r.출처, "파트": r.파트,
-            "패턴": r.패턴, "시험": r.시험, "비고": r.비고,
-            "파일수": sum(1 for v in 적중.values() if v[0]),   # 코드가 있는 파일만
-            "코드줄": sum(v[0] for v in 적중.values()),
-            "주석줄": sum(v[1] for v in 적중.values()),
-            "상위": [(경로, v[0], v[1]) for 경로, v in 상위],
-        })
-    return 출력
-
-
 def 주석_줄인가(줄: str, 확장자: str) -> bool:
-    """주석·문서화 문자열로 보이는 줄인가.
+    """주석 · 문서화 문자열로 보이는 줄인가.
 
     완벽한 판별은 파서가 필요하지만, RTM 의 목적에는 줄 앞머리만 봐도 충분하다.
     docstring 안쪽까지 잡으려고 상태를 들고 다니면 스캐너가 언어 파서가 된다 —
@@ -233,116 +388,395 @@ def 주석_줄인가(줄: str, 확장자: str) -> bool:
     return False
 
 
-def 판정(행: dict) -> str:
-    """흔적의 양으로 상태를 어림한다. **동작 여부가 아니다.**
+def 문서화_문자열_줄(본문: str) -> set[int]:
+    """파이썬 소스에서 문서화 문자열(홀로 선 문자열 식)이 차지하는 줄 번호(1부터).
 
-    주석은 구현으로 세지 않는다 — 「중복주문 방지」의 흔적 2건이 전부 주석 속
-    "idempotent" 였던 일이 실제로 있었다. 말이 있다고 장치가 있는 것은 아니다.
+    줄 앞머리만 보면 여러 줄 docstring 의 가운데 줄은 코드로 보인다 — `collector/benchmark.py` 의
+    docstring 가운데 「재실행 안전(idempotent)」 한 줄이 「중복 주문 방지」 의 흔적으로 잡혔다(v1.1).
+    표준 라이브러리 `ast` 로 범위만 읽는다. 문법 오류가 나는 파일은 빈 집합(줄 앞머리 판별만 쓴다).
     """
-    if 행["코드줄"] == 0:
-        return "🔴 없음(주석뿐)" if 행["주석줄"] else "🔴 흔적 없음"
-    if 행["시험"]:
-        return "🟢 코드+시험"
-    if 행["파일수"] >= 3:
-        return "🟡 코드 있음(시험 없음)"
-    return "🟠 코드 희소(시험 없음)"
-
-
-def 시험_현황() -> dict:
-    """시험이 몇 건이고 무엇을 덮는지. RTM 의 「시험」 축."""
-    테스트 = sorted((ROOT / "tests").glob("test_*.py")) if (ROOT / "tests").is_dir() else []
-    건수 = 0
     try:
-        결과 = subprocess.run(
-            [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:warnings"],
-            cwd=ROOT, capture_output=True, text=True, timeout=180,
-        )
-        for 줄 in 결과.stdout.splitlines():
-            # pytest.ini 설정에 따라 요약 형식이 둘로 갈린다.
-            #   "23 tests collected"           (기본)
-            #   "tests/test_x.py: 21"          (이 저장소의 형식)
-            m = re.search(r"(\d+) tests? collected", 줄)
-            if m:
-                건수 = int(m.group(1))
-                break
-            m = re.match(r"^\S+\.py:\s*(\d+)\s*$", 줄.strip())
-            if m:
-                건수 += int(m.group(1))
-    except (subprocess.SubprocessError, OSError):
-        pass
-    if not 건수:  # 수집 요약을 못 읽으면 파일별 def 수로 대신한다
-        # ⚠️ parametrize 가 있으면 실제 수집 건수보다 적게 나온다 (12 vs 23)
-        건수 = sum(
-            len(re.findall(r"^def test_", f.read_text(encoding="utf-8"), re.M))
-            for f in 테스트
-        )
-    return {"파일": [f.name for f in 테스트], "건수": 건수}
+        트리 = ast.parse(본문)
+    except (SyntaxError, ValueError):
+        return set()
+    줄들: set[int] = set()
+    for 노드 in ast.walk(트리):
+        if (isinstance(노드, ast.Expr) and isinstance(노드.value, ast.Constant)
+                and isinstance(노드.value.value, str)):
+            줄들.update(range(노드.lineno, (노드.end_lineno or 노드.lineno) + 1))
+    return 줄들
 
 
-def 사람용_출력(행들: list[dict], a: dict, 시험: dict) -> None:
+def 흔적_스캔(패턴표: dict[str, list[str]], 파일들: list[Path]) -> dict[str, dict]:
+    """{요구 ID: {파일수 · 코드줄 · 주석줄 · 상위}}. 주석 속 낱말은 구현으로 세지 않는다 —
+    「중복주문 방지」 흔적 2건이 전부 주석 속 "idempotent" 였던 일이 실제로 있었다."""
+    본문: dict[Path, str] = {}
+    문서줄: dict[Path, set[int]] = {}
+    for f in 파일들:
+        try:
+            본문[f] = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            본문[f] = ""
+        문서줄[f] = 문서화_문자열_줄(본문[f]) if f.suffix.lower() == ".py" else set()
+    out: dict[str, dict] = {}
+    for qid, 패턴 in 패턴표.items():
+        정규식 = [re.compile(p, re.IGNORECASE) for p in 패턴]
+        적중: dict[str, tuple[int, int]] = {}
+        for f in 파일들:
+            코드 = 주석 = 0
+            for 번호, 줄 in enumerate(본문[f].splitlines(), start=1):
+                if any(x.search(줄) for x in 정규식):
+                    if 번호 in 문서줄[f] or 주석_줄인가(줄, f.suffix.lower()):
+                        주석 += 1
+                    else:
+                        코드 += 1
+            if 코드 or 주석:
+                적중[f.relative_to(ROOT).as_posix()] = (코드, 주석)
+        상위 = sorted(적중.items(), key=lambda kv: (-kv[1][0], -kv[1][1], kv[0]))[:4]
+        out[qid] = {
+            "파일수": sum(1 for v in 적중.values() if v[0]),
+            "코드줄": sum(v[0] for v in 적중.values()),
+            "주석줄": sum(v[1] for v in 적중.values()),
+            "상위": [(경로, v[0]) for 경로, v in 상위 if v[0]],
+        }
+    return out
+
+
+def 흔적_판정(행: dict | None) -> str:
+    """흔적의 양. **동작 여부가 아니다.** 파일이 한두 개면 어느 파일인지 붙인다 — 화면 설명
+    글자(`public/app.html`)뿐인 흔적이 계산 코드처럼 읽히지 않게."""
+    if 행 is None:
+        return "—"
+    if 행["코드줄"] == 0:
+        return "주석뿐" if 행["주석줄"] else "없음"
+    if 행["파일수"] >= 3:
+        return f"있음 {행['파일수']}파일"
+    어디 = " · ".join(Path(경로).name for 경로, _ in 행["상위"])
+    return f"희소 {행['파일수']}파일 ({어디})"
+
+
+def 진행_판정(요구: dict[str, str], 시험들: list[tuple[str, int, str]], 흔적: str) -> str:
+    """구현 진행 — 상태(확정 · 제안)와 따로 본다. 제안 요구도 시험이 있으면 그대로 적는다.
+
+    「검증 끝」 은 사람이 검사해 ✅ 를 적은 요구뿐이다. 시험이 붙었다고 끝이 아니다 — 인수 기준이
+    아직 없어서 「무엇을 통과하면 끝인가」 를 시험이 다 덮는지 모른다.
+    """
+    if 요구.get("검사결과", "").startswith("✅"):
+        return "검증 끝(검사)"
+    if any(확실도 == "🟢" for _, _, 확실도 in 시험들):
+        return "시험 있음"
+    if 시험들:
+        return "시험 일부"
+    if 흔적.startswith(("있음", "희소")):
+        return "흔적 있음"
+    return "구현 전"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 측정 한 벌
+# ─────────────────────────────────────────────────────────────────────
+def 측정(요구들: list[dict[str, str]], 짝들: list[dict[str, str]], 건수: dict[str, int],
+       설계글: str, 흔적: dict[str, dict]) -> list[dict]:
+    절들, apis = 설계_절(설계글), 요구_API(설계글)
+    요구시험 = 요구별_시험(짝들, 건수)
+    행들 = []
+    for q in 요구들:
+        qid = q["요구ID"]
+        시험 = 요구시험.get(qid, [])
+        흔 = 흔적_판정(흔적.get(qid))
+        있는, 새 = apis.get(qid, ([], 0))
+        행들.append({
+            **q,
+            "설계절": 절들.get(qid, ""),
+            "API": 있는, "새API": 새,
+            "시험": 시험,
+            "흔적": 흔,
+            "흔적상위": (흔적.get(qid) or {}).get("상위", []),
+            "진행": 진행_판정(q, 시험, 흔),
+        })
+    return 행들
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 마크다운 — RTM 문서의 <!-- rtm_scan:이름 --> 블록
+#   스캐너가 만든 표는 번호 없이 제목만 둔다(문서가 절 번호로 가리킨다 — 문서 작성 기준 부록 C).
+# ─────────────────────────────────────────────────────────────────────
+def _칸(글: str) -> str:
+    return (글 or "—").replace("|", "\\|")
+
+
+def _ids(칸: str) -> str:
+    return " · ".join(f"`{x}`" for x in 나누기(칸)) or "—"
+
+
+묶음_이름 = {
+    "요구-P01": ("원문 PROJECT 01 로보 어드바이저 (2차) — 세부 기능", lambda q: q["요구ID"].startswith("P01-")),
+    "요구-P02": ("원문 PROJECT 02 투자 인디케이터 (3차) — 세부 기능", lambda q: q["요구ID"].startswith("P02-")),
+    "요구-U": ("원문 UI/UX 필요 요소", lambda q: re.match(r"U\d+$", q["요구ID"]) is not None),
+    "요구-A": ("제안요청서(rfp-2) — 원문 세부 기능 표에 없는 것", lambda q: q["계열"] == "A"),
+    "요구-C": ("강사님 공식 일정표 — 원문 · 제안요청서가 받지 않는 기능 칸", lambda q: q["계열"] == "C"),
+}
+
+
+def 요구_표(요구들: list[dict[str, str]], 제목: str) -> str:
+    줄 = [f"**{제목} · {len(요구들)}개**", "",
+          "| 요구 ID | 이름 | 내용 (검증할 수 있는 한 문장) | 유형 | 출처 | 우선 | 상태 | 관련 요구 |",
+          "|---|---|---|:-:|---|:-:|:-:|---|"]
+    for q in 요구들:
+        줄.append(f"| `{q['요구ID']}` | {_칸(q['이름'])} | {_칸(q['내용'])} | {q['유형']} | "
+                 f"{_칸(q['출처'])} | {q['우선순위']} | {q['상태']} | {_ids(q['관련요구'])} |")
+    비고 = [q for q in 요구들 if q.get("비고")]
+    if 비고:
+        줄 += ["", "비고"]
+        줄 += [f"- `{q['요구ID']}` — {q['비고']}" for q in 비고]
+    return "\n".join(줄)
+
+
+def _설계_칸(행: dict) -> str:
+    조각 = [f"설계서 {행['설계절']}절"] if 행["설계절"] else []
+    조각 += [x.replace("기능 설계서 ", "설계서 ") for x in 나누기(행.get("설계_추가", ""))]
+    # 같은 절을 두 번 적지 않는다(대장에 적은 절 = 스캐너가 찾은 절)
+    return " · ".join(dict.fromkeys(조각)) or "—"
+
+
+def _API_칸(행: dict) -> str:
+    if not 행["API"] and not 행["새API"]:
+        return "—"
+    글 = API_줄이기(행["API"]) if 행["API"] else ""
+    if 행["새API"]:
+        글 = f"{글} (새 {행['새API']})".strip()
+    return 글
+
+
+def _시험_칸(행: dict) -> str:
+    조각 = []
+    for 표시 in ("🟢", "🟡"):
+        묶음들 = [f"{m} {n}" for m, n, c in 행["시험"] if c == 표시]
+        if 묶음들:
+            조각.append(f"{표시} " + " · ".join(묶음들))
+    안 = 나누기(행.get("제안시험", ""))
+    if 안:
+        조각.append("안 " + " · ".join(안))
+    return " · ".join(조각) or "—"
+
+
+def 추적_표(행들: list[dict]) -> str:
+    줄 = ["**요구 → 설계 → API → 시험 → 진행 · 전체 " + str(len(행들)) + "개**", "",
+          "| 요구 ID | 설계 | 받는 API (`API-` 생략) | 시험 — 묶음 건수 (안 = 제안) | 검증 방법 | 코드 흔적 | 진행 |",
+          "|---|---|---|---|---|---|---|"]
+    for 키, (제목, 고름) in 묶음_이름.items():
+        묶음 = [h for h in 행들 if 고름(h)]
+        if not 묶음:
+            continue
+        줄.append(f"| **{제목.split(' — ')[0]}** | | | | | | |")
+        for h in 묶음:
+            줄.append(f"| `{h['요구ID']}` | {_설계_칸(h)} | {_API_칸(h)} | {_시험_칸(h)} | "
+                     f"{h['검증방법']} | {h['흔적']} | {h['진행']} |")
+    검사 = [h for h in 행들 if h.get("검사결과")]
+    if 검사:
+        줄 += ["", "검사 결과 (사람이 확인해 대장에 적은 것)"]
+        줄 += [f"- `{h['요구ID']}` — {h['검사결과']}" for h in 검사]
+    return "\n".join(줄)
+
+
+def 시험_표(짝들: list[dict[str, str]], 건수: dict[str, int], 파일들: list[str]) -> str:
+    줄 = ["**시험 묶음 → 요구 · 확실도 🟢 그 요구의 동작을 직접 잰다 · 🟡 전제나 일부만 잰다 · — 요구 없는 도구 시험**", "",
+          "| 묶음 | 파일 | 건수 | 요구 | 확실도 | 무엇을 확인 |",
+          "|---|---|--:|---|:-:|---|"]
+    앞묶음 = None
+    for 짝 in 짝들:
+        같음 = 짝["묶음"] == 앞묶음
+        파일 = "〃" if 같음 else f"`{짝['파일'].removeprefix('tests/')}`"
+        n = "〃" if 같음 else str(건수.get(짝["파일"], 0))
+        qid = "—" if 짝["요구ID"] == "—" else f"`{짝['요구ID']}`"
+        줄.append(f"| {'〃' if 같음 else 짝['묶음']} | {파일} | {n} | {qid} | {짝['확실도']} | {_칸(짝['무엇을_확인'])} |")
+        앞묶음 = 짝["묶음"]
+    전체 = sum(건수.get(f, 0) for f in 파일들)
+    파일_요구: dict[str, bool] = {}
+    for 짝 in 짝들:
+        파일_요구[짝["파일"]] = 파일_요구.get(짝["파일"], False) or 짝["요구ID"] != "—"
+    붙음 = sum(건수.get(f, 0) for f, 있음 in 파일_요구.items() if 있음)
+    도구 = sum(건수.get(f, 0) for f, 있음 in 파일_요구.items() if not 있음)
+    빠진 = sorted(set(파일들) - set(파일_요구))
+    줄 += ["", f"합계 — 시험 {전체}건 · {len(파일들)}파일 = 요구에 붙은 {붙음}건 + 요구 없는 도구 시험 {도구}건"
+           + (f" + 대장에 없는 파일 {len(빠진)}개({' · '.join(빠진)})" if 빠진 else " · 대장에 없는 시험 파일 0개")]
+    return "\n".join(줄)
+
+
+def _너비(글: str) -> int:
+    """고정폭 글꼴에서 차지하는 칸 수 — 한글 · 전각은 두 칸(문서 작성 기준 6.4)."""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in 글)
+
+
+def _채움(글: str, 폭: int) -> str:
+    return 글 + " " * max(0, 폭 - _너비(글))
+
+
+def _막대(n: int, 전체: int, 폭: int = 30) -> str:
+    칸 = round(n / 전체 * 폭) if 전체 else 0
+    return "█" * 칸 + " " * (폭 - 칸)
+
+
+def 분포_그림(행들: list[dict]) -> str:
+    전체 = len(행들)
+    줄 = ["**진행 분포 — 요구 " + str(전체) + "개 · 막대 폭 30칸 = 전체**", "", "```"]
+    for 진행 in 진행_차례:
+        n = sum(1 for h in 행들 if h["진행"] == 진행)
+        줄.append(f" {_채움(진행, 14)} {_막대(n, 전체)} {n:>3}")
+    줄.append(" " + "─" * 50)
+    for 키, (제목, 고름) in 묶음_이름.items():
+        묶음 = [h for h in 행들 if 고름(h)]
+        if not 묶음:
+            continue
+        세부 = " · ".join(f"{진행} {c}" for 진행 in 진행_차례
+                        if (c := sum(1 for h in 묶음 if h["진행"] == 진행)))
+        줄.append(f" {제목.split(' — ')[0]} {len(묶음)}개: {세부}")
+    유형 = {}
+    for h in 행들:
+        유형[h["유형"]] = 유형.get(h["유형"], 0) + 1
+    줄.append(" 유형: " + " · ".join(f"{k} {유형[k]}" for k in 정한말["유형"] if k in 유형))
+    줄.append("```")
+    return "\n".join(줄)
+
+
+def 블록들(행들: list[dict], 짝들: list[dict[str, str]], 건수: dict[str, int],
+        파일들: list[str]) -> dict[str, str]:
+    out = {}
+    for 키, (제목, 고름) in 묶음_이름.items():
+        out[키] = 요구_표([h for h in 행들 if 고름(h)], 제목)
+    out["추적"] = 추적_표(행들)
+    out["시험"] = 시험_표(짝들, 건수, 파일들)
+    out["분포"] = 분포_그림(행들)
+    return out
+
+
+def fill_doc(text: str, blocks: dict[str, str]) -> tuple[str, int]:
+    """문서 안 `<!-- rtm_scan:이름 -->` … `<!-- /rtm_scan:이름 -->` 사이를 새 출력으로 바꾼다.
+
+    표시 밖의 사람이 쓴 글은 건드리지 않고, 줄 끝은 문서가 쓰던 것(CRLF · LF)을 따른다
+    (API 명세 · 스키마 스캐너의 `fill_doc` 과 같은 규칙).
+    """
+    nl = "\r\n" if "\r\n" in text else "\n"
+    채운수 = 0
+    for name, body in blocks.items():
+        start, end = f"<!-- rtm_scan:{name} -->", f"<!-- /rtm_scan:{name} -->"
+        if start not in text:
+            continue
+        if text.count(start) != 1 or text.count(end) != 1:
+            raise SystemExit(f"문서에 {start} · {end} 표시가 한 쌍 있어야 한다")
+        head, rest = text.split(start, 1)
+        _old, tail = rest.split(end, 1)
+        text = head + start + nl + body.replace("\n", nl) + nl + end + tail
+        채운수 += 1
+    if not 채운수:
+        raise SystemExit("문서에 rtm_scan 표시가 없다 — "
+                         f"{', '.join(f'<!-- rtm_scan:{n} -->' for n in blocks)} 중 하나를 둔다")
+    return text, 채운수
+
+
+# ─────────────────────────────────────────────────────────────────────
+# A계열 — 저장소 안 제안요청서 `docs/rfp-2.md` 의 체크박스 (요구 개수 논쟁의 한쪽 축)
+# ─────────────────────────────────────────────────────────────────────
+def a계열_세기() -> dict:
+    """rfp-2.md 의 체크박스를 절별로 센다."""
+    경로 = ROOT / "docs" / "rfp-2.md"
+    if not 경로.exists():
+        return {"절별": [], "합계": 0}
+    현재절, 순서, 개수 = None, [], {}
+    for 줄 in 경로.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^(#{2,4})\s+(.*)", 줄)
+        if m:
+            현재절 = m.group(2).strip()
+            if 현재절 not in 개수:
+                개수[현재절] = 0
+                순서.append(현재절)
+        if 줄.startswith("- [ ]") and 현재절:
+            개수[현재절] += 1
+    return {"절별": [(k, 개수[k]) for k in 순서 if 개수[k]], "합계": sum(개수.values())}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 출력
+# ─────────────────────────────────────────────────────────────────────
+def 사람용_출력(행들: list[dict], 문제: list[str], 빠진: list[str], 건수: dict[str, int],
+            설계경로: str, a: dict) -> None:
     print("― 요구사항 추적 실측 ―\n")
-    print(f"  A계열 (docs/rfp-2.md 체크박스)  {a['합계']:>2}개")
-    for 이름, 수 in a["절별"]:
-        print(f"      {수:>2}  {이름}")
+    계열수 = {k: sum(1 for h in 행들 if h["계열"] == k) for k in 계열_이름}
+    print(f"  요구 대장 {len(행들)}개 · " + " · ".join(f"{계열_이름[k]} {n}" for k, n in 계열수.items()))
+    print(f"  시험 {sum(건수.values())}건 · {len(건수)}파일" if 건수 else "  ⚠️ 시험 수를 못 셌다 (pytest 수집 실패)")
+    print(f"  설계서 {설계경로 or '(없음)'} — 절을 찾은 요구 {sum(1 for h in 행들 if h['설계절'])} · "
+          f"부록 A 에 API 가 있는 요구 {sum(1 for h in 행들 if h['API'] or h['새API'])}")
+    print(f"  rfp-2 체크박스 {a['합계']}개 — " + " · ".join(f"{이름} {수}" for 이름, 수 in a["절별"]))
     print()
-    print(f"  B계열 (강사님 목표기능표 · 열거 기준)  {len(행들)}개")
-    print(f"  시험  {시험['건수']}건 · {', '.join(시험['파일']) or '없음'}")
+    if 문제:
+        print(f"  ⚠️ 대장 점검 {len(문제)}건")
+        for x in 문제:
+            print(f"     - {x}")
+    else:
+        print("  ✅ 대장 점검 — 문제 없음")
+    if 빠진:
+        print(f"  ℹ️ 시험-요구 대장에 없는 시험 파일 {len(빠진)}개 — 대장에 한 줄 더해 주세요: {' · '.join(빠진)}")
     print()
-    print(f"  {'요구':<10} {'파트':<7} {'상태':<20} {'파일':>4} {'코드':>5} {'주석':>5}  상위 흔적")
-    print("  " + "─" * 104)
-    for 행 in 행들:
-        상위 = " · ".join(f"{p}({c})" for p, c, _ in 행["상위"][:2] if c) or "—"
-        print(f"  {행['id']:<10} {행['파트']:<7} {판정(행):<20} "
-              f"{행['파일수']:>4} {행['코드줄']:>5} {행['주석줄']:>5}  {상위[:52]}")
+    print(f"  {_채움('요구', 15)}{_채움('유형', 5)}{_채움('진행', 15)}{_채움('흔적', 13)}시험")
+    print("  " + "─" * 78)
+    for h in 행들:
+        시험 = " · ".join(f"{m}{c}" for m, _, c in h["시험"]) or "—"
+        print(f"  {_채움(h['요구ID'], 15)}{_채움(h['유형'], 5)}{_채움(h['진행'], 15)}"
+              f"{_채움(h['흔적'], 13)} {시험}")
     print()
-    집계: dict[str, int] = {}
-    for 행 in 행들:
-        집계[판정(행)] = 집계.get(판정(행), 0) + 1
-    print("  판정 분포")
-    for k in ("🟢 코드+시험", "🟡 코드 있음(시험 없음)", "🟠 코드 희소(시험 없음)",
-              "🔴 없음(주석뿐)", "🔴 흔적 없음"):
-        if k in 집계:
-            print(f"      {집계[k]:>2}개  {k}")
-    print()
-    print("  ⚠️ 이 판정은 「흔적이 있는가」이지 「제대로 동작하는가」가 아니다.")
+    print("  ⚠️ 흔적은 「이름이 보이는가」이지 「제대로 동작하는가」가 아니다.")
 
 
-def 마크다운_출력(행들: list[dict], a: dict, 시험: dict) -> None:
-    print(f"> 실측: `python scripts/rtm_scan.py` · 시험 {시험['건수']}건 · "
-          f"A계열 체크박스 {a['합계']}개 · B계열 요구 {len(행들)}개\n")
-    print("| 요구 ID | 요구 내용 | 파트 | 상태 | 파일 | 코드줄 | 주석줄 | 대표 위치 | 시험 |")
-    print("|---------|-----------|:----:|------|-----:|-------:|-------:|-----------|------|")
-    for 행 in 행들:
-        코드있는곳 = [x for x in 행["상위"] if x[1]]
-        대표 = f"`{코드있는곳[0][0]}`" if 코드있는곳 else "—"
-        시험칸 = ", ".join(행["시험"]) or "—"
-        print(f"| `{행['id']}` | {행['이름']} | {행['파트']} | {판정(행)} | "
-              f"{행['파일수']} | {행['코드줄']} | {행['주석줄']} | {대표} | {시험칸} |")
-
-
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 UnicodeEncodeError.
     # 도움말에도 그 글자가 있어 argparse 보다 먼저 맞춘다 (DF-11 · collector/console.py 머리말).
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    ap = argparse.ArgumentParser(description="RTM 실측 스캐너")
-    ap.add_argument("--md", action="store_true", help="마크다운 표로 출력")
+    ap = argparse.ArgumentParser(description="RTM 실측 스캐너 — 요구 대장 · 시험-요구 대장에 실측을 붙인다")
+    ap.add_argument("--md", action="store_true", help="RTM 문서에 붙일 표 전부를 마크다운으로")
     ap.add_argument("--json", action="store_true", help="JSON 으로 출력")
-    args = ap.parse_args()
+    ap.add_argument("--doc", metavar="문서", help="문서의 <!-- rtm_scan:이름 --> 사이를 다시 채운다")
+    ap.add_argument("--check", metavar="문서", help="다시 채울 곳이 있으면 종료코드 1 (문서는 그대로)")
+    args = ap.parse_args(argv)
 
-    파일들 = 훑을_파일들()
-    행들 = 요구_스캔(B계열, 파일들)
-    a = a계열_세기()
-    시험 = 시험_현황()
+    요구들 = 대장_읽기(요구_대장)
+    짝들 = 대장_읽기(시험_대장)
+    파일들 = 시험_파일들()
+    문제 = 요구대장_점검(요구들)
+    요구ID들 = {q["요구ID"] for q in 요구들}
+    시험문제, 빠진 = 시험대장_점검(짝들, 요구ID들, 파일들)
+    문제 += 시험문제
+    문제 += [f"탐지 규칙의 요구 {k} 가 요구 대장에 없다" for k in 탐지_패턴 if k not in 요구ID들]
+    설계경로 = 가장_높은_판(설계_폴더, "기능설계")
+    설계글 = 설계경로.read_text(encoding="utf-8") if 설계경로 else ""
+    건수 = 시험_파일별_건수()
+    흔적 = 흔적_스캔(탐지_패턴, 훑을_파일들())
+    행들 = 측정(요구들, 짝들, 건수, 설계글, 흔적)
+    설계표시 = 설계경로.relative_to(ROOT).as_posix() if 설계경로 else ""
 
+    if args.doc or args.check:
+        문서 = Path(args.doc or args.check)
+        옛글 = 문서.read_bytes().decode("utf-8")
+        새글, 채운수 = fill_doc(옛글, 블록들(행들, 짝들, 건수, 파일들))
+        if args.check:
+            if 새글 != 옛글:
+                print(f"⚠️ {문서} — 표가 대장 · 코드와 다르다. `python scripts/rtm_scan.py --doc {문서}` 로 다시 채운다")
+                return 1
+            print(f"✅ {문서} — 블록 {채운수}개가 대장 · 코드와 같다")
+            return 0
+        문서.write_bytes(새글.encode("utf-8"))
+        print(f"✅ {문서} — 블록 {채운수}개를 다시 채웠다" + (f" · ⚠️ 대장 점검 {len(문제)}건" if 문제 else ""))
+        return 0
     if args.json:
-        print(json.dumps({"a계열": a, "b계열": 행들, "시험": 시험},
-                         ensure_ascii=False, indent=2))
+        print(json.dumps({"요구": 행들, "시험_건수": 건수, "대장_점검": 문제, "대장에_없는_시험": 빠진,
+                          "설계서": 설계표시, "a계열": a계열_세기()},
+                         ensure_ascii=False, indent=2, default=list))
     elif args.md:
-        마크다운_출력(행들, a, 시험)
+        for 이름, 본문 in 블록들(행들, 짝들, 건수, 파일들).items():
+            print(f"<!-- rtm_scan:{이름} -->\n{본문}\n<!-- /rtm_scan:{이름} -->\n")
     else:
-        사람용_출력(행들, a, 시험)
+        사람용_출력(행들, 문제, 빠진, 건수, 설계표시, a계열_세기())
     return 0
 
 
