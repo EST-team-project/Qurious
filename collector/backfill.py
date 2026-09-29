@@ -38,6 +38,7 @@ from typing import Dict, List, Optional
 import requests
 
 from collector import config, db
+from collector.console import utf8_stdio
 from collector.ratelimit import BudgetExhausted, RateLimiter
 from collector.sources import portal
 
@@ -239,6 +240,7 @@ def _parse_day(s: str) -> date:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    utf8_stdio()
     p = argparse.ArgumentParser(
         prog="python -m collector.backfill",
         description="공공데이터포털 일별 시세 수집 (중단·재개 가능)")

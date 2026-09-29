@@ -20,12 +20,15 @@
 3. **정지가 없으면 건드리지 않는다** — 우선주 소각(한화우 20241219 주식 수 ×0.44 · 가격 그대로)은
    실제 사건이지 가격 조정이 아니다.
 4. 병합 비율이 정수로 떨어지지 않으면 조정은 하되 **확인 필요**로 남긴다.
+5. (S62) 계수가 상식 범위 밖이어도 **주식 수가 뒷받침하면** 경고가 아니라 따로 센다 — 매일 같은 경고가
+   진짜 이상치를 묻지 않게. 하루짜리 주식 수 오기는 여전히 경고한다(7절).
 
 네트워크는 쓰지 않는다. 마지막 통합 시험만 실제 수집 DB 를 읽기 전용으로 열고, 파일이 없으면 건너뛴다.
 """
 from __future__ import annotations
 
 import sqlite3
+import sys
 from pathlib import Path
 
 import pytest
@@ -259,3 +262,85 @@ def test_real_db_has_no_unadjusted_consolidation_left():
             assert cur[0] / prev[0] - 1 == pytest.approx(want, abs=1e-4), code
     finally:
         conn.close()
+
+
+# ── 7. 「상식 밖」 경고 — 주식 수가 뒷받침하는 계수는 따로 센다 (S62) ─────────────────────
+# S60 관찰: 매일 러너 로그에 「⚠️ 상식 밖 1」 이 찍힌다. 그 1건은 1절에서 **맞게 고친** 제일바이오 1,500 이다.
+# ``SANITY_LO~HI`` 는 **가격(vs)에서 나온** 계수를 거르는 울타리라 주식 수에서 나온 ``shares`` 계수에는 맞지 않는다.
+# 그렇다고 ``shares`` 를 통째로 빼면 안 된다 — 비율이 50 을 넘으면 「깨끗한 비율」 검사(``RATIO_TOL``)가 늘 통과해서
+# (반올림 오차 ≤ 0.5 ÷ n), 재개일 하루만 주식 수가 잘못 찍힌 날도 조용히 조정된다. 그래서 새 주식 수가
+# **다음 거래일에도 같을 때만** 뒷받침으로 본다.
+def _memdb(rows, code):
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(SCHEMA)
+    conn.executemany(
+        "INSERT INTO price_daily (bas_dt, srtn_cd, itms_nm, clpr, vs, mkp, hipr, lopr, halted, lstg_st_cnt) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [(r["bas_dt"], code, r["itms_nm"], r["clpr"], r["vs"], r["mkp"], r["hipr"], r["lopr"],
+          r["halted"], r["lstg_st_cnt"]) for r in rows])
+    conn.commit()
+    return conn
+
+
+def _rebuild(rows, code):
+    conn = _memdb(rows, code)
+    try:
+        return preprocess.rebuild(conn, verbose=True)
+    finally:
+        conn.close()
+
+
+# 재개일 하루만 주식 수가 1/5,000 로 찍히고 다음 날 되돌아온 모양 — 포털 오기로 본다.
+BLIP = [
+    _row("20230101", 1000, 0, 5000000),
+    _row("20230102", 1000, 0, 5000000, halted=1),
+    _row("20230103", 1000, 0, 1000),
+    _row("20230104", 1010, 10, 5000000),
+]
+
+
+def test_jeil_bio_factor_is_backed_by_shares_not_a_sanity_warning(capsys):
+    t = _rebuild(JEIL, "052670")
+    out = capsys.readouterr().out
+    assert t["suspect"] == 0                     # 옛 코드는 1 — 매일 「⚠️ 상식 밖 1」
+    assert t["suspect_backed"] == 1
+    assert "⚠️ 계수가 상식 밖" not in out
+    assert "052670 20260209" in out and "주식 수가 뒷받침" in out
+
+
+def test_summary_line_counts_backed_factor_separately(monkeypatch, capsys):
+    """러너 로그에 남는 요약 줄 — 「⚠️ 상식 밖」 은 사람이 볼 것만, 뒷받침된 것은 몇 건인지 늘 따로 찍는다."""
+    conn = _memdb(JEIL, "052670")
+    monkeypatch.setattr(preprocess.db, "connect", lambda *a, **k: conn)
+    monkeypatch.setattr(sys, "argv", ["collector.preprocess"])
+    assert preprocess.main() == 0
+    out = capsys.readouterr().out
+    assert "⚠️ 상식 밖" not in out
+    assert "상식 밖이지만 주식 수로 뒷받침 1" in out
+
+
+def test_curable_factor_within_range_prints_nothing(capsys):
+    t = _rebuild(CURABLE, "086460")
+    assert t["suspect"] == 0 and t.get("suspect_backed", 0) == 0
+    assert "상식 밖" not in capsys.readouterr().out
+
+
+def test_one_day_share_count_blip_is_still_a_sanity_warning(capsys):
+    t = _rebuild(BLIP, "000001")
+    assert t[preprocess.EV_SHARES] == 1          # 규칙은 조정한다 — 그래서 경고가 필요하다
+    assert t["suspect"] == 1 and t.get("suspect_backed", 0) == 0
+    assert "⚠️ 계수가 상식 밖이다 — 000001 20230103" in capsys.readouterr().out
+
+
+def test_resumption_on_the_last_day_waits_for_the_next_day():
+    """다음 거래일이 아직 없으면 뒷받침을 확인할 수 없다 — 하루 뒤 자료가 들어올 때까지 경고로 둔다."""
+    t = _rebuild(BLIP[:3], "000001")
+    assert t["suspect"] == 1 and t.get("suspect_backed", 0) == 0
+
+
+def test_price_derived_factor_outside_range_is_still_a_warning():
+    """가격(``vs``)에서 나온 계수는 예전과 똑같이 경고한다 — 이번 변경의 범위 밖이다."""
+    t = _rebuild([_row("20230101", 1000, 0, 100), _row("20230102", 300000, 0, 100)], "000002")
+    assert t[preprocess.EV_RIGHTS] == 1 and t["suspect"] == 1
+    assert t.get("suspect_backed", 0) == 0

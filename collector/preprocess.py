@@ -65,10 +65,12 @@ S26 까지의 규격은 ``fltRt``(등락률 %) 를 누적하는 것이었다. �
 
 from __future__ import annotations
 
+import argparse
 import sqlite3
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from collector import db
+from collector.console import utf8_stdio
 
 #: 이보다 더 어긋나면 "가격이 끊긴 날" 로 본다.
 #:
@@ -78,6 +80,7 @@ EVENT_EPS = 1e-9
 
 #: 계수가 이보다 크게 어긋나면 이벤트가 아니라 **데이터 이상**을 의심한다.
 #: 1:10 분할이면 0.1, 10:1 병합이면 10 이다. 그 바깥은 사람이 봐야 한다.
+#: 단, 주식 수에서 나온 ``shares`` 계수는 주식 수로 검사한다 → ``_backed_by_shares`` (S62).
 SANITY_LO, SANITY_HI = 0.005, 200.0
 
 #: 가격 계수와 상장주식수 비율이 이보다 어긋나면 **사람이 확인해야 한다.**
@@ -215,6 +218,23 @@ def _unabsorbed_consolidation(r, prev_clpr: int, lstg_before: Optional[int]) -> 
     }
 
 
+def _backed_by_shares(ev: Dict, nxt) -> bool:
+    """상식 밖 계수를 **주식 수가 뒷받침하는가** — 깨끗한 ``shares`` 이고, 새 주식 수가 다음 기준일에도 같다.
+
+    ``SANITY_LO~HI`` 는 **가격에서 나온** 계수를 거르는 울타리다 — ``vs`` 나 종가가 잘못 찍히면 계수가
+    터무니없어진다. ``shares`` 계수는 가격이 아니라 주식 수에서 나오므로 검사도 주식 수로 한다.
+    제일바이오 1,500 이 그렇다 — DF-01 로 **맞게 고친** 값인데 울타리 밖이라 일일 러너 로그에 매일
+    「⚠️ 상식 밖 1」 이 찍혔다(S60 관찰). 매일 같은 경고가 찍히면 진짜 이상치가 그 줄에 묻힌다.
+
+    ``shares`` 를 통째로 빼지 않는 이유 — 비율이 50 을 넘으면 「깨끗한 비율」 검사(``RATIO_TOL``)는
+    **늘 통과한다**(가장 가까운 정수와의 차이가 0.5 이하라 0.5 ÷ n ≤ 0.01). 재개일 하루만 주식 수가 잘못
+    찍혀도 깨끗한 ``shares`` 가 된다. 그래서 새 주식 수가 **다음 기준일에도 같아야** 뒷받침으로 본다.
+    다음 기준일이 아직 없으면(재개일이 마지막 날) 하루 뒤 자료가 들어올 때까지 경고로 둔다.
+    """
+    return (ev["kind"] == EV_SHARES and nxt is not None
+            and nxt["lstg_st_cnt"] == ev["lstg_after"])
+
+
 def _series(conn: sqlite3.Connection, code: str) -> List[sqlite3.Row]:
     return list(conn.execute(
         "SELECT bas_dt, clpr, vs, mkp, hipr, lopr, halted, itms_nm, lstg_st_cnt "
@@ -302,7 +322,7 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
             "SELECT DISTINCT srtn_cd FROM price_daily ORDER BY srtn_cd")]
     codes = list(codes)
 
-    tally = {"codes": 0, "rows": 0, "events": 0, "suspect": 0,
+    tally = {"codes": 0, "rows": 0, "events": 0, "suspect": 0, "suspect_backed": 0,
              EV_SPLIT: 0, EV_RIGHTS: 0, EV_REVIEW: 0, EV_SHARES: 0}
     conn.execute("BEGIN IMMEDIATE")
     try:
@@ -324,14 +344,22 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
                     r["lopr"] * c if r["lopr"] else None,
                     c,
                 ))
-            for _, _, ev in ff:
+            for i, (_, _, ev) in enumerate(ff):          # ff 는 rows 와 한 줄씩 짝이다
                 if ev is None:
                     continue
                 if not (SANITY_LO <= ev["factor"] <= SANITY_HI):
-                    tally["suspect"] += 1
-                    if verbose:
-                        print(f"  ⚠️ 계수가 상식 밖이다 — {code} {ev['bas_dt']} "
-                              f"factor={ev['factor']:.6g} (사람이 확인해야 한다)")
+                    nxt = rows[i + 1] if i + 1 < len(rows) else None
+                    if _backed_by_shares(ev, nxt):
+                        tally["suspect_backed"] += 1
+                        if verbose:
+                            print(f"  ℹ️ 계수가 상식 밖이지만 주식 수가 뒷받침한다 — {code} {ev['bas_dt']} "
+                                  f"factor={ev['factor']:.6g} · 주식 수 {ev['lstg_before']:,} → "
+                                  f"{ev['lstg_after']:,} · 다음 기준일도 {nxt['lstg_st_cnt']:,}")
+                    else:
+                        tally["suspect"] += 1
+                        if verbose:
+                            print(f"  ⚠️ 계수가 상식 밖이다 — {code} {ev['bas_dt']} "
+                                  f"factor={ev['factor']:.6g} (사람이 확인해야 한다)")
                 if ev["needs_review"]:
                     if verbose:
                         c = ev["lstg_cross"]
@@ -391,7 +419,18 @@ def delisted(conn: sqlite3.Connection, *, as_of: Optional[str] = None) -> List[s
         "ORDER BY last_seen DESC", (last,)))
 
 
-def main() -> int:
+def main(argv: Optional[List[str]] = None) -> int:
+    utf8_stdio()
+    # 인자를 먼저 본다 — 예전에는 읽지 않아서 ``--help`` 가 전 종목 재계산(쓰기)을 시작했다 (DF-16 · S60).
+    p = argparse.ArgumentParser(
+        prog="python -m collector.preprocess",
+        description="수정주가·조정 이벤트를 전 종목 다시 계산한다 — price_adjusted · corporate_action 을 "
+                    "종목마다 지우고 새로 쓴다(쓰기 트랜잭션 하나 · 수 분). 받는 인자는 없다.",
+        epilog="일일 러너의 adjusted 단계가 매일 이 명령을 인자 없이 돈다. 손으로 돌리기 전에 "
+               "`python scripts/daily_update.py status` 로 「실행 중」 이 아닌지 본다 — "
+               "겹치면 잠금을 기다리며 멈춘다.")
+    p.parse_args(argv)
+
     conn = db.connect()
     print("수정주가 다시 계산 중 …")
     t = rebuild(conn, verbose=True)
@@ -400,7 +439,8 @@ def main() -> int:
           f"권리락(주식수 불변) {t[EV_RIGHTS]:,} · "
           f"정지 뒤 병합(주식 수로 잡음) {t[EV_SHARES]:,} · "
           f"⚠️ 확인 필요 {t[EV_REVIEW]:,}"
-          + (f" · ⚠️ 상식 밖 {t['suspect']:,}" if t["suspect"] else ""))
+          + (f" · ⚠️ 상식 밖 {t['suspect']:,}" if t["suspect"] else "")
+          + (f" · 상식 밖이지만 주식 수로 뒷받침 {t['suspect_backed']:,}" if t["suspect_backed"] else ""))
     d = delisted(conn)
     print(f"  최근 기준일에 없는 종목 {len(d):,} (지우지 않는다 — 생존 편향)")
     conn.close()

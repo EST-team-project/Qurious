@@ -20,7 +20,7 @@ python -m collector.backfill recent
 # 3) 과거 구간을 받는다. 끊겨도 다시 실행하면 이어서 간다
 python -m collector.backfill backfill --from 20200101 --to 20261231
 
-# 4) 수정주가를 만든다 (분할·권리락 보정)
+# 4) 수정주가를 만든다 (분할·권리락 보정) — 인자 없이 전 종목을 다시 쓴다. 설명만 보려면 --help
 python -m collector.preprocess
 
 # 5) 배당을 받는다 — 총수익(TR)의 재료. 자세한 규칙은 §13
@@ -37,6 +37,9 @@ python -m collector.manifest write
 python scripts/daily_update.py install     # 매일 12:30 · HF 증분 업로드 포함
 python scripts/daily_update.py status      # 마지막 실행 결과 · 다음 실행 시각
 ```
+
+Git Bash 에서 그대로 돌려도 된다 — 명령마다 표준출력을 UTF-8 로 바꿔 찍어서 `✅` · `—` 한 글자에 죽지 않는다
+(`console.py` · DF-11 · 2026-09-29).
 
 필요한 것은 `.env` 의 `DATA_GO_KR_API_KEY` **하나**다(배당까지 받으려면
 `DART_API_KEY` 를 더한다). Postgres·Redis·Qdrant·Neo4j·Ollama 는 **하나도 필요 없다.**
@@ -506,10 +509,11 @@ PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 | `sources/kis.py` | 241 | KIS 실시간 — `rt_cd` 검사·토큰 캐시 |
 | `sources/dart.py` | 752 | DART 배당 공시 — 목록·본문·파싱·배당락일 역산 (§13) |
 | `backfill.py` | 304 | 러너·재개·휴장 확정·CLI |
-| `preprocess.py` | 320 | 수정주가·이벤트 분류·상폐 목록 — **PR** 계열 |
+| `preprocess.py` | 451 | 수정주가·이벤트 분류·상폐 목록 — **PR** 계열 · 정지 뒤 감자는 주식 수로(DF-01) · `--help` 는 DB 를 열지 않는다(DF-16) |
 | `dividend.py` | 562 | 배당 러너·재개·재파싱·교차검증·CLI (§13) · `--recent` 로 최근 달 재스캔 (§15) |
 | `total_return.py` | 457 | **TR 계열** — 수정주가 + 배당, 세전·세후 (§14) |
-| `manifest.py` | 155 | 지문 생성·대조·무결성 |
+| `manifest.py` | 157 | 지문 생성·대조·무결성 |
+| `console.py` | 25 | 표준출력을 UTF-8 로 — 사용자 셸(cp949)에서 명령이 글자 하나로 죽지 않게 (DF-11) |
 | `../app/tasks/collector_tasks.py` | 83 | Celery Beat 어댑터 (얇음) |
 | `../scripts/hf_dataset.py` | 2,128 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 |
 | `../scripts/daily_update.py` | 654 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 (§15) |

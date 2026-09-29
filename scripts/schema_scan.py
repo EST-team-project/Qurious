@@ -457,6 +457,11 @@ def erd출력(수집기: list[표], 앱: list[표]) -> None:
 
 
 def main() -> int:
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 UnicodeEncodeError.
+    # 도움말에도 그 글자가 있어 argparse 보다 먼저 맞춘다 (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="DB 스키마 실측 추출기")
     ap.add_argument("--md", action="store_true", help="데이터 사전용 마크다운")
     ap.add_argument("--erd", action="store_true", help="Mermaid ERD")

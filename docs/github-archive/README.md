@@ -40,10 +40,11 @@ docs/github-archive/
 │   ├── 이슈-HF-데이터셋-private/   00-본문.md  (#37)
 │   ├── PR-docs-archive-refresh-s58/  00-본문.md  (#36)
 │   └── PR-fix-collector-df01-shares/  00-본문.md  (#39)
-└── 2026-09-29/        ← 새 글 3건
+└── 2026-09-29/        ← 새 글 4건
     ├── PR-docs-test-plan-v1-2/        00-본문.md  (#42)
     ├── 이슈-로드맵-인덱스-v2/          00-본문.md  (S61 · 옛 `#1` → #4 를 대신 · 올린 뒤 #4 닫기)
-    └── PR-docs-archive-new-numbers-s61/  00-본문.md  (S61 · 번호는 올린 뒤)
+    ├── PR-docs-archive-new-numbers-s61/  00-본문.md  (#46)
+    └── PR-fix-collector-utf8-df11-df16/  00-본문.md  (S62 · 번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -247,13 +248,14 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-archive-refresh-s58](2026-09-28/PR-docs-archive-refresh-s58/00-본문.md) | docs: 올린 글도 최신으로 — 옛 글 43건 갱신 댓글 · 갱신 대장 · HF private 이슈 초안 · 옛 링크 28곳 | 1,876 | [#36](https://github.com/EST-team-project/Qurious/pull/36) · 머지 `abc4853` (S59 에 채움) |
 | [PR fix-collector-df01-shares](2026-09-28/PR-fix-collector-df01-shares/00-본문.md) | fix: DF-01 — 정지 뒤 감자·병합을 주식 수로 잡는다 (052670 300배 → −80% · 086460) | 6,076 | [#39](https://github.com/EST-team-project/Qurious/pull/39) · 머지 `33772be` (S60 에 채움) |
 
-### 2026-09-29 — 새 글 3건
+### 2026-09-29 — 새 글 4건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR docs-test-plan-v1-2](2026-09-29/PR-docs-test-plan-v1-2/00-본문.md) | docs: 테스트계획서 v1.2 — 결함대장을 처음 다시 쟀다 · 강사님 th03 기능 대조 v0.1 | 3,829 | [#42](https://github.com/EST-team-project/Qurious/pull/42) · 머지 `58367d4` (S61 에 채움 · 사용자 확인) |
-| [이슈 로드맵-인덱스-v2](2026-09-29/이슈-로드맵-인덱스-v2/00-본문.md) | [로드맵] Qurious 2.0 인덱스 v2 — 새 번호로 다시 묶은 이슈·논의 목록과 닫는 조건 | 8,204 | (올린 뒤 적음) — 올린 뒤 #4 에 [닫기 댓글](2026-09-15/이슈-001/02-2026-09-29-v2-로-옮김.md) → #4 닫기 |
-| [PR docs-archive-new-numbers-s61](2026-09-29/PR-docs-archive-new-numbers-s61/00-본문.md) | docs: 올린 글 23건에 새 번호 · 인덱스 v2 · 닫아도 되는 글 — 갱신 대장 v0.2 | 3,068 | (올린 뒤 적음) |
+| [이슈 로드맵-인덱스-v2](2026-09-29/이슈-로드맵-인덱스-v2/00-본문.md) | [로드맵] Qurious 2.0 인덱스 v2 — 새 번호로 다시 묶은 이슈·논의 목록과 닫는 조건 | 8,245 | (올린 뒤 적음) — 올린 뒤 #4 에 [닫기 댓글](2026-09-15/이슈-001/02-2026-09-29-v2-로-옮김.md) → #4 닫기 |
+| [PR docs-archive-new-numbers-s61](2026-09-29/PR-docs-archive-new-numbers-s61/00-본문.md) | docs: 올린 글 23건에 새 번호 · 인덱스 v2 · 닫아도 되는 글 — 갱신 대장 v0.2 | 3,068 | [#46](https://github.com/EST-team-project/Qurious/pull/46) · 머지 `29a7e8a` (S62 에 채움) |
+| [PR fix-collector-utf8-df11-df16](2026-09-29/PR-fix-collector-utf8-df11-df16/00-본문.md) | fix: 사람이 돌리는 명령 15곳이 한 글자에 죽지 않게 · preprocess 가 인자를 본다 (DF-11 · DF-16) | 6,033 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

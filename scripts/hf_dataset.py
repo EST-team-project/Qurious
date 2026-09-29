@@ -138,6 +138,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import time
 import zoneinfo
@@ -2060,6 +2061,11 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
 # 9. CLI
 # ==================================================
 def main(argv: Optional[List[str]] = None) -> int:
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 UnicodeEncodeError.
+    # 도움말에도 그 글자가 있어 argparse 보다 먼저 맞춘다 (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(
         prog="python scripts/hf_dataset.py",
         description="HF 데이터셋 — SQLite 를 파케이로 내보내 올리고, 되살린다")

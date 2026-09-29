@@ -39,6 +39,7 @@ import sqlite3
 from typing import Dict, List, Optional
 
 from collector import config, db, raw_store
+from collector.console import utf8_stdio
 
 #: 원자료(응답 원문)를 저장소·허브로 내보내도 되는가.
 #: 환경변수로만 켠다 — 코드에 상수로 박아 두면 실수로 켜진 채 커밋된다.
@@ -116,6 +117,7 @@ def verify(conn: sqlite3.Connection, source: str = "portal") -> List[str]:
 
 def main(argv: Optional[List[str]] = None) -> int:
     import argparse
+    utf8_stdio()
     p = argparse.ArgumentParser(prog="python -m collector.manifest",
                                 description="수집물 지문 생성·대조·검증")
     p.add_argument("action", choices=["write", "compare", "verify"])

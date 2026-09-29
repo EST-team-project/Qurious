@@ -95,6 +95,11 @@ async def make_client(paper: bool) -> tuple[KISClient, str]:
 
 
 async def main() -> int:
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 UnicodeEncodeError.
+    # 도움말에도 그 글자가 있어 argparse 보다 먼저 맞춘다 (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=90, help="오늘로부터 며칠 전까지 (기본 90)")
     ap.add_argument("--start", help="YYYYMMDD (주면 --days 를 무시한다)")

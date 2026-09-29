@@ -95,6 +95,7 @@ import sqlite3
 from typing import Dict, Iterable, List, Optional
 
 from collector import db
+from collector.console import utf8_stdio
 
 #: 배당소득세율. 소득세 14% + 지방소득세 1.4% = 15.4% (원천징수)
 DIVIDEND_TAX_RATE = 0.154
@@ -415,6 +416,7 @@ def verify(conn: sqlite3.Connection, codes: List[str]) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    utf8_stdio()
     p = argparse.ArgumentParser(
         prog="python -m collector.total_return",
         description="총수익(TR) 계열 — 수정주가에 배당을 더한다")

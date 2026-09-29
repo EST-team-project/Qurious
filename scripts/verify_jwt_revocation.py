@@ -64,6 +64,11 @@ def claims_of(token: str) -> dict:
 
 
 async def main() -> None:
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → 그림 글자 · 줄표(—) 한 글자에서
+    # UnicodeEncodeError (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     await connect_redis()
     print(f"Redis: {settings.REDIS_URL}\n")
 

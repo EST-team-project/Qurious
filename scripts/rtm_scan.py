@@ -321,6 +321,11 @@ def 마크다운_출력(행들: list[dict], a: dict, 시험: dict) -> None:
 
 
 def main() -> int:
+    # git bash(mintty)에서는 표준출력이 파이프로 잡혀 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 UnicodeEncodeError.
+    # 도움말에도 그 글자가 있어 argparse 보다 먼저 맞춘다 (DF-11 · collector/console.py 머리말).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="RTM 실측 스캐너")
     ap.add_argument("--md", action="store_true", help="마크다운 표로 출력")
     ap.add_argument("--json", action="store_true", help="JSON 으로 출력")
