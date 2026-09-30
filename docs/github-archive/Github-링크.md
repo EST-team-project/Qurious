@@ -37,3 +37,4 @@
 9. https://github.com/EST-team-project/Qurious/discussions/32
 10. https://github.com/EST-team-project/Qurious/discussions/52
 11. https://github.com/EST-team-project/Qurious/discussions/54
+12. https://github.com/EST-team-project/Qurious/discussions/69

@@ -5,5 +5,11 @@ data/app.db
 data/app.db-shm
 data/app.db-wal
 data/collected
+# 수집기 산출물(약 2.3GB) · HF 내보내기 파케이(약 0.6GB)는 이미지에 넣지 않는다.
+# Dockerfile 이 data/ 를 COPY 하지 않아도, 여기서 빼지 않으면 빌드할 때마다 이 폴더가 통째로
+# 도커 엔진에 보내진다(빌드 컨텍스트). 앱은 compose 가 호스트의 ./data 를 /app/data/csv 에
+# 읽기 전용으로 붙여 수집 DB 를 읽으므로, 이미지 안에 없어도 된다.
+data/collector
+data/hf_export
 *.log
 .git

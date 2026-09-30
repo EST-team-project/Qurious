@@ -28,6 +28,9 @@ data/app.db
 data/vectors-cache.json
 # 수집기 산출물 — 원자료는 커밋하지 않는다 (SQLite·매니페스트·토큰 캐시)
 data/collector/
+# 로컬 실행 점검 보고서 (scripts/personal/check.ps1 -SaveReport) — 사람마다 PC 결과라 커밋하지 않는다.
+#   테스트 결과서에 붙일 때는 필요한 표만 문서로 옮긴다.
+data/local-run/
 # HF 내보내기 파케이 — 271MB 다. 저장소는 Public 이라 절대 커밋하지 않는다.
 #   ⚠️ `git check-ignore -v` 로 판정하지 말 것 — 슬래시를 붙이면 빈 줄에 가짜 매치가 나
 #      exit 0 을 준다. 판정은 `git status --short` 로 한다.

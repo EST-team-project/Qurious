@@ -1,0 +1,461 @@
+﻿<#
+.SYNOPSIS
+  기능 점검 — 떠 있는 Qurious 에 API 를 차례로 불러, 기능별 통과/실패를 보여 준다.
+  curl 로 API 를 하나씩 두드려 보던 일을 한 번에 묶은 것이다.
+
+.DESCRIPTION
+  start.ps1 로 띄운 뒤에 돌린다. 점검 하나 = 「요청 1건 + 통과 조건 + 한 줄 요약」 이다.
+  아래 $Checks 목록만 읽어도 각 기능이 어떤 API 로, 무엇을 돌려주는지 알 수 있게 적었다.
+
+  로그인
+    화면과 똑같이 쿠키(fin_session) 로그인을 쓴다. 기본은 로컬 점검 전용 계정
+    smoke-check@example.com 이고, 없으면 처음 한 번 가입한다. 이 계정의 모의투자 · 리밸런싱만
+    바뀌므로 내 계정 데이터는 건드리지 않는다. 로컬(localhost)이 아닌 주소에는 자동 가입하지 않는다.
+
+  묶음 (-Group 으로 골라 돌릴 수 있다)
+    기본     앱이 떠 있나 · 화면 파일 · API 목록
+    로그인   로그인 · 내 정보 · 로그인 없이 막히나
+    시세     국내 일봉(수집 DB) · 지표 · 현재가 · 차트 패턴 · 다중 시간대 신호 · 지수
+    전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
+    로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
+    매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
+    연동     TradingView 웹훅 안내 · 알림 설정
+    시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결
+    느림     (-Full) 요청마다 모델을 학습하는 ML 셋 — 하나에 15초 안팎
+    쓰기     (-Write) 기록이 남는 점검 — 모의 매수 1주 → 매도 1주 · 리밸런싱 목표 저장 → 미리보기
+
+  판정
+    [ OK ]    상태 코드와 내용 조건이 모두 맞다
+    [주의]    동작은 한다. 다만 알아 둘 것이 있다(예: 수집 DB 대신 야후에서 옴) — 실패로 세지 않는다
+    [실패]    상태 코드가 다르거나 내용 조건이 틀렸다 — 이유를 한 줄로 적는다
+    [건너뜀]  전제가 없다(예: Ollama 없음 · 앞 점검 실패) — 실패로 세지 않는다
+  실패가 하나라도 있으면 종료 코드 1, 없으면 0 (다른 스크립트 · 작업 스케줄러에서 판정에 쓸 수 있다).
+
+.PARAMETER BaseUrl
+  점검할 앱 주소. 기본 http://localhost:8966 (docker-compose.yml 의 app 포트).
+  호스트에서 직접 띄운 개발 모드(dev.ps1)는 http://127.0.0.1:8000 이다.
+
+.PARAMETER Email
+  로그인할 계정. 생략하면 로컬 점검 전용 계정을 쓴다(없으면 만든다).
+
+.PARAMETER Password
+  -Email 과 함께 준다. -Email 만 주면 입력 창으로 묻는다(화면에 보이지 않음).
+
+.PARAMETER Group
+  이 묶음만 돌린다. 예) -Group 시세,매매
+
+.PARAMETER Full
+  느린 ML 점검 셋을 더한다(합쳐 50초 안팎).
+
+.PARAMETER Write
+  기록이 남는 점검을 더한다 — 점검 계정의 모의투자에 매수 · 매도 1주씩, 리밸런싱 목표 저장 뒤 원래대로.
+
+.PARAMETER ShowBody
+  응답 본문 앞 300자를 함께 보여 준다(무엇이 오는지 눈으로 볼 때).
+
+.PARAMETER SaveReport
+  결과를 data\local-run\check-날짜-시각.md 로 저장한다(표 형식 · .gitignore 대상).
+  테스트 결과서 · 발표 자료에 「로컬에서 전 기능을 확인했다」 는 증거로 붙일 수 있다.
+
+.EXAMPLE
+  .\scripts\personal\check.ps1
+  기본 묶음 전부 (10초 안팎).
+
+.EXAMPLE
+  .\scripts\personal\check.ps1 -Full -Write -SaveReport
+  전부 + 결과 파일 저장 (1분 안팎).
+
+.EXAMPLE
+  .\scripts\personal\check.ps1 -Group 시세 -ShowBody
+  시세 묶음만, 응답 본문까지 보며.
+#>
+[CmdletBinding()]
+param(
+  [string]$BaseUrl = 'http://localhost:8966',
+  [string]$Email = '',
+  [string]$Password = '',
+  [string[]]$Group = @(),
+  [switch]$Full,
+  [switch]$Write,
+  [switch]$ShowBody,
+  [switch]$SaveReport
+)
+
+. "$PSScriptRoot\_common.ps1"
+$ErrorActionPreference = 'Continue'
+$BaseUrl = $BaseUrl.TrimEnd('/')
+
+# ------------------------------------------------------------------------------
+# 판정 도우미 — 각 점검의 Test 블록이 이 넷 중 하나를 돌려준다
+# ------------------------------------------------------------------------------
+function Pass([string]$Note = '') { [pscustomobject]@{ Verdict = 'OK';   Note = $Note } }
+function Warn([string]$Note)      { [pscustomobject]@{ Verdict = 'WARN'; Note = $Note } }
+function Fail([string]$Note)      { [pscustomobject]@{ Verdict = 'FAIL'; Note = $Note } }
+function Skip([string]$Note)      { [pscustomobject]@{ Verdict = 'SKIP'; Note = $Note } }
+
+# 개수 세기. @($null).Count 는 5.1 에서 1 이 나오므로(빈 값을 원소 하나로 본다) 따로 둔다.
+function Count($x) { if ($null -eq $x) { return 0 }; return @($x).Count }
+# 숫자를 천 단위 쉼표로. 값이 없으면 '-'.
+function N0($x) { if ($null -eq $x -or "$x" -eq '') { return '-' }; return ('{0:N0}' -f [double]$x) }
+
+# 점검끼리 주고받는 값(앞 점검이 알아낸 질문 목록 · 매수 전 현금 등). 해시테이블은 참조로 넘어가므로
+# 점검 블록 안에서 $state.키 = 값 으로 넣으면 다음 점검이 읽을 수 있다.
+$state = @{}
+
+# 로컬 점검 전용 계정 — 비밀번호가 여기 공개돼 있으므로 로컬 DB 에서만 쓴다(아래 가드).
+$SmokeEmail = 'smoke-check@example.com'
+$SmokePassword = 'smoke-check-1234'
+$isLocal = $BaseUrl -match '^https?://(localhost|127\.0\.0\.1)(:\d+)?$'
+if (-not $Email) {
+  if (-not $isLocal) {
+    Write-QFail "로컬이 아닌 주소($BaseUrl)에는 점검 계정을 자동으로 만들지 않습니다 — -Email · -Password 를 주세요."
+    exit 1
+  }
+  $Email = $SmokeEmail
+  $Password = $SmokePassword
+} elseif (-not $Password) {
+  $secure = Read-Host -AsSecureString "$Email 의 비밀번호"
+  $Password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+}
+
+# ==============================================================================
+# 점검 목록 — 한 줄이 곧 「curl 한 번」 이다
+#   G = 묶음 · Name = 무엇을 보나 · M = 메서드 · P = 경로 · Auth = 로그인 쿠키를 보내나
+#   Expect = 기대 상태 코드 · Body = 보낼 JSON(해시테이블 또는 실행 때 만드는 블록)
+#   Needs = 앞 점검이 $state 에 넣어 둬야 하는 값 · Timeout = 초
+#   Test = 응답($r)을 받아 Pass / Warn / Fail / Skip 중 하나를 돌려주는 블록
+#          $r.Status(상태 코드) · $r.Json(풀어 둔 응답) · $r.Text(본문 글) · $r.Ms(걸린 밀리초)
+# ==============================================================================
+$Checks = @(
+  # ── 기본 ────────────────────────────────────────────────────────────────────
+  @{ G = '기본'; Name = '앱이 살아 있다 (헬스 체크)'; M = 'GET'; P = '/api/health'; Auth = $false
+     Test = { param($r) if ($r.Json.status -eq 'ok') { Pass "service = $($r.Json.service)" } else { Fail 'status 가 ok 가 아니다' } } }
+  @{ G = '기본'; Name = '화면 파일을 내준다 (로그인 화면)'; M = 'GET'; P = '/login.html'; Auth = $false
+     Test = { param($r) if ($r.Text -match '<html') { Pass ("HTML {0:N0}자" -f $r.Text.Length) } else { Fail 'HTML 이 아니다' } } }
+  @{ G = '기본'; Name = 'API 목록 (OpenAPI 문서)'; M = 'GET'; P = '/openapi.json'; Auth = $false
+     Test = { param($r)
+       $n = Count $r.Json.paths.PSObject.Properties.Name
+       if ($n -ge 100) { Pass "경로 $n 개 — 브라우저로 $BaseUrl/docs 를 열면 눌러 볼 수 있다" } else { Fail "경로가 $n 개뿐이다" } } }
+
+  # ── 로그인 ──────────────────────────────────────────────────────────────────
+  @{ G = '로그인'; Name = '내 정보 (쿠키 로그인 유지)'; M = 'GET'; P = '/api/me'; Auth = $true
+     Test = { param($r) if ($r.Json.user.email -eq $Email) { Pass "$Email · 역할 $(@($r.Json.user.roles) -join ',')" } else { Fail "다른 사용자: $($r.Json.user.email)" } } }
+  @{ G = '로그인'; Name = '로그인 없이는 막힌다'; M = 'GET'; P = '/api/me'; Auth = $false; Expect = 401
+     Test = { param($r) Pass "401 — $($r.Json.detail)" } }
+
+  # ── 시세 · 지표 ─────────────────────────────────────────────────────────────
+  @{ G = '시세'; Name = '국내 일봉 — 수집 DB 에서 오나'; M = 'GET'; P = '/api/stocks/candles?symbol=005930.KS&period=1mo&interval=1d'; Auth = $true
+     Test = { param($r)
+       $n = Count $r.Json.candles
+       if ($n -lt 5) { return (Fail "봉이 $n 개뿐이다") }
+       $msg = "봉 $n 개 · 출처 $($r.Json.source) · 기준일 $($r.Json.as_of)"
+       if ($r.Json.source -eq 'collector') { Pass $msg } else { Warn "$msg — 수집 DB 가 아니라 외부에서 왔다(data\collector 확인)" } } }
+  @{ G = '시세'; Name = '기술 지표 (RSI · 이동평균 · 볼린저 · 신호)'; M = 'GET'; P = '/api/stocks/quant/indicators?symbol=005930.KS&period=6mo'; Auth = $true
+     Test = { param($r)
+       if ((Count $r.Json.rsi) -lt 20) { return (Fail 'RSI 값이 20개 미만') }
+       Pass "RSI $($r.Json.current_rsi) · 신호 $($r.Json.signal.action) · 종가 $(N0 $r.Json.current_price) · 기준일 $($r.Json.as_of)" } }
+  @{ G = '시세'; Name = '현재가 (외부 시세 — 인터넷 필요)'; M = 'GET'; P = '/api/stocks/quote?symbol=005930.KS'; Auth = $true
+     Test = { param($r) if ([double]$r.Json.price -gt 0) { Pass "$($r.Json.name) $(N0 $r.Json.price) 원 ($($r.Json.change_pct)%)" } else { Fail '가격이 0 이하' } } }
+  @{ G = '시세'; Name = '차트 패턴 · 지지/저항'; M = 'GET'; P = '/api/stocks/patterns?symbol=005930.KS&period=6mo'; Auth = $true
+     Test = { param($r) Pass "패턴 $(Count $r.Json.patterns) 개 · 성향 $($r.Json.pattern_bias) · 점수 $($r.Json.pattern_score)" } }
+  @{ G = '시세'; Name = '다중 시간대 신호 (분봉 · 일봉 · 주봉)'; M = 'GET'; P = '/api/stocks/mtf-signal?symbol=005930.KS'; Auth = $true; Timeout = 60
+     Test = { param($r) if ($r.Json.action) { Pass "$($r.Json.action) · 시간대 $(Count $r.Json.timeframes) 개 · 합의 $($r.Json.agreement)" } else { Fail 'action 이 없다' } } }
+  @{ G = '시세'; Name = '시장 지수'; M = 'GET'; P = '/api/stocks/market'; Auth = $true
+     Test = { param($r) if ((Count $r.Json.indices) -ge 1) { Pass "지수 $(Count $r.Json.indices) 개 · 캐시에서 $($r.Json.from_cache)" } else { Warn '지수가 비어 있다 — 시세 동기화 전일 수 있다' } } }
+
+  # ── 전략 · 백테스트 ─────────────────────────────────────────────────────────
+  # 비용 인자를 안 주면 「실제 요율(real)」 모델 — 연도별 매도세 + 수수료 + 유관기관비 + 슬리피지.
+  # 그 요율은 응답의 cost 칸에 있다(costs.commission_bps 는 flat 모델의 입력값이라 real 에서는 0 이다).
+  @{ G = '전략'; Name = '지표 전략 백테스트 (RSI+이평 · 실제 비용 요율)'; M = 'GET'; P = '/api/quant/pipeline?symbol=005930.KS&period=2y&base=rsi_ma'; Auth = $true; Timeout = 60
+     Test = { param($r)
+       if ($null -eq $r.Json.cost) { return (Fail '비용 모델(cost) 항목이 없다') }
+       Pass "거래 $($r.Json.trade_count) 회 · 전략 $($r.Json.return_total)% · 보유만 $($r.Json.return_buy_hold)% · 비용 모델 $($r.Json.cost.model) · 슬리피지 $($r.Json.cost.slippage_bps)bp" } }
+  @{ G = '전략'; Name = '수식 지표 — 쓸 수 있는 함수 · 템플릿'; M = 'GET'; P = '/api/formula-indicators/reference'; Auth = $true
+     Test = { param($r)
+       $tpl = @($r.Json.templates)[0]
+       if ($tpl) { $state.formula = @{ indicator_expr = $tpl.indicator_expr; buy_expr = $tpl.buy_expr; sell_expr = $tpl.sell_expr; params = $tpl.params } }
+       Pass "함수 $(Count $r.Json.functions) 개 · 템플릿 $(Count $r.Json.templates) 개 (첫 템플릿: $($tpl.name))" } }
+  @{ G = '전략'; Name = '수식 지표 — 식 검사'; M = 'POST'; P = '/api/formula-indicators/validate'; Auth = $true; Needs = 'formula'
+     Body = { $state.formula }
+     Test = { param($r) if ($r.Json.ok) { Pass "변수 $(@($r.Json.variables) -join ',') · 함수 $(@($r.Json.functions) -join ',')" } else { Fail "검사 불합격: $($r.Text)" } } }
+  @{ G = '전략'; Name = '수식 지표 — 계산 · 백테스트 (저장 안 함)'; M = 'POST'; P = '/api/formula-indicators/compute'; Auth = $true; Needs = 'formula'; Timeout = 60
+     Body = { $b = $state.formula.Clone(); $b.symbol = '005930.KS'; $b.period = '1y'; $b.use_cache = $false; $b }
+     Test = { param($r)
+       if ($null -eq $r.Json.backtest) { return (Fail 'backtest 항목이 없다') }
+       Pass "$($r.Json.rows) 행 · 최근 신호 $($r.Json.latest_signal) · 수익 $($r.Json.backtest.total_return_pct)% · 기준일 $($r.Json.as_of)" } }
+  @{ G = '전략'; Name = '저장한 커스텀 지표 목록'; M = 'GET'; P = '/api/custom-indicators'; Auth = $true
+     Test = { param($r) Pass "저장된 지표 $(Count $r.Json.items) 개" } }
+
+  # ── 로보어드바이저 ──────────────────────────────────────────────────────────
+  @{ G = '로보'; Name = '투자 성향 질문'; M = 'GET'; P = '/api/ml/robo/questions'; Auth = $true
+     Test = { param($r)
+       $qs = @($r.Json.questions)
+       if ($qs.Count -lt 1) { return (Fail '질문이 없다') }
+       # 모든 질문에 첫 번째 선택지(0번)를 고른 답안을 만들어 다음 점검에 넘긴다.
+       $answers = @{}
+       foreach ($q in $qs) { $answers[$q.id] = 0 }
+       $state.robo_answers = $answers
+       Pass "질문 $($qs.Count) 개 · 성향 단계 $(Count $r.Json.levels) 개" } }
+  @{ G = '로보'; Name = '투자 성향 점수 (계산만 · 저장 안 함)'; M = 'POST'; P = '/api/ml/robo/risk-profile'; Auth = $true; Needs = 'robo_answers'
+     Body = { @{ answers = $state.robo_answers } }
+     Test = { param($r) Pass "$($r.Json.level) ($($r.Json.risk_profile)) · $($r.Json.score)/$($r.Json.max_score) 점" } }
+  @{ G = '로보'; Name = '자산 배분 · 추천 종목'; M = 'POST'; P = '/api/ml/robo/allocation'; Auth = $true; Timeout = 90
+     Body = @{ risk_profile = 'moderate'; horizon_years = 3; amount_manwon = 5000 }
+     Test = { param($r)
+       $sum = 0.0
+       foreach ($p in $r.Json.allocations.PSObject.Properties) { $sum += [double]$p.Value }
+       if ([math]::Abs($sum - 100) -gt 0.5) { return (Fail "비중 합이 100 이 아니다 ($sum)") }
+       Pass ("자산군 {0} 개 합 {1}% · 추천 종목 {2} 개" -f (Count $r.Json.allocations.PSObject.Properties.Name), $sum, (Count $r.Json.stock_picks)) } }
+  @{ G = '로보'; Name = '목표 달성 확률 (몬테카를로 500회)'; M = 'POST'; P = '/api/ml/robo/goal-simulation'; Auth = $true
+     Body = @{ amount_manwon = 5000; horizon_years = 3; target_return_pct = 8.0; n_paths = 500 }
+     Test = { param($r) Pass "목표 달성 확률 $($r.Json.probability_pct)% · 손실 확률 $($r.Json.loss_probability_pct)%" } }
+
+  # ── 매매: 모의투자 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 ─────────────────
+  @{ G = '매매'; Name = '모의투자 잔고'; M = 'GET'; P = '/api/paper/account'; Auth = $true
+     Test = { param($r) Pass "현금 $(N0 $r.Json.cash) · 주식 평가 $(N0 $r.Json.stockEval) · 총자산 $(N0 $r.Json.totalAsset) 원" } }
+  @{ G = '매매'; Name = '모의투자 보유 종목'; M = 'GET'; P = '/api/paper/stocks/positions'; Auth = $true
+     Test = { param($r) Pass "보유 $(Count $r.Json.positions) 종목" } }
+  @{ G = '매매'; Name = '주문 미리보기 (잔고는 안 바뀜)'; M = 'POST'; P = '/api/paper/stocks/orders/preview'; Auth = $true
+     Body = @{ symbol = '005930'; side = 'BUY'; quantity = 1 }
+     Test = { param($r)
+       $state.preview_amount = $r.Json.estimatedAmount
+       if ($r.Json.executable) { Pass "삼성전자 1주 예상 $(N0 $r.Json.estimatedAmount) 원 · 주문 뒤 현금 $(N0 $r.Json.cashAfter) 원" } else { Warn "주문 불가: $($r.Json.reason)" } } }
+  @{ G = '매매'; Name = '자동매매 상태 (Celery 비트 10분 주기)'; M = 'GET'; P = '/api/auto-trade/status'; Auth = $true
+     Test = { param($r)
+       $msg = "실행 중 $($r.Json.running) · 예약 $($r.Json.scheduler) · 주기 $($r.Json.interval_sec)초"
+       if ("$($r.Json.scheduler)" -match 'celery') { Pass $msg } else { Warn "$msg — 예약기가 Celery 가 아니다" } } }
+  @{ G = '매매'; Name = '위험 한도 (일 손실 · 종목 비중 · 주문 수 · 비상 정지)'; M = 'GET'; P = '/api/quant/risk/status'; Auth = $true
+     Test = { param($r)
+       if ($null -eq $r.Json.limits) { return (Fail 'limits 가 없다') }
+       $l = $r.Json.limits
+       $msg = "일 손실 한도 $($l.daily_loss_limit_pct)% · 종목 한도 $($l.max_position_pct)% · 남은 주문 $($r.Json.orders_remaining) · 비상 정지 $($r.Json.kill_switch)"
+       if ($r.Json.kill_switch) { Warn "$msg — 비상 정지가 켜져 있다" } else { Pass $msg } } }
+  @{ G = '매매'; Name = '리밸런싱 상태 (목표 비중 · 이탈)'; M = 'GET'; P = '/api/rebalance/status'; Auth = $true
+     Test = { param($r) Pass "목표 종목 $(Count $r.Json.plan.targets) 개 · 현금 목표 $($r.Json.plan.cash_weight_pct)% · 시간 트리거 $($r.Json.triggers.time_due) · 이탈 트리거 $($r.Json.triggers.drift_due)" } }
+  @{ G = '매매'; Name = '증권사 설정 (모의 / 실전)'; M = 'GET'; P = '/api/broker/settings'; Auth = $true
+     Test = { param($r)
+       $msg = "증권사 $($r.Json.broker) · 모의 $($r.Json.paper) · 연결 $($r.Json.connected)"
+       if ($r.Json.paper -eq $false) { Warn "$msg — 실전 모드다(실거래 주문은 코드에서 막혀 있지만 설정을 확인하라)" } else { Pass $msg } } }
+
+  # ── 연동 ────────────────────────────────────────────────────────────────────
+  @{ G = '연동'; Name = 'TradingView 웹훅 안내'; M = 'GET'; P = '/api/tradingview/webhook-info'; Auth = $true
+     Test = { param($r) if ($r.Json.webhook_url) { Pass "웹훅 주소 $($r.Json.webhook_url)" } else { Fail 'webhook_url 이 없다' } } }
+  @{ G = '연동'; Name = '알림 설정 (텔레그램 · 슬랙 · 메일 · 카카오)'; M = 'GET'; P = '/api/notification/settings'; Auth = $true
+     Test = { param($r) Pass "켜진 채널 $(Count $r.Json.channels) 개" } }
+
+  # ── 시스템 ──────────────────────────────────────────────────────────────────
+  @{ G = '시스템'; Name = '시세 동기화 스케줄러'; M = 'GET'; P = '/api/system/sync-status'; Auth = $true
+     Test = { param($r) Pass "온라인 $($r.Json.online) · 스케줄러 실행 중 $($r.Json.scheduler.running) · 마지막 동기화 $($r.Json.scheduler.last_sync)" } }
+  @{ G = '시스템'; Name = 'LEAN 백테스트 엔진 모드'; M = 'GET'; P = '/api/backtests/lean/status'; Auth = $true
+     Test = { param($r)
+       $msg = "모드 $($r.Json.mode) · 전략 $(Count $r.Json.strategies) 개"
+       if ($r.Json.mode -eq 'docker') {
+         # docker 모드에서 백테스트를 실제로 돌리면 quantconnect/lean 이미지(약 14GB)를 받기 시작한다.
+         $null = & docker image inspect quantconnect/lean:latest 2>$null
+         if ($LASTEXITCODE -ne 0) { return (Warn "$msg — LEAN 이미지(약 14GB)가 없다. 실행하면 받기 시작한다. 로컬 점검은 .env 에 LEAN_MODE=local 권장") }
+       }
+       Pass $msg } }
+  @{ G = '시스템'; Name = 'AI(LLM) 연결 — AI 채팅 · 문서 검색의 전제'; M = 'GET'; P = '/api/system/status'; Auth = $true
+     Test = { param($r)
+       $llm = $r.Json.llm_provider
+       if ($llm.ok) { Pass "$($llm.provider) 연결됨 ($($llm.target) · $($llm.ms)ms)" }
+       else { Skip "$($llm.provider) 에 닿지 않음 ($($llm.target)) — AI 채팅 · RAG 는 제외(설계상 동결 기능). 호스트 Ollama 를 쓰려면 .env 에 OLLAMA_BASE_URL=http://host.docker.internal:11434" } } }
+)
+
+# ── 느림: 요청마다 모델을 학습한다 (-Full) ──────────────────────────────────────
+if ($Full) {
+  $Checks += @(
+    @{ G = '느림'; Name = '종목 신호 스캔 (31종목 · RSI 모델)'; M = 'GET'; P = '/api/stocks/signals?signal=all&model=rsi'; Auth = $true; Timeout = 180
+       Test = { param($r) Pass "신호 $($r.Json.count) 건" } }
+    @{ G = '느림'; Name = 'XAI — LightGBM 판단 근거 (SHAP)'; M = 'GET'; P = '/api/ml/explain?symbol=005930.KS'; Auth = $true; Timeout = 180
+       Test = { param($r) Pass "예측 신호 $($r.Json.prediction.signal) · 설명 방법 $($r.Json.explanation.method) · 기여 요인 $(Count $r.Json.explanation.contributions) 개" } }
+    @{ G = '느림'; Name = 'ML 모델 비교 (5겹 교차검증)'; M = 'GET'; P = '/api/ml/compare?symbol=005930.KS'; Auth = $true; Timeout = 180
+       Test = { param($r) Pass "모델 $(Count $r.Json.models) 개 · 최고 $($r.Json.best_model) · 데이터 $($r.Json.data_rows) 행" } }
+  )
+}
+
+# ── 쓰기: 기록이 남는다 (-Write) — 점검 계정 안에서만, 순서대로 ────────────────────
+if ($Write) {
+  $Checks += @(
+    @{ G = '쓰기'; Name = '매수 전 현금 기억'; M = 'GET'; P = '/api/paper/account'; Auth = $true
+       Test = { param($r) $state.cash0 = [double]$r.Json.cash; Pass "현금 $(N0 $r.Json.cash) 원" } }
+    @{ G = '쓰기'; Name = '모의 매수 — 삼성전자 1주'; M = 'POST'; P = '/api/paper/stocks/orders/buy'; Auth = $true; Needs = 'cash0'
+       Body = @{ symbol = '005930'; side = 'BUY'; quantity = 1 }
+       Test = { param($r) Pass ("체결 — 응답 키: {0}" -f ((@($r.Json.PSObject.Properties.Name) | Select-Object -First 6) -join ', ')) } }
+    @{ G = '쓰기'; Name = '보유에 들어왔나'; M = 'GET'; P = '/api/paper/stocks/positions'; Auth = $true
+       Test = { param($r)
+         $pos = @($r.Json.positions) | Where-Object { "$($_.symbol)$($_.code)" -match '005930' } | Select-Object -First 1
+         if ($pos) { Pass "005930 보유 확인" } else { Fail '005930 이 보유 목록에 없다' } } }
+    @{ G = '쓰기'; Name = '현금이 줄었나 — 미리보기와 비교 (비용 포함 여부)'; M = 'GET'; P = '/api/paper/account'; Auth = $true; Needs = 'cash0'
+       Test = { param($r)
+         $spent = $state.cash0 - [double]$r.Json.cash
+         if ($spent -le 0) { return (Fail "현금이 줄지 않았다 (차이 $(N0 $spent))") }
+         $msg = "현금 $(N0 $state.cash0) → $(N0 $r.Json.cash) 원 (빠진 돈 $(N0 $spent))"
+         if ($state.preview_amount) {
+           $gap = $spent - [double]$state.preview_amount
+           # 미리보기는 주문 전 가격 · 비용 없이 계산하고, 실제 체결은 그 순간 가격 + 수수료 · 세금을 뺀다.
+           $msg += " · 미리보기 $(N0 $state.preview_amount) 와 차이 $(N0 $gap) 원"
+         }
+         Pass $msg } }
+    @{ G = '쓰기'; Name = '모의 매도 — 삼성전자 1주'; M = 'POST'; P = '/api/paper/stocks/orders/sell'; Auth = $true
+       Body = @{ symbol = '005930'; side = 'SELL'; quantity = 1 }
+       Test = { param($r) Pass '매도 체결' } }
+    @{ G = '쓰기'; Name = '주문 이력에 남았나'; M = 'GET'; P = '/api/paper/stocks/orders/history?limit=5'; Auth = $true
+       Test = { param($r) if ((Count $r.Json.history) -ge 2) { Pass "최근 이력 $(Count $r.Json.history) 건" } else { Fail '이력이 2건 미만' } } }
+    @{ G = '쓰기'; Name = '리밸런싱 목표 저장 (삼성전자 10%)'; M = 'PUT'; P = '/api/rebalance/plan'; Auth = $true
+       Body = @{ targets = @(@{ symbol = '005930.KS'; name = '삼성전자'; weight_pct = 10 }) }
+       Test = { param($r) Pass "목표 $(Count $r.Json.targets) 개 저장" } }
+    @{ G = '쓰기'; Name = '리밸런싱 미리보기 (주문안 · 실행 안 함)'; M = 'POST'; P = '/api/rebalance/preview'; Auth = $true
+       Body = @{}
+       Test = { param($r) Pass ("응답 키: {0}" -f ((@($r.Json.PSObject.Properties.Name) | Select-Object -First 6) -join ', ')) } }
+    @{ G = '쓰기'; Name = '리밸런싱 목표 되돌리기 (비움)'; M = 'PUT'; P = '/api/rebalance/plan'; Auth = $true
+       Body = @{ targets = @() }
+       Test = { param($r) Pass '목표 비움' } }
+  )
+}
+
+# -Group 으로 고른 묶음만 남긴다. 모르는 이름이면 쓸 수 있는 이름을 알려 준다.
+$allGroups = @($Checks | ForEach-Object { $_.G } | Select-Object -Unique)
+if ($Group.Count -gt 0) {
+  $unknown = @($Group | Where-Object { $allGroups -notcontains $_ })
+  if ($unknown.Count -gt 0) {
+    Write-QFail ("모르는 묶음: {0} — 쓸 수 있는 묶음: {1}" -f ($unknown -join ', '), ($allGroups -join ', '))
+    Write-QInfo '「느림」 은 -Full, 「쓰기」 는 -Write 를 함께 줘야 목록에 생긴다.  예) -Write -Group 쓰기'
+    exit 1
+  }
+  $Checks = @($Checks | Where-Object { $Group -contains $_.G })
+}
+
+# ==============================================================================
+# 실행
+# ==============================================================================
+Write-QTitle "Qurious 기능 점검 — $BaseUrl"
+$runStart = Get-Date
+$results = New-Object System.Collections.Generic.List[object]
+
+function Add-Result($c, $status, $ms, $v) {
+  $results.Add([pscustomobject]@{ Group = $c.G; Name = $c.Name; Method = $c.M; Path = $c.P; Status = $status; Ms = $ms; Verdict = $v.Verdict; Note = $v.Note })
+  $tag = @{ OK = '[ OK ]'; WARN = '[주의]'; FAIL = '[실패]'; SKIP = '[건너뜀]' }[$v.Verdict]
+  $color = @{ OK = 'Green'; WARN = 'Yellow'; FAIL = 'Red'; SKIP = 'DarkGray' }[$v.Verdict]
+  Write-Host ("  {0} [{1}] {2}" -f $tag, $c.G, $c.Name) -ForegroundColor $color
+  Write-Host ("         {0} {1}  → {2} · {3}ms" -f $c.M, $c.P, $status, $ms) -ForegroundColor DarkGray
+  if ($v.Note) { Write-Host ("         {0}" -f $v.Note) -ForegroundColor Gray }
+}
+
+# 앱이 떠 있는지부터 — 안 떠 있으면 점검 수십 개가 전부 「응답 없음」 으로 도배되므로 여기서 끝낸다.
+$ping = Invoke-QApi -Method GET -Url "$BaseUrl/api/health" -TimeoutSec 5
+if ($ping.Status -ne 200) {
+  Write-QFail "앱이 응답하지 않습니다 ($BaseUrl) — 먼저 .\scripts\personal\start.ps1"
+  if ($ping.Error) { Write-QInfo $ping.Error }
+  exit 1
+}
+
+# 로그인 — 화면과 같은 쿠키 방식. 세션 객체가 curl 의 쿠키 저장소(-c · -b) 구실을 한다.
+$session = $null
+if (@($Checks | Where-Object { $_.Auth }).Count -gt 0) {
+  $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+  $loginCheck = @{ G = '로그인'; Name = '로그인 (쿠키 fin_session 받기)'; M = 'POST'; P = '/api/auth/login' }
+  $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $Email; password = $Password } -Session $session
+  $how = '기존 계정'
+  if ($login.Status -eq 401 -and $Email -eq $SmokeEmail) {
+    # 점검 계정이 아직 없다(새 DB) → 한 번 가입한다. 가입도 쿠키를 준다.
+    $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '로컬 점검'; email = $Email; password = $Password } -Session $session
+    $how = '처음이라 가입함'
+  }
+  if ($login.Status -eq 200) {
+    Add-Result $loginCheck $login.Status $login.Ms (Pass "$Email · $how")
+  } else {
+    Add-Result $loginCheck $login.Status $login.Ms (Fail "로그인 실패: $($login.Text) $($login.Error)")
+    Write-QInfo '로그인이 없으면 나머지 점검이 모두 401 이 됩니다 — 여기서 멈춥니다.'
+    exit 1
+  }
+}
+
+foreach ($c in $Checks) {
+  # 앞 점검이 넘겨줘야 하는 값이 없으면 건너뛴다(그 앞 점검이 이미 실패로 표시됐다).
+  if ($c.Needs -and -not $state.ContainsKey($c.Needs)) {
+    Add-Result $c '-' 0 (Skip "앞 점검이 준비해야 하는 값($($c.Needs))이 없어 건너뜀")
+    continue
+  }
+  $body = $c.Body
+  if ($body -is [scriptblock]) { $body = & $body }
+  $expect = 200
+  if ($c.Expect) { $expect = $c.Expect }
+  $timeout = 30
+  if ($c.Timeout) { $timeout = $c.Timeout }
+  $sess = $null
+  if ($c.Auth) { $sess = $session }
+
+  $r = Invoke-QApi -Method $c.M -Url ($BaseUrl + $c.P) -Body $body -Session $sess -TimeoutSec $timeout
+
+  if ($r.Status -eq 0) {
+    $v = Fail ("응답 없음 — " + $r.Error)
+  } elseif ($r.Status -ne $expect) {
+    # FastAPI 오류는 {"detail": "..."} 모양이다. 422(입력 검증)는 detail 이 목록이라 JSON 으로 줄여 보인다.
+    $detail = $r.Text
+    if ($r.Json -and $r.Json.detail) { $detail = ($r.Json.detail | ConvertTo-Json -Compress -Depth 4) }
+    if ($detail.Length -gt 200) { $detail = $detail.Substring(0, 200) + '…' }
+    $v = Fail ("상태 {0} (기대 {1}) — {2}" -f $r.Status, $expect, $detail)
+  } else {
+    try {
+      $v = & $c.Test $r
+      if ($null -eq $v) { $v = Pass '' }
+    } catch {
+      $v = Fail ("통과 조건을 확인하다 오류: " + $_.Exception.Message)
+    }
+  }
+  Add-Result $c $r.Status $r.Ms $v
+  if ($ShowBody -and $r.Text) {
+    $snip = $r.Text
+    if ($snip.Length -gt 300) { $snip = $snip.Substring(0, 300) + '…' }
+    Write-Host ("         본문: {0}" -f $snip) -ForegroundColor DarkCyan
+  }
+}
+
+# ==============================================================================
+# 요약 · 보고서
+# ==============================================================================
+$sec = [math]::Round(((Get-Date) - $runStart).TotalSeconds, 1)
+$cnt = @{ OK = 0; WARN = 0; FAIL = 0; SKIP = 0 }
+foreach ($x in $results) { $cnt[$x.Verdict]++ }
+Write-QTitle ("결과 — 통과 {0} · 주의 {1} · 실패 {2} · 건너뜀 {3}  ({4}초)" -f $cnt.OK, $cnt.WARN, $cnt.FAIL, $cnt.SKIP, $sec)
+$groupsDone = @($results | ForEach-Object { $_.Group } | Select-Object -Unique)
+foreach ($g in $groupsDone) {
+  $rows = @($results | Where-Object { $_.Group -eq $g })
+  $ok = @($rows | Where-Object { $_.Verdict -eq 'OK' -or $_.Verdict -eq 'WARN' }).Count
+  $bad = @($rows | Where-Object { $_.Verdict -eq 'FAIL' }).Count
+  $skip = @($rows | Where-Object { $_.Verdict -eq 'SKIP' }).Count
+  $color = 'Green'
+  if ($bad -gt 0) { $color = 'Red' }
+  $tail = ''
+  if ($skip -gt 0) { $tail = " (건너뜀 $skip — 전제 없음, 실패 아님)" }
+  Write-Host ("  {0,-6} 동작 {1}/{2}{3}" -f $g, $ok, $rows.Count, $tail) -ForegroundColor $color
+}
+foreach ($x in @($results | Where-Object { $_.Verdict -eq 'FAIL' })) {
+  Write-QFail ("[{0}] {1} — {2}" -f $x.Group, $x.Name, $x.Note)
+}
+
+if ($SaveReport) {
+  $dir = Join-Path $QRoot 'data\local-run'
+  if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $path = Join-Path $dir "check-$stamp.md"
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add("# 기능 점검 결과 — $(Get-Date -Format 'yyyy-MM-dd HH:mm') (KST)")
+  $lines.Add('')
+  $lines.Add("- 대상: $BaseUrl · 계정: $Email · 옵션: " + $(if ($Full) { '-Full ' } else { '' }) + $(if ($Write) { '-Write' } else { '' }))
+  $lines.Add(("- 결과: 통과 {0} · 주의 {1} · 실패 {2} · 건너뜀 {3} · {4}초" -f $cnt.OK, $cnt.WARN, $cnt.FAIL, $cnt.SKIP, $sec))
+  $lines.Add('- 만든 도구: `scripts/personal/check.ps1`')
+  $lines.Add('')
+  $lines.Add('| 판정 | 묶음 | 점검 | 요청 | 상태 | ms | 요약 |')
+  $lines.Add('|---|---|---|---|---:|---:|---|')
+  foreach ($x in $results) {
+    $note = ($x.Note -replace '\|', '/')
+    $lines.Add(("| {0} | {1} | {2} | ``{3} {4}`` | {5} | {6} | {7} |" -f $x.Verdict, $x.Group, $x.Name, $x.Method, $x.Path, $x.Status, $x.Ms, $note))
+  }
+  Save-QUtf8Bom -Path $path -Text (($lines -join "`r`n") + "`r`n")
+  Write-QOk "보고서 저장: $path"
+}
+
+if ($cnt.FAIL -gt 0) { exit 1 }
+exit 0

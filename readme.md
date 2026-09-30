@@ -372,6 +372,12 @@ docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/pytest.ini:/app/pytest.in
 
 ## 로컬 실행 가이드
 
+> **Qurious — PowerShell 스크립트로 한 번에 (2026-09-30)**: Docker Desktop 만 켜 두고 저장소 폴더에서
+> `.\scripts\personal\start.ps1`(띄우기) → `.\scripts\personal\check.ps1`(기능 점검 · curl 처럼 API 33건) →
+> `.\scripts\personal\stop.ps1`(끄기). 코드를 받은 뒤에도 `start.ps1` 이 이미지를 스스로 다시 만든다.
+> 사용법은 [`scripts/personal/README.md`](scripts/personal/README.md), 동작 원리 · 점검 항목 · 문제 해결은
+> [로컬 실행 안내서 v0.1](docs/배포/로컬실행안내서_v0.1.md). 아래는 강사님 원본의 수동 절차다(일부는 옛 구성 기준).
+
 ### 사전 요구사항
 - Docker Desktop + Docker Compose v2
 - Python 3.12 (로컬 개발 시)
