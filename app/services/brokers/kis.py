@@ -72,7 +72,7 @@ class KISClient(BrokerClient):
         return h
 
     async def get_token(self) -> TokenInfo:
-        async with httpx.AsyncClient(verify=False, timeout=10) as cli:
+        async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.post(
                 f"{self.base_url}/oauth2/tokenP",
                 json={
@@ -94,7 +94,7 @@ class KISClient(BrokerClient):
         await self._ensure_token()
         # 6자리 코드 (005930) → KIS는 종목코드만
         code = symbol.replace(".KS", "").replace(".KQ", "")
-        async with httpx.AsyncClient(verify=False, timeout=10) as cli:
+        async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.get(
                 f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price",
                 headers=self._headers("FHKST01010100"),
@@ -118,7 +118,7 @@ class KISClient(BrokerClient):
         await self._ensure_token()
         cano, acnt_prdt = self._split_account(account_no)
         tr_id = "VTTC8434R" if self.paper else "TTTC8434R"
-        async with httpx.AsyncClient(verify=False, timeout=10) as cli:
+        async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.get(
                 f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-balance",
                 headers=self._headers(tr_id),
@@ -184,7 +184,7 @@ class KISClient(BrokerClient):
         else:
             tr_id = "VTTC0011U" if self.paper else "TTTC0011U"
 
-        async with httpx.AsyncClient(verify=False, timeout=10) as cli:
+        async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.post(
                 f"{self.base_url}/uapi/domestic-stock/v1/trading/order-cash",
                 headers=self._headers(tr_id),
@@ -211,7 +211,7 @@ class KISClient(BrokerClient):
         """일봉 OHLCV. start/end: YYYYMMDD"""
         await self._ensure_token()
         code = symbol.replace(".KS", "").replace(".KQ", "")
-        async with httpx.AsyncClient(verify=False, timeout=10) as cli:
+        async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.get(
                 f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-daily-price",
                 headers=self._headers("FHKST01010400"),
@@ -319,7 +319,8 @@ class KISClient(BrokerClient):
         rows: list[dict] = []
         summary_raw: dict | None = None
         tr_cont = ""
-        async with httpx.AsyncClient(verify=False, timeout=15) as cli:
+        # 인증서 검사를 끄지 않는다 — 강사님 원본(2026-09-29)이 나머지 KIS 호출에서 verify=False 를 뺀 것과 맞춘다.
+        async with httpx.AsyncClient(timeout=15) as cli:
             for page in range(20):  # 무한루프 방지. 20쪽이면 하루 체결로는 충분하다
                 r = await cli.get(
                     f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld",

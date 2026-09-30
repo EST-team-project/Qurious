@@ -2,8 +2,12 @@
 
 IA 문서의 1절(지금 구조)은 「화면이 몇 개이고, 메뉴 어디에 있고, 들어가면 무엇을 부르는가」를
 적는다. 사람이 손으로 옮기면 코드가 바뀌는 순간 표가 거짓이 된다 — A13(옛 #28)의 화면 표가
-09-17 커밋 기준으로 굳어 있던 것처럼. 그래서 `public/app.html`·`public/js/paper.js` 를 다시
+09-17 커밋 기준으로 굳어 있던 것처럼. 그래서 `public/app.html` 과 화면 스크립트를 다시
 훑어 같은 표를 만든다. 네트워크를 쓰지 않는다.
+
+화면 스크립트는 두 구조를 다 읽는다 — 옛 구조는 `app.html` 안 인라인 `<script type="module">` 한 덩어리
+(+ `public/js/paper.js`), 2026-09-29 강사님 원본부터는 `public/js/*.js`(메뉴 · 안내 = core.js, 진입 훅 ·
+첫 화면 = main.js, 기능별 파일)로 나뉘었다. 줄 위치는 `파일:줄` 로 적는다.
 
     python scripts/view_scan.py            # 요약 + 검사 결과
     python scripts/view_scan.py --md       # IA 문서 1.3절에 붙일 마크다운 표
@@ -13,7 +17,8 @@ IA 문서의 1절(지금 구조)은 「화면이 몇 개이고, 메뉴 어디에
 - 화면: `<div class="view" data-view="X">` 줄부터 다음 화면 선언 직전까지(마지막은 `</main>` 전까지).
 - 화면 소유 요소: 그 범위 안의 `id="..."`. 같은 id 가 두 번 나오면 먼저 나온 화면이 갖는다.
 - 스크립트 블록: 0열에서 시작하는 문장 하나(함수 선언·리스너 등록 등).
-- 진입 API: `onViewActivated`·`onPaperViewActivated` 가 부르는 함수 + 그 함수가 부르는 최상위 함수(1단계).
+- 진입 API: `on…ViewActivated`(onViewActivated · onPaperViewActivated · 기능별 훅)가 부르는 함수 + 그 함수가
+  부르는 최상위 함수(1단계). 훅 모양은 `if (view === "X") …` 와 `if (view !== "X") return;` 뒤 호출 둘.
 - 조작 API: 그 화면 소유 버튼에 걸린 리스너 블록(리스너가 아니면 그 화면 요소를 참조하는 블록)
   + 그 블록이 부르는 최상위 함수(1단계) − 진입 API.
 
@@ -32,7 +37,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_PATH = ROOT / "public" / "app.html"
-PAPER_PATH = ROOT / "public" / "js" / "paper.js"
+JS_DIR = ROOT / "public" / "js"
 
 VIEW_RE = re.compile(r'<div class="view" data-view="([^"]+)">')
 ID_RE = re.compile(r'\bid="([^"$]+)"')
@@ -44,6 +49,9 @@ CONSTFN_RE = re.compile(r'^(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\
 CALL_RE = re.compile(r'\b([A-Za-z_][A-Za-z0-9_]*)\s*\(')
 LISTENER_RE = re.compile(r'''getElementById\(\s*"([^"]+)"\s*\)\??\.addEventListener\(\s*"([a-z]+)"''')
 HOOK_RE = re.compile(r'if \(view === "([^"]+)"\)\s*(\{?)(.*)')
+GUARD_RE = re.compile(r'if \(view !== "([^"]+)"\)\s*return;')
+HOOK_FN_RE = re.compile(r'^(?:export\s+)?function\s+on[A-Za-z]*ViewActivated\s*\(')
+MENU_DECL = ("const GNB_MENUS = {", "export const GNB_MENUS = {")
 MENU_GROUP_RE = re.compile(r'^  ([a-z]+): \{$')
 MENU_ITEM_RE = re.compile(r'\{ key: "([^"]+)",\s*icon: "[^"]+",\s*label: "([^"]+)" \}')
 GNB_BUTTON_RE = re.compile(r'data-gnb="([a-z]+)"[^>]*>(?:<i[^>]*></i>)?\s*(?:<span>)?([^<]+)')
@@ -104,13 +112,26 @@ def _blocks(lines: list[str], start: int, label: str) -> list[dict]:
   return out
 
 
+def _script_sources(app: list[str]) -> tuple[list[tuple[str, list[str], int]], int]:
+  """화면 스크립트 원천 — (라벨, 줄, 스크립트가 시작하는 줄 번호) 목록과 app.html 의 HTML 이 끝나는 줄.
+
+  옛 구조의 인라인 `<script type="module">` 이 있으면 그것도 넣는다(없으면 app.html 전체가 HTML 이다).
+  """
+  inline = next((i for i, line in enumerate(app) if line.startswith('<script type="module">')), None)
+  sources: list[tuple[str, list[str], int]] = []
+  if inline is not None:
+    sources.append(("app.html", app, inline + 1))
+  for p in sorted(JS_DIR.glob("*.js")):
+    sources.append((f"js/{p.name}", p.read_text(encoding="utf-8").splitlines(), 0))
+  return sources, (inline if inline is not None else len(app))
+
+
 def scan() -> dict:
   app = APP_PATH.read_text(encoding="utf-8").splitlines()
-  paper = PAPER_PATH.read_text(encoding="utf-8").splitlines()
+  sources, html_end = _script_sources(app)
 
   # 1. 화면 범위와 소유 요소
   views = [(m.group(1), i) for i, line in enumerate(app) if (m := VIEW_RE.search(line))]
-  script_start = next(i for i, line in enumerate(app) if line.startswith('<script type="module">'))
   main_end = next(i for i, line in enumerate(app) if "</main>" in line and i > views[-1][1])
   view_range = {}
   for n, (key, start) in enumerate(views):
@@ -123,7 +144,7 @@ def scan() -> dict:
         owner.setdefault(el, key)
 
   # 2. 스크립트 블록
-  blocks = _blocks(app, script_start + 1, "app.html") + _blocks(paper, 0, "paper.js")
+  blocks = [b for label, lines, start in sources for b in _blocks(lines, start, label)]
   by_name = {b["name"]: b for b in blocks if b["name"]}
 
   def closure(block: dict) -> set[str]:
@@ -136,38 +157,50 @@ def scan() -> dict:
   # 3. 진입 훅
   hooks: dict[str, list[str]] = {}
   hook_at: dict[str, str] = {}
-  for label, lines in (("app.html", app), ("paper.js", paper)):
-    inside = False
-    for i, line in enumerate(lines):
-      if "function onViewActivated" in line or "function onPaperViewActivated" in line:
-        inside = True
+  for label, lines, start in sources:
+    inside, guard = False, None
+    for i in range(start, len(lines)):
+      line = lines[i]
+      if HOOK_FN_RE.match(line):
+        inside, guard = True, None
         continue
       if inside and line.startswith("}"):
-        inside = False
-      if inside and (m := HOOK_RE.search(line)):
+        inside, guard = False, None
+      if not inside:
+        continue
+      if m := HOOK_RE.search(line):
         fns = [c for c in CALL_RE.findall(m.group(3)) if c in by_name]
         hooks.setdefault(m.group(1), []).extend(fns)
         hook_at[m.group(1)] = f"{label}:{i + 1}"
+      elif m := GUARD_RE.search(line):       # if (view !== "X") return; — 뒤 호출이 X 의 진입 훅이다
+        guard = m.group(1)
+        hook_at[guard] = f"{label}:{i + 1}"
+      elif guard:
+        fns = [c for c in CALL_RE.findall(line) if c in by_name]
+        hooks.setdefault(guard, []).extend(fns)
 
   # 4. 메뉴(GNB_MENUS) · 상단 버튼 · 사용법 안내 · 첫 화면
-  menu_start = next(i for i, line in enumerate(app) if line.startswith("const GNB_MENUS = {"))
-  menu_end = next(i for i in range(menu_start, len(app)) if app[i] == "};")
+  menu_label, menu_lines = next((label, lines) for label, lines, _ in sources
+                                if any(line.startswith(MENU_DECL) for line in lines))
+  menu_start = next(i for i, line in enumerate(menu_lines) if line.startswith(MENU_DECL))
+  menu_end = next(i for i in range(menu_start, len(menu_lines)) if menu_lines[i] == "};")
   menu, group = [], None
   group_label: dict[str, str] = {}
   for i in range(menu_start, menu_end):
-    line = app[i]
+    line = menu_lines[i]
     if m := MENU_GROUP_RE.match(line):
       group = m.group(1)
     if group and "label:" in line and "key:" not in line:
       group_label[group] = re.sub(r"<[^>]+>", "", line.split('label: "', 1)[1].rsplit('"', 1)[0]).strip()
     if m := MENU_ITEM_RE.search(line):
-      menu.append({"gnb": group, "key": m.group(1), "label": m.group(2), "menu_line": i + 1})
+      menu.append({"gnb": group, "key": m.group(1), "label": m.group(2), "menu_line": f"{menu_label}:{i + 1}"})
   gnb_buttons = [
     {"gnb": m.group(1), "label": m.group(2).strip(), "line": i + 1}
-    for i, line in enumerate(app[:script_start]) if (m := GNB_BUTTON_RE.search(line))
+    for i, line in enumerate(app[:html_end]) if (m := GNB_BUTTON_RE.search(line))
   ]
-  guides = set(re.findall(r'^  "([a-z-]+)":\s+\{ summary:', "\n".join(app), re.M))
-  default_view = next((m.group(1) for line in app if (m := DEFAULT_VIEW_RE.search(line))), None)
+  script_text = "\n".join(line for _, lines, start in sources for line in lines[start:])
+  guides = set(re.findall(r'^  "([a-z-]+)":\s+\{ summary:', script_text, re.M))
+  default_view = next((m.group(1) for line in script_text.splitlines() if (m := DEFAULT_VIEW_RE.search(line))), None)
 
   # 5. 화면별 행
   rows = []
@@ -215,17 +248,18 @@ def scan() -> dict:
         hidden.append({"at": f'{b["file"]}:{b["line"]}', "trigger": trigger, "view": home,
                        "reads": [f"{v}#{el}" for v, el in others]})
   listener_count = Counter(
-    (el, ev) for line in app[script_start:] for el, ev in LISTENER_RE.findall(line)
+    (el, ev) for _, lines, start in sources for line in lines[start:] for el, ev in LISTENER_RE.findall(line)
   )
   duplicates = [
     {"id": el, "event": ev, "count": c,
-     "lines": [i + 1 for i, line in enumerate(app) if f'getElementById("{el}")' in line and "addEventListener" in line]}
+     "lines": [f"{label}:{i + 1}" for label, lines, start in sources for i, line in enumerate(lines)
+               if i >= start and f'getElementById("{el}")' in line and "addEventListener" in line]}
     for (el, ev), c in listener_count.items() if c > 1
   ]
-  cross_links = [
-    i + 1 for i, line in enumerate(app)
-    if re.search(r'navigate\(\s*"[a-z-]+"\s*\)|href="#[a-z]|location\.hash\s*=\s*"', line)
-  ]
+  link_re = re.compile(r'navigate\(\s*"[a-z-]+"\s*\)|href="#[a-z]|location\.hash\s*=\s*"')
+  cross_links = [f"app.html:{i + 1}" for i, line in enumerate(app[:html_end]) if link_re.search(line)]
+  cross_links += [f"{label}:{i + 1}" for label, lines, start in sources for i, line in enumerate(lines)
+                  if i >= start and link_re.search(line)]
 
   return {
     "views": len(views), "menu_items": len(menu), "guides": len(guides),

@@ -87,6 +87,8 @@ ROUTER_ABBR = {
   "library": "LIB", "admin": "ADM", "system": "SYS", "quant": "QNT", "ml": "ML",
   "macro": "MACR", "documents": "DOC", "notification": "NOTI", "graph": "GRPH",
   "conversations": "CONV", "tasks": "TASK", "paper": "PAPR", "openapi": "OAPI", "lean": "LEAN",
+  # 2026-09-30 강사님 원본(2026-09-29)에서 들어온 라우터
+  "rebalance": "RBAL", "tradingview": "TV", "formula": "FRML",
 }
 
 # 인증 의존성 — 이름표. 값이 같은 모양이면 같은 사람이 통과한다.

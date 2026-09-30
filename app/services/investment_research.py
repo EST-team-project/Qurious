@@ -55,15 +55,22 @@ def backtest_strategy(
     strategy: str = "composite",
     cost_bps: float = 10.0,
     cost: Any | None = None,
+    slippage_bps: float = 0.0,
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
 ) -> dict:
     """롱온리 일봉 백테스트. 매매비용은 포지션 변동 시 차감한다.
 
-    cost: 매매비용 모델(`app.services.trading_cost`). 주면 이것을 쓴다.
-          None 이면(= 인자를 생략하면) 예전 동작 그대로 `cost_bps` 를 왕복 대칭으로
-          뗀다 — 국내주식 실제 비용은 대칭이 아니므로(매도에만 세금) 그것은 근사다.
+    cost: 매매비용 모델(`app.services.trading_cost`). 주면 이것을 쓴다 — 슬리피지는 그 모델이
+          이미 담으므로(`KrxCostModel.slippage_bps`) 아래 `slippage_bps` 를 또 더하지 않는다.
+          None 이면(= 인자를 생략하면) `cost_bps` + `slippage_bps` 를 왕복 대칭으로 뗀다
+          (예전 동작 · 강사님 원본 동작) — 국내주식 실제 비용은 대칭이 아니므로(매도에만 세금) 그것은 근사다.
           **무비용을 원하면 `trading_cost.NoCostModel()` 을 넘긴다.** None 으로는
           무비용을 고를 수 없다(그러면 인자 생략과 구분되지 않는다).
+    stop_loss_pct · take_profit_pct: 진입가 대비 종가 기준 손절 · 익절(%) — 강사님 원본(2026-09-29)의
+          `quant_pipeline.apply_stops`. 비우면 적용하지 않는다. 비용보다 먼저 보유 상태를 바꾼다.
     """
+    from app.services.quant_pipeline import apply_stops
     df = indicators(candles).dropna()
     if len(df) < 60:
         return {"error": f"데이터 부족: {len(df)}행 (최소 60 필요)"}
@@ -71,12 +78,15 @@ def backtest_strategy(
     returns = df["close"].pct_change().fillna(0.0)
     # t일 장 마감 신호는 t+1일 수익률에만 적용
     held = position.shift(1).fillna(0.0)
+    # 손절 · 익절이 보유 상태를 먼저 바꾼다 — 비용은 바뀐 보유 상태의 회전에 붙는다
+    held, n_sl, n_tp = apply_stops(df["close"].astype(float), held, stop_loss_pct, take_profit_pct)
     if cost is None:
-        cost = tcost.FlatCostModel(cost_bps=cost_bps)
+        cost = tcost.FlatCostModel(cost_bps=cost_bps, slippage_bps=slippage_bps)
     buy_turn, sell_turn = tcost.position_delta(held)
     gross = returns * held
     # 비용은 방향별로 뗀다 — 매수와 매도의 요율이 다르다
-    net = gross - cost.turnover_cost(held)
+    cost_series = cost.turnover_cost(held)
+    net = gross - cost_series
     equity = (1 + net).cumprod()
     # 벤치마크(매수후보유)에도 같은 잣대를 댄다: 첫날 매수 1회 + 마지막날 매도 1회
     benchmark = (1 + (returns - cost.buy_hold_cost(returns.index))).cumprod()
@@ -86,10 +96,19 @@ def backtest_strategy(
     trade_count = int(((buy_turn + sell_turn) > 0).sum())
     latest = df.iloc[-1]
     action = "BUY" if bool(position.iloc[-1]) and not bool(position.iloc[-2]) else "SELL" if not bool(position.iloc[-1]) and bool(position.iloc[-2]) else "HOLD"
+    cost_desc = tcost.describe(cost)
     return {
         "strategy": strategy,
         "cost_bps": float(cost_bps),
-        "cost": tcost.describe(cost),
+        "cost": cost_desc,
+        # 실제로 뗀 슬리피지 — 비용 모델을 넘긴 호출은 모델의 값이다(인자 slippage_bps 는 쓰지 않는다)
+        "slippage_bps": float(cost_desc.get("slippage_bps", 0.0)),
+        "stop_loss_pct": stop_loss_pct,
+        "take_profit_pct": take_profit_pct,
+        "stop_loss_exits": n_sl,
+        "take_profit_exits": n_tp,
+        # 비용 합(단순 합) — 복리로 잰 `cost_drag_pct` 와 다르다
+        "cost_pct": round(float(cost_series.sum()) * 100, 3),
         "total_return_pct": round((equity.iloc[-1] - 1) * 100, 2),
         "gross_return_pct": round((gross_equity.iloc[-1] - 1) * 100, 2),
         "cost_drag_pct": round((gross_equity.iloc[-1] - equity.iloc[-1]) * 100, 2),
@@ -198,7 +217,7 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
     pred_5d = float(final_model.predict(scaler_full.transform(latest_features))[0])
 
     # 방향성 분류 (LightGBM) — 회귀와 별도로 매수/관망/매도 신호 + 신뢰도 산출
-    signal, signal_confidence, cls_acc = 0, 0.5, None
+    signal, signal_confidence, cls_acc, baseline = 0, 0.5, None, None
     try:
         import lightgbm as lgb
         y_cls = (labeled["target"].values + 1).astype(int)
@@ -212,6 +231,7 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
                                    callbacks=[lgb.early_stopping(10, verbose=False), lgb.log_evaluation(-1)])
             va_pred = np.argmax(lgb_model.predict(X[split:]), axis=1)
             cls_acc = float((va_pred == y_cls[split:]).mean())
+            baseline = float(np.bincount(y_cls[split:], minlength=3).max() / len(y_cls[split:]))  # 다수 클래스 정확도
         else:
             lgb_model = lgb.train(
                 {"objective": "multiclass", "num_class": 3, "verbosity": -1},
@@ -220,8 +240,23 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
         probs = lgb_model.predict(X[-1:])[0]
         signal = int(np.argmax(probs)) - 1
         signal_confidence = float(np.max(probs))
+        try:
+            from app.services.xai import explain_signal
+            latest_vals = {f: float(v) for f, v in zip(FEATURE_COLS, latest_features[0])}
+            explanation = explain_signal(lgb_model, latest_features[0], FEATURE_COLS, latest_vals, probs)
+        except Exception:
+            explanation = None
+        # 품질 게이트: 검증 정확도가 '다수 클래스만 찍는' 기준선을 2%p 이상 못 넘으면 신호를 관망으로 낮춘다
+        reliable = cls_acc is None or baseline is None or cls_acc >= baseline + 0.02
+        if not reliable:
+            signal, signal_confidence = 0, min(signal_confidence, 0.34)
+            if explanation:
+                explanation["quality_warning"] = (f"검증 정확도 {cls_acc:.2f}가 기준선(다수 클래스 {baseline:.2f}) 대비 유의하게 높지 않아 "
+                                                  f"모델 신호를 '관망'으로 낮췼습니다. 아래 기여도는 참고용입니다.")
+                explanation["summary"] = "⚠ " + explanation["quality_warning"] + " " + explanation["summary"]
     except Exception:
         signal = 1 if pred_5d > 0 else (-1 if pred_5d < 0 else 0)
+        explanation = None
 
     # 5일 예측을 그대로 연환산(252/5 제곱)하면 예측이 조금만 튀어도 지수적으로
     # 폭발해 비현실적인 값이 나온다 (R^2가 음수인 종목에서 특히). 표시용으로 clip.
@@ -240,6 +275,10 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
         "signal": signal,
         "signal_confidence": round(signal_confidence, 4),
         "confidence": confidence,
+        "quality": {"cls_val_accuracy": None if cls_acc is None else round(cls_acc, 4),
+                    "baseline_accuracy": None if baseline is None else round(baseline, 4),
+                    "reliable": bool(cls_acc is None or baseline is None or cls_acc >= baseline + 0.02)},
+        "explanation": explanation,  # XAI: SHAP 기여도 + 자연어 설명 (LightGBM 실패 시 None)
     }
 
 
@@ -254,8 +293,12 @@ def optimize_portfolio(stock_data: list[dict], risk_profile: str) -> dict:
             labels.append(item["symbol"])
     if len(series) < 2:
         return {"error": "최적화에는 유효 종목 2개 이상이 필요합니다."}
-    ret = pd.concat(series, axis=1).dropna().tail(252)
-    mu = ret.mean().values * 252
+    ret = pd.concat(series, axis=1).dropna().tail(756)   # 최대 3년으로 표본을 넓혀 최근 1년 모멘텀 편향 완화
+    mu_raw = ret.mean().values * 252
+    # 최근 실현 수익률은 미래 기대수익의 나쁜 추정치(66% 같은 값이 나온다). ±30%로 잘라 장기 주식 기대수익(7%)과
+    # 반반 섞는(James-Stein식 축소) 값을 기대수익으로 쓴다.
+    LONG_RUN_EQUITY_RETURN = 0.07
+    mu = 0.5 * np.clip(mu_raw, -0.30, 0.30) + 0.5 * LONG_RUN_EQUITY_RETURN
     cov = ret.cov().values * 252 + np.eye(len(labels)) * 1e-6
     inv_cov = np.linalg.pinv(cov)
     min_var = inv_cov @ np.ones(len(labels)); min_var /= min_var.sum()
@@ -266,4 +309,7 @@ def optimize_portfolio(stock_data: list[dict], risk_profile: str) -> dict:
     weights = np.clip(weights, 0.05, 0.60); weights /= weights.sum()
     port_ret = float(weights @ mu)
     port_vol = float(np.sqrt(weights @ cov @ weights))
-    return {"weights": {label: round(float(w) * 100, 1) for label, w in zip(labels, weights)}, "expected_return_pct": round(port_ret * 100, 2), "expected_volatility_pct": round(port_vol * 100, 2), "method": "최근 252거래일 공분산 기반 long-only 최적화 (비용·세금 미반영)"}
+    return {"weights": {label: round(float(w) * 100, 1) for label, w in zip(labels, weights)},
+            "expected_return_pct": round(port_ret * 100, 2), "expected_volatility_pct": round(port_vol * 100, 2),
+            "expected_return_raw_pct": round(float(weights @ mu_raw) * 100, 2),
+            "method": f"최근 {len(ret)}거래일 공분산 기반 long-only 최적화 · 기대수익은 실현수익(±30% 클립)과 장기 기대수익 7%를 반반 축소 (비용·세금 미반영)"}

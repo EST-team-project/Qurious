@@ -17,6 +17,7 @@ from app.config import settings
 #
 # 조용히 실패하는 종류라, 워커가 "ready" 라고 찍고 나서도 아무 일도 안 일어난다.
 # 모듈을 직접 적으면 그런 일이 없고, 새 태스크 파일을 만들 때 한 줄 추가하면 된다.
+# (강사님 원본도 2026-09-29 에 같은 원인을 찾아 같은 방법으로 고쳤다 — 우리 목록은 수집기 태스크를 더 싣는다.)
 celery_app = Celery(
     "lumina-invest",
     include=[
@@ -92,6 +93,20 @@ celery_app.conf.update(
             "task": "collector.write_manifest",
             "schedule": crontab(hour=20, minute=0),
             "options": {"expires": 3600 * 3},
+        },
+
+        # ── 강사님 원본(2026-09-29)에서 옮겨 온 예약 작업 ──────────────────────
+        # 자동매매 사이클은 증권사 클라이언트를 brokers.factory 로 얻는다 — 실거래는
+        # 그곳의 승인 변수(ADR-0001)가 막으므로, 예약 작업이 늘어도 차단 지점은 하나다.
+        "quant-auto-trade-10min": {
+            "task": "quant.auto_trade_cycle",
+            "schedule": 600.0,            # 10분 — 자동매매 활성 사용자 사이클
+            "options": {"expires": 540},
+        },
+        "rebalance-check-hourly": {
+            "task": "rebalance.check_triggers",
+            "schedule": 3600.0,           # 1시간 — 시간·이탈률 리밸런싱 트리거 점검
+            "options": {"expires": 3500},
         },
     },
 )

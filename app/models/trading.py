@@ -12,12 +12,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPkMixin
 
 
+PORTFOLIO_BOOK_PAPER = "PAPER"   # 모의투자·직접매매(WEB)·리밸런싱·TradingView 가 공유하는 모의계좌 장부
+PORTFOLIO_BOOK_QUANT = "QUANT"   # 10분 자동매매 가상계좌 장부 (QuantVirtualAccount 현금과 짝)
+
+
 class Portfolio(Base, UUIDPkMixin, UpdatedAtMixin):
     __tablename__ = "portfolio"
-    __table_args__ = (UniqueConstraint("user_id", "symbol", name="uq_portfolio_user_symbol"),)
+    __table_args__ = (UniqueConstraint("user_id", "symbol", "book", name="uq_portfolio_user_symbol_book"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
+    # 장부 구분 — 모의계좌(PAPER)와 자동매매 가상계좌(QUANT) 포지션을 섞지 않는다
+    book: Mapped[str] = mapped_column(String(10), nullable=False, default=PORTFOLIO_BOOK_PAPER)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     avg_price: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -110,13 +116,24 @@ class BrokerSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     quant_buy_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     quant_sell_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
 
+    # ── 자동매매 위험관리 ──────────────────────────────────────────────────
+    risk_daily_loss_limit_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)   # 일중 손실 한도(%) 초과 시 비상 정지
+    risk_max_position_pct: Mapped[float] = mapped_column(Float, nullable=False, default=30.0)      # 종목당 최대 비중(%)
+    risk_max_orders_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=20)      # 하루 최대 자동 주문 수
+    risk_cooldown_min: Mapped[int] = mapped_column(Integer, nullable=False, default=30)            # 같은 종목·방향 재주문 금지 시간(분)
+    risk_kill_switch: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)         # 비상 정지 스위치
+    risk_halt_reason: Mapped[str] = mapped_column(String(300), nullable=False, default="")         # 마지막 정지 사유
+    # 자동매매 활성 플래그 — 프로세스 메모리 대신 DB에 두어 재시작·다중 인스턴스에서도 Celery Beat 이 이어서 실행
+    quant_auto_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
 
 class QuantVirtualAccount(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
-    """⚠️ 쓰지 않는다 (I14 · 2026-09-28). 자동매매 현금도 이제 `PaperAccount` 에서 빠진다.
+    """10분 자동매매 전용 가상계좌 현금 (보유는 `Portfolio.book = QUANT` 와 짝).
 
-    보유(`Portfolio`)는 하나인데 현금 장부가 둘이라 모의투자 화면에 없는 수익이 찍혔다
-    (`app/services/auto_trade.py` 머리말). 표는 마이그레이션 없이 남겨 둔다 — 지우는 일은
-    D7 원장 설계가 확정된 뒤 따로 한다.
+    모의투자 · 직접매매 · 리밸런싱 · TradingView 는 `PaperAccount` + `book = PAPER` 를 쓴다 — 두 장부는
+    섞이지 않는다(강사님 원본 2026-09-29 방식 · `app/services/auto_trade.py` 머리말).
+    Qurious I14(2026-09-28)는 이 표를 비우고 현금을 `PaperAccount` 하나로 합쳤었으나, 기초 코드를
+    따르려고 강사님 방식으로 되돌렸다(2026-09-30). 장부를 하나로 둘지는 팀 논의 거리다(D7 ③).
     """
 
     __tablename__ = "quant_virtual_accounts"
