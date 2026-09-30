@@ -166,15 +166,23 @@
     import { api, setToast } from "/js/common.js";
     import { initCompletionIndicator } from "/js/completion.js";
     initCompletionIndicator();
+    // 뒤로가기 캐시(bfcache)로 이 화면이 되살아났는데 이미 로그인돼 있으면 앱으로 — 서버의 주소 판정(app/main.py)을
+    // 거치지 않고 옛 화면이 그대로 보이는 경우라서 여기서 한 번 더 본다.
+    window.addEventListener("pageshow", async (ev) => {
+      if (!ev.persisted) return;
+      try { await api("/api/me"); location.replace("/app.html"); } catch { /* 로그인 안 됨 — 그대로 */ }
+    });
     document.getElementById("f").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
       try {
         await api("/api/auth/login", {
           method: "POST",
-          body: { email: fd.get("email"), password: fd.get("password") },
+          // 이메일은 대소문자를 가리지 않는다(서버가 소문자로 맞춘다) — 앞뒤 공백만 뗀다.
+          body: { email: String(fd.get("email") || "").trim(), password: fd.get("password") },
         });
-        location.href = "/app.html";
+        // replace — 로그인 뒤 뒤로가기로 이 로그인 화면이 다시 나오지 않게
+        location.replace("/app.html");
       } catch (err) {
         setToast(err.message, "error");
       }

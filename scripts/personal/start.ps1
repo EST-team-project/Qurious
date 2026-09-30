@@ -18,6 +18,14 @@
 
   다시 실행해도 안전하다(멱등). 이미 떠 있는 컨테이너는 그대로 두고, 빠진 것만 띄운다.
 
+.PARAMETER Dev
+  개발 모드 — 코드를 고치면 바로 반영된다. 내 PC 의 코드 폴더(app · public · prompts · alembic)를
+  컨테이너에 연결하고(scripts\personal\compose.dev.yml), 앱은 uvicorn --reload · Celery 는 watchfiles 로 돌린다.
+    app\*.py 저장  → 앱 · Celery 가 몇 초 안에 스스로 다시 켜진다 (logs.ps1 -Service app -Follow 로 보인다)
+    public\ 저장   → 브라우저 새로고침(F5)만
+  이미지는 requirements.txt · Dockerfile 이 바뀔 때만 다시 만든다. 호스트 파이썬 패키지가 필요 없다(dev.ps1 과 다른 점).
+  보통 모드로 돌아가려면 -Dev 없이 start.ps1 — 앱 · Celery 를 이미지 코드로 다시 만든다(DB 데이터는 그대로).
+
 .PARAMETER Build
   이미지를 무조건 다시 만든다. 보통은 필요 없다 — 코드가 이미지보다 새로우면 자동으로 다시 만든다.
 
@@ -43,12 +51,17 @@
   .\scripts\personal\start.ps1 -NoCelery -NoBrowser
   예약 작업 없이 가볍게 띄우고, 브라우저는 직접 연다.
 
+.EXAMPLE
+  .\scripts\personal\start.ps1 -Dev
+  개발 모드 — 코드를 고치며 화면을 볼 때. 저장하면 앱이 스스로 다시 켜진다.
+
 .NOTES
   끄기: .\scripts\personal\stop.ps1   · 상태: status.ps1   · 로그: logs.ps1   · 기능 점검: check.ps1
   PowerShell 5.1 기준(Windows 기본). 실행이 막히면 README.md 의 「실행 정책」 을 보라.
 #>
 [CmdletBinding()]
 param(
+  [switch]$Dev,
   [switch]$Build,
   [switch]$NoCelery,
   [switch]$Ingest,
@@ -64,7 +77,12 @@ param(
 $ErrorActionPreference = 'Continue'
 $started = Get-Date
 
-Write-QTitle 'Qurious 로컬 실행 (도커)'
+# 개발 모드면 이 스크립트 안의 모든 compose 호출이 덧씌우기 파일까지 읽게 한다(_common.ps1 의 $QComposeFiles 설명).
+if ($Dev) { $QComposeFiles = @('docker-compose.yml', $QComposeDevFile) }
+
+$modeName = '보통 모드 — 이미지 코드'
+if ($Dev) { $modeName = '개발 모드 — 코드 폴더 연결 · 저장하면 자동 반영' }
+Write-QTitle "Qurious 로컬 실행 (도커 · $modeName)"
 Write-QInfo "저장소: $QRoot"
 
 # ------------------------------------------------------------------------------
@@ -156,7 +174,13 @@ $appServices = @('app')
 if (-not $NoCelery) { $appServices += @('celery-worker', 'celery-beat') }
 
 $needBuild = $Build
-if (-not $needBuild -and (Test-QImageStale)) {
+if ($Dev) {
+  # 개발 모드는 코드를 폴더째 연결하므로, 이미지는 설치 패키지(requirements.txt) · Dockerfile 이 바뀔 때만 다시 만든다.
+  if (-not $needBuild -and (Test-QImageStale -DepsOnly)) {
+    Write-QInfo 'requirements.txt · Dockerfile 이 이미지보다 새로워 이미지를 다시 만듭니다 (패키지 설치 — 몇 분 걸릴 수 있다).'
+    $needBuild = $true
+  }
+} elseif (-not $needBuild -and (Test-QImageStale)) {
   Write-QInfo '코드가 이미지보다 새로워 이미지를 다시 만듭니다 (바뀐 층만 — 보통 수십 초, 처음이면 몇 분).'
   $needBuild = $true
 }
@@ -230,11 +254,19 @@ if ($ollama.Status -eq 200) {
 }
 
 $elapsed = [int]((Get-Date) - $started).TotalSeconds
-Write-QTitle "준비 끝 (${elapsed}초)"
+Write-QTitle "준비 끝 (${elapsed}초 · $modeName)"
 Write-Host "  화면       $QAppUrl"
 Write-Host "  API 문서   $QAppUrl/docs      (모든 API 를 눌러 볼 수 있는 FastAPI 자동 문서)"
 Write-Host '  Neo4j      http://localhost:17474   (neo4j / finagent123 — docker-compose.yml 기본값)'
 Write-Host ''
+if ($Dev) {
+  Write-Host '  개발 모드에서 코드를 고치면'
+  Write-Host '    app\*.py 저장   앱 · Celery 가 몇 초 안에 스스로 다시 켜진다 — 화면에서 다시 요청하면 새 코드'
+  Write-Host '    public\ 저장    브라우저 새로고침(F5)만'
+  Write-Host '    다시 켜지는 모습 보기   .\scripts\personal\logs.ps1 -Service app -Follow   (「Reloading」 줄)'
+  Write-Host '    보통 모드로 돌아가기    .\scripts\personal\start.ps1   (-Dev 없이)'
+  Write-Host ''
+}
 Write-Host '  다음에 할 것'
 Write-Host '    .\scripts\personal\check.ps1     기능 점검 — curl 처럼 API 를 차례로 불러 통과/실패를 표로'
 Write-Host '    .\scripts\personal\status.ps1    지금 무엇이 떠 있나'

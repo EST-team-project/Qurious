@@ -55,6 +55,13 @@ $QServices = @(
 # 「이 컨테이너가 우리 것인가」 를 이 이름으로 가린다.
 $QComposeProject = 'qurious'
 
+# compose 파일 목록. 비어 있으면 compose 가 저장소 루트의 docker-compose.yml 하나만 읽는다(보통 모드).
+# start.ps1 -Dev 가 여기에 개발 모드 덧씌우기(scripts/personal/compose.dev.yml)를 더한다 —
+# 그러면 그 스크립트 안의 모든 Invoke-QCompose 호출이 `-f 기본 -f 덧씌우기` 로 돈다.
+# ⚠️ 첫 파일이 기본 파일이어야 한다. compose 는 상대 경로(./app 등)를 첫 파일이 있는 폴더 기준으로 푼다.
+$QComposeFiles = @()
+$QComposeDevFile = 'scripts/personal/compose.dev.yml'
+
 # ------------------------------------------------------------------------------
 # 2. 화면 출력 — 글머리표를 고정해 두면 로그를 눈으로 훑기 쉽다
 # ------------------------------------------------------------------------------
@@ -122,7 +129,10 @@ function Invoke-QCompose {
   param([Parameter(Mandatory = $true)][string[]]$Arguments)
   Push-Location $QRoot
   try {
-    & docker compose @Arguments | Out-Host
+    # $QComposeFiles 가 있으면(개발 모드) 파일마다 `-f 파일` 을 앞에 붙인다. 없으면 인자 그대로.
+    $fileArgs = @()
+    foreach ($f in $QComposeFiles) { $fileArgs += @('-f', $f) }
+    & docker compose @fileArgs @Arguments | Out-Host
     return $LASTEXITCODE
   } finally {
     Pop-Location
@@ -138,6 +148,8 @@ function Get-QContainerState {
     `docker inspect` 는 없는 컨테이너에 종료 코드 1 을 낸다. 그때는 State='missing'.
     Project 는 compose 가 컨테이너에 붙여 두는 라벨(com.docker.compose.project)에서 읽는다.
     Health 는 compose 파일에 healthcheck 가 있는 서비스(postgres · redis)만 값이 있다.
+    DevMode 는 개발 모드(start.ps1 -Dev)로 만든 컨테이너인가 — 내 PC 의 app 폴더가 컨테이너의
+    /app/app 에 연결(bind mount)돼 있으면 $true. 이 연결은 compose.dev.yml 만 만든다.
 
     `docker inspect --format '{{index .Config.Labels "..."}}'` 처럼 템플릿을 쓰지 않고 JSON 을
     통째로 받아 푸는 이유: 5.1 은 외부 프로그램에 인자를 넘길 때 **안쪽 큰따옴표를 벗겨 버려**
@@ -146,7 +158,7 @@ function Get-QContainerState {
   param([Parameter(Mandatory = $true)][string]$Name)
   $out = & docker inspect $Name 2>$null
   if ($LASTEXITCODE -ne 0 -or -not $out) {
-    return [pscustomobject]@{ Name = $Name; State = 'missing'; Project = ''; Health = '' }
+    return [pscustomobject]@{ Name = $Name; State = 'missing'; Project = ''; Health = ''; DevMode = $false }
   }
   # 외부 프로그램 출력은 줄마다 문자열 하나로 들어온다 → 한 덩어리로 이어 붙인 뒤 JSON 으로 푼다.
   $info = @(($out -join "`n") | ConvertFrom-Json)[0]
@@ -156,7 +168,8 @@ function Get-QContainerState {
   }
   $health = ''
   if ($info.State.PSObject.Properties.Name -contains 'Health' -and $info.State.Health) { $health = $info.State.Health.Status }
-  return [pscustomobject]@{ Name = $Name; State = $info.State.Status; Project = $project; Health = $health }
+  $dev = [bool](@($info.Mounts) | Where-Object { $_.Type -eq 'bind' -and $_.Destination -eq '/app/app' })
+  return [pscustomobject]@{ Name = $Name; State = $info.State.Status; Project = $project; Health = $health; DevMode = $dev }
 }
 
 # ------------------------------------------------------------------------------
@@ -227,6 +240,8 @@ function Invoke-QApi {
       3) 서버 무응답 — 앱이 꺼졌거나 포트가 틀리면 응답 자체가 없다. 그때 Status 는 0, Error 에 이유.
     Session 에 로그인 세션(WebRequestSession)을 넘기면 쿠키(fin_session)를 주고받는다 —
     curl 의 `-b` · `-c`(쿠키 저장소)와 같다.
+    Bearer 에 JWT 액세스 토큰을 주면 `Authorization: Bearer <토큰>` 머리글을 붙인다 —
+    화면은 쿠키만 쓰고, 토큰 방식은 API 클라이언트(앱 밖 프로그램)용이다.
   .OUTPUTS
     [pscustomobject] Status(int · 0=무응답) · Ms(걸린 밀리초) · Text(본문 글) · Json(풀어 둔 객체 또는 $null) · Error
   .EXAMPLE
@@ -238,6 +253,7 @@ function Invoke-QApi {
     [Parameter(Mandatory = $true)][string]$Url,
     $Body = $null,          # 해시테이블 · 객체를 넘기면 JSON 으로 바꿔 보낸다
     $Session = $null,       # 로그인 세션 (Microsoft.PowerShell.Commands.WebRequestSession)
+    [string]$Bearer = '',   # JWT 액세스 토큰 (있으면 Authorization 머리글)
     [int]$TimeoutSec = 30
   )
   $result = [pscustomobject]@{ Status = 0; Ms = 0; Text = ''; Json = $null; Error = '' }
@@ -252,6 +268,7 @@ function Invoke-QApi {
     ErrorAction     = 'Stop'     # 4xx · 5xx 를 catch 로 보내기 위해
   }
   if ($null -ne $Session) { $params.WebSession = $Session }
+  if ($Bearer) { $params.Headers = @{ Authorization = "Bearer $Bearer" } }
   if ($null -ne $Body) {
     $json = $Body | ConvertTo-Json -Depth 10 -Compress
     $params.Body = [System.Text.Encoding]::UTF8.GetBytes($json)
@@ -364,7 +381,11 @@ function Test-QImageStale {
     그래서 Dockerfile 이 COPY 하는 것들(app · public · prompts · alembic · alembic.ini ·
     requirements.txt · Dockerfile)의 마지막 수정 시각과 이미지 생성 시각을 비교한다.
     파일 쪽이 더 새로우면 start.ps1 이 `--build` 를 붙여 다시 만든다(바뀐 층만 다시 만들어 보통 수십 초).
+  .PARAMETER DepsOnly
+    개발 모드용 — requirements.txt · Dockerfile 만 비교한다. 개발 모드는 코드 폴더를 컨테이너에
+    직접 연결하므로 코드가 새로워도 다시 만들 필요가 없고, 설치 패키지가 바뀔 때만 필요하다.
   #>
+  param([switch]$DepsOnly)
   $created = & docker image inspect qurious-app --format '{{.Created}}' 2>$null
   if ($LASTEXITCODE -ne 0 -or -not $created) { return $true }   # 이미지가 아직 없다 → 만들어야 한다
   # 도커는 「2026-09-30T01:52:01.04638633Z」 처럼 소수점 아래 9자리까지 준다. .NET 은 7자리까지만
@@ -372,8 +393,9 @@ function Test-QImageStale {
   $imageUtc = [datetime]::ParseExact(([string]$created).Substring(0, 19), 'yyyy-MM-ddTHH:mm:ss',
     [System.Globalization.CultureInfo]::InvariantCulture,
     [System.Globalization.DateTimeStyles]'AssumeUniversal, AdjustToUniversal')
-  $sources = @('app', 'public', 'prompts', 'alembic', 'alembic.ini', 'requirements.txt', 'Dockerfile') |
-    ForEach-Object { Join-Path $QRoot $_ } | Where-Object { Test-Path $_ }
+  $names = @('app', 'public', 'prompts', 'alembic', 'alembic.ini', 'requirements.txt', 'Dockerfile')
+  if ($DepsOnly) { $names = @('requirements.txt', 'Dockerfile') }
+  $sources = $names | ForEach-Object { Join-Path $QRoot $_ } | Where-Object { Test-Path $_ }
   $newest = Get-ChildItem -Path $sources -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -notmatch '\\__pycache__\\' } |
     Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1

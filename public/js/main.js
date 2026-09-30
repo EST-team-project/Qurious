@@ -17,15 +17,31 @@ import { initTradingViewView, onTradingViewViewActivated } from "/js/tradingview
 import { initFormulaView, onFormulaViewActivated } from "/js/formula.js";
 import { loadUsChart, loadUsDashboard, loadUsPortfolio, renderUsOrders } from "/js/us.js";
 import { initCompletionIndicator } from "/js/completion.js";
+import { onMyPageActivated } from "/js/mypage.js";
 
 // ── Boot ──────────────────────────────────────────────────────────
+// 로그인 화면으로 보내는 것은 **로그인이 풀렸을 때(401)만**이다. 예전에는 아래 어느 줄에서든 오류가 나면
+// 로그인 화면으로 보내서, 화면 초기화 오류 · 서버 재시작 중의 연결 실패도 「로그아웃된 것」 처럼 보였다.
 async function boot() {
+  initCompletionIndicator();
+  let user;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      ({ user } = await getMe());
+      break;
+    } catch (err) {
+      if (err.status === 401) { location.replace("/login.html"); return; }
+      // 연결 실패 · 서버 오류는 한 번만 다시 시도한다(개발 모드에서 앱이 다시 켜지는 몇 초 사이일 수 있다).
+      if (attempt >= 1) { setToast(`내 정보를 불러오지 못했습니다 — 새로고침해 주세요. (${err.message})`, "error"); return; }
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  document.getElementById("user-name").textContent = user.name;
+  const avatar = document.getElementById("user-avatar");
+  if (avatar) avatar.textContent = (user.name || "U").charAt(0).toUpperCase();
+  // 머리글의 이름 · 아바타를 누르면 마이페이지로
+  document.getElementById("gnb-user")?.addEventListener("click", () => navigate("mypage"));
   try {
-    initCompletionIndicator();
-    const { user } = await getMe();
-    document.getElementById("user-name").textContent = user.name;
-    const avatar = document.getElementById("user-avatar");
-    if (avatar) avatar.textContent = (user.name || "U").charAt(0).toUpperCase();
     loadMarketTicker();
     loadSyncStatus();
     setInterval(loadSyncStatus, 60_000);   // refresh sync badge every minute
@@ -35,14 +51,16 @@ async function boot() {
     initFormulaView();                     // 자유 산식 지표 (js/formula.js)
     const hash = location.hash.replace("#", "");
     navigate(hash && document.querySelector(`[data-view="${hash}"]`) ? hash : "agent-chat");
-  } catch {
-    location.href = "/login.html";
+  } catch (err) {
+    console.error(err);
+    setToast(`화면을 준비하다 오류가 났습니다: ${err.message}`, "error");
   }
 }
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await api("/api/auth/logout", { method: "POST" }).catch(() => {});
-  location.href = "/";
+  // replace — 로그아웃 뒤 뒤로가기로 앱 화면 기록이 다시 뜨지 않게
+  location.replace("/login.html");
 });
 
 // ── View Activation ───────────────────────────────────────────────
@@ -51,6 +69,7 @@ function onViewActivated(view) {
   onRebalanceViewActivated(view); // 리밸런싱 엔진 (js/rebalance.js)
   onTradingViewViewActivated(view); // TradingView 연동 (js/tradingview.js)
   onFormulaViewActivated(view); // 자유 산식 지표 (js/formula.js)
+  onMyPageActivated(view);      // 내 계정 — 마이페이지 (js/mypage.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }

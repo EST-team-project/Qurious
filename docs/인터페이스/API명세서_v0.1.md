@@ -126,7 +126,7 @@ flowchart LR
 <!-- api_scan:overview -->
 | 라우터 | 파일 | API | 인증 없음 | 메뉴 화면이 부름 | public/ 에 없음 | 파트(제안) |
 |---|---|---:|---:|---:|---:|---|
-| `auth` | `app/routes/auth.py` | 10 | 4 | 0 | 6 | 공통 10 |
+| `auth` | `app/routes/auth.py` | 14 | 5 | 0 | 4 | 공통 14 |
 | `ingest` | `app/routes/ingest.py` | 12 | 0 | 5 | 7 | P-A 12 |
 | `health` | `app/routes/health.py` | 1 | 1 | 0 | 1 | P-E 1 |
 | `chat` | `app/routes/chat.py` | 2 | 0 | 1 | 1 | P-A 2 |
@@ -148,11 +148,11 @@ flowchart LR
 | `rebalance` | `app/routes/rebalance.py` | 9 | 0 | 3 | 0 | 미배정 9 |
 | `tradingview` | `app/routes/tradingview.py` | 5 | 1 | 3 | 0 | 미배정 5 |
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
-| **합계** | 22개 | **181** | **34** | **92** | **56** | |
+| **합계** | 22개 | **185** | **35** | **92** | **54** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `auth` | · | · | · | · | 3 | 10 | · | · | · | · | · | · | · | · |
+| `auth` | · | · | · | · | 7 | 13 | · | · | · | · | · | · | · | · |
 | `ingest` | · | · | · | · | 9 | 4 | · | 9 | 9 | 4 | · | · | · | 3 |
 | `health` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `chat` | · | · | · | · | 2 | 2 | · | 2 | 2 | 1 | · | · | · | · |
@@ -174,7 +174,7 @@ flowchart LR
 | `rebalance` | 5 | 6 | · | · | 9 | · | · | · | · | · | · | · | · | 6 |
 | `tradingview` | · | 2 | · | · | 4 | 1 | · | · | · | · | 1 | 1 | 1 | 1 |
 | `formula` | 3 | 3 | · | · | 12 | · | · | · | · | · | · | · | · | · |
-| **합계** | **30** | **58** | **7** | **3** | **139** | **26** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **50** |
+| **합계** | **30** | **58** | **7** | **3** | **143** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **50** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -182,6 +182,7 @@ flowchart LR
 | API-AUTH-02 | POST | `/api/auth/login` | PostgreSQL · Redis | (다른 곳) |
 | API-AUTH-04 | POST | `/api/auth/token` | PostgreSQL · Redis | — |
 | API-AUTH-05 | POST | `/api/auth/token/refresh` | Redis | — |
+| API-AUTH-11 | GET | `/api/auth/password-policy` | — | (다른 곳) |
 | API-HLTH-01 | GET | `/api/health` | — | — |
 | API-STK-01 | GET | `/api/stocks/market` | 야후 · PostgreSQL · 라우트 캐시 2h | `quant-dashboard` |
 | API-STK-02 | GET | `/api/stocks/quote` | 야후 | `robo-patterns`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order`, `us-portfolio` |
@@ -215,7 +216,7 @@ flowchart LR
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
-| `400` | 요청 값이 틀림 | 10 | API-AUTH-01, API-STK-12, API-DOC-01, API-DOC-03, API-PAPR-14, API-RBAL-02 외 4 |
+| `400` | 요청 값이 틀림 | 12 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-STK-12, API-DOC-01, API-DOC-03 외 6 |
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 3 | API-AUTH-02, API-AUTH-04, API-AUTH-05 |
 | `403` | 권한 없음 | 2 | API-AUTH-06, API-TV-01 |
@@ -223,7 +224,7 @@ flowchart LR
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 4 | API-STK-24, API-STK-27, API-FRML-05, API-FRML-07 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
-| `422` | 검증 실패 | 21 | API-STK-15, API-STK-18, API-STK-22, API-STK-34, API-STK-30, API-STK-32 외 15 |
+| `422` | 검증 실패 | 25 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 19 |
 | `429` | 호출 한도 초과 | 1 | API-TV-01 |
 | `500` | 서버 내부 오류 | 1 | API-CHAT-01 |
 | `502` | 바깥 서버 실패 | 10 | API-STK-06, API-STK-07, API-STK-19, API-STK-20, API-STK-21, API-STK-22 외 4 |
@@ -261,20 +262,24 @@ flowchart LR
 `main.py` 의 `include_router` 순서다. 칸 뜻은 1.3절.
 
 <!-- api_scan:routes -->
-#### `auth` — `app/routes/auth.py` · 10개
+#### `auth` — `app/routes/auth.py` · 14개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-AUTH-01 | POST | `/api/auth/register` | 없음 | 본문 `RegisterBody` | {ok, user} | 400 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:105 |
-| API-AUTH-02 | POST | `/api/auth/login` | 없음 | 본문 `LoginBody` | {ok, user} | 401 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:144 |
-| API-AUTH-03 | POST | `/api/auth/logout` | 세션 | 쿠키 `fin_session` | {ok} | — | Redis | (다른 곳) | 공통 | — | auth.py:172 |
-| API-AUTH-04 | POST | `/api/auth/token` | 없음 | 본문 `LoginBody` | 모델 없음 | 401 · 503 | PostgreSQL · Redis | — | 공통 | — | auth.py:187 |
-| API-AUTH-05 | POST | `/api/auth/token/refresh` | 없음 | 본문 `TokenRefreshBody` | {access_token, token_type, expires_in} | 401 | Redis | — | 공통 | — | auth.py:214 |
-| API-AUTH-06 | POST | `/api/auth/token/revoke` | 세션·JWT | 본문 `TokenRevokeBody` | {ok, revoked} | 403 | Redis | — | 공통 | — | auth.py:237 |
-| API-AUTH-07 | GET | `/api/me` | 세션·JWT | — | {user, state} | — | Redis | (다른 곳) | 공통 | — | auth.py:278 |
-| API-AUTH-08 | GET | `/api/sessions` | 세션·JWT | — | {sessions, count} | — | Redis | — | 공통 | — | auth.py:298 |
-| API-AUTH-09 | DELETE | `/api/sessions/{sid}` | 세션·JWT | `{sid}` | {ok} | 404 | Redis | — | 공통 | — | auth.py:305 |
-| API-AUTH-10 | DELETE | `/api/sessions` | 세션·JWT + 역할(admin·user) | — | {ok, revoked} | — | Redis | — | 공통 | — | auth.py:318 |
+| API-AUTH-01 | POST | `/api/auth/register` | 없음 | 본문 `RegisterBody` | {ok, user} | 400 · 422 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:149 |
+| API-AUTH-02 | POST | `/api/auth/login` | 없음 | 본문 `LoginBody` | {ok, user} | 401 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:194 |
+| API-AUTH-03 | POST | `/api/auth/logout` | 세션 | 쿠키 `fin_session` | {ok} | — | Redis | (다른 곳) | 공통 | — | auth.py:219 |
+| API-AUTH-04 | POST | `/api/auth/token` | 없음 | 본문 `LoginBody` | 모델 없음 | 401 · 503 | PostgreSQL · Redis | — | 공통 | — | auth.py:234 |
+| API-AUTH-05 | POST | `/api/auth/token/refresh` | 없음 | 본문 `TokenRefreshBody` | {access_token, token_type, expires_in} | 401 | Redis | — | 공통 | — | auth.py:261 |
+| API-AUTH-06 | POST | `/api/auth/token/revoke` | 세션·JWT | 본문 `TokenRevokeBody` | {ok, revoked} | 403 | Redis | — | 공통 | — | auth.py:284 |
+| API-AUTH-07 | GET | `/api/me` | 세션·JWT | — | {user, state} | — | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:325 |
+| API-AUTH-08 | GET | `/api/sessions` | 세션·JWT | — | {sessions, count} | — | Redis | (다른 곳) | 공통 | — | auth.py:352 |
+| API-AUTH-09 | DELETE | `/api/sessions/{sid}` | 세션·JWT | `{sid}` | {ok} | 404 | Redis | — | 공통 | — | auth.py:359 |
+| API-AUTH-10 | DELETE | `/api/sessions` | 세션·JWT + 역할(admin·user) | — | {ok, revoked} | — | Redis | (다른 곳) | 공통 | — | auth.py:372 |
+| API-AUTH-11 | GET | `/api/auth/password-policy` | 없음 | — | 모델 없음 | — | — | (다른 곳) | 공통 | — | auth.py:385 |
+| API-AUTH-12 | PATCH | `/api/me` | 세션·JWT | 본문 `ProfileUpdateBody` | {ok, user} | 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:391 |
+| API-AUTH-13 | PUT | `/api/me/password` | 세션·JWT | 본문 `PasswordChangeBody` · 쿠키 `fin_session` | {ok, other_sessions_revoked} | 400 · 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:414 |
+| API-AUTH-14 | DELETE | `/api/me` | 세션·JWT | 본문 `AccountDeleteBody` | {ok, deleted} | 400 · 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:447 |
 
 #### `ingest` — `app/routes/ingest.py` · 12개
 
@@ -563,6 +568,7 @@ flowchart LR
 <!-- api_scan:models -->
 | 모델 | 칸 (타입 = 기본값) | 쓰는 API |
 |---|---|---|
+| `AccountDeleteBody` | `password: str` · `confirm: str` = `''` | API-AUTH-14 |
 | `AdhocComputeBody` | — | API-FRML-03 |
 | `AlpacaTestBody` | `api_key: str` = `''` · `secret_key: str` = `''` | API-PAPR-31, API-PAPR-32 |
 | `AltOrderBody` | `symbol: str` · `side: str` · `quantity: int` = `Field(..., ge=1)` | API-PAPR-26, API-PAPR-27 |
@@ -594,9 +600,11 @@ flowchart LR
 | `NotificationSettingsBody` | `channels: list[str]` = `Field(default_factory=list, description='활성화할 채널 목록')` · `telegram_token: str` = `''` · `telegram_chat_id: str` = `''` · `slack_webhook_url: str` = `''` · `email_to: str` = `''` · `email_host: str` = `''` · `email_port: int` = `Field(default=587, ge=1, le=65535)` · `email_user: str` = `''` · `email_password: str` = `''` · `email_from: str` = `''` · `kakao_api_key: str` = `''` · `kakao_api_secret: str` = `''` · `kakao_sender_key: str` = `''` · `kakao_phone: str` = `''` · `sms_api_key: str` = `''` · `sms_api_secret: str` = `''` · `sms_from: str` = `''` · `sms_to: str` = `''` | API-NOTI-02 |
 | `OpenApiOrderBody` | `symbol: str` · `side: str` = `Field(..., description='BUY \| SELL')` · `quantity: int` = `Field(..., ge=1)` | API-OAPI-05 |
 | `OrderBody` | `symbol: str` · `name: str` · `order_type: str` · `quantity: int` · `price: float` · `broker: str` = `'virtual'` | API-STK-12 |
+| `PasswordChangeBody` | `current_password: str` · `new_password: str` | API-AUTH-13 |
 | `PlanBody` | `name: str \| None` = `None` · `is_active: bool \| None` = `None` · `targets: list[TargetBody] \| None` = `None` · `time_period: str \| None` = `Field(None, description='none \| monthly \| quarterly \| yearly')` · `drift_enabled: bool \| None` = `None` · `drift_threshold_pct: float \| None` = `None` · `cashflow_enabled: bool \| None` = `None` · `cashflow_min_amount: float \| None` = `None` · `auto_execute: bool \| None` = `None` · `min_order_amount: float \| None` = `None` | API-RBAL-02 |
+| `ProfileUpdateBody` | `name: str` | API-AUTH-12 |
 | `QuantSettingsBody` | `mode: str` = `Field(default='paper', description='paper \| live')` · `broker: str` = `DEFAULT_BROKER` · `app_key: str` = `''` · `app_secret: str` = `''` · `account_no: str` = `''` · `symbol_source: str` = `Field(default='ai', description='ai \| manual')` · `selected_symbols: list[str]` = `Field(default_factory=list)` · `ai_top_n: int` = `Field(default=3, ge=1, le=5)` · `per_trade_budget: float` = `Field(default=1000000, ge=10000, le=10000000)` · `buy_ratio: float` = `Field(default=1.0, ge=0.1, le=1.0)` · `sell_ratio: float` = `Field(default=0.5, ge=0.1, le=1.0)` · `risk_daily_loss_limit_pct: float` = `Field(default=3.0, ge=0, le=50, description='0이면 비활성')` · `risk_max_position_pct: float` = `Field(default=30.0, ge=0, le=100, description='0이면 비활성')` · `risk_max_orders_per_day: int` = `Field(default=20, ge=0, le=500, description='0이면 비활성')` · `risk_cooldown_min: int` = `Field(default=30, ge=0, le=1440, description='0이면 비활성')` | API-STK-18 |
-| `RegisterBody` | `name: str` · `email: EmailStr` · `password: str` | API-AUTH-01 |
+| `RegisterBody` | `name: str` · `email: str` · `password: str` | API-AUTH-01 |
 | `RiskProfileBody` | `answers: dict[str, int]` | API-ML-08 |
 | `RoboAllocationBody` | `risk_profile: str` = `'moderate'` · `horizon_years: int` = `3` · `amount_manwon: int` = `5000` | API-ML-04 |
 | `SaveBody` | `name: str` = `Field(..., min_length=1, max_length=60)` · `description: str` = `Field('', max_length=300)` · `note: str` = `Field('', max_length=200, description='버전 메모')` | API-FRML-05, API-FRML-07 |

@@ -180,3 +180,7 @@ API-FRML-10	POST	/api/formula-indicators/{ind_id}/versions/{version}/restore	202
 API-FRML-11	POST	/api/formula-indicators/{ind_id}/compute	2026-09-30	사용
 API-FRML-12	GET	/api/formula-indicators/{ind_id}/results	2026-09-30	사용
 API-FRML-13	GET	/api/formula-indicators/{ind_id}/export	2026-09-30	사용
+API-AUTH-11	GET	/api/auth/password-policy	2026-09-30	사용
+API-AUTH-12	PATCH	/api/me	2026-09-30	사용
+API-AUTH-13	PUT	/api/me/password	2026-09-30	사용
+API-AUTH-14	DELETE	/api/me	2026-09-30	사용

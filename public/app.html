@@ -51,7 +51,7 @@
       <span class="sync-dot"></span>
       <span id="sync-badge-text">오프라인</span>
     </div>
-    <div class="gnb-user">
+    <div class="gnb-user" id="gnb-user" role="button" tabindex="0" title="내 정보 (마이페이지)" style="cursor:pointer;">
       <div class="gnb-avatar" id="user-avatar">U</div>
       <span id="user-name" style="font-size:14px; color:var(--text-dim);"></span>
     </div>
@@ -79,6 +79,7 @@
   <nav class="lnb-nav">
     <div class="lnb-item" data-gnb="finance"><i class="fa-solid fa-coins"></i><span>금융 지식</span></div>
     <div class="lnb-item" data-gnb="sysadmin"><i class="fa-solid fa-gear"></i><span>시스템</span></div>
+    <div class="lnb-item" data-gnb="account"><i class="fa-solid fa-user-gear"></i><span>내 계정</span></div>
   </nav>
 </aside>
 
@@ -775,6 +776,61 @@
     </div>
 
     <!-- 4-5. 알림 설정 -->
+    <!-- ══ 내 계정 — 마이페이지 (2026-09-30) · 동작 js/mypage.js · API app/routes/auth.py 「계정 관리」 절 ══ -->
+    <div class="view" data-view="mypage">
+      <div class="space-y-4">
+        <div class="card space-y-3">
+          <h2 class="text-lg font-semibold">👤 내 정보</h2>
+          <dl class="grid md:grid-cols-2 gap-3 text-sm">
+            <div><dt class="text-xs text-slate-400">이름</dt><dd id="mp-name" class="mt-1">-</dd></div>
+            <div><dt class="text-xs text-slate-400">이메일 (로그인 ID · 대소문자 구분 없음 · 바꿀 수 없음)</dt><dd id="mp-email" class="mt-1">-</dd></div>
+            <div><dt class="text-xs text-slate-400">가입일</dt><dd id="mp-created" class="mt-1">-</dd></div>
+            <div><dt class="text-xs text-slate-400">역할</dt><dd id="mp-roles" class="mt-1">-</dd></div>
+          </dl>
+        </div>
+
+        <div class="card space-y-3">
+          <h3 class="text-base font-semibold">이름 바꾸기</h3>
+          <form id="mp-name-form" class="flex flex-col md:flex-row gap-2">
+            <input id="mp-name-input" class="input flex-1" maxlength="50" required placeholder="새 이름 (50자 이하)" />
+            <button type="submit" class="btn-primary">저장</button>
+          </form>
+        </div>
+
+        <div class="card space-y-3">
+          <h3 class="text-base font-semibold">비밀번호 바꾸기</h3>
+          <p class="text-xs text-slate-400">현재 비밀번호를 다시 확인합니다. 바꾸면 <b>이 기기를 뺀 다른 기기는 모두 로그아웃</b>됩니다.</p>
+          <ul id="mp-pw-rules" class="text-xs text-slate-400 list-disc pl-5"></ul>
+          <form id="mp-pw-form" class="grid md:grid-cols-3 gap-2">
+            <input id="mp-pw-current" type="password" class="input" placeholder="현재 비밀번호" autocomplete="current-password" required />
+            <input id="mp-pw-new" type="password" class="input" placeholder="새 비밀번호" autocomplete="new-password" required />
+            <input id="mp-pw-new2" type="password" class="input" placeholder="새 비밀번호 확인" autocomplete="new-password" required />
+            <button type="submit" class="btn-primary md:col-span-3">비밀번호 바꾸기</button>
+          </form>
+        </div>
+
+        <div class="card space-y-3">
+          <h3 class="text-base font-semibold">로그인된 기기</h3>
+          <p id="mp-sessions" class="text-sm">-</p>
+          <button id="mp-logout-all" class="btn-secondary">모든 기기에서 로그아웃</button>
+        </div>
+
+        <div class="card space-y-3" style="border:1px solid var(--red);">
+          <h3 class="text-base font-semibold" style="color:var(--red);">회원 탈퇴</h3>
+          <ul class="text-xs text-slate-400 list-disc pl-5">
+            <li>모의투자 · 자동매매 장부, 주문 · 체결 기록, 리밸런싱 계획, 저장한 지표, 증권사 · 알림 설정, API 키가 <b>즉시 모두 삭제</b>되며 되돌릴 수 없습니다.</li>
+            <li>감사 기록은 누구였는지 지운 채 남습니다(무슨 일이 있었는지만).</li>
+            <li>같은 이메일로 다시 가입할 수 있습니다 — 빈 장부의 새 계정이 됩니다.</li>
+          </ul>
+          <form id="mp-delete-form" class="grid md:grid-cols-3 gap-2">
+            <input id="mp-del-pw" type="password" class="input" placeholder="현재 비밀번호" autocomplete="current-password" required />
+            <input id="mp-del-confirm" class="input" placeholder="확인: 탈퇴 라고 입력" required />
+            <button type="submit" class="btn-red">탈퇴하기</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <div class="view" data-view="notification-settings">
       <div class="card space-y-6">
         <div>

@@ -112,6 +112,13 @@ const GNB_MENUS = {
       { key: "sysadmin-logs",      icon: "fa-solid fa-scroll",      label: "감사 로그" },
     ],
   },
+  // 내 계정 (2026-09-30) — 더보기 메뉴의 「내 계정」 · 머리글의 이름을 눌러도 온다(js/main.js · js/mypage.js)
+  account: {
+    label: "<i class='fa-solid fa-user-gear'></i> 내 계정",
+    items: [
+      { key: "mypage", icon: "fa-solid fa-id-card", label: "내 정보 (마이페이지)" },
+    ],
+  },
 };
 
 // ── 용어 글로서리 (용어 설명 모달에서 사용) ──────────────────────────
@@ -228,6 +235,7 @@ const VIEW_GUIDES = {
   "quant-seasonal":  { summary: "월별·요일별·연말 계절성 효과를 데이터로 검증합니다.", steps: ["종목·기간을 선택해 '분석 실행'을 누르세요.", "월별/요일별 막대그래프와 연말 랠리 효과를 확인하세요."], relatedTerms: ["seasonality"] },
   "sysadmin-dashboard": { summary: "서버 자원(CPU/메모리/디스크)과 연동 서비스 상태를 모니터링합니다.", steps: ["호스트/서비스/컨테이너 카드에서 이상 여부를 확인하세요.", "응답이 느리거나 실패로 표시되면 해당 서비스(Ollama/Qdrant/Redis) 상태를 점검하세요."], relatedTerms: ["qdrant"] },
   "sysadmin-logs":   { summary: "주문·설정 변경 등 주요 이벤트의 감사 로그를 조회합니다.", steps: ["이벤트 유형·기간으로 필터링해 이력을 확인하세요.", "이상 거래나 설정 변경 원인을 추적할 때 활용하세요."], relatedTerms: ["audit_log"] },
+  "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴합니다.", steps: ["이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
 };
 
 // ── 용어 모달 / 툴팁 / 사용법 패널 헬퍼 ─────────────────────────────
