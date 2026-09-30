@@ -710,6 +710,52 @@ erDiagram
     _ 외4칸
   }
 ```
+
+**앱 DB — 용어사전 · 5표 · 관계 3개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
+
+```mermaid
+erDiagram
+  glossary_aliases {
+    VARCHAR_120 alias_norm PK
+    VARCHAR_60 term_id FK
+    VARCHAR_120 alias
+    VARCHAR_12 kind
+  }
+  glossary_categories {
+    VARCHAR_20 code PK
+    VARCHAR_40 name
+    VARCHAR_200 description
+    INTEGER sort_order
+  }
+  glossary_loads {
+    INTEGER id PK
+    VARCHAR_64 checksum
+    VARCHAR_64 rows_checksum
+    INTEGER format_version
+    INTEGER term_count
+    _ 외5칸
+  }
+  glossary_sources {
+    VARCHAR_20 code PK
+    VARCHAR_100 title
+    VARCHAR_200 origin
+    VARCHAR_300 paths
+    INTEGER sort_order
+  }
+  glossary_terms {
+    VARCHAR_60 id PK
+    VARCHAR_20 category_code FK
+    VARCHAR_20 lead_source_code FK
+    VARCHAR_80 term
+    VARCHAR_120 english
+    VARCHAR_60 hanja
+    TEXT summary
+    _ 외12칸
+  }
+  glossary_terms ||--o{ glossary_aliases : "term_id"
+  glossary_categories ||--o{ glossary_terms : "category_code"
+  glossary_sources ||--o{ glossary_terms : "lead_source_code"
+```
 <!-- /schema_scan:erd-앱 -->
 
 참조·캐시 영역의 다섯 표는 외래키가 없다 — 사용자와 상관없이 파일 적재나 외부 조회로 채워진다.
@@ -834,6 +880,7 @@ python scripts/schema_scan.py --doc docs/데이터/ERD_v1.2.md --check   # 뒤�
 | 날짜 | 종류 | 무엇 | 옮길 곳 | 근거 |
 |---|---|---|---|---|
 | 2026-09-30 | 추가 | **강사님 기초 코드(lumina-invest `b055ab0`) 반영 — 앱 DB 표 8개 · 칸이 늘었다.** 리밸런싱 셋(`rebalance_plans` · `rebalance_runs` · `cashflow_events`) · TradingView 둘(`webhook_signals` · `strategy_comparisons`) · 수식 지표 셋(`formula_indicators` · `_versions` · `_results`) · `portfolio.book`(장부 PAPER · QUANT · 유일 제약이 사용자 · 종목 · 장부로) · `broker_settings` 위험 한도 칸 여섯 · `quant_auto_enabled`. 스캐너가 만든 그림 · 표는 이미 다시 채웠다 — 손으로 쓴 숫자(앱 DB 표 수 · 업무 영역별 표 수)와 장부 설명(자동매매 = `quant_virtual_accounts` + `book=QUANT`)은 v1.3 에서 | 요약 · 4.1절 · 표 3 | 마이그레이션 `0004`~`0009`(강사님 원본 `0003`~`0008` 을 우리 `0003_trading_cost` 뒤로 옮김) · 빈 DB 에 head 까지 올라감 · alembic 대조는 알려진 4곳 그대로 |
+| 2026-09-30 | 추가 | **용어사전 — 앱 DB 표 5개(34 → 39) · 새 업무 영역 「용어사전」.** `glossary_categories`(분류) · `glossary_sources`(자료 원천) · `glossary_terms`(용어) · `glossary_aliases`(이름 → 용어 · 대표 이름도 여기에) · `glossary_loads`(적재 이력). 이 표들은 **파일의 사본**이다 — 원본은 `app/services/glossary_data/terms.json` 이고 앱이 켜질 때 넣을 내용이 마지막 적재와 다를 때만 표를 파일과 같게 맞춘다. 그래서 사용자 데이터를 이 표에 두지 않는다(즐겨찾기 등은 `glossary_terms.id` 를 가리키는 다른 표에). 영역별 그림 · 표는 스캐너가 이미 다시 채웠다 — 손으로 쓴 숫자(앱 DB 표 수 · 업무 영역 수)와 「파일이 원본인 표」 라는 새 유형의 설명은 v1.3 에서 | 요약 · 4.1절 · 표 3 · 데이터 흐름 그림(용어 파일 → 표) | 마이그레이션 `0011`(표만 만들고 용어는 넣지 않는다) · [용어사전 설계서 v0.1](../설계/용어사전-설계_v0.1.md) 3절 · 시험 TC-GL-14 · 17 ~ 19 |
 
 ## 부록 D. 개정 이력
 

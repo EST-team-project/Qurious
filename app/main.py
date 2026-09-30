@@ -51,6 +51,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[WARN] PostgreSQL 연결 실패 (인증 비활성): {e}")
     try:
+        # 용어사전(2026-09-30) — 넣을 내용(용어 파일 · 검색용 칸)이 마지막 적재와 다를 때만 표에 다시 넣는다.
+        # 실패해도 앱은 켠다: 용어 API 만 빈다. 화면의 용어 설명창은 자바스크립트 상수(js/core.js 의 TERMS)를 쓰므로 그대로 뜬다.
+        from app.services.glossary import ensure_loaded_on_startup
+        info = await ensure_loaded_on_startup()
+        print(f"[fin-agent] 용어사전 {info['status']} — 용어 {info['terms']} · 이름 {info['aliases']} · 판 {info['checksum'][:12]}")
+    except Exception as e:
+        print(f"[WARN] 용어사전 적재 실패 (용어 API 가 빈다): {e}")
+    try:
         await connect_neo4j()
         await ensure_graph_schema()
         await seed_graph()
@@ -106,6 +114,9 @@ app.include_router(tradingview_routes.router)
 # 자유 산식 커스텀 지표 (DSL · 버전 · 결과 저장)
 from app.routes import formula as formula_routes  # noqa: E402
 app.include_router(formula_routes.router)
+# 용어사전 (검색 · 분류 · 용어 한 건 — 로그인 없이 읽는다)
+from app.routes import glossary as glossary_routes  # noqa: E402
+app.include_router(glossary_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")

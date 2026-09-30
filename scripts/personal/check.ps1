@@ -20,6 +20,7 @@
     시세     국내 일봉(수집 DB) · 지표 · 현재가 · 차트 패턴 · 다중 시간대 신호 · 지수
     전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
     로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
+    용어     용어사전의 판(표가 파일과 같은가) · 분류 · 검색(약어 · 초성) · 화면 키로 한 건 · 없는 이름은 404
     매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
     연동     TradingView 웹훅 안내 · 알림 설정
     시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결
@@ -213,6 +214,36 @@ $Checks = @(
   @{ G = '로보'; Name = '목표 달성 확률 (몬테카를로 500회)'; M = 'POST'; P = '/api/ml/robo/goal-simulation'; Auth = $true
      Body = @{ amount_manwon = 5000; horizon_years = 3; target_return_pct = 8.0; n_paths = 500 }
      Test = { param($r) Pass "목표 달성 확률 $($r.Json.probability_pct)% · 손실 확률 $($r.Json.loss_probability_pct)%" } }
+
+  # ── 용어사전 ────────────────────────────────────────────────────────────────
+  # 로그인 없이 읽는 참조 자료다(Auth = $false). 용어는 파일(app\services\glossary_data\terms.json)이 원본이고
+  # 앱이 켜질 때 표에 넣는다 — 첫 점검이 「표가 지금 파일과 같은 판인가」 를 본다.
+  @{ G = '용어'; Name = '용어사전의 판 — 표가 파일과 같은가'; M = 'GET'; P = '/api/glossary/meta'; Auth = $false
+     Test = { param($r)
+       if (-not $r.Json.loaded) { return (Fail '표가 비어 있다 — 앱 로그(logs.ps1)에서 「용어사전」 줄을 본다') }
+       $state.glossary_terms = [int]$r.Json.terms
+       $msg = "용어 $(N0 $r.Json.terms) · 이름 $(N0 $r.Json.aliases) · 판 $("$($r.Json.checksum)".Substring(0, 12))"
+       if ($r.Json.in_sync) { Pass $msg } else { Warn "$msg — 표가 지금 파일과 다르다. 앱을 다시 켜면 맞춰진다" } } }
+  @{ G = '용어'; Name = '분류와 분류마다의 용어 수'; M = 'GET'; P = '/api/glossary/categories'; Auth = $false; Needs = 'glossary_terms'
+     Test = { param($r)
+       $n = Count $r.Json.categories
+       if ($n -lt 5) { return (Fail "분류가 $n 개뿐이다") }
+       if ([int]$r.Json.total_terms -ne $state.glossary_terms) { return (Fail "분류별 합 $($r.Json.total_terms) 이 용어 수 $($state.glossary_terms) 와 다르다") }
+       Pass "분류 $n 개 · 합 $(N0 $r.Json.total_terms) 용어 · 가장 많은 분류 $(@($r.Json.categories | Sort-Object terms -Descending)[0].name)" } }
+  @{ G = '용어'; Name = '검색 — 약어 (정확히 같은 이름이 맨 위)'; M = 'GET'; P = '/api/glossary?q=PER&limit=5'; Auth = $false
+     Test = { param($r)
+       $top = @($r.Json.items)[0]
+       if ($top.id -eq 'per') { Pass "$($r.Json.total) 건 · 맨 위 $($top.term) — $($top.summary)" } else { Fail "맨 위가 PER 이 아니다: $($top.term)" } } }
+  @{ G = '용어'; Name = '검색 — 초성 (ㅅㄱㅊㅇ)'; M = 'GET'; P = '/api/glossary?q=ㅅㄱㅊㅇ'; Auth = $false
+     Test = { param($r)
+       $top = @($r.Json.items)[0]
+       if ($top.term -eq '시가총액') { Pass "$($top.term) · 맞은 곳 $($top.match)" } else { Fail "시가총액이 나오지 않았다 (결과 $($r.Json.total) 건)" } } }
+  @{ G = '용어'; Name = '용어 한 건 — 화면의 용어 키(sharpe)로'; M = 'GET'; P = '/api/glossary/sharpe'; Auth = $false
+     Test = { param($r)
+       if ($r.Json.matched.kind -ne '화면 키') { return (Fail "화면 키로 찾지 못했다: $($r.Json.matched.kind)") }
+       Pass "$($r.Json.term) ($($r.Json.english)) · 분류 $($r.Json.category.name) · 자료 $(Count $r.Json.sources) 곳 · 다른 이름 $(Count $r.Json.aliases) 개" } }
+  @{ G = '용어'; Name = '없는 용어는 404'; M = 'GET'; P = '/api/glossary/없는용어'; Auth = $false; Expect = 404
+     Test = { param($r) Pass "404 — $($r.Json.detail)" } }
 
   # ── 매매: 모의투자 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 ─────────────────
   @{ G = '매매'; Name = '모의투자 잔고'; M = 'GET'; P = '/api/paper/account'; Auth = $true

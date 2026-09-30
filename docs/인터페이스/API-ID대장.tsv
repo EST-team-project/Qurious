@@ -184,3 +184,7 @@ API-AUTH-11	GET	/api/auth/password-policy	2026-09-30	사용
 API-AUTH-12	PATCH	/api/me	2026-09-30	사용
 API-AUTH-13	PUT	/api/me/password	2026-09-30	사용
 API-AUTH-14	DELETE	/api/me	2026-09-30	사용
+API-GLOS-01	GET	/api/glossary	2026-09-30	사용
+API-GLOS-02	GET	/api/glossary/categories	2026-09-30	사용
+API-GLOS-03	GET	/api/glossary/meta	2026-09-30	사용
+API-GLOS-04	GET	/api/glossary/{name}	2026-09-30	사용

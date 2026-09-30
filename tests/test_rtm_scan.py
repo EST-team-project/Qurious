@@ -170,3 +170,35 @@ def test_rt11_실제_대장은_정한_형식이고_탐지_규칙의_요구가_�
     문제, _ = rtm_scan.시험대장_점검(짝들, {q["요구ID"] for q in 요구들}, 적힌_파일)
     assert 문제 == []
     assert set(rtm_scan.탐지_패턴) <= {q["요구ID"] for q in 요구들}
+    # 흔적을 한정하는 줄이 낡지 않았다 — 파일 이름이 바뀌면 규칙이 말없이 꺼지고 거짓 흔적이 되살아난다
+    for 경로, 한정 in rtm_scan.흔적_한정.items():
+        assert (rtm_scan.ROOT / 경로).is_file(), f"흔적_한정 이 없는 파일을 가리킨다: {경로}"
+        assert 한정 <= set(rtm_scan.탐지_패턴), f"흔적_한정 이 탐지 규칙에 없는 요구를 적었다: {경로}"
+
+
+def test_rt12_이름을_자료로_든_파일은_적힌_요구의_흔적으로만_센다(tmp_path, monkeypatch):
+    """옛 코드(한정 없음)로는 실패한다 — 용어 분류표 한 줄이 「지표」 요구의 흔적으로 잡혔다.
+
+    용어사전 빌드 스크립트는 화면 용어 키(`rsi` · `sharpe` · `backtest` …)의 분류표를 코드 줄로 들고 있다.
+    그 파일을 더한 날 요구 20개의 흔적이 한 파일씩 늘었다(2026-09-30). 자기 요구(용어사전)의 흔적은 그대로 센다.
+    """
+    (tmp_path / "scripts").mkdir()
+    표 = tmp_path / "scripts" / "glossary_build.py"
+    표.write_text('CATEGORY = {"rsi": "technical", "sharpe": "quant"}\nOUT = "glossary_data"\n', encoding="utf-8")
+    계산 = tmp_path / "calc.py"
+    계산.write_text("def rsi(x):\n    return x\n", encoding="utf-8")
+    monkeypatch.setattr(rtm_scan, "ROOT", tmp_path)
+    규칙 = {"용어": [r"glossary"], "지표": [r"\brsi\b"]}
+
+    monkeypatch.setattr(rtm_scan, "흔적_한정", {"scripts/glossary_build.py": {"용어"}})
+    out = rtm_scan.흔적_스캔(규칙, [표, 계산])
+    assert out["용어"]["파일수"] == 1                                   # (보존 확인) 자기 요구의 흔적은 그대로
+    assert [경로 for 경로, _ in out["지표"]["상위"]] == ["calc.py"]        # 분류표 줄은 「지표」 의 흔적이 아니다
+
+    # 빈 집합 = 어느 요구의 흔적으로도 세지 않는다
+    monkeypatch.setattr(rtm_scan, "흔적_한정", {"scripts/glossary_build.py": set()})
+    assert rtm_scan.흔적_스캔(규칙, [표, 계산])["용어"]["파일수"] == 0
+
+    # (보존 확인) 한정이 없는 파일은 예전처럼 모든 요구에 센다
+    monkeypatch.setattr(rtm_scan, "흔적_한정", {})
+    assert rtm_scan.흔적_스캔(규칙, [표, 계산])["지표"]["파일수"] == 2

@@ -2,14 +2,14 @@
 TC-LT	tests/test_live_trading_guard.py	RFP2-4.2-①	🟢	실거래 승인 없이는 증권사 주문이 실계좌로 나가지 않는다(인수 시험 6건 포함)
 TC-LT	tests/test_live_trading_guard.py	P02-⑤-1	🟢	모든 증권사 호출이 실거래 차단 지점을 지난다
 TC-LT	tests/test_live_trading_guard.py	P01-④-3	🟡	모의 주문이 모의 경로로 처리된다 — 장부의 맞음은 TC-I14 가 본다
-TC-YH	tests/test_no_yahoo_regression.py	RFP2-3.2-①	🟡	야후 참조가 기준선(9파일 71줄)보다 늘지 않는다 — 이용 조건을 지키는 출처만 늘린다
+TC-YH	tests/test_no_yahoo_regression.py	RFP2-3.2-①	🟡	야후 참조가 기준선(2026-09-30 기준 13파일 75줄 · 그중 2줄은 스캐너의 찾는 코드)보다 늘지 않는다 — 이용 조건을 지키는 출처만 늘린다
 TC-YH	tests/test_no_yahoo_regression.py	P02-④-1	🟡	LEAN 의 야후 경로가 더 번지지 않게 막는다 — 같은 데이터 조건의 전제일 뿐 조건 자체는 재지 않는다
 TC-DS	tests/test_discussion_scan.py	—	—	논의 답글까지 센다 — 프로젝트 운영 도구
 TC-DU	tests/test_daily_update.py	P01-①-4	🟢	일일 갱신 러너의 새 자료 판정 · 잠금 · 예약 · 단계 판정
 TC-DU	tests/test_daily_update.py	P01-①-2	🟡	수집 단계를 차례로 돌리고 실패를 가린다
 TC-DU	tests/test_daily_update.py	P02-⑤-3	🟡	정한 일정에 돌고 로그 · 상태를 남긴다 — 수집기 작업이지 전략 실행이 아니다
 TC-I14	tests/test_paper_ledger_i14.py	P01-④-3	🟢	자동매매는 자기 장부(QUANT)만 쓰고 모의투자 총자산은 그대로 · 두 장부 모두 총자산 = 초기 현금 − 거래비용 · 다른 장부의 보유는 팔 수 없다
-TC-CE	tests/test_console_encoding.py	P01-①-4	🟡	사람이 돌리는 수집기 · 운영 명령 15곳이 사용자 셸(cp949)에서 죽지 않는다
+TC-CE	tests/test_console_encoding.py	P01-①-4	🟡	사람이 돌리는 수집기 · 운영 명령(2026-09-30 기준 18곳)이 사용자 셸(cp949)에서 죽지 않는다
 TC-PC	tests/test_post_check.py	—	—	GitHub 글 올리기 전 검사 — 프로젝트 운영 도구
 TC-A1	tests/test_quote_change_a1.py	P01-①-2	🟢	시세 조회 응답이 등락률을 채우고, 모르면 0 이 아니라 비운다
 TC-CD	tests/test_collector_candles_df08.py	P01-①-2	🟢	국내 주식 일봉을 수집 DB 에서 기준일(as_of)과 함께 돌려준다
@@ -42,3 +42,6 @@ TC-TV	tests/test_tradingview.py	P02-③-2	🟡	Strategy Tester 거래 목록 CSV
 TC-TV	tests/test_tradingview.py	P02-④-3	🟡	TradingView 와 LEAN 성과 차이를 판정한다 — 신호 · 체결 · 비용 층으로 나누지는 않는다
 TC-XA	tests/test_xai.py	P01-①-5	🟢	LightGBM 기여도로 예측 근거 문장을 만든다(lightgbm 이 없으면 건너뜀)
 TC-AC	tests/test_account_crud.py	—	—	계정 관리(가입 · 로그인 · 이름 · 비밀번호 바꾸기 · 탈퇴) — 요구 밖 기능(2026-09-30 팀장 요청) · 요구로 올릴지는 팀 결정
+TC-GL	tests/test_glossary.py	P01-①-1	🟡	화면 용어 키 · 이름 · 약어 · 초성으로 용어를 찾아 뜻 한 줄 · 자세한 뜻을 돌려주고, 용어 파일이 표에 같은 판으로 들어간다 — 서버 쪽만 잰다 · 화면 연결과 연관 용어는 아직 없다
+TC-GL	tests/test_glossary.py	RFP2-3.2-③	🟡	용어 파일을 다시 빌드하면 한 글자도 다르지 않다 — 체크섬이 흔들리지 않는다
+TC-RL	tests/test_raglab_scan.py	RFP2-3.2-④	🟡	통합본 반입 폴더가 대장과 같고, 그 화면 · API 가 빠짐없이 기능 묶음 하나에 든다 — 옮겨 놓은 코드를 구현으로 세지 않는다

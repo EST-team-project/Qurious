@@ -35,6 +35,12 @@ data/local-run/
 #   ⚠️ `git check-ignore -v` 로 판정하지 말 것 — 슬래시를 붙이면 빈 줄에 가짜 매치가 나
 #      exit 0 을 준다. 판정은 `git status --short` 로 한다.
 data/hf_export/
+# 통합본(rag-lab/)의 화면 표시용 시세 자료 셋 — 네이버 · 토스증권 · 야후에서 모은 값이라 커밋하지 않는다.
+#   비공개 데이터셋에 두고 필요한 사람이 받는다: python scripts/raglab_data.py pull
+#   (반입 대장 docs/설계/통합본-반입대장.tsv 의 「HF 보관」 줄 · 검사 scripts/raglab_scan.py --check)
+rag-lab/frontend/days/assets/etf-catalog.json
+rag-lab/frontend/days/assets/leverage-etf-volume.json
+rag-lab/frontend/analysis/data/samsung-cup-with-handle-2025.json
 
 
 # OS

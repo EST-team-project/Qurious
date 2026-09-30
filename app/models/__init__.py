@@ -38,6 +38,8 @@ from app.models.reference import (
     FundProduct,
     DataCache,
 )
+# 용어사전 (2026-09-30) — 파일(app/services/glossary_data/terms.json)의 사본. 표 다섯.
+from app.models.glossary import GlossaryCategory, GlossarySource, GlossaryTerm, GlossaryAlias, GlossaryLoad
 
 __all__ = [
     "Base",
@@ -79,4 +81,9 @@ __all__ = [
     "BankProduct",
     "FundProduct",
     "DataCache",
+    "GlossaryCategory",
+    "GlossarySource",
+    "GlossaryTerm",
+    "GlossaryAlias",
+    "GlossaryLoad",
 ]
