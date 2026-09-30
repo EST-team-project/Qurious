@@ -51,9 +51,11 @@ docs/github-archive/
 │   ├── PR-docs-writing-standard-v0-1/  00-본문.md  (#55)
 │   ├── PR-docs-erd-dictionary-v1-2/    00-본문.md  (#56)
 │   └── PR-docs-rtm-v1-1-test-plan-v1-3/  00-본문.md  (#60)
-└── 2026-09-30/        ← 새 글 2건
-    ├── PR-chore-lumina-invest-b055ab0/  00-본문.md  (번호는 올린 뒤)
-    └── 논의-강사님최신-반영/           00-본문.md  (번호는 올린 뒤)
+└── 2026-09-30/        ← 새 글 4건
+    ├── PR-chore-lumina-invest-b055ab0/  00-본문.md  (#68)
+    ├── 논의-강사님최신-반영/           00-본문.md  (#69 · 옛 D8 번호와 다른 글)
+    ├── PR-feat-local-run-scripts/      00-본문.md  (번호는 올린 뒤)
+    └── 이슈-로컬실행-사용법/           00-본문.md  (번호는 올린 뒤 · PR 머지 뒤 게시)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -86,6 +88,7 @@ docs/github-archive/
 | D7 | [#13](2026-09-15/논의-013/00-기록.md) | [#13](https://github.com/EST-team-project/Qurious/discussions/13) | 모의투자는 무엇으로 체결하고 무엇을 기록할까 — 실행 데모와 포워드 데이터 축적 | [결론 초안](2026-09-15/논의-013/00-기록.md#discussioncomment-18561493) | ~~09-26(토) 18:00~~ **09-30(수) 23:59** |
 | D8 | [#69](2026-09-21/논의-069/00-기록.md) | ~~아직 안 올림~~ [#54](https://github.com/EST-team-project/Qurious/discussions/54) (09-29 · General · [갱신 댓글](2026-09-21/논의-069/01-2026-09-28-갱신.md) 포함 · S65 채움 · 사용자 `Github-링크.md`) | CI(자동 시험)를 둘 것인가, 둔다면 어떤 식으로 — 먼저 세웠던 것을 걷어내고 여쭙습니다 | 초안 없음 | — |
 | D9 | — (새 글 · S63) | ~~아직 안 올림~~ [#52](https://github.com/EST-team-project/Qurious/discussions/52) (09-29 · S64 채움) | [기능 전체 목록과 역할 희망 — 2차 · 3차에서 하고 싶은 것을 골라 주세요](2026-09-29/논의-기능목록-역할희망/00-본문.md) | 역할을 정하는 글이 아니라 희망을 모으는 글 | 10-02(금) 17:30 보고 전까지 (제안) |
+| 강사님 반영 | — (새 글 · S68) | [#69](https://github.com/EST-team-project/Qurious/discussions/69) (09-30 · 설계 · S69 채움 · 사용자 `Github-링크.md` · 페이지 확인) — ⚠️ D8 의 **옛** 번호 `#69` 와 다른 글 | [강사님 lumina-invest 최신을 받았습니다 — 「나만의」 방향으로 고칠 곳 10가지](2026-09-30/논의-강사님최신-반영/00-본문.md) | 갈림길 10가지(장부 · 화면 비용 · CI · 새 화면 분류 …) | 10-06(화) 09:00 (제안) |
 
 의견 기한은 2026-09-23(S49)에 전부 **09-30(수) 23:59** 로 늦췄습니다(D4·D7 포함) — 옛 값은 취소선으로 남겼습니다. ~~2차 시작일 09-27 은 그대로입니다.~~ → **2차는 10-01(목) 시작**입니다(강사님 공식 일정 · S52 확인 — 기한 09-30 이 시작보다 앞입니다).
 
@@ -273,12 +276,14 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-erd-dictionary-v1-2](2026-09-29/PR-docs-erd-dictionary-v1-2/00-본문.md) | docs: ERD · 데이터 사전 v1.2 — 문서 작성 기준을 처음 적용 · 표 속성 대장 · 코드 정의 (칸 설명은 코드에서 읽는다) | 4,532 | [#56](https://github.com/EST-team-project/Qurious/pull/56) · 머지 `e8e79fc` (S67 에 채움 · GitLab 동기화) |
 | [PR docs-rtm-v1-1-test-plan-v1-3](2026-09-29/PR-docs-rtm-v1-1-test-plan-v1-3/00-본문.md) | docs: RTM v1.1 · 테스트계획서 v1.3 — 요구 59개를 대장으로 잇고, 시험 188건이 어느 요구를 재는지 다시 센다 | 5,000 | [#60](https://github.com/EST-team-project/Qurious/pull/60) · 머지 `acbdc35` (S68 에 채움) |
 
-### 2026-09-30 — 새 글 2건
+### 2026-09-30 — 새 글 4건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [PR chore-lumina-invest-b055ab0](2026-09-30/PR-chore-lumina-invest-b055ab0/00-본문.md) | chore: 강사님 lumina-invest 최신(b055ab0)을 기초 코드로 반영 — 리밸런싱 · 위험 한도 · TradingView · 수식 지표 · 시험 59건 (우리 고침은 지킨다) | 4,004 | (올린 뒤 적음) |
-| [논의 강사님최신-반영](2026-09-30/논의-강사님최신-반영/00-본문.md) | [논의] 강사님 lumina-invest 최신을 받았습니다 — 「나만의」 방향으로 고칠 곳 10가지 (설계 · 의견 기한 제안 10-06 09:00) | 4,827 | (올린 뒤 적음) — 이 글이 #13 · #18 · #44 · #41 · #43 · #61 의 옛 서술을 대신한다(갱신 대장 1절 S68) |
+| [PR chore-lumina-invest-b055ab0](2026-09-30/PR-chore-lumina-invest-b055ab0/00-본문.md) | chore: 강사님 lumina-invest 최신(b055ab0)을 기초 코드로 반영 — 리밸런싱 · 위험 한도 · TradingView · 수식 지표 · 시험 59건 (우리 고침은 지킨다) | 4,004 | [#68](https://github.com/EST-team-project/Qurious/pull/68) · 머지 `88d5813` (S69 에 채움) |
+| [논의 강사님최신-반영](2026-09-30/논의-강사님최신-반영/00-본문.md) | [논의] 강사님 lumina-invest 최신을 받았습니다 — 「나만의」 방향으로 고칠 곳 10가지 (설계 · 의견 기한 제안 10-06 09:00) | 4,827 | [#69](https://github.com/EST-team-project/Qurious/discussions/69) (09-30 · 설계 · S69 채움 · 사용자 `Github-링크.md` · 페이지 확인 · 댓글 0) — 이 글이 #13 · #18 · #44 · #41 · #43 · #61 의 옛 서술을 대신한다(갱신 대장 1절 S68) |
+| [PR feat-local-run-scripts](2026-09-30/PR-feat-local-run-scripts/00-본문.md) | feat: 로컬 실행 스크립트 — PowerShell 세 줄로 띄우고 기능 45건을 점검한다 (로컬 실행 안내서 v0.1) | 2,799 | (올린 뒤 적음) |
+| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | (올린 뒤 적음) — **PR 머지 뒤** 게시(본문 링크가 `main` 의 스크립트 · 안내서를 연다) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
