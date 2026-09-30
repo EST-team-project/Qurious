@@ -4,9 +4,10 @@
 
 .DESCRIPTION
   아무것도 바꾸지 않는다(읽기만). 「화면이 이상하다」 싶을 때 가장 먼저 돌린다.
-    1. 컨테이너   서비스마다 켜짐/꺼짐 · 준비 상태(healthcheck) · 호스트 포트
+    1. 컨테이너   서비스마다 켜짐/꺼짐 · 준비 상태(healthcheck) · 호스트 포트 · 개발 모드 여부
     2. 앱         /api/health 응답과 걸린 시간
     3. 이미지     코드가 이미지보다 새로운가(그렇다면 화면은 옛 코드다 → start.ps1 이 다시 만든다)
+                  개발 모드(start.ps1 -Dev)면 코드는 폴더째 연결돼 늘 최신이라 패키지 파일만 본다
     4. 데이터     수집 DB 파일 · 12:30 일일 갱신이 지금 도는 중인가
     5. 디스크     Qurious 이미지 · 볼륨 크기, 남은 시험 DB 컨테이너
 
@@ -31,12 +32,17 @@ if (-not (Test-QDocker)) { exit 1 }
 # 1. 컨테이너 — 서비스 표(_common.ps1 의 $QServices)를 한 줄씩
 # ------------------------------------------------------------------------------
 Write-QStep '1. 컨테이너'
+$devMode = $false
 foreach ($svc in $QServices) {
   $st = Get-QContainerState $svc.Container
   $ports = ($svc.Ports | ForEach-Object { "$_" }) -join ','
   if (-not $ports) { $ports = '-' }
   $health = ''
   if ($st.Health) { $health = " ($($st.Health))" }
+  if ($st.DevMode) {
+    $health += ' [개발 모드 · 코드 연결]'
+    if ($svc.Service -eq 'app') { $devMode = $true }
+  }
   $label = "{0,-13} {1,-21} 포트 {2,-11} {3}" -f $svc.Service, $svc.Container, $ports, $svc.What
   if ($st.State -eq 'running') {
     if ($st.Project -and $st.Project -ne $QComposeProject) {
@@ -66,7 +72,13 @@ if ($h.Status -eq 200) {
 # 3. 이미지 신선도 — 컨테이너는 이미지를 만든 순간의 코드로 돈다
 # ------------------------------------------------------------------------------
 Write-QStep '3. 이미지 신선도'
-if (Test-QImageStale) {
+if ($devMode) {
+  # 개발 모드: 코드는 폴더째 연결돼 있어 늘 지금 파일이다. 이미지가 낡을 수 있는 건 설치 패키지뿐.
+  Write-QOk '개발 모드 — 앱 · Celery 가 내 PC 의 코드 폴더를 직접 읽습니다 (저장하면 자동 반영)'
+  if (Test-QImageStale -DepsOnly) {
+    Write-QWarn 'requirements.txt · Dockerfile 이 이미지보다 새롭습니다 — 새 패키지가 빠져 있을 수 있습니다. start.ps1 -Dev 를 다시 돌리면 이미지를 다시 만듭니다.'
+  }
+} elseif (Test-QImageStale) {
   Write-QWarn '코드가 앱 이미지보다 새롭습니다 — 지금 화면은 옛 코드입니다. start.ps1 을 다시 돌리면 이미지를 다시 만듭니다.'
 } else {
   Write-QOk '앱 이미지가 지금 코드와 같은 시점 이후에 만들어졌습니다'

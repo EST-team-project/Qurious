@@ -6,7 +6,9 @@
   start.ps1(전부 도커)과의 차이
     start.ps1  앱도 컨테이너 — 이미지를 만든 순간의 코드로 돈다. 팀원 모두 같은 환경. 확인 · 시연용.
     dev.ps1    앱은 호스트 파이썬 — 파일을 저장하면 uvicorn --reload 가 앱을 스스로 다시 띄운다
-               (시작 과정을 다시 돌아 몇 초 걸린다). 고치며 볼 때.
+               (시작 과정을 다시 돌아 몇 초 걸린다). 고치며 볼 때 · 디버거를 붙일 때.
+    start.ps1 -Dev  앱은 컨테이너 그대로, 코드 폴더만 연결해 저장하면 자동 반영 — **호스트에 파이썬
+               패키지가 없어도 된다**. 고치며 볼 때는 보통 이쪽이 쉽다(compose.dev.yml 머리 주석).
 
   하는 일
     1. postgres · redis · neo4j 를 도커로 띄우고 준비를 기다린다(start.ps1 과 같은 함수)
@@ -62,6 +64,7 @@ if ($LASTEXITCODE -ne 0) {
   Write-QInfo '설치: pip install -r requirements-dev.txt'
   Write-QInfo '공용 파이썬(anaconda 기본 환경 등)이면 다른 프로젝트 패키지와 부딪힐 수 있어 가상환경을 권합니다:'
   Write-QInfo '  python -m venv .venv ; .\.venv\Scripts\Activate.ps1 ; pip install -r requirements-dev.txt'
+  Write-QInfo '설치 없이 「저장하면 자동 반영」 만 필요하면: .\scripts\personal\start.ps1 -Dev (앱은 컨테이너 · 코드 폴더 연결)'
   exit 1
 }
 $owner = Get-QPortOwner $Port

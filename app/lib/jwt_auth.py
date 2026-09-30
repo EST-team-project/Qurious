@@ -180,8 +180,42 @@ async def revoke_token(token: str) -> dict:
 
 
 async def is_revoked(token: str, payload: dict) -> bool:
-    """폐기 여부. **서명 검증을 마친 payload** 를 함께 받습니다."""
-    return await jwt_blacklist_cache.exists(_bl_key(token, payload))
+    """폐기 여부. **서명 검증을 마친 payload** 를 함께 받습니다.
+
+    토큰 하나를 폐기한 경우(`_bl_key`)와, 비밀번호 변경 · 탈퇴로 **그 사용자의 옛 토큰 전부**를
+    끊은 경우(`revoke_all_tokens_for`)를 함께 본다.
+    """
+    if await jwt_blacklist_cache.exists(_bl_key(token, payload)):
+        return True
+    return await _issued_before_cutoff(payload)
+
+
+def _cutoff_key(user_id: str) -> str:
+    return f"min_iat:{user_id}"
+
+
+async def revoke_all_tokens_for(user_id: str) -> None:
+    """이 사용자에게 **지금까지** 나간 토큰을 모두 무효로 한다 — 비밀번호 변경 · 탈퇴 때.
+
+    토큰은 서버에 목록이 없어(자기 안에 정보를 담는 방식) 하나씩 폐기할 수 없다. 대신 「이 시각 전에
+    발급된 토큰은 받지 않는다」 는 기준 시각을 사용자별로 Redis 에 둔다. 리프레시 토큰의 수명(7일)이
+    지나면 옛 토큰은 어차피 만료되므로 그만큼만 보관한다.
+    """
+    await jwt_blacklist_cache.set(_cutoff_key(str(user_id)), _unix(_now()), ttl=settings.JWT_REFRESH_TTL)
+
+
+async def _issued_before_cutoff(payload: dict) -> bool:
+    """토큰 발급 시각(iat)이 그 사용자의 기준 시각보다 앞인가."""
+    uid = str(payload.get("id") or payload.get("sub") or "")
+    if not uid:
+        return False
+    cutoff = await jwt_blacklist_cache.get(_cutoff_key(uid))
+    if cutoff is None:
+        return False
+    try:
+        return int(payload.get("iat", 0)) < int(cutoff)
+    except (TypeError, ValueError):
+        return False
 
 
 # ── FastAPI Depends ────────────────────────────────────────────────────────────

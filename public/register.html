@@ -156,11 +156,12 @@
         <div class="form-group">
           <label class="form-label">이메일</label>
           <input name="email" type="email" class="form-input" placeholder="you@example.com" required />
+          <div class="hint">로그인 ID 입니다 — 대소문자는 구분하지 않습니다</div>
         </div>
         <div class="form-group">
           <label class="form-label">비밀번호</label>
-          <input name="password" type="password" class="form-input" placeholder="••••••••" minlength="8" required />
-          <div class="hint">8자 이상 입력해주세요</div>
+          <input id="pw" name="password" type="password" class="form-input" placeholder="••••••••" minlength="8" maxlength="64" autocomplete="new-password" required />
+          <div class="hint" id="pw-hint">8자 이상 · 64자 이하 · 72바이트(한글 24자) 이하</div>
         </div>
         <button type="submit" class="btn-submit">
           <i class="fa-solid fa-user-plus" style="margin-right:8px;"></i>가입하기
@@ -176,15 +177,34 @@
     import { api, setToast } from "/js/common.js";
     import { initCompletionIndicator } from "/js/completion.js";
     initCompletionIndicator();
+    window.addEventListener("pageshow", async (ev) => {
+      if (!ev.persisted) return;   // 뒤로가기 캐시로 되살아났을 때만 — 이미 로그인이면 앱으로(login.html 과 같은 이유)
+      try { await api("/api/me"); location.replace("/app.html"); } catch { /* 로그인 안 됨 — 그대로 */ }
+    });
+    // 비밀번호 규칙은 서버가 정한다(app/services/account.py) — 안내 · 입력 칸 제한을 같은 값으로 맞춘다.
+    let policy = null;
+    api("/api/auth/password-policy").then(p => {
+      policy = p;
+      const pw = document.getElementById("pw");
+      pw.minLength = p.min_length;
+      pw.maxLength = p.max_length;
+      document.getElementById("pw-hint").textContent = p.rules.slice(0, 2).join(" · ");
+    }).catch(() => {});
     document.getElementById("f").addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
+      const password = String(fd.get("password") || "");
+      // 한글은 한 글자 3바이트 — 서버가 받지 않을 길이를 미리 알려 준다(서버도 같은 검사를 한다)
+      if (policy && new TextEncoder().encode(password).length > policy.max_bytes) {
+        setToast(`비밀번호가 너무 깁니다 — ${policy.max_bytes}바이트(영문 72자 · 한글 24자) 이하로 입력하세요.`, "error");
+        return;
+      }
       try {
         await api("/api/auth/register", {
           method: "POST",
-          body: { name: fd.get("name"), email: fd.get("email"), password: fd.get("password") },
+          body: { name: fd.get("name"), email: String(fd.get("email") || "").trim(), password },
         });
-        location.href = "/app.html";
+        location.replace("/app.html");   // 가입 뒤 뒤로가기로 가입 화면이 다시 나오지 않게
       } catch (err) {
         setToast(err.message, "error");
       }

@@ -51,11 +51,13 @@ docs/github-archive/
 │   ├── PR-docs-writing-standard-v0-1/  00-본문.md  (#55)
 │   ├── PR-docs-erd-dictionary-v1-2/    00-본문.md  (#56)
 │   └── PR-docs-rtm-v1-1-test-plan-v1-3/  00-본문.md  (#60)
-└── 2026-09-30/        ← 새 글 4건
+└── 2026-09-30/        ← 새 글 6건
     ├── PR-chore-lumina-invest-b055ab0/  00-본문.md  (#68)
     ├── 논의-강사님최신-반영/           00-본문.md  (#69 · 옛 D8 번호와 다른 글)
-    ├── PR-feat-local-run-scripts/      00-본문.md  (번호는 올린 뒤)
-    └── 이슈-로컬실행-사용법/           00-본문.md  (번호는 올린 뒤 · PR 머지 뒤 게시)
+    ├── PR-feat-local-run-scripts/      00-본문.md  (#71)
+    ├── 이슈-로컬실행-사용법/           00-본문.md  (#70)
+    ├── 이슈-계정-CRUD-점검/            00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
+    └── PR-feat-account-crud-mypage/    00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -199,7 +201,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR #48](2026-09-20/PR-048/00-기록.md) | docs: 밀린 TIL 5장을 채운다 — PR #35~#45 와 #47 | 머지됨 · 2026-09-20 16:39 | 이동원(`devlee328288`) | 1 | 4,950 |  |
 | [이슈 #49](2026-09-20/이슈-049/00-기록.md) | [문서] 프로젝트 계획서 v1.0 — 강사님 양식 9칸을 저장소 실측치로 채운다 | 닫힘(완료) · 2026-09-20 17:04 | 이동원(`devlee328288`) | 0 | 3,116 |  |
 | [PR #50](2026-09-20/PR-050/00-기록.md) | docs: 프로젝트 계획서 v1.0 — 양식 9칸을 실측으로 채우고, 정본 .md + 제출용 .docx 로 낸다 | 머지됨 · 2026-09-20 17:04 | 이동원(`devlee328288`) | 0 | 7,498 |  |
-| [이슈 #51](2026-09-20/이슈-051/00-기록.md) | [분석] 요율표 실측 판정 — 모의 체결로는 검증할 수 없다: 4중 차단과 output2 누락, 2026 법정요율 대조 (#40 후속) | 열림 | 이동원(`devlee328288`) | 0 | 23,568 |  |
+| [이슈 #51](2026-09-20/이슈-051/00-기록.md) | [분석] 요율표 실측 판정 — 모의 체결로는 검증할 수 없다: 4중 차단과 output2 누락, 2026 법정요율 대조 (#40 후속) | 열림 | 이동원(`devlee328288`) | 0 | 23,568 | [#67](https://github.com/EST-team-project/Qurious/issues/67) (09-30 게시 · S70 채움 · 사용자 `Github-링크.md` · 페이지 확인) |
 
 ### 2026-09-21 — 23건
 
@@ -276,14 +278,16 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-erd-dictionary-v1-2](2026-09-29/PR-docs-erd-dictionary-v1-2/00-본문.md) | docs: ERD · 데이터 사전 v1.2 — 문서 작성 기준을 처음 적용 · 표 속성 대장 · 코드 정의 (칸 설명은 코드에서 읽는다) | 4,532 | [#56](https://github.com/EST-team-project/Qurious/pull/56) · 머지 `e8e79fc` (S67 에 채움 · GitLab 동기화) |
 | [PR docs-rtm-v1-1-test-plan-v1-3](2026-09-29/PR-docs-rtm-v1-1-test-plan-v1-3/00-본문.md) | docs: RTM v1.1 · 테스트계획서 v1.3 — 요구 59개를 대장으로 잇고, 시험 188건이 어느 요구를 재는지 다시 센다 | 5,000 | [#60](https://github.com/EST-team-project/Qurious/pull/60) · 머지 `acbdc35` (S68 에 채움) |
 
-### 2026-09-30 — 새 글 4건
+### 2026-09-30 — 새 글 6건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR chore-lumina-invest-b055ab0](2026-09-30/PR-chore-lumina-invest-b055ab0/00-본문.md) | chore: 강사님 lumina-invest 최신(b055ab0)을 기초 코드로 반영 — 리밸런싱 · 위험 한도 · TradingView · 수식 지표 · 시험 59건 (우리 고침은 지킨다) | 4,004 | [#68](https://github.com/EST-team-project/Qurious/pull/68) · 머지 `88d5813` (S69 에 채움) |
 | [논의 강사님최신-반영](2026-09-30/논의-강사님최신-반영/00-본문.md) | [논의] 강사님 lumina-invest 최신을 받았습니다 — 「나만의」 방향으로 고칠 곳 10가지 (설계 · 의견 기한 제안 10-06 09:00) | 4,827 | [#69](https://github.com/EST-team-project/Qurious/discussions/69) (09-30 · 설계 · S69 채움 · 사용자 `Github-링크.md` · 페이지 확인 · 댓글 0) — 이 글이 #13 · #18 · #44 · #41 · #43 · #61 의 옛 서술을 대신한다(갱신 대장 1절 S68) |
-| [PR feat-local-run-scripts](2026-09-30/PR-feat-local-run-scripts/00-본문.md) | feat: 로컬 실행 스크립트 — PowerShell 세 줄로 띄우고 기능 45건을 점검한다 (로컬 실행 안내서 v0.1) | 2,799 | (올린 뒤 적음) |
-| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | (올린 뒤 적음) — **PR 머지 뒤** 게시(본문 링크가 `main` 의 스크립트 · 안내서를 연다) |
+| [PR feat-local-run-scripts](2026-09-30/PR-feat-local-run-scripts/00-본문.md) | feat: 로컬 실행 스크립트 — PowerShell 세 줄로 띄우고 기능 45건을 점검한다 (로컬 실행 안내서 v0.1) | 2,799 | [#71](https://github.com/EST-team-project/Qurious/pull/71) · 머지 `92087da` (S70 에 채움) |
+| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | [#70](https://github.com/EST-team-project/Qurious/issues/70) (09-30 게시 · S70 채움 · 사용자 `Github-링크.md` · 페이지 확인) |
+| [이슈 계정-CRUD-점검](2026-09-30/이슈-계정-CRUD-점검/00-본문.md) | [작업] 계정 관리 — 이메일 대소문자 무관 · 비밀번호 규칙 · 마이페이지(이름 · 비밀번호 · 탈퇴) · 로그인 유지 | (세션 끝에 잼) | (올린 뒤 적음) — 작업 기록 · PR 이 `Closes` 로 닫는다 |
+| [PR feat-account-crud-mypage](2026-09-30/PR-feat-account-crud-mypage/00-본문.md) | (세션 끝에 적음) | (세션 끝에 잼) | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

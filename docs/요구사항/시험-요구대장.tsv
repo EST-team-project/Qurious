@@ -41,3 +41,4 @@ TC-TV	tests/test_tradingview.py	P02-③-3	🟡	TradingView 알림 본문을 매�
 TC-TV	tests/test_tradingview.py	P02-③-2	🟡	Strategy Tester 거래 목록 CSV 로 성과를 계산한다
 TC-TV	tests/test_tradingview.py	P02-④-3	🟡	TradingView 와 LEAN 성과 차이를 판정한다 — 신호 · 체결 · 비용 층으로 나누지는 않는다
 TC-XA	tests/test_xai.py	P01-①-5	🟢	LightGBM 기여도로 예측 근거 문장을 만든다(lightgbm 이 없으면 건너뜀)
+TC-AC	tests/test_account_crud.py	—	—	계정 관리(가입 · 로그인 · 이름 · 비밀번호 바꾸기 · 탈퇴) — 요구 밖 기능(2026-09-30 팀장 요청) · 요구로 올릴지는 팀 결정

@@ -8,8 +8,10 @@ export async function api(path, { method = "GET", body, headers = {} } = {}) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch (networkErr) {
-    // 네트워크 자체 오류 (서버 다운, CORS 등)
-    throw new Error("서버에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.");
+    // 네트워크 자체 오류 (서버 다운, CORS 등) — status 0 으로 둔다(로그인 풀림 401 과 구분하려고)
+    const e = new Error("서버에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.");
+    e.status = 0;
+    throw e;
   }
 
   // 응답 본문 파싱 (JSON 실패해도 계속)
@@ -24,7 +26,11 @@ export async function api(path, { method = "GET", body, headers = {} } = {}) {
       data?.error  ||
       data?.message ||
       `서버 오류 (HTTP ${res.status})`;
-    throw new Error(msg);
+    // 입력 검증 422 의 detail 은 목록일 수 있다 — 그대로 넘기면 화면에 「[object Object]」 로 보인다.
+    const text = Array.isArray(msg) ? msg.map(d => d?.msg || String(d)).join(" · ") : String(msg);
+    const e = new Error(text);
+    e.status = res.status;   // 부르는 쪽이 「로그인 풀림(401)」 과 다른 오류를 가르는 데 쓴다
+    throw e;
   }
   return data;
 }

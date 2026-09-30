@@ -15,6 +15,8 @@
   묶음 (-Group 으로 골라 돌릴 수 있다)
     기본     앱이 떠 있나 · 화면 파일 · API 목록
     로그인   로그인 · 내 정보 · 로그인 없이 막히나
+    계정     임시 계정(대문자 섞인 이메일)으로 가입(C) · 조회(R) · 이름 · 비밀번호 바꾸기(U) · 탈퇴(D) ·
+             로그아웃 · 토큰 방식 · 비밀번호 규칙을 차례로 — 임시 계정은 끝에 탈퇴 API 로 지운다. 로컬 주소에서만 돈다
     시세     국내 일봉(수집 DB) · 지표 · 현재가 · 차트 패턴 · 다중 시간대 신호 · 지수
     전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
     로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
@@ -169,7 +171,9 @@ $Checks = @(
   @{ G = '전략'; Name = '지표 전략 백테스트 (RSI+이평 · 실제 비용 요율)'; M = 'GET'; P = '/api/quant/pipeline?symbol=005930.KS&period=2y&base=rsi_ma'; Auth = $true; Timeout = 60
      Test = { param($r)
        if ($null -eq $r.Json.cost) { return (Fail '비용 모델(cost) 항목이 없다') }
-       Pass "거래 $($r.Json.trade_count) 회 · 전략 $($r.Json.return_total)% · 보유만 $($r.Json.return_buy_hold)% · 비용 모델 $($r.Json.cost.model) · 슬리피지 $($r.Json.cost.slippage_bps)bp" } }
+       # return_total · return_buy_hold 는 비율이다(3.3703 = +337.03%) — 그대로 뒤에 % 를 붙이면 100배 작게 읽힌다.
+       Pass ("거래 {0} 회 · 전략 {1:N2}% · 보유만 {2:N2}% · 비용 모델 {3} · 슬리피지 {4}bp" -f $r.Json.trade_count,
+             ([double]$r.Json.return_total * 100), ([double]$r.Json.return_buy_hold * 100), $r.Json.cost.model, $r.Json.cost.slippage_bps) } }
   @{ G = '전략'; Name = '수식 지표 — 쓸 수 있는 함수 · 템플릿'; M = 'GET'; P = '/api/formula-indicators/reference'; Auth = $true
      Test = { param($r)
        $tpl = @($r.Json.templates)[0]
@@ -315,7 +319,9 @@ if ($Write) {
 }
 
 # -Group 으로 고른 묶음만 남긴다. 모르는 이름이면 쓸 수 있는 이름을 알려 준다.
-$allGroups = @($Checks | ForEach-Object { $_.G } | Select-Object -Unique)
+# 「계정」 묶음은 $Checks 목록이 아니라 아래 따로 도는 블록이라(이유는 그 블록 머리) 이름만 더한다.
+$allGroups = @($Checks | ForEach-Object { $_.G } | Select-Object -Unique) + @('계정')
+$runAccount = ($Group.Count -eq 0) -or ($Group -contains '계정')
 if ($Group.Count -gt 0) {
   $unknown = @($Group | Where-Object { $allGroups -notcontains $_ })
   if ($unknown.Count -gt 0) {
@@ -368,6 +374,157 @@ if (@($Checks | Where-Object { $_.Auth }).Count -gt 0) {
     Add-Result $loginCheck $login.Status $login.Ms (Fail "로그인 실패: $($login.Text) $($login.Error)")
     Write-QInfo '로그인이 없으면 나머지 점검이 모두 401 이 됩니다 — 여기서 멈춥니다.'
     exit 1
+  }
+}
+
+# ==============================================================================
+# 계정 묶음 — 가입(C) · 조회(R) · 수정(U) · 탈퇴(D) · 로그아웃 · 토큰 · 대소문자 · 비밀번호 규칙 (기본 포함 · -Group 계정)
+# ==============================================================================
+# 왜 $Checks 목록이 아니라 따로 도나
+#   위 목록은 모두 「점검 계정 하나의 로그인 쿠키」 를 나눠 쓴다. 계정 점검은 가입 → 로그아웃 → 다시
+#   로그인 → 비밀번호 변경 → 탈퇴처럼 **쿠키 상태를 바꾸는 순서** 자체를 보는 것이라, 자기 세션(기기 둘)을
+#   따로 쥐고 차례로 돈다.
+# 임시 계정
+#   Crud-Check-<시각>@Example.COM (일부러 대문자를 섞어 가입) — 끝에 **탈퇴 API 로** 지운다. 탈퇴가 실패해
+#   남은 계정만 docker exec 로 로컬 DB 에서 지운다(로컬 전용 · 이 묶음이 만든 이메일만).
+# 규칙과 근거는 app/services/account.py 머리말 · 문서 「기능별 동작 원리서」 2절.
+if ($runAccount) {
+  $acctGroup = '계정'
+  function Add-Acct([string]$Name, [string]$M, [string]$P, $r, $v) {
+    $st = '-'; $ms = 0
+    if ($null -ne $r) { $st = $r.Status; $ms = $r.Ms }
+    Add-Result @{ G = $acctGroup; Name = $Name; M = $M; P = $P } $st $ms $v
+  }
+  # 기대 상태 코드 하나만 보는 단계의 판정 — 맞으면 OK(메모), 다르면 실패(상태 · 서버 메시지)
+  function Expect-Status($r, [int]$want, [string]$okNote) {
+    if ($r.Status -eq $want) { return (Pass $okNote) }
+    $detail = "$($r.Text)"
+    if ($r.Json -and $r.Json.detail) { $detail = "$($r.Json.detail)" }
+    if ($detail.Length -gt 160) { $detail = $detail.Substring(0, 160) + '…' }
+    return (Fail ("상태 {0} (기대 {1}) — {2}" -f $r.Status, $want, $detail))
+  }
+  if (-not $isLocal) {
+    Add-Acct '계정 점검 전체' '-' '-' $null (Skip "로컬이 아닌 주소($BaseUrl)에는 임시 계정을 만들지 않는다")
+  } else {
+    $stamp = Get-Date -Format 'yyyyMMddHHmmss'
+    $typed = "Crud-Check-$stamp@Example.COM"      # 사람이 친 모양 — 대문자가 섞였다
+    $acctEmail = $typed.ToLower()                   # 서버가 저장하는 모양
+    $acctPw = 'crud-check-1234'
+    $newPw = 'crud-check-5678'
+    $made = New-Object System.Collections.Generic.List[string]
+    $acct = New-Object Microsoft.PowerShell.Commands.WebRequestSession    # 이 기기
+    $other = New-Object Microsoft.PowerShell.Commands.WebRequestSession   # 다른 기기
+
+    # 1. 가입(C) — 대문자 섞인 이메일로. 가입도 로그인 쿠키를 준다(화면은 가입 직후 바로 앱으로 들어간다).
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '계정 점검'; email = $typed; password = $acctPw } -Session $acct
+    if ($r.Status -eq 200) {
+      $made.Add($acctEmail)
+      if ("$($r.Json.user.email)" -eq $acctEmail) { $v = Pass "친 글자 $typed → 저장 $acctEmail(전부 소문자)" }
+      else { $v = Fail "저장된 이메일이 소문자가 아니다: $($r.Json.user.email)" }
+    } else { $v = Fail "상태 $($r.Status) — $($r.Text)" }
+    Add-Acct '가입 (C) — 대문자 섞인 이메일' 'POST' '/api/auth/register' $r $v
+    $joined = ($r.Status -eq 200)
+
+    if ($joined) {
+      # 2. 조회(R) — 가입 때 받은 쿠키 그대로 · 가입일까지
+      $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $acct
+      if ($r.Status -eq 200 -and $r.Json.user.email -eq $acctEmail) { $v = Pass "이름 $($r.Json.user.name) · 가입일 $($r.Json.user.createdAt)" } else { $v = Fail "상태 $($r.Status) · 이메일 $($r.Json.user.email)" }
+      Add-Acct '내 정보 (R)' 'GET' '/api/me' $r $v
+
+      # 3. 소문자로 다시 가입 → 400 (대소문자만 다른 두 번째 가입을 막는다)
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '중복'; email = $acctEmail; password = $acctPw }
+      Add-Acct '대소문자만 다른 이메일로 다시 가입 → 거절' 'POST' '/api/auth/register' $r (Expect-Status $r 400 "400 — $($r.Json.detail)")
+
+      # 4. 로그아웃 → 5. 방금 그 쿠키로 내 정보 → 401 (서버 쪽 세션이 정말 지워졌나)
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/logout" -Session $acct
+      Add-Acct '로그아웃' 'POST' '/api/auth/logout' $r (Expect-Status $r 200 '세션 지움 · 쿠키 삭제')
+      $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $acct
+      Add-Acct '로그아웃 뒤 내 정보 → 막힘' 'GET' '/api/me' $r (Expect-Status $r 401 '401 — 로그아웃한 쿠키는 더 못 쓴다')
+
+      # 6. 틀린 비밀번호 → 401 · 7. 가입 때 친 글자 그대로 → 200 · 8. 전부 대문자(다른 기기) → 200
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $typed; password = 'wrong-password' }
+      Add-Acct '틀린 비밀번호 로그인 → 거절' 'POST' '/api/auth/login' $r (Expect-Status $r 401 "401 — $($r.Json.detail)")
+      $acct = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $typed; password = $acctPw } -Session $acct
+      Add-Acct '가입 때 친 글자 그대로 로그인' 'POST' '/api/auth/login' $r (Expect-Status $r 200 "$typed 로 로그인 — 대소문자를 가리지 않는다")
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $typed.ToUpper(); password = $acctPw } -Session $other
+      Add-Acct '전부 대문자로 로그인 (다른 기기)' 'POST' '/api/auth/login' $r (Expect-Status $r 200 '두 번째 기기 세션')
+
+      # 9~12. 토큰 방식(JWT) — 발급 → Bearer 로 내 정보 → 폐기 → 같은 토큰은 401
+      #        화면은 쿠키만 쓴다. 토큰은 앱 밖 프로그램(API 클라이언트)용이다.
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/token" -Body @{ email = $acctEmail; password = $acctPw }
+      $access = ''; $refresh = ''
+      if ($r.Status -eq 200 -and $r.Json.access_token) { $access = $r.Json.access_token; $refresh = $r.Json.refresh_token; $v = Pass "액세스 $($r.Json.expires_in)초 · 리프레시 함께" } else { $v = Fail "상태 $($r.Status)" }
+      Add-Acct '토큰 발급 (JWT · API 클라이언트용)' 'POST' '/api/auth/token' $r $v
+      if ($access) {
+        $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Bearer $access
+        Add-Acct '내 정보 — Bearer 토큰으로' 'GET' '/api/me' $r (Expect-Status $r 200 'Authorization: Bearer 머리글로 통과')
+        $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/token/revoke" -Body @{ access_token = $access; refresh_token = $refresh } -Bearer $access
+        Add-Acct '토큰 폐기 (JWT 로그아웃)' 'POST' '/api/auth/token/revoke' $r (Expect-Status $r 200 "폐기 $($r.Json.revoked) 개 (액세스 · 리프레시)")
+        $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Bearer $access
+        Add-Acct '폐기한 토큰 → 막힘' 'GET' '/api/me' $r (Expect-Status $r 401 "401 — $($r.Json.detail)")
+      }
+
+      # 13. 이름 바꾸기(U) → 내 정보에 바로 보이나
+      $r = Invoke-QApi -Method PATCH -Url "$BaseUrl/api/me" -Body @{ name = '계정 점검 (바뀜)' } -Session $acct
+      if ($r.Status -eq 200) {
+        $r2 = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $acct
+        if ($r2.Json.user.name -eq '계정 점검 (바뀜)') { $v = Pass '이름을 바꾸자 내 정보에 곧바로 보인다' } else { $v = Fail "내 정보의 이름이 그대로다: $($r2.Json.user.name)" }
+      } else { $v = Expect-Status $r 200 '' }
+      Add-Acct '이름 바꾸기 (U)' 'PATCH' '/api/me' $r $v
+
+      # 14. 비밀번호 바꾸기 — 현재 비밀번호가 틀리면 400 (재인증)
+      $r = Invoke-QApi -Method PUT -Url "$BaseUrl/api/me/password" -Body @{ current_password = 'wrong-password'; new_password = $newPw } -Session $acct
+      Add-Acct '비밀번호 바꾸기 — 현재 비밀번호 틀림' 'PUT' '/api/me/password' $r (Expect-Status $r 400 "400 — $($r.Json.detail)")
+
+      # 15. 비밀번호 바꾸기 (U) → 16. 다른 기기는 로그아웃 · 이 기기는 유지
+      $r = Invoke-QApi -Method PUT -Url "$BaseUrl/api/me/password" -Body @{ current_password = $acctPw; new_password = $newPw } -Session $acct
+      Add-Acct '비밀번호 바꾸기 (U)' 'PUT' '/api/me/password' $r (Expect-Status $r 200 "다른 기기 $($r.Json.other_sessions_revoked) 곳 로그아웃 · 이 기기는 새 세션")
+      $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $other
+      $r2 = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $acct
+      if ($r.Status -eq 401 -and $r2.Status -eq 200) { $v = Pass '다른 기기 401 · 이 기기 200' } else { $v = Fail "다른 기기 $($r.Status) · 이 기기 $($r2.Status) (기대 401 · 200)" }
+      Add-Acct '비밀번호를 바꾼 뒤 — 다른 기기만 로그아웃' 'GET' '/api/me' $r $v
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $acctEmail; password = $newPw }
+      Add-Acct '새 비밀번호로 로그인' 'POST' '/api/auth/login' $r (Expect-Status $r 200 '새 비밀번호 통과(옛 비밀번호는 거절)')
+
+      # 17. 탈퇴 — 확인 문구가 틀리면 422 → 18. 탈퇴(D) → 19. 탈퇴 뒤 로그인 401
+      $r = Invoke-QApi -Method DELETE -Url "$BaseUrl/api/me" -Body @{ password = $newPw; confirm = '아니오' } -Session $acct
+      Add-Acct '탈퇴 — 확인 문구 틀림' 'DELETE' '/api/me' $r (Expect-Status $r 422 "422 — $($r.Json.detail)")
+      $r = Invoke-QApi -Method DELETE -Url "$BaseUrl/api/me" -Body @{ password = $newPw; confirm = '탈퇴' } -Session $acct
+      if ($r.Status -eq 200 -and $r.Json.deleted.users -eq 1) {
+        [void]$made.Remove($acctEmail)
+        $v = Pass ("지운 표 " + ((@($r.Json.deleted.PSObject.Properties) | ForEach-Object { "$($_.Name) $($_.Value)" }) -join ' · '))
+      } else { $v = Expect-Status $r 200 '' }
+      Add-Acct '탈퇴 (D) — 데이터 파기' 'DELETE' '/api/me' $r $v
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $acctEmail; password = $newPw }
+      Add-Acct '탈퇴 뒤 로그인 → 거절' 'POST' '/api/auth/login' $r (Expect-Status $r 401 '401 — 계정이 없다')
+    }
+
+    # 20. 비밀번호 규칙 — 가입 화면과 같은 규칙을 API 도 지키나 (서버가 거절하므로 계정이 생기지 않는다)
+    $shortEmail = "short-check-$stamp@example.com"
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '짧은 암호'; email = $shortEmail; password = '1' }
+    if ($r.Status -eq 200) { $made.Add($shortEmail) }
+    Add-Acct '1글자 비밀번호 가입 → 거절' 'POST' '/api/auth/register' $r (Expect-Status $r 422 "422 — $($r.Json.detail)")
+
+    # 21. 아주 긴 비밀번호로 로그인 — 서버 오류(500)가 아니라 「틀림」(401)이어야 한다(bcrypt 72바이트 한계)
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $acctEmail; password = ('p' * 100) }
+    Add-Acct '100자 비밀번호로 로그인 → 500 아님' 'POST' '/api/auth/login' $r (Expect-Status $r 401 '401 — 예외 없이 「틀림」')
+
+    # 22. 정리 — 탈퇴 API 로 못 지운 임시 계정만 로컬 DB 에서 지운다.
+    $pg = Get-QContainerState 'fin-ai-postgres'
+    if ($made.Count -eq 0) {
+      Add-Acct '정리 — 남은 임시 계정' 'SQL' '-' $null (Pass '남은 계정 없음 (탈퇴 API 로 지움)')
+    } elseif ($pg.State -eq 'running' -and $pg.Project -eq $QComposeProject) {
+      # 탈퇴가 실패한 경우라 자식 표에 행이 있을 수 있다 — 가입 직후 계정은 users 한 행뿐이라 보통은 지워진다.
+      $list = (@($made) | Select-Object -Unique | ForEach-Object { "'" + ($_ -replace "'", "''") + "'" }) -join ','
+      $sql = "DELETE FROM users WHERE lower(email) IN ($list);"
+      $out = (& docker exec fin-ai-postgres psql -U fin_user -d fin_ai -c $sql 2>&1 | ForEach-Object { "$_" }) -join ' '
+      if ($out -match 'DELETE (\d+)') { $v = Warn "탈퇴 API 로 못 지운 임시 계정 $($Matches[1]) 개를 DB 에서 지움 — 위 탈퇴 줄을 보라" }
+      else { $v = Warn "임시 계정을 못 지웠다: $out — 남은 이메일: $(@($made) -join ', ')" }
+      Add-Acct '정리 — 남은 임시 계정' 'SQL' 'DELETE FROM users' $null $v
+    } else {
+      Add-Acct '정리 — 남은 임시 계정' 'SQL' '-' $null (Warn "DB 컨테이너가 이 프로젝트 것이 아니거나 꺼져 있어 못 지웠다 — 남은 이메일: $(@($made) -join ', ')")
+    }
   }
 }
 

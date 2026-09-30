@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # 로컬 실험용 탈출구. 운영에서는 절대 켜지 않습니다.
     JWT_ALLOW_INSECURE_SECRET: bool = False
 
+    # ── 계정 (app/services/account.py) ─────────────────────────────────────────
+    # 새 비밀번호의 최소 글자 수. 8 = 가입 화면의 기존 규칙. NIST SP 800-63B-4 는 다중 인증이 없는
+    # 비밀번호에 15자 이상을 요구한다 — 팀이 올리기로 하면 .env 에 PASSWORD_MIN_LENGTH=15 한 줄이면 된다.
+    PASSWORD_MIN_LENGTH: int = 8
+
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     LLM_MODEL: str = "llama3.1"
     EMBED_MODEL: str = "nomic-embed-text"

@@ -1,0 +1,74 @@
+# ==============================================================================
+# compose.dev.yml — 개발 모드 덧씌우기 (start.ps1 -Dev 가 docker-compose.yml 위에 얹는다)
+# ==============================================================================
+#
+# 무엇이 달라지나
+#   보통 모드(start.ps1)  앱 · Celery 가 **이미지를 만든 순간의 코드**로 돈다.
+#                         코드를 고치면 이미지를 다시 만들어야(수십 초) 화면에 보인다.
+#   개발 모드(start.ps1 -Dev)
+#                         내 PC 의 코드 폴더를 컨테이너에 그대로 연결한다(bind mount).
+#                         - app/*.py 저장   → 앱(uvicorn --reload)과 Celery(watchfiles)가 몇 초 안에 스스로 다시 켜진다
+#                         - public/ 저장    → 다시 켤 것도 없다. 브라우저에서 새로고침(F5)만 하면 된다
+#                                             (앱이 화면 파일을 요청마다 디스크에서 읽는다 — app/main.py 의 StaticFiles)
+#                         - requirements.txt · Dockerfile 을 바꿨을 때만 이미지를 다시 만든다(start.ps1 -Dev 가 알아서 판단)
+#
+# 왜 폴링(WATCHFILES_FORCE_POLLING)인가
+#   Windows 폴더를 리눅스 컨테이너에 연결하면, Windows 쪽에서 저장한 변화가 컨테이너 안의
+#   「파일이 바뀌었다」 알림(inotify)으로 전달되지 않는다. 그래서 감시자(watchfiles)가 알림을
+#   기다리지 않고 0.3초마다 파일 시각을 직접 훑게 한다. 감시 대상은 app/ 의 .py 100여 개라 부담이 작다.
+#   (watchfiles 는 WSL2 커널을 알아보면 스스로 폴링으로 바꾸지만, 환경마다 다를 수 있어 명시한다.)
+#
+# 왜 읽기 전용(:ro)인가
+#   컨테이너는 root 로 돈다. 쓰기를 열어 두면 컨테이너가 내 작업 폴더에 파일(__pycache__ 등)을
+#   만들 수 있다. 앱은 app/ · public/ 을 읽기만 한다(2026-09-30 확인 — LEAN 참조 데이터도 읽기만).
+#   PYTHONDONTWRITEBYTECODE=1 은 .pyc 를 쓰려는 시도 자체를 끈다.
+#
+# 경로 기준
+#   compose 파일을 여러 개 겹치면 상대 경로는 **첫 번째 파일(저장소 루트의 docker-compose.yml)이
+#   있는 폴더** 기준이다. 그래서 이 파일이 scripts/personal/ 에 있어도 ./app 은 저장소 루트의 app 이다.
+#
+# 직접 쓰려면 (보통은 start.ps1 -Dev 가 대신한다)
+#   docker compose -f docker-compose.yml -f scripts/personal/compose.dev.yml up -d app celery-worker celery-beat
+#
+# 알아 둘 것
+#   - 목록(volumes · environment)은 docker-compose.yml 의 것에 **더해진다**. command 는 **바뀐다**.
+#   - 개발 모드로 띄운 뒤 보통 start.ps1 을 돌리면 compose 가 설정 차이를 보고 앱 · Celery 를
+#     보통 모드로 다시 만든다(이미지 코드로 돌아간다). 둘 사이를 오가도 DB 데이터는 그대로다.
+#   - 이 파일은 팀 공용 docker-compose.yml 을 바꾸지 않는다. 쓰는 사람만 쓴다.
+# ==============================================================================
+
+x-dev-env: &dev-env
+  PYTHONDONTWRITEBYTECODE: "1"
+  WATCHFILES_FORCE_POLLING: "true"
+
+services:
+  app:
+    # 이미지 기본 명령(Dockerfile CMD)에 --reload 만 더한 것.
+    # --reload-dir 는 컨테이너 안 경로다 — app 폴더의 .py 가 바뀔 때만 다시 켠다(data 폴더의 큰 DB 변화는 무시).
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+    environment:
+      <<: *dev-env
+    volumes:
+      - ./app:/app/app:ro
+      - ./public:/app/public:ro
+      - ./prompts:/app/prompts:ro
+      - ./alembic:/app/alembic:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+
+  celery-worker:
+    # Celery 에는 --reload 가 없다. 그래서 watchfiles 명령이 워커를 감싸고 있다가 .py 가 바뀌면
+    # 워커를 끄고(SIGINT → 기다려도 안 끝나면 SIGKILL) 새로 띄운다. 따옴표 안이 docker-compose.yml 의 원래 명령이다.
+    command: ["watchfiles", "--filter", "python", "celery -A app.celery_app worker --loglevel=info --concurrency=2 --queues=celery", "/app/app"]
+    environment:
+      <<: *dev-env
+    volumes:
+      - ./app:/app/app:ro
+      - ./prompts:/app/prompts:ro
+
+  celery-beat:
+    # 예약 시계(자동매매 10분 · 리밸런싱 1시간 …)도 app/celery_app.py 를 읽으므로 같은 방식으로 감싼다.
+    command: ["watchfiles", "--filter", "python", "celery -A app.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule", "/app/app"]
+    environment:
+      <<: *dev-env
+    volumes:
+      - ./app:/app/app:ro
