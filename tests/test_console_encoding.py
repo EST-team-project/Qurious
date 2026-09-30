@@ -73,7 +73,8 @@ ARGPARSE_ENTRY_POINTS = [
     "collector.backfill", "collector.benchmark", "collector.dividend", "collector.manifest",
     "collector.preprocess", "collector.total_return",
     "scripts/hf_dataset.py", "scripts/probe_kis_fee_rate.py", "scripts/rtm_scan.py",
-    "scripts/schema_scan.py", "scripts/sync_fills.py",
+    "scripts/schema_scan.py", "scripts/sync_fills.py", "scripts/raglab_scan.py", "scripts/raglab_data.py",
+    "scripts/glossary_build.py",
 ]
 
 # 자식 파이썬 안에서: DB 를 여는 길을 막고 → 진입점을 `--help` 로 돌리고 → 끝난 뒤 한 줄 더 찍는다.

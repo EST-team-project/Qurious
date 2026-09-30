@@ -28,7 +28,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # 내 계정에만 · 내 
 
 ```powershell
 .\scripts\personal\start.ps1      # 1) 띄우기 — DB 먼저, 앱은 준비된 뒤에. 끝나면 브라우저가 열린다
-.\scripts\personal\check.ps1      # 2) 기능 점검 — curl 처럼 API 56건을 차례로 불러 통과/실패 표 (30초 안팎)
+.\scripts\personal\check.ps1      # 2) 기능 점검 — curl 처럼 API 62건을 차례로 불러 통과/실패 표 (15초 안팎)
 .\scripts\personal\stop.ps1       # 3) 끄기 — 컨테이너만 지우고 DB 데이터는 남긴다
 ```
 
@@ -47,6 +47,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # 내 계정에만 · 내 
 | `public\` (화면 HTML · JS · CSS) | 다시 켤 것 없이 브라우저 **새로고침(F5)** | 즉시 |
 | `requirements.txt` · `Dockerfile` | `start.ps1 -Dev` 를 다시 — 이미지를 다시 만든다 | 몇 분 |
 | `alembic\versions\` (DB 마이그레이션) | 앱이 다시 켜질 때 적용된다(앱 시작 과정) | 몇 초 |
+| `app\services\glossary_data\terms.json` (용어 파일) | 앱이 **스스로 다시 켜져** 용어를 표에 다시 넣는다(`--reload-include *.json`) | 몇 초 (적재 약 1초) |
 
 - 보통 모드로 돌아가기: `-Dev` 없이 `start.ps1` — 앱 · Celery 를 이미지 코드로 다시 만든다. DB 데이터는 그대로다.
 - 원리: [`compose.dev.yml`](compose.dev.yml) 머리 주석 — Windows 폴더의 변화는 컨테이너에 알림이 안 가서 **폴링**(0.3초마다 훑기)으로 감시한다. 평소 CPU 는 컨테이너당 2% 안팎(2026-09-30 잼).
@@ -58,11 +59,11 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # 내 계정에만 · 내 
 |---|---|---|
 | `start.ps1` | 도커로 전체 실행: 사전 점검 → `.env` → 네트워크 → 충돌 점검 → DB 셋 준비 대기 → 앱 · Celery → 헬스 체크 → 브라우저 | `-Dev` 개발 모드(저장하면 자동 반영) · `-NoCelery` 가볍게 · `-Build` 이미지 강제 재빌드 · `-NoBrowser` |
 | `compose.dev.yml` | 개발 모드 덧씌우기 — 코드 폴더 연결 · `--reload` (`start.ps1 -Dev` 가 쓴다 · 직접 실행하지 않음) | — |
-| `check.ps1` | 기능 점검 (로그인 · **계정** · 시세 · 전략 · 로보 · 매매 · 연동 · 시스템) | `-Full` 느린 ML 셋 추가 · `-Write` 모의 매수 · 매도까지 · `-Group 계정` · `-ShowBody` · `-SaveReport` |
+| `check.ps1` | 기능 점검 (로그인 · **계정** · 시세 · 전략 · 로보 · **용어** · 매매 · 연동 · 시스템) | `-Full` 느린 ML 셋 추가 · `-Write` 모의 매수 · 매도까지 · `-Group 계정` · `-Group 용어` · `-ShowBody` · `-SaveReport` |
 | `status.ps1` | 지금 무엇이 떠 있나 (컨테이너 · 앱 응답 · 이미지 신선도 · 수집 DB · 디스크) | `-Data` 일일 갱신 상세 |
 | `logs.ps1` | 컨테이너 로그 | `-Service app` · `-Service celery-worker` · `-Follow` · `-Tail 200` |
 | `stop.ps1` | 끄기 (데이터 유지) | `-Keep` 멈추기만 · `-DeleteData` DB 까지 삭제(확인 입력) |
-| `test.ps1` | 자동 시험(pytest 약 250건) — 일회용 시험 DB 를 띄웠다 지운다 | `-Path tests\test_formula.py` · `-NoDb` |
+| `test.ps1` | 자동 시험(pytest · 2026-09-30 기준 367건 · 3분 안팎) — 일회용 시험 DB 를 띄웠다 지운다 | `-Path tests\test_formula.py` · `-NoDb` |
 | `dev.ps1` | 앱만 내 PC 파이썬으로(DB 는 도커) · 코드 저장 시 자동 재시작 — 패키지 설치가 필요해 보통은 `start.ps1 -Dev` 를 쓴다 | `-Port 8000` |
 | `_common.ps1` | 위 스크립트들이 함께 쓰는 함수 (직접 실행하지 않음) | — |
 

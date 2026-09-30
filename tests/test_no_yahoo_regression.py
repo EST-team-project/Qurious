@@ -54,6 +54,11 @@ BASELINE: dict[str, int] = {
     "app/services/fx.py": 1,
     "app/services/patterns.py": 1,
     "app/services/tradingview.py": 1,
+    # 2026-09-30: 통합본 반입 폴더(rag-lab/) 스캐너가 통합본 API 마다 「야후에 닿는가」 를 표시하려고
+    #   찾는 글자를 한 줄에 둔다(`TOUCH_PATTERNS`). api_scan 과 같은 까닭 — 부르는 코드가 아니라 **찾는** 코드다.
+    #   ⚠️ rag-lab/ 자체는 이 시험이 훑지 않는다(SCAN_DIRS 밖). 그 폴더는 앱과 이어지지 않은 사본이고,
+    #      기능을 app/ 으로 옮길 때 이 시험이 그 코드를 본다.
+    "scripts/raglab_scan.py": 1,
 }
 
 

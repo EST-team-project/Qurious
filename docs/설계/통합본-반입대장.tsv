@@ -1,0 +1,330 @@
+경로	크기	blob	영역	종류	원천	상태	사유
+.dockerignore	212	a06fab5713365fbb64ab068db9da79c81d28ea92	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+.env.example	1063	a38d225c0b60f34a0cbc0874152dde4f442b6f4e	설정	설정	강사님 domain-rag-lab 과 같음	복사	
+.env.local.example	1343	44c2cea35e826f28fa218a4e8bfea7456712728e	설정	설정	강사님 domain-rag-lab 과 같음	복사	
+.env.prod.example	1763	34f9a75e16f00216def8716fded5d3a1b79b5ef4	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	AWS 제외	AWS 배포 — AWS 서버 환경 변수 예시
+.github/workflows/cd-ecr.yml	4784	442618fd94fd381c081fd81db11ce16d6a6be4fe	워크플로	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	AWS 제외	AWS 배포 — ECR 빌드 · EC2 배포 워크플로
+.github/workflows/cd.yml	2606	c8b3fc33acb2e44a75b4eb040018fb50960e2467	워크플로	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	AWS 제외	AWS 배포 — EC2 소스 배포 워크플로
+.github/workflows/ci.yml	1087	be34867272b33c445d598cb98ee28d6b54e9bf30	워크플로	설정	강사님 domain-rag-lab 과 같음	복사	
+.gitignore	685	b8499b319c16412da063db9914f6fd480258a7b7	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+.streamlit/config.toml	185	3063be3c87d4b5b800242e9d430d6edd85376fb7	설정	설정	강사님 domain-rag-lab 과 같음	복사	
+Caddyfile	237	bf06b8c9ce282be5f1bb2b1d86ee1614589d2757	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	AWS 제외	AWS 배포 — EC2 공인 주소의 HTTPS 프록시
+Dockerfile	1066	f3418c61caf37ee0b28bdc048df0b9b242a24f24	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+NOTICE.md	3869	0e9a4b95b553f7137d45154f17b39aded7ef8be7	설정	글	통합본 고유	복사	
+README.md	6747	d363509e37ea55b540903e6284dcffae0678d587	설정	글	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+SETUP_PLACEHOLDERS.md	6692	19de287a2fac845bf7979f6bd3fef72d18a85b95	설정	글	통합본 고유	AWS 제외	AWS 배포 — 배포용 입력 칸 안내(전부 AWS 배포용)
+app/api/routes/__init__.py	29	2069a1b64a7b10e2117b9aedc352dc70a715a362	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/routers/__init__.py)	복사	
+app/api/routes/analysis_main.py	186554	85fb5442b2507aa7eb5e84bfa7291a36c69959a4	백엔드	코드	통합본 고유	복사	
+app/api/routes/auth.py	6715	6429e89047ce48454975db4a800354dec6cd86a9	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/api/routes/backtest.py	756	55cbf70a68550ab71c85f891ad066d856b74265f	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/api/routes/chat.py	2527	dfabd5df908a9c3772ff0b8b1ecce4cd03c37b7b	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/api/routes/domain_auth.py	4911	15a8ae3f4b6627cc037037bae33a4d52915712c3	백엔드	코드	강사님 domain-rag-lab 과 같음 (app/api/routes/auth.py)	복사	
+app/api/routes/health.py	159	b10e472d61e543f0d408c739472488ba74555df5	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/api/routes/ingest.py	1692	089fc0fcdf24b612e47dcc390f10bf6422a63324	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/api/routes/lean.py	3442	a33915e6474045f917672a7d40d3f2b7f3e2b18d	백엔드	코드	통합본 고유	복사	
+app/api/routes/lex.py	4114	c25764a16af665245657611a5f4b5b22fa2b25a5	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/routers/lex.py)	AWS 제외	AWS 서비스 연동 — Amazon Lex V2 대화
+app/api/routes/llm_bench.py	8706	692174ed939e229d2e0b3211ebb252550294ab4a	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/routers/llm_bench.py)	AWS 제외	AWS 서비스 연동 — EC2 vLLM · Bedrock · SageMaker 비교
+app/api/routes/market.py	33556	4e64a8c4191cfa62316ff86b54510d54d1d30f68	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/api/routes/ml.py	32119	ce52682cc61baa17efbdce8fd755bb568637226f	백엔드	코드	통합본 고유	복사	
+app/api/routes/quant.py	34053	ff64f7b8d57aa635ba4782ab1880a405d6571a4a	백엔드	코드	통합본 고유	복사	
+app/api/routes/quiz.py	6212	2d820897ec1bcf41bd4b98030fb483b939989b56	백엔드	코드	통합본 고유	복사	
+app/api/routes/rag.py	12999	0adff53bb3c0bc3cb1a28c1483dc95e81b121275	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/routers/rag.py)	복사	
+app/api/routes/rag_analysis.py	13108	6a0274f959b30cfb645b8e7a986690275cc322aa	백엔드	코드	통합본 고유	복사	
+app/api/routes/tax.py	15451	2b98880b4e5a18136cc35e4daba86a1e0c194d95	백엔드	코드	통합본 고유	복사	
+app/api/routes/vocabulary_exam.py	4921	da96bd82f43527be719de7ef85ab73eec2c6354a	백엔드	코드	통합본 고유	복사	
+app/core/config.py	2876	48adf6d25488f2a24070491e9ea105214929804f	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/core/database.py	400	9d01b1beb0fab60542d8e82162f55cc7712c6963	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/ingest_chapters.py	1580	3b41eee3ad31ac2698d00eb4dde6977e233d0ba3	백엔드	코드	통합본 고유	복사	
+app/main.py	9112	78eba6f78484a8474943c634984a278c03d01552	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/models/chat_log.py	512	381bdc10532afeb053de327bd00f7f692366958d	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/models/document_chunk.py	891	4d83b4e5473de39248caf26801a490be1bbe0164	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/models/long_term_memory.py	976	2f923e631340903f5ad06997fdfa0cf9574d2671	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/models/stock_price_history.py	927	874112945cfb427af76a1b0dd63b54e338db79f0	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/models/user.py	1627	3c151359b380758c9387ad6b5a8023be7c472ca5	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/mongo_db.py	3516	2f20ef774e3ca93c599e32dff2a75a69c7fed64c	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/db.py)	복사	
+app/openapi_docs.py	19622	3f52c7a44475ec9488e00410ce0b2442f1ec29b7	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/openapi_docs.py)	복사	
+app/ops/__init__.py	0	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/ops/audit_sources.py	3136	1d31e6c66d621e9eb4af4d5a81adf82208aa16bb	백엔드	코드	통합본 고유	복사	
+app/ops/backfill_etf_ohlcv.py	5039	ddbc843c5e8b058bc6396ac617b8092298ed40ce	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/ops/backfill_ohlcv.py	5484	2160c0d042c31aff22dc2ebda472934afa195d38	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/ops/index_curriculum.py	3671	5f2458137c6cc08802e5bdf49327bdfdada7415e	백엔드	코드	통합본 고유	복사	
+app/ops/index_search.py	905	81843212df3870ba058632a65881fbbf58623255	백엔드	코드	통합본 고유	복사	
+app/ops/ingest_data_root.py	8715	5dc3ec3f257d2e3df3d98ecae1caf6d04fbc0f6e	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/ops/verify_integration.py	5644	633cd0eb6add4e68d5d31a1429b52ed8b775a828	백엔드	코드	통합본 고유	복사	
+app/pattern_detection.py	11713	95a3333ea2bf3f03033282cfd4c5611a58db021f	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/pattern_detection.py)	복사	
+app/quiz_seed.sql	19199	7c2b2ff2fee945e00ec64b0e0ded12de4ecf38f6	백엔드	코드	강사님 investment-analysis 와 같음 (app/backend/quiz_seed.sql)	복사	
+app/schemas/auth.py	810	c39ee9c6cd00e0d783a2b55bc5cd533df3cb7d27	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/schemas/chat.py	3615	b93392f0858c61e853407ec49786ba534d8d0894	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/schemas/ingest.py	206	858d15dbb97b7da194865930119fb453b558376f	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/chunker.py	1943	cd9d65a7d2769b68a5ec123928c9016c3d13ac8c	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/context_router.py	3257	04cc2c12223ec91ea2c2da0c0a1e7c17311ba818	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/embedder.py	1854	e73a3ed727fe86b5cca0a091e4c89462a8171265	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/file_parser.py	889	84887ed60295ce55047735f8f703f8ec4439eeb2	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/hybrid_search.py	5697	77eb8005f09ead47a72695ecccb4c8ce95af5046	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/lean_backtest_service.py	26012	157239a114039b393fb63b191b9b6eb133f9be39	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/lean_reference_data/market-hours/market-hours-database.json	3178560	2a10e4ffcb459ebcefed706809c25a5496d2349a	백엔드	데이터	강사님 domain-rag-lab 과 같음	복사	
+app/services/lean_reference_data/symbol-properties/security-database.csv	158	ae93c07ae9f8bed4ff0351355fd523b94c55c805	백엔드	데이터	강사님 domain-rag-lab 과 같음	복사	
+app/services/lean_reference_data/symbol-properties/symbol-properties-database.csv	685298	b85ac3c0753ef310b5685c666030760e5fed6322	백엔드	데이터	강사님 domain-rag-lab 과 같음	복사	
+app/services/llm_service.py	9343	24ad62cdb0fa8335d8eb5614a6ca791e8bb986b0	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/services/long_term_memory_service.py	2784	ef8479fc24f0b01767bc94046cd9681e7802d9c1	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/market_calendar_data.py	42966	f364a16c147d1fe930eacee509badf0d581fcf5f	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/orchestrator.py	6967	d1c4cce6460943b189aff70313bf10e2165421f5	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/services/rag_service.py	8258	a88c0ac3b478c132c9c2b1bc2c9d641281740487	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/services/session_memory.py	1358	4990336678a5acea347a718e3f7931e67c445fba	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/tool_executor.py	3328	63eb66a13c02f993df86c520bdd5958cc14d0fe3	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/tool_registry.py	3032	11083826783bb3b0312959a6ef107817b7ed317f	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+app/services/vector_store.py	5641	a77b4c4002bb5b28ce8a4254da56ae050fdbc840	백엔드	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+app/utils/text_cleaner.py	262	913d97403d6b32e713d019fc14669de05ffa2de8	백엔드	코드	강사님 domain-rag-lab 과 같음	복사	
+cloudfront-acm-policy.json	1510	4465e2670221021b7978aa102287511ed11adbd7	설정	데이터	강사님 domain-rag-lab 과 같음	AWS 제외	AWS 설정 — CloudFront · ACM IAM 정책
+data/03.md	85533	ce93b764f75b1a7e33ae99aacf32c4f2015e8ab3	자료	글	강사님 investment-analysis 와 같음 (docs/03.md)	복사	
+data/04.md	63268	b164cce5edd0d1a821719fe5d39797b514703294	자료	글	강사님 investment-analysis 와 같음 (docs/04.md)	복사	
+data/05.md	162411	15cf8495b146531abbd2f2089560739cffc8922b	자료	글	강사님 investment-analysis 와 같음 (docs/05.md)	복사	
+data/06.md	34077	9ecca1ea9a8f726d057b7b34ad7ced5228b3d7a3	자료	글	강사님 investment-analysis 와 같음 (docs/06.md)	복사	
+data/07.md	68664	c060ea230387b36b224c12546414bd2979b2a50f	자료	글	강사님 investment-analysis 와 같음 (docs/07.md)	복사	
+data/10-1.md	17475	5035bee1b66529554da012e26ab848d81c877bec	자료	글	강사님 investment-analysis 와 같음 (docs/10-1.md)	복사	
+data/10-2.md	21352	8afbff3ea3f2a079e5cc2c8b74c6c638d6361dfb	자료	글	강사님 investment-analysis 와 같음 (docs/10-2.md)	복사	
+data/10-3.md	19066	7378add8029e49a97bbaed25bea0967a0abdf25b	자료	글	강사님 investment-analysis 와 같음 (docs/10-3.md)	복사	
+data/10.md	11387	a5c70b4301bb8321be767b1c4ed82dda1584a168	자료	글	통합본 고유	복사	
+data/11.md	35711	c6f724c99c35bcecf3e96027e7232aeac7f26d00	자료	글	강사님 investment-analysis 와 같음 (docs/11.md)	복사	
+data/analysis-results/hyundai-results/HyundaiTrendBacktest-summary.json	8543	4ada6d28dea28f338ff9239fb3bc18aaf2a1f213	자료	데이터	통합본 고유	복사	
+data/analysis-results/lean-results/SamsungBuyAndHold-summary.json	8712	ba1b8774fb0192806eb5b40b62bf6f9bfdcef0c6	자료	데이터	통합본 고유	복사	
+data/analysis-results/samsung-em-results/SamsungEMBuyAndHold-summary.json	7750	22e7ca7e071afa9f93e0d76946e8709af26a3782	자료	데이터	통합본 고유	복사	
+data/curriculum/manifest.json	4920	b8ebe07380644d91fcf57be3a7665860f57c2403	자료	데이터	통합본 고유	복사	
+data/curriculum/unit01.md	58110	f8ee2ce59a79e567a592734fe458ba99a9a3765e	자료	글	통합본 고유	복사	
+data/curriculum/unit02.md	85684	5219a2a31c6563daafe7e58a05460e406b3b908a	자료	글	통합본 고유	복사	
+data/curriculum/unit03.md	225885	4a49c48b59dbdd9075f4057776fcd8478722b9f0	자료	글	통합본 고유	복사	
+data/curriculum/unit04.md	102924	a04e1f78dc067c5f93b3c0c895da1234f9af8ea9	자료	글	통합본 고유	복사	
+data/curriculum/unit05.md	35852	1e27aae51f15a36429f803f96c2891df03a964d6	자료	글	통합본 고유	복사	
+data/curriculum/unit06.md	38948	6fb4a4c34da2a482de9a7475167884a66b15db2f	자료	글	통합본 고유	복사	
+data/curriculum/unit07.md	12796	9f1fd22f9e625283cfbb783516436938377a0ee1	자료	글	통합본 고유	복사	
+data/curriculum/unit08.md	18043	034d253ffb66ab32c812030fa20767408924eeba	자료	글	통합본 고유	복사	
+data/curriculum/unit09.md	25404	ab8523836acc8f24653fca6009a221e2c2d5463f	자료	글	통합본 고유	복사	
+data/curriculum/unit10.md	11568	d11173bf7be210fae5be8bba938cc548a70bbd90	자료	글	통합본 고유	복사	
+data/image-1.png	81355	d0402b7fe90869fcd3a028cf6eb86d9b1bba8353	자료	그림	강사님 investment-analysis 와 같음 (docs/image-1.png)	복사	
+data/image-2.png	111570	bf07afaf2d27d743c28b7b482fdd7d3fed6f591e	자료	그림	강사님 investment-analysis 와 같음 (docs/image-2.png)	복사	
+data/image-3.png	127439	34607db29f03c8ef80edd2c7904bea3793687c47	자료	그림	강사님 investment-analysis 와 같음 (docs/image-3.png)	복사	
+data/image.png	78092	4373e91c8a33ae99d88eca12cf517ed8ff695c72	자료	그림	강사님 investment-analysis 와 같음 (docs/image.png)	복사	
+data/image/1001.png	4198936	4ad662e13b2aaaa52e894ad3c5031082efc3f0fe	자료	그림	강사님 investment-analysis 와 같음 (image/1001.png)	복사	
+data/image/devtools-localstorage-progress-example.png	413083	158ad24e23b1016e4a3b3bca02cbdfedae5f80d3	자료	그림	강사님 investment-analysis 와 같음 (image/devtools-localstorage-progress-example.png)	복사	
+data/image/image-1.png	169096	26171755d119da5696f99ef0aa8e896f2ff490b1	자료	그림	강사님 investment-analysis 와 같음 (image/image-1.png)	복사	
+data/image/image-2.png	356959	56449888f9468a8ea0c266d1c920f270188d3e63	자료	그림	강사님 investment-analysis 와 같음 (image/image-2.png)	복사	
+data/image/image-3.png	138359	b5fae6e1f614c3aacbfc07594f75bbff82aaa8ce	자료	그림	강사님 investment-analysis 와 같음 (image/image-3.png)	복사	
+data/image/image.png	225769	5da086ad3c02cbd0d1249445deb476d37f5fb5bc	자료	그림	강사님 investment-analysis 와 같음 (image/image.png)	복사	
+data/image/iv-021.png	3695336	eac9c2241eb12799b6388d574b0aeb5a83249f63	자료	그림	강사님 investment-analysis 와 같음 (image/iv-021.png)	복사	
+data/image/iv01.png	4171221	366b16d5f541604f331247ff96d1274dfdf58060	자료	그림	강사님 investment-analysis 와 같음 (app/frontend/images/diversification-guide-infographic.png)	복사	
+data/image/iv02.png	5426761	02cb3ea9e489af6fe46017fd06c526ca887bdae6	자료	그림	강사님 investment-analysis 와 같음 (app/frontend/images/personal-investor-rebalancing-guide.png)	복사	
+data/image/pattern-1.png	1360687	56b38c0e1474b06f0a043a8d3e3bbb0cf2bd6c14	자료	그림	강사님 investment-analysis 와 같음 (image/pattern-1.png)	복사	
+data/images/kiwoom_hts_chart.gif	54551	a50eb4406fe706e1d9665f20882402c63439c485	자료	그림	강사님 investment-analysis 와 같음 (docs/images/kiwoom_hts_chart.gif)	복사	
+data/images/toss_mts_home.png	45238	8261c0a0f300f8d9e4c250f19fdfc8a9081c3bf2	자료	그림	강사님 investment-analysis 와 같음 (docs/images/toss_mts_home.png)	복사	
+data/samples/finance_accounting_tax_basics.txt	187790	737f258b2ca4ba1f6a5b80611ce0a1a0fced0d9c	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_aihub_rag_case.txt	14104	92420c700edf455d241db0a35890ed96371f8b13	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_asset_allocation.txt	260820	8a0d9232058c6aba82f4b42b49534f8b594edf58	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_economic_indicators.txt	33058	28f30c52f6a48e56ec32de9e48b554853c0eb8ac	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_etf_deep_dive.txt	14741	96b6cb433a4e95e4723f10fea1925e46bf972a89	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_financial_products_classification.txt	72953	a97224b7531dc72f0ee16ab91707cfb1e922e074	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_financial_statements_1.txt	55024	6ab7d45a189e9abb3119393d771d8fb04a38c6b5	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_financial_statements_2.txt	22737	238eb1137fca2e790508ce22bf328ccd6d1bc66f	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_foreign_investor_flows.txt	28063	9b90bc063997a45ecc7c78c8f048900ace0d5e98	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_glossary.txt	110493	19f795cdb6debd284933b9a59b75999e8fffbf65	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_high_school_product_guide.txt	6022	aa6ea5192d33027222c721b013e00394d7e9e006	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_industry_analysis.txt	31536	70226b96d9a512515f17667423d81c18e2078119	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_industry_analysis_practice.txt	67539	ab99e2d23145b8f8e2bf27f62345bb0a423f6fd3	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_kospi200_foreign_futures_options_hts_guide.txt	8679	a1cbfb76a2374fc9856965e811e9fe976e97ebd1	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_lending_sectors_guide.txt	3968	fcc73eb1360ad158f71141a7a5ff070e9c1904c4	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_macro_analysis_practice.txt	46683	d23b64c5ee82509d412f9330439a9c0df0f36bc7	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_pair_trading_cases.txt	8009	a3ad1e2476c8c9e6a45fd16fbf56c77bfac7eba0	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_portfolio_theory.txt	21529	8d48230071e0aa75cdca62de043a15f743a84369	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_quantopian_intro.txt	7044	f71ba2b3466060ab0ae6aed876f27d5344253fef	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_stock_dividend_basics.txt	108243	7795c5de2a763a06655c53a24c3dd07a64d8c609	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_technical_analysis_1.txt	32420	8bc5d536de3dad4c27a6b378c9c56c48b04add5d	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_technical_analysis_2.txt	64469	4f046149fe9917b7bb25ebbafb1bfbfe2d27aac8	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/samples/finance_valuation_multiples.txt	41005	00f4fa8085f7948066028a0a4aafc7da13204d18	자료	글	강사님 domain-rag-lab 과 같음	복사	
+data/voca-exam.md	8186	c9df61b29ff190fa381b1d3b0f29a87aea9efb4e	자료	글	강사님 investment-analysis 와 같음 (docs/voca-exam.md)	복사	
+data/voca.md	51065	a5dc0a09204ff776002f415f10eb5e8c6a54f9ef	자료	글	강사님 investment-analysis 와 같음 (docs/voca.md)	복사	
+data/국내주식 종목별 투자 현황(2024년 말).xlsx	177020	fde01426656363da29dd6f1df7c5cb128a206c58	자료	데이터	강사님 investment-analysis 와 같음 (docs/국내주식 종목별 투자 현황(2024년 말).xlsx)	복사	
+data/국내주식 종목별 투자 현황(2025년 말).xlsx	163481	f92f08ef2c427367f773f990c63fce09712cd1db	자료	데이터	강사님 investment-analysis 와 같음 (docs/국내주식 종목별 투자 현황(2025년 말).xlsx)	복사	
+docker-compose-analysis.yml	6583	0d7004b154aaeb332823b147a3e34c2367668777	설정	설정	강사님 investment-analysis 와 같음 (docker-compose.yml)	복사	
+docker-compose.ecr.yml	3307	df07729a888fad38c4ee5d3c1b331dc8a86b82c5	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	AWS 제외	AWS 배포 — ECR 이미지로 띄우는 구성
+docker-compose.prod.yml	5068	f0283ce9ce13dce451f69556695f4e0e8fd3b040	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	AWS 제외	AWS 배포 — AWS 서버용 구성(.env.prod.example 첫 줄이 「AWS server」)
+docker-compose.yml	8815	1d27c6d655b85a47c63822e4842dca89d3ad1fe1	설정	설정	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+docs/00-index/마스터인덱스.md	8321	82cb94695fc2e48f92f28315a313a4ecf8fa1a08	문서	글	통합본 고유	복사	
+docs/00-index/변경이력.md	8416	0dac67d1d401fe57d2c7b8da127abb7b0bc61c14	문서	글	통합본 고유	복사	
+docs/00-index/산출물-대장.md	8460	ebf2484baa134b1c11c92e4a35ef172a31378344	문서	글	통합본 고유	복사	
+docs/10-착수/ADR-0001-통합범위-확대.md	2480	0f12dc7b770cd2069ec1ad7f5014c6dc1189389e	문서	글	통합본 고유	복사	
+docs/10-착수/과업지시서.md	25956	40f9f995e2528da94f9784102e9f19f4b8abe1af	문서	글	통합본 고유	복사	
+docs/10-착수/과제-상세-안내.md	10299	e02c9d2781fbe9d8e332112a83d81e6f2c7c0c65	문서	글	통합본 고유	복사	
+docs/10-착수/매핑-확정안.md	1467	f12e2b88f46868e2d90a8e8752650e67596ae8f2	문서	글	통합본 고유	복사	
+docs/10-착수/범위기술서.md	20523	8d302a575956dc693a1072c65b29cf1a2ae82a3f	문서	글	통합본 고유	복사	
+docs/10-착수/일정-구간표.md	2090	be960eb0cdbdb83919bb59b9e2d76f110de608e1	문서	글	통합본 고유	복사	
+docs/20-요구사항/요구사항정의서.md	19307	afaa911ace5618c9cebef5cac3a20fe31887c5d6	문서	글	통합본 고유	복사	
+docs/60-시스템/아키텍처-다중저장소_v0.1.md	24031	3201eb5c8b0ba0e157ccca28c22469fcea2e355e	문서	글	통합본 고유	복사	
+docs/60-시스템/저장소-결정-5건_v0.1.md	17714	9f190358e23ceac52bc8a40b97230d55089ff81b	문서	글	통합본 고유	복사	
+docs/README.md	9069	722637982b866298bde57fc7b1ad319def9d1bf6	문서	글	통합본 고유	복사	
+docs/decisions/0002-역할별-다중-저장소.md	8244	dc949e228c9686d46b97735a6ab1fc01e020da1c	문서	글	통합본 고유	복사	
+frontend/analysis/data/samsung-cup-with-handle-2025.json	12065	e985efc68b8a67aa430f5dbd2f0e8a4ed210225e	화면-분석	데이터	강사님 investment-analysis 와 같음 (app/frontend/data/samsung-cup-with-handle-2025.json)	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 야후 파이낸스에서 받은 삼성전자 일봉
+frontend/analysis/images/balance-sheet-1.jpg	132021	c0ffb7920cb27d3c3fb828f3ea89c96077491e81	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/balance-sheet-1.jpg)	복사	
+frontend/analysis/images/balance-sheet-2.png	281170	6569fde0eb6c71e866820720a64fce7bc6ffb536	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/balance-sheet-2.png)	복사	
+frontend/analysis/images/balance-sheet-3.png	383185	49a2d698c652bbc5ad1ecfce6ba9f94ac4935d12	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/balance-sheet-3.png)	복사	
+frontend/analysis/images/balance-sheet.png	151492	0b9a3165e0441278204afc3a9fc1521dfc47aa7f	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/balance-sheet.png)	복사	
+frontend/analysis/images/base-rate.png	49824	a1337de7085626f3a4a7daf034eccfc091f60f8c	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/base-rate.png)	복사	
+frontend/analysis/images/candle-anatomy.svg	5160	8156addd1cbcd7f015e24ae73de202be77e8f85b	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/candle-anatomy.svg)	복사	
+frontend/analysis/images/candle-long-tail-doji.svg	3579	fd4214b1894eb95e913124fe4a38b3e1b12cc985	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/candle-long-tail-doji.svg)	복사	
+frontend/analysis/images/candle-reading-order-steps.svg	5498	1eef7d3134aeed649ec23159170605ca324d24f1	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/candle-reading-order-steps.svg)	복사	
+frontend/analysis/images/cash-flow-1.png	1269082	edfcbb694204d094e80bb3ab5fe4284e914d89b7	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/cash-flow-1.png)	복사	
+frontend/analysis/images/cash-flow-2.png	13448	c5183ccfa3207e3c552f44f10250223d43b4604b	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/cash-flow-2.png)	복사	
+frontend/analysis/images/cash-flow-3.png	137939	7e73ea5965f9bed8ff9b0c5ec951608bcff3f186	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/cash-flow-3.png)	복사	
+frontend/analysis/images/cash-flow.png	166502	e4989f6f6192f5042febba321e69f3cfc2b665c5	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/cash-flow.png)	복사	
+frontend/analysis/images/diversification-guide-infographic.png	4171221	366b16d5f541604f331247ff96d1274dfdf58060	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/diversification-guide-infographic.png)	복사	
+frontend/analysis/images/doji-types.svg	3911	3f271a58247ceebfafd4875226ae40194241fe07	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/doji-types.svg)	복사	
+frontend/analysis/images/hoga-book-limit-up.svg	2863	a0077fb1727c141666f92c942f31952fe658bdd0	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/hoga-book-limit-up.svg)	복사	
+frontend/analysis/images/hoga-book-narrow-spread.svg	5776	c679c234ba30efa7adbac9d05ea74f0b98162d55	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/hoga-book-narrow-spread.svg)	복사	
+frontend/analysis/images/hoga-book-wide-spread.svg	5991	aace938bce03e2b7b33e74a8161f6e6fe6a58a68	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/hoga-book-wide-spread.svg)	복사	
+frontend/analysis/images/hts-kiwoom-hero4-main.gif	41363	2c10f337c44c2aa5d70a88b0cd99b339453545ec	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/hts-kiwoom-hero4-main.gif)	복사	
+frontend/analysis/images/income-statement.png	115424	597a7339d4acd933553f2fc46a75e391942d7148	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/income-statement.png)	복사	
+frontend/analysis/images/korea-global-economy-position.png	5423555	b21093da46bcfeea325ded9f948f5331059e0587	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/korea-global-economy-position.png)	복사	
+frontend/analysis/images/liquidity.png	44153	d334b304d259eb9c840c5dd0c0a3ef2e3ec2574f	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/liquidity.png)	복사	
+frontend/analysis/images/ma-golden-cross-august.svg	4940	28ff9f30fefa9795b7352a8138e40a3b4fa74605	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/ma-golden-cross-august.svg)	복사	
+frontend/analysis/images/market-rate.png	55403	9fea9a464d9939a99290e041bb9e759d73d644fc	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/market-rate.png)	복사	
+frontend/analysis/images/microsoft-annual-report-debt.png	93833	c4ac85f06ca23f3f202151d1cabd42c96cb1866c	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/microsoft-annual-report-debt.png)	복사	
+frontend/analysis/images/monthly-10ma-long-term.svg	6340	e8aab03338e4953fc21292353a20822a89e24552	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/monthly-10ma-long-term.svg)	복사	
+frontend/analysis/images/mts-kiwoom-hero-s-screen.png	133580	91bbdfc370f528f306dcd929cb2fbf7b4e2c21b5	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/mts-kiwoom-hero-s-screen.png)	복사	
+frontend/analysis/images/multiples.png	52852	d904a64022cb5119fb3adc150a71d2c73762773c	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/multiples.png)	복사	
+frontend/analysis/images/personal-investor-rebalancing-guide.png	5426761	02cb3ea9e489af6fe46017fd06c526ca887bdae6	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/personal-investor-rebalancing-guide.png)	복사	
+frontend/analysis/images/sentiment.png	53242	d19ec692fbaaf1ae38b42fcde60340c3a17f73fb	화면-분석	그림	강사님 investment-analysis 와 같음 (app/frontend/images/sentiment.png)	복사	
+frontend/analysis/index.html	15431	8f67a9347e857109c65b5c67a27fb467c6481b37	화면-분석	화면	통합본 고유	복사	
+frontend/analysis/js/api.js	6772	6d78a8081af116499b88e1d61d4e0816bcd51c36	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/api.js)	복사	
+frontend/analysis/js/app.js	33174	188a72d624b121591665a6e1a919f64ac69ad4c3	화면-분석	코드	통합본 고유	복사	
+frontend/analysis/js/auth.js	6969	45c505964ecec37fc29c86fa13054459767cc71b	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/auth.js)	복사	
+frontend/analysis/js/data/learnDocs.js	1349	fc693a3b8fd97bbe4c7f8acc52037bfa4388f3de	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/data/learnDocs.js)	복사	
+frontend/analysis/js/data/youtubeVideos.json	14057	b459eb6ab6863cbd9d4d9258f4be4779fba5f36b	화면-분석	데이터	통합본 고유	복사	
+frontend/analysis/js/includeSidebar.js	1436	00e6bf01a480ed777066ec7ce74fbc97c222f4c8	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/includeSidebar.js)	복사	
+frontend/analysis/js/pages/youtube.js	13411	2db71551a35146d8a809bce585699a08592daaa7	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/pages/youtube.js)	복사	
+frontend/analysis/js/sidebarUI.js	9457	e45544846ee94547adf57cdaa17fa33c45e30882	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/sidebarUI.js)	복사	
+frontend/analysis/js/utils/chartDrawingOffcanvas.js	25607	dec55fe5b23176d3ddbf2ce857230d8b09f3e248	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/utils/chartDrawingOffcanvas.js)	복사	
+frontend/analysis/js/utils/financialCharts.js	16664	896a02b3f0afbc698de10869876f3c9736dc6128	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/utils/financialCharts.js)	복사	
+frontend/analysis/js/utils/localState.js	2457	a4b3a632955a7a328b8414746d88e7efd2d83f45	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/utils/localState.js)	복사	
+frontend/analysis/js/views/assetClasses.js	10261	857f1928d1ac63152624a9589403ec3aea789c05	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/assetClasses.js)	복사	
+frontend/analysis/js/views/backtest.js	3759	bb4bd5e4b5d12976847ee88cb7f9d0aef4fcb735	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/backtest.js)	복사	
+frontend/analysis/js/views/cloudAiResources.js	9298	2e57607c460b5345102db57de1412f5a24007e38	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/cloudAiResources.js)	복사	
+frontend/analysis/js/views/cnnTimeseries.js	3168	9358e56cf6e84f53811efd736cab072eba8be048	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/cnnTimeseries.js)	복사	
+frontend/analysis/js/views/companyFinancial.js	5490	74b8a74d1a6d04151b2446431e1ec85c74de2f52	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/companyFinancial.js)	복사	
+frontend/analysis/js/views/crossValidation.js	2193	7cc6a42e40ec40034b8bf7d1363fe0afdb052487	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/crossValidation.js)	복사	
+frontend/analysis/js/views/dartCompanySearch.js	11508	7a82b4a60fa0d9df4ce6eec3365b35d94357cb0e	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/dartCompanySearch.js)	복사	
+frontend/analysis/js/views/dartFinancialAnalysis.js	25368	897c519b4511af3a06c9f95dc650eee786eb18eb	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/dartFinancialAnalysis.js)	복사	
+frontend/analysis/js/views/dartRegionSearch.js	11973	f01780f10e942b54dc91042bf9c2e2116de4b55e	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/dartRegionSearch.js)	복사	
+frontend/analysis/js/views/decisionBoundary.js	1022	b36aaab5b7717dec5b0429fb5a0bf792d0f60d51	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/decisionBoundary.js)	복사	
+frontend/analysis/js/views/financialKnowledge.js	18581	c0ad34b7ce2e64c9b7b09456ee573b3748b12823	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/financialKnowledge.js)	복사	
+frontend/analysis/js/views/financialStatement.js	17136	c8f304f90f80373aa0fe5cafe1d2d11c88b39be4	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/financialStatement.js)	복사	
+frontend/analysis/js/views/globalCapitalMap.js	11051	290f83521a329694a859dc7e46e56b8f6e5e2dd4	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/globalCapitalMap.js)	복사	
+frontend/analysis/js/views/groupNetwork.js	13336	429a79d17a21fa860da41c6841e309b3e1d970c5	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/groupNetwork.js)	복사	
+frontend/analysis/js/views/home.js	40631	78b2ee121b025809c71f4af3a2aa56e42deca259	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/home.js)	복사	
+frontend/analysis/js/views/huggingface.js	2299	faedc68257073ef0d03ed3bd6edcf81eec200c1c	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/huggingface.js)	복사	
+frontend/analysis/js/views/industryAnalysis.js	39661	90eb02221ddf3306cf36c562a518adadbd868633	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/industryAnalysis.js)	복사	
+frontend/analysis/js/views/investmentTree.js	25914	1fb01a3910c8d1a3b3cca1dcc0c9865676da6dd3	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/investmentTree.js)	복사	
+frontend/analysis/js/views/kmeans.js	2153	c680a10a68bbcc8ba59d67ed652fadb1498691a4	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/kmeans.js)	복사	
+frontend/analysis/js/views/kospiExcluded.js	13126	ca5ece9f857ba25219054301867349d38daeded6	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/kospiExcluded.js)	복사	
+frontend/analysis/js/views/learn.js	254902	03b36247aa4e8425c43115653590617b5aaffea8	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/learn.js)	복사	
+frontend/analysis/js/views/linearRegression.js	2167	34c578df23e3b7052ea351f1d7e3ea842925cd03	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/linearRegression.js)	복사	
+frontend/analysis/js/views/llmBenchView.js	7091	87289afcc5e7292dae542b652603ad709d9794f4	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/llmBenchView.js)	AWS 제외	AWS 서비스 연동 — 위 비교 화면
+frontend/analysis/js/views/lstm.js	3295	a68296ea4d8a4c5160a83b2cb0c8805a616f2079	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/lstm.js)	복사	
+frontend/analysis/js/views/macroRealtime.js	7728	7f8d08ab3f365d296c4c713e194697dd3d2f0626	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/macroRealtime.js)	복사	
+frontend/analysis/js/views/macroSimulation.js	5852	8d7600ce14561ad7f2452e6d296d184b4dfd07c3	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/macroSimulation.js)	복사	
+frontend/analysis/js/views/mlp.js	2098	1991379f08aede5409829398c519da227001ed64	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/mlp.js)	복사	
+frontend/analysis/js/views/opencv.js	1786	adf8db3b2494492e73644726433ca8058dc37736	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/opencv.js)	복사	
+frontend/analysis/js/views/pipeline.js	4423	001a23e7d05f4da85b3ae14ad0e2a0163a9aa3e5	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/pipeline.js)	복사	
+frontend/analysis/js/views/portfolio.js	4497	d10951279f7c511ae4d6135b21e1dc280bf9cb74	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/portfolio.js)	복사	
+frontend/analysis/js/views/portfolioCombination.js	22064	ceba44e3a271feb0a785f6b0fa6a0483917e7432	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/portfolioCombination.js)	복사	
+frontend/analysis/js/views/portfolioGuide.js	11954	596987c4a03ddd77daacff223e7f72ec786c6216	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/portfolioGuide.js)	복사	
+frontend/analysis/js/views/portfolioRegime.js	10937	b44cac21929c413f8540c970d5a05de3ce7ec57d	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/portfolioRegime.js)	복사	
+frontend/analysis/js/views/portfolioSimulation.js	11416	56d3422c62636dd28df46dba039896502cc6c6d4	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/portfolioSimulation.js)	복사	
+frontend/analysis/js/views/quant.js	7923	f3251e704f7f1ab75b969095865990782bb1aa21	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/quant.js)	복사	
+frontend/analysis/js/views/quiz.js	21351	d260a00337fab0cd04d4dc93c57cd429e41dc271	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/quiz.js)	복사	
+frontend/analysis/js/views/ragChat.js	7810	032494222cf2e0b86a321dba5796f4b3e7ed779f	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/ragChat.js)	복사	
+frontend/analysis/js/views/randomForest.js	1504	f7798c4d8f0efc6f644b0074fb03bfd45b92de0d	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/randomForest.js)	복사	
+frontend/analysis/js/views/risk.js	3937	39491fa1fcea314cca8b77c6f51b7ff2373e6eaf	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/risk.js)	복사	
+frontend/analysis/js/views/sectorCloud.js	6759	1f2da93a8785f998e2708aa04351efcff7115aef	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/sectorCloud.js)	복사	
+frontend/analysis/js/views/sentiment.js	2659	81ad22ed54c893e6053d76cf1af75bd707bee24f	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/sentiment.js)	복사	
+frontend/analysis/js/views/serverResources.js	8129	b5b3892ca4e9b76d894e08e3c1158528d5e810db	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/serverResources.js)	복사	
+frontend/analysis/js/views/svm.js	1990	94a0a04bdb3c5412fd569c4bc3d822afbfb784b7	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/svm.js)	복사	
+frontend/analysis/js/views/taxAccounting.js	33299	2975a1087f242fb3c9eab5f81462096c0dbb33ab	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/taxAccounting.js)	복사	
+frontend/analysis/js/views/technicalChart.js	41237	6629fe5d63857528b2fb7ad4ac95ade0e5f4bb47	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/technicalChart.js)	복사	
+frontend/analysis/js/views/textClassify.js	3366	c71a15f1b48e25994efef96183b34c95d185ec2f	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/textClassify.js)	복사	
+frontend/analysis/js/views/todayGainers.js	11248	032b535b91873ceccaa7fb4fc5326d111f3aeca3	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/todayGainers.js)	복사	
+frontend/analysis/js/views/todaySobujang.js	850	ad0b4550e70889ec0d198225337353ac888fa682	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/todaySobujang.js)	복사	
+frontend/analysis/js/views/transformer.js	3287	36764579926cbf70dff551173fa843579310fdfe	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/transformer.js)	복사	
+frontend/analysis/js/views/valuation.js	53393	80bd65465980f9831ed19f2d69dccc90a36ff16b	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/valuation.js)	복사	
+frontend/analysis/js/views/vocabularyExam.js	9024	af438797f5c1dfec72c363ce0523fc6527efecaf	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/vocabularyExam.js)	복사	
+frontend/analysis/js/views/volumeCloud.js	7017	62d6df53bccd85242f39aef7923d40b09eaa22f6	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/volumeCloud.js)	복사	
+frontend/analysis/js/views/worldMarkets.js	18786	e0c44abea40870d0786dda13c4600ba024120409	화면-분석	코드	강사님 investment-analysis 와 같음 (app/frontend/js/views/worldMarkets.js)	복사	
+frontend/analysis/pages/partials/sidebar-nav.html	8190	27cb8aa223895766a06b9fbe8ded0bef321f6e2a	화면-분석	화면	강사님 investment-analysis 와 같음 (app/frontend/pages/partials/sidebar-nav.html)	복사	
+frontend/analysis/pages/resource-pages.css	8646	af6a7788a186cdfe3ccb88887837c573115d2f35	화면-분석	화면	강사님 investment-analysis 와 같음 (app/frontend/pages/resource-pages.css)	복사	
+frontend/analysis/pages/youtube.html	2721	32ab93e3b7ab7cf9eccd5a950d25767110b142e9	화면-분석	화면	강사님 investment-analysis 와 같음 (app/frontend/pages/youtube.html)	복사	
+frontend/analysis/styles.css	265977	a0af6742b7b0edbdba3fd043ac3a3e4e2b101e58	화면-분석	화면	강사님 investment-analysis 와 같음 (app/frontend/styles.css)	복사	
+frontend/app.js	359297	32b6badc99a4e17b4e4c40b07a1821c5fcf938bb	화면-통합	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+frontend/assets/click-logger.js	1656	d38d3942498b79f4476d1706138f0fc6ddb1a8bd	화면-통합	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/assets/day4-project-schedule.js	23617	d8a91ebc2c4193069a4390e25616b19c813cd3fe	화면-통합	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/assets/integration-curriculum.js	9250	619bce22e451832862ba10fda1933a249010762d	화면-통합	코드	통합본 고유	복사	
+frontend/assets/integration-shell.css	1380	8968474aca562fc3ce1b6f7b456759dd1442bdcc	화면-통합	화면	통합본 고유	복사	
+frontend/assets/integration-shell.js	8582	f277c1cd392f22307beebb8a62e039c92b5ebc5f	화면-통합	코드	통합본 고유	복사	
+frontend/assets/modal-fit.js	4126	341fa77daef8ab6ce740345f14a7bb7d567164e1	화면-통합	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/assets/simulation-workbench.css	1797	63dc06a09d46225db294387c69f2d7c012bbf831	화면-통합	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/assets/theory-data.js	135612	191e86e887a15c5d8734ca6296692e9f3d8d85d2	화면-통합	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/auth.js	4291	4ab0bc2770c78086b5e0befd44cacd256dcd97b2	화면-통합	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/01.html	362982	dbda8d1e0f9542137775c1384b9bf9668adc1fea	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/02.html	373535	c7899fa890a3fbd11888f6519fb04bc66330eb19	화면-강의사이트	화면	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+frontend/days/03.html	375563	2547984bf9ff3846b57d887512080d9f4df3ae44	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/04.html	499854	6819def451769b0dc22147616c798f9345cc92bf	화면-강의사이트	화면	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+frontend/days/assets/123.png	4951856	aabcfdd776446d210ed6166c2a5f2dc56b464105	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/app-shell.css	13254	67e352ed96e06a401de3569c9a64122d6d245558	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/app-shell.js	1031	04e640649d4a74b452c7f27edb20a5cc7554455c	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/atlas.js	8657	bea2eca17da47bd64bb5424875316bf23e4758bb	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/black-swan-events.js	17016	e2b4b4699cb30e1707d88fef0e24fdd92c20be59	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/central-bank-volatility.css	4584	3e4d1325385a12fc6d148374a7993c9f41cdca0f	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/central-bank-volatility.js	9185	d1b786640da94348b6a158fe699fb6e03d6344d2	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/data-library-reader.js	5906	27c7d02551753cfd2b574ffbd263d549d6c715b6	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-risk-guide.webp	275486	afd40e95798da869378176909c8ddaf36f144c16	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-stair-timeline.svg	5207	56780ce5cb5b422e617e9c91898a0cadd947f803	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-steps/step-1.png	751396	f1aa3646cc5061a26dc7028657d3209ad066e9d9	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-steps/step-2.png	662496	785626d58309eb901011b46874e366a086a0d987	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-steps/step-3.png	695558	925da69a7388bc34522f613d3d7aa911cbce0188	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-steps/step-4.png	650184	a8e1647f106a26fd0538c19cdf86b1688470a045	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-steps/step-5.png	758117	e03eba0754e2b267187ab2710566a2406b7d7de4	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/derivatives-steps/step-6.png	839547	c93dcfdf79cc6a06276883caa201201c42d0d916	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/duration-use-case-simulators.css	4679	9518541f6211b594ffd4733a4ed9b27c9c070a2c	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/duration-use-case-simulators.js	12401	ca39b7c77157b315901c5a4b8b980eef68eaf538	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/emerging-market-detail.css	2524	99788154a358377609aa2f8b0b2cb05c6306b3e6	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/emerging-market-modal.css	1760	9eeaab2daa5f01275952d3aa25ed404485fc3b62	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/etf-catalog.json	579632	eeb02dce436753cd3c5ec7f08ba75408a8465e14	화면-강의사이트	데이터	강사님 domain-rag-lab 과 같음	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 네이버 금융 목록 + 토스증권 화면의 내부 API 로 모은 ETF 1,009종의 3개월 수익률 · 구성종목
+frontend/days/assets/etf-role-detail.css	711	92fc3ae3a4ceb1247cbd1d4f6362de01c158fda0	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/fund-case-market.css	1587	8dea2cb8efc7eea1f1c4b614aa8a16af8900e930	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/fund-manager-add-row.css	1070	c5e8bfaf1a4cf3dfa9833deeabbe5b6017917730	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/glossary-drawer.js	7998	32ad0330f2d1ed825d5c4fd7b1ba1c313f86c93e	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/glossary-modal.js	43500	8910886555d49eee772396eac001d9f2c8926a16	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/growth-potential-rate.js	9766	6f2e3752473099e9dd1cac80a59b631b2909cc9e	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/krx-otc-clearing-specification.jpg	137954	39bdfd465b302ebeca4d8b5983a3a4fc5536276c	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/lesson-understanding.js	3424	8e4541d00a20f0eb294815a0456635948360cc33	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/leverage-etf-volume.json	901	145c21069e3c36fe790c859cbe0f586f70351a44	화면-강의사이트	데이터	강사님 domain-rag-lab 과 같음	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 네이버 금융 월봉에서 계산한 ETF 2종의 월 거래대금 합계 12개
+frontend/days/assets/linear-nonlinear-duration-convexity.svg	5771	814bf4bef134cc342e662f377e8420f8733bb2d0	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/mts-bond-trading-example.jpg	34236	2313510375aab94e1f7b20dca8c4c2ebe9435560	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/site.css	146968	f832695fab6573c360945bebf20fe55532ed5584	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/site.js	4063	da0dd748ce9559ec3bd88e4be541c72e477cef59	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/assets/visuals.js	35772	1890f3deaaeb6373ab341da8a730c03fb946dd55	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
+frontend/days/index.html	2570	49f3d0993dbf0f3ad7c9a6172a60ce6a17f77254	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/hangul-scale.css	722	6bb7ad51b2fb6f8200d0359a139dac1bc1d6d574	화면-통합	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/index.html	16630	ed93393a5ad9e754b4f401faaa48c0f0daa7004e	화면-통합	화면	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+frontend/index_original.html	15262	11bf4c127d3f410d6e4ac67902a25f35f38881f5	화면-통합	화면	통합본 고유	복사	
+frontend/style.css	158661	76e3c31e4a0d72ac00fdea26fab1dfbed95f4d3b	화면-통합	화면	강사님 domain-rag-lab 과 같음	복사	
+frontend/styles_analysis.css	265977	a0af6742b7b0edbdba3fd043ac3a3e4e2b101e58	화면-통합	화면	강사님 investment-analysis 와 같음 (app/frontend/styles.css)	복사	
+image.png	10341	360d81437f7d200c57e54b50bf12ca760e1c7253	설정	그림	강사님 domain-rag-lab 과 같음	복사	
+index.html	9	76afcce70ff76ee90f90d4d15968a22d2d206f0f	설정	화면	강사님 domain-rag-lab 과 같음	복사	
+init.sql	101	146438fa2fd4fa55cf4ede257da9bc63086753db	설정	코드	강사님 domain-rag-lab 과 같음	복사	
+llms.txt	5035	c9c3594577450d3781f4d400a8289e34722bf8b3	설정	글	강사님 domain-rag-lab 과 같음	복사	
+requirements.txt	701	eed7dae4c11a9525947a933e2333540da779c9a0	설정	글	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+scripts/crawl_etf_catalog.py	6800	3ffd78a6499b67f75b2d690ff4f71bd4ce9efa30	도구	코드	강사님 domain-rag-lab 과 같음	복사	
+scripts/crawl_leverage_etf_volume.py	4100	b80a7d70a2069b88cfd5ffd71eec6a50a4c360f0	도구	코드	강사님 domain-rag-lab 과 같음	복사	
+scripts/deploy_ec2.sh	2424	37acee6e04eb6f9baf42d7cc5215939f0420fc2f	도구	코드	통합본 고유	AWS 제외	AWS 배포 — EC2 배포 스크립트
+scripts/ingest_chapters.py	1646	971330c4a2a57cf9c965899fc890fa44b658da63	도구	코드	통합본 고유	복사	
+streamlit_app.py	21986	08e546e7c40047079759f0b6807d2aa59d948e8a	설정	코드	강사님 domain-rag-lab 에 같은 경로 · 내용 다름	복사	
+test.md	816	f2015a4b96dd8d85b2c36f65998de1270a2d1f28	설정	글	강사님 domain-rag-lab 과 같음	복사	
+tests/conftest.py	253	1246131007a432d8bf6017f4f0d6f8289681b054	시험	코드	통합본 고유	복사	
+tests/test_vector_profile_stage1.py	5043	92927e805561f1489553df4bd99dd46036e76fc2	시험	코드	통합본 고유	복사	

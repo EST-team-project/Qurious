@@ -89,6 +89,8 @@ ROUTER_ABBR = {
   "conversations": "CONV", "tasks": "TASK", "paper": "PAPR", "openapi": "OAPI", "lean": "LEAN",
   # 2026-09-30 강사님 원본(2026-09-29)에서 들어온 라우터
   "rebalance": "RBAL", "tradingview": "TV", "formula": "FRML",
+  # 2026-09-30 용어사전 (요구 P01-①-1)
+  "glossary": "GLOS",
 }
 
 # 인증 의존성 — 이름표. 값이 같은 모양이면 같은 사람이 통과한다.
@@ -160,6 +162,7 @@ PART_RULES = (
   ("documents", "", "P-A", "P01-①-3 근거 문서"),
   ("ingest", "", "P-A", "P01-①-2 · ①-4 적재 · 정기배치"),
   ("graph", "", "P-A", "P01-①-1 연관개념 탐색"),
+  ("glossary", "", "P-A", "P01-①-1 용어사전"),
   ("library", "", "P-A", "P01-①-2 자료 검색"),
   ("notification", "", "P-B", "P02-③-3 알림 (보조 P-E)"),
   ("tasks", "", "P-E", "P02-⑤-3 실행 · 로그"),

@@ -396,7 +396,17 @@ function Test-QImageStale {
   $names = @('app', 'public', 'prompts', 'alembic', 'alembic.ini', 'requirements.txt', 'Dockerfile')
   if ($DepsOnly) { $names = @('requirements.txt', 'Dockerfile') }
   $sources = $names | ForEach-Object { Join-Path $QRoot $_ } | Where-Object { Test-Path $_ }
-  $newest = Get-ChildItem -Path $sources -Recurse -File -ErrorAction SilentlyContinue |
+  # 폴더는 안쪽까지 훑고, 파일은 그 파일 하나만 본다. 파일 경로에 -Recurse 를 주면 PowerShell 이 그 이름을
+  # 「찾을 이름」 으로 읽어 저장소 전체에서 같은 이름의 파일을 찾는다 — 통합본 반입 폴더의
+  # rag-lab\requirements.txt 가 걸려, 패키지가 바뀌지 않았는데도 이미지를 다시 만들었다(2026-09-30).
+  $files = foreach ($source in $sources) {
+    if (Test-Path $source -PathType Container) {
+      Get-ChildItem -Path $source -Recurse -File -ErrorAction SilentlyContinue
+    } else {
+      Get-Item -Path $source -ErrorAction SilentlyContinue
+    }
+  }
+  $newest = $files |
     Where-Object { $_.FullName -notmatch '\\__pycache__\\' } |
     Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
   if ($newest -and $newest.LastWriteTimeUtc -gt $imageUtc.AddSeconds(1)) {

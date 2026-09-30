@@ -1,0 +1,37 @@
+./venv
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env
+.env.local
+.env.prod
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+.claude/
+*.pem
+*.pdf
+
+
+DATA-ROOT/
+data/processed/
+# HF 데이터셋(qurious-quant · private) 캐시 — 팀 안에서만 쓰는 원자료라 이 공개 저장소에 올리지 않는다 (ADR-0002 §6)
+data/hf_cache/
+*.parquet
+# 실행 중 API 가 만드는 산출물(/api/cv/circle-animation 등 · ml.py · analysis_main.py 의 GENERATED_DIR)
+app/generated/
+# LEAN local runner scratch folders
+data/lean-workflows/
+
+*.key
+
+# Scratch / temporary debug scripts
+scratch/
+scratch_*.sh
+scratch_*.py

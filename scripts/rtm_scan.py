@@ -64,10 +64,27 @@ ROOT = Path(__file__).resolve().parents[1]
     "data", "screenshots", ".playwright-mcp", ".venv", "venv",
     # 시험은 「시험」 칸에서 따로 센다 — 흔적으로 세면 시험이 구현처럼 보인다
     "tests",
+    # 통합본 반입 폴더 — 옮겨만 놓았고 Qurious 앱과 이어지지 않은 코드다(파이썬 60 · JS 80여 개).
+    # 흔적으로 세면 아직 만들지 않은 요구(RAG 출처 · 퀴즈 · 세무 등)가 「흔적 있음」 으로 보인다.
+    # 기능을 app/ · public/ 으로 옮긴 뒤에야 그 코드가 흔적으로 잡힌다.
+    "rag-lab",
 }
 # 문서 · 기록 도구는 요구 이름을 글자로 들고 있다(화면 키 목록 · 탐지 규칙 · 스크린샷 대상).
 # ⚠️ v1.0 에서 스캐너 자신의 탐지 패턴 `rebalanc` 가 흔적으로 잡혀 「리밸런싱 0줄」이 「1줄」로 보였다.
 문서_도구 = ("*_scan.py", "post_check.py", "take_screenshots.py")
+
+# 다른 요구의 이름을 **자료로** 들고 있거나 낱말이 우연히 겹치는 파일 — 적힌 요구의 흔적으로만 센다.
+# 빈 집합이면 어느 요구의 흔적으로도 세지 않는다. 경로는 저장소 루트 기준(/ 로 나눈다).
+# 통째로 빼지(문서_도구) 않는 까닭: 앞의 둘은 자기 요구(용어사전)의 구현이라, 빼면 그 요구의 흔적이 준다.
+# ⚠️ 용어사전 빌드 스크립트를 더한 날 요구 20개의 흔적이 한 파일씩 늘었다(2026-09-30) — 화면 용어 키 55개의
+#    분류표(`"rsi": "technical"` · `"sharpe": "quant"` · `"backtest": "quant"` …)가 코드 줄이라서였다.
+흔적_한정: dict[str, set[str]] = {
+    "scripts/glossary_build.py": {"P01-①-1"},
+    # `unicodedata.normalize` 가 「지표 정규화」(normaliz) 로 잡힌다 — 글자를 다듬는 것이지 지표 산식이 아니다
+    "app/services/glossary_text.py": {"P01-①-1"},
+    # 표시용 자료를 비공개 데이터셋과 주고받는 도구 — 수집기의 설정 읽기(.env)만 빌려 쓴다. 어느 요구의 구현도 아니다
+    "scripts/raglab_data.py": set(),
+}
 
 # 훑을 확장자. 문서(.md)는 구현 증거가 아니라 뺀다.
 코드_확장자 = {".py", ".html", ".js", ".yml", ".yaml", ".sql", ".toml", ".ini", ".cfg"}
@@ -423,6 +440,9 @@ def 흔적_스캔(패턴표: dict[str, list[str]], 파일들: list[Path]) -> dic
         정규식 = [re.compile(p, re.IGNORECASE) for p in 패턴]
         적중: dict[str, tuple[int, int]] = {}
         for f in 파일들:
+            한정 = 흔적_한정.get(f.relative_to(ROOT).as_posix())
+            if 한정 is not None and qid not in 한정:
+                continue                  # 이 요구의 이름을 자료로만 들고 있는 파일이다
             코드 = 주석 = 0
             for 번호, 줄 in enumerate(본문[f].splitlines(), start=1):
                 if any(x.search(줄) for x in 정규식):

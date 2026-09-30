@@ -356,8 +356,8 @@ FastAPI (Uvicorn)
 pip install -r requirements-dev.txt   # requirements.txt 를 함께 싣는다
 python -m pytest                      # pytest.ini 에 -q 가 있다 — 또 붙이면 요약 줄이 사라진다
 # tests/: 지표 룩어헤드 방지 · 리밸런싱 · 위험관리 · XAI · TradingView 파서 · 패턴 · 성향/시뮬레이션(강사님 원본)
-#         + 실거래 차단 · 수집 DB · 모의 장부 · 문서 스캐너(Qurious) — 249건 (2026-09-30)
-# 모의 장부 DB 시험 7건은 QURIOUS_TEST_DATABASE_URL 이 있을 때만 돈다(tests/test_paper_ledger_i14.py 머리말)
+#         + 실거래 차단 · 수집 DB · 모의 장부 · 계정 · 용어사전 · 문서 스캐너(Qurious) — 367건 (2026-09-30)
+# DB 시험 18건(모의 장부 · 계정 · 용어사전 적재)은 QURIOUS_TEST_DATABASE_URL 이 있을 때만 돈다 — .\scripts\personal\test.ps1 이 일회용 DB 를 띄워 준다
 ```
 
 컨테이너 이미지로 실행할 때:
@@ -373,7 +373,7 @@ docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/pytest.ini:/app/pytest.in
 ## 로컬 실행 가이드
 
 > **Qurious — PowerShell 스크립트로 한 번에 (2026-09-30)**: Docker Desktop 만 켜 두고 저장소 폴더에서
-> `.\scripts\personal\start.ps1`(띄우기) → `.\scripts\personal\check.ps1`(기능 점검 · curl 처럼 API 33건) →
+> `.\scripts\personal\start.ps1`(띄우기) → `.\scripts\personal\check.ps1`(기능 점검 · curl 처럼 API 62건) →
 > `.\scripts\personal\stop.ps1`(끄기). 코드를 받은 뒤에도 `start.ps1` 이 이미지를 스스로 다시 만든다.
 > 사용법은 [`scripts/personal/README.md`](scripts/personal/README.md), 동작 원리 · 점검 항목 · 문제 해결은
 > [로컬 실행 안내서 v0.1](docs/배포/로컬실행안내서_v0.1.md). 아래는 강사님 원본의 수동 절차다(일부는 옛 구성 기준).
@@ -514,6 +514,28 @@ docker pull quantconnect/lean:latest   # docker 모드 사전 준비 (약 14GB)
 ```
 
 실행 이력은 `lean_backtest_runs` 테이블에 남고 `GET /api/backtests/lean/history`로 조회한다.
+
+## 용어사전 · 통합본 반입 폴더 (investment-rag-lab 이식 · Qurious)
+
+강사님 요구 원문의 첫 세부 기능 「용어사전과 연관 개념 탐색」 의 구현 방안은 「domain-rag-lab 와 investment-analysis 의 통합」 이다.
+그 통합본을 AWS 만 빼고 [`rag-lab/`](rag-lab/00-반입안내.md) 에 들여왔다 — **앱과 이어지지 않은 읽기 · 이식용 사본**이고
+(도커 이미지에도 들어가지 않는다), 기능은 묶음마다 `app/` · `public/` 에 새로 쓴다. 출처와 조건은 [NOTICE](NOTICE.md).
+
+첫 묶음인 용어사전은 서버 쪽이 됐다(2026-09-30). 화면 연결 · 연관 개념은 다음 작업이다.
+
+| 무엇 | 어디 |
+|---|---|
+| 용어 755개 · 분류 22개 | 원본 `app/services/glossary_data/terms.json`(git) → 앱이 켜질 때 표 다섯(`glossary_*`)에 넣는다 |
+| API (로그인 없이 읽기) | `GET /api/glossary?q=` · `/api/glossary/categories` · `/api/glossary/meta` · `/api/glossary/{이름}` |
+| 용어를 고칠 때 | `scripts/glossary_build.py` 의 표에 한 줄 → `python scripts/glossary_build.py` → 바뀐 `terms.json` 을 함께 커밋 |
+| 점검 | `.\scripts\personal\check.ps1 -Group 용어` · `python scripts/raglab_scan.py --check`(반입 폴더가 대장과 같은가) |
+
+```bash
+curl "http://localhost:8966/api/glossary?q=PER&limit=3"     # 이름 · 약어 · 영어 · 초성(ㅅㄱㅊㅇ) · 풀이로 찾는다
+curl "http://localhost:8966/api/glossary/sharpe"            # 화면의 용어 키로 한 건
+```
+
+설계와 근거는 [용어사전 설계서 v0.1](docs/설계/용어사전-설계_v0.1.md), 통합본 전체 목록과 옮기는 차례는 [통합본 이식 계획서 v0.1](docs/설계/통합본-이식계획_v0.1.md).
 
 ---
 

@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   check.ps1 이 「떠 있는 앱을 밖에서 두드려 보는」 점검이라면, 이것은 코드 안쪽을 재는 자동 시험이다
-  (tests\ 폴더 · 지표 계산 · 비용 · 장부 불변식 · 문서 스캐너 등 약 250건 · 2분 안팎).
+  (tests\ 폴더 · 지표 계산 · 비용 · 장부 불변식 · 계정 · 용어사전 · 문서 스캐너 등 · 2026-09-30 기준 367건 · 3분 안팎).
 
   순서
     1. 준비       파이썬 · pytest 가 있는가, 12:30 일일 갱신이 지금 도는 중인가(시험이 수집 DB 를 읽는다)
@@ -21,7 +21,7 @@
   이 파일(들)만 시험한다. 예) -Path tests\test_rebalance.py
 
 .PARAMETER NoDb
-  시험 DB 를 띄우지 않는다. DB 가 필요한 시험 7건은 건너뛴다(도커 없이도 돈다).
+  시험 DB 를 띄우지 않는다. DB 가 필요한 시험(모의 장부 · 계정 · 용어사전 적재 — 2026-09-30 기준 18건)은 건너뛴다(도커 없이도 돈다).
 
 .PARAMETER KeepDb
   끝나도 시험 DB 컨테이너를 남긴다(여러 번 연달아 돌릴 때 기동 시간을 아낀다).
@@ -97,7 +97,7 @@ try {
   # 2. 시험 DB
   # ----------------------------------------------------------------------------
   if ($NoDb) {
-    Write-QStep '2/4 시험 DB — 건너뜀 (-NoDb · DB 시험 7건은 skipped 로 나온다)'
+    Write-QStep '2/4 시험 DB — 건너뜀 (-NoDb · DB 가 필요한 시험은 skipped 로 나온다)'
     Remove-Item Env:QURIOUS_TEST_DATABASE_URL -ErrorAction SilentlyContinue
   } else {
     Write-QStep "2/4 시험 DB — $TestDbName (일회용 · 끝나면 지운다)"
@@ -139,7 +139,7 @@ try {
   # ----------------------------------------------------------------------------
   # 3. 시험
   # ----------------------------------------------------------------------------
-  Write-QStep '3/4 시험 — python -m pytest (2분 안팎 · 끝에 「N passed」 요약 줄)'
+  Write-QStep '3/4 시험 — python -m pytest (3분 안팎 · 끝에 「N passed」 요약 줄)'
   Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue
   # -p no:cacheprovider : .pytest_cache 폴더를 만들지 않는다(저장소를 더럽히지 않게).
   # pytest.ini 에 -q 가 이미 있다 — 여기서 또 붙이면 요약 줄이 사라진다.

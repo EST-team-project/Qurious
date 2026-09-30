@@ -7,7 +7,7 @@
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | `main` = `5adfb81` (PR #48 머지 뒤) — `app/` 은 이 커밋과 같다 · **2026-09-29 DF-17 수정 뒤 2 · 4절 표를 다시 채웠다**(`stocks.py` 줄 번호 · STK-03 · 04 캐시 칸) |
 | **추출기** | [`scripts/api_scan.py`](../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../tests/test_api_scan.py) (TC-AP 13건) |
-| **ID 대장** | [`API-ID대장.tsv`](API-ID대장.tsv) — ~~146줄~~ **181줄**(2026-09-30 강사님 기초 코드 반영 · 9절) · 한 번 붙인 ID 는 바뀌지 않는다 |
+| **ID 대장** | [`API-ID대장.tsv`](API-ID대장.tsv) — ~~146줄~~ ~~181줄~~ **189줄**(2026-09-30 — 강사님 기초 코드 반영 181 · 계정 관리 +4 · 용어사전 +4 · 9절) · 한 번 붙인 ID 는 바뀌지 않는다 |
 | **정답 대조** | 도커 안 `app.openapi()`(= `/openapi.json`) 와 **145/145 일치** — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
@@ -148,7 +148,8 @@ flowchart LR
 | `rebalance` | `app/routes/rebalance.py` | 9 | 0 | 3 | 0 | 미배정 9 |
 | `tradingview` | `app/routes/tradingview.py` | 5 | 1 | 3 | 0 | 미배정 5 |
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
-| **합계** | 22개 | **185** | **35** | **92** | **54** | |
+| `glossary` | `app/routes/glossary.py` | 4 | 4 | 0 | 4 | P-A 4 |
+| **합계** | 23개 | **189** | **39** | **92** | **58** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -174,7 +175,8 @@ flowchart LR
 | `rebalance` | 5 | 6 | · | · | 9 | · | · | · | · | · | · | · | · | 6 |
 | `tradingview` | · | 2 | · | · | 4 | 1 | · | · | · | · | 1 | 1 | 1 | 1 |
 | `formula` | 3 | 3 | · | · | 12 | · | · | · | · | · | · | · | · | · |
-| **합계** | **30** | **58** | **7** | **3** | **143** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **50** |
+| `glossary` | · | · | · | · | 4 | · | · | · | · | · | · | · | · | · |
+| **합계** | **30** | **58** | **7** | **3** | **147** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **50** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -213,6 +215,10 @@ flowchart LR
 | API-OAPI-09 | GET | `/openapi/v1/docs-summary` | — | `paper-openapi` |
 | API-LEAN-01 | GET | `/api/backtests/lean/status` | LEAN · Docker | `quant-lean` |
 | API-TV-01 | POST | `/api/webhooks/tradingview` | 야후 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | (다른 곳) |
+| API-GLOS-01 | GET | `/api/glossary` | PostgreSQL | — |
+| API-GLOS-02 | GET | `/api/glossary/categories` | PostgreSQL | — |
+| API-GLOS-03 | GET | `/api/glossary/meta` | PostgreSQL | — |
+| API-GLOS-04 | GET | `/api/glossary/{name}` | PostgreSQL | — |
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
@@ -220,7 +226,7 @@ flowchart LR
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 3 | API-AUTH-02, API-AUTH-04, API-AUTH-05 |
 | `403` | 권한 없음 | 2 | API-AUTH-06, API-TV-01 |
-| `404` | 대상 없음 | 16 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 10 |
+| `404` | 대상 없음 | 17 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 11 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 4 | API-STK-24, API-STK-27, API-FRML-05, API-FRML-07 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
@@ -557,6 +563,15 @@ flowchart LR
 | API-FRML-12 | GET | `/api/formula-indicators/{ind_id}/results` | 세션·JWT | `{ind_id}` · `limit` | {results} | — | PostgreSQL | (다른 곳) | 미배정 | — | formula.py:257 |
 | API-FRML-13 | GET | `/api/formula-indicators/{ind_id}/export` | 세션·JWT | `{ind_id}` · `format` | 모델 없음 | — | PostgreSQL | (다른 곳) | 미배정 | — | formula.py:265 |
 
+#### `glossary` — `app/routes/glossary.py` · 4개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-GLOS-01 | GET | `/api/glossary` | 없음 | `q` · `category` · `limit` · `offset` | 모델 없음 | — | PostgreSQL | — | P-A | P01-①-1 | glossary.py:27 |
+| API-GLOS-02 | GET | `/api/glossary/categories` | 없음 | — | 모델 없음 | — | PostgreSQL | — | P-A | P01-①-1 | glossary.py:39 |
+| API-GLOS-03 | GET | `/api/glossary/meta` | 없음 | — | 모델 없음 | — | PostgreSQL | — | P-A | P01-①-1 | glossary.py:45 |
+| API-GLOS-04 | GET | `/api/glossary/{name}` | 없음 | `{name}` | 모델 없음 | 404 | PostgreSQL | — | P-A | P01-①-1 | glossary.py:51 |
+
 <!-- /api_scan:routes -->
 
 ---
@@ -712,6 +727,7 @@ flowchart LR
 | 오류 규약 결정 | ② 설계 | 6절 제안 |
 | 파트(제안) → 확정 | 결정 대장 v1.0 (D0 ⑤ 역할) 뒤 | 지금은 분배안 해석 |
 | **강사님 기초 코드 반영 — API 146 → 181** (2026-09-30 · 2 · 4절 표는 이미 다시 채움) | v0.2 — 본문 숫자(머리표 146 · 0 · 2절 요약 · 인증 없음 33 → 34)와 새 라우터 셋 설명 | 강사님 lumina-invest `b055ab0` 을 받으며 라우터 셋(`rebalance` 9 · `tradingview` 5 · `formula` 13)과 `stocks` 4 · `ml` 4 가 늘었다. 새 ID 35개는 ID 대장에 날짜(2026-09-30)로 붙였다. `POST /api/webhooks/tradingview`(API-TV-01)는 세션 대신 본문의 API 키로 사용자를 찾는 구조라 「인증 없음」 으로 센다 — 받는 쪽 확인(비밀 토큰 · 중복 신호)은 요구 `P02-③-3` 설계에서 본다. 정답 대조(`app.openapi()`)는 이 판에서 다시 하지 않았다 |
+| **용어사전 API 넷 — API 185 → 189 · 라우터 22 → 23** (2026-09-30 · 2 · 4절 표는 이미 다시 채움) | v0.2 — 본문 숫자(머리표 · 0 · 2절 요약 · 인증 없음 +4)와 새 라우터 `glossary` 설명 | `GET /api/glossary`(목록 · 검색) · `/categories` · `/meta` · `/{name}`(한 건) — `API-GLOS-01~04` · 요구 `P01-①-1` · 파트 P-A. **로그인 없이 읽는다** — 용어 풀이는 누구에게나 같은 참조 자료이고 사용자 데이터가 없다(바꾸는 주소는 없다 · 용어는 파일에서 고친다). 요청 · 응답 예 · 상태 코드(200 · 404 · 422) · 검색 순위는 [용어사전 설계서 v0.1](../설계/용어사전-설계_v0.1.md) 6절. 「화면」 칸이 「—」 인 것은 화면이 아직 이 API 를 부르지 않아서다(다음 작업). 같은 날 계정 관리 넷(`API-AUTH-11~14` · 181 → 185)도 이 표에 빠져 있었다 — 함께 옮긴다 |
 
 ---
 

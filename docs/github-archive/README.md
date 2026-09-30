@@ -51,13 +51,15 @@ docs/github-archive/
 │   ├── PR-docs-writing-standard-v0-1/  00-본문.md  (#55)
 │   ├── PR-docs-erd-dictionary-v1-2/    00-본문.md  (#56)
 │   └── PR-docs-rtm-v1-1-test-plan-v1-3/  00-본문.md  (#60)
-└── 2026-09-30/        ← 새 글 6건
+└── 2026-09-30/        ← 새 글 8건
     ├── PR-chore-lumina-invest-b055ab0/  00-본문.md  (#68)
     ├── 논의-강사님최신-반영/           00-본문.md  (#69 · 옛 D8 번호와 다른 글)
     ├── PR-feat-local-run-scripts/      00-본문.md  (#71)
-    ├── 이슈-로컬실행-사용법/           00-본문.md  (#70)
-    ├── 이슈-계정-CRUD-점검/            00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
-    └── PR-feat-account-crud-mypage/    00-본문.md  (번호는 올린 뒤)
+    ├── 이슈-로컬실행-사용법/           00-본문.md · 01 · 02 갱신 댓글  (#70)
+    ├── 이슈-계정-CRUD-점검/            00-본문.md  (#76 · 작업 기록 — PR #75 가 닫음)
+    ├── PR-feat-account-crud-mypage/    00-본문.md  (#75)
+    ├── 이슈-통합본-반입-용어사전/      00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
+    └── PR-feat-rag-lab-import-glossary/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -243,7 +245,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [이슈 화면IA-v0.1](2026-09-28/이슈-화면IA-v0.1/00-본문.md) | [설계] 화면 정보구조(IA) v0.1 — 49개 화면을 「규칙 → 검증 → 기록」으로 다시 묶는 안 · 💬 6개 | 1,921 | [#14](https://github.com/EST-team-project/Qurious/issues/14) · 💬 답 대기 — v0.2(S52)에서 Q7 을 더해 **열어 둔다** · 댓글 `01-2026-09-28-v0.2.md` |
+| [이슈 화면IA-v0.1](2026-09-28/이슈-화면IA-v0.1/00-본문.md) | [설계] 화면 정보구조(IA) v0.1 — 49개 화면을 「규칙 → 검증 → 기록」으로 다시 묶는 안 · 💬 6개 | 1,921 | [#14](https://github.com/EST-team-project/Qurious/issues/14) · 💬 답 대기 — v0.2(S52)에서 Q7 을 더해 **열어 둔다** · 댓글 `01-2026-09-28-v0.2.md` · **닫는 조건이 채워짐**(IA v0.3 이 PR #75 로 main 에 · S71) — [닫기 댓글](2026-09-28/이슈-화면IA-v0.1/02-2026-09-30-닫기.md) 준비 · 닫을지는 사용자 판단 |
 | [이슈 강사님자료-변경추적](2026-09-28/이슈-강사님자료-변경추적/00-본문.md) | [추적] 강사님 자료(learning/th01~th23) 변경 — 확인할 때마다 댓글로 남깁니다 | 1,307 | 올린 뒤 **닫음**(S52 · 사용자 판단) — 강사님 자료 변경은 [#6](https://github.com/EST-team-project/Qurious/issues/6) 에서 이어 간다 |
 | [PR docs-screen-ia-v0-1](2026-09-28/PR-docs-screen-ia-v0-1/00-본문.md) | docs: 화면 IA v0.1 · GitHub 기록 폴더를 날짜별로 · 강사님 자료 변경 추적 | 2,573 | [#16](https://github.com/EST-team-project/Qurious/pull/16) · 머지 `db00327` · ⚠️ 본문의 `#번호` 는 채우지 못한 채 올라갔다(S52 발견 · 웹 본문은 고치지 않기로) |
 | [이슈 화면IA-v0.1 댓글 01](2026-09-28/이슈-화면IA-v0.1/01-2026-09-28-v0.2.md) | IA v0.2 올렸습니다 — 주 경로 12개를 브라우저로 눌러 봤습니다 (S52 · #14 에 웹으로 · PR 머지 뒤) | 1,147 | [#14](https://github.com/EST-team-project/Qurious/issues/14) 에 올림 09-28 (S55 에 확인 · 댓글 고정 링크는 미기입) |
@@ -271,23 +273,25 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 로드맵-인덱스-v2](2026-09-29/이슈-로드맵-인덱스-v2/00-본문.md) | [로드맵] Qurious 2.0 인덱스 v2 — 새 번호로 다시 묶은 이슈·논의 목록과 닫는 조건 | 8,245 | [#47](https://github.com/EST-team-project/Qurious/issues/47) (S63 채움 · 사용자 `Github-링크.md` · 목록 페이지) — #4 [닫기 댓글](2026-09-15/이슈-001/02-2026-09-29-v2-로-옮김.md) · ~~닫기는 확인 전~~ **#4 닫힘**(S64 확인 · 페이지 · `Github-링크.md` 에서 빠짐) · [갱신 댓글](2026-09-29/이슈-로드맵-인덱스-v2/01-2026-09-29-갱신.md)(#49 · #50 · D9) 준비 · [갱신 댓글 (2)](2026-09-29/이슈-로드맵-인덱스-v2/02-2026-09-29-갱신.md)(D8 = #54 · S65) **올림**(S68 사용자 확인) |
 | [PR docs-archive-new-numbers-s61](2026-09-29/PR-docs-archive-new-numbers-s61/00-본문.md) | docs: 올린 글 23건에 새 번호 · 인덱스 v2 · 닫아도 되는 글 — 갱신 대장 v0.2 | 3,068 | [#46](https://github.com/EST-team-project/Qurious/pull/46) · 머지 `29a7e8a` (S62 에 채움) |
 | [PR fix-collector-utf8-df11-df16](2026-09-29/PR-fix-collector-utf8-df11-df16/00-본문.md) | fix: 사람이 돌리는 명령 15곳이 한 글자에 죽지 않게 · preprocess 가 인자를 본다 (DF-11 · DF-16) | 6,033 | [#48](https://github.com/EST-team-project/Qurious/pull/48) · 머지 `5adfb81` (S63 에 채움) |
-| [논의 기능목록-역할희망](2026-09-29/논의-기능목록-역할희망/00-본문.md) | [논의] D9 기능 전체 목록과 역할 희망 — 2차 · 3차에서 하고 싶은 것을 골라 주세요 | 15,658 | [#52](https://github.com/EST-team-project/Qurious/discussions/52) (General · 09-29 게시 · S64 채움 · 사용자 `Github-링크.md` · 페이지 확인) · [갱신 댓글](2026-09-29/논의-기능목록-역할희망/01-2026-09-29-갱신.md)(일정표 요구 5 · 차트 라이브러리) **올림**(S68 사용자 확인) |
+| [논의 기능목록-역할희망](2026-09-29/논의-기능목록-역할희망/00-본문.md) | [논의] D9 기능 전체 목록과 역할 희망 — 2차 · 3차에서 하고 싶은 것을 골라 주세요 | 15,658 | [#52](https://github.com/EST-team-project/Qurious/discussions/52) (General · 09-29 게시 · S64 채움 · 사용자 `Github-링크.md` · 페이지 확인) · [갱신 댓글](2026-09-29/논의-기능목록-역할희망/01-2026-09-29-갱신.md)(일정표 요구 5 · 차트 라이브러리) **올림**(S68 사용자 확인) · [갱신 댓글 (2)](2026-09-29/논의-기능목록-역할희망/02-2026-09-30-갱신.md)(카드 `P01-①-1` 서버 쪽 됨 · 통합본 묶음 19 · 화면 설계 절차) 준비 — 통합본 반입 PR 머지 뒤 |
 | [PR docs-api-spec-and-design-s63](2026-09-29/PR-docs-api-spec-and-design-s63/00-본문.md) | docs: API 명세서 v0.1 · 기능 설계서 v0.1 — 요구 29개의 흩어진 설계를 모으고 API 146개에 요구 ID 를 붙인다 · D9 역할 희망 본문 | 4,795 | [#51](https://github.com/EST-team-project/Qurious/pull/51) · 머지 `2c83f75` (S64 에 채움 · 사용자 확인) |
 | [PR fix-route-cache-df17](2026-09-29/PR-fix-route-cache-df17/00-본문.md) | fix: 일봉 · 지표 API 가 12:30 갱신을 바로 보여 주게 — 수집 DB 가 받는 요청은 라우트 캐시를 거치지 않는다 (DF-17) | 5,431 | [#53](https://github.com/EST-team-project/Qurious/pull/53) · 머지 `1108c02` (S65 에 채움 · GitLab 동기화) |
 | [PR docs-writing-standard-v0-1](2026-09-29/PR-docs-writing-standard-v0-1/00-본문.md) | docs: 문서 작성 기준 v0.1(제안) — 산출물을 팀원이 읽는 틀로 (실무 양식 25곳 조사) | 3,231 | [#55](https://github.com/EST-team-project/Qurious/pull/55) · 머지 `42fc3e6` (S66 에 채움) |
 | [PR docs-erd-dictionary-v1-2](2026-09-29/PR-docs-erd-dictionary-v1-2/00-본문.md) | docs: ERD · 데이터 사전 v1.2 — 문서 작성 기준을 처음 적용 · 표 속성 대장 · 코드 정의 (칸 설명은 코드에서 읽는다) | 4,532 | [#56](https://github.com/EST-team-project/Qurious/pull/56) · 머지 `e8e79fc` (S67 에 채움 · GitLab 동기화) |
 | [PR docs-rtm-v1-1-test-plan-v1-3](2026-09-29/PR-docs-rtm-v1-1-test-plan-v1-3/00-본문.md) | docs: RTM v1.1 · 테스트계획서 v1.3 — 요구 59개를 대장으로 잇고, 시험 188건이 어느 요구를 재는지 다시 센다 | 5,000 | [#60](https://github.com/EST-team-project/Qurious/pull/60) · 머지 `acbdc35` (S68 에 채움) |
 
-### 2026-09-30 — 새 글 6건
+### 2026-09-30 — 새 글 8건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR chore-lumina-invest-b055ab0](2026-09-30/PR-chore-lumina-invest-b055ab0/00-본문.md) | chore: 강사님 lumina-invest 최신(b055ab0)을 기초 코드로 반영 — 리밸런싱 · 위험 한도 · TradingView · 수식 지표 · 시험 59건 (우리 고침은 지킨다) | 4,004 | [#68](https://github.com/EST-team-project/Qurious/pull/68) · 머지 `88d5813` (S69 에 채움) |
 | [논의 강사님최신-반영](2026-09-30/논의-강사님최신-반영/00-본문.md) | [논의] 강사님 lumina-invest 최신을 받았습니다 — 「나만의」 방향으로 고칠 곳 10가지 (설계 · 의견 기한 제안 10-06 09:00) | 4,827 | [#69](https://github.com/EST-team-project/Qurious/discussions/69) (09-30 · 설계 · S69 채움 · 사용자 `Github-링크.md` · 페이지 확인 · 댓글 0) — 이 글이 #13 · #18 · #44 · #41 · #43 · #61 의 옛 서술을 대신한다(갱신 대장 1절 S68) |
 | [PR feat-local-run-scripts](2026-09-30/PR-feat-local-run-scripts/00-본문.md) | feat: 로컬 실행 스크립트 — PowerShell 세 줄로 띄우고 기능 45건을 점검한다 (로컬 실행 안내서 v0.1) | 2,799 | [#71](https://github.com/EST-team-project/Qurious/pull/71) · 머지 `92087da` (S70 에 채움) |
-| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | [#70](https://github.com/EST-team-project/Qurious/issues/70) (09-30 게시 · S70 채움 · 사용자 `Github-링크.md` · 페이지 확인) |
-| [이슈 계정-CRUD-점검](2026-09-30/이슈-계정-CRUD-점검/00-본문.md) | [작업] 계정 관리 — 이메일 대소문자 무관 · 비밀번호 규칙 · 마이페이지(이름 · 비밀번호 · 탈퇴) · 로그인 유지 | (세션 끝에 잼) | (올린 뒤 적음) — 작업 기록 · PR 이 `Closes` 로 닫는다 |
-| [PR feat-account-crud-mypage](2026-09-30/PR-feat-account-crud-mypage/00-본문.md) | (세션 끝에 적음) | (세션 끝에 잼) | (올린 뒤 적음) |
+| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | [#70](https://github.com/EST-team-project/Qurious/issues/70) (09-30 게시 · S70 채움 · 사용자 `Github-링크.md` · 페이지 확인) · [갱신 댓글](2026-09-30/이슈-로컬실행-사용법/01-2026-09-30-갱신.md)(개발 모드 · 점검 56) **올림**(S71 사용자 보고) · [갱신 댓글 (2)](2026-09-30/이슈-로컬실행-사용법/02-2026-09-30-갱신.md)(`rag-lab/` · 점검 62 · 시험 367) 준비 — 통합본 반입 PR 머지 뒤 |
+| [이슈 계정-CRUD-점검](2026-09-30/이슈-계정-CRUD-점검/00-본문.md) | [작업] 계정 관리 — 이메일 대소문자 무관 · 비밀번호 규칙 · 마이페이지(이름 · 비밀번호 · 탈퇴) · 로그인 유지 | 2,747 | [#76](https://github.com/EST-team-project/Qurious/issues/76) · **닫힘**(PR #75 머지 · S71 채움 · 사용자 보고) — 작업 기록 |
+| [PR feat-account-crud-mypage](2026-09-30/PR-feat-account-crud-mypage/00-본문.md) | feat: 계정 관리 — 이메일 대소문자 무관 · 마이페이지(수정 · 탈퇴) · 로그인 유지 · 개발 모드 · 기능별 동작 원리서 v0.1 · IA · 와이어프레임 v0.3 | 3,146 | [#75](https://github.com/EST-team-project/Qurious/pull/75) · 머지 `90dde10` (S71 에 채움 · 로컬 `git log`) |
+| [이슈 통합본-반입-용어사전](2026-09-30/이슈-통합본-반입-용어사전/00-본문.md) | [작업] 통합본(investment-rag-lab) 반입 · 용어사전 서버 쪽 — 용어 755개를 API 넷으로 (화면 · 연관 개념은 다음 작업) | 3,485 | (올린 뒤 적음) — 작업 기록 · PR 이 `Closes` 로 닫는다 |
+| [PR feat-rag-lab-import-glossary](2026-09-30/PR-feat-rag-lab-import-glossary/00-본문.md) | feat: 통합본 반입(rag-lab/ · AWS 만 빼고 314파일) · 용어사전 서버 쪽 — 용어 755개 · 표 다섯 · API 넷 (이식 계획서 · 용어사전 설계서 · 화면 설계 절차 v0.1) | 3,191 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
