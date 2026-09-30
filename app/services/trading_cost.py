@@ -455,15 +455,18 @@ class KrxCostModel:
 
 @dataclass(frozen=True)
 class FlatCostModel:
-    """왕복 대칭 `cost_bps` — 예전 동작을 재현하기 위해 남긴다.
+    """왕복 대칭 `cost_bps` (+ 슬리피지) — 예전 동작과 강사님 원본 동작을 재현하기 위해 남긴다.
 
     실제 국내주식 비용이 아니다. 비교·회귀 확인용으로만 쓴다.
+    `slippage_bps` 는 강사님 원본(2026-09-29)의 「수수료 + 슬리피지를 포지션 변동마다」 를 따르려고 더했다.
+    기본값 0 이라 예전 호출의 결과는 바뀌지 않는다.
     """
     cost_bps: float = 10.0
+    slippage_bps: float = 0.0
 
     @property
     def _rate(self) -> float:
-        return max(0.0, float(self.cost_bps)) / 10_000.0
+        return (max(0.0, float(self.cost_bps)) + max(0.0, float(self.slippage_bps))) / 10_000.0
 
     def turnover_cost(self, held: pd.Series) -> pd.Series:
         buy_turn, sell_turn = position_delta(held)
@@ -478,10 +481,12 @@ class FlatCostModel:
         return out
 
     def describe(self) -> dict[str, Any]:
+        slip = f" + 슬리피지 {self.slippage_bps:g}bp" if self.slippage_bps else ""
         return {
             "model": "flat",
-            "label": f"왕복 대칭 {self.cost_bps:g}bp (실제 국내주식 비용이 아니다)",
+            "label": f"왕복 대칭 {self.cost_bps:g}bp{slip} (실제 국내주식 비용이 아니다)",
             "cost_bps": float(self.cost_bps),
+            "slippage_bps": float(self.slippage_bps),
             "cost_basis": "estimated",
             "note": "매도 세금을 따로 세지 않는다. 예전 동작 재현용.",
         }

@@ -85,7 +85,14 @@
 | **크롤링** | GitHub docs (python-quant) 크롤링 → Qdrant RAG. URL 직접 크롤링 지원 |
 | **직접매매** | 가상 포트폴리오 관리, 매수/매도 주문, 키움증권·토스증권 API Mockup |
 | **모의투자** | (stock-coin-trade 이식) 공유 현금 1억원 모의계좌 — 국내주식 실시간 시세 모의주문·미리보기·계좌 리셋, Upbit KRW 마켓 코인 모의매매(국내 거래소 가격 비교·거래대금 랭킹), 대체자산(선물·옵션·파생 ETN·금·은·부동산 지분) 모의주문, 외부 시스템용 Open API 키 발급(`/openapi/v1`), Alpaca Paper 읽기 전용 연결 테스트 |
-| **퀀트자동매매** | RSI·SMA·볼린저밴드 시그널, 10분 주기 Agentic AI 자동매매 Mockup, 10년 백테스트, **QuantConnect LEAN 백테스트**(domain-rag-lab 이식: Yahoo 일봉 → LEAN Docker 실행, 매수후보유·MA교차·DCA·모멘텀 전략) |
+| **퀀트자동매매** | RSI·SMA·볼린저밴드 시그널, 10분 주기 Agentic AI 자동매매 Mockup, 10년 백테스트, **QuantConnect LEAN 백테스트**(domain-rag-lab 이식: Yahoo 일봉 → LEAN Docker 실행, 매수후보유·MA교차·DCA·모멘텀 전략), **위험관리**(중복 주문 방지 쿨다운·일손실 한도·종목 비중 한도·일 주문 수·비상 정지 스위치) |
+| **리밸런싱 엔진** | 목표 비중 플랜 + 3가지 트리거(시간: 월/분기/연 · 이탈률: 허용 %p 초과 · 현금흐름: 입금/출금/배당) → 매도→매수 주문 산출·모의 체결(`source=REBALANCE`), 자동 체결/제안 승인 모드, Celery Beat 1시간 점검 (`/api/rebalance/*`) |
+| **XAI (설명 가능한 AI)** | LightGBM TreeSHAP(`pred_contrib`) 기여도로 매수/관망/매도 판단 근거를 자연어로 설명 (`/api/ml/explain`, 로보 추천 종목·스크리닝·성과 검증 화면) |
+| **차트 패턴·멀티타임프레임** | 캔들 패턴(해머·장악형·샛별형 등)·피벗 지지/저항선·돌파/골든크로스 탐지, 60분봉·일봉·주봉 종합 신호 + 신뢰도 (`/api/stocks/patterns`, `/api/stocks/mtf-signal`) |
+| **TradingView 연동** | 알림 Webhook 수신(`POST /api/webhooks/tradingview`, API 키 인증, 모의 체결·중복 방지·알림 전달) + Strategy Tester 성과/거래 목록 CSV ↔ LEAN 백테스트 교차 검증 |
+| **투자성향·목표 시뮬레이션** | 7문항 투자성향 진단(5단계) → 자산배분 성향 반영, 목표 연수익률 달성 확률 몬테카를로(월 적립·백분위 경로) |
+| **자유 산식 커스텀 지표** | 안전한 수식 DSL(`app/services/formula.py`: 화이트리스트 AST, 37개 causal 함수, `shift`≥1로 룩어헤드 차단)로 지표·매수·매도 산식과 params 정의 → 산식 변경 시 자동 버전 증가·복원, (버전·종목·기간)별 계산 결과 저장·재사용, Pine/Python 내보내기 (`/api/formula-indicators/*`) |
+| **백테스트 비용 모델** | 수수료·슬리피지(bp)·손절·익절(%) 반영 (`/api/quant/pipeline`, `/api/quant/ml/run`) |
 
 ---
 
@@ -343,6 +350,26 @@ FastAPI (Uvicorn)
 
 ---
 
+## 단위 테스트
+
+```bash
+pip install -r requirements-dev.txt   # requirements.txt 를 함께 싣는다
+python -m pytest                      # pytest.ini 에 -q 가 있다 — 또 붙이면 요약 줄이 사라진다
+# tests/: 지표 룩어헤드 방지 · 리밸런싱 · 위험관리 · XAI · TradingView 파서 · 패턴 · 성향/시뮬레이션(강사님 원본)
+#         + 실거래 차단 · 수집 DB · 모의 장부 · 문서 스캐너(Qurious) — 249건 (2026-09-30)
+# 모의 장부 DB 시험 7건은 QURIOUS_TEST_DATABASE_URL 이 있을 때만 돈다(tests/test_paper_ledger_i14.py 머리말)
+```
+
+컨테이너 이미지로 실행할 때:
+
+```bash
+docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/pytest.ini:/app/pytest.ini:ro" \
+  -e DATABASE_URL=postgresql+asyncpg://x:x@localhost/x -e REDIS_URL=redis://localhost:6379/0 \
+  --entrypoint sh lumina-invest-app -c "pip install -q pytest && python -m pytest -q"
+```
+
+강사님 원본에는 GitHub Actions `Unit Tests` 워크플로(push/PR 마다)와 EC2 배포 워크플로가 있지만, **Qurious 는 CI 를 두지 않고**(ADR-0003 · CI 논의 D8) AWS 배포도 뺐다 — 시험은 로컬에서 돌린다.
+
 ## 로컬 실행 가이드
 
 ### 사전 요구사항
@@ -414,6 +441,20 @@ docker compose run --rm ingest
 | `OPENAPI_RATE_LIMIT_MAX` | `60` | Open API 키당 분당 호출 제한 |
 
 ---
+
+### 운영·보안 관련 추가 변수 (2026-09 보강)
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `RUN_MIGRATIONS_ON_STARTUP` | `true` | 앱 기동 시 `alembic upgrade head` 실행. 복제 인스턴스가 여럿인 운영에서는 `false`로 두고 배포 단계에서 `scripts/migrate.sh`(또는 `docker compose run --rm app alembic upgrade head`)를 1회 실행 |
+| `TRADINGVIEW_ENFORCE_IP` | `false` | TradingView Webhook 발신 IP 허용 목록 검사. 운영에서 `true` |
+| `TRADINGVIEW_ALLOWED_IPS` | TradingView 공식 4개 IP | 쉼표 구분 허용 IP |
+| `TRADINGVIEW_RATE_LIMIT_MAX` | `30` | API 키당 분당 Webhook 알림 수 |
+| `PUBLIC_BASE_URL` | (빈 값) | Webhook URL 안내에 쓰는 외부 공개 주소 |
+
+자동매매는 인프로세스 루프가 아니라 **DB 플래그(`broker_settings.quant_auto_enabled`) + Celery Beat 10분 태스크(`quant.auto_trade_cycle`)**로 실행되므로 `celery-beat`, `celery-worker` 컨테이너가 반드시 떠 있어야 합니다. 사이클 로그는 `data_cache`에 공유 저장됩니다.
+
+(강사님 원본 안내 — Ansible 실제 시크릿 `aws-work/ansible/inventories/*/group_vars/secrets.yml` 은 더 커밋하지 않는다. Qurious 는 AWS 폴더를 통째로 뺐으므로 해당 파일이 없고, `.gitignore` 에 같은 규칙만 옮겨 두었다.)
 
 ## 모의투자 · Open API (stock-coin-trade 이식)
 

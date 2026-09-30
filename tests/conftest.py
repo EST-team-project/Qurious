@@ -7,11 +7,20 @@
 2. **실거래 승인 환경변수를 테스트마다 지운다.** 개발자 셸에
    ``QURIOUS_ALLOW_LIVE_TRADING=1`` 이 남아 있으면 차단 테스트가 조용히 통과해 버린다.
    그런 통과는 통과가 아니다.
+3. (강사님 원본 2026-09-29) 합성 OHLCV 캔들(랜덤워크) — 외부 시세 · DB 없이 순수 계산 로직만 재는
+   시험이 ``from tests.conftest import make_candles`` 로 쓴다. ``DATABASE_URL`` · ``REDIS_URL`` 은
+   비어 있을 때만 가짜 주소로 채운다(설정 import 용 · 접속하지 않는다). 실제 DB 시험은
+   ``QURIOUS_TEST_DATABASE_URL`` 을 따로 본다.
 """
+import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
+
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://x:x@localhost/x")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -31,3 +40,22 @@ def allow_live_trading(monkeypatch):
     """실거래를 승인한 상태를 만든다. 이 픽스처를 **요청한** 테스트에서만 열린다."""
     monkeypatch.setenv(LIVE_TRADING_ENV, "1")
     return LIVE_TRADING_ENV
+
+
+def make_candles(n: int = 400, seed: int = 42, start: float = 10_000.0) -> list[dict]:
+    """합성 일봉(랜덤워크 · 강사님 원본). 같은 seed 면 같은 캔들이 나온다."""
+    rng = np.random.default_rng(seed)
+    rets = rng.normal(0.0004, 0.015, n)
+    close = start * np.cumprod(1 + rets)
+    high = close * (1 + np.abs(rng.normal(0, 0.006, n)))
+    low = close * (1 - np.abs(rng.normal(0, 0.006, n)))
+    open_ = np.concatenate([[start], close[:-1]])
+    vol = rng.integers(50_000, 500_000, n)
+    t0 = 1_600_000_000
+    return [{"time": t0 + i * 86_400, "open": float(open_[i]), "high": float(high[i]), "low": float(low[i]),
+             "close": float(close[i]), "volume": int(vol[i])} for i in range(n)]
+
+
+@pytest.fixture
+def candles() -> list[dict]:
+    return make_candles()

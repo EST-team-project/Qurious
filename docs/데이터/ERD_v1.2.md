@@ -358,7 +358,7 @@ users ──┬──▶ orders ──▶ order_fills        주문 1건 : 체�
 아래 네 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 26표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
-**앱 DB — 모의투자·주문·전략 · 12표 · 관계 12개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+**앱 DB — 모의투자·주문·전략 · 20표 · 관계 21개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
 
 ```mermaid
 erDiagram
@@ -387,7 +387,16 @@ erDiagram
     VARCHAR_200 app_key
     VARCHAR_200 app_secret
     VARCHAR_50 account_no
-    _ 외9칸
+    _ 외16칸
+  }
+  cashflow_events {
+    UUID user_id FK
+    UUID id PK
+    VARCHAR_10 kind
+    FLOAT amount
+    VARCHAR_20 symbol
+    VARCHAR_200 memo
+    _ 외3칸
   }
   crypto_holdings {
     UUID user_id FK
@@ -415,6 +424,34 @@ erDiagram
     INTEGER short_window
     INTEGER mid_window
     _ 외3칸
+  }
+  formula_indicator_results {
+    UUID indicator_id FK
+    UUID user_id FK
+    UUID id PK
+    INTEGER version
+    VARCHAR_16 checksum
+    VARCHAR_20 symbol
+    VARCHAR_10 period
+    _ 외8칸
+  }
+  formula_indicator_versions {
+    UUID indicator_id FK
+    UUID id PK
+    INTEGER version
+    VARCHAR_2000 indicator_expr
+    VARCHAR_2000 buy_expr
+    VARCHAR_2000 sell_expr
+    _ 외4칸
+  }
+  formula_indicators {
+    UUID user_id FK
+    UUID id PK
+    VARCHAR_60 name
+    VARCHAR_300 description
+    VARCHAR_2000 indicator_expr
+    VARCHAR_2000 buy_expr
+    _ 외6칸
   }
   lean_backtest_runs {
     UUID user_id FK
@@ -455,10 +492,10 @@ erDiagram
     UUID user_id FK
     UUID id PK
     VARCHAR_20 symbol
+    VARCHAR_10 book
     VARCHAR_100 name
     INTEGER quantity
-    FLOAT avg_price
-    _ 외1칸
+    _ 외2칸
   }
   quant_virtual_accounts {
     UUID user_id FK
@@ -468,21 +505,66 @@ erDiagram
     DATETIME created_at
     DATETIME updated_at
   }
+  rebalance_plans {
+    UUID user_id FK
+    UUID id PK
+    VARCHAR_60 name
+    BOOLEAN is_active
+    JSONB targets
+    VARCHAR_10 time_period
+    _ 외10칸
+  }
+  rebalance_runs {
+    UUID user_id FK
+    UUID id PK
+    UUID plan_id
+    VARCHAR_10 trigger
+    VARCHAR_10 status
+    FLOAT total_asset
+    _ 외7칸
+  }
+  strategy_comparisons {
+    UUID user_id FK
+    UUID id PK
+    VARCHAR_20 ticker
+    VARCHAR_40 strategy
+    VARCHAR_10 start_date
+    VARCHAR_10 end_date
+    _ 외6칸
+  }
+  webhook_signals {
+    UUID user_id FK
+    UUID id PK
+    VARCHAR_20 provider
+    VARCHAR_100 strategy
+    VARCHAR_20 symbol
+    VARCHAR_10 side
+    _ 외7칸
+  }
   users {
     UUID id PK
   }
   users ||--o{ alternative_orders : "user_id"
   users ||--o{ alternative_positions : "user_id"
   users ||--o{ broker_settings : "user_id"
+  users ||--o{ cashflow_events : "user_id"
   users ||--o{ crypto_holdings : "user_id"
   users ||--o{ crypto_orders : "user_id"
   users ||--o{ custom_indicators : "user_id"
+  formula_indicators ||--o{ formula_indicator_results : "indicator_id"
+  users ||--o{ formula_indicator_results : "user_id"
+  formula_indicators ||--o{ formula_indicator_versions : "indicator_id"
+  users ||--o{ formula_indicators : "user_id"
   users ||--o{ lean_backtest_runs : "user_id"
   orders ||--o{ order_fills : "order_id"
   users ||--o{ orders : "user_id"
   users ||--o{ paper_accounts : "user_id"
   users ||--o{ portfolio : "user_id"
   users ||--o{ quant_virtual_accounts : "user_id"
+  users ||--o{ rebalance_plans : "user_id"
+  users ||--o{ rebalance_runs : "user_id"
+  users ||--o{ strategy_comparisons : "user_id"
+  users ||--o{ webhook_signals : "user_id"
 ```
 
 **앱 DB — 계정·알림·감사 · 5표 · 관계 4개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
@@ -751,7 +833,7 @@ python scripts/schema_scan.py --doc docs/데이터/ERD_v1.2.md --check   # 뒤�
 
 | 날짜 | 종류 | 무엇 | 옮길 곳 | 근거 |
 |---|---|---|---|---|
-| — | — | 아직 없음 | — | — |
+| 2026-09-30 | 추가 | **강사님 기초 코드(lumina-invest `b055ab0`) 반영 — 앱 DB 표 8개 · 칸이 늘었다.** 리밸런싱 셋(`rebalance_plans` · `rebalance_runs` · `cashflow_events`) · TradingView 둘(`webhook_signals` · `strategy_comparisons`) · 수식 지표 셋(`formula_indicators` · `_versions` · `_results`) · `portfolio.book`(장부 PAPER · QUANT · 유일 제약이 사용자 · 종목 · 장부로) · `broker_settings` 위험 한도 칸 여섯 · `quant_auto_enabled`. 스캐너가 만든 그림 · 표는 이미 다시 채웠다 — 손으로 쓴 숫자(앱 DB 표 수 · 업무 영역별 표 수)와 장부 설명(자동매매 = `quant_virtual_accounts` + `book=QUANT`)은 v1.3 에서 | 요약 · 4.1절 · 표 3 | 마이그레이션 `0004`~`0009`(강사님 원본 `0003`~`0008` 을 우리 `0003_trading_cost` 뒤로 옮김) · 빈 DB 에 head 까지 올라감 · alembic 대조는 알려진 4곳 그대로 |
 
 ## 부록 D. 개정 이력
 

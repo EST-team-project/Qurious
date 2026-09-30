@@ -47,6 +47,13 @@ BASELINE: dict[str, int] = {
     #   한 줄에 둔다(`HOST_SYSTEMS`). 부르는 코드가 아니라 **찾는** 코드다 — 호출은 0.
     #   봉인을 푸는 것이 아니라 봉인선을 재는 자를 들인 것이라 1줄만 연다.
     "scripts/api_scan.py": 1,
+    # 2026-09-30: 강사님 원본 lumina-invest(b055ab0)를 기초 코드로 받으며 들어온 세 파일. 우리가 새로 쓴 코드가
+    #   아니라 받은 코드라 봉인을 연다 — 바꿀지는 팀 논의 거리다(강사님 최신 반영 논의 · 데이터 파트).
+    #   fx.py = 환율을 야후 통화쌍(KRW=X)으로 조회(실제 호출) · patterns.py = 여러 주기(60분봉) 탐지의 봉 간격
+    #   (실제 호출 · 수집 DB 는 일봉뿐) · tradingview.py = 두 도구 차이를 설명하는 글자(호출 0).
+    "app/services/fx.py": 1,
+    "app/services/patterns.py": 1,
+    "app/services/tradingview.py": 1,
 }
 
 
