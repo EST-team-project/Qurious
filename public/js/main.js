@@ -18,6 +18,7 @@ import { initFormulaView, onFormulaViewActivated } from "/js/formula.js";
 import { loadUsChart, loadUsDashboard, loadUsPortfolio, renderUsOrders } from "/js/us.js";
 import { initCompletionIndicator } from "/js/completion.js";
 import { onMyPageActivated } from "/js/mypage.js";
+import { onFinLearnViewActivated } from "/js/finlearn.js";
 
 // ── Boot ──────────────────────────────────────────────────────────
 // 로그인 화면으로 보내는 것은 **로그인이 풀렸을 때(401)만**이다. 예전에는 아래 어느 줄에서든 오류가 나면
@@ -70,6 +71,7 @@ function onViewActivated(view) {
   onTradingViewViewActivated(view); // TradingView 연동 (js/tradingview.js)
   onFormulaViewActivated(view); // 자유 산식 지표 (js/formula.js)
   onMyPageActivated(view);      // 내 계정 — 마이페이지 (js/mypage.js)
+  onFinLearnViewActivated(view); // 금융 필수 지식 — 강의실 · 주제 화면 · 요약 화면의 강의 입구 (js/finlearn.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }

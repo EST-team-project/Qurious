@@ -63,7 +63,8 @@ PORT_COLUMNS = ("묶음ID", "묶음", "화면", "API", "요구ID", "Qurious에_�
 #   참고     Qurious 것이 더 나아가 있다 — 화면 구성만 본다
 #   보류     요구 목록 밖이거나 팀이 정할 것
 #   제외     가져오지 않는다(AWS · 계정처럼 Qurious 것이 정본)
-PORT_VERDICTS = ("새 화면", "합침", "바꿈", "참고", "보류", "제외")
+#   흡수     Qurious 의 다른 부분이 이미 그 일을 해 옮길 것이 없다(2026-10-01 화면 자리 조사 — 「제외」 와 달리 기능은 있다)
+PORT_VERDICTS = ("새 화면", "합침", "바꿈", "참고", "보류", "제외", "흡수")
 PORT_PROGRESS = ("안 함", "설계", "구현", "끝")
 
 HTTP_METHODS = ("get", "post", "put", "patch", "delete")

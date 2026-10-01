@@ -97,14 +97,27 @@ const GNB_MENUS = {
       { key: "invest-technical",  icon: "fa-solid fa-chart-candlestick",  label: "기술적 분석" },
     ],
   },
+  // 금융 필수 지식 (2026-10-01 화면 설계 결정) — 「강의」(강의실 + 주제 아홉 · js/finlearn.js) · 「요약」(지금 화면 셋).
+  // heading 은 클릭되지 않는 소제목, sub 는 강의실 아래 들여쓴 주제다(renderLnb). 금융 지식은 이 메뉴 안에서 읽는다 —
+  // 예전의 「금융 교재 (개념 학습)」 링크(/learn/ 로 나감)는 뺐다.
   finance: {
     label: "<i class='fa-solid fa-coins'></i> 금융 필수 지식",
     items: [
+      { heading: "강의" },
+      { key: "fin-lectures",         icon: "fa-solid fa-chalkboard-user",  label: "강의실 (전체 과정)" },
+      { key: "fin-topic-futures",    icon: "fa-solid fa-scale-unbalanced", label: "선물과 옵션", sub: true },
+      { key: "fin-topic-funds",      icon: "fa-solid fa-basket-shopping",  label: "펀드와 ETF", sub: true },
+      { key: "fin-topic-bonds",      icon: "fa-solid fa-landmark",         label: "채권 · 금리 · 코인", sub: true },
+      { key: "fin-topic-allocation", icon: "fa-solid fa-chart-pie",        label: "자산배분과 퀀트", sub: true },
+      { key: "fin-topic-company",    icon: "fa-solid fa-building",         label: "회사 구조 · 세무회계", sub: true },
+      { key: "fin-topic-stocks",     icon: "fa-solid fa-chart-simple",     label: "주식시장 기초", sub: true },
+      { key: "fin-topic-technical",  icon: "fa-solid fa-chart-line",       label: "기술적 분석 기초", sub: true },
+      { key: "fin-topic-industry",   icon: "fa-solid fa-industry",         label: "산업 · 기업 · 재무", sub: true },
+      { key: "fin-topic-macro",      icon: "fa-solid fa-globe",            label: "거시경제와 시장", sub: true },
+      { heading: "요약" },
       { key: "fin-products",   icon: "fa-solid fa-layer-group",   label: "금융상품 이해" },
       { key: "fin-allocation", icon: "fa-solid fa-pie-chart",     label: "자산배분 모델" },
       { key: "quant-seasonal", icon: "fa-solid fa-calendar-days", label: "계절성 분석" },
-      // 금융 교재 (2026-10-01) — 개념 학습 사이트의 금융 장 목록. href 항목은 앱 화면이 아니라 그 주소로 간다(renderLnb)
-      { key: "learn-finance",  icon: "fa-solid fa-book-open",     label: "금융 교재 (개념 학습)", href: "/learn/#/s/finance" },
     ],
   },
   // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계_v0.1.md).
@@ -245,6 +258,17 @@ const VIEW_GUIDES = {
   "fin-products":    { summary: "주식/ETF·채권·파생상품의 개요와 운용 전략을 학습합니다.", steps: ["카드별 설명을 읽으며 상품 유형별 특징과 리스크를 비교해보세요."], relatedTerms: [] },
   "fin-allocation":  { summary: "MVO·블랙-리터만·리스크패리티 등 자산배분 모델의 이론을 학습합니다.", steps: ["각 모델의 수식과 설명을 통해 '로보 어드바이저 > 자산배분' 결과의 원리를 이해하세요."], relatedTerms: ["mvo", "black_litterman", "risk_parity"] },
   "quant-seasonal":  { summary: "월별·요일별·연말 계절성 효과를 데이터로 검증합니다.", steps: ["종목·기간을 선택해 '분석 실행'을 누르세요.", "월별/요일별 막대그래프와 연말 랠리 효과를 확인하세요."], relatedTerms: ["seasonality"] },
+  // 금융 강의 (2026-10-01) — js/finlearn.js
+  "fin-lectures":    { summary: "4일 과정과 교재 단원 가운데 읽을 강의를 고릅니다. 표시한 이해도가 카드에 쌓입니다.", steps: ["카드를 누르면 그 주제의 강의 화면으로 갑니다.", "강의 절마다 이해도(0~5)를 눌러 두면 다음에 「이어 읽기」 로 돌아옵니다.", "「퀀트 · AI 실습 모음」 에서 배운 개념을 분석 화면으로 바로 돌려 봅니다."], relatedTerms: [] },
+  "fin-topic-futures":    { summary: "선물 · 옵션의 구조와 증거금 · 만기 · 헤지를 강의와 계산기로 익힙니다.", steps: ["위의 「이 강의에서 답하는 질문」 부터 훑어보세요.", "본문의 밑줄 친 용어를 누르면 풀이가 열립니다."], relatedTerms: [] },
+  "fin-topic-funds":      { summary: "펀드 · ETF · 리츠 · ETN 의 구조와 비용, NAV 괴리율을 강의로 익힙니다.", steps: ["위의 질문부터 훑어보고, ETF 탐색표에서 기간 수익률을 바꿔 보세요."], relatedTerms: [] },
+  "fin-topic-bonds":      { summary: "채권 가격과 금리의 관계, 코인 거래의 기본을 강의로 익힙니다.", steps: ["금리와 주가를 함께 그린 그림에서 기간을 바꿔 보세요."], relatedTerms: [] },
+  "fin-topic-allocation": { summary: "자산배분 · 리밸런싱 · 위험 지표와 퀀트의 기초를 강의로 익힙니다.", steps: ["계산기의 막대를 움직여 비중과 위험이 어떻게 바뀌는지 보세요."], relatedTerms: [] },
+  "fin-topic-company":    { summary: "법인과 회사의 구조, 자금 조달과 세무 · 회계의 관계를 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요."], relatedTerms: [] },
+  "fin-topic-stocks":     { summary: "주식시장의 구조와 투자 기초 — 시장 · 기업 · 기초자산을 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요."], relatedTerms: [] },
+  "fin-topic-technical":  { summary: "캔들 · 거래량 · 이동평균 · 차트 패턴을 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요.", "읽은 패턴은 「투자분석 기초 › 기술적 분석」 과 차트 화면에서 찾아보세요."], relatedTerms: [] },
+  "fin-topic-industry":   { summary: "산업 경쟁과 기업 재무 · 공시를 연결해 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요."], relatedTerms: [] },
+  "fin-topic-macro":      { summary: "금리 · 물가 · 환율과 주식시장의 연결, 계절성 이야기를 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요.", "계절성은 「계절성 분석」 화면에서 데이터로 확인해 보세요."], relatedTerms: [] },
   "sysadmin-dashboard": { summary: "서버 자원(CPU/메모리/디스크)과 연동 서비스 상태를 모니터링합니다.", steps: ["호스트/서비스/컨테이너 카드에서 이상 여부를 확인하세요.", "응답이 느리거나 실패로 표시되면 해당 서비스(Ollama/Qdrant/Redis) 상태를 점검하세요."], relatedTerms: ["qdrant"] },
   "sysadmin-logs":   { summary: "주문·설정 변경 등 주요 이벤트의 감사 로그를 조회합니다.", steps: ["이벤트 유형·기간으로 필터링해 이력을 확인하세요.", "이상 거래나 설정 변경 원인을 추적할 때 활용하세요."], relatedTerms: ["audit_log"] },
   "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴합니다.", steps: ["이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
@@ -382,8 +406,9 @@ function renderLnb(gnbKey) {
   const menu = GNB_MENUS[gnbKey];
   // Section title: strip HTML tags for text-only display
   if (titleEl) titleEl.textContent = menu.label.replace(/<[^>]+>/g, "").trim();
-  nav.innerHTML = menu.items.map(it => `
-    <div class="lnb-item ${it.key === currentView ? "active" : ""}" data-view="${it.key}" title="${it.label}">
+  // heading = 클릭되지 않는 소제목 · sub = 들여쓴 항목 (금융 필수 지식 2026-10-01 · 모양은 css/finlearn.css)
+  nav.innerHTML = menu.items.map(it => it.heading ? `<div class="lnb-heading">${it.heading}</div>` : `
+    <div class="lnb-item ${it.sub ? "lnb-sub" : ""} ${it.key === currentView ? "active" : ""}" data-view="${it.key}" title="${it.label}">
       <i class="${it.icon}"></i>
       <span>${it.label}</span>${it.href ? ' <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;opacity:.55"></i>' : ""}
     </div>
@@ -460,7 +485,7 @@ function navigate(viewKey) {
 document.querySelectorAll("[data-gnb]").forEach(el => {
   el.addEventListener("click", () => {
     const gnbKey = el.dataset.gnb;
-    const first = GNB_MENUS[gnbKey].items[0];
+    const first = GNB_MENUS[gnbKey].items.find(it => it.key);   // 소제목(heading)은 건너뛴다
     if (first.href) { location.href = first.href; return; }   // 개념 학습 묶음 — 별도 HTML 로
     navigate(first.key);
   });

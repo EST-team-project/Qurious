@@ -1,0 +1,106 @@
+/* 금융 강의 — 「금융 필수 지식」 › 강의실 · 주제 화면 (js/finlearn.js)
+ * 색 · 글꼴은 app.css 의 값(--surf · --border · --accent · --text-dim …)만 쓴다 — 새 디자인 체계를 만들지 않는다.
+ */
+
+/* ── 왼쪽 메뉴: 소제목 · 들여쓴 항목 (core.js renderLnb 의 heading · sub) ── */
+.lnb-heading {
+  padding: 12px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-mute);
+  letter-spacing: 0.02em;
+}
+.lnb-item.lnb-sub { padding-left: 38px; font-size: 14px; }
+.lnb-item.lnb-sub i { font-size: 12px; opacity: 0.7; }
+#lnb.collapsed .lnb-heading { display: none; }
+
+/* ── 「요약」 화면의 흐린 본문 글자 — 어두운 테마용 글자색(slate-300/400)이 밝은 바탕에 남아 거의 안 보였다 ── */
+.view[data-view="fin-products"] .text-slate-300,
+.view[data-view="fin-allocation"] .text-slate-300,
+.view[data-view="quant-seasonal"] .text-slate-300,
+.view[data-view="invest-technical"] .text-slate-300,
+.view[data-view="invest-fundamental"] .text-slate-300 { color: var(--text-dim) !important; }
+.view[data-view="fin-products"] .text-slate-400,
+.view[data-view="fin-allocation"] .text-slate-400,
+.view[data-view="quant-seasonal"] .text-slate-400 { color: #64748b !important; }
+
+/* ── 공통 ── */
+.fl-card { background: var(--surf); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+.fl-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 10px; border-radius: 999px;
+  background: var(--surf2); color: #64748b; font-size: 12px; font-weight: 600;
+}
+.fl-chip.is-accent { background: var(--accent-glow); color: var(--accent); }
+.fl-muted { color: #64748b; }
+.fl-link { color: var(--accent); font-weight: 700; cursor: pointer; background: none; border: 0; padding: 0; font-size: 14px; }
+.fl-link:hover { text-decoration: underline; }
+.fl-section-title { font-size: 17px; font-weight: 800; margin: 6px 0 12px; display: flex; align-items: baseline; gap: 10px; }
+.fl-section-title small { font-size: 13px; font-weight: 500; color: #64748b; }
+
+/* ── 강의실 ── */
+.fl-hub-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.fl-hub-head h2 { font-size: 26px; font-weight: 800; margin: 0; }
+.fl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.fl-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .fl-grid, .fl-grid.three { grid-template-columns: 1fr; } }
+.fl-course { display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.fl-course:hover { border-color: var(--accent); box-shadow: 0 2px 12px var(--accent-glow); }
+.fl-course .fl-no { background: var(--accent); color: #fff; border-radius: 8px; padding: 2px 9px; font-weight: 800; font-size: 13px; }
+.fl-course h3 { font-size: 18px; font-weight: 800; margin: 0; }
+.fl-course .fl-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fl-course .fl-top .fl-chip { margin-left: auto; }
+.fl-course p { margin: 0; color: var(--text-dim); font-size: 15px; line-height: 1.6; }
+.fl-course ul { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 13px; line-height: 1.7; list-style: disc; }
+.fl-bar { height: 6px; border-radius: 3px; background: var(--surf3); overflow: hidden; }
+.fl-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.fl-course .fl-foot { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+
+/* ── 주제 화면 ── */
+.fl-topic-head { display: flex; flex-direction: column; gap: 12px; }
+.fl-topic-head .fl-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fl-topic-head h2 { font-size: 26px; font-weight: 800; margin: 0; }
+.fl-topic-head p { margin: 0; color: var(--text-dim); font-size: 15px; }
+.fl-asks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .fl-asks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .fl-asks { grid-template-columns: 1fr; } }
+.fl-ask { background: var(--surf2); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.5; }
+.fl-ask span { display: block; font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.fl-frame { width: 100%; height: calc(100vh - 140px); min-height: 640px; border: 1px solid var(--border); border-radius: 14px; background: #fff; display: block; }
+.fl-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; }
+
+/* 교재 단원(마크다운) — 목차 | 본문 */
+.fl-reader { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .fl-reader { grid-template-columns: 1fr; } .fl-toc { position: static !important; max-height: none !important; } }
+.fl-toc { position: sticky; top: 72px; max-height: calc(100vh - 100px); overflow: auto; padding: 16px; }
+.fl-toc b { display: block; font-size: 13px; margin-bottom: 8px; }
+.fl-toc a { display: block; padding: 4px 6px; border-radius: 6px; font-size: 12.5px; color: var(--text-dim); line-height: 1.45; text-decoration: none; }
+.fl-toc a:hover { background: var(--surf2); color: var(--accent); }
+.fl-toc .fl-toc-unit { margin-top: 10px; font-size: 11px; font-weight: 700; color: #64748b; }
+.fl-article { font-size: 16px; line-height: 1.85; color: var(--text-dim); padding: 28px 32px; }
+.fl-article h1 { font-size: 24px; font-weight: 800; color: var(--text); margin: 0 0 6px; }
+.fl-article h2 { font-size: 20px; font-weight: 800; color: var(--text); margin: 36px 0 12px; padding-top: 8px; scroll-margin-top: 80px; }
+.fl-article h3 { font-size: 17px; font-weight: 700; color: var(--text); margin: 24px 0 8px; }
+.fl-article p { margin: 0 0 14px; }
+.fl-article ul, .fl-article ol { margin: 0 0 14px; padding-left: 22px; }
+.fl-article ul { list-style: disc; }
+.fl-article ol { list-style: decimal; }   /* Tailwind 의 기본값이 목록 기호를 지운다 */
+.fl-article li { margin: 3px 0; }
+.fl-article img { max-width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); margin: 8px 0; }
+.fl-article table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 14px; display: block; overflow-x: auto; }
+.fl-article th, .fl-article td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+.fl-article th { background: var(--surf2); color: var(--text); font-weight: 700; }
+.fl-article blockquote { margin: 12px 0; padding: 10px 16px; border-left: 4px solid var(--accent); background: var(--accent-glow); border-radius: 0 8px 8px 0; color: var(--text); }
+.fl-article code { font-family: 'JetBrains Mono', monospace; font-size: 13px; background: var(--surf2); padding: 1px 5px; border-radius: 4px; }
+.fl-article pre code { background: none; padding: 0; }
+.fl-article hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
+.fl-article .fl-unit-divider { margin: 40px 0 8px; padding: 12px 16px; background: var(--surf2); border-radius: 10px; font-weight: 700; color: var(--text); }
+
+/* 「요약」 화면 아래의 강의 입구 */
+.fl-entry { margin-top: 16px; }
+.fl-entry .fl-entry-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.fl-entry button {
+  border: 1px solid var(--border); background: var(--surf); border-radius: 10px; padding: 8px 14px;
+  font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer;
+}
+.fl-entry button:hover { border-color: var(--accent); color: var(--accent); }
