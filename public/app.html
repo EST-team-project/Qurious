@@ -1773,12 +1773,16 @@
               <div class="card">
                 <div class="flex items-center justify-between mb-3">
                   <h3 class="font-semibold text-sm">📈 모의 투자 성과 분석</h3>
-                  <button id="robo-metrics-refresh" class="btn-secondary text-xs">지표 갱신</button>
+                  <div class="flex gap-2">
+                    <button id="robo-metrics-simulate" class="btn-secondary text-xs" title="데모용 15일치 데이터 생성">🧪 데모
+                      데이터</button>
+                    <button id="robo-metrics-refresh" class="btn-secondary text-xs">지표 갱신</button>
+                  </div>
                 </div>
-                <p class="text-xs mt-1" style="color:var(--text-mute);">본 프로젝트의 백테스트·성과 검증 방법론은 Khushi (2026)의 QFRS
+                <p class="text-xs mb-5" style="color:var(--text-mute);">본 프로젝트의 백테스트·성과 검증 방법론은 Khushi (2026)의 QFRS
                   논문을 참조하였습니다.</p>
                 <!-- KPI 카드 영역 -->
-                <div id="robo-metrics-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"></div>
+                <div id="robo-metrics-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"></div>
                 <!-- 차트 영역 (Equity Curve / Drawdown) -->
                 <div id="robo-metrics-chart" style="height: 300px;"></div>
               </div>
