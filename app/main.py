@@ -121,11 +121,25 @@ app.include_router(glossary_routes.router)
 from app.routes import learn as learn_routes  # noqa: E402
 app.include_router(learn_routes.router)
 
+# 금융 강의 (「금융 필수 지식」 › 강의실 · 주제 화면) — 강의 본문의 시세 그림이 부르는 주소. 저장 없이 보여 주기만 한다
+from app.routes import lectures as lectures_routes  # noqa: E402
+app.include_router(lectures_routes.router)
+
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
 if os.path.isdir(_public):
-    app.mount("/js", StaticFiles(directory=os.path.join(_public, "js")), name="js")
-    app.mount("/css", StaticFiles(directory=os.path.join(_public, "css")), name="css")
+    class _Revalidate(StaticFiles):
+        """화면 코드(js · css)도 「바뀌었는지 매번 묻기」(no-cache). 캐시 지시가 없으면 브라우저가 어림짐작으로 옛 파일을
+        계속 써서, 고친 화면이 새로고침해도 안 보였다(2026-10-01 금융 강의 화면에서 확인 — main.js 만 옛 판).
+        바뀌지 않았으면 304 라 비용이 거의 없다. app.html 의 <script> 에 ?v= 를 붙이는 방법은 import 되는 모듈까지 닿지 않는다."""
+
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            resp.headers["Cache-Control"] = "no-cache"
+            return resp
+
+    app.mount("/js", _Revalidate(directory=os.path.join(_public, "js")), name="js")
+    app.mount("/css", _Revalidate(directory=os.path.join(_public, "css")), name="css")
     # 개념 학습 사이트 — app.html 과 다른 별도 HTML(/learn/). 기본 교재 읽기는 로그인 없이 된다(글 목록 · 본문은 /api/learn).
     # check_dir=False — 폴더가 앱보다 늦게 생겨도(개발 모드에서 파일을 막 만든 경우) 다시 켜지 않고 바로 열린다.
     class _RevalidateHtml(StaticFiles):
@@ -139,6 +153,9 @@ if os.path.isdir(_public):
             return resp
 
     app.mount("/learn", _RevalidateHtml(directory=os.path.join(_public, "learn"), html=True, check_dir=False), name="learn")
+    # 금융 강의 본문 — 「금융 필수 지식」 의 주제 화면이 iframe 으로 싣는다. 파일은 scripts/lectures_build.py 가
+    # 통합본 사본(rag-lab/)에서 만들어 둔다(손으로 고치지 않는다 — 빌드가 덮어쓴다).
+    app.mount("/lectures", _RevalidateHtml(directory=os.path.join(_public, "lectures"), html=True, check_dir=False), name="lectures")
 
     async def _logged_in(fin_session: str | None) -> bool:
         """쿠키의 세션이 Redis 에 살아 있나 — 화면 주소를 고를 때만 쓴다(Redis 가 안 되면 로그인 안 됨으로)."""

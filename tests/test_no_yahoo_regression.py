@@ -70,6 +70,12 @@ BASELINE: dict[str, int] = {
     "collector/db.py": 2,
     "collector/ohlcv_export.py": 1,
     "collector/intake.py": 1,
+    # 2026-10-01: 금융 강의(「금융 필수 지식」 › 강의실 · 주제 화면). 통합본 강의 본문의 시세 그림이 부르던 주소 일곱을
+    #   옮겼다(app/routes/lectures.py). 국내 지수 · 국고채 ETF · 종목은 **수집 DB 를 먼저** 읽고, 야후는 수집 DB 에 없는
+    #   해외 지수(S&P 500 · EURO STOXX 50 · Nikkei 225) · 오늘의 1분봉 · 수집 DB 가 없는 PC 의 대체로만 부른다.
+    #   **화면 표시만 하고 저장하지 않는다** — 사용자 결정(2026-09-30 「야후 · 네이버 시세는 적재하지 않되 화면 표시는
+    #   괜찮다」). 통합본이 야후 값을 표에 넣던 주소(period-return/extend)는 넣지 않게 바꿨다.
+    "app/services/lecture_market.py": 19,
 }
 
 

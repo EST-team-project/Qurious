@@ -1,5 +1,28 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 
+<p align="center">
+  <img src="./docs/img/architecture/qurious-architecture_v2.0.png" alt="Qurious 시스템 아키텍처 v2.0" width="900">
+</p>
+
+# Qurious — AI Financial Quant Platform
+
+자기 투자 규칙을 가진 개인투자자가 **규칙을 만들고**(로보 어드바이저 · 투자 인디케이터) **검증하고**(비용을 넣은 백테스트 · LEAN) **모의투자로 기록하는** 학습 · 검증 플랫폼입니다. 그 바탕이 되는 금융 지식(강의 · 용어사전)과 공식 시세 자료(수집 DB · 일일 갱신)를 함께 둡니다.
+
+> 교육 · 연습용입니다. 증권사 연결은 모의 · 읽기 전용이고, 실거래 주문은 승인 전까지 막혀 있습니다. 투자 권유가 아닙니다.
+
+## 판
+
+| 판 | 날짜 | 무엇이 바뀌었나 |
+|---|---|---|
+| **2.0** | 2026-10-01 | 2차 착수 — 「금융 필수 지식」 강의실 · 주제 화면 아홉(4일 과정 강의 · 교재 10단원) · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 용어사전 755(서버) · OHLCV 규격 자료(일봉 · ETF · 지수 · 분봉) · 수집기 일일 갱신 · 계정 관리(마이페이지 · 탈퇴) · 개념 학습(/learn) |
+| 1.x | 2026-09 | 강사님 기초 코드(lumina-invest) 위에 로보 어드바이저 · 모의투자 · 인디케이터 · 퀀트 자동매매 화면 · 실거래 차단 · 비용 모델 · 수집 DB 다리 |
+
+## 아키텍처 그림의 판 관리
+
+- 그림은 **SVG 가 원본**이고 PNG 는 그 SVG 를 구운 것입니다 — `docs/img/architecture/qurious-architecture_v<판>.svg · .png`.
+- 구성이 바뀌면 판을 올린 **새 파일**을 만들고(옛 판은 지우지 않습니다) 위의 `<img>` 주소와 판 표를 같이 고칩니다.
+- PNG 는 SVG 를 브라우저(Pretendard 글꼴)에서 2752 × 1536 으로 찍어 만듭니다.
+
 # 목표 시스템
 
 ## 나만의 로보 어드바이저 개발 및 성과 검증 프로젝트	
@@ -102,12 +125,13 @@
 | 항목 | 기술 |
 |---|---|
 | 언어 / 프레임워크 | Python 3.12 / FastAPI (async) |
-| LLM / 임베딩 | Ollama (`llama3.1` / `nomic-embed-text`) |
-| 벡터 DB | Qdrant |
-| 사용자 인증 DB | MongoDB (motor async driver) |
-| 세션 | Redis (`redis.asyncio`) + HTTP-only 쿠키 |
-| 관계형 / 시계열 | aiosqlite (CB 통계, 금융상품, 포트폴리오, 주문) |
-| 외부 HTTP | httpx (async) – Yahoo Finance, Ollama API |
+| LLM / 임베딩 | Ollama (`llama3.1` / `nomic-embed-text`) — 이 PC 에서 돈다 |
+| 관계형 DB | PostgreSQL 16 (SQLAlchemy async · Alembic 마이그레이션) — 계정 · 모의 장부 · 주문 · 용어사전 · 감사 기록 |
+| 시세 자료 | 수집 DB (SQLite · 읽기 전용) — 공공데이터포털 KRX 시세 · 배당 · 수정주가 · ETF · 지수 · 분봉 (2020-01-02 ~) |
+| 지식 그래프 | Neo4j 5 |
+| 세션 · 큐 | Redis (`redis.asyncio`) + HTTP-only 쿠키 · Celery 브로커 |
+| 예정 | MongoDB(퀴즈 · 시험 · 활동 기록) · Qdrant(문서 색인 · 근거 RAG) — 2026-10 화면 자리 조사에서 정함 |
+| 외부 HTTP | httpx (async) — 화면 표시용 외부 시세(저장하지 않음) · Ollama API |
 | HTML 파싱 | BeautifulSoup4 |
 | 환경변수 | pydantic-settings |
 
@@ -120,7 +144,8 @@
 
 ### Infra (로컬 Docker)
 ```
-MongoDB 8  ·  Redis 8  ·  Ollama  ·  Qdrant latest
+PostgreSQL 16  ·  Redis 8  ·  Neo4j 5  ·  앱(FastAPI)  ·  Celery Worker · Beat  ·  인제스트
+(이 PC: Ollama · 수집기 — 작업 스케줄러 매일 12:30)
 ```
 
 ---
@@ -321,31 +346,28 @@ PYTHONPATH=. python scripts/sync_fills.py --days 90           # KIS 모의계좌
 - [온프레미스 아키텍처 설계서](onprem.md): Docker Compose, Kubernetes, 로컬 Ollama, NVIDIA GPU, 데이터·보안·백업·관측성
 - [데이터 파이프라인 설계서](pipeline.md): 주식 백데이터 원천 인벤토리, 수집 스케줄, 캐시·적재 스키마, OHLCV/텍스트 전처리 규칙, 히스토리 테이블 목표안
 
-> 아래 구성도와 이 README의 일부 로컬 설명에는 과거 MongoDB/SQLite 기준 내용이 남아 있습니다. 신규 인프라 설계는 현재 코드의 PostgreSQL/Redis/Neo4j/Celery 및 선택형 LLM provider를 반영한 위 두 설계서를 우선합니다.
+> 2.0 구성 그림은 이 README 맨 위([`docs/img/architecture/qurious-architecture_v2.0.png`](docs/img/architecture/qurious-architecture_v2.0.png) · 원본 SVG 같은 폴더)입니다. 예전 판의 MongoDB · SQLite 기준 구성도는 지웠습니다 — 계정 · 매매는 강사님 기초 코드가 이미 PostgreSQL 로 옮겼습니다.
 
 ```
 Browser
-  │
+  │  HTTP :8966
   ▼
-FastAPI (Uvicorn)
-  ├── /api/auth/*         → MongoDB (motor)
-  ├── /api/chat           → ReAct Agent → SQLite + Qdrant RAG
-  ├── /api/stocks/*       → Yahoo Finance API (httpx)
-  ├── /api/portfolio/*    → SQLite (aiosqlite)
-  ├── /api/orders/*       → SQLite + 포트폴리오 동기화
-  ├── /api/crawl/*        → GitHub API + Qdrant upsert
-  ├── /api/quant/*        → Yahoo Finance + 기술지표 계산
-  └── /api/admin/*        → 관리자 전용 초기화
+FastAPI (Uvicorn · Python 3.12) — 화면(app.html · /js · /css) · 개념 학습 /learn · 금융 강의 /lectures · API 204
+  ├── /api/auth/* · /api/me      → PostgreSQL (계정) + Redis (세션)
+  ├── /api/paper/* · /api/orders → PostgreSQL (모의 장부 · 주문 · 비용)
+  ├── /api/stocks/* · /api/quant → 수집 DB(국내 일봉) 먼저 → 없으면 외부 시세(표시만)
+  ├── /api/glossary/*            → PostgreSQL (용어 755 · 파일이 원본)
+  ├── /api/lectures/*            → 수집 DB(지수 · ETF · 종목) 먼저 → 해외 지수 · 1분봉만 외부 (저장 없음)
+  ├── /api/learn/*               → Hugging Face 비공개 데이터셋 (학습 글)
+  └── /api/chat · /api/graph/*   → Ollama (이 PC) · Neo4j
   │
-  ├── Redis ──── 세션 (fin_session:{uuid})
-  ├── MongoDB ── users collection
-  ├── SQLite ─── 10개 테이블
-  │               personal_cb_stats, corporate_cb_stats,
-  │               bank_products, fund_products, chats,
-  │               portfolio, orders, broker_settings,
-  │               crawled_docs, audit_events
-  ├── Qdrant ─── fin_chunks collection (크롤링 문서)
-  └── Ollama ─── llama3.1 (chat) + nomic-embed-text (embed)
+  ├── PostgreSQL 16 ── 계정 · 모의 장부 · 주문 · 리밸런싱 · 용어사전 · 감사 기록
+  ├── Redis 8 ─────── 세션 · 캐시 · Celery 큐
+  ├── Neo4j 5 ─────── 지식 그래프
+  └── 수집 DB ──────── data/collector/market.sqlite3 (읽기 전용으로 붙인다)
+
+Celery Worker · Beat ── 예약 작업 · 무거운 계산 · 알림
+이 PC(도커 밖) ── 수집기(collector) · 작업 스케줄러 12:30 → 수집 DB → HF 비공개 데이터셋
 ```
 
 ---

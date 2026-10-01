@@ -60,11 +60,12 @@ docs/github-archive/
 │   ├── PR-feat-account-crud-mypage/    00-본문.md  (#75)
 │   ├── 이슈-통합본-반입-용어사전/      00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
 │   └── PR-feat-rag-lab-import-glossary/  00-본문.md  (#77)
-└── 2026-10-01/        ← 새 글 4건
+└── 2026-10-01/        ← 새 글 5건
     ├── PR-docs-plan-v2-and-goal1-design/  00-본문.md  (#78)
     ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 올리기 전)
     ├── PR-feat-learning-pages/        00-본문.md  (#80)
-    └── PR-feat-ohlcv-v1-intake/       00-본문.md  (번호는 올린 뒤)
+    ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
+    └── PR-feat-finance-lectures-placement/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -298,14 +299,15 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 통합본-반입-용어사전](2026-09-30/이슈-통합본-반입-용어사전/00-본문.md) | [작업] 통합본(investment-rag-lab) 반입 · 용어사전 서버 쪽 — 용어 755개를 API 넷으로 (화면 · 연관 개념은 다음 작업) | 3,485 | (올린 뒤 적음) — 작업 기록 · PR 이 `Closes` 로 닫는다 |
 | [PR feat-rag-lab-import-glossary](2026-09-30/PR-feat-rag-lab-import-glossary/00-본문.md) | feat: 통합본 반입(rag-lab/ · AWS 만 빼고 314파일) · 용어사전 서버 쪽 — 용어 755개 · 표 다섯 · API 넷 (이식 계획서 · 용어사전 설계서 · 화면 설계 절차 v0.1) | 3,191 | [#77](https://github.com/EST-team-project/Qurious/pull/77) · 머지 `a9b3737` (09-30 17:11 · S72 에 채움) |
 
-### 2026-10-01 — 새 글 4건
+### 2026-10-01 — 새 글 5건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR docs-plan-v2-and-goal1-design](2026-10-01/PR-docs-plan-v2-and-goal1-design/00-본문.md) | docs: 프로젝트 계획서 v2.0(역할 확정) · 목표 기능 ① 상세 설계서 v0.1 · 요구 대장 담당 칸 | 1,735 | [#78](https://github.com/EST-team-project/Qurious/pull/78) · 머지 `5f8fdcf` (S73 에 채움 · 로컬 `git log`) |
 | [논의 리밸런싱 3종 기준](<2026-10-01/[논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/00-본문.md>) | [논의] 리밸런싱 3종의 실행 주기 · 허용 이탈률 · 현금흐름 기준 설정 (③ 리밸런싱 주담당 글) | 2,691 | 번호 확인 전(사용자가 본문을 옮겨 둠 · **[#79](https://github.com/EST-team-project/Qurious/issues/79) — 이슈로 올라감 · 열림**(S74 페이지 한 건 확인)) · [내 의견 01](<2026-10-01/[논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/01-2026-10-01-항목별-의견.md>)(부담당 · 코드 줄 · 규정 원문 · 실데이터 측정) **올리기 전** |
 | [PR feat-learning-pages](2026-10-01/PR-feat-learning-pages/00-본문.md) | feat: 개념 학습 — 교재 사이트(/learn) · 팀 자료(HF 비공개 · 앱 편집기) · RAG 장 · 뼈대 32편 | 2,189 | [#80](https://github.com/EST-team-project/Qurious/pull/80) · 머지 `9327db7` (S74 채움) |
-| [PR feat-ohlcv-v1-intake](2026-10-01/PR-feat-ohlcv-v1-intake/00-본문.md) | feat: OHLCV 규격 자료 — ETF · 지수 일봉 · 분봉 400종목 · HF krx-ohlcv · 받은 파일 검사 · 개념 학습 1부 | 2,338 | (올린 뒤 적음) |
+| [PR feat-ohlcv-v1-intake](2026-10-01/PR-feat-ohlcv-v1-intake/00-본문.md) | feat: OHLCV 규격 자료 — ETF · 지수 일봉 · 분봉 400종목 · HF krx-ohlcv · 받은 파일 검사 · 개념 학습 1부 | 2,338 | [#81](https://github.com/EST-team-project/Qurious/pull/81) |
+| [PR feat-finance-lectures-placement](2026-10-01/PR-feat-finance-lectures-placement/00-본문.md) | feat: 금융 강의 — 「금융 필수 지식」 강의실 · 주제 화면 아홉 · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 통합본 19묶음 화면 자리 조사 · 아키텍처 그림 v2.0 | 2,308 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

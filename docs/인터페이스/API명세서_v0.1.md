@@ -128,7 +128,7 @@ flowchart LR
 |---|---|---:|---:|---:|---:|---|
 | `auth` | `app/routes/auth.py` | 14 | 5 | 0 | 4 | 공통 14 |
 | `ingest` | `app/routes/ingest.py` | 12 | 0 | 5 | 7 | P-A 12 |
-| `health` | `app/routes/health.py` | 1 | 1 | 0 | 1 | P-E 1 |
+| `health` | `app/routes/health.py` | 1 | 1 | 0 | 0 | P-E 1 |
 | `chat` | `app/routes/chat.py` | 2 | 0 | 1 | 1 | P-A 2 |
 | `stocks` | `app/routes/stocks.py` | 37 | 9 | 33 | 4 | P-E 21 · P-A 8 · P-B 5 · 미배정 2 · P-D 1 |
 | `library` | `app/routes/library.py` | 1 | 0 | 1 | 0 | P-A 1 |
@@ -150,7 +150,8 @@ flowchart LR
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
 | `glossary` | `app/routes/glossary.py` | 4 | 4 | 0 | 4 | P-A 4 |
 | `learn` | `app/routes/learn.py` | 7 | 2 | 0 | 7 | P-A 7 |
-| **합계** | 24개 | **196** | **41** | **92** | **65** | |
+| `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
+| **합계** | 25개 | **204** | **49** | **92** | **66** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -178,7 +179,8 @@ flowchart LR
 | `formula` | 3 | 3 | · | · | 12 | · | · | · | · | · | · | · | · | · |
 | `glossary` | · | · | · | · | 4 | · | · | · | · | · | · | · | · | · |
 | `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 7 |
-| **합계** | **30** | **58** | **7** | **3** | **147** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **57** |
+| `lectures` | 6 | 5 | · | · | · | · | · | · | · | · | · | · | · | 2 |
+| **합계** | **36** | **63** | **7** | **3** | **147** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **59** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -187,7 +189,7 @@ flowchart LR
 | API-AUTH-04 | POST | `/api/auth/token` | PostgreSQL · Redis | — |
 | API-AUTH-05 | POST | `/api/auth/token/refresh` | Redis | — |
 | API-AUTH-11 | GET | `/api/auth/password-policy` | — | (다른 곳) |
-| API-HLTH-01 | GET | `/api/health` | — | — |
+| API-HLTH-01 | GET | `/api/health` | — | (다른 곳) |
 | API-STK-01 | GET | `/api/stocks/market` | 야후 · PostgreSQL · 라우트 캐시 2h | `quant-dashboard` |
 | API-STK-02 | GET | `/api/stocks/quote` | 야후 | `robo-patterns`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order`, `us-portfolio` |
 | API-STK-03 | GET | `/api/stocks/candles` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `robo-patterns`, `trading-chart`, `us-chart` |
@@ -223,6 +225,14 @@ flowchart LR
 | API-GLOS-04 | GET | `/api/glossary/{name}` | PostgreSQL | — |
 | API-LRN-01 | GET | `/api/learn/catalog` | 외부(huggingface.co) | — |
 | API-LRN-02 | GET | `/api/learn/pages/{slug}` | 외부(huggingface.co) | — |
+| API-LEC-01 | GET | `/api/lectures/market/kospi-history` | 수집DB · 야후 | (다른 곳) |
+| API-LEC-02 | GET | `/api/lectures/market/rate-market-history` | 수집DB · 야후 | (다른 곳) |
+| API-LEC-03 | GET | `/api/lectures/market/kospi200-history` | 수집DB · 야후 · 외부(api.finance.naver.com) | (다른 곳) |
+| API-LEC-04 | GET | `/api/lectures/market/central-bank-event-history` | 수집DB · 야후 | (다른 곳) |
+| API-LEC-05 | GET | `/api/lectures/market/intraday` | 야후 | (다른 곳) |
+| API-LEC-06 | GET | `/api/lectures/market/period-return` | 수집DB | — |
+| API-LEC-07 | POST | `/api/lectures/market/period-return/extend` | 수집DB | — |
+| API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 외부(www.emuseum.go.kr) | (다른 곳) |
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
@@ -241,7 +251,7 @@ flowchart LR
 | `503` | 의존 서비스 없음 | 10 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-CHAT-01, API-GRPH-01, API-GRPH-02 외 4 |
 | `503 MARKET_DATA_UNAVAILABLE` | 의존 서비스 없음 | 1 | API-OAPI-01 |
 | `504` | 시간 초과 | 1 | API-CHAT-01 |
-| `?` |  | 1 | API-TV-01 |
+| `?` |  | 2 | API-TV-01, API-LEC-06 |
 <!-- /api_scan:overview -->
 
 ---
@@ -312,7 +322,7 @@ flowchart LR
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-HLTH-01 | GET | `/api/health` | 없음 | — | {status, service} | — | — | — | P-E | P02-⑤-3 | health.py:6 |
+| API-HLTH-01 | GET | `/api/health` | 없음 | — | {status, service} | — | — | (다른 곳) | P-E | P02-⑤-3 | health.py:6 |
 
 #### `chat` — `app/routes/chat.py` · 2개
 
@@ -587,6 +597,19 @@ flowchart LR
 | API-LRN-05 | DELETE | `/api/learn/pages/{slug}` | 세션 | `{slug}` · `base_version`* | Response | 400 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:143 |
 | API-LRN-06 | GET | `/api/learn/pages/{slug}/history` | 세션 | `{slug}` | {slug, commits, url} | 404 | 외부(huggingface.co) | — | P-A | — | learn.py:160 |
 | API-LRN-07 | POST | `/api/learn/sync` | 세션 | — | {team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:172 |
+
+#### `lectures` — `app/routes/lectures.py` · 8개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-LEC-01 | GET | `/api/lectures/market/kospi-history` | 없음 | `start`* · `end`* | 모델 없음 | — | 수집DB · 야후 | (다른 곳) | 미배정 | — | lectures.py:37 |
+| API-LEC-02 | GET | `/api/lectures/market/rate-market-history` | 없음 | `start`* · `end`* | 모델 없음 | — | 수집DB · 야후 | (다른 곳) | 미배정 | — | lectures.py:45 |
+| API-LEC-03 | GET | `/api/lectures/market/kospi200-history` | 없음 | `start`* · `end`* | 모델 없음 | — | 수집DB · 야후 · 외부(api.finance.naver.com) | (다른 곳) | 미배정 | — | lectures.py:53 |
+| API-LEC-04 | GET | `/api/lectures/market/central-bank-event-history` | 없음 | `bank`* · `meeting_date`* · `window` | 모델 없음 | — | 수집DB · 야후 | (다른 곳) | 미배정 | — | lectures.py:61 |
+| API-LEC-05 | GET | `/api/lectures/market/intraday` | 없음 | `ticker`* · `market`* | 모델 없음 | — | 야후 | (다른 곳) | 미배정 | — | lectures.py:70 |
+| API-LEC-06 | GET | `/api/lectures/market/period-return` | 없음 | `ticker`* · `start`* · `end`* | 모델 없음 | ? | 수집DB | — | 미배정 | — | lectures.py:78 |
+| API-LEC-07 | POST | `/api/lectures/market/period-return/extend` | 없음 | `ticker`* · `start`* | 모델 없음 | — | 수집DB | — | 미배정 | — | lectures.py:90 |
+| API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 없음 | — | Response | — | 외부(www.emuseum.go.kr) | (다른 곳) | 미배정 | — | lectures.py:98 |
 
 <!-- /api_scan:routes -->
 

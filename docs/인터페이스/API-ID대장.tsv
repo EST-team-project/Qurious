@@ -195,3 +195,11 @@ API-LRN-04	PUT	/api/learn/pages/{slug}	2026-10-01	사용
 API-LRN-05	DELETE	/api/learn/pages/{slug}	2026-10-01	사용
 API-LRN-06	GET	/api/learn/pages/{slug}/history	2026-10-01	사용
 API-LRN-07	POST	/api/learn/sync	2026-10-01	사용
+API-LEC-01	GET	/api/lectures/market/kospi-history	2026-10-01	사용
+API-LEC-02	GET	/api/lectures/market/rate-market-history	2026-10-01	사용
+API-LEC-03	GET	/api/lectures/market/kospi200-history	2026-10-01	사용
+API-LEC-04	GET	/api/lectures/market/central-bank-event-history	2026-10-01	사용
+API-LEC-05	GET	/api/lectures/market/intraday	2026-10-01	사용
+API-LEC-06	GET	/api/lectures/market/period-return	2026-10-01	사용
+API-LEC-07	POST	/api/lectures/market/period-return/extend	2026-10-01	사용
+API-LEC-08	GET	/api/lectures/historic-bond-image	2026-10-01	사용
