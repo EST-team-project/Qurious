@@ -80,3 +80,6 @@ docs/계획서/*.pdf
 
 # Ansible 실제 시크릿 (강사님 원본 규칙 — Qurious 에는 aws-work/ 가 없지만, 다시 옮겨 올 때를 막는다)
 aws-work/ansible/inventories/*/group_vars/secrets.yml
+
+# Docker (로컬 개발 전용 override — 팀원마다 경로가 달라 커밋하지 않는다)
+docker-compose.override.yml
