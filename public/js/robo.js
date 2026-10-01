@@ -377,10 +377,12 @@ let _roboMetricsChart = null;
 async function loadRoboPerformanceMetrics() {
   const cardsEl = document.getElementById("robo-metrics-cards");
   const chartEl = document.getElementById("robo-metrics-chart");
+  const tableEl = document.getElementById("robo-metrics-table");   // 🆕
   if (!cardsEl) return;
 
   cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--text-mute);">지표 계산 중...</div>`;
   if (chartEl) chartEl.innerHTML = "";
+  if (tableEl) tableEl.innerHTML = "";                             // 🆕
 
   try {
     const data = await api("/api/paper/performance/metrics");
@@ -399,6 +401,7 @@ async function loadRoboPerformanceMetrics() {
     const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";
     const dsrColor = (m.dsr || 0) >= 0.95 ? "var(--green)" : "var(--text)";
 
+    // ── 요약 카드 4개 ──────────────────────────────────
     cardsEl.innerHTML = `
       <div class="card" style="padding:12px;text-align:center;">
         <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
@@ -417,14 +420,14 @@ async function loadRoboPerformanceMetrics() {
         <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
       </div>`;
 
+    // ── 차트 (스타일 그대로 유지) ─────────────────────
     if (chartEl && Array.isArray(data.equity_curve) && data.equity_curve.length > 1) {
       if (_roboMetricsChart) { _roboMetricsChart.destroy(); _roboMetricsChart = null; }
 
-      // 날짜 라벨 (MM-DD 형식)
       const rawDates = Array.isArray(data.snap_dates) ? data.snap_dates : [];
       const labels = data.equity_curve.map((_, i) => {
         const d = rawDates[i];
-        return d ? d.slice(5) : `#${i + 1}`;   // "2026-09-17" → "09-17"
+        return d ? d.slice(5) : `#${i + 1}`;
       });
 
       const series = [{
@@ -469,6 +472,94 @@ async function loadRoboPerformanceMetrics() {
         },
       });
       _roboMetricsChart.render();
+    }
+
+    // ── 🆕 상세 지표 테이블 ───────────────────────────
+    if (tableEl) {
+      const rows = [
+        {
+          name: "누적 수익률",
+          value: pct(data.total_return),
+          tone: (data.total_return || 0) >= 0 ? "up" : "down",
+          desc: "전체 기간 누적 수익률 (스냅샷 시작 대비)",
+          ref: "기본 지표",
+        },
+        {
+          name: "MDD (Maximum Drawdown)",
+          value: pct(m.mdd),
+          tone: "down",
+          desc: "고점 대비 최대 하락폭 — 위험의 크기, 낮을수록 좋음",
+          ref: "Magdon-Ismail & Atiya (2004)",
+        },
+        {
+          name: "Sharpe Ratio",
+          value: num(m.sharpe_ratio),
+          tone: (m.sharpe_ratio || 0) >= 1 ? "up" : "neutral",
+          desc: "위험 1단위당 초과수익. 1.0 이상 양호, 2.0 이상 우수",
+          ref: "Sharpe (1966)",
+        },
+        {
+          name: "Sortino Ratio",
+          value: num(m.sortino_ratio),
+          tone: (m.sortino_ratio || 0) >= 1 ? "up" : "neutral",
+          desc: "하방 변동성만 반영한 위험조정 수익률 — 상승 변동은 페널티 없음",
+          ref: "Sortino & Price (1994)",
+        },
+        {
+          name: "Sterling Ratio",
+          value: num(m.sterling_ratio),
+          tone: (m.sterling_ratio || 0) >= 0.5 ? "up" : "neutral",
+          desc: "상위 3개 MDD 평균 대비 연환산 초과수익 — 이상치에 강건",
+          ref: "Sterling (1970s)",
+        },
+        {
+          name: "Calmar Ratio",
+          value: num(m.calmar_ratio),
+          tone: (m.calmar_ratio || 0) >= 0.5 ? "up" : "neutral",
+          desc: "최대 MDD 대비 연환산 초과수익 — 보수적 하방 리스크 지표",
+          ref: "Young (1991)",
+        },
+        {
+          name: "Deflated Sharpe Ratio (DSR)",
+          value: m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%",
+          tone: (m.dsr || 0) >= 0.95 ? "up" : "down",
+          desc: "이 샤프 지수가 우연이 아닐 확률 (0~1). 0.95 이상 통계적 유의",
+          ref: "Bailey & López de Prado (2014)",
+        },
+      ];
+
+      const toneColor = (t) =>
+        t === "up" ? "var(--green)" : t === "down" ? "var(--red)" : "var(--text)";
+
+      tableEl.innerHTML = `
+        <h4 class="text-sm font-semibold mb-3" style="color:var(--text-dim);">
+          📋 상세 지표 (${data.snapshot_count}개 스냅샷 기준)
+        </h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs" style="border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);color:var(--text-mute);">
+                <th style="text-align:left;padding:8px 6px;">지표</th>
+                <th style="text-align:right;padding:8px 6px;">값</th>
+                <th style="text-align:left;padding:8px 6px;">의미</th>
+                <th style="text-align:left;padding:8px 6px;">참조</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:8px 6px;font-weight:600;">${escHtml(r.name)}</td>
+                  <td style="padding:8px 6px;text-align:right;font-weight:700;color:${toneColor(r.tone)};">${r.value}</td>
+                  <td style="padding:8px 6px;color:var(--text-dim);">${escHtml(r.desc)}</td>
+                  <td style="padding:8px 6px;font-size:11px;color:var(--text-mute);">${escHtml(r.ref)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs mt-3" style="color:var(--text-mute);">
+          ※ 모든 지표는 무위험수익률 ${(data.params?.risk_free_rate * 100).toFixed(1)}% · 시도 횟수 ${data.params?.n_trials}회 기준으로 산출됩니다.
+          DSR이 0.95 미만이면 이 전략은 우연일 가능성을 배제할 수 없습니다.
+        </p>`;
     }
   } catch (e) {
     cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--red);">
