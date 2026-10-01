@@ -103,6 +103,18 @@ const GNB_MENUS = {
       { key: "fin-products",   icon: "fa-solid fa-layer-group",   label: "금융상품 이해" },
       { key: "fin-allocation", icon: "fa-solid fa-pie-chart",     label: "자산배분 모델" },
       { key: "quant-seasonal", icon: "fa-solid fa-calendar-days", label: "계절성 분석" },
+      // 금융 교재 (2026-10-01) — 개념 학습 사이트의 금융 장 목록. href 항목은 앱 화면이 아니라 그 주소로 간다(renderLnb)
+      { key: "learn-finance",  icon: "fa-solid fa-book-open",     label: "금융 교재 (개념 학습)", href: "/learn/#/s/finance" },
+    ],
+  },
+  // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계_v0.1.md).
+  // 첫 항목이 href 라 묶음을 누르면 바로 학습 사이트로 간다(GNB click). 장 목록은 학습 사이트의 왼쪽 목차가 맡는다.
+  learn: {
+    label: "<i class='fa-solid fa-graduation-cap'></i> 개념 학습",
+    items: [
+      { key: "learn-home", icon: "fa-solid fa-map",            label: "전체 목차",  href: "/learn/#/" },
+      { key: "learn-rag",  icon: "fa-solid fa-book-open",      label: "근거 RAG",   href: "/learn/#/p/rag-basics" },
+      { key: "learn-team", icon: "fa-solid fa-users",          label: "팀 자료",    href: "/learn/#/team" },
     ],
   },
   sysadmin: {
@@ -373,11 +385,13 @@ function renderLnb(gnbKey) {
   nav.innerHTML = menu.items.map(it => `
     <div class="lnb-item ${it.key === currentView ? "active" : ""}" data-view="${it.key}" title="${it.label}">
       <i class="${it.icon}"></i>
-      <span>${it.label}</span>
+      <span>${it.label}</span>${it.href ? ' <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;opacity:.55"></i>' : ""}
     </div>
   `).join("");
   nav.querySelectorAll(".lnb-item").forEach(el => {
-    el.addEventListener("click", () => navigate(el.dataset.view));
+    // href 가 있는 항목(개념 학습 · 2026-10-01)은 앱 화면이 아니라 그 주소(별도 HTML)로 간다
+    const item = menu.items.find(it => it.key === el.dataset.view);
+    el.addEventListener("click", () => (item && item.href ? (location.href = item.href) : navigate(el.dataset.view)));
   });
 }
 
@@ -446,8 +460,9 @@ function navigate(viewKey) {
 document.querySelectorAll("[data-gnb]").forEach(el => {
   el.addEventListener("click", () => {
     const gnbKey = el.dataset.gnb;
-    const firstView = GNB_MENUS[gnbKey].items[0].key;
-    navigate(firstView);
+    const first = GNB_MENUS[gnbKey].items[0];
+    if (first.href) { location.href = first.href; return; }   // 개념 학습 묶음 — 별도 HTML 로
+    navigate(first.key);
   });
 });
 

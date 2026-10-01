@@ -117,12 +117,28 @@ app.include_router(formula_routes.router)
 # 용어사전 (검색 · 분류 · 용어 한 건 — 로그인 없이 읽는다)
 from app.routes import glossary as glossary_routes  # noqa: E402
 app.include_router(glossary_routes.router)
+# 개념 학습 (기본 교재는 로그인 없이 · 팀 자료는 HF 비공개 데이터셋 — docs/설계/개념학습-설계_v0.1.md)
+from app.routes import learn as learn_routes  # noqa: E402
+app.include_router(learn_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
 if os.path.isdir(_public):
     app.mount("/js", StaticFiles(directory=os.path.join(_public, "js")), name="js")
     app.mount("/css", StaticFiles(directory=os.path.join(_public, "css")), name="css")
+    # 개념 학습 사이트 — app.html 과 다른 별도 HTML(/learn/). 기본 교재 읽기는 로그인 없이 된다(글 목록 · 본문은 /api/learn).
+    # check_dir=False — 폴더가 앱보다 늦게 생겨도(개발 모드에서 파일을 막 만든 경우) 다시 켜지 않고 바로 열린다.
+    class _RevalidateHtml(StaticFiles):
+        """HTML 은 「바뀌었는지 매번 묻기」(no-cache) — 캐시 지시가 없으면 브라우저가 어림짐작으로 옛 화면을 보여 준다
+        (2026-10-01 학습 사이트에서 확인). 바뀌지 않았으면 304 라 비용이 거의 없다. js · css 는 index.html 의 ?v= 로 바꾼다."""
+
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            if resp.headers.get("content-type", "").startswith("text/html"):
+                resp.headers["Cache-Control"] = "no-cache"
+            return resp
+
+    app.mount("/learn", _RevalidateHtml(directory=os.path.join(_public, "learn"), html=True, check_dir=False), name="learn")
 
     async def _logged_in(fin_session: str | None) -> bool:
         """쿠키의 세션이 Redis 에 살아 있나 — 화면 주소를 고를 때만 쓴다(Redis 가 안 되면 로그인 안 됨으로)."""

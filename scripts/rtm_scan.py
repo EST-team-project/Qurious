@@ -89,6 +89,10 @@ ROOT = Path(__file__).resolve().parents[1]
     "app/services/glossary_text.py": {"P01-①-1"},
     # 표시용 자료를 비공개 데이터셋과 주고받는 도구 — 수집기의 설정 읽기(.env)만 빌려 쓴다. 어느 요구의 구현도 아니다
     "scripts/raglab_data.py": set(),
+    # 개념 학습(2026-10-01) — `normalize_body`(글 줄바꿈 다듬기)가 「지표 정규화」(normaliz · P02-②-1)로 잡힌다
+    "app/services/learn_pages.py": {"P01-①-1"},
+    # 교재 3.1 RAG 장의 예제 — `check_citations` 가 RAG 구현 흔적(citations · P01-①-3)으로 잡힌다. 설명용이지 구현이 아니다(W5 · W6)
+    "public/learn/examples/rag_mini.py": set(),
 }
 
 # 훑을 확장자. 문서(.md)는 구현 증거가 아니라 뺀다.

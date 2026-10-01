@@ -149,7 +149,8 @@ flowchart LR
 | `tradingview` | `app/routes/tradingview.py` | 5 | 1 | 3 | 0 | 미배정 5 |
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
 | `glossary` | `app/routes/glossary.py` | 4 | 4 | 0 | 4 | P-A 4 |
-| **합계** | 23개 | **189** | **39** | **92** | **58** | |
+| `learn` | `app/routes/learn.py` | 7 | 2 | 0 | 7 | P-A 7 |
+| **합계** | 24개 | **196** | **41** | **92** | **65** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -176,7 +177,8 @@ flowchart LR
 | `tradingview` | · | 2 | · | · | 4 | 1 | · | · | · | · | 1 | 1 | 1 | 1 |
 | `formula` | 3 | 3 | · | · | 12 | · | · | · | · | · | · | · | · | · |
 | `glossary` | · | · | · | · | 4 | · | · | · | · | · | · | · | · | · |
-| **합계** | **30** | **58** | **7** | **3** | **147** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **50** |
+| `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 7 |
+| **합계** | **30** | **58** | **7** | **3** | **147** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **57** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -219,16 +221,18 @@ flowchart LR
 | API-GLOS-02 | GET | `/api/glossary/categories` | PostgreSQL | — |
 | API-GLOS-03 | GET | `/api/glossary/meta` | PostgreSQL | — |
 | API-GLOS-04 | GET | `/api/glossary/{name}` | PostgreSQL | — |
+| API-LRN-01 | GET | `/api/learn/catalog` | 외부(huggingface.co) | — |
+| API-LRN-02 | GET | `/api/learn/pages/{slug}` | 외부(huggingface.co) | — |
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
-| `400` | 요청 값이 틀림 | 12 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-STK-12, API-DOC-01, API-DOC-03 외 6 |
+| `400` | 요청 값이 틀림 | 14 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-STK-12, API-DOC-01, API-DOC-03 외 8 |
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
-| `401` | 인증 실패 | 3 | API-AUTH-02, API-AUTH-04, API-AUTH-05 |
+| `401` | 인증 실패 | 4 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-LRN-02 |
 | `403` | 권한 없음 | 2 | API-AUTH-06, API-TV-01 |
-| `404` | 대상 없음 | 17 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 11 |
+| `404` | 대상 없음 | 21 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 15 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
-| `409` |  | 4 | API-STK-24, API-STK-27, API-FRML-05, API-FRML-07 |
+| `409` |  | 5 | API-STK-24, API-STK-27, API-FRML-05, API-FRML-07, API-LRN-03 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
 | `422` | 검증 실패 | 25 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 19 |
 | `429` | 호출 한도 초과 | 1 | API-TV-01 |
@@ -572,6 +576,18 @@ flowchart LR
 | API-GLOS-03 | GET | `/api/glossary/meta` | 없음 | — | 모델 없음 | — | PostgreSQL | — | P-A | P01-①-1 | glossary.py:45 |
 | API-GLOS-04 | GET | `/api/glossary/{name}` | 없음 | `{name}` | 모델 없음 | 404 | PostgreSQL | — | P-A | P01-①-1 | glossary.py:51 |
 
+#### `learn` — `app/routes/learn.py` · 7개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-LRN-01 | GET | `/api/learn/catalog` | 없음 | `section` · `q` | {contract, pages, builtin_errors, team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:69 |
+| API-LRN-02 | GET | `/api/learn/pages/{slug}` | 없음 | `{slug}` | {history_url} | 401 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:91 |
+| API-LRN-03 | POST | `/api/learn/pages` | 세션 | 본문 `PageIn` | {slug, version, commit} | 409 | 외부(huggingface.co) | — | P-A | — | learn.py:109 |
+| API-LRN-04 | PUT | `/api/learn/pages/{slug}` | 세션 | `{slug}` · 본문 `PageUpdate` | {slug, version, commit, changed} | 400 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:124 |
+| API-LRN-05 | DELETE | `/api/learn/pages/{slug}` | 세션 | `{slug}` · `base_version`* | Response | 400 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:143 |
+| API-LRN-06 | GET | `/api/learn/pages/{slug}/history` | 세션 | `{slug}` | {slug, commits, url} | 404 | 외부(huggingface.co) | — | P-A | — | learn.py:160 |
+| API-LRN-07 | POST | `/api/learn/sync` | 세션 | — | {team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:172 |
+
 <!-- /api_scan:routes -->
 
 ---
@@ -615,6 +631,8 @@ flowchart LR
 | `NotificationSettingsBody` | `channels: list[str]` = `Field(default_factory=list, description='활성화할 채널 목록')` · `telegram_token: str` = `''` · `telegram_chat_id: str` = `''` · `slack_webhook_url: str` = `''` · `email_to: str` = `''` · `email_host: str` = `''` · `email_port: int` = `Field(default=587, ge=1, le=65535)` · `email_user: str` = `''` · `email_password: str` = `''` · `email_from: str` = `''` · `kakao_api_key: str` = `''` · `kakao_api_secret: str` = `''` · `kakao_sender_key: str` = `''` · `kakao_phone: str` = `''` · `sms_api_key: str` = `''` · `sms_api_secret: str` = `''` · `sms_from: str` = `''` · `sms_to: str` = `''` | API-NOTI-02 |
 | `OpenApiOrderBody` | `symbol: str` · `side: str` = `Field(..., description='BUY \| SELL')` · `quantity: int` = `Field(..., ge=1)` | API-OAPI-05 |
 | `OrderBody` | `symbol: str` · `name: str` · `order_type: str` · `quantity: int` · `price: float` · `broker: str` = `'virtual'` | API-STK-12 |
+| `PageIn` | `meta: dict[str, MetaValue]` = `Field(..., description='머리말 칸(규격 learn-v1 · 설계서 6절 표 6)')` · `body: str` = `Field('', max_length=lp.MAX_BODY, description='본문 마크다운')` | API-LRN-03 |
+| `PageUpdate` | `base_version: str` = `Field(..., pattern=VERSION_PATTERN, description='편집을 시작할 때 받은 판(git 블롭 해시)')` | API-LRN-04 |
 | `PasswordChangeBody` | `current_password: str` · `new_password: str` | API-AUTH-13 |
 | `PlanBody` | `name: str \| None` = `None` · `is_active: bool \| None` = `None` · `targets: list[TargetBody] \| None` = `None` · `time_period: str \| None` = `Field(None, description='none \| monthly \| quarterly \| yearly')` · `drift_enabled: bool \| None` = `None` · `drift_threshold_pct: float \| None` = `None` · `cashflow_enabled: bool \| None` = `None` · `cashflow_min_amount: float \| None` = `None` · `auto_execute: bool \| None` = `None` · `min_order_amount: float \| None` = `None` | API-RBAL-02 |
 | `ProfileUpdateBody` | `name: str` | API-AUTH-12 |
@@ -728,6 +746,7 @@ flowchart LR
 | 파트(제안) → 확정 | 결정 대장 v1.0 (D0 ⑤ 역할) 뒤 | 지금은 분배안 해석 |
 | **강사님 기초 코드 반영 — API 146 → 181** (2026-09-30 · 2 · 4절 표는 이미 다시 채움) | v0.2 — 본문 숫자(머리표 146 · 0 · 2절 요약 · 인증 없음 33 → 34)와 새 라우터 셋 설명 | 강사님 lumina-invest `b055ab0` 을 받으며 라우터 셋(`rebalance` 9 · `tradingview` 5 · `formula` 13)과 `stocks` 4 · `ml` 4 가 늘었다. 새 ID 35개는 ID 대장에 날짜(2026-09-30)로 붙였다. `POST /api/webhooks/tradingview`(API-TV-01)는 세션 대신 본문의 API 키로 사용자를 찾는 구조라 「인증 없음」 으로 센다 — 받는 쪽 확인(비밀 토큰 · 중복 신호)은 요구 `P02-③-3` 설계에서 본다. 정답 대조(`app.openapi()`)는 이 판에서 다시 하지 않았다 |
 | **용어사전 API 넷 — API 185 → 189 · 라우터 22 → 23** (2026-09-30 · 2 · 4절 표는 이미 다시 채움) | v0.2 — 본문 숫자(머리표 · 0 · 2절 요약 · 인증 없음 +4)와 새 라우터 `glossary` 설명 | `GET /api/glossary`(목록 · 검색) · `/categories` · `/meta` · `/{name}`(한 건) — `API-GLOS-01~04` · 요구 `P01-①-1` · 파트 P-A. **로그인 없이 읽는다** — 용어 풀이는 누구에게나 같은 참조 자료이고 사용자 데이터가 없다(바꾸는 주소는 없다 · 용어는 파일에서 고친다). 요청 · 응답 예 · 상태 코드(200 · 404 · 422) · 검색 순위는 [용어사전 설계서 v0.1](../설계/용어사전-설계_v0.1.md) 6절. 「화면」 칸이 「—」 인 것은 화면이 아직 이 API 를 부르지 않아서다(다음 작업). 같은 날 계정 관리 넷(`API-AUTH-11~14` · 181 → 185)도 이 표에 빠져 있었다 — 함께 옮긴다 |
+| **개념 학습 API 일곱 — API 189 → 196 · 라우터 23 → 24** (2026-10-01 · 2 · 4절 표는 스캐너로 다시 채움) | v0.2 — 본문 숫자와 새 라우터 `learn` 설명 | `GET /api/learn/catalog`(목록 · 팀 저장소 상태) · `GET/POST/PUT/DELETE /api/learn/pages…` · `GET …/{slug}/history` · `POST /api/learn/sync` — `API-LRN-01~07` · 요구 `P01-①-1` 확장(제안) · 파트 P-A. **기본 교재는 로그인 없이, 팀 자료는 로그인 뒤.** 고치기 · 지우기는 `base_version`(git 블롭 해시)이 필수이고, 낡으면 **409 `LEARN_CONFLICT` + 지금 글**을 돌려준다(말없이 덮어쓰지 않음). 팀 자료 저장처는 HF 비공개 데이터셋 `qurious-quant/learn-pages` — HF 가 안 되면 503 `LEARN_TEAM_UNAVAILABLE`, 권한이 없으면 403. 오류 응답은 `detail: {code · message · field · current}` 모양(6절 오류 규약 결정 전이라 이 라우터만의 모양). 설계 · 상태 코드 · 충돌 차례는 [개념 학습 설계서 v0.1](../설계/개념학습-설계_v0.1.md) 5 · 7절 |
 
 ---
 
