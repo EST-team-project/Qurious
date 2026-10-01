@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import uuid
+import logging
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,12 +16,16 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.paper_snapshot_service import record_daily_snapshot
+from app.services.performance_service import get_robo_metrics
 from app.config import settings
 from app.database.postgres import get_pg_session
 from app.lib.jwt_auth import get_current_user_any
 from app.models import ApiKey
 from app.services import paper_trading as pt
 from app.services.audit import audit
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/paper", tags=["paper-trading"])
 
@@ -43,6 +48,13 @@ async def account(user=Depends(get_current_user_any), db: AsyncSession = Depends
     """현금 + 주식/코인/대체자산 평가액 합산 스냅샷."""
     snap = await pt.account_snapshot(db, _uid(user))
     await db.commit()  # 최초 호출 시 계좌 행 생성
+
+    # 🆕 계좌 조회 시 오늘 스냅샷 자동 갱신 (idempotent, 실패해도 조회는 정상)
+    try:
+        await record_daily_snapshot(db, _uid(user))
+    except Exception as e:
+        logger.warning("snapshot 기록 실패: %s", e)
+
     return snap
 
 
@@ -380,3 +392,94 @@ async def alpaca_positions(body: AlpacaTestBody | None = None, user=Depends(get_
     return {"ok": True, "count": len(rows), "positions": [
         {"symbol": r.get("symbol"), "qty": r.get("qty"), "avgEntryPrice": r.get("avg_entry_price"),
          "marketValue": r.get("market_value"), "unrealizedPl": r.get("unrealized_pl")} for r in rows]}
+
+
+# ═══════════════════════════════════════════════════════════
+# QFRS 성과 지표 (Bailey & Lopez de Prado, 2014)
+# ═══════════════════════════════════════════════════════════
+
+@router.get("/performance/metrics")
+async def paper_performance_metrics(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    import sys, traceback
+    print("=" * 60, flush=True)
+    print(f"[HIT] performance/metrics user={getattr(user, 'id', '?')}", flush=True)
+    try:
+        result = await get_robo_metrics(db, _uid(user))
+        print(f"[OK] keys={list(result.keys())}", flush=True)
+        print("=" * 60, flush=True)
+        return result
+    except Exception as e:
+        print(f"[ERR] {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
+        print("=" * 60, flush=True)
+        raise
+
+
+@router.post("/performance/snapshot")
+async def paper_performance_snapshot(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    """
+    오늘 자산 스냅샷을 수동으로 기록 (idempotent upsert).
+
+    - 앱 접속 시 자동으로도 기록되지만, 명시적으로 트리거하고 싶을 때 사용.
+    """
+    row = await record_daily_snapshot(db, user.id)
+    return {
+        "status": "ok",
+        "snap_date": row.snap_date.isoformat(),
+        "total_equity": row.total_equity,
+        "daily_return": row.daily_return,
+        "position_count": row.position_count,
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+# 🧪 개발/데모용 — 15일치 랜덤 워크 스냅샷 생성
+# ═══════════════════════════════════════════════════════════
+
+@router.post("/performance/simulate")
+async def paper_performance_simulate(
+    days: int = 15,
+    seed: int = 42,
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    """
+    QFRS 지표 시연용 — 최근 N일치 랜덤 워크 스냅샷을 생성.
+    ⚠️ 실제 운영에서는 이 엔드포인트를 제거하거나 관리자 전용으로 제한.
+    """
+    import numpy as np
+    from datetime import date, timedelta
+    from sqlalchemy import delete
+    from app.models.paper_snapshot import PaperAccountSnapshot
+
+    uid = _uid(user)
+
+    # 기존 스냅샷 초기화 (데모니까)
+    await db.execute(delete(PaperAccountSnapshot).where(PaperAccountSnapshot.user_id == uid))
+    await db.commit()
+
+    # 랜덤 워크 생성
+    rng = np.random.default_rng(seed)
+    equity = 100_000_000.0
+    prev = None
+    for i in range(days - 1, -1, -1):
+        d = date.today() - timedelta(days=i)
+        ret = float(rng.normal(0.0008, 0.012))
+        equity = equity * (1 + ret)
+        daily = 0.0 if prev is None else (equity / prev - 1)
+        db.add(PaperAccountSnapshot(
+            id=uuid.uuid4(), user_id=uid, snap_date=d,
+            cash=0.0, position_value=equity, total_equity=equity,
+            daily_return=daily, position_count=3,
+        ))
+        prev = equity
+    await db.commit()
+
+    return {"status": "ok", "days": days, "seed": seed}

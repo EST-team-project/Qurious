@@ -9,7 +9,7 @@ import { loadMacroDashboard, loadMacroIndustry } from "/js/ml.js";
 import { initPaperViews, onPaperViewActivated } from "/js/paper.js";
 import { loadAutoTradeStatus, loadQuantDashboard } from "/js/quant.js";
 import { initRebalanceView, onRebalanceViewActivated } from "/js/rebalance.js";
-import { loadPatternAnalysis, loadRoboDecision, loadRoboScreening } from "/js/robo.js";
+import { loadPatternAnalysis, loadRoboDecision, loadRoboScreening, loadRoboPerformanceMetrics } from "/js/robo.js";
 import { loadNotificationSettings, loadSettings } from "/js/settings.js";
 import { loadAuditLog, loadSystemDashboard } from "/js/sysadmin.js";
 import { loadBrokerStatus, loadOrderHistory, loadPortfolio, loadStockChart } from "/js/trading.js";
@@ -59,7 +59,7 @@ async function boot() {
 }
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
-  await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+  await api("/api/auth/logout", { method: "POST" }).catch(() => { });
   // replace — 로그아웃 뒤 뒤로가기로 앱 화면 기록이 다시 뜨지 않게
   location.replace("/login.html");
 });
@@ -80,27 +80,27 @@ function onViewActivated(view) {
   if (view === "settings") loadSettings();
   if (view === "notification-settings") loadNotificationSettings();
   if (view === "crawl-manual") loadCrawlList();
-  if (view === "us-dashboard")  loadUsDashboard();
-  if (view === "us-chart")      loadUsChart();
-  if (view === "us-order")      renderUsOrders();
-  if (view === "us-portfolio")  loadUsPortfolio();
+  if (view === "us-dashboard") loadUsDashboard();
+  if (view === "us-chart") loadUsChart();
+  if (view === "us-order") renderUsOrders();
+  if (view === "us-portfolio") loadUsPortfolio();
   if (view === "company-dashboard") loadCompanyDashboard();
-  if (view === "company-compare")   loadCompanyCompare();
-  if (view === "company-sector")    loadCompanySector();
+  if (view === "company-compare") loadCompanyCompare();
+  if (view === "company-sector") loadCompanySector();
   if (view === "sysadmin-dashboard") loadSystemDashboard();
   if (view === "sysadmin-logs") loadAuditLog();
   // 로보 어드바이저 신규 뷰
   if (view === "robo-screening") loadRoboScreening();
-  if (view === "robo-decision")  loadRoboDecision();
-  if (view === "robo-patterns")  { if (!document.getElementById("pt-mtf").innerHTML) loadPatternAnalysis(); }
+  if (view === "robo-decision") loadRoboDecision();
+  if (view === "robo-patterns") { if (!document.getElementById("pt-mtf").innerHTML) loadPatternAnalysis(); }
   // 투자 인디케이터 신규 뷰
   if (view === "indicator-custom") loadSavedIndicators();
   if (view === "indicator-backtest") loadIndicatorBacktest();
-  if (view === "indicator-api")      loadIndicatorApiSettings();
+  if (view === "indicator-api") loadIndicatorApiSettings();
   // ML·딥러닝
-  if (view === "macro-dashboard")    loadMacroDashboard();
-  if (view === "macro-industry")     loadMacroIndustry();
-  if (view === "invest-fundamental") {} // 버튼 클릭으로 실행
+  if (view === "macro-dashboard") loadMacroDashboard();
+  if (view === "macro-industry") loadMacroIndustry();
+  if (view === "invest-fundamental") { } // 버튼 클릭으로 실행
 }
 
 

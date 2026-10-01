@@ -20,6 +20,7 @@ from app.models.paper import (
     LeanBacktestRun,
     PAPER_INITIAL_CASH,
 )
+from app.models.paper_snapshot import PaperAccountSnapshot
 from app.models.rebalance import RebalancePlan, CashflowEvent, RebalanceRun
 from app.models.tradingview import WebhookSignal, StrategyComparison
 from app.models.formula import FormulaIndicator, FormulaIndicatorVersion, FormulaIndicatorResult
