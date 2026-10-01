@@ -1779,12 +1779,16 @@
                     <button id="robo-metrics-refresh" class="btn-secondary text-xs">지표 갱신</button>
                   </div>
                 </div>
-                <p class="text-xs mb-5" style="color:var(--text-mute);">본 프로젝트의 백테스트·성과 검증 방법론은 Khushi (2026)의 QFRS
+                <p class="text-xs mb-5" style="color:var(--text-mute);">본 프로젝트의 백테스트·성과 검증 방법론은 Khushi의 QFRS (2026)
                   논문을 참조하였습니다.</p>
-                <!-- KPI 카드 영역 -->
+                <!-- 요약 카드 -->
                 <div id="robo-metrics-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"></div>
-                <!-- 차트 영역 (Equity Curve / Drawdown) -->
+
+                <!-- 차트 -->
                 <div id="robo-metrics-chart" style="height: 300px;"></div>
+
+                <!-- 🆕 상세 지표 테이블 -->
+                <div id="robo-metrics-table" class="mt-5"></div>
               </div>
             </div>
           </div>
@@ -2703,16 +2707,36 @@ RC_i = wi × (Σw)_i / √(w'Σw)
           </div>
 
           <!-- 금융 강의 (2026-10-01) — 강의실 · 주제 화면. 자리만 두고 내용은 js/finlearn.js 가 그린다 -->
-          <div class="view" data-view="fin-lectures"><div id="finlearn-hub"></div></div>
-          <div class="view" data-view="fin-topic-futures"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-funds"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-bonds"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-allocation"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-company"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-stocks"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-technical"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-industry"><div class="finlearn-topic"></div></div>
-          <div class="view" data-view="fin-topic-macro"><div class="finlearn-topic"></div></div>
+          <div class="view" data-view="fin-lectures">
+            <div id="finlearn-hub"></div>
+          </div>
+          <div class="view" data-view="fin-topic-futures">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-funds">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-bonds">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-allocation">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-company">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-stocks">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-technical">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-industry">
+            <div class="finlearn-topic"></div>
+          </div>
+          <div class="view" data-view="fin-topic-macro">
+            <div class="finlearn-topic"></div>
+          </div>
 
           <!-- 5-2. 로그 / 이벤트 -->
           <div class="view" data-view="sysadmin-logs">
