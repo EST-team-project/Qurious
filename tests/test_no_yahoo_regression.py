@@ -59,6 +59,17 @@ BASELINE: dict[str, int] = {
     #   ⚠️ rag-lab/ 자체는 이 시험이 훑지 않는다(SCAN_DIRS 밖). 그 폴더는 앱과 이어지지 않은 사본이고,
     #      기능을 app/ 으로 옮길 때 이 시험이 그 코드를 본다.
     "scripts/raglab_scan.py": 1,
+    # 2026-10-01: OHLCV 규격 자료(목표 기능 ① 상세 설계서 5.1 · 11절). 팀 결정(2026-10-01 「비공개 저장이면
+    #   출처를 가리지 않는다」)으로 **분봉 출처를 야후**로 정했다 — 한국 종목 분봉을 계좌 · 토큰 없이 과거까지 주는
+    #   곳이 야후뿐이다. 앱이 야후를 부르는 줄이 아니라 **수집기**가 받아 수집 DB(price_intraday)에 쌓는 줄이다.
+    #   yahoo_intraday = 분봉 받기(실제 호출 · 정규화) · ohlcv_load = 분봉 · 일봉 대조(crosscheck — 포털 일봉을 야후와
+    #   견줌, 실제 호출) · db = 표 설명 주석 2 · ohlcv_export = 출처 칸 이름 · intake = 팀원이 yfinance 로 저장한
+    #   CSV 모양을 읽는 설명(호출 0).
+    "collector/sources/yahoo_intraday.py": 4,
+    "collector/ohlcv_load.py": 6,
+    "collector/db.py": 2,
+    "collector/ohlcv_export.py": 1,
+    "collector/intake.py": 1,
 }
 
 

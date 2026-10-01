@@ -133,12 +133,16 @@ STEPS: List[Step] = [
     Step("total_return", ["-m", "collector.total_return", "build", "--quiet"], 30,
          derived=True),
     Step("benchmark", ["-m", "collector.benchmark", "build", "--quiet"], 30, derived=True),
+    # OHLCV 규격 자료(2026-10-01) — ETF · 지수 일봉 · 분봉 · krx-ohlcv 내보내기. 실패해도 기존 단계를 막지 않는다.
+    Step("ohlcv", ["-m", "collector.ohlcv_load", "daily"], 40, fatal=False),
     Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False),
     Step("export", ["scripts/hf_dataset.py", "export", "--quiet"], 30,
          upload=True, sharing=True),
     Step("verify", ["scripts/hf_dataset.py", "verify"], 30, upload=True),
     Step("upload", ["scripts/hf_dataset.py", "upload", "--yes", "--incremental"], 60,
          upload=True, sharing=True),
+    Step("ohlcv_upload", ["scripts/hf_ohlcv.py", "upload", "--yes"], 30,
+         fatal=False, upload=True, sharing=True),
 ]
 
 
