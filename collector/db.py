@@ -24,6 +24,13 @@
     corporate_action   가격이 끊긴 날과 그 계수.
     price_total_return 총수익(TR) 계열. total_return 이 price_adjusted + dividend 로 만든다.
 
+OHLCV 규격(`collector/ohlcv.py` · 2026-10-01)으로 더한 넷 ::
+
+    etf_daily          ETF 일별 시세(받은 것 · 포털 증권상품시세)
+    index_daily        지수 일별 시세(받은 것 · 포털 지수시세)
+    price_intraday     분봉(받은 것 · 야후) — 원문은 남기지 않는다
+    intraday_universe  분봉을 받는 종목과 그 근거(판마다)
+
 **받은 것과 계산한 것을 섞지 않는다.** 계산 규칙은 바뀌고, 바뀌면 전부 다시 만들어야
 하는데 원본에 덮어써 두면 되돌릴 근거가 없어진다.
 """
@@ -206,6 +213,100 @@ CREATE TABLE IF NOT EXISTS price_total_return (
 );
 CREATE INDEX IF NOT EXISTS ix_tr_srtn ON price_total_return(srtn_cd, bas_dt);
 CREATE INDEX IF NOT EXISTS ix_tr_dps ON price_total_return(dps_applied);
+
+-- ── 7. ETF 일별 시세 (받은 것) ─────────────────────────────────────────────
+-- 공공데이터포털 「금융위원회_증권상품시세정보」 getETFPriceInfo 하루치 전종목.
+-- 실측 2026-10-01 (basDt=20260929): 1,171종목 · 459,653 B · 칸 18개.
+-- 주식 시세(price_daily)와 칸이 달라(NAV · 기초지수 · 순자산) 표를 나눈다.
+-- 수집 상태는 ingest_day 의 source='portal_etf' 줄이 맡는다.
+CREATE TABLE IF NOT EXISTS etf_daily (
+    bas_dt       TEXT    NOT NULL,         -- YYYYMMDD
+    srtn_cd      TEXT    NOT NULL,         -- 단축코드 6자리(영문 섞임 — 예 0000D0)
+    isin_cd      TEXT    NOT NULL DEFAULT '',
+    itms_nm      TEXT    NOT NULL DEFAULT '',
+    clpr         INTEGER,                  -- 종가
+    vs           INTEGER,                  -- 전일 대비 금액 — 조정계수의 근거(주식과 같은 식)
+    flt_rt       REAL,
+    nav          REAL,                     -- 순자산가치(1좌당)
+    mkp          INTEGER,                  -- 시가. 0 이면 그날 거래가 없었다
+    hipr         INTEGER,
+    lopr         INTEGER,
+    trqu         INTEGER,                  -- 거래량
+    tr_prc       INTEGER,                  -- 거래대금
+    mrkt_tot_amt INTEGER,                  -- 시가총액
+    st_lstg_cnt  INTEGER,                  -- 상장좌수
+    bss_idx_nm   TEXT    NOT NULL DEFAULT '', -- 기초지수 이름
+    bss_idx_clpr REAL,                     -- 기초지수 종가
+    npt_tot_amt  INTEGER,                  -- 순자산총액
+    halted       INTEGER NOT NULL DEFAULT 0,
+    raw_sha256   TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (bas_dt, srtn_cd)
+);
+CREATE INDEX IF NOT EXISTS ix_etf_srtn ON etf_daily(srtn_cd, bas_dt);
+
+-- ── 8. 지수 일별 시세 (받은 것) ────────────────────────────────────────────
+-- 공공데이터포털 「금융위원회_지수시세정보」 getStockMarketIndex 하루치 전지수.
+-- 실측 2026-10-01 (basDt=20260929): 171개 · KOSPI시리즈 53 · KRX시리즈 40 ·
+-- KOSDAQ시리즈 39 · 테마지수 39.
+-- ⚠️ **같은 이름이 시리즈마다 따로 있다**(「IT 서비스」 가 KOSPI · KOSDAQ 둘 다) —
+--    그래서 기본키에 시리즈(idx_csf)가 들어간다. 이름만으로 고르면 다른 지수가 섞인다.
+CREATE TABLE IF NOT EXISTS index_daily (
+    bas_dt         TEXT    NOT NULL,
+    idx_csf        TEXT    NOT NULL,       -- 시리즈: KOSPI시리즈 · KOSDAQ시리즈 · KRX시리즈 · 테마지수
+    idx_nm         TEXT    NOT NULL,       -- 지수 이름
+    epy_itms_cnt   INTEGER,                -- 구성 종목 수
+    clpr           REAL,                   -- 종가(포인트)
+    vs             REAL,
+    flt_rt         REAL,
+    mkp            REAL,
+    hipr           REAL,
+    lopr           REAL,
+    trqu           INTEGER,
+    tr_prc         INTEGER,
+    lstg_mrkt_tot_amt INTEGER,             -- 상장 시가총액
+    bas_pntm       TEXT    NOT NULL DEFAULT '', -- 기준 시점
+    bas_idx        REAL,                   -- 기준 지수
+    raw_sha256     TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (bas_dt, idx_csf, idx_nm)
+);
+CREATE INDEX IF NOT EXISTS ix_index_nm ON index_daily(idx_nm, bas_dt);
+
+-- ── 9. 분봉 (받은 것) ──────────────────────────────────────────────────────
+-- 야후 파이낸스(yfinance) 5분 · 60분봉. 과거로 받을 수 있는 창이 짧아(60분 730거래일 ·
+-- 5분 60거래일 · 2026-10-01 실측) 처음에 창 전체를 받고 날마다 쌓는다.
+-- ⚠️ 야후 분봉은 **09:00~15:00 만** 준다(15:00~15:30 · 종가 단일가 없음) — 분봉 거래량 합은
+--    일봉의 68~77%(삼성전자 2026-09-23~30). 일봉을 이 표에서 만들지 않는다.
+-- ⚠️ 야후는 분할을 비율로 고친 값을 준다(price_basis='adj_split'). 원문 보관 대상
+--    (raw_store.ALLOWED_SOURCES)이 아니어서 정규화 결과만 남긴다.
+CREATE TABLE IF NOT EXISTS price_intraday (
+    symbol      TEXT    NOT NULL,          -- 단축코드 6자리
+    timeframe   TEXT    NOT NULL,          -- 60m | 5m | 1m
+    bar_start   TEXT    NOT NULL,          -- 봉 시작 시각 KST ISO8601(+09:00)
+    trade_date  TEXT    NOT NULL,          -- KST 날짜 YYYY-MM-DD
+    open        REAL,
+    high        REAL,
+    low         REAL,
+    close       REAL,
+    volume      INTEGER,
+    session     TEXT    NOT NULL,          -- regular | close_auction | pre_open | outside
+    source      TEXT    NOT NULL,          -- yahoo
+    price_basis TEXT    NOT NULL,          -- adj_split (야후)
+    fetched_at  TEXT    NOT NULL,          -- 받은 시각 KST
+    PRIMARY KEY (symbol, timeframe, bar_start)
+);
+CREATE INDEX IF NOT EXISTS ix_intraday_day ON price_intraday(timeframe, trade_date);
+
+-- ── 10. 분봉 수집 대상 (유니버스) ──────────────────────────────────────────
+-- 모든 종목의 분봉은 받지 않는다(설계서 2.2) — 누가 대상인지와 그 근거를 판마다 남긴다.
+CREATE TABLE IF NOT EXISTS intraday_universe (
+    version     TEXT    NOT NULL,          -- 판 이름 — 예 u1-20260929
+    symbol      TEXT    NOT NULL,
+    itms_nm     TEXT    NOT NULL DEFAULT '',
+    market      TEXT    NOT NULL,          -- KOSPI | KOSDAQ | ETF
+    reason      TEXT    NOT NULL,          -- 뽑힌 근거 — 예 'KOSPI 시가총액 12위'
+    rank        INTEGER,
+    PRIMARY KEY (version, symbol)
+);
 """
 
 

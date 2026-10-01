@@ -1215,3 +1215,69 @@ python scripts/daily_update.py uninstall            # 등록 해제
 | 🟡 | **수정주가는 닫힌 연도도 바뀐다.** 오늘을 1.0 으로 거꾸로 누적하므로(§5) 새 조정 이벤트가 생기면 2020년 값까지 달라진다 — 첫 실행에서 `price_adjusted` 7개 연도 파일 **전부**(50.6MB)가 바뀌었다. `hf_dataset.py` 머리말의 "닫힌 연도는 업로드 0바이트" 는 시세·TR 에만 맞는 말이다. xet 가 바뀐 청크만 보내서 업로드는 20초였다 |
 | 🔴 | **앱 화면은 아직 이 데이터를 읽지 않는다** — 앱 쪽 참조는 수집을 **부르는** Celery 어댑터 둘(`app/celery_app.py` · `app/tasks/collector_tasks.py`)뿐이고, HF 참조는 0건이다. 화면 시세는 여전히 야후 경로다(`tests/test_no_yahoo_regression.py` 봉인선) |
 | ↩ | 팀이 스택을 늘 띄워 두기로 하면 Celery Beat(`app/celery_app.py` 의 `collector-*`)로 옮길 수 있다. 그때는 **둘 중 하나만** 남긴다 |
+
+## 16. OHLCV 규격 자료 — ETF · 지수 일봉 · 분봉 · 받은 파일 검사  ★ 2026-10-01 추가
+
+### 왜 필요한가
+
+주식 일봉만 있던 수집 DB 에 **ETF · 지수 일봉 · 주봉 · 분봉**을 더하고, 출처가 어디든 같은 모양으로 읽게 하는 규격
+`ohlcv-v1`(`collector/ohlcv.py`)을 둔다. 팀원이 모은 자료도 이 규격으로 받아 **검사 · 대조 · 정제**한다. 설계 근거는
+[목표 기능 ① 상세 설계서](../docs/설계/목표기능1-데이터지식-설계_v0.1.md) 5.1절 · 부록 C, 개념은 학습 사이트 1부 네 장.
+
+```mermaid
+flowchart LR
+    P["포털 증권상품시세 · 지수시세"] --> E["etf_daily · index_daily"]
+    Y["야후 분봉 60m · 5m"] --> I["price_intraday<br/>(intraday_universe 의 종목)"]
+    D["price_daily · price_adjusted"] --> X["ohlcv_export<br/>ohlcv-v1 파케이"]
+    E --> X
+    I --> X
+    X --> H["HF krx-ohlcv (private)"]
+    T["팀원 파일"] --> C["intake 검사 · 대조 · 정제"] --> H2["contrib/아이디/날짜/"]
+```
+
+### 쓰는 법
+
+| 명령 | 하는 일 |
+|---|---|
+| `python -m collector.ohlcv_load status` | 표별 행 수 · 기간 · 유니버스 |
+| `python -m collector.ohlcv_load etf` · `index` | 2020-01-02 부터 빈 날만 받는다(받은 날은 건너뜀 · API 마다 하루 10,000) |
+| `python -m collector.ohlcv_load universe` | 분봉 대상 u1 — 코스피 시가총액 200 · 코스닥 150 · ETF 거래대금 50(우선주 · 스팩 · 정지 제외 · **지수 구성종목 근사**) |
+| `python -m collector.ohlcv_load universe --kospi200 F --kosdaq150 F` | 분봉 대상 u2 — **KRX 「지수구성종목」 화면에서 사람이 받은 CSV**(`data/collector/krx_manual/`). 자동 로그인 수집은 정보데이터시스템 약관 제10조②에 걸려 하지 않는다 |
+| `python -m collector.ohlcv_load intraday --timeframe 60m --first` | 받을 수 있는 창 전체(`period` — 60분 730거래일 · 5분 60거래일). `--only-missing` 은 명단에 새로 든 종목만, 날짜 지정으로 |
+| `python -m collector.ohlcv_load intraday --timeframe 5m --recent` | 최근 5일을 다시 받아 덮는다(장 중에 받은 마지막 봉을 완성값으로) |
+| `python -m collector.ohlcv_load crosscheck` | 포털 일봉을 FinanceDataReader · 야후와 대조 → `data/collector/state/ohlcv_crosscheck_<날짜>.json` |
+| `python -m collector.ohlcv_load daily` | 12:30 러너의 `ohlcv` 단계 — ETF · 지수 최근 14일 · 분봉 최근 5일 · 내보내기 |
+| `python -m collector.ohlcv_export` | `data/collector/ohlcv_export/` 에 파케이 · `manifest.json`(값 규칙 검사 결과 포함) |
+| `python scripts/hf_ohlcv.py upload [--yes]` | HF `qurious-quant/krx-ohlcv` — 기본 dry-run · 공유 스위치 · 올리기 직전 private 확인 |
+| `python -m collector.intake 파일 --contributor 아이디 [--symbol 005930]` | 받은 파일 검사 → `data/collector/contrib/<아이디>/<날짜>/` 에 정제본 · `*.report.json` |
+
+### 첫 적재 (2026-10-01)
+
+| 자료 | 행 | 기간 |
+|---|---:|---|
+| ETF 일봉 `etf_daily` | 1,214,565 | 2020-01-02 ~ 2026-09-30 · 1,655거래일(하루 최대 1,171종목) |
+| 지수 일봉 `index_daily` | 256,053 | 같은 기간 · 하루 171개(시리즈 넷) |
+| 60분봉 `price_intraday` | 1,628,338 | 2023-09-27 ~ 2026-10-01 · 400종목 |
+| 5분봉 | 1,703,764 | 2026-07-06 ~ 2026-10-01 · 400종목 |
+| HF `krx-ohlcv` | 파케이 154 · 292.8MB | 커밋 `e2c18daa` · 태그 `ohlcv-2026-10-01` · private 확인 |
+
+### 실측으로 정한 것 — 되돌리면 안 되는 것
+
+| | 내용 |
+|---|---|
+| ⚠️ | **같은 이름의 지수가 시리즈마다 따로 있다**(「IT 서비스」 가 KOSPI · KOSDAQ) — `index_daily` 기본 키에 시리즈가 들어간다 |
+| ⚠️ | **야후 분봉은 09:00~15:00 만** 준다(종가 단일가 15:20~15:30 없음) — 분봉 거래량 합은 일봉의 68~77%. 일봉을 분봉에서 만들지 않는다 |
+| ⚠️ | 야후 `period` 는 거래일로, `start` 는 달력으로 센다. 2023~24년 상장 종목은 `period="730d"` 가 거절되어 날짜로 다시 받는다(24종목) |
+| ⚠️ | 같은 「수정 가격」 도 출처마다 다르다 — 수집기 = 기준가 계수(`adj_base`) · 야후 `Close` = 분할 비율(`adj_split`) · `Adj Close` · **FinanceDataReader 의 ETF 가격 = 배당 · 분배금 반영**(`adj_total`). 규격의 `price_basis` 칸이 이것을 가른다 |
+| ⚠️ | 주봉의 고가 · 저가는 거래가 있던 날로 정하고, 마지막 날 종가(거래가 없으면 기준가)까지 넓힌다 — 넓히지 않으면 ETF 주봉 1,683개가 값 규칙을 어긴다 |
+| ⚠️ | 분봉은 원문 보관 대상(`raw_store.ALLOWED_SOURCES`)이 아니라 정규화 결과만 남긴다. 출처가 창 밖 분봉을 다시 주지 않으므로 **표를 지우면 되찾을 수 없다** |
+
+### 한계 · 뒤집을 조건
+
+| | 내용 |
+|---|---|
+| 🟡 | 분봉 유니버스 u1 은 시가총액 순위 근사다 — KRX 구성종목 파일을 받으면 u2 로 바꾸고 `--only-missing` 으로 빠진 종목만 더 받는다 |
+| 🟡 | 1분봉은 받지 않는다(설계서 제안 50종목 · 하루 8일 · 30일 창) — 팀이 필요하다고 하면 더한다 |
+| 🟡 | ETF 수정주가(분할 · 분배)는 아직 계산하지 않는다 — ETF 는 원 가격만 낸다 |
+| 🟡 | 앱 API(`/api/data/ohlcv`)는 아직 없다 — 지금은 HF `krx-ohlcv` 로 넘긴다 |
+

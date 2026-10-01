@@ -446,3 +446,42 @@ def test_rag_chapter_outputs_match_the_example_code():
     assert m.check_citations(answer, 4) == []
     assert m.unsupported_numbers(answer, ids) == ["0.5%"]
     assert m.check_citations("[출처 7] 없는 번호", 4) == [7]
+
+
+# ── 6. 1부 시세 데이터 장 (2026-10-01) ──────────────────────────────────
+
+def _example(name: str):
+    import sys
+    spec = importlib.util.spec_from_file_location(name, ROOT / "public" / "learn" / "examples" / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod            # dataclass 가 자기 모듈을 sys.modules 에서 찾는다
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.parametrize("slug, example, fn", [
+    ("ohlcv-bars", "ohlcv_bars", "main"),
+    ("adjusted-price", "adjusted_price", "main"),
+    ("intraday-timezone", "intraday_kst", "offline"),
+    ("data-quality-check", "quality_check", "main"),
+])
+def test_part1_chapter_outputs_match_example_code(slug, example, fn, capsys):
+    """TC-LN-18 · 1부 장에 실은 「직접 해 보기」 출력 줄이 지금 예제 코드(네트워크 없는 부분)의 출력과 한 글자도
+    다르지 않다 — 예제를 고치고 장을 안 고치면 여기서 멈춘다. 네트워크로 받은 출력(`--live`)은 날마다 달라 대조하지 않는다."""
+    getattr(_example(example), fn)()
+    printed = [line for line in capsys.readouterr().out.splitlines() if line.strip()]
+    chapter = (CONTENT / f"{slug}.md").read_text(encoding="utf-8")
+    missing = [line for line in printed if line not in chapter]
+    assert printed and missing == [], missing[:3]
+
+
+def test_part1_chapters_read_like_a_service_not_a_project():
+    """TC-LN-19 · 1부 장 본문에 프로젝트 내부 표현(차수 · 담당 · 요구 ID · 구현 묶음 W 번호 · 「팀원」 · 「설계서」)이 없다.
+    2026-10-01 사용자 피드백 — 실제 서비스의 교재처럼, 내용 위주로. 머리말의 쓴 사람(owner) 칸은 서명이라 예외."""
+    banned = re.compile(r"W[0-9]\b|P0[12]-|주담당|부담당|[23]차 프로젝트|팀원|설계서|요구 ID")
+    for slug in ("ohlcv-bars", "adjusted-price", "intraday-timezone", "data-quality-check"):
+        body = lp.parse((CONTENT / f"{slug}.md").read_text(encoding="utf-8"))[1]
+        hits = banned.findall(body)
+        assert hits == [], (slug, hits)
+        meta = lp.parse((CONTENT / f"{slug}.md").read_text(encoding="utf-8"))[0]
+        assert "feature" not in meta and "work" not in meta, slug

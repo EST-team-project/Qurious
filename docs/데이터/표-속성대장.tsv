@@ -7,6 +7,10 @@ corporate_action	수집	조정 이벤트	시세·배당·지수	파생	매 거�
 price_adjusted	수집	수정주가	시세·배당·지수	파생	매 거래일 12:30 — 수정주가 단계가 종목마다 지우고 다시 만든다	다시 만들 때까지 — 재료가 있으면 언제든 다시 만든다	비공개	원자료에서 계산한 값 — HF private	price_daily + corporate_action · 앱의 수집 DB 어댑터가 읽는다
 price_total_return	수집	총수익(TR) 지수	시세·배당·지수	파생	매 거래일 12:30 — 총수익 단계가 종목마다 지우고 다시 만든다	다시 만들 때까지 — 재료가 있으면 언제든 다시 만든다	비공개	원자료에서 계산한 값 — HF private	price_adjusted + dividend
 benchmark_index	수집	벤치마크 지수(자체 재현)	시세·배당·지수	파생	매 거래일 12:30 — 벤치마크 단계가 시장 · 계열마다 지우고 다시 만든다	다시 만들 때까지 — 재료가 있으면 언제든 다시 만든다	비공개	원자료에서 계산한 값(KRX 공식 지수가 아니다) — HF private	price_daily + price_adjusted + price_total_return
+etf_daily	수집	ETF 일별 시세	시세·배당·지수	원본	매 거래일 12:30 — ohlcv 단계가 최근 14일 가운데 빈 날을 받는다(포털은 거래일 값을 다음 날 낮에 준다)	영구 — 지우는 코드가 없다(같은 날 · 같은 종목은 덮어쓴다)	비공개	포털 「증권상품시세정보」 응답의 정규화본이라 공개하면 원자료 재배포 — HF private(krx-ohlcv)	raw_response(portal · etf/) 에서 · krx-ohlcv 의 ETF 일봉 · 주봉 · 분봉 유니버스의 ETF 순위
+index_daily	수집	지수 일별 시세	시세·배당·지수	원본	매 거래일 12:30 — ohlcv 단계가 최근 14일 가운데 빈 날을 받는다	영구 — 지우는 코드가 없다(같은 날 · 같은 시리즈 · 같은 이름은 덮어쓴다)	비공개	포털 「지수시세정보」 응답의 정규화본 — HF private(krx-ohlcv)	raw_response(portal · index/) 에서 · krx-ohlcv 지수 일봉 · 주봉 · 벤치마크 대조
+price_intraday	수집	분봉	시세·배당·지수	원본	매 거래일 12:30 — ohlcv 단계가 유니버스 종목의 최근 5일을 다시 받아 덮는다(장 중에 받은 마지막 봉을 완성값으로)	영구 — 출처가 창 밖(60분 730거래일 · 5분 60거래일)의 분봉을 다시 주지 않아 지우면 되찾을 수 없다	비공개	야후 파이낸스 분봉 — 비공개 저장 조건(2026-10-01 팀 결정) · 원문은 보관하지 않는다 · HF private(krx-ohlcv)	intraday_universe 의 종목 · krx-ohlcv 분봉의 재료
+intraday_universe	수집	분봉 수집 대상	시세·배당·지수	참조	명단을 고칠 때 — 판마다(u1 시가총액 순위 근사 · u2 KRX 지수구성종목 파일)	영구 — 판마다 남긴다(어느 날 누가 대상이었나)	비공개	고른 근거에 원자료 순위가 들어 있다 — HF private(meta/universe.csv)	price_daily · etf_daily 에서 고른다 · price_intraday 가 받을 종목
 orders	앱	주문	모의투자·주문·전략	사용자	수시 — 직접매매 · 모의투자 · 자동매매 · Open API 주문마다 한 줄	정하지 않음 — 모의투자 초기화 · 관리자 초기화가 지운다	비공개	사용자 거래 기록	users · order_fills 의 부모
 order_fills	앱	체결	모의투자·주문·전략	사용자	수시 — 증권사 체결을 동기화할 때	정하지 않음 — 주문이 지워지면 함께 지워진다(CASCADE)	비공개	사용자 거래 기록	orders
 portfolio	앱	보유 종목(장부별 — book: PAPER · QUANT)	모의투자·주문·전략	사용자	수시 — 체결 · 수동 등록 때 갱신 · 모의투자 · 직접매매 · 리밸런싱 · TradingView 는 PAPER, 10분 자동매매는 QUANT	정하지 않음 — 0주가 되거나 사용자가 지울 때 · 모의투자 초기화는 PAPER 만 · 관리자 초기화는 두 장부 모두 지운다	비공개	사용자 자산 정보	users
