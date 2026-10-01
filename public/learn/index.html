@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qurious 개념 학습</title>
+  <meta name="description" content="Qurious 를 만들며 구현하는 개념(데이터 수집 · RAG · 배치 · 차트)과 금융 필수 지식을 교재처럼 설명하는 학습 페이지">
+  <!-- 앱(app.html)과 같은 글꼴 · 아이콘 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/styles/github.min.css">
+  <!-- ?v= — 고친 뒤 브라우저가 옛 파일을 캐시에서 쓰지 않게(파일을 고치면 날짜를 바꾼다) -->
+  <link rel="stylesheet" href="learn.css?v=20261001c">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="목차 열기" aria-expanded="false"><i class="fa-solid fa-bars"></i></button>
+    <a class="brand" href="#/"><span class="brand-mark">Q</span><span>Qurious <b>개념 학습</b></span></a>
+    <form class="search" id="search-form" role="search">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <input id="search-input" type="search" placeholder="장 · 꼬리표 찾기 (예: RAG, 임베딩)" aria-label="장 찾기" autocomplete="off">
+    </form>
+    <nav class="top-links" aria-label="바로가기">
+      <a href="#/team" id="link-team"><i class="fa-solid fa-users"></i><span>팀 자료</span></a>
+      <a href="#/new" id="link-new" hidden><i class="fa-solid fa-pen-to-square"></i><span>새 글</span></a>
+      <a href="/app.html" class="to-app"><i class="fa-solid fa-arrow-left"></i><span>앱으로</span></a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="sidenav" id="sidenav" aria-label="장 목록">
+      <div id="nav-tree"><p class="muted pad">목차를 불러오는 중…</p></div>
+    </aside>
+    <div class="nav-scrim" id="nav-scrim" hidden></div>
+
+    <main id="main" tabindex="-1">
+      <div id="view"><p class="muted">불러오는 중…</p></div>
+    </main>
+
+    <aside class="toc" id="toc" aria-label="이 장의 차례"></aside>
+  </div>
+
+  <footer class="statusbar" id="statusbar" aria-live="polite"></footer>
+
+  <!-- 마크다운 → HTML(marked) → 거르기(DOMPurify) → 코드 색칠(highlight.js) · 그림(Mermaid) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.12.0/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.min.js"></script>
+  <script src="learn.js?v=20261001c"></script>
+</body>
+</html>

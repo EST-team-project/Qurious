@@ -91,6 +91,8 @@ ROUTER_ABBR = {
   "rebalance": "RBAL", "tradingview": "TV", "formula": "FRML",
   # 2026-09-30 용어사전 (요구 P01-①-1)
   "glossary": "GLOS",
+  # 2026-10-01 개념 학습 (요구 P01-①-1 확장 · 제안) — LEAN 과 헷갈리지 않게 LRN
+  "learn": "LRN",
 }
 
 # 인증 의존성 — 이름표. 값이 같은 모양이면 같은 사람이 통과한다.
@@ -163,6 +165,7 @@ PART_RULES = (
   ("ingest", "", "P-A", "P01-①-2 · ①-4 적재 · 정기배치"),
   ("graph", "", "P-A", "P01-①-1 연관개념 탐색"),
   ("glossary", "", "P-A", "P01-①-1 용어사전"),
+  ("learn", "", "P-A", "P01-①-1 개념 학습 (용어 → 개념 확장 · 제안)"),
   ("library", "", "P-A", "P01-①-2 자료 검색"),
   ("notification", "", "P-B", "P02-③-3 알림 (보조 P-E)"),
   ("tasks", "", "P-E", "P02-⑤-3 실행 · 로그"),
