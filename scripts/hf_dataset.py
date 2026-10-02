@@ -24,7 +24,8 @@
 다시 돌릴 재료도 사라진다. 크기 +0.4% 를 아끼려고 되돌릴 수 없는 것을 버리는 거래다.
 
 그래서 지금은 **DB 의 표 여덟 개를 하나도 빼지 않고** 내보내고, 그 파케이만으로
-SQLite 를 되살리는 `restore` 를 함께 둔다. `restore` 가 실제로 성공해야만 `status` 가
+SQLite 를 되살리는 `restore` 를 함께 둔다. (2026-10-02 — OHLCV 원자료 표 넷을 더해 **열두 개**다.
+다시 만들 수 있는 거래일 달력 표 셋만 `EXCLUDED` 에 이유와 함께 둔다 — DF-40.) `restore` 가 실제로 성공해야만 `status` 가
 "지워도 된다"고 말한다 — **리허설 없이 초록을 내지 않는다.**
 
 원자료를 밖으로 내보내는 근거 (팀 결정 · 2026-09-20)
@@ -214,8 +215,13 @@ FETCH_ROWS = 250_000
 
 #: 큰 표를 연도로 쪼갤 때 쓰는 범위. `bas_dt` 가 **TEXT** 라 문자열로 비교한다.
 #: (정수로 비교하면 부등호가 통째로 어긋난다 — 조사2 에서 실제로 겪은 함정)
-YEAR_LO = "{y}0000"
-YEAR_HI = "{y}9999"
+#:
+#: 2026-10-02 — 「그해 이상 · 다음 해 미만」 의 반열린 구간으로 바꿨다. 옛 경계 `{y}0000`~`{y}9999` 는
+#: `YYYYMMDD` 모양만 맞았다 — 분봉 표의 `trade_date` 는 `YYYY-MM-DD` 라 '-'(0x2D)가 '0'(0x30)보다 작아
+#: `'2026-10-02' < '20260000'` 이 되고, 그해 행이 **0행으로 잘린다**(DF-40 · TC-HF-03). 「2026」 으로 시작하는
+#: 문자열은 모양과 상관없이 `'2026' <= v < '2027'` 이고, `YYYYMMDD` 표의 결과는 옛 경계와 같다(TC-HF-04).
+YEAR_LO = "{y}"
+YEAR_HI = "{y_next}"
 
 #: 팀 결정 기록 (2026-09-20 · 데이터 파트 담당).
 #:
@@ -305,16 +311,51 @@ TABLES: Dict[str, Dict] = {
         "why": "기준일별 수집 상태. 중단·재개와 휴장 판정의 근거",
         "optional": False, "restore_only": True,
     },
+    # ── 2026-10-02 추가: OHLCV 원자료 표 넷 (결함 DF-40 · 데이터 파트 결정 「넷 다 백업」) ──────
+    # krx-ohlcv 데이터셋은 규격 자료(ohlcv-v1)만 올려 아래 칸들이 어디에도 백업되지 않았다.
+    # ETF · 지수는 포털에서 다시 받을 수 있지만, **5분봉은 야후가 60일 지난 것을 다시 주지 않는다**
+    # (60분봉은 730일) — 우리가 쌓아 온 분봉은 이 백업이 유일한 복원 길이다.
+    "etf_daily": {
+        "partition": "year", "date_col": "bas_dt",
+        "sort": ("bas_dt", "srtn_cd"),
+        "why": "ETF 일봉(포털 원자료). 순자산가치 · 기초지수 · 상장좌수까지 — krx-ohlcv 에 없는 칸",
+        "optional": False,
+    },
+    "index_daily": {
+        "partition": "year", "date_col": "bas_dt",
+        "sort": ("bas_dt", "idx_csf", "idx_nm"),
+        "why": "지수 일봉(포털 원자료). 시리즈 · 구성 종목 수 · 기준 시점까지 — 같은 이름 지수가 시리즈마다 있다",
+        "optional": False,
+    },
+    "price_intraday": {
+        # `trade_date` 는 YYYY-MM-DD 다 — 연도 경계가 모양을 가리지 않아야 한다(YEAR_LO 머리말).
+        "partition": "year", "date_col": "trade_date",
+        "sort": ("trade_date", "timeframe", "symbol", "bar_start"),
+        "why": "분봉 60분 · 5분(야후 · 09:00~15:00 · 분할 비율 반영). 야후 창 밖은 다시 받을 수 없다",
+        "optional": False, "heavy": True,
+    },
+    "intraday_universe": {
+        "partition": None, "date_col": "version",
+        "sort": ("version", "symbol"),
+        "why": "분봉 유니버스 명단(u1 · u2)과 뽑힌 근거. KRX 구성종목 CSV 는 사람이 받은 파일이라 이 표가 남는 기록이다",
+        "optional": False,
+    },
 }
 
 #: 올리지 않는 표와 그 이유.
 #:
-#: **지금은 비어 있다.** 2026-09-20 에 `raw_response`·`ingest_day` 를 대상에 넣으면서
-#: 제외 표가 없어졌다. 빈 dict 를 남겨 두는 이유는 두 가지다 —
-#:   ① 나중에 정말 뺄 표가 생기면 **이유와 함께** 여기 적게 하려고,
+#: 2026-09-20 에 `raw_response`·`ingest_day` 를 대상에 넣으면서 한때 비었다. 이 dict 의 쓸모는 둘이다 —
+#:   ① 정말 뺄 표는 **이유와 함께** 여기 적고,
 #:   ② `status` 가 "DB 에는 있는데 TABLES 에도 EXCLUDED 에도 없는 표" 를 찾아내
-#:      **백업에서 조용히 빠지는 표**를 잡아내려고.
-EXCLUDED: Dict[str, str] = {}
+#:      **백업에서 조용히 빠지는 표**를 잡아낸다.
+#: 2026-10-02 — 거래일 달력 표 셋은 언제든 다시 만들 수 있어 뺀다. OHLCV 원자료 표 넷(etf_daily ·
+#: index_daily · price_intraday · intraday_universe)은 여기 적지 않았다 — 적으면 「DB 를 지워도 된다」
+#: 판정이 거짓으로 초록이 된다(결함 DF-40). 같은 날 데이터 파트가 「넷 다 백업」 으로 정해 위 TABLES 에 넣었다.
+EXCLUDED: Dict[str, str] = {
+    "holiday_kasi": "특일 정보(한국천문연구원 · 이용허락범위 제한 없음)를 언제든 다시 받는다 — python -m collector.market_calendar build",
+    "market_calendar": "계산한 표 — python -m collector.market_calendar build 가 공휴일 · 시세로 다시 만든다",
+    "market_event": "계산한 표 — python -m collector.market_calendar build 가 달력 · 배당 표로 다시 만든다",
+}
 
 #: SQLite 선언 타입 → arrow 타입. TEXT 는 string, INTEGER 는 int64, REAL 은 float64,
 #: BLOB 은 binary(원문 바이트를 그대로 담는다 — 문자열로 바꾸면 인코딩 추측이 끼어들고
@@ -474,9 +515,9 @@ def _part_where(spec: Dict, part: Optional[str]) -> Tuple[str, Tuple]:
     if part is None:
         return "", ()
     if spec["partition"] == "year":
-        # ⚠️ 문자열 비교. `bas_dt` 는 TEXT 다.
-        return (f" WHERE {spec['date_col']}>=? AND {spec['date_col']}<=?",
-                (YEAR_LO.format(y=part), YEAR_HI.format(y=part)))
+        # ⚠️ 문자열 비교. `bas_dt` 는 TEXT 다. 위 끝은 **미만**(다음 해 첫 글자)이다 — YEAR_LO 머리말.
+        return (f" WHERE {spec['date_col']}>=? AND {spec['date_col']}<?",
+                (YEAR_LO.format(y=part), YEAR_HI.format(y_next=int(part) + 1)))
     return f" WHERE {spec['partition_col']}=?", (part,)
 
 
@@ -951,6 +992,10 @@ def _deletion_verdict(man: Dict, db_counts: Dict[str, int], remote_ok: Optional[
         ok4, why = None, "원본 없이 돌린 기록이다 — 파일 지문까지만 확인됐다"
     elif not v.get("deep"):
         ok4, why = None, "`--deep` 없이 돌렸다 — 큰 표의 값 게이트를 안 봤다"
+    elif v.get("full") is False:
+        # DF-42 (2026-10-02) — `--tables` 로 일부만 본 기록도 지문만 맞으면 초록이 됐다.
+        ok4, why = None, (f"고른 표({', '.join(v.get('tables') or [])})만 봤다 — "
+                          "`verify --deep` 을 표 이름 없이 다시 돌린다")
     else:
         ok4 = v.get("fails") == 0
         why = f"{v.get('at','?')} · 어긋남 {v.get('fails')}건"
@@ -962,6 +1007,11 @@ def _deletion_verdict(man: Dict, db_counts: Dict[str, int], remote_ok: Optional[
         ok5, why = None, "기록 없음 — `restore` 로 리허설한다"
     elif r.get("manifest_fp") != fp:
         ok5, why = None, "기록이 옛 매니페스트 것이다 — `restore` 를 다시 돌린다"
+    elif set(man.get("tables", {})) - set(r.get("tables") or []):
+        # DF-42 — `--tables` 로 일부만 되살린 리허설은 「파케이만으로 SQLite 가 되살아난다」 의 근거가 아니다.
+        left = sorted(set(man.get("tables", {})) - set(r.get("tables") or []))
+        ok5, why = None, (f"일부 표만 되살렸다 — 빠진 표 {len(left)}개({', '.join(left[:4])}"
+                          f"{' …' if len(left) > 4 else ''}) · `restore` 를 표 이름 없이 다시 돌린다")
     else:
         ok5 = bool(r.get("ok"))
         why = (f"{r.get('at','?')} · {r.get('rows',0):,}행 복원 · "
@@ -1420,10 +1470,15 @@ def _gate_values(conn: sqlite3.Connection, name: str, rec: Dict, pq) -> bool:
               f"`export --tables {name} --force` 로 다시 낸다")
         return False
 
+    # ⚠️ 합은 **실수로** 낸다(DF-41 · 2026-10-02). 정수 합은 int64 를 넘는다 — 지수 일봉의 상장 시가총액
+    #    합이 9.87e19 로 상한의 10.7 배였다. SQLite `SUM()` 은 그때 `integer overflow` 로 죽고, 파케이 쪽
+    #    `pc.sum` 은 **조용히 음수로 감는다**. `TOTAL()` 과 float64 합은 넘치지 않는다(아래 상대 오차로 대조).
+    #    주식 일봉 시가총액 합도 이미 상한의 51% 라, 쌓이면 같은 사고가 난다.
     db = conn.execute(
-        "SELECT " + ", ".join(f"SUM({c}), SUM({c} IS NULL)" for c in num) + f" FROM {name}"
+        "SELECT " + ", ".join(f"TOTAL({c}), SUM({c} IS NULL)" for c in num) + f" FROM {name}"
     ).fetchone()
 
+    import pyarrow as pa
     sums = {c: 0.0 for c in num}
     nulls = {c: 0 for c in num}
     for f in rec["files"]:
@@ -1434,7 +1489,8 @@ def _gate_values(conn: sqlite3.Connection, name: str, rec: Dict, pq) -> bool:
         tbl = pq.read_table(p, columns=num)
         for c in num:
             col = tbl.column(c)
-            s = pc.sum(col).as_py()
+            # safe=False — 2^53 을 넘는 정수도 실수로 바꾼다(그 크기에선 TOTAL() 도 같은 반올림을 한다).
+            s = pc.sum(pc.cast(col, pa.float64(), safe=False)).as_py()
             sums[c] += s or 0.0
             nulls[c] += col.null_count
 
@@ -1723,10 +1779,11 @@ configs:
 **이용 조건** — 머리말의 `license_name: kogl-type1-and-opendart-derived` 는 HF 가 소문자
 slug 만 받아서 줄인 표기다. 실제 조건은 이렇다: 공공데이터포털 자료는 **공공누리 제1유형**,
 배당은 **OpenDART** 이용약관을 따르며, 이 저장소는 그 **파생물과 응답 원문**을 담는다.
+분봉(`price_intraday`)은 **야후 파이낸스**에서 받은 것이라 야후 이용약관(개인 · 비상업 용도)을 따른다.
 **팀(private Organization) 안에서 학습 목적으로만** 쓰고 밖으로 재배포하지 않는다.
 
-원자료는 공공데이터포털(금융위 주식시세정보)과 OpenDART 에서 받았다. 이 저장소는 그
-응답을 정규화·가공한 파생물 **과 응답 원문 자체**(`raw_response`)를 함께 담는다.
+원자료는 공공데이터포털(금융위 주식시세정보 · 증권상품시세정보 · 지수시세정보) · OpenDART · 야후 파이낸스에서
+받았다. 이 저장소는 그 응답을 정규화·가공한 파생물 **과 응답 원문 자체**(`raw_response`)를 함께 담는다.
 
 ## 왜 원문까지 올리는가 — 팀 결정 (2026-09-20)
 
@@ -1740,6 +1797,10 @@ slug 만 받아서 줄인 표기다. 실제 조건은 이렇다: 공공데이터
 
 ## 출처
 - 금융위원회 주식시세정보 (공공데이터포털) — 일별 시세
+- 금융위원회 증권상품시세정보 · 지수시세정보 (공공데이터포털) — ETF 일봉(`etf_daily`) · 지수 일봉(`index_daily`)
+- 야후 파이낸스 — 60분 · 5분 분봉(`price_intraday` · 09:00~15:00만 · 분할 비율 반영). 야후는 5분봉 60일 ·
+  60분봉 730일보다 오래된 것을 다시 주지 않아, 지난 분봉은 이 백업에만 남는다
+- KRX 정보데이터시스템 지수구성종목(사람이 받은 CSV) — 분봉 유니버스 명단(`intraday_universe`)
 - 전자공시시스템 OpenDART — 현금·현물 배당 공시
 
 ## 규모

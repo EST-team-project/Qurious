@@ -7,6 +7,7 @@
 4. 로그아웃 시 POST /api/auth/token/revoke → Redis 폐기 목록 등록
 
 세션 쿠키 방식과 병행 지원 – get_current_user_any()로 두 방식 모두 허용.
+쿠키로 인증된 요청은 세션 쿠키 전용 의존성과 동일하게 슬라이딩 만료(TTL·쿠키 갱신)를 적용한다.
 
 ── 폐기(revocation) 설계 메모 ────────────────────────────────────────────────
 폐기 목록의 키는 **토큰마다 달라야** 한다. 2026-09-20 이전에는 ``token[:32]`` 를 썼는데,
@@ -32,7 +33,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
@@ -247,21 +248,21 @@ async def get_current_user_jwt(
 
 
 async def get_current_user_any(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
-    fin_session: Optional[str] = Cookie(default=None),
+    fin_session: Optional[str] = Cookie(default=None, alias=settings.SESSION_COOKIE_NAME),
 ) -> dict:
     """Bearer JWT 또는 세션 쿠키 중 하나로 인증합니다.
 
     JWT가 있으면 우선 처리, 없으면 쿠키 세션으로 폴백합니다.
+    쿠키 세션으로 인증되면 get_current_user 와 동일하게 슬라이딩 만료를 적용합니다.
     """
     if credentials and credentials.credentials:
         return await get_current_user_jwt(credentials)
 
     if fin_session:
-        from app.lib.session import get_session  # 순환 임포트 방지
-        user = await get_session(fin_session)
-        if user:
-            return user
+        from app.lib.session import get_current_user  # 순환 임포트 방지
+        return await get_current_user(request, fin_session)
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

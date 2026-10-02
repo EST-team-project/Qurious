@@ -23,7 +23,7 @@ docs/github-archive/
 ├── 2026-09-23/   ← 옛 글 1건
 ├── 2026-09-28/        ← 새 글 18건
 │   ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md  (#14 · 댓글 01 올림)
-│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
+│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 06 점검 댓글(#6) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
 │   ├── PR-docs-screen-ia-v0-1/    00-본문.md  (#16)
 │   ├── PR-docs-screen-ia-v0-2/    00-본문.md  (#19)
 │   ├── PR-feat-daily-data-update/ 00-본문.md  (#23)
@@ -60,12 +60,16 @@ docs/github-archive/
 │   ├── PR-feat-account-crud-mypage/    00-본문.md  (#75)
 │   ├── 이슈-통합본-반입-용어사전/      00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
 │   └── PR-feat-rag-lab-import-glossary/  00-본문.md  (#77)
-└── 2026-10-01/        ← 새 글 5건
-    ├── PR-docs-plan-v2-and-goal1-design/  00-본문.md  (#78)
-    ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 올리기 전)
-    ├── PR-feat-learning-pages/        00-본문.md  (#80)
-    ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
-    └── PR-feat-finance-lectures-placement/  00-본문.md  (번호는 올린 뒤)
+├── 2026-10-01/        ← 새 글 5건
+│   ├── PR-docs-plan-v2-and-goal1-design/  00-본문.md  (#78)
+│   ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 10-01 올림) · 02 거래일 달력 주소(10-02 · 올릴 것)
+│   ├── PR-feat-learning-pages/        00-본문.md  (#80)
+│   ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
+│   └── PR-feat-finance-lectures-placement/  00-본문.md  (#84)
+└── 2026-10-02/        ← 새 글 3건
+    ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md  (팀원 작업 확인 거리 · #88)
+    ├── PR-feat-glossary-screen-and-w3-docs/  00-본문.md  (#87)
+    └── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -307,7 +311,16 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [논의 리밸런싱 3종 기준](<2026-10-01/[논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/00-본문.md>) | [논의] 리밸런싱 3종의 실행 주기 · 허용 이탈률 · 현금흐름 기준 설정 (③ 리밸런싱 주담당 글) | 2,691 | 번호 확인 전(사용자가 본문을 옮겨 둠 · **[#79](https://github.com/EST-team-project/Qurious/issues/79) — 이슈로 올라감 · 열림**(S74 페이지 한 건 확인)) · [내 의견 01](<2026-10-01/[논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/01-2026-10-01-항목별-의견.md>)(부담당 · 코드 줄 · 규정 원문 · 실데이터 측정) **올리기 전** |
 | [PR feat-learning-pages](2026-10-01/PR-feat-learning-pages/00-본문.md) | feat: 개념 학습 — 교재 사이트(/learn) · 팀 자료(HF 비공개 · 앱 편집기) · RAG 장 · 뼈대 32편 | 2,189 | [#80](https://github.com/EST-team-project/Qurious/pull/80) · 머지 `9327db7` (S74 채움) |
 | [PR feat-ohlcv-v1-intake](2026-10-01/PR-feat-ohlcv-v1-intake/00-본문.md) | feat: OHLCV 규격 자료 — ETF · 지수 일봉 · 분봉 400종목 · HF krx-ohlcv · 받은 파일 검사 · 개념 학습 1부 | 2,338 | [#81](https://github.com/EST-team-project/Qurious/pull/81) |
-| [PR feat-finance-lectures-placement](2026-10-01/PR-feat-finance-lectures-placement/00-본문.md) | feat: 금융 강의 — 「금융 필수 지식」 강의실 · 주제 화면 아홉 · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 통합본 19묶음 화면 자리 조사 · 아키텍처 그림 v2.0 | 2,308 | (올린 뒤 적음) |
+| [PR feat-finance-lectures-placement](2026-10-01/PR-feat-finance-lectures-placement/00-본문.md) | feat: 금융 강의 — 「금융 필수 지식」 강의실 · 주제 화면 아홉 · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 통합본 19묶음 화면 자리 조사 · 아키텍처 그림 v2.0 | 2,308 | [#84](https://github.com/EST-team-project/Qurious/pull/84) · 머지 `1732cd3` (S77 에 채움 · 로컬 `git log`) |
+
+### 2026-10-02 — 새 글 3건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [이슈 QFRS-마이그레이션-정리](2026-10-02/이슈-QFRS-마이그레이션-정리/00-본문.md) | [확인] 모의계좌 스냅샷(QFRS) — 마이그레이션 정리 넷 · 스냅샷을 쓰는 길 셋 | 3,674 | [#88](https://github.com/EST-team-project/Qurious/issues/88) — 담당 파트가 보는 확인 글 |
+| [PR feat-glossary-screen-and-w3-docs](2026-10-02/PR-feat-glossary-screen-and-w3-docs/00-본문.md) | feat: 용어사전 화면 · 모든 화면의 용어 설명 · 서비스 이름 Qurious · 강사님 기초 코드 289bfb5 · Qdrant 늘 켬 · W3 문서 새 판 | 3,507 | [#87](https://github.com/EST-team-project/Qurious/pull/87) |
+| [PR feat-trading-calendar-and-glossary-relations](2026-10-02/PR-feat-trading-calendar-and-glossary-relations/00-본문.md) | feat: 거래일 달력 · 금융 일정 · 데이터 상태 API · 배당락일 결함(DF-39) · 연관 개념(헷갈리는 말 25) — 목표 기능 ① W4 서버 쪽 | 3,165 | [#89](https://github.com/EST-team-project/Qurious/pull/89) |
+| [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

@@ -133,6 +133,9 @@ API-PAPR-29	POST	/api/paper/api-keys	S63	사용
 API-PAPR-30	DELETE	/api/paper/api-keys/{key_id}	S63	사용
 API-PAPR-31	POST	/api/paper/alpaca/account	S63	사용
 API-PAPR-32	POST	/api/paper/alpaca/positions	S63	사용
+API-PAPR-33	GET	/api/paper/performance/metrics	2026-10-02	사용
+API-PAPR-34	POST	/api/paper/performance/snapshot	2026-10-02	사용
+API-PAPR-35	POST	/api/paper/performance/simulate	2026-10-02	사용
 API-OAPI-01	GET	/openapi/v1/stocks	S63	사용
 API-OAPI-02	GET	/openapi/v1/quote/{symbol}	S63	사용
 API-OAPI-03	GET	/openapi/v1/account	S63	사용
@@ -203,3 +206,8 @@ API-LEC-05	GET	/api/lectures/market/intraday	2026-10-01	사용
 API-LEC-06	GET	/api/lectures/market/period-return	2026-10-01	사용
 API-LEC-07	POST	/api/lectures/market/period-return/extend	2026-10-01	사용
 API-LEC-08	GET	/api/lectures/historic-bond-image	2026-10-01	사용
+API-DATA-01	GET	/api/data/status	2026-10-02	사용
+API-CAL-01	GET	/api/calendar/trading-days	2026-10-02	사용
+API-CAL-02	GET	/api/calendar/events	2026-10-02	사용
+API-GLOS-05	GET	/api/glossary/{name}/graph	2026-10-02	사용
+API-DATA-02	GET	/api/data/ohlcv	2026-10-02	사용

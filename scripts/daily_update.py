@@ -20,6 +20,8 @@ Celery Beat(`app/celery_app.py`)에도 같은 일정이 있지만 그쪽은 스�
 
     ① price         backfill recent         최근 14일의 빈 거래일을 채운다 (포털)
     ② dividend      dividend scan --recent 2  이번 달·지난달 배당 공시를 **다시** 훑는다 (DART)
+    ②' calendar     market_calendar build   공휴일(특일 정보) → 거래일 달력 → 배당락일 다시 계산 → 금융 일정
+                                            (2026-10-02 · 실패해도 뒤를 막지 않는다)
     ③ adjusted      preprocess              수정주가·조정 이벤트를 다시 계산
     ④ total_return  total_return build      ③+② → TR 계열
     ⑤ benchmark     benchmark build         ③+④ → 자체 재현 지수
@@ -35,6 +37,9 @@ Celery Beat(`app/celery_app.py`)에도 같은 일정이 있지만 그쪽은 스�
   배당락일 계산에 시세 **달력**(`price_daily`)만 쓰므로 ① 뒤면 충분하다.
 · ② 가 실패해도(DART 점검·한도) ③④⑤ 는 돈다 — 배당은 어제 것 그대로 두고 시세만이라도
   최신으로 만든다. ② 의 실패는 상태 파일에 🟡 로 남는다.
+· ②' 가 ③ 보다 **앞인** 이유 — 배당락일은 거래일 달력으로 센 값이라, 달력이 바뀌면(내년 공휴일 발표 ·
+  임시공휴일) 같은 배당의 배당락일이 옮겨 간다. 배당 지문(`snapshot` 의 dividend 넷째 값)이 배당락일을
+  보므로 ②' 가 고친 날이 있으면 ③ 직전 판정이 TR 을 다시 만든다.
 · ③④⑤ 는 **새 자료가 없으면 건너뛴다** — 같은 날 두 번 돌아도 CPU 를 태우지 않는다.
   판정은 `needs_derived()` 한 곳이다.
 · ⑨ 는 **바뀐 파케이가 0개면 건너뛴다** — 안 그러면 내용 없는 커밋·태그가 매일 쌓인다.
@@ -129,6 +134,9 @@ STEPS: List[Step] = [
     Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30),
     Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet"], 60,
          fatal=False),
+    # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
+    # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
+    Step("calendar", ["-m", "collector.market_calendar", "build", "--quiet"], 10, fatal=False),
     Step("adjusted", ["-m", "collector.preprocess"], 30, derived=True),
     Step("total_return", ["-m", "collector.total_return", "build", "--quiet"], 30,
          derived=True),
@@ -269,7 +277,9 @@ def snapshot(db_path: Path = config.DB_PATH) -> Dict[str, object]:
             r = one(f"SELECT MAX(bas_dt) FROM {table}")
             out[key] = r[0] if r else None
         # 정정공시는 접수번호가 커지고, 금액만 바뀐 정정은 합이 바뀐다 — 셋을 함께 본다.
-        r = one("SELECT COUNT(*), MAX(rcept_no), TOTAL(dps) FROM dividend")
+        # 넷째 값은 배당락일의 합 — 거래일 달력이 바뀌어 배당락일만 옮겨도 TR 을 다시 만들게(2026-10-02).
+        r = one("SELECT COUNT(*), MAX(rcept_no), TOTAL(dps), "
+                "TOTAL(CAST(NULLIF(ex_div_dt, '') AS INTEGER)) FROM dividend")
         out["dividend"] = list(r) if r else None
         return out
     finally:

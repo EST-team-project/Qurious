@@ -46,12 +46,24 @@ def built():
 
 
 def test_build_matches_repository(built):
-    """TC-LC-01 · 빌드 결과가 저장소의 public/lectures/ 와 한 바이트도 다르지 않다(손으로 고친 파일이 없다)."""
+    """TC-LC-01 · 빌드 결과가 저장소의 public/lectures/ 와 같다(손으로 고친 파일이 없다).
+
+    글 파일은 줄바꿈(CRLF · LF)을 접고 견준다 — Windows 의 git 이 파일을 다시 꺼내며 CRLF 로 바꾸기 때문이다(DF-36).
+    """
     files, _ = built
     now = {p.relative_to(LECT).as_posix(): p.read_bytes() for p in LECT.rglob("*") if p.is_file()}
     assert sorted(now) == sorted(files), "남거나 빠진 파일 — python scripts/lectures_build.py 를 다시 돌린다"
-    changed = [k for k, v in files.items() if now[k] != v]
+    changed = [k for k, v in files.items() if not lectures_build.same_content(k, now[k], v)]
     assert not changed, f"빌드와 다른 파일: {changed[:5]}"
+
+
+def test_same_content_folds_only_line_endings():
+    """TC-LC-11 · 줄바꿈만 다른 글 파일은 같다고 보고, 글자가 다르거나 그림 파일이면 다르다고 본다."""
+    same = lectures_build.same_content
+    assert same("days/01.html", b"<p>a</p>\r\n<p>b</p>\r\n", b"<p>a</p>\n<p>b</p>\n")
+    assert not same("days/01.html", b"<p>a</p>\r\n", b"<p>A</p>\n"), "글자가 다르면 달라야 한다"
+    assert not same("curriculum/img/a.png", b"\x89PNG\r\n", b"\x89PNG\n"), "그림은 바이트 그대로 견준다"
+    assert not same("catalog.json", None, b"{}"), "한쪽이 없으면 다르다"
 
 
 def test_market_urls_rewritten_and_embed_hooks_present(built):
@@ -224,3 +236,71 @@ def test_menu_views_and_topics_agree():
         assert f'"{k}"' in core.split("const VIEW_GUIDES")[1], f"{k} 사용법 안내가 없다"
     assert "/learn/#/s/finance" not in finance, "금융 지식은 앱 안에서 읽는다 — /learn/ 링크를 빼기로 했다"
     assert "/css/finlearn.css" in app and "onFinLearnViewActivated" in (ROOT / "public" / "js" / "main.js").read_text(encoding="utf-8")
+
+
+def test_bold_before_korean_particle_renders(tmp_path):
+    """TC-LC-09 · 굵은 글씨 바로 뒤 한글 조사(`**…**는`)도 굵게 그리고, 코드 조각 · 코드 블록 안의 별표는 그대로 둔다 (DF-30).
+
+    화면 함수(`finlearn.js` 의 `boldForKorean`)를 그대로 떼어 Node 로 돌린다 — 파이썬으로 다시 쓰면 고친 곳을 시험하지 못한다.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node 가 없어 화면 함수를 돌릴 수 없다")
+    src = (ROOT / "public" / "js" / "finlearn.js").read_text(encoding="utf-8")
+    start = src.index("function boldForKorean(md)")
+    end = src.index("\n}\n", start) + 3
+    cases = {
+        "**캔들 차트(봉)**는 가격을": "<strong>캔들 차트(봉)</strong>는 가격을",
+        "앞 **PER**과 **PBR**을": "앞 <strong>PER</strong>과 <strong>PBR</strong>을",
+        "코드 `**그대로**` 둔다": "코드 `**그대로**` 둔다",
+        "```\n**블록 안**은\n```": "```\n**블록 안**은\n```",
+    }
+    script = tmp_path / "bold.js"
+    script.write_text(src[start:end] + "\nconst cases = " + json.dumps(list(cases), ensure_ascii=False)
+                      + ";\nprocess.stdout.write(JSON.stringify(cases.map(boldForKorean)));\n", encoding="utf-8")
+    out = subprocess.run([node, str(script)], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout) == list(cases.values())
+
+
+def test_static_js_css_html_revalidate_every_time():
+    """TC-LC-10 · 앱의 `/js` · `/css` · `.html` 응답은 「바뀌었는지 매번 묻기」(no-cache)이고 API 응답은 건드리지 않는다 (DF-34).
+
+    `app.main` 을 통째로 불러오면 모든 라우터(대화 모델 등)가 따라와 호스트에서 깨진다 — 미들웨어 클래스만 소스에서 떼어 돌린다.
+    """
+    import ast
+    import asyncio
+
+    main_src = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
+    tree = ast.parse(main_src)
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "StaticNoCacheMiddleware")
+    ns: dict = {}
+    exec(compile(ast.Module(body=[cls], type_ignores=[]), "main.py", "exec"), ns)
+    assert "app.add_middleware(StaticNoCacheMiddleware)" in main_src
+    assert 'app.mount("/js"' in main_src and 'app.mount("/css"' in main_src
+
+    async def inner(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200,
+                    "headers": [(b"content-type", b"text/plain"), (b"cache-control", b"max-age=600")]})
+        await send({"type": "http.response.body", "body": b"ok"})
+
+    mw = ns["StaticNoCacheMiddleware"](inner)
+
+    def cache_control(path: str) -> list[bytes]:
+        sent: list[dict] = []
+
+        async def send(message):
+            sent.append(message)
+
+        async def receive():
+            return {"type": "http.request"}
+
+        asyncio.run(mw({"type": "http", "path": path}, receive, send))
+        return [v for k, v in sent[0]["headers"] if k.lower() == b"cache-control"]
+
+    for path in ("/js/main.js", "/css/app.css", "/app.html", "/login.html", "/"):
+        assert cache_control(path) == [b"no-cache"], path
+    assert cache_control("/api/glossary") == [b"max-age=600"]

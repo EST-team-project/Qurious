@@ -1,0 +1,149 @@
+/* 데이터 관제 · 금융 일정 (2026-10-02 · js/datahub.js · js/calendar.js)
+ * 색 · 간격은 app.css 의 토큰 그대로(새 디자인 체계를 만들지 않는다). Figma 「데이터 관제 · 금융 일정」 의 고른 안과 같은 모양. */
+
+/* ── 판정 색 — 최신 초록 · 정상 파랑 · 참고 회색 · 늦음 주황 · 멈춤 빨강 ─────────────────── */
+.q-pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.q-pill--fresh { color: #047857; background: #e6f5ef; }
+.q-pill--ok    { color: var(--accent); background: #eaf1fe; }
+.q-pill--info  { color: #64748b; background: var(--surf2); }
+.q-pill--late  { color: #b45309; background: #fdf3e6; }
+.q-pill--stale { color: var(--red); background: var(--red-bg); }
+.q-tone--fresh { color: #047857; } .q-tone--ok { color: var(--accent); } .q-tone--info { color: #64748b; }
+.q-tone--late  { color: #b45309; } .q-tone--stale { color: var(--red); }
+.q-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.q-muted { color: var(--text-mute); font-weight: 400; }
+.q-err { color: var(--red); }
+
+/* ── 위 메뉴의 표시 ── */
+.q-data-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
+  padding: 3px 9px; border-radius: 20px; border: 1.5px solid currentColor; background: var(--surf); white-space: nowrap; }
+.q-data-badge--fresh, .q-data-badge--ok { color: #047857; background: #e6f5ef; }
+.q-data-badge--late  { color: #b45309; background: #fdf3e6; }
+.q-data-badge--stale { color: var(--red); background: var(--red-bg); }
+.q-data-badge--info  { color: var(--text-mute); border-color: var(--border); }
+.q-data-badge .q-dot { width: 7px; height: 7px; }
+
+/* ── 서랍 ── */
+#q-data-drawer { display: none; }
+#q-data-drawer.open { display: block; }
+.q-dd-dim { position: fixed; inset: var(--gnb-h) 0 0 0; background: rgba(15, 23, 42, .28); z-index: 900; }
+.q-dd-panel { position: fixed; top: var(--gnb-h); right: 0; bottom: 0; width: min(420px, 100vw); z-index: 901; background: var(--surf);
+  border-left: 1px solid var(--border); padding: 22px 24px; overflow-y: auto; box-shadow: -8px 0 24px rgba(15, 23, 42, .08); }
+.q-dd-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.q-dd-head h3 { font-size: 18px; font-weight: 700; }
+.q-dd-close { border: 0; background: none; color: #64748b; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+.q-dd-verdict { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.q-dd-verdict strong { font-size: 22px; } .q-dd-verdict span:last-child { color: #64748b; font-size: 12px; }
+.q-dd-row { padding: 10px 0; border-bottom: 1px solid #eef1f6; }
+.q-dd-k { font-size: 12px; color: #64748b; } .q-dd-v { font-size: 14px; font-weight: 500; color: var(--text); margin-top: 2px; }
+.q-dd-go { width: 100%; margin: 16px 0 10px; }
+.q-dd-note { font-size: 12px; color: #64748b; line-height: 1.6; }
+
+/* ── 데이터 관제 화면 ── */
+.dh-root, .cal-root { display: flex; flex-direction: column; gap: 18px; }
+.dh-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.dh-head h2 { font-size: 22px; font-weight: 700; } .dh-head p { font-size: 13px; margin-top: 2px; }
+.dh-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.dh-card { display: flex; flex-direction: column; gap: 6px; }
+.dh-k { font-size: 12px; color: #64748b; font-weight: 500; }
+.dh-big { font-size: 20px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+.dh-d { font-size: 12px; color: var(--text-mute); }
+.dh-h { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.dh-h .q-muted { font-size: 12px; }
+.dh-alert { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: var(--surf2); margin-bottom: 10px; }
+.dh-bar { display: flex; gap: 2px; height: 14px; margin-bottom: 12px; }
+.dh-seg { border-radius: 3px; min-width: 3px; }
+.dh-seg--fresh { background: #60a5fa; } .dh-seg--fresh:nth-child(2n) { background: #2563eb; }
+.dh-seg--late { background: #f59e0b; } .dh-seg--stale { background: var(--red); } .dh-seg--info { background: var(--border2); }
+.dh-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 24px; font-size: 13px; }
+.dh-steps li { display: flex; gap: 8px; align-items: baseline; }
+.dh-mark { font-weight: 700; width: 12px; }
+.dh-table-wrap { overflow-x: auto; }
+.dh-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+.dh-table th { font-size: 12px; color: #64748b; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.dh-table td { padding: 9px 8px; border-bottom: 1px solid #eef1f6; vertical-align: top; }
+.dh-name { font-weight: 600; white-space: nowrap; } .dh-num { text-align: right; white-space: nowrap; }
+.dh-detail { font-size: 12px; min-width: 220px; }
+.dh-low { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.dh-hist li, .dh-legend li { display: flex; gap: 10px; align-items: center; padding: 4px 0; font-size: 13px; }
+
+/* ── 금융 일정 화면 ── */
+.cal-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.cal-h { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.cal-h .q-muted { font-size: 12px; }
+.cal-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.cal-title { font-size: 18px; margin: 0 4px; }
+.cal-nav { border: 1px solid var(--border); background: var(--surf); border-radius: 8px; padding: 1px 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
+.cal-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+.cal-filter { border: 0; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; opacity: .45; }
+.cal-filter.on { opacity: 1; }
+.cal-symbol { border: 1px solid var(--accent); color: var(--accent); background: #eaf1fe; border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.cal-chip--closure { color: #475569; background: #eef1f6; }
+.cal-chip--expiry  { color: #b45309; background: #fdf3e6; }
+.cal-chip--divex   { color: #047857; background: #e6f5ef; }
+.cal-chip--divrec  { color: #1d4ed8; background: #eaf1fe; }
+.cal-wk, .cal-cells { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-wk div { text-align: center; font-size: 12px; font-weight: 700; color: #64748b; padding: 6px 0; }
+.cal-wk div[data-dow="0"], .cal-cell[data-dow="0"] .cal-num { color: var(--red); }
+.cal-wk div[data-dow="6"], .cal-cell[data-dow="6"] .cal-num { color: var(--accent); }
+.cal-cell { min-height: 96px; border: 1px solid #eef1f6; padding: 6px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cal-num { font-size: 12px; font-weight: 700; }
+.cal-out { background: #fafbfd; } .cal-out .cal-num { opacity: .35; }
+.cal-closed { background: #f6f7f9; }
+.cal-today { background: #f4f8ff; box-shadow: inset 0 0 0 2px var(--accent); }
+.cal-chip { border: 0; border-radius: 6px; padding: 2px 6px; font-size: 11px; font-weight: 600; text-align: left; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.cal-more { border: 0; background: none; color: var(--accent); font-size: 11px; font-weight: 700; text-align: left; cursor: pointer; padding: 0 2px; }
+.cal-tag { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+.cal-tag--closure { color: #475569; background: #eef1f6; } .cal-tag--expiry { color: #b45309; background: #fdf3e6; }
+.cal-tag--divex { color: #047857; background: #e6f5ef; } .cal-tag--divrec { color: #1d4ed8; background: #eaf1fe; }
+.cal-list { display: none; }
+.cal-list-wk { font-size: 13px; font-weight: 700; color: var(--accent); padding: 12px 0 4px; }
+.cal-list-row { display: flex; gap: 12px; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #eef1f6; background: none; padding: 10px 0; cursor: pointer; }
+.cal-list-date { display: flex; flex-direction: column; align-items: center; width: 44px; font-size: 12px; flex-shrink: 0; }
+.cal-list-body { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+#cal-modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, .35); z-index: 950; align-items: center; justify-content: center; padding: 16px; }
+#cal-modal.open { display: flex; }
+.cal-modal-box { position: relative; background: var(--surf); border-radius: 16px; width: min(560px, 100%); max-height: 85vh; overflow-y: auto; padding: 24px 26px; }
+.cal-modal-x { position: absolute; top: 12px; right: 12px; }
+.cal-modal-ev { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid #eef1f6; }
+.cal-modal-ev h3 { font-size: 19px; font-weight: 700; margin: 6px 0 10px; }
+.cal-modal-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.cal-modal-meta div { background: var(--surf2); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.cal-modal-meta span { display: block; font-size: 11px; color: #64748b; font-weight: 700; }
+.cal-modal-ev p { font-size: 14px; color: var(--text-dim); margin-bottom: 10px; }
+
+/* ── 「다가오는 일정」 카드(달력 화면 · 다른 화면 공용) ── */
+.q-upcoming { display: flex; flex-direction: column; }
+.q-up-list { display: flex; flex-direction: column; }
+.q-up-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #eef1f6; }
+.q-up-row--mine { background: #fffbeb; margin: 0 -10px; padding: 9px 10px; border-radius: 8px; }
+.q-up-date { display: flex; flex-direction: column; align-items: center; width: 42px; flex-shrink: 0; font-size: 12px; }
+.q-up-date span { color: var(--text-mute); font-size: 11px; }
+.q-up-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.q-up-star { color: #d97706; font-size: 12px; }
+.q-up-body > .cal-tag, .cal-list-body > .cal-tag { align-self: flex-start; }   /* 줄 폭으로 늘지 않게 */
+.q-up-title { font-size: 13px; font-weight: 700; }
+.q-up-detail { font-size: 11px; color: #64748b; }
+.q-up-more { border: 0; background: none; color: var(--accent); font-weight: 700; font-size: 13px; text-align: left; padding: 10px 0 4px; cursor: pointer; }
+.q-up-note { font-size: 11px; color: var(--text-mute); margin-top: 6px; line-height: 1.6; }
+
+/* 다른 화면에 붙일 때 — 원래 칸 + 오른쪽 카드 */
+.q-with-side { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.q-side { position: sticky; top: 12px; }
+
+/* ── 좁은 화면(휴대폰 390 · 결정 ② — 달력 대신 목록) ── */
+@media (max-width: 900px) {
+  .dh-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dh-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cal-layout, .q-with-side { grid-template-columns: minmax(0, 1fr); }
+  .q-side { position: static; }
+}
+@media (max-width: 720px) {
+  .dh-sum, .dh-steps, .dh-low { grid-template-columns: minmax(0, 1fr); }
+  .cal-grid { display: none; }
+  .cal-list { display: block; }
+  .cal-filters { margin-left: 0; }
+  .cal-modal-meta { grid-template-columns: minmax(0, 1fr); }
+  .q-data-badge span:last-child { max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+}

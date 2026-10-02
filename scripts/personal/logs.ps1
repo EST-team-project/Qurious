@@ -12,7 +12,7 @@
   이미지에 수집기 코드를 넣지 않았고, 수집은 호스트의 작업 스케줄러(매일 12:30)가 한다.
 
 .PARAMETER Service
-  볼 서비스. app(기본) · celery-worker · celery-beat · postgres · redis · neo4j · all(전부 섞어서)
+  볼 서비스. app(기본) · celery-worker · celery-beat · postgres · redis · neo4j · qdrant · all(전부 섞어서)
 
 .PARAMETER Tail
   끝에서 몇 줄. 기본 100.
@@ -27,7 +27,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('app', 'celery-worker', 'celery-beat', 'postgres', 'redis', 'neo4j', 'all')]
+  [ValidateSet('app', 'celery-worker', 'celery-beat', 'postgres', 'redis', 'neo4j', 'qdrant', 'all')]
   [string]$Service = 'app',
   [int]$Tail = 100,
   [switch]$Follow

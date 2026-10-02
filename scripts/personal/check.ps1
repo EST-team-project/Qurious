@@ -11,6 +11,8 @@
     화면과 똑같이 쿠키(fin_session) 로그인을 쓴다. 기본은 로컬 점검 전용 계정
     smoke-check@example.com 이고, 없으면 처음 한 번 가입한다. 이 계정의 모의투자 · 리밸런싱만
     바뀌므로 내 계정 데이터는 건드리지 않는다. 로컬(localhost)이 아닌 주소에는 자동 가입하지 않는다.
+    점검 계정은 **관리자**다(로컬 DB 에서 역할을 올린다 · 2026-10-02) — 관리자 화면 · API 까지 점검하려고.
+    관리자 API 중 지우는 것(POST /api/admin/reset)은 부르지 않는다.
 
   묶음 (-Group 으로 골라 돌릴 수 있다)
     기본     앱이 떠 있나 · 화면 파일 · API 목록
@@ -21,11 +23,14 @@
     전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
     로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
     용어     용어사전의 판(표가 파일과 같은가) · 분류 · 검색(약어 · 초성) · 화면 키로 한 건 · 없는 이름은 404
+    데이터   데이터 상태(일일 갱신 · 표별 기준일과 늦음) · 거래일 달력(60일) · 금융 일정(파생 만기 · 배당락일)
     매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
     연동     TradingView 웹훅 안내 · 알림 설정
-    시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결
+    시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결 · 벡터 DB(Qdrant) 연결
+    관리     (관리자 계정일 때) DB 통계 · 감사 기록 — 읽기만. 일반 계정이 막히는지는 「계정」 묶음이 본다
     느림     (-Full) 요청마다 모델을 학습하는 ML 셋 — 하나에 15초 안팎
-    쓰기     (-Write) 기록이 남는 점검 — 모의 매수 1주 → 매도 1주 · 리밸런싱 목표 저장 → 미리보기
+    쓰기     (-Write) 기록이 남는 점검 — 모의 매수 1주 → 매도 1주 · 리밸런싱 목표 저장 → 미리보기 ·
+             문서 근거 RAG 왕복(작은 글 올리기 → 찾기 → 채팅 「순수 RAG」 → 지우기 → 다시 찾으면 0)
 
   판정
     [ OK ]    상태 코드와 내용 조건이 모두 맞다
@@ -142,7 +147,10 @@ $Checks = @(
 
   # ── 로그인 ──────────────────────────────────────────────────────────────────
   @{ G = '로그인'; Name = '내 정보 (쿠키 로그인 유지)'; M = 'GET'; P = '/api/me'; Auth = $true
-     Test = { param($r) if ($r.Json.user.email -eq $Email) { Pass "$Email · 역할 $(@($r.Json.user.roles) -join ',')" } else { Fail "다른 사용자: $($r.Json.user.email)" } } }
+     Test = { param($r)
+       if ($r.Json.user.email -ne $Email) { return (Fail "다른 사용자: $($r.Json.user.email)") }
+       if (@($r.Json.user.roles) -contains 'admin') { $state.is_admin = $true }   # 아래 「관리」 묶음이 본다
+       Pass "$Email · 역할 $(@($r.Json.user.roles) -join ',')" } }
   @{ G = '로그인'; Name = '로그인 없이는 막힌다'; M = 'GET'; P = '/api/me'; Auth = $false; Expect = 401
      Test = { param($r) Pass "401 — $($r.Json.detail)" } }
 
@@ -245,6 +253,38 @@ $Checks = @(
   @{ G = '용어'; Name = '없는 용어는 404'; M = 'GET'; P = '/api/glossary/없는용어'; Auth = $false; Expect = 404
      Test = { param($r) Pass "404 — $($r.Json.detail)" } }
 
+  # ── 데이터 상태 · 거래일 달력 (2026-10-02) ──────────────────────────────────
+  # 상태는 로그인 뒤(수집 자료의 양 · 이 PC 의 작업 기록), 달력 · 일정은 로그인 없이 읽는다.
+  # 달력은 수집기가 매일 12:30 에 다시 만든다 — 없으면 503 과 할 일(python -m collector.market_calendar build).
+  @{ G = '데이터'; Name = '데이터 상태 — 일일 갱신 · 표별 기준일'; M = 'GET'; P = '/api/data/status'; Auth = $true
+     Test = { param($r)
+       $late = @($r.Json.tables | Where-Object { $_.verdict -in @('late', 'stale', 'missing') } | ForEach-Object { "$($_.label) $($_.verdict_label)" })
+       $msg = "$($r.Json.verdict_label) · 시세 기준일 $($r.Json.as_of) · 일일 갱신 $($r.Json.runner.label)"
+       if ($r.Json.verdict -eq 'ok') { Pass $msg }
+       elseif ($r.Json.verdict -eq 'warning') { Warn ("$msg — " + ($late -join ' · ')) }
+       else { Fail ("$msg — " + ($late -join ' · ')) } } }
+  @{ G = '데이터'; Name = '거래일 달력 — 오늘부터 60일'; M = 'GET'; P = '/api/calendar/trading-days'; Auth = $false
+     Test = { param($r)
+       $next = @($r.Json.days | Where-Object { -not $_.is_trading_day -and $_.weekday -notin @('토', '일') })[0]
+       $msg = "거래일 $($r.Json.trading_days) · 휴장 $($r.Json.closed_days) · 달력 끝 $($r.Json.calendar.end)"
+       if ($next) { $msg += " · 다음 평일 휴장 $($next.date) $($next.reason)" }
+       Pass $msg } }
+  @{ G = '데이터'; Name = '금융 일정 — 파생 만기 · 배당락일'; M = 'GET'; P = '/api/calendar/events?kind=deriv_expiry,dividend_ex'; Auth = $false
+     Test = { param($r)
+       $exp = @($r.Json.events | Where-Object { $_.kind -eq 'deriv_expiry' })[0]
+       if (-not $exp) { return (Fail '60일 안에 파생 만기가 없다 — 달력이 짧거나 일정이 비었다') }
+       Pass "다음 만기 $($exp.date) $($exp.title) · 배당락일 $(Count @($r.Json.events | Where-Object { $_.kind -eq 'dividend_ex' })) 건" } }
+  # OHLCV 규격 자료(ohlcv-v1 · 2026-10-02) — HF krx-ohlcv 와 같은 줄 모양을 한 종목씩. 로그인 뒤.
+  @{ G = '데이터'; Name = 'OHLCV — 삼성전자 수정 일봉 1년'; M = 'GET'; P = '/api/data/ohlcv?symbol=005930'; Auth = $true
+     Test = { param($r)
+       if ($r.Json.contract -ne 'ohlcv-v1' -or $r.Json.count -lt 200) { return (Fail "줄 $($r.Json.count) · 규격 $($r.Json.contract)") }
+       $last = $r.Json.rows[-1]
+       Pass "$($r.Json.count) 줄 · $($r.Json.basis) · 마지막 $($last.trade_date) 종가 $(N0 $last.close) · 받은 시각 $($last.fetched_at)" } }
+  @{ G = '데이터'; Name = 'OHLCV — 코스피 200 주봉 · 진행 중인 주'; M = 'GET'; P = '/api/data/ohlcv?symbol=KOSPI:%EC%BD%94%EC%8A%A4%ED%94%BC%20200&timeframe=1w'; Auth = $true
+     Test = { param($r)
+       $last = $r.Json.rows[-1]
+       Pass "$($r.Json.count) 주 · 마지막 $($last.trade_date) 종가 $($last.close) · 진행 중 $($r.Json.partial)" } }
+
   # ── 매매: 모의투자 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 ─────────────────
   @{ G = '매매'; Name = '모의투자 잔고'; M = 'GET'; P = '/api/paper/account'; Auth = $true
      Test = { param($r) Pass "현금 $(N0 $r.Json.cash) · 주식 평가 $(N0 $r.Json.stockEval) · 총자산 $(N0 $r.Json.totalAsset) 원" } }
@@ -294,7 +334,27 @@ $Checks = @(
      Test = { param($r)
        $llm = $r.Json.llm_provider
        if ($llm.ok) { Pass "$($llm.provider) 연결됨 ($($llm.target) · $($llm.ms)ms)" }
-       else { Skip "$($llm.provider) 에 닿지 않음 ($($llm.target)) — AI 채팅 · RAG 는 제외(설계상 동결 기능). 호스트 Ollama 를 쓰려면 .env 에 OLLAMA_BASE_URL=http://host.docker.internal:11434" } } }
+       else { Skip "$($llm.provider) 에 닿지 않음 ($($llm.target)) — AI 채팅 · RAG 는 제외(설계상 동결 기능). 컨테이너 Ollama 면 처음 한 번 docker compose up -d model-pull · 이 PC 의 Ollama 를 쓰려면 .env 에 COMPOSE_OLLAMA_URL=http://host.docker.internal:11434 (docker-compose.yml 이 .env 의 OLLAMA_BASE_URL 보다 우선)" } } }
+
+  @{ G = '시스템'; Name = '벡터 DB(Qdrant) 연결 — 문서 근거 RAG · 크롤링 적재의 전제'; M = 'GET'; P = '/api/system/status'; Auth = $true
+     Test = { param($r)
+       $q = @($r.Json.services) | Where-Object { $_.name -eq 'Qdrant' } | Select-Object -First 1
+       if (-not $q) { return (Fail '상태 응답에 Qdrant 줄이 없다') }
+       if ($q.ok) { Pass "Qdrant 연결됨 ($($q.url) · $($q.ms)ms)" }
+       else { Fail "Qdrant 에 닿지 않음 ($($q.url)) — .\scripts\personal\logs.ps1 -Service qdrant · compose 의 qdrant 서비스(2026-10-02~ 늘 켬)" } } }
+
+  # ── 관리 (관리자 전용 · 읽기만) ─────────────────────────────────────────────────
+  # ⚠️ POST /api/admin/reset(금융 · 사용자 표 전부 삭제)은 점검에 넣지 않는다 — 읽기 API 둘만.
+  @{ G = '관리'; Name = 'DB 통계 (관리자 전용)'; M = 'GET'; P = '/api/admin/stats'; Auth = $true; Needs = 'is_admin'
+     NeedsNote = '관리자가 아닌 계정이라 건너뜀 — 로컬 점검 계정은 자동으로 관리자다(-Email 로 다른 계정을 주면 그 계정의 역할을 따른다)'
+     Test = { param($r)
+       $n = @($r.Json.stats.PSObject.Properties).Count
+       Pass "표 $n 개 · 대화 $(N0 $r.Json.stats.'postgres.chats') 건 · 주문 $(N0 $r.Json.stats.'postgres.orders') 건 · 감사 기록 $(N0 $r.Json.stats.'postgres.audit_events') 건" } }
+  @{ G = '관리'; Name = '감사 기록 (관리자 전용 · 최근 5건)'; M = 'GET'; P = '/api/admin/audit-log?limit=5'; Auth = $true; Needs = 'is_admin'
+     NeedsNote = '관리자가 아닌 계정이라 건너뜀'
+     Test = { param($r)
+       $first = @($r.Json.events) | Select-Object -First 1
+       Pass "최근 $($r.Json.count) 건 · 맨 위 $($first.event_type) ($($first.created_at))" } }
 )
 
 # ── 느림: 요청마다 모델을 학습한다 (-Full) ──────────────────────────────────────
@@ -346,6 +406,36 @@ if ($Write) {
     @{ G = '쓰기'; Name = '리밸런싱 목표 되돌리기 (비움)'; M = 'PUT'; P = '/api/rebalance/plan'; Auth = $true
        Body = @{ targets = @() }
        Test = { param($r) Pass '목표 비움' } }
+    # 문서 근거 RAG 왕복 — 임베딩(Ollama nomic-embed-text) · 벡터 저장(Qdrant)이 실제로 되는지. 끝에 지워 흔적을 남기지 않는다.
+    # 예전에는 저장이 늘 실패하면서 「0청크 저장」 이 성공(200)으로 보였다(DF-38) — 그래서 청크 수까지 본다.
+    @{ G = '쓰기'; Name = 'RAG — 작은 글 올리기 (임베딩 · 벡터 저장)'; M = 'POST'; P = '/api/documents/upload'; Auth = $true; Timeout = 120
+       File = @{ Name = 'file'; FileName = 'qurious-rag-check.txt'
+                 Text = "괴리율은 ETF 가 거래소에서 거래되는 가격과 순자산가치(NAV)의 차이를 비율로 나타낸 값이다.`niNAV 는 장중에 실시간으로 계산한 추정 순자산가치다." }
+       Test = { param($r)
+         if ([int]$r.Json.chunks -lt 1) { return (Fail "청크 $($r.Json.chunks) 개 저장 — 벡터 저장이 안 됐다") }
+         $state.rag_doc = "$($r.Json.doc_id)"
+         Pass "청크 $($r.Json.chunks) 개 저장 · 문서 $($r.Json.doc_id)" } }
+    @{ G = '쓰기'; Name = 'RAG — 올린 글 찾기'; M = 'POST'; P = '/api/documents/search'; Auth = $true; Needs = 'rag_doc'
+       Body = @{ query = 'ETF 괴리율'; top_k = 3 }
+       Test = { param($r)
+         $top = @($r.Json.hits) | Select-Object -First 1
+         if (-not $top) { return (Fail '찾은 청크가 없다') }
+         if ($top.title -ne 'qurious-rag-check.txt') { return (Warn "맨 위가 다른 글: $($top.title)") }
+         Pass ("맨 위 {0} · 유사도 {1:N3}" -f $top.title, [double]$top.score) } }
+    @{ G = '쓰기'; Name = 'RAG — 채팅 「순수 RAG」 모드 (LLM 없이 청크만)'; M = 'POST'; P = '/api/chat'; Auth = $true; Needs = 'rag_doc'; Timeout = 60
+       Body = @{ question = 'ETF 괴리율'; llm_mode = 'rag' }
+       Test = { param($r)
+         if ($r.Json.mode -ne 'rag') { return (Fail "모드 $($r.Json.mode)") }
+         if ((Count $r.Json.chunks) -lt 1) { return (Fail '청크 0 개 — 채팅이 저장한 글을 못 찾는다') }
+         Pass "청크 $(Count $r.Json.chunks) 개" } }
+    @{ G = '쓰기'; Name = 'RAG — 올린 글 지우기 (메타 · 벡터)'; M = 'DELETE'; P = { "/api/documents/$($state.rag_doc)" }; Auth = $true; Needs = 'rag_doc'
+       Test = { param($r) Pass "$($r.Json.message)" } }
+    @{ G = '쓰기'; Name = 'RAG — 지운 뒤 다시 찾기 → 0'; M = 'POST'; P = '/api/documents/search'; Auth = $true; Needs = 'rag_doc'
+       Body = @{ query = 'ETF 괴리율'; top_k = 3 }
+       Test = { param($r)
+         $left = @($r.Json.hits) | Where-Object { $_.title -eq 'qurious-rag-check.txt' }
+         if ((Count $left) -gt 0) { return (Fail "지운 글이 $(Count $left) 청크 남았다 — 벡터 삭제가 안 됐다") }
+         Pass '남은 청크 0' } }
   )
 }
 
@@ -398,6 +488,19 @@ if (@($Checks | Where-Object { $_.Auth }).Count -gt 0) {
     # 점검 계정이 아직 없다(새 DB) → 한 번 가입한다. 가입도 쿠키를 준다.
     $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '로컬 점검'; email = $Email; password = $Password } -Session $session
     $how = '처음이라 가입함'
+  }
+  # 점검 계정은 관리자다 — 관리자만 쓰는 화면 · API(감사 기록 · DB 통계)까지 점검하려고(2026-10-02 사용자 요청).
+  # 역할은 **가입할 때만** 정해지므로(설정 ADMIN_EMAILS · app/routes/auth.py 의 register) 이미 있는 점검 계정은
+  # 로컬 DB 에서 한 번 올린다. 로컬 주소 · 점검 계정일 때만 — 비밀번호가 이 파일에 공개된 계정이라 다른 곳에선 안 된다.
+  # 세션에는 로그인 때의 역할이 복사되므로, 올린 뒤 다시 로그인해야 새 역할이 실린다.
+  if ($login.Status -eq 200 -and $isLocal -and $Email -eq $SmokeEmail) {
+    $me0 = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $session
+    if ($me0.Status -eq 200 -and -not (@($me0.Json.user.roles) -contains 'admin')) {
+      $sql = "UPDATE users SET roles = array_append(roles, 'admin'::varchar) WHERE lower(email) = '$SmokeEmail' AND NOT ('admin' = ANY(roles));"
+      $out = (& docker exec fin-ai-postgres psql -U fin_user -d fin_ai -c $sql 2>&1 | ForEach-Object { "$_" }) -join ' '
+      $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $Email; password = $Password } -Session $session
+      if ($out -match 'UPDATE 1') { $how += ' · 관리자 역할을 올림(로컬 DB)' } else { $how += " · 관리자 역할을 못 올림($out)" }
+    }
   }
   if ($login.Status -eq 200) {
     Add-Result $loginCheck $login.Status $login.Ms (Pass "$Email · $how")
@@ -461,6 +564,10 @@ if ($runAccount) {
       $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/me" -Session $acct
       if ($r.Status -eq 200 -and $r.Json.user.email -eq $acctEmail) { $v = Pass "이름 $($r.Json.user.name) · 가입일 $($r.Json.user.createdAt)" } else { $v = Fail "상태 $($r.Status) · 이메일 $($r.Json.user.email)" }
       Add-Acct '내 정보 (R)' 'GET' '/api/me' $r $v
+
+      # 2-1. 일반 계정은 관리자 API 가 막힌다 → 403 (점검 계정이 관리자라 「관리」 묶음만으로는 못 보는 쪽)
+      $r = Invoke-QApi -Method GET -Url "$BaseUrl/api/admin/stats" -Session $acct
+      Add-Acct '일반 계정으로 관리자 API → 막힘' 'GET' '/api/admin/stats' $r (Expect-Status $r 403 "403 — $($r.Json.detail)")
 
       # 3. 소문자로 다시 가입 → 400 (대소문자만 다른 두 번째 가입을 막는다)
       $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '중복'; email = $acctEmail; password = $acctPw }
@@ -562,11 +669,15 @@ if ($runAccount) {
 foreach ($c in $Checks) {
   # 앞 점검이 넘겨줘야 하는 값이 없으면 건너뛴다(그 앞 점검이 이미 실패로 표시됐다).
   if ($c.Needs -and -not $state.ContainsKey($c.Needs)) {
-    Add-Result $c '-' 0 (Skip "앞 점검이 준비해야 하는 값($($c.Needs))이 없어 건너뜀")
+    $why = "앞 점검이 준비해야 하는 값($($c.Needs))이 없어 건너뜀"
+    if ($c.NeedsNote) { $why = $c.NeedsNote }
+    Add-Result $c '-' 0 (Skip $why)
     continue
   }
   $body = $c.Body
   if ($body -is [scriptblock]) { $body = & $body }
+  $path = $c.P
+  if ($path -is [scriptblock]) { $path = & $path; $c.P = $path }   # 앞 점검이 알아낸 값으로 경로를 만들 때(예: 지울 문서 ID)
   $expect = 200
   if ($c.Expect) { $expect = $c.Expect }
   $timeout = 30
@@ -574,7 +685,7 @@ foreach ($c in $Checks) {
   $sess = $null
   if ($c.Auth) { $sess = $session }
 
-  $r = Invoke-QApi -Method $c.M -Url ($BaseUrl + $c.P) -Body $body -Session $sess -TimeoutSec $timeout
+  $r = Invoke-QApi -Method $c.M -Url ($BaseUrl + $path) -Body $body -Session $sess -TimeoutSec $timeout -File $c.File
 
   if ($r.Status -eq 0) {
     $v = Fail ("응답 없음 — " + $r.Error)

@@ -54,6 +54,21 @@ def test_dividend_change_alone_runs_derived():
     assert du.needs_derived(BASE, after) == "배당 표가 바뀌었다"
 
 
+def test_ex_date_change_alone_runs_derived():
+    """거래일 달력이 배당락일만 옮긴 날(2026-10-02 · 3행) — 건수 · 접수번호 · 금액은 그대로라도 TR 을 다시 만든다."""
+    before = dict(BASE, dividend=[9191, "20261001900087", 5609056.01, 164968436265.0])
+    after = dict(BASE, dividend=[9191, "20261001900087", 5609056.01, 164968436265.0 + 1 + 1 + 83])
+    assert du.needs_derived(before, after) == "배당 표가 바뀌었다"
+
+
+def test_calendar_step_runs_before_derived_decision():
+    """달력 단계는 배당 뒤 · 파생(수정주가) 앞 — 배당락일을 고친 뒤에 파생 판정을 해야 한다 · 실패해도 뒤를 막지 않는다."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("dividend") < names.index("calendar") < names.index("adjusted")
+    cal = next(s for s in du.STEPS if s.name == "calendar")
+    assert (cal.fatal, cal.derived, cal.upload) == (False, False, False)
+
+
 def test_lagging_derived_tables_run_even_without_new_data():
     """2026-09-28 실측 상태 — 시세 09-22, 파생 표 09-17."""
     stale = dict(BASE, adjusted_max="20260917", tr_max="20260917", benchmark_max="20260917")

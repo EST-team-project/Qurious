@@ -40,7 +40,7 @@ from app.models.reference import (
     DataCache,
 )
 # 용어사전 (2026-09-30) — 파일(app/services/glossary_data/terms.json)의 사본. 표 다섯.
-from app.models.glossary import GlossaryCategory, GlossarySource, GlossaryTerm, GlossaryAlias, GlossaryLoad
+from app.models.glossary import GlossaryCategory, GlossarySource, GlossaryTerm, GlossaryAlias, GlossaryLoad, GlossaryRelation
 
 __all__ = [
     "Base",
@@ -87,4 +87,5 @@ __all__ = [
     "GlossaryTerm",
     "GlossaryAlias",
     "GlossaryLoad",
+    "GlossaryRelation",
 ]

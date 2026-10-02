@@ -19,7 +19,7 @@ from app.lib.session import get_current_user
 from app.lib.llm_client import get_llm_client
 from app.models import UploadedDoc
 from app.services.doc_parser import parse_document, SUPPORTED_EXTENSIONS
-from app.services.rag_pipeline import store_chunks, rag_search, delete_chunks_by_source
+from app.services.rag_pipeline import VectorStoreError, store_chunks, rag_search, delete_chunks_by_source
 from app.config import settings
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -76,7 +76,11 @@ async def upload_document(
         "uploader": user["email"],
     }
 
-    stored = await store_chunks(chunks, meta, collection=settings.DOCUMENT_COLLECTION)
+    try:
+        stored = await store_chunks(chunks, meta, collection=settings.DOCUMENT_COLLECTION)
+    except VectorStoreError as e:
+        # (Qurious 2026-10-02 · DF-38) 예전에는 저장이 실패해도 「업로드 완료 (0청크 저장)」 200 이었다.
+        raise HTTPException(503, f"벡터 저장소(Qdrant) · 임베딩 모델({settings.EMBED_MODEL})에 저장하지 못했습니다 — {e}")
 
     doc = UploadedDoc(
         filename=file.filename,

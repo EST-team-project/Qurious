@@ -5,11 +5,13 @@
 쿠키 방식 (브라우저):
   POST /api/auth/register  – 회원가입 + 세션 쿠키 발급
   POST /api/auth/login     – 로그인 + 세션 쿠키 발급
-  POST /api/auth/logout    – 로그아웃 + 쿠키 삭제
+  POST /api/auth/logout    – 로그아웃 + 쿠키 삭제 (세션이 이미 만료돼 있어도 쿠키는 지운다)
+  세션은 슬라이딩 만료: 인증된 요청이 있을 때마다 서버 TTL 과 브라우저 쿠키 만료가 함께 연장된다
+  (app/lib/session.py 의 touch_session + SessionCookieRefreshMiddleware).
 
 JWT 방식 (API 클라이언트 / 모바일):
   POST /api/auth/token         – 로그인 → access_token + refresh_token 반환
-  POST /api/auth/token/refresh – refresh_token → 새 access_token 발급
+  POST /api/auth/token/refresh – refresh_token → 새 access_token + 새 refresh_token 발급(슬라이딩)
   POST /api/auth/token/revoke  – 토큰 폐기 (블랙리스트 등록)
 
 공용:
@@ -25,7 +27,7 @@ JWT 방식 (API 클라이언트 / 모바일):
 """
 import uuid
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 
@@ -43,12 +45,15 @@ from app.lib.jwt_auth import (
 )
 from app.lib.redis_cache import session_cache
 from app.lib.session import (
+    COOKIE_NAME,
+    clear_session_cookie,
     create_session,
     delete_all_user_sessions,
     delete_session,
-    get_current_user,
     get_session,
     list_user_sessions,
+    mark_cookie_refresh,
+    set_session_cookie,
 )
 from app.lib.user_state import clear_user_state, mark_offline, mark_online
 from app.services import account
@@ -115,14 +120,6 @@ async def _find_user_by_email(db, email: str) -> User | None:
         raise HTTPException(503, f"데이터베이스 오류: {e}")
 
 
-def _set_session_cookie(response: Response, sid: str) -> None:
-    response.set_cookie(
-        "fin_session", sid,
-        httponly=True, samesite=settings.COOKIE_SAMESITE,
-        secure=settings.COOKIE_SECURE, max_age=settings.SESSION_TTL,
-    )
-
-
 async def _load_user(db, user: dict) -> User:
     """세션 · 토큰의 사용자 ID 로 DB 행을 읽는다. 행이 없으면(탈퇴 등) 401."""
     try:
@@ -186,7 +183,7 @@ async def register(body: RegisterBody, response: Response):
     sid = await create_session(session_data)
     await mark_online(user_id)
 
-    _set_session_cookie(response, sid)
+    set_session_cookie(response, sid)
     return {"ok": True, "user": {"name": name, "email": email,
                                   "clientId": client_id, "roles": roles}}
 
@@ -210,7 +207,7 @@ async def login(body: LoginBody, response: Response):
     sid = await create_session(session_data)
     await mark_online(user_id)
 
-    _set_session_cookie(response, sid)
+    set_session_cookie(response, sid)
     return {"ok": True, "user": {"name": user_dict["name"], "email": user_dict["email"],
                                   "clientId": user_dict["client_id"],
                                   "roles": user_dict["roles"]}}
@@ -219,13 +216,19 @@ async def login(body: LoginBody, response: Response):
 @router.post("/auth/logout")
 async def logout(
     response: Response,
-    user=Depends(get_current_user),
-    fin_session: str | None = Cookie(default=None),
+    fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME),
 ):
+    """세션을 삭제하고 쿠키를 지웁니다.
+
+    세션이 이미 만료됐거나 Redis 에 없어도 401 을 내지 않고 쿠키만 정리합니다
+    (만료된 쿠키가 브라우저에 남아 로그아웃이 실패하는 상황 방지).
+    """
     if fin_session:
-        await delete_session(fin_session)
-    await mark_offline(user["id"])
-    response.delete_cookie("fin_session")
+        session = await get_session(fin_session)
+        if session:
+            await delete_session(fin_session)
+            await mark_offline(session["id"])
+    clear_session_cookie(response)
     return {"ok": True}
 
 
@@ -268,17 +271,15 @@ async def refresh_token(body: TokenRefreshBody):
     if await is_revoked(body.refresh_token, payload):
         raise HTTPException(401, "만료(폐기)된 리프레시 토큰입니다.")
 
-    # 기존 리프레시 토큰은 유지, 새 액세스 토큰만 발급.
-    # ★ jti 를 빼고 넘긴다 — 남기면 리프레시의 jti 가 새 액세스에 복사되어,
-    #   액세스 하나를 폐기할 때 리프레시까지 함께 끊긴다.
+    # 슬라이딩 만료(강사님 기초 코드 289bfb5): 새 액세스 토큰과 함께 만료가 연장된 새 리프레시 토큰을 발급한다.
+    # 활동 중인 클라이언트가 JWT_REFRESH_TTL(기본 7일) 마다 재로그인하지 않도록 하기 위함.
+    # 기존 리프레시 토큰은 폐기하지 않고 원래 만료 시각까지 유효하다 (새 토큰을 저장하지 않는
+    # 구형 클라이언트와의 호환). 즉시 무효화가 필요하면 /auth/token/revoke 를 호출한다.
+    # ★ jti 를 빼고 넘긴다(우리 고침 · 2026-09-20) — 남기면 옛 리프레시의 jti 가 새 두 토큰에 복사되어,
+    #   토큰 하나를 폐기할 때 나머지까지 함께 끊긴다. 새 토큰은 create_token_pair 가 jti 를 새로 만든다.
     _CARRY_OVER_EXCLUDE = ("type", "jti", "iat", "exp")
-    from app.lib.jwt_auth import create_access_token
     user_payload = {k: v for k, v in payload.items() if k not in _CARRY_OVER_EXCLUDE}
-    return {
-        "access_token": create_access_token(user_payload),
-        "token_type": "bearer",
-        "expires_in": settings.JWT_ACCESS_TTL,
-    }
+    return create_token_pair(user_payload)
 
 
 @router.post("/auth/token/revoke")
@@ -414,9 +415,10 @@ async def update_me(body: ProfileUpdateBody, user=Depends(get_current_user_any))
 @router.put("/me/password")
 async def change_password(
     body: PasswordChangeBody,
+    request: Request,
     response: Response,
     user=Depends(get_current_user_any),
-    fin_session: str | None = Cookie(default=None),
+    fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME),
 ):
     """비밀번호 바꾸기 — 현재 비밀번호를 다시 확인하고, 바꾼 뒤에는 **다른 기기를 모두 로그아웃**시킨다.
 
@@ -438,14 +440,21 @@ async def change_password(
     await revoke_all_tokens_for(uid)
     if fin_session:
         # 이 요청이 쿠키로 왔으면 이 기기는 로그인을 유지한다 — 새 세션 ID 로.
-        _set_session_cookie(response, await create_session(_build_session_data(uid, user_dict)))
+        new_sid = await create_session(_build_session_data(uid, user_dict))
+        set_session_cookie(response, new_sid)
+        # ★ 쿠키 재발급 미들웨어(SessionCookieRefreshMiddleware)에도 새 ID 를 알린다. 위의 인증 의존성이
+        #   이 요청에서 「5분 지난 세션 연장」 을 했다면 옛 ID 의 재발급이 예약돼 있어, 응답 끝에 옛 쿠키가
+        #   한 줄 더 붙는다 — 같은 이름의 쿠키는 뒤엣것이 이기므로, 방금 지운 옛 세션이 남아 이 기기도
+        #   로그아웃된다(2026-10-02 강사님 289bfb5 반영 때 찾음 · DF-37).
+        mark_cookie_refresh(request, new_sid)
         revoked = max(0, revoked - 1)
     await audit(uid, user_dict.get("client_id", ""), "account.password_changed", {"other_sessions_revoked": revoked})
     return {"ok": True, "other_sessions_revoked": revoked}
 
 
 @router.delete("/me")
-async def delete_me(body: AccountDeleteBody, response: Response, user=Depends(get_current_user_any)):
+async def delete_me(body: AccountDeleteBody, request: Request, response: Response,
+                    user=Depends(get_current_user_any)):
     """회원 탈퇴 — 현재 비밀번호와 확인 문구를 받고, 내 데이터를 **즉시 파기**한 뒤 모든 세션 · 토큰을 끊는다.
 
     지우는 범위는 사용자 행을 가리키는 모든 표(account.delete_user_data · 모델 메타데이터에서 찾는다).
@@ -463,7 +472,10 @@ async def delete_me(body: AccountDeleteBody, response: Response, user=Depends(ge
     await delete_all_user_sessions(str(uid))
     await clear_user_state(str(uid))
     await revoke_all_tokens_for(str(uid))
-    response.delete_cookie("fin_session")
+    # 쿠키를 지우고, 인증 의존성이 예약했을 수 있는 「옛 쿠키 재발급」 도 취소한다(위 change_password 의 ★ 참고 —
+    # 취소하지 않으면 지운 쿠키 뒤에 30일짜리 죽은 쿠키가 다시 붙는다).
+    mark_cookie_refresh(request, None)
+    clear_session_cookie(response)
     # 감사 기록에는 누구였는지 남기지 않는다(사용자 칸 비움) — 몇 개 표에서 무엇을 지웠는지만.
     await audit("", "", "account.deleted", {"deleted": counts})
     return {"ok": True, "deleted": counts}

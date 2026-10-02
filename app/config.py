@@ -5,7 +5,12 @@ import os
 class Settings(BaseSettings):
     PORT: int = 8000
     SESSION_SECRET: str = "change-me-super-secret"
-    SESSION_TTL: int = 604800  # 7 days
+    # 세션 유효 기간(초). 슬라이딩 만료: 마지막 요청 시각으로부터 SESSION_TTL 후 만료된다.
+    SESSION_TTL: int = 2592000  # 30일
+    # 슬라이딩 만료 갱신 최소 간격(초). 매 요청마다 Redis EXPIRE/Set-Cookie 를 보내지 않고,
+    # 마지막 갱신 후 이 시간이 지난 요청에서만 TTL 과 브라우저 쿠키 만료를 함께 연장한다.
+    SESSION_REFRESH_INTERVAL: int = 300  # 5분
+    SESSION_COOKIE_NAME: str = "fin_session"
 
     REDIS_URL: str = "redis://localhost:6379"
 
@@ -41,6 +46,12 @@ class Settings(BaseSettings):
     # vLLM 서버 (OpenAI 호환 /v1/chat/completions)
     VLLM_BASE_URL: str = ""
     VLLM_MODEL: str = ""
+
+    # OpenAI API (채팅 화면에서 "OpenAI API Key 입력" 모드 선택 시 사용)
+    # 키는 브라우저가 요청마다 보내며 서버에 저장하지 않는다. OPENAI_API_KEY 는 요청에 키가 없을 때의 서버 기본값(선택).
+    OPENAI_BASE_URL: str = "https://api.openai.com"
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_API_KEY: str = ""
 
     VECTOR_STORE: str = "qdrant"
     QDRANT_URL: str = "http://localhost:6333"

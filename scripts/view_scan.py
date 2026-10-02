@@ -53,7 +53,8 @@ GUARD_RE = re.compile(r'if \(view !== "([^"]+)"\)\s*return;')
 HOOK_FN_RE = re.compile(r'^(?:export\s+)?function\s+on[A-Za-z]*ViewActivated\s*\(')
 MENU_DECL = ("const GNB_MENUS = {", "export const GNB_MENUS = {")
 MENU_GROUP_RE = re.compile(r'^  ([a-z]+): \{$')
-MENU_ITEM_RE = re.compile(r'\{ key: "([^"]+)",\s*icon: "[^"]+",\s*label: "([^"]+)" \}')
+# `sub: true` = 소제목 아래 들여쓴 항목(2026-10-01 금융 강의 주제 아홉) — 빠뜨리면 「메뉴에 없는 화면」 으로 잘못 센다
+MENU_ITEM_RE = re.compile(r'\{ key: "([^"]+)",\s*icon: "[^"]+",\s*label: "([^"]+)"(?:,\s*sub: true)?\s*\}')
 GNB_BUTTON_RE = re.compile(r'data-gnb="([a-z]+)"[^>]*>(?:<i[^>]*></i>)?\s*(?:<span>)?([^<]+)')
 DEFAULT_VIEW_RE = re.compile(r'navigate\(hash && [^?]+\? hash : "([^"]+)"\)')
 

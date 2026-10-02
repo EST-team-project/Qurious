@@ -1,5 +1,5 @@
 {
- "format_version": 1,
+ "format_version": 2,
  "sources": [
   {
    "code": "voca",
@@ -21272,6 +21272,251 @@
    ],
    "notes": [],
    "shared_names": []
+  }
+ ],
+ "relations": [
+  {
+   "from": "buy-side",
+   "to": "sell-side",
+   "kind": "confused_with",
+   "note": "Sell-Side 리포트를 Buy-Side가 참고해 투자 결정",
+   "detail": "Buy-Side — 투자 집행(운용사·연기금) · Sell-Side — 분석 리포트 발행(증권사)",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "cfo",
+   "to": "fcf",
+   "kind": "confused_with",
+   "note": "FCF가 진짜 여유 현금",
+   "detail": "CFO — 영업현금흐름 · FCF — 영업현금 - 설비투자",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "dcf",
+   "to": "eva",
+   "kind": "confused_with",
+   "note": "DCF는 절대가치, EVA는 부가가치",
+   "detail": "DCF — 미래 현금 할인 · EVA — 자본비용 차감 이익",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "lstm",
+   "to": "transformer",
+   "kind": "confused_with",
+   "note": "Transformer가 장거리 의존성·속도 면에서 유리",
+   "detail": "LSTM — 시퀀셜 순서 기억 RNN계열 · Transformer — 어텐션 기반 병렬 처리",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "per",
+   "to": "ev-ebitda",
+   "kind": "confused_with",
+   "note": "EV/EBITDA는 부채 포함 기업 전체 비교에 유리",
+   "detail": "PER — 주가 ÷ 주당이익 · EV/EBITDA — 기업가치 ÷ EBITDA",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "per",
+   "to": "pbr",
+   "kind": "confused_with",
+   "note": "성장주는 PER, 가치주는 PBR 우선",
+   "detail": "PER — 이익 대비 주가 · PBR — 순자산 대비 주가",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "rest-api",
+   "to": "websocket",
+   "kind": "confused_with",
+   "note": "주가 조회는 REST, 실시간 스트리밍은 WebSocket",
+   "detail": "REST API — 요청-응답 단방향 · WebSocket — 서버-클라이언트 실시간 양방향",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "rsi",
+   "to": "macd",
+   "kind": "confused_with",
+   "note": "RSI는 현재 상태, MACD는 방향 전환 포착에 강함",
+   "detail": "RSI — 과매수·과매도 강도 · MACD — 추세 전환 시그널",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "var",
+   "to": "cvar",
+   "kind": "confused_with",
+   "note": "CVaR가 꼬리 위험을 더 잘 반영",
+   "detail": "VaR — 최대 손실 기준 · CVaR — VaR 초과 시 평균 손실",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "골든크로스",
+   "to": "데드크로스",
+   "kind": "confused_with",
+   "note": "후행성 있어 확인 후 진입 필요",
+   "detail": "골든크로스 — 단기MA 상향 돌파 · 데드크로스 — 단기MA 하향 돌파",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "금융투자상품",
+   "to": "비금융투자상품",
+   "kind": "confused_with",
+   "note": "예금·보험은 비금융투자상품",
+   "detail": "금융투자상품 — 원본 손실 가능 (자본시장법 적용) · 비금융투자상품 — 원본 보장 (은행법·보험업법 적용)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "급여",
+   "to": "비급여",
+   "kind": "confused_with",
+   "note": "실손보험에서 둘 다 보상하나 자기부담률 차이 있음",
+   "detail": "급여 — 국민건강보험이 적용되어 공단이 일부 부담 · 비급여 — 건강보험이 적용되지 않아 전액 본인 부담",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "델타",
+   "to": "베타",
+   "kind": "confused_with",
+   "note": "델타는 옵션 가격 변화, 베타는 시장과의 동행 정도",
+   "detail": "델타 — 옵션의 기초자산 가격 민감도 · 베타 — 자산의 시장 수익률 민감도",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "매출",
+   "to": "이익",
+   "kind": "confused_with",
+   "note": "매출이 커도 비용이 더 크면 적자",
+   "detail": "매출 — 번 총액 · 이익 — 쓰고 남은 액",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "수신",
+   "to": "여신",
+   "kind": "confused_with",
+   "note": "은행은 수신 금리보다 여신 금리를 높게 설정해 NIM 수익",
+   "detail": "수신 — 금융회사가 돈을 받음 (예금) · 여신 — 금융회사가 돈을 내줌 (대출)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "알파",
+   "to": "베타",
+   "kind": "confused_with",
+   "note": "알파↑·베타↓가 이상적",
+   "detail": "알파 — 시장 초과수익 · 베타 — 시장 민감도",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "영업이익",
+   "to": "순이익",
+   "kind": "confused_with",
+   "note": "이자·세금·일회성 반영 여부",
+   "detail": "영업이익 — 본업 이익 · 순이익 — 최종 이익",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "위탁",
+   "to": "신탁",
+   "kind": "confused_with",
+   "note": "신탁은 수탁자가 재산 소유권을 넘겨받음",
+   "detail": "위탁 — 매매를 맡기는 것 (재산 이전 없음) · 신탁 — 재산 자체를 맡기는 것 (법적 이전)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "인가",
+   "to": "등록",
+   "kind": "confused_with",
+   "note": "인가는 거부 가능, 등록은 요건 충족 시 수리 의무",
+   "detail": "금융위 인가 — 엄격 심사·높은 자본 요건 (투자매매·중개·집합·신탁) · 금융위 등록 — 요건 충족 신고로 가능 (자문·일임)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "정액보상",
+   "to": "실손보상",
+   "kind": "confused_with",
+   "note": "정액은 중복 수령 가능, 실손은 이득금지 원칙 적용",
+   "detail": "정액보상 — 사고 발생 시 약정 고정 금액 지급 (실제 손해 무관) · 실손보상 — 실제 발생 손해액 − 자기부담금 지급",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "지지선",
+   "to": "저항선",
+   "kind": "confused_with",
+   "note": "돌파 시 역할 교체(저항→지지)",
+   "detail": "지지선 — 하락 멈추는 바닥 · 저항선 — 상승 막히는 천장",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "집합투자업",
+   "to": "투자일임업",
+   "kind": "confused_with",
+   "note": "집합투자는 펀드(수익증권), 일임은 개인별 계좌(Wrap)",
+   "detail": "집합투자업 — 여러 투자자 자금을 한 펀드로 모아 운용 · 투자일임업 — 투자자마다 개별 계좌로 따로 운용",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "투자매매업",
+   "to": "투자중개업",
+   "kind": "confused_with",
+   "note": "증권사는 두 업무 모두 인가",
+   "detail": "투자매매업 — 자기 돈으로 직접 매매 (위험 자기 부담) · 투자중개업 — 고객 주문 받아 대신 매매 (위험 고객 부담)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "투자자문업",
+   "to": "투자일임업",
+   "kind": "confused_with",
+   "note": "일임업이 자문업보다 규제 엄격, 최저 자본도 3배",
+   "detail": "투자자문업 — 조언만 제공, 최종 결정은 투자자 · 투자일임업 — 판단·매매까지 전부 대신 (위임 계약)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "훈련-검증-테스트-분리",
+   "to": "백테스트",
+   "kind": "confused_with",
+   "note": "오버피팅 방지 위해 훈련/백테스트 기간 분리 필수",
+   "detail": "훈련 — ML 모델 학습용 과거 데이터 · 백테스트 — 전략 검증용 과거 데이터",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "금리",
+   "to": "기준금리",
+   "kind": "related",
+   "note": "",
+   "detail": "",
+   "source": "finance",
+   "where": "한자 어원 사전 「관련어」"
+  },
+  {
+   "from": "수익률",
+   "to": "배당수익률",
+   "kind": "related",
+   "note": "",
+   "detail": "",
+   "source": "finance",
+   "where": "한자 어원 사전 「관련어」"
   }
  ]
 }

@@ -1,0 +1,273 @@
+"""데이터 상태 시험 (TC-DST) — `GET /api/data/status` (목표 기능 ① W4 · 설계서 5.2.2 · 8절 표 「TC-DST」).
+
+무엇을 보이나 — 「데이터가 언제 것인가 · 매일 갱신이 돌았나」.
+지금까지 화면이 보던 `/api/system/sync-status` 는 외부 시세 **캐시**의 신선도라, 수집 DB 가 며칠째 멈춰도
+초록으로 보였다. 이 API 는 러너 기록 파일 · 수집 DB 표 · 거래일 달력 · HF 기록을 읽어 판정한다.
+
+여기서 지키는 것 —
+1. 러너 판정 다섯 — 성공 · 실패(멈춘 단계) · 일부 실패(멈추지 않는 단계) · 도는 중(4시간 안 잠금) · 오늘 회차 없음.
+2. 표 판정 — 오늘 앞 거래일이 몇 개 비었나(0 최신 · 1 정상 · 2 늦음 · 3+ 멈춤) · 계산 표는 주식 일봉과 같은 날.
+   **휴장일은 세지 않는다** — 10-06 에 09-30 까지 있으면 빈 거래일은 10-01 · 10-02 둘이다(10-05 대체공휴일 ·
+   주말은 세지 않는다).
+3. 달력이 없으면 평일로 어림하고 `approx` 를 켠다(숨기지 않는다).
+4. HF 기록 두 데이터셋의 태그 · 올린 시각.
+5. 러너의 단계 이름이 상태 API 의 이름표와 어긋나지 않는다(단계를 더하면 이름표도 더해야 한다).
+6. 로그인 없이는 401.
+
+네트워크 · 실제 수집 DB 를 쓰지 않는다.
+"""
+from __future__ import annotations
+
+import json
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from app.lib.session import get_current_user
+from app.routes import data as data_routes
+from app.services import collector_db, data_status as ds
+from collector import db
+from collector import market_calendar as mc
+
+KST = timezone(timedelta(hours=9))
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "kasi_holidays_2020_2027.json").read_text(encoding="utf-8"))
+
+
+def at(s: str) -> datetime:
+    return datetime.fromisoformat(s).replace(tzinfo=KST)
+
+
+def step(name, rc=0, note=""):
+    return {"name": name, "rc": rc, "seconds": 1.0, "note": note}
+
+
+def write_state(state: Path, *, last: dict | None = None, lock: dict | None = None, history: list | None = None):
+    state.mkdir(parents=True, exist_ok=True)
+    if last is not None:
+        (state / "daily_update_last.json").write_text(json.dumps(last, ensure_ascii=False), encoding="utf-8")
+    if lock is not None:
+        (state / "daily_update.lock").write_text(json.dumps(lock), encoding="utf-8")
+    if history is not None:
+        (state / "daily_update_history.jsonl").write_text(
+            "\n".join(json.dumps(h, ensure_ascii=False) for h in history) + "\n", encoding="utf-8")
+
+
+def last_run(day: str, steps: list, ok=True, stopped=None) -> dict:
+    return {"started_at": f"{day}T12:30:01+09:00", "finished_at": f"{day}T12:51:16+09:00", "ok": ok,
+            "upload": True, "stopped": stopped, "derived": "시세가 바뀌었다", "steps": steps,
+            "after": {"price_max": day.replace("-", "")}}
+
+
+# ── 1. 러너 ──────────────────────────────────────────────────────────────
+def test_runner_ok_failed_warning(tmp_path):
+    """TC-DST-01 · 성공 · 실패(멈춘 단계를 그대로) · 일부 실패(멈추지 않는 단계의 이름표)."""
+    st = tmp_path / "state"
+    write_state(st, last=last_run("2026-10-02", [step("price"), step("dividend"), step("calendar")]))
+    r = ds.runner_state(st, at("2026-10-02T14:00:00"))
+    assert (r["state"], r["ran_today"], r["last"]["minutes"]) == ("ok", True, 21.2)
+
+    write_state(st, last=last_run("2026-10-02", [step("price", 1), step("adjusted", None, "앞 단계 실패로 건너뜀")],
+                                  ok=False, stopped="price 종료코드 1"))
+    r = ds.runner_state(st, at("2026-10-02T14:00:00"))
+    assert r["state"] == "failed" and "price 종료코드 1" in r["detail"]
+    assert [s["status"] for s in r["last"]["steps"]] == ["failed", "skipped"]
+
+    write_state(st, last=last_run("2026-10-02", [step("price"), step("calendar", 3), step("ohlcv", 2)], ok=False))
+    r = ds.runner_state(st, at("2026-10-02T14:00:00"))
+    assert r["state"] == "warning" and r["detail"] == "실패한 단계: 거래일 달력 · 일정 · ETF · 지수 · 분봉"
+
+
+def test_runner_running_lock_and_stale_lock(tmp_path):
+    """TC-DST-02 · 4시간 안 잠금 = 도는 중 · 그보다 오래된 잠금은 죽은 잠금이라 무시한다."""
+    st = tmp_path / "state"
+    write_state(st, last=last_run("2026-10-01", [step("price")]),
+                lock={"pid": 1, "started_at": "2026-10-02T12:30:00+09:00"})
+    r = ds.runner_state(st, at("2026-10-02T12:40:00"))
+    assert (r["state"], r["running"]) == ("running", True)
+    r = ds.runner_state(st, at("2026-10-02T17:00:00"))
+    assert r["running"] is False and r["state"] == "late", "잠금이 4시간 넘으면 도는 중이 아니다 · 오늘 회차도 없다"
+
+
+def test_runner_late_only_after_an_hour_and_missing(tmp_path):
+    """TC-DST-03 · 오늘 회차가 없으면 13:30 부터 「오늘 회차 없음」 · 그 전엔 어제 성공 그대로 · 기록이 없으면 「기록 없음」."""
+    st = tmp_path / "state"
+    write_state(st, last=last_run("2026-10-01", [step("price")]),
+                history=[{"started_at": "2026-10-01T12:30:01+09:00", "finished_at": "2026-10-01T12:51:16+09:00",
+                          "ok": True, "upload": True, "stopped": None, "price_max": "20260930"},
+                         {"started_at": "2026-10-01T13:00:00+09:00", "skipped": "다른 실행이 돌고 있다"}])
+    assert ds.runner_state(st, at("2026-10-02T12:10:00"))["state"] == "ok"
+    late = ds.runner_state(st, at("2026-10-02T13:31:00"))
+    assert late["state"] == "late" and late["next_expected"] == "2026-10-03T12:30+09:00"
+    assert [h["ok"] for h in late["history"]] == [None, True], "최근이 먼저 · 건너뛴 회차는 ok 대신 skipped"
+    assert ds.runner_state(tmp_path / "없음", at("2026-10-02T12:10:00"))["state"] == "missing"
+
+
+# ── 2. 표 ────────────────────────────────────────────────────────────────
+def _days_between(a: date, b: date):
+    d = a
+    while d <= b:
+        yield d
+        d += timedelta(days=1)
+
+
+@pytest.fixture
+def market(tmp_path, monkeypatch):
+    """거래일 달력 · 시세가 있는 수집 DB — 시세는 2026-09-30 까지(실측과 같은 모양)."""
+    path = tmp_path / "collector" / "market.sqlite3"
+    path.parent.mkdir()
+    conn = db.connect(path)
+    rows = [r for v in FIXTURE["years"].values() for r in v]
+    conn.executemany("INSERT INTO holiday_kasi (locdate, date_name, is_holiday, date_kind, seq, fetched_at) "
+                     "VALUES (?, ?, ?, ?, ?, '2026-10-02T12:00:00+09:00')",
+                     [(r["locdate"], r["date_name"], r["is_holiday"], r["date_kind"], r["seq"]) for r in rows])
+    hol = mc.public_holidays(conn)
+    trading = [d for d in _days_between(date(2026, 9, 1), date(2026, 9, 30)) if mc.rule_reason(d, hol) is None]
+    conn.executemany("INSERT INTO price_daily (bas_dt, srtn_cd, clpr) VALUES (?, '005930', 1)",
+                     [(d.strftime("%Y%m%d"),) for d in trading])
+    conn.executemany("INSERT INTO price_adjusted (bas_dt, srtn_cd, adj_clpr, cum_factor) VALUES (?, '005930', 1, 1)",
+                     [(d.strftime("%Y%m%d"),) for d in trading[:-2]])        # 계산 표가 두 거래일 뒤처짐
+    mc.build(conn, fetch=False, today=date(2026, 10, 2), quiet=True)
+    conn.close()
+    monkeypatch.setenv(collector_db.ENV_DB_PATH, str(path))
+    ds._cache.clear()
+    ds._counts.update(sig=None, rows={}, at=None)
+    yield path
+    t = ds._count_job["thread"]                     # 뒤에서 세는 스레드가 임시 DB 를 쥔 채 끝나지 않게
+    if t is not None:
+        t.join(10)
+
+
+def _states(today: date):
+    conn = ds._connect_ro()
+    try:
+        tables, cal = ds.table_states(conn, today)
+    finally:
+        conn.close()
+    return {t["key"]: t for t in tables}, cal
+
+
+def test_tables_count_only_trading_days(market):
+    """TC-DST-04 · 비어 있는 거래일만 센다 — 10-02 엔 10-01 하루(정상) · 10-06 엔 10-01 · 10-02 둘(늦음, 10-05 휴일은 안 셈)."""
+    t, cal = _states(date(2026, 10, 2))
+    p = t["price_daily"]
+    assert (p["last_date"], p["behind_trading_days"], p["verdict"], p["approx"]) == ("2026-09-30", 1, "ok", False)
+    assert cal == {"today_is_trading_day": True, "today_reason": "", "next_trading_day": "2026-10-02",
+                   "previous_trading_day": "2026-10-01"}
+
+    t, cal = _states(date(2026, 10, 6))
+    assert (t["price_daily"]["behind_dates"], t["price_daily"]["verdict"]) == (["2026-10-01", "2026-10-02"], "late")
+    t, _ = _states(date(2026, 10, 8))
+    assert t["price_daily"]["verdict"] == "stale", "10-01 · 02 · 06 · 07 — 넷이면 멈춤"
+    t, cal = _states(date(2026, 10, 5))
+    assert cal["today_is_trading_day"] is False and cal["today_reason"] == "대체공휴일(개천절)"
+
+
+def test_tables_derived_lag_missing_and_calendar(market):
+    """TC-DST-05 · 계산 표가 주식 일봉보다 뒤처지면 늦음 · 없는 표는 없음 · 달력은 끝까지 남은 날로."""
+    t, _ = _states(date(2026, 10, 2))
+    assert (t["price_adjusted"]["verdict"], t["price_adjusted"]["behind_trading_days"]) == ("late", 2)
+    assert t["etf_daily"]["verdict"] == "missing", "표는 있으나 행이 없다"
+    assert t["market_calendar"]["verdict"] == "ok" and t["market_calendar"]["last_date"] == "2027-12-31"
+    assert t["market_event"]["verdict"] == "info"
+
+
+def test_tables_without_calendar_are_approximate(tmp_path, monkeypatch):
+    """TC-DST-06 · 달력이 없는 PC — 평일로 어림하고 `approx` 를 켠다(10-05 휴일도 거래일로 세게 된다)."""
+    path = tmp_path / "market.sqlite3"
+    conn = db.connect(path)
+    conn.execute("INSERT INTO price_daily (bas_dt, srtn_cd, clpr) VALUES ('20260930', '005930', 1)")
+    conn.close()
+    monkeypatch.setenv(collector_db.ENV_DB_PATH, str(path))
+    t, cal = _states(date(2026, 10, 6))
+    assert (t["price_daily"]["approx"], t["price_daily"]["behind_trading_days"]) == (True, 3)
+    assert cal == {}
+
+
+# ── 3. HF · 모으기 · API ─────────────────────────────────────────────────
+def test_status_gathers_runner_tables_and_hf(market):
+    """TC-DST-07 · 러너 · 표 · HF 두 데이터셋을 한 답에 · 가장 나쁜 판정이 전체 판정 · 기준일 = 주식 일봉 마지막 날."""
+    cdir = market.parent
+    write_state(cdir / "state", last=last_run("2026-10-02", [step("price"), step("calendar")]))
+    (cdir.parent / "hf_export" / "meta").mkdir(parents=True)
+    (cdir.parent / "hf_export" / "meta" / "manifest.json").write_text(json.dumps(
+        {"generated_at": "2026-10-02T12:50:00+09:00", "repo_id": "qurious-quant/krx-daily-market",
+         "uploaded": {"at": "2026-10-02T12:51:16+09:00", "tag": "snapshot-2026-10-02",
+                      "repo_id": "qurious-quant/krx-daily-market"}}), encoding="utf-8")
+    (cdir / "ohlcv_export").mkdir()
+    (cdir / "ohlcv_export" / "manifest.json").write_text(json.dumps(
+        {"as_of": "2026-10-01", "built_at": "2026-10-02T12:45:00+09:00", "rows": {"1d": 10},
+         "uploaded": {"at": "2026-10-02T12:52:00+09:00", "tag": "ohlcv-2026-10-02"}}), encoding="utf-8")
+    s = ds.get_status(at("2026-10-02T14:00:00"), use_cache=False)
+    assert s["as_of"] == "2026-09-30" and s["runner"]["state"] == "ok"
+    assert s["verdict"] == "warning", "계산 표가 늦고 ETF 표가 비어 있다"
+    assert [(h["repo"], h["tag"]) for h in s["hf"]] == [("qurious-quant/krx-daily-market", "snapshot-2026-10-02"),
+                                                       ("qurious-quant/krx-ohlcv", "ohlcv-2026-10-02")]
+    assert s["source"] == "collector" and s["summary"].startswith("주식 시세 기준일 2026-09-30")
+
+
+def test_runner_step_labels_cover_runner_steps():
+    """TC-DST-08 · 러너의 단계 이름이 모두 이름표에 있다 — 러너에 단계를 더하면 여기도 더해야 화면이 영어를 안 보인다."""
+    from scripts import daily_update
+    names = [s.name for s in daily_update.STEPS]
+    assert set(names) <= set(ds.STEPS), f"이름표 없는 단계: {set(names) - set(ds.STEPS)}"
+    fatal = {s.name for s in daily_update.STEPS if s.fatal}
+    assert fatal == {k for k, (_, f) in ds.STEPS.items() if f and k in names}, "멈추는 단계 표시가 러너와 다르다"
+
+
+def test_api_requires_login(market):
+    """TC-DST-09 · 로그인 없이는 401 · 로그인하면 200 과 판정."""
+    app = FastAPI()
+    app.include_router(data_routes.router)
+    c = TestClient(app)
+    assert c.get("/api/data/status").status_code == 401
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "name": "시험", "email": "t@example.com"}
+    j = c.get("/api/data/status").json()
+    assert j["verdict"] in ("ok", "warning", "error") and {t["key"] for t in j["tables"]} >= {"price_daily", "market_calendar"}
+
+
+def test_row_counts_in_background_reused_and_recounted(market, monkeypatch):
+    """TC-DST-10 · 행 수는 뒤에서 센다 — 처음엔 곧바로 「세는 중」(줄 수 None)으로 답하고, 다 세면 그 값(fresh)을 쓴다.
+    파일이 그대로면 다시 세지 않고, 러너가 도는 중이면 지난 값(old)과 그 까닭을, 러너가 끝나면 뒤에서 다시 센다.
+    (컨테이너에서 큰 표 다섯의 COUNT(*) 가 첫 호출에 14.8초 · 점검 스크립트에서 21초 걸렸다 — 2026-10-02)"""
+    import sqlite3 as _sq
+    import threading
+
+    gate = threading.Event()
+    real = ds._count_rows
+    monkeypatch.setattr(ds, "_count_rows", lambda path, sig: (gate.wait(10), real(path, sig)))
+    now = at("2026-10-02T14:00:00")
+    s = ds.get_status(now)
+    assert s["rows_state"] == "pending" and "세는 중" in s["rows_note"]
+    assert all(t["rows"] is None for t in s["tables"] if t["verdict"] != "missing"), "세는 동안 줄 수는 비운다"
+    assert {t["key"]: t["last_date"] for t in s["tables"]}["price_daily"] == "2026-09-30", "기준일 · 판정은 그대로"
+    gate.set()
+    ds._count_job["thread"].join(10)
+    s = ds.get_status(now)
+    rows = {t["key"]: t["rows"] for t in s["tables"]}
+    assert s["rows_state"] == "fresh" and rows["price_daily"] > 0 and "rows_note" not in s
+
+    real_start = ds.start_count
+    started = []
+    monkeypatch.setattr(ds, "start_count", lambda **k: started.append(1) or True)
+    assert ds.get_status(now)["rows_state"] == "fresh" and not started, "파일이 그대로면 다시 세지 않는다"
+
+    w = _sq.connect(market)                                   # 러너가 쓰는 중 — 파일이 바뀐다
+    w.execute("INSERT INTO price_daily (bas_dt, srtn_cd, clpr) VALUES ('20261001', '000660', 1)")
+    w.commit()
+    w.close()
+    write_state(market.parent / "state", lock={"pid": 1, "started_at": "2026-10-02T13:55:00+09:00"})
+    s = ds.get_status(now)
+    assert s["rows_state"] == "old" and "도는 중" in s["rows_note"] and not started, "러너가 쓰는 동안은 다시 세지 않는다"
+    assert {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"]
+
+    (market.parent / "state" / "daily_update.lock").unlink()   # 러너가 끝났다 — 다시 센다
+    monkeypatch.setattr(ds, "start_count", real_start)
+    s = ds.get_status(now)
+    assert s["rows_state"] == "old" and "다시 세는 중" in s["rows_note"]
+    ds._count_job["thread"].join(10)
+    s = ds.get_status(now)
+    assert s["rows_state"] == "fresh" and {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"] + 1

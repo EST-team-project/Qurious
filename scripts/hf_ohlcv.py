@@ -180,7 +180,20 @@ def upload(yes: bool, folder: Optional[Path] = None, path_in_repo: str = "") -> 
             print(f"  태그 {tag}")
         except Exception as e:
             print(f"  태그 {tag} 는 그대로 둔다({type(e).__name__} — 같은 날 두 번째 업로드)")
+        # 마지막 업로드를 상태 파일에 남긴다 — 앱의 데이터 상태 API(GET /api/data/status)가 태그 · 시각을 보여 준다.
+        # 매니페스트가 아니라 상태 폴더에 두는 까닭: 내보내기가 매일 매니페스트를 새로 쓰면 기록이 지워진다.
+        commit = getattr(info, "oid", "") or ""
+        _write_last({"at": datetime.now(KST).isoformat(timespec="seconds"), "tag": tag, "repo_id": REPO_ID,
+                     "commit": commit[:8], "as_of": man.get("as_of"), "rows": man.get("rows")})
     return 0
+
+
+def _write_last(obj: dict) -> None:
+    path = config.STATE_DIR / "hf_ohlcv_last.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
 
 
 def main(argv=None) -> int:
