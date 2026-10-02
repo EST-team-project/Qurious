@@ -83,6 +83,26 @@ class GlossaryAlias(Base):
     kind: Mapped[str] = mapped_column(String(12), nullable=False)            # 대표 이름 · 약어 · 영어 · 다른 이름 · 화면 키
 
 
+class GlossaryRelation(Base):
+    """용어 사이 관계 — 연관 개념(2026-10-02 · 설계서 5.4). 종류는 W3C SKOS 를 따른다.
+
+    한 줄 = 한 관계. 양방향 종류(related · confused_with)도 한 줄만 두고 읽을 때 두 끝에서 찾는다.
+    `broader` 는 (좁은 쪽 → 넓은 쪽) 이고, 반대 방향(하위)은 읽을 때 만든다.
+    """
+    __tablename__ = "glossary_relations"
+    __table_args__ = (
+        Index("ix_glossary_relations_to", "to_id"),
+    )
+
+    from_id: Mapped[str] = mapped_column(String(60), ForeignKey("glossary_terms.id", ondelete="CASCADE"), primary_key=True)  # 한 끝 (broader 면 좁은 쪽)
+    to_id: Mapped[str] = mapped_column(String(60), ForeignKey("glossary_terms.id", ondelete="CASCADE"), primary_key=True)    # 다른 끝 (broader 면 넓은 쪽)
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)          # related · broader · confused_with
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="")      # 차이 한 줄(confused_with 는 반드시) · 관계 설명
+    detail: Mapped[str] = mapped_column(Text, nullable=False, default="")    # 두 끝의 풀이 (「A — … · B — …」)
+    source_code: Mapped[str] = mapped_column(String(20), nullable=False, default="")   # finance(자료) · curated(사람이 고름)
+    where_text: Mapped[str] = mapped_column(String(120), nullable=False, default="")   # 자료의 어느 절에서 나왔나
+
+
 class GlossaryLoad(Base):
     """적재 이력 — 언제 어떤 판의 파일을 표에 넣었나. 마지막 줄의 행 체크섬이 지금 넣을 행과 같으면 다시 넣지 않는다."""
     __tablename__ = "glossary_loads"

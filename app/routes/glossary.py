@@ -4,6 +4,8 @@
 - GET /api/glossary/categories    : 분류 목록과 분류마다의 용어 수
 - GET /api/glossary/meta          : 지금 표에 든 용어사전의 판(체크섬 · 적재 시각 · 자료별 용어 수)
 - GET /api/glossary/{name}        : 용어 한 건 — 대표 이름 · ID · 약어 · 영어 이름 · 화면 키 어느 것으로도 찾는다
+                                    (2026-10-02~ 연관 개념 `related[]` — 헷갈리는 말 · 상위 · 하위 · 연관)
+- GET /api/glossary/{name}/graph  : 관계 지도 — 한 용어에서 1 · 2 단계까지 이어진 용어(노드)와 관계(간선)
 
 로그인 없이 읽는다
     용어 풀이는 누구에게나 같은 참조 자료이고 사용자 데이터가 없다. 읽기 전용이라 바꾸는 주소도 없다.
@@ -54,6 +56,21 @@ async def get_term(name: str, db: AsyncSession = Depends(get_pg_session)):
     if len(name) > 120:          # 별칭 칸의 길이를 넘는 이름은 있을 수 없다 — DB 에 묻지 않고 돌려보낸다
         raise HTTPException(404, "용어를 찾지 못했습니다.")
     found = await glossary.get_term(db, name)
+    if found is None:
+        raise HTTPException(404, "용어를 찾지 못했습니다.")
+    return found
+
+
+@router.get("/{name}/graph", summary="관계 지도", responses={404: {"description": "그 이름의 용어가 없다"}})
+async def term_graph(
+    name: str,
+    depth: int = Query(1, ge=1, le=2, description="몇 단계까지 퍼질까 — 1 은 바로 이어진 용어만, 2 는 그 이웃까지"),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    """용어 하나에서 이어진 용어와 관계를 그래프 모양(노드 · 간선)으로 돌려준다 — 용어 카드의 「작은 관계 지도」 가 쓴다."""
+    if len(name) > 120:
+        raise HTTPException(404, "용어를 찾지 못했습니다.")
+    found = await glossary.graph(db, name, depth)
     if found is None:
         raise HTTPException(404, "용어를 찾지 못했습니다.")
     return found

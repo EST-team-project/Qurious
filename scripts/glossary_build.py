@@ -53,7 +53,8 @@ RAGLAB = ROOT / "rag-lab"
 OUT = ROOT / "app" / "services" / "glossary_data" / "terms.json"
 
 #: 파일 모양이 바뀌면 올린다 — 앱의 적재기가 모르는 판이면 넣지 않고 알린다.
-FORMAT_VERSION = 1
+#: 2 (2026-10-02) — 용어 사이 관계 `relations` 를 더했다(연관 개념 · 설계서 5.4).
+FORMAT_VERSION = 2
 
 # ─────────────────────────────────────────────────────────────────────
 # 자료 원천 · 분류 — 사람이 정한 것 (코드는 한 번 붙이면 바꾸지 않는다)
@@ -183,6 +184,26 @@ NOT_ALIAS: dict[str, set[str]] = {
 }
 
 # 한자 어원 사전이 쓰는 표기 기호 — 기호만으로는 뜻을 알 수 없어 글로 푼다(원문 「읽는 법」 의 풀이를 줄인 것).
+# ─────────────────────────────────────────────────────────────────────
+# 용어 사이 관계 (연관 개념 · 2026-10-02 · 설계서 5.4)
+# ─────────────────────────────────────────────────────────────────────
+#: 관계 종류 — 용어사전 표준 W3C SKOS 의 관계를 따른다. 서로 다른 셋을 섞지 않는다.
+#:   related       함께 알아야 하는 개념(양방향)
+#:   broader       더 넓은 개념 — (좁은 쪽, broader, 넓은 쪽). 반대 방향(narrower)은 앱이 읽을 때 만든다
+#:   confused_with 이름 · 뜻이 헷갈리는 짝(양방향) — 「핵심 차이」 한 줄이 반드시 있다
+RELATION_KINDS: dict[str, str] = {"related": "연관", "broader": "상위", "confused_with": "혼동"}
+
+#: 비교 쌍 · 관련어 칸의 이름이 사전 이름과 다를 때 — {자료에 적힌 이름: 대표 이름}.
+#: 대표 이름이 사전에 없거나 자료에서 그 이름을 더는 만나지 않으면 빌드가 멈춘다.
+PAIR_NAMES: dict[str, str] = {
+    "금융위 인가": "인가",      # 「금융위 인가 vs 금융위 등록」 — 사전의 인가 · 등록(금융 규제 분류)과 같은 말
+    "금융위 등록": "등록",
+}
+
+#: 사람이 고른 관계 — (용어, 종류, 용어, 설명). 재료는 이름을 함께 쓰는 용어(shared_names) · 설명문에 다른 표제어가
+#: 나오는 경우다(설계서 5.4.2 — 「후보 · 사람이 고름」). 아직 고른 것이 없다.
+RELATIONS: list[tuple[str, str, str, str]] = []
+
 ORIGIN_MARKS = {"🇯🇵": "[일본식 한자어]", "🀄": "[중국 고전 유래]", "📜": "[동아시아 공통 한자어]", "🆕": "[현대에 만든 말]"}
 
 SOURCE_ORDER = {"voca": 0, "finance": 1, "lecture": 2, "finance-origin": 3, "qurious": 4}
@@ -493,6 +514,85 @@ def parse_finance(text: str) -> list[Raw]:
                 out.append(Raw(base, "finance-origin", category, aliases + (loan_names if i == 0 else []), hanja=hanja,
                                reading=reading, etymology=etymology, where="한자 어원 사전"))
     return out
+
+
+def parse_relations(text: str) -> list[dict]:
+    """투자분석 용어집에서 용어 사이 관계 재료를 뽑는다 — 이름은 아직 자료에 적힌 그대로다(사전 ID 로 잇는 것은 build).
+
+    - 「비교 쌍 | A | B | 핵심 차이」 표(11절 자주 혼동하는 용어 · 12절 금융 규제 용어) → confused_with.
+      「매출 vs 이익」 을 두 이름으로 가르고, 「핵심 차이」 를 차이 한 줄로, A · B 칸을 각 이름의 풀이로 둔다.
+    - 한자 어원 사전의 「관련어」 줄 → related. 「기준금리(基準金利)」 처럼 괄호 속 한자는 뗀다.
+    """
+    out: list[dict] = []
+    for t in tables(text):
+        header = t["header"]
+        if header[:1] == ["비교 쌍"] and len(header) >= 4:
+            for r in t["rows"]:
+                names = re.split(r"\s+vs\s+", r[0], maxsplit=1) if len(r) >= 4 else []
+                if len(names) != 2:
+                    continue
+                a, b = (n.strip() for n in names)
+                out.append({"a": a, "b": b, "kind": "confused_with", "note": r[3],
+                            "detail": f"{a} — {r[1]} · {b} — {r[2]}", "where": t["h3"] or t["h2"]})
+        elif header == ["항목", "내용"] and t["h3"]:
+            props = {r[0]: r[1] for r in t["rows"] if len(r) == 2}
+            if not props.get("관련어"):
+                continue
+            first = re.split(r"\s+/\s+|\s+vs\s+", re.sub(r"\s+—.*$", "", t["h3"]))[0]
+            base = " ".join(re.sub(r"\([^)]*\)", " ", first).split())          # 「금리 (金利)」 → 금리
+            for name in re.split(r",\s*", props["관련어"]):
+                other = " ".join(re.sub(r"\([^)]*\)", " ", name).split())      # 「기준금리(基準金利)」 → 기준금리
+                if other:
+                    out.append({"a": base, "b": other, "kind": "related", "note": "", "detail": "",
+                                "where": "한자 어원 사전 「관련어」"})
+    return out
+
+
+def link_relations(terms: list[dict], raws: list[dict]) -> tuple[list[dict], list[str]]:
+    """자료의 관계 재료 + 사람이 고른 관계(RELATIONS)를 사전 ID 로 잇는다 → (관계, 잇지 못한 줄).
+
+    이름은 대표 이름 → PAIR_NAMES → 찾기용 모양(대표 이름 · ID · 별칭) 차례로 찾는다. 한쪽이라도 사전에 없으면
+    그 줄은 빼고 「잇지 못한 줄」 로 돌려준다(사전에 없는 용어를 만들어 내지 않는다). 같은 짝 · 같은 종류는 한 줄만 둔다
+    (양방향 종류는 두 끝의 차례와 상관없이 같은 짝이다).
+    """
+    by_term = {t["term"]: t["id"] for t in terms}
+    index: dict[str, str] = {}
+    for t in terms:
+        for n in (t["term"], t["id"], *(a["alias"] for a in t["aliases"])):
+            index.setdefault(norm(n), t["id"])
+    stale = sorted({v for v in PAIR_NAMES.values() if v not in by_term}
+                   | {n for a, k, b, _ in RELATIONS for n in (a, b) if n not in by_term}
+                   | {f"종류 {k}" for _, k, _, _ in RELATIONS if k not in RELATION_KINDS})
+    if stale:
+        raise SystemExit(f"PAIR_NAMES · RELATIONS 가 사전에 없는 이름 · 종류를 가리킨다: {stale}")
+    used_pair_names: set[str] = set()
+
+    def resolve(name: str) -> str | None:
+        if name in PAIR_NAMES:
+            used_pair_names.add(name)
+            name = PAIR_NAMES[name]
+        return by_term.get(name) or index.get(norm(name))
+
+    items = raws + [{"a": a, "b": b, "kind": k, "note": note, "detail": "", "where": "사람이 고름"}
+                    for a, k, b, note in RELATIONS]
+    out, missing, seen = [], [], set()
+    for r in items:
+        a, b = resolve(r["a"]), resolve(r["b"])
+        if not a or not b or a == b:
+            lost = [n for n, i in ((r["a"], a), (r["b"], b)) if not i]
+            missing.append(f"{r['a']} — {r['b']} ({RELATION_KINDS[r['kind']]} · {r['where']}) : 사전에 없음 {', '.join(lost) or '같은 용어'}")
+            continue
+        key = (r["kind"], *sorted((a, b))) if r["kind"] != "broader" else (r["kind"], a, b)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"from": a, "to": b, "kind": r["kind"], "note": r["note"], "detail": r["detail"],
+                    "source": "finance" if r["where"] != "사람이 고름" else "curated", "where": r["where"]})
+    unused = sorted(set(PAIR_NAMES) - used_pair_names)
+    if unused:
+        raise SystemExit(f"PAIR_NAMES 의 줄이 자료에서 더는 쓰이지 않는다: {unused} — 자료가 바뀌었는지 보고 줄을 지운다")
+    out.sort(key=lambda x: (x["kind"], x["from"], x["to"]))
+    return out, missing
 
 
 class _GlossaryItems(HTMLParser):
@@ -813,13 +913,17 @@ def build() -> dict:
     order = {code: i for i, code in enumerate(CATEGORY_CODES)}
     terms.sort(key=lambda t: (order[t["category"]], norm(t["term"])))
     counts = Counter(t["category"] for t in terms)
+    relation_raws = parse_relations((RAGLAB / "data" / "samples" / "finance_glossary.txt").read_text(encoding="utf-8"))
+    relations, unlinked = link_relations(terms, relation_raws)
     return {
         "format_version": FORMAT_VERSION,
         "sources": [{**s, "terms": sum(1 for t in terms if s["code"] in t["sources"])} for s in SOURCES],
         "categories": [{"code": c, "name": n, "description": d, "sort_order": i * 10, "terms": counts[c]}
                        for i, (c, n, d) in enumerate(CATEGORIES, 1)],
         "terms": terms,
-        "_build": {"raw_entries": len(raws), "aliases_dropped": dropped},
+        "relations": relations,
+        "_build": {"raw_entries": len(raws), "aliases_dropped": dropped,
+                   "relation_raws": len(relation_raws), "relations_unlinked": unlinked},
     }
 
 
@@ -848,7 +952,8 @@ def main(argv: list[str] | None = None) -> int:
     text = render(data)
     terms = data["terms"]
     print(f"자료 항목 {data['_build']['raw_entries']} → 용어 {len(terms)} · 별칭 {sum(len(t['aliases']) for t in terms)}"
-          f" (겹쳐서 버린 별칭 {data['_build']['aliases_dropped']}) · 판 {checksum(text)[:12]}")
+          f" (겹쳐서 버린 별칭 {data['_build']['aliases_dropped']}) · 관계 {len(data['relations'])}"
+          f" (잇지 못한 줄 {len(data['_build']['relations_unlinked'])}) · 판 {checksum(text)[:12]}")
     if args.stats:
         for s in data["sources"]:
             print(f"  자료 {s['code']:8s} 용어 {s['terms']:4d}  {s['title']}")
@@ -865,6 +970,11 @@ def main(argv: list[str] | None = None) -> int:
         for name, owners in sorted(by_english.items()):
             if len(owners) > 1:
                 print(f"  영어 이름이 같은 다른 용어: {name} → {' · '.join(sorted(owners))}")
+        rels = data["relations"]
+        print(f"  관계 {len(rels)} (자료 재료 {data['_build']['relation_raws']}) · "
+              + " · ".join(f"{RELATION_KINDS[k]} {n}" for k, n in sorted(Counter(r['kind'] for r in rels).items())))
+        for line in data["_build"]["relations_unlinked"]:
+            print(f"  잇지 못한 관계: {line}")
         return 0
     current = OUT.read_bytes().decode("utf-8").replace("\r\n", "\n") if OUT.exists() else ""
     if args.check:

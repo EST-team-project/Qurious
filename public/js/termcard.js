@@ -61,7 +61,7 @@ function easyBox(text) {
 }
 
 // 연관 개념(결정 ④) — 칩(함께 · 더 넓은) + 헷갈리기 쉬운 말은 차이 한 줄. 관계 자료가 없으면 칸을 숨긴다(경우 표 15).
-// 관계 자료(API 의 related[])는 아직 없다 — 생기면 이 함수가 그대로 그린다.
+// 관계 자료는 API 의 related[](2026-10-02 · 용어 파일 판 2) — 헷갈리는 말은 차이 한 줄 아래에 두 말의 풀이(detail)를 작게 붙인다.
 function relatedHtml(t) {
   const rel = Array.isArray(t.related) ? t.related : [];
   if (!rel.length) return "";
@@ -75,7 +75,7 @@ function relatedHtml(t) {
     ${wide.length ? `<div class="q-term-rel-group"><span>더 넓은 · 좁은 개념</span><div>${chips(wide)}</div></div>` : ""}
     ${conf.length ? `<div class="q-term-rel-group"><span class="q-term-warn">헷갈리기 쉬운 말</span>${conf.map(r =>
       `<div class="q-term-confused"><button type="button" class="q-term-link" data-term="${escHtml(r.id || r.term)}">${escHtml(r.term)} →</button>
-       <p>${escHtml(r.note || "")}</p></div>`).join("")}</div>` : ""}
+       <p>${escHtml(r.note || "")}</p>${r.detail ? `<p class="q-term-confused-detail">${escHtml(r.detail)}</p>` : ""}</div>`).join("")}</div>` : ""}
   </section>`;
 }
 

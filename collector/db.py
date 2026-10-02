@@ -31,6 +31,12 @@ OHLCV 규격(`collector/ohlcv.py` · 2026-10-01)으로 더한 넷 ::
     price_intraday     분봉(받은 것 · 야후) — 원문은 남기지 않는다
     intraday_universe  분봉을 받는 종목과 그 근거(판마다)
 
+거래일 달력(`collector/market_calendar.py` · 2026-10-02)으로 더한 셋 ::
+
+    holiday_kasi       공휴일(받은 것 · 한국천문연구원 특일 정보)
+    market_calendar    하루 한 행 거래일 여부 · 휴장 까닭(계산한 것 — 앞날 포함)
+    market_event       금융 일정 — 휴장 · 파생 만기 · 배당 기준일 · 배당락일(계산한 것)
+
 **받은 것과 계산한 것을 섞지 않는다.** 계산 규칙은 바뀌고, 바뀌면 전부 다시 만들어야
 하는데 원본에 덮어써 두면 되돌릴 근거가 없어진다.
 """
@@ -307,6 +313,50 @@ CREATE TABLE IF NOT EXISTS intraday_universe (
     rank        INTEGER,
     PRIMARY KEY (version, symbol)
 );
+
+-- ── 11. 공휴일 (받은 것) ───────────────────────────────────────────────────
+-- 한국천문연구원 특일 정보(공공데이터포털 getRestDeInfo) 응답 행 그대로. 한 해를 받으면 그 해
+-- 행을 지우고 다시 넣는다(임시공휴일이 더해지거나 빠진 것을 따라간다). 만드는 쪽: market_calendar.py
+CREATE TABLE IF NOT EXISTS holiday_kasi (
+    locdate     TEXT    NOT NULL,          -- YYYY-MM-DD
+    date_name   TEXT    NOT NULL,          -- 예 추석 · 대체공휴일(삼일절) · 노동절 · 전국동시지방선거
+    is_holiday  TEXT    NOT NULL,          -- Y | N (응답 그대로)
+    date_kind   TEXT    NOT NULL DEFAULT '',
+    seq         INTEGER,
+    fetched_at  TEXT    NOT NULL,          -- 받은 시각 KST
+    PRIMARY KEY (locdate, date_name)
+);
+
+-- ── 12. 거래일 달력 (계산한 것) ────────────────────────────────────────────
+-- 하루 한 행. 지난날은 시세로 확인(observed), 시세 마지막 날 뒤는 규칙 · 공휴일 표로 예정(rule).
+-- 규칙 = 주말 + 공휴일 + 근로자의 날(5-1) + 연말 휴장일(12-31 · 주말이면 앞 평일). 2020~2026-09 시세와 0일 어긋남.
+CREATE TABLE IF NOT EXISTS market_calendar (
+    cal_date        TEXT    NOT NULL PRIMARY KEY,  -- YYYY-MM-DD
+    is_trading_day  INTEGER NOT NULL,              -- 1 거래일 · 0 휴장
+    reason          TEXT    NOT NULL DEFAULT '',   -- 휴장 까닭 — 공휴일 이름 · 토요일 · 일요일 · 근로자의 날 · 연말 휴장일
+    basis           TEXT    NOT NULL,              -- observed | rule
+    note            TEXT    NOT NULL DEFAULT '',   -- 규칙과 시세가 어긋난 날 · 시세가 아직 없는 날
+    updated_at      TEXT    NOT NULL
+);
+
+-- ── 13. 금융 일정 (계산한 것) ──────────────────────────────────────────────
+-- 설계서 5.2.4 표 9 의 일정 종류를 한 표에. 첫판은 넷 — 평일 휴장 · 파생 만기 · 배당 기준일 · 배당락일.
+CREATE TABLE IF NOT EXISTS market_event (
+    event_id    TEXT    NOT NULL PRIMARY KEY,      -- 종류:날짜(:종목) — 다시 만들어도 같은 키
+    kind        TEXT    NOT NULL,                  -- market_closure | deriv_expiry | dividend_record | dividend_ex
+    event_date  TEXT    NOT NULL,                  -- YYYY-MM-DD
+    event_time  TEXT    NOT NULL DEFAULT '',       -- HH:MM (모르면 빈칸)
+    market      TEXT    NOT NULL DEFAULT '',       -- KRX (시장 전체) · 종목 일정은 빈칸
+    symbol      TEXT    NOT NULL DEFAULT '',       -- 종목 단축코드(시장 전체 일정은 빈칸)
+    title       TEXT    NOT NULL,
+    detail      TEXT    NOT NULL DEFAULT '',
+    confidence  TEXT    NOT NULL,                  -- confirmed 확정 · scheduled 예정 · computed 규칙으로 계산
+    source      TEXT    NOT NULL,                  -- kasi · krx_rule · dividend(DART 공시)
+    source_ref  TEXT    NOT NULL DEFAULT '',       -- 공시 접수번호 등
+    updated_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_event_date ON market_event(event_date, kind);
+CREATE INDEX IF NOT EXISTS ix_event_symbol ON market_event(symbol, event_date);
 """
 
 
