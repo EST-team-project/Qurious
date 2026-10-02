@@ -13,6 +13,7 @@ const GNB_MENUS = {
       { key: "robo-screening",  icon: "fa-solid fa-magnifying-glass-chart",label: "패턴 인식·종목 스크리닝" },
       { key: "robo-patterns",   icon: "fa-solid fa-chart-column",          label: "차트 패턴·지지/저항·멀티타임프레임" },
       { key: "robo-decision",   icon: "fa-solid fa-brain",                 label: "모의 투자 의사결정" },
+      { key: "robo-testbed",    icon: "fa-solid fa-clipboard-check",       label: "코스콤 테스트베드 기준" },
       { key: "agent-cb",        icon: "fa-solid fa-chart-bar",             label: "신용 리스크 분석" },
       { key: "agent-products",  icon: "fa-solid fa-coins",                 label: "맞춤 상품 추천" },
       { key: "agent-news",      icon: "fa-solid fa-newspaper",             label: "투자 정보 리서치" },
@@ -218,6 +219,15 @@ const VIEW_GUIDES = {
   "robo-portfolio":  { summary: "위험 성향·투자기간·투자금액을 입력하면 AI가 자산배분 비중과 추천 종목을 계산합니다.", steps: ["위험 성향(안정/중립/공격)과 투자 기간, 투자금액을 선택하세요.", "'배분 계산' 버튼을 누르면 자산군별 비중과 추천 종목이 표시됩니다.", "기대수익률·MDD는 과거 데이터 기반 추정치이며 미래 수익을 보장하지 않습니다."], relatedTerms: ["covariance_opt", "mvo", "risk_parity", "mdd", "sharpe"] },
   "robo-screening":  { summary: "패턴 인식 모델로 대표 종목들을 매수/매도/관망으로 스크리닝합니다.", steps: ["모델(RSI/이동평균/볼린저/앙상블)과 신호 필터, 최소 신뢰도를 선택하세요.", "결과 카드에서 종목별 신호·점수·근거를 확인하세요.", "신뢰도가 높다고 100% 적중을 의미하지 않으니 다른 지표와 함께 판단하세요."], relatedTerms: ["signal", "lightgbm", "rsi", "golden_cross"] },
   "robo-decision":   { summary: "자동매매 로직이 만든 모의투자 의사결정 과정을 로그로 확인합니다.", steps: ["시작 버튼을 누르면 10분 주기로 모의계좌 매매가 진행됩니다.", "로그에서 매수/매도 이유와 계좌 평가금액 변화를 확인하세요.", "실제 자금이 아닌 가상계좌이므로 전략을 안전하게 검증할 수 있습니다."], relatedTerms: ["virtual_account", "auto_trade_cycle", "signal"] },
+  "robo-testbed": {
+    summary: "코스콤 로보어드바이저 테스트베드 기준에 맞춘 운용 성과 분석입니다.",
+    steps: [
+      "기준가 · 매매회전율 · 평균대비분석 · 위험지표를 한눈에 확인하세요.",
+      "KOSPI200 대비 초과 성과와 위험조정 수익률을 비교합니다.",
+      "표준편차·샤프·젠센알파·정보비율로 전략의 질을 평가합니다.",
+    ],
+    relatedTerms: ["sharpe", "mdd", "cost_bps", "slippage", "backtest"],
+  },
   "agent-cb":        { summary: "개인·기업 신용(CB) 통계를 조건별로 조회해 리스크를 참고합니다.", steps: ["개인 CB는 기간·성별·연령대를, 기업 CB는 기간·규모·업종코드를 선택하세요.", "'조회' 버튼을 누르면 해당 조건의 집계 통계가 표시됩니다."], relatedTerms: ["cb_score"] },
   "agent-products":  { summary: "위험 성향에 맞는 은행 수신상품·공모펀드를 검색합니다.", steps: ["상단 탭에서 '은행 수신상품' 또는 '공모펀드'를 선택하세요.", "최소금리(또는 최소수익률)와 키워드로 조건을 좁혀 검색하세요."], relatedTerms: [] },
   "agent-news":      { summary: "크롤링된 뉴스·리포트를 AI RAG로 검색해 투자 인사이트를 얻습니다.", steps: ["검색어(예: 금리 전망, 반도체 업황)를 입력 후 검색하세요.", "결과가 부족하면 '크롤링' 메뉴에서 먼저 관련 자료를 수집하세요."], relatedTerms: ["rag", "embedding", "qdrant"] },

@@ -68,6 +68,11 @@ async def record_daily_snapshot(
         daily_return = 0.0
 
     # 3. UPSERT (동일 user_id + snap_date면 덮어쓰기)
+    # 자산군별 평가액
+    stock_eval = float(snap["stockEval"])
+    crypto_eval = float(snap["cryptoEval"])
+    alt_eval = float(snap["alternativeEval"])
+
     stmt = pg_insert(PaperAccountSnapshot).values(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -77,6 +82,9 @@ async def record_daily_snapshot(
         total_equity=total_equity,
         daily_return=daily_return,
         position_count=position_count,
+        stock_value=stock_eval,
+        crypto_value=crypto_eval,
+        alt_value=alt_eval,
         snapshot_at=datetime.now(timezone.utc),
     )
     stmt = stmt.on_conflict_do_update(
@@ -87,6 +95,9 @@ async def record_daily_snapshot(
             "total_equity": stmt.excluded.total_equity,
             "daily_return": stmt.excluded.daily_return,
             "position_count": stmt.excluded.position_count,
+            "stock_value": stmt.excluded.stock_value,
+            "crypto_value": stmt.excluded.crypto_value,
+            "alt_value": stmt.excluded.alt_value,
             "snapshot_at": stmt.excluded.snapshot_at,
         },
     )
