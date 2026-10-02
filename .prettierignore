@@ -1,0 +1,14 @@
+# Prettier 자동 서식 제외 — 팀 합의 (2026-10-02, Issue #88)
+#
+# 이유: app.html·core.js는 자동 서식만으로 300줄 이상 diff가 생겨
+#       다른 사람이 같은 파일을 고칠 때마다 줄 전체가 충돌한다.
+#       실제 로직 변경과 서식 변경을 분리해 리뷰 가능하게 유지한다.
+
+# 프로젝트 최상위 UI 파일 — 손으로 맞춘 공백 유지
+public/app.html
+public/js/core.js
+
+# 서드파티/생성물
+node_modules/
+public/vendor/
+docs/github-archive/
