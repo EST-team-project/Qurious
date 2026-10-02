@@ -40,6 +40,11 @@ class PaperAccountSnapshot(Base, UUIDPkMixin, CreatedAtMixin):
         DateTime(timezone=True), default=datetime.utcnow
     )
 
+    # 자산 구성 (스냅샷 시점의 자산군별 평가액)
+    stock_value: Mapped[float] = mapped_column(Float, default=0.0)
+    crypto_value: Mapped[float] = mapped_column(Float, default=0.0)
+    alt_value: Mapped[float] = mapped_column(Float, default=0.0)
+    
     __table_args__ = (
         Index("ix_paper_snap_user_date", "user_id", "snap_date", unique=True),
     )

@@ -1775,6 +1775,88 @@
             </div>
           </div>
 
+          <!-- ══ 코스콤 테스트베드 기준 ══════════════════════════════ -->
+          <div class="view" data-view="robo-testbed">
+            <div class="space-y-4">
+
+              <!-- ① 헤더 -->
+              <div class="card">
+                <div class="flex items-center gap-3 mb-2 flex-wrap">
+                  <h2 class="text-lg font-semibold">📋 코스콤 테스트베드 기준</h2>
+                  <span class="text-xs" style="color:var(--text-mute);">
+                    우리 어드바이저 단독 성과 · 평균 대비 아님
+                  </span>
+                  <button id="rt-refresh" class="btn-secondary ml-auto text-xs">🔄 새로고침</button>
+                </div>
+                <p class="text-xs" style="color:var(--text-mute);">
+                  KOSPI 대비 초과 성과, 위험조정 수익률, 매매회전율을 종합 검증합니다.
+                  표준편차·샤프·젠센알파·정보비율은 연환산 값입니다.
+                </p>
+              </div>
+
+              <!-- ② 상단 3개 그래프 -->
+              <div class="grid md:grid-cols-3 gap-4">
+                <div class="card">
+                  <h3 class="font-semibold text-sm mb-3">📈 기준가</h3>
+                  <div id="rt-base-chart" style="height: 260px;"></div>
+                </div>
+                <div class="card">
+                  <h3 class="font-semibold text-sm mb-3">🔄 매매회전율 vs 누적수익률</h3>
+                  <div id="rt-turnover-chart" style="height: 260px;"></div>
+                </div>
+                <div class="card">
+                  <h3 class="font-semibold text-sm mb-3">🕸️ 위험지표 레이더</h3>
+                  <div id="rt-radar-chart" style="height: 260px;"></div>
+                </div>
+              </div>
+
+              <!-- ③ 중단 2개 그래프 -->
+              <div class="grid md:grid-cols-2 gap-4">
+                <div class="card">
+                  <h3 class="font-semibold text-sm mb-3">📉 표준편차 vs 샤프지수 (기간별)</h3>
+                  <div id="rt-risk-scatter-chart" style="height: 280px;"></div>
+                </div>
+                <div class="card">
+                  <h3 class="font-semibold text-sm mb-3">📊 자산별 투자비중 추이</h3>
+                  <div id="rt-allocation-chart" style="height: 280px;"></div>
+                </div>
+              </div>
+
+              <!-- ④ 기간선택 비교 -->
+              <div class="card">
+                <div class="flex items-center gap-3 mb-3 flex-wrap">
+                  <h3 class="font-semibold text-sm">📅 KOSPI 대비 성과</h3>
+                  <div class="flex gap-1 ml-auto">
+                    <button class="btn-secondary text-xs rt-period" data-days="21">1개월</button>
+                    <button class="btn-secondary text-xs rt-period" data-days="63">3개월</button>
+                    <button class="btn-secondary text-xs rt-period" data-days="126">6개월</button>
+                    <button class="btn-primary text-xs rt-period" data-days="0">전체</button>
+                  </div>
+                </div>
+                <div id="rt-benchmark-chart" style="height: 300px;"></div>
+              </div>
+
+              <!-- ⑤ 수익률표 -->
+              <div class="card">
+                <h3 class="font-semibold text-sm mb-3">💰 수익률 [우리 어드바이저]</h3>
+                <div id="rt-returns-table"></div>
+              </div>
+
+              <!-- ⑥ 위험지표표 -->
+              <div class="card">
+                <h3 class="font-semibold text-sm mb-3">⚠️ 위험지표 [우리 어드바이저]</h3>
+                <div id="rt-risk-table"></div>
+              </div>
+
+              <!-- ⑦ 매매회전율표 -->
+              <div class="card">
+                <h3 class="font-semibold text-sm mb-3">🔄 매매회전율 [우리 어드바이저]</h3>
+                <div id="rt-turnover-table"></div>
+              </div>
+
+            </div>
+          </div>
+
           <div class="view" data-view="robo-decision">
             <div class="space-y-4">
               <div class="card">

@@ -571,10 +571,391 @@ async function loadRoboPerformanceMetrics() {
 document.getElementById("robo-metrics-refresh")?.addEventListener("click", loadRoboPerformanceMetrics);
 
 
+// ═══════════════════════════════════════════════════════════
+// 코스콤 테스트베드 기준
+// ═══════════════════════════════════════════════════════════
+const _rtCharts = {
+  base: null, turnover: null, radar: null,
+  riskScatter: null, allocation: null, benchmark: null,
+};
+let _rtBenchmarkData = null;
+let _rtBenchmarkDays = 0;
+
+async function loadRoboTestbed() {
+  await Promise.all([
+    _rtLoadBase(),
+    _rtLoadTurnoverChart(),
+    _rtLoadRadar(),
+    _rtLoadRiskScatter(),
+    _rtLoadAllocation(),
+    _rtLoadBenchmark(),
+    _rtLoadReturnsTable(),
+    _rtLoadRiskTable(),
+    _rtLoadTurnoverTable(),
+  ]);
+}
+
+const _rtErr = (e) => `<div class="text-xs" style="color:var(--red);padding:20px;">${escHtml(e.message)}</div>`;
+const _rtEmpty = (msg) => `<div class="text-xs" style="color:var(--text-mute);padding:40px 0;text-align:center;">${msg}</div>`;
+
+// ① 기준가 라인
+async function _rtLoadBase() {
+  const el = document.getElementById("rt-base-chart");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/metrics");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+    if (_rtCharts.base) _rtCharts.base.destroy();
+
+    const dates = data.snap_dates || [];
+    const eq = data.equity_curve || [];
+    const labels = dates.map(d => d.slice(5));
+
+    _rtCharts.base = new ApexCharts(el, {
+      chart: { type: "line", height: 260, toolbar: { show: false }, background: "transparent" },
+      series: [{ name: "자산", data: eq }],
+      xaxis: { categories: labels, tickAmount: 5, labels: { style: { fontSize: "10px", colors: "#888" } } },
+      yaxis: {
+        labels: {
+          formatter: v => v == null ? "" : (v / 10000).toFixed(1) + "만",
+          style: { fontSize: "10px", colors: "#888" },
+        },
+        tickAmount: 5,
+      },
+      colors: ["#f23645"],
+      stroke: { curve: "smooth", width: 2 },
+      dataLabels: { enabled: false },
+      grid: { borderColor: "rgba(255,255,255,0.06)" },
+    });
+    _rtCharts.base.render();
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ② 매매회전율 vs 누적수익률 (산점도)
+async function _rtLoadTurnoverChart() {
+  const el = document.getElementById("rt-turnover-chart");
+  if (!el) return;
+  try {
+    const [t, r] = await Promise.all([
+      api("/api/paper/performance/turnover"),
+      api("/api/paper/performance/returns-table"),
+    ]);
+    if (t.status !== "ok" || r.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+    if (_rtCharts.turnover) _rtCharts.turnover.destroy();
+
+    const x = t.annualized_turnover_pct || 0;
+    const y = (r.return_cumulative || 0) * 100;
+
+    _rtCharts.turnover = new ApexCharts(el, {
+      chart: { type: "scatter", height: 260, toolbar: { show: false }, background: "transparent" },
+      series: [{ name: "우리", data: [[x, y]] }],
+      xaxis: {
+        title: { text: "연환산 회전율 (%)", style: { fontSize: "10px", color: "#888" } },
+        labels: {
+          formatter: (v) => v == null ? "" : Number(v).toFixed(1),
+          style: { fontSize: "10px", colors: "#888" },
+        },
+        tickAmount: 5,
+      },
+      yaxis: {
+        title: { text: "누적수익률 (%)", style: { fontSize: "10px", color: "#888" } },
+        labels: {
+          formatter: (v) => v == null ? "" : Number(v).toFixed(2),
+          style: { fontSize: "10px", colors: "#888" },
+        },
+        tickAmount: 5,
+      },
+      colors: ["#089981"],
+      markers: { size: 12 },
+      dataLabels: { enabled: true, formatter: () => "우리", offsetY: -12, style: { fontSize: "10px" } },
+    });
+    _rtCharts.turnover.render();
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ③ 레이더 차트
+async function _rtLoadRadar() {
+  const el = document.getElementById("rt-radar-chart");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/risk-metrics");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+    if (_rtCharts.radar) _rtCharts.radar.destroy();
+
+    const m = data["1y"] || data["6m"] || data["3m"] || data["1m"] || {};
+    // 정규화 (0~100 스케일)
+    const std = Math.min(100, Math.abs(m.std_dev || 0) * 100);
+    const sharpe = Math.min(100, Math.max(0, (m.sharpe || 0) * 30));
+    const mddScore = 50;  // MDD 별도 계산 필요 (지금은 placeholder)
+    const alpha = Math.min(100, Math.max(0, (m.jensen_alpha || 0) * 500));
+    const ir = Math.min(100, Math.max(0, (m.information_ratio || 0) * 50));
+
+    _rtCharts.radar = new ApexCharts(el, {
+      chart: { type: "radar", height: 260, toolbar: { show: false }, background: "transparent" },
+      series: [{ name: "우리 어드바이저", data: [std, sharpe, mddScore, alpha, ir] }],
+      labels: ["표준편차", "샤프", "MDD", "젠센알파", "정보비율"],
+      colors: ["#089981"],
+      stroke: { width: 2 },
+      fill: { opacity: 0.25 },
+      markers: { size: 4 },
+      yaxis: { show: false, min: 0, max: 100 },
+      plotOptions: { radar: { polygons: { strokeColors: "#444", connectorColors: "#444" } } },
+    });
+    _rtCharts.radar.render();
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ④ 표준편차 vs 샤프 (기간별 산점도)
+async function _rtLoadRiskScatter() {
+  const el = document.getElementById("rt-risk-scatter-chart");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/risk-metrics");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+    if (_rtCharts.riskScatter) _rtCharts.riskScatter.destroy();
+
+    const periods = ["1m", "3m", "6m", "1y"];
+    const points = periods
+      .filter(k => data[k]?.std_dev != null && data[k]?.sharpe != null)
+      .map(k => ({ x: data[k].std_dev, y: data[k].sharpe, label: k }));
+
+    if (!points.length) { el.innerHTML = _rtEmpty("기간별 데이터 부족"); return; }
+
+    _rtCharts.riskScatter = new ApexCharts(el, {
+      chart: { type: "scatter", height: 280, toolbar: { show: false }, background: "transparent" },
+      series: [{ name: "기간별", data: points.map(p => ({ x: p.x, y: p.y })) }],
+      xaxis: {
+        title: { text: "표준편차 (연환산)", style: { fontSize: "10px", color: "#888" } },
+        labels: {
+          formatter: (v) => v == null ? "" : Number(v).toFixed(2),
+          style: { fontSize: "10px", colors: "#888" },
+        },
+        tickAmount: 5,
+      },
+      yaxis: {
+        title: { text: "샤프지수", style: { fontSize: "10px", color: "#888" } },
+        labels: {
+          formatter: (v) => v == null ? "" : Number(v).toFixed(2),
+          style: { fontSize: "10px", colors: "#888" },
+        },
+        tickAmount: 5,
+      },
+      colors: ["#2962ff"],
+      markers: { size: 12 },
+      dataLabels: {
+        enabled: true,
+        formatter: (v, { dataPointIndex }) => points[dataPointIndex]?.label || "",
+        offsetY: -10,
+        style: { fontSize: "10px" },
+      },
+    });
+    _rtCharts.riskScatter.render();
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ⑤ 자산 비중 스택바
+async function _rtLoadAllocation() {
+  const el = document.getElementById("rt-allocation-chart");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/allocation-history");
+    if (data.status !== "ok" || !data.series?.length) { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+    if (_rtCharts.allocation) _rtCharts.allocation.destroy();
+
+    const dates = data.series.map(s => s.date.slice(5));
+    _rtCharts.allocation = new ApexCharts(el, {
+      chart: { type: "bar", height: 280, stacked: true, toolbar: { show: false }, background: "transparent" },
+      series: [
+        { name: "현금", data: data.series.map(s => s.cash_pct) },
+        { name: "주식", data: data.series.map(s => s.stock_pct) },
+        { name: "코인", data: data.series.map(s => s.crypto_pct) },
+        { name: "대체자산", data: data.series.map(s => s.alt_pct) },
+      ],
+      xaxis: { categories: dates, labels: { style: { fontSize: "10px", colors: "#888" } } },
+      yaxis: { max: 100, labels: { formatter: v => v.toFixed(0) + "%", style: { fontSize: "10px", colors: "#888" } } },
+      colors: ["#787b86", "#2962ff", "#f59e0b", "#a855f7"],
+      dataLabels: { enabled: false },
+      legend: { position: "bottom", fontSize: "11px" },
+      plotOptions: { bar: { columnWidth: "60%" } },
+    });
+    _rtCharts.allocation.render();
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ⑥ KOSPI 비교
+async function _rtLoadBenchmark() {
+  const el = document.getElementById("rt-benchmark-chart");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/benchmark");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("벤치마크 데이터 부족"); return; }
+    _rtBenchmarkData = data;
+    _rtRenderBenchmark();
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+function _rtRenderBenchmark() {
+  const el = document.getElementById("rt-benchmark-chart");
+  if (!el || !_rtBenchmarkData) return;
+  if (_rtCharts.benchmark) _rtCharts.benchmark.destroy();
+
+  const d = _rtBenchmarkData;
+  const days = _rtBenchmarkDays;
+  const our = days ? d.our_series.slice(-days) : d.our_series;
+  const bench = days ? d.benchmark_series.slice(-days) : d.benchmark_series;
+  const dates = days ? d.dates.slice(-days) : d.dates;
+  const labels = dates.map(x => x.slice(5));
+
+  _rtCharts.benchmark = new ApexCharts(el, {
+    chart: { type: "line", height: 300, toolbar: { show: false }, background: "transparent" },
+    series: [
+      { name: d.benchmark_name || "KOSPI", data: bench },
+      { name: "우리 어드바이저", data: our },
+    ],
+    xaxis: { categories: labels, tickAmount: 8, labels: { style: { fontSize: "10px", colors: "#888" } } },
+    yaxis: { labels: { formatter: v => v.toFixed(1), style: { fontSize: "10px", colors: "#888" } } },
+    colors: ["#f23645", "#089981"],
+    stroke: { curve: "smooth", width: [1.5, 2.5] },
+    dataLabels: { enabled: false },
+    legend: { position: "bottom", fontSize: "11px" },
+    grid: { borderColor: "rgba(255,255,255,0.06)" },
+  });
+  _rtCharts.benchmark.render();
+}
+
+// 기간 버튼 (이벤트 위임)
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("rt-period")) {
+    _rtBenchmarkDays = Number(e.target.dataset.days) || 0;
+    document.querySelectorAll(".rt-period").forEach(b => {
+      b.classList.toggle("btn-primary", b === e.target);
+      b.classList.toggle("btn-secondary", b !== e.target);
+    });
+    _rtRenderBenchmark();
+  }
+});
+
+// ⑦ 수익률표
+async function _rtLoadReturnsTable() {
+  const el = document.getElementById("rt-returns-table");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/returns-table");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+
+    const rows = [
+      ["1개월 수익률", data.return_1m],
+      ["3개월 수익률", data.return_3m],
+      ["6개월 수익률", data.return_6m],
+      ["1년 수익률", data.return_1y],
+      ["누적 수익률", data.return_cumulative],
+    ];
+
+    el.innerHTML = `<table class="w-full text-sm" style="border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-mute);">
+        <th style="text-align:left;padding:8px;">구분</th>
+        <th style="text-align:right;padding:8px;">해당계좌</th>
+      </tr></thead>
+      <tbody>${rows.map(([label, v]) => {
+      const color = v == null ? "var(--text-mute)" : (v >= 0 ? "var(--green)" : "var(--red)");
+      return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">${label}</td>
+          <td style="padding:8px;text-align:right;font-weight:600;color:${color};">
+            ${v == null ? "-" : (v * 100).toFixed(2)}
+          </td>
+        </tr>`;
+    }).join("")}</tbody>
+    </table>`;
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ⑧ 위험지표표
+async function _rtLoadRiskTable() {
+  const el = document.getElementById("rt-risk-table");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/risk-metrics");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+
+    const periods = ["1m", "3m", "6m", "1y"];
+    const labels = { "1m": "1개월", "3m": "3개월", "6m": "6개월", "1y": "1년" };
+    const metrics = [
+      ["std_dev", "표준편차"],
+      ["beta", "베타"],
+      ["sharpe", "샤프지수"],
+      ["jensen_alpha", "젠센알파"],
+      ["tracking_error", "트래킹에러"],
+      ["information_ratio", "정보비율(IR)"],
+    ];
+
+    el.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs" style="border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-mute);">
+        <th style="text-align:left;padding:8px;">구분</th>
+        ${periods.map(p => `<th style="text-align:right;padding:8px;">${labels[p]}</th>`).join("")}
+      </tr></thead>
+      <tbody>${metrics.map(([key, label]) => `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">${label}</td>
+          ${periods.map(p => {
+      const v = data[p]?.[key];
+      return `<td style="padding:8px;text-align:right;">${v == null ? "-" : v.toFixed(3)}</td>`;
+    }).join("")}
+        </tr>`).join("")}</tbody>
+    </table></div>`;
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+// ⑨ 매매회전율표
+async function _rtLoadTurnoverTable() {
+  const el = document.getElementById("rt-turnover-table");
+  if (!el) return;
+  try {
+    const data = await api("/api/paper/performance/turnover");
+    if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
+
+    const fmt = (n) => n == null ? "-" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+    el.innerHTML = `<table class="w-full text-sm" style="border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-mute);">
+        <th style="text-align:left;padding:8px;">구분</th>
+        <th style="text-align:right;padding:8px;">값</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">총 매수금액</td>
+          <td style="padding:8px;text-align:right;">${fmt(data.total_buy)}원</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">총 매도금액</td>
+          <td style="padding:8px;text-align:right;">${fmt(data.total_sell)}원</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">평균 자산</td>
+          <td style="padding:8px;text-align:right;">${fmt(data.avg_equity)}원</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px;">매매회전율</td>
+          <td style="padding:8px;text-align:right;font-weight:700;">${data.turnover_ratio?.toFixed(2) ?? "-"}%</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;">연환산 매매회전율</td>
+          <td style="padding:8px;text-align:right;font-weight:700;color:var(--accent);">${data.annualized_turnover_pct?.toFixed(2) ?? "-"}%</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="text-xs mt-2" style="color:var(--text-mute);">
+      공식: (총매수 + 총매도) / 2 / 평균자산, 연환산은 기간(년)으로 나눔.
+    </p>`;
+  } catch (e) { el.innerHTML = _rtErr(e); }
+}
+
+document.getElementById("rt-refresh")?.addEventListener("click", loadRoboTestbed);
+
+
 export {
   loadPatternAnalysis,
   loadRoboDecision,
   loadRoboScreening,
   renderXaiBlock,
-  loadRoboPerformanceMetrics,   // 🆕
+  loadRoboPerformanceMetrics,
+  loadRoboTestbed,
 };

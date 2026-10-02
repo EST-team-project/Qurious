@@ -17,7 +17,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.paper_snapshot_service import record_daily_snapshot
-from app.services.performance_service import get_robo_metrics
+from app.services.performance_service import (
+    get_robo_metrics,
+    get_returns_table,
+    get_risk_metrics,
+    get_turnover,
+    get_allocation_history,
+    get_benchmark_series,
+)
 from app.config import settings
 from app.database.postgres import get_pg_session
 from app.lib.jwt_auth import get_current_user_any
@@ -483,3 +490,49 @@ async def paper_performance_simulate(
     await db.commit()
 
     return {"status": "ok", "days": days, "seed": seed}
+
+
+
+# ═══════════════════════════════════════════════════════════
+# 코스콤 테스트베드 스타일 — 운용 정보
+# ═══════════════════════════════════════════════════════════
+
+@router.get("/performance/returns-table")
+async def paper_returns_table(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    return await get_returns_table(db, _uid(user))
+
+
+@router.get("/performance/risk-metrics")
+async def paper_risk_metrics(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    return await get_risk_metrics(db, _uid(user))
+
+
+@router.get("/performance/turnover")
+async def paper_turnover(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    return await get_turnover(db, _uid(user))
+
+
+@router.get("/performance/allocation-history")
+async def paper_allocation_history(
+    limit: int = Query(60, ge=5, le=365),
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    return await get_allocation_history(db, _uid(user), limit=limit)
+
+
+@router.get("/performance/benchmark")
+async def paper_benchmark(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    return await get_benchmark_series(db, _uid(user))
