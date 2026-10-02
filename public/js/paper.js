@@ -19,6 +19,8 @@ const emptyRow = (cols, text) => `<tr><td colspan="${cols}" style="color:var(--t
 let altChart = null;
 let leanChart = null;
 let cryptoMarkets = [];
+let _pdAllocationChart = null;
+let _pdEquityChart = null;
 
 /* ────────────────────────────────────────────────────────────────
  * 1. 모의투자 대시보드
@@ -71,7 +73,7 @@ async function loadPaperStock() {
   try {
     const a = await api("/api/paper/account");
     $("ps-cash").textContent = won(a.cash);
-  } catch {}
+  } catch { }
 }
 
 async function stockQuote() {
@@ -136,10 +138,48 @@ async function loadStockPositions() {
 async function loadStockHistory() {
   try {
     const { history } = await api("/api/paper/stocks/orders/history?limit=30");
-    $("ps-history").innerHTML = `<table><thead><tr><th>시각</th><th>매매</th><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th><th>출처</th></tr></thead>
-      <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span></td>
-        <td style="text-align:right">${fmt(o.quantity)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td><td class="text-xs">${escHtml(o.source)}</td></tr>`).join("") : emptyRow(7, "주문 내역이 없습니다.")}</tbody></table>`;
-  } catch {}
+
+    $("ps-history").innerHTML = `<table>
+      <thead><tr>
+        <th>시각</th>
+        <th>매매</th>
+        <th>종목</th>
+        <th style="text-align:right">수량</th>
+        <th style="text-align:right">단가</th>
+        <th style="text-align:right">거래금액</th>
+        <th style="text-align:right">수수료</th>
+        <th style="text-align:right">세금</th>
+        <th style="text-align:right">순정산액</th>
+        <th>출처</th>
+      </tr></thead>
+      <tbody>${history.length ? history.map(o => {
+      const isBuy = (o.type || "").toUpperCase() === "BUY";
+      // 수수료 = 위탁수수료 + 유관기관 제비용 (매수·매도 양쪽)
+      const fee = (o.commission || 0) + (o.fee_clearing || 0);
+      // 세금 = 증권거래세 + 농어촌특별세 (매도만)
+      const tax = (o.tax_transfer || 0) + (o.tax_rural || 0);
+      // 순정산액: 응답에 없으면 거래금액으로 폴백 (옛 주문)
+      const net = o.net_amount != null ? o.net_amount : o.amount;
+      const sign = isBuy ? "−" : "+";
+      const netColor = isBuy ? "var(--red)" : "var(--green)";
+
+      return `<tr>
+          <td class="text-xs">${ts(o.ts)}</td>
+          <td>${sideBadge(o.type)}</td>
+          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span></td>
+          <td style="text-align:right">${fmt(o.quantity)}</td>
+          <td style="text-align:right">${won(o.price)}</td>
+          <td style="text-align:right">${won(o.amount)}</td>
+          <td style="text-align:right;color:var(--text-dim);">${fee > 0 ? won(fee) : "-"}</td>
+          <td style="text-align:right;color:var(--text-dim);">${tax > 0 ? won(tax) : "-"}</td>
+          <td style="text-align:right;font-weight:700;color:${netColor};white-space:nowrap;">
+            ${sign}${won(net)}
+          </td>
+          <td class="text-xs">${escHtml(o.source)}</td>
+        </tr>`;
+    }).join("") : emptyRow(10, "주문 내역이 없습니다.")}</tbody>
+    </table>`;
+  } catch { }
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -240,7 +280,7 @@ async function loadCryptoHistory() {
     const { history } = await api("/api/paper/trade/order/history?limit=30");
     $("pc-history").innerHTML = `<table><thead><tr><th>시각</th><th>매매</th><th>코인</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
       <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.marketCode)}</span></td><td style="text-align:right">${fmt(o.quantity, 8)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td></tr>`).join("") : emptyRow(6, "거래 내역이 없습니다.")}</tbody></table>`;
-  } catch {}
+  } catch { }
 }
 
 async function loadCryptoRankings() {
@@ -249,7 +289,7 @@ async function loadCryptoRankings() {
     $("pc-rankings").innerHTML = `<table><thead><tr><th>#</th><th>코인</th><th style="text-align:right">현재가</th><th style="text-align:right">24h</th><th style="text-align:right">거래대금(24h)</th></tr></thead>
       <tbody>${rankings.map((r, i) => `<tr class="cursor-pointer pc-rank-row" data-market="${escHtml(r.market)}"><td>${i + 1}</td><td>${escHtml(r.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(r.symbol)}</span></td><td style="text-align:right">${won(r.price)}</td><td style="text-align:right" class="${signCls(r.changeRate)}">${fmtPct(r.changeRate)}</td><td style="text-align:right">${fmt(r.accTradePrice24h / 1e8, 1)}억</td></tr>`).join("")}</tbody></table>`;
     $("pc-rankings").querySelectorAll(".pc-rank-row").forEach(r => r.addEventListener("click", () => { $("pc-market").value = r.dataset.market; cryptoTicker(); }));
-  } catch {}
+  } catch { }
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -340,7 +380,7 @@ async function loadAltHistory() {
     const { history } = await api("/api/paper/alternatives/orders/history?limit=30");
     $("pa-history").innerHTML = `<table><thead><tr><th>시각</th><th>매매</th><th>상품</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
       <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.category)}</span></td><td style="text-align:right">${fmt(o.quantity)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td></tr>`).join("") : emptyRow(6, "주문 내역이 없습니다.")}</tbody></table>`;
-  } catch {}
+  } catch { }
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -403,14 +443,22 @@ async function alpacaTest(kind) {
  * 6. QuantConnect LEAN 백테스트
  * ──────────────────────────────────────────────────────────────── */
 const LEAN_EXAMPLES = [
-  { id: "bh", tag: "기준선", title: "삼성전자 매수 후 보유", ticker: "005930.KS", strategy: "buy_hold", start: "2023-01-01", cmpStart: "2022-01-01",
-    focus: "아무 규칙 없이 첫날 사서 끝까지 들고 있으면 어떤 결과인가?", read: "다른 전략의 수익률·MDD를 이 값과 비교합니다." },
-  { id: "ma", tag: "추세", title: "골든/데드크로스 (20·60일)", ticker: "005930.KS", strategy: "ma_cross", start: "2023-01-01", cmpStart: "2022-01-01",
-    focus: "이동평균 교차 규칙이 횡보장에서 잦은 매매로 손해를 보는지 확인", read: "규칙 변경 횟수와 시장 노출 일수를 함께 보세요." },
-  { id: "dca", tag: "적립", title: "SPY 월 1회 정액 매수", ticker: "SPY", strategy: "dca", start: "2022-01-01", cmpStart: "2021-01-01",
-    focus: "하락장에서 분할 매수가 낙폭을 얼마나 줄이는지", read: "MDD가 매수 후 보유보다 작아지는지 확인합니다." },
-  { id: "mom", tag: "모멘텀", title: "SK하이닉스 20일 돌파", ticker: "000660.KS", strategy: "momentum", start: "2023-01-01", cmpStart: "2022-01-01",
-    focus: "신고가 돌파 진입이 강한 추세에서 수익을 지키는지", read: "돌파 후 되돌림으로 손절이 반복되는지 거래 횟수를 확인합니다." },
+  {
+    id: "bh", tag: "기준선", title: "삼성전자 매수 후 보유", ticker: "005930.KS", strategy: "buy_hold", start: "2023-01-01", cmpStart: "2022-01-01",
+    focus: "아무 규칙 없이 첫날 사서 끝까지 들고 있으면 어떤 결과인가?", read: "다른 전략의 수익률·MDD를 이 값과 비교합니다."
+  },
+  {
+    id: "ma", tag: "추세", title: "골든/데드크로스 (20·60일)", ticker: "005930.KS", strategy: "ma_cross", start: "2023-01-01", cmpStart: "2022-01-01",
+    focus: "이동평균 교차 규칙이 횡보장에서 잦은 매매로 손해를 보는지 확인", read: "규칙 변경 횟수와 시장 노출 일수를 함께 보세요."
+  },
+  {
+    id: "dca", tag: "적립", title: "SPY 월 1회 정액 매수", ticker: "SPY", strategy: "dca", start: "2022-01-01", cmpStart: "2021-01-01",
+    focus: "하락장에서 분할 매수가 낙폭을 얼마나 줄이는지", read: "MDD가 매수 후 보유보다 작아지는지 확인합니다."
+  },
+  {
+    id: "mom", tag: "모멘텀", title: "SK하이닉스 20일 돌파", ticker: "000660.KS", strategy: "momentum", start: "2023-01-01", cmpStart: "2022-01-01",
+    focus: "신고가 돌파 진입이 강한 추세에서 수익을 지키는지", read: "돌파 후 되돌림으로 손절이 반복되는지 거래 횟수를 확인합니다."
+  },
 ];
 
 async function loadLeanView() {
@@ -541,7 +589,7 @@ async function loadLeanHistory() {
     $("ql-history").innerHTML = `<table><thead><tr><th>실행 시각</th><th>티커</th><th>전략</th><th>기간</th><th style="text-align:right">수익률</th><th style="text-align:right">MDD</th><th style="text-align:right">샤프</th><th>엔진</th></tr></thead>
       <tbody>${runs.length ? runs.map(r => `<tr><td class="text-xs">${new Date(r.created_at).toLocaleString("ko-KR")}</td><td>${escHtml(r.ticker)}</td><td class="text-xs">${escHtml(r.strategy_label)}</td><td class="text-xs">${escHtml(r.start_date)}~${escHtml(r.end_date)}</td>
         <td style="text-align:right" class="${signCls(r.strategy_return_pct)}">${fmtPct(r.strategy_return_pct)}</td><td style="text-align:right">${r.max_drawdown_pct}%</td><td style="text-align:right">${r.sharpe_ratio}</td><td>${r.lean_ok ? `<span class="badge-buy">LEAN</span>` : `<span class="badge-hold">pandas</span>`}</td></tr>`).join("") : emptyRow(8, "실행 이력이 없습니다.")}</tbody></table>`;
-  } catch {}
+  } catch { }
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -580,11 +628,184 @@ export function initPaperViews() {
   on("ql-run", "click", runLeanBacktest);
 }
 
+
 export function onPaperViewActivated(view) {
-  if (view === "paper-dashboard") loadPaperDashboard();
+  if (view === "paper-dashboard") {
+    loadPaperDashboard();
+    loadPaperAllocation();
+    loadPaperPerformance();
+  }
   if (view === "paper-stock") loadPaperStock();
   if (view === "paper-crypto") loadPaperCrypto();
   if (view === "paper-alternative") loadPaperAlt();
   if (view === "paper-openapi") loadPaperOpenApi();
   if (view === "quant-lean") loadLeanView();
 }
+
+
+/* ═══════════════════════════════════════════════════════════
+ * 자산 구성 도넛 (paper-dashboard)
+ * ═══════════════════════════════════════════════════════════ */
+async function loadPaperAllocation() {
+  const el = document.getElementById("pd-allocation-chart");
+  if (!el) return;
+
+  try {
+    const snap = await api("/api/paper/account");
+    const parts = [
+      { label: "국내주식", value: Number(snap.stockEval || 0), color: "#2962ff" },
+      { label: "코인", value: Number(snap.cryptoEval || 0), color: "#f59e0b" },
+      { label: "대체자산", value: Number(snap.alternativeEval || 0), color: "#a855f7" },
+      { label: "현금", value: Number(snap.cash || 0), color: "#787b86" },
+    ].filter(p => p.value > 0);
+
+    if (!parts.length) {
+      el.innerHTML = `<div class="text-xs" style="color:var(--text-mute);text-align:center;padding:40px 0;">자산이 없습니다.</div>`;
+      return;
+    }
+
+    if (_pdAllocationChart) { _pdAllocationChart.destroy(); _pdAllocationChart = null; }
+
+    _pdAllocationChart = new ApexCharts(el, {
+      chart: { type: "donut", height: 280, fontFamily: "Pretendard, sans-serif" },
+      series: parts.map(p => Math.round(p.value)),
+      labels: parts.map(p => p.label),
+      colors: parts.map(p => p.color),
+      legend: { position: "bottom", fontSize: "11px" },
+      dataLabels: {
+        enabled: true,
+        formatter: (val) => val.toFixed(1) + "%",
+        style: { fontSize: "11px" },
+      },
+      plotOptions: {
+        pie: {
+          donut: {
+            size: "62%",
+            labels: {
+              show: true,
+              name: { fontSize: "11px", color: "#888" },
+              value: {
+                fontSize: "15px", fontWeight: 700, color: "#fff",
+                formatter: (v) => (Number(v) / 10000).toFixed(0) + "만",
+              },
+              total: {
+                show: true, label: "총자산",
+                fontSize: "11px", color: "#888",
+                formatter: () => (Number(snap.totalAsset || 0) / 10000).toFixed(0) + "만원",
+              },
+            },
+          },
+        },
+      },
+      tooltip: {
+        y: { formatter: (v) => Number(v).toLocaleString() + "원" },
+      },
+    });
+    _pdAllocationChart.render();
+  } catch (e) {
+    el.innerHTML = `<div class="text-xs" style="color:var(--red);padding:20px;">${escHtml(e.message)}</div>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+ * QFRS 성과 지표 + Equity Curve (paper-dashboard)
+ * ═══════════════════════════════════════════════════════════ */
+async function loadPaperPerformance() {
+  const cardsEl = document.getElementById("pd-metrics-cards");
+  const chartEl = document.getElementById("pd-equity-chart");
+  if (!cardsEl) return;
+
+  cardsEl.innerHTML = `<div class="text-xs col-span-2" style="color:var(--text-mute);padding:20px;">계산 중...</div>`;
+
+  try {
+    const data = await api("/api/paper/performance/metrics");
+
+    if (data.status === "insufficient_data") {
+      cardsEl.innerHTML = `
+        <div class="text-xs col-span-2" style="color:var(--text-mute);padding:20px;">
+          📊 스냅샷 ${data.snapshot_count}개 — 매일 조회 시 자동으로 쌓입니다.
+        </div>`;
+      if (chartEl) chartEl.innerHTML = "";
+      return;
+    }
+
+    const m = data.metrics || {};
+    const pct = (v) => v == null ? "-" : (v * 100).toFixed(2) + "%";
+    const num = (v) => v == null ? "-" : Number(v).toFixed(3);
+    const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";
+    const dsrColor = (m.dsr || 0) >= 0.95 ? "var(--green)" : "var(--text)";
+
+    cardsEl.innerHTML = `
+      <div class="card" style="padding:10px;text-align:center;">
+        <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
+        <div class="font-bold" style="color:${trColor}">${pct(data.total_return)}</div>
+      </div>
+      <div class="card" style="padding:10px;text-align:center;">
+        <div class="text-xs" style="color:var(--text-mute);">MDD</div>
+        <div class="font-bold" style="color:var(--red)">${pct(m.mdd)}</div>
+      </div>
+      <div class="card" style="padding:10px;text-align:center;">
+        <div class="text-xs" style="color:var(--text-mute);">Sharpe</div>
+        <div class="font-bold">${num(m.sharpe_ratio)}</div>
+      </div>
+      <div class="card" style="padding:10px;text-align:center;">
+        <div class="text-xs" style="color:var(--text-mute);">DSR</div>
+        <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
+      </div>`;
+
+    // Equity Curve
+    if (chartEl && Array.isArray(data.equity_curve) && data.equity_curve.length > 1) {
+      if (_pdEquityChart) { _pdEquityChart.destroy(); _pdEquityChart = null; }
+
+      const rawDates = Array.isArray(data.snap_dates) ? data.snap_dates : [];
+      const labels = data.equity_curve.map((_, i) => {
+        const d = rawDates[i];
+        return d ? d.slice(5) : `#${i + 1}`;
+      });
+
+      _pdEquityChart = new ApexCharts(chartEl, {
+        chart: {
+          type: "area", height: 260,
+          toolbar: { show: false }, background: "transparent",
+          fontFamily: "Pretendard, sans-serif",
+        },
+        series: [{
+          name: "총자산",
+          data: data.equity_curve.map((v, i) => ({ x: labels[i], y: v })),
+        }],
+        xaxis: {
+          type: "category",
+          labels: { rotate: -45, style: { fontSize: "10px", colors: "#888" } },
+          tickAmount: Math.min(8, labels.length),
+        },
+        yaxis: {
+          labels: {
+            formatter: (v) => v == null ? "" : (v / 10000).toFixed(1) + "만",
+            style: { fontSize: "10px", colors: "#888" },
+          },
+        },
+        colors: ["#2962ff"],
+        stroke: { curve: "smooth", width: 2 },
+        fill: {
+          type: "gradient",
+          gradient: { shadeIntensity: 0.4, opacityFrom: 0.35, opacityTo: 0.05 },
+        },
+        dataLabels: { enabled: false },
+        grid: { borderColor: "rgba(255,255,255,0.06)", strokeDashArray: 3 },
+        tooltip: {
+          x: { formatter: (val) => `📅 ${val}` },
+          y: { formatter: (v) => v == null ? "-" : `${(v / 10000).toFixed(1)}만원` },
+        },
+      });
+      _pdEquityChart.render();
+    }
+  } catch (e) {
+    cardsEl.innerHTML = `<div class="text-xs col-span-2" style="color:var(--red);padding:20px;">
+      지표를 불러오지 못했습니다: ${escHtml(e.message)}
+    </div>`;
+  }
+}
+
+// 전역 노출 (main.js에서 접근 가능하도록)
+window.loadPaperAllocation = loadPaperAllocation;
+window.loadPaperPerformance = loadPaperPerformance;
