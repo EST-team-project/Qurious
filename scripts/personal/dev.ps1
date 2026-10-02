@@ -11,7 +11,7 @@
                패키지가 없어도 된다**. 고치며 볼 때는 보통 이쪽이 쉽다(compose.dev.yml 머리 주석).
 
   하는 일
-    1. postgres · redis · neo4j 를 도커로 띄우고 준비를 기다린다(start.ps1 과 같은 함수)
+    1. postgres · redis · neo4j · qdrant 를 도커로 띄우고 준비를 기다린다(start.ps1 과 같은 함수)
     2. 앱 컨테이너(fin-ai-app)가 떠 있으면 멈춘다 — 두 앱이 함께 돌면 앱 안의 시세 동기화 스케줄러가
        두 벌 돌아 외부 시세 호출이 두 배가 되고, 어느 쪽 화면을 보는지 헷갈린다
     3. 환경 변수를 이 창에서만 잠깐 바꾼다 — DB 주소를 컨테이너 이름(postgres:5432)이 아니라
@@ -74,7 +74,7 @@ Write-QOk "$(& python --version) · 앱 패키지 있음 · 포트 $Port 비어 
 # ------------------------------------------------------------------------------
 # 2. 저장소 · 앱 컨테이너
 # ------------------------------------------------------------------------------
-Write-QStep '2/4 저장소 — postgres · redis · neo4j'
+Write-QStep '2/4 저장소 — postgres · redis · neo4j · qdrant'
 $null = & docker network inspect shared-net 2>&1
 if ($LASTEXITCODE -ne 0) { $null = & docker network create shared-net }
 if (-not (Start-QInfra)) { exit 1 }
@@ -99,6 +99,7 @@ $overrides = [ordered]@{
   NEO4J_URI      = 'bolt://localhost:7687'
   NEO4J_USER     = 'neo4j'
   NEO4J_PASSWORD = 'finagent123'
+  QDRANT_URL     = 'http://localhost:16333'   # 호스트에서 돌 때는 compose 가 연 호스트 포트로
 }
 $saved = @{}
 foreach ($k in $overrides.Keys) {

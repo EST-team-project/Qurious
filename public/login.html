@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>로그인 | Lumina Invest</title>
+  <title>로그인 | Qurious</title>
+  <script type="module" src="/js/brand.js"></script>
   <link rel="icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" as="style" onload="this.rel='stylesheet'"
@@ -137,8 +138,8 @@
   <div class="login-wrap">
     <div class="brand">
       <div class="brand-icon"><i class="fa-solid fa-chart-mixed"></i></div>
-      <div class="brand-name">Lumina Invest</div>
-      <div class="brand-sub">AI 기반 금융 분석 · 퀀트 매매 플랫폼</div>
+      <div class="brand-name" data-brand="name">Qurious</div>
+      <div class="brand-sub" data-brand="tagline">AI Financial Quant Platform</div>
     </div>
 
     <div class="card">
@@ -163,14 +164,21 @@
   </div>
 
   <script type="module">
-    import { api, setToast } from "/js/common.js";
+    import { api, getMe, safeNextPath, setToast } from "/js/common.js";
     import { initCompletionIndicator } from "/js/completion.js";
     initCompletionIndicator();
+
+    // 세션 쿠키가 아직 유효하면(브라우저를 닫았다 다시 열어도) 로그인 없이 바로 앱으로 이동
+    getMe({ redirectOnUnauthorized: false })
+      .then(() => location.replace(safeNextPath()))
+      .catch(() => {});
+
     // 뒤로가기 캐시(bfcache)로 이 화면이 되살아났는데 이미 로그인돼 있으면 앱으로 — 서버의 주소 판정(app/main.py)을
-    // 거치지 않고 옛 화면이 그대로 보이는 경우라서 여기서 한 번 더 본다.
+    // 거치지 않고 옛 화면이 그대로 보이는 경우라서 여기서 한 번 더 본다(위 첫 확인은 되살아날 때 다시 돌지 않는다).
+    // redirectOnUnauthorized:false — 로그인 안 된 것이 정상인 화면이라 401 에 로그인 화면으로 「다시」 보내지 않는다.
     window.addEventListener("pageshow", async (ev) => {
       if (!ev.persisted) return;
-      try { await api("/api/me"); location.replace("/app.html"); } catch { /* 로그인 안 됨 — 그대로 */ }
+      try { await api("/api/me", { redirectOnUnauthorized: false }); location.replace(safeNextPath()); } catch { /* 로그인 안 됨 — 그대로 */ }
     });
     document.getElementById("f").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -181,8 +189,8 @@
           // 이메일은 대소문자를 가리지 않는다(서버가 소문자로 맞춘다) — 앞뒤 공백만 뗀다.
           body: { email: String(fd.get("email") || "").trim(), password: fd.get("password") },
         });
-        // replace — 로그인 뒤 뒤로가기로 이 로그인 화면이 다시 나오지 않게
-        location.replace("/app.html");
+        // replace — 로그인 뒤 뒤로가기로 이 로그인 화면이 다시 나오지 않게 · 세션이 끊겨 왔으면 보던 화면(?next=)으로
+        location.replace(safeNextPath());
       } catch (err) {
         setToast(err.message, "error");
       }

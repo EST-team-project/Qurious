@@ -250,6 +250,22 @@ def _current() -> dict[str, bytes]:
     return {p.relative_to(DST).as_posix(): p.read_bytes() for p in DST.rglob("*") if p.is_file()}
 
 
+# 글 파일은 줄바꿈을 접고 견준다 — Windows 의 git(core.autocrlf=true)은 저장소의 LF 파일을 꺼낼 때 CRLF 로
+# 바꾼다. 빌드는 글을 read_text 로 읽어 LF 로 쓰므로, 한 번 git 으로 다시 꺼낸 public/lectures 는
+# 내용이 같아도 바이트가 다르다(2026-10-02 · 브랜치를 옮긴 뒤 TC-LC-01 이 실패한 원인). 그림 같은
+# 바이너리는 그대로 견준다.
+_TEXT_SUFFIXES = {".html", ".css", ".js", ".md", ".json", ".svg", ".txt"}
+
+
+def same_content(rel: str, a: bytes | None, b: bytes | None) -> bool:
+    """두 판이 같은가 — 글 파일은 CRLF 와 LF 를 같은 것으로 본다."""
+    if a is None or b is None:
+        return a is b
+    if Path(rel).suffix.lower() in _TEXT_SUFFIXES:
+        return a.replace(b"\r\n", b"\n") == b.replace(b"\r\n", b"\n")
+    return a == b
+
+
 def main(argv: list[str] | None = None) -> int:
     # git bash(mintty) · 한국어 Windows 콘솔은 표준출력이 cp949 다 → 「—」 한 글자에서 죽는다. 도움말보다 먼저 맞춘다.
     for stream in (sys.stdout, sys.stderr):
@@ -260,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     files, report = build()
     now = _current()
-    changed = sorted(k for k, v in files.items() if now.get(k) != v)
+    changed = sorted(k for k, v in files.items() if not same_content(k, now.get(k), v))
     extra = sorted(k for k in now if k not in files)
     if a.check:
         if changed or extra:

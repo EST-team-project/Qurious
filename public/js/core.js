@@ -118,6 +118,9 @@ const GNB_MENUS = {
       { key: "fin-products",   icon: "fa-solid fa-layer-group",   label: "금융상품 이해" },
       { key: "fin-allocation", icon: "fa-solid fa-pie-chart",     label: "자산배분 모델" },
       { key: "quant-seasonal", icon: "fa-solid fa-calendar-days", label: "계절성 분석" },
+      // 용어사전 (2026-10-02 화면 설계 결정 ① — 찾기 첫 화면 → 용어 한 장 · js/glossary.js)
+      { heading: "연습" },
+      { key: "fin-glossary",   icon: "fa-solid fa-book",          label: "용어사전" },
     ],
   },
   // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계_v0.1.md).
@@ -271,12 +274,16 @@ const VIEW_GUIDES = {
   "fin-topic-macro":      { summary: "금리 · 물가 · 환율과 주식시장의 연결, 계절성 이야기를 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요.", "계절성은 「계절성 분석」 화면에서 데이터로 확인해 보세요."], relatedTerms: [] },
   "sysadmin-dashboard": { summary: "서버 자원(CPU/메모리/디스크)과 연동 서비스 상태를 모니터링합니다.", steps: ["호스트/서비스/컨테이너 카드에서 이상 여부를 확인하세요.", "응답이 느리거나 실패로 표시되면 해당 서비스(Ollama/Qdrant/Redis) 상태를 점검하세요."], relatedTerms: ["qdrant"] },
   "sysadmin-logs":   { summary: "주문·설정 변경 등 주요 이벤트의 감사 로그를 조회합니다.", steps: ["이벤트 유형·기간으로 필터링해 이력을 확인하세요.", "이상 거래나 설정 변경 원인을 추적할 때 활용하세요."], relatedTerms: ["audit_log"] },
+  "fin-glossary":    { summary: "금융 · 투자 용어 755개를 이름 · 약어 · 영어 · 초성으로 찾고, 풀이와 이어진 개념을 봅니다.", steps: ["검색창에 PER · 샤프 · ㅅㄱㅊㅇ 처럼 쳐 보세요 — 줄마다 무엇으로 찾았는지 보여 줍니다.", "분류 카드를 누르면 그 분류의 용어를 가나다순으로 봅니다.", "다른 화면에서 용어를 눌렀을 때 뜨는 창의 모양은 내 계정 › 화면 설정에서 바꿉니다."], relatedTerms: [] },
   "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴합니다.", steps: ["이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
 };
 
 // ── 용어 모달 / 툴팁 / 사용법 패널 헬퍼 ─────────────────────────────
 function openTermModal(key) {
   const term = TERMS[key];
+  // (Qurious 2026-10-02) 용어사전 카드가 있으면 그 카드를 연다 — 오른쪽 서랍 · 가운데 작은 창 · 큰 창(내 계정에서 고름 · js/termcard.js).
+  // 이 화면의 짧은 설명(TERMS)은 용어사전에서 못 찾거나 불러오지 못했을 때 대신 보여 줄 글로 넘긴다.
+  if (window.QTerm) { window.QTerm.open(key, { fallback: term }); return; }
   if (!term) return;
   document.getElementById("tm-title").textContent = term.title;
   document.getElementById("tm-body").textContent = term.body;

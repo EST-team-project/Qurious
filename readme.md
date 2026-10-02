@@ -129,8 +129,9 @@
 | 관계형 DB | PostgreSQL 16 (SQLAlchemy async · Alembic 마이그레이션) — 계정 · 모의 장부 · 주문 · 용어사전 · 감사 기록 |
 | 시세 자료 | 수집 DB (SQLite · 읽기 전용) — 공공데이터포털 KRX 시세 · 배당 · 수정주가 · ETF · 지수 · 분봉 (2020-01-02 ~) |
 | 지식 그래프 | Neo4j 5 |
-| 세션 · 큐 | Redis (`redis.asyncio`) + HTTP-only 쿠키 · Celery 브로커 |
-| 예정 | MongoDB(퀴즈 · 시험 · 활동 기록) · Qdrant(문서 색인 · 근거 RAG) — 2026-10 화면 자리 조사에서 정함 |
+| 벡터 DB | Qdrant 1.19 (compose `qdrant` · 2026-10-02 부터 늘 켬) — 올린 문서 · 크롤링 조각의 근거 검색(RAG) · 임베딩 `nomic-embed-text` 768차원 |
+| 세션 · 큐 | Redis (`redis.asyncio`) + HTTP-only 쿠키, 슬라이딩 만료(활동 시 서버 TTL·브라우저 쿠키 만료 동시 연장) · Celery 브로커 |
+| 예정 | MongoDB(퀴즈 · 시험 · 활동 기록) — 2026-10 화면 자리 조사에서 정함 |
 | 외부 HTTP | httpx (async) — 화면 표시용 외부 시세(저장하지 않음) · Ollama API |
 | HTML 파싱 | BeautifulSoup4 |
 | 환경변수 | pydantic-settings |
@@ -144,7 +145,7 @@
 
 ### Infra (로컬 Docker)
 ```
-PostgreSQL 16  ·  Redis 8  ·  Neo4j 5  ·  앱(FastAPI)  ·  Celery Worker · Beat  ·  인제스트
+PostgreSQL 16  ·  Redis 8(AOF)  ·  Neo4j 5  ·  Qdrant 1.19  ·  앱(FastAPI)  ·  Celery Worker · Beat  ·  인제스트
 (이 PC: Ollama · 수집기 — 작업 스케줄러 매일 12:30)
 ```
 
@@ -359,11 +360,13 @@ FastAPI (Uvicorn · Python 3.12) — 화면(app.html · /js · /css) · 개념 �
   ├── /api/glossary/*            → PostgreSQL (용어 755 · 파일이 원본)
   ├── /api/lectures/*            → 수집 DB(지수 · ETF · 종목) 먼저 → 해외 지수 · 1분봉만 외부 (저장 없음)
   ├── /api/learn/*               → Hugging Face 비공개 데이터셋 (학습 글)
+  ├── /api/documents/* · /api/chat 근거 → Qdrant (문서 조각 벡터) + Ollama 임베딩
   └── /api/chat · /api/graph/*   → Ollama (이 PC) · Neo4j
   │
   ├── PostgreSQL 16 ── 계정 · 모의 장부 · 주문 · 리밸런싱 · 용어사전 · 감사 기록
   ├── Redis 8 ─────── 세션 · 캐시 · Celery 큐
   ├── Neo4j 5 ─────── 지식 그래프
+  ├── Qdrant 1.19 ─── 문서 조각 벡터 (컬렉션 fin_chunks · 호스트 포트 16333)
   └── 수집 DB ──────── data/collector/market.sqlite3 (읽기 전용으로 붙인다)
 
 Celery Worker · Beat ── 예약 작업 · 무거운 계산 · 알림
@@ -378,7 +381,8 @@ Celery Worker · Beat ── 예약 작업 · 무거운 계산 · 알림
 pip install -r requirements-dev.txt   # requirements.txt 를 함께 싣는다
 python -m pytest                      # pytest.ini 에 -q 가 있다 — 또 붙이면 요약 줄이 사라진다
 # tests/: 지표 룩어헤드 방지 · 리밸런싱 · 위험관리 · XAI · TradingView 파서 · 패턴 · 성향/시뮬레이션(강사님 원본)
-#         + 실거래 차단 · 수집 DB · 모의 장부 · 계정 · 용어사전 · 문서 스캐너(Qurious) — 367건 (2026-09-30)
+#         + 실거래 차단 · 수집 DB · 모의 장부 · 계정 · 용어사전 · 문서 스캐너 · 강의 · 벡터 저장(Qurious) — 473건 (2026-10-02)
+# 채팅 모드 · 벡터 저장 시험은 RAG 패키지(langchain-ollama · langchain-qdrant)가 없는 파이썬에서는 건너뛴다(앱 이미지에는 있다)
 # DB 시험 18건(모의 장부 · 계정 · 용어사전 적재)은 QURIOUS_TEST_DATABASE_URL 이 있을 때만 돈다 — .\scripts\personal\test.ps1 이 일회용 DB 를 띄워 준다
 ```
 
@@ -407,11 +411,14 @@ docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/pytest.ini:/app/pytest.in
 ### 1. 인프라 기동
 
 ```bash
-# Ollama 모델 포함 전체 기동
+# Ollama(qwen2.5:1.5b + nomic-embed-text) 포함 전체 기동
 docker compose up -d
 
-# 모델 준비 대기 (약 1~5분)
+# 모델 준비 대기 (약 1~5분, 이미 받아둔 모델이면 즉시 종료)
 docker compose logs -f model-pull
+
+# 다른 모델을 쓰려면: COMPOSE_LLM_MODEL=llama3.1 docker compose up -d
+# 호스트 Ollama 를 쓰려면: COMPOSE_OLLAMA_URL=http://host.docker.internal:11434 docker compose up -d app
 ```
 
 ### 2. Python 앱 로컬 실행
@@ -459,7 +466,7 @@ docker compose run --rm ingest
 | `REDIS_URL` | `redis://localhost:6379` | Redis 연결 문자열 |
 | `SQLITE_PATH` | `./data/app.db` | SQLite 파일 경로 |
 | `DATA_DIR` | `./data` | CSV 파일 루트 디렉토리 |
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant 서버 주소 |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant 서버 주소 — 도커 안에서는 compose 가 `http://qdrant:6333` 으로 덮어쓴다(바꾸려면 `.env` 에 `COMPOSE_QDRANT_URL`) · 호스트에서 앱을 돌리면 `http://localhost:16333` |
 | `QDRANT_COLLECTION` | `fin_chunks` | Qdrant 컬렉션명 |
 | `GITHUB_TOKEN` | — | GitHub API rate limit 완화 |
 | `LEAN_MODE` | `auto` | LEAN 백테스트 실행 방식 `auto\|ssh\|docker\|local` (아래 참고) |
@@ -479,6 +486,26 @@ docker compose run --rm ingest
 | `TRADINGVIEW_ALLOWED_IPS` | TradingView 공식 4개 IP | 쉼표 구분 허용 IP |
 | `TRADINGVIEW_RATE_LIMIT_MAX` | `30` | API 키당 분당 Webhook 알림 수 |
 | `PUBLIC_BASE_URL` | (빈 값) | Webhook URL 안내에 쓰는 외부 공개 주소 |
+| `SESSION_TTL` | `2592000` (30일) | 로그인 세션 유효 기간(초). 슬라이딩 만료라 **마지막 활동**으로부터 이 시간이 지나야 로그아웃된다 |
+| `SESSION_REFRESH_INTERVAL` | `300` | 슬라이딩 갱신 최소 간격(초). 이 간격마다 1회만 Redis `EXPIRE` + 세션 쿠키 재발급(`Set-Cookie`)을 수행한다 |
+| `COOKIE_SECURE` / `COOKIE_SAMESITE` | `false` / `lax` | 세션 쿠키 속성. HTTPS 운영(Caddy 뒤)에서는 `COOKIE_SECURE=true` |
+| `JWT_REFRESH_TTL` | `604800` (7일) | API 클라이언트용 리프레시 토큰 수명. `/api/auth/token/refresh` 가 새 리프레시 토큰도 함께 돌려주므로(슬라이딩) 활동 중인 클라이언트는 재로그인이 필요 없다 |
+
+#### 로보 어드바이저 채팅 답변 엔진 선택 (`/app.html#agent-chat` 우측 상단)
+
+| 모드 | 동작 | 요청 필드 |
+|---|---|---|
+| Local Ollama 연동 사용 | 서버 `LLM_PROVIDER` 설정의 LLM 으로 LangGraph 에이전트 실행 (기본) | `llm_mode=ollama` |
+| OpenAI API Key 입력으로 사용 | 선택 시 나타나는 입력창의 키로 OpenAI Chat Completions 호출. 키는 브라우저 `localStorage` 에만 보관되고 요청 본문으로만 전달되며 서버에 저장·로그되지 않는다. 모델은 `OPENAI_MODEL` | `llm_mode=openai`, `openai_api_key`, `openai_model`(선택) |
+| 순수 RAG 청크 사용 | LLM 호출 없이 Qdrant 유사도 검색 결과(청크·출처·점수)를 그대로 반환 | `llm_mode=rag` |
+
+#### 로그인 세션 유지 동작
+
+- 브라우저: 로그인 시 `fin_session` 쿠키(`max_age=SESSION_TTL`)를 발급한다. 이후 인증된 요청이 들어오면 `SESSION_REFRESH_INTERVAL` 마다 Redis TTL 을 `SESSION_TTL` 로 되돌리고, 같은 응답에 쿠키를 다시 실어 브라우저 쪽 만료도 함께 연장한다 (`app/lib/session.py` 의 `SessionCookieRefreshMiddleware`). 브라우저를 닫았다 다시 열어도 `/`, `/login.html` 은 세션이 살아 있으면 바로 `/app.html` 로 보낸다.
+- 세션 만료 뒤 API 가 401 을 돌려주면 프런트(`public/js/common.js`)가 `/login.html?next=<원래 경로>` 로 보내고, 로그인 후 원래 화면으로 복귀한다.
+- Redis 는 `docker-compose.yml` 에서 AOF(`--appendonly yes`)로 기동하므로 컨테이너 재시작/재배포 후에도 세션이 남는다. Redis 가 잠시 내려가면 인증 요청은 500 이 아니라 503 을 돌려주고, 복구되면 재로그인 없이 이어서 동작한다.
+- JWT 폐기 목록의 키는 토큰마다 다르다 — 토큰의 `jti`(uuid4), `jti` 가 없는 옛 토큰은 `sha256(header.payload)` (과거 "토큰 앞 32자" 방식은 JWT 헤더가 모든 토큰에서 같아 토큰 하나를 폐기하면 전체 토큰이 폐기되는 버그가 있었다. 강사님 기초 코드는 토큰 전체의 SHA-256 으로 고쳤고, Qurious 는 2026-09-20 에 먼저 고친 `jti` 방식을 유지한다 — `app/lib/jwt_auth.py` 머리말).
+- 비밀번호를 바꾸면 다른 기기의 세션은 모두 끊기고, 바꾼 기기는 새 세션 ID 를 받는다(쿠키 재발급 미들웨어에도 새 ID 를 알린다 — `app/routes/auth.py` `change_password`).
 
 자동매매는 인프로세스 루프가 아니라 **DB 플래그(`broker_settings.quant_auto_enabled`) + Celery Beat 10분 태스크(`quant.auto_trade_cycle`)**로 실행되므로 `celery-beat`, `celery-worker` 컨테이너가 반드시 떠 있어야 합니다. 사이클 로그는 `data_cache`에 공유 저장됩니다.
 

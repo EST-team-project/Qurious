@@ -24,6 +24,7 @@ TC-AP	tests/test_api_scan.py	RFP2-3.2-④	🟢	API 명세서를 코드에서 다
 TC-DF17	tests/test_route_cache_df17.py	P01-①-4	🟢	12:30 갱신이 일봉 · 지표 API 에 바로 보인다
 TC-DF17	tests/test_route_cache_df17.py	P01-①-2	🟡	수집 DB 가 받는 요청은 라우트 캐시를 거치지 않는다
 TC-RT	tests/test_rtm_scan.py	RFP2-3.2-④	🟢	요구사항 추적표를 대장 · 코드에서 다시 만들면 같다 · 문서화 문자열 속 낱말을 흔적으로 세지 않는다
+TC-VW	tests/test_view_scan.py	RFP2-3.2-④	🟢	화면 정보구조(IA)의 화면 수 · 메뉴 그림을 코드에서 다시 만들면 같다 — 소제목 아래 들여쓴 메뉴 항목도 센다
 TC-BC	tests/test_backtest_costs.py	P01-④-1	🟢	수수료 · 슬리피지가 회전마다 빠져 수익률이 줄고, 비용 전 수익률과 나란히 나온다
 TC-BC	tests/test_backtest_costs.py	P02-①-2	🟡	손절 · 익절이 보유를 끊고 새 신호까지 다시 사지 않는다 — 포지션 크기 규칙은 재지 않는다
 TC-BC	tests/test_backtest_costs.py	RFP2-3.1.3-①	🟡	최적화의 기대수익률을 장기 기대수익 쪽으로 줄인다 — 제약 · 같은 입력 같은 해는 재지 않는다
@@ -50,3 +51,7 @@ TC-OH	tests/test_ohlcv.py	P01-①-2	🟡	가격 · 거래량 자료의 공통 �
 TC-CT	tests/test_intake.py	P01-①-2	🟡	다른 출처의 시세 파일을 받아 전처리 — 칸 맞추기 · 값 규칙 · 수집 DB 와 대조(원 · 수정) · 원인 찾기(하루 밀림 · 단위 · 수정 방식 · 배당 반영) · 정제 · 보고서를 가짜 파일로 잰다
 TC-LC	tests/test_lectures.py	P01-①-1	🟡	금융 강의(강의실 · 주제 화면 아홉)가 메뉴 · 화면 자리 · 주제 목록에서 서로 맞고 앱 밖 링크가 없다 — 개념을 배우는 자리
 TC-LC	tests/test_lectures.py	P01-①-2	🟢	강의 시세 그림이 수집 DB(공식 시세)를 먼저 읽고, 외부 시세는 덮지 못할 때만 · 저장하지 않는다
+TC-SA	tests/test_session_auth.py	—	—	로그인 유지(마지막 활동으로부터 30일 · 5분 간격 연장 · 연장된 요청만 쿠키 재발급) · 토큰 하나 폐기가 다른 토큰에 번지지 않음 · Redis 장애 503 · 만료돼도 로그아웃이 쿠키를 지움 · 리프레시 토큰 연장 — 강사님 기초 코드(289bfb5)의 시험 · 계정 관리(TC-AC)와 같은 「요구 밖」 줄
+TC-CM	tests/test_chat_modes.py	P01-①-3	🟡	채팅 답변 엔진 셋(서버 LLM · OpenAI 키 · 순수 RAG) — 순수 RAG 모드가 LLM 없이 찾은 청크 · 출처 목록을 그대로 돌려준다(답 안의 [출처 n] 과 번호 맞추기는 아직) · 강사님 기초 코드(289bfb5)의 시험 · 호스트에 langchain_ollama 가 없으면 건너뜀
+TC-VS	tests/test_rag_pipeline.py	P01-①-3	🟡	근거 RAG 의 바닥 — 올린 문서 조각이 벡터 DB 에 실제로 저장되고 다시 찾아지며, 출처(metadata.source)로 거르고 지울 수 있고, 저장 실패는 숨기지 않는다(DF-38) · 출처 번호를 답에 붙이는 것은 아직
+TC-BR	tests/test_brand.py	—	—	화면의 서비스 이름 · 부제 · 바닥글이 한 곳(public/js/brand.js)에서 오고, 옛 이름 · 회사 표기가 화면에 없으며, 원저작자 표시는 NOTICE.md 에 남는다 — 요구 밖(발표 · 시연에서 우리 서비스로 보이게 · 팀장 요청)

@@ -770,3 +770,59 @@ async def test_route_returns_404_for_unknown_name(db):
         with pytest.raises(HTTPException) as err:
             await routes.get_term(name, db)
         assert err.value.status_code == 404
+
+
+def test_search_line_says_which_name_matched():
+    """TC-GL-26 · 검색 결과 한 줄이 「어느 이름으로 맞았나」 를 준다(API-GLOS-01 · matched · 2026-10-02).
+
+    「per」 로 PCE 가 나온 까닭(영어 이름 Personal … 이 per 로 시작)을 화면이 보여 줄 수 있게 — 순위 규칙(match_rank)과 같은 기준.
+    """
+    pce = [("PCE", "대표 이름", "pce"), ("Personal Consumption Expenditure", "영어", "personalconsumptionexpenditure"),
+           ("개인소비지출", "다른 이름", "개인소비지출")]
+    pick = glossary.pick_matched_alias
+    assert pick("per", 2, "이름", "PCE", pce) == {"alias": "Personal Consumption Expenditure", "kind": "영어"}
+    sharpe = [("샤프 비율", "대표 이름", "샤프비율"), ("SR", "약어", "sr"), ("sharpe", "화면 키", "sharpe"),
+              ("샤프지수", "다른 이름", "샤프지수")]
+    assert pick("SR", 0, "이름", "샤프 비율", sharpe) == {"alias": "SR", "kind": "약어"}
+    assert pick("sharpe", 0, "이름", "샤프 비율", sharpe) == {"alias": "sharpe", "kind": "화면 키"}
+    assert pick("샤프", 1, "이름", "샤프 비율", sharpe) == {"alias": "샤프 비율", "kind": "대표 이름"}
+    assert pick("ㅅㅍ", 1, "초성", "샤프 비율", sharpe) == {"alias": "샤프 비율", "kind": "초성"}
+    assert pick("위험", 4, "본문", "샤프 비율", sharpe) == {"alias": None, "kind": "본문"}
+    # 같은 순위에서 여럿 맞으면 대표 이름 → 약어 → 영어 차례 · 짧은 것
+    assert pick("샤프", 3, "이름", "샤프 비율", sharpe)["alias"] == "샤프 비율"
+
+
+# ── 화면 (2026-10-02 · 화면 설계 결정 ① ②) — 브라우저 없이 연결만 본다 ─────────────────────
+_PUB = Path(__file__).resolve().parents[1] / "public"
+
+
+def _read(rel: str) -> str:
+    return (_PUB / rel).read_text(encoding="utf-8")
+
+
+def test_glossary_screen_is_wired():
+    """TC-GL-27 · 용어사전 화면이 메뉴 · 화면 자리 · 모듈로 이어져 있다(「금융 필수 지식」 › 연습 › 용어사전)."""
+    core, app, fin, gl = _read("js/core.js"), _read("app.html"), _read("js/finlearn.js"), _read("js/glossary.js")
+    assert '{ key: "fin-glossary"' in core and '"fin-glossary":' in core, "메뉴 · 사용법 안내"
+    assert 'data-view="fin-glossary"' in app and 'id="glossary-root"' in app, "화면 자리"
+    assert 'view === "fin-glossary"' in fin and 'import("/js/glossary.js")' in fin, "화면이 켜질 때 모듈을 부른다"
+    for api_path in ("/api/glossary/categories", "/api/glossary?limit=", "/api/glossary/${"):
+        assert api_path in gl, api_path
+    assert "termCardHtml" in gl, "용어 한 장은 서랍과 같은 카드"
+
+
+def test_screen_term_chips_open_the_glossary_card():
+    """TC-GL-28 · 화면의 용어 칩(설명창)이 용어사전 카드를 연다 — 모양 셋 · 화면보다 커지지 않음 · 마이페이지 설정."""
+    core, card, css, my = _read("js/core.js"), _read("js/termcard.js"), _read("css/qurious.css"), _read("js/mypage.js")
+    hook = core[core.index("function openTermModal"):core.index("function closeTermModal")]
+    assert "window.QTerm" in hook and "fallback: term" in hook, "칩 → 카드 · 못 찾으면 화면의 짧은 설명"
+    assert hook.index("window.QTerm") < hook.index("if (!term) return"), "용어사전에만 있는 말도 열린다"
+    assert "window.QTerm = {" in card, "설명창(core.js)이 부를 전역"
+    for view in ('"drawer"', '"modal-sm"', '"modal-lg"'):
+        assert view in card, view
+    assert 'qurious.termView' in card, "고른 모양은 이 브라우저에 저장"
+    # 화면 크기를 넘지 않게(2026-10-02 피드백 — 창이 화면을 자르거나 가득 채우던 문제)
+    assert "100vw" in css and "100dvh" in css and "overflow-y: auto" in css
+    assert "TERM_VIEWS" in my and "setTermView" in my, "마이페이지 화면 설정이 같은 목록을 쓴다"
+    assert 'kind === "화면 키"' in card, "화면 키(sharpe)는 사람에게 보이는 이름 대신 쓰지 않는다"
+

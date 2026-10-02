@@ -1,6 +1,6 @@
 /* 엔트리: 부트스트랩, 뷰 활성화 디스패치
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
-import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { api, getMe, redirectToLogin, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { loadMarketTicker, loadSyncStatus, navigate, registerViewActivation } from "/js/core.js";
 import { loadCrawlList } from "/js/agent.js";
 import { loadCompanyCompare, loadCompanyDashboard, loadCompanySector } from "/js/company.js";
@@ -31,7 +31,9 @@ async function boot() {
       ({ user } = await getMe());
       break;
     } catch (err) {
-      if (err.status === 401) { location.replace("/login.html"); return; }
+      // 401 이면 api() 가 이미 로그인 화면으로 보냈다(돌아올 주소 ?next= 를 붙여서 · 강사님 289bfb5).
+      // 여기서 한 번 더 location 을 바꾸면 ?next= 가 사라지므로 같은 함수를 부른다(두 번째 호출은 아무것도 안 한다).
+      if (err.status === 401) { redirectToLogin(); return; }
       // 연결 실패 · 서버 오류는 한 번만 다시 시도한다(개발 모드에서 앱이 다시 켜지는 몇 초 사이일 수 있다).
       if (attempt >= 1) { setToast(`내 정보를 불러오지 못했습니다 — 새로고침해 주세요. (${err.message})`, "error"); return; }
       await new Promise(r => setTimeout(r, 1500));

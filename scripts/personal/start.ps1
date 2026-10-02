@@ -11,7 +11,7 @@
     2. 설정 파일   .env 가 없으면 .env.example 을 복사해 로컬 기본값으로 만든다
     3. 네트워크    docker-compose.yml 이 요구하는 외부 네트워크 shared-net 이 없으면 만든다
     4. 충돌 점검   같은 이름의 다른 프로젝트 컨테이너 · 이미 쓰이는 포트가 있는가
-    5. 저장소      postgres · redis · neo4j 를 먼저 띄우고 준비될 때까지 기다린다
+    5. 저장소      postgres · redis · neo4j · qdrant 를 먼저 띄우고 준비될 때까지 기다린다
     6. 앱          코드가 이미지보다 새로우면 이미지를 다시 만들고, app · celery 를 띄워
                    /api/health 가 답할 때까지 기다린다 (앱은 켜질 때 DB 마이그레이션을 스스로 적용한다)
     7. 마무리      (선택) 강사님 CSV 적재 · 수집 DB · AI(Ollama) 안내 · 브라우저 열기
@@ -126,7 +126,8 @@ if ($LASTEXITCODE -eq 0) {
 # 4. 충돌 점검 — compose 가 던지는 긴 오류 대신, 무엇이 막고 있는지 먼저 짚어 준다
 # ------------------------------------------------------------------------------
 Write-QStep '4/7 충돌 점검 — 컨테이너 이름 · 포트'
-$wanted = @('postgres', 'redis', 'neo4j', 'app')
+# ollama 는 앱의 depends_on 이라 앱을 띄우면 compose 가 함께 켠다(강사님 compose 2026-10-01 affb05c) — 이름 충돌도 같이 본다.
+$wanted = @('postgres', 'redis', 'neo4j', 'ollama', 'app')
 if (-not $NoCelery) { $wanted += @('celery-worker', 'celery-beat') }
 $conflict = $false
 foreach ($svc in ($QServices | Where-Object { $wanted -contains $_.Service })) {
@@ -162,7 +163,7 @@ Write-QOk '충돌 없음'
 # ------------------------------------------------------------------------------
 # 5. 저장소 먼저 — 준비 확인까지 (이유는 _common.ps1 의 Start-QInfra 설명)
 # ------------------------------------------------------------------------------
-Write-QStep '5/7 저장소 — postgres · redis · neo4j (처음이면 이미지를 받느라 1~2분)'
+Write-QStep '5/7 저장소 — postgres · redis · neo4j · qdrant (처음이면 이미지를 받느라 1~2분)'
 if (-not (Start-QInfra -TimeoutSec $TimeoutSec)) { exit 1 }
 
 # ------------------------------------------------------------------------------
@@ -241,16 +242,36 @@ if (Test-Path $collectorDb) {
   Write-QInfo '  python scripts\hf_dataset.py restore --from <받은 폴더> --into data\collector\market.sqlite3'
 }
 
-# AI 채팅 · RAG 는 Ollama 가 있어야 한다(설계 결정상 동결 기능). 호스트에 떠 있어도 컨테이너 안의
-# 127.0.0.1 은 컨테이너 자신이라 닿지 않는다 → host.docker.internal 로 가리켜야 한다.
-# localhost 가 아니라 127.0.0.1 로 묻는다 — Ollama 는 IPv4(127.0.0.1)에만 떠 있는데, 5.1 은 localhost 를
-# IPv6(::1)로 먼저 붙었다가 실패한 뒤 IPv4 로 돌아와 2초쯤 늦는다(직접 잼: localhost 2,087ms · 127.0.0.1 6ms).
-# 도커가 연 포트(8966 등)는 IPv6 도 듣고 있어 localhost 로도 바로 붙는다.
-$ollama = Invoke-QApi -Method GET -Url 'http://127.0.0.1:11434/api/tags' -TimeoutSec 3
-if ($ollama.Status -eq 200) {
-  Write-QInfo 'Ollama 가 이 PC 에 떠 있습니다. 앱이 쓰게 하려면 .env 에 OLLAMA_BASE_URL=http://host.docker.internal:11434'
+# AI 채팅 · RAG 의 답변 모델. 강사님 compose(2026-10-01 affb05c)부터 앱 컨테이너의 Ollama 주소 · 모델은
+# docker-compose.yml 의 environment 가 정한다 — .env 의 OLLAMA_BASE_URL · LLM_MODEL 보다 우선한다.
+#   .env 에 COMPOSE_OLLAMA_URL · COMPOSE_LLM_MODEL 이 없으면 → 컨테이너 Ollama(fin-ai-ollama) + qwen2.5:1.5b
+#   있으면 → 그 값. 이 PC 의 Ollama 는 http://host.docker.internal:11434 로 가리킨다
+#   (컨테이너 안의 127.0.0.1 은 컨테이너 자신이라 이 PC 에 닿지 않는다).
+# 그래서 .env 를 읽지 않고, 앱 컨테이너가 실제로 받은 두 값(주소 · 모델 이름 — 비밀값 아님)만 물어 본다.
+$appOllama = "$(& docker exec fin-ai-app printenv OLLAMA_BASE_URL 2>$null)".Trim()
+$appModel  = "$(& docker exec fin-ai-app printenv LLM_MODEL 2>$null)".Trim()
+if ($appOllama -and $appModel) {
+  Write-QInfo "AI 답변 모델: $appModel · Ollama 주소: $appOllama"
+  if ($appOllama -match '://ollama:') {
+    # 컨테이너 Ollama 는 비어서 시작한다 — 모델 받기(model-pull)는 start.ps1 이 대신 돌리지 않는다(1GB 넘게 받는다).
+    $pulled = (& docker exec fin-ai-ollama ollama list 2>$null) -join "`n"
+    if ($pulled -notmatch [regex]::Escape($appModel)) {
+      Write-QWarn "컨테이너 Ollama 에 $appModel 모델이 아직 없습니다 — AI 채팅이 「모델을 찾을 수 없습니다」 로 답합니다 (다른 기능은 무관)."
+      Write-QInfo '  처음 한 번 모델 받기:  docker compose up -d model-pull   (진행: docker compose logs -f model-pull)'
+      Write-QInfo '  이 PC 의 Ollama 를 쓰려면 .env 에 COMPOSE_OLLAMA_URL=http://host.docker.internal:11434 · COMPOSE_LLM_MODEL=llama3.1 을 넣고 start.ps1 다시'
+    }
+  } elseif ($appOllama -match 'host\.docker\.internal') {
+    # localhost 가 아니라 127.0.0.1 로 묻는다 — Ollama 는 IPv4(127.0.0.1)에만 떠 있는데, 5.1 은 localhost 를
+    # IPv6(::1)로 먼저 붙었다가 실패한 뒤 IPv4 로 돌아와 2초쯤 늦는다(직접 잼: localhost 2,087ms · 127.0.0.1 6ms).
+    $ollama = Invoke-QApi -Method GET -Url 'http://127.0.0.1:11434/api/tags' -TimeoutSec 3
+    if ($ollama.Status -ne 200) {
+      Write-QWarn '앱은 이 PC 의 Ollama 를 가리키는데, 이 PC 에서 Ollama 가 응답하지 않습니다 — Ollama 를 켜면 AI 채팅이 동작합니다.'
+    } elseif ($ollama.Text -notmatch [regex]::Escape($appModel)) {
+      Write-QWarn "이 PC 의 Ollama 에 $appModel 모델이 없습니다 — ollama pull $appModel"
+    }
+  }
 } else {
-  Write-QInfo 'Ollama 없음 — AI 채팅 · 문서 검색(RAG)은 동작하지 않습니다 (다른 기능은 무관).'
+  Write-QInfo '앱 컨테이너의 Ollama 설정을 읽지 못했습니다 — AI 채팅 · 문서 검색(RAG)만 영향이 있습니다 (다른 기능은 무관).'
 }
 
 $elapsed = [int]((Get-Date) - $started).TotalSeconds

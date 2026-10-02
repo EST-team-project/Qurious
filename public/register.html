@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>회원가입 | Lumina Invest</title>
+  <title>회원가입 | Qurious</title>
+  <script type="module" src="/js/brand.js"></script>
   <link rel="icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" as="style" onload="this.rel='stylesheet'"
@@ -142,8 +143,8 @@
   <div class="wrap">
     <div class="brand">
       <div class="brand-icon"><i class="fa-solid fa-chart-mixed"></i></div>
-      <div class="brand-name">Lumina Invest</div>
-      <div class="brand-sub">AI 기반 금융 분석 · 퀀트 매매 플랫폼</div>
+      <div class="brand-name" data-brand="name">Qurious</div>
+      <div class="brand-sub" data-brand="tagline">AI Financial Quant Platform</div>
     </div>
 
     <div class="card">
@@ -174,12 +175,19 @@
   </div>
 
   <script type="module">
-    import { api, setToast } from "/js/common.js";
+    import { api, getMe, safeNextPath, setToast } from "/js/common.js";
     import { initCompletionIndicator } from "/js/completion.js";
     initCompletionIndicator();
+
+    // 이미 로그인된 상태면 회원가입 화면 대신 앱으로 이동
+    getMe({ redirectOnUnauthorized: false })
+      .then(() => location.replace(safeNextPath()))
+      .catch(() => {});
+
     window.addEventListener("pageshow", async (ev) => {
       if (!ev.persisted) return;   // 뒤로가기 캐시로 되살아났을 때만 — 이미 로그인이면 앱으로(login.html 과 같은 이유)
-      try { await api("/api/me"); location.replace("/app.html"); } catch { /* 로그인 안 됨 — 그대로 */ }
+      // redirectOnUnauthorized:false — 로그아웃 상태가 정상인 화면이라, 401 에 로그인 화면으로 끌려가지 않게
+      try { await api("/api/me", { redirectOnUnauthorized: false }); location.replace(safeNextPath()); } catch { /* 로그인 안 됨 — 그대로 */ }
     });
     // 비밀번호 규칙은 서버가 정한다(app/services/account.py) — 안내 · 입력 칸 제한을 같은 값으로 맞춘다.
     let policy = null;
@@ -204,7 +212,7 @@
           method: "POST",
           body: { name: fd.get("name"), email: String(fd.get("email") || "").trim(), password },
         });
-        location.replace("/app.html");   // 가입 뒤 뒤로가기로 가입 화면이 다시 나오지 않게
+        location.replace(safeNextPath());   // 가입 뒤 뒤로가기로 가입 화면이 다시 나오지 않게
       } catch (err) {
         setToast(err.message, "error");
       }
