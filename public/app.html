@@ -1568,12 +1568,12 @@
                     </div>
                     <div><label class="text-xs font-semibold" style="color:var(--text-dim);">② 허용 이탈률 (%p)</label>
                       <div class="flex items-center gap-2 mt-1"><input id="rb-drift-enabled" type="checkbox"
-                          class="h-4 w-4" /><input id="rb-drift" type="number" min="0.5" max="50" step="0.5"
+                          class="h-4 w-4" /><select id="rb-drift-preset" class="input" style="width:110px"><option value="3">3%p</option><option value="5">5%p</option><option value="10">10%p</option><option value="custom">직접 입력</option></select><input id="rb-drift" type="number" min="0.5" max="50" step="0.5"
                           class="input" style="width:100px" /></div>
                     </div>
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">③ 입출금·배당 최소금액</label>
+                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">③ 현금흐름 재배분 기준 (원)</label>
                       <div class="flex items-center gap-2 mt-1"><input id="rb-cf-enabled" type="checkbox"
-                          class="h-4 w-4" /><input id="rb-cf-min" type="number" min="0" step="10000" class="input" />
+                          class="h-4 w-4" /><select id="rb-cf-preset" class="input"><option value="0">금액 무관</option><option value="50000">5만 원</option><option value="100000">10만 원</option><option value="500000">50만 원</option><option value="1000000">100만 원</option><option value="custom">직접 입력</option></select><input id="rb-cf-min" type="number" min="0" step="10000" class="input" />
                       </div>
                     </div>
                     <div><label class="text-xs font-semibold" style="color:var(--text-dim);">최소 주문금액 (원)</label><input
@@ -1583,6 +1583,12 @@
                     <label class="flex items-center gap-2 text-xs"><input id="rb-active" type="checkbox"
                         class="h-4 w-4" /> 플랜 활성화</label>
                   </div>
+                  <div class="grid md:grid-cols-2 gap-3 mt-3 text-sm">
+                    <label>이탈률 확인 시점<select id="rb-drift-mode" class="input mt-1"><option value="always">매 점검 시</option><option value="scheduled">시간 주기 도래 시에만 (이탈 조건도 충족해야 실행)</option></select></label>
+                    <label class="flex items-center gap-2"><input id="rb-protect" type="checkbox" />플랜 밖 종목 유지 (주문·비중 계산에서 제외)</label>
+                  </div>
+                  <p class="text-xs mt-3" style="color:var(--text-mute);">입금·배당은 매수만, 출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 기준은 입금액 자체가 아닌 목표 대비 현금 초과·부족과 누적 미사용 재배분 예산 중 작은 금액입니다. 일반 매매는 예산에 포함하지 않습니다.</p>
+                  <p class="text-xs mt-2" style="color:var(--text-mute);">현재 시간 주기는 달력일 기준이며 예약 점검은 1시간 간격입니다. 첫 거래일·갱신 후 하루 1회 판정·다음 거래일 시가 체결은 연결 예정입니다. 현재 승인은 조회 시세로 즉시 모의 체결합니다.</p>
                   <div class="mt-3"><button id="rb-save" class="btn-primary">플랜 저장</button></div>
                 </div>
 
@@ -1629,7 +1635,7 @@
                         placeholder="예) 월급 적립 / 삼성전자 2분기 배당" /></div>
                   </div>
                   <div class="mt-3"><button id="rb-cf-submit" class="btn-primary text-xs">이벤트 반영</button> <span
-                      class="text-xs" style="color:var(--text-mute);">플랜의 ③ 조건을 충족하면 새 현금흐름으로 즉시 리밸런싱합니다.</span></div>
+                      class="text-xs" style="color:var(--text-mute);">현금을 반영한 뒤 세 조건을 함께 점검합니다. 자동 체결을 끄면 제안만 만들며, 소액 재배분 예산은 누적합니다. 출금은 보유 현금 안에서 가능합니다.</span></div>
                   <div id="rb-cashflows" class="overflow-x-auto text-sm mt-3"></div>
                 </div>
               </div>

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -28,7 +29,7 @@ def _uid(user: dict) -> uuid.UUID:
 class TargetBody(BaseModel):
     symbol: str
     name: str = ""
-    weight_pct: float = Field(..., ge=0, le=100)
+    weight_pct: float = Field(..., ge=0, le=100, allow_inf_nan=False)
 
 
 class PlanBody(BaseModel):
@@ -37,16 +38,18 @@ class PlanBody(BaseModel):
     targets: list[TargetBody] | None = None
     time_period: str | None = Field(None, description="none | monthly | quarterly | yearly")
     drift_enabled: bool | None = None
-    drift_threshold_pct: float | None = None
+    drift_threshold_pct: float | None = Field(None, ge=0.5, le=50, multiple_of=0.5, allow_inf_nan=False)
+    drift_check_mode: Literal["always", "scheduled"] | None = None
+    exclude_unplanned: bool | None = None
     cashflow_enabled: bool | None = None
-    cashflow_min_amount: float | None = None
+    cashflow_min_amount: float | None = Field(None, ge=0, allow_inf_nan=False)
     auto_execute: bool | None = None
-    min_order_amount: float | None = None
+    min_order_amount: float | None = Field(None, ge=0, allow_inf_nan=False)
 
 
 class CashflowBody(BaseModel):
     kind: str = Field(..., description="DEPOSIT | WITHDRAW | DIVIDEND")
-    amount: float = Field(..., gt=0)
+    amount: float = Field(..., gt=0, allow_inf_nan=False)
     symbol: str = ""
     memo: str = ""
 
@@ -85,12 +88,17 @@ async def status(user=Depends(get_current_user_any), db: AsyncSession = Depends(
     """현재 비중·목표 비중·이탈률 + 트리거 상태."""
     uid = _uid(user)
     plan = await rb.get_plan(db, uid)
-    snap = await rb.snapshot(db, uid, plan)
+    try:
+        snap = await rb.snapshot(db, uid, plan)
+    except rb.RebalanceError as exc:
+        raise HTTPException(409, str(exc))
     await db.commit()
     from datetime import datetime, timezone
     time_due = bool(plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= datetime.now(timezone.utc))
     return {"plan": rb.plan_to_dict(plan), "snapshot": snap,
-            "triggers": {"time_due": time_due, "drift_due": snap["drift_exceeded"]}}
+            "triggers": {"time_due": time_due,
+                         "drift_due": snap["drift_exceeded"] and (plan.drift_check_mode != "scheduled" or time_due),
+                         "cashflow_due": plan.cashflow_enabled and snap["cashflow_due"]}}
 
 
 @router.post("/preview")
@@ -131,7 +139,11 @@ async def check(user=Depends(get_current_user_any), db: AsyncSession = Depends(g
     """시간·이탈률 트리거를 지금 점검(스케줄러와 동일 로직)."""
     uid = _uid(user)
     plan = await rb.get_plan(db, uid)
-    result = await rb.check_due(db, uid, plan)
+    try:
+        result = await rb.check_due(db, uid, plan)
+    except rb.RebalanceError as exc:
+        await db.rollback()
+        raise HTTPException(409, str(exc))
     await db.commit()
     return result
 

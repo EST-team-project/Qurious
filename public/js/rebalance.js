@@ -10,8 +10,10 @@ const PERIOD_LABEL = { none: "사용 안 함", monthly: "매월", quarterly: "�
 const TRIGGER_LABEL = { TIME: "시간", DRIFT: "이탈률", CASHFLOW: "현금흐름", MANUAL: "수동" };
 const STATUS_BADGE = {
   executed: `<span class="badge-buy">체결</span>`, proposed: `<span class="badge-hold">제안</span>`,
+  partial: `<span class="badge-sell">부분 체결</span>`,
   skipped: `<span class="badge-hold">생략</span>`, failed: `<span class="badge-sell">실패</span>`,
 };
+const KIND_LABEL = { full: "전체 조정", buy_only: "매수 전용", sell_only: "매도 전용" };
 const sideBadge = (s) => s === "BUY" ? `<span class="badge-buy">매수</span>` : `<span class="badge-sell">매도</span>`;
 
 let weightChart = null;
@@ -77,6 +79,10 @@ function fillPlanForm(plan) {
   $("rb-drift").value = plan.drift_threshold_pct;
   $("rb-cf-enabled").checked = !!plan.cashflow_enabled;
   $("rb-cf-min").value = plan.cashflow_min_amount;
+  $("rb-drift-mode").value = plan.drift_check_mode || "always";
+  $("rb-protect").checked = !!plan.exclude_unplanned;
+  syncPreset("rb-drift-preset", "rb-drift");
+  syncPreset("rb-cf-preset", "rb-cf-min");
   $("rb-auto").checked = !!plan.auto_execute;
   $("rb-min-order").value = plan.min_order_amount;
   $("rb-active").checked = !!plan.is_active;
@@ -89,12 +95,15 @@ async function savePlan() {
     targets: targetRows.map(t => ({ symbol: t.symbol, name: t.name || "", weight_pct: parseFloat(t.weight_pct) || 0 })),
     time_period: $("rb-period").value,
     drift_enabled: $("rb-drift-enabled").checked,
-    drift_threshold_pct: parseFloat($("rb-drift").value) || 5,
+    drift_threshold_pct: parseFloat($("rb-drift").value),
+    drift_check_mode: $("rb-drift-mode").value,
+    exclude_unplanned: $("rb-protect").checked,
     cashflow_enabled: $("rb-cf-enabled").checked,
-    cashflow_min_amount: parseFloat($("rb-cf-min").value) || 0,
+    cashflow_min_amount: parseFloat($("rb-cf-min").value),
     auto_execute: $("rb-auto").checked,
     min_order_amount: parseFloat($("rb-min-order").value) || 0,
   };
+  if (![body.drift_threshold_pct, body.cashflow_min_amount, body.min_order_amount].every(Number.isFinite)) return setToast("설정 금액과 이탈률을 입력하세요.", "error");
   try {
     await api("/api/rebalance/plan", { method: "PUT", body });
     setToast("리밸런싱 플랜을 저장했습니다.", "ok");
@@ -109,15 +118,19 @@ async function loadStatus() {
     const { plan, snapshot: s, triggers } = r;
     fillPlanForm(plan);
     $("rb-kpis").innerHTML = [
-      kpi("총 자산 (현금+주식)", won(s.total_asset)),
+      kpi("관리 자산 (현금+대상 주식)", won(s.total_asset)),
+      kpi("제외한 주식 평가액", won(s.excluded_asset || 0)),
+      kpi("목표 대비 현금 초과(+)/부족(-)", won(s.cash_excess)),
+      kpi("미사용 현금흐름 예산 (+매수 / -매도)", won(s.pending_budget)),
       kpi("현금 비중", `${s.cash_weight_pct}% <span class="text-xs" style="color:var(--text-mute)">목표 ${s.cash_target_pct}%</span>`),
       kpi("최대 이탈", `${s.max_drift_pct}%p`, s.drift_exceeded ? "text-red-500" : "text-emerald-600"),
       kpi("다음 시간 리밸런싱", plan.time_period === "none" ? "-" : `${PERIOD_LABEL[plan.time_period]}<div class="text-xs font-normal" style="color:var(--text-mute)">${ts(plan.next_run_at)}</div>`),
     ].join("");
     const badges = [];
     if (triggers.time_due) badges.push(`<span class="badge-sell">시간 트리거 도래</span>`);
-    if (triggers.drift_due) badges.push(`<span class="badge-sell">이탈률 초과 (허용 ${plan.drift_threshold_pct}%p)</span>`);
-    if (!badges.length) badges.push(`<span class="badge-buy">트리거 조건 미충족 — 목표 비중 유지 중</span>`);
+    if (triggers.drift_due) badges.push(`<span class="badge-sell">이탈률 기준 이상 (허용 ${plan.drift_threshold_pct}%p)</span>`);
+    if (triggers.cashflow_due) badges.push(`<span class="badge-sell">현금흐름 기준 충족 (${won(s.cashflow_available)})</span>`);
+    if (!badges.length) badges.push(`<span class="badge-buy">트리거 조건 미충족 — 현재 실행 조건 없음</span>`);
     badges.push(`<span class="badge-hold">${plan.auto_execute ? "자동 체결" : "제안만 생성 (수동 승인)"}</span>`);
     $("rb-trigger-badges").innerHTML = badges.join(" ");
 
@@ -138,16 +151,17 @@ function renderWeightTable(s) {
   const rows = [...s.rows, { symbol: "CASH", name: "현금", quantity: "", price: null, current_amount: s.cash,
     current_weight_pct: s.cash_weight_pct, target_weight_pct: s.cash_target_pct, drift_pct: s.cash_drift_pct, in_plan: true }];
   $("rb-weight-table").innerHTML = `<table><thead><tr><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">평가액</th><th style="text-align:right">현재 비중</th><th style="text-align:right">목표 비중</th><th style="text-align:right">이탈(%p)</th></tr></thead><tbody>${
-    rows.map(r => `<tr${r.in_plan ? "" : ' style="opacity:.7"'}><td>${escHtml(r.name)} <span class="text-xs font-mono" style="color:var(--text-mute)">${escHtml(r.symbol)}</span>${r.in_plan ? "" : ' <span class="badge-hold text-xs">플랜 외 → 전량 매도</span>'}</td>
+    rows.map(r => `<tr${r.in_plan ? "" : ' style="opacity:.7"'}><td>${escHtml(r.name)} <span class="text-xs font-mono" style="color:var(--text-mute)">${escHtml(r.symbol)}</span>${r.in_plan ? "" : ` <span class="badge-hold text-xs">${r.managed ? '플랜 외 → 매도 대상' : '플랜 외 → 유지·계산 제외'}</span>`}</td>
       <td style="text-align:right">${r.quantity === "" ? "-" : fmt(r.quantity)}</td><td style="text-align:right">${won(r.current_amount)}</td>
       <td style="text-align:right">${r.current_weight_pct}%</td><td style="text-align:right">${r.target_weight_pct}%</td>
       <td style="text-align:right" class="${Math.abs(r.drift_pct) >= 0.01 ? (r.drift_pct > 0 ? "text-red-500" : "text-emerald-600") : ""}">${r.drift_pct > 0 ? "+" : ""}${r.drift_pct}</td></tr>`).join("")}</tbody></table>`;
 }
 
 function renderWeightChart(s) {
-  const cats = [...s.rows.map(r => r.name), "현금"];
-  const cur = [...s.rows.map(r => r.current_weight_pct), s.cash_weight_pct];
-  const tgt = [...s.rows.map(r => r.target_weight_pct), s.cash_target_pct];
+  const managed = s.rows.filter(r => r.managed !== false);
+  const cats = [...managed.map(r => r.name), "현금"];
+  const cur = [...managed.map(r => r.current_weight_pct), s.cash_weight_pct];
+  const tgt = [...managed.map(r => r.target_weight_pct), s.cash_target_pct];
   const opts = {
     chart: { type: "bar", height: 260, toolbar: { show: false }, background: "transparent" },
     theme: { mode: document.documentElement.dataset.theme === "light" ? "light" : "dark" },
@@ -165,10 +179,10 @@ function renderWeightChart(s) {
 function renderOrders(orders, containerId, opts = {}) {
   const el = $(containerId);
   if (!orders?.length) { el.innerHTML = `<div class="text-sm" style="color:var(--text-mute);">${opts.empty || "생성된 주문이 없습니다 (이미 목표 비중 근처이거나 최소 주문금액 미만)."}</div>`; return; }
-  el.innerHTML = `<table><thead><tr><th>매매</th><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th><th>상태</th></tr></thead><tbody>${
+  el.innerHTML = `<table><thead><tr><th>매매</th><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th><th style="text-align:right">비용</th><th>상태</th></tr></thead><tbody>${
     orders.map(o => `<tr><td>${sideBadge(o.side)}</td><td>${escHtml(o.name)} <span class="text-xs font-mono" style="color:var(--text-mute)">${escHtml(o.symbol)}</span></td>
       <td style="text-align:right">${fmt(o.quantity)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td>
-      <td class="text-xs">${escHtml(o.status)}${o.error ? ` <span class="text-red-500">${escHtml(o.error)}</span>` : ""}</td></tr>`).join("")}</tbody></table>`;
+      <td style="text-align:right">${o.cost ? won(o.cost.total_cost, 2) : "-"}</td><td class="text-xs">${escHtml(o.status)}${o.error ? ` <span class="text-red-500">${escHtml(o.error)}</span>` : ""}</td></tr>`).join("")}</tbody></table>`;
 }
 
 async function previewRebalance() {
@@ -176,18 +190,18 @@ async function previewRebalance() {
   try {
     lastProposal = await api("/api/rebalance/preview", { method: "POST" });
     renderOrders(lastProposal.orders, "rb-proposal");
-    $("rb-proposal-summary").textContent = `예상 회전 금액 ${won(lastProposal.estimated_turnover)} · 실행 후 현금 ${won(lastProposal.estimated_cash_after)}` +
+    $("rb-proposal-summary").textContent = `예상 회전 금액 ${won(lastProposal.estimated_turnover)} · 예상 비용 ${won(lastProposal.estimated_cost, 2)} · 비용 반영 후 현금 ${won(lastProposal.estimated_cash_after)}` +
       (lastProposal.skipped?.length ? ` · 시세 실패 ${lastProposal.skipped.map(x => x.symbol).join(", ")}` : "");
     $("rb-execute").disabled = !lastProposal.orders.length;
   } catch (e) { $("rb-proposal").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 
 async function executeRebalance(runId = null) {
-  if (!confirm(runId ? "이 제안을 현재 시세로 다시 산출해 체결합니다. 계속할까요?" : "제안된 주문을 모의계좌에 체결합니다. 계속할까요?")) return;
+  if (!confirm(runId ? "이 제안의 주문 방향을 유지해 현재 시세와 잔고로 재산출·모의 체결합니다. 계속할까요?" : "제안된 주문을 모의계좌에 체결합니다. 계속할까요?")) return;
   try {
     const r = await api("/api/rebalance/execute", { method: "POST", body: runId ? { run_id: runId } : { note: "화면에서 수동 실행" } });
     const filled = r.orders.filter(o => o.status === "filled").length;
-    setToast(`리밸런싱 ${r.status === "executed" ? "체결" : "생략"} — 주문 ${filled}/${r.orders.length}건`, r.status === "executed" ? "ok" : "error");
+    setToast(`리밸런싱 ${r.status === "executed" ? "체결" : r.status === "partial" ? "부분 체결" : "미체결"} — 주문 ${filled}/${r.orders.length}건`, r.status === "executed" ? "ok" : "error");
     renderOrders(r.orders, "rb-proposal");
     $("rb-execute").disabled = true;
     await loadStatus();
@@ -197,7 +211,7 @@ async function executeRebalance(runId = null) {
 async function checkTriggers() {
   try {
     const r = await api("/api/rebalance/check", { method: "POST" });
-    const msg = r.trigger ? `${TRIGGER_LABEL[r.trigger]} 트리거 충족 → ${r.status === "executed" ? "자동 체결" : "제안 생성"}`
+    const msg = r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
       : `트리거 미충족 (시간 ${r.time_due ? "도래" : "대기"} · 최대 이탈 ${r.max_drift_pct ?? "-"}%p)`;
     setToast(msg, r.trigger ? "ok" : "error");
     await loadStatus();
@@ -213,7 +227,8 @@ async function submitCashflow() {
   try {
     const r = await api("/api/rebalance/cashflow", { method: "POST", body });
     const label = { DEPOSIT: "입금", WITHDRAW: "출금", DIVIDEND: "배당" }[kind];
-    setToast(`${label} ${won(amount)} 반영 (현금 ${won(r.event.cash_after)})` + (r.run ? ` → 리밸런싱 ${r.run.status === "executed" ? "자동 체결" : "제안 생성"}` : ""), "ok");
+    setToast(`${label} ${won(amount)} 반영 (현금 ${won(r.event.cash_after)})` + (r.already_processed ? " → 오늘 실행 완료 · 미사용 예산 이월" : r.run ? ` → 리밸런싱 ${r.run.status === "executed" ? "자동 체결" : "제안 생성"}` : ""), "ok");
+    if (r.check_error) setToast(`현금은 반영됐습니다. 리밸런싱 판정 대기: ${r.check_error}`, "error");
     $("rb-cf-amount").value = ""; $("rb-cf-memo").value = "";
     await loadStatus();
   } catch (e) { setToast(e.message, "error"); }
@@ -242,11 +257,12 @@ async function loadRuns() {
       }).join("");
       return `<div class="rounded-lg p-3 mb-2" style="background:var(--surf2);border:1px solid var(--border);">
         <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span class="badge-hold">${TRIGGER_LABEL[run.trigger] || run.trigger}</span> ${STATUS_BADGE[run.status] || run.status}
-          <span class="text-xs" style="color:var(--text-mute)">${ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
+          <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${STATUS_BADGE[run.status] || run.status}
+          <span class="text-xs" style="color:var(--text-mute)">${run.decision_date || ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
           ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}">승인·체결</button>` : ""}
         </div>
         <div class="text-xs mt-1" style="color:var(--text-dim)">${escHtml(run.note || "")}</div>
+        <div class="text-xs mt-1">현재 시세 조회 ${ts(run.context?.observed_at)} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
         <div class="mt-1">${wchg}</div>
         <details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-mute)">주문 상세</summary><div id="rb-run-${run.id}" class="mt-1"></div></details>
       </div>`;
@@ -257,8 +273,18 @@ async function loadRuns() {
 }
 
 /* ── 초기화 ─────────────────────────────────────────────── */
+function syncPreset(selectId, inputId) {
+  const select = $(selectId), input = $(inputId);
+  const match = [...select.options].find(o => o.value !== "custom" && Number(o.value) === Number(input.value));
+  select.value = match ? match.value : "custom";
+}
+
 export function initRebalanceView() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
+  for (const [selectId, inputId] of [["rb-drift-preset", "rb-drift"], ["rb-cf-preset", "rb-cf-min"]]) {
+    on(selectId, "change", () => { if ($(selectId).value !== "custom") $(inputId).value = $(selectId).value; else $(inputId).focus(); });
+    on(inputId, "input", () => syncPreset(selectId, inputId));
+  }
   on("rb-add", "click", addTarget);
   on("rb-add-symbol", "keydown", e => { if (e.key === "Enter") addTarget(); });
   on("rb-save", "click", savePlan);

@@ -16,30 +16,50 @@ from __future__ import annotations
 
 import calendar
 import logging
+import hashlib
+import json
 import uuid
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CashflowEvent, RebalancePlan, RebalanceRun
 from app.models.rebalance import CASHFLOW_KINDS, TIME_PERIODS
 from app.services import paper_trading as pt
+from app.services import rebalance_policy as policy
 
 logger = logging.getLogger(__name__)
 
 ORDER_SOURCE = "REBALANCE"
+KST = ZoneInfo("Asia/Seoul")
 
 
 class RebalanceError(Exception):
     pass
 
 
+async def lock_user(db: AsyncSession, user_id: uuid.UUID):
+    # Transaction-scoped, shared by every rebalance mutation (including first plan creation).
+    key = int.from_bytes(hashlib.sha256(("rebalance:" + str(user_id)).encode()).digest()[:8], "big", signed=True)
+    await db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": key})
+
+
+def checked_number(value, name, minimum=0, maximum=None):
+    try:
+        return policy.number(value, name, minimum, maximum)
+    except ValueError as exc:
+        raise RebalanceError(str(exc)) from exc
+
+
 # ── 플랜 ────────────────────────────────────────────────────────────────
 
 
 async def get_plan(db: AsyncSession, user_id: uuid.UUID, create: bool = True) -> RebalancePlan | None:
-    row = (await db.execute(select(RebalancePlan).where(RebalancePlan.user_id == user_id))).scalar_one_or_none()
+    await lock_user(db, user_id)
+    row = (await db.execute(select(RebalancePlan).where(RebalancePlan.user_id == user_id)
+                           .execution_options(populate_existing=True))).scalar_one_or_none()
     if row is None and create:
         row = RebalancePlan(user_id=user_id, targets=[])
         db.add(row)
@@ -58,6 +78,7 @@ def normalize_targets(raw: list[dict]) -> list[dict]:
             w = float(t.get("weight_pct", 0))
         except (TypeError, ValueError):
             raise RebalanceError(f"{symbol}: 비중은 숫자여야 합니다.")
+        w = checked_number(w, "목표 비중", 0, 100)
         if w < 0 or w > 100:
             raise RebalanceError(f"{symbol}: 비중은 0~100 사이여야 합니다.")
         if symbol in merged:
@@ -123,18 +144,28 @@ def apply_plan_update(plan: RebalancePlan, data: dict) -> RebalancePlan:
     if "drift_enabled" in data:
         plan.drift_enabled = bool(data["drift_enabled"])
     if "drift_threshold_pct" in data:
-        v = float(data["drift_threshold_pct"])
+        v = checked_number(data["drift_threshold_pct"], "허용 이탈률", 0.5, 50)
+        if v * 2 != int(v * 2):
+            raise RebalanceError("허용 이탈률은 0.5%p 단위로 입력하세요.")
         if not 0.5 <= v <= 50:
             raise RebalanceError("허용 이탈률은 0.5~50%p 사이여야 합니다.")
         plan.drift_threshold_pct = v
     if "cashflow_enabled" in data:
         plan.cashflow_enabled = bool(data["cashflow_enabled"])
     if "cashflow_min_amount" in data:
-        plan.cashflow_min_amount = max(0.0, float(data["cashflow_min_amount"]))
+        plan.cashflow_min_amount = checked_number(data["cashflow_min_amount"], "현금흐름 기준")
     if "auto_execute" in data:
         plan.auto_execute = bool(data["auto_execute"])
     if "min_order_amount" in data:
-        plan.min_order_amount = max(0.0, float(data["min_order_amount"]))
+        plan.min_order_amount = checked_number(data["min_order_amount"], "최소 주문금액")
+    if "drift_check_mode" in data:
+        if data["drift_check_mode"] not in ("always", "scheduled"):
+            raise RebalanceError("지원하지 않는 이탈 확인 시점입니다.")
+        plan.drift_check_mode = data["drift_check_mode"]
+    if "exclude_unplanned" in data:
+        plan.exclude_unplanned = bool(data["exclude_unplanned"])
+    if plan.drift_check_mode == "scheduled" and (plan.time_period == "none" or not plan.drift_enabled):
+        raise RebalanceError("주기 도래 시에만 확인하려면 시간 주기와 이탈률을 모두 켜세요.")
     return plan
 
 
@@ -144,6 +175,7 @@ def plan_to_dict(plan: RebalancePlan) -> dict:
         "id": str(plan.id), "name": plan.name, "is_active": plan.is_active,
         "targets": plan.targets or [], "cash_weight_pct": round(100 - stock_total, 2),
         "time_period": plan.time_period,
+        "drift_check_mode": plan.drift_check_mode, "exclude_unplanned": plan.exclude_unplanned,
         "next_run_at": plan.next_run_at.isoformat() if plan.next_run_at else None,
         "drift_enabled": plan.drift_enabled, "drift_threshold_pct": plan.drift_threshold_pct,
         "cashflow_enabled": plan.cashflow_enabled, "cashflow_min_amount": plan.cashflow_min_amount,
@@ -160,49 +192,26 @@ async def snapshot(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) ->
     """현금 + 주식 포지션 기준 현재 비중과 목표 대비 이탈률."""
     account = await pt.get_account(db, user_id)
     positions = await pt.stock_positions(db, user_id)
-    pos_map = {p["symbol"]: p for p in positions}
-    stock_eval = sum(p["evalAmount"] for p in positions)
-    total = float(account.cash) + stock_eval
-
-    target_map = {t["symbol"]: float(t["weight_pct"]) for t in (plan.targets or [])}
-    symbols = sorted(set(target_map) | set(pos_map))
-
-    rows = []
-    max_drift = 0.0
-    for sym in symbols:
-        p = pos_map.get(sym)
-        cur_amt = p["evalAmount"] if p else 0.0
-        cur_w = (cur_amt / total * 100) if total > 0 else 0.0
-        tgt_w = target_map.get(sym, 0.0)
-        drift = cur_w - tgt_w
-        max_drift = max(max_drift, abs(drift))
-        rows.append({
-            "symbol": sym,
-            "name": (p["name"] if p else next((t["name"] for t in plan.targets if t["symbol"] == sym), sym)),
-            "quantity": p["quantity"] if p else 0,
-            "price": p["currentPrice"] if p else None,
-            "current_amount": round(cur_amt, 2),
-            "current_weight_pct": round(cur_w, 2),
-            "target_weight_pct": round(tgt_w, 2),
-            "drift_pct": round(drift, 2),
-            "in_plan": sym in target_map,
-        })
-    cash_w = (float(account.cash) / total * 100) if total > 0 else 100.0
-    cash_target = 100 - sum(target_map.values())
-    cash_drift = cash_w - cash_target
-    max_drift = max(max_drift, abs(cash_drift))
-
-    return {
-        "total_asset": round(total, 2),
-        "cash": round(float(account.cash), 2),
-        "cash_weight_pct": round(cash_w, 2),
-        "cash_target_pct": round(cash_target, 2),
-        "cash_drift_pct": round(cash_drift, 2),
-        "stock_eval": round(stock_eval, 2),
-        "rows": rows,
-        "max_drift_pct": round(max_drift, 2),
-        "drift_exceeded": bool(plan.drift_enabled and max_drift >= plan.drift_threshold_pct and target_map),
-    }
+    # The shared position service silently falls back to average purchase price on quote failure.
+    # Rebalancing must not interpret that fallback as a current market price.
+    for position in positions:
+        if plan.exclude_unplanned and position["symbol"] not in {t["symbol"] for t in plan.targets}:
+            continue
+        try:
+            quote = await pt.resolve_stock(position["symbol"])
+            price = checked_number(quote["price"], "시세", 0.000001)
+        except (pt.PaperTradeError, KeyError, RebalanceError) as exc:
+            raise RebalanceError(f"{position['symbol']}: 현재 시세를 확인할 수 없어 판정을 중단합니다.") from exc
+        position["currentPrice"] = price
+        position["evalAmount"] = price * position["quantity"]
+    result = policy.weights(float(account.cash), positions, plan.targets or [], plan.drift_threshold_pct,
+                            plan.drift_enabled, plan.exclude_unplanned)
+    events = await pending_cashflows(db, user_id)
+    result.update(policy.cashflow_signal(result["cash_excess"], sum(e.remaining_budget for e in events),
+                                         plan.cashflow_min_amount))
+    result["observed_at"] = datetime.now(timezone.utc).isoformat()
+    result["price_basis"] = "current_quote"
+    return result
 
 
 def _weights_from_snapshot(snap: dict) -> dict:
@@ -214,194 +223,161 @@ def _weights_from_snapshot(snap: dict) -> dict:
 # ── 주문 산출 ────────────────────────────────────────────────────────────
 
 
-async def propose(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, snap: dict | None = None) -> dict:
-    """목표 비중과의 차액을 정수 주식 수량의 매도/매수 주문으로 변환한다.
-
-    - 플랜에 없는 보유 종목은 전량 매도(목표 0%)
-    - 매도를 먼저 산출해 확보되는 현금까지 포함해 매수 가능액 계산
-    - 1주 미만 또는 min_order_amount 미만의 차액은 생략
-    """
+async def propose(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, snap: dict | None = None,
+                  plan_kind: str = "full") -> dict:
     if not plan.targets:
         raise RebalanceError("목표 비중이 비어 있습니다. 먼저 종목과 비중을 저장하세요.")
     snap = snap or await snapshot(db, user_id, plan)
-    total = snap["total_asset"]
-    if total <= 0:
+    if snap["total_asset"] <= 0:
         raise RebalanceError("평가 가능한 자산이 없습니다.")
-
-    price_map: dict[str, float] = {}
-    for r in snap["rows"]:
-        if r["price"]:
-            price_map[r["symbol"]] = float(r["price"])
-    # 미보유 목표 종목의 현재가 조회
-    for t in plan.targets:
-        if t["symbol"] not in price_map:
+    prices = {r["symbol"]: float(r["price"]) for r in snap["rows"] if r["price"]}
+    for target in plan.targets:
+        if target["symbol"] not in prices:
             try:
-                price_map[t["symbol"]] = float((await pt.resolve_stock(t["symbol"]))["price"])
-            except Exception as exc:  # 시세 실패 종목은 건너뛰고 note에 남김
-                logger.warning("리밸런싱 시세 조회 실패 %s: %s", t["symbol"], exc)
-
-    sells, buys, skipped = [], [], []
-    for r in snap["rows"]:
-        sym = r["symbol"]
-        price = price_map.get(sym)
-        if not price:
-            skipped.append({"symbol": sym, "reason": "시세 조회 실패"})
-            continue
-        target_amt = total * r["target_weight_pct"] / 100
-        diff = target_amt - r["current_amount"]
-        if abs(diff) < max(price, plan.min_order_amount):
-            continue
-        qty = int(abs(diff) // price)
-        if qty <= 0:
-            continue
-        if diff < 0:
-            qty = min(qty, int(r["quantity"]))
-            if qty <= 0:
-                continue
-            sells.append({"symbol": sym, "name": r["name"], "side": "SELL", "quantity": qty,
-                          "price": price, "amount": round(qty * price, 2), "status": "proposed"})
-        else:
-            buys.append({"symbol": sym, "name": r["name"], "side": "BUY", "quantity": qty,
-                         "price": price, "amount": round(qty * price, 2), "status": "proposed"})
-
-    # 매수는 (현금 + 매도대금) 범위 안에서만
-    available = snap["cash"] + sum(o["amount"] for o in sells)
-    for o in buys:
-        if o["amount"] > available:
-            qty = int(available // o["price"])
-            if qty <= 0:
-                o["quantity"], o["amount"], o["status"] = 0, 0.0, "skipped"
-                o["error"] = "현금 부족"
-                continue
-            o["quantity"], o["amount"] = qty, round(qty * o["price"], 2)
-        available -= o["amount"]
-    buys = [o for o in buys if o["quantity"] > 0]
-
-    orders = sells + buys
-    est_cash = snap["cash"] + sum(o["amount"] for o in sells) - sum(o["amount"] for o in buys)
-    return {
-        "orders": orders,
-        "skipped": skipped,
-        "estimated_cash_after": round(est_cash, 2),
-        "estimated_turnover": round(sum(o["amount"] for o in orders), 2),
-        "snapshot": snap,
-    }
+                prices[target["symbol"]] = float((await pt.resolve_stock(target["symbol"]))["price"])
+            except pt.PaperTradeError as exc:
+                raise RebalanceError(f"{target['symbol']}: 시세 조회 실패") from exc
+    budget = snap["cashflow_available"] if plan_kind != "full" else None
+    return policy.orders(snap, prices, plan.min_order_amount, plan_kind, budget)
 
 
 # ── 실행 ────────────────────────────────────────────────────────────────
 
 
-async def execute(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, trigger: str,
-                  proposal: dict | None = None, note: str = "") -> RebalanceRun:
-    """제안 주문을 모의 체결하고 RebalanceRun(executed)을 기록한다. 커밋은 호출자가 한다."""
-    proposal = proposal or await propose(db, user_id, plan)
-    before = _weights_from_snapshot(proposal["snapshot"])
-    target = {t["symbol"]: float(t["weight_pct"]) for t in plan.targets}
-    target["CASH"] = round(100 - sum(target.values()), 2)
+def fingerprint(plan):
+    keys = ("targets", "time_period", "drift_enabled", "drift_threshold_pct", "drift_check_mode",
+            "cashflow_enabled", "cashflow_min_amount", "exclude_unplanned", "min_order_amount")
+    payload = {key: getattr(plan, key) for key in keys}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
-    executed = []
-    for o in proposal["orders"]:
-        rec = dict(o)
-        try:
-            res = await pt.stock_order(db, user_id, o["symbol"], o["side"], int(o["quantity"]), source=ORDER_SOURCE)
-            rec.update({"status": "filled", "price": res["price"], "amount": res["amount"]})
-        except pt.PaperTradeError as exc:
-            rec.update({"status": "failed", "error": str(exc)})
-        executed.append(rec)
 
-    after_snap = await snapshot(db, user_id, plan)
-    run = RebalanceRun(
-        user_id=user_id, plan_id=plan.id, trigger=trigger,
-        status="executed" if any(o["status"] == "filled" for o in executed) else "skipped",
-        total_asset=proposal["snapshot"]["total_asset"],
-        max_drift_pct=proposal["snapshot"]["max_drift_pct"],
-        before_weights=before, target_weights=target, after_weights=_weights_from_snapshot(after_snap),
-        orders=executed, note=(note or "")[:300],
-    )
-    db.add(run)
-    now = datetime.now(timezone.utc)
-    plan.last_run_at = now
-    if trigger == "TIME":
-        plan.next_run_at = next_period_start(now, plan.time_period)
+def proposal_context(plan, proposal):
+    return {"settings_fingerprint": fingerprint(plan), "observed_at": proposal["snapshot"]["observed_at"],
+            "price_basis": "current_quote", "estimated_cost": proposal["estimated_cost"],
+            "estimated_cash_after": proposal["estimated_cash_after"]}
+
+
+async def pending_cashflows(db, user_id):
+    return list((await db.execute(select(CashflowEvent).where(
+        CashflowEvent.user_id == user_id, CashflowEvent.remaining_budget != 0
+    ).order_by(CashflowEvent.created_at, CashflowEvent.id))).scalars().all())
+
+
+async def consume_budget(db, user_id, run, executed):
+    events = await pending_cashflows(db, user_id)
+    filled = [o for o in executed if o["status"] == "filled"]
+    if not filled:
+        return
+    clear_all = run.plan_kind == "full" and len(filled) == len(executed)
+    spent = sum(o["net_amount"] * (1 if o["side"] == "BUY" else -1) for o in filled)
+    for event in events:
+        if clear_all:
+            event.remaining_budget = 0
+            event.rebalance_run_id = run.id
+        elif event.remaining_budget * spent > 0:
+            used = min(abs(event.remaining_budget), abs(spent)) * (1 if spent > 0 else -1)
+            event.remaining_budget = round(event.remaining_budget - used, 8)
+            spent -= used
+            event.rebalance_run_id = run.id
+
+
+async def record_proposal(db, user_id, plan, triggers, proposal, note="", existing=None):
+    triggers = [triggers] if isinstance(triggers, str) else triggers
+    run = existing or RebalanceRun(user_id=user_id, plan_id=plan.id)
+    run.trigger, run.triggers = triggers[0], list(triggers)
+    run.plan_kind = proposal["plan_kind"]
+    run.decision_date = datetime.now(KST).date()
+    run.status = "proposed"
+    run.total_asset = proposal["snapshot"]["total_asset"]
+    run.max_drift_pct = proposal["snapshot"]["max_drift_pct"]
+    run.before_weights = _weights_from_snapshot(proposal["snapshot"])
+    run.target_weights = {t["symbol"]: t["weight_pct"] for t in plan.targets}
+    run.target_weights = {**run.target_weights, "CASH": proposal["snapshot"]["cash_target_pct"]}
+    run.orders, run.context = proposal["orders"], proposal_context(plan, proposal)
+    run.note = note[:300]
+    if existing is None:
+        db.add(run)
     await db.flush()
     return run
 
 
-async def record_proposal(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, trigger: str,
-                          proposal: dict, note: str = "") -> RebalanceRun:
-    """자동 체결이 꺼진 플랜: 주문을 실행하지 않고 제안(proposed)만 남긴다."""
-    target = {t["symbol"]: float(t["weight_pct"]) for t in plan.targets}
-    target["CASH"] = round(100 - sum(target.values()), 2)
-    run = RebalanceRun(
-        user_id=user_id, plan_id=plan.id, trigger=trigger, status="proposed",
-        total_asset=proposal["snapshot"]["total_asset"], max_drift_pct=proposal["snapshot"]["max_drift_pct"],
-        before_weights=_weights_from_snapshot(proposal["snapshot"]), target_weights=target,
-        orders=proposal["orders"], note=(note or "")[:300],
-    )
-    db.add(run)
-    if trigger == "TIME":
+async def execute(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, trigger: str,
+                  proposal: dict | None = None, note: str = "", existing=None) -> RebalanceRun:
+    await lock_user(db, user_id)
+    await pt.get_account(db, user_id, lock=True)
+    proposal = proposal or await propose(db, user_id, plan)
+    run = existing or await record_proposal(db, user_id, plan, [trigger], proposal, note)
+    executed = []
+    for order in proposal["orders"]:
+        rec = dict(order)
+        try:
+            async with db.begin_nested():
+                res = await pt.stock_order(db, user_id, order["symbol"], order["side"], int(order["quantity"]), source=ORDER_SOURCE)
+            rec.update(status="filled", price=res["price"], amount=res["amount"],
+                       net_amount=res["net_amount"], cost=res["cost"])
+        except pt.PaperTradeError as exc:
+            rec.update(status="failed", error=str(exc))
+        executed.append(rec)
+    count = sum(o["status"] == "filled" for o in executed)
+    run.status = ("executed" if count == len(executed) else "partial") if count else ("failed" if executed else "skipped")
+    run.orders = executed
+    run.context = {**proposal_context(plan, proposal), "executed_at": datetime.now(timezone.utc).isoformat(),
+                   "actual_cost": round(sum(o['cost']['total_cost'] for o in executed if o['status'] == 'filled'), 2)}
+    await consume_budget(db, user_id, run, executed)
+    try:
+        run.after_weights = _weights_from_snapshot(await snapshot(db, user_id, plan))
+    except RebalanceError:
+        run.after_weights = {}
+        run.context = {**run.context, "after_weights_unavailable": True}
+    if count:
+        plan.last_run_at = datetime.now(timezone.utc)
+    if "TIME" in (run.triggers or [trigger]):
         plan.next_run_at = next_period_start(datetime.now(timezone.utc), plan.time_period)
     await db.flush()
     return run
 
 
-async def _has_recent_proposal(db: AsyncSession, user_id: uuid.UUID, trigger: str, hours: int = 24) -> bool:
-    from datetime import timedelta
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
-    row = (await db.execute(
-        select(RebalanceRun.id).where(
-            RebalanceRun.user_id == user_id, RebalanceRun.trigger == trigger,
-            RebalanceRun.status == "proposed", RebalanceRun.created_at >= since,
-        ).limit(1)
-    )).scalar_one_or_none()
-    return row is not None
-
-
-async def trigger_rebalance(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, trigger: str,
-                            note: str = "") -> RebalanceRun | None:
-    """트리거 충족 시 auto_execute 여부에 따라 체결 또는 제안 기록."""
-    try:
-        proposal = await propose(db, user_id, plan)
-    except RebalanceError as exc:
-        logger.info("리밸런싱 제안 불가 user=%s: %s", user_id, exc)
-        return None
-    if not proposal["orders"]:
-        return None
-    if plan.auto_execute:
-        return await execute(db, user_id, plan, trigger, proposal, note)
-    if await _has_recent_proposal(db, user_id, trigger):
-        return None  # 같은 트리거의 미처리 제안이 24시간 내 있으면 중복 생성 안 함
-    return await record_proposal(db, user_id, plan, trigger, proposal, note)
-
-
-# ── 트리거 점검 ─────────────────────────────────────────────────────────
-
-
 async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -> dict:
-    """TIME·DRIFT 트리거를 점검하고 충족 시 실행/제안. 결과 요약 반환."""
-    now = datetime.now(timezone.utc)
-    result: dict = {"time_due": False, "drift_due": False, "run_id": None, "trigger": None}
+    await lock_user(db, user_id)
+    await db.refresh(plan)
+    result = dict(time_due=False, drift_due=False, cashflow_due=False, run_id=None, trigger=None, triggers=[])
     if not plan.is_active or not plan.targets:
         return result
-
-    if plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= now:
-        result["time_due"] = True
+    # Serialize against ordinary orders too, so a cashflow/approval cannot spend the same balance.
+    await pt.get_account(db, user_id, lock=True)
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(KST).date()
+    existing = (await db.execute(select(RebalanceRun).where(
+        RebalanceRun.plan_id == plan.id, RebalanceRun.decision_date == today,
+        RebalanceRun.trigger != "MANUAL").with_for_update())).scalar_one_or_none()
+    if existing and existing.status in ("executed", "partial", "failed"):
+        return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True}
     snap = await snapshot(db, user_id, plan)
-    result["max_drift_pct"] = snap["max_drift_pct"]
-    if snap["drift_exceeded"]:
-        result["drift_due"] = True
-
-    trigger = "TIME" if result["time_due"] else ("DRIFT" if result["drift_due"] else None)
-    if trigger:
-        note = (f"{plan.time_period} 주기 도래" if trigger == "TIME"
-                else f"최대 이탈 {snap['max_drift_pct']:.2f}%p ≥ 허용 {plan.drift_threshold_pct}%p")
-        run = await trigger_rebalance(db, user_id, plan, trigger, note)
-        if run:
-            result["run_id"] = str(run.id)
-            result["trigger"] = trigger
-            result["status"] = run.status
-        elif trigger == "TIME":
-            plan.next_run_at = next_period_start(now, plan.time_period)  # 주문 없음 → 다음 주기로
+    result.update(time_due=bool(plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= now),
+                  drift_due=snap["drift_exceeded"], cashflow_due=bool(plan.cashflow_enabled and snap["cashflow_due"]),
+                  max_drift_pct=snap["max_drift_pct"])
+    triggers = policy.choose_triggers(result["time_due"], result["drift_due"], plan.drift_check_mode,
+                                      result["cashflow_due"], plan.drift_enabled)
+    if not triggers:
+        if existing and existing.status == "proposed":
+            existing.status, existing.note = "skipped", "현재 조건 미충족 · 다시 점검하면 재산출"
+        if result["time_due"]:
+            plan.next_run_at = next_period_start(now, plan.time_period)
+        return result
+    # Keep concurrent conditions on the same still-pending decision, unless settings changed.
+    if existing and existing.status == "proposed" and existing.context.get("settings_fingerprint") == fingerprint(plan):
+        triggers = [t for t in ("TIME", "DRIFT", "CASHFLOW") if t in triggers or t in existing.triggers]
+    kind = "full" if any(t in triggers for t in ("TIME", "DRIFT")) else snap["plan_kind"]
+    proposal = await propose(db, user_id, plan, snap, kind)
+    run = await record_proposal(db, user_id, plan, triggers, proposal, "조건 충족 · 현재 시세로 산출", existing)
+    if not proposal["orders"]:
+        run.status, run.note = "skipped", "최소 주문금액·정수 수량 또는 목표 비중 조건으로 주문 없음"
+    elif plan.auto_execute:
+        run = await execute(db, user_id, plan, triggers[0], proposal, existing=run)
+    if "TIME" in triggers:
+        plan.next_run_at = next_period_start(now, plan.time_period)
+    result.update(run_id=str(run.id), trigger=triggers[0], triggers=triggers, status=run.status)
+    await db.flush()
     return result
 
 
@@ -434,10 +410,11 @@ async def record_cashflow(db: AsyncSession, user_id: uuid.UUID, kind: str, amoun
     kind = (kind or "").upper()
     if kind not in CASHFLOW_KINDS:
         raise RebalanceError("kind는 DEPOSIT, WITHDRAW, DIVIDEND 중 하나여야 합니다.")
-    amount = float(amount)
+    amount = checked_number(amount, "이벤트 금액", 0.00000001)
     if amount <= 0:
         raise RebalanceError("금액은 0보다 커야 합니다.")
 
+    plan = await get_plan(db, user_id)
     account = await pt.get_account(db, user_id, lock=True)
     if kind == "WITHDRAW":
         if amount > account.cash:
@@ -448,32 +425,44 @@ async def record_cashflow(db: AsyncSession, user_id: uuid.UUID, kind: str, amoun
     if kind == "DIVIDEND" and symbol:
         symbol = pt.normalize_stock_symbol(symbol)
 
-    event = CashflowEvent(user_id=user_id, kind=kind, amount=amount, symbol=symbol or "",
+    budget = amount * sum(t["weight_pct"] for t in plan.targets)/100
+    budget *= -1 if kind == "WITHDRAW" else 1
+    # Only external events enter this ledger; opposite events net out before sizing orders.
+    for old in await pending_cashflows(db, user_id):
+        if budget * old.remaining_budget < 0:
+            cancelled = min(abs(budget), abs(old.remaining_budget)) * (1 if budget > 0 else -1)
+            old.remaining_budget = round(old.remaining_budget + cancelled, 8)
+            budget -= cancelled
+    event = CashflowEvent(user_id=user_id, kind=kind, amount=amount, symbol=symbol or "", remaining_budget=budget,
                           memo=(memo or "")[:200], cash_after=account.cash)
     db.add(event)
     await db.flush()
     await db.refresh(event)
 
-    run = None
-    plan = await get_plan(db, user_id, create=False)
-    if plan and plan.is_active and plan.cashflow_enabled and plan.targets and amount >= plan.cashflow_min_amount:
-        label = {"DEPOSIT": "입금", "WITHDRAW": "출금", "DIVIDEND": "배당"}[kind]
-        run = await trigger_rebalance(db, user_id, plan, "CASHFLOW", f"{label} {amount:,.0f}원 발생")
-        if run:
-            event.rebalance_run_id = run.id
-            await db.flush()
-            await db.refresh(run)
-    return {"event": cashflow_to_dict(event), "run": run_to_dict(run) if run else None}
+    try:
+        result = await check_due(db, user_id, plan)
+    except RebalanceError as exc:
+        # The cash event is valid even when its market-price-dependent decision must wait.
+        await db.flush()
+        return {"event": cashflow_to_dict(event), "run": None, "check_error": str(exc)}
+    run = await db.get(RebalanceRun, uuid.UUID(result["run_id"])) if result.get("run_id") else None
+    if run and not result.get("already_processed"):
+        event.rebalance_run_id = run.id
+    await db.flush()
+    return {"event": cashflow_to_dict(event), "run": run_to_dict(run) if run else None,
+            "already_processed": result.get("already_processed", False)}
 
 
 def cashflow_to_dict(e: CashflowEvent) -> dict:
     return {"id": str(e.id), "kind": e.kind, "amount": e.amount, "symbol": e.symbol, "memo": e.memo,
-            "cash_after": e.cash_after, "rebalance_run_id": str(e.rebalance_run_id) if e.rebalance_run_id else None,
+            "cash_after": e.cash_after, "remaining_budget": e.remaining_budget, "rebalance_run_id": str(e.rebalance_run_id) if e.rebalance_run_id else None,
             "created_at": e.created_at.isoformat() if e.created_at else None}
 
 
 def run_to_dict(r: RebalanceRun) -> dict:
-    return {"id": str(r.id), "trigger": r.trigger, "status": r.status, "total_asset": r.total_asset,
+    return {"id": str(r.id), "trigger": r.trigger, "triggers": r.triggers or [r.trigger],
+            "plan_kind": r.plan_kind, "decision_date": r.decision_date.isoformat() if r.decision_date else None,
+            "context": r.context, "status": r.status, "total_asset": r.total_asset,
             "max_drift_pct": r.max_drift_pct, "before_weights": r.before_weights, "target_weights": r.target_weights,
             "after_weights": r.after_weights, "orders": r.orders, "note": r.note,
             "created_at": r.created_at.isoformat() if r.created_at else None}
@@ -492,14 +481,20 @@ async def list_cashflows(db: AsyncSession, user_id: uuid.UUID, limit: int = 50) 
 
 
 async def execute_proposal(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> RebalanceRun:
-    """제안(proposed) 상태의 실행 이력을 사용자가 승인해 체결한다(현재 시세로 재산출)."""
-    row = (await db.execute(select(RebalanceRun).where(RebalanceRun.id == run_id, RebalanceRun.user_id == user_id))).scalar_one_or_none()
-    if row is None:
-        raise RebalanceError("제안을 찾을 수 없습니다.")
-    if row.status != "proposed":
-        raise RebalanceError("이미 처리된 제안입니다.")
+    """Approve once, retain order direction, recalculate current prices and budget."""
     plan = await get_plan(db, user_id)
-    new_run = await execute(db, user_id, plan, row.trigger, None, f"제안 승인 · {row.note}")
-    row.status = "skipped"
-    row.note = (row.note + " → 승인되어 새 실행으로 대체")[:300]
-    return new_run
+    row = (await db.execute(select(RebalanceRun).where(RebalanceRun.id == run_id, RebalanceRun.user_id == user_id)
+                           .with_for_update())).scalar_one_or_none()
+    if row is None or row.status != "proposed":
+        raise RebalanceError("제안이 없거나 이미 처리되었습니다.")
+    if not plan.is_active:
+        raise RebalanceError("플랜이 비활성화되었습니다.")
+    if row.decision_date != datetime.now(KST).date():
+        raise RebalanceError("지난 날짜의 제안입니다. 지금 점검으로 새 제안을 만드세요.")
+    if row.context.get("settings_fingerprint") != fingerprint(plan):
+        raise RebalanceError("설정이 바뀌었습니다. 지금 점검으로 제안을 다시 계산하세요.")
+    if plan.last_run_at and row.created_at < plan.last_run_at:
+        raise RebalanceError("이 제안 이후 체결이 발생했습니다. 지금 점검으로 다시 계산하세요.")
+    await pt.get_account(db, user_id, lock=True)
+    proposal = await propose(db, user_id, plan, plan_kind=row.plan_kind)
+    return await execute(db, user_id, plan, row.trigger, proposal, existing=row)
