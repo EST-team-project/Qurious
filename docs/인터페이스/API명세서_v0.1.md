@@ -148,10 +148,12 @@ flowchart LR
 | `rebalance` | `app/routes/rebalance.py` | 9 | 0 | 3 | 0 | 미배정 9 |
 | `tradingview` | `app/routes/tradingview.py` | 5 | 1 | 3 | 0 | 미배정 5 |
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
-| `glossary` | `app/routes/glossary.py` | 4 | 4 | 0 | 1 | P-A 4 |
+| `glossary` | `app/routes/glossary.py` | 5 | 5 | 0 | 1 | P-A 5 |
 | `learn` | `app/routes/learn.py` | 7 | 2 | 0 | 7 | P-A 7 |
 | `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
-| **합계** | 25개 | **207** | **50** | **94** | **64** | |
+| `data` | `app/routes/data.py` | 1 | 0 | 0 | 1 | P-A 1 |
+| `calendar` | `app/routes/calendar.py` | 2 | 2 | 0 | 2 | P-A 2 |
+| **합계** | 27개 | **211** | **53** | **94** | **67** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -177,10 +179,12 @@ flowchart LR
 | `rebalance` | 5 | 6 | · | · | 9 | · | · | · | · | · | · | · | · | 6 |
 | `tradingview` | · | 2 | · | · | 4 | 1 | · | · | · | · | 1 | 1 | 1 | 1 |
 | `formula` | 3 | 3 | · | · | 12 | · | · | · | · | · | · | · | · | · |
-| `glossary` | · | · | · | · | 4 | · | · | · | · | · | · | · | · | · |
+| `glossary` | · | · | · | · | 5 | · | · | · | · | · | · | · | · | · |
 | `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 7 |
 | `lectures` | 6 | 5 | · | · | · | · | · | · | · | · | · | · | · | 2 |
-| **합계** | **38** | **65** | **7** | **3** | **150** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **61** |
+| `data` | 1 | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| `calendar` | 2 | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| **합계** | **41** | **65** | **7** | **3** | **151** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **61** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -224,6 +228,7 @@ flowchart LR
 | API-GLOS-02 | GET | `/api/glossary/categories` | PostgreSQL | (다른 곳) |
 | API-GLOS-03 | GET | `/api/glossary/meta` | PostgreSQL | — |
 | API-GLOS-04 | GET | `/api/glossary/{name}` | PostgreSQL | (다른 곳) |
+| API-GLOS-05 | GET | `/api/glossary/{name}/graph` | PostgreSQL | (다른 곳) |
 | API-LRN-01 | GET | `/api/learn/catalog` | 외부(huggingface.co) | — |
 | API-LRN-02 | GET | `/api/learn/pages/{slug}` | 외부(huggingface.co) | — |
 | API-LEC-01 | GET | `/api/lectures/market/kospi-history` | 수집DB · 야후 | (다른 곳) |
@@ -234,6 +239,8 @@ flowchart LR
 | API-LEC-06 | GET | `/api/lectures/market/period-return` | 수집DB | — |
 | API-LEC-07 | POST | `/api/lectures/market/period-return/extend` | 수집DB | — |
 | API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 외부(www.emuseum.go.kr) | (다른 곳) |
+| API-CAL-01 | GET | `/api/calendar/trading-days` | 수집DB | — |
+| API-CAL-02 | GET | `/api/calendar/events` | 수집DB | — |
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
@@ -241,7 +248,7 @@ flowchart LR
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
 | `403` | 권한 없음 | 2 | API-AUTH-06, API-TV-01 |
-| `404` | 대상 없음 | 21 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 15 |
+| `404` | 대상 없음 | 22 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 16 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 5 | API-STK-24, API-STK-27, API-FRML-05, API-FRML-07, API-LRN-03 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
@@ -581,14 +588,15 @@ flowchart LR
 | API-FRML-12 | GET | `/api/formula-indicators/{ind_id}/results` | 세션·JWT | `{ind_id}` · `limit` | {results} | — | PostgreSQL | (다른 곳) | 미배정 | — | formula.py:257 |
 | API-FRML-13 | GET | `/api/formula-indicators/{ind_id}/export` | 세션·JWT | `{ind_id}` · `format` | 모델 없음 | — | PostgreSQL | (다른 곳) | 미배정 | — | formula.py:265 |
 
-#### `glossary` — `app/routes/glossary.py` · 4개
+#### `glossary` — `app/routes/glossary.py` · 5개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-GLOS-01 | GET | `/api/glossary` | 없음 | `q` · `category` · `limit` · `offset` | 모델 없음 | — | PostgreSQL | (다른 곳) | P-A | P01-①-1 | glossary.py:27 |
-| API-GLOS-02 | GET | `/api/glossary/categories` | 없음 | — | 모델 없음 | — | PostgreSQL | (다른 곳) | P-A | P01-①-1 | glossary.py:39 |
-| API-GLOS-03 | GET | `/api/glossary/meta` | 없음 | — | 모델 없음 | — | PostgreSQL | — | P-A | P01-①-1 | glossary.py:45 |
-| API-GLOS-04 | GET | `/api/glossary/{name}` | 없음 | `{name}` | 모델 없음 | 404 | PostgreSQL | (다른 곳) | P-A | P01-①-1 | glossary.py:51 |
+| API-GLOS-01 | GET | `/api/glossary` | 없음 | `q` · `category` · `limit` · `offset` | 모델 없음 | — | PostgreSQL | (다른 곳) | P-A | P01-①-1 | glossary.py:29 |
+| API-GLOS-02 | GET | `/api/glossary/categories` | 없음 | — | 모델 없음 | — | PostgreSQL | (다른 곳) | P-A | P01-①-1 | glossary.py:41 |
+| API-GLOS-03 | GET | `/api/glossary/meta` | 없음 | — | 모델 없음 | — | PostgreSQL | — | P-A | P01-①-1 | glossary.py:47 |
+| API-GLOS-04 | GET | `/api/glossary/{name}` | 없음 | `{name}` | 모델 없음 | 404 | PostgreSQL | (다른 곳) | P-A | P01-①-1 | glossary.py:53 |
+| API-GLOS-05 | GET | `/api/glossary/{name}/graph` | 없음 | `{name}` · `depth` | 모델 없음 | 404 | PostgreSQL | (다른 곳) | P-A | — | glossary.py:64 |
 
 #### `learn` — `app/routes/learn.py` · 7개
 
@@ -614,6 +622,19 @@ flowchart LR
 | API-LEC-06 | GET | `/api/lectures/market/period-return` | 없음 | `ticker`* · `start`* · `end`* | 모델 없음 | ? | 수집DB | — | 미배정 | — | lectures.py:78 |
 | API-LEC-07 | POST | `/api/lectures/market/period-return/extend` | 없음 | `ticker`* · `start`* | 모델 없음 | — | 수집DB | — | 미배정 | — | lectures.py:90 |
 | API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 없음 | — | Response | — | 외부(www.emuseum.go.kr) | (다른 곳) | 미배정 | — | lectures.py:98 |
+
+#### `data` — `app/routes/data.py` · 1개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-DATA-01 | GET | `/api/data/status` | 세션 | — | 모델 없음 | — | 수집DB | — | P-A | — | data.py:20 |
+
+#### `calendar` — `app/routes/calendar.py` · 2개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-CAL-01 | GET | `/api/calendar/trading-days` | 없음 | `start` · `end` | 모델 없음 | — | 수집DB | — | P-A | — | calendar.py:33 |
+| API-CAL-02 | GET | `/api/calendar/events` | 없음 | `start` · `end` · `kind` · `symbol` · `limit` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB | — | P-A | — | calendar.py:42 |
 
 <!-- /api_scan:routes -->
 
@@ -776,6 +797,8 @@ flowchart LR
 | **개념 학습 API 일곱 — API 189 → 196 · 라우터 23 → 24** (2026-10-01 · 2 · 4절 표는 스캐너로 다시 채움) | v0.2 — 본문 숫자와 새 라우터 `learn` 설명 | `GET /api/learn/catalog`(목록 · 팀 저장소 상태) · `GET/POST/PUT/DELETE /api/learn/pages…` · `GET …/{slug}/history` · `POST /api/learn/sync` — `API-LRN-01~07` · 요구 `P01-①-1` 확장(제안) · 파트 P-A. **기본 교재는 로그인 없이, 팀 자료는 로그인 뒤.** 고치기 · 지우기는 `base_version`(git 블롭 해시)이 필수이고, 낡으면 **409 `LEARN_CONFLICT` + 지금 글**을 돌려준다(말없이 덮어쓰지 않음). 팀 자료 저장처는 HF 비공개 데이터셋 `qurious-quant/learn-pages` — HF 가 안 되면 503 `LEARN_TEAM_UNAVAILABLE`, 권한이 없으면 403. 오류 응답은 `detail: {code · message · field · current}` 모양(6절 오류 규약 결정 전이라 이 라우터만의 모양). 설계 · 상태 코드 · 충돌 차례는 [개념 학습 설계서 v0.1](../설계/개념학습-설계_v0.1.md) 5 · 7절 |
 | **`API-GLOS-01` 응답 줄에 `matched` — 「어느 이름으로 맞았나」**(2026-10-02) — 검색 결과 줄마다 `{alias, kind}`(약어 · 영어 · 다른 이름 · 화면 키 · 대표 이름 · 초성 · 본문). 「per」 로 PCE 가 나온 까닭(영어 이름 Personal …)을 화면이 보여 준다. 기준은 순위 규칙(`match_rank`)과 같다 · 보여 줄 줄만 이름을 읽는다(쪽 단위) | v0.2 — 4절 API-GLOS-01 응답 칸 | `app/services/glossary.py` `pick_matched_alias` · 시험 TC-GL-26 · 용어사전 화면 |
 | **팀원 모의계좌 성과 주소 셋에 ID — `API-PAPR-33 ~ 35`**(2026-10-02 · PR #85 · #86) — `GET /api/paper/performance/metrics`(스냅샷으로 위험 · 성과 지표) · `POST …/snapshot`(오늘 줄 기록) · `POST …/simulate`(시연용 가짜 15일). API 204 → 207. ⚠️ `simulate` 는 로그인한 누구나 부를 수 있고 부른 사람의 실제 스냅샷을 지운다 — 담당 파트 확인 거리(이슈 초안) | v0.2 — 4절 paper 라우터 · 3절 발견 | `app/routes/paper.py` · [이슈 초안](../github-archive/2026-10-02/이슈-QFRS-마이그레이션-정리/00-본문.md) 2-2절 |
+| **데이터 상태 · 거래일 달력 — `API-DATA-01` · `API-CAL-01` · `API-CAL-02`**(2026-10-02 · 목표 기능 ① W4) — `GET /api/data/status`(로그인 뒤 · 러너 기록 · 표별 기준일과 「몇 거래일 늦었나」 · 거래일 달력 · HF 태그 — 30초 캐시) · `GET /api/calendar/trading-days?from=&to=`(로그인 없이 · 하루하루 거래일 여부 · 휴장 까닭 · 근거 observed/rule · 달력 밖이면 `partial`) · `GET /api/calendar/events?from=&to=&kind=&symbol=&limit=`(로그인 없이 · 휴장 · 파생 만기 · 배당 기준일 · 배당락일). 셋 다 `source` · `as_of` 를 싣고, 달력이 없으면 503 + 할 일(`collector.market_calendar build`), 모르는 종류 · 거꾸로 된 구간은 422. 라우트 207 → **210** · 라우터 25 → **27** · 스캐너 머리글 `DATA` · `CAL`(+ 빠져 있던 `LEC`) · 파트 P-A `P01-①-4` | 다음 판 본문 · 표는 스캐너로 다시 채운다 | 설계서 7절의 넷 중 셋(`/api/data/ohlcv` 는 아직) · 시험 TC-CA-10 · 11 · TC-DST-09 |
+| **용어 관계 — `API-GLOS-04` 응답에 `related[]` · 새 `API-GLOS-05` 관계 지도**(2026-10-02 · 연관 개념 · 결정 ④) — `GET /api/glossary/{name}` 이 관계를 싣는다(`id` · `term` · `summary` · `kind`(이 용어에서 본 종류 — confused_with · broader · narrower · related) · `kind_label` · `note`(차이 한 줄) · `detail`(두 말의 풀이) — 헷갈리는 말 → 상위 · 하위 → 연관 차례). `GET /api/glossary/{name}/graph?depth=1|2`(로그인 없이 · `center` · `nodes[]`(id · term · category · summary · level) · `edges[]`(from · to · kind · note) · 40개 상한이면 `truncated`) · 없는 용어 404 · `depth` 3 이상 422. `GET /api/glossary/meta` 에 `relations`(관계 수). 라우트 210 → **211** | 다음 판 본문 · 표는 스캐너로 | 설계서 5.4.3 · 시험 TC-GL-32 · 33 |
 
 ---
 

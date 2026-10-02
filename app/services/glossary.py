@@ -41,13 +41,21 @@ from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import GlossaryAlias, GlossaryCategory, GlossaryLoad, GlossarySource, GlossaryTerm
+from app.models import GlossaryAlias, GlossaryCategory, GlossaryLoad, GlossaryRelation, GlossarySource, GlossaryTerm
 from app.services.glossary_text import chosung, escape_like, is_chosung_query, norm
 
 SEED_PATH = Path(__file__).resolve().parent / "glossary_data" / "terms.json"
 
 #: 이 앱이 읽을 줄 아는 용어 파일 모양. 파일의 판이 다르면 넣지 않고 알린다(모르는 모양을 추측해서 넣지 않는다).
-SUPPORTED_FORMAT = 1
+#: 2 (2026-10-02) — 용어 사이 관계(`relations`)가 더해졌다.
+SUPPORTED_FORMAT = 2
+
+#: 관계 종류의 이름 — 파일 · 표에는 W3C SKOS 이름으로 두고, 화면에 보일 때 이 이름을 쓴다.
+#: broader 는 (좁은 쪽 → 넓은 쪽) 한 줄이라, 넓은 쪽에서 읽으면 「하위」 다.
+RELATION_LABEL = {"confused_with": "헷갈리는 말", "broader": "상위 개념", "narrower": "하위 개념", "related": "연관 개념"}
+RELATION_ORDER = {"confused_with": 0, "broader": 1, "narrower": 2, "related": 3}
+#: 관계 지도에 싣는 용어 수의 상한 — 두 단계로 퍼지면 수십 개가 된다.
+GRAPH_MAX_NODES = 40
 
 #: 용어사전 적재 전용 잠금 번호. 값에 뜻은 없고, 다른 기능의 잠금과 겹치지 않으면 된다.
 LOAD_LOCK_KEY = 71_001_101
@@ -112,6 +120,22 @@ def seed_rows(data: dict) -> tuple[list[dict], list[dict], list[dict], list[dict
     return categories, sources, terms, aliases
 
 
+def relation_rows(data: dict) -> list[dict]:
+    """용어 파일의 관계 → 표에 넣을 행. 두 끝이 모두 용어여야 한다(빌드가 이미 지키지만 외래 키를 여기서도 본다)."""
+    ids = {t["id"] for t in data["terms"]}
+    out = []
+    for r in data.get("relations", []):
+        if r["from"] in ids and r["to"] in ids and r["from"] != r["to"]:
+            out.append({"from_id": r["from"], "to_id": r["to"], "kind": r["kind"], "note": r.get("note", ""),
+                        "detail": r.get("detail", ""), "source_code": r.get("source", ""), "where_text": r.get("where", "")})
+    return out
+
+
+def all_rows(data: dict) -> tuple[list[dict], ...]:
+    """표 다섯 + 관계 — 적재하고 체크섬을 셀 행 전부(분류 · 자료 · 용어 · 별칭 · 관계)."""
+    return (*seed_rows(data), relation_rows(data))
+
+
 def rows_checksum(rows: tuple[list[dict], ...]) -> str:
     """표에 넣을 행 전체의 SHA-256 — 「다시 넣을지」 의 기준.
 
@@ -147,7 +171,7 @@ async def ensure_loaded(db: AsyncSession, path: Path | None = None) -> dict:
     data, checksum = read_seed(path)
     if data.get("format_version") != SUPPORTED_FORMAT:
         raise RuntimeError(f"용어 파일의 판({data.get('format_version')})을 이 앱은 읽지 못한다(읽는 판 {SUPPORTED_FORMAT})")
-    rows = seed_rows(data)
+    rows = all_rows(data)
     rows_sum = rows_checksum(rows)          # 파일이 같아도 검색용 칸을 만드는 규칙이 바뀌면 달라진다
 
     latest = await _latest_load(db)
@@ -164,7 +188,7 @@ async def ensure_loaded(db: AsyncSession, path: Path | None = None) -> dict:
         return {"status": "건너뜀", "checksum": checksum, "terms": latest.term_count, "aliases": latest.alias_count,
                 "duration_ms": 0}
 
-    categories, sources, terms, aliases = rows
+    categories, sources, terms, aliases, relations = rows
     await _upsert(db, GlossaryCategory, categories, "code")
     await _upsert(db, GlossarySource, sources, "code")
     await _upsert(db, GlossaryTerm, terms, "id")
@@ -172,6 +196,10 @@ async def ensure_loaded(db: AsyncSession, path: Path | None = None) -> dict:
     await db.execute(delete(GlossaryAlias))
     for start in range(0, len(aliases), 1000):
         await db.execute(pg_insert(GlossaryAlias).values(aliases[start:start + 1000]))
+    # 관계도 용어를 가리키기만 하는 표다 — 같은 까닭으로 통째로 다시 넣는다(빠진 관계 · 바뀐 차이 한 줄까지 한 번에).
+    await db.execute(delete(GlossaryRelation))
+    for start in range(0, len(relations), 1000):
+        await db.execute(pg_insert(GlossaryRelation).values(relations[start:start + 1000]))
     # 파일에서 사라진 용어 · 분류 · 자료를 지운다(자식인 용어부터).
     await db.execute(delete(GlossaryTerm).where(GlossaryTerm.id.not_in([t["id"] for t in terms])))
     await db.execute(delete(GlossaryCategory).where(GlossaryCategory.code.not_in([c["code"] for c in categories])))
@@ -183,7 +211,7 @@ async def ensure_loaded(db: AsyncSession, path: Path | None = None) -> dict:
                         source_count=len(sources), duration_ms=duration_ms))
     await db.commit()      # 여기까지가 한 트랜잭션 — 중간에 실패하면 표는 옛 판 그대로다
     return {"status": "넣음", "checksum": checksum, "terms": len(terms), "aliases": len(aliases),
-            "duration_ms": duration_ms}
+            "relations": len(relations), "duration_ms": duration_ms}
 
 
 async def ensure_loaded_on_startup() -> dict:
@@ -339,7 +367,72 @@ async def get_term(db: AsyncSession, name: str) -> dict | None:
         "notes": [{**n, "source_title": titles.get(n["source"], n["source"])} for n in term.notes],
         # 화면 키나 약어로 찾아왔으면 무엇으로 찾았는지 알려 준다(설명창이 「sharpe → 샤프 비율」 을 보여 줄 수 있게).
         "matched": {"alias": matched_alias, "kind": matched_kind},
+        # 연관 개념(결정 ④ — 칩 + 헷갈리는 말의 차이 한 줄). 헷갈리는 말 → 상위 · 하위 → 연관 차례.
+        "related": await related_terms(db, term.id),
     }
+
+
+def _view_relation(term_id: str, rel: GlossaryRelation) -> tuple[str, str]:
+    """이 용어에서 본 관계 — (다른 끝 ID, 종류). broader 는 방향에 따라 상위 · 하위가 된다."""
+    if rel.from_id == term_id:
+        return rel.to_id, rel.kind
+    return rel.from_id, ("narrower" if rel.kind == "broader" else rel.kind)
+
+
+async def related_terms(db: AsyncSession, term_id: str) -> list[dict]:
+    """한 용어의 관계 — 다른 끝 용어 · 종류(이 용어에서 본 것) · 차이 한 줄 · 두 끝 풀이."""
+    rels = (await db.execute(select(GlossaryRelation).where(
+        or_(GlossaryRelation.from_id == term_id, GlossaryRelation.to_id == term_id)))).scalars().all()
+    if not rels:
+        return []
+    others = {_view_relation(term_id, r)[0] for r in rels}
+    names = {t.id: t for t in (await db.execute(select(GlossaryTerm).where(GlossaryTerm.id.in_(others)))).scalars().all()}
+    out = []
+    for r in rels:
+        other, kind = _view_relation(term_id, r)
+        t = names.get(other)
+        if t is None:
+            continue
+        out.append({"id": t.id, "term": t.term, "summary": t.summary, "kind": kind, "kind_label": RELATION_LABEL[kind],
+                    "note": r.note, "detail": r.detail})
+    out.sort(key=lambda x: (RELATION_ORDER[x["kind"]], norm(x["term"])))
+    return out
+
+
+async def graph(db: AsyncSession, name: str, depth: int = 1) -> dict | None:
+    """관계 지도 — 한 용어에서 `depth` 단계(1 · 2)까지 이어진 용어(노드)와 관계(간선). 그 이름의 용어가 없으면 None.
+
+    두 단계까지만 퍼진다 — 그보다 멀면 「관계」 라기보다 사전 전체가 된다. 노드가 GRAPH_MAX_NODES 를 넘으면 자르고 알린다.
+    """
+    key = norm(name)
+    start = (await db.execute(select(GlossaryAlias.term_id).where(GlossaryAlias.alias_norm == key))).scalar_one_or_none() \
+        if key else None
+    if start is None:
+        return None
+    depth = 2 if depth >= 2 else 1
+    seen, frontier, edges, truncated = {start: 0}, [start], {}, False
+    for level in range(1, depth + 1):
+        if not frontier:
+            break
+        rels = (await db.execute(select(GlossaryRelation).where(
+            or_(GlossaryRelation.from_id.in_(frontier), GlossaryRelation.to_id.in_(frontier))))).scalars().all()
+        nxt = []
+        for r in rels:
+            edges[(r.from_id, r.to_id, r.kind)] = r
+            for end in (r.from_id, r.to_id):
+                if end not in seen:
+                    if len(seen) >= GRAPH_MAX_NODES:
+                        truncated = True
+                        continue
+                    seen[end] = level
+                    nxt.append(end)
+        frontier = nxt
+    terms = {t.id: t for t in (await db.execute(select(GlossaryTerm).where(GlossaryTerm.id.in_(list(seen))))).scalars().all()}
+    nodes = [{"id": i, "term": terms[i].term, "category": terms[i].category_code, "summary": terms[i].summary,
+              "level": lv} for i, lv in sorted(seen.items(), key=lambda x: (x[1], norm(terms[x[0]].term))) if i in terms]
+    links = [{"from": f, "to": t, "kind": k, "kind_label": RELATION_LABEL[k], "note": r.note}
+             for (f, t, k), r in sorted(edges.items()) if f in seen and t in seen]
+    return {"center": start, "depth": depth, "nodes": nodes, "edges": links, "truncated": truncated}
 
 
 async def categories(db: AsyncSession) -> dict:
@@ -356,7 +449,7 @@ async def meta(db: AsyncSession) -> dict:
     """지금 표에 든 용어사전의 판 — 언제 · 어떤 체크섬 · 몇 개. 파일과 같은 판인지도 함께 알려 준다."""
     latest = await _latest_load(db)
     data, file_checksum = read_seed()
-    file_rows = rows_checksum(seed_rows(data))      # 지금 파일 · 지금 규칙으로 넣는다면 들어갈 행
+    file_rows = rows_checksum(all_rows(data))       # 지금 파일 · 지금 규칙으로 넣는다면 들어갈 행(관계 포함)
     sources = (await db.execute(select(GlossarySource).order_by(GlossarySource.sort_order))).scalars().all()
     counts: dict[str, int] = {}
     for codes in (await db.execute(select(GlossaryTerm.source_codes))).scalars().all():
@@ -371,5 +464,6 @@ async def meta(db: AsyncSession) -> dict:
         "format_version": latest.format_version if latest else None,
         "terms": latest.term_count if latest else 0,
         "aliases": latest.alias_count if latest else 0,
+        "relations": (await db.execute(select(func.count()).select_from(GlossaryRelation))).scalar_one(),
         "sources": [{"code": s.code, "title": s.title, "origin": s.origin, "terms": counts.get(s.code, 0)} for s in sources],
     }

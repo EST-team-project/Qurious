@@ -406,7 +406,7 @@ def test_alias_goes_to_the_term_that_names_it_whole(monkeypatch):
     진 쪽에는 「함께 쓰는 이름」(shared_names)으로 남는다 — 이름으로 한 건을 찾으면 임자가 나오고, 검색에서는 두 용어가 다 나온다.
     예전(먼저 읽은 쪽이 갖는다)에는 「괴리율 | Premium / Discount」 가 앞에 있으면 「Premium」 이 프리미엄이 아니라 괴리율로 갔다.
     """
-    for name in ("OVERRIDES", "SAME_AS", "RENAME", "NOT_ALIAS"):
+    for name in ("OVERRIDES", "SAME_AS", "RENAME", "NOT_ALIAS", "PAIR_NAMES"):   # PAIR_NAMES — 관계 이름 바꿈(2026-10-02)
         monkeypatch.setattr(gb, name, {})
     monkeypatch.setattr(gb, "read_sources", lambda: [
         _raw("괴리율", "finance", "fund", english="Premium / Discount", short="시장가격과 순자산가치의 차이"),
@@ -825,4 +825,127 @@ def test_screen_term_chips_open_the_glossary_card():
     assert "100vw" in css and "100dvh" in css and "overflow-y: auto" in css
     assert "TERM_VIEWS" in my and "setTermView" in my, "마이페이지 화면 설정이 같은 목록을 쓴다"
     assert 'kind === "화면 키"' in card, "화면 키(sharpe)는 사람에게 보이는 이름 대신 쓰지 않는다"
+
+
+# ── 6. 연관 개념 — 용어 사이 관계 (2026-10-02 · 설계서 5.4 · 결정 ④) ─────────────────
+
+_REL_TEXT = """# 투자분석 핵심 용어집
+## 11. 자주 혼동하는 용어 비교
+
+| 비교 쌍 | A | B | 핵심 차이 |
+|---|---|---|---|
+| PER vs PBR | 이익 대비 주가 | 순자산 대비 주가 | 성장주는 PER, 가치주는 PBR 우선 |
+| 매출액 vs 이익 | 번 총액 | 남은 액 | 한쪽이 사전에 없다 |
+| 깨진 줄 | A | B | C |
+
+# 한자 어원 사전
+## 1. 경제
+### 금리 (金利)
+
+| 항목 | 내용 |
+|---|---|
+| 읽기 | 금리 |
+| **관련어** | 기준금리(基準金利), 시장금리(市場金利) |
+"""
+
+
+def test_relations_are_parsed_from_pair_tables_and_related_rows():
+    """TC-GL-29 · 비교 쌍 표 → 헷갈리는 말(차이 한 줄 · 두 끝 풀이) · 관련어 줄 → 연관(괄호 속 한자는 뗀다) · 「vs」 없는 줄은 건너뛴다."""
+    rows = gb.parse_relations(_REL_TEXT)
+    pairs = [(r["a"], r["b"], r["kind"]) for r in rows]
+    assert pairs == [("PER", "PBR", "confused_with"), ("매출액", "이익", "confused_with"),
+                     ("금리", "기준금리", "related"), ("금리", "시장금리", "related")]
+    assert rows[0]["note"] == "성장주는 PER, 가치주는 PBR 우선"
+    assert rows[0]["detail"] == "PER — 이익 대비 주가 · PBR — 순자산 대비 주가"
+
+
+def test_relations_link_to_term_ids_and_report_the_rest(monkeypatch):
+    """TC-GL-30 · 이름 → 사전 ID(대표 이름 · 별칭 · PAIR_NAMES) · 사전에 없는 이름은 빼고 알린다 · 같은 짝은 한 줄 ·
+    PAIR_NAMES 가 사전에 없는 이름을 가리키거나 자료에서 더는 안 쓰이면 빌드가 멈춘다."""
+    terms = [{"id": "per", "term": "PER", "aliases": [{"alias": "주가수익비율", "kind": "다른 이름"}]},
+             {"id": "pbr", "term": "PBR", "aliases": []},
+             {"id": "금리", "term": "금리", "aliases": []},
+             {"id": "기준금리", "term": "기준금리", "aliases": []}]
+    raws = gb.parse_relations(_REL_TEXT) + [
+        {"a": "PBR", "b": "주가수익비율", "kind": "confused_with", "note": "뒤집힌 같은 짝", "detail": "", "where": "x"}]
+    monkeypatch.setattr(gb, "PAIR_NAMES", {})
+    rels, missing = gb.link_relations(terms, raws)
+    assert [(r["from"], r["to"], r["kind"]) for r in rels] == [("per", "pbr", "confused_with"), ("금리", "기준금리", "related")]
+    assert len(missing) == 2 and any("매출액" in m for m in missing) and any("시장금리" in m for m in missing)
+
+    monkeypatch.setattr(gb, "PAIR_NAMES", {"매출액": "PER"})           # 자료의 이름을 사전 이름으로 잇는 줄
+    rels, _ = gb.link_relations(terms, raws)
+    assert ("per", "이익") not in {(r["from"], r["to"]) for r in rels}    # 이익은 여전히 사전에 없다
+    monkeypatch.setattr(gb, "PAIR_NAMES", {"매출액": "없는 이름"})
+    with pytest.raises(SystemExit):
+        gb.link_relations(terms, raws)
+    monkeypatch.setattr(gb, "PAIR_NAMES", {"자료에 없는 이름": "PER"})
+    with pytest.raises(SystemExit):
+        gb.link_relations(terms, raws)
+
+
+def test_committed_relations_are_well_formed(seed):
+    """TC-GL-31 · (실제 파일) 판 2 · 관계의 두 끝이 모두 용어 · 종류는 SKOS 셋 · 헷갈리는 말엔 차이 한 줄 · 같은 짝은 한 줄 · 혼동 25쌍 이상."""
+    assert seed["format_version"] == glossary.SUPPORTED_FORMAT == 2
+    ids = {t["id"] for t in seed["terms"]}
+    rels = seed["relations"]
+    assert all(r["from"] in ids and r["to"] in ids and r["from"] != r["to"] for r in rels)
+    assert {r["kind"] for r in rels} <= set(gb.RELATION_KINDS)
+    assert all(r["note"] for r in rels if r["kind"] == "confused_with")
+    keys = [(r["kind"], *sorted((r["from"], r["to"]))) for r in rels]
+    assert len(keys) == len(set(keys))
+    assert sum(1 for r in rels if r["kind"] == "confused_with") >= 25
+    assert len(glossary.relation_rows(seed)) == len(rels)
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_relations_load_and_read_from_both_ends(db, tmp_path):
+    """TC-GL-32 · 관계가 표에 들어가고 두 끝에서 읽힌다 — broader 는 좁은 쪽에서 「상위」 · 넓은 쪽에서 「하위」 ·
+    관계 지도 1 · 2 단계 · 파일에서 빠진 관계는 다시 넣을 때 사라진다."""
+    def with_relations(data):
+        return [{"from": "per", "to": "pbr", "kind": "confused_with", "note": "차이 한 줄", "detail": "PER — … · PBR — …",
+                 "source": "finance", "where": "11"},
+                {"from": "샤프-비율", "to": "mdd", "kind": "broader", "note": "", "detail": "", "source": "curated", "where": "시험"},
+                {"from": "mdd", "to": "시가총액", "kind": "related", "note": "", "detail": "", "source": "curated", "where": "시험"},
+                {"from": "per", "to": "없는-용어", "kind": "related", "note": "", "detail": "", "source": "curated", "where": "시험"}]
+    first = await glossary.ensure_loaded(db, _small_seed(tmp_path, relations=with_relations))
+    assert first["relations"] == 3, "끝이 사전에 없는 관계는 넣지 않는다"
+    per = await glossary.get_term(db, "PER")
+    assert [(r["term"], r["kind"], r["note"]) for r in per["related"]] == [("PBR", "confused_with", "차이 한 줄")]
+    pbr = await glossary.get_term(db, "pbr")
+    assert pbr["related"][0]["id"] == "per", "양방향 — 다른 끝에서도 읽힌다"
+    sharpe = await glossary.get_term(db, "샤프-비율")
+    mdd = await glossary.get_term(db, "mdd")
+    assert [(r["id"], r["kind_label"]) for r in sharpe["related"]] == [("mdd", "상위 개념")]
+    assert [(r["id"], r["kind"]) for r in mdd["related"]] == [("샤프-비율", "narrower"), ("시가총액", "related")]
+
+    g1 = await glossary.graph(db, "샤프-비율", 1)
+    g2 = await glossary.graph(db, "샤프-비율", 2)
+    assert {n["id"] for n in g1["nodes"]} == {"샤프-비율", "mdd"}
+    assert {n["id"] for n in g2["nodes"]} == {"샤프-비율", "mdd", "시가총액"} and len(g2["edges"]) == 2
+    assert await glossary.graph(db, "없는용어", 1) is None
+
+    again = await glossary.ensure_loaded(db, _small_seed(tmp_path, relations=lambda d: with_relations(d)[:1]))
+    assert again["status"] == "넣음" and again["relations"] == 1
+    assert (await glossary.get_term(db, "mdd"))["related"] == []
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_graph_route_and_real_file_relations(db):
+    """TC-GL-33 · 실제 파일을 넣고 — PER 의 헷갈리는 말에 PBR · 관계 지도 주소 · 없는 용어는 404 · 판 정보에 관계 수."""
+    from fastapi import HTTPException
+
+    from app.routes import glossary as routes
+
+    await glossary.ensure_loaded(db)
+    per = await routes.get_term("per", db)
+    assert "pbr" in {r["id"] for r in per["related"] if r["kind"] == "confused_with"}
+    g = await routes.term_graph("per", 2, db)
+    assert g["center"] == "per" and g["nodes"][0]["id"] == "per" and g["edges"]
+    with pytest.raises(HTTPException) as err:
+        await routes.term_graph("없는용어", 1, db)
+    assert err.value.status_code == 404
+    assert (await glossary.meta(db))["relations"] == len(glossary.read_seed()[0]["relations"])
 

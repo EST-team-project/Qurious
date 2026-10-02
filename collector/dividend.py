@@ -121,8 +121,9 @@ def process_month(conn: sqlite3.Connection, limiter: RateLimiter, ym: str, *,
             #    있으므로 우리 백테스트 구간의 수익률에 더해서도 안 된다 — 제대로 비어야
             #    하는 칸이다. `needs_review` 를 세우면 진짜 문제(금액을 못 읽음)가 이
             #    1,000여 건에 묻힌다.
-            d.note = (d.note + " / " if d.note else "") + \
-                     f"배당락일 없음 — 기준일 {d.record_dt} 이 거래일 달력(2020-01-02~) 앞이다"
+            #    기준일이 달력 **끝 뒤**인 것(아직 오지 않은 날 · 2026-10-02~)은 「보류」 로 적고,
+            #    거래일 달력이 늘면 market_calendar 단계가 채운다.
+            d.note = (d.note + " / " if d.note else "") + dart.ex_dividend_note(cal, d.record_dt)
             tally["out_of_range"] += 1
         if d.needs_review:
             tally["review"] += 1
@@ -294,7 +295,7 @@ def run_reparse(*, quiet: bool = False) -> Dict[str, int]:
             continue
         d.ex_div_dt = dart.ex_dividend_date(cal, d.record_dt) or ""
         if not d.ex_div_dt:
-            d.note = (d.note + " / " if d.note else "") +                      f"배당락일 없음 — 기준일 {d.record_dt} 이 거래일 달력(2020-01-02~) 앞이다"
+            d.note = (d.note + " / " if d.note else "") + dart.ex_dividend_note(cal, d.record_dt)
             tally["out_of_range"] += 1
         if d.needs_review:
             tally["review"] += 1

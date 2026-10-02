@@ -309,12 +309,19 @@ TABLES: Dict[str, Dict] = {
 
 #: 올리지 않는 표와 그 이유.
 #:
-#: **지금은 비어 있다.** 2026-09-20 에 `raw_response`·`ingest_day` 를 대상에 넣으면서
-#: 제외 표가 없어졌다. 빈 dict 를 남겨 두는 이유는 두 가지다 —
-#:   ① 나중에 정말 뺄 표가 생기면 **이유와 함께** 여기 적게 하려고,
+#: 2026-09-20 에 `raw_response`·`ingest_day` 를 대상에 넣으면서 한때 비었다. 이 dict 의 쓸모는 둘이다 —
+#:   ① 정말 뺄 표는 **이유와 함께** 여기 적고,
 #:   ② `status` 가 "DB 에는 있는데 TABLES 에도 EXCLUDED 에도 없는 표" 를 찾아내
-#:      **백업에서 조용히 빠지는 표**를 잡아내려고.
-EXCLUDED: Dict[str, str] = {}
+#:      **백업에서 조용히 빠지는 표**를 잡아낸다.
+#: 2026-10-02 — 거래일 달력 표 셋은 언제든 다시 만들 수 있어 뺀다. OHLCV 원자료 표 넷(etf_daily ·
+#: index_daily · price_intraday · intraday_universe)은 **일부러 여기 적지 않는다** — krx-ohlcv 데이터셋은
+#: 규격 자료(ohlcv-v1)만 올려 ETF 순자산가치 · 기초지수 같은 칸은 백업이 없다. 적으면 「DB 를 지워도 된다」
+#: 판정이 거짓으로 초록이 된다(결함 DF-40 · 백업 대상에 넣을지는 데이터 파트가 정한다).
+EXCLUDED: Dict[str, str] = {
+    "holiday_kasi": "특일 정보(한국천문연구원 · 이용허락범위 제한 없음)를 언제든 다시 받는다 — python -m collector.market_calendar build",
+    "market_calendar": "계산한 표 — python -m collector.market_calendar build 가 공휴일 · 시세로 다시 만든다",
+    "market_event": "계산한 표 — python -m collector.market_calendar build 가 달력 · 배당 표로 다시 만든다",
+}
 
 #: SQLite 선언 타입 → arrow 타입. TEXT 는 string, INTEGER 는 int64, REAL 은 float64,
 #: BLOB 은 binary(원문 바이트를 그대로 담는다 — 문자열로 바꾸면 인코딩 추측이 끼어들고

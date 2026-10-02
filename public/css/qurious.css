@@ -60,6 +60,7 @@
 .q-term-warn { color: var(--brand) !important; }
 .q-term-confused { background: #fdf1e1; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
 .q-term-confused p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.6; }
+.q-term-confused-detail { color: var(--text-mute); font-size: 12.5px !important; }
 .q-term-foot { margin-top: 16px; }
 .q-term-src { font-size: 12px; color: var(--text-mute); margin: 8px 0 0; }
 .q-term-note { font-size: 13.5px; color: var(--text-dim); margin-top: 12px; }

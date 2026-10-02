@@ -129,7 +129,7 @@ flowchart LR
 아래 그림과 연결 축 표는 「수집 DB 의 표 열두 개는 무엇을 기본키로 삼고, 어느 칸으로 이어지나」 에 답한다. 스캐너 출력이라 제목에 번호가 없다(부록 B).
 
 <!-- schema_scan:erd-수집 -->
-**수집 DB — 시세 · 배당 · 지수 · 12표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
+**수집 DB — 시세 · 배당 · 지수 · 15표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
 
 ```mermaid
 erDiagram
@@ -170,6 +170,14 @@ erDiagram
     INTEGER vs
     _ 외14칸
   }
+  holiday_kasi {
+    TEXT locdate PK
+    TEXT date_name PK
+    TEXT is_holiday
+    TEXT date_kind
+    INTEGER seq
+    TEXT fetched_at
+  }
   index_daily {
     TEXT bas_dt PK
     TEXT idx_csf PK
@@ -196,6 +204,22 @@ erDiagram
     TEXT market
     TEXT reason
     INTEGER rank
+  }
+  market_calendar {
+    TEXT cal_date PK
+    INTEGER is_trading_day
+    TEXT reason
+    TEXT basis
+    TEXT note
+    _ 외1칸
+  }
+  market_event {
+    TEXT event_id PK
+    TEXT kind
+    TEXT event_date
+    TEXT event_time
+    TEXT market
+    _ 외7칸
   }
   price_adjusted {
     TEXT bas_dt PK
@@ -782,7 +806,7 @@ erDiagram
   }
 ```
 
-**앱 DB — 용어사전 · 5표 · 관계 3개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
+**앱 DB — 용어사전 · 6표 · 관계 5개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
 
 ```mermaid
 erDiagram
@@ -806,6 +830,15 @@ erDiagram
     INTEGER term_count
     _ 외5칸
   }
+  glossary_relations {
+    VARCHAR_60 from_id PK
+    VARCHAR_60 to_id PK
+    VARCHAR_16 kind PK
+    TEXT note
+    TEXT detail
+    VARCHAR_20 source_code
+    VARCHAR_120 where_text
+  }
   glossary_sources {
     VARCHAR_20 code PK
     VARCHAR_100 title
@@ -824,6 +857,8 @@ erDiagram
     _ 외12칸
   }
   glossary_terms ||--o{ glossary_aliases : "term_id"
+  glossary_terms ||--o{ glossary_relations : "from_id"
+  glossary_terms ||--o{ glossary_relations : "to_id"
   glossary_categories ||--o{ glossary_terms : "category_code"
   glossary_sources ||--o{ glossary_terms : "lead_source_code"
 ```
@@ -970,6 +1005,8 @@ v1.2 의 변경 노트 셋(강사님 기초 코드 표 8 · 용어사전 표 5 �
 | 2026-10-02 | 추가 | **Qdrant 컬렉션의 모양.** 컬렉션 `fin_chunks` · 벡터 768차원(`nomic-embed-text`) · 코사인 거리 · 조각마다 본문(`page_content`)과 출처(`metadata.source` = 올린 파일 이름). 지울 때는 출처로 찾아 지운다. 1절 그림에 저장소로만 넣었고 칸 표는 아직 없다 | 1절 · 새 절(문서 조각 저장소) | `app/services/rag_pipeline.py` · 시험 TC-VS-01 ~ 05 · 결함 DF-38 |
 | 2026-10-02 | 예정 | **용어 관계 표.** 용어사전 화면의 「연관 개념」(R01 결정 ④)을 위한 `glossary_relations`(용어 → 용어 · 관계 종류) — 아직 만들지 않았다. 마이그레이션은 `320128e72164` 뒤에 붙인다 | 4.1절 용어사전 영역 · 4.2절 그림(스캐너) | [용어사전 설계서 v0.1](../설계/용어사전-설계_v0.1.md) 부록 C |
 | 2026-10-02 | 확인 | **팀원 마이그레이션 정리 거리 넷**(4.5절) — 이슈가 처리되면 그림 7 을 다시 잰다 | 4.5절 | [이슈 초안](../github-archive/2026-10-02/이슈-QFRS-마이그레이션-정리/00-본문.md) |
+| 2026-10-02 | 추가 | **수집 DB 표 셋 — 거래일 달력.** `holiday_kasi`(받은 것 · 특일 정보 행 · 키 날짜+이름) · `market_calendar`(계산한 것 · 하루 한 행 · 거래일 여부 · 까닭 · 근거 observed/rule · 2020-01-01~2027-12-31 2,922행) · `market_event`(계산한 것 · 휴장 · 파생 만기 · 배당 기준일 · 배당락일 · 17,5xx행). 수집 DB 표 12 → 15. 관계: `dividend` 한 행 → `market_event` 두 행(기준일 · 배당락일) · `market_calendar` 의 거래일이 `dividend.ex_div_dt` 를 정한다(DF-39) | 3절 수집 DB 그림 · 표 목록(스캐너) | `collector/db.py` 11~13 · `collector/market_calendar.py` · 시험 TC-CA |
+| 2026-10-02 | 추가 | **용어 관계 표를 만들었다** — `glossary_relations`(앱 DB · 기본키 `from_id` + `to_id` + `kind` · 두 끝 모두 `glossary_terms.id` 를 가리키고 용어가 지워지면 함께 지워진다 · `to_id` 색인 · `note` 차이 한 줄 · `detail` 두 끝의 풀이 · `source_code` · `where_text`). 마이그레이션 `0012`(팀원 `320128e72164` 뒤). 앱 DB 표 52 → 53. 위 「예정」 줄을 이 줄이 받는다 | 4.1절 용어사전 영역 · 4.2절 그림(스캐너) | `app/models/glossary.py` `GlossaryRelation` · `alembic/versions/0012_glossary_relations.py` |
 
 ## 부록 D. 개정 이력
 

@@ -23,6 +23,7 @@
     전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
     로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
     용어     용어사전의 판(표가 파일과 같은가) · 분류 · 검색(약어 · 초성) · 화면 키로 한 건 · 없는 이름은 404
+    데이터   데이터 상태(일일 갱신 · 표별 기준일과 늦음) · 거래일 달력(60일) · 금융 일정(파생 만기 · 배당락일)
     매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
     연동     TradingView 웹훅 안내 · 알림 설정
     시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결 · 벡터 DB(Qdrant) 연결
@@ -251,6 +252,28 @@ $Checks = @(
        Pass "$($r.Json.term) ($($r.Json.english)) · 분류 $($r.Json.category.name) · 자료 $(Count $r.Json.sources) 곳 · 다른 이름 $(Count $r.Json.aliases) 개" } }
   @{ G = '용어'; Name = '없는 용어는 404'; M = 'GET'; P = '/api/glossary/없는용어'; Auth = $false; Expect = 404
      Test = { param($r) Pass "404 — $($r.Json.detail)" } }
+
+  # ── 데이터 상태 · 거래일 달력 (2026-10-02) ──────────────────────────────────
+  # 상태는 로그인 뒤(수집 자료의 양 · 이 PC 의 작업 기록), 달력 · 일정은 로그인 없이 읽는다.
+  # 달력은 수집기가 매일 12:30 에 다시 만든다 — 없으면 503 과 할 일(python -m collector.market_calendar build).
+  @{ G = '데이터'; Name = '데이터 상태 — 일일 갱신 · 표별 기준일'; M = 'GET'; P = '/api/data/status'; Auth = $true
+     Test = { param($r)
+       $late = @($r.Json.tables | Where-Object { $_.verdict -in @('late', 'stale', 'missing') } | ForEach-Object { "$($_.label) $($_.verdict_label)" })
+       $msg = "$($r.Json.verdict_label) · 시세 기준일 $($r.Json.as_of) · 일일 갱신 $($r.Json.runner.label)"
+       if ($r.Json.verdict -eq 'ok') { Pass $msg }
+       elseif ($r.Json.verdict -eq 'warning') { Warn ("$msg — " + ($late -join ' · ')) }
+       else { Fail ("$msg — " + ($late -join ' · ')) } } }
+  @{ G = '데이터'; Name = '거래일 달력 — 오늘부터 60일'; M = 'GET'; P = '/api/calendar/trading-days'; Auth = $false
+     Test = { param($r)
+       $next = @($r.Json.days | Where-Object { -not $_.is_trading_day -and $_.weekday -notin @('토', '일') })[0]
+       $msg = "거래일 $($r.Json.trading_days) · 휴장 $($r.Json.closed_days) · 달력 끝 $($r.Json.calendar.end)"
+       if ($next) { $msg += " · 다음 평일 휴장 $($next.date) $($next.reason)" }
+       Pass $msg } }
+  @{ G = '데이터'; Name = '금융 일정 — 파생 만기 · 배당락일'; M = 'GET'; P = '/api/calendar/events?kind=deriv_expiry,dividend_ex'; Auth = $false
+     Test = { param($r)
+       $exp = @($r.Json.events | Where-Object { $_.kind -eq 'deriv_expiry' })[0]
+       if (-not $exp) { return (Fail '60일 안에 파생 만기가 없다 — 달력이 짧거나 일정이 비었다') }
+       Pass "다음 만기 $($exp.date) $($exp.title) · 배당락일 $(Count @($r.Json.events | Where-Object { $_.kind -eq 'dividend_ex' })) 건" } }
 
   # ── 매매: 모의투자 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 ─────────────────
   @{ G = '매매'; Name = '모의투자 잔고'; M = 'GET'; P = '/api/paper/account'; Auth = $true
