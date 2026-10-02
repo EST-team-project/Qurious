@@ -25,6 +25,7 @@ celery_app = Celery(
         "app.tasks.ingest_tasks",
         "app.tasks.sync_tasks",
         "app.tasks.collector_tasks",
+        "app.tasks.paper_snapshot",
     ],
 )
 
@@ -107,6 +108,16 @@ celery_app.conf.update(
             "task": "rebalance.check_triggers",
             "schedule": 3600.0,           # 1시간 — 시간·이탈률 리밸런싱 트리거 점검
             "options": {"expires": 3500},
+        },
+        # ── Issue #88 지적 #6: 모의계좌 일별 스냅샷 배치 ──────────────────────
+        # 계좌 조회 시에만 기록되던 스냅샷을 매일 장 마감 뒤 자동 기록한다.
+        # 그렇게 해야 daily_return 이 "이틀·사흘치" 로 뭉치지 않고,
+        # 샤프·변동성 같은 지표가 하루 단위로 정확해진다.
+        # timezone="Asia/Seoul" 이라 hour=15 은 KST 15시다.
+        "paper-snapshot-daily": {
+            "task": "paper.record_daily_snapshots",
+            "schedule": crontab(hour=15, minute=40),  # KST 15:40
+            "options": {"expires": 3600},
         },
     },
 )
