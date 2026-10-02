@@ -93,6 +93,14 @@ ROOT = Path(__file__).resolve().parents[1]
     "app/services/learn_pages.py": {"P01-①-1"},
     # 교재 3.1 RAG 장의 예제 — `check_citations` 가 RAG 구현 흔적(citations · P01-①-3)으로 잡힌다. 설명용이지 구현이 아니다(W5 · W6)
     "public/learn/examples/rag_mini.py": set(),
+    # HF 백업(2026-10-02 DF-40) — 분봉 표의 정렬 키 `"timeframe"` 이 여러 주기 지표 신호(P01-②-3)로 잡힌다.
+    # 파일을 정렬할 칸 이름이지 신호 계산이 아니다. 전부터 세던 셋(수집 · 정기 배치 · 데이터 품질)만 센다
+    "scripts/hf_dataset.py": {"P01-①-2", "P01-①-4", "SCH-DQ"},
+    # 데이터 상태 · OHLCV 주소(2026-10-02) — 자료의 주기 칸 `timeframe` 이 여러 주기 신호(P01-②-3)로 잡힌다.
+    # 주기별 자료를 내주는 것이지 신호를 계산하지 않는다(`data_status.py` 는 S78 부터 그렇게 세어지고 있었다)
+    "app/services/data_ohlcv.py": {"P01-①-2", "P01-①-4"},
+    "app/services/data_status.py": {"P01-①-2", "P01-①-4"},
+    "app/routes/data.py": {"P01-①-2", "P01-①-4"},
 }
 
 # 훑을 확장자. 문서(.md)는 구현 증거가 아니라 뺀다.

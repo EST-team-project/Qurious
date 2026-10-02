@@ -134,7 +134,11 @@ def market(tmp_path, monkeypatch):
     conn.close()
     monkeypatch.setenv(collector_db.ENV_DB_PATH, str(path))
     ds._cache.clear()
-    return path
+    ds._counts.update(sig=None, rows={}, at=None)
+    yield path
+    t = ds._count_job["thread"]                     # 뒤에서 세는 스레드가 임시 DB 를 쥔 채 끝나지 않게
+    if t is not None:
+        t.join(10)
 
 
 def _states(today: date):
@@ -225,28 +229,45 @@ def test_api_requires_login(market):
     assert j["verdict"] in ("ok", "warning", "error") and {t["key"] for t in j["tables"]} >= {"price_daily", "market_calendar"}
 
 
-def test_row_counts_reused_when_db_unchanged_or_runner_running(market):
-    """TC-DST-10 · 행 수는 DB 파일이 그대로면 다시 세지 않고, 러너가 도는 중이면 지난 값을 쓰고 그렇다고 적는다."""
+def test_row_counts_in_background_reused_and_recounted(market, monkeypatch):
+    """TC-DST-10 · 행 수는 뒤에서 센다 — 처음엔 곧바로 「세는 중」(줄 수 None)으로 답하고, 다 세면 그 값(fresh)을 쓴다.
+    파일이 그대로면 다시 세지 않고, 러너가 도는 중이면 지난 값(old)과 그 까닭을, 러너가 끝나면 뒤에서 다시 센다.
+    (컨테이너에서 큰 표 다섯의 COUNT(*) 가 첫 호출에 14.8초 · 점검 스크립트에서 21초 걸렸다 — 2026-10-02)"""
     import sqlite3 as _sq
-    ds._counts.update(sig=None, rows={})
-    conn = ds._connect_ro()
-    c1 = ds.make_counter(conn, running=False)
-    assert c1("price_daily", "SELECT COUNT(*) FROM price_daily") > 0
-    calls = []
-    conn.set_trace_callback(calls.append)
-    c2 = ds.make_counter(conn, running=False)
-    c2("price_daily", "SELECT COUNT(*) FROM price_daily")
-    assert not [q for q in calls if "COUNT" in q], "파일이 그대로면 세지 않는다"
-    conn.close()
+    import threading
+
+    gate = threading.Event()
+    real = ds._count_rows
+    monkeypatch.setattr(ds, "_count_rows", lambda path, sig: (gate.wait(10), real(path, sig)))
+    now = at("2026-10-02T14:00:00")
+    s = ds.get_status(now)
+    assert s["rows_state"] == "pending" and "세는 중" in s["rows_note"]
+    assert all(t["rows"] is None for t in s["tables"] if t["verdict"] != "missing"), "세는 동안 줄 수는 비운다"
+    assert {t["key"]: t["last_date"] for t in s["tables"]}["price_daily"] == "2026-09-30", "기준일 · 판정은 그대로"
+    gate.set()
+    ds._count_job["thread"].join(10)
+    s = ds.get_status(now)
+    rows = {t["key"]: t["rows"] for t in s["tables"]}
+    assert s["rows_state"] == "fresh" and rows["price_daily"] > 0 and "rows_note" not in s
+
+    real_start = ds.start_count
+    started = []
+    monkeypatch.setattr(ds, "start_count", lambda **k: started.append(1) or True)
+    assert ds.get_status(now)["rows_state"] == "fresh" and not started, "파일이 그대로면 다시 세지 않는다"
 
     w = _sq.connect(market)                                   # 러너가 쓰는 중 — 파일이 바뀐다
     w.execute("INSERT INTO price_daily (bas_dt, srtn_cd, clpr) VALUES ('20261001', '000660', 1)")
     w.commit()
     w.close()
-    conn = ds._connect_ro()
-    c3 = ds.make_counter(conn, running=True)
-    n_old = c3("price_daily", "SELECT COUNT(*) FROM price_daily")
-    assert c3.used_old == ["price_daily"] and n_old == ds._counts["rows"]["price_daily"]
-    c4 = ds.make_counter(conn, running=False)
-    assert c4("price_daily", "SELECT COUNT(*) FROM price_daily") == n_old + 1, "러너가 끝나면 다시 센다"
-    conn.close()
+    write_state(market.parent / "state", lock={"pid": 1, "started_at": "2026-10-02T13:55:00+09:00"})
+    s = ds.get_status(now)
+    assert s["rows_state"] == "old" and "도는 중" in s["rows_note"] and not started, "러너가 쓰는 동안은 다시 세지 않는다"
+    assert {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"]
+
+    (market.parent / "state" / "daily_update.lock").unlink()   # 러너가 끝났다 — 다시 센다
+    monkeypatch.setattr(ds, "start_count", real_start)
+    s = ds.get_status(now)
+    assert s["rows_state"] == "old" and "다시 세는 중" in s["rows_note"]
+    ds._count_job["thread"].join(10)
+    s = ds.get_status(now)
+    assert s["rows_state"] == "fresh" and {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"] + 1

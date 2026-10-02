@@ -210,3 +210,4 @@ API-DATA-01	GET	/api/data/status	2026-10-02	사용
 API-CAL-01	GET	/api/calendar/trading-days	2026-10-02	사용
 API-CAL-02	GET	/api/calendar/events	2026-10-02	사용
 API-GLOS-05	GET	/api/glossary/{name}/graph	2026-10-02	사용
+API-DATA-02	GET	/api/data/ohlcv	2026-10-02	사용

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -84,9 +85,14 @@ _RANK = {"fresh": 0, "ok": 0, "info": 0, "late": 1, "missing": 1, "stale": 2}
 
 _cache: dict = {}
 
-#: 표별 행 수 — DB 파일(본 파일 + WAL)의 크기 · 시각이 그대로면 다시 세지 않는다. 러너가 큰 표를 통째로
-#: 다시 쓰는 동안 컨테이너에서 COUNT(*) 가 16초까지 걸렸다(2026-10-02 12:4x 실측 · 평소 0.8초) — 그때는 지난 값을 쓴다.
-_counts: dict = {"sig": None, "rows": {}}
+#: 표별 행 수 — **뒤에서 센다**(2026-10-02 · W4). 앱이 다시 켜진 뒤 첫 호출에서 컨테이너가 큰 표 다섯의 COUNT(*) 에
+#: 14.8초를 썼다(바인드 마운트 · 실측 — 마지막 날 찾기는 모두 수 ms · 점검 스크립트에서 21초). 그동안 화면이 멈추지 않게
+#: 응답은 곧바로 지난 값(없으면 「세는 중」 · 줄 수 None)으로 주고, 세기는 스레드 하나가 맡는다.
+#: DB 파일(본 파일 + WAL)의 크기 · 시각이 그대로면 다시 세지 않고, 러너가 큰 표를 다시 쓰는 동안은(파일이 몇 초마다
+#: 바뀐다 · 그때 COUNT(*) 가 16초까지) 지난 값을 쓴다.
+_counts: dict = {"sig": None, "rows": {}, "at": None}
+_count_lock = threading.Lock()
+_count_job: dict = {"thread": None, "error": None}
 
 
 def _now() -> datetime:
@@ -267,28 +273,65 @@ def _db_sig(path: Path | None):
     return tuple(out)
 
 
-def make_counter(conn: sqlite3.Connection, *, running: bool):
-    """행 수 세기 — DB 파일이 그대로면 지난 값 · 러너가 도는 중이면 지난 값(있으면) · 아니면 센다."""
+def _count_rows(path: Path, sig) -> None:
+    """(스레드) 표마다 행 수를 세어 `_counts` 에 둔다. 다 세면 30초 응답 캐시를 비워 다음 호출이 새 값을 보게 한다.
+    세기를 시작할 때의 파일 지문을 함께 적는다 — 세는 사이에 파일이 바뀌었으면 다음 호출이 다시 센다."""
+    try:
+        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        try:
+            rows = {key: conn.execute(count_sql).fetchone()[0]
+                    for key, table, *_rest, count_sql in TABLES if _has_table(conn, table)}
+        finally:
+            conn.close()
+        with _count_lock:
+            _counts.update(sig=sig, rows=rows, at=_now().isoformat(timespec="seconds"))
+            _count_job["error"] = None
+        _cache.clear()
+    except sqlite3.Error as e:            # 세지 못하면 지난 값을 두고 까닭만 남긴다(다음 호출이 다시 시도)
+        with _count_lock:
+            _count_job["error"] = str(e)
+
+
+def start_count(*, wait: bool = False) -> bool:
+    """행 수 세기를 뒤에서 시작한다 — 이미 도는 중이면 그대로 둔다(스레드는 하나). 새로 시작했으면 참.
+    `wait` 는 시험 · 명령 줄에서 끝날 때까지 기다릴 때만 쓴다(화면 요청은 기다리지 않는다)."""
+    path = collector_db.db_path()
+    if path is None:
+        return False
+    with _count_lock:
+        t = _count_job["thread"]
+        started = not (t is not None and t.is_alive())
+        if started:
+            t = threading.Thread(target=_count_rows, args=(path, _db_sig(path)), name="data-status-count", daemon=True)
+            _count_job["thread"] = t
+            t.start()
+    if wait:
+        t.join()
+    return started
+
+
+def counts_view(*, running: bool) -> tuple[dict, str]:
+    """지금 쓸 행 수와 그 상태.
+
+    fresh   파일이 마지막으로 센 뒤 그대로다 — 그 값
+    old     파일이 바뀌었다 — 지난 값을 주고 뒤에서 다시 센다(러너가 쓰는 중이면 끝날 때까지 다시 세지 않는다)
+    pending 아직 한 번도 못 셌다(앱을 켠 뒤 처음) — 뒤에서 세기 시작하고 빈 값을 준다
+    """
     sig = _db_sig(collector_db.db_path())
-    same = sig is not None and sig == _counts["sig"]
-    used_old: list[str] = []
-
-    def count(key: str, sql: str) -> int:
-        if (same or running) and key in _counts["rows"]:
-            if not same:
-                used_old.append(key)
-            return _counts["rows"][key]
-        n = conn.execute(sql).fetchone()[0]
-        _counts["rows"][key] = n
-        return n
-
-    if not running:
-        _counts["sig"] = sig
-    count.used_old = used_old  # type: ignore[attr-defined]
-    return count
+    with _count_lock:
+        same = sig is not None and sig == _counts["sig"]
+        rows = dict(_counts["rows"])
+    if same:
+        return rows, "fresh"
+    # 러너가 쓰는 동안은 파일이 몇 초마다 바뀐다 — 지난 값이 있으면 새로 세지 않는다(세는 사이에 또 낡는다)
+    if not (running and rows):
+        start_count()
+    return rows, ("old" if rows else "pending")
 
 
-def table_states(conn: sqlite3.Connection | None, today: date, count=None) -> tuple[list[dict], dict]:
+def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | None = None) -> tuple[list[dict], dict]:
+    """표마다 기준일 · 늦음 판정 · 행 수. `rows_map` 을 주면 행 수는 그 값(없는 표는 None = 세는 중)이고, 안 주면
+    그 자리에서 센다(시험 · 명령 줄 — 큰 DB 에서는 느리다)."""
     if conn is None:
         return [{"key": k, "table": t, "label": lab, "group": g, "source": src, "verdict": "missing",
                  "verdict_label": VERDICT_LABEL["missing"], "rows": 0, "last_date": None,
@@ -306,7 +349,7 @@ def table_states(conn: sqlite3.Connection | None, today: date, count=None) -> tu
             out.append(row)
             continue
         last = _iso_day(conn.execute(last_sql).fetchone()[0])
-        rows = count(key, count_sql) if count else conn.execute(count_sql).fetchone()[0]
+        rows = rows_map.get(key) if rows_map is not None else conn.execute(count_sql).fetchone()[0]
         row.update(rows=rows, last_date=last)
         if key == "price_daily":
             price_last = last
@@ -387,12 +430,17 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
     cdir = collector_dir()
     runner = runner_state(cdir / "state" if cdir else None, now)
     conn = _connect_ro()
-    rows_note = ""
+    rows_state, rows_note = "fresh", ""
     try:
-        counter = make_counter(conn, running=runner["running"]) if conn is not None else None
-        tables, cal = table_states(conn, now.date(), counter)
-        if counter is not None and counter.used_old:
-            rows_note = "일일 갱신이 도는 중이라 행 수는 지난번에 센 값이다"
+        rows_map = None
+        if conn is not None:
+            rows_map, rows_state = counts_view(running=runner["running"])
+        tables, cal = table_states(conn, now.date(), rows_map)
+        if rows_state == "old":
+            rows_note = ("일일 갱신이 도는 중이라 행 수는 지난번에 센 값이다" if runner["running"] else
+                         "DB 가 바뀌어 행 수를 다시 세는 중이다 — 지금 보이는 것은 지난번 값")
+        elif rows_state == "pending":
+            rows_note = "행 수를 세는 중이다(앱을 켠 뒤 처음 한 번 · 컨테이너에서 15 ~ 20초) — 기준일 · 판정은 그대로 맞다"
     finally:
         if conn is not None:
             conn.close()
@@ -414,6 +462,8 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
         "calendar": cal,
         "hf": hf_state(cdir),
         "source": "collector",
+        "rows_state": rows_state,
+        "rows_counted_at": _counts.get("at"),
     }
     if rows_note:
         value["rows_note"] = rows_note

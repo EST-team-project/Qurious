@@ -18,9 +18,11 @@ const GNB_MENUS = {
       { key: "agent-news",      icon: "fa-solid fa-newspaper",             label: "투자 정보 리서치" },
     ],
   },
+  // 데이터(옛 「크롤링」 · 2026-10-02 화면 결정 ①) — 맨 위에 데이터 관제(js/datahub.js), 크롤링 세 화면은 그대로
   crawl: {
-    label: "<i class='fa-solid fa-spider'></i> 크롤링",
+    label: "<i class='fa-solid fa-database'></i> 데이터",
     items: [
+      { key: "data-status",   icon: "fa-solid fa-gauge-high",      label: "데이터 관제" },
       { key: "crawl-auto",    icon: "fa-solid fa-rotate",          label: "자동 크롤링" },
       { key: "crawl-manual",  icon: "fa-solid fa-link",            label: "수동 크롤링" },
       { key: "crawl-ingest",  icon: "fa-solid fa-database",        label: "데이터 인제스트" },
@@ -95,6 +97,8 @@ const GNB_MENUS = {
       { key: "macro-industry",    icon: "fa-solid fa-industry",        label: "산업 분석" },
       { key: "invest-fundamental",icon: "fa-solid fa-file-invoice-dollar", label: "재무제표 분석" },
       { key: "invest-technical",  icon: "fa-solid fa-chart-candlestick",  label: "기술적 분석" },
+      // 일정 (2026-10-02 화면 결정 ②) — 월 달력 + 다가오는 일정 · 좁은 화면은 목록(js/calendar.js)
+      { key: "market-calendar",   icon: "fa-solid fa-calendar-days",   label: "일정" },
     ],
   },
   // 금융 필수 지식 (2026-10-01 화면 설계 결정) — 「강의」(강의실 + 주제 아홉 · js/finlearn.js) · 「요약」(지금 화면 셋).
@@ -217,6 +221,9 @@ const VIEW_GUIDES = {
   "agent-cb":        { summary: "개인·기업 신용(CB) 통계를 조건별로 조회해 리스크를 참고합니다.", steps: ["개인 CB는 기간·성별·연령대를, 기업 CB는 기간·규모·업종코드를 선택하세요.", "'조회' 버튼을 누르면 해당 조건의 집계 통계가 표시됩니다."], relatedTerms: ["cb_score"] },
   "agent-products":  { summary: "위험 성향에 맞는 은행 수신상품·공모펀드를 검색합니다.", steps: ["상단 탭에서 '은행 수신상품' 또는 '공모펀드'를 선택하세요.", "최소금리(또는 최소수익률)와 키워드로 조건을 좁혀 검색하세요."], relatedTerms: [] },
   "agent-news":      { summary: "크롤링된 뉴스·리포트를 AI RAG로 검색해 투자 인사이트를 얻습니다.", steps: ["검색어(예: 금리 전망, 반도체 업황)를 입력 후 검색하세요.", "결과가 부족하면 '크롤링' 메뉴에서 먼저 관련 자료를 수집하세요."], relatedTerms: ["rag", "embedding", "qdrant"] },
+  // 데이터 관제 · 일정 (2026-10-02) — js/datahub.js · js/calendar.js
+  "data-status":     { summary: "모은 자료가 며칠 것까지 있는지, 매일 낮 12시 30분 갱신이 돌았는지 한 화면에서 봅니다.", steps: ["위의 카드 넷에서 판정 · 주식 시세 기준일 · 낮 갱신 · 팀 공유 저장소를 먼저 보세요.", "「자료별 기준일」 표에서 늦은 자료가 있는지 보세요 — 「정상」 은 하루 밀림(시세는 다음 날 낮에 들어옵니다)입니다.", "어느 화면에서든 위 메뉴의 「자료 MM-DD · 판정」 을 누르면 요약이 열립니다."], relatedTerms: [] },
+  "market-calendar": { summary: "휴장일 · 파생상품 만기 · 배당락일 · 배당 기준일을 달력과 목록으로 봅니다.", steps: ["‹ › 로 달을 옮기고, 종류 단추로 보고 싶은 일정만 고르세요.", "일정을 누르면 날짜 · 어떻게 정했는지(확정 · 규칙으로 계산) · 풀이가 열립니다.", "오른쪽 「다가오는 일정」 은 모의계좌에 가진 종목의 배당 일정을 맨 위에 올립니다."], relatedTerms: [] },
   "crawl-auto":      { summary: "미리 등록된 소스(GitHub 문서 등)를 한 번에 크롤링해 AI 지식베이스에 반영합니다.", steps: ["'자동 크롤링 실행' 버튼을 누르면 진행 로그가 표시됩니다.", "완료 후 '금융정보 Agent'에서 관련 질문을 하면 새 자료가 답변에 반영됩니다."], relatedTerms: ["rag", "embedding", "qdrant"] },
   "crawl-manual":    { summary: "특정 URL이나 네이버 종목 코드를 직접 입력해 원하는 자료만 크롤링합니다.", steps: ["URL을 입력하고 '크롤링'을 누르거나, 네이버 종목코드를 입력해 종목 페이지를 수집하세요.", "하단 목록에서 최근 수집된 문서를 확인할 수 있습니다."], relatedTerms: ["qdrant"] },
   "crawl-ingest":    { summary: "CSV로 준비된 신용·금융상품 데이터를 DB에 적재하거나 초기화합니다.", steps: ["'금융 데이터 인제스트'는 data 폴더의 CSV를 읽어 DB에 반영합니다.", "'DB 초기화'는 관리자 전용이며 기존 데이터를 모두 삭제하니 주의하세요."], relatedTerms: [] },

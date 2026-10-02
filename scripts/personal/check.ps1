@@ -274,6 +274,16 @@ $Checks = @(
        $exp = @($r.Json.events | Where-Object { $_.kind -eq 'deriv_expiry' })[0]
        if (-not $exp) { return (Fail '60일 안에 파생 만기가 없다 — 달력이 짧거나 일정이 비었다') }
        Pass "다음 만기 $($exp.date) $($exp.title) · 배당락일 $(Count @($r.Json.events | Where-Object { $_.kind -eq 'dividend_ex' })) 건" } }
+  # OHLCV 규격 자료(ohlcv-v1 · 2026-10-02) — HF krx-ohlcv 와 같은 줄 모양을 한 종목씩. 로그인 뒤.
+  @{ G = '데이터'; Name = 'OHLCV — 삼성전자 수정 일봉 1년'; M = 'GET'; P = '/api/data/ohlcv?symbol=005930'; Auth = $true
+     Test = { param($r)
+       if ($r.Json.contract -ne 'ohlcv-v1' -or $r.Json.count -lt 200) { return (Fail "줄 $($r.Json.count) · 규격 $($r.Json.contract)") }
+       $last = $r.Json.rows[-1]
+       Pass "$($r.Json.count) 줄 · $($r.Json.basis) · 마지막 $($last.trade_date) 종가 $(N0 $last.close) · 받은 시각 $($last.fetched_at)" } }
+  @{ G = '데이터'; Name = 'OHLCV — 코스피 200 주봉 · 진행 중인 주'; M = 'GET'; P = '/api/data/ohlcv?symbol=KOSPI:%EC%BD%94%EC%8A%A4%ED%94%BC%20200&timeframe=1w'; Auth = $true
+     Test = { param($r)
+       $last = $r.Json.rows[-1]
+       Pass "$($r.Json.count) 주 · 마지막 $($last.trade_date) 종가 $($last.close) · 진행 중 $($r.Json.partial)" } }
 
   # ── 매매: 모의투자 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 ─────────────────
   @{ G = '매매'; Name = '모의투자 잔고'; M = 'GET'; P = '/api/paper/account'; Auth = $true

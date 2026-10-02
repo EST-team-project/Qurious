@@ -319,7 +319,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---:|---|
 | [이슈 QFRS-마이그레이션-정리](2026-10-02/이슈-QFRS-마이그레이션-정리/00-본문.md) | [확인] 모의계좌 스냅샷(QFRS) — 마이그레이션 정리 넷 · 스냅샷을 쓰는 길 셋 | 3,674 | [#88](https://github.com/EST-team-project/Qurious/issues/88) — 담당 파트가 보는 확인 글 |
 | [PR feat-glossary-screen-and-w3-docs](2026-10-02/PR-feat-glossary-screen-and-w3-docs/00-본문.md) | feat: 용어사전 화면 · 모든 화면의 용어 설명 · 서비스 이름 Qurious · 강사님 기초 코드 289bfb5 · Qdrant 늘 켬 · W3 문서 새 판 | 3,507 | [#87](https://github.com/EST-team-project/Qurious/pull/87) |
-| [PR feat-trading-calendar-and-glossary-relations](2026-10-02/PR-feat-trading-calendar-and-glossary-relations/00-본문.md) | feat: 거래일 달력 · 금융 일정 · 데이터 상태 API · 배당락일 결함(DF-39) · 연관 개념(헷갈리는 말 25) — 목표 기능 ① W4 서버 쪽 | 3,165 | (올린 뒤 적음) |
+| [PR feat-trading-calendar-and-glossary-relations](2026-10-02/PR-feat-trading-calendar-and-glossary-relations/00-본문.md) | feat: 거래일 달력 · 금융 일정 · 데이터 상태 API · 배당락일 결함(DF-39) · 연관 개념(헷갈리는 말 25) — 목표 기능 ① W4 서버 쪽 | 3,165 | [#89](https://github.com/EST-team-project/Qurious/pull/89) |
+| [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
