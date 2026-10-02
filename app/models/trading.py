@@ -20,7 +20,9 @@ class Portfolio(Base, UUIDPkMixin, UpdatedAtMixin):
     __tablename__ = "portfolio"
     __table_args__ = (UniqueConstraint("user_id", "symbol", "book", name="uq_portfolio_user_symbol_book"),)
 
-    user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
     # 장부 구분 — 모의계좌(PAPER)와 자동매매 가상계좌(QUANT) 포지션을 섞지 않는다
     book: Mapped[str] = mapped_column(String(10), nullable=False, default=PORTFOLIO_BOOK_PAPER)
