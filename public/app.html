@@ -20,6 +20,8 @@
   <link rel="stylesheet" href="/css/finlearn.css" />
   <link rel="stylesheet" href="/css/completion.css" />
   <link rel="stylesheet" href="/css/qurious.css" />
+  <!-- 데이터 관제 · 금융 일정 (2026-10-02 · js/datahub.js · js/calendar.js) -->
+  <link rel="stylesheet" href="/css/datahub.css" />
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -40,7 +42,8 @@
     <!-- GNB 탭 (스크롤 가능) -->
     <div class="gnb-tabs">
       <button class="gnb-item" data-gnb="agent"><i class="fa-solid fa-robot"></i> 로보 어드바이저</button>
-      <button class="gnb-item" data-gnb="crawl"><i class="fa-solid fa-spider"></i> 크롤링</button>
+      <!-- 「크롤링」 → 「데이터」(2026-10-02 화면 결정 ① — 맨 위에 데이터 관제 · 크롤링 세 화면은 그 아래 그대로) -->
+      <button class="gnb-item" data-gnb="crawl"><i class="fa-solid fa-database"></i> 데이터</button>
       <button class="gnb-item" data-gnb="trading"><i class="fa-solid fa-chart-line"></i> 직접매매</button>
       <button class="gnb-item" data-gnb="paper"><i class="fa-solid fa-graduation-cap"></i> 모의투자</button>
       <button class="gnb-item" data-gnb="quant"><i class="fa-solid fa-bolt"></i> 퀀트자동매매</button>
@@ -257,7 +260,10 @@
             </div>
           </div>
 
-          <!-- ══ 2. 크롤링 ═══════════════════════════════════════════════ -->
+          <!-- ══ 2. 데이터(옛 크롤링) ═══════════════════════════════════════ -->
+          <!-- 2-0. 데이터 관제 (2026-10-02) — 내용은 js/datahub.js 가 그린다(GET /api/data/status) -->
+          <div class="view" data-view="data-status"><div class="dh-root"></div></div>
+
           <!-- 2-1. 자동 크롤링 -->
           <div class="view" data-view="crawl-auto">
             <div class="card">
@@ -2609,6 +2615,9 @@ A·B·C파: 조정 사이클</pre>
               </div>
             </div>
           </div>
+
+          <!-- 일정 (2026-10-02) — 월 달력 + 다가오는 일정 · 좁은 화면은 목록. 내용은 js/calendar.js 가 그린다 -->
+          <div class="view" data-view="market-calendar"><div class="cal-root"></div></div>
 
           <!-- ══ 금융 필수 지식 뷰 ════════════════════════════════════════ -->
 

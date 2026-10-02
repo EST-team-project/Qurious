@@ -125,13 +125,24 @@ def index_daily(conn):
         "fetched_at": d["raw_sha256"].map(fmap)})
 
 
+def universe_market(conn) -> Dict[str, str]:
+    """종목 → 시장. 그 종목이 든 **가장 최근 판**의 값이다(판 이름 차례 — 다른 곳의 `MAX(version)` 과 같은 차례).
+
+    ⚠️ DF-43(2026-10-02) — 예전에는 최신 판(u2)에만 물어 없으면 「KOSPI」 로 채웠다. u2 에서 빠진 71종목 가운데
+       **코스닥 38종목의 분봉 304,710줄이 KOSPI 로** 나갔다. 빠진 종목도 옛 판(u1)이 시장을 알고 있다.
+    """
+    out: Dict[str, str] = {}
+    for sym, mkt in conn.execute("SELECT symbol, market FROM intraday_universe ORDER BY version"):
+        out[sym] = mkt                          # 뒤 판이 앞 판을 덮는다
+    return out
+
+
 def intraday(conn, timeframe: str):
     import pandas as pd
 
-    d = pd.read_sql_query("SELECT i.*, u.market FROM price_intraday i LEFT JOIN intraday_universe u "
-                          "  ON u.symbol = i.symbol AND u.version = (SELECT MAX(version) FROM intraday_universe) "
-                          "WHERE i.timeframe=?", conn, params=(timeframe,))
-    d["market"] = d["market"].fillna("KOSPI")
+    d = pd.read_sql_query("SELECT * FROM price_intraday WHERE timeframe=?", conn, params=(timeframe,))
+    d["market"] = d["symbol"].map(universe_market(conn))
+    # 어느 판에도 없는 종목은 지어내지 않는다 — 빈 칸이면 값 규칙 검사(bad_market)가 보고서에 남긴다
     d["adjusted"] = True
     d["value"] = None
     d["adj_factor"] = None
