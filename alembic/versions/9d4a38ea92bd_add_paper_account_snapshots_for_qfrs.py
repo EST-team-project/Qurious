@@ -51,7 +51,7 @@ def downgrade() -> None:
     # WARNING: constraint name is None; this directive will fail as
     # rendered.  Add a name, or use a naming convention; see
     # https://alembic.sqlalchemy.org/en/latest/naming.html
-    op.drop_constraint(None, 'users', type_='unique')
+    op.drop_constraint('users_client_id_key', 'users', type_='unique')
     op.create_index(op.f('ix_users_client_id'), 'users', ['client_id'], unique=True)
     op.create_index(op.f('ix_portfolio_user_id'), 'portfolio', ['user_id'], unique=False)
     op.create_index(op.f('ix_api_keys_user'), 'api_keys', ['user_id'], unique=False)
