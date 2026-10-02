@@ -133,6 +133,9 @@ API-PAPR-29	POST	/api/paper/api-keys	S63	사용
 API-PAPR-30	DELETE	/api/paper/api-keys/{key_id}	S63	사용
 API-PAPR-31	POST	/api/paper/alpaca/account	S63	사용
 API-PAPR-32	POST	/api/paper/alpaca/positions	S63	사용
+API-PAPR-33	GET	/api/paper/performance/metrics	2026-10-02	사용
+API-PAPR-34	POST	/api/paper/performance/snapshot	2026-10-02	사용
+API-PAPR-35	POST	/api/paper/performance/simulate	2026-10-02	사용
 API-OAPI-01	GET	/openapi/v1/stocks	S63	사용
 API-OAPI-02	GET	/openapi/v1/quote/{symbol}	S63	사용
 API-OAPI-03	GET	/openapi/v1/account	S63	사용

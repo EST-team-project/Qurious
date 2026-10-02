@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Lumina Invest — AI 금융 플랫폼</title>
+  <title>Qurious — AI Financial Quant Platform</title>
   <link rel="icon" href="/favicon.ico" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.2/dist/apexcharts.min.js"></script>
@@ -19,6 +19,9 @@
   <link rel="stylesheet" href="/css/app.css" />
   <link rel="stylesheet" href="/css/finlearn.css" />
   <link rel="stylesheet" href="/css/completion.css" />
+  <link rel="stylesheet" href="/css/qurious.css" />
+  <script type="module" src="/js/brand.js"></script>
+  <script type="module" src="/js/termcard.js"></script>
 </head>
 
 <body>
@@ -29,8 +32,8 @@
     <a href="/" class="gnb-logo">
       <div class="gnb-logo-icon"><i class="fa-solid fa-chart-mixed"></i></div>
       <div class="gnb-logo-text">
-        <strong>Lumina Invest</strong>
-        <span>AI Financial Platform</span>
+        <strong data-brand="name">Qurious</strong>
+        <span data-brand="tagline">AI Financial Quant Platform</span>
       </div>
     </a>
 
@@ -119,7 +122,20 @@
                   <h2 class="text-lg font-semibold">🤖 로보 어드바이저 AI 상담</h2>
                   <p class="text-xs text-slate-400 mt-0.5">신용 리스크 · 금융상품 추천 · 퀀트 전략을 AI가 종합 분석하여 투자 자문을 제공합니다</p>
                 </div>
-                <button id="clear-chat" class="btn-secondary text-xs">초기화</button>
+                <div class="chat-mode-bar">
+                  <label class="chat-mode-label" for="chat-llm-mode"><i class="fa-solid fa-microchip"></i> 답변 엔진</label>
+                  <select id="chat-llm-mode" class="input chat-mode-select" title="답변 생성 방식 선택">
+                    <option value="ollama">Local Ollama 연동 사용</option>
+                    <option value="openai">OpenAI API Key 입력으로 사용</option>
+                    <option value="rag">순수 RAG 청크 사용 (LLM 미사용)</option>
+                  </select>
+                  <div id="chat-openai-key-wrap" class="chat-key-wrap hidden">
+                    <input id="chat-openai-key" type="password" class="input chat-key-input" placeholder="sk-... OpenAI API Key"
+                           autocomplete="off" spellcheck="false" />
+                    <button type="button" id="chat-openai-key-toggle" class="chat-key-eye" title="키 표시/숨김"><i class="fa-solid fa-eye"></i></button>
+                  </div>
+                  <button id="clear-chat" class="btn-secondary text-xs">초기화</button>
+                </div>
               </div>
               <div id="chat-messages" class="flex-1 overflow-y-auto py-4 space-y-4 pr-1"></div>
               <div class="pt-4 border-t border-white/10">
@@ -2737,6 +2753,10 @@ RC_i = wi × (Σw)_i / √(w'Σw)
           <div class="view" data-view="fin-topic-macro">
             <div class="finlearn-topic"></div>
           </div>
+          <!-- 금융 필수 지식 › 용어사전 (2026-10-02) — 찾기 첫 화면 → 용어 한 장 · 내용은 js/glossary.js 가 그린다 -->
+          <div class="view" data-view="fin-glossary">
+            <div id="glossary-root"></div>
+          </div>
 
           <!-- 5-2. 로그 / 이벤트 -->
           <div class="view" data-view="sysadmin-logs">
@@ -2759,29 +2779,19 @@ RC_i = wi × (Σw)_i / √(w'Σw)
     <!-- ══ Footer ══════════════════════════════════════════════════════ -->
     <footer id="app-footer">
       <div style="display:flex; align-items:center; gap:8px;">
-        <span style="color:var(--brand); font-weight:700;"><i class="fa-solid fa-chart-mixed"></i> Lumina Invest</span>
+        <span class="q-footer-brand"><i class="fa-solid fa-chart-mixed"></i> <span data-brand="name">Qurious</span></span>
         <span style="color:var(--border2);">·</span>
-        <span>FastAPI · Ollama · Qdrant · Redis · MongoDB</span>
+        <span class="q-footer-tagline" data-brand="tagline">AI Financial Quant Platform</span>
+        <span style="color:var(--border2);">·</span>
+        <span data-brand="stack">FastAPI · PostgreSQL · Redis · Qdrant · Ollama</span>
       </div>
+      <!-- (Qurious 2026-10-02) 기초 코드의 회사 표기(이름 · 메일 · 누리집)는 화면에서 뺐다 — 원저작자 표시는 NOTICE.md · README -->
       <div style="display:flex; align-items:center; gap:10px; color:var(--text-mute);">
-        <strong style="color:var(--text-dim);">(주)에듀엠지티</strong>
-        <span style="color:var(--border2);">·</span>
-        <a href="mailto:info@edumgt.co.kr" style="color:var(--text-mute); text-decoration:none; transition:color .15s;"
-          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-mute)'">
-          <i class="fa-solid fa-envelope" style="margin-right:3px; font-size:10px;"></i>info@edumgt.co.kr
-        </a>
-        <span style="color:var(--border2);">·</span>
-        <a href="https://www.edumgt.co.kr" target="_blank" rel="noopener"
-          style="color:var(--text-mute); text-decoration:none; transition:color .15s;"
-          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-mute)'">
-          <i class="fa-solid fa-globe" style="margin-right:3px; font-size:10px;"></i>www.edumgt.co.kr
-        </a>
-        <span style="color:var(--border2);">·</span>
-        <span>&copy; <span id="footer-year"></span> All rights reserved.</span>
+        <span>&copy; <span id="footer-year"></span> <span data-brand="name">Qurious</span></span>
       </div>
       <div style="display:flex; align-items:center; gap:5px; color:var(--brand);">
         <i class="fa-solid fa-triangle-exclamation"></i>
-        <span style="color:var(--text-mute);">투자 자문이 아닌 정보 제공 목적입니다.</span>
+        <span style="color:var(--text-mute);" data-brand="notice">투자 자문이 아닌 정보 제공 목적입니다.</span>
       </div>
     </footer>
 

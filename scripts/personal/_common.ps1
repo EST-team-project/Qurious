@@ -45,7 +45,12 @@ $QServices = @(
   [pscustomobject]@{ Service = 'postgres';      Container = 'fin-ai-postgres';      Ports = @(15432);      What = 'PostgreSQL — 사용자 · 주문 · 모의투자 장부 · 리밸런싱' }
   [pscustomobject]@{ Service = 'redis';         Container = 'fin-ai-redis';         Ports = @(16379);      What = 'Redis — 로그인 세션 · 캐시 · Celery 메시지 통로' }
   [pscustomobject]@{ Service = 'neo4j';         Container = 'fin-ai-neo4j';         Ports = @(17474, 7687); What = 'Neo4j — 종목 관계 그래프 (선택 기능)' }
-  [pscustomobject]@{ Service = 'app';           Container = 'fin-ai-app';           Ports = @(8966);       What = '앱 — 화면(public/) + API(FastAPI)' }
+  # (2026-10-02) 강사님 compose 에는 없던 서비스 — 앱 설정 기본값(localhost:6333)이 컨테이너 자신이라 늘 「접속 불가」 였다.
+  [pscustomobject]@{ Service = 'qdrant';        Container = 'fin-ai-qdrant';        Ports = @(16333);      What = 'Qdrant — 벡터 DB (문서 근거 RAG · 크롤링 적재 · 문서 올리기)' }
+  # 강사님 compose(2026-10-01 affb05c)부터 앱이 뜰 때 함께 켜진다. 포트를 열지 않아(컨테이너끼리만) 이 PC 의 Ollama(11434)와 겹치지 않는다.
+  # .env 의 COMPOSE_OLLAMA_URL 로 이 PC 의 Ollama 를 가리키면 켜져만 있고 쓰이지 않는다. 모델 받기(model-pull)는 한 번 돌고 끝나는 작업이라 표에 넣지 않는다.
+  [pscustomobject]@{ Service = 'ollama';        Container = 'fin-ai-ollama';        Ports = @();           What = 'Ollama — AI 채팅 · 문서 검색(RAG)의 답변 모델 (컨테이너판)' }
+  [pscustomobject]@{ Service = 'app';         Container = 'fin-ai-app';           Ports = @(8966);       What = '앱 — 화면(public/) + API(FastAPI)' }
   [pscustomobject]@{ Service = 'celery-worker'; Container = 'fin-ai-celery-worker'; Ports = @();           What = 'Celery 워커 — 예약 작업을 실제로 실행' }
   [pscustomobject]@{ Service = 'celery-beat';   Container = 'fin-ai-celery-beat';   Ports = @();           What = 'Celery 비트 — 자동매매 10분 · 리밸런싱 1시간 같은 예약 시계' }
 )
@@ -147,7 +152,7 @@ function Get-QContainerState {
   .DESCRIPTION
     `docker inspect` 는 없는 컨테이너에 종료 코드 1 을 낸다. 그때는 State='missing'.
     Project 는 compose 가 컨테이너에 붙여 두는 라벨(com.docker.compose.project)에서 읽는다.
-    Health 는 compose 파일에 healthcheck 가 있는 서비스(postgres · redis)만 값이 있다.
+    Health 는 compose 파일에 healthcheck 가 있는 서비스(postgres · redis · neo4j · ollama · qdrant)만 값이 있다.
     DevMode 는 개발 모드(start.ps1 -Dev)로 만든 컨테이너인가 — 내 PC 의 app 폴더가 컨테이너의
     /app/app 에 연결(bind mount)돼 있으면 $true. 이 연결은 compose.dev.yml 만 만든다.
 
@@ -254,7 +259,8 @@ function Invoke-QApi {
     $Body = $null,          # 해시테이블 · 객체를 넘기면 JSON 으로 바꿔 보낸다
     $Session = $null,       # 로그인 세션 (Microsoft.PowerShell.Commands.WebRequestSession)
     [string]$Bearer = '',   # JWT 액세스 토큰 (있으면 Authorization 머리글)
-    [int]$TimeoutSec = 30
+    [int]$TimeoutSec = 30,
+    $File = $null           # 파일 올리기: @{ Name = 'file'; FileName = 'a.txt'; Text = '내용' } → multipart/form-data 로 보낸다
   )
   $result = [pscustomobject]@{ Status = 0; Ms = 0; Text = ''; Json = $null; Error = '' }
 
@@ -273,6 +279,15 @@ function Invoke-QApi {
     $json = $Body | ConvertTo-Json -Depth 10 -Compress
     $params.Body = [System.Text.Encoding]::UTF8.GetBytes($json)
     $params.ContentType = 'application/json; charset=utf-8'
+  }
+  if ($null -ne $File) {
+    # 5.1 의 Invoke-WebRequest 에는 파일 올리기(-Form)가 없다(7 부터) — multipart 본문을 바이트로 직접 만든다.
+    # 경계 문자열(boundary)은 본문에 나올 리 없는 값이면 되므로 새 GUID 로 만든다. 글 파일 하나만 다룬다.
+    $boundary = '----qurious' + [guid]::NewGuid().ToString('N')
+    $head = "--$boundary`r`nContent-Disposition: form-data; name=`"$($File.Name)`"; filename=`"$($File.FileName)`"`r`nContent-Type: text/plain; charset=utf-8`r`n`r`n"
+    $tail = "`r`n--$boundary--`r`n"
+    $params.Body = [System.Text.Encoding]::UTF8.GetBytes($head + $File.Text + $tail)
+    $params.ContentType = "multipart/form-data; boundary=$boundary"
   }
 
   $watch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -336,31 +351,53 @@ function Wait-QHttp {
 function Start-QInfra {
   <#
   .SYNOPSIS
-    postgres · redis · neo4j 를 띄우고, 셋 다 요청을 받을 준비가 될 때까지 기다린다. 준비되면 $true.
+    postgres · redis · neo4j · qdrant 를 띄우고, 앞의 셋이 요청을 받을 준비가 될 때까지 기다린다. 준비되면 $true.
+    qdrant 는 늦어도 실패로 보지 않고 [주의] 만 남긴다 — 앱은 Qdrant 없이도 뜨고(검색 실패는 「근거 없음」),
+    그 기능(문서 근거 RAG · 크롤링 적재)만 못 쓴다.
   .DESCRIPTION
     왜 앱보다 먼저 띄우나 —
       앱(app)은 시작할 때 한 번 Neo4j 에 붙어 보고, 실패하면 그 실행 내내 그래프 기능을 끈다
-      (로그: 「Neo4j 연결 실패 (그래프 기능 비활성)」). Neo4j 는 부팅에 20초 안팎 걸리는데,
-      compose 의 depends_on 은 「컨테이너가 켜졌다」 까지만 보장하고 「준비됐다」 는 보장하지 않는다.
-      그래서 셋을 먼저 띄우고 준비를 확인한 뒤에 앱을 띄운다.
+      (로그: 「Neo4j 연결 실패 (그래프 기능 비활성)」). Neo4j 는 부팅에 20초 안팎 걸린다.
+      강사님 compose(2026-10-01 affb05c)부터는 app · celery-worker 의 depends_on 이 「healthy 가 된 뒤」
+      조건이라 compose 도 기다려 준다. 그래도 여기서 먼저 띄우는 까닭은, 어느 저장소가 늦는지를
+      긴 compose 오류 대신 한 줄로 짚어 주기 위해서다.
     무엇을 「준비됨」 으로 보나 —
       postgres · redis : compose 파일의 healthcheck(pg_isready · redis-cli ping)가 healthy
-      neo4j            : 브라우저 포트(http://localhost:17474)가 200 (healthcheck 가 compose 에 없어서)
+      neo4j            : compose 파일의 healthcheck(cypher-shell 로 RETURN 1 — Bolt 접속까지 됨)가 healthy.
+                         healthcheck 가 없는 옛 compose 로 띄운 컨테이너면 브라우저 포트(http://localhost:17474) 200 으로 본다.
   #>
   param([int]$TimeoutSec = 180)
-  $code = Invoke-QCompose @('up', '-d', 'postgres', 'redis', 'neo4j')
+  $code = Invoke-QCompose @('up', '-d', 'postgres', 'redis', 'neo4j', 'qdrant')
   if ($code -ne 0) {
     Write-QFail "저장소 컨테이너를 띄우지 못했습니다 (docker compose 종료 코드 $code) — 위 오류 줄을 보세요."
     return $false
   }
   $deadline = (Get-Date).AddSeconds($TimeoutSec)
   $ready = @{ postgres = $false; redis = $false; neo4j = $false }
+  $qdrantOk = $false
   while ((Get-Date) -lt $deadline) {
     if (-not $ready.postgres) { $ready.postgres = ((Get-QContainerState 'fin-ai-postgres').Health -eq 'healthy') }
     if (-not $ready.redis)    { $ready.redis    = ((Get-QContainerState 'fin-ai-redis').Health -eq 'healthy') }
-    if (-not $ready.neo4j)    { $ready.neo4j    = ((Invoke-QApi -Method GET -Url 'http://localhost:17474' -TimeoutSec 3).Status -eq 200) }
+    if (-not $ready.neo4j) {
+      $neoHealth = (Get-QContainerState 'fin-ai-neo4j').Health
+      if ($neoHealth) {
+        $ready.neo4j = ($neoHealth -eq 'healthy')
+      } else {
+        $ready.neo4j = ((Invoke-QApi -Method GET -Url 'http://localhost:17474' -TimeoutSec 3).Status -eq 200)
+      }
+    }
+    if (-not $qdrantOk) { $qdrantOk = ((Get-QContainerState 'fin-ai-qdrant').Health -eq 'healthy') }
     if ($ready.postgres -and $ready.redis -and $ready.neo4j) {
-      Write-QOk 'postgres · redis · neo4j 준비됨'
+      # qdrant 는 보통 neo4j 보다 먼저 준비된다 — 아직이면 몇 초만 더 보고, 그래도 아니면 주의만 남긴다.
+      for ($i = 0; (-not $qdrantOk) -and $i -lt 10; $i++) {
+        Start-Sleep -Seconds 2
+        $qdrantOk = ((Get-QContainerState 'fin-ai-qdrant').Health -eq 'healthy')
+      }
+      if ($qdrantOk) { Write-QOk 'postgres · redis · neo4j · qdrant 준비됨' }
+      else {
+        Write-QOk 'postgres · redis · neo4j 준비됨'
+        Write-QWarn 'qdrant 가 아직 준비되지 않았습니다 — 앱은 뜨지만 문서 근거 RAG · 크롤링 적재는 못 씁니다. .\scripts\personal\logs.ps1 -Service qdrant'
+      }
       return $true
     }
     Start-Sleep -Seconds 2

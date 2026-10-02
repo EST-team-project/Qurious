@@ -228,6 +228,33 @@ def match_rank(query: str, row: dict) -> tuple[int, str] | None:
     return (4, "본문") if in_body else None
 
 
+#: 이름이 여럿 맞으면 이 차례로 고른다 — 사람이 친 글자에 가장 가까운 이름(약어 · 영어)을 먼저 보여 준다.
+_KIND_ORDER = {"약어": 0, "영어": 1, "다른 이름": 2, "화면 키": 3}
+
+
+def pick_matched_alias(query: str, rank: int, how: str, primary: str, aliases: list[tuple[str, str, str]]) -> dict:
+    """검색 결과 한 줄이 **어느 이름으로** 맞았는지 — 화면이 「per → PCE(Personal …)」 처럼 이유를 보여 주게(2026-10-02).
+
+    match_rank 와 같은 기준으로 고른다. aliases 는 (보이는 이름, 종류, 찾기용 모양) 목록 — 대표 이름 줄도 들어 있다.
+    맞은 이름을 못 찾으면(본문에서 맞음 · 초성) 대표 이름과 그 까닭(kind)만 준다.
+    """
+    q = norm(query)
+    if how == "초성":
+        return {"alias": primary, "kind": "초성"}
+    if how == "본문":
+        return {"alias": None, "kind": "본문"}
+    if rank == 1:                                   # 대표 이름이 검색어로 시작한다(sort_key)
+        return {"alias": primary, "kind": ALIAS_KIND_PRIMARY}
+    tests = {0: lambda a: a == q, 2: lambda a: a.startswith(q), 3: lambda a: q in a}
+    test = tests.get(rank)
+    hits = [(a, k) for a, k, an in aliases if test and test(an)]
+    if not hits:
+        return {"alias": primary, "kind": ALIAS_KIND_PRIMARY}
+    hits.sort(key=lambda x: (x[1] != ALIAS_KIND_PRIMARY, _KIND_ORDER.get(x[1], 9), len(x[0])))
+    alias, kind = hits[0]
+    return {"alias": alias, "kind": kind}
+
+
 def _item(term: GlossaryTerm, category_name: str) -> dict:
     return {"id": term.id, "term": term.term, "english": term.english, "hanja": term.hanja,
             "category": {"code": term.category_code, "name": category_name}, "summary": term.summary}
@@ -269,8 +296,21 @@ async def search(db: AsyncSession, query: str = "", category: str | None = None,
         if hit is not None:
             ranked.append((hit[0], term.sort_key, {**_item(term, name), "match": hit[1]}))
     ranked.sort(key=lambda x: (x[0], x[1]))
+    page = ranked[offset:offset + limit]
+    # 보여 줄 줄만 이름을 읽어 「어느 이름으로 맞았나」 를 붙인다(API-GLOS-01 · matched · 2026-10-02).
+    ids = [item["id"] for _, _, item in page]
+    names: dict[str, list[tuple[str, str, str]]] = {}
+    if ids:
+        for term_id, alias, kind, alias_norm in (await db.execute(
+                select(GlossaryAlias.term_id, GlossaryAlias.alias, GlossaryAlias.kind, GlossaryAlias.alias_norm)
+                .where(GlossaryAlias.term_id.in_(ids)))).all():
+            names.setdefault(term_id, []).append((alias, kind, alias_norm))
+    items = []
+    for rank, _, item in page:
+        item["matched"] = pick_matched_alias(query, rank, item["match"], item["term"], names.get(item["id"], []))
+        items.append(item)
     return {"query": query, "category": category, "total": len(ranked), "limit": limit, "offset": offset,
-            "items": [item for _, _, item in ranked[offset:offset + limit]]}
+            "items": items}
 
 
 async def get_term(db: AsyncSession, name: str) -> dict | None:

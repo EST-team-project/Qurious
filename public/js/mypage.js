@@ -12,7 +12,8 @@
  *    화면 검사는 편의일 뿐이고, 같은 검사를 서버가 다시 한다.
  *  - 이름 · 이메일은 textContent 로만 넣는다 — 사용자가 넣은 글자가 HTML 로 해석되지 않게(XSS).
  */
-import { api, setToast } from "/js/common.js";
+import { api, escHtml, setToast } from "/js/common.js";
+import { getTermView, setTermView, TERM_VIEWS } from "/js/termcard.js";
 
 let bound = false;        // 폼 이벤트는 한 번만 붙인다(화면에 다시 들어올 때마다 붙이면 제출이 여러 번 된다)
 let policy = null;        // 서버의 비밀번호 규칙 — 처음 한 번만 받는다
@@ -23,7 +24,34 @@ const $ = (id) => document.getElementById(id);
 export async function onMyPageActivated(view) {
   if (view !== "mypage") return;
   bindOnce();
+  ensureDisplaySettings();
   await loadMyPage();
+}
+
+/* 화면 설정 — 다른 화면에서 용어를 누르면 뜨는 풀이의 모양(2026-10-02 화면 설계 결정 ②).
+ * 기본은 오른쪽 서랍. 이 브라우저에 저장한다(계정에 저장하는 것은 다음 — 기기마다 화면 크기가 달라 기기별 값도 쓸모 있다).
+ * 카드는 화면 HTML 이 아니라 여기서 붙인다 — app.html 은 강사님 기초 코드라 고칠 곳을 줄인다. */
+function ensureDisplaySettings() {
+  const host = document.querySelector('.view[data-view="mypage"] .space-y-4');
+  if (!host || document.getElementById("mp-display")) return;
+  const card = document.createElement("div");
+  card.className = "card space-y-3";
+  card.id = "mp-display";
+  const now = getTermView();
+  card.innerHTML = `<h2 class="text-lg font-semibold">🖥️ 화면 설정</h2>
+    <fieldset class="space-y-2"><legend class="text-sm font-medium">용어를 누르면 풀이를 어디에 보여 줄까요?</legend>
+      ${TERM_VIEWS.map(v => `<label class="flex items-start gap-2 text-sm cursor-pointer">
+        <input type="radio" name="mp-term-view" value="${v.value}" ${v.value === now ? "checked" : ""} class="mt-1" />
+        <span><strong>${escHtml(v.label)}</strong> <span class="text-slate-400">— ${escHtml(v.hint)}</span></span></label>`).join("")}
+      <p class="text-xs text-slate-400">풀이에 표 · 그림이 있거나 글이 길면 창을 자동으로 넓힙니다. 이 브라우저에만 저장됩니다.</p>
+    </fieldset>
+    <button type="button" class="btn-secondary text-xs" id="mp-term-try">지금 설정으로 열어 보기 — 「샤프 비율」</button>`;
+  host.insertBefore(card, host.children[1] || null);
+  card.querySelectorAll('input[name="mp-term-view"]').forEach(r => r.addEventListener("change", () => {
+    setTermView(r.value);
+    setToast(`용어 풀이를 「${TERM_VIEWS.find(v => v.value === r.value).label}」 에 보여 줍니다`, "ok");
+  }));
+  $("mp-term-try").addEventListener("click", () => window.QTerm?.open("sharpe"));
 }
 
 async function loadMyPage() {

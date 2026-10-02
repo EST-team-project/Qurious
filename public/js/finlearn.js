@@ -293,6 +293,12 @@ window.addEventListener("message", e => {
 });
 
 export function onFinLearnViewActivated(view) {
+  if (view === "fin-glossary") {
+    // 용어사전(2026-10-02) — 처음 들어올 때만 모듈을 읽는다(js/glossary.js)
+    const el = document.getElementById("glossary-root");
+    if (el) import("/js/glossary.js").then(m => m.renderGlossary(el)).catch(e => setToast(`용어사전을 열지 못했습니다: ${e.message}`, "error"));
+    return;
+  }
   if (view === "fin-lectures") {
     const el = document.getElementById("finlearn-hub");
     if (el) renderHub(el);

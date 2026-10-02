@@ -210,6 +210,13 @@ def _sid(resp: Response) -> str:
     return cookie.split("fin_session=", 1)[1].split(";", 1)[0]
 
 
+def _req():
+    """라우트 함수를 직접 부를 때 넘기는 요청 — 비밀번호 변경 · 탈퇴가 쿠키 재발급 예약(request.state)을 쓴다
+    (강사님 289bfb5 의 슬라이딩 만료 · 2026-10-02)."""
+    from starlette.requests import Request
+    return Request({"type": "http", "method": "PUT", "path": "/api/me", "headers": [], "state": {}})
+
+
 async def _session_user(sid: str) -> dict:
     from app.lib.session import get_session
     return await get_session(sid)
@@ -291,12 +298,12 @@ async def test_change_password_reauth_and_session_rotation(factory, fake_redis):
 
     with pytest.raises(HTTPException) as wrong:
         await a.change_password(a.PasswordChangeBody(current_password="wrong-pass-00", new_password="new-pass-5678"),
-                                Response(), user=user, fin_session=sid_here)
+                                _req(), Response(), user=user, fin_session=sid_here)
     assert wrong.value.status_code == 400
 
     resp = Response()
     res = await a.change_password(a.PasswordChangeBody(current_password=GOOD_PW, new_password="new-pass-5678"),
-                                  resp, user=user, fin_session=sid_here)
+                                  _req(), resp, user=user, fin_session=sid_here)
     assert res["other_sessions_revoked"] == 1
     new_sid = _sid(resp)
     assert new_sid not in (sid_here, sid_other)                     # 이 기기는 새 세션 ID (세션 고정 방지)
@@ -338,14 +345,14 @@ async def test_delete_account_wipes_only_that_users_data(factory, fake_redis):
         await db.commit()
 
     with pytest.raises(HTTPException) as no_confirm:
-        await a.delete_me(a.AccountDeleteBody(password=GOOD_PW, confirm="네"), Response(), user=x)
+        await a.delete_me(a.AccountDeleteBody(password=GOOD_PW, confirm="네"), _req(), Response(), user=x)
     assert no_confirm.value.status_code == 422
     with pytest.raises(HTTPException) as wrong:
-        await a.delete_me(a.AccountDeleteBody(password="wrong-pass-00", confirm="탈퇴"), Response(), user=x)
+        await a.delete_me(a.AccountDeleteBody(password="wrong-pass-00", confirm="탈퇴"), _req(), Response(), user=x)
     assert wrong.value.status_code == 400
 
     resp = Response()
-    out = await a.delete_me(a.AccountDeleteBody(password=GOOD_PW, confirm="탈퇴"), resp, user=x)
+    out = await a.delete_me(a.AccountDeleteBody(password=GOOD_PW, confirm="탈퇴"), _req(), resp, user=x)
     assert out["deleted"]["users"] == 1
     assert 'fin_session=""' in resp.headers.get("set-cookie", "") or "Max-Age=0" in resp.headers.get("set-cookie", "")
     assert await _session_user(sid_x) is None and await _session_user(sid_y) is not None
@@ -361,3 +368,78 @@ async def test_delete_account_wipes_only_that_users_data(factory, fake_redis):
         assert (await db.execute(select(func.count()).select_from(DataCache)
                                  .where(DataCache.key == f"quant:cycle_log:{ux}"))).scalar_one() == 0
         assert (await db.execute(select(func.count()).select_from(PaperAccount).where(PaperAccount.user_id == uy))).scalar_one() == 1
+
+
+# ── 3. 쿠키 재발급 미들웨어와 함께 (DB 없이 · DF-37) ─────────────────────────────
+
+def test_change_password_through_cookie_refresh_middleware_keeps_this_device(monkeypatch):
+    """TC-AC-22 · DF-37 — 비밀번호를 바꾼 기기는 **새 세션 쿠키 하나만** 받고 로그인을 유지한다.
+
+    강사님 기초 코드(289bfb5)의 슬라이딩 만료는 「5분 지난 요청」 에서 같은 세션 ID 의 쿠키를 응답 끝에 다시
+    굽는다(SessionCookieRefreshMiddleware). 비밀번호 변경은 그 요청 안에서 세션을 모두 지우고 새 ID 를 주므로,
+    새 ID 를 미들웨어에 알리지 않으면 **옛 쿠키가 새 쿠키 뒤에 붙어** 이기고 → 이 기기도 로그아웃된다.
+    위의 DB 시험은 라우트 함수를 직접 불러 미들웨어를 거치지 않으므로 이 경우를 못 본다 — 그래서 앱으로 부른다.
+    """
+    import asyncio
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.lib import redis_cache
+    from app.lib import session as session_lib
+    from app.routes import auth as a
+    from tests.test_session_auth import FakeRedis   # 가짜 시계가 있는 Redis(강사님 시험의 것)
+
+    clock = FakeRedis()
+    monkeypatch.setattr(redis_cache, "_redis", clock)
+    uid = uuid.uuid4()
+
+    class _Row:   # DB 행 대신 — 비밀번호 확인 · 저장은 이 시험의 관심이 아니다
+        id, name, email, client_id, roles, password_hash = uid, "시험", "dev@example.com", "C1", ["user"], "h"
+
+    class _Db:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *_): return False
+        async def commit(self): return None
+
+    async def _load_user(_db, _user): return _Row()
+    async def _no_audit(*_a, **_k): return None
+    monkeypatch.setattr(a, "get_session_factory", lambda: (lambda: _Db()))
+    monkeypatch.setattr(a, "_load_user", _load_user)
+    monkeypatch.setattr(a, "audit", _no_audit)
+    monkeypatch.setattr(a.account, "verify_password", lambda *_a, **_k: True)
+    monkeypatch.setattr(a.account, "check_new_password", lambda pw, **_k: pw)
+    monkeypatch.setattr(a.account, "hash_password", lambda pw: "h2")
+
+    old_sid = asyncio.run(session_lib.create_session(
+        {"id": str(uid), "name": "시험", "email": "dev@example.com", "client_id": "C1", "roles": ["user"]}))
+    app = FastAPI()
+    app.add_middleware(session_lib.SessionCookieRefreshMiddleware)
+    app.include_router(a.router)
+    client = TestClient(app, cookies={session_lib.COOKIE_NAME: old_sid})
+
+    clock.now += settings.SESSION_REFRESH_INTERVAL + 1   # 연장 간격이 지나 → 인증 단계가 옛 ID 의 재발급을 예약한다
+    res = client.put("/api/me/password", json={"current_password": GOOD_PW, "new_password": "new-pass-5678"})
+    assert res.status_code == 200, res.text
+
+    prefix = session_lib.COOKIE_NAME + "="
+    baked = [v.split("=", 1)[1].split(";", 1)[0] for k, v in res.headers.multi_items()
+             if k.lower() == "set-cookie" and v.startswith(prefix)]
+    assert baked and old_sid not in baked, f"옛 세션 쿠키를 다시 구웠다: {baked}"
+    # 브라우저는 같은 이름의 쿠키를 응답에 적힌 차례대로 덮어쓴다 — 마지막 값이 남는 쿠키다.
+    # (시험 클라이언트의 쿠키 통은 처음 넣은 쿠키와 도메인이 달라 같은 이름이 둘 남으므로 응답 머리를 본다)
+    new_sid = baked[-1]
+    assert new_sid != old_sid
+    assert asyncio.run(session_lib.get_session(old_sid)) is None          # 옛 세션은 지워졌고
+    assert asyncio.run(session_lib.get_session(new_sid)) is not None      # 이 기기는 새 세션으로 로그인 유지
+
+
+def test_delete_me_cancels_scheduled_cookie_refresh():
+    """TC-AC-23 · DF-37 — 탈퇴는 쿠키를 지우면서, 인증 단계가 예약했을 수 있는 「옛 쿠키 재발급」 도 취소한다(정적)."""
+    import inspect
+
+    from app.routes import auth as a
+
+    src = inspect.getsource(a.delete_me)
+    assert "mark_cookie_refresh(request, None)" in src and "clear_session_cookie(response)" in src
+    assert src.index("mark_cookie_refresh(request, None)") < src.index("clear_session_cookie(response)")

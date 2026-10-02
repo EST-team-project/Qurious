@@ -22,6 +22,10 @@ services:
   redis:
     image: redis:8-alpine
     container_name: fin-ai-redis
+    # 세션(fin_session:*)이 Redis 에 저장되므로 컨테이너 재시작/재배포 뒤에도 로그인 상태가 유지되도록
+    # AOF(appendonly) + RDB 스냅샷을 켠다. 기본 설정(RDB 만, 최대 1시간 간격)은 재시작 시
+    # 최근 세션이 사라져 사용자가 다시 로그인해야 하는 문제가 있다.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--save", "60", "1"]
     ports:
     - "16379:6379"
     volumes:
@@ -48,6 +52,37 @@ services:
     networks:
     - shared-net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p finagent123 'RETURN 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  # ── Qdrant (벡터 DB — 문서 근거 RAG · 크롤링 적재 · 문서 올리기) ─────────────────
+  # (Qurious 2026-10-02 · 강사님 기초 compose 에는 없다 — 강사님 안내는 EC2 · Qdrant Cloud 에 따로 띄우기)
+  # 늘 켠다(팀 결정 전 · 사용자 결정). 판은 앱의 qdrant-client 와 같은 v1.19.1 로 고정한다 — 클라이언트는 서버와
+  # 부(minor) 판 차이가 1 을 넘으면 「호환 안 됨」 경고를 낸다(앱 이미지 qdrant-client 1.19.1 · 2026-10-02 실측).
+  # 스레드 풀이 CPU 수를 따라 커진다 — 빈 저장소 실측 2코어 88 MiB · 22코어 476 MiB(2026-09-28 통합본) → 2코어 상한.
+  # 호스트 코어 수보다 크면 도커가 거절하니 1코어 PC 는 .env 에 QDRANT_CPUS=1.
+  # 호스트 포트 16333 — 통합본(rag-lab)이 6333 을 쓰므로 둘을 같이 켜도 부딪히지 않게(대시보드 http://localhost:16333/dashboard).
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    container_name: fin-ai-qdrant
+    cpus: ${QDRANT_CPUS:-2}
+    ports:
+    - "16333:6333"
+    volumes:
+    - qdrant_data:/qdrant/storage
+    networks:
+    - shared-net
+    restart: unless-stopped
+    healthcheck:
+      # 이미지에 curl · wget 이 없어 bash 의 /dev/tcp 로 준비 상태(/readyz)를 묻는다.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && printf 'GET /readyz HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
   app:
     build:
@@ -60,12 +95,16 @@ services:
     environment:
     - DATABASE_URL=postgresql+asyncpg://fin_user:fin_pass@postgres:5432/fin_ai
     - REDIS_URL=redis://redis:6379
+    - OLLAMA_BASE_URL=${COMPOSE_OLLAMA_URL:-http://ollama:11434}
+    - LLM_MODEL=${COMPOSE_LLM_MODEL:-qwen2.5:1.5b}
     - NEO4J_URI=bolt://neo4j:7687
     - NEO4J_USER=neo4j
     - NEO4J_PASSWORD=finagent123
     - LEAN_MODE=${LEAN_MODE:-auto}
     - LEAN_WORKDIR=/app/data/lean-workflows
     - LEAN_DOCKER_VOLUME=lean-workflows
+    # (Qurious) 앱 설정 기본값 localhost:6333 은 컨테이너 자신이라 늘 「접속 불가」 였다 → 같은 망의 qdrant 서비스로.
+    - QDRANT_URL=${COMPOSE_QDRANT_URL:-http://qdrant:6333}
     extra_hosts:
     - host.docker.internal:host-gateway
     volumes:
@@ -80,9 +119,17 @@ services:
     networks:
     - shared-net
     depends_on:
-    - postgres
-    - redis
-    - neo4j
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      # (Qurious) 순서만 맞춘다 — RAG 는 없어도 앱이 떠야 하므로(검색 실패는 「근거 없음」 으로) 준비까지 기다리지 않는다.
+      qdrant:
+        condition: service_started
 
   ingest:
     build:
@@ -93,6 +140,8 @@ services:
     environment:
     - DATABASE_URL=postgresql+asyncpg://fin_user:fin_pass@postgres:5432/fin_ai
     - REDIS_URL=redis://redis:6379
+    - OLLAMA_BASE_URL=${COMPOSE_OLLAMA_URL:-http://ollama:11434}
+    - LLM_MODEL=${COMPOSE_LLM_MODEL:-qwen2.5:1.5b}
     - NEO4J_URI=bolt://neo4j:7687
     - NEO4J_USER=neo4j
     - NEO4J_PASSWORD=finagent123
@@ -109,8 +158,62 @@ services:
     networks:
     - shared-net
     depends_on:
-    - postgres
-    - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Ollama (채팅 LLM + 임베딩) ─────────────────────────────────────────────
+  # GPU 없는 서버 기준으로 소형 모델(qwen2.5:1.5b)을 기본으로 쓴다. 다른 모델을 쓰려면
+  # COMPOSE_LLM_MODEL=<모델> 로 기동. 호스트에 이미 Ollama 가 있으면
+  # COMPOSE_OLLAMA_URL=http://host.docker.internal:11434 로 기동하고 이 서비스는 무시해도 된다.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: fin-ai-ollama
+    environment:
+    - OLLAMA_NUM_PARALLEL=1
+    - OLLAMA_MAX_LOADED_MODELS=1
+    - OLLAMA_KEEP_ALIVE=30m
+    # CPU 경합 시 앱 컨테이너보다 낮은 우선순위 (기본 1024). 유휴 시에는 제한 없음.
+    cpu_shares: 512
+    volumes:
+    - ollama_data:/root/.ollama
+    networks:
+    - shared-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # 기동 시 필요한 모델을 내려받는 일회성 작업. 이미 있으면 즉시 종료.
+  model-pull:
+    image: ollama/ollama:latest
+    container_name: fin-ai-model-pull
+    environment:
+    - OLLAMA_HOST=http://ollama:11434
+    # 네트워크가 불안정해도 완주하도록 모델별 최대 8회 재시도 (이어받기 지원)
+    entrypoint:
+    - sh
+    - -c
+    - |
+      set -e
+      for m in "${COMPOSE_LLM_MODEL:-qwen2.5:1.5b}" nomic-embed-text; do
+        n=0
+        until ollama pull "$$m"; do
+          n=$$((n+1)); [ "$$n" -ge 8 ] && { echo "pull 실패: $$m"; exit 1; }
+          echo "재시도 $$n/8: $$m"; sleep 15
+        done
+      done
+      echo "모델 준비 완료:"; ollama list
+    restart: 'no'
+    networks:
+    - shared-net
+    depends_on:
+      ollama:
+        condition: service_healthy
 
   # ── Celery Worker (AI 에이전트·인제스트 비동기 태스크) ────────────────────────
   celery-worker:
@@ -127,9 +230,13 @@ services:
     environment:
     - DATABASE_URL=postgresql+asyncpg://fin_user:fin_pass@postgres:5432/fin_ai
     - REDIS_URL=redis://redis:6379
+    - OLLAMA_BASE_URL=${COMPOSE_OLLAMA_URL:-http://ollama:11434}
+    - LLM_MODEL=${COMPOSE_LLM_MODEL:-qwen2.5:1.5b}
     - NEO4J_URI=bolt://neo4j:7687
     - NEO4J_USER=neo4j
     - NEO4J_PASSWORD=finagent123
+    # (Qurious) 크롤링 · 문서 적재 태스크가 벡터를 쓴다 — 앱과 같은 qdrant
+    - QDRANT_URL=${COMPOSE_QDRANT_URL:-http://qdrant:6333}
     extra_hosts:
     - host.docker.internal:host-gateway
     volumes:
@@ -138,9 +245,14 @@ services:
     networks:
     - shared-net
     depends_on:
-    - postgres
-    - redis
-    - neo4j
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     restart: unless-stopped
 
   # ── Celery Beat (시장 데이터 주기 동기화 스케줄러) ────────────────────────────
@@ -160,8 +272,10 @@ services:
     networks:
     - shared-net
     depends_on:
-    - postgres
-    - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
@@ -169,6 +283,8 @@ volumes:
   neo4j_data: null
   postgres_data: null
   redis_data: null
+  ollama_data: null
+  qdrant_data: null
   # 이름을 고정해 app 컨테이너가 Engine API로 `-v lean-workflows:/workspace` 를 요청할 때도
   # (Compose 프로젝트 접두사 없이) 같은 볼륨을 가리키게 한다.
   lean_workflows:
