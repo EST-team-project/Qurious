@@ -67,7 +67,7 @@ async def kis_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     # Qurious: 서버 계좌(Secrets Manager → .env) 대신 이 사용자의 키 — 사용자마다 자기 계좌를 본다
     creds = kis_credentials.for_user(row)
     if creds is None:
-        tab.update(note="KIS 연동 없음 — 「종목 선정」 화면에서 증권사 KIS 와 내 모의투자 App Key · Secret · 계좌번호를 넣으세요")
+        tab.update(note="KIS 연동 없음 — 「증권사 API 설정」 화면에서 증권사 KIS 와 내 모의투자 App Key · Secret · 계좌번호를 넣으세요")
         return tab
     tab["route"] = "kis-direct"
     tab["environment"] = creds.environment
@@ -83,7 +83,8 @@ async def kis_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
 
 async def quant_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     """자동매매 가상 장부(QUANT book) — 자동매매가 사고판 수량만 담긴다."""
-    tab = _tab("quant", "퀀트 가상계좌", "lumina 자동매매 장부", link="#quant-auto")
+    # Qurious(2026-10-03 · 화면 결정 ① C): 탭의 사이트 이름에 옛 서비스 이름을 쓰지 않는다(TC-NV-07)
+    tab = _tab("quant", "퀀트 가상계좌", "자동매매 가상 장부", link="#quant-auto")
     acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
     rows = (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all()
     cash = _f(acc.cash_balance) if acc else 0.0
@@ -109,7 +110,8 @@ async def quant_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
 
 async def paper_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     """모의투자 계좌(국내주식·코인·대체자산, stock-coin-trade 이식)."""
-    tab = _tab("paper", "모의투자 계좌", "lumina 모의투자 (주식·코인·대체)", link="#paper-account")
+    # 링크는 실제 화면으로 — 「paper-account」 라는 화면은 강사님 판에도 없다(2026-10-03 브라우저 확인)
+    tab = _tab("paper", "모의투자 계좌", "모의투자 (주식·코인·대체)", link="#paper-dashboard")
     snap = await paper_trading.account_snapshot(db, uid)
     invested = _f(snap.get("stockEval")) + _f(snap.get("cryptoEval")) + _f(snap.get("alternativeEval"))
     counts = snap.get("counts") or {}
@@ -125,7 +127,8 @@ async def us_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     """미국주식 — Alpaca Paper Trading (서버 키가 있을 때만)."""
     tab = _tab("us", "미국주식", "Alpaca Paper Trading", currency="USD", link="#us-dashboard")
     if not (settings.ALPACA_API_KEY and settings.ALPACA_SECRET_KEY):
-        tab.update(note="ALPACA_API_KEY / ALPACA_SECRET_KEY 미설정")
+        # 화면에 서버 설정 이름을 내지 않는다(화면 결정 ① C) — 서버 키 하나를 모두가 쓰는 설계는 팀 질문(논의 #99 💬3)
+        tab.update(note="미국주식 모의계좌가 아직 연결되지 않았습니다 — 서비스 관리자가 연결하면 보입니다")
         return tab
     from app.routes.paper import _alpaca_get, _alpaca_headers  # 순환 import 방지용 지연 import
     acct = await _alpaca_get("/account", _alpaca_headers(None))
@@ -147,8 +150,8 @@ async def _safe(key: str, db: AsyncSession, uid: uuid.UUID) -> dict:
         return await _BUILDERS[key](db, uid)
     except Exception as e:  # noqa: BLE001 — 탭 하나의 실패가 전체를 막지 않는다
         logger.warning("dashboard accounts tab %s 실패: %s", key, e)
-        label = {"kis": ("KIS 모의투자", "한국투자증권 Testbed"), "quant": ("퀀트 가상계좌", "lumina 자동매매 장부"),
-                 "paper": ("모의투자 계좌", "lumina 모의투자"), "us": ("미국주식", "Alpaca Paper Trading")}[key]
+        label = {"kis": ("KIS 모의투자", "한국투자증권 Testbed"), "quant": ("퀀트 가상계좌", "자동매매 가상 장부"),
+                 "paper": ("모의투자 계좌", "모의투자"), "us": ("미국주식", "Alpaca Paper Trading")}[key]
         return _tab(key, *label, error=f"{type(e).__name__}: {str(e)[:160]}")
 
 

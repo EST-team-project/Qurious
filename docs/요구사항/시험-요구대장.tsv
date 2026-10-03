@@ -86,3 +86,6 @@ TC-SP	tests/test_strategy_spec_apply.py	P02-①-2	🟡	스펙의 매수 · 매�
 TC-SL	tests/test_strategy_loader.py	P02-①-3	🟡	domain-rag-lab 합격 전략 목록 · 스펙 받기(설정이 비면 빈 목록)
 TC-LR	tests/test_lean_remote.py	P02-④-1	🟡	LEAN 백테스트를 domain-rag-lab 에 맡기고 연결 실패 · 5xx 면 로컬로 돌린다 — 실행처만 재고 「같은 데이터 · 기간 · 수수료」 는 재지 않는다
 TC-LR	tests/test_lean_remote.py	P02-③-2	🟡	LEAN 교차 검증의 실행처(원격 · 로컬) 표시
+TC-NV	tests/test_nav_dashboard_shell.py	RFP2-3.2-④	🟢	위 메뉴 · 전체 메뉴 · 첫 화면 — 위 메뉴 탭 순서가 우선순위 목록과 같고, 모든 메뉴 묶음이 전체 메뉴에 빠짐없이 들어가며(IA 그림 2 와 코드가 같다), 소제목 · 바깥 주소를 깨지 않고, 첫 화면은 투자 대시보드다(2026-10-03 화면 결정 · 강사님 기초 코드 9478811 화면 쪽)
+TC-NV	tests/test_nav_dashboard_shell.py	U9	🟡	투자 대시보드 · 증권사 API 설정 화면 글과 계좌 탭 글에 서버 설정 이름 · 옛 서비스 이름 · 없는 화면 주소가 없다 — 거래 0회를 「신호 없음」 으로 보이는 것은 브라우저로 확인
+TC-NV	tests/test_nav_dashboard_shell.py	P02-⑤-1	🟡	KIS 키가 없을 때의 안내가 실제 화면(증권사 API 설정)을 가리킨다 — 「종목 선정」 이라는 화면은 없다(사용자마다 키 · ADR-0004)

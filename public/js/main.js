@@ -22,6 +22,8 @@ import { onFinLearnViewActivated } from "/js/finlearn.js";
 import { initDataBadge, onDataHubViewActivated } from "/js/datahub.js";   // 데이터 관제 · 위 메뉴 표시 (2026-10-02)
 import { onCalendarViewActivated } from "/js/calendar.js";             // 일정 · 다가오는 일정 카드 (2026-10-02)
 
+import { loadDashboard } from "/js/dashboard.js";
+
 // ── Boot ──────────────────────────────────────────────────────────
 // 로그인 화면으로 보내는 것은 **로그인이 풀렸을 때(401)만**이다. 예전에는 아래 어느 줄에서든 오류가 나면
 // 로그인 화면으로 보내서, 화면 초기화 오류 · 서버 재시작 중의 연결 실패도 「로그아웃된 것」 처럼 보였다.
@@ -56,7 +58,7 @@ async function boot() {
     initTradingViewView();                 // TradingView 연동 (js/tradingview.js)
     initFormulaView();                     // 자유 산식 지표 (js/formula.js)
     const hash = location.hash.replace("#", "");
-    navigate(hash && document.querySelector(`[data-view="${hash}"]`) ? hash : "agent-chat");
+    navigate(hash && document.querySelector(`[data-view="${hash}"]`) ? hash : "dashboard");
   } catch (err) {
     console.error(err);
     setToast(`화면을 준비하다 오류가 났습니다: ${err.message}`, "error");
@@ -71,6 +73,7 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 
 // ── View Activation ───────────────────────────────────────────────
 function onViewActivated(view) {
+  if (view === "dashboard") loadDashboard();
   onPaperViewActivated(view); // 모의투자 · LEAN 백테스트 (js/paper.js)
   onRebalanceViewActivated(view); // 리밸런싱 엔진 (js/rebalance.js)
   onTradingViewViewActivated(view); // TradingView 연동 (js/tradingview.js)

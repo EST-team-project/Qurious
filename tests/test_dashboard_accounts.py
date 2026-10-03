@@ -82,7 +82,11 @@ def test_tabs_order_and_kis_first_via_gateway():
     paper = out["tabs"][2]
     assert paper["connected"] and paper["invested"] == 3_000_000 and paper["positions"] == 4 and paper["breakdown"]["crypto"] == 500_000
     us = out["tabs"][3]
-    assert us["connected"] is False and "ALPACA" in us["note"] and us["currency"] == "USD"
+    # Qurious(2026-10-03): 화면에 서버 설정 이름(ALPACA_…)을 내지 않는다 — 연결 안 됨을 말로(TC-NV-07)
+    assert us["connected"] is False and "연결되지 않았습니다" in us["note"] and "ALPACA" not in us["note"] and us["currency"] == "USD"
+    # 사이트 이름에 옛 서비스 이름이 없고, 링크는 실제 화면을 가리킨다
+    assert all("lumina" not in (t.get("site") or "").lower() for t in out["tabs"])
+    assert paper["link"] == "#paper-dashboard" and quant["link"] == "#quant-auto"
 
 
 def test_kis_not_connected_when_no_gateway_and_no_secret(monkeypatch):
@@ -131,7 +135,8 @@ def test_kis_tab_without_user_keys_is_not_connected(monkeypatch):
     with patch.object(d.paper_trading, "account_snapshot", AsyncMock(return_value=SNAP)):
         out = asyncio.run(d.accounts(user={"id": str(UID)}, db=FakeDb()))
     kis = out["tabs"][0]
-    assert kis["connected"] is False and "종목 선정" in kis["note"]
+    # 안내가 가리키는 화면은 실제 메뉴 이름이어야 한다(2026-10-03 · 「종목 선정」 이라는 화면은 없다)
+    assert kis["connected"] is False and "증권사 API 설정" in kis["note"] and "종목 선정" not in kis["note"]
 
 
 def test_one_tab_failure_does_not_break_others():
