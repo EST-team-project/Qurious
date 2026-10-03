@@ -142,7 +142,7 @@ flowchart LR
 | `graph` | `app/routes/graph.py` | 6 | 6 | 0 | 6 | P-A 6 |
 | `conversations` | `app/routes/conversations.py` | 8 | 0 | 0 | 8 | P-A 8 |
 | `tasks` | `app/routes/tasks.py` | 2 | 2 | 0 | 2 | P-E 2 |
-| `paper` | `app/routes/paper.py` | 35 | 8 | 20 | 6 | P-E 32 · P-B 3 |
+| `paper` | `app/routes/paper.py` | 40 | 8 | 25 | 6 | P-E 37 · P-B 3 |
 | `openapi` | `app/routes/openapi.py` | 9 | 1 | 1 | 8 | P-E 6 · P-B 3 |
 | `lean` | `app/routes/lean.py` | 3 | 1 | 2 | 0 | P-D 3 |
 | `rebalance` | `app/routes/rebalance.py` | 9 | 0 | 3 | 0 | 미배정 9 |
@@ -153,7 +153,8 @@ flowchart LR
 | `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
 | `data` | `app/routes/data.py` | 2 | 0 | 1 | 1 | P-A 2 |
 | `calendar` | `app/routes/calendar.py` | 2 | 2 | 2 | 0 | P-A 2 |
-| **합계** | 27개 | **212** | **53** | **97** | **65** | |
+| `kb` | `app/routes/kb.py` | 2 | 1 | 0 | 2 | P-A 2 |
+| **합계** | 28개 | **219** | **54** | **102** | **67** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -173,7 +174,7 @@ flowchart LR
 | `graph` | · | · | · | · | · | · | 6 | 1 | 1 | · | · | · | · | · |
 | `conversations` | · | · | · | · | 8 | 5 | · | · | · | · | · | · | · | · |
 | `tasks` | · | · | · | · | · | · | · | · | · | 2 | · | · | · | · |
-| `paper` | 4 | 15 | · | · | 26 | · | · | · | · | · | · | · | · | 22 |
+| `paper` | 6 | 17 | · | · | 31 | · | · | · | · | · | · | · | · | 22 |
 | `openapi` | 2 | 5 | · | · | 8 | · | · | · | · | · | · | · | · | 6 |
 | `lean` | · | 1 | · | · | 2 | · | · | · | · | · | 2 | 2 | · | · |
 | `rebalance` | 5 | 6 | · | · | 9 | · | · | · | · | · | · | · | · | 6 |
@@ -184,7 +185,8 @@ flowchart LR
 | `lectures` | 6 | 5 | · | · | · | · | · | · | · | · | · | · | · | 2 |
 | `data` | 2 | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `calendar` | 2 | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| **합계** | **42** | **65** | **7** | **3** | **151** | **29** | **6** | **16** | **15** | **7** | **3** | **3** | **8** | **61** |
+| `kb` | · | · | · | · | · | · | · | 1 | 1 | · | · | · | · | · |
+| **합계** | **44** | **67** | **7** | **3** | **156** | **29** | **6** | **17** | **16** | **7** | **3** | **3** | **8** | **61** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -241,13 +243,14 @@ flowchart LR
 | API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 외부(www.emuseum.go.kr) | (다른 곳) |
 | API-CAL-01 | GET | `/api/calendar/trading-days` | 수집DB | `market-calendar` |
 | API-CAL-02 | GET | `/api/calendar/events` | 수집DB | `market-calendar` |
+| API-KB-01 | GET | `/api/kb/documents` | — | — |
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
 | `400` | 요청 값이 틀림 | 15 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-CHAT-01, API-STK-12, API-DOC-01 외 9 |
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
-| `403` | 권한 없음 | 2 | API-AUTH-06, API-TV-01 |
+| `403` | 권한 없음 | 3 | API-AUTH-06, API-PAPR-35, API-TV-01 |
 | `404` | 대상 없음 | 22 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 16 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 5 | API-STK-24, API-STK-27, API-FRML-05, API-FRML-07, API-LRN-03 |
@@ -259,7 +262,7 @@ flowchart LR
 | `503` | 의존 서비스 없음 | 11 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-CHAT-01, API-DOC-01, API-GRPH-01 외 5 |
 | `503 MARKET_DATA_UNAVAILABLE` | 의존 서비스 없음 | 1 | API-OAPI-01 |
 | `504` | 시간 초과 | 1 | API-CHAT-01 |
-| `?` |  | 3 | API-TV-01, API-LEC-06, API-DATA-02 |
+| `?` |  | 5 | API-TV-01, API-LEC-06, API-DATA-02, API-KB-01, API-KB-02 |
 <!-- /api_scan:overview -->
 
 ---
@@ -484,45 +487,50 @@ flowchart LR
 | API-TASK-01 | GET | `/api/tasks/{task_id}` | 없음 | `{task_id}` | {result, error} | — | Celery | — | P-E | P02-⑤-3 | tasks.py:26 |
 | API-TASK-02 | DELETE | `/api/tasks/{task_id}` | 없음 | `{task_id}` · `terminate` | {task_id, revoked, terminate} | — | Celery | — | P-E | P02-⑤-3 | tasks.py:50 |
 
-#### `paper` — `app/routes/paper.py` · 35개
+#### `paper` — `app/routes/paper.py` · 40개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-PAPR-01 | GET | `/api/paper/account` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | `paper-dashboard`, `paper-stock` | P-E | P01-③-1 · P01-③-2 · P01-③-3 · P01-④-3 | paper.py:46 |
-| API-PAPR-02 | POST | `/api/paper/account/reset` | 세션·JWT | — | {status, cash} | — | PostgreSQL | (다른 곳) | P-E | P01-④-3 | paper.py:61 |
-| API-PAPR-03 | GET | `/api/paper/stocks/quote` | 없음 | `symbol`* | 모델 없음 | 404 | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | (다른 곳) | P-E | P01-④-3 | paper.py:77 |
-| API-PAPR-04 | GET | `/api/paper/stocks/positions` | 세션·JWT | `volatility` | {positions} | — | 수집DB · 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `paper-stock` | P-E | P01-④-3 | paper.py:85 |
-| API-PAPR-05 | POST | `/api/paper/stocks/orders/preview` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | (다른 곳) | P-E | P01-④-1 · P01-④-3 | paper.py:91 |
-| API-PAPR-06 | POST | `/api/paper/stocks/orders` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | (다른 곳) | P-E | P01-④-3 | paper.py:112 |
-| API-PAPR-07 | POST | `/api/paper/stocks/orders/buy` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | — | P-E | P01-④-3 | paper.py:117 |
-| API-PAPR-08 | POST | `/api/paper/stocks/orders/sell` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | — | P-E | P01-④-3 | paper.py:122 |
-| API-PAPR-09 | POST | `/api/paper/stocks/orders/pine` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | — | P-E | P02-③-1 | paper.py:127 |
-| API-PAPR-10 | GET | `/api/paper/stocks/orders/history` | 세션·JWT | `limit` | {history} | — | PostgreSQL | `paper-stock` | P-E | P01-④-3 | paper.py:133 |
-| API-PAPR-11 | GET | `/api/paper/crypto/market-list` | 없음 | — | {markets, marketCodes} | — | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:158 |
-| API-PAPR-12 | GET | `/api/paper/crypto/rankings` | 없음 | `limit` | {rankings} | — | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:164 |
-| API-PAPR-13 | GET | `/api/paper/crypto/ticker` | 없음 | `markets`* | {tickers} | — | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:169 |
-| API-PAPR-14 | GET | `/api/paper/crypto/{code}/candles` | 없음 | `{code}` · `unit` · `count` | {market, candles} | 400 · 502 | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:174 |
-| API-PAPR-15 | GET | `/api/paper/crypto/{code}/domestic-prices` | 없음 | `{code}` | 모델 없음 | — | 외부(api.bithumb.com, api.korbit.co.kr …) | `paper-crypto` | P-E | — | paper.py:184 |
-| API-PAPR-16 | GET | `/api/paper/crypto/{code}` | 세션·JWT | `{code}` | {marketCode, koreanName, englishName, buyCryptoCount, ticker} | 404 | PostgreSQL · 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:189 |
-| API-PAPR-17 | GET | `/api/paper/trade/hold` | 세션·JWT | — | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:200 |
-| API-PAPR-18 | POST | `/api/paper/trade/order/preview` | 세션·JWT | 본문 `CryptoPreviewBody` | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | (다른 곳) | P-E | — | paper.py:207 |
-| API-PAPR-19 | POST | `/api/paper/trade/order/buy` | 세션·JWT | 본문 `CryptoBuyBody` | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | (다른 곳) | P-E | — | paper.py:215 |
-| API-PAPR-20 | POST | `/api/paper/trade/order/sell` | 세션·JWT | 본문 `CryptoSellBody` | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | (다른 곳) | P-E | — | paper.py:227 |
-| API-PAPR-21 | GET | `/api/paper/trade/order/history` | 세션·JWT | `limit` | {history} | — | PostgreSQL | `paper-crypto` | P-E | — | paper.py:239 |
-| API-PAPR-22 | GET | `/api/paper/alternatives/markets` | 없음 | — | {markets, notice} | — | 야후 | `paper-alternative` | P-E | — | paper.py:253 |
-| API-PAPR-23 | GET | `/api/paper/alternatives/markets/{symbol}/chart` | 없음 | `{symbol}` · `days` | {symbol, data} | 404 | 야후 | `paper-alternative` | P-E | — | paper.py:259 |
-| API-PAPR-24 | GET | `/api/paper/alternatives/positions` | 세션·JWT | `volatility` | {positions, totalEvalAmount} | — | 야후 · PostgreSQL | `paper-alternative` | P-E | — | paper.py:267 |
-| API-PAPR-25 | GET | `/api/paper/alternatives/orders/history` | 세션·JWT | `limit` | {history} | — | PostgreSQL | `paper-alternative` | P-E | — | paper.py:273 |
-| API-PAPR-26 | POST | `/api/paper/alternatives/orders/preview` | 세션·JWT | 본문 `AltOrderBody` | 모델 없음 | — | 야후 · PostgreSQL | (다른 곳) | P-E | — | paper.py:278 |
-| API-PAPR-27 | POST | `/api/paper/alternatives/orders` | 세션·JWT | 본문 `AltOrderBody` | 모델 없음 | — | 야후 · PostgreSQL | (다른 곳) | P-E | — | paper.py:286 |
-| API-PAPR-28 | GET | `/api/paper/api-keys` | 세션·JWT | — | {keys} | — | PostgreSQL | `paper-openapi` | P-B | P02-②-3 | paper.py:314 |
-| API-PAPR-29 | POST | `/api/paper/api-keys` | 세션·JWT | 본문 `ApiKeyBody` | {apiKey} | — | PostgreSQL | `paper-openapi` | P-B | P02-②-3 | paper.py:320 |
-| API-PAPR-30 | DELETE | `/api/paper/api-keys/{key_id}` | 세션·JWT | `{key_id}` | {status} | 404 | PostgreSQL | `paper-openapi` | P-B | P02-②-3 | paper.py:333 |
-| API-PAPR-31 | POST | `/api/paper/alpaca/account` | 세션·JWT | 본문 `AlpacaTestBody` | {ok, environment, connection, accountStatus, tradingBlocked} 외 4 | — | 외부(paper-api.alpaca.markets) | — | P-E | — | paper.py:379 |
-| API-PAPR-32 | POST | `/api/paper/alpaca/positions` | 세션·JWT | 본문 `AlpacaTestBody` | {ok, count, positions} | — | 외부(paper-api.alpaca.markets) | — | P-E | — | paper.py:389 |
-| API-PAPR-33 | GET | `/api/paper/performance/metrics` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | `paper-dashboard`, `robo-decision` | P-E | — | paper.py:401 |
-| API-PAPR-34 | POST | `/api/paper/performance/snapshot` | 세션·JWT | — | {status, snap_date, total_equity, daily_return, position_count} | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | — | P-E | — | paper.py:422 |
-| API-PAPR-35 | POST | `/api/paper/performance/simulate` | 세션·JWT | `days` · `seed` | {status, days, seed} | — | PostgreSQL | `robo-decision` | P-E | — | paper.py:446 |
+| API-PAPR-01 | GET | `/api/paper/account` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | `paper-dashboard`, `paper-stock` | P-E | P01-③-1 · P01-③-2 · P01-③-3 · P01-④-3 | paper.py:53 |
+| API-PAPR-02 | POST | `/api/paper/account/reset` | 세션·JWT | — | {status, cash} | — | PostgreSQL | (다른 곳) | P-E | P01-④-3 | paper.py:68 |
+| API-PAPR-03 | GET | `/api/paper/stocks/quote` | 없음 | `symbol`* | 모델 없음 | 404 | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | (다른 곳) | P-E | P01-④-3 | paper.py:84 |
+| API-PAPR-04 | GET | `/api/paper/stocks/positions` | 세션·JWT | `volatility` | {positions} | — | 수집DB · 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `paper-stock` | P-E | P01-④-3 | paper.py:92 |
+| API-PAPR-05 | POST | `/api/paper/stocks/orders/preview` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | (다른 곳) | P-E | P01-④-1 · P01-④-3 | paper.py:98 |
+| API-PAPR-06 | POST | `/api/paper/stocks/orders` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | (다른 곳) | P-E | P01-④-3 | paper.py:119 |
+| API-PAPR-07 | POST | `/api/paper/stocks/orders/buy` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | — | P-E | P01-④-3 | paper.py:124 |
+| API-PAPR-08 | POST | `/api/paper/stocks/orders/sell` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | — | P-E | P01-④-3 | paper.py:129 |
+| API-PAPR-09 | POST | `/api/paper/stocks/orders/pine` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | — | P-E | P02-③-1 | paper.py:134 |
+| API-PAPR-10 | GET | `/api/paper/stocks/orders/history` | 세션·JWT | `limit` | {history} | — | PostgreSQL | `paper-stock` | P-E | P01-④-3 | paper.py:140 |
+| API-PAPR-11 | GET | `/api/paper/crypto/market-list` | 없음 | — | {markets, marketCodes} | — | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:165 |
+| API-PAPR-12 | GET | `/api/paper/crypto/rankings` | 없음 | `limit` | {rankings} | — | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:171 |
+| API-PAPR-13 | GET | `/api/paper/crypto/ticker` | 없음 | `markets`* | {tickers} | — | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:176 |
+| API-PAPR-14 | GET | `/api/paper/crypto/{code}/candles` | 없음 | `{code}` · `unit` · `count` | {market, candles} | 400 · 502 | 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:181 |
+| API-PAPR-15 | GET | `/api/paper/crypto/{code}/domestic-prices` | 없음 | `{code}` | 모델 없음 | — | 외부(api.bithumb.com, api.korbit.co.kr …) | `paper-crypto` | P-E | — | paper.py:191 |
+| API-PAPR-16 | GET | `/api/paper/crypto/{code}` | 세션·JWT | `{code}` | {marketCode, koreanName, englishName, buyCryptoCount, ticker} | 404 | PostgreSQL · 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:196 |
+| API-PAPR-17 | GET | `/api/paper/trade/hold` | 세션·JWT | — | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | `paper-crypto` | P-E | — | paper.py:207 |
+| API-PAPR-18 | POST | `/api/paper/trade/order/preview` | 세션·JWT | 본문 `CryptoPreviewBody` | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | (다른 곳) | P-E | — | paper.py:214 |
+| API-PAPR-19 | POST | `/api/paper/trade/order/buy` | 세션·JWT | 본문 `CryptoBuyBody` | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | (다른 곳) | P-E | — | paper.py:222 |
+| API-PAPR-20 | POST | `/api/paper/trade/order/sell` | 세션·JWT | 본문 `CryptoSellBody` | 모델 없음 | — | PostgreSQL · 외부(api.upbit.com) | (다른 곳) | P-E | — | paper.py:234 |
+| API-PAPR-21 | GET | `/api/paper/trade/order/history` | 세션·JWT | `limit` | {history} | — | PostgreSQL | `paper-crypto` | P-E | — | paper.py:246 |
+| API-PAPR-22 | GET | `/api/paper/alternatives/markets` | 없음 | — | {markets, notice} | — | 야후 | `paper-alternative` | P-E | — | paper.py:260 |
+| API-PAPR-23 | GET | `/api/paper/alternatives/markets/{symbol}/chart` | 없음 | `{symbol}` · `days` | {symbol, data} | 404 | 야후 | `paper-alternative` | P-E | — | paper.py:266 |
+| API-PAPR-24 | GET | `/api/paper/alternatives/positions` | 세션·JWT | `volatility` | {positions, totalEvalAmount} | — | 야후 · PostgreSQL | `paper-alternative` | P-E | — | paper.py:274 |
+| API-PAPR-25 | GET | `/api/paper/alternatives/orders/history` | 세션·JWT | `limit` | {history} | — | PostgreSQL | `paper-alternative` | P-E | — | paper.py:280 |
+| API-PAPR-26 | POST | `/api/paper/alternatives/orders/preview` | 세션·JWT | 본문 `AltOrderBody` | 모델 없음 | — | 야후 · PostgreSQL | (다른 곳) | P-E | — | paper.py:285 |
+| API-PAPR-27 | POST | `/api/paper/alternatives/orders` | 세션·JWT | 본문 `AltOrderBody` | 모델 없음 | — | 야후 · PostgreSQL | (다른 곳) | P-E | — | paper.py:293 |
+| API-PAPR-28 | GET | `/api/paper/api-keys` | 세션·JWT | — | {keys} | — | PostgreSQL | `paper-openapi` | P-B | P02-②-3 | paper.py:321 |
+| API-PAPR-29 | POST | `/api/paper/api-keys` | 세션·JWT | 본문 `ApiKeyBody` | {apiKey} | — | PostgreSQL | `paper-openapi` | P-B | P02-②-3 | paper.py:327 |
+| API-PAPR-30 | DELETE | `/api/paper/api-keys/{key_id}` | 세션·JWT | `{key_id}` | {status} | 404 | PostgreSQL | `paper-openapi` | P-B | P02-②-3 | paper.py:340 |
+| API-PAPR-31 | POST | `/api/paper/alpaca/account` | 세션·JWT | 본문 `AlpacaTestBody` | {ok, environment, connection, accountStatus, tradingBlocked} 외 4 | — | 외부(paper-api.alpaca.markets) | — | P-E | — | paper.py:386 |
+| API-PAPR-32 | POST | `/api/paper/alpaca/positions` | 세션·JWT | 본문 `AlpacaTestBody` | {ok, count, positions} | — | 외부(paper-api.alpaca.markets) | — | P-E | — | paper.py:396 |
+| API-PAPR-33 | GET | `/api/paper/performance/metrics` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | `paper-dashboard`, `robo-decision`, `robo-testbed` | P-E | — | paper.py:408 |
+| API-PAPR-34 | POST | `/api/paper/performance/snapshot` | 세션·JWT | — | {status, snap_date, total_equity, daily_return, position_count} | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | — | P-E | — | paper.py:429 |
+| API-PAPR-35 | POST | `/api/paper/performance/simulate` | 세션·JWT | `days` · `seed` | {status, days, seed, environment} | 403 | PostgreSQL | `robo-decision` | P-E | — | paper.py:453 |
+| API-PAPR-36 | GET | `/api/paper/performance/returns-table` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:512 |
+| API-PAPR-37 | GET | `/api/paper/performance/risk-metrics` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL | `robo-testbed` | P-E | — | paper.py:520 |
+| API-PAPR-38 | GET | `/api/paper/performance/turnover` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:528 |
+| API-PAPR-39 | GET | `/api/paper/performance/allocation-history` | 세션·JWT | `limit` | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:536 |
+| API-PAPR-40 | GET | `/api/paper/performance/benchmark` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL | `robo-testbed` | P-E | — | paper.py:545 |
 
 #### `openapi` — `app/routes/openapi.py` · 9개
 
@@ -636,6 +644,13 @@ flowchart LR
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | API-CAL-01 | GET | `/api/calendar/trading-days` | 없음 | `start` · `end` | 모델 없음 | — | 수집DB | `market-calendar` | P-A | — | calendar.py:33 |
 | API-CAL-02 | GET | `/api/calendar/events` | 없음 | `start` · `end` · `kind` · `symbol` · `limit` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB | `market-calendar` | P-A | — | calendar.py:42 |
+
+#### `kb` — `app/routes/kb.py` · 2개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-KB-01 | GET | `/api/kb/documents` | 없음 | `kind` | 모델 없음 | ? | — | — | P-A | P01-①-4 | kb.py:21 |
+| API-KB-02 | GET | `/api/kb/search` | 세션 | `q`* · `k` · `as_of` · `kind` · `docs` · `mode` · `model` · `route` | 모델 없음 | ? | Qdrant · LLM | — | P-A | P01-①-3 | kb.py:29 |
 
 <!-- /api_scan:routes -->
 
@@ -803,6 +818,8 @@ flowchart LR
 | **OHLCV 규격 자료 — 새 `API-DATA-02` `GET /api/data/ohlcv`**(2026-10-02 · 목표 기능 ① W4 · 설계서 7절) — `symbol`(주식 · ETF 단축코드 6자리 · 지수 「시리즈:이름」 예 `KOSPI:코스피 200` · 뒤의 `.KS` · `.KQ` 는 뗀다) · `timeframe`(1d · 1w · 60m · 5m — 1m 은 422) · `from` · `to`(YYYY-MM-DD · 비우면 1d 1년 · 1w 3년 · 60m 30일 · 5m 7일) · `basis`(주식 adj_base 기본 · raw / ETF · 지수 raw / 분봉 adj_split — 없는 조합은 422 와 `allowed`) · `limit`(기본 10,000 · 최대 50,000 · 넘으면 **자르지 않고** 422). 응답은 `ohlcv-v1` 줄(HF `krx-ohlcv` 와 같은 칸 · 같은 차례) + `count` · `as_of` · `partial`(주봉이 진행 중) · `incomplete_day`(분봉의 마지막 날을 장 중에 받았을 때) · `source: collector` · `note`(받은 시각 ≠ 시장이 안 시각). 로그인 뒤. 오류 — 422 요청 모양 · 404 없는 종목 · 유니버스 밖 분봉 · 없는 지수(`candidates` — 띄어쓰기 무시) · 503 수집 DB 없음. ⚠️ 스캐너 표의 매개변수 `from_` 은 파이썬 이름이고 주소에서는 `from` 이다 · 오류 코드 칸 「?」 는 상태를 변수로 넘겨서다(위 다섯이 전부). 설계서 7절의 `adjusted=` 는 `basis=` 로 바꿨다(규격의 `price_basis` 넷을 가리려면 참 · 거짓으로 모자란다). 라우트 211 → **212** | 다음 판 본문 · 표는 스캐너로 다시 채운다 | 시험 TC-OA 9묶음 21건(수집기 내보내기 · `weekly` 와 줄마다 대조) · DF-43 |
 | **`API-DATA-01` 응답에 행 수의 상태**(2026-10-02) — `rows_state`(`fresh` 지금 값 · `old` 지난 값 — 다시 세는 중이거나 러너가 쓰는 중 · `pending` 앱을 켠 뒤 처음 세는 중 — 그때 `tables[].rows` 는 null) · `rows_counted_at`(마지막으로 다 센 시각) · `rows_note`(사람이 읽는 까닭). 행 수를 뒤에서 세게 바꿔 첫 호출이 21.3초 → 292ms | 다음 판 본문 | TC-DST-10 |
 | **「부르는 화면」 칸 — 데이터 관제 · 일정 화면 · 모의계좌 현황**(2026-10-02) — `API-DATA-01` → `data-status`, `API-CAL-01 · 02` → `market-calendar`(두 화면의 진입 훅을 화면 스캐너가 읽는 모양 `if (view === "키")` 로 적고, 두 파일에 같던 함수 이름을 나눴다). 「다가오는 일정」 카드가 붙는 `macro-dashboard` 는 호출이 두 단계 아래라 스캐너가 잡지 못한다(스캐너의 알려진 한계). 팀원 PR #90(모의계좌 현황에 자산 구성 · 성과 지표 · 자산 추이)으로 `paper-dashboard` 가 `API-PAPR-33` 을 부르고, 주문 내역 셋(`API-PAPR-10 · 21 · 25`)은 더 부르지 않는다. 합계 「메뉴 화면이 부름」 94 → 97 · 「public/ 에 없음」 68 → 65 | 다음 판 본문 · 표는 스캐너로 다시 채움(이미 채움) | `scripts/api_scan.py` · `scripts/view_scan.py` · TC-DH-01 |
+| **근거 문서 — 새 `API-KB-01` · `API-KB-02`**(2026-10-03 · 목표 기능 ① W5) — `GET /api/kb/documents`(로그인 없이 · 받아 둔 법령 · 감독규정의 판 목록 — 시행일 · 받은 때 · 지문 · 모델별 벡터 수) · `GET /api/kb/search`(로그인 · `q` · `k` · `as_of` · `kind` · `docs` · `mode`(hybrid · lexical · dense) · `model`(bge-m3 · nomic-embed-text) · `route`). 오류는 422(잘못된 입력 — 모르는 문서면 `hint` 에 있는 문서) · 503(kb.sqlite3 없음 · `dense` 만 달라는데 벡터 쪽 실패) — 상태 코드를 서비스가 정해 넘기므로 스캐너 「오류」 칸이 `?` 다(`API-DATA-02` 와 같은 모양). 「닿는 곳」 은 Qdrant · LLM(임베딩)만 잡힌다 — 읽는 SQLite(`kb.sqlite3`)는 수집 DB 다리가 아니라 별도 파일이라 「수집DB」 로 세지 않는다 | 다음 판 본문 · 표는 스캐너로 다시 채움(이미 채움) | `app/routes/kb.py` · `app/services/kb_search.py` · TC-KB · 설계서 5.3 |
+| **팀원 PR #92 의 새 라우트 다섯 — `API-PAPR-36 ~ 40`**(2026-10-03 · 「#92 때문」) — `GET /api/paper/performance/returns-table` · `risk-metrics` · `turnover` · `allocation-history` · `benchmark`(모의계좌 성과 · 위험 지표 · 회전율 · 자산 구성 추이 · KOSPI 비교 — P-E). 합계 212 → **219** · 라우터 27 → 28(`kb`) · 「메뉴 화면이 부름」 97 → 102 · 「public/ 에 없음」 65 → 67 · 403 을 주는 API 에 `API-PAPR-35`(`/simulate` — #95 의 관리자 검사) | 다음 판 본문 · 표는 스캐너로 다시 채움(이미 채움) | `scripts/api_scan.py --assign S81` · #88 확인 댓글 02(관리자 검사가 아직 못 막는 까닭) |
 
 ---
 

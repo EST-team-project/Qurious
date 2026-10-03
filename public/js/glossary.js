@@ -121,11 +121,27 @@ async function search(q) {
   bindMain();
 }
 
+/** 서버는 한 번에 100개까지만 준다(API-GLOS-01 · limit ≤ 100). 분류 하나를 다 보이려고 100개씩 이어 받는다.
+ *  2026-10-03 — 처음에는 limit=200 한 번이라 서버가 422 를 돌려 분류 카드를 누르면 「불러오지 못했습니다」 가 떴다. */
+const GL_PAGE = 100;
+
+async function fetchCategory(code) {
+  const items = [];
+  let total = 0;
+  for (let offset = 0; ; offset += GL_PAGE) {
+    const res = await api(`/api/glossary?limit=${GL_PAGE}&offset=${offset}&category=${encodeURIComponent(code)}`, { redirectOnUnauthorized: false });
+    total = res.total;
+    items.push(...res.items);
+    if (!res.items.length || items.length >= total) break;
+  }
+  return { total, items };
+}
+
 async function showCategory(code, name) {
   const main = rootEl.querySelector("#q-gl-main");
   main.innerHTML = `<div class="q-gl-loading">불러오는 중…</div>`;
   let res;
-  try { res = await api(`/api/glossary?limit=200&category=${encodeURIComponent(code)}`, { redirectOnUnauthorized: false }); } catch (e) {
+  try { res = await fetchCategory(code); } catch (e) {
     main.innerHTML = `<p class="q-term-note">불러오지 못했습니다 — ${escHtml(e.message)}</p>`;
     return;
   }

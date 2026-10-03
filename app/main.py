@@ -169,6 +169,9 @@ from app.routes import data as data_routes  # noqa: E402
 app.include_router(data_routes.router)
 from app.routes import calendar as calendar_routes  # noqa: E402
 app.include_router(calendar_routes.router)
+# 근거 문서 (목표 기능 ① W5) — 법령 · 감독규정 판 목록은 로그인 없이, 찾기(임베딩 호출)는 로그인 뒤
+from app.routes import kb as kb_routes  # noqa: E402
+app.include_router(kb_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")

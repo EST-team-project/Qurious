@@ -28,6 +28,13 @@
    "origin": "이 저장소의 public/js/core.js (강사님 lumina-invest 기초 코드 + 팀이 더한 것)",
    "paths": "public/js/core.js",
    "terms": 55
+  },
+  {
+   "code": "candidate",
+   "title": "검토를 거친 후보 용어",
+   "origin": "비교 쌍에는 있는데 자료 넷에 표제어가 없던 말 — 풀이는 통합본 원문에서 모으고 이동원이 검토해 공개(2026-10-03)",
+   "paths": "scripts/glossary_build.py 의 CANDIDATES · rag-lab/data/samples/finance_asset_allocation.txt · finance_accounting_tax_basics.txt",
+   "terms": 5
   }
  ],
  "categories": [
@@ -50,14 +57,14 @@
    "name": "기술적 분석",
    "description": "추세 · 이동평균 · 보조지표 · 캔들 패턴",
    "sort_order": 30,
-   "terms": 22
+   "terms": 23
   },
   {
    "code": "fundamental",
    "name": "기본적 분석",
    "description": "재무제표 · 가치평가",
    "sort_order": 40,
-   "terms": 25
+   "terms": 26
   },
   {
    "code": "quant",
@@ -162,14 +169,14 @@
    "name": "금융 · 보험 이론",
    "description": "정보 비대칭 · 사회보험 · 보험 원리",
    "sort_order": 190,
-   "terms": 31
+   "terms": 33
   },
   {
    "code": "private",
    "name": "벤처 · 사모 · 절세",
    "description": "벤처캐피탈 · 사모펀드 · 신탁 · 세금",
    "sort_order": 200,
-   "terms": 21
+   "terms": 22
   },
   {
    "code": "corporate",
@@ -3049,6 +3056,38 @@
    "shared_names": []
   },
   {
+   "id": "기술적-분석",
+   "term": "기술적 분석",
+   "english": "Technical Analysis",
+   "hanja": "",
+   "category": "technical",
+   "summary": "차트 · 거래량 · 보조지표로 사고팔 때(타이밍)를 판단하는 분석",
+   "definition": "추세 · 이동평균 · 보조지표 · 캔들 패턴처럼 가격과 거래량의 기록을 읽어 사고팔 때를 정한다. 기업의 가치보다 「언제」 에 초점을 둔다 — 기본적 분석과 짝을 이룬다.",
+   "example": "",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "",
+   "lead_source": "candidate",
+   "sources": [
+    "candidate"
+   ],
+   "aliases": [
+    {
+     "alias": "Technical Analysis",
+     "kind": "영어"
+    }
+   ],
+   "notes": [
+    {
+     "source": "candidate",
+     "label": "근거 사전(링크)",
+     "text": "한경 경제용어사전 「기술적 분석」 — https://dic.hankyung.com/economy/view/?seq=461"
+    }
+   ],
+   "shared_names": []
+  },
+  {
    "id": "데드크로스",
    "term": "데드크로스",
    "english": "Dead Cross",
@@ -3870,6 +3909,38 @@
      "source": "finance",
      "label": "3-1. 재무제표 (Financial Statements)",
      "text": "자산 가치가 시간이 지나며 줄어드는 것"
+    }
+   ],
+   "shared_names": []
+  },
+  {
+   "id": "기본적-분석",
+   "term": "기본적 분석",
+   "english": "Fundamental Analysis",
+   "hanja": "",
+   "category": "fundamental",
+   "summary": "기업의 재무 · 내재가치를 중심으로 주식이 싼지 비싼지 따지는 분석",
+   "definition": "재무제표와 가치평가 지표로 기업의 내재가치를 따진다. 기술적 분석이 「언제 살까(타이밍)」 를 본다면 기본적 분석은 「무엇을 살까(좋은 기업)」 를 본다 — 둘을 합친 문서가 통합 리포트다(좋은 기업 + 좋은 타이밍).",
+   "example": "",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "",
+   "lead_source": "candidate",
+   "sources": [
+    "candidate"
+   ],
+   "aliases": [
+    {
+     "alias": "Fundamental Analysis",
+     "kind": "영어"
+    }
+   ],
+   "notes": [
+    {
+     "source": "candidate",
+     "label": "근거 사전(링크)",
+     "text": "한경 경제용어사전 「기본적 분석」 — https://dic.hankyung.com/economy/view/?seq=9781"
     }
    ],
    "shared_names": []
@@ -18381,6 +18452,33 @@
    "shared_names": []
   },
   {
+   "id": "보장성-보험",
+   "term": "보장성 보험",
+   "english": "",
+   "hanja": "",
+   "category": "theory",
+   "summary": "사망 · 질병 · 사고 같은 위험이 생겼을 때 보험금을 받는 보험 — 낸 보험료는 대부분 돌려받지 못한다",
+   "definition": "주목적은 위험 보장이다. 보험료는 비용으로 보고(소멸 가능) 만기 환급이 대부분 없거나 적다. 보험료는 세액공제(연 100만원 한도)를 받고, 보상은 주로 정액이다. 예: 암보험 · 실손보험 · 종신보험.",
+   "example": "",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "",
+   "lead_source": "candidate",
+   "sources": [
+    "candidate"
+   ],
+   "aliases": [],
+   "notes": [
+    {
+     "source": "candidate",
+     "label": "근거 법령",
+     "text": "금융소비자 보호에 관한 법률 제3조 제4호 — 금융상품을 예금성 · 대출성 · 투자성 · 보장성 넷으로 나누고, 보험상품과 이와 유사한 금융상품을 「보장성 상품」 이라 한다"
+    }
+   ],
+   "shared_names": []
+  },
+  {
    "id": "본인부담상한제",
    "term": "본인부담상한제",
    "english": "Out-of-Pocket Maximum",
@@ -18772,6 +18870,38 @@
     }
    ],
    "notes": [],
+   "shared_names": []
+  },
+  {
+   "id": "저축성-보험",
+   "term": "저축성 보험",
+   "english": "",
+   "hanja": "",
+   "category": "theory",
+   "summary": "보험료 일부를 적립해 만기에 환급금을 받는 자산 축적형 보험",
+   "definition": "주목적은 자산 축적이다. 보험료 일부가 적립되어 만기에 납입 원금 이상을 돌려받을 수 있고, 10년 이상 유지하면 이자소득이 비과세된다. 예: 연금보험 · 저축보험 · 변액연금.",
+   "example": "",
+   "caution": "비과세는 조건이 붙는다 — 통합본 세금 자료는 「10년 이상 유지, 매월 150만원 이하 납입」 을 든다. 조건을 벗어나면 보험차익이 이자소득으로 과세된다.",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "",
+   "lead_source": "candidate",
+   "sources": [
+    "candidate"
+   ],
+   "aliases": [],
+   "notes": [
+    {
+     "source": "candidate",
+     "label": "근거 법령",
+     "text": "소득세법 제16조 제1항 제9호 — 대통령령으로 정하는 저축성보험의 보험차익은 이자소득이다(보험료를 처음 낸 날부터 만기 · 중도해지일까지 10년 이상인 보험 등은 뺀다)"
+    },
+    {
+     "source": "candidate",
+     "label": "근거 사전(링크)",
+     "text": "KB 경제 · 금융 용어사전 「저축성보험」 — https://kbthink.com/dictionary/view.html?dictId=KED-00013296"
+    }
+   ],
    "shared_names": []
   },
   {
@@ -19332,6 +19462,33 @@
     }
    ],
    "notes": [],
+   "shared_names": []
+  },
+  {
+   "id": "불특정금전신탁",
+   "term": "불특정금전신탁",
+   "english": "",
+   "hanja": "",
+   "category": "private",
+   "summary": "위탁자가 운용 방법을 정하지 않고, 수탁자가 재량으로 여러 고객 돈을 모아 운용하는 금전신탁",
+   "definition": "운용 방법을 위탁자(맡기는 사람)가 지정하지 않아 수탁자가 재량으로 여러 고객 자금을 합산 운용한다(집합운용). 원금 보장이 없고, 운용 방법을 투자자가 직접 정하는 특정금전신탁과 달리 펀드와 비슷하다.",
+   "example": "",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "",
+   "lead_source": "candidate",
+   "sources": [
+    "candidate"
+   ],
+   "aliases": [],
+   "notes": [
+    {
+     "source": "candidate",
+     "label": "근거 법령",
+     "text": "자본시장과 금융투자업에 관한 법률 시행령 제103조 제1항 제2호 — 「위탁자가 신탁재산인 금전의 운용방법을 지정하지 아니하는 금전신탁(이하 \"불특정금전신탁\"이라 한다)」"
+    }
+   ],
    "shared_names": []
   },
   {
@@ -21384,6 +21541,15 @@
    "where": "자주 혼동하는 금융 규제 용어 비교"
   },
   {
+   "from": "기본적-분석",
+   "to": "기술적-분석",
+   "kind": "confused_with",
+   "note": "좋은 기업(FA) + 좋은 타이밍(TA) = 통합 리포트",
+   "detail": "기본적 분석 — 내재가치·재무 중심 · 기술적 분석 — 차트·지표·타이밍 중심",
+   "source": "finance",
+   "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
    "from": "델타",
    "to": "베타",
    "kind": "confused_with",
@@ -21400,6 +21566,15 @@
    "detail": "매출 — 번 총액 · 이익 — 쓰고 남은 액",
    "source": "finance",
    "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "보장성-보험",
+   "to": "저축성-보험",
+   "kind": "confused_with",
+   "note": "보장성은 세액공제, 저축성은 비과세 혜택",
+   "detail": "보장성 보험 — 위험 발생 시 보험금 수령 (보험료는 비용) · 저축성 보험 — 만기 환급금 있는 자산 축적형",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
   },
   {
    "from": "수신",
@@ -21488,6 +21663,15 @@
    "kind": "confused_with",
    "note": "일임업이 자문업보다 규제 엄격, 최저 자본도 3배",
    "detail": "투자자문업 — 조언만 제공, 최종 결정은 투자자 · 투자일임업 — 판단·매매까지 전부 대신 (위임 계약)",
+   "source": "finance",
+   "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "특정금전신탁",
+   "to": "불특정금전신탁",
+   "kind": "confused_with",
+   "note": "특정은 개인 맞춤, 불특정은 펀드와 유사",
+   "detail": "특정금전신탁 — 투자자가 운용 방법 직접 지정 · 불특정금전신탁 — 수탁자가 재량으로 합산 운용",
    "source": "finance",
    "where": "자주 혼동하는 금융 규제 용어 비교"
   },
