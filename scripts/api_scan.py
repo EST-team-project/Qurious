@@ -99,6 +99,8 @@ ROUTER_ABBR = {
   "data": "DATA", "calendar": "CAL",
   # 2026-10-03 근거 문서 — 법령 · 감독규정 판 목록 · 찾기 (요구 P01-①-3 · 목표 기능 ① W5)
   "kb": "KB",
+  # 2026-10-03 강사님 기초 코드 9478811 — 통합 대시보드(사이트별 투자액 탭 · 요구 U9 · U10)
+  "dashboard": "DASH",
 }
 
 # 인증 의존성 — 이름표. 값이 같은 모양이면 같은 사람이 통과한다.
@@ -631,7 +633,10 @@ def _params(cb: Codebase, mod: str, fn: ast.FunctionDef | ast.AsyncFunctionDef, 
       required = first is None or (isinstance(first, ast.Constant) and first.value is Ellipsis)
       dflt = "" if required else ast.unparse(first)
       kind = cname.lower()
-      params.append(Param(arg.arg, kind, ann, required, dflt))
+      # 주소에 쓰는 이름은 alias 가 있으면 그것이다 — `start: str = Query(..., alias="from")` → `from`
+      # (2026-10-03 app.openapi() 대조에서 달력 둘 · OHLCV 하나가 파이썬 이름으로 적혀 어긋났다)
+      alias = _const(_kw(default, "alias"))
+      params.append(Param(alias if isinstance(alias, str) and alias else arg.arg, kind, ann, required, dflt))
       continue
     if arg.arg in path_names:
       params.append(Param(arg.arg, "path", ann, True))

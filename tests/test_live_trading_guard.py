@@ -10,8 +10,12 @@
 실주문을 내지 않고 차단을 확인하는 것이 목적이다. 그래서 **어느 서버를 보고 있는지**
 (`base_url`·`tr_id`)와 **어떤 클라이언트가 나왔는지**(타입)만 본다. 네트워크는 타지 않는다.
 """
+import asyncio
 import inspect
+import json
+from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from app.services.brokers import factory
@@ -123,3 +127,136 @@ def test_저장소_어디에도_paper_False_하드코딩이_남아있지_않다(
             if "paper=False" in 줄.replace(" ", "") and not 줄.lstrip().startswith("#"):
                 발견.append(f"{파일.relative_to(루트).as_posix()}:{번호}")
     assert not 발견, "paper=False 하드코딩: " + ", ".join(발견)
+
+
+# ── 5. 두 번째 출구 — stock-coin-trade 게이트웨이 (강사님 9478811) ─────
+#
+# 강사님 기초 코드 9478811 이 실주문의 길을 하나 더 냈다. 자동매매가 KIS 주문을 팩토리를 거치지 않고
+# stock-coin-trade 서버(HTTP)로 보내고, 실전 · 모의는 환경값 한 줄(STOCK_COIN_TRADE_KIS_ENVIRONMENT)이
+# 정한다. 3-way 병합에서 충돌 표시 없이 들어오는 길이라, 팩토리와 같은 승인 변수를 그 길에도 걸었다.
+# 주문 · 잔고 · 주문 조회 · 취소가 모두 같은 환경 판정을 지나는지 서버 흉내(MockTransport)로 본다.
+
+
+@pytest.fixture
+def 게이트웨이(monkeypatch):
+    """환경값을 일부러 real 로 둔 게이트웨이. 보낸 요청은 `요청들` 에 쌓인다(네트워크는 타지 않는다)."""
+    from app.config import settings
+    from app.services.brokers import stock_coin_trade_gateway as gw
+
+    monkeypatch.setattr(settings, "STOCK_COIN_TRADE_BASE_URL", "https://gateway.test")
+    monkeypatch.setattr(settings, "STOCK_COIN_TRADE_API_KEY", "dummy-gateway-key")
+    monkeypatch.setattr(settings, "STOCK_COIN_TRADE_KIS_ENVIRONMENT", "real")
+    요청들: list[httpx.Request] = []
+
+    def 서버(request: httpx.Request) -> httpx.Response:
+        요청들.append(request)
+        path = request.url.path
+        if path == "/openapi/v1/kis/order-approval":
+            return httpx.Response(200, json={"ok": True, "approvalToken": "tok-1"})
+        if path == "/openapi/v1/kis/orders" and request.method == "POST":
+            return httpx.Response(200, json={"ok": True, "order": {"orderNo": "1", "status": "ACCEPTED"}})
+        if path == "/openapi/v1/kis/orders":
+            return httpx.Response(200, json={"ok": True, "orders": []})
+        if path == "/openapi/v1/kis/balance":
+            return httpx.Response(200, json={"ok": True, "balance": {"cashBalance": 0, "holdings": []}})
+        return httpx.Response(200, json={"ok": True, "order": {"orderNo": "1", "status": "CANCELLED"}})
+
+    gw.set_transport(httpx.MockTransport(서버))
+    yield gw, 요청들
+    gw.set_transport(None)
+
+
+def test_미승인이면_게이트웨이_환경이_real이어도_paper로_강등된다(게이트웨이):
+    gw, _ = 게이트웨이
+    assert gw.environment() == "paper"
+
+
+def test_승인하면_게이트웨이가_real을_그대로_쓴다(게이트웨이, allow_live_trading):
+    """관문이 '항상 막힘'이 아니라 '승인 시에만 열림'인지 — 2절과 같은 이유로 둔다."""
+    gw, _ = 게이트웨이
+    assert gw.environment() == "real"
+
+
+def test_미승인이면_주문에_real을_직접_넘겨도_paper로_나간다(게이트웨이):
+    """`env=` 인자는 환경값을 건너뛰는 옆문이다 — 옆문도 같은 관문을 지나야 한다."""
+    gw, 요청들 = 게이트웨이
+    asyncio.run(gw.place_order("005930", "buy", 1, 70_000, client_order_id="u1:005930:B:1", env="real"))
+    본문들 = [json.loads(r.content) for r in 요청들 if r.method == "POST"]
+    assert len(본문들) == 2, "승인 토큰 · 주문 두 번을 보낸다"
+    assert [b["environment"] for b in 본문들] == ["paper", "paper"]
+
+
+def test_미승인이면_잔고_조회_취소도_paper로_묻는다(게이트웨이):
+    gw, 요청들 = 게이트웨이
+    asyncio.run(gw.get_balance(env="real"))
+    asyncio.run(gw.get_order_status("1", env="real"))
+    asyncio.run(gw.list_today_orders(env="real"))
+    asyncio.run(gw.cancel_order("1", env="real"))
+    assert [r.url.params["environment"] for r in 요청들] == ["paper"] * 4
+
+
+# ── 6. KIS 키는 사용자마다 (2026-10-03 결정) ─────────────────────────
+#
+# 강사님 판은 KIS 계좌 하나를 서버가 관리하고(Secrets Manager → .env) KIS 를 고른 모든 사용자가 같이 쓴다.
+# Qurious 는 여러 사람이 쓰는 모의투자 플랫폼이라 포지션 · 잔고가 섞이므로 사용자마다 자기 키를 쓴다.
+# 그 키의 환경(모의 · 실전)도 승인 변수가 정한다 — 키를 넣었다고 실전이 되지 않는다.
+
+
+def test_KIS는_서버가_관리하지_않는다():
+    from app.services import kis_credentials
+
+    assert kis_credentials.is_managed("kis") is False
+    assert kis_credentials.MANAGED_BROKERS == frozenset()
+
+
+def test_미승인이면_사용자_KIS_키도_모의_환경이다():
+    from app.services import kis_credentials
+
+    행 = SimpleNamespace(broker="kis", app_key=KEY, app_secret=SECRET, account_no="5012345601")
+    creds = kis_credentials.for_user(행)
+    assert creds is not None and creds.paper is True and creds.environment == "paper"
+
+
+def test_승인하면_사용자_KIS_키가_실전_환경이다(allow_live_trading):
+    from app.services import kis_credentials
+
+    행 = SimpleNamespace(broker="kis", app_key=KEY, app_secret=SECRET, account_no="5012345601")
+    assert kis_credentials.for_user(행).environment == "real"
+
+
+# ── 7. 자동매매 실주문 — 합친 `_place_live_order` ───────────────────
+#
+# 3-way 병합의 충돌 줄이다. 우리 판은 `paper=not live_trading_allowed()`, 강사님 판은 자격증명이 정한
+# `paper=paper` 였다. 둘을 합친 줄이 승인 없이는 모의를, 승인하면 실전을 요청하는지 본다.
+
+
+def _실주문_요청(monkeypatch) -> dict:
+    from app.services import auto_trade
+
+    받은: dict = {}
+
+    class 가짜_증권사:
+        async def place_order(self, *a, **k):
+            return {"ok": True}
+
+    def 가짜_팩토리(broker, app_key="", app_secret="", paper=True):
+        받은.update(broker=broker, paper=paper)
+        return 가짜_증권사()
+
+    async def 조용히(**_):
+        return None
+
+    monkeypatch.setattr(auto_trade, "get_broker_client", 가짜_팩토리)
+    monkeypatch.setattr(auto_trade.notification, "notify_order_placed", 조용히)
+    행 = SimpleNamespace(quant_mode="live", broker="kis", app_key=KEY, app_secret=SECRET, account_no="5012345601")
+    결과 = asyncio.run(auto_trade._place_live_order(행, "005930", "삼성전자", "buy", 1, 70_000.0, "user-1"))
+    assert 결과 and 결과["status"] == "submitted"
+    return 받은
+
+
+def test_미승인이면_자동매매_실주문이_모의로_요청된다(monkeypatch):
+    assert _실주문_요청(monkeypatch) == {"broker": "kis", "paper": True}
+
+
+def test_승인하면_자동매매_실주문이_실전을_요청한다(monkeypatch, allow_live_trading):
+    assert _실주문_요청(monkeypatch) == {"broker": "kis", "paper": False}

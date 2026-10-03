@@ -218,3 +218,8 @@ API-PAPR-39	GET	/api/paper/performance/allocation-history	S81	사용
 API-PAPR-40	GET	/api/paper/performance/benchmark	S81	사용
 API-KB-01	GET	/api/kb/documents	S81	사용
 API-KB-02	GET	/api/kb/search	S81	사용
+API-STK-38	GET	/api/quant/strategies	S82	사용
+API-STK-39	GET	/api/quant/live-orders	S82	사용
+API-STK-40	GET	/api/quant/kis/quickstart	S82	사용
+API-STK-41	POST	/api/quant/kis/quickstart	S82	사용
+API-DASH-01	GET	/api/dashboard/accounts	S82	사용

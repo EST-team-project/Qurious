@@ -1,5 +1,5 @@
 묶음	파일	요구ID	확실도	무엇을_확인
-TC-LT	tests/test_live_trading_guard.py	RFP2-4.2-①	🟢	실거래 승인 없이는 증권사 주문이 실계좌로 나가지 않는다(인수 시험 6건 포함)
+TC-LT	tests/test_live_trading_guard.py	RFP2-4.2-①	🟢	실거래 승인 없이는 증권사 주문이 실계좌로 나가지 않는다 — 팩토리 · 게이트웨이 두 길 · 사용자 키(인수 시험 6건 포함 · 2026-10-03 게이트웨이 4건 · 사용자 키 3건 · 합친 실주문 2건)
 TC-LT	tests/test_live_trading_guard.py	P02-⑤-1	🟢	모든 증권사 호출이 실거래 차단 지점을 지난다
 TC-LT	tests/test_live_trading_guard.py	P01-④-3	🟡	모의 주문이 모의 경로로 처리된다 — 장부의 맞음은 TC-I14 가 본다
 TC-YH	tests/test_no_yahoo_regression.py	RFP2-3.2-①	🟡	야후 참조가 기준선(2026-09-30 기준 13파일 75줄 · 그중 2줄은 스캐너의 찾는 코드)보다 늘지 않는다 — 이용 조건을 지키는 출처만 늘린다
@@ -64,3 +64,25 @@ TC-OA	tests/test_data_ohlcv.py	P01-①-2	🟢	모은 시세를 규격(ohlcv-v1) 
 TC-DH	tests/test_data_screens.py	P01-①-4	🟢	갱신일 · 캘린더를 화면으로 — 위 메뉴 「데이터」 맨 위 데이터 관제와 모든 화면의 「자료 날짜 · 판정」 표시, 「투자분석 기초 › 일정」 달력과 「다가오는 일정」 카드가 이어져 있고, 화면이 읽는 상태 · 일정 · 거래일 응답 칸이 실제로 있으며, 일정 종류는 서버의 넷과 같다(화면 자체는 브라우저 캡처로 확인)
 TC-LW	tests/test_kb_law.py	P01-①-3	🟢	법령 · 감독규정을 기준일에 시행 중인 판(시행일 판 · 같은 날 공포 · 뒤에 공포된 판 대조)으로 고르고, 조문을 제목 사슬 머리로 쪼개며, 청크 ID 가 실행마다 같다 · 응답 속 키를 지운다 · 받아 둔 원문으로 네트워크 없이 다시 쪼갠다
 TC-KB	tests/test_kb_search.py	P01-①-3	🟡	근거 청크를 기준일 판에서 낱말 · 벡터로 찾아 RRF 로 합치고 질문 분류(세금 · 회사 · 투자 규제)로 가중한다 · 벡터가 꺼지면 낱말로 · 다시 쪼갠 뒤의 옛 점은 버린다 · 문서 목록은 로그인 없이 — 검색 품질은 평가셋 v0(docs/시험/근거검색-평가셋_v0.tsv)으로 따로 잰다 · 답 만들기(W6)는 아직
+TC-BM	tests/test_base_code_merge_guard.py	P02-⑤-1	🟡	강사님 기초 코드를 반영해도 걷어낸 AWS 모듈(SageMaker 배치 점수 · Secrets Manager · boto3)이 import 로 되살아나지 않고 자동매매 모듈이 뜬다
+TC-GW	tests/test_stock_coin_trade_gateway.py	P02-⑤-1	🟢	게이트웨이 2단계 주문(승인 토큰 → 주문) · 멱등키 · 호가 단위 보정 · 오류 코드 · 재시도 규칙(주문은 다시 보내지 않음)
+TC-GW	tests/test_stock_coin_trade_gateway.py	P01-①-4	🟡	장 시간 · 2026 휴장일 판정 — 게이트웨이 내장 표(우리 거래일 달력과 2026 평일 휴장 17일이 같다 · 2027 은 없다)
+TC-GP	tests/test_live_order_gateway_path.py	P02-⑤-1	🟢	자동매매 실주문이 게이트웨이로 나가 live_orders 에 추적되고, 거절 · 연결 끊김 · 장 밖이 상태로 남는다
+TC-GP	tests/test_live_order_gateway_path.py	P02-⑤-2	🟢	체결 확인(2분) · 미체결 자동 취소 · 비상 정지 때 미체결 취소
+TC-GP	tests/test_live_order_gateway_path.py	SCH-ORD	🟡	게이트웨이 주문의 취소 흐름(모의)
+TC-KC	tests/test_kis_credentials.py	P02-⑤-1	🟢	KIS 키는 사용자마다 — 서버 계좌 없음 · 서버 .env 키 무시 · 저장이 사용자 키를 남김 · 화면용 상태에 키 원문 없음(ADR-0004)
+TC-KL	tests/test_legacy_kis_order_managed.py	P02-⑤-1	🟢	게이트웨이가 없을 때 자동매매 실주문이 그 사용자의 DB 키로 나가고 서버 키는 쓰지 않는다
+TC-KL	tests/test_legacy_kis_order_managed.py	RFP2-4.2-①	🟢	승인 없이는 사용자 키 실주문도 모의(paper=True)를 요청한다
+TC-KQ	tests/test_kis_quickstart.py	P02-⑤-1	🟢	「KIS 모의투자 시작」 원클릭 — 경로 판정 · 차단(키 없음 · 실전 · 비상 정지) · 설정 저장 + 자동매매 켜기 · 사용자 키를 남김
+TC-KQ	tests/test_kis_quickstart.py	U10	🟡	원클릭 상태(이미 시작 · 비상 정지 사유)를 대시보드에 돌려준다
+TC-KH	tests/test_kis_quickstart_http.py	P02-⑤-1	🟢	HTTP: 설정 화면에는 가린 키만 · 저장이 사용자 키를 남김 · 원클릭 두 라우트 · 실전이면 409(승인했을 때)
+TC-DA	tests/test_dashboard_accounts.py	U9	🟡	통합 대시보드 사이트별 투자액 탭 — KIS 가 첫 탭 · 한 탭이 실패해도 나머지는 보인다(성과 지표 칸은 재지 않는다)
+TC-DA	tests/test_dashboard_accounts.py	U10	🟡	KIS 탭의 자동매매 실행 중 · 열린 실주문 수 · 사용자 키로 조회
+TC-QC	tests/test_quant_cycle_integration.py	P02-⑤-2	🟢	자동매매 사이클 통합 — 합격 전략 적용 · 위험 한도 · 실계좌 일손실 한도
+TC-RK	tests/test_risk_guard_boundaries.py	P02-⑤-2	🟢	쿨다운 만료 경계 · 일 주문 한도 · 비상 정지 매핑 · 위험 저장소(Redis)가 없으면 실전 주문을 내지 않는다
+TC-SR	tests/test_spec_rules_and_ml_symbol.py	P01-④-2	🟡	전략 스펙의 진입 · 청산 규칙 평가와 캔들 Ridge ML 점수
+TC-SP	tests/test_strategy_spec_apply.py	P01-④-2	🟢	합격 전략 스펙으로 신호를 다시 판정(임계값 · 종목 범위 · 최대 종목 수) · 배치 ML 점수는 늘 비어 있음
+TC-SP	tests/test_strategy_spec_apply.py	P02-①-2	🟡	스펙의 매수 · 매도 규칙을 자동매매 사이클에 적용한다
+TC-SL	tests/test_strategy_loader.py	P02-①-3	🟡	domain-rag-lab 합격 전략 목록 · 스펙 받기(설정이 비면 빈 목록)
+TC-LR	tests/test_lean_remote.py	P02-④-1	🟡	LEAN 백테스트를 domain-rag-lab 에 맡기고 연결 실패 · 5xx 면 로컬로 돌린다 — 실행처만 재고 「같은 데이터 · 기간 · 수수료」 는 재지 않는다
+TC-LR	tests/test_lean_remote.py	P02-③-2	🟡	LEAN 교차 검증의 실행처(원격 · 로컬) 표시

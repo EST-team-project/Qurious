@@ -223,6 +223,21 @@ def test_ap08_선택형_본문_모델과_인자_종류(tmp_path):
   assert q == {"symbol": ("query", True), "period": ("query", False)}
 
 
+def test_ap15_질의_인자는_주소에_쓰는_이름_alias_로_적는다(tmp_path):
+  """`start: str = Query(..., alias="from")` 는 주소에서 `from` 이다 — 파이썬 이름을 적으면 명세가 틀린다.
+
+  2026-10-03 `app.openapi()` 대조에서 달력 둘 · OHLCV 하나가 이렇게 어긋났다(API 명세서 v0.2 1.2절).
+  """
+  extra = {"app/routes/stocks.py": ROUTES_SRC + (
+    '\n\n@router.get("/calendar")\n'
+    'async def calendar(start: str = Query(..., alias="from"), end: str = Query("", alias="to"), kind: str = ""):\n'
+    '    return {"ok": True}\n'
+  )}
+  _cb, routes, _reg = api_scan.scan(_repo(tmp_path, extra))
+  q = {p.name: (p.kind, p.required) for p in _by_path(routes)["GET /api/calendar"].params}
+  assert q == {"from": ("query", True), "to": ("query", False), "kind": ("query", False)}
+
+
 def test_ap09_ID_는_라우트가_끼어들어도_밀리지_않는다(tmp_path):
   """RTM §2.2 의 교훈 — 순번은 하나가 끼면 뒤가 전부 밀린다. 대장은 옛 번호를 그대로 둔다."""
   root = _repo(tmp_path)

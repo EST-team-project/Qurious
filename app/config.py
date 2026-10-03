@@ -88,6 +88,36 @@ class Settings(BaseSettings):
     ALPACA_API_KEY: str = ""
     ALPACA_SECRET_KEY: str = ""
 
+    # ── KIS 자동매매 실주문 게이트웨이 (stock-coin-trade Open API, 계약: docs/contracts/kis-autotrade-api.md) ──
+    # 비어 있으면 게이트웨이를 쓰지 않고 기존 KISClient 직접 호출(레거시)로 폴백한다.
+    STOCK_COIN_TRADE_BASE_URL: str = ""            # 예: https://stock.example.com
+    STOCK_COIN_TRADE_API_KEY: str = ""             # stock-coin-trade에서 발급한 Open API 키 (KIS_AUTOTRADE_API_KEY_IDS 등록 필요)
+    STOCK_COIN_TRADE_TIMEOUT: float = 15.0
+    # paper(KIS Testbed) | real(실전). quant_mode=live 인 사용자의 주문이 이 환경으로 나간다. Phase 4까지 paper 유지.
+    STOCK_COIN_TRADE_KIS_ENVIRONMENT: str = "paper"
+    STOCK_COIN_TRADE_ORDER_TYPE: str = "LIMIT"     # LIMIT(현재가 호가 보정) | MARKET
+    STOCK_COIN_TRADE_ENFORCE_MARKET_HOURS: bool = True  # 평일 09:00~15:30 KST 외에는 실주문을 보내지 않는다 (가상계좌 체결은 영향 없음)
+    STOCK_COIN_TRADE_CANCEL_OPEN_AFTER_MIN: int = 0     # N분 넘게 미체결(ACCEPTED/PARTIALLY_FILLED)이면 confirm_fills 가 취소 요청. 0=끔
+    KRX_EXTRA_HOLIDAYS: str = ""                        # 추가 휴장일 (YYYY-MM-DD 쉼표 구분). 내장 2026 캘린더에 더해진다
+    ML_SCORE_SCALE_PCT: float = 30.0                    # SageMaker 예측 연수익률(%)을 [-1,1]로 정규화할 때의 분모
+
+    # ── KIS 자격증명 (서버 관리 — 사용자는 화면에서 입력하지 않는다, app/services/kis_credentials.py) ──
+    # ※ Qurious 는 아래 KIS 칸을 읽지 않는다 — KIS 키는 사용자마다(2026-10-03 결정 · kis_credentials.for_user).
+    #   강사님 판과 칸을 맞춰 두려고 남긴다. Secrets Manager 두 칸은 AWS 를 걷어내 비워 둔다.
+    # Secrets Manager 시크릿 이름/ARN. JSON: {"app_key","app_secret","account_no","environment": "paper|real"}
+    KIS_SECRETS_NAME: str = ""                      # 예: lumina-invest/prod/kis
+    KIS_SECRETS_CACHE_TTL: int = 600                # 초. 조회 성공값 캐시 (실패는 60초)
+    KIS_ENVIRONMENT: str = "paper"                  # 시크릿에 environment 가 없을 때의 기본값. paper=Testbed, real=실전
+    # Secrets Manager 를 못 쓰는 로컬 개발·장애 시 폴백 (운영에서는 비워 둔다)
+    KIS_APP_KEY: str = ""
+    KIS_APP_SECRET: str = ""
+    KIS_ACCOUNT_NO: str = ""
+
+    # ── 전략 스펙 API (domain-rag-lab /backtests/strategies) ───────────────────
+    DOMAIN_RAG_LAB_BASE_URL: str = ""
+    DOMAIN_RAG_LAB_API_KEY: str = ""
+    STRATEGY_SPEC_CACHE_TTL: int = 600
+
     # ── 외부 Open API (/openapi/v1) 호출 제한 ────────────────────────────────
     OPENAPI_RATE_LIMIT_MAX: int = 60       # 키당 분당 호출 수
     OPENAPI_RATE_LIMIT_WINDOW: int = 60    # 초

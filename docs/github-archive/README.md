@@ -23,7 +23,7 @@ docs/github-archive/
 ├── 2026-09-23/   ← 옛 글 1건
 ├── 2026-09-28/        ← 새 글 18건
 │   ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md  (#14 · 댓글 01 올림)
-│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 06 점검 댓글(#6) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
+│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 07 점검 댓글 · 08 반영 결과(#6) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
 │   ├── PR-docs-screen-ia-v0-1/    00-본문.md  (#16)
 │   ├── PR-docs-screen-ia-v0-2/    00-본문.md  (#19)
 │   ├── PR-feat-daily-data-update/ 00-본문.md  (#23)
@@ -67,13 +67,15 @@ docs/github-archive/
 │   ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
 │   └── PR-feat-finance-lectures-placement/  00-본문.md  (#84)
 ├── 2026-10-02/        ← 새 글 5건
-│   ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md · 01 강민석 님 답글(10-02) · 02 코드 대조 확인(10-03 · 올릴 것)  (#88)
+│   ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md · 01 강민석 님 답글(10-02) · 02 코드 대조 확인(10-03 · 올림) · 03 갱신(10-03 · 번호 0013 → 0014 · 올릴 것)  (#88)
 │   ├── PR-feat-glossary-screen-and-w3-docs/  00-본문.md  (#87)
 │   ├── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (#89)
 │   ├── PR-feat-data-hub-calendar-ohlcv-api/  00-본문.md  (#91)
 │   └── PR-feat-legal-kb-fetch-and-index/  00-본문.md  (#93)
-└── 2026-10-03/        ← 새 글 1건
-    └── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (번호는 올린 뒤)
+└── 2026-10-03/        ← 새 글 3건
+    ├── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (#97)
+    ├── PR-chore-instructor-base-9478811-server/  00-본문.md  (번호는 올린 뒤)
+    └── 논의-강사님기초코드-9478811-반영/  00-본문.md  (웹에서 올린 뒤 번호)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -327,11 +329,13 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | [#91](https://github.com/EST-team-project/Qurious/pull/91) |
 | [PR feat-legal-kb-fetch-and-index](2026-10-02/PR-feat-legal-kb-fetch-and-index/00-본문.md) | feat: 근거 문서 받기 · 판 고르기 · 조문 청크 · 벡터 색인 첫 판 — 목표 기능 ① W5 시작 | 1,930 | [#93](https://github.com/EST-team-project/Qurious/pull/93) |
 
-### 2026-10-03 — 새 글 1건
+### 2026-10-03 — 새 글 3건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [PR feat-kb-search-eval-and-glossary-candidates](2026-10-03/PR-feat-kb-search-eval-and-glossary-candidates/00-본문.md) | feat: 근거 찾기 API · 청크 머리(편 · 장 경로) · 검색 평가셋 v0 · 후보 용어 다섯 · 분류 화면 결함(DF-44) — 목표 기능 ① W5 | 3,847 | (올린 뒤 적음) |
+| [PR feat-kb-search-eval-and-glossary-candidates](2026-10-03/PR-feat-kb-search-eval-and-glossary-candidates/00-본문.md) | feat: 근거 찾기 API · 청크 머리(편 · 장 경로) · 검색 평가셋 v0 · 후보 용어 다섯 · 분류 화면 결함(DF-44) — 목표 기능 ① W5 | 3,847 | [#97](https://github.com/EST-team-project/Qurious/pull/97) |
+| [PR chore-instructor-base-9478811-server](2026-10-03/PR-chore-instructor-base-9478811-server/00-본문.md) | chore: 강사님 기초 코드 9478811 서버 쪽 반영 — KIS 키 사용자별(ADR-0004) · 게이트웨이 실거래 관문 · 마이그레이션 0013 · 문서 판 올림 | 2,937 | (올린 뒤 적음) |
+| [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | (웹에서 올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
