@@ -223,3 +223,4 @@ API-STK-39	GET	/api/quant/live-orders	S82	사용
 API-STK-40	GET	/api/quant/kis/quickstart	S82	사용
 API-STK-41	POST	/api/quant/kis/quickstart	S82	사용
 API-DASH-01	GET	/api/dashboard/accounts	S82	사용
+API-KB-03	POST	/api/kb/ask	2026-10-03	사용

@@ -72,13 +72,14 @@ docs/github-archive/
 │   ├── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (#89)
 │   ├── PR-feat-data-hub-calendar-ohlcv-api/  00-본문.md  (#91)
 │   └── PR-feat-legal-kb-fetch-and-index/  00-본문.md  (#93)
-└── 2026-10-03/        ← 새 글 6건
+└── 2026-10-03/        ← 새 글 7건
     ├── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (#97)
     ├── PR-chore-instructor-base-9478811-server/  00-본문.md  (#98)
     ├── 논의-강사님기초코드-9478811-반영/  00-본문.md · 01-2026-10-03-화면-결정.md  (#99)
     ├── PR-chore-instructor-base-9478811-screens/  00-본문.md  (#100)
     ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md  (번호는 올린 뒤)
-    └── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (번호는 올린 뒤)
+    ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
+    └── PR-feat-kb-ask-and-local-llm-research/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -332,7 +333,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | [#91](https://github.com/EST-team-project/Qurious/pull/91) |
 | [PR feat-legal-kb-fetch-and-index](2026-10-02/PR-feat-legal-kb-fetch-and-index/00-본문.md) | feat: 근거 문서 받기 · 판 고르기 · 조문 청크 · 벡터 색인 첫 판 — 목표 기능 ① W5 시작 | 1,930 | [#93](https://github.com/EST-team-project/Qurious/pull/93) |
 
-### 2026-10-03 — 새 글 6건
+### 2026-10-03 — 새 글 7건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
@@ -341,7 +342,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | [#99](https://github.com/EST-team-project/Qurious/discussions/99) — 댓글 [01 화면 결정](2026-10-03/논의-강사님기초코드-9478811-반영/01-2026-10-03-화면-결정.md)(10-04 이후 올림) |
 | [PR chore-instructor-base-9478811-screens](2026-10-03/PR-chore-instructor-base-9478811-screens/00-본문.md) | chore: 강사님 기초 코드 9478811 화면 쪽 반영 — 첫 화면 투자 대시보드 · 위 메뉴 들어가는 만큼 + 전체 메뉴 · 설정 새 칸 · 문서 판 올림 | 2,760 | [#100](https://github.com/EST-team-project/Qurious/pull/100) — 10-03 18:04 머지 |
 | [이슈 백테스트보고서-결과칸-요청](2026-10-03/이슈-백테스트보고서-결과칸-요청/00-본문.md) | [요청] 백테스트 보고서 v0.1 결과 칸 — 비용 반영 성과(강민석 님 · 10-13 오후 칸 전) | 2,066 | (올린 뒤 적음) |
-| [PR docs-deliverables-v01-doc-figures](2026-10-03/PR-docs-deliverables-v01-doc-figures/00-본문.md) | docs: 빠진 주요 산출물 15개 v0.1 · 문서 그림 지침(Figma) · 문서 작성 기준 v0.2 | 1,572 | (올린 뒤 적음) |
+| [PR docs-deliverables-v01-doc-figures](2026-10-03/PR-docs-deliverables-v01-doc-figures/00-본문.md) | docs: 빠진 주요 산출물 15개 v0.1 · 문서 그림 지침(Figma) · 문서 작성 기준 v0.2 | 1,572 | [#101](https://github.com/EST-team-project/Qurious/pull/101) — 10-03 20:24 머지 |
+| [PR feat-kb-ask-and-local-llm-research](2026-10-03/PR-feat-kb-ask-and-local-llm-research/00-본문.md) | feat: 근거 번호가 달린 답 API · 로컬 LLM 조사서 · 답 모델 비교 — 목표 기능 ① W6 | 1,827 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
