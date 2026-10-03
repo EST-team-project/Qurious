@@ -14,8 +14,11 @@
     고쳤고, 기초 코드를 따르려고 이 방식을 택했다 — 장부를 하나로 둘지는 팀 논의 거리다(D7 ③).
   - Qurious 가 더한 것: 주문 비용(세금 · 수수료 · ETF 면세 — `trading_cost`) · 실거래 차단(`live_trading_allowed`)
     · 현금 행 잠금(FOR UPDATE — 즉시 1회 실행과 예약 사이클이 겹쳐도 차감이 덮어써지지 않게).
+  - 강사님 9478811(2026-10-03 반영): 게이트웨이 실주문 · 합격 전략 · 실계좌 위험 한도 · 체결 확인은 그대로 받았다.
+    바꾼 것 셋 — KIS 키는 사용자마다(`kis_credentials`) · 게이트웨이에도 실거래 승인 관문 · SageMaker 배치 점수 없음.
 """
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -25,12 +28,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.stock import get_quant_indicators, QUANT_STOCKS
 from app.database.postgres import get_session_factory
-from app.models import BrokerSettings, Order, Portfolio, QuantVirtualAccount, PORTFOLIO_BOOK_QUANT
+from app.models import BrokerSettings, Order, Portfolio, QuantVirtualAccount, PORTFOLIO_BOOK_QUANT, LiveOrder, LIVE_ORDER_OPEN_STATUSES
 from app.models.base import SYSTEM_USER_ID
 from app.services import notification
+from app.services import strategy_loader
+from app.config import settings as app_settings
+from datetime import timedelta
 from app.services import risk_guard
 from app.services.audit import audit
 from app.services.brokers.factory import get_broker_client, live_trading_allowed
+from app.services import kis_credentials
+from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.data_cache import cache_get, cache_set
 from app.services import trading_cost
 
@@ -234,6 +242,7 @@ async def _place_live_order(
     quantity: int,
     price: float,
     user_id: str,
+    db: AsyncSession | None = None,
 ) -> dict | None:
     """실전(live) 모드에서 가상계좌 체결과 별도로 실제 증권사에 주문을 전송한다.
 
@@ -249,16 +258,29 @@ async def _place_live_order(
     if not broker_row or broker_row.quant_mode != "live":
         return None
     broker = (broker_row.broker or "mock").strip().lower()
-    app_key = broker_row.app_key
-    app_secret = broker_row.app_secret
-    account_no = broker_row.account_no
+    if broker == "kis" and gateway.is_configured():
+        # 구축안 경로: stock-coin-trade Open API(승인 토큰 → 주문 → 감사로그) 경유. 체결은 quant.confirm_fills 가 확인한다.
+        return await _place_live_order_via_gateway(db, broker_row, symbol, name, side, quantity, price, user_id)
+    # 사용자 키 길은 실전을 「요청」 하는 길이다 — 승인 없이는 모의(아래 관문 · 팩토리). 우리 판은 서버 관리 증권사가 없다.
+    paper = not live_trading_allowed()
+    if kis_credentials.is_managed(broker):
+        # KIS 자격증명은 서버(Secrets Manager)가 관리한다. DB 행의 키는 쓰지 않는다.
+        creds = await kis_credentials.get_credentials()
+        if creds is None:
+            logger.warning("KIS 자격증명 미연동 — live 주문 생략 (%s %s)", side, symbol)
+            return {"status": "skipped", "broker": broker, "reason": "kis_credentials_not_configured"}
+        app_key, app_secret, account_no, paper = creds.app_key, creds.app_secret, creds.account_no, creds.paper
+    else:
+        app_key = broker_row.app_key
+        app_secret = broker_row.app_secret
+        account_no = broker_row.account_no
     if broker == "mock" or not app_key or not app_secret or not account_no:
         return None
 
-    # 승인되지 않은 동안에는 모의투자(paper=True)로 요청한다. 의도를 호출부에도
-    # 드러내 둔다 — 팩토리만 믿으면 여기 코드는 여전히 "실계좌를 원한다"고 읽힌다.
+    # 3-way(강사님 9478811 · 2026-10-03): 강사님 판은 자격증명이 정한 `paper`, 우리 판은 실거래 승인 관문이다.
+    # 둘 다 지킨다 — 모의로 정해졌으면 모의, 아니면 승인(QURIOUS_ALLOW_LIVE_TRADING) 없이는 모의(팩토리에도 같은 관문).
     client = get_broker_client(
-        broker, app_key, app_secret, paper=not live_trading_allowed()
+        broker, app_key, app_secret, paper=paper or not live_trading_allowed()
     )
     try:
         result = await client.place_order(account_no, symbol, side, quantity, price)
@@ -273,6 +295,314 @@ async def _place_live_order(
             error=str(e), user_id=user_id,
         )
         return {"status": "error", "broker": broker, "error": str(e)}
+
+
+_SIGNAL_SCORE_SCALE = 8.0   # stock.py 지표 점수(대략 -8~+8)를 스펙 임계값([-1,1])과 비교하기 위한 정규화 분모
+
+
+def apply_strategy_spec_to_symbols(target_symbols: list[str], spec: dict) -> list[str]:
+    """스펙 universe(6자리 코드)에 있는 종목만 남기고 position_sizing.max_symbols 로 자른다. 교집합이 없으면 원본 유지."""
+    universe = {str(c)[:6] for c in (spec.get("universe") or [])}
+    restricted = [s for s in target_symbols if str(s)[:6] in universe] if universe else list(target_symbols)
+    if not restricted:
+        return list(target_symbols)
+    max_symbols = int((spec.get("position_sizing") or {}).get("max_symbols") or 0)
+    return restricted[:max_symbols] if max_symbols > 0 else restricted
+
+
+_ml_meta: dict = {}   # 마지막으로 로드한 배치 학습 메타(generated_at 등) — 사이클 로그에 기록
+
+
+async def symbol_ml_score(symbol: str) -> float | None:
+    """배치 점수가 없는 종목의 보조 ML 점수: 캔들로 Ridge 5일 수익률 예측(ml_symbol_score). 실패 시 None."""
+    try:
+        from app.services.stock import get_candles
+        from app.services.ml_symbol_score import symbol_score
+
+        data = await get_candles(symbol, period="2y")
+        return symbol_score(data.get("candles") or [])
+    except Exception as exc:
+        logger.info("종목별 ML 점수 계산 생략 (%s): %s", symbol, exc)
+        return None
+
+
+async def ml_scores_by_symbol() -> dict[str, float]:
+    """종목별 배치 ML 점수 — 우리 판은 늘 빈 dict.
+
+    강사님 판은 SageMaker 배치 학습 결과(S3 의 scores.json · `quant_ai_scores`)를 [-1,1] 로 정규화해 돌려준다.
+    Qurious 는 2026-09-15 에 AWS 를 걷어내 그 모듈이 없다 — 스펙에 LightGBM 가중이 있으면 사이클이
+    캔들 Ridge 점수(`symbol_ml_score`)로 대신한다(tests/test_base_code_merge_guard.py).
+    """
+    _ml_meta.clear()
+    return {}
+
+
+def _sma_last(values: list[float], window: int, offset: int = 0) -> float | None:
+    """values[-1-offset] 기준 단순이동평균. 데이터 부족이면 None."""
+    end = len(values) - offset
+    if window <= 0 or end - window < 0:
+        return None
+    seg = values[end - window:end]
+    return sum(seg) / window
+
+
+def evaluate_spec_rules(spec: dict, indicators: dict) -> dict | None:
+    """스펙 entry/exit 규칙(ma_cross / momentum / buy_hold / dca)을 지표의 종가 시계열로 직접 평가한다.
+
+    반환 {"entry": bool, "exit": bool, "detail": str} 또는 평가 불가(지원하지 않는 indicator·데이터 부족)면 None.
+    """
+    closes = [float(c) for c in (indicators.get("closes") or []) if c is not None]
+    if not closes:
+        return None
+
+    def _eval(rule: dict) -> bool | None:
+        ind = str(rule.get("indicator") or "")
+        cond = str(rule.get("condition") or "")
+        params = rule.get("params") or {}
+        if cond == "always":
+            return True
+        if cond == "never":
+            return False
+        if ind == "ma_cross":
+            s, l = int(params.get("short_window", 5)), int(params.get("long_window", 20))
+            ss, ll = _sma_last(closes, s), _sma_last(closes, l)
+            if ss is None or ll is None:
+                return None
+            return ss > ll if cond == "short_above_long" else ss < ll if cond == "short_below_long" else None
+        if ind == "momentum":
+            w = int(params.get("breakout_window", 20))
+            if len(closes) < w + 1:
+                return None
+            window = closes[-w - 1:-1]
+            return closes[-1] > max(window) if cond == "breakout_high" else closes[-1] < min(window) if cond == "breakdown_low" else None
+        return None
+
+    entry, exit_ = _eval(spec.get("entry") or {}), _eval(spec.get("exit") or {})
+    if entry is None and exit_ is None:
+        return None
+    detail = f"규칙 {((spec.get('entry') or {}).get('indicator'))}: 진입={entry} 청산={exit_}"
+    return {"entry": bool(entry), "exit": bool(exit_), "detail": detail}
+
+
+def apply_strategy_spec_to_signal(signal: dict, spec: dict, ml_score: float | None = None, indicators: dict | None = None) -> dict:
+    """지표 점수를 [-1,1]로 정규화하고(LightGBM 점수가 있으면 스펙 가중 합산) buy/sell 임계값으로 action 을 다시 판정한다."""
+    weights = spec.get("signal_weights") or {}
+    buy_th = float(weights.get("buy_threshold", 0.6))
+    sell_th = float(weights.get("sell_threshold", -0.6))
+    w_tech = float(weights.get("technical", 1.0))
+    w_ml = float(weights.get("lightgbm", 0.0))
+    score = float(signal.get("score", 0) or 0)
+    technical = max(-1.0, min(1.0, score / _SIGNAL_SCORE_SCALE))
+    if ml_score is not None and w_ml > 0 and (w_tech + w_ml) > 0:
+        normalized = (w_tech * technical + w_ml * max(-1.0, min(1.0, float(ml_score)))) / (w_tech + w_ml)
+        ml_tag = f", ML {float(ml_score):+.2f}×{w_ml:g} + 지표 {technical:+.2f}×{w_tech:g}"
+    else:
+        normalized = technical
+        ml_tag = "" if w_ml <= 0 else " (ML 점수 없음 → 지표만)"
+    normalized = round(max(-1.0, min(1.0, normalized)), 4)
+    rules = evaluate_spec_rules(spec, indicators) if indicators else None
+    if normalized >= buy_th:
+        action = "강력 매수" if normalized >= min(1.0, buy_th + 0.25) else "매수"
+    elif normalized <= sell_th:
+        action = "강력 매도" if normalized <= max(-1.0, sell_th - 0.25) else "매도"
+    else:
+        action = "관망"
+    tag = f"전략 {spec.get('strategy_id')} v{spec.get('version')}: 정규화 점수 {normalized:+.2f} (매수≥{buy_th:+.2f} / 매도≤{sell_th:+.2f}){ml_tag}"
+    reasons = [*(signal.get("reasons") or []), tag]
+    if rules is not None:
+        # 스펙의 entry/exit 규칙을 직접 평가할 수 있으면 규칙이 action 을 결정한다(청산 우선). 임계값 점수는 참고로만 남긴다.
+        action = "매도" if rules["exit"] else "매수" if rules["entry"] else "관망"
+        reasons.append(rules["detail"] + " → " + action)
+    return {**signal, "action": action, "normalized_score": normalized, "rule_based": rules is not None, "reasons": reasons}
+
+
+async def _place_live_order_via_gateway(
+    db: AsyncSession | None,
+    broker_row: BrokerSettings,
+    symbol: str,
+    name: str,
+    side: str,
+    quantity: int,
+    price: float,
+    user_id: str,
+) -> dict:
+    """stock-coin-trade 게이트웨이로 KIS 주문을 내고 live_orders 에 추적 행을 남긴다.
+
+    실패해도 예외를 올리지 않는다(사이클 지속). 가상계좌 체결은 이미 끝났으므로 쿨다운 슬롯은 반납하지 않는다 —
+    반납하면 다음 사이클에 가상 포지션이 중복으로 쌓인다. 실패는 알림 + live_orders.status=ERROR 로 남긴다.
+    """
+    uid = _resolve_user_id(user_id)
+    env = gateway.environment()
+    if gateway.enforce_market_hours() and not gateway.is_krx_market_open():
+        logger.info("장 운영시간 외 — 실주문 생략 (%s %s x%d)", side, symbol, quantity)
+        return {"status": "skipped", "broker": "kis", "via": "stock-coin-trade", "environment": env, "reason": "market_closed"}
+    if env == "real" and risk_guard._redis() is None:
+        # 쿨다운·일 주문 수가 메모리 폴백(프로세스 재시작 시 초기화) 상태면 실전 주문은 내지 않는다. 모의(paper)는 허용.
+        logger.warning("Redis 미연결(위험관리 메모리 폴백) — 실전 주문 생략 (%s %s x%d)", side, symbol, quantity)
+        return {"status": "skipped", "broker": "kis", "via": "stock-coin-trade", "environment": env, "reason": "risk_store_unavailable"}
+    try:
+        client_order_id = gateway.make_client_order_id(str(uid), symbol, side)
+    except gateway.GatewayError as e:
+        return {"status": "error", "broker": "kis", "via": "stock-coin-trade", "error": str(e)}
+
+    row: LiveOrder | None = None
+    if db is not None:
+        row = LiveOrder(
+            user_id=uid, client_order_id=client_order_id, environment=env, broker="kis",
+            symbol=symbol, name=name, side=side.upper(), order_type=gateway.default_order_type(),
+            quantity=quantity, price=float(price), status="PENDING",
+        )
+        db.add(row)
+        await db.commit()
+
+    try:
+        result = await gateway.place_order(symbol, side, quantity, price, client_order_id=client_order_id)
+    except gateway.GatewayError as e:
+        logger.warning("게이트웨이 실주문 실패 (%s %s x%d): [%s] %s", side, symbol, quantity, e.code, e)
+        if row is not None:
+            # UNREACHABLE 은 KIS가 받았을 수도 있으므로 UNKNOWN 으로 두고 confirm_fills 가 clientOrderId 로 확인한다.
+            row.status = "UNKNOWN" if e.code == "GATEWAY_UNREACHABLE" else "ERROR"
+            row.message = f"[{e.code}] {e}"[:300]
+            row.raw = json.dumps(e.details, ensure_ascii=False)[:4000]
+            await db.commit()
+        await notification.notify_order_error(symbol=symbol, side=side, quantity=quantity, price=price, error=f"[{e.code}] {e}", user_id=user_id)
+        return {"status": "error", "broker": "kis", "via": "stock-coin-trade", "environment": env, "code": e.code, "error": str(e), "client_order_id": client_order_id}
+
+    order = result["order"]
+    if row is not None:
+        row.status = str(order.get("status") or "ACCEPTED")
+        row.order_no = str(order.get("orderNo") or "")
+        row.price = float(result["intent"].get("price") or price)
+        row.message = str(order.get("message") or "")[:300]
+        row.raw = json.dumps(order, ensure_ascii=False)[:4000]
+        await db.commit()
+    await notification.notify_order_placed(symbol=symbol, side=side, quantity=quantity, price=float(result["intent"].get("price") or price),
+                                           broker=f"KIS({env}) via stock-coin-trade", user_id=user_id)
+    return {"status": "submitted", "broker": "kis", "via": "stock-coin-trade", "environment": env,
+            "order_no": order.get("orderNo"), "client_order_id": client_order_id, "duplicate": result["duplicate"], "response": order}
+
+
+async def open_live_order_exposure(db: AsyncSession, uid: uuid.UUID) -> dict[str, float]:
+    """미체결 매수 실주문의 (잔여수량 × 주문가) 합을 종목별로 돌려준다."""
+    result = await db.execute(
+        select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.side == "BUY", LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES))
+    )
+    exposure: dict[str, float] = {}
+    for row in result.scalars().all():
+        remaining = max(0, int(row.quantity) - int(row.filled_quantity or 0))
+        if remaining and row.price:
+            exposure[row.symbol] = exposure.get(row.symbol, 0.0) + remaining * float(row.price)
+    return exposure
+
+
+async def live_account_daily_loss(user_id: str, limit_pct: float) -> dict:
+    """게이트웨이 잔고의 총평가액으로 실계좌 당일 손익률을 계산한다. 조회 실패 시 breached=False 로 사이클을 막지 않는다."""
+    env = gateway.environment()
+    try:
+        balance = await gateway.get_balance()
+    except gateway.GatewayError as e:
+        logger.warning("실계좌 잔고 조회 실패 — 실계좌 일손실 점검 생략: [%s] %s", e.code, e)
+        return {"environment": env, "error": f"[{e.code}] {e}", "breached": False}
+    equity = float(balance.get("totalEvalAmount") or 0) or float(balance.get("cashBalance") or 0)
+    if equity <= 0:
+        return {"environment": env, "error": "평가액 0", "breached": False}
+    start = await risk_guard.day_start_equity(f"{user_id}:live:{env}", equity)
+    pnl = risk_guard.daily_pnl_pct(start, equity)
+    return {"environment": env, "day_start_equity": round(start, 2), "equity": round(equity, 2), "day_pnl_pct": pnl,
+            "breached": risk_guard.daily_loss_breached(start, equity, limit_pct)}
+
+
+async def cancel_open_live_orders(db: AsyncSession, uid: uuid.UUID, reason: str = "") -> dict:
+    """사용자의 미체결 실주문(ACCEPTED/PARTIALLY_FILLED)을 게이트웨이로 전량 취소 요청한다. kill switch 에서 호출."""
+    summary = {"requested": 0, "failed": 0, "skipped": 0}
+    if not gateway.is_configured():
+        summary["skipped"] = -1
+        return summary
+    result = await db.execute(
+        select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.status.in_(("ACCEPTED", "PARTIALLY_FILLED")))
+    )
+    for row in result.scalars().all():
+        if not row.order_no:
+            summary["skipped"] += 1
+            continue
+        try:
+            latest = await gateway.cancel_order(row.order_no, env=row.environment)
+            row.status = str(latest.get("status") or "CANCEL_REQUESTED")
+            row.message = (f"비상 정지 취소: {reason}" if reason else "비상 정지 취소")[:300]
+            summary["requested"] += 1
+        except gateway.GatewayError as e:
+            row.message = f"취소 실패 [{e.code}] {e}"[:300]
+            summary["failed"] += 1
+            logger.warning("비상 정지 취소 실패 (%s): [%s] %s", row.client_order_id, e.code, e)
+    await db.commit()
+    return summary
+
+
+async def confirm_live_fills(limit: int = 100) -> dict:
+    """열린 live_orders 를 게이트웨이 체결 조회로 갱신한다. Celery `quant.confirm_fills`(2분)가 호출."""
+    summary = {"checked": 0, "updated": 0, "filled": 0, "errors": 0, "skipped": 0}
+    if not gateway.is_configured():
+        summary["skipped"] = -1
+        return summary
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        result = await db.execute(
+            select(LiveOrder).where(LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)).order_by(LiveOrder.created_at).limit(limit)
+        )
+        rows = list(result.scalars().all())
+        for row in rows:
+            summary["checked"] += 1
+            try:
+                if row.order_no:
+                    latest = await gateway.get_order_status(row.order_no, env=row.environment)
+                else:
+                    # 주문번호를 못 받은(UNKNOWN/PENDING) 건: 당일 목록에서 같은 종목·방향·수량으로 추정 매칭
+                    code = gateway.normalize_symbol(row.symbol)
+                    candidates = [o for o in await gateway.list_today_orders(env=row.environment)
+                                  if o.get("symbol") == code and o.get("side") == row.side and int(o.get("orderedQuantity") or 0) == row.quantity]
+                    if not candidates:
+                        summary["skipped"] += 1
+                        continue
+                    latest = candidates[-1]
+                    row.order_no = str(latest.get("orderNo") or "")
+            except gateway.GatewayError as e:
+                summary["errors"] += 1
+                logger.warning("체결 확인 실패 (%s): [%s] %s", row.client_order_id, e.code, e)
+                continue
+            new_status = str(latest.get("status") or row.status)
+            changed = new_status != row.status or int(latest.get("filledQuantity") or 0) != row.filled_quantity
+            row.status = new_status
+            row.filled_quantity = int(latest.get("filledQuantity") or 0)
+            row.avg_filled_price = float(latest.get("avgFilledPrice") or 0)
+            row.raw = json.dumps(latest, ensure_ascii=False)[:4000]
+            if changed:
+                summary["updated"] += 1
+            if changed and new_status == "FILLED":
+                summary["filled"] += 1
+                # 가상계좌 체결가(row.price) 대비 실체결 괴리(슬리피지). 매수는 +가 불리, 매도는 -가 불리.
+                if row.price and row.avg_filled_price:
+                    slip = (row.avg_filled_price / row.price - 1) * 100
+                    row.message = f"체결 완료 · 슬리피지 {slip:+.3f}% (가상 {row.price:,.0f} → 실체결 {row.avg_filled_price:,.0f})"[:300]
+                    summary.setdefault("slippage_pct", []).append(round(slip, 3))
+                await notification.notify_order_filled(
+                    symbol=row.symbol, side=row.side.lower(), quantity=row.filled_quantity,
+                    price=row.avg_filled_price, environment=row.environment, user_id=str(row.user_id),
+                )
+            # 미체결 N분 경과 → 취소 요청 (설정 0이면 끔)
+            cancel_after = int(getattr(app_settings, "STOCK_COIN_TRADE_CANCEL_OPEN_AFTER_MIN", 0) or 0)
+            if cancel_after > 0 and new_status in ("ACCEPTED", "PARTIALLY_FILLED") and row.order_no and row.created_at:
+                age = datetime.now(timezone.utc) - row.created_at.astimezone(timezone.utc)
+                if age >= timedelta(minutes=cancel_after):
+                    try:
+                        cancelled = await gateway.cancel_order(row.order_no, env=row.environment)
+                        row.status = str(cancelled.get("status") or "CANCEL_REQUESTED")
+                        row.message = f"{cancel_after}분 미체결 자동 취소 요청"[:300]
+                        summary["cancelled"] = summary.get("cancelled", 0) + 1
+                    except gateway.GatewayError as e:
+                        summary["errors"] += 1
+                        logger.warning("미체결 자동 취소 실패 (%s): [%s] %s", row.client_order_id, e.code, e)
+        await db.commit()
+    return summary
 
 
 async def _equity_snapshot(db: AsyncSession, uid: uuid.UUID, price_map: dict[str, float]) -> tuple[float, float, dict[str, float]]:
@@ -295,6 +625,12 @@ async def emergency_halt(db: AsyncSession, broker_row: BrokerSettings | None, us
         broker_row.quant_auto_enabled = False
         await db.commit()
     stop_auto_trade()
+    try:
+        cancelled = await cancel_open_live_orders(db, _resolve_user_id(user_id), reason)
+        if cancelled.get("requested") or cancelled.get("failed"):
+            logger.warning("비상 정지 — 미체결 실주문 취소 요청 %s", cancelled)
+    except Exception as exc:  # 취소 실패가 비상 정지 자체를 막으면 안 된다
+        logger.exception("비상 정지 중 미체결 취소 실패: %s", exc)
     await notification.notify_risk_halt(reason, day_pnl_pct, user_id=user_id)
     await audit(user_id, "", "auto_trade.emergency_halt", {"reason": reason, "day_pnl_pct": day_pnl_pct})
     logger.warning("자동매매 비상 정지 user=%s: %s", user_id, reason)
@@ -377,9 +713,29 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             ranked.sort(key=lambda item: item[1], reverse=True)
             target_symbols = [sym for sym, _ in ranked[:ai_top_n]]
 
+        strategy_spec: dict | None = None
+        ml_scores: dict[str, float] = {}
+        ml_weight_on = False
+        strategy_log = {"id": "", "version": 0, "applied": False}
+        if broker_row and broker_row.quant_strategy_id:
+            strategy_log.update(id=broker_row.quant_strategy_id, version=broker_row.quant_strategy_version or 0)
+            strategy_spec = await strategy_loader.get_strategy(broker_row.quant_strategy_id, broker_row.quant_strategy_version or None)
+            if strategy_spec:
+                target_symbols = apply_strategy_spec_to_symbols(target_symbols, strategy_spec)
+                strategy_log.update(version=int(strategy_spec.get("version") or strategy_log["version"]), applied=True)
+                if float((strategy_spec.get("signal_weights") or {}).get("lightgbm", 0) or 0) > 0:
+                    ml_weight_on = True
+                    ml_scores = await ml_scores_by_symbol()
+                    strategy_log["ml_scores_loaded"] = bool(ml_scores)
+                    strategy_log["ml_generated_at"] = _ml_meta.get("generated_at")
+                    strategy_log["ml_model"] = _ml_meta.get("model")
+            else:
+                strategy_log["error"] = "domain-rag-lab 에서 스펙을 받지 못해 기본 규칙 사용"
+
         cycle_log["settings"] = {
             "mode": mode,
             "symbol_source": symbol_source,
+            "strategy": strategy_log,
             "symbols": target_symbols,
             "per_trade_budget": per_trade_budget,
             "buy_ratio": buy_ratio,
@@ -401,6 +757,24 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             await _persist_cycle(uid, cycle_log)
             await emergency_halt(db, broker_row, user_id, reason, day_pnl)
             return
+
+        # ── 실계좌(게이트웨이) 기준 일손실: live 모드에서 가상계좌와 별도로 KIS 계좌 평가액을 본다 ──
+        if mode == "live" and gateway.is_configured():
+            # 미체결 매수 실주문은 체결되면 비중이 되므로 종목 비중 한도 계산에 미리 포함한다.
+            open_exposure = await open_live_order_exposure(db, uid)
+            for sym, value in open_exposure.items():
+                position_values[sym] = position_values.get(sym, 0.0) + value
+            if open_exposure:
+                cycle_log["risk"]["open_live_exposure"] = {k: round(v, 2) for k, v in open_exposure.items()}
+            live_risk = await live_account_daily_loss(user_id, limits.daily_loss_limit_pct)
+            cycle_log["risk"]["live"] = live_risk
+            if live_risk.get("breached"):
+                reason = f"실계좌 일손실 한도 초과({live_risk['environment']}): 당일 {live_risk['day_pnl_pct']:+.2f}% ≤ -{limits.daily_loss_limit_pct}%"
+                cycle_log["risk"]["halted"] = True
+                cycle_log["risk"]["reason"] = reason
+                await _persist_cycle(uid, cycle_log)
+                await emergency_halt(db, broker_row, user_id, reason, live_risk["day_pnl_pct"])
+                return
 
         async def _risk_gate(symbol: str, name: str, side: str, qty: int, price: float) -> tuple[int, str | None]:
             """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)"""
@@ -430,6 +804,13 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 continue
             indicators = indicator_map.get(symbol) or {}
             signal = indicators.get("signal", {})
+            if strategy_spec:
+                ml_score = ml_scores.get(symbol, ml_scores.get(str(symbol)[:6]))
+                if ml_score is None and ml_weight_on:
+                    ml_score = await symbol_ml_score(symbol)
+                    if ml_score is not None:
+                        strategy_log["ml_source"] = "symbol_ridge"
+                signal = apply_strategy_spec_to_signal(signal, strategy_spec, ml_score, indicators)
             price = indicators.get("current_price")
             if not price:
                 continue
@@ -472,7 +853,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     )
                     live_result = await _place_live_order(
                         broker_row, stock["symbol"], stock["name"], "buy",
-                        trade.get("quantity", qty), price, user_id,
+                        trade.get("quantity", qty), price, user_id, db=db,
                     )
                     if live_result:
                         cycle_log["trades"][-1]["live_order"] = live_result
@@ -509,7 +890,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         )
                         live_result = await _place_live_order(
                             broker_row, stock["symbol"], stock["name"], "sell",
-                            trade.get("quantity", qty), price, user_id,
+                            trade.get("quantity", qty), price, user_id, db=db,
                         )
                         if live_result:
                             cycle_log["trades"][-1]["live_order"] = live_result
