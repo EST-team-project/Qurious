@@ -23,12 +23,13 @@
     전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
     로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
     용어     용어사전의 판(표가 파일과 같은가) · 분류 · 검색(약어 · 초성) · 화면 키로 한 건 · 없는 이름은 404
-    데이터   데이터 상태(일일 갱신 · 표별 기준일과 늦음) · 거래일 달력(60일) · 금융 일정(파생 만기 · 배당락일)
+    데이터   데이터 상태(일일 갱신 · 표별 기준일과 늦음) · 거래일 달력(60일) · 금융 일정(파생 만기 · 배당락일) ·
+             근거 찾기(법령 · 기준일 판) · 근거 답(LLM 없이 발췌)
     매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
     연동     TradingView 웹훅 안내 · 알림 설정
     시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결 · 벡터 DB(Qdrant) 연결
     관리     (관리자 계정일 때) DB 통계 · 감사 기록 — 읽기만. 일반 계정이 막히는지는 「계정」 묶음이 본다
-    느림     (-Full) 요청마다 모델을 학습하는 ML 셋 — 하나에 15초 안팎
+    느림     (-Full) 요청마다 모델을 학습하는 ML 셋 — 하나에 15초 안팎 · 근거 답(답 모델 · 출처 번호 검사 — 수십 초)
     쓰기     (-Write) 기록이 남는 점검 — 모의 매수 1주 → 매도 1주 · 리밸런싱 목표 저장 → 미리보기 ·
              문서 근거 RAG 왕복(작은 글 올리기 → 찾기 → 채팅 「순수 RAG」 → 지우기 → 다시 찾으면 0)
 
@@ -284,6 +285,20 @@ $Checks = @(
      Test = { param($r)
        $last = $r.Json.rows[-1]
        Pass "$($r.Json.count) 주 · 마지막 $($last.trade_date) 종가 $($last.close) · 진행 중 $($r.Json.partial)" } }
+  # 근거 문서(법령 · 감독규정 · 2026-10-03) — 수집기가 만든 kb.sqlite3 를 읽는다. 없으면 503 과 할 일(python -m collector.kb_law fetch).
+  @{ G = '데이터'; Name = '근거 찾기 — 증권거래세 세율(기준일 판 · 낱말 + 벡터)'; M = 'GET'; P = '/api/kb/search?q=%EC%A6%9D%EA%B6%8C%EA%B1%B0%EB%9E%98%EC%84%B8%20%EC%84%B8%EC%9C%A8&k=3'; Auth = $true; Timeout = 60
+     Test = { param($r)
+       $top = @($r.Json.hits) | Select-Object -First 1
+       if (-not $top) { return (Fail '찾은 조문이 없다') }
+       $msg = "맨 위 $($top.title) $($top.article) · $($top.version_label) · 방법 $($r.Json.retrieval.method)"
+       if ($r.Json.retrieval.dense_error) { return (Warn "$msg — 벡터 쪽 꺼짐: $($r.Json.retrieval.dense_error)") }
+       Pass $msg } }
+  @{ G = '데이터'; Name = '근거 답 — LLM 없이 발췌(answer=extract)'; M = 'POST'; P = '/api/kb/ask'; Auth = $true; Timeout = 60
+     Body = @{ q = '증권거래세 세율은?'; k = 3; answer = 'extract' }
+     Test = { param($r)
+       if ($r.Json.status -ne 'excerpt') { return (Fail "상태 $($r.Json.status)") }
+       if ((Count $r.Json.citations) -lt 1) { return (Fail '출처 0 개') }
+       Pass "출처 $(Count $r.Json.citations) 개 · 기준일 $($r.Json.as_of) · 1번 $($r.Json.citations[0].title) $($r.Json.citations[0].article)" } }
 
   # ── 매매: 모의투자 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 ─────────────────
   @{ G = '매매'; Name = '모의투자 잔고'; M = 'GET'; P = '/api/paper/account'; Auth = $true
@@ -366,6 +381,14 @@ if ($Full) {
        Test = { param($r) Pass "예측 신호 $($r.Json.prediction.signal) · 설명 방법 $($r.Json.explanation.method) · 기여 요인 $(Count $r.Json.explanation.contributions) 개" } }
     @{ G = '느림'; Name = 'ML 모델 비교 (5겹 교차검증)'; M = 'GET'; P = '/api/ml/compare?symbol=005930.KS'; Auth = $true; Timeout = 180
        Test = { param($r) Pass "모델 $(Count $r.Json.models) 개 · 최고 $($r.Json.best_model) · 데이터 $($r.Json.data_rows) 행" } }
+    # 근거 답 — 답 모델(Ollama)까지 한 번 왕복한다. CPU 만이면 1분을 넘길 수 있다(조사서 「로컬 · 무료 LLM」 4.4절).
+    @{ G = '느림'; Name = '근거 답 — 답 모델(근거 번호 · 출처 검사)'; M = 'POST'; P = '/api/kb/ask'; Auth = $true; Timeout = 300
+       Body = @{ q = '주주총회 소집 통지는 며칠 전에 보내야 하나요?'; k = 3 }
+       Test = { param($r)
+         $msg = "상태 $($r.Json.status) · 모델 $($r.Json.model) · 생성 $([math]::Round([double]$r.Json.timing.llm_ms / 1000, 1))초"
+         if ($r.Json.status -eq 'answered') { return (Pass ("$msg · 맞는 출처 " + (@($r.Json.check.valid) -join ','))) }
+         if ($r.Json.status -eq 'excerpt') { return (Warn "$msg — $($r.Json.reason)") }
+         Fail "$msg — $($r.Json.reason)" } }
   )
 }
 
