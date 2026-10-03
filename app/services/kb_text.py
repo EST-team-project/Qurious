@@ -15,6 +15,7 @@
 3. 낱말 — ``grams`` · ``fts_query`` (한글 두 글자 묶음 + 조문 번호 통째)
 4. 순위 합치기 — ``rrf``
 5. 청크 ID — ``chunk_id`` · ``point_id``
+6. 청크 머리 — ``chunk_header`` · ``clean_part`` · ``strip_heading`` (제목 사슬 · 2026-10-03)
 
 판 고르기 — 2026-10-02 실측으로 설계서 규칙을 고쳤다
 --------------------------------------------------------
@@ -307,3 +308,78 @@ def point_id(cid: str) -> str:
 
 def text_sha256(text: str) -> str:
     return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+
+
+# ==================================================
+# 7. 청크 머리 — 제목 사슬(문서 > 편 > 장 > 절 > 관 > 조)
+# ==================================================
+# 왜 붙이나 — 조 하나만 떼어 읽으면 「고지」 「배당」 「위험」 같은 낱말이 어느 법 · 어느 편의 말인지 모른다.
+# 2026-10-03 실측(낱말 검색 · 질문 20개 × 상위 10)에서 「위험 고지」 에 상법 제4편 보험의 「고지의무」 조
+# 셋이, 「이익배당 한도」 에 상법 제2편 상행위의 익명조합 조(제82조)가 섞였다. 청크 첫 줄에 제목 사슬을
+# 붙이면 벡터와 낱말 색인이 둘 다 「상법 > 제4편 보험」 을 함께 본다.
+#
+# 근거 — LLM 호출 없이 문서 제목 · 머리 경로를 앞에 붙이는 방법(title-chain prefix)이 질문 1,600개에서
+# MRR@5 를 0.374 → 0.463(+23.8%) 올렸다(arXiv 2608.00824 · 2026-08). Anthropic 의 Contextual Retrieval
+# (2024-09)은 LLM 이 만든 맥락 50~100토큰을 붙여 상위 20 검색 실패를 35%(임베딩) · 49%(+BM25) 줄였는데,
+# 이 PC 의 CPU 로 청크 4천 개마다 LLM 을 부르면 몇 시간이 걸려 값싼 쪽(경로)을 먼저 쓴다.
+#
+# 경로의 「<개정 2011.4.14>」 같은 꼬리표는 뺀다 — 편 · 장 이름이 아니라 그 머리를 고친 날이다.
+_PART_NOTE_RE = re.compile(r"\s*<[^<>]*>")
+
+
+def clean_part(part: str) -> str:
+    """「제3편 회사 > 제7절 회사의 회계 <개정 2011.4.14>」 → 「제3편 회사 > 제7절 회사의 회계」.
+
+    꼬리표를 먼저 지우고 나서 「>」 로 나눈다 — 꼬리표의 닫는 「>」 가 경로 구분자와 같은 글자다.
+    """
+    segs = [re.sub(r"\s+", " ", s).strip() for s in _PART_NOTE_RE.sub("", part or "").split(">")]
+    return " > ".join(s for s in segs if s)
+
+
+def article_heading(label: str, title: str = "") -> str:
+    """「제462조(이익의 배당)」 — 제목이 없으면 번호만."""
+    return f"{label}({title})" if title else label
+
+
+def chunk_header(doc_title: str, part: str, label: str, title: str = "") -> str:
+    """청크 첫 줄 — 「상법 > 제3편 회사 > 제4장 주식회사 > 제7절 회사의 회계 > 제462조(이익의 배당)」.
+
+    편 · 장이 없는 짧은 법(증권거래세법)은 「증권거래세법 > 제5조(세율)」 이다.
+    """
+    return " > ".join(s for s in (doc_title.strip(), clean_part(part), article_heading(label, title)) if s)
+
+
+#: 법령 API 가 표를 그림과 함께 주는 조가 있다(소득세법 31청크 · 농어촌특별세법 1 — 2026-10-03). 그림 태그는
+#: 주소(law.go.kr/flDownload.do?flSeq=…)뿐이라 읽는 사람에게도 찾기에도 쓸모가 없고, 낱말 색인에 http · www ·
+#: flseq 같은 말을 남긴다. 태그만 지우고 뒤따르는 상자 표(┌─)의 글은 그대로 둔다.
+_IMG_RE = re.compile(r"<img\b[^>]*>|</img>", re.I)
+
+
+def strip_markup(text: str) -> str:
+    """그림 태그를 지운다 — 표의 글은 남긴다."""
+    return _IMG_RE.sub("", text or "")
+
+
+def strip_heading(text: str, label: str, title: str = "") -> str:
+    """본문 첫머리가 그 조의 머리(「제638조(보험계약의 의의)」)를 되풀이하면 뺀다 — 청크 머리 줄에 이미 있다.
+
+    법령 API 는 항이 없는 조의 본문을 「제638조(보험계약의 의의) 보험계약은 …」 처럼 머리째 준다. 그대로 두면
+    청크마다 같은 머리가 두 번 들어가 벡터가 머리 쪽으로 쏠린다. 공백 차이(「제 638 조」)는 접어서 견주고,
+    제목이 없는 조는 번호 뒤가 띄어쓰기일 때만 뺀다 — 「제2조에 따른 …」 처럼 다른 말이 붙은 첫머리는 남긴다.
+    """
+    text = text or ""
+    head = re.sub(r"\s+", "", article_heading(label, title))
+    i = j = 0
+    while i < len(text) and j < len(head):
+        if text[i].isspace():
+            i += 1
+            continue
+        if text[i] != head[j]:
+            return text
+        i += 1
+        j += 1
+    if j < len(head):
+        return text
+    if not title and i < len(text) and not text[i].isspace():
+        return text
+    return text[i:].lstrip()

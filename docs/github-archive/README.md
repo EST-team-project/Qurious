@@ -66,10 +66,14 @@ docs/github-archive/
 │   ├── PR-feat-learning-pages/        00-본문.md  (#80)
 │   ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
 │   └── PR-feat-finance-lectures-placement/  00-본문.md  (#84)
-└── 2026-10-02/        ← 새 글 3건
-    ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md  (팀원 작업 확인 거리 · #88)
-    ├── PR-feat-glossary-screen-and-w3-docs/  00-본문.md  (#87)
-    └── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (번호는 올린 뒤)
+├── 2026-10-02/        ← 새 글 5건
+│   ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md · 01 강민석 님 답글(10-02) · 02 코드 대조 확인(10-03 · 올릴 것)  (#88)
+│   ├── PR-feat-glossary-screen-and-w3-docs/  00-본문.md  (#87)
+│   ├── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (#89)
+│   ├── PR-feat-data-hub-calendar-ohlcv-api/  00-본문.md  (#91)
+│   └── PR-feat-legal-kb-fetch-and-index/  00-본문.md  (#93)
+└── 2026-10-03/        ← 새 글 1건
+    └── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -313,14 +317,21 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR feat-ohlcv-v1-intake](2026-10-01/PR-feat-ohlcv-v1-intake/00-본문.md) | feat: OHLCV 규격 자료 — ETF · 지수 일봉 · 분봉 400종목 · HF krx-ohlcv · 받은 파일 검사 · 개념 학습 1부 | 2,338 | [#81](https://github.com/EST-team-project/Qurious/pull/81) |
 | [PR feat-finance-lectures-placement](2026-10-01/PR-feat-finance-lectures-placement/00-본문.md) | feat: 금융 강의 — 「금융 필수 지식」 강의실 · 주제 화면 아홉 · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 통합본 19묶음 화면 자리 조사 · 아키텍처 그림 v2.0 | 2,308 | [#84](https://github.com/EST-team-project/Qurious/pull/84) · 머지 `1732cd3` (S77 에 채움 · 로컬 `git log`) |
 
-### 2026-10-02 — 새 글 3건
+### 2026-10-02 — 새 글 5건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [이슈 QFRS-마이그레이션-정리](2026-10-02/이슈-QFRS-마이그레이션-정리/00-본문.md) | [확인] 모의계좌 스냅샷(QFRS) — 마이그레이션 정리 넷 · 스냅샷을 쓰는 길 셋 | 3,674 | [#88](https://github.com/EST-team-project/Qurious/issues/88) — 담당 파트가 보는 확인 글 |
 | [PR feat-glossary-screen-and-w3-docs](2026-10-02/PR-feat-glossary-screen-and-w3-docs/00-본문.md) | feat: 용어사전 화면 · 모든 화면의 용어 설명 · 서비스 이름 Qurious · 강사님 기초 코드 289bfb5 · Qdrant 늘 켬 · W3 문서 새 판 | 3,507 | [#87](https://github.com/EST-team-project/Qurious/pull/87) |
 | [PR feat-trading-calendar-and-glossary-relations](2026-10-02/PR-feat-trading-calendar-and-glossary-relations/00-본문.md) | feat: 거래일 달력 · 금융 일정 · 데이터 상태 API · 배당락일 결함(DF-39) · 연관 개념(헷갈리는 말 25) — 목표 기능 ① W4 서버 쪽 | 3,165 | [#89](https://github.com/EST-team-project/Qurious/pull/89) |
-| [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | (올린 뒤 적음) |
+| [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | [#91](https://github.com/EST-team-project/Qurious/pull/91) |
+| [PR feat-legal-kb-fetch-and-index](2026-10-02/PR-feat-legal-kb-fetch-and-index/00-본문.md) | feat: 근거 문서 받기 · 판 고르기 · 조문 청크 · 벡터 색인 첫 판 — 목표 기능 ① W5 시작 | 1,930 | [#93](https://github.com/EST-team-project/Qurious/pull/93) |
+
+### 2026-10-03 — 새 글 1건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-kb-search-eval-and-glossary-candidates](2026-10-03/PR-feat-kb-search-eval-and-glossary-candidates/00-본문.md) | feat: 근거 찾기 API · 청크 머리(편 · 장 경로) · 검색 평가셋 v0 · 후보 용어 다섯 · 분류 화면 결함(DF-44) — 목표 기능 ① W5 | 3,847 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

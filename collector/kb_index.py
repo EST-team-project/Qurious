@@ -6,8 +6,9 @@
 어디서 돌리나 — 이 PC (전역 규칙 8.2)
 --------------------------------------
 청크는 수천 개(2026-10-02 · 4,034)라 로컬 CPU 로 충분하다 — Colab 으로 보내는 기준은 수십만 개다(설계서 5.3.3).
-속도는 이 PC 의 호스트 Ollama 로 bge-m3 348자 청크 초당 약 1.8개 · nomic-embed-text 약 3.1개(10-02 실측)라
-수천 개가 수십 분 걸린다. 그래서 **이어서 돌 수 있게** 만들었다 — 넣은 청크는 ``kb_vector`` 에 (청크, 모델,
+속도는 이 PC 의 호스트 Ollama 로 bge-m3 348자 청크 초당 약 1.8개 · nomic-embed-text 약 3.1개(10-02 실측)였고,
+제목 사슬 머리를 붙인 4,067조각을 두 모델 같이 넣으니 bge-m3 5,132초(초당 0.79) · nomic 3,561초(초당 1.14)였다
+(2026-10-03). 수천 개가 한 시간 남짓 걸린다. 그래서 **이어서 돌 수 있게** 만들었다 — 넣은 청크는 ``kb_vector`` 에 (청크, 모델,
 본문 지문)으로 남기고, 다시 돌리면 본문이 바뀐 것과 아직 안 넣은 것만 넣는다. 도중에 멈춰도 잃는 것이 없다.
 
 무엇을 넣나
@@ -106,10 +107,31 @@ def pending(conn, model: kb_text.EmbedModel, docs: Optional[Sequence[str]]) -> l
     return conn.execute(q, args).fetchall()
 
 
+def prune(conn) -> int:
+    """지금 청크 표에 없는 청크의 점 · 기록을 지운다 → 지운 청크 수.
+
+    다시 쪼개면(``kb_law rechunk`` · 머리가 길어져 한 조가 더 잘게 나뉘거나 덜 나뉘면) 청크 ID 가 사라질 수 있다 — ID 는
+    (문서 · 판 · 조 · 순번) 자리라, 순번이 줄면 뒤 순번의 점이 벡터 DB 에 남는다. 검색은 SQLite 에 없는 ID 를 버리지만
+    (``kb_search``), 점이 쌓이면 후보 자리를 차지하므로 넣기 전에 치운다.
+    """
+    gone = [r[0] for r in conn.execute(
+        "SELECT DISTINCT v.chunk_id FROM kb_vector v LEFT JOIN kb_chunk c ON c.chunk_id = v.chunk_id"
+        " WHERE c.chunk_id IS NULL")]
+    for i in range(0, len(gone), 256):
+        part = gone[i:i + 256]
+        _http("POST", f"{QDRANT_URL}/collections/{kb_text.KB_COLLECTION}/points/delete?wait=true",
+              {"points": [kb_text.point_id(c) for c in part]})
+        conn.executemany("DELETE FROM kb_vector WHERE chunk_id=?", [(c,) for c in part])
+    return len(gone)
+
+
 def run(model_name: str, docs: Optional[Sequence[str]], batch: int, limit: Optional[int]) -> int:
     model = kb_text.EMBED_MODELS[model_name]
     conn = kb_law.connect()
     ensure_collection()
+    gone = prune(conn)
+    if gone:
+        print(f"  다시 쪼개며 사라진 청크 {gone:,}개의 점을 지웠다", flush=True)
     rows = pending(conn, model, docs)
     if limit:
         rows = rows[:limit]

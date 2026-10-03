@@ -752,8 +752,9 @@ async def test_search_lookup_categories_and_meta(db):
     assert cats["total_terms"] == info["terms"] and [c["code"] for c in cats["categories"]][:2] == ["basics", "trading"]
     meta = await glossary.meta(db)
     assert meta["loaded"] and meta["in_sync"] and meta["checksum"] == info["checksum"]
-    assert {s["code"] for s in meta["sources"]} == {"voca", "finance", "lecture", "qurious"}
-    assert sum(1 for s in meta["sources"] if s["terms"] > 0) == 4
+    # 자료 원천은 빌드의 SOURCES 표와 같다 — 2026-10-03 후보 용어(candidate · 검토 뒤 공개)가 다섯째로 들어왔다
+    assert {s["code"] for s in meta["sources"]} == {s["code"] for s in gb.SOURCES}
+    assert sum(1 for s in meta["sources"] if s["terms"] > 0) == len(gb.SOURCES)
 
 
 @needs_db
@@ -949,3 +950,60 @@ async def test_graph_route_and_real_file_relations(db):
     assert err.value.status_code == 404
     assert (await glossary.meta(db))["relations"] == len(glossary.read_seed()[0]["relations"])
 
+
+
+# ── 후보 용어 — 검토 뒤 공개(2026-10-03) ─────────────────────────────
+
+def test_candidates_only_approved_enter_and_bad_rows_stop(monkeypatch):
+    """TC-GL-34 · 후보 용어 — 공개(approved)한 것만 자료 항목이 되고 보류(candidate)는 들어가지 않는다 ·
+    상태 · 분류 · 승인한 날 · 칸이 틀린 줄은 빌드를 멈춘다(말없이 빠지거나 들어가지 않게 — Z39.19 후보 용어 · Purview 초안)."""
+    good = {"term": "가짜 용어", "status": "approved", "approved": "2026-10-03", "category": "theory",
+            "summary": "한 줄", "definition": "자세히", "where": "x", "refs": []}
+    held = {**good, "term": "보류 용어", "status": "candidate"}
+    monkeypatch.setattr(gb, "CANDIDATES", [good, held])
+    raws = gb.candidate_raws()
+    assert [(r.term, r.source, r.short, r.long) for r in raws] == [("가짜 용어", "candidate", "한 줄", "자세히")]
+    for bad in ({**good, "status": "draft"}, {**good, "category": "nope"}, {**good, "approved": ""},
+                {k: v for k, v in good.items() if k != "refs"}):
+        monkeypatch.setattr(gb, "CANDIDATES", [bad])
+        with pytest.raises(SystemExit):
+            gb.candidate_raws()
+
+
+def test_candidate_that_appears_in_sources_stops_build(monkeypatch):
+    """TC-GL-34b · 후보와 같은 이름이 자료에 표제어로 있으면 빌드가 멈춘다 — 같은 말이 두 기록이 되지 않게(그때 후보 줄을 지운다)."""
+    monkeypatch.setattr(gb, "CANDIDATES", [{"term": "PER", "status": "candidate", "category": "fundamental",
+                                            "summary": "x", "definition": "x", "where": "x", "refs": []}])
+    with pytest.raises(SystemExit, match="PER"):
+        gb.build()
+
+
+def test_committed_candidates_published_and_held(seed):
+    """TC-GL-35 · (실제 파일) 2026-10-03 검토 — 공개 5(기본적 · 기술적 분석 · 보장성 · 저축성 보험 · 불특정금전신탁)는 용어로 ·
+    보류 2(종신보험 · 정기보험)는 용어가 아니다 · 공개한 말은 근거(법령 · 사전 링크)를 「다른 자료의 설명」 에 · 빈 짝 셋이 이어진다."""
+    by = {t["term"]: t for t in seed["terms"]}
+    published = ["기본적 분석", "기술적 분석", "보장성 보험", "저축성 보험", "불특정금전신탁"]
+    for name in published:
+        t = by[name]
+        assert t["lead_source"] == "candidate" and t["sources"] == ["candidate"] and t["summary"] and t["definition"]
+        assert t["notes"] and all(n["source"] == "candidate" and n["label"].startswith("근거") for n in t["notes"])
+    assert "종신보험" not in by and "정기보험" not in by
+    pairs = {tuple(sorted((r["from"], r["to"]))) for r in seed["relations"] if r["kind"] == "confused_with"}
+    assert {("기본적-분석", "기술적-분석"), ("보장성-보험", "저축성-보험"), ("불특정금전신탁", "특정금전신탁")} <= pairs
+    assert next(s for s in seed["sources"] if s["code"] == "candidate")["terms"] == len(published)
+
+
+def test_screens_never_ask_more_than_the_api_allows():
+    """TC-GL-36 · 화면이 용어 API 에 서버 상한(MAX_LIMIT)보다 큰 limit 을 보내지 않는다 · 분류 화면은 100개씩 이어 받는다 ·
+    사용법 안내에 용어 수를 박아 두지 않는다(용어가 늘면 낡는다). 2026-10-03 사용자 피드백 — 분류 카드를 누르면 limit=200 이
+    422(「Input should be less than or equal to 100」)로 막혀 「불러오지 못했습니다」 가 떴다."""
+    import re
+
+    js = {p.name: p.read_text(encoding="utf-8") for p in (ROOT / "public" / "js").glob("*.js")}
+    asked = [(name, int(n)) for name, text in js.items()
+             for n in re.findall(r"/api/glossary\?[^`'\"]*?limit=(\d+)", text)]
+    assert asked and all(n <= glossary.MAX_LIMIT for _, n in asked), asked
+    g = js["glossary.js"]
+    assert "GL_PAGE = 100" in g and "offset=${offset}" in g and "fetchCategory(code)" in g
+    assert int(re.search(r"GL_PAGE = (\d+)", g).group(1)) <= glossary.MAX_LIMIT
+    assert not re.search(r"용어 \d{3,}개", js["core.js"]), "사용법 안내에 용어 수를 적지 않는다 — 화면 위 숫자는 API 가 준다"

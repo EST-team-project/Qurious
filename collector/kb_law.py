@@ -1,6 +1,7 @@
 """근거 문서 — 법령 · 감독규정을 받아 기준일 판을 고르고 조문 청크로 쪼갠다 (목표 기능 ① W5 · 설계서 5.3).
 
     python -m collector.kb_law fetch [--as-of 2026-10-02] [--only stt_decree,fis_reg]   받기 → 판 고르기 → 쪼개기 → 저장
+    python -m collector.kb_law rechunk [--only commercial_act]                          받아 둔 원문으로 다시 쪼개기(네트워크 없이)
     python -m collector.kb_law status                                                   문서 · 판 · 청크 · 벡터 수
     python -m collector.kb_law show stt_decree 제5조                                     청크 보기
 
@@ -26,8 +27,12 @@
 어떻게 쪼개나 (설계서 5.3.2)
 -----------------------------
 조 하나가 청크 하나다. 1,200자를 넘는 조는 항(①②…) 단위로, 항도 넘으면 호(1. 2.) 단위로 나누고, 모든 청크
-머리에 「문서 이름 제○조(제목)」 를 되풀이한다 — 항만 떼어 읽어도 어느 법 몇 조인지 알 수 있어야 답에 출처를
-달 수 있다. 삭제된 조(「제8조 삭제 <2016.7.28>」)는 청크를 만들지 않는다.
+첫 줄에 **제목 사슬** 「문서 > 편 > 장 > 절 > 제○조(제목)」 를 되풀이한다 — 항만 떼어 읽어도 어느 법 · 어느 편의
+몇 조인지 알 수 있어야 답에 출처를 달 수 있고, 「고지」 「배당」 처럼 여러 편에 나오는 낱말이 어느 편의 말인지 벡터 ·
+낱말 색인이 함께 본다(2026-10-03 사용자 결정 · 근거는 ``kb_text.chunk_header``). 본문 첫머리에 되풀이된 조 머리와
+표의 그림 태그는 뺀다. 삭제된 조(「제8조 삭제 <2016.7.28>」)는 청크를 만들지 않는다.
+
+쪼개기 규칙만 바꿨으면 다시 받지 않고 ``rechunk`` 로 — 받아 둔 원문(``kb_raw``)으로 같은 길을 다시 돈다.
 
 감독규정은 조문이 구조 없이 **한 줄 문자열**로 온다(금융투자업규정 35만 자 · 줄바꿈 0). 「제1-2조의2(제목)」
 머리를 정규식으로 찾되, 본문 속 인용(「영 제2조제6호」)과 헷갈리지 않게 **바로 앞 조의 다음 번호답게 이어지는
@@ -274,6 +279,26 @@ class LawClient:
         except (UnicodeDecodeError, json.JSONDecodeError):
             # 키가 틀리면 JSON 대신 안내 HTML 이 온다
             raise LawApiError(f"법령 API 가 JSON 이 아닌 응답을 줬다 — {target} · OC 키 · 이용 신청 상태를 확인") from None
+
+
+class RawReplay:
+    """받아 둔 원문(``kb_raw``)으로 같은 길을 다시 돈다 — 쪼개기 규칙만 바꿨을 때 키 · 네트워크 없이(``rechunk``).
+
+    ``LawClient.get`` 과 같은 모양이라 ``fetch_doc`` 를 그대로 쓴다(판 고르기 · 판 점검 · 쪼개기 · 저장이 한 길).
+    target 마다 가장 최근에 받은 원문을 준다. 없으면 멈춘다 — 받으러 가지 않는다(그때는 ``fetch``).
+    """
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+        self.calls = 0
+
+    def get(self, path: str, params: Dict[str, str], target: str) -> dict:
+        row = self.conn.execute("SELECT body FROM kb_raw WHERE source='law.go.kr' AND target=?"
+                                " ORDER BY fetched_at DESC LIMIT 1", (target,)).fetchone()
+        if row is None:
+            raise LawApiError(f"받아 둔 원문이 없다 — {target} · 먼저 python -m collector.kb_law fetch")
+        self.calls += 1
+        return json.loads(gzip.decompress(row["body"]).decode("utf-8"))
 
 
 def law_versions(client: LawClient, title: str) -> List[Version]:
@@ -546,20 +571,30 @@ def _hard_split(text: str, limit: int) -> List[str]:
 
 
 def chunk_article(doc_title: str, art: Article, max_chars: int = MAX_CHARS) -> List[Chunk]:
-    """조 하나 → 청크(머리 「문서 이름 제○조(제목)」 를 되풀이)."""
-    header = f"{doc_title} {art.label}" + (f"({art.title})" if art.title else "")
+    """조 하나 → 청크. 조각마다 첫 줄에 제목 사슬 「문서 > 편 > 장 > 절 > 제○조(제목)」 를 되풀이한다.
+
+    2026-10-03 — 머리를 「문서 이름 제○조(제목)」 에서 제목 사슬로 바꿨다(사용자 결정 · 까닭은 ``kb_text.chunk_header``).
+    본문 첫머리가 같은 조 머리를 되풀이하면 빼고(``strip_heading``), 그림 태그는 지운다(``strip_markup``).
+    판 지문(``content_sha256``)은 조의 원래 글(``Article.body``)로 재므로 이 손질로 바뀌지 않는다 — 바뀌는 것은 청크 글과
+    그 지문(``text_sha256``)뿐이고, 그래서 벡터는 다시 넣는다(``kb_index`` 가 지문으로 안다).
+    """
     if art.deleted or not art.body.strip():
         return []
+    header = kb_text.chunk_header(doc_title, art.part, art.label, art.title)
+    head = kb_text.strip_markup(kb_text.strip_heading(art.head, art.label, art.title))
+    paras = [(no, t) for no, t in ((no, kb_text.strip_markup(t)) for no, t in art.paras) if t.strip()]
+    body = "\n".join(p for p in [head] + [t for _, t in paras] if p.strip())
+    if not body.strip():
+        return []                                    # 머리만 있는 조(「제8조(목적)」 뿐)
     budget = max(200, max_chars - len(header) - 1)
-    body = art.body
     if len(body) <= budget:
         return [Chunk(art, 0, "", f"{header}\n{body}")]
     # 항 단위로 묶는다 — 항이 없으면 줄(호) 단위
     units: List[Tuple[str, str]] = []
-    if art.head:
-        units.append(("", art.head))
-    if art.paras:
-        for no, t in art.paras:
+    if head.strip():
+        units.append(("", head))
+    if paras:
+        for no, t in paras:
             if len(t) <= budget:
                 units.append((no, t))
             else:
@@ -714,6 +749,28 @@ def fetch_doc(client: LawClient, conn: sqlite3.Connection, spec: DocSpec, as_of:
             "long": sum(1 for c in chunks if c.seq > 0)}
 
 
+def rechunk(conn: sqlite3.Connection, docs: Optional[Sequence[str]] = None,
+            as_of: Optional[str] = None) -> Dict[str, Dict[str, object]]:
+    """받아 둔 원문으로 판 고르기 → 판 점검 → 쪼개기 → 저장을 다시 한다 — 문서마다 그 문서를 고른 기준일로.
+
+    기준일을 주지 않으면 문서마다 지난번에 고른 기준일(``selected_for``)을 쓴다 — 같은 판이 다시 골라져야 받아 둔
+    원문만으로 돈다(새 기준일이면 받지 않은 판이 골라질 수 있다). 받은 적이 없는 문서는 멈춘다.
+    """
+    out: Dict[str, Dict[str, object]] = {}
+    for doc_id in (docs or [d.doc_id for d in DOCS]):
+        spec = DOC_BY_ID.get(doc_id)
+        if spec is None:
+            raise LawApiError(f"모르는 문서: {doc_id}")
+        day = as_of or conn.execute("SELECT MAX(selected_for) FROM kb_document WHERE doc_id=?", (doc_id,)).fetchone()[0]
+        if not day:
+            raise LawApiError(f"{doc_id} — 받은 적이 없다 · 먼저 python -m collector.kb_law fetch --only {doc_id}")
+        replay = RawReplay(conn)
+        r = fetch_doc(replay, conn, spec, day)
+        r["calls"], r["as_of"] = replay.calls, day
+        out[doc_id] = r
+    return out
+
+
 # ==================================================
 # 7. 명령
 # ==================================================
@@ -745,6 +802,27 @@ def cmd_fetch(args) -> int:
     tot = conn.execute("SELECT COUNT(*) FROM kb_chunk").fetchone()[0]
     print(f"  호출 {client.calls}회 · {time.time() - t0:,.0f}초 · 청크 전체 {tot:,}")
     return 1 if fails else 0
+
+
+def cmd_rechunk(args) -> int:
+    only = [s.strip() for s in args.only.split(",")] if args.only else None
+    conn = connect()
+    t0 = time.time()
+    print("― 다시 쪼개기 · 받아 둔 원문으로(네트워크 · 키 없이) ―")
+    try:
+        res = rechunk(conn, only, args.as_of)
+    except LawApiError as e:
+        print(f"  🔴 {e}")
+        return 1
+    for doc_id, r in res.items():
+        print(f"  ✅ {doc_id:<15} {r['label']:<34} 기준일 {r['as_of']} · 청크 {r['chunks']:>5} · 원문 {r['calls']}개")
+    tot = conn.execute("SELECT COUNT(*) FROM kb_chunk").fetchone()[0]
+    stale = {m: conn.execute("SELECT COUNT(*) FROM kb_vector v JOIN kb_chunk c ON c.chunk_id=v.chunk_id"
+                             " AND c.text_sha256<>v.text_sha256 WHERE v.model=?", (m,)).fetchone()[0]
+             for m in kb_text.EMBED_MODELS}
+    print(f"  청크 전체 {tot:,} · {time.time() - t0:,.1f}초 · 글이 바뀌어 다시 넣을 벡터 "
+          + " · ".join(f"{m} {n}" for m, n in stale.items()) + " (python -m collector.kb_index run)")
+    return 0
 
 
 def cmd_status(_args) -> int:
@@ -786,12 +864,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     f = sub.add_parser("fetch", help="받기 → 판 고르기 → 쪼개기 → 저장")
     f.add_argument("--as-of", help="기준일 YYYY-MM-DD (기본 오늘 KST)")
     f.add_argument("--only", help="문서 ID 몇 개만 (쉼표)")
+    r = sub.add_parser("rechunk", help="받아 둔 원문으로 다시 쪼개기(쪼개기 규칙만 바꿨을 때 · 네트워크 없이)")
+    r.add_argument("--as-of", help="기준일 — 비우면 문서마다 지난번에 고른 기준일")
+    r.add_argument("--only", help="문서 ID 몇 개만 (쉼표)")
     sub.add_parser("status", help="문서 · 판 · 청크 · 벡터 수")
     s = sub.add_parser("show", help="청크 보기")
     s.add_argument("doc_id")
     s.add_argument("article", help="예: 제5조 · 제1-2조의2")
     a = p.parse_args(argv)
-    return {"fetch": cmd_fetch, "status": cmd_status, "show": cmd_show}[a.cmd](a)
+    return {"fetch": cmd_fetch, "rechunk": cmd_rechunk, "status": cmd_status, "show": cmd_show}[a.cmd](a)
 
 
 if __name__ == "__main__":

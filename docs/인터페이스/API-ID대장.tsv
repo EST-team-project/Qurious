@@ -211,3 +211,10 @@ API-CAL-01	GET	/api/calendar/trading-days	2026-10-02	사용
 API-CAL-02	GET	/api/calendar/events	2026-10-02	사용
 API-GLOS-05	GET	/api/glossary/{name}/graph	2026-10-02	사용
 API-DATA-02	GET	/api/data/ohlcv	2026-10-02	사용
+API-PAPR-36	GET	/api/paper/performance/returns-table	S81	사용
+API-PAPR-37	GET	/api/paper/performance/risk-metrics	S81	사용
+API-PAPR-38	GET	/api/paper/performance/turnover	S81	사용
+API-PAPR-39	GET	/api/paper/performance/allocation-history	S81	사용
+API-PAPR-40	GET	/api/paper/performance/benchmark	S81	사용
+API-KB-01	GET	/api/kb/documents	S81	사용
+API-KB-02	GET	/api/kb/search	S81	사용

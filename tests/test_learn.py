@@ -464,6 +464,7 @@ def _example(name: str):
     ("adjusted-price", "adjusted_price", "main"),
     ("intraday-timezone", "intraday_kst", "offline"),
     ("data-quality-check", "quality_check", "main"),
+    ("chunking-legal-versions", "legal_versions", "main"),   # 3부 3.4 (2026-10-03)
 ])
 def test_part1_chapter_outputs_match_example_code(slug, example, fn, capsys):
     """TC-LN-18 · 1부 장에 실은 「직접 해 보기」 출력 줄이 지금 예제 코드(네트워크 없는 부분)의 출력과 한 글자도
@@ -479,7 +480,8 @@ def test_part1_chapters_read_like_a_service_not_a_project():
     """TC-LN-19 · 1부 장 본문에 프로젝트 내부 표현(차수 · 담당 · 요구 ID · 구현 묶음 W 번호 · 「팀원」 · 「설계서」)이 없다.
     2026-10-01 사용자 피드백 — 실제 서비스의 교재처럼, 내용 위주로. 머리말의 쓴 사람(owner) 칸은 서명이라 예외."""
     banned = re.compile(r"W[0-9]\b|P0[12]-|주담당|부담당|[23]차 프로젝트|팀원|설계서|요구 ID")
-    for slug in ("ohlcv-bars", "adjusted-price", "intraday-timezone", "data-quality-check"):
+    for slug in ("ohlcv-bars", "adjusted-price", "intraday-timezone", "data-quality-check",
+                 "chunking-legal-versions"):                      # 3.4 도 같은 규칙(2026-10-03)
         body = lp.parse((CONTENT / f"{slug}.md").read_text(encoding="utf-8"))[1]
         hits = banned.findall(body)
         assert hits == [], (slug, hits)
