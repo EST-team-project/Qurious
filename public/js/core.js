@@ -7,6 +7,7 @@ const GNB_MENUS = {
   agent: {
     label: "<i class='fa-solid fa-robot'></i> 로보 어드바이저",
     items: [
+      { key: "dashboard", icon: "fa-solid fa-gauge-high", label: "통합 대시보드" },
       { key: "agent-chat",      icon: "fa-solid fa-comments",              label: "AI 투자 상담" },
       { key: "robo-portfolio",  icon: "fa-solid fa-chart-pie",             label: "자산배분·최적화" },
       { key: "robo-rebalance",  icon: "fa-solid fa-rotate",                label: "리밸런싱 엔진" },
@@ -215,7 +216,9 @@ const TERMS = {
 
 // ── 화면별 사용법 가이드 (43개 view 전체) ────────────────────────────
 const VIEW_GUIDES = {
-  "agent-chat":      { summary: "금융 지식·데이터를 학습한 AI 로보 어드바이저에게 자유롭게 투자 관련 질문을 합니다.", steps: ["궁금한 내용을 채팅창에 입력 후 전송 버튼(또는 Enter)을 누르세요.", "신용점수, 금융상품, 퀀트 전략 등 여러 주제를 한 대화에서 섞어 물어봐도 됩니다.", "AI 답변은 참고용이며, 실제 투자 결정 전 반드시 스스로 데이터를 검증하세요."], relatedTerms: ["rag", "cb_score"] },
+  // 투자 대시보드(2026-10-03 · 강사님 기초 코드 9478811 의 첫 화면 — 강사님 판에는 안내가 없다)
+  "dashboard":       { summary: "로보 어드바이저와 투자 인디케이터의 상태와 바로가기를 한 화면에서 봅니다.", steps: ["KIS 모의투자를 쓰려면 먼저 「증권사 API 설정」 에 내 모의투자 키를 넣으세요. 키가 있으면 「KIS 모의투자 시작」 이 열립니다.", "「투자 사이트별 현재 투자액」 의 탭을 누르면 계좌마다 투자액 · 현금 · 총자산을 봅니다.", "「기본 전략 성능」 은 과거 백테스트이며 내 계좌의 실제 수익과 다릅니다. 매매가 없던 기간은 수익률을 매기지 않습니다."], relatedTerms: ["mdd", "sharpe"] },
+  "agent-chat":     { summary: "금융 지식·데이터를 학습한 AI 로보 어드바이저에게 자유롭게 투자 관련 질문을 합니다.", steps: ["궁금한 내용을 채팅창에 입력 후 전송 버튼(또는 Enter)을 누르세요.", "신용점수, 금융상품, 퀀트 전략 등 여러 주제를 한 대화에서 섞어 물어봐도 됩니다.", "AI 답변은 참고용이며, 실제 투자 결정 전 반드시 스스로 데이터를 검증하세요."], relatedTerms: ["rag", "cb_score"] },
   "robo-portfolio":  { summary: "위험 성향·투자기간·투자금액을 입력하면 AI가 자산배분 비중과 추천 종목을 계산합니다.", steps: ["위험 성향(안정/중립/공격)과 투자 기간, 투자금액을 선택하세요.", "'배분 계산' 버튼을 누르면 자산군별 비중과 추천 종목이 표시됩니다.", "기대수익률·MDD는 과거 데이터 기반 추정치이며 미래 수익을 보장하지 않습니다."], relatedTerms: ["covariance_opt", "mvo", "risk_parity", "mdd", "sharpe"] },
   "robo-screening":  { summary: "패턴 인식 모델로 대표 종목들을 매수/매도/관망으로 스크리닝합니다.", steps: ["모델(RSI/이동평균/볼린저/앙상블)과 신호 필터, 최소 신뢰도를 선택하세요.", "결과 카드에서 종목별 신호·점수·근거를 확인하세요.", "신뢰도가 높다고 100% 적중을 의미하지 않으니 다른 지표와 함께 판단하세요."], relatedTerms: ["signal", "lightgbm", "rsi", "golden_cross"] },
   "robo-decision":   { summary: "자동매매 로직이 만든 모의투자 의사결정 과정을 로그로 확인합니다.", steps: ["시작 버튼을 누르면 10분 주기로 모의계좌 매매가 진행됩니다.", "로그에서 매수/매도 이유와 계좌 평가금액 변화를 확인하세요.", "실제 자금이 아닌 가상계좌이므로 전략을 안전하게 검증할 수 있습니다."], relatedTerms: ["virtual_account", "auto_trade_cycle", "signal"] },
@@ -444,24 +447,103 @@ function renderLnb(gnbKey) {
   });
 }
 
-// GNB 더보기 offcanvas (금융 지식 / 시스템 — LNB 스타일 재사용)
+// 전체 메뉴(더보기) — 2026-10-03 화면 결정 ② D(융합안 · Figma 「Qurious · 투자 대시보드 · 메뉴 정리」 03 설계).
+// 위 메뉴 탭은 app.html 에 아래 우선순위 순서로 있고, 화면 폭에 들어가는 만큼만 보인다(Priority+ · fitGnbTabs).
+// 안 들어가는 묶음은 반만 잘리지 않고 통째로 숨는다 — 숨은 묶음은 이 서랍(모든 묶음을 담은 「전체 메뉴」)에 늘 있다.
+// 강사님 판(9478811)의 펼침 목록 · Esc · 포커스 처리는 그대로 두고, 우리 메뉴의 소제목(heading) · 들여쓴 항목(sub) ·
+// 바깥 주소(href · 개념 학습)를 깨지 않게 그린다 — 강사님 판 그대로면 소제목이 「undefined」 단추가 되고,
+// 개념 학습 항목은 없는 화면으로 navigate 해 아무 일도 일어나지 않는다.
+// 근거: NN/g 「Hamburger Menus and Hidden Navigation Hurt UX Metrics」(2016 — 데스크톱에서 숨긴 메뉴 27% · 보이는 메뉴 48%)
+//       · CSS-Tricks 「The Priority+ Navigation Pattern」(2015) · NN/g 「Mega Menus Work Well for Site Navigation」(2017).
+const MENU_PRIORITY = ["agent", "company", "finance", "paper", "crawl", "quant", "trading", "us", "invest", "ml"];
+const MENU_DRAWER_ONLY = ["learn", "sysadmin", "account"];   // 위 메뉴에 두지 않는 묶음(서랍에만)
+function drawerItem(it) {
+  if (it.heading) return `<div class="lnb-heading">${it.heading}</div>`;   // 누를 수 없는 소제목(왼쪽 메뉴와 같은 모양)
+  const cls = `lnb-item${it.sub ? " lnb-sub" : ""}`;
+  if (it.href) {
+    // 바깥 주소(별도 HTML) — 링크가 그대로 연다. 「새 화면」 표시를 붙인다
+    return `<a class="${cls}" href="${it.href}" data-menu-href="${it.key}"><i class="${it.icon}"></i><span>${it.label}</span>` +
+      `<i class="fa-solid fa-arrow-up-right-from-square offcanvas-out" aria-hidden="true"></i><span class="sr-only">(새 화면)</span></a>`;
+  }
+  return `<button type="button" class="${cls}" data-menu-view="${it.key}"><i class="${it.icon}"></i><span>${it.label}</span></button>`;
+}
 (function () {
   const backdrop = document.getElementById("gnb-offcanvas-backdrop");
   const panel = document.getElementById("gnb-offcanvas");
+  const trigger = document.getElementById("gnb-more-btn");
+  const nav = document.getElementById("gnb-offcanvas-nav");
+  trigger.setAttribute("aria-controls", panel.id);
+  trigger.setAttribute("aria-expanded", "false");
+  panel.inert = true;
+  nav.innerHTML = [...MENU_PRIORITY, ...MENU_DRAWER_ONLY].filter(key => GNB_MENUS[key]).map(key => {
+    const menu = GNB_MENUS[key];
+    const outOnly = menu.items.every(it => it.heading || it.href);   // 개념 학습처럼 모두 바깥 주소인 묶음
+    return `
+    <details class="offcanvas-group" data-menu-group="${key}">
+      <summary class="lnb-item">${menu.label}${outOnly ? '<span class="offcanvas-tag">새 화면</span>' : ""}<i class="fa-solid fa-chevron-down offcanvas-chevron"></i></summary>
+      <div class="offcanvas-submenu">${menu.items.map(drawerItem).join("")}</div>
+    </details>`;
+  }).join("");
   function openOffcanvas() {
+    panel.inert = false;
     panel.classList.add("open");
     backdrop.classList.add("open");
+    trigger.setAttribute("aria-expanded", "true");
+    nav.querySelectorAll("details").forEach(group => { group.open = group.dataset.menuGroup === currentGnb; });
+    document.getElementById("gnb-offcanvas-close").focus();
   }
   function closeOffcanvas() {
+    trigger.focus();
     panel.classList.remove("open");
     backdrop.classList.remove("open");
+    panel.inert = true;
+    trigger.setAttribute("aria-expanded", "false");
   }
-  document.getElementById("gnb-more-btn").addEventListener("click", openOffcanvas);
+  trigger.addEventListener("click", openOffcanvas);
   document.getElementById("gnb-offcanvas-close").addEventListener("click", closeOffcanvas);
   backdrop.addEventListener("click", closeOffcanvas);
-  // 항목 선택(금융 지식/시스템)은 기존 [data-gnb] 클릭 리스너가 네비게이션을 처리하고,
-  // 여기서는 선택 후 패널만 닫아준다.
-  panel.querySelectorAll("[data-gnb]").forEach(el => el.addEventListener("click", closeOffcanvas));
+  nav.addEventListener("click", event => {
+    const item = event.target.closest("[data-menu-view]");
+    if (item) { navigate(item.dataset.menuView); closeOffcanvas(); return; }
+    if (event.target.closest("[data-menu-href]")) closeOffcanvas();   // 바깥 주소는 링크가 연다 — 서랍만 닫는다
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && panel.classList.contains("open")) closeOffcanvas();
+  });
+  // 서랍을 연 채 다른 길(뒤로 가기 · 주소 입력)로 화면이 바뀌어도 닫는다 — 열린 채 남던 것을 2026-10-03 브라우저에서 확인
+  document.addEventListener("lumina:view-changed", () => { if (panel.classList.contains("open")) closeOffcanvas(); });
+})();
+
+// 위 메뉴 Priority+ — 탭을 우선순위 순서대로 채우다 폭을 넘는 탭부터 통째로 숨긴다(.gnb-overflow).
+// 탭 칸 폭이 바뀔 때(창 크기 · 오른쪽 시세 · 자료 표시가 늦게 채워질 때 · 글꼴이 늦게 읽힐 때) 다시 잰다.
+function fitGnbTabs() {
+  const bar = document.querySelector("#gnb .gnb-tabs");
+  if (!bar) return;
+  const tabs = [...bar.querySelectorAll(".gnb-item")];
+  tabs.forEach(t => t.classList.remove("gnb-overflow"));
+  const avail = bar.clientWidth;
+  let used = 0;
+  let full = false;
+  for (const t of tabs) {
+    used += t.offsetWidth;
+    if (full || used > avail) { t.classList.add("gnb-overflow"); full = true; }
+  }
+  markMoreActive();
+}
+// 지금 묶음이 위 메뉴에 보이지 않으면(숨었거나 서랍에만 있는 묶음) 더보기 단추에 「여기 안에 있음」 표시
+function markMoreActive() {
+  const tab = document.querySelector(`#gnb .gnb-item[data-gnb="${currentGnb}"]`);
+  const inBar = !!tab && !tab.classList.contains("gnb-overflow") && tab.offsetParent !== null;
+  document.getElementById("gnb-more-btn")?.classList.toggle("active", !inBar);
+}
+(function () {
+  const bar = document.querySelector("#gnb .gnb-tabs");
+  let queued = false;
+  const refit = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fitGnbTabs(); }); };
+  if (bar && "ResizeObserver" in window) new ResizeObserver(refit).observe(bar);
+  window.addEventListener("resize", refit);
+  document.fonts?.ready?.then(refit);
+  refit();
 })();
 
 // LNB 토글 (접기/펼치기)
@@ -487,6 +569,17 @@ function navigate(viewKey) {
   document.querySelectorAll("[data-gnb]").forEach(el => {
     el.classList.toggle("active", el.dataset.gnb === currentGnb);
   });
+
+  document.querySelectorAll("[data-menu-group]").forEach(el => {
+    el.classList.toggle("active", el.dataset.menuGroup === currentGnb);
+  });
+  document.querySelectorAll("[data-menu-view]").forEach(el => {
+    const active = el.dataset.menuView === currentView;
+    el.classList.toggle("active", active);
+    if (active) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+  markMoreActive();   // 지금 묶음이 위 메뉴에 없으면 더보기에 표시(Priority+ · fitGnbTabs)
 
   // Update LNB
   renderLnb(currentGnb);
@@ -620,4 +713,4 @@ let _viewActivated = () => {};
 export function registerViewActivation(fn) { _viewActivated = fn; }
 
 
-export { compareTrayAdd, loadMarketTicker, loadSyncStatus, navigate, renderCompareTrayAll, tt };
+export { GNB_MENUS, compareTrayAdd, loadMarketTicker, loadSyncStatus, navigate, renderCompareTrayAll, tt };

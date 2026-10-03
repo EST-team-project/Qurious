@@ -2,7 +2,7 @@
 
 버튼 한 번으로 종목 선정 화면의 설정(증권사 KIS · 실행 모드 live · AI 추천 종목 · Testbed 권장 한도)을
 저장하고 자동매매를 켠다. 자격증명은 서버(Secrets Manager)가 관리하므로 사용자 입력이 없다.
-→ Qurious(2026-10-03 · 사용자마다 자기 키): 이 사용자가 「종목 선정」 화면에 넣어 둔 KIS 키로 시작하고,
+→ Qurious(2026-10-03 · 사용자마다 자기 키): 이 사용자가 「증권사 API 설정」 화면에 넣어 둔 KIS 키로 시작하고,
   시작할 때 그 키를 지우지 않는다(kis_credentials 머리말). 키가 없으면 409(연동 안 됨).
 
 안전장치
@@ -72,8 +72,9 @@ async def resolve_route(row: BrokerSettings | None = None) -> Route:
     if creds is not None:
         return Route("kis-direct", creds.environment, True,
                      f"KIS 직접 호출(내 키) → {'모의(Testbed)' if creds.paper else '실전'}")
+    # 화면 이름은 실제 메뉴 이름으로(2026-10-03 · 「종목 선정」 이라는 화면은 없다 — 퀀트자동매매 > 증권사 API 설정)
     return Route(None, "paper", False,
-                 "KIS 키가 없습니다 — 「종목 선정」 화면에서 증권사 KIS 를 고르고 내 모의투자 App Key · Secret · 계좌번호를 넣으세요")
+                 "KIS 키가 없습니다 — 「증권사 API 설정」 화면에서 증권사 KIS 를 고르고 내 모의투자 App Key · Secret · 계좌번호를 넣으세요")
 
 
 async def _row(db: AsyncSession, uid: uuid.UUID) -> BrokerSettings | None:
@@ -113,7 +114,7 @@ async def start(db: AsyncSession, user_id: str) -> dict:
     if not route.configured:
         raise QuickstartBlocked("not_connected", route.detail)
     if route.environment != "paper":
-        raise QuickstartBlocked("real_environment", "현재 KIS 경로가 실전(real)으로 설정되어 있어 원클릭 모의투자를 시작하지 않습니다. 종목 선정 화면에서 직접 설정하세요.")
+        raise QuickstartBlocked("real_environment", "현재 KIS 경로가 실전(real)으로 설정되어 있어 원클릭 모의투자를 시작하지 않습니다. 「증권사 API 설정」 화면에서 직접 설정하세요.")
 
     if row is None:   # 키가 없으면 위에서 409 — 남은 경우는 게이트웨이 길
         row = BrokerSettings(user_id=uid)

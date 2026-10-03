@@ -30,8 +30,8 @@
 
   <!-- ══ GNB ══════════════════════════════════════════════════════════ -->
   <header id="gnb">
-    <!-- 로고 -->
-    <a href="/" class="gnb-logo">
+    <!-- 로고 — 첫 화면(투자 대시보드)으로 (강사님 기초 코드 9478811) -->
+    <a href="/app.html#dashboard" class="gnb-logo">
       <div class="gnb-logo-icon"><i class="fa-solid fa-chart-mixed"></i></div>
       <div class="gnb-logo-text">
         <strong data-brand="name">Qurious</strong>
@@ -39,18 +39,20 @@
       </div>
     </a>
 
-    <!-- GNB 탭 (스크롤 가능) -->
+    <!-- GNB 탭 — 우선순위 순서(2026-10-03 화면 결정 ② D · 융합안). 폭에 들어가는 만큼만 보이고 나머지는 통째로
+         「더보기」(전체 메뉴)로 간다(js/core.js fitGnbTabs · MENU_PRIORITY 와 같은 순서). 강사님 판(9478811)은 두 탭만 둔다. -->
     <div class="gnb-tabs">
       <button class="gnb-item" data-gnb="agent"><i class="fa-solid fa-robot"></i> 로보 어드바이저</button>
+      <button class="gnb-item" data-gnb="company"><i class="fa-solid fa-chart-pie"></i> 투자 인디케이터</button>
+      <button class="gnb-item" data-gnb="finance"><i class="fa-solid fa-coins"></i> 금융 필수 지식</button>
+      <button class="gnb-item" data-gnb="paper"><i class="fa-solid fa-graduation-cap"></i> 모의투자</button>
       <!-- 「크롤링」 → 「데이터」(2026-10-02 화면 결정 ① — 맨 위에 데이터 관제 · 크롤링 세 화면은 그 아래 그대로) -->
       <button class="gnb-item" data-gnb="crawl"><i class="fa-solid fa-database"></i> 데이터</button>
-      <button class="gnb-item" data-gnb="trading"><i class="fa-solid fa-chart-line"></i> 직접매매</button>
-      <button class="gnb-item" data-gnb="paper"><i class="fa-solid fa-graduation-cap"></i> 모의투자</button>
       <button class="gnb-item" data-gnb="quant"><i class="fa-solid fa-bolt"></i> 퀀트자동매매</button>
+      <button class="gnb-item" data-gnb="trading"><i class="fa-solid fa-chart-line"></i> 직접매매</button>
       <button class="gnb-item" data-gnb="us"><i class="fa-solid fa-flag-usa"></i> 미국주식</button>
-      <button class="gnb-item" data-gnb="company"><i class="fa-solid fa-chart-pie"></i> 투자 인디케이터</button>
-      <button class="gnb-item" data-gnb="ml"><i class="fa-solid fa-microchip"></i> ML·딥러닝</button>
       <button class="gnb-item" data-gnb="invest"><i class="fa-solid fa-magnifying-glass-dollar"></i> 투자분석</button>
+      <button class="gnb-item" data-gnb="ml"><i class="fa-solid fa-microchip"></i> ML·딥러닝</button>
     </div>
 
     <!-- 우측: 시세 + 사용자 -->
@@ -65,11 +67,12 @@
         <div class="gnb-avatar" id="user-avatar">U</div>
         <span id="user-name" style="font-size:14px; color:var(--text-dim);"></span>
       </div>
-      <button id="logout-btn" class="btn-secondary" style="padding:6px 12px; font-size:14px;">
-        <i class="fa-solid fa-arrow-right-from-bracket" style="margin-right:4px;"></i>로그아웃
+      <!-- 1440 아래에서는 글자를 숨기고 아이콘만(css/app.css · 셋째 탭이 들어가게 · 2026-10-03 화면 결정 ② D) -->
+      <button id="logout-btn" class="btn-secondary" style="padding:6px 12px; font-size:14px;" title="로그아웃" aria-label="로그아웃">
+        <i class="fa-solid fa-arrow-right-from-bracket" style="margin-right:4px;"></i><span class="gnb-btn-label">로그아웃</span>
       </button>
-      <!-- 더보기 (금융 지식·시스템 offcanvas) -->
-      <button id="gnb-more-btn" class="btn-secondary" style="padding:6px 10px;" title="더보기" aria-label="더보기 메뉴">
+      <!-- 더보기 = 전체 메뉴 (모든 묶음 펼침 목록 · js/core.js) -->
+      <button id="gnb-more-btn" class="btn-secondary" style="padding:6px 10px;" title="더보기 — 전체 메뉴" aria-label="더보기 — 전체 메뉴">
         <i class="fa-solid fa-ellipsis-vertical"></i>
       </button>
       <!-- 모바일 햄버거 -->
@@ -79,20 +82,15 @@
     </div>
   </header>
 
-  <!-- 더보기 offcanvas (금융 지식 / 시스템) -->
+  <!-- 더보기 = 전체 메뉴 (메뉴 묶음 / 세부 화면 · 강사님 기초 코드 9478811 의 펼침 목록) — 목록은 js/core.js 가 GNB_MENUS 로 그린다.
+       우리 묶음(데이터 · 금융 필수 지식의 소제목 · 개념 학습의 바깥 주소 · 내 계정)도 함께 (2026-10-03 화면 결정 ② D) -->
   <div id="gnb-offcanvas-backdrop"></div>
   <aside id="gnb-offcanvas">
     <div class="lnb-header">
-      <div class="lnb-section-title">더보기</div>
+      <div class="lnb-section-title">전체 메뉴</div>
       <button id="gnb-offcanvas-close" class="lnb-toggle" aria-label="닫기"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <nav class="lnb-nav">
-      <div class="lnb-item" data-gnb="finance"><i class="fa-solid fa-coins"></i><span>금융 지식</span></div>
-      <!-- 개념 학습 (2026-10-01) — 별도 HTML /learn/ 로 간다(public/js/core.js 의 GNB_MENUS.learn · href 항목) -->
-      <div class="lnb-item" data-gnb="learn"><i class="fa-solid fa-graduation-cap"></i><span>개념 학습</span></div>
-      <div class="lnb-item" data-gnb="sysadmin"><i class="fa-solid fa-gear"></i><span>시스템</span></div>
-      <div class="lnb-item" data-gnb="account"><i class="fa-solid fa-user-gear"></i><span>내 계정</span></div>
-    </nav>
+    <nav id="gnb-offcanvas-nav" class="lnb-nav" aria-label="전체 메뉴"></nav>
   </aside>
 
   <!-- Toast는 common.js setToast()가 동적으로 생성 (#_toast_el) -->
@@ -115,6 +113,44 @@
       <!-- ── Main Content ── -->
       <main id="main-content">
         <div class="space-y-4">
+
+          <!-- ══ 0. 투자 대시보드 — 로그인 첫 화면 (강사님 기초 코드 9478811 · js/dashboard.js) ════════════
+               2026-10-03 화면 결정 ① C(우리 서비스 맞춤): 구성은 강사님 판 그대로, 글만 고침 — 머리 글자는 서비스 이름(data-brand) ·
+               KIS 키는 사용자마다(ADR-0004)라 「서버가 관리」 문구를 빼고 설정 화면으로 가는 단추를 둔다 -->
+          <div class="view" data-view="dashboard">
+            <div class="overview-heading">
+              <div><p class="overview-eyebrow" data-brand="name">Qurious</p><h1>투자 대시보드</h1><p class="overview-note">로보 어드바이저와 투자 인디케이터의 기능 및 성과를 한눈에 확인하세요.</p></div>
+              <div><button id="overview-refresh" type="button" class="btn-secondary"><i class="fa-solid fa-rotate"></i> 새로고침</button><p id="overview-updated" class="overview-note" aria-live="polite"></p></div>
+            </div>
+            <section class="card overview-section mb-4" aria-labelledby="overview-kis-title" style="margin-bottom:16px;">
+              <div class="flex items-center justify-between gap-4 flex-wrap">
+                <div class="overview-section-heading" style="margin:0;"><i class="fa-solid fa-play"></i><div><h2 id="overview-kis-title">KIS 모의투자</h2><p class="overview-note">AI 추천 종목 · 10분마다 자동매매 · 내 KIS 모의투자 키로 주문합니다(키는 「증권사 API 설정」 에서 넣습니다).</p></div></div>
+                <div class="flex items-center gap-2">
+                  <button id="overview-kis-start" type="button" class="btn-green" disabled><i class="fa-solid fa-play"></i> KIS 모의투자 시작</button>
+                  <a class="btn-secondary text-xs" href="#settings">증권사 API 설정으로</a>
+                </div>
+              </div>
+              <p id="overview-kis-status" class="overview-note mt-2" role="status" aria-live="polite">연동 상태를 확인하는 중입니다…</p>
+            </section>
+            <div class="overview-columns">
+              <section class="card overview-section" aria-labelledby="overview-robo-title">
+                <div class="overview-section-heading"><i class="fa-solid fa-robot"></i><div><h2 id="overview-robo-title">로보 어드바이저</h2><p class="overview-note">투자 상담부터 자산배분과 리밸런싱까지</p></div></div>
+                <h3>투자 사이트별 현재 투자액</h3><p class="overview-note">탭을 눌러 사이트별 계좌를 확인하세요. KIS 모의투자가 기본입니다.</p>
+                <div id="overview-account-tabs" class="overview-tabs" role="tablist" aria-label="투자 사이트"></div>
+                <div id="overview-account-panel" class="overview-metrics" role="tabpanel"><p class="overview-note" role="status">계좌를 불러오는 중입니다…</p></div>
+                <div id="overview-robo-metrics" class="overview-metrics hidden"></div>
+                <div id="overview-decision" class="overview-metrics"></div>
+                <h3>기능 바로가기</h3><div id="overview-robo-features" class="overview-features"></div>
+              </section>
+              <section class="card overview-section" aria-labelledby="overview-indicator-title">
+                <div class="overview-section-heading"><i class="fa-solid fa-chart-pie"></i><div><h2 id="overview-indicator-title">투자 인디케이터</h2><p class="overview-note">지표 개발부터 백테스트와 API 연동까지</p></div></div>
+                <h3>기본 전략 성능</h3><p class="overview-note">삼성전자 · 최근 1년 · RSI 역추세 · 수수료 10bp · 슬리피지 0bp<br>과거 데이터 백테스트 결과이며 내 계좌의 실현 수익률과 다릅니다.</p>
+                <div id="overview-indicator-metrics" class="overview-metrics"></div>
+                <div id="overview-saved" class="overview-metrics"></div>
+                <h3>기능 바로가기</h3><div id="overview-indicator-features" class="overview-features"></div>
+              </section>
+            </div>
+          </div>
 
           <!-- ══ 1. 로보 어드바이저 ══════════════════════════════════════ -->
           <!-- 1-1. AI 투자 상담 -->
@@ -749,13 +785,15 @@
                 실제 API 키를 입력하면 실시간 시세·계좌·주문을 사용합니다. 비워두면 Mockup 데이터로 동작합니다.
               </p>
               <div class="space-y-4">
-                <div class="grid md:grid-cols-2 gap-3">
+                <!-- 세 칸 — 전략(검증 통과분) 칸과 실주문 경로 안내 (강사님 기초 코드 9478811 · 안내 글은 js/settings.js — 화면 결정 ③ C) -->
+                <div class="grid md:grid-cols-3 gap-3">
                   <div>
                     <label class="text-sm text-slate-400 block mb-1">투자 모드</label>
                     <select id="quant-mode" class="input">
                       <option value="paper">모의투자 (Paper)</option>
                       <option value="live">실전투자 (Live)</option>
                     </select>
+                    <p id="quant-live-route" class="text-xs mt-1" style="color:var(--text-mute);"></p>
                   </div>
                   <div>
                     <label class="text-sm text-slate-400 block mb-1">종목 선택 방식</label>
@@ -763,6 +801,13 @@
                       <option value="ai">AI 추천 종목</option>
                       <option value="manual">직접 종목 선택</option>
                     </select>
+                  </div>
+                  <div>
+                    <label class="text-sm text-slate-400 block mb-1">전략 (검증 통과분)</label>
+                    <select id="quant-strategy" class="input">
+                      <option value="">기본 규칙 (기술지표 시그널)</option>
+                    </select>
+                    <p id="quant-strategy-hint" class="text-xs mt-1" style="color:var(--text-mute);"></p>
                   </div>
                 </div>
                 <div>
@@ -777,8 +822,11 @@
                     <option value="meritz">메리츠증권 (출시 예정)</option>
                     <option value="shinhan">신한투자증권</option>
                   </select>
+                  <!-- 서버가 키를 대신 관리하는 증권사일 때만 보이는 상자 — Qurious 는 KIS 키를 사용자마다 넣으므로(ADR-0004) 늘 숨어 있다.
+                       강사님 판과 같은 자리 · 같은 이름으로 두는 것은 다음 반영 때 충돌을 줄이려는 것 -->
+                  <div id="broker-managed" class="hidden rounded-xl p-3 mt-2 text-sm" style="background:var(--surf2);border:1px solid var(--border);"></div>
                 </div>
-                <div class="grid md:grid-cols-2 gap-3">
+                <div id="broker-credentials-wrap" class="grid md:grid-cols-2 gap-3">
                   <div>
                     <label class="text-xs text-slate-400">App Key</label>
                     <input id="broker-app-key" type="text" class="input mt-1" placeholder="API App Key" />
@@ -863,6 +911,15 @@
                   <button id="broker-test" class="btn-secondary">연결 테스트</button>
                 </div>
                 <div id="broker-status" class="text-sm text-slate-400"></div>
+                <!-- 자동매매 주기 상태 · 실주문 현황 (강사님 기초 코드 9478811 · js/settings.js) -->
+                <div id="quant-cycle-status" class="rounded-xl p-3 text-sm" style="background:var(--surf2);border:1px solid var(--border);color:var(--text-mute);">자동매매 주기 상태를 불러오는 중…</div>
+                <div class="rounded-xl p-3" style="background:var(--surf2);border:1px solid var(--border);">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-semibold">📨 KIS 실주문 현황 (2분마다 체결 확인)</h4>
+                    <button id="live-orders-refresh" class="btn-secondary text-xs">새로고침</button>
+                  </div>
+                  <div id="quant-live-orders" class="text-sm" style="color:var(--text-mute);">불러오는 중…</div>
+                </div>
               </div>
             </div>
           </div>
