@@ -65,9 +65,11 @@ def test_menu_views_assets_and_hooks_are_wired():
 
 
 def test_calendar_kinds_match_server_and_decision_3():
-    """TC-DH-02 · 일정 종류 — 화면의 넷 = 서버의 넷(결정 ③: 아직 모으지 않는 경제지표 · 실적 · 금통위 · FOMC 의 자리는 두지 않는다)."""
+    """TC-DH-02 · 일정 종류 — 화면의 넷 = 서버가 kind 없이 주는 넷(결정 ③). 2026-10-04 에 서버는 실적 · 보고서 기한 · 금통위 ·
+    FOMC 를 더해 여덟이 됐지만, 화면에 올리는 것은 Figma 결정 뒤라 서버의 기본은 넷 그대로다 — 화면이 모르는 종류를 받지 않는다."""
     src = _read("js/calendar.js")
-    assert _js_object_keys(src, "KINDS") == set(cal_svc.EVENT_KINDS)
+    assert _js_object_keys(src, "KINDS") == set(cal_svc.DEFAULT_KINDS)
+    assert set(cal_svc.DEFAULT_KINDS) < set(cal_svc.EVENT_KINDS)
     for word in ("경제지표", "FOMC", "금통위", "실적"):
         assert word not in src.split("const KINDS")[1].split("};")[0]
 

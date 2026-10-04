@@ -134,6 +134,12 @@ STEPS: List[Step] = [
     Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30),
     Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet"], 60,
          fatal=False),
+    # 공시 · 재무 · 검색 색인(2026-10-04 · 목표 기능 ① W7) — 시세와 무관하고 실패해도 기존 단계를 막지 않는다.
+    # 공시 목록(최근 3일 · 유형 A~J × 시장 3 · 약 40회) → 새 정기보고서 · 정정본의 재무 → 이름표 · 낱말 색인(바뀐 것만).
+    # 달력(③-②) **앞에** 둔다 — 실적 · 주총 일정을 공시 목록에서 만든다.
+    Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet"], 15, fatal=False),
+    Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False),
+    Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
     # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
     Step("calendar", ["-m", "collector.market_calendar", "build", "--quiet"], 10, fatal=False),

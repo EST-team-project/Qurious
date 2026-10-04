@@ -87,7 +87,8 @@ docs/github-archive/
     ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (#106 · 10-04 올림 · 강민석 님)
     ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀)
     ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
-    └── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (번호는 올린 뒤)
+    ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd)
+    └── PR-feat-disclosure-financials-search-events/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -363,7 +364,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 점검-모의투자-성과-테스트베드](2026-10-04/이슈-점검-모의투자-성과-테스트베드/00-본문.md) | [점검] 모의투자 · 성과 · 테스트베드 · 투자 대시보드 화면 기능 완성도 (강민석 님) | 3,260 | [#106](https://github.com/EST-team-project/Qurious/issues/106) — 10-04 올림 |
 | [이슈 점검-주인미정-화면-배지규칙](2026-10-04/이슈-점검-주인미정-화면-배지규칙/00-본문.md) | [점검] 주인이 정해지지 않은 화면 22개와 기능 완성도 배지 갱신 규칙 (팀) | 2,436 | [#109](https://github.com/EST-team-project/Qurious/issues/109) — 10-04 올림 |
 | [PR feat-completion-audit-and-crawl-points](2026-10-04/PR-feat-completion-audit-and-crawl-points/00-본문.md) | feat: 기능 완성도 점검 — 화면 69 점수표 · 배지 팀 줄 · 크롤 조각 점 번호 고침 · 시장조사 | 2,232 | [#105](https://github.com/EST-team-project/Qurious/pull/105) — 10-04 머지 · `c8c07fd` |
-| [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | (올린 뒤 적음) |
+| [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | [#110](https://github.com/EST-team-project/Qurious/pull/110) · 머지 `079a7dd` |
+| [PR feat-disclosure-financials-search-events](2026-10-04/PR-feat-disclosure-financials-search-events/00-본문.md) | feat: 공시 · 재무 수집 · 이름표 · 수집 자료 검색 · 일정 넷 — 목표 기능 ① W7 서버 쪽 | 2,781 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

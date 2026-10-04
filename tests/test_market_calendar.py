@@ -296,7 +296,7 @@ def test_api_partial_bad_kind_and_missing_calendar(api, tmp_path, monkeypatch):
     """TC-CA-11 · 달력 밖은 partial 로 알리고 · 모르는 종류는 422 · 달력이 없으면 503 과 할 일."""
     j = api.get("/api/calendar/trading-days", params={"from": "2027-12-20", "to": "2028-01-10"}).json()
     assert j["partial"] is True and "2027-12-31 뒤는 아직 없다" in j["partial_reason"]
-    assert api.get("/api/calendar/events", params={"kind": "earnings"}).status_code == 422
+    assert api.get("/api/calendar/events", params={"kind": "ipo"}).status_code == 422           # 실적(earnings)은 2026-10-04 부터 있는 종류
     assert api.get("/api/calendar/trading-days", params={"from": "2026-10-10", "to": "2026-10-01"}).status_code == 422
 
     bare = tmp_path / "bare.sqlite3"
