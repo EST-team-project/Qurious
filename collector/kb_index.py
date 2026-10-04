@@ -36,8 +36,10 @@ from collector import kb_law
 sys.path.insert(0, str(config.ROOT))
 from app.services import kb_text  # noqa: E402
 
-QDRANT_URL = config.env("KB_QDRANT_URL", "http://localhost:16333")   # compose 가 호스트에 연 포트
-OLLAMA_URL = config.env("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+#: 기본 주소는 localhost 가 아니라 127.0.0.1 — 이 PC(Windows)는 localhost 를 IPv6 로 먼저 묻고 약 1초씩 기다려,
+#: 근거 검색 평가 한 바퀴(질문 38)가 82초 걸렸다(127.0.0.1 로 질문당 0.2초 · 2026-10-04 실측).
+QDRANT_URL = config.env("KB_QDRANT_URL", "http://127.0.0.1:16333")   # compose 가 호스트에 연 포트
+OLLAMA_URL = config.env("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
 
 
 class IndexError_(RuntimeError):

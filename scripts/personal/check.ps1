@@ -293,6 +293,15 @@ $Checks = @(
        $msg = "맨 위 $($top.title) $($top.article) · $($top.version_label) · 방법 $($r.Json.retrieval.method)"
        if ($r.Json.retrieval.dense_error) { return (Warn "$msg — 벡터 쪽 꺼짐: $($r.Json.retrieval.dense_error)") }
        Pass $msg } }
+  # 법령 말 넓히기(코스피 → 유가증권시장) · 위임 조(법 제8조 → 시행령 제5조) — 2026-10-04 결함 DF-59 를 고친 두 장치
+  @{ G = '데이터'; Name = '근거 찾기 — 법령 말 넓히기 · 위임 조(코스피 증권거래세율)'; M = 'GET'; P = '/api/kb/search?q=2026%EB%85%84%20%EC%BD%94%EC%8A%A4%ED%94%BC%20%EC%83%81%EC%9E%A5%20%EC%A3%BC%EC%8B%9D%20%EC%A6%9D%EA%B6%8C%EA%B1%B0%EB%9E%98%EC%84%B8%EC%9C%A8&k=5'; Auth = $true; Timeout = 60
+     Test = { param($r)
+       $syn = @($r.Json.synonyms) | Where-Object { @($_.to) -contains '유가증권시장' }
+       if (-not $syn) { return (Fail "법령 말이 붙지 않았다(synonyms $(Count $r.Json.synonyms) 개) — app/services/kb_data/synonyms.tsv") }
+       $kids = @(@($r.Json.hits) | ForEach-Object { @($_.delegated) } | Where-Object { $_.doc_id -eq 'stt_decree' })
+       $inHits = @(@($r.Json.hits) | Where-Object { $_.doc_id -eq 'stt_decree' -and $_.article -eq '제5조' })
+       if (-not $kids -and -not $inHits) { return (Fail '시행령 제5조(탄력세율)가 근거에도 위임 조에도 없다') }
+       Pass "검색어 「$($r.Json.query_used)」 · 위임 조 $($r.Json.retrieval.delegated) 개 · 시행령 제5조 $(if ($inHits) { '근거에 있음' } else { '위임 조로' })" } }
   @{ G = '데이터'; Name = '근거 답 — LLM 없이 발췌(answer=extract)'; M = 'POST'; P = '/api/kb/ask'; Auth = $true; Timeout = 60
      Body = @{ q = '증권거래세 세율은?'; k = 3; answer = 'extract' }
      Test = { param($r)
