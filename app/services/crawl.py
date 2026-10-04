@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.lib.ollama import OllamaClient
 from app.models import CrawledDoc
+from app.services.crawl_points import crawl_point_id, prune_stale_points
 
 
 async def _upsert_crawled_doc(db: AsyncSession, url: str, title: str, content: str, source: str) -> None:
@@ -107,7 +108,7 @@ async def _store_qdrant(chunks: list[str], meta: dict, ollama: OllamaClient) -> 
             emb = await ollama.embed(settings.EMBED_MODEL, chunk)
             if not emb:
                 continue
-            point_id = abs(hash(f"{meta.get('url', '')}-{i}")) % (2 ** 63)
+            point_id = crawl_point_id(meta.get("url", ""), i)
             points.append(PointStruct(
                 id=point_id,
                 vector=emb,
@@ -116,6 +117,7 @@ async def _store_qdrant(chunks: list[str], meta: dict, ollama: OllamaClient) -> 
 
         if points:
             await client.upsert(collection_name=collection, points=points)
+            await prune_stale_points(client, collection, meta.get("url", ""), [p.id for p in points])
         await client.close()
         return len(points)
     except Exception as e:
