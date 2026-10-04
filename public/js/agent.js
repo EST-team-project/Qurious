@@ -1,12 +1,13 @@
 /* 금융정보 Agent: AI 채팅, CB 분석, 금융상품, 뉴스/RAG, 크롤링
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { KB_MODES, afterChatAnswer, ensureFreshThread, placeholderFor, resetThread, sendKbChat } from "/js/kbchat.js";
 
 let chatHistory = [];
 
 // ── 답변 엔진 선택 (우측 상단): ollama | openai | rag ─────────────────────
 // 선택값과 OpenAI 키는 이 브라우저의 localStorage 에만 저장되고, 키는 요청 본문으로만 서버에 전달된다(서버 저장 없음).
-const LLM_MODE_KEY = "lumina.chat.llmMode";
+const LLM_MODE_KEY = "qurious.chat.llmMode";
 const OPENAI_KEY_KEY = "lumina.chat.openaiKey";
 const LLM_MODE_LABEL = { ollama: "Local Ollama", openai: "OpenAI API", rag: "순수 RAG 청크" };
 
@@ -21,9 +22,9 @@ function syncLlmModeUi() {
   document.getElementById("chat-openai-key-wrap")?.classList.toggle("hidden", mode !== "openai");
   const inp = document.getElementById("chat-input");
   if (inp) {
-    inp.placeholder = mode === "rag"
+    inp.placeholder = placeholderFor(mode) || (mode === "rag"
       ? "검색어를 입력하면 지식 베이스에서 유사한 청크를 LLM 없이 그대로 보여줍니다."
-      : "예) 내 리스크 성향에 맞는 금융상품 추천해줘. 30대 남성 평균 신용점수는? 금리 3% 이상 정기예금 추천해줘.";
+      : "예) 내 리스크 성향에 맞는 금융상품 추천해줘. 30대 남성 평균 신용점수는? 금리 3% 이상 정기예금 추천해줘.");
   }
   try { localStorage.setItem(LLM_MODE_KEY, mode); } catch {}
 }
@@ -104,11 +105,24 @@ function scrollChat() {
   c.scrollTop = c.scrollHeight;
 }
 
+const chatCtx = {
+  appendUserMsg,
+  appendAssistantMsg,
+  clearInput: () => { document.getElementById("chat-input").value = ""; },
+  history: () => chatHistory,
+  pushHistory: (q, answer) => {
+    chatHistory.push({ role: "user", content: q });
+    chatHistory.push({ role: "assistant", content: answer });
+    if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+  },
+};
+
 async function sendChat() {
   const inp = document.getElementById("chat-input");
   const q = inp.value.trim();
   if (!q) return;
   const mode = getLlmMode();
+  if (KB_MODES.has(mode)) { await sendKbChat(q, mode, chatCtx); return; }
   const openaiKey = mode === "openai" ? getOpenAiKey() : "";
   if (mode === "openai" && !openaiKey) {
     setToast("OpenAI API Key를 입력해 주세요.", "error");
@@ -130,6 +144,7 @@ async function sendChat() {
   try {
     const body = { question: q, history: chatHistory, llm_mode: mode };
     if (mode === "openai") body.openai_api_key = openaiKey;
+    await ensureFreshThread();
     const res = await api("/api/chat", { method: "POST", body });
     document.getElementById("thinking")?.remove();
     if (mode !== "rag") {
@@ -139,6 +154,7 @@ async function sendChat() {
       if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
     }
     appendAssistantMsg(res.answer, res.steps, { mode: res.mode || mode, chunks: res.chunks ? res.chunks.length : null });
+    afterChatAnswer(q, res.mode || mode, chatCtx);
   } catch (e) {
     document.getElementById("thinking")?.remove();
     setToast(e.message, "error");
@@ -151,6 +167,7 @@ document.getElementById("chat-input").addEventListener("keydown", e => {
 });
 document.getElementById("clear-chat").addEventListener("click", () => {
   chatHistory = [];
+  resetThread();
   document.getElementById("chat-messages").innerHTML = "";
   setToast("대화 초기화됨", "ok");
 });

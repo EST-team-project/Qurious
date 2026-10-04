@@ -133,6 +133,19 @@ def _trim(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit].rstrip() + " …(뒤 생략)"
 
 
+def citation_excerpt(text: str, limit: int = CHUNK_CHARS) -> str:
+    """출처 카드에 보일 조문 글 — 답 모델이 받은 것과 같은 길이(`CHUNK_CHARS`)로 자르되 첫 줄의 제목 사슬은 뺀다.
+
+    왜: 화면이 답 아래에서 근거 조문을 그 자리에서 보여야 사람이 「답이 조문과 맞나」 를 확인한다(화면 설계
+    2026-10-04 · 안 A). 제목 · 조 번호는 카드 머리에 따로 나오므로 본문에서 되풀이하지 않는다.
+    """
+    body = (text or "").strip()
+    first, sep, rest = body.partition("\n")
+    if sep and " > " in first:          # 「증권거래세법 > 제8조(세율)」 꼴의 머리 줄
+        body = rest
+    return _trim(body, limit)
+
+
 def source_label(h: dict) -> str:
     """「자본시장과 금융투자업에 관한 법률 시행령 제2조(정의) · 대통령령 제36729호 · 2026-10-01 시행」 — 판 이름
     (`kb_text.Version.label`)에 시행일이 이미 들어 있어 따로 붙이지 않는다."""
@@ -250,10 +263,11 @@ def excerpt_answer(hits: Sequence[dict], limit: int = 3) -> str:
 # 4. 답하기
 # ==================================================
 def _citation(n: int, h: dict, used: bool) -> dict:
+    # excerpt = 화면의 출처 카드가 펼쳐 보이는 조문 글(답 모델에 넣은 것과 같은 길이 · 머리 줄 뺌)
     return {"n": n, "chunk_id": h["chunk_id"], "doc_id": h["doc_id"], "title": h["title"], "grade": h["grade"],
             "kind": h["kind"], "article": h["article"], "article_title": h["article_title"], "part": h["part"],
             "effective_at": h["effective_at"], "version_label": h["version_label"], "url": h["url"],
-            "score": h["score"], "used": used}
+            "score": h["score"], "used": used, "excerpt": citation_excerpt(h.get("text", ""))}
 
 
 def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Optional[str] = None,
