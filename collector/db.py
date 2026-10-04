@@ -37,6 +37,14 @@ OHLCV 규격(`collector/ohlcv.py` · 2026-10-01)으로 더한 넷 ::
     market_calendar    하루 한 행 거래일 여부 · 휴장 까닭(계산한 것 — 앞날 포함)
     market_event       금융 일정 — 휴장 · 파생 만기 · 배당 기준일 · 배당락일(계산한 것)
 
+공시 · 재무(`collector/disclosure.py` · `collector/financials.py` · 2026-10-04 · 설계서 5.1.5)로 더한 둘 ::
+
+    disclosure          공시 목록(받은 것 · DART list.json · 상장사 · 유형 A~J)
+    financial_statement 재무제표 주요계정(받은 것 · DART fnlttMultiAcnt · 정정본마다 한 벌)
+
+이름표 · 검색 색인은 이 파일에 두지 않는다 — 다시 만드는 것이라 `data/collector/search.sqlite3` 에 따로 둔다
+(`collector/search_index.py`).
+
 **받은 것과 계산한 것을 섞지 않는다.** 계산 규칙은 바뀌고, 바뀌면 전부 다시 만들어야
 하는데 원본에 덮어써 두면 되돌릴 근거가 없어진다.
 """
@@ -357,7 +365,82 @@ CREATE TABLE IF NOT EXISTS market_event (
 );
 CREATE INDEX IF NOT EXISTS ix_event_date ON market_event(event_date, kind);
 CREATE INDEX IF NOT EXISTS ix_event_symbol ON market_event(symbol, event_date);
+
+-- ── 14. 공시 목록 (받은 것) ────────────────────────────────────────────────
+-- 전자공시(DART) list.json 한 줄 = 한 행. 상장사(유가 · 코스닥 · 코넥스)만 · 유형(A~J)별로 받아 유형을 안다
+-- (응답에는 유형 칸이 없다 — 2026-10-04 실측). 만드는 쪽: collector/disclosure.py
+-- ⚠️ 같은 접수번호를 다시 받으면 fetched_at(처음 받은 시각)은 그대로 두고 updated_at · rm 만 고친다.
+CREATE TABLE IF NOT EXISTS disclosure (
+    rcept_no    TEXT    NOT NULL PRIMARY KEY,  -- 접수번호 14자리 — 앞 8자리가 접수일
+    rcept_dt    TEXT    NOT NULL,              -- YYYYMMDD (응답 그대로)
+    corp_code   TEXT    NOT NULL,              -- DART 고유번호 8자리
+    corp_name   TEXT    NOT NULL DEFAULT '',
+    stock_code  TEXT    NOT NULL DEFAULT '',   -- 종목 단축코드 6자리
+    corp_cls    TEXT    NOT NULL DEFAULT '',   -- Y 유가 · K 코스닥 · N 코넥스
+    pblntf_ty   TEXT    NOT NULL DEFAULT '',   -- A 정기 · B 주요사항 · C 발행 · D 지분 · E 기타 · F 외부감사 · G 펀드 · H 자산유동화 · I 거래소 · J 공정위
+    report_nm   TEXT    NOT NULL,              -- 보고서 이름(공백만 하나로 접음 · 머리 [기재정정] · 꼬리 설명 포함)
+    title       TEXT    NOT NULL DEFAULT '',   -- 머리 [..] · 꼬리 설명을 뗀 이름 — 유형 판정 · 일정 · 재무 잇기에 쓴다
+    revision    TEXT    NOT NULL DEFAULT '',   -- 머리 [..] 안 글 — 기재정정 · 첨부정정 · 첨부추가 · 변경등록 …
+    period      TEXT    NOT NULL DEFAULT '',   -- 정기보고서 기간 YYYY.MM — 「사업보고서 (2025.12)」 → 2025.12
+    flr_nm      TEXT    NOT NULL DEFAULT '',   -- 공시 제출인
+    rm          TEXT    NOT NULL DEFAULT '',   -- 비고(유 · 코 · 넥 · 채 · 연 · 정 · 철 …) — 마지막으로 받은 날 기준
+    fetched_at  TEXT    NOT NULL,              -- 처음 받은 시각 KST
+    updated_at  TEXT    NOT NULL,              -- 마지막으로 다시 받은 시각 KST
+    raw_sha256  TEXT    NOT NULL DEFAULT ''    -- 이 행이 나온 목록 응답 원문
+);
+CREATE INDEX IF NOT EXISTS ix_disc_date ON disclosure(rcept_dt);
+CREATE INDEX IF NOT EXISTS ix_disc_stock ON disclosure(stock_code, rcept_dt);
+CREATE INDEX IF NOT EXISTS ix_disc_period ON disclosure(corp_code, period);
+
+-- ── 15. 재무제표 (받은 것) ─────────────────────────────────────────────────
+-- DART 다중회사 주요계정(fnlttMultiAcnt · 한 번에 100개사) 한 줄 = 한 행. 만드는 쪽: collector/financials.py
+-- ⚠️ DART 재무 API 는 **가장 최근 정정본의 값과 접수번호만** 준다(2026-10-04 실측 — GS건설 2023 사업보고서는
+--    2024-03-21 첫 제출 · 정정 셋 · 지금 부르면 2026-06-30 정정본). 그래서 접수번호를 기본 키에 넣어 정정본마다
+--    새 행으로 쌓고(앞으로 매일 받는 정정은 그날의 판이 남는다), 미래 참조를 막는 날짜를 둘 둔다:
+--      known_at       = 이 값이 실린 보고서의 접수일(접수번호 앞 8자리) — 이 값 그대로를 알 수 있었던 첫날
+--      first_known_at = 그 기간 보고서가 처음 나온 날(정정 전 원본 · disclosure 에서 잇는다) — 그 기간 숫자가 처음 나온 날
+CREATE TABLE IF NOT EXISTS financial_statement (
+    corp_code       TEXT    NOT NULL,
+    bsns_year       TEXT    NOT NULL,          -- 사업연도 YYYY
+    reprt_code      TEXT    NOT NULL,          -- 11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업
+    fs_div          TEXT    NOT NULL,          -- CFS 연결 · OFS 별도
+    sj_div          TEXT    NOT NULL,          -- BS 재무상태표 · IS 손익계산서
+    ord             INTEGER NOT NULL,          -- 계정 정렬 순서(응답 그대로)
+    account_nm      TEXT    NOT NULL,          -- 계정 이름(응답 그대로 — 예 당기순이익(손실))
+    rcept_no        TEXT    NOT NULL,          -- 이 값이 실린 보고서 접수번호(정정이 있으면 정정본)
+    scope           TEXT    NOT NULL DEFAULT 'major',  -- major = 주요계정
+    stock_code      TEXT    NOT NULL DEFAULT '',
+    period_end      TEXT    NOT NULL DEFAULT '',       -- 당기 끝날 YYYY-MM-DD(thstrm_dt 에서)
+    thstrm_amount     INTEGER,                 -- 당기(분 · 반기 손익계산서는 3개월)
+    thstrm_add_amount INTEGER,                 -- 당기 누적
+    frmtrm_amount     INTEGER,                 -- 전기
+    frmtrm_add_amount INTEGER,                 -- 전기 누적
+    bfefrmtrm_amount  INTEGER,                 -- 전전기(사업보고서만)
+    currency        TEXT    NOT NULL DEFAULT 'KRW',
+    known_at        TEXT    NOT NULL,          -- YYYYMMDD — 접수번호 앞 8자리
+    first_known_at  TEXT    NOT NULL DEFAULT '',  -- YYYYMMDD — 그 기간 원본 보고서 접수일(모르면 빈칸)
+    fetched_at      TEXT    NOT NULL,          -- 받은 시각 KST
+    raw_sha256      TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (corp_code, bsns_year, reprt_code, fs_div, sj_div, ord, account_nm, rcept_no)
+);
+CREATE INDEX IF NOT EXISTS ix_fin_stock ON financial_statement(stock_code, bsns_year, reprt_code);
+CREATE INDEX IF NOT EXISTS ix_fin_rcept ON financial_statement(rcept_no);
 """
+
+#: 16. 금통위 · FOMC 공식 일정(받은 것) — 한국은행 · 연준 누리집에서 받는다. 만드는 쪽: collector/event_sources.py
+#: 거래일 달력의 일정(market_event · 계산한 것)이 이 표를 읽어 다시 만든다.
+POLICY_MEETING_DDL = """
+CREATE TABLE IF NOT EXISTS policy_meeting (
+    org          TEXT NOT NULL,              -- bok(한국은행 금통위) | fomc(미국 연준)
+    meeting_date TEXT NOT NULL,              -- YYYY-MM-DD — 금통위는 KST 회의일 · FOMC 는 둘째 날(미국 동부)
+    title        TEXT NOT NULL,
+    detail       TEXT NOT NULL DEFAULT '',
+    source_url   TEXT NOT NULL,
+    fetched_at   TEXT NOT NULL,              -- 받은 시각 KST
+    PRIMARY KEY (org, meeting_date)
+);
+"""
+SCHEMA += POLICY_MEETING_DDL
 
 
 def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:

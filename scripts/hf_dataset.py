@@ -340,6 +340,23 @@ TABLES: Dict[str, Dict] = {
         "why": "분봉 유니버스 명단(u1 · u2)과 뽑힌 근거. KRX 구성종목 CSV 는 사람이 받은 파일이라 이 표가 남는 기록이다",
         "optional": False,
     },
+    # ── 2026-10-04 추가: 공시 · 재무(목표 기능 ① W7) ──────────────────────────────────────────
+    # 둘 다 받은 것이다. 공시 목록은 다시 받을 수 있지만 rm(정정 있음 · 철회) 은 받은 날의 상태라 다시 받으면 달라지고,
+    # 재무는 DART 가 **최신 정정본만** 주므로 우리가 쌓아 온 옛 판(접수번호마다 한 벌)은 이 백업이 유일한 복원 길이다.
+    "disclosure": {
+        "partition": "year", "date_col": "rcept_dt",
+        "sort": ("rcept_dt", "rcept_no"),
+        "why": "공시 목록(DART · 상장사 · 유형 A~J). 정정 · 철회 표시는 받은 날의 상태다",
+        "optional": False,
+    },
+    "financial_statement": {
+        # 연도는 값이 실린 보고서의 접수일(known_at)로 가른다 — 옛 기간의 정정본도 접수한 해의 파일로 가서
+        # 닫힌 해의 파일이 바뀌지 않는다.
+        "partition": "year", "date_col": "known_at",
+        "sort": ("known_at", "corp_code", "bsns_year", "reprt_code", "fs_div", "sj_div", "ord", "account_nm", "rcept_no"),
+        "why": "재무 주요계정(DART · 정정본마다 한 벌). DART 는 최신 정정본만 다시 주므로 옛 판은 이 백업뿐이다",
+        "optional": False, "heavy": True,
+    },
 }
 
 #: 올리지 않는 표와 그 이유.
@@ -355,6 +372,7 @@ EXCLUDED: Dict[str, str] = {
     "holiday_kasi": "특일 정보(한국천문연구원 · 이용허락범위 제한 없음)를 언제든 다시 받는다 — python -m collector.market_calendar build",
     "market_calendar": "계산한 표 — python -m collector.market_calendar build 가 공휴일 · 시세로 다시 만든다",
     "market_event": "계산한 표 — python -m collector.market_calendar build 가 달력 · 배당 표로 다시 만든다",
+    "policy_meeting": "금통위 · FOMC 공식 일정(한국은행 · 연준 누리집)을 언제든 다시 받는다 — python -m collector.event_sources fetch --force",
 }
 
 #: SQLite 선언 타입 → arrow 타입. TEXT 는 string, INTEGER 는 int64, REAL 은 float64,

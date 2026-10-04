@@ -74,7 +74,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-from collector import config, db
+from collector import config, db, event_sources
 from collector.console import utf8_stdio
 from collector.sources import dart
 
@@ -448,6 +448,10 @@ def build_events(conn: sqlite3.Connection, days: Sequence[Day]) -> List[tuple]:
             ev.append((f"dividend_ex:{rec_iso}:{code}", "dividend_ex", ex_iso, "", "", code,
                        f"{name} 배당락일", f"이날부터 사면 이번 배당({amount})을 받지 못한다 · 기준일 {rec_iso}",
                        "computed", "dividend", rcept, at))
+
+    # ④ 실적 · 정기보고서 법정 기한 · 금통위 · FOMC(2026-10-04 · W7) — 규칙은 collector/event_sources.py
+    years = sorted({x.cal_date.year for x in days})
+    ev += event_sources.extra_events(conn, public_holidays(conn).keys(), years, now_kst().date(), at)
     return ev
 
 
@@ -482,6 +486,13 @@ def build(conn: sqlite3.Connection, *, fetch: bool = True, today: Optional[date]
         except KasiError as e:
             out["fetch_error"] = str(e)
             print(f"  ⚠️ {e} — 어제까지 받은 공휴일로 만든다")
+    if fetch:
+        # 금통위 · FOMC 공식 일정 — 7일에 한 번만 다시 받고, 실패해도 달력은 어제 받은 일정으로 만든다
+        try:
+            out["policy"] = event_sources.refresh_policy_meetings(conn, today, quiet=quiet)
+        except Exception as e:  # noqa: BLE001
+            out["policy_error"] = str(e)
+            print(f"  ⚠️ 금통위 · FOMC 일정 받기 실패 — {e}")
     years = holiday_years(conn)
     end = calendar_end(years)
     if end is None:

@@ -24,6 +24,7 @@
     로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
     용어     용어사전의 판(표가 파일과 같은가) · 분류 · 검색(약어 · 초성) · 화면 키로 한 건 · 없는 이름은 404
     데이터   데이터 상태(일일 갱신 · 표별 기준일과 늦음) · 거래일 달력(60일) · 금융 일정(파생 만기 · 배당락일) ·
+             수집 자료 검색(공시) · 재무 주요계정 · 금융 일정 새 종류(금통위 · FOMC · 보고서 기한) ·
              근거 찾기(법령 · 기준일 판) · 근거 답(LLM 없이 발췌)
     매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
     연동     TradingView 웹훅 안내 · 알림 설정
@@ -285,6 +286,23 @@ $Checks = @(
      Test = { param($r)
        $last = $r.Json.rows[-1]
        Pass "$($r.Json.count) 주 · 마지막 $($last.trade_date) 종가 $($last.close) · 진행 중 $($r.Json.partial)" } }
+  # 공시 · 재무 · 새 일정 종류(2026-10-04 · W7) — 수집기가 만든 search.sqlite3 · financial_statement · market_event 를 읽는다.
+  @{ G = '데이터'; Name = '수집 자료 검색 — 「유상증자」 공시'; M = 'GET'; P = '/api/data/search?q=%EC%9C%A0%EC%83%81%EC%A6%9D%EC%9E%90&kind=disclosure&limit=5'; Auth = $true
+     Test = { param($r)
+       $top = @($r.Json.items) | Select-Object -First 1
+       if (-not $top) { return (Fail '찾은 공시가 없다 — python -m collector.search_index build') }
+       Pass "총 $($r.Json.total)$(if ($r.Json.total_capped) { '+' }) 건 · 맨 위 $($top.published) $($top.corp_name) $($top.title) · 색인 $($r.Json.index_built_at)" } }
+  @{ G = '데이터'; Name = '재무 주요계정 — 삼성전자 최근 4기간'; M = 'GET'; P = '/api/data/financials?symbol=005930&periods=4'; Auth = $true
+     Test = { param($r)
+       $p = @($r.Json.periods) | Select-Object -First 1
+       if (-not $p) { return (Fail '기간이 없다 — python -m collector.financials backfill') }
+       Pass "$(Count $r.Json.periods) 기간 · 최근 $($p.bsns_year) $($p.report) 매출 $(N0 $p.key.revenue) · 판 $($p.rcept_no) · 쓸 수 있는 날 $($p.available_from)" } }
+  @{ G = '데이터'; Name = '금융 일정 — 금통위 · FOMC · 보고서 기한(새 종류)'; M = 'GET'; P = '/api/calendar/events?kind=policy_rate,fomc,report_deadline'; Auth = $false
+     Test = { param($r)
+       $bok = @($r.Json.events | Where-Object { $_.kind -eq 'policy_rate' })[0]
+       $fomc = @($r.Json.events | Where-Object { $_.kind -eq 'fomc' })[0]
+       if (-not $bok -and -not $fomc) { return (Warn '60일 안에 금통위 · FOMC 가 없다 — python -m collector.event_sources fetch --force') }
+       Pass "금통위 $($bok.date) · FOMC $($fomc.date) · 보고서 기한 $(Count @($r.Json.events | Where-Object { $_.kind -eq 'report_deadline' })) 건" } }
   # 근거 문서(법령 · 감독규정 · 2026-10-03) — 수집기가 만든 kb.sqlite3 를 읽는다. 없으면 503 과 할 일(python -m collector.kb_law fetch).
   @{ G = '데이터'; Name = '근거 찾기 — 증권거래세 세율(기준일 판 · 낱말 + 벡터)'; M = 'GET'; P = '/api/kb/search?q=%EC%A6%9D%EA%B6%8C%EA%B1%B0%EB%9E%98%EC%84%B8%20%EC%84%B8%EC%9C%A8&k=3'; Auth = $true; Timeout = 60
      Test = { param($r)

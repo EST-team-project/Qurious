@@ -27,7 +27,15 @@ EVENT_KINDS = {
     "deriv_expiry": "파생 만기",
     "dividend_record": "배당 기준일",
     "dividend_ex": "배당락일",
+    # 2026-10-04 · W7 — 실적 · 정기보고서 법정 기한 · 금통위 · FOMC(collector/event_sources.py)
+    "earnings": "실적 발표",
+    "report_deadline": "보고서 기한",
+    "policy_rate": "금통위",
+    "fomc": "FOMC",
 }
+#: `kind` 를 비우면 주는 종류 — 일정 화면이 결정 ③ 의 넷만 그린다(새 종류를 화면에 올리는 것은 Figma 결정 뒤).
+#: 새 종류는 `kind=earnings,policy_rate` 처럼 이름으로, 또는 `kind=all` 로 묻는다.
+DEFAULT_KINDS = ("market_closure", "deriv_expiry", "dividend_record", "dividend_ex")
 CONFIDENCE = {"confirmed": "확정", "scheduled": "예정", "computed": "규칙으로 계산"}
 BASIS = {"observed": "시세로 확인", "rule": "규칙 · 공휴일 표로 예정"}
 _WEEKDAYS = "월화수목금토일"
@@ -120,9 +128,13 @@ def trading_days(start: date, end: date) -> dict:
 
 def events(start: date, end: date, kind: str | None = None, symbol: str | None = None,
            limit: int = 500) -> dict:
-    """구간의 금융 일정 — 휴장 · 파생 만기 · 배당 기준일 · 배당락일."""
+    """구간의 금융 일정 — 휴장 · 파생 만기 · 배당 기준일 · 배당락일(기본) · 실적 · 보고서 기한 · 금통위 · FOMC(이름 · all 로)."""
     _check_range(start, end, MAX_DAYS)
     kinds = [k for k in (kind or "").split(",") if k]
+    if kinds == ["all"]:
+        kinds = list(EVENT_KINDS)
+    elif not kinds:
+        kinds = list(DEFAULT_KINDS)
     unknown = [k for k in kinds if k not in EVENT_KINDS]
     if unknown:
         raise CalendarUnavailable(f"모르는 일정 종류: {', '.join(unknown)} — {', '.join(EVENT_KINDS)} 중에서", 422)
@@ -161,7 +173,7 @@ def events(start: date, end: date, kind: str | None = None, symbol: str | None =
     return {
         "from": start.isoformat(),
         "to": end.isoformat(),
-        "kind": kinds or list(EVENT_KINDS),
+        "kind": kinds,
         "symbol": symbol or "",
         "events": items,
         "total": total,
