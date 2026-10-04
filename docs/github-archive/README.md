@@ -80,13 +80,14 @@ docs/github-archive/
 │   ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md  (#103 · 10-04 올림)
 │   ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
 │   └── PR-feat-kb-ask-and-local-llm-research/  00-본문.md  (#102)
-└── 2026-10-04/        ← 새 글 6건
+└── 2026-10-04/        ← 새 글 7건
     ├── PR-feat-kb-answer-screen/  00-본문.md  (#104)
-    ├── 이슈-점검-인디케이터-화면/  00-본문.md  (올릴 것 · 신장환 님)
-    ├── 이슈-점검-자산배분-리밸런싱-자동매매/  00-본문.md  (올릴 것 · 오준영 님)
-    ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (올릴 것 · 강민석 님)
-    ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (올릴 것 · 팀)
-    └── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (번호는 올린 뒤)
+    ├── 이슈-점검-인디케이터-화면/  00-본문.md  (#107 · 10-04 올림 · 신장환 님)
+    ├── 이슈-점검-자산배분-리밸런싱-자동매매/  00-본문.md  (#108 · 10-04 올림 · 오준영 님)
+    ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (#106 · 10-04 올림 · 강민석 님)
+    ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀)
+    ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
+    └── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -352,16 +353,17 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-deliverables-v01-doc-figures](2026-10-03/PR-docs-deliverables-v01-doc-figures/00-본문.md) | docs: 빠진 주요 산출물 15개 v0.1 · 문서 그림 지침(Figma) · 문서 작성 기준 v0.2 | 1,572 | [#101](https://github.com/EST-team-project/Qurious/pull/101) — 10-03 20:24 머지 |
 | [PR feat-kb-ask-and-local-llm-research](2026-10-03/PR-feat-kb-ask-and-local-llm-research/00-본문.md) | feat: 근거 번호가 달린 답 API · 로컬 LLM 조사서 · 답 모델 비교 — 목표 기능 ① W6 | 1,827 | [#102](https://github.com/EST-team-project/Qurious/pull/102) — 10-03 22:18 머지 |
 
-### 2026-10-04 — 새 글 6건
+### 2026-10-04 — 새 글 7건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR feat-kb-answer-screen](2026-10-04/PR-feat-kb-answer-screen/00-본문.md) | feat: 근거 답 화면 — 답 아래 출처 카드 · 처음 엔진 자동 · 숨은 지난 대화 고침 · 목표 기능 ① 설계서 v1.0 | 2,380 | [#104](https://github.com/EST-team-project/Qurious/pull/104) — 10-04 14:46 머지 · `92a8288` |
-| [이슈 점검-인디케이터-화면](2026-10-04/이슈-점검-인디케이터-화면/00-본문.md) | [점검] 인디케이터 화면 기능 완성도 — 점수표 · 지표 정의 · 성과 리포트 · 확장 후보 (신장환 님) | 3,148 | (올릴 것 · 10-05 권장) |
-| [이슈 점검-자산배분-리밸런싱-자동매매](2026-10-04/이슈-점검-자산배분-리밸런싱-자동매매/00-본문.md) | [점검] 자산배분 · 리밸런싱 · 자동매매 · 증권사 연동 화면 기능 완성도 (오준영 님) | 2,876 | (올릴 것 · 10-05 권장) |
-| [이슈 점검-모의투자-성과-테스트베드](2026-10-04/이슈-점검-모의투자-성과-테스트베드/00-본문.md) | [점검] 모의투자 · 성과 · 테스트베드 · 투자 대시보드 화면 기능 완성도 (강민석 님) | 3,260 | (올릴 것 · 10-06 권장) |
-| [이슈 점검-주인미정-화면-배지규칙](2026-10-04/이슈-점검-주인미정-화면-배지규칙/00-본문.md) | [점검] 주인이 정해지지 않은 화면 22개와 기능 완성도 배지 갱신 규칙 (팀) | 2,436 | (올릴 것 · 10-06 권장) |
-| [PR feat-completion-audit-and-crawl-points](2026-10-04/PR-feat-completion-audit-and-crawl-points/00-본문.md) | feat: 기능 완성도 점검 — 화면 69 점수표 · 배지 팀 줄 · 크롤 조각 점 번호 고침 · 시장조사 | 2,232 | (올린 뒤 적음) |
+| [이슈 점검-인디케이터-화면](2026-10-04/이슈-점검-인디케이터-화면/00-본문.md) | [점검] 인디케이터 화면 기능 완성도 — 점수표 · 지표 정의 · 성과 리포트 · 확장 후보 (신장환 님) | 3,148 | [#107](https://github.com/EST-team-project/Qurious/issues/107) — 10-04 올림(사용자가 웹에서 · 제목은 줄여 「[이슈] 점검 - 인디케이터 화면」) |
+| [이슈 점검-자산배분-리밸런싱-자동매매](2026-10-04/이슈-점검-자산배분-리밸런싱-자동매매/00-본문.md) | [점검] 자산배분 · 리밸런싱 · 자동매매 · 증권사 연동 화면 기능 완성도 (오준영 님) | 2,876 | [#108](https://github.com/EST-team-project/Qurious/issues/108) — 10-04 올림 |
+| [이슈 점검-모의투자-성과-테스트베드](2026-10-04/이슈-점검-모의투자-성과-테스트베드/00-본문.md) | [점검] 모의투자 · 성과 · 테스트베드 · 투자 대시보드 화면 기능 완성도 (강민석 님) | 3,260 | [#106](https://github.com/EST-team-project/Qurious/issues/106) — 10-04 올림 |
+| [이슈 점검-주인미정-화면-배지규칙](2026-10-04/이슈-점검-주인미정-화면-배지규칙/00-본문.md) | [점검] 주인이 정해지지 않은 화면 22개와 기능 완성도 배지 갱신 규칙 (팀) | 2,436 | [#109](https://github.com/EST-team-project/Qurious/issues/109) — 10-04 올림 |
+| [PR feat-completion-audit-and-crawl-points](2026-10-04/PR-feat-completion-audit-and-crawl-points/00-본문.md) | feat: 기능 완성도 점검 — 화면 69 점수표 · 배지 팀 줄 · 크롤 조각 점 번호 고침 · 시장조사 | 2,232 | [#105](https://github.com/EST-team-project/Qurious/pull/105) — 10-04 머지 · `c8c07fd` |
+| [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

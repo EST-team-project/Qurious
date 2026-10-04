@@ -8,7 +8,8 @@
    (답변 정책 ④ · 조사서 「로컬 · 무료 LLM 과 AWS 를 퀀트에서 쓰는 법」 2절 — LLM 은 학습 때 읽은 결과를 기억해
    예측 성과를 부풀린다).
 2. **찾기** — ``kb_search.search`` 로 기준일에 시행 중인 판만, 낱말 + 벡터 → RRF 상위 k. 판 고르기가 곧 시점 고정
-   검색이다(기준일 뒤의 판은 근거에 들어오지 않는다).
+   검색이다(기준일 뒤의 판은 근거에 들어오지 않는다). 찾은 법 조가 값을 하위 법령에 맡겼으면 그 위임 조를 윗 조
+   바로 뒤에 끼운다(``kb_links.expand`` · DF-59 — 법 조의 기본값을 답하던 결함).
 3. **근거 없음** — 찾은 근거가 0 이면 LLM 을 부르지 않는다.
 4. **프롬프트** — 근거마다 ``[출처 n]`` 머리(문서 · 조 · 판 · 시행일)와 본문(길이 상한)을 넣고 규칙(근거 밖 사실 금지 ·
    문장마다 출처 · 답할 수 없으면 정해진 한 문장 · 투자 권유 금지)을 준다.
@@ -32,11 +33,20 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-from app.services import kb_search
+from app.services import kb_links, kb_search, kb_synonyms
 
 #: 한 번에 넣을 근거 수 · 기본값 — 이 PC 의 CPU 로 질문 읽기가 초당 약 30토큰이라(조사서 4.4절) 넉넉히 넣지 않는다
 MAX_ASK_K = 8
 DEFAULT_ASK_K = 5
+#: 위임 조로 더 끼울 수 있는 근거 수 · 위임 조만 따로 쓰는 글자 몫(기본 0 = 원래 근거가 남긴 자리에만)
+#: 2026-10-04 근거답 평가에서 정한 두 가지:
+#: - 위임 조가 원래 찾은 근거를 밀어내지 않는다 — 관련 없는 1 · 2위 조에 붙은 위임 조 둘이 4,500자를 먼저 채워
+#:   정답 조(4위 · 자본시장법 제176조)가 빠졌다(A09).
+#: - 문맥을 늘리지 않는다 — 위임 조 몫 1,800자를 따로 주자 질문이 약 4,365토큰이 되어 이 PC 의 내장 GPU(Vulkan)가
+#:   「device lost」 로 멈추고 Ollama 가 500 을 돌려줬다(A09 · A11 · DF-65). 그래서 몫은 0 으로 두고, 시행령이 이미
+#:   근거에 있으면 윗 조 바로 뒤로 당겨 오는 것과 「맡긴 내용은 [출처 n]」 알림만 쓴다. 안정된 GPU 에서는 늘려도 된다.
+LINK_EXTRA = 2
+LINK_CHARS = 0
 #: 근거 한 개 · 전체 글자 상한 — 조문이 길면 앞부분만(머리 + 본문 앞)
 CHUNK_CHARS = 900
 CONTEXT_CHARS = 4500
@@ -70,7 +80,9 @@ SYSTEM_PROMPT = (
     "2. 모든 문장 끝에 그 문장의 근거 번호를 [출처 n] 꼴로 단다. 근거가 둘이면 [출처 1][출처 2] 처럼 붙인다.\n"
     f"3. 근거로 답할 수 없으면 다른 말 없이 \"{NO_ANSWER}\" 한 문장만 쓴다.\n"
     "4. 특정 종목의 매수 · 매도를 권하거나 가격 · 수익률을 예측하지 않는다.\n"
-    "5. 한국어 세 문장 이내로, 법 이름과 조 번호를 밝혀 쉬운 말로 쓴다."
+    "5. 한국어 세 문장 이내로, 법 이름과 조 번호를 밝혀 쉬운 말로 쓴다.\n"
+    "6. 법 조가 값을 「대통령령으로 정하는」 처럼 하위 법령에 맡겼고 그 위임 조가 [근거]에 있으면, 실제 적용 값은 "
+    "위임 조의 값으로 답한다. 법 조의 숫자는 기본값이라 실제 값과 다를 수 있다."
 )
 
 
@@ -156,20 +168,67 @@ def source_label(h: dict) -> str:
     return f"{h['title']} {art} · {label}"
 
 
+def _block(n: int, h: dict, chunk_chars: int = CHUNK_CHARS) -> str:
+    return f"[출처 {n}] {source_label(h)}\n{_trim(h['text'], chunk_chars)}"
+
+
+def fit_evidence(evidence: Sequence[dict], original_ids, *, chunk_chars: int = CHUNK_CHARS,
+                 context_chars: int = CONTEXT_CHARS, link_chars: int = LINK_CHARS) -> List[dict]:
+    """답 문맥에 넣을 근거 — 원래 찾은 근거가 먼저 ``context_chars`` 안에(순위 순 · 첫째는 늘), 위임 조는 그 뒤
+    남은 자리 + ``link_chars`` 안에서 윗 조가 들어간 것만. 고른 것을 ``evidence`` 의 순서(위임 조는 윗 조 바로 뒤)
+    그대로 돌려준다.
+
+    위임 조가 원래 근거를 밀어내지 않게 하려는 것이다 — 위임 조를 켜도 원래 근거는 끈 때와 같은 것이 들어간다.
+    """
+    original_ids = set(original_ids)
+    picked: set = set()
+    used = 0
+    for h in evidence:
+        if h["chunk_id"] not in original_ids:
+            continue
+        size = len(_block(len(picked) + 1, h, chunk_chars))
+        if picked and used + size > context_chars:
+            break
+        picked.add(h["chunk_id"])
+        used += size
+    room = max(0, context_chars - used) + link_chars   # 원래 근거가 남긴 자리 + 따로 준 몫
+    for h in evidence:
+        v = h.get("via")
+        if h["chunk_id"] in picked or h["chunk_id"] in original_ids or not v or v.get("chunk_id") not in picked:
+            continue
+        size = len(_block(1, h, chunk_chars))
+        if size > room:
+            continue
+        picked.add(h["chunk_id"])
+        room -= size
+    return [h for h in evidence if h["chunk_id"] in picked]
+
+
 def build_messages(q: str, as_of: str, hits: Sequence[dict], *, chunk_chars: int = CHUNK_CHARS,
                    context_chars: int = CONTEXT_CHARS) -> Tuple[List[dict], int]:
-    """(메시지, 넣은 근거 수). 전체 글자 상한을 넘으면 뒤의 근거를 뺀다(순위가 낮은 것부터)."""
-    blocks: List[str] = []
+    """(메시지, 넣은 근거 수). 전체 글자 상한을 넘으면 뒤의 근거를 뺀다(순위가 낮은 것부터).
+
+    위임 조 짝(``kb_links.pairs``)은 둘 다 들어간 때만 알린다 — 윗 조 끝에 「이 조가 맡긴 값은 [출처 n]」,
+    위임 조 머리에 「[출처 m] … 에서 대통령령에 맡긴 조」. 한쪽이 글자 상한으로 빠졌는데 번호를 가리키면
+    답 모델이 없는 근거를 부른다.
+    """
+    bodies: List[str] = []
     used = 0
     for i, h in enumerate(hits, start=1):
-        block = f"[출처 {i}] {source_label(h)}\n{_trim(h['text'], chunk_chars)}"
-        if blocks and used + len(block) > context_chars:
+        block = _block(i, h, chunk_chars)
+        if bodies and used + len(block) > context_chars:
             break
-        blocks.append(block)
+        bodies.append(block)
         used += len(block)
-    user = (f"기준일: {as_of} (이날 시행 중인 판의 조문만 근거로 넣었다)\n\n[근거]\n" + "\n\n".join(blocks)
+    n_in = len(bodies)
+    for parent_n, child_n, v in kb_links.pairs(list(hits[:n_in])):
+        head, sep, rest = bodies[child_n - 1].partition("\n")
+        bodies[child_n - 1] = f"{head} — [출처 {parent_n}] {kb_links.chain_label(v)}(위임 조){sep}{rest}"
+        bodies[parent_n - 1] += (f"\n※ 이 조가 {v['level_name']}에 맡긴 내용은 [출처 {child_n}]"
+                                 f"({hits[child_n - 1]['title']} {hits[child_n - 1]['article']})에 있다.")
+    user = (f"기준일: {as_of} (이날 시행 중인 판의 조문만 근거로 넣었다)\n\n[근거]\n" + "\n\n".join(bodies)
             + f"\n\n[질문]\n{q}")
-    return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}], len(blocks)
+    return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}], n_in
 
 
 # ==================================================
@@ -262,6 +321,23 @@ def excerpt_answer(hits: Sequence[dict], limit: int = 3) -> str:
 # ==================================================
 # 4. 답하기
 # ==================================================
+def _citations(evidence: Sequence[dict], used) -> List[dict]:
+    """근거 목록 → 출처 목록. ``used(n)`` 이 참이면 답에 쓴 근거.
+
+    위임 조에는 ``via`` = {n: 윗 조 번호, ref: 「법 제8조제2항」, label: 「… 에서 대통령령에 맡긴 조」} 를 싣는다 —
+    화면이 「위임 조」 라는 것을 보일 수 있게(윗 조가 목록에 없으면 싣지 않는다).
+    """
+    links = {child_n: (parent_n, v) for parent_n, child_n, v in kb_links.pairs(evidence)}
+    out = []
+    for i, h in enumerate(evidence, start=1):
+        c = _citation(i, h, used(i))
+        if i in links:
+            parent_n, v = links[i]
+            c["via"] = {"n": parent_n, "ref": v["ref"], "level": v["level"], "label": kb_links.chain_label(v)}
+        out.append(c)
+    return out
+
+
 def _citation(n: int, h: dict, used: bool) -> dict:
     # excerpt = 화면의 출처 카드가 펼쳐 보이는 조문 글(답 모델에 넣은 것과 같은 길이 · 머리 줄 뺌)
     return {"n": n, "chunk_id": h["chunk_id"], "doc_id": h["doc_id"], "title": h["title"], "grade": h["grade"],
@@ -272,8 +348,8 @@ def _citation(n: int, h: dict, used: bool) -> dict:
 
 def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Optional[str] = None,
         docs: Optional[Sequence[str]] = None, mode: str = "hybrid", model: Optional[str] = None, route: bool = True,
-        answer: str = "llm", llm: Optional[str] = None, path=None, backend: Optional[kb_search.DenseBackend] = None,
-        llm_backend: Optional[LlmBackend] = None) -> dict:
+        links: bool = True, synonyms: bool = True, answer: str = "llm", llm: Optional[str] = None, path=None,
+        backend: Optional[kb_search.DenseBackend] = None, llm_backend: Optional[LlmBackend] = None) -> dict:
     q = (q or "").strip()
     if not q:
         raise kb_search.KbError(422, "질문이 비었다")
@@ -293,9 +369,10 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
                        found=None, timing={"search_ms": 0, "llm_ms": 0, "total_ms": _ms(t0)})
 
     found = kb_search.search(q, k, as_of=as_of, kind=kind, docs=docs, mode=mode, model=model, route=route,
-                             path=path, backend=backend)
+                             links=links, synonyms=synonyms, path=path, backend=backend)
     t_search = _ms(t0)
-    hits = found["hits"]
+    # 위임 조를 윗 조 바로 뒤에 끼운 근거 목록 — 출처 번호는 이 목록의 순서다
+    hits = kb_links.expand(found["hits"], limit=k + LINK_EXTRA)
     llm_name = llm or (default_model() if answer == "llm" else None)
     info = {"model": llm_name, "mode": answer, "error": None}
 
@@ -306,10 +383,14 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
 
     if answer == "extract":
         return _result(q, found["as_of"], "excerpt", excerpt_answer(hits), reason="LLM 없이 근거 발췌만 요청했다",
-                       citations=[_citation(i, h, i <= 3) for i, h in enumerate(hits, start=1)], check=None,
+                       citations=_citations(hits, lambda n: n <= 3), check=None,
                        llm_info=info, found=found, timing={"search_ms": t_search, "llm_ms": 0, "total_ms": _ms(t0)})
 
-    messages, n_in = build_messages(q, found["as_of"], hits)
+    # 답 모델이 읽는 질문 — 질문 말 뒤에 법령 말을 괄호로(「코스피(유가증권시장)」). 화면 · 응답의 query 는 원래 질문 그대로
+    q_ctx = kb_synonyms.annotate(q, kb_synonyms.match(q)) if synonyms else q
+    # 원래 근거가 먼저 · 위임 조는 남은 자리에(fit_evidence) — 고른 것은 다시 자르지 않게 상한을 조금 넉넉히
+    hits = fit_evidence(hits, [h["chunk_id"] for h in found["hits"]])
+    messages, n_in = build_messages(q_ctx, found["as_of"], hits, context_chars=CONTEXT_CHARS + LINK_CHARS + 1000)
     hits = hits[:n_in]
     t1 = time.perf_counter()
     try:
@@ -318,7 +399,7 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
     except Exception as e:  # noqa: BLE001 — 생성이 안 돼도 근거는 보인다(위 머리말)
         info["error"] = _llm_error(e, llm_name)
         return _result(q, found["as_of"], "excerpt", excerpt_answer(hits), reason=info["error"],
-                       citations=[_citation(i, h, i <= 3) for i, h in enumerate(hits, start=1)], check=None,
+                       citations=_citations(hits, lambda n: n <= 3), check=None,
                        llm_info=info, found=found,
                        timing={"search_ms": t_search, "llm_ms": _ms(t1), "total_ms": _ms(t0)})
     llm_ms = _ms(t1)
@@ -330,7 +411,7 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
     if is_no_answer(raw):
         return _result(q, found["as_of"], "no_evidence", NO_ANSWER,
                        reason="답 모델이 넣은 근거로는 답할 수 없다고 했다",
-                       citations=[_citation(i, h, False) for i, h in enumerate(hits, start=1)],
+                       citations=_citations(hits, lambda n: False),
                        check={"valid": [], "invalid": [], "sentences": 0, "uncited": 0}, llm_info=info, found=found,
                        timing=timing, raw=raw)
 
@@ -340,15 +421,15 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
     if mostly_not_korean(text):
         return _result(q, found["as_of"], "excerpt", excerpt_answer(hits),
                        reason="답 모델의 글이 한국어가 아니다(생각 글이 새었을 수 있다) — 근거 발췌로 바꿨다",
-                       citations=[_citation(i, h, i <= 3) for i, h in enumerate(hits, start=1)], check=check,
+                       citations=_citations(hits, lambda n: n <= 3), check=check,
                        llm_info=info, found=found, timing=timing, raw=raw)
     if not valid:
         return _result(q, found["as_of"], "excerpt", excerpt_answer(hits),
                        reason="답 모델의 글에 근거 목록 안의 출처 번호가 하나도 없어 근거 발췌로 바꿨다(답변 정책 ①②)",
-                       citations=[_citation(i, h, i <= 3) for i, h in enumerate(hits, start=1)], check=check,
+                       citations=_citations(hits, lambda n: n <= 3), check=check,
                        llm_info=info, found=found, timing=timing, raw=raw)
     return _result(q, found["as_of"], "answered", text, reason=None,
-                   citations=[_citation(i, h, i in valid) for i, h in enumerate(hits, start=1)], check=check,
+                   citations=_citations(hits, lambda n: n in valid), check=check,
                    llm_info=info, found=found, timing=timing)
 
 
@@ -365,6 +446,7 @@ def _result(q: str, as_of: str, status: str, text: str, *, reason: Optional[str]
         "model": llm_info.get("model"), "llm": llm_info,
         "embed_model": (found or {}).get("model"),
         "retrieval": (found or {}).get("retrieval"), "route": (found or {}).get("route"),
+        "synonyms": (found or {}).get("synonyms", []),
         "missing": (found or {}).get("missing", []),
         "timing": timing, "source": kb_search.SOURCE, "notice": NOTICE,
     }

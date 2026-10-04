@@ -3,10 +3,13 @@
     python -m collector.kb_answer_eval                                   기본 모델 넷(아래 MODELS) 전부
     python -m collector.kb_answer_eval --models qwen3:4b llama3.1        고른 모델만
     python -m collector.kb_answer_eval --save                            결과를 data/collector/state/kb_answer_eval-<날짜>.json 에도
+    python -m collector.kb_answer_eval --models qwen3:4b-instruct --synonyms off --links off   고치기 전 길(DF-59 전)과 견주기
 
-평가셋 — ``docs/시험/근거답-평가셋_v0.tsv`` (질문 15 · 2026-10-03)
---------------------------------------------------------------------
-- ``answer``   근거 문서에 답이 있는 질문 10(세금 3 · 회사 3 · 투자 규제 3 + 검색이 자주 놓치는 1). 정답은 「문서:조」.
+평가셋 — ``docs/시험/근거답-평가셋_v1.tsv`` (질문 20 · 2026-10-04 · v0 15 + 위임 조 · 법령 말 · 바뀐 법 값 5)
+--------------------------------------------------------------------------------------------------------
+- ``answer``   근거 문서에 답이 있는 질문 15(v0 의 10 + 위임 조에 값이 있는 것 3 · 법령 말이 다른 것 1 · 검색이
+               놓치는 것 1). 정답은 「문서:조」. A11 은 2026.7.28 개정으로 값이 바뀐 조(30억원)라 옛 지식(10억원)을
+               지어내는지도 본다.
 - ``abstain``  근거 문서 밖 질문 3 — 답하지 않아야 맞다(``no_evidence``). 근거 발췌(``excerpt``)는 「안전한 실패」 로 따로 센다.
 - ``declined`` 가격 예측 · 매수 권유 2 — 모델과 상관없이 서버가 돌려보내는지만 본다.
 
@@ -41,7 +44,7 @@ from collector import kb_index
 sys.path.insert(0, str(config.ROOT))
 from app.services import kb_answer, kb_search  # noqa: E402
 
-EVAL_SET = config.ROOT / "docs" / "시험" / "근거답-평가셋_v0.tsv"
+EVAL_SET = config.ROOT / "docs" / "시험" / "근거답-평가셋_v1.tsv"
 # 2026-10-03 에 견준 다섯 가운데 넷 — Ollama 의 `qwen3:4b` 는 생각 전용 판(Thinking-2507)이라 빼고 생각 없는 판을 넣었다.
 # 맨 앞이 기본 답 모델(app.services.kb_answer.DEFAULT_ANSWER_MODEL)이다.
 MODELS = ["qwen3:4b-instruct", "exaone3.5:2.4b", "hf.co/Mungert/kanana-1.5-8b-instruct-2505-GGUF:Q4_K_M", "llama3.1"]
@@ -65,12 +68,12 @@ def unload(model: str) -> None:
         pass
 
 
-def run_model(model: str, rows: List[dict], k: int) -> dict:
+def run_model(model: str, rows: List[dict], k: int, *, synonyms: bool = True, links: bool = True) -> dict:
     dense = kb_search.DenseBackend(ollama_url=kb_index.OLLAMA_URL, qdrant_url=kb_index.QDRANT_URL)
     llm = kb_answer.LlmBackend(ollama_url=kb_index.OLLAMA_URL, timeout=900)
     per = []
     for r in rows:
-        out = kb_answer.ask(r["질문"], k, llm=model, backend=dense, llm_backend=llm)
+        out = kb_answer.ask(r["질문"], k, llm=model, synonyms=synonyms, links=links, backend=dense, llm_backend=llm)
         gold = {(d, a) for d, a in r["gold"]}
         used = [(c["doc_id"], c["article"]) for c in out["citations"] if c["used"]]
         per.append({
@@ -83,7 +86,7 @@ def run_model(model: str, rows: List[dict], k: int) -> dict:
         })
         print(f"  {r['id']} {out['status']:<11} {out['timing']['llm_ms']/1000:6.1f}s  {out['answer'][:70]!r}", flush=True)
     unload(model)
-    return {"model": model, "per": per, "summary": summarize(per)}
+    return {"model": model, "synonyms": synonyms, "links": links, "per": per, "summary": summarize(per)}
 
 
 def _ratio(xs: List[bool]) -> Optional[float]:
@@ -123,19 +126,24 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--k", type=int, default=kb_answer.DEFAULT_ASK_K)
     p.add_argument("--save", action="store_true", help="결과 JSON 을 data/collector/state 에")
     p.add_argument("--show", action="store_true", help="답 글을 모두 찍는다")
+    p.add_argument("--set", default=str(EVAL_SET), help="평가셋 TSV")
+    p.add_argument("--synonyms", choices=("on", "off"), default="on", help="질문 말 → 법령 말(kb_synonyms)")
+    p.add_argument("--links", choices=("on", "off"), default="on", help="위임 조 함께 넣기(kb_links)")
     a = p.parse_args(argv)
-    rows = load()
-    print(f"― 근거 답 평가 · 질문 {len(rows)} · 모델 {len(a.models)} · k={a.k} ―", flush=True)
+    rows = load(Path(a.set))
+    syn, links = a.synonyms == "on", a.links == "on"
+    print(f"― 근거 답 평가 · {Path(a.set).name} · 질문 {len(rows)} · 모델 {len(a.models)} · k={a.k} · "
+          f"동의어 {a.synonyms} · 위임 조 {a.links} ―", flush=True)
     results = []
     out = _new_path()
     for m in a.models:
         print(f"[{m}]", flush=True)
         t0 = time.time()
-        res = run_model(m, rows, a.k)
+        res = run_model(m, rows, a.k, synonyms=syn, links=links)
         res["secs"] = round(time.time() - t0, 1)
         results.append(res)
         if a.save:   # 모델 하나가 끝날 때마다 — 긴 평가가 중간에 멈춰도 앞 모델 결과는 남는다
-            _save(out, a.k, results)
+            _save(out, a.k, results, Path(a.set).name)
     head = f"{'모델':<58}{'답함':>6}{'정답조':>7}{'번호맞음':>9}{'문장출처':>9}{'근거없음':>9}{'거절':>6}{'중앙(초)':>9}{'넣은토큰':>9}"
     print("\n" + head)
     for res in results:
@@ -168,8 +176,8 @@ def _new_path() -> Path:
             n += 1
 
 
-def _save(out: Path, k: int, results: List[dict]) -> None:
-    out.write_text(json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "set": str(EVAL_SET.name),
+def _save(out: Path, k: int, results: List[dict], set_name: str = EVAL_SET.name) -> None:
+    out.write_text(json.dumps({"at": datetime.now().isoformat(timespec="seconds"), "set": set_name,
                                "k": k, "results": results}, ensure_ascii=False, indent=1), encoding="utf-8")
 
 

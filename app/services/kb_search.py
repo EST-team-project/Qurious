@@ -14,13 +14,18 @@ compose 가 호스트 ``./data`` 를 ``/app/data/csv`` 에 읽기 전용으로 �
 -----------
 1. **기준일의 판만** — 문서마다 ``kb_text.select_version`` (수집기가 판을 고른 규칙 그대로)으로 기준일에 시행
    중인 판을 고르고, 그 판의 청크만 찾는다. 판이 없는 문서는 ``missing`` 으로 알린다(조용히 옛 판을 쓰지 않는다).
-2. **낱말** — 한글 두 글자 묶음 + 조문 번호 통째(``kb_text.fts_query``) · bm25 순.
+2. **낱말** — 한글 두 글자 묶음 + 조문 번호 통째(``kb_text.fts_query``) · bm25 순. 질문 말이 법령 말과 다르면
+   (코스피 ↔ 유가증권시장 · 로보어드바이저 ↔ 전자적 투자조언장치) 법령 말을 덧붙인 검색어로 찾는다
+   (``kb_synonyms`` · 사람이 조문으로 확인한 표 · 벡터 · 질문 분류도 같은 검색어).
 3. **벡터** — 검색어를 Ollama 로 임베딩해 Qdrant 에 묻는다(판 거름은 HNSW 탐색 중에 걸린다 — 앞뒤 거름 아님).
 4. **질문 분류 가중** — 「세율 · 원천징수」 는 세법, 「주주총회 · 자기주식」 은 상법, 「투자권유 · 공매도」 는
    자본시장법 · 금융소비자보호법 · 감독규정 쪽 후보만 모은 순위 목록을 하나 더 RRF 에 넣는다. 거르지 않고
    가중만 하는 까닭은 분류가 틀렸을 때 답이 0건이 되지 않게 하려는 것이다(사용자 결정 2026-10-03 「둘 다 전부 +
    대처법」 — 상법 · 소득세법을 전부 넣고 섞임은 머리 경로 · 가중 · 다음 단계의 재순위로 막는다).
 5. **순위 합치기** — RRF(k=60). 점수 눈금이 다른 bm25 와 코사인을 더하지 않고 순위만 쓴다.
+6. **위임 조 잇기** — 찾은 법 조가 「대통령령으로 정하는」 처럼 값을 하위 법령에 맡겼으면, 같은 기준일 판의 그
+   하위 조(시행령 · 시행규칙 · 감독규정 · 시행세칙)를 근거마다 ``delegated`` 로 붙인다(``kb_links`` · DF-59).
+   순위 목록(``hits``)은 바꾸지 않는다 — 답 만들기가 윗 조 바로 뒤에 끼워 넣는다.
 
 벡터 쪽(Qdrant · Ollama)이 꺼져 있으면 낱말만으로 답하고 ``retrieval.dense_error`` 에 까닭을 싣는다 —
 검색 화면이 통째로 비는 것보다 낫다. kb.sqlite3 가 없으면 503(할 일: ``python -m collector.kb_law fetch``).
@@ -38,7 +43,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from app.services import kb_text
+from app.services import kb_links, kb_synonyms, kb_text
 
 KST = timezone(timedelta(hours=9))
 
@@ -275,9 +280,37 @@ def _hit(r: sqlite3.Row, doc: sqlite3.Row, rank: int, score: float, ranks: Dict[
     }
 
 
+def _attach_links(conn: sqlite3.Connection, hits: List[dict], as_of: str, fused: List[Tuple[str, float]],
+                  lists: Dict[str, List[str]], searched: Optional[Iterable[str]] = None) -> int:
+    """근거마다 위임 조를 ``delegated`` 로 붙이고 붙인 수를 돌려준다.
+
+    아래 조의 판은 문서 · 종류 거름과 상관없이 같은 기준일로 다시 고른다 — 「자본시장법만」 으로 찾아도 그 조가
+    시행령에 맡긴 값은 시행령에 있기 때문이다(거름은 「어디서 찾나」 이지 「무엇을 근거로 보이나」 가 아니다).
+    """
+    every, _ = _pick(conn, as_of, None, None)
+    versions = kb_links.doc_versions(every.values())
+    order = {cid: i for i, (cid, _) in enumerate(fused, start=1)}
+    score = dict(fused)
+    in_hits = {h["chunk_id"]: h["rank"] for h in hits}
+    found = kb_links.find_links(conn, hits, versions, order, searched=searched)
+    n = 0
+    for h in hits:
+        h["delegated"] = []
+        for link in found.get(h["chunk_id"], []):
+            r = link.child
+            doc = every[kb_text.version_key(r["doc_id"], r["version_label"])]
+            ranks = {name: lst.index(r["chunk_id"]) + 1 for name, lst in lists.items() if r["chunk_id"] in lst}
+            d = _hit(r, doc, in_hits.get(r["chunk_id"]), score.get(r["chunk_id"], 0.0), ranks)
+            d["via"] = kb_links.via(h, link)
+            h["delegated"].append(d)
+            n += 1
+    return n
+
+
 def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Optional[str] = None,
            docs: Optional[Sequence[str]] = None, mode: str = "hybrid", model: Optional[str] = None,
-           route: bool = True, path: Optional[Path] = None, backend: Optional[DenseBackend] = None) -> dict:
+           route: bool = True, links: bool = True, synonyms: bool = True, path: Optional[Path] = None,
+           backend: Optional[DenseBackend] = None) -> dict:
     q = (q or "").strip()
     if not q:
         raise KbError(422, "검색어가 비었다")
@@ -292,6 +325,9 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
         raise KbError(422, f"model 은 {' · '.join(kb_text.EMBED_MODELS)} 가운데 하나다: {model_name!r}")
     emb = kb_text.EMBED_MODELS[model_name]
     as_of = _as_of(as_of)
+    # 질문 말 → 법령 말(코스피 → 유가증권시장) — 넓힌 검색어로 낱말 · 벡터 · 분류를 모두 한다
+    syn = kb_synonyms.match(q) if synonyms else []
+    q_used = kb_synonyms.expand(q, syn)
 
     conn = _connect(path)
     try:
@@ -306,10 +342,10 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
         lists: Dict[str, List[str]] = {}
         dense_err = None
         if mode in ("hybrid", "lexical"):
-            lists["lexical"] = lexical(conn, q, keys)
+            lists["lexical"] = lexical(conn, q_used, keys)
         if mode in ("hybrid", "dense"):
             try:
-                lists["dense"] = dense(backend or DenseBackend.from_settings(), emb, q, keys)
+                lists["dense"] = dense(backend or DenseBackend.from_settings(), emb, q_used, keys)
             except Exception as e:  # noqa: BLE001 — 벡터가 안 돼도 낱말로 답한다(위 머리말)
                 dense_err = _dense_error(e)
                 if mode == "dense":
@@ -324,7 +360,7 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
                 rows[r["chunk_id"]] = r
         lists = {name: [c for c in lst if c in rows] for name, lst in lists.items()}
 
-        domains, route_docs = classify(q) if route else ([], [])
+        domains, route_docs = classify(q_used) if route else ([], [])
         rankings = [lists[name] for name in ("lexical", "dense") if name in lists]
         if route_docs:
             # 두 목록을 먼저 합친 순서에서 가중할 문서의 후보만 골라 셋째 목록으로 — 순위만 쓰는 RRF 와 같은 눈금
@@ -332,13 +368,16 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
             routed = [cid for cid in base if rows[cid]["doc_id"] in route_docs]
             if routed:
                 rankings.append(routed)
-        fused = kb_text.rrf(rankings)[:k]
+        fused_all = kb_text.rrf(rankings)
+        fused = fused_all[:k]
 
         hits = []
         for i, (cid, score) in enumerate(fused, start=1):
             r = rows[cid]
             ranks = {name: lst.index(cid) + 1 for name, lst in lists.items() if cid in lst}
             hits.append(_hit(r, chosen[kb_text.version_key(r["doc_id"], r["version_label"])], i, score, ranks))
+        n_links = (_attach_links(conn, hits, as_of, fused_all, lists, {r["doc_id"] for r in chosen.values()})
+                   if links and hits else 0)
     finally:
         conn.close()
 
@@ -346,7 +385,10 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
     return {
         "query": q, "as_of": as_of, "mode": mode, "model": model_name if "dense" in lists else None,
         "route": {"domains": domains, "docs": route_docs},
+        # 법령 말로 넓힌 검색어 · 고른 줄 — 화면 · 평가가 「무엇으로 찾았나」 를 볼 수 있게
+        "synonyms": [m.to_dict() for m in syn], "query_used": q_used,
         "retrieval": {"k": k, "method": method, "candidates": {n: len(v) for n, v in lists.items()},
+                      "delegated": n_links,
                       **({"dense_error": dense_err} if dense_err else {})},
         "missing": missing,
         "hits": hits,
