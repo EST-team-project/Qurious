@@ -91,3 +91,6 @@ TC-LR	tests/test_lean_remote.py	P02-③-2	🟡	LEAN 교차 검증의 실행처(�
 TC-NV	tests/test_nav_dashboard_shell.py	RFP2-3.2-④	🟢	위 메뉴 · 전체 메뉴 · 첫 화면 — 위 메뉴 탭 순서가 우선순위 목록과 같고, 모든 메뉴 묶음이 전체 메뉴에 빠짐없이 들어가며(IA 그림 2 와 코드가 같다), 소제목 · 바깥 주소를 깨지 않고, 첫 화면은 투자 대시보드다(2026-10-03 화면 결정 · 강사님 기초 코드 9478811 화면 쪽)
 TC-NV	tests/test_nav_dashboard_shell.py	U9	🟡	투자 대시보드 · 증권사 API 설정 화면 글과 계좌 탭 글에 서버 설정 이름 · 옛 서비스 이름 · 없는 화면 주소가 없다 — 거래 0회를 「신호 없음」 으로 보이는 것은 브라우저로 확인
 TC-NV	tests/test_nav_dashboard_shell.py	P02-⑤-1	🟡	KIS 키가 없을 때의 안내가 실제 화면(증권사 API 설정)을 가리킨다 — 「종목 선정」 이라는 화면은 없다(사용자마다 키 · ADR-0004)
+TC-CR	tests/test_crawl_points.py	P01-①-2	🟢	크롤 조각의 벡터 DB 점 ID 가 프로세스마다 같다(sha256 · 옛 내장 hash() 는 PYTHONHASHSEED 마다 다름) · 다시 모으면 같은 번호로 덮고 같은 주소의 옛 점(짧아진 꼬리 · 옛 중복)을 지운다 · 임베딩이 하나도 안 되면 쓰지도 지우지도 않는다 — 실제 Qdrant 왕복은 개발 모드 임시 컬렉션으로 확인(2026-10-04)
+TC-CR	tests/test_crawl_points.py	RFP2-3.2-③	🟡	같은 주소 · 같은 조각 번호는 어느 실행에서나 같은 점 번호(재현 가능한 색인)
+TC-CP	tests/test_completion_badge.py	RFP2-3.2-④	🟡	기능 완성도 배지의 팀 점검 줄이 점검표(docs/시험/기능완성도-점검표.tsv)와 같다 — 점수 · 이름표 · 화면 키 · 강사님 표 뒤에서 덮기 · 점검표의 셈. 팀원 화면 · 새 화면의 평가 유무는 보지 않는다(팀 결정 전)
