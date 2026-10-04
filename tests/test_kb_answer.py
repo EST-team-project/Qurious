@@ -27,6 +27,9 @@ from app.services import kb_answer, kb_search
 from tests.test_kb_search import NEW_RATE, OLD_RATE, FakeDense, kb  # noqa: F401 — kb 는 고정값(가짜 문서 DB)
 
 
+NL = chr(10)   # 줄바꿈 글자 — 시험 글에 백슬래시를 쓰지 않으려고
+
+
 class FakeLlm(kb_answer.LlmBackend):
     """Ollama 대신 — 정해 둔 답을 돌려주고 받은 요청을 남긴다."""
 
@@ -185,3 +188,21 @@ def test_api_ask_needs_login_and_validates(kb, monkeypatch):
     assert kb_answer.default_model() == kb_answer.DEFAULT_ANSWER_MODEL == "qwen3:4b-instruct"
     monkeypatch.setenv(kb_answer.ENV_MODEL, "exaone3.5:2.4b")
     assert kb_answer.default_model() == "exaone3.5:2.4b"
+
+def test_citations_carry_excerpt_for_screen(kb):
+    """TC-KA-12 · 출처마다 화면의 출처 카드가 펼칠 조문 글(excerpt) — 머리 줄(제목 사슬)은 빼고 답 모델에 넣은 길이로
+    자른다 · 답한 때 · 근거 없음 · 근거 발췌 모두 싣는다(화면 설계 2026-10-04 · 안 A 답 아래 카드)."""
+    out, _ = _ask(kb, "2026년 증권거래세 세율은?", "유가증권시장 주권의 증권거래세율은 1만분의 5입니다 [출처 1].")
+    first = out["citations"][0]
+    assert first["doc_id"] == "stt_decree" and "1만분의 5" in first["excerpt"]
+    assert all(" > " not in c["excerpt"].splitlines()[0] for c in out["citations"])   # 머리 줄은 카드 제목이 맡는다
+    no_ev, _ = _ask(kb, "2026년 증권거래세 세율은?", kb_answer.NO_ANSWER)
+    assert no_ev["status"] == "no_evidence" and all(c["excerpt"] for c in no_ev["citations"])
+    down, _ = _ask(kb, "2026년 증권거래세 세율은?", fail=urllib.error.URLError("refused"))
+    assert down["status"] == "excerpt" and all(c["excerpt"] for c in down["citations"])
+    # 함수 자체 — 머리 줄만 빼고 · 머리가 없으면 그대로 · 길면 답 모델과 같은 상한에서 자른다
+    head = "증권거래세법 > 제8조(세율)" + NL + "① 세율은 1만분의 35로 한다."
+    assert kb_answer.citation_excerpt(head) == "① 세율은 1만분의 35로 한다."
+    assert kb_answer.citation_excerpt("머리 없는 본문") == "머리 없는 본문"
+    long = kb_answer.citation_excerpt("법 > 제1조(목적)" + NL + "가" * 2000)
+    assert long.startswith("가" * kb_answer.CHUNK_CHARS) and long.endswith("…(뒤 생략)")

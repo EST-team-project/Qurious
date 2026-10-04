@@ -23,7 +23,7 @@ docs/github-archive/
 ├── 2026-09-23/   ← 옛 글 1건
 ├── 2026-09-28/        ← 새 글 18건
 │   ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md  (#14 · 댓글 01 올림)
-│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 07 점검 댓글 · 08 반영 결과(#6) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
+│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 07 점검 댓글 · 08 · 09 반영 결과(#6 · 09 는 10-04 올림) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
 │   ├── PR-docs-screen-ia-v0-1/    00-본문.md  (#16)
 │   ├── PR-docs-screen-ia-v0-2/    00-본문.md  (#19)
 │   ├── PR-feat-daily-data-update/ 00-본문.md  (#23)
@@ -72,14 +72,16 @@ docs/github-archive/
 │   ├── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (#89)
 │   ├── PR-feat-data-hub-calendar-ohlcv-api/  00-본문.md  (#91)
 │   └── PR-feat-legal-kb-fetch-and-index/  00-본문.md  (#93)
-└── 2026-10-03/        ← 새 글 7건
-    ├── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (#97)
-    ├── PR-chore-instructor-base-9478811-server/  00-본문.md  (#98)
-    ├── 논의-강사님기초코드-9478811-반영/  00-본문.md · 01-2026-10-03-화면-결정.md  (#99)
-    ├── PR-chore-instructor-base-9478811-screens/  00-본문.md  (#100)
-    ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md  (번호는 올린 뒤)
-    ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
-    └── PR-feat-kb-ask-and-local-llm-research/  00-본문.md  (번호는 올린 뒤)
+├── 2026-10-03/        ← 새 글 7건
+│   ├── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (#97)
+│   ├── PR-chore-instructor-base-9478811-server/  00-본문.md  (#98)
+│   ├── 논의-강사님기초코드-9478811-반영/  00-본문.md · 01-2026-10-03-화면-결정.md(10-04 올림)  (#99)
+│   ├── PR-chore-instructor-base-9478811-screens/  00-본문.md  (#100)
+│   ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md  (#103 · 10-04 올림)
+│   ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
+│   └── PR-feat-kb-ask-and-local-llm-research/  00-본문.md  (#102)
+└── 2026-10-04/        ← 새 글 1건
+    └── PR-feat-kb-answer-screen/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -181,7 +183,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 #21](2026-09-17/이슈-021/00-기록.md) | [분석] A2 데이터 계층 — 테이블 25개는 마이그레이션과 맞는데, 장부가 다섯 군데로 흩어져 있습니다 | 열림 | 이동원(`devlee328288`) | 1 | 23,062 | [#44](https://github.com/EST-team-project/Qurious/issues/44) · 갱신 댓글 🟡 (S61 확인) |
 | [이슈 #22](2026-09-17/이슈-022/00-기록.md) | [분석] A3 인증·세션·권한 — 로그아웃 한 번이 전 사용자의 JWT를 끊습니다 | 열림 | 이동원(`devlee328288`) | 2 | 28,182 | [#45](https://github.com/EST-team-project/Qurious/issues/45) · 갱신 댓글 🟡 (S61 확인) |
 | [이슈 #23](2026-09-17/이슈-023/00-기록.md) | [분석] A4 시장 데이터·캐시·동기화 — 예약 작업 2개가 한 번도 실행된 적이 없습니다 | 열림 | 이동원(`devlee328288`) | 10 | ❌ 8.1만 — 본문 2.5만 · 댓글 10건(최대 10,783) | [#49](https://github.com/EST-team-project/Qurious/issues/49) · 갱신 댓글 🟡 (S63 채움 · 목록 페이지) |
-| [이슈 #24](2026-09-17/이슈-024/00-기록.md) | [분석] A10 LLM 공급자·에이전트·RAG — 설정을 바꿔도 세 갈래는 계속 로컬로 가고, 크롤링한 문서는 읽히지 않는다 | 열림 | 이동원(`devlee328288`) | 1 | 33,089 | [#50](https://github.com/EST-team-project/Qurious/issues/50) · 갱신 댓글 🟡 (S63 채움 · 목록 페이지) |
+| [이슈 #24](2026-09-17/이슈-024/00-기록.md) | [분석] A10 LLM 공급자·에이전트·RAG — 설정을 바꿔도 세 갈래는 계속 로컬로 가고, 크롤링한 문서는 읽히지 않는다 | 열림 | 이동원(`devlee328288`) | 1 | 33,089 | [#50](https://github.com/EST-team-project/Qurious/issues/50) · 갱신 댓글 🟡 (S63 채움 · 목록 페이지) · [갱신 02](2026-09-17/이슈-024/02-2026-10-04-갱신.md)(채팅 RAG · 숨은 문맥 — 올릴 것) |
 | [이슈 #25](2026-09-17/이슈-025/00-기록.md) | [분석] A11 크롤링·인제스트 — robots.txt를 확인하지 않고, 같은 저장소 안에 중복 방지의 정답과 오답이 같이 있다 | 열림 | 이동원(`devlee328288`) | 4 | 54,478 | [#57](https://github.com/EST-team-project/Qurious/issues/57) · 갱신 댓글 🟡 (09-29 · S68 채움 · 페이지 · 검색) |
 | [이슈 #26](2026-09-17/이슈-026/00-기록.md) | [확인 요청] 번역 데이터(AI 허브)를 2·3차에 쓸 것인가 — 이용정책 3개 조항 확인 필요 | 열림 | 이동원(`devlee328288`) | 0 | 4,549 | [#58](https://github.com/EST-team-project/Qurious/issues/58) · 갱신 댓글 🟡 (09-29 · S68 채움 · 페이지 · 검색) |
 | [이슈 #27](2026-09-17/이슈-027/00-기록.md) | [분석] A12 알림·감사·시스템 — 알림을 끄면 팀 공용 채널로 나가고, 로그인 기록은 한 줄도 없습니다 | 열림 | 이동원(`devlee328288`) | 1 | 25,363 | [#59](https://github.com/EST-team-project/Qurious/issues/59) · 갱신 댓글 🟡 (09-29 · S68 채움 · 페이지 · 검색) |
@@ -339,11 +341,17 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---:|---|
 | [PR feat-kb-search-eval-and-glossary-candidates](2026-10-03/PR-feat-kb-search-eval-and-glossary-candidates/00-본문.md) | feat: 근거 찾기 API · 청크 머리(편 · 장 경로) · 검색 평가셋 v0 · 후보 용어 다섯 · 분류 화면 결함(DF-44) — 목표 기능 ① W5 | 3,847 | [#97](https://github.com/EST-team-project/Qurious/pull/97) |
 | [PR chore-instructor-base-9478811-server](2026-10-03/PR-chore-instructor-base-9478811-server/00-본문.md) | chore: 강사님 기초 코드 9478811 서버 쪽 반영 — KIS 키 사용자별(ADR-0004) · 게이트웨이 실거래 관문 · 마이그레이션 0013 · 문서 판 올림 | 2,937 | [#98](https://github.com/EST-team-project/Qurious/pull/98) — 10-03 16:23 머지 |
-| [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | [#99](https://github.com/EST-team-project/Qurious/discussions/99) — 댓글 [01 화면 결정](2026-10-03/논의-강사님기초코드-9478811-반영/01-2026-10-03-화면-결정.md)(10-04 이후 올림) |
+| [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | [#99](https://github.com/EST-team-project/Qurious/discussions/99) — 댓글 [01 화면 결정](2026-10-03/논의-강사님기초코드-9478811-반영/01-2026-10-03-화면-결정.md)(10-04 올림) |
 | [PR chore-instructor-base-9478811-screens](2026-10-03/PR-chore-instructor-base-9478811-screens/00-본문.md) | chore: 강사님 기초 코드 9478811 화면 쪽 반영 — 첫 화면 투자 대시보드 · 위 메뉴 들어가는 만큼 + 전체 메뉴 · 설정 새 칸 · 문서 판 올림 | 2,760 | [#100](https://github.com/EST-team-project/Qurious/pull/100) — 10-03 18:04 머지 |
-| [이슈 백테스트보고서-결과칸-요청](2026-10-03/이슈-백테스트보고서-결과칸-요청/00-본문.md) | [요청] 백테스트 보고서 v0.1 결과 칸 — 비용 반영 성과(강민석 님 · 10-13 오후 칸 전) | 2,066 | (올린 뒤 적음) |
+| [이슈 백테스트보고서-결과칸-요청](2026-10-03/이슈-백테스트보고서-결과칸-요청/00-본문.md) | [요청] 백테스트 보고서 v0.1 결과 칸 — 비용 반영 성과(강민석 님 · 10-13 오후 칸 전) | 2,066 | [#103](https://github.com/EST-team-project/Qurious/issues/103) — 10-04 올림 |
 | [PR docs-deliverables-v01-doc-figures](2026-10-03/PR-docs-deliverables-v01-doc-figures/00-본문.md) | docs: 빠진 주요 산출물 15개 v0.1 · 문서 그림 지침(Figma) · 문서 작성 기준 v0.2 | 1,572 | [#101](https://github.com/EST-team-project/Qurious/pull/101) — 10-03 20:24 머지 |
-| [PR feat-kb-ask-and-local-llm-research](2026-10-03/PR-feat-kb-ask-and-local-llm-research/00-본문.md) | feat: 근거 번호가 달린 답 API · 로컬 LLM 조사서 · 답 모델 비교 — 목표 기능 ① W6 | 1,827 | (올린 뒤 적음) |
+| [PR feat-kb-ask-and-local-llm-research](2026-10-03/PR-feat-kb-ask-and-local-llm-research/00-본문.md) | feat: 근거 번호가 달린 답 API · 로컬 LLM 조사서 · 답 모델 비교 — 목표 기능 ① W6 | 1,827 | [#102](https://github.com/EST-team-project/Qurious/pull/102) — 10-03 22:18 머지 |
+
+### 2026-10-04 — 새 글 1건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-kb-answer-screen](2026-10-04/PR-feat-kb-answer-screen/00-본문.md) | feat: 근거 답 화면 — 답 아래 출처 카드 · 처음 엔진 자동 · 숨은 지난 대화 고침 · 목표 기능 ① 설계서 v1.0 | 2,380 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
