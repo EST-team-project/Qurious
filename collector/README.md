@@ -517,6 +517,14 @@ PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 | `manifest.py` | 157 | 지문 생성·대조·무결성 |
 | `console.py` | 25 | 표준출력을 UTF-8 로 — 사용자 셸(cp949)에서 명령이 글자 하나로 죽지 않게 (DF-11) |
 | `market_calendar.py` | 595 | **거래일 달력 · 금융 일정** — 특일 정보 받기 · 규칙 · 시세로 확인 · 배당락일 다시 세기 · 일정 (§17) |
+| `disclosure.py` | 419 | DART 공시 목록 — 유형 A~J × 시장 · 석 달 창 과거분 · 매일 최근 3일(설계서 5.1.5) |
+| `financials.py` | 513 | DART 재무 주요계정 — 정정본마다 판 · `known_at` · `first_known_at` |
+| `tagging.py` · `search_index.py` | 236 · 341 | 이름표(종목 · 주제 · 용어 · 공시 유형) · 검색 색인 `search.sqlite3`(공시 · 뉴스 · 롤백 저널 · 줄 끝 접은 지문) |
+| `event_sources.py` · `corp_schedule.py` | 287 · 532 | 실적 · 법정 기한 · 금통위 · FOMC 일정 · 주주총회(소집결의 본문) · 배당금 지급 — `corp_schedule backfill` 이 지난 소집결의를 접수일 구간 · 최근 것부터 받는다(일시 오류는 다시 · 하루 한도면 멈춤 · 2026-10-05) |
+| `policy_news.py` | 444 | **정책브리핑 정책뉴스**(공공데이터포털 `policyNewsService2` · 3일 창 · 공공누리 제1유형 기사만 본문 · 원문 다시 읽기 · 2026-10-05) |
+| `gdelt_news.py` | 291 | **언론사 기사 메타데이터**(GDELT 번역 GKG 15분 원자료 · 한국어 원문 기사의 제목 · 주소 · 시각 · 언론사만 · 본문 없음 · 2026-10-05) |
+| `kb_law.py` · `kb_index.py` · `kb_sector.py` | 879 · 216 · 354 | 근거 문서(법령 · 감독규정) 받기 · 판 고르기 · 조각 · 임베딩 · 섹터별 · 연도별 법령 |
+| `kb_eval.py` · `kb_answer_eval.py` · `kb_sector_exp.py` | 168 · 187 · 213 | 근거 검색 · 근거 답 평가 · 섹터 법령을 넣은 길을 사본 DB · 다른 컬렉션(`kb_v1_sector`)에 만들어 같은 평가를 돌리는 실험(2026-10-05) |
 | `../app/tasks/collector_tasks.py` | 83 | Celery Beat 어댑터 (얇음) |
 | `../scripts/hf_dataset.py` | 2,128 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 |
 | `../scripts/daily_update.py` | 654 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 (§15) |

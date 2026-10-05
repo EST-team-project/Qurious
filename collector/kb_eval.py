@@ -53,7 +53,9 @@ def load(path: Path = EVAL_SET) -> List[dict]:
     with path.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     for r in rows:
-        r["gold"] = [tuple(g.split(":", 1)) for g in r["정답"].split(";") if g.strip()]
+        # 마지막 콜론에서 나눈다 — 조 이름(제8조)에는 콜론이 없지만 문서 ID 에는 있을 수 있다(섹터 법령 실험 `sec:은행법` ·
+        # 2026-10-05 첫 콜론에서 나눠 정답 18개가 모두 「놓침」 으로 잘못 셌다)
+        r["gold"] = [tuple(g.strip().rsplit(":", 1)) for g in r["정답"].split(";") if g.strip()]
         if not r["gold"] or any(len(g) != 2 for g in r["gold"]):
             raise SystemExit(f"정답 칸 모양이 틀렸다 — {r['id']}: {r['정답']!r} (문서:조;문서:조)")
     return rows

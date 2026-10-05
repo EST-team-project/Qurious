@@ -1,6 +1,8 @@
 """주주총회 · 배당금 지급 일정 — 공시 본문에서 날짜를 읽는다 (목표 기능 ① W7 · 설계서 5.2.4 <표 15>).
 
     python -m collector.corp_schedule daily [--days 60] [--max-calls 1500]   최근 소집결의 본문 받기 → 읽기
+    python -m collector.corp_schedule backfill --from 20250101 [--to 20251231] [--max-calls 8000] [--build]
+                                                                            지난 소집결의 본문 받기(최근 것부터)
     python -m collector.corp_schedule build [--rebuild]                     받아 둔 원문만 읽기(호출 없음)
     python -m collector.corp_schedule show [--kind agm] [--from 2026-10-01]
 
@@ -32,8 +34,9 @@ import argparse
 import re
 import sqlite3
 import sys
+import time
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from collector import config, db, raw_store
 from collector.console import utf8_stdio
@@ -48,6 +51,9 @@ WINDOW_DAYS = 60
 
 #: 한 번 실행의 본문 호출 상한 — DART 개인 하루 20,000회(83종 합계)를 다른 단계와 나눠 쓴다.
 MAX_CALLS = 1_500
+
+#: 과거분 받기(`backfill`)에서 네트워크 · HTTP 오류가 난 건을 다시 부르기 전에 쉬는 초 — 차례로 늘린다.
+RETRY_WAITS = (10, 30, 60)
 
 _DATE = re.compile(r"(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})")
 _TIME = re.compile(r"(오전|오후|AM|PM)?\s*(\d{1,2})\s*(?:시|:)\s*(?:(\d{1,2})\s*분?)?", re.I)
@@ -225,28 +231,87 @@ def _raw_targets(conn: sqlite3.Connection, prefix: str) -> Set[str]:
         "SELECT DISTINCT target FROM raw_response WHERE source='dart' AND target LIKE ?", (prefix + "/%",))}
 
 
-def fetch_recent(conn: sqlite3.Connection, today: date, *, days: int = WINDOW_DAYS, max_calls: int = MAX_CALLS,
-                 quiet: bool = True) -> Dict[str, int]:
-    """최근 `days` 일 안에 접수된 소집결의 가운데 본문을 아직 안 받은 것만 받는다(원문은 `agm/<접수번호>`)."""
+def _agm_todo(conn: sqlite3.Connection, since: str, until: str = "", *, newest_first: bool = False) -> List[str]:
+    """접수일 `since` ~ `until`(YYYYMMDD · 둘 다 포함 · `until` 이 비면 끝 없음) 안의 상장사 소집결의 가운데
+    본문을 아직 안 받은 접수번호."""
+    have = _raw_targets(conn, "agm")
+    sql = ("SELECT rcept_no FROM disclosure WHERE title LIKE ? AND stock_code <> '' AND rcept_dt >= ?"
+           + (" AND rcept_dt <= ?" if until else "") + " ORDER BY rcept_no" + (" DESC" if newest_first else ""))
+    args: Tuple[str, ...] = (AGM_TITLE + "%", since) + ((until,) if until else ())
+    return [r[0] for r in conn.execute(sql, args) if r[0] not in have]
+
+
+def _fetch_bodies(conn: sqlite3.Connection, todo: Sequence[str], *, max_calls: int, tolerant: bool = False,
+                  quiet: bool = True, sleep: Callable[[float], None] = time.sleep) -> Dict[str, object]:
+    """`todo` 의 본문을 차례로 받는다 — 부르는 횟수(다시 부른 것 포함)가 `max_calls` 에 닿으면 멈춘다.
+
+    `tolerant=False`(매일 단계) — 본문 없음(`DartNoDocument`)만 세고 넘어가며, 다른 오류는 그대로 올린다(러너가 🟡 로 남긴다).
+    `tolerant=True`(과거분 받기) — 몇 시간 도는 받기가 한 건의 일시 오류로 통째로 멈추지 않게, 네트워크 · HTTP 오류는
+    `RETRY_WAITS` 만큼 쉬며 다시 부르고 그래도 안 되면 그 건을 건너뛰고 센다. 하루 한도(`DartQuotaExceeded`)는 다시
+    부르지 않고 멈춘다 — 받은 본문은 건마다 커밋돼 있어 같은 명령을 내일 다시 돌리면 남은 것부터 이어 간다.
+    """
     import requests
 
-    since = (today - timedelta(days=days)).strftime("%Y%m%d")
-    have = _raw_targets(conn, "agm")
-    todo = [r[0] for r in conn.execute(
-        "SELECT rcept_no FROM disclosure WHERE title LIKE ? AND stock_code <> '' AND rcept_dt >= ? ORDER BY rcept_no",
-        (AGM_TITLE + "%", since)) if r[0] not in have]
     limiter = RateLimiter(config.DART_SLEEP, reserve=config.DART_RESERVE, name="DART")
     session = requests.Session()
-    got = missing = 0
-    for n, rno in enumerate(todo[:max_calls], 1):
-        try:
-            dart.fetch_document(conn, limiter, rno, session=session, target_prefix="agm")
-            got += 1
-        except dart.DartNoDocument:
-            missing += 1
-        if not quiet and n % 100 == 0:
-            print(f"  본문 {n:,}/{min(len(todo), max_calls):,} …", flush=True)
-    return {"todo": len(todo), "fetched": got, "no_document": missing, "left": max(0, len(todo) - max_calls)}
+    out: Dict[str, object] = {"todo": len(todo), "fetched": 0, "no_document": 0, "errors": 0, "calls": 0,
+                              "quota": False}
+    cap = min(len(todo), max_calls)
+    done = 0
+    for rno in todo:
+        if out["calls"] >= max_calls or out["quota"]:
+            break
+        for attempt in range(len(RETRY_WAITS) + 1 if tolerant else 1):
+            if out["calls"] >= max_calls:
+                break
+            out["calls"] += 1
+            try:
+                dart.fetch_document(conn, limiter, rno, session=session, target_prefix="agm")
+                out["fetched"] += 1
+                break
+            except dart.DartNoDocument:
+                out["no_document"] += 1
+                break
+            except dart.DartQuotaExceeded:
+                if not tolerant:
+                    raise
+                out["quota"] = True
+                break
+            except (dart.DartError, requests.RequestException) as e:
+                if not tolerant:
+                    raise
+                if attempt >= len(RETRY_WAITS):
+                    out["errors"] += 1
+                    print(f"  ⚠️ {rno} 건너뜀 — {type(e).__name__}: {str(e)[:120]}", flush=True)
+                    break
+                sleep(RETRY_WAITS[attempt])
+        if out["quota"]:
+            break
+        done += 1
+        if not quiet and done % 100 == 0:
+            print(f"  {datetime.now():%H:%M:%S} 본문 {done:,}/{cap:,} · 받음 {out['fetched']:,} · "
+                  f"본문 없음 {out['no_document']:,} · 건너뜀 {out['errors']:,}", flush=True)
+    out["left"] = len(todo) - done
+    return out
+
+
+def fetch_recent(conn: sqlite3.Connection, today: date, *, days: int = WINDOW_DAYS, max_calls: int = MAX_CALLS,
+                 quiet: bool = True) -> Dict[str, object]:
+    """최근 `days` 일 안에 접수된 소집결의 가운데 본문을 아직 안 받은 것만 받는다(원문은 `agm/<접수번호>`)."""
+    since = (today - timedelta(days=days)).strftime("%Y%m%d")
+    return _fetch_bodies(conn, _agm_todo(conn, since), max_calls=max_calls, quiet=quiet)
+
+
+def fetch_range(conn: sqlite3.Connection, since: str, until: str = "", *, max_calls: int = MAX_CALLS,
+                newest_first: bool = True, quiet: bool = True,
+                sleep: Callable[[float], None] = time.sleep) -> Dict[str, object]:
+    """지난 소집결의 본문 받기 — 접수일 구간(YYYYMMDD · 둘 다 포함) · 기본은 최근 것부터(달력에 가까운 해가 먼저 찬다).
+
+    매일 단계의 60일 창 밖(2020-01 ~)을 채울 때 쓴다. 구간을 나눠 여러 프로세스로 동시에 돌려도 된다 — 각 프로세스가
+    `config.DART_SLEEP` 간격을 지키므로 둘이면 분당 480회 안(DART 는 분당 1,000회 이상이면 IP 를 1시간 막는다).
+    """
+    return _fetch_bodies(conn, _agm_todo(conn, since, until, newest_first=newest_first), max_calls=max_calls,
+                         tolerant=True, quiet=quiet, sleep=sleep)
 
 
 def _agm_detail(p: Dict[str, object]) -> str:
@@ -419,6 +484,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     d.add_argument("--days", type=int, default=WINDOW_DAYS)
     d.add_argument("--max-calls", type=int, default=MAX_CALLS)
     d.add_argument("--quiet", action="store_true", help="진행 줄을 찍지 않는다(요약 두 줄만)")
+    f = sub.add_parser("backfill", help="지난 소집결의 본문 받기 — 접수일 구간 · 최근 것부터 · 일시 오류는 다시 부르고 "
+                                        "하루 한도면 멈춤(같은 명령으로 이어 감)")
+    f.add_argument("--from", dest="bgn", required=True, help="접수일 시작 YYYYMMDD")
+    f.add_argument("--to", dest="end", default="", help="접수일 끝 YYYYMMDD(이날 포함 · 비우면 끝 없음)")
+    f.add_argument("--max-calls", type=int, default=MAX_CALLS, help="이 실행의 DART 호출 상한(다시 부른 것 포함)")
+    f.add_argument("--oldest-first", action="store_true", help="오래된 것부터(기본은 최근 것부터)")
+    f.add_argument("--build", action="store_true",
+                   help="받은 뒤 읽기까지 — 여러 구간을 동시에 돌릴 때는 빼고 다 끝난 뒤 build 를 한 번")
     b = sub.add_parser("build", help="받아 둔 원문만 읽기(호출 없음)")
     b.add_argument("--rebuild", action="store_true", help="표를 비우고 다 다시 읽는다(규칙을 고쳤을 때)")
     s = sub.add_parser("show")
@@ -434,6 +507,15 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"  소집결의 본문 — 받을 것 {r['todo']:,} · 받음 {r['fetched']:,} · 본문 없음 {r['no_document']:,} · "
                   f"다음으로 {r['left']:,}")
             build(conn, quiet=False)
+        elif a.mode == "backfill":
+            print(f"  {datetime.now():%Y-%m-%d %H:%M:%S} 소집결의 과거분 — 접수일 {a.bgn} ~ {a.end or '끝'} · "
+                  f"{'오래된' if a.oldest_first else '최근'} 것부터 · 호출 상한 {a.max_calls:,}", flush=True)
+            r = fetch_range(conn, a.bgn, a.end, max_calls=a.max_calls, newest_first=not a.oldest_first, quiet=False)
+            print(f"  {datetime.now():%Y-%m-%d %H:%M:%S} 끝 — 받을 것 {r['todo']:,} · 받음 {r['fetched']:,} · "
+                  f"본문 없음 {r['no_document']:,} · 건너뜀 {r['errors']:,} · 호출 {r['calls']:,} · 남음 {r['left']:,}"
+                  + (" · ⛔ 하루 한도 — 내일 같은 명령으로 이어 간다" if r["quota"] else ""), flush=True)
+            if a.build:
+                build(conn, quiet=False)
         elif a.mode == "build":
             build(conn, rebuild=a.rebuild, quiet=False)
         else:

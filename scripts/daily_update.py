@@ -141,6 +141,11 @@ STEPS: List[Step] = [
     Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False),
     # 주주총회 · 배당금 지급 일정(2026-10-05) — 최근 60일 소집결의 본문(새 것만 · 하루 수십 회) → 날짜 읽기. 달력 앞.
     Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet"], 15, fatal=False),
+    # 정책브리핑 정책뉴스(2026-10-05) — 오늘까지 3일 창 한 번(공공데이터포털 · 하루 1,000회). 이름표 · 색인 앞.
+    Step("news", ["-m", "collector.policy_news", "daily", "--quiet"], 10, fatal=False),
+    # 언론사 기사 메타데이터(2026-10-05) — GDELT 번역 GKG 15분 파일(지난 30시간 · 아직 안 읽은 것 · 하루 약 96파일 · 550MB)에서
+    # 한국어 원문 기사의 제목 · 주소 · 시각 · 언론사만. 본문은 받지 않는다.
+    Step("gdelt", ["-m", "collector.gdelt_news", "daily", "--quiet"], 30, fatal=False),
     Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
     # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.

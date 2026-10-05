@@ -150,17 +150,31 @@ def disclosure_doc(row: Dict) -> Dict:
     }
 
 
+#: 뉴스 출처별 출처 표시 — 화면 · 답이 기사를 보일 때 함께 싣는다(공공누리 · GDELT 모두 출처 표시가 조건이다).
+#: 언론사 기사(gdelt)는 제목 + 원문 링크만 보이고 근거 답에 넣지 않는다(본문은 언론사 저작물 · 받지도 않는다).
+NEWS_ATTRIBUTION = {"policy_news": "정책브리핑(www.korea.kr)",
+                    "gdelt": "GDELT Project(www.gdeltproject.org) 메타데이터 · 원문은 언론사"}
+
+
 def news_doc(row: Dict) -> Dict:
-    """``news_item`` 한 행 → 문서(제목 · 요약 · 주소만 — 본문은 저장하지 않는다)."""
-    extra = {k: row[k] for k in ("query", "originallink", "press") if row.get(k)}
+    """``news_item`` 한 행 → 문서(제목 · 부제 · 주소 · 출처 표시만 — 본문은 색인에 넣지 않는다).
+
+    본문(정책뉴스 공공누리 제1유형만 수집 DB 에 있다)은 근거 답에 쓸지 따로 정한다. 게시일은 볼 수 있게 된 시각
+    (`available_at` = 승인 · 엠바고 가운데 늦은 것)이다.
+    """
+    source = row.get("source") or ""
+    kogl = row.get("kogl_type") or ""
+    extra = {k: row[k] for k in ("publisher", "category", "kogl_type", "revision") if row.get(k)}
+    if source in NEWS_ATTRIBUTION:
+        extra["attribution"] = NEWS_ATTRIBUTION[source] + (f" · 공공누리 제{kogl}유형" if kogl else "")
     return {
         "doc_id": f"N:{row['news_id']}",
         "kind": "news",
         "title": row["title"],
-        "summary": row.get("description") or "",
-        "url": row.get("originallink") or row.get("link") or "",
-        "published": row["pub_at"],
-        "source": row.get("source") or "naver",
+        "summary": " · ".join(ln.strip() for ln in (row.get("subtitle") or "").splitlines() if ln.strip()),
+        "url": row.get("url") or "",
+        "published": row.get("available_at") or row["pub_at"],
+        "source": source,
         "corp_name": "",
         "stock_code": "",
         "extra": json.dumps(extra, ensure_ascii=False),
@@ -260,8 +274,9 @@ def build(*, full: bool = False, quiet: bool = False, src_path: Optional[Path] =
 
     if _has_table(src, "news_item"):
         names = tagging.build_name_dict(name_pairs(src))
-        since = _meta(conn, "news_fetched_at")
-        cur = src.execute("SELECT * FROM news_item WHERE fetched_at >= ? ORDER BY fetched_at, news_id", (since,))
+        # 고친 판(정책뉴스 revision)도 다시 넣도록 updated_at 으로 따라간다 — 공시와 같은 「>=」(마지막 초는 다시 본다)
+        since = _meta(conn, "news_updated_at")
+        cur = src.execute("SELECT * FROM news_item WHERE updated_at >= ? ORDER BY updated_at, news_id", (since,))
         last = since
         while True:
             rows = cur.fetchmany(batch)
@@ -270,9 +285,9 @@ def build(*, full: bool = False, quiet: bool = False, src_path: Optional[Path] =
             conn.execute("BEGIN IMMEDIATE")
             for r in rows:
                 d = dict(r)
-                put_doc(conn, news_doc(d), tagging.news_tags(d, names, terms, d.get("query_symbol") or None))
-                last = max(last, d["fetched_at"])
-            _set_meta(conn, "news_fetched_at", last)
+                put_doc(conn, news_doc(d), tagging.news_tags(d, names, terms))
+                last = max(last, d["updated_at"])
+            _set_meta(conn, "news_updated_at", last)
             conn.execute("COMMIT")
             out["news"] += len(rows)
 

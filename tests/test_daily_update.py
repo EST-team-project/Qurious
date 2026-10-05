@@ -81,6 +81,16 @@ def test_schedule_and_sector_law_steps():
     assert "weekly" in sec.args and "--yes" in sec.args
 
 
+def test_news_step_before_search_index():
+    """정책뉴스는 이름표 · 색인(search) 앞 — 그날 받은 기사가 같은 회차의 색인에 들어간다 · 실패해도 뒤를 막지 않고
+    올리기 · 공유 스위치와 무관하다(2026-10-05)."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("schedule") < names.index("news") < names.index("search")
+    news = next(s for s in du.STEPS if s.name == "news")
+    assert (news.fatal, news.derived, news.upload, news.sharing) == (False, False, False, False)
+    assert news.args[:3] == ["-m", "collector.policy_news", "daily"]
+
+
 def test_lagging_derived_tables_run_even_without_new_data():
     """2026-09-28 실측 상태 — 시세 09-22, 파생 표 09-17."""
     stale = dict(BASE, adjusted_max="20260917", tr_max="20260917", benchmark_max="20260917")
