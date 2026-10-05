@@ -62,7 +62,7 @@ docs/github-archive/
 │   └── PR-feat-rag-lab-import-glossary/  00-본문.md  (#77)
 ├── 2026-10-01/        ← 새 글 5건
 │   ├── PR-docs-plan-v2-and-goal1-design/  00-본문.md  (#78)
-│   ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 10-01 올림) · 02 거래일 달력 주소(10-02 · 올릴 것)
+│   ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 10-01 올림) · 02 거래일 달력 주소(10-02 · 올릴 것) · 03 배당 지급일이 생김(10-05 · 올릴 것 — 02 뒤에)
 │   ├── PR-feat-learning-pages/        00-본문.md  (#80)
 │   ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
 │   └── PR-feat-finance-lectures-placement/  00-본문.md  (#84)
@@ -80,15 +80,17 @@ docs/github-archive/
 │   ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md  (#103 · 10-04 올림)
 │   ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
 │   └── PR-feat-kb-ask-and-local-llm-research/  00-본문.md  (#102)
-└── 2026-10-04/        ← 새 글 7건
-    ├── PR-feat-kb-answer-screen/  00-본문.md  (#104)
-    ├── 이슈-점검-인디케이터-화면/  00-본문.md  (#107 · 10-04 올림 · 신장환 님)
-    ├── 이슈-점검-자산배분-리밸런싱-자동매매/  00-본문.md  (#108 · 10-04 올림 · 오준영 님)
-    ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (#106 · 10-04 올림 · 강민석 님)
-    ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀)
-    ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
-    ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd)
-    └── PR-feat-disclosure-financials-search-events/  00-본문.md  (번호는 올린 뒤)
+├── 2026-10-04/        ← 새 글 7건
+│   ├── PR-feat-kb-answer-screen/  00-본문.md  (#104)
+│   ├── 이슈-점검-인디케이터-화면/  00-본문.md  (#107 · 10-04 올림 · 신장환 님)
+│   ├── 이슈-점검-자산배분-리밸런싱-자동매매/  00-본문.md  (#108 · 10-04 올림 · 오준영 님)
+│   ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (#106 · 10-04 올림 · 강민석 님)
+│   ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀)
+│   ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
+│   ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd)
+│   └── PR-feat-disclosure-financials-search-events/  00-본문.md  (#111 · 머지 1a7574e)
+└── 2026-10-05/        ← 새 글 1건
+    └── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -365,7 +367,13 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 점검-주인미정-화면-배지규칙](2026-10-04/이슈-점검-주인미정-화면-배지규칙/00-본문.md) | [점검] 주인이 정해지지 않은 화면 22개와 기능 완성도 배지 갱신 규칙 (팀) | 2,436 | [#109](https://github.com/EST-team-project/Qurious/issues/109) — 10-04 올림 |
 | [PR feat-completion-audit-and-crawl-points](2026-10-04/PR-feat-completion-audit-and-crawl-points/00-본문.md) | feat: 기능 완성도 점검 — 화면 69 점수표 · 배지 팀 줄 · 크롤 조각 점 번호 고침 · 시장조사 | 2,232 | [#105](https://github.com/EST-team-project/Qurious/pull/105) — 10-04 머지 · `c8c07fd` |
 | [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | [#110](https://github.com/EST-team-project/Qurious/pull/110) · 머지 `079a7dd` |
-| [PR feat-disclosure-financials-search-events](2026-10-04/PR-feat-disclosure-financials-search-events/00-본문.md) | feat: 공시 · 재무 수집 · 이름표 · 수집 자료 검색 · 일정 넷 — 목표 기능 ① W7 서버 쪽 | 2,781 | (올린 뒤 적음) |
+| [PR feat-disclosure-financials-search-events](2026-10-04/PR-feat-disclosure-financials-search-events/00-본문.md) | feat: 공시 · 재무 수집 · 이름표 · 수집 자료 검색 · 일정 넷 — 목표 기능 ① W7 서버 쪽 | 2,781 | [#111](https://github.com/EST-team-project/Qurious/pull/111) · 머지 `1a7574e` |
+
+### 2026-10-05 — 새 글 1건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-agm-dividend-pay-sector-laws-hf-archive](2026-10-05/PR-feat-agm-dividend-pay-sector-laws-hf-archive/00-본문.md) | feat: 주총 · 배당 지급 일정 · 섹터별 근거 법령 · HF 보관본 둘 — 목표 기능 ① W7 남은 것 서버 쪽 | 3,280 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

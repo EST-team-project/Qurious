@@ -69,6 +69,18 @@ def test_calendar_step_runs_before_derived_decision():
     assert (cal.fatal, cal.derived, cal.upload) == (False, False, False)
 
 
+def test_schedule_and_sector_law_steps():
+    """주총 · 배당 지급 일정은 재무 뒤 · 달력 앞(달력이 그 표로 일정을 만든다) · 섹터 법령 매주 대조는 맨 끝의 올리기 단계 —
+    둘 다 실패해도 뒤를 막지 않고, 섹터 법령은 --upload 실행에서만 · 공유 스위치를 켜서 돈다(2026-10-05)."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("financial") < names.index("schedule") < names.index("calendar")
+    sch = next(s for s in du.STEPS if s.name == "schedule")
+    assert (sch.fatal, sch.derived, sch.upload) == (False, False, False)
+    sec = next(s for s in du.STEPS if s.name == "sector_laws")
+    assert names[-1] == "sector_laws" and (sec.fatal, sec.upload, sec.sharing) == (False, True, True)
+    assert "weekly" in sec.args and "--yes" in sec.args
+
+
 def test_lagging_derived_tables_run_even_without_new_data():
     """2026-09-28 실측 상태 — 시세 09-22, 파생 표 09-17."""
     stale = dict(BASE, adjusted_max="20260917", tr_max="20260917", benchmark_max="20260917")

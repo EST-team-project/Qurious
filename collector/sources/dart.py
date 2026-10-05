@@ -302,17 +302,21 @@ def fetch_list(limiter: RateLimiter, *, bgn_de: str, end_de: str, page_no: int =
 
 def fetch_document(conn: sqlite3.Connection, limiter: RateLimiter, rcept_no: str, *,
                    session: Optional[requests.Session] = None,
-                   keep_raw: bool = True, reuse_raw: bool = True) -> bytes:
+                   keep_raw: bool = True, reuse_raw: bool = True,
+                   target_prefix: str = "dividend") -> bytes:
     """공시 본문 XML 바이트. 원문(zip)은 ``raw_response`` 에 남긴다.
 
     ``reuse_raw=True`` 면 **이미 받아 둔 원문이 있으면 네트워크를 안 탄다.** 파싱 규칙을
     고쳐 다시 돌릴 때가 반드시 오는데, 그때 수천 건을 다시 받으면 하루 한도를 통째로
     쓴다. 재개·재파싱의 근거를 ``ingest_day`` 가 아니라 원문 자체에 두는 이유다.
 
+    ``target_prefix`` 는 원문을 남길 이름의 머리다 — 배당 결정은 ``dividend/``(처음부터 이 이름),
+    주주총회 소집결의는 ``agm/``(2026-10-05 · `collector/corp_schedule.py`). 머리가 다르면 같은 접수번호라도 따로 남는다.
+
     ⚠️ 응답은 **zip** 이다. 오류일 때만 XML 로 온다 — 그래서 zip 서명(`PK`)을 먼저 본다.
        XML 인 줄 알고 파싱하면 오류 메시지가 조용히 "본문 0건" 으로 둔갑한다.
     """
-    target = f"dividend/{rcept_no}"
+    target = f"{target_prefix}/{rcept_no}"
     if reuse_raw:
         kept = raw_store.load(conn, "dart", target)
         if kept:

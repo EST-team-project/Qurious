@@ -32,6 +32,9 @@ EVENT_KINDS = {
     "report_deadline": "보고서 기한",
     "policy_rate": "금통위",
     "fomc": "FOMC",
+    # 2026-10-05 · W7 — 주주총회(소집결의 본문 일시) · 배당금 지급 예정일(배당결정 본문)(collector/corp_schedule.py)
+    "agm": "주주총회",
+    "dividend_pay": "배당금 지급",
 }
 #: `kind` 를 비우면 주는 종류 — 일정 화면이 결정 ③ 의 넷만 그린다(새 종류를 화면에 올리는 것은 Figma 결정 뒤).
 #: 새 종류는 `kind=earnings,policy_rate` 처럼 이름으로, 또는 `kind=all` 로 묻는다.

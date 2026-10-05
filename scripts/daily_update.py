@@ -139,6 +139,8 @@ STEPS: List[Step] = [
     # 달력(③-②) **앞에** 둔다 — 실적 · 주총 일정을 공시 목록에서 만든다.
     Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet"], 15, fatal=False),
     Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False),
+    # 주주총회 · 배당금 지급 일정(2026-10-05) — 최근 60일 소집결의 본문(새 것만 · 하루 수십 회) → 날짜 읽기. 달력 앞.
+    Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet"], 15, fatal=False),
     Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
     # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
@@ -156,6 +158,10 @@ STEPS: List[Step] = [
     Step("upload", ["scripts/hf_dataset.py", "upload", "--yes", "--incremental"], 60,
          upload=True, sharing=True),
     Step("ohlcv_upload", ["scripts/hf_ohlcv.py", "upload", "--yes"], 30,
+         fatal=False, upload=True, sharing=True),
+    # 섹터별 · 연도별 근거 법령(2026-10-05) — 7일에 한 번만 실제로 돈다(판 목록 대조 → 바뀐 해만 본문 → 내보내기 → 바뀌었으면
+    # HF kb-sector-laws 에 올리고 받아서 대조). 그 밖의 날은 「건너뜀」 한 줄. 실패해도 다른 단계를 막지 않는다.
+    Step("sector_laws", ["scripts/hf_sector_laws.py", "weekly", "--yes", "--quiet"], 40,
          fatal=False, upload=True, sharing=True),
 ]
 

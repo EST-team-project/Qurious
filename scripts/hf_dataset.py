@@ -373,6 +373,7 @@ EXCLUDED: Dict[str, str] = {
     "market_calendar": "계산한 표 — python -m collector.market_calendar build 가 공휴일 · 시세로 다시 만든다",
     "market_event": "계산한 표 — python -m collector.market_calendar build 가 달력 · 배당 표로 다시 만든다",
     "policy_meeting": "금통위 · FOMC 공식 일정(한국은행 · 연준 누리집)을 언제든 다시 받는다 — python -m collector.event_sources fetch --force",
+    "corp_schedule": "계산한 표 — python -m collector.corp_schedule build --rebuild 가 공시 본문 원문(raw_response 의 dart agm/ · dividend/ — 백업됨)에서 다시 만든다",
 }
 
 #: SQLite 선언 타입 → arrow 타입. TEXT 는 string, INTEGER 는 int64, REAL 은 float64,
