@@ -42,6 +42,7 @@ STEPS = {
     "dividend": ("배당 공시", False),
     "disclosure": ("공시 목록", False),
     "financial": ("재무 주요계정", False),
+    "schedule": ("주총 · 배당 지급 일정", False),
     "search": ("검색 색인", False),
     "calendar": ("거래일 달력 · 일정", False),
     "adjusted": ("수정주가", True),
@@ -53,6 +54,7 @@ STEPS = {
     "verify": ("HF 검증", True),
     "upload": ("HF 올리기 · 일봉", True),
     "ohlcv_upload": ("HF 올리기 · OHLCV", False),
+    "sector_laws": ("섹터 법령 · 매주 대조", False),
 }
 
 #: (키, 표, 이름, 묶음, 출처, 판정 방식, 마지막 날짜 SQL, 행 수 SQL)

@@ -442,6 +442,28 @@ CREATE TABLE IF NOT EXISTS policy_meeting (
 """
 SCHEMA += POLICY_MEETING_DDL
 
+#: 17. 주주총회 · 배당금 지급 일정(계산한 것) — 공시 본문 원문(raw_response 의 dart agm/ · dividend/)에서 날짜를 읽는다.
+#: 만드는 쪽: collector/corp_schedule.py · 지워도 `python -m collector.corp_schedule build` 가 원문에서 되살린다.
+#: 거래일 달력의 일정(market_event · agm · dividend_pay)이 이 표를 읽어 다시 만든다.
+CORP_SCHEDULE_DDL = """
+CREATE TABLE IF NOT EXISTS corp_schedule (
+    rcept_no    TEXT NOT NULL,              -- 근거 공시 접수번호(주주총회소집결의 · 현금ㆍ현물배당결정)
+    kind        TEXT NOT NULL,              -- agm 주주총회 · dividend_pay 배당금 지급
+    stock_code  TEXT NOT NULL DEFAULT '',
+    corp_name   TEXT NOT NULL DEFAULT '',
+    event_date  TEXT NOT NULL DEFAULT '',   -- YYYY-MM-DD — 본문에서 못 읽으면 빈칸(추측하지 않는다)
+    event_time  TEXT NOT NULL DEFAULT '',   -- HH:MM — 모르면 빈칸
+    label       TEXT NOT NULL DEFAULT '',   -- 정기주주총회 · 임시주주총회 · 결산배당 · 중간배당 · 분기배당
+    detail      TEXT NOT NULL DEFAULT '',   -- 장소 · 안건 앞 몇 개 · 1주당 배당금 · 날짜 칸의 원문 글
+    orig_filed  TEXT NOT NULL DEFAULT '',   -- 정정 공시면 「정정관련 공시서류제출일」(YYYY-MM-DD) — 원 공시를 찾는 열쇠
+    raw_sha256  TEXT NOT NULL DEFAULT '',   -- 읽은 본문 원문의 sha256
+    parsed_at   TEXT NOT NULL,              -- 읽은 시각 KST
+    PRIMARY KEY (rcept_no, kind)
+);
+CREATE INDEX IF NOT EXISTS ix_csched_stock ON corp_schedule(stock_code, event_date);
+"""
+SCHEMA += CORP_SCHEDULE_DDL
+
 
 def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """연결을 열고 표를 보장한다.

@@ -87,15 +87,24 @@ def connect(path: Optional[Path] = None) -> sqlite3.Connection:
     return conn
 
 
-def rules_fingerprint() -> str:
-    """이름표 규칙의 지문 — 규칙 파일 · 용어사전 파일이 바뀌면 달라진다."""
+def files_fingerprint(paths: Sequence[Path]) -> str:
+    """파일들의 지문 — 줄 끝(CRLF · LF)은 접어서 낸다(DF-68).
+
+    Windows 의 `core.autocrlf=true` 는 저장소의 LF 파일을 작업 트리에 CRLF 로 내놓는다. 바이트 그대로 해시하면 규칙이
+    그대로인데도 pull · 브랜치 바꾸기만으로 지문이 바뀌어 색인을 통째로 다시 만든다(2026-10-05 12:30 회차 447초).
+    """
     h = hashlib.sha256()
-    for p in (Path(tagging.__file__), tagging.GLOSSARY_PATH, Path(__file__)):
+    for p in paths:
         try:
-            h.update(p.read_bytes())
+            h.update(Path(p).read_bytes().replace(b"\r\n", b"\n"))
         except OSError:
             h.update(b"-")
     return h.hexdigest()[:16]
+
+
+def rules_fingerprint() -> str:
+    """이름표 규칙의 지문 — 규칙 파일 · 용어사전 파일 · 이 파일의 글이 바뀌면 달라진다(줄 끝은 보지 않는다)."""
+    return files_fingerprint((Path(tagging.__file__), tagging.GLOSSARY_PATH, Path(__file__)))
 
 
 def _meta(conn: sqlite3.Connection, key: str, default: str = "") -> str:

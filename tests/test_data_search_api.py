@@ -195,3 +195,18 @@ def test_login_required(env):
     c = env["client"]
     assert c.get("/api/data/search", params={"q": "배당"}).status_code == 401
     assert c.get("/api/data/financials", params={"symbol": "006360"}).status_code == 401
+
+
+def test_rules_fingerprint_ignores_line_endings(tmp_path):
+    """TC-DQ-08 · 규칙 지문은 줄 끝(CRLF · LF)에 따라 바뀌지 않는다 — 글이 바뀌면 바뀐다(DF-68).
+
+    Windows 의 `core.autocrlf=true` 는 저장소의 LF 파일을 작업 트리에 CRLF 로 내놓는다. 바이트 그대로 지문을 내면 규칙이
+    그대로인데도 pull · 브랜치 바꾸기만으로 색인을 통째로 다시 만든다(2026-10-05 12:30 회차 search 447초).
+    """
+    lf, crlf, other = tmp_path / "lf.py", tmp_path / "crlf.py", tmp_path / "other.py"
+    lf.write_bytes(b"A = 1\nB = 2\n")
+    crlf.write_bytes(b"A = 1\r\nB = 2\r\n")
+    other.write_bytes(b"A = 1\nB = 3\n")
+    assert SI.files_fingerprint([lf]) == SI.files_fingerprint([crlf])
+    assert SI.files_fingerprint([lf]) != SI.files_fingerprint([other])
+    assert SI.files_fingerprint([tmp_path / "없음.py"]) == SI.files_fingerprint([tmp_path / "없음2.py"])   # 없는 파일은 같은 자리 표시
