@@ -6,6 +6,8 @@
 3. 배당금 지급일은 번호 붙은 본문 줄이 먼저 · 본문이 「-」 이면 정정 표의 정정후 · 둘 다 없으면 빈칸(추측하지 않는다).
 4. 달력 일정 — 정정 공시가 원 공시를 대신한다(회의일을 바꾼 정정이면 옛 날짜가 남지 않는다) · 배당 지급은 배당 표가 고른 판만.
 5. 받아 둔 원문에서 읽기 — 다시 돌려도 늘지 않는다 · 본문 받기는 이미 받은 것을 다시 부르지 않는다.
+6. 과거분 받기(`backfill`) — 접수일 구간 안만 · 최근 것부터 · 호출 상한(다시 부른 것 포함) · 일시 오류는 쉬었다 다시 부르고
+   그래도 안 되면 그 건만 건너뜀 · 하루 한도면 그 자리에서 멈춤. 매일 단계는 오류를 그대로 올린다(러너가 🟡).
 
 네트워크 · 실제 수집 DB 를 쓰지 않는다. 본문 글은 2026-10-05 에 받은 실제 공시 셋(프롬바이오 · 크라우드웍스 · 코람코더원리츠)을
 `dart.flatten` 한 줄 그대로 옮겼다(안건 · 장소는 줄였다).
@@ -17,6 +19,7 @@ import zipfile
 from datetime import date
 
 import pytest
+import requests
 
 from collector import corp_schedule as C, db, disclosure as D, raw_store
 
@@ -227,3 +230,47 @@ def test_build_is_incremental_and_fetch_skips_kept_raw(conn, monkeypatch):
     assert called == [("20261001000002", "agm")] and r["todo"] == 1 and r["fetched"] == 1
     assert tuple(conn.execute("SELECT event_date, event_time, label FROM corp_schedule "
                               "WHERE rcept_no='20261002000001'").fetchone()) == ("2026-11-10", "10:00", "임시주주총회")
+
+
+def test_backfill_range_newest_first_skips_kept_and_caps_calls(conn, monkeypatch):
+    """TC-CS-09 · 과거분 받기 — 접수일 구간 안만 · 최근 것부터 · 이미 받은 본문은 부르지 않는다 · 호출 상한에서 멈추고 남은 수를 센다."""
+    for rno in ("20240105000001", "20240320000002", "20240321000003", "20250310000004", "20231229000005"):
+        _disc(conn, rno, "주주총회소집결의")
+    _raw(conn, "agm/20240320000002", ["1. 일시\t2024-03-29\t09:00"])           # 이미 받음
+    called = []
+    monkeypatch.setattr(C.dart, "fetch_document", lambda conn, lim, rno, **kw: called.append((rno, kw["target_prefix"])))
+    r = C.fetch_range(conn, "20240101", "20241231", max_calls=10, sleep=lambda s: None)
+    # 구간 밖(2023-12-29 · 2025-03-10)은 부르지 않는다 · 최근 것부터
+    assert called == [("20240321000003", "agm"), ("20240105000001", "agm")]
+    assert (r["todo"], r["fetched"], r["calls"], r["left"], r["quota"]) == (2, 2, 2, 0, False)
+    called.clear()
+    r = C.fetch_range(conn, "20240101", "", max_calls=2, sleep=lambda s: None)  # 끝 없음 → 2025 도 · 상한 2
+    assert [c[0] for c in called] == ["20250310000004", "20240321000003"]
+    assert (r["todo"], r["calls"], r["left"]) == (3, 2, 1)
+
+
+def test_backfill_retries_transient_errors_and_stops_on_quota(conn, monkeypatch):
+    """TC-CS-10 · 과거분 받기는 일시 오류를 쉬었다 다시 부르고(그래도 안 되면 그 건만 건너뜀) · 하루 한도면 그 자리에서 멈춘다 ·
+    매일 단계는 오류를 그대로 올린다(러너가 🟡 로 남긴다)."""
+    for rno in ("20250101000001", "20250102000002", "20250103000003", "20250104000004"):
+        _disc(conn, rno, "주주총회소집결의")
+    plan = {"20250104000004": [requests.ConnectionError("reset"), None],     # 한 번 끊김 → 쉬었다 다시 불러 받음
+            "20250103000003": [C.dart.DartError("HTTP 500")] * 4,            # 네 번 다 실패 → 이 건만 건너뜀
+            "20250102000002": [C.dart.DartQuotaExceeded("status=020")],      # 하루 한도 → 여기서 멈춤
+            "20250101000001": [None]}
+    calls, waits = [], []
+
+    def fake(conn, lim, rno, **kw):
+        calls.append(rno)
+        step = plan[rno].pop(0)
+        if step is not None:
+            raise step
+
+    monkeypatch.setattr(C.dart, "fetch_document", fake)
+    r = C.fetch_range(conn, "20250101", "", max_calls=100, sleep=waits.append)
+    assert calls == ["20250104000004"] * 2 + ["20250103000003"] * 4 + ["20250102000002"]
+    assert waits == [10, 10, 30, 60]
+    assert (r["fetched"], r["errors"], r["quota"], r["calls"], r["left"]) == (1, 1, True, 7, 2)
+    plan["20250101000001"] = [C.dart.DartError("HTTP 500")]
+    with pytest.raises(C.dart.DartError):                                     # 매일 단계(오래된 것부터)는 첫 오류에 멈춘다
+        C.fetch_recent(conn, date(2025, 1, 10))

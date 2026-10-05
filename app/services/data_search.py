@@ -38,6 +38,9 @@ MAX_TERMS = 8
 COUNT_CAP = 10000
 
 KINDS = ("disclosure", "news")
+#: 출처 — 리서치 화면의 「종류」 거름 칸 셋(공시 · 정책뉴스 · 언론사 기사 · 2026-10-05 화면 결정 B + C 해석 1).
+SOURCES = ("dart", "policy_news", "gdelt")
+SOURCE_LABELS = {"dart": "공시", "policy_news": "정책뉴스", "gdelt": "언론사 기사"}
 SORTS = ("date", "relevance")
 DTYPES = ("A", "B", "C", "D", "E", "F", "G", "H", "I", "J")
 
@@ -123,12 +126,17 @@ def _next_day(v: str) -> str:
 
 def search(q: str = "", kind: str | None = None, symbol: str | None = None, topic: str | None = None,
            term: str | None = None, dtype: str | None = None, from_: str | None = None, to: str | None = None,
-           sort: str = "date", limit: int = DEFAULT_LIMIT, offset: int = 0) -> dict:
+           sort: str = "date", limit: int = DEFAULT_LIMIT, offset: int = 0, source: str | None = None,
+           facets: bool = False) -> dict:
+    """`source`(dart · policy_news · gdelt)로 출처를 고르고, `facets` 면 같은 조건에서 출처마다 몇 건인지 함께 센다 —
+    리서치 화면 왼쪽 「종류」 칸의 개수(고른 출처와 상관없이 셋 다 센다 · 2026-10-05)."""
     q = (q or "").strip()
     if len(q) > MAX_Q:
         raise SearchError(422, "q_too_long", f"검색어는 {MAX_Q}자까지입니다(지금 {len(q)}자).")
     if kind and kind not in KINDS:
         raise SearchError(422, "bad_kind", f"kind 는 {' · '.join(KINDS)} 가운데 하나입니다: {kind!r}")
+    if source and source not in SOURCES:
+        raise SearchError(422, "bad_source", f"source 는 {' · '.join(SOURCES)} 가운데 하나입니다: {source!r}")
     if sort not in SORTS:
         raise SearchError(422, "bad_sort", f"sort 는 {' · '.join(SORTS)} 가운데 하나입니다: {sort!r}")
     if symbol and not _SYMBOL.match(symbol):
@@ -154,9 +162,6 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
     if expr:
         where.append("d.rid IN (SELECT rowid FROM doc_fts WHERE doc_fts MATCH ?)")
         args.append(expr)
-    if kind:
-        where.append("d.kind = ?")
-        args.append(kind)
     for tag_type, value in (("symbol", symbol), ("topic", topic), ("term", term),
                             ("dtype", dtype.upper() if dtype else None)):
         if value:
@@ -168,10 +173,24 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
     if d_to:
         where.append("d.published < ?")
         args.append(_next_day(d_to))
+    # 출처별 개수는 종류 · 출처 거름을 빼고 센다 — 「종류」 칸에서 하나를 골라도 나머지 둘의 수가 보이게
+    base_cond = (" WHERE " + " AND ".join(where)) if where else ""
+    base_args = list(args)
+    if kind:
+        where.append("d.kind = ?")
+        args.append(kind)
+    if source:
+        where.append("d.source = ?")
+        args.append(source)
     cond = (" WHERE " + " AND ".join(where)) if where else ""
 
     conn = _open_ro(path)
+    facet_counts: dict[str, int] = {}
     try:
+        if facets:
+            facet_counts = {s: 0 for s in SOURCES}
+            for r in conn.execute(f"SELECT d.source, COUNT(*) FROM doc d{base_cond} GROUP BY d.source", base_args):
+                facet_counts[r[0]] = r[1]
         if sort == "relevance" and expr:
             sql = ("SELECT d.*, bm25(doc_fts) AS score FROM doc d JOIN doc_fts ON doc_fts.rowid = d.rid"
                    + cond + " AND doc_fts MATCH ? ORDER BY score, d.published DESC LIMIT ? OFFSET ?")
@@ -203,15 +222,19 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
             "tags": tags.get(r["rid"], {}), "extra": extra,
         })
     _attach_key_numbers(items)
+    out_facets = {"source": facet_counts, "source_labels": SOURCE_LABELS} if facets else None
     return {
         "items": items,
         "total": min(n, COUNT_CAP),
         "total_capped": n > COUNT_CAP,
-        "query": {"q": q, "match": expr, "kind": kind, "symbol": symbol, "topic": topic, "term": term,
-                  "dtype": dtype, "from": d_from, "to": d_to, "sort": sort, "limit": limit, "offset": offset},
+        **({"facets": out_facets} if facets else {}),
+        "query": {"q": q, "match": expr, "kind": kind, "source": source, "symbol": symbol, "topic": topic,
+                  "term": term, "dtype": dtype, "from": d_from, "to": d_to, "sort": sort, "limit": limit,
+                  "offset": offset},
         "index_built_at": meta.get("built_at"),
-        "source": "전자공시(DART) 공시 목록 · 뉴스 검색 API(제목 · 요약만) — 수집기 검색 색인",
-        "note": "본문은 저장하지 않는다. 원문은 url 로 연다. 이름표는 규칙으로 붙였다(정밀도 표본 판정 전).",
+        "source": "전자공시(DART) 공시 목록 · 정책브리핑 정책뉴스(공공누리 제1유형) — 수집기 검색 색인",
+        "note": "검색 결과에는 제목 · 요약(공시 꼬리 설명 · 뉴스 부제) · 주소만 싣는다. 원문은 url 로 연다. 뉴스는 "
+                "extra.attribution 의 출처 표시를 함께 보인다. 이름표는 규칙으로 붙였다(정밀도 표본 판정 전).",
     }
 
 

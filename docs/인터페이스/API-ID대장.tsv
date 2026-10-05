@@ -226,3 +226,4 @@ API-DASH-01	GET	/api/dashboard/accounts	S82	사용
 API-KB-03	POST	/api/kb/ask	2026-10-03	사용
 API-DATA-03	GET	/api/data/search	2026-10-04	사용
 API-DATA-04	GET	/api/data/financials	2026-10-04	사용
+API-CAL-03	GET	/api/calendar/events/summary	2026-10-05	사용

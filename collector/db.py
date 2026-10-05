@@ -464,6 +464,37 @@ CREATE INDEX IF NOT EXISTS ix_csched_stock ON corp_schedule(stock_code, event_da
 """
 SCHEMA += CORP_SCHEDULE_DDL
 
+#: 18. 뉴스(받은 것) — 기사 한 건 = 한 행. 출처 둘:
+#:    policy_news  정책브리핑 정책뉴스(공공데이터포털 15095335) — collector/policy_news.py · 원문 XML 은 raw_response 의 policy_news
+#:    gdelt        언론사 기사 메타데이터(GDELT 번역 GKG 15분 원자료의 한국어 원문 기사) — collector/gdelt_news.py · 원문 zip 은 두지 않는다
+#: ⚠️ 본문(body)은 정책뉴스 가운데 공공누리 제1유형(출처 표시) 기사만 둔다 — 기사마다 kogl_type 칸이 따로 온다. 언론사 기사는
+#:    제목 · 원문 주소 · 시각 · 언론사만(본문 · 요약 없음 · 근거 답에 넣지 않는다). 같은 기사를 다시 받으면 fetched_at(처음 받은
+#:    시각)은 그대로 두고, 고친 판(revision)이 오면 내용과 updated_at 만 고친다.
+NEWS_ITEM_DDL = """
+CREATE TABLE IF NOT EXISTS news_item (
+    news_id      TEXT    NOT NULL PRIMARY KEY,  -- 출처:번호 — policy:148972963(정책브리핑 기사 ID) · gdelt:<주소 sha256 앞 16자>
+    source       TEXT    NOT NULL,              -- policy_news(정책브리핑) · gdelt(언론사 기사 메타데이터)
+    title        TEXT    NOT NULL,
+    subtitle     TEXT    NOT NULL DEFAULT '',   -- 부제목 1 ~ 3(줄바꿈으로 잇는다)
+    body         TEXT    NOT NULL DEFAULT '',   -- 태그를 뺀 본문 글 — 공공누리 제1유형만(아니면 빈칸)
+    url          TEXT    NOT NULL DEFAULT '',   -- 원문 주소(정책뉴스 www.korea.kr · 언론사 기사 주소)
+    publisher    TEXT    NOT NULL DEFAULT '',   -- 정책뉴스 부처 · 기관(MinisterCode — 빈칸인 기사가 있다) · 언론사 도메인
+    category     TEXT    NOT NULL DEFAULT '',   -- 콘텐츠 성격(GroupingCode — policy 정책 · fact 사실 확인 · brief 보도자료)
+    kogl_type    TEXT    NOT NULL DEFAULT '',   -- 공공누리 유형 1 ~ 4(빈칸 = 모름 → 본문을 두지 않는다)
+    pub_at       TEXT    NOT NULL,              -- 처음 승인된 시각 KST ISO(ApproveDate)
+    embargo_at   TEXT    NOT NULL DEFAULT '',   -- 엠바고가 풀린 시각 KST ISO(EmbargoDate · 있을 때만)
+    available_at TEXT    NOT NULL,              -- 볼 수 있게 된 시각 = 승인 · 엠바고 가운데 늦은 것 — 미래 참조 방지의 기준
+    modified_at  TEXT    NOT NULL DEFAULT '',   -- 마지막으로 고친 시각 KST ISO(ModifyDate)
+    revision     INTEGER NOT NULL DEFAULT 1,    -- 고친 횟수(ModifyId · 처음 등록 1)
+    fetched_at   TEXT    NOT NULL,              -- 처음 받은 시각 KST(다시 받아도 그대로)
+    updated_at   TEXT    NOT NULL,              -- 내용이 바뀐 판을 마지막으로 받은 시각 KST — 검색 색인이 이 칸으로 따라간다
+    raw_sha256   TEXT    NOT NULL DEFAULT ''    -- 이 판이 나온 응답 원문
+);
+CREATE INDEX IF NOT EXISTS ix_news_pub ON news_item(pub_at);
+CREATE INDEX IF NOT EXISTS ix_news_updated ON news_item(updated_at);
+"""
+SCHEMA += NEWS_ITEM_DDL
+
 
 def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """연결을 열고 표를 보장한다.

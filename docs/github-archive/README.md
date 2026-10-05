@@ -89,8 +89,9 @@ docs/github-archive/
 │   ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
 │   ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd)
 │   └── PR-feat-disclosure-financials-search-events/  00-본문.md  (#111 · 머지 1a7574e)
-└── 2026-10-05/        ← 새 글 1건
-    └── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (번호는 올린 뒤)
+└── 2026-10-05/        ← 새 글 2건
+    ├── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (#112 · 머지 f83e551)
+    └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -369,11 +370,12 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | [#110](https://github.com/EST-team-project/Qurious/pull/110) · 머지 `079a7dd` |
 | [PR feat-disclosure-financials-search-events](2026-10-04/PR-feat-disclosure-financials-search-events/00-본문.md) | feat: 공시 · 재무 수집 · 이름표 · 수집 자료 검색 · 일정 넷 — 목표 기능 ① W7 서버 쪽 | 2,781 | [#111](https://github.com/EST-team-project/Qurious/pull/111) · 머지 `1a7574e` |
 
-### 2026-10-05 — 새 글 1건
+### 2026-10-05 — 새 글 2건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [PR feat-agm-dividend-pay-sector-laws-hf-archive](2026-10-05/PR-feat-agm-dividend-pay-sector-laws-hf-archive/00-본문.md) | feat: 주총 · 배당 지급 일정 · 섹터별 근거 법령 · HF 보관본 둘 — 목표 기능 ① W7 남은 것 서버 쪽 | 3,280 | (올린 뒤 적음) |
+| [PR feat-agm-dividend-pay-sector-laws-hf-archive](2026-10-05/PR-feat-agm-dividend-pay-sector-laws-hf-archive/00-본문.md) | feat: 주총 · 배당 지급 일정 · 섹터별 근거 법령 · HF 보관본 둘 — 목표 기능 ① W7 남은 것 서버 쪽 | 3,280 | [#112](https://github.com/EST-team-project/Qurious/pull/112) · 머지 `f83e551` |
+| [PR feat-news-calendar-month-research-sector-eval](2026-10-05/PR-feat-news-calendar-month-research-sector-eval/00-본문.md) | feat: 뉴스 두 출처 · 일정 2판 · 리서치 화면 서버 쪽 · 섹터 법령 근거 답 평가 — 목표 기능 ① W7 | 4,018 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

@@ -197,6 +197,35 @@ def test_login_required(env):
     assert c.get("/api/data/financials", params={"symbol": "006360"}).status_code == 401
 
 
+def test_source_filter_and_facets_with_news(env):
+    """TC-DQ-09 · 출처 거름(공시 · 정책뉴스 · 언론사 기사) · 출처별 개수는 종류 · 출처 거름을 빼고 센다 · 뉴스는 출처 표시를 싣는다
+    · 모르는 출처는 422 (리서치 화면 결정 B + C 해석 1 · 2026-10-05)."""
+    from collector import policy_news as PN
+
+    conn = db.connect(env["src"])
+    base = {"subtitle": "", "body": "", "publisher": "", "category": "", "kogl_type": "", "embargo_at": "",
+            "modified_at": "", "revision": 1}
+    rows = [dict(base, news_id="policy:1", source="policy_news", title="유상증자 공시 제도 개선", url="https://www.korea.kr/1",
+                 publisher="금융위원회", kogl_type="1", pub_at="2026-10-02T10:00:00+09:00", available_at="2026-10-02T10:00:00+09:00"),
+            dict(base, news_id="gdelt:abc", source="gdelt", title="GS건설 유상증자 흥행", url="https://www.example.co.kr/2",
+                 publisher="example.co.kr", pub_at="2026-10-03T09:00:00+09:00", available_at="2026-10-03T09:00:00+09:00")]
+    conn.execute("BEGIN IMMEDIATE")
+    PN.upsert(conn, rows, at="2026-10-05T14:00:00+09:00")
+    conn.execute("COMMIT")
+    conn.close()
+    SI.build(src_path=env["src"], out_path=env["out"], quiet=True)
+    c = _login(env)
+    j = c.get("/api/data/search", params={"q": "유상증자", "facets": "true"}).json()
+    assert j["total"] == 3 and j["facets"]["source"] == {"dart": 1, "policy_news": 1, "gdelt": 1}
+    assert j["facets"]["source_labels"]["gdelt"] == "언론사 기사"
+    g = c.get("/api/data/search", params={"q": "유상증자", "source": "gdelt", "facets": "true"}).json()
+    assert [i["source"] for i in g["items"]] == ["gdelt"] and g["facets"]["source"]["dart"] == 1   # 고른 출처와 상관없이 셋 다
+    assert "GDELT Project" in g["items"][0]["extra"]["attribution"]
+    p = c.get("/api/data/search", params={"q": "유상증자", "source": "policy_news"}).json()
+    assert p["items"][0]["extra"]["attribution"].startswith("정책브리핑(www.korea.kr)") and "facets" not in p
+    assert c.get("/api/data/search", params={"source": "naver"}).status_code == 422
+
+
 def test_rules_fingerprint_ignores_line_endings(tmp_path):
     """TC-DQ-08 · 규칙 지문은 줄 끝(CRLF · LF)에 따라 바뀌지 않는다 — 글이 바뀌면 바뀐다(DF-68).
 

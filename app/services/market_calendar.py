@@ -39,6 +39,14 @@ EVENT_KINDS = {
 #: `kind` 를 비우면 주는 종류 — 일정 화면이 결정 ③ 의 넷만 그린다(새 종류를 화면에 올리는 것은 Figma 결정 뒤).
 #: 새 종류는 `kind=earnings,policy_rate` 처럼 이름으로, 또는 `kind=all` 로 묻는다.
 DEFAULT_KINDS = ("market_closure", "deriv_expiry", "dividend_record", "dividend_ex")
+#: 시장 전체 일정 — 한 달 많아야 수십 건이라 한 달 요약에도 이름을 싣는다. 나머지(종목 일정)는 날짜 × 종류 개수만 —
+#: 정기 주주총회가 몰리는 3월은 종목 일정이 한 달 3,500건이 넘는다(2026-03 · DF-66 · 2026-10-05 일정 2판 결정 안 B).
+MARKET_KINDS = ("market_closure", "deriv_expiry", "policy_rate", "fomc", "report_deadline")
+#: 한 달 요약이 한 번에 받는 날 수 — 달력 한 장(6주)과 앞뒤 달을 넉넉히.
+MAX_SUMMARY_DAYS = 400
+#: 그날 목록의 회사 이름 찾기 글자 수 · 맨 위에 올릴 종목(내 종목) 수 상한.
+MAX_Q = 40
+MAX_FIRST = 50
 CONFIDENCE = {"confirmed": "확정", "scheduled": "예정", "computed": "규칙으로 계산"}
 BASIS = {"observed": "시세로 확인", "rule": "규칙 · 공휴일 표로 예정"}
 _WEEKDAYS = "월화수목금토일"
@@ -129,19 +137,41 @@ def trading_days(start: date, end: date) -> dict:
     return out
 
 
-def events(start: date, end: date, kind: str | None = None, symbol: str | None = None,
-           limit: int = 500) -> dict:
-    """구간의 금융 일정 — 휴장 · 파생 만기 · 배당 기준일 · 배당락일(기본) · 실적 · 보고서 기한 · 금통위 · FOMC(이름 · all 로)."""
-    _check_range(start, end, MAX_DAYS)
+def _kinds(kind: str | None, default: tuple | list) -> list:
     kinds = [k for k in (kind or "").split(",") if k]
     if kinds == ["all"]:
         kinds = list(EVENT_KINDS)
     elif not kinds:
-        kinds = list(DEFAULT_KINDS)
+        kinds = list(default)
     unknown = [k for k in kinds if k not in EVENT_KINDS]
     if unknown:
         raise CalendarUnavailable(f"모르는 일정 종류: {', '.join(unknown)} — {', '.join(EVENT_KINDS)} 중에서", 422)
+    return kinds
+
+
+def _symbols(first: str | None) -> list:
+    """「내 종목」 — 쉼표로 넘긴 종목 단축코드(6자리 · 50개까지). 모양이 틀리면 422."""
+    syms = [s.strip().upper() for s in (first or "").split(",") if s.strip()]
+    bad = [s for s in syms if not (len(s) == 6 and s.isalnum())]
+    if bad:
+        raise CalendarUnavailable(f"종목 단축코드는 6자리 — {', '.join(bad[:3])}", 422)
+    if len(syms) > MAX_FIRST:
+        raise CalendarUnavailable(f"맨 위에 올릴 종목은 {MAX_FIRST}개까지", 422)
+    return list(dict.fromkeys(syms))
+
+
+def events(start: date, end: date, kind: str | None = None, symbol: str | None = None,
+           limit: int = 500, offset: int = 0, q: str | None = None, first: str | None = None) -> dict:
+    """구간의 금융 일정 — 휴장 · 파생 만기 · 배당 기준일 · 배당락일(기본) · 실적 · 보고서 기한 · 금통위 · FOMC(이름 · all 로).
+
+    그날 목록(일정 2판 · 안 B)을 위해 2026-10-05 에 셋을 더했다 — 기본값은 그대로라 지금 화면이 받는 응답은 같다.
+    `offset` 쪽 넘기기 · `q` 일정 이름(회사 이름)에 든 글자 찾기 · `first` 내 종목(쉼표)을 맨 위에.
+    """
+    _check_range(start, end, MAX_DAYS)
+    kinds = _kinds(kind, DEFAULT_KINDS)
     limit = max(1, min(int(limit), MAX_EVENTS))
+    offset = max(0, int(offset))
+    mine = _symbols(first)
     sql = ("SELECT event_id, kind, event_date, event_time, market, symbol, title, detail, confidence, source, "
            "source_ref FROM market_event WHERE event_date BETWEEN ? AND ?")
     args: list = [start.isoformat(), end.isoformat()]
@@ -151,11 +181,20 @@ def events(start: date, end: date, kind: str | None = None, symbol: str | None =
     if symbol:
         sql += " AND symbol = ?"
         args.append(symbol)
+    needle = (q or "").strip()[:MAX_Q]
+    if needle:
+        sql += " AND instr(title, ?) > 0"            # LIKE 를 쓰지 않는다 — 「%」 · 「_」 가 든 이름도 글자 그대로 찾는다
+        args.append(needle)
+    order = " ORDER BY event_date, kind, symbol"
+    order_args: list = []
+    if mine:
+        order = f" ORDER BY CASE WHEN symbol IN ({','.join('?' * len(mine))}) THEN 0 ELSE 1 END, event_date, kind, symbol"
+        order_args = mine
     conn = _connect()
     try:
         meta = _meta(conn)
         total = conn.execute(f"SELECT COUNT(*) FROM ({sql})", args).fetchone()[0]
-        rows = conn.execute(sql + " ORDER BY event_date, kind, symbol LIMIT ?", [*args, limit]).fetchall()
+        rows = conn.execute(sql + order + " LIMIT ? OFFSET ?", [*args, *order_args, limit, offset]).fetchall()
     finally:
         conn.close()
     items = [{
@@ -172,15 +211,69 @@ def events(start: date, end: date, kind: str | None = None, symbol: str | None =
         "confidence": conf,
         "confidence_label": CONFIDENCE.get(conf, conf),
         "source_ref": ref,
+        "mine": bool(mine) and sym in mine,
     } for eid, k, d, t, market, sym, title, detail, conf, _src, ref in rows]
     return {
         "from": start.isoformat(),
         "to": end.isoformat(),
         "kind": kinds,
         "symbol": symbol or "",
+        "q": needle,
         "events": items,
         "total": total,
-        "truncated": total > len(items),
+        "offset": offset,
+        "limit": limit,
+        "truncated": total > offset + len(items),
+        "calendar": meta,
+        "source": "collector",
+        "as_of": (meta["updated_at"] or "")[:10],
+    }
+
+
+def events_summary(start: date, end: date, kind: str | None = None) -> dict:
+    """한 달 달력용 요약 — 날짜마다 종류별 개수 + 시장 전체 일정(이름까지). 종목 일정은 개수만 싣는다.
+
+    3월처럼 종목 일정이 한 달 3,500건이 넘어도 응답은 날짜 수 × 종류 수만큼이라 가볍다(DF-66). 그날의 종목 일정은
+    `events(from=그날, to=그날, offset=…)` 로 쪽마다 받는다. `kind` 를 비우면 열 종류 모두(새 화면은 칩으로 거른다).
+    일정이 없는 날은 싣지 않는다(화면이 빈칸으로 둔다).
+    """
+    _check_range(start, end, MAX_SUMMARY_DAYS)
+    kinds = _kinds(kind, list(EVENT_KINDS))
+    marks = ",".join("?" * len(kinds))
+    market = [k for k in kinds if k in MARKET_KINDS]
+    span = [start.isoformat(), end.isoformat()]
+    conn = _connect()
+    try:
+        meta = _meta(conn)
+        counts = conn.execute(f"SELECT event_date, kind, COUNT(*) FROM market_event WHERE event_date BETWEEN ? AND ? "
+                              f"AND kind IN ({marks}) GROUP BY event_date, kind", [*span, *kinds]).fetchall()
+        mrows = conn.execute(
+            f"SELECT event_id, kind, event_date, event_time, title, detail, confidence FROM market_event "
+            f"WHERE event_date BETWEEN ? AND ? AND kind IN ({','.join('?' * len(market))}) ORDER BY event_date, kind",
+            [*span, *market]).fetchall() if market else []
+    finally:
+        conn.close()
+    days: dict = {}
+    totals = {k: 0 for k in kinds}
+    for d, k, n in counts:
+        day = days.setdefault(d, {"date": d, "weekday": _WEEKDAYS[date.fromisoformat(d).weekday()], "counts": {},
+                                  "total": 0, "market_events": []})
+        day["counts"][k] = n
+        day["total"] += n
+        totals[k] += n
+    for eid, k, d, t, title, detail, conf in mrows:
+        days[d]["market_events"].append({"id": eid, "kind": k, "kind_label": EVENT_KINDS.get(k, k), "time": t,
+                                         "title": title, "detail": detail, "confidence": conf,
+                                         "confidence_label": CONFIDENCE.get(conf, conf)})
+    return {
+        "from": start.isoformat(),
+        "to": end.isoformat(),
+        "kind": kinds,
+        "kind_labels": {k: EVENT_KINDS[k] for k in kinds},
+        "market_kinds": market,
+        "days": [days[d] for d in sorted(days)],
+        "totals": totals,
+        "total": sum(totals.values()),
         "calendar": meta,
         "source": "collector",
         "as_of": (meta["updated_at"] or "")[:10],

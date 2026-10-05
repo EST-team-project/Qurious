@@ -58,11 +58,13 @@ async def search(
     sort: str = Query("date", description="date(최신순) · relevance(낱말 점수)"),
     limit: int = Query(data_search.DEFAULT_LIMIT, ge=1, le=data_search.MAX_LIMIT),
     offset: int = Query(0, ge=0, le=data_search.MAX_OFFSET),
+    source: str | None = Query(None, max_length=20, description="dart(공시) · policy_news(정책뉴스) · gdelt(언론사 기사) — 비우면 전부"),
+    facets: bool = Query(False, description="참이면 같은 조건에서 출처마다 몇 건인지 함께(종류 · 출처 거름은 빼고 센다)"),
     _user=Depends(get_current_user),
 ):
     try:
         return await asyncio.to_thread(data_search.search, q, kind, symbol, topic, term, dtype, from_, to,
-                                       sort, limit, offset)
+                                       sort, limit, offset, source, facets)
     except data_search.SearchError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None
 

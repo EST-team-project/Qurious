@@ -221,8 +221,11 @@ def disclosure_tags(row: Dict, terms: Sequence[TermEntry]) -> List[Tuple[str, st
 
 def news_tags(row: Dict, names: Sequence[NameEntry], terms: Sequence[TermEntry],
               query_symbol: Optional[str] = None) -> List[Tuple[str, str, str]]:
-    """뉴스 한 건 → 이름표. 검색어로 쓴 종목이라도 제목 · 요약에 이름이 없으면 붙이지 않는다(검색 결과가 늘 그 종목 기사는 아니다)."""
-    text = f"{row.get('title') or ''} {row.get('description') or ''}"
+    """뉴스 한 건 → 이름표. 검색어로 쓴 종목이라도 제목 · 요약에 이름이 없으면 붙이지 않는다(검색 결과가 늘 그 종목 기사는 아니다).
+
+    요약 자리는 정책뉴스의 부제(`subtitle`)다 — 본문은 보지 않는다(긴 본문은 지나가는 말까지 이름표가 된다).
+    """
+    text = f"{row.get('title') or ''} {row.get('subtitle') or row.get('description') or ''}"
     out: List[Tuple[str, str, str]] = []
     for sym in symbols_of(text, names):
         out.append(("symbol", sym, "name_dict" + (":query" if sym == query_symbol else "")))

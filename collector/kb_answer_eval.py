@@ -54,7 +54,9 @@ def load(path: Path = EVAL_SET) -> List[dict]:
     with path.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     for r in rows:
-        r["gold"] = [] if r["정답"] == "없음" else [tuple(g.split(":", 1)) for g in r["정답"].split(";") if g.strip()]
+        # 마지막 콜론에서 나눈다 — 문서 ID 에 콜론이 있을 수 있다(섹터 법령 실험 `sec:은행법` · kb_eval.load 와 같은 규칙)
+        r["gold"] = [] if r["정답"] == "없음" else [tuple(g.strip().rsplit(":", 1)) for g in r["정답"].split(";")
+                                                  if g.strip()]
         if r["기대"] not in ("answer", "abstain", "declined"):
             raise SystemExit(f"기대 칸이 틀렸다 — {r['id']}: {r['기대']!r}")
     return rows
