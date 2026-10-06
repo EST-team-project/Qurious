@@ -66,7 +66,10 @@ async function addTarget() {
 
 function importFromPositions(snapshot) {
   // 현재 보유 비중을 목표로 복사
-  targetRows = snapshot.rows.filter(r => r.quantity > 0).map(r => ({ symbol: r.symbol, name: r.name, weight_pct: r.current_weight_pct }));
+  const held = snapshot.rows.filter(r => r.quantity > 0);
+  const total = snapshot.cash + held.reduce((sum, r) => sum + r.current_amount, 0);
+  targetRows = held.map(r => ({ symbol: r.symbol, name: r.name,
+    weight_pct: total > 0 ? Math.floor(r.current_amount / total * 10000) / 100 : 0 }));
   renderTargets();
 }
 
@@ -227,7 +230,8 @@ async function submitCashflow() {
   try {
     const r = await api("/api/rebalance/cashflow", { method: "POST", body });
     const label = { DEPOSIT: "입금", WITHDRAW: "출금", DIVIDEND: "배당" }[kind];
-    setToast(`${label} ${won(amount)} 반영 (현금 ${won(r.event.cash_after)})` + (r.already_processed ? " → 오늘 실행 완료 · 미사용 예산 이월" : r.run ? ` → 리밸런싱 ${r.run.status === "executed" ? "자동 체결" : "제안 생성"}` : ""), "ok");
+    const outcome = { executed: "자동 체결", proposed: "제안 생성", partial: "부분 체결", skipped: "주문 없음", failed: "체결 실패" };
+    setToast(`${label} ${won(amount)} 반영 (현금 ${won(r.event.cash_after)})` + (r.already_processed ? " → 오늘 계획 처리됨 · 미사용 예산 이월" : r.run ? ` → 리밸런싱 ${outcome[r.run.status] || r.run.status}` : ""), "ok");
     if (r.check_error) setToast(`현금은 반영됐습니다. 리밸런싱 판정 대기: ${r.check_error}`, "error");
     $("rb-cf-amount").value = ""; $("rb-cf-memo").value = "";
     await loadStatus();

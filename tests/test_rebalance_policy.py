@@ -231,6 +231,60 @@ def test_same_day_conditions_merge_and_auto_execution_once(monkeypatch):
     asyncio.run(go())
 
 @needs_db
+def test_batch_continues_after_one_plan_fails(monkeypatch):
+    async def go():
+        async with scenario(monkeypatch) as (factory, first_uid):
+            async with scenario(monkeypatch) as (_, second_uid):
+                checked = []
+                async def check(db, user_id, plan):
+                    checked.append(user_id)
+                    if len(checked) == 1:
+                        raise rb.RebalanceError('시세 조회 실패')
+                    assert plan.user_id == user_id
+                    return {'status': 'proposed'}
+                monkeypatch.setattr(rb, 'check_due', check)
+                result = await rb.check_all_due(factory)
+                assert {first_uid, second_uid}.issubset(checked)
+                assert result['checked'] == len(checked)
+                assert result['proposed'] == len(checked) - 1
+    asyncio.run(go())
+
+
+@needs_db
+@pytest.mark.parametrize('mode', ['always', 'scheduled'])
+def test_pending_time_proposal_survives_next_check(monkeypatch, mode):
+    async def go():
+        async with scenario(monkeypatch) as (factory, uid):
+            async with factory() as db:
+                plan = await rb.get_plan(db, uid)
+                rb.apply_plan_update(plan, {'time_period': 'monthly', 'drift_check_mode': mode,
+                                           'drift_enabled': mode == 'scheduled'})
+                plan.next_run_at = datetime.now(timezone.utc) - timedelta(days=1)
+                account = await pt.get_account(db, uid, lock=True)
+                account.cash = 400000
+                await db.commit()
+                first = await rb.check_due(db, uid, plan)
+                assert first['status'] == 'proposed'
+                assert 'TIME' in first['triggers']
+                assert plan.next_run_at > datetime.now(timezone.utc)
+                await db.commit()
+                second = await rb.check_due(db, uid, plan)
+                assert second['run_id'] == first['run_id']
+                assert second['status'] == 'proposed'
+                assert 'TIME' in second['triggers']
+                await db.commit()
+                # Removing the schedule must invalidate its pending time condition.
+                rb.apply_plan_update(plan, {'time_period': 'none', 'drift_check_mode': 'always',
+                                           'drift_enabled': False})
+                await db.commit()
+                assert (await rb.check_due(db, uid, plan))['run_id'] is None
+                row = await db.get(RebalanceRun, uuid.UUID(first['run_id']))
+                assert row.status == 'skipped'
+                await db.commit()
+    asyncio.run(go())
+
+
+@needs_db
 def test_ordinary_cash_change_does_not_create_cashflow_plan(monkeypatch):
     async def go():
         async with scenario(monkeypatch) as (factory,uid):

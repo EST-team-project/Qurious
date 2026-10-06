@@ -3,14 +3,14 @@
 트리거
   TIME     : plan.time_period(monthly/quarterly/yearly) 주기의 next_run_at 도래
   DRIFT    : |현재 비중 − 목표 비중| 최대값 ≥ plan.drift_threshold_pct (%p)
-  CASHFLOW : 입금·출금·배당 이벤트 금액 ≥ plan.cashflow_min_amount
+  CASHFLOW : 현금 초과/부족과 누적 미사용 재배분 예산 중 작은 금액 ≥ 기준
   MANUAL   : 사용자가 화면에서 직접 실행
 
 흐름
   snapshot()  → 현재 비중·이탈률 계산
   propose()   → 목표 비중과의 차액을 주문(매도 먼저, 매수 나중)으로 변환
   execute()   → paper_trading.stock_order 로 모의 체결하고 RebalanceRun 기록
-  check_due() → TIME/DRIFT 트리거 점검(스케줄러·API 공용)
+  check_due() → TIME/DRIFT/CASHFLOW 트리거 점검(스케줄러·API 공용)
 """
 from __future__ import annotations
 
@@ -353,7 +353,11 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
     if existing and existing.status in ("executed", "partial", "failed"):
         return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True}
     snap = await snapshot(db, user_id, plan)
-    result.update(time_due=bool(plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= now),
+    # Creating a proposal advances next_run_at. Keep its due date effective until
+    # today's proposal is handled; otherwise the next hourly check cancels it.
+    pending_time = bool(existing and existing.status == "proposed" and "TIME" in existing.triggers
+                        and existing.context.get("settings_fingerprint") == fingerprint(plan))
+    result.update(time_due=pending_time or bool(plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= now),
                   drift_due=snap["drift_exceeded"], cashflow_due=bool(plan.cashflow_enabled and snap["cashflow_due"]),
                   max_drift_pct=snap["max_drift_pct"])
     triggers = policy.choose_triggers(result["time_due"], result["drift_due"], plan.drift_check_mode,
@@ -385,11 +389,14 @@ async def check_all_due(session_factory) -> dict:
     """스케줄러용: 활성 플랜 전체 점검."""
     checked = executed = proposed = 0
     async with session_factory() as db:
-        plans = (await db.execute(select(RebalancePlan).where(RebalancePlan.is_active.is_(True)))).scalars().all()
-        for plan in plans:
+        user_ids = (await db.execute(select(RebalancePlan.user_id).where(RebalancePlan.is_active.is_(True)))).scalars().all()
+        for user_id in user_ids:
             checked += 1
             try:
-                r = await check_due(db, plan.user_id, plan)
+                plan = await get_plan(db, user_id, create=False)
+                if plan is None:
+                    continue
+                r = await check_due(db, user_id, plan)
                 if r.get("status") == "executed":
                     executed += 1
                 elif r.get("status") == "proposed":
@@ -397,7 +404,9 @@ async def check_all_due(session_factory) -> dict:
                 await db.commit()
             except Exception:
                 await db.rollback()
-                logger.exception("리밸런싱 점검 실패 user=%s", plan.user_id)
+                # Rollback expires ORM objects; log the scalar ID and load each
+                # next plan afresh so one quote failure cannot stop the batch.
+                logger.exception("리밸런싱 점검 실패 user=%s", user_id)
     return {"checked": checked, "executed": executed, "proposed": proposed}
 
 
