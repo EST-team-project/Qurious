@@ -1628,8 +1628,9 @@
                   </div>
                 </div>
                 <p class="text-xs mb-3" style="color:var(--text-mute);">모의투자 계좌(현금+주식)를 목표 비중으로 되돌립니다. <b>시간
-                    기반</b>(월·분기·연) · <b>이탈률 기반</b>(허용 이탈 %p 이상) · <b>입출금·배당 기반</b> 3가지 트리거를 지원하며, 스케줄러가 1시간마다 조건을
-                  점검합니다.</p>
+                    기반</b>(월·분기·연) · <b>이탈률 기반</b>(허용 이탈 %p 이상) · <b>입출금·배당 기반</b> 3가지 트리거를 지원합니다.
+                  자동 정기 점검은 거래일마다 데이터 갱신 완료 후 한 번 진행합니다.</p>
+                <p id="rb-daily-check" class="text-sm mb-3" role="status"></p>
                 <div id="rb-kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3"></div>
                 <div id="rb-trigger-badges" class="flex flex-wrap gap-2 text-xs"></div>
               </div>
@@ -1700,7 +1701,7 @@
                     <label class="flex items-center gap-2"><input id="rb-protect" type="checkbox" />플랜 밖 종목 유지 (주문·비중 계산에서 제외)</label>
                   </div>
                   <p class="text-xs mt-3" style="color:var(--text-mute);">입금·배당은 매수만, 출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 기준은 입금액 자체가 아닌 목표 대비 현금 초과·부족과 누적 미사용 재배분 예산 중 작은 금액입니다. 일반 매매는 예산에 포함하지 않습니다.</p>
-                  <p class="text-xs mt-2" style="color:var(--text-mute);">시간 주기는 다음 월·분기·연의 첫 거래일 오전 9시(한국시간)부터 점검합니다. 예약 점검은 1시간 간격이며, 놓친 예약은 이후 거래일에 점검합니다. 달력이 없거나 부족하면 시간 조건은 대기합니다. 갱신 후 하루 1회 판정·다음 거래일 시가 체결은 연결 예정이며, 현재 승인은 조회 시세로 즉시 모의 체결합니다.</p>
+                  <p class="text-xs mt-2" style="color:var(--text-mute);">시간 주기는 다음 월·분기·연의 첫 거래일 기준입니다. 자동 정기 점검은 12:30 이후 데이터 갱신이 성공하고 시세 기준일이 전 거래일인지 확인한 뒤 하루 한 번 진행합니다. 준비 여부는 5분마다 확인하며, 갱신 실패·지연 시에는 기다립니다. ‘지금 점검’과 입출금 직후 점검은 별도입니다. 현재 계산·승인은 조회 시세를 사용하며, 전 거래일 종가 계산과 다음 거래일 시가 체결은 연결 예정입니다.</p>
                   <p id="rb-schedule-warning" class="text-sm mt-2 text-amber-500" role="status" hidden></p>
                   <div class="mt-3"><button id="rb-save" class="btn-primary">플랜 저장</button></div>
                 </div>

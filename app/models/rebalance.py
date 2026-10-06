@@ -55,6 +55,10 @@ class RebalancePlan(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     min_order_amount: Mapped[float] = mapped_column(Float, nullable=False, default=10_000)
 
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_auto_check_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_auto_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_auto_check_result: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict,
+                                                       server_default=text("'{}'::jsonb"))
 
 
 class CashflowEvent(Base, UUIDPkMixin, CreatedAtMixin):

@@ -244,6 +244,9 @@ def test_same_day_conditions_merge_and_auto_execution_once(monkeypatch, time_cal
 
 @needs_db
 def test_batch_continues_after_one_plan_fails(monkeypatch):
+    monkeypatch.setattr(rb.daily, 'readiness', lambda: dict(ready=True,
+        decision_date=datetime.now(rb.KST).date().isoformat(), data_as_of='2026-10-02',
+        update_finished_at='2026-10-06T13:00:00+09:00'))
     async def go():
         async with scenario(monkeypatch) as (factory, first_uid):
             async with scenario(monkeypatch) as (_, second_uid):
@@ -257,7 +260,8 @@ def test_batch_continues_after_one_plan_fails(monkeypatch):
                 monkeypatch.setattr(rb, 'check_due', check)
                 result = await rb.check_all_due(factory)
                 assert {first_uid, second_uid}.issubset(checked)
-                assert result['checked'] == len(checked)
+                assert result['checked'] == len(checked) - 1
+                assert result['errors'] == 1
                 assert result['proposed'] == len(checked) - 1
     asyncio.run(go())
 

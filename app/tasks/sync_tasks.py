@@ -61,7 +61,7 @@ def sync_stock_candles() -> dict:
 
 @celery_app.task(name="rebalance.check_triggers", time_limit=600)
 def rebalance_check_triggers() -> dict:
-    """활성 리밸런싱 플랜의 시간·이탈률 트리거를 점검한다 (1시간 주기)."""
+    """갱신 완료를 5분마다 확인하고 준비된 거래일에 플랜별로 한 번 판정한다."""
 
     async def _async() -> dict:
         from app.database.postgres import connect_postgres, close_postgres, get_session_factory
