@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Literal
 
@@ -99,7 +100,9 @@ async def status(user=Depends(get_current_user_any), db: AsyncSession = Depends(
     await db.commit()
     await db.refresh(plan)
     time_due = timing["time_due"]
+    automatic_check = rb.daily.view(plan, await asyncio.to_thread(rb.daily.readiness))
     return {"plan": rb.plan_to_dict(plan), "snapshot": snap,
+            "automatic_check": automatic_check,
             "triggers": {"time_due": time_due,
                          "drift_due": snap["drift_exceeded"] and (plan.drift_check_mode != "scheduled" or time_due),
                          "cashflow_due": plan.cashflow_enabled and snap["cashflow_due"]}}

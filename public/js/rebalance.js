@@ -120,6 +120,9 @@ async function loadStatus() {
     const r = await api("/api/rebalance/status");
     const { plan, snapshot: s, triggers } = r;
     fillPlanForm(plan);
+    const daily = r.automatic_check;
+    $("rb-daily-check").textContent = daily ? `자동 정기 점검: ${daily.message}`
+      + (daily.state === "checked" && daily.last_checked_at ? ` (${ts(daily.last_checked_at)} · 한국시간)` : "") : "";
     $("rb-schedule-warning").hidden = !plan.time_schedule_error;
     $("rb-schedule-warning").textContent = plan.time_schedule_error ? `시간 예약 확인 대기: ${plan.time_schedule_error}` : "";
     $("rb-kpis").innerHTML = [

@@ -31,6 +31,7 @@ from app.models.rebalance import CASHFLOW_KINDS, TIME_PERIODS
 from app.services import paper_trading as pt
 from app.services import rebalance_policy as policy
 from app.services import rebalance_schedule as schedule
+from app.services import rebalance_daily as daily
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +193,8 @@ def plan_to_dict(plan: RebalancePlan) -> dict:
         "cashflow_enabled": plan.cashflow_enabled, "cashflow_min_amount": plan.cashflow_min_amount,
         "auto_execute": plan.auto_execute, "min_order_amount": plan.min_order_amount,
         "last_run_at": plan.last_run_at.isoformat() if plan.last_run_at else None,
+        "last_auto_check_date": plan.last_auto_check_date.isoformat() if plan.last_auto_check_date else None,
+        "last_auto_check_at": plan.last_auto_check_at.isoformat() if plan.last_auto_check_at else None,
         "updated_at": plan.updated_at.isoformat() if plan.updated_at else None,
     }
 
@@ -401,29 +404,65 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
     return result
 
 
+async def check_daily(db, user_id, plan):
+    """성공한 정기 판정만 날짜를 저장한다. 잠금과 완료 기록은 주문과 같은 트랜잭션이다."""
+    await lock_user(db, user_id)
+    await db.refresh(plan)
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(KST).date()
+    if not plan.is_active or not plan.targets:
+        return {"checked": False, "reason": "inactive"}
+    if plan.last_auto_check_date == today:
+        return {"checked": False, "reason": "already_checked"}
+    # A new collector run may have started while another plan was being checked.
+    readiness = await asyncio.to_thread(daily.readiness)
+    if not readiness["ready"] or readiness["decision_date"] != today.isoformat():
+        return {"checked": False, "reason": "data_waiting"}
+    result = await check_due(db, user_id, plan)
+    plan.last_auto_check_date = today
+    plan.last_auto_check_at = datetime.now(timezone.utc)
+    plan.last_auto_check_result = {
+        "data_as_of": readiness["data_as_of"], "update_finished_at": readiness["update_finished_at"],
+        "run_id": result.get("run_id"), "triggers": result.get("triggers", []),
+        "status": result.get("status", "no_action"), "already_processed": result.get("already_processed", False),
+        "price_basis": "current_quote",
+    }
+    await db.flush()
+    return {**result, "checked": True}
+
+
 async def check_all_due(session_factory) -> dict:
-    """스케줄러용: 활성 플랜 전체 점검."""
-    checked = executed = proposed = 0
+    """5분마다 갱신 완료 여부를 확인하고, 준비된 거래일에 플랜마다 한 번 판정한다."""
+    readiness = await asyncio.to_thread(daily.readiness)
+    checked = executed = proposed = skipped = errors = 0
+    if not readiness["ready"]:
+        return dict(checked=0, executed=0, proposed=0, skipped=0, errors=0, readiness=readiness)
     async with session_factory() as db:
         user_ids = (await db.execute(select(RebalancePlan.user_id).where(RebalancePlan.is_active.is_(True)))).scalars().all()
         for user_id in user_ids:
-            checked += 1
             try:
                 plan = await get_plan(db, user_id, create=False)
                 if plan is None:
                     continue
-                r = await check_due(db, user_id, plan)
+                r = await check_daily(db, user_id, plan)
+                if not r["checked"]:
+                    await db.commit()
+                    skipped += 1
+                    continue
+                await db.commit()
+                checked += 1
                 if r.get("status") == "executed":
                     executed += 1
                 elif r.get("status") == "proposed":
                     proposed += 1
-                await db.commit()
             except Exception:
+                errors += 1
                 await db.rollback()
                 # Rollback expires ORM objects; log the scalar ID and load each
                 # next plan afresh so one quote failure cannot stop the batch.
                 logger.exception("리밸런싱 점검 실패 user=%s", user_id)
-    return {"checked": checked, "executed": executed, "proposed": proposed}
+    return dict(checked=checked, executed=executed, proposed=proposed, skipped=skipped, errors=errors,
+                readiness=readiness)
 
 
 # ── 현금흐름(입금·출금·배당) ────────────────────────────────────────────

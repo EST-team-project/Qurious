@@ -109,10 +109,10 @@ celery_app.conf.update(
             "schedule": 120.0,            # 2분 — 게이트웨이 경유 KIS 실주문의 체결 확인 (live_orders)
             "options": {"expires": 110},
         },
-        "rebalance-check-hourly": {
+        "rebalance-check-after-update": {
             "task": "rebalance.check_triggers",
-            "schedule": 3600.0,           # 1시간 — 시간·이탈률 리밸런싱 트리거 점검
-            "options": {"expires": 3500},
+            "schedule": 300.0,            # 5분마다 준비 확인 → 거래일별 판정은 DB 기록으로 1회 제한
+            "options": {"expires": 290},
         },
         # ── Issue #88 지적 #6: 모의계좌 일별 스냅샷 배치 ──────────────────────
         # 계좌 조회 시에만 기록되던 스냅샷을 매일 장 마감 뒤 자동 기록한다.
