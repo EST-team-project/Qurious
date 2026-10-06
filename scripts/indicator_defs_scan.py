@@ -5,17 +5,22 @@
 
 무엇을 재나
 -----------
-1. RSI 14 — 기준(TradingView `ta.rsi`: 첫 14개 단순평균으로 시작하는 Wilder 평활)과 앱 안 구현 넷
-     · `ta_utils.rsi(method="sma")` — quant_pipeline(피처 · XAI · 커스텀 백테스트) · patterns · formula
-     · `ta_utils.rsi(method="ewm")` — investment_research 규칙 점수(로보 스크리닝)
-     · `stock._calc_rsi`            — `API-STK-04`(기본 인디케이터 전략 · 전략 분석 · 퀀트 대시보드 화면)
-     · `ml_symbol_score` 안의 rsi   — 자동매매 종목 점수(함수 안에 묶여 있어 같은 식을 옮겨 적었다)
+1. RSI 14 — 기준(TradingView `ta.rsi`: 첫 14개 단순평균으로 시작하는 Wilder 평활)과 앱 안의 RSI 가 나오는 길 셋
+     · `ta_utils.rsi`        — quant_pipeline(피처 · XAI · 커스텀 백테스트) · patterns · formula · investment_research
+     · `stock._calc_rsi`     — `API-STK-04`(기본 인디케이터 전략 · 전략 분석 · 퀀트 대시보드 화면)
+     · `ml_symbol_score`     — 자동매매 종목 점수(피처 표의 RSI 칸 · 다른 파트 파일이라 아직 단순평균 — 남은 갈래)
    값 차이(평균 · 95% · 최대)와 「RSI < 30 · > 70」 판정이 기준과 다른 날의 비율
-2. 볼린저 20 · 2σ — 표준편차 n-1(`ta_utils` · pandas 기본) 과 n(`stock._calc_bollinger` · TradingView)
-3. ATR 14 — `ta_utils.atr`(단순평균) 과 TradingView `ta.atr`(Wilder 평활)
+2. 볼린저 20 · 2σ — (가) 정의 차이: 표준편차 n − 1 과 n(TradingView)을 반올림 없이 견준다
+                    (나) 앱 갈래: `ta_utils.bollinger` 와 `stock._calc_bollinger`(화면용 · 소수 둘째 자리)
+   밴드 밖 판정은 반올림 단위의 절반(EPS)보다 더 벗어날 때만 센다 — 거래정지로 가격이 평평한 구간은
+   밴드 폭이 0 이라 종가 = 밴드인데, 반올림한 밴드와 견주면 「밖」 으로 잘못 세기 때문이다.
+3. ATR 14 — `ta_utils.atr` 와 TradingView `ta.atr`(Wilder 평활)
 4. 화면 B1 규칙 — 「전일 등락률 ±2%」 판정(public/js/indicator.js)이 실제 밴드 이탈과 얼마나 겹치나
 5. 결론이 뒤집히나 — 같은 RSI 역추세 규칙(30 아래 매수 · 70 위 매도 · 다음 날부터 보유 · 비용 없음)을
    구현만 바꿔 돌렸을 때 종목별 누적 수익의 부호가 기준과 달라지는 비율
+
+2026-10-06 판(지표 한 벌로 바꾸기 전)의 결과는 설계서 3.3 표, 바꾼 뒤는 3.4 다. 자동매매 종목 점수를 담당 파트가
+`ta_utils.rsi` 로 바꾸면 모든 갈래가 0 이 된다(반올림 차이 제외 — 설계서 인수 기준 1).
 
 데이터 — 수집 DB(`collector.config.DB_PATH`)의 수정주가(`price_adjusted`), 앱의 일봉 다리
 (`collector_db`)와 같은 값. 코스피 · 코스닥, 기준일에 상장돼 있고 봉이 300개 이상인 종목.
@@ -42,12 +47,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.services import ta_utils as ta  # noqa: E402
+from app.services.ml_symbol_score import _features as ml_features  # noqa: E402
 from app.services.stock import _calc_bollinger, _calc_rsi  # noqa: E402
 from collector import config  # noqa: E402
 
 DB = config.DB_PATH
 RSI_N, BB_N, BB_K, ATR_N = 14, 20, 2.0, 14
 LO, HI = 30.0, 70.0
+EPS = 0.005   # 화면용 값의 반올림 단위(0.01)의 절반
 
 
 # ── 기준 정의 (TradingView Pine v5 · ta.rma / ta.rsi / ta.stdev / ta.atr 문서의 식) ──────────
@@ -78,22 +85,6 @@ def atr_tv(h: pd.Series, l: pd.Series, c: pd.Series, n: int = ATR_N) -> pd.Serie
     pc = c.shift(1)
     tr = pd.concat([h - l, (h - pc).abs(), (l - pc).abs()], axis=1).max(axis=1)
     return rma(tr, n)
-
-
-# ── ml_symbol_score._features 안의 rsi (중첩 함수라 import 할 수 없어 같은 식을 옮겼다) ─────
-def rsi_ml(a: np.ndarray, n: int = RSI_N) -> np.ndarray:
-    def sma(x, k):
-        out = np.full_like(x, np.nan)
-        if len(x) >= k:
-            cs = np.cumsum(np.insert(x, 0, 0.0))
-            out[k - 1:] = (cs[k:] - cs[:-k]) / k
-        return out
-    d = np.diff(a, prepend=a[0])
-    gain = np.where(d > 0, d, 0.0)
-    loss = np.where(d < 0, -d, 0.0)
-    ag, al = sma(gain, n), sma(loss, n)
-    rs = np.divide(ag, al, out=np.full_like(ag, np.nan), where=al != 0)
-    return 100 - 100 / (1 + rs)
 
 
 def load(limit: int | None, min_bars: int, end: str) -> tuple[dict[str, pd.DataFrame], str]:
@@ -156,7 +147,7 @@ def main(argv=None) -> int:
     if not data:
         print(f"비교할 종목이 없다 — 끝날 {a.end} · 봉 {a.min_bars}개 이상 조건을 확인한다")
         return 1
-    names = ["ta_utils sma", "ta_utils ewm", "stock._calc_rsi", "ml_symbol_score"]
+    names = ["ta_utils.rsi", "stock._calc_rsi", "ml_symbol_score"]
     diffs = {k: [] for k in names}
     flip_lo = {k: [0, 0] for k in names}   # [판정이 다른 날, 비교한 날]
     flip_hi = {k: [0, 0] for k in names}
@@ -164,7 +155,7 @@ def main(argv=None) -> int:
     last_bucket_diff = {k: 0 for k in names}
     sign_flip = {k: 0 for k in names}
     ret_gap = {k: [] for k in names}
-    bb = {"bars": 0, "touch_s": 0, "touch_p": 0, "differ": 0, "width_ratio": []}
+    bb = {"bars": 0, "touch_s": 0, "touch_p": 0, "differ": 0, "app_differ": 0, "width_ratio": []}
     b1 = {"chg_flag": 0, "chg_and_band": 0, "band": 0, "band_and_chg": 0}
     atr_rel = []
     n_bars = 0
@@ -173,10 +164,10 @@ def main(argv=None) -> int:
         c, h, l = g["close"].astype(float), g["high"].astype(float), g["low"].astype(float)
         ref = rsi_tv(c)
         cand = {
-            "ta_utils sma": ta.rsi(c, RSI_N, method="sma"),
-            "ta_utils ewm": ta.rsi(c, RSI_N, method="ewm"),
+            "ta_utils.rsi": ta.rsi(c, RSI_N),
             "stock._calc_rsi": pd.Series(_calc_rsi(c.tolist(), RSI_N), index=c.index, dtype=float),
-            "ml_symbol_score": pd.Series(rsi_ml(c.to_numpy()), index=c.index),
+            # 피처 표의 7번째 칸이 RSI/100 이다 — 거래량은 RSI 와 무관해 1 로 채운다
+            "ml_symbol_score": pd.Series(ml_features(c.to_numpy(), np.ones(len(c)))[:, 6] * 100, index=c.index),
         }
         w = slice(a.warmup, None)
         r0 = ref.iloc[w]
@@ -196,18 +187,27 @@ def main(argv=None) -> int:
             sign_flip[k] += int(np.sign(rk) != np.sign(ret_ref))
             ret_gap[k].append(abs(rk - ret_ref))
 
-        up_s, mid, lo_s = ta.bollinger(c, BB_N, BB_K)
-        up_p, _, lo_p = (pd.Series(x, index=c.index, dtype=float) for x in _calc_bollinger(c.tolist(), BB_N, BB_K))
-        m = up_s.notna() & up_p.notna()
-        cs, ls, lp = c[m], lo_s[m], lo_p[m]
-        ts = (cs < ls) | (cs > up_s[m]); tp = (cs < lp) | (cs > up_p[m])
+        # (가) 정의 차이 — n − 1 과 n, 반올림 없이
+        mid = c.rolling(BB_N).mean()
+        sd1, sd0 = c.rolling(BB_N).std(ddof=1), c.rolling(BB_N).std(ddof=0)
+        m = sd0.notna()
+        out = lambda sd: ((c < mid - BB_K * sd - EPS) | (c > mid + BB_K * sd + EPS))[m]
+        ts, tp = out(sd1), out(sd0)
         bb["bars"] += int(m.sum()); bb["touch_s"] += int(ts.sum()); bb["touch_p"] += int(tp.sum())
         bb["differ"] += int((ts != tp).sum())
-        wr = ((up_s - lo_s) / (up_p - lo_p))[m & (up_p > lo_p)]
+        wr = (sd1 / sd0)[m & (sd0 > 0)]
         bb["width_ratio"].append(wr.to_numpy())
+        # (나) 앱 갈래 — ta_utils 와 화면용(API-STK-04)
+        up_t, _, lo_t = ta.bollinger(c, BB_N, BB_K)
+        up_a, _, lo_a = (pd.Series(x, index=c.index, dtype=float) for x in _calc_bollinger(c.tolist(), BB_N, BB_K))
+        ma = up_t.notna() & up_a.notna()
+        ta_out = ((c < lo_t - EPS) | (c > up_t + EPS))[ma]
+        app_out = ((c < lo_a - EPS) | (c > up_a + EPS))[ma]
+        bb["app_differ"] += int((ta_out != app_out).sum())
+        # 화면 B1 — 「전일 등락률 < −2%」 와 실제 하단 이탈(모집단 · 반올림 없음)
         chg = c.pct_change() * 100
         flag = (chg[m] < -2)                      # 화면 B1: 「하단 이탈 · 매수」
-        band = (cs < lp)                          # 실제: 종가 < 하단밴드(모집단)
+        band = (c < mid - BB_K * sd0 - EPS)[m]    # 실제: 종가 < 하단밴드
         b1["chg_flag"] += int(flag.sum()); b1["chg_and_band"] += int((flag & band).sum())
         b1["band"] += int(band.sum()); b1["band_and_chg"] += int((band & flag).sum())
 
@@ -233,6 +233,7 @@ def main(argv=None) -> int:
     res["bollinger"] = {"bars": bb["bars"], "touch_sample_pct": pct(bb["touch_s"], bb["bars"]),
                         "touch_population_pct": pct(bb["touch_p"], bb["bars"]),
                         "touch_differs_pct": pct(bb["differ"], bb["bars"]),
+                        "app_ta_vs_screen_differs_pct": pct(bb["app_differ"], bb["bars"]),
                         "touch_count_ratio_sample_over_pop": round(bb["touch_s"] / bb["touch_p"], 3),
                         "width_ratio_median": round(float(np.median(wr)), 4)}
     res["b1_rule"] = {"chg_lt_-2_days": b1["chg_flag"],

@@ -7,10 +7,12 @@
 import math
 import time
 import httpx
+import pandas as pd
 from datetime import datetime, timezone
 from typing import Any
 
 from app.services import collector_db
+from app.services import ta_utils
 from app.services.data_cache import cache_get, cache_set
 
 YAHOO_CHART = "https://query2.finance.yahoo.com/v8/finance/chart"
@@ -310,25 +312,14 @@ async def get_market_summary() -> list[dict]:
 
 
 # ── 기술적 지표 계산 ──────────────────────────────────────────────────
+def _rounded(series) -> list[float | None]:
+    """지표 시계열 → 화면용 목록(소수 둘째 자리 · 빈 값은 None)."""
+    return [None if math.isnan(v) else round(float(v), 2) for v in series]
+
+
 def _calc_rsi(closes: list[float], period: int = 14) -> list[float | None]:
-    rsi = [None] * len(closes)
-    if len(closes) < period + 1:
-        return rsi
-    gains, losses = [], []
-    for i in range(1, period + 1):
-        diff = closes[i] - closes[i - 1]
-        gains.append(max(diff, 0))
-        losses.append(max(-diff, 0))
-    avg_gain = sum(gains) / period
-    avg_loss = sum(losses) / period
-    for i in range(period, len(closes)):
-        if i > period:
-            diff = closes[i] - closes[i - 1]
-            avg_gain = (avg_gain * (period - 1) + max(diff, 0)) / period
-            avg_loss = (avg_loss * (period - 1) + max(-diff, 0)) / period
-        rs = avg_gain / avg_loss if avg_loss > 0 else 100
-        rsi[i] = round(100 - (100 / (1 + rs)), 2)
-    return rsi
+    """RSI — `ta_utils.rsi`(TradingView 정의) 를 화면용 목록으로."""
+    return _rounded(ta_utils.rsi(pd.Series(closes, dtype=float), period))
 
 
 def _calc_sma(closes: list[float], period: int) -> list[float | None]:
@@ -339,15 +330,9 @@ def _calc_sma(closes: list[float], period: int) -> list[float | None]:
 
 
 def _calc_bollinger(closes: list[float], period: int = 20, std_mult: float = 2.0):
-    upper, lower, mid = [None] * len(closes), [None] * len(closes), [None] * len(closes)
-    for i in range(period - 1, len(closes)):
-        window = closes[i - period + 1:i + 1]
-        m = sum(window) / period
-        std = (sum((x - m) ** 2 for x in window) / period) ** 0.5
-        mid[i] = round(m, 2)
-        upper[i] = round(m + std_mult * std, 2)
-        lower[i] = round(m - std_mult * std, 2)
-    return upper, mid, lower
+    """볼린저 밴드 — `ta_utils.bollinger`(모집단 표준편차) 를 화면용 목록으로. 반환: (상단, 중심, 하단)."""
+    upper, mid, lower = ta_utils.bollinger(pd.Series(closes, dtype=float), period, std_mult)
+    return _rounded(upper), _rounded(mid), _rounded(lower)
 
 
 async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
@@ -386,6 +371,7 @@ async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
         # current_price 는 마지막 봉 종가다. 수집 DB 에서 왔으면 오늘이 아니라 as_of 의 값이다.
         "as_of": data.get("as_of"),
         "source": data.get("source"),
+        "definition": ta_utils.DEFINITION,
     }
 
 

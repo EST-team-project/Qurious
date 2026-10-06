@@ -20,6 +20,7 @@ def _close(n=300):
     lambda c: ta.rsi(c, 14),
     lambda c: ta.macd(c, 12, 26, 9)[0],
     lambda c: ta.bollinger(c, 20, 2.0)[0],
+    lambda c: ta.bollinger(c, 20, 2.0)[2],
 ])
 def test_indicators_are_causal(fn):
     c = _close(300)
@@ -27,6 +28,22 @@ def test_indicators_are_causal(fn):
     truncated = fn(c.iloc[:250])
     # 앞 250개 구간의 값은 뒤 50개 데이터 존재 여부와 무관해야 한다
     pd.testing.assert_series_equal(full.iloc[:250].dropna(), truncated.dropna(), check_names=False)
+
+
+def test_atr_is_causal():
+    df = preprocess(make_candles(300))
+    h, l, c = (df[k].astype(float) for k in ("high", "low", "close"))
+    full = ta.atr(h, l, c, 14)
+    truncated = ta.atr(h.iloc[:250], l.iloc[:250], c.iloc[:250], 14)
+    pd.testing.assert_series_equal(full.iloc[:250].dropna(), truncated.dropna(), check_names=False)
+
+
+def test_rsi_value_unchanged_when_later_bars_change():
+    """뒤 봉을 크게 바꿔도(30% 급등) 그 앞 RSI 는 그대로다 — Wilder 평활은 앞 값만 이어받는다."""
+    c = _close(300)
+    tampered = c.copy()
+    tampered.iloc[-1] *= 1.30
+    pd.testing.assert_series_equal(ta.rsi(c).iloc[:-1], ta.rsi(tampered).iloc[:-1])
 
 
 def test_rsi_bounds():

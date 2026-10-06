@@ -21,7 +21,7 @@ def indicators(candles: list[dict]) -> pd.DataFrame:
     df["ma5"] = ta.sma(close, 5)
     df["ma20"] = ta.sma(close, 20)
     df["ma60"] = ta.sma(close, 60)
-    df["rsi"] = ta.rsi(close, 14, method="ewm")
+    df["rsi"] = ta.rsi(close, 14)
     macd_line, macd_signal, _ = ta.macd(close, 12, 26, 9)
     df["macd"] = macd_line
     df["macd_signal"] = macd_signal
