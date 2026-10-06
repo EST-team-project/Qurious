@@ -229,3 +229,24 @@ def test_rechunk_replays_stored_raw_without_network(tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM kb_chunk_fts").fetchone()[0] == len(before)
     with pytest.raises(kb_law.LawApiError):
         kb_law.rechunk(conn, ["fcp_reg_rule"])                   # 받아 둔 원문이 없으면 멈춘다(받으러 가지 않는다)
+
+
+# ── 8 읽기 전용으로 붙은 앱이 열 수 있나 ─────────────────────────────────────────
+def test_kb_db_is_rollback_journal_and_opens_read_only_after_close(tmp_path):
+    """TC-LW-09 · 근거 DB 는 롤백 저널(DF-74) — 쓰고 닫은 뒤 보조 파일(-wal · -shm)이 남지 않아도 읽기 전용으로 열린다.
+
+    도커 앱은 data/ 를 읽기 전용으로 붙인다. WAL 이면 마지막 연결이 닫힐 때 보조 파일이 지워지고, 읽기 전용 연결은
+    그것을 만들 수 없어 「unable to open database file」 로 멈췄다(2026-10-06 · 근거 찾기 · 답 500)."""
+    db = tmp_path / "kb.sqlite3"
+    conn = kb_law.connect(db)
+    assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+    conn.execute("INSERT INTO kb_raw(source, target, fetched_at, body, sha256, bytes) VALUES ('t', 't', 't', x'00', 's', 1)")
+    conn.close()
+    assert not db.with_name(db.name + "-wal").exists() and not db.with_name(db.name + "-shm").exists()
+    db.chmod(0o444)                                               # 읽기 전용 파일 — 보조 파일을 만들 수 없게
+    try:
+        ro = sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True)
+        assert ro.execute("SELECT COUNT(*) FROM kb_raw").fetchone()[0] == 1
+        ro.close()
+    finally:
+        db.chmod(0o644)

@@ -200,7 +200,11 @@ def connect(path: Optional[Path] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path or KB_DB_PATH, timeout=60, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=60000")
-    conn.execute("PRAGMA journal_mode=WAL")
+    # ⚠️ WAL 로 두지 않는다(DF-74 · 2026-10-06) — 도커 앱은 data/ 를 읽기 전용으로 붙여 이 파일을 연다. WAL 파일은
+    #    읽을 때도 보조 파일(-shm · -wal)이 있어야 하는데, 이 PC 의 마지막 연결이 닫히면 그 둘이 지워져 앱의 근거 찾기 ·
+    #    답이 「unable to open database file」(500)로 멈췄다 — 검색 색인의 DF-67 과 같은 뿌리. 롤백 저널이면 보조 파일
+    #    없이 읽힌다. 근거 DB 는 쓰기가 드물어(법령 받기 · 섹터 법령 · 색인) WAL 의 동시 읽기 이득이 거의 없다.
+    conn.execute("PRAGMA journal_mode=DELETE")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.executescript(SCHEMA)
     return conn

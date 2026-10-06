@@ -61,17 +61,24 @@ def test_menu_views_assets_and_hooks_are_wired():
     from scripts import view_scan
     entry = {r["key"]: set(r["entry_apis"]) for r in view_scan.scan()["rows"]}
     assert entry["data-status"] == {"/api/data/status"}
-    assert entry["market-calendar"] == {"/api/calendar/events", "/api/calendar/trading-days"}
+    # 일정 2판(2026-10-06) — 한 달은 요약 · 그날 목록은 일정 · 내 종목은 모의계좌 보유
+    assert entry["market-calendar"] == {"/api/calendar/events/summary", "/api/calendar/events",
+                                        "/api/calendar/trading-days", "/api/paper/stocks/positions"}
 
 
 def test_calendar_kinds_match_server_and_decision_3():
-    """TC-DH-02 · 일정 종류 — 화면의 넷 = 서버가 kind 없이 주는 넷(결정 ③). 2026-10-04 에 서버는 실적 · 보고서 기한 · 금통위 ·
-    FOMC 를 더해 여덟이 됐지만, 화면에 올리는 것은 Figma 결정 뒤라 서버의 기본은 넷 그대로다 — 화면이 모르는 종류를 받지 않는다."""
+    """TC-DH-02 · 일정 종류 — 화면이 아는 종류 = 서버의 종류(화면이 모르는 종류를 받지 않는다 · 결정 ③ 「자료가 들어오는 날 칩을
+    더한다」). 1판(2026-10-02)은 서버 기본 넷이었고, 일정 2판(2026-10-06 · Figma 결정 안 B)에서 서버의 열 종류 모두가 됐다.
+    칸에 이름까지 보이는 시장 전체 일정은 서버가 한 달 요약에 이름을 싣는 종류와 같다 · 아직 모으지 않는 경제지표는 없다."""
     src = _read("js/calendar.js")
-    assert _js_object_keys(src, "KINDS") == set(cal_svc.DEFAULT_KINDS)
+    assert _js_object_keys(src, "KINDS") == set(cal_svc.EVENT_KINDS)
+    # 칩 차례 = 서버가 같은 날 안에서 주는 차례(그날 목록에서 켠 칩의 일정이 뒤쪽 쪽으로 밀리지 않게)
+    body = src[src.index("const KINDS = {"):src.index("};", src.index("const KINDS = {"))]
+    assert re.findall(r"^\s+(\w+): \[", body, re.M) == list(cal_svc.KIND_ORDER)
+    market = re.search(r"const MARKET_KINDS = \[([^\]]*)\]", src).group(1)
+    assert set(re.findall(r'"(\w+)"', market)) == set(cal_svc.MARKET_KINDS)
     assert set(cal_svc.DEFAULT_KINDS) < set(cal_svc.EVENT_KINDS)
-    for word in ("경제지표", "FOMC", "금통위", "실적"):
-        assert word not in src.split("const KINDS")[1].split("};")[0]
+    assert "경제지표" not in src.split("const KINDS")[1].split("};")[0]
 
 
 def test_data_status_fields_read_by_screen_exist(tmp_path, monkeypatch):
@@ -112,8 +119,51 @@ def test_calendar_fields_read_by_screen_exist(tmp_path, monkeypatch):
     for k in ("date", "is_trading_day"):
         assert k in td["days"][0], k
     assert "end" in ev["calendar"]
+    # 일정 2판 — 한 달 요약(날짜 × 종류 개수 + 시장 전체 일정 이름) · 그날 목록(쪽 · 내 종목)
+    sm = cal_svc.events_summary(date(2026, 9, 27), date(2026, 10, 31))
+    assert sm["days"]
+    for k in ("date", "weekday", "counts", "market_events"):
+        assert k in sm["days"][0], k
+    mk = next(d for d in sm["days"] if d["market_events"])["market_events"][0]
+    for k in ("id", "kind", "title", "detail", "time", "confidence_label"):
+        assert k in mk, k
+    sym = ev["events"][0]["symbol"] or next(e["symbol"] for e in ev["events"] if e["symbol"])
+    page = cal_svc.events(date(2026, 9, 27), date(2026, 10, 31), first=sym, limit=2)
+    for k in ("total", "offset", "limit"):
+        assert k in page, k
+    assert page["events"][0]["mine"] is True and "time" in page["events"][0]
     src = _read("js/calendar.js")
-    for field in ("e.confidence_label", "e.weekday", "e.detail", "e.symbol", "day.is_trading_day", "state.calendar?.end"):
+    for field in ("e.confidence_label", "e.weekday", "e.detail", "e.symbol", "e.mine", "e.time", "day.is_trading_day",
+                  "state.calendar?.end", "sd?.market_events", "d.counts", "r.total", "sum.days"):
         assert field in src, field
     # 보유 종목 카드는 모의계좌 보유 응답의 symbol 앞 6자리를 쓴다
     assert "/api/paper/stocks/positions" in src and "p.symbol" in src
+
+
+def test_calendar_screen_respects_server_limits():
+    """TC-DH-05 · 화면 → API 상한(DF-66) — 한 달은 요약 하나(날짜 × 종류 개수)로 받고 일정 목록을 통째로 받지 않는다 ·
+    그날 목록 50건씩 · 종목 하나 500건 · 카드 · 내 종목 수가 서버 상한 안 · 달력 한 장(6주)이 요약 상한 안."""
+    src = _read("js/calendar.js")
+    assert "limit=2000" not in src                                         # 1판의 한 달 통째 받기(DF-66 · 12월 2,324건에서 잘림)
+    month = src[src.index("async function loadMonth"):src.index("/** 그날의 종류별 개수")]
+    assert "/api/calendar/events/summary?from=${from}&to=${to}" in month
+    page = int(re.search(r"const PAGE = (\d+);", src).group(1))
+    assert page == 50 and page <= cal_svc.MAX_EVENTS
+    assert int(re.search(r"const MAX_FIRST = (\d+);", src).group(1)) == cal_svc.MAX_FIRST
+    limits = [int(x) for x in re.findall(r"limit=(\d+)", src)]
+    assert limits and max(limits) <= cal_svc.MAX_EVENTS
+    assert 42 <= cal_svc.MAX_SUMMARY_DAYS                                  # gridRange 는 많아야 6주(42일)
+    assert "kind=${[...p.kinds].join(\",\")}&limit=${PAGE}&offset=${p.offset}" in src
+    # 늦게 온 응답이 지금 화면을 덮지 않는다(2026-10-06 브라우저에서 찾은 두 경합)
+    # ① 달을 빠르게 넘기면 앞 달 응답이 지금 달을 덮는다 → 달 번호표(monthSeq)로 버린다
+    month_fn = src[src.index("async function loadMonth"):src.index("/** 그날의 종류별 개수")]
+    assert "++monthSeq" in month_fn and month_fn.count("if (stale()) return false") == 2
+    assert "if (!fresh) return;" in src
+    # ② 카드 자료가 오기 전에 날짜를 누르면 늦게 온 카드가 그날 목록을 덮는다 → 칸에 표를 달고 목록을 열면 표를 지운다
+    card_fn = src[src.index("async function renderCard"):src.index("/** 시세를 보는 화면 오른쪽에 카드를 붙인다")]
+    assert card_fn.index("container.dataset.cardToken !== token") < card_fn.index("container.innerHTML = html")
+    side_fn = src[src.index("function renderSide"):src.index("/** 목록 · 쪽 · 머리만 다시 그린다")]
+    assert side_fn.index('side.dataset.cardToken = ""') < side_fn.index("side.innerHTML =")
+    # 그날 목록 응답도 다른 날로 바뀌었으면 버린다
+    day_fn = src[src.index("async function loadDay"):src.index("function dayHeadHtml")]
+    assert day_fn.count("if (state.panel !== want) return;") == 2

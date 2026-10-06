@@ -21,6 +21,7 @@ import { onMyPageActivated } from "/js/mypage.js";
 import { onFinLearnViewActivated } from "/js/finlearn.js";
 import { initDataBadge, onDataHubViewActivated } from "/js/datahub.js";   // 데이터 관제 · 위 메뉴 표시 (2026-10-02)
 import { onCalendarViewActivated } from "/js/calendar.js";             // 일정 · 다가오는 일정 카드 (2026-10-02)
+import { onResearchViewActivated } from "/js/research.js";             // 투자 정보 리서치 — 수집 자료 검색 · 종목 시간표 (2026-10-06)
 
 import { loadDashboard } from "/js/dashboard.js";
 
@@ -82,6 +83,7 @@ function onViewActivated(view) {
   onFinLearnViewActivated(view); // 금융 필수 지식 — 강의실 · 주제 화면 · 요약 화면의 강의 입구 (js/finlearn.js)
   onDataHubViewActivated(view);  // 데이터 관제 (js/datahub.js)
   onCalendarViewActivated(view); // 일정 · 「거시경제 지표」 오른쪽 다가오는 일정 카드 (js/calendar.js)
+  onResearchViewActivated(view); // 투자 정보 리서치 (js/research.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }

@@ -22,6 +22,10 @@ compose 가 호스트 ``./data`` 를 ``/app/data/csv`` 에 읽기 전용으로 �
    자본시장법 · 금융소비자보호법 · 감독규정 쪽 후보만 모은 순위 목록을 하나 더 RRF 에 넣는다. 거르지 않고
    가중만 하는 까닭은 분류가 틀렸을 때 답이 0건이 되지 않게 하려는 것이다(사용자 결정 2026-10-03 「둘 다 전부 +
    대처법」 — 상법 · 소득세법을 전부 넣고 섞임은 머리 경로 · 가중 · 다음 단계의 재순위로 막는다).
+   **섹터 법령은 분류의 한 갈래다** — 섹터 법령(문서 ID ``sec:`` · 은행법 · 약사법 …)은 질문에 그 법의 정식 이름 ·
+   약칭 · 업 이름(``kb_sector_word`` 표 — ``collector/kb_sector_link.py`` 가 섹터 표에서 만든다)이 있을 때만 후보에
+   들고, 들면 그 문서 후보만 모은 순위 목록도 하나 더한다. 없으면 지금 근거만 찾는다(2026-10-05 결정 「섹터 질문일
+   때만」 — 한 묶음으로 넣자 주택법 「조합 가입 철회」 가 펀드 청약 철회 정답을 밀어냈다 · 설계서 5.3.7).
 5. **순위 합치기** — RRF(k=60). 점수 눈금이 다른 bm25 와 코사인을 더하지 않고 순위만 쓴다.
 6. **위임 조 잇기** — 찾은 법 조가 「대통령령으로 정하는」 처럼 값을 하위 법령에 맡겼으면, 같은 기준일 판의 그
    하위 조(시행령 · 시행규칙 · 감독규정 · 시행세칙)를 근거마다 ``delegated`` 로 붙인다(``kb_links`` · DF-59).
@@ -121,6 +125,55 @@ def classify(q: str) -> Tuple[List[str], List[str]]:
 
 
 # ==================================================
+# 1-2. 섹터 질문 분류 — 섹터 법령은 섹터 질문일 때만 후보로 (설계서 5.3.7)
+# ==================================================
+#: 섹터 법령 문서 ID 머리 — 근거 문서(영문 ID)와 겹치지 않는다(`collector/kb_sector_link.py`).
+SECTOR_PREFIX = "sec:"
+#: 섹터 법령 조각의 낱말 색인 — 근거 문서 색인과 따로라 섹터 조각이 기존 질문의 bm25 통계를 흔들지 않는다.
+SECTOR_FTS = "kb_sector_fts"
+_NOT_IN_WORD = re.compile(r"[\s·ㆍ・]")
+_LATIN_WORD = re.compile(r"[a-z0-9]+")
+
+
+def norm_word(s: str) -> str:
+    """맞추는 꼴 — 띄어쓰기 · 가운뎃점을 빼고 로마자는 소문자(「반도체 특별법」 = 「반도체특별법」 · ISA = isa)."""
+    return _NOT_IN_WORD.sub("", s or "").lower()
+
+
+def _word_in(word: str, flat: str, low: str) -> bool:
+    """낱말이 질문에 있나 — 한글은 띄어쓰기를 뺀 글에서, 로마자 낱말은 앞뒤가 로마자 · 숫자가 아닐 때만
+    (「ISA 계좌」 · 「ISA계좌」 는 맞고 「VISA」 는 아니다)."""
+    if _LATIN_WORD.fullmatch(word):
+        return re.search(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", low) is not None
+    return word in flat
+
+
+def sector_words(conn: sqlite3.Connection) -> List[sqlite3.Row]:
+    """분류 낱말 표 — 섹터 법령을 넣기 전의 근거 DB 에는 표가 없다(그러면 섹터 질문도 없다)."""
+    try:
+        return conn.execute("SELECT word, shown, doc_id, sector_code, sector, source FROM kb_sector_word").fetchall()
+    except sqlite3.OperationalError:
+        return []
+
+
+def sector_route(q: str, rows: Iterable[sqlite3.Row]) -> dict:
+    """질문 → 걸린 섹터 · 섹터 법령 문서 · 맞은 낱말. 아무것도 안 걸리면 셋 다 빈 목록."""
+    flat, low = norm_word(q), (q or "").lower()
+    sectors: Dict[str, str] = {}
+    docs: List[str] = []
+    words: List[str] = []
+    for r in rows:
+        if not _word_in(r["word"], flat, low):
+            continue
+        sectors.setdefault(r["sector_code"], r["sector"])
+        if r["doc_id"] not in docs:
+            docs.append(r["doc_id"])
+        if r["shown"] not in words:
+            words.append(r["shown"])
+    return {"sectors": [{"code": c, "name": n} for c, n in sectors.items()], "docs": docs, "words": words}
+
+
+# ==================================================
 # 2. kb.sqlite3
 # ==================================================
 def db_path() -> Optional[Path]:
@@ -173,9 +226,14 @@ def _versions(conn: sqlite3.Connection) -> Dict[str, List[Tuple[kb_text.Version,
     return out
 
 
-def _pick(conn: sqlite3.Connection, as_of: str, kind: Optional[str], docs: Optional[Sequence[str]]
-          ) -> Tuple[Dict[str, sqlite3.Row], List[dict]]:
-    """문서마다 기준일 판 → ({판 키: 문서 행}, [판이 없는 문서])."""
+def _pick(conn: sqlite3.Connection, as_of: str, kind: Optional[str], docs: Optional[Sequence[str]],
+          sector_docs: Optional[Iterable[str]] = ()) -> Tuple[Dict[str, sqlite3.Row], List[dict]]:
+    """문서마다 기준일 판 → ({판 키: 문서 행}, [판이 없는 문서]).
+
+    섹터 법령(``sec:``)은 ``sector_docs`` 에 든 것만 고른다(섹터 질문 분류가 고른 것 · ``None`` 이면 전부). ``docs`` 로
+    이름을 콕 집어 부른 섹터 법령은 분류와 상관없이 든다 — 거름은 「어디서 찾나」 를 사람이 정한 것이다.
+    """
+    allow = None if sector_docs is None else set(sector_docs)
     chosen: Dict[str, sqlite3.Row] = {}
     missing: List[dict] = []
     for doc_id, pairs in _versions(conn).items():
@@ -183,6 +241,9 @@ def _pick(conn: sqlite3.Connection, as_of: str, kind: Optional[str], docs: Optio
         if kind and row0["kind"] != kind:
             continue
         if docs and doc_id not in docs:
+            continue
+        if allow is not None and doc_id.startswith(SECTOR_PREFIX) and doc_id not in allow \
+                and not (docs and doc_id in docs):
             continue
         v = kb_text.select_version([p[0] for p in pairs], as_of)
         if v is None:
@@ -197,18 +258,25 @@ def _pick(conn: sqlite3.Connection, as_of: str, kind: Optional[str], docs: Optio
 # ==================================================
 # 3. 낱말 · 벡터
 # ==================================================
-def lexical(conn: sqlite3.Connection, q: str, keys: Iterable[str], n: int = CANDIDATES) -> List[str]:
-    """FTS5 bm25 순 청크 ID — 고른 판의 청크만."""
+def lexical(conn: sqlite3.Connection, q: str, keys: Iterable[str], n: int = CANDIDATES,
+            table: str = "kb_chunk_fts") -> List[str]:
+    """FTS5 bm25 순 청크 ID — 고른 판의 청크만. ``table`` 은 근거 문서 색인 · 섹터 법령 색인(SECTOR_FTS) 가운데 하나."""
+    if table not in ("kb_chunk_fts", SECTOR_FTS):
+        raise ValueError(table)
     match = kb_text.fts_query(q)
     keys = list(keys)
     if not match or not keys:
         return []
     marks = ",".join("?" * len(keys))
     rows = conn.execute(
-        "SELECT k.chunk_id FROM kb_chunk_fts f JOIN kb_chunk k ON k.rid = f.rowid"
-        f" WHERE kb_chunk_fts MATCH ? AND (k.doc_id || '@' || k.version_label) IN ({marks})"
-        " ORDER BY bm25(kb_chunk_fts) LIMIT ?", [match, *keys, n]).fetchall()
+        f"SELECT k.chunk_id FROM {table} f JOIN kb_chunk k ON k.rid = f.rowid"
+        f" WHERE {table} MATCH ? AND (k.doc_id || '@' || k.version_label) IN ({marks})"
+        f" ORDER BY bm25({table}) LIMIT ?", [match, *keys, n]).fetchall()
     return [r["chunk_id"] for r in rows]
+
+
+def _has_table(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE name=?", (name,)).fetchone() is not None
 
 
 def _http_json(method: str, url: str, body: Optional[dict], timeout: float) -> dict:
@@ -287,7 +355,7 @@ def _attach_links(conn: sqlite3.Connection, hits: List[dict], as_of: str, fused:
     아래 조의 판은 문서 · 종류 거름과 상관없이 같은 기준일로 다시 고른다 — 「자본시장법만」 으로 찾아도 그 조가
     시행령에 맡긴 값은 시행령에 있기 때문이다(거름은 「어디서 찾나」 이지 「무엇을 근거로 보이나」 가 아니다).
     """
-    every, _ = _pick(conn, as_of, None, None)
+    every, _ = _pick(conn, as_of, None, None, sector_docs=None)
     versions = kb_links.doc_versions(every.values())
     order = {cid: i for i, (cid, _) in enumerate(fused, start=1)}
     score = dict(fused)
@@ -309,8 +377,8 @@ def _attach_links(conn: sqlite3.Connection, hits: List[dict], as_of: str, fused:
 
 def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Optional[str] = None,
            docs: Optional[Sequence[str]] = None, mode: str = "hybrid", model: Optional[str] = None,
-           route: bool = True, links: bool = True, synonyms: bool = True, path: Optional[Path] = None,
-           backend: Optional[DenseBackend] = None) -> dict:
+           route: bool = True, links: bool = True, synonyms: bool = True, sector: bool = True,
+           path: Optional[Path] = None, backend: Optional[DenseBackend] = None) -> dict:
     q = (q or "").strip()
     if not q:
         raise KbError(422, "검색어가 비었다")
@@ -336,13 +404,20 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
             bad = sorted(set(docs) - known)
             if bad:
                 raise KbError(422, f"모르는 문서: {', '.join(bad)}", hint=f"있는 것: {', '.join(sorted(known))}")
-        chosen, missing = _pick(conn, as_of, kind, docs)
+        # 섹터 질문이면 그 섹터 법령까지 후보로 — 아니면 지금 근거만(sector=False 는 분류 전과 같은 길)
+        sec = sector_route(q_used, sector_words(conn)) if sector else {"sectors": [], "docs": [], "words": []}
+        chosen, missing = _pick(conn, as_of, kind, docs, sector_docs=sec["docs"])
         keys = list(chosen)
 
         lists: Dict[str, List[str]] = {}
         dense_err = None
         if mode in ("hybrid", "lexical"):
-            lists["lexical"] = lexical(conn, q_used, keys)
+            # 낱말은 색인마다 따로 — 섹터 법령은 자기 색인(통계)에서 순위를 매겨 자기 목록으로 RRF 에 든다
+            sec_keys = [key for key in keys if key.startswith(SECTOR_PREFIX)]
+            lists["lexical"] = lexical(conn, q_used, [key for key in keys if not key.startswith(SECTOR_PREFIX)])
+            if sec_keys:
+                lists["lexical_sector"] = lexical(
+                    conn, q_used, sec_keys, table=SECTOR_FTS if _has_table(conn, SECTOR_FTS) else "kb_chunk_fts")
         if mode in ("hybrid", "dense"):
             try:
                 lists["dense"] = dense(backend or DenseBackend.from_settings(), emb, q_used, keys)
@@ -357,17 +432,23 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
         for i in range(0, len(cand), 500):
             part = cand[i:i + 500]
             for r in conn.execute(f"SELECT * FROM kb_chunk WHERE chunk_id IN ({','.join('?' * len(part))})", part):
-                rows[r["chunk_id"]] = r
+                # 고른 판(문서 · 기준일 · 섹터 분류)의 조각만 — 벡터 DB 의 거름이 빗나가도 후보 밖 문서가 끼지 않게
+                if kb_text.version_key(r["doc_id"], r["version_label"]) in chosen:
+                    rows[r["chunk_id"]] = r
         lists = {name: [c for c in lst if c in rows] for name, lst in lists.items()}
 
         domains, route_docs = classify(q_used) if route else ([], [])
-        rankings = [lists[name] for name in ("lexical", "dense") if name in lists]
+        rankings = [lists[name] for name in ("lexical", "lexical_sector", "dense") if name in lists]
+        # 두 목록을 먼저 합친 순서에서 가중할 문서의 후보만 골라 셋째 · 넷째 목록으로 — 순위만 쓰는 RRF 와 같은 눈금
+        base = [cid for cid, _ in kb_text.rrf(rankings)]
         if route_docs:
-            # 두 목록을 먼저 합친 순서에서 가중할 문서의 후보만 골라 셋째 목록으로 — 순위만 쓰는 RRF 와 같은 눈금
-            base = [cid for cid, _ in kb_text.rrf(rankings)]
             routed = [cid for cid in base if rows[cid]["doc_id"] in route_docs]
             if routed:
                 rankings.append(routed)
+        if route and sec["docs"]:
+            routed_sec = [cid for cid in base if rows[cid]["doc_id"] in sec["docs"]]
+            if routed_sec:
+                rankings.append(routed_sec)
         fused_all = kb_text.rrf(rankings)
         fused = fused_all[:k]
 
@@ -381,10 +462,13 @@ def search(q: str, k: int = DEFAULT_K, *, as_of: Optional[str] = None, kind: Opt
     finally:
         conn.close()
 
-    method = "+".join(["fts5"] * ("lexical" in lists) + ["dense"] * ("dense" in lists)) + ("+rrf" if len(lists) > 1 else "")
+    method = "+".join(["fts5"] * ("lexical" in lists) + ["fts5_sector"] * ("lexical_sector" in lists)
+                      + ["dense"] * ("dense" in lists)) + ("+rrf" if len(lists) > 1 else "")
     return {
         "query": q, "as_of": as_of, "mode": mode, "model": model_name if "dense" in lists else None,
-        "route": {"domains": domains, "docs": route_docs},
+        "route": {"domains": domains, "docs": route_docs,
+                  # 섹터 질문 분류 — 걸린 섹터 · 후보에 든 섹터 법령 · 맞은 낱말(정식 이름 · 약칭 · 업 이름)
+                  "sectors": sec["sectors"], "sector_docs": sec["docs"], "sector_words": sec["words"]},
         # 법령 말로 넓힌 검색어 · 고른 줄 — 화면 · 평가가 「무엇으로 찾았나」 를 볼 수 있게
         "synonyms": [m.to_dict() for m in syn], "query_used": q_used,
         "retrieval": {"k": k, "method": method, "candidates": {n: len(v) for n, v in lists.items()},

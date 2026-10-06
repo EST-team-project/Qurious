@@ -283,18 +283,9 @@
             </div>
           </div>
 
-          <!-- 1-4. 투자 정보 리서치 -->
-          <div class="view" data-view="agent-news">
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-1">📰 투자 정보 리서치</h2>
-              <p class="text-xs text-slate-400 mb-4">크롤링된 뉴스·공시·리포트를 AI RAG로 검색하여 투자 인사이트를 제공합니다</p>
-              <div class="flex gap-2 mb-4">
-                <input id="news-q" class="input flex-1" placeholder="검색어 (예: 금리 전망, 반도체 업황, 삼성전자 실적)" />
-                <button id="news-search" class="btn-primary">검색</button>
-              </div>
-              <div id="news-results" class="space-y-3 text-sm"></div>
-            </div>
-          </div>
+          <!-- 1-4. 투자 정보 리서치 (2026-10-06) — 수집 자료 검색(공시 · 정책뉴스 · 언론사 기사) + 종목 시간표.
+               내용은 js/research.js 가 그린다(Figma 결정 안 B + C 해석 1). 옛 칸은 안내와 달리 RAG 가 아니라 수집 기사 표의 글자 찾기였다(DF-61). -->
+          <div class="view" data-view="agent-news"><div class="rs-root"></div></div>
 
           <!-- ══ 2. 데이터(옛 크롤링) ═══════════════════════════════════════ -->
           <!-- 2-0. 데이터 관제 (2026-10-02) — 내용은 js/datahub.js 가 그린다(GET /api/data/status) -->

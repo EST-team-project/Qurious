@@ -46,7 +46,8 @@ sys.path.insert(0, str(config.ROOT))
 from app.services import kb_links, kb_search, kb_text  # noqa: E402
 
 EVAL_SET = config.ROOT / "docs" / "시험" / "근거검색-평가셋_v0.tsv"
-DOMAIN_NAMES = {"tax": "세금", "company": "회사", "regulation": "투자 규제"}
+#: 의도 묶음 — 섹터 법령 평가셋(`docs/시험/섹터법령-평가셋_v1.tsv`)의 묶음은 sector(섹터 질문 분류가 걸려야 맞음)
+DOMAIN_NAMES = {"tax": "세금", "company": "회사", "regulation": "투자 규제", "sector": "섹터"}
 
 
 def load(path: Path = EVAL_SET) -> List[dict]:
@@ -71,17 +72,23 @@ def first_hit(hits: Sequence[dict], gold: Sequence[tuple]) -> Optional[int]:
 
 
 def evaluate(rows: List[dict], mode: str, model: str, route: bool, backend: kb_search.DenseBackend,
-             k: int = 10, synonyms: bool = True) -> dict:
+             k: int = 10, synonyms: bool = True, sector: bool = True) -> dict:
     per = []
     t0 = time.time()
     for r in rows:
         res = kb_search.search(r["질문"], k, mode=mode, model=model, route=route, synonyms=synonyms,
-                               backend=backend)
+                               sector=sector, backend=backend)
         rank = first_hit(res["hits"], r["gold"])
         # 답 모델이 받는 근거 = 상위 5 + 그 위임 조 — 그 안에 있으면 1(자리와 상관없이 「받았다」)
         linked = 1 if first_hit(kb_links.expand(res["hits"][:5]), r["gold"]) else None
+        rt = res["route"]
         per.append({"id": r["id"], "rank": rank, "linked_rank": linked, "domain": r["의도_묶음"],
-                    "mix": bool(r["섞임_낱말"]), "routed": res["route"]["domains"],
+                    "mix": bool(r["섞임_낱말"]), "routed": rt["domains"] + (["sector"] if rt.get("sectors") else []),
+                    # 섹터 질문 분류 — 정답이 섹터 법령(sec:)인데 분류가 안 걸리면 「분류가 놓친 섹터 질문」
+                    "sector_gold": any(d.startswith(kb_search.SECTOR_PREFIX) for d, _ in r["gold"]),
+                    "sectors": [s["code"] for s in rt.get("sectors", [])], "sector_words": rt.get("sector_words", []),
+                    # 분류가 걸렸어도 정답 법이 후보에 들었나(「아파트」 → 주택법만 들고 부동산거래신고법은 빠지는 경우)
+                    "gold_routed": any(d in rt.get("sector_docs", []) for d, _ in r["gold"]),
                     "synonyms": [s["from"] for s in res.get("synonyms", [])],
                     "dense_error": res["retrieval"].get("dense_error"),
                     "top3": [f"{h['doc_id']}:{h['article']}" for h in res["hits"][:3]]})
@@ -95,10 +102,14 @@ def evaluate(rows: List[dict], mode: str, model: str, route: bool, backend: kb_s
                 "mrr10": round(sum(1 / p[key] for p in items if p[key] and p[key] <= 10) / len(items), 3)}
 
     return {"mode": mode, "model": model if mode != "lexical" else None, "route": route, "synonyms": synonyms,
-            "all": score(per), "linked": score(per, "linked_rank"),
+            "sector": sector, "all": score(per), "linked": score(per, "linked_rank"),
             "domains": {d: score([p for p in per if p["domain"] == d]) for d in DOMAIN_NAMES},
             "mix": score([p for p in per if p["mix"]]),
             "route_accuracy": round(sum(1 for p in per if p["domain"] in p["routed"]) / len(per), 3),
+            # 섹터 분류 — 놓침(정답이 섹터 법령인데 분류 안 걸림) · 헛걸림(정답이 근거 문서인데 섹터가 걸림)
+            "sector_missed": [p["id"] for p in per if p["sector_gold"] and not p["sectors"]],
+            "sector_wrong": [p["id"] for p in per if p["sector_gold"] and p["sectors"] and not p["gold_routed"]],
+            "sector_false": [p["id"] for p in per if not p["sector_gold"] and p["sectors"]],
             "seconds": round(secs, 1), "dense_errors": sum(1 for p in per if p["dense_error"]), "per": per}
 
 
@@ -121,6 +132,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--route", choices=("both", "on", "off"), default="both")
     p.add_argument("--synonyms", choices=("both", "on", "off"), default="on",
                    help="질문 말 → 법령 말 넓히기(kb_synonyms) — 기본 켬(앱과 같음)")
+    p.add_argument("--sector", choices=("both", "on", "off"), default="on",
+                   help="섹터 질문 분류(섹터 법령은 섹터 질문일 때만) — 기본 켬(앱과 같음) · off = 분류 전 길")
     p.add_argument("--set", default=str(EVAL_SET), help="평가셋 TSV")
     p.add_argument("--ids", default="", help="이 머리로 시작하는 id 만(예: N — 새로 더한 질문)")
     p.add_argument("--save", action="store_true", help="결과 JSON 을 data/collector/state 에")
@@ -136,20 +149,30 @@ def main(argv: Optional[List[str]] = None) -> int:
           + " · ".join(f"{m} {c}" for m, c in cov.items()) + " ―")
     routes = {"both": (False, True), "on": (True,), "off": (False,)}[a.route]
     syns = {"both": (False, True), "on": (True,), "off": (False,)}[a.synonyms]
+    sectors = {"both": (False, True), "on": (True,), "off": (False,)}[a.sector]
     results = []
     for mode in [m.strip() for m in a.modes.split(",") if m.strip()]:
         models = [None] if mode == "lexical" else [m.strip() for m in a.models.split(",") if m.strip()]
         for model in models:
             for syn in syns:
-                for route in routes:
-                    r = evaluate(rows, mode, model or kb_text.DEFAULT_EMBED_MODEL, route, backend, synonyms=syn)
-                    results.append(r)
-                    dom = " · ".join(f"{DOMAIN_NAMES[d]} {v['recall5']:.2f}" for d, v in r["domains"].items() if v["n"])
-                    mix = f"{r['mix']['recall5']:.2f}" if r["mix"]["n"] else "-"
-                    print(f"  {mode:<7} {(model or '-'):<17} 동의어 {'켬' if syn else '끔'} 가중 {'켬' if route else '끔'}  "
-                          f"R@5 {r['all']['recall5']:.3f} · MRR@10 {r['all']['mrr10']:.3f} · 답 근거 R "
-                          f"{r['linked']['recall5']:.3f} · 섞임 R@5 {mix} · [{dom}] · 분류 맞음 {r['route_accuracy']:.2f} · "
-                          f"{r['seconds']}초" + (f" · ⚠ 벡터 오류 {r['dense_errors']}" if r["dense_errors"] else ""))
+                for sec in sectors:
+                    for route in routes:
+                        r = evaluate(rows, mode, model or kb_text.DEFAULT_EMBED_MODEL, route, backend, synonyms=syn,
+                                     sector=sec)
+                        results.append(r)
+                        dom = " · ".join(f"{DOMAIN_NAMES.get(d, d)} {v['recall5']:.2f}"
+                                         for d, v in r["domains"].items() if v["n"])
+                        mix = f"{r['mix']['recall5']:.2f}" if r["mix"]["n"] else "-"
+                        print(f"  {mode:<7} {(model or '-'):<17} 동의어 {'켬' if syn else '끔'} 섹터 {'켬' if sec else '끔'} "
+                              f"가중 {'켬' if route else '끔'}  "
+                              f"R@5 {r['all']['recall5']:.3f} · MRR@10 {r['all']['mrr10']:.3f} · 답 근거 R "
+                              f"{r['linked']['recall5']:.3f} · 섞임 R@5 {mix} · [{dom}] · 분류 맞음 {r['route_accuracy']:.2f} · "
+                              f"섹터 놓침 {len(r['sector_missed'])} · 다른 법 {len(r['sector_wrong'])} · "
+                              f"헛걸림 {len(r['sector_false'])} · "
+                              f"{r['seconds']}초" + (f" · ⚠ 벡터 오류 {r['dense_errors']}" if r["dense_errors"] else ""))
+                        if r["sector_missed"] or r["sector_wrong"] or r["sector_false"]:
+                            print(f"      섹터 놓침 {', '.join(r['sector_missed']) or '-'} · 다른 법 "
+                                  f"{', '.join(r['sector_wrong']) or '-'} · 헛걸림 {', '.join(r['sector_false']) or '-'}")
                     if a.misses:
                         for q in r["per"]:
                             if not q["rank"] or q["rank"] > 5:

@@ -236,7 +236,8 @@ document.getElementById("bank-search").addEventListener("click", searchProducts)
 document.getElementById("fund-search").addEventListener("click", searchProducts);
 
 // ── 뉴스/RAG ─────────────────────────────────────────────────────
-document.getElementById("news-search").addEventListener("click", async () => {
+// 2026-10-06 — 「투자 정보 리서치」 는 js/research.js 가 그린다(수집 자료 검색 · DF-61). 이 단추는 app.html 에서 빠져 묶이지 않는다
+document.getElementById("news-search")?.addEventListener("click", async () => {
   const q = document.getElementById("news-q").value.trim();
   const el = document.getElementById("news-results");
   if (!q) return;
