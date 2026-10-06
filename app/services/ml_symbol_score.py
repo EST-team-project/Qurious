@@ -9,6 +9,9 @@ import logging
 from typing import Any
 
 import numpy as np
+import pandas as pd
+
+from app.services import ta_utils as ta
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +36,6 @@ def _features(closes: np.ndarray, vols: np.ndarray) -> np.ndarray:
             out[n - 1:] = (c[n:] - c[:-n]) / n
         return out
 
-    def rsi(a, n=14):
-        d = np.diff(a, prepend=a[0])
-        gain = np.where(d > 0, d, 0.0); loss = np.where(d < 0, -d, 0.0)
-        ag, al = sma(gain, n), sma(loss, n)
-        rs = np.divide(ag, al, out=np.full_like(ag, np.nan), where=al != 0)
-        return 100 - 100 / (1 + rs)
-
     def ret(a, n):
         out = np.full_like(a, np.nan); out[n:] = a[n:] / a[:-n] - 1
         return out
@@ -55,7 +51,7 @@ def _features(closes: np.ndarray, vols: np.ndarray) -> np.ndarray:
     return np.column_stack([
         ret(closes, 1), ret(closes, 5), ret(closes, 20),
         closes / sma(closes, 5) - 1, closes / sma(closes, 20) - 1, closes / sma(closes, 60) - 1,
-        rsi(closes) / 100.0, vol20(closes), vol_ratio,
+        ta.rsi(pd.Series(closes, dtype=float), 14).to_numpy() / 100.0, vol20(closes), vol_ratio,
     ])
 
 

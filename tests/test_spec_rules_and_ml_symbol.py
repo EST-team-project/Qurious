@@ -1,5 +1,10 @@
 """스펙 entry/exit 규칙 직접 평가, 종목별 Ridge ML 점수."""
+import numpy as np
+import pandas as pd
+import pytest
+
 from app.services import ml_symbol_score as ms
+from app.services import ta_utils as ta
 from app.services.auto_trade import apply_strategy_spec_to_signal, evaluate_spec_rules
 from tests.conftest import make_candles
 
@@ -37,3 +42,53 @@ def test_symbol_ml_score_from_candles():
     assert score is not None and -1.0 <= score <= 1.0
     assert ms.symbol_score(candles[:50]) is None                      # 데이터 부족
     assert ms.score_from_return_pct(12.0) == 1.0 and ms.score_from_return_pct(-2.5) == -0.5
+
+
+def test_symbol_rsi_feature_matches_shared_definition():
+    candles = make_candles(400, seed=11)
+    closes, volumes = ms._series(candles)
+    features = ms._features(closes, volumes)
+    # 화면·스크리닝과 같은 RSI를 사용하되 ML 입력은 0~1로 정규화한다.
+    np.testing.assert_allclose(features[:, 6] * 100, ta.rsi(pd.Series(closes)), equal_nan=True)
+
+
+def test_symbol_rsi_feature_uses_wilder_seed_and_smoothing():
+    closes = np.array([*range(100, 115), 113], dtype=float)
+    feature = ms._features(closes, np.ones(len(closes)))[:, 6]
+    # 첫 14번 변화는 모두 +1: RSI=100. 다음 -1 뒤 상승평균=13/14, 하락평균=1/14.
+    assert np.isnan(feature[:14]).all()
+    assert feature[14] == pytest.approx(1.0)
+    assert feature[15] == pytest.approx(13 / 14)
+
+
+@pytest.mark.parametrize("direction, expected", [(1, 1.0), (-1, 0.0), (0, 1.0)])
+def test_symbol_score_handles_one_direction_and_flat_prices(direction, expected):
+    candles = make_candles(400)
+    for i, candle in enumerate(candles):
+        candle["close"] = 1000.0 + direction * i
+    closes, volumes = ms._series(candles)
+    feature = ms._features(closes, volumes)[:, 6]
+    np.testing.assert_allclose(feature[14:], expected)
+    prediction = ms.predict_forward_return_pct(candles)
+    score = ms.symbol_score(candles)
+    # 하락폭이 0인 상승·횡보 구간도 유효한 피처가 되어 점수가 누락되지 않는다.
+    assert prediction is not None and np.isfinite(prediction)
+    assert score is not None and np.isfinite(score) and -1 <= score <= 1
+    if direction == 0:
+        assert prediction == pytest.approx(0.0)
+        assert score == 0.0
+
+
+def test_symbol_features_ignore_future_price_changes():
+    closes, volumes = ms._series(make_candles(400))
+    before = ms._features(closes, volumes)
+    changed = closes.copy()
+    changed[300:] *= 1.3
+    after = ms._features(changed, volumes)
+    np.testing.assert_allclose(before[:300], after[:300], equal_nan=True)
+
+
+@pytest.mark.parametrize("length", [50, 119, 120])
+def test_symbol_score_waits_for_enough_training_rows(length):
+    # 120봉은 입력 최소 개수지만 MA60·5일 뒤 타깃을 제외하면 학습 60행에 못 미친다.
+    assert ms.symbol_score(make_candles(length)) is None
