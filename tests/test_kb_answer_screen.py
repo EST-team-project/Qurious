@@ -90,6 +90,23 @@ def test_every_answer_status_is_drawn_and_declined_never_falls_back():
     assert 'mode === "auto"' in no_ev and "await askGeneralAi(q, ctx)" in no_ev
 
 
+def test_failed_excerpt_is_drawn_like_no_evidence():
+    """TC-KS-08 · 실패 발췌(답 모델 오류 · 맞는 출처 번호 없음 · 한국어 아님)는 근거 없음과 같은 길 — 자동이면 일반 AI 로
+    넘기고, 찾은 조문은 「쓴 근거」 로 펼치지 않는다(2026-10-06 결정 안 B). 사용자가 고른 「LLM 없이 발췌」 는 그대로 펼친다."""
+    src = _read("js/kbchat.js")
+    send = src[src.index("export async function sendKbChat"):src.index("export function afterChatAnswer")]
+    head = re.search(r"if \(([^)]*no_evidence[^)]*\)?)\)\s*\{", send).group(1)
+    assert "failedExcerpt(res)" in head                     # 실패 발췌도 근거 없음 갈래로
+    fn = src[src.index("function failedExcerpt"):src.index("/** no_evidence")]
+    assert 'res.status === "excerpt"' in fn and "LLM 없이" in fn
+    # 서버의 「LLM 없이」 발췌 까닭 글이 바뀌면 화면이 그 발췌까지 접어 버린다 — 서버 글과 맞물려 있나
+    server = (ROOT / "app" / "services" / "kb_answer.py").read_text(encoding="utf-8")
+    assert 'reason="LLM 없이 근거 발췌만 요청했다"' in server
+    render = src[src.index("function renderNoEvidence"):src.index("// ── 대화 스레드")]
+    assert re.search(r"failed\s*\?\s*\(res\.citations \|\| \[\]\)\.map\(c => \(\{ \.\.\.c, used: false \}\)\)", render)
+    assert "질문과 맞는지 확인 전" in render and "잠시 뒤 다시 물어 주세요" in render
+
+
 def test_general_ai_answer_is_labeled_and_opens_fresh_thread():
     """TC-KS-05 · 일반 AI 로 넘어간 답에는 「출처 없는 일반 AI 답」 꼬리표와 확인 안내 · 그 전에 새 대화를 연다(DF-60)."""
     src = _read("js/kbchat.js")

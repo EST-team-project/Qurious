@@ -7,6 +7,8 @@
  *     표시를 붙인다 — 넘어갔다는 것을 숨기지 않는다. 가격 예측 · 매수 권유(declined)는 넘기지 않는다.
  *   - kb 「근거 답 — 법령 · 규정 출처」: 근거 답만. 근거가 없으면 「일반 AI 에게 묻기」 단추.
  *   - 다른 엔진(Local Ollama · OpenAI · 순수 RAG)의 답 아래에는 「근거 답으로 다시 묻기」 단추(afterChatAnswer).
+ *   - 실패 발췌(답 모델 오류 · 맞는 출처 번호 없음 · 한국어 아님)는 근거 없음과 같은 길로 — 찾은 조문은 「질문과 맞는지
+ *     확인 전」 으로 접는다(2026-10-06 결정 안 B · failedExcerpt).
  *
  * 답 모양(안 A · 답 아래 카드)
  *   답 바로 아래 번호 카드 — 답에 쓴 근거는 조문 글(excerpt)을 펼치고, 함께 찾은 근거는 한 줄씩 접어 둔다.
@@ -209,14 +211,31 @@ function renderDeclined(box, res) {
   }));
 }
 
-/** no_evidence — 자동이면 한 줄 알림(뒤이어 일반 AI 가 답한다) · 근거 답만이면 찾은 조문과 「일반 AI 에게 묻기」 */
+/**
+ * 실패 발췌 — 답 모델 오류 · 맞는 출처 번호 없음 · 한국어 아님으로 서버가 검색 상위 조를 발췌로 돌린 답.
+ * 사용자가 「LLM 없이 발췌만」 을 고른 발췌는 아니다. 실패 발췌는 「근거 없음」 과 같은 모양으로 그린다(2026-10-06 결정
+ * 안 B · Figma 「AI 투자 상담」 03 설계 38:2) — 「등록」 낱말만 맞는 조(소득세법 제120조 등)가 「보여 드린 근거」 로 펼쳐져
+ * 질문의 근거처럼 읽혔다(근거답 평가 S18). 서버 응답은 그대로 두고 화면에서만 가른다.
+ */
+function failedExcerpt(res) {
+  return res.status === "excerpt" && !String(res.reason || "").includes("LLM 없이");
+}
+
+/** no_evidence · 실패 발췌 — 자동이면 한 줄 알림(뒤이어 일반 AI 가 답한다) · 근거 답만이면 찾은 조문과 「일반 AI 에게 묻기」 */
 function renderNoEvidence(box, res, { auto, onGeneral } = {}) {
-  const n = res.citations?.length || 0;
-  const why = n ? `찾은 조문 ${n}개 가운데 답에 쓸 근거가 없었습니다` : "근거 문서에서 관련 조문을 찾지 못했습니다";
+  const failed = failedExcerpt(res);
+  // 실패 발췌는 서버가 위 세 조를 「보여 준 근거(used)」 로 표시한다 — 화면에서는 모두 「찾은 조문」 으로 접는다
+  const cites = failed ? (res.citations || []).map(c => ({ ...c, used: false })) : (res.citations || []);
+  const n = cites.length;
+  let line;
+  if (!failed) line = `근거를 찾지 못했습니다 · ${n ? `찾은 조문 ${n}개 가운데 답에 쓸 근거가 없었습니다` : "근거 문서에서 관련 조문을 찾지 못했습니다"}`;
+  else if (res.llm?.error) line = "근거로 답하지 못했습니다 · 답 모델이 응답하지 않았습니다 — 잠시 뒤 다시 물어 주세요";
+  else line = "근거로 답하지 못했습니다 · 답 모델의 글을 근거로 확인할 수 없었습니다";
   const bubble = appendBubble(box, auto ? "kb-bubble--line" : "");
-  bubble.innerHTML = `<div class="kb-tag"><span class="kb-pill">근거 답</span>근거를 찾지 못했습니다 · ${why}</div>`;
+  bubble.innerHTML = `<div class="kb-tag"><span class="kb-pill">근거 답</span>${escHtml(line)}</div>`;
   if (auto) return;
-  if (n) bubble.appendChild(sourcesBlock(res.citations, { usedLabel: "답에 쓴 근거", extraLabel: "찾은 조문", openExtra: false }));
+  if (n) bubble.appendChild(sourcesBlock(cites, { usedLabel: "답에 쓴 근거",
+    extraLabel: failed ? "찾은 조문(질문과 맞는지 확인 전)" : "찾은 조문", openExtra: false }));
   const wrap = el("div", "kb-again-wrap");
   const btn = el("button", "kb-again", "일반 AI(Local Ollama)에게 묻기");
   btn.type = "button";
@@ -298,7 +317,7 @@ export async function sendKbChat(q, mode, ctx, { keepInput = false } = {}) {
     return true;
   }
   waiting.stop();
-  if (res.status === "no_evidence") {
+  if (res.status === "no_evidence" || failedExcerpt(res)) {   // 실패 발췌도 근거 없음처럼(안 B)
     if (mode === "auto") {
       renderNoEvidence(box, res, { auto: true });
       scrollBottom();

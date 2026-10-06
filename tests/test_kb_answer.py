@@ -10,6 +10,10 @@
 6. 출처 표기 꼴이 달라도(「[1]」 · 「[출처1, 2]」 · 「(출처 3)」) 한 꼴로 맞추고, 마침표 뒤 번호를 문장 안으로 옮겨 문장마다 센다.
 7. 생각하는 모델(qwen3 등)에는 think=false 를 보내고, 새어 나온 생각 글 · 끝 표시 토큰은 지운다 · 한국어가 아닌 답은 근거 발췌 ·
    찾기 · 답하기는 로그인 뒤 · 잘못된 입력은 422.
+8. **「없다」 는 결론이 아니다(DF-64)** — 답이 「규정은 없습니다」 · 「명시되어 있지 않습니다」 를 쓰면 근거 없음으로 돌린다.
+   금지 조 · 법 글을 옮긴 「근거 없이」 · 「규정이 없는 사항」 은 그대로 답이다.
+9. **질문 되풀이는 답이 아니다(DF-76)** — 질문을 그대로 쓰고 출처 번호만 붙인 글은 근거 발췌로 돌린다.
+   질문을 되짚고 답을 이어 쓴 글은 그대로 답이다.
 
 네트워크 · 실제 kb.sqlite3 · Ollama 를 쓰지 않는다 — TC-KB 의 가짜 문서 DB 와 가짜 생성 길을 쓴다.
 """
@@ -82,6 +86,57 @@ def test_model_no_answer_sentence_is_no_evidence(kb):
     out, _ = _ask(kb, "증권거래세 세율 공시 방법은?", "근거를 찾지 못했습니다.")
     assert out["status"] == "no_evidence" and out["answer"] == kb_answer.NO_ANSWER
     assert out["citations"] and not any(c["used"] for c in out["citations"])
+
+
+def test_absence_conclusion_becomes_no_evidence(kb):
+    """TC-KA-13 · 답이 「규정은 없습니다」 · 「명시되어 있지 않습니다」 를 결론으로 쓰면 글을 보이지 않고 근거 없음(DF-64) —
+    원문은 llm.raw · 걸린 문장은 check.absence · 근거 목록은 주되 쓰이지 않음."""
+    out, _ = _ask(kb, "2026년 증권거래세 세율은?",
+                  "유가증권시장은 1만분의 5입니다 [출처 1]. 증권사가 세율을 바꿀 수 있는 규정은 없습니다 [출처 1].")
+    assert out["status"] == "no_evidence" and out["answer"] == kb_answer.NO_ANSWER
+    assert out["check"]["absence"] == ["증권사가 세율을 바꿀 수 있는 규정은 없습니다 [출처 1]."]
+    assert out["check"]["valid"] == [1]
+    assert "규정은 없습니다" in out["llm"]["raw"] and "DF-64" in out["reason"]
+    assert out["citations"] and not any(c["used"] for c in out["citations"])
+    out2, _ = _ask(kb, "2026년 증권거래세 세율은?", "그 권한은 법에서 명시되어 있지 않습니다 [출처 1].")
+    assert out2["status"] == "no_evidence" and out2["check"]["absence"]
+
+
+@pytest.mark.parametrize("text", [
+    "정당한 근거 없이 공급을 거부할 수 없습니다 [출처 1].",
+    "이 법에 규정이 없는 사항은 상법을 따릅니다 [출처 1].",
+    "허가 없이 영업할 수 없습니다 [출처 1].",
+    "신고 의무는 없습니다 [출처 1].",
+])
+def test_prohibitions_and_quoted_law_are_not_absence(kb, text):
+    """TC-KA-14 · 금지 조 · 법 글을 옮긴 「근거 없이」 · 「규정이 없는 사항」 · 의무가 없다는 조문은 그대로 답이다."""
+    out, _ = _ask(kb, "2026년 증권거래세 세율은?", text)
+    assert out["status"] == "answered" and "absence" not in out["check"]
+    assert kb_answer.absence_claims(text) == []
+
+
+def test_question_echo_falls_back_to_excerpt(kb):
+    """TC-KA-15 · 답이 질문을 되풀이하고 출처 번호만 붙였으면(DF-76 · 섹터 표본 밖 U13) 답이 아니다 — 근거 발췌로 돌리고
+    check.echo · 원문은 llm.raw. 사유에 「LLM 없이」 가 없어 화면은 실패 발췌로 접는다(안 B · TC-KS-08)."""
+    q = "2026년 증권거래세 세율은?"
+    out, _ = _ask(kb, q, q + " " + NL + "[출처 1]")
+    assert out["status"] == "excerpt" and out["answer"].startswith("근거 문서에서 찾은 조문입니다")
+    assert out["check"]["echo"] is True and out["check"]["valid"] == [1]
+    assert "DF-76" in out["reason"] and "LLM 없이" not in out["reason"]
+    assert out["llm"]["raw"].startswith(q)
+
+
+@pytest.mark.parametrize("text", [
+    "2026년 증권거래세 세율은? 유가증권시장은 1만분의 5입니다 [출처 1].",
+    "2026년 증권거래세 세율은 1만분의 5입니다 [출처 1].",
+])
+def test_restating_the_question_then_answering_is_not_echo(kb, text):
+    """TC-KA-16 · 질문을 되짚고 답을 이어 쓴 글(근거답 A01 꼴)은 그대로 답이다 · 답 모델이 읽은 질문(법령 말을 괄호로
+    덧붙인 것)을 되풀이한 글은 잡는다."""
+    out, _ = _ask(kb, "2026년 증권거래세 세율은?", text)
+    assert out["status"] == "answered" and "echo" not in out["check"]
+    assert kb_answer.echoes_question("코스피(유가증권시장) 세율은? [출처 1]", "코스피 세율은?", "코스피(유가증권시장) 세율은?")
+    assert not kb_answer.echoes_question("코스피(유가증권시장) 세율은? [출처 1]", "코스피 세율은?")
 
 
 def test_no_hits_does_not_call_llm(kb):

@@ -1298,8 +1298,11 @@ def main(argv: list[str] | None = None) -> int:
     new = catalog_json(routes)
     old = out.read_bytes().decode("utf-8") if out.exists() else ""
     if args.check:
-      print("✅ 카탈로그가 코드와 같다" if new == old else "⚠️ 카탈로그가 코드보다 뒤처졌다 — --catalog 로 다시 쓴다")
-      return 0 if new == old else 1
+      # 줄 끝을 접어서 견준다 — core.autocrlf 작업 트리는 체크아웃 때 CRLF 로 바꿔 써서, 바이트 그대로 견주면
+      # 코드가 같아도 머지 · 브랜치 전환 뒤 늘 「뒤처졌다」 가 된다(DF-77 · 검색 색인 지문 DF-68 과 같은 꼴).
+      same = new == old.replace("\r\n", "\n")
+      print("✅ 카탈로그가 코드와 같다" if same else "⚠️ 카탈로그가 코드보다 뒤처졌다 — --catalog 로 다시 쓴다")
+      return 0 if same else 1
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(new.encode("utf-8"))
     print(f"카탈로그: {out} · API {len(routes)}개")

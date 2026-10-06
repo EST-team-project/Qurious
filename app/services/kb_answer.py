@@ -16,7 +16,10 @@
 5. **생성** — Ollama ``/api/chat`` · 온도 0 · 씨앗 고정 · 답 길이 · 시간 상한. 생각하는 모델(qwen3 등)은 생각을 끈다.
 6. **검사** — 서버가 답의 출처 번호를 다시 본다. 근거 목록 밖의 번호는 지우고 ``check.invalid`` 에 싣는다.
    남은 출처가 하나도 없으면 LLM 글을 버리고 근거 발췌로 답한다(답변 정책 ① ② — 근거 없는 글을 보이지 않는다).
-   모델이 정해진 「근거를 찾지 못했습니다.」 를 쓰면 ``no_evidence``.
+   모델이 정해진 「근거를 찾지 못했습니다.」 를 쓰면 ``no_evidence``. 답이 「규정은 없습니다」 · 「명시되어 있지
+   않습니다」 를 결론으로 쓰면 그 글도 보이지 않고 ``no_evidence``(``check.absence`` · DF-64 — 넣은 근거 몇 조에 없다는 것은
+   법에 없다는 뜻이 아니다). 질문을 그대로 되풀이하고 출처 번호만 붙인 글도 답이 아니어서 근거 발췌로 돌린다
+   (``check.echo`` · DF-76).
 
 LLM 에 닿지 못하면 근거 발췌로 답하고 ``llm.error`` 에 까닭을 싣는다 — 찾기의 「벡터가 꺼지면 낱말로」 와 같은 원칙이다.
 같은 질문 · 같은 모델 · 온도 0 이어도 GPU 경로에서는 답이 달라질 수 있어(조사서 4.4절 실측) 모델 이름 · 넣은 근거의
@@ -309,6 +312,44 @@ def is_no_answer(text: str) -> bool:
     return t.startswith(re.sub(r"\s+", "", NO_ANSWER)[:8]) and len(t) <= len(re.sub(r"\s+", "", NO_ANSWER)) + 12
 
 
+#: 「규정은 없습니다」 · 「법에서 명시되어 있지 않습니다」 — 넣은 근거 몇 조에 답이 없다는 것을 「법 전체에 없다」 는 결론으로
+#: 바꾼 문장(DF-64). 근거 목록은 검색 상위 몇 조뿐이라, 거기 없다고 법에 없는 것이 아니다 — 신용거래 융자(근거답 A15)는
+#: 임의상환 조(금융투자업규정 제4-28조)가 근거에 없자 「증권사가 팔 수 있는 규정은 없다」 고 반대로 답했다.
+#: 문장 끝 꼴(없습니다 · 없다 · 있지 않습니다)일 때만 잡는다 — 법 글을 옮긴 「정당한 근거 없이 … 할 수 없다」 ·
+#: 「이 법에 규정이 없는 사항은」 · 금지 조(「허가 없이 영업할 수 없습니다」)는 걸리지 않는다.
+#: 2026-10-06 지난 근거답 평가의 답한 글 271건에 대 보니 A15(세 회차)와 고치기 전 판의 A09 에서만 걸렸다.
+_ABSENCE_END = r"(?:습니다|다|어요|음)"
+_ABSENCE = re.compile(
+    r"(?:규정|조항|조문|근거|내용|정함|정한 바)[은는이가]?\s*(?:따로\s*|별도로\s*)?(?:없|찾을 수 없)" + _ABSENCE_END
+    + r"|(?:명시|규정|언급|기재)(?:되어|돼)\s*있지\s*않" + _ABSENCE_END
+    + r"|(?:나와|정해져)\s*있지\s*않" + _ABSENCE_END
+    + r"|(?:확인|언급|명시)되지\s*않" + _ABSENCE_END)
+
+
+def absence_claims(text: str) -> List[str]:
+    """답 가운데 「근거 · 규정에 없다」 를 결론으로 쓴 문장(DF-64)."""
+    return [s.strip() for s in _SENT.split(text) if s.strip() and _ABSENCE.search(s)]
+
+
+#: 질문을 그대로 되풀이하고 출처 번호만 붙인 글(DF-76) — 섹터 표본 밖 U13 「주유소가 가짜 휘발유를 팔면 불법인가요?
+#: [출처 4][출처 3]」. 목록 안 출처 번호가 있어 위 검사를 모두 지나 「답」 으로 보였다.
+#: 출처 표시를 먼저 지우고(한 정규식으로 하면 「? [」 가 문장부호로 먼저 먹혀 「출처4」 가 남는다) 띄어쓰기 · 문장부호를 뺀 뒤
+#: 견줘, 질문 밖 글자가 두 자 이하일 때만 잡는다 — 질문을 되짚고 답을 이어 쓴 글(근거답 A01 · A06)은 걸리지 않는다.
+#: 답 모델이 읽은 질문(법령 말을 괄호로 덧붙인 것)도 함께 견준다.
+#: 2026-10-06 지난 답 평가의 답한 글 388건에 대 보니 U13(네 회차)만 걸렸다.
+_NON_WORD = re.compile(r"[\W_]+")
+
+
+def _bare(text: str) -> str:
+    return _NON_WORD.sub("", _MARK.sub("", text or "")).lower()
+
+
+def echoes_question(text: str, *questions: str) -> bool:
+    """답이 질문을 되풀이했을 뿐인가(DF-76)."""
+    a = _bare(text)
+    return any(b and b in a and len(a) - len(b) <= 2 for b in map(_bare, questions))
+
+
 def excerpt_answer(hits: Sequence[dict], limit: int = 3) -> str:
     """LLM 없이 — 찾은 조문의 앞부분을 출처 번호와 함께 보인다(통합본 「원문만 정리」 방식)."""
     lines = ["근거 문서에서 찾은 조문입니다. 원문을 함께 확인하세요."]
@@ -427,6 +468,22 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
         return _result(q, found["as_of"], "excerpt", excerpt_answer(hits),
                        reason="답 모델의 글에 근거 목록 안의 출처 번호가 하나도 없어 근거 발췌로 바꿨다(답변 정책 ①②)",
                        citations=_citations(hits, lambda n: n <= 3), check=check,
+                       llm_info=info, found=found, timing=timing, raw=raw)
+    if echoes_question(text, q, q_ctx):
+        # 질문 되풀이는 답 모델이 실패한 것이다 — 다른 실패 갈래(오류 · 출처 번호 없음 · 한국어 아님)처럼 근거 발췌로 돌리고,
+        # 화면은 실패 발췌를 근거 없음처럼 접는다(안 B). check.echo 는 이 갈래에만 실린다.
+        return _result(q, found["as_of"], "excerpt", excerpt_answer(hits),
+                       reason="답 모델이 질문을 되풀이했을 뿐 답을 쓰지 않아 근거 발췌로 바꿨다(DF-76)",
+                       citations=_citations(hits, lambda n: n <= 3), check={**check, "echo": True},
+                       llm_info=info, found=found, timing=timing, raw=raw)
+    absent = absence_claims(text)
+    if absent:
+        # 「없다」 는 넣은 근거로 뒷받침할 수 없는 결론이다 — 답 글을 보이지 않고 근거 없음으로(발췌로 돌리면 빗나간 조를
+        # 「찾은 조문」 처럼 보이게 된다 · 테스트 계획서 4.6절). check.absence 는 이 갈래에만 실린다.
+        return _result(q, found["as_of"], "no_evidence", NO_ANSWER,
+                       reason="답 모델이 「근거 · 규정에 없다」 를 결론으로 썼다 — 넣은 근거 몇 조에 없다는 것은 법에 없다는 "
+                              "뜻이 아니어서 답 대신 근거 없음으로 바꿨다(DF-64)",
+                       citations=_citations(hits, lambda n: False), check={**check, "absence": absent},
                        llm_info=info, found=found, timing=timing, raw=raw)
     return _result(q, found["as_of"], "answered", text, reason=None,
                    citations=_citations(hits, lambda n: n in valid), check=check,
