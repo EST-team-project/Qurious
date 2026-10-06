@@ -90,6 +90,18 @@ DB_URL=os.getenv('QURIOUS_TEST_DATABASE_URL','')
 needs_db=pytest.mark.skipif(not DB_URL,reason='시험 DB URL 필요')
 
 
+@pytest.fixture
+def time_calendar(rebalance_calendar, monkeypatch):
+    # Calendar-aware tests must not depend on the wall clock or the CI weekday.
+    fixed = datetime(2026, 10, 6, 3, tzinfo=timezone.utc)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed.astimezone(tz) if tz else fixed.replace(tzinfo=None)
+    monkeypatch.setattr(rb, 'datetime', Clock)
+    return fixed
+
+
 @asynccontextmanager
 async def scenario(monkeypatch):
     assert 'test' in DB_URL, '시험 DB만 사용'
@@ -209,13 +221,13 @@ def test_setting_change_rejects_old_approval(monkeypatch):
 
 
 @needs_db
-def test_same_day_conditions_merge_and_auto_execution_once(monkeypatch):
+def test_same_day_conditions_merge_and_auto_execution_once(monkeypatch, time_calendar):
     async def go():
         async with scenario(monkeypatch) as (factory,uid):
             async with factory() as db:
                 plan=await rb.get_plan(db,uid)
                 rb.apply_plan_update(plan,{'time_period':'monthly','drift_enabled':True,'drift_threshold_pct':5})
-                plan.next_run_at=datetime.now(timezone.utc)-timedelta(days=1)
+                plan.next_run_at=time_calendar-timedelta(days=1)
                 await db.commit()
                 # Date is due; no orders at balanced weights. A deposit now fires all three conditions.
                 result=await rb.record_cashflow(db,uid,'DEPOSIT',200000)
@@ -252,21 +264,21 @@ def test_batch_continues_after_one_plan_fails(monkeypatch):
 
 @needs_db
 @pytest.mark.parametrize('mode', ['always', 'scheduled'])
-def test_pending_time_proposal_survives_next_check(monkeypatch, mode):
+def test_pending_time_proposal_survives_next_check(monkeypatch, mode, time_calendar):
     async def go():
         async with scenario(monkeypatch) as (factory, uid):
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 rb.apply_plan_update(plan, {'time_period': 'monthly', 'drift_check_mode': mode,
                                            'drift_enabled': mode == 'scheduled'})
-                plan.next_run_at = datetime.now(timezone.utc) - timedelta(days=1)
+                plan.next_run_at = time_calendar - timedelta(days=1)
                 account = await pt.get_account(db, uid, lock=True)
                 account.cash = 400000
                 await db.commit()
                 first = await rb.check_due(db, uid, plan)
                 assert first['status'] == 'proposed'
                 assert 'TIME' in first['triggers']
-                assert plan.next_run_at > datetime.now(timezone.utc)
+                assert plan.next_run_at > time_calendar
                 await db.commit()
                 second = await rb.check_due(db, uid, plan)
                 assert second['run_id'] == first['run_id']
@@ -334,4 +346,112 @@ def test_partial_fill_is_recorded_and_not_retried_automatically(monkeypatch):
                 again=await rb.check_due(db,uid,plan)
                 assert again['already_processed']
                 assert sum(e.remaining_budget for e in await rb.pending_cashflows(db,uid))>0
+    asyncio.run(go())
+
+
+@needs_db
+def test_calendar_api_repairs_saved_schedule_and_reports_missing_data(monkeypatch, time_calendar, tmp_path):
+    from app.routes import rebalance as routes
+    async def no_audit(*args, **kwargs):
+        pass
+    monkeypatch.setattr(routes, 'audit', no_audit)
+    async def go():
+        async with scenario(monkeypatch) as (factory, uid):
+            user = {'id': str(uid)}
+            async with factory() as db:
+                saved = await routes.update_plan(routes.PlanBody(time_period='monthly'), user, db)
+                assert saved['next_run_at'].startswith('2026-11-02T00:00:00')
+                plan = await rb.get_plan(db, uid)
+                plan.next_run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+                await db.commit()
+                restored = await routes.get_plan(user, db)
+                assert restored['next_run_at'] == saved['next_run_at']
+                status = await routes.status(user, db)
+                assert not status['triggers']['time_due']
+                monkeypatch.setenv('COLLECTOR_DB_PATH', str(tmp_path / 'absent.sqlite3'))
+                unavailable = await routes.status(user, db)
+                assert unavailable['plan']['next_run_at'] is None
+                assert unavailable['plan']['time_schedule_error']
+                saved = await routes.update_plan(routes.PlanBody(time_period='quarterly'), user, db)
+                assert saved['time_period'] == 'quarterly' and saved['time_schedule_error']
+    asyncio.run(go())
+
+
+@needs_db
+def test_missing_calendar_blocks_time_but_preserves_cashflow(monkeypatch, time_calendar, tmp_path):
+    monkeypatch.setenv('COLLECTOR_DB_PATH', str(tmp_path / 'absent.sqlite3'))
+    async def go():
+        async with scenario(monkeypatch) as (factory, uid):
+            async with factory() as db:
+                plan = await rb.get_plan(db, uid)
+                rb.apply_plan_update(plan, {'time_period': 'monthly'})
+                plan.next_run_at = datetime(2026, 10, 1, tzinfo=timezone.utc)
+                await db.commit()
+                result = await rb.record_cashflow(db, uid, 'DEPOSIT', 200000)
+                assert result['event']['cash_after'] == 400000
+                assert result['run']['triggers'] == ['CASHFLOW']
+                assert result['run']['plan_kind'] == 'buy_only'
+                await db.commit()
+    asyncio.run(go())
+
+
+@needs_db
+def test_next_year_calendar_missing_does_not_cancel_pending_time_approval(monkeypatch, rebalance_calendar):
+    fixed = datetime(2027, 1, 4, 3, tzinfo=timezone.utc)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed.astimezone(tz) if tz else fixed.replace(tzinfo=None)
+    monkeypatch.setattr(rb, 'datetime', Clock)
+    async def go():
+        async with scenario(monkeypatch) as (factory, uid):
+            async with factory() as db:
+                plan = await rb.get_plan(db, uid)
+                rb.apply_plan_update(plan, {'time_period': 'yearly'})
+                plan.next_run_at = datetime(2027, 1, 1, tzinfo=timezone.utc)
+                account = await pt.get_account(db, uid, lock=True)
+                account.cash = 400000
+                await db.commit()
+                first = await rb.check_due(db, uid, plan)
+                assert first['triggers'] == ['TIME'] and first['status'] == 'proposed'
+                assert plan.time_schedule_error  # 2028 is beyond the calendar
+                await db.commit()
+                second = await rb.check_due(db, uid, plan)
+                assert second['run_id'] == first['run_id'] and second['triggers'] == ['TIME']
+                await db.commit()
+                run = await rb.execute_proposal(db, uid, uuid.UUID(first['run_id']))
+                assert run.status == 'executed'
+                await db.commit()
+    asyncio.run(go())
+
+
+@needs_db
+@pytest.mark.parametrize('mode', ['always', 'scheduled'])
+def test_calendar_correction_blocks_pending_time_approval(monkeypatch, time_calendar, rebalance_calendar, mode):
+    import sqlite3
+    async def go():
+        async with scenario(monkeypatch) as (factory, uid):
+            async with factory() as db:
+                plan = await rb.get_plan(db, uid)
+                rb.apply_plan_update(plan, {'time_period': 'monthly', 'drift_check_mode': mode,
+                                           'drift_enabled': mode == 'scheduled'})
+                plan.next_run_at = datetime(2026, 10, 1, tzinfo=timezone.utc)
+                account = await pt.get_account(db, uid, lock=True)
+                account.cash = 400000
+                await db.commit()
+                first = await rb.check_due(db, uid, plan)
+                assert 'TIME' in first['triggers']
+                await db.commit()
+                with sqlite3.connect(rebalance_calendar) as calendar_db:
+                    calendar_db.execute("UPDATE market_calendar SET is_trading_day=0 WHERE cal_date='2026-10-06'")
+                with pytest.raises(rb.RebalanceError, match='시간 제안 승인 대기'):
+                    await rb.execute_proposal(db, uid, uuid.UUID(first['run_id']))
+                if mode == 'scheduled':
+                    second = await rb.record_cashflow(db, uid, 'DEPOSIT', 200000)
+                    assert second['run']['triggers'] == ['CASHFLOW']
+                    assert second['run']['plan_kind'] == 'buy_only'
+                else:
+                    second = await rb.check_due(db, uid, plan)
+                    assert not second['time_due'] and second['run_id'] is None
+                await db.commit()
     asyncio.run(go())

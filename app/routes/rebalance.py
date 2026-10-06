@@ -62,7 +62,9 @@ class ExecuteBody(BaseModel):
 @router.get("/plan")
 async def get_plan(user=Depends(get_current_user_any), db: AsyncSession = Depends(get_pg_session)):
     plan = await rb.get_plan(db, _uid(user))
+    await rb.refresh_time_schedule(plan)
     await db.commit()
+    await db.refresh(plan)
     return rb.plan_to_dict(plan)
 
 
@@ -74,6 +76,7 @@ async def update_plan(body: PlanBody, user=Depends(get_current_user_any), db: As
         if "targets" in data:
             data["targets"] = await rb.resolve_targets(data["targets"])
         rb.apply_plan_update(plan, data)
+        await rb.refresh_time_schedule(plan)
     except (rb.RebalanceError, ValueError) as exc:
         await db.rollback()
         raise HTTPException(400, str(exc))
@@ -88,13 +91,14 @@ async def status(user=Depends(get_current_user_any), db: AsyncSession = Depends(
     """현재 비중·목표 비중·이탈률 + 트리거 상태."""
     uid = _uid(user)
     plan = await rb.get_plan(db, uid)
+    timing = await rb.refresh_time_schedule(plan)
     try:
         snap = await rb.snapshot(db, uid, plan)
     except rb.RebalanceError as exc:
         raise HTTPException(409, str(exc))
     await db.commit()
-    from datetime import datetime, timezone
-    time_due = bool(plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= datetime.now(timezone.utc))
+    await db.refresh(plan)
+    time_due = timing["time_due"]
     return {"plan": rb.plan_to_dict(plan), "snapshot": snap,
             "triggers": {"time_due": time_due,
                          "drift_due": snap["drift_exceeded"] and (plan.drift_check_mode != "scheduled" or time_due),
