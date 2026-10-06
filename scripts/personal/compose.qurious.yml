@@ -10,6 +10,13 @@ services:
   neo4j:
     container_name: qurious-neo4j
     ports: !reset []
+  qdrant:
+    container_name: qurious-qdrant
+    ports: !reset []
+  ollama:
+    container_name: qurious-ollama
+  model-pull:
+    container_name: qurious-model-pull
   app:
     container_name: qurious-app
     image: qurious-app:local
