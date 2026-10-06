@@ -10,6 +10,7 @@ const PERIOD_LABEL = { none: "사용 안 함", monthly: "매월", quarterly: "�
 const TRIGGER_LABEL = { TIME: "시간", DRIFT: "이탈률", CASHFLOW: "현금흐름", MANUAL: "수동" };
 const STATUS_BADGE = {
   executed: `<span class="badge-buy">체결</span>`, proposed: `<span class="badge-hold">제안</span>`,
+  scheduled: `<span class="badge-hold">시가 체결 대기</span>`,
   partial: `<span class="badge-sell">부분 체결</span>`,
   skipped: `<span class="badge-hold">생략</span>`, failed: `<span class="badge-sell">실패</span>`,
 };
@@ -204,12 +205,13 @@ async function previewRebalance() {
   } catch (e) { $("rb-proposal").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 
-async function executeRebalance(runId = null) {
-  if (!confirm(runId ? "이 제안의 주문 방향을 유지해 현재 시세와 잔고로 재산출·모의 체결합니다. 계속할까요?" : "제안된 주문을 모의계좌에 체결합니다. 계속할까요?")) return;
+async function executeRebalance(runId = null, scheduled = false) {
+  if (!confirm(scheduled ? "전 거래일 종가로 산출한 수량을 다음 거래일 시가 체결로 예약합니다. 시가가 수집된 뒤 확정됩니다. 계속할까요?" : runId ? "이 제안의 주문 방향을 유지해 현재 시세와 잔고로 재산출·모의 체결합니다. 계속할까요?" : "제안된 주문을 모의계좌에 체결합니다. 계속할까요?")) return;
   try {
     const r = await api("/api/rebalance/execute", { method: "POST", body: runId ? { run_id: runId } : { note: "화면에서 수동 실행" } });
     const filled = r.orders.filter(o => o.status === "filled").length;
-    setToast(`리밸런싱 ${r.status === "executed" ? "체결" : r.status === "partial" ? "부분 체결" : "미체결"} — 주문 ${filled}/${r.orders.length}건`, r.status === "executed" ? "ok" : "error");
+    if (r.status === "scheduled") setToast(`${r.context.scheduled_for} 시가 체결을 예약했습니다. 데이터 수집 후 확정됩니다.`, "ok");
+    else setToast(`리밸런싱 ${r.status === "executed" ? "체결" : r.status === "partial" ? "부분 체결" : "미체결"} — 주문 ${filled}/${r.orders.length}건`, r.status === "executed" ? "ok" : "error");
     renderOrders(r.orders, "rb-proposal");
     $("rb-execute").disabled = true;
     await loadStatus();
@@ -219,7 +221,7 @@ async function executeRebalance(runId = null) {
 async function checkTriggers() {
   try {
     const r = await api("/api/rebalance/check", { method: "POST" });
-    const msg = r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
+    const msg = r.status === "scheduled" ? "시가 체결 예약이 있어 추가 계획을 만들지 않았습니다." : r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
       : `트리거 미충족 (시간 ${r.time_due ? "도래" : "대기"} · 최대 이탈 ${r.max_drift_pct ?? "-"}%p)`;
     setToast(msg + (r.time_schedule_error ? ` · 시간 예약 확인 대기: ${r.time_schedule_error}` : ""), r.trigger ? "ok" : "error");
     await loadStatus();
@@ -268,16 +270,17 @@ async function loadRuns() {
         <div class="flex flex-wrap items-center gap-2 text-sm">
           <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${STATUS_BADGE[run.status] || run.status}
           <span class="text-xs" style="color:var(--text-mute)">${run.decision_date || ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
-          ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}">승인·체결</button>` : ""}
+          ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}" data-scheduled="${run.context?.price_basis === 'previous_close'}">${run.context?.price_basis === 'previous_close' ? '승인·예약' : '승인·체결'}</button>` : ""}
         </div>
         <div class="text-xs mt-1" style="color:var(--text-dim)">${escHtml(run.note || "")}</div>
-        <div class="text-xs mt-1">현재 시세 조회 ${ts(run.context?.observed_at)} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
+        <div class="text-xs mt-1">${run.context?.price_basis === "previous_close" ? `종가 기준일 ${escHtml(run.context.valuation_date)} · 예약 체결일 ${escHtml(run.context.scheduled_for || "승인 후 결정")}${run.context.fill_date ? ` · 체결일 ${escHtml(run.context.fill_date)}` : ""}${run.context.confirmed_at ? ` · 확정 ${ts(run.context.confirmed_at)}` : ""}` : `현재 시세 조회 ${ts(run.context?.observed_at)}`} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
+        <div class="text-xs mt-1">${escHtml(run.context?.waiting_reason || "")}</div>
         <div class="mt-1">${wchg}</div>
         <details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-mute)">주문 상세</summary><div id="rb-run-${run.id}" class="mt-1"></div></details>
       </div>`;
     }).join("");
     r.runs.forEach(run => renderOrders(run.orders, `rb-run-${run.id}`, { empty: "주문 없음" }));
-    $("rb-runs").querySelectorAll(".rb-approve").forEach(b => b.addEventListener("click", () => executeRebalance(b.dataset.id)));
+    $("rb-runs").querySelectorAll(".rb-approve").forEach(b => b.addEventListener("click", () => executeRebalance(b.dataset.id, b.dataset.scheduled === "true")));
   } catch (e) { $("rb-runs").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 

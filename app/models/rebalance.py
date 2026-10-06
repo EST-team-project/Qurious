@@ -94,7 +94,7 @@ class RebalanceRun(Base, UUIDPkMixin, CreatedAtMixin):
     plan_kind: Mapped[str] = mapped_column(String(12), nullable=False, default="full")
     decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     context: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    status: Mapped[str] = mapped_column(String(10), nullable=False, default="proposed")  # proposed | executed | skipped | failed
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="proposed")  # proposed | scheduled | executed | partial | skipped | failed
     total_asset: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     max_drift_pct: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     before_weights: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
