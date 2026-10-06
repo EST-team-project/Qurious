@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +42,8 @@ class RebalancePlan(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     # 2) 이탈률 기반 (목표 비중 대비 절대 이탈 %p)
     drift_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     drift_threshold_pct: Mapped[float] = mapped_column(Float, nullable=False, default=5.0)
+    drift_check_mode: Mapped[str] = mapped_column(String(12), nullable=False, default="always")
+    exclude_unplanned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # 3) 현금흐름 기반 (입출금·배당 발생 시)
     cashflow_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -68,17 +70,26 @@ class CashflowEvent(Base, UUIDPkMixin, CreatedAtMixin):
     memo: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     cash_after: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     rebalance_run_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    remaining_budget: Mapped[float] = mapped_column(Float, nullable=False, default=0)
 
 
 class RebalanceRun(Base, UUIDPkMixin, CreatedAtMixin):
     """리밸런싱 실행(또는 제안) 이력."""
 
     __tablename__ = "rebalance_runs"
-    __table_args__ = (Index("ix_rebalance_runs_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_rebalance_runs_user_created", "user_id", "created_at"),
+        Index("uq_rebalance_plan_day", "plan_id", "decision_date", unique=True,
+              postgresql_where=text("trigger <> 'MANUAL'")),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     plan_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     trigger: Mapped[str] = mapped_column(String(10), nullable=False)          # TIME | DRIFT | CASHFLOW | MANUAL
+    triggers: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    plan_kind: Mapped[str] = mapped_column(String(12), nullable=False, default="full")
+    decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    context: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="proposed")  # proposed | executed | skipped | failed
     total_asset: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     max_drift_pct: Mapped[float] = mapped_column(Float, nullable=False, default=0)

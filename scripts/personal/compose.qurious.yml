@@ -1,0 +1,44 @@
+# Run alongside the instructor's lumina-invest stack without sharing its DB/network.
+# docker compose -p qurious -f docker-compose.yml -f scripts/personal/compose.qurious.yml up -d --build app celery-worker celery-beat
+services:
+  postgres:
+    container_name: qurious-postgres
+    ports: !reset []
+  redis:
+    container_name: qurious-redis
+    ports: !reset []
+  neo4j:
+    container_name: qurious-neo4j
+    ports: !reset []
+  qdrant:
+    container_name: qurious-qdrant
+    ports: !reset []
+  ollama:
+    container_name: qurious-ollama
+  model-pull:
+    container_name: qurious-model-pull
+  app:
+    container_name: qurious-app
+    image: qurious-app:local
+    ports: !override
+      - "127.0.0.1:8966:8000"
+    environment:
+      LEAN_DOCKER_VOLUME: qurious-lean-workflows
+  ingest:
+    container_name: qurious-ingest
+    image: qurious-app:local
+  celery-worker:
+    container_name: qurious-celery-worker
+    image: qurious-app:local
+  celery-beat:
+    container_name: qurious-celery-beat
+    image: qurious-app:local
+
+volumes:
+  lean_workflows:
+    name: qurious-lean-workflows
+
+networks:
+  shared-net:
+    external: false
+    name: qurious-net

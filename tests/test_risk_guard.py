@@ -1,7 +1,19 @@
 """자동매매 위험관리: 비중 한도 · 일손실 한도 · 중복 주문 방지(메모리 폴백)."""
 import asyncio
 
+import pytest
+
 from app.services import risk_guard as rg
+
+
+@pytest.fixture(autouse=True)
+def memory_backend(monkeypatch):
+    # main의 get_redis()는 미연결 때도 클라이언트를 만든다. 이 파일은
+    # 메모리 폴백 시험이므로 실제 Redis 유무와 다른 시험의 상태를 배제한다.
+    monkeypatch.setattr(rg, "_redis", lambda: None)
+    monkeypatch.setattr(rg, "_mem_keys", {})
+    monkeypatch.setattr(rg, "_mem_counters", {})
+    monkeypatch.setattr(rg, "_mem_values", {})
 
 
 def test_cap_buy_quantity_reduces_or_blocks():
