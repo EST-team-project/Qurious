@@ -5,13 +5,18 @@ AlternativePosition/AlternativeOrder + ApiKey 를 lumina-invest(PostgreSQL, UUID
 
 - 주식 포지션/주문은 기존 Portfolio / Order 테이블을 그대로 재사용한다(직접매매 화면과 잔고 공유).
 - 현금 잔고는 PaperAccount 한 행(유저당 1행)에서 주식·코인·대체자산이 함께 사용한다.
+
+2026-10-02 — `ix_api_keys_user` 인덱스 복구. PR #85/QFRS 마이그레이션에서 autogenerate가
+다른 표의 인덱스를 함께 삭제한 것을 되돌린다. 모델에 없으면 다음 자동 생성 때 또 지운다.
 """
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -93,6 +98,9 @@ class ApiKey(Base, UUIDPkMixin, CreatedAtMixin):
     """외부 시스템용 Open API 키 (원문은 저장하지 않고 SHA-256 해시만 보관)."""
 
     __tablename__ = "api_keys"
+    # 🆕 2026-10-02 — ix_api_keys_user 복구. 이름을 명시적으로 지정해
+    #                 이전 마이그레이션에서 삭제된 인덱스 이름과 정확히 일치시킨다.
+    __table_args__ = (Index("ix_api_keys_user", "user_id"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     label: Mapped[str] = mapped_column(String(100), nullable=False, default="My API Key")

@@ -125,3 +125,201 @@ async def get_robo_metrics(
             "periods_per_year": periods_per_year,
         },
     }
+
+# ═══════════════════════════════════════════════════════════
+# 코스콤 테스트베드 스타일 — 운용 정보 API
+# ═══════════════════════════════════════════════════════════
+
+BENCHMARK_SYMBOL = "^KS11"   # KOSPI
+_RF = 0.02
+_PPY = 252
+
+
+async def _get_benchmark_returns(periods_needed: int) -> np.ndarray:
+    """KOSPI 일별 수익률."""
+    from app.services.stock import get_candles
+    try:
+        data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
+        closes = [float(c["close"]) for c in data.get("candles", []) if c.get("close")]
+        if len(closes) < 2:
+            return np.array([])
+        arr = np.array(closes)
+        rets = arr[1:] / arr[:-1] - 1
+        return rets[-periods_needed:] if periods_needed else rets
+    except Exception:
+        return np.array([])
+
+
+async def get_returns_table(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
+    """기간별 수익률 (1m/3m/6m/1y/누적)."""
+    _, equity = await get_daily_returns(db, user_id)
+    if len(equity) < 2:
+        return {"status": "insufficient_data", "snapshot_count": len(equity)}
+
+    def pr(days: int) -> float | None:
+        if len(equity) < days + 1:
+            return None
+        return float(equity[-1] / equity[-days - 1] - 1)
+
+    return {
+        "status": "ok",
+        "return_1m": _clean(pr(21)),
+        "return_3m": _clean(pr(63)),
+        "return_6m": _clean(pr(126)),
+        "return_1y": _clean(pr(252)),
+        "return_cumulative": _clean(float(equity[-1] / equity[0] - 1)),
+        "snapshot_count": len(equity),
+    }
+
+
+async def get_risk_metrics(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
+    """위험지표 (KOSPI 대비): 표준편차·베타·샤프·젠센알파·트래킹에러·정보비율."""
+    returns, equity = await get_daily_returns(db, user_id)
+    if len(returns) < 5:
+        return {"status": "insufficient_data", "snapshot_count": len(equity)}
+
+    bench = await _get_benchmark_returns(len(returns))
+    if len(bench) < 5:
+        return {"status": "insufficient_data", "reason": "벤치마크 없음"}
+
+    def mf(window: int) -> dict[str, float | None]:
+        keys = ("std_dev", "beta", "sharpe", "jensen_alpha", "tracking_error", "information_ratio")
+        r = returns[-window:] if len(returns) >= window else returns
+        b = bench[-window:] if len(bench) >= window else bench
+        n = min(len(r), len(b))
+        if n < 5:
+            return {k: None for k in keys}
+        r, b = r[-n:], b[-n:]
+
+        std_dev = float(np.std(r, ddof=1)) * np.sqrt(_PPY)
+        var_b = float(np.var(b, ddof=1))
+        cov = float(np.cov(r, b, ddof=1)[0, 1]) if var_b > 0 else 0.0
+        beta = cov / var_b if var_b > 0 else 0.0
+        sharpe = float((np.mean(r) * _PPY - _RF) / std_dev) if std_dev > 0 else None
+
+        r_ann = float(np.mean(r) * _PPY)
+        b_ann = float(np.mean(b) * _PPY)
+        alpha = r_ann - (_RF + beta * (b_ann - _RF))
+        diff = r - b
+        te = float(np.std(diff, ddof=1)) * np.sqrt(_PPY)
+        ir = (r_ann - b_ann) / te if te > 0 else None
+
+        return {
+            "std_dev": _clean(std_dev),
+            "beta": _clean(beta),
+            "sharpe": _clean(sharpe),
+            "jensen_alpha": _clean(alpha),
+            "tracking_error": _clean(te),
+            "information_ratio": _clean(ir),
+        }
+
+    return {
+        "status": "ok",
+        "benchmark": "KOSPI",
+        "1m": mf(21), "3m": mf(63), "6m": mf(126), "1y": mf(252),
+    }
+
+
+async def get_turnover(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
+    """
+    매매회전율.
+    회전율 = (총매수 + 총매도) / 2 / 평균자산
+    연환산 = 회전율 / (기간 년수)
+    """
+    from sqlalchemy import func as sqlfunc
+    from app.models import Order
+
+    buy_sum = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(Order.price * Order.quantity), 0.0))
+        .where(Order.user_id == user_id, Order.order_type == "buy")
+    )).scalar_one() or 0.0
+    sell_sum = (await db.execute(
+        select(sqlfunc.coalesce(sqlfunc.sum(Order.price * Order.quantity), 0.0))
+        .where(Order.user_id == user_id, Order.order_type == "sell")
+    )).scalar_one() or 0.0
+
+    _, equity = await get_daily_returns(db, user_id)
+    avg_equity = float(np.mean(equity)) if len(equity) else 0.0
+    n_days = len(equity)
+    years = n_days / _PPY if n_days > 0 else 0.0
+
+    base = ((buy_sum + sell_sum) / 2) / avg_equity if avg_equity > 0 else 0.0
+    annualized = base / years if years > 0 else 0.0
+
+    return {
+        "status": "ok",
+        "total_buy": round(float(buy_sum), 2),
+        "total_sell": round(float(sell_sum), 2),
+        "avg_equity": round(avg_equity, 2),
+        "turnover_ratio": round(base * 100, 4),
+        "annualized_turnover_pct": round(annualized * 100, 4),
+        "period_days": n_days,
+        "period_years": round(years, 4),
+    }
+
+
+async def get_allocation_history(
+    db: AsyncSession, user_id: uuid.UUID, limit: int = 60,
+) -> dict[str, Any]:
+    """시점별 자산 비중 (스택바 차트용)."""
+    from app.models.paper_snapshot import PaperAccountSnapshot
+
+    rows = (await db.execute(
+        select(PaperAccountSnapshot)
+        .where(PaperAccountSnapshot.user_id == user_id)
+        .order_by(PaperAccountSnapshot.snap_date.asc())
+        .limit(limit)
+    )).scalars().all()
+
+    if not rows:
+        return {"status": "insufficient_data"}
+
+    series = []
+    for r in rows:
+        total = float(r.total_equity) or 1.0
+        series.append({
+            "date": r.snap_date.isoformat(),
+            "cash_pct": round(float(r.cash) / total * 100, 2),
+            "stock_pct": round(float(getattr(r, "stock_value", 0) or 0) / total * 100, 2),
+            "crypto_pct": round(float(getattr(r, "crypto_value", 0) or 0) / total * 100, 2),
+            "alt_pct": round(float(getattr(r, "alt_value", 0) or 0) / total * 100, 2),
+        })
+
+    return {"status": "ok", "series": series}
+
+
+async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
+    """우리 자산 + KOSPI 정규화 시계열 (기간선택 차트용)."""
+    from app.models.paper_snapshot import PaperAccountSnapshot
+    from app.services.stock import get_candles
+
+    rows = (await db.execute(
+        select(PaperAccountSnapshot)
+        .where(PaperAccountSnapshot.user_id == user_id)
+        .order_by(PaperAccountSnapshot.snap_date.asc())
+    )).scalars().all()
+
+    if len(rows) < 2:
+        return {"status": "insufficient_data"}
+
+    dates = [r.snap_date.isoformat() for r in rows]
+    equity = np.array([float(r.total_equity) for r in rows])
+    norm_our = (equity / equity[0] * 100).round(2).tolist()
+
+    try:
+        bench_data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
+        bench_closes = [float(c["close"]) for c in bench_data.get("candles", []) if c.get("close")]
+        if len(bench_closes) < len(equity):
+            return {"status": "insufficient_data", "reason": "벤치마크 부족"}
+        bench_window = bench_closes[-len(equity):]
+        norm_bench = (np.array(bench_window) / bench_window[0] * 100).round(2).tolist()
+    except Exception as e:
+        return {"status": "insufficient_data", "reason": f"벤치마크 실패: {e}"}
+
+    return {
+        "status": "ok",
+        "dates": dates,
+        "our_series": norm_our,
+        "benchmark_series": norm_bench,
+        "benchmark_name": "KOSPI",
+    }

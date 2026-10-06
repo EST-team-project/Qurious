@@ -51,6 +51,7 @@ ALLOWED_SOURCES = frozenset({
     "ecos",     # 한국은행 경제통계
     "dart",     # 전자공시
     "krx",      # KRX Open API
+    "policy_news",  # 공공데이터포털 정책브리핑 정책뉴스 — 공공누리 제1유형(출처 표시 · 기사마다 KoglType)
 })
 
 #: 한 응답이 이보다 크면 저장하지 않고 예외를 낸다.

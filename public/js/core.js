@@ -7,20 +7,24 @@ const GNB_MENUS = {
   agent: {
     label: "<i class='fa-solid fa-robot'></i> 로보 어드바이저",
     items: [
+      { key: "dashboard", icon: "fa-solid fa-gauge-high", label: "통합 대시보드" },
       { key: "agent-chat",      icon: "fa-solid fa-comments",              label: "AI 투자 상담" },
       { key: "robo-portfolio",  icon: "fa-solid fa-chart-pie",             label: "자산배분·최적화" },
       { key: "robo-rebalance",  icon: "fa-solid fa-rotate",                label: "리밸런싱 엔진" },
       { key: "robo-screening",  icon: "fa-solid fa-magnifying-glass-chart",label: "패턴 인식·종목 스크리닝" },
       { key: "robo-patterns",   icon: "fa-solid fa-chart-column",          label: "차트 패턴·지지/저항·멀티타임프레임" },
       { key: "robo-decision",   icon: "fa-solid fa-brain",                 label: "모의 투자 의사결정" },
+      { key: "robo-testbed",    icon: "fa-solid fa-clipboard-check",       label: "코스콤 테스트베드 기준" },
       { key: "agent-cb",        icon: "fa-solid fa-chart-bar",             label: "신용 리스크 분석" },
       { key: "agent-products",  icon: "fa-solid fa-coins",                 label: "맞춤 상품 추천" },
       { key: "agent-news",      icon: "fa-solid fa-newspaper",             label: "투자 정보 리서치" },
     ],
   },
+  // 데이터(옛 「크롤링」 · 2026-10-02 화면 결정 ①) — 맨 위에 데이터 관제(js/datahub.js), 크롤링 세 화면은 그대로
   crawl: {
-    label: "<i class='fa-solid fa-spider'></i> 크롤링",
+    label: "<i class='fa-solid fa-database'></i> 데이터",
     items: [
+      { key: "data-status",   icon: "fa-solid fa-gauge-high",      label: "데이터 관제" },
       { key: "crawl-auto",    icon: "fa-solid fa-rotate",          label: "자동 크롤링" },
       { key: "crawl-manual",  icon: "fa-solid fa-link",            label: "수동 크롤링" },
       { key: "crawl-ingest",  icon: "fa-solid fa-database",        label: "데이터 인제스트" },
@@ -95,6 +99,8 @@ const GNB_MENUS = {
       { key: "macro-industry",    icon: "fa-solid fa-industry",        label: "산업 분석" },
       { key: "invest-fundamental",icon: "fa-solid fa-file-invoice-dollar", label: "재무제표 분석" },
       { key: "invest-technical",  icon: "fa-solid fa-chart-candlestick",  label: "기술적 분석" },
+      // 일정 (2026-10-02 화면 결정 ②) — 월 달력 + 다가오는 일정 · 좁은 화면은 목록(js/calendar.js)
+      { key: "market-calendar",   icon: "fa-solid fa-calendar-days",   label: "일정" },
     ],
   },
   // 금융 필수 지식 (2026-10-01 화면 설계 결정) — 「강의」(강의실 + 주제 아홉 · js/finlearn.js) · 「요약」(지금 화면 셋).
@@ -118,6 +124,9 @@ const GNB_MENUS = {
       { key: "fin-products",   icon: "fa-solid fa-layer-group",   label: "금융상품 이해" },
       { key: "fin-allocation", icon: "fa-solid fa-pie-chart",     label: "자산배분 모델" },
       { key: "quant-seasonal", icon: "fa-solid fa-calendar-days", label: "계절성 분석" },
+      // 용어사전 (2026-10-02 화면 설계 결정 ① — 찾기 첫 화면 → 용어 한 장 · js/glossary.js)
+      { heading: "연습" },
+      { key: "fin-glossary",   icon: "fa-solid fa-book",          label: "용어사전" },
     ],
   },
   // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계_v0.1.md).
@@ -207,13 +216,27 @@ const TERMS = {
 
 // ── 화면별 사용법 가이드 (43개 view 전체) ────────────────────────────
 const VIEW_GUIDES = {
-  "agent-chat":      { summary: "금융 지식·데이터를 학습한 AI 로보 어드바이저에게 자유롭게 투자 관련 질문을 합니다.", steps: ["궁금한 내용을 채팅창에 입력 후 전송 버튼(또는 Enter)을 누르세요.", "신용점수, 금융상품, 퀀트 전략 등 여러 주제를 한 대화에서 섞어 물어봐도 됩니다.", "AI 답변은 참고용이며, 실제 투자 결정 전 반드시 스스로 데이터를 검증하세요."], relatedTerms: ["rag", "cb_score"] },
+  // 투자 대시보드(2026-10-03 · 강사님 기초 코드 9478811 의 첫 화면 — 강사님 판에는 안내가 없다)
+  "dashboard":       { summary: "로보 어드바이저와 투자 인디케이터의 상태와 바로가기를 한 화면에서 봅니다.", steps: ["KIS 모의투자를 쓰려면 먼저 「증권사 API 설정」 에 내 모의투자 키를 넣으세요. 키가 있으면 「KIS 모의투자 시작」 이 열립니다.", "「투자 사이트별 현재 투자액」 의 탭을 누르면 계좌마다 투자액 · 현금 · 총자산을 봅니다.", "「기본 전략 성능」 은 과거 백테스트이며 내 계좌의 실제 수익과 다릅니다. 매매가 없던 기간은 수익률을 매기지 않습니다."], relatedTerms: ["mdd", "sharpe"] },
+  "agent-chat":     { summary: "금융 지식·데이터를 학습한 AI 로보 어드바이저에게 자유롭게 투자 관련 질문을 합니다.", steps: ["궁금한 내용을 채팅창에 입력 후 전송 버튼(또는 Enter)을 누르세요.", "신용점수, 금융상품, 퀀트 전략 등 여러 주제를 한 대화에서 섞어 물어봐도 됩니다.", "AI 답변은 참고용이며, 실제 투자 결정 전 반드시 스스로 데이터를 검증하세요."], relatedTerms: ["rag", "cb_score"] },
   "robo-portfolio":  { summary: "위험 성향·투자기간·투자금액을 입력하면 AI가 자산배분 비중과 추천 종목을 계산합니다.", steps: ["위험 성향(안정/중립/공격)과 투자 기간, 투자금액을 선택하세요.", "'배분 계산' 버튼을 누르면 자산군별 비중과 추천 종목이 표시됩니다.", "기대수익률·MDD는 과거 데이터 기반 추정치이며 미래 수익을 보장하지 않습니다."], relatedTerms: ["covariance_opt", "mvo", "risk_parity", "mdd", "sharpe"] },
   "robo-screening":  { summary: "패턴 인식 모델로 대표 종목들을 매수/매도/관망으로 스크리닝합니다.", steps: ["모델(RSI/이동평균/볼린저/앙상블)과 신호 필터, 최소 신뢰도를 선택하세요.", "결과 카드에서 종목별 신호·점수·근거를 확인하세요.", "신뢰도가 높다고 100% 적중을 의미하지 않으니 다른 지표와 함께 판단하세요."], relatedTerms: ["signal", "lightgbm", "rsi", "golden_cross"] },
   "robo-decision":   { summary: "자동매매 로직이 만든 모의투자 의사결정 과정을 로그로 확인합니다.", steps: ["시작 버튼을 누르면 10분 주기로 모의계좌 매매가 진행됩니다.", "로그에서 매수/매도 이유와 계좌 평가금액 변화를 확인하세요.", "실제 자금이 아닌 가상계좌이므로 전략을 안전하게 검증할 수 있습니다."], relatedTerms: ["virtual_account", "auto_trade_cycle", "signal"] },
+  "robo-testbed": {
+    summary: "코스콤 로보어드바이저 테스트베드 기준에 맞춘 운용 성과 분석입니다.",
+    steps: [
+      "기준가 · 매매회전율 · 평균대비분석 · 위험지표를 한눈에 확인하세요.",
+      "KOSPI200 대비 초과 성과와 위험조정 수익률을 비교합니다.",
+      "표준편차·샤프·젠센알파·정보비율로 전략의 질을 평가합니다.",
+    ],
+    relatedTerms: ["sharpe", "mdd", "cost_bps", "slippage", "backtest"],
+  },
   "agent-cb":        { summary: "개인·기업 신용(CB) 통계를 조건별로 조회해 리스크를 참고합니다.", steps: ["개인 CB는 기간·성별·연령대를, 기업 CB는 기간·규모·업종코드를 선택하세요.", "'조회' 버튼을 누르면 해당 조건의 집계 통계가 표시됩니다."], relatedTerms: ["cb_score"] },
   "agent-products":  { summary: "위험 성향에 맞는 은행 수신상품·공모펀드를 검색합니다.", steps: ["상단 탭에서 '은행 수신상품' 또는 '공모펀드'를 선택하세요.", "최소금리(또는 최소수익률)와 키워드로 조건을 좁혀 검색하세요."], relatedTerms: [] },
   "agent-news":      { summary: "크롤링된 뉴스·리포트를 AI RAG로 검색해 투자 인사이트를 얻습니다.", steps: ["검색어(예: 금리 전망, 반도체 업황)를 입력 후 검색하세요.", "결과가 부족하면 '크롤링' 메뉴에서 먼저 관련 자료를 수집하세요."], relatedTerms: ["rag", "embedding", "qdrant"] },
+  // 데이터 관제 · 일정 (2026-10-02) — js/datahub.js · js/calendar.js
+  "data-status":     { summary: "모은 자료가 며칠 것까지 있는지, 매일 낮 12시 30분 갱신이 돌았는지 한 화면에서 봅니다.", steps: ["위의 카드 넷에서 판정 · 주식 시세 기준일 · 낮 갱신 · 팀 공유 저장소를 먼저 보세요.", "「자료별 기준일」 표에서 늦은 자료가 있는지 보세요 — 「정상」 은 하루 밀림(시세는 다음 날 낮에 들어옵니다)입니다.", "어느 화면에서든 위 메뉴의 「자료 MM-DD · 판정」 을 누르면 요약이 열립니다."], relatedTerms: [] },
+  "market-calendar": { summary: "휴장일 · 파생상품 만기 · 배당락일 · 배당 기준일을 달력과 목록으로 봅니다.", steps: ["‹ › 로 달을 옮기고, 종류 단추로 보고 싶은 일정만 고르세요.", "일정을 누르면 날짜 · 어떻게 정했는지(확정 · 규칙으로 계산) · 풀이가 열립니다.", "오른쪽 「다가오는 일정」 은 모의계좌에 가진 종목의 배당 일정을 맨 위에 올립니다."], relatedTerms: [] },
   "crawl-auto":      { summary: "미리 등록된 소스(GitHub 문서 등)를 한 번에 크롤링해 AI 지식베이스에 반영합니다.", steps: ["'자동 크롤링 실행' 버튼을 누르면 진행 로그가 표시됩니다.", "완료 후 '금융정보 Agent'에서 관련 질문을 하면 새 자료가 답변에 반영됩니다."], relatedTerms: ["rag", "embedding", "qdrant"] },
   "crawl-manual":    { summary: "특정 URL이나 네이버 종목 코드를 직접 입력해 원하는 자료만 크롤링합니다.", steps: ["URL을 입력하고 '크롤링'을 누르거나, 네이버 종목코드를 입력해 종목 페이지를 수집하세요.", "하단 목록에서 최근 수집된 문서를 확인할 수 있습니다."], relatedTerms: ["qdrant"] },
   "crawl-ingest":    { summary: "CSV로 준비된 신용·금융상품 데이터를 DB에 적재하거나 초기화합니다.", steps: ["'금융 데이터 인제스트'는 data 폴더의 CSV를 읽어 DB에 반영합니다.", "'DB 초기화'는 관리자 전용이며 기존 데이터를 모두 삭제하니 주의하세요."], relatedTerms: [] },
@@ -271,12 +294,16 @@ const VIEW_GUIDES = {
   "fin-topic-macro":      { summary: "금리 · 물가 · 환율과 주식시장의 연결, 계절성 이야기를 교재로 읽습니다.", steps: ["왼쪽 목차에서 절을 골라 읽으세요.", "계절성은 「계절성 분석」 화면에서 데이터로 확인해 보세요."], relatedTerms: [] },
   "sysadmin-dashboard": { summary: "서버 자원(CPU/메모리/디스크)과 연동 서비스 상태를 모니터링합니다.", steps: ["호스트/서비스/컨테이너 카드에서 이상 여부를 확인하세요.", "응답이 느리거나 실패로 표시되면 해당 서비스(Ollama/Qdrant/Redis) 상태를 점검하세요."], relatedTerms: ["qdrant"] },
   "sysadmin-logs":   { summary: "주문·설정 변경 등 주요 이벤트의 감사 로그를 조회합니다.", steps: ["이벤트 유형·기간으로 필터링해 이력을 확인하세요.", "이상 거래나 설정 변경 원인을 추적할 때 활용하세요."], relatedTerms: ["audit_log"] },
+  "fin-glossary":    { summary: "금융 · 투자 용어를 이름 · 약어 · 영어 · 초성으로 찾고, 풀이와 이어진 개념을 봅니다.", steps: ["검색창에 PER · 샤프 · ㅅㄱㅊㅇ 처럼 쳐 보세요 — 줄마다 무엇으로 찾았는지 보여 줍니다.", "분류 카드를 누르면 그 분류의 용어를 가나다순으로 봅니다.", "다른 화면에서 용어를 눌렀을 때 뜨는 창의 모양은 내 계정 › 화면 설정에서 바꿉니다."], relatedTerms: [] },
   "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴합니다.", steps: ["이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
 };
 
 // ── 용어 모달 / 툴팁 / 사용법 패널 헬퍼 ─────────────────────────────
 function openTermModal(key) {
   const term = TERMS[key];
+  // (Qurious 2026-10-02) 용어사전 카드가 있으면 그 카드를 연다 — 오른쪽 서랍 · 가운데 작은 창 · 큰 창(내 계정에서 고름 · js/termcard.js).
+  // 이 화면의 짧은 설명(TERMS)은 용어사전에서 못 찾거나 불러오지 못했을 때 대신 보여 줄 글로 넘긴다.
+  if (window.QTerm) { window.QTerm.open(key, { fallback: term }); return; }
   if (!term) return;
   document.getElementById("tm-title").textContent = term.title;
   document.getElementById("tm-body").textContent = term.body;
@@ -420,24 +447,103 @@ function renderLnb(gnbKey) {
   });
 }
 
-// GNB 더보기 offcanvas (금융 지식 / 시스템 — LNB 스타일 재사용)
+// 전체 메뉴(더보기) — 2026-10-03 화면 결정 ② D(융합안 · Figma 「Qurious · 투자 대시보드 · 메뉴 정리」 03 설계).
+// 위 메뉴 탭은 app.html 에 아래 우선순위 순서로 있고, 화면 폭에 들어가는 만큼만 보인다(Priority+ · fitGnbTabs).
+// 안 들어가는 묶음은 반만 잘리지 않고 통째로 숨는다 — 숨은 묶음은 이 서랍(모든 묶음을 담은 「전체 메뉴」)에 늘 있다.
+// 강사님 판(9478811)의 펼침 목록 · Esc · 포커스 처리는 그대로 두고, 우리 메뉴의 소제목(heading) · 들여쓴 항목(sub) ·
+// 바깥 주소(href · 개념 학습)를 깨지 않게 그린다 — 강사님 판 그대로면 소제목이 「undefined」 단추가 되고,
+// 개념 학습 항목은 없는 화면으로 navigate 해 아무 일도 일어나지 않는다.
+// 근거: NN/g 「Hamburger Menus and Hidden Navigation Hurt UX Metrics」(2016 — 데스크톱에서 숨긴 메뉴 27% · 보이는 메뉴 48%)
+//       · CSS-Tricks 「The Priority+ Navigation Pattern」(2015) · NN/g 「Mega Menus Work Well for Site Navigation」(2017).
+const MENU_PRIORITY = ["agent", "company", "finance", "paper", "crawl", "quant", "trading", "us", "invest", "ml"];
+const MENU_DRAWER_ONLY = ["learn", "sysadmin", "account"];   // 위 메뉴에 두지 않는 묶음(서랍에만)
+function drawerItem(it) {
+  if (it.heading) return `<div class="lnb-heading">${it.heading}</div>`;   // 누를 수 없는 소제목(왼쪽 메뉴와 같은 모양)
+  const cls = `lnb-item${it.sub ? " lnb-sub" : ""}`;
+  if (it.href) {
+    // 바깥 주소(별도 HTML) — 링크가 그대로 연다. 「새 화면」 표시를 붙인다
+    return `<a class="${cls}" href="${it.href}" data-menu-href="${it.key}"><i class="${it.icon}"></i><span>${it.label}</span>` +
+      `<i class="fa-solid fa-arrow-up-right-from-square offcanvas-out" aria-hidden="true"></i><span class="sr-only">(새 화면)</span></a>`;
+  }
+  return `<button type="button" class="${cls}" data-menu-view="${it.key}"><i class="${it.icon}"></i><span>${it.label}</span></button>`;
+}
 (function () {
   const backdrop = document.getElementById("gnb-offcanvas-backdrop");
   const panel = document.getElementById("gnb-offcanvas");
+  const trigger = document.getElementById("gnb-more-btn");
+  const nav = document.getElementById("gnb-offcanvas-nav");
+  trigger.setAttribute("aria-controls", panel.id);
+  trigger.setAttribute("aria-expanded", "false");
+  panel.inert = true;
+  nav.innerHTML = [...MENU_PRIORITY, ...MENU_DRAWER_ONLY].filter(key => GNB_MENUS[key]).map(key => {
+    const menu = GNB_MENUS[key];
+    const outOnly = menu.items.every(it => it.heading || it.href);   // 개념 학습처럼 모두 바깥 주소인 묶음
+    return `
+    <details class="offcanvas-group" data-menu-group="${key}">
+      <summary class="lnb-item">${menu.label}${outOnly ? '<span class="offcanvas-tag">새 화면</span>' : ""}<i class="fa-solid fa-chevron-down offcanvas-chevron"></i></summary>
+      <div class="offcanvas-submenu">${menu.items.map(drawerItem).join("")}</div>
+    </details>`;
+  }).join("");
   function openOffcanvas() {
+    panel.inert = false;
     panel.classList.add("open");
     backdrop.classList.add("open");
+    trigger.setAttribute("aria-expanded", "true");
+    nav.querySelectorAll("details").forEach(group => { group.open = group.dataset.menuGroup === currentGnb; });
+    document.getElementById("gnb-offcanvas-close").focus();
   }
   function closeOffcanvas() {
+    trigger.focus();
     panel.classList.remove("open");
     backdrop.classList.remove("open");
+    panel.inert = true;
+    trigger.setAttribute("aria-expanded", "false");
   }
-  document.getElementById("gnb-more-btn").addEventListener("click", openOffcanvas);
+  trigger.addEventListener("click", openOffcanvas);
   document.getElementById("gnb-offcanvas-close").addEventListener("click", closeOffcanvas);
   backdrop.addEventListener("click", closeOffcanvas);
-  // 항목 선택(금융 지식/시스템)은 기존 [data-gnb] 클릭 리스너가 네비게이션을 처리하고,
-  // 여기서는 선택 후 패널만 닫아준다.
-  panel.querySelectorAll("[data-gnb]").forEach(el => el.addEventListener("click", closeOffcanvas));
+  nav.addEventListener("click", event => {
+    const item = event.target.closest("[data-menu-view]");
+    if (item) { navigate(item.dataset.menuView); closeOffcanvas(); return; }
+    if (event.target.closest("[data-menu-href]")) closeOffcanvas();   // 바깥 주소는 링크가 연다 — 서랍만 닫는다
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && panel.classList.contains("open")) closeOffcanvas();
+  });
+  // 서랍을 연 채 다른 길(뒤로 가기 · 주소 입력)로 화면이 바뀌어도 닫는다 — 열린 채 남던 것을 2026-10-03 브라우저에서 확인
+  document.addEventListener("lumina:view-changed", () => { if (panel.classList.contains("open")) closeOffcanvas(); });
+})();
+
+// 위 메뉴 Priority+ — 탭을 우선순위 순서대로 채우다 폭을 넘는 탭부터 통째로 숨긴다(.gnb-overflow).
+// 탭 칸 폭이 바뀔 때(창 크기 · 오른쪽 시세 · 자료 표시가 늦게 채워질 때 · 글꼴이 늦게 읽힐 때) 다시 잰다.
+function fitGnbTabs() {
+  const bar = document.querySelector("#gnb .gnb-tabs");
+  if (!bar) return;
+  const tabs = [...bar.querySelectorAll(".gnb-item")];
+  tabs.forEach(t => t.classList.remove("gnb-overflow"));
+  const avail = bar.clientWidth;
+  let used = 0;
+  let full = false;
+  for (const t of tabs) {
+    used += t.offsetWidth;
+    if (full || used > avail) { t.classList.add("gnb-overflow"); full = true; }
+  }
+  markMoreActive();
+}
+// 지금 묶음이 위 메뉴에 보이지 않으면(숨었거나 서랍에만 있는 묶음) 더보기 단추에 「여기 안에 있음」 표시
+function markMoreActive() {
+  const tab = document.querySelector(`#gnb .gnb-item[data-gnb="${currentGnb}"]`);
+  const inBar = !!tab && !tab.classList.contains("gnb-overflow") && tab.offsetParent !== null;
+  document.getElementById("gnb-more-btn")?.classList.toggle("active", !inBar);
+}
+(function () {
+  const bar = document.querySelector("#gnb .gnb-tabs");
+  let queued = false;
+  const refit = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fitGnbTabs(); }); };
+  if (bar && "ResizeObserver" in window) new ResizeObserver(refit).observe(bar);
+  window.addEventListener("resize", refit);
+  document.fonts?.ready?.then(refit);
+  refit();
 })();
 
 // LNB 토글 (접기/펼치기)
@@ -463,6 +569,17 @@ function navigate(viewKey) {
   document.querySelectorAll("[data-gnb]").forEach(el => {
     el.classList.toggle("active", el.dataset.gnb === currentGnb);
   });
+
+  document.querySelectorAll("[data-menu-group]").forEach(el => {
+    el.classList.toggle("active", el.dataset.menuGroup === currentGnb);
+  });
+  document.querySelectorAll("[data-menu-view]").forEach(el => {
+    const active = el.dataset.menuView === currentView;
+    el.classList.toggle("active", active);
+    if (active) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+  markMoreActive();   // 지금 묶음이 위 메뉴에 없으면 더보기에 표시(Priority+ · fitGnbTabs)
 
   // Update LNB
   renderLnb(currentGnb);
@@ -596,4 +713,4 @@ let _viewActivated = () => {};
 export function registerViewActivation(fn) { _viewActivated = fn; }
 
 
-export { compareTrayAdd, loadMarketTicker, loadSyncStatus, navigate, renderCompareTrayAll, tt };
+export { GNB_MENUS, compareTrayAdd, loadMarketTicker, loadSyncStatus, navigate, renderCompareTrayAll, tt };

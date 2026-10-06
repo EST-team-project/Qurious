@@ -59,6 +59,11 @@ TR 에 배당을 더해야 하는 날은 기준일이 아니라 **배당락일**
 거래일 달력은 이미 있다 — ``price_daily`` 에 쌓인 1,648 거래일이 그것이다. 틀린 달력을
 따로 들고 있지 않으려는 것은 ``portal.weekdays`` 와 같은 태도다.
 
+⚠️ (2026-10-02 정정) 그 달력에는 **앞날이 없다.** 아직 시세가 없는 기준일을 달력 끝에서 세어 틀린
+   배당락일이 들어갔다(기준일 10-13 → 09-29 · 기준일 09-30 → 09-28 · 맞는 값 10-12 · 09-29). 이제
+   거래일 달력 표(``market_calendar`` — 공휴일 + 거래소 규칙 + 시세로 확인, 2020~2026-09 시세와 0일 어긋남)를
+   먼저 쓰고, 달력 끝 뒤 기준일은 틀린 날 대신 비워 둔다(``ex_dividend_date``).
+
 ⚠️ 2024년부터 배당기준일을 배당액 확정 후로 미룰 수 있게 제도가 바뀌었다. 그래도 이
    공식은 깨지지 않는다 — 공식이 읽는 것은 **공시에 적힌 기준일**이고, 기준일이 3월이든
    12월이든 결제 규칙은 같다. 다만 배당락 시점의 **가격 반응**은 달라질 수 있다(금액을
@@ -297,17 +302,21 @@ def fetch_list(limiter: RateLimiter, *, bgn_de: str, end_de: str, page_no: int =
 
 def fetch_document(conn: sqlite3.Connection, limiter: RateLimiter, rcept_no: str, *,
                    session: Optional[requests.Session] = None,
-                   keep_raw: bool = True, reuse_raw: bool = True) -> bytes:
+                   keep_raw: bool = True, reuse_raw: bool = True,
+                   target_prefix: str = "dividend") -> bytes:
     """공시 본문 XML 바이트. 원문(zip)은 ``raw_response`` 에 남긴다.
 
     ``reuse_raw=True`` 면 **이미 받아 둔 원문이 있으면 네트워크를 안 탄다.** 파싱 규칙을
     고쳐 다시 돌릴 때가 반드시 오는데, 그때 수천 건을 다시 받으면 하루 한도를 통째로
     쓴다. 재개·재파싱의 근거를 ``ingest_day`` 가 아니라 원문 자체에 두는 이유다.
 
+    ``target_prefix`` 는 원문을 남길 이름의 머리다 — 배당 결정은 ``dividend/``(처음부터 이 이름),
+    주주총회 소집결의는 ``agm/``(2026-10-05 · `collector/corp_schedule.py`). 머리가 다르면 같은 접수번호라도 따로 남는다.
+
     ⚠️ 응답은 **zip** 이다. 오류일 때만 XML 로 온다 — 그래서 zip 서명(`PK`)을 먼저 본다.
        XML 인 줄 알고 파싱하면 오류 메시지가 조용히 "본문 0건" 으로 둔갑한다.
     """
-    target = f"dividend/{rcept_no}"
+    target = f"{target_prefix}/{rcept_no}"
     if reuse_raw:
         kept = raw_store.load(conn, "dart", target)
         if kept:
@@ -525,12 +534,26 @@ def parse_document(xml: bytes) -> Dividend:
 # ==================================================
 # 3. 배당락일 — 거래일 달력으로 역산
 # ==================================================
-def trading_days(conn: sqlite3.Connection) -> List[str]:
-    """쌓인 거래일 달력(YYYYMMDD 오름차순).
+#: 배당락일을 아직 정할 수 없는 행의 표시 — 기준일이 달력 끝 뒤다. 달력이 늘면
+#: ``collector.market_calendar.rederive_ex_dates`` 가 값을 채우고 이 표시만 지운다.
+EX_HOLD = "배당락일 보류 — 기준일이 거래일 달력 끝 뒤다"
 
-    ``price_daily`` 에 자료가 있는 날이 곧 거래일이다. 별도 휴장일 달력을 만들지 않는
-    것은 ``portal.weekdays`` 와 같은 이유 — 틀린 달력은 없는 것보다 나쁘다.
+
+def trading_days(conn: sqlite3.Connection) -> List[str]:
+    """거래일 달력(YYYYMMDD 오름차순).
+
+    거래일 달력 표(``market_calendar`` · 2026-10-02)가 있으면 그것을 쓴다 — **앞날의 거래일까지** 있어
+    아직 시세가 없는 기준일의 배당락일도 맞게 센다. 표가 없거나 비었으면(달력을 아직 안 만든 PC)
+    예전처럼 ``price_daily`` 에 시세가 있는 날이다. 그 달력에는 앞날이 없으므로 ``ex_dividend_date`` 는
+    달력 끝 뒤 기준일에 틀린 날 대신 None 을 준다.
     """
+    try:
+        rows = conn.execute(
+            "SELECT cal_date FROM market_calendar WHERE is_trading_day = 1 ORDER BY cal_date").fetchall()
+    except sqlite3.OperationalError:       # 표가 아직 없다(옛 DB)
+        rows = []
+    if rows:
+        return [r[0].replace("-", "") for r in rows]
     return [r[0] for r in conn.execute(
         "SELECT DISTINCT bas_dt FROM price_daily ORDER BY bas_dt")]
 
@@ -539,18 +562,24 @@ def ex_dividend_date(cal: Sequence[str], record_dt: str) -> Optional[str]:
     """배당기준일 → 배당락일. 달력 밖이면 ``None``.
 
     모듈 머리말의 공식 그대로다: **기준일 이하 마지막 거래일의 한 거래일 전.**
+    기준일이 달력의 마지막 거래일보다 뒤면 None — 그 사이에 휴장이 끼는지 모른다. 예전에는
+    달력 끝에서 세어 **틀린 날**을 줬다(2026-10-02 실측 — 기준일 10-13 → 09-29, 맞는 값 10-12).
     """
     if not record_dt or not cal:
         return None
+    if record_dt > cal[-1]:
+        return None          # 달력 끝 뒤 — 아직 모른다(ex_dividend_note 가 「보류」 로 적는다)
     i = bisect.bisect_right(cal, record_dt) - 1
     if i < 1:
         return None          # 달력 시작 이전 — 우리 구간 밖이다
-    if cal[i] == cal[-1]:
-        # 기준일이 달력 끝에 걸렸다. 앞은 알지만 이 기준일이 정말 마지막 거래일 이후인지
-        # 아직 모른다 — 다음 거래일이 쌓이면 판정이 바뀔 수 있으므로 값은 주고 표시는
-        # 부르는 쪽이 한다.
-        pass
     return cal[i - 1]
+
+
+def ex_dividend_note(cal: Sequence[str], record_dt: str) -> str:
+    """``ex_dividend_date`` 가 None 일 때 붙일 까닭 — 달력 앞(영원히 비는 칸) · 달력 끝 뒤(달력이 늘면 채운다)."""
+    if cal and record_dt and record_dt > cal[-1]:
+        return f"{EX_HOLD}({cal[-1]})"
+    return f"배당락일 없음 — 기준일 {record_dt} 이 거래일 달력(2020-01-02~) 앞이다"
 
 
 # ==================================================

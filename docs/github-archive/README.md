@@ -23,7 +23,7 @@ docs/github-archive/
 ├── 2026-09-23/   ← 옛 글 1건
 ├── 2026-09-28/        ← 새 글 18건
 │   ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md  (#14 · 댓글 01 올림)
-│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
+│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 07 점검 댓글 · 08 · 09 반영 결과(#6 · 09 는 10-04 올림) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
 │   ├── PR-docs-screen-ia-v0-1/    00-본문.md  (#16)
 │   ├── PR-docs-screen-ia-v0-2/    00-본문.md  (#19)
 │   ├── PR-feat-daily-data-update/ 00-본문.md  (#23)
@@ -60,12 +60,38 @@ docs/github-archive/
 │   ├── PR-feat-account-crud-mypage/    00-본문.md  (#75)
 │   ├── 이슈-통합본-반입-용어사전/      00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
 │   └── PR-feat-rag-lab-import-glossary/  00-본문.md  (#77)
-└── 2026-10-01/        ← 새 글 5건
-    ├── PR-docs-plan-v2-and-goal1-design/  00-본문.md  (#78)
-    ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 올리기 전)
-    ├── PR-feat-learning-pages/        00-본문.md  (#80)
-    ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
-    └── PR-feat-finance-lectures-placement/  00-본문.md  (번호는 올린 뒤)
+├── 2026-10-01/        ← 새 글 5건
+│   ├── PR-docs-plan-v2-and-goal1-design/  00-본문.md  (#78)
+│   ├── [논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/  00-본문.md(③ 주담당 글 · #79 이슈) · 01 내 의견(부담당 · 10-01 올림) · 02 거래일 달력 주소(10-02 · 올릴 것) · 03 배당 지급일이 생김(10-05 · 올릴 것 — 02 뒤에)
+│   ├── PR-feat-learning-pages/        00-본문.md  (#80)
+│   ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
+│   └── PR-feat-finance-lectures-placement/  00-본문.md  (#84)
+├── 2026-10-02/        ← 새 글 5건
+│   ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md · 01 강민석 님 답글(10-02) · 02 코드 대조 확인(10-03 · 올림) · 03 갱신(10-03 · 번호 0013 → 0014 · 올릴 것)  (#88)
+│   ├── PR-feat-glossary-screen-and-w3-docs/  00-본문.md  (#87)
+│   ├── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (#89)
+│   ├── PR-feat-data-hub-calendar-ohlcv-api/  00-본문.md  (#91)
+│   └── PR-feat-legal-kb-fetch-and-index/  00-본문.md  (#93)
+├── 2026-10-03/        ← 새 글 7건
+│   ├── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (#97)
+│   ├── PR-chore-instructor-base-9478811-server/  00-본문.md  (#98)
+│   ├── 논의-강사님기초코드-9478811-반영/  00-본문.md · 01-2026-10-03-화면-결정.md(10-04 올림)  (#99)
+│   ├── PR-chore-instructor-base-9478811-screens/  00-본문.md  (#100)
+│   ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md  (#103 · 10-04 올림)
+│   ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
+│   └── PR-feat-kb-ask-and-local-llm-research/  00-본문.md  (#102)
+├── 2026-10-04/        ← 새 글 7건
+│   ├── PR-feat-kb-answer-screen/  00-본문.md  (#104)
+│   ├── 이슈-점검-인디케이터-화면/  00-본문.md  (#107 · 10-04 올림 · 신장환 님)
+│   ├── 이슈-점검-자산배분-리밸런싱-자동매매/  00-본문.md  (#108 · 10-04 올림 · 오준영 님)
+│   ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (#106 · 10-04 올림 · 강민석 님)
+│   ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀)
+│   ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
+│   ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd)
+│   └── PR-feat-disclosure-financials-search-events/  00-본문.md  (#111 · 머지 1a7574e)
+└── 2026-10-05/        ← 새 글 2건
+    ├── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (#112 · 머지 f83e551)
+    └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (번호는 올린 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -167,7 +193,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 #21](2026-09-17/이슈-021/00-기록.md) | [분석] A2 데이터 계층 — 테이블 25개는 마이그레이션과 맞는데, 장부가 다섯 군데로 흩어져 있습니다 | 열림 | 이동원(`devlee328288`) | 1 | 23,062 | [#44](https://github.com/EST-team-project/Qurious/issues/44) · 갱신 댓글 🟡 (S61 확인) |
 | [이슈 #22](2026-09-17/이슈-022/00-기록.md) | [분석] A3 인증·세션·권한 — 로그아웃 한 번이 전 사용자의 JWT를 끊습니다 | 열림 | 이동원(`devlee328288`) | 2 | 28,182 | [#45](https://github.com/EST-team-project/Qurious/issues/45) · 갱신 댓글 🟡 (S61 확인) |
 | [이슈 #23](2026-09-17/이슈-023/00-기록.md) | [분석] A4 시장 데이터·캐시·동기화 — 예약 작업 2개가 한 번도 실행된 적이 없습니다 | 열림 | 이동원(`devlee328288`) | 10 | ❌ 8.1만 — 본문 2.5만 · 댓글 10건(최대 10,783) | [#49](https://github.com/EST-team-project/Qurious/issues/49) · 갱신 댓글 🟡 (S63 채움 · 목록 페이지) |
-| [이슈 #24](2026-09-17/이슈-024/00-기록.md) | [분석] A10 LLM 공급자·에이전트·RAG — 설정을 바꿔도 세 갈래는 계속 로컬로 가고, 크롤링한 문서는 읽히지 않는다 | 열림 | 이동원(`devlee328288`) | 1 | 33,089 | [#50](https://github.com/EST-team-project/Qurious/issues/50) · 갱신 댓글 🟡 (S63 채움 · 목록 페이지) |
+| [이슈 #24](2026-09-17/이슈-024/00-기록.md) | [분석] A10 LLM 공급자·에이전트·RAG — 설정을 바꿔도 세 갈래는 계속 로컬로 가고, 크롤링한 문서는 읽히지 않는다 | 열림 | 이동원(`devlee328288`) | 1 | 33,089 | [#50](https://github.com/EST-team-project/Qurious/issues/50) · 갱신 댓글 🟡 (S63 채움 · 목록 페이지) · [갱신 02](2026-09-17/이슈-024/02-2026-10-04-갱신.md)(채팅 RAG · 숨은 문맥 — 올릴 것) |
 | [이슈 #25](2026-09-17/이슈-025/00-기록.md) | [분석] A11 크롤링·인제스트 — robots.txt를 확인하지 않고, 같은 저장소 안에 중복 방지의 정답과 오답이 같이 있다 | 열림 | 이동원(`devlee328288`) | 4 | 54,478 | [#57](https://github.com/EST-team-project/Qurious/issues/57) · 갱신 댓글 🟡 (09-29 · S68 채움 · 페이지 · 검색) |
 | [이슈 #26](2026-09-17/이슈-026/00-기록.md) | [확인 요청] 번역 데이터(AI 허브)를 2·3차에 쓸 것인가 — 이용정책 3개 조항 확인 필요 | 열림 | 이동원(`devlee328288`) | 0 | 4,549 | [#58](https://github.com/EST-team-project/Qurious/issues/58) · 갱신 댓글 🟡 (09-29 · S68 채움 · 페이지 · 검색) |
 | [이슈 #27](2026-09-17/이슈-027/00-기록.md) | [분석] A12 알림·감사·시스템 — 알림을 끄면 팀 공용 채널로 나가고, 로그인 기록은 한 줄도 없습니다 | 열림 | 이동원(`devlee328288`) | 1 | 25,363 | [#59](https://github.com/EST-team-project/Qurious/issues/59) · 갱신 댓글 🟡 (09-29 · S68 채움 · 페이지 · 검색) |
@@ -307,7 +333,49 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [논의 리밸런싱 3종 기준](<2026-10-01/[논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/00-본문.md>) | [논의] 리밸런싱 3종의 실행 주기 · 허용 이탈률 · 현금흐름 기준 설정 (③ 리밸런싱 주담당 글) | 2,691 | 번호 확인 전(사용자가 본문을 옮겨 둠 · **[#79](https://github.com/EST-team-project/Qurious/issues/79) — 이슈로 올라감 · 열림**(S74 페이지 한 건 확인)) · [내 의견 01](<2026-10-01/[논의] 리밸런싱 3종의 실행 주기·허용 이탈률·현금흐름 기준 설정/01-2026-10-01-항목별-의견.md>)(부담당 · 코드 줄 · 규정 원문 · 실데이터 측정) **올리기 전** |
 | [PR feat-learning-pages](2026-10-01/PR-feat-learning-pages/00-본문.md) | feat: 개념 학습 — 교재 사이트(/learn) · 팀 자료(HF 비공개 · 앱 편집기) · RAG 장 · 뼈대 32편 | 2,189 | [#80](https://github.com/EST-team-project/Qurious/pull/80) · 머지 `9327db7` (S74 채움) |
 | [PR feat-ohlcv-v1-intake](2026-10-01/PR-feat-ohlcv-v1-intake/00-본문.md) | feat: OHLCV 규격 자료 — ETF · 지수 일봉 · 분봉 400종목 · HF krx-ohlcv · 받은 파일 검사 · 개념 학습 1부 | 2,338 | [#81](https://github.com/EST-team-project/Qurious/pull/81) |
-| [PR feat-finance-lectures-placement](2026-10-01/PR-feat-finance-lectures-placement/00-본문.md) | feat: 금융 강의 — 「금융 필수 지식」 강의실 · 주제 화면 아홉 · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 통합본 19묶음 화면 자리 조사 · 아키텍처 그림 v2.0 | 2,308 | (올린 뒤 적음) |
+| [PR feat-finance-lectures-placement](2026-10-01/PR-feat-finance-lectures-placement/00-본문.md) | feat: 금융 강의 — 「금융 필수 지식」 강의실 · 주제 화면 아홉 · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 통합본 19묶음 화면 자리 조사 · 아키텍처 그림 v2.0 | 2,308 | [#84](https://github.com/EST-team-project/Qurious/pull/84) · 머지 `1732cd3` (S77 에 채움 · 로컬 `git log`) |
+
+### 2026-10-02 — 새 글 5건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [이슈 QFRS-마이그레이션-정리](2026-10-02/이슈-QFRS-마이그레이션-정리/00-본문.md) | [확인] 모의계좌 스냅샷(QFRS) — 마이그레이션 정리 넷 · 스냅샷을 쓰는 길 셋 | 3,674 | [#88](https://github.com/EST-team-project/Qurious/issues/88) — 담당 파트가 보는 확인 글 |
+| [PR feat-glossary-screen-and-w3-docs](2026-10-02/PR-feat-glossary-screen-and-w3-docs/00-본문.md) | feat: 용어사전 화면 · 모든 화면의 용어 설명 · 서비스 이름 Qurious · 강사님 기초 코드 289bfb5 · Qdrant 늘 켬 · W3 문서 새 판 | 3,507 | [#87](https://github.com/EST-team-project/Qurious/pull/87) |
+| [PR feat-trading-calendar-and-glossary-relations](2026-10-02/PR-feat-trading-calendar-and-glossary-relations/00-본문.md) | feat: 거래일 달력 · 금융 일정 · 데이터 상태 API · 배당락일 결함(DF-39) · 연관 개념(헷갈리는 말 25) — 목표 기능 ① W4 서버 쪽 | 3,165 | [#89](https://github.com/EST-team-project/Qurious/pull/89) |
+| [PR feat-data-hub-calendar-ohlcv-api](2026-10-02/PR-feat-data-hub-calendar-ohlcv-api/00-본문.md) | feat: 데이터 관제 · 일정 화면 · OHLCV 규격 주소 · HF 백업 완전(DF-40 ~ 43) — 목표 기능 ① W4 끝 | 3,967 | [#91](https://github.com/EST-team-project/Qurious/pull/91) |
+| [PR feat-legal-kb-fetch-and-index](2026-10-02/PR-feat-legal-kb-fetch-and-index/00-본문.md) | feat: 근거 문서 받기 · 판 고르기 · 조문 청크 · 벡터 색인 첫 판 — 목표 기능 ① W5 시작 | 1,930 | [#93](https://github.com/EST-team-project/Qurious/pull/93) |
+
+### 2026-10-03 — 새 글 7건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-kb-search-eval-and-glossary-candidates](2026-10-03/PR-feat-kb-search-eval-and-glossary-candidates/00-본문.md) | feat: 근거 찾기 API · 청크 머리(편 · 장 경로) · 검색 평가셋 v0 · 후보 용어 다섯 · 분류 화면 결함(DF-44) — 목표 기능 ① W5 | 3,847 | [#97](https://github.com/EST-team-project/Qurious/pull/97) |
+| [PR chore-instructor-base-9478811-server](2026-10-03/PR-chore-instructor-base-9478811-server/00-본문.md) | chore: 강사님 기초 코드 9478811 서버 쪽 반영 — KIS 키 사용자별(ADR-0004) · 게이트웨이 실거래 관문 · 마이그레이션 0013 · 문서 판 올림 | 2,937 | [#98](https://github.com/EST-team-project/Qurious/pull/98) — 10-03 16:23 머지 |
+| [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | [#99](https://github.com/EST-team-project/Qurious/discussions/99) — 댓글 [01 화면 결정](2026-10-03/논의-강사님기초코드-9478811-반영/01-2026-10-03-화면-결정.md)(10-04 올림) |
+| [PR chore-instructor-base-9478811-screens](2026-10-03/PR-chore-instructor-base-9478811-screens/00-본문.md) | chore: 강사님 기초 코드 9478811 화면 쪽 반영 — 첫 화면 투자 대시보드 · 위 메뉴 들어가는 만큼 + 전체 메뉴 · 설정 새 칸 · 문서 판 올림 | 2,760 | [#100](https://github.com/EST-team-project/Qurious/pull/100) — 10-03 18:04 머지 |
+| [이슈 백테스트보고서-결과칸-요청](2026-10-03/이슈-백테스트보고서-결과칸-요청/00-본문.md) | [요청] 백테스트 보고서 v0.1 결과 칸 — 비용 반영 성과(강민석 님 · 10-13 오후 칸 전) | 2,066 | [#103](https://github.com/EST-team-project/Qurious/issues/103) — 10-04 올림 |
+| [PR docs-deliverables-v01-doc-figures](2026-10-03/PR-docs-deliverables-v01-doc-figures/00-본문.md) | docs: 빠진 주요 산출물 15개 v0.1 · 문서 그림 지침(Figma) · 문서 작성 기준 v0.2 | 1,572 | [#101](https://github.com/EST-team-project/Qurious/pull/101) — 10-03 20:24 머지 |
+| [PR feat-kb-ask-and-local-llm-research](2026-10-03/PR-feat-kb-ask-and-local-llm-research/00-본문.md) | feat: 근거 번호가 달린 답 API · 로컬 LLM 조사서 · 답 모델 비교 — 목표 기능 ① W6 | 1,827 | [#102](https://github.com/EST-team-project/Qurious/pull/102) — 10-03 22:18 머지 |
+
+### 2026-10-04 — 새 글 7건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-kb-answer-screen](2026-10-04/PR-feat-kb-answer-screen/00-본문.md) | feat: 근거 답 화면 — 답 아래 출처 카드 · 처음 엔진 자동 · 숨은 지난 대화 고침 · 목표 기능 ① 설계서 v1.0 | 2,380 | [#104](https://github.com/EST-team-project/Qurious/pull/104) — 10-04 14:46 머지 · `92a8288` |
+| [이슈 점검-인디케이터-화면](2026-10-04/이슈-점검-인디케이터-화면/00-본문.md) | [점검] 인디케이터 화면 기능 완성도 — 점수표 · 지표 정의 · 성과 리포트 · 확장 후보 (신장환 님) | 3,148 | [#107](https://github.com/EST-team-project/Qurious/issues/107) — 10-04 올림(사용자가 웹에서 · 제목은 줄여 「[이슈] 점검 - 인디케이터 화면」) |
+| [이슈 점검-자산배분-리밸런싱-자동매매](2026-10-04/이슈-점검-자산배분-리밸런싱-자동매매/00-본문.md) | [점검] 자산배분 · 리밸런싱 · 자동매매 · 증권사 연동 화면 기능 완성도 (오준영 님) | 2,876 | [#108](https://github.com/EST-team-project/Qurious/issues/108) — 10-04 올림 |
+| [이슈 점검-모의투자-성과-테스트베드](2026-10-04/이슈-점검-모의투자-성과-테스트베드/00-본문.md) | [점검] 모의투자 · 성과 · 테스트베드 · 투자 대시보드 화면 기능 완성도 (강민석 님) | 3,260 | [#106](https://github.com/EST-team-project/Qurious/issues/106) — 10-04 올림 |
+| [이슈 점검-주인미정-화면-배지규칙](2026-10-04/이슈-점검-주인미정-화면-배지규칙/00-본문.md) | [점검] 주인이 정해지지 않은 화면 22개와 기능 완성도 배지 갱신 규칙 (팀) | 2,436 | [#109](https://github.com/EST-team-project/Qurious/issues/109) — 10-04 올림 |
+| [PR feat-completion-audit-and-crawl-points](2026-10-04/PR-feat-completion-audit-and-crawl-points/00-본문.md) | feat: 기능 완성도 점검 — 화면 69 점수표 · 배지 팀 줄 · 크롤 조각 점 번호 고침 · 시장조사 | 2,232 | [#105](https://github.com/EST-team-project/Qurious/pull/105) — 10-04 머지 · `c8c07fd` |
+| [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | [#110](https://github.com/EST-team-project/Qurious/pull/110) · 머지 `079a7dd` |
+| [PR feat-disclosure-financials-search-events](2026-10-04/PR-feat-disclosure-financials-search-events/00-본문.md) | feat: 공시 · 재무 수집 · 이름표 · 수집 자료 검색 · 일정 넷 — 목표 기능 ① W7 서버 쪽 | 2,781 | [#111](https://github.com/EST-team-project/Qurious/pull/111) · 머지 `1a7574e` |
+
+### 2026-10-05 — 새 글 2건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-agm-dividend-pay-sector-laws-hf-archive](2026-10-05/PR-feat-agm-dividend-pay-sector-laws-hf-archive/00-본문.md) | feat: 주총 · 배당 지급 일정 · 섹터별 근거 법령 · HF 보관본 둘 — 목표 기능 ① W7 남은 것 서버 쪽 | 3,280 | [#112](https://github.com/EST-team-project/Qurious/pull/112) · 머지 `f83e551` |
+| [PR feat-news-calendar-month-research-sector-eval](2026-10-05/PR-feat-news-calendar-month-research-sector-eval/00-본문.md) | feat: 뉴스 두 출처 · 일정 2판 · 리서치 화면 서버 쪽 · 섹터 법령 근거 답 평가 — 목표 기능 ① W7 | 4,018 | (올린 뒤 적음) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

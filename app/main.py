@@ -13,6 +13,7 @@ from app.database.postgres import connect_postgres, close_postgres
 from app.config import settings
 from app.database.neo4j import connect_neo4j, close_neo4j, ensure_graph_schema
 from app.lib.redis_cache import connect_redis, close_redis
+from app.lib.session import COOKIE_NAME, SessionCookieRefreshMiddleware
 from app.routes import auth, health, chat, stocks, library, admin, system, quant, ml, macro, documents, notification, graph, conversations, tasks, ingest, paper, openapi, lean
 from app.services.graph_service import seed_graph
 from app.services.sync_scheduler import start_sync_scheduler, stop_sync_scheduler
@@ -82,6 +83,44 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 세션 슬라이딩 만료: 서버 TTL 이 연장된 요청의 응답에 세션 쿠키를 다시 실어 브라우저 쿠키 만료도 연장한다.
+app.add_middleware(SessionCookieRefreshMiddleware)
+
+
+class StaticNoCacheMiddleware:
+    """프런트 정적 파일(/js, /css, *.html)에 Cache-Control: no-cache 를 붙이는 순수 ASGI 미들웨어.
+
+    StaticFiles 는 Cache-Control 을 보내지 않아 브라우저가 휴리스틱 캐시로 옛 common.js 를 재사용하고,
+    새 HTML 이 옛 모듈을 import 해 "does not provide an export named ..." SyntaxError 가 난다.
+    no-cache 는 매번 ETag 로 재검증(304)하므로 배포 직후에도 새 파일을 받는다.
+    """
+
+    _PREFIXES = ("/js/", "/css/")
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        if not (path.startswith(self._PREFIXES) or path.endswith(".html") or path == "/"):
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = [(k, v) for k, v in message.get("headers", []) if k.lower() != b"cache-control"]
+                headers.append((b"cache-control", b"no-cache"))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+app.add_middleware(StaticNoCacheMiddleware)
+
 # 라우터 등록
 # auth/ingest도 메인 앱에 함께 등록한다 (강사님 원본의 Lambda 분리 배포는 AWS 제거로 뺐다).
 app.include_router(auth.router)
@@ -102,6 +141,9 @@ app.include_router(conversations.router)
 app.include_router(tasks.router)
 # 모의투자(주식·코인·대체자산) + Open API 키 — stock-coin-trade 이식
 app.include_router(paper.router)
+# 통합 대시보드 — 투자 사이트별 현재 투자액 탭
+from app.routes import dashboard as dashboard_routes  # noqa: E402
+app.include_router(dashboard_routes.router)
 app.include_router(openapi.router)
 # QuantConnect LEAN 백테스트 — domain-rag-lab 이식
 app.include_router(lean.router)
@@ -125,26 +167,28 @@ app.include_router(learn_routes.router)
 from app.routes import lectures as lectures_routes  # noqa: E402
 app.include_router(lectures_routes.router)
 
+# 데이터 상태 · 거래일 달력 (목표 기능 ① W4) — 수집 DB 를 읽기만 한다. 달력 · 일정은 로그인 없이, 상태는 로그인 뒤
+from app.routes import data as data_routes  # noqa: E402
+app.include_router(data_routes.router)
+from app.routes import calendar as calendar_routes  # noqa: E402
+app.include_router(calendar_routes.router)
+# 근거 문서 (목표 기능 ① W5) — 법령 · 감독규정 판 목록은 로그인 없이, 찾기(임베딩 호출)는 로그인 뒤
+from app.routes import kb as kb_routes  # noqa: E402
+app.include_router(kb_routes.router)
+
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
 if os.path.isdir(_public):
-    class _Revalidate(StaticFiles):
-        """화면 코드(js · css)도 「바뀌었는지 매번 묻기」(no-cache). 캐시 지시가 없으면 브라우저가 어림짐작으로 옛 파일을
-        계속 써서, 고친 화면이 새로고침해도 안 보였다(2026-10-01 금융 강의 화면에서 확인 — main.js 만 옛 판).
-        바뀌지 않았으면 304 라 비용이 거의 없다. app.html 의 <script> 에 ?v= 를 붙이는 방법은 import 되는 모듈까지 닿지 않는다."""
-
-        async def get_response(self, path, scope):
-            resp = await super().get_response(path, scope)
-            resp.headers["Cache-Control"] = "no-cache"
-            return resp
-
-    app.mount("/js", _Revalidate(directory=os.path.join(_public, "js")), name="js")
-    app.mount("/css", _Revalidate(directory=os.path.join(_public, "css")), name="css")
+    # js · css 의 「바뀌었는지 매번 묻기」(no-cache)는 위 StaticNoCacheMiddleware 가 맡는다(강사님 기초 코드 289bfb5).
+    # 2026-10-01 에 우리가 같은 일을 StaticFiles 덧씌우기(_Revalidate)로 했다가 같은 날 강사님 판이 나와 그쪽으로 합쳤다(DF-34).
+    app.mount("/js", StaticFiles(directory=os.path.join(_public, "js")), name="js")
+    app.mount("/css", StaticFiles(directory=os.path.join(_public, "css")), name="css")
     # 개념 학습 사이트 — app.html 과 다른 별도 HTML(/learn/). 기본 교재 읽기는 로그인 없이 된다(글 목록 · 본문은 /api/learn).
     # check_dir=False — 폴더가 앱보다 늦게 생겨도(개발 모드에서 파일을 막 만든 경우) 다시 켜지 않고 바로 열린다.
     class _RevalidateHtml(StaticFiles):
         """HTML 은 「바뀌었는지 매번 묻기」(no-cache) — 캐시 지시가 없으면 브라우저가 어림짐작으로 옛 화면을 보여 준다
-        (2026-10-01 학습 사이트에서 확인). 바뀌지 않았으면 304 라 비용이 거의 없다. js · css 는 index.html 의 ?v= 로 바꾼다."""
+        (2026-10-01 학습 사이트에서 확인). 바뀌지 않았으면 304 라 비용이 거의 없다. js · css 는 index.html 의 ?v= 로 바꾼다.
+        StaticNoCacheMiddleware 는 「.html 로 끝나는 주소」 만 보므로 폴더 주소(/learn/)의 첫 화면은 여기서 맡는다."""
 
         async def get_response(self, path, scope):
             resp = await super().get_response(path, scope)
@@ -170,23 +214,23 @@ if os.path.isdir(_public):
     # 첫 주소 · 로그인 · 가입 화면은 **로그인 상태를 보고** 갈 곳을 고른다. 예전에는 `/` 가 늘 로그인 화면으로
     # 보내서, 세션(7일)이 살아 있는데도 주소를 다시 열거나 뒤로가기를 하면 로그아웃된 것처럼 보였다.
     @app.get("/", include_in_schema=False)
-    async def index(fin_session: str | None = Cookie(default=None)):
+    async def index(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
         return RedirectResponse(url="/app.html" if await _logged_in(fin_session) else "/login.html")
 
     @app.get("/login.html", include_in_schema=False)
-    async def login_page(fin_session: str | None = Cookie(default=None)):
+    async def login_page(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
         if await _logged_in(fin_session):
             return RedirectResponse(url="/app.html")
         return FileResponse(os.path.join(_public, "login.html"))
 
     @app.get("/register.html", include_in_schema=False)
-    async def register_page(fin_session: str | None = Cookie(default=None)):
+    async def register_page(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
         if await _logged_in(fin_session):
             return RedirectResponse(url="/app.html")
         return FileResponse(os.path.join(_public, "register.html"))
 
     @app.get("/app.html", include_in_schema=False)
-    async def app_page(fin_session: str | None = Cookie(default=None)):
+    async def app_page(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
         # 로그인 안 한 사람은 앱 화면을 받기 전에 로그인 화면으로 — 앱을 그렸다가 튕기는 깜빡임을 없앤다.
         if not await _logged_in(fin_session):
             return RedirectResponse(url="/login.html")

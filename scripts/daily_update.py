@@ -20,6 +20,8 @@ Celery Beat(`app/celery_app.py`)에도 같은 일정이 있지만 그쪽은 스�
 
     ① price         backfill recent         최근 14일의 빈 거래일을 채운다 (포털)
     ② dividend      dividend scan --recent 2  이번 달·지난달 배당 공시를 **다시** 훑는다 (DART)
+    ②' calendar     market_calendar build   공휴일(특일 정보) → 거래일 달력 → 배당락일 다시 계산 → 금융 일정
+                                            (2026-10-02 · 실패해도 뒤를 막지 않는다)
     ③ adjusted      preprocess              수정주가·조정 이벤트를 다시 계산
     ④ total_return  total_return build      ③+② → TR 계열
     ⑤ benchmark     benchmark build         ③+④ → 자체 재현 지수
@@ -35,6 +37,9 @@ Celery Beat(`app/celery_app.py`)에도 같은 일정이 있지만 그쪽은 스�
   배당락일 계산에 시세 **달력**(`price_daily`)만 쓰므로 ① 뒤면 충분하다.
 · ② 가 실패해도(DART 점검·한도) ③④⑤ 는 돈다 — 배당은 어제 것 그대로 두고 시세만이라도
   최신으로 만든다. ② 의 실패는 상태 파일에 🟡 로 남는다.
+· ②' 가 ③ 보다 **앞인** 이유 — 배당락일은 거래일 달력으로 센 값이라, 달력이 바뀌면(내년 공휴일 발표 ·
+  임시공휴일) 같은 배당의 배당락일이 옮겨 간다. 배당 지문(`snapshot` 의 dividend 넷째 값)이 배당락일을
+  보므로 ②' 가 고친 날이 있으면 ③ 직전 판정이 TR 을 다시 만든다.
 · ③④⑤ 는 **새 자료가 없으면 건너뛴다** — 같은 날 두 번 돌아도 CPU 를 태우지 않는다.
   판정은 `needs_derived()` 한 곳이다.
 · ⑨ 는 **바뀐 파케이가 0개면 건너뛴다** — 안 그러면 내용 없는 커밋·태그가 매일 쌓인다.
@@ -129,6 +134,22 @@ STEPS: List[Step] = [
     Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30),
     Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet"], 60,
          fatal=False),
+    # 공시 · 재무 · 검색 색인(2026-10-04 · 목표 기능 ① W7) — 시세와 무관하고 실패해도 기존 단계를 막지 않는다.
+    # 공시 목록(최근 3일 · 유형 A~J × 시장 3 · 약 40회) → 새 정기보고서 · 정정본의 재무 → 이름표 · 낱말 색인(바뀐 것만).
+    # 달력(③-②) **앞에** 둔다 — 실적 · 주총 일정을 공시 목록에서 만든다.
+    Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet"], 15, fatal=False),
+    Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False),
+    # 주주총회 · 배당금 지급 일정(2026-10-05) — 최근 60일 소집결의 본문(새 것만 · 하루 수십 회) → 날짜 읽기. 달력 앞.
+    Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet"], 15, fatal=False),
+    # 정책브리핑 정책뉴스(2026-10-05) — 오늘까지 3일 창 한 번(공공데이터포털 · 하루 1,000회). 이름표 · 색인 앞.
+    Step("news", ["-m", "collector.policy_news", "daily", "--quiet"], 10, fatal=False),
+    # 언론사 기사 메타데이터(2026-10-05) — GDELT 번역 GKG 15분 파일(지난 30시간 · 아직 안 읽은 것 · 하루 약 96파일 · 550MB)에서
+    # 한국어 원문 기사의 제목 · 주소 · 시각 · 언론사만. 본문은 받지 않는다.
+    Step("gdelt", ["-m", "collector.gdelt_news", "daily", "--quiet"], 30, fatal=False),
+    Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False),
+    # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
+    # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
+    Step("calendar", ["-m", "collector.market_calendar", "build", "--quiet"], 10, fatal=False),
     Step("adjusted", ["-m", "collector.preprocess"], 30, derived=True),
     Step("total_return", ["-m", "collector.total_return", "build", "--quiet"], 30,
          derived=True),
@@ -142,6 +163,10 @@ STEPS: List[Step] = [
     Step("upload", ["scripts/hf_dataset.py", "upload", "--yes", "--incremental"], 60,
          upload=True, sharing=True),
     Step("ohlcv_upload", ["scripts/hf_ohlcv.py", "upload", "--yes"], 30,
+         fatal=False, upload=True, sharing=True),
+    # 섹터별 · 연도별 근거 법령(2026-10-05) — 7일에 한 번만 실제로 돈다(판 목록 대조 → 바뀐 해만 본문 → 내보내기 → 바뀌었으면
+    # HF kb-sector-laws 에 올리고 받아서 대조). 그 밖의 날은 「건너뜀」 한 줄. 실패해도 다른 단계를 막지 않는다.
+    Step("sector_laws", ["scripts/hf_sector_laws.py", "weekly", "--yes", "--quiet"], 40,
          fatal=False, upload=True, sharing=True),
 ]
 
@@ -269,7 +294,9 @@ def snapshot(db_path: Path = config.DB_PATH) -> Dict[str, object]:
             r = one(f"SELECT MAX(bas_dt) FROM {table}")
             out[key] = r[0] if r else None
         # 정정공시는 접수번호가 커지고, 금액만 바뀐 정정은 합이 바뀐다 — 셋을 함께 본다.
-        r = one("SELECT COUNT(*), MAX(rcept_no), TOTAL(dps) FROM dividend")
+        # 넷째 값은 배당락일의 합 — 거래일 달력이 바뀌어 배당락일만 옮겨도 TR 을 다시 만들게(2026-10-02).
+        r = one("SELECT COUNT(*), MAX(rcept_no), TOTAL(dps), "
+                "TOTAL(CAST(NULLIF(ex_div_dt, '') AS INTEGER)) FROM dividend")
         out["dividend"] = list(r) if r else None
         return out
     finally:

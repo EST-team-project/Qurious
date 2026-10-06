@@ -12,6 +12,9 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
+
+KST = ZoneInfo("Asia/Seoul")
 from typing import Optional
 
 import numpy as np
@@ -39,7 +42,7 @@ async def record_daily_snapshot(
     - 첫 스냅샷은 daily_return = 0.0
     """
     if snap_date is None:
-        snap_date = datetime.now(timezone.utc).date()
+        snap_date = datetime.now(KST).date()
 
     # 1. 현재 계좌 상태 (기존 함수 재사용)
     snap = await account_snapshot(db, user_id)
@@ -68,6 +71,11 @@ async def record_daily_snapshot(
         daily_return = 0.0
 
     # 3. UPSERT (동일 user_id + snap_date면 덮어쓰기)
+    # 자산군별 평가액
+    stock_eval = float(snap["stockEval"])
+    crypto_eval = float(snap["cryptoEval"])
+    alt_eval = float(snap["alternativeEval"])
+
     stmt = pg_insert(PaperAccountSnapshot).values(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -77,7 +85,10 @@ async def record_daily_snapshot(
         total_equity=total_equity,
         daily_return=daily_return,
         position_count=position_count,
-        snapshot_at=datetime.now(timezone.utc),
+        stock_value=stock_eval,
+        crypto_value=crypto_eval,
+        alt_value=alt_eval,
+        snapshot_at=datetime.now(KST),
     )
     stmt = stmt.on_conflict_do_update(
         index_elements=["user_id", "snap_date"],
@@ -87,6 +98,9 @@ async def record_daily_snapshot(
             "total_equity": stmt.excluded.total_equity,
             "daily_return": stmt.excluded.daily_return,
             "position_count": stmt.excluded.position_count,
+            "stock_value": stmt.excluded.stock_value,
+            "crypto_value": stmt.excluded.crypto_value,
+            "alt_value": stmt.excluded.alt_value,
             "snapshot_at": stmt.excluded.snapshot_at,
         },
     )

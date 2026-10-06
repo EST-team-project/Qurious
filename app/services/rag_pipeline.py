@@ -5,6 +5,8 @@
   LCEL 체인: retriever | format_docs | prompt | llm | StrOutputParser
 """
 from __future__ import annotations
+import asyncio
+import logging
 from typing import Any
 
 from langchain_ollama import OllamaEmbeddings
@@ -14,13 +16,24 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_ollama import ChatOllama
-from qdrant_client import AsyncQdrantClient
-from qdrant_client.http.models import Distance, VectorParams
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, VectorParams
 
 from app.config import settings
 
 
 # ── 내부 팩토리 ───────────────────────────────────────────────────────────────
+#
+# (Qurious 2026-10-02 · DF-38) 예전에는 LangChain 의 QdrantVectorStore 에 **비동기** 클라이언트(AsyncQdrantClient)를
+# 넘겼다. langchain-qdrant 1.x 의 QdrantVectorStore 는 만들 때 컬렉션 설정을 **동기 호출**로 검사하므로
+# 'coroutine' object has no attribute 'config' 로 죽었고, 아래 함수들의 except 가 그것을 삼켜 「0청크 저장」 ·
+# 「검색 결과 없음」 이 성공처럼 보였다 — 문서 저장 · 검색이 한 번도 동작한 적이 없다.
+# 그래서 동기 QdrantClient 를 넘긴다. 비동기 메서드(aadd_documents · asimilarity_search_with_score)는
+# 부모 VectorStore 가 동기판을 실행기(스레드)에서 돌린다. 동기 네트워크 호출은 asyncio.to_thread 로 밀어낸다.
+
+#: LangChain 은 메타데이터를 payload 의 "metadata" 아래에 둔다 → 출처로 거르거나 지울 때의 키(예전 "source" 는 늘 0건).
+SOURCE_KEY = "metadata.source"
+
 
 def _make_embeddings() -> OllamaEmbeddings:
     return OllamaEmbeddings(
@@ -29,15 +42,36 @@ def _make_embeddings() -> OllamaEmbeddings:
     )
 
 
-async def _get_or_create_collection(client: AsyncQdrantClient, collection: str) -> None:
+def _make_client() -> QdrantClient:
+    """LangChain 에 넘길 동기 클라이언트(시험은 이 함수를 메모리 Qdrant 로 바꾼다)."""
+    return QdrantClient(url=settings.QDRANT_URL)
+
+
+def _ensure_collection(client: QdrantClient, collection: str) -> None:
     """Qdrant 컬렉션이 없으면 nomic-embed-text 기준 dim=768로 생성한다."""
-    try:
-        await client.get_collection(collection)
-    except Exception:
-        await client.create_collection(
+    if not client.collection_exists(collection):
+        client.create_collection(
             collection,
             vectors_config=VectorParams(size=768, distance=Distance.COSINE),
         )
+
+
+def _log():
+    # 모듈을 읽을 때 만든 로거는 앱 시작 때 alembic 의 로그 설정이 꺼 버린다(옛 분석 D3) — 쓸 때 만들어 살아 있게.
+    return logging.getLogger("qurious.rag_pipeline")
+
+
+class VectorStoreError(RuntimeError):
+    """벡터 저장소에 쓰지 못했다 — 부르는 쪽이 사용자에게 이유를 보여 줄 수 있게 삼키지 않고 올린다."""
+
+
+async def _open_store(collection: str) -> tuple[QdrantClient, QdrantVectorStore]:
+    client = _make_client()
+    await asyncio.to_thread(_ensure_collection, client, collection)
+    store = await asyncio.to_thread(
+        QdrantVectorStore, client=client, collection_name=collection, embedding=_make_embeddings(),
+    )
+    return client, store
 
 
 # ── 공개 함수 ─────────────────────────────────────────────────────────────────
@@ -62,26 +96,18 @@ async def rag_search(
     """
     coll = collection or settings.QDRANT_COLLECTION
     try:
-        client = AsyncQdrantClient(url=settings.QDRANT_URL)
-        await _get_or_create_collection(client, coll)
-
-        store = QdrantVectorStore(
-            client=client,
-            collection_name=coll,
-            embedding=_make_embeddings(),
-        )
+        client, store = await _open_store(coll)
 
         qdrant_filter = None
         if filter_source:
-            from qdrant_client.http.models import Filter, FieldCondition, MatchValue
             qdrant_filter = Filter(
-                must=[FieldCondition(key="source", match=MatchValue(value=filter_source))]
+                must=[FieldCondition(key=SOURCE_KEY, match=MatchValue(value=filter_source))]
             )
 
         results = await store.asimilarity_search_with_score(
             query, k=top_k, filter=qdrant_filter
         )
-        await client.close()
+        client.close()
 
         return [
             {
@@ -93,7 +119,9 @@ async def rag_search(
             }
             for doc, score in results
         ]
-    except Exception:
+    except Exception as exc:
+        # 채팅은 검색이 안 돼도 답해야 하므로 빈 목록을 돌려준다 — 대신 원인을 남긴다(예전엔 아무 흔적이 없었다).
+        _log().warning("RAG 검색 실패 (%s · %s): %s", coll, settings.QDRANT_URL, exc)
         return []
 
 
@@ -107,26 +135,24 @@ async def store_chunks(
 
     Returns:
         실제 저장된 청크 수
+
+    Raises:
+        VectorStoreError: Qdrant · 임베딩 모델에 닿지 못했거나 저장이 실패했다. 예전에는 0 을 돌려줘
+            화면이 「업로드 완료 (0청크 저장)」 을 성공으로 보여 줬다(DF-38).
     """
     if not chunks:
         return 0
 
     coll = collection or settings.QDRANT_COLLECTION
     try:
-        client = AsyncQdrantClient(url=settings.QDRANT_URL)
-        await _get_or_create_collection(client, coll)
-
-        store = QdrantVectorStore(
-            client=client,
-            collection_name=coll,
-            embedding=_make_embeddings(),
-        )
+        client, store = await _open_store(coll)
         docs = [Document(page_content=chunk, metadata=metadata) for chunk in chunks]
         await store.aadd_documents(docs)
-        await client.close()
+        client.close()
         return len(docs)
-    except Exception:
-        return 0
+    except Exception as exc:
+        _log().warning("벡터 저장 실패 (%s · %s): %s", coll, settings.QDRANT_URL, exc)
+        raise VectorStoreError(f"{type(exc).__name__}: {str(exc)[:200]}") from exc
 
 
 def build_rag_chain(collection: str | None = None):
@@ -189,15 +215,17 @@ async def delete_chunks_by_source(source: str, collection: str | None = None) ->
     """
     coll = collection or settings.QDRANT_COLLECTION
     try:
-        from qdrant_client.http.models import Filter, FieldCondition, MatchValue
-        client = AsyncQdrantClient(url=settings.QDRANT_URL)
-        await client.delete(
+        client = _make_client()
+        # 키는 SOURCE_KEY("metadata.source") — 예전 "source" 는 아무것도 지우지 못하고 1(성공)을 돌려줬다(DF-38).
+        await asyncio.to_thread(
+            client.delete,
             collection_name=coll,
             points_selector=Filter(
-                must=[FieldCondition(key="source", match=MatchValue(value=source))]
+                must=[FieldCondition(key=SOURCE_KEY, match=MatchValue(value=source))]
             ),
         )
-        await client.close()
+        client.close()
         return 1
-    except Exception:
+    except Exception as exc:
+        _log().warning("벡터 삭제 실패 (%s · %s): %s", coll, source, exc)
         return 0

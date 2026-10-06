@@ -279,11 +279,36 @@ async def stock_order_history(db: AsyncSession, user_id: uuid.UUID, limit: int =
     rows = (await db.execute(
         select(Order).where(Order.user_id == user_id).order_by(Order.created_at.desc()).limit(limit)
     )).scalars().all()
-    return [{
-        "ts": int(o.created_at.timestamp() * 1000), "type": o.order_type.upper(), "symbol": o.symbol,
-        "name": o.name, "quantity": o.quantity, "price": o.price, "amount": o.price * o.quantity,
-        "source": o.source, "broker": o.broker,
-    } for o in rows]
+    out = []
+    for o in rows:
+        commission = float(getattr(o, "commission", 0) or 0)
+        fee_clearing = float(getattr(o, "fee_clearing", 0) or 0)
+        tax_transfer = float(getattr(o, "tax_transfer", 0) or 0)
+        tax_rural = float(getattr(o, "tax_rural", 0) or 0)
+        total_cost = commission + fee_clearing + tax_transfer + tax_rural
+        net = getattr(o, "net_amount", None)
+        if net is None:
+            # 옛 주문(비용 필드 도입 전)은 순액 = 체결금액
+            net = o.price * o.quantity
+        out.append({
+            "ts": int(o.created_at.timestamp() * 1000),
+            "type": o.order_type.upper(),
+            "symbol": o.symbol,
+            "name": o.name,
+            "quantity": o.quantity,
+            "price": o.price,
+            "amount": o.price * o.quantity,
+            "commission": round(commission, 2),
+            "fee_clearing": round(fee_clearing, 2),
+            "tax_transfer": round(tax_transfer, 2),
+            "tax_rural": round(tax_rural, 2),
+            "total_cost": round(total_cost, 2),
+            "net_amount": round(float(net), 2),
+            "cost_basis": getattr(o, "cost_basis", "estimated"),
+            "source": o.source,
+            "broker": o.broker,
+        })
+    return out
 
 
 # ── 코인 (Upbit KRW 마켓) ────────────────────────────────────────────────

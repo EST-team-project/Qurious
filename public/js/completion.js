@@ -2,6 +2,8 @@
  * 판정 기준: UI 동작 20 · 백엔드 로직 30 · DB/외부 연동 25 · 자동화 테스트 25.
  * 실제 테스트: 57 passed, 1 skipped(LightGBM). API/DB/브라우저 E2E는 미실행이므로 감점한다. */
 
+import { TEAM_ASSESSMENTS } from "/js/teamcompletion.js";
+
 const A = (score, label, evidence) => ({ score, label, evidence });
 
 const ASSESSMENTS = {
@@ -70,6 +72,7 @@ const ASSESSMENTS = {
   "fin-allocation": A(45, "설명 전용", "자산배분 학습 콘텐츠만 존재 · 이 화면 자체 실행 기능 없음"),
   "quant-seasonal": A(74, "부분 검증", "월·요일 계절성 분석 구현 · 통계 유의성/API 테스트 없음"),
 };
+Object.assign(ASSESSMENTS, TEAM_ASSESSMENTS);
 
 let indicator;
 let initialized = false;

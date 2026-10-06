@@ -93,6 +93,14 @@ ROUTER_ABBR = {
   "glossary": "GLOS",
   # 2026-10-01 개념 학습 (요구 P01-①-1 확장 · 제안) — LEAN 과 헷갈리지 않게 LRN
   "learn": "LRN",
+  # 2026-10-01 금융 강의 — 대장에는 LEC 로 붙어 있었는데 이 표에 빠져 있었다(2026-10-02 더함)
+  "lectures": "LEC",
+  # 2026-10-02 데이터 상태 · 거래일 달력 (요구 P01-①-4 · 목표 기능 ① W4)
+  "data": "DATA", "calendar": "CAL",
+  # 2026-10-03 근거 문서 — 법령 · 감독규정 판 목록 · 찾기 (요구 P01-①-3 · 목표 기능 ① W5)
+  "kb": "KB",
+  # 2026-10-03 강사님 기초 코드 9478811 — 통합 대시보드(사이트별 투자액 탭 · 요구 U9 · U10)
+  "dashboard": "DASH",
 }
 
 # 인증 의존성 — 이름표. 값이 같은 모양이면 같은 사람이 통과한다.
@@ -166,6 +174,9 @@ PART_RULES = (
   ("graph", "", "P-A", "P01-①-1 연관개념 탐색"),
   ("glossary", "", "P-A", "P01-①-1 용어사전"),
   ("learn", "", "P-A", "P01-①-1 개념 학습 (용어 → 개념 확장 · 제안)"),
+  ("data", "", "P-A", "P01-①-4 갱신일 · 정기 배치 상태"),
+  ("calendar", "", "P-A", "P01-①-4 거래일 달력 · 금융 일정"),
+  ("kb", "", "P-A", "P01-①-3 근거 문서 · 출처를 포함한 RAG"),
   ("library", "", "P-A", "P01-①-2 자료 검색"),
   ("notification", "", "P-B", "P02-③-3 알림 (보조 P-E)"),
   ("tasks", "", "P-E", "P02-⑤-3 실행 · 로그"),
@@ -622,7 +633,10 @@ def _params(cb: Codebase, mod: str, fn: ast.FunctionDef | ast.AsyncFunctionDef, 
       required = first is None or (isinstance(first, ast.Constant) and first.value is Ellipsis)
       dflt = "" if required else ast.unparse(first)
       kind = cname.lower()
-      params.append(Param(arg.arg, kind, ann, required, dflt))
+      # 주소에 쓰는 이름은 alias 가 있으면 그것이다 — `start: str = Query(..., alias="from")` → `from`
+      # (2026-10-03 app.openapi() 대조에서 달력 둘 · OHLCV 하나가 파이썬 이름으로 적혀 어긋났다)
+      alias = _const(_kw(default, "alias"))
+      params.append(Param(alias if isinstance(alias, str) and alias else arg.arg, kind, ann, required, dflt))
       continue
     if arg.arg in path_names:
       params.append(Param(arg.arg, "path", ann, True))

@@ -54,6 +54,43 @@ def test_dividend_change_alone_runs_derived():
     assert du.needs_derived(BASE, after) == "배당 표가 바뀌었다"
 
 
+def test_ex_date_change_alone_runs_derived():
+    """거래일 달력이 배당락일만 옮긴 날(2026-10-02 · 3행) — 건수 · 접수번호 · 금액은 그대로라도 TR 을 다시 만든다."""
+    before = dict(BASE, dividend=[9191, "20261001900087", 5609056.01, 164968436265.0])
+    after = dict(BASE, dividend=[9191, "20261001900087", 5609056.01, 164968436265.0 + 1 + 1 + 83])
+    assert du.needs_derived(before, after) == "배당 표가 바뀌었다"
+
+
+def test_calendar_step_runs_before_derived_decision():
+    """달력 단계는 배당 뒤 · 파생(수정주가) 앞 — 배당락일을 고친 뒤에 파생 판정을 해야 한다 · 실패해도 뒤를 막지 않는다."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("dividend") < names.index("calendar") < names.index("adjusted")
+    cal = next(s for s in du.STEPS if s.name == "calendar")
+    assert (cal.fatal, cal.derived, cal.upload) == (False, False, False)
+
+
+def test_schedule_and_sector_law_steps():
+    """주총 · 배당 지급 일정은 재무 뒤 · 달력 앞(달력이 그 표로 일정을 만든다) · 섹터 법령 매주 대조는 맨 끝의 올리기 단계 —
+    둘 다 실패해도 뒤를 막지 않고, 섹터 법령은 --upload 실행에서만 · 공유 스위치를 켜서 돈다(2026-10-05)."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("financial") < names.index("schedule") < names.index("calendar")
+    sch = next(s for s in du.STEPS if s.name == "schedule")
+    assert (sch.fatal, sch.derived, sch.upload) == (False, False, False)
+    sec = next(s for s in du.STEPS if s.name == "sector_laws")
+    assert names[-1] == "sector_laws" and (sec.fatal, sec.upload, sec.sharing) == (False, True, True)
+    assert "weekly" in sec.args and "--yes" in sec.args
+
+
+def test_news_step_before_search_index():
+    """정책뉴스는 이름표 · 색인(search) 앞 — 그날 받은 기사가 같은 회차의 색인에 들어간다 · 실패해도 뒤를 막지 않고
+    올리기 · 공유 스위치와 무관하다(2026-10-05)."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("schedule") < names.index("news") < names.index("search")
+    news = next(s for s in du.STEPS if s.name == "news")
+    assert (news.fatal, news.derived, news.upload, news.sharing) == (False, False, False, False)
+    assert news.args[:3] == ["-m", "collector.policy_news", "daily"]
+
+
 def test_lagging_derived_tables_run_even_without_new_data():
     """2026-09-28 실측 상태 — 시세 09-22, 파생 표 09-17."""
     stale = dict(BASE, adjusted_max="20260917", tr_max="20260917", benchmark_max="20260917")

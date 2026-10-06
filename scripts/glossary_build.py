@@ -27,6 +27,8 @@
     이름이 같은데 다른 말이다      → RENAME      {자료에 적힌 제목: 이 사전에서 쓸 제목}
     이름 옆의 말이 이름이 아니다   → NOT_ALIAS   {대표 이름: 별칭에서 뺄 말}
     화면 용어를 더한다            → public/js/core.js 의 TERMS 에 더하고 QURIOUS_CATEGORY 에 분류를 적는다.
+    자료에 없는 말을 더한다        → CANDIDATES 에 「후보」(status candidate)로 적고, 풀이를 검토받은 뒤 approved 로 바꾼다
+                                   (2026-10-03 · 비교 쌍의 빈 짝 7개 가운데 5개 공개 · 종신보험 · 정기보험은 보류).
     그 뒤 이 스크립트를 돌리고, 바뀐 terms.json 을 함께 커밋한다. 표의 줄이 자료에 없는 이름을 가리키면 빌드가 멈춘다.
 """
 from __future__ import annotations
@@ -53,7 +55,8 @@ RAGLAB = ROOT / "rag-lab"
 OUT = ROOT / "app" / "services" / "glossary_data" / "terms.json"
 
 #: 파일 모양이 바뀌면 올린다 — 앱의 적재기가 모르는 판이면 넣지 않고 알린다.
-FORMAT_VERSION = 1
+#: 2 (2026-10-02) — 용어 사이 관계 `relations` 를 더했다(연관 개념 · 설계서 5.4).
+FORMAT_VERSION = 2
 
 # ─────────────────────────────────────────────────────────────────────
 # 자료 원천 · 분류 — 사람이 정한 것 (코드는 한 번 붙이면 바꾸지 않는다)
@@ -71,6 +74,9 @@ SOURCES: list[dict[str, str]] = [
     {"code": "qurious", "title": "Qurious 화면 용어 설명",
      "origin": "이 저장소의 public/js/core.js (강사님 lumina-invest 기초 코드 + 팀이 더한 것)",
      "paths": "public/js/core.js"},
+    {"code": "candidate", "title": "검토를 거친 후보 용어",
+     "origin": "비교 쌍에는 있는데 자료 넷에 표제어가 없던 말 — 풀이는 통합본 원문에서 모으고 이동원이 검토해 공개(2026-10-03)",
+     "paths": "scripts/glossary_build.py 의 CANDIDATES · rag-lab/data/samples/finance_asset_allocation.txt · finance_accounting_tax_basics.txt"},
 ]
 
 # (코드, 이름, 한 줄 설명) — 적힌 차례가 화면에 보이는 차례다.
@@ -183,9 +189,88 @@ NOT_ALIAS: dict[str, set[str]] = {
 }
 
 # 한자 어원 사전이 쓰는 표기 기호 — 기호만으로는 뜻을 알 수 없어 글로 푼다(원문 「읽는 법」 의 풀이를 줄인 것).
+# ─────────────────────────────────────────────────────────────────────
+# 용어 사이 관계 (연관 개념 · 2026-10-02 · 설계서 5.4)
+# ─────────────────────────────────────────────────────────────────────
+#: 관계 종류 — 용어사전 표준 W3C SKOS 의 관계를 따른다. 서로 다른 셋을 섞지 않는다.
+#:   related       함께 알아야 하는 개념(양방향)
+#:   broader       더 넓은 개념 — (좁은 쪽, broader, 넓은 쪽). 반대 방향(narrower)은 앱이 읽을 때 만든다
+#:   confused_with 이름 · 뜻이 헷갈리는 짝(양방향) — 「핵심 차이」 한 줄이 반드시 있다
+RELATION_KINDS: dict[str, str] = {"related": "연관", "broader": "상위", "confused_with": "혼동"}
+
+#: 비교 쌍 · 관련어 칸의 이름이 사전 이름과 다를 때 — {자료에 적힌 이름: 대표 이름}.
+#: 대표 이름이 사전에 없거나 자료에서 그 이름을 더는 만나지 않으면 빌드가 멈춘다.
+PAIR_NAMES: dict[str, str] = {
+    "금융위 인가": "인가",      # 「금융위 인가 vs 금융위 등록」 — 사전의 인가 · 등록(금융 규제 분류)과 같은 말
+    "금융위 등록": "등록",
+}
+
+#: 사람이 고른 관계 — (용어, 종류, 용어, 설명). 재료는 이름을 함께 쓰는 용어(shared_names) · 설명문에 다른 표제어가
+#: 나오는 경우다(설계서 5.4.2 — 「후보 · 사람이 고름」). 아직 고른 것이 없다.
+RELATIONS: list[tuple[str, str, str, str]] = []
+
+#: 후보 용어 — 비교 쌍 표에는 있는데 자료 넷에 표제어가 없던 말(2026-10-02 조사 → 사용자 결정 「후보로 넣고 검토 뒤 공개」).
+#: 시소러스 표준 ANSI/NISO Z39.19 §11.1.6 · §11.4.5(후보는 용어와 **같은 모양의 기록**에 표시를 달고, 승인되면 표시를 뗀다)와
+#: Microsoft Purview 용어집(초안은 관리자만 · 게시해야 모두에게)을 따른다 — 설계서 부록 C · E9 · E10.
+#:   status "candidate"  용어 파일에 넣지 않는다 → 목록 · 검색 · 관계에 보이지 않고, 빌드가 「보류」 로 알린다
+#:   status "approved"   다른 자료의 용어와 똑같이 넣는다(lead_source = candidate · 승인한 날 approved)
+#: 풀이는 통합본 원문에서만 모으고 자리(파일 · 줄)를 where 에 적는다. 사전(한경 · KB)은 글을 옮기지 않고 링크만,
+#: 법령은 근거 문서 DB(collector/kb_law · 저작권 보호 대상 아님 — 저작권법 제7조)의 조문을 짧게 인용한다(refs → 다른 자료의 설명).
+#: 승인한 말이 나중에 자료 넷에 표제어로 들어오면 빌드가 멈춘다 — 그때 이 줄을 지운다(같은 말이 두 기록이 되지 않게).
+CANDIDATES: list[dict] = [
+    {"term": "기본적 분석", "status": "approved", "approved": "2026-10-03", "category": "fundamental",
+     "english": "Fundamental Analysis",
+     "summary": "기업의 재무 · 내재가치를 중심으로 주식이 싼지 비싼지 따지는 분석",
+     "definition": "재무제표와 가치평가 지표로 기업의 내재가치를 따진다. 기술적 분석이 「언제 살까(타이밍)」 를 본다면 "
+                   "기본적 분석은 「무엇을 살까(좋은 기업)」 를 본다 — 둘을 합친 문서가 통합 리포트다(좋은 기업 + 좋은 타이밍).",
+     "where": "finance_asset_allocation.txt 3163 · 2895",
+     "refs": [("근거 사전(링크)", "한경 경제용어사전 「기본적 분석」 — https://dic.hankyung.com/economy/view/?seq=9781")]},
+    {"term": "기술적 분석", "status": "approved", "approved": "2026-10-03", "category": "technical",
+     "english": "Technical Analysis",
+     "summary": "차트 · 거래량 · 보조지표로 사고팔 때(타이밍)를 판단하는 분석",
+     "definition": "추세 · 이동평균 · 보조지표 · 캔들 패턴처럼 가격과 거래량의 기록을 읽어 사고팔 때를 정한다. "
+                   "기업의 가치보다 「언제」 에 초점을 둔다 — 기본적 분석과 짝을 이룬다.",
+     "where": "finance_asset_allocation.txt 3163 · 2948",
+     "refs": [("근거 사전(링크)", "한경 경제용어사전 「기술적 분석」 — https://dic.hankyung.com/economy/view/?seq=461")]},
+    {"term": "보장성 보험", "status": "approved", "approved": "2026-10-03", "category": "theory",
+     "summary": "사망 · 질병 · 사고 같은 위험이 생겼을 때 보험금을 받는 보험 — 낸 보험료는 대부분 돌려받지 못한다",
+     "definition": "주목적은 위험 보장이다. 보험료는 비용으로 보고(소멸 가능) 만기 환급이 대부분 없거나 적다. "
+                   "보험료는 세액공제(연 100만원 한도)를 받고, 보상은 주로 정액이다. 예: 암보험 · 실손보험 · 종신보험.",
+     "where": "finance_asset_allocation.txt 2280 · 11.7 표(2472~2481) · 3320",
+     "refs": [("근거 법령", "금융소비자 보호에 관한 법률 제3조 제4호 — 금융상품을 예금성 · 대출성 · 투자성 · 보장성 넷으로 나누고, "
+                          "보험상품과 이와 유사한 금융상품을 「보장성 상품」 이라 한다")]},
+    {"term": "저축성 보험", "status": "approved", "approved": "2026-10-03", "category": "theory",
+     "summary": "보험료 일부를 적립해 만기에 환급금을 받는 자산 축적형 보험",
+     "definition": "주목적은 자산 축적이다. 보험료 일부가 적립되어 만기에 납입 원금 이상을 돌려받을 수 있고, 10년 이상 유지하면 "
+                   "이자소득이 비과세된다. 예: 연금보험 · 저축보험 · 변액연금.",
+     "caution": "비과세는 조건이 붙는다 — 통합본 세금 자료는 「10년 이상 유지, 매월 150만원 이하 납입」 을 든다. 조건을 벗어나면 보험차익이 이자소득으로 과세된다.",
+     "where": "finance_asset_allocation.txt 11.7 표(2472~2481) · 3320 · finance_accounting_tax_basics.txt 1629",
+     "refs": [("근거 법령", "소득세법 제16조 제1항 제9호 — 대통령령으로 정하는 저축성보험의 보험차익은 이자소득이다"
+                          "(보험료를 처음 낸 날부터 만기 · 중도해지일까지 10년 이상인 보험 등은 뺀다)"),
+              ("근거 사전(링크)", "KB 경제 · 금융 용어사전 「저축성보험」 — https://kbthink.com/dictionary/view.html?dictId=KED-00013296")]},
+    {"term": "종신보험", "status": "candidate", "category": "theory",
+     "summary": "평생 사망을 보장하는 정액 보험 — 저축 기능이 있어 보험료가 높다",
+     "definition": "보장 기간은 평생이고 보상은 정액이다. 저축 기능이 있어 보험료가 높고 해약환급금이 있다. 상속 설계 · 장기 사망 보장에 쓴다.",
+     "where": "finance_asset_allocation.txt 「종신보험 vs 정기보험」 표(2449~2457) · 3324",
+     "refs": [("근거 사전(링크)", "KB 경제 · 금융 용어사전 「종신보험」 — https://kbthink.com/dictionary/view.html?dictId=KED-00002061")]},
+    {"term": "정기보험", "status": "candidate", "category": "theory",
+     "summary": "정해진 기간(10 · 20 · 30년)만 사망을 보장하는 순수 보장형 보험 — 보험료가 낮다",
+     "definition": "보장 기간이 정해져 있고 보상은 정액이다. 순수 보장이라 보험료가 낮고 해약환급금은 거의 없다. 자녀 양육기처럼 특정 기간을 집중 보장한다.",
+     "where": "finance_asset_allocation.txt 「종신보험 vs 정기보험」 표(2449~2457) · 3324",
+     "refs": []},
+    {"term": "불특정금전신탁", "status": "approved", "approved": "2026-10-03", "category": "private",
+     "summary": "위탁자가 운용 방법을 정하지 않고, 수탁자가 재량으로 여러 고객 돈을 모아 운용하는 금전신탁",
+     "definition": "운용 방법을 위탁자(맡기는 사람)가 지정하지 않아 수탁자가 재량으로 여러 고객 자금을 합산 운용한다(집합운용). "
+                   "원금 보장이 없고, 운용 방법을 투자자가 직접 정하는 특정금전신탁과 달리 펀드와 비슷하다.",
+     "where": "finance_asset_allocation.txt 신탁 종류 표(2267) · 1916 · 3321",
+     "refs": [("근거 법령", "자본시장과 금융투자업에 관한 법률 시행령 제103조 제1항 제2호 — 「위탁자가 신탁재산인 금전의 운용방법을 "
+                          "지정하지 아니하는 금전신탁(이하 \"불특정금전신탁\"이라 한다)」")]},
+]
+CANDIDATE_STATUS = ("candidate", "approved")
+
 ORIGIN_MARKS = {"🇯🇵": "[일본식 한자어]", "🀄": "[중국 고전 유래]", "📜": "[동아시아 공통 한자어]", "🆕": "[현대에 만든 말]"}
 
-SOURCE_ORDER = {"voca": 0, "finance": 1, "lecture": 2, "finance-origin": 3, "qurious": 4}
+SOURCE_ORDER = {"voca": 0, "finance": 1, "lecture": 2, "finance-origin": 3, "qurious": 4, "candidate": 5}
 
 
 def category_rank(raw: "Raw") -> int:
@@ -495,6 +580,85 @@ def parse_finance(text: str) -> list[Raw]:
     return out
 
 
+def parse_relations(text: str) -> list[dict]:
+    """투자분석 용어집에서 용어 사이 관계 재료를 뽑는다 — 이름은 아직 자료에 적힌 그대로다(사전 ID 로 잇는 것은 build).
+
+    - 「비교 쌍 | A | B | 핵심 차이」 표(11절 자주 혼동하는 용어 · 12절 금융 규제 용어) → confused_with.
+      「매출 vs 이익」 을 두 이름으로 가르고, 「핵심 차이」 를 차이 한 줄로, A · B 칸을 각 이름의 풀이로 둔다.
+    - 한자 어원 사전의 「관련어」 줄 → related. 「기준금리(基準金利)」 처럼 괄호 속 한자는 뗀다.
+    """
+    out: list[dict] = []
+    for t in tables(text):
+        header = t["header"]
+        if header[:1] == ["비교 쌍"] and len(header) >= 4:
+            for r in t["rows"]:
+                names = re.split(r"\s+vs\s+", r[0], maxsplit=1) if len(r) >= 4 else []
+                if len(names) != 2:
+                    continue
+                a, b = (n.strip() for n in names)
+                out.append({"a": a, "b": b, "kind": "confused_with", "note": r[3],
+                            "detail": f"{a} — {r[1]} · {b} — {r[2]}", "where": t["h3"] or t["h2"]})
+        elif header == ["항목", "내용"] and t["h3"]:
+            props = {r[0]: r[1] for r in t["rows"] if len(r) == 2}
+            if not props.get("관련어"):
+                continue
+            first = re.split(r"\s+/\s+|\s+vs\s+", re.sub(r"\s+—.*$", "", t["h3"]))[0]
+            base = " ".join(re.sub(r"\([^)]*\)", " ", first).split())          # 「금리 (金利)」 → 금리
+            for name in re.split(r",\s*", props["관련어"]):
+                other = " ".join(re.sub(r"\([^)]*\)", " ", name).split())      # 「기준금리(基準金利)」 → 기준금리
+                if other:
+                    out.append({"a": base, "b": other, "kind": "related", "note": "", "detail": "",
+                                "where": "한자 어원 사전 「관련어」"})
+    return out
+
+
+def link_relations(terms: list[dict], raws: list[dict]) -> tuple[list[dict], list[str]]:
+    """자료의 관계 재료 + 사람이 고른 관계(RELATIONS)를 사전 ID 로 잇는다 → (관계, 잇지 못한 줄).
+
+    이름은 대표 이름 → PAIR_NAMES → 찾기용 모양(대표 이름 · ID · 별칭) 차례로 찾는다. 한쪽이라도 사전에 없으면
+    그 줄은 빼고 「잇지 못한 줄」 로 돌려준다(사전에 없는 용어를 만들어 내지 않는다). 같은 짝 · 같은 종류는 한 줄만 둔다
+    (양방향 종류는 두 끝의 차례와 상관없이 같은 짝이다).
+    """
+    by_term = {t["term"]: t["id"] for t in terms}
+    index: dict[str, str] = {}
+    for t in terms:
+        for n in (t["term"], t["id"], *(a["alias"] for a in t["aliases"])):
+            index.setdefault(norm(n), t["id"])
+    stale = sorted({v for v in PAIR_NAMES.values() if v not in by_term}
+                   | {n for a, k, b, _ in RELATIONS for n in (a, b) if n not in by_term}
+                   | {f"종류 {k}" for _, k, _, _ in RELATIONS if k not in RELATION_KINDS})
+    if stale:
+        raise SystemExit(f"PAIR_NAMES · RELATIONS 가 사전에 없는 이름 · 종류를 가리킨다: {stale}")
+    used_pair_names: set[str] = set()
+
+    def resolve(name: str) -> str | None:
+        if name in PAIR_NAMES:
+            used_pair_names.add(name)
+            name = PAIR_NAMES[name]
+        return by_term.get(name) or index.get(norm(name))
+
+    items = raws + [{"a": a, "b": b, "kind": k, "note": note, "detail": "", "where": "사람이 고름"}
+                    for a, k, b, note in RELATIONS]
+    out, missing, seen = [], [], set()
+    for r in items:
+        a, b = resolve(r["a"]), resolve(r["b"])
+        if not a or not b or a == b:
+            lost = [n for n, i in ((r["a"], a), (r["b"], b)) if not i]
+            missing.append(f"{r['a']} — {r['b']} ({RELATION_KINDS[r['kind']]} · {r['where']}) : 사전에 없음 {', '.join(lost) or '같은 용어'}")
+            continue
+        key = (r["kind"], *sorted((a, b))) if r["kind"] != "broader" else (r["kind"], a, b)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"from": a, "to": b, "kind": r["kind"], "note": r["note"], "detail": r["detail"],
+                    "source": "finance" if r["where"] != "사람이 고름" else "curated", "where": r["where"]})
+    unused = sorted(set(PAIR_NAMES) - used_pair_names)
+    if unused:
+        raise SystemExit(f"PAIR_NAMES 의 줄이 자료에서 더는 쓰이지 않는다: {unused} — 자료가 바뀌었는지 보고 줄을 지운다")
+    out.sort(key=lambda x: (x["kind"], x["from"], x["to"]))
+    return out, missing
+
+
 class _GlossaryItems(HTMLParser):
     """강의 HTML 의 `<div class="glossary-item"><dt>용어 <small>별칭</small></dt><dd>풀이</dd></div>`."""
 
@@ -646,7 +810,30 @@ def read_sources() -> list[Raw]:
     for name in ("glossary-modal.js", "glossary-drawer.js"):
         raws += parse_lecture_js((days / "assets" / name).read_text(encoding="utf-8"))
     raws += parse_qurious((ROOT / "public" / "js" / "core.js").read_text(encoding="utf-8"))
+    raws += candidate_raws()
     return raws
+
+
+def candidate_raws() -> list[Raw]:
+    """승인한 후보 용어 → 자료 항목(다른 자료와 같은 길로 합친다). 보류 중인 후보는 넣지 않는다.
+
+    줄 모양이 틀리면 멈춘다 — 상태 · 분류를 잘못 적은 후보가 말없이 빠지거나 들어가면 「검토 뒤 공개」 가 깨진다.
+    """
+    need = {"term", "status", "category", "summary", "definition", "where", "refs"}
+    out: list[Raw] = []
+    for c in CANDIDATES:
+        lack = sorted(need - set(c))
+        if lack or c["status"] not in CANDIDATE_STATUS or c["category"] not in CATEGORY_CODES:
+            raise SystemExit(f"CANDIDATES 줄 모양이 틀렸다: {c.get('term')} — 빠진 칸 {lack} · 상태 {c.get('status')!r}"
+                             f" ({' · '.join(CANDIDATE_STATUS)}) · 분류 {c.get('category')!r}")
+        if c["status"] == "approved" and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", c.get("approved", "")):
+            raise SystemExit(f"공개한 후보에 승인한 날(approved: YYYY-MM-DD)이 없다: {c['term']}")
+        if c["status"] != "approved":
+            continue
+        out.append(Raw(term=c["term"], source="candidate", category=c["category"], english=c.get("english", ""),
+                       short=c["summary"], long=c["definition"], caution=c.get("caution", ""),
+                       where=f"후보 용어 · {c['approved']} 공개", title=c["term"]))
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -775,6 +962,18 @@ def build() -> dict:
     if stale:
         raise SystemExit(f"OVERRIDES · SAME_AS · RENAME · NOT_ALIAS 가 자료에 없는 이름을 가리킨다: {stale}")
 
+    # 후보는 자료 넷에 표제어가 없는 말만 — 자료에 들어왔으면 후보 줄을 지운다(같은 말이 두 기록이 되지 않게 · 위 CANDIDATES 머리말).
+    others = {norm(t["term"]) for t in terms if t["sources"] != ["candidate"]}
+    dup = sorted(c["term"] for c in CANDIDATES if norm(c["term"]) in others)
+    if dup:
+        raise SystemExit(f"후보 용어가 자료에 표제어로 들어왔다: {dup} — CANDIDATES 에서 그 줄을 지운다")
+    refs = {norm(c["term"]): c["refs"] for c in CANDIDATES if c["status"] == "approved"}
+    for t in terms:
+        if t["lead_source"] == "candidate":
+            # 근거 법령 · 근거 사전 링크 — 「다른 자료의 설명」 칸에 붙인다(사전 글은 옮기지 않는다)
+            t["notes"] = t["notes"] + [{"source": "candidate", "label": label, "text": text}
+                                       for label, text in refs.get(norm(t["term"]), [])]
+
     # ID 가 겹치면 멈춘다 — 조용히 덮어쓰면 용어 하나가 사라진다.
     clash = [k for k, n in Counter(t["id"] for t in terms).items() if n > 1 or not k]
     if clash:
@@ -813,13 +1012,19 @@ def build() -> dict:
     order = {code: i for i, code in enumerate(CATEGORY_CODES)}
     terms.sort(key=lambda t: (order[t["category"]], norm(t["term"])))
     counts = Counter(t["category"] for t in terms)
+    relation_raws = parse_relations((RAGLAB / "data" / "samples" / "finance_glossary.txt").read_text(encoding="utf-8"))
+    relations, unlinked = link_relations(terms, relation_raws)
     return {
         "format_version": FORMAT_VERSION,
         "sources": [{**s, "terms": sum(1 for t in terms if s["code"] in t["sources"])} for s in SOURCES],
         "categories": [{"code": c, "name": n, "description": d, "sort_order": i * 10, "terms": counts[c]}
                        for i, (c, n, d) in enumerate(CATEGORIES, 1)],
         "terms": terms,
-        "_build": {"raw_entries": len(raws), "aliases_dropped": dropped},
+        "relations": relations,
+        "_build": {"raw_entries": len(raws), "aliases_dropped": dropped,
+                   "relation_raws": len(relation_raws), "relations_unlinked": unlinked,
+                   "candidates_approved": [c["term"] for c in CANDIDATES if c["status"] == "approved"],
+                   "candidates_held": [c["term"] for c in CANDIDATES if c["status"] == "candidate"]},
     }
 
 
@@ -848,7 +1053,11 @@ def main(argv: list[str] | None = None) -> int:
     text = render(data)
     terms = data["terms"]
     print(f"자료 항목 {data['_build']['raw_entries']} → 용어 {len(terms)} · 별칭 {sum(len(t['aliases']) for t in terms)}"
-          f" (겹쳐서 버린 별칭 {data['_build']['aliases_dropped']}) · 판 {checksum(text)[:12]}")
+          f" (겹쳐서 버린 별칭 {data['_build']['aliases_dropped']}) · 관계 {len(data['relations'])}"
+          f" (잇지 못한 줄 {len(data['_build']['relations_unlinked'])}) · 판 {checksum(text)[:12]}")
+    held = data["_build"]["candidates_held"]
+    print(f"후보 용어 공개 {len(data['_build']['candidates_approved'])} · 보류 {len(held)}"
+          + (f" ({' · '.join(held)} — 검토 뒤 CANDIDATES 의 status 를 approved 로)" if held else ""))
     if args.stats:
         for s in data["sources"]:
             print(f"  자료 {s['code']:8s} 용어 {s['terms']:4d}  {s['title']}")
@@ -865,6 +1074,11 @@ def main(argv: list[str] | None = None) -> int:
         for name, owners in sorted(by_english.items()):
             if len(owners) > 1:
                 print(f"  영어 이름이 같은 다른 용어: {name} → {' · '.join(sorted(owners))}")
+        rels = data["relations"]
+        print(f"  관계 {len(rels)} (자료 재료 {data['_build']['relation_raws']}) · "
+              + " · ".join(f"{RELATION_KINDS[k]} {n}" for k, n in sorted(Counter(r['kind'] for r in rels).items())))
+        for line in data["_build"]["relations_unlinked"]:
+            print(f"  잇지 못한 관계: {line}")
         return 0
     current = OUT.read_bytes().decode("utf-8").replace("\r\n", "\n") if OUT.exists() else ""
     if args.check:
