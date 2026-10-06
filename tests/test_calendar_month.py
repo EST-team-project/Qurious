@@ -105,11 +105,23 @@ def test_day_list_paging_search_and_mine_first(market):
     assert [e["title"] for e in hits["events"]] == ["하이트진로 정기주주총회", "하이트진로홀딩스 정기주주총회"]
     assert [e["title"] for e in M.events(d, d, "dividend_ex", q="%")["events"]] == ["백퍼센트% 배당락일"]
     mine = M.events(d, d, "agm,dividend_ex", first="005930,105560", limit=3)
-    assert [e["symbol"] for e in mine["events"][:2]] == ["105560", "005930"]   # 내 종목끼리는 날짜 · 종류 · 종목 차례
+    # 내 종목끼리는 날짜 · 종류(화면 칩 차례 — 배당락일이 주주총회보다 앞 · 2026-10-06) · 종목 차례
+    assert [e["symbol"] for e in mine["events"][:2]] == ["005930", "105560"]
     assert all(e["mine"] for e in mine["events"][:2]) and not mine["events"][2]["mine"]
     with pytest.raises(M.CalendarUnavailable) as e:
         M.events(d, d, "agm", first="5930")
     assert e.value.status_code == 422
+
+
+def test_same_day_kinds_follow_screen_chip_order(market):
+    """TC-CN-05 · 같은 날 안은 화면 칩 차례 — 적은 종류(배당락일 2)가 많은 종류(주총 5) 뒤로 밀리지 않는다 · 차례 표는 열 종류 모두."""
+    assert set(M.KIND_ORDER) == set(M.EVENT_KINDS) and len(M.KIND_ORDER) == len(M.EVENT_KINDS)
+    assert list(M.KIND_ORDER[:len(M.MARKET_KINDS)]) == list(M.MARKET_KINDS)          # 시장 전체 일정이 먼저
+    d = date(2026, 3, 26)
+    page = M.events(d, d, "agm,dividend_ex", limit=3)
+    assert [e["kind"] for e in page["events"]] == ["dividend_ex", "dividend_ex", "agm"]
+    month = M.events(date(2026, 3, 31), date(2026, 3, 31), "all")
+    assert [e["kind"] for e in month["events"]] == ["dividend_record", "agm"]
 
 
 def test_default_events_unchanged_and_api_routes(market):

@@ -297,6 +297,12 @@ $Checks = @(
        $p = @($r.Json.periods) | Select-Object -First 1
        if (-not $p) { return (Fail '기간이 없다 — python -m collector.financials backfill') }
        Pass "$(Count $r.Json.periods) 기간 · 최근 $($p.bsns_year) $($p.report) 매출 $(N0 $p.key.revenue) · 판 $($p.rcept_no) · 쓸 수 있는 날 $($p.available_from)" } }
+  # 일정 2판 화면의 한 달 칸(2026-10-06) — 한 달은 요약 하나(날짜 × 종류 개수)로 받는다. 주총이 몰리는 3월로 잰다.
+  @{ G = '데이터'; Name = '금융 일정 — 한 달 요약(2판 칸 · 3월)'; M = 'GET'; P = '/api/calendar/events/summary?from=2026-03-01&to=2026-03-31'; Auth = $false
+     Test = { param($r)
+       $top = @($r.Json.days | Sort-Object -Property total -Descending)[0]
+       if (-not $top) { return (Fail '3월 요약이 비었다 — python -m collector.market_calendar build') }
+       Pass "3월 $(N0 $r.Json.total) 건 · 하루 최다 $($top.date) $(N0 $top.total) 건 · 종류 $(Count @($r.Json.kind)) · 기준 $($r.Json.as_of)" } }
   @{ G = '데이터'; Name = '금융 일정 — 금통위 · FOMC · 보고서 기한(새 종류)'; M = 'GET'; P = '/api/calendar/events?kind=policy_rate,fomc,report_deadline'; Auth = $false
      Test = { param($r)
        $bok = @($r.Json.events | Where-Object { $_.kind -eq 'policy_rate' })[0]
@@ -361,6 +367,11 @@ $Checks = @(
      Test = { param($r) Pass "켜진 채널 $(Count $r.Json.channels) 개" } }
 
   # ── 시스템 ──────────────────────────────────────────────────────────────────
+  # API 문서 화면(2026-10-06 · /api-docs/)이 읽는 카탈로그 — 소스에서 찾은 API 수가 명세(/openapi.json)보다 적으면 다시 만들 때다.
+  @{ G = '시스템'; Name = 'API 문서 — 카탈로그(/api-docs/)'; M = 'GET'; P = '/api-docs/catalog.json'; Auth = $false
+     Test = { param($r)
+       if (-not $r.Json.routes) { return (Fail '카탈로그가 비었다 — python scripts/api_scan.py --catalog public/api-docs/catalog.json') }
+       Pass "API $($r.Json.count) 개 · 라우터 $($r.Json.routers) · 화면이 부르는 것 $(Count @($r.Json.routes | Where-Object { @($_.screens).Count -gt 0 }))" } }
   @{ G = '시스템'; Name = '시세 동기화 스케줄러'; M = 'GET'; P = '/api/system/sync-status'; Auth = $true
      Test = { param($r) Pass "온라인 $($r.Json.online) · 스케줄러 실행 중 $($r.Json.scheduler.running) · 마지막 동기화 $($r.Json.scheduler.last_sync)" } }
   @{ G = '시스템'; Name = 'LEAN 백테스트 엔진 모드'; M = 'GET'; P = '/api/backtests/lean/status'; Auth = $true

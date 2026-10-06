@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qurious API 문서</title>
+  <meta name="description" content="Qurious 앱이 내놓는 API 를 라우터 · 인증 · 부르는 화면으로 찾고, 인자 · 응답을 보고 시험 호출합니다.">
+  <!-- 앱(app.html) · 개념 학습(/learn/)과 같은 글꼴 · 아이콘. Swagger UI(swagger-ui-dist@5)는 자세히를 처음 열 때 api-docs.js 가 싣는다. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <!-- ?v= — 고친 뒤 브라우저가 옛 파일을 캐시에서 쓰지 않게(파일을 고치면 날짜를 바꾼다) -->
+  <link rel="stylesheet" href="api-docs.css?v=20261006c" id="api-docs-css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="거름 열기" aria-expanded="false" aria-controls="sidenav"><i class="fa-solid fa-sliders"></i></button>
+    <a class="brand" href="./"><span class="brand-mark">Q</span><span>Qurious <b>API 문서</b></span></a>
+    <form class="search" id="search-form" role="search">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <input id="search-input" type="search" placeholder="경로 · 이름 · API ID 찾기 (예: kb/ask, 일정, API-CAL-03)" aria-label="API 찾기" autocomplete="off">
+      <kbd title="어디서나 / 를 누르면 찾기 칸으로">/</kbd>
+    </form>
+    <nav class="top-links" aria-label="바로가기">
+      <a href="/docs" target="_blank" rel="noopener noreferrer" title="FastAPI 기본 Swagger 화면(새 탭)"><i class="fa-solid fa-up-right-from-square"></i><span>Swagger 원본</span></a>
+      <a href="/app.html#sysadmin-dashboard" class="to-app"><i class="fa-solid fa-arrow-left"></i><span>앱으로</span></a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="sidenav" id="sidenav" aria-label="거름">
+      <p class="muted pad">불러오는 중…</p>
+    </aside>
+    <div class="nav-scrim" id="nav-scrim" hidden></div>
+
+    <main id="main" tabindex="-1">
+      <section class="intro">
+        <h1>API 문서</h1>
+        <p>앱이 내놓는 API 를 라우터 · 메서드 · 인증 · 부르는 화면으로 찾습니다. 줄을 누르면 우리 칸(API ID · 닿는 곳 · 코드 위치)과
+          Swagger 의 인자 · 응답 · 시험 호출이 함께 열립니다. 시험 호출은 이 브라우저의 로그인으로 실제로 실행되어, 쓰기 API 는 켤 때만 됩니다.</p>
+      </section>
+      <div id="list"><p class="muted pad">불러오는 중…</p></div>
+    </main>
+
+    <section class="detail" id="detail" hidden aria-label="API 자세히" tabindex="-1"></section>
+    <div class="detail-scrim" id="detail-scrim" hidden></div>
+  </div>
+
+  <footer class="statusbar" id="statusbar" aria-live="polite"><span class="dot"></span><span>명세를 불러오는 중…</span></footer>
+
+  <script type="module" src="api-docs.js?v=20261006c"></script>
+</body>
+</html>

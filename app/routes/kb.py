@@ -1,8 +1,8 @@
 """근거 문서 API — /api/kb (목표 기능 ① W5 · W6 · 설계서 5.3 · 7절)
 
 - GET  /api/kb/documents?kind=                                   : 받아 둔 법령 · 감독규정의 판 목록(시행일 · 받은 때 · 지문 · 벡터 수)
-- GET  /api/kb/search?q=&k=&as_of=&kind=&docs=&mode=&model=&route=&links=&synonyms= : 근거 청크 — 낱말 + 벡터 → RRF ·
-      질문 분류 가중 · 법령 말로 검색어 넓히기(synonyms) · 근거마다 위임 조(delegated)
+- GET  /api/kb/search?q=&k=&as_of=&kind=&docs=&mode=&model=&route=&links=&synonyms=&sector= : 근거 청크 — 낱말 + 벡터 → RRF ·
+      질문 분류 가중 · 법령 말로 검색어 넓히기(synonyms) · 근거마다 위임 조(delegated) · 섹터 질문이면 섹터 법령까지(sector)
 - POST /api/kb/ask                                               : 근거 번호가 달린 답 — 찾기 위에 LLM 답 · 서버의 출처 검사
 
 문서 목록은 로그인 없이 — 공개 법령의 판 정보뿐이다. 찾기 · 답하기는 로그인 뒤 — 질문마다 임베딩 · 답 모델을 부른다
@@ -42,13 +42,16 @@ async def kb_search_route(
     route: bool = Query(True, description="질문 분류 가중(세금 · 회사 · 투자 규제) — 끄면 낱말 · 벡터만"),
     links: bool = Query(True, description="위임 조 잇기 — 찾은 법 조가 하위 법령에 맡긴 조를 근거마다 delegated 로"),
     synonyms: bool = Query(True, description="질문 말 → 법령 말(코스피 → 유가증권시장)로 검색어 넓히기"),
+    sector: bool = Query(True, description="섹터 질문 분류 — 질문에 섹터 법령의 이름 · 약칭 · 업 이름(은행업 · 리츠 …)이 "
+                                           "있으면 그 섹터 법령까지 찾는다. 끄면 섹터 법령을 찾지 않는다"),
     _user=Depends(get_current_user),
 ):
     doc_list = [d.strip() for d in docs.split(",") if d.strip()] if docs else None
     try:
         # SQLite 읽기 · 임베딩 호출이 이벤트 루프를 막지 않게 스레드에서
         return await asyncio.to_thread(kb_search.search, q, k, as_of=as_of, kind=kind, docs=doc_list,
-                                       mode=mode, model=model, route=route, links=links, synonyms=synonyms)
+                                       mode=mode, model=model, route=route, links=links, synonyms=synonyms,
+                                       sector=sector)
     except kb_search.KbError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None
 
@@ -66,6 +69,7 @@ class AskBody(BaseModel):
     route: bool = Field(True, description="질문 분류 가중(세금 · 회사 · 투자 규제)")
     links: bool = Field(True, description="위임 조 잇기 — 법 조가 하위 법령에 맡긴 조를 윗 조 바로 뒤 근거로")
     synonyms: bool = Field(True, description="질문 말 → 법령 말 — 검색어 넓히기 · 답 문맥의 질문에 괄호로 덧붙이기")
+    sector: bool = Field(True, description="섹터 질문 분류 — 섹터 법령의 이름 · 약칭 · 업 이름이 있을 때만 섹터 법령까지 근거로")
     answer: Literal["llm", "extract"] = Field("llm", description="llm(답 모델이 근거로 답함) · extract(LLM 없이 근거 발췌)")
     llm: str | None = Field(None, max_length=120, description="답 모델(Ollama 이름) — 비우면 서버 기본값")
 
@@ -76,6 +80,7 @@ async def kb_ask_route(body: AskBody, _user=Depends(get_current_user)):
         # 찾기 · 생성(수십 초)이 이벤트 루프를 막지 않게 스레드에서
         return await asyncio.to_thread(kb_answer.ask, body.q, body.k, as_of=body.as_of, kind=body.kind,
                                        docs=body.docs, mode=body.mode, model=body.model, route=body.route,
-                                       links=body.links, synonyms=body.synonyms, answer=body.answer, llm=body.llm)
+                                       links=body.links, synonyms=body.synonyms, sector=body.sector,
+                                       answer=body.answer, llm=body.llm)
     except kb_search.KbError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None

@@ -13,6 +13,7 @@ API 명세서의 표는 이 출력을 붙인 것이고, 의심스러우면 다�
     python scripts/api_scan.py --json              # 기계용
     python scripts/api_scan.py --openapi F.json    # 도커 안 app.openapi() 결과와 대조
     python scripts/api_scan.py --assign S63        # ID 대장에 없는 라우트에 새 ID (대장 파일을 고친다)
+    python scripts/api_scan.py --catalog public/api-docs/catalog.json   # API 문서 화면이 읽는 칸 (--check 로 뒤처짐만 확인)
 
 API ID 는 순번이 아니라 대장에서 온다
 -------------------------------------
@@ -1232,6 +1233,30 @@ def fill_doc(text: str, blocks: dict[str, str]) -> str:
   return text
 
 
+# ── API 문서 화면의 카탈로그 (2026-10-06) ─────────────────────────────
+# 화면(public/api-docs/)은 앱이 내놓는 /openapi.json 으로 인자 · 응답 · 시험 호출(Swagger UI)을 그리고,
+# 이 카탈로그로 OpenAPI 에 없는 우리 칸(API ID · 인증 · 닿는 곳 · 부르는 화면 · 파트 · 요구 · 코드 위치)을 붙인다.
+# 앱 컨테이너에는 scripts/ 가 없어 실행 중에 스캔할 수 없으므로 정적 파일로 둔다 — 날짜 같은 바뀌는 칸을 넣지 않아
+# 코드가 같으면 바이트까지 같다(--catalog 파일 --check 로 뒤처졌는지 본다).
+CATALOG_FIELDS = (
+  ("id", "api_id"), ("router", "router"), ("method", "method"), ("path", "path"), ("summary", "summary"),
+  ("auth", "auth"), ("reaches", "reaches"), ("hosts", "hosts"), ("screens", "screens"), ("part", "part"),
+  ("req", "requirements"), ("file", "file"), ("line", "line"), ("errors", "errors"), ("keys", "return_keys"),
+  ("body", "body_models"), ("schema", "in_schema"),
+)
+
+
+def catalog(routes: list[Route]) -> dict:
+  """카탈로그 — 라우트마다 화면이 읽는 칸만(짧은 이름). 차례는 스캔 차례(라우터 등록 차례 · 그 안의 선언 차례)."""
+  rows = [{short: getattr(r, name) for short, name in CATALOG_FIELDS} for r in routes]
+  return {"schema": 1, "source": "scripts/api_scan.py --catalog", "count": len(rows),
+          "routers": len({r.router for r in routes}), "routes": rows}
+
+
+def catalog_json(routes: list[Route]) -> str:
+  return json.dumps(catalog(routes), ensure_ascii=False, indent=1) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
   # git bash(mintty)에서는 표준출력이 cp949 가 된다 → ✅ · ⚠️ · — 한 글자에서 죽는다 (DF-11).
   for stream in (sys.stdout, sys.stderr):
@@ -1245,7 +1270,8 @@ def main(argv: list[str] | None = None) -> int:
   ap.add_argument("--openapi", metavar="파일", help="app.openapi() JSON 과 대조")
   ap.add_argument("--assign", metavar="세션", help="대장에 없는 라우트에 새 ID 를 붙여 대장에 쓴다")
   ap.add_argument("--doc", metavar="문서", help="문서 안 api_scan 표시 사이를 새 출력으로 채운다")
-  ap.add_argument("--check", action="store_true", help="--doc 과 함께: 고치지 않고 어긋나면 종료코드 1")
+  ap.add_argument("--check", action="store_true", help="--doc · --catalog 과 함께: 고치지 않고 어긋나면 종료코드 1")
+  ap.add_argument("--catalog", metavar="파일", help="API 문서 화면(/api-docs/)이 읽는 카탈로그 JSON 을 쓴다")
   args = ap.parse_args(argv)
 
   cb, routes, reg = scan(ROOT)
@@ -1266,6 +1292,17 @@ def main(argv: list[str] | None = None) -> int:
       return 0 if new == old else 1
     doc.write_bytes(new.encode("utf-8"))
     print(f"채움: {doc} · 표시 {len(DOC_BLOCKS)}곳")
+    return 0
+  if args.catalog:
+    out = Path(args.catalog)
+    new = catalog_json(routes)
+    old = out.read_bytes().decode("utf-8") if out.exists() else ""
+    if args.check:
+      print("✅ 카탈로그가 코드와 같다" if new == old else "⚠️ 카탈로그가 코드보다 뒤처졌다 — --catalog 로 다시 쓴다")
+      return 0 if new == old else 1
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(new.encode("utf-8"))
+    print(f"카탈로그: {out} · API {len(routes)}개")
     return 0
   if args.json:
     print(json.dumps({"routes": [asdict(r) for r in routes], "대장": reg, "검사": chk,

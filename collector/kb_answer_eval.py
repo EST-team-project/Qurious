@@ -70,12 +70,14 @@ def unload(model: str) -> None:
         pass
 
 
-def run_model(model: str, rows: List[dict], k: int, *, synonyms: bool = True, links: bool = True) -> dict:
+def run_model(model: str, rows: List[dict], k: int, *, synonyms: bool = True, links: bool = True,
+              sector: bool = True) -> dict:
     dense = kb_search.DenseBackend(ollama_url=kb_index.OLLAMA_URL, qdrant_url=kb_index.QDRANT_URL)
     llm = kb_answer.LlmBackend(ollama_url=kb_index.OLLAMA_URL, timeout=900)
     per = []
     for r in rows:
-        out = kb_answer.ask(r["질문"], k, llm=model, synonyms=synonyms, links=links, backend=dense, llm_backend=llm)
+        out = kb_answer.ask(r["질문"], k, llm=model, synonyms=synonyms, links=links, sector=sector, backend=dense,
+                            llm_backend=llm)
         gold = {(d, a) for d, a in r["gold"]}
         used = [(c["doc_id"], c["article"]) for c in out["citations"] if c["used"]]
         per.append({
@@ -85,10 +87,15 @@ def run_model(model: str, rows: List[dict], k: int, *, synonyms: bool = True, li
             "used": [f"{d}:{a}" for d, a in used], "llm_ms": out["timing"]["llm_ms"],
             "prompt_tokens": out["llm"].get("prompt_tokens"), "answer_tokens": out["llm"].get("answer_tokens"),
             "error": out["llm"].get("error"), "raw": out["llm"].get("raw"),
+            # 섹터 질문 분류 — 걸린 섹터 · 맞은 낱말(분류가 놓친 섹터 질문을 셀 때)
+            "sectors": [s["code"] for s in ((out.get("route") or {}).get("sectors") or [])],
+            "sector_words": (out.get("route") or {}).get("sector_words") or [],
+            "cited": [f"{c['doc_id']}:{c['article']}" for c in out["citations"]],
         })
         print(f"  {r['id']} {out['status']:<11} {out['timing']['llm_ms']/1000:6.1f}s  {out['answer'][:70]!r}", flush=True)
     unload(model)
-    return {"model": model, "synonyms": synonyms, "links": links, "per": per, "summary": summarize(per)}
+    return {"model": model, "synonyms": synonyms, "links": links, "sector": sector, "per": per,
+            "summary": summarize(per)}
 
 
 def _ratio(xs: List[bool]) -> Optional[float]:
@@ -131,17 +138,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--set", default=str(EVAL_SET), help="평가셋 TSV")
     p.add_argument("--synonyms", choices=("on", "off"), default="on", help="질문 말 → 법령 말(kb_synonyms)")
     p.add_argument("--links", choices=("on", "off"), default="on", help="위임 조 함께 넣기(kb_links)")
+    p.add_argument("--sector", choices=("on", "off"), default="on",
+                   help="섹터 질문 분류(섹터 법령은 섹터 질문일 때만) — off = 분류 전 길")
+    p.add_argument("--ids", default="", help="이 머리로 시작하는 id 만(쉼표로 여럿 · 예: S,T)")
     a = p.parse_args(argv)
     rows = load(Path(a.set))
-    syn, links = a.synonyms == "on", a.links == "on"
+    if a.ids:
+        heads = tuple(h.strip() for h in a.ids.split(",") if h.strip())
+        rows = [r for r in rows if r["id"].startswith(heads)]
+    syn, links, sector = a.synonyms == "on", a.links == "on", a.sector == "on"
     print(f"― 근거 답 평가 · {Path(a.set).name} · 질문 {len(rows)} · 모델 {len(a.models)} · k={a.k} · "
-          f"동의어 {a.synonyms} · 위임 조 {a.links} ―", flush=True)
+          f"동의어 {a.synonyms} · 위임 조 {a.links} · 섹터 {a.sector} ―", flush=True)
     results = []
     out = _new_path()
     for m in a.models:
         print(f"[{m}]", flush=True)
         t0 = time.time()
-        res = run_model(m, rows, a.k, synonyms=syn, links=links)
+        res = run_model(m, rows, a.k, synonyms=syn, links=links, sector=sector)
         res["secs"] = round(time.time() - t0, 1)
         results.append(res)
         if a.save:   # 모델 하나가 끝날 때마다 — 긴 평가가 중간에 멈춰도 앞 모델 결과는 남는다

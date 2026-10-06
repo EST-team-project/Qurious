@@ -47,6 +47,10 @@ MAX_SUMMARY_DAYS = 400
 #: 그날 목록의 회사 이름 찾기 글자 수 · 맨 위에 올릴 종목(내 종목) 수 상한.
 MAX_Q = 40
 MAX_FIRST = 50
+#: 같은 날 안의 종류 차례 — 일정 화면의 칩 차례(Figma 「일정 2판」)와 같다. 시장 전체 일정이 먼저, 그다음 적은 종류부터.
+#: 종류 이름 글자 차례(agm < dividend_ex)면 3월 26일 「배당락일」 칩을 켜도 주총 731건 뒤인 15쪽에야 나온다(2026-10-06 화면 확인).
+KIND_ORDER = ("market_closure", "deriv_expiry", "policy_rate", "fomc", "report_deadline",
+              "dividend_record", "dividend_ex", "dividend_pay", "agm", "earnings")
 CONFIDENCE = {"confirmed": "확정", "scheduled": "예정", "computed": "규칙으로 계산"}
 BASIS = {"observed": "시세로 확인", "rule": "규칙 · 공휴일 표로 예정"}
 _WEEKDAYS = "월화수목금토일"
@@ -185,10 +189,12 @@ def events(start: date, end: date, kind: str | None = None, symbol: str | None =
     if needle:
         sql += " AND instr(title, ?) > 0"            # LIKE 를 쓰지 않는다 — 「%」 · 「_」 가 든 이름도 글자 그대로 찾는다
         args.append(needle)
-    order = " ORDER BY event_date, kind, symbol"
+    # 같은 날 안은 화면 칩 차례(KIND_ORDER) — 모르는 종류는 맨 뒤 · 그 안은 종목 차례
+    rank = "CASE kind " + " ".join(f"WHEN '{k}' THEN {i}" for i, k in enumerate(KIND_ORDER)) + f" ELSE {len(KIND_ORDER)} END"
+    order = f" ORDER BY event_date, {rank}, symbol"
     order_args: list = []
     if mine:
-        order = f" ORDER BY CASE WHEN symbol IN ({','.join('?' * len(mine))}) THEN 0 ELSE 1 END, event_date, kind, symbol"
+        order = f" ORDER BY CASE WHEN symbol IN ({','.join('?' * len(mine))}) THEN 0 ELSE 1 END, event_date, {rank}, symbol"
         order_args = mine
     conn = _connect()
     try:

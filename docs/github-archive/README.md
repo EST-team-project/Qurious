@@ -67,7 +67,7 @@ docs/github-archive/
 │   ├── PR-feat-ohlcv-v1-intake/       00-본문.md  (#81)
 │   └── PR-feat-finance-lectures-placement/  00-본문.md  (#84)
 ├── 2026-10-02/        ← 새 글 5건
-│   ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md · 01 강민석 님 답글(10-02) · 02 코드 대조 확인(10-03 · 올림) · 03 갱신(10-03 · 번호 0013 → 0014 · 올릴 것)  (#88)
+│   ├── 이슈-QFRS-마이그레이션-정리/    00-본문.md · 01 강민석 님 답글(10-02) · 02 코드 대조 확인(10-03 · 올림) · 03 갱신(10-03 · 번호 0013 → 0014 · 올림) · 04 갱신(10-06 · 번호 0014 → 0016 · 올릴 것)  (#88)
 │   ├── PR-feat-glossary-screen-and-w3-docs/  00-본문.md  (#87)
 │   ├── PR-feat-trading-calendar-and-glossary-relations/  00-본문.md  (#89)
 │   ├── PR-feat-data-hub-calendar-ohlcv-api/  00-본문.md  (#91)
@@ -89,9 +89,12 @@ docs/github-archive/
 │   ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
 │   ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd)
 │   └── PR-feat-disclosure-financials-search-events/  00-본문.md  (#111 · 머지 1a7574e)
-└── 2026-10-05/        ← 새 글 2건
-    ├── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (#112 · 머지 f83e551)
-    └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (번호는 올린 뒤)
+├── 2026-10-05/        ← 새 글 2건
+│   ├── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (#112 · 머지 f83e551)
+│   └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (#113 · 머지 4293b82)
+└── 2026-10-06/        ← 새 글 2건
+    ├── PR-feat-sector-route-calendar-research-api-docs/  00-본문.md  (번호는 올린 뒤)
+    └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올릴 것 · DF-73 · DF-75 · 리밸런싱 PR 작성자께)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -375,7 +378,14 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR feat-agm-dividend-pay-sector-laws-hf-archive](2026-10-05/PR-feat-agm-dividend-pay-sector-laws-hf-archive/00-본문.md) | feat: 주총 · 배당 지급 일정 · 섹터별 근거 법령 · HF 보관본 둘 — 목표 기능 ① W7 남은 것 서버 쪽 | 3,280 | [#112](https://github.com/EST-team-project/Qurious/pull/112) · 머지 `f83e551` |
-| [PR feat-news-calendar-month-research-sector-eval](2026-10-05/PR-feat-news-calendar-month-research-sector-eval/00-본문.md) | feat: 뉴스 두 출처 · 일정 2판 · 리서치 화면 서버 쪽 · 섹터 법령 근거 답 평가 — 목표 기능 ① W7 | 4,018 | (올린 뒤 적음) |
+| [PR feat-news-calendar-month-research-sector-eval](2026-10-05/PR-feat-news-calendar-month-research-sector-eval/00-본문.md) | feat: 뉴스 두 출처 · 일정 2판 · 리서치 화면 서버 쪽 · 섹터 법령 근거 답 평가 — 목표 기능 ① W7 | 4,018 | [#113](https://github.com/EST-team-project/Qurious/pull/113) · 머지 `4293b82` |
+
+### 2026-10-06 — 새 글 2건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR feat-sector-route-calendar-research-api-docs](2026-10-06/PR-feat-sector-route-calendar-research-api-docs/00-본문.md) | feat: 섹터 질문 분류 · 일정 2판 · 리서치 화면 · API 문서 화면 — 목표 기능 ① W7 화면 · 시스템관리 | 5,067 | (올린 뒤) |
+| [이슈 리밸런싱정책-시험DB](2026-10-06/이슈-리밸런싱정책-시험DB/00-본문.md) | [요청] 리밸런싱 시험 두 가지 — 새 시험 DB 에 표가 없고(DF-73), 한국어 Windows 에서 고정물이 JSON 을 못 읽습니다(DF-75) | 3,417 | (올린 뒤) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

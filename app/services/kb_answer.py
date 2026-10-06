@@ -348,8 +348,8 @@ def _citation(n: int, h: dict, used: bool) -> dict:
 
 def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Optional[str] = None,
         docs: Optional[Sequence[str]] = None, mode: str = "hybrid", model: Optional[str] = None, route: bool = True,
-        links: bool = True, synonyms: bool = True, answer: str = "llm", llm: Optional[str] = None, path=None,
-        backend: Optional[kb_search.DenseBackend] = None, llm_backend: Optional[LlmBackend] = None) -> dict:
+        links: bool = True, synonyms: bool = True, sector: bool = True, answer: str = "llm", llm: Optional[str] = None,
+        path=None, backend: Optional[kb_search.DenseBackend] = None, llm_backend: Optional[LlmBackend] = None) -> dict:
     q = (q or "").strip()
     if not q:
         raise kb_search.KbError(422, "질문이 비었다")
@@ -369,7 +369,7 @@ def ask(q: str, k: int = DEFAULT_ASK_K, *, as_of: Optional[str] = None, kind: Op
                        found=None, timing={"search_ms": 0, "llm_ms": 0, "total_ms": _ms(t0)})
 
     found = kb_search.search(q, k, as_of=as_of, kind=kind, docs=docs, mode=mode, model=model, route=route,
-                             links=links, synonyms=synonyms, path=path, backend=backend)
+                             links=links, synonyms=synonyms, sector=sector, path=path, backend=backend)
     t_search = _ms(t0)
     # 위임 조를 윗 조 바로 뒤에 끼운 근거 목록 — 출처 번호는 이 목록의 순서다
     hits = kb_links.expand(found["hits"], limit=k + LINK_EXTRA)

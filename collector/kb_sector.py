@@ -111,6 +111,8 @@ class SectorLaw:
     role: str
     decree: bool
     why: str
+    #: 업 이름 · 질문 말(「|」 로 나눔) — 섹터 질문 분류 낱말(`collector/kb_sector_link.py` · 설계서 5.3.7)
+    words: str = ""
 
 
 def load_map(path: Path = MAP_PATH) -> List[SectorLaw]:
@@ -124,7 +126,7 @@ def load_map(path: Path = MAP_PATH) -> List[SectorLaw]:
                     or (r.get("sector") or "").strip() != SECTOR_NAMES.get(code):
                 raise ValueError(f"{path.name} {i}줄이 규칙에 맞지 않는다: {dict(r)}")
             out.append(SectorLaw(code, (r.get("sector") or "").strip(), title, role, dec == "Y",
-                                 (r.get("why") or "").strip()))
+                                 (r.get("why") or "").strip(), (r.get("words") or "").strip()))
     seen = set()
     for s in out:
         if (s.sector_code, s.title) in seen:

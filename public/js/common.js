@@ -52,9 +52,12 @@ export async function api(path, { method = "GET", body, headers = {}, redirectOn
       data?.message ||
       `서버 오류 (HTTP ${res.status})`;
     // 입력 검증 422 의 detail 은 목록일 수 있다 — 그대로 넘기면 화면에 「[object Object]」 로 보인다.
-    const text = Array.isArray(msg) ? msg.map(d => d?.msg || String(d)).join(" · ") : String(msg);
+    // 근거 답 · 수집 자료 검색의 detail 은 {message, hint} 객체다 — 글은 message, 객체는 e.detail 로(DF-72 · 2026-10-06)
+    const text = Array.isArray(msg) ? msg.map(d => d?.msg || String(d)).join(" · ")
+      : (msg && typeof msg === "object" ? String(msg.message || JSON.stringify(msg)) : String(msg));
     const e = new Error(text);
     e.status = res.status;   // 부르는 쪽이 「로그인 풀림(401)」 과 다른 오류를 가르는 데 쓴다
+    if (data?.detail && typeof data.detail === "object" && !Array.isArray(data.detail)) e.detail = data.detail;
     throw e;
   }
   return data;

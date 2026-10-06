@@ -1,0 +1,6662 @@
+{
+ "schema": 1,
+ "source": "scripts/api_scan.py --catalog",
+ "count": 228,
+ "routers": 29,
+ "routes": [
+  {
+   "id": "API-AUTH-01",
+   "router": "auth",
+   "method": "POST",
+   "path": "/api/auth/register",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 146,
+   "errors": [
+    "400",
+    "422",
+    "503"
+   ],
+   "keys": [
+    "ok",
+    "user"
+   ],
+   "body": [
+    "RegisterBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-02",
+   "router": "auth",
+   "method": "POST",
+   "path": "/api/auth/login",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 191,
+   "errors": [
+    "401",
+    "503"
+   ],
+   "keys": [
+    "ok",
+    "user"
+   ],
+   "body": [
+    "LoginBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-03",
+   "router": "auth",
+   "method": "POST",
+   "path": "/api/auth/logout",
+   "summary": "세션을 삭제하고 쿠키를 지웁니다.",
+   "auth": "없음",
+   "reaches": [
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 216,
+   "errors": [],
+   "keys": [
+    "ok"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-04",
+   "router": "auth",
+   "method": "POST",
+   "path": "/api/auth/token",
+   "summary": "JWT 액세스/리프레시 토큰을 발급합니다 (API 클라이언트용).",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 237,
+   "errors": [
+    "401",
+    "503"
+   ],
+   "keys": [],
+   "body": [
+    "LoginBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-05",
+   "router": "auth",
+   "method": "POST",
+   "path": "/api/auth/token/refresh",
+   "summary": "리프레시 토큰으로 새 액세스 토큰을 발급합니다.",
+   "auth": "없음",
+   "reaches": [
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 264,
+   "errors": [
+    "401"
+   ],
+   "keys": [],
+   "body": [
+    "TokenRefreshBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-06",
+   "router": "auth",
+   "method": "POST",
+   "path": "/api/auth/token/revoke",
+   "summary": "내 토큰을 폐기 목록에 올립니다 (JWT 로그아웃).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 285,
+   "errors": [
+    "403"
+   ],
+   "keys": [
+    "ok",
+    "revoked"
+   ],
+   "body": [
+    "TokenRevokeBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-07",
+   "router": "auth",
+   "method": "GET",
+   "path": "/api/me",
+   "summary": "현재 사용자 정보를 반환합니다 (쿠키 or Bearer 모두 허용).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 326,
+   "errors": [],
+   "keys": [
+    "user",
+    "state"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-08",
+   "router": "auth",
+   "method": "GET",
+   "path": "/api/sessions",
+   "summary": "내 활성 세션 목록을 반환합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 353,
+   "errors": [],
+   "keys": [
+    "sessions",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-09",
+   "router": "auth",
+   "method": "DELETE",
+   "path": "/api/sessions/{sid}",
+   "summary": "특정 세션을 강제 만료시킵니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 360,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "ok"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-10",
+   "router": "auth",
+   "method": "DELETE",
+   "path": "/api/sessions",
+   "summary": "내 모든 세션을 일괄 만료시킵니다 (전체 로그아웃).",
+   "auth": "세션·JWT + 역할(admin·user)",
+   "reaches": [
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 373,
+   "errors": [],
+   "keys": [
+    "ok",
+    "revoked"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-11",
+   "router": "auth",
+   "method": "GET",
+   "path": "/api/auth/password-policy",
+   "summary": "비밀번호 규칙 — 가입 · 마이페이지 화면이 같은 값으로 안내 · 입력 칸 제한을 건다(로그인 전에도 연다).",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 386,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-12",
+   "router": "auth",
+   "method": "PATCH",
+   "path": "/api/me",
+   "summary": "이름 바꾸기. 이메일(로그인 ID)은 바꾸지 않는다 — 바꾸려면 새 주소로 확인 메일을 보내야 하는데",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 392,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "ok",
+    "user"
+   ],
+   "body": [
+    "ProfileUpdateBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-13",
+   "router": "auth",
+   "method": "PUT",
+   "path": "/api/me/password",
+   "summary": "비밀번호 바꾸기 — 현재 비밀번호를 다시 확인하고, 바꾼 뒤에는 **다른 기기를 모두 로그아웃**시킨다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 415,
+   "errors": [
+    "400",
+    "422"
+   ],
+   "keys": [
+    "ok",
+    "other_sessions_revoked"
+   ],
+   "body": [
+    "PasswordChangeBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-AUTH-14",
+   "router": "auth",
+   "method": "DELETE",
+   "path": "/api/me",
+   "summary": "회원 탈퇴 — 현재 비밀번호와 확인 문구를 받고, 내 데이터를 **즉시 파기**한 뒤 모든 세션 · 토큰을 끊는다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/auth.py",
+   "line": 455,
+   "errors": [
+    "400",
+    "422"
+   ],
+   "keys": [
+    "ok",
+    "deleted"
+   ],
+   "body": [
+    "AccountDeleteBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-01",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/financial",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "crawl-ingest"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 22,
+   "errors": [],
+   "keys": [
+    "ok",
+    "result",
+    "log"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ING-02",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/crawl/auto",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Qdrant",
+    "LLM",
+    "외부"
+   ],
+   "hosts": [
+    "api.github.com",
+    "github.com",
+    "raw.githubusercontent.com"
+   ],
+   "screens": [
+    "crawl-auto"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 32,
+   "errors": [],
+   "keys": [
+    "ok",
+    "result",
+    "log"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ING-03",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/crawl/url",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [
+    "crawl-manual"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 47,
+   "errors": [],
+   "keys": [
+    "ok",
+    "chunks",
+    "log"
+   ],
+   "body": [
+    "CrawlUrlBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-04",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/crawl/naver",
+   "summary": "네이버 금융 종목 페이지 전용 크롤링.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Qdrant",
+    "LLM",
+    "외부"
+   ],
+   "hosts": [
+    "finance.naver.com"
+   ],
+   "screens": [
+    "crawl-manual"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 63,
+   "errors": [],
+   "keys": [
+    "ok",
+    "chunks",
+    "message"
+   ],
+   "body": [
+    "CrawlNaverBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-05",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/local-docs",
+   "summary": "data/raw/ 하위 로컬 Markdown 문서를 Qdrant RAG에 인제스트.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 77,
+   "errors": [],
+   "keys": [
+    "ok",
+    "total_chunks",
+    "log"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ING-06",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/translation-data",
+   "summary": "data/1.데이터 다국어 번역 ZIP → Qdrant translation_docs 컬렉션 인제스트.",
+   "auth": "세션",
+   "reaches": [
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 127,
+   "errors": [],
+   "keys": [
+    "ok",
+    "result",
+    "log"
+   ],
+   "body": [
+    "TranslationIngestBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-07",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/translation-search",
+   "summary": "translation_docs 컬렉션에서 한국어 쿼리로 유사 문서 검색.",
+   "auth": "세션",
+   "reaches": [
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 153,
+   "errors": [],
+   "keys": [
+    "ok",
+    "hits",
+    "collection"
+   ],
+   "body": [
+    "TranslationSearchBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-08",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/financial/async",
+   "summary": "CSV 금융 데이터 인제스트를 Celery 워커에 위임하고 task_id 를 반환한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Redis",
+    "Celery"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-4"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 172,
+   "errors": [],
+   "keys": [
+    "task_id",
+    "poll_url"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ING-09",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/crawl/auto/async",
+   "summary": "자동 크롤링을 Celery 워커에 위임한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Redis",
+    "Qdrant",
+    "LLM",
+    "Celery",
+    "외부"
+   ],
+   "hosts": [
+    "api.github.com",
+    "github.com",
+    "raw.githubusercontent.com"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-4"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 182,
+   "errors": [],
+   "keys": [
+    "task_id",
+    "poll_url"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ING-10",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/crawl/url/async",
+   "summary": "단일 URL 크롤링을 Celery 워커에 위임한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Redis",
+    "Qdrant",
+    "LLM",
+    "Celery"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-4"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 190,
+   "errors": [],
+   "keys": [
+    "task_id",
+    "poll_url"
+   ],
+   "body": [
+    "CrawlUrlBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-11",
+   "router": "ingest",
+   "method": "POST",
+   "path": "/api/ingest/translation-data/async",
+   "summary": "다국어 번역 데이터 인제스트를 Celery 워커에 위임한다.",
+   "auth": "세션",
+   "reaches": [
+    "Redis",
+    "Qdrant",
+    "LLM",
+    "Celery"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-4"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 198,
+   "errors": [],
+   "keys": [
+    "task_id",
+    "poll_url"
+   ],
+   "body": [
+    "TranslationIngestBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ING-12",
+   "router": "ingest",
+   "method": "GET",
+   "path": "/api/ingest/crawl/list",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "crawl-manual",
+    "robo-patterns"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/ingest.py",
+   "line": 214,
+   "errors": [],
+   "keys": [
+    "items"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-HLTH-01",
+   "router": "health",
+   "method": "GET",
+   "path": "/api/health",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/health.py",
+   "line": 6,
+   "errors": [],
+   "keys": [
+    "status",
+    "service"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CHAT-01",
+   "router": "chat",
+   "method": "POST",
+   "path": "/api/chat",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis",
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-cb",
+    "agent-chat",
+    "agent-products"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/chat.py",
+   "line": 141,
+   "errors": [
+    "400",
+    "401",
+    "429",
+    "500",
+    "502",
+    "503",
+    "504"
+   ],
+   "keys": [
+    "conversation_id"
+   ],
+   "body": [
+    "ChatBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-CHAT-02",
+   "router": "chat",
+   "method": "POST",
+   "path": "/api/chat/async",
+   "summary": "에이전트 실행을 Celery 워커에 위임하고 task_id 를 즉시 반환한다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis",
+    "Qdrant",
+    "LLM",
+    "Celery"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/chat.py",
+   "line": 241,
+   "errors": [],
+   "keys": [
+    "task_id",
+    "conversation_id",
+    "poll_url"
+   ],
+   "body": [
+    "ChatBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-01",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/market",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "quant-dashboard"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 46,
+   "errors": [],
+   "keys": [
+    "indices",
+    "from_cache"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-02",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/quote",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-patterns",
+    "trading-chart",
+    "us-chart",
+    "us-dashboard",
+    "us-order",
+    "us-portfolio"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 57,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-03",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/candles",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-patterns",
+    "trading-chart",
+    "us-chart"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2",
+    "P02-④-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 62,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-04",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/quant/indicators",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "indicator-strategy",
+    "quant-backtest",
+    "quant-dashboard"
+   ],
+   "part": "P-B",
+   "req": [
+    "P01-②-1",
+    "P01-②-3",
+    "P02-①-1",
+    "P02-②-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 83,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-05",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/quant/list",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "quant-dashboard"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 102,
+   "errors": [],
+   "keys": [
+    "stocks"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-06",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/search",
+   "summary": "종목 검색: 국내 상장사는 KRX 상장법인목록(로컬 엔진)을 우선 쓰고,",
+   "auth": "없음",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query1.finance.yahoo.com"
+   ],
+   "screens": [
+    "company-dashboard",
+    "quant-dashboard",
+    "trading-chart"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 107,
+   "errors": [
+    "502"
+   ],
+   "keys": [
+    "results"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-07",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/fundamentals",
+   "summary": "PER/PBR/ROE/분기실적 등 실제 기업 펀더멘털 (Yahoo Finance quoteSummary).",
+   "auth": "없음",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "fc.yahoo.com",
+    "query1.finance.yahoo.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "company-dashboard"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2",
+    "RFP2-3.1.4-②"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 151,
+   "errors": [
+    "502"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-08",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/signals",
+   "summary": "선택한 패턴 모델을 적용한 대표 종목 스크리닝.",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-patterns",
+    "robo-screening"
+   ],
+   "part": "P-B",
+   "req": [
+    "P01-②-2",
+    "P01-②-3",
+    "RFP2-3.1.4-①",
+    "RFP2-3.1.4-③"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 160,
+   "errors": [],
+   "keys": [
+    "signals",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-09",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/portfolio",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "trading-portfolio",
+    "us-portfolio"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-③-1",
+    "P01-③-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 219,
+   "errors": [],
+   "keys": [
+    "holdings"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-10",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/portfolio",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "trading-portfolio",
+    "us-portfolio"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 231,
+   "errors": [],
+   "keys": [
+    "ok"
+   ],
+   "body": [
+    "HoldingBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-11",
+   "router": "stocks",
+   "method": "DELETE",
+   "path": "/api/portfolio/{symbol}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "trading-portfolio"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 250,
+   "errors": [],
+   "keys": [
+    "ok"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-12",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/orders",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "trading-order",
+    "us-order"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 300,
+   "errors": [
+    "400"
+   ],
+   "keys": [
+    "ok",
+    "status",
+    "cost"
+   ],
+   "body": [
+    "OrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-13",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/orders",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "trading-order",
+    "us-order"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 354,
+   "errors": [],
+   "keys": [
+    "orders"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-14",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/broker/catalog",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 467,
+   "errors": [],
+   "keys": [
+    "brokers"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-15",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/broker/settings",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-api",
+    "robo-patterns",
+    "trading-order"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 472,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "ok"
+   ],
+   "body": [
+    "BrokerSettingsBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-16",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/broker/settings",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-api",
+    "robo-patterns",
+    "trading-order"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 492,
+   "errors": [],
+   "keys": [
+    "broker",
+    "connected",
+    "app_key",
+    "account_no",
+    "kis_managed",
+    "paper",
+    "brokers"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-38",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/strategies",
+   "summary": "domain-rag-lab 백테스트 합격 전략 목록 (종목 선정 화면 드롭다운).",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "settings"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 529,
+   "errors": [],
+   "keys": [
+    "configured",
+    "strategies"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-39",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/live-orders",
+   "summary": "게이트웨이 경유 KIS 실주문 추적 목록 (quant.confirm_fills 가 갱신).",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "settings"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 535,
+   "errors": [],
+   "keys": [
+    "gateway",
+    "orders"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-17",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/settings",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "settings"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 557,
+   "errors": [],
+   "keys": [
+    "mode",
+    "broker",
+    "connected",
+    "app_key",
+    "account_no",
+    "kis_managed",
+    "managed_brokers",
+    "paper",
+    "symbol_source",
+    "selected_symbols",
+    "ai_top_n",
+    "per_trade_budget",
+    "buy_ratio",
+    "sell_ratio",
+    "risk",
+    "risk_halt_reason",
+    "strategy_id",
+    "strategy_version",
+    "live_gateway",
+    "brokers",
+    "stocks"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-18",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/quant/settings",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "settings"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 606,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "ok"
+   ],
+   "body": [
+    "QuantSettingsBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-19",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/broker/price",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "증권사",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [
+    "settings"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 683,
+   "errors": [
+    "502"
+   ],
+   "keys": [
+    "symbol",
+    "name",
+    "current",
+    "open",
+    "high",
+    "low",
+    "volume",
+    "change",
+    "change_pct"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-20",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/broker/balance",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "증권사",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 702,
+   "errors": [
+    "502"
+   ],
+   "keys": [
+    "total_eval",
+    "total_buy",
+    "total_gain",
+    "holdings"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-21",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/broker/ohlcv",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "증권사",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 726,
+   "errors": [
+    "502"
+   ],
+   "keys": [
+    "candles"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-22",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/broker/order",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "증권사",
+    "주문",
+    "PostgreSQL",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 749,
+   "errors": [
+    "422",
+    "502"
+   ],
+   "keys": [
+    "ok",
+    "result"
+   ],
+   "body": [
+    "BrokerOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-23",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/broker/test",
+   "summary": "증권사 연결 테스트용 간단 시세 조회.",
+   "auth": "세션",
+   "reaches": [
+    "증권사",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [
+    "indicator-api"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-1"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 815,
+   "errors": [
+    "502"
+   ],
+   "keys": [
+    "ok",
+    "broker_price"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-34",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/patterns",
+   "summary": "캔들 패턴·지지/저항선·돌파 신호 (일봉).",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-patterns"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 831,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [
+    "symbol"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-35",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/stocks/mtf-signal",
+   "summary": "분봉(60m)·일봉·주봉 지표를 종합한 매수·매도·관망 신호와 신뢰도.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-patterns"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 844,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-24",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/auto-trade/start",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "주문",
+    "PostgreSQL",
+    "Redis",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "quant-auto"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3",
+    "P02-⑤-1",
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 853,
+   "errors": [
+    "409"
+   ],
+   "keys": [
+    "ok",
+    "started",
+    "scheduler"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-25",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/auto-trade/stop",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org"
+   ],
+   "screens": [
+    "quant-auto"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 862,
+   "errors": [],
+   "keys": [
+    "ok",
+    "stopped"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-26",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/auto-trade/status",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "quant-auto",
+    "robo-patterns",
+    "settings"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-2",
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 868,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-36",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/risk/status",
+   "summary": "위험관리 한도·당일 손익·주문 수·비상정지 상태.",
+   "auth": "세션",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "quant-auto"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 880,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-37",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/quant/risk/kill-switch",
+   "summary": "비상 정지 스위치 ON/OFF. ON이면 자동매매 루프를 즉시 중지한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org"
+   ],
+   "screens": [
+    "quant-auto"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 906,
+   "errors": [],
+   "keys": [
+    "ok",
+    "kill_switch",
+    "auto_trade_stopped"
+   ],
+   "body": [
+    "KillSwitchBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-40",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/kis/quickstart",
+   "summary": "시작 가능 여부(연동·환경·비상정지)와 현재 자동매매 상태.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "dashboard"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 923,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-41",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/quant/kis/quickstart",
+   "summary": "KIS 모의투자(Testbed) 원클릭 시작: 설정 저장(AI 추천 · live · Testbed 권장 한도) + 자동매매 ON.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "주문",
+    "PostgreSQL",
+    "Redis",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "dashboard"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stocks.py",
+   "line": 929,
+   "errors": [
+    "409"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-27",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/quant/auto/start",
+   "summary": "기존 프론트 호환 경로.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "주문",
+    "PostgreSQL",
+    "Redis",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-decision"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3",
+    "P02-⑤-1",
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 938,
+   "errors": [
+    "409"
+   ],
+   "keys": [
+    "ok",
+    "started"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-28",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/quant/auto/stop",
+   "summary": "기존 프론트 호환 경로.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org"
+   ],
+   "screens": [
+    "robo-decision"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 948,
+   "errors": [],
+   "keys": [
+    "ok",
+    "stopped"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-29",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/auto/status",
+   "summary": "모의 투자 의사결정 UI용 최근 사이클 결과.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "dashboard",
+    "robo-decision",
+    "robo-patterns"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-2",
+    "P02-⑤-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 955,
+   "errors": [],
+   "keys": [
+    "running",
+    "logs",
+    "signals"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-30",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/quant/pipeline",
+   "summary": "커스텀 인디케이터 실백테스트 (비용 · 손절 · 익절 반영).",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "dashboard",
+    "indicator-backtest",
+    "indicator-custom",
+    "robo-patterns"
+   ],
+   "part": "P-D",
+   "req": [
+    "P01-④-1",
+    "P02-①-2",
+    "P02-①-3",
+    "P02-②-1",
+    "P02-②-2"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 982,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-31",
+   "router": "stocks",
+   "method": "GET",
+   "path": "/api/custom-indicators",
+   "summary": "내가 저장한 커스텀 인디케이터 목록.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "dashboard",
+    "indicator-custom",
+    "robo-patterns"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-②-1",
+    "P02-②-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 1080,
+   "errors": [],
+   "keys": [
+    "items"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-STK-32",
+   "router": "stocks",
+   "method": "POST",
+   "path": "/api/custom-indicators",
+   "summary": "커스텀 인디케이터 파라미터 조합을 저장.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "dashboard",
+    "indicator-custom",
+    "robo-patterns"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-①-2",
+    "P02-②-1",
+    "P02-②-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 1095,
+   "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [
+    "CustomIndicatorBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-33",
+   "router": "stocks",
+   "method": "DELETE",
+   "path": "/api/custom-indicators/{indicator_id}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-custom",
+    "robo-patterns"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-②-1",
+    "P02-②-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 1115,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "ok"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LIB-01",
+   "router": "library",
+   "method": "GET",
+   "path": "/api/library/search",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/library.py",
+   "line": 12,
+   "errors": [],
+   "keys": [
+    "items",
+    "query"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ADM-01",
+   "router": "admin",
+   "method": "POST",
+   "path": "/api/admin/reset",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "crawl-ingest"
+   ],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/admin.py",
+   "line": 25,
+   "errors": [],
+   "keys": [
+    "ok",
+    "message"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ADM-02",
+   "router": "admin",
+   "method": "GET",
+   "path": "/api/admin/stats",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/admin.py",
+   "line": 39,
+   "errors": [],
+   "keys": [
+    "stats"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ADM-03",
+   "router": "admin",
+   "method": "GET",
+   "path": "/api/admin/audit-log",
+   "summary": "감사 로그 조회 (관리자 전용). 최신순, 이벤트 유형/사용자로 필터링.",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "sysadmin-logs"
+   ],
+   "part": "공통",
+   "req": [],
+   "file": "app/routes/admin.py",
+   "line": 51,
+   "errors": [],
+   "keys": [
+    "events",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-SYS-01",
+   "router": "system",
+   "method": "GET",
+   "path": "/api/system/status",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "Redis",
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-patterns",
+    "sysadmin-dashboard"
+   ],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/system.py",
+   "line": 11,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-SYS-02",
+   "router": "system",
+   "method": "GET",
+   "path": "/api/system/sync-status",
+   "summary": "Return data sync scheduler state and per-key cache freshness.",
+   "auth": "세션",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-①-4",
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/system.py",
+   "line": 16,
+   "errors": [],
+   "keys": [
+    "online",
+    "scheduler",
+    "cache"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-SYS-03",
+   "router": "system",
+   "method": "POST",
+   "path": "/api/system/sync",
+   "summary": "Manually trigger a full data sync now.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-①-4",
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/system.py",
+   "line": 38,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-QNT-01",
+   "router": "quant",
+   "method": "GET",
+   "path": "/api/quant/ml/stocks",
+   "summary": "파이프라인 적용 가능 종목 목록.",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-D",
+   "req": [],
+   "file": "app/routes/quant.py",
+   "line": 11,
+   "errors": [],
+   "keys": [
+    "stocks"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-QNT-02",
+   "router": "quant",
+   "method": "GET",
+   "path": "/api/quant/ml/run",
+   "summary": "OHLCV → 전처리 → 피처 → ML/DL → 시그널 → 백테스트 → Alpaca 순서 실행.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "paper-api.alpaca.markets",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-D",
+   "req": [
+    "P01-④-1",
+    "P02-④-2"
+   ],
+   "file": "app/routes/quant.py",
+   "line": 17,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-QNT-03",
+   "router": "quant",
+   "method": "POST",
+   "path": "/api/quant/ml/run/batch",
+   "summary": "여러 종목 파이프라인 일괄 실행.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "paper-api.alpaca.markets",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-D",
+   "req": [
+    "P01-④-1"
+   ],
+   "file": "app/routes/quant.py",
+   "line": 53,
+   "errors": [],
+   "keys": [
+    "results"
+   ],
+   "body": [
+    "BatchRunBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ML-01",
+   "router": "ml",
+   "method": "GET",
+   "path": "/api/ml/compare",
+   "summary": "7가지 ML 모델 5-fold 교차검증 비교.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "ml-compare"
+   ],
+   "part": "P-D",
+   "req": [
+    "P01-④-1"
+   ],
+   "file": "app/routes/ml.py",
+   "line": 21,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ML-02",
+   "router": "ml",
+   "method": "GET",
+   "path": "/api/ml/tune",
+   "summary": "GridSearchCV 하이퍼파라미터 튜닝.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "ml-tune"
+   ],
+   "part": "P-D",
+   "req": [
+    "P01-④-1"
+   ],
+   "file": "app/routes/ml.py",
+   "line": 38,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ML-03",
+   "router": "ml",
+   "method": "POST",
+   "path": "/api/ml/cluster",
+   "summary": "종목 군집화 (KMeans).",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "ml-cluster"
+   ],
+   "part": "P-C",
+   "req": [
+    "RFP2-3.1.4-①",
+    "RFP2-3.1.4-④"
+   ],
+   "file": "app/routes/ml.py",
+   "line": 67,
+   "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [
+    "ClusterBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ML-04",
+   "router": "ml",
+   "method": "POST",
+   "path": "/api/ml/robo/allocation",
+   "summary": "시장 데이터 기반 간단 자산배분/추천 결과.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-portfolio"
+   ],
+   "part": "P-C",
+   "req": [
+    "RFP2-3.1.3-①",
+    "RFP2-3.1.3-②",
+    "RFP2-3.1.3-③",
+    "RFP2-3.1.3-④",
+    "RFP2-3.1.4-④"
+   ],
+   "file": "app/routes/ml.py",
+   "line": 86,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "risk_profile",
+    "horizon_years",
+    "amount_manwon",
+    "allocations",
+    "stock_picks",
+    "projections",
+    "optimization",
+    "symbol",
+    "name",
+    "sector",
+    "candles",
+    "ann_return_pct",
+    "ann_vol_pct",
+    "sharpe",
+    "ai"
+   ],
+   "body": [
+    "RoboAllocationBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ML-07",
+   "router": "ml",
+   "method": "GET",
+   "path": "/api/ml/robo/questions",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "robo-portfolio"
+   ],
+   "part": "P-D",
+   "req": [],
+   "file": "app/routes/ml.py",
+   "line": 287,
+   "errors": [],
+   "keys": [
+    "questions",
+    "levels"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ML-08",
+   "router": "ml",
+   "method": "POST",
+   "path": "/api/ml/robo/risk-profile",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "robo-portfolio"
+   ],
+   "part": "P-D",
+   "req": [],
+   "file": "app/routes/ml.py",
+   "line": 293,
+   "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [
+    "RiskProfileBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ML-09",
+   "router": "ml",
+   "method": "POST",
+   "path": "/api/ml/robo/goal-simulation",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "robo-portfolio"
+   ],
+   "part": "P-D",
+   "req": [],
+   "file": "app/routes/ml.py",
+   "line": 303,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "GoalSimBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-ML-10",
+   "router": "ml",
+   "method": "GET",
+   "path": "/api/ml/explain",
+   "summary": "XAI: 종목의 LightGBM 매수/관망/매도 판단 근거(SHAP 기여도 + 자연어 설명).",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-screening"
+   ],
+   "part": "P-D",
+   "req": [],
+   "file": "app/routes/ml.py",
+   "line": 311,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "symbol",
+    "name",
+    "prediction",
+    "explanation"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ML-05",
+   "router": "ml",
+   "method": "GET",
+   "path": "/api/ml/seasonality",
+   "summary": "월별·요일별·연말 계절성 분석.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "quant-seasonal"
+   ],
+   "part": "P-D",
+   "req": [
+    "P01-④-1"
+   ],
+   "file": "app/routes/ml.py",
+   "line": 334,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-ML-06",
+   "router": "ml",
+   "method": "GET",
+   "path": "/api/ml/regression",
+   "summary": "선형회귀·Ridge·Lasso·SVR 수익률 예측 비교.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "ml-regression"
+   ],
+   "part": "P-D",
+   "req": [
+    "P01-④-1"
+   ],
+   "file": "app/routes/ml.py",
+   "line": 351,
+   "errors": [
+    "404",
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MACR-01",
+   "router": "macro",
+   "method": "GET",
+   "path": "/api/macro/indicators",
+   "summary": "거시경제 지표 현황 (금리·물가·유가·환율·주가지수). PostgreSQL cache-first.",
+   "auth": "세션",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "macro-dashboard",
+    "robo-patterns"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/macro.py",
+   "line": 32,
+   "errors": [],
+   "keys": [
+    "indicators",
+    "from_cache"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MACR-02",
+   "router": "macro",
+   "method": "GET",
+   "path": "/api/macro/industry",
+   "summary": "미국 섹터 ETF 기반 산업 분석. PostgreSQL cache-first.",
+   "auth": "세션",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "macro-industry",
+    "robo-patterns"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/macro.py",
+   "line": 47,
+   "errors": [],
+   "keys": [
+    "sectors",
+    "from_cache"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MACR-03",
+   "router": "macro",
+   "method": "GET",
+   "path": "/api/macro/us-stocks",
+   "summary": "미국 주요 종목 시세. PostgreSQL cache-first.",
+   "auth": "세션",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-patterns",
+    "us-dashboard"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/macro.py",
+   "line": 63,
+   "errors": [],
+   "keys": [
+    "stocks",
+    "from_cache"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MACR-04",
+   "router": "macro",
+   "method": "GET",
+   "path": "/api/macro/fundamental",
+   "summary": "재무제표 기반 밸류에이션 지표 (DCF/EVA/FCF 개념 설명 포함).",
+   "auth": "세션",
+   "reaches": [
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "invest-fundamental"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-2"
+   ],
+   "file": "app/routes/macro.py",
+   "line": 78,
+   "errors": [],
+   "keys": [
+    "symbol",
+    "price",
+    "valuation",
+    "note",
+    "error"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DOC-01",
+   "router": "documents",
+   "method": "POST",
+   "path": "/api/documents/upload",
+   "summary": "문서 파일을 업로드하여 VLM으로 파싱한 뒤 Qdrant RAG에 인제스트한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/documents.py",
+   "line": 32,
+   "errors": [
+    "400",
+    "413",
+    "422",
+    "503"
+   ],
+   "keys": [
+    "ok",
+    "doc_id",
+    "filename",
+    "chunks",
+    "message"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DOC-02",
+   "router": "documents",
+   "method": "GET",
+   "path": "/api/documents/list",
+   "summary": "현재 사용자가 업로드한 문서 목록을 반환한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/documents.py",
+   "line": 109,
+   "errors": [],
+   "keys": [
+    "items"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DOC-03",
+   "router": "documents",
+   "method": "DELETE",
+   "path": "/api/documents/{doc_id}",
+   "summary": "문서의 PostgreSQL 메타데이터와 Qdrant 벡터를 모두 삭제한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Qdrant"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/documents.py",
+   "line": 131,
+   "errors": [
+    "400",
+    "404"
+   ],
+   "keys": [
+    "ok",
+    "message"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DOC-04",
+   "router": "documents",
+   "method": "POST",
+   "path": "/api/documents/search",
+   "summary": "업로드된 문서 컬렉션에서 쿼리와 유사한 청크를 검색한다.",
+   "auth": "세션",
+   "reaches": [
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/documents.py",
+   "line": 172,
+   "errors": [],
+   "keys": [
+    "ok",
+    "hits"
+   ],
+   "body": [
+    "DocSearchBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-NOTI-01",
+   "router": "notification",
+   "method": "GET",
+   "path": "/api/notification/settings",
+   "summary": "현재 사용자의 알림 설정을 반환한다. 비밀값(password/secret)은 마스킹.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "notification-settings",
+    "robo-patterns"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-③-3"
+   ],
+   "file": "app/routes/notification.py",
+   "line": 62,
+   "errors": [],
+   "keys": [
+    "channels",
+    "telegram_token",
+    "telegram_chat_id",
+    "slack_webhook_url",
+    "email_to",
+    "email_host",
+    "email_port",
+    "email_user",
+    "email_password",
+    "email_from",
+    "kakao_api_key",
+    "kakao_api_secret",
+    "kakao_sender_key",
+    "kakao_phone",
+    "sms_api_key",
+    "sms_api_secret",
+    "sms_from",
+    "sms_to"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-NOTI-02",
+   "router": "notification",
+   "method": "POST",
+   "path": "/api/notification/settings",
+   "summary": "알림 설정을 저장한다. 빈 문자열 비밀값은 기존 값을 유지한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "notification-settings",
+    "robo-patterns"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-③-3"
+   ],
+   "file": "app/routes/notification.py",
+   "line": 105,
+   "errors": [],
+   "keys": [
+    "ok"
+   ],
+   "body": [
+    "NotificationSettingsBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-NOTI-03",
+   "router": "notification",
+   "method": "POST",
+   "path": "/api/notification/test",
+   "summary": "현재 설정된 모든 채널로 테스트 알림을 전송한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org"
+   ],
+   "screens": [
+    "notification-settings"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-③-3",
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/notification.py",
+   "line": 149,
+   "errors": [],
+   "keys": [
+    "ok",
+    "message"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-NOTI-04",
+   "router": "notification",
+   "method": "GET",
+   "path": "/api/notification/history",
+   "summary": "현재 사용자의 최근 알림 발송 이력을 조회한다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "notification-settings"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-③-3"
+   ],
+   "file": "app/routes/notification.py",
+   "line": 172,
+   "errors": [],
+   "keys": [
+    "events",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GRPH-01",
+   "router": "graph",
+   "method": "GET",
+   "path": "/api/graph/related/{symbol}",
+   "summary": "종목의 경쟁사·공급사·수요처·동일 섹터 종목을 반환한다.",
+   "auth": "없음",
+   "reaches": [
+    "Neo4j"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/graph.py",
+   "line": 11,
+   "errors": [
+    "404",
+    "503"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GRPH-02",
+   "router": "graph",
+   "method": "GET",
+   "path": "/api/graph/sector",
+   "summary": "섹터에 속한 종목 목록을 반환한다.",
+   "auth": "없음",
+   "reaches": [
+    "Neo4j"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/graph.py",
+   "line": 23,
+   "errors": [
+    "503"
+   ],
+   "keys": [
+    "sector",
+    "stocks",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GRPH-03",
+   "router": "graph",
+   "method": "GET",
+   "path": "/api/graph/path",
+   "summary": "두 종목 사이의 최단 공급망 경로를 반환한다.",
+   "auth": "없음",
+   "reaches": [
+    "Neo4j"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/graph.py",
+   "line": 33,
+   "errors": [
+    "503"
+   ],
+   "keys": [
+    "found",
+    "from",
+    "to",
+    "chain"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GRPH-04",
+   "router": "graph",
+   "method": "GET",
+   "path": "/api/graph/documents/{symbol}",
+   "summary": "특정 종목을 언급한 문서 목록을 반환한다.",
+   "auth": "없음",
+   "reaches": [
+    "Neo4j"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/graph.py",
+   "line": 48,
+   "errors": [
+    "503"
+   ],
+   "keys": [
+    "symbol",
+    "documents",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GRPH-05",
+   "router": "graph",
+   "method": "POST",
+   "path": "/api/graph/seed",
+   "summary": "종목 관계 그래프 초기 데이터를 Neo4j에 삽입한다.",
+   "auth": "없음",
+   "reaches": [
+    "Neo4j"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/graph.py",
+   "line": 58,
+   "errors": [
+    "503"
+   ],
+   "keys": [
+    "ok",
+    "message"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GRPH-06",
+   "router": "graph",
+   "method": "POST",
+   "path": "/api/graph/rag",
+   "summary": "GraphRAG: 벡터 검색 + 그래프 컨텍스트를 결합해 검색하거나 LLM 답변을 생성한다.",
+   "auth": "없음",
+   "reaches": [
+    "Neo4j",
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/graph.py",
+   "line": 74,
+   "errors": [
+    "503"
+   ],
+   "keys": [
+    "answer"
+   ],
+   "body": [
+    "GraphRagRequest"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-01",
+   "router": "conversations",
+   "method": "POST",
+   "path": "/api/conversations",
+   "summary": "새 대화 스레드를 생성하고 활성 스레드로 설정합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-chat"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 102,
+   "errors": [],
+   "keys": [
+    "id",
+    "title",
+    "active"
+   ],
+   "body": [
+    "ConversationCreate"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-02",
+   "router": "conversations",
+   "method": "GET",
+   "path": "/api/conversations",
+   "summary": "내 대화 스레드 목록을 최신 순으로 반환합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-chat"
+   ],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 119,
+   "errors": [],
+   "keys": [
+    "items",
+    "total",
+    "offset",
+    "limit"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-03",
+   "router": "conversations",
+   "method": "GET",
+   "path": "/api/conversations/active",
+   "summary": "현재 활성 대화 스레드를 반환합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 145,
+   "errors": [],
+   "keys": [
+    "active_conversation"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-04",
+   "router": "conversations",
+   "method": "GET",
+   "path": "/api/conversations/{cid}",
+   "summary": "스레드 메타데이터와 메시지 목록을 함께 반환합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 164,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-05",
+   "router": "conversations",
+   "method": "PATCH",
+   "path": "/api/conversations/{cid}",
+   "summary": "대화 제목을 수정합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 194,
+   "errors": [],
+   "keys": [
+    "ok",
+    "title"
+   ],
+   "body": [
+    "ConversationPatch"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-06",
+   "router": "conversations",
+   "method": "DELETE",
+   "path": "/api/conversations/{cid}",
+   "summary": "스레드와 해당 스레드의 모든 메시지를 삭제합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 208,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-07",
+   "router": "conversations",
+   "method": "POST",
+   "path": "/api/conversations/{cid}/activate",
+   "summary": "특정 스레드를 현재 활성 대화로 설정합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 225,
+   "errors": [],
+   "keys": [
+    "ok",
+    "active_conversation_id"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CONV-08",
+   "router": "conversations",
+   "method": "GET",
+   "path": "/api/conversations/{cid}/messages",
+   "summary": "특정 스레드의 메시지 목록을 페이지네이션으로 반환합니다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/conversations.py",
+   "line": 237,
+   "errors": [],
+   "keys": [
+    "items",
+    "total"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-TASK-01",
+   "router": "tasks",
+   "method": "GET",
+   "path": "/api/tasks/{task_id}",
+   "summary": "task_id 로 Celery 태스크의 진행 상태와 결과를 반환한다.",
+   "auth": "없음",
+   "reaches": [
+    "Celery"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/tasks.py",
+   "line": 26,
+   "errors": [],
+   "keys": [
+    "result",
+    "error"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-TASK-02",
+   "router": "tasks",
+   "method": "DELETE",
+   "path": "/api/tasks/{task_id}",
+   "summary": "실행 중이거나 대기 중인 태스크를 취소한다.",
+   "auth": "없음",
+   "reaches": [
+    "Celery"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-⑤-3"
+   ],
+   "file": "app/routes/tasks.py",
+   "line": 50,
+   "errors": [],
+   "keys": [
+    "task_id",
+    "revoked",
+    "terminate"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-01",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/account",
+   "summary": "현금 + 주식/코인/대체자산 평가액 합산 스냅샷.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "paper-dashboard",
+    "paper-stock"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-③-1",
+    "P01-③-2",
+    "P01-③-3",
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 53,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-02",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/account/reset",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 68,
+   "errors": [],
+   "keys": [
+    "status",
+    "cash"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-03",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/stocks/quote",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 84,
+   "errors": [
+    "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-04",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/stocks/positions",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "market-calendar",
+    "paper-stock"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 92,
+   "errors": [],
+   "keys": [
+    "positions"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-05",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/preview",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-1",
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 98,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "StockOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-06",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 119,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "StockOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-07",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/buy",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 124,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "StockOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-08",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/sell",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 129,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "StockOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-09",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/pine",
+   "summary": "Pine 전략 실습 화면용 주문. 시그널은 브라우저에서 만들고 체결은 서버가 기록(source=PINE).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P02-③-1"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 134,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "StockOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-10",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/stocks/orders/history",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-stock"
+   ],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 140,
+   "errors": [],
+   "keys": [
+    "history"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-11",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/crypto/market-list",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 165,
+   "errors": [],
+   "keys": [
+    "markets",
+    "marketCodes"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-12",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/crypto/rankings",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 171,
+   "errors": [],
+   "keys": [
+    "rankings"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-13",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/crypto/ticker",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 176,
+   "errors": [],
+   "keys": [
+    "tickers"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-14",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/crypto/{code}/candles",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 181,
+   "errors": [
+    "400",
+    "502"
+   ],
+   "keys": [
+    "market",
+    "candles"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-15",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/crypto/{code}/domestic-prices",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "api.bithumb.com",
+    "api.korbit.co.kr",
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 191,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-16",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/crypto/{code}",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 196,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "marketCode",
+    "koreanName",
+    "englishName",
+    "buyCryptoCount",
+    "ticker"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-17",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/trade/hold",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 207,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-18",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/trade/order/preview",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 214,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "CryptoPreviewBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-19",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/trade/order/buy",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 222,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "CryptoBuyBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-20",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/trade/order/sell",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 234,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "CryptoSellBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-21",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/trade/order/history",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-crypto"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 246,
+   "errors": [],
+   "keys": [
+    "history"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-22",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/alternatives/markets",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "paper-alternative"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 260,
+   "errors": [],
+   "keys": [
+    "markets",
+    "notice"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-23",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/alternatives/markets/{symbol}/chart",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "paper-alternative"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 266,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "symbol",
+    "data"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-24",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/alternatives/positions",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "paper-alternative"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 274,
+   "errors": [],
+   "keys": [
+    "positions",
+    "totalEvalAmount"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-25",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/alternatives/orders/history",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-alternative"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 280,
+   "errors": [],
+   "keys": [
+    "history"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-26",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/alternatives/orders/preview",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 285,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "AltOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-27",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/alternatives/orders",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 293,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "AltOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-28",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/api-keys",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-openapi"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-②-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 321,
+   "errors": [],
+   "keys": [
+    "keys"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-29",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/api-keys",
+   "summary": "키 원문은 이 응답에서만 한 번 보여주고 DB에는 SHA-256 해시만 저장한다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-openapi"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-②-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 327,
+   "errors": [],
+   "keys": [
+    "apiKey"
+   ],
+   "body": [
+    "ApiKeyBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-30",
+   "router": "paper",
+   "method": "DELETE",
+   "path": "/api/paper/api-keys/{key_id}",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-openapi"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-②-3"
+   ],
+   "file": "app/routes/paper.py",
+   "line": 340,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "status"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-31",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/alpaca/account",
+   "summary": "읽기 전용 Paper 계정 상태 (계좌 식별자는 돌려주지 않는다).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "paper-api.alpaca.markets"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 386,
+   "errors": [],
+   "keys": [
+    "ok",
+    "environment",
+    "connection",
+    "accountStatus",
+    "tradingBlocked",
+    "accountBlocked",
+    "currency",
+    "buyingPower",
+    "portfolioValue"
+   ],
+   "body": [
+    "AlpacaTestBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-32",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/alpaca/positions",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "paper-api.alpaca.markets"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 396,
+   "errors": [],
+   "keys": [
+    "ok",
+    "count",
+    "positions"
+   ],
+   "body": [
+    "AlpacaTestBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-33",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/metrics",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "paper-dashboard",
+    "robo-decision",
+    "robo-testbed"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 408,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-34",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/performance/snapshot",
+   "summary": "오늘 자산 스냅샷을 수동으로 기록 (idempotent upsert).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 429,
+   "errors": [],
+   "keys": [
+    "status",
+    "snap_date",
+    "total_equity",
+    "daily_return",
+    "position_count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-35",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/performance/simulate",
+   "summary": "⚠️ 시연/개발 전용 — 스냅샷을 초기화하고 랜덤 워크 15일치를 삽입.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-decision"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 453,
+   "errors": [
+    "403"
+   ],
+   "keys": [
+    "status",
+    "days",
+    "seed",
+    "environment"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-36",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/returns-table",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-testbed"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 512,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-37",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/risk-metrics",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-testbed"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 520,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-38",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/turnover",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-testbed"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 528,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-39",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/allocation-history",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-testbed"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 536,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-40",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/benchmark",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "robo-testbed"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 545,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DASH-01",
+   "router": "dashboard",
+   "method": "GET",
+   "path": "/api/dashboard/accounts",
+   "summary": "투자 사이트별 현재 투자액. 같은 DB 세션을 공유하므로 순차 실행한다(탭 수가 적어 충분히 빠름).",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "developer.kbsec.com",
+    "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "paper-api.alpaca.markets",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "dashboard"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/dashboard.py",
+   "line": 158,
+   "errors": [],
+   "keys": [
+    "tabs",
+    "order",
+    "generated_at"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-01",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/stocks",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr"
+   ],
+   "screens": [],
+   "part": "P-B",
+   "req": [
+    "P02-②-3"
+   ],
+   "file": "app/routes/openapi.py",
+   "line": 83,
+   "errors": [
+    "503 MARKET_DATA_UNAVAILABLE"
+   ],
+   "keys": [
+    "stocks"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-02",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/quote/{symbol}",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-B",
+   "req": [
+    "P02-②-3"
+   ],
+   "file": "app/routes/openapi.py",
+   "line": 98,
+   "errors": [
+    "404 NOT_FOUND"
+   ],
+   "keys": [
+    "symbol",
+    "code",
+    "name",
+    "market",
+    "price",
+    "prevClose",
+    "change",
+    "changeRate",
+    "currency"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-03",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/account",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/openapi.py",
+   "line": 111,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-04",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/positions",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/openapi.py",
+   "line": 118,
+   "errors": [],
+   "keys": [
+    "positions"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-05",
+   "router": "openapi",
+   "method": "POST",
+   "path": "/openapi/v1/orders",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/openapi.py",
+   "line": 129,
+   "errors": [
+    "400 INVALID_REQUEST"
+   ],
+   "keys": [],
+   "body": [
+    "OpenApiOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-06",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/orders",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/openapi.py",
+   "line": 142,
+   "errors": [],
+   "keys": [
+    "orders"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-07",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/crypto/hold",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/openapi.py",
+   "line": 147,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-08",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/alternatives/positions",
+   "summary": "",
+   "auth": "API 키",
+   "reaches": [
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/openapi.py",
+   "line": 154,
+   "errors": [],
+   "keys": [
+    "positions",
+    "totalEvalAmount"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-OAPI-09",
+   "router": "openapi",
+   "method": "GET",
+   "path": "/openapi/v1/docs-summary",
+   "summary": "프론트(Open API 화면)에서 보여줄 엔드포인트 요약.",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "paper-openapi"
+   ],
+   "part": "P-B",
+   "req": [
+    "P02-②-3"
+   ],
+   "file": "app/routes/openapi.py",
+   "line": 160,
+   "errors": [],
+   "keys": [
+    "baseUrl",
+    "auth",
+    "rateLimit",
+    "endpoints"
+   ],
+   "body": [],
+   "schema": false
+  },
+  {
+   "id": "API-LEAN-01",
+   "router": "lean",
+   "method": "GET",
+   "path": "/api/backtests/lean/status",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "LEAN",
+    "Docker"
+   ],
+   "hosts": [],
+   "screens": [
+    "quant-lean"
+   ],
+   "part": "P-D",
+   "req": [
+    "P02-③-2"
+   ],
+   "file": "app/routes/lean.py",
+   "line": 64,
+   "errors": [],
+   "keys": [
+    "remote",
+    "effective"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEAN-02",
+   "router": "lean",
+   "method": "POST",
+   "path": "/api/backtests/lean/run",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "LEAN",
+    "Docker"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-D",
+   "req": [
+    "P02-①-1",
+    "P02-①-3",
+    "P02-③-2",
+    "P02-④-1",
+    "P02-④-2"
+   ],
+   "file": "app/routes/lean.py",
+   "line": 70,
+   "errors": [
+    "422",
+    "502"
+   ],
+   "keys": [],
+   "body": [
+    "BacktestRequest"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-LEAN-03",
+   "router": "lean",
+   "method": "GET",
+   "path": "/api/backtests/lean/history",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "quant-lean"
+   ],
+   "part": "P-D",
+   "req": [
+    "P02-①-3",
+    "P02-③-2",
+    "P02-④-2"
+   ],
+   "file": "app/routes/lean.py",
+   "line": 97,
+   "errors": [],
+   "keys": [
+    "runs"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-01",
+   "router": "rebalance",
+   "method": "GET",
+   "path": "/api/rebalance/plan",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 63,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-02",
+   "router": "rebalance",
+   "method": "PUT",
+   "path": "/api/rebalance/plan",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 72,
+   "errors": [
+    "400"
+   ],
+   "keys": [],
+   "body": [
+    "PlanBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-03",
+   "router": "rebalance",
+   "method": "GET",
+   "path": "/api/rebalance/status",
+   "summary": "현재 비중·목표 비중·이탈률 + 트리거 상태.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "dashboard",
+    "robo-rebalance"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 90,
+   "errors": [
+    "409"
+   ],
+   "keys": [
+    "plan",
+    "snapshot",
+    "automatic_check",
+    "triggers"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-04",
+   "router": "rebalance",
+   "method": "POST",
+   "path": "/api/rebalance/preview",
+   "summary": "현재 시세 기준 리밸런싱 주문 제안(체결하지 않음).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 111,
+   "errors": [
+    "400"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-05",
+   "router": "rebalance",
+   "method": "POST",
+   "path": "/api/rebalance/execute",
+   "summary": "수동 리밸런싱 실행(MANUAL) 또는 제안 승인 실행.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 124,
+   "errors": [
+    "400"
+   ],
+   "keys": [],
+   "body": [
+    "ExecuteBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-06",
+   "router": "rebalance",
+   "method": "POST",
+   "path": "/api/rebalance/check",
+   "summary": "시간·이탈률 트리거를 지금 점검(스케줄러와 동일 로직).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 144,
+   "errors": [
+    "409"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-07",
+   "router": "rebalance",
+   "method": "POST",
+   "path": "/api/rebalance/cashflow",
+   "summary": "입금·출금·배당 이벤트 기록 → 조건 충족 시 CASHFLOW 리밸런싱.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 158,
+   "errors": [
+    "400"
+   ],
+   "keys": [],
+   "body": [
+    "CashflowBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-08",
+   "router": "rebalance",
+   "method": "GET",
+   "path": "/api/rebalance/cashflows",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-rebalance"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 173,
+   "errors": [],
+   "keys": [
+    "events"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-09",
+   "router": "rebalance",
+   "method": "GET",
+   "path": "/api/rebalance/runs",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-rebalance"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 179,
+   "errors": [],
+   "keys": [
+    "runs"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-TV-01",
+   "router": "tradingview",
+   "method": "POST",
+   "path": "/api/webhooks/tradingview",
+   "summary": "TradingView 알림 Webhook. 본문은 JSON(권장) 또는 'key=value' 텍스트.",
+   "auth": "없음",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "Redis",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/tradingview.py",
+   "line": 36,
+   "errors": [
+    "400",
+    "403",
+    "429",
+    "?"
+   ],
+   "keys": [
+    "ok",
+    "status",
+    "message",
+    "symbol",
+    "side",
+    "quantity",
+    "fill_price"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-TV-02",
+   "router": "tradingview",
+   "method": "GET",
+   "path": "/api/tradingview/webhook-info",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "indicator-tradingview"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/tradingview.py",
+   "line": 85,
+   "errors": [],
+   "keys": [
+    "webhook_url",
+    "alert_template",
+    "alert_template_text",
+    "notes"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-TV-03",
+   "router": "tradingview",
+   "method": "GET",
+   "path": "/api/tradingview/signals",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-tradingview"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/tradingview.py",
+   "line": 103,
+   "errors": [],
+   "keys": [
+    "signals"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-TV-04",
+   "router": "tradingview",
+   "method": "POST",
+   "path": "/api/tradingview/compare",
+   "summary": "TradingView Strategy Tester 성과를 LEAN 백테스트와 교차 검증한다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "LEAN",
+    "Docker"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/tradingview.py",
+   "line": 131,
+   "errors": [
+    "422",
+    "502"
+   ],
+   "keys": [],
+   "body": [
+    "CompareBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-TV-05",
+   "router": "tradingview",
+   "method": "GET",
+   "path": "/api/tradingview/comparisons",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-tradingview"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/tradingview.py",
+   "line": 188,
+   "errors": [],
+   "keys": [
+    "comparisons"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-01",
+   "router": "formula",
+   "method": "GET",
+   "path": "/api/formula-indicators/reference",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "indicator-formula"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 116,
+   "errors": [],
+   "keys": [
+    "functions",
+    "templates",
+    "rules"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-02",
+   "router": "formula",
+   "method": "POST",
+   "path": "/api/formula-indicators/validate",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 125,
+   "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [
+    "ValidateBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-03",
+   "router": "formula",
+   "method": "POST",
+   "path": "/api/formula-indicators/compute",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 140,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "AdhocComputeBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-04",
+   "router": "formula",
+   "method": "GET",
+   "path": "/api/formula-indicators",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 145,
+   "errors": [],
+   "keys": [
+    "indicators"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-05",
+   "router": "formula",
+   "method": "POST",
+   "path": "/api/formula-indicators",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 151,
+   "errors": [
+    "409",
+    "422"
+   ],
+   "keys": [],
+   "body": [
+    "SaveBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-06",
+   "router": "formula",
+   "method": "GET",
+   "path": "/api/formula-indicators/{ind_id}",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-formula"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 170,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-07",
+   "router": "formula",
+   "method": "PUT",
+   "path": "/api/formula-indicators/{ind_id}",
+   "summary": "이름·설명은 그대로 갱신, 산식/파라미터가 바뀌면 버전을 올리고 이전 버전은 이력에 남긴다.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-formula"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 175,
+   "errors": [
+    "409",
+    "422"
+   ],
+   "keys": [
+    "version_bumped"
+   ],
+   "body": [
+    "SaveBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-08",
+   "router": "formula",
+   "method": "DELETE",
+   "path": "/api/formula-indicators/{ind_id}",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "indicator-formula"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 199,
+   "errors": [],
+   "keys": [
+    "ok"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-09",
+   "router": "formula",
+   "method": "GET",
+   "path": "/api/formula-indicators/{ind_id}/versions",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 208,
+   "errors": [],
+   "keys": [
+    "current_version",
+    "versions"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-10",
+   "router": "formula",
+   "method": "POST",
+   "path": "/api/formula-indicators/{ind_id}/versions/{version}/restore",
+   "summary": "과거 버전 산식을 새 버전으로 복원(이력은 지우지 않고 앞으로 나아간다).",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 215,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "restored",
+    "message"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-11",
+   "router": "formula",
+   "method": "POST",
+   "path": "/api/formula-indicators/{ind_id}/compute",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 231,
+   "errors": [],
+   "keys": [
+    "from_cache"
+   ],
+   "body": [
+    "ComputeBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-12",
+   "router": "formula",
+   "method": "GET",
+   "path": "/api/formula-indicators/{ind_id}/results",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 257,
+   "errors": [],
+   "keys": [
+    "results"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-FRML-13",
+   "router": "formula",
+   "method": "GET",
+   "path": "/api/formula-indicators/{ind_id}/export",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/formula.py",
+   "line": 265,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GLOS-01",
+   "router": "glossary",
+   "method": "GET",
+   "path": "/api/glossary",
+   "summary": "용어를 찾는다. 이름이 정확히 같은 것 → 이름이 검색어로 시작하는 것 → 이름에 든 것 → 풀이에 든 것 차례로 돌려준다.",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/glossary.py",
+   "line": 29,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GLOS-02",
+   "router": "glossary",
+   "method": "GET",
+   "path": "/api/glossary/categories",
+   "summary": "분류와 분류마다의 용어 수를 화면에 늘어놓는 차례로 돌려준다.",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/glossary.py",
+   "line": 41,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GLOS-03",
+   "router": "glossary",
+   "method": "GET",
+   "path": "/api/glossary/meta",
+   "summary": "표에 든 용어사전이 언제 · 어떤 파일 판으로 들어왔는지, 지금 파일과 같은 판인지 돌려준다.",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/glossary.py",
+   "line": 47,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GLOS-04",
+   "router": "glossary",
+   "method": "GET",
+   "path": "/api/glossary/{name}",
+   "summary": "이름 하나로 용어를 찾는다. 화면의 용어 키(예: sharpe)로도 찾는다 — 설명창이 같은 키로 이 주소를 부를 수 있다.",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-1"
+   ],
+   "file": "app/routes/glossary.py",
+   "line": 53,
+   "errors": [
+    "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-GLOS-05",
+   "router": "glossary",
+   "method": "GET",
+   "path": "/api/glossary/{name}/graph",
+   "summary": "용어 하나에서 이어진 용어와 관계를 그래프 모양(노드 · 간선)으로 돌려준다 — 용어 카드의 「작은 관계 지도」 가 쓴다.",
+   "auth": "없음",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/glossary.py",
+   "line": 64,
+   "errors": [
+    "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-01",
+   "router": "learn",
+   "method": "GET",
+   "path": "/api/learn/catalog",
+   "summary": "기본 교재 + (로그인했으면) 팀 자료의 머리말 목록. 팀 자료는 5분에 한 번 HF 에서 새로 받는다.",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 69,
+   "errors": [],
+   "keys": [
+    "contract",
+    "pages",
+    "builtin_errors",
+    "team"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-02",
+   "router": "learn",
+   "method": "GET",
+   "path": "/api/learn/pages/{slug}",
+   "summary": "기본 교재는 누구나, 팀 자료는 로그인한 사람만. 같은 slug 면 기본 교재가 먼저다(팀 자료가 가리지 못한다).",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 91,
+   "errors": [
+    "401",
+    "404"
+   ],
+   "keys": [
+    "history_url"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-03",
+   "router": "learn",
+   "method": "POST",
+   "path": "/api/learn/pages",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 109,
+   "errors": [
+    "409"
+   ],
+   "keys": [
+    "slug",
+    "version",
+    "commit"
+   ],
+   "body": [
+    "PageIn"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-04",
+   "router": "learn",
+   "method": "PUT",
+   "path": "/api/learn/pages/{slug}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 124,
+   "errors": [
+    "400",
+    "404"
+   ],
+   "keys": [
+    "slug",
+    "version",
+    "commit",
+    "changed"
+   ],
+   "body": [
+    "PageUpdate"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-05",
+   "router": "learn",
+   "method": "DELETE",
+   "path": "/api/learn/pages/{slug}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 143,
+   "errors": [
+    "400",
+    "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-06",
+   "router": "learn",
+   "method": "GET",
+   "path": "/api/learn/pages/{slug}/history",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 160,
+   "errors": [
+    "404"
+   ],
+   "keys": [
+    "slug",
+    "commits",
+    "url"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LRN-07",
+   "router": "learn",
+   "method": "POST",
+   "path": "/api/learn/sync",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "huggingface.co"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/learn.py",
+   "line": 172,
+   "errors": [],
+   "keys": [
+    "team"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-01",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/market/kospi-history",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 37,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-02",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/market/rate-market-history",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 45,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-03",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/market/kospi200-history",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "외부"
+   ],
+   "hosts": [
+    "api.finance.naver.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 53,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-04",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/market/central-bank-event-history",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "야후"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 61,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-05",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/market/intraday",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "야후"
+   ],
+   "hosts": [
+    "query1.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 70,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-06",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/market/period-return",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 78,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-07",
+   "router": "lectures",
+   "method": "POST",
+   "path": "/api/lectures/market/period-return/extend",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 90,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-LEC-08",
+   "router": "lectures",
+   "method": "GET",
+   "path": "/api/lectures/historic-bond-image",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "www.emuseum.go.kr"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/lectures.py",
+   "line": 98,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-01",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/status",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "data-status"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 23,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-02",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/ohlcv",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 29,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-03",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/search",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-news"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 48,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-04",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/financials",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 72,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CAL-01",
+   "router": "calendar",
+   "method": "GET",
+   "path": "/api/calendar/trading-days",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "market-calendar"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/calendar.py",
+   "line": 35,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CAL-02",
+   "router": "calendar",
+   "method": "GET",
+   "path": "/api/calendar/events",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "market-calendar"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/calendar.py",
+   "line": 44,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-CAL-03",
+   "router": "calendar",
+   "method": "GET",
+   "path": "/api/calendar/events/summary",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "market-calendar"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/calendar.py",
+   "line": 59,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KB-01",
+   "router": "kb",
+   "method": "GET",
+   "path": "/api/kb/documents",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-4"
+   ],
+   "file": "app/routes/kb.py",
+   "line": 25,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KB-02",
+   "router": "kb",
+   "method": "GET",
+   "path": "/api/kb/search",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [
+    "P01-①-3"
+   ],
+   "file": "app/routes/kb.py",
+   "line": 33,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KB-03",
+   "router": "kb",
+   "method": "POST",
+   "path": "/api/kb/ask",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "Qdrant",
+    "LLM"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-chat"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/kb.py",
+   "line": 77,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [
+    "AskBody"
+   ],
+   "schema": true
+  }
+ ]
+}

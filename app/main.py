@@ -200,6 +200,9 @@ if os.path.isdir(_public):
     # 금융 강의 본문 — 「금융 필수 지식」 의 주제 화면이 iframe 으로 싣는다. 파일은 scripts/lectures_build.py 가
     # 통합본 사본(rag-lab/)에서 만들어 둔다(손으로 고치지 않는다 — 빌드가 덮어쓴다).
     app.mount("/lectures", _RevalidateHtml(directory=os.path.join(_public, "lectures"), html=True, check_dir=False), name="lectures")
+    # API 문서(2026-10-06 · 시스템관리 서랍) — /openapi.json 을 앱 디자인으로 그리고 Swagger UI 로 시험 호출하는 별도 HTML.
+    # FastAPI 기본 /docs 와 같은 명세를 읽으므로 공개 범위도 같다(로그인 없이 열림 · 시험 호출은 그 사람의 쿠키로).
+    app.mount("/api-docs", _RevalidateHtml(directory=os.path.join(_public, "api-docs"), html=True, check_dir=False), name="api-docs")
 
     async def _logged_in(fin_session: str | None) -> bool:
         """쿠키의 세션이 Redis 에 살아 있나 — 화면 주소를 고를 때만 쓴다(Redis 가 안 되면 로그인 안 됨으로)."""
