@@ -94,7 +94,8 @@ docs/github-archive/
 │   └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (#113 · 머지 4293b82)
 └── 2026-10-06/        ← 새 글 3건
     ├── PR-feat-sector-route-calendar-research-api-docs/  00-본문.md  (#120 · 머지 619ae7a) · 01 갱신(10-06 오후 · 섹터 분류 2판 · 올릴 것)
-    ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (올릴 것 · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
+    ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
+    ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (올릴 것 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
     └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올릴 것 · DF-73 · DF-75 · 리밸런싱 PR 작성자께)
 ```
 
@@ -386,7 +387,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR feat-sector-route-calendar-research-api-docs](2026-10-06/PR-feat-sector-route-calendar-research-api-docs/00-본문.md) | feat: 섹터 질문 분류 · 일정 2판 · 리서치 화면 · API 문서 화면 — 목표 기능 ① W7 화면 · 시스템관리 | 5,067 | #120 · 머지 619ae7a(10-06 12:21) |
-| [PR feat-kb-faithfulness-guards-sector-words](2026-10-06/PR-feat-kb-faithfulness-guards-sector-words/00-본문.md) | feat: 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판 — 목표 기능 ① W8 | 4,650 | (올린 뒤) |
+| [PR feat-kb-faithfulness-guards-sector-words](2026-10-06/PR-feat-kb-faithfulness-guards-sector-words/00-본문.md) | feat: 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판 — 목표 기능 ① W8 | 4,650 | #125 · 머지 `e0ffe8e` |
+| [PR docs-kb-faithfulness-judge-decision](2026-10-06/PR-docs-kb-faithfulness-judge-decision/00-본문.md) | docs: 근거 충실도 판정 결정 · 머지 뒤 실측 둘 — 목표 기능 ① W8 | 2,256 | (올린 뒤) |
 | [이슈 리밸런싱정책-시험DB](2026-10-06/이슈-리밸런싱정책-시험DB/00-본문.md) | [요청] 리밸런싱 시험 두 가지 — 새 시험 DB 에 표가 없고(DF-73), 한국어 Windows 에서 고정물이 JSON 을 못 읽습니다(DF-75) | 3,417 | (올린 뒤) |
 
 - 같은 날 팀원 글: **#117 리밸런싱 정책 이슈**(팀원이 올림 · 사용자 확인 2026-10-06) — 우리 기록 폴더는 없다(링크는 `Github-링크.md`).
