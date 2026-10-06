@@ -7,6 +7,8 @@
    화면 파일(api-docs-core.js)을 그대로 Node 로 돌린다 — 파이썬으로 다시 쓰면 고친 곳을 시험하지 못한다(TC-LC-09 와 같은 길).
 카탈로그가 지금 코드와 같은지는 시험으로 막지 않는다 — 팀원이 라우트를 더한 PR 이 실패하게 된다(TC-CP 와 같은 까닭).
 뒤처졌는지는 `python scripts/api_scan.py --catalog public/api-docs/catalog.json --check` 와 점검(check.ps1 시스템)으로 본다.
+4. 그 검사(`--check`)는 줄 끝을 접어 견준다 — core.autocrlf 작업 트리는 체크아웃 때 CRLF 로 바꿔 써서, 바이트 그대로면
+   코드가 같아도 머지 · 브랜치 전환 뒤 늘 「뒤처졌다」 가 됐다(DF-77).
 """
 from __future__ import annotations
 
@@ -68,6 +70,20 @@ def test_catalog_fields_and_committed_file_shape():
     for r in saved["routes"]:
         assert list(r) == keys and re.fullmatch(r"API-[A-Z]+-\d+", r["id"]), r
 
+
+
+def test_catalog_check_folds_line_endings(tmp_path):
+    """TC-AD-04 · 카탈로그 검사는 줄 끝을 접어 견준다 — CRLF 로 체크아웃된 파일도 코드가 같으면 통과 · 내용이 다르면 실패(DF-77)."""
+    import scripts.api_scan as scan
+    _cb, routes, _reg = scan.scan(scan.ROOT)
+    scan.attach_screens(routes, scan.ROOT)
+    made = scan.catalog_json(routes)
+    crlf = tmp_path / "catalog.json"
+    crlf.write_bytes(made.replace("\n", "\r\n").encode("utf-8"))
+    assert scan.main(["--catalog", str(crlf), "--check"]) == 0
+    stale = tmp_path / "stale.json"
+    stale.write_bytes(made.replace('"count"', '"count_old"', 1).encode("utf-8"))
+    assert scan.main(["--catalog", str(stale), "--check"]) == 1
 
 NODE_CASES = r"""
 import * as C from "__CORE__";
