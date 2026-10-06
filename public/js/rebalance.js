@@ -5,7 +5,7 @@ import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
-const ts = (iso) => iso ? new Date(iso).toLocaleString("ko-KR", { hour12: false }) : "-";
+const ts = (iso) => iso ? new Date(iso).toLocaleString("ko-KR", { hour12: false, timeZone: "Asia/Seoul" }) : "-";
 const PERIOD_LABEL = { none: "사용 안 함", monthly: "매월", quarterly: "매분기", yearly: "매년" };
 const TRIGGER_LABEL = { TIME: "시간", DRIFT: "이탈률", CASHFLOW: "현금흐름", MANUAL: "수동" };
 const STATUS_BADGE = {
@@ -120,6 +120,8 @@ async function loadStatus() {
     const r = await api("/api/rebalance/status");
     const { plan, snapshot: s, triggers } = r;
     fillPlanForm(plan);
+    $("rb-schedule-warning").hidden = !plan.time_schedule_error;
+    $("rb-schedule-warning").textContent = plan.time_schedule_error ? `시간 예약 확인 대기: ${plan.time_schedule_error}` : "";
     $("rb-kpis").innerHTML = [
       kpi("관리 자산 (현금+대상 주식)", won(s.total_asset)),
       kpi("제외한 주식 평가액", won(s.excluded_asset || 0)),
@@ -127,7 +129,7 @@ async function loadStatus() {
       kpi("미사용 현금흐름 예산 (+매수 / -매도)", won(s.pending_budget)),
       kpi("현금 비중", `${s.cash_weight_pct}% <span class="text-xs" style="color:var(--text-mute)">목표 ${s.cash_target_pct}%</span>`),
       kpi("최대 이탈", `${s.max_drift_pct}%p`, s.drift_exceeded ? "text-red-500" : "text-emerald-600"),
-      kpi("다음 시간 리밸런싱", plan.time_period === "none" ? "-" : `${PERIOD_LABEL[plan.time_period]}<div class="text-xs font-normal" style="color:var(--text-mute)">${ts(plan.next_run_at)}</div>`),
+      kpi("다음 시간 리밸런싱 (한국시간)", plan.time_period === "none" ? "-" : `${PERIOD_LABEL[plan.time_period]} 첫 거래일<div class="text-xs font-normal" style="color:var(--text-mute)">${plan.time_schedule_error ? '달력 확인 대기' : ts(plan.next_run_at)}</div>`),
     ].join("");
     const badges = [];
     if (triggers.time_due) badges.push(`<span class="badge-sell">시간 트리거 도래</span>`);
@@ -216,7 +218,7 @@ async function checkTriggers() {
     const r = await api("/api/rebalance/check", { method: "POST" });
     const msg = r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
       : `트리거 미충족 (시간 ${r.time_due ? "도래" : "대기"} · 최대 이탈 ${r.max_drift_pct ?? "-"}%p)`;
-    setToast(msg, r.trigger ? "ok" : "error");
+    setToast(msg + (r.time_schedule_error ? ` · 시간 예약 확인 대기: ${r.time_schedule_error}` : ""), r.trigger ? "ok" : "error");
     await loadStatus();
   } catch (e) { setToast(e.message, "error"); }
 }

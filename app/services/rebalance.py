@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import calendar
 import logging
 import hashlib
@@ -29,6 +30,7 @@ from app.models import CashflowEvent, RebalancePlan, RebalanceRun
 from app.models.rebalance import CASHFLOW_KINDS, TIME_PERIODS
 from app.services import paper_trading as pt
 from app.services import rebalance_policy as policy
+from app.services import rebalance_schedule as schedule
 
 logger = logging.getLogger(__name__)
 
@@ -115,16 +117,23 @@ def _add_months(dt: datetime, months: int) -> datetime:
 
 
 def next_period_start(now: datetime, period: str) -> datetime | None:
-    """다음 주기 시작 시각(월초/분기초/연초 00:00 UTC)."""
-    if period not in TIME_PERIODS or period == "none":
-        return None
-    first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if period == "monthly":
-        return _add_months(first, 1)
-    if period == "quarterly":
-        q_start_month = ((now.month - 1) // 3) * 3 + 1
-        return _add_months(first.replace(month=q_start_month), 3)
-    return first.replace(month=1, year=now.year + 1)
+    """다음 주기의 첫 거래일 09:00 KST. 달력 부족 시 CalendarUnavailable."""
+    anchor = schedule.next_boundary(now, period)
+    return schedule.first_trading_time(anchor, period) if anchor else None
+
+
+async def refresh_time_schedule(plan, now=None):
+    now = now or datetime.now(timezone.utc)
+    state = await asyncio.to_thread(schedule.resolve, plan.time_period, plan.next_run_at, now)
+    plan.next_run_at = state["next_run_at"]
+    plan.time_schedule_error = state["error"]
+    return state
+
+
+async def advance_time_schedule(plan, now):
+    # Keep the period anchor if next year's calendar is not ready; never roll back fills.
+    plan.next_run_at = schedule.next_boundary(now, plan.time_period)
+    await refresh_time_schedule(plan, now)
 
 
 def apply_plan_update(plan: RebalancePlan, data: dict) -> RebalancePlan:
@@ -139,7 +148,7 @@ def apply_plan_update(plan: RebalancePlan, data: dict) -> RebalancePlan:
         if period not in TIME_PERIODS:
             raise RebalanceError(f"지원하지 않는 주기입니다: {period}")
         if period != plan.time_period or plan.next_run_at is None:
-            plan.next_run_at = next_period_start(datetime.now(timezone.utc), period)
+            plan.next_run_at = schedule.next_boundary(datetime.now(timezone.utc), period)
         plan.time_period = period
     if "drift_enabled" in data:
         plan.drift_enabled = bool(data["drift_enabled"])
@@ -176,7 +185,9 @@ def plan_to_dict(plan: RebalancePlan) -> dict:
         "targets": plan.targets or [], "cash_weight_pct": round(100 - stock_total, 2),
         "time_period": plan.time_period,
         "drift_check_mode": plan.drift_check_mode, "exclude_unplanned": plan.exclude_unplanned,
-        "next_run_at": plan.next_run_at.isoformat() if plan.next_run_at else None,
+        "next_run_at": (plan.next_run_at.isoformat() if plan.next_run_at
+                        and not getattr(plan, "time_schedule_error", None) else None),
+        "time_schedule_error": getattr(plan, "time_schedule_error", None),
         "drift_enabled": plan.drift_enabled, "drift_threshold_pct": plan.drift_threshold_pct,
         "cashflow_enabled": plan.cashflow_enabled, "cashflow_min_amount": plan.cashflow_min_amount,
         "auto_execute": plan.auto_execute, "min_order_amount": plan.min_order_amount,
@@ -332,7 +343,7 @@ async def execute(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, tri
     if count:
         plan.last_run_at = datetime.now(timezone.utc)
     if "TIME" in (run.triggers or [trigger]):
-        plan.next_run_at = next_period_start(datetime.now(timezone.utc), plan.time_period)
+        await advance_time_schedule(plan, datetime.now(timezone.utc))
     await db.flush()
     return run
 
@@ -346,6 +357,8 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
     # Serialize against ordinary orders too, so a cashflow/approval cannot spend the same balance.
     await pt.get_account(db, user_id, lock=True)
     now = datetime.now(timezone.utc)
+    timing = await refresh_time_schedule(plan, now)
+    result["time_schedule_error"] = timing["error"]
     today = now.astimezone(KST).date()
     existing = (await db.execute(select(RebalanceRun).where(
         RebalanceRun.plan_id == plan.id, RebalanceRun.decision_date == today,
@@ -356,8 +369,9 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
     # Creating a proposal advances next_run_at. Keep its due date effective until
     # today's proposal is handled; otherwise the next hourly check cancels it.
     pending_time = bool(existing and existing.status == "proposed" and "TIME" in existing.triggers
-                        and existing.context.get("settings_fingerprint") == fingerprint(plan))
-    result.update(time_due=pending_time or bool(plan.time_period != "none" and plan.next_run_at and plan.next_run_at <= now),
+                        and existing.context.get("settings_fingerprint") == fingerprint(plan)
+                        and timing["trading_today"] and now.astimezone(KST).hour >= 9)
+    result.update(time_due=pending_time or timing["time_due"],
                   drift_due=snap["drift_exceeded"], cashflow_due=bool(plan.cashflow_enabled and snap["cashflow_due"]),
                   max_drift_pct=snap["max_drift_pct"])
     triggers = policy.choose_triggers(result["time_due"], result["drift_due"], plan.drift_check_mode,
@@ -366,11 +380,13 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
         if existing and existing.status == "proposed":
             existing.status, existing.note = "skipped", "현재 조건 미충족 · 다시 점검하면 재산출"
         if result["time_due"]:
-            plan.next_run_at = next_period_start(now, plan.time_period)
+            await advance_time_schedule(plan, now)
         return result
     # Keep concurrent conditions on the same still-pending decision, unless settings changed.
     if existing and existing.status == "proposed" and existing.context.get("settings_fingerprint") == fingerprint(plan):
-        triggers = [t for t in ("TIME", "DRIFT", "CASHFLOW") if t in triggers or t in existing.triggers]
+        triggers = [t for t in ("TIME", "DRIFT", "CASHFLOW") if t in triggers
+                    or (t in existing.triggers and (t != "TIME" or result["time_due"])
+                        and (t != "DRIFT" or plan.drift_check_mode != "scheduled" or result["time_due"]))]
     kind = "full" if any(t in triggers for t in ("TIME", "DRIFT")) else snap["plan_kind"]
     proposal = await propose(db, user_id, plan, snap, kind)
     run = await record_proposal(db, user_id, plan, triggers, proposal, "조건 충족 · 현재 시세로 산출", existing)
@@ -379,7 +395,7 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
     elif plan.auto_execute:
         run = await execute(db, user_id, plan, triggers[0], proposal, existing=run)
     if "TIME" in triggers:
-        plan.next_run_at = next_period_start(now, plan.time_period)
+        await advance_time_schedule(plan, now)
     result.update(run_id=str(run.id), trigger=triggers[0], triggers=triggers, status=run.status)
     await db.flush()
     return result
@@ -504,6 +520,11 @@ async def execute_proposal(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UU
         raise RebalanceError("설정이 바뀌었습니다. 지금 점검으로 제안을 다시 계산하세요.")
     if plan.last_run_at and row.created_at < plan.last_run_at:
         raise RebalanceError("이 제안 이후 체결이 발생했습니다. 지금 점검으로 다시 계산하세요.")
+    if "TIME" in row.triggers:
+        # A calendar correction must also be respected when approving an older proposal.
+        timing = await refresh_time_schedule(plan)
+        if not timing["trading_today"] or datetime.now(KST).hour < 9:
+            raise RebalanceError("시간 제안 승인 대기: " + (timing["error"] or "거래일 오전 9시 이후에 승인할 수 있습니다."))
     await pt.get_account(db, user_id, lock=True)
     proposal = await propose(db, user_id, plan, plan_kind=row.plan_kind)
     return await execute(db, user_id, plan, row.trigger, proposal, existing=row)

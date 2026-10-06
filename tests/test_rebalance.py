@@ -31,12 +31,16 @@ def test_normalize_targets_rejects_negative_or_nonnumeric():
 
 @pytest.mark.parametrize("now,period,expected", [
     (datetime(2026, 9, 29, 12, tzinfo=timezone.utc), "monthly",   datetime(2026, 10, 1, tzinfo=timezone.utc)),
-    (datetime(2026, 12, 15, tzinfo=timezone.utc),    "monthly",   datetime(2027, 1, 1, tzinfo=timezone.utc)),
+    (datetime(2026, 12, 15, tzinfo=timezone.utc),    "monthly",   datetime(2027, 1, 4, tzinfo=timezone.utc)),
     (datetime(2026, 9, 29, tzinfo=timezone.utc),     "quarterly", datetime(2026, 10, 1, tzinfo=timezone.utc)),
-    (datetime(2026, 11, 2, tzinfo=timezone.utc),     "quarterly", datetime(2027, 1, 1, tzinfo=timezone.utc)),
-    (datetime(2026, 3, 3, tzinfo=timezone.utc),      "yearly",    datetime(2027, 1, 1, tzinfo=timezone.utc)),
+    (datetime(2026, 11, 2, tzinfo=timezone.utc),     "quarterly", datetime(2027, 1, 4, tzinfo=timezone.utc)),
+    (datetime(2026, 3, 3, tzinfo=timezone.utc),      "yearly",    datetime(2027, 1, 4, tzinfo=timezone.utc)),
+    (datetime(2026, 10, 6, tzinfo=timezone.utc),    "monthly",   datetime(2026, 11, 2, tzinfo=timezone.utc)),
+    (datetime(2026, 4, 15, tzinfo=timezone.utc),    "monthly",   datetime(2026, 5, 4, tzinfo=timezone.utc)),
+    # UTC에서는 12월이지만 한국시간으로는 이미 1월: 다음 월은 2월.
+    (datetime(2026, 12, 31, 16, tzinfo=timezone.utc), "monthly", datetime(2027, 2, 1, tzinfo=timezone.utc)),
 ])
-def test_next_period_start(now, period, expected):
+def test_next_period_start(now, period, expected, rebalance_calendar):
     assert rb.next_period_start(now, period) == expected
 
 

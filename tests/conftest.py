@@ -59,3 +59,24 @@ def make_candles(n: int = 400, seed: int = 42, start: float = 10_000.0) -> list[
 @pytest.fixture
 def candles() -> list[dict]:
     return make_candles()
+
+
+@pytest.fixture
+def rebalance_calendar(tmp_path, monkeypatch):
+    """실제 수집기 스키마·공휴일 픽스처 → 달력 읽기 서비스까지 검증한다."""
+    import json
+    import sqlite3
+    from datetime import date
+    from collector import db, market_calendar
+    source = Path(__file__).parent / "fixtures" / "kasi_holidays_2020_2027.json"
+    years = json.loads(source.read_text())["years"]
+    holidays = {date.fromisoformat(row["locdate"]): row["date_name"]
+                for rows in years.values() for row in rows if row["is_holiday"] == "Y"}
+    path = tmp_path / "calendar.sqlite3"
+    conn = sqlite3.connect(path, isolation_level=None)
+    conn.executescript(db.SCHEMA)
+    days, _ = market_calendar.build_days(holidays, date(2027, 12, 31), [])
+    market_calendar.write_calendar(conn, days)
+    conn.close()
+    monkeypatch.setenv("COLLECTOR_DB_PATH", str(path))
+    return path
