@@ -75,8 +75,8 @@ def choose_triggers(time_due, drift_due, mode, cashflow_due, drift_enabled=True)
 
 
 def order_cost(row, price, qty, side, when):
-    return tc.order_costs(side.lower(), price, qty, when, market=tc.market_of(row['symbol']),
-                          is_etf=tc.is_etf_name(row['name']))
+    return tc.order_costs(side.lower(), price, qty, when, market=row.get('market') or tc.market_of(row['symbol']),
+                          is_etf=row.get('is_etf', tc.is_etf_name(row['name'])))
 
 
 def orders(snap, prices, minimum, kind='full', budget=None, when=None):

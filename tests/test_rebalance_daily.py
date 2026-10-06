@@ -27,7 +27,7 @@ def ready_data(rebalance_calendar, monkeypatch):
     # Background row counts are a UI optimization, not part of completion/freshness.
     monkeypatch.setattr(data_status, 'counts_view', lambda **kw: ({}, 'fresh'))
     with sqlite3.connect(rebalance_calendar) as db:
-        db.execute("INSERT INTO price_daily (bas_dt,srtn_cd,clpr) VALUES ('20261002','005930',1000)")
+        db.executemany("INSERT INTO price_daily (bas_dt,srtn_cd,clpr) VALUES ('20261002',?,1000)", [('005930',), ('000660',)])
     folder = rebalance_calendar.parent / 'state'
     folder.mkdir()
     record = {'started_at': '2026-10-06T12:30:01+09:00', 'finished_at': '2026-10-06T13:00:00+09:00',
@@ -97,7 +97,7 @@ def test_missing_state_or_calendar_waits(clock, ready_data, monkeypatch, tmp_pat
 @needs_db
 def test_no_action_is_checked_once_even_after_reopening_session(monkeypatch, clock, ready_data):
     async def go():
-        async with scenario(monkeypatch) as (factory, uid):
+        async with scenario(monkeypatch, symbols=('005930.KS', '000660.KS')) as (factory, uid):
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 result = await rb.check_daily(db, uid, plan)
@@ -120,12 +120,12 @@ def test_no_action_is_checked_once_even_after_reopening_session(monkeypatch, clo
 def test_concurrent_daily_checks_only_evaluate_once(monkeypatch, clock, ready_data):
     calls = []
     original = rb.check_due
-    async def counted(*args):
+    async def counted(*args, **kwargs):
         calls.append(1)
-        return await original(*args)
+        return await original(*args, **kwargs)
     monkeypatch.setattr(rb, 'check_due', counted)
     async def go():
-        async with scenario(monkeypatch) as (factory, uid):
+        async with scenario(monkeypatch, symbols=('005930.KS', '000660.KS')) as (factory, uid):
             async def check():
                 async with factory() as db:
                     plan = await rb.get_plan(db, uid)
@@ -141,10 +141,10 @@ def test_concurrent_daily_checks_only_evaluate_once(monkeypatch, clock, ready_da
 @needs_db
 def test_quote_failure_retries_and_next_day_can_check_again(monkeypatch, clock, ready_data):
     original = rb.check_due
-    async def fail(*args):
+    async def fail(*args, **kwargs):
         raise rb.RebalanceError('시세 조회 실패')
     async def go():
-        async with scenario(monkeypatch) as (factory, uid):
+        async with scenario(monkeypatch, symbols=('005930.KS', '000660.KS')) as (factory, uid):
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 monkeypatch.setattr(rb, 'check_due', fail)
@@ -174,7 +174,7 @@ def test_quote_failure_retries_and_next_day_can_check_again(monkeypatch, clock, 
 def test_waiting_batch_does_not_consume_day(monkeypatch, clock, ready_data):
     ready_data[2](ok=False)
     async def go():
-        async with scenario(monkeypatch) as (factory, uid):
+        async with scenario(monkeypatch, symbols=('005930.KS', '000660.KS')) as (factory, uid):
             result = await rb.check_all_due(factory)
             assert result['checked'] == 0 and result['readiness']['state'] == 'update_failed'
             async with factory() as db:

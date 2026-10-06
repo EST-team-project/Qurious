@@ -224,16 +224,29 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     if not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("quantity는 1 이상의 정수여야 합니다.")
     info = await resolve_stock(symbol)
+    return await _fill_stock_order(db, user_id, info, side, quantity, source=source)
+
+
+async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled_at=None):
+    """서버가 검증한 가격으로 장부 정산. 클라이언트가 가격을 지정하는 API가 아니다."""
+    side = (side or "").upper()
+    if side not in (BUY, SELL):
+        raise PaperTradeError("side는 BUY 또는 SELL이어야 합니다.")
+    if not isinstance(quantity, int) or quantity <= 0:
+        raise PaperTradeError("quantity는 1 이상의 정수여야 합니다.")
+    if not math.isfinite(float(info["price"])) or info["price"] <= 0:
+        raise PaperTradeError("유효한 체결 가격이 없습니다.")
     price = _price_unit(info["price"])
     gross = price * quantity
     # 정산금액을 따로 구한다 — 현금은 `가격 × 수량` 이 아니라 이 값으로 움직인다.
     # 모의투자도 비용을 뗀다(KIS 모의투자 규정: 수수료 0.0142% · 세금 0.20%).
     cost = trading_cost.order_costs(
         side=side.lower(), price=price, quantity=quantity,
-        when=trading_cost.today_kst(), market=trading_cost.market_of(info["symbol"]),
+        when=filled_at.date() if filled_at else trading_cost.today_kst(),
+        market=info.get("market") or trading_cost.market_of(info["symbol"]),
         # ETF·ETN 은 증권거래세 과세대상이 아니다. 넘기지 않으면 기본값 False 가 되어
         # **매도 정산에서 0.20%p 를 더 떼게 된다** (2026-09-21 까지 그랬다).
-        is_etf=trading_cost.is_etf_name(info.get("name", "")),
+        is_etf=info.get("is_etf", trading_cost.is_etf_name(info.get("name", ""))),
     )
 
     account = await get_account(db, user_id, lock=True)
@@ -268,7 +281,7 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     db.add(Order(
         user_id=user_id, symbol=info["symbol"], name=info["name"], order_type=side.lower(),
         quantity=quantity, price=price, status="filled", broker="virtual", source=source,
-        **trading_cost.order_fields(cost, price, quantity),
+        **trading_cost.order_fields(cost, price, quantity, filled_at=filled_at),
     ))
     return {"status": "ok", "symbol": info["symbol"], "name": info["name"], "side": side,
             "quantity": quantity, "price": price, "amount": gross,

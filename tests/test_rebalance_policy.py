@@ -103,7 +103,7 @@ def time_calendar(rebalance_calendar, monkeypatch):
 
 
 @asynccontextmanager
-async def scenario(monkeypatch):
+async def scenario(monkeypatch, symbols=('A.KS', 'B.KS')):
     assert 'test' in DB_URL, '시험 DB만 사용'
     engine=create_async_engine(DB_URL)
     factory=async_sessionmaker(engine,expire_on_commit=False)
@@ -115,10 +115,10 @@ async def scenario(monkeypatch):
         db.add(User(id=uid,name='RB test',email=f'{uid}@example.com',password_hash='test',client_id=uid.hex))
         await db.flush()
         db.add(PaperAccount(user_id=uid,cash=200000,initial_cash=1000000))
-        db.add_all([Portfolio(user_id=uid,symbol='A.KS',name='A.KS',quantity=600,avg_price=1000,book='PAPER'),
-                    Portfolio(user_id=uid,symbol='B.KS',name='B.KS',quantity=200,avg_price=1000,book='PAPER')])
+        db.add_all([Portfolio(user_id=uid,symbol=symbols[0],name=symbols[0],quantity=600,avg_price=1000,book='PAPER'),
+                    Portfolio(user_id=uid,symbol=symbols[1],name=symbols[1],quantity=200,avg_price=1000,book='PAPER')])
         plan=await rb.get_plan(db,uid)
-        rb.apply_plan_update(plan,dict(targets=[target(),target('B.KS',20)],drift_enabled=False,
+        rb.apply_plan_update(plan,dict(targets=[target(symbols[0]),target(symbols[1],20)],drift_enabled=False,
                                       cashflow_min_amount=100000,min_order_amount=1000))
         await db.commit()
     try:
@@ -251,7 +251,7 @@ def test_batch_continues_after_one_plan_fails(monkeypatch):
         async with scenario(monkeypatch) as (factory, first_uid):
             async with scenario(monkeypatch) as (_, second_uid):
                 checked = []
-                async def check(db, user_id, plan):
+                async def check(db, user_id, plan, **kwargs):
                     checked.append(user_id)
                     if len(checked) == 1:
                         raise rb.RebalanceError('시세 조회 실패')

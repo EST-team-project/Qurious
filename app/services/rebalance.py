@@ -20,7 +20,7 @@ import logging
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
@@ -32,6 +32,7 @@ from app.services import paper_trading as pt
 from app.services import rebalance_policy as policy
 from app.services import rebalance_schedule as schedule
 from app.services import rebalance_daily as daily
+from app.services import rebalance_prices as prices, rebalance_settlement as settlement
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +268,9 @@ def fingerprint(plan):
 
 def proposal_context(plan, proposal):
     return {"settings_fingerprint": fingerprint(plan), "observed_at": proposal["snapshot"]["observed_at"],
-            "price_basis": "current_quote", "estimated_cost": proposal["estimated_cost"],
+            "price_basis": proposal["snapshot"]["price_basis"],
+            **{k: proposal["snapshot"][k] for k in ("valuation_date", "account_stamp") if k in proposal["snapshot"]},
+            "estimated_cost": proposal["estimated_cost"],
             "estimated_cash_after": proposal["estimated_cash_after"]}
 
 
@@ -351,7 +354,7 @@ async def execute(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, tri
     return run
 
 
-async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -> dict:
+async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, *, valuation_date=None) -> dict:
     await lock_user(db, user_id)
     await db.refresh(plan)
     result = dict(time_due=False, drift_due=False, cashflow_due=False, run_id=None, trigger=None, triggers=[])
@@ -360,6 +363,9 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
     # Serialize against ordinary orders too, so a cashflow/approval cannot spend the same balance.
     await pt.get_account(db, user_id, lock=True)
     now = datetime.now(timezone.utc)
+    reserved = await settlement.pending(db, user_id)
+    if reserved:
+        return {**result, "run_id": str(reserved.id), "status": "scheduled", "already_processed": True}
     timing = await refresh_time_schedule(plan, now)
     result["time_schedule_error"] = timing["error"]
     today = now.astimezone(KST).date()
@@ -367,8 +373,17 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
         RebalanceRun.plan_id == plan.id, RebalanceRun.decision_date == today,
         RebalanceRun.trigger != "MANUAL").with_for_update())).scalar_one_or_none()
     if existing and existing.status in ("executed", "partial", "failed"):
-        return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True}
-    snap = await snapshot(db, user_id, plan)
+        return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True,
+                "price_basis": existing.context.get("price_basis", "current_quote")}
+    # Manual checks must not overwrite or immediately fill an automatic close proposal.
+    if existing and existing.status == "proposed" and existing.context.get("price_basis") == "previous_close" and valuation_date is None:
+        return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True,
+                "price_basis": existing.context.get("price_basis", "current_quote")}
+    try:
+        snap = (await settlement.close_snapshot(db, user_id, plan, valuation_date) if valuation_date
+                else await snapshot(db, user_id, plan))
+    except prices.PriceUnavailable as exc:
+        raise RebalanceError(str(exc)) from exc
     # Creating a proposal advances next_run_at. Keep its due date effective until
     # today's proposal is handled; otherwise the next hourly check cancels it.
     pending_time = bool(existing and existing.status == "proposed" and "TIME" in existing.triggers
@@ -392,9 +407,14 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -
                         and (t != "DRIFT" or plan.drift_check_mode != "scheduled" or result["time_due"]))]
     kind = "full" if any(t in triggers for t in ("TIME", "DRIFT")) else snap["plan_kind"]
     proposal = await propose(db, user_id, plan, snap, kind)
-    run = await record_proposal(db, user_id, plan, triggers, proposal, "조건 충족 · 현재 시세로 산출", existing)
+    run = await record_proposal(db, user_id, plan, triggers, proposal, "조건 충족 · 전 거래일 종가로 산출" if valuation_date else "조건 충족 · 현재 시세로 산출", existing)
     if not proposal["orders"]:
         run.status, run.note = "skipped", "최소 주문금액·정수 수량 또는 목표 비중 조건으로 주문 없음"
+    elif plan.auto_execute and valuation_date:
+        try:
+            run = await settlement.reserve(db, user_id, plan, run)
+        except prices.PriceUnavailable as exc:
+            raise RebalanceError(str(exc)) from exc
     elif plan.auto_execute:
         run = await execute(db, user_id, plan, triggers[0], proposal, existing=run)
     if "TIME" in triggers:
@@ -418,14 +438,17 @@ async def check_daily(db, user_id, plan):
     readiness = await asyncio.to_thread(daily.readiness)
     if not readiness["ready"] or readiness["decision_date"] != today.isoformat():
         return {"checked": False, "reason": "data_waiting"}
-    result = await check_due(db, user_id, plan)
+    pending_run = await settlement.settle(db, user_id, plan, readiness)
+    if pending_run and pending_run.status == "scheduled":
+        return {"checked": False, "reason": "settlement_waiting", "run_id": str(pending_run.id)}
+    result = await check_due(db, user_id, plan, valuation_date=date.fromisoformat(readiness["data_as_of"]))
     plan.last_auto_check_date = today
     plan.last_auto_check_at = datetime.now(timezone.utc)
     plan.last_auto_check_result = {
         "data_as_of": readiness["data_as_of"], "update_finished_at": readiness["update_finished_at"],
         "run_id": result.get("run_id"), "triggers": result.get("triggers", []),
         "status": result.get("status", "no_action"), "already_processed": result.get("already_processed", False),
-        "price_basis": "current_quote",
+        "price_basis": result.get("price_basis", "previous_close"),
     }
     await db.flush()
     return {**result, "checked": True}
@@ -438,12 +461,17 @@ async def check_all_due(session_factory) -> dict:
     if not readiness["ready"]:
         return dict(checked=0, executed=0, proposed=0, skipped=0, errors=0, readiness=readiness)
     async with session_factory() as db:
-        user_ids = (await db.execute(select(RebalancePlan.user_id).where(RebalancePlan.is_active.is_(True)))).scalars().all()
+        user_ids = (await db.execute(select(RebalancePlan.user_id))).scalars().all()
         for user_id in user_ids:
             try:
                 plan = await get_plan(db, user_id, create=False)
                 if plan is None:
                     continue
+                settled = await settlement.settle(db, user_id, plan, await asyncio.to_thread(daily.readiness))
+                # Commit settlement independently: a missing price for a new decision must not undo it.
+                await db.commit()
+                if settled and settled.status == "executed":
+                    executed += 1
                 r = await check_daily(db, user_id, plan)
                 if not r["checked"]:
                     await db.commit()
@@ -564,6 +592,11 @@ async def execute_proposal(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UU
         timing = await refresh_time_schedule(plan)
         if not timing["trading_today"] or datetime.now(KST).hour < 9:
             raise RebalanceError("시간 제안 승인 대기: " + (timing["error"] or "거래일 오전 9시 이후에 승인할 수 있습니다."))
+    if row.context.get("price_basis") == "previous_close":
+        try:
+            return await settlement.reserve(db, user_id, plan, row)
+        except prices.PriceUnavailable as exc:
+            raise RebalanceError(str(exc)) from exc
     await pt.get_account(db, user_id, lock=True)
     proposal = await propose(db, user_id, plan, plan_kind=row.plan_kind)
     return await execute(db, user_id, plan, row.trigger, proposal, existing=row)
