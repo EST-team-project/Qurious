@@ -1637,7 +1637,7 @@
                   <div class="flex flex-wrap gap-2 items-end mb-2">
                     <div class="flex-1 min-w-[140px]"><label class="text-xs font-semibold"
                         style="color:var(--text-dim);">종목코드</label><input id="rb-add-symbol" class="input mt-1"
-                        placeholder="005930 / AAPL" /></div>
+                        placeholder="005930 (국내 주식·ETF)" /></div>
                     <div style="width:110px"><label class="text-xs font-semibold"
                         style="color:var(--text-dim);">비중(%)</label><input id="rb-add-weight" type="number" min="0"
                         max="100" step="0.5" class="input mt-1" placeholder="30" /></div>
@@ -1683,7 +1683,7 @@
                     <div><label class="text-xs font-semibold" style="color:var(--text-dim);">최소 주문금액 (원)</label><input
                         id="rb-min-order" type="number" min="0" step="10000" class="input mt-1" /></div>
                     <label class="flex items-center gap-2 text-xs"><input id="rb-auto" type="checkbox"
-                        class="h-4 w-4" /> 자동 실행 (정기 점검: 시가 체결 예약 / 해제: 제안만 생성)</label>
+                        class="h-4 w-4" /> 자동 예약 (해제: 제안만 생성)</label>
                     <label class="flex items-center gap-2 text-xs"><input id="rb-active" type="checkbox"
                         class="h-4 w-4" /> 플랜 활성화</label>
                   </div>
@@ -1692,7 +1692,7 @@
                     <label class="flex items-center gap-2"><input id="rb-protect" type="checkbox" />플랜 밖 종목 유지 (주문·비중 계산에서 제외)</label>
                   </div>
                   <p class="text-xs mt-3" style="color:var(--text-mute);">입금·배당은 매수만, 출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 기준은 입금액 자체가 아닌 목표 대비 현금 초과·부족과 누적 미사용 재배분 예산 중 작은 금액입니다. 일반 매매는 예산에 포함하지 않습니다.</p>
-                  <p class="text-xs mt-2" style="color:var(--text-mute);">시간 주기는 다음 월·분기·연의 첫 거래일 기준입니다. 자동 정기 점검은 12:30 이후 데이터 갱신이 성공하고 시세 기준일이 전 거래일인지 확인한 뒤 하루 한 번 진행합니다. 준비 여부는 5분마다 확인하며, 갱신 실패·지연 시에는 기다립니다. ‘지금 점검’과 입출금 직후 점검은 별도입니다. 자동 정기 점검은 수집 DB의 전 거래일 종가로 계산하고 다음 거래일 시가 수집 후 모의 체결을 확정합니다. 예약 중 계좌·플랜 변경은 정책 논의가 끝날 때까지 확인 대기합니다. 현황·수동 실행·입출금 후 점검은 기존 조회 시세 기준이며, 자동 정기 제안의 승인은 시가 체결 예약으로 처리됩니다.</p>
+                  <p class="text-xs mt-2" style="color:var(--text-mute);">시간 주기는 다음 월·분기·연의 첫 거래일 기준입니다. 자동 정기 점검은 12:30 이후 데이터 갱신이 성공하고 시세 기준일이 전 거래일인지 확인한 뒤 하루 한 번 진행합니다. 준비 여부는 5분마다 확인하며, 갱신 실패·지연 시에는 기다립니다. ‘지금 점검’도 같은 하루 1회 판단을 사용하며, 입출금·배당 뒤에는 다음 일별 점검 회차까지 기다립니다. 자동 정기 점검은 수집 DB의 전 거래일 종가로 계산하고 다음 거래일 시가 수집 후 모의 체결을 확정합니다. 수동 점검·미리보기·실행도 같은 가격 기준을 사용합니다. 예약은 목표 비중을 기준으로 시가 수집 후 수량을 다시 계산합니다. 체결일 당일 이후 계좌 변경과 플랜 변경은 확인 대기합니다.</p>
                   <p id="rb-schedule-warning" class="text-sm mt-2 text-amber-500" role="status" hidden></p>
                   <div class="mt-3"><button id="rb-save" class="btn-primary">플랜 저장</button></div>
                 </div>
@@ -1711,11 +1711,11 @@
                   <div class="flex items-center justify-between mb-3">
                     <h3 class="font-semibold text-sm">🧮 리밸런싱 주문 제안 · 수동 실행</h3>
                     <div class="flex gap-2"><button id="rb-preview" class="btn-secondary text-xs">주문 산출</button><button
-                        id="rb-execute" class="btn-green text-xs" disabled>제안 체결</button></div>
+                        id="rb-execute" class="btn-green text-xs" disabled>시가 체결 예약</button></div>
                   </div>
                   <div id="rb-proposal-summary" class="text-xs mb-2" style="color:var(--text-dim);"></div>
                   <div id="rb-proposal" class="overflow-x-auto text-sm"><span style="color:var(--text-mute);">'주문 산출'을
-                      누르면 현재 시세 기준 매도→매수 주문을 계산합니다.</span></div>
+                      누르면 전 거래일 종가 기준 예상 주문을 계산합니다. 실제 체결 수량은 시가 수집 후 다시 계산합니다.</span></div>
                 </div>
 
                 <!-- 현금흐름 이벤트 -->
@@ -1740,7 +1740,7 @@
                         placeholder="예) 월급 적립 / 삼성전자 2분기 배당" /></div>
                   </div>
                   <div class="mt-3"><button id="rb-cf-submit" class="btn-primary text-xs">이벤트 반영</button> <span
-                      class="text-xs" style="color:var(--text-mute);">현금을 반영한 뒤 세 조건을 함께 점검합니다. 자동 체결을 끄면 제안만 만들며, 소액 재배분 예산은 누적합니다. 출금은 보유 현금 안에서 가능합니다.</span></div>
+                      class="text-xs" style="color:var(--text-mute);">현금은 즉시 반영하고 다음 일별 점검 회차에서 세 조건을 함께 확인합니다. 소액 재배분 예산은 누적합니다. 출금은 보유 현금 안에서 가능합니다.</span></div>
                   <div id="rb-cashflows" class="overflow-x-auto text-sm mt-3"></div>
                 </div>
               </div>

@@ -9,8 +9,9 @@
 흐름
   snapshot()  → 현재 비중·이탈률 계산
   propose()   → 목표 비중과의 차액을 주문(매도 먼저, 매수 나중)으로 변환
-  execute()   → paper_trading.stock_order 로 모의 체결하고 RebalanceRun 기록
-  check_due() → TIME/DRIFT/CASHFLOW 트리거 점검(스케줄러·API 공용)
+  execute()   → 종가로 판단하고 다음 거래일 시가 체결 예약
+  check_daily() → 스케줄러·지금 점검 공통 하루 1회 판단
+  check_due() → 준비된 종가로 TIME/DRIFT/CASHFLOW 조건 계산
 """
 from __future__ import annotations
 
@@ -203,30 +204,20 @@ def plan_to_dict(plan: RebalancePlan) -> dict:
 # ── 스냅샷(현재 비중·이탈률) ──────────────────────────────────────────────
 
 
+async def decision_readiness():
+    state = await asyncio.to_thread(daily.readiness)
+    if not state["ready"] or state["decision_date"] != datetime.now(KST).date().isoformat():
+        raise RebalanceError(state.get("message", "데이터 갱신 완료 대기"))
+    return state
+
+
 async def snapshot(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan) -> dict:
-    """현금 + 주식 포지션 기준 현재 비중과 목표 대비 이탈률."""
-    account = await pt.get_account(db, user_id)
-    positions = await pt.stock_positions(db, user_id)
-    # The shared position service silently falls back to average purchase price on quote failure.
-    # Rebalancing must not interpret that fallback as a current market price.
-    for position in positions:
-        if plan.exclude_unplanned and position["symbol"] not in {t["symbol"] for t in plan.targets}:
-            continue
-        try:
-            quote = await pt.resolve_stock(position["symbol"])
-            price = checked_number(quote["price"], "시세", 0.000001)
-        except (pt.PaperTradeError, KeyError, RebalanceError) as exc:
-            raise RebalanceError(f"{position['symbol']}: 현재 시세를 확인할 수 없어 판정을 중단합니다.") from exc
-        position["currentPrice"] = price
-        position["evalAmount"] = price * position["quantity"]
-    result = policy.weights(float(account.cash), positions, plan.targets or [], plan.drift_threshold_pct,
-                            plan.drift_enabled, plan.exclude_unplanned)
-    events = await pending_cashflows(db, user_id)
-    result.update(policy.cashflow_signal(result["cash_excess"], sum(e.remaining_budget for e in events),
-                                         plan.cashflow_min_amount))
-    result["observed_at"] = datetime.now(timezone.utc).isoformat()
-    result["price_basis"] = "current_quote"
-    return result
+    """모든 판단·미리보기에서 같은 갱신 완료 조건과 전 거래일 종가를 사용한다."""
+    state = await decision_readiness()
+    try:
+        return await settlement.price_snapshot(db, user_id, plan, date.fromisoformat(state["data_as_of"]), display=True)
+    except prices.PriceUnavailable as exc:
+        raise RebalanceError(str(exc)) from exc
 
 
 def _weights_from_snapshot(snap: dict) -> dict:
@@ -248,10 +239,7 @@ async def propose(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, sna
     prices = {r["symbol"]: float(r["price"]) for r in snap["rows"] if r["price"]}
     for target in plan.targets:
         if target["symbol"] not in prices:
-            try:
-                prices[target["symbol"]] = float((await pt.resolve_stock(target["symbol"]))["price"])
-            except pt.PaperTradeError as exc:
-                raise RebalanceError(f"{target['symbol']}: 시세 조회 실패") from exc
+            raise RebalanceError(f"{target['symbol']}: 수집 가격이 없어 판정을 기다립니다.")
     budget = snap["cashflow_available"] if plan_kind != "full" else None
     return policy.orders(snap, prices, plan.min_order_amount, plan_kind, budget)
 
@@ -322,34 +310,22 @@ async def execute(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, tri
                   proposal: dict | None = None, note: str = "", existing=None) -> RebalanceRun:
     await lock_user(db, user_id)
     await pt.get_account(db, user_id, lock=True)
+    if not plan.is_active:
+        raise RebalanceError("플랜이 비활성화되었습니다.")
+    await decision_readiness()
+    if await settlement.pending(db, user_id):
+        raise RebalanceError("이미 시가 체결을 기다리는 예약이 있습니다.")
     proposal = proposal or await propose(db, user_id, plan)
+    if proposal["snapshot"].get("price_basis") != "previous_close":
+        raise RebalanceError("전 거래일 종가 기준으로 다시 미리보기 하세요.")
     run = existing or await record_proposal(db, user_id, plan, [trigger], proposal, note)
-    executed = []
-    for order in proposal["orders"]:
-        rec = dict(order)
+    if not proposal["orders"]:
+        run.status, run.note = "skipped", "최소 주문금액·정수 수량 또는 목표 비중 조건으로 주문 없음"
+    else:
         try:
-            async with db.begin_nested():
-                res = await pt.stock_order(db, user_id, order["symbol"], order["side"], int(order["quantity"]), source=ORDER_SOURCE)
-            rec.update(status="filled", price=res["price"], amount=res["amount"],
-                       net_amount=res["net_amount"], cost=res["cost"])
-        except pt.PaperTradeError as exc:
-            rec.update(status="failed", error=str(exc))
-        executed.append(rec)
-    count = sum(o["status"] == "filled" for o in executed)
-    run.status = ("executed" if count == len(executed) else "partial") if count else ("failed" if executed else "skipped")
-    run.orders = executed
-    run.context = {**proposal_context(plan, proposal), "executed_at": datetime.now(timezone.utc).isoformat(),
-                   "actual_cost": round(sum(o['cost']['total_cost'] for o in executed if o['status'] == 'filled'), 2)}
-    await consume_budget(db, user_id, run, executed)
-    try:
-        run.after_weights = _weights_from_snapshot(await snapshot(db, user_id, plan))
-    except RebalanceError:
-        run.after_weights = {}
-        run.context = {**run.context, "after_weights_unavailable": True}
-    if count:
-        plan.last_run_at = datetime.now(timezone.utc)
-    if "TIME" in (run.triggers or [trigger]):
-        await advance_time_schedule(plan, datetime.now(timezone.utc))
+            run = await settlement.reserve(db, user_id, plan, run)
+        except prices.PriceUnavailable as exc:
+            raise RebalanceError(str(exc)) from exc
     await db.flush()
     return run
 
@@ -375,17 +351,15 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, *
     if existing and existing.status in ("executed", "partial", "failed"):
         return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True,
                 "price_basis": existing.context.get("price_basis", "current_quote")}
-    # Manual checks must not overwrite or immediately fill an automatic close proposal.
-    if existing and existing.status == "proposed" and existing.context.get("price_basis") == "previous_close" and valuation_date is None:
-        return {**result, "run_id": str(existing.id), "status": existing.status, "already_processed": True,
-                "price_basis": existing.context.get("price_basis", "current_quote")}
+    if valuation_date is None:
+        readiness = await decision_readiness()
+        valuation_date = date.fromisoformat(readiness["data_as_of"])
     try:
-        snap = (await settlement.close_snapshot(db, user_id, plan, valuation_date) if valuation_date
-                else await snapshot(db, user_id, plan))
+        snap = await settlement.close_snapshot(db, user_id, plan, valuation_date)
     except prices.PriceUnavailable as exc:
         raise RebalanceError(str(exc)) from exc
     # Creating a proposal advances next_run_at. Keep its due date effective until
-    # today's proposal is handled; otherwise the next hourly check cancels it.
+    # today's proposal is handled; otherwise a repeated evaluation cancels it.
     pending_time = bool(existing and existing.status == "proposed" and "TIME" in existing.triggers
                         and existing.context.get("settings_fingerprint") == fingerprint(plan)
                         and timing["trading_today"] and now.astimezone(KST).hour >= 9)
@@ -407,16 +381,14 @@ async def check_due(db: AsyncSession, user_id: uuid.UUID, plan: RebalancePlan, *
                         and (t != "DRIFT" or plan.drift_check_mode != "scheduled" or result["time_due"]))]
     kind = "full" if any(t in triggers for t in ("TIME", "DRIFT")) else snap["plan_kind"]
     proposal = await propose(db, user_id, plan, snap, kind)
-    run = await record_proposal(db, user_id, plan, triggers, proposal, "조건 충족 · 전 거래일 종가로 산출" if valuation_date else "조건 충족 · 현재 시세로 산출", existing)
+    run = await record_proposal(db, user_id, plan, triggers, proposal, "조건 충족 · 전 거래일 종가로 산출", existing)
     if not proposal["orders"]:
         run.status, run.note = "skipped", "최소 주문금액·정수 수량 또는 목표 비중 조건으로 주문 없음"
-    elif plan.auto_execute and valuation_date:
+    elif plan.auto_execute:
         try:
             run = await settlement.reserve(db, user_id, plan, run)
         except prices.PriceUnavailable as exc:
             raise RebalanceError(str(exc)) from exc
-    elif plan.auto_execute:
-        run = await execute(db, user_id, plan, triggers[0], proposal, existing=run)
     if "TIME" in triggers:
         await advance_time_schedule(plan, now)
     result.update(run_id=str(run.id), trigger=triggers[0], triggers=triggers, status=run.status)
@@ -498,7 +470,7 @@ async def check_all_due(session_factory) -> dict:
 
 async def record_cashflow(db: AsyncSession, user_id: uuid.UUID, kind: str, amount: float,
                           symbol: str = "", memo: str = "") -> dict:
-    """현금흐름을 모의계좌에 반영하고, 플랜 조건 충족 시 CASHFLOW 리밸런싱을 실행/제안한다."""
+    """현금과 미사용 예산을 즉시 반영한다. 판정은 다음 일별 점검 회차에서 한다."""
     kind = (kind or "").upper()
     if kind not in CASHFLOW_KINDS:
         raise RebalanceError("kind는 DEPOSIT, WITHDRAW, DIVIDEND 중 하나여야 합니다.")
@@ -531,18 +503,8 @@ async def record_cashflow(db: AsyncSession, user_id: uuid.UUID, kind: str, amoun
     await db.flush()
     await db.refresh(event)
 
-    try:
-        result = await check_due(db, user_id, plan)
-    except RebalanceError as exc:
-        # The cash event is valid even when its market-price-dependent decision must wait.
-        await db.flush()
-        return {"event": cashflow_to_dict(event), "run": None, "check_error": str(exc)}
-    run = await db.get(RebalanceRun, uuid.UUID(result["run_id"])) if result.get("run_id") else None
-    if run and not result.get("already_processed"):
-        event.rebalance_run_id = run.id
-    await db.flush()
-    return {"event": cashflow_to_dict(event), "run": run_to_dict(run) if run else None,
-            "already_processed": result.get("already_processed", False)}
+    return {"event": cashflow_to_dict(event), "run": None, "check_deferred": True,
+            "message": "현금 반영 완료 · 다음 일별 점검 회차에서 리밸런싱 조건을 확인합니다."}
 
 
 def cashflow_to_dict(e: CashflowEvent) -> dict:
@@ -573,7 +535,7 @@ async def list_cashflows(db: AsyncSession, user_id: uuid.UUID, limit: int = 50) 
 
 
 async def execute_proposal(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> RebalanceRun:
-    """Approve once, retain order direction, recalculate current prices and budget."""
+    """오늘 종가 제안을 한 번만 승인하여 목표 비중을 예약한다."""
     plan = await get_plan(db, user_id)
     row = (await db.execute(select(RebalanceRun).where(RebalanceRun.id == run_id, RebalanceRun.user_id == user_id)
                            .with_for_update())).scalar_one_or_none()
@@ -597,6 +559,4 @@ async def execute_proposal(db: AsyncSession, user_id: uuid.UUID, run_id: uuid.UU
             return await settlement.reserve(db, user_id, plan, row)
         except prices.PriceUnavailable as exc:
             raise RebalanceError(str(exc)) from exc
-    await pt.get_account(db, user_id, lock=True)
-    proposal = await propose(db, user_id, plan, plan_kind=row.plan_kind)
-    return await execute(db, user_id, plan, row.trigger, proposal, existing=row)
+    raise RebalanceError("이전 현재가 기준 제안은 승인할 수 없습니다. 종가 기준으로 다시 미리보기 하세요.")
