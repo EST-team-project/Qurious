@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import sqlite3
 
 import pytest
 
@@ -171,3 +172,121 @@ def test_changed_since_upload():
     assert hf_dataset.changed_since_upload(_man(files, up)) == ["a/year=2026/x.parquet"]
     assert hf_dataset.changed_since_upload(_man(files, files)) == []
     assert hf_dataset.changed_since_upload(_man(files, None)) is None
+
+
+# ── 6. 단계 이름표 · 회차 기록 · 한 단계만 다시(2026-10-07 · 결정 ④) ─────────────────────
+def test_every_step_has_label_group_desc_in_group_order():
+    """모든 단계에 화면 이름표 · 묶음 · 하는 일이 있다 — 앱은 이것을 기록에서만 읽으니 빠지면 영어 이름이 보인다.
+    묶음은 ``GROUPS`` 차례대로 이어져 있다(화면이 러너 차례로 줄을 놓고 묶음이 바뀔 때 머리를 단다)."""
+    keys = [g["key"] for g in du.GROUPS]
+    labels = [s.label for s in du.STEPS]
+    assert all(s.label and s.group and s.desc for s in du.STEPS), [s.name for s in du.STEPS if not (s.label and s.group and s.desc)]
+    assert len(set(labels)) == len(labels), "이름표가 겹친다"
+    assert all(s.group in keys for s in du.STEPS)
+    seen = [g for i, g in enumerate(s.group for s in du.STEPS) if i == 0 or du.STEPS[i - 1].group != g]
+    assert seen == [k for k in keys if k in seen], f"묶음이 끊겼거나 차례가 다르다: {seen}"
+    cat = du.step_catalog()
+    assert [s["name"] for s in cat["steps"]] == [s.name for s in du.STEPS] and cat["groups"] == du.GROUPS
+
+
+@pytest.fixture
+def fake_runner(tmp_path, monkeypatch):
+    """임시 폴더에서 도는 러너 — 단계 둘(성공 · 멈추지 않는 실패), 잠금 · 기록 · 로그 · 목록 · 용량 파일 모두 임시 경로."""
+    import functools
+    lock = tmp_path / "state" / "daily_update.lock"
+    for name, rel in (("LOG_DIR", "logs"), ("LAST_PATH", "state/daily_update_last.json"),
+                      ("HISTORY_PATH", "state/daily_update_history.jsonl"),
+                      ("CATALOG_PATH", "state/daily_update_steps.json"), ("DISK_PATH", "state/pc_disk.json")):
+        monkeypatch.setattr(du, name, tmp_path / rel)
+    monkeypatch.setattr(du, "acquire_lock", functools.partial(du.acquire_lock, lock))
+    monkeypatch.setattr(du, "release_lock", functools.partial(du.release_lock, lock))
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: {})
+    monkeypatch.setattr(du, "ROOT", tmp_path)                 # 로그 경로를 저장소 기준 상대 경로로 적는다 — 임시 폴더를 뿌리로
+    db = tmp_path / "market.sqlite3"
+    db.write_bytes(b"x" * 1000)
+    monkeypatch.setattr(du.config, "DB_PATH", db)
+    steps = [du.Step("alpha", ["-c", "pass"], 1, label="가 단계", group="받기", desc="첫 일"),
+             du.Step("beta", ["-c", "import sys; sys.exit(3)"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")]
+    monkeypatch.setattr(du, "STEPS", steps)
+    (tmp_path / "state").mkdir()
+    return tmp_path
+
+
+def test_run_writes_labels_step_history_catalog_and_disk(fake_runner):
+    """회차 기록의 단계 줄에 이름표 · 묶음 · 하는 일 · 멈춤 여부가 함께 남고, 이력 줄에 단계별 결과 · 단계 목록 · 이 PC 용량 파일이 생긴다."""
+    t = fake_runner
+    assert du.run_all() == 3
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert [(s["name"], s["label"], s["group"], s["fatal"], s["rc"]) for s in last["steps"]] == [
+        ("alpha", "가 단계", "받기", True, 0), ("beta", "나 단계", "계산", False, 3)]
+    hist = [json.loads(x) for x in (t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [(s["name"], s["rc"]) for s in hist[-1]["steps"]] == [("alpha", 0), ("beta", 3)]
+    assert "label" not in hist[-1]["steps"][0], "이력 줄은 짧게 — 이름표는 단계 목록 파일에 있다"
+    cat = json.loads((t / "state/daily_update_steps.json").read_text(encoding="utf-8"))
+    assert [s["label"] for s in cat["steps"]] == ["가 단계", "나 단계"]
+    disk = json.loads((t / "state/pc_disk.json").read_text(encoding="utf-8"))
+    assert disk["collector_db_bytes"] == 1000 and disk["free_bytes"] > 0 and disk["total_bytes"] >= disk["free_bytes"]
+    assert not (t / "state/daily_update.lock").exists(), "잠금을 풀었다"
+
+
+def test_rerun_one_step_blocks_and_patches_only_that_row(fake_runner):
+    """한 단계만 다시 — 고를 수 없는 단계 · 올리기 단계는 2, 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 3 으로 막고,
+    돌리면 마지막 회차의 그 줄만 새 결과로 바꾸고 이력에 「다시 돌림」 한 줄을 남긴다."""
+    t = fake_runner
+    du.run_all()
+    noon = datetime.datetime(2026, 10, 7, 12, 45, tzinfo=du.KST)   # 시험 단계 한도 1분 → 12:29 ~ 13:30 이 막힘
+    later = datetime.datetime(2026, 10, 7, 15, 0, tzinfo=du.KST)
+    hist = t / "state/daily_update_history.jsonl"
+    n0 = len(hist.read_text(encoding="utf-8").splitlines())
+    assert du.run_one("없는단계", now=later) == 2
+    assert du.run_one("alpha", now=noon) == 3, "12:30 회차와 겹친다(돌았다면 alpha 는 0 이다)"
+    assert len(hist.read_text(encoding="utf-8").splitlines()) == n0, "막힌 실행은 이력을 남기지 않는다"
+    du.STEPS.append(du.Step("up", ["-c", "pass"], 1, upload=True, label="올림", group="백업", desc="올린다"))
+    assert du.run_one("up", now=later) == 2, "올리기 단계는 --upload 와 함께만"
+    (t / "state/daily_update.lock").write_text(json.dumps({"pid": __import__("os").getpid(),
+                                                           "started_at": later.isoformat()}), encoding="utf-8")
+    assert du.run_one("beta", now=later) == 3, "다른 실행이 돌고 있다"
+    (t / "state/daily_update.lock").unlink()
+
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+    before = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert du.run_one("beta", now=later) == 0
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert last["steps"][0] == before["steps"][0], "다른 단계 줄은 그대로"
+    assert (last["steps"][1]["rc"], last["steps"][1]["note"]) == (0, "다시 돌림") and last["steps"][1]["rerun_at"]
+    assert last["ok"] is True and last["started_at"] == before["started_at"] and last["reruns"][-1]["name"] == "beta"
+    h = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (h["only"], h["ok"], [s["name"] for s in h["steps"]]) == ("beta", True, ["beta"])
+    assert not (t / "state/daily_update.lock").exists()
+
+
+def test_rerun_window_follows_step_timeout():
+    """막는 때는 「회차 시작 − 그 단계 시간 한도」 ~ 「회차 시작 + 60분」 — 긴 단계일수록 일찍부터 막는다."""
+    s10 = du.Step("s", [], 10)
+    s60 = du.Step("l", [], 60)
+    at = lambda h, m: datetime.datetime(2026, 10, 7, h, m, tzinfo=du.KST)  # noqa: E731
+    assert du.rerun_blocked(s10, at(12, 19)) is None and du.rerun_blocked(s10, at(12, 20))
+    assert du.rerun_blocked(s60, at(11, 30)) and du.rerun_blocked(s60, at(11, 29)) is None
+    assert du.rerun_blocked(s10, at(13, 30)) and du.rerun_blocked(s10, at(13, 31)) is None
+
+
+def test_rerun_leaves_wal_side_files_for_the_app(fake_runner, monkeypatch):
+    """한 단계 다시 뒤에도 수집 DB 의 WAL 보조 파일(-wal · -shm)이 남는다 — 앱(도커)은 data/ 를 읽기 전용으로 붙여, 이것이
+    없으면 수집 DB 를 열지 못한다(2026-10-07 `run --only manifest` 뒤 데이터 API 8개가 「unable to open database file」).
+    쓰기 연결이 마지막으로 닫히면 SQLite 가 둘을 지우므로, 러너가 단계 뒤에 읽기 전용으로 한 번 열어 다시 만든다."""
+    t = fake_runner
+    db = t / "wal.sqlite3"
+    c = sqlite3.connect(db)
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("CREATE TABLE x (a INTEGER)")
+    c.commit()
+    c.close()
+    side = (db.with_name(db.name + "-wal"), db.with_name(db.name + "-shm"))
+    assert not any(p.exists() for p in side), "시험의 전제 — 쓰기 연결이 마지막으로 닫히면 보조 파일이 지워진다"
+    monkeypatch.setattr(du.config, "DB_PATH", db)
+    code = f"import sqlite3; c = sqlite3.connect({str(db)!r}); c.execute('INSERT INTO x VALUES (1)'); c.commit(); c.close()"
+    du.STEPS.append(du.Step("write", ["-c", code], 1, fatal=False, label="쓰기", group="받기", desc="수집 DB 에 쓴다"))
+    later = datetime.datetime(2026, 10, 7, 15, 0, tzinfo=du.KST)
+    assert du.run_one("write", now=later) == 0
+    assert all(p.exists() for p in side), "단계가 쓰기 연결로 끝나도 보조 파일이 남아야 앱이 읽는다"
+    assert du.rearm_wal(t / "없는.sqlite3") is False

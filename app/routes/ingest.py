@@ -10,6 +10,7 @@ from app.lib.llm_client import get_llm_client
 from app.models import CrawledDoc
 from app.services.financial_ingest import run_full_ingest
 from app.services.crawl import run_auto_crawl, crawl_url, crawl_naver_stock, _chunk_text, _store_qdrant
+from app.services import url_guard  # Qurious: 주소 검사(허용 목록 · 내부망 · robots) — 규칙은 그 파일에
 from app.services.translation_ingest import (
     run_translation_ingest,
     translation_search,
@@ -50,6 +51,7 @@ async def crawl_manual(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
+    await url_guard.ensure_allowed(body.url)  # Qurious: 막히면 400
     ollama = get_llm_client()
     log: list[str] = []
     chunks = await crawl_url(body.url, db, ollama, log)
@@ -67,6 +69,7 @@ async def crawl_naver(
     db: AsyncSession = Depends(get_pg_session),
 ):
     """네이버 금융 종목 페이지 전용 크롤링."""
+    await url_guard.ensure_allowed(f"https://finance.naver.com/item/main.naver?code={body.code}")  # Qurious: 결정 ① 「막음」
     ollama = get_llm_client()
     log: list[str] = []
     chunks = await crawl_naver_stock(body.code, db, ollama, log)
@@ -190,6 +193,7 @@ async def crawl_auto_async(user=Depends(get_current_user)):
 @router.post("/ingest/crawl/url/async", summary="URL 크롤링 비동기 인제스트")
 async def crawl_url_async(body: CrawlUrlBody, user=Depends(get_current_user)):
     """단일 URL 크롤링을 Celery 워커에 위임한다."""
+    await url_guard.ensure_allowed(body.url)  # Qurious: 막히면 400
     from app.tasks.ingest_tasks import url_crawl_task
     task = url_crawl_task.delay(url=body.url)
     return {"task_id": task.id, "poll_url": f"/api/tasks/{task.id}"}

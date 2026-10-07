@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 228,
+ "count": 231,
  "routers": 29,
  "routes": [
   {
@@ -393,7 +393,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 22,
+   "line": 23,
    "errors": [],
    "keys": [
     "ok",
@@ -429,7 +429,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 32,
+   "line": 33,
    "errors": [],
    "keys": [
     "ok",
@@ -460,7 +460,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 47,
+   "line": 48,
    "errors": [],
    "keys": [
     "ok",
@@ -496,7 +496,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 63,
+   "line": 65,
    "errors": [],
    "keys": [
     "ok",
@@ -527,7 +527,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 77,
+   "line": 80,
    "errors": [],
    "keys": [
     "ok",
@@ -555,7 +555,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 127,
+   "line": 130,
    "errors": [],
    "keys": [
     "ok",
@@ -585,7 +585,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 153,
+   "line": 156,
    "errors": [],
    "keys": [
     "ok",
@@ -616,7 +616,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 172,
+   "line": 175,
    "errors": [],
    "keys": [
     "task_id",
@@ -651,7 +651,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 182,
+   "line": 185,
    "errors": [],
    "keys": [
     "task_id",
@@ -681,7 +681,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 190,
+   "line": 193,
    "errors": [],
    "keys": [
     "task_id",
@@ -712,7 +712,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 198,
+   "line": 202,
    "errors": [],
    "keys": [
     "task_id",
@@ -743,7 +743,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 214,
+   "line": 218,
    "errors": [],
    "keys": [
     "items"
@@ -3666,7 +3666,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 53,
+   "line": 59,
    "errors": [],
    "keys": [],
    "body": [],
@@ -3689,7 +3689,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 68,
+   "line": 74,
    "errors": [],
    "keys": [
     "status",
@@ -3720,7 +3720,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 84,
+   "line": 90,
    "errors": [
     "404"
    ],
@@ -3754,7 +3754,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 92,
+   "line": 98,
    "errors": [],
    "keys": [
     "positions"
@@ -3785,7 +3785,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 98,
+   "line": 104,
    "errors": [],
    "keys": [],
    "body": [
@@ -3815,7 +3815,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 119,
+   "line": 125,
    "errors": [],
    "keys": [],
    "body": [
@@ -3845,7 +3845,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 124,
+   "line": 130,
    "errors": [],
    "keys": [],
    "body": [
@@ -3875,7 +3875,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 129,
+   "line": 135,
    "errors": [],
    "keys": [],
    "body": [
@@ -3905,7 +3905,7 @@
     "P02-③-1"
    ],
    "file": "app/routes/paper.py",
-   "line": 134,
+   "line": 140,
    "errors": [],
    "keys": [],
    "body": [
@@ -3932,7 +3932,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 140,
+   "line": 146,
    "errors": [],
    "keys": [
     "history"
@@ -3959,7 +3959,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 165,
+   "line": 171,
    "errors": [],
    "keys": [
     "markets",
@@ -3987,7 +3987,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 171,
+   "line": 177,
    "errors": [],
    "keys": [
     "rankings"
@@ -4014,7 +4014,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 176,
+   "line": 182,
    "errors": [],
    "keys": [
     "tickers"
@@ -4041,7 +4041,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 181,
+   "line": 187,
    "errors": [
     "400",
     "502"
@@ -4074,7 +4074,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 191,
+   "line": 197,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4100,7 +4100,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 196,
+   "line": 202,
    "errors": [
     "404"
    ],
@@ -4134,7 +4134,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 207,
+   "line": 213,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4158,7 +4158,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 214,
+   "line": 220,
    "errors": [],
    "keys": [],
    "body": [
@@ -4184,7 +4184,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 222,
+   "line": 228,
    "errors": [],
    "keys": [],
    "body": [
@@ -4210,7 +4210,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 234,
+   "line": 240,
    "errors": [],
    "keys": [],
    "body": [
@@ -4235,7 +4235,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 246,
+   "line": 252,
    "errors": [],
    "keys": [
     "history"
@@ -4262,7 +4262,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 260,
+   "line": 266,
    "errors": [],
    "keys": [
     "markets",
@@ -4290,7 +4290,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 266,
+   "line": 272,
    "errors": [
     "404"
    ],
@@ -4321,7 +4321,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 274,
+   "line": 280,
    "errors": [],
    "keys": [
     "positions",
@@ -4347,7 +4347,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 280,
+   "line": 286,
    "errors": [],
    "keys": [
     "history"
@@ -4373,7 +4373,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 285,
+   "line": 291,
    "errors": [],
    "keys": [],
    "body": [
@@ -4399,7 +4399,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 293,
+   "line": 299,
    "errors": [],
    "keys": [],
    "body": [
@@ -4426,7 +4426,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 321,
+   "line": 327,
    "errors": [],
    "keys": [
     "keys"
@@ -4453,7 +4453,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 327,
+   "line": 333,
    "errors": [],
    "keys": [
     "apiKey"
@@ -4482,7 +4482,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 340,
+   "line": 346,
    "errors": [
     "404"
    ],
@@ -4509,7 +4509,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 386,
+   "line": 392,
    "errors": [],
    "keys": [
     "ok",
@@ -4544,7 +4544,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 396,
+   "line": 402,
    "errors": [],
    "keys": [
     "ok",
@@ -4561,7 +4561,7 @@
    "router": "paper",
    "method": "GET",
    "path": "/api/paper/performance/metrics",
-   "summary": "",
+   "summary": "모의계좌 성과 지표 — 로보 어드바이저 스타일 (QFRS).",
    "auth": "세션·JWT",
    "reaches": [
     "수집DB",
@@ -4582,7 +4582,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 408,
+   "line": 414,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4610,7 +4610,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 429,
+   "line": 423,
    "errors": [],
    "keys": [
     "status",
@@ -4628,7 +4628,7 @@
    "method": "POST",
    "path": "/api/paper/performance/simulate",
    "summary": "⚠️ 시연/개발 전용 — 스냅샷을 초기화하고 랜덤 워크 15일치를 삽입.",
-   "auth": "세션·JWT",
+   "auth": "세션·JWT + 역할(admin)",
    "reaches": [
     "PostgreSQL"
    ],
@@ -4639,15 +4639,13 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 453,
-   "errors": [
-    "403"
-   ],
+   "line": 444,
+   "errors": [],
    "keys": [
     "status",
     "days",
     "seed",
-    "environment"
+    "snap_date_kst"
    ],
    "body": [],
    "schema": true
@@ -4669,7 +4667,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 512,
+   "line": 503,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4696,7 +4694,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 520,
+   "line": 511,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4719,7 +4717,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 528,
+   "line": 519,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4742,7 +4740,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 536,
+   "line": 527,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4769,7 +4767,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 545,
+   "line": 536,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5231,14 +5229,9 @@
    "auth": "세션·JWT",
    "reaches": [
     "수집DB",
-    "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
-   "hosts": [
-    "kind.krx.co.kr",
-    "query2.finance.yahoo.com"
-   ],
+   "hosts": [],
    "screens": [
     "dashboard",
     "robo-rebalance"
@@ -5247,13 +5240,12 @@
    "req": [],
    "file": "app/routes/rebalance.py",
    "line": 90,
-   "errors": [
-    "409"
-   ],
+   "errors": [],
    "keys": [
     "plan",
     "snapshot",
     "automatic_check",
+    "valuation_error",
     "triggers"
    ],
    "body": [],
@@ -5264,23 +5256,18 @@
    "router": "rebalance",
    "method": "POST",
    "path": "/api/rebalance/preview",
-   "summary": "현재 시세 기준 리밸런싱 주문 제안(체결하지 않음).",
+   "summary": "갱신 완료된 전 거래일 종가 기준 예상 주문(체결 시 수량 재계산).",
    "auth": "세션·JWT",
    "reaches": [
     "수집DB",
-    "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
-   "hosts": [
-    "kind.krx.co.kr",
-    "query2.finance.yahoo.com"
-   ],
+   "hosts": [],
    "screens": [],
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 111,
+   "line": 112,
    "errors": [
     "400"
    ],
@@ -5293,23 +5280,18 @@
    "router": "rebalance",
    "method": "POST",
    "path": "/api/rebalance/execute",
-   "summary": "수동 리밸런싱 실행(MANUAL) 또는 제안 승인 실행.",
+   "summary": "수동 리밸런싱(MANUAL) 또는 제안 승인의 다음 거래일 시가 예약.",
    "auth": "세션·JWT",
    "reaches": [
     "수집DB",
-    "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
-   "hosts": [
-    "kind.krx.co.kr",
-    "query2.finance.yahoo.com"
-   ],
+   "hosts": [],
    "screens": [],
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 124,
+   "line": 125,
    "errors": [
     "400"
    ],
@@ -5328,19 +5310,14 @@
    "auth": "세션·JWT",
    "reaches": [
     "수집DB",
-    "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
-   "hosts": [
-    "kind.krx.co.kr",
-    "query2.finance.yahoo.com"
-   ],
+   "hosts": [],
    "screens": [],
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 144,
+   "line": 145,
    "errors": [
     "409"
    ],
@@ -5353,23 +5330,17 @@
    "router": "rebalance",
    "method": "POST",
    "path": "/api/rebalance/cashflow",
-   "summary": "입금·출금·배당 이벤트 기록 → 조건 충족 시 CASHFLOW 리밸런싱.",
+   "summary": "현금 즉시 반영 → 다음 일별 점검 회차에서 리밸런싱 판단.",
    "auth": "세션·JWT",
    "reaches": [
-    "수집DB",
-    "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
-   "hosts": [
-    "kind.krx.co.kr",
-    "query2.finance.yahoo.com"
-   ],
+   "hosts": [],
    "screens": [],
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 158,
+   "line": 164,
    "errors": [
     "400"
    ],
@@ -5396,7 +5367,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 173,
+   "line": 179,
    "errors": [],
    "keys": [
     "events"
@@ -5421,7 +5392,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 179,
+   "line": 185,
    "errors": [],
    "keys": [
     "runs"
@@ -6432,10 +6403,71 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 23,
+   "line": 24,
    "errors": [],
    "keys": [],
    "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-05",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/runner",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 36,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-06",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/url-rules",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 42,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-07",
+   "router": "data",
+   "method": "POST",
+   "path": "/api/data/url-check",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 51,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "UrlCheckBody"
+   ],
    "schema": true
   },
   {
@@ -6453,7 +6485,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 29,
+   "line": 57,
    "errors": [
     "?"
    ],
@@ -6478,7 +6510,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 48,
+   "line": 76,
    "errors": [
     "?"
    ],
@@ -6504,7 +6536,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 72,
+   "line": 100,
    "errors": [
     "?"
    ],

@@ -13,9 +13,10 @@ from __future__ import annotations
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.lib.session import get_current_user
-from app.services import data_financials, data_ohlcv, data_search, data_status
+from app.services import data_financials, data_ohlcv, data_search, data_status, url_guard
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -24,6 +25,33 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 async def status(_user=Depends(get_current_user)):
     # 표 세기 · 파일 읽기는 1초 안팎이지만 이벤트 루프를 막지 않게 스레드에서 돈다.
     return await asyncio.to_thread(data_status.get_status)
+
+
+def _require_admin(user=Depends(get_current_user)):
+    if "admin" not in user.get("roles", []):
+        raise HTTPException(403, "관리자 권한이 필요합니다.")
+    return user
+
+
+@router.get("/runner", summary="수집 일정 · 단계(관리자)")
+async def runner(_user=Depends(_require_admin)):
+    # 단계 이름표 · 묶음 · 하는 일은 러너가 쓴 기록에서 읽는다 — 앱에 사본을 두지 않는다(결정 ④).
+    return await asyncio.to_thread(data_status.runner_detail)
+
+
+@router.get("/url-rules", summary="주소 검사 규칙 — 허용 목록 · 막음(관리자)")
+async def url_rules(_user=Depends(_require_admin)):
+    return url_guard.rules()
+
+
+class UrlCheckBody(BaseModel):
+    url: str = Field(..., max_length=2000)
+
+
+@router.post("/url-check", summary="주소 검사 — 형식 · 내부망 · 허용 목록 · robots(관리자)")
+async def url_check(body: UrlCheckBody, _user=Depends(_require_admin)):
+    # 막혀도 200 — 화면이 까닭을 그대로 보인다(실제로 받는 길은 url_guard.ensure_allowed 가 400 으로 막는다).
+    return await asyncio.to_thread(url_guard.check, body.url)
 
 
 @router.get("/ohlcv", summary="OHLCV 규격 자료(ohlcv-v1)")
