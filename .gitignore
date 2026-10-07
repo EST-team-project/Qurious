@@ -41,6 +41,10 @@ data/hf_export/
 rag-lab/frontend/days/assets/etf-catalog.json
 rag-lab/frontend/days/assets/leverage-etf-volume.json
 rag-lab/frontend/analysis/data/samsung-cup-with-handle-2025.json
+#   강의 빌드(scripts/lectures_build.py)가 위 둘을 옮긴 public 사본도 같다(2026-10-07 부터 · 그 전 이력에는 남아 있다).
+#   받아 둔 PC 에서만 빌드가 만든다 — 강의 2일차의 ETF 창 둘이 읽는다.
+public/lectures/days/assets/etf-catalog.json
+public/lectures/days/assets/leverage-etf-volume.json
 
 
 # OS

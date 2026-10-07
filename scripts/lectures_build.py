@@ -23,6 +23,16 @@ public/lectures/ 의 파일은 손으로 고치지 않는다(다음 빌드가 �
 교재 md
   ④ 그림 주소 /images/… · /image/… · image-3.png → img/<이름> (뒤의 ?v= 는 뗀다)
 
+「HF 보관」 시세 자료
+---------------------
+강의 부속 폴더에는 반입 대장(docs/설계/대장/통합본-반입대장.tsv)이 「HF 보관」 으로 적은 시세 자료 둘
+(ETF 목록 · 레버리지 거래대금 — 네이버 · 토스증권에서 모은 값)이 든다. 공개 저장소에 넣지 않으므로
+통합본 사본에도 public/lectures 에도 git 으로는 오지 않는다 — 비공개 데이터셋에서 받은 PC 에만 있다.
+  - 받아 둔 PC: 지금처럼 옮긴다. 옮긴 사본도 .gitignore 에 있다(2026-10-07 부터).
+  - 받지 않은 PC: 건너뛴다 — 쓰지도, 지우지도, 다르다고 하지도 않고 받는 명령을 알린다.
+    그 파일을 읽는 강의 2일차의 ETF 창 둘은 「불러오지 못했습니다」 로 보인다.
+  - 받은 뒤 git pull 로 옛 사본이 지워진 PC 는 이 빌드를 한 번 돌리면 다시 생긴다.
+
 사용
 ----
     python scripts/lectures_build.py            # 만든다(덮어쓴다)
@@ -37,8 +47,17 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "scripts") not in sys.path:   # 어디서 돌려도 옆의 반입 스캐너를 찾게
+    sys.path.insert(0, str(ROOT / "scripts"))
+import raglab_scan  # noqa: E402 — 반입 대장 읽기(「HF 보관」 줄)
+
 SRC = ROOT / "rag-lab"
 DST = ROOT / "public" / "lectures"
+
+# 「HF 보관」 파일을 받는 명령 — 받지 않은 PC 에 알릴 때 쓴다
+HELD_PULL = "python scripts/raglab_data.py pull"
+# 빌드가 통째로 옮기는 강의 부속 폴더(통합본 쪽 → public/lectures 쪽)
+_DAYS_ASSETS = ("frontend/days/assets/", "days/assets/")
 
 DAYS = ("01", "02", "03", "04")
 UNITS = tuple(f"{i:02d}" for i in range(1, 11))
@@ -169,10 +188,37 @@ def _image_sources() -> dict[str, Path]:
     return out
 
 
+def public_copy_of(rel: str) -> str | None:
+    """통합본 사본 안의 경로 → 빌드가 옮겨 쓰는 public/lectures 아래 경로. 옮기지 않는 파일이면 None.
+
+    통째로 옮기는 곳은 강의 부속 폴더뿐이다 — 「HF 보관」 셋 가운데 ETF 목록 · 레버리지 거래대금이 여기에 들고,
+    차트 예시(frontend/analysis/data/)는 옮기지 않는다.
+    """
+    src, dst = _DAYS_ASSETS
+    return dst + rel[len(src):] if rel.startswith(src) else None
+
+
+def held_copies() -> tuple[list[str], list[str]]:
+    """「HF 보관」 파일의 public 사본 — (옮길 것, 건너뛸 것). 통합본 사본에 받아 둔 파일만 옮긴다."""
+    ledger = raglab_scan.read_tsv(raglab_scan.IMPORT_LEDGER, raglab_scan.IMPORT_COLUMNS)
+    copy: list[str] = []
+    skip: list[str] = []
+    for row in ledger:
+        dst = public_copy_of(row["경로"]) if row["상태"] == raglab_scan.STATE_HF else None
+        if dst:
+            (copy if (SRC / row["경로"]).is_file() else skip).append(dst)
+    return sorted(copy), sorted(skip)
+
+
 def build() -> tuple[dict[str, bytes], dict]:
-    """만들 파일 {public/lectures 아래 경로: 내용} 과 요약."""
+    """만들 파일 {public/lectures 아래 경로: 내용} 과 요약.
+
+    「HF 보관」 파일은 통합본 사본에 있을 때만 들어간다(아래 부속 폴더 옮기기가 있는 파일만 줍는다) —
+    요약의 held_copied · held_skipped 가 무엇을 옮기고 건너뛰었는지 적는다.
+    """
     files: dict[str, bytes] = {}
     report: dict = {"days": {}, "units": {}, "images": 0, "assets": 0}
+    report["held_copied"], report["held_skipped"] = held_copies()
     front = SRC / "frontend"
 
     # 강의 4일치
@@ -266,6 +312,26 @@ def same_content(rel: str, a: bytes | None, b: bytes | None) -> bool:
     return a == b
 
 
+def plan(files: dict[str, bytes], now: dict[str, bytes], skipped: list[str]) -> tuple[list[str], list[str]]:
+    """(바뀔 파일, 지울 파일) — 빌드 결과 files 와 지금 파일 now 를 견준다.
+
+    건너뛴 「HF 보관」 사본(skipped)은 빼고 견준다: 받지 않은 PC 에서 그 사본이 남아 있어도 지우지 않고,
+    없어도 다르다고 하지 않는다. 받아 둔 PC 에서 사본이 빠졌으면 「바뀔 파일」 로 나온다 — 빌드 한 번이면 생긴다.
+    """
+    skip = set(skipped)
+    now = {k: v for k, v in now.items() if k not in skip}
+    changed = sorted(k for k, v in files.items() if not same_content(k, now.get(k), v))
+    extra = sorted(k for k in now if k not in files)
+    return changed, extra
+
+
+def held_hint(skipped: list[str]) -> str:
+    """건너뛴 「HF 보관」 파일을 알리는 한 줄 — 무엇이 빠졌고 어떻게 받는지."""
+    names = " · ".join(Path(p).name for p in skipped)
+    return (f"  HF 보관 파일 {len(skipped)}개는 통합본 사본에 없어 건너뜀({names}) — 그 파일을 읽는 강의 창은 "
+            f"「불러오지 못했습니다」 로 보인다. 받으려면 {HELD_PULL} 뒤 이 빌드를 다시 돌린다")
+
+
 def main(argv: list[str] | None = None) -> int:
     # git bash(mintty) · 한국어 Windows 콘솔은 표준출력이 cp949 다 → 「—」 한 글자에서 죽는다. 도움말보다 먼저 맞춘다.
     for stream in (sys.stdout, sys.stderr):
@@ -276,15 +342,22 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     files, report = build()
     now = _current()
-    changed = sorted(k for k, v in files.items() if not same_content(k, now.get(k), v))
-    extra = sorted(k for k in now if k not in files)
+    changed, extra = plan(files, now, report["held_skipped"])
+    hint = held_hint(report["held_skipped"]) if report["held_skipped"] else ""
     if a.check:
         if changed or extra:
             print(f"다르다 — 바뀜 {len(changed)} · 남는 파일 {len(extra)}")
             for k in (changed + extra)[:20]:
                 print("  ", k)
+            lost = [k for k in report["held_copied"] if k not in now]
+            if lost:                            # 받은 뒤 pull 로 옛 사본이 지워진 PC — 2026-10-07 에 추적에서 뺐다
+                print(f"  HF 보관 사본 {len(lost)}개가 public 에 없다 — python scripts/lectures_build.py 를 한 번 돌린다")
+            if hint:
+                print(hint)
             return 1
         print(f"같다 — 파일 {len(files)}")
+        if hint:
+            print(hint)
         return 0
     for k in changed:
         p = DST / k
@@ -300,6 +373,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {rel}  시세 주소 바꿈 {n}")
     print(f"  강의 부속 파일 {report['assets']} · 위 폴더 스크립트 {', '.join(report['parent_assets'])}")
     print(f"  교재 단원 {len(report['units'])} · 교재 그림 {report['images']}")
+    if report["held_copied"]:
+        print(f"  HF 보관 사본 {len(report['held_copied'])}개 옮김 — git 무시(.gitignore)")
+    if hint:
+        print(hint)
     return 0
 
 
