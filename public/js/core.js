@@ -129,7 +129,7 @@ const GNB_MENUS = {
       { key: "fin-glossary",   icon: "fa-solid fa-book",          label: "용어사전" },
     ],
   },
-  // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계_v0.1.md).
+  // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계.md).
   // 첫 항목이 href 라 묶음을 누르면 바로 학습 사이트로 간다(GNB click). 장 목록은 학습 사이트의 왼쪽 목차가 맡는다.
   learn: {
     label: "<i class='fa-solid fa-graduation-cap'></i> 개념 학습",

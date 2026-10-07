@@ -25,7 +25,7 @@
 
 사람 판정과 맞추기
 ------------------
-정답지는 ``docs/시험/근거충실도-사람판정_v1.tsv``(2026-10-06 판정 46). 충실도는 「근거에 있는 말만 했나」 이지
+정답지는 ``docs/시험/평가셋/근거충실도-사람판정_v1.tsv``(2026-10-06 판정 46). 충실도는 「근거에 있는 말만 했나」 이지
 「맞는 답인가」 가 아니다 — 근거에 있는 다른 값(같은 조의 다른 항)을 고른 답, 빗나간 조를 충실하게 옮긴 답은
 충실도가 높게 나올 수 있다. 그래서 오답을 종류별로 나눠 「잡아야 하는 것」 과 「이 지표로는 못 잡는 것」 을 따로 센다.
 """
@@ -53,7 +53,7 @@ from collector import kb_index
 sys.path.insert(0, str(config.ROOT))
 from app.services import kb_answer, kb_links, kb_search, kb_synonyms  # noqa: E402
 
-LABELS = config.ROOT / "docs" / "시험" / "근거충실도-사람판정_v1.tsv"
+LABELS = config.ROOT / "docs" / "시험" / "평가셋" / "근거충실도-사람판정_v1.tsv"
 SETS = ("근거답-평가셋_v2.tsv", "섹터법령-평가셋_v1.tsv", "섹터법령-표본밖_v1.tsv", "근거답-평가셋_v1.tsv")
 JUDGES = ["llama3.1", "exaone3.5:2.4b"]
 #: 심판 호출 옵션 — num_batch 는 한 번에 GPU 에 넘기는 토큰 묶음. 기본 512 보다 줄여 내장 GPU 의 긴 계산 한 번을
@@ -268,7 +268,7 @@ def _one(faith_cls, judge, q, answer, contexts) -> dict:
 def load_questions() -> Dict[str, str]:
     qs: Dict[str, str] = {}
     for name in SETS:
-        p = config.ROOT / "docs" / "시험" / name
+        p = config.ROOT / "docs" / "시험" / "평가셋" / name
         if not p.exists():
             continue
         with p.open(encoding="utf-8", newline="") as f:

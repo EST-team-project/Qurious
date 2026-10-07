@@ -64,7 +64,7 @@ def rerank(model, q: str, hits: List[dict]) -> List[dict]:
 def main(argv: Optional[List[str]] = None) -> int:
     utf8_stdio()
     p = argparse.ArgumentParser(prog="python -m collector.kb_rerank_eval", description="재순위 실측 — 품질 · CPU 속도")
-    p.add_argument("--set", default=str(config.ROOT / "docs" / "시험" / "근거검색-평가셋_v1.tsv"))
+    p.add_argument("--set", default=str(config.ROOT / "docs" / "시험" / "평가셋" / "근거검색-평가셋_v1.tsv"))
     p.add_argument("--ids", default="", help="이 머리로 시작하는 id 만(예: QN)")
     p.add_argument("--top", type=int, nargs="+", default=[20], help="재순위에 넣을 검색 후보 수")
     p.add_argument("--threads", type=int, default=0, help="torch CPU 스레드(0 = 기본)")

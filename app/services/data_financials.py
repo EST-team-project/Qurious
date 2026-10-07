@@ -17,7 +17,7 @@ DART 재무 API 는 가장 최근 정정본만 준다. 그래서 행마다 날�
 
 as_of 를 비우면 거르지 않는다(가장 최근 판 · 화면의 「지금 재무」).
 
-기본이 strict 인 까닭 — 현업 방식(조사서 `docs/조사/공시-재무-뉴스-이용조건-조사_v0.1.md` 4절)
+기본이 strict 인 까닭 — 현업 방식(조사서 `docs/조사/지난판/공시-재무-뉴스-이용조건-조사_v0.1.md` 4절)
   - Sharadar 의 As Reported(AR) 는 「excludes restatements」 · 「time-indexed to the date the … filing was submitted」 다.
   - Compustat 은 처음 보고값(HIST_STD · Snapshot)과 정정값(RST_STD)을 따로 두고, 시점 연구는 앞의 것을 쓴다(WRDS 안내).
   - 1차 Alpha_Stack(`supply/financial.py`)도 정정일을 그대로 쓰고 **접수일 다음 거래일**부터 보이게 했다 — 「원본 날짜에 정정

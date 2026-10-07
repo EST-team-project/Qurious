@@ -57,7 +57,7 @@ Qurious 저장소의 `rag-lab/`(통합본 investment-rag-lab 반입 폴더)이 �
 - 쓰임: 팀 안에서 통합본 화면을 띄워 보는 데만 쓴다. 상업적으로 쓰지 않는다.
 - 값은 모은 날짜 기준이다(파일 안 `updatedAt` · `retrieved_at`). 투자 판단에 쓰지 않는다.
 - 받기: Qurious 저장소에서 `python scripts/raglab_data.py pull`
-- 파일 내용은 Qurious 의 `docs/설계/통합본-반입대장.tsv` 「HF 보관」 줄의 blob 과 같아야 한다.
+- 파일 내용은 Qurious 의 `docs/설계/대장/통합본-반입대장.tsv` 「HF 보관」 줄의 blob 과 같아야 한다.
 """
 
 

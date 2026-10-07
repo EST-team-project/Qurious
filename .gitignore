@@ -37,7 +37,7 @@ data/local-run/
 data/hf_export/
 # 통합본(rag-lab/)의 화면 표시용 시세 자료 셋 — 네이버 · 토스증권 · 야후에서 모은 값이라 커밋하지 않는다.
 #   비공개 데이터셋에 두고 필요한 사람이 받는다: python scripts/raglab_data.py pull
-#   (반입 대장 docs/설계/통합본-반입대장.tsv 의 「HF 보관」 줄 · 검사 scripts/raglab_scan.py --check)
+#   (반입 대장 docs/설계/대장/통합본-반입대장.tsv 의 「HF 보관」 줄 · 검사 scripts/raglab_scan.py --check)
 rag-lab/frontend/days/assets/etf-catalog.json
 rag-lab/frontend/days/assets/leverage-etf-volume.json
 rag-lab/frontend/analysis/data/samsung-cup-with-handle-2025.json
@@ -69,14 +69,13 @@ Thumbs.db
 .kis_token_real.json
 
 # 강사님 배포 양식·교재 (교재·강의자료 커밋 금지 규칙)
-# 우리가 만든 계획서는 아래 예외로 통과시킨다 — 정본은 .md 이고 .docx 는
-# scripts/build_plan_docx.py 가 만드는 제출본이다.
+# 우리가 만든 계획서 제출본(.docx)은 하위 폴더 docs/계획서/내보내기/ 에 둔다 — 아래 줄은 맨 위만 거르므로
+# 걸리지 않는다(정본은 .md · .docx 는 scripts/build_plan_docx.py 가 만든다 · 2026-10-07 docs 정리).
 docs/계획서/*.docx
 docs/계획서/*.doc
 docs/계획서/*.hwp
 docs/계획서/*.pptx
 docs/계획서/*.pdf
-!docs/계획서/프로젝트계획서_v*.docx
 
 # Ansible 실제 시크릿 (강사님 원본 규칙 — Qurious 에는 aws-work/ 가 없지만, 다시 옮겨 올 때를 막는다)
 aws-work/ansible/inventories/*/group_vars/secrets.yml

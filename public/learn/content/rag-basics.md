@@ -524,7 +524,7 @@ def _cite(chunk: dict[str, object]) -> str:
 - SQLite, 「FTS5」(bm25() · trigram 토크나이저) — <https://www.sqlite.org/fts5.html>
 - Ollama, 임베딩 API(`POST /api/embed`) — <https://github.com/ollama/ollama/blob/main/docs/api.md>
 - 국가법령정보센터 Open API — <https://open.law.go.kr>
-- Qurious 목표 기능 ① 상세 설계서 5.3절 — 저장소 `docs/설계/목표기능1-데이터지식-설계_v0.1.md`
+- Qurious 목표 기능 ① 상세 설계서 5.3절 — 저장소 `docs/설계/지난판/목표기능1-데이터지식-설계_v0.1.md`
 
 ## 이 장의 용어
 

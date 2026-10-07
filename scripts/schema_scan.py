@@ -12,7 +12,7 @@
     python scripts/schema_scan.py --md      # 데이터 사전 3절 — 표마다 칸 전체
     python scripts/schema_scan.py --erd     # ERD 문서의 그림 (앱 DB 는 업무 영역별)
     python scripts/schema_scan.py --json    # 기계용
-    python scripts/schema_scan.py --doc docs/데이터/ERD_v1.2.md   # 문서의 표시 사이를 다시 채운다 (--check: 비교만)
+    python scripts/schema_scan.py --doc docs/데이터/ERD.md   # 문서의 표시 사이를 다시 채운다 (--check: 비교만)
 
 두 데이터베이스를 갈라 본다
 ---------------------------
@@ -37,7 +37,7 @@
 표 속성 대장
 ------------
 표마다 한글명 · 업무 영역 · 유형 · 발생 주기 · 보존 기간 · 공개 여부는 코드에서 잴 수 없어
-사람이 `docs/데이터/표-속성대장.tsv` 에 적는다(공공기관 DB 표준화 지침의 테이블정의서 칸).
+사람이 `docs/데이터/대장/표-속성대장.tsv` 에 적는다(공공기관 DB 표준화 지침의 테이블정의서 칸).
 스캐너는 대장을 읽어 사전 · ERD 에 싣고, **대장이 표를 빠짐없이 덮는지** 알린다 — 표를
 더했는데 대장 줄이 없으면 요약 출력에 ⚠️ 가 뜬다. 멈추지는 않는다.
 
@@ -68,7 +68,7 @@ ROOT = Path(__file__).resolve().parents[1]
 수집기_코드_디렉터리 = ROOT / "collector"
 모델_디렉터리 = ROOT / "app" / "models"
 ALEMBIC_디렉터리 = ROOT / "alembic" / "versions"
-표속성_대장 = ROOT / "docs" / "데이터" / "표-속성대장.tsv"
+표속성_대장 = ROOT / "docs" / "데이터" / "대장" / "표-속성대장.tsv"
 
 #: 대장의 머리 줄. 순서까지 이대로다 — 바꾸면 `표속성_대조` 가 알린다.
 표속성_칸 = ("표", "DB", "한글명", "업무영역", "유형", "발생주기", "보존기간", "공개", "공개_근거", "관련표")
@@ -286,7 +286,7 @@ def 수집기_주석_대조(db_path: Path | None = None,
 # ─────────────────────────────────────────────────────────────────────
 
 def 표속성_읽기(경로: Path | None = None) -> list[dict[str, str]]:
-    """`docs/데이터/표-속성대장.tsv` 를 줄 목록으로. 파일이 없으면 빈 목록 — 멈추지 않는다."""
+    """`docs/데이터/대장/표-속성대장.tsv` 를 줄 목록으로. 파일이 없으면 빈 목록 — 멈추지 않는다."""
     경로 = 경로 or 표속성_대장
     if not 경로.exists():
         return []
@@ -548,7 +548,7 @@ def 사람용출력(수집기: list[표], 앱: list[표], 대조1: dict, 대조2
         print()
 
     if 대장대조 is not None:
-        print("  ― 표 속성 대장 (docs/데이터/표-속성대장.tsv) ―")
+        print("  ― 표 속성 대장 (docs/데이터/대장/표-속성대장.tsv) ―")
         말 = {"머리_다름": "머리 줄이 정한 칸과 다르다", "대장에_없는_표": "대장에 줄이 없는 표 — 줄을 더한다",
               "대장에만_있는_표": "DB 에 없는 표", "겹친_줄": "두 번 적힌 표", "DB_다름": "DB 칸이 틀렸다",
               "빈_칸": "빈 칸", "모르는_값": "정한 말 밖의 값"}
@@ -602,7 +602,7 @@ def 표목록마크다운(수집기: list[표], 앱: list[표], 대장: list[dic
     """
     속성 = _대장_사전(대장)
     총행 = sum(t.행수 or 0 for t in 수집기)
-    print(f"> 실측: `python scripts/schema_scan.py --list` · 표 속성 대장 `docs/데이터/표-속성대장.tsv` {len(대장)}줄")
+    print(f"> 실측: `python scripts/schema_scan.py --list` · 표 속성 대장 `docs/데이터/대장/표-속성대장.tsv` {len(대장)}줄")
     print(f"> 수집 DB {len(수집기)}표 {총행:,}행 🟢 실측 · 앱 DB {len(앱)}표 🟡 모델 정의(행 수는 모른다 — 「—」)")
     묶음 = [(t, "수집") for _, ts in _영역별로(수집기, 대장) for t in ts] + \
            [(t, "앱") for _, ts in _영역별로(앱, 대장) for t in ts]

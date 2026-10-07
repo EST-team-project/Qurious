@@ -97,8 +97,9 @@ docs/github-archive/
 │   ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
 │   ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (#126 · 머지 13a6ae9 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
 │   └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올릴 것 · DF-73 · DF-75 · 리밸런싱 PR 작성자께)
-└── 2026-10-07/        ← 새 글 1건
-    └── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (올릴 것 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
+└── 2026-10-07/        ← 새 글 2건
+    ├── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (#128 · 머지 0011743 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
+    └── PR-docs-reorganize-by-kind/  00-본문.md  (올릴 것 · docs 폴더 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -117,7 +118,7 @@ docs/github-archive/
 
 2026-09-23 에 논의마다 결론 초안을 올렸는데, 곧바로 옛 저장소가 닫혀 팀원이 읽을 수 없게 됐습니다.
 **의견은 팀 대화방(Discord)에 남겨 주세요** — 이동원이 결정 대장에 옮깁니다.
-결정 대장 v0.9 는 [`docs/계획서/논의결정대장_v0.9.md`](../계획서/논의결정대장_v0.9.md) 입니다 — 옛 PR [#75](2026-09-23/PR-075/00-기록.md) 는 머지되기 전에 옛 저장소가 닫혔습니다.
+결정 대장 v0.9 는 [`docs/계획서/지난판/논의결정대장_v0.9.md`](../계획서/지난판/논의결정대장_v0.9.md) 입니다 — 옛 PR [#75](2026-09-23/PR-075/00-기록.md) 는 머지되기 전에 옛 저장소가 닫혔습니다.
 
 | 논의 | 옛 번호 | 새 번호 | 주제 | 초안 | 의견 기한 (KST) |
 |---|---|---|---|---|---|
@@ -396,11 +397,12 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 
 - 같은 날 팀원 글: **#117 리밸런싱 정책 이슈**(팀원이 올림 · 사용자 확인 2026-10-06) — 우리 기록 폴더는 없다(링크는 `Github-링크.md`).
 
-### 2026-10-07 — 새 글 1건
+### 2026-10-07 — 새 글 2건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | (올린 뒤) |
+| [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | #128 · 머지 `0011743` |
+| [PR docs-reorganize-by-kind](2026-10-07/PR-docs-reorganize-by-kind/00-본문.md) | docs: docs 폴더를 종류별로 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구 | 3,860 | (올린 뒤) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

@@ -168,7 +168,7 @@ def test_ss07_대장_대조가_빠진_표_겹친_줄_틀린_DB_빈_칸_정한_�
 def test_ss08_실제_대장은_정한_머리_줄_겹침_없음_정한_말만_쓴다():
     """실제 대장 파일 자체의 형식만 건다 — 모든 표를 덮는지는 스캐너 요약 출력이 알린다."""
     대장 = schema_scan.표속성_읽기()
-    assert 대장, "docs/데이터/표-속성대장.tsv 가 없다"
+    assert 대장, "docs/데이터/대장/표-속성대장.tsv 가 없다"
     assert list(대장[0].keys()) == list(schema_scan.표속성_칸)
     이름 = [z["표"] for z in 대장]
     assert len(이름) == len(set(이름))
