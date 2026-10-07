@@ -135,19 +135,67 @@ _RF = 0.02
 _PPY = 252
 
 
-async def _get_benchmark_returns(periods_needed: int) -> np.ndarray:
-    """KOSPI 일별 수익률."""
+def _norm_date(c: dict) -> str | None:
+    """캔들 항목에서 ISO 날짜 문자열(YYYY-MM-DD) 뽑기 — 필드명·형식 방어.
+
+    - 문자열: ISO 앞 10자
+    - datetime/date: isoformat 앞 10자
+    - int/float: 유닉스 타임스탬프(초) → UTC 날짜 (KOSPI 일봉은 UTC 자정 기준)
+    """
+    # 1) 문자열/날짜 객체 필드 먼저
+    for key in ("date", "datetime", "d"):
+        v = c.get(key)
+        if v is None:
+            continue
+        if isinstance(v, str):
+            return v[:10]
+        if hasattr(v, "isoformat"):
+            return v.isoformat()[:10]
+
+    # 2) 유닉스 타임스탬프 (time / t / timestamp)
+    for key in ("time", "t", "timestamp"):
+        v = c.get(key)
+        if v is None:
+            continue
+        try:
+            ts = float(v)
+        except (TypeError, ValueError):
+            continue
+        # 밀리초 단위면 초로 환산
+        if ts > 10_000_000_000:
+            ts /= 1000.0
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
+
+    return None
+
+
+async def _get_benchmark_map() -> tuple[list[str], np.ndarray]:
+    """KOSPI 종가에서 (날짜[], 수익률[]) — 날짜는 두 번째 날부터 (수익률과 1:1).
+
+    이슈 #88 지적 #10 — 이전에는 끝에서 N개 잘라 순서로 짝지어
+    계좌 스냅샷이 띄엄띄엄하면 다른 날 KOSPI 수익률과 짝이 됐다.
+    이제 날짜를 함께 돌려주고 호출부에서 **날짜 교집합**으로 맞춘다.
+    """
     from app.services.stock import get_candles
     try:
         data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
-        closes = [float(c["close"]) for c in data.get("candles", []) if c.get("close")]
-        if len(closes) < 2:
-            return np.array([])
-        arr = np.array(closes)
-        rets = arr[1:] / arr[:-1] - 1
-        return rets[-periods_needed:] if periods_needed else rets
+        rows = []
+        for c in data.get("candles", []):
+            if not c.get("close"):
+                continue
+            d = _norm_date(c)
+            if d:
+                rows.append((d, float(c["close"])))
+        if len(rows) < 2:
+            return [], np.array([])
+        rows.sort(key=lambda r: r[0])           # 날짜 오름차순 보장
+        dates = [r[0] for r in rows[1:]]         # 수익률은 두 번째 날부터
+        closes = np.array([r[1] for r in rows], dtype=float)
+        rets = closes[1:] / closes[:-1] - 1
+        return dates, rets
     except Exception:
-        return np.array([])
+        return [], np.array([])
 
 
 async def get_returns_table(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
@@ -173,14 +221,31 @@ async def get_returns_table(db: AsyncSession, user_id: uuid.UUID) -> dict[str, A
 
 
 async def get_risk_metrics(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
-    """위험지표 (KOSPI 대비): 표준편차·베타·샤프·젠센알파·트래킹에러·정보비율."""
-    returns, equity = await get_daily_returns(db, user_id)
+    """위험지표 (KOSPI 대비): 표준편차·베타·샤프·젠센알파·트래킹에러·정보비율.
+
+    이슈 #88 지적 #10 — 계좌와 KOSPI 를 **날짜 교집합**으로 짝짓는다.
+    """
+    dates, returns, equity = await get_daily_returns(db, user_id, with_dates=True)
     if len(returns) < 5:
         return {"status": "insufficient_data", "snapshot_count": len(equity)}
 
-    bench = await _get_benchmark_returns(len(returns))
-    if len(bench) < 5:
+    bench_dates, bench_all = await _get_benchmark_map()
+    if len(bench_dates) < 5:
         return {"status": "insufficient_data", "reason": "벤치마크 없음"}
+
+    bench_map = {d: bench_all[i] for i, d in enumerate(bench_dates) if i < len(bench_all)}
+
+    # ── 날짜 교집합 ──
+    common = [d for d in dates if d in bench_map]
+    if len(common) < 5:
+        return {
+            "status": "insufficient_data",
+            "reason": f"공통 거래일 부족 ({len(common)}일)",
+        }
+
+    idx = {d: i for i, d in enumerate(dates)}
+    returns = np.array([returns[idx[d]] for d in common], dtype=float)
+    bench = np.array([bench_map[d] for d in common], dtype=float)
 
     def mf(window: int) -> dict[str, float | None]:
         keys = ("std_dev", "beta", "sharpe", "jensen_alpha", "tracking_error", "information_ratio")
@@ -216,6 +281,7 @@ async def get_risk_metrics(db: AsyncSession, user_id: uuid.UUID) -> dict[str, An
     return {
         "status": "ok",
         "benchmark": "KOSPI",
+        "common_days": len(common),
         "1m": mf(21), "3m": mf(63), "6m": mf(126), "1y": mf(252),
     }
 
@@ -289,7 +355,11 @@ async def get_allocation_history(
 
 
 async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
-    """우리 자산 + KOSPI 정규화 시계열 (기간선택 차트용)."""
+    """우리 자산 + KOSPI 정규화 시계열 (기간선택 차트용).
+
+    이슈 #88 지적 #10 — 이전엔 `bench_closes[-len(equity):]` 로 끝에서 N개를 잘라
+    계좌 스냅샷이 띄엄띄엄하면 엉뚱한 날 KOSPI 를 그렸다. 이제 **날짜 기준**으로 맞춘다.
+    """
     from app.models.paper_snapshot import PaperAccountSnapshot
     from app.services.stock import get_candles
 
@@ -302,23 +372,36 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
     if len(rows) < 2:
         return {"status": "insufficient_data"}
 
-    dates = [r.snap_date.isoformat() for r in rows]
-    equity = np.array([float(r.total_equity) for r in rows])
-    norm_our = (equity / equity[0] * 100).round(2).tolist()
+    our_dates = [r.snap_date.isoformat() for r in rows]
+    equity = np.array([float(r.total_equity) for r in rows], dtype=float)
 
     try:
         bench_data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
-        bench_closes = [float(c["close"]) for c in bench_data.get("candles", []) if c.get("close")]
-        if len(bench_closes) < len(equity):
-            return {"status": "insufficient_data", "reason": "벤치마크 부족"}
-        bench_window = bench_closes[-len(equity):]
-        norm_bench = (np.array(bench_window) / bench_window[0] * 100).round(2).tolist()
+        bench_map: dict[str, float] = {}
+        for c in bench_data.get("candles", []):
+            if not c.get("close"):
+                continue
+            d = _norm_date(c)
+            if d:
+                bench_map[d] = float(c["close"])
     except Exception as e:
         return {"status": "insufficient_data", "reason": f"벤치마크 실패: {e}"}
 
+    # 계좌 스냅샷 날짜 기준으로 KOSPI 있는 날만 교집합
+    common = [d for d in our_dates if d in bench_map]
+    if len(common) < 2:
+        return {"status": "insufficient_data", "reason": "벤치마크 공통 날짜 부족"}
+
+    idx = {d: i for i, d in enumerate(our_dates)}
+    our_aligned = np.array([equity[idx[d]] for d in common], dtype=float)
+    bench_aligned = np.array([bench_map[d] for d in common], dtype=float)
+
+    norm_our = (our_aligned / our_aligned[0] * 100).round(2).tolist()
+    norm_bench = (bench_aligned / bench_aligned[0] * 100).round(2).tolist()
+
     return {
         "status": "ok",
-        "dates": dates,
+        "dates": common,
         "our_series": norm_our,
         "benchmark_series": norm_bench,
         "benchmark_name": "KOSPI",

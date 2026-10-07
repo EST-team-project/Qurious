@@ -128,15 +128,25 @@ async def get_daily_returns(
     *,
     since: Optional[date] = None,
     limit: Optional[int] = None,
-) -> tuple[np.ndarray, np.ndarray]:
+    with_dates: bool = False,
+):
     """
     QFRS 지표 계산용 일별 수익률 & 총자산 시계열.
 
+    Parameters
+    ----------
+    with_dates : bool
+        True 면 (날짜[], returns, equity) 3-튜플 반환.
+        날짜는 **returns 와 1:1 정렬** (첫 스냅샷은 daily_return=0 이라 제외).
+        기본 False — 기존 호출자(returns, equity) 2-튜플 그대로.
+
     Returns
     -------
-    (returns, equity) : tuple[np.ndarray, np.ndarray]
-        - returns: daily_return 배열 (첫 값 제외한 순수익률)
-        - equity : total_equity 배열 (지표 계산과 별개로 차트용)
+    with_dates=False : (returns, equity)
+    with_dates=True  : (dates, returns, equity)
+        - dates   : list[str] ISO 날짜 (returns 와 같은 길이)
+        - returns : daily_return 배열 (첫 값 제외)
+        - equity  : total_equity 배열 (전체)
     """
     stmt = (
         select(PaperAccountSnapshot)
@@ -149,22 +159,28 @@ async def get_daily_returns(
     rows = (await db.execute(stmt)).scalars().all()
 
     if not rows:
+        if with_dates:
+            return [], np.array([]), np.array([])
         return np.array([]), np.array([])
 
+    dates_all = [r.snap_date.isoformat() for r in rows]
     equity = np.array([r.total_equity for r in rows], dtype=float)
     returns = np.array([r.daily_return for r in rows], dtype=float)
 
-    # 첫 스냅샷은 daily_return=0이므로 지표 계산 시엔 제외하는 게 정석
+    # 첫 스냅샷은 daily_return=0 이므로 지표 계산 시 제외 — 날짜도 같이 제외
+    returns_dates = dates_all[1:] if len(dates_all) > 1 else []
     if len(returns) > 0:
-        returns = returns[1:]  # 첫 값(0) 제거
-        # equity는 그대로 유지 (차트용)
+        returns = returns[1:]
 
     if limit is not None:
         returns = returns[-limit:]
+        returns_dates = returns_dates[-limit:] if returns_dates else []
         equity = equity[-limit:]
 
+    if with_dates:
+        return returns_dates, returns, equity
     return returns, equity
-
+    
 
 async def snapshot_count(db: AsyncSession, user_id: uuid.UUID) -> int:
     """저장된 스냅샷 개수 (디버깅/진단용)."""
