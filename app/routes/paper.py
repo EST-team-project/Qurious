@@ -25,10 +25,14 @@ from app.services.performance_service import (
     get_allocation_history,
     get_benchmark_series,
 )
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from app.config import settings
 from app.database.postgres import get_pg_session
-from app.lib.jwt_auth import get_current_user_any
+from app.lib.jwt_auth import get_current_user_any, require_roles
 from app.models import ApiKey
+
 from app.services import paper_trading as pt
 from app.services.audit import audit
 
@@ -42,6 +46,8 @@ def _uid(user: dict) -> uuid.UUID:
         return uuid.UUID(str(user["id"]))
     except Exception:
         raise HTTPException(400, "유효하지 않은 사용자 ID입니다.")
+
+KST = ZoneInfo("Asia/Seoul")
 
 
 def _bad(exc: Exception) -> HTTPException:
@@ -405,44 +411,58 @@ async def alpaca_positions(body: AlpacaTestBody | None = None, user=Depends(get_
 # QFRS 성과 지표 (Bailey & Lopez de Prado, 2014)
 # ═══════════════════════════════════════════════════════════
 
-@router.get("/performance/metrics")
-async def paper_performance_metrics(
-    user=Depends(get_current_user_any),
-    db: AsyncSession = Depends(get_pg_session),
-):
-    import sys, traceback
-    print("=" * 60, flush=True)
-    print(f"[HIT] performance/metrics user={getattr(user, 'id', '?')}", flush=True)
-    try:
-        result = await get_robo_metrics(db, _uid(user))
-        print(f"[OK] keys={list(result.keys())}", flush=True)
-        print("=" * 60, flush=True)
-        return result
-    except Exception as e:
-        print(f"[ERR] {type(e).__name__}: {e}", flush=True)
-        traceback.print_exc(file=sys.stdout)
-        sys.stdout.flush()
-        print("=" * 60, flush=True)
-        raise
-
-
-@router.post("/performance/snapshot")
-async def paper_performance_snapshot(
-    user=Depends(get_current_user_any),
+@router.post("/performance/simulate")
+async def paper_performance_simulate(
+    days: int = 15,
+    seed: int = 42,
+    user: dict = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_pg_session),
 ):
     """
-    오늘 자산 스냅샷을 수동으로 기록 (idempotent upsert).
+    ⚠️ 시연/개발 전용 — 스냅샷을 초기화하고 랜덤 워크 15일치를 삽입.
 
-    - 앱 접속 시 자동으로도 기록되지만, 명시적으로 트리거하고 싶을 때 사용.
+    기존 스냅샷을 모두 삭제하므로 관리자만 호출 가능 (이슈 #88).
+    이전에는 ENVIRONMENT 환경변수로 분기했으나, 그 변수가 어디에도
+    정의되지 않아 항상 dev 로 판정 → 누구나 호출 가능했다.
+    또한 user 는 dict 인데 getattr 로 roles 를 읽어 항상 빈 목록이었다.
+    이제 require_roles("admin") 로 통일.
     """
-    row = await record_daily_snapshot(db, user.id)
+    import numpy as np
+    from sqlalchemy import delete
+    from app.models.paper_snapshot import PaperAccountSnapshot
+
+    uid = _uid(user)
+
+    # 기존 스냅샷 초기화
+    await db.execute(delete(PaperAccountSnapshot).where(PaperAccountSnapshot.user_id == uid))
+    await db.commit()
+
+    # 랜덤 워크 생성 (KST 기준 날짜)
+    rng = np.random.default_rng(seed)
+    equity = 100_000_000.0
+    prev = None
+    today_kst = datetime.now(KST).date()
+    for i in range(days - 1, -1, -1):
+        d = today_kst - timedelta(days=i)
+        ret = float(rng.normal(0.0008, 0.012))
+        equity = equity * (1 + ret)
+        daily = 0.0 if prev is None else (equity / prev - 1)
+        stock, crypto, alt = equity * 0.5, equity * 0.1, equity * 0.05
+        cash = equity - stock - crypto - alt
+        db.add(PaperAccountSnapshot(
+            id=uuid.uuid4(), user_id=uid, snap_date=d,
+            cash=cash, position_value=stock + crypto + alt, total_equity=equity,
+            daily_return=daily, position_count=3,
+            stock_value=stock, crypto_value=crypto, alt_value=alt,
+        ))
+        prev = equity
+    await db.commit()
+
     return {
         "status": "ok",
-        "snap_date": row.snap_date.isoformat(),
-        "total_equity": row.total_equity,
-        "daily_return": row.daily_return,
-        "position_count": row.position_count,
+        "days": days,
+        "seed": seed,
+        "snap_date_kst": today_kst.isoformat(),
     }
 
 
