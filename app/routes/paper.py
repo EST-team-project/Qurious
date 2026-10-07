@@ -411,6 +411,36 @@ async def alpaca_positions(body: AlpacaTestBody | None = None, user=Depends(get_
 # QFRS 성과 지표 (Bailey & Lopez de Prado, 2014)
 # ═══════════════════════════════════════════════════════════
 
+@router.get("/performance/metrics")
+async def paper_performance_metrics(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    """모의계좌 성과 지표 — 로보 어드바이저 스타일 (QFRS)."""
+    return await get_robo_metrics(db, _uid(user))
+
+
+@router.post("/performance/snapshot")
+async def paper_performance_snapshot(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    """
+    오늘 자산 스냅샷을 수동으로 기록 (idempotent upsert).
+
+    - 앱 접속 시 자동으로도 기록되지만, 명시적으로 트리거하고 싶을 때 사용.
+    """
+    row = await record_daily_snapshot(db, _uid(user))
+    return {
+        "status": "ok",
+        "snap_date": row.snap_date.isoformat(),
+        "total_equity": row.total_equity,
+        "daily_return": row.daily_return,
+        "position_count": row.position_count,
+    }
+
+
+
 @router.post("/performance/simulate")
 async def paper_performance_simulate(
     days: int = 15,
@@ -464,65 +494,6 @@ async def paper_performance_simulate(
         "seed": seed,
         "snap_date_kst": today_kst.isoformat(),
     }
-
-
-# ═══════════════════════════════════════════════════════════
-# 🧪 개발/데모용 — 15일치 랜덤 워크 스냅샷 생성
-# ═══════════════════════════════════════════════════════════
-
-@router.post("/performance/simulate")
-async def paper_performance_simulate(
-    days: int = 15,
-    seed: int = 42,
-    user=Depends(get_current_user_any),
-    db: AsyncSession = Depends(get_pg_session),
-):
-    """
-    ⚠️ 시연/개발 전용 — 스냅샷을 초기화하고 랜덤 워크 15일치를 삽입.
-
-    운영 환경(ENVIRONMENT != dev/local)에서는 관리자 역할만 호출 가능.
-    이 엔드포인트는 기존 스냅샷을 모두 삭제하므로 실수로 호출되면
-    실제 기록이 사라진다 — Issue #88 지적.
-    """
-    import os
-    env = os.getenv("ENVIRONMENT", "dev").lower()
-    if env not in ("dev", "development", "local", "test"):
-        roles = list(getattr(user, "roles", []) or [])
-        if "admin" not in roles:
-            raise HTTPException(status_code=403, detail="관리자만 호출할 수 있습니다.")
-
-    import numpy as np
-    from datetime import date, timedelta
-    from sqlalchemy import delete
-    from app.models.paper_snapshot import PaperAccountSnapshot
-
-    uid = _uid(user)
-
-    # 기존 스냅샷 초기화
-    await db.execute(delete(PaperAccountSnapshot).where(PaperAccountSnapshot.user_id == uid))
-    await db.commit()
-
-    # 랜덤 워크 생성
-    rng = np.random.default_rng(seed)
-    equity = 100_000_000.0
-    prev = None
-    for i in range(days - 1, -1, -1):
-        d = date.today() - timedelta(days=i)
-        ret = float(rng.normal(0.0008, 0.012))
-        equity = equity * (1 + ret)
-        daily = 0.0 if prev is None else (equity / prev - 1)
-        stock, crypto, alt = equity * 0.5, equity * 0.1, equity * 0.05
-        cash = equity - stock - crypto - alt
-        db.add(PaperAccountSnapshot(
-            id=uuid.uuid4(), user_id=uid, snap_date=d,
-            cash=cash, position_value=stock + crypto + alt, total_equity=equity,
-            daily_return=daily, position_count=3,
-            stock_value=stock, crypto_value=crypto, alt_value=alt,
-        ))
-        prev = equity
-    await db.commit()
-
-    return {"status": "ok", "days": days, "seed": seed, "environment": env}
 
 
 # ═══════════════════════════════════════════════════════════
