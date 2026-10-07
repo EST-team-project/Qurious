@@ -85,18 +85,20 @@ docs/github-archive/
 │   ├── 이슈-점검-인디케이터-화면/  00-본문.md  (#107 · 10-04 올림 · 신장환 님)
 │   ├── 이슈-점검-자산배분-리밸런싱-자동매매/  00-본문.md  (#108 · 10-04 올림 · 오준영 님)
 │   ├── 이슈-점검-모의투자-성과-테스트베드/  00-본문.md  (#106 · 10-04 올림 · 강민석 님)
-│   ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀)
+│   ├── 이슈-점검-주인미정-화면-배지규칙/  00-본문.md  (#109 · 10-04 올림 · 팀) · 01 주인 정함(10-07 · 올릴 것 — 이번 PR 머지 뒤)
 │   ├── PR-feat-completion-audit-and-crawl-points/  00-본문.md  (#105 · 머지 c8c07fd)
 │   ├── PR-feat-kb-statute-links-and-legal-terms/  00-본문.md  (#110 · 머지 079a7dd) · 01 갱신(10-06 · DF-64 일부 닫힘 · 올릴 것)
 │   └── PR-feat-disclosure-financials-search-events/  00-본문.md  (#111 · 머지 1a7574e)
 ├── 2026-10-05/        ← 새 글 2건
 │   ├── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (#112 · 머지 f83e551)
 │   └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (#113 · 머지 4293b82)
-└── 2026-10-06/        ← 새 글 3건
-    ├── PR-feat-sector-route-calendar-research-api-docs/  00-본문.md  (#120 · 머지 619ae7a) · 01 갱신(10-06 오후 · 섹터 분류 2판 · 올릴 것)
-    ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
-    ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (올릴 것 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
-    └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올릴 것 · DF-73 · DF-75 · 리밸런싱 PR 작성자께)
+├── 2026-10-06/        ← 새 글 3건
+│   ├── PR-feat-sector-route-calendar-research-api-docs/  00-본문.md  (#120 · 머지 619ae7a) · 01 갱신(10-06 오후 · 섹터 분류 2판 · 올릴 것)
+│   ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
+│   ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (#126 · 머지 13a6ae9 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
+│   └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올릴 것 · DF-73 · DF-75 · 리밸런싱 PR 작성자께)
+└── 2026-10-07/        ← 새 글 1건
+    └── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (올릴 것 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -371,6 +373,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [이슈 점검-자산배분-리밸런싱-자동매매](2026-10-04/이슈-점검-자산배분-리밸런싱-자동매매/00-본문.md) | [점검] 자산배분 · 리밸런싱 · 자동매매 · 증권사 연동 화면 기능 완성도 (오준영 님) | 2,876 | [#108](https://github.com/EST-team-project/Qurious/issues/108) — 10-04 올림 |
 | [이슈 점검-모의투자-성과-테스트베드](2026-10-04/이슈-점검-모의투자-성과-테스트베드/00-본문.md) | [점검] 모의투자 · 성과 · 테스트베드 · 투자 대시보드 화면 기능 완성도 (강민석 님) | 3,260 | [#106](https://github.com/EST-team-project/Qurious/issues/106) — 10-04 올림 |
 | [이슈 점검-주인미정-화면-배지규칙](2026-10-04/이슈-점검-주인미정-화면-배지규칙/00-본문.md) | [점검] 주인이 정해지지 않은 화면 22개와 기능 완성도 배지 갱신 규칙 (팀) | 2,436 | [#109](https://github.com/EST-team-project/Qurious/issues/109) — 10-04 올림 |
+| [이슈 점검-주인미정-화면-배지규칙 댓글 01](2026-10-04/이슈-점검-주인미정-화면-배지규칙/01-2026-10-07-주인-정함.md) | 주인이 정해지지 않은 화면 22개 — 이동원이 맡기로 했습니다(2026-10-07) | 881 | (#109 에 올린 뒤) |
 | [PR feat-completion-audit-and-crawl-points](2026-10-04/PR-feat-completion-audit-and-crawl-points/00-본문.md) | feat: 기능 완성도 점검 — 화면 69 점수표 · 배지 팀 줄 · 크롤 조각 점 번호 고침 · 시장조사 | 2,232 | [#105](https://github.com/EST-team-project/Qurious/pull/105) — 10-04 머지 · `c8c07fd` |
 | [PR feat-kb-statute-links-and-legal-terms](2026-10-04/PR-feat-kb-statute-links-and-legal-terms/00-본문.md) | feat: 근거 답 정확도 — 질문 말 → 법령 말 · 위임 조 함께 넣기 · 평가셋 50 · 사람 판정 20 (DF-59) | 2,718 | [#110](https://github.com/EST-team-project/Qurious/pull/110) · 머지 `079a7dd` |
 | [PR feat-disclosure-financials-search-events](2026-10-04/PR-feat-disclosure-financials-search-events/00-본문.md) | feat: 공시 · 재무 수집 · 이름표 · 수집 자료 검색 · 일정 넷 — 목표 기능 ① W7 서버 쪽 | 2,781 | [#111](https://github.com/EST-team-project/Qurious/pull/111) · 머지 `1a7574e` |
@@ -388,10 +391,16 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---:|---|
 | [PR feat-sector-route-calendar-research-api-docs](2026-10-06/PR-feat-sector-route-calendar-research-api-docs/00-본문.md) | feat: 섹터 질문 분류 · 일정 2판 · 리서치 화면 · API 문서 화면 — 목표 기능 ① W7 화면 · 시스템관리 | 5,067 | #120 · 머지 619ae7a(10-06 12:21) |
 | [PR feat-kb-faithfulness-guards-sector-words](2026-10-06/PR-feat-kb-faithfulness-guards-sector-words/00-본문.md) | feat: 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판 — 목표 기능 ① W8 | 4,650 | #125 · 머지 `e0ffe8e` |
-| [PR docs-kb-faithfulness-judge-decision](2026-10-06/PR-docs-kb-faithfulness-judge-decision/00-본문.md) | docs: 근거 충실도 판정 결정 · 머지 뒤 실측 둘 — 목표 기능 ① W8 | 2,256 | (올린 뒤) |
+| [PR docs-kb-faithfulness-judge-decision](2026-10-06/PR-docs-kb-faithfulness-judge-decision/00-본문.md) | docs: 근거 충실도 판정 결정 · 머지 뒤 실측 둘 — 목표 기능 ① W8 | 2,256 | #126 |
 | [이슈 리밸런싱정책-시험DB](2026-10-06/이슈-리밸런싱정책-시험DB/00-본문.md) | [요청] 리밸런싱 시험 두 가지 — 새 시험 DB 에 표가 없고(DF-73), 한국어 Windows 에서 고정물이 JSON 을 못 읽습니다(DF-75) | 3,417 | (올린 뒤) |
 
 - 같은 날 팀원 글: **#117 리밸런싱 정책 이슈**(팀원이 올림 · 사용자 확인 2026-10-06) — 우리 기록 폴더는 없다(링크는 `Github-링크.md`).
+
+### 2026-10-07 — 새 글 1건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | (올린 뒤) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 
