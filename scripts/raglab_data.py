@@ -18,6 +18,8 @@
 
     토큰은 `.env` 의 HUGGINGFACE_ACCESS_TOKEN 을 쓴다(수집 데이터 백업과 같은 토큰 · 화면에 찍지 않는다).
     받은 파일은 .gitignore 에 적혀 있어 커밋되지 않는다 — `python scripts/raglab_scan.py --check` 가 지킨다.
+    앱의 강의 2일차 ETF 창 둘은 받은 두 파일을 강의 빌드(`python scripts/lectures_build.py`)가 public/lectures 로
+    옮긴 사본을 읽는다 — 받은 뒤 빌드를 한 번 돌린다. 그 사본도 .gitignore 에 있다(2026-10-07 · 시험 TC-LC-12 · 13).
 """
 from __future__ import annotations
 
@@ -157,6 +159,8 @@ def pull() -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(got, target)
         print(f"  받음 {r['경로']}")
+    # 앱의 강의 2일차 ETF 창은 받은 파일이 아니라 강의 빌드가 public/lectures 로 옮긴 사본을 읽는다(그 사본도 git 무시)
+    print("  앱 강의 화면에 쓰려면: python scripts/lectures_build.py")
     return 1 if failed else 0
 
 

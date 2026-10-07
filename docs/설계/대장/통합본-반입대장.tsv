@@ -294,7 +294,7 @@ frontend/days/assets/duration-use-case-simulators.css	4679	9518541f6211b594ffd47
 frontend/days/assets/duration-use-case-simulators.js	12401	ca39b7c77157b315901c5a4b8b980eef68eaf538	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/emerging-market-detail.css	2524	99788154a358377609aa2f8b0b2cb05c6306b3e6	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/emerging-market-modal.css	1760	9eeaab2daa5f01275952d3aa25ed404485fc3b62	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
-frontend/days/assets/etf-catalog.json	579632	eeb02dce436753cd3c5ec7f08ba75408a8465e14	화면-강의사이트	데이터	강사님 domain-rag-lab 과 같음	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 네이버 금융 목록 + 토스증권 화면의 내부 API 로 모은 ETF 1,009종의 3개월 수익률 · 구성종목
+frontend/days/assets/etf-catalog.json	579632	eeb02dce436753cd3c5ec7f08ba75408a8465e14	화면-강의사이트	데이터	강사님 domain-rag-lab 과 같음	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 네이버 금융 목록 + 토스증권 화면의 내부 API 로 모은 ETF 1,009종의 3개월 수익률 · 구성종목 · 강의 빌드(scripts/lectures_build.py)가 옮긴 public/lectures/days/assets/ 사본도 커밋하지 않는다(2026-10-07 부터 · 그 전 커밋 이력에는 남아 있다)
 frontend/days/assets/etf-role-detail.css	711	92fc3ae3a4ceb1247cbd1d4f6362de01c158fda0	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/fund-case-market.css	1587	8dea2cb8efc7eea1f1c4b614aa8a16af8900e930	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/fund-manager-add-row.css	1070	c5e8bfaf1a4cf3dfa9833deeabbe5b6017917730	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	
@@ -303,7 +303,7 @@ frontend/days/assets/glossary-modal.js	43500	8910886555d49eee772396eac001d9f2c89
 frontend/days/assets/growth-potential-rate.js	9766	6f2e3752473099e9dd1cac80a59b631b2909cc9e	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/krx-otc-clearing-specification.jpg	137954	39bdfd465b302ebeca4d8b5983a3a4fc5536276c	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/lesson-understanding.js	3424	8e4541d00a20f0eb294815a0456635948360cc33	화면-강의사이트	코드	강사님 domain-rag-lab 과 같음	복사	
-frontend/days/assets/leverage-etf-volume.json	901	145c21069e3c36fe790c859cbe0f586f70351a44	화면-강의사이트	데이터	강사님 domain-rag-lab 과 같음	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 네이버 금융 월봉에서 계산한 ETF 2종의 월 거래대금 합계 12개
+frontend/days/assets/leverage-etf-volume.json	901	145c21069e3c36fe790c859cbe0f586f70351a44	화면-강의사이트	데이터	강사님 domain-rag-lab 과 같음	HF 보관	시세 자료 — 저장소에 넣지 않고 비공개 데이터셋에 둔다. 네이버 금융 월봉에서 계산한 ETF 2종의 월 거래대금 합계 12개 · 강의 빌드(scripts/lectures_build.py)가 옮긴 public/lectures/days/assets/ 사본도 커밋하지 않는다(2026-10-07 부터 · 그 전 커밋 이력에는 남아 있다)
 frontend/days/assets/linear-nonlinear-duration-convexity.svg	5771	814bf4bef134cc342e662f377e8420f8733bb2d0	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/mts-bond-trading-example.jpg	34236	2313510375aab94e1f7b20dca8c4c2ebe9435560	화면-강의사이트	그림	강사님 domain-rag-lab 과 같음	복사	
 frontend/days/assets/site.css	146968	f832695fab6573c360945bebf20fe55532ed5584	화면-강의사이트	화면	강사님 domain-rag-lab 과 같음	복사	

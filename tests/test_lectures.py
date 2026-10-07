@@ -14,6 +14,7 @@ app/routes/lectures.py 로 옮겼다(수집 DB 먼저 · 야후는 표시만 · 
 6. 기간 수익률: 고른 시작일이 가진 자료보다 한 주 넘게 앞서면 수익률을 내지 않는다(통합본의 결함).
 7. 「더 앞선 이력」 요청은 아무것도 저장하지 않고 가장 이른 날짜만 답한다.
 8. 화면 연결: 메뉴(core.js) · 화면 자리(app.html) · 주제 목록(finlearn.js)의 화면 키가 서로 맞는다.
+9. 「HF 보관」 시세 자료: 빌드가 옮긴 public 사본도 커밋되지 않고, 받지 않은 PC 에서는 빌드가 건너뛴다.
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import lectures_build  # noqa: E402
+import raglab_scan  # noqa: E402
 
 from app.services import collector_db, lecture_market as lm  # noqa: E402
 from collector.db import SCHEMA  # noqa: E402
@@ -49,12 +51,17 @@ def test_build_matches_repository(built):
     """TC-LC-01 · 빌드 결과가 저장소의 public/lectures/ 와 같다(손으로 고친 파일이 없다).
 
     글 파일은 줄바꿈(CRLF · LF)을 접고 견준다 — Windows 의 git 이 파일을 다시 꺼내며 CRLF 로 바꾸기 때문이다(DF-36).
+    「HF 보관」 시세 자료는 통합본 사본에 받아 둔 PC 에서만 견준다 — 받지 않은 PC 에서는 빌드가 건너뛴다(TC-LC-13).
     """
-    files, _ = built
+    files, report = built
     now = {p.relative_to(LECT).as_posix(): p.read_bytes() for p in LECT.rglob("*") if p.is_file()}
-    assert sorted(now) == sorted(files), "남거나 빠진 파일 — python scripts/lectures_build.py 를 다시 돌린다"
-    changed = [k for k, v in files.items() if not lectures_build.same_content(k, now[k], v)]
-    assert not changed, f"빌드와 다른 파일: {changed[:5]}"
+    changed, extra = lectures_build.plan(files, now, report["held_skipped"])
+    missing = [k for k in changed if k not in now]
+    assert not missing and not extra, (
+        f"빠진 파일 {missing[:5]} · 남는 파일 {extra[:5]} — python scripts/lectures_build.py 를 다시 돌린다"
+        " (HF 보관 사본만 빠졌다면 받아 둔 PC 에서 git pull 이 옛 사본을 지운 것 — 빌드 한 번이면 생긴다)")
+    stale = [k for k in changed if k in now]
+    assert not stale, f"빌드와 다른 파일: {stale[:5]}"
 
 
 def test_same_content_folds_only_line_endings():
@@ -115,6 +122,49 @@ def test_curriculum_images_all_present(built):
             refs |= set(re.findall(r"\]\(img/([^)\s]+)\)", text))
     assert refs and all(f"curriculum/img/{r}" in files for r in refs)
     assert report["images"] == len(refs) == 19
+
+
+# ── 9 「HF 보관」 시세 자료 ─────────────────────────────────────────
+def _held_rows() -> list[dict[str, str]]:
+    """반입 대장의 「HF 보관」 줄 가운데 빌드가 public/lectures 로 옮기는 것."""
+    ledger = raglab_scan.read_tsv(raglab_scan.IMPORT_LEDGER, raglab_scan.IMPORT_COLUMNS)
+    return [r for r in ledger if r["상태"] == raglab_scan.STATE_HF and lectures_build.public_copy_of(r["경로"])]
+
+
+def test_held_public_copies_are_gitignored():
+    """TC-LC-12 · 빌드가 public/lectures 로 옮기는 「HF 보관」 시세 자료(네이버 · 토스증권에서 모은 값)의 사본도 .gitignore 에 있다.
+
+    통합본 쪽 사본은 TC-RL-02 가 본다. 2026-10-07 전에는 public 사본 둘이 커밋돼 있었다(그 이력은 남아 있다).
+    """
+    rows = _held_rows()
+    assert len(rows) >= 2, "옮기는 「HF 보관」 파일이 없다 — 대장이나 경로 규칙을 잘못 읽었다"
+    ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    for row in rows:
+        assert f"public/lectures/{lectures_build.public_copy_of(row['경로'])}" in ignored, row["경로"]
+
+
+def test_held_files_missing_from_copy_are_skipped(tmp_path, monkeypatch):
+    """TC-LC-13 · 통합본 사본에 「HF 보관」 파일이 없으면 빌드가 건너뛴다 — 쓰지도 지우지도 다르다고 하지도 않고 받는 명령을 알린다.
+
+    받아 둔 파일은 지금처럼 옮긴다. 받아 둔 PC 에서 git pull 이 옛 사본을 지웠으면 「바뀔 파일」 로 나와 빌드 한 번이면 생긴다.
+    """
+    held = [r["경로"] for r in _held_rows()]
+    src = tmp_path / "rag-lab"
+    (src / held[0]).parent.mkdir(parents=True)
+    (src / held[0]).write_bytes(b"{}\n")                 # 하나만 받아 둔 PC
+    monkeypatch.setattr(lectures_build, "SRC", src)
+    copy, skip = lectures_build.held_copies()
+    assert copy == [lectures_build.public_copy_of(held[0])]
+    assert skip == sorted(lectures_build.public_copy_of(h) for h in held[1:]) and skip
+
+    files = {"days/01.html": b"x", copy[0]: b"{}\n"}
+    # 건너뛴 사본은 public 에 남아 있어도 지우지 않고, 없어도 다르다고 하지 않는다
+    assert lectures_build.plan(files, {"days/01.html": b"x", copy[0]: b"{}\r\n", skip[0]: b"old"}, skip) == ([], [])
+    assert lectures_build.plan(files, {"days/01.html": b"x", copy[0]: b"{}\n"}, skip) == ([], [])
+    # 받아 둔 사본이 public 에 없으면 바뀔 파일이다
+    assert lectures_build.plan(files, {"days/01.html": b"x"}, skip) == ([copy[0]], [])
+    hint = lectures_build.held_hint(skip)
+    assert "raglab_data.py pull" in hint and all(Path(p).name in hint for p in skip)
 
 
 # ── 5 · 6 · 7 시세 계산부 (가짜 수집 DB · 가짜 야후) ────────────────
