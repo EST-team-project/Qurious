@@ -61,6 +61,45 @@ def candles() -> list[dict]:
     return make_candles()
 
 
+@pytest.fixture(scope="module")
+def rebalance_db_schema():
+    """DF-73: 리밸런싱 각 시험 묶음이 일회용 DB의 표를 준비하고 정리한다.
+
+    계정 시험이 표를 지운 뒤에도, 정책·일별 점검·예약 정산을 각각 단독 실행해도
+    동작해야 한다. 끝에 표를 남기면 일부 표만 만드는 장부 시험의 FK와 충돌한다.
+    """
+    import asyncio
+
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    import app.models  # noqa: F401 — 모든 모델을 metadata에 등록
+    from app.models.base import Base
+
+    db_url = os.environ.get("QURIOUS_TEST_DATABASE_URL", "")
+    if not db_url:
+        yield
+        return
+    url = make_url(db_url)
+    assert "test" in db_url and url.database != "fin_ai" and url.port != 15432, "일회용 시험 DB만 사용"
+
+    async def run(operation):
+        # setup/teardown은 별도 asyncio.run이므로 루프 사이에 연결을 재사용하지 않는다.
+        engine = create_async_engine(db_url, poolclass=NullPool)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(operation)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run(Base.metadata.create_all))
+    try:
+        yield
+    finally:
+        asyncio.run(run(Base.metadata.drop_all))
+
+
 @pytest.fixture
 def rebalance_calendar(tmp_path, monkeypatch):
     """실제 수집기 스키마·공휴일 픽스처 → 달력 읽기 서비스까지 검증한다."""
@@ -69,7 +108,7 @@ def rebalance_calendar(tmp_path, monkeypatch):
     from datetime import date
     from collector import db, market_calendar
     source = Path(__file__).parent / "fixtures" / "kasi_holidays_2020_2027.json"
-    years = json.loads(source.read_text())["years"]
+    years = json.loads(source.read_text(encoding="utf-8"))["years"]
     holidays = {date.fromisoformat(row["locdate"]): row["date_name"]
                 for rows in years.values() for row in rows if row["is_holiday"] == "Y"}
     path = tmp_path / "calendar.sqlite3"

@@ -12,6 +12,8 @@ from app.services import rebalance as rb, rebalance_prices as prices, rebalance_
 from tests.test_rebalance_policy import scenario, needs_db, target
 from tests.test_rebalance_daily import clock, ready_data  # noqa: F401
 
+pytestmark = pytest.mark.usefixtures("rebalance_db_schema")
+
 SYMBOLS = ('005930.KS', '000660.KS')
 
 
@@ -243,4 +245,86 @@ def test_legacy_cashflow_keeps_its_actual_price_basis(monkeypatch, clock, ready_
                 assert result['already_processed']
                 assert plan.last_auto_check_result['price_basis'] == 'current_quote'
                 await db.commit()
+    asyncio.run(go())
+
+
+@needs_db
+def test_batch_pipeline_waits_for_update_and_open_across_holidays(monkeypatch, clock, ready_data):
+    """SQLite 일봉·완료 기록 → 실제 readiness → 배치 → PG 정산을 이어 검증한다.
+
+    자료는 시험용이다. 실제 수집 성공으로 간주하지 않으며 판단/체결 함수를 대체하지 않는다.
+    """
+    path, _, write = ready_data
+
+    def update(day, price_day, **changes):
+        clock.current = datetime(2026, 10, day, 13, 30, tzinfo=rb.KST)
+        write(started_at=f'2026-10-{day:02}T12:30:01+09:00',
+              finished_at=f'2026-10-{day:02}T13:00:00+09:00',
+              after={'price_max': f'202610{price_day:02}'}, **changes)
+
+    async def go():
+        async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
+            async def forbidden(*args, **kwargs):
+                raise AssertionError('자동 배치에서 현재가를 조회하면 안 됨')
+            monkeypatch.setattr(rb.pt, 'resolve_stock', forbidden)
+            async with factory() as db:
+                plan = await rb.get_plan(db, uid)
+                rb.apply_plan_update(plan, dict(targets=[target(SYMBOLS[0], 40), target(SYMBOLS[1], 40)],
+                                               drift_enabled=True, auto_execute=True))
+                await db.commit()
+
+            # 목요일 판단 → 한글날과 주말을 건너 월요일 시가 예약.
+            insert_open(path, day='20261007')
+            with sqlite3.connect(path) as conn:
+                conn.execute("UPDATE price_daily SET clpr=1000 WHERE bas_dt='20261007'")
+            update(8, 7)
+            first = await rb.check_all_due(factory)
+            assert first['readiness']['ready'] and first['checked'] == 1 and first['errors'] == 0
+            async with factory() as db:
+                run = (await db.execute(select(RebalanceRun).where(RebalanceRun.user_id == uid))).scalar_one()
+                rid = run.id
+                assert run.status == 'scheduled' and run.context['valuation_date'] == '2026-10-07'
+                assert run.context['scheduled_for'] == '2026-10-12'
+                assert await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid)) == 0
+            repeat = await rb.check_all_due(factory)
+            assert repeat['checked'] == repeat['executed'] == repeat['errors'] == 0
+
+            # 체결 예정일 당일에는 시가가 확정되지 않아 정산하지 않는다.
+            insert_open(path, day='20261008')
+            update(12, 8)
+            assert (await rb.check_all_due(factory))['executed'] == 0
+
+            # 화요일 자료가 들어와도 러너가 실패했으면 기존 예약을 그대로 기다린다.
+            insert_open(path, day='20261012')
+            update(13, 12, ok=False, stopped='price failed')
+            failed_update = await rb.check_all_due(factory)
+            assert not failed_update['readiness']['ready'] and failed_update['executed'] == 0
+
+            # 갱신 성공 기록이 있어도 주문 종목 하나의 시가가 없으면 전 주문 대기.
+            write(ok=True, stopped=None)
+            with sqlite3.connect(path) as conn:
+                conn.execute("UPDATE price_daily SET mkp=0 WHERE bas_dt='20261012' AND srtn_cd='000660'")
+            missing = await rb.check_all_due(factory)
+            assert missing['readiness']['ready'] and missing['executed'] == missing['checked'] == missing['errors'] == 0
+            async with factory() as db:
+                assert (await db.get(RebalanceRun, rid)).status == 'scheduled'
+                assert await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid)) == 0
+                assert (await rb.get_plan(db, uid)).last_auto_check_date == date(2026, 10, 8)
+
+            # 빠진 시가 보완 뒤 같은 날 재시도: 12일 시가로 체결, 13일 확정.
+            with sqlite3.connect(path) as conn:
+                conn.execute("UPDATE price_daily SET mkp=900 WHERE bas_dt='20261012' AND srtn_cd='000660'")
+            complete = await rb.check_all_due(factory)
+            assert complete['executed'] == complete['checked'] == 1 and complete['errors'] == 0
+            async with factory() as db:
+                run = await db.get(RebalanceRun, rid)
+                assert run.status == 'executed' and run.context['fill_date'] == '2026-10-12'
+                assert run.context['confirmed_at'].startswith('2026-10-13')
+                assert all(order['price'] == 900 for order in run.orders)
+                count = await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid))
+                assert count == 2
+            again = await rb.check_all_due(factory)
+            assert again['checked'] == again['executed'] == again['errors'] == 0
+            async with factory() as db:
+                assert await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid)) == count
     asyncio.run(go())

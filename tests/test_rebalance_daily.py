@@ -9,6 +9,8 @@ import pytest
 from app.services import rebalance as rb, rebalance_daily as daily, data_status
 from tests.test_rebalance_policy import scenario, needs_db
 
+pytestmark = pytest.mark.usefixtures("rebalance_db_schema")
+
 
 @pytest.fixture
 def clock(monkeypatch):

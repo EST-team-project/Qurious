@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.services import rebalance as rb, rebalance_policy as p, paper_trading as pt
 from app.models import User, PaperAccount, Portfolio, RebalanceRun, CashflowEvent, Order
 
+pytestmark = pytest.mark.usefixtures("rebalance_db_schema")
+
 
 def target(symbol='A.KS', weight=60):
     return dict(symbol=symbol, name=symbol, weight_pct=weight)

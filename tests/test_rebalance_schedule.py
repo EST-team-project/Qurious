@@ -2,11 +2,28 @@
 import asyncio
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from app.services import rebalance as rb, rebalance_schedule as schedule
+
+
+def test_calendar_fixture_reads_utf8_with_cp949_default(monkeypatch, request):
+    """DF-75: 한국어 Windows의 기본 인코딩에서도 휴일 이름을 온전히 읽는다."""
+    read_text = Path.read_text
+
+    def windows_read_text(path, *args, **kwargs):
+        if path.name == "kasi_holidays_2020_2027.json" and not args and not kwargs.get("encoding"):
+            kwargs["encoding"] = "cp949"
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", windows_read_text)
+    calendar = request.getfixturevalue("rebalance_calendar")
+    with sqlite3.connect(calendar) as db:
+        row = db.execute("SELECT is_trading_day, reason FROM market_calendar WHERE cal_date='2026-10-09'").fetchone()
+    assert row[0] == 0 and "한글날" in row[1]
 
 
 def utc(value):
