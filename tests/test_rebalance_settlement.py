@@ -96,7 +96,8 @@ def test_close_decision_reserves_then_uses_open_once(monkeypatch, clock, ready_d
             assert results.count('executed') == 1
             async with factory() as db:
                 run = await db.get(RebalanceRun, rid)
-                assert [o['quantity'] for o in run.orders] == quantities
+                assert [o['quantity'] for o in run.orders] != quantities
+                assert [o['quantity'] for o in run.context['indicative_orders']] == quantities
                 assert all(o['price'] == 900 and o['decision_price'] == 1000 for o in run.orders)
                 assert run.context['fill_date'] == '2026-10-07'
                 assert run.context['confirmed_at'].startswith('2026-10-08')
@@ -144,7 +145,7 @@ def test_approval_keeps_close_orders_and_manual_check_cannot_replace(monkeypatch
                 plan, run = await queue(db, uid, automatic=False)
                 assert run.status == 'proposed'
                 orders = run.orders
-                assert (await rb.check_due(db, uid, plan))['already_processed']
+                assert (await rb.check_daily(db, uid, plan))['reason'] == 'already_checked'
                 assert run.context['price_basis'] == 'previous_close'
                 await db.commit()
                 run = await rb.execute_proposal(db, uid, run.id)
@@ -157,22 +158,23 @@ def test_approval_keeps_close_orders_and_manual_check_cannot_replace(monkeypatch
 
 
 @needs_db
-def test_price_gap_fails_order_without_resizing_or_negative_cash(monkeypatch, clock, ready_data):
+def test_price_gap_resizes_orders_without_negative_cash(monkeypatch, clock, ready_data):
     async def go():
         async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 rb.apply_plan_update(plan, dict(targets=[target(SYMBOLS[0],100)], auto_execute=True, drift_enabled=True))
                 await db.flush()
-                result = await rb.check_daily(db, uid, plan)
+                await rb.execute(db, uid, plan, 'MANUAL')
                 await db.commit()
             insert_open(ready_data[0], price=100000)
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 run = await st.settle(db, uid, plan, ready(clock))
-                assert run.status == 'failed'
-                assert all(o['status'] == 'failed' for o in run.orders)
-                assert (await rb.pt.get_account(db, uid)).cash == 200000
+                assert run.status == 'executed'
+                assert all(o['status'] == 'filled' for o in run.orders)
+                assert run.orders[0]['quantity'] < run.context['indicative_orders'][0]['quantity']
+                assert (await rb.pt.get_account(db, uid)).cash >= 0
                 await db.commit()
                 assert await st.settle(db, uid, plan, ready(clock)) is None
     asyncio.run(go())
@@ -207,7 +209,7 @@ def test_settlement_survives_new_decision_failure(monkeypatch, clock, ready_data
 
 
 @needs_db
-def test_partial_fill_uses_fixed_quantities_and_costs(monkeypatch, clock, ready_data):
+def test_partial_fill_keeps_costs_and_does_not_retry(monkeypatch, clock, ready_data):
     async def go():
         async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
             async with factory() as db:
@@ -215,13 +217,17 @@ def test_partial_fill_uses_fixed_quantities_and_costs(monkeypatch, clock, ready_
                 qty = [o['quantity'] for o in run.orders]
                 await db.commit()
             insert_open(ready_data[0])
-            with sqlite3.connect(ready_data[0]) as c:
-                c.execute("UPDATE price_daily SET mkp=100000 WHERE bas_dt='20261007' AND srtn_cd='000660'")
+            original = rb.pt._fill_stock_order
+            async def fail_buy(db, uid, quote, side, quantity, **kwargs):
+                if side == 'BUY':
+                    raise rb.pt.PaperTradeError('시험용 주문 실패')
+                return await original(db, uid, quote, side, quantity, **kwargs)
+            monkeypatch.setattr(rb.pt, '_fill_stock_order', fail_buy)
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 run = await st.settle(db, uid, plan, ready(clock))
                 assert run.status == 'partial'
-                assert [o['quantity'] for o in run.orders] == qty
+                assert [o['quantity'] for o in run.orders] != qty
                 assert [o['status'] for o in run.orders] == ['filled', 'failed']
                 sell = run.orders[0]
                 assert (await rb.pt.get_account(db, uid)).cash == 200000 + sell['net_amount']
@@ -232,18 +238,18 @@ def test_partial_fill_uses_fixed_quantities_and_costs(monkeypatch, clock, ready_
 
 
 @needs_db
-def test_legacy_cashflow_keeps_its_actual_price_basis(monkeypatch, clock, ready_data):
+def test_cashflow_waits_until_daily_check_and_reserves(monkeypatch, clock, ready_data):
     async def go():
         async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 plan.auto_execute = True
                 result = await rb.record_cashflow(db, uid, 'DEPOSIT', 200000)
-                assert result['run']['status'] == 'executed'
+                assert result['run'] is None and result['check_deferred']
                 await db.commit()
                 result = await rb.check_daily(db, uid, plan)
-                assert result['already_processed']
-                assert plan.last_auto_check_result['price_basis'] == 'current_quote'
+                assert result['status'] == 'scheduled'
+                assert plan.last_auto_check_result['price_basis'] == 'previous_close'
                 await db.commit()
     asyncio.run(go())
 

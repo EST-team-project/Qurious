@@ -95,13 +95,53 @@ needs_db=pytest.mark.skipif(not DB_URL,reason='시험 DB URL 필요')
 @pytest.fixture
 def time_calendar(rebalance_calendar, monkeypatch):
     # Calendar-aware tests must not depend on the wall clock or the CI weekday.
-    fixed = datetime(2026, 10, 6, 3, tzinfo=timezone.utc)
+    fixed = datetime(2026, 10, 6, 4, 30, tzinfo=timezone.utc)
     class Clock(datetime):
         @classmethod
         def now(cls, tz=None):
             return fixed.astimezone(tz) if tz else fixed.replace(tzinfo=None)
     monkeypatch.setattr(rb, 'datetime', Clock)
     return fixed
+
+
+@pytest.fixture(autouse=True)
+def policy_market(monkeypatch, time_calendar):
+    """정책 단위 시험의 날짜·가격 입력. 실제 SQLite 검증은 daily/settlement 모듈."""
+    def readiness():
+        today = rb.datetime.now(rb.KST).date()
+        try:
+            trading = rb.schedule.days(today, today)[0]['is_trading_day']
+        except Exception:
+            trading = False
+        return dict(ready=trading, decision_date=today.isoformat(), data_as_of='2026-10-02',
+                    update_finished_at=rb.datetime.now(rb.KST).isoformat(),
+                    message='시간 제안 승인 대기: 거래일·갱신 자료 확인 대기')
+    monkeypatch.setattr(rb.daily, 'readiness', readiness)
+    monkeypatch.setattr(rb.prices, 'read_prices', lambda symbols, day, field='close': {
+        sym: dict(symbol=sym, name=sym, price=1000, market='KOSPI', is_etf=False) for sym in symbols})
+
+
+async def event_then_check(db, uid, kind, amount):
+    event = await rb.record_cashflow(db, uid, kind, amount)
+    assert event['run'] is None and event['check_deferred']
+    plan = await rb.get_plan(db, uid)
+    result = await rb.check_due(db, uid, plan)
+    run = await db.get(RebalanceRun, uuid.UUID(result['run_id'])) if result.get('run_id') else None
+    return {**event, 'run': rb.run_to_dict(run) if run else None}
+
+
+async def confirm_reserved(db, uid, run, monkeypatch):
+    """예약 뒤 시가가 수집된 날로 이동하여 정산한다."""
+    assert run.status == 'scheduled'
+    day = datetime.fromisoformat(run.context['scheduled_for']).date()
+    current = datetime.combine(day + timedelta(days=1), datetime.min.time(), rb.KST)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return current.astimezone(tz) if tz else current.replace(tzinfo=None)
+    monkeypatch.setattr(rb, 'datetime', Clock)
+    return await rb.settlement.settle(db, uid, await rb.get_plan(db, uid),
+                                      dict(ready=True, data_as_of=day.isoformat()))
 
 
 @asynccontextmanager
@@ -140,13 +180,14 @@ def test_small_deposits_accumulate_and_approval_preserves_buy_only(monkeypatch):
             async with factory() as db:
                 first=await rb.record_cashflow(db,uid,'DEPOSIT',100000)
                 assert first['run'] is None # investable part 80k
-                second=await rb.record_cashflow(db,uid,'DIVIDEND',100000)
+                second=await event_then_check(db,uid,'DIVIDEND',100000)
                 run=second['run']
                 assert run['plan_kind']=='buy_only'
                 assert all(o['side']=='BUY' for o in run['orders'])
                 await db.commit()
                 result=await rb.execute_proposal(db,uid,uuid.UUID(run['id']))
                 assert str(result.id)==run['id']
+                result=await confirm_reserved(db,uid,result,monkeypatch)
                 assert result.status=='executed'
                 assert all(o['side']=='BUY' for o in result.orders)
                 assert result.context['actual_cost']>0
@@ -165,11 +206,12 @@ def test_withdrawal_and_deposit_netting(monkeypatch):
                 await rb.record_cashflow(db,uid,'DEPOSIT',100000)
                 await rb.record_cashflow(db,uid,'WITHDRAW',100000)
                 assert sum(e.remaining_budget for e in await rb.pending_cashflows(db,uid))==0
-                result=await rb.record_cashflow(db,uid,'WITHDRAW',150000)
+                result=await event_then_check(db,uid,'WITHDRAW',150000)
                 assert result['run']['plan_kind']=='sell_only'
                 assert all(o['side']=='SELL' for o in result['run']['orders'])
                 await db.commit()
                 done=await rb.execute_proposal(db,uid,uuid.UUID(result['run']['id']))
+                done=await confirm_reserved(db,uid,done,monkeypatch)
                 assert done.status=='executed'
                 assert all(o['side']=='SELL' for o in done.orders)
                 await db.commit()
@@ -177,7 +219,7 @@ def test_withdrawal_and_deposit_netting(monkeypatch):
 
 
 @needs_db
-def test_concurrent_checks_and_approvals_execute_once(monkeypatch):
+def test_concurrent_checks_and_approvals_reserve_once(monkeypatch):
     async def go():
         async with scenario(monkeypatch) as (factory,uid):
             async with factory() as db:
@@ -203,7 +245,7 @@ def test_concurrent_checks_and_approvals_execute_once(monkeypatch):
             counts=await asyncio.gather(approve(),approve())
             assert sum(c>0 for c in counts)==1
             async with factory() as db:
-                assert (await db.execute(select(func.count(Order.id)).where(Order.user_id==uid))).scalar()==sum(counts)
+                assert (await db.execute(select(func.count(Order.id)).where(Order.user_id==uid))).scalar()==0
                 assert (await db.execute(select(func.count(RebalanceRun.id)).where(RebalanceRun.user_id==uid))).scalar()==1
     asyncio.run(go())
 
@@ -213,7 +255,7 @@ def test_setting_change_rejects_old_approval(monkeypatch):
     async def go():
         async with scenario(monkeypatch) as (factory,uid):
             async with factory() as db:
-                result=await rb.record_cashflow(db,uid,'DEPOSIT',200000)
+                result=await event_then_check(db,uid,'DEPOSIT',200000)
                 plan=await rb.get_plan(db,uid)
                 rb.apply_plan_update(plan,{'targets':[target(weight=50),target('B.KS',20)]})
                 await db.commit()
@@ -232,13 +274,13 @@ def test_same_day_conditions_merge_and_auto_execution_once(monkeypatch, time_cal
                 plan.next_run_at=time_calendar-timedelta(days=1)
                 await db.commit()
                 # Date is due; no orders at balanced weights. A deposit now fires all three conditions.
-                result=await rb.record_cashflow(db,uid,'DEPOSIT',200000)
+                result=await event_then_check(db,uid,'DEPOSIT',200000)
                 assert result['run']['triggers']==['TIME','DRIFT','CASHFLOW']
                 plan.auto_execute=True
                 await db.commit()
                 again=await rb.check_due(db,uid,plan)
                 assert again['run_id']==result['run']['id']
-                assert again['status']=='executed'
+                assert again['status']=='scheduled'
                 await db.commit()
                 last=await rb.check_due(db,uid,plan)
                 assert last['already_processed']
@@ -247,7 +289,7 @@ def test_same_day_conditions_merge_and_auto_execution_once(monkeypatch, time_cal
 @needs_db
 def test_batch_continues_after_one_plan_fails(monkeypatch):
     monkeypatch.setattr(rb.daily, 'readiness', lambda: dict(ready=True,
-        decision_date=datetime.now(rb.KST).date().isoformat(), data_as_of='2026-10-02',
+        decision_date=rb.datetime.now(rb.KST).date().isoformat(), data_as_of='2026-10-02',
         update_finished_at='2026-10-06T13:00:00+09:00'))
     async def go():
         async with scenario(monkeypatch) as (factory, first_uid):
@@ -325,7 +367,7 @@ def test_event_survives_quote_failure(monkeypatch):
             monkeypatch.setattr(pt,'resolve_stock',unavailable)
             async with factory() as db:
                 result=await rb.record_cashflow(db,uid,'DEPOSIT',200000)
-                assert result['check_error']
+                assert result['check_deferred'] and result['run'] is None
                 await db.commit()
                 assert (await pt.get_account(db,uid)).cash==400000
                 assert sum(e.remaining_budget for e in await rb.pending_cashflows(db,uid))==160000
@@ -337,20 +379,20 @@ def test_partial_fill_is_recorded_and_not_retried_automatically(monkeypatch):
     async def go():
         async with scenario(monkeypatch) as (factory,uid):
             async with factory() as db:
-                result=await rb.record_cashflow(db,uid,'DEPOSIT',200000)
+                result=await event_then_check(db,uid,'DEPOSIT',200000)
                 await db.commit()
-                original=pt.stock_order
-                async def fail_second(db, user_id, symbol, side, quantity, **kwargs):
-                    if symbol=='B.KS': raise pt.PaperTradeError('시험용 주문 실패')
-                    return await original(db,user_id,symbol,side,quantity,**kwargs)
-                monkeypatch.setattr(pt,'stock_order',fail_second)
+                original=pt._fill_stock_order
+                async def fail_second(db, user_id, info, side, quantity, **kwargs):
+                    if info['symbol']=='B.KS': raise pt.PaperTradeError('시험용 주문 실패')
+                    return await original(db,user_id,info,side,quantity,**kwargs)
+                monkeypatch.setattr(pt,'_fill_stock_order',fail_second)
                 run=await rb.execute_proposal(db,uid,uuid.UUID(result['run']['id']))
+                run=await confirm_reserved(db,uid,run,monkeypatch)
                 assert run.status=='partial'
                 assert run.orders[-1]['status']=='failed'
                 await db.commit()
                 plan=await rb.get_plan(db,uid)
-                again=await rb.check_due(db,uid,plan)
-                assert again['already_processed']
+                assert await rb.settlement.settle(db,uid,plan,dict(ready=True,data_as_of=run.context['scheduled_for'])) is None
                 assert sum(e.remaining_budget for e in await rb.pending_cashflows(db,uid))>0
     asyncio.run(go())
 
@@ -395,8 +437,7 @@ def test_missing_calendar_blocks_time_but_preserves_cashflow(monkeypatch, time_c
                 await db.commit()
                 result = await rb.record_cashflow(db, uid, 'DEPOSIT', 200000)
                 assert result['event']['cash_after'] == 400000
-                assert result['run']['triggers'] == ['CASHFLOW']
-                assert result['run']['plan_kind'] == 'buy_only'
+                assert result['run'] is None and result['check_deferred']
                 await db.commit()
     asyncio.run(go())
 
@@ -426,7 +467,7 @@ def test_next_year_calendar_missing_does_not_cancel_pending_time_approval(monkey
                 assert second['run_id'] == first['run_id'] and second['triggers'] == ['TIME']
                 await db.commit()
                 run = await rb.execute_proposal(db, uid, uuid.UUID(first['run_id']))
-                assert run.status == 'executed'
+                assert run.status == 'scheduled'
                 await db.commit()
     asyncio.run(go())
 
@@ -452,12 +493,7 @@ def test_calendar_correction_blocks_pending_time_approval(monkeypatch, time_cale
                     calendar_db.execute("UPDATE market_calendar SET is_trading_day=0 WHERE cal_date='2026-10-06'")
                 with pytest.raises(rb.RebalanceError, match='시간 제안 승인 대기'):
                     await rb.execute_proposal(db, uid, uuid.UUID(first['run_id']))
-                if mode == 'scheduled':
-                    second = await rb.record_cashflow(db, uid, 'DEPOSIT', 200000)
-                    assert second['run']['triggers'] == ['CASHFLOW']
-                    assert second['run']['plan_kind'] == 'buy_only'
-                else:
-                    second = await rb.check_due(db, uid, plan)
-                    assert not second['time_due'] and second['run_id'] is None
+                second = await rb.record_cashflow(db, uid, 'DEPOSIT', 200000)
+                assert second['run'] is None and second['check_deferred']
                 await db.commit()
     asyncio.run(go())

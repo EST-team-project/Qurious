@@ -3,7 +3,7 @@
 모의투자 계좌(PaperAccount 현금 + Portfolio 주식 포지션)를 대상으로
   1) 시간 기반      : 월·분기·연 주기가 도래하면 실행
   2) 이탈률 기반    : 현재 비중이 목표 비중에서 허용 이탈률(%p) 이상 벗어나면 실행
-  3) 현금흐름 기반  : 입금·출금·배당금이 발생하면 새 현금흐름을 반영해 실행
+  3) 현금흐름 기반  : 입금·출금·배당금이 발생하면 현금을 즉시 반영하고 다음 일별 점검에서 판단
 세 가지 트리거로 목표 비중(RebalancePlan.targets)에 맞춰 매수·매도 주문을 산출·체결한다.
 """
 from __future__ import annotations
@@ -94,7 +94,7 @@ class RebalanceRun(Base, UUIDPkMixin, CreatedAtMixin):
     plan_kind: Mapped[str] = mapped_column(String(12), nullable=False, default="full")
     decision_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     context: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    status: Mapped[str] = mapped_column(String(10), nullable=False, default="proposed")  # proposed | scheduled | executed | partial | skipped | failed
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="proposed")  # proposed | scheduled | executed | partial | skipped | failed | cancelled
     total_asset: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     max_drift_pct: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     before_weights: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

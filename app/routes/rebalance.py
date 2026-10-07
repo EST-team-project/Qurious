@@ -93,24 +93,25 @@ async def status(user=Depends(get_current_user_any), db: AsyncSession = Depends(
     uid = _uid(user)
     plan = await rb.get_plan(db, uid)
     timing = await rb.refresh_time_schedule(plan)
+    valuation_error = None
     try:
         snap = await rb.snapshot(db, uid, plan)
     except rb.RebalanceError as exc:
-        raise HTTPException(409, str(exc))
+        snap, valuation_error = None, str(exc)
     await db.commit()
     await db.refresh(plan)
     time_due = timing["time_due"]
     automatic_check = rb.daily.view(plan, await asyncio.to_thread(rb.daily.readiness))
     return {"plan": rb.plan_to_dict(plan), "snapshot": snap,
-            "automatic_check": automatic_check,
+            "automatic_check": automatic_check, "valuation_error": valuation_error,
             "triggers": {"time_due": time_due,
-                         "drift_due": snap["drift_exceeded"] and (plan.drift_check_mode != "scheduled" or time_due),
-                         "cashflow_due": plan.cashflow_enabled and snap["cashflow_due"]}}
+                         "drift_due": bool(snap and snap["drift_exceeded"]) and (plan.drift_check_mode != "scheduled" or time_due),
+                         "cashflow_due": bool(snap and plan.cashflow_enabled and snap["cashflow_due"])}}
 
 
 @router.post("/preview")
 async def preview(user=Depends(get_current_user_any), db: AsyncSession = Depends(get_pg_session)):
-    """현재 시세 기준 리밸런싱 주문 제안(체결하지 않음)."""
+    """갱신 완료된 전 거래일 종가 기준 예상 주문(체결 시 수량 재계산)."""
     uid = _uid(user)
     plan = await rb.get_plan(db, uid)
     try:
@@ -123,7 +124,7 @@ async def preview(user=Depends(get_current_user_any), db: AsyncSession = Depends
 
 @router.post("/execute")
 async def execute(body: ExecuteBody, user=Depends(get_current_user_any), db: AsyncSession = Depends(get_pg_session)):
-    """수동 리밸런싱 실행(MANUAL) 또는 제안 승인 실행."""
+    """수동 리밸런싱(MANUAL) 또는 제안 승인의 다음 거래일 시가 예약."""
     uid = _uid(user)
     try:
         if body.run_id:
@@ -147,7 +148,12 @@ async def check(user=Depends(get_current_user_any), db: AsyncSession = Depends(g
     uid = _uid(user)
     plan = await rb.get_plan(db, uid)
     try:
-        result = await rb.check_due(db, uid, plan)
+        result = await rb.check_daily(db, uid, plan)
+        if not result["checked"]:
+            result = {**result, "already_processed": result["reason"] == "already_checked",
+                      "message": rb.daily.view(plan, await asyncio.to_thread(rb.daily.readiness))["message"]}
+            if result["reason"] == "settlement_waiting":
+                result.update(status="scheduled", message="기존 예약의 시가 체결을 기다립니다.")
     except rb.RebalanceError as exc:
         await db.rollback()
         raise HTTPException(409, str(exc))
@@ -157,7 +163,7 @@ async def check(user=Depends(get_current_user_any), db: AsyncSession = Depends(g
 
 @router.post("/cashflow")
 async def cashflow(body: CashflowBody, user=Depends(get_current_user_any), db: AsyncSession = Depends(get_pg_session)):
-    """입금·출금·배당 이벤트 기록 → 조건 충족 시 CASHFLOW 리밸런싱."""
+    """현금 즉시 반영 → 다음 일별 점검 회차에서 리밸런싱 판단."""
     uid = _uid(user)
     try:
         result = await rb.record_cashflow(db, uid, body.kind, body.amount, body.symbol, body.memo)

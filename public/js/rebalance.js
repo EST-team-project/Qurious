@@ -11,6 +11,7 @@ const TRIGGER_LABEL = { TIME: "시간", DRIFT: "이탈률", CASHFLOW: "현금흐
 const STATUS_BADGE = {
   executed: `<span class="badge-buy">체결</span>`, proposed: `<span class="badge-hold">제안</span>`,
   scheduled: `<span class="badge-hold">시가 체결 대기</span>`,
+  cancelled: `<span class="badge-hold">취소</span>`,
   partial: `<span class="badge-sell">부분 체결</span>`,
   skipped: `<span class="badge-hold">생략</span>`, failed: `<span class="badge-sell">실패</span>`,
 };
@@ -126,21 +127,35 @@ async function loadStatus() {
       + (daily.state === "checked" && daily.last_checked_at ? ` (${ts(daily.last_checked_at)} · 한국시간)` : "") : "";
     $("rb-schedule-warning").hidden = !plan.time_schedule_error;
     $("rb-schedule-warning").textContent = plan.time_schedule_error ? `시간 예약 확인 대기: ${plan.time_schedule_error}` : "";
+    $("rb-import-positions").disabled = !s || !!s.excluded_prices_unavailable?.length;
+    $("rb-import-positions").title = s?.excluded_prices_unavailable?.length ? "일부 보유 종목의 종가가 없어 비중을 복사할 수 없습니다." : "전 거래일 종가 기준 보유 비중을 목표로 복사";
+    if (!s) {
+      lastProposal = null;
+      $("rb-execute").disabled = true;
+      $("rb-proposal").textContent = "자료 준비 후 다시 주문을 산출하세요.";
+      $("rb-proposal-summary").textContent = "";
+      $("rb-kpis").textContent = r.valuation_error || "종가 자료 확인 대기";
+      $("rb-trigger-badges").textContent = "가격 자료가 준비되면 조건을 확인합니다.";
+      $("rb-weight-table").textContent = "전 거래일 종가 기준 비중 확인 대기";
+      if (weightChart) { weightChart.destroy(); weightChart = null; }
+      await Promise.all([loadRuns(), loadCashflows()]);
+      return;
+    }
     $("rb-kpis").innerHTML = [
       kpi("관리 자산 (현금+대상 주식)", won(s.total_asset)),
-      kpi("제외한 주식 평가액", won(s.excluded_asset || 0)),
+      kpi("제외한 주식 평가액", s.excluded_prices_unavailable?.length ? "일부 종가 확인 대기" : won(s.excluded_asset || 0)),
       kpi("목표 대비 현금 초과(+)/부족(-)", won(s.cash_excess)),
       kpi("미사용 현금흐름 예산 (+매수 / -매도)", won(s.pending_budget)),
       kpi("현금 비중", `${s.cash_weight_pct}% <span class="text-xs" style="color:var(--text-mute)">목표 ${s.cash_target_pct}%</span>`),
       kpi("최대 이탈", `${s.max_drift_pct}%p`, s.drift_exceeded ? "text-red-500" : "text-emerald-600"),
-      kpi("다음 시간 리밸런싱 (한국시간)", plan.time_period === "none" ? "-" : `${PERIOD_LABEL[plan.time_period]} 첫 거래일<div class="text-xs font-normal" style="color:var(--text-mute)">${plan.time_schedule_error ? '달력 확인 대기' : ts(plan.next_run_at)}</div>`),
+      kpi("다음 시간 리밸런싱 (한국시간)", plan.time_period === "none" ? "-" : `${PERIOD_LABEL[plan.time_period]} 첫 거래일<div class="text-xs font-normal" style="color:var(--text-mute)">${plan.time_schedule_error ? '달력 확인 대기' : escHtml(plan.next_run_at ? new Date(plan.next_run_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }) + ' 갱신 완료 후' : '-')}</div>`),
     ].join("");
-    const badges = [];
+    const badges = [`<span class="badge-hold">판단 기준 ${escHtml(s.valuation_date)} 종가</span>`];
     if (triggers.time_due) badges.push(`<span class="badge-sell">시간 트리거 도래</span>`);
     if (triggers.drift_due) badges.push(`<span class="badge-sell">이탈률 기준 이상 (허용 ${plan.drift_threshold_pct}%p)</span>`);
     if (triggers.cashflow_due) badges.push(`<span class="badge-sell">현금흐름 기준 충족 (${won(s.cashflow_available)})</span>`);
-    if (!badges.length) badges.push(`<span class="badge-buy">트리거 조건 미충족 — 현재 실행 조건 없음</span>`);
-    badges.push(`<span class="badge-hold">${plan.auto_execute ? "자동 체결" : "제안만 생성 (수동 승인)"}</span>`);
+    if (badges.length === 1) badges.push(`<span class="badge-buy">트리거 조건 미충족 — 현재 실행 조건 없음</span>`);
+    badges.push(`<span class="badge-hold">${plan.auto_execute ? "자동 예약" : "제안만 생성 (수동 승인)"}</span>`);
     $("rb-trigger-badges").innerHTML = badges.join(" ");
 
     renderWeightTable(s);
@@ -161,7 +176,7 @@ function renderWeightTable(s) {
     current_weight_pct: s.cash_weight_pct, target_weight_pct: s.cash_target_pct, drift_pct: s.cash_drift_pct, in_plan: true }];
   $("rb-weight-table").innerHTML = `<table><thead><tr><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">평가액</th><th style="text-align:right">현재 비중</th><th style="text-align:right">목표 비중</th><th style="text-align:right">이탈(%p)</th></tr></thead><tbody>${
     rows.map(r => `<tr${r.in_plan ? "" : ' style="opacity:.7"'}><td>${escHtml(r.name)} <span class="text-xs font-mono" style="color:var(--text-mute)">${escHtml(r.symbol)}</span>${r.in_plan ? "" : ` <span class="badge-hold text-xs">${r.managed ? '플랜 외 → 매도 대상' : '플랜 외 → 유지·계산 제외'}</span>`}</td>
-      <td style="text-align:right">${r.quantity === "" ? "-" : fmt(r.quantity)}</td><td style="text-align:right">${won(r.current_amount)}</td>
+      <td style="text-align:right">${r.quantity === "" ? "-" : fmt(r.quantity)}</td><td style="text-align:right">${r.quantity > 0 && r.price == null ? "종가 확인 대기" : won(r.current_amount)}</td>
       <td style="text-align:right">${r.current_weight_pct}%</td><td style="text-align:right">${r.target_weight_pct}%</td>
       <td style="text-align:right" class="${Math.abs(r.drift_pct) >= 0.01 ? (r.drift_pct > 0 ? "text-red-500" : "text-emerald-600") : ""}">${r.drift_pct > 0 ? "+" : ""}${r.drift_pct}</td></tr>`).join("")}</tbody></table>`;
 }
@@ -195,18 +210,21 @@ function renderOrders(orders, containerId, opts = {}) {
 }
 
 async function previewRebalance() {
-  $("rb-proposal").innerHTML = `<span style="color:var(--text-mute);">현재 시세 기준으로 주문을 산출 중…</span>`;
+  lastProposal = null;
+  $("rb-execute").disabled = true;
+  $("rb-proposal-summary").textContent = "";
+  $("rb-proposal").innerHTML = `<span style="color:var(--text-mute);">전 거래일 종가 기준으로 예상 주문을 산출 중…</span>`;
   try {
     lastProposal = await api("/api/rebalance/preview", { method: "POST" });
     renderOrders(lastProposal.orders, "rb-proposal");
-    $("rb-proposal-summary").textContent = `예상 회전 금액 ${won(lastProposal.estimated_turnover)} · 예상 비용 ${won(lastProposal.estimated_cost, 2)} · 비용 반영 후 현금 ${won(lastProposal.estimated_cash_after)}` +
+    $("rb-proposal-summary").textContent = `판단 기준 ${lastProposal.snapshot.valuation_date} 종가 · 체결 수량은 시가로 재계산 · 예상 회전 금액 ${won(lastProposal.estimated_turnover)} · 예상 비용 ${won(lastProposal.estimated_cost, 2)} · 비용 반영 후 현금 ${won(lastProposal.estimated_cash_after)}` +
       (lastProposal.skipped?.length ? ` · 시세 실패 ${lastProposal.skipped.map(x => x.symbol).join(", ")}` : "");
     $("rb-execute").disabled = !lastProposal.orders.length;
   } catch (e) { $("rb-proposal").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 
 async function executeRebalance(runId = null, scheduled = false) {
-  if (!confirm(scheduled ? "전 거래일 종가로 산출한 수량을 다음 거래일 시가 체결로 예약합니다. 시가가 수집된 뒤 확정됩니다. 계속할까요?" : runId ? "이 제안의 주문 방향을 유지해 현재 시세와 잔고로 재산출·모의 체결합니다. 계속할까요?" : "제안된 주문을 모의계좌에 체결합니다. 계속할까요?")) return;
+  if (!confirm("전 거래일 종가로 판단한 목표 비중을 다음 거래일 시가 체결로 예약합니다. 시가 수집 후 수량을 다시 계산하며, 조건이 해소되면 취소될 수 있습니다. 계속할까요?")) return;
   try {
     const r = await api("/api/rebalance/execute", { method: "POST", body: runId ? { run_id: runId } : { note: "화면에서 수동 실행" } });
     const filled = r.orders.filter(o => o.status === "filled").length;
@@ -221,8 +239,8 @@ async function executeRebalance(runId = null, scheduled = false) {
 async function checkTriggers() {
   try {
     const r = await api("/api/rebalance/check", { method: "POST" });
-    const msg = r.status === "scheduled" ? "시가 체결 예약이 있어 추가 계획을 만들지 않았습니다." : r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
-      : `트리거 미충족 (시간 ${r.time_due ? "도래" : "대기"} · 최대 이탈 ${r.max_drift_pct ?? "-"}%p)`;
+    const msg = r.message || (r.status === "scheduled" ? (r.already_processed ? "기존 시가 체결 예약을 기다립니다." : "다음 거래일 시가 체결을 예약했습니다.") : r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
+      : `트리거 미충족 (시간 ${r.time_due ? "도래" : "대기"} · 최대 이탈 ${r.max_drift_pct ?? "-"}%p)`);
     setToast(msg + (r.time_schedule_error ? ` · 시간 예약 확인 대기: ${r.time_schedule_error}` : ""), r.trigger ? "ok" : "error");
     await loadStatus();
   } catch (e) { setToast(e.message, "error"); }
@@ -237,8 +255,10 @@ async function submitCashflow() {
   try {
     const r = await api("/api/rebalance/cashflow", { method: "POST", body });
     const label = { DEPOSIT: "입금", WITHDRAW: "출금", DIVIDEND: "배당" }[kind];
+    lastProposal = null;
+    $("rb-execute").disabled = true;
     const outcome = { executed: "자동 체결", proposed: "제안 생성", partial: "부분 체결", skipped: "주문 없음", failed: "체결 실패" };
-    setToast(`${label} ${won(amount)} 반영 (현금 ${won(r.event.cash_after)})` + (r.already_processed ? " → 오늘 계획 처리됨 · 미사용 예산 이월" : r.run ? ` → 리밸런싱 ${outcome[r.run.status] || r.run.status}` : ""), "ok");
+    setToast(`${label} ${won(amount)} 반영 (현금 ${won(r.event.cash_after)})` + (r.check_deferred ? " → 다음 일별 점검에서 판단" : r.already_processed ? " → 오늘 계획 처리됨 · 미사용 예산 이월" : r.run ? ` → 리밸런싱 ${outcome[r.run.status] || r.run.status}` : ""), "ok");
     if (r.check_error) setToast(`현금은 반영됐습니다. 리밸런싱 판정 대기: ${r.check_error}`, "error");
     $("rb-cf-amount").value = ""; $("rb-cf-memo").value = "";
     await loadStatus();
@@ -270,7 +290,7 @@ async function loadRuns() {
         <div class="flex flex-wrap items-center gap-2 text-sm">
           <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${STATUS_BADGE[run.status] || run.status}
           <span class="text-xs" style="color:var(--text-mute)">${run.decision_date || ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
-          ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}" data-scheduled="${run.context?.price_basis === 'previous_close'}">${run.context?.price_basis === 'previous_close' ? '승인·예약' : '승인·체결'}</button>` : ""}
+          ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}" data-scheduled="${run.context?.price_basis === 'previous_close'}">${run.context?.price_basis === 'previous_close' ? '승인·예약' : '이전 제안 (재산출 필요)'}</button>` : ""}
         </div>
         <div class="text-xs mt-1" style="color:var(--text-dim)">${escHtml(run.note || "")}</div>
         <div class="text-xs mt-1">${run.context?.price_basis === "previous_close" ? `종가 기준일 ${escHtml(run.context.valuation_date)} · 예약 체결일 ${escHtml(run.context.scheduled_for || "승인 후 결정")}${run.context.fill_date ? ` · 체결일 ${escHtml(run.context.fill_date)}` : ""}${run.context.confirmed_at ? ` · 확정 ${ts(run.context.confirmed_at)}` : ""}` : `현재 시세 조회 ${ts(run.context?.observed_at)}`} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
