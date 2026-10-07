@@ -1210,11 +1210,23 @@ python scripts/daily_update.py install --time 18:30 --no-upload
 python scripts/daily_update.py start                # 등록된 작업을 지금 한 번 (이 터미널과 무관하게 돈다)
 python scripts/daily_update.py status               # 예약 상태 + 마지막 실행 단계별 결과
 python scripts/daily_update.py run                  # 이 터미널에서 직접 (업로드 없이)
+python scripts/daily_update.py run --only news      # 그 단계 하나만 다시 — 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 막힘 (2026-10-07)
+python scripts/daily_update.py steps --write        # 단계 목록(이름표 · 묶음 · 하는 일) · 이 PC 용량 파일을 지금 쓴다 (2026-10-07)
 python scripts/daily_update.py uninstall            # 등록 해제
 ```
 
 로그 `data/collector/logs/daily_update-*.log`(최근 30개) · 마지막 결과 `data/collector/state/daily_update_last.json` ·
-이력 `data/collector/state/daily_update_history.jsonl`. 모두 gitignore 된 `data/collector/` 아래다.
+이력 `data/collector/state/daily_update_history.jsonl`(2026-10-08 회차부터 단계별 결과도 · 한 단계 다시 줄은 처음부터) · 단계 목록 `state/daily_update_steps.json` ·
+이 PC 용량 `state/pc_disk.json`. 모두 gitignore 된 `data/collector/` 아래다.
+
+**단계 이름표는 러너 한 곳(`STEPS` 의 `label` · `group` · `desc`)에만 둔다**(2026-10-07 · 결정 ④). 러너가 회차마다 단계 목록과
+회차 기록에 함께 쓰고, 앱(`app/services/data_status.py` · `GET /api/data/runner`)은 그 기록만 읽는다 — 단계를 더할 때 앱을 고치지
+않아도 화면이 따라온다. 앱 컨테이너는 수집 폴더를 읽기만 하므로 이 PC 용량도 러너가 잰다.
+
+**한 단계 다시는 끝에 수집 DB 를 읽기 전용으로 한 번 연다**(`rearm_wal` · 2026-10-07 · DF-81). 수집 DB 는 WAL 이고 앱은 `data/` 를
+읽기 전용으로 붙여 여는데, 이 PC 의 쓰기 연결이 마지막으로 닫히면 SQLite 가 보조 파일(`-wal` · `-shm`)을 지워 앱의 데이터 API 가
+「unable to open database file」 로 멈춘다(근거 DB 의 DF-74 와 같은 뿌리). 정기 회차는 끝의 `snapshot()` 이 같은 일을 한다.
+이 PC 에서 수집 DB 에 쓰는 다른 명령(수집기 직접 실행 등)을 돌린 뒤에는 `check.ps1 -Group 데이터` 로 확인한다.
 
 ### 한계 · 뒤집을 조건
 

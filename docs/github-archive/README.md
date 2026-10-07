@@ -97,10 +97,11 @@ docs/github-archive/
 │   ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
 │   ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (#126 · 머지 13a6ae9 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
 │   └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올리지 않음 — 팀원 PR #129 가 DF-73 · DF-75 를 고침 · 10-07 사용자 확인)
-└── 2026-10-07/        ← 새 글 3건
+└── 2026-10-07/        ← 새 글 4건
     ├── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (#128 · 머지 0011743 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
     ├── PR-docs-reorganize-by-kind/  00-본문.md  (#130 · 머지 f0fa9cf · docs 폴더 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구)
-    └── PR-chore-lecture-etf-json-to-hf/  00-본문.md  (올릴 것 · 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀)
+    ├── PR-chore-lecture-etf-json-to-hf/  00-본문.md  (#132 · 머지 a617f2a · 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀)
+    └── PR-feat-collect-screens-server/  00-본문.md  (올릴 것 · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -405,7 +406,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---:|---|
 | [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | #128 · 머지 `0011743` |
 | [PR docs-reorganize-by-kind](2026-10-07/PR-docs-reorganize-by-kind/00-본문.md) | docs: docs 폴더를 종류별로 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구 | 3,860 | [#130](https://github.com/EST-team-project/Qurious/pull/130) · 머지 `f0fa9cf` (2026-10-07 에 채움) |
-| [PR chore-lecture-etf-json-to-hf](2026-10-07/PR-chore-lecture-etf-json-to-hf/00-본문.md) | chore: 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀 | 2,769 | (올린 뒤) |
+| [PR chore-lecture-etf-json-to-hf](2026-10-07/PR-chore-lecture-etf-json-to-hf/00-본문.md) | chore: 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀 | 2,769 | [#132](https://github.com/EST-team-project/Qurious/pull/132) · 머지 `a617f2a` (2026-10-07 에 채움) |
+| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 | 4,801 | (올린 뒤) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

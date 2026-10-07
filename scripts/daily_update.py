@@ -67,7 +67,9 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
 
     python scripts/daily_update.py run              # 로컬 갱신만 (①~⑥)
     python scripts/daily_update.py run --upload     # + HF 증분 업로드 (⑦~⑨)
+    python scripts/daily_update.py run --only news  # 그 단계 하나만 다시(예약 회차와 겹치는 시간에는 막힘)
     python scripts/daily_update.py status           # 마지막 실행 결과 + 예약 상태
+    python scripts/daily_update.py steps --write    # 단계 목록 · 이 PC 용량 파일을 지금 쓴다(앱이 읽는다)
     python scripts/daily_update.py install          # 작업 스케줄러에 매일 12:30 등록 (--upload 포함)
     python scripts/daily_update.py install --time 18:30 --no-upload
     python scripts/daily_update.py start            # 등록된 작업을 지금 한 번 돌린다(비동기)
@@ -83,6 +85,7 @@ import argparse
 import datetime
 import json
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -108,6 +111,10 @@ LOG_DIR = config.DATA_DIR / "logs"
 LOCK_PATH = config.STATE_DIR / "daily_update.lock"
 LAST_PATH = config.STATE_DIR / "daily_update_last.json"
 HISTORY_PATH = config.STATE_DIR / "daily_update_history.jsonl"
+#: 단계 목록(이름표 · 묶음 · 하는 일) — 회차마다 처음에 다시 쓴다. 앱은 이 파일과 회차 기록만 읽는다(결정 ④).
+CATALOG_PATH = config.STATE_DIR / "daily_update_steps.json"
+#: 이 PC 용량(드라이브 여유 · 수집 DB 크기) — 회차 끝에 잰다. 앱 컨테이너는 PC 디스크를 볼 수 없어 러너가 대신 잰다.
+DISK_PATH = config.STATE_DIR / "pc_disk.json"
 
 #: 로그 보관 개수. 하루 한 번이면 한 달치다.
 KEEP_LOGS = 30
@@ -128,46 +135,73 @@ class Step:
     derived: bool = False       # 새 자료가 없으면 건너뛰는 파생 단계인가
     upload: bool = False        # --upload 일 때만 도는가
     sharing: bool = False       # 원자료 공유 스위치를 켜서 넘기는가
+    # 화면에 보이는 이름표 · 묶음 · 하는 일 — **여기 한 곳에만 둔다**(2026-10-07 · 결정 ④). 러너가 회차 기록과 단계 목록
+    # 파일(``CATALOG_PATH``)에 함께 쓰고, 앱(``app/services/data_status.py``)은 그 기록만 읽는다 — 단계를 더하면 화면이 따라온다.
+    label: str = ""
+    group: str = ""
+    desc: str = ""
 
+
+#: 단계 묶음 — 화면이 이 차례로 머리를 단다(단계는 묶음 안에서 러너 차례 그대로).
+GROUPS: List[Dict[str, str]] = [
+    {"key": "받기", "note": "출처에서 새 자료를 받는다"},
+    {"key": "계산", "note": "받은 자료로 새 표를 만든다"},
+    {"key": "백업", "note": "Hugging Face 데이터셋으로 올린다"},
+    {"key": "근거 문서", "note": "근거 답이 쓰는 법령을 대조한다"},
+]
 
 STEPS: List[Step] = [
-    Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30),
+    Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30,
+         label="시세", group="받기", desc="최근 거래일 시세를 받아 빈 날을 메운다"),
     Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet"], 60,
-         fatal=False),
+         fatal=False, label="배당", group="받기", desc="최근 두 달 배당 공시를 다시 훑어 배당 기록을 고친다"),
     # 공시 · 재무 · 검색 색인(2026-10-04 · 목표 기능 ① W7) — 시세와 무관하고 실패해도 기존 단계를 막지 않는다.
     # 공시 목록(최근 3일 · 유형 A~J × 시장 3 · 약 40회) → 새 정기보고서 · 정정본의 재무 → 이름표 · 낱말 색인(바뀐 것만).
     # 달력(③-②) **앞에** 둔다 — 실적 · 주총 일정을 공시 목록에서 만든다.
-    Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet"], 15, fatal=False),
-    Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False),
+    Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet"], 15, fatal=False,
+         label="공시", group="받기", desc="전자공시(DART) 최근 3일 상장사 공시 목록"),
+    Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False,
+         label="재무", group="받기", desc="새 정기보고서 · 정정본의 재무 주요계정"),
     # 주주총회 · 배당금 지급 일정(2026-10-05) — 최근 60일 소집결의 본문(새 것만 · 하루 수십 회) → 날짜 읽기. 달력 앞.
-    Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet"], 15, fatal=False),
+    Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet"], 15, fatal=False,
+         label="기업 일정", group="받기", desc="주주총회 · 배당금 지급 같은 기업 일정"),
     # 정책브리핑 정책뉴스(2026-10-05) — 오늘까지 3일 창 한 번(공공데이터포털 · 하루 1,000회). 이름표 · 색인 앞.
-    Step("news", ["-m", "collector.policy_news", "daily", "--quiet"], 10, fatal=False),
+    Step("news", ["-m", "collector.policy_news", "daily", "--quiet"], 10, fatal=False,
+         label="정책뉴스", group="받기", desc="정책브리핑 정책뉴스 — 공공누리 제1유형만 본문"),
     # 언론사 기사 메타데이터(2026-10-05) — GDELT 번역 GKG 15분 파일(지난 30시간 · 아직 안 읽은 것 · 하루 약 96파일 · 550MB)에서
     # 한국어 원문 기사의 제목 · 주소 · 시각 · 언론사만. 본문은 받지 않는다.
-    Step("gdelt", ["-m", "collector.gdelt_news", "daily", "--quiet"], 30, fatal=False),
-    Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False),
+    Step("gdelt", ["-m", "collector.gdelt_news", "daily", "--quiet"], 30, fatal=False,
+         label="언론사 기사", group="받기", desc="제목 · 링크 · 시각 · 언론사만(본문은 받지 않는다)"),
+    Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False,
+         label="검색 색인", group="계산", desc="수집 자료 검색 색인 — 바뀐 것만 다시 짓는다"),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
     # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
-    Step("calendar", ["-m", "collector.market_calendar", "build", "--quiet"], 10, fatal=False),
-    Step("adjusted", ["-m", "collector.preprocess"], 30, derived=True),
+    Step("calendar", ["-m", "collector.market_calendar", "build", "--quiet"], 10, fatal=False,
+         label="시장 달력", group="계산", desc="휴장일 · 거래일 달력 · 배당락일 · 금융 일정"),
+    Step("adjusted", ["-m", "collector.preprocess"], 30, derived=True,
+         label="수정주가", group="계산", desc="분할 · 병합 · 배당을 반영해 과거 가격을 고친다(새 자료가 없으면 건너뜀)"),
     Step("total_return", ["-m", "collector.total_return", "build", "--quiet"], 30,
-         derived=True),
-    Step("benchmark", ["-m", "collector.benchmark", "build", "--quiet"], 30, derived=True),
+         derived=True, label="총수익", group="계산", desc="배당을 다시 투자한 총수익(TR) 지수"),
+    Step("benchmark", ["-m", "collector.benchmark", "build", "--quiet"], 30, derived=True,
+         label="벤치마크", group="계산", desc="수정주가 · TR 로 다시 만든 지수 — 비교 기준"),
     # OHLCV 규격 자료(2026-10-01) — ETF · 지수 일봉 · 분봉 · krx-ohlcv 내보내기. 실패해도 기존 단계를 막지 않는다.
-    Step("ohlcv", ["-m", "collector.ohlcv_load", "daily"], 40, fatal=False),
-    Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False),
+    Step("ohlcv", ["-m", "collector.ohlcv_load", "daily"], 40, fatal=False,
+         label="일봉", group="계산", desc="ETF · 지수 일봉과 분봉을 받아 묶음으로 적재 · 내보내기"),
+    Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False,
+         label="목록표", group="백업", desc="백업할 표 · 행 수 · 지문 목록(대조용)"),
     Step("export", ["scripts/hf_dataset.py", "export", "--quiet"], 30,
-         upload=True, sharing=True),
-    Step("verify", ["scripts/hf_dataset.py", "verify"], 30, upload=True),
+         upload=True, sharing=True, label="내보내기", group="백업", desc="바뀐 표를 파케이 파일로 내보낸다"),
+    Step("verify", ["scripts/hf_dataset.py", "verify"], 30, upload=True,
+         label="대조", group="백업", desc="행 수 · 지문 · 형식 · 값 대조"),
     Step("upload", ["scripts/hf_dataset.py", "upload", "--yes", "--incremental"], 60,
-         upload=True, sharing=True),
+         upload=True, sharing=True, label="올리기", group="백업", desc="시세 데이터셋에 바뀐 조각만 올린다"),
     Step("ohlcv_upload", ["scripts/hf_ohlcv.py", "upload", "--yes"], 30,
-         fatal=False, upload=True, sharing=True),
+         fatal=False, upload=True, sharing=True, label="일봉 올리기", group="백업", desc="일봉 · 분봉 데이터셋에 올린다"),
     # 섹터별 · 연도별 근거 법령(2026-10-05) — 7일에 한 번만 실제로 돈다(판 목록 대조 → 바뀐 해만 본문 → 내보내기 → 바뀌었으면
     # HF kb-sector-laws 에 올리고 받아서 대조). 그 밖의 날은 「건너뜀」 한 줄. 실패해도 다른 단계를 막지 않는다.
     Step("sector_laws", ["scripts/hf_sector_laws.py", "weekly", "--yes", "--quiet"], 40,
-         fatal=False, upload=True, sharing=True),
+         fatal=False, upload=True, sharing=True,
+         label="섹터 법령", group="근거 문서", desc="섹터별 근거 법령 — 7일에 한 번 개정 대조"),
 ]
 
 
@@ -263,6 +297,54 @@ def child_python() -> str:
         if cand.exists():
             return str(cand)
     return str(exe)
+
+
+# ==================================================
+# 1-2. 단계 목록 · 이 PC 용량 — 앱이 읽는 기록 파일
+# ==================================================
+def step_catalog(now: Optional[datetime.datetime] = None) -> Dict:
+    """화면이 그리는 단계 목록 — 이름표 · 묶음 · 하는 일과 실패 · 건너뛰기 성질. 러너 ``STEPS`` 차례 그대로."""
+    return {
+        "written_at": _iso(now or now_kst()),
+        "schedule": DEFAULT_TIME,
+        "groups": GROUPS,
+        "steps": [{"name": s.name, "label": s.label, "group": s.group, "desc": s.desc,
+                   "fatal": s.fatal, "derived": s.derived, "upload": s.upload,
+                   "timeout_min": s.timeout_min} for s in STEPS],
+    }
+
+
+def _rec(step: Step) -> Dict:
+    """회차 기록의 단계 한 줄 — 이름표 · 묶음 · 하는 일을 함께 적는다(그 회차에 화면이 무엇을 보였어야 하나가 남는다)."""
+    return {"name": step.name, "label": step.label, "group": step.group, "desc": step.desc,
+            "fatal": step.fatal, "rc": None, "seconds": 0.0, "note": ""}
+
+
+def _compact(recs: List[Dict]) -> List[Dict]:
+    """이력 줄(JSONL)에 남길 단계 결과 — 이름표는 단계 목록 파일에 있으니 이름 · 종료코드 · 시간 · 메모만."""
+    return [{"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
+            for r in recs]
+
+
+def measure_disk(now: Optional[datetime.datetime] = None, db_path: Optional[Path] = None) -> Dict:
+    """이 PC 의 드라이브 여유와 수집 DB 크기(본 파일 + -wal · -shm). 앱 컨테이너는 PC 디스크를 볼 수 없다."""
+    db = db_path or config.DB_PATH
+    usage = shutil.disk_usage(db.parent if db.parent.exists() else ROOT)
+    parts = [db, db.with_name(db.name + "-wal"), db.with_name(db.name + "-shm")]
+    return {"measured_at": _iso(now or now_kst()), "drive": (ROOT.drive or "/"),
+            "free_bytes": usage.free, "total_bytes": usage.total,
+            "collector_db_bytes": sum(p.stat().st_size for p in parts if p.exists())}
+
+
+def write_side_files() -> List[str]:
+    """단계 목록 · 이 PC 용량 파일을 쓴다. 실패해도 회차를 막지 않게 까닭만 돌려준다."""
+    errors: List[str] = []
+    for path, make in ((CATALOG_PATH, step_catalog), (DISK_PATH, measure_disk)):
+        try:
+            _write_json_atomic(path, make())
+        except Exception as e:                              # 기록 파일 하나 때문에 갱신이 멈추면 안 된다
+            errors.append(f"{path.name}: {type(e).__name__}: {e}")
+    return errors
 
 
 # ==================================================
@@ -396,12 +478,14 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
         run = Run(started, upload, log, log_path)
         try:
             run.say(f"일일 갱신 시작 · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
+            for err in write_side_files():                  # 단계 목록 · 이 PC 용량(앱이 읽는다)
+                run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
             before = snapshot()
             run.say(f"시작 상태 {json.dumps(before, ensure_ascii=False)}")
             derived_why: Optional[str] = None
             stop = ""
             for step in STEPS:
-                rec = {"name": step.name, "rc": None, "seconds": 0.0, "note": ""}
+                rec = _rec(step)
                 run.steps.append(rec)
                 if step.upload and not upload:
                     rec["note"] = "업로드 끔"
@@ -448,8 +532,10 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
             with HISTORY_PATH.open("a", encoding="utf-8") as h:
                 h.write(json.dumps({k: state[k] for k in
                                     ("started_at", "finished_at", "ok", "upload", "stopped")}
-                                   | {"price_max": after.get("price_max")},
+                                   | {"price_max": after.get("price_max"), "steps": _compact(run.steps)},
                                    ensure_ascii=False) + "\n")
+            for err in write_side_files():                  # 용량은 회차 끝에 다시 잰다
+                run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
             run.say(f"끝 · {'✅ 전부 성공' if ok else '🔴/🟡 실패 단계 있음'} · "
                     f"시세 {after.get('price_max')} · 수정주가 {after.get('adjusted_max')} · "
                     f"TR {after.get('tr_max')} · 벤치마크 {after.get('benchmark_max')}")
@@ -464,6 +550,109 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
             release_lock()
     _prune_logs()
     return rc_total
+
+
+#: 한 단계만 다시 돌릴 때 예약 회차를 비켜 가는 뒤쪽 여유(분) — 회차는 보통 25 ~ 60분 돈다(2026-10-07 은 60분).
+RERUN_GUARD_AFTER_MIN = 60
+
+
+def rerun_blocked(step: Step, now: datetime.datetime) -> Optional[str]:
+    """한 단계만 돌려도 되는가 — 안 되면 그 까닭 한 줄.
+
+    예약 회차(``DEFAULT_TIME``)와 겹치면 막는다. 단계가 회차 시작 전에 끝나지 않으면 회차가 잠금에 걸려 **통째로 건너뛰고**
+    (작업 스케줄러는 다시 시도하지 않는다), 회차가 도는 동안에는 같은 표를 두 프로세스가 고친다. 그래서
+    「회차 시작 − 그 단계의 시간 한도」 부터 「회차 시작 + 60분」 까지는 돌리지 않는다.
+    """
+    hh, mm = (int(x) for x in DEFAULT_TIME.split(":"))
+    sched = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    lo = sched - datetime.timedelta(minutes=step.timeout_min)
+    hi = sched + datetime.timedelta(minutes=RERUN_GUARD_AFTER_MIN)
+    if lo <= now <= hi:
+        return (f"{lo.strftime('%H:%M')} ~ {hi.strftime('%H:%M')} 에는 돌리지 않는다 — {DEFAULT_TIME} 회차와 겹친다"
+                f"({step.label or step.name} 시간 한도 {step.timeout_min}분)")
+    return None
+
+
+def rearm_wal(db_path: Optional[Path] = None) -> bool:
+    """수집 DB 의 WAL 보조 파일(``-wal`` · ``-shm``)을 다시 남긴다 — 둘이 있으면 참.
+
+    앱(도커)은 ``data/`` 를 읽기 전용으로 붙여 열어, WAL DB 의 보조 파일이 없으면 만들지 못하고 「unable to open database
+    file」 로 멈춘다(DF-74 와 같은 뿌리). 이 PC 의 **쓰기** 연결이 마지막으로 닫히면 SQLite 가 둘을 지운다 — 2026-10-07 에
+    ``run --only manifest`` 를 돌린 뒤 데이터 API 8개가 그렇게 멈췄다. 읽기 전용 연결은 열 때 둘을 만들고 닫아도 지우지
+    않으므로, 단계를 돌린 뒤 한 번 읽기 전용으로 열어 둔다. 정기 회차는 끝의 ``snapshot()`` 이 같은 일을 한다.
+    """
+    db = db_path or config.DB_PATH                          # 부를 때 읽는다 — 시험이 경로를 바꿀 수 있게
+    if not db.exists():
+        return False
+    try:
+        conn = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=60)
+        try:
+            conn.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return False
+    return db.with_name(db.name + "-wal").exists() and db.with_name(db.name + "-shm").exists()
+
+
+def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime] = None) -> int:
+    """단계 하나만 다시 돌린다 — 마지막 회차 기록의 그 줄을 새 결과로 바꾸고, 이력에 「다시 돌림」 한 줄을 남긴다.
+
+    파생 판정 · 올릴 것 판정은 하지 않는다(사람이 그 단계를 골랐다). 앞 단계 실패로 건너뛴 뒤 단계들은 돌리지 않으므로
+    회차의 「멈춘 곳」 은 그대로 남는다. 종료코드: 0 성공 · 2 고를 수 없는 단계 · 3 막힘(회차와 겹침 · 다른 실행) · 그 밖 = 단계 종료코드.
+    """
+    step = next((s for s in STEPS if s.name == name), None)
+    if step is None:
+        print(f"멈춤: 그런 단계가 없다 — {name} (있는 단계: {', '.join(s.name for s in STEPS)})")
+        return 2
+    if step.upload and not upload:
+        print(f"멈춤: {name} 은 올리기 단계다 — `run --only {name} --upload` 로 공유 스위치를 켜서 돌린다")
+        return 2
+    started = now or now_kst()
+    why = rerun_blocked(step, started)
+    if why:
+        print(f"멈춤: {why}")
+        return 3
+    busy = acquire_lock(now=started)
+    if busy:
+        print(f"멈춤: {busy}")
+        return 3
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}-only-{name}.log"
+    rc = 1
+    try:
+        with log_path.open("w", encoding="utf-8") as log:
+            run = Run(started, upload, log, log_path)
+            run.say(f"한 단계만 다시 돌림 · {name}({step.label}) · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
+            rec = _rec(step)
+            t0 = time.time()
+            rc = _run_step(run, step)
+            rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
+            if not rearm_wal():                              # 단계가 쓰기 연결로 끝났어도 앱이 수집 DB 를 읽게
+                run.say("🟡 수집 DB 의 WAL 보조 파일(-wal · -shm)을 다시 만들지 못했다 — 앱의 데이터 화면을 확인한다"
+                        "(check.ps1 -Group 데이터)")
+            run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초")
+            last = None
+            try:
+                last = json.loads(LAST_PATH.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pass
+            if last:                                         # 마지막 회차의 그 줄만 바꾼다 — 화면은 그 줄의 결과가 바뀐다
+                last["steps"] = [rec if s.get("name") == name else s for s in last.get("steps") or []]
+                last.setdefault("reruns", []).append({"name": name, "at": rec["rerun_at"], "rc": rc,
+                                                      "log": log_path.relative_to(ROOT).as_posix()})
+                last["ok"] = not last.get("stopped") and all(s.get("rc") in (None, 0) for s in last["steps"])
+                _write_json_atomic(LAST_PATH, last)
+            with HISTORY_PATH.open("a", encoding="utf-8") as h:
+                h.write(json.dumps({"started_at": _iso(started), "finished_at": _iso(now_kst()), "only": name,
+                                    "ok": rc == 0, "upload": upload, "stopped": None,
+                                    "steps": _compact([rec])}, ensure_ascii=False) + "\n")
+            for err in write_side_files():
+                run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
+    finally:
+        release_lock()
+        _prune_logs()
+    return rc
 
 
 def _pending_upload() -> Optional[List[str]]:
@@ -676,7 +865,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     r.add_argument("--upload", action="store_true", help="HF 증분 업로드까지 한다")
     r.add_argument("--force-derived", action="store_true",
                    help="새 자료가 없어도 수정주가·TR·벤치마크를 다시 계산한다")
+    r.add_argument("--only", metavar="단계",
+                   help="그 단계 하나만 다시 돌린다(예약 회차와 겹치는 시간 · 다른 실행이 돌 때는 막는다)")
     sub.add_parser("status", help="마지막 실행 결과와 예약 상태")
+    s = sub.add_parser("steps", help="단계 목록(이름표 · 묶음 · 하는 일) — 앱이 읽는 목록")
+    s.add_argument("--write", action="store_true", help="단계 목록 · 이 PC 용량 파일을 지금 쓴다(회차를 기다리지 않고)")
     i = sub.add_parser("install", help="작업 스케줄러에 매일 실행 등록 (기본 업로드 포함)")
     i.add_argument("--time", default=DEFAULT_TIME, help=f"실행 시각 HH:MM (기본 {DEFAULT_TIME})")
     i.add_argument("--no-upload", action="store_true", help="로컬 갱신만 하고 HF 에 올리지 않는다")
@@ -685,9 +878,23 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     a = p.parse_args(argv)
 
     if a.cmd == "run":
+        if a.only:
+            return run_one(a.only, upload=a.upload)
         return run_all(upload=a.upload, force_derived=a.force_derived)
     if a.cmd == "status":
         return status()
+    if a.cmd == "steps":
+        for g in GROUPS:
+            print(f"― {g['key']} — {g['note']}")
+            for st in (x for x in STEPS if x.group == g["key"]):
+                flags = " · ".join(f for f, on in (("멈춤", st.fatal), ("파생", st.derived), ("올리기", st.upload)) if on)
+                print(f"  {st.name:<13} {st.label:<8} {st.desc}" + (f"  [{flags}]" if flags else ""))
+        if a.write:
+            errors = write_side_files()
+            print("\n".join(f"🟡 {e}" for e in errors) if errors
+                  else f"\n✅ 썼다: {CATALOG_PATH.relative_to(ROOT).as_posix()} · {DISK_PATH.relative_to(ROOT).as_posix()}")
+            return 1 if errors else 0
+        return 0
     if a.cmd == "install":
         return install(a.time, upload=not a.no_upload)
     if a.cmd == "start":

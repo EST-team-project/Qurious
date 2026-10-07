@@ -13,12 +13,14 @@
 4. HF 기록 두 데이터셋의 태그 · 올린 시각.
 5. 러너의 단계 이름이 상태 API 의 이름표와 어긋나지 않는다(단계를 더하면 이름표도 더해야 한다).
 6. 로그인 없이는 401.
+7. 표마다 「마지막 날짜」 질의가 큰 표를 색인 없이 처음부터 끝까지 읽지 않는다(DF-80 — 질의 계획으로 본다).
 
 네트워크 · 실제 수집 DB 를 쓰지 않는다.
 """
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -56,6 +58,15 @@ def write_state(state: Path, *, last: dict | None = None, lock: dict | None = No
             "\n".join(json.dumps(h, ensure_ascii=False) for h in history) + "\n", encoding="utf-8")
 
 
+def write_catalog(state: Path) -> dict:
+    """러너가 회차마다 쓰는 단계 목록을 그대로 만든다 — 러너 코드(``scripts/daily_update.step_catalog``)에서."""
+    from scripts import daily_update as du
+    cat = du.step_catalog(at("2026-10-02T12:30:01"))
+    state.mkdir(parents=True, exist_ok=True)
+    (state / ds.CATALOG_FILE).write_text(json.dumps(cat, ensure_ascii=False), encoding="utf-8")
+    return cat
+
+
 def last_run(day: str, steps: list, ok=True, stopped=None) -> dict:
     return {"started_at": f"{day}T12:30:01+09:00", "finished_at": f"{day}T12:51:16+09:00", "ok": ok,
             "upload": True, "stopped": stopped, "derived": "시세가 바뀌었다", "steps": steps,
@@ -66,6 +77,7 @@ def last_run(day: str, steps: list, ok=True, stopped=None) -> dict:
 def test_runner_ok_failed_warning(tmp_path):
     """TC-DST-01 · 성공 · 실패(멈춘 단계를 그대로) · 일부 실패(멈추지 않는 단계의 이름표)."""
     st = tmp_path / "state"
+    write_catalog(st)                                         # 러너가 회차마다 처음에 쓰는 단계 목록 — 이름표 · 멈춤 여부(결정 ④)
     write_state(st, last=last_run("2026-10-02", [step("price"), step("dividend"), step("calendar")]))
     r = ds.runner_state(st, at("2026-10-02T14:00:00"))
     assert (r["state"], r["ran_today"], r["last"]["minutes"]) == ("ok", True, 21.2)
@@ -78,7 +90,7 @@ def test_runner_ok_failed_warning(tmp_path):
 
     write_state(st, last=last_run("2026-10-02", [step("price"), step("calendar", 3), step("ohlcv", 2)], ok=False))
     r = ds.runner_state(st, at("2026-10-02T14:00:00"))
-    assert r["state"] == "warning" and r["detail"] == "실패한 단계: 거래일 달력 · 일정 · ETF · 지수 · 분봉"
+    assert r["state"] == "warning" and r["detail"] == "실패한 단계: 시장 달력 · 일봉"
 
 
 def test_runner_running_lock_and_stale_lock(tmp_path):
@@ -209,13 +221,75 @@ def test_status_gathers_runner_tables_and_hf(market):
     assert s["source"] == "collector" and s["summary"].startswith("주식 시세 기준일 2026-09-30")
 
 
-def test_runner_step_labels_cover_runner_steps():
-    """TC-DST-08 · 러너의 단계 이름이 모두 이름표에 있다 — 러너에 단계를 더하면 여기도 더해야 화면이 영어를 안 보인다."""
-    from scripts import daily_update
-    names = [s.name for s in daily_update.STEPS]
-    assert set(names) <= set(ds.STEPS), f"이름표 없는 단계: {set(names) - set(ds.STEPS)}"
-    fatal = {s.name for s in daily_update.STEPS if s.fatal}
-    assert fatal == {k for k, (_, f) in ds.STEPS.items() if f and k in names}, "멈추는 단계 표시가 러너와 다르다"
+def test_runner_step_labels_come_from_runner_records(tmp_path):
+    """TC-DST-08 · 앱에는 단계 이름표 사본이 없다 — 이름표 · 묶음 · 하는 일은 러너 기록에서 온다(회차 기록 → 단계 목록 → 이름 그대로).
+
+    2026-10-07 전에는 앱에 손으로 옮긴 사본(19줄)이 있어 단계를 더할 때 두 곳을 고쳐야 했다(결정 ④ · 단계가 늘면 화면이 따라온다).
+    """
+    from scripts import daily_update as du
+    assert not hasattr(ds, "STEPS"), "앱에 단계 이름표 사본이 다시 생겼다 — 러너의 Step(label · group · desc)에만 둔다"
+    st = tmp_path / "state"
+    cat = write_catalog(st)
+    by_name = ds.load_catalog(st)["by_name"]
+    assert [s["name"] for s in cat["steps"]] == [s.name for s in du.STEPS]
+    for s in du.STEPS:                                         # 러너의 모든 단계가 목록에서 한국어 이름표 · 묶음 · 하는 일을 얻는다
+        v = ds._step_view({"name": s.name, "rc": 1}, by_name)
+        assert v["label"] == s.label != s.name and v["group"] == s.group and v["desc"] == s.desc
+        assert v["status"] == ("failed" if s.fatal else "warning"), f"{s.name}: 멈추는 단계 표시가 러너와 다르다"
+    # 그 회차 기록에 적힌 이름표가 단계 목록보다 먼저다 — 단계 이름표를 바꾼 뒤에도 옛 회차는 그때 이름으로
+    assert ds._step_view({"name": "price", "label": "옛 이름", "fatal": False, "rc": 2}, by_name)["label"] == "옛 이름"
+    assert ds._step_view({"name": "price", "label": "옛 이름", "fatal": False, "rc": 2}, by_name)["status"] == "warning"
+    # 기록에도 목록에도 없으면 이름 그대로(옛 기록 · 목록 파일이 없는 PC)
+    assert ds._step_view({"name": "brand_new", "rc": 0}, by_name)["label"] == "brand_new"
+    assert ds._step_view({"name": "price", "rc": 0}, {})["label"] == "price"
+
+
+def test_runner_history_steps_disk_and_detail(tmp_path, monkeypatch):
+    """TC-DST-11 · 회차 기록 — 새 줄은 단계별 결과(이름표 포함) · 옛 줄은 None · 한 단계 다시 돌린 줄 표시 · 이 PC 용량(GB) ·
+    수집 일정 화면 답(단계 목록 · 용량 · 다시 돌리는 명령)."""
+    st = tmp_path / "state"
+    write_catalog(st)
+    write_state(st, last=last_run("2026-10-02", [step("price"), step("news", 3)], ok=False), history=[
+        {"started_at": "2026-10-01T12:30:01+09:00", "finished_at": "2026-10-01T12:55:01+09:00", "ok": True, "price_max": "20260930"},
+        {"started_at": "2026-10-02T12:30:01+09:00", "finished_at": "2026-10-02T12:51:16+09:00", "ok": False,
+         "price_max": "20261001", "steps": [step("price"), step("news", 3)]},
+        {"started_at": "2026-10-02T15:00:00+09:00", "finished_at": "2026-10-02T15:00:05+09:00", "only": "news", "ok": True,
+         "steps": [step("news")]},
+    ])
+    (st / ds.DISK_FILE).write_text(json.dumps({"measured_at": "2026-10-02T12:51:16+09:00", "drive": "C:",
+                                                "free_bytes": 130_449_000_000, "total_bytes": 1_000_000_000_000,
+                                                "collector_db_bytes": 5_028_982_016}), encoding="utf-8")
+    r = ds.runner_state(st, at("2026-10-02T16:00:00"))
+    newest, mid, old = r["history"]
+    assert newest["only"] == "news" and [s["label"] for s in newest["steps"]] == ["정책뉴스"]
+    assert [(s["label"], s["group"], s["status"]) for s in mid["steps"]] == [("시세", "받기", "ok"), ("정책뉴스", "받기", "warning")]
+    assert old["steps"] is None and old["only"] is None, "단계별 결과가 없는 옛 줄"
+    assert [g["key"] for g in r["groups"]] == ["받기", "계산", "백업", "근거 문서"]
+    assert ds.pc_disk(st) == {"measured_at": "2026-10-02T12:51:16+09:00", "drive": "C:", "free_gb": 130.4,
+                              "total_gb": 1000.0, "collector_db_gb": 5.0}
+    assert ds.pc_disk(tmp_path / "없음") is None
+
+    monkeypatch.setattr(ds, "collector_dir", lambda: tmp_path)
+    d = ds.runner_detail(at("2026-10-02T16:00:00"))
+    assert d["catalog"]["steps"][0] == {"name": "price", "label": "시세", "group": "받기",
+                                        "desc": "최근 거래일 시세를 받아 빈 날을 메운다", "fatal": True, "derived": False,
+                                        "upload": False, "timeout_min": 30}
+    assert d["disk"]["free_gb"] == 130.4 and d["rerun"]["from_screen"] is False and "--only" in d["rerun"]["command"]
+
+
+def test_runner_api_is_admin_only(tmp_path, monkeypatch):
+    """TC-DST-12 · 수집 일정 · 단계 API(`GET /api/data/runner`)는 관리자만 — 로그인 없이 401 · 일반 사용자 403 · 관리자 200."""
+    monkeypatch.setattr(ds, "collector_dir", lambda: tmp_path)
+    write_catalog(tmp_path / "state")
+    app = FastAPI()
+    app.include_router(data_routes.router)
+    c = TestClient(app)
+    assert c.get("/api/data/runner").status_code == 401
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "name": "시험", "email": "t@example.com", "roles": ["user"]}
+    assert c.get("/api/data/runner").status_code == 403
+    app.dependency_overrides[get_current_user] = lambda: {"id": "a1", "name": "관리", "email": "a@example.com", "roles": ["admin"]}
+    j = c.get("/api/data/runner").json()
+    assert len(j["catalog"]["steps"]) >= 19 and j["rerun"]["from_screen"] is False
 
 
 def test_api_requires_login(market):
@@ -271,3 +345,29 @@ def test_row_counts_in_background_reused_and_recounted(market, monkeypatch):
     ds._count_job["thread"].join(10)
     s = ds.get_status(now)
     assert s["rows_state"] == "fresh" and {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"] + 1
+
+
+def test_last_date_queries_use_indexes(tmp_path):
+    """TC-DST-13 · 표마다 「마지막 날짜」 질의가 큰 표를 색인 없이 처음부터 끝까지 읽지 않는다(DF-80).
+
+    재무 표(188만 행)의 `MAX(known_at)` 는 그 칸에 색인이 없어 도커 앱에서 19 ~ 31초 걸렸다 — 30초 응답 캐시가 끊길 때마다
+    데이터 상태 API 가 그만큼 멈췄고, 기능 점검(check.ps1 데이터)이 30초 시간 초과로 실패했다(2026-10-07).
+    수집기의 실제 표 정의(`collector.db.connect` — 기본 키 · 색인 그대로)로 빈 DB 를 만들고, 질의 계획에서 그 표를 읽는 줄이
+    모두 색인 · 기본 키를 쓰는지(`USING`) 본다. 작은 표 둘(배당 · 정책뉴스 — 수천 행)은 글자를 잘라 견주느라 전체를 읽어도 된다.
+    """
+    conn = db.connect(tmp_path / "plan.sqlite3")
+    try:
+        small = {"dividend", "news_item"}
+        checked = []
+        for key, table, *_rest, last_sql, _count_sql in ds.TABLES:
+            if table in small or not ds._has_table(conn, table):
+                continue
+            plan = [r[-1] for r in conn.execute("EXPLAIN QUERY PLAN " + last_sql)]
+            reads = [p for p in plan if re.search(rf"\b{table}\b", p)]
+            assert reads, (key, plan)
+            assert all("USING" in p for p in reads), f"{key}: 색인 없이 표를 훑는다 — {last_sql} → {plan}"
+            checked.append(table)
+        assert {"price_daily", "price_adjusted", "disclosure", "financial_statement", "price_intraday",
+                "market_event"} <= set(checked), checked
+    finally:
+        conn.close()

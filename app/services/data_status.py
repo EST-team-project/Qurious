@@ -36,28 +36,14 @@ LOCK_STALE_HOURS = 4
 HISTORY_N = 7
 CACHE_SECONDS = 30
 
-#: 러너 단계 — 이름 · 실패하면 뒤를 멈추는가(scripts/daily_update.py STEPS 와 같은 차례)
-STEPS = {
-    "price": ("주식 시세", True),
-    "dividend": ("배당 공시", False),
-    "disclosure": ("공시 목록", False),
-    "financial": ("재무 주요계정", False),
-    "schedule": ("주총 · 배당 지급 일정", False),
-    "news": ("정책뉴스", False),
-    "gdelt": ("언론사 기사 · GDELT", False),
-    "search": ("검색 색인", False),
-    "calendar": ("거래일 달력 · 일정", False),
-    "adjusted": ("수정주가", True),
-    "total_return": ("총수익(TR)", True),
-    "benchmark": ("자체 지수", True),
-    "ohlcv": ("ETF · 지수 · 분봉", False),
-    "manifest": ("지문", False),
-    "export": ("HF 내보내기", True),
-    "verify": ("HF 검증", True),
-    "upload": ("HF 올리기 · 일봉", True),
-    "ohlcv_upload": ("HF 올리기 · OHLCV", False),
-    "sector_laws": ("섹터 법령 · 매주 대조", False),
-}
+#: 러너 단계의 이름표 · 묶음 · 하는 일은 **러너가 쓴 기록에서만 읽는다**(2026-10-07 · 결정 ④). 앱에 손으로 옮긴 사본을 두면
+#: 단계를 더할 때 두 곳을 고쳐야 하고, 빠뜨리면 화면에 영어 단계 이름이 보인다(그 사본이 있었다 — TC-DST-08 이 지킨다).
+#:   단계 목록  state/daily_update_steps.json — 러너가 회차마다 처음에 쓴다(`python scripts/daily_update.py steps --write` 로도)
+#:   회차 기록  state/daily_update_last.json 의 단계 줄 — 이름표 · 묶음 · 하는 일 · 멈춤 여부를 함께 적는다
+#: 둘 다 없는 옛 기록은 단계 이름 그대로 보인다.
+CATALOG_FILE = "daily_update_steps.json"
+#: 이 PC 용량 — 앱 컨테이너는 PC 디스크를 볼 수 없어 러너가 회차 끝에 잰다.
+DISK_FILE = "pc_disk.json"
 
 #: (키, 표, 이름, 묶음, 출처, 판정 방식, 마지막 날짜 SQL, 행 수 SQL)
 TABLES = [
@@ -77,9 +63,13 @@ TABLES = [
      "SELECT MAX(substr(rcept_no, 1, 8)) FROM dividend", "SELECT COUNT(*) FROM dividend"),
     ("disclosure", "disclosure", "공시 목록", "공시", "전자공시(DART) 상장사 공시 — 마지막 접수일", "info",
      "SELECT MAX(rcept_dt) FROM disclosure", "SELECT COUNT(*) FROM disclosure"),
+    # 마지막 날짜는 접수번호 색인(ix_fin_rcept)으로 — `known_at` 은 「접수번호 앞 8자리」 라 값이 같은데(188만 행 중 다른 행 0 ·
+    # 2026-10-07) 색인이 없어, `MAX(known_at)` 가 도커 앱에서 표 전체를 훑느라 19 ~ 31초 걸렸다(DF-80 · TC-DST-13).
+    # 안쪽 MAX 를 따로 두어야 SQLite 가 색인 끝 한 칸만 읽는다(바깥에서 자르면 최솟값 · 최댓값 최적화가 꺼진다).
     ("financial_statement", "financial_statement", "재무 주요계정", "공시",
      "전자공시(DART) 다중회사 주요계정 — 마지막으로 값이 실린 보고서 접수일", "info",
-     "SELECT MAX(known_at) FROM financial_statement", "SELECT COUNT(*) FROM financial_statement"),
+     "SELECT substr((SELECT MAX(rcept_no) FROM financial_statement), 1, 8)",
+     "SELECT COUNT(*) FROM financial_statement"),
     ("news_item", "news_item", "정책뉴스", "뉴스", "정책브리핑 정책뉴스(공공데이터포털 · 공공누리 제1유형) — 마지막 승인일", "info",
      "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item", "SELECT COUNT(*) FROM news_item"),
     ("intraday_60m", "price_intraday", "60분봉", "분봉", "야후 파이낸스(09:00~15:00)", "intraday",
@@ -147,9 +137,19 @@ def _parse_ts(v: str | None) -> datetime | None:
 
 
 # ── 러너 ──────────────────────────────────────────────────────────────────
-def _step_view(rec: dict) -> dict:
+def load_catalog(state_dir: Path | None) -> dict:
+    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at}. 없으면 빈 목록."""
+    cat = _read_json(state_dir / CATALOG_FILE) if state_dir is not None else None
+    steps = [s for s in (cat or {}).get("steps") or [] if isinstance(s, dict) and s.get("name")]
+    return {"groups": (cat or {}).get("groups") or [], "steps": steps,
+            "by_name": {s["name"]: s for s in steps}, "written_at": (cat or {}).get("written_at")}
+
+
+def _step_view(rec: dict, by_name: dict | None = None) -> dict:
+    """단계 한 줄 — 이름표 · 묶음 · 하는 일은 그 회차 기록 → 단계 목록 → 이름 그대로 순으로 찾는다."""
     name = rec.get("name", "")
-    label, fatal = STEPS.get(name, (name, False))
+    meta = (by_name or {}).get(name, {})
+    fatal = bool(rec["fatal"]) if "fatal" in rec else bool(meta.get("fatal"))
     rc = rec.get("rc")
     if rc is None:
         status = "skipped"
@@ -157,8 +157,22 @@ def _step_view(rec: dict) -> dict:
         status = "ok"
     else:
         status = "failed" if fatal else "warning"
-    return {"name": name, "label": label, "status": status, "rc": rc,
-            "seconds": rec.get("seconds") or 0, "note": rec.get("note") or ""}
+    out = {"name": name, "label": rec.get("label") or meta.get("label") or name,
+           "group": rec.get("group") or meta.get("group") or "", "desc": rec.get("desc") or meta.get("desc") or "",
+           "status": status, "rc": rc, "seconds": rec.get("seconds") or 0, "note": rec.get("note") or ""}
+    if rec.get("rerun_at"):
+        out["rerun_at"] = rec["rerun_at"]
+    return out
+
+
+def pc_disk(state_dir: Path | None) -> dict | None:
+    """이 PC 용량 — 러너가 잰 값(GB · 소수 한 자리). 없으면 None."""
+    d = _read_json(state_dir / DISK_FILE) if state_dir is not None else None
+    if not d or "free_bytes" not in d:
+        return None
+    gb = lambda v: round((v or 0) / 1e9, 1)  # noqa: E731
+    return {"measured_at": d.get("measured_at"), "drive": d.get("drive"), "free_gb": gb(d.get("free_bytes")),
+            "total_gb": gb(d.get("total_bytes")), "collector_db_gb": gb(d.get("collector_db_bytes"))}
 
 
 def runner_state(state_dir: Path | None, now: datetime) -> dict:
@@ -167,7 +181,7 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
     nxt = today_run if now < today_run else today_run + timedelta(days=1)
     out: dict = {"schedule": f"매일 {hh:02d}:{mm:02d}", "next_expected": nxt.isoformat(timespec="minutes"),
                  "schedule_note": "이 PC 의 작업 스케줄러 설정 기준 — 다른 PC 는 등록해야 돈다(scripts/daily_update.py install)",
-                 "running": False, "last": None, "history": []}
+                 "running": False, "last": None, "history": [], "groups": []}
     if state_dir is None or not state_dir.is_dir():
         out.update(state="missing", label="기록 없음", detail="러너 기록 폴더가 없다 — 이 PC 에서 일일 갱신을 돌린 적이 없다")
         return out
@@ -178,9 +192,12 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
         out["running"] = True
         out["running_since"] = since.isoformat(timespec="seconds")
 
+    catalog = load_catalog(state_dir)
+    by_name = catalog["by_name"]
+    out["groups"] = catalog["groups"]
     last = _read_json(state_dir / "daily_update_last.json")
     if last:
-        steps = [_step_view(s) for s in last.get("steps") or []]
+        steps = [_step_view(s, by_name) for s in last.get("steps") or []]
         started, finished = _parse_ts(last.get("started_at")), _parse_ts(last.get("finished_at"))
         out["last"] = {
             "started_at": last.get("started_at"),
@@ -191,6 +208,7 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
             "stopped": last.get("stopped"),
             "derived": last.get("derived"),
             "steps": steps,
+            "reruns": last.get("reruns") or [],
             "price_max": _iso_day((last.get("after") or {}).get("price_max")),
         }
 
@@ -210,8 +228,11 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
             "ok": h.get("ok") if "skipped" not in h else None,
             "skipped": h.get("skipped"),
             "stopped": h.get("stopped"),
+            "only": h.get("only"),                         # 한 단계만 다시 돌린 줄(2026-10-07~)
             "minutes": round((f - s).total_seconds() / 60, 1) if s and f else None,
             "price_max": _iso_day(h.get("price_max")),
+            # 단계별 결과는 2026-10-07 뒤 회차부터 남는다 — 그 앞 줄은 None
+            "steps": [_step_view(x, by_name) for x in h["steps"]] if isinstance(h.get("steps"), list) else None,
         })
 
     # 판정 — 도는 중 > 실패 > 오늘 회차 없음 > 일부 실패 > 성공
@@ -436,6 +457,30 @@ def hf_state(cdir: Path | None) -> list[dict]:
 
 
 # ── 모으기 ────────────────────────────────────────────────────────────────
+#: 한 단계 다시 돌리기 — 앱은 러너를 부를 수 없다(컨테이너는 수집 폴더를 읽기만 하고, 러너는 PC 쪽 프로세스다).
+#: 화면에서 바로 돌릴 통로(쓰기 폴더 · 요청 표 등)는 정할 것이라, 지금은 PC 에서 돌릴 명령과 막히는 때를 알려 준다.
+RERUN = {
+    "from_screen": False,
+    "command": "python scripts/daily_update.py run --only <단계>",
+    "blocked": "12:30 회차와 겹치는 때(회차 시작 − 그 단계 시간 한도 ~ 13:30) · 다른 실행이 도는 동안 · 올리기 단계는 --upload 와 함께만",
+}
+
+
+def runner_detail(now: datetime | None = None) -> dict:
+    """수집 일정 · 단계 화면(관리자) — 마지막 회차 · 회차 기록 · 단계 목록 · 이 PC 용량을 한 답에."""
+    now = now or _now()
+    cdir = collector_dir()
+    sdir = cdir / "state" if cdir else None
+    out = runner_state(sdir, now)
+    cat = load_catalog(sdir)
+    keys = ("name", "label", "group", "desc", "fatal", "derived", "upload", "timeout_min")
+    out["catalog"] = {"written_at": cat["written_at"], "steps": [{k: s.get(k) for k in keys} for s in cat["steps"]]}
+    out["disk"] = pc_disk(sdir)
+    out["rerun"] = RERUN
+    out["checked_at"] = now.isoformat(timespec="seconds")
+    return out
+
+
 def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
     """화면이 30초마다 불러도 DB 를 매번 세지 않게 30초 동안 같은 답을 준다."""
     if use_cache and now is None and _cache.get("value") and time.monotonic() - _cache["at"] < CACHE_SECONDS:
