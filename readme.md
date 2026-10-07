@@ -402,7 +402,7 @@ docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/pytest.ini:/app/pytest.in
 > `.\scripts\personal\start.ps1`(띄우기) → `.\scripts\personal\check.ps1`(기능 점검 · curl 처럼 API 62건) →
 > `.\scripts\personal\stop.ps1`(끄기). 코드를 받은 뒤에도 `start.ps1` 이 이미지를 스스로 다시 만든다.
 > 사용법은 [`scripts/personal/README.md`](scripts/personal/README.md), 동작 원리 · 점검 항목 · 문제 해결은
-> [로컬 실행 안내서 v0.1](docs/배포/로컬실행안내서_v0.1.md). 아래는 강사님 원본의 수동 절차다(일부는 옛 구성 기준).
+> [로컬 실행 안내서 v0.1](docs/배포/로컬실행안내서.md). 아래는 강사님 원본의 수동 절차다(일부는 옛 구성 기준).
 
 ### 사전 요구사항
 - Docker Desktop + Docker Compose v2
@@ -584,7 +584,7 @@ curl "http://localhost:8966/api/glossary?q=PER&limit=3"     # 이름 · 약어 �
 curl "http://localhost:8966/api/glossary/sharpe"            # 화면의 용어 키로 한 건
 ```
 
-설계와 근거는 [용어사전 설계서 v0.1](docs/설계/용어사전-설계_v0.1.md), 통합본 전체 목록과 옮기는 차례는 [통합본 이식 계획서 v0.1](docs/설계/통합본-이식계획_v0.1.md).
+설계와 근거는 [용어사전 설계서 v0.1](docs/설계/용어사전-설계.md), 통합본 전체 목록과 옮기는 차례는 [통합본 이식 계획서 v0.1](docs/설계/통합본-이식계획.md).
 
 ---
 

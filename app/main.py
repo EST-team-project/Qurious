@@ -159,7 +159,7 @@ app.include_router(formula_routes.router)
 # 용어사전 (검색 · 분류 · 용어 한 건 — 로그인 없이 읽는다)
 from app.routes import glossary as glossary_routes  # noqa: E402
 app.include_router(glossary_routes.router)
-# 개념 학습 (기본 교재는 로그인 없이 · 팀 자료는 HF 비공개 데이터셋 — docs/설계/개념학습-설계_v0.1.md)
+# 개념 학습 (기본 교재는 로그인 없이 · 팀 자료는 HF 비공개 데이터셋 — docs/설계/개념학습-설계.md)
 from app.routes import learn as learn_routes  # noqa: E402
 app.include_router(learn_routes.router)
 

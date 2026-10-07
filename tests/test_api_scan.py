@@ -305,6 +305,13 @@ def test_ap13_요구_ID_는_기능_설계서_부록_블록에서만_읽는다(tm
   r = _by_path(routes)
   assert r["GET /api/candles"].requirements == ["P01-①-2", "P02-④-1"]
   assert r["GET /api/broker/price"].requirements == []        # v0.1 은 낮은 판 · v0.2 블록 밖 언급
+  # docs 정리(2026-10-07) 뒤 — 판 번호 없는 `기능설계.md` 가 있으면 그것이 최신이다(판 붙은 파일보다 먼저)
+  (design / "기능설계.md").write_text(
+    f"<!-- req-api-map -->\n| `P02-④-1` | {price} |\n<!-- /req-api-map -->\n", encoding="utf-8")
+  _cb, routes, _reg = api_scan.scan(root)
+  r = _by_path(routes)
+  assert r["GET /api/broker/price"].requirements == ["P02-④-1"]
+  assert r["GET /api/candles"].requirements == []
 
 
 def test_ap14_다리_요청을_캐시보다_먼저_가르면_라우트_캐시는_옛_경로_몫이다(tmp_path):

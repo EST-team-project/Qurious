@@ -1,6 +1,6 @@
 """개념 학습 API — /api/learn
 
-설계: docs/설계/개념학습-설계_v0.1.md 7절
+설계: docs/설계/개념학습-설계.md 7절
 
 - GET    /api/learn/catalog                  : 글 목록(머리말만) · 팀 자료 저장소 상태
 - GET    /api/learn/pages/{slug}             : 글 한 편(머리말 · 본문 · 판 · 저장소)

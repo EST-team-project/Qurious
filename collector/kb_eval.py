@@ -5,9 +5,9 @@
     python -m collector.kb_eval --save                            결과를 data/collector/state/kb_eval-<날짜-시각초>.json 에도
     python -m collector.kb_eval --misses                          놓친 질문마다 상위 3 을 보인다
     python -m collector.kb_eval --synonyms both                   법령 말 넓히기(kb_synonyms) 끔 · 켬 둘 다
-    python -m collector.kb_eval --set docs/시험/근거검색-평가셋_v1.tsv --ids N    새로 더한 질문(N…)만
+    python -m collector.kb_eval --set docs/시험/평가셋/근거검색-평가셋_v1.tsv --ids N    새로 더한 질문(N…)만
 
-평가셋 — ``docs/시험/근거검색-평가셋_v0.tsv`` (질문 38 · 2026-10-03)
+평가셋 — ``docs/시험/평가셋/근거검색-평가셋_v0.tsv`` (질문 38 · 2026-10-03)
 --------------------------------------------------------------------
 정답은 청크가 아니라 **「문서:조」** 로 적는다(정답이 여럿이면 하나라도 맞으면 맞힌 것). 청크 머리 · 순번을 바꾸는
 실험에서 청크 단위 정답은 판정을 흔든다 — 제목 사슬 머리를 뺀 판에서는 사람 판정의 일치도가 무너졌다는 보고가 있다
@@ -45,8 +45,8 @@ from collector import kb_index, kb_law
 sys.path.insert(0, str(config.ROOT))
 from app.services import kb_links, kb_search, kb_text  # noqa: E402
 
-EVAL_SET = config.ROOT / "docs" / "시험" / "근거검색-평가셋_v0.tsv"
-#: 의도 묶음 — 섹터 법령 평가셋(`docs/시험/섹터법령-평가셋_v1.tsv`)의 묶음은 sector(섹터 질문 분류가 걸려야 맞음)
+EVAL_SET = config.ROOT / "docs" / "시험" / "평가셋" / "근거검색-평가셋_v0.tsv"
+#: 의도 묶음 — 섹터 법령 평가셋(`docs/시험/평가셋/섹터법령-평가셋_v1.tsv`)의 묶음은 sector(섹터 질문 분류가 걸려야 맞음)
 DOMAIN_NAMES = {"tax": "세금", "company": "회사", "regulation": "투자 규제", "sector": "섹터"}
 
 

@@ -5,7 +5,7 @@
     python -m collector.kb_answer_eval --save                            결과를 data/collector/state/kb_answer_eval-<날짜>.json 에도
     python -m collector.kb_answer_eval --models qwen3:4b-instruct --synonyms off --links off   고치기 전 길(DF-59 전)과 견주기
 
-평가셋 — ``docs/시험/근거답-평가셋_v1.tsv`` (질문 20 · 2026-10-04 · v0 15 + 위임 조 · 법령 말 · 바뀐 법 값 5)
+평가셋 — ``docs/시험/평가셋/근거답-평가셋_v1.tsv`` (질문 20 · 2026-10-04 · v0 15 + 위임 조 · 법령 말 · 바뀐 법 값 5)
 --------------------------------------------------------------------------------------------------------
 - ``answer``   근거 문서에 답이 있는 질문 15(v0 의 10 + 위임 조에 값이 있는 것 3 · 법령 말이 다른 것 1 · 검색이
                놓치는 것 1). 정답은 「문서:조」. A11 은 2026.7.28 개정으로 값이 바뀐 조(30억원)라 옛 지식(10억원)을
@@ -44,7 +44,7 @@ from collector import kb_index
 sys.path.insert(0, str(config.ROOT))
 from app.services import kb_answer, kb_search  # noqa: E402
 
-EVAL_SET = config.ROOT / "docs" / "시험" / "근거답-평가셋_v1.tsv"
+EVAL_SET = config.ROOT / "docs" / "시험" / "평가셋" / "근거답-평가셋_v1.tsv"
 # 2026-10-03 에 견준 다섯 가운데 넷 — Ollama 의 `qwen3:4b` 는 생각 전용 판(Thinking-2507)이라 빼고 생각 없는 판을 넣었다.
 # 맨 앞이 기본 답 모델(app.services.kb_answer.DEFAULT_ANSWER_MODEL)이다.
 MODELS = ["qwen3:4b-instruct", "exaone3.5:2.4b", "hf.co/Mungert/kanana-1.5-8b-instruct-2505-GGUF:Q4_K_M", "llama3.1"]

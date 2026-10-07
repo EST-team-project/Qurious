@@ -7,11 +7,11 @@
 옮겨 놓기만 하면 두 가지가 조용히 틀어진다. 이 스캐너는 그 둘을 다시 잴 수 있게 한다.
 
 1. **무엇이 들어왔나** — 누가 파일을 더하거나 고쳐도 표는 모른다. 그래서 파일마다 git blob ID 를
-   대장(`docs/설계/통합본-반입대장.tsv`)에 적어 두고, 폴더와 대장이 같은지 본다.
+   대장(`docs/설계/대장/통합본-반입대장.tsv`)에 적어 두고, 폴더와 대장이 같은지 본다.
    AWS 로 분류해 뺀 파일이 폴더에 들어오거나, 비공개 데이터셋에 둔 시세 자료가 커밋될 수 있는
    상태(.gitignore 에 없음)이면 알린다.
 2. **무엇을 할 것인가** — 통합본의 화면과 API 를 늘어놓고(목록), 그 하나하나가 「어느 기능 묶음으로
-   옮겨지는가」 를 이식 대장(`docs/설계/통합본-이식대장.tsv`)에 적는다. 어느 묶음에도 없는 화면 ·
+   옮겨지는가」 를 이식 대장(`docs/설계/대장/통합본-이식대장.tsv`)에 적는다. 어느 묶음에도 없는 화면 ·
    API 가 있으면 알린다 — 「전부 확인했다」 를 사람의 기억이 아니라 검사로 남긴다.
 
     python scripts/raglab_scan.py                       # 요약 + 두 대장 점검
@@ -39,9 +39,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "rag-lab"
-IMPORT_LEDGER = ROOT / "docs" / "설계" / "통합본-반입대장.tsv"
-PORT_LEDGER = ROOT / "docs" / "설계" / "통합본-이식대장.tsv"
-API_ID_LEDGER = ROOT / "docs" / "인터페이스" / "API-ID대장.tsv"
+IMPORT_LEDGER = ROOT / "docs" / "설계" / "대장" / "통합본-반입대장.tsv"
+PORT_LEDGER = ROOT / "docs" / "설계" / "대장" / "통합본-이식대장.tsv"
+API_ID_LEDGER = ROOT / "docs" / "인터페이스" / "대장" / "API-ID대장.tsv"
 
 # 폴더 안에서 대장에 없어도 되는 파일 — 우리가 넣은 안내문 하나뿐이다.
 GUIDE_FILE = "00-반입안내.md"

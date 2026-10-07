@@ -18,7 +18,7 @@ API 명세서의 표는 이 출력을 붙인 것이고, 의심스러우면 다�
 API ID 는 순번이 아니라 대장에서 온다
 -------------------------------------
 RTM 이 배운 것 — 순번으로 부르면 하나가 끼어드는 순간 뒤 번호가 전부 밀린다(RTM v1.0 §2.2).
-그래서 ID 는 `docs/인터페이스/API-ID대장.tsv` 에 한 번 적으면 바뀌지 않는다. 라우트가
+그래서 ID 는 `docs/인터페이스/대장/API-ID대장.tsv` 에 한 번 적으면 바뀌지 않는다. 라우트가
 사라지면 줄을 지우지 않고 상태를 「폐기」 로 둔다(그 번호를 다시 쓰지 않는다).
 기본 실행은 대장을 **읽기만** 하고, 고치는 것은 `--assign` 뿐이다.
 
@@ -66,7 +66,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ID_REGISTRY_REL = Path("docs") / "인터페이스" / "API-ID대장.tsv"
+ID_REGISTRY_REL = Path("docs") / "인터페이스" / "대장" / "API-ID대장.tsv"
 
 HTTP_METHODS = ("get", "post", "put", "delete", "patch")
 PARAM_FACTORIES = {"Query", "Path", "Body", "File", "Form", "Header", "Cookie"}
@@ -1000,16 +1000,19 @@ def load_requirement_map(root: Path) -> tuple[dict[str, list[str]], str]:
   """기능 설계서 부록 A(`<!-- req-api-map -->` 블록)의 표 → {API ID: [요구 ID]}.
 
   설계서가 요구 → API 방향의 정본이고, 이 함수는 그 표를 뒤집어 읽기만 한다.
-  판이 여럿이면 가장 높은 판(`기능설계_vX.Y.md`)을 쓴다. 블록 밖의 API ID 언급은 세지 않는다.
+  판 번호 없는 `기능설계.md` 가 있으면 그것을 쓴다(docs 정리(2026-10-07) 뒤 늘 최신 · 지난 판은 지난판/).
+  없으면 가장 높은 판(`기능설계_vX.Y.md`)을 쓴다. 블록 밖의 API ID 언급은 세지 않는다.
   """
-  docs = []
-  for p in (root / "docs" / "설계").glob("기능설계_v*.md"):
-    m = re.search(r"_v(\d+)\.(\d+)\.md$", p.name)
-    if m:
-      docs.append(((int(m.group(1)), int(m.group(2))), p))
-  if not docs:
-    return {}, ""
-  path = max(docs)[1]
+  path = root / "docs" / "설계" / "기능설계.md"
+  if not path.exists():
+    docs = []
+    for p in (root / "docs" / "설계").glob("기능설계_v*.md"):
+      m = re.search(r"_v(\d+)\.(\d+)\.md$", p.name)
+      if m:
+        docs.append(((int(m.group(1)), int(m.group(2))), p))
+    if not docs:
+      return {}, ""
+    path = max(docs)[1]
   text = path.read_text(encoding="utf-8")
   start, end = "<!-- req-api-map -->", "<!-- /req-api-map -->"
   if start not in text or end not in text:

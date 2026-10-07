@@ -267,7 +267,7 @@ def test_sweep_and_remove(kb):
 # 5. 기존 평가 질문에 헛걸림 0 · 섹터 표 규칙 · API 인자
 # ==================================================
 def _questions(name: str) -> list[str]:
-    with open(ROOT / "docs" / "시험" / name, encoding="utf-8", newline="") as f:
+    with open(ROOT / "docs" / "시험" / "평가셋" / name, encoding="utf-8", newline="") as f:
         return [r["질문"] for r in csv.DictReader(f, delimiter="\t")]
 
 
