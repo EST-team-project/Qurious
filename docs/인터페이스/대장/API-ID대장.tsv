@@ -235,3 +235,5 @@ API-KMON-02	GET	/api/quant/kis/orders	2026-10-08	사용
 API-DATA-08	GET	/api/data/fetch-sources	S101	사용
 API-DATA-09	GET	/api/data/fetch-plan	S101	사용
 API-DATA-10	GET	/api/data/backup	S101	사용
+API-DATA-11	GET	/api/data/guide	S102	사용
+API-RBAL-10	POST	/api/rebalance/runs/{run_id}/cancel	S102	사용

@@ -1,0 +1,226 @@
+/* 자료 안내 (2026-10-08 · js/dataguide.js) — Figma 「자료 안내」 03 [결정] 안 B 1280 · 390 · 자료 한 장 서랍(관리자 · 일반 사용자).
+ * 색 · 간격은 app.css 토큰 그대로 · 카드 · 알약 · 명령 상자는 datahub.css · collect.css 와 같은 꼴(새 디자인 체계를 만들지 않는다).
+ * 좁은 화면(760 아래 · 폭 390)에서는 바둑판 대신 「처음 ~ 마지막」 막대 · 표 대신 카드 · 서랍은 화면 전체. */
+
+.dg-root { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dg-loading { padding: 20px 0; }
+
+/* ── 머리 ── */
+.dg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 16px; flex-wrap: wrap; }
+.dg-head h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+.dg-lead { font-size: 13px; color: var(--text-dim); margin-top: 4px; line-height: 1.6; }
+.dg-head-right { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+.dg-head-right .btn-secondary { font-size: 13px; padding: 5px 12px; background: var(--surf); }
+.dg-link { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; font-size: inherit; cursor: pointer; }
+.dg-link:hover { text-decoration: underline; }
+.dg-toc { display: flex; gap: 8px; flex-wrap: wrap; }
+.dg-toc-btn { border: 0; border-radius: 999px; background: #eef1f6; color: var(--text-dim); font-size: 12px; font-weight: 700;
+  padding: 5px 12px; cursor: pointer; }
+.dg-toc-btn:hover { background: #e2e8f0; color: var(--text); }
+.dg-note { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: #f1f5f9; color: var(--text-dim); }
+.dg-note--err { background: var(--red-bg); color: var(--red); }
+
+/* ── 숫자 띠 — 다섯 칸(누르면 그 절로 내려간다) ── */
+.dg-band { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.dg-band-card { display: flex; flex-direction: column; gap: 6px; min-width: 0; text-align: left; font: inherit; color: var(--text);
+  background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
+.dg-band-card:hover { border-color: var(--accent); }
+.dg-band-k { font-size: 12px; color: #64748b; font-weight: 500; }
+.dg-band-v { font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }
+.dg-band-d { font-size: 12px; color: var(--text-mute); line-height: 1.5; }
+
+/* ── 절 머리 — 「무엇이 있나」 + 가는 줄 ── */
+.dg-sec { display: flex; align-items: center; gap: 10px; margin: 6px 0 -4px; font-size: 13px; font-weight: 700; color: #64748b; outline: none; }
+.dg-sec::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.dg-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; outline: none; }
+.dg-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.dg-h { font-size: 15px; font-weight: 700; color: var(--text); }
+.dg-card-head .q-muted { font-size: 12px; }
+.dg-empty { font-size: 13px; color: var(--text-dim); padding: 6px 0; }
+.dg-foot { font-size: 12px; color: var(--text-mute); line-height: 1.6; }
+
+/* ── 연도별 바둑판(진하기 넷 · 칸 = 그해 줄 수) ── */
+.dg-grid-wrap { overflow-x: auto; }
+.dg-grid { width: 100%; border-collapse: separate; border-spacing: 4px; }
+.dg-grid th { font-size: 12px; font-weight: 600; color: #64748b; text-align: center; padding: 2px 4px; white-space: nowrap; }
+.dg-grid th[scope="row"] { text-align: left; padding-right: 10px; }
+.dg-grid td { padding: 0; }
+.dg-grid .dg-span { text-align: left; white-space: nowrap; color: var(--text-dim); font-size: 13px; font-weight: 400; padding-left: 8px; }
+.dg-cell { display: block; width: 100%; min-width: 58px; height: 36px; border: 0; border-radius: 6px; font-size: 12px; font-weight: 500;
+  font-variant-numeric: tabular-nums; cursor: pointer; }
+span.dg-cell { display: flex; align-items: center; justify-content: center; cursor: default; }
+button.dg-cell:hover { outline: 2px solid rgba(15, 23, 42, .35); outline-offset: 1px; }
+.dg-l0 { background: #f1f5f9; color: #94a3b8; }
+.dg-l1 { background: #dbeafe; color: #1e3a8a; }
+.dg-l2 { background: #93c5fd; color: #1e3a8a; }
+.dg-l3 { background: #3b82f6; color: #fff; }
+.dg-l4 { background: #1d4ed8; color: #fff; }
+.dg-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: #64748b; }
+.dg-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.dg-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.dg-legend-note { margin-left: auto; }
+
+/* 좁은 화면의 「처음 ~ 마지막」 막대 — 넓은 화면에서는 숨긴다 */
+.dg-bars { display: none; }
+.dg-axis { position: relative; height: 16px; margin-left: 96px; font-size: 11px; color: #94a3b8; }
+.dg-axis span { position: absolute; transform: translateX(-50%); }
+.dg-bars ul { list-style: none; margin: 4px 0 8px; padding: 0; }
+.dg-bars li { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px; align-items: center; padding: 5px 0; }
+.dg-bars .dg-item { font-size: 13px; line-height: 1.3; }
+.dg-track { position: relative; height: 10px; background: #f1f5f9; border-radius: 999px; }
+.dg-bar { position: absolute; top: 0; bottom: 0; background: #3b82f6; border-radius: 999px; }
+
+/* ── 자료 목록 ── */
+.dg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dg-chip { border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); border-radius: 999px; font-size: 13px;
+  padding: 6px 14px; cursor: pointer; }
+.dg-chip:hover { border-color: var(--accent); color: var(--accent); }
+.dg-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.dg-table-wrap { overflow-x: auto; }
+.dg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dg-table th { font-size: 12px; font-weight: 600; color: #64748b; text-align: left; padding: 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.dg-table td { padding: 10px 7px; border-bottom: 1px solid #eef1f6; vertical-align: middle; color: var(--text-dim); }
+.dg-table tbody tr[data-item] { cursor: pointer; }
+.dg-table tbody tr[data-item]:hover td { background: #f8fafc; }
+.dg-item { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--text); text-align: left; cursor: pointer; }
+.dg-item:hover, .dg-item[aria-expanded="true"] { color: var(--accent); }
+.dg-name { white-space: nowrap; }
+/* 1280 에서 일곱 칸이 한 카드 폭(약 950)에 들어가게 — 기간 · 줄 수 · 알약만 한 줄로 두고 나머지는 접힌다 */
+.dg-line { min-width: 150px; }
+.dg-num { text-align: right; white-space: nowrap; font-weight: 700; color: var(--text) !important; font-variant-numeric: tabular-nums; }
+.dg-period { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dg-update { min-width: 108px; }
+.dg-views { min-width: 120px; width: 190px; }
+.dg-views .dg-view { white-space: normal; text-align: left; }
+.dg-table td.dg-wait { color: #b45309 !important; }
+.dg-table td.dg-none { color: var(--text-mute) !important; font-weight: 400; }
+.dg-table td.dg-err { color: var(--red) !important; }
+.dg-tag { display: inline-block; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.dg-tag--amber { color: #92400e; background: #fef3c7; }
+.dg-tag--violet { color: #5b21b6; background: #ede9fe; }
+.dg-tag--green { color: #166534; background: #dcfce7; }
+.dg-tag--blue { color: #1d4ed8; background: #eaf1fe; }
+.dg-tag--gray { color: #475569; background: #eef1f6; }
+/* 「… 모두 N줄」 — 접힌 목록의 마지막 줄(Figma 안 B) */
+.dg-more { width: 100%; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 12px; color: var(--text-mute); text-align: left;
+  line-height: 1.6; cursor: pointer; }
+.dg-more strong { color: var(--accent); margin-left: 4px; white-space: nowrap; }
+.dg-more:hover strong { text-decoration: underline; }
+.dg-view { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 700; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.dg-view:hover { text-decoration: underline; }
+.dg-sep { color: #cbd5e1; }
+
+/* ── 어떻게 모으나 — 흐름 한 장 ── */
+.dg-flow-right { font-size: 12px; }
+.dg-flow { display: flex; align-items: stretch; }
+.dg-flow-box { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; font: inherit; color: var(--text);
+  background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+button.dg-flow-box { cursor: pointer; }
+button.dg-flow-box:hover, button.dg-flow-box[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.dg-flow-box strong { font-size: 14px; }
+.dg-flow-box span { font-size: 12px; color: #64748b; line-height: 1.6; }
+.dg-flow-box--soft { background: #eef1f6; border-color: transparent; }
+.dg-flow-box .dg-flow-mark { color: #b45309; font-weight: 700; }
+.dg-flow-arrow { flex: 0 0 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--accent); font-size: 12px; font-weight: 700; }
+.dg-flow-arrow i { font-size: 16px; }
+.dg-steps { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+.dg-notes { margin: 0; padding-left: 18px; list-style: disc; font-size: 13px; color: var(--text-dim); line-height: 1.8; }
+
+/* ── 무엇을 읽나 — 길잡이 · 틀리기 쉬운 것 ── */
+.dg-tasks .dg-task { font-weight: 700; color: var(--text); white-space: nowrap; }
+.dg-task-text { display: block; margin-top: 3px; font-size: 12px; color: #64748b; }
+.dg-dev-line { display: block; margin-top: 4px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 11.5px;
+  color: #64748b; word-break: break-all; }
+.dg-pit { padding: 0; gap: 0; }
+.dg-pit-toggle { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;
+  text-align: left; border: 0; background: none; padding: 14px 18px; font: inherit; color: var(--text); cursor: pointer; }
+.dg-pit-title { font-size: 14px; font-weight: 700; }
+.dg-pit-preview { font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-pit.open .dg-pit-preview { visibility: hidden; }
+.dg-pit-toggle i { color: #64748b; transition: transform .15s; }
+.dg-pit-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+.dg-pit-body { margin: 0; padding: 0 18px 16px 36px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; list-style: decimal; }
+.dg-pit-body[hidden] { display: none; }
+.dg-pit-body p { margin-top: 2px; color: var(--text-dim); line-height: 1.6; }
+.dg-pit-items { margin-top: 4px; font-size: 12px; }
+
+/* ── 자료 한 장(서랍) — 오른쪽 480 · 좁은 화면은 화면 전체 ── */
+#dg-drawer { display: none; }
+#dg-drawer.open { display: block; }
+.dg-dim { position: fixed; inset: var(--gnb-h) 0 0 0; background: rgba(15, 23, 42, .28); z-index: 905; }
+.dg-panel { position: fixed; top: var(--gnb-h); right: 0; bottom: 0; width: min(480px, 100vw); z-index: 906; display: flex; flex-direction: column;
+  background: var(--surf); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(15, 23, 42, .08); }
+.dg-d-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 20px 24px 8px; }
+.dg-d-head h3 { font-size: 20px; font-weight: 700; color: var(--text); }
+.dg-d-close { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.dg-d-close:hover { background: var(--surf2); color: var(--text); }
+.dg-d-body { flex: 1; overflow-y: auto; padding: 4px 24px 28px; display: flex; flex-direction: column; gap: 14px; }
+.dg-d-line { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+.dg-d-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dg-d-tile { background: #f1f5f9; border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.dg-d-tile > span { display: block; font-size: 12px; color: #64748b; }
+/* 날짜 가운데서 끊지 않는다(「2026-」 / 「10-07」) — 끊어야 하면 「~」 앞뒤에서(날짜는 .dg-nowrap 으로 감쌌다) */
+.dg-d-tile strong { display: block; margin-top: 3px; font-size: 14px; color: var(--text); overflow-wrap: break-word; }
+.dg-nowrap { white-space: nowrap; }
+.dg-d-tile small { font-size: 11px; color: #94a3b8; }
+.dg-d-why { font-size: 12px; color: #b45309; }
+.dg-d-sec { display: flex; flex-direction: column; gap: 6px; }
+.dg-d-sec h4 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #64748b; }
+.dg-d-sec h4::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.dg-d-years { list-style: none; margin: 0; padding: 0; }
+.dg-d-years li { display: grid; grid-template-columns: 40px minmax(0, 1fr) 64px; gap: 8px; align-items: center; padding: 2px 0; font-size: 12px; }
+.dg-d-track span { display: block; height: 8px; border-radius: 4px; background: #3b82f6; }
+.dg-d-n { text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.dg-d-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px; font-size: 13px; line-height: 1.6; }
+.dg-d-k { color: #64748b; font-weight: 600; }
+.dg-d-v { color: var(--text); overflow-wrap: anywhere; }
+.dg-d-terms-line { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+.dg-dev-toggle { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; font: inherit; font-size: 13px;
+  font-weight: 700; color: #64748b; cursor: pointer; }
+.dg-dev-toggle i { transition: transform .15s; }
+.dg-dev-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+.dg-admin { font-size: 11px; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 1px 7px; }
+.dg-dev { margin: 6px 0 0; display: flex; flex-direction: column; gap: 8px; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+.dg-dev[hidden] { display: none; }
+.dg-dev > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+.dg-dev dt { font-size: 12px; color: #94a3b8; }
+.dg-dev dd { margin: 0; display: flex; gap: 6px; align-items: flex-start; min-width: 0; }
+.dg-dev code { flex: 1; min-width: 0; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; color: #e2e8f0; word-break: break-all; }
+.dg-copy { flex: 0 0 auto; border: 1px solid #334155; background: #1e293b; color: #cbd5e1; border-radius: 6px; padding: 2px 6px; font-size: 11px; cursor: pointer; }
+.dg-copy:hover { color: #fff; }
+/* 서랍이 열린 동안은 기능 완성도 배지(z-index 9000)가 서랍 아래쪽을 가리지 않게 숨긴다(전체 메뉴 서랍과 같은 규칙 · app.css) */
+body:has(#dg-drawer.open) #view-completion-indicator { display: none; }
+
+/* ── 폭 ── */
+@media (max-width: 1100px) {
+  .dg-band { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .dg-flow { flex-direction: column; }
+  .dg-flow-arrow { flex: 0 0 auto; flex-direction: row; gap: 8px; padding: 6px 0; }
+  .dg-flow-arrow i { transform: rotate(90deg); }
+}
+/* 폭 390 — 숫자 띠 2열(마지막 칸은 한 줄) · 바둑판 → 기간 막대 · 표 → 카드 · 서랍 → 화면 전체(Figma 7:2 · 10:2) */
+@media (max-width: 760px) {
+  .dg-head h2 { font-size: 20px; }
+  .dg-band { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .dg-band-card:last-child { grid-column: 1 / -1; }
+  .dg-band-v { font-size: 19px; }
+  .dg-grid-wrap, .dg-legend { display: none; }
+  .dg-bars { display: block; }
+  .dg-table thead { display: none; }
+  .dg-table, .dg-table tbody, .dg-table tr, .dg-table td { display: block; width: 100%; }
+  .dg-table tr { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .dg-table td { border: 0; padding: 2px 0; }
+  .dg-table tbody tr[data-item]:hover td { background: none; }
+  .dg-line { min-width: 0; }
+  /* 기간 · 줄 수 · 갱신은 한 줄에 — 카드가 길어지지 않게 */
+  .dg-table td.dg-period, .dg-table td.dg-num, .dg-table td.dg-update { display: inline-block; width: auto; margin-right: 12px; text-align: left; }
+  .dg-table td.dg-terms { padding-top: 6px; }
+  .dg-tasks .dg-task { white-space: normal; }
+  .dg-panel { width: 100vw; border-left: 0; }
+  .dg-d-head { padding: 16px 16px 6px; }
+  .dg-d-body { padding: 4px 16px 24px; }
+}

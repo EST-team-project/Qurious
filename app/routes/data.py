@@ -138,3 +138,19 @@ async def financials(
         return await asyncio.to_thread(data_financials.read_financials, symbol, as_of, pit, fs, periods)
     except data_financials.FinancialsError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None
+
+
+# ── 자료 안내(2026-10-08 · 화면 결정 안 B + 안 A 서랍 · 1단계) ─────────────────────────────────────────────
+# 이 덩어리는 파일 끝에 덧붙이기만 했다 — 같은 파일을 고치는 다른 작업과 위쪽 줄(import 포함)이 부딪히지 않게 import 도 여기 둔다.
+from app.services import data_guide  # noqa: E402
+
+
+@router.get("/guide", summary="자료 안내 — 설명(대장 생성물) · 숫자(상태 · 백업 목록)")
+async def guide(user=Depends(get_current_user)):
+    # 모든 로그인 사용자가 본다. 개발 칸(표 이름 · 읽는 길 · 백업 경로 · 받는 명령)은 서버가 관리자에게만 싣는다 —
+    # 화면이 CSS 로 숨기면 응답에는 남는다(2026-10-08 결정 ①). 관리자 판정은 위 `_require_admin` 과 같은 방법(세션의 roles).
+    admin = "admin" in user.get("roles", [])
+    try:
+        return await asyncio.to_thread(data_guide.read, admin)
+    except data_guide.GuideUnavailable as e:
+        raise HTTPException(status_code=503, detail=e.detail) from None

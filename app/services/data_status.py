@@ -170,6 +170,9 @@ def _step_view(rec: dict, by_name: dict | None = None) -> dict:
            "status": status, "rc": rc, "seconds": rec.get("seconds") or 0, "note": rec.get("note") or ""}
     if rec.get("rerun_at"):
         out["rerun_at"] = rec["rerun_at"]
+    # 건너뛴 까닭 · 뒤 할 일 · 거래일(2026-10-08) — 러너가 판정해 기록에 쓴 그대로 넘긴다(앱은 종료코드를 다시 해석하지 않는다).
+    # `followup` 이 있는 건너뜀(신호 단계 · 앱 DB 꺼짐)만 화면이 노랑으로 칠한다
+    out.update({k: rec[k] for k in ("reason", "followup", "date") if rec.get(k)})
     return out
 
 
@@ -264,6 +267,11 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
     elif any(s["status"] in ("failed", "warning") for s in lr["steps"]):
         bad = [s["label"] for s in lr["steps"] if s["status"] in ("failed", "warning")]
         out.update(state="warning", label="일부 실패", detail="실패한 단계: " + " · ".join(bad))
+    elif any(s.get("followup") for s in lr["steps"]):
+        # 돌 조건이 없어 건너뛰고 채울 날이 남은 단계(2026-10-08 · 신호 단계 앱 DB 꺼짐) — 실패가 아니라 「확인할 것」 이다.
+        # 회차 ok 는 러너가 쓴 그대로 둔다(리밸런싱 하루 점검은 신호를 읽지 않는다). 까닭은 러너 메모의 첫 마디
+        held = [f"{s['label']}({(s.get('note') or '').split(' · ')[0] or '건너뜀'})" for s in lr["steps"] if s.get("followup")]
+        out.update(state="attention", label="일부 건너뜀", detail="채울 단계: " + " · ".join(held))
     else:
         out.update(state="ok", label="성공", detail=f"{(lr['finished_at'] or '')[:16].replace('T', ' ')} 에 끝났다")
     return out
@@ -487,7 +495,10 @@ def runner_detail(now: datetime | None = None) -> dict:
     out = runner_state(sdir, now)
     cat = load_catalog(sdir)
     keys = ("name", "label", "group", "desc", "fatal", "derived", "upload", "timeout_min")
-    out["catalog"] = {"written_at": cat["written_at"], "steps": [{k: s.get(k) for k in keys} for s in cat["steps"]]}
+    # 빠진 날 채우기 명령(2026-10-08 · 러너 단계 정의의 `fill`) — 옛 단계 목록에는 칸이 없으니 빈 글로(없는 칸을 None 으로 두면
+    # 화면이 「채우기 있음」 으로 잘못 읽을 수 있다)
+    out["catalog"] = {"written_at": cat["written_at"],
+                      "steps": [{**{k: s.get(k) for k in keys}, "fill": s.get("fill") or ""} for s in cat["steps"]]}
     out["disk"] = pc_disk(sdir)
     out["rerun"] = RERUN
     out["checked_at"] = now.isoformat(timespec="seconds")
@@ -519,7 +530,7 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
     worst = max((_RANK.get(t["verdict"], 0) for t in tables), default=1)
     if runner["state"] in ("failed",):
         worst = 2
-    elif runner["state"] in ("late", "warning", "missing"):
+    elif runner["state"] in ("late", "warning", "missing", "attention"):   # attention = 일부 건너뜀(채울 날이 남음)
         worst = max(worst, 1)
     verdict = ["ok", "warning", "error"][worst]
     price = next((t for t in tables if t["key"] == "price_daily"), {})

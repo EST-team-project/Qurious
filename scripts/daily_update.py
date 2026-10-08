@@ -144,6 +144,11 @@ class Step:
     label: str = ""
     group: str = ""
     desc: str = ""
+    # 앱 DB(PostgreSQL)를 쓰는 단계인가 — 그런 단계에만 PC 쪽 주소를 넘긴다(``host_app_db_env`` · 2026-10-08 신호 단계).
+    app_db: bool = False
+    # 빠진 날을 채우는 명령(날짜 칸은 YYYY-MM-DD 그대로) — 회차가 그날을 놓쳤을 때 사람이 돌린다. 단계 목록에 실려 수집 일정
+    # 화면이 그 단계에만 보인다(2026-10-08 · #142 답글 「앱 DB 가 꺼진 날은 --from · --to 로 채운다」).
+    fill: str = ""
 
 
 #: 단계 묶음 — 화면이 이 차례로 머리를 단다(단계는 묶음 안에서 러너 차례 그대로).
@@ -191,6 +196,12 @@ STEPS: List[Step] = [
     # OHLCV 규격 자료(2026-10-01) — ETF · 지수 일봉 · 분봉 · krx-ohlcv 내보내기. 실패해도 기존 단계를 막지 않는다.
     Step("ohlcv", ["-m", "collector.ohlcv_load", "daily"], 40, fatal=False,
          label="일봉", group="계산", desc="ETF · 지수 일봉과 분봉을 받아 묶음으로 적재 · 내보내기"),
+    # 다중 주기 신호(2026-10-08 · 팀원 #140 배치 · #142 요청) — 그날 일봉 · 60분봉이 들어온 **뒤**에 돈다. 인자 없이 수집 DB 의
+    # 마지막 거래일 하루를 계산해 앱 DB(PostgreSQL)의 T2 `signal_snapshots` 에 쓴다(같은 날은 값만 바뀐다 — 여러 번 돌려도 안전).
+    # 수집 DB 는 읽기 전용으로 연다. 배치 코드는 목표 기능 ② 주담당 것이라 여기서는 부르기만 한다.
+    Step("signals", ["scripts/signals_daily.py"], 10, fatal=False, app_db=True,
+         label="신호", group="계산", desc="분봉 유니버스 401종목의 다중 주기 신호를 T2 에 기록",
+         fill="python scripts/signals_daily.py --from YYYY-MM-DD --to YYYY-MM-DD"),
     Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False,
          label="목록표", group="백업", desc="백업할 표 · 행 수 · 지문 목록(대조용)"),
     Step("export", ["scripts/hf_dataset.py", "export", "--quiet"], 30,
@@ -315,6 +326,94 @@ def release_lock(path: Path = LOCK_PATH) -> None:
         path.unlink(missing_ok=True)
 
 
+#: 앱 DB 주소의 정본 — compose 의 앱 서비스 환경(DATABASE_URL)과 그 DB 서비스의 포트 짝.
+COMPOSE_PATH = ROOT / "docker-compose.yml"
+
+#: 러너가 정하는 종료코드 — 앱 DB 주소를 compose 에서 만들지 못해 앱 DB 단계를 돌리지 않았다(sysexits 의 EX_CONFIG).
+#: 시간 초과의 124 처럼 러너가 적는 코드라, 앱은 해석을 바꾸지 않아도 「경고」 로 보인다. 설정 결함은 건너뜀으로 숨기지 않는다.
+EX_CONFIG = 78
+
+
+def host_app_db_env(compose: Optional[Path] = None) -> tuple:
+    """PC(호스트)에서 도는 단계가 앱 DB 를 부를 환경 변수 — ``({"DATABASE_URL": …}, 못 만든 까닭 또는 None)``.
+
+    컨테이너끼리는 서비스 이름(``postgres:5432``)으로 부르지만 PC 에서는 compose 가 연 포트(``15432``)로 불러야 한다. 앱 설정
+    (``app/config.py``)은 ENV_FILE 이 없으면 ``.env.dev`` 를 읽고, 컨테이너가 받는 주소는 compose 의 environment 에만 있다 —
+    2026-10-08 러너로 신호 단계를 돌리자 앱 DB 가 떠 있는데도 ``ConnectionRefusedError`` 로 끝났다. 주소를 여기 한 번 더 적지
+    않고 compose 에서 만든다(개발 모드 스크립트 ``scripts/personal/dev.ps1`` 3단계와 같은 값 — TC-DU 가 맞댄다). 호스트 이름은
+    ``127.0.0.1``(이 PC 에서 ``localhost`` 는 요청마다 1초 — DF-63). 못 만들면 빈 값과 까닭을 돌려준다(러너가 로그에 적는다).
+    """
+    from urllib.parse import urlsplit, urlunsplit
+
+    import yaml
+
+    path = compose or COMPOSE_PATH
+    try:
+        services = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("services") or {}
+    except (OSError, yaml.YAMLError) as e:
+        return {}, f"compose 를 읽지 못했다 — {type(e).__name__}"
+    env = (services.get("app") or {}).get("environment") or {}
+    if isinstance(env, list):                                # `- KEY=값` 꼴과 `KEY: 값` 꼴 둘 다
+        env = dict(x.split("=", 1) for x in env if isinstance(x, str) and "=" in x)
+    url = env.get("DATABASE_URL")
+    if not url:
+        return {}, "compose 의 앱 서비스에 DATABASE_URL 이 없다"
+    u = urlsplit(url)
+    svc = services.get(u.hostname or "") or {}
+    want = str(u.port or 5432)
+    host_port = None
+    for p in svc.get("ports") or []:                         # "15432:5432" · "127.0.0.1:15432:5432/tcp" · 긴 꼴(사전)
+        if isinstance(p, dict):
+            if str(p.get("target")) == want and p.get("published"):
+                host_port = str(p["published"])
+            continue
+        parts = str(p).split("/")[0].split(":")
+        if len(parts) >= 2 and parts[-1] == want:
+            host_port = parts[-2]
+    if not host_port:
+        return {}, f"compose 의 {u.hostname} 서비스에 {want} 포트를 PC 로 여는 짝이 없다"
+    auth = u.netloc.rsplit("@", 1)[0] + "@" if "@" in u.netloc else ""
+    return {"DATABASE_URL": urlunsplit((u.scheme, f"{auth}127.0.0.1:{host_port}", u.path, u.query, u.fragment))}, None
+
+
+def _db_where(url: str) -> str:
+    """로그용 — 비밀번호 없이 호스트:포트/DB 만."""
+    from urllib.parse import urlsplit
+    u = urlsplit(url)
+    return f"{u.hostname}:{u.port}{u.path}"
+
+
+def app_db_unreachable(env: Dict[str, str], timeout: float = 3.0) -> Optional[str]:
+    """앱 DB 포트에 닿는가 — 닿으면 None, 아니면 까닭 한 줄(연결 거부 · 시간 초과 …).
+
+    「돌다가 실패」 와 「돌 조건이 없어 돌지 않음」 을 가르려고 돌리기 **전에** 묻는다(2026-10-08 · 조사서 안 B — Airflow 의
+    skipped/failed · systemd 의 ExecCondition 과 같은 생각). 종료코드 3 만 보고 건너뜀으로 바꾸면 「DB 는 떠 있는데 주소 ·
+    계정이 틀림」(그날 실측)도 건너뜀 뒤에 숨는다. 포트가 열렸는데 단계가 실패하면 그때는 경고다.
+    """
+    import socket
+    from urllib.parse import urlsplit
+
+    u = urlsplit(env.get("DATABASE_URL", ""))
+    try:
+        with socket.create_connection((u.hostname or "", u.port or 5432), timeout=timeout):
+            return None
+    except socket.timeout:                                   # OSError 의 하위라 먼저 잡는다
+        return f"{timeout:g}초 안에 답이 없다"
+    except ConnectionRefusedError:
+        return "연결 거부"
+    except OSError as e:
+        return type(e).__name__
+
+
+def _as_of_day() -> Optional[str]:
+    """그 회차가 계산했을 거래일 — 지금 시세 마지막 날(YYYY-MM-DD). 못 재면 None(건너뜀 줄의 「빠진 날」 표시에만 쓴다)."""
+    try:
+        p = (snapshot() or {}).get("price_max")
+    except (sqlite3.Error, OSError):
+        return None
+    return f"{p[:4]}-{p[4:6]}-{p[6:8]}" if isinstance(p, str) and len(p) == 8 else None
+
+
 def child_python() -> str:
     """자식 프로세스용 파이썬. 작업 스케줄러는 창이 안 뜨는 ``pythonw`` 로 이 러너를
     부르는데, 자식까지 ``pythonw`` 면 표준출력이 없어 로그가 빈다 → 같은 폴더의 ``python``."""
@@ -337,7 +436,7 @@ def step_catalog(now: Optional[datetime.datetime] = None) -> Dict:
         "groups": GROUPS,
         "steps": [{"name": s.name, "label": s.label, "group": s.group, "desc": s.desc,
                    "fatal": s.fatal, "derived": s.derived, "upload": s.upload,
-                   "timeout_min": s.timeout_min} for s in STEPS],
+                   "timeout_min": s.timeout_min, "fill": s.fill} for s in STEPS],
     }
 
 
@@ -348,9 +447,14 @@ def _rec(step: Step) -> Dict:
 
 
 def _compact(recs: List[Dict]) -> List[Dict]:
-    """이력 줄(JSONL)에 남길 단계 결과 — 이름표는 단계 목록 파일에 있으니 이름 · 종료코드 · 시간 · 메모만."""
-    return [{"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
-            for r in recs]
+    """이력 줄(JSONL)에 남길 단계 결과 — 이름표는 단계 목록 파일에 있으니 이름 · 종료코드 · 시간 · 메모만.
+    건너뛴 줄의 까닭 · 뒤 할 일 · 거래일은 있을 때만 붙인다(지난 회차도 같은 색으로 그리게 · 2026-10-08)."""
+    out = []
+    for r in recs:
+        row = {"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
+        row.update({k: r[k] for k in ("reason", "followup", "date") if r.get(k)})
+        out.append(row)
+    return out
 
 
 def measure_disk(now: Optional[datetime.datetime] = None, db_path: Optional[Path] = None) -> Dict:
@@ -445,6 +549,10 @@ class Run:
     log: TextIO
     log_path: Path
     steps: List[Dict] = field(default_factory=list)
+    #: 앱 DB 를 쓰는 단계에 넘길 PC 쪽 주소(``prepare_app_db`` 가 채운다 · 다른 단계에는 넘기지 않는다)
+    app_db_env: Dict[str, str] = field(default_factory=dict)
+    #: 주소를 못 만들었으면 그 까닭 — 앱 DB 단계는 돌리지 않고 이 까닭으로 경고를 남긴다
+    app_db_why: str = ""
 
     def say(self, msg: str) -> None:
         line = f"[{now_kst().strftime('%H:%M:%S')}] {msg}"
@@ -457,6 +565,38 @@ class Run:
                 pass
 
 
+def prepare_app_db(run: Run, steps: Sequence[Step]) -> None:
+    """돌릴 단계 가운데 앱 DB 를 쓰는 것이 있으면 PC 쪽 주소를 한 번 만들어 둔다 · 로그에는 비밀번호 없이 주소만."""
+    if not any(s.app_db for s in steps):
+        return
+    env, why = host_app_db_env()
+    run.app_db_env, run.app_db_why = env, why or ""
+    if env:
+        run.say(f"앱 DB 주소(PC 쪽 · compose 에서) {_db_where(env['DATABASE_URL'])} — 앱 DB 를 쓰는 단계에만 넘긴다")
+    else:
+        # 앱 설정의 기본 주소(.env.dev · 기초 코드의 lumina@localhost)로 돌리면 다른 DB 에 말없이 쓸 수 있다 → 돌리지 않는다
+        run.say(f"🟡 앱 DB 주소를 만들지 못했다 — {why} · 앱 DB 를 쓰는 단계는 돌리지 않는다(경고)")
+
+
+def app_db_gate(run: Run, step: Step) -> Optional[Dict]:
+    """앱 DB 단계를 돌려도 되는가 — 되면 None, 안 되면 단계 줄에 쓸 칸(rc · 까닭 · 메모 …).
+
+    · 주소를 못 만듦 → 돌리지 않음 · 종료코드 ``EX_CONFIG``(경고 — 설정 결함은 숨기지 않는다)
+    · 포트에 닿지 않음(앱 DB 꺼짐) → 돌리지 않음 · ``rc`` 없음(회차 ok 를 깨지 않는다) · 까닭 ``app_db_down`` · 뒤 할 일
+      ``fill``(단계 정의의 채우기 명령) · 그 회차가 계산했을 거래일. 리밸런싱 하루 점검(팀원)은 신호를 읽지 않는다.
+    """
+    if not step.app_db:
+        return None
+    if not run.app_db_env:
+        return {"rc": EX_CONFIG, "reason": "app_db_address_unknown",
+                "note": f"앱 DB 주소를 만들지 못함 — {run.app_db_why} · 돌리지 않음"}
+    why = app_db_unreachable(run.app_db_env)
+    if why is None:
+        return None
+    return {"rc": None, "reason": "app_db_down", "followup": "fill", "date": _as_of_day(),
+            "note": f"앱 DB 꺼짐 · {_db_where(run.app_db_env['DATABASE_URL'])} {why} · 건너뜀"}
+
+
 def _run_step(run: Run, step: Step) -> int:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
@@ -465,6 +605,8 @@ def _run_step(run: Run, step: Step) -> int:
         env["QURIOUS_RAW_SHARING"] = "1"       # ← 머리말 "원자료 공유 스위치" 참고
     else:
         env.pop("QURIOUS_RAW_SHARING", None)
+    if step.app_db:
+        env.update(run.app_db_env)             # ← ``host_app_db_env`` — 컨테이너 주소가 아니라 compose 가 연 포트
     run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(step.args)}\n{'=' * 70}\n")
     run.log.flush()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -507,6 +649,7 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
             run.say(f"일일 갱신 시작 · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
             for err in write_side_files():                  # 단계 목록 · 이 PC 용량(앱이 읽는다)
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
+            prepare_app_db(run, STEPS)
             before = snapshot()
             run.say(f"시작 상태 {json.dumps(before, ensure_ascii=False)}")
             derived_why: Optional[str] = None
@@ -514,11 +657,12 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
             for step in STEPS:
                 rec = _rec(step)
                 run.steps.append(rec)
+                # 건너뛴 줄에는 까닭 코드를 함께 적는다 — 화면이 「할 일 없는 건너뜀(회색)」 과 「채울 것이 있는 건너뜀(노랑)」 을 가른다
                 if step.upload and not upload:
-                    rec["note"] = "업로드 끔"
+                    rec.update(note="업로드 끔", reason="upload_off")
                     continue
                 if stop:
-                    rec["note"] = f"앞 단계 실패로 건너뜀 ({stop})"
+                    rec.update(note=f"앞 단계 실패로 건너뜀 ({stop})", reason="upstream_failed")
                     continue
                 if step.derived:
                     if derived_why is None:
@@ -526,16 +670,23 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
                             else (needs_derived(before, snapshot()) or "")
                         run.say(f"파생 단계 판정: {derived_why or '새 자료 없음 — 건너뛴다'}")
                     if not derived_why:
-                        rec["note"] = "새 자료 없음"
+                        rec.update(note="새 자료 없음", reason="no_new_data")
                         continue
                 if step.name == "upload":
                     pending = _pending_upload()
                     if pending == []:
-                        rec["note"] = "바뀐 파케이 0개 — 원격과 같다"
+                        rec.update(note="바뀐 파케이 0개 — 원격과 같다", reason="nothing_to_upload")
                         run.say("upload: 바뀐 파케이가 없어 올리지 않는다")
                         continue
                     run.say(f"upload: 바뀐 파케이 "
                             f"{'(업로드 기록 없음)' if pending is None else f'{len(pending)}개'}")
+                gate = app_db_gate(run, step)                # 앱 DB 단계 — 돌리기 전에 전제 조건을 묻는다(안 B)
+                if gate:
+                    rec.update(gate)
+                    run.say(f"🟡 {step.name} · {gate['note']}")
+                    if gate["rc"] is not None:              # 주소를 못 만듦 = 설정 결함 → 경고로 센다(건너뜀이 아니다)
+                        rc_total = rc_total or gate["rc"]
+                    continue
                 t0 = time.time()
                 run.say(f"▶ {step.name} …")
                 write_progress(started, step, run)         # 수집 일정 화면의 「수집 중 — n번째 단계」
@@ -654,28 +805,63 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
             run = Run(started, upload, log, log_path)
             run.say(f"한 단계만 다시 돌림 · {name}({step.label}) · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
             rec = _rec(step)
+            prepare_app_db(run, [step])
+            gate = app_db_gate(run, step)                    # 앱 DB 단계 — 꺼져 있으면 돌리지 않는다(정기 회차와 같은 규칙)
             t0 = time.time()
-            write_progress(started, step, run)
-            rc = _run_step(run, step)
-            rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
-            if not rearm_wal():                              # 단계가 쓰기 연결로 끝났어도 앱이 수집 DB 를 읽게
-                run.say("🟡 수집 DB 의 WAL 보조 파일(-wal · -shm)을 다시 만들지 못했다 — 앱의 데이터 화면을 확인한다"
-                        "(check.ps1 -Group 데이터)")
-            run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초")
+            if gate:
+                rec.update(gate, rerun_at=_iso(now_kst()))
+                rc = 3 if gate["rc"] is None else gate["rc"]  # 3 = 막힘(지금은 돌 조건이 없다) · 78 = 설정 결함
+                run.say(f"🟡 {name} · {gate['note']}")
+            else:
+                write_progress(started, step, run)
+                rc = _run_step(run, step)
+                rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
+                if not rearm_wal():                          # 단계가 쓰기 연결로 끝났어도 앱이 수집 DB 를 읽게
+                    run.say("🟡 수집 DB 의 WAL 보조 파일(-wal · -shm)을 다시 만들지 못했다 — 앱의 데이터 화면을 확인한다"
+                            "(check.ps1 -Group 데이터)")
+            # 끝 상태(시세 기준일 · 파생 표 기준일 · 배당 지문)를 다시 잰다(2026-10-08 · DF-85). 옛 코드는 단계 줄만 바꾸고
+            # `after` 를 회차 때 값으로 두어, 시세를 다시 받아도 리밸런싱 하루 점검 준비 판정(팀원 #136)이 회차 기록의
+            # 옛 기준일로 「시세 기준일이 다름」 을 냈다. 못 재면 옛 값을 지우지 않되 기록 · 로그에 그 사실을 남긴다
+            # (옛 값이 말없이 「지금 값」 처럼 보이지 않게). 읽기 전용 연결이라 WAL 보조 파일을 지우지 않는다(DF-81).
+            after: Optional[Dict[str, object]] = None
+            after_error: Optional[Dict[str, str]] = None
+            try:
+                after = snapshot()
+            except (sqlite3.Error, OSError) as e:
+                after_error = {"at": rec["rerun_at"], "why": f"{type(e).__name__}: {e}"}
+                run.say(f"🟡 시세 기준일을 다시 재지 못했다 — {after_error['why']} · 회차 기록의 기준일은 회차 때 값 그대로다")
+            if not gate:                                     # 돌리지 않은 단계는 위에서 까닭 한 줄을 이미 남겼다
+                run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초"
+                        + (f" · 시세 기준일 {after.get('price_max')}" if after else ""))
             last = None
             try:
                 last = json.loads(LAST_PATH.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 pass
             if last:                                         # 마지막 회차의 그 줄만 바꾼다 — 화면은 그 줄의 결과가 바뀐다
-                last["steps"] = [rec if s.get("name") == name else s for s in last.get("steps") or []]
+                rows = list(last.get("steps") or [])
+                if any(s.get("name") == name for s in rows):
+                    rows = [rec if s.get("name") == name else s for s in rows]
+                else:
+                    # 회차 뒤에 더한 단계(2026-10-08 신호 단계를 처음 붙인 날) — 바꿀 줄이 없으면 결과를 버리지 않고
+                    # 단계 목록 차례 자리에 끼운다(옛 이름 · 지운 단계 줄은 그대로 앞에 둔다).
+                    order = {s.name: i for i, s in enumerate(STEPS)}
+                    at = sum(1 for s in rows if order.get(s.get("name"), -1) < order[name])
+                    rows.insert(at, rec)
+                last["steps"] = rows
                 last.setdefault("reruns", []).append({"name": name, "at": rec["rerun_at"], "rc": rc,
                                                       "log": log_path.relative_to(ROOT).as_posix()})
                 last["ok"] = not last.get("stopped") and all(s.get("rc") in (None, 0) for s in last["steps"])
+                if after is not None:                        # 다시 잰 끝 상태 — 회차의 시작 상태(before)는 그대로
+                    last["after"], last["after_at"] = after, rec["rerun_at"]
+                    last.pop("after_error", None)
+                else:
+                    last["after_error"] = after_error
                 _write_json_atomic(LAST_PATH, last)
             with HISTORY_PATH.open("a", encoding="utf-8") as h:
                 h.write(json.dumps({"started_at": _iso(started), "finished_at": _iso(now_kst()), "only": name,
                                     "ok": rc == 0, "upload": upload, "stopped": None,
+                                    "price_max": (after or {}).get("price_max"),
                                     "steps": _compact([rec])}, ensure_ascii=False) + "\n")
             for err in write_side_files():
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")

@@ -1,0 +1,22 @@
+종류	열쇠	제목	설명	자료	화면	관리자
+흐름	출처	출처	시세 · 공시 · 재무 · 뉴스 · 공휴일 · 금리 회의 · 법령			
+흐름	받기	받은 자료	주식 · ETF · 지수 일봉 · 분봉 · 공시 · 재무 · 뉴스 · 기업 일정	stock-day · etf-day · index-day · bar-60m · bar-5m · payout · filings · fin-main · corp-dates · policy-news · press-news · holidays · rate-meetings		
+흐름	계산	계산한 자료	수정주가 · 총수익 지수 · 비교 지수 · 거래일 달력 · 금융 일정 · 검색 색인	adjusted · total-return · benchmark · price-break · trade-days · events · search		
+흐름	백업	팀 공유 저장소	날마다 날짜 꼬리표를 붙여 올립니다 — 모은 자료가 없는 PC 는 여기서 받습니다			krx-daily-market · krx-ohlcv(매일) · kb-sector-laws(7일) · dart-disclosure-financials · kb-legal-base · search-index(손으로)
+흐름덧말			시세는 출처가 기준일 다음 영업일 13시 뒤에 공개해 하루 늦게 들어옵니다.	stock-day · etf-day · index-day		
+흐름덧말	근거 문서		법령 근거는 손으로 받고, 섹터 법령은 7일에 한 번 바뀐 판을 대조합니다.	law-base · sector-law		
+흐름덧말			원 가격은 받은 그대로 두고, 이어 붙인 값 · 배당까지 넣은 값은 따로 계산해 둡니다.	stock-day · adjusted · total-return		
+길잡이		차트 · 지표를 본다	가격은 수정주가, 거래량은 주식 일봉에서 읽습니다	adjusted · stock-day	trading-chart · indicator-strategy	API-STK-03 GET /api/stocks/candles · API-STK-04 GET /api/stocks/quant/indicators
+길잡이		전략을 시험한다	배당까지 넣은 성과는 총수익 지수 — 화면이 없어 백업 파일로 읽습니다	adjusted · total-return · trade-days	quant-backtest	API-DATA-02 GET /api/data/ohlcv · 총수익은 krx-daily-market price_total_return/year=YYYY
+길잡이		배당 일정을 본다	배당 기준일 · 배당락일 · 지급일이 한 달력에 모입니다	payout · events · corp-dates	market-calendar	API-CAL-02 GET /api/calendar/events · API-CAL-03 GET /api/calendar/events/summary
+길잡이		실적 · 공시를 찾는다	공시 제목과 정기보고서의 핵심 숫자를 함께 찾습니다	filings · fin-main	agent-news	API-DATA-03 GET /api/data/search · API-DATA-04 GET /api/data/financials
+길잡이		뉴스를 찾는다	언론사 기사는 제목 · 링크만 있습니다	policy-news · press-news	agent-news	API-DATA-03 GET /api/data/search?kind=news
+길잡이		분 단위 · 여러 주기로 본다	분봉은 분봉 대상 종목만 있습니다	bar-60m · weekly · bar-universe	robo-patterns	API-DATA-02 GET /api/data/ohlcv?timeframe=60m · API-STK-35 GET /api/stocks/mtf-signal
+길잡이		ETF · 지수 흐름을 본다	강의 그림과 ETF 탐색표가 이 자료를 씁니다	etf-day · index-day	fin-topic-funds · fin-topic-allocation	API-LEC-06 GET /api/lectures/market/period-return · API-LEC-01 GET /api/lectures/market/kospi-history
+길잡이		법 · 규정을 묻는다	답마다 근거 조문을 붙입니다	law-base · sector-law	agent-chat	API-KB-03 POST /api/kb/ask · API-KB-01 GET /api/kb/documents
+길잡이		용어 뜻을 찾는다	이름 · 약어 · 영어 · 초성으로 찾습니다	glossary	fin-glossary	API-GLOS-01 GET /api/glossary
+주의		기준이 반대인 두 값	수정주가는 「가장 최근 날 = 1」, 총수익 지수는 「첫 거래일 = 1」 이라 기준이 반대입니다. 두 값을 그대로 나누면 틀립니다.	adjusted · total-return		
+주의		받은 시각은 시장이 안 시각이 아니다	지난 시세는 나중에 한꺼번에 다시 받았습니다. 「언제 알 수 있었나」 는 받은 시각이 아니라 거래일 다음 영업일 낮(공개 시각)으로 셉니다.	stock-day · raw		
+주의		분봉은 09:00 ~ 15:00 만	15:00 ~ 15:30 종가 단일가가 없어 분봉을 더해도 일봉이 되지 않습니다 — 분봉 거래량은 일봉의 7할 안팎입니다.	bar-60m · bar-5m		
+주의		비교 지수는 공식 지수가 아니다	우리 자료로 다시 계산한 값이라 거래소 지수와 조금 다릅니다. 견줄 때는 「자체 계산」 을 함께 적습니다.	benchmark · index-day		
+주의		재무는 그날 알 수 있었던 판으로	정정 공시가 뒤에 나오면 앞날의 숫자가 바뀝니다. 지난 시점을 시험할 때는 그날까지 접수된 판만 씁니다.	fin-main		

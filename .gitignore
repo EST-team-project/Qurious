@@ -89,3 +89,8 @@ docker-compose.override.yml
 
 # 개인 역량 지도 — 면접 준비 기록이라 공개 팀 저장소에 올리지 않는다(사용자 2026-10-08)
 docs/TIL/이동원/역량지도.md
+
+# 개인 git 초안 — 세션마다 쓰는 커밋 · push · PR 스크립트와 본문 · 다음 세션 프롬프트(사용자 2026-10-08).
+# 저장소 밖(team_project/_git-drafts/)에 두던 것을 찾기 쉽게 docs 안으로 옮겼다 — 올리지 않는다.
+# 올릴 글의 원본은 여전히 docs/github-archive/ 다(여기는 명령 · 초안만).
+docs/_git-drafts/

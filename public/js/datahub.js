@@ -175,7 +175,8 @@ function runCard(st) {
   }
   const steps = last.steps || [];
   const ok = steps.filter(s => s.status === "ok").length;
-  const bad = steps.filter(s => s.status === "failed" || s.status === "warning");
+  // 채울 날이 남은 건너뜀(followup · 신호 단계 앱 DB 꺼짐 · 2026-10-08)도 확인할 단계로 센다 — 회차는 성공이지만 할 일이 남았다
+  const bad = steps.filter(s => s.status === "failed" || s.status === "warning" || s.followup);
   const [mark, tone] = STEP_MARK[bad.some(s => s.status === "failed") ? "failed" : bad.length ? "warning" : "ok"];
   const head = r.state === "running" ? `수집 중 — ${hm(r.running_since)} 에 시작 · 아래는 지난 회차` : "마지막 수집";
   return `<div class="card dh-runline"><span class="q-tone--${tone} dh-mark">${mark}</span>

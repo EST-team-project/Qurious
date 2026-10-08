@@ -23,6 +23,7 @@ import { initDataBadge, onDataHubViewActivated } from "/js/datahub.js";   // 데
 import { onCalendarViewActivated } from "/js/calendar.js";             // 일정 · 다가오는 일정 카드 (2026-10-02)
 import { onResearchViewActivated } from "/js/research.js";             // 투자 정보 리서치 — 수집 자료 검색 · 종목 시간표 (2026-10-06)
 import { onCollectViewActivated } from "/js/collect.js";               // 데이터 수집 화면 셋 — 옛 크롤링 세 화면 자리 (2026-10-08)
+import { onDataGuideViewActivated } from "/js/dataguide.js";           // 자료 안내 — 데이터 관제 바로 아래 · 모든 로그인 사용자 (2026-10-08)
 
 import { loadDashboard } from "/js/dashboard.js";
 
@@ -86,6 +87,7 @@ function onViewActivated(view) {
   onCalendarViewActivated(view); // 일정 · 「거시경제 지표」 오른쪽 다가오는 일정 카드 (js/calendar.js)
   onResearchViewActivated(view); // 투자 정보 리서치 (js/research.js)
   onCollectViewActivated(view);  // 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (js/collect.js · 관리자)
+  onDataGuideViewActivated(view); // 자료 안내 — 화면이 바뀌면 서랍을 닫는다 (js/dataguide.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }
