@@ -9,7 +9,9 @@ let chatHistory = [];
 // 선택값과 OpenAI 키는 이 브라우저의 localStorage 에만 저장되고, 키는 요청 본문으로만 서버에 전달된다(서버 저장 없음).
 const LLM_MODE_KEY = "qurious.chat.llmMode";
 const OPENAI_KEY_KEY = "lumina.chat.openaiKey";
-const LLM_MODE_LABEL = { ollama: "Local Ollama", openai: "OpenAI API", rag: "순수 RAG 청크" };
+// rag: 강사님 10-07 판부터 서버 LLM 이 검색 조각을 짧게 요약한다(못 하면 조각 그대로 · 응답 llm_used).
+// 강사님 이름 「Qwen RAG」 는 우리 채팅 모델과 다르고 「근거 답 — 법령 · 규정 출처」 와 헷갈려 우리 말로 둔다(2026-10-08).
+const LLM_MODE_LABEL = { ollama: "Local Ollama", openai: "OpenAI API", rag: "검색 결과 요약" };
 
 function getLlmMode() {
   return document.getElementById("chat-llm-mode")?.value || "ollama";
@@ -23,7 +25,7 @@ function syncLlmModeUi() {
   const inp = document.getElementById("chat-input");
   if (inp) {
     inp.placeholder = placeholderFor(mode) || (mode === "rag"
-      ? "검색어를 입력하면 지식 베이스에서 유사한 청크를 LLM 없이 그대로 보여줍니다."
+      ? "검색어를 입력하면 지식 베이스에서 비슷한 조각을 찾아 짧게 요약합니다(요약하지 못하면 조각 그대로 · 법 · 규정은 「근거 답」)."
       : "예) 내 리스크 성향에 맞는 금융상품 추천해줘. 30대 남성 평균 신용점수는? 금리 3% 이상 정기예금 추천해줘.");
   }
   try { localStorage.setItem(LLM_MODE_KEY, mode); } catch {}
@@ -68,8 +70,11 @@ function appendUserMsg(text) {
 function appendAssistantMsg(answer, steps, meta = {}) {
   const msgId = "m" + Date.now();
   let stepsHtml = "";
+  // 꼬리표에 응답이 알려 준 실제 모델을 붙이고, LLM 이 요약하지 못했으면(llm_used=false) 그렇다고 적는다
+  const modeExtra = [meta.model || "", meta.llmUsed === false ? "LLM 미사용 — 검색 조각" : "",
+    meta.chunks != null ? `청크 ${meta.chunks}개` : ""].filter(Boolean).map((t) => ` · ${escHtml(t)}`).join("");
   const modeTag = meta.mode && LLM_MODE_LABEL[meta.mode]
-    ? `<div class="text-[11px] text-slate-400 mb-1"><i class="fa-solid fa-microchip" style="margin-right:4px;"></i>${escHtml(LLM_MODE_LABEL[meta.mode])}${meta.chunks != null ? ` · 청크 ${meta.chunks}개` : ""}</div>`
+    ? `<div class="text-[11px] text-slate-400 mb-1"><i class="fa-solid fa-microchip" style="margin-right:4px;"></i>${escHtml(LLM_MODE_LABEL[meta.mode])}${modeExtra}</div>`
     : "";
   if (steps?.length) {
     const items = steps.map((s, i) => {
@@ -153,7 +158,8 @@ async function sendChat() {
       chatHistory.push({ role: "assistant", content: res.answer });
       if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
     }
-    appendAssistantMsg(res.answer, res.steps, { mode: res.mode || mode, chunks: res.chunks ? res.chunks.length : null });
+    appendAssistantMsg(res.answer, res.steps, { mode: res.mode || mode, chunks: res.chunks ? res.chunks.length : null,
+      model: res.model || "", llmUsed: res.llm_used });
     afterChatAnswer(q, res.mode || mode, chatCtx);
   } catch (e) {
     document.getElementById("thinking")?.remove();

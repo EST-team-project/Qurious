@@ -86,3 +86,6 @@ aws-work/ansible/inventories/*/group_vars/secrets.yml
 
 # Docker (로컬 개발 전용 override — 팀원마다 경로가 달라 커밋하지 않는다)
 docker-compose.override.yml
+
+# 개인 역량 지도 — 면접 준비 기록이라 공개 팀 저장소에 올리지 않는다(사용자 2026-10-08)
+docs/TIL/이동원/역량지도.md

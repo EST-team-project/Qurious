@@ -35,12 +35,15 @@ PATTERN = re.compile(r"yahoo|yfinance|query[12]\.finance", re.IGNORECASE)
 #   ⚠️ 이 시험은 '줄'을 센다. 실제로 줄어든 것은 **호출**이다 — get_candles 를 부르는 14곳 가운데
 #   국내 주식 일봉 요청은 이제 외부로 나가지 않는다(tests/test_collector_candles_df08.py).
 BASELINE: dict[str, int] = {
-    "app/services/stock.py": 18,
+    # 2026-10-08 th06 e815be3 반영: 18 → 24 — 강사님이 국내 시세를 KIS(st 게이트웨이) 먼저 · 실패하면 야후로 돌리는
+    #   갈래를 더했다(아래 「2026-10-08」 묶음과 같은 까닭). 새 줄 여섯은 설명 둘 · 로그 문구 둘 · 폴백 설정 확인 둘이고
+    #   야후 주소를 새로 부르는 줄은 없다(호출은 그대로 `_yahoo_chart` 하나). 국내 일봉은 여전히 수집 DB 가 먼저다.
+    "app/services/stock.py": 24,
     "app/services/lean_backtest.py": 19,
     "app/services/paper_trading.py": 10,
     "app/services/sync_scheduler.py": 7,
     "app/routes/macro.py": 7,
-    "app/routes/stocks.py": 4,
+    "app/routes/stocks.py": 5,   # 2026-10-08: 4 → 5 — 스크리닝이 빈 캔들 종목을 건너뛰는 줄의 주석(호출 0 · 강사님 d3206b8)
     "app/services/krx_companies.py": 3,
     "app/services/data_cache.py": 2,
     # 2026-09-29 S63: API 명세 스캐너가 라우트마다 「야후에 닿는가」를 표시하려고 호스트 글자 조각을
@@ -76,6 +79,14 @@ BASELINE: dict[str, int] = {
     #   **화면 표시만 하고 저장하지 않는다** — 사용자 결정(2026-09-30 「야후 · 네이버 시세는 적재하지 않되 화면 표시는
     #   괜찮다」). 통합본이 야후 값을 표에 넣던 주소(period-return/extend)는 넣지 않게 바꿨다.
     "app/services/lecture_market.py": 19,
+    # 2026-10-08: 강사님 기초 코드 th06(9478811 → e815be3)를 받으며 들어온 세 파일 — 우리가 새로 쓴 코드가 아니라 받은
+    #   코드라 09-30 선례대로 봉인을 연다. 셋 다 **야후 주소를 새로 부르지 않는다**: config = 시세 출처 설정 이름 ·
+    #   설명(KIS ↔ 야후 폴백 · 공격 모드 분봉 간격) · aggressive_mode = 5분봉을 기존 get_candles 의 야후 길로 받는
+    #   설명 · 로그 · 출처 이름표(공격 모드 기본 꺼짐 · 수집 DB 에는 분봉이 없다) · kis_market_data = 머리 설명 한 줄.
+    #   KIS 시세는 게이트웨이 주소가 있을 때만 켜지므로 Qurious 에서는 잠들어 있다 — 바꿀지는 팀 논의 거리다.
+    "app/config.py": 5,
+    "app/services/aggressive_mode.py": 4,
+    "app/services/kis_market_data.py": 1,
 }
 
 

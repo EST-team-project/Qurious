@@ -20,6 +20,16 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, VectorParams
 
 from app.config import settings
+from app.lib.llm_limits import answer_options
+
+
+class CompatibleQdrantStore(QdrantVectorStore):
+    @classmethod
+    def _document_from_point(cls, point, collection_name, content_payload_key, metadata_payload_key):
+        payload = point.payload or {}
+        metadata = dict(payload.get(metadata_payload_key) or {k:v for k,v in payload.items() if k not in ('text','page_content')})
+        metadata.update({'_id':point.id,'_collection_name':collection_name})
+        return Document(page_content=payload.get(content_payload_key) or payload.get('text') or payload.get('page_content') or '', metadata=metadata)
 
 
 # ── 내부 팩토리 ───────────────────────────────────────────────────────────────
@@ -169,10 +179,11 @@ def build_rag_chain(collection: str | None = None):
     from qdrant_client import QdrantClient
     sync_client = QdrantClient(url=settings.QDRANT_URL)
 
-    vector_store = QdrantVectorStore(
+    vector_store = CompatibleQdrantStore(
         client=sync_client,
         collection_name=coll,
         embedding=_make_embeddings(),
+        content_payload_key="text",
     )
     retriever = vector_store.as_retriever(search_kwargs={"k": settings.TOP_K})
 
@@ -189,7 +200,7 @@ def build_rag_chain(collection: str | None = None):
         base_url=settings.OLLAMA_BASE_URL,
         model=settings.LLM_MODEL,
         temperature=0.2,
-        num_predict=2048,
+        **answer_options(),   # Qurious: 답 상한 · 문맥 창은 설정 한 곳(app/lib/llm_limits.py · 2026-10-08)
     )
 
     def format_docs(docs: list[Document]) -> str:

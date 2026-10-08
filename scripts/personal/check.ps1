@@ -27,12 +27,14 @@
              수집 자료 검색(공시) · 재무 주요계정 · 금융 일정 새 종류(금통위 · FOMC · 보고서 기한) ·
              근거 찾기(법령 · 기준일 판) · 근거 답(LLM 없이 발췌)
     매매     모의투자 잔고 · 보유 · 주문 미리보기 · 자동매매 · 위험 한도 · 리밸런싱 · 증권사 설정
+    KIS      (점검 계정에 KIS 모의 키를 넣었을 때 · .\scripts\personal\kis-link.ps1) 연동 상태 · 원클릭 준비 상태(주문 전에
+             적용될 1회 금액 · 한도 · 경로) · 모의 잔고 — 증권사 모의 서버는 잔고 1회만 부른다. 키를 안 넣었으면 건너뛴다
     연동     TradingView 웹훅 안내 · 알림 설정
     시스템   시세 동기화 · LEAN 백테스트 모드 · AI(LLM) 연결 · 벡터 DB(Qdrant) 연결
     관리     (관리자 계정일 때) DB 통계 · 감사 기록 — 읽기만. 일반 계정이 막히는지는 「계정」 묶음이 본다
     느림     (-Full) 요청마다 모델을 학습하는 ML 셋 — 하나에 15초 안팎 · 근거 답(답 모델 · 출처 번호 검사 — 수십 초)
     쓰기     (-Write) 기록이 남는 점검 — 모의 매수 1주 → 매도 1주 · 리밸런싱 목표 저장 → 미리보기 ·
-             문서 근거 RAG 왕복(작은 글 올리기 → 찾기 → 채팅 「순수 RAG」 → 지우기 → 다시 찾으면 0)
+             문서 근거 RAG 왕복(작은 글 올리기 → 찾기 → 채팅 「검색 결과 요약」 → 지우기 → 다시 찾으면 0)
 
   판정
     [ OK ]    상태 코드와 내용 조건이 모두 맞다
@@ -355,10 +357,33 @@ $Checks = @(
        if ($r.Json.kill_switch) { Warn "$msg — 비상 정지가 켜져 있다" } else { Pass $msg } } }
   @{ G = '매매'; Name = '리밸런싱 상태 (목표 비중 · 이탈)'; M = 'GET'; P = '/api/rebalance/status'; Auth = $true
      Test = { param($r) Pass "목표 종목 $(Count $r.Json.plan.targets) 개 · 현금 목표 $($r.Json.plan.cash_weight_pct)% · 시간 트리거 $($r.Json.triggers.time_due) · 이탈 트리거 $($r.Json.triggers.drift_due)" } }
-  @{ G = '매매'; Name = '증권사 설정 (모의 / 실전)'; M = 'GET'; P = '/api/broker/settings'; Auth = $true
+  # 본문을 찍지 않는다(NoBody) — 키를 넣은 계정이면 응답에 계좌번호가 들어 있다(-ShowBody 여도)
+  @{ G = '매매'; Name = '증권사 설정 (모의 / 실전)'; M = 'GET'; P = '/api/broker/settings'; Auth = $true; NoBody = $true
      Test = { param($r)
        $msg = "증권사 $($r.Json.broker) · 모의 $($r.Json.paper) · 연결 $($r.Json.connected)"
        if ($r.Json.paper -eq $false) { Warn "$msg — 실전 모드다(실거래 주문은 코드에서 막혀 있지만 설정을 확인하라)" } else { Pass $msg } } }
+
+  # ── KIS: 점검 계정에 KIS 모의 키를 넣었을 때(.\scripts\personal\kis-link.ps1 · 2026-10-08) ─────────
+  # 증권사(KIS 모의 서버)는 잔고 1회만 부른다 — 우리 KIS 클라이언트는 접근 토큰을 요청마다 새로 받는데, 증권사는
+  # 토큰 발급을 1분에 1회로 묶는다(연달아 부르면 둘째가 막힌다). 모의 주문 · 취소(증권사에 닿는 쓰기)는 넣지 않았다.
+  @{ G = 'KIS'; Name = 'KIS 연동 상태 (점검 계정 · 증권사 호출 없음)'; M = 'GET'; P = '/api/broker/settings'; Auth = $true; NoBody = $true
+     Test = { param($r)
+       if ($r.Json.broker -ne 'kis' -or $r.Json.connected -ne $true) {
+         return (Skip "점검 계정에 KIS 모의 키가 없다(증권사 $($r.Json.broker) · 연결 $($r.Json.connected)) — .\scripts\personal\kis-link.ps1 을 먼저") }
+       if ($r.Json.paper -ne $true) { return (Fail '모의(paper)가 아니다 — kis-link.ps1 은 모의로만 넣는다') }
+       $state.kis_linked = $true
+       Pass '증권사 kis · 모의(paper) · 연결됨' } }
+  @{ G = 'KIS'; Name = 'KIS 원클릭 준비 상태 (주문 전에 적용될 금액 · 한도 · 경로 · 증권사 호출 없음)'; M = 'GET'; P = '/api/quant/kis/quickstart'; Auth = $true
+     Needs = 'kis_linked'; NeedsNote = '점검 계정에 KIS 키가 없어 건너뜀'
+     Test = { param($r)
+       if ($r.Json.environment -ne 'paper') { return (Fail "환경 $($r.Json.environment) — 실거래 관문이 열려 있다") }
+       $d = $r.Json.defaults
+       $msg = "경로 $($r.Json.route) · 환경 paper · 1회 $(N0 $d.quant_per_trade_budget) 원 · 종목 비중 $($d.risk_max_position_pct)% · " +
+              "일 주문 $($d.risk_max_orders_per_day) 건 · 쿨다운 $($d.risk_cooldown_min) 분 · 주기 $($r.Json.interval_min) 분"
+       if ($r.Json.ready) { Pass $msg } else { Warn "$msg — 시작 불가: $($r.Json.reason)" } } }
+  @{ G = 'KIS'; Name = 'KIS 모의 잔고 (증권사 모의 서버 1회)'; M = 'GET'; P = '/api/broker/balance'; Auth = $true; NoBody = $true; Timeout = 60
+     Needs = 'kis_linked'; NeedsNote = '점검 계정에 KIS 키가 없어 건너뜀'
+     Test = { param($r) Pass "평가 $(N0 $r.Json.total_eval) 원 · 보유 $(Count $r.Json.holdings) 종목" } }
 
   # ── 연동 ────────────────────────────────────────────────────────────────────
   @{ G = '연동'; Name = 'TradingView 웹훅 안내'; M = 'GET'; P = '/api/tradingview/webhook-info'; Auth = $true
@@ -461,8 +486,11 @@ if ($Write) {
     @{ G = '쓰기'; Name = '리밸런싱 목표 저장 (삼성전자 10%)'; M = 'PUT'; P = '/api/rebalance/plan'; Auth = $true
        Body = @{ targets = @(@{ symbol = '005930.KS'; name = '삼성전자'; weight_pct = 10 }) }
        Test = { param($r) Pass "목표 $(Count $r.Json.targets) 개 저장" } }
+    # 팀원 #136(10-07)부터 그날 12:30 데이터 갱신이 끝나기 전에는 미리보기를 400 으로 막는다(대체 가격 없이 대기) — 그때는 주의
     @{ G = '쓰기'; Name = '리밸런싱 미리보기 (주문안 · 실행 안 함)'; M = 'POST'; P = '/api/rebalance/preview'; Auth = $true
        Body = @{}
+       Otherwise = { param($r)
+         if ($r.Status -eq 400 -and "$($r.Json.detail)" -match '12:30') { Warn "갱신 전이라 막힘(#136 — 그날 12:30 데이터 갱신 뒤 열린다): $($r.Json.detail)" } }
        Test = { param($r) Pass ("응답 키: {0}" -f ((@($r.Json.PSObject.Properties.Name) | Select-Object -First 6) -join ', ')) } }
     @{ G = '쓰기'; Name = '리밸런싱 목표 되돌리기 (비움)'; M = 'PUT'; P = '/api/rebalance/plan'; Auth = $true
        Body = @{ targets = @() }
@@ -483,12 +511,14 @@ if ($Write) {
          if (-not $top) { return (Fail '찾은 청크가 없다') }
          if ($top.title -ne 'qurious-rag-check.txt') { return (Warn "맨 위가 다른 글: $($top.title)") }
          Pass ("맨 위 {0} · 유사도 {1:N3}" -f $top.title, [double]$top.score) } }
-    @{ G = '쓰기'; Name = 'RAG — 채팅 「순수 RAG」 모드 (LLM 없이 청크만)'; M = 'POST'; P = '/api/chat'; Auth = $true; Needs = 'rag_doc'; Timeout = 60
+    # 강사님 10-07 판부터 rag 모드도 서버 LLM 이 검색 조각을 짧게 요약한다(못 하면 조각 그대로 · llm_used) — 화면 이름 「검색 결과 요약」
+    @{ G = '쓰기'; Name = 'RAG — 채팅 「검색 결과 요약」 모드 (검색 조각 + LLM 요약)'; M = 'POST'; P = '/api/chat'; Auth = $true; Needs = 'rag_doc'; Timeout = 120
        Body = @{ question = 'ETF 괴리율'; llm_mode = 'rag' }
        Test = { param($r)
          if ($r.Json.mode -ne 'rag') { return (Fail "모드 $($r.Json.mode)") }
          if ((Count $r.Json.chunks) -lt 1) { return (Fail '청크 0 개 — 채팅이 저장한 글을 못 찾는다') }
-         Pass "청크 $(Count $r.Json.chunks) 개" } }
+         $how = if ($r.Json.llm_used) { "LLM 요약 $($r.Json.model)" } else { 'LLM 미사용 — 검색 조각 그대로' }
+         Pass "청크 $(Count $r.Json.chunks) 개 · $how" } }
     @{ G = '쓰기'; Name = 'RAG — 올린 글 지우기 (메타 · 벡터)'; M = 'DELETE'; P = { "/api/documents/$($state.rag_doc)" }; Auth = $true; Needs = 'rag_doc'
        Test = { param($r) Pass "$($r.Json.message)" } }
     @{ G = '쓰기'; Name = 'RAG — 지운 뒤 다시 찾기 → 0'; M = 'POST'; P = '/api/documents/search'; Auth = $true; Needs = 'rag_doc'
@@ -756,6 +786,10 @@ foreach ($c in $Checks) {
     if ($r.Json -and $r.Json.detail) { $detail = ($r.Json.detail | ConvertTo-Json -Compress -Depth 4) }
     if ($detail.Length -gt 200) { $detail = $detail.Substring(0, 200) + '…' }
     $v = Fail ("상태 {0} (기대 {1}) — {2}" -f $r.Status, $expect, $detail)
+    if ($c.Otherwise) {                     # 기대와 다른 상태 가운데 「알려진 · 시각에 달린」 경우만 주의로(그 밖은 그대로 실패)
+      $alt = & $c.Otherwise $r
+      if ($alt) { $v = $alt }
+    }
   } else {
     try {
       $v = & $c.Test $r
@@ -765,7 +799,7 @@ foreach ($c in $Checks) {
     }
   }
   Add-Result $c $r.Status $r.Ms $v
-  if ($ShowBody -and $r.Text) {
+  if ($ShowBody -and $r.Text -and -not $c.NoBody) {   # NoBody — 계좌번호 같은 값이 든 응답은 찍지 않는다
     $snip = $r.Text
     if ($snip.Length -gt 300) { $snip = $snip.Substring(0, 300) + '…' }
     Write-Host ("         본문: {0}" -f $snip) -ForegroundColor DarkCyan

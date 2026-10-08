@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.postgres import get_pg_session
+from app.models.base import SYSTEM_USER_ID
 from app.models import Portfolio, Order, BrokerSettings, CustomIndicator, QuantVirtualAccount, LiveOrder, PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT
 from app.lib.session import get_current_user
 from app.services.stock import (
@@ -162,11 +163,19 @@ async def stock_signals(
     signal: str = Query("all", description="all | buy | sell"),
     model: str = Query("lightgbm", description="lightgbm | rsi | ma | bollinger"),
     min_confidence: int = Query(65, ge=0, le=100),
+    symbols: str | None = Query(None, description="쉼표 구분 종목 코드. 주면 그 종목만(화면의 1종목씩 진행용)"),
 ):
-    """선택한 패턴 모델을 적용한 대표 종목 스크리닝."""
+    """선택한 패턴 모델을 적용한 대표 종목 스크리닝. `symbols` 로 부분 집합만 계산할 수 있다."""
+    universe = QUANT_STOCKS
+    if symbols:
+        wanted = {x.strip().upper() for x in symbols.split(",") if x.strip()}
+        universe = [s for s in QUANT_STOCKS if s["symbol"].upper() in wanted]
     rows = []
-    for stock in QUANT_STOCKS:
+    for stock in universe:
         candles = (await get_candles(stock["symbol"], period="1y", interval="1d")).get("candles", [])
+        if not candles:   # KIS·Yahoo 모두 빈 응답(예: 012510.KQ Yahoo 폴백) → 이 종목만 건너뜀 (이전엔 KeyError → 500)
+            logging.getLogger(__name__).warning("스크리닝 캔들 없음 %s", stock["symbol"])
+            continue
         result = screen_pattern(candles, model)
         if result.get("error"):
             continue
@@ -538,13 +547,21 @@ async def list_live_orders(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    """게이트웨이 경유 KIS 실주문 추적 목록 (quant.confirm_fills 가 갱신)."""
+    """게이트웨이 경유 KIS 실주문 추적 목록 (quant.confirm_fills 가 갱신).
+    KIS 모의투자 배치가 실행 중이면 시스템 사용자(배치) 주문도 함께 반환한다(owner=batch)."""
+    from app.services import kis_batch
+    me = _uid(user["id"])
+    owners = [me]
+    batch = await kis_batch.system_status(db)
+    if batch.get("running"):
+        owners.append(SYSTEM_USER_ID)
     result = await db.execute(
-        select(LiveOrder).where(LiveOrder.user_id == _uid(user["id"])).order_by(LiveOrder.created_at.desc()).limit(limit)
+        select(LiveOrder).where(LiveOrder.user_id.in_(owners)).order_by(LiveOrder.created_at.desc()).limit(limit)
     )
     rows = result.scalars().all()
-    return {"gateway": _live_gateway_info(), "orders": [
+    return {"gateway": _live_gateway_info(), "batch": batch, "orders": [
         {
+            "owner": "batch" if r.user_id == SYSTEM_USER_ID else "me",
             "id": str(r.id), "client_order_id": r.client_order_id, "environment": r.environment, "symbol": r.symbol, "name": r.name,
             "side": r.side, "order_type": r.order_type, "quantity": r.quantity, "price": r.price, "order_no": r.order_no,
             "status": r.status, "filled_quantity": r.filled_quantity, "avg_filled_price": r.avg_filled_price,
@@ -838,7 +855,7 @@ async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("
     result = pattern_summary(candles)
     if "error" in result:
         raise HTTPException(422, result["error"])
-    return {"symbol": symbol, **result}
+    return {"symbol": symbol, "candles": candles, **result}
 
 
 @router.get("/stocks/mtf-signal")
@@ -856,7 +873,7 @@ async def start_auto_trade(user=Depends(get_current_user), db: AsyncSession = De
     if row and row.risk_kill_switch:
         raise HTTPException(409, f"비상 정지 상태입니다. 해제 후 시작하세요. (사유: {row.risk_halt_reason or '수동 정지'})")
     started = await auto_trade.start_auto_trade(db, user["id"])
-    return {"ok": True, "started": started, "scheduler": "celery-beat (10분)"}
+    return {"ok": True, "started": started, "scheduler": f"celery-beat ({kis_quickstart.interval_min()}분)"}
 
 
 @router.post("/auto-trade/stop")
@@ -954,29 +971,60 @@ async def quant_auto_stop(user=Depends(get_current_user), db: AsyncSession = Dep
 
 @router.get("/quant/auto/status")
 async def quant_auto_status(user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
-    """모의 투자 의사결정 UI용 최근 사이클 결과."""
+    """모의 투자 의사결정 UI용 최근 사이클 결과.
+
+    KIS 모의투자 백그라운드 배치(kis_batch)가 실행 중이면 시스템 사용자의 사이클도 합쳐서 보여준다 —
+    배치 단독 실행으로 사용자 계정 자동매매가 꺼져 있어도 화면에서 거래가 보이도록. 배치 항목은 [배치] 로 표시.
+    """
+    from app.services import kis_batch
     status = await auto_trade.get_status(db, _uid(user["id"]))
+    sources = [("", status)]
+    batch = await kis_batch.system_status(db)
+    if batch.get("running"):
+        sources.append(("[배치] ", await auto_trade.get_status(db, SYSTEM_USER_ID)))
     logs, signals = [], []
-    for cycle in status.get("log", [])[-10:]:
-        for sig in cycle.get("signals", []):
-            action = sig.get("action", "관망")
-            signals.append({
-                **sig,
-                "signal": "BUY" if "매수" in action else "SELL" if "매도" in action else "HOLD",
-            })
-        account = cycle.get("account")
-        if account:
-            logs.append({
-                "time": cycle.get("time", ""),
-                "message": f"모의계좌 평가 {account.get('total_equity', 0):,.0f}원 / 손익 {account.get('pnl_pct', 0):+.2f}%",
-            })
-        for trade in cycle.get("trades", []):
-            logs.append({
-                "time": trade.get("time", cycle.get("time", "")),
-                "message": f"{trade.get('name', trade.get('symbol', ''))} {trade.get('action', '').upper()} "
-                           f"{trade.get('quantity', 0)}주 — {trade.get('reason', '')}",
-            })
-    return {"running": status["running"], "logs": logs[-50:], "signals": signals[-20:]}
+    for prefix, st in sources:
+        for cycle in st.get("log", [])[-10:]:
+            for sig in cycle.get("signals", []):
+                action = sig.get("action", "관망")
+                signals.append({
+                    **sig, "source": "batch" if prefix else "me",
+                    "signal": "BUY" if "매수" in action else "SELL" if "매도" in action else "HOLD",
+                })
+            account = cycle.get("account")
+            if account:
+                logs.append({
+                    "time": cycle.get("time", ""),
+                    "message": f"{prefix}모의계좌 평가 {account.get('total_equity', 0):,.0f}원 / 손익 {account.get('pnl_pct', 0):+.2f}%",
+                })
+            ag = cycle.get("aggressive") or {}
+            for note in ag.get("notes", []):
+                logs.append({"time": cycle.get("time", ""), "message": f"{prefix}[공격 모드] {note}"})
+            for skip in (cycle.get("risk") or {}).get("skipped", []):
+                logs.append({"time": cycle.get("time", ""),
+                             "message": f"{prefix}[위험관리 생략] {skip.get('name', skip.get('symbol', ''))} {str(skip.get('side', '')).upper()} — {skip.get('reason', '')}"})
+            for trade in cycle.get("trades", []):
+                if trade.get("type") == "risk":
+                    continue   # 위 skipped 로 이미 표시
+                live = trade.get("live_order") or {}
+                live_txt = f" · 실주문 {live.get('status')}" + (f"({live.get('reason') or live.get('error')})" if live.get("reason") or live.get("error") else "") if live else ""
+                logs.append({
+                    "time": trade.get("time", cycle.get("time", "")),
+                    "message": f"{prefix}{trade.get('name', trade.get('symbol', ''))} {trade.get('action', '').upper()} "
+                               f"{trade.get('quantity', 0)}주 — {trade.get('reason', '')}{live_txt}",
+                })
+    logs.sort(key=lambda x: x.get("time") or "")
+    from app.services import reconciliation
+    try:
+        recon = await reconciliation.latest()
+    except Exception:
+        recon = None
+    if recon and recon.get("issues"):
+        for i in recon["issues"][:10]:
+            logs.append({"time": recon.get("checked_at", ""), "message": f"[정합성] {i['type']} {i.get('symbol', '')} — " +
+                         ", ".join(f"{k}={v}" for k, v in i.items() if k not in ("type", "symbol", "detail"))})
+    return {"running": status["running"] or bool(batch.get("running")), "me_running": status["running"],
+            "batch": batch, "reconcile": recon, "logs": logs[-90:], "signals": signals[-40:]}
 
 
 @router.get("/quant/pipeline")

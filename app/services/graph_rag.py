@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 from app.services.rag_pipeline import rag_search
+from app.lib.llm_limits import answer_options
 from app.services.graph_service import (
     get_related_stocks,
     get_documents_for_symbol,
@@ -107,7 +108,7 @@ async def graph_rag_answer(query: str, top_k: int = 5, collection: str | None = 
         base_url=settings.OLLAMA_BASE_URL,
         model=settings.LLM_MODEL,
         temperature=0.2,
-        num_predict=2048,
+        **answer_options(),   # Qurious: 답 상한 · 문맥 창은 설정 한 곳(app/lib/llm_limits.py · 2026-10-08)
     )
 
     chain = prompt | llm | StrOutputParser()

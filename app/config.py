@@ -37,7 +37,12 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "llama3.1"
     EMBED_MODEL: str = "nomic-embed-text"
     VLM_MODEL: str = "llava"          # Vision-Language Model for image/slide description
-    OLLAMA_TIMEOUT: float = 300.0
+    OLLAMA_TIMEOUT: float = 600.0
+    # Qurious(2026-10-08): 답을 만드는 LLM 호출(에이전트 답 · 그래프 RAG · RAG 체인)의 출력 상한과 문맥 창.
+    # 강사님 10-07 판은 256토큰 · 문맥 2048 — 이 PC 표본 3문항이 모두 문장 중간에 잘리고 끝 고지가 빠져
+    # (자연 길이 454 ~ 684토큰) 값을 여기 한 곳에 둔다. 판단(JSON 한 줄) 노드는 강사님 256 그대로.
+    LLM_ANSWER_NUM_PREDICT: int = 1024
+    LLM_NUM_CTX: int = 0   # 0 = 넣지 않음(Ollama 기본 · 반영 전과 같음)
 
     # ── LLM 서빙 백엔드 선택 (채팅/에이전트 전용, 임베딩은 항상 Ollama 사용) ─────
     # ollama(기본, 로컬 Ollama) | vllm
@@ -93,6 +98,24 @@ class Settings(BaseSettings):
     STOCK_COIN_TRADE_BASE_URL: str = ""            # 예: https://stock.example.com
     STOCK_COIN_TRADE_API_KEY: str = ""             # stock-coin-trade에서 발급한 Open API 키 (KIS_AUTOTRADE_API_KEY_IDS 등록 필요)
     STOCK_COIN_TRADE_TIMEOUT: float = 15.0
+    STOCK_COIN_TRADE_ORDER_TIMEOUT: float = 45.0   # 승인·주문 호출 전용. st 가 KIS 토큰+주문을 순차 호출하면 15초를 넘길 수 있다(2026-10-06 UNKNOWN 사고)
+    STOCK_COIN_TRADE_UNKNOWN_RESUBMIT_MIN: int = 10
+
+    # ── 시세 소스: KIS 연계(stock-coin-trade /api/kis-chart) vs Yahoo (app/services/kis_market_data.py) ──
+    # kis 면 국내(.KS/.KQ) 일봉·분봉·현재가를 st 게이트웨이의 KIS 차트 API 에서 받는다(실시간). Yahoo 는 국내 분봉 ~20분 지연·요청 제한.
+    MARKET_DATA_SOURCE: str = "kis"                 # kis | yahoo
+    MARKET_DATA_FALLBACK_YAHOO: bool = True         # KIS 조회 실패·빈 응답이면 Yahoo 로 폴백
+    KIS_CHART_TIMEOUT: float = 10.0
+    KIS_CHART_MINUTES: int = 240                    # 분봉 조회 개수(1분봉, st 최대 240) → 5분봉 48개
+
+    # ── 정합성 점검: 로그(가상 장부·live_orders·사이클 로그) vs 실거래(KIS 잔고) (app/services/reconciliation.py) ──
+    # Qurious: 강사님 판은 켬 — 같은 환경 모든 사용자의 체결을 합산한 요약이 로그인한 모두의 자동매매 상태 응답에
+    # 실린다. 우리는 끈다(2026-10-08 사용자 · 받을지는 팀 이슈). 끄면 점검이 캐시를 남기지 않아 응답의 reconcile 이 빈다.
+    RECONCILE_ENABLED: bool = False
+    RECONCILE_INTERVAL_SEC: int = 600
+    RECONCILE_OPEN_ORDER_MAX_MIN: int = 30          # 열린 실주문이 이 시간을 넘기면 이상으로 보고
+    RECONCILE_SLIPPAGE_ALERT_PCT: float = 1.0       # 가상 체결가 대비 실체결가 괴리 경고 기준(%)
+    RECONCILE_NOTIFY: bool = True                   # 불일치가 새로 생기거나 바뀌면 알림  # UNKNOWN(응답 미수신) 주문을 같은 clientOrderId 로 멱등 재전송해 확인하는 시간 창(분). 지나면 LOST 로 종료
     # paper(KIS Testbed) | real(실전). quant_mode=live 인 사용자의 주문이 이 환경으로 나간다. Phase 4까지 paper 유지.
     STOCK_COIN_TRADE_KIS_ENVIRONMENT: str = "paper"
     STOCK_COIN_TRADE_ORDER_TYPE: str = "LIMIT"     # LIMIT(현재가 호가 보정) | MARKET
@@ -100,6 +123,42 @@ class Settings(BaseSettings):
     STOCK_COIN_TRADE_CANCEL_OPEN_AFTER_MIN: int = 0     # N분 넘게 미체결(ACCEPTED/PARTIALLY_FILLED)이면 confirm_fills 가 취소 요청. 0=끔
     KRX_EXTRA_HOLIDAYS: str = ""                        # 추가 휴장일 (YYYY-MM-DD 쉼표 구분). 내장 2026 캘린더에 더해진다
     ML_SCORE_SCALE_PCT: float = 30.0                    # SageMaker 예측 연수익률(%)을 [-1,1]로 정규화할 때의 분모
+
+    # ── KIS 모의투자(Testbed) 백그라운드 배치 (app/services/kis_batch.py) ──────────
+    # true 면 celery-beat 의 quant.auto_trade_cycle 이 시스템 사용자(SYSTEM_USER_ID) 행을 만들어 자동매매를 켠다.
+    # 사용자 로그인·대시보드 버튼이 필요 없다. 실주문 경로가 KIS paper(Testbed) 일 때만 켜지고 real 이면 켜지지 않는다.
+    KIS_PAPER_BATCH_ENABLED: bool = False
+    KIS_PAPER_BATCH_SYMBOLS: str = ""                   # 비우면 AI 추천 상위 N. "005930.KS,035720.KS" 처럼 주면 수동 종목
+    KIS_PAPER_BATCH_AI_TOP_N: int = 3
+    # 1회 투자금(원). 배치 행은 매 사이클 이 값으로 동기화된다. 나머지 한도는 kis_quickstart.TESTBED_DEFAULTS
+    # Qurious: 강사님 10-07 판은 50만 원 — 우리는 30만 원 그대로 둔다(2026-10-08 사용자 · 받을지는 팀 이슈).
+    KIS_PAPER_BATCH_PER_TRADE_BUDGET: float = 300_000
+    # true 면 배치가 켜질 때 다른 사용자 계정의 kis·live 자동매매를 끈다(같은 Testbed 계좌 중복 주문 방지).
+    # 2026-10-07 기본값 false: 사용자도 「AI 모의 투자 의사결정」·「KIS 모의투자 시작」으로 공용 Testbed 계좌에 모의주문을 낼 수 있게 한다.
+    # 쿨다운·일 주문 수·비중 한도는 사용자별로 따로 적용되고, 정합성 점검은 계좌 전체(전 사용자) 체결을 합산한다.
+    KIS_PAPER_BATCH_EXCLUSIVE: bool = False
+
+    # ── 자동매매 사이클 주기 (celery-beat quant.auto_trade_cycle) ────────────────────────────
+    # beat 스케줄·expires·태스크 time_limit·/api/health·화면 문구가 모두 이 값을 따른다.
+    # Qurious: 강사님 10-07 판은 180(3분) — 우리는 600(10분) 그대로 둔다(2026-10-08 사용자 · 받을지는 팀 이슈).
+    QUANT_CYCLE_SEC: int = 600
+
+    # ── 공격 모드: 5분봉 단기 시그널로 매 사이클 매수·매도 (app/services/aggressive_mode.py) ──────
+    # true 면 자동매매 사이클이 일봉 지표 대신 5분봉(RSI·MA·모멘텀·거래량) 시그널을 쓰고, 매 사이클
+    # 모멘텀 상위 종목을 매수(시그널이 없어도 1위 로테이션 매수), 보유분은 익절·손절·약세 시그널로 매도한다.
+    # 쿨다운·일 주문 수는 아래 값으로 덮어쓴다(종목 비중·일손실 한도는 그대로 — 안전장치 유지).
+    QUANT_AGGRESSIVE_MODE: bool = False
+    QUANT_AGGRESSIVE_CANDLE_INTERVAL: str = "5m"      # Yahoo 분봉 (1m/2m/5m/15m)
+    QUANT_AGGRESSIVE_CANDLE_RANGE: str = "5d"         # 분봉 조회 범위(5m 은 최대 60d)
+    QUANT_AGGRESSIVE_CACHE_MIN: int = 2               # 분봉 캐시(분). 3분 사이클마다 새로 받도록 주기보다 짧게
+    QUANT_AGGRESSIVE_COOLDOWN_MIN: int = 3            # 같은 종목·방향 재주문 간격(분) — 사이클(3분)당 1회
+    QUANT_AGGRESSIVE_MAX_ORDERS_PER_DAY: int = 300    # 3분 사이클 장중 130회 × 사이클 최대 5건(650) 보다 작게
+    QUANT_AGGRESSIVE_MAX_BUYS_PER_CYCLE: int = 2
+    QUANT_AGGRESSIVE_MAX_SELLS_PER_CYCLE: int = 3
+    QUANT_AGGRESSIVE_FORCE_BUY: bool = True           # 매수 시그널이 하나도 없으면 모멘텀 1위를 매수(로테이션)
+    QUANT_AGGRESSIVE_TAKE_PROFIT_PCT: float = 1.5     # 보유 평균단가 대비 +N% 면 전량 매도
+    QUANT_AGGRESSIVE_STOP_LOSS_PCT: float = 1.0       # 보유 평균단가 대비 -N% 면 전량 매도
+    QUANT_AGGRESSIVE_ORDER_TYPE: str = "MARKET"       # 게이트웨이 실주문 유형(체결 우선). 비우면 STOCK_COIN_TRADE_ORDER_TYPE
 
     # ── KIS 자격증명 (서버 관리 — 사용자는 화면에서 입력하지 않는다, app/services/kis_credentials.py) ──
     # ※ Qurious 는 아래 KIS 칸을 읽지 않는다 — KIS 키는 사용자마다(2026-10-03 결정 · kis_credentials.for_user).

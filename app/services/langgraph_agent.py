@@ -13,6 +13,7 @@ from typing import TypedDict, Annotated, Any
 from langgraph.graph import StateGraph, END
 
 from app.lib.ollama import OllamaClient
+from app.lib.llm_limits import answer_options
 from app.lib.guardrails import check_guardrails
 from app.lib.financial_tools import (
     query_personal_cb,
@@ -133,7 +134,7 @@ def build_graph(db: Any, ollama: OllamaClient, llm_model: str):
         messages.extend(state["messages"])
 
         raw = await ollama.chat(
-            llm_model, messages, {"temperature": 0.1, "num_predict": 2048}
+            llm_model, messages, {"temperature": 0.1, "num_predict": 256, "num_ctx": 2048}
         )
         action = _parse_action(raw)
 
@@ -195,7 +196,7 @@ def build_graph(db: Any, ollama: OllamaClient, llm_model: str):
             },
         ]
         answer = await ollama.chat(
-            llm_model, final_messages, {"temperature": 0.2, "num_predict": 3000}
+            llm_model, final_messages, {"temperature": 0.2, **answer_options()}   # Qurious: 답 상한 · 문맥 창은 설정 한 곳(app/lib/llm_limits.py · 2026-10-08)
         )
         return {"final_answer": answer}
 

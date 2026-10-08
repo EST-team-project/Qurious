@@ -116,3 +116,22 @@ def test_vector_store_gets_a_sync_client():
     # 머리 주석이 옛 방식(비동기 클라이언트)을 설명하므로 이름 자체가 아니라 「가져오기 · 만들기」 만 본다.
     assert "import AsyncQdrantClient" not in src and "AsyncQdrantClient(" not in src
     assert "QdrantClient(url=settings.QDRANT_URL)" in inspect.getsource(rp._make_client)
+
+
+def test_rag_chain_store_reads_both_payload_layouts(memory_qdrant):
+    """TC-VS-06 · RAG 체인(`build_rag_chain`)이 쓰는 CompatibleQdrantStore 는 두 저장 꼴을 모두 읽는다 —
+    우리 `store_chunks`(LangChain 꼴: page_content · metadata)와 강사님 10-07 판(text · metadata · 위 칸에도 펼침).
+    같은 컬렉션에 두 꼴이 섞여도 본문이 빈 문서가 나오지 않는다(2026-10-08 th06 반영 · 저장 · 검색은 우리 판)."""
+    from qdrant_client.http.models import PointStruct
+
+    _run(rp.store_chunks([GAP], {"source": "ours", "title": "ours"}, collection="docs"))
+    theirs = {"source": "theirs", "title": "theirs"}
+    memory_qdrant.upsert("docs", points=[PointStruct(
+        id=1, vector=_CharEmbeddings().embed_query(INAV), payload={**theirs, "text": INAV, "metadata": dict(theirs)},
+    )])
+    store = rp.CompatibleQdrantStore(
+        client=memory_qdrant, collection_name="docs", embedding=_CharEmbeddings(), content_payload_key="text",
+    )
+    docs = store.similarity_search("순자산가치", k=5)
+    assert {d.page_content for d in docs} == {GAP, INAV}
+    assert {d.metadata["source"] for d in docs} == {"ours", "theirs"}

@@ -1,8 +1,8 @@
 묶음	파일	요구ID	확실도	무엇을_확인
-TC-LT	tests/test_live_trading_guard.py	RFP2-4.2-①	🟢	실거래 승인 없이는 증권사 주문이 실계좌로 나가지 않는다 — 팩토리 · 게이트웨이 두 길 · 사용자 키(인수 시험 6건 포함 · 2026-10-03 게이트웨이 4건 · 사용자 키 3건 · 합친 실주문 2건)
+TC-LT	tests/test_live_trading_guard.py	RFP2-4.2-①	🟢	실거래 승인 없이는 증권사 주문이 실계좌로 나가지 않는다 — 팩토리 · 게이트웨이 두 길 · 사용자 키(인수 시험 6건 포함 · 2026-10-03 게이트웨이 4건 · 사용자 키 3건 · 합친 실주문 2건) · 2026-10-08 공개 헬스의 KIS 환경 표시도 관문을 지난 값 2건(8절)
 TC-LT	tests/test_live_trading_guard.py	P02-⑤-1	🟢	모든 증권사 호출이 실거래 차단 지점을 지난다
 TC-LT	tests/test_live_trading_guard.py	P01-④-3	🟡	모의 주문이 모의 경로로 처리된다 — 장부의 맞음은 TC-I14 가 본다
-TC-YH	tests/test_no_yahoo_regression.py	RFP2-3.2-①	🟡	야후 참조가 기준선(2026-09-30 기준 13파일 75줄 · 그중 2줄은 스캐너의 찾는 코드)보다 늘지 않는다 — 이용 조건을 지키는 출처만 늘린다
+TC-YH	tests/test_no_yahoo_regression.py	RFP2-3.2-①	🟡	야후 참조가 기준선(2026-09-30 기준 13파일 75줄 · 그중 2줄은 스캐너의 찾는 코드)보다 늘지 않는다 — 이용 조건을 지키는 출처만 늘린다 · 2026-10-08 강사님 th06 반영으로 다섯 파일 기준선을 열었다(야후 주소를 새로 부르는 줄 0 — KIS ↔ 야후 폴백 설정 이름 · 설명 · 로그)
 TC-YH	tests/test_no_yahoo_regression.py	P02-④-1	🟡	LEAN 의 야후 경로가 더 번지지 않게 막는다 — 같은 데이터 조건의 전제일 뿐 조건 자체는 재지 않는다
 TC-DS	tests/test_discussion_scan.py	—	—	논의 답글까지 센다 — 프로젝트 운영 도구
 TC-DU	tests/test_daily_update.py	P01-①-4	🟢	일일 갱신 러너의 새 자료 판정 · 잠금 · 예약 · 단계 판정 · 주총 · 배당 지급 일정은 재무 뒤 · 달력 앞 · 정책뉴스(news) · 언론사 기사(gdelt)는 색인(search) 앞 · 섹터 법령 매주 대조는 맨 끝 올리기 단계 · 단계마다 이름표 · 묶음 · 하는 일(러너 한 곳 · 회차 기록 · 단계 목록 · 이 PC 용량 파일) · 한 단계만 다시(회차와 겹치는 때 · 다른 실행 막음 · 그 줄만 바꿈 · 끝에 WAL 보조 파일을 남김 — DF-81)
@@ -54,9 +54,9 @@ TC-LC	tests/test_lectures.py	P01-①-1	🟡	금융 강의(강의실 · 주제 �
 TC-LC	tests/test_lectures.py	P01-①-2	🟢	강의 시세 그림이 수집 DB(공식 시세)를 먼저 읽고, 외부 시세는 덮지 못할 때만 · 저장하지 않는다
 TC-LC	tests/test_lectures.py	RFP2-3.2-①	🟢	강의 빌드가 옮기는 「HF 보관」 시세 자료(네이버 · 토스증권에서 모은 값)의 public 사본도 .gitignore 에 있고, 받지 않은 PC 에서는 빌드가 그 파일을 건너뛴다(쓰지도 지우지도 않음) — 공개 저장소에 외부 시세를 넣지 않는다
 TC-SA	tests/test_session_auth.py	—	—	로그인 유지(마지막 활동으로부터 30일 · 5분 간격 연장 · 연장된 요청만 쿠키 재발급) · 토큰 하나 폐기가 다른 토큰에 번지지 않음 · Redis 장애 503 · 만료돼도 로그아웃이 쿠키를 지움 · 리프레시 토큰 연장 — 강사님 기초 코드(289bfb5)의 시험 · 계정 관리(TC-AC)와 같은 「요구 밖」 줄
-TC-CM	tests/test_chat_modes.py	P01-①-3	🟡	채팅 답변 엔진 셋(서버 LLM · OpenAI 키 · 순수 RAG) — 순수 RAG 모드가 LLM 없이 찾은 청크 · 출처 목록을 그대로 돌려준다(답 안의 [출처 n] 과 번호 맞추기는 아직) · 강사님 기초 코드(289bfb5)의 시험 · 호스트에 langchain_ollama 가 없으면 건너뜀
+TC-CM	tests/test_chat_modes.py	P01-①-3	🟡	채팅 답변 엔진 셋(서버 LLM · OpenAI 키 · 순수 RAG) — 순수 RAG 모드가 LLM 없이 찾은 청크 · 출처 목록을 그대로 돌려준다(답 안의 [출처 n] 과 번호 맞추기는 아직) · 강사님 기초 코드(289bfb5)의 시험 · 호스트에 langchain_ollama 가 없으면 건너뜀 · 2026-10-08 강사님 판부터 rag 모드(화면 이름 「검색 결과 요약」)도 서버 LLM 이 짧게 요약하고 실패하면 조각 그대로(llm_used)
 TC-CN	tests/test_calendar_month.py	P01-①-4	🟢	한 달 달력 요약 · 그날 목록(일정 2판 결정 안 B · DF-66) — 날짜 × 종류 개수 + 시장 전체 일정(휴장 · 만기 · 금통위 · FOMC · 보고서 기한) 이름만 · 종목 일정은 개수만 · 빈 날은 없음 · 한 날 3,000건이 몰려도 요약 크기는 그대로 · 400일 넘는 구간은 422 · 그날 목록의 쪽 넘기기(offset · total · truncated) · 회사 이름 찾기(「%」 도 글자 그대로) · 내 종목 맨 위 · 틀린 종목 코드는 422 · 지금 화면이 받는 기본(종류 넷 · 칸 이름)은 그대로 · 요약 API 는 로그인 없이 · 같은 날 안은 화면 칩 차례(적은 종류가 많은 종류 뒤로 밀리지 않음 · 열 종류 모두)
-TC-VS	tests/test_rag_pipeline.py	P01-①-3	🟡	근거 RAG 의 바닥 — 올린 문서 조각이 벡터 DB 에 실제로 저장되고 다시 찾아지며, 출처(metadata.source)로 거르고 지울 수 있고, 저장 실패는 숨기지 않는다(DF-38) · 출처 번호를 답에 붙이는 것은 아직
+TC-VS	tests/test_rag_pipeline.py	P01-①-3	🟡	근거 RAG 의 바닥 — 올린 문서 조각이 벡터 DB 에 실제로 저장되고 다시 찾아지며, 출처(metadata.source)로 거르고 지울 수 있고, 저장 실패는 숨기지 않는다(DF-38) · 출처 번호를 답에 붙이는 것은 아직 · TC-VS-06 RAG 체인이 두 저장 꼴(우리 LangChain 꼴 · 강사님 10-07 text 꼴)을 모두 읽는다(2026-10-08)
 TC-BR	tests/test_brand.py	—	—	화면의 서비스 이름 · 부제 · 바닥글이 한 곳(public/js/brand.js)에서 오고, 옛 이름 · 회사 표기가 화면에 없으며, 원저작자 표시는 NOTICE.md 에 남는다 — 요구 밖(발표 · 시연에서 우리 서비스로 보이게 · 팀장 요청)
 TC-CA	tests/test_market_calendar.py	P01-①-4	🟢	거래일 달력 — 주말 · 공휴일(특일 정보) · 근로자의 날 · 연말 휴장일 규칙이 시세와 어긋나지 않고(실제 DB 2020~ 0일), 앞날의 거래일 · 파생 만기(두 번째 목요일 · 휴장이면 앞당김) · 배당 일정을 만들며, 배당락일을 달력으로 다시 센다(DF-39). 로그인 없이 읽는 API 둘
 TC-CA	tests/test_market_calendar.py	RFP2-3.2-①	🟡	공휴일은 공식 출처(한국천문연구원 특일 정보 · 이용허락범위 제한 없음)에서 받고, 받지 못하면 어제 받은 것으로 만들며 키를 오류 문구에 남기지 않는다
@@ -69,7 +69,7 @@ TC-LW	tests/test_kb_law.py	P01-①-3	🟢	법령 · 감독규정을 기준일에
 TC-KB	tests/test_kb_search.py	P01-①-3	🟡	근거 청크를 기준일 판에서 낱말 · 벡터로 찾아 RRF 로 합치고 질문 분류(세금 · 회사 · 투자 규제)로 가중한다 · 벡터가 꺼지면 낱말로 · 다시 쪼갠 뒤의 옛 점은 버린다 · 문서 목록은 로그인 없이 — 검색 품질은 평가셋 v0(docs/시험/평가셋/근거검색-평가셋_v0.tsv)으로 따로 잰다 · 답 만들기는 TC-KA
 TC-KA	tests/test_kb_answer.py	P01-①-3	🟡	근거 번호가 달린 답 — 답에는 근거 목록 안의 출처 번호만 남기고(목록 밖 번호는 지우고 알림 · 하나도 없으면 근거 발췌) · 찾은 근거가 0 이면 LLM 을 부르지 않고 · 모델이 「근거를 찾지 못했습니다.」 를 쓰면 근거 없음 · 가격 예측 · 매수 권유 질문은 찾기 없이 돌려보내고 · 프롬프트에는 기준일 판의 글만 · LLM 이 꺼지면 근거 발췌 · 출처마다 화면 카드가 펼칠 조문 글(excerpt) · 로그인 뒤 — 답 품질(정답 조 인용 · 근거 밖 질문)은 근거답 평가셋 v0(docs/시험/평가셋/근거답-평가셋_v0.tsv)으로 따로 잰다 · 답이 「규정은 없습니다」 · 「명시되어 있지 않습니다」 를 결론으로 쓰면 근거 없음(check.absence · DF-64) · 금지 조 · 「근거 없이」 · 「규정이 없는 사항」 은 그대로 답(TC-KA-13 · 14 · 2026-10-06) · 답이 질문을 되풀이하고 출처 번호만 붙이면 근거 발췌(check.echo · DF-76) · 질문을 되짚고 답을 이어 쓴 글은 그대로 답(TC-KA-15 · 16 · 2026-10-06)
 TC-KS	tests/test_kb_answer_screen.py	P01-①-3	🟡	근거 답 화면(AI 투자 상담) — 답변 엔진 두 칸(처음 값 「자동 — 근거 먼저」) · 화면이 읽는 응답 칸이 서버 응답에 있음 · 질문 글자 상한이 서버와 같음 · 상태 넷을 그림 · 거절은 일반 AI 로 넘기지 않음 · 일반 AI 답에 「출처 없음」 표시 · 새로 열거나 초기화하면 새 대화(DF-60) · 스캐너가 이 화면에 근거 답 · 채팅 · 새 대화 API 를 붙임 — 화면 자체는 브라우저로 눌러 확인(2026-10-04) · 실패 발췌(답 모델 오류 · 맞는 출처 번호 없음 · 한국어 아님)는 근거 없음과 같은 길 — 찾은 조문은 「질문과 맞는지 확인 전」 으로 접고 쓴 근거로 펼치지 않음(TC-KS-08 · 결정 안 B · 2026-10-06)
-TC-BM	tests/test_base_code_merge_guard.py	P02-⑤-1	🟡	강사님 기초 코드를 반영해도 걷어낸 AWS 모듈(SageMaker 배치 점수 · Secrets Manager · boto3)이 import 로 되살아나지 않고 자동매매 모듈이 뜬다
+TC-BM	tests/test_base_code_merge_guard.py	P02-⑤-1	🟡	강사님 기초 코드를 반영해도 걷어낸 AWS 모듈(SageMaker 배치 점수 · Secrets Manager · boto3)이 import 로 되살아나지 않고 자동매매 모듈이 뜬다 · 2026-10-08 th06 e815be3 — 받지 않기로 한 운용 값(주기 600초 · 유니버스 · 원클릭 30만 원 · 정합성 끔) · 채팅 모델 · 답 길이 설정 · 국내 일봉 수집 DB 먼저 · .env.example · 메뉴 · rag 이름 · compose 기본 모델(1.5b — 3b 는 연구용 라이선스)을 지킨다(깨 보기 열세 곳 모두 잡음 · rag 입력 칸 안내 글 포함)
 TC-GW	tests/test_stock_coin_trade_gateway.py	P02-⑤-1	🟢	게이트웨이 2단계 주문(승인 토큰 → 주문) · 멱등키 · 호가 단위 보정 · 오류 코드 · 재시도 규칙(주문은 다시 보내지 않음)
 TC-GW	tests/test_stock_coin_trade_gateway.py	P01-①-4	🟡	장 시간 · 2026 휴장일 판정 — 게이트웨이 내장 표(우리 거래일 달력과 2026 평일 휴장 17일이 같다 · 2027 은 없다)
 TC-GP	tests/test_live_order_gateway_path.py	P02-⑤-1	🟢	자동매매 실주문이 게이트웨이로 나가 live_orders 에 추적되고, 거절 · 연결 끊김 · 장 밖이 상태로 남는다
@@ -78,9 +78,17 @@ TC-GP	tests/test_live_order_gateway_path.py	SCH-ORD	🟡	게이트웨이 주문�
 TC-KC	tests/test_kis_credentials.py	P02-⑤-1	🟢	KIS 키는 사용자마다 — 서버 계좌 없음 · 서버 .env 키 무시 · 저장이 사용자 키를 남김 · 화면용 상태에 키 원문 없음(ADR-0004)
 TC-KL	tests/test_legacy_kis_order_managed.py	P02-⑤-1	🟢	게이트웨이가 없을 때 자동매매 실주문이 그 사용자의 DB 키로 나가고 서버 키는 쓰지 않는다
 TC-KL	tests/test_legacy_kis_order_managed.py	RFP2-4.2-①	🟢	승인 없이는 사용자 키 실주문도 모의(paper=True)를 요청한다
-TC-KQ	tests/test_kis_quickstart.py	P02-⑤-1	🟢	「KIS 모의투자 시작」 원클릭 — 경로 판정 · 차단(키 없음 · 실전 · 비상 정지) · 설정 저장 + 자동매매 켜기 · 사용자 키를 남김
+TC-KQ	tests/test_kis_quickstart.py	P02-⑤-1	🟢	「KIS 모의투자 시작」 원클릭 — 경로 판정 · 차단(키 없음 · 실전 · 비상 정지) · 설정 저장 + 자동매매 켜기 · 사용자 키를 남김 · 배치 단독 실행 중이면 시작을 막는다(기본 꺼짐 · 강사님 10-07 · 2건)
 TC-KQ	tests/test_kis_quickstart.py	U10	🟡	원클릭 상태(이미 시작 · 비상 정지 사유)를 대시보드에 돌려준다
 TC-KH	tests/test_kis_quickstart_http.py	P02-⑤-1	🟢	HTTP: 설정 화면에는 가린 키만 · 저장이 사용자 키를 남김 · 원클릭 두 라우트 · 실전이면 409(승인했을 때)
+TC-AG	tests/test_aggressive_mode.py	P02-⑤-2	🟡	공격 모드(기본 꺼짐) — 5분봉 신호 · 익절 · 손절 · 시장가 · 사이클당 매수/매도 수 한도 · 쿨다운 · 일 주문 수 덮어쓰기(강사님 10-07 시험 · 2026-10-08 반영)
+TC-AS	tests/test_auto_status_batch_merge.py	P02-⑤-3	🟡	KIS 배치가 돌면 자동매매 상태 응답에 시스템 사용자 사이클을 [배치] 로 합쳐 보인다(강사님 시험 · 배치 기본 꺼짐)
+TC-BH	tests/test_beat_health.py	P02-⑤-3	🟢	Celery beat 생존 신호 키(1분)와 컨테이너 healthcheck 판정 — 키가 늙으면 실패(강사님 시험)
+TC-KBA	tests/test_kis_batch.py	P02-⑤-2	🟡	KIS 모의 배치(기본 꺼짐) — 켜면 시스템 사용자 행 · 단독 실행 기본 꺼짐 · real 이면 켜지 않음(실거래 승인 상태에서 — Qurious 관문이 승인 없이는 real 을 paper 로 내려 손봄) · 비상 정지 뒤 재시작 안 함
+TC-KMD	tests/test_kis_market_data.py	P01-①-2	🟡	KIS 시세(게이트웨이 주소가 있을 때만) — 1분봉 → 5분봉 묶기 · 현재가 · 실패 시 야후 폴백 · 수집 DB 에 없는 국내 종목만 KIS 가 먼저(국내 일봉은 수집 DB 먼저로 손봄)
+TC-KMO	tests/test_kis_monitor_route.py	P02-⑤-3	🟡	KIS 모의투자 결과 · 실주문 검색 API(API-KMON-01 · 02) — 본인과 시스템 사용자 주문만 · 기간 · 상태 · 쪽 · CSV 칸 · 유니버스 섹터는 우리 목록(손봄)
+TC-RC	tests/test_reconciliation.py	P02-⑤-3	🟡	로그(가상 장부 · 실주문 · 사이클) ↔ KIS 실거래 잔고 정합성 점검 — 불일치 종류 · 열린 주문 시간 · 슬리피지 경보(Qurious 는 점검을 꺼 둠 · 켰을 때의 계산)
+TC-US	tests/test_universe_and_schedule.py	P02-⑤-2	🟢	설정 하나(QUANT_CYCLE_SEC)가 예약 주기 · 만료 · 시간 한도 · 원클릭 주기 · 헬스 표시를 모두 정한다 · 유니버스 형식(KRX 6자리 · 중복 없음) — 값은 TC-BM 이 지킨다(강사님 시험을 우리 값에 맞게 손봄)
 TC-DA	tests/test_dashboard_accounts.py	U9	🟡	통합 대시보드 사이트별 투자액 탭 — KIS 가 첫 탭 · 한 탭이 실패해도 나머지는 보인다(성과 지표 칸은 재지 않는다)
 TC-DA	tests/test_dashboard_accounts.py	U10	🟡	KIS 탭의 자동매매 실행 중 · 열린 실주문 수 · 사용자 키로 조회
 TC-QC	tests/test_quant_cycle_integration.py	P02-⑤-2	🟢	자동매매 사이클 통합 — 합격 전략 적용 · 위험 한도 · 실계좌 일손실 한도
@@ -127,4 +135,5 @@ TC-RBC	tests/test_rebalance_settlement.py	P01-③-1	🟡	리밸런싱 종가 판
 TC-RBU	tests/test_rebalance_unified.py	P01-③-1	🟡	#79 수동 · 일별 판단 통일 — 수동 미리 보기 · 실행도 전 거래일 종가 판단 → 다음 거래일 시가 예약만 · 갱신 전엔 대체 가격 없이 대기 · 나중 사건은 다음 점검으로 미룸 · 예약 전 변경은 다시 계산하거나 취소 · 체결일 이후 사건은 지난 체결에 넣지 않음 · 옛 예약은 승인 수량 유지 (PR #136 · 팀원 작성 시험 — 요구 · 확실도 · 묶음 이름은 작성자가 확인할 칸 · 2026-10-07 대장에 더함)
 TC-DV	tests/test_docs_scan.py	—	—	docs 판 올리기 도구 — 지난판 사본의 링크를 한 칸 아래 자리에 맞추고 맨 위의 판 붙은 문서 · 짝 없는 사본을 잡는다 — 프로젝트 운영 도구
 TC-PS	tests/test_pattern_stats.py	P01-②-2	🟡	패턴 통계 — 과거 모든 날 탐지가 화면 탐지기와 날마다 같고, 날 t 의 사건 · 수익률이 t 뒤 봉을 쓰지 않으며(수익률은 t+5 까지) 봉인 구간이 빠진다 (PR #131 · 팀원 작성 시험 — 요구 · 확실도 · 묶음 이름은 작성자가 확인할 칸 · 2026-10-07 대장에 더함)
+TC-MT	tests/test_mtf_signals.py	P01-②-3	🟡	다중 주기 신호 — 세 단계 · 0 ~ 1 신뢰도 · 그날까지의 봉만 쓴다 · T2 거래일 기록 `signal_snapshots`(일회용 시험 DB 가 있을 때) (PR #140 · 팀원 작성 시험 — 요구 · 확실도 · 묶음 이름은 작성자가 확인할 칸 · 2026-10-08 대장에 더함)
 TC-UG	tests/test_url_guard.py	RFP2-3.2-①	🟢	주소 검사 — 형식 · 내부망(서버 측 요청 위조 — 루프백 · 사설 · 링크 로컬 · 공유 주소 · 이름이 가리키는 IP 전부) · 허용 목록(목록 밖은 robots 를 받으러 가지도 않음) · robots — 실제로 받는 길 셋(수동 크롤링 둘 · 네이버)은 막히면 400 · 규칙 · 검사 API 는 관리자만

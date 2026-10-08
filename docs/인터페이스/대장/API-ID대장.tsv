@@ -230,3 +230,5 @@ API-CAL-03	GET	/api/calendar/events/summary	2026-10-05	사용
 API-DATA-05	GET	/api/data/runner	2026-10-07	사용
 API-DATA-06	GET	/api/data/url-rules	2026-10-07	사용
 API-DATA-07	POST	/api/data/url-check	2026-10-07	사용
+API-KMON-01	GET	/api/quant/kis/monitor	2026-10-08	사용
+API-KMON-02	GET	/api/quant/kis/orders	2026-10-08	사용
