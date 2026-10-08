@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="/css/datahub.css" />
   <!-- 데이터 수집 화면 셋 — 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (2026-10-08 · js/collect.js) -->
   <link rel="stylesheet" href="/css/collect.css" />
+  <link rel="stylesheet" href="/css/dataguide.css" /><!-- 자료 안내 (2026-10-08 · js/dataguide.js) -->
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -292,6 +293,7 @@
           <!-- ══ 2. 데이터(옛 크롤링) ═══════════════════════════════════════ -->
           <!-- 2-0. 데이터 관제 (2026-10-02) — 내용은 js/datahub.js 가 그린다(GET /api/data/status) -->
           <div class="view" data-view="data-status"><div class="dh-root"></div></div>
+          <div class="view" data-view="data-guide"><div class="dg-root"></div></div><!-- 2-0b. 자료 안내 (2026-10-08) — 내용은 js/dataguide.js 가 그린다(GET /api/data/guide) -->
 
           <!-- 2-1 ~ 2-3. 데이터 수집 화면 셋 (2026-10-08 · Figma 「데이터 수집 화면」 설계 1 ~ 3) — 내용은 js/collect.js 가 그린다.
                옛 강사님 예제(외부 강의 문서 자동 크롤링 · 네이버 종목 긁기 · 신용평가 CSV 인제스트 · DB 초기화)는 결정 ① ~ ④ 로 뺐다

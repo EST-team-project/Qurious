@@ -93,6 +93,36 @@ def test_runner_ok_failed_warning(tmp_path):
     assert r["state"] == "warning" and r["detail"] == "실패한 단계: 시장 달력 · 일봉"
 
 
+def test_followup_skip_is_attention_not_failure(tmp_path):
+    """TC-DST-16 · 채울 것이 있는 건너뜀(신호 단계 · 앱 DB 꺼짐 — 러너가 돌리기 전에 확인 · 2026-10-08 안 B)은 회차 판정
+    「일부 건너뜀」 — 실패 · 경고가 아니다. 단계 줄은 상태 「건너뜀」 그대로 까닭 · 뒤 할 일 · 거래일을 넘긴다(화면이 노랑으로).
+    할 일이 없어 건너뛴 줄(새 자료 없음 등)은 회차를 「성공」 에 둔다."""
+    st = tmp_path / "state"
+    write_catalog(st)
+    held = {"name": "signals", "rc": None, "seconds": 0.0, "reason": "app_db_down", "followup": "fill",
+            "date": "2026-10-07", "note": "앱 DB 꺼짐 · 127.0.0.1:15432 연결 거부 · 건너뜀"}
+    write_state(st, last=last_run("2026-10-08", [step("price"), held]))
+    r = ds.runner_state(st, at("2026-10-08T15:00:00"))
+    sig = r["last"]["steps"][1]
+    assert (sig["status"], sig["reason"], sig["followup"], sig["date"]) == ("skipped", "app_db_down", "fill", "2026-10-07")
+    assert (r["state"], r["label"]) == ("attention", "일부 건너뜀") and "신호" in r["detail"]
+    assert r["last"]["ok"] is True, "회차 ok 는 러너가 쓴 그대로"
+    idle = {"name": "adjusted", "rc": None, "seconds": 0.0, "reason": "no_new_data", "note": "새 자료 없음"}
+    write_state(st, last=last_run("2026-10-08", [step("price"), idle]))
+    r = ds.runner_state(st, at("2026-10-08T15:00:00"))
+    assert r["state"] == "ok" and "followup" not in r["last"]["steps"][1]
+
+
+def test_attention_run_makes_overall_verdict_check_needed(monkeypatch):
+    """TC-DST-17 · 「일부 건너뜀」 회차는 전체 판정을 「확인 필요」 로 올린다(빠진 날을 채울 일이 남았다) — 「멈춤」 은 아니다."""
+    monkeypatch.setattr(ds, "collector_dir", lambda: None)
+    monkeypatch.setattr(ds, "runner_state", lambda *a, **k: {"state": "attention", "label": "일부 건너뜀", "running": False})
+    monkeypatch.setattr(ds, "table_states", lambda *a, **k: ([{"key": "price_daily", "verdict": "ok", "last_date": "2026-10-07"}], {}))
+    monkeypatch.setattr(ds, "hf_state", lambda *a, **k: [])
+    s = ds.get_status(at("2026-10-08T15:00:00"), use_cache=False)
+    assert (s["verdict"], s["verdict_label"]) == ("warning", "확인 필요")
+
+
 def test_runner_running_lock_and_stale_lock(tmp_path):
     """TC-DST-02 · 4시간 안 잠금 = 도는 중 · 그보다 오래된 잠금은 죽은 잠금이라 무시한다."""
     st = tmp_path / "state"
@@ -313,7 +343,9 @@ def test_runner_history_steps_disk_and_detail(tmp_path, monkeypatch):
     d = ds.runner_detail(at("2026-10-02T16:00:00"))
     assert d["catalog"]["steps"][0] == {"name": "price", "label": "시세", "group": "받기",
                                         "desc": "최근 거래일 시세를 받아 빈 날을 메운다", "fatal": True, "derived": False,
-                                        "upload": False, "timeout_min": 30}
+                                        "upload": False, "timeout_min": 30, "fill": ""}
+    sig = next(s for s in d["catalog"]["steps"] if s["name"] == "signals")
+    assert sig["fill"].startswith("python scripts/signals_daily.py --from"), "빠진 날 채우기 명령이 API 까지 온다(#142)"
     assert d["disk"]["free_gb"] == 130.4 and d["rerun"]["from_screen"] is False and "--only" in d["rerun"]["command"]
 
 

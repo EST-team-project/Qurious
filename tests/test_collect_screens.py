@@ -129,6 +129,20 @@ def test_screens_do_not_run_pc_side_work():
     assert "d.rerun?.command" in src and "p.command" in src and "b.commands.remote" in src and "b.commands.restore" in src
 
 
+def test_followup_skip_is_yellow_and_fill_command_from_catalog():
+    """TC-CL-08 · 채울 것이 있는 건너뜀(서버가 넘긴 `followup` — 신호 단계 앱 DB 꺼짐 · 2026-10-08 안 B)은 노랑 「건너뜀」 과
+    까닭 글을 보이고, 할 일 없는 건너뜀은 회색 그대로다. 「이 단계만 다시」 를 열면 단계 목록(러너 한 곳)의 빠진 날 채우기
+    명령을 함께 보인다 — 화면이 명령 글을 지어내지 않는다(#142 답글 약속). 관제 한 줄도 그 회차를 확인할 것으로 칠한다."""
+    src = _js_code(_read(JS_DIR / "collect.js"))
+    table = src[src.index("function stepsTable"):src.index("function scheduleHtml")]
+    assert re.search(r"s\.status === \"skipped\" && s\.followup", table), "건너뜀 가운데 뒤 할 일이 있는 줄만 따로 칠한다"
+    bind = src[src.index("function bindSchedule"):src.index("async function renderCollectSchedule")]
+    assert re.search(r"cat\?\.fill\s*\?\s*cmdBox\(cat\.fill,", bind), "채우기 명령은 단계 목록(catalog)의 fill 칸으로 상자를 그린다"
+    assert re.search(r'"빠진 날 채우기"\)', bind), "상자 제목"
+    hub = _js_code(_read(JS_DIR / "datahub.js"))
+    assert re.search(r"s\.followup", hub[hub.index("const bad"):hub.index("const bad") + 200]), "관제 한 줄 표시도 채울 것을 본다"
+
+
 def test_data_hub_one_line_and_reruns_apart():
     """TC-CL-07 · 데이터 관제 — 단계 표 대신 마지막 회차 한 줄(결정 ④) · 지난 회차에서 다시 돌린 줄은 「다시 돌림」 으로(DF-82)."""
     src = _js_code(_read(JS_DIR / "datahub.js"))

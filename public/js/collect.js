@@ -59,8 +59,8 @@ function errorCard(what, err) {
     ${err?.status === 403 ? "" : `<button type="button" class="btn-secondary cl-retry" style="margin-top:10px">다시 시도</button>`}</div>`;
 }
 /** PC 에서 돌릴 명령 상자 — 복사 단추 · 막히는 때 */
-function cmdBox(command, note = "") {
-  return `<div class="cl-cmd"><div class="cl-cmd-head"><span>이 PC 에서 돌릴 명령</span>
+function cmdBox(command, note = "", title = "이 PC 에서 돌릴 명령") {
+  return `<div class="cl-cmd"><div class="cl-cmd-head"><span>${escHtml(title)}</span>
       <button type="button" class="cl-btn-sm cl-copy" data-cmd="${escHtml(command)}"><i class="fa-regular fa-copy"></i> 복사</button></div>
     <code>${escHtml(command)}</code>${note ? `<p>${note}</p>` : ""}</div>`;
 }
@@ -126,10 +126,11 @@ function scheduleTiles(d, view) {
   }
   const steps = view.steps || [];
   const n = s => steps.filter(x => x.status === s).length;
+  const held = steps.filter(x => x.status === "skipped" && x.followup).length;   // 채울 날이 남은 건너뜀
   const okAll = steps.length ? n("ok") === steps.length : run.ok;
   const result = steps.length
     ? `<div class="v ${okAll ? "q-tone--fresh" : "q-tone--stale"}">${view.rerun ? "다시 돌림 " : "성공 "}${n("ok")} / ${steps.length}</div>
-       <div class="d">실패 ${n("failed")} · 경고 ${n("warning")} · 건너뜀 ${n("skipped")}</div>`
+       <div class="d">실패 ${n("failed")} · 경고 ${n("warning")} · 건너뜀 ${n("skipped")}${held ? ` (채울 것 ${held})` : ""}</div>`
     : `<div class="v ${run.ok ? "q-tone--fresh" : "q-tone--stale"}">${run.skipped ? "건너뜀" : run.ok ? "성공" : "실패"}</div>
        <div class="d">이 회차는 단계별 기록이 없습니다</div>`;
   const end = run.finished_at ? hm(run.finished_at) : (run.minutes != null ? "" : "—");
@@ -169,7 +170,11 @@ function stepsTable(d, view) {
     const head = `<tr class="cl-group"><td colspan="6">${escHtml(g)}${note[g] ? ` <span class="q-muted">— ${escHtml(note[g])}</span>` : ""}</td></tr>`;
     return head + mine.map(s => {
       idx += 1;
-      const [txt, tone] = s.status ? (STEP_RESULT[s.status] || [s.status, "pending"]) : ["기록 없음", "skip"];
+      // 돌 조건이 없어 건너뛰고 채울 날이 남은 줄(러너가 적은 followup — 신호 단계 앱 DB 꺼짐 · 2026-10-08)만 노랑.
+      // 할 일이 없어 건너뛴 줄(새 자료 없음 · 업로드 끔)은 회색 그대로 — 매일 보여도 눈을 빼앗지 않게
+      const held = s.status === "skipped" && s.followup;
+      const [txt, tone] = held ? ["건너뜀", "pending"]
+        : s.status ? (STEP_RESULT[s.status] || [s.status, "pending"]) : ["기록 없음", "skip"];
       const w = s.seconds != null ? Math.max(2, Math.round(((s.seconds || 0) / max) * 220)) : 0;
       const time = s.seconds != null
         ? `<div class="cl-time"><span class="cl-bar cl-bar--${tone === "fail" ? "fail" : tone === "pending" ? "warn" : tone === "skip" ? "skip" : "ok"}" style="width:${w}px"></span><span>${dur(s.seconds)}</span></div>`
@@ -177,7 +182,7 @@ function stepsTable(d, view) {
       const isRerun = pickedRun === "last" && reruns.has(s.name);
       return `<tr class="${s.status === "failed" ? "cl-row--fail" : ""} ${isRerun ? "cl-row--rerun" : ""}" data-step="${escHtml(s.name)}">
         <td class="cl-n">${idx}</td><td class="cl-name">${escHtml(s.label || s.name)}</td>
-        <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}</td>
+        <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}${held && s.date ? ` <span class="q-muted">· 빠진 거래일 ${escHtml(s.date)}</span>` : ""}</td>
         <td>${time}</td><td class="cl-res cl-st--${tone === "skip" ? "pending" : tone}">${txt}</td>
         <td class="cl-act"><button type="button" class="cl-btn-sm cl-rerun" data-step="${escHtml(s.name)}" ${d.running ? "disabled title=\"수집 중에는 다시 돌릴 수 없습니다\"" : ""}
           aria-expanded="false">이 단계만 다시</button></td></tr>`;
@@ -213,8 +218,12 @@ function bindSchedule(root, d) {
     btn.setAttribute("aria-expanded", "true");
     const row = document.createElement("tr");
     row.className = "cl-cmd-row";
+    // 빠진 날 채우기 명령 — 단계 목록(러너 한 곳의 `fill`)에 있는 단계만. 화면은 명령 글을 지어내지 않는다(#142 답글)
+    const cat = (d.catalog?.steps || []).find(c => c.name === btn.dataset.step);
     row.innerHTML = `<td colspan="6">${cmdBox(rerunCommand(d, btn.dataset.step),
-      `막히는 때: ${escHtml(d.rerun?.blocked || "12:30 회차와 겹치는 때")} · 끝나면 이 화면의 그 줄 결과가 바뀝니다(새로 고침).`)}</td>`;
+      `막히는 때: ${escHtml(d.rerun?.blocked || "12:30 회차와 겹치는 때")} · 끝나면 이 화면의 그 줄 결과가 바뀝니다(새로 고침).`)}${cat?.fill
+      ? cmdBox(cat.fill, "날짜 칸(YYYY-MM-DD)을 채울 첫날 · 마지막 날로 바꿔 돌립니다 · 같은 날을 다시 돌려도 값만 바뀝니다.", "빠진 날 채우기")
+      : ""}</td>`;
     tr.after(row);
     bindCopy(row);
   }));

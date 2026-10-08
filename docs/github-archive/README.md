@@ -104,11 +104,11 @@ docs/github-archive/
 │   ├── PR-docs-reorganize-by-kind/  00-본문.md  (#130 · 머지 f0fa9cf · docs 폴더 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구)
 │   ├── PR-chore-lecture-etf-json-to-hf/  00-본문.md  (#132 · 머지 a617f2a · 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀)
 │   ├── 이슈-134-백테스트보고서-v0.2/  00-본문.md(#134 팀원 원문) · 01 검수(이동원 · 재현 8 호출 · 올림 확인 전)
-│   └── PR-feat-collect-screens-server/  00-본문.md  (#139 · 머지 ef8cf5b · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81) · 01 갱신(10-08 · 머지 뒤 첫 정기 회차 19 / 19 · 올릴 것)
+│   └── PR-feat-collect-screens-server/  00-본문.md  (#139 · 머지 ef8cf5b · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81) · 01 갱신(10-08 · 머지 뒤 첫 정기 회차 19 / 19 · 올림) · 02 131400 대조 · DF-85 고침(10-08 · 올릴 것 — 러너 묶음 PR 뒤)
 └── 2026-10-08/        ← 새 글 2건 · 팀원 글 1건
     ├── PR-chore-th06-base-sync-e815be3/  00-본문.md  (#141 · 머지 73f075b · 강사님 기초 코드 th06 서버 쪽 반영 · 점검 계정 KIS 모의 연동)
     ├── 이슈-기초코드-받지않은것/  00-본문.md  (이동원 · 올림 확인 전 · 강사님 10-07 판에서 받지 않은 것 — 운용 값 넷 · 리밸런싱 19곳 · 정합성 요약 · DF-84)
-    └── 이슈-142-러너-신호-단계-연결/  00-본문.md(#142 팀원 원문 · 신호 배치를 러너에) · 01 답글(이동원 · 10-08 초안 · 올릴 것)
+    └── 이슈-142-러너-신호-단계-연결/  00-본문.md(#142 팀원 원문 · 신호 배치를 러너에) · 01 답글(이동원 · 10-08 · 올림) · 02 연결 결과(10-08 · 주소 문제 · 앱 DB 꺼짐은 돌리기 전 확인 · 올릴 것 — 러너 묶음 PR 머지 뒤)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -416,7 +416,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | #128 · 머지 `0011743` |
 | [PR docs-reorganize-by-kind](2026-10-07/PR-docs-reorganize-by-kind/00-본문.md) | docs: docs 폴더를 종류별로 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구 | 3,860 | [#130](https://github.com/EST-team-project/Qurious/pull/130) · 머지 `f0fa9cf` (2026-10-07 에 채움) |
 | [PR chore-lecture-etf-json-to-hf](2026-10-07/PR-chore-lecture-etf-json-to-hf/00-본문.md) | chore: 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀 | 2,769 | [#132](https://github.com/EST-team-project/Qurious/pull/132) · 머지 `a617f2a` (2026-10-07 에 채움) |
-| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) · [01 갱신](2026-10-07/PR-feat-collect-screens-server/01-2026-10-08-갱신-이동원.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · 10-08 갱신(머지 뒤 첫 정기 회차 · 확인 필요 한 줄 · DF-85) | 4,801 | [#139](https://github.com/EST-team-project/Qurious/pull/139) · 갱신 댓글 올릴 것 |
+| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) · [01 갱신](2026-10-07/PR-feat-collect-screens-server/01-2026-10-08-갱신-이동원.md) · [02 131400 대조](2026-10-07/PR-feat-collect-screens-server/02-2026-10-08-131400-대조-이동원.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · 10-08 갱신(머지 뒤 첫 정기 회차 · 확인 필요 한 줄 · DF-85) | 4,801 | [#139](https://github.com/EST-team-project/Qurious/pull/139) · 01 갱신 댓글 올림(10-08) · 02 올릴 것 |
 | [이슈 134-백테스트보고서-v0.2](2026-10-07/이슈-134-백테스트보고서-v0.2/00-본문.md) · [01 검수](2026-10-07/이슈-134-백테스트보고서-v0.2/01-2026-10-07-검수-이동원.md) | (팀원 글) 백테스트 보고서 v0.2 응답 — 이동원 검수(재현 8 호출 · 비용 모델 · 회전율 %) | 8,977 | [#134](https://github.com/EST-team-project/Qurious/issues/134) · 검수 올림 확인 전 |
 
 ### 2026-10-08 — 새 글 2건 · 팀원 글 1건
@@ -425,7 +425,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---:|---|
 | [PR chore-th06-base-sync-e815be3](2026-10-08/PR-chore-th06-base-sync-e815be3/00-본문.md) | chore: 강사님 기초 코드 th06 서버 쪽 반영(9478811 → e815be3) · 점검 계정 KIS 모의 연동 | 5,907 | [#141](https://github.com/EST-team-project/Qurious/pull/141) |
 | [이슈 기초코드-받지않은것](2026-10-08/이슈-기초코드-받지않은것/00-본문.md) | [기초 코드] 강사님 lumina-invest 10-07 판 — Qurious 가 아직 받지 않은 것 | 3,132 | (올린 뒤 적음) |
-| [이슈 142-러너-신호-단계-연결](2026-10-08/이슈-142-러너-신호-단계-연결/00-본문.md) · [01 답글](2026-10-08/이슈-142-러너-신호-단계-연결/01-2026-10-08-답글-이동원.md) | (팀원 글) 일일 러너에 다중 주기 신호 단계(signals) 연결 요청 — 이동원 답글(받음 · 다음 러너 묶음 PR · 연결 전 채우기) | 1,433 | [#142](https://github.com/EST-team-project/Qurious/issues/142) · 답글 올릴 것 |
+| [이슈 142-러너-신호-단계-연결](2026-10-08/이슈-142-러너-신호-단계-연결/00-본문.md) · [01 답글](2026-10-08/이슈-142-러너-신호-단계-연결/01-2026-10-08-답글-이동원.md) · [02 연결 결과](2026-10-08/이슈-142-러너-신호-단계-연결/02-2026-10-08-연결-결과-이동원.md) | (팀원 글) 일일 러너에 다중 주기 신호 단계(signals) 연결 요청 — 이동원 답글(받음 · 다음 러너 묶음 PR · 연결 전 채우기) | 1,433 | [#142](https://github.com/EST-team-project/Qurious/issues/142) · 01 답글 올림(10-08) · 02 올릴 것 |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 235,
+ "count": 237,
  "routers": 30,
  "routes": [
   {
@@ -5266,7 +5266,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 90,
+   "line": 91,
    "errors": [],
    "keys": [
     "plan",
@@ -5294,7 +5294,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 112,
+   "line": 113,
    "errors": [
     "400"
    ],
@@ -5318,7 +5318,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 125,
+   "line": 126,
    "errors": [
     "400"
    ],
@@ -5326,6 +5326,30 @@
    "body": [
     "ExecuteBody"
    ],
+   "schema": true
+  },
+  {
+   "id": "API-RBAL-10",
+   "router": "rebalance",
+   "method": "POST",
+   "path": "/api/rebalance/runs/{run_id}/cancel",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/rebalance.py",
+   "line": 146,
+   "errors": [
+    "404",
+    "409"
+   ],
+   "keys": [],
+   "body": [],
    "schema": true
   },
   {
@@ -5344,7 +5368,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 145,
+   "line": 162,
    "errors": [
     "409"
    ],
@@ -5367,7 +5391,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 164,
+   "line": 181,
    "errors": [
     "400"
    ],
@@ -5394,7 +5418,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 179,
+   "line": 196,
    "errors": [],
    "keys": [
     "events"
@@ -5419,7 +5443,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/rebalance.py",
-   "line": 185,
+   "line": 202,
    "errors": [],
    "keys": [
     "runs"
@@ -6641,6 +6665,31 @@
    "line": 127,
    "errors": [
     "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-11",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/guide",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "data-guide"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 148,
+   "errors": [
+    "503"
    ],
    "keys": [],
    "body": [],

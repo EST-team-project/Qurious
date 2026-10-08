@@ -313,3 +313,251 @@ def test_rerun_leaves_wal_side_files_for_the_app(fake_runner, monkeypatch):
     assert du.run_one("write", now=later) == 0
     assert all(p.exists() for p in side), "단계가 쓰기 연결로 끝나도 보조 파일이 남아야 앱이 읽는다"
     assert du.rearm_wal(t / "없는.sqlite3") is False
+
+
+# ── 7. 한 단계 다시 뒤 시세 기준일(2026-10-08 · DF-85) · 신호 단계(#142) ─────────────────────
+def test_rerun_remeasures_as_of_so_readiness_sees_new_price(fake_runner, monkeypatch):
+    """DF-85 — 한 단계만 다시 돌린 뒤 회차 기록의 「끝 상태」(`after` · 시세 기준일)를 다시 잰다.
+
+    옛 코드는 단계 줄 · 성공 여부만 바꾸고 `after` 는 회차 때 값 그대로 두었다 — 시세를 다시 받아도 리밸런싱 하루 점검
+    준비 판정(팀원 #136 · `rebalance_daily.readiness`)이 회차 기록의 옛 기준일로 「시세 기준일이 다름」 을 냈다.
+    이력 줄에도 다시 잰 기준일이 남는다(관제의 회차 목록이 그 줄의 기준일을 보인다)."""
+    from app.services import data_status
+
+    t = fake_runner
+    state = {"price_max": "20261006", "adjusted_max": "20261006"}
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: dict(state))
+    du.run_all()
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert last["after"]["price_max"] == "20261006"
+
+    state.update(price_max="20261007")                                # 오후에 시세 단계를 다시 돌려 하루치가 들어왔다
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)) == 0
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert last["after"]["price_max"] == "20261007", "다시 돌린 뒤 기준일을 다시 잰다"
+    assert last["after"]["adjusted_max"] == "20261006" and last["before"] is not None, "회차의 시작 상태는 그대로"
+    hist = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (hist["only"], hist["price_max"]) == ("beta", "20261007")
+    now = datetime.datetime(2026, 10, 8, 15, 1, tzinfo=du.KST)
+    assert data_status.runner_state(t / "state", now)["last"]["price_max"] == "2026-10-07", "준비 판정이 읽는 칸"
+
+
+def test_rerun_keeps_old_as_of_and_says_so_when_measure_fails(fake_runner, monkeypatch):
+    """다시 재기가 실패하면(수집 DB 를 못 엶) 옛 기준일을 그대로 두되 말없이 넘어가지 않는다 — 로그에 한 줄 ·
+    회차 기록에 `after_error`(언제 · 왜). 화면 · 준비 판정이 「옛 값」 임을 알 수 있게."""
+    t = fake_runner
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: {"price_max": "20261006"})
+    du.run_all()
+
+    def broken(*a, **k):
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(du, "snapshot", broken)
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)) == 0
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert last["after"]["price_max"] == "20261006", "못 재면 옛 값을 지우지 않는다"
+    assert "database is locked" in last["after_error"]["why"] and last["after_error"]["at"]
+    log = sorted((t / "logs").glob("*-only-beta.log"))[-1].read_text(encoding="utf-8")
+    assert "시세 기준일을 다시 재지 못했다" in log
+
+
+def test_rerun_of_a_new_step_is_inserted_in_catalog_order(fake_runner):
+    """회차 뒤에 더한 단계(신호 단계를 처음 붙인 날)를 한 단계만 다시 돌리면 마지막 회차 기록에 그 줄이 없다 — 옛 코드는
+    바꿀 줄을 못 찾아 결과를 버렸다(이력에만 남고 수집 일정 화면 표에는 안 보임). 단계 목록 차례 자리에 끼워 넣는다."""
+    t = fake_runner
+    du.run_all()
+    du.STEPS.insert(1, du.Step("gamma", ["-c", "pass"], 1, fatal=False, label="다 단계", group="받기", desc="새 일"))
+    assert du.run_one("gamma", now=datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)) == 0
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert [s["name"] for s in last["steps"]] == ["alpha", "gamma", "beta"]
+    assert (last["steps"][1]["rc"], last["steps"][1]["label"]) == (0, "다 단계")
+
+
+def test_host_app_db_address_comes_from_compose_and_matches_dev_ps1():
+    """앱 DB 주소 — 컨테이너끼리는 `postgres:5432` 지만 PC 에서 도는 단계는 compose 가 연 포트로 불러야 한다.
+
+    2026-10-08 실측: 러너로 신호 단계를 돌리자 앱 DB 컨테이너가 떠 있는데도 `ConnectionRefusedError` → 종료코드 3.
+    앱 설정(`app/config.py`)은 ENV_FILE 이 없으면 `.env.dev` 를 읽고, 컨테이너가 받는 주소는 compose 의 environment 에만 있다.
+    정본은 compose(앱의 DATABASE_URL + postgres 포트 짝)이고, 개발 모드 스크립트(`scripts/personal/dev.ps1`)와 같은 값이어야 한다."""
+    import re
+    from urllib.parse import urlsplit
+
+    env, why = du.host_app_db_env()
+    assert why is None, why
+    got = urlsplit(env["DATABASE_URL"])
+    assert (got.scheme, got.hostname, got.port, got.path) == ("postgresql+asyncpg", "127.0.0.1", 15432, "/fin_ai")
+    dev = (du.ROOT / "scripts" / "personal" / "dev.ps1").read_text(encoding="utf-8")
+    m = re.search(r"^\s+DATABASE_URL\s+=\s+'([^']+)'", dev, re.M)
+    want = urlsplit(m.group(1))
+    assert (got.username, got.password, got.port, got.path) == (want.username, want.password, want.port, want.path), \
+        "dev.ps1 3단계의 PC 쪽 주소와 같아야 한다(호스트 이름만 127.0.0.1 — DF-63)"
+
+
+def test_host_app_db_address_says_why_when_compose_lacks_it(tmp_path):
+    """compose 에서 주소를 못 만들면 빈 값과 까닭 — 말없이 `.env.dev` 기본 주소로 돌게 두지 않는다(러너가 로그 · 단계 메모에 적는다)."""
+    p = tmp_path / "docker-compose.yml"
+    p.write_text("services:\n  app:\n    environment:\n    - PORT=8000\n", encoding="utf-8")
+    env, why = du.host_app_db_env(p)
+    assert env == {} and "DATABASE_URL" in why
+    p.write_text("services:\n  app:\n    environment:\n    - DATABASE_URL=postgresql+asyncpg://u:p@postgres:5432/db\n"
+                 "  postgres:\n    image: x\n", encoding="utf-8")
+    env, why = du.host_app_db_env(p)
+    assert env == {} and "5432" in why and "포트" in why
+    p.write_text("services:\n  app:\n    environment:\n      DATABASE_URL: postgresql+asyncpg://u:p@postgres:5432/db\n"
+                 "  postgres:\n    ports:\n    - \"127.0.0.1:25432:5432/tcp\"\n", encoding="utf-8")
+    env, why = du.host_app_db_env(p)
+    assert why is None and env["DATABASE_URL"] == "postgresql+asyncpg://u:p@127.0.0.1:25432/db", "사전 꼴 · IP 붙은 포트 짝도 읽는다"
+    assert du.host_app_db_env(tmp_path / "없음.yml")[0] == {}
+
+
+def test_only_app_db_steps_get_the_host_address(fake_runner, monkeypatch):
+    """PC 쪽 앱 DB 주소는 앱 DB 를 쓰는 단계(`app_db=True`)에만 넘긴다 — 다른 단계의 환경은 그대로. 로그에는 비밀번호 없이
+    호스트:포트/DB 만 남는다."""
+    t = fake_runner
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(du, "host_app_db_env",
+                        lambda *a, **k: ({"DATABASE_URL": "postgresql+asyncpg://u:secret@127.0.0.1:15432/fin_ai"}, None))
+    dump = "import os,sys; open(sys.argv[1],'w').write(os.environ.get('DATABASE_URL','(없음)'))"
+    du.STEPS[0] = du.Step("alpha", ["-c", dump, str(t / "a.txt")], 1, label="가 단계", group="받기", desc="첫 일", app_db=True)
+    du.STEPS[1] = du.Step("beta", ["-c", dump, str(t / "b.txt")], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_all() == 0
+    assert (t / "a.txt").read_text() == "postgresql+asyncpg://u:secret@127.0.0.1:15432/fin_ai"
+    assert (t / "b.txt").read_text() == "(없음)"
+    log = sorted((t / "logs").glob("daily_update-*.log"))[-1].read_text(encoding="utf-8")
+    assert "127.0.0.1:15432/fin_ai" in log and "secret" not in log, "주소만 · 비밀번호는 찍지 않는다"
+
+
+def test_signals_step_after_daily_bars_before_manifest():
+    """#142 — 다중 주기 신호 배치(`scripts/signals_daily.py` · 팀원 #140)는 일봉 · 분봉(ohlcv) 뒤 · 목록표(manifest) 앞.
+    그날 일봉 · 60분봉이 들어온 다음에 돌아야 하고, 실패해도 백업을 막지 않는다(fatal=False). 파생 판정 · 올리기와 무관하다."""
+    names = [s.name for s in du.STEPS]
+    assert names.index("ohlcv") + 1 == names.index("signals") and names.index("signals") + 1 == names.index("manifest")
+    sig = next(s for s in du.STEPS if s.name == "signals")
+    assert sig.args == ["scripts/signals_daily.py"], "인자 없이 — 수집 DB 의 마지막 거래일 하루"
+    assert (sig.fatal, sig.derived, sig.upload, sig.sharing) == (False, False, False, False)
+    assert (sig.label, sig.group) == ("신호", "계산") and sig.timeout_min >= 5
+    assert sig.app_db is True, "앱 DB(T2)에 쓰는 단계 — PC 쪽 주소를 받아야 한다"
+    assert [s.name for s in du.STEPS if s.app_db] == ["signals"], "앱 DB 를 쓰는 단계는 신호 하나뿐이다"
+
+
+# ── 8. 앱 DB 를 쓰는 단계의 전제 조건(2026-10-08 · 조사서 안 B · 사용자 결정) ─────────────────────
+def _closed_port() -> int:
+    """지금 아무도 듣지 않는 포트 — 잠깐 묶었다 푼 번호."""
+    import socket
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def _db_env(port: int):
+    return lambda *a, **k: ({"DATABASE_URL": f"postgresql+asyncpg://u:secret@127.0.0.1:{port}/fin_ai"}, None)
+
+
+def _last(t) -> dict:
+    return json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+
+
+def test_app_db_step_is_skipped_not_run_when_port_closed(fake_runner, monkeypatch):
+    """앱 DB 가 꺼진 날 — 러너가 돌리기 **전에** compose 주소로 포트를 확인하고, 닫혀 있으면 단계를 돌리지 않는다.
+    단계 줄은 `rc` 없음 · 까닭 `app_db_down` · 뒤 할 일 `fill` · 그 회차가 계산했을 거래일. 회차는 성공 그대로다 —
+    리밸런싱 하루 점검(팀원 #136)이 읽는 회차 ok · 시세 · 달력 줄을 신호가 흔들지 않는다(#142 답글 약속)."""
+    t = fake_runner
+    port = _closed_port()
+    monkeypatch.setattr(du, "host_app_db_env", _db_env(port))
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: {"price_max": "20261007"})
+    marker = t / "ran.txt"
+    du.STEPS[1] = du.Step("beta", ["-c", f"open(r'{marker}', 'w').write('x')"], 1, fatal=False, app_db=True,
+                          label="나 단계", group="계산", desc="둘째 일", fill="python x.py --from YYYY-MM-DD --to YYYY-MM-DD")
+    assert du.run_all() == 0
+    assert not marker.exists(), "포트가 닫혀 있으면 돌리지 않는다(계산을 버리지 않는다)"
+    last = _last(t)
+    b = last["steps"][1]
+    assert (b["rc"], b["reason"], b["followup"], b["date"]) == (None, "app_db_down", "fill", "2026-10-07")
+    assert "앱 DB 꺼짐" in b["note"] and f"127.0.0.1:{port}" in b["note"] and "secret" not in b["note"]
+    assert last["ok"] is True and last["steps"][0]["rc"] == 0
+    hist = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (hist["steps"][1]["reason"], hist["steps"][1]["followup"]) == ("app_db_down", "fill"), "이력 줄에도 남는다"
+
+
+def test_app_db_step_failing_with_port_open_is_a_warning(fake_runner, monkeypatch):
+    """포트가 열려 있는데 단계가 실패하면(오늘 실측처럼 주소 · 계정이 틀린 경우 등) 건너뜀이 아니라 **경고**다 —
+    종료코드 3 만 보고 건너뜀으로 바꾸면 설정 결함이 노랑 한 줄 뒤에 숨는다."""
+    import socket
+    t = fake_runner
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+    try:
+        monkeypatch.setattr(du, "host_app_db_env", _db_env(srv.getsockname()[1]))
+        du.STEPS[1] = du.Step("beta", ["-c", "import sys; sys.exit(3)"], 1, fatal=False, app_db=True,
+                              label="나 단계", group="계산", desc="둘째 일")
+        assert du.run_all() == 3
+    finally:
+        srv.close()
+    b = _last(t)["steps"][1]
+    assert b["rc"] == 3 and "reason" not in b and _last(t)["ok"] is False
+
+
+def test_app_db_step_without_address_is_not_run_and_warns(fake_runner, monkeypatch):
+    """주소를 compose 에서 만들지 못하면 돌리지 않는다 — 앱 설정의 기본 주소(`.env.dev` · 기초 코드의 `lumina@localhost`)로
+    돌면 다른 DB 에 말없이 쓸 수 있다. 설정 결함이라 경고(종료코드 78 = EX_CONFIG)로 남긴다."""
+    t = fake_runner
+    monkeypatch.setattr(du, "host_app_db_env", lambda *a, **k: ({}, "compose 의 앱 서비스에 DATABASE_URL 이 없다"))
+    marker = t / "ran.txt"
+    du.STEPS[1] = du.Step("beta", ["-c", f"open(r'{marker}', 'w').write('x')"], 1, fatal=False, app_db=True,
+                          label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_all() == du.EX_CONFIG == 78
+    assert not marker.exists()
+    b = _last(t)["steps"][1]
+    assert (b["rc"], b["reason"]) == (78, "app_db_address_unknown") and "DATABASE_URL" in b["note"]
+    assert _last(t)["ok"] is False
+
+
+def test_rerun_of_app_db_step_with_db_down_is_blocked_and_recorded(fake_runner, monkeypatch):
+    """한 단계 다시(`run --only`)도 같다 — 포트가 닫혀 있으면 돌리지 않고 종료코드 3(막힘)으로 끝나며, 회차 기록의 그 줄을
+    「건너뜀 · 앱 DB 꺼짐」 으로 바꾸고 이력에 한 줄 남긴다(무엇을 시도했는지 보인다)."""
+    t = fake_runner
+    du.run_all()
+    monkeypatch.setattr(du, "host_app_db_env", _db_env(_closed_port()))
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: {"price_max": "20261007"})
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, app_db=True, label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)) == 3
+    b = _last(t)["steps"][1]
+    assert (b["rc"], b["reason"], b["followup"]) == (None, "app_db_down", "fill") and b["rerun_at"]
+    hist = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert hist["only"] == "beta" and hist["steps"][0]["reason"] == "app_db_down"
+
+
+def test_every_runner_skip_says_why(fake_runner, monkeypatch):
+    """할 일이 없어 건너뛴 줄에도 까닭 코드를 적는다 — 업로드 끔 · 새 자료 없음 · 앞 단계 실패 · 올릴 것 없음.
+    화면은 까닭 코드로 「채울 것이 있는 건너뜀(노랑)」 과 「할 일 없는 건너뜀(회색)」 을 가른다(조사서 안 B)."""
+    t = fake_runner
+    same = {"price_max": "20261007", "price_recent_rows": 10, "adjusted_max": "20261007", "tr_max": "20261007",
+            "benchmark_max": "20261007", "dividend": [1, "x", 1.0, 0.0]}
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: dict(same))
+    monkeypatch.setattr(du, "_pending_upload", lambda: [])
+    du.STEPS[:] = [du.Step("d", ["-c", "pass"], 1, derived=True, label="파생", group="계산", desc="d"),
+                   du.Step("u", ["-c", "pass"], 1, upload=True, label="올림", group="백업", desc="u")]
+    du.run_all(upload=False)
+    assert [(s["name"], s.get("reason")) for s in _last(t)["steps"]] == [("d", "no_new_data"), ("u", "upload_off")]
+    du.STEPS[:] = [du.Step("upload", ["-c", "pass"], 1, upload=True, label="올리기", group="백업", desc="u")]
+    du.run_all(upload=True)
+    assert _last(t)["steps"][0]["reason"] == "nothing_to_upload"
+    du.STEPS[:] = [du.Step("f", ["-c", "import sys; sys.exit(1)"], 1, label="멈춤", group="받기", desc="f"),
+                   du.Step("g", ["-c", "pass"], 1, label="뒤", group="계산", desc="g")]
+    du.run_all()
+    assert _last(t)["steps"][1]["reason"] == "upstream_failed"
+    assert all("followup" not in s for s in _last(t)["steps"]), "할 일 없는 건너뜀에는 뒤 할 일이 없다"
+
+
+def test_fill_command_lives_in_the_step_and_reaches_the_catalog():
+    """빠진 날 채우기 명령(#142 답글 — 앱 DB 가 꺼진 날은 `--from` · `--to` 로 채운다)은 러너 단계 정의 한 곳에 두고
+    단계 목록(앱이 읽는 파일)에 그대로 싣는다 — 화면은 그 칸이 있는 단계에만 「빠진 날 채우기」 명령을 보인다."""
+    sig = next(s for s in du.STEPS if s.name == "signals")
+    assert sig.fill == "python scripts/signals_daily.py --from YYYY-MM-DD --to YYYY-MM-DD"
+    cat = {s["name"]: s for s in du.step_catalog()["steps"]}
+    assert cat["signals"]["fill"] == sig.fill
+    assert all(cat[n]["fill"] == "" for n in cat if n != "signals"), "채우기 명령이 없는 단계는 빈 글"
