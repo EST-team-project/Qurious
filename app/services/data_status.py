@@ -44,6 +44,8 @@ CACHE_SECONDS = 30
 CATALOG_FILE = "daily_update_steps.json"
 #: 이 PC 용량 — 앱 컨테이너는 PC 디스크를 볼 수 없어 러너가 회차 끝에 잰다.
 DISK_FILE = "pc_disk.json"
+#: 도는 중의 지금 단계 — 러너가 단계를 시작할 때마다 쓴다(잠금 파일과 따로 · 2026-10-08). 수집 일정 화면의 「수집 중 — n번째 단계」.
+PROGRESS_FILE = "daily_update_progress.json"
 
 #: (키, 표, 이름, 묶음, 출처, 판정 방식, 마지막 날짜 SQL, 행 수 SQL)
 TABLES = [
@@ -70,8 +72,14 @@ TABLES = [
      "전자공시(DART) 다중회사 주요계정 — 마지막으로 값이 실린 보고서 접수일", "info",
      "SELECT substr((SELECT MAX(rcept_no) FROM financial_statement), 1, 8)",
      "SELECT COUNT(*) FROM financial_statement"),
-    ("news_item", "news_item", "정책뉴스", "뉴스", "정책브리핑 정책뉴스(공공데이터포털 · 공공누리 제1유형) — 마지막 승인일", "info",
-     "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item", "SELECT COUNT(*) FROM news_item"),
+    # 뉴스 표 하나에 출처 둘이 들어 있다(2026-10-04 부터 GDELT 언론사 기사) — 출처마다 한 줄씩(DF-87 · 2026-10-08).
+    # 한 줄로 세면 정책뉴스 줄이 언론사 기사까지 세고, 마지막 날짜도 매일 받는 언론사 기사 쪽으로 당겨져 정책뉴스가 멈춰도 안 보인다.
+    ("news_item", "news_item", "정책뉴스", "뉴스", "정책브리핑 정책뉴스(공공데이터포털 · 기사마다 공공누리 유형 — 제1유형만 본문) — 마지막 승인일", "info",
+     "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item WHERE source = 'policy_news'",
+     "SELECT COUNT(*) FROM news_item WHERE source = 'policy_news'"),
+    ("news_gdelt", "news_item", "언론사 기사", "뉴스", "GDELT 한국어 기사 — 제목 · 원문 주소 · 시각만(본문 없음) — 마지막 기사 시각", "info",
+     "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item WHERE source = 'gdelt'",
+     "SELECT COUNT(*) FROM news_item WHERE source = 'gdelt'"),
     ("intraday_60m", "price_intraday", "60분봉", "분봉", "야후 파이낸스(09:00~15:00)", "intraday",
      "SELECT MAX(trade_date) FROM price_intraday WHERE timeframe = '60m'",
      "SELECT COUNT(*) FROM price_intraday WHERE timeframe = '60m'"),
@@ -191,6 +199,11 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
     if since and (now - since) < timedelta(hours=LOCK_STALE_HOURS):
         out["running"] = True
         out["running_since"] = since.isoformat(timespec="seconds")
+        # 지금 단계 — 러너가 단계를 시작할 때 진행 파일에 적는다(2026-10-08). 같은 실행의 것만(시작 시각이 잠금과 같을 때) 믿는다.
+        prog = _read_json(state_dir / PROGRESS_FILE) or {}
+        step = prog.get("step") if isinstance(prog.get("step"), dict) else None
+        if step and _parse_ts(prog.get("started_at")) == since:
+            out["running_step"] = {k: step.get(k) for k in ("index", "total", "name", "label")}
 
     catalog = load_catalog(state_dir)
     by_name = catalog["by_name"]

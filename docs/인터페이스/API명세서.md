@@ -1,14 +1,14 @@
-# API 명세서 v0.13 — Qurious
+# API 명세서 v0.14 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.13 (Minor — 강사님 기초 코드 th06 `9478811` → `e815be3` 서버 쪽 반영: 새 라우트 둘 `API-KMON-01`(KIS 모의투자 결과 — 배치 · 계좌 · 봇 실주문 · 사이클 · 정합성) · `API-KMON-02`(실주문 검색 — 로그인한 사용자 본인과 시스템 사용자 주문만) · `API-HLTH-01` 응답에 `quant`(주기 · 공격 모드 · 배치 · KIS 환경 — 환경은 실거래 관문을 지난 값) · `API-STK-08` 질의 `symbols` · 실주문 목록 · 자동매매 상태 응답에 `batch` · `reconcile`(Qurious 는 정합성 점검을 꺼 둬 비어 있다) · 요구 ID 는 기능 설계서 부록 A 가 정본이라 새 두 API 는 아직 「—」) · 지난 판 v0.12 (Minor — 새 라우트 셋 `API-DATA-05 · 06 · 07`(수집 일정 · 단계 · 주소 검사 규칙 · 주소 검사 — 관리자) · 받는 길 셋(`API-ING-03 · 04 · 10`)이 주소 검사를 지나야 받는다(막히면 400 · 객체 몸통) · 지난 판 v0.11 (Patch — 라우트 · 인자 · 본문은 그대로 · `API-KB-03` 응답의 `check` 에 `absence`(답이 「규정은 없습니다」 · 「명시되어 있지 않습니다」 를 결론으로 쓰면 그 글을 보이지 않고 `no_evidence` · 걸린 문장 · DF-64 · 이 갈래에만 실림) · `echo`(답이 질문을 되풀이하고 출처 번호만 붙였으면 근거 발췌(`excerpt`)로 · 값 `true` · DF-76 · 이 갈래에만 실림) · 화면은 실패 발췌(`excerpt` 가운데 `answer=extract` 가 아닌 것)를 근거 없음처럼 그린다 — 응답은 그대로 · 설계서 v1.6 5.3.4) · 지난 판 v0.10 (Minor — 라우트는 그대로 · `API-KB-02` 질의 인자 · `API-KB-03` 본문 칸에 `sector`(섹터 질문 분류 — 기본 켬 · 끄면 분류 전 길) · `API-CAL-02` 같은 날 안 차례를 화면 칩 차례로 · 화면이 부르는 API 110 → 111(`API-CAL-03` · `API-DATA-03` 이 화면을 가짐 · 강사님 `API-LIB-01` 은 화면을 잃음) · 팀원 #114 · #116 · #118(리밸런싱 정책 · 첫 거래일 예약 · 하루 점검) 반영 — `API-RBAL-03` · `06` 에 409 · 본문 `PlanBody` 새 칸 · `CashflowBody` 값 검사 · 도커 `app.openapi()` 227/227) · 지난 판 v0.9 (Minor — 라우트 하나 더함 `API-CAL-03 GET /api/calendar/events/summary`(한 달 달력 요약 · DF-66) · `API-CAL-02` 에 `offset` · `q` · `first` · `API-DATA-03` 에 `source` · `facets` — 일정 2판 · 리서치 화면 결정의 서버 쪽 · 도커 `app.openapi()` 227/227) · 지난 판 v0.8 (Minor — `API-CAL-02` 의 `kind` 에 새 종류 둘(`agm` 주주총회 · `dividend_pay` 배당금 지급) · 라우트 · 인자는 그대로 · `kind` 를 비우면 여전히 화면의 네 종류 — 목표 기능 ① W7 남은 것) · 지난 판 v0.7 — 라우트 둘(`API-DATA-03` · `API-DATA-04`) · `kind` 에 새 종류 넷과 `all` |
-| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 **v0.13** |
+| **문서 버전** | v0.14 (Minor — 크롤링 세 화면 구현: 새 라우트 셋 `API-DATA-08`(자료 종류 · 출처 · 이용 조건) · `API-DATA-09`(받을 범위 — 실제 수집 단위로 받은 것 · 받을 것 · 휴장 · 아직 공개 전 · PC 에서 돌릴 명령) · `API-DATA-10`(적재 · 백업 판정 — 도구가 쓴 기록을 읽기만) — 셋 다 관리자 · 「DB 초기화」 `API-ADM-01` 없앰(DF-78 · 대장 「폐기」 — 모든 사용자의 주문 · 감사 로그까지 지웠다) · `API-ING-03 · 10` 의 받기가 리다이렉트 홉마다 보내기 전에 주소 검사(막히면 400 · 몸통에 `url`)) · 지난 판 v0.13 (Minor — 강사님 기초 코드 th06 `9478811` → `e815be3` 서버 쪽 반영: 새 라우트 둘 `API-KMON-01`(KIS 모의투자 결과 — 배치 · 계좌 · 봇 실주문 · 사이클 · 정합성) · `API-KMON-02`(실주문 검색 — 로그인한 사용자 본인과 시스템 사용자 주문만) · `API-HLTH-01` 응답에 `quant`(주기 · 공격 모드 · 배치 · KIS 환경 — 환경은 실거래 관문을 지난 값) · `API-STK-08` 질의 `symbols` · 실주문 목록 · 자동매매 상태 응답에 `batch` · `reconcile`(Qurious 는 정합성 점검을 꺼 둬 비어 있다) · 요구 ID 는 기능 설계서 부록 A 가 정본이라 새 두 API 는 아직 「—」) · 지난 판 v0.12 (Minor — 새 라우트 셋 `API-DATA-05 · 06 · 07`(수집 일정 · 단계 · 주소 검사 규칙 · 주소 검사 — 관리자) · 받는 길 셋(`API-ING-03 · 04 · 10`)이 주소 검사를 지나야 받는다(막히면 400 · 객체 몸통) · 지난 판 v0.11 (Patch — 라우트 · 인자 · 본문은 그대로 · `API-KB-03` 응답의 `check` 에 `absence`(답이 「규정은 없습니다」 · 「명시되어 있지 않습니다」 를 결론으로 쓰면 그 글을 보이지 않고 `no_evidence` · 걸린 문장 · DF-64 · 이 갈래에만 실림) · `echo`(답이 질문을 되풀이하고 출처 번호만 붙였으면 근거 발췌(`excerpt`)로 · 값 `true` · DF-76 · 이 갈래에만 실림) · 화면은 실패 발췌(`excerpt` 가운데 `answer=extract` 가 아닌 것)를 근거 없음처럼 그린다 — 응답은 그대로 · 설계서 v1.6 5.3.4) · 지난 판 v0.10 (Minor — 라우트는 그대로 · `API-KB-02` 질의 인자 · `API-KB-03` 본문 칸에 `sector`(섹터 질문 분류 — 기본 켬 · 끄면 분류 전 길) · `API-CAL-02` 같은 날 안 차례를 화면 칩 차례로 · 화면이 부르는 API 110 → 111(`API-CAL-03` · `API-DATA-03` 이 화면을 가짐 · 강사님 `API-LIB-01` 은 화면을 잃음) · 팀원 #114 · #116 · #118(리밸런싱 정책 · 첫 거래일 예약 · 하루 점검) 반영 — `API-RBAL-03` · `06` 에 409 · 본문 `PlanBody` 새 칸 · `CashflowBody` 값 검사 · 도커 `app.openapi()` 227/227) · 지난 판 v0.9 (Minor — 라우트 하나 더함 `API-CAL-03 GET /api/calendar/events/summary`(한 달 달력 요약 · DF-66) · `API-CAL-02` 에 `offset` · `q` · `first` · `API-DATA-03` 에 `source` · `facets` — 일정 2판 · 리서치 화면 결정의 서버 쪽 · 도커 `app.openapi()` 227/227) · 지난 판 v0.8 (Minor — `API-CAL-02` 의 `kind` 에 새 종류 둘(`agm` 주주총회 · `dividend_pay` 배당금 지급) · 라우트 · 인자는 그대로 · `kind` 를 비우면 여전히 화면의 네 종류 — 목표 기능 ① W7 남은 것) · 지난 판 v0.7 — 라우트 둘(`API-DATA-03` · `API-DATA-04`) · `kind` 에 새 종류 넷과 `all` |
+| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · **v0.14** |
 | **작성자** | 이동원 (P-A) |
-| **기준 코드** | `main` = `ef8cf5b`(PR #139 크롤링 세 화면 서버) + 강사님 th06 서버 쪽 반영(이 판과 같은 PR) — 라우트 **233** · 라우터 **30** · 지난 판 `main` = `ff30238`(팀원 PR #131 · #130) + 크롤링 세 화면 서버(단계 이름표 한 곳 · 수집 일정 API · 주소 검사) · 지난 판 `main` = `5e5a393`(PR #120 · #119) + 근거 답 「없다」 단정 거름 · 지난 판 `main` = `a39e531`(PR #118 · #113 위에 팀원 #114 리밸런싱 정책 · #115 발표 문서 · #116 첫 거래일 예약 · #118 하루 점검) + 섹터 질문 분류 · 일정 2판 화면 · 리서치 화면(이 판과 같은 PR) — 라우트 **228** · 라우터 **29** (v0.1 은 `5adfb81` · 146 · 19) |
+| **기준 코드** | `main` = `73f075b`(PR #141 강사님 th06 서버 쪽 반영) + 크롤링 세 화면 구현(이 판과 같은 PR) — 라우트 **235** · 라우터 **30** · 지난 판 `main` = `ef8cf5b`(PR #139 크롤링 세 화면 서버) + 강사님 th06 서버 쪽 반영 — 라우트 233 · 지난 판 `main` = `ff30238`(팀원 PR #131 · #130) + 크롤링 세 화면 서버(단계 이름표 한 곳 · 수집 일정 API · 주소 검사) · 지난 판 `main` = `5e5a393`(PR #120 · #119) + 근거 답 「없다」 단정 거름 · 지난 판 `main` = `a39e531`(PR #118 · #113 위에 팀원 #114 리밸런싱 정책 · #115 발표 문서 · #116 첫 거래일 예약 · #118 하루 점검) + 섹터 질문 분류 · 일정 2판 화면 · 리서치 화면(이 판과 같은 PR) — 라우트 **228** · 라우터 **29** (v0.1 은 `5adfb81` · 146 · 19) |
 | **추출기** | [`scripts/api_scan.py`](../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../tests/test_api_scan.py) (TC-AP 15건) |
-| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **233줄**(2026-10-08 `API-KMON-01 · 02` · v0.1 146 → 강사님 기초 코드 두 번 · 계정 · 용어사전 · 개념 학습 · 금융 강의 · 데이터 · 달력 · 근거 문서 · 근거 답 · 팀원 모의계좌 — 2.1절) · 한 번 붙인 ID 는 바뀌지 않는다 |
-| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
+| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **236줄 · 사용 235 · 폐기 1**(2026-10-08 `API-DATA-08 ~ 10` 더함 · `API-ADM-01` 폐기 — 라우트가 처음 사라진 경우라 `--assign` 이 아니라 손으로 「폐기」 · 그 번호는 다시 쓰지 않는다) · 그 앞 233줄(2026-10-08 `API-KMON-01 · 02` · v0.1 146 → 강사님 기초 코드 두 번 · 계정 · 용어사전 · 개념 학습 · 금융 강의 · 데이터 · 달력 · 근거 문서 · 근거 답 · 팀원 모의계좌 — 2.1절) · 한 번 붙인 ID 는 바뀌지 않는다 |
+| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
 
@@ -146,13 +146,13 @@ flowchart LR
 | 라우터 | 파일 | API | 인증 없음 | 메뉴 화면이 부름 | public/ 에 없음 | 파트(제안) |
 |---|---|---:|---:|---:|---:|---|
 | `auth` | `app/routes/auth.py` | 14 | 6 | 0 | 4 | 공통 14 |
-| `ingest` | `app/routes/ingest.py` | 12 | 0 | 5 | 7 | P-A 12 |
+| `ingest` | `app/routes/ingest.py` | 12 | 0 | 2 | 10 | P-A 12 |
 | `health` | `app/routes/health.py` | 1 | 1 | 0 | 0 | P-E 1 |
 | `chat` | `app/routes/chat.py` | 2 | 0 | 1 | 1 | P-A 2 |
 | `stocks` | `app/routes/stocks.py` | 41 | 9 | 37 | 4 | P-E 21 · P-A 8 · 미배정 6 · P-B 5 · P-D 1 |
 | `kis_monitor` | `app/routes/kis_monitor.py` | 2 | 0 | 0 | 2 | P-E 2 |
 | `library` | `app/routes/library.py` | 1 | 0 | 0 | 0 | P-A 1 |
-| `admin` | `app/routes/admin.py` | 3 | 0 | 2 | 1 | 공통 3 |
+| `admin` | `app/routes/admin.py` | 2 | 0 | 1 | 1 | 공통 2 |
 | `system` | `app/routes/system.py` | 3 | 0 | 1 | 0 | P-E 3 |
 | `quant` | `app/routes/quant.py` | 3 | 1 | 0 | 3 | P-D 3 |
 | `ml` | `app/routes/ml.py` | 10 | 0 | 10 | 0 | P-D 8 · P-C 2 |
@@ -172,10 +172,10 @@ flowchart LR
 | `glossary` | `app/routes/glossary.py` | 5 | 5 | 0 | 1 | P-A 5 |
 | `learn` | `app/routes/learn.py` | 7 | 2 | 0 | 7 | P-A 7 |
 | `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
-| `data` | `app/routes/data.py` | 7 | 0 | 2 | 5 | P-A 7 |
+| `data` | `app/routes/data.py` | 10 | 0 | 8 | 2 | P-A 10 |
 | `calendar` | `app/routes/calendar.py` | 3 | 3 | 3 | 0 | P-A 3 |
 | `kb` | `app/routes/kb.py` | 3 | 1 | 1 | 2 | P-A 3 |
-| **합계** | 30개 | **233** | **55** | **111** | **71** | |
+| **합계** | 30개 | **235** | **55** | **113** | **71** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -186,7 +186,7 @@ flowchart LR
 | `stocks` | 9 | 14 | 8 | 4 | 37 | 4 | · | · | · | · | · | · | 7 | 12 |
 | `kis_monitor` | · | · | · | · | 2 | 1 | · | · | · | · | · | · | · | · |
 | `library` | · | · | · | · | 1 | · | · | · | · | · | · | · | · | · |
-| `admin` | · | · | · | · | 3 | · | · | · | · | · | · | · | · | · |
+| `admin` | · | · | · | · | 2 | · | · | · | · | · | · | · | · | · |
 | `system` | 1 | 2 | · | · | 2 | 1 | · | 1 | 1 | · | · | · | · | · |
 | `quant` | 2 | 2 | · | · | 2 | · | · | · | · | · | · | · | · | 2 |
 | `ml` | 7 | 7 | · | · | 7 | · | · | · | · | · | · | · | · | · |
@@ -206,10 +206,10 @@ flowchart LR
 | `glossary` | · | · | · | · | 5 | · | · | · | · | · | · | · | · | · |
 | `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 7 |
 | `lectures` | 6 | 5 | · | · | · | · | · | · | · | · | · | · | · | 2 |
-| `data` | 5 | · | · | · | · | · | · | · | · | · | · | · | · | 1 |
+| `data` | 7 | · | · | · | · | · | · | · | · | · | · | · | · | 1 |
 | `calendar` | 3 | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `kb` | · | · | · | · | · | · | · | 2 | 2 | · | · | · | · | · |
-| **합계** | **51** | **64** | **9** | **4** | **162** | **31** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **59** |
+| **합계** | **53** | **64** | **9** | **4** | **161** | **31** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **59** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -286,7 +286,7 @@ flowchart LR
 | `503` | 의존 서비스 없음 | 11 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-CHAT-01, API-DOC-01, API-GRPH-01 외 5 |
 | `503 MARKET_DATA_UNAVAILABLE` | 의존 서비스 없음 | 1 | API-OAPI-01 |
 | `504` | 시간 초과 | 1 | API-CHAT-01 |
-| `?` |  | 8 | API-TV-01, API-LEC-06, API-DATA-02, API-DATA-03, API-DATA-04, API-KB-01 외 2 |
+| `?` |  | 9 | API-TV-01, API-LEC-06, API-DATA-09, API-DATA-02, API-DATA-03, API-DATA-04 외 3 |
 <!-- /api_scan:overview -->
 
 ---
@@ -297,6 +297,7 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 
 | 날짜 | 라우트 (ID) | 수 | 누가 · 왜 | 인증 | 상태 코드 · 규칙 (요점) | 설계 · 시험 |
 |---|---|:-:|---|---|---|---|
+| **10-08** | `data` +3 (**DATA-08** `GET /api/data/fetch-sources` · **DATA-09** `GET /api/data/fetch-plan` · **DATA-10** `GET /api/data/backup`) · `admin` −1 (**ADM-01** `POST /api/admin/reset` 폐기) | 2 | 크롤링 세 화면 구현 — 자료 직접 받기의 종류 · 출처 표와 받을 범위(실제 수집 단위: 시세 · 공시 · 정책뉴스는 날, 재무는 해 · 수집기가 남긴 기록 열쇠만 읽는다 — 앱에 수집기 상수를 베끼지 않는다) · 적재 · 백업의 판정(규칙은 `scripts/hf_dataset.py` 한 곳 · 도구가 쓴 `state/hf_backup_status.json` 을 읽기만) · 「DB 초기화」 없앰(DF-78) | 세션 · **관리자** | `DATA-09` 422 잘못된 입력(종류 · 날짜 꼴 · 끝 < 시작 · 400일 · 10년 넘음) · 503 수집 DB · 달력 · 수집 기록 표 없음 · 받을 것이 있으면 `command`(PC 에서 돌릴 명령 — 화면은 돌리지 않는다) · `DATA-10` 기록이 없으면 200 `available: false` + 기록을 만드는 명령 · 받는 길(`ING-03` · 비동기 `ING-10`)이 리다이렉트 홉마다 보내기 전에 주소 검사(막히면 400) | UI 명세서 5절 · TC-FP · TC-BK · TC-CL · TC-UG-07 · 08 |
 | 10-07 | `data` +3 (`API-DATA-05~07`) · `ingest` 받는 길 셋 | 3 | 크롤링 세 화면 서버(결정 ④ · 설계 2) — 단계 이름표 · 묶음 · 하는 일은 러너가 쓴 기록에서(앱 사본 없음) · 주소 검사 | 세션 · **관리자**(DATA-05~07) | `DATA-05` 마지막 회차 · 회차 기록(단계별 결과는 10-07 뒤 회차부터) · 단계 목록 · 이 PC 용량 · 다시 돌리는 명령 · `DATA-07` 막혀도 200(까닭 · 지난 검사) · `ING-03 · 04 · 10` 막히면 400 `{"detail": {"message", "hint"}}` — 형식 · 내부망 · 허용 목록 · robots | UI 명세서 5절 · TC-DST-08 · 11 · 12 · TC-UG |
 | 09-30 | `rebalance`(RBAL 9) · `tradingview`(TV 5) · `formula`(FRML 13) · `stocks` +4 · `ml` +4 | 35 | 강사님 기초 코드 `b055ab0` | 세션 · 웹훅은 본문 API 키 | 웹훅 받는 쪽 확인(비밀 토큰 · 중복 신호)은 요구 `P02-③-3` 설계에서 | TC-RB · TC-TV · TC-FM |
 | 09-30 | `auth` +4 (`API-AUTH-11~14`) | 4 | 계정 관리(이메일 대소문자 · 마이페이지 · 탈퇴 · 로그인 유지) | 세션 | 탈퇴는 비밀번호 확인 · 로그인 유지 30일(슬라이딩) | 동작 원리서 2절 · TC-AC |
@@ -368,10 +369,10 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-ING-01 | POST | `/api/ingest/financial` | 세션 | — | {ok, result, log} | — | PostgreSQL | `crawl-ingest` | P-A | P01-①-2 | ingest.py:23 |
-| API-ING-02 | POST | `/api/ingest/crawl/auto` | 세션 | — | {ok, result, log} | — | PostgreSQL · Qdrant · LLM · 외부(api.github.com, github.com …) | `crawl-auto` | P-A | P01-①-2 | ingest.py:33 |
+| API-ING-01 | POST | `/api/ingest/financial` | 세션 | — | {ok, result, log} | — | PostgreSQL | — | P-A | P01-①-2 | ingest.py:23 |
+| API-ING-02 | POST | `/api/ingest/crawl/auto` | 세션 | — | {ok, result, log} | — | PostgreSQL · Qdrant · LLM · 외부(api.github.com, github.com …) | — | P-A | P01-①-2 | ingest.py:33 |
 | API-ING-03 | POST | `/api/ingest/crawl/url` | 세션 | 본문 `CrawlUrlBody` | {ok, chunks, log} | — | PostgreSQL · Qdrant · LLM | `crawl-manual` | P-A | P01-①-2 | ingest.py:48 |
-| API-ING-04 | POST | `/api/ingest/crawl/naver` | 세션 | 본문 `CrawlNaverBody` | {ok, chunks, message} | — | PostgreSQL · Qdrant · LLM · 외부(finance.naver.com) | `crawl-manual` | P-A | P01-①-2 | ingest.py:65 |
+| API-ING-04 | POST | `/api/ingest/crawl/naver` | 세션 | 본문 `CrawlNaverBody` | {ok, chunks, message} | — | PostgreSQL · Qdrant · LLM · 외부(finance.naver.com) | — | P-A | P01-①-2 | ingest.py:65 |
 | API-ING-05 | POST | `/api/ingest/local-docs` | 세션 | — | {ok, total_chunks, log} | — | PostgreSQL · Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:80 |
 | API-ING-06 | POST | `/api/ingest/translation-data` | 세션 | 본문 `TranslationIngestBody` | {ok, result, log} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:130 |
 | API-ING-07 | POST | `/api/ingest/translation-search` | 세션 | 본문 `TranslationSearchBody` | {ok, hits, collection} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:156 |
@@ -379,7 +380,7 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 | API-ING-09 | POST | `/api/ingest/crawl/auto/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(api.github.com, github.com …) | — | P-A | P01-①-4 | ingest.py:185 |
 | API-ING-10 | POST | `/api/ingest/crawl/url/async` | 세션 | 본문 `CrawlUrlBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:193 |
 | API-ING-11 | POST | `/api/ingest/translation-data/async` | 세션 | 본문 `TranslationIngestBody` | {task_id, poll_url} | — | Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:202 |
-| API-ING-12 | GET | `/api/ingest/crawl/list` | 세션 | — | {items} | — | PostgreSQL | `crawl-manual`, `robo-patterns` | P-A | P01-①-2 | ingest.py:218 |
+| API-ING-12 | GET | `/api/ingest/crawl/list` | 세션 | — | {items} | — | PostgreSQL | `crawl-manual` | P-A | P01-①-2 | ingest.py:218 |
 
 #### `health` — `app/routes/health.py` · 1개
 
@@ -453,13 +454,12 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | API-LIB-01 | GET | `/api/library/search` | 세션 | `q` · `category` | {items, query} | — | PostgreSQL | (다른 곳) | P-A | P01-①-2 | library.py:12 |
 
-#### `admin` — `app/routes/admin.py` · 3개
+#### `admin` — `app/routes/admin.py` · 2개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-ADM-01 | POST | `/api/admin/reset` | 세션 + 관리자 | — | {ok, message} | — | PostgreSQL | `crawl-ingest` | 공통 | — | admin.py:25 |
-| API-ADM-02 | GET | `/api/admin/stats` | 세션 + 관리자 | — | {stats} | — | PostgreSQL | — | 공통 | — | admin.py:39 |
-| API-ADM-03 | GET | `/api/admin/audit-log` | 세션 + 관리자 | `event_type` · `user_id` · `limit` | {events, count} | — | PostgreSQL | `robo-patterns`, `sysadmin-logs` | 공통 | — | admin.py:51 |
+| API-ADM-02 | GET | `/api/admin/stats` | 세션 + 관리자 | — | {stats} | — | PostgreSQL | — | 공통 | — | admin.py:29 |
+| API-ADM-03 | GET | `/api/admin/audit-log` | 세션 + 관리자 | `event_type` · `user_id` · `limit` | {events, count} | — | PostgreSQL | `robo-patterns`, `sysadmin-logs` | 공통 | — | admin.py:41 |
 
 #### `system` — `app/routes/system.py` · 3개
 
@@ -700,17 +700,20 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 | API-LEC-07 | POST | `/api/lectures/market/period-return/extend` | 없음 | `ticker`* · `start`* | 모델 없음 | — | 수집DB | — | 미배정 | — | lectures.py:90 |
 | API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 없음 | — | Response | — | 외부(www.emuseum.go.kr) | (다른 곳) | 미배정 | — | lectures.py:98 |
 
-#### `data` — `app/routes/data.py` · 7개
+#### `data` — `app/routes/data.py` · 10개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-DATA-01 | GET | `/api/data/status` | 세션 | — | 모델 없음 | — | 수집DB | `data-status` | P-A | — | data.py:24 |
-| API-DATA-05 | GET | `/api/data/runner` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | — | P-A | — | data.py:36 |
-| API-DATA-06 | GET | `/api/data/url-rules` | 세션 + 관리자 | — | 모델 없음 | — | — | — | P-A | — | data.py:42 |
-| API-DATA-07 | POST | `/api/data/url-check` | 세션 + 관리자 | 본문 `UrlCheckBody` | 모델 없음 | — | — | — | P-A | — | data.py:51 |
-| API-DATA-02 | GET | `/api/data/ohlcv` | 세션 | `symbol`* · `timeframe` · `from` · `to` · `basis` · `limit` | 모델 없음 | ? | 수집DB | — | P-A | — | data.py:57 |
-| API-DATA-03 | GET | `/api/data/search` | 세션 | `q` · `kind` · `symbol` · `topic` · `term` · `dtype` · `from` · `to` · `sort` · `limit` · `offset` · `source` · `facets` | 모델 없음 | ? | 수집DB | `agent-news` | P-A | — | data.py:76 |
-| API-DATA-04 | GET | `/api/data/financials` | 세션 | `symbol`* · `as_of` · `pit` · `fs` · `periods` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB · 외부(dart.fss.or.kr) | — | P-A | — | data.py:100 |
+| API-DATA-01 | GET | `/api/data/status` | 세션 | — | 모델 없음 | — | 수집DB | `data-status` | P-A | — | data.py:26 |
+| API-DATA-05 | GET | `/api/data/runner` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | `crawl-auto` | P-A | — | data.py:38 |
+| API-DATA-06 | GET | `/api/data/url-rules` | 세션 + 관리자 | — | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:44 |
+| API-DATA-07 | POST | `/api/data/url-check` | 세션 + 관리자 | 본문 `UrlCheckBody` | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:53 |
+| API-DATA-08 | GET | `/api/data/fetch-sources` | 세션 + 관리자 | — | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:59 |
+| API-DATA-09 | GET | `/api/data/fetch-plan` | 세션 + 관리자 | `kind`* · `from`* · `to` | 모델 없음 | ? | 수집DB | `crawl-manual` | P-A | — | data.py:64 |
+| API-DATA-10 | GET | `/api/data/backup` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | `crawl-ingest` | P-A | — | data.py:78 |
+| API-DATA-02 | GET | `/api/data/ohlcv` | 세션 | `symbol`* · `timeframe` · `from` · `to` · `basis` · `limit` | 모델 없음 | ? | 수집DB | — | P-A | — | data.py:84 |
+| API-DATA-03 | GET | `/api/data/search` | 세션 | `q` · `kind` · `symbol` · `topic` · `term` · `dtype` · `from` · `to` · `sort` · `limit` · `offset` · `source` · `facets` | 모델 없음 | ? | 수집DB | `agent-news` | P-A | — | data.py:103 |
+| API-DATA-04 | GET | `/api/data/financials` | 세션 | `symbol`* · `as_of` · `pit` · `fs` · `periods` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB · 외부(dart.fss.or.kr) | — | P-A | — | data.py:127 |
 
 #### `calendar` — `app/routes/calendar.py` · 3개
 
@@ -804,6 +807,7 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 | 인증 의존성 (`session.get_current_user` 등) | `401` 「로그인이 필요합니다」 · 「세션이 만료되었습니다」 · `403`(역할 · 관리자) | `{"detail": "문자열"}` | 인증 이름표가 붙은 113곳 |
 | Open API 인증 (`require_api_key`) | `401 UNAUTHORIZED` · `429 RATE_LIMITED`(키당 분당 60회) | Open API 모양 | 8곳 |
 | 주소 검사 (`url_guard.ensure_allowed` · 2026-10-07) | `400` 「받을 수 없는 주소 — 까닭」 | `{"detail": {"message": "…", "hint": "허용 목록: …"}}` | 3곳(`API-ING-03 · 04 · 10`) |
+| 리다이렉트 홉 (`url_guard.guard_request` · 2026-10-08) | `400` 「리다이렉트로 옮겨 간 주소를 받을 수 없다 — 까닭」(그 주소로는 요청을 보내지 않았다) | `{"detail": {"message": "…", "url": "막힌 주소", "hint": "허용 목록: …"}}` | `API-ING-03`(비동기 `API-ING-10` 은 작업 실패로) |
 | FastAPI 스스로 | `422` 요청 검증 실패 | `{"detail": [{"loc", "msg", "type"}, …]}` | 인자가 있는 전부 |
 
 > 🟡 **규약 제안(② 에서 정함)** — 새로 만드는 API 는 한 형식만 쓴다. 후보는 Open API 모양(`error` 이름 + `message`)이다.
@@ -931,6 +935,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.14 | 2026-10-08 | 추가 — 라우트 셋 `API-DATA-08`(자료 종류 · 출처 · 이용 조건) · `API-DATA-09`(받을 범위) · `API-DATA-10`(적재 · 백업 판정) · 2.1절 10-08 줄 · 6절 리다이렉트 홉 400 줄 / 없앰 — `API-ADM-01` `POST /api/admin/reset`(대장 「폐기」 · DF-78) / 변경 — `API-ING-03 · 10` 받기가 리다이렉트 홉마다 보내기 전에 주소 검사 · 4절 표(스캐너 다시 채움) · 합계 233 → 235 / 정답 대조 234/234 | 크롤링 세 화면 구현 — 사용자 결정 셋(10-08: PC 쪽 일은 명령 보여 주기 · 실제 수집 단위 · 백업 판정은 도구가 쓰고 앱은 읽기) · 「DB 초기화」 단추와 서버 길 함께 없앰(10-07 결정) | `api_scan.py --assign S101` · `--doc` · `--catalog` · `--openapi` · TC-FP · TC-BK · TC-CL · TC-UG-07 · 08 |
 | v0.13 | 2026-10-08 | 추가 — 라우트 둘 `API-KMON-01 · 02`(강사님 `kis_monitor` 라우터 · 담당 대응표 P-E 한 줄 · 요구 ID 는 기능 설계서 부록 A 에 대응이 생길 때까지 「—」) / 변경 — `API-HLTH-01` 응답 `quant`(환경 표시는 `gateway.environment()` — Qurious 고침) · `API-STK-08` `symbols` · 실주문 목록 · 자동매매 상태의 `batch` · `reconcile` · 원클릭 준비 상태의 `defaults` · `interval_min`(설정 `QUANT_CYCLE_SEC` 을 따름 — Qurious 600초) · 4절 표(스캐너 다시 채움 · 줄 번호) · 합계 231 → 233 · 라우터 29 → 30 / 정답 대조 232/232 | 강사님 th06 23커밋 서버 쪽 반영(운용 값 넷은 받지 않음 · 사용자 10-08) | `api_scan.py --doc` · `--catalog` · `--openapi` · TC-BM · TC-LT 8절 |
 | v0.12 | 2026-10-07 | 다시 채움(같은 날 · 팀원 #136 · #137 · #138 머지 뒤 — #137 에서 모의투자 `PAPR-33` metrics · `PAPR-34` snapshot 이 빠지고 `PAPR-35` simulate 가 두 줄이었다가(라우트 230 · DF-83) #138 이 되살려 다시 231 · `PAPR-35` 는 관리자 전용 한 줄) — 리밸런싱 표 줄(`RBAL-03` 409 없어짐 · `valuation_error` · 리밸런싱이 야후 · KRX 를 부르지 않음) · 오류 코드 요약 / 추가 — 라우트 셋 `API-DATA-05`(수집 일정 · 단계 · 관리자) · `API-DATA-06`(주소 검사 규칙) · `API-DATA-07`(주소 검사) · 6절 주소 검사 400 몸통 줄 · 2.1절 10-07 줄 / 변경 — `API-ING-03 · 04 · 10` 이 주소 검사(형식 · 내부망 · 허용 목록 · robots)를 지나야 받는다(막히면 400) · 4절 표(스캐너 다시 채움 · ingest 줄 번호) · 합계 228 → 231 | 크롤링 세 화면 서버 — 결정 ④(단계가 늘면 화면이 따라온다) · 설계 2(허용 목록에 있는 곳만) · 수동 크롤링이 아무 주소나 받던 위험(내부망 요청 · robots) | `api_scan.py --assign 2026-10-07` · `--doc` · TC-DST-08 · 11 · 12 · TC-UG |
 | v0.11 | 2026-10-06 | 추가 — `API-KB-03` 응답 `check.absence`(「없다」 단정 거름 · `no_evidence` 갈래에만) · `check.echo`(질문 되풀이 거름 · `excerpt` 갈래에만) · 0절 9 / 변경 — 기준 코드 `5e5a393` · 라우트 228 그대로(`api_scan --check` · 응답 모델 0) | DF-64(근거 밖 단정) · DF-76(질문 되풀이) | `app/services/kb_answer.py` `absence_claims` · `echoes_question` · TC-KA-13 ~ 16 |

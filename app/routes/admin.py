@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgres import get_pg_session
@@ -8,7 +8,6 @@ from app.models import (
     AuditEvent, BankProduct, BrokerSettings, Chat, CorporateCbStat,
     CrawledDoc, FundProduct, Order, PersonalCbStat, Portfolio,
 )
-from app.services.audit import audit
 
 router = APIRouter(prefix="/api/admin")
 
@@ -22,18 +21,9 @@ def _require_admin(user=Depends(get_current_user)):
     return user
 
 
-@router.post("/reset")
-async def reset_db(
-    user=Depends(_require_admin),
-    db: AsyncSession = Depends(get_pg_session),
-):
-    for model in FINANCIAL_MODELS + USER_MODELS:
-        await db.execute(delete(model))
-    await db.commit()
-
-    table_names = [m.__tablename__ for m in FINANCIAL_MODELS + USER_MODELS]
-    await audit(user["id"], "", "admin.db_reset", {"tables": table_names})
-    return {"ok": True, "message": f"PostgreSQL {len(FINANCIAL_MODELS)}개 금융테이블 + {len(USER_MODELS)}개 사용자테이블 초기화 완료"}
+# (Qurious 2026-10-08 · DF-78) 「DB 초기화」 `POST /api/admin/reset` 을 없앴다 — 신용평가 참조 표 넷만이 아니라
+# 모든 사용자의 주문 · 포트폴리오 · 증권사 설정 · 채팅 · 크롤링 문서 · 감사 로그(USER_MODELS)까지 지웠다.
+# 개발용 초기화는 일회용 시험 DB(scripts/personal/test.ps1) · alembic 으로 한다(크롤링 세 화면 결정 ② A · 2026-10-07).
 
 
 @router.get("/stats")

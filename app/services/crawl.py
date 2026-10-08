@@ -10,6 +10,7 @@ from app.config import settings
 from app.lib.ollama import OllamaClient
 from app.models import CrawledDoc
 from app.services.crawl_points import crawl_point_id, prune_stale_points
+from app.services import url_guard  # Qurious: 리다이렉트 홉마다 보내기 전에 주소 검사(규칙은 그 파일에)
 
 
 async def _upsert_crawled_doc(db: AsyncSession, url: str, title: str, content: str, source: str) -> None:
@@ -186,11 +187,14 @@ async def crawl_url(
         timeout=30.0,
         follow_redirects=True,
         headers={"User-Agent": "Mozilla/5.0 (compatible; FinAgent/1.0)"},
+        event_hooks={"request": [url_guard.guard_request]},  # Qurious: 리다이렉트로 옮겨 갈 주소도 보내기 전에 검사
     ) as client:
         try:
             resp = await client.get(url)
             resp.raise_for_status()
             html = resp.text
+        except url_guard.BlockedHop:  # Qurious: 막힌 홉은 400 으로 — 아래가 삼켜 「0청크 · 성공」 이 되지 않게
+            raise
         except Exception as e:
             log.append(f"[ERROR] {url}: {e}")
             return 0

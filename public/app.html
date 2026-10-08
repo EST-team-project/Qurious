@@ -22,6 +22,8 @@
   <link rel="stylesheet" href="/css/qurious.css" />
   <!-- 데이터 관제 · 금융 일정 (2026-10-02 · js/datahub.js · js/calendar.js) -->
   <link rel="stylesheet" href="/css/datahub.css" />
+  <!-- 데이터 수집 화면 셋 — 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (2026-10-08 · js/collect.js) -->
+  <link rel="stylesheet" href="/css/collect.css" />
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -291,58 +293,12 @@
           <!-- 2-0. 데이터 관제 (2026-10-02) — 내용은 js/datahub.js 가 그린다(GET /api/data/status) -->
           <div class="view" data-view="data-status"><div class="dh-root"></div></div>
 
-          <!-- 2-1. 자동 크롤링 -->
-          <div class="view" data-view="crawl-auto">
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-2">🤖 자동 크롤링</h2>
-              <p class="text-sm text-slate-400 mb-4">
-                설정된 소스(GitHub python-quant docs 등)를 자동으로 크롤링하여 Qdrant RAG에 저장합니다.
-              </p>
-              <div class="mb-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-slate-300">
-                <div class="font-semibold text-indigo-300 mb-1">크롤링 대상</div>
-                <div>• <code class="text-xs bg-black/40 px-1 rounded">github:edumgt/python-quant/docs</code> — 퀀트 전략 문서
-                </div>
-              </div>
-              <button id="auto-crawl-btn" class="btn-primary">자동 크롤링 실행</button>
-              <pre id="crawl-log" class="mt-4 text-xs text-slate-300 bg-black/30 rounded-xl p-4 min-h-[120px]"></pre>
-            </div>
-          </div>
-
-          <!-- 2-2. 수동 크롤링 -->
-          <div class="view" data-view="crawl-manual">
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-4">🔗 수동 URL 크롤링</h2>
-              <div class="flex gap-2 mb-4">
-                <input id="crawl-url" class="input flex-1" placeholder="https://..." />
-                <button id="manual-crawl-btn" class="btn-primary whitespace-nowrap">크롤링</button>
-              </div>
-              <div class="text-xs text-slate-500 mb-4">
-                금융 포털, 증권사 리포트, 공시 페이지 URL을 입력하면 텍스트를 추출하여 RAG에 저장합니다.
-              </div>
-              <div class="flex gap-2 mb-4">
-                <input id="crawl-naver-code" class="input w-40" placeholder="네이버 종목코드 (예: 005930)" />
-                <button id="naver-crawl-btn" class="btn-secondary whitespace-nowrap">네이버 주식 크롤링</button>
-              </div>
-              <pre id="manual-crawl-log" class="text-xs text-slate-300 bg-black/30 rounded-xl p-4 min-h-[100px]"></pre>
-              <h3 class="font-semibold mt-5 mb-2">크롤링 현황</h3>
-              <div id="crawl-list" class="space-y-2 text-sm"></div>
-            </div>
-          </div>
-
-          <!-- 2-3. 데이터 인제스트 -->
-          <div class="view" data-view="crawl-ingest">
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-2">📂 금융 데이터 인제스트</h2>
-              <p class="text-sm text-slate-400 mb-4">
-                개인CB / 기업CB / 금융상품 CSV 파일을 MongoDB에 집계하여 저장합니다. (최초 1회 또는 데이터 갱신 시)
-              </p>
-              <div class="flex gap-3">
-                <button id="ingest-btn" class="btn-primary">데이터 인제스트 실행</button>
-                <button id="admin-reset-btn" class="btn-red">DB 초기화</button>
-              </div>
-              <pre id="ingest-log" class="mt-4 text-xs text-slate-300 bg-black/30 rounded-xl p-4 min-h-[160px]"></pre>
-            </div>
-          </div>
+          <!-- 2-1 ~ 2-3. 데이터 수집 화면 셋 (2026-10-08 · Figma 「데이터 수집 화면」 설계 1 ~ 3) — 내용은 js/collect.js 가 그린다.
+               옛 강사님 예제(외부 강의 문서 자동 크롤링 · 네이버 종목 긁기 · 신용평가 CSV 인제스트 · DB 초기화)는 결정 ① ~ ④ 로 뺐다
+               (UI 명세서 5.6절 <표 14>). 화면 키는 그대로 두고 이름만 바꿨다 — 옛 주소가 열리고 기초 코드 반영 때 부딪히는 곳이 적다. -->
+          <div class="view" data-view="crawl-auto"><div class="cl-root" data-cl="schedule"></div></div>
+          <div class="view" data-view="crawl-manual"><div class="cl-root" data-cl="fetch"></div></div>
+          <div class="view" data-view="crawl-ingest"><div class="cl-root" data-cl="backup"></div></div>
 
           <!-- ══ 3. 직접 주식 매매 ════════════════════════════════════== -->
           <!-- 3-1. 주가 차트 -->

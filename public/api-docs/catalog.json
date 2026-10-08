@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 233,
+ "count": 235,
  "routers": 30,
  "routes": [
   {
@@ -385,9 +385,7 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [
-    "crawl-ingest"
-   ],
+   "screens": [],
    "part": "P-A",
    "req": [
     "P01-①-2"
@@ -421,9 +419,7 @@
     "github.com",
     "raw.githubusercontent.com"
    ],
-   "screens": [
-    "crawl-auto"
-   ],
+   "screens": [],
    "part": "P-A",
    "req": [
     "P01-①-2"
@@ -488,9 +484,7 @@
    "hosts": [
     "finance.naver.com"
    ],
-   "screens": [
-    "crawl-manual"
-   ],
+   "screens": [],
    "part": "P-A",
    "req": [
     "P01-①-2"
@@ -735,8 +729,7 @@
    ],
    "hosts": [],
    "screens": [
-    "crawl-manual",
-    "robo-patterns"
+    "crawl-manual"
    ],
    "part": "P-A",
    "req": [
@@ -2301,32 +2294,6 @@
    "schema": true
   },
   {
-   "id": "API-ADM-01",
-   "router": "admin",
-   "method": "POST",
-   "path": "/api/admin/reset",
-   "summary": "",
-   "auth": "세션 + 관리자",
-   "reaches": [
-    "PostgreSQL"
-   ],
-   "hosts": [],
-   "screens": [
-    "crawl-ingest"
-   ],
-   "part": "공통",
-   "req": [],
-   "file": "app/routes/admin.py",
-   "line": 25,
-   "errors": [],
-   "keys": [
-    "ok",
-    "message"
-   ],
-   "body": [],
-   "schema": true
-  },
-  {
    "id": "API-ADM-02",
    "router": "admin",
    "method": "GET",
@@ -2341,7 +2308,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/admin.py",
-   "line": 39,
+   "line": 29,
    "errors": [],
    "keys": [
     "stats"
@@ -2367,7 +2334,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/admin.py",
-   "line": 51,
+   "line": 41,
    "errors": [],
    "keys": [
     "events",
@@ -6463,7 +6430,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 24,
+   "line": 26,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6480,11 +6447,13 @@
     "수집DB"
    ],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "crawl-auto"
+   ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 36,
+   "line": 38,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6499,11 +6468,13 @@
    "auth": "세션 + 관리자",
    "reaches": [],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "crawl-manual"
+   ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 42,
+   "line": 44,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6518,16 +6489,87 @@
    "auth": "세션 + 관리자",
    "reaches": [],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "crawl-manual"
+   ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 51,
+   "line": 53,
    "errors": [],
    "keys": [],
    "body": [
     "UrlCheckBody"
    ],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-08",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/fetch-sources",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "crawl-manual"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 59,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-09",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/fetch-plan",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "crawl-manual"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 64,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-10",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/backup",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "crawl-ingest"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 78,
+   "errors": [],
+   "keys": [],
+   "body": [],
    "schema": true
   },
   {
@@ -6545,7 +6587,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 57,
+   "line": 84,
    "errors": [
     "?"
    ],
@@ -6570,7 +6612,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 76,
+   "line": 103,
    "errors": [
     "?"
    ],
@@ -6596,7 +6638,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 100,
+   "line": 127,
    "errors": [
     "?"
    ],

@@ -259,45 +259,9 @@ document.getElementById("news-search")?.addEventListener("click", async () => {
 });
 
 // ── 크롤링 ───────────────────────────────────────────────────────
-document.getElementById("auto-crawl-btn").addEventListener("click", async () => {
-  const log = document.getElementById("crawl-log");
-  log.textContent = "크롤링 시작...";
-  try {
-    const res = await api("/api/ingest/crawl/auto", { method: "POST" });
-    log.textContent = res.log.join("\n");
-    setToast("크롤링 완료", "ok");
-  } catch (e) { log.textContent += "\n[ERROR] " + e.message; setToast(e.message, "error"); }
-});
-
-document.getElementById("manual-crawl-btn").addEventListener("click", async () => {
-  const url = document.getElementById("crawl-url").value.trim();
-  const log = document.getElementById("manual-crawl-log");
-  if (!url) return setToast("URL을 입력하세요.", "error");
-  log.textContent = "크롤링 중...";
-  try {
-    const res = await api("/api/ingest/crawl/url", { method: "POST", body: { url } });
-    log.textContent = res.log.join("\n");
-    setToast(`${res.chunks}청크 저장 완료`, "ok");
-    loadCrawlList();
-  } catch (e) { log.textContent += "\n[ERROR] " + e.message; setToast(e.message, "error"); }
-});
-
-document.getElementById("naver-crawl-btn").addEventListener("click", async () => {
-  const code = document.getElementById("crawl-naver-code").value.trim();
-  const log = document.getElementById("manual-crawl-log");
-  if (!code) return setToast("네이버 종목코드를 입력하세요. (예: 005930)", "error");
-  log.textContent = "네이버 주식 크롤링 중...";
-  try {
-    const res = await api("/api/ingest/crawl/naver", { method: "POST", body: { code } });
-    log.textContent = res.message || "완료";
-    setToast(`${res.chunks}청크 저장 완료`, "ok");
-    loadCrawlList();
-  } catch (e) {
-    log.textContent += "\n[ERROR] " + e.message;
-    setToast(e.message, "error");
-  }
-});
-
+// (Qurious 2026-10-08) 크롤링 세 화면은 js/collect.js 가 그린다 — 자동 크롤링 · 네이버 긁기 · 금융 데이터 인제스트 ·
+// DB 초기화 단추와 그 리스너는 결정 ① ~ ④ · DF-78 로 뺐다(app.html 에 그 단추가 없으면 여기서 null 오류로 이 파일 전체가 멈춘다).
+// loadCrawlList 는 main.js 가 이 파일을 불러오는 이름이라 남긴다(#crawl-list 가 없으면 아무것도 그리지 않는다).
 async function loadCrawlList() {
   try {
     const { items } = await api("/api/ingest/crawl/list");
@@ -310,25 +274,6 @@ async function loadCrawlList() {
     `).join("") || "<div class='text-slate-400 text-xs'>크롤링된 문서가 없습니다.</div>";
   } catch {}
 }
-
-document.getElementById("ingest-btn").addEventListener("click", async () => {
-  const log = document.getElementById("ingest-log");
-  log.textContent = "인제스트 시작 (수 분 소요)...";
-  try {
-    const res = await api("/api/ingest/financial", { method: "POST" });
-    log.textContent = res.log.join("\n");
-    setToast("인제스트 완료", "ok");
-  } catch (e) { log.textContent += "\n[ERROR] " + e.message; setToast(e.message, "error"); }
-});
-
-document.getElementById("admin-reset-btn").addEventListener("click", async () => {
-  if (!confirm("DB를 초기화하시겠습니까?")) return;
-  try {
-    const res = await api("/api/admin/reset", { method: "POST" });
-    document.getElementById("ingest-log").textContent = res.message;
-    setToast("초기화 완료", "ok");
-  } catch (e) { setToast(e.message, "error"); }
-});
 
 
 export { loadCrawlList };

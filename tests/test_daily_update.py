@@ -196,7 +196,8 @@ def fake_runner(tmp_path, monkeypatch):
     lock = tmp_path / "state" / "daily_update.lock"
     for name, rel in (("LOG_DIR", "logs"), ("LAST_PATH", "state/daily_update_last.json"),
                       ("HISTORY_PATH", "state/daily_update_history.jsonl"),
-                      ("CATALOG_PATH", "state/daily_update_steps.json"), ("DISK_PATH", "state/pc_disk.json")):
+                      ("CATALOG_PATH", "state/daily_update_steps.json"), ("DISK_PATH", "state/pc_disk.json"),
+                      ("PROGRESS_PATH", "state/daily_update_progress.json")):
         monkeypatch.setattr(du, name, tmp_path / rel)
     monkeypatch.setattr(du, "acquire_lock", functools.partial(du.acquire_lock, lock))
     monkeypatch.setattr(du, "release_lock", functools.partial(du.release_lock, lock))
@@ -227,6 +228,28 @@ def test_run_writes_labels_step_history_catalog_and_disk(fake_runner):
     disk = json.loads((t / "state/pc_disk.json").read_text(encoding="utf-8"))
     assert disk["collector_db_bytes"] == 1000 and disk["free_bytes"] > 0 and disk["total_bytes"] >= disk["free_bytes"]
     assert not (t / "state/daily_update.lock").exists(), "잠금을 풀었다"
+
+
+def test_progress_names_the_running_step_and_is_cleared(fake_runner, monkeypatch):
+    """도는 중의 지금 단계 — 단계를 시작할 때 진행 파일에 몇 번째 · 모두 몇 · 이름 · 이름표를 잠금과 같은 시작 시각으로 적고,
+    회차가 끝나면 지운다 · 한 단계 다시도 같다(수집 일정 화면 「수집 중 — n번째 단계」 · 2026-10-08).
+    시계는 부를 때마다 1초씩 간다 — 잠금이 시작 시각을 따로 재면(같은 초에 들어 우연히 통과하던 꼴) 여기서 어긋난다."""
+    t = fake_runner
+    base = datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)
+    ticks = iter(range(10_000))
+    monkeypatch.setattr(du, "now_kst", lambda: base + datetime.timedelta(seconds=next(ticks)))
+    prog, lock = t / "state" / "daily_update_progress.json", t / "state" / "daily_update.lock"
+    # 단계 안에서 진행 파일 · 잠금을 읽어 맞으면 0, 아니면 9(회차 기록에 남는다)
+    check = ("import json,sys; p=json.load(open(r'{p}',encoding='utf-8')); l=json.load(open(r'{l}',encoding='utf-8')); "
+             "s=p['step']; sys.exit(0 if (s['index'], s['total'], s['name'], s['label']) == ({i}, 2, '{n}', '{lb}') "
+             "and p['started_at'] == l['started_at'] else 9)")
+    du.STEPS[0] = du.Step("alpha", ["-c", check.format(p=prog, l=lock, i=1, n="alpha", lb="가 단계")], 1,
+                          label="가 단계", group="받기", desc="첫 일")
+    du.STEPS[1] = du.Step("beta", ["-c", check.format(p=prog, l=lock, i=2, n="beta", lb="나 단계")], 1, fatal=False,
+                          label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_all() == 0, "단계 안에서 본 진행 파일이 그 단계 · 잠금과 같은 시작 시각이어야 한다"
+    assert not prog.exists(), "회차가 끝나면 진행 파일을 지운다"
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 16, 0, tzinfo=du.KST)) == 0 and not prog.exists()
 
 
 def test_rerun_one_step_blocks_and_patches_only_that_row(fake_runner):

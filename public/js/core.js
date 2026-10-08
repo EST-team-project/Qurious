@@ -20,14 +20,15 @@ const GNB_MENUS = {
       { key: "agent-news",      icon: "fa-solid fa-newspaper",             label: "투자 정보 리서치" },
     ],
   },
-  // 데이터(옛 「크롤링」 · 2026-10-02 화면 결정 ①) — 맨 위에 데이터 관제(js/datahub.js), 크롤링 세 화면은 그대로
+  // 데이터(옛 「크롤링」 · 2026-10-02 화면 결정 ①) — 맨 위에 데이터 관제(js/datahub.js). 아래 셋은 데이터 수집 화면
+  // (2026-10-08 · js/collect.js · 화면 키는 옛 크롤링 그대로) — 관리자에게만 보인다(css/collect.css 의 body.q-admin).
   crawl: {
     label: "<i class='fa-solid fa-database'></i> 데이터",
     items: [
       { key: "data-status",   icon: "fa-solid fa-gauge-high",      label: "데이터 관제" },
-      { key: "crawl-auto",    icon: "fa-solid fa-rotate",          label: "자동 크롤링" },
-      { key: "crawl-manual",  icon: "fa-solid fa-link",            label: "수동 크롤링" },
-      { key: "crawl-ingest",  icon: "fa-solid fa-database",        label: "데이터 인제스트" },
+      { key: "crawl-auto",    icon: "fa-solid fa-list-check",      label: "수집 일정 · 단계" },
+      { key: "crawl-manual",  icon: "fa-solid fa-download",        label: "자료 직접 받기" },
+      { key: "crawl-ingest",  icon: "fa-solid fa-cloud-arrow-up",  label: "적재 · 백업" },
     ],
   },
   trading: {
@@ -239,9 +240,10 @@ const VIEW_GUIDES = {
   // 데이터 관제 · 일정 (2026-10-02) — js/datahub.js · js/calendar.js
   "data-status":     { summary: "모은 자료가 며칠 것까지 있는지, 매일 낮 12시 30분 갱신이 돌았는지 한 화면에서 봅니다.", steps: ["위의 카드 넷에서 판정 · 주식 시세 기준일 · 낮 갱신 · 팀 공유 저장소를 먼저 보세요.", "「자료별 기준일」 표에서 늦은 자료가 있는지 보세요 — 「정상」 은 하루 밀림(시세는 다음 날 낮에 들어옵니다)입니다.", "어느 화면에서든 위 메뉴의 「자료 MM-DD · 판정」 을 누르면 요약이 열립니다."], relatedTerms: [] },
   "market-calendar": { summary: "휴장 · 파생 만기 · 금통위 · FOMC · 보고서 기한 · 배당 · 주주총회 · 실적 발표를 한 달 달력으로 봅니다.", steps: ["‹ › 로 달을 옮기고, 위의 종류 단추로 보고 싶은 일정만 고르세요.", "칸에는 시장 전체 일정은 이름, 종목 일정은 종류별 개수(주총 731)가 보입니다 — 날짜나 숫자를 누르면 오른쪽에 그날 목록이 50건씩 열립니다(휴대폰은 서랍).", "그날 목록에서 회사 이름 · 종목 코드로 찾고, 줄을 누르면 날짜 · 어떻게 정했는지 · 풀이가 열립니다. 모의계좌에 가진 종목은 맨 위에 ★ 로 올립니다."], relatedTerms: [] },
-  "crawl-auto":      { summary: "미리 등록된 소스(GitHub 문서 등)를 한 번에 크롤링해 AI 지식베이스에 반영합니다.", steps: ["'자동 크롤링 실행' 버튼을 누르면 진행 로그가 표시됩니다.", "완료 후 '금융정보 Agent'에서 관련 질문을 하면 새 자료가 답변에 반영됩니다."], relatedTerms: ["rag", "embedding", "qdrant"] },
-  "crawl-manual":    { summary: "특정 URL이나 네이버 종목 코드를 직접 입력해 원하는 자료만 크롤링합니다.", steps: ["URL을 입력하고 '크롤링'을 누르거나, 네이버 종목코드를 입력해 종목 페이지를 수집하세요.", "하단 목록에서 최근 수집된 문서를 확인할 수 있습니다."], relatedTerms: ["qdrant"] },
-  "crawl-ingest":    { summary: "CSV로 준비된 신용·금융상품 데이터를 DB에 적재하거나 초기화합니다.", steps: ["'금융 데이터 인제스트'는 data 폴더의 CSV를 읽어 DB에 반영합니다.", "'DB 초기화'는 관리자 전용이며 기존 데이터를 모두 삭제하니 주의하세요."], relatedTerms: [] },
+  // 데이터 수집 화면 셋 (2026-10-08) — js/collect.js · 관리자 화면
+  "crawl-auto":      { summary: "매일 낮 12시 30분 수집 회차가 자료를 받고 · 계산하고 · 백업한 결과를 단계마다 봅니다(관리자).", steps: ["위의 카드 넷에서 마지막 회차 · 결과 · 자료 기준일 · 다음 회차를 먼저 보세요.", "회차 고르기에서 지난 회차를 고르면 그 회차의 단계 표로 바뀝니다 — 한 단계만 다시 돌린 기록은 따로 표시됩니다.", "한 단계만 다시 돌리려면 그 줄의 「이 단계만 다시」 를 눌러 나오는 명령을 이 PC 에서 돌리세요. 수집이 도는 동안(12:30 ~ 13:30)에는 막힙니다."], relatedTerms: [] },
+  "crawl-manual":    { summary: "매일 수집이 빠뜨린 날이나 과거분을 메웁니다 — 받을 범위를 먼저 보고, 받는 명령을 이 PC 에서 돌립니다(관리자).", steps: ["자료 종류와 기간을 고르고 「받을 범위 보기」 를 누르세요 — 이미 받은 날은 건너뛰고 빈 날만 받습니다.", "빈 날이 있으면 「받기」 를 눌러 나오는 명령을 이 PC 에서 돌린 뒤 범위를 다시 보세요.", "주소로 받을 때는 허용 목록에 있는 곳만 받습니다 — 먼저 「주소 검사」 를 누르세요."], relatedTerms: [] },
+  "crawl-ingest":    { summary: "수집 자료를 Hugging Face 비공개 데이터셋에 백업한 상태와 이 PC 용량을 봅니다(관리자).", steps: ["점검 줄이 모두 「통과」 여야 로컬 원본을 지워도 된다고 판정합니다.", "원격 다시 확인 · 복원 리허설은 단추를 눌러 나오는 명령을 이 PC 에서 돌리세요 — 다음 판정에 그 결과가 들어갑니다."], relatedTerms: [] },
   "trading-chart":   { summary: "종목 시세와 캔들 차트를 조회합니다.", steps: ["'종목 검색'으로 원하는 종목을 선택하세요.", "기간을 바꿔가며 캔들 차트와 현재가·등락률을 확인하세요."], relatedTerms: ["ma", "rsi"] },
   "trading-portfolio": { summary: "직접 보유 종목을 등록해 나만의 포트폴리오를 관리합니다.", steps: ["종목명·수량·평균단가를 입력해 보유 내역을 추가하세요.", "평가손익은 실시간 시세 기준으로 자동 계산됩니다."], relatedTerms: [] },
   "paper-dashboard": { summary: "주식·코인·대체자산이 공유하는 모의투자 계좌(초기 1억원)의 현금·평가액·손익을 확인합니다.", steps: ["각 자산군의 평가액과 총 손익을 확인하세요.", "'계좌 초기화'로 모든 포지션·이력을 지우고 처음부터 다시 연습할 수 있습니다."], relatedTerms: ["paper_trading"] },

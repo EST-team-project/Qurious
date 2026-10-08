@@ -92,18 +92,23 @@ docs/github-archive/
 ├── 2026-10-05/        ← 새 글 2건
 │   ├── PR-feat-agm-dividend-pay-sector-laws-hf-archive/  00-본문.md  (#112 · 머지 f83e551)
 │   └── PR-feat-news-calendar-month-research-sector-eval/  00-본문.md  (#113 · 머지 4293b82)
-├── 2026-10-06/        ← 새 글 3건
+├── 2026-10-06/        ← 새 글 3건 · 팀원 글 2건
 │   ├── PR-feat-sector-route-calendar-research-api-docs/  00-본문.md  (#120 · 머지 619ae7a) · 01 갱신(10-06 오후 · 섹터 분류 2판 · 올릴 것)
 │   ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
 │   ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (#126 · 머지 13a6ae9 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
-│   └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올리지 않음 — 팀원 PR #129 가 DF-73 · DF-75 를 고침 · 10-07 사용자 확인)
-├── 2026-10-07/        ← 새 글 4건
+│   ├── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올리지 않음 — 팀원 PR #129 가 DF-73 · DF-75 를 고침 · 10-07 사용자 확인)
+│   ├── 이슈-123-배당자동입금-규칙/  00-본문.md(#123 팀원 원문) · 01 의견(이동원 · 10-07 초안 · 올림 확인 전)
+│   └── 이슈-124-리밸런싱-예외처리/  00-본문.md(#124 팀원 원문) · 01 의견(이동원 · 10-08 새 판 — #136 과 맞댐 · 올림 확인 전)
+├── 2026-10-07/        ← 새 글 4건 · 팀원 글 1건
 │   ├── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (#128 · 머지 0011743 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
 │   ├── PR-docs-reorganize-by-kind/  00-본문.md  (#130 · 머지 f0fa9cf · docs 폴더 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구)
 │   ├── PR-chore-lecture-etf-json-to-hf/  00-본문.md  (#132 · 머지 a617f2a · 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀)
-│   └── PR-feat-collect-screens-server/  00-본문.md  (#139 · 머지 ef8cf5b · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81)
-└── 2026-10-08/        ← 새 글 1건
-    └── PR-chore-th06-base-sync-e815be3/  00-본문.md  (올릴 것 · 강사님 기초 코드 th06 서버 쪽 반영 · 점검 계정 KIS 모의 연동)
+│   ├── 이슈-134-백테스트보고서-v0.2/  00-본문.md(#134 팀원 원문) · 01 검수(이동원 · 재현 8 호출 · 올림 확인 전)
+│   └── PR-feat-collect-screens-server/  00-본문.md  (#139 · 머지 ef8cf5b · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81) · 01 갱신(10-08 · 머지 뒤 첫 정기 회차 19 / 19 · 올릴 것)
+└── 2026-10-08/        ← 새 글 2건 · 팀원 글 1건
+    ├── PR-chore-th06-base-sync-e815be3/  00-본문.md  (#141 · 머지 73f075b · 강사님 기초 코드 th06 서버 쪽 반영 · 점검 계정 KIS 모의 연동)
+    ├── 이슈-기초코드-받지않은것/  00-본문.md  (이동원 · 올림 확인 전 · 강사님 10-07 판에서 받지 않은 것 — 운용 값 넷 · 리밸런싱 19곳 · 정합성 요약 · DF-84)
+    └── 이슈-142-러너-신호-단계-연결/  00-본문.md(#142 팀원 원문 · 신호 배치를 러너에) · 01 답글(이동원 · 10-08 초안 · 올릴 것)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -390,7 +395,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR feat-agm-dividend-pay-sector-laws-hf-archive](2026-10-05/PR-feat-agm-dividend-pay-sector-laws-hf-archive/00-본문.md) | feat: 주총 · 배당 지급 일정 · 섹터별 근거 법령 · HF 보관본 둘 — 목표 기능 ① W7 남은 것 서버 쪽 | 3,280 | [#112](https://github.com/EST-team-project/Qurious/pull/112) · 머지 `f83e551` |
 | [PR feat-news-calendar-month-research-sector-eval](2026-10-05/PR-feat-news-calendar-month-research-sector-eval/00-본문.md) | feat: 뉴스 두 출처 · 일정 2판 · 리서치 화면 서버 쪽 · 섹터 법령 근거 답 평가 — 목표 기능 ① W7 | 4,018 | [#113](https://github.com/EST-team-project/Qurious/pull/113) · 머지 `4293b82` |
 
-### 2026-10-06 — 새 글 2건
+### 2026-10-06 — 새 글 2건 · 팀원 글 2건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
@@ -398,24 +403,29 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR feat-kb-faithfulness-guards-sector-words](2026-10-06/PR-feat-kb-faithfulness-guards-sector-words/00-본문.md) | feat: 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판 — 목표 기능 ① W8 | 4,650 | #125 · 머지 `e0ffe8e` |
 | [PR docs-kb-faithfulness-judge-decision](2026-10-06/PR-docs-kb-faithfulness-judge-decision/00-본문.md) | docs: 근거 충실도 판정 결정 · 머지 뒤 실측 둘 — 목표 기능 ① W8 | 2,256 | #126 |
 | [이슈 리밸런싱정책-시험DB](2026-10-06/이슈-리밸런싱정책-시험DB/00-본문.md) | [요청] 리밸런싱 시험 두 가지 — 새 시험 DB 에 표가 없고(DF-73), 한국어 Windows 에서 고정물이 JSON 을 못 읽습니다(DF-75) | 3,417 | 올리지 않음 — 팀원 PR #129 가 고침(10-07 사용자 확인) |
+| [이슈 123-배당자동입금-규칙](2026-10-06/이슈-123-배당자동입금-규칙/00-본문.md) · [01 의견](2026-10-06/이슈-123-배당자동입금-규칙/01-2026-10-07-의견-이동원.md) | (팀원 글) 배당 자동 입금 규칙 — 이동원 데이터 쪽 의견(지급 · 권리 · 정정 자료) | 2,782 | [#123](https://github.com/EST-team-project/Qurious/issues/123) · 의견 올림 확인 전 |
+| [이슈 124-리밸런싱-예외처리](2026-10-06/이슈-124-리밸런싱-예외처리/00-본문.md) · [01 의견](2026-10-06/이슈-124-리밸런싱-예외처리/01-2026-10-08-의견-이동원.md) | (팀원 글) 리밸런싱 수동 · 현금흐름 점검과 예약 변경 예외 — 이동원 의견(가격 확정 시점 · 대기 기준 · #136 과 맞댄 새 판) | 3,102 | [#124](https://github.com/EST-team-project/Qurious/issues/124) · 의견 올림 확인 전 |
 
 - 같은 날 팀원 글: **#117 리밸런싱 정책 이슈**(팀원이 올림 · 사용자 확인 2026-10-06) — 우리 기록 폴더는 없다(링크는 `Github-링크.md`).
-- 같은 날 팀원 글: **#123 배당 자동 입금 규칙 · #124 리밸런싱 수동 · 현금흐름 점검과 예약 변경 예외**(리밸런싱 주담당이 #79 에서 떼어 냄 · 사용자 확인 2026-10-07) — 우리 기록 폴더는 아직 없다(답글을 쓸 때 만든다 · 링크는 `Github-링크.md`).
+- 같은 날 팀원 글: **#123 · #124**(리밸런싱 주담당이 #79 에서 떼어 냄) — 2026-10-08 부터 위 표의 글 폴더에 원문과 이동원 의견을 둔다(사용자 「팀원 글도 저장」).
 
-### 2026-10-07 — 새 글 3건
+### 2026-10-07 — 새 글 4건 · 팀원 글 1건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | #128 · 머지 `0011743` |
 | [PR docs-reorganize-by-kind](2026-10-07/PR-docs-reorganize-by-kind/00-본문.md) | docs: docs 폴더를 종류별로 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구 | 3,860 | [#130](https://github.com/EST-team-project/Qurious/pull/130) · 머지 `f0fa9cf` (2026-10-07 에 채움) |
 | [PR chore-lecture-etf-json-to-hf](2026-10-07/PR-chore-lecture-etf-json-to-hf/00-본문.md) | chore: 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀 | 2,769 | [#132](https://github.com/EST-team-project/Qurious/pull/132) · 머지 `a617f2a` (2026-10-07 에 채움) |
-| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 | 4,801 | [#139](https://github.com/EST-team-project/Qurious/pull/139) |
+| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) · [01 갱신](2026-10-07/PR-feat-collect-screens-server/01-2026-10-08-갱신-이동원.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · 10-08 갱신(머지 뒤 첫 정기 회차 · 확인 필요 한 줄 · DF-85) | 4,801 | [#139](https://github.com/EST-team-project/Qurious/pull/139) · 갱신 댓글 올릴 것 |
+| [이슈 134-백테스트보고서-v0.2](2026-10-07/이슈-134-백테스트보고서-v0.2/00-본문.md) · [01 검수](2026-10-07/이슈-134-백테스트보고서-v0.2/01-2026-10-07-검수-이동원.md) | (팀원 글) 백테스트 보고서 v0.2 응답 — 이동원 검수(재현 8 호출 · 비용 모델 · 회전율 %) | 8,977 | [#134](https://github.com/EST-team-project/Qurious/issues/134) · 검수 올림 확인 전 |
 
-### 2026-10-08 — 새 글 1건
+### 2026-10-08 — 새 글 2건 · 팀원 글 1건
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [PR chore-th06-base-sync-e815be3](2026-10-08/PR-chore-th06-base-sync-e815be3/00-본문.md) | chore: 강사님 기초 코드 th06 서버 쪽 반영(9478811 → e815be3) · 점검 계정 KIS 모의 연동 | 5,907 | (올린 뒤) |
+| [PR chore-th06-base-sync-e815be3](2026-10-08/PR-chore-th06-base-sync-e815be3/00-본문.md) | chore: 강사님 기초 코드 th06 서버 쪽 반영(9478811 → e815be3) · 점검 계정 KIS 모의 연동 | 5,907 | [#141](https://github.com/EST-team-project/Qurious/pull/141) |
+| [이슈 기초코드-받지않은것](2026-10-08/이슈-기초코드-받지않은것/00-본문.md) | [기초 코드] 강사님 lumina-invest 10-07 판 — Qurious 가 아직 받지 않은 것 | 3,132 | (올린 뒤 적음) |
+| [이슈 142-러너-신호-단계-연결](2026-10-08/이슈-142-러너-신호-단계-연결/00-본문.md) · [01 답글](2026-10-08/이슈-142-러너-신호-단계-연결/01-2026-10-08-답글-이동원.md) | (팀원 글) 일일 러너에 다중 주기 신호 단계(signals) 연결 요청 — 이동원 답글(받음 · 다음 러너 묶음 PR · 연결 전 채우기) | 1,433 | [#142](https://github.com/EST-team-project/Qurious/issues/142) · 답글 올릴 것 |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

@@ -14,13 +14,19 @@ SSRF — 2026-09-17 분석 A11), robots.txt 가 전면 금지인 네이버 금�
   3. 허용 목록 이용 조건을 확인한 출처(``ALLOWED``)만. 목록 밖은 막는다 — robots.txt 를 받으러 가지도 않는다.
   4. robots  그 출처의 robots.txt 가 이 경로를 금지하면 막는다. robots.txt 를 받지 못하면(없음 · 시간 초과) 허용 목록 판정을 따른다.
 
-남는 위험 — 검사한 뒤 실제로 받을 때 DNS 가 다른 주소를 줄 수 있다(DNS 재바인딩). 허용 목록이 공공기관 몇 곳뿐이라 받아들이고,
-리다이렉트를 따라가는 크롤러(`services/crawl.py` · `follow_redirects=True`)는 받은 뒤 마지막 주소를 다시 검사해야 한다(다음 판).
+리다이렉트 — 받는 길(`services/crawl.py` 의 `crawl_url` · `follow_redirects=True`)은 처음 주소만 검사하면 허용된 곳이
+내부망 주소로 돌려보낼 때 그대로 따라간다. 받은 **뒤** 마지막 주소를 다시 보면 내부망 요청은 이미 나간 뒤라 늦다 → httpx 요청
+훅(``guard_request``)이 처음 주소와 리다이렉트로 옮겨 갈 주소마다 **보내기 전에** 같은 네 검사를 하고, 막히면 ``BlockedHop``(400)
+으로 멈춘다(2026-10-08). 크롤러가 오류를 삼켜 「0청크 · 성공」 으로 끝나지 않게 그 예외는 다시 던진다.
+
+남는 위험 — 검사한 뒤 실제로 받을 때 DNS 가 다른 주소를 줄 수 있다(DNS 재바인딩). 허용 목록이 공공기관 몇 곳뿐이라 받아들인다
+(훅이 보내기 직전에 이름을 다시 풀어 틈을 좁힐 뿐 없애지는 못한다).
 
 네트워크 — 이름 풀기와 robots.txt 받기는 함수를 바꿔 끼울 수 있다(시험은 네트워크 없이 돈다).
 """
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from typing import Callable
@@ -28,6 +34,7 @@ from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
+from fastapi import HTTPException
 
 #: 받아도 되는 출처 — 호스트 이름이 **정확히** 같아야 한다(하위 도메인도 따로 적는다). 이용 조건 근거는
 #: docs/조사/공시-재무-뉴스-이용조건-조사.md · 정책브리핑은 기사마다 공공누리 유형을 따로 본다.
@@ -145,15 +152,35 @@ def check(url: str, *, resolve: Resolver | None = None, fetch_robots: RobotsFetc
 
 async def ensure_allowed(url: str) -> dict:
     """라우트에서 부르는 한 줄 — 막히면 400(까닭 · 허용 목록을 담은 객체), 지나면 검사 결과를 돌려준다."""
-    import asyncio
-
-    from fastapi import HTTPException
-
     v = await asyncio.to_thread(check, url)
     if not v["ok"]:
         raise HTTPException(400, {"message": f"받을 수 없는 주소 — {v['reason']}",
                                   "hint": "허용 목록: " + " · ".join(ALLOWED)})
     return v
+
+
+class BlockedHop(HTTPException):
+    """리다이렉트로 옮겨 갈(또는 처음) 주소가 검사에 막혔다 — 그 주소로는 요청을 보내지 않았다.
+
+    HTTPException(400) 이라 라우트 안에서 올라오면 그대로 400 이 된다(라우트가 따로 잡지 않아도 된다).
+    """
+
+    def __init__(self, url: str, verdict: dict):
+        self.url, self.verdict = url, verdict
+        super().__init__(400, {"message": f"리다이렉트로 옮겨 간 주소를 받을 수 없다 — {verdict['reason']}",
+                               "url": url, "hint": "허용 목록: " + " · ".join(ALLOWED)})
+
+
+async def guard_request(request: httpx.Request) -> None:
+    """httpx 요청 훅 — `AsyncClient(event_hooks={"request": [guard_request]})` 로 건다.
+
+    httpx 는 리다이렉트를 따라갈 때 새 요청마다 이 훅을 **보내기 전에** 부른다. 그래서 허용된 곳이 내부망 · 목록 밖으로
+    돌려보내도 그 요청은 나가지 않는다. 처음 요청도 다시 본다 — 라우트의 검사와 실제 연결 사이의 틈을 좁힌다.
+    """
+    url = str(request.url)
+    v = await asyncio.to_thread(check, url)
+    if not v["ok"]:
+        raise BlockedHop(url, v)
 
 
 def rules() -> dict:

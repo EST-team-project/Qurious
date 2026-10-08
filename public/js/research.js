@@ -389,6 +389,15 @@ function paintAll() {
   paintFilters(); paintResults();
 }
 
+/** 검색어를 비운 순간 — 낱말 조건을 빼고 차례를 자동으로 되돌려 다시 받는다. 이미 비어 있고 자동 차례면 다시 받지 않는다. */
+function clearResearchQuery() {
+  if (!S.q && S.sort !== "relevance") return;
+  S.q = "";
+  if (S.sort === "relevance") S.sort = "";
+  paintFilters();
+  reload();
+}
+
 function renderResearch() {
   const r = root();
   if (!r || r.querySelector(".rs-layout")) return;  // 다시 들어오면 고른 조건 · 결과를 그대로 둔다
@@ -409,9 +418,16 @@ function renderResearch() {
   r.querySelector(".rs-bar").addEventListener("submit", e => {
     e.preventDefault();
     S.q = r.querySelector(".rs-q").value.trim();   // 차례를 고르지 않았으면 낱말이 생길 때 관련도순으로(sortNow)
+    if (!S.q && S.sort === "relevance") S.sort = "";   // 낱말 없는 관련도순은 뜻이 없다 — 자동(최신순)으로(DF-86)
     paintFilters();
     reload();
   });
+  // 검색어를 비우면 바로 최신 소식으로(2026-10-08 결정 · DF-86) — ✕ 를 누르거나 글을 다 지운 순간 낱말 조건을 빼고 차례를
+  // 자동(낱말이 없으면 최신순)으로 되돌려 다시 받는다. 종류 · 종목 · 주제 · 기간 거름은 그대로 둔다(옛 동작: 칸만 비고 결과는 옛 낱말).
+  const qInput = r.querySelector(".rs-q");
+  const onResearchQueryCleared = () => { if (!qInput.value.trim()) clearResearchQuery(); };
+  qInput.addEventListener("input", onResearchQueryCleared);
+  qInput.addEventListener("search", onResearchQueryCleared);   // 검색 칸의 ✕ (input 과 함께 오면 두 번째는 아무것도 안 한다)
   paintAll();
   loadList();                                       // 처음은 늘 목록(종목을 고르기 전)
 }
