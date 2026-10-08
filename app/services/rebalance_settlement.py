@@ -1,7 +1,7 @@
 """자동 정기 리밸런싱의 종가 평가와 일봉 시가 예약 정산.
 
 예약 목표 비중과 판단 근거를 저장하고, 시가 수집 후 수량을 다시 계산한다.
-체결일 당일 이후 계좌 변경과 설정 변경은 미확정 정책이므로 확인 대기를 유지한다.
+체결일 당일 이후 계좌 변경과 설정 변경은 확인 대기를 유지하며 사용자가 취소할 수 있다.
 """
 from __future__ import annotations
 
@@ -95,7 +95,42 @@ async def changed_on_or_after(db, uid, day):
 
 async def pending(db, uid):
     return (await db.execute(select(RebalanceRun).where(RebalanceRun.user_id == uid,
-        RebalanceRun.status == 'scheduled').order_by(RebalanceRun.created_at).with_for_update())).scalars().first()
+        RebalanceRun.status == 'scheduled').order_by(RebalanceRun.created_at).with_for_update()
+        .execution_options(populate_existing=True))).scalars().first()
+
+
+async def cancel(db, run, reason, note):
+    """호출자는 사용자 잠금을 보유해야 한다. 취소는 장부와 현금흐름 예산을 건드리지 않는다."""
+    from app.services import rebalance as rb
+    if run.status != 'scheduled' or any(o.get('status') == 'filled' for o in run.orders):
+        raise rb.RebalanceError('아직 체결되지 않은 예약만 취소할 수 있습니다.')
+    run.status, run.note = 'cancelled', note
+    run.orders = [{**o, 'status': 'cancelled'} for o in run.orders]
+    run.context = {**run.context, 'cancel_reason': reason, 'cancelled_at': rb.datetime.now(rb.KST).isoformat(),
+                   'waiting_reason': None}
+    await db.flush()
+    return run
+
+
+async def cancel_reservation(db, uid, run_id):
+    from app.services import rebalance as rb
+    await rb.lock_user(db, uid)
+    run = (await db.execute(select(RebalanceRun).where(RebalanceRun.id == run_id,
+        RebalanceRun.user_id == uid).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+    if run is None:
+        return None
+    if run.status == 'cancelled':
+        return run  # 재전송은 동일한 취소 결과를 반환한다.
+    return await cancel(db, run, 'user_cancelled', '사용자가 미체결 예약을 취소했습니다.')
+
+
+async def cancel_inactive(db, uid, plan):
+    from app.services import rebalance as rb
+    await rb.lock_user(db, uid)
+    if not plan.is_active:
+        run = await pending(db, uid)
+        if run:
+            return await cancel(db, run, 'plan_disabled', '플랜 비활성화로 예약 취소')
 
 
 async def reserve(db, uid, plan, run):
@@ -133,24 +168,34 @@ async def settle(db, uid, plan, readiness):
         run.context = {**run.context, 'waiting_reason': message}
         return run
 
+    if not plan.is_active:
+        return await cancel(db, run, 'plan_disabled', '플랜 비활성화로 예약 취소')
+    day = date.fromisoformat(run.context['scheduled_for'])
+    try:
+        if not prices.schedule.days(day, day)[0]['is_trading_day']:
+            next_day = await asyncio.to_thread(prices.next_trading_day, day)
+            change = dict(previous_date=day.isoformat(), scheduled_for=next_day.isoformat(),
+                          reason='calendar_closed', changed_at=rb.datetime.now(rb.KST).isoformat())
+            run.context = {**run.context, 'scheduled_for': next_day.isoformat(),
+                           'reschedules': [*run.context.get('reschedules', []), change]}
+            day = next_day
+    except (prices.PriceUnavailable, prices.schedule.market_calendar.CalendarUnavailable, sqlite3.Error) as exc:
+        return wait(str(exc))
     if not readiness['ready']:
         return wait('데이터 갱신 완료 대기')
-    day = date.fromisoformat(run.context['scheduled_for'])
     if day >= rb.datetime.now(rb.KST).date() or day > date.fromisoformat(readiness['data_as_of']):
         return wait('예약 체결일의 시가 수집 대기')
     await pt.get_account(db, uid, lock=True)
     target_reservation = run.context.get('reservation_policy') == 'target_weights_v1'
     account_changed = run.context.get('account_stamp') != await account_stamp(db, uid)
-    if (run.context.get('review_required') or not plan.is_active
+    if (run.context.get('review_required')
             or run.context.get('settings_fingerprint') != rb.fingerprint(plan)):
         run.context = {**run.context, 'review_required': True}
-        return wait('플랜 변경 또는 기존 확인 대기 — 처리 규칙 확정 필요')
+        return wait('플랜 변경 또는 기존 확인 대기 — 예약 취소 후 새 판단 가능')
     if account_changed and (not target_reservation or await changed_on_or_after(db, uid, day)):
         run.context = {**run.context, 'review_required': True}
-        return wait('체결일 당일 이후 계좌 변경 또는 이전 방식 예약 — 과거 잔고 확인 필요')
+        return wait('체결일 당일 이후 계좌 변경 또는 이전 방식 예약 — 확인 후 예약 취소 가능')
     try:
-        if not prices.schedule.days(day, day)[0]['is_trading_day']:
-            return wait('예약일이 휴장일로 변경되어 확인 대기')
         if target_reservation:
             snap = await price_snapshot(db, uid, plan, day, 'open')
             triggers = run.triggers or [run.trigger]
@@ -180,6 +225,8 @@ async def settle(db, uid, plan, readiness):
             quotes = {r['symbol']: r for r in snap['rows'] if r['price']}
         else:
             quotes = await asyncio.to_thread(prices.read_prices, [o['symbol'] for o in run.orders], day, 'open')
+    except prices.OpenNotTradable as exc:
+        return await cancel(db, run, 'open_not_tradable', str(exc))
     except (prices.PriceUnavailable, prices.schedule.market_calendar.CalendarUnavailable, sqlite3.Error) as exc:
         return wait(str(exc))
 

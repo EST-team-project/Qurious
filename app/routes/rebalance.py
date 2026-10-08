@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgres import get_pg_session
 from app.lib.jwt_auth import get_current_user_any
-from app.services import rebalance as rb
+from app.services import rebalance as rb, rebalance_settlement as settlement
 from app.services.audit import audit
 
 router = APIRouter(prefix="/api/rebalance", tags=["rebalance"])
@@ -78,6 +78,7 @@ async def update_plan(body: PlanBody, user=Depends(get_current_user_any), db: As
             data["targets"] = await rb.resolve_targets(data["targets"])
         rb.apply_plan_update(plan, data)
         await rb.refresh_time_schedule(plan)
+        await settlement.cancel_inactive(db, _uid(user), plan)
     except (rb.RebalanceError, ValueError) as exc:
         await db.rollback()
         raise HTTPException(400, str(exc))
@@ -139,6 +140,22 @@ async def execute(body: ExecuteBody, user=Depends(get_current_user_any), db: Asy
     await db.refresh(run)
     await audit(user["id"], user.get("client_id", ""), "rebalance.execute",
                 {"trigger": run.trigger, "orders": len(run.orders), "status": run.status})
+    return rb.run_to_dict(run)
+
+
+@router.post("/runs/{run_id}/cancel")
+async def cancel_run(run_id: uuid.UUID, user=Depends(get_current_user_any),
+                     db: AsyncSession = Depends(get_pg_session)):
+    try:
+        run = await settlement.cancel_reservation(db, _uid(user), run_id)
+        if run is None:
+            raise HTTPException(404, '예약을 찾을 수 없습니다.')
+    except rb.RebalanceError as exc:
+        await db.rollback()
+        raise HTTPException(409, str(exc))
+    await db.commit()
+    await db.refresh(run)
+    await audit(user['id'], user.get('client_id', ''), 'rebalance.cancel', {'run_id': str(run.id)})
     return rb.run_to_dict(run)
 
 

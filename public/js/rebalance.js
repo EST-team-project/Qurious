@@ -276,6 +276,17 @@ async function loadCashflows() {
 }
 
 /* ── 실행 이력 ────────────────────────────────────────────── */
+async function cancelReservation(runId) {
+  if (!confirm("이 예약을 취소할까요? 현금·보유 종목·미사용 예산은 유지됩니다. 이후 새 판단으로 다시 예약할 수 있습니다.")) return;
+  try {
+    await api(`/api/rebalance/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST" });
+    lastProposal = null;
+    $("rb-execute").disabled = true;
+    setToast("예약을 취소했습니다.", "ok");
+    await loadStatus();
+  } catch (e) { setToast(e.message, "error"); }
+}
+
 async function loadRuns() {
   try {
     const r = await api("/api/rebalance/runs?limit=20");
@@ -288,19 +299,22 @@ async function loadRuns() {
       }).join("");
       return `<div class="rounded-lg p-3 mb-2" style="background:var(--surf2);border:1px solid var(--border);">
         <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${STATUS_BADGE[run.status] || run.status}
+          <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${run.context?.cancel_reason === "open_not_tradable" ? '<span class="badge-hold">미체결</span>' : STATUS_BADGE[run.status] || run.status}
           <span class="text-xs" style="color:var(--text-mute)">${run.decision_date || ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
           ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}" data-scheduled="${run.context?.price_basis === 'previous_close'}">${run.context?.price_basis === 'previous_close' ? '승인·예약' : '이전 제안 (재산출 필요)'}</button>` : ""}
+          ${run.status === "scheduled" ? `<button class="btn text-xs ml-auto rb-cancel" data-id="${run.id}">${run.context?.review_required ? "확인 대기 예약 취소" : "예약 취소"}</button>` : ""}
         </div>
         <div class="text-xs mt-1" style="color:var(--text-dim)">${escHtml(run.note || "")}</div>
         <div class="text-xs mt-1">${run.context?.price_basis === "previous_close" ? `종가 기준일 ${escHtml(run.context.valuation_date)} · 예약 체결일 ${escHtml(run.context.scheduled_for || "승인 후 결정")}${run.context.fill_date ? ` · 체결일 ${escHtml(run.context.fill_date)}` : ""}${run.context.confirmed_at ? ` · 확정 ${ts(run.context.confirmed_at)}` : ""}` : `현재 시세 조회 ${ts(run.context?.observed_at)}`} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
         <div class="text-xs mt-1">${escHtml(run.context?.waiting_reason || "")}</div>
+        ${(run.context?.reschedules || []).map(change => `<div class="text-xs mt-1">휴장일 변경: ${escHtml(change.previous_date)} → ${escHtml(change.scheduled_for)} · 변경 ${ts(change.changed_at)}</div>`).join("")}
         <div class="mt-1">${wchg}</div>
         <details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-mute)">주문 상세</summary><div id="rb-run-${run.id}" class="mt-1"></div></details>
       </div>`;
     }).join("");
     r.runs.forEach(run => renderOrders(run.orders, `rb-run-${run.id}`, { empty: "주문 없음" }));
     $("rb-runs").querySelectorAll(".rb-approve").forEach(b => b.addEventListener("click", () => executeRebalance(b.dataset.id, b.dataset.scheduled === "true")));
+    $("rb-runs").querySelectorAll(".rb-cancel").forEach(b => b.addEventListener("click", () => cancelReservation(b.dataset.id)));
   } catch (e) { $("rb-runs").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 
