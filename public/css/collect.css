@@ -1,0 +1,144 @@
+/* 데이터 수집 화면 셋 — 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (2026-10-08 · js/collect.js)
+ * Figma 「데이터 수집 화면」 설계 1 ~ 3 의 모양. 색 · 간격은 app.css 토큰 · 판정 알약은 datahub.css 의 q-pill 그대로
+ * (새 디자인 체계를 만들지 않는다). 좁은 화면(760 아래)에서는 표를 카드로 · 칸을 한 줄씩 쌓는다(UI 명세서 <표 13> 폭 390). */
+
+/* ── 관리자 화면 — 일반 사용자에게는 왼쪽 메뉴 · 전체 메뉴에서 셋을 숨긴다(역할을 확인하기 전에도 숨긴 채로 시작) ── */
+body:not(.q-admin) .lnb-item[data-view="crawl-auto"], body:not(.q-admin) .lnb-item[data-view="crawl-manual"],
+body:not(.q-admin) .lnb-item[data-view="crawl-ingest"], body:not(.q-admin) [data-menu-view="crawl-auto"],
+body:not(.q-admin) [data-menu-view="crawl-manual"], body:not(.q-admin) [data-menu-view="crawl-ingest"],
+body:not(.q-admin) .q-admin-only { display: none !important; }
+
+.cl-root { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.cl-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cl-head h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+.cl-head p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+.cl-head-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cl-admin { font-size: 12px; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #f59e0b;
+  border-radius: 6px; padding: 4px 10px; white-space: nowrap; }
+.cl-run-pick { min-width: 220px; font-size: 13px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surf); }
+.cl-h { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.cl-h .q-muted { font-size: 12px; }
+.cl-note { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+.cl-alert { font-size: 13px; padding: 10px 14px; border-radius: 8px; background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; line-height: 1.6; }
+.cl-alert--ok { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
+.cl-alert--err { background: var(--red-bg); color: var(--red); border-color: var(--red-bd); }
+
+/* ── 요약 타일 ── */
+.cl-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.cl-tiles--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cl-tile { background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.cl-tile--soft { background: var(--surf2); border-color: transparent; }
+.cl-tile .k { font-size: 12px; color: #64748b; font-weight: 500; }
+.cl-tile .v { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 4px; overflow-wrap: anywhere; }
+.cl-tile .d { font-size: 12px; color: var(--text-mute); margin-top: 4px; }
+
+/* ── 단계 표(설계 1) ── */
+.cl-table-wrap { overflow-x: auto; }
+.cl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cl-table th { font-size: 12px; color: #64748b; text-transform: none; letter-spacing: 0; padding: 8px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: left; }
+.cl-table td { font-size: 13px; padding: 9px 8px; border-bottom: 1px solid #eef1f6; vertical-align: middle; color: var(--text); }
+.cl-table .cl-n { color: #64748b; width: 32px; }
+.cl-table .cl-name { font-weight: 700; white-space: nowrap; }
+.cl-table .cl-desc { color: var(--text-dim); }
+.cl-table .cl-res { white-space: nowrap; font-weight: 700; }
+.cl-table .cl-act { text-align: right; white-space: nowrap; }
+.cl-group td { background: #fff7ed; color: #9a3412; font-weight: 700; font-size: 12px; padding: 7px 8px; }
+.cl-group .q-muted { font-weight: 400; color: #b45309; }
+.cl-row--fail td { background: var(--red-bg); }
+.cl-row--rerun .cl-res::after { content: " · 다시 돌림"; font-weight: 400; color: #64748b; }
+.cl-time { display: flex; align-items: center; gap: 8px; min-width: 180px; }
+.cl-bar { height: 10px; border-radius: 3px; background: var(--accent); flex: 0 0 auto; min-width: 2px; }
+.cl-bar--fail { background: var(--red); } .cl-bar--warn { background: #f59e0b; } .cl-bar--skip { background: var(--border2); }
+.cl-time span { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.cl-btn-sm { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); cursor: pointer; white-space: nowrap; }
+.cl-btn-sm:hover { background: var(--surf2); color: var(--text); }
+.cl-btn-sm:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── PC 에서 돌릴 명령(결정 ① — 화면은 명령만 보인다) ── */
+.cl-cmd { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surf2); padding: 12px 14px; }
+.cl-cmd-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; }
+.cl-cmd code { display: block; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; background: #0f172a; color: #e2e8f0;
+  border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; user-select: all; }
+.cl-cmd p { font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.6; }
+.cl-cmd-row td { background: var(--surf2); padding: 0 8px 10px; }
+
+/* ── 자료 직접 받기(설계 2) ── */
+.cl-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.cl-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.cl-field { margin-bottom: 14px; }
+.cl-field > label, .cl-field > .cl-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px; }
+.cl-kinds { display: flex; gap: 8px; flex-wrap: wrap; }
+.cl-kind { font-size: 13px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); cursor: pointer; }
+.cl-kind[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.cl-dates { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cl-dates input { flex: 1 1 140px; min-width: 0; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.cl-origin { font-size: 13px; color: var(--text); line-height: 1.6; }
+.cl-origin .q-muted { display: block; font-size: 12px; }
+.cl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cl-days { display: flex; flex-wrap: wrap; gap: 3px; margin: 12px 0 6px; }
+.cl-day { width: 14px; height: 14px; border-radius: 3px; background: var(--border); }
+.cl-day--done { background: #34d399; } .cl-day--missing { background: var(--red); } .cl-day--error { background: #991b1b; }
+.cl-day--partial { background: #f59e0b; } .cl-day--closed { background: var(--surf3); } .cl-day--pending { background: #bfdbfe; }
+.cl-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: #64748b; }
+.cl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.cl-todo { margin-top: 10px; font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+.cl-years { width: 100%; font-size: 13px; border-collapse: collapse; margin-top: 10px; }
+.cl-years td { font-size: 13px; padding: 7px 6px; border-bottom: 1px solid #eef1f6; }
+.cl-src { width: 100%; border-collapse: collapse; }
+.cl-src td { font-size: 13px; padding: 9px 6px; border-bottom: 1px solid #eef1f6; vertical-align: top; color: var(--text-dim); }
+.cl-src td:first-child { font-weight: 700; color: var(--text); white-space: nowrap; width: 90px; }
+.cl-url { display: flex; gap: 8px; }
+.cl-url input { flex: 1; min-width: 0; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.cl-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; }
+.cl-rules { list-style: none; margin: 12px 0 0; padding: 0; }
+.cl-rules li { display: grid; grid-template-columns: 12px minmax(0, 200px) minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  font-size: 13px; padding: 9px 0; border-bottom: 1px solid #eef1f6; }
+.cl-rules strong { overflow-wrap: anywhere; }
+.cl-rules .ok { color: #047857; font-weight: 700; } .cl-rules .no { color: var(--red); font-weight: 700; }
+.cl-docs { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.cl-docs li { padding: 7px 0; border-bottom: 1px solid #eef1f6; overflow-wrap: anywhere; }
+
+/* ── 적재 · 백업(설계 3) ── */
+.cl-backup { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.cl-ds-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.cl-ds-head h3 { font-size: 16px; font-weight: 700; }
+.cl-checklist { list-style: none; margin: 14px 0; padding: 0; }
+.cl-checklist li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding: 10px 0; border-bottom: 1px solid #eef1f6; font-size: 13px; }
+.cl-checklist .why { display: block; font-size: 12px; color: #64748b; margin-top: 2px; overflow-wrap: anywhere; }
+.cl-st { font-weight: 700; white-space: nowrap; }
+.cl-st--pass { color: #047857; } .cl-st--pending { color: #b45309; } .cl-st--fail { color: var(--red); }
+/* 표 칸의 기본 글자색(.cl-table td)보다 앞서게 — 결과 · 해마다 상태 칸 */
+.cl-table td.cl-st--pass, .cl-years td.cl-st--pass { color: #047857; }
+.cl-table td.cl-st--pending, .cl-years td.cl-st--pending { color: #b45309; }
+.cl-table td.cl-st--fail, .cl-years td.cl-st--fail { color: var(--red); }
+.cl-others { font-size: 12px; color: #64748b; margin-top: 12px; line-height: 1.7; }
+
+@media (max-width: 1100px) {
+  .cl-backup { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .cl-two { grid-template-columns: minmax(0, 1fr); }
+  .cl-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-tiles--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* 폭 390 — 단계 표를 카드로(막대 대신 걸린 시간 글자 · UI 명세서 <표 13>) */
+@media (max-width: 760px) {
+  .cl-table thead { display: none; }
+  .cl-table, .cl-table tbody, .cl-table tr, .cl-table td { display: block; width: 100%; }
+  .cl-table tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
+  .cl-table td { border: 0; padding: 2px 4px; }
+  .cl-table .cl-n { display: none; }
+  /* 걸린 시간 · 결과는 한 줄에 — 카드가 길어지지 않게 */
+  .cl-table td:nth-child(4), .cl-table td.cl-res { display: inline-block; width: auto; margin-right: 14px; }
+  .cl-table .cl-act { text-align: left; padding-top: 6px; }
+  .cl-time { min-width: 0; }
+  .cl-time .cl-bar { display: none; }
+  .cl-rules li { grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .cl-rules li > span:nth-child(3) { grid-column: 2 / 4; font-size: 12px; color: #64748b; }
+  .cl-head h2 { font-size: 20px; }
+}
+@media (max-width: 480px) {
+  .cl-tiles, .cl-tiles--3 { grid-template-columns: minmax(0, 1fr); }
+  .cl-tile .v { font-size: 19px; }
+}

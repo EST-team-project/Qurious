@@ -165,25 +165,22 @@ function summaryCards(st) {
   return `<div class="dh-sum">${cards.map(([k, v, d]) => `<div class="card dh-card"><div class="dh-k">${k}</div>${v}<div class="dh-d">${escHtml(d)}</div></div>`).join("")}</div>`;
 }
 
+// 「오늘 갱신 — 단계」 는 「수집 일정 · 단계」 화면(js/collect.js · 관리자)으로 옮겼다(결정 ④ · 2026-10-08) —
+// 여기는 마지막 회차 한 줄만 두고, 관리자에게만 「자세히 →」 를 보인다(css/collect.css 의 .q-admin-only).
 function runCard(st) {
   const r = st.runner || {};
   const last = r.last;
   if (!last) {
-    return `<div class="card"><h3 class="dh-h">오늘 갱신</h3><p class="q-muted">${escHtml(r.detail || "갱신 기록이 없습니다")}</p></div>`;
+    return `<div class="card dh-runline"><span class="q-muted">${escHtml(r.detail || "갱신 기록이 없습니다")}</span></div>`;
   }
   const steps = last.steps || [];
-  const total = steps.reduce((a, s) => a + (s.seconds || 0), 0) || 1;
-  const bar = steps.map(s => `<span class="dh-seg dh-seg--${STEP_MARK[s.status]?.[1] || "info"}" style="flex:${Math.max(s.seconds || 0, total * 0.004)}" title="${escHtml(s.label)} · ${dur(s.seconds)}"></span>`).join("");
-  const list = steps.map(s => {
-    const [mark, tone] = STEP_MARK[s.status] || ["·", "info"];
-    return `<li><span class="q-tone--${tone} dh-mark">${mark}</span>${escHtml(s.label)}
-      <span class="q-muted">${s.status === "skipped" ? escHtml(s.note || "건너뜀") : dur(s.seconds)}</span></li>`;
-  }).join("");
-  const head = r.state === "running" ? `도는 중 — ${hm(r.running_since)} 에 시작 · 아래는 지난 회차` :
-    `${mmdd(last.started_at)} ${hm(last.started_at)} 시작 · ${escHtml(r.label || "")}`;
-  return `<div class="card"><h3 class="dh-h">오늘 갱신 — 단계 ${steps.length}개 <span class="q-muted">${head}</span></h3>
-    ${r.state !== "ok" && r.detail ? `<p class="dh-alert q-tone--${RUNNER_CLASS[r.state] || "info"}">${escHtml(r.detail)}</p>` : ""}
-    <div class="dh-bar">${bar}</div><ul class="dh-steps">${list}</ul></div>`;
+  const ok = steps.filter(s => s.status === "ok").length;
+  const bad = steps.filter(s => s.status === "failed" || s.status === "warning");
+  const [mark, tone] = STEP_MARK[bad.some(s => s.status === "failed") ? "failed" : bad.length ? "warning" : "ok"];
+  const head = r.state === "running" ? `수집 중 — ${hm(r.running_since)} 에 시작 · 아래는 지난 회차` : "마지막 수집";
+  return `<div class="card dh-runline"><span class="q-tone--${tone} dh-mark">${mark}</span>
+    <span><strong>${head}</strong> ${mmdd(last.started_at)} ${hm(last.started_at)} · ${ok} / ${steps.length} 성공${bad.length ? ` · 확인할 단계 ${bad.map(s => escHtml(s.label)).join(" · ")}` : ""}</span>
+    <button type="button" class="dh-more q-admin-only">단계별로 자세히 →</button></div>`;
 }
 
 function tableCard(st) {
@@ -208,6 +205,12 @@ function tableCard(st) {
 
 function lowCards(st) {
   const hist = (st.runner?.history || []).map(h => {
+    // 한 단계만 다시 돌린 줄은 회차가 아니다 — 「성공 0분」 회차처럼 그리지 않고 단계 이름 · 걸린 초로(DF-82 · 2026-10-08)
+    if (h.only) {
+      const s = (h.steps || [])[0];
+      return `<li class="dh-rerun"><strong>${escHtml(withWeekday(h.started_at).slice(5))} ${hm(h.started_at)}</strong> ${pill("info", "다시 돌림")}
+        <span class="q-muted">${escHtml(s?.label || h.only)}${s?.seconds != null ? ` · ${dur(s.seconds)}` : ""} · ${h.ok ? "성공" : "실패"}</span></li>`;
+    }
     const ok = h.skipped ? ["info", "건너뜀"] : h.ok ? ["fresh", "성공"] : ["stale", "실패"];
     return `<li><strong>${escHtml(withWeekday(h.started_at).slice(5))}</strong> ${pill(ok[0], ok[1])}
       <span class="q-muted">${h.minutes != null ? `${Math.round(h.minutes)}분` : ""}${h.price_max ? ` · 시세 ${mmdd(h.price_max)}` : ""}${h.skipped ? ` · ${escHtml(h.skipped)}` : ""}${h.stopped ? ` · 멈춘 단계 ${escHtml(h.stopped)}` : ""}</span></li>`;
@@ -245,6 +248,7 @@ async function renderDataHub() {
       <button type="button" class="btn-secondary dh-refresh">다시 시도</button></div>`;
   }
   root.querySelector(".dh-refresh")?.addEventListener("click", renderDataHub);
+  root.querySelector(".dh-more")?.addEventListener("click", () => navigate("crawl-auto"));
 }
 
 /** main.js 의 화면 진입 훅 — 이 화면이면 그리고 30초마다 다시, 다른 화면이면 멈춘다. */

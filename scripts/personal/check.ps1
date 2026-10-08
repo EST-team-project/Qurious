@@ -294,6 +294,26 @@ $Checks = @(
        $top = @($r.Json.items) | Select-Object -First 1
        if (-not $top) { return (Fail '찾은 공시가 없다 — python -m collector.search_index build') }
        Pass "총 $($r.Json.total)$(if ($r.Json.total_capped) { '+' }) 건 · 맨 위 $($top.published) $($top.corp_name) $($top.title) · 색인 $($r.Json.index_built_at)" } }
+  # 데이터 수집 화면 셋(2026-10-08 · 관리자) — 수집 일정 · 단계 / 자료 직접 받기의 받을 범위 / 적재 · 백업 판정. 점검 계정은 관리자다.
+  @{ G = '데이터'; Name = '수집 일정 · 단계 — 마지막 회차 · 단계 목록(관리자)'; M = 'GET'; P = '/api/data/runner'; Auth = $true
+     Test = { param($r)
+       $steps = @($r.Json.catalog.steps)
+       if ($steps.Count -lt 1) { return (Fail '러너 단계 목록이 없다 — python scripts/daily_update.py steps --write') }
+       $last = $r.Json.last
+       $msg = "단계 $($steps.Count) · $($r.Json.label)"
+       if ($last) { $msg += " · 마지막 $($last.started_at.Substring(5, 11).Replace('T', ' ')) · 성공 $(Count @($last.steps | Where-Object { $_.status -eq 'ok' })) / $(Count @($last.steps))" }
+       if ($r.Json.running) { $msg += " · 도는 중$(if ($r.Json.running_step) { " — $($r.Json.running_step.index)번째 $($r.Json.running_step.label)" })" }
+       Pass $msg } }
+  @{ G = '데이터'; Name = '받을 범위 — 시세 최근 30일(관리자)'; M = 'GET'; P = "/api/data/fetch-plan?kind=price&from=$((Get-Date).AddDays(-30).ToString('yyyy-MM-dd'))"; Auth = $true
+     Test = { param($r)
+       $c = $r.Json.counts
+       $msg = "받음 $($c.done) · 받을 날 $($r.Json.todo) · 휴장 $($c.closed) · 아직 공개 전 $($c.pending)"
+       if ($r.Json.todo -gt 0) { Warn "$msg — $($r.Json.command)" } else { Pass $msg } } }
+  @{ G = '데이터'; Name = '적재 · 백업 — 판정 기록(관리자)'; M = 'GET'; P = '/api/data/backup'; Auth = $true
+     Test = { param($r)
+       if (-not $r.Json.available) { return (Warn "$($r.Json.message) — $($r.Json.command)") }
+       $g = @($r.Json.groups | ForEach-Object { "$($_.label.Split(' ')[0]) $($_.state_label)" }) -join ' · '
+       Pass "$g · 지워도 되나 $(if ($r.Json.can_delete) { '예' } else { "아직(남은 조건 $(Count @($r.Json.remaining)))" }) · 기록 $($r.Json.written_at)" } }
   @{ G = '데이터'; Name = '재무 주요계정 — 삼성전자 최근 4기간'; M = 'GET'; P = '/api/data/financials?symbol=005930&periods=4'; Auth = $true
      Test = { param($r)
        $p = @($r.Json.periods) | Select-Object -First 1

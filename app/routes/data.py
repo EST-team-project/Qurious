@@ -4,6 +4,8 @@
 - GET /api/data/ohlcv  : 한 종목 · 한 주기 · 한 기간의 OHLCV(`ohlcv-v1` — HF krx-ohlcv 와 같은 줄 모양)
 - GET /api/data/search : 공시 · 뉴스 검색(낱말 · 이름표 · 공시 요약의 핵심 숫자) — W7 · 2026-10-04
 - GET /api/data/financials : 재무 주요계정 — 기준일에 알 수 있었던 판만(pit) — W7 · 2026-10-04
+- GET /api/data/fetch-sources · fetch-plan : 자료 직접 받기 — 종류 · 출처 표 · 받을 범위(관리자 · 2026-10-08)
+- GET /api/data/backup : 적재 · 백업 — hf_dataset 이 쓴 판정 · 다른 데이터셋 · 이 PC 용량(관리자 · 2026-10-08)
 
 로그인한 사람만 — 수집 자료의 양 · 상태와 PC 의 작업 기록이라(설계서 7절 「수집 자료는 로그인 뒤」).
 `GET /api/system/sync-status`(외부 시세 캐시의 신선도)와는 다른 것을 본다 — 화면의 「데이터 기준일」 은 이쪽이다.
@@ -16,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.lib.session import get_current_user
-from app.services import data_financials, data_ohlcv, data_search, data_status, url_guard
+from app.services import backup_status, data_financials, data_ohlcv, data_search, data_status, fetch_plan, url_guard
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -52,6 +54,31 @@ class UrlCheckBody(BaseModel):
 async def url_check(body: UrlCheckBody, _user=Depends(_require_admin)):
     # 막혀도 200 — 화면이 까닭을 그대로 보인다(실제로 받는 길은 url_guard.ensure_allowed 가 400 으로 막는다).
     return await asyncio.to_thread(url_guard.check, body.url)
+
+
+@router.get("/fetch-sources", summary="자료 종류 · 출처 · 이용 조건 — 자료 직접 받기(관리자)")
+async def fetch_sources(_user=Depends(_require_admin)):
+    return fetch_plan.sources()
+
+
+@router.get("/fetch-plan", summary="받을 범위 — 받은 것 · 받을 것 · 휴장 · 아직 공개 전(관리자)")
+async def fetch_plan_route(
+    kind: str = Query(..., max_length=20, description="price(시세) · disclosure(공시) · policy_news(정책뉴스) · financial(재무)"),
+    from_: str = Query(..., alias="from", max_length=10, description="YYYY-MM-DD"),
+    to: str | None = Query(None, max_length=10, description="YYYY-MM-DD — 비우면 오늘(KST) · 오늘 뒤는 오늘까지"),
+    _user=Depends(_require_admin),
+):
+    # 받기는 화면이 하지 않는다 — 받을 것이 있으면 PC 에서 돌릴 명령을 함께 돌려준다(2026-10-08 결정 ①).
+    try:
+        return await asyncio.to_thread(fetch_plan.plan, kind, from_, to)
+    except fetch_plan.FetchPlanError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail) from None
+
+
+@router.get("/backup", summary="적재 · 백업 — HF 백업 판정 · 다른 데이터셋 · 이 PC 용량(관리자)")
+async def backup(_user=Depends(_require_admin)):
+    # 판정은 scripts/hf_dataset.py 가 쓴 기록을 읽기만 한다 — 규칙 사본을 앱에 두지 않는다(2026-10-08 결정 ③).
+    return await asyncio.to_thread(backup_status.read)
 
 
 @router.get("/ohlcv", summary="OHLCV 규격 자료(ohlcv-v1)")

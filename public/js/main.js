@@ -22,6 +22,7 @@ import { onFinLearnViewActivated } from "/js/finlearn.js";
 import { initDataBadge, onDataHubViewActivated } from "/js/datahub.js";   // 데이터 관제 · 위 메뉴 표시 (2026-10-02)
 import { onCalendarViewActivated } from "/js/calendar.js";             // 일정 · 다가오는 일정 카드 (2026-10-02)
 import { onResearchViewActivated } from "/js/research.js";             // 투자 정보 리서치 — 수집 자료 검색 · 종목 시간표 (2026-10-06)
+import { onCollectViewActivated } from "/js/collect.js";               // 데이터 수집 화면 셋 — 옛 크롤링 세 화면 자리 (2026-10-08)
 
 import { loadDashboard } from "/js/dashboard.js";
 
@@ -84,6 +85,7 @@ function onViewActivated(view) {
   onDataHubViewActivated(view);  // 데이터 관제 (js/datahub.js)
   onCalendarViewActivated(view); // 일정 · 「거시경제 지표」 오른쪽 다가오는 일정 카드 (js/calendar.js)
   onResearchViewActivated(view); // 투자 정보 리서치 (js/research.js)
+  onCollectViewActivated(view);  // 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (js/collect.js · 관리자)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }
@@ -91,7 +93,6 @@ function onViewActivated(view) {
   if (view === "quant-auto") loadAutoTradeStatus();
   if (view === "settings") loadSettings();
   if (view === "notification-settings") loadNotificationSettings();
-  if (view === "crawl-manual") loadCrawlList();
   if (view === "us-dashboard") loadUsDashboard();
   if (view === "us-chart") loadUsChart();
   if (view === "us-order") renderUsOrders();

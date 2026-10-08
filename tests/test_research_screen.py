@@ -142,3 +142,19 @@ def test_api_error_text_from_object_detail(tmp_path):
     assert got[2] == ["없는 종목", 404, None]
     assert got[3][0] == '{"code":7}' and got[3][2] == {"code": 7}
     assert all("[object Object]" not in g[0] for g in got)
+
+
+def test_clearing_query_shows_latest_right_away():
+    """TC-RS-06 · 검색어를 비우면 바로 최신 소식으로(2026-10-08 결정 · DF-86) — 검색 칸의 ✕(search) · 다 지움(input)에서 낱말 조건을
+    빼고 차례를 자동으로 되돌려 다시 받는다 · 낱말 없이 검색해도 직접 고른 관련도순을 남기지 않는다 · 다른 거름은 건드리지 않는다."""
+    src = _read("js/research.js")
+    code = re.sub(r"^\s*//.*$", "", src, flags=re.M)          # 주석 속 글자에 속지 않게
+    assert re.search(r'^\s+qInput\.addEventListener\("search",\s*onResearchQueryCleared\)', code, re.M)
+    assert re.search(r'^\s+qInput\.addEventListener\("input",\s*onResearchQueryCleared\)', code, re.M)
+    assert re.search(r"if \(!qInput\.value\.trim\(\)\) clearResearchQuery\(\)", code)
+    body = code[code.index("function clearResearchQuery()"):code.index("function renderResearch()")]
+    assert 'S.q = "";' in body and re.search(r'if \(S\.sort === "relevance"\) S\.sort = "";', body) and "reload();" in body
+    for other in ("S.source", "S.symbol", "S.topic", "S.period"):
+        assert other not in body, f"검색어를 비울 때 {other} 거름은 그대로 둔다"
+    submit = code[code.index('addEventListener("submit"'):code.index("const qInput")]
+    assert re.search(r'if \(!S\.q && S\.sort === "relevance"\) S\.sort = "";', submit), "낱말 없는 관련도순을 남기지 않는다"

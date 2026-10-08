@@ -31,6 +31,13 @@ from scripts import hf_dataset
 OHLCV_TABLES = ("etf_daily", "index_daily", "price_intraday", "intraday_universe")
 
 
+@pytest.fixture(autouse=True)
+def _snapshot_to_tmp(tmp_path, monkeypatch):
+    """검증 · 복원 · 올리기는 끝에 판정 기록(적재 · 백업 화면이 읽는 파일)을 쓴다(2026-10-08) — 시험이 진짜 상태 폴더를
+    시험 자료로 덮지 않게 이 파일의 모든 시험에서 임시 폴더로 돌린다(빠뜨리면 실제 화면이 시험 판정을 보인다)."""
+    monkeypatch.setattr(hf_dataset, "STATUS_SNAPSHOT_PATH", tmp_path / "state" / "hf_backup_status.json")
+
+
 def _collector_tables(path: Path) -> set[str]:
     conn = collector_db.connect(path)
     try:
@@ -160,6 +167,8 @@ def test_export_then_restore_round_trip(tmp_path, monkeypatch):
     # 데이터 카드에 새 출처가 적힌다
     card = (out / "README.md").read_text(encoding="utf-8")
     assert "야후 파이낸스" in card and "증권상품시세정보" in card
+    # 시세의 이용 조건은 공공누리 제4유형이다 — 카드가 「공공데이터포털 자료는 제1유형」 이라 적고 있었다(DF-88 · 2026-10-08)
+    assert "**공공누리 제4유형**" in card and "kogl-type4" in card and "kogl-type1" not in card
 
     into = tmp_path / "restored.sqlite3"
     assert hf_dataset.restore(into=str(into), verbose=False) == 0

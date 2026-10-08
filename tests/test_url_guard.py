@@ -133,3 +133,92 @@ def test_data_url_api_is_admin_only(monkeypatch):
     j = c.post("/api/data/url-check", json={"url": "https://example.com"}).json()
     assert (j["ok"], j["reason"]) == (False, "허용 목록 밖")
     assert c.post("/api/data/url-check", json={"url": "https://ecos.bok.or.kr/api/"}).json()["ok"] is True
+
+
+# ── 리다이렉트 (2026-10-08) — 허용된 곳이 돌려보낸 주소도 보내기 전에 검사한다 ─────────────────────────
+def _redirecting_transport(seen: list[str], to: str):
+    """처음 주소(opendart)는 `to` 로 돌려보내고, 그 밖은 본문 200 — 실제로 「보낸」 주소를 seen 에 적는다."""
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.host == "opendart.fss.or.kr":
+            return httpx.Response(302, headers={"Location": to})
+        return httpx.Response(200, text="<html><title>t</title><body>" + "본문 " * 80 + "</body></html>")
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.parametrize("to, why", [("http://127.0.0.1/admin", "내부망"), ("http://169.254.169.254/latest/meta-data/", "내부망"),
+                                     ("https://example.com/x", "허용 목록 밖")])
+def test_redirect_hop_blocked_before_sending(monkeypatch, to, why):
+    """TC-UG-07 · 리다이렉트 홉 — 허용된 곳이 내부망 · 목록 밖으로 돌려보내면 그 주소로는 **보내지 않고** 막는다(요청 훅)."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(ug, "_resolve", lambda h: GLOBAL)
+    monkeypatch.setattr(ug, "_fetch_robots", lambda origin: None)
+    seen: list[str] = []
+
+    async def go():
+        async with httpx.AsyncClient(transport=_redirecting_transport(seen, to), follow_redirects=True,
+                                     event_hooks={"request": [ug.guard_request]}) as client:
+            await client.get("https://opendart.fss.or.kr/api/list.json")
+
+    with pytest.raises(ug.BlockedHop) as e:
+        asyncio.run(go())
+    assert seen == ["https://opendart.fss.or.kr/api/list.json"], "막힌 홉이 실제로 나갔다"
+    assert e.value.status_code == 400 and why in e.value.detail["message"] and e.value.detail["url"] == to
+
+
+def test_redirect_within_allowlist_follows(monkeypatch):
+    """TC-UG-07b · 허용 목록 안에서의 리다이렉트는 따라간다 · robots 가 그 경로를 금지하면 그 홉에서 막는다."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(ug, "_resolve", lambda h: GLOBAL)
+    seen: list[str] = []
+
+    async def go():
+        async with httpx.AsyncClient(transport=_redirecting_transport(seen, "https://www.korea.kr/news/1"),
+                                     follow_redirects=True, event_hooks={"request": [ug.guard_request]}) as client:
+            return await client.get("https://opendart.fss.or.kr/api/list.json")
+
+    monkeypatch.setattr(ug, "_fetch_robots", lambda origin: None)
+    assert asyncio.run(go()).status_code == 200 and seen[-1] == "https://www.korea.kr/news/1"
+    seen.clear()
+    monkeypatch.setattr(ug, "_fetch_robots", lambda o: "User-agent: *\nDisallow: /news\n" if "korea.kr" in o else None)
+    with pytest.raises(ug.BlockedHop):
+        asyncio.run(go())
+    assert seen == ["https://opendart.fss.or.kr/api/list.json"]
+
+
+def test_crawl_url_reraises_blocked_hop_as_400(monkeypatch):
+    """TC-UG-08 · 받는 길이 훅을 건다 — 막힌 홉은 크롤러가 삼켜 「0청크 · 성공」 이 되지 않고 라우트가 400 을 돌려준다."""
+    import httpx
+
+    from app.services import crawl
+
+    monkeypatch.setattr(ug, "_resolve", lambda h: GLOBAL)
+    monkeypatch.setattr(ug, "_fetch_robots", lambda origin: None)
+    seen: list[str] = []
+    real_client = httpx.AsyncClient
+
+    def client_with_mock(*a, **kw):
+        assert ug.guard_request in kw.get("event_hooks", {}).get("request", []), "crawl_url 이 요청 훅을 걸지 않았다"
+        kw["transport"] = _redirecting_transport(seen, "http://10.0.0.7/secret")
+        return real_client(*a, **kw)
+
+    monkeypatch.setattr(crawl.httpx, "AsyncClient", client_with_mock)
+    monkeypatch.setattr(ingest_routes, "get_llm_client", lambda: None)
+    app = FastAPI()
+    app.include_router(ingest_routes.router)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "roles": ["user"]}
+
+    async def no_db():
+        yield None
+    app.dependency_overrides[get_pg_session] = no_db
+    r = TestClient(app).post("/api/ingest/crawl/url", json={"url": "https://opendart.fss.or.kr/api/list.json"})
+    assert r.status_code == 400 and "리다이렉트" in r.json()["detail"]["message"] and "사설" in r.json()["detail"]["message"]
+    assert seen == ["https://opendart.fss.or.kr/api/list.json"]

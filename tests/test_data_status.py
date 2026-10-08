@@ -104,6 +104,23 @@ def test_runner_running_lock_and_stale_lock(tmp_path):
     assert r["running"] is False and r["state"] == "late", "잠금이 4시간 넘으면 도는 중이 아니다 · 오늘 회차도 없다"
 
 
+def test_running_step_from_progress_of_the_same_run(tmp_path):
+    """TC-DST-14 · 도는 중의 지금 단계 — 러너의 진행 파일을 같은 실행(시작 시각이 잠금과 같음)일 때만 믿는다 ·
+    지난 실행이 남긴 진행 파일 · 도는 중이 아닐 때는 싣지 않는다(수집 일정 화면 「수집 중 — n번째 단계」 · 2026-10-08)."""
+    st = tmp_path / "state"
+    write_state(st, last=last_run("2026-10-01", [step("price")]),
+                lock={"pid": 1, "started_at": "2026-10-02T12:30:00+09:00"})
+    prog = {"started_at": "2026-10-02T12:30:00+09:00", "step": {"index": 10, "total": 19, "name": "adjusted", "label": "수정주가"}}
+    (st / ds.PROGRESS_FILE).write_text(json.dumps(prog, ensure_ascii=False), encoding="utf-8")
+    r = ds.runner_state(st, at("2026-10-02T12:50:00"))
+    assert r["running_step"] == {"index": 10, "total": 19, "name": "adjusted", "label": "수정주가"}
+    prog["started_at"] = "2026-10-01T12:30:00+09:00"            # 어제 실행이 남긴 진행 파일
+    (st / ds.PROGRESS_FILE).write_text(json.dumps(prog, ensure_ascii=False), encoding="utf-8")
+    assert "running_step" not in ds.runner_state(st, at("2026-10-02T12:50:00"))
+    (st / "daily_update.lock").unlink()
+    assert "running_step" not in ds.runner_state(st, at("2026-10-02T14:00:00"))
+
+
 def test_runner_late_only_after_an_hour_and_missing(tmp_path):
     """TC-DST-03 · 오늘 회차가 없으면 13:30 부터 「오늘 회차 없음」 · 그 전엔 어제 성공 그대로 · 기록이 없으면 「기록 없음」."""
     st = tmp_path / "state"
@@ -185,6 +202,29 @@ def test_tables_derived_lag_missing_and_calendar(market):
     assert t["etf_daily"]["verdict"] == "missing", "표는 있으나 행이 없다"
     assert t["market_calendar"]["verdict"] == "ok" and t["market_calendar"]["last_date"] == "2027-12-31"
     assert t["market_event"]["verdict"] == "info"
+
+
+def test_news_rows_split_by_source(market):
+    """TC-DST-15 · 뉴스 표의 출처 둘을 줄 둘로 — 정책뉴스 줄이 언론사 기사(GDELT)를 세지 않는다(DF-87).
+
+    한 줄로 셀 때는 정책뉴스 줄이 42,303(= 정책뉴스 32,983 + 언론사 기사 9,320)을 보였고, 마지막 날짜도 매일 받는
+    언론사 기사 쪽으로 당겨져 정책뉴스가 멈춰도 관제에 보이지 않았다(2026-10-08 실측).
+    """
+    conn = db.connect(market)
+    rows = [("policy:1", "policy_news", "2026-09-30T10:00:00+09:00"), ("policy:2", "policy_news", "2026-10-01T09:00:00+09:00"),
+            ("gdelt:a", "gdelt", "2026-10-06T08:00:00+09:00"), ("gdelt:b", "gdelt", "2026-10-07T08:00:00+09:00"),
+            ("gdelt:c", "gdelt", "2026-10-07T09:15:00+09:00")]
+    conn.executemany("INSERT INTO news_item (news_id, source, title, pub_at, available_at, fetched_at, updated_at) "
+                     "VALUES (?, ?, '제목', ?, ?, '2026-10-07T12:30:00+09:00', '2026-10-07T12:30:00+09:00')",
+                     [(i, s, p, p) for i, s, p in rows])
+    conn.commit()
+    counts = {key: conn.execute(count_sql).fetchone()[0]
+              for key, _table, *_rest, _last_sql, count_sql in ds.TABLES if key in ("news_item", "news_gdelt")}
+    conn.close()
+    assert counts == {"news_item": 2, "news_gdelt": 3}
+    t, _ = _states(date(2026, 10, 8))
+    assert (t["news_item"]["label"], t["news_item"]["last_date"]) == ("정책뉴스", "2026-10-01"), "언론사 기사 날짜로 당겨지지 않는다"
+    assert (t["news_gdelt"]["label"], t["news_gdelt"]["last_date"], t["news_gdelt"]["verdict"]) == ("언론사 기사", "2026-10-07", "info")
 
 
 def test_tables_without_calendar_are_approximate(tmp_path, monkeypatch):

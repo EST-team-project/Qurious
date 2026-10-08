@@ -58,7 +58,7 @@ API-STK-31	GET	/api/custom-indicators	S63	사용
 API-STK-32	POST	/api/custom-indicators	S63	사용
 API-STK-33	DELETE	/api/custom-indicators/{indicator_id}	S63	사용
 API-LIB-01	GET	/api/library/search	S63	사용
-API-ADM-01	POST	/api/admin/reset	S63	사용
+API-ADM-01	POST	/api/admin/reset	S63	폐기
 API-ADM-02	GET	/api/admin/stats	S63	사용
 API-ADM-03	GET	/api/admin/audit-log	S63	사용
 API-SYS-01	GET	/api/system/status	S63	사용
@@ -232,3 +232,6 @@ API-DATA-06	GET	/api/data/url-rules	2026-10-07	사용
 API-DATA-07	POST	/api/data/url-check	2026-10-07	사용
 API-KMON-01	GET	/api/quant/kis/monitor	2026-10-08	사용
 API-KMON-02	GET	/api/quant/kis/orders	2026-10-08	사용
+API-DATA-08	GET	/api/data/fetch-sources	S101	사용
+API-DATA-09	GET	/api/data/fetch-plan	S101	사용
+API-DATA-10	GET	/api/data/backup	S101	사용

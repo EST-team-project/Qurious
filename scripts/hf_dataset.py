@@ -114,6 +114,7 @@ append 패턴이라 중복제거가 가장 잘 듣는다.
     PYTHONPATH=. python scripts/hf_dataset.py export --years 2026 --force
     PYTHONPATH=. python scripts/hf_dataset.py status            # 로컬 현황 + 삭제 판정
     PYTHONPATH=. python scripts/hf_dataset.py status --remote   # 원격까지 대조 (읽기)
+    PYTHONPATH=. python scripts/hf_dataset.py status --write    # 판정 기록을 상태 폴더에(적재 · 백업 화면이 읽는다)
     PYTHONPATH=. python scripts/hf_dataset.py verify            # 내보낸 것이 온전한가
     PYTHONPATH=. python scripts/hf_dataset.py verify --deep     # 큰 표까지 열 체크섬
     PYTHONPATH=. python scripts/hf_dataset.py restore           # ← 복구 리허설(임시 폴더)
@@ -179,6 +180,14 @@ MANIFEST_PATH = EXPORT_DIR / "meta" / "manifest.json"
 #: 판정을 말이 아니라 **실행 기록**에 묶어 두려고 파일로 남긴다.
 VERIFY_LOG_PATH = EXPORT_DIR / "meta" / "last_verify.json"
 RESTORE_LOG_PATH = EXPORT_DIR / "meta" / "last_restore.json"
+
+#: 「지워도 되는가」 판정 기록 — 앱의 적재 · 백업 화면(`GET /api/data/backup`)이 읽는다(2026-10-08 결정 다).
+#: 판정 규칙은 이 파일 한 곳(`_deletion_verdict`)이고 앱에는 사본이 없다(앱 컨테이너에는 scripts/ 가 없다).
+#: 검증 · 올리기 · 복원 리허설 · `status --write` 가 끝날 때마다 다시 쓴다. 러너 기록과 같은 상태 폴더라 HF 에는 올라가지 않는다.
+STATUS_SNAPSHOT_PATH = config.STATE_DIR / "hf_backup_status.json"
+#: `_deletion_verdict` 가 돌려주는 조건의 차례 — 앱이 이 열쇠로 점검 줄 넷을 묶는다(app/services/backup_status.py 의 GROUPS).
+VERDICT_KEYS = ("tables", "rows", "files", "deep_verify", "restore", "remote")
+STATUS_SCHEMA = 1
 
 #: dataset card. 업로드할 때 원격 최상단에 뜨는 문서다.
 README_PATH = EXPORT_DIR / "README.md"
@@ -1067,7 +1076,61 @@ def _deletion_verdict(man: Dict, db_counts: Dict[str, int], remote_ok: Optional[
     return out
 
 
-def status(remote: bool = False) -> None:
+def _db_counts() -> Tuple[Dict[str, int], bool]:
+    """지금 DB 의 표별 행 수와 DB 가 있는가 — 읽기 전용으로 연다(앱이 붙여 읽는 WAL DB 를 쓰기로 열지 않는다)."""
+    conn = _ro_connect_opt()
+    if conn is None:
+        return {}, False
+    try:
+        return {name: conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0] for name in _db_tables(conn)}, True
+    finally:
+        conn.close()
+
+
+def status_snapshot(remote_ok: Optional[bool] = None, *, remote_checked: bool = False, by: str = "status",
+                    db_counts: Optional[Dict[str, int]] = None, db_present: Optional[bool] = None) -> Dict:
+    """「지워도 되는가」 판정을 화면이 읽는 모양으로 — 조건 여섯 · 남은 조건 · 매니페스트 숫자 · 업로드 기록.
+
+    확인하지 않은 것은 통과가 아니다 — 조건의 `ok` 는 참 · 거짓 · None(확인 안 됨) 그대로 싣는다.
+    """
+    man = _load_manifest()
+    if db_counts is None:
+        db_counts, db_present = _db_counts()
+    rows = _deletion_verdict(man, db_counts, remote_ok, bool(db_present))
+    if len(rows) != len(VERDICT_KEYS):
+        raise ValueError(f"판정 조건이 {len(rows)}개다 — VERDICT_KEYS 와 앱의 GROUPS 를 함께 고친다")
+    conds = [{"key": k, "ok": ok, "label": label, "why": why} for k, (ok, label, why) in zip(VERDICT_KEYS, rows)]
+    tables = man.get("tables", {})
+    files = {f["path"]: f["sha256"] for t in tables.values() for f in t["files"]}
+    up = man.get("uploaded") or {}
+    up_files = up.get("files") or {}
+    return {
+        "schema": STATUS_SCHEMA, "written_at": _now_kst(), "by": by, "repo_id": REPO_ID,
+        "manifest": ({"generated_at": man.get("generated_at"), "partial": bool(man.get("partial")),
+                      "bytes": sum(t["bytes"] for t in tables.values()), "files": len(files),
+                      "rows": sum(t["rows"] for t in tables.values()), "db_bytes": man.get("db_bytes") or 0}
+                     if man else {}),
+        "uploaded": ({"at": up.get("at"), "tag": up.get("tag"),
+                      "files_same": sum(1 for p, sha in files.items() if up_files.get(p) == sha),
+                      "files_total": len(files)} if up else None),
+        "db_present": bool(db_present), "remote_checked": remote_checked,
+        "conditions": conds,
+        "can_delete": all(c["ok"] is True for c in conds),
+        "remaining": [c["label"] for c in conds if c["ok"] is not True],
+    }
+
+
+def write_status_snapshot(**kw) -> Optional[Path]:
+    """판정 기록을 쓴다. 못 쓰면 본 일(검증 · 올리기 · 리허설)을 실패로 돌리지 않고 한 줄 알린다 — 화면은 앞 기록을 보인다."""
+    try:
+        _write_json_atomic(STATUS_SNAPSHOT_PATH, status_snapshot(**kw))
+    except (OSError, sqlite3.Error, ValueError) as e:
+        print(f"  🟡 백업 판정 기록을 쓰지 못했다({type(e).__name__}: {e}) — 적재 · 백업 화면은 앞 기록을 보인다")
+        return None
+    return STATUS_SNAPSHOT_PATH
+
+
+def status(remote: bool = False, write: bool = False) -> None:
     print("― HF 데이터셋 현황 ―")
     man = _load_manifest()
     if not man:
@@ -1173,6 +1236,11 @@ def status(remote: bool = False) -> None:
     # ── 결론 한 줄이 필요한 자리 ────────────────────────────────────────────
     print("\n― " + ("지금 로컬 SQLite 를 지워도 되는가" if db_present
                     else "로컬 SQLite 는 이미 없다 — 백업이 온전한가") + " ―")
+    if write:                                 # 적재 · 백업 화면이 읽는 판정 기록 — 아래 판정과 같은 함수 · 같은 행 수로
+        path = write_status_snapshot(remote_ok=remote_ok, remote_checked=remote, by="status",
+                                     db_counts=db_counts, db_present=db_present)
+        if path:
+            print(f"\n  판정 기록 → {_rel_root(path)}")
     if not man:
         print("  🔴 아직 아무것도 내보내지 않았다.")
         return
@@ -1463,6 +1531,7 @@ def verify(deep: bool = False, tables: Optional[List[str]] = None) -> int:
         "manifest_fp": _manifest_fp(man),
         "manifest_generated_at": man.get("generated_at"),
     })
+    write_status_snapshot(by="verify")        # 적재 · 백업 화면의 판정 — 방금 쓴 검증 기록까지 넣어 다시
     return 1 if fails else 0
 
 
@@ -1745,6 +1814,7 @@ def restore(into: Optional[str] = None, src: Optional[str] = None,
         "manifest_fp": _manifest_fp(man),
         "manifest_generated_at": man.get("generated_at"),
     })
+    write_status_snapshot(by="restore")       # 적재 · 백업 화면의 판정 — 리허설 결과까지 넣어 다시
     return 0 if ok else 1
 
 
@@ -1792,7 +1862,7 @@ def _readme_yaml(man: Dict) -> str:
     return f"""---
 pretty_name: "KRX 일별 시세·수정주가·총수익지수·벤치마크 (2020–2026)"
 license: other
-license_name: kogl-type1-and-opendart-derived
+license_name: kogl-type4-and-opendart-derived
 language: [ko]
 size_categories: ["1M<n<10M"]
 tags: [finance, korea, krx, quant]
@@ -1804,9 +1874,11 @@ configs:
 
 🔴 **이 저장소는 private 이어야 한다. 절대 public 으로 바꾸지 않는다.**
 
-**이용 조건** — 머리말의 `license_name: kogl-type1-and-opendart-derived` 는 HF 가 소문자
-slug 만 받아서 줄인 표기다. 실제 조건은 이렇다: 공공데이터포털 자료는 **공공누리 제1유형**,
-배당은 **OpenDART** 이용약관을 따르며, 이 저장소는 그 **파생물과 응답 원문**을 담는다.
+**이용 조건** — 머리말의 `license_name: kogl-type4-and-opendart-derived` 는 HF 가 소문자
+slug 만 받아서 줄인 표기다. 실제 조건은 이렇다: 공공데이터포털의 시세(금융위원회 주식 · 증권상품 · 지수시세정보)는
+**공공누리 제4유형**(출처 표시 · 비상업 · 변경 금지 — 제3자 재배포 금지), 정책브리핑 정책뉴스는 기사마다 유형이 달라
+**제1유형 기사만 본문**을 담고, 배당 · 공시 · 재무는 **OpenDART** 이용약관을 따른다. 언론사 기사(GDELT)는 제목 · 원문 주소 ·
+시각만 담는다(본문 없음). 이 저장소는 그 **파생물과 응답 원문**을 담는다.
 분봉(`price_intraday`)은 **야후 파이낸스**에서 받은 것이라 야후 이용약관(개인 · 비상업 용도)을 따른다.
 **팀(private Organization) 안에서 학습 목적으로만** 쓰고 밖으로 재배포하지 않는다.
 
@@ -2137,6 +2209,7 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
                        "mode": "incremental" if incremental else "full",
                        "files": prev_up}
     _write_json_atomic(MANIFEST_PATH, man)
+    write_status_snapshot(by="upload")        # 적재 · 백업 화면의 「마지막 올림」 — 이 업로드 기록까지 넣어 다시
 
     print(f"  ✅ 끝 · {time.time() - t0:,.1f}초 · "
           f"https://huggingface.co/datasets/{REPO_ID}/tree/{tag_name}")
@@ -2179,6 +2252,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--tag", help="upload: 붙일 태그. 기본 snapshot-YYYY-MM-DD")
     p.add_argument("--remote", action="store_true",
                    help="status: 원격까지 조회한다 (whoami·repo_info — 읽기만)")
+    p.add_argument("--write", action="store_true",
+                   help="status: 판정 기록을 상태 폴더(state/hf_backup_status.json)에 쓴다 — 적재 · 백업 화면이 읽는다")
     p.add_argument("--deep", action="store_true",
                    help="verify: 큰 표까지 숫자 칸 합·NULL 수를 대조한다 (느리다)")
     p.add_argument("--into", help="restore: 되살릴 SQLite 경로. "
@@ -2192,7 +2267,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     years = [c.strip() for c in a.years.split(",")] if a.years else None
 
     if a.mode == "status":
-        status(remote=a.remote)
+        status(remote=a.remote, write=a.write)
         return 0
     if a.mode == "verify":
         return verify(deep=a.deep, tables=tables)

@@ -51,12 +51,10 @@
 .dh-h { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .dh-h .q-muted { font-size: 12px; }
 .dh-alert { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: var(--surf2); margin-bottom: 10px; }
-.dh-bar { display: flex; gap: 2px; height: 14px; margin-bottom: 12px; }
-.dh-seg { border-radius: 3px; min-width: 3px; }
-.dh-seg--fresh { background: #60a5fa; } .dh-seg--fresh:nth-child(2n) { background: #2563eb; }
-.dh-seg--late { background: #f59e0b; } .dh-seg--stale { background: var(--red); } .dh-seg--info { background: var(--border2); }
-.dh-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 24px; font-size: 13px; }
-.dh-steps li { display: flex; gap: 8px; align-items: baseline; }
+/* 마지막 수집 한 줄(2026-10-08 결정 ④ — 단계별 표는 「수집 일정 · 단계」 화면으로 옮겼다) */
+.dh-runline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.dh-runline .dh-more { margin-left: auto; border: 0; background: none; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; }
+.dh-hist .dh-rerun { color: var(--text-dim); }
 .dh-mark { font-weight: 700; width: 12px; }
 .dh-table-wrap { overflow-x: auto; }
 .dh-table { width: 100%; font-size: 13px; border-collapse: collapse; }
@@ -232,7 +230,6 @@
 /* ── 좁은 화면(휴대폰 390 · 결정 ② — 달력 대신 목록) ── */
 @media (max-width: 900px) {
   .dh-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dh-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cal-layout, .q-with-side, .rs-layout { grid-template-columns: minmax(0, 1fr); }
   .q-side, .rs-filters { position: static; }
   .rs-filters > summary { display: list-item; }     /* 좁은 화면 — 거름 칸은 접고 펴는 칸(처음엔 접힘) */
@@ -244,7 +241,7 @@
     padding-bottom: 96px; }   /* 아래 오른쪽 「기능 완성도」 배지(DF-62)가 쪽 넘기기를 가리지 않게 */
 }
 @media (max-width: 720px) {
-  .dh-sum, .dh-steps, .dh-low { grid-template-columns: minmax(0, 1fr); }
+  .dh-sum, .dh-low { grid-template-columns: minmax(0, 1fr); }
   .cal-grid { display: none; }
   .cal-list { display: block; }
   .cal-sum { flex-basis: 100%; }

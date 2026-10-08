@@ -115,6 +115,10 @@ HISTORY_PATH = config.STATE_DIR / "daily_update_history.jsonl"
 CATALOG_PATH = config.STATE_DIR / "daily_update_steps.json"
 #: 이 PC 용량(드라이브 여유 · 수집 DB 크기) — 회차 끝에 잰다. 앱 컨테이너는 PC 디스크를 볼 수 없어 러너가 대신 잰다.
 DISK_PATH = config.STATE_DIR / "pc_disk.json"
+#: 도는 중의 지금 단계(몇 번째 · 이름표) — 단계를 시작할 때마다 다시 쓰고 끝나면 지운다(2026-10-08). 잠금 파일(다른 실행 막기)과
+#: 따로 둔다 — 잠금을 고쳐 쓰다 실패하면 다른 실행을 막는 일이 흔들린다. 앱은 잠금의 시작 시각과 같은 실행일 때만 믿는다
+#: (수집 일정 화면의 「수집 중 — n번째 단계」).
+PROGRESS_PATH = config.STATE_DIR / "daily_update_progress.json"
 
 #: 로그 보관 개수. 하루 한 번이면 한 달치다.
 KEEP_LOGS = 30
@@ -222,6 +226,29 @@ def _write_json_atomic(path: Path, obj: Dict) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)
+
+
+def write_progress(started: datetime.datetime, step: "Step", run: Optional["Run"] = None) -> None:
+    """지금 단계를 진행 파일에 적는다 — 몇 번째(단계 목록 차례 · 1부터) · 모두 몇 · 이름 · 이름표.
+
+    못 쓰면 회차를 멈추지 않고 로그에 한 줄 남긴다(화면의 「n번째」 만 빠지고 수집은 그대로다).
+    """
+    index = next((i for i, s in enumerate(STEPS, 1) if s.name == step.name), 0)
+    try:
+        _write_json_atomic(PROGRESS_PATH, {"started_at": _iso(started), "at": _iso(now_kst()),
+                                           "step": {"index": index, "total": len(STEPS), "name": step.name,
+                                                    "label": step.label or step.name}})
+    except OSError as e:
+        if run is not None:
+            run.say(f"🟡 진행 파일을 쓰지 못했다 — {e}")
+
+
+def clear_progress() -> None:
+    """진행 파일을 지운다. 지우지 못해도 해가 없다 — 앱은 잠금과 시작 시각이 같은 실행의 진행 파일만 읽는다."""
+    try:
+        PROGRESS_PATH.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def pid_alive(pid: int) -> bool:
@@ -462,7 +489,7 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}.log"
 
-    busy = acquire_lock()
+    busy = acquire_lock(now=started)      # 잠금 · 진행 파일이 같은 시작 시각 — 앱이 같은 실행인지 시각으로 가른다
     if busy:
         # 로그를 새로 만들지 않는다 — 돌고 있는 쪽 로그가 정본이다.
         msg = f"{_iso(started)} 건너뜀: {busy}"
@@ -511,6 +538,7 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
                             f"{'(업로드 기록 없음)' if pending is None else f'{len(pending)}개'}")
                 t0 = time.time()
                 run.say(f"▶ {step.name} …")
+                write_progress(started, step, run)         # 수집 일정 화면의 「수집 중 — n번째 단계」
                 rc = _run_step(run, step)
                 rec["rc"], rec["seconds"] = rc, round(time.time() - t0, 1)
                 run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} "
@@ -547,6 +575,7 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
                 "steps": run.steps, "log": log_path.relative_to(ROOT).as_posix()})
             rc_total = 1
         finally:
+            clear_progress()
             release_lock()
     _prune_logs()
     return rc_total
@@ -626,6 +655,7 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
             run.say(f"한 단계만 다시 돌림 · {name}({step.label}) · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
             rec = _rec(step)
             t0 = time.time()
+            write_progress(started, step, run)
             rc = _run_step(run, step)
             rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
             if not rearm_wal():                              # 단계가 쓰기 연결로 끝났어도 앱이 수집 DB 를 읽게
@@ -650,6 +680,7 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
             for err in write_side_files():
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
     finally:
+        clear_progress()
         release_lock()
         _prune_logs()
     return rc
