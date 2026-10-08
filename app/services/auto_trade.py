@@ -1,8 +1,8 @@
-"""10분 주기 자동매매 Agentic AI - PostgreSQL 기반.
+"""주기 자동매매 Agentic AI(QUANT_CYCLE_SEC, 기본 3분) - PostgreSQL 기반.
 
 실행 모델
   - 활성 여부는 BrokerSettings.quant_auto_enabled(DB)에 저장한다. 앱 재시작·다중 인스턴스에서도 상태가 유지된다.
-  - 주기 실행은 Celery Beat(`quant.auto_trade_cycle`, 10분)이 활성 사용자 전원에 대해 run_cycle_for_enabled_users()를 돌린다.
+  - 주기 실행은 Celery Beat(`quant.auto_trade_cycle`, QUANT_CYCLE_SEC 기본 3분)이 활성 사용자 전원에 대해 run_cycle_for_enabled_users()를 돌린다.
   - 시작 시에는 즉시 1회 사이클을 백그라운드로 실행해 화면 반응을 준다(인프로세스 루프는 더 이상 쓰지 않는다).
   - 사이클 로그는 data_cache(`quant:cycle_log:{uid}`)에 최근 50개를 남겨 API 프로세스와 워커가 공유한다.
 
@@ -41,6 +41,7 @@ from app.services import kis_credentials
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.data_cache import cache_get, cache_set
 from app.services import trading_cost
+from app.services import aggressive_mode
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ _auto_trade_task: asyncio.Task | None = None
 _trade_log: list[dict] = []
 _is_running = False
 _auto_trade_user_id = "quant_system"
-_INTERVAL_SEC = 600
+_INTERVAL_SEC = int(app_settings.QUANT_CYCLE_SEC)   # celery_app.beat_schedule 과 같은 값(기본 180 = 3분)
 _INITIAL_CAPITAL = 10_000_000
 _last_risk: dict = {}          # 마지막 사이클의 위험관리 상태 (status 응답용)
 
@@ -100,7 +101,7 @@ async def get_status(db: AsyncSession, uid: uuid.UUID) -> dict:
     last_risk = next((c.get("risk") for c in reversed(cycles) if c.get("risk")), {})
     return {
         "running":      enabled,
-        "scheduler":    "celery-beat (10분)",
+        "scheduler":    f"celery-beat ({max(1, _INTERVAL_SEC // 60)}분)",
         "user_id":      str(uid),
         "interval_sec": _INTERVAL_SEC,
         "risk":         last_risk,
@@ -449,14 +450,14 @@ async def _place_live_order_via_gateway(
     if db is not None:
         row = LiveOrder(
             user_id=uid, client_order_id=client_order_id, environment=env, broker="kis",
-            symbol=symbol, name=name, side=side.upper(), order_type=gateway.default_order_type(),
+            symbol=symbol, name=name, side=side.upper(), order_type=_live_order_type(),
             quantity=quantity, price=float(price), status="PENDING",
         )
         db.add(row)
         await db.commit()
 
     try:
-        result = await gateway.place_order(symbol, side, quantity, price, client_order_id=client_order_id)
+        result = await gateway.place_order(symbol, side, quantity, price, client_order_id=client_order_id, order_type=_live_order_type())
     except gateway.GatewayError as e:
         logger.warning("게이트웨이 실주문 실패 (%s %s x%d): [%s] %s", side, symbol, quantity, e.code, e)
         if row is not None:
@@ -480,6 +481,15 @@ async def _place_live_order_via_gateway(
                                            broker=f"KIS({env}) via stock-coin-trade", user_id=user_id)
     return {"status": "submitted", "broker": "kis", "via": "stock-coin-trade", "environment": env,
             "order_no": order.get("orderNo"), "client_order_id": client_order_id, "duplicate": result["duplicate"], "response": order}
+
+
+def _live_order_type() -> str:
+    """게이트웨이 주문 유형: 공격 모드면 QUANT_AGGRESSIVE_ORDER_TYPE(기본 MARKET), 아니면 env 기본값."""
+    if aggressive_mode.is_enabled():
+        ot = aggressive_mode.order_type()
+        if ot:
+            return ot
+    return gateway.default_order_type()
 
 
 async def open_live_order_exposure(db: AsyncSession, uid: uuid.UUID) -> dict[str, float]:
@@ -555,8 +565,36 @@ async def confirm_live_fills(limit: int = 100) -> dict:
             try:
                 if row.order_no:
                     latest = await gateway.get_order_status(row.order_no, env=row.environment)
+                elif row.status == "UNKNOWN" and row.client_order_id:
+                    # 응답을 못 받은 주문: 계약서의 멱등키(clientOrderId)로 **같은 intent 를 재전송**한다.
+                    # st 가 원 주문을 기록했으면 새 주문 없이 저장된 order 를 duplicate=true 로 돌려주고,
+                    # 원 요청이 st 에 닿지 않았으면 이번에 접수된다(최대 1회 실행 보장). 시간 창을 넘기면 LOST 로 종료해 비중 점유를 푼다.
+                    window = int(getattr(app_settings, "STOCK_COIN_TRADE_UNKNOWN_RESUBMIT_MIN", 10) or 0)
+                    created = row.created_at.astimezone(timezone.utc) if row.created_at else datetime.now(timezone.utc)
+                    age_min = (datetime.now(timezone.utc) - created).total_seconds() / 60
+                    if window <= 0 or age_min > window:
+                        row.status = "LOST"
+                        row.message = f"응답 미수신 {age_min:.0f}분 경과 — 재전송 창({window}분) 초과로 종료. KIS 앱/st 기록에서 clientOrderId 로 수동 확인 필요"[:300]
+                        summary["lost"] = summary.get("lost", 0) + 1
+                        summary["updated"] += 1
+                        logger.warning("UNKNOWN 주문 LOST 처리 (%s %s x%d, %s)", row.side, row.symbol, row.quantity, row.client_order_id)
+                        await notification.notify_order_error(symbol=row.symbol, side=row.side.lower(), quantity=row.quantity, price=row.price,
+                                                              error=row.message, user_id=str(row.user_id))
+                        continue
+                    if gateway.enforce_market_hours() and not gateway.is_krx_market_open():
+                        summary["skipped"] += 1
+                        continue
+                    res = await gateway.place_order(row.symbol, row.side, row.quantity, row.price, client_order_id=row.client_order_id,
+                                                    order_type=row.order_type, env=row.environment)
+                    latest = res.get("order") or {}
+                    row.order_no = str(latest.get("orderNo") or "") or None
+                    row.message = ("응답 미수신 → 멱등 재전송: " + ("기존 주문 확인(duplicate)" if res.get("duplicate") else "이번에 신규 접수"))[:300]
+                    summary["resubmitted"] = summary.get("resubmitted", 0) + 1
+                    if not latest:
+                        summary["skipped"] += 1
+                        continue
                 else:
-                    # 주문번호를 못 받은(UNKNOWN/PENDING) 건: 당일 목록에서 같은 종목·방향·수량으로 추정 매칭
+                    # 주문번호를 못 받은(PENDING) 건: 당일 목록에서 같은 종목·방향·수량으로 추정 매칭
                     code = gateway.normalize_symbol(row.symbol)
                     candidates = [o for o in await gateway.list_today_orders(env=row.environment)
                                   if o.get("symbol") == code and o.get("side") == row.side and int(o.get("orderedQuantity") or 0) == row.quantity]
@@ -674,6 +712,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         sell_ratio = max(0.1, min(sell_ratio, 1.0))
 
         limits = risk_guard.RiskLimits.from_row(broker_row)
+        aggressive = aggressive_mode.is_enabled()
+        if aggressive:
+            limits = aggressive_mode.apply_limits(limits)   # 쿨다운·일 주문 수만 덮어씀
         if limits.kill_switch:
             cycle_log["risk"] = {"halted": True, "reason": (broker_row.risk_halt_reason if broker_row else "") or "비상 정지 스위치 ON"}
             cycle_log["note"] = "비상 정지 상태 — 주문을 내지 않습니다."
@@ -687,7 +728,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
 
         for stock in QUANT_STOCKS:
             try:
-                indicators = await get_quant_indicators(stock["symbol"], "2y")
+                indicators = (await aggressive_mode.get_intraday_indicators(stock["symbol"]) if aggressive
+                              else await get_quant_indicators(stock["symbol"], "2y"))
                 indicator_map[stock["symbol"]] = indicators
                 signal = indicators.get("signal", {})
                 price = indicators.get("current_price")
@@ -711,7 +753,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 score = sig.get("score", 0)
                 ranked.append((stock["symbol"], score))
             ranked.sort(key=lambda item: item[1], reverse=True)
-            target_symbols = [sym for sym, _ in ranked[:ai_top_n]]
+            pool = max(ai_top_n, 2 * int(app_settings.QUANT_AGGRESSIVE_MAX_BUYS_PER_CYCLE), 5) if aggressive else ai_top_n
+            target_symbols = [sym for sym, _ in ranked[:pool]]
 
         strategy_spec: dict | None = None
         ml_scores: dict[str, float] = {}
@@ -732,8 +775,30 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             else:
                 strategy_log["error"] = "domain-rag-lab 에서 스펙을 받지 못해 기본 규칙 사용"
 
+        # ── 공격 모드: 보유분 점검 + 이번 사이클 매수/매도 계획 ──
+        forced_action: dict[str, dict] = {}
+        if aggressive:
+            holdings: dict[str, tuple[int, float]] = {}
+            for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
+                if p.quantity > 0:
+                    holdings[p.symbol] = (int(p.quantity), float(p.avg_price or 0))
+            ag_plan = aggressive_mode.plan(indicator_map, target_symbols, holdings, price_map)
+            for sym in ag_plan["buy"]:
+                forced_action[sym] = {"action": "매수", "ratio": None, "note": "공격 모드 매수"}
+            for sym, info in ag_plan["sell"].items():
+                forced_action[sym] = {"action": "매도", "ratio": info["ratio"], "note": info["reason"]}
+            for sym in list(forced_action):
+                if sym not in target_symbols and sym in stock_map:
+                    target_symbols.append(sym)
+            cycle_log["aggressive"] = {"buy": ag_plan["buy"], "sell": {k: v["reason"] for k, v in ag_plan["sell"].items()},
+                                       "ranked": ag_plan["ranked"][:10], "notes": ag_plan["notes"],
+                                       "interval": app_settings.QUANT_AGGRESSIVE_CANDLE_INTERVAL,
+                                       "take_profit_pct": app_settings.QUANT_AGGRESSIVE_TAKE_PROFIT_PCT,
+                                       "stop_loss_pct": app_settings.QUANT_AGGRESSIVE_STOP_LOSS_PCT}
+
         cycle_log["settings"] = {
             "mode": mode,
+            "aggressive": aggressive,
             "symbol_source": symbol_source,
             "strategy": strategy_log,
             "symbols": target_symbols,
@@ -818,9 +883,20 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             action = signal.get("action", "관망")
             reasons = signal.get("reasons", [])
             score = signal.get("score", 0)
+            sell_ratio_here = sell_ratio
+            if aggressive:
+                forced = forced_action.get(symbol)
+                if forced:
+                    action = forced["action"]
+                    reasons = [forced["note"], *reasons]
+                    if forced["ratio"] is not None:
+                        sell_ratio_here = float(forced["ratio"])
+                else:
+                    action = "관망"   # 공격 모드에서는 plan 이 정한 종목만 거래한다(사이클당 매수·매도 수 한도)
             cycle_log["signals"].append({
                 "symbol": stock["symbol"], "name": stock["name"],
                 "price": price, "action": action, "score": score,
+                "reasons": [str(r) for r in list(reasons)[:6]],   # 의사결정 화면 「판단 근거」 카드에 실제 사유를 보여 준다
             })
 
             if action in ("강력 매수", "매수"):
@@ -864,7 +940,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 )
                 existing = port_result.scalar_one_or_none()
                 if existing and existing.quantity > 0:
-                    qty = max(1, int(existing.quantity * sell_ratio))
+                    qty = max(1, int(existing.quantity * sell_ratio_here))
+                    if sell_ratio_here >= 1.0:
+                        qty = int(existing.quantity)
                     qty, risk_note = await _risk_gate(stock["symbol"], stock["name"], "sell", qty, price)
                     if qty <= 0:
                         await _risk_skip(stock["symbol"], stock["name"], "sell", price, risk_note or "위험관리 규칙")
@@ -992,9 +1070,24 @@ def stop_auto_trade() -> bool:
 
 
 async def run_cycle_for_enabled_users() -> dict:
-    """Celery Beat 진입점: quant_auto_enabled=true 인 사용자 전원의 사이클을 순차 실행."""
+    """Celery Beat 진입점: quant_auto_enabled=true 인 사용자 전원의 사이클을 순차 실행.
+
+    먼저 kis_batch.ensure_system_batch 로 KIS 모의투자 백그라운드 배치(시스템 사용자 행)를 켜거나 끈다.
+    그래서 KIS_PAPER_BATCH_ENABLED=true 이면 로그인·대시보드 조작 없이도 사이클이 돈다.
+    """
+    from app.services import kis_batch  # 지연 import (kis_batch → kis_quickstart → auto_trade 순환 방지)
+
     session_factory = get_session_factory()
     async with session_factory() as db:
+        try:
+            batch = await kis_batch.ensure_system_batch(db)
+        except Exception as exc:  # 배치 점검 실패가 사용자 계정 사이클을 막으면 안 된다
+            logger.exception("KIS 모의투자 배치 점검 실패: %s", exc)
+            batch = {"enabled": kis_batch.is_configured(), "running": False, "error": str(exc)}
+            try:
+                await db.rollback()   # 실패한 트랜잭션을 정리하지 않으면 아래 select 가 PendingRollbackError 로 전체 사이클을 막는다
+            except Exception:
+                pass
         uids = (await db.execute(select(BrokerSettings.user_id).where(BrokerSettings.quant_auto_enabled.is_(True)))).scalars().all()
     ran, failed = 0, 0
     for uid in uids:
@@ -1004,4 +1097,4 @@ async def run_cycle_for_enabled_users() -> dict:
         except Exception:
             failed += 1
             logger.exception("자동매매 사이클 실패 user=%s", uid)
-    return {"enabled_users": len(uids), "ran": ran, "failed": failed}
+    return {"enabled_users": len(uids), "ran": ran, "failed": failed, "kis_batch": batch}

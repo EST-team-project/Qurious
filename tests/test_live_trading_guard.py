@@ -260,3 +260,22 @@ def test_미승인이면_자동매매_실주문이_모의로_요청된다(monkey
 
 def test_승인하면_자동매매_실주문이_실전을_요청한다(monkeypatch, allow_live_trading):
     assert _실주문_요청(monkeypatch) == {"broker": "kis", "paper": False}
+
+
+# ── 8. 표시 — 공개 헬스의 KIS 환경 (강사님 10-07 · e815be3) ──────────
+#
+# 강사님 판 `/api/health`(로그인 없이 열림)는 환경값 글자(STOCK_COIN_TRADE_KIS_ENVIRONMENT)를 그대로 보인다.
+# 주문은 5절의 관문이 막아도, 승인 없이 real 을 적어 두면 공개 화면에는 「실전」 으로 보인다 —
+# 10-03 에 화면 쪽 `_live_gateway_info` 를 고친 것과 같게, 표시도 관문을 지난 값(`gateway.environment()`)을 쓴다.
+
+
+def test_미승인이면_헬스가_real_설정을_paper로_보인다(게이트웨이):
+    from app.routes.health import health
+
+    assert asyncio.run(health())["quant"]["kis_environment"] == "paper"
+
+
+def test_승인하면_헬스가_real을_그대로_보인다(게이트웨이, allow_live_trading):
+    from app.routes.health import health
+
+    assert asyncio.run(health())["quant"]["kis_environment"] == "real"

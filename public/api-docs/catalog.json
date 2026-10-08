@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 231,
- "routers": 29,
+ "count": 233,
+ "routers": 30,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -756,7 +756,7 @@
    "router": "health",
    "method": "GET",
    "path": "/api/health",
-   "summary": "",
+   "summary": "공개 헬스. quant 블록은 운영 확인용 비민감 플래그만 노출한다(키·계좌 없음).",
    "auth": "없음",
    "reaches": [],
    "hosts": [],
@@ -766,11 +766,12 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/health.py",
-   "line": 6,
+   "line": 9,
    "errors": [],
    "keys": [
     "status",
-    "service"
+    "service",
+    "quant"
    ],
    "body": [],
    "schema": true
@@ -799,7 +800,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/chat.py",
-   "line": 141,
+   "line": 143,
    "errors": [
     "400",
     "401",
@@ -838,7 +839,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/chat.py",
-   "line": 241,
+   "line": 264,
    "errors": [],
    "keys": [
     "task_id",
@@ -872,7 +873,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 46,
+   "line": 47,
    "errors": [],
    "keys": [
     "indices",
@@ -907,7 +908,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 57,
+   "line": 58,
    "errors": [],
    "keys": [],
    "body": [],
@@ -939,7 +940,7 @@
     "P02-④-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 62,
+   "line": 63,
    "errors": [],
    "keys": [],
    "body": [],
@@ -973,7 +974,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 83,
+   "line": 84,
    "errors": [],
    "keys": [],
    "body": [],
@@ -996,7 +997,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 102,
+   "line": 103,
    "errors": [],
    "keys": [
     "stocks"
@@ -1030,7 +1031,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 107,
+   "line": 108,
    "errors": [
     "502"
    ],
@@ -1065,7 +1066,7 @@
     "RFP2-3.1.4-②"
    ],
    "file": "app/routes/stocks.py",
-   "line": 151,
+   "line": 152,
    "errors": [
     "502"
    ],
@@ -1078,7 +1079,7 @@
    "router": "stocks",
    "method": "GET",
    "path": "/api/stocks/signals",
-   "summary": "선택한 패턴 모델을 적용한 대표 종목 스크리닝.",
+   "summary": "선택한 패턴 모델을 적용한 대표 종목 스크리닝. `symbols` 로 부분 집합만 계산할 수 있다.",
    "auth": "없음",
    "reaches": [
     "수집DB",
@@ -1100,7 +1101,7 @@
     "RFP2-3.1.4-③"
    ],
    "file": "app/routes/stocks.py",
-   "line": 160,
+   "line": 161,
    "errors": [],
    "keys": [
     "signals",
@@ -1131,7 +1132,7 @@
     "P01-③-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 219,
+   "line": 228,
    "errors": [],
    "keys": [
     "holdings"
@@ -1160,7 +1161,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 231,
+   "line": 240,
    "errors": [],
    "keys": [
     "ok"
@@ -1190,7 +1191,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 250,
+   "line": 259,
    "errors": [],
    "keys": [
     "ok"
@@ -1219,7 +1220,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 300,
+   "line": 309,
    "errors": [
     "400"
    ],
@@ -1254,7 +1255,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 354,
+   "line": 363,
    "errors": [],
    "keys": [
     "orders"
@@ -1277,7 +1278,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 467,
+   "line": 476,
    "errors": [],
    "keys": [
     "brokers"
@@ -1306,7 +1307,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 472,
+   "line": 481,
    "errors": [
     "422"
    ],
@@ -1339,7 +1340,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 492,
+   "line": 501,
    "errors": [],
    "keys": [
     "broker",
@@ -1368,7 +1369,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 529,
+   "line": 538,
    "errors": [],
    "keys": [
     "configured",
@@ -1394,10 +1395,11 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 535,
+   "line": 544,
    "errors": [],
    "keys": [
     "gateway",
+    "batch",
     "orders"
    ],
    "body": [],
@@ -1423,7 +1425,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 557,
+   "line": 574,
    "errors": [],
    "keys": [
     "mode",
@@ -1471,7 +1473,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 606,
+   "line": 623,
    "errors": [
     "422"
    ],
@@ -1509,7 +1511,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 683,
+   "line": 700,
    "errors": [
     "502"
    ],
@@ -1551,7 +1553,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 702,
+   "line": 719,
    "errors": [
     "502"
    ],
@@ -1588,7 +1590,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 726,
+   "line": 743,
    "errors": [
     "502"
    ],
@@ -1626,7 +1628,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 749,
+   "line": 766,
    "errors": [
     "422",
     "502"
@@ -1666,7 +1668,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 815,
+   "line": 832,
    "errors": [
     "502"
    ],
@@ -1698,13 +1700,14 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 831,
+   "line": 848,
    "errors": [
     "404",
     "422"
    ],
    "keys": [
-    "symbol"
+    "symbol",
+    "candles"
    ],
    "body": [],
    "schema": true
@@ -1730,7 +1733,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 844,
+   "line": 861,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1772,7 +1775,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 853,
+   "line": 870,
    "errors": [
     "409"
    ],
@@ -1808,7 +1811,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 862,
+   "line": 879,
    "errors": [],
    "keys": [
     "ok",
@@ -1839,7 +1842,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 868,
+   "line": 885,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1866,7 +1869,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 880,
+   "line": 897,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1894,7 +1897,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 906,
+   "line": 923,
    "errors": [],
    "keys": [
     "ok",
@@ -1923,7 +1926,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 923,
+   "line": 940,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1961,7 +1964,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 929,
+   "line": 946,
    "errors": [
     "409"
    ],
@@ -2005,7 +2008,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 938,
+   "line": 955,
    "errors": [
     "409"
    ],
@@ -2040,7 +2043,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 948,
+   "line": 965,
    "errors": [],
    "keys": [
     "ok",
@@ -2071,10 +2074,13 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 955,
+   "line": 972,
    "errors": [],
    "keys": [
     "running",
+    "me_running",
+    "batch",
+    "reconcile",
     "logs",
     "signals"
    ],
@@ -2111,7 +2117,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 982,
+   "line": 1030,
    "errors": [
     "404",
     "422"
@@ -2142,7 +2148,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1080,
+   "line": 1128,
    "errors": [],
    "keys": [
     "items"
@@ -2173,7 +2179,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1095,
+   "line": 1143,
    "errors": [
     "422"
    ],
@@ -2204,12 +2210,66 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1115,
+   "line": 1163,
    "errors": [
     "404"
    ],
    "keys": [
     "ok"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KMON-01",
+   "router": "kis_monitor",
+   "method": "GET",
+   "path": "/api/quant/kis/monitor",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/kis_monitor.py",
+   "line": 87,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KMON-02",
+   "router": "kis_monitor",
+   "method": "GET",
+   "path": "/api/quant/kis/orders",
+   "summary": "봇 실주문 그리드 검색 — 구분(봇/사용자)·상태·방향·기간·텍스트로 거르고 페이지로 돌려준다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/kis_monitor.py",
+   "line": 215,
+   "errors": [],
+   "keys": [
+    "total",
+    "offset",
+    "limit",
+    "truncated",
+    "counts_by_status",
+    "counts_by_owner",
+    "filters",
+    "statuses",
+    "owner_labels",
+    "rows"
    ],
    "body": [],
    "schema": true
@@ -4803,7 +4863,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/dashboard.py",
-   "line": 158,
+   "line": 165,
    "errors": [],
    "keys": [
     "tabs",

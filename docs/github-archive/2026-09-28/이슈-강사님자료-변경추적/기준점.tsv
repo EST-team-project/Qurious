@@ -1,10 +1,10 @@
 th	repo	ref	commit	commit_date	checked_at
 th01-investment-analysis	edumgt/investment-analysis	origin/main	12f423deb2e0faaca04b4fa0eb0a06a6e29a32cd	2026-10-02 17:37	2026-10-07 13:54
 th02-docker	edumgt/docker-class	origin/main	50547fd32243d7a79a23c1f779604ad73030aff5	2026-09-11 15:23	2026-10-02 10:08
-th03-stock-coin-trade	edumgt/stock-coin-trade	origin/main	cb3dc2e7306d9371bc71c945914ded33d5772fe8	2026-10-07 12:21	2026-10-07 13:54
+th03-stock-coin-trade	edumgt/stock-coin-trade	origin/main	9242a3d6d3a386d456338610c5a71fef5cf47438	2026-10-07 17:36	2026-10-08 10:31
 th05-quant-krx	edumgt/quant-test-20260828	origin/main	8684a2b1926d45954a2e5dcaa3e45ab07b5fd727	2026-08-28 17:46	2026-10-02 10:08
 th06-lumina-invest	edumgt/lumina-invest	origin/main	947881100d8df529a960ccc77b558f4e48a62e37	2026-10-02 16:06	2026-10-03 17:30
-th07-domain-rag-lab	edumgt/domain-rag-lab	origin/main	c50abea366bc8e6df0a66aedeaa74fdac96615d9	2026-10-07 12:07	2026-10-07 13:54
+th07-domain-rag-lab	edumgt/domain-rag-lab	origin/main	6b9cf6906b3a6c2d93e9b3a37761d4b0811b0bcb	2026-10-07 17:35	2026-10-08 10:31
 th08-aws-ec2-alb-lab	edumgt/aws-ec2-alb-lab	origin/main	d47c244817e77350cb3da970423a95e50181cdb5	2026-09-21 14:54	2026-10-02 10:08
 th09-python-ai-basic-lab	edumgt/python-ai-basic-lab	origin/main	b7238260f998d9cc83d43f471b2040666eb31b36	2026-07-30 04:23	2026-10-02 10:08
 th10-stock-ml-dl-project	edumgt/stock-ml-dl-project	origin/main	ef0240e6bf049aaa639c09331b54c1a8278440a0	2026-10-02 17:46	2026-10-07 13:54
@@ -21,5 +21,5 @@ th20-aws-serverless	edumgt/aws-serverless	origin/main	206b70cdf7f8d4e4bad63ef15f
 th21-ollama-llava-canvas	edumgt/ollama-llava-canvas	origin/main	fb4ea94509f5dfdb57d71fc816a158ee8be5d021	2026-07-30 04:11	2026-10-02 10:08
 th22-vdp-agent	edumgt/vdp-agent	origin/main	8745eb94a988ceaa50805164dd0f5b8a8ab11845	2026-07-07 11:18	2026-10-02 10:08
 th23-meeting-agent	edumgt/meeting-agent	origin/main	0b563827f19ce9c661b7915cda6bfbb4a9f8676e	2026-07-06 15:03	2026-10-02 10:08
-th24-stock-kms-portal	edumgt/stock-kms-portal	origin/main	760b49ca949f66ed8b0a9a15666155f9dc33483b	2026-10-07 12:23	2026-10-07 13:54
+th24-stock-kms-portal	edumgt/stock-kms-portal	origin/main	48b707e80262fd9261fb11fb1b8bdb5a9c3b8e0d	2026-10-07 17:36	2026-10-08 10:31
 th25-fe-vanilla	edumgt/fe-vanilla	origin/main	f76c882acf668321c14750fca157a79c5dff9182	2026-10-02 17:34	2026-10-07 13:54

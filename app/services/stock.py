@@ -8,6 +8,10 @@ import math
 import time
 import httpx
 import pandas as pd
+
+from app.config import settings
+import logging
+logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
 from typing import Any
 
@@ -54,6 +58,9 @@ QUANT_STOCKS = [
     {"symbol": "090430.KS", "name": "아모레퍼시픽", "sector": "화장품"},
     {"symbol": "352820.KS", "name": "하이브", "sector": "엔터테인먼트"},
 ]
+# 섹터 목록은 위 유니버스에서 만든다 — 강사님 10-07 판은 3섹터(반도체 · IT · K뷰티)를 글자로 적고 유니버스를
+# 31종목 중 22개 바꿨다. Qurious 는 유니버스를 그대로 둔다(2026-10-08 사용자 · 받을지는 팀 이슈).
+QUANT_SECTORS = tuple(dict.fromkeys(s["sector"] for s in QUANT_STOCKS))
 
 MARKET_INDICES = [
     {"symbol": "^KS11", "name": "KOSPI"},
@@ -98,7 +105,18 @@ def _change_from_prev(price: Any, prev_close: Any) -> tuple[float | None, float 
 
 
 async def get_quote(symbol: str) -> dict:
-    """현재 주가 정보 — 전일 대비 값·등락률까지."""
+    """현재 주가 정보 — 전일 대비 값·등락률까지. 국내 종목은 MARKET_DATA_SOURCE=kis 이고 게이트웨이가 있으면
+    KIS(st 게이트웨이) 먼저, 실패하면 Yahoo (강사님 10-07 판)."""
+    from app.services import kis_market_data as kmd
+    if kmd.is_enabled() and kmd.is_krx(symbol):
+        try:
+            q = await kmd.get_quote(symbol)
+            if q.get("price"):
+                return q
+        except Exception as exc:
+            logger.warning("KIS 현재가 조회 실패 %s: %s%s", symbol, exc, " — Yahoo 폴백" if settings.MARKET_DATA_FALLBACK_YAHOO else "")
+            if not settings.MARKET_DATA_FALLBACK_YAHOO:
+                return {"symbol": symbol, "error": str(exc)}
     data = await _yahoo_chart(symbol, "1d", "1d")
     if not data:
         return {"symbol": symbol, "error": "데이터 없음"}
@@ -248,22 +266,38 @@ async def get_fundamentals(symbol: str) -> dict:
     return fundamentals
 
 
-async def get_candles(symbol: str, period: str = "1y", interval: str = "1d") -> dict:
+async def get_candles(symbol: str, period: str = "1y", interval: str = "1d", max_age_hours: float = 6) -> dict:
     """캔들 차트 데이터 (OHLCV) — 국내 주식 일봉은 **수집 DB 에서 먼저** 읽는다(DF-08).
 
     수집 DB 경로는 수정주가이고, 돌려주는 사전에 `source`·`as_of`(마지막 봉 날짜)가 더 붙는다.
     캐시를 거치지 않는다 — 파일 읽기가 캐시 조회보다 싸고, 12:30 일일 갱신이 바로 보인다.
     수집 DB 에 없는 기호(지수 · 환율 · 해외 · ETF)나 일봉이 아닌 요청만 아래 옛 경로로 간다
-    — 옛 경로는 캐시를 먼저 본다(반복 스캔 때 외부 호출을 줄이려고).
+    — 옛 경로는 캐시를 먼저 본다(반복 스캔 때 외부 호출을 줄이려고). 옛 경로의 국내 일봉은
+    KIS(MARKET_DATA_SOURCE=kis · 게이트웨이가 있을 때만) → Yahoo 순서다(강사님 10-07 판).
+    max_age_hours: 캐시 허용 나이. 분봉(공격 모드)은 사이클보다 짧게 준다.
     """
     local = await collector_db.get_daily_candles(symbol, period, interval)
     if local is not None:
         return local
 
-    cache_key = f"candles:{symbol}:{period}:{interval}"
-    cached = await cache_get(cache_key, max_age_hours=6)
+    from app.services import kis_market_data as kmd
+    use_kis = kmd.is_enabled() and kmd.is_krx(symbol) and interval == "1d"
+    cache_key = f"candles:{'kis:' if use_kis else ''}{symbol}:{period}:{interval}"
+    cached = await cache_get(cache_key, max_age_hours=max_age_hours)
     if cached is not None:
         return cached
+
+    if use_kis:
+        try:
+            result = await kmd.get_daily_candles(symbol, period)
+            if result.get("candles"):
+                await cache_set(cache_key, result)
+                return result
+            logger.warning("KIS 일봉 빈 응답 %s", symbol)
+        except Exception as exc:
+            logger.warning("KIS 일봉 조회 실패 %s: %s%s", symbol, exc, " — Yahoo 폴백" if settings.MARKET_DATA_FALLBACK_YAHOO else "")
+        if not settings.MARKET_DATA_FALLBACK_YAHOO:
+            return {"symbol": symbol, "candles": []}
 
     # 10년치는 10y range로 요청
     data = await _yahoo_chart(symbol, interval, period)

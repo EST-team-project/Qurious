@@ -23,7 +23,7 @@ docs/github-archive/
 ├── 2026-09-23/   ← 옛 글 1건
 ├── 2026-09-28/        ← 새 글 18건
 │   ├── 이슈-화면IA-v0.1/          00-본문.md · 01-2026-09-28-v0.2.md  (#14 · 댓글 01 올림)
-│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 07 점검 댓글 · 08 · 09 반영 결과(#6 · 09 는 10-04 올림) · 10 점검 댓글(10-07 · th03 · th06 · th07 · th24 — #6 에 올릴 것) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
+│   ├── 이슈-강사님자료-변경추적/   00-본문.md · 01-2026-09-28-기준점.md · 02 ~ 07 점검 댓글 · 08 · 09 반영 결과(#6 · 09 는 10-04 올림) · 10 점검 댓글(10-07 · th03 · th06 · th07 · th24 — #6 에 올릴 것) · 11 · 12 점검 댓글(10-07 오후 · 10-08 아침 받은 것 — #6 에 10-08 올림) · 13 반영 결과(10-08 · th06 `e815be3` 서버 쪽 — #6 에 올릴 것) · 기준점.tsv  (이슈는 닫음 → #6 에서 이어 감)
 │   ├── PR-docs-screen-ia-v0-1/    00-본문.md  (#16)
 │   ├── PR-docs-screen-ia-v0-2/    00-본문.md  (#19)
 │   ├── PR-feat-daily-data-update/ 00-본문.md  (#23)
@@ -97,11 +97,13 @@ docs/github-archive/
 │   ├── PR-feat-kb-faithfulness-guards-sector-words/  00-본문.md  (#125 · 머지 e0ffe8e · 근거 충실도 평가 도구 · 근거 답 거름 둘 · 실패 발췌 화면 · 섹터 낱말 2판)
 │   ├── PR-docs-kb-faithfulness-judge-decision/  00-본문.md  (#126 · 머지 13a6ae9 · 근거 충실도 판정 결정 · 머지 뒤 실측 둘)
 │   └── 이슈-리밸런싱정책-시험DB/  00-본문.md  (올리지 않음 — 팀원 PR #129 가 DF-73 · DF-75 를 고침 · 10-07 사용자 확인)
-└── 2026-10-07/        ← 새 글 4건
-    ├── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (#128 · 머지 0011743 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
-    ├── PR-docs-reorganize-by-kind/  00-본문.md  (#130 · 머지 f0fa9cf · docs 폴더 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구)
-    ├── PR-chore-lecture-etf-json-to-hf/  00-본문.md  (#132 · 머지 a617f2a · 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀)
-    └── PR-feat-collect-screens-server/  00-본문.md  (올릴 것 · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81)
+├── 2026-10-07/        ← 새 글 4건
+│   ├── PR-docs-collect-screens-credit-csv-roles/  00-본문.md  (#128 · 머지 0011743 · 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면)
+│   ├── PR-docs-reorganize-by-kind/  00-본문.md  (#130 · 머지 f0fa9cf · docs 폴더 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구)
+│   ├── PR-chore-lecture-etf-json-to-hf/  00-본문.md  (#132 · 머지 a617f2a · 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀)
+│   └── PR-feat-collect-screens-server/  00-본문.md  (#139 · 머지 ef8cf5b · 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 · DF-79 ~ 81)
+└── 2026-10-08/        ← 새 글 1건
+    └── PR-chore-th06-base-sync-e815be3/  00-본문.md  (올릴 것 · 강사님 기초 코드 th06 서버 쪽 반영 · 점검 계정 KIS 모의 연동)
 ```
 
 | | 옛 글 (2026-09-15 ~ 09-23) | 새 글 (2026-09-28 ~) |
@@ -407,7 +409,13 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR docs-collect-screens-credit-csv-roles](2026-10-07/PR-docs-collect-screens-credit-csv-roles/00-본문.md) | docs: 데이터 수집 화면 결정 · 조사서 둘(신용평가 CSV · 교재 원천 갱신) · 주인 없는 화면 — 목표 기능 ① | 2,685 | #128 · 머지 `0011743` |
 | [PR docs-reorganize-by-kind](2026-10-07/PR-docs-reorganize-by-kind/00-본문.md) | docs: docs 폴더를 종류별로 정리 — 문서마다 이름 하나 · 지난판 · 대장 · 평가셋 · 판 올리는 도구 | 3,860 | [#130](https://github.com/EST-team-project/Qurious/pull/130) · 머지 `f0fa9cf` (2026-10-07 에 채움) |
 | [PR chore-lecture-etf-json-to-hf](2026-10-07/PR-chore-lecture-etf-json-to-hf/00-본문.md) | chore: 공개 저장소의 강의 시세 JSON 둘을 추적에서 빼고 HF 비공개로 — 강의 빌드가 「HF 보관」 을 건너뜀 | 2,769 | [#132](https://github.com/EST-team-project/Qurious/pull/132) · 머지 `a617f2a` (2026-10-07 에 채움) |
-| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 | 4,801 | (올린 뒤) |
+| [PR feat-collect-screens-server](2026-10-07/PR-feat-collect-screens-server/00-본문.md) | feat: 크롤링 세 화면 서버 — 단계 이름표를 러너 한 곳에 · 수집 일정 API · 한 단계 다시 · 주소 검사 | 4,801 | [#139](https://github.com/EST-team-project/Qurious/pull/139) |
+
+### 2026-10-08 — 새 글 1건
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR chore-th06-base-sync-e815be3](2026-10-08/PR-chore-th06-base-sync-e815be3/00-본문.md) | chore: 강사님 기초 코드 th06 서버 쪽 반영(9478811 → e815be3) · 점검 계정 KIS 모의 연동 | 5,907 | (올린 뒤) |
 
 ## 4. 읽는 법 — 옛 글을 옮기며 바꾼 것
 

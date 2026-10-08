@@ -99,10 +99,20 @@ celery_app.conf.update(
         # ── 강사님 원본(2026-09-29)에서 옮겨 온 예약 작업 ──────────────────────
         # 자동매매 사이클은 증권사 클라이언트를 brokers.factory 로 얻는다 — 실거래는
         # 그곳의 승인 변수(ADR-0001)가 막으므로, 예약 작업이 늘어도 차단 지점은 하나다.
-        "quant-auto-trade-10min": {
+        "quant-reconcile": {
+            "task": "quant.reconcile",
+            "schedule": float(settings.RECONCILE_INTERVAL_SEC),   # 기본 10분 — 로그 vs KIS 실거래 정합성
+            "options": {"expires": max(60, int(settings.RECONCILE_INTERVAL_SEC) - 30)},
+        },
+        "beat-heartbeat-1min": {
+            "task": "beat.heartbeat",
+            "schedule": 60.0,             # 1분 — beat/worker 생존 신호 (healthcheck → autoheal 재시작)
+            "options": {"expires": 50},
+        },
+        "quant-auto-trade-cycle": {
             "task": "quant.auto_trade_cycle",
-            "schedule": 600.0,            # 10분 — 자동매매 활성 사용자 사이클
-            "options": {"expires": 540},
+            "schedule": float(settings.QUANT_CYCLE_SEC),                       # 기본 3분 — 자동매매 활성 사용자 사이클 (2026-10-07, 5분→3분)
+            "options": {"expires": max(30, int(settings.QUANT_CYCLE_SEC) - 20)},  # 다음 주기 전에 만료 — 지연된 사이클이 겹쳐 실행되지 않게
         },
         "quant-confirm-fills-2min": {
             "task": "quant.confirm_fills",
