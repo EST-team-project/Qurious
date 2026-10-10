@@ -45,6 +45,8 @@ from app.models.reference import (
 )
 # 용어사전 (2026-09-30) — 파일(app/services/glossary_data/terms.json)의 사본. 표 다섯.
 from app.models.glossary import GlossaryCategory, GlossarySource, GlossaryTerm, GlossaryAlias, GlossaryLoad, GlossaryRelation
+# 화면 수집 요청 · PC 작업자 신호 (2026-10-10 · 목표 기능 ① 수집 단추) — 표 둘.
+from app.models.collect import CollectRequest, CollectWorker
 
 __all__ = [
     "Base",
@@ -95,4 +97,6 @@ __all__ = [
     "GlossaryAlias",
     "GlossaryLoad",
     "GlossaryRelation",
+    "CollectRequest",
+    "CollectWorker",
 ]

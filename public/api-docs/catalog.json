@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 237,
+ "count": 241,
  "routers": 30,
  "routes": [
   {
@@ -6454,7 +6454,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 26,
+   "line": 32,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6477,7 +6477,105 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 38,
+   "line": 44,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-12",
+   "router": "data",
+   "method": "POST",
+   "path": "/api/data/runner/requests",
+   "summary": "새 요청은 202 · 같은 단계(또는 전체)의 대기 · 도는 중 요청이 이미 있으면 그 줄을 200 으로(멱등) · 목록 밖 단계는 422.",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 72,
+   "errors": [
+    "?"
+   ],
+   "keys": [
+    "created",
+    "request"
+   ],
+   "body": [
+    "CollectRequestBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-13",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/runner/requests",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 89,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-14",
+   "router": "data",
+   "method": "POST",
+   "path": "/api/data/runner/requests/{request_id}/cancel",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 96,
+   "errors": [
+    "?"
+   ],
+   "keys": [
+    "request"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-DATA-15",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/runner/worker",
+   "summary": "",
+   "auth": "세션 + 관리자",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 107,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6498,7 +6596,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 44,
+   "line": 112,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6519,7 +6617,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 53,
+   "line": 121,
    "errors": [],
    "keys": [],
    "body": [
@@ -6542,7 +6640,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 59,
+   "line": 127,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6565,7 +6663,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 64,
+   "line": 132,
    "errors": [
     "?"
    ],
@@ -6590,7 +6688,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 78,
+   "line": 146,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6611,7 +6709,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 84,
+   "line": 152,
    "errors": [
     "?"
    ],
@@ -6636,7 +6734,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 103,
+   "line": 171,
    "errors": [
     "?"
    ],
@@ -6662,7 +6760,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 127,
+   "line": 195,
    "errors": [
     "?"
    ],
@@ -6687,7 +6785,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 148,
+   "line": 216,
    "errors": [
     "503"
    ],

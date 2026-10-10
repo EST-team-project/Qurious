@@ -146,11 +146,16 @@ def _parse_ts(v: str | None) -> datetime | None:
 
 # ── 러너 ──────────────────────────────────────────────────────────────────
 def load_catalog(state_dir: Path | None) -> dict:
-    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at}. 없으면 빈 목록."""
+    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at, guards}. 없으면 빈 목록.
+
+    `guards` 는 화면 실행을 막는 때(2026-10-10 · 러너가 막는 데 쓰는 함수로 셈한 시각) — 옛 목록에는 없어 빈 사전이다.
+    """
     cat = _read_json(state_dir / CATALOG_FILE) if state_dir is not None else None
     steps = [s for s in (cat or {}).get("steps") or [] if isinstance(s, dict) and s.get("name")]
+    guards = (cat or {}).get("guards")
     return {"groups": (cat or {}).get("groups") or [], "steps": steps,
-            "by_name": {s["name"]: s for s in steps}, "written_at": (cat or {}).get("written_at")}
+            "by_name": {s["name"]: s for s in steps}, "written_at": (cat or {}).get("written_at"),
+            "guards": guards if isinstance(guards, dict) else {}}
 
 
 def _step_view(rec: dict, by_name: dict | None = None) -> dict:

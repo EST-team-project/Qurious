@@ -253,8 +253,9 @@ def test_progress_names_the_running_step_and_is_cleared(fake_runner, monkeypatch
 
 
 def test_rerun_one_step_blocks_and_patches_only_that_row(fake_runner):
-    """한 단계만 다시 — 고를 수 없는 단계 · 올리기 단계는 2, 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 3 으로 막고,
-    돌리면 마지막 회차의 그 줄만 새 결과로 바꾸고 이력에 「다시 돌림」 한 줄을 남긴다."""
+    """한 단계만 다시 — 고를 수 없는 단계 · 올리기 단계는 2, 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 75(EX_TEMPFAIL ·
+    「지금은 못 돈다, 나중에 다시」)로 막고, 돌리면 마지막 회차의 그 줄만 새 결과로 바꾸고 이력에 「다시 돌림」 한 줄을 남긴다.
+    막힘이 단계가 스스로 내는 3 과 겹치지 않아야 화면 작업자가 「기다림」 과 「경고」 를 가른다(2026-10-10)."""
     t = fake_runner
     du.run_all()
     noon = datetime.datetime(2026, 10, 7, 12, 45, tzinfo=du.KST)   # 시험 단계 한도 1분 → 12:29 ~ 13:30 이 막힘
@@ -262,13 +263,13 @@ def test_rerun_one_step_blocks_and_patches_only_that_row(fake_runner):
     hist = t / "state/daily_update_history.jsonl"
     n0 = len(hist.read_text(encoding="utf-8").splitlines())
     assert du.run_one("없는단계", now=later) == 2
-    assert du.run_one("alpha", now=noon) == 3, "12:30 회차와 겹친다(돌았다면 alpha 는 0 이다)"
+    assert du.run_one("alpha", now=noon) == du.EX_TEMPFAIL == 75, "12:30 회차와 겹친다(돌았다면 alpha 는 0 이다)"
     assert len(hist.read_text(encoding="utf-8").splitlines()) == n0, "막힌 실행은 이력을 남기지 않는다"
     du.STEPS.append(du.Step("up", ["-c", "pass"], 1, upload=True, label="올림", group="백업", desc="올린다"))
     assert du.run_one("up", now=later) == 2, "올리기 단계는 --upload 와 함께만"
     (t / "state/daily_update.lock").write_text(json.dumps({"pid": __import__("os").getpid(),
                                                            "started_at": later.isoformat()}), encoding="utf-8")
-    assert du.run_one("beta", now=later) == 3, "다른 실행이 돌고 있다"
+    assert du.run_one("beta", now=later) == du.EX_TEMPFAIL, "다른 실행이 돌고 있다"
     (t / "state/daily_update.lock").unlink()
 
     du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
@@ -517,7 +518,8 @@ def test_app_db_step_without_address_is_not_run_and_warns(fake_runner, monkeypat
 
 
 def test_rerun_of_app_db_step_with_db_down_is_blocked_and_recorded(fake_runner, monkeypatch):
-    """한 단계 다시(`run --only`)도 같다 — 포트가 닫혀 있으면 돌리지 않고 종료코드 3(막힘)으로 끝나며, 회차 기록의 그 줄을
+    """한 단계 다시(`run --only`)도 같다 — 포트가 닫혀 있으면 돌리지 않고 종료코드 3(건너뜀 · 채울 것 — 회차와 겹친 막힘 75 와
+    다르다)으로 끝나며, 회차 기록의 그 줄을
     「건너뜀 · 앱 DB 꺼짐」 으로 바꾸고 이력에 한 줄 남긴다(무엇을 시도했는지 보인다)."""
     t = fake_runner
     du.run_all()
@@ -561,3 +563,87 @@ def test_fill_command_lives_in_the_step_and_reaches_the_catalog():
     cat = {s["name"]: s for s in du.step_catalog()["steps"]}
     assert cat["signals"]["fill"] == sig.fill
     assert all(cat[n]["fill"] == "" for n in cat if n != "signals"), "채우기 명령이 없는 단계는 빈 글"
+
+
+# ── 7. 화면 수집 요청 — 막는 때 한 곳 · 수동 회차 · 요청 번호(2026-10-10) ─────────────────────
+RID = "11111111-2222-3333-4444-555555555555"
+
+
+def _at(h, m):
+    return datetime.datetime(2026, 10, 12, h, m, tzinfo=du.KST)
+
+
+def test_guard_windows_come_from_one_function():
+    """막는 때는 `guard_window` 한 곳에서 — 한 단계 다시 · 수동 전체 수집 · 단계 목록에 싣는 시각(앱은 보이기만 한다)이 같은 셈이다.
+    전체 수집 11:00 ~ 13:30(앞 90분 · 뒤 60분) · 단계마다 「12:30 − 그 단계 한도 ~ 13:30」 · 목록의 시각 경계에서 판정이 바뀐다."""
+    assert du.full_run_blocked(_at(10, 59)) is None and du.full_run_blocked(_at(13, 31)) is None
+    assert "11:00 ~ 13:30" in du.full_run_blocked(_at(11, 0)) and du.full_run_blocked(_at(13, 30))
+    g = du.step_catalog(now=_at(9, 0))["guards"]
+    assert g["schedule"] == du.DEFAULT_TIME and g["full"] == {"from": "11:00", "to": "13:30"}
+    assert set(g["steps"]) == {s.name for s in du.STEPS}
+    one = datetime.timedelta(minutes=1)
+    for s in du.STEPS:
+        w = g["steps"][s.name]
+        lo, hi = _at(*map(int, w["from"].split(":"))), _at(*map(int, w["to"].split(":")))
+        assert du.rerun_blocked(s, lo) and du.rerun_blocked(s, hi), s.name
+        assert du.rerun_blocked(s, lo - one) is None and du.rerun_blocked(s, hi + one) is None, s.name
+
+
+def test_manual_full_run_waits_instead_of_skipping(fake_runner, monkeypatch):
+    """수동 회차(화면 「전체 수집」)는 막는 때 · 다른 실행이 돌 때 75 로 끝나고 「건너뜀」 이력 줄 · 잠금을 남기지 않는다
+    (작업자가 요청을 대기로 되돌린다 — 요청 줄이 기록이다). 정기 회차의 겹침은 지금처럼 0 과 「건너뜀」 줄."""
+    t = fake_runner
+    hist, lock = t / "state/daily_update_history.jsonl", t / "state/daily_update.lock"
+    monkeypatch.setattr(du, "now_kst", lambda: _at(11, 30))
+    assert du.run_all(manual=True, request_id=RID) == du.EX_TEMPFAIL
+    assert not hist.exists() and not (t / "logs").exists() and not lock.exists()
+    monkeypatch.setattr(du, "now_kst", lambda: _at(15, 0))
+    lock.write_text(json.dumps({"pid": __import__("os").getpid(), "started_at": _at(14, 59).isoformat()}), encoding="utf-8")
+    assert du.run_all(manual=True, request_id=RID) == du.EX_TEMPFAIL and not hist.exists()
+    assert du.run_all() == 0
+    assert "skipped" in json.loads(hist.read_text(encoding="utf-8").splitlines()[-1])
+    lock.unlink()
+
+
+def test_manual_run_records_trigger_request_rc_and_log(fake_runner, monkeypatch):
+    """요청 번호 · 수동 표시 · 종료코드 · 로그가 회차 기록과 이력 줄에 남는다 — 작업자가 요청 번호로 결과를 찾는다.
+    정기 회차는 「schedule」 이고 요청 번호가 없다 · 한 단계 다시도 이력 줄 · 다시 돌림 줄에 요청 번호를 남긴다."""
+    t = fake_runner
+    monkeypatch.setattr(du, "now_kst", lambda: _at(15, 0))
+    assert du.run_all(manual=True, request_id=RID) == 3              # 가짜 단계 beta 가 3(멈추지 않는 실패)
+    last = _last(t)
+    h = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (last["trigger"], last["request_id"]) == ("manual", RID)
+    assert (h["trigger"], h["request_id"], h["rc"], h["ok"]) == ("manual", RID, 3, False)
+    assert h["log"].endswith("-manual.log") and (t / h["log"]).exists()
+    monkeypatch.setattr(du, "now_kst", lambda: _at(15, 5))
+    du.run_all()
+    h2 = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert h2["trigger"] == "schedule" and "request_id" not in h2 and h2["rc"] == 3
+    assert du.run_one("alpha", now=_at(15, 10), request_id=RID) == 0
+    h3 = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (h3["only"], h3["request_id"], h3["rc"], h3["trigger"]) == ("alpha", RID, 0, "manual") and h3["log"]
+    assert _last(t)["reruns"][-1]["request_id"] == RID
+
+
+def test_lock_holder_only_reads(tmp_path):
+    """잠금 읽기 — 없으면 None · 살아 있는 실행이면 까닭 · 죽었거나 4시간 넘은 잠금은 쥔 것이 아님(지우지 않는다 — 치우기는 잡는 쪽)."""
+    import os
+    lock, now = tmp_path / "x.lock", _at(15, 0)
+    assert du.lock_holder(lock, now=now) is None
+    lock.write_text(json.dumps({"pid": os.getpid(), "started_at": _at(14, 0).isoformat()}), encoding="utf-8")
+    assert "다른 실행이 돌고 있다" in du.lock_holder(lock, now=now)
+    assert du.lock_holder(lock, now=_at(14, 0) + datetime.timedelta(hours=4, minutes=1)) is None
+    lock.write_text(json.dumps({"pid": 0, "started_at": _at(14, 59).isoformat()}), encoding="utf-8")
+    assert du.lock_holder(lock, now=now) is None and lock.exists()
+    assert du.acquire_lock(lock, now=now) is None and json.loads(lock.read_text(encoding="utf-8"))["pid"] == os.getpid()
+    du.release_lock(lock)
+
+
+def test_cli_request_must_be_a_request_number(monkeypatch):
+    """`--request` 는 화면 요청 번호(UUID)만 — 다른 글자는 2 로 멈춘다(돌리기 전에 · 잘못 넣은 값이 기록에 섞이지 않게).
+    러너 함수는 부르면 실패하게 바꿔 끼운다 — 검사가 깨져도 시험이 진짜 회차를 돌리지 않게."""
+    monkeypatch.setattr(du, "run_all", lambda *a, **k: pytest.fail("검사를 지나 회차를 돌렸다"))
+    monkeypatch.setattr(du, "run_one", lambda *a, **k: pytest.fail("검사를 지나 단계를 돌렸다"))
+    assert du.main(["run", "--request", "not-a-uuid"]) == 2
+    assert du.main(["run", "--only", "price", "--request", "x; del"]) == 2

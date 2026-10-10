@@ -6,6 +6,8 @@
 - GET /api/data/financials : 재무 주요계정 — 기준일에 알 수 있었던 판만(pit) — W7 · 2026-10-04
 - GET /api/data/fetch-sources · fetch-plan : 자료 직접 받기 — 종류 · 출처 표 · 받을 범위(관리자 · 2026-10-08)
 - GET /api/data/backup : 적재 · 백업 — hf_dataset 이 쓴 판정 · 다른 데이터셋 · 이 PC 용량(관리자 · 2026-10-08)
+- POST · GET /api/data/runner/requests · POST …/{id}/cancel · GET /api/data/runner/worker : 화면 수집 요청 — 한 단계 다시 ·
+  전체 수집을 요청 표에 남기고 PC 작업자가 가져가 러너를 돌린다(관리자 · 2026-10-10 · app/services/collect_requests.py)
 
 로그인한 사람만 — 수집 자료의 양 · 상태와 PC 의 작업 기록이라(설계서 7절 「수집 자료는 로그인 뒤」).
 `GET /api/system/sync-status`(외부 시세 캐시의 신선도)와는 다른 것을 본다 — 화면의 「데이터 기준일」 은 이쪽이다.
@@ -13,12 +15,16 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
+from app.database.postgres import get_pg_session
 from app.lib.session import get_current_user
-from app.services import backup_status, data_financials, data_ohlcv, data_search, data_status, fetch_plan, url_guard
+from app.services import (backup_status, collect_requests, data_financials, data_ohlcv, data_search, data_status,
+                          fetch_plan, url_guard)
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -39,6 +45,68 @@ def _require_admin(user=Depends(get_current_user)):
 async def runner(_user=Depends(_require_admin)):
     # 단계 이름표 · 묶음 · 하는 일은 러너가 쓴 기록에서 읽는다 — 앱에 사본을 두지 않는다(결정 ④).
     return await asyncio.to_thread(data_status.runner_detail)
+
+
+# ── 화면 수집 요청 (2026-10-10 · 조사서 안 1) ──────────────────────────────
+# 앱은 러너를 부르지 않는다(컨테이너는 수집 폴더를 읽기만 · 러너는 PC 쪽 프로세스). 요청 줄만 남기고 PC 작업자가 매 분 가져간다.
+class CollectRequestBody(BaseModel):
+    kind: Literal["step", "all"] = Field(..., description="step = 단계 하나 다시 · all = 전체 수집")
+    step: str | None = Field(None, max_length=32, pattern=r"^[a-z][a-z_]*$",
+                             description="러너 단계 이름(kind=step 일 때만 · 수집 일정 화면의 단계 목록에 있는 이름)")
+
+
+def _require_screen_action(
+    request: Request,
+    x_qurious_action: str | None = Header(None, alias=collect_requests.ACTION_HEADER,
+                                          description=f"화면에서 보낸 요청 표시 — 값 「{collect_requests.ACTION_VALUE}」"),
+):
+    # 상태를 바꾸는 요청에만 — 다른 사이트의 폼 · 단순 요청은 이 머리글을 붙일 수 없다(SameSite 쿠키 위에 한 겹 더 · OWASP CSRF).
+    if x_qurious_action != collect_requests.ACTION_VALUE:
+        raise HTTPException(403, f"화면에서 보낸 요청만 받는다 — {collect_requests.ACTION_HEADER}: "
+                                 f"{collect_requests.ACTION_VALUE} 머리글이 필요하다")
+    site = request.headers.get("sec-fetch-site")
+    if site and site != "same-origin":
+        raise HTTPException(403, "다른 사이트에서 온 요청은 받지 않는다")
+
+
+@router.post("/runner/requests", status_code=202, summary="수집 요청 만들기 — 한 단계 다시 · 전체 수집(관리자)")
+async def collect_request_create(body: CollectRequestBody, response: Response, user=Depends(_require_admin),
+                                 _screen=Depends(_require_screen_action), db=Depends(get_pg_session)):
+    """새 요청은 202 · 같은 단계(또는 전체)의 대기 · 도는 중 요청이 이미 있으면 그 줄을 200 으로(멱등) · 목록 밖 단계는 422.
+
+    PC 작업자가 꺼져 있어도 받는다 — 줄은 「대기 — PC 작업자 꺼짐」 으로 보이고 3시간 안에 시작하지 못하면 만료된다.
+    """
+    catalog = await asyncio.to_thread(collect_requests.current_catalog)
+    try:
+        req, created = await collect_requests.create(db, kind=body.kind, step=body.step, user=user, catalog=catalog)
+    except collect_requests.RequestError as e:
+        raise HTTPException(e.status, e.message)
+    if not created:
+        response.status_code = 200
+    return {"created": created, "request": req}
+
+
+@router.get("/runner/requests", summary="수집 요청 목록 · PC 작업자 상태 · 막는 때(관리자)")
+async def collect_request_list(limit: int = Query(20, ge=1, le=100), _user=Depends(_require_admin),
+                               db=Depends(get_pg_session)):
+    catalog = await asyncio.to_thread(collect_requests.current_catalog)
+    return await collect_requests.listing(db, catalog=catalog, limit=limit)
+
+
+@router.post("/runner/requests/{request_id}/cancel", summary="수집 요청 취소 — 대기일 때만(관리자)")
+async def collect_request_cancel(request_id: uuid.UUID, user=Depends(_require_admin),
+                                 _screen=Depends(_require_screen_action), db=Depends(get_pg_session)):
+    catalog = await asyncio.to_thread(collect_requests.current_catalog)
+    try:
+        req = await collect_requests.cancel(db, request_id=str(request_id), user=user, catalog=catalog)
+    except collect_requests.RequestError as e:
+        raise HTTPException(e.status, e.message)
+    return {"request": req}
+
+
+@router.get("/runner/worker", summary="PC 작업자 상태 — 마지막 신호 · 기다리는 까닭(관리자)")
+async def collect_worker_status(_user=Depends(_require_admin), db=Depends(get_pg_session)):
+    return await collect_requests.worker_status(db)
 
 
 @router.get("/url-rules", summary="주소 검사 규칙 — 허용 목록 · 막음(관리자)")

@@ -68,12 +68,17 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py run              # 로컬 갱신만 (①~⑥)
     python scripts/daily_update.py run --upload     # + HF 증분 업로드 (⑦~⑨)
     python scripts/daily_update.py run --only news  # 그 단계 하나만 다시(예약 회차와 겹치는 시간에는 막힘)
+    python scripts/daily_update.py run --manual --request <요청 번호>  # 화면 「전체 수집」 — PC 작업자가 부른다(11:00 ~ 13:30 막힘)
     python scripts/daily_update.py status           # 마지막 실행 결과 + 예약 상태
     python scripts/daily_update.py steps --write    # 단계 목록 · 이 PC 용량 파일을 지금 쓴다(앱이 읽는다)
     python scripts/daily_update.py install          # 작업 스케줄러에 매일 12:30 등록 (--upload 포함)
     python scripts/daily_update.py install --time 18:30 --no-upload
     python scripts/daily_update.py start            # 등록된 작업을 지금 한 번 돌린다(비동기)
     python scripts/daily_update.py uninstall        # 등록 해제
+
+종료코드 — 0 성공 · 2 고를 수 없는 단계 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시) · 75 막힘(12:30 회차와 겹침 · 다른 실행 —
+나중에 다시 · EX_TEMPFAIL) · 78 앱 DB 주소를 만들지 못함(EX_CONFIG) · 124 시간 초과 · 그 밖 = 실패한 단계의 종료코드.
+화면 수집 요청(`scripts/collect_worker.py`)은 75 를 「다시 기다림」 으로, 나머지를 결과로 읽는다(2026-10-10).
 
 로그는 `data/collector/logs/daily_update-*.log`(최근 30개 보관), 마지막 결과는
 `data/collector/state/daily_update_last.json`, 이력은 같은 폴더 `daily_update_history.jsonl`.
@@ -91,6 +96,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 import zoneinfo
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -285,11 +291,36 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
+def lock_holder(path: Path = LOCK_PATH, *, now: Optional[datetime.datetime] = None) -> Optional[str]:
+    """잠금을 쥔 실행이 살아 있으면 그 까닭 한 줄, 아니면 None — **읽기만** 한다(지우지 않는다).
+
+    ① PID 가 죽었거나 ② ``LOCK_STALE_HOURS`` 보다 오래된 잠금은 쥔 것이 아니다 — ``acquire_lock`` 이 치우고 다시 잡는 그
+    판정 그대로다. 화면 수집 요청 작업자가 요청을 가져가기 전에 「지금 다른 실행이 도나」 만 묻는다(2026-10-10). 경로는
+    부르는 쪽이 넘긴다(기본값은 정의할 때 묶이니 시험이 경로를 바꾸면 넘겨야 한다).
+    """
+    now = now or now_kst()
+    try:
+        held = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        held = {}
+    pid = int(held.get("pid") or 0)
+    try:
+        since = datetime.datetime.fromisoformat(held.get("started_at", ""))
+    except ValueError:
+        since = None
+    old = since is None or (now - since).total_seconds() > LOCK_STALE_HOURS * 3600
+    if pid_alive(pid) and not old:
+        return f"다른 실행이 돌고 있다 (PID {pid} · {held.get('started_at')} 시작)"
+    return None
+
+
 def acquire_lock(path: Path = LOCK_PATH, *, now: Optional[datetime.datetime] = None) -> Optional[str]:
     """잠금을 잡는다. 잡으면 None, 못 잡으면 그 이유 한 줄.
 
     ``O_EXCL`` 로 만들어 두 프로세스가 동시에 잡는 일이 없다. 남은 잠금은 ① PID 가
-    죽었거나 ② ``LOCK_STALE_HOURS`` 보다 오래됐으면 치우고 다시 잡는다.
+    죽었거나 ② ``LOCK_STALE_HOURS`` 보다 오래됐으면 치우고 다시 잡는다(판정은 ``lock_holder`` 한 곳).
     """
     now = now or now_kst()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -297,18 +328,9 @@ def acquire_lock(path: Path = LOCK_PATH, *, now: Optional[datetime.datetime] = N
         try:
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
-            try:
-                held = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                held = {}
-            pid = int(held.get("pid") or 0)
-            try:
-                since = datetime.datetime.fromisoformat(held.get("started_at", ""))
-            except ValueError:
-                since = None
-            old = since is None or (now - since).total_seconds() > LOCK_STALE_HOURS * 3600
-            if pid_alive(pid) and not old:
-                return f"다른 실행이 돌고 있다 (PID {pid} · {held.get('started_at')} 시작)"
+            busy = lock_holder(path, now=now)
+            if busy:
+                return busy
             path.unlink(missing_ok=True)                    # 죽었거나 너무 오래된 잠금
             continue
         with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -332,6 +354,12 @@ COMPOSE_PATH = ROOT / "docker-compose.yml"
 #: 러너가 정하는 종료코드 — 앱 DB 주소를 compose 에서 만들지 못해 앱 DB 단계를 돌리지 않았다(sysexits 의 EX_CONFIG).
 #: 시간 초과의 124 처럼 러너가 적는 코드라, 앱은 해석을 바꾸지 않아도 「경고」 로 보인다. 설정 결함은 건너뜀으로 숨기지 않는다.
 EX_CONFIG = 78
+
+#: 러너가 정하는 종료코드 — 「지금은 돌 수 없다, 나중에 다시」(sysexits 의 EX_TEMPFAIL). 한 단계 다시 · 수동 전체 수집이 12:30
+#: 회차와 겹치거나 다른 실행이 도는 동안 돌리지 않고 이 번호로 끝난다(2026-10-10 · 화면 수집 단추). 옛 번호 3 은 단계가 스스로
+#: 내는 3(달력의 공휴일 받기 실패 · 앱 DB 꺼짐 건너뜀)과 겹쳐, 작업자가 「기다림」 과 「경고」 를 가를 수 없었다(2026-10-07 깨 보기
+#: 에서도 시험 단계의 3 이 막힘 3 과 겹쳐 검사를 꺼도 시험이 통과했다).
+EX_TEMPFAIL = 75
 
 
 def host_app_db_env(compose: Optional[Path] = None) -> tuple:
@@ -429,9 +457,15 @@ def child_python() -> str:
 # 1-2. 단계 목록 · 이 PC 용량 — 앱이 읽는 기록 파일
 # ==================================================
 def step_catalog(now: Optional[datetime.datetime] = None) -> Dict:
-    """화면이 그리는 단계 목록 — 이름표 · 묶음 · 하는 일과 실패 · 건너뛰기 성질. 러너 ``STEPS`` 차례 그대로."""
+    """화면이 그리는 단계 목록 — 이름표 · 묶음 · 하는 일과 실패 · 건너뛰기 성질. 러너 ``STEPS`` 차례 그대로.
+
+    ``guards`` 는 화면 실행을 막는 때(2026-10-10) — ``guard_window`` 로 센 시각 그대로. 앱은 단추를 미리 끄고 까닭을 보이는 데만
+    쓰고(앱 이미지에는 scripts/ 가 없다), 판정은 작업자 · 러너가 같은 함수로 다시 한다.
+    """
+    now = now or now_kst()
     return {
-        "written_at": _iso(now or now_kst()),
+        "written_at": _iso(now),
+        "guards": guards(now),
         "schedule": DEFAULT_TIME,
         "groups": GROUPS,
         "steps": [{"name": s.name, "label": s.label, "group": s.group, "desc": s.desc,
@@ -626,13 +660,34 @@ def _prune_logs() -> None:
         old.unlink(missing_ok=True)
 
 
-def run_all(upload: bool = False, force_derived: bool = False) -> int:
+def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool = False,
+            request_id: Optional[str] = None) -> int:
+    """회차 하나 — 정기(작업 스케줄러) 또는 수동(화면 「전체 수집」 · ``manual``).
+
+    수동 회차는 12:30 회차와 겹치는 때(``full_run_blocked``)와 다른 실행이 도는 동안 돌지 않고 ``EX_TEMPFAIL`` 로 끝난다 — 작업자가
+    요청을 다시 대기로 돌리고, 이력에 「건너뜀」 줄을 남기지 않는다(요청 줄이 기록이다). 정기 회차의 겹침은 지금처럼 0 과 「건너뜀」
+    줄이다. 회차 기록 · 이력 줄에 ``trigger``(schedule · manual) · ``request_id`` · ``rc`` · ``log`` 를 남겨 작업자가 요청 번호로
+    결과를 찾는다(2026-10-10).
+    """
     started = now_kst()
+    if manual:
+        why = full_run_blocked(started)
+        if why:
+            if sys.stdout is not None:
+                print(f"멈춤: {why}")
+            return EX_TEMPFAIL
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}.log"
+    log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}{'-manual' if manual else ''}.log"
+    trigger: Dict[str, str] = {"trigger": "manual" if manual else "schedule"}
+    if request_id:
+        trigger["request_id"] = request_id
 
     busy = acquire_lock(now=started)      # 잠금 · 진행 파일이 같은 시작 시각 — 앱이 같은 실행인지 시각으로 가른다
     if busy:
+        if manual:                        # 수동 회차는 나중에 다시(작업자가 대기로 되돌린다) — 「건너뜀」 이력 줄은 쓰지 않는다
+            if sys.stdout is not None:
+                print(f"멈춤: {busy}")
+            return EX_TEMPFAIL
         # 로그를 새로 만들지 않는다 — 돌고 있는 쪽 로그가 정본이다.
         msg = f"{_iso(started)} 건너뜀: {busy}"
         if sys.stdout is not None:
@@ -646,7 +701,8 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
     with log_path.open("w", encoding="utf-8") as log:
         run = Run(started, upload, log, log_path)
         try:
-            run.say(f"일일 갱신 시작 · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
+            run.say(f"일일 갱신 시작 · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}"
+                    + (f" · 수동(화면 요청 {request_id[:8]})" if request_id else (" · 수동" if manual else "")))
             for err in write_side_files():                  # 단계 목록 · 이 PC 용량(앱이 읽는다)
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
             prepare_app_db(run, STEPS)
@@ -706,12 +762,13 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
                 "derived": derived_why, "steps": run.steps,
                 "before": before, "after": after,
                 "log": log_path.relative_to(ROOT).as_posix(),
-            }
+            } | trigger
             _write_json_atomic(LAST_PATH, state)
             with HISTORY_PATH.open("a", encoding="utf-8") as h:
                 h.write(json.dumps({k: state[k] for k in
-                                    ("started_at", "finished_at", "ok", "upload", "stopped")}
-                                   | {"price_max": after.get("price_max"), "steps": _compact(run.steps)},
+                                    ("started_at", "finished_at", "ok", "upload", "stopped", "log")}
+                                   | {"price_max": after.get("price_max"), "rc": rc_total,
+                                      "steps": _compact(run.steps)} | trigger,
                                    ensure_ascii=False) + "\n")
             for err in write_side_files():                  # 용량은 회차 끝에 다시 잰다
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
@@ -720,10 +777,14 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
                     f"TR {after.get('tr_max')} · 벤치마크 {after.get('benchmark_max')}")
         except Exception as e:                              # 러너 자체의 결함도 기록으로 남긴다
             run.say(f"🔴 러너 오류: {type(e).__name__}: {e}")
-            _write_json_atomic(LAST_PATH, {
-                "started_at": _iso(started), "finished_at": _iso(now_kst()), "ok": False,
-                "upload": upload, "stopped": f"러너 오류 {type(e).__name__}: {e}",
-                "steps": run.steps, "log": log_path.relative_to(ROOT).as_posix()})
+            err = {"started_at": _iso(started), "finished_at": _iso(now_kst()), "ok": False,
+                   "upload": upload, "stopped": f"러너 오류 {type(e).__name__}: {e}",
+                   "steps": run.steps, "log": log_path.relative_to(ROOT).as_posix()} | trigger
+            _write_json_atomic(LAST_PATH, err)
+            if request_id:                                  # 작업자가 요청 번호로 결과를 찾는다 — 러너 오류도 기록으로
+                with HISTORY_PATH.open("a", encoding="utf-8") as h:
+                    h.write(json.dumps({k: err[k] for k in ("started_at", "finished_at", "ok", "upload", "stopped", "log")}
+                                       | {"rc": 1, "steps": _compact(run.steps)} | trigger, ensure_ascii=False) + "\n")
             rc_total = 1
         finally:
             clear_progress()
@@ -735,6 +796,22 @@ def run_all(upload: bool = False, force_derived: bool = False) -> int:
 #: 한 단계만 다시 돌릴 때 예약 회차를 비켜 가는 뒤쪽 여유(분) — 회차는 보통 25 ~ 60분 돈다(2026-10-07 은 60분).
 RERUN_GUARD_AFTER_MIN = 60
 
+#: 화면의 「전체 수집」(수동 회차)을 막는 앞쪽 여유(분) — 12:30 보다 이만큼 앞서 시작한 수동 회차는 정기 회차 시각까지 끝나지 않을 수
+#: 있다. 그러면 정기 회차가 잠금에 걸려 통째로 건너뛰고(작업 스케줄러는 다시 시도하지 않는다) 그날 마지막 회차의 시작이 12:30 앞이
+#: 되어 리밸런싱 하루 점검(「오늘 12:30 뒤 시작한 회차」)이 하루 내내 기다린다. 90분 = 최근 회차의 긴 쪽(10-07 60분)에 여유를 더한 값.
+MANUAL_FULL_GUARD_BEFORE_MIN = 90
+
+
+def guard_window(before_min: int, now: datetime.datetime) -> tuple:
+    """그날 화면 실행을 막는 때 — (회차 시작 − before_min, 회차 시작 + ``RERUN_GUARD_AFTER_MIN``).
+
+    한 단계 다시(그 단계 시간 한도) · 수동 전체 수집(``MANUAL_FULL_GUARD_BEFORE_MIN``) · 단계 목록의 「막는 때」 가 모두 이 함수
+    하나로 센다 — 셈이 두 곳에 있으면 한쪽만 고쳐 화면과 판정이 어긋난다(2026-10-10).
+    """
+    hh, mm = (int(x) for x in DEFAULT_TIME.split(":"))
+    sched = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    return sched - datetime.timedelta(minutes=before_min), sched + datetime.timedelta(minutes=RERUN_GUARD_AFTER_MIN)
+
 
 def rerun_blocked(step: Step, now: datetime.datetime) -> Optional[str]:
     """한 단계만 돌려도 되는가 — 안 되면 그 까닭 한 줄.
@@ -743,14 +820,31 @@ def rerun_blocked(step: Step, now: datetime.datetime) -> Optional[str]:
     (작업 스케줄러는 다시 시도하지 않는다), 회차가 도는 동안에는 같은 표를 두 프로세스가 고친다. 그래서
     「회차 시작 − 그 단계의 시간 한도」 부터 「회차 시작 + 60분」 까지는 돌리지 않는다.
     """
-    hh, mm = (int(x) for x in DEFAULT_TIME.split(":"))
-    sched = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-    lo = sched - datetime.timedelta(minutes=step.timeout_min)
-    hi = sched + datetime.timedelta(minutes=RERUN_GUARD_AFTER_MIN)
+    lo, hi = guard_window(step.timeout_min, now)
     if lo <= now <= hi:
         return (f"{lo.strftime('%H:%M')} ~ {hi.strftime('%H:%M')} 에는 돌리지 않는다 — {DEFAULT_TIME} 회차와 겹친다"
                 f"({step.label or step.name} 시간 한도 {step.timeout_min}분)")
     return None
+
+
+def full_run_blocked(now: datetime.datetime) -> Optional[str]:
+    """화면의 「전체 수집」(수동 회차)을 돌려도 되는가 — 안 되면 까닭 한 줄. 정기 회차(작업 스케줄러)에는 쓰지 않는다."""
+    lo, hi = guard_window(MANUAL_FULL_GUARD_BEFORE_MIN, now)
+    if lo <= now <= hi:
+        return (f"{lo.strftime('%H:%M')} ~ {hi.strftime('%H:%M')} 에는 전체 수집을 돌리지 않는다 — {DEFAULT_TIME} 회차와 겹친다"
+                f"(정기 회차가 그날 전체를 돈다)")
+    return None
+
+
+def guards(now: Optional[datetime.datetime] = None) -> Dict:
+    """단계 목록에 싣는 막는 때 — {schedule, full: {from, to}, steps: {이름: {from, to}}}(HH:MM)."""
+    now = now or now_kst()
+
+    def hm(w: tuple) -> Dict[str, str]:
+        return {"from": w[0].strftime("%H:%M"), "to": w[1].strftime("%H:%M")}
+
+    return {"schedule": DEFAULT_TIME, "full": hm(guard_window(MANUAL_FULL_GUARD_BEFORE_MIN, now)),
+            "steps": {s.name: hm(guard_window(s.timeout_min, now)) for s in STEPS}}
 
 
 def rearm_wal(db_path: Optional[Path] = None) -> bool:
@@ -775,11 +869,14 @@ def rearm_wal(db_path: Optional[Path] = None) -> bool:
     return db.with_name(db.name + "-wal").exists() and db.with_name(db.name + "-shm").exists()
 
 
-def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime] = None) -> int:
+def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime] = None,
+            request_id: Optional[str] = None) -> int:
     """단계 하나만 다시 돌린다 — 마지막 회차 기록의 그 줄을 새 결과로 바꾸고, 이력에 「다시 돌림」 한 줄을 남긴다.
 
     파생 판정 · 올릴 것 판정은 하지 않는다(사람이 그 단계를 골랐다). 앞 단계 실패로 건너뛴 뒤 단계들은 돌리지 않으므로
-    회차의 「멈춘 곳」 은 그대로 남는다. 종료코드: 0 성공 · 2 고를 수 없는 단계 · 3 막힘(회차와 겹침 · 다른 실행) · 그 밖 = 단계 종료코드.
+    회차의 「멈춘 곳」 은 그대로 남는다. 종료코드: 0 성공 · 2 고를 수 없는 단계 · 75 막힘(회차와 겹침 · 다른 실행 — 나중에 다시 ·
+    ``EX_TEMPFAIL``) · 3 앱 DB 꺼짐으로 건너뜀(채울 것) · 78 앱 DB 주소 결함 · 그 밖 = 단계 종료코드. ``request_id`` 는 화면
+    요청 번호 — 이력 줄 · 다시 돌림 줄에 남겨 작업자가 결과를 찾는다(2026-10-10).
     """
     step = next((s for s in STEPS if s.name == name), None)
     if step is None:
@@ -792,11 +889,11 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
     why = rerun_blocked(step, started)
     if why:
         print(f"멈춤: {why}")
-        return 3
+        return EX_TEMPFAIL
     busy = acquire_lock(now=started)
     if busy:
         print(f"멈춤: {busy}")
-        return 3
+        return EX_TEMPFAIL
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}-only-{name}.log"
     rc = 1
@@ -850,7 +947,8 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
                     rows.insert(at, rec)
                 last["steps"] = rows
                 last.setdefault("reruns", []).append({"name": name, "at": rec["rerun_at"], "rc": rc,
-                                                      "log": log_path.relative_to(ROOT).as_posix()})
+                                                      "log": log_path.relative_to(ROOT).as_posix()}
+                                                     | ({"request_id": request_id} if request_id else {}))
                 last["ok"] = not last.get("stopped") and all(s.get("rc") in (None, 0) for s in last["steps"])
                 if after is not None:                        # 다시 잰 끝 상태 — 회차의 시작 상태(before)는 그대로
                     last["after"], last["after_at"] = after, rec["rerun_at"]
@@ -861,8 +959,10 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
             with HISTORY_PATH.open("a", encoding="utf-8") as h:
                 h.write(json.dumps({"started_at": _iso(started), "finished_at": _iso(now_kst()), "only": name,
                                     "ok": rc == 0, "upload": upload, "stopped": None,
-                                    "price_max": (after or {}).get("price_max"),
-                                    "steps": _compact([rec])}, ensure_ascii=False) + "\n")
+                                    "price_max": (after or {}).get("price_max"), "rc": rc,
+                                    "log": log_path.relative_to(ROOT).as_posix(), "trigger": "manual",
+                                    "steps": _compact([rec])} | ({"request_id": request_id} if request_id else {}),
+                                   ensure_ascii=False) + "\n")
             for err in write_side_files():
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
     finally:
@@ -1039,8 +1139,11 @@ def status() -> int:
         print("  아직 끝난 실행이 없다.")
         return 0
     s = json.loads(LAST_PATH.read_text(encoding="utf-8"))
+    how = ""
+    if s.get("trigger") == "manual":
+        how = " · 수동" + (f"(화면 요청 {str(s.get('request_id'))[:8]})" if s.get("request_id") else "")
     print(f"  {s.get('started_at')} → {s.get('finished_at')} · "
-          f"{'✅ 성공' if s.get('ok') else '🔴 실패 있음'} · 업로드 {'켬' if s.get('upload') else '끔'}")
+          f"{'✅ 성공' if s.get('ok') else '🔴 실패 있음'} · 업로드 {'켬' if s.get('upload') else '끔'}{how}")
     if s.get("stopped"):
         print(f"  멈춘 곳: {s['stopped']}")
     for st in s.get("steps", []):
@@ -1084,6 +1187,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                    help="새 자료가 없어도 수정주가·TR·벤치마크를 다시 계산한다")
     r.add_argument("--only", metavar="단계",
                    help="그 단계 하나만 다시 돌린다(예약 회차와 겹치는 시간 · 다른 실행이 돌 때는 막는다)")
+    r.add_argument("--manual", action="store_true",
+                   help="수동 회차(화면 「전체 수집」) — 12:30 회차와 겹치는 때(11:00 ~ 13:30)와 다른 실행이 돌 때는 75 로 끝낸다")
+    r.add_argument("--request", metavar="요청번호",
+                   help="화면 수집 요청 번호(UUID) — 회차 기록 · 이력에 남겨 작업자가 결과를 찾는다(전체 수집이면 수동 회차)")
     sub.add_parser("status", help="마지막 실행 결과와 예약 상태")
     s = sub.add_parser("steps", help="단계 목록(이름표 · 묶음 · 하는 일) — 앱이 읽는 목록")
     s.add_argument("--write", action="store_true", help="단계 목록 · 이 PC 용량 파일을 지금 쓴다(회차를 기다리지 않고)")
@@ -1095,9 +1202,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     a = p.parse_args(argv)
 
     if a.cmd == "run":
+        rid = None
+        if a.request:
+            try:
+                rid = str(uuid.UUID(a.request))
+            except ValueError:
+                print("멈춤: --request 는 화면 수집 요청 번호(UUID)다")
+                return 2
         if a.only:
-            return run_one(a.only, upload=a.upload)
-        return run_all(upload=a.upload, force_derived=a.force_derived)
+            return run_one(a.only, upload=a.upload, request_id=rid)
+        return run_all(upload=a.upload, force_derived=a.force_derived, manual=a.manual or rid is not None,
+                       request_id=rid)
     if a.cmd == "status":
         return status()
     if a.cmd == "steps":
