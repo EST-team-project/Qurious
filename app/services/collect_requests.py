@@ -19,13 +19,15 @@ DB 연결은 부르는 쪽이 넘긴다(앱은 요청마다의 세션 · 작업�
   (요청은 남고 감사만 빠지는 일이 없게). 상태 바꾸기는 모두 「지금 상태가 X 일 때만」 조건 UPDATE 라 가져가기 경쟁은 DB 가 가른다.
 - 말없는 대체 금지 — 작업자가 꺼져 있어도 요청은 받되 「대기 — PC 작업자 꺼짐」 으로 보인다. 결과를 모르는 줄을 「끝」 으로
   적지 않는다(작업자가 러너 기록에서 요청 번호로 결과를 찾지 못하면 「실패 — 결과 기록 없음」).
-- 받는 값은 고르기 목록뿐 — 종류(step · all)와 러너가 쓴 단계 목록의 이름. 명령 글자는 받지 않는다(OWASP 명령 주입 —
-  허용 목록 · Rundeck 2025 옵션 탈출 결함과 같은 꼴을 피한다). 작업자도 러너의 단계 목록으로 한 번 더 확인한다.
+- 받는 값은 고르기 목록뿐 — 종류(step · all · fill)와 러너가 쓴 단계 목록의 이름 · 채우기의 날짜 둘. 명령 글자는 받지 않는다
+  (OWASP 명령 주입 — 허용 목록 · Rundeck 2025 옵션 탈출 결함과 같은 꼴을 피한다). 작업자도 러너의 단계 목록으로 한 번 더 확인한다.
+- 빠진 날 채우기(fill · 2026-10-10 · 사용자 결정 — 상한 31일) — 채우기 명령이 있는 단계만 · 상한 · 막는 때는 러너가 단계 목록에
+  쓴 값 그대로(`fill_max_days` · `guards.fill` — 앱에 사본을 두지 않는다). 상한이 없는 옛 단계 목록이면 받지 않는다(짐작 금지).
 """
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -37,9 +39,9 @@ from app.models.user import User
 
 KST = timezone(timedelta(hours=9))
 
-KIND_STEP, KIND_ALL = "step", "all"
-KINDS = (KIND_STEP, KIND_ALL)
-KIND_LABEL = {KIND_STEP: "단계 하나", KIND_ALL: "전체 수집"}
+KIND_STEP, KIND_ALL, KIND_FILL = "step", "all", "fill"
+KINDS = (KIND_STEP, KIND_ALL, KIND_FILL)
+KIND_LABEL = {KIND_STEP: "단계 하나", KIND_ALL: "전체 수집", KIND_FILL: "빠진 날 채우기"}
 
 QUEUED, RUNNING, DONE, WARNING, FAILED, REJECTED, CANCELLED, EXPIRED = (
     "queued", "running", "done", "warning", "failed", "rejected", "cancelled", "expired")
@@ -107,8 +109,8 @@ def current_catalog() -> dict:
 
 def validate(kind: str, step: str | None, catalog: dict) -> tuple[str, str]:
     """받는 값 확인 — (종류, 단계 이름). 단계 이름은 러너가 쓴 단계 목록에 있는 것만(허용 목록). 아니면 422."""
-    if kind not in KINDS:
-        raise RequestError(422, "종류는 step(단계 하나) · all(전체 수집) 가운데 하나입니다")
+    if kind not in (KIND_STEP, KIND_ALL):
+        raise RequestError(422, "종류는 step(단계 하나) · all(전체 수집) · fill(빠진 날 채우기) 가운데 하나입니다")
     step = (step or "").strip()
     if kind == KIND_ALL:
         if step:
@@ -123,6 +125,63 @@ def validate(kind: str, step: str | None, catalog: dict) -> tuple[str, str]:
     if step not in names:
         raise RequestError(422, f"모르는 단계입니다 — 러너 단계 목록에 있는 이름만 받습니다({len(names)}개)")
     return kind, step
+
+
+def _as_date(v) -> date | None:
+    """날짜 칸 — date 그대로 · 「YYYY-MM-DD」 글은 date 로 · 그 밖은 None(받는 값 확인이 422 로 돌려준다)."""
+    if isinstance(v, datetime):
+        return None
+    if isinstance(v, date):
+        return v
+    if isinstance(v, str) and len(v) == 10:
+        try:
+            return date.fromisoformat(v)
+        except ValueError:
+            return None
+    return None
+
+
+def validate_fill(step: str | None, date_from, date_to, catalog: dict, *, today: date) -> tuple[str, date, date]:
+    """빠진 날 채우기 받는 값 — (단계, 첫날, 마지막 날). 채우기 명령이 있는 단계만(러너가 쓴 단계 목록의 `fill`) · 날짜 둘 ·
+    첫날 ≤ 마지막 날 · 마지막 날 ≤ 오늘(KST) · 범위는 단계 목록의 상한(`fill_max_days`) 안. 러너의 `fill_range_error` 와 같은
+    규칙이다(작업자 · 러너가 한 번 더 본다). 아니면 422."""
+    step = (step or "").strip()
+    if not step:
+        raise RequestError(422, "빠진 날 채우기에는 단계 이름이 있어야 합니다")
+    names = (catalog or {}).get("by_name") or {}
+    if not names:
+        raise RequestError(422, "단계 목록이 없습니다 — 이 PC 에서 러너를 한 번 돌리거나 "
+                                "`python scripts/daily_update.py steps --write` 로 단계 목록을 쓰세요")
+    if step not in names:
+        raise RequestError(422, f"모르는 단계입니다 — 러너 단계 목록에 있는 이름만 받습니다({len(names)}개)")
+    if not (names[step] or {}).get("fill"):
+        raise RequestError(422, f"「{names[step].get('label') or step}」 은 빠진 날 채우기를 하지 않는 단계입니다")
+    max_days = (catalog or {}).get("fill_max_days")
+    if not isinstance(max_days, int) or max_days < 1:
+        raise RequestError(422, "채우기 상한(fill_max_days)이 단계 목록에 없습니다 — 러너가 다음 회차(또는 "
+                                "`python scripts/daily_update.py steps --write`)에 적습니다")
+    a, b = _as_date(date_from), _as_date(date_to)
+    if a is None or b is None:
+        raise RequestError(422, "날짜(첫날 · 마지막 날)를 YYYY-MM-DD 로 둘 다 줍니다")
+    if a > b:
+        raise RequestError(422, f"첫날({a})이 마지막 날({b})보다 뒤입니다")
+    if b > today:
+        raise RequestError(422, f"마지막 날({b})이 오늘({today})보다 뒤입니다")
+    if (b - a).days + 1 > max_days:
+        raise RequestError(422, f"한 번에 {max_days}일까지 채웁니다 — {a} ~ {b} 는 {(b - a).days + 1}일입니다")
+    return step, a, b
+
+
+def validate_request(kind: str, step: str | None, date_from, date_to, catalog: dict, *,
+                     today: date) -> tuple[str, str, date | None, date | None]:
+    """만들기의 받는 값 한 곳 — (종류, 단계, 첫날, 마지막 날). 채우기만 날짜를 받는다(단계 하나 · 전체 수집에 날짜가 오면 422)."""
+    if kind == KIND_FILL:
+        step, a, b = validate_fill(step, date_from, date_to, catalog, today=today)
+        return kind, step, a, b
+    if date_from is not None or date_to is not None:
+        raise RequestError(422, "단계 하나 · 전체 수집에는 날짜를 주지 않습니다(날짜는 빠진 날 채우기만)")
+    kind, step = validate(kind, step, catalog)
+    return kind, step, None, None
 
 
 def _window_now(window, now_kst: datetime) -> dict | None:
@@ -147,8 +206,12 @@ def rules(catalog: dict, now: datetime | None = None) -> dict:
     화면 PC 의 시계로 견주면 시계가 틀린 PC 에서 단추와 러너 판정이 어긋나므로 여기서 정한다. 창이 없으면 None(모름).
     """
     g = (catalog or {}).get("guards") or {}
+    max_days = (catalog or {}).get("fill_max_days")
     out = {"schedule": g.get("schedule"), "full": dict(g["full"]) if isinstance(g.get("full"), dict) else None,
            "steps": {k: dict(v) for k, v in (g.get("steps") or {}).items() if isinstance(v, dict)},
+           # 빠진 날 채우기(2026-10-10) — 받는 단계마다 막는 때(가장 긴 범위의 창) · 한 번의 범위 상한(일)
+           "fill": {k: dict(v) for k, v in (g.get("fill") or {}).items() if isinstance(v, dict)},
+           "fill_max_days": max_days if isinstance(max_days, int) else None,
            "expire_hours": int(EXPIRE_AFTER.total_seconds() // 3600),
            "worker_stale_s": int(WORKER_STALE_AFTER.total_seconds()), "blocked_now": None}
     if not g:
@@ -156,7 +219,8 @@ def rules(catalog: dict, now: datetime | None = None) -> dict:
         return out
     now_kst = _now(now).astimezone(KST)
     out["blocked_now"] = {"full": _window_now(out["full"], now_kst),
-                          "steps": {k: _window_now(v, now_kst) for k, v in out["steps"].items()}}
+                          "steps": {k: _window_now(v, now_kst) for k, v in out["steps"].items()},
+                          "fill": {k: _window_now(v, now_kst) for k, v in out["fill"].items()}}
     return out
 
 
@@ -211,7 +275,10 @@ def request_view(row: CollectRequest, *, catalog: dict, worker: dict | None, now
            "minutes": (round((row.finished_at - row.started_at).total_seconds() / 60, 1)
                        if row.started_at and row.finished_at else None),
            "worker": row.worker or None, "exit_code": row.exit_code, "result": row.result or "",
-           "log": row.log_path or None, "wait": None, "expires_at": None}
+           "log": row.log_path or None, "wait": None, "expires_at": None,
+           # 빠진 날 채우기의 범위(YYYY-MM-DD) — 다른 종류는 None
+           "date_from": row.date_from.isoformat() if row.date_from else None,
+           "date_to": row.date_to.isoformat() if row.date_to else None}
     if st == QUEUED:
         exp = row.requested_at + EXPIRE_AFTER
         out["expires_at"] = _iso(exp)
@@ -244,20 +311,26 @@ async def _expire(db: AsyncSession, now: datetime) -> int:
 
 # ── 앱 API 쪽 ─────────────────────────────────────────────────────────────
 async def create(db: AsyncSession, *, kind: str, step: str | None, user: dict, catalog: dict,
-                 now: datetime | None = None) -> tuple[dict, bool]:
-    """요청 만들기 — (요청, 새로 만들었나). 같은 대상의 활성 줄이 있으면 그 줄을 돌려준다(멱등 · 감사 줄 없음)."""
+                 date_from=None, date_to=None, now: datetime | None = None) -> tuple[dict, bool]:
+    """요청 만들기 — (요청, 새로 만들었나). 같은 대상의 활성 줄이 있으면 그 줄을 돌려준다(멱등 · 감사 줄 없음).
+
+    빠진 날 채우기는 날짜 둘을 줄에 남긴다 — 같은 단계의 활성 채우기가 있으면 날짜가 달라도 그 줄을 돌려준다(활성 줄 하나의
+    정본은 부분 고유 색인 · 종류 + 단계). 「오늘」 은 서버 시각(KST)으로 본다."""
     now = _now(now)
-    kind, step = validate(kind, step, catalog)
+    kind, step, d_from, d_to = validate_request(kind, step, date_from, date_to, catalog, today=now.astimezone(KST).date())
     await _expire(db, now)                                   # 만료된 대기 줄이 활성 자리를 막지 않게(같은 트랜잭션)
     uid = _uid(user.get("id"))
     ins = (pg_insert(CollectRequest)
-           .values(kind=kind, step=step, status=QUEUED, requested_by=uid, requested_at=now)
+           .values(kind=kind, step=step, status=QUEUED, requested_by=uid, requested_at=now, date_from=d_from, date_to=d_to)
            .on_conflict_do_nothing(index_elements=["kind", "step"], index_where=CollectRequest.status.in_(ACTIVE))
            .returning(CollectRequest.id))
     new_id = (await db.execute(ins)).scalar_one_or_none()
     if new_id is not None:
+        payload = {"request_id": str(new_id), "kind": kind, "step": step}
+        if kind == KIND_FILL:
+            payload.update(date_from=d_from.isoformat(), date_to=d_to.isoformat())
         db.add(AuditEvent(user_id=uid, client_id=user.get("client_id") or "", event_type="collect.request",
-                          payload={"request_id": str(new_id), "kind": kind, "step": step}))
+                          payload=payload))
         rid = new_id
     else:
         rid = (await db.execute(select(CollectRequest.id).where(

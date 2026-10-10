@@ -28,6 +28,8 @@ FAKE_STEPS = {s.name: s for s in (
     du.Step("price", ["-c", "pass"], 30, label="시세", group="받기", desc="시세"),
     du.Step("news", ["-c", "pass"], 10, fatal=False, label="정책뉴스", group="받기", desc="뉴스"),
     du.Step("upload", ["-c", "pass"], 60, upload=True, label="올리기", group="백업", desc="올림"),
+    du.Step("signals", ["-c", "pass"], 10, fatal=False, label="신호", group="계산", desc="신호",
+            fill_args=["-c", "pass", "--from", "{from}", "--to", "{to}"]),
 )}
 
 
@@ -103,6 +105,50 @@ def test_runner_asks_the_runner_for_windows_and_lock(tmp_path, monkeypatch):
     lock.write_text(json.dumps({"pid": os.getpid(), "started_at": at(13, 59).isoformat()}), encoding="utf-8")
     assert "다른 실행" in r.busy(at(14, 0)) and lock.exists(), "읽기만 한다(지우지 않는다)"
     assert r.tempfail == du.EX_TEMPFAIL == 75
+
+
+def test_fill_request_is_an_argument_list_with_checked_dates():
+    """TC-CW-13 · 빠진 날 채우기 요청(사용자 결정 2026-10-10 — 새 종류 fill) — 러너 `run --fill <단계> --from --to` 를 인자 목록으로 ·
+    채우기 인자가 없는 단계 · 목록 밖 단계 · 날짜가 없거나 틀린 줄 · 31일 넘는 줄은 거절(기다려도 안 바뀐다) · 막는 때는 러너의
+    채우기 창(범위로 센 시간 한도) · 시간 한도도 범위로 · 이름은 「신호 빠진 날 채우기」."""
+    r = cw.Runner()
+    sig = r.step("signals")
+    kw = {"date_from": "2026-10-02", "date_to": "2026-10-06"}
+    cmd = r.command("fill", "signals", RID, True, **kw)
+    assert cmd[2:] == ["run", "--fill", "signals", "--from", "2026-10-02", "--to", "2026-10-06", "--request", RID]
+    assert all(isinstance(x, str) for x in cmd)
+    assert r.reject_reason("fill", "signals", True, **kw) == ""
+    assert "채우기" in r.reject_reason("fill", "price", True, **kw)
+    assert "목록에 없는" in r.reject_reason("fill", "gone", True, **kw)
+    assert "31일" in r.reject_reason("fill", "signals", True, date_from="2026-09-01", date_to="2026-10-06")
+    assert "날짜" in r.reject_reason("fill", "signals", True, date_from=None, date_to="2026-10-06")
+    at = lambda h, m: datetime.datetime(2026, 10, 12, h, m, tzinfo=du.KST)  # noqa: E731
+    assert r.blocked("fill", "signals", at(12, 0), **kw) and r.blocked("fill", "signals", at(14, 0), **kw) == ""
+    assert r.timeout_s("fill", "signals", **kw) == (du.fill_timeout_min(sig, "2026-10-02", "2026-10-06") + cw.STEP_GRACE_MIN) * 60
+    assert r.label("fill", "signals") == "신호 빠진 날 채우기"
+
+
+def test_outcome_says_why_and_the_fill_range():
+    """TC-CW-14 · 결과 한 줄에 까닭(DF-101) — 러너가 그 단계 줄에 적은 `error` 를 「까닭: …」 으로 붙인다(한 단계 · 채우기는 그 줄 ·
+    전체 수집은 첫 실패 단계의 이름과 함께) · 채우기는 범위를 적는다 · 결과 칸 300자를 넘지 않는다(서버 칸과 같은 한도)."""
+    why = "DartError: status=800 '시스템 점검으로 인한 서비스가 중지 중입니다.'"
+    st, msg = cw.outcome("step", 1, _rec(rc=1, steps=[{"name": "dividend", "rc": 1, "seconds": 25.0, "error": why}]),
+                         label="배당", fatal=False, tempfail=75)
+    assert st == "warning" and msg == f"배당 · 종료코드 1 · 25초 · 까닭: {why}"
+    rec = _rec("all", rc=1, steps=[{"name": "price", "rc": 0}, {"name": "dividend", "rc": 1, "error": why},
+                                   {"name": "schedule", "rc": 1, "error": "다른 까닭"}])
+    st, msg = cw.outcome("all", 1, rec, label="전체 수집", fatal=True, tempfail=75,
+                         labels={"dividend": "배당", "schedule": "기업 일정"}.get)
+    assert st == "warning" and msg.startswith("경고 2(배당 · 기업 일정)") and msg.endswith(f"까닭: 배당 — {why}")
+    fill = _rec("fill", name="signals", steps=[{"name": "signals", "rc": 0, "seconds": 95.0}]) | {
+        "fill": {"from": "2026-10-02", "to": "2026-10-06"}}
+    assert cw.outcome("fill", 0, fill, label="신호 빠진 날 채우기", fatal=False, tempfail=75) == (
+        "done", "신호 빠진 날 채우기 · 2026-10-02 ~ 2026-10-06 · 1분 35초")
+    bad = fill | {"rc": 1, "steps": [{"name": "signals", "rc": 1, "seconds": 3.0, "error": "OSError: 연결 거부"}]}
+    st, msg = cw.outcome("fill", 1, bad, label="신호 빠진 날 채우기", fatal=False, tempfail=75)
+    assert st == "warning" and msg.endswith("까닭: OSError: 연결 거부") and "2026-10-02 ~ 2026-10-06" in msg
+    long = _rec(rc=1, steps=[{"name": "price", "rc": 1, "seconds": 1.0, "error": "가" * 400}])
+    assert len(cw.outcome("step", 1, long, label="시세", fatal=True, tempfail=75)[1]) <= 300
 
 
 def test_task_xml_every_minute(tmp_path):
@@ -366,3 +412,59 @@ def test_heartbeat_while_child_runs_and_missing_record_fails(db_schema, tmp_path
     a, (reqs, _) = _db(scenario)
     assert states.count("running") >= 3, states
     assert reqs[a].status == "failed" and "결과 기록 없음" in reqs[a].result and reqs[a].exit_code == 0
+
+
+class FillFakeRunner(FakeRunner):
+    """채우기 줄도 받는 가짜 러너 — 작업자가 넘긴 날짜를 적어 두고, 이력 줄에 범위를 함께 쓴다."""
+
+    def __init__(self, tmp, **kw):
+        super().__init__(tmp, **kw)
+        self.dates = []
+
+    def blocked(self, kind, name, now, **kw):
+        return self._blocked
+
+    def command(self, kind, name, request_id, allow_upload, **kw):
+        self.dates.append(kw)
+        if kind != "fill":
+            return super().command(kind, name, request_id, allow_upload)
+        rec = _rec(kind, name, rc=self.rc, rid=request_id, steps=[{"name": name, "rc": self.rc, "seconds": 95.0}]) | {
+            "only": name, "fill": {"from": kw["date_from"], "to": kw["date_to"]}}
+        code = (f"import sys; open({str(self.hist)!r},'a',encoding='utf-8').write({json.dumps(rec, ensure_ascii=False)!r}+chr(10)); "
+                f"sys.exit({self.rc})")
+        return [sys.executable, "-c", code]
+
+
+@needs_db
+def test_cycle_runs_a_fill_request_with_its_dates(db_schema, tmp_path):
+    """TC-CW-15 · 빠진 날 채우기 한 바퀴 — 요청 줄의 날짜를 러너 인자로 넘기고(작업자가 줄의 날짜를 다시 확인) · 러너 기록의
+    요청 줄로 끝 · 결과에 범위를 적는다 · 날짜가 상한을 넘는 줄(DB 에 직접 들어온 줄)은 러너를 부르지 않고 거절."""
+    from sqlalchemy import insert
+    from app.models.collect import CollectRequest
+    from app.services import collect_requests as cq
+    fr = FillFakeRunner(tmp_path)
+    cat = {"by_name": {n: {"name": n, "label": s.label, "fill": s.fill} for n, s in FAKE_STEPS.items()},
+           "steps": [], "guards": {}, "fill_max_days": 31}
+
+    async def scenario(maker):
+        from app.models import User
+        async with maker() as db:
+            u = User(name="관리자", email=f"a-{uuid.uuid4().hex[:8]}@test.local", password_hash="x",
+                     client_id=uuid.uuid4().hex[:16], roles=["user", "admin"])
+            db.add(u)
+            await db.commit()
+            out, created = await cq.create(db, kind="fill", step="signals", user={"id": str(u.id), "client_id": u.client_id},
+                                           catalog=cat, date_from=datetime.date(2026, 10, 2), date_to=datetime.date(2026, 10, 6),
+                                           now=NOW - datetime.timedelta(minutes=1))
+            long = (await db.execute(insert(CollectRequest).values(       # 서비스를 거치지 않은 상한 밖 줄
+                kind="fill", step="news", status="queued", requested_at=NOW - datetime.timedelta(minutes=2),
+                date_from=datetime.date(2026, 8, 1), date_to=datetime.date(2026, 10, 6)).returning(CollectRequest.id))).scalar_one()
+            await db.commit()
+        await cw.cycle(_ctx(maker, fr))
+        return out["id"], created, str(long), await _rows(maker)
+
+    a, created, long, (reqs, _) = _db(scenario)
+    assert created is True
+    assert fr.dates == [{"date_from": "2026-10-02", "date_to": "2026-10-06"}], "상한 밖 줄은 러너를 부르지 않는다"
+    assert reqs[a].status == "done" and reqs[a].result == "신호 빠진 날 채우기 · 2026-10-02 ~ 2026-10-06 · 1분 35초"
+    assert reqs[long].status == "rejected" and ("31일" in reqs[long].result or "채우기" in reqs[long].result)

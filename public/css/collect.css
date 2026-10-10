@@ -202,6 +202,24 @@ body:not(.q-admin) .q-admin-only { display: none !important; }
 .cq-wait-elapsed { font-size: 26px; font-weight: 700; margin-top: 10px; font-variant-numeric: tabular-nums; color: var(--text); }
 .cq-wait-note { font-size: 12px; color: #64748b; margin: 6px 0 14px; line-height: 1.6; }
 
+/* 실패한 단계의 까닭(DF-101 · Figma 「데이터 수집 화면」 03-3 결정 안 A) — 실패 · 경고 줄 바로 아래 한 줄 · 요청 결과 아래 한 줄.
+ * 글은 러너가 걸러 적은 그대로 · 길면 줄을 바꾼다(자르지 않는다 — 러너가 200자로 이미 자른다). */
+.cl-table tr.cl-row--why td { border-bottom: 0; }
+.cl-table tr.cl-why-row td { padding-top: 0; }
+.cl-row--fail + .cl-why-row td { background: var(--red-bg); }
+.cl-why { font-size: 12px; line-height: 1.5; color: var(--red); overflow-wrap: anywhere; }
+.cl-why--log { color: #64748b; margin-top: 1px; }
+.cl-why-k { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bd); vertical-align: 1px; }
+.cq-why { display: block; margin-top: 3px; font-size: 12px; line-height: 1.5; color: var(--red); overflow-wrap: anywhere; }
+.cq-wait-state .cq-why { text-align: left; }
+/* 빠진 날 채우기(2026-10-10) — 채울 날이 남은 단계의 단추 · 결과 칸의 「채울 날 n」 */
+.cq-btn.cq-fill { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+.cq-btn.cq-fill:hover:not(:disabled) { background: #fef3c7; }
+.cl-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: #fef3c7; color: #92400e; white-space: nowrap; }
+.cl-nowrap { white-space: nowrap; }   /* 날짜(YYYY-MM-DD) 가운데서 줄이 바뀌지 않게 */
+
 /* 데이터 관제의 요청 한 줄(관리자만 · 2026-10-10 결정 ①) */
 .dh-reqline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
 .dh-reqline .cq-hub-more { margin-left: auto; }
@@ -212,4 +230,7 @@ body:not(.q-admin) .q-admin-only { display: none !important; }
   .cq-band .cq-band-right { margin-left: 0; }
   .cq-rowstate { text-align: left; }
   .cl-head-right .cq-primary { order: -1; }
+  /* 까닭 줄은 그 단계 카드의 끝 — 사이 구분선을 빼서 한 카드로 읽히게 */
+  .cl-table tr.cl-row--why { border-bottom: 0; padding-bottom: 2px; }
+  .cl-table tr.cl-why-row { padding-top: 0; }
 }

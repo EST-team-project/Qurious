@@ -197,7 +197,8 @@ def fake_runner(tmp_path, monkeypatch):
     for name, rel in (("LOG_DIR", "logs"), ("LAST_PATH", "state/daily_update_last.json"),
                       ("HISTORY_PATH", "state/daily_update_history.jsonl"),
                       ("CATALOG_PATH", "state/daily_update_steps.json"), ("DISK_PATH", "state/pc_disk.json"),
-                      ("PROGRESS_PATH", "state/daily_update_progress.json")):
+                      ("PROGRESS_PATH", "state/daily_update_progress.json"),
+                      ("FILL_PATH", "state/daily_update_fill.json")):          # 빠진 날 — 진짜 상태 폴더에 쓰지 않게(2026-10-10)
         monkeypatch.setattr(du, name, tmp_path / rel)
     monkeypatch.setattr(du, "acquire_lock", functools.partial(du.acquire_lock, lock))
     monkeypatch.setattr(du, "release_lock", functools.partial(du.release_lock, lock))
@@ -414,19 +415,27 @@ def test_host_app_db_address_says_why_when_compose_lacks_it(tmp_path):
 
 def test_only_app_db_steps_get_the_host_address(fake_runner, monkeypatch):
     """PC 쪽 앱 DB 주소는 앱 DB 를 쓰는 단계(`app_db=True`)에만 넘긴다 — 다른 단계의 환경은 그대로. 로그에는 비밀번호 없이
-    호스트:포트/DB 만 남는다."""
+    호스트:포트/DB 만 남는다. 포트는 시험이 연 빈 포트다 — 개발 DB 포트(15432)를 쓰면 개발 앱이 꺼진 날 러너가 단계를
+    「앱 DB 꺼짐」 으로 건너뛰어 이 시험이 실패한다(S105 a2 를 다시 돌리기 전 리허설에서 찾음)."""
+    import socket
     t = fake_runner
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setattr(du, "host_app_db_env",
-                        lambda *a, **k: ({"DATABASE_URL": "postgresql+asyncpg://u:secret@127.0.0.1:15432/fin_ai"}, None))
-    dump = "import os,sys; open(sys.argv[1],'w').write(os.environ.get('DATABASE_URL','(없음)'))"
-    du.STEPS[0] = du.Step("alpha", ["-c", dump, str(t / "a.txt")], 1, label="가 단계", group="받기", desc="첫 일", app_db=True)
-    du.STEPS[1] = du.Step("beta", ["-c", dump, str(t / "b.txt")], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
-    assert du.run_all() == 0
-    assert (t / "a.txt").read_text() == "postgresql+asyncpg://u:secret@127.0.0.1:15432/fin_ai"
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+    port = srv.getsockname()[1]
+    try:
+        monkeypatch.setattr(du, "host_app_db_env", _db_env(port))
+        dump = "import os,sys; open(sys.argv[1],'w').write(os.environ.get('DATABASE_URL','(없음)'))"
+        du.STEPS[0] = du.Step("alpha", ["-c", dump, str(t / "a.txt")], 1, label="가 단계", group="받기", desc="첫 일", app_db=True)
+        du.STEPS[1] = du.Step("beta", ["-c", dump, str(t / "b.txt")], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+        assert du.run_all() == 0
+    finally:
+        srv.close()
+    assert (t / "a.txt").read_text() == f"postgresql+asyncpg://u:secret@127.0.0.1:{port}/fin_ai"
     assert (t / "b.txt").read_text() == "(없음)"
     log = sorted((t / "logs").glob("daily_update-*.log"))[-1].read_text(encoding="utf-8")
-    assert "127.0.0.1:15432/fin_ai" in log and "secret" not in log, "주소만 · 비밀번호는 찍지 않는다"
+    assert f"127.0.0.1:{port}/fin_ai" in log and "secret" not in log, "주소만 · 비밀번호는 찍지 않는다"
 
 
 def test_signals_step_after_daily_bars_before_manifest():
@@ -647,3 +656,205 @@ def test_cli_request_must_be_a_request_number(monkeypatch):
     monkeypatch.setattr(du, "run_one", lambda *a, **k: pytest.fail("검사를 지나 단계를 돌렸다"))
     assert du.main(["run", "--request", "not-a-uuid"]) == 2
     assert du.main(["run", "--only", "price", "--request", "x; del"]) == 2
+
+
+# ── 9. 실패한 단계의 까닭(DF-101) · 빠진 날 세기 · 빠진 날 채우기(2026-10-10 · 사용자 결정 — 새 요청 종류 fill · 상한 31일) ─────
+#: 2026-10-10 16:52 배당 다시 받기의 실제 로그 끝(DART 시스템 점검) — 경로는 이 PC 꼴 그대로
+DART_TAIL = (
+    "Traceback (most recent call last):\n"
+    '  File "<frozen runpy>", line 198, in _run_module_as_main\n'
+    '  File "C:\\Users\\kik32\\workspace\\EST-Camp-AI-Quant\\team_project\\Qurious\\collector\\sources\\dart.py", line 269, in _check_status\n'
+    "    raise DartError(\n"
+    "collector.sources.dart.DartError: DART 가 정상 응답이 아니다 (본문 20261008900398): status=800 "
+    "'시스템 점검으로 인한  서비스가 중지 중입니다.'\n"
+    "  할 일: status=010/011 이면 DART_API_KEY 를 확인한다(오픈API 이용현황에서\n"
+    "         키 상태를 본다). status=800 은 시스템 점검이라 기다리면 된다.\n"
+    "대상 2달 (전체 2달 중 2달은 이미 처리됨)\n"
+)
+
+
+def test_failure_line_picks_the_exception_and_drops_paths_and_keys():
+    """DF-101 · 실패한 단계의 까닭 한 줄 — 그 단계 로그 구간에서 마지막 예외 줄(모듈 경로는 뗀다)을 고른다. 화면 · 요청 결과에
+    그대로 나가므로 PC 경로는 파일 이름만 · 주소는 물음표 뒤를 버리고 · 「키 = 값」 꼴 비밀값 · 계정이 든 주소 · 긴 토큰은 지운다 ·
+    겹친 빈칸은 하나로 · 200자를 넘지 않는다. 예외 줄이 없으면 실패 표시 줄(🔴 · 실패 · 오류) · 그것도 없으면 마지막 줄."""
+    line = du.failure_line(DART_TAIL)
+    assert line == ("DartError: DART 가 정상 응답이 아니다 (본문 20261008900398): status=800 "
+                    "'시스템 점검으로 인한 서비스가 중지 중입니다.'")
+    noisy = ("Traceback (most recent call last):\n"
+             '  File "C:\\Users\\kik32\\Qurious\\collector\\x.py", line 3, in f\n'
+             "requests.exceptions.HTTPError: 401 Client Error for url: "
+             "https://opendart.fss.or.kr/api/list.json?crtfc_key=0123456789abcdef0123456789abcdef01234567&bgn_de=20261001"
+             # 가짜 토큰은 이어 붙여 만든다 — 한 덩어리로 쓰면 커밋 전 비밀값 검사(a 스크립트) · GitHub 비밀값 차단에 걸린다
+             " at C:\\Users\\kik32\\workspace\\Qurious\\collector\\sources\\dart.py token=" + "hf_" + "AbCdEfGhIjKlMnOpQrStUvWxYz012345" +
+             " password: s3cr3t serviceKey=abc%2Bdef postgresql+asyncpg://u:pw@127.0.0.1:15432/fin_ai "
+             "/home/runner/work/qurious/collector/y.py " + "가" * 300 + "\n")
+    out = du.failure_line(noisy)
+    assert out.startswith("HTTPError: 401 Client Error for url: https://opendart.fss.or.kr/api/list.json ")
+    for bad in ("crtfc_key", "0123456789abcdef", "kik32", "hf_AbCd", "s3cr3t", "abc%2Bdef", ":pw@", "C:\\", "\\Users",
+                "/home/runner", "requests.exceptions"):
+        assert bad not in out, bad
+    assert "dart.py" in out and "y.py" in out and "127.0.0.1:15432/fin_ai" in out
+    assert len(out) <= du.ERROR_LINE_MAX and out.endswith("…")
+    assert du.failure_line("받는 중\n🔴 포털이 503 을 돌려줬다\n정리\n") == "🔴 포털이 503 을 돌려줬다"
+    assert du.failure_line("a\nb\n\n") == "b" and du.failure_line("") == ""
+
+
+def test_run_records_why_a_step_failed(fake_runner, monkeypatch):
+    """DF-101 · 회차 · 한 단계 다시 모두 실패한 줄에 까닭 한 줄(`error`)과 로그 파일 이름(`log_name` — 경로 없이)을 남긴다 —
+    회차 기록 · 이력 줄(작업자가 요청 결과에 옮긴다). 성공한 줄에는 없다 · 단계가 찍은 키는 기록 어디에도 남지 않는다 ·
+    시간 한도를 넘기면 「시간 한도」 로 · 2026-10-10 처럼 결과 줄이 「종료코드 1」 만 남지 않는다."""
+    t = fake_runner
+    tail = t / "tail.txt"
+    tail.write_text("Traceback (most recent call last):\n"
+                    '  File "C:\\Users\\kik32\\Qurious\\collector\\sources\\dart.py", line 269, in _check_status\n'
+                    "collector.sources.dart.DartError: status=800 점검 — "
+                    "https://opendart.fss.or.kr/api/document.xml?crtfc_key=0123456789abcdef0123456789abcdef01234567&rcept_no=1\n",
+                    encoding="utf-8")
+    du.STEPS[1] = du.Step("beta", ["-c", f"import sys; sys.stderr.write(open(r'{tail}', encoding='utf-8').read()); sys.exit(1)"],
+                          1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_all() == 1
+    last = _last(t)
+    a, b = last["steps"]
+    assert "error" not in a and "log_name" not in a
+    assert b["error"] == "DartError: status=800 점검 — https://opendart.fss.or.kr/api/document.xml"
+    assert b["log_name"] == (t / last["log"]).name and "/" not in b["log_name"] and "\\" not in b["log_name"]
+    assert "0123456789abcdef" not in json.dumps(last, ensure_ascii=False)
+    hist = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert hist["steps"][1]["error"] == b["error"] and "error" not in hist["steps"][0]
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)) == 1
+    b2 = _last(t)["steps"][1]
+    assert (b2["error"], b2["note"]) == (b["error"], "다시 돌림") and b2["log_name"].endswith("-only-beta.log")
+    monkeypatch.setattr(du, "_run_step", lambda run, step, **kw: 124)
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 15, 5, tzinfo=du.KST)) == 124
+    assert _last(t)["steps"][1]["error"] == "시간 한도 1분을 넘겨 멈춤"
+
+
+def test_app_db_down_days_accumulate_and_a_good_run_removes_only_its_day(fake_runner, monkeypatch):
+    """빠진 날 세기 — 앱 DB 가 꺼진 회차마다 그 회차가 계산했을 거래일을 러너 상태 파일(`daily_update_fill.json`)에 모으고 단계 줄에
+    「채울 날 n · 첫날 · 마지막 날」 을 적는다(이틀 넘게 꺼졌던 때 · 사용자 2026-10-10). 앱 DB 가 다시 뜬 회차는 그날 하루만 계산하므로
+    그날만 지우고 남은 날은 성공 줄이어도 「채울 것」 으로 둔다(말없이 사라지지 않게)."""
+    import socket
+    t = fake_runner
+    asof = {"price_max": "20261002"}
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: dict(asof))
+    monkeypatch.setattr(du, "host_app_db_env", _db_env(_closed_port()))
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, app_db=True, label="나 단계", group="계산", desc="둘째 일",
+                          fill_args=["x.py", "--from", "{from}", "--to", "{to}"])
+    du.run_all()
+    asof["price_max"] = "20261006"
+    du.run_all()
+    b = _last(t)["steps"][1]
+    assert (b["rc"], b["reason"], b["followup"]) == (None, "app_db_down", "fill")
+    assert (b["fill_from"], b["fill_to"], b["fill_days"]) == ("2026-10-02", "2026-10-06", 2)
+    state = json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))
+    assert state["steps"]["beta"]["days"] == ["2026-10-02", "2026-10-06"]
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+    try:                                                          # 앱 DB 가 다시 뜸 — 같은 거래일(10-06)을 다시 계산
+        monkeypatch.setattr(du, "host_app_db_env", _db_env(srv.getsockname()[1]))
+        assert du.run_all() == 0
+    finally:
+        srv.close()
+    b = _last(t)["steps"][1]
+    assert b["rc"] == 0 and (b["followup"], b["fill_from"], b["fill_to"], b["fill_days"]) == ("fill", "2026-10-02", "2026-10-02", 1)
+    assert "채울 날 1" in b["note"] and "reason" not in b
+    assert json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))["steps"]["beta"]["days"] == ["2026-10-02"]
+    hist = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert hist["steps"][1]["fill_days"] == 1, "이력 줄에도 남는다"
+
+
+def test_fill_range_rules():
+    """빠진 날 채우기의 받는 값 — 채우기 인자가 있는 단계 · 날짜 꼴(YYYY-MM-DD) · 첫날 ≤ 마지막 날 · 마지막 날 ≤ 오늘 · 31일 안
+    (사용자 결정 2026-10-10 「31일」 · 양 끝 포함) · 시간 한도는 평일 수만큼 늘고 120분에서 멈춘다 · 막는 때는 그 한도로 센다."""
+    sig = next(s for s in du.STEPS if s.name == "signals")
+    price = next(s for s in du.STEPS if s.name == "price")
+    today = datetime.date(2026, 10, 12)
+    assert du.FILL_MAX_DAYS == 31
+    assert du.fill_range_error(sig, "2026-10-02", "2026-10-06", today) is None
+    assert du.fill_range_error(sig, "2026-09-12", "2026-10-12", today) is None            # 31일
+    for a, b, word in (("2026-09-11", "2026-10-12", "31일"), ("2026-10-06", "2026-10-02", "첫날"),
+                       ("2026-10-2", "2026-10-06", "날짜"), ("2026-10-02", "2026-10-13", "오늘"), ("", "2026-10-06", "날짜")):
+        assert word in (du.fill_range_error(sig, a, b, today) or ""), (a, b)
+    assert "채우기" in du.fill_range_error(price, "2026-10-02", "2026-10-06", today)
+    assert du.fill_timeout_min(sig, "2026-10-02", "2026-10-06") == sig.timeout_min * 3          # 금 · 월 · 화
+    assert du.fill_timeout_min(sig, "2026-09-12", "2026-10-12") == du.FILL_TIMEOUT_CAP_MIN == 120
+    at = lambda h, m: datetime.datetime(2026, 10, 12, h, m, tzinfo=du.KST)  # noqa: E731
+    assert du.fill_blocked(sig, "2026-10-02", "2026-10-06", at(12, 0)) and du.fill_blocked(sig, "2026-10-02", "2026-10-06", at(13, 31)) is None
+    assert du.fill_blocked(sig, "2026-10-02", "2026-10-06", at(11, 59)) is None              # 한도 30분 → 12:00 부터
+    cat = du.step_catalog(now=at(9, 0))
+    assert cat["fill_max_days"] == 31 and set(cat["guards"]["fill"]) == {s.name for s in du.STEPS if s.fill_args} == {"signals"}
+    w = cat["guards"]["fill"]["signals"]
+    one = datetime.timedelta(minutes=1)
+    lo = at(*map(int, w["from"].split(":")))
+    assert du.fill_blocked(sig, "2026-09-12", "2026-10-12", lo) and du.fill_blocked(sig, "2026-09-12", "2026-10-12", lo - one) is None, \
+        "단계 목록의 채우기 창은 가장 긴 범위의 창 — 화면이 끄는 때와 러너가 막는 때가 같다"
+    assert sig.fill == "python scripts/signals_daily.py --from YYYY-MM-DD --to YYYY-MM-DD", "명령 글은 채우기 인자에서 만든다"
+
+
+def test_fill_fields_cut_a_long_gap_into_31_day_chunks():
+    """빠진 날이 31일을 넘게 쌓이면(한 달 넘게 앱 DB 가 꺼짐) 단계 줄에는 첫날부터 31일 안의 날만 한 묶음으로 적고, 남은 날 수를
+    `fill_rest` 로 — 화면 단추가 보내는 범위가 늘 상한 안이다(서버가 422 로 막는 범위를 단추가 만들지 않게). 묶음을 채우면 다음
+    묶음이 나온다 · 남은 날이 없으면 빈 칸."""
+    days = ["2026-09-01", "2026-09-30", "2026-10-01", "2026-10-02"]
+    f = du.fill_fields(days)
+    assert (f["followup"], f["fill_from"], f["fill_to"], f["fill_days"], f["fill_rest"]) == (
+        "fill", "2026-09-01", "2026-10-01", 3, 1)
+    assert du.fill_range_error(next(s for s in du.STEPS if s.name == "signals"), f["fill_from"], f["fill_to"],
+                               datetime.date(2026, 10, 12)) is None
+    assert "fill_rest" not in du.fill_fields(["2026-10-06", "2026-10-02"]) and du.fill_fields([]) == {}
+    assert du.fill_fields(["2026-10-06", "2026-10-02"])["fill_from"] == "2026-10-02", "차례대로"
+
+
+def test_fill_run_checks_range_window_and_passes_dates(fake_runner):
+    """빠진 날 채우기(`run --fill`) — 받는 값이 틀리면 2(돌리지 않음) · 12:30 회차와 겹치는 때는 75 · 돌리면 날짜를 단계 인자에 넣고
+    그 범위의 빠진 날만 지운다 · 회차 기록의 그 줄 · 다시 돌림 줄 · 이력 줄(요청 번호 · 범위 · 로그)에 남긴다."""
+    t = fake_runner
+    out = t / "argv.txt"
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일",
+                          fill_args=["-c", f"import sys; open(r'{out}', 'w').write(' '.join(sys.argv[1:]))",
+                                     "--from", "{from}", "--to", "{to}"])
+    du.run_all()
+    (t / "state/daily_update_fill.json").write_text(json.dumps(
+        {"steps": {"beta": {"days": ["2026-10-02", "2026-10-06", "2026-10-07"]}}}), encoding="utf-8")
+    later = datetime.datetime(2026, 10, 8, 15, 0, tzinfo=du.KST)
+    noon = datetime.datetime(2026, 10, 8, 12, 45, tzinfo=du.KST)
+    hist = t / "state/daily_update_history.jsonl"
+    n0 = len(hist.read_text(encoding="utf-8").splitlines())
+    assert du.run_fill("alpha", "2026-10-02", "2026-10-06", now=later) == 2
+    assert du.run_fill("없음", "2026-10-02", "2026-10-06", now=later) == 2
+    for a, b in (("2026-10-06", "2026-10-02"), ("2026-10-2", "2026-10-06"), ("2026-09-01", "2026-10-06"),
+                 ("2026-10-02", "2026-10-09")):
+        assert du.run_fill("beta", a, b, now=later) == 2, (a, b)
+    assert du.run_fill("beta", "2026-10-02", "2026-10-06", now=noon) == du.EX_TEMPFAIL
+    assert not out.exists() and len(hist.read_text(encoding="utf-8").splitlines()) == n0, "막힌 · 틀린 실행은 남기지 않는다"
+    assert du.run_fill("beta", "2026-10-02", "2026-10-06", now=later, request_id=RID) == 0
+    assert out.read_text() == "--from 2026-10-02 --to 2026-10-06"
+    assert json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))["steps"]["beta"]["days"] == ["2026-10-07"]
+    b = _last(t)["steps"][1]
+    assert b["rc"] == 0 and "빠진 날 채움 2026-10-02 ~ 2026-10-06" in b["note"]
+    assert (b["followup"], b["fill_from"], b["fill_to"], b["fill_days"]) == ("fill", "2026-10-07", "2026-10-07", 1)
+    h = json.loads(hist.read_text(encoding="utf-8").splitlines()[-1])
+    assert (h["only"], h["fill"], h["request_id"], h["rc"], h["trigger"]) == (
+        "beta", {"from": "2026-10-02", "to": "2026-10-06"}, RID, 0, "manual")
+    assert h["log"].endswith("-fill-beta.log") and (t / h["log"]).exists()
+    assert _last(t)["reruns"][-1]["fill"] == {"from": "2026-10-02", "to": "2026-10-06"}
+    assert not (t / "state/daily_update.lock").exists()
+
+
+def test_cli_fill_needs_both_dates_and_nothing_else(monkeypatch):
+    """`run --fill <단계> --from --to` — 날짜 둘이 다 있어야 하고 `--only` · `--manual` · `--upload` 와 함께 쓰지 않는다 · 날짜만
+    주고 `--fill` 이 없으면 2. 러너 함수는 부르면 실패하게 바꿔 끼운다(검사가 깨져도 진짜 실행을 하지 않게)."""
+    for fn in ("run_all", "run_one", "run_fill"):
+        monkeypatch.setattr(du, fn, lambda *a, _fn=fn, **k: pytest.fail(f"검사를 지나 {_fn} 을 불렀다"))
+    for argv in (["run", "--fill", "signals"], ["run", "--fill", "signals", "--from", "2026-10-02"],
+                 ["run", "--fill", "signals", "--only", "news", "--from", "2026-10-02", "--to", "2026-10-06"],
+                 ["run", "--fill", "signals", "--manual", "--from", "2026-10-02", "--to", "2026-10-06"],
+                 ["run", "--fill", "signals", "--upload", "--from", "2026-10-02", "--to", "2026-10-06"],
+                 ["run", "--from", "2026-10-02", "--to", "2026-10-06"],
+                 ["run", "--fill", "signals", "--from", "2026-10-02", "--to", "2026-10-06", "--request", "x"]):
+        assert du.main(argv) == 2, argv
+    calls = []
+    monkeypatch.setattr(du, "run_fill", lambda name, a, b, **k: calls.append((name, a, b, k.get("request_id"))) or 0)
+    assert du.main(["run", "--fill", "signals", "--from", "2026-10-02", "--to", "2026-10-06", "--request", RID]) == 0
+    assert calls == [("signals", "2026-10-02", "2026-10-06", RID)]

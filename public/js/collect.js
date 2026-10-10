@@ -13,10 +13,12 @@
  * 「다시 받기」 · 「전체 수집」 은 요청 표에 줄만 남기고 이 PC 의 수집 작업자가 가져가 돌린다(2026-10-10 · js/collect-requests.js) —
  * 단계 줄의 「명령」 은 작업자가 꺼져 있을 때 이 PC 에서 직접 돌리는 길로 남겼다.
  * 단계 줄 · 묶음 · 하는 일은 러너 기록에서 온다 — 수집 단계가 늘면 이 화면이 손대지 않아도 따라온다(결정 ④).
+ * 실패 · 경고 줄 아래에는 러너가 적은 까닭 한 줄과 로그 파일 이름(DF-101 · Figma 03-3 결정 안 A), 빠진 날이 남은 단계에는
+ * 「빠진 날 채우기(n일)」 단추가 보인다(러너가 적은 첫날 · 마지막 날 그대로 · 2026-10-10).
  * 관리자 화면이다 — 일반 사용자에게는 메뉴를 숨기고(css/collect.css 의 body.q-admin), 서버도 403 으로 막는다.
  */
 import { api, escHtml, fmt, getMe, setToast } from "/js/common.js";
-import { cancelRequest, confirmFullCollect, fullButtonHtml, loadRequests, requestCollect, requestsCardHtml,
+import { cancelRequest, confirmFill, confirmFullCollect, fullButtonHtml, loadRequests, requestCollect, requestsCardHtml,
   startRequestPolling, stepActionHtml, stopRequestPolling, workerBandHtml } from "/js/collect-requests.js";
 
 const WEEK = "일월화수목금토";
@@ -103,7 +105,9 @@ function runOptions(d) {
   if (d.last) opts.push({ key: "last", label: `회차 ${day(d.last.started_at)} ${hm(d.last.started_at)} · ${d.label || ""}` });
   (d.history || []).forEach((h, i) => {
     if (d.last && h.started_at === d.last.started_at && !h.only) return;   // 마지막 회차와 같은 줄
-    const what = h.only ? `↳ ${day(h.started_at)} ${hm(h.started_at)} 다시 돌림 · ${stepLabel(d, h.only)}`
+    const range = h.fill ? (h.fill.from === h.fill.to ? h.fill.from?.slice(5) : `${h.fill.from?.slice(5)} ~ ${h.fill.to?.slice(5)}`) : "";
+    const what = h.fill ? `↳ ${day(h.started_at)} ${hm(h.started_at)} 빠진 날 채움 · ${stepLabel(d, h.only)} ${range}`
+      : h.only ? `↳ ${day(h.started_at)} ${hm(h.started_at)} 다시 돌림 · ${stepLabel(d, h.only)}`
       : `회차 ${day(h.started_at)} ${hm(h.started_at)} · ${h.skipped ? "건너뜀" : h.ok ? "성공" : "실패"}`;
     opts.push({ key: String(i), label: what });
   });
@@ -111,6 +115,21 @@ function runOptions(d) {
 }
 function stepLabel(d, name) {
   return (d.catalog?.steps || []).find(s => s.name === name)?.label || name;
+}
+/** 그 단계의 빠진 날 — 러너가 마지막 기록에 적은 채울 날({from, to, days} · 없으면 null). 고른 지난 회차가 아니라 마지막
+ *  기록에서 본다(회차 · 다시 돌림 · 채우기가 그 줄을 고친다) · 채우기 명령이 있는 단계만 · 날짜는 셈하지 않고 그대로 넘긴다 */
+function fillFor(d, name) {
+  const s = (d.last?.steps || []).find(x => x.name === name);
+  const cat = (d.catalog?.steps || []).find(c => c.name === name);
+  if (s?.followup === "fill" && s.fill_days > 0 && s.fill_from && s.fill_to && cat?.fill) {
+    return { from: s.fill_from, to: s.fill_to, days: Number(s.fill_days) };
+  }
+  return null;
+}
+/** 단계 줄의 끝 — 까닭 줄이 있으면 그 줄(「명령」 상자는 그 뒤에 연다 · 까닭 줄과 단계 줄 사이에 끼지 않게) */
+function rowTail(tr) {
+  const next = tr.nextElementSibling;
+  return next?.classList.contains("cl-why-row") ? next : tr;
 }
 /** 고른 회차 → {run, steps(없으면 null), rerun(한 단계만 다시 돌린 줄인가)} */
 function pickedRunView(d) {
@@ -183,11 +202,22 @@ function stepsTable(d, view) {
         ? `<div class="cl-time"><span class="cl-bar cl-bar--${tone === "fail" ? "fail" : tone === "pending" ? "warn" : tone === "skip" ? "skip" : "ok"}" style="width:${w}px"></span><span>${dur(s.seconds)}</span></div>`
         : `<span class="q-muted">—</span>`;
       const isRerun = pickedRun === "last" && reruns.has(s.name);
-      return `<tr class="${s.status === "failed" ? "cl-row--fail" : ""} ${isRerun ? "cl-row--rerun" : ""}" data-step="${escHtml(s.name)}">
+      // 빠진 날(러너가 상태 파일에서 모아 적은 채울 날) — 건너뛴 줄은 메모에 이미 있다 · 성공 · 실패 줄에는 여기서 한 마디
+      const span = s.fill_from === s.fill_to ? `<span class="cl-nowrap">${escHtml(s.fill_from || "")}</span>`
+        : `<span class="cl-nowrap">${escHtml(s.fill_from || "")}</span> ~ <span class="cl-nowrap">${escHtml(s.fill_to || "")}</span>`;
+      const days = s.fill_days && s.status !== "skipped"
+        ? ` <span class="q-muted">· 채울 날 ${escHtml(String(s.fill_days))} (${span})${s.fill_rest ? ` · 다음 묶음 ${escHtml(String(s.fill_rest))}일` : ""}</span>`
+        : held && s.date && !s.fill_days ? ` <span class="q-muted">· 빠진 거래일 ${escHtml(s.date)}</span>` : "";
+      // 실패 · 경고 줄의 까닭(DF-101 · 결정 안 A) — 러너가 경로 · 비밀값을 걸러 적은 한 줄 그대로 · 로그 파일 이름은 회색으로
+      const why = (s.status === "failed" || s.status === "warning") && s.error
+        ? `<tr class="cl-why-row"><td class="cl-n"></td><td colspan="5"><div class="cl-why"><span class="cl-why-k">까닭</span>${escHtml(s.error)}</div>${s.log_name
+          ? `<div class="cl-why cl-why--log">로그 ${escHtml(s.log_name)}</div>` : ""}</td></tr>`
+        : "";
+      return `<tr class="${s.status === "failed" ? "cl-row--fail" : ""} ${isRerun ? "cl-row--rerun" : ""} ${why ? "cl-row--why" : ""}" data-step="${escHtml(s.name)}">
         <td class="cl-n">${idx}</td><td class="cl-name">${escHtml(s.label || s.name)}</td>
-        <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}${held && s.date ? ` <span class="q-muted">· 빠진 거래일 ${escHtml(s.date)}</span>` : ""}</td>
-        <td>${time}</td><td class="cl-res cl-st--${tone === "skip" ? "pending" : tone}">${txt}</td>
-        <td class="cl-act">${stepActionHtml(s.name, d.running)}</td></tr>`;
+        <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}${days}</td>
+        <td>${time}</td><td class="cl-res cl-st--${tone === "skip" ? "pending" : tone}">${txt}${s.fill_days ? `<span class="cl-badge">채울 날 ${escHtml(String(s.fill_days))}</span>` : ""}</td>
+        <td class="cl-act">${stepActionHtml(s.name, d.running, fillFor(d, s.name))}</td></tr>${why}`;
     }).join("");
   }).join("");
   return `<div class="card"><h3 class="cl-h">단계 ${rows.length}개 <span class="q-muted">받기 → 계산 → 백업 → 근거 문서 차례로 돕니다 · 막대는 모두 같은 눈금(가장 긴 단계가 끝까지)</span></h3>
@@ -205,7 +235,7 @@ function scheduleHtml(d) {
     <div class="cq-band-slot">${workerBandHtml()}</div>
     ${scheduleTiles(d, view)}${stepsTable(d, view)}
     <div class="cq-req-slot">${requestsCardHtml()}</div>
-    <div class="cl-alert">「다시 받기」 · 「전체 수집」 은 요청만 남기고, 이 PC 의 수집 작업자가 1분 안에 가져가 돌립니다 — 화면이 수집을
+    <div class="cl-alert">「다시 받기」 · 「빠진 날 채우기」 · 「전체 수집」 은 요청만 남기고, 이 PC 의 수집 작업자가 1분 안에 가져가 돌립니다 — 화면이 수집을
       직접 돌리지 않습니다. 정기 회차와 겹치는 때(막는 때)와 수집 중에는 단추가 꺼집니다. 작업자가 꺼져 있으면 「명령」 으로 이 PC 에서
       직접 돌릴 수 있습니다. ${escHtml(d.rerun?.blocked ? `명령이 막히는 때: ${d.rerun.blocked}` : "")}</div>`;
 }
@@ -222,13 +252,19 @@ function bindSchedule(root, d) {
     root.addEventListener("click", onScheduleClick);
   }
 }
-/** 수집 일정 화면의 누름 — 「다시 받기」 · 「전체 수집」 · 요청 「취소」 · 「명령」 열고 닫기 */
+/** 수집 일정 화면의 누름 — 「다시 받기」 · 「빠진 날 채우기」 · 「전체 수집」 · 요청 「취소」 · 「명령」 열고 닫기 */
 function onScheduleClick(e) {
   const root = e.currentTarget;
   const d = runnerData;
   const btn = e.target.closest("button");
   if (!btn || !d || btn.disabled) return;
   if (btn.classList.contains("cq-rerun")) { requestCollect("step", btn.dataset.step); return; }
+  if (btn.classList.contains("cq-fill")) {
+    // 날짜 · 날 수는 단추에 실린 러너 기록 그대로 — 확인 창에서 한 번 더 보이고 누르면 요청한다
+    confirmFill({ step: btn.dataset.step, label: stepLabel(d, btn.dataset.step), from: btn.dataset.from, to: btn.dataset.to,
+      days: Number(btn.dataset.days) });
+    return;
+  }
   if (btn.classList.contains("cq-cancel")) { cancelRequest(btn.dataset.id); return; }
   if (btn.classList.contains("cq-full")) {
     confirmFullCollect({ steps: (d.catalog?.steps || []).length, lastSeconds: d.last?.minutes != null ? d.last.minutes * 60 : null });
@@ -237,7 +273,8 @@ function onScheduleClick(e) {
   if (!btn.classList.contains("cl-cmd-open")) return;
   {
     const tr = btn.closest("tr");
-    const open = tr.nextElementSibling?.classList.contains("cl-cmd-row");
+    const tail = rowTail(tr);
+    const open = tail.nextElementSibling?.classList.contains("cl-cmd-row");
     root.querySelectorAll(".cl-cmd-row").forEach(r => r.remove());
     root.querySelectorAll(".cl-cmd-open").forEach(b => b.setAttribute("aria-expanded", "false"));
     if (open) return;
@@ -250,7 +287,7 @@ function onScheduleClick(e) {
       `막히는 때: ${escHtml(d.rerun?.blocked || "12:30 회차와 겹치는 때")} · 끝나면 이 화면의 그 줄 결과가 바뀝니다(새로 고침).`)}${cat?.fill
       ? cmdBox(cat.fill, "날짜 칸(YYYY-MM-DD)을 채울 첫날 · 마지막 날로 바꿔 돌립니다 · 같은 날을 다시 돌려도 값만 바뀝니다.", "빠진 날 채우기")
       : ""}</td>`;
-    tr.after(row);
+    tail.after(row);
     bindCopy(row);
   }
 }
@@ -265,8 +302,8 @@ function onRequestsChanged(kind) {
   if (full) full.outerHTML = fullButtonHtml(runnerData.running);
   root.querySelectorAll("tr[data-step] > .cl-act").forEach(td => {
     const tr = td.closest("tr");
-    td.innerHTML = stepActionHtml(tr.dataset.step, runnerData.running);
-    if (tr.nextElementSibling?.classList.contains("cl-cmd-row")) td.querySelector(".cl-cmd-open")?.setAttribute("aria-expanded", "true");
+    td.innerHTML = stepActionHtml(tr.dataset.step, runnerData.running, fillFor(runnerData, tr.dataset.step));
+    if (rowTail(tr).nextElementSibling?.classList.contains("cl-cmd-row")) td.querySelector(".cl-cmd-open")?.setAttribute("aria-expanded", "true");
   });
 }
 async function renderCollectSchedule() {

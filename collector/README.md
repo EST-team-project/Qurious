@@ -527,8 +527,8 @@ PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 | `kb_eval.py` · `kb_answer_eval.py` · `kb_sector_exp.py` | 168 · 187 · 213 | 근거 검색 · 근거 답 평가 · 섹터 법령을 넣은 길을 사본 DB · 다른 컬렉션(`kb_v1_sector`)에 만들어 같은 평가를 돌리는 실험(2026-10-05) |
 | `../app/tasks/collector_tasks.py` | 83 | Celery Beat 어댑터 (얇음) |
 | `../scripts/hf_dataset.py` | 2,128 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 |
-| `../scripts/daily_update.py` | 654 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 (§15) |
-| `../scripts/collect_worker.py` | 563 | **화면 수집 요청 작업자** — 요청 표에서 가져가 러너를 부른다 · 매 분 작업 등록 (§15 · 2026-10-10) |
+| `../scripts/daily_update.py` | 1589 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 · 한 단계 다시 · 빠진 날 채우기 · 실패한 단계의 까닭 (§15 · 줄 수 2026-10-10) |
+| `../scripts/collect_worker.py` | 614 | **화면 수집 요청 작업자** — 요청 표에서 가져가 러너를 부른다(단계 하나 · 전체 수집 · 빠진 날 채우기) · 매 분 작업 등록 (§15 · 2026-10-10) |
 
 `data/collector/` 는 `.gitignore` 에 있다 — **원자료는 커밋하지 않는다.**
 
@@ -1214,6 +1214,7 @@ python scripts/daily_update.py run                  # 이 터미널에서 직접
 python scripts/daily_update.py run --only news      # 그 단계 하나만 다시 — 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 막힘 (2026-10-07)
 python scripts/daily_update.py steps --write        # 단계 목록(이름표 · 묶음 · 하는 일) · 이 PC 용량 파일을 지금 쓴다 (2026-10-07)
 python scripts/daily_update.py run --manual --request <요청 번호>   # 화면 「전체 수집」 — 작업자가 부른다 · 11:00 ~ 13:30 은 75 (2026-10-10)
+python scripts/daily_update.py run --fill signals --from 2026-10-02 --to 2026-10-06   # 빠진 날 채우기 — 31일까지 · 그 범위의 빠진 날만 지움 (2026-10-10)
 python scripts/collect_worker.py install            # 화면 수집 요청 작업자 — 작업 스케줄러에 매 분 (기본 올리기 받음 · --no-upload)
 python scripts/collect_worker.py status             # 작업자 마지막 바퀴 · 작업 등록
 python scripts/daily_update.py uninstall            # 등록 해제
@@ -1221,7 +1222,7 @@ python scripts/daily_update.py uninstall            # 등록 해제
 
 로그 `data/collector/logs/daily_update-*.log`(최근 30개) · 마지막 결과 `data/collector/state/daily_update_last.json` ·
 이력 `data/collector/state/daily_update_history.jsonl`(2026-10-08 회차부터 단계별 결과도 · 한 단계 다시 줄은 처음부터) · 단계 목록 `state/daily_update_steps.json` ·
-이 PC 용량 `state/pc_disk.json`. 모두 gitignore 된 `data/collector/` 아래다.
+이 PC 용량 `state/pc_disk.json` · 빠진 날 `state/daily_update_fill.json`(2026-10-10). 모두 gitignore 된 `data/collector/` 아래다.
 
 **단계 이름표는 러너 한 곳(`STEPS` 의 `label` · `group` · `desc`)에만 둔다**(2026-10-07 · 결정 ④). 러너가 회차마다 단계 목록과
 회차 기록에 함께 쓰고, 앱(`app/services/data_status.py` · `GET /api/data/runner`)은 그 기록만 읽는다 — 단계를 더할 때 앱을 고치지
@@ -1253,6 +1254,23 @@ python scripts/daily_update.py uninstall            # 등록 해제
   EX_CONFIG)다 — 앱 설정의 기본 주소로 돌면 다른 DB 에 말없이 쓸 수 있다.
 - **빠진 날 채우기**: `python scripts/signals_daily.py --from YYYY-MM-DD --to YYYY-MM-DD`. 명령 글은 단계 정의의 `fill` 한 곳에 두고
   단계 목록 파일로 수집 일정 화면에 넘긴다(단계 줄의 「명령」 을 열면 함께 보인다 — 2026-10-10 「이 단계만 다시」 에서 이름을 바꿨다).
+  2026-10-10 부터 명령 글은 채우기 인자(`Step.fill_args` — `{from}` · `{to}` 자리)에서 만든다 — 러너 `run --fill` 이 같은 인자에 날짜를 넣어
+  돌리므로 명령 글과 실제 인자가 두 곳에서 갈라지지 않는다.
+- **빠진 날 세기 · 채우기(2026-10-10 · 사용자 결정 — 새 요청 종류 fill · 상한 31일)** — 회차 기록은 회차마다 새로 써서 여러 날 꺼졌던
+  때를 셀 수 없다. 그래서 앱 DB 가 꺼진 회차마다 그 회차가 계산했을 거래일을 `state/daily_update_fill.json`(`{"steps": {이름: {"days": […]}}}`)
+  에 모으고 단계 줄에 `followup: "fill"` · `fill_from` · `fill_to` · `fill_days`(한 묶음 = 첫날부터 31일 안 · 넘는 날 수는 `fill_rest`)와
+  메모 「채울 날 n · 첫날 ~ 마지막 날」 을 적는다. 앱 DB 가 다시 뜬 회차 · 한 단계 다시는 그날 하루만 계산하므로 **그날만** 지우고, 남은 날은
+  성공 줄이어도 「채울 것」 으로 둔다(말없이 사라지지 않게). `run --fill <단계> --from --to [--request]` 는 받는 값(`fill_range_error` —
+  채우기 인자가 있는 단계 · 날짜 꼴 · 첫날 ≤ 마지막 날 ≤ 오늘 · 31일 안)이 틀리면 2, 12:30 회차와 겹치면 75(막는 때는 그 범위의 시간 한도 =
+  평일 수 × 단계 한도 · 120분에서 멈춤 · 단계 목록의 `guards.fill` 은 가장 긴 범위의 창), 앱 DB 가 꺼져 있으면 3 이고, 성공하면 **그 범위의
+  빠진 날만** 지운다. 회차 기록의 그 줄 · 다시 돌림 줄 · 이력 줄(`only` · `fill: {from, to}` · `request_id` · 로그 `…-fill-<단계>.log`)에 남는다.
+  화면은 빠진 날이 있는 단계의 「다시 받기」 를 「빠진 날 채우기(n일)」 로 바꾸고, 작업자가 `run --fill` 을 인자 목록으로 부른다(줄의 날짜를 러너
+  함수로 한 번 더 본다).
+- **실패한 단계의 까닭(DF-101 · 2026-10-10)** — 실패한 단계(종료코드 0 이 아님)의 로그 구간에서 마지막 예외 줄을 골라(모듈 경로는 떼고 ·
+  없으면 🔴 줄 · 그것도 없으면 마지막 줄) 단계 줄에 `error` 로, 로그 파일 이름을 `log_name`(경로 없이)으로 적는다. 화면 · 요청 결과에 나가므로
+  경로는 파일 이름만 · 주소는 물음표 뒤와 계정을 떼고 · 「키 = 값」 꼴 비밀값 · 긴 토큰은 `***` · 200자(`failure_line` · `scrub_line`).
+  시간 한도를 넘기면 「시간 한도 n분을 넘겨 멈춤」. 2026-10-10 배당 · 기업 일정이 DART 점검으로 멈췄을 때 결과 줄이 「종료코드 1」 뿐이라
+  로그를 열어야 했던 것을 고쳤다. `status` 출력에도 「까닭: … · 로그 …」 한 줄. 앱은 이 둘을 관리자 답(`API-DATA-05`)에만 싣는다.
 - **건너뛴 줄의 까닭 코드**: `upload_off`(업로드 끔) · `upstream_failed`(앞 단계 실패) · `no_new_data`(새 자료 없음) · `nothing_to_upload`
   (바뀐 파케이 0개) · `app_db_down`(앱 DB 꺼짐 · 뒤 할 일 있음) · `app_db_address_unknown`(주소를 못 만듦 · 경고). 이력 줄에도 남는다.
 
@@ -1273,6 +1291,8 @@ python scripts/daily_update.py uninstall            # 등록 해제
   찾아 결과를 적고, 줄이 없으면 「끝」 이 아니라 실패 「결과 기록 없음」 으로 적는다. 수동 회차 로그 이름은 `…-manual.log`.
 - **올리기** — 작업자 등록 명령줄에 `--allow-upload` 가 있을 때만 전체 수집에 `--upload` 를 넘기고 올리기 단계를 받는다(공유 스위치
   원칙 — 켜는 결정은 명령줄에 남는다 · 사용자 결정 2026-10-10 「올림」). 같은 날 두 번째 HF 올리기는 두 도구 모두 처리돼 있다.
+- **결과 한 줄의 까닭** — 작업자는 러너 기록의 실패한 단계 `error` 를 결과 끝에 「 · 까닭: …」 으로 붙인다(`WHY_SEP` · 전체 수집은 첫 실패
+  단계 이름과 함께 · 결과 칸 300자를 넘으면 「…」). 채우기는 결과에 범위를 적는다(「신호 빠진 날 채우기 · 2026-10-06 · 1분 18초」).
 - **작업자 상태** — 앱 DB `collect_workers`(심장 박동 · 도는 동안 15초마다 · 3분 없으면 화면이 「꺼짐」) · 이 PC 파일
   `state/collect_worker.json`(매 바퀴 · 앱 DB 에 닿지 않을 때도 까닭) · 로그 `logs/collect_worker-YYYYMMDD.log`(일이 있을 때만 · 14일).
   결과를 적지 못하고 죽은 앞 바퀴의 「도는 중」 줄은 다음 바퀴가 러너 기록으로 맞춘다(러너가 아직 돌면 기다린다).

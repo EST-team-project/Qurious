@@ -69,6 +69,7 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py run --upload     # + HF 증분 업로드 (⑦~⑨)
     python scripts/daily_update.py run --only news  # 그 단계 하나만 다시(예약 회차와 겹치는 시간에는 막힘)
     python scripts/daily_update.py run --manual --request <요청 번호>  # 화면 「전체 수집」 — PC 작업자가 부른다(11:00 ~ 13:30 막힘)
+    python scripts/daily_update.py run --fill signals --from 2026-10-02 --to 2026-10-06  # 빠진 날 채우기(31일까지)
     python scripts/daily_update.py status           # 마지막 실행 결과 + 예약 상태
     python scripts/daily_update.py steps --write    # 단계 목록 · 이 PC 용량 파일을 지금 쓴다(앱이 읽는다)
     python scripts/daily_update.py install          # 작업 스케줄러에 매일 12:30 등록 (--upload 포함)
@@ -76,9 +77,14 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py start            # 등록된 작업을 지금 한 번 돌린다(비동기)
     python scripts/daily_update.py uninstall        # 등록 해제
 
-종료코드 — 0 성공 · 2 고를 수 없는 단계 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시) · 75 막힘(12:30 회차와 겹침 · 다른 실행 —
-나중에 다시 · EX_TEMPFAIL) · 78 앱 DB 주소를 만들지 못함(EX_CONFIG) · 124 시간 초과 · 그 밖 = 실패한 단계의 종료코드.
-화면 수집 요청(`scripts/collect_worker.py`)은 75 를 「다시 기다림」 으로, 나머지를 결과로 읽는다(2026-10-10).
+종료코드 — 0 성공 · 2 고를 수 없는 단계 · 받는 값이 틀림 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시 · 채우기) · 75 막힘(12:30 회차와
+겹침 · 다른 실행 — 나중에 다시 · EX_TEMPFAIL) · 78 앱 DB 주소를 만들지 못함(EX_CONFIG) · 124 시간 초과 · 그 밖 = 실패한 단계의
+종료코드. 화면 수집 요청(`scripts/collect_worker.py`)은 75 를 「다시 기다림」 으로, 나머지를 결과로 읽는다(2026-10-10).
+
+실패한 단계의 까닭(DF-101) — 단계 줄에 까닭 한 줄(``error`` · 그 단계 로그 구간의 마지막 예외 줄 · 경로 · 비밀값을 걸러 200자)과
+로그 파일 이름(``log_name``)을 남긴다. 결과 줄이 「종료코드 1」 만 남아 로그를 열어야 까닭을 알던 것(2026-10-10 배당 · 기업 일정)을
+고쳤다. 빠진 날(앱 DB 가 꺼져 신호가 건너뛴 거래일)은 ``state/daily_update_fill.json`` 에 모아 단계 줄에 「채울 날 n · 첫날 ·
+마지막 날」 로 적고, ``run --fill`` 이 채운 날만 지운다(이틀 넘게 꺼졌던 때 · 2026-10-10 사용자 결정).
 
 로그는 `data/collector/logs/daily_update-*.log`(최근 30개 보관), 마지막 결과는
 `data/collector/state/daily_update_last.json`, 이력은 같은 폴더 `daily_update_history.jsonl`.
@@ -90,6 +96,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -125,6 +132,18 @@ DISK_PATH = config.STATE_DIR / "pc_disk.json"
 #: 따로 둔다 — 잠금을 고쳐 쓰다 실패하면 다른 실행을 막는 일이 흔들린다. 앱은 잠금의 시작 시각과 같은 실행일 때만 믿는다
 #: (수집 일정 화면의 「수집 중 — n번째 단계」).
 PROGRESS_PATH = config.STATE_DIR / "daily_update_progress.json"
+#: 빠진 날 — 앱 DB 가 꺼져 건너뛴 거래일을 단계마다 모은다({"steps": {이름: {"days": [YYYY-MM-DD …]}}}). 회차 기록은 회차마다 새로
+#: 쓰므로 여러 날 꺼졌던 때를 셀 수 없다 — 그래서 따로 둔다(2026-10-10). 정기 회차가 그날을 계산하면 그날만, 채우기가 범위를 돌면
+#: 그 범위만 지운다(말없이 사라지지 않게).
+FILL_PATH = config.STATE_DIR / "daily_update_fill.json"
+
+#: 빠진 날 채우기 한 번의 범위 상한(일 · 양 끝 포함) — 사용자 결정 2026-10-10 「31일」. 앱은 단계 목록의 ``fill_max_days`` 로
+#: 받아 쓴다(사본을 두지 않는다).
+FILL_MAX_DAYS = 31
+#: 채우기 시간 한도의 상한(분) — 한도는 범위의 평일 수 × 단계 한도로 늘고 여기서 멈춘다(막는 때도 이 한도로 센다).
+FILL_TIMEOUT_CAP_MIN = 120
+#: 실패한 단계의 까닭 한 줄 길이 상한(자) — 요청 결과 칸(300자)에 앞말과 함께 들어가게.
+ERROR_LINE_MAX = 200
 
 #: 로그 보관 개수. 하루 한 번이면 한 달치다.
 KEEP_LOGS = 30
@@ -155,6 +174,14 @@ class Step:
     # 빠진 날을 채우는 명령(날짜 칸은 YYYY-MM-DD 그대로) — 회차가 그날을 놓쳤을 때 사람이 돌린다. 단계 목록에 실려 수집 일정
     # 화면이 그 단계에만 보인다(2026-10-08 · #142 답글 「앱 DB 가 꺼진 날은 --from · --to 로 채운다」).
     fill: str = ""
+    # 빠진 날 채우기 인자 — ``{from}`` · ``{to}`` 자리에 날짜를 넣어 ``run --fill`` 이 돌린다(2026-10-10 · 화면 「빠진 날 채우기」).
+    # 이것이 있는 단계만 채우기를 받고, 명령 글(``fill``)도 여기서 만든다 — 명령 글과 실제 인자가 두 곳에서 갈라지지 않게.
+    fill_args: List[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.fill_args and not self.fill:
+            shown = [a.replace("{from}", "YYYY-MM-DD").replace("{to}", "YYYY-MM-DD") for a in self.fill_args]
+            self.fill = "python " + " ".join(shown)
 
 
 #: 단계 묶음 — 화면이 이 차례로 머리를 단다(단계는 묶음 안에서 러너 차례 그대로).
@@ -207,7 +234,7 @@ STEPS: List[Step] = [
     # 수집 DB 는 읽기 전용으로 연다. 배치 코드는 목표 기능 ② 주담당 것이라 여기서는 부르기만 한다.
     Step("signals", ["scripts/signals_daily.py"], 10, fatal=False, app_db=True,
          label="신호", group="계산", desc="분봉 유니버스 401종목의 다중 주기 신호를 T2 에 기록",
-         fill="python scripts/signals_daily.py --from YYYY-MM-DD --to YYYY-MM-DD"),
+         fill_args=["scripts/signals_daily.py", "--from", "{from}", "--to", "{to}"]),
     Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False,
          label="목록표", group="백업", desc="백업할 표 · 행 수 · 지문 목록(대조용)"),
     Step("export", ["scripts/hf_dataset.py", "export", "--quiet"], 30,
@@ -466,6 +493,7 @@ def step_catalog(now: Optional[datetime.datetime] = None) -> Dict:
     return {
         "written_at": _iso(now),
         "guards": guards(now),
+        "fill_max_days": FILL_MAX_DAYS,                     # 채우기 한 번의 범위 상한 — 앱은 이 값을 받아 쓴다(사본 없음)
         "schedule": DEFAULT_TIME,
         "groups": GROUPS,
         "steps": [{"name": s.name, "label": s.label, "group": s.group, "desc": s.desc,
@@ -482,11 +510,13 @@ def _rec(step: Step) -> Dict:
 
 def _compact(recs: List[Dict]) -> List[Dict]:
     """이력 줄(JSONL)에 남길 단계 결과 — 이름표는 단계 목록 파일에 있으니 이름 · 종료코드 · 시간 · 메모만.
-    건너뛴 줄의 까닭 · 뒤 할 일 · 거래일은 있을 때만 붙인다(지난 회차도 같은 색으로 그리게 · 2026-10-08)."""
+    건너뛴 줄의 까닭 · 뒤 할 일 · 거래일은 있을 때만 붙인다(지난 회차도 같은 색으로 그리게 · 2026-10-08).
+    빠진 날(채울 날 · 첫날 · 마지막 날) · 실패한 단계의 까닭 · 로그 파일 이름도 있을 때만(2026-10-10 · DF-101)."""
     out = []
     for r in recs:
         row = {"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
-        row.update({k: r[k] for k in ("reason", "followup", "date") if r.get(k)})
+        row.update({k: r[k] for k in ("reason", "followup", "date", "fill_from", "fill_to", "fill_days", "fill_rest",
+                                      "error", "log_name") if r.get(k)})
         out.append(row)
     return out
 
@@ -510,6 +540,190 @@ def write_side_files() -> List[str]:
         except Exception as e:                              # 기록 파일 하나 때문에 갱신이 멈추면 안 된다
             errors.append(f"{path.name}: {type(e).__name__}: {e}")
     return errors
+
+
+# ==================================================
+# 1-3. 실패한 단계의 까닭(DF-101) · 빠진 날(2026-10-10)
+# ==================================================
+#: 파이썬 예외 줄 — 「모듈.경로.이름Error: 글」(줄 머리부터 · 들여쓴 줄은 Traceback 의 몸통이다)
+_EXC_LINE = re.compile(r"^(?:[A-Za-z_]\w*\.)*([A-Za-z_]\w*(?:Error|Exception|Exit|Interrupt|Timeout|Warning))(?::\s*(.*))?$")
+#: 걸러 낼 것 — 차례가 뜻이 있다(주소의 물음표 뒤 → 주소의 계정 → 경로 → 「키 = 값」 → 긴 토큰)
+_SCRUB = [
+    (re.compile(r"(\b[a-z][a-z0-9+.-]*://[^\s?#]*)[?#]\S*", re.I), r"\1"),                 # 주소의 물음표 뒤(키가 거기 실린다)
+    (re.compile(r"(\b[a-z][a-z0-9+.-]*://)[^\s/@]+@", re.I), r"\1"),                       # 주소 안 계정 · 비밀번호
+    (re.compile(r"\b[A-Za-z]:[\\/](?:[^\\/\s]+[\\/])*([^\\/\s]+)"), r"\1"),             # 이 PC 경로 → 파일 이름
+    (re.compile(r"(?<![\w:/.])/(?:[^/\s]+/)+([^/\s]+)"), r"\1"),                            # 리눅스 경로 → 파일 이름
+    (re.compile(r"(?i)\b([\w-]*(?:key|token|secret|passw(?:or)?d|pwd|auth|crtfc)[\w-]*)(\s*[=:]\s*)\S+"), r"\1\2***"),
+    (re.compile(r"\b[A-Za-z0-9_-]{32,}\b"), "***"),                                          # 긴 토큰 · 키
+]
+_FAIL_MARK = re.compile(r"🔴|실패|오류")
+
+
+def scrub_line(text: str) -> str:
+    """화면 · 요청 결과에 나가는 한 줄 — 경로는 파일 이름만 · 주소는 물음표 뒤와 계정을 떼고 · 비밀값 · 긴 토큰은 *** ·
+    빈칸을 하나로 · ``ERROR_LINE_MAX`` 자를 넘으면 자르고 「…」."""
+    out = text
+    for pat, rep in _SCRUB:
+        out = pat.sub(rep, out)
+    out = " ".join(out.split())
+    return out if len(out) <= ERROR_LINE_MAX else out[:ERROR_LINE_MAX - 1] + "…"
+
+
+def failure_line(text: str) -> str:
+    """실패한 단계 로그 구간에서 까닭 한 줄 — 마지막 예외 줄(모듈 경로는 뗀다) · 없으면 실패 표시 줄(🔴 · 실패 · 오류) · 그것도
+    없으면 마지막 줄. 2026-10-10 배당 · 기업 일정이 DART 점검으로 멈췄을 때 결과 줄이 「종료코드 1」 뿐이라 로그를 열어야 했다."""
+    lines = [ln.rstrip() for ln in (text or "").splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    for ln in reversed(lines):
+        m = _EXC_LINE.match(ln)
+        if m:
+            return scrub_line(f"{m.group(1)}: {m.group(2)}" if m.group(2) else m.group(1))
+    red = next((ln for ln in reversed(lines) if "🔴" in ln), None)       # 수집기는 멈추는 까닭을 🔴 로 적는다
+    mark = red or next((ln for ln in reversed(lines) if _FAIL_MARK.search(ln)), None)
+    return scrub_line((mark or lines[-1]).strip())
+
+
+def _log_mark(run: "Run") -> int:
+    """그 단계 로그 구간의 시작 — 지금 로그 파일 크기(바이트). 자식이 같은 파일에 이어 쓴다."""
+    run.log.flush()
+    try:
+        return run.log_path.stat().st_size
+    except OSError:
+        return 0
+
+
+def step_failure(run: "Run", step: Step, rc: int, mark: int, timeout_min: Optional[int] = None) -> Dict[str, str]:
+    """실패한 단계 줄에 붙일 칸 — 까닭 한 줄(``error``)과 로그 파일 이름(``log_name`` · 경로 없이). 성공이면 빈 dict."""
+    if rc == 0:
+        return {}
+    if rc == 124:
+        why = f"시간 한도 {timeout_min or step.timeout_min}분을 넘겨 멈춤"
+    else:
+        run.log.flush()
+        try:
+            with run.log_path.open("rb") as f:                # 끝 64KB 만 — 긴 단계 로그를 통째로 읽지 않는다
+                f.seek(0, os.SEEK_END)
+                end = f.tell()
+                f.seek(max(mark, end - 65536))
+                text = f.read().decode("utf-8", errors="replace")
+            # 러너가 단계 앞에 적는 머리(▶ 단계: 명령 · ==== 줄)는 까닭이 아니다 — 자식이 아무것도 찍지 않고 끝났을 때
+            # 명령 줄이 까닭으로 잡히지 않게
+            why = failure_line("\n".join(ln for ln in text.splitlines()
+                                         if not ln.startswith("▶ ") and set(ln.strip()) != {"="}))
+        except OSError:
+            why = ""
+        why = why or f"종료코드 {rc}"
+    return {"error": why, "log_name": run.log_path.name}
+
+
+def load_fill() -> Dict[str, List[str]]:
+    """단계마다 빠진 날(차례대로) — 파일이 없거나 깨졌으면 빈 dict(회차를 막지 않는다)."""
+    try:
+        raw = json.loads(FILL_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out: Dict[str, List[str]] = {}
+    for name, v in ((raw or {}).get("steps") or {}).items():
+        days = sorted({d for d in (v or {}).get("days") or [] if isinstance(d, str) and len(d) == 10})
+        if days:
+            out[name] = days
+    return out
+
+
+def save_fill(days: Dict[str, List[str]]) -> None:
+    _write_json_atomic(FILL_PATH, {"updated_at": _iso(now_kst()),
+                                   "steps": {n: {"days": sorted(set(d))} for n, d in days.items() if d}})
+
+
+def fill_fields(days: List[str]) -> Dict[str, object]:
+    """단계 줄에 적을 빠진 날 — 뒤 할 일 ``fill`` · 첫날 · 마지막 날 · 날 수. 채우기 한 번은 ``FILL_MAX_DAYS`` 일까지라
+    첫날부터 그 안의 날만 한 묶음으로 적고, 남은 날 수는 ``fill_rest`` 로(그 묶음을 채우면 다음 묶음이 나온다)."""
+    days = sorted(set(days))
+    if not days:
+        return {}
+    first = datetime.date.fromisoformat(days[0])
+    edge = (first + datetime.timedelta(days=FILL_MAX_DAYS - 1)).isoformat()
+    chunk = [d for d in days if d <= edge]
+    out: Dict[str, object] = {"followup": "fill", "fill_from": chunk[0], "fill_to": chunk[-1], "fill_days": len(chunk)}
+    if len(days) > len(chunk):
+        out["fill_rest"] = len(days) - len(chunk)
+    return out
+
+
+def _fill_note(f: Dict[str, object]) -> str:
+    if not f:
+        return ""
+    rest = f" · 다음 묶음 {f['fill_rest']}일" if f.get("fill_rest") else ""
+    return f"채울 날 {f['fill_days']} · {f['fill_from']} ~ {f['fill_to']}{rest}"
+
+
+def _apply_fill(rec: Dict, days: List[str]) -> None:
+    """단계 줄에 남은 빠진 날을 적는다 — 칸(뒤 할 일 · 첫날 · 마지막 날 · 날 수)과 메모 한 마디. 남은 날이 없으면 그대로."""
+    f = fill_fields(days)
+    if f:
+        rec.update(f)
+        rec["note"] = " · ".join(x for x in (rec.get("note"), _fill_note(f)) if x)
+
+
+def _save_fill(run: "Run", pending: Dict[str, List[str]]) -> None:
+    try:
+        save_fill(pending)
+    except OSError as e:                                    # 파일 하나 때문에 회차를 멈추지 않는다 — 까닭은 로그에
+        run.say(f"🟡 빠진 날 파일을 쓰지 못했다 — {type(e).__name__}: {e}")
+
+
+def _parse_day(s: Optional[str]) -> Optional[datetime.date]:
+    if not isinstance(s, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return None
+    try:
+        return datetime.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def fill_range_error(step: Step, d_from: Optional[str], d_to: Optional[str], today: datetime.date) -> Optional[str]:
+    """빠진 날 채우기의 받는 값 — 되면 None, 아니면 까닭 한 줄. 채우기 인자가 있는 단계 · 날짜 꼴 · 첫날 ≤ 마지막 날 ·
+    마지막 날 ≤ 오늘 · ``FILL_MAX_DAYS`` 일 안(양 끝 포함). 작업자 · 러너가 같은 함수로 본다."""
+    if not step.fill_args:
+        return f"{step.label or step.name} 단계는 빠진 날 채우기를 하지 않는다(채우기 인자가 없다)"
+    a, b = _parse_day(d_from), _parse_day(d_to)
+    if a is None or b is None:
+        return f"날짜는 YYYY-MM-DD 꼴로 둘 다 준다 — 첫날 {d_from or '없음'} · 마지막 날 {d_to or '없음'}"
+    if a > b:
+        return f"첫날({d_from})이 마지막 날({d_to})보다 뒤다"
+    if b > today:
+        return f"마지막 날({d_to})이 오늘({today.isoformat()})보다 뒤다"
+    if (b - a).days + 1 > FILL_MAX_DAYS:
+        return f"한 번에 {FILL_MAX_DAYS}일까지 채운다 — {d_from} ~ {d_to} 는 {(b - a).days + 1}일"
+    return None
+
+
+def _weekdays(a: datetime.date, b: datetime.date) -> int:
+    return sum(1 for i in range((b - a).days + 1) if (a + datetime.timedelta(days=i)).weekday() < 5)
+
+
+def fill_timeout_min(step: Step, d_from: str, d_to: str) -> int:
+    """채우기 시간 한도(분) — 범위의 평일 수(휴장일은 모른다 · 넉넉한 쪽) × 단계 한도 · ``FILL_TIMEOUT_CAP_MIN`` 에서 멈춘다."""
+    a, b = _parse_day(d_from), _parse_day(d_to)
+    n = _weekdays(a, b) if a and b and a <= b else 1
+    return min(FILL_TIMEOUT_CAP_MIN, max(1, n) * step.timeout_min)
+
+
+def fill_timeout_cap(step: Step) -> int:
+    """가장 긴 범위(``FILL_MAX_DAYS`` 일 · 평일이 가장 많은 꼴)의 시간 한도 — 단계 목록의 채우기 막는 때가 이 값으로 센다."""
+    most = (FILL_MAX_DAYS // 7) * 5 + min(5, FILL_MAX_DAYS % 7)
+    return min(FILL_TIMEOUT_CAP_MIN, most * step.timeout_min)
+
+
+def fill_blocked(step: Step, d_from: str, d_to: str, now: datetime.datetime) -> Optional[str]:
+    """채우기를 돌려도 되는가 — 안 되면 까닭 한 줄. 한 단계 다시와 같은 막는 때를 그 범위의 시간 한도로 센다."""
+    limit = fill_timeout_min(step, d_from, d_to)
+    lo, hi = guard_window(limit, now)
+    if lo <= now <= hi:
+        return (f"{lo.strftime('%H:%M')} ~ {hi.strftime('%H:%M')} 에는 채우기를 돌리지 않는다 — {DEFAULT_TIME} 회차와 겹친다"
+                f"({step.label or step.name} 채우기 시간 한도 {limit}분)")
+    return None
 
 
 # ==================================================
@@ -623,7 +837,8 @@ def app_db_gate(run: Run, step: Step) -> Optional[Dict]:
         return None
     if not run.app_db_env:
         return {"rc": EX_CONFIG, "reason": "app_db_address_unknown",
-                "note": f"앱 DB 주소를 만들지 못함 — {run.app_db_why} · 돌리지 않음"}
+                "note": f"앱 DB 주소를 만들지 못함 — {run.app_db_why} · 돌리지 않음",
+                "error": scrub_line(f"앱 DB 주소를 만들지 못함 — {run.app_db_why}"), "log_name": run.log_path.name}
     why = app_db_unreachable(run.app_db_env)
     if why is None:
         return None
@@ -631,7 +846,10 @@ def app_db_gate(run: Run, step: Step) -> Optional[Dict]:
             "note": f"앱 DB 꺼짐 · {_db_where(run.app_db_env['DATABASE_URL'])} {why} · 건너뜀"}
 
 
-def _run_step(run: Run, step: Step) -> int:
+def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout_min: Optional[int] = None) -> int:
+    """단계 하나를 자식 파이썬으로 — ``args`` · ``timeout_min`` 은 빠진 날 채우기(날짜를 넣은 채우기 인자 · 범위로 센 한도)."""
+    args = list(args) if args is not None else step.args
+    timeout_min = timeout_min or step.timeout_min
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["PYTHONIOENCODING"] = "utf-8"
@@ -641,16 +859,16 @@ def _run_step(run: Run, step: Step) -> int:
         env.pop("QURIOUS_RAW_SHARING", None)
     if step.app_db:
         env.update(run.app_db_env)             # ← ``host_app_db_env`` — 컨테이너 주소가 아니라 compose 가 연 포트
-    run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(step.args)}\n{'=' * 70}\n")
+    run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(args)}\n{'=' * 70}\n")
     run.log.flush()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     try:
-        p = subprocess.run([child_python(), *step.args], cwd=ROOT, env=env,
+        p = subprocess.run([child_python(), *args], cwd=ROOT, env=env,
                            stdout=run.log, stderr=subprocess.STDOUT,
-                           timeout=step.timeout_min * 60, creationflags=flags)
+                           timeout=timeout_min * 60, creationflags=flags)
         return p.returncode
     except subprocess.TimeoutExpired:
-        run.log.write(f"\n⏱ {step.timeout_min}분을 넘겨 멈췄다\n")
+        run.log.write(f"\n⏱ {timeout_min}분을 넘겨 멈췄다\n")
         return 124
 
 
@@ -706,6 +924,8 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             for err in write_side_files():                  # 단계 목록 · 이 PC 용량(앱이 읽는다)
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
             prepare_app_db(run, STEPS)
+            pending = load_fill()                           # 빠진 날 — 앱 DB 가 꺼진 회차마다 더하고, 그날을 계산하면 지운다
+            pending_changed = False
             before = snapshot()
             run.say(f"시작 상태 {json.dumps(before, ensure_ascii=False)}")
             derived_why: Optional[str] = None
@@ -742,18 +962,34 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                     run.say(f"🟡 {step.name} · {gate['note']}")
                     if gate["rc"] is not None:              # 주소를 못 만듦 = 설정 결함 → 경고로 센다(건너뜀이 아니다)
                         rc_total = rc_total or gate["rc"]
+                    elif gate.get("followup") == "fill" and gate.get("date"):   # 그 회차가 계산했을 거래일을 빠진 날로
+                        days = pending.setdefault(step.name, [])
+                        if gate["date"] not in days:
+                            days.append(gate["date"])
+                            pending_changed = True
                     continue
                 t0 = time.time()
                 run.say(f"▶ {step.name} …")
                 write_progress(started, step, run)         # 수집 일정 화면의 「수집 중 — n번째 단계」
+                mark = _log_mark(run)
                 rc = _run_step(run, step)
                 rec["rc"], rec["seconds"] = rc, round(time.time() - t0, 1)
+                rec.update(step_failure(run, step, rc, mark))   # 실패면 까닭 한 줄 · 로그 파일 이름(DF-101)
+                if rc == 0 and pending.get(step.name):     # 앱 DB 가 다시 떴다 — 이 회차가 계산한 그날만 지운다
+                    day = _as_of_day()
+                    if day in pending[step.name]:
+                        pending[step.name].remove(day)
+                        pending_changed = True
                 run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} "
                         f"{step.name} · 종료코드 {rc} · {rec['seconds']:,.0f}초")
                 if rc != 0:
                     rc_total = rc_total or rc
                     if step.fatal:
                         stop = f"{step.name} 종료코드 {rc}"
+            if pending_changed:
+                _save_fill(run, pending)
+            for rec in run.steps:                           # 남은 빠진 날은 성공 줄이어도 「채울 것」 으로(말없이 사라지지 않게)
+                _apply_fill(rec, pending.get(rec["name"], []))
             after = snapshot()
             ok = not stop and all(s["rc"] in (None, 0) for s in run.steps)
             state = {
@@ -837,14 +1073,19 @@ def full_run_blocked(now: datetime.datetime) -> Optional[str]:
 
 
 def guards(now: Optional[datetime.datetime] = None) -> Dict:
-    """단계 목록에 싣는 막는 때 — {schedule, full: {from, to}, steps: {이름: {from, to}}}(HH:MM)."""
+    """단계 목록에 싣는 막는 때 — {schedule, full: {from, to}, steps: {이름: {from, to}}, fill: {이름: {from, to}}}(HH:MM).
+
+    ``fill`` 은 빠진 날 채우기를 받는 단계만 — 가장 긴 범위(``fill_timeout_cap``)로 센 창이다. 화면은 이 창으로 단추를 끄고, 짧은
+    범위는 러너 · 작업자가 그 범위로 다시 센다(창이 더 좁다 — 화면이 끈 때에 러너가 막지 않는 일은 있어도 그 반대는 없다).
+    """
     now = now or now_kst()
 
     def hm(w: tuple) -> Dict[str, str]:
         return {"from": w[0].strftime("%H:%M"), "to": w[1].strftime("%H:%M")}
 
     return {"schedule": DEFAULT_TIME, "full": hm(guard_window(MANUAL_FULL_GUARD_BEFORE_MIN, now)),
-            "steps": {s.name: hm(guard_window(s.timeout_min, now)) for s in STEPS}}
+            "steps": {s.name: hm(guard_window(s.timeout_min, now)) for s in STEPS},
+            "fill": {s.name: hm(guard_window(fill_timeout_cap(s), now)) for s in STEPS if s.fill_args}}
 
 
 def rearm_wal(db_path: Optional[Path] = None) -> bool:
@@ -869,6 +1110,68 @@ def rearm_wal(db_path: Optional[Path] = None) -> bool:
     return db.with_name(db.name + "-wal").exists() and db.with_name(db.name + "-shm").exists()
 
 
+def _finish_one(run: Run, step: Step, rec: Dict, rc: int, *, gate: Optional[Dict], started: datetime.datetime,
+                upload: bool, request_id: Optional[str], fill: Optional[Dict[str, str]] = None) -> None:
+    """한 단계 다시 · 빠진 날 채우기의 뒷일 — 끝 상태를 다시 재고, 마지막 회차 기록의 그 줄만 바꾸고(다시 돌림 줄 하나 더),
+    이력에 한 줄을 남기고, 단계 목록 · 용량 파일을 다시 쓴다. ``fill`` 은 채운 범위({from, to}) — 다시 돌림 줄 · 이력 줄에 함께."""
+    name = step.name
+    # 끝 상태(시세 기준일 · 파생 표 기준일 · 배당 지문)를 다시 잰다(2026-10-08 · DF-85). 옛 코드는 단계 줄만 바꾸고
+    # `after` 를 회차 때 값으로 두어, 시세를 다시 받아도 리밸런싱 하루 점검 준비 판정(팀원 #136)이 회차 기록의
+    # 옛 기준일로 「시세 기준일이 다름」 을 냈다. 못 재면 옛 값을 지우지 않되 기록 · 로그에 그 사실을 남긴다
+    # (옛 값이 말없이 「지금 값」 처럼 보이지 않게). 읽기 전용 연결이라 WAL 보조 파일을 지우지 않는다(DF-81).
+    after: Optional[Dict[str, object]] = None
+    after_error: Optional[Dict[str, str]] = None
+    try:
+        after = snapshot()
+    except (sqlite3.Error, OSError) as e:
+        after_error = {"at": rec["rerun_at"], "why": f"{type(e).__name__}: {e}"}
+        run.say(f"🟡 시세 기준일을 다시 재지 못했다 — {after_error['why']} · 회차 기록의 기준일은 회차 때 값 그대로다")
+    if not gate:                                     # 돌리지 않은 단계는 위에서 까닭 한 줄을 이미 남겼다
+        run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초"
+                + (f" · 시세 기준일 {after.get('price_max')}" if after else ""))
+    extra: Dict[str, object] = ({"request_id": request_id} if request_id else {}) | ({"fill": fill} if fill else {})
+    last = None
+    try:
+        last = json.loads(LAST_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    if last:                                         # 마지막 회차의 그 줄만 바꾼다 — 화면은 그 줄의 결과가 바뀐다
+        rows = list(last.get("steps") or [])
+        if any(s.get("name") == name for s in rows):
+            rows = [rec if s.get("name") == name else s for s in rows]
+        else:
+            # 회차 뒤에 더한 단계(2026-10-08 신호 단계를 처음 붙인 날) — 바꿀 줄이 없으면 결과를 버리지 않고
+            # 단계 목록 차례 자리에 끼운다(옛 이름 · 지운 단계 줄은 그대로 앞에 둔다).
+            order = {s.name: i for i, s in enumerate(STEPS)}
+            at = sum(1 for s in rows if order.get(s.get("name"), -1) < order[name])
+            rows.insert(at, rec)
+        last["steps"] = rows
+        last.setdefault("reruns", []).append({"name": name, "at": rec["rerun_at"], "rc": rc,
+                                              "log": run.log_path.relative_to(ROOT).as_posix()} | extra)
+        last["ok"] = not last.get("stopped") and all(s.get("rc") in (None, 0) for s in last["steps"])
+        if after is not None:                        # 다시 잰 끝 상태 — 회차의 시작 상태(before)는 그대로
+            last["after"], last["after_at"] = after, rec["rerun_at"]
+            last.pop("after_error", None)
+        else:
+            last["after_error"] = after_error
+        _write_json_atomic(LAST_PATH, last)
+    with HISTORY_PATH.open("a", encoding="utf-8") as h:
+        h.write(json.dumps({"started_at": _iso(started), "finished_at": _iso(now_kst()), "only": name,
+                            "ok": rc == 0, "upload": upload, "stopped": None,
+                            "price_max": (after or {}).get("price_max"), "rc": rc,
+                            "log": run.log_path.relative_to(ROOT).as_posix(), "trigger": "manual",
+                            "steps": _compact([rec])} | extra,
+                           ensure_ascii=False) + "\n")
+    for err in write_side_files():
+        run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
+
+
+def _rearm_or_say(run: Run) -> None:
+    if not rearm_wal():                              # 단계가 쓰기 연결로 끝났어도 앱이 수집 DB 를 읽게
+        run.say("🟡 수집 DB 의 WAL 보조 파일(-wal · -shm)을 다시 만들지 못했다 — 앱의 데이터 화면을 확인한다"
+                "(check.ps1 -Group 데이터)")
+
+
 def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime] = None,
             request_id: Optional[str] = None) -> int:
     """단계 하나만 다시 돌린다 — 마지막 회차 기록의 그 줄을 새 결과로 바꾸고, 이력에 「다시 돌림」 한 줄을 남긴다.
@@ -876,7 +1179,8 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
     파생 판정 · 올릴 것 판정은 하지 않는다(사람이 그 단계를 골랐다). 앞 단계 실패로 건너뛴 뒤 단계들은 돌리지 않으므로
     회차의 「멈춘 곳」 은 그대로 남는다. 종료코드: 0 성공 · 2 고를 수 없는 단계 · 75 막힘(회차와 겹침 · 다른 실행 — 나중에 다시 ·
     ``EX_TEMPFAIL``) · 3 앱 DB 꺼짐으로 건너뜀(채울 것) · 78 앱 DB 주소 결함 · 그 밖 = 단계 종료코드. ``request_id`` 는 화면
-    요청 번호 — 이력 줄 · 다시 돌림 줄에 남겨 작업자가 결과를 찾는다(2026-10-10).
+    요청 번호 — 이력 줄 · 다시 돌림 줄에 남겨 작업자가 결과를 찾는다(2026-10-10). 빠진 날이 남은 단계는 이번에 계산한 그날만
+    지운다(정기 회차와 같다).
     """
     step = next((s for s in STEPS if s.name == name), None)
     if step is None:
@@ -904,67 +1208,96 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
             rec = _rec(step)
             prepare_app_db(run, [step])
             gate = app_db_gate(run, step)                    # 앱 DB 단계 — 꺼져 있으면 돌리지 않는다(정기 회차와 같은 규칙)
+            pending = load_fill()
             t0 = time.time()
             if gate:
                 rec.update(gate, rerun_at=_iso(now_kst()))
                 rc = 3 if gate["rc"] is None else gate["rc"]  # 3 = 막힘(지금은 돌 조건이 없다) · 78 = 설정 결함
                 run.say(f"🟡 {name} · {gate['note']}")
+                if gate["rc"] is None and gate.get("date") and gate["date"] not in pending.get(name, []):
+                    pending.setdefault(name, []).append(gate["date"])
+                    _save_fill(run, pending)
             else:
                 write_progress(started, step, run)
+                mark = _log_mark(run)
                 rc = _run_step(run, step)
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
-                if not rearm_wal():                          # 단계가 쓰기 연결로 끝났어도 앱이 수집 DB 를 읽게
-                    run.say("🟡 수집 DB 의 WAL 보조 파일(-wal · -shm)을 다시 만들지 못했다 — 앱의 데이터 화면을 확인한다"
-                            "(check.ps1 -Group 데이터)")
-            # 끝 상태(시세 기준일 · 파생 표 기준일 · 배당 지문)를 다시 잰다(2026-10-08 · DF-85). 옛 코드는 단계 줄만 바꾸고
-            # `after` 를 회차 때 값으로 두어, 시세를 다시 받아도 리밸런싱 하루 점검 준비 판정(팀원 #136)이 회차 기록의
-            # 옛 기준일로 「시세 기준일이 다름」 을 냈다. 못 재면 옛 값을 지우지 않되 기록 · 로그에 그 사실을 남긴다
-            # (옛 값이 말없이 「지금 값」 처럼 보이지 않게). 읽기 전용 연결이라 WAL 보조 파일을 지우지 않는다(DF-81).
-            after: Optional[Dict[str, object]] = None
-            after_error: Optional[Dict[str, str]] = None
-            try:
-                after = snapshot()
-            except (sqlite3.Error, OSError) as e:
-                after_error = {"at": rec["rerun_at"], "why": f"{type(e).__name__}: {e}"}
-                run.say(f"🟡 시세 기준일을 다시 재지 못했다 — {after_error['why']} · 회차 기록의 기준일은 회차 때 값 그대로다")
-            if not gate:                                     # 돌리지 않은 단계는 위에서 까닭 한 줄을 이미 남겼다
-                run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초"
-                        + (f" · 시세 기준일 {after.get('price_max')}" if after else ""))
-            last = None
-            try:
-                last = json.loads(LAST_PATH.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                pass
-            if last:                                         # 마지막 회차의 그 줄만 바꾼다 — 화면은 그 줄의 결과가 바뀐다
-                rows = list(last.get("steps") or [])
-                if any(s.get("name") == name for s in rows):
-                    rows = [rec if s.get("name") == name else s for s in rows]
-                else:
-                    # 회차 뒤에 더한 단계(2026-10-08 신호 단계를 처음 붙인 날) — 바꿀 줄이 없으면 결과를 버리지 않고
-                    # 단계 목록 차례 자리에 끼운다(옛 이름 · 지운 단계 줄은 그대로 앞에 둔다).
-                    order = {s.name: i for i, s in enumerate(STEPS)}
-                    at = sum(1 for s in rows if order.get(s.get("name"), -1) < order[name])
-                    rows.insert(at, rec)
-                last["steps"] = rows
-                last.setdefault("reruns", []).append({"name": name, "at": rec["rerun_at"], "rc": rc,
-                                                      "log": log_path.relative_to(ROOT).as_posix()}
-                                                     | ({"request_id": request_id} if request_id else {}))
-                last["ok"] = not last.get("stopped") and all(s.get("rc") in (None, 0) for s in last["steps"])
-                if after is not None:                        # 다시 잰 끝 상태 — 회차의 시작 상태(before)는 그대로
-                    last["after"], last["after_at"] = after, rec["rerun_at"]
-                    last.pop("after_error", None)
-                else:
-                    last["after_error"] = after_error
-                _write_json_atomic(LAST_PATH, last)
-            with HISTORY_PATH.open("a", encoding="utf-8") as h:
-                h.write(json.dumps({"started_at": _iso(started), "finished_at": _iso(now_kst()), "only": name,
-                                    "ok": rc == 0, "upload": upload, "stopped": None,
-                                    "price_max": (after or {}).get("price_max"), "rc": rc,
-                                    "log": log_path.relative_to(ROOT).as_posix(), "trigger": "manual",
-                                    "steps": _compact([rec])} | ({"request_id": request_id} if request_id else {}),
-                                   ensure_ascii=False) + "\n")
-            for err in write_side_files():
-                run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
+                rec.update(step_failure(run, step, rc, mark))
+                if rc == 0 and pending.get(name):
+                    day = _as_of_day()
+                    if day in pending[name]:
+                        pending[name].remove(day)
+                        _save_fill(run, pending)
+                _rearm_or_say(run)
+            _apply_fill(rec, pending.get(name, []))
+            _finish_one(run, step, rec, rc, gate=gate, started=started, upload=upload, request_id=request_id)
+    finally:
+        clear_progress()
+        release_lock()
+        _prune_logs()
+    return rc
+
+
+def run_fill(name: str, d_from: str, d_to: str, *, now: Optional[datetime.datetime] = None,
+             request_id: Optional[str] = None) -> int:
+    """빠진 날 채우기 — 그 단계의 채우기 인자에 날짜를 넣어 한 번 돌리고, 성공하면 그 범위의 빠진 날만 지운다(2026-10-10 ·
+    화면 「빠진 날 채우기」 · 사용자 결정 — 새 요청 종류 fill · 상한 31일).
+
+    받는 값(``fill_range_error``)이 틀리면 2(돌리지 않고 남기지도 않는다) · 12:30 회차와 겹치는 때(그 범위의 시간 한도로 센 막는 때 ·
+    ``fill_blocked``)와 다른 실행이 돌 때는 75(작업자가 다시 대기로) · 앱 DB 가 꺼져 있으면 돌리지 않고 3 · 78 앱 DB 주소 결함 ·
+    그 밖은 단계 종료코드. 뒷일은 한 단계 다시와 같다(``_finish_one`` — 회차 기록의 그 줄 · 다시 돌림 줄 · 이력 줄) · 두 줄에
+    채운 범위(``fill``)를 함께 적는다.
+    """
+    step = next((s for s in STEPS if s.name == name), None)
+    if step is None:
+        print(f"멈춤: 그런 단계가 없다 — {name} (있는 단계: {', '.join(s.name for s in STEPS)})")
+        return 2
+    started = now or now_kst()
+    err = fill_range_error(step, d_from, d_to, started.date())
+    if err:
+        print(f"멈춤: {err}")
+        return 2
+    why = fill_blocked(step, d_from, d_to, started)
+    if why:
+        print(f"멈춤: {why}")
+        return EX_TEMPFAIL
+    busy = acquire_lock(now=started)
+    if busy:
+        print(f"멈춤: {busy}")
+        return EX_TEMPFAIL
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}-fill-{name}.log"
+    limit = fill_timeout_min(step, d_from, d_to)
+    rc = 1
+    try:
+        with log_path.open("w", encoding="utf-8") as log:
+            run = Run(started, False, log, log_path)
+            run.say(f"빠진 날 채우기 · {name}({step.label}) · {d_from} ~ {d_to} · 시간 한도 {limit}분 · PID {os.getpid()}"
+                    + (f" · 화면 요청 {request_id[:8]}" if request_id else ""))
+            rec = _rec(step)
+            prepare_app_db(run, [step])
+            gate = app_db_gate(run, step)
+            pending = load_fill()
+            t0 = time.time()
+            if gate:                                         # 앱 DB 가 아직 꺼져 있다 — 빠진 날은 그대로 둔다(그날을 더하지도 않는다)
+                rec.update({k: v for k, v in gate.items() if k != "date"}, rerun_at=_iso(now_kst()))
+                rc = 3 if gate["rc"] is None else gate["rc"]
+                run.say(f"🟡 {name} · {gate['note']}")
+            else:
+                write_progress(started, step, run)
+                args = [a.replace("{from}", d_from).replace("{to}", d_to) for a in step.fill_args]
+                mark = _log_mark(run)
+                rc = _run_step(run, step, args=args, timeout_min=limit)
+                rec.update(rc=rc, seconds=round(time.time() - t0, 1), note=f"빠진 날 채움 {d_from} ~ {d_to}",
+                           rerun_at=_iso(now_kst()))
+                rec.update(step_failure(run, step, rc, mark, limit))
+                if rc == 0 and pending.get(name):            # 채운 범위의 빠진 날만 지운다 — 범위 밖 날은 그대로 「채울 것」
+                    pending[name] = [d for d in pending[name] if not d_from <= d <= d_to]
+                    _save_fill(run, pending)
+                _rearm_or_say(run)
+            _apply_fill(rec, pending.get(name, []))
+            _finish_one(run, step, rec, rc, gate=gate, started=started, upload=False, request_id=request_id,
+                        fill={"from": d_from, "to": d_to})
     finally:
         clear_progress()
         release_lock()
@@ -1152,6 +1485,8 @@ def status() -> int:
         print(f"    {mark} {st['name']:<13} "
               + (f"종료코드 {rc} · {st.get('seconds', 0):,.0f}초" if rc is not None else "")
               + (f"  {st['note']}" if st.get("note") else ""))
+        if st.get("error"):                                  # 실패한 단계의 까닭(DF-101) — 로그를 열기 전에 한 줄
+            print(f"        까닭: {st['error']} · 로그 {st.get('log_name', '')}")
     a = s.get("after") or {}
     print(f"  데이터: 시세 {a.get('price_max')} · 수정주가 {a.get('adjusted_max')} · "
           f"TR {a.get('tr_max')} · 벤치마크 {a.get('benchmark_max')} · "
@@ -1191,6 +1526,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                    help="수동 회차(화면 「전체 수집」) — 12:30 회차와 겹치는 때(11:00 ~ 13:30)와 다른 실행이 돌 때는 75 로 끝낸다")
     r.add_argument("--request", metavar="요청번호",
                    help="화면 수집 요청 번호(UUID) — 회차 기록 · 이력에 남겨 작업자가 결과를 찾는다(전체 수집이면 수동 회차)")
+    r.add_argument("--fill", metavar="단계",
+                   help=f"그 단계의 빠진 날을 채운다 — --from · --to 와 함께(양 끝 포함 · {FILL_MAX_DAYS}일까지)")
+    r.add_argument("--from", dest="date_from", metavar="YYYY-MM-DD", help="채울 첫날(--fill 과 함께)")
+    r.add_argument("--to", dest="date_to", metavar="YYYY-MM-DD", help="채울 마지막 날(--fill 과 함께)")
     sub.add_parser("status", help="마지막 실행 결과와 예약 상태")
     s = sub.add_parser("steps", help="단계 목록(이름표 · 묶음 · 하는 일) — 앱이 읽는 목록")
     s.add_argument("--write", action="store_true", help="단계 목록 · 이 PC 용량 파일을 지금 쓴다(회차를 기다리지 않고)")
@@ -1209,6 +1548,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             except ValueError:
                 print("멈춤: --request 는 화면 수집 요청 번호(UUID)다")
                 return 2
+        if a.fill or a.date_from or a.date_to:
+            # 채우기는 그것만 — 다른 실행 고르기와 섞이면 무엇을 돌렸는지 기록이 흐려진다
+            if not a.fill:
+                print("멈춤: --from · --to 는 --fill <단계> 와 함께만 쓴다")
+                return 2
+            if not (a.date_from and a.date_to):
+                print("멈춤: --fill 은 --from · --to 를 둘 다 준다(YYYY-MM-DD)")
+                return 2
+            if a.only or a.manual or a.upload or a.force_derived:
+                print("멈춤: --fill 은 --only · --manual · --upload · --force-derived 와 함께 쓰지 않는다")
+                return 2
+            return run_fill(a.fill, a.date_from, a.date_to, request_id=rid)
         if a.only:
             return run_one(a.only, upload=a.upload, request_id=rid)
         return run_all(upload=a.upload, force_derived=a.force_derived, manual=a.manual or rid is not None,
