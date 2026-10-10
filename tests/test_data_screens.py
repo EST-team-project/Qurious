@@ -60,7 +60,8 @@ def test_menu_views_assets_and_hooks_are_wired():
     # 다른 파일과 같은 함수 이름을 쓰면 스캐너가 놓치거나 섞어 읽는다(2026-10-02 「(다른 곳)」 으로 남았던 일)
     from scripts import view_scan
     entry = {r["key"]: set(r["entry_apis"]) for r in view_scan.scan()["rows"]}
-    assert entry["data-status"] == {"/api/data/status"}
+    # 관리자에게만 수집 요청 한 줄(2026-10-10 결정 ①) — 일반 사용자는 부르지 않는다(TC-CL-14)
+    assert entry["data-status"] == {"/api/data/status", "/api/data/runner/requests"}
     # 일정 2판(2026-10-06) — 한 달은 요약 · 그날 목록은 일정 · 내 종목은 모의계좌 보유
     assert entry["market-calendar"] == {"/api/calendar/events/summary", "/api/calendar/events",
                                         "/api/calendar/trading-days", "/api/paper/stocks/positions"}

@@ -62,11 +62,11 @@ def _require_screen_action(
 ):
     # 상태를 바꾸는 요청에만 — 다른 사이트의 폼 · 단순 요청은 이 머리글을 붙일 수 없다(SameSite 쿠키 위에 한 겹 더 · OWASP CSRF).
     if x_qurious_action != collect_requests.ACTION_VALUE:
-        raise HTTPException(403, f"화면에서 보낸 요청만 받는다 — {collect_requests.ACTION_HEADER}: "
-                                 f"{collect_requests.ACTION_VALUE} 머리글이 필요하다")
+        raise HTTPException(403, f"화면에서 보낸 요청만 받습니다 — {collect_requests.ACTION_HEADER}: "
+                                 f"{collect_requests.ACTION_VALUE} 머리글이 필요합니다")
     site = request.headers.get("sec-fetch-site")
     if site and site != "same-origin":
-        raise HTTPException(403, "다른 사이트에서 온 요청은 받지 않는다")
+        raise HTTPException(403, "다른 사이트에서 온 요청은 받지 않습니다")
 
 
 @router.post("/runner/requests", status_code=202, summary="수집 요청 만들기 — 한 단계 다시 · 전체 수집(관리자)")

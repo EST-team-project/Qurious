@@ -142,3 +142,74 @@ body:not(.q-admin) .q-admin-only { display: none !important; }
   .cl-tiles, .cl-tiles--3 { grid-template-columns: minmax(0, 1fr); }
   .cl-tile .v { font-size: 19px; }
 }
+
+/* ── 화면에서 수집 단추(2026-10-10 · js/collect-requests.js · Figma 「데이터 수집 화면」 03-2 결정 안 A) ──
+ * 글은 서버가 준 글 그대로 · 색만 여기서. 막는 때 · 수집 중 · 이미 요청한 때는 단추가 꺼진다(disabled + 까닭 title). */
+.cq-btn { font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--surf);
+  color: var(--accent); cursor: pointer; white-space: nowrap; }
+.cq-btn:hover:not(:disabled) { background: var(--accent-glow); }
+.cq-btn:disabled, .cq-primary:disabled { opacity: .5; cursor: not-allowed; }
+.cq-link { font-size: 12px; border: 0; background: none; color: #64748b; text-decoration: underline; cursor: pointer; padding: 4px 6px; }
+.cq-primary { font-size: 13px; font-weight: 700; padding: 7px 16px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent);
+  color: #fff; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.cq-primary:hover:not(:disabled) { background: var(--accent-h); }
+.cq-band { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); }
+.cq-band b { color: var(--text); }
+.cq-band .cq-band-right { margin-left: auto; color: #64748b; font-size: 12px; }
+.cq-band--wait { background: #fffbeb; border-color: #fcd34d; }
+.cq-band--off { background: var(--red-bg); border-color: var(--red-bd); color: var(--red); }
+.cq-band--off b { color: var(--red); }
+.cq-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+.cq-dot--wait { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
+.cq-dot--busy { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.cq-dot--off { background: var(--red); box-shadow: 0 0 0 3px var(--red-bg); }
+.cq-chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.cq-chip--queued { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.cq-chip--running { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+.cq-chip--done { background: #d1fae5; color: #047857; border-color: #6ee7b7; }
+.cq-chip--warning { background: #ffedd5; color: #c2410c; border-color: #fdba74; }
+.cq-chip--failed { background: var(--red-bg); color: var(--red); border-color: var(--red-bd); }
+.cq-chip--muted { background: var(--surf2); color: #64748b; border-color: var(--border); }
+.cq-rowstate { font-size: 11.5px; margin-top: 4px; text-align: right; white-space: normal; }
+.cq-rowstate--queued { color: #92400e; } .cq-rowstate--running { color: #1d4ed8; } .cq-rowstate--muted { color: #64748b; }
+.cq-req td { vertical-align: top; }
+.cq-req .cq-what { font-weight: 700; white-space: nowrap; }
+.cq-req .cq-when { white-space: nowrap; color: var(--text-dim); }
+.cq-req .cq-res { color: var(--text-dim); }
+.cq-req .cq-res--wait { color: #92400e; }
+.cq-req tr.cq-row--active td { background: #fffbeb; }
+
+/* 확인 창 · 대기 창 — 강사님 기초 코드(lumina-invest 2026-10-08 판) app.css 의 .app-modal-box · .app-hourglass(모래시계를 돌려
+ * 「멈춘 화면」 이 아님을 보인다)를 가져와 우리 이름으로 고쳤다. 움직임 줄이기 설정을 지킨다. */
+.cq-modal-bg { position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.45); display: flex; align-items: center;
+  justify-content: center; padding: 16px; }
+.cq-modal-bg[hidden] { display: none; }
+.cq-modal { background: var(--surf); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 460px; padding: 20px 22px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18); }
+.cq-modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+.cq-modal ul { margin: 0 0 14px; padding-left: 18px; font-size: 13px; color: var(--text-dim); line-height: 1.75; }
+.cq-mnote { font-size: 12px; color: #64748b; background: var(--surf2); border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; line-height: 1.6; }
+.cq-mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.cq-wait-box { text-align: center; max-width: 380px; }
+.cq-wait-box .cq-mfoot { justify-content: center; }
+.cq-hourglass { font-size: 34px; color: #f59e0b; display: inline-block; animation: cq-hourglass-turn 1.2s ease-in-out infinite; }
+.cq-hourglass--done { animation: none; color: var(--text-mute); }
+@keyframes cq-hourglass-turn { 0%, 55% { transform: rotate(0deg); } 70%, 100% { transform: rotate(180deg); } }
+@media (prefers-reduced-motion: reduce) { .cq-hourglass { animation: none; } }
+.cq-wait-title { margin: 10px 0 6px; }
+.cq-wait-state { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--text-dim); }
+.cq-wait-elapsed { font-size: 26px; font-weight: 700; margin-top: 10px; font-variant-numeric: tabular-nums; color: var(--text); }
+.cq-wait-note { font-size: 12px; color: #64748b; margin: 6px 0 14px; line-height: 1.6; }
+
+/* 데이터 관제의 요청 한 줄(관리자만 · 2026-10-10 결정 ①) */
+.dh-reqline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.dh-reqline .cq-hub-more { margin-left: auto; }
+
+@media (max-width: 760px) {
+  .cq-req thead { display: none; }
+  .cq-req .cq-what { white-space: normal; }
+  .cq-band .cq-band-right { margin-left: 0; }
+  .cq-rowstate { text-align: left; }
+  .cl-head-right .cq-primary { order: -1; }
+}

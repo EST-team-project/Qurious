@@ -111,7 +111,7 @@ docs/github-archive/
 │   ├── PR-feat-runner-signals-step/  00-본문.md  (#146 · 머지 006c31a · 러너에 신호 단계 · 앱 DB 꺼짐은 건너뜀 · 한 단계 다시 뒤 기준일 다시 잼(DF-85) · 자료 안내 화면 1단계)
 │   ├── 이슈-기초코드-받지않은것/  00-본문.md  (이동원 · 올리지 않음 — 2026-10-10 v2 가 대신 · 강사님 10-07 판에서 받지 않은 것 — 운용 값 넷 · 리밸런싱 19곳 · 정합성 요약 · DF-84)
 │   └── 이슈-142-러너-신호-단계-연결/  00-본문.md(#142 팀원 원문 · 신호 배치를 러너에) · 01 답글(이동원 · 10-08 · 올림) · 02 연결 결과(10-08 · 주소 문제 · 앱 DB 꺼짐은 돌리기 전 확인 · 10-10 올림)
-└── 2026-10-10/        ← 새 글 7건(PR 1 머지 · 이슈 넷 올림 · 이슈 하나 · PR 하나 초안) — 글은 처음부터 여기에(사용자 10-10 「_git-drafts 와 구분」)
+└── 2026-10-10/        ← 새 글 8건(PR 1 머지 · 이슈 넷 올림 · 이슈 하나 · PR 하나 올림 · PR 하나 초안) — 글은 처음부터 여기에(사용자 10-10 「_git-drafts 와 구분」)
     ├── PR-feat-collect-request-worker/  00-본문.md  (#148 · 머지 83a0b12 · 화면 수집 요청 서버 — 요청 표 · API 넷 · PC 작업자 · 러너 막힘 75)
     ├── PR-docs-research-four-and-followups/  00-본문.md  (이 PR · 조사서 넷 · 결함 후보 셋(DF-94 ~ 96) · 글 정리 · b 가 브랜치에서 꺼내 올림 · 번호는 올린 뒤)
     ├── 이슈-시장범위-미국-코인-기준/  00-본문.md  (#149 · 이동원 · 10-10 올림 · 미국 주식 · 코인 범위 · 시장별 기준 20 · 역할 안 A/B/C · 데이터 담당 의견 포함)
@@ -444,7 +444,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR feat-collect-request-worker](2026-10-10/PR-feat-collect-request-worker/00-본문.md) | feat: 화면 수집 요청 서버 — 요청 표 · API 넷 · PC 작업자(매 분) · 러너 막힘 75 · 막는 때 한 곳 | 4,441 | [#148](https://github.com/EST-team-project/Qurious/pull/148) · 머지 `83a0b12` (2026-10-10 13:47) |
-| [PR docs-research-four-and-followups](2026-10-10/PR-docs-research-four-and-followups/00-본문.md) | docs: 조사서 넷(기초 코드 융합 · 시장 범위 · 모의투자 · 금융 지식 배치) · 결함 후보 셋 · 글 정리 | 2,213 | (올린 뒤 적음) |
+| [PR docs-research-four-and-followups](2026-10-10/PR-docs-research-four-and-followups/00-본문.md) | docs: 조사서 넷(기초 코드 융합 · 시장 범위 · 모의투자 · 금융 지식 배치) · 결함 후보 셋 · 글 정리 | 2,213 | [#154](https://github.com/EST-team-project/Qurious/pull/154) |
+| [PR feat-collect-request-screen](2026-10-10/PR-feat-collect-request-screen/00-본문.md) | feat: 화면 수집 단추 — 줄마다 다시 받기 · 전체 수집 · 작업자 띠 · 대기 창 · 관제 한 줄(관리자) · 막는 때에는 끔 | 3,865 | (올린 뒤 적음) |
 | [이슈 시장범위-미국-코인-기준](2026-10-10/이슈-시장범위-미국-코인-기준/00-본문.md) | [논의] 미국 주식 · 코인 — 2 · 3차 범위와 시장별 거래 기준 · 역할 나누기 | 8,800 | [#149](https://github.com/EST-team-project/Qurious/issues/149) · 올림(10-10 · 데이터 담당 의견 포함) |
 | [이슈 모의계좌-시작금액-회차](2026-10-10/이슈-모의계좌-시작금액-회차/00-본문.md) | [의견 요청] 모의 계좌 시작 금액을 직접 정하기 · 리셋 기록 · 성과 기준점 — 증권사 · 플랫폼 조사 결과 | 9,322 | [#150](https://github.com/EST-team-project/Qurious/issues/150) · 올림(10-10 · 강민석 님께) |
 | [이슈 증권사-모의환경](2026-10-10/이슈-증권사-모의환경/00-본문.md) | [의견 요청] 증권사별 모의투자 환경 차이 · 한 사람 여러 모의 계좌 — 3차 증권사 연동 참고 조사 | 7,810 | [#151](https://github.com/EST-team-project/Qurious/issues/151) · 올림(10-10 · 오준영 님께) |

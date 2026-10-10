@@ -51,7 +51,7 @@ STATUS_LABEL = {QUEUED: "대기", RUNNING: "도는 중", DONE: "끝", WARNING: "
 
 IDLE, WAITING, BUSY = "idle", "waiting", "running"
 WORKER_STATES = (IDLE, WAITING, BUSY)
-WORKER_LABEL = {IDLE: "쉬는 중", WAITING: "기다리는 중", BUSY: "도는 중", "off": "꺼짐", "missing": "작업자 없음"}
+WORKER_LABEL = {IDLE: "쉬는 중", WAITING: "기다리는 중", BUSY: "도는 중", "off": "꺼짐", "missing": "없음"}   # 화면은 앞에 「PC 작업자 」 를 붙인다(TC-CL-09)
 
 #: 이보다 오래 시작하지 못한 대기 요청은 만료 — 작업자가 꺼져 있던 요청이 몇 시간 뒤 엉뚱한 때(다음 날 · 12:30 무렵) 돌지 않게
 #: (Prefect 의 Late 와 같은 생각). 3시간 = 막는 때가 가장 긴 전체 수집(11:00 ~ 13:30 · 150분)을 기다려도 남는 길이.
@@ -66,7 +66,7 @@ ACTION_HEADER = "X-Qurious-Action"
 ACTION_VALUE = "collect"
 
 INSTALL_HINT = "python scripts/collect_worker.py install"
-EXPIRED_NOTE = "3시간 안에 시작하지 못해 만료 — 작업자가 꺼져 있었거나 막는 때가 길었다"
+EXPIRED_NOTE = "3시간 안에 시작하지 못해 만료됐습니다 — 작업자가 꺼져 있었거나 막는 때가 길었습니다"
 CANCELLED_NOTE = "관리자가 취소"
 
 
@@ -108,50 +108,73 @@ def current_catalog() -> dict:
 def validate(kind: str, step: str | None, catalog: dict) -> tuple[str, str]:
     """받는 값 확인 — (종류, 단계 이름). 단계 이름은 러너가 쓴 단계 목록에 있는 것만(허용 목록). 아니면 422."""
     if kind not in KINDS:
-        raise RequestError(422, "종류는 step(단계 하나) · all(전체 수집) 가운데 하나다")
+        raise RequestError(422, "종류는 step(단계 하나) · all(전체 수집) 가운데 하나입니다")
     step = (step or "").strip()
     if kind == KIND_ALL:
         if step:
-            raise RequestError(422, "전체 수집에는 단계 이름을 주지 않는다")
+            raise RequestError(422, "전체 수집에는 단계 이름을 주지 않습니다")
         return kind, ""
     if not step:
-        raise RequestError(422, "단계 하나를 다시 돌리려면 단계 이름이 있어야 한다")
+        raise RequestError(422, "단계 하나를 다시 돌리려면 단계 이름이 있어야 합니다")
     names = (catalog or {}).get("by_name") or {}
     if not names:
-        raise RequestError(422, "단계 목록이 없다 — 이 PC 에서 러너를 한 번 돌리거나 "
-                                "`python scripts/daily_update.py steps --write` 로 단계 목록을 쓴다")
+        raise RequestError(422, "단계 목록이 없습니다 — 이 PC 에서 러너를 한 번 돌리거나 "
+                                "`python scripts/daily_update.py steps --write` 로 단계 목록을 쓰세요")
     if step not in names:
-        raise RequestError(422, f"모르는 단계다 — 러너 단계 목록에 있는 이름만 받는다({len(names)}개)")
+        raise RequestError(422, f"모르는 단계입니다 — 러너 단계 목록에 있는 이름만 받습니다({len(names)}개)")
     return kind, step
 
 
-def rules(catalog: dict) -> dict:
-    """막는 때 · 만료 · 꺼짐 기준 — 막는 때는 러너가 막는 데 쓰는 함수로 셈해 단계 목록에 쓴 값 그대로(앱은 다시 셈하지 않는다)."""
+def _window_now(window, now_kst: datetime) -> dict | None:
+    """창 하나(러너가 쓴 「HH:MM」 두 칸)에 지금이 드는가 — {blocked, until}. 러너의 `rerun_blocked` · `full_run_blocked` 와
+    같은 비교(그날 날짜 · 양끝 포함)라 화면의 단추와 러너의 막힘 판정이 어긋나지 않는다(TC-CQ-17). 창이 없거나 글이 틀리면 「모름」(None)."""
+    if not isinstance(window, dict):
+        return None
+    try:
+        lo, hi = ([int(x) for x in str(window[k]).split(":")] for k in ("from", "to"))
+        lo_t = now_kst.replace(hour=lo[0], minute=lo[1], second=0, microsecond=0)
+        hi_t = now_kst.replace(hour=hi[0], minute=hi[1], second=0, microsecond=0)
+    except (KeyError, ValueError, IndexError):
+        return None
+    blocked = lo_t <= now_kst <= hi_t
+    return {"blocked": blocked, "until": window["to"] if blocked else None}
+
+
+def rules(catalog: dict, now: datetime | None = None) -> dict:
+    """막는 때 · 만료 · 꺼짐 기준 — 막는 때는 러너가 막는 데 쓰는 함수로 셈해 단계 목록에 쓴 값 그대로(앱은 창을 다시 셈하지 않는다).
+
+    `blocked_now` 는 그 창에 **서버 시각**이 드는가다(화면 단추를 끄는 데 쓴다 · 2026-10-10 결정 「막는 때에는 단추를 끈다」).
+    화면 PC 의 시계로 견주면 시계가 틀린 PC 에서 단추와 러너 판정이 어긋나므로 여기서 정한다. 창이 없으면 None(모름).
+    """
     g = (catalog or {}).get("guards") or {}
     out = {"schedule": g.get("schedule"), "full": dict(g["full"]) if isinstance(g.get("full"), dict) else None,
            "steps": {k: dict(v) for k, v in (g.get("steps") or {}).items() if isinstance(v, dict)},
            "expire_hours": int(EXPIRE_AFTER.total_seconds() // 3600),
-           "worker_stale_s": int(WORKER_STALE_AFTER.total_seconds())}
+           "worker_stale_s": int(WORKER_STALE_AFTER.total_seconds()), "blocked_now": None}
     if not g:
-        out["note"] = "단계 목록에 막는 때가 없다 — 러너가 다음 회차(또는 steps --write)에 적는다"
+        out["note"] = "단계 목록에 막는 때가 없습니다 — 러너가 다음 회차(또는 steps --write)에 적습니다"
+        return out
+    now_kst = _now(now).astimezone(KST)
+    out["blocked_now"] = {"full": _window_now(out["full"], now_kst),
+                          "steps": {k: _window_now(v, now_kst) for k, v in out["steps"].items()}}
     return out
 
 
 # ── 보이기 ────────────────────────────────────────────────────────────────
 def worker_view(row: CollectWorker | None, *, now: datetime | None = None) -> dict:
-    """작업자 상태 — 신호가 3분 안이면 그 상태 그대로, 넘으면 「꺼짐」(마지막 신호 시각) · 줄이 없으면 「작업자 없음」."""
+    """작업자 상태 — 신호가 3분 안이면 그 상태 그대로, 넘으면 「꺼짐」(마지막 신호 시각) · 줄이 없으면 「없음」."""
     now = _now(now)
     base = {"stale_after_s": int(WORKER_STALE_AFTER.total_seconds())}
     if row is None:
         return {**base, "name": None, "alive": False, "status": "missing", "status_label": WORKER_LABEL["missing"],
-                "last_state": None, "note": f"이 PC 에 작업자를 등록하지 않았다 — {INSTALL_HINT}",
+                "last_state": None, "note": f"이 PC 에 작업자가 등록되지 않았습니다 — {INSTALL_HINT}",
                 "seen_at": None, "seen_ago_s": None, "pid": None, "allow_upload": None, "request_id": None}
     ago = (now - row.seen_at).total_seconds()
     alive = ago <= WORKER_STALE_AFTER.total_seconds()
     status = row.state if alive else "off"
     note = row.note or ""
     if not alive:
-        note = (f"마지막 신호 {row.seen_at.astimezone(KST):%H:%M} — 작업자가 돌지 않는다"
+        note = (f"마지막 신호 {row.seen_at.astimezone(KST):%H:%M} — 작업자가 돌지 않습니다"
                 f"(작업 스케줄러 등록 · 로그온 확인 · {INSTALL_HINT})")
     return {**base, "name": row.name, "alive": alive, "status": status,
             "status_label": WORKER_LABEL.get(status, status), "last_state": row.state, "note": note,
@@ -163,16 +186,16 @@ def wait_reason(request_id, worker: dict) -> str:
     """대기 줄의 까닭 한 줄 — 작업자 꺼짐 · 앞 요청이 도는 중 · 작업자가 기다리는 까닭 · 곧 시작."""
     st = worker.get("status")
     if st == "missing":
-        return "PC 작업자 꺼짐 — 이 PC 에 작업자가 없다(등록하면 돈다)"
+        return "PC 작업자 꺼짐 — 이 PC 에 작업자가 없습니다(등록하면 돕니다)"
     if st == "off":
         return f"PC 작업자 꺼짐 — {worker.get('note') or '신호 없음'}"
     if st == BUSY:
         if worker.get("request_id") and worker["request_id"] == str(request_id):
             return "도는 중"
-        return "앞 요청이 도는 중 — 끝나면 돈다"
+        return "앞 요청이 도는 중 — 끝나면 돕니다"
     if st == WAITING:
         return worker.get("note") or "기다리는 중"
-    return "곧 시작(작업자가 1분 안에 가져간다)"
+    return "곧 시작합니다(작업자가 1분 안에 가져갑니다)"
 
 
 def request_view(row: CollectRequest, *, catalog: dict, worker: dict | None, now: datetime,
@@ -248,7 +271,7 @@ async def cancel(db: AsyncSession, *, request_id, user: dict, catalog: dict, now
     now = _now(now)
     rid = _uid(request_id)
     if rid is None:
-        raise RequestError(404, "그런 요청이 없다")
+        raise RequestError(404, "그런 요청이 없습니다")
     await _expire(db, now)
     got = (await db.execute(update(CollectRequest)
                             .where(CollectRequest.id == rid, CollectRequest.status == QUEUED)
@@ -258,8 +281,8 @@ async def cancel(db: AsyncSession, *, request_id, user: dict, catalog: dict, now
         cur = (await db.execute(select(CollectRequest.status).where(CollectRequest.id == rid))).scalar_one_or_none()
         await db.commit()                                     # 만료 바꾸기는 남긴다
         if cur is None:
-            raise RequestError(404, "그런 요청이 없다")
-        raise RequestError(409, f"대기 중인 요청만 취소한다 — 지금 「{STATUS_LABEL.get(cur, cur)}」")
+            raise RequestError(404, "그런 요청이 없습니다")
+        raise RequestError(409, f"대기 중인 요청만 취소합니다 — 지금 「{STATUS_LABEL.get(cur, cur)}」")
     db.add(AuditEvent(user_id=_uid(user.get("id")), client_id=user.get("client_id") or "", event_type="collect.cancel",
                       payload={"request_id": str(rid)}))
     await db.commit()
@@ -274,7 +297,7 @@ async def listing(db: AsyncSession, *, catalog: dict, now: datetime | None = Non
         select(CollectRequest, User.name).outerjoin(User, User.id == CollectRequest.requested_by)
         .order_by(CollectRequest.requested_at.desc(), CollectRequest.id).limit(limit))).all()
     return {"requests": [request_view(r, catalog=catalog, worker=wv, now=now, requester=n) for r, n in rows],
-            "worker": wv, "rules": rules(catalog), "checked_at": _iso(now)}
+            "worker": wv, "rules": rules(catalog, now=now), "checked_at": _iso(now)}
 
 
 async def worker_status(db: AsyncSession, *, now: datetime | None = None) -> dict:

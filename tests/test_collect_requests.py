@@ -104,6 +104,46 @@ def test_rules_come_from_runner_catalog():
     assert old["full"] is None and old["steps"] == {} and "단계 목록" in old["note"]
 
 
+def test_rules_blocked_now_from_runner_windows_and_server_clock():
+    """TC-CQ-16 · 「지금 막힘」 은 서버가 정한다 — 단계 목록의 창(러너가 쓴 값)을 서버 시각(KST)으로 견주고 끝나는 시각을 함께 준다.
+    러너의 rerun_blocked · full_run_blocked 와 같은 비교(양끝 포함). 화면은 시계를 다시 세지 않는다(화면 PC 시계가 틀려도 같은 답).
+    창이 없는 옛 목록은 「모름」(None) — 짐작으로 막거나 열지 않는다."""
+    def at(h, m):
+        return datetime(2026, 10, 12, h, m, tzinfo=KST)
+
+    b = cq.rules(CATALOG, now=at(12, 10))["blocked_now"]
+    assert b["full"] == {"blocked": True, "until": "13:30"}
+    assert b["steps"]["price"] == {"blocked": True, "until": "13:30"}       # 12:00 ~ 13:30 안
+    assert b["steps"]["news"] == {"blocked": False, "until": None}         # 12:20 ~ 13:30 — 아직 앞
+    assert set(b["steps"]) == set(GUARDS["steps"])
+    assert cq.rules(CATALOG, now=at(11, 0))["blocked_now"]["full"]["blocked"] is True     # 시작 시각 포함
+    assert cq.rules(CATALOG, now=at(13, 30))["blocked_now"]["full"]["blocked"] is True    # 끝 시각 포함
+    after = cq.rules(CATALOG, now=at(13, 31))["blocked_now"]
+    assert after["full"] == {"blocked": False, "until": None}
+    assert not any(v["blocked"] for v in after["steps"].values())
+    assert cq.rules(CATALOG, now=at(10, 59))["blocked_now"]["full"]["blocked"] is False
+    # 서버 시계가 UTC 여도 KST 로 바꿔 견준다(03:10Z = 12:10 KST)
+    assert cq.rules(CATALOG, now=datetime(2026, 10, 12, 3, 10, tzinfo=timezone.utc))["blocked_now"]["full"]["blocked"] is True
+    assert cq.rules(EMPTY_CATALOG, now=at(12, 10))["blocked_now"] is None
+    # 목록 응답도 같은 시각으로 — listing 이 now 를 rules 에 넘긴다(두 시각이 어긋나지 않게)
+    import inspect
+    assert "rules(catalog, now=now)" in inspect.getsource(cq.listing)
+
+
+def test_blocked_now_agrees_with_runner_judgement():
+    """TC-CQ-17 · 앱의 「지금 막힘」 이 러너의 막힘 판정과 하루 내내 같다 — 10:00 ~ 14:00 를 5분마다, 러너가 그 시각에 쓴 창으로.
+    (러너가 막는 데 쓰는 함수가 정본 — 둘이 어긋나면 화면은 열렸는데 러너가 75 로 돌려보내거나, 그 반대가 된다)"""
+    from scripts import daily_update as du
+
+    for minute in range(10 * 60, 14 * 60 + 1, 5):
+        now = datetime(2026, 10, 12, minute // 60, minute % 60, tzinfo=KST)
+        cat = {**CATALOG, "guards": du.guards(now)}
+        b = cq.rules(cat, now=now)["blocked_now"]
+        assert b["full"]["blocked"] == (du.full_run_blocked(now) is not None), now
+        for s in du.STEPS:
+            assert b["steps"][s.name]["blocked"] == (du.rerun_blocked(s, now) is not None), (now, s.name)
+
+
 # ── 라우트 — 관리자 · 화면 머리글 · 응답 코드 ─────────────────────────────
 @pytest.fixture
 def client(monkeypatch):
