@@ -10,6 +10,7 @@
  */
 import { api, escHtml, fmt } from "/js/common.js";
 import { navigate } from "/js/core.js";
+import { renderHubRequestLine } from "/js/collect-requests.js";   // 관리자만 — 수집 요청 한 줄(2026-10-10)
 
 const VIEW = "data-status";
 const BADGE_MS = 60_000;     // 위 메뉴 표시 — 1분마다(러너는 하루 한 번이라 이보다 자주 볼 까닭이 없다)
@@ -243,13 +244,15 @@ async function renderDataHub() {
     root.innerHTML = `<div class="dh-head"><div><h2>데이터 관제</h2>
         <p class="q-muted">모은 자료가 며칠 것까지 있는지, 매일 낮 갱신이 돌았는지 봅니다 · 30초마다 다시 봅니다 · ${escHtml(hm(st.checked_at))} 기준</p></div>
         <button type="button" class="btn-secondary dh-refresh">새로 고침</button></div>
-      ${summaryCards(st)}${runCard(st)}${tableCard(st)}${lowCards(st)}`;
+      ${summaryCards(st)}${runCard(st)}<div class="card dh-reqline q-admin-only"></div>${tableCard(st)}${lowCards(st)}`;
   } catch (err) {
     root.innerHTML = `<div class="card"><p class="q-err">자료 상태를 읽지 못했습니다 — ${escHtml(err.message)}</p>
       <button type="button" class="btn-secondary dh-refresh">다시 시도</button></div>`;
   }
   root.querySelector(".dh-refresh")?.addEventListener("click", renderDataHub);
   root.querySelector(".dh-more")?.addEventListener("click", () => navigate("crawl-auto"));
+  // 안 B 의 작업자 상태 · 최근 요청은 여기 한 줄로(2026-10-10 결정 ①) — 관리자가 아니면 칸을 숨기고 요청 API 도 부르지 않는다
+  renderHubRequestLine(root.querySelector(".dh-reqline"), () => navigate("crawl-auto"));
 }
 
 /** main.js 의 화면 진입 훅 — 이 화면이면 그리고 30초마다 다시, 다른 화면이면 멈춘다. */

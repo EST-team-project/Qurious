@@ -81,7 +81,8 @@ def test_wired_menu_roots_hooks_and_scanner():
         assert f'getElementById("{old}")' not in _js_code(agent), old
     from scripts import view_scan
     entry = {r["key"]: set(r["entry_apis"]) for r in view_scan.scan()["rows"]}
-    assert entry["crawl-auto"] == {"/api/data/runner"}
+    # 수집 일정은 회차 기록과 수집 요청 목록(작업자 · 막는 때 · 2026-10-10 수집 단추)을 함께 읽는다
+    assert entry["crawl-auto"] == {"/api/data/runner", "/api/data/runner/requests"}
     assert entry["crawl-ingest"] == {"/api/data/backup"}
     assert {"/api/data/fetch-sources", "/api/data/fetch-plan", "/api/data/url-rules", "/api/data/url-check"} <= entry["crawl-manual"]
 
@@ -121,10 +122,21 @@ def test_admin_only_menus_hidden_by_default():
 
 
 def test_screens_do_not_run_pc_side_work():
-    """TC-CL-06 · 화면이 보내는 쓰기는 주소 검사 · 주소로 받기 둘뿐 — 단계 다시 · 받기 · 원격 확인 · 리허설은 명령을 보인다(결정 ①)."""
+    """TC-CL-06 · 화면은 PC 쪽 일을 직접 돌리지 않는다 — 화면이 보내는 쓰기는 주소 검사 · 주소로 받기와, 수집 요청 표에 줄을
+    남기는 둘(만들기 · 취소 · 2026-10-10 수집 단추 결정)뿐이다. 요청 둘은 늘 화면 머리글(서버 `ACTION_HEADER`)을 붙이고, 돌리는
+    일은 이 PC 의 작업자가 한다. 받기 · 원격 확인 · 리허설은 여전히 명령을 보인다(결정 ①)."""
+    from app.services import collect_requests as cq
+
     src = _js_code(_read(JS_DIR / "collect.js"))
     posts = re.findall(r'api\("([^"?]+)[^"]*",\s*\{\s*method:\s*"(POST|PUT|DELETE|PATCH)"', src)
     assert sorted(posts) == [("/api/data/url-check", "POST"), ("/api/ingest/crawl/url", "POST")], posts
+    req = _js_code(_read(JS_DIR / "collect-requests.js"))
+    calls = re.findall(r'api\([`"](/api/[^`"?]+)[^`"]*[`"],\s*\{([^}]*)\}', req)
+    writes = sorted((p, opts) for p, opts in calls if re.search(r'method:\s*"(POST|PUT|DELETE|PATCH)"', opts))
+    assert [p for p, _ in writes] == ["/api/data/runner/requests", "/api/data/runner/requests/${id}/cancel"], writes
+    assert all(re.search(r"headers:\s*ACTION\b", opts) for _, opts in writes), "상태를 바꾸는 두 부름은 늘 화면 머리글을 붙인다"
+    m = re.search(r'const ACTION = \{\s*"([^"]+)":\s*"([^"]+)"\s*\}', req)
+    assert m and (m.group(1), m.group(2)) == (cq.ACTION_HEADER, cq.ACTION_VALUE), "머리글 이름 · 값은 서버와 같다"
     # 명령은 서버가 준 것을 그대로 보인다(러너 명령 · 받기 명령 · 백업 명령) — 화면이 명령 글을 지어내지 않는다(단계 이름만 끼운다)
     assert "d.rerun?.command" in src and "p.command" in src and "b.commands.remote" in src and "b.commands.restore" in src
 
@@ -150,3 +162,94 @@ def test_data_hub_one_line_and_reruns_apart():
     assert "dh-runline" in src and 'navigate("crawl-auto")' in src
     low = src[src.index("function lowCards"):src.index("function dataHubRoot")]
     assert re.search(r"if \(h\.only\)", low) and "다시 돌림" in low
+def _req_js() -> str:
+    return _js_code(_read(JS_DIR / "collect-requests.js"))
+
+
+def test_request_labels_come_from_server():
+    """TC-CL-09 · 요청 · 작업자 상태 글은 서버가 준 글(`status_label`) 그대로 — 화면은 색(tone)만 고른다. 색 표는 서버의 상태
+    열쇠를 모두 안다(서버가 상태를 늘리면 이 시험이 먼저 깨진다) · 화면에 상태 → 한국어 글 짝을 따로 두지 않는다."""
+    from app.services import collect_requests as cq
+
+    src = _req_js()
+    assert _js_keys(src, "REQ_TONE") == set(cq.STATUS_LABEL)
+    assert _js_keys(src, "WORKER_TONE") == set(cq.WORKER_STATES) | {"off", "missing"} == set(cq.WORKER_LABEL)
+    assert "r.status_label" in src and "w.status_label" in src
+    for label in cq.STATUS_LABEL.values():
+        assert not re.search(rf'\w+:\s*"{re.escape(label)}"', src), f"상태 글 「{label}」 을 화면이 다시 짓지 않는다"
+    assert "r.wait" in src and "r.result" in src, "기다리는 까닭 · 결과 한 줄도 서버 글 그대로"
+    # 화면은 작업자 이름표 앞에 「PC 작업자 」 를 붙인다(띠 · 관제 한 줄 · 확인 창) — 이름표에 「작업자」 가 또 있으면 말이 겹친다
+    assert "PC 작업자 ${escHtml(w.status_label" in src and "PC 작업자: ${escHtml(w.status_label" in src
+    for state, label in cq.WORKER_LABEL.items():
+        assert "작업자" not in label, f"「PC 작업자 {label}」 — {state} 이름표에서 「작업자」 를 뺀다"
+
+
+def test_blocked_buttons_follow_server_blocked_now():
+    """TC-CL-10 · 막는 때에는 단추를 끈다(2026-10-10 결정) — 판정은 서버의 `rules.blocked_now`(전체 · 단계마다 · 끝나는 시각)를
+    그대로 쓰고, 화면이 시계로 창을 다시 세지 않는다. 러너가 도는 동안 · 같은 대상이 대기 · 도는 중일 때도 끈다."""
+    src = _req_js()
+    assert "blocked_now" in src and re.search(r"blocked_now\??\.full", src) and re.search(r"blocked_now\??\.steps", src)
+    assert ".until" in src, "꺼진 단추 옆에 끝나는 시각"
+    assert not re.search(r"\.(from|to)\s*[<>]=?|[<>]=?\s*\w+\.(from|to)\b", src), "창 시각을 화면이 견주지 않는다"
+    assert "new Date().getHours" not in src and "getMinutes()" not in src
+    # 두 단추 함수가 그 값으로 실제로 끈다 — 읽기만 하고 쓰지 않으면 이 시험이 잡는다(깨 보기 #13 · 14 · 2026-10-10)
+    for fn in ("export function fullButtonHtml", "export function stepActionHtml"):
+        body = src[src.index(fn):]
+        body = body[:body.index("export function", len(fn))]
+        assert re.search(r"else if \(b\?\.blocked\) why =", body), f"{fn} — 막는 때면 까닭을 두고 끈다"
+        assert re.search(r"why \? `disabled title=", body), f"{fn} — 까닭이 있으면 disabled"
+        assert re.search(r"const b = blockedFor\(", body), f"{fn} — 막는 때는 서버 값(blockedFor)에서"
+
+
+def test_request_messages_for_server_codes():
+    """TC-CL-11 · 누른 뒤 문구 — 새 요청은 「요청했습니다」, 같은 대상이 이미 대기 · 도는 중이면(서버 `created: false`)
+    「이미 기다리는 요청이 있습니다」(새 줄 없음), 403 은 「관리자만 요청할 수 있습니다」, 409 · 422 는 서버 글 그대로."""
+    src = _req_js()
+    assert re.search(r"\.created\b", src)
+    assert "요청했습니다" in src and "이미 기다리는 요청이 있습니다" in src
+    assert re.search(r"status === 403[^\n]*\n?[^\n]*관리자만 요청할 수 있습니다", src) or (
+        "status === 403" in src and "관리자만 요청할 수 있습니다" in src)
+    assert re.search(r"err\.message|e\.message", src), "409 · 422 는 서버 글을 그대로 보인다"
+
+
+def test_polling_5s_while_active_1min_otherwise_stops_off_view():
+    """TC-CL-12 · 다시 묻는 간격 — 대기 · 도는 중인 줄이 있거나 대기 창이 열려 있는 동안은 5초, 그 밖에는 1분마다 목록을 다시
+    묻는다(작업자 띠의 꺼짐 · 신호와 막는 때의 단추 끄기가 화면을 열어 둔 채로도 1분 안에 따라오게 — 2026-10-10 실측: 요청이 없을 때
+    멈추게 했더니 띠가 25분 넘게 「꺼짐」 으로 남았다) · 수집 일정 화면을 떠나면 멈춘다 · 도는 줄이 끝나면 단계 표를 한 번 다시 읽는다."""
+    src = _req_js()
+    assert re.search(r"const POLL_MS = 5[_]?000;", src)
+    assert re.search(r"const IDLE_POLL_MS = 60[_]?000;", src), "요청이 없을 때도 1분마다"
+    sched = src[src.index("function schedulePoll"):]
+    sched = sched[:sched.index("\n}") + 2]
+    assert re.search(r"needPoll\(\) \? POLL_MS : IDLE_POLL_MS", sched), "활성이면 5초 · 아니면 1분 — 멈추지 않는다"
+    assert re.search(r"pollTimer = onChange \?", sched), "수집 일정 화면(onChange)이 있을 때만 묻는다"
+    assert re.search(r'const ACTIVE = \["queued", "running"\];', src)
+    assert "clearTimeout(" in src and "stopRequestPolling" in src
+    collect = _js_code(_read(JS_DIR / "collect.js"))
+    hook = collect[collect.index("export function onCollectViewActivated"):]
+    assert "stopRequestPolling()" in hook, "다른 화면으로 가면 멈춘다"
+    assert "onFinished" in src or "finished" in src
+
+
+def test_wait_modal_from_instructor_base_adapted():
+    """TC-CL-13 · 대기 창 — 강사님 기초 코드(lumina-invest 10-08 판)의 대기 창 꼴(모래시계 · 경과 시간)을 가져와 고쳤다(2026-10-10
+    결정 ③): 단계 이름 · 경과 · 상태 · 「창 닫기」(요청은 계속) · 대기일 때만 「요청 취소」. app.html 은 건드리지 않고 이 파일이
+    창을 만든다 · 움직임 줄이기 설정을 지킨다 · 가져온 곳을 머리말에 적는다."""
+    src = _read(JS_DIR / "collect-requests.js")
+    code = _js_code(src)
+    assert "lumina-invest" in src and "app-loading-modal" in src, "가져온 곳(강사님 대기 창)을 적는다"
+    assert "openWaitModal" in code and "cq-wait-modal" in code and "창 닫기" in code and "요청 취소" in code
+    assert "cq-wait-modal" not in _read(APP_HTML), "app.html 에 창을 넣지 않는다"
+    css = _read(ROOT / "public" / "css" / "collect.css")
+    assert ".cq-hourglass" in css and "prefers-reduced-motion" in css[css.index(".cq-hourglass"):]
+
+
+def test_data_hub_request_line_admin_only():
+    """TC-CL-14 · 데이터 관제 — 관리자에게만 수집 요청 한 줄(작업자 상태 · 대기 · 도는 중 수 · 최근 요청 하나 → 수집 일정)
+    (2026-10-10 결정 ①: 안 B 의 최신 정보는 관제에). 일반 사용자에게는 칸을 숨기고 요청 API 도 부르지 않는다."""
+    hub = _js_code(_read(JS_DIR / "datahub.js"))
+    assert 'class="card dh-reqline q-admin-only"' in hub
+    assert "renderHubRequestLine" in hub
+    src = _req_js()
+    fn = src[src.index("export async function renderHubRequestLine"):]
+    assert "isCollectAdmin()" in fn[:600], "관리자일 때만 요청 목록 API 를 부른다"

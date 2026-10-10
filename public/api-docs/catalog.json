@@ -6495,7 +6495,10 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "crawl-auto",
+    "data-status"
+   ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
@@ -6524,7 +6527,10 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "crawl-auto",
+    "data-status"
+   ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",

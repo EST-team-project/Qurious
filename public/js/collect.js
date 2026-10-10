@@ -8,13 +8,16 @@
  * 화면 키는 옛 크롤링 그대로 두고 이름만 바꿨다(옛 주소가 열리고 기초 코드 반영 때 부딪히는 곳이 적다). 강사님 파일(app.html ·
  * agent.js · main.js)에는 뿌리 칸과 부르는 줄만 두고 그리기는 모두 여기서 한다(datahub.js 처럼).
  *
- * 화면은 PC 쪽 일을 하지 않는다(2026-10-08 결정 ①) — 앱은 수집 폴더를 읽기만 하게 붙어 있으므로 「이 단계만 다시」 · 「받기」 ·
- * 「원격 다시 확인」 · 「복원 리허설」 은 PC 에서 돌릴 명령과 막히는 때를 보이고 복사하게 한다. 주소로 받기만 앱이 받는다
- * (근거 문서 — 앱 DB · 검색 색인에 쓰는 길이라 수집 폴더와 상관없다).
+ * 화면은 PC 쪽 일을 하지 않는다(2026-10-08 결정 ①) — 앱은 수집 폴더를 읽기만 하게 붙어 있으므로 「받기」 · 「원격 다시 확인」 ·
+ * 「복원 리허설」 은 PC 에서 돌릴 명령과 막히는 때를 보이고 복사하게 한다. 주소로 받기만 앱이 받는다(근거 문서 — 앱 DB · 검색 색인).
+ * 「다시 받기」 · 「전체 수집」 은 요청 표에 줄만 남기고 이 PC 의 수집 작업자가 가져가 돌린다(2026-10-10 · js/collect-requests.js) —
+ * 단계 줄의 「명령」 은 작업자가 꺼져 있을 때 이 PC 에서 직접 돌리는 길로 남겼다.
  * 단계 줄 · 묶음 · 하는 일은 러너 기록에서 온다 — 수집 단계가 늘면 이 화면이 손대지 않아도 따라온다(결정 ④).
  * 관리자 화면이다 — 일반 사용자에게는 메뉴를 숨기고(css/collect.css 의 body.q-admin), 서버도 403 으로 막는다.
  */
 import { api, escHtml, fmt, getMe, setToast } from "/js/common.js";
+import { cancelRequest, confirmFullCollect, fullButtonHtml, loadRequests, requestCollect, requestsCardHtml,
+  startRequestPolling, stepActionHtml, stopRequestPolling, workerBandHtml } from "/js/collect-requests.js";
 
 const WEEK = "일월화수목금토";
 //: 러너 단계 결과 → [글자, 막대 · 글자 색]
@@ -184,12 +187,11 @@ function stepsTable(d, view) {
         <td class="cl-n">${idx}</td><td class="cl-name">${escHtml(s.label || s.name)}</td>
         <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}${held && s.date ? ` <span class="q-muted">· 빠진 거래일 ${escHtml(s.date)}</span>` : ""}</td>
         <td>${time}</td><td class="cl-res cl-st--${tone === "skip" ? "pending" : tone}">${txt}</td>
-        <td class="cl-act"><button type="button" class="cl-btn-sm cl-rerun" data-step="${escHtml(s.name)}" ${d.running ? "disabled title=\"수집 중에는 다시 돌릴 수 없습니다\"" : ""}
-          aria-expanded="false">이 단계만 다시</button></td></tr>`;
+        <td class="cl-act">${stepActionHtml(s.name, d.running)}</td></tr>`;
     }).join("");
   }).join("");
   return `<div class="card"><h3 class="cl-h">단계 ${rows.length}개 <span class="q-muted">받기 → 계산 → 백업 → 근거 문서 차례로 돕니다 · 막대는 모두 같은 눈금(가장 긴 단계가 끝까지)</span></h3>
-    <div class="cl-table-wrap"><table class="cl-table"><thead><tr><th>#</th><th>단계</th><th>하는 일</th><th>걸린 시간</th><th>결과</th><th>관리자</th></tr></thead>
+    <div class="cl-table-wrap"><table class="cl-table"><thead><tr><th>#</th><th>단계</th><th>하는 일</th><th>걸린 시간</th><th>결과</th><th>다시 받기</th></tr></thead>
     <tbody>${body}</tbody></table></div></div>`;
 }
 function scheduleHtml(d) {
@@ -198,10 +200,14 @@ function scheduleHtml(d) {
     ? `<select class="cl-run-pick" aria-label="회차 고르기">${opts.map(o => `<option value="${o.key}" ${o.key === pickedRun ? "selected" : ""}>${escHtml(o.label)}</option>`).join("")}</select>`
     : "";
   const view = pickedRunView(d);
-  return `${head("수집 일정 · 단계", "매일 12:30 에 시세 · 공시 · 뉴스를 받아 계산하고 백업합니다. 고른 회차의 단계별 결과와 걸린 시간입니다.", pick)}
+  return `${head("수집 일정 · 단계", "매일 12:30 에 시세 · 공시 · 뉴스를 받아 계산하고 백업합니다. 고른 회차의 단계별 결과와 걸린 시간입니다.",
+      fullButtonHtml(d.running) + pick)}
+    <div class="cq-band-slot">${workerBandHtml()}</div>
     ${scheduleTiles(d, view)}${stepsTable(d, view)}
-    <div class="cl-alert">수집 중(12:30 ~ 13:30)에는 단계를 다시 돌릴 수 없습니다. 「이 단계만 다시」 는 이 PC 에서 돌릴 명령을 보여 줍니다 —
-      화면이 수집을 직접 돌리지 않습니다. ${escHtml(d.rerun?.blocked ? `막히는 때: ${d.rerun.blocked}` : "")}</div>`;
+    <div class="cq-req-slot">${requestsCardHtml()}</div>
+    <div class="cl-alert">「다시 받기」 · 「전체 수집」 은 요청만 남기고, 이 PC 의 수집 작업자가 1분 안에 가져가 돌립니다 — 화면이 수집을
+      직접 돌리지 않습니다. 정기 회차와 겹치는 때(막는 때)와 수집 중에는 단추가 꺼집니다. 작업자가 꺼져 있으면 「명령」 으로 이 PC 에서
+      직접 돌릴 수 있습니다. ${escHtml(d.rerun?.blocked ? `명령이 막히는 때: ${d.rerun.blocked}` : "")}</div>`;
 }
 function bindSchedule(root, d) {
   root.querySelector(".cl-run-pick")?.addEventListener("change", e => {
@@ -209,11 +215,31 @@ function bindSchedule(root, d) {
     root.innerHTML = scheduleHtml(d);
     bindSchedule(root, d);
   });
-  root.querySelectorAll(".cl-rerun").forEach(btn => btn.addEventListener("click", () => {
+  root.querySelector(".cl-retry")?.addEventListener("click", renderCollectSchedule);
+  // 단계 줄 단추 · 요청 카드는 요청 목록을 다시 물을 때마다(대기 · 도는 중 5초 · 그 밖 1분) 다시 그리므로 누름은 뿌리 칸 하나에 한 번만 건다
+  if (!root.dataset.cqBound) {
+    root.dataset.cqBound = "1";
+    root.addEventListener("click", onScheduleClick);
+  }
+}
+/** 수집 일정 화면의 누름 — 「다시 받기」 · 「전체 수집」 · 요청 「취소」 · 「명령」 열고 닫기 */
+function onScheduleClick(e) {
+  const root = e.currentTarget;
+  const d = runnerData;
+  const btn = e.target.closest("button");
+  if (!btn || !d || btn.disabled) return;
+  if (btn.classList.contains("cq-rerun")) { requestCollect("step", btn.dataset.step); return; }
+  if (btn.classList.contains("cq-cancel")) { cancelRequest(btn.dataset.id); return; }
+  if (btn.classList.contains("cq-full")) {
+    confirmFullCollect({ steps: (d.catalog?.steps || []).length, lastSeconds: d.last?.minutes != null ? d.last.minutes * 60 : null });
+    return;
+  }
+  if (!btn.classList.contains("cl-cmd-open")) return;
+  {
     const tr = btn.closest("tr");
     const open = tr.nextElementSibling?.classList.contains("cl-cmd-row");
     root.querySelectorAll(".cl-cmd-row").forEach(r => r.remove());
-    root.querySelectorAll(".cl-rerun").forEach(b => b.setAttribute("aria-expanded", "false"));
+    root.querySelectorAll(".cl-cmd-open").forEach(b => b.setAttribute("aria-expanded", "false"));
     if (open) return;
     btn.setAttribute("aria-expanded", "true");
     const row = document.createElement("tr");
@@ -226,15 +252,30 @@ function bindSchedule(root, d) {
       : ""}</td>`;
     tr.after(row);
     bindCopy(row);
-  }));
-  root.querySelector(".cl-retry")?.addEventListener("click", renderCollectSchedule);
+  }
+}
+/** 요청 목록이 바뀌면 띠 · 단추 · 요청 카드만 다시(열어 둔 명령 상자는 그대로) · 도는 줄이 끝나면 회차 기록부터 다시 읽는다 */
+function onRequestsChanged(kind) {
+  if (kind === "finished") { renderCollectSchedule(); return; }
+  const root = collectRoot("crawl-auto");
+  if (!root || !runnerData || !root.querySelector(".cq-band-slot")) return;
+  root.querySelector(".cq-band-slot").innerHTML = workerBandHtml();
+  root.querySelector(".cq-req-slot").innerHTML = requestsCardHtml();
+  const full = root.querySelector(".cq-full");
+  if (full) full.outerHTML = fullButtonHtml(runnerData.running);
+  root.querySelectorAll("tr[data-step] > .cl-act").forEach(td => {
+    const tr = td.closest("tr");
+    td.innerHTML = stepActionHtml(tr.dataset.step, runnerData.running);
+    if (tr.nextElementSibling?.classList.contains("cl-cmd-row")) td.querySelector(".cl-cmd-open")?.setAttribute("aria-expanded", "true");
+  });
 }
 async function renderCollectSchedule() {
   const root = collectRoot("crawl-auto");
   if (!root) return;
   if (!root.innerHTML) root.innerHTML = `<p class="q-muted">불러오는 중…</p>`;
   try {
-    runnerData = await api("/api/data/runner");
+    // 요청 목록은 따로 받는다 — 못 읽어도 단계 표는 그리고, 까닭은 작업자 띠에 보인다
+    [runnerData] = await Promise.all([api("/api/data/runner"), loadRequests().catch(() => null)]);
   } catch (err) {
     root.innerHTML = head("수집 일정 · 단계", "매일 12:30 수집 회차의 단계별 결과") + errorCard("수집 기록을 읽지 못했습니다", err);
     root.querySelector(".cl-retry")?.addEventListener("click", renderCollectSchedule);
@@ -242,6 +283,7 @@ async function renderCollectSchedule() {
   }
   root.innerHTML = scheduleHtml(runnerData);
   bindSchedule(root, runnerData);
+  startRequestPolling(onRequestsChanged);
 }
 
 // ══ 2. 자료 직접 받기 ═══════════════════════════════════════════════════
@@ -493,6 +535,7 @@ async function renderCollectBackup() {
 /** main.js 의 화면 진입 훅 — 화면 키는 글자 그대로(화면 스캐너 scripts/view_scan.py 가 이 모양으로 읽는다). */
 export function onCollectViewActivated(view) {
   ensureCollectRole();
+  if (view !== "crawl-auto") stopRequestPolling();   // 다른 화면으로 가면 요청 다시 묻기 · 대기 창을 멈춘다
   if (view === "crawl-auto") { pickedRun = "last"; renderCollectSchedule(); }   // 들어올 때마다 마지막 회차부터
   if (view === "crawl-manual") renderCollectFetch();
   if (view === "crawl-ingest") renderCollectBackup();
