@@ -35,10 +35,9 @@
 34. https://github.com/EST-team-project/Qurious/issues/117
 35. https://github.com/EST-team-project/Qurious/issues/123
 36. https://github.com/EST-team-project/Qurious/issues/124
-37. https://github.com/EST-team-project/Qurious/issues/142
-38. https://github.com/EST-team-project/Qurious/issues/143
-39. https://github.com/EST-team-project/Qurious/issues/149
-40. https://github.com/EST-team-project/Qurious/issues/150
+37. https://github.com/EST-team-project/Qurious/issues/143
+38. https://github.com/EST-team-project/Qurious/issues/149
+39. https://github.com/EST-team-project/Qurious/issues/150
 41. https://github.com/EST-team-project/Qurious/issues/151
 42. https://github.com/EST-team-project/Qurious/issues/152
 
