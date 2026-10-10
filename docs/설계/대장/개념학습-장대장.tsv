@@ -1,0 +1,85 @@
+번호	slug 후보	제목	메뉴	기능(요구 ID)	주담당	지금 상태	지금 자리(파일)	채울 때(세션 칸)	출처 후보	검수할 팀원	비고
+A01	fin-topic-futures	선물과 옵션(강의 1일차 · 교재 6단원)	필수 지식	공통	이동원(화면) · 원문 강사님	있음	public/lectures/days/01.html · curriculum/unit06.md · finlearn.js:21	그대로 · 원본 변화는 ⑦ 흐름 ①~④	강사님 th07 frontend/days/01.html	—	강사님 사본 — 내용은 고치지 않고 빌드 단계 변환만(lectures_build.py ①~④)
+A02	fin-topic-funds	펀드와 ETF(강의 2일차 · 교재 7단원)	필수 지식	공통 · 로보 어드바이저 상품 안내	이동원(화면) · 원문 강사님	있음	days/02.html(우리 고침 1줄) · unit07.md · finlearn.js:22	그대로	강사님 th07 days/02.html	—	02 는 바탕 00b841c + 우리 고침 1줄(API_BASE 주석)
+A03	fin-topic-bonds	채권 · 금리 · 코인(강의 3일차 · 교재 8단원)	필수 지식	공통	이동원(화면) · 원문 강사님	있음	days/03.html · unit08.md · finlearn.js:23	그대로	강사님 th07 days/03.html	—	
+A04	fin-topic-allocation	자산배분과 퀀트(강의 4일차 · 교재 9단원)	필수 지식	P01-③ · P01-④ 읽는 법	이동원(화면) · 원문 강사님	있음	days/04.html(바탕 7c6ff80) · unit09.md · finlearn.js:24	그대로	강사님 th07 days/04.html	오준영 · 강민석(읽기만)	원본이 2판 앞섬 — ⑦ 흐름 ④ 대상
+A05	fin-topic-company	회사 구조 · 세무회계(교재 1 · 10단원)	필수 지식	공통	이동원(화면) · 원문 강사님	겹침	curriculum/unit01.md · unit10.md · finlearn.js:25	⑦ — 흐름 ④ 첫 사례(10단원 제목 ≠ 본문)	강사님 th01 docs/10-1~3.md · 지워진 docs/10.md(08-02 판)	—	10단원은 1단원과 같은 주제의 옛 판 — 합치기 첫 사례(조사서 1.3절)
+A06	fin-topic-stocks	주식시장 기초(교재 2단원)	필수 지식	공통	이동원(화면) · 원문 강사님	있음	curriculum/unit02.md · finlearn.js:26	그대로	강사님 th01 docs	—	
+A07	fin-topic-technical	기술적 분석 기초(교재 3단원)	필수 지식	P01-②-1~3 읽는 법	이동원(화면) · 원문 강사님	있음	curriculum/unit03.md · finlearn.js:27	그대로	강사님 th01 docs	신장환(읽기만)	지표를 「읽는 법」 은 여기 · 「계산 정의」 는 C701
+A08	fin-topic-industry	산업 · 기업 · 재무(교재 4단원)	필수 지식	RFP2-3.1.4-② 읽는 법 · 투자분석 네 화면	이동원(화면) · 원문 강사님	있음	curriculum/unit04.md · finlearn.js:28	그대로	강사님 th01 docs	오준영(읽기만)	
+A09	fin-topic-macro	거시경제와 시장(교재 5단원)	필수 지식	투자분석 네 화면(ECOS)	이동원(화면) · 원문 강사님	있음	curriculum/unit05.md · finlearn.js:29	그대로	강사님 th01 docs	—	
+F00	before-you-start	시작하기 전에 — 이 서비스로 할 수 있는 것과 없는 것(모의 · 교육 · 실거래 안 함 · 투자 권유 아님 · 데이터 기준일)	필수 지식	RFP2-4.2-①~③ · 공통	이동원(글) · 팀(정책)	없음	—	⑦ — 고지 문구 한 벌을 두 메뉴 꼬리에	Investor.gov Introduction to Investing · 토스증권 유의 문구 · 키움 채널K 고지 · 요구 대장 RFP2-4.2	팀 전원	붙일 곳: 강의실 맨 앞 카드 + 두 메뉴 공통 꼬리말 · 강사님 강의 꼬리말이 10-08 원본에서 사라짐(우리 사본엔 있음) — 우리 고지를 원본에 기대지 않게
+F01	stock-basics	주식 · 시장 · 주문의 기본(장 시간 · 가격제한폭 · 시간외 · 대체거래소 · 결제)	필수 지식	공통 · P01-④-3 체결 가정	이동원	뼈대	public/learn/content/stock-basics.md(F.1)	⑦	한국거래소 업무규정 · 투교협 금융투자 HOWTO 5편(주문 · 체결) · KRX 아카데미 초보투자자 교실 4화	강민석	붙일 곳: 「주식시장 기초」 보완 칸 · 교재 2단원과 겹치는 부분은 요약 + 링크 · 우리 장은 2026 제도(NXT 등)만 보완
+F02	dividend-dates	배당 기준일 · 배당락일 · 지급일	필수 지식	P01-①-4 · P01-③-3	이동원	뼈대	public/learn/content/dividend-dates.md(F.2)	⑦	상법 제354조 · DART 배당 공시 · 우리 수집기 배당 규칙(collector/README)	오준영	붙일 곳: 「주식시장 기초」 보완 칸 + 일정 화면 입구 · 구현은 이미 끝(W4 · W7) — 장만 늦음
+F03	trading-costs-tax	매매 비용과 증권거래세(2026)	필수 지식	P01-④-1 · P02-④-1	이동원	뼈대	public/learn/content/trading-costs-tax.md(F.3)	⑦	증권거래세법 시행령(법령 Open API · 시행일 판) · 우리 비용 모델	강민석	붙일 곳: 「주식시장 기초」 보완 칸 + 백테스트 · 성과 화면 입구 · 세율은 시행일 판을 장 머리에 · 바뀌면 판을 올림
+F04	derivatives-futures-options	선물과 옵션(보완)	필수 지식	공통	이동원	겹침	public/learn/content/derivatives-futures-options.md(F.4)	⑦ — 장을 만들지 않고 A01 주제 화면의 보완 칸으로 합침	강의 1일차 · 금융투자교육원 파생상품 사전교육	—	붙일 곳: 「선물과 옵션」 보완 칸 · 강사님 강의와 같은 주제 — 새 장 대신 「강의에 없는 것」 만
+F05	funds-etf	펀드와 ETF(보완 — 레버리지 · 인버스 사전교육 · 분배금)	필수 지식	로보 어드바이저 상품 안내(④)	이동원	겹침	public/learn/content/funds-etf.md(F.5)	④ 안 뼈대 손질만 → ⑦ 본문(보완 칸)	강의 2일차 · 금융투자교육원 레버리지 ETP 사전 의무교육	오준영	붙일 곳: 「펀드와 ETF」 보완 칸 · 레버리지 ETP 는 의무교육 뒤 거래(금융투자교육원) — 앱 안내에 반영 후보
+F06	bonds-crypto	채권과 코인(보완)	필수 지식	공통 · 3차 코인 화면	이동원	겹침	public/learn/content/bonds-crypto.md(F.6)	⑦(채권) · 코인은 배경 ③ 결정 뒤	강의 3일차 · 배경 ③ 조사서	—	붙일 곳: 「채권 · 금리 · 코인」 보완 칸 · 코인 기준은 배경 ③(시장 범위)이 정본
+F07	asset-allocation-quant	자산배분과 퀀트(보완)	필수 지식	P01-③ · P01-④	이동원	겹침	public/learn/content/asset-allocation-quant.md(F.7)	⑦ — A04 보완 칸으로 합침	강의 4일차	오준영	붙일 곳: 「자산배분과 퀀트」 보완 칸
+F08	robo-advisor-rules	로보어드바이저와 법 — 전자적 투자조언장치	필수 지식	로보 어드바이저(④) · U1	이동원	뼈대	public/learn/content/robo-advisor-rules.md(F.8)	④ 안 뼈대 손질만 → ⑦ 본문	자본시장법 시행령 제2조 제6호 · 금융투자업규정 · 금소법 제17조 · 제18조 · 제19조	오준영	붙일 곳: 새 주제 「투자 성향과 로보어드바이저」 · 투자성향(F10)과 짝
+F09	paper-vs-real-trading	모의투자와 실거래는 무엇이 다른가(체결 · 시간외 · 대회 규칙)	필수 지식	P01-④-3 · P02-⑤-1 · ⑤-2	이동원(글) · 강민석 · 오준영(정확성)	없음	—	⑦ — 배경 ④ L5	배경 ④ 조사서 <표 4> · 증권사 모의투자 운영규정 · 대회 규정	강민석 · 오준영	붙일 곳: 새 주제 「모의투자와 매매 규칙」 · 용어 7개(모의투자 · 체결 · 미체결 · 시간외 단일가 · 대체거래소 · 시간가중수익률 · 회차) 함께
+F10	investor-profile-suitability	투자 성향과 적합성 — 왜 묻고 무엇이 달라지나	필수 지식	U1 · 로보 어드바이저(④)	이동원(글) · 오준영(정확성)	없음	—	④ 안 뼈대만 → ⑦ 본문	금소법 제17조(적합성) · 제18조(적정성) · 제19조(설명의무) · 금융투자협회 표준투자권유준칙	오준영	붙일 곳: 새 주제 「투자 성향과 로보어드바이저」 · 점수식 · 5단계 매핑은 C909(개념 학습)
+F11	reading-performance-metrics	성과 지표 읽는 법 — 수익률 · MDD · 샤프 · 승률 · 손익비	필수 지식	P01-④-1 · P02-④-2 · U9	이동원(글) · 강민석(정확성)	없음	—	⑪	강의 4일차 · 백테스트 보고서 v0.2(#134) · Investor.gov What is Risk	강민석	붙일 곳: 「자산배분과 퀀트」 보완 칸 · 계산 정의는 C802(개념 학습)가 정본 — 여기는 읽는 법만
+F12	can-you-trust-a-backtest	백테스트 결과를 믿어도 될까 — 과최적화 · 생존 편향 · 미래 참조	필수 지식	P02-①-3 · SCH-ROB · RFP2-3.1.4-①	이동원(글) · 강민석 · 신장환(정확성)	없음	—	⑪	ML4Trading primer(룩어헤드 · 누수) · QuantConnect 문서 · 강의 4일차	강민석 · 신장환	붙일 곳: 「자산배분과 퀀트」 보완 칸 · 기법(워크포워드 등)은 C806
+F13	stop-loss-take-profit	손절 · 익절 · 포지션 크기 — 왜 미리 정하나	필수 지식	P02-①-2 · U6 · P02-③-1	이동원(글) · 신장환(정확성)	없음	—	⑬ 11-02 「포지션 · 위험」 전	배경 ⑥ 조사(정본) · 강사님 th03 ATR 본보기 · Pine v6 이행 안내(strategy.exit)	신장환	붙일 곳: 새 주제 「모의투자와 매매 규칙」 · 배경 ⑥(익절 · 손절 안내)과 같은 개념 — 그쪽 결정을 따른다
+F14	us-stocks-basics	미국 주식 거래 기초 — 시간 · 서머타임 · 환율 · 세금	필수 지식	3차 주인 없는 화면(미국주식 넷)	이동원	없음	—	⑬ 3차 뒤쪽 — 배경 ③ 결정 뒤	배경 ③ 조사서(시장별 기준 23항목)	—	붙일 곳: 새 주제 「미국 주식」(배경 ③ 결정 뒤) · 범위 판정은 배경 ③ 정본
+C001	map	전체 지도 — 내가 만들 것과 읽는 순서	개념 학습	P01-①-1~4	이동원	있음	public/learn/content/map.md(0.1)	⑪ — 전 팀 범위로 다시 씀(옛 문체 · 내부 말 빼기)	개념 학습 설계서	팀 전원	지금은 이동원 몫만 · 「2차 프로젝트 · 요구 ID · W 번호」 등 내부 말 남음(S74 피드백)
+C101	ohlcv-bars	봉과 OHLCV	개념 학습	P01-①-2	이동원	있음	content/ohlcv-bars.md(1.1)	완료	예제 ohlcv_bars.py	신장환(읽기만)	
+C102	adjusted-price	수정주가	개념 학습	P01-①-2	이동원	있음	content/adjusted-price.md(1.2)	완료	예제 adjusted_price.py	강민석(읽기만)	용어사전에 「수정주가」 표제어 없음 — 용어 보충 대상
+C103	intraday-timezone	분봉과 시간대	개념 학습	P01-①-2 · P01-②-3	이동원	있음	content/intraday-timezone.md(1.3)	완료	예제 intraday_kst.py	신장환(읽기만)	
+C104	data-quality-check	데이터 품질 검사	개념 학습	SCH-DQ	이동원	있음	content/data-quality-check.md(1.4)	완료	예제 quality_check.py	—	
+C201	data-layers	원문 · 정제 · 파생 세 층	개념 학습	P01-①-2	이동원	뼈대	content/data-layers.md(2.1)	⑪	강사님 python-crawling-lab 이름 · 우리 수집기	—	구현은 끝 — 장만 늦음
+C202	public-api-basics	공식 API 다루기 — 인증키 · 한도 · 재시도	개념 학습	P01-①-2	이동원	뼈대	content/public-api-basics.md(2.2)	⑪	공공데이터포털 · DART · ECOS 이용 안내	오준영(증권사 API 와 비교)	C1001 증권사 API 와 짝
+C203	dataset-versioning-hf	데이터셋 판과 공유 — HF Hub	개념 학습	P01-①-2	이동원	뼈대	content/dataset-versioning-hf.md(2.3)	⑦ — 판 보관(흐름 ②) 구현과 같은 때	HF Hub 문서 · 우리 hf_dataset.py	—	이 조사의 HF 저장 안이 예제
+C204	batch-scheduling	정기 배치 — 예약 · 잠금 · 멱등성 · 따라잡기	개념 학습	P01-①-4 · P02-⑤-3	이동원	뼈대	content/batch-scheduling.md(2.4)	① 수집 단추 뒤 ⑪	우리 daily_update.py · 작업 스케줄러	오준영(전략 실행 일정)	C1004 와 겹침 — 정본은 여기
+C205	trading-calendar	거래일 달력과 금융 일정	개념 학습	P01-①-4	이동원	뼈대	content/trading-calendar.md(2.5)	⑪	KRX 휴장일 · 우리 market_calendar.py	강민석(장 시간 판정)	
+C206	news-disclosure-collection	공시 · 뉴스 수집과 이름표 — 받은 날 · 이용 조건	개념 학습	P01-①-2	이동원	없음	—	⑪	DART · 정책브리핑 이용 조건 · 공공누리	—	W7 구현은 끝
+C207	multi-market-registry	여러 시장의 데이터 — 시장 레지스트리 · 통화 · 시간대	개념 학습	배경 ③ 데이터 확장	이동원	없음	—	배경 ③ 결정 뒤(3차 뒤쪽)	배경 ③ 조사서 5절	—	
+C301	rag-basics	RAG — 찾아서 답하는 언어 모델	개념 학습	P01-①-3	이동원	있음	content/rag-basics.md(3.1)	완료(문체만 ⑪)	예제 rag_mini.py	—	옛 문체(내부 말) 손질은 ⑪
+C302	embedding-vector-search	임베딩과 벡터 검색	개념 학습	P01-①-3	이동원	뼈대	content/embedding-vector-search.md(3.2)	⑨ 근거 답 평가 전	Qdrant · 우리 kb 색인	—	
+C303	hybrid-search-rrf	낱말 검색과 섞어 찾기 — BM25 · FTS5 · RRF	개념 학습	P01-①-3	이동원	뼈대	content/hybrid-search-rrf.md(3.3)	⑨ 전	SQLite FTS5 문서 · RRF 원 논문	—	
+C304	chunking-legal-versions	문서 쪼개기와 법령 판 고르기	개념 학습	P01-①-3	이동원	있음	content/chunking-legal-versions.md(3.4)	완료	예제 legal_versions.py · 법령 Open API	—	
+C305	prompt-citation	프롬프트와 출처 표기	개념 학습	P01-①-3	이동원	뼈대	content/prompt-citation.md(3.5)	⑨ 전	우리 답변 정책	—	「투자 권유 아님」 고지 위치 질문 포함
+C306	rag-evaluation	RAG 평가 — Recall@k · MRR · 충실도	개념 학습	P01-①-3	이동원	뼈대	content/rag-evaluation.md(3.6)	⑥ W8 마무리와 같은 때	W8 결과 · Ragas 문서	—	근거 충실도 평가도 여기(새 장 안 만듦)
+C307	local-llm-ollama	로컬 LLM — Ollama · 양자화	개념 학습	P01-①-3	이동원	뼈대	content/local-llm-ollama.md(3.7)	⑨ 전	Ollama 문서 · 우리 실측	—	
+C401	thesaurus-skos	용어 사전과 시소러스 — 연관 · 상위 · 하위 · 혼동	개념 학습	P01-①-1	이동원	뼈대	content/thesaurus-skos.md(4.1)	⑦ R01 남은 것과 같은 때	SKOS · ANSI/NISO Z39.19 · 우리 glossary_build.py	—	
+C402	knowledge-graph-basics	지식 그래프 맛보기	개념 학습	P01-①-1	이동원	뼈대	content/knowledge-graph-basics.md(4.2)	⑦	API-GLOS-05 /graph	—	
+C501	lightweight-charts	Lightweight Charts 로 가격 차트 그리기	개념 학습	U7 · 3차 TradingView	이동원(글) · 신장환(U7 화면)	뼈대	content/lightweight-charts.md(5.1)	⑬ 3차 첫 주	Lightweight Charts 문서(Apache 2.0 · 제작자 표시)	신장환	U7 지표 차트와 같은 라이브러리
+C502	pine-script-basics	Pine Script 기초 — 지표와 전략	개념 학습	P02-③-1	이동원	뼈대	content/pine-script-basics.md(5.2)	⑬ 3차 첫 주	TradingView Pine Script 문서(v6)	신장환(지표 정의)	
+C503	tradingview-webhook	TradingView 경보를 서버로 받기 — 웹훅	개념 학습	P02-③-3	이동원	뼈대	content/tradingview-webhook.md(5.3)	⑬ 10-28 오후 전	TradingView 웹훅 도움말 · 우리 url_guard	오준영(주문 쪽 연결)	
+C504	pine-strategy-tester	Strategy Tester 읽기 — strategy() · 성과 표 · 체결 가정	개념 학습	P02-③-1 · ③-2	이동원	없음	—	⑬ 11-03 오전 전	TradingView Strategy Tester 문서 · Pine v6 이행 안내(기본 증거금 100% · 9000 거래 넘으면 오래된 주문부터 정리)	강민석	C808 대사와 짝 · 시작 금액 · 비용 칸 고정(배경 ④ L3)
+C505	alerts-delivery	알림 보내기 — 한 번만 · 실패 기록	개념 학습	P02-③-3	이동원	겹침	content/tradingview-webhook.md(5.3) 안	⑬ 10-28 전	텔레그램 Bot API 문서	오준영	5.3 장 안의 절로 — 새 장 안 만듦
+C601	fastapi-basics	FastAPI 로 API 만들기	개념 학습	공통	이동원	뼈대	content/fastapi-basics.md(6.1)	⑪	FastAPI 문서	팀 전원(읽기만)	
+C602	docker-compose-dev	Docker Compose 와 개발 모드	개념 학습	공통	이동원	뼈대	content/docker-compose-dev.md(6.2)	⑪	Docker 문서 · 우리 compose	—	
+C603	testing-pytest	시험 코드 — pytest · 가짜 객체 · 계약 시험	개념 학습	공통 · P02-②-2 단위 시험	이동원	뼈대	content/testing-pytest.md(6.3)	⑪	pytest 문서	신장환(지표 단위 시험)	
+C604	optimistic-concurrency	같은 글을 둘이 고치면 — 낙관적 동시성	개념 학습	공통	이동원	뼈대	content/optimistic-concurrency.md(6.4)	⑪	HF parent_commit · 우리 learn_team.py	—	주문 멱등(C1002)과 이어짐
+C701	indicator-definitions	지표 계산 정의 — SMA · EMA · Wilder RSI · MACD · 볼린저(모집단 표준편차)	개념 학습	P01-②-1 · P02-①-1	신장환	없음	—	⑪	TradingView Pine 레퍼런스(ta.*) · TA-Lib 함수 목록 https://ta-lib.org/functions · Wilder(1978) · LEAN 지표 문서	신장환	교재 3단원(A07)은 읽는 법 · 여기는 계산 정의 정본
+C702	candlestick-patterns-sr	캔들 패턴 · 지지 · 저항 · 돌파 탐지	개념 학습	P01-②-2	신장환	없음	—	⑪	교재 3단원 · TA-Lib CDL 패턴 함수 https://ta-lib.org/functions	신장환	
+C703	multi-timeframe-signals	여러 주기 신호 합치기와 신뢰도(0~1)	개념 학습	P01-②-3 · SCH-RT	신장환	없음	—	⑪	우리 신호 설계서 · 일정표(신호는 매 거래일 한 번 — D7 ④)	신장환	
+C704	lookahead-free-indicators	미래 참조 없는 지표 함수 — t 시점 · 증분 갱신 · 단위 시험	개념 학습	P02-②-2(3차 채점 항목)	신장환	없음	—	⑬ 3차 첫 주	ML4Trading agent skill(룩어헤드 · 누수) · TA-Lib 증분 갱신 API https://ta-lib.org/api/stream · 수치 안정성(시작점 의존) https://ta-lib.org/api/rust	신장환	★ 채점 항목이라 3차 시작 전에 먼저
+C705	custom-indicator-versioning	지표 정규화(z점수 · 백분위)와 커스텀 지표의 판	개념 학습	P02-②-1 · ②-3	신장환	없음	—	⑬	통계 교재 · 우리 지표 API	신장환	
+C706	xai-shap	XAI — SHAP 기여도를 쉬운 말로	개념 학습	P01-①-5	신장환	없음	—	⑪	SHAP 문서 · LightGBM pred_contrib	신장환	core.js 용어 「SHAP 기여도」 와 잇기
+C707	strategy-rule-spec	전략 규칙 명세(JSON) — 조건 · 손절 · 익절 · 포지션 크기	개념 학습	P02-①-2 · U6	신장환	없음	—	⑬ 11-02 오전 전	우리 기능 설계서 3절 C2 · Pine v6 이행 안내(strategy.exit 손절 · 익절 우선 규칙 변경) https://kr.tradingview.com/pine-script-docs/migration-guides/to-pine-version-6	신장환 · 이동원(Pine 생성)	F13(읽는 법)과 짝
+C801	backtest-basics	백테스트의 뼈대 — 체결 가정 · 다음 봉 시가 · 비용 · 슬리피지	개념 학습	P01-④-1 · P02-④-1	강민석	없음	—	⑪	백테스트 보고서 v0.2(#134) · LEAN Reality Modeling https://www.quantconnect.com/docs/v2/writing-algorithms/reality-modeling/key-concepts	강민석	
+C802	performance-metrics-calc	성과지표 계산 — CAGR · MDD · 샤프 · 소르티노 · 칼마 · 승률 · 손익비 · 회전율	개념 학습	P01-④-1 · P02-④-2 · U9	강민석	없음	—	⑪	백테스트 보고서 v0.2 · 업계 정의 원문(장 쓸 때 확인)	강민석	승률 정의 두 벌 · 손익비 없음(요구 대장 비고) — 한 정의로
+C803	signal-to-opinion	신호를 의견으로 — 매수 · 매도 · 보유 규칙 표	개념 학습	P01-④-2	강민석	없음	—	⑪	우리 의견 규칙 표	강민석 · 신장환	
+C804	paper-ledger	모의 주문 장부 — 한 장부 · 체결가 평가 · 총자산 대사	개념 학습	P01-④-3	강민석	없음	—	⑪	배경 ④ 조사서 · 우리 paper_trading.py	강민석	F09(필수 지식)과 짝
+C805	bootstrap-simulation	수익 분포 시뮬레이션 — 부트스트랩 · 목표 수익률 달성 확률	개념 학습	U3 · U4	강민석	없음	—	⑪	통계 교재 · 우리 시뮬레이션 코드	강민석	
+C806	robustness-walkforward	강건성 — 아웃오브샘플 · 워크포워드 · 민감도 · 몬테카를로	개념 학습	SCH-ROB · P02-①-3	강민석	없음	—	⑬ 10-29 오후 「전략 최적화」 전	ML4Trading(purged · embargoed 검증) · QuantConnect 최적화 문서	강민석 · 신장환	F12(읽는 법)과 짝
+C807	lean-engine-basics	LEAN 엔진 기초 — 알고리즘 · 데이터 · 비용 모델 · SetCash	개념 학습	P02-④-1	강민석	없음	—	⑬ 3차 첫 주	QuantConnect 문서 · Bootcamp	강민석	
+C808	cross-engine-reconciliation	두 엔진 결과 대사 — 신호 · 체결 · 비용 층으로 나눠 찾기	개념 학습	P02-④-3 · P02-③-2	강민석 · 이동원	없음	—	⑬ 11-03 · 11-04 전	우리 대사 메모 · 배경 ④ L3 · LEAN Trade Fills(백테스트 기본은 전량 체결 · 부분 체결은 사용자 모델) https://www.quantconnect.com/docs/v2/writing-algorithms/reality-modeling/trade-fills/key-concepts	강민석	C504 와 짝
+C809	time-weighted-return	시간가중수익률과 입출금 — 회차 · 입금이 수익률을 흐리지 않게	개념 학습	P01-④-3 · P01-③-3	강민석 · 오준영	없음	—	⑪	CFA Institute GIPS TWR 정의(장 쓸 때 원문 확인) · 배경 ④	강민석 · 오준영	
+C901	rebalancing-methods	리밸런싱 세 방식 — 시간 · 이탈률 · 현금흐름	개념 학습	P01-③-1~3 · U5	오준영	없음	—	⑪	리밸런싱 상세 설계 v0.1 · 강의 4일차	오준영	강의 4일차(A04)는 개념 · 여기는 규칙 · 예외(#124)
+C902	mean-variance-optimization	평균-분산 최적화와 제약	개념 학습	RFP2-3.1.3-①	오준영	없음	—	⑪	Markowitz(1952) · PyPortfolioOpt 문서 https://pyportfolioopt.readthedocs.io	오준영	
+C903	risk-parity-min-variance	리스크 패리티와 최소분산	개념 학습	RFP2-3.1.3-②	오준영	없음	—	⑪	원 논문 · PyPortfolioOpt(HRP · 최소분산) 문서	오준영	
+C904	black-litterman	블랙-리터만 — 투자자 뷰 반영	개념 학습	RFP2-3.1.3-③	오준영	없음	—	⑪	Black · Litterman(1992) · PyPortfolioOpt Black-Litterman 문서	오준영	
+C905	regime-dynamic-allocation	시장 국면과 동적 자산배분	개념 학습	RFP2-3.1.3-④	오준영	없음	—	⑪	우리 국면 판정 코드	오준영	국면 판정은 그날까지의 데이터만(C704 와 같은 원리)
+C906	factor-screening	팩터 스크리닝 — 가치 · 모멘텀 · 퀄리티 · 저변동성 · 복합 점수	개념 학습	RFP2-3.1.4-① · ④	오준영	없음	—	⑪	팩터 원 논문 · 생존편향 없는 유니버스(우리 수집 DB)	오준영	
+C907	fundamental-filter-pit	재무 필터와 공시일 기준 — PER · PBR · ROE · 부채비율	개념 학습	RFP2-3.1.4-②	오준영	없음	—	⑪	DART 공시 · 우리 dart 수집(이동원 데이터)	오준영 · 이동원	지표 뜻은 교재 4단원(A08)
+C908	technical-screening	기술적 스크리닝 — 정배열 · 52주 신고가	개념 학습	RFP2-3.1.4-③	오준영	없음	—	⑪	교재 3단원 · 우리 스크리닝 코드	오준영 · 신장환	
+C909	investor-profile-scoring	투자성향 설문 점수 → 5단계 → 목표 비중	개념 학습	U1	오준영	없음	—	⑪	금융투자협회 표준투자권유준칙 · 우리 설문	오준영	F10(필수 지식 — 뜻 · 법)과 짝
+C910	stress-test-scenarios	스트레스 검증 — 급락 · 금리 · 환율 시나리오	개념 학습	SCH-STR	오준영 · 강민석	없음	—	⑪	감독기관 스트레스 테스트 공개 자료 · 우리 코드	오준영 · 강민석	
+C1001	broker-api-basics	증권사 Open API 기초 — 토큰 · 모의 · 실전 주소 · 호출 제한	개념 학습	P02-⑤-1	오준영	없음	—	⑬ 10-30 오전 전	증권사 Open API 개발자 문서 · 배경 ④ 이슈 2	오준영	C202(공식 API)와 짝
+C1002	order-safety	주문 안전 — 멱등키 · 중복 방지 · 손실 한도 · 비상 정지 · 실거래 차단	개념 학습	P02-⑤-2 · RFP2-4.2-①	오준영	없음	—	⑬ 10-30 · 11-05 전	우리 게이트웨이 · ADR-0001	오준영	C604(낙관적 동시성)와 이어짐
+C1003	order-lifecycle	주문의 일생 — 접수 · 체결 · 미체결 · 정정 · 취소	개념 학습	SCH-ORD · U10	오준영	없음	—	⑬ 11-05 오전 전	증권사 주문 API 문서 · F01(시장 · 주문)	오준영	F01 · F09 와 겹치는 정의는 그쪽 링크
+C1004	strategy-job-alerting	전략 실행 일정 · 로그 · 장애 알림	개념 학습	P02-⑤-3	오준영	겹침	content/batch-scheduling.md(2.4) 안	⑬	C204 정기 배치	오준영	새 장 대신 C204 에 「전략 실행」 절
