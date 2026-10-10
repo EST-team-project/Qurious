@@ -146,20 +146,27 @@ def _parse_ts(v: str | None) -> datetime | None:
 
 # ── 러너 ──────────────────────────────────────────────────────────────────
 def load_catalog(state_dir: Path | None) -> dict:
-    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at, guards}. 없으면 빈 목록.
+    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at, guards, fill_max_days}. 없으면 빈 목록.
 
     `guards` 는 화면 실행을 막는 때(2026-10-10 · 러너가 막는 데 쓰는 함수로 셈한 시각) — 옛 목록에는 없어 빈 사전이다.
+    `fill_max_days` 는 빠진 날 채우기 한 번의 범위 상한(일 · 러너 `FILL_MAX_DAYS`) — 옛 목록에는 없어 None 이고, 그러면 앱은
+    채우기를 받지 않는다(짐작 금지 · TC-CQ-18 · 23).
     """
     cat = _read_json(state_dir / CATALOG_FILE) if state_dir is not None else None
     steps = [s for s in (cat or {}).get("steps") or [] if isinstance(s, dict) and s.get("name")]
     guards = (cat or {}).get("guards")
+    max_days = (cat or {}).get("fill_max_days")
     return {"groups": (cat or {}).get("groups") or [], "steps": steps,
             "by_name": {s["name"]: s for s in steps}, "written_at": (cat or {}).get("written_at"),
-            "guards": guards if isinstance(guards, dict) else {}}
+            "guards": guards if isinstance(guards, dict) else {},
+            "fill_max_days": max_days if isinstance(max_days, int) and not isinstance(max_days, bool) else None}
 
 
-def _step_view(rec: dict, by_name: dict | None = None) -> dict:
-    """단계 한 줄 — 이름표 · 묶음 · 하는 일은 그 회차 기록 → 단계 목록 → 이름 그대로 순으로 찾는다."""
+def _step_view(rec: dict, by_name: dict | None = None, *, admin: bool = False) -> dict:
+    """단계 한 줄 — 이름표 · 묶음 · 하는 일은 그 회차 기록 → 단계 목록 → 이름 그대로 순으로 찾는다.
+
+    ``admin`` 이면 실패한 단계의 까닭(``error``)과 로그 파일 이름(``log_name``)을 함께 싣는다(DF-101 · 2026-10-10 결정
+    「관리자 화면에만」) — 러너가 경로 · 비밀값을 걸러 적었어도 내부 말 · PC 의 파일 이름이라 모두가 보는 답에는 싣지 않는다."""
     name = rec.get("name", "")
     meta = (by_name or {}).get(name, {})
     fatal = bool(rec["fatal"]) if "fatal" in rec else bool(meta.get("fatal"))
@@ -178,6 +185,10 @@ def _step_view(rec: dict, by_name: dict | None = None) -> dict:
     # 건너뛴 까닭 · 뒤 할 일 · 거래일(2026-10-08) — 러너가 판정해 기록에 쓴 그대로 넘긴다(앱은 종료코드를 다시 해석하지 않는다).
     # `followup` 이 있는 건너뜀(신호 단계 · 앱 DB 꺼짐)만 화면이 노랑으로 칠한다
     out.update({k: rec[k] for k in ("reason", "followup", "date") if rec.get(k)})
+    # 빠진 날(2026-10-10) — 채울 날 수 · 첫날 · 마지막 날 · 다음 묶음. 러너가 상태 파일에서 모아 적은 그대로(앱은 날짜를 셈하지 않는다)
+    out.update({k: rec[k] for k in ("fill_from", "fill_to", "fill_days", "fill_rest") if rec.get(k)})
+    if admin:
+        out.update({k: rec[k] for k in ("error", "log_name") if rec.get(k)})
     return out
 
 
@@ -191,7 +202,7 @@ def pc_disk(state_dir: Path | None) -> dict | None:
             "total_gb": gb(d.get("total_bytes")), "collector_db_gb": gb(d.get("collector_db_bytes"))}
 
 
-def runner_state(state_dir: Path | None, now: datetime) -> dict:
+def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) -> dict:
     hh, mm = SCHEDULE_HM
     today_run = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
     nxt = today_run if now < today_run else today_run + timedelta(days=1)
@@ -218,7 +229,7 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
     out["groups"] = catalog["groups"]
     last = _read_json(state_dir / "daily_update_last.json")
     if last:
-        steps = [_step_view(s, by_name) for s in last.get("steps") or []]
+        steps = [_step_view(s, by_name, admin=admin) for s in last.get("steps") or []]
         started, finished = _parse_ts(last.get("started_at")), _parse_ts(last.get("finished_at"))
         out["last"] = {
             "started_at": last.get("started_at"),
@@ -229,7 +240,9 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
             "stopped": last.get("stopped"),
             "derived": last.get("derived"),
             "steps": steps,
-            "reruns": last.get("reruns") or [],
+            # 다시 돌림 줄의 로그 경로 · 요청 번호는 관리자 답에만(까닭 · 로그 파일 이름과 같은 결정 · 2026-10-10)
+            "reruns": [{k: v for k, v in r.items() if admin or k not in ("log", "request_id")}
+                       for r in last.get("reruns") or [] if isinstance(r, dict)],
             "price_max": _iso_day((last.get("after") or {}).get("price_max")),
         }
 
@@ -250,10 +263,11 @@ def runner_state(state_dir: Path | None, now: datetime) -> dict:
             "skipped": h.get("skipped"),
             "stopped": h.get("stopped"),
             "only": h.get("only"),                         # 한 단계만 다시 돌린 줄(2026-10-07~)
+            "fill": h.get("fill"),                         # 빠진 날 채우기 줄의 범위 {from, to}(2026-10-10~)
             "minutes": round((f - s).total_seconds() / 60, 1) if s and f else None,
             "price_max": _iso_day(h.get("price_max")),
             # 단계별 결과는 2026-10-07 뒤 회차부터 남는다 — 그 앞 줄은 None
-            "steps": [_step_view(x, by_name) for x in h["steps"]] if isinstance(h.get("steps"), list) else None,
+            "steps": [_step_view(x, by_name, admin=admin) for x in h["steps"]] if isinstance(h.get("steps"), list) else None,
         })
 
     # 판정 — 도는 중 > 실패 > 오늘 회차 없음 > 일부 실패 > 성공
@@ -497,7 +511,7 @@ def runner_detail(now: datetime | None = None) -> dict:
     now = now or _now()
     cdir = collector_dir()
     sdir = cdir / "state" if cdir else None
-    out = runner_state(sdir, now)
+    out = runner_state(sdir, now, admin=True)               # 관리자 답 — 실패한 단계의 까닭 · 로그 파일 이름을 싣는다(DF-101)
     cat = load_catalog(sdir)
     keys = ("name", "label", "group", "desc", "fatal", "derived", "upload", "timeout_min")
     # 빠진 날 채우기 명령(2026-10-08 · 러너 단계 정의의 `fill`) — 옛 단계 목록에는 칸이 없으니 빈 글로(없는 칸을 None 으로 두면

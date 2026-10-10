@@ -349,6 +349,33 @@ def test_runner_history_steps_disk_and_detail(tmp_path, monkeypatch):
     assert d["disk"]["free_gb"] == 130.4 and d["rerun"]["from_screen"] is False and "--only" in d["rerun"]["command"]
 
 
+def test_step_fill_days_for_all_and_why_only_for_admin(tmp_path, monkeypatch):
+    """TC-DST-18 · 빠진 날(채울 날 n · 첫날 · 마지막 날)은 단계 줄 그대로 넘기고(데이터 관제 · 수집 일정 모두) · 실패한 단계의 까닭 ·
+    로그 파일 이름(DF-101)은 관리자 답(수집 일정 · 단계)에만 싣는다 — 로그인한 모두가 보는 데이터 관제 응답에는 없다(내부 말 · PC 의
+    파일 이름 · 2026-10-10 결정 「관리자 화면에만」). 데이터 관제는 30초 캐시를 모두가 같이 쓰므로 관리자 칸을 섞지 않는다."""
+    import inspect
+    st = tmp_path / "state"
+    write_catalog(st)
+    held = {"name": "signals", "rc": None, "seconds": 0.0, "reason": "app_db_down", "followup": "fill", "date": "2026-10-07",
+            "fill_from": "2026-10-02", "fill_to": "2026-10-07", "fill_days": 3, "note": "앱 DB 꺼짐 · 건너뜀"}
+    bad = {"name": "dividend", "rc": 1, "seconds": 25.0, "error": "DartError: status=800 점검",
+           "log_name": "daily_update-20261010-165203-only-dividend.log"}
+    write_state(st, last=last_run("2026-10-10", [step("price"), bad, held], ok=False), history=[
+        {"started_at": "2026-10-10T12:30:01+09:00", "finished_at": "2026-10-10T12:51:20+09:00", "ok": False,
+         "steps": [step("price"), bad, held]}])
+    r = ds.runner_state(st, at("2026-10-10T15:00:00"))
+    d_, s_ = r["last"]["steps"][1], r["last"]["steps"][2]
+    assert (s_["fill_from"], s_["fill_to"], s_["fill_days"]) == ("2026-10-02", "2026-10-07", 3)
+    assert "error" not in d_ and "log_name" not in d_ and "error" not in r["history"][0]["steps"][1]
+    monkeypatch.setattr(ds, "collector_dir", lambda: tmp_path)
+    det = ds.runner_detail(at("2026-10-10T15:00:00"))
+    dd = det["last"]["steps"][1]
+    assert (dd["error"], dd["log_name"]) == ("DartError: status=800 점검", "daily_update-20261010-165203-only-dividend.log")
+    assert det["history"][0]["steps"][1]["error"] == dd["error"] and det["last"]["steps"][2]["fill_days"] == 3
+    src = inspect.getsource(ds.get_status)
+    assert "runner_state(" in src and "admin=True" not in src, "모두가 보는 상태 API 는 관리자 칸을 싣지 않는다"
+
+
 def test_runner_api_is_admin_only(tmp_path, monkeypatch):
     """TC-DST-12 · 수집 일정 · 단계 API(`GET /api/data/runner`)는 관리자만 — 로그인 없이 401 · 일반 사용자 403 · 관리자 200."""
     monkeypatch.setattr(ds, "collector_dir", lambda: tmp_path)

@@ -33,13 +33,17 @@ CATALOG_STEPS = [
     {"name": "news", "label": "정책뉴스", "group": "받기", "fatal": False, "upload": False, "timeout_min": 10},
     {"name": "ohlcv", "label": "일봉", "group": "계산", "fatal": False, "upload": False, "timeout_min": 40},
     {"name": "upload", "label": "올리기", "group": "백업", "fatal": True, "upload": True, "timeout_min": 60},
+    {"name": "signals", "label": "신호", "group": "계산", "fatal": False, "upload": False, "timeout_min": 10,
+     "fill": "python scripts/signals_daily.py --from YYYY-MM-DD --to YYYY-MM-DD"},
 ]
 # 막는 때는 러너가 막는 데 쓰는 함수로 셈해 단계 목록 파일에 쓴 값(scripts/daily_update.py guard_windows · TC-DU 가 맞댄다)
 GUARDS = {"schedule": "12:30", "full": {"from": "11:00", "to": "13:30"},
           "steps": {"price": {"from": "12:00", "to": "13:30"}, "news": {"from": "12:20", "to": "13:30"},
-                    "ohlcv": {"from": "11:50", "to": "13:30"}, "upload": {"from": "11:30", "to": "13:30"}}}
+                    "ohlcv": {"from": "11:50", "to": "13:30"}, "upload": {"from": "11:30", "to": "13:30"},
+                    "signals": {"from": "12:20", "to": "13:30"}},
+          "fill": {"signals": {"from": "10:30", "to": "13:30"}}}
 CATALOG = {"groups": [], "steps": CATALOG_STEPS, "by_name": {s["name"]: s for s in CATALOG_STEPS},
-           "written_at": "2026-10-12T12:30:01+09:00", "guards": GUARDS}
+           "written_at": "2026-10-12T12:30:01+09:00", "guards": GUARDS, "fill_max_days": 31}
 EMPTY_CATALOG = {"groups": [], "steps": [], "by_name": {}, "written_at": None}
 
 
@@ -156,9 +160,9 @@ def client(monkeypatch):
 
     calls: list = []
 
-    async def fake_create(db, *, kind, step, user, catalog, now=None):
-        calls.append(("create", kind, step, user["id"]))
-        cq.validate(kind, step, catalog)
+    async def fake_create(db, *, kind, step, user, catalog, date_from=None, date_to=None, now=None):
+        calls.append(("create", kind, step, user["id"]) + ((str(date_from), str(date_to)) if kind == "fill" else ()))
+        cq.validate_request(kind, step, date_from, date_to, catalog, today=NOW.date())
         return {"id": "r1", "kind": kind, "step": step or None, "status": "queued"}, step != "news"
 
     async def fake_cancel(db, *, request_id, user, catalog, now=None):
@@ -247,6 +251,89 @@ def test_cancel_and_list_codes(client):
     assert client.get("/api/data/runner/requests?limit=101").status_code == 422
     j = client.get("/api/data/runner/requests?limit=5").json()
     assert ("list", 5) in client.calls and j["rules"]["full"] == {"from": "11:00", "to": "13:30"}
+
+
+# ── 빠진 날 채우기 — 새 종류 fill(2026-10-10 · 사용자 결정 · 상한 31일) ────────────────────────
+from datetime import date  # noqa: E402
+
+D1, D2 = date(2026, 10, 2), date(2026, 10, 6)
+
+
+def test_validate_fill_dates_and_limits():
+    """TC-CQ-18 · 빠진 날 채우기 받는 값 — 채우기 명령이 있는 단계만(러너가 쓴 단계 목록의 `fill`) · 날짜 둘 다 · 첫날 ≤ 마지막 날 ·
+    마지막 날 ≤ 오늘(KST) · 범위는 단계 목록의 상한(`fill_max_days` — 러너가 쓴 값 · 앱에 사본 없음) 안 · 단계 하나 · 전체 수집에는
+    날짜를 주지 않는다 · 상한이 없는 옛 단계 목록은 받지 않는다(짐작으로 받지 않는다)."""
+    today = date(2026, 10, 12)
+    assert cq.validate_fill("signals", D1, D2, CATALOG, today=today) == ("signals", D1, D2)
+    assert cq.validate_fill("signals", date(2026, 9, 12), today, CATALOG, today=today)[0] == "signals"     # 31일 — 됨
+    cases = (("price", D1, D2, "채우기"), ("nosuch", D1, D2, "모르는 단계"), ("signals", None, D2, "날짜"),
+             ("signals", D2, D1, "첫날"), ("signals", date(2026, 9, 11), today, "31일"),
+             ("signals", D1, date(2026, 10, 13), "오늘"), ("", D1, D2, "단계"))
+    for step, a, b, word in cases:
+        with pytest.raises(cq.RequestError) as e:
+            cq.validate_fill(step, a, b, CATALOG, today=today)
+        assert e.value.status == 422 and word in e.value.message, (step, a, b, e.value.message)
+    old = {k: v for k, v in CATALOG.items() if k != "fill_max_days"}
+    with pytest.raises(cq.RequestError) as e:
+        cq.validate_fill("signals", D1, D2, old, today=today)
+    assert "상한" in e.value.message
+    assert cq.validate_request("fill", "signals", D1, D2, CATALOG, today=today) == ("fill", "signals", D1, D2)
+    assert cq.validate_request("step", "price", None, None, CATALOG, today=today) == ("step", "price", None, None)
+    for kind, step in (("step", "price"), ("all", None)):
+        with pytest.raises(cq.RequestError) as e:
+            cq.validate_request(kind, step, D1, D2, CATALOG, today=today)
+        assert e.value.status == 422 and "날짜" in e.value.message
+
+
+def test_rules_carry_fill_windows_and_limit():
+    """TC-CQ-19 · 채우기 막는 때 · 상한도 러너가 쓴 단계 목록 그대로 — 서버 시각으로 「지금 막힘」 을 정하고(화면은 다시 세지 않는다) ·
+    상한(일)을 함께 준다(화면 확인 창이 보인다)."""
+    r = cq.rules(CATALOG, now=datetime(2026, 10, 12, 11, 0, tzinfo=KST))
+    assert r["fill"] == {"signals": {"from": "10:30", "to": "13:30"}} and r["fill_max_days"] == 31
+    assert r["blocked_now"]["fill"]["signals"] == {"blocked": True, "until": "13:30"}
+    assert cq.rules(CATALOG, now=datetime(2026, 10, 12, 14, 0, tzinfo=KST))["blocked_now"]["fill"]["signals"]["blocked"] is False
+    old = cq.rules(EMPTY_CATALOG)
+    assert old["fill"] == {} and old["fill_max_days"] is None
+
+
+def test_create_fill_codes(client):
+    """TC-CQ-20 · 채우기 만들기 — 새 줄 202 · 날짜는 요청 본문의 두 칸(YYYY-MM-DD) · 꼴이 틀리거나 범위가 틀리면 422 · 단계 하나 ·
+    전체 수집에 날짜를 붙이면 422."""
+    body = {"kind": "fill", "step": "signals", "date_from": "2026-10-02", "date_to": "2026-10-06"}
+    r = client.post("/api/data/runner/requests", json=body, headers=H)
+    assert r.status_code == 202 and ("create", "fill", "signals", "a1", "2026-10-02", "2026-10-06") in client.calls
+    for bad in ({**body, "date_from": "2026-10-2"}, {**body, "date_to": None}, {**body, "date_from": "2026-10-07"},
+                {**body, "date_from": "2026-09-01"}, {**body, "step": "price"}, {**body, "step": "rm -rf"},
+                {"kind": "step", "step": "price", "date_from": "2026-10-02", "date_to": "2026-10-06"},
+                {"kind": "all", "date_from": "2026-10-02", "date_to": "2026-10-06"}):
+        assert client.post("/api/data/runner/requests", json=bad, headers=H).status_code == 422, bad
+
+
+def test_runner_catalog_file_reaches_fill_rules(tmp_path, monkeypatch):
+    """TC-CQ-23 · 러너가 쓴 진짜 단계 목록 파일 → 앱이 읽는 목록(`data_status.load_catalog`) → 채우기 규칙 · 받는 값까지 한 줄로 —
+    상한(`fill_max_days`) · 채우기 창(`guards.fill`) · 채우기 명령(`fill`)이 앱까지 온다. 손으로 만든 목록(CATALOG)만 쓰는 시험은
+    읽는 쪽이 칸 하나를 떨어뜨려도 통과했다(2026-10-10 실제 확인 — 화면 확인 창에 상한 줄이 없었고 요청은 422 가 될 뻔했다)."""
+    import json
+    from datetime import date
+
+    from app.services import data_status as ds
+    from scripts import daily_update as du
+
+    st = tmp_path / "state"
+    st.mkdir()
+    (st / ds.CATALOG_FILE).write_text(json.dumps(du.step_catalog(now=datetime(2026, 10, 12, 9, 0, tzinfo=KST)),
+                                                 ensure_ascii=False), encoding="utf-8")
+    cat = ds.load_catalog(st)
+    assert cat["fill_max_days"] == du.FILL_MAX_DAYS
+    r = cq.rules(cat, now=datetime(2026, 10, 12, 11, 0, tzinfo=KST))
+    assert r["fill_max_days"] == du.FILL_MAX_DAYS and set(r["fill"]) == {s.name for s in du.STEPS if s.fill_args}
+    assert r["blocked_now"]["fill"]["signals"]["blocked"] is True, "11:00 은 가장 긴 범위의 채우기 창 안"
+    today = date(2026, 10, 12)
+    assert cq.validate_fill("signals", date(2026, 10, 6), date(2026, 10, 6), cat, today=today)[0] == "signals"
+    with pytest.raises(cq.RequestError):
+        cq.validate_fill("price", date(2026, 10, 6), date(2026, 10, 6), cat, today=today)
+    (st / ds.CATALOG_FILE).write_text(json.dumps({"steps": [], "fill_max_days": True}), encoding="utf-8")
+    assert ds.load_catalog(st)["fill_max_days"] is None, "참 · 거짓은 상한이 아니다"
 
 
 # ── 일회용 시험 DB ────────────────────────────────────────────────────────
@@ -489,3 +576,63 @@ def test_account_deletion_keeps_request_log_without_the_person(db_schema):
 
     counts, row = _db(scenario)
     assert "collect_requests(사용자 칸 비움)" in counts and row.requested_by is None and row.status == "queued"
+
+
+@needs_db
+def test_create_fill_is_idempotent_and_shows_its_dates(db_schema):
+    """TC-CQ-21 · 채우기 요청 — 날짜가 줄에 남고 목록 · 응답에 보인다(「신호 빠진 날 채우기 · 10-02 ~ 10-06」) · 같은 단계의 활성 채우기는
+    하나(날짜가 달라도 그 줄을 돌려준다 — 활성 줄 하나의 정본은 부분 고유 색인) · 같은 단계의 「다시 받기」 와는 따로 · 감사 줄에 범위."""
+    async def scenario(db, _):
+        admin = await _admin(db)
+        a, new_a = await cq.create(db, kind="fill", step="signals", user=admin, catalog=CATALOG, date_from=D1, date_to=D2, now=NOW)
+        b, new_b = await cq.create(db, kind="fill", step="signals", user=admin, catalog=CATALOG,
+                                   date_from=date(2026, 10, 1), date_to=D2, now=NOW + timedelta(seconds=5))
+        c, new_c = await cq.create(db, kind="step", step="signals", user=admin, catalog=CATALOG, now=NOW + timedelta(seconds=6))
+        audits = await _audits(db, "collect.request")
+        listing = await cq.listing(db, catalog=CATALOG, now=NOW + timedelta(minutes=1))
+        return a, new_a, b, new_b, c, new_c, audits, listing
+
+    a, new_a, b, new_b, c, new_c, audits, listing = _db(scenario)
+    assert (new_a, new_b, new_c) == (True, False, True) and a["id"] == b["id"] != c["id"]
+    assert (a["kind"], a["kind_label"], a["date_from"], a["date_to"]) == ("fill", "빠진 날 채우기", "2026-10-02", "2026-10-06")
+    assert b["date_from"] == "2026-10-02", "있던 줄 그대로(날짜를 바꾸지 않는다)"
+    assert c["date_from"] is None and c["date_to"] is None
+    by_id = {r["id"]: r for r in listing["requests"]}
+    assert by_id[a["id"]]["date_to"] == "2026-10-06" and by_id[a["id"]]["step_label"] == "신호"
+    fill_audit = next(x for x in audits if x.payload["request_id"] == a["id"])
+    assert fill_audit.payload["date_from"] == "2026-10-02" and fill_audit.payload["date_to"] == "2026-10-06"
+
+
+@needs_db
+def test_db_constraints_for_fill_rows(db_schema):
+    """TC-CQ-22 · 채우기 줄의 DB 제약 — 서비스를 거치지 않아도: 채우기에는 날짜 둘이 다 있고 첫날 ≤ 마지막 날 · 단계 이름이 있다 ·
+    단계 하나 · 전체 수집 줄에는 날짜가 없다(이전 0019 의 CHECK 셋)."""
+    from sqlalchemy import insert
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models.collect import CollectRequest
+
+    async def scenario(db, maker):
+        bad = [
+            {"kind": "fill", "step": "signals", "status": "queued"},
+            {"kind": "fill", "step": "signals", "status": "queued", "date_from": D1},
+            {"kind": "fill", "step": "signals", "status": "queued", "date_from": D2, "date_to": D1},
+            {"kind": "fill", "step": "", "status": "queued", "date_from": D1, "date_to": D2},
+            {"kind": "step", "step": "price", "status": "queued", "date_from": D1, "date_to": D2},
+            {"kind": "all", "step": "", "status": "queued", "date_to": D2},
+        ]
+        failed = []
+        for row in bad:
+            async with maker() as s:
+                try:
+                    await s.execute(insert(CollectRequest).values(**row))
+                    await s.commit()
+                    failed.append(False)
+                except IntegrityError:
+                    failed.append(True)
+        async with maker() as s:
+            await s.execute(insert(CollectRequest).values(kind="fill", step="signals", status="queued", date_from=D1, date_to=D1))
+            await s.commit()
+        return failed
+
+    assert _db(scenario) == [True] * 6

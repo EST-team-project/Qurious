@@ -72,6 +72,11 @@ KEEP_LOGS = 14
 BEAT_SECONDS = 15
 #: 단계 하나의 시간 한도에 더하는 여유(분) — 러너가 단계마다 한도를 이미 건다. 이것은 러너 자체가 멈췄을 때만 쓴다.
 STEP_GRACE_MIN = 15
+#: 결과 한 줄과 까닭(러너가 실패한 단계 줄에 적은 ``error`` · DF-101) 사이 — 화면이 이 글로 떼어 결과 아래 한 줄로 보인다
+#: (public/js/collect-requests.js 의 WHY_SEP · TC-CL-16 이 맞대 본다).
+WHY_SEP = " · 까닭: "
+#: 결과 칸 길이(서버 ``collect_requests.result`` 와 같다) — 넘으면 서버가 말없이 자르므로 여기서 「…」 를 붙여 자른다.
+RESULT_MAX = 300
 
 
 # ==================================================
@@ -91,43 +96,57 @@ class Runner:
         if kind == "all":
             return "전체 수집"
         s = self.step(name)
-        return (s.label or s.name) if s else name
+        base = (s.label or s.name) if s else name
+        return f"{base} 빠진 날 채우기" if kind == "fill" else base
 
     def fatal(self, name: str) -> bool:
         s = self.step(name)
         return bool(s and s.fatal)
 
-    def reject_reason(self, kind: str, name: str, allow_upload: bool) -> str:
-        """받지 않는 요청의 까닭(기다려도 바뀌지 않는 것만) — 받으면 빈 글."""
+    def reject_reason(self, kind: str, name: str, allow_upload: bool, *, date_from: Optional[str] = None,
+                      date_to: Optional[str] = None, today: Optional[datetime.date] = None) -> str:
+        """받지 않는 요청의 까닭(기다려도 바뀌지 않는 것만) — 받으면 빈 글. 채우기는 줄의 날짜를 러너 함수로 다시 본다
+        (앱이 확인했어도 — DB 의 줄을 믿지 않는다 · 상한 밖 날짜가 직접 들어온 줄)."""
         if kind == "all":
             return ""
-        if kind != "step":
+        if kind not in ("step", "fill"):
             return f"모르는 종류다 — {kind}"
         s = self.step(name)
         if s is None:
             return "러너 단계 목록에 없는 단계다(목록이 바뀌었다) — 화면을 새로 고쳐 다시 요청한다"
+        if kind == "fill":
+            return du.fill_range_error(s, date_from, date_to, today or du.now_kst().date()) or ""
         if s.upload and not allow_upload:
             return "이 작업자는 올리기 단계를 받지 않는다(작업자 등록 명령줄에 --allow-upload 가 없다)"
         return ""
 
-    def blocked(self, kind: str, name: str, now: datetime.datetime) -> str:
-        """지금은 돌리지 않는 때(12:30 회차와 겹침) — 기다림의 까닭. 판정은 러너 함수 그대로."""
+    def blocked(self, kind: str, name: str, now: datetime.datetime, *, date_from: Optional[str] = None,
+                date_to: Optional[str] = None) -> str:
+        """지금은 돌리지 않는 때(12:30 회차와 겹침) — 기다림의 까닭. 판정은 러너 함수 그대로(채우기는 그 범위의 한도로)."""
         if kind == "all":
             return du.full_run_blocked(now) or ""
         s = self.step(name)
-        return (du.rerun_blocked(s, now) or "") if s else ""
+        if s is None:
+            return ""
+        if kind == "fill":
+            return du.fill_blocked(s, date_from or "", date_to or "", now) or ""
+        return du.rerun_blocked(s, now) or ""
 
     def busy(self, now: datetime.datetime) -> str:
         """다른 실행(12:30 회차 · 손으로 돌린 러너)이 도는가 — 러너 잠금을 읽기만 한다."""
         return du.lock_holder(du.LOCK_PATH, now=now) or ""
 
-    def command(self, kind: str, name: str, request_id: str, allow_upload: bool) -> List[str]:
-        """러너를 부를 인자 목록 — 셸을 거치지 않는다. 단계 이름은 러너 단계 목록에서 온 것만(reject_reason 을 지난 뒤)."""
+    def command(self, kind: str, name: str, request_id: str, allow_upload: bool, *, date_from: Optional[str] = None,
+                date_to: Optional[str] = None) -> List[str]:
+        """러너를 부를 인자 목록 — 셸을 거치지 않는다. 단계 이름은 러너 단계 목록에서 온 것만 · 날짜는 꼴을 확인한 것만
+        (reject_reason 을 지난 뒤)."""
         args = [du.child_python(), str(du.ROOT / "scripts" / "daily_update.py"), "run"]
         if kind == "all":
             args.append("--manual")
             if allow_upload:
                 args.append("--upload")
+        elif kind == "fill":
+            args += ["--fill", self.step(name).name, "--from", str(date_from), "--to", str(date_to)]
         else:
             s = self.step(name)
             args += ["--only", s.name]
@@ -135,10 +154,12 @@ class Runner:
                 args.append("--upload")
         return args + ["--request", request_id]
 
-    def timeout_s(self, kind: str, name: str) -> int:
+    def timeout_s(self, kind: str, name: str, *, date_from: Optional[str] = None, date_to: Optional[str] = None) -> int:
         if kind == "all":
             return du.LOCK_STALE_HOURS * 3600
         s = self.step(name)
+        if s and kind == "fill":
+            return (du.fill_timeout_min(s, date_from or "", date_to or "") + STEP_GRACE_MIN) * 60
         return ((s.timeout_min if s else 30) + STEP_GRACE_MIN) * 60
 
     def record(self, request_id: str) -> Optional[Dict]:
@@ -159,6 +180,17 @@ class Runner:
         return None
 
 
+def _dur(secs: float) -> str:
+    s = round(secs or 0)
+    return f"{s // 60}분 {s % 60}초" if s >= 60 else f"{s}초"
+
+
+def _with_why(msg: str, why: Optional[str]) -> str:
+    """결과 한 줄 끝에 까닭(``WHY_SEP``) — 결과 칸 길이를 넘으면 까닭 쪽을 자르고 「…」."""
+    out = f"{msg}{WHY_SEP}{why}" if why else msg
+    return out if len(out) <= RESULT_MAX else out[:RESULT_MAX - 1] + "…"
+
+
 def _minutes(a: Optional[str], b: Optional[str]) -> str:
     try:
         d = datetime.datetime.fromisoformat(b) - datetime.datetime.fromisoformat(a)
@@ -173,6 +205,8 @@ def outcome(kind: str, rc: int, rec: Optional[Dict], *, label: str, fatal: bool,
 
     러너 화면과 같은 말 — 성공은 끝 · 멈추지 않는 단계의 실패는 경고 · 멈추는 단계의 실패는 실패 · 회차가 멈췄으면 실패.
     러너 기록에 그 요청 줄이 없으면 끝으로 적지 않는다(말없는 대체 금지 — 「결과 기록 없음」 실패).
+    실패면 러너가 그 단계 줄에 적은 까닭(``error`` · DF-101)을 ``WHY_SEP`` 뒤에 붙인다 — 전체 수집은 첫 실패 단계의 이름과 함께.
+    채우기는 채운 범위(러너 기록의 ``fill``)를 적는다.
     """
     from app.services import collect_requests as cq
 
@@ -180,23 +214,29 @@ def outcome(kind: str, rc: int, rec: Optional[Dict], *, label: str, fatal: bool,
         return "requeue", "러너가 지금은 돌 수 없다고 했다(12:30 회차와 겹침 · 다른 실행) — 다시 기다림"
     if rec is None:
         return cq.FAILED, f"결과 기록 없음 — 종료코드 {rc} · 작업자 로그와 러너 로그를 확인"
-    if kind == "step":
+    if kind in ("step", "fill"):
         s = (rec.get("steps") or [{}])[0]
         secs = float(s.get("seconds") or 0)
-        tail = f" · 시세 기준일 {rec['price_max']}" if rec.get("price_max") else ""
+        rng = rec.get("fill") or {}
+        span = rng.get("from") if rng.get("from") == rng.get("to") else f"{rng.get('from')} ~ {rng.get('to')}"
+        head = f"{label} · {span}" if kind == "fill" and rng else label
+        tail = f" · 시세 기준일 {rec['price_max']}" if rec.get("price_max") and kind == "step" else ""
         if rc == 0:
-            return cq.DONE, f"{label} · {secs:,.0f}초{tail}"
+            return cq.DONE, f"{head} · {_dur(secs)}{tail}"
         if s.get("reason") == "app_db_down":
-            return cq.WARNING, f"{label} · 건너뜀 — 앱 DB 꺼짐(빠진 날은 채우기 명령으로)"
-        return (cq.FAILED if fatal else cq.WARNING), f"{label} · 종료코드 {rc} · {secs:,.0f}초"
+            return cq.WARNING, f"{head} · 건너뜀 — 앱 DB 꺼짐(빠진 날은 그대로 · 앱 DB 를 켠 뒤 「빠진 날 채우기」)"
+        return (cq.FAILED if fatal else cq.WARNING), _with_why(f"{head} · 종료코드 {rc} · {_dur(secs)}", s.get("error"))
     steps = rec.get("steps") or []
-    bad = [labels(x.get("name", "")) for x in steps if x.get("rc") not in (None, 0)]
+    failed = [x for x in steps if x.get("rc") not in (None, 0)]
+    bad = [labels(x.get("name", "")) for x in failed]
+    first = next((x for x in failed if x.get("error")), None)
+    why = f"{labels(first.get('name', ''))} — {first['error']}" if first else None
     base = f"단계 {len(steps)} · {_minutes(rec.get('started_at'), rec.get('finished_at'))}분 · " \
            f"시세 기준일 {rec.get('price_max') or '없음'}"
     if rec.get("stopped"):
-        return cq.FAILED, f"멈춤 — {rec['stopped']} · {base}"
+        return cq.FAILED, _with_why(f"멈춤 — {rec['stopped']} · {base}", why)
     if bad or rc != 0:
-        return cq.WARNING, f"경고 {len(bad)}({' · '.join(bad)}) · {base}" if bad else f"종료코드 {rc} · {base}"
+        return cq.WARNING, _with_why(f"경고 {len(bad)}({' · '.join(bad)}) · {base}" if bad else f"종료코드 {rc} · {base}", why)
     return cq.DONE, base
 
 
@@ -265,6 +305,14 @@ async def reconcile(ctx: Ctx, db) -> int:
     return n
 
 
+def _dates(row) -> Dict[str, Optional[str]]:
+    """채우기 줄의 날짜(YYYY-MM-DD) — 다른 종류는 빈 dict(러너에 날짜 인자를 넘기지 않는다)."""
+    if getattr(row, "kind", "") != "fill":
+        return {}
+    a, b = getattr(row, "date_from", None), getattr(row, "date_to", None)
+    return {"date_from": a.isoformat() if a else None, "date_to": b.isoformat() if b else None}
+
+
 async def pick(ctx: Ctx, db, skip: set) -> Tuple[Optional[object], str]:
     """다음에 돌 대기 줄 — 받지 않는 줄은 거절하고, 막는 때인 줄은 건너뛰며 첫 까닭을 기억한다."""
     from app.services import collect_requests as cq
@@ -274,12 +322,14 @@ async def pick(ctx: Ctx, db, skip: set) -> Tuple[Optional[object], str]:
         rid = str(row.id)
         if rid in skip:
             continue
-        why = ctx.runner.reject_reason(row.kind, row.step, ctx.allow_upload)
+        dates = _dates(row)
+        why = ctx.runner.reject_reason(row.kind, row.step, ctx.allow_upload,
+                                       **({**dates, "today": ctx.now().date()} if dates else {}))
         if why:
             await cq.reject(db, request_id=row.id, why=why, now=ctx.now())
             ctx.say(f"거절 · 요청 {rid[:8]} · {why}")
             continue
-        wait = ctx.runner.blocked(row.kind, row.step, ctx.now())
+        wait = ctx.runner.blocked(row.kind, row.step, ctx.now(), **dates)
         if wait:
             first_wait = first_wait or f"{ctx.runner.label(row.kind, row.step)} — {wait}"
             continue
@@ -317,10 +367,11 @@ async def run_request(ctx: Ctx, db, row) -> str:
 
     rid = str(row.id)
     label = ctx.runner.label(row.kind, row.step)
-    cmd = ctx.runner.command(row.kind, row.step, rid, ctx.allow_upload)
+    dates = _dates(row)
+    cmd = ctx.runner.command(row.kind, row.step, rid, ctx.allow_upload, **dates)
     await _beat(ctx, db, cq.BUSY, f"{label} 도는 중(요청 {rid[:8]})", request_id=rid)
     ctx.say(f"▶ 요청 {rid[:8]} · {label} · {' '.join(cmd[2:])}")
-    rc = await run_child(ctx, db, cmd, rid, label, timeout_s=ctx.runner.timeout_s(row.kind, row.step))
+    rc = await run_child(ctx, db, cmd, rid, label, timeout_s=ctx.runner.timeout_s(row.kind, row.step, **dates))
     rec = ctx.runner.record(rid)
     status, result = outcome(row.kind, rc, rec, label=label, fatal=ctx.runner.fatal(row.step),
                              tempfail=ctx.runner.tempfail, labels=lambda nm: ctx.runner.label("step", nm))

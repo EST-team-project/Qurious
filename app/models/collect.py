@@ -5,16 +5,17 @@
 곳은 앱 DB 하나라 요청은 이 표에 남고, PC 작업자(`scripts/collect_worker.py`)가 매 분 와서 가져간다(Airflow · Dagster ·
 GitHub 러너처럼 「웹은 요청만 남기고 실행 쪽이 가져간다」).
 
-- 받는 값은 고르기 목록뿐 — 종류(`step` 단계 하나 · `all` 전체 수집)와 러너 단계 이름. 명령 글자는 표에 들어오지 않는다.
+- 받는 값은 고르기 목록뿐 — 종류(`step` 단계 하나 · `all` 전체 수집 · `fill` 빠진 날 채우기 — 2026-10-10)와 러너 단계 이름 ·
+  채우기의 첫날 · 마지막 날(날짜 칸 둘). 명령 글자는 표에 들어오지 않는다.
 - 같은 대상(종류 + 단계)의 활성 줄(대기 · 도는 중)은 하나 — 부분 고유 색인이 정본이다(두 관리자가 동시에 눌러도 한 줄).
 - 상태를 바꾸는 함수는 `app/services/collect_requests.py` 한 곳에 둔다(앱 API 와 PC 작업자가 같은 함수를 쓴다).
 """
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -25,8 +26,12 @@ from app.models.base import Base, UUIDPkMixin
 class CollectRequest(Base, UUIDPkMixin):
     __tablename__ = "collect_requests"
     __table_args__ = (
-        CheckConstraint("kind IN ('step', 'all')", name="ck_collect_requests_kind"),
-        CheckConstraint("(kind = 'all' AND step = '') OR (kind = 'step' AND step <> '')", name="ck_collect_requests_step"),
+        CheckConstraint("kind IN ('step', 'all', 'fill')", name="ck_collect_requests_kind"),
+        CheckConstraint("(kind = 'all' AND step = '') OR (kind IN ('step', 'fill') AND step <> '')",
+                        name="ck_collect_requests_step"),
+        # 채우기에는 날짜 둘(첫날 ≤ 마지막 날) · 다른 종류에는 날짜 없음 — 서비스를 거치지 않은 줄도 막는다(이전 0019)
+        CheckConstraint("(kind = 'fill' AND date_from IS NOT NULL AND date_to IS NOT NULL AND date_from <= date_to) OR "
+                        "(kind <> 'fill' AND date_from IS NULL AND date_to IS NULL)", name="ck_collect_requests_dates"),
         CheckConstraint("status IN ('queued', 'running', 'done', 'warning', 'failed', 'rejected', 'cancelled', 'expired')",
                         name="ck_collect_requests_status"),
         # 같은 대상의 활성 줄은 하나 — 「같은 요청 한 번만」 의 정본(서비스는 이 색인에 기대어 INSERT … ON CONFLICT 로 쓴다)
@@ -36,9 +41,9 @@ class CollectRequest(Base, UUIDPkMixin):
         {"comment": "화면 수집 요청 — 관리자가 남기고 PC 작업자가 가져가 러너를 돌린다(목표 기능 ① 수집 단추)"},
     )
 
-    kind: Mapped[str] = mapped_column(String(8), nullable=False, comment="step = 단계 하나 · all = 전체 수집")
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, comment="step = 단계 하나 · all = 전체 수집 · fill = 빠진 날 채우기")
     step: Mapped[str] = mapped_column(String(32), nullable=False, server_default="",
-                                      comment="러너 단계 이름(kind=step) · 전체 수집은 빈 글")
+                                      comment="러너 단계 이름(kind=step · fill) · 전체 수집은 빈 글")
     status: Mapped[str] = mapped_column(String(12), nullable=False, server_default="queued",
                                         comment="queued · running · done · warning · failed · rejected · cancelled · expired")
     # 탈퇴하면 줄은 남기고 이 칸만 비운다(account.DEIDENTIFY_TABLES — 감사 기록과 같은 운영 기록)
@@ -51,6 +56,8 @@ class CollectRequest(Base, UUIDPkMixin):
     exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="러너 종료코드")
     result: Mapped[str] = mapped_column(String(300), nullable=False, server_default="", comment="결과 한 줄")
     log_path: Mapped[str] = mapped_column(String(200), nullable=False, server_default="", comment="러너 로그(저장소 기준 경로)")
+    date_from: Mapped[date | None] = mapped_column(Date, nullable=True, comment="빠진 날 채우기의 첫날(kind=fill · 양 끝 포함)")
+    date_to: Mapped[date | None] = mapped_column(Date, nullable=True, comment="빠진 날 채우기의 마지막 날(kind=fill)")
 
 
 class CollectWorker(Base):

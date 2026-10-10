@@ -171,3 +171,17 @@
   .kb-bubble { max-width: 100%; }
   .kb-src-eff { display: none; }   /* 좁은 화면은 제목을 넓게 — 시행일은 펼친 칸의 판 줄에 있다 */
 }
+
+/* ── 좁은 화면(폭 390)의 위 머리글 (IA I12 · 2026-10-10) ───────────────────────────────────────────
+ * 머리글이 약 800px 로 넘쳐 「⋮ 더보기」(전체 메뉴) · 로그아웃이 화면 밖에 있었고, ☰(왼쪽 메뉴)는 늘 숨어 있었다.
+ * 768 아래에서는 오른쪽의 시세 · 동기화 글자 · 이름을 빼고(점 · 아바타는 남김) ☰ 을 보인다 — 탭은 들어가는 만큼만
+ * (js/core.js fitGnbTabs) · 나머지는 「더보기」. 강사님 app.html · app.css 는 고치지 않는다(☰ 의 display:none 은 style 속성이라 !important). */
+@media (max-width: 768px) {
+  .gnb-logo { padding: 0 10px; gap: 8px; }
+  .gnb-logo-text span[data-brand="tagline"] { display: none; }
+  .gnb-right { gap: 6px; padding: 0 8px; }
+  #market-ticker, #user-name, #sync-badge-text { display: none; }
+  #sync-badge { padding: 6px; }
+  #logout-btn, #gnb-more-btn { padding: 6px 9px !important; }
+  #hamburger-btn { display: inline-flex !important; align-items: center; }
+}

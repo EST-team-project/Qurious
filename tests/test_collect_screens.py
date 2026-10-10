@@ -253,3 +253,87 @@ def test_data_hub_request_line_admin_only():
     src = _req_js()
     fn = src[src.index("export async function renderHubRequestLine"):]
     assert "isCollectAdmin()" in fn[:600], "관리자일 때만 요청 목록 API 를 부른다"
+
+
+# ── 실패한 단계의 까닭(DF-101) · 빠진 날 채우기(2026-10-10 · Figma 「데이터 수집 화면」 03-3 결정 안 A) ─────────────
+def _fn_body(src: str, head: str) -> str:
+    """`head` 로 시작하는 함수 하나 — 줄 머리의 `}` 까지."""
+    body = src[src.index(head):]
+    return body[:body.index("\n}") + 2]
+
+
+def test_failed_step_shows_why_below_the_row():
+    """TC-CL-15 · 실패한 단계의 까닭(DF-101 · 결정 안 A) — 실패 · 경고 줄 바로 아래에 한 줄(까닭 · 로그 파일 이름) · 글은 러너가 걸러
+    적은 `error` · `log_name` 그대로(escHtml) · 성공 · 건너뜀 줄에는 없다 · 화면이 까닭 글을 고쳐 쓰지 않는다(길이는 러너가 200자로
+    자른다). 요청 목록을 다시 물을 때(5초 · 1분) 까닭 줄은 그대로 두고, 「명령」 상자는 까닭 줄 뒤에 연다."""
+    src = _js_code(_read(JS_DIR / "collect.js"))
+    table = src[src.index("function stepsTable"):src.index("function scheduleHtml")]
+    assert re.search(r'\(s\.status === "failed" \|\| s\.status === "warning"\) && s\.error', table), "실패 · 경고 줄에만"
+    assert "cl-why-row" in table and "escHtml(s.error)" in table and "escHtml(s.log_name)" in table
+    assert not re.search(r"s\.error\s*\.\s*(replace|split|slice|substring)\(", table), "까닭 글은 서버 글 그대로"
+    tail = _fn_body(src, "function rowTail")
+    assert 'classList.contains("cl-why-row")' in tail, "까닭 줄이 있으면 그 줄이 그 단계의 끝"
+    click = src[src.index("function onScheduleClick"):src.index("function onRequestsChanged")]
+    changed = src[src.index("function onRequestsChanged"):src.index("async function renderCollectSchedule")]
+    assert "rowTail(tr)" in click and "rowTail(tr)" in changed, "명령 상자를 열고 닫을 때 · 다시 그릴 때 모두 까닭 줄 뒤를 본다"
+    assert ".cl-why" in _read(ROOT / "public" / "css" / "collect.css")
+
+
+def test_request_result_splits_the_why_line():
+    """TC-CL-16 · 요청 목록 · 대기 창의 결과 — 작업자가 결과 한 줄 끝에 붙인 까닭(구분 글은 작업자의 `WHY_SEP` 과 같다)을 떼어
+    결과 아래 한 줄로 보인다(안 A) · 두 곳이 같은 도우미를 쓴다 · 나머지 글은 서버 글 그대로."""
+    from scripts import collect_worker as cw
+
+    src = _req_js()
+    m = re.search(r'const WHY_SEP = "([^"]+)";', src)
+    assert m and m.group(1) == cw.WHY_SEP, "구분 글은 작업자와 같다"
+    helper = _fn_body(src, "function resultHtml")
+    assert "WHY_SEP" in helper and "escHtml(" in helper and "cq-why" in helper
+    card = _fn_body(src, "export function requestsCardHtml")
+    wait = _fn_body(src, "function updateWaitModal")
+    assert "resultHtml(r)" in card and "resultHtml(r)" in wait, "요청 목록 · 대기 창이 같은 도우미로"
+    assert ".cq-why" in _read(ROOT / "public" / "css" / "collect.css")
+
+
+def test_fill_button_only_while_days_are_pending():
+    """TC-CL-17 · 빠진 날 채우기 단추(결정 — 빠진 날이 있을 때만 「다시 받기」 가 바뀐다) — 러너가 적은 채울 날(`followup` fill ·
+    `fill_days` > 0)이 있는 단계만 「빠진 날 채우기(n일)」 · 날짜는 러너가 적은 첫날 · 마지막 날 그대로(화면이 날짜를 셈하지 않는다) ·
+    채울 날은 마지막 기록에서(고른 지난 회차가 아니라) · 막는 때는 서버의 `blocked_now.fill` · 같은 단계의 채우기가 대기 · 도는 중이면
+    꺼진다 · 누르면 확인 창."""
+    col = _js_code(_read(JS_DIR / "collect.js"))
+    ff = _fn_body(col, "function fillFor")
+    assert 'followup === "fill"' in ff and "fill_days" in ff and "fill_from" in ff and "fill_to" in ff
+    assert "d.last?.steps" in ff, "채울 날은 마지막 기록에서 — 회차 · 다시 돌림 · 채우기가 고친 줄"
+    assert "new Date(" not in ff
+    table = col[col.index("function stepsTable"):col.index("function scheduleHtml")]
+    changed = col[col.index("function onRequestsChanged"):col.index("async function renderCollectSchedule")]
+    assert "stepActionHtml(s.name, d.running, fillFor(d, s.name))" in table
+    assert "stepActionHtml(tr.dataset.step, runnerData.running, fillFor(runnerData, tr.dataset.step))" in changed
+    click = col[col.index("function onScheduleClick"):col.index("function onRequestsChanged")]
+    assert 'classList.contains("cq-fill")' in click and "confirmFill(" in click
+    src = _req_js()
+    body = src[src.index("export function stepActionHtml"):]
+    body = body[:body.index("export function", 10)]
+    assert re.search(r"빠진 날 채우기\(\$\{fill\.days\}일\)", body)
+    assert 'activeFor(fill ? "fill" : "step", name)' in body and 'blockedFor(fill ? "fill" : "step", name)' in body
+    assert "data-from=" in body and "data-to=" in body and "data-days=" in body
+    blocked = _fn_body(src, "function blockedFor")
+    assert re.search(r"blocked_now\??\.fill\??\.\[step\]", blocked), "채우기 막는 때도 서버 값 그대로"
+    assert "new Date(" not in body
+
+
+def test_fill_confirm_and_request_body():
+    """TC-CL-18 · 채우기 확인 창 · 보내는 값 — 단계 · 첫날 ~ 마지막 날 · 채울 날 수 · 상한(서버 `fill_max_days`) · 막는 때(서버
+    `rules.fill`)를 보이고 누르면 `kind: "fill"` 과 날짜 두 칸을 보낸다(화면 머리글 그대로 · TC-CL-06). 날짜 두 칸은 채우기에만
+    싣는다(다른 종류에 붙으면 서버가 422) · 요청 이름은 「신호 빠진 날 채우기 · 10-02 ~ 10-06」(서버 글 · 날짜 글 그대로)."""
+    src = _req_js()
+    fn = _fn_body(src, "export function confirmFill")
+    assert 'm.id = "cq-confirm-modal"' in fn, "다른 화면으로 가면 stopRequestPolling 이 함께 닫는다"
+    assert "fill_max_days" in fn and re.search(r"rules\??\.fill\??\.\[step\]", fn)
+    assert 'requestCollect("fill", step, { from, to })' in fn
+    req = _fn_body(src, "export async function requestCollect")
+    assert 'if (kind === "fill")' in req and "date_from: range.from" in req and "date_to: range.to" in req
+    assert re.search(r'api\("/api/data/runner/requests", \{ method: "POST", headers: ACTION, body \}\)', req)
+    w = _fn_body(src, "function what")
+    assert 'r.kind === "fill"' in w and "r.date_from" in w and "r.date_to" in w and "r.kind_label" in w
+    assert "new Date(" not in w
