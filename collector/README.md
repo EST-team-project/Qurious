@@ -528,6 +528,7 @@ PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 | `../app/tasks/collector_tasks.py` | 83 | Celery Beat 어댑터 (얇음) |
 | `../scripts/hf_dataset.py` | 2,128 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 |
 | `../scripts/daily_update.py` | 654 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 (§15) |
+| `../scripts/collect_worker.py` | 563 | **화면 수집 요청 작업자** — 요청 표에서 가져가 러너를 부른다 · 매 분 작업 등록 (§15 · 2026-10-10) |
 
 `data/collector/` 는 `.gitignore` 에 있다 — **원자료는 커밋하지 않는다.**
 
@@ -1212,6 +1213,9 @@ python scripts/daily_update.py status               # 예약 상태 + 마지막 
 python scripts/daily_update.py run                  # 이 터미널에서 직접 (업로드 없이)
 python scripts/daily_update.py run --only news      # 그 단계 하나만 다시 — 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 막힘 (2026-10-07)
 python scripts/daily_update.py steps --write        # 단계 목록(이름표 · 묶음 · 하는 일) · 이 PC 용량 파일을 지금 쓴다 (2026-10-07)
+python scripts/daily_update.py run --manual --request <요청 번호>   # 화면 「전체 수집」 — 작업자가 부른다 · 11:00 ~ 13:30 은 75 (2026-10-10)
+python scripts/collect_worker.py install            # 화면 수집 요청 작업자 — 작업 스케줄러에 매 분 (기본 올리기 받음 · --no-upload)
+python scripts/collect_worker.py status             # 작업자 마지막 바퀴 · 작업 등록
 python scripts/daily_update.py uninstall            # 등록 해제
 ```
 
@@ -1252,12 +1256,32 @@ python scripts/daily_update.py uninstall            # 등록 해제
 - **건너뛴 줄의 까닭 코드**: `upload_off`(업로드 끔) · `upstream_failed`(앞 단계 실패) · `no_new_data`(새 자료 없음) · `nothing_to_upload`
   (바뀐 파케이 0개) · `app_db_down`(앱 DB 꺼짐 · 뒤 할 일 있음) · `app_db_address_unknown`(주소를 못 만듦 · 경고). 이력 줄에도 남는다.
 
+**화면 수집 단추(2026-10-10 · 사용자 결정 2026-10-08 「사이트 단추로 언제든 한 단계 · 전체 수집」)** — 앱은 컨테이너 안에서 수집 폴더를
+읽기만 하므로 러너를 부르지 않는다. 관리자 화면이 요청 표(`collect_requests` · 앱 DB · 이전 0018)에 줄을 남기면 이 PC 의 작업자
+`scripts/collect_worker.py` 가 매 분(작업 스케줄러 `Qurious-collect-worker` · 사용자 결정 2026-10-10) 와서 가져가 러너를 인자 목록으로
+부른다(조사서 [러너 단계 결과와 화면 실행 통로](../docs/조사/러너단계결과-화면실행통로-조사.md) 안 1).
+
+- **막는 때는 `guard_window` 한 곳에서 센다** — 한 단계 다시는 「12:30 − 그 단계 한도 ~ 13:30」(옛 그대로), 수동 전체 수집은
+  「11:00 ~ 13:30」(`MANUAL_FULL_GUARD_BEFORE_MIN` 90 — 12:30 앞에 시작한 수동 회차가 정기 회차를 밀어내면 그날 리밸런싱 점검이
+  하루 내내 기다린다). 단계 목록 파일에 그 시각(`guards`)을 실어 화면이 단추를 미리 끄게 하고, 판정은 작업자 · 러너가 같은 함수로 다시 한다.
+- **종료코드 75 = 막힘(EX_TEMPFAIL · 나중에 다시)** — 한 단계 다시 · 수동 회차가 막는 때 · 다른 실행과 겹치면 돌지 않고 75 로 끝난다
+  (옛 3 은 단계가 스스로 내는 3 — 달력의 공휴일 받기 실패 · 앱 DB 꺼짐 건너뜀 — 과 겹쳐 작업자가 「기다림」 과 「경고」 를 가를 수
+  없었다). 작업자는 75 를 받으면 요청을 다시 대기로 돌리고 그 바퀴에는 다시 잡지 않는다. 정기 회차의 겹침은 지금처럼 0 과 「건너뜀」 줄.
+- **기록 칸** — 회차 기록 · 이력 줄에 `trigger`(schedule · manual) · `request_id` · `rc` · `log`. 작업자는 요청 번호로 이력 줄을
+  찾아 결과를 적고, 줄이 없으면 「끝」 이 아니라 실패 「결과 기록 없음」 으로 적는다. 수동 회차 로그 이름은 `…-manual.log`.
+- **올리기** — 작업자 등록 명령줄에 `--allow-upload` 가 있을 때만 전체 수집에 `--upload` 를 넘기고 올리기 단계를 받는다(공유 스위치
+  원칙 — 켜는 결정은 명령줄에 남는다 · 사용자 결정 2026-10-10 「올림」). 같은 날 두 번째 HF 올리기는 두 도구 모두 처리돼 있다.
+- **작업자 상태** — 앱 DB `collect_workers`(심장 박동 · 도는 동안 15초마다 · 3분 없으면 화면이 「꺼짐」) · 이 PC 파일
+  `state/collect_worker.json`(매 바퀴 · 앱 DB 에 닿지 않을 때도 까닭) · 로그 `logs/collect_worker-YYYYMMDD.log`(일이 있을 때만 · 14일).
+  결과를 적지 못하고 죽은 앞 바퀴의 「도는 중」 줄은 다음 바퀴가 러너 기록으로 맞춘다(러너가 아직 돌면 기다린다).
+
 ### 한계 · 뒤집을 조건
 
 | | 내용 |
 |---|---|
 | 🟡 | **한 사람 PC 에서만 돈다.** 팀원 PC 에 같은 작업을 걸면 같은 HF 저장소에 두 곳이 올린다 — 올리는 사람은 하나로 둔다(D0 ⑥ 담당) |
 | 🟡 | 로그인해 있지 않으면 안 돈다. 로그인하면 `StartWhenAvailable` 로 곧바로 따라잡는다 |
+| 🟡 | **화면 수집 요청은 매 분 뜨는 작업자가 가져간다** — 시작이 최대 1분 늦고, 로그온해 있을 때만 돈다. 앱 DB 가 꺼져 있으면 요청도 화면도 없다(작업자는 이 PC 상태 파일에만 까닭을 남긴다). 3시간 안에 시작하지 못한 요청은 만료 |
 | 🟡 | 태그 `snapshot-YYYY-MM-DD` 가 **올린 날마다** 하나씩 쌓인다(바뀐 게 없는 날은 안 올리므로 안 생긴다) |
 | 🟡 | **수정주가는 닫힌 연도도 바뀐다.** 오늘을 1.0 으로 거꾸로 누적하므로(§5) 새 조정 이벤트가 생기면 2020년 값까지 달라진다 — 첫 실행에서 `price_adjusted` 7개 연도 파일 **전부**(50.6MB)가 바뀌었다. `hf_dataset.py` 머리말의 "닫힌 연도는 업로드 0바이트" 는 시세·TR 에만 맞는 말이다. xet 가 바뀐 청크만 보내서 업로드는 20초였다 |
 | 🔴 | **앱 화면은 아직 이 데이터를 읽지 않는다** — 앱 쪽 참조는 수집을 **부르는** Celery 어댑터 둘(`app/celery_app.py` · `app/tasks/collector_tasks.py`)뿐이고, HF 참조는 0건이다. 화면 시세는 여전히 야후 경로다(`tests/test_no_yahoo_regression.py` 봉인선) |

@@ -51,7 +51,8 @@ NAME_MAX_CHARS = 50
 #: 탈퇴 확인 문구 — 버튼 한 번으로 지워지지 않게, 화면과 API 가 같은 문구를 요구한다.
 CONFIRM_DELETE_PHRASE = "탈퇴"
 #: 탈퇴해도 행을 지우지 않고 사용자 칸만 비우는 표 — 「누가」 는 지우고 「무슨 일이 있었나」 는 남긴다.
-DEIDENTIFY_TABLES = frozenset({"audit_events"})
+#: 수집 요청(2026-10-10)도 운영 기록이라 같다 — 줄을 지우면 그 회차를 누가 · 왜 돌렸는지 「누가」 를 뺀 기록까지 사라진다.
+DEIDENTIFY_TABLES = frozenset({"audit_events", "collect_requests"})
 
 #: 흔한 비밀번호 — NIST 가 요구하는 「흔하거나 예상 가능하거나 유출된 비밀번호 목록」 의 최소판.
 #: 공개 유출 목록(수천만 건)을 통째로 넣는 대신, 8자 이상이면서 가장 자주 쓰이는 것만 둔다.

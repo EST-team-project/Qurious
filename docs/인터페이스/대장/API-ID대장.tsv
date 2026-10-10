@@ -237,3 +237,7 @@ API-DATA-09	GET	/api/data/fetch-plan	S101	사용
 API-DATA-10	GET	/api/data/backup	S101	사용
 API-DATA-11	GET	/api/data/guide	S102	사용
 API-RBAL-10	POST	/api/rebalance/runs/{run_id}/cancel	S102	사용
+API-DATA-12	POST	/api/data/runner/requests	S103	사용
+API-DATA-13	GET	/api/data/runner/requests	S103	사용
+API-DATA-14	POST	/api/data/runner/requests/{request_id}/cancel	S103	사용
+API-DATA-15	GET	/api/data/runner/worker	S103	사용
