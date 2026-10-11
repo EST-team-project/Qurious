@@ -1,26 +1,34 @@
-"""자료 안내 시험 (TC-DG) — 「데이터 › 자료 안내」 1단계(설명 대장 → 생성물 → GET /api/data/guide → 화면 · 2026-10-08).
+"""자료 안내 시험 (TC-DG) — 「데이터 › 자료 안내」 1단계(설명 대장 → 생성물 → GET /api/data/guide → 화면 · 2026-10-08) ·
+2단계(칸 정의 · 러너가 회차마다 쓰는 숫자 파일 · 2026-10-11).
 
-지키는 것 — 설계 03 문서 8.2절 시험 아이디어 다섯 + 연결 · 대장 점검
+지키는 것 — 설계 03 문서 8.2절 시험 아이디어 다섯 + 연결 · 대장 점검 + 2단계 둘
 1. 생성물 = 대장 — `scripts/data_guide_scan.py --check` 가 통과하고, 줄 끝(CRLF)을 접어 견주며, 내용이 다르면 1 (TC-DG-01)
 2. 수집 DB 의 모든 표가 안내에 있거나 「뺀 까닭」 이 있다 — 표 목록은 DB 를 열지 않고 백업 도구(TABLES · EXCLUDED)와
    표 속성 대장에서 · 숫자를 잇는 상태 열쇠는 상태가 세는 줄과 1 대 1 (TC-DG-02)
-3. 일반 사용자 응답에 표 이름 · API 경로 · 명령 · 백업 이름이 글자로도 없다 — 서버가 싣지 않는다(관리자 응답이 대조군) (TC-DG-03)
+3. 일반 사용자 응답에 표 이름 · 칸 이름 · 열쇠 · API 경로 · 명령 · 백업 이름이 글자로도 없다 — 서버가 싣지 않는다
+   (관리자 응답이 대조군) (TC-DG-03)
 4. 화면이 읽는 칸이 응답에 있다 — 화면 JS 가 「변수.칸」 으로 읽는 곳을 정규식으로 모아 응답과 맞댄다(TC-DH-03 꼴) (TC-DG-04)
-5. 숫자가 없으면 설명만 — 0 을 넣지 않고 「없음」 · 상태가 예외면 까닭 · 상태가 늦으면 설명 · 백업 숫자를 먼저 (TC-DG-05 · 06)
-6. 라우트 — 로그인 뒤 · 관리자 판정은 세션의 roles(다른 라우트와 같다) · 설명 파일이 없으면 503 (TC-DG-07)
-7. 연결 — 메뉴(데이터 관제 바로 아래) · 뿌리 칸 · 모양 파일 · 진입 훅(글자 그대로) · 화면 스캐너 · 사용법 · 관리자 화면 셋 (TC-DG-08)
-8. 대장 점검 — 쉬운 칸의 개발 말 · 모르는 출처 · 화면 · 머리 줄 · 점검에 걸리면 생성물을 쓰지 않는다 (TC-DG-09)
+5. 숫자가 없으면 설명만 — 0 을 넣지 않고 「없음」 · 숫자 파일이 없거나 옛 판 · 깨졌으면 까닭 (TC-DG-05)
+6. 요청 때 세지 않는다 — 숫자는 러너가 쓴 파일에서만 읽는다(상태 계산 · 수집 DB 를 막아도 답한다) · 수집이 도는 중 ·
+   수집 뒤 못 씀의 안내 줄 (TC-DG-06 · 2026-10-11 결정 ④ 를 다 지킴 — 1단계의 「늦으면 설명 먼저」 를 바꿈)
+7. 라우트 — 로그인 뒤 · 관리자 판정은 세션의 roles(다른 라우트와 같다) · 설명 파일이 없으면 503 (TC-DG-07)
+8. 연결 — 메뉴(데이터 관제 바로 아래) · 뿌리 칸 · 모양 파일 · 진입 훅(글자 그대로) · 화면 스캐너 · 사용법 · 관리자 화면 셋 (TC-DG-08)
+9. 대장 점검 — 쉬운 칸의 개발 말 · 칸 이름 · 모르는 출처 · 화면 · 칸 · 단위 · 머리 줄 · 점검에 걸리면 생성물을 쓰지 않는다 (TC-DG-09)
+10. 칸 정의 = 코드의 칸 — 안내가 잇는 표의 모든 칸에 쉬운 이름 · 단위 · 뜻이 하나씩(빠짐 0 · 남음 0) · 칸 차례 · 열쇠는 코드
+    CREATE 문 그대로 · 칸 정의를 만들 때 수집 DB 를 열지 않는다 (TC-DG-10)
+11. 쓰는 쪽 → 읽는 쪽 한 줄 — 러너의 숫자 함수가 실제 SQLite 를 세어 쓴 파일을 자료 안내가 그대로 읽는다(DF-102 교훈) (TC-DG-11)
 
-네트워크 · 실제 수집 DB 없이 돈다 — 상태(data_status.get_status)는 가짜로 바꾸고, 수집 폴더는 임시 폴더로 돌린다
-(이 PC 의 수집 DB 는 앱이 읽기 전용으로 붙인 WAL DB 라 다른 프로세스가 열고 닫으면 앱이 멈출 수 있다 · DF-81).
-글자를 찾는 시험은 주석에 속는다(2026-10-06 교훈) — 화면 JS 의 읽는 칸은 「변수.칸」 꼴만 모은다.
+네트워크 · 실제 수집 DB 없이 돈다 — 숫자 파일 · 러너 기록은 임시 폴더에 가짜로 쓰고, 상태 계산(data_status.get_status ·
+table_states)은 부르면 실패하게 막는다(이 PC 의 수집 DB 는 앱이 읽기 전용으로 붙인 WAL DB 라 다른 프로세스가 열고 닫으면
+앱이 멈출 수 있다 · DF-81). 글자를 찾는 시험은 주석에 속는다(2026-10-06 교훈) — 화면 JS 의 읽는 칸은 「변수.칸」 꼴만 모은다.
 """
 from __future__ import annotations
 
 import json
 import re
 import shutil
-import threading
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -46,20 +54,18 @@ STEPS = [{"name": "price", "label": "시세", "group": "받기"}, {"name": "news
          {"name": "sector_laws", "label": "섹터 법령", "group": "근거 문서"}]
 
 
-def _status(verdict: str = "ok", rows: int | None = 1000, rows_state: str = "fresh") -> dict:
-    """가짜 상태 — 줄 열쇠 · 표 이름은 실제 상태 정의(data_status.TABLES)에서. 표 이름 칸까지 실어 응답으로 새지 않는지 본다."""
-    missing = verdict == "missing"
-    return {
-        "checked_at": "2026-10-08T15:00:00+09:00", "as_of": "2021-10-07", "rows_state": rows_state,
-        "runner": {"schedule": "매일 12:30", "running": False, "groups": GROUPS,
-                   "last": {"started_at": "2026-10-08T12:30:01+09:00", "finished_at": "2026-10-08T13:25:00+09:00",
-                            "minutes": 55.0, "ok": True,
-                            "steps": [{**s, "status": "warning" if s["name"] == "news" else "ok", "rc": 0, "seconds": 1.0}
-                                      for s in STEPS]}},
-        "tables": [{"key": key, "table": table, "label": label, "group": grp, "source": src, "verdict": verdict,
-                    "rows": 0 if missing else rows, "last_date": None if missing else "2021-10-07"}
-                   for key, table, label, grp, src, *_ in ds.TABLES],
-    }
+#: 마지막 회차 기록(러너가 쓰는 꼴) — 정책뉴스 단계는 멈추지 않는 실패(rc 3)라 흐름 상자에 「확인할 단계」 가 붙는다
+LAST = {"started_at": "2026-10-08T12:30:01+09:00", "finished_at": "2026-10-08T13:25:00+09:00", "ok": False, "upload": True,
+        "steps": [{**s, "fatal": s["name"] != "news", "rc": 3 if s["name"] == "news" else 0, "seconds": 1.0} for s in STEPS]}
+#: 숫자 파일을 쓴 때 — 마지막 회차가 끝난 뒤(정상)
+WRITTEN = "2026-10-08T13:25:30+09:00"
+
+
+def _numbers(rows: int | None = 1000, missing: bool = False, written_at: str = WRITTEN, schema: int = 1) -> dict:
+    """가짜 숫자 파일 — 러너가 회차 끝에 쓰는 꼴(표 열쇠는 실제 상태 정의 data_status.TABLES 에서 · 셈법 한 곳)."""
+    return {"schema": schema, "written_at": written_at, "by": "run", "seconds": 1.2,
+            "tables": [{"key": key, "rows": None if missing else rows, "last_date": None if missing else "2021-10-07",
+                        "missing": missing} for key, *_ in ds.TABLES]}
 
 
 def _hf_manifest() -> dict:
@@ -99,25 +105,29 @@ def _write(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
+#: 진짜 셈법 — 픽스처가 막기 전에 잡아 둔다(TC-DG-11 은 러너 쪽에서 진짜로 센다)
+_REAL_TABLE_STATES = ds.table_states
+
+
+def _no_counting(*_a, **_k):
+    raise AssertionError("자료 안내는 요청 때 세지 않는다 — 숫자는 러너가 쓴 파일에서만(결정 ④)")
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    """임시 수집 폴더(매니페스트 두 장 · 단계 목록) + 가짜 상태. 진짜 수집 DB · 기록 폴더로 가는 길을 막는다."""
+    """임시 수집 폴더(매니페스트 두 장 · 단계 목록 · 마지막 회차 · 숫자 파일). 진짜 수집 DB · 기록 폴더로 가는 길을 막고,
+    상태 계산(get_status · table_states · 줄 수 세기)은 부르면 실패한다 — 자료 안내가 요청 때 세면 모든 시험이 깨진다."""
     cdir = tmp_path / "data" / "collector"
     _write(cdir.parent / "hf_export" / "meta" / "manifest.json", _hf_manifest())
     _write(cdir / "ohlcv_export" / "manifest.json", _ohlcv_manifest())
     _write(cdir / "state" / ds.CATALOG_FILE, {"written_at": "2026-10-08T12:30:00+09:00", "groups": GROUPS, "steps": STEPS})
+    _write(cdir / "state" / "daily_update_last.json", LAST)
+    _write(cdir / "state" / dg.NUMBERS_FILE, _numbers())
     monkeypatch.setenv(collector_db.ENV_DB_PATH, str(cdir / "market.sqlite3"))     # 없는 파일 — 진짜 수집 DB 를 열 길이 없다
     monkeypatch.setattr(ds, "collector_dir", lambda: cdir)
-    box: dict = {"status": _status()}
-
-    def fake_status():
-        if isinstance(box["status"], Exception):
-            raise box["status"]
-        return box["status"]
-
-    monkeypatch.setattr(ds, "get_status", fake_status)
-    dg._status_job.update(thread=None, box=None)
-    return SimpleNamespace(cdir=cdir, box=box)
+    for name in ("get_status", "table_states", "start_count", "_connect_ro"):
+        monkeypatch.setattr(ds, name, _no_counting)
+    return SimpleNamespace(cdir=cdir, state=cdir / "state", numbers=cdir / "state" / dg.NUMBERS_FILE)
 
 
 def _collector_tables() -> set[str]:
@@ -127,12 +137,20 @@ def _collector_tables() -> set[str]:
 
 
 # ── 1. 생성물 = 대장 ─────────────────────────────────────────────────────────
-def test_generated_file_matches_ledgers(tmp_path):
+def test_generated_file_matches_ledgers(tmp_path, monkeypatch):
     """TC-DG-01 · 생성물 = 대장 — --check 통과 · CRLF 로 체크아웃된 생성물도 같다 · 내용이 다르면 1 · 같은 대장이면 같은 바이트 ·
-    앱이 읽는 파일이 곧 스캐너가 만드는 글이다 · 스캐너와 서비스는 수집 DB(SQLite)를 열지 않는다."""
+    앱이 읽는 파일이 곧 스캐너가 만드는 글이다 · 스캐너와 서비스는 수집 DB(SQLite)를 열지 않는다 — 칸 정의(2단계)는 코드
+    CREATE 문 · 앱 모델에서 읽으므로 sqlite3.connect 를 막아도 생성물이 같다."""
     assert scan.main(["--check"]) == 0
+    from scripts import schema_scan
+
+    def no_db(*_a, **_k):
+        raise AssertionError("칸 정의를 만들며 수집 DB 를 열었다 — 코드 CREATE 문에서 읽어야 한다(DF-81)")
+
+    monkeypatch.setattr(schema_scan.sqlite3, "connect", no_db)
     guide, problems = scan.build()
     assert problems == []
+    assert guide["schema"] == scan.SCHEMA == dg.SCHEMA == 2, "칸 정의가 들어간 판 — 앱과 스캐너가 같은 판을 안다"
     made = scan.dumps(guide)
     assert scan.dumps(scan.build()[0]) == made                                   # 시각 같은 바뀌는 칸이 없다
     assert set(guide) == {"schema", "source", "groups", "sources", "items", "flow", "flow_notes", "tasks", "pitfalls", "excluded"}
@@ -197,11 +215,25 @@ def test_user_response_has_no_table_names_api_paths_or_commands(env):
     assert not views & dg.ADMIN_VIEWS
     admin_views = {v for it in admin["guide"]["items"] for v in it["views"]}
     assert admin_views & dg.ADMIN_VIEWS, "대조군 — 관리자에게는 관리자 화면이 있다"
+    # 칸 정의(2단계) — 칸 이름 · 타입 · 열쇠는 관리자 답에만(결정 ② · 2026-10-11 「열쇠 표시는 관리자에게만」)
+    a_cols = [c for it in admin["guide"]["items"] if it["columns"] for g in it["columns"]["tables"] for c in g["cols"]]
+    u_cols = [c for it in user["guide"]["items"] if it["columns"] for g in it["columns"]["tables"] for c in g["cols"]]
+    assert a_cols and all(set(c["dev"]) == {"col", "type", "key"} for c in a_cols), "대조군 — 관리자에게는 칸 이름 · 타입 · 열쇠"
+    assert any(c["dev"]["key"] for c in a_cols)
+    assert u_cols and all(set(c) == {"name", "unit", "text"} for c in u_cols), "일반 사용자 칸 줄은 쉬운 이름 · 단위 · 뜻만"
+    assert all("dev" not in g for it in user["guide"]["items"] if it["columns"] for g in it["columns"]["tables"])
+    snake = sorted({c["dev"]["col"] for c in a_cols if "_" in c["dev"]["col"]})
+    assert len(snake) > 100, "칸 이름 대조군이 너무 적다"
+    # 설명(guide) 쪽만 본다 — 숫자(stats)에는 우리 응답 칸 이름(as_of · first_year …)이 있어, 같은 꼴의 칸 이름(섹터 법령의 as_of)을
+    # 샘으로 잘못 센다(2026-10-11 첫 판이 그렇게 실패했다)
+    text = json.dumps(user["guide"], ensure_ascii=False)
+    assert [s for s in snake if re.search(rf"(?<![A-Za-z0-9_]){re.escape(s)}(?![A-Za-z0-9_])", text)] == []
+    assert "열쇠" not in json.dumps(user, ensure_ascii=False), "열쇠 표시 · 설명 줄은 관리자에게만"
 
 
 # ── 4. 화면이 읽는 칸 = 응답의 칸 ───────────────────────────────────────────────
 #: 화면 JS 의 응답 변수(dataguide.js 머리말의 이름 규칙) — 「변수.칸.칸」 을 모은다
-JS_READ = re.compile(r"(?<![\w.])(r|res|st|g|grp|it|s|src|run|lastRun|gx|fbox|fnote|task|pit|ear|mk)((?:\??\.[A-Za-z_]\w*)+)")
+JS_READ = re.compile(r"(?<![\w.])(r|res|st|g|grp|it|s|src|run|lastRun|gx|fbox|fnote|task|pit|ear|mk|cg|cc)((?:\??\.[A-Za-z_]\w*)+)")
 
 
 def _merged(objs: list[dict]) -> dict:
@@ -230,13 +262,16 @@ def test_screen_reads_only_fields_the_server_sends(env):
     서버가 칸 이름을 바꾸면 화면은 오류 없이 빈칸을 그린다(TC-DH-03 과 같은 까닭). 자료 숫자 상태의 화면 표 = 서버의 상태 열쇠."""
     admin = dg.read(admin=True)
     g, st = admin["guide"], admin["stats"]
+    cgs = [cg for it in g["items"] if it["columns"] for cg in it["columns"]["tables"]]
     objs = {"r": [admin], "res": [admin], "st": [st], "g": [g], "grp": g["groups"], "it": g["items"],
             "s": list(st["items"].values()), "src": g["sources"], "run": [st["runner"]], "lastRun": [st["runner"]["last"]],
             "gx": st["runner"]["groups"], "fbox": g["flow"], "fnote": g["flow_notes"], "task": g["tasks"], "pit": g["pitfalls"],
-            "ear": st["early"], "mk": [m for s in st["items"].values() for m in (s["markets"] or [])]}
+            "ear": st["early"], "mk": [m for s in st["items"].values() for m in (s["markets"] or [])],
+            "cg": cgs, "cc": [cc for cg in cgs for cc in cg["cols"]]}
     src = (PUB / "js" / "dataguide.js").read_text(encoding="utf-8")
     reads = {(m.group(1), tuple(re.findall(r"[A-Za-z_]\w*", m.group(2)))) for m in JS_READ.finditer(src)}
     assert len(reads) > 60, "화면이 읽는 칸을 거의 못 모았다 — 변수 이름 규칙(dataguide.js 머리말)을 볼 것"
+    assert {v for v, _ in reads} >= {"cg", "cc"}, "칸 정의(2단계)를 화면이 그린다 — cg · cc 로 읽는 곳이 있어야 한다"
     missing = []
     for var, chain in sorted(reads):
         assert objs[var], f"시험 자료에 {var} 줄이 없다 — 맞대 볼 수 없다"
@@ -249,12 +284,13 @@ def test_screen_reads_only_fields_the_server_sends(env):
     assert {s["state"] for s in st["items"].values()} <= set(dg.ITEM_WHY)
 
 
-# ── 5 · 6. 숫자가 없으면 설명만 ───────────────────────────────────────────────
+# ── 5 · 6. 숫자가 없으면 설명만 · 요청 때 세지 않는다 ───────────────────────────────
 def test_no_numbers_gives_descriptions_only(env):
-    """TC-DG-05 · 숫자가 없으면 설명만 — 수집 DB 가 없는 PC(상태는 줄 수 0 · 「없음」, 매니페스트 없음)에서 설명 · 흐름 · 길잡이는 다
-    오고 숫자 칸은 None(말없이 0 을 넣지 않는다) · 까닭이 달린다. 상태가 예외면 설명은 그대로 · 「읽지 못했습니다」 ·
-    관리자에게는 까닭. 표가 없어도 백업 목록이 있으면 연도별은 오고 줄 수 칸은 「일부」 로 까닭을 단다."""
-    env.box["status"] = _status(verdict="missing")
+    """TC-DG-05 · 숫자가 없으면 설명만 — 숫자 파일의 표가 모두 「없음」(수집 DB 가 없는 PC) · 매니페스트 없음이면 설명 · 흐름 ·
+    길잡이는 다 오고 숫자 칸은 None(말없이 0 을 넣지 않는다) · 까닭이 달린다. 숫자 파일이 아직 없거나(합친 날 · 첫 수집 전) ·
+    옛 판이거나 · 깨졌으면 설명은 그대로 · 안내 줄 · 관리자에게는 까닭. 표가 없어도 백업 목록이 있으면 연도별은 오고 줄 수
+    칸은 「일부」 로 까닭을 단다."""
+    _write(env.numbers, _numbers(missing=True))
     hf = env.cdir.parent / "hf_export" / "meta" / "manifest.json"
     ohlcv = env.cdir / "ohlcv_export" / "manifest.json"
     hf.unlink()
@@ -263,51 +299,66 @@ def test_no_numbers_gives_descriptions_only(env):
     g, st = out["guide"], out["stats"]
     assert len(g["items"]) == len(dg.load_guide()["items"]) and all(it["name"] and it["line"] for it in g["items"])
     assert g["tasks"] and g["pitfalls"] and g["flow"] and g["sources"]
-    assert st["available"] is False and "모은 자료가 없습니다" in st["note"]
+    assert st["available"] is False and st["note"] == "이 PC 에는 모은 자료가 없습니다 — 설명 · 흐름 · 길잡이는 그대로 봅니다"
     assert st["total_rows"] is None and st["first"] is None and st["years"] == []
     for key, s in st["items"].items():
         assert s["rows"] is None and s["last"] is None and not s["years"], key
         assert s["state"] in ("none", "no_link") and s["why"], key
-    # 상태가 예외 — 설명은 그대로 · 까닭을 단다(관리자에게는 무엇이 터졌는지)
-    env.box["status"] = RuntimeError("잠김")
-    out = dg.read(admin=True)
-    assert out["stats"]["problems"] == ["자료 상태를 읽지 못했습니다"] and "읽지 못했습니다" in out["stats"]["note"]
-    assert any("RuntimeError" in p for p in out["stats"]["dev"]["problems"])
-    assert len(out["guide"]["items"]) == len(g["items"])
-    assert out["stats"]["items"]["stock-day"]["state"] == "error"
-    # 표는 없고 백업 목록만 있는 PC — 연도별은 오고 줄 수는 「일부」 · 까닭
-    env.box["status"] = _status(verdict="missing")
+    # 숫자 파일이 아직 없다(합친 날 · 첫 수집 전) — 설명은 그대로 · 「다음 수집 뒤에 보입니다」 · 숫자 칸은 「기다림」
     _write(hf, _hf_manifest())
     _write(ohlcv, _ohlcv_manifest())
+    env.numbers.unlink()
+    out = dg.read(admin=True)
+    st = out["stats"]
+    assert st["note"] == "숫자는 매일 낮 수집이 끝날 때 셉니다 — 다음 수집 뒤에 보입니다" and st["measured_at"] is None
+    assert st["numbers"] == {"state": "none", "written_at": None}
+    s = st["items"]["stock-day"]
+    assert s["rows"] is None and s["state"] == "pending" and s["why"] == dg.ITEM_WHY["pending"]
+    assert s["years"] == {"2020": 300, "2021": 300}, "백업 목록 숫자는 숫자 파일과 따로 온다"
+    assert len(out["guide"]["items"]) == len(g["items"])
+    # 옛 판 — 앱이 아는 판과 다르면 숫자를 비우고 안내(관리자에게는 판 번호)
+    _write(env.numbers, _numbers(schema=0))
+    st = dg.read(admin=True)["stats"]
+    assert st["note"] == "숫자 파일이 이 화면보다 옛 판이라 숫자를 비워 둡니다 — 다음 수집 때 새로 씁니다"
+    assert st["items"]["stock-day"]["rows"] is None and st["items"]["stock-day"]["state"] == "pending"
+    assert st["numbers"]["state"] == "old" and any("판(0)" in x for x in st["dev"]["problems"])
+    # 깨진 파일 — 말없이 0 을 넣지 않는다 · 「읽지 못했습니다」
+    env.numbers.write_text("{ 깨짐", encoding="utf-8")
+    st = dg.read(admin=True)["stats"]
+    assert st["problems"] == ["숫자 파일을 읽지 못했습니다"] and st["numbers"]["state"] == "error"
+    assert st["note"] == "숫자 파일을 읽지 못했습니다 — 숫자 칸은 비워 두고 설명은 그대로 보입니다"
+    assert st["items"]["stock-day"]["state"] == "error" and st["items"]["stock-day"]["rows"] is None
+    # 표는 없고 백업 목록만 있는 PC — 연도별은 오고 줄 수는 「일부」 · 까닭
+    _write(env.numbers, _numbers(missing=True))
     s = dg.read(admin=False)["stats"]["items"]["stock-day"]
     assert s["rows"] is None and s["years"] == {"2020": 300, "2021": 300} and s["state"] == "partial" and s["why"]
 
 
-def test_slow_status_sends_descriptions_first(env, monkeypatch):
-    """TC-DG-06 · 상태 계산이 기다림 한도를 넘으면(캐시가 빈 뒤 컨테이너 9 ~ 20초) 설명 · 백업 목록 숫자를 먼저 보내고
-    (status_pending) 상태 칸은 「세는 중」 — 계산은 뒤에서 끝까지 돌고, 다음 요청은 그 결과를 쓴다. 겹쳐 띄우지 않는다."""
-    gate = threading.Event()
-    calls = []
-
-    def slow():
-        calls.append(1)
-        gate.wait(5)
-        return _status(rows=1234)
-
-    monkeypatch.setattr(ds, "get_status", slow)
-    monkeypatch.setattr(dg, "STATUS_WAIT_SECONDS", 0.05)
-    out = dg.read(admin=False)
-    st = out["stats"]
-    assert st["status_pending"] is True and "세는 중" in st["note"] and st["total_state"] == "counting"
-    s = st["items"]["stock-day"]
-    assert s["rows"] is None and s["state"] == "counting" and s["years"] == {"2020": 300, "2021": 300}
-    assert out["guide"]["items"] and out["guide"]["tasks"]
-    dg.read(admin=False)                                      # 도는 계산이 있으면 새로 띄우지 않는다
-    assert len(calls) == 1
-    gate.set()
-    dg._status_job["thread"].join(5)
+def test_numbers_come_from_the_runner_file_not_from_counting(env):
+    """TC-DG-06 · 요청 때 세지 않는다(결정 ④ · 2026-10-11 2단계) — 상태 계산 · 줄 수 세기 · 수집 DB 열기를 부르면 실패하게 막아도
+    (픽스처) 숫자는 러너가 쓴 파일에서 온다 · 숫자 기준 시각 = 파일을 쓴 때 · 「모은 줄」 = 파일 표 줄의 합. 수집이 도는 중이면
+    「지난 수집(시각) 기준」, 마지막 수집(한 단계 다시 포함) 뒤에 파일을 못 썼으면 「수집 기준 · 새로 쓰지 못했습니다」."""
+    _write(env.numbers, _numbers(rows=1234))
     st = dg.read(admin=False)["stats"]
-    assert st["status_pending"] is False and st["items"]["stock-day"]["rows"] == 1234 and st["note"] == ""
+    assert st["measured_at"] == WRITTEN and st["note"] == "" and st["numbers"] == {"state": "ok", "written_at": WRITTEN}
+    s = st["items"]["stock-day"]
+    assert s["rows"] == 1234 and s["rows_from"] == "numbers" and s["last"] == "2021-10-07" and s["state"] == "ok"
+    assert st["total_rows"] == 1234 * len(ds.TABLES) and st["total_state"] == "fresh" and st["as_of"] == "2021-10-07"
+    assert "status_pending" not in st
+    # 수집이 도는 중 — 숫자는 지난 수집 기준(파일을 쓴 시각)
+    _write(env.state / "daily_update.lock", {"pid": 1, "started_at": datetime.now(ds.KST).isoformat(timespec="seconds")})
+    st = dg.read(admin=False)["stats"]
+    assert st["runner"]["running"] is True
+    assert st["note"] == "매일 낮 수집이 도는 중입니다 — 숫자는 지난 수집(10-08 13:25) 기준입니다"
+    assert st["items"]["stock-day"]["rows"] == 1234, "도는 동안에도 지난 수집 숫자를 그대로 보인다"
+    (env.state / "daily_update.lock").unlink()
+    # 마지막 수집(한 단계 다시) 뒤에 파일을 못 썼다 — 숫자는 그대로 · 그 시각 기준이라고 알린다(관리자에게는 까닭)
+    _write(env.state / "daily_update_last.json",
+           {**LAST, "reruns": [{"name": "news", "at": "2026-10-08T15:00:00+09:00", "rc": 0}]})
+    st = dg.read(admin=True)["stats"]
+    assert st["note"] == "숫자는 10-08 13:25 수집 기준입니다 — 마지막 수집 뒤에 숫자를 새로 쓰지 못했습니다"
+    assert st["numbers"]["state"] == "stale" and st["total_state"] == "stale" and st["items"]["stock-day"]["rows"] == 1234
+    assert any(dg.NUMBERS_FILE in x for x in st["dev"]["problems"])
 
 
 # ── 7. 라우트 ────────────────────────────────────────────────────────────────
@@ -380,6 +431,20 @@ def test_ledger_checks_catch_bad_rows(tmp_path, monkeypatch, capsys):
     assert "「no-such-view」 — app.html 에 그런 화면이 없다" in problems
     assert "「nosuch」 — 출처 대장에 없다" in problems
     assert "「ghost_table」 — 표 속성 대장에 없다" in problems
+    # 칸 대장 — 코드에 없는 칸 · 정한 말 밖의 단위 · 쉬운 칸의 표 이름 · 그 표의 칸 이름 · 안내가 쓰지 않는 표
+    c = d / "자료안내-칸.tsv"
+    ctext = c.read_text(encoding="utf-8")
+    ctext = ctext.replace("price_daily\tclpr\t종가\t원\t", "price_daily\tclpr\t종가\t원화\t", 1)
+    ctext = ctext.replace("price_daily\tmkp\t시가\t원\t그날 첫 체결 가격", "price_daily\tmkp\t시가\t원\tclpr 와 같은 날 첫 체결 가격", 1)
+    ctext = ctext.replace("price_daily\thipr\t고가\t원\t그날 가장 높은 체결 가격", "price_daily\thipr\t고가\t원\tprice_daily 의 가장 높은 가격", 1)
+    ctext += "price_daily\tghost_col\t유령\t원\t코드에 없는 칸\r\nusers\temail\t메일\t글\t안내가 쓰지 않는 표\r\n"
+    c.write_text(ctext, encoding="utf-8")
+    problems = "\n".join(scan.build(d)[1])
+    assert "price_daily.clpr.단위 「원화」 — 정한 단위" in problems
+    assert "price_daily.mkp.뜻 — 그 표의 칸 이름 clpr" in problems
+    assert "price_daily.hipr.뜻 — 쉬운 칸에 표 이름 price_daily" in problems
+    assert "price_daily.ghost_col — 코드에 그런 칸이 없다" in problems
+    assert "users — 안내의 자료가 쓰지 않는 표" in problems
     (d / "자료안내-뺀표.tsv").write_text("표\t이유\r\n", encoding="utf-8")
     assert any("자료안내-뺀표.tsv 머리 줄" in x for x in scan.build(d)[1])
     # 점검에 걸리면 쓰지 않는다
@@ -387,3 +452,63 @@ def test_ledger_checks_catch_bad_rows(tmp_path, monkeypatch, capsys):
     out = tmp_path / "새-생성물.json"
     assert scan.main(["--write", "--out", str(out)]) == 1 and not out.exists()
     assert "시험용 까닭" in capsys.readouterr().out
+
+# ── 10. 칸 정의 = 코드의 칸 ──────────────────────────────────────────────────
+def test_column_definitions_cover_every_code_column():
+    """TC-DG-10 · 칸 정의 = 코드의 칸(2단계 · 사용자 2026-10-11 「35표 · 376칸 모두」) — 안내가 잇는 표의 모든 칸에 쉬운 이름 ·
+    단위 · 뜻이 하나씩(빠짐 0 · 남음 0) · 칸 차례 · 타입 · 열쇠는 코드 CREATE 문(앱 표는 모델) 그대로 · 단위는 정한 말 ·
+    표가 없는 자료는 칸 정의가 없다(None) · 설명 채움 = 칸 수. 칸을 더하면 칸 대장 줄도 함께 더해야 이 시험이 지나간다."""
+    guide = dg.load_guide()
+    used = [t for it in guide["items"] for t in it["dev"]["tables"]]
+    code = scan.code_columns(set(used))
+    assert set(code) == set(used), "안내가 잇는 표를 코드에서 모두 찾는다"
+    assert scan.column_coverage(code, scan.read_tsv(scan.LEDGER_DIR / scan.LEDGERS["칸"][0], scan.COL_COLS, [])) == {
+        "빠진_칸": [], "남는_칸": []}
+    seen: dict[str, int] = {}
+    for it in guide["items"]:
+        want = it["dev"]["tables"]
+        if not want:
+            assert it["columns"] is None, it["key"]
+            continue
+        cols = it["columns"]
+        assert [cg["dev"]["table"] for cg in cols["tables"]] == want, it["key"]
+        assert cols["count"] == cols["filled"] == sum(len(cg["cols"]) for cg in cols["tables"]) > 0, it["key"]
+        for cg in cols["tables"]:
+            t = cg["dev"]["table"]
+            assert cg["title"] and cg["count"] == len(cg["cols"]), t
+            assert [cc["dev"]["col"] for cc in cg["cols"]] == [x["col"] for x in code[t]], f"{t} 칸 차례 = 코드"
+            assert [cc["dev"]["key"] for cc in cg["cols"]] == [x["key"] for x in code[t]], f"{t} 열쇠 = 코드"
+            assert all(cc["name"] and cc["unit"] in scan.UNITS and cc["text"] for cc in cg["cols"]), t
+            seen[t] = len(cg["cols"])
+    assert len(seen) == len(set(used)) and sum(seen.values()) == sum(len(code[t]) for t in seen) >= 300
+    stock = next(it for it in guide["items"] if it["key"] == "stock-day")
+    assert {cc["dev"]["col"] for cc in stock["columns"]["tables"][0]["cols"] if cc["dev"]["key"]} == {"bas_dt", "srtn_cd"}
+
+
+# ── 11. 쓰는 쪽 → 읽는 쪽 한 줄 ───────────────────────────────────────────────
+def test_runner_numbers_file_is_what_the_guide_reads(env, tmp_path, monkeypatch):
+    """TC-DG-11 · 쓰는 쪽 → 읽는 쪽 한 줄(DF-102 교훈 — 손으로 만든 파일만 쓰는 시험은 읽는 쪽이 칸을 떨어뜨려도 지나간다) —
+    러너의 숫자 함수가 실제 SQLite(표 둘)를 관제와 같은 셈법으로 세어 쓴 파일을 자료 안내가 그대로 읽는다. 없는 표는 「없음」."""
+    from scripts import daily_update as du
+    db = tmp_path / "m.sqlite3"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE price_daily (bas_dt TEXT, srtn_cd TEXT, PRIMARY KEY (bas_dt, srtn_cd))")
+    conn.executemany("INSERT INTO price_daily VALUES (?, ?)", [("20211006", "005930"), ("20211007", "005930"), ("20211007", "000660")])
+    conn.execute("CREATE TABLE market_event (event_id TEXT PRIMARY KEY, event_date TEXT)")
+    conn.execute("INSERT INTO market_event VALUES ('x:2021-10-08', '2021-10-08')")
+    conn.commit()
+    conn.close()
+    at = datetime(2026, 10, 8, 13, 26, tzinfo=du.KST)
+    monkeypatch.setattr(ds, "table_states", _REAL_TABLE_STATES)            # 쓰는 쪽(러너)은 진짜로 센다
+    nums = du.table_numbers(db_path=db, now=at)
+    monkeypatch.setattr(ds, "table_states", _no_counting)                  # 읽는 쪽(앱)은 다시 세면 실패한다
+    assert [t["key"] for t in nums["tables"]] == [key for key, *_ in ds.TABLES], "열쇠 · 차례 = 관제의 표 정의(한 곳)"
+    du._write_json_atomic(env.numbers, nums)
+    out = dg.read(admin=True)
+    st = out["stats"]
+    assert st["numbers"]["state"] == "ok" and st["measured_at"] == nums["written_at"] == "2026-10-08T13:26:00+09:00"
+    s = st["items"]["stock-day"]
+    assert s["rows"] == 3 and s["last"] == "2021-10-07" and s["rows_from"] == "numbers"
+    assert st["items"]["events"]["rows"] == 1 and st["items"]["events"]["last"] == "2021-10-08"
+    assert st["items"]["etf-day"]["rows"] is None, "없는 표의 숫자는 0 이 아니라 「없음」"
+    assert st["total_rows"] == 4 and st["total_partial"] is True

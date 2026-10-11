@@ -1,4 +1,5 @@
-"""자료 안내 설명 생성물 — 대장(TSV) 넷 → `app/services/data_guide.json` (2026-10-08 · 「자료 안내」 화면 1단계).
+"""자료 안내 설명 생성물 — 대장(TSV) 다섯 + 코드의 칸 → `app/services/data_guide.json` (2026-10-08 · 「자료 안내」 화면 1단계 ·
+2026-10-11 · 2단계 칸 정의).
 
 왜 이 파일이 있는가
 -------------------
@@ -7,7 +8,8 @@
 백업 카드 · 문서와 어긋나는 다섯째 사본이 된다(설계 03 문서 13절 ④ — 손으로 옮긴 숫자 · 글이 이미 다섯 곳에서 어긋났다).
 그래서 정본 · 생성물 · 앱을 나눈다(2026-10-08 결정 ④ · SSoT).
 
-  정본    docs/데이터/대장/자료안내-자료.tsv · 자료안내-출처.tsv · 자료안내-길잡이.tsv · 자료안내-뺀표.tsv (사람이 고친다)
+  정본    docs/데이터/대장/자료안내-자료.tsv · 자료안내-출처.tsv · 자료안내-길잡이.tsv · 자료안내-뺀표.tsv ·
+          자료안내-칸.tsv (사람이 고친다 · 칸은 2026-10-11 부터) · 칸 목록 · 타입 · 열쇠는 코드(수집기 CREATE 문 · 앱 모델)
   생성물  app/services/data_guide.json — 이 스캐너가 만든다 · git 에 들어가고 앱 이미지에 함께 실린다
   앱      생성물을 읽기만 한다(GET /api/data/guide) — 앱 이미지에는 docs/ · scripts/ 가 없다(Dockerfile)
 
@@ -37,6 +39,18 @@
 그래서 자료 대장은 표 이름(`개발_표` 칸)으로 표 속성 대장에 **잇기만** 한다 — 한글명 · 공개 같은 표 단위 속성은 표 속성 대장
 한 곳에 남고(SSoT), 이 스캐너는 잇는 표 이름이 그 대장에 있는지 대조한다(참조 무결성).
 
+칸 정의(2단계 · 2026-10-11 사용자 「35표 · 376칸 모두」)
+----------------------------------------------------
+자료 한 장 서랍의 「칸」 절 — 안내가 잇는 표(자료 대장의 개발_표)마다 칸 하나에 쉬운 이름 · 단위 · 뜻 하나. 둘로 나눠 정본이
+겹치지 않게 한다(SSoT).
+  칸 목록 · 차례 · 타입 · 열쇠   코드 — 수집기는 CREATE 문(`schema_scan._코드_DDL` · `_ddl_주석_추출` — 데이터 사전과 같은 규칙),
+                                 앱 표(용어사전)는 SQLAlchemy 모델(`schema_scan.앱_스키마`). **수집 DB 파일을 열지 않는다**(DF-81 ·
+                                 데이터 사전 2.2절 「칸 목록은 코드와 DB 파일이 같다」 를 믿는다 · TC-DG-01 이 connect 를 막아 지킨다)
+  쉬운 이름 · 단위 · 뜻          사람 — 자료안내-칸.tsv(표 · 칸 · 쉬운이름 · 단위 · 뜻). 개발 메모(코드 주석)는 데이터 사전의 몫이라
+                                 옮겨 적지 않는다 — 주석을 고칠 때마다 이 생성물이 「뒤처졌다」 가 되지 않게.
+칸을 더하면 칸 대장 줄도 함께 — 대장에 없는 칸은 일반 사용자 답에서 빠지고 「설명 n / 전체」 로만 남으며, 시험 TC-DG-10 이
+빠짐 0 을 요구한다(생성물 쓰기는 막지 않는다 — 표를 더한 날 다른 설명까지 못 고치는 일이 없게).
+
 한계 — 이 스캐너가 판정하지 않는 것
 ------------------------------------
 - 글이 **사실인지**는 보지 않는다. 쉬운 칸에 개발 말이 섞였는지 · 열쇠가 이어지는지만 본다.
@@ -56,7 +70,8 @@ LEDGER_DIR = ROOT / "docs" / "데이터" / "대장"
 ATTR_LEDGER = LEDGER_DIR / "표-속성대장.tsv"
 APP_HTML = ROOT / "public" / "app.html"
 OUT = ROOT / "app" / "services" / "data_guide.json"
-SCHEMA = 1
+#: 생성물의 판 — 2 = 자료마다 칸 정의(2026-10-11). 앱(app/services/data_guide.py SCHEMA)과 같아야 한다(TC-DG-01).
+SCHEMA = 2
 SOURCE_TAG = "scripts/data_guide_scan.py --write"
 
 #: 대장 넷 — 파일 이름과 머리 줄(순서까지 이대로다 · 바꾸면 점검이 알린다).
@@ -68,12 +83,19 @@ ITEM_COLS = ("자료", "묶음", "쉬운이름", "한줄", "범위", "갱신", "
 SOURCE_COLS = ("출처", "이름", "곳", "종류", "표시", "이용조건", "공개")
 GUIDE_COLS = ("종류", "열쇠", "제목", "설명", "자료", "화면", "관리자")
 EXCL_COLS = ("표", "까닭")
+#: 칸 대장(2026-10-11) — 표 · 칸은 코드의 이름 그대로(개발 말) · 쉬운이름 · 단위 · 뜻은 화면 본문(쉬운 칸)
+COL_COLS = ("표", "칸", "쉬운이름", "단위", "뜻")
 LEDGERS = {
     "자료": ("자료안내-자료.tsv", ITEM_COLS),
     "출처": ("자료안내-출처.tsv", SOURCE_COLS),
     "길잡이": ("자료안내-길잡이.tsv", GUIDE_COLS),
     "뺀표": ("자료안내-뺀표.tsv", EXCL_COLS),
+    "칸": ("자료안내-칸.tsv", COL_COLS),
 }
+#: 칸 대장의 「단위」 에 쓰는 말 — 한 곳에서 정한다(같은 뜻을 「원」 · 「원화」 · 「KRW」 처럼 여러 꼴로 쓰지 않게).
+#: 코드 = 셈하지 않는 기호(종목코드 · 시장 · 공시 유형) · 지문 = 원문이 같은지 가리는 값 · 비율 = 0.01 이 1%
+UNITS = ("날짜", "시각", "연도", "원", "포인트", "주", "좌", "%", "비율", "배", "개", "자", "바이트", "밀리초",
+         "코드", "이름", "글", "주소", "지문", "목록", "숫자", "차례", "0 또는 1", "Y 또는 N")
 
 #: 출처의 「종류」 — 바깥 = 밖에서 받는 곳(화면의 「출처 N곳」 은 이것만 센다) · 계산 = 우리가 계산 · 팀 = 팀이 모은 글 · 기록 = 작업 기록
 SOURCE_KINDS = ("바깥", "계산", "팀", "기록")
@@ -108,6 +130,7 @@ PLAIN_COLS = {
     "자료": ("쉬운이름", "한줄", "범위", "갱신", "모으는법", "다듬기", "쓰는곳", "쓰지말곳", "읽는길", "이용조건", "숫자주의", "바둑판"),
     "출처": ("이름", "곳", "표시", "이용조건", "공개"),
     "길잡이": ("제목", "설명"),
+    "칸": ("쉬운이름", "단위", "뜻"),
 }
 
 VIEW_RE = re.compile(r'<div class="view" data-view="([^"]+)">')
@@ -181,6 +204,62 @@ def backup_spec_problem(spec: str, collector: set[str]) -> str | None:
     return f"{spec} — hf: 나 ohlcv: 로 시작해야 한다"
 
 
+# ── 코드의 칸(2단계) ───────────────────────────────────────────────────────
+_PK_TABLE = re.compile(r"^\s*PRIMARY KEY\s*\(([^)]*)\)", re.M | re.I)
+
+
+def _schema_scan():
+    """칸을 읽는 규칙 한 곳 — 데이터 사전 스캐너(scripts/schema_scan.py)의 코드 CREATE 문 · 주석 읽기 · 앱 모델 읽기를 그대로
+    쓴다(SSoT · 「위 줄 주석은 다음 칸」 같은 규칙을 두 번 쓰지 않는다). 그 스캐너의 DB 읽기(수집기_스키마)는 부르지 않는다."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from scripts import schema_scan
+    return schema_scan
+
+
+def _ddl_columns(ddl: str) -> list[dict]:
+    """CREATE 문 하나 → 칸 줄(차례 그대로) [{col, type, key}]. 열쇠는 표 끝 PRIMARY KEY (…) 가 있으면 그것, 없으면 칸 줄 안 PRIMARY KEY."""
+    names = list(_schema_scan()._ddl_주석_추출(ddl))
+    types: dict[str, str] = {}
+    inline: set[str] = set()
+    for line in ddl.splitlines():
+        body = line.split("--", 1)[0].strip()
+        if not body or body.upper().startswith(("CREATE", "PRIMARY KEY", "UNIQUE", "FOREIGN KEY")):
+            continue
+        parts = body.split()
+        name = parts[0].strip('",')
+        if name in names and name not in types:
+            types[name] = parts[1].rstrip(",") if len(parts) > 1 else ""
+            if "PRIMARY KEY" in body.upper():
+                inline.add(name)
+    m = _PK_TABLE.search(ddl)
+    keys = {x.strip().strip('"') for x in m.group(1).split(",")} if m else inline
+    return [{"col": n, "type": types.get(n, ""), "key": n in keys} for n in names]
+
+
+def code_columns(tables: set[str]) -> dict[str, list[dict]]:
+    """표 이름들 → {표: [{col, type, key}]} — 수집기는 코드 CREATE 문, 그 밖(용어사전 같은 앱 표)은 앱 모델에서. 코드에서 못 찾은
+    표는 빠진다(부른 쪽이 「찾지 못했다」 를 알린다). 수집 DB 파일은 열지 않는다."""
+    ss = _schema_scan()
+    code = ss._코드_DDL()
+    out = {t: _ddl_columns(code[t]) for t in sorted(tables) if t in code}
+    rest = set(tables) - set(out)
+    if rest:
+        for t in ss.앱_스키마():
+            if t.이름 in rest:
+                out[t.이름] = [{"col": c.이름, "type": c.타입, "key": bool(c.기본키)} for c in t.칸들]
+    return out
+
+
+def column_coverage(code: dict[str, list[dict]], rows: list[dict[str, str]]) -> dict[str, list[str]]:
+    """칸 정의가 코드의 칸을 빠짐없이 덮나 — 빠진_칸(코드에 있는데 대장에 없음) · 남는_칸(대장에 있는데 코드에 없음 · 안내가
+    잇는 표만). 점검은 요약에 ⚠️ 로 알리고, 빠짐 0 은 시험(TC-DG-10)이 요구한다."""
+    have = {(r["표"], r["칸"]) for r in rows}
+    want = {(t, c["col"]) for t, cs in code.items() for c in cs}
+    return {"빠진_칸": sorted(f"{t}.{c}" for t, c in want - have),
+            "남는_칸": sorted(f"{t}.{c}" for t, c in have - want if t in code)}
+
+
 # ── 만들기 ────────────────────────────────────────────────────────────────
 def build(ledger_dir: Path = LEDGER_DIR, attr_path: Path = ATTR_LEDGER,
           app_html: Path = APP_HTML) -> tuple[dict, list[str]]:
@@ -197,7 +276,8 @@ def build(ledger_dir: Path = LEDGER_DIR, attr_path: Path = ATTR_LEDGER,
     # 쉬운 칸의 개발 말 — 화면 본문에 표 이름 · API 경로 · 명령이 나가지 않게(결정 ②)
     for name, cols in PLAIN_COLS.items():
         for row in led[name]:
-            who = row.get("자료") or row.get("출처") or f"{row.get('종류', '')} {row.get('제목') or row.get('열쇠') or ''}".strip()
+            who = (f"{row.get('표', '')}.{row.get('칸', '')}" if name == "칸" else row.get("자료") or row.get("출처")
+                   or f"{row.get('종류', '')} {row.get('제목') or row.get('열쇠') or ''}".strip())
             for col in cols:
                 for word in dev_words(row.get(col, ""), all_tables):
                     problems.append(f"{LEDGERS[name][0]} {who}.{col} — 쉬운 칸에 {word}")
@@ -331,6 +411,53 @@ def build(ledger_dir: Path = LEDGER_DIR, attr_path: Path = ATTR_LEDGER,
             problems.append(f"뺀표 「{r['표']}」 — 안내의 자료가 이미 쓰는 표다")
         excluded.append({"table": r["표"], "why": r["까닭"]})
 
+    # 칸 정의(2단계) — 안내가 잇는 표의 칸을 코드에서 읽고 칸 대장의 쉬운 말을 붙인다. 대장 줄은 (표, 칸) 이 코드에 있어야 하고,
+    # 안내가 쓰는 표여야 하고, 두 번 적지 않고, 단위는 정한 말이고, 쉬운 칸에 그 표의 칸 이름을 쓰지 않는다.
+    used = list(dict.fromkeys(t for it in items for t in it["dev"]["tables"]))
+    code = code_columns(set(used))
+    for t in used:
+        if t not in code:
+            problems.append(f"{t} — 코드(수집기 CREATE 문 · 앱 모델)에서 칸을 찾지 못했다")
+    title = {r["표"]: r.get("한글명", "") for r in attr if r.get("표")}
+    defs: dict[tuple[str, str], dict[str, str]] = {}
+    for r in led["칸"]:
+        t, c = r["표"], r["칸"]
+        if t not in used:
+            problems.append(f"칸 대장 {t} — 안내의 자료가 쓰지 않는 표")
+            continue
+        names = {x["col"] for x in code.get(t, [])}
+        if c not in names:
+            problems.append(f"칸 대장 {t}.{c} — 코드에 그런 칸이 없다")
+            continue
+        if (t, c) in defs:
+            problems.append(f"칸 대장 {t}.{c} — 두 번 적혔다")
+        for col in ("쉬운이름", "단위", "뜻"):
+            if not r[col]:
+                problems.append(f"칸 대장 {t}.{c}.{col} 이 비었다")
+        if r["단위"] and r["단위"] not in UNITS:
+            problems.append(f"칸 대장 {t}.{c}.단위 「{r['단위']}」 — 정한 단위({' · '.join(UNITS)}) 가운데 하나")
+        for col in ("쉬운이름", "뜻"):
+            for n in sorted(names):
+                if re.search(rf"(?<![A-Za-z0-9_]){re.escape(n)}(?![A-Za-z0-9_])", r[col]):
+                    problems.append(f"칸 대장 {t}.{c}.{col} — 그 표의 칸 이름 {n} 을 쉬운 칸에 썼다")
+        defs[(t, c)] = r
+    for it in items:
+        if not it["dev"]["tables"]:
+            it["columns"] = None                  # 표가 없는 자료(주봉 · 매일 수집 회차 기록) — 칸 정의가 없다
+            continue
+        cgs = []
+        for t in it["dev"]["tables"]:
+            if not title.get(t):
+                problems.append(f"표 속성 대장 {t}.한글명 이 비었다 — 칸 묶음 머리에 쓴다")
+            ccs = []
+            for x in code.get(t, []):
+                r = defs.get((t, x["col"]))
+                ccs.append({"name": r["쉬운이름"] if r else None, "unit": r["단위"] if r else None,
+                            "text": r["뜻"] if r else None, "dev": {"col": x["col"], "type": x["type"], "key": x["key"]}})
+            cgs.append({"title": title.get(t, ""), "count": len(ccs), "dev": {"table": t}, "cols": ccs})
+        it["columns"] = {"count": sum(cg["count"] for cg in cgs),
+                         "filled": sum(1 for cg in cgs for cc in cg["cols"] if cc["name"]), "tables": cgs}
+
     guide = {"schema": SCHEMA, "source": SOURCE_TAG, "groups": groups, "sources": sources, "items": items,
              "flow": flow, "flow_notes": flow_notes, "tasks": tasks, "pitfalls": pitfalls, "excluded": excluded}
     return guide, problems
@@ -362,6 +489,12 @@ def _summary(guide: dict, cover: dict[str, list[str]], out: Path) -> None:
           f" · 길잡이 {len(guide['tasks'])} · 틀리기 쉬운 것 {len(guide['pitfalls'])} · 뺀 표 {len(guide['excluded'])}")
     print(f"  바둑판 줄 {sum(1 for it in guide['items'] if it['grid'])} · 숫자를 잇는 자료 "
           f"{sum(1 for it in guide['items'] if it['stats_from']['status'] or it['stats_from']['backup'])}")
+    cols = [cg for it in guide["items"] if it["columns"] for cg in it["columns"]["tables"]]
+    tables = {cg["dev"]["table"]: cg for cg in cols}
+    n_all = sum(cg["count"] for cg in tables.values())
+    n_def = sum(1 for cg in tables.values() for cc in cg["cols"] if cc["name"])
+    print(f"  칸 정의 — 표 {len(tables)} · 칸 {n_all} · 설명 {n_def}"
+          + ("" if n_def == n_all else f" ⚠️ 설명 없는 칸 {n_all - n_def} — 자료안내-칸.tsv 에 줄을 더한다"))
     if any(cover.values()):
         for k, v in cover.items():
             if v:
