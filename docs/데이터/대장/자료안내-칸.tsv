@@ -1,0 +1,377 @@
+표	칸	쉬운이름	단위	뜻
+price_daily	bas_dt	기준일	날짜	시세가 속한 거래일 — 20261008 꼴(여덟 자리)
+price_daily	srtn_cd	종목코드	코드	거래소 단축 종목코드 여섯 자리 — 예 005930
+price_daily	isin_cd	표준코드	코드	국제 증권 식별 번호 열두 자리 — KR 로 시작한다
+price_daily	itms_nm	종목명	이름	그날 받은 종목 이름 — 이름을 바꾼 종목은 날짜마다 다르다
+price_daily	mrkt_ctg	시장	코드	KOSPI(코스피) · KOSDAQ(코스닥) · KONEX(코넥스) 가운데 하나
+price_daily	clpr	종가	원	그날 마지막 체결 가격 — 분할 · 권리락을 고치지 않은 원래 가격
+price_daily	vs	전일 대비	원	종가에서 기준가(보통 전날 종가)를 뺀 값 — 분할 · 권리락 날에는 거래소가 고친 기준가에 견준다
+price_daily	flt_rt	등락률	%	전일 대비를 기준가로 나눈 비율 — 소수 둘째 자리까지라 계산보다 확인에 쓴다
+price_daily	mkp	시가	원	그날 첫 체결 가격 — 0 이면 그날 거래가 없었다
+price_daily	hipr	고가	원	그날 가장 높은 체결 가격
+price_daily	lopr	저가	원	그날 가장 낮은 체결 가격
+price_daily	trqu	거래량	주	그날 체결된 주식 수
+price_daily	tr_prc	거래대금	원	그날 체결된 금액의 합
+price_daily	lstg_st_cnt	상장주식수	주	그날 상장된 주식 수 — 분할 · 증자 · 감자로 바뀐다
+price_daily	mrkt_tot_amt	시가총액	원	그날 종가 × 상장주식수
+price_daily	halted	거래정지	0 또는 1	1 이면 시가와 거래량이 모두 0 인 날 — 거래가 멈춘 날로 본다
+price_daily	raw_sha256	원문 지문	지문	이 줄이 나온 받은 원문을 가리키는 값 — 같은 원문에서 왔는지 가릴 때 쓴다
+etf_daily	bas_dt	기준일	날짜	시세가 속한 거래일 — 20261008 꼴(여덟 자리)
+etf_daily	srtn_cd	종목코드	코드	거래소 단축 종목코드 여섯 자리 — 영문이 섞이기도 한다(예 0000D0)
+etf_daily	isin_cd	표준코드	코드	국제 증권 식별 번호 열두 자리
+etf_daily	itms_nm	종목명	이름	그날 받은 ETF 이름
+etf_daily	clpr	종가	원	그날 마지막 체결 가격
+etf_daily	vs	전일 대비	원	종가에서 기준가(보통 전날 종가)를 뺀 값 — 주식과 같은 식
+etf_daily	flt_rt	등락률	%	전일 대비를 기준가로 나눈 비율
+etf_daily	nav	순자산가치(NAV)	원	ETF 한 좌가 담은 자산의 값 — 종가와 견줘 비싸게 · 싸게 거래되는지 본다
+etf_daily	mkp	시가	원	그날 첫 체결 가격 — 0 이면 그날 거래가 없었다
+etf_daily	hipr	고가	원	그날 가장 높은 체결 가격
+etf_daily	lopr	저가	원	그날 가장 낮은 체결 가격
+etf_daily	trqu	거래량	좌	그날 체결된 ETF 수량
+etf_daily	tr_prc	거래대금	원	그날 체결된 금액의 합
+etf_daily	mrkt_tot_amt	시가총액	원	그날 종가 × 상장좌수
+etf_daily	st_lstg_cnt	상장좌수	좌	그날 상장된 ETF 수량
+etf_daily	bss_idx_nm	기초지수	이름	ETF 가 따라가는 지수의 이름
+etf_daily	bss_idx_clpr	기초지수 종가	포인트	따라가는 지수의 그날 종가
+etf_daily	npt_tot_amt	순자산총액	원	ETF 전체가 담은 자산의 값
+etf_daily	halted	거래정지	0 또는 1	1 이면 시가와 거래량이 모두 0 인 날 — 주식과 같은 규칙
+etf_daily	raw_sha256	원문 지문	지문	이 줄이 나온 받은 원문을 가리키는 값 — 같은 원문에서 왔는지 가릴 때 쓴다
+index_daily	bas_dt	기준일	날짜	지수 값이 속한 거래일 — 20261008 꼴(여덟 자리)
+index_daily	idx_csf	지수 묶음	이름	KOSPI시리즈 · KOSDAQ시리즈 · KRX시리즈 · 테마지수 가운데 어디에 드는 지수인가
+index_daily	idx_nm	지수 이름	이름	예 코스피 · 코스닥 · 화학
+index_daily	epy_itms_cnt	구성 종목 수	개	그날 지수에 든 종목 수
+index_daily	clpr	종가	포인트	그날 마지막 지수 값
+index_daily	vs	전일 대비	포인트	종가에서 전날 종가를 뺀 값
+index_daily	flt_rt	등락률	%	전일 대비를 전날 종가로 나눈 비율
+index_daily	mkp	시가	포인트	그날 첫 지수 값
+index_daily	hipr	고가	포인트	그날 가장 높은 지수 값
+index_daily	lopr	저가	포인트	그날 가장 낮은 지수 값
+index_daily	trqu	거래량	주	지수에 든 종목들의 그날 거래량 합
+index_daily	tr_prc	거래대금	원	지수에 든 종목들의 그날 거래대금 합
+index_daily	lstg_mrkt_tot_amt	상장 시가총액	원	지수에 든 종목들의 시가총액 합
+index_daily	bas_pntm	기준 시점	날짜	지수를 처음 잰 날 — 이날 값이 기준 지수다
+index_daily	bas_idx	기준 지수	포인트	기준 시점의 지수 값 — 예 100 · 1000
+index_daily	raw_sha256	원문 지문	지문	이 줄이 나온 받은 원문을 가리키는 값 — 같은 원문에서 왔는지 가릴 때 쓴다
+price_adjusted	bas_dt	기준일	날짜	거래일 — 20261008 꼴(여덟 자리)
+price_adjusted	srtn_cd	종목코드	코드	거래소 단축 종목코드 여섯 자리
+price_adjusted	adj_clpr	수정 종가	원	분할 · 권리락으로 끊긴 가격을 이어 붙인 종가 — 가장 최근 날의 가격 수준에 맞춘다
+price_adjusted	adj_mkp	수정 시가	원	수정 종가와 같은 계수로 고친 시가
+price_adjusted	adj_hipr	수정 고가	원	수정 종가와 같은 계수로 고친 고가
+price_adjusted	adj_lopr	수정 저가	원	수정 종가와 같은 계수로 고친 저가
+price_adjusted	cum_factor	누적 조정계수	배	이날 원래 가격에 곱한 값 — 원래 가격 × 이 값 = 수정 가격 · 가장 최근 날은 1
+price_total_return	bas_dt	기준일	날짜	거래일 — 20261008 꼴(여덟 자리)
+price_total_return	srtn_cd	종목코드	코드	거래소 단축 종목코드 여섯 자리
+price_total_return	tr_index	총수익 지수(세전)	배	배당을 받은 날 다시 사들였다고 보고 쌓은 성과 — 우리 자료의 첫 거래일 = 1
+price_total_return	tr_index_net	총수익 지수(세후)	배	배당소득세 15.4% 를 뗀 배당으로 다시 사들였다고 본 성과 — 같은 기준
+price_total_return	pr_index	가격 지수	배	배당 없이 가격만으로 쌓은 성과 — 같은 기준이라 총수익 지수와 견줄 때 쓴다
+price_total_return	div_factor	배당 계수	배	1 + 1주당 배당금 ÷ 그날 종가 — 배당이 없는 날은 1
+price_total_return	dps_applied	반영한 배당금	원	그날 더한 1주당 배당금 — 없으면 빈칸
+benchmark_index	bas_dt	기준일	날짜	거래일 — 20261008 꼴(여덟 자리)
+benchmark_index	mrkt_ctg	시장	코드	KOSPI · KOSDAQ · KONEX — 시장마다 따로 계산한다
+benchmark_index	variant	계산 방식	코드	PR 가격만 · TR 배당 재투자(세전) · TRN 배당 재투자(세후) · EW 동일 가중
+benchmark_index	ret	그날 수익률	비율	0.01 = 1% — 계산의 첫날은 견줄 전날이 없어 빈칸
+benchmark_index	level	지수 값	포인트	계산의 첫날 = 1000 에서 날마다 수익률을 곱해 쌓은 값
+benchmark_index	n_const	쓴 종목 수	개	그날 수익률 계산에 실제로 쓴 종목 수 — 시장 전체 종목 수가 아니다
+benchmark_index	mcap_total	전일 시가총액 합	원	그날 수익률의 무게를 정한 전날 시가총액의 합
+benchmark_index	n_entered	새로 든 종목 수	개	전날엔 없다가 그날 계산에 든 종목 수 — 첫날과 그다음 날은 0
+benchmark_index	n_exited	빠진 종목 수	개	전날엔 있다가 그날 빠진 종목 수
+benchmark_index	n_outlier	크게 움직인 종목 수	개	하루 등락이 60% 를 넘은 종목 수 — 값은 그대로 쓰고 세기만 한다
+benchmark_index	n_fixed	주식 수로 고친 종목 수	개	0 이 정상 — 0 이 아닌 날은 가격 조정이 놓친 감자가 있었는지 사람이 본다
+benchmark_index	base_dt	계산 첫날	날짜	이 줄을 만든 계산이 어느 날을 첫날로 삼았나
+benchmark_index	base_level	첫날 값	포인트	그 계산의 첫날 지수 값
+corporate_action	bas_dt	가격이 끊긴 날	날짜	분할 · 권리락 같은 일로 가격이 끊긴 거래일 — 20261008 꼴(여덟 자리)
+corporate_action	srtn_cd	종목코드	코드	거래소 단축 종목코드 여섯 자리
+corporate_action	itms_nm	종목명	이름	그날 종목 이름
+corporate_action	prev_clpr	전날 종가	원	직전 거래일 종가 — 고치기 전 값
+corporate_action	base_price	기준가	원	거래소가 그날 정한 기준 가격 — 그날 종가에서 전일 대비를 뺀 값
+corporate_action	factor	가격 계수	배	기준가 ÷ 전날 종가 — 1주를 2주로 나누는 분할이면 0.5 에 가깝다
+corporate_action	lstg_before	전 상장주식수	주	그 일이 있기 전 상장주식수
+corporate_action	lstg_after	뒤 상장주식수	주	그날의 상장주식수
+corporate_action	lstg_cross	교차 확인 값	배	가격 계수 × 주식 수가 늘어난 배수 — 분할이면 1 에 가깝고, 멀면 두 신호가 어긋난 것
+corporate_action	needs_review	확인 필요	0 또는 1	1 이면 가격과 주식 수가 서로 다른 말을 해 사람이 볼 날
+corporate_action	kind	종류	코드	split 분할 · 병합 · rights 권리락(주식 수 그대로) · review 확인 필요 · shares 주식 수로 맞춤
+price_intraday	symbol	종목코드	코드	거래소 단축 종목코드 여섯 자리 — ETF 도 있다
+price_intraday	timeframe	봉 길이	코드	60m 60분봉 · 5m 5분봉
+price_intraday	bar_start	봉 시작 시각	시각	그 봉이 시작한 한국 시각 — 2026-10-08T09:00:00+09:00 꼴
+price_intraday	trade_date	거래일	날짜	봉이 속한 거래일 — 2026-10-08 꼴
+price_intraday	open	시가	원	봉 안 첫 가격
+price_intraday	high	고가	원	봉 안 가장 높은 가격
+price_intraday	low	저가	원	봉 안 가장 낮은 가격
+price_intraday	close	종가	원	봉 안 마지막 가격
+price_intraday	volume	거래량	주	봉 안에 체결된 수량
+price_intraday	session	시간대	코드	regular 정규장 — 지금은 이 값만 있다
+price_intraday	source	출처	코드	yahoo 야후 파이낸스
+price_intraday	price_basis	가격 기준	코드	adj_split 분할만 고친 가격(받은 값 그대로) — 일봉의 원래 가격과 다를 수 있다
+price_intraday	fetched_at	받은 시각	시각	한국 시각
+intraday_universe	version	대상 목록 판	이름	분봉을 받을 종목 목록의 판 — u2-20260930 꼴
+intraday_universe	symbol	종목코드	코드	거래소 단축 종목코드 여섯 자리
+intraday_universe	itms_nm	종목명	이름	목록을 만든 날의 종목 이름
+intraday_universe	market	시장	코드	KOSPI · KOSDAQ · ETF
+intraday_universe	reason	뽑힌 까닭	글	예 「KOSPI 시가총액 12위」
+intraday_universe	rank	순위	차례	그 시장 안 순위
+dividend	srtn_cd	종목코드	코드	거래소 단축 종목코드 여섯 자리
+dividend	record_dt	배당기준일	날짜	공시에 적힌 기준일 — 이날 주주가 배당을 받는다 · 20261008 꼴(여덟 자리)
+dividend	rcept_no	접수번호	코드	전자공시 접수번호 열네 자리 — 앞 여덟 자리가 접수일
+dividend	corp_code	회사 고유번호	코드	전자공시가 회사마다 매긴 여덟 자리 번호
+dividend	itms_nm	종목명	이름	공시한 회사의 종목 이름
+dividend	report_nm	공시 제목	글	정정공시면 제목 머리에 [기재정정] 같은 표시가 붙는다
+dividend	div_kind	배당 시기	이름	결산배당 · 분기배당 · 중간배당
+dividend	div_type	배당 종류	이름	현금배당 · 현물배당 · 현금ㆍ현물배당 — 공시 본문 그대로
+dividend	dps	주당배당금(보통주)	원	보통주 1주당 배당금
+dividend	dps_pref	주당배당금(우선주)	원	종류주식(우선주) 1주당 배당금
+dividend	yield_pct	시가배당률	%	공시에 적힌 시가배당률 — 주가와 견줘 확인할 때 쓴다
+dividend	total_amt	배당금 총액	원	회사가 나눠 주는 배당금의 합
+dividend	ex_div_dt	배당락일	날짜	기준일에서 거래일 달력으로 거꾸로 센 날 — 공시 값이 아니라 우리가 계산한 날
+dividend	board_dt	이사회 결의일	날짜	배당을 정한 이사회 날
+dividend	raw_sha256	원문 지문	지문	이 줄이 나온 공시 본문을 가리키는 값
+dividend	needs_review	확인 필요	0 또는 1	1 이면 본문에서 필요한 칸을 못 읽은 공시 — 추측해 채우지 않았다
+dividend	note	메모	글	읽으며 남긴 메모
+disclosure	rcept_no	접수번호	코드	전자공시 접수번호 열네 자리 — 앞 여덟 자리가 접수일
+disclosure	rcept_dt	접수일	날짜	공시를 낸 날 — 20261008 꼴(여덟 자리)
+disclosure	corp_code	회사 고유번호	코드	전자공시가 회사마다 매긴 여덟 자리 번호
+disclosure	corp_name	회사 이름	이름	공시한 회사 이름
+disclosure	stock_code	종목코드	코드	거래소 단축 종목코드 여섯 자리
+disclosure	corp_cls	시장	코드	Y 유가증권 · K 코스닥 · N 코넥스
+disclosure	pblntf_ty	공시 유형	코드	A 정기 · B 주요사항 · C 발행 · D 지분 · E 기타 · F 외부감사 · G 펀드 · H 자산유동화 · I 거래소 · J 공정위
+disclosure	report_nm	보고서 이름	글	받은 이름 그대로 — 머리 [기재정정] 같은 표시와 꼬리 설명까지
+disclosure	title	보고서 이름(다듬음)	글	머리 표시와 꼬리 설명을 뗀 이름 — 종류를 가를 때 쓴다
+disclosure	revision	정정 표시	글	머리 [ ] 안 글 — 기재정정 · 첨부정정 · 첨부추가 · 변경등록 …
+disclosure	period	보고서 기간	글	정기보고서가 덮는 기간 — 2025.12 꼴
+disclosure	flr_nm	제출인	이름	공시를 낸 사람 · 회사
+disclosure	rm	비고	글	유 · 코 · 넥 · 채 · 연 · 정 · 철 같은 한 글자 표시 — 마지막으로 받은 날 기준
+disclosure	fetched_at	처음 받은 시각	시각	한국 시각
+disclosure	updated_at	다시 받은 시각	시각	마지막으로 다시 받은 한국 시각
+disclosure	raw_sha256	원문 지문	지문	이 줄이 나온 목록 원문을 가리키는 값
+financial_statement	corp_code	회사 고유번호	코드	전자공시가 회사마다 매긴 여덟 자리 번호
+financial_statement	bsns_year	사업연도	연도	보고서가 다루는 해 — 2025 꼴
+financial_statement	reprt_code	보고서 종류	코드	11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업보고서
+financial_statement	fs_div	재무제표 범위	코드	CFS 연결 · OFS 별도
+financial_statement	sj_div	재무제표 종류	코드	BS 재무상태표 · IS 손익계산서
+financial_statement	ord	계정 차례	차례	받은 그대로의 계정 늘어놓는 차례
+financial_statement	account_nm	계정 이름	이름	예 매출액 · 영업이익 · 당기순이익(손실) — 받은 이름 그대로
+financial_statement	rcept_no	접수번호	코드	이 값이 실린 보고서 — 정정이 있으면 정정본
+financial_statement	scope	계정 범위	코드	major = 주요 계정
+financial_statement	stock_code	종목코드	코드	거래소 단축 종목코드 여섯 자리
+financial_statement	period_end	당기 끝날	날짜	당기가 끝나는 날 — 2025-12-31 꼴
+financial_statement	thstrm_amount	당기 금액	원	이번 기간 값 — 분기 · 반기 손익계산서는 그 3개월 · 통화 칸이 원이 아니면 그 통화
+financial_statement	thstrm_add_amount	당기 누적 금액	원	그해 처음부터 이번 기간 끝까지 쌓은 값
+financial_statement	frmtrm_amount	전기 금액	원	지난 기간 값
+financial_statement	frmtrm_add_amount	전기 누적 금액	원	지난해 같은 때까지 쌓은 값
+financial_statement	bfefrmtrm_amount	전전기 금액	원	두 기간 전 값 — 사업보고서에만 있다
+financial_statement	currency	통화	코드	금액의 통화 — 대개 KRW(원)
+financial_statement	known_at	알게 된 날	날짜	이 값이 실린 보고서의 접수일 — 이날부터 시장이 알 수 있었다 · 20261008 꼴(여덟 자리)
+financial_statement	first_known_at	처음 알게 된 날	날짜	그 기간 원래 보고서의 접수일 — 모르면 빈칸
+financial_statement	fetched_at	받은 시각	시각	한국 시각
+financial_statement	raw_sha256	원문 지문	지문	이 줄이 나온 받은 원문을 가리키는 값 — 같은 원문에서 왔는지 가릴 때 쓴다
+corp_schedule	rcept_no	접수번호	코드	일정이 나온 공시 — 주주총회소집결의 · 현금ㆍ현물배당결정
+corp_schedule	kind	일정 종류	코드	agm 주주총회 · dividend_pay 배당금 지급
+corp_schedule	stock_code	종목코드	코드	거래소 단축 종목코드 여섯 자리
+corp_schedule	corp_name	회사 이름	이름	공시한 회사 이름
+corp_schedule	event_date	일정 날짜	날짜	2026-03-27 꼴 — 본문에서 못 읽으면 빈칸(추측하지 않는다)
+corp_schedule	event_time	일정 시각	시각	09:00 꼴 — 모르면 빈칸
+corp_schedule	label	일정 이름	이름	정기주주총회 · 임시주주총회 · 결산배당 · 중간배당 · 분기배당
+corp_schedule	detail	자세히	글	장소 · 안건 몇 개 · 1주당 배당금 · 날짜 칸의 원래 글
+corp_schedule	orig_filed	원 공시 제출일	날짜	정정 공시면 원래 공시를 찾는 날짜
+corp_schedule	raw_sha256	원문 지문	지문	읽은 공시 본문을 가리키는 값
+corp_schedule	parsed_at	읽은 시각	시각	한국 시각
+holiday_kasi	locdate	날짜	날짜	2026-10-09 꼴
+holiday_kasi	date_name	이름	이름	예 추석 · 대체공휴일(삼일절) · 노동절 · 전국동시지방선거
+holiday_kasi	is_holiday	공휴일 여부	Y 또는 N	Y 공휴일 · N 아님 — 한국천문연구원 응답 그대로
+holiday_kasi	date_kind	날 종류	코드	한국천문연구원 응답의 종류 번호 그대로
+holiday_kasi	seq	순번	차례	같은 날에 이름이 둘 이상일 때의 차례
+holiday_kasi	fetched_at	받은 시각	시각	한국 시각
+market_calendar	cal_date	날짜	날짜	2026-10-08 꼴
+market_calendar	is_trading_day	거래일 여부	0 또는 1	1 거래일 · 0 휴장
+market_calendar	reason	휴장 까닭	글	공휴일 이름 · 토요일 · 일요일 · 근로자의 날 · 연말 휴장일
+market_calendar	basis	정한 근거	코드	observed 시세로 확인(시세가 있으면 거래일) · rule 규칙으로 정함(시세 마지막 날 뒤)
+market_calendar	note	메모	글	규칙과 시세가 어긋난 날 · 시세가 아직 없는 날
+market_calendar	updated_at	고친 시각	시각	한국 시각
+market_event	event_id	일정 ID	코드	종류:날짜(:종목) — 다시 만들어도 같은 값
+market_event	kind	일정 종류	코드	dividend_record 배당기준일 · dividend_ex 배당락일 · dividend_pay 배당금 지급 · earnings 실적 발표 · agm 주주총회 · market_closure 휴장 · deriv_expiry 파생 만기 · policy_rate 금통위 · fomc FOMC · report_deadline 보고서 기한
+market_event	event_date	날짜	날짜	2026-10-08 꼴
+market_event	event_time	시각	시각	09:00 꼴 — 모르면 빈칸
+market_event	market	시장	코드	KRX 시장 전체 · BOK 한국은행 · FOMC 미국 연준 — 종목 일정은 빈칸
+market_event	symbol	종목코드	코드	종목 일정의 단축 종목코드 — 시장 전체 일정은 빈칸
+market_event	title	제목	글	화면에 보이는 일정 이름
+market_event	detail	자세히	글	금액 · 공시 이름 같은 덧붙임
+market_event	confidence	확실도	코드	confirmed 확정(공시 · 시세로 확인) · computed 규칙으로 계산 · scheduled 예정
+market_event	source	근거 출처	코드	예 kasi 한국천문연구원 · krx_rule 거래소 규칙 · dart 전자공시 · bok 한국은행 · fomc 미국 연준 — 배당 일정은 배당 공시
+market_event	source_ref	근거 번호	코드	공시 접수번호나 출처 주소
+market_event	updated_at	고친 시각	시각	한국 시각
+policy_meeting	org	기관	코드	bok 한국은행 금융통화위원회 · fomc 미국 연방공개시장위원회
+policy_meeting	meeting_date	회의 날짜	날짜	2026-10-22 꼴 — 금통위는 한국 날짜 · FOMC 는 이틀 회의의 둘째 날(미국 동부)
+policy_meeting	title	제목	글	예 「금통위 통화정책방향 결정회의(기준금리 결정)」
+policy_meeting	detail	자세히	글	덧붙인 설명
+policy_meeting	source_url	출처 주소	주소	일정을 확인한 공식 쪽
+policy_meeting	fetched_at	받은 시각	시각	한국 시각
+news_item	news_id	기사 ID	코드	출처:번호 — policy:… 는 정책브리핑 기사 번호 · gdelt:… 는 원문 주소에서 만든 값
+news_item	source	출처	코드	policy_news 정책브리핑 정책뉴스 · gdelt 언론사 기사 목록
+news_item	title	제목	글	기사 제목
+news_item	subtitle	부제목	글	부제목 한 ~ 세 줄 — 정책뉴스만
+news_item	body	본문	글	공공누리 제1유형 정책뉴스만 본문을 둔다 — 그 밖은 빈칸
+news_item	url	원문 주소	주소	정책뉴스는 정책브리핑 쪽 · 언론사 기사는 그 언론사 쪽
+news_item	publisher	낸 곳	이름	정책뉴스는 부처 · 기관(빈칸도 있다) · 언론사 기사는 사이트 주소
+news_item	category	글 성격	코드	policy 정책 · fact 사실 확인 · brief 보도자료 — 정책뉴스만
+news_item	kogl_type	공공누리 유형	코드	1 ~ 4 — 빈칸이면 모름이라 본문을 두지 않는다
+news_item	pub_at	올라온 시각	시각	정책뉴스는 승인 시각 · 언론사 기사는 목록에 잡힌 시각 — 2026-10-08T09:00:00+09:00 꼴
+news_item	embargo_at	보도 유예 해제 시각	시각	보도 유예가 풀린 시각 — 있을 때만
+news_item	available_at	볼 수 있게 된 시각	시각	올라온 시각 · 유예 해제 가운데 늦은 쪽 — 이 시각 앞의 분석에는 쓰지 않는다
+news_item	modified_at	고친 시각	시각	출처가 마지막으로 고친 시각
+news_item	revision	고친 횟수	개	처음 올라온 판이 1
+news_item	fetched_at	처음 받은 시각	시각	다시 받아도 바뀌지 않는다
+news_item	updated_at	바뀐 판을 받은 시각	시각	내용이 바뀐 판을 마지막으로 받은 시각
+news_item	raw_sha256	원문 지문	지문	이 판이 나온 받은 원문을 가리키는 값
+kb_raw	source	출처	코드	law.go.kr 국가법령정보센터
+kb_raw	target	받은 대상	코드	법령 검색 · 판 일련번호 · 시행일 — 무엇을 받았나
+kb_raw	fetched_at	받은 시각	시각	한국 시각
+kb_raw	body	받은 원문	글	받은 응답을 압축해 둔 것 — 인증 키는 지웠다
+kb_raw	sha256	원문 지문	지문	인증 키를 지운 원문을 가리키는 값
+kb_raw	bytes	원문 크기	바이트	인증 키를 지운 뒤 · 압축하기 전 크기
+kb_document	doc_id	문서 ID	코드	법령 · 규정 하나를 가리키는 값
+kb_document	version_label	판 이름	이름	「대통령령 제36728호 · 2026-10-02 시행」 꼴
+kb_document	kind	문서 종류	코드	law 법령 · admrul 행정규칙
+kb_document	grade	등급	코드	1 법령 · 2 감독규정
+kb_document	title	법령 이름	이름	법령 · 규정의 정식 이름
+kb_document	law_type	법 종류	이름	법률 · 대통령령 · 총리령 · 고시 · 세칙
+kb_document	issuer	소관 부처	이름	그 법령을 맡은 부처
+kb_document	promulgation_no	공포 번호	코드	공포할 때 붙은 번호
+kb_document	promulgated_at	공포일	날짜	2026-10-02 꼴
+kb_document	effective_at	시행일	날짜	이 판이 시행된 날
+kb_document	status	받을 때 상태	이름	현행 · 연혁 · 시행예정 — 받은 날 기준
+kb_document	source_id	법령 일련번호	코드	국가법령정보센터가 판마다 매긴 번호
+kb_document	source_url	원문 주소	주소	사람이 여는 쪽 주소 — 인증 키 없음
+kb_document	scope	받은 조 범위	글	빈칸이면 전부 · 아니면 받은 조의 범위
+kb_document	articles	조 수	개	조각으로 나눈 조의 수 — 삭제된 조 · 범위 밖은 뺀다
+kb_document	chunks	조각 수	개	근거 답이 찾는 단위로 나눈 조각의 수
+kb_document	content_sha256	본문 지문	지문	조문 글 전체를 가리키는 값 — 같은 판 본문이 바뀌었는지 본다
+kb_document	selected_for	고른 기준일	날짜	이 판을 고른 기준일
+kb_document	note	메모	글	판 점검 결과 등
+kb_document	fetched_at	받은 시각	시각	한국 시각
+kb_chunk	rid	줄 번호	숫자	낱말 찾기가 쓰는 번호
+kb_chunk	chunk_id	조각 ID	코드	문서 · 판 · 조 · 순번으로 만든 값
+kb_chunk	doc_id	문서 ID	코드	어느 법령 · 규정의 조각인가
+kb_chunk	version_label	판 이름	이름	어느 판의 조각인가
+kb_chunk	article	조 번호	이름	제2조 · 제1-2조의2 꼴
+kb_chunk	article_key	정렬 값	코드	조를 차례대로 늘어놓는 값
+kb_chunk	article_title	조 제목	글	예 「정의」
+kb_chunk	part	편 · 장 · 절	글	조가 든 편 · 장 · 절
+kb_chunk	seq	조 안 순번	차례	한 조를 여러 조각으로 나눴을 때의 차례 — 나누지 않았으면 0
+kb_chunk	paras	든 항	글	이 조각에 든 항(① ② …)
+kb_chunk	text	조각 글	글	머리 「문서 이름 제○조(제목)」 + 본문
+kb_chunk	text_sha256	글 지문	지문	조각 글을 가리키는 값
+kb_chunk	chars	글자 수	자	조각 글의 길이
+kb_chunk	effective_at	시행일	날짜	그 판의 시행일
+kb_chunk	grade	등급	코드	1 법령 · 2 감독규정
+kb_chunk	kind	문서 종류	코드	law 법령 · admrul 행정규칙
+kb_vector	chunk_id	조각 ID	코드	어느 조문 조각의 기록인가
+kb_vector	model	벡터 모델	이름	bge-m3 · nomic-embed-text — 글을 숫자 묶음(벡터)으로 바꾼 모델
+kb_vector	text_sha256	글 지문	지문	숫자 묶음을 만들 때의 조각 글 — 글이 바뀌면 다시 만든다
+kb_vector	dim	숫자 묶음 크기	개	bge-m3 1024 · nomic-embed-text 768
+kb_vector	indexed_at	만든 시각	시각	한국 시각
+ks_doc	title	법령 이름	이름	법령 목록의 정식 이름
+ks_doc	parent	상위 법률	이름	시행령이면 그 법률 이름
+ks_doc	law_type	법 종류	이름	법률 · 대통령령
+ks_doc	dept	소관 부처	이름	가장 최근 고른 판의 부처
+ks_doc	n_versions	받은 판 수	개	받은 시행일 판의 수 — 전체 판보다 적을 수 있다
+ks_doc	listed_at	목록 확인 시각	시각	판 목록을 마지막으로 물은 한국 시각
+ks_doc	note	메모	글	목록에 없음 · 기준일에 시행 전 …
+ks_choice	title	법령 이름	이름	법령 목록의 정식 이름
+ks_choice	year	연도	연도	이 판을 고른 해
+ks_choice	as_of	기준일	날짜	그해 12-31 · 올해는 받은 날
+ks_choice	source_id	법령 일련번호	코드	국가법령정보센터가 판마다 매긴 번호
+ks_choice	effective_at	시행일	날짜	고른 판의 시행일
+ks_choice	promulgation_no	공포 번호	코드	공포할 때 붙은 번호
+ks_choice	promulgated_at	공포일	날짜	고른 판의 공포일
+ks_choice	status	받을 때 상태	이름	현행 · 연혁
+ks_choice	later_sig	뒤 판 표시	글	고른 판 뒤에 공포돼 기준일까지 시행된 판들 — 같으면 다시 보지 않는다
+ks_choice	n_articles	조 수	개	삭제된 조를 뺀 조의 수
+ks_choice	content_sha256	본문 지문	지문	조 글 전체를 가리키는 값
+ks_choice	notes	점검 기록	글	빠진 개정을 채운 조 같은 판 점검 기록
+ks_choice	chosen_at	고른 시각	시각	한국 시각
+ks_article	title	법령 이름	이름	법령 목록의 정식 이름
+ks_article	year	연도	연도	어느 해 판의 조인가
+ks_article	seq	조 차례	차례	0 부터 센 조의 차례
+ks_article	label	조 번호	이름	제2조 · 제2조의2 꼴
+ks_article	heading	조 제목	글	조의 제목
+ks_article	part	편 · 장	글	제1편 총칙 > 제2장 … 꼴
+ks_article	text	조 글	글	머리 줄 · 항 · 호 · 목
+doc	rid	줄 번호	숫자	낱말 찾기가 쓰는 번호
+doc	doc_id	문서 ID	코드	D:접수번호(공시) · N:주소에서 만든 값(뉴스)
+doc	kind	종류	코드	공시 · 뉴스 가운데 하나
+doc	title	제목	글	공시 · 기사 제목
+doc	summary	요약	글	공시는 제목의 꼬리 설명 · 뉴스는 짧은 요약 — 본문이 아니다
+doc	url	원문 주소	주소	공시 · 기사를 여는 주소
+doc	published	낸 날	날짜	날짜 또는 날짜와 시각 — 2026-10-08 · 2026-10-08T09:00+09:00 꼴
+doc	source	출처	코드	dart 전자공시 · policy_news 정책뉴스 · gdelt 언론사 기사
+doc	corp_name	회사 이름	이름	공시한 회사
+doc	stock_code	종목코드	코드	거래소 단축 종목코드 여섯 자리
+doc	extra	덧붙인 값	목록	공시 유형 · 정정 · 기간 · 낸 곳 같은 덧붙임
+doc_tag	rid	문서 줄 번호	숫자	어느 검색 문서의 이름표인가
+doc_tag	tag_type	이름표 종류	코드	symbol 종목 · topic 주제 · term 용어 · dtype 공시 유형
+doc_tag	tag	이름표 값	코드	종목코드 · 주제 이름 · 용어 ID · 공시 유형 글자
+doc_tag	method	붙인 방법	코드	dart_field 공시의 종목 칸 · dart_type 공시 유형 · rule:낱말 낱말 규칙 · glossary 용어사전 · name_dict 종목 이름 사전
+glossary_categories	code	분류 코드	코드	예 basics · trading · technical · quant
+glossary_categories	name	분류 이름	이름	화면에 보이는 이름
+glossary_categories	description	한 줄 설명	글	분류를 한 줄로
+glossary_categories	sort_order	차례	차례	화면에 늘어놓는 차례
+glossary_sources	code	자료 코드	코드	voca · finance · lecture · qurious
+glossary_sources	title	자료 이름	이름	용어를 가져온 자료의 이름
+glossary_sources	origin	원래 자리	글	어느 자료의 어느 파일에서 왔나
+glossary_sources	paths	파일 자리	글	가져온 파일이 이 앱 안 어디에 있나
+glossary_sources	sort_order	읽는 차례	차례	앞선 자료가 대표 이름을 준다
+glossary_terms	id	용어 ID	코드	주소에 쓰는 이름 — per · 시가총액 꼴
+glossary_terms	term	대표 이름	이름	화면에 보이는 용어 이름
+glossary_terms	english	영어 이름	이름	예 Price Earnings Ratio
+glossary_terms	hanja	한자	글	한자 표기
+glossary_terms	category_code	분류	코드	어느 분류에 드나 — 분류 코드
+glossary_terms	lead_source_code	뜻을 준 자료	코드	뜻 한 줄을 가져온 자료의 코드
+glossary_terms	summary	뜻 한 줄	글	용어를 한 줄로 푼 것
+glossary_terms	definition	자세한 뜻	글	뜻 한 줄과 같은 자료에서 온 자세한 풀이
+glossary_terms	example	예시	글	쓰이는 예
+glossary_terms	caution	주의할 점	글	헷갈리기 쉬운 점
+glossary_terms	formula	계산식	글	있으면 계산식
+glossary_terms	origin_note	말의 구조 · 어원	글	말이 어떻게 생겼나
+glossary_terms	app_note	이 앱에서의 뜻	글	이 앱 화면에서 그 말이 가리키는 것
+glossary_terms	source_codes	나온 자료	목록	이 용어가 나온 자료 코드 모두
+glossary_terms	notes	다른 자료의 설명	목록	다른 자료가 쓴 풀이 — 자료 · 꼬리표 · 글
+glossary_terms	sort_key	정렬용 이름	글	찾기 · 늘어놓기에 쓰는 모양의 대표 이름
+glossary_terms	chosung	첫소리	글	대표 이름의 첫소리 — ㅅㄱㅊㅇ 꼴
+glossary_terms	name_text	이름 모음	글	모든 이름을 | 로 이은 글 — 이름 찾기에 쓴다
+glossary_terms	body_text	풀이 모음	글	풀이를 이어 소문자로 바꾼 글 — 본문 찾기에 쓴다
+glossary_aliases	alias_norm	찾기용 이름	글	소문자로 바꾸고 띄어쓰기를 없앤 모양
+glossary_aliases	term_id	가리키는 용어	코드	이 이름이 가리키는 용어 ID
+glossary_aliases	alias	보이는 이름	이름	화면에 보이는 모양 그대로
+glossary_aliases	kind	이름 종류	이름	대표 이름 · 약어 · 영어 · 다른 이름 · 화면 키
+glossary_relations	from_id	한쪽 용어	코드	관계의 한 끝 — 더 넓은 말 관계면 좁은 쪽
+glossary_relations	to_id	다른 쪽 용어	코드	관계의 다른 끝 — 더 넓은 말 관계면 넓은 쪽
+glossary_relations	kind	관계 종류	코드	related 관련 · broader 더 넓은 말 · confused_with 헷갈리는 말
+glossary_relations	note	차이 한 줄	글	두 말의 차이나 관계 설명 — 헷갈리는 말이면 꼭 있다
+glossary_relations	detail	두 말 풀이	글	「A — … · B — …」 꼴
+glossary_relations	source_code	근거	코드	finance 자료 · curated 사람이 고름
+glossary_relations	where_text	나온 자리	글	자료의 어느 절에서 나왔나
+glossary_loads	id	적재 차례	차례	1 부터 센 차례
+glossary_loads	checksum	파일 지문	지문	넣은 용어 파일을 가리키는 값
+glossary_loads	rows_checksum	넣은 내용 지문	지문	표에 넣은 내용을 가리키는 값 — 다시 넣을지 가른다
+glossary_loads	format_version	파일 모양 판	숫자	용어 파일 모양의 판 번호
+glossary_loads	term_count	용어 수	개	그때 넣은 용어 수
+glossary_loads	alias_count	이름 수	개	그때 넣은 이름 수 — 대표 이름 포함
+glossary_loads	category_count	분류 수	개	그때의 분류 수
+glossary_loads	source_count	자료 수	개	그때의 자료 수
+glossary_loads	duration_ms	걸린 시간	밀리초	넣는 데 걸린 시간
+glossary_loads	loaded_at	넣은 시각	시각	넣은 시각
+raw_response	source	출처	코드	portal 공공데이터포털 · kis 한국투자증권 · ecos 한국은행 · dart 전자공시
+raw_response	target	받은 대상	코드	price/20260917 꼴 — 무엇을 어느 날 것으로 받았나
+raw_response	fetched_at	받은 시각	시각	한국 시각 — 그 자료를 언제부터 알 수 있었나의 근거
+raw_response	body	받은 원문	글	받은 응답을 압축해 둔 것
+raw_response	sha256	원문 지문	지문	압축하기 전 원문을 가리키는 값
+raw_response	bytes	원문 크기	바이트	압축하기 전 크기
+raw_response	compression	압축 방식	코드	gzip
+raw_response	http_status	응답 상태	숫자	응답 상태 번호 — 200 이 정상
+raw_response	note	메모	글	받으며 남긴 메모
+ingest_day	source	출처	코드	portal 주식 · portal_etf ETF · portal_index 지수 · dart_dividend 배당 공시
+ingest_day	bas_dt	기준일	날짜	받은 거래일 — 20261008 꼴(여덟 자리)
+ingest_day	status	상태	코드	done 받음 · empty 0건이라 보류(휴장인지 아직 안 올라왔는지 모름) · holiday 휴장 확정 · error 실패(다시 시도)
+ingest_day	rows	받은 줄 수	개	그날 받아 넣은 줄 수
+ingest_day	attempts	시도 횟수	개	그날을 받으려 한 횟수
+ingest_day	updated_at	고친 시각	시각	한국 시각
+ingest_day	message	메모	글	실패 까닭 같은 메모

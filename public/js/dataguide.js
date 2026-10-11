@@ -3,9 +3,12 @@
  * 화면 설계 결정(Figma 「자료 안내」 · 03 [결정] 안 B 1280 · 390 + 안 A 의 「자료 한 장」 서랍 · 05 [결정] 정할 것 넷):
  *   한 장 보고서 — 숫자 띠 → 무엇이 있나(연도별 바둑판 · 자료 목록) → 어떻게 모으나(흐름) → 무엇을 읽나(길잡이 · 틀리기 쉬운 것).
  *   목록 줄 · 바둑판 칸 · 길잡이의 자료 이름을 누르면 오른쪽에서 「자료 한 장」 서랍이 열린다(폭 390 은 화면 전체).
- * 읽는 API 는 하나 — GET /api/data/guide(로그인 뒤). 설명은 대장 생성물, 숫자는 상태 · 백업 목록에서 서버가 묶는다.
- *   - 개발 정보(표 이름 · 읽는 길 · 백업 · 받는 명령)는 서버가 관리자에게만 싣는다 — 이 파일은 응답에 있으면 그릴 뿐 숨기지 않는다
- *     (CSS 로 숨기면 응답에는 남는다 · 결정 ①).
+ * 읽는 API 는 하나 — GET /api/data/guide(로그인 뒤). 설명은 대장 생성물, 숫자는 러너가 매일 낮 수집이 끝날 때 쓴 숫자 파일 ·
+ * 백업 목록에서 서버가 묶는다(2단계 · 2026-10-11 — 요청 때 세지 않으므로 「세는 중」 다시 묻기가 없다).
+ *   - 개발 정보(표 이름 · 읽는 길 · 백업 · 받는 명령 · 칸 이름 · 타입 · 열쇠)는 서버가 관리자에게만 싣는다 — 이 파일은 응답에
+ *     있으면 그릴 뿐 숨기지 않는다(CSS 로 숨기면 응답에는 남는다 · 결정 ① · 2026-10-11 「열쇠 표시는 관리자에게만」).
+ *   - 자료 한 장의 「칸」 절(2단계 · Figma 03-2 [결정] 안 B) — 접힌 한 줄 「칸 n — 이름 … · 설명 n / n」 을 누르면 칸마다 두 줄
+ *     (쉬운 이름 · 단위 / 뜻)이 펼쳐진다. 관리자 답에는 칸 이름 · 타입 칩과 열쇠가 함께 온다.
  *   - 늦음 판정 색은 데이터 관제 몫이다 — 여기는 마지막 날짜를 글자로만 보이고 「데이터 관제 →」 로 보낸다(겹치지 않게).
  *   - 값 미리보기 · 내려받기 단추는 두지 않는다(원자료 재배포 금지 · 공공누리 제4유형).
  *   - 화면 이름(쓰는 화면 · 어디서)은 메뉴 표(core.js GNB_MENUS)에서 읽는다 — 이름을 여기 따로 적지 않는다.
@@ -14,7 +17,7 @@
  * 응답을 읽는 변수 이름은 객체마다 하나로 고정한다 — 시험 TC-DG-04 가 「변수.칸」 을 정규식으로 모아 서버 응답과 맞댄다
  * (서버가 칸 이름을 바꾸면 화면은 오류 없이 빈칸을 그리므로 시험이 먼저 깨지게).
  *   r 응답 · st 숫자 · g 설명 · grp 묶음 · it 자료 · s 자료 숫자 · src 출처 · run 매일 수집 · lastRun 마지막 회차 · gx 단계 묶음 ·
- *   fbox 흐름 상자 · fnote 흐름 덧말 · task 길잡이 · pit 틀리기 쉬운 것 · ear 이른 해 · mk 시장
+ *   fbox 흐름 상자 · fnote 흐름 덧말 · task 길잡이 · pit 틀리기 쉬운 것 · ear 이른 해 · mk 시장 · cg 칸 묶음(표 하나) · cc 칸 한 줄
  */
 import { api, escHtml, fmt, setToast } from "/js/common.js";
 import { GNB_MENUS, navigate } from "/js/core.js";
@@ -23,14 +26,13 @@ const VIEW = "data-guide";
 const SECTIONS = [["have", "무엇이 있나"], ["collect", "어떻게 모으나"], ["read", "무엇을 읽나"]];
 //: 바둑판 칸 진하기 — 그 자료에서 가장 많은 해를 1 로 볼 때(Figma 범례 · 설계 03 문서 4절)
 const LEVELS = [[0.9, 4, "0.9 이상"], [0.7, 3, "0.7 이상"], [0.4, 2, "0.4 이상"], [0, 1, "그 밑"]];
-//: 자료 줄의 숫자 상태 → 칸 모양(서버 data_guide.ITEM_WHY 의 열쇠와 같다 — TC-DG-04 가 맞댄다)
-const STATE_TONE = { ok: "", counting: "dg-wait", partial: "dg-wait", none: "dg-none", no_link: "dg-none", error: "dg-err" };
-//: 서버가 「자료 상태를 세는 중」(status_pending) · 「줄 수를 세는 중」(total_state counting)이면 설명을 먼저 그리고 잠시 뒤 몇 번만
-//: 다시 묻는다 — 주기적으로 다시 묻지는 않는다(숫자는 하루 한 번 바뀐다 · 설계 12절 요소 1). 줄 수 세기는 컨테이너에서 15 ~ 20초.
-const PENDING_RETRY_MS = 4000;
-const PENDING_MAX_TRIES = 6;
+//: 자료 줄의 숫자 상태 → 칸 모양(서버 data_guide.ITEM_WHY 의 열쇠와 같다 — TC-DG-04 가 맞댄다).
+//: pending = 숫자 파일이 아직 없거나 옛 판(다음 수집 뒤에 보임) — 2단계부터 요청 때 세지 않아 「세는 중」 이 없다
+const STATE_TONE = { ok: "", pending: "dg-wait", partial: "dg-wait", none: "dg-none", no_link: "dg-none", error: "dg-err" };
 //: 자료 목록은 처음 다섯 줄 + 「… 모두 N줄」(Figma 안 B 1280 · 390) — 「전체」 일 때만 접는다(묶음을 고르면 그 묶음 전부)
 const LIST_FOLD = 5;
+//: 칸 묶음 머리에 미리 보일 쉬운 이름 수(접힌 한 줄 — Figma 03 쪽 결정 그림 6:2 「칸 17 — 기준일 · 종목 코드 · …」)
+const COLS_PREVIEW = 6;
 
 let res = null;              // 마지막 응답
 let pickedGroup = "";        // 자료 목록 거름("" = 전체)
@@ -38,8 +40,7 @@ let listOpen = false;        // 「전체」 목록을 다 펼쳤나
 let openKey = null;          // 열린 서랍의 자료 열쇠
 let opener = null;           // 서랍을 연 단추 — 닫으면 포커스를 돌려준다
 let seq = 0;                 // 늦게 온 응답이 새로 고친 화면을 덮지 않게
-let pendingTries = 0;
-let retryTimer = null;
+let colsOpen = false;        // 서랍의 「칸」 절을 펼쳤나 — 다른 자료를 열면 다시 접는다(새로 고침에는 그대로)
 const openBoxes = new Set(); // 펼친 흐름 상자
 
 // ── 작은 도구 ──────────────────────────────────────────────────────────
@@ -97,13 +98,16 @@ function itemButton(key, label) {
 }
 
 // ── 머리 · 숫자 띠 ─────────────────────────────────────────────────────
+/** 숫자 기준 — 러너가 숫자 파일을 쓴 때(매일 낮 수집 끝). 파일이 없거나 옛 판이면 「—」(요청 시각으로 메우지 않는다) */
+function measuredText(st) {
+  return st.measured_at ? `${mmdd(st.measured_at)} ${hm(st.measured_at)} 수집` : "—";
+}
 function headHtml(r) {
   const st = r.stats;
-  const at = st.measured_at || r.checked_at;
   return `<div class="dg-head"><div><h2>자료 안내</h2>
       <p class="dg-lead">Qurious 가 모으는 자료가 무엇이고, 어떻게 모으고, 무엇을 읽으면 되는지 봅니다 · 지금 자료가 며칠 것까지 있는지는
         <button type="button" class="dg-link dg-go-status">데이터 관제 →</button></p></div>
-      <div class="dg-head-right"><span class="q-muted">숫자 기준 ${escHtml(mmdd(at))} ${escHtml(hm(at))}</span>
+      <div class="dg-head-right"><span class="q-muted">숫자 기준 ${escHtml(measuredText(st))}</span>
         <button type="button" class="btn-secondary dg-refresh"><i class="fa-solid fa-rotate" aria-hidden="true"></i> 새로 고침</button></div></div>
     <nav class="dg-toc" aria-label="이 화면의 절">${SECTIONS.map(([k, label]) => `<button type="button" class="dg-toc-btn" data-jump="${k}">${label}</button>`).join("")}</nav>
     ${st.note ? `<p class="dg-note" role="status">${escHtml(st.note)}</p>` : ""}
@@ -119,8 +123,7 @@ function bandHtml(r) {
   }).filter(Boolean).join(" · ");
   const time = (run.schedule || "").replace(/^매일\s*/, "");
   const groupsLine = (run.groups || []).map(gx => `${gx.key} ${gx.count}`).join(" · ");
-  const total = st.total_rows != null ? `약 ${fmt(Math.round(st.total_rows / 10000))}만`
-    : st.total_state === "counting" ? "세는 중…" : "—";
+  const total = st.total_rows != null ? `약 ${fmt(Math.round(st.total_rows / 10000))}만` : "—";
   const cards = [
     // 묶음 이름 안에 「 · 」 가 있어(공시 · 재무) 같은 기호로 이으면 9 묶음이 11 개로 읽힌다 — 이 목록만 쉼표로 잇는다
     ["have-list", "자료 묶음", `${g.groups.length}`, g.groups.map(grp => grp.name).join(", ")],
@@ -129,7 +132,8 @@ function bandHtml(r) {
     // 단계 목록이 없는 PC(팀원 PC 대부분)는 시각만 — 「0단계」 로 보이지 않게(설계 11절 경우 표 「비어 있음」)
     ["collect", "매일 낮 수집", run.total_steps ? `${time} · ${run.total_steps}단계` : (time || "—"),
       run.total_steps ? groupsLine : "이 PC 에서는 매일 수집을 돌리지 않습니다"],
-    ["have-list", "모은 줄", total, st.total_state === "none" ? "이 PC 에는 모은 자료가 없습니다"
+    // 「모은 줄」 이 비는 때는 둘 — 모은 자료가 없는 PC · 숫자 파일이 아직 없음(다음 수집 뒤)
+    ["have-list", "모은 줄", total, st.total_state === "none" ? (st.available ? "매일 낮 수집이 끝날 때 셉니다" : "이 PC 에는 모은 자료가 없습니다")
       : st.total_partial ? "이 PC 에 없는 자료는 빼고 · 부를 때 계산하는 자료도 빼고" : "주봉처럼 부를 때 계산하는 자료는 빼고"],
   ];
   return `<div class="dg-band">${cards.map(([jump, k, v, d]) => `<button type="button" class="dg-band-card" data-jump="${jump}">
@@ -217,7 +221,7 @@ function listRowsHtml(r) {
   return shown.map(it => {
     const s = statOf(it.key);
     const tone = STATE_TONE[s.state] ?? "";
-    const rowsCell = s.rows != null ? man0(s.rows) : (s.state === "counting" ? "세는 중…" : "—");
+    const rowsCell = s.rows != null ? man0(s.rows) : "—";
     return `<tr data-item="${escHtml(it.key)}">
       <td class="dg-name">${itemButton(it.key)}</td>
       <td class="dg-line">${escHtml(it.line)}</td>
@@ -344,6 +348,27 @@ function trapTab(e) {
   else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
 }
 function rowHtml(k, v) { return v ? `<div class="dg-d-row"><span class="dg-d-k">${k}</span><span class="dg-d-v">${v}</span></div>` : ""; }
+/** 자료 한 장의 「칸」 절(2단계 · Figma 03-2 [결정] 안 B 줄 목록 + 칸 이름 칩) — 접힌 한 줄을 누르면 칸마다 두 줄(쉬운 이름 · 단위
+ *  / 뜻). 칸 이름 · 타입 칩과 열쇠는 서버가 관리자 답에만 싣는다(이 파일은 있으면 그린다). 표가 둘 이상이면 표마다 작은 머리. */
+function colsHtml(it) {
+  const groups = it.columns?.tables || [];
+  if (!groups.length) return "";
+  const many = groups.length > 1;
+  const names = groups.flatMap(cg => cg.cols.map(cc => cc.name));
+  const preview = names.slice(0, COLS_PREVIEW).join(" · ") + (names.length > COLS_PREVIEW ? " …" : "");
+  const anyKey = groups.some(cg => cg.cols.some(cc => cc.dev?.key));
+  const body = groups.map(cg => `${many ? `<div class="dg-cols-tblh">${escHtml(cg.title)} <small>칸 ${cg.count}</small>
+        ${cg.dev?.table ? `<code class="dg-cl-dev">${escHtml(cg.dev.table)}</code>` : ""}</div>` : ""}
+      <ul class="dg-cl">${cg.cols.map(cc => `<li><div class="dg-cl-top"><b>${escHtml(cc.name)}</b><span class="dg-unit">${escHtml(cc.unit)}</span>
+        ${cc.dev?.key ? `<i class="dg-key">열쇠</i>` : ""}${cc.dev ? `<code class="dg-cl-dev">${escHtml(cc.dev.col)} · ${escHtml(cc.dev.type)}</code>` : ""}</div>
+        <p>${escHtml(cc.text)}</p></li>`).join("")}</ul>`).join("");
+  const foot = ["단위 「코드」 는 셈하지 않는 기호입니다", anyKey ? "열쇠 = 이 칸들을 함께 보면 줄 하나가 정해집니다" : ""].filter(Boolean).join(" · ");
+  return `<section class="dg-d-sec dg-cols">
+      <button type="button" class="dg-cols-toggle" aria-expanded="${colsOpen}" aria-controls="dg-cols-body">
+        <b>칸 ${many ? `${groups.length}표 · ` : ""}${it.columns.count}</b><span class="dg-cols-names">— ${escHtml(preview)}</span>
+        <span class="dg-cols-fill">설명 ${it.columns.filled} / ${it.columns.count}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+      <div class="dg-cols-body" id="dg-cols-body"${colsOpen ? "" : " hidden"}>${body}<p class="dg-foot">${escHtml(foot)}</p></div></section>`;
+}
 function drawerHtml(it, s) {
   const srcs = (it.sources || []).map(sourceByKey).filter(Boolean);
   const years = s.years || {};
@@ -365,8 +390,9 @@ function drawerHtml(it, s) {
   return `<p class="dg-d-line">${escHtml(it.line)}</p>
     <div class="dg-d-tiles">
       <div class="dg-d-tile"><span>기간</span><strong>${periodHtml(s, "", true)}</strong></div>
-      <div class="dg-d-tile"><span>줄 수</span><strong>${s.rows != null ? fmt(s.rows) : s.state === "counting" ? "세는 중…" : "—"}</strong>
-        ${s.rows_from === "backup" ? `<small>백업 목록 기준</small>` : ""}</div>
+      <div class="dg-d-tile"><span>줄 수</span><strong>${s.rows != null ? fmt(s.rows) : "—"}</strong>
+        ${s.rows_from === "backup" ? `<small>백업 목록 기준</small>`
+          : s.rows_from === "numbers" && res.stats.measured_at ? `<small>${escHtml(mmdd(res.stats.measured_at))} 수집 기준</small>` : ""}</div>
       <div class="dg-d-tile"><span>범위</span><strong>${escHtml(it.scope)}</strong></div>
       <div class="dg-d-tile"><span>갱신</span><strong>${escHtml(it.update)}</strong></div></div>
     ${s.why ? `<p class="dg-d-why">${escHtml(s.why)}</p>` : ""}
@@ -383,6 +409,7 @@ function drawerHtml(it, s) {
     <section class="dg-d-sec"><h4>이용 조건</h4>
       <p class="dg-d-terms">${tagPill(it.tag)}</p>
       ${srcs.map(src => `<p class="dg-d-terms-line"><strong>${escHtml(src.name)}</strong> — ${escHtml(src.terms)}</p>`).join("")}</section>
+    ${colsHtml(it)}
     ${dev}`;
 }
 function renderDrawer() {
@@ -397,6 +424,7 @@ function setExpanded(key) {
 }
 function openGuideDrawer(key, trigger) {
   if (!itemByKey(key)) return;
+  if (key !== openKey) colsOpen = false;   // 다른 자료를 열면 「칸」 절은 접힌 채로(결정 그림 6:2 — 접힌 한 줄이 기본)
   openKey = key;
   opener = trigger || null;
   const root = drawerRoot();
@@ -434,6 +462,14 @@ function onDrawerClick(e) {
   if (e.target.closest(".dg-d-close") || e.target.classList.contains("dg-dim")) { closeGuideDrawer(); return; }
   const go = e.target.closest("[data-view-go]");
   if (go) { closeGuideDrawer({ restoreFocus: false }); navigate(go.dataset.viewGo); return; }
+  const colsBtn = e.target.closest(".dg-cols-toggle");
+  if (colsBtn) {
+    colsOpen = colsBtn.getAttribute("aria-expanded") !== "true";
+    colsBtn.setAttribute("aria-expanded", String(colsOpen));
+    const body = document.getElementById(colsBtn.getAttribute("aria-controls"));
+    if (body) body.hidden = !colsOpen;
+    return;
+  }
   const devBtn = e.target.closest(".dg-dev-toggle");
   if (devBtn) {
     const body = document.getElementById(devBtn.getAttribute("aria-controls"));
@@ -463,7 +499,7 @@ function jumpTo(key) {
 }
 function onPageClick(e) {
   const root = e.currentTarget;
-  if (e.target.closest(".dg-refresh")) { pendingTries = 0; renderDataGuide(); return; }
+  if (e.target.closest(".dg-refresh")) { renderDataGuide(); return; }
   if (e.target.closest(".dg-go-status")) { navigate("data-status"); return; }
   if (e.target.closest(".dg-go-runner")) { navigate("crawl-auto"); return; }
   const jump = e.target.closest("[data-jump]");
@@ -527,20 +563,12 @@ async function renderDataGuide() {
   if (pickedGroup && !res.guide.groups.some(grp => grp.key === pickedGroup)) pickedGroup = "";
   root.innerHTML = pageHtml(res);
   if (openKey) { renderDrawer(); setExpanded(openKey); }   // 새로 고침 때 열린 서랍은 새 숫자로
-  clearTimeout(retryTimer);
-  if ((res.stats?.status_pending || res.stats?.total_state === "counting") && pendingTries < PENDING_MAX_TRIES) {
-    pendingTries += 1;
-    retryTimer = setTimeout(() => {
-      if (document.querySelector(`.view.active[data-view="${VIEW}"]`)) renderDataGuide();
-    }, PENDING_RETRY_MS);
-  }
+  // 다시 묻지 않는다 — 숫자는 매일 낮 수집이 끝날 때 한 번 바뀐다(2단계 · 요청 때 세지 않으므로 「세는 중」 이 없다)
 }
 
 /** main.js 의 화면 진입 훅 — 화면이 바뀌면 서랍을 닫고(뒤로 가기 · 주소로 옮겨도 남지 않게), 이 화면이면 그린다. */
 export function onDataGuideViewActivated(view) {
   closeGuideDrawer({ restoreFocus: false });
-  clearTimeout(retryTimer);
   if (view !== "data-guide") return;   // 글자 그대로 — 화면 스캐너(scripts/view_scan.py)가 이 모양으로 진입 훅을 읽는다
-  pendingTries = 0;
   renderDataGuide();
 }

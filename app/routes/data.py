@@ -219,10 +219,11 @@ async def financials(
 from app.services import data_guide  # noqa: E402
 
 
-@router.get("/guide", summary="자료 안내 — 설명(대장 생성물) · 숫자(상태 · 백업 목록)")
+@router.get("/guide", summary="자료 안내 — 설명(대장 생성물 · 칸 정의) · 숫자(러너가 쓴 숫자 파일 · 백업 목록)")
 async def guide(user=Depends(get_current_user)):
-    # 모든 로그인 사용자가 본다. 개발 칸(표 이름 · 읽는 길 · 백업 경로 · 받는 명령)은 서버가 관리자에게만 싣는다 —
-    # 화면이 CSS 로 숨기면 응답에는 남는다(2026-10-08 결정 ①). 관리자 판정은 위 `_require_admin` 과 같은 방법(세션의 roles).
+    # 모든 로그인 사용자가 본다. 개발 칸(표 이름 · 칸 이름 · 열쇠 · 읽는 길 · 백업 경로 · 받는 명령)은 서버가 관리자에게만 싣는다 —
+    # 화면이 CSS 로 숨기면 응답에는 남는다(2026-10-08 결정 ① · 2026-10-11 「열쇠는 관리자에게만」). 관리자 판정은 위
+    # `_require_admin` 과 같은 방법(세션의 roles). 숫자는 러너가 회차 끝에 쓴 파일만 읽는다 — 요청 때 수집 DB 를 세지 않는다(2단계).
     admin = "admin" in user.get("roles", [])
     try:
         return await asyncio.to_thread(data_guide.read, admin)

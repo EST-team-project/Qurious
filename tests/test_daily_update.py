@@ -198,7 +198,8 @@ def fake_runner(tmp_path, monkeypatch):
                       ("HISTORY_PATH", "state/daily_update_history.jsonl"),
                       ("CATALOG_PATH", "state/daily_update_steps.json"), ("DISK_PATH", "state/pc_disk.json"),
                       ("PROGRESS_PATH", "state/daily_update_progress.json"),
-                      ("FILL_PATH", "state/daily_update_fill.json")):          # 빠진 날 — 진짜 상태 폴더에 쓰지 않게(2026-10-10)
+                      ("FILL_PATH", "state/daily_update_fill.json"),           # 빠진 날 — 진짜 상태 폴더에 쓰지 않게(2026-10-10)
+                      ("GUIDE_STATS_PATH", "state/data_guide_stats.json")):    # 자료 안내 숫자 — 같은 까닭(2026-10-11)
         monkeypatch.setattr(du, name, tmp_path / rel)
     monkeypatch.setattr(du, "acquire_lock", functools.partial(du.acquire_lock, lock))
     monkeypatch.setattr(du, "release_lock", functools.partial(du.release_lock, lock))
@@ -858,3 +859,109 @@ def test_cli_fill_needs_both_dates_and_nothing_else(monkeypatch):
     monkeypatch.setattr(du, "run_fill", lambda name, a, b, **k: calls.append((name, a, b, k.get("request_id"))) or 0)
     assert du.main(["run", "--fill", "signals", "--from", "2026-10-02", "--to", "2026-10-06", "--request", RID]) == 0
     assert calls == [("signals", "2026-10-02", "2026-10-06", RID)]
+
+
+def test_upload_step_keeps_the_fill_days_and_the_run_goes_on(fake_runner, monkeypatch):
+    """올리기 단계를 지나도 회차가 끝까지 돈다(DF-103 · 2026-10-11) — 빠진 날(`load_fill` 의 사전)과 올릴 파케이 목록
+    (`_pending_upload` 의 목록)이 같은 이름 `pending` 을 써서, 올리기가 성공한 직후 `pending.get` 이 목록에서 터졌다(10-11 따라잡기
+    회차 17:20 「러너 오류: AttributeError: 'list' object has no attribute 'get'」 — 일봉 올리기 · 섹터 법령을 못 돌고 회차가 실패로
+    남았다). 가짜 러너의 단계 이름에 upload 가 없어 시험이 그 길을 지나지 않았다 — 이름이 upload 인 단계를 넣어 지나게 한다.
+    빠진 날 상태는 올릴 목록으로 덮이지 않는다."""
+    t = fake_runner
+    steps = [du.Step("alpha", ["-c", "pass"], 1, label="가 단계", group="받기", desc="첫 일"),
+             du.Step("upload", ["-c", "pass"], 1, upload=True, label="올리기", group="백업", desc="바뀐 조각을 올린다"),
+             du.Step("after", ["-c", "pass"], 1, fatal=False, upload=True, label="뒤 단계", group="백업", desc="올린 뒤 일")]
+    monkeypatch.setattr(du, "STEPS", steps)
+    monkeypatch.setattr(du, "_pending_upload", lambda: ["price_daily/year=2026/part-00000.parquet"])
+    du._write_json_atomic(t / "state/daily_update_fill.json", {"steps": {"signals": {"days": ["2026-10-06"]}}})
+    assert du.run_all(upload=True) == 0
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    assert not last.get("stopped") and last["ok"] is True, last.get("stopped")
+    assert [(s["name"], s["rc"]) for s in last["steps"]] == [("alpha", 0), ("upload", 0), ("after", 0)]
+    fill = json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))
+    assert fill["steps"] == {"signals": {"days": ["2026-10-06"]}}, "빠진 날 상태가 올릴 목록으로 덮이지 않는다"
+
+# ── 자료 안내 숫자 파일(2026-10-11 · 자료 안내 2단계 · 결정 ④ 「숫자는 러너가 회차마다 쓰는 파일」) ──────────────
+def _numbers_db(path):
+    """표 하나(주식 일봉 두 줄)만 있는 작은 수집 DB — 나머지 표는 없다(「없음」 이 되어야 한다)."""
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE price_daily (bas_dt TEXT, srtn_cd TEXT, PRIMARY KEY (bas_dt, srtn_cd))")
+    conn.executemany("INSERT INTO price_daily VALUES (?, ?)", [("20261006", "005930"), ("20261007", "005930")])
+    conn.commit()
+    conn.close()
+
+
+def test_table_numbers_use_the_status_rules_and_read_only(tmp_path, monkeypatch):
+    """자료 안내 숫자 — 관제와 같은 표 정의(data_status.TABLES) · 셈법(table_states)으로 표마다 줄 수 · 마지막 날을 센다(SSoT ·
+    러너에 사본을 두지 않는다) · 없는 표는 「없음」(줄 수 0 이 아니라 None) · 수집 DB 가 없으면 모두 「없음」 · 읽기 전용으로만
+    연다(앱이 읽기 전용으로 붙인 WAL DB 의 보조 파일을 지우지 않게 · DF-81) · 쓴 시각은 KST 초까지."""
+    from app.services import data_status as ds
+    db = tmp_path / "m.sqlite3"
+    _numbers_db(db)
+    uris = []
+    real = du.sqlite3.connect
+    monkeypatch.setattr(du.sqlite3, "connect", lambda database, *a, **k: uris.append(database) or real(database, *a, **k))
+    at = datetime.datetime(2026, 10, 11, 16, 58, tzinfo=du.KST)
+    out = du.table_numbers(db_path=db, now=at)
+    assert uris and all("mode=ro" in u for u in uris), uris
+    assert out["schema"] == du.GUIDE_STATS_SCHEMA == 1 and out["written_at"] == "2026-10-11T16:58:00+09:00"
+    assert out["seconds"] >= 0 and out["db"] is True
+    assert [t["key"] for t in out["tables"]] == [k for k, *_ in ds.TABLES]
+    row = {t["key"]: t for t in out["tables"]}
+    assert row["price_daily"] == {"key": "price_daily", "rows": 2, "last_date": "2026-10-07", "missing": False}
+    assert row["etf_daily"] == {"key": "etf_daily", "rows": None, "last_date": None, "missing": True}
+    none = du.table_numbers(db_path=tmp_path / "없음.sqlite3", now=at)
+    assert none["db"] is False and all(t["missing"] and t["rows"] is None for t in none["tables"])
+    assert len(none["tables"]) == len(ds.TABLES)
+
+
+def test_run_writes_guide_numbers_at_the_end_and_after_one_step(fake_runner, monkeypatch):
+    """회차 끝 · 한 단계 다시 뒤에 자료 안내 숫자 파일을 쓴다(곁 파일 · 단계 수는 그대로 · 회차 시작에는 쓰지 않는다) — 회차 기록보다
+    뒤에 써서 앱이 「수집 뒤 못 씀」 을 가를 수 있게 · 누가 썼나(by) 를 남긴다. 못 세면 🟡 한 줄만 남기고 회차 결과 · 종료코드는
+    그대로 · 옛 파일을 지우지 않는다(말없이 사라지지 않게)."""
+    t = fake_runner
+    db = t / "real.sqlite3"
+    _numbers_db(db)
+    monkeypatch.setattr(du.config, "DB_PATH", db)
+    path = t / "state" / "data_guide_stats.json"
+    first = du.STEPS[0]
+    du.STEPS[0] = du.Step(first.name, ["-c", f"import os,sys; sys.exit(9 if os.path.exists(r'{path}') else 0)"], 1,
+                          label=first.label, group=first.group, desc=first.desc)
+    assert du.run_all() == 3, "첫 단계가 9 로 끝나면 회차 시작에 숫자 파일을 쓴 것이다"
+    du.STEPS[0] = first
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    nums = json.loads(path.read_text(encoding="utf-8"))
+    assert nums["by"] == "run" and nums["written_at"] >= last["finished_at"]
+    assert {x["key"]: x["rows"] for x in nums["tables"]}["price_daily"] == 2
+    assert [s.name for s in du.STEPS] == ["alpha", "beta"], "단계로 더하지 않는다(곁 파일)"
+    # 한 단계 다시 — 다시 쓴다(누가 썼나 = only)
+    assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 16, 0, tzinfo=du.KST)) == 3
+    assert json.loads(path.read_text(encoding="utf-8"))["by"] == "only"
+    # 못 센다 — 🟡 한 줄 · 종료코드 그대로 · 옛 파일 그대로
+    before = path.read_bytes()
+
+    def boom(**_k):
+        raise sqlite3.DatabaseError("file is not a database")
+
+    monkeypatch.setattr(du, "table_numbers", boom)
+    assert du.run_all() == 3
+    assert path.read_bytes() == before, "못 센 회차는 옛 파일을 지우거나 덮지 않는다"
+    log = sorted((t / "logs").glob("daily_update-*.log"))[-1].read_text(encoding="utf-8")
+    assert "🟡 기록 파일을 쓰지 못했다 — data_guide_stats.json: DatabaseError: file is not a database" in log
+
+
+def test_steps_write_also_writes_guide_numbers(fake_runner, monkeypatch, capsys):
+    """`steps --write` 는 단계 목록 · 이 PC 용량 · 자료 안내 숫자를 함께 지금 쓴다(합친 뒤 c 스크립트가 회차를 기다리지 않고 화면을
+    채우게) · 누가 썼나 = steps · 하나라도 못 쓰면 1 과 까닭."""
+    t = fake_runner
+    db = t / "real.sqlite3"
+    _numbers_db(db)
+    monkeypatch.setattr(du.config, "DB_PATH", db)
+    assert du.main(["steps", "--write"]) == 0
+    out = capsys.readouterr().out
+    assert "data_guide_stats.json" in out
+    nums = json.loads((t / "state" / "data_guide_stats.json").read_text(encoding="utf-8"))
+    assert nums["by"] == "steps" and (t / "state" / "daily_update_steps.json").exists() and (t / "state" / "pc_disk.json").exists()
+    monkeypatch.setattr(du, "table_numbers", lambda **_k: (_ for _ in ()).throw(OSError("디스크 없음")))
+    assert du.main(["steps", "--write"]) == 1
+    assert "🟡 data_guide_stats.json: OSError: 디스크 없음" in capsys.readouterr().out

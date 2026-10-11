@@ -1197,7 +1197,8 @@ flowchart LR
 3. **파생 표가 시세보다 뒤처져 있으면 새 자료가 없어도 다시 만든다.** 이것을 빼면 한 번 어긋난 표가 다음 거래일까지 뒤처진 채로 남는다
    — 09-28 이 정확히 그 상태였다(시세 09-22 · 파생 09-17).
 4. **바뀐 파케이가 0개면 올리지 않는다.** `upload --incremental` 은 바뀐 파일이 없어도 `meta/*`·`README.md` 를 올려 **내용 없는
-   커밋과 태그**를 매일 남긴다. 판정은 `hf_dataset.changed_since_upload()` 한 곳이다.
+   커밋과 태그**를 매일 남긴다. 판정은 `hf_dataset.changed_since_upload()` 한 곳이다. 올릴 목록은 `to_upload` 로 따로 둔다 —
+   빠진 날 사전 `pending` 과 이름이 겹쳐, 올리기가 성공한 직후 회차가 「러너 오류」 로 멈춘 적이 있다(DF-103 · 2026-10-11).
 5. **공유 스위치는 러너가 켠다 — `.env` 가 아니다.** `QURIOUS_RAW_SHARING` 은 `--upload` 를 준 실행의 ⑦⑨ 자식에게만 넘긴다.
    켠 흔적은 작업 스케줄러에 등록된 **명령줄 자체**다(`status` 가 보여 준다). private 확인·xet 확인은 `upload()` 가 그대로 건다(§9).
 6. **겹쳐 돌지 않는다.** 잠금 파일에 PID 를 적는다. ⚠️ Windows 의 `os.kill(pid, 0)` 은 살아 있는지 묻지 않고 **그 프로세스를
@@ -1212,7 +1213,7 @@ python scripts/daily_update.py start                # 등록된 작업을 지금
 python scripts/daily_update.py status               # 예약 상태 + 마지막 실행 단계별 결과
 python scripts/daily_update.py run                  # 이 터미널에서 직접 (업로드 없이)
 python scripts/daily_update.py run --only news      # 그 단계 하나만 다시 — 12:30 회차와 겹치는 때 · 다른 실행이 돌 때는 막힘 (2026-10-07)
-python scripts/daily_update.py steps --write        # 단계 목록(이름표 · 묶음 · 하는 일) · 이 PC 용량 파일을 지금 쓴다 (2026-10-07)
+python scripts/daily_update.py steps --write        # 단계 목록(이름표 · 묶음 · 하는 일) · 이 PC 용량 · 자료 안내 숫자 파일을 지금 쓴다 (2026-10-07 · 숫자 2026-10-11)
 python scripts/daily_update.py run --manual --request <요청 번호>   # 화면 「전체 수집」 — 작업자가 부른다 · 11:00 ~ 13:30 은 75 (2026-10-10)
 python scripts/daily_update.py run --fill signals --from 2026-10-02 --to 2026-10-06   # 빠진 날 채우기 — 31일까지 · 그 범위의 빠진 날만 지움 (2026-10-10)
 python scripts/collect_worker.py install            # 화면 수집 요청 작업자 — 작업 스케줄러에 매 분 (기본 올리기 받음 · --no-upload)
@@ -1222,11 +1223,21 @@ python scripts/daily_update.py uninstall            # 등록 해제
 
 로그 `data/collector/logs/daily_update-*.log`(최근 30개) · 마지막 결과 `data/collector/state/daily_update_last.json` ·
 이력 `data/collector/state/daily_update_history.jsonl`(2026-10-08 회차부터 단계별 결과도 · 한 단계 다시 줄은 처음부터) · 단계 목록 `state/daily_update_steps.json` ·
-이 PC 용량 `state/pc_disk.json` · 빠진 날 `state/daily_update_fill.json`(2026-10-10). 모두 gitignore 된 `data/collector/` 아래다.
+이 PC 용량 `state/pc_disk.json` · 빠진 날 `state/daily_update_fill.json`(2026-10-10) · 자료 안내 숫자 `state/data_guide_stats.json`(2026-10-11).
+모두 gitignore 된 `data/collector/` 아래다.
 
 **단계 이름표는 러너 한 곳(`STEPS` 의 `label` · `group` · `desc`)에만 둔다**(2026-10-07 · 결정 ④). 러너가 회차마다 단계 목록과
 회차 기록에 함께 쓰고, 앱(`app/services/data_status.py` · `GET /api/data/runner`)은 그 기록만 읽는다 — 단계를 더할 때 앱을 고치지
 않아도 화면이 따라온다. 앱 컨테이너는 수집 폴더를 읽기만 하므로 이 PC 용량도 러너가 잰다.
+
+**자료 안내 숫자 파일**(2026-10-11 · 자료 안내 2단계 · 사용자 결정) — 러너가 회차 끝 · 한 단계 다시 · 빠진 날 채우기 뒤 · `steps --write` 때
+`state/data_guide_stats.json` 을 곁 파일로 쓴다(회차 시작에는 쓰지 않는다 · 단계 수 20 그대로). 데이터 관제와 같은 표 열쇠 15줄의 줄 수 ·
+마지막 날이고, 셈법은 앱의 `data_status.table_states` 를 그대로 부른다(`table_numbers` — 앱 코드를 늦게 불러 수집 DB 를 읽기 전용
+`?mode=ro` 로 연다 · 한 번에 1.4초 · 따로 세면 두 화면 숫자가 갈린다). 앱의 자료 안내(`API-DATA-11`)는 이 파일만 읽고 요청 때 수집 DB 를
+세지 않는다. 칸은 판 `schema`(1) · `written_at` · `by`(run · only · fill · steps) · `db` · `seconds` · `tables[]{key, rows, last_date, missing}` —
+수집 DB 가 없거나 표 · 행이 없으면 그 표는 `missing` · 줄 수 None 이다(0 을 넣지 않는다). 못 세면 회차를 멈추지 않고 🟡 한 줄을 남긴 채
+옛 파일을 둔다 — 화면은 파일이 마지막 회차 · 한 단계 다시보다 옛것이면 「마지막 수집 뒤에 숫자를 새로 쓰지 못했습니다」 로 안다.
+머지 뒤 처음에는 파일이 없으니 `steps --write` 를 한 번 돌리거나 다음 회차를 기다린다.
 
 **한 단계 다시는 끝에 수집 DB 를 읽기 전용으로 한 번 연다**(`rearm_wal` · 2026-10-07 · DF-81). 수집 DB 는 WAL 이고 앱은 `data/` 를
 읽기 전용으로 붙여 여는데, 이 PC 의 쓰기 연결이 마지막으로 닫히면 SQLite 가 보조 파일(`-wal` · `-shm`)을 지워 앱의 데이터 API 가
@@ -1310,6 +1321,7 @@ python scripts/daily_update.py uninstall            # 등록 해제
 | 🟡 | 로그인해 있지 않으면 안 돈다. 로그인하면 `StartWhenAvailable` 로 곧바로 따라잡는다 |
 | 🟡 | **화면 수집 요청은 매 분 뜨는 작업자가 가져간다** — 시작이 최대 1분 늦고, 로그온해 있을 때만 돈다. 앱 DB 가 꺼져 있으면 요청도 화면도 없다(작업자는 이 PC 상태 파일에만 까닭을 남긴다). 3시간 안에 시작하지 못한 요청은 만료 |
 | 🟡 | 태그 `snapshot-YYYY-MM-DD` 가 **올린 날마다** 하나씩 쌓인다(바뀐 게 없는 날은 안 올리므로 안 생긴다) |
+| 🟡 | **수정주가 단계가 길어진다(DF-104 · 2026-10-11)** — 09-29 ~ 10-08 회차는 383 ~ 765초였는데, 회차를 건너뛴 뒤의 회차가 길다 — 10-06 1,227초 · 10-11 따라잡기 회차 1,787초(한도 30분의 13초 앞). 멈춤 단계라 한도를 넘으면 뒤 단계가 모두 멈추므로 한도를 45분으로 올렸다 — 왜 길어지는지는 아직 재지 않았다(재고 나서 한도를 되돌린다) |
 | 🟡 | **수정주가는 닫힌 연도도 바뀐다.** 오늘을 1.0 으로 거꾸로 누적하므로(§5) 새 조정 이벤트가 생기면 2020년 값까지 달라진다 — 첫 실행에서 `price_adjusted` 7개 연도 파일 **전부**(50.6MB)가 바뀌었다. `hf_dataset.py` 머리말의 "닫힌 연도는 업로드 0바이트" 는 시세·TR 에만 맞는 말이다. xet 가 바뀐 청크만 보내서 업로드는 20초였다 |
 | ~~🔴~~ 🟢 | ~~**앱 화면은 아직 이 데이터를 읽지 않는다** — 앱 쪽 참조는 수집을 **부르는** Celery 어댑터 둘(`app/celery_app.py` · `app/tasks/collector_tasks.py`)뿐이고, HF 참조는 0건이다. 화면 시세는 여전히 야후 경로다~~ → 2026-10 지금은 읽는다 — 앱 컨테이너가 수집 폴더를 읽기 전용으로 붙이고(`./data:/app/data/csv:ro`), 데이터 묶음 화면(데이터 관제 · 자료 안내 · 수집 일정 · 자료 직접 받기 · 적재 · 백업)과 데이터 API(`API-DATA-*`)가 이 자료와 러너 기록을 읽는다. 투자 화면 차트의 시세 경로는 화면마다 다르다(`tests/test_no_yahoo_regression.py` 봉인선은 그대로) |
 | ↩ | 팀이 스택을 늘 띄워 두기로 하면 Celery Beat(`app/celery_app.py` 의 `collector-*`)로 옮길 수 있다. 그때는 **둘 중 하나만** 남긴다 |

@@ -71,7 +71,7 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py run --manual --request <요청 번호>  # 화면 「전체 수집」 — PC 작업자가 부른다(11:00 ~ 13:30 막힘)
     python scripts/daily_update.py run --fill signals --from 2026-10-02 --to 2026-10-06  # 빠진 날 채우기(31일까지)
     python scripts/daily_update.py status           # 마지막 실행 결과 + 예약 상태
-    python scripts/daily_update.py steps --write    # 단계 목록 · 이 PC 용량 파일을 지금 쓴다(앱이 읽는다)
+    python scripts/daily_update.py steps --write    # 단계 목록 · 이 PC 용량 · 자료 안내 숫자 파일을 지금 쓴다(앱이 읽는다)
     python scripts/daily_update.py install          # 작업 스케줄러에 매일 12:30 등록 (--upload 포함)
     python scripts/daily_update.py install --time 18:30 --no-upload
     python scripts/daily_update.py start            # 등록된 작업을 지금 한 번 돌린다(비동기)
@@ -136,6 +136,13 @@ PROGRESS_PATH = config.STATE_DIR / "daily_update_progress.json"
 #: 쓰므로 여러 날 꺼졌던 때를 셀 수 없다 — 그래서 따로 둔다(2026-10-10). 정기 회차가 그날을 계산하면 그날만, 채우기가 범위를 돌면
 #: 그 범위만 지운다(말없이 사라지지 않게).
 FILL_PATH = config.STATE_DIR / "daily_update_fill.json"
+#: 자료 안내 숫자 — 표마다 줄 수 · 마지막 날을 회차 끝 · 한 단계 다시 뒤 · `steps --write` 때 센다(2026-10-11 · 자료 안내 2단계 ·
+#: 결정 ④ 「숫자는 러너가 회차마다 쓰는 파일 · 앱은 읽기만」). 앱(`app/services/data_guide.py`)은 요청 때 수집 DB 를 세지 않고
+#: 이 파일만 읽는다 — 1단계는 요청 때 상태 계산을 기다렸고 수집이 도는 동안 줄 수가 「세는 중」 으로 비었다. 단계로 더하지
+#: 않고 곁 파일로 둔다(사용자 2026-10-11 「회차 끝 곁 파일」 — 이 PC 용량 파일과 같은 자리 · 단계 수 20 그대로).
+GUIDE_STATS_PATH = config.STATE_DIR / "data_guide_stats.json"
+#: 숫자 파일의 판 — 앱 `data_guide.NUMBERS_SCHEMA` 와 같아야 한다(다르면 앱은 「옛 판」 으로 숫자를 비운다 · TC-DG-11)
+GUIDE_STATS_SCHEMA = 1
 
 #: 빠진 날 채우기 한 번의 범위 상한(일 · 양 끝 포함) — 사용자 결정 2026-10-10 「31일」. 앱은 단계 목록의 ``fill_max_days`` 로
 #: 받아 쓴다(사본을 두지 않는다).
@@ -220,7 +227,10 @@ STEPS: List[Step] = [
     # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
     Step("calendar", ["-m", "collector.market_calendar", "build", "--quiet"], 10, fatal=False,
          label="시장 달력", group="계산", desc="휴장일 · 거래일 달력 · 배당락일 · 금융 일정"),
-    Step("adjusted", ["-m", "collector.preprocess"], 30, derived=True,
+    # 시간 한도 45분(DF-104 · 2026-10-11) — 30분이던 한도에 10-11 따라잡기 회차가 1,787초로 13초 앞까지 닿았다(09-29 ~ 10-08 은
+    # 383 ~ 765초 · 회차를 건너뛴 뒤가 길다 — 10-06 1,227초 · 10-11 1,787초 · 멈춤 단계라 넘으면 뒤 단계가 모두 멈춘다). 왜 길어지는지는
+    # 따로 잰다 — 한도는 그동안의 안전판이다.
+    Step("adjusted", ["-m", "collector.preprocess"], 45, derived=True,
          label="수정주가", group="계산", desc="분할 · 병합 · 배당을 반영해 과거 가격을 고친다(새 자료가 없으면 건너뜀)"),
     Step("total_return", ["-m", "collector.total_return", "build", "--quiet"], 30,
          derived=True, label="총수익", group="계산", desc="배당을 다시 투자한 총수익(TR) 지수"),
@@ -531,10 +541,45 @@ def measure_disk(now: Optional[datetime.datetime] = None, db_path: Optional[Path
             "collector_db_bytes": sum(p.stat().st_size for p in parts if p.exists())}
 
 
-def write_side_files() -> List[str]:
-    """단계 목록 · 이 PC 용량 파일을 쓴다. 실패해도 회차를 막지 않게 까닭만 돌려준다."""
+def table_numbers(now: Optional[datetime.datetime] = None, db_path: Optional[Path] = None, by: str = "run") -> Dict:
+    """자료 안내 숫자 — 표마다 줄 수 · 마지막 날(관제의 표 열쇠 15줄). 셈법은 앱 관제 한 곳(`app.services.data_status` 의 TABLES ·
+    table_states)을 그대로 부른다 — 러너에 SQL 사본을 두면 관제와 자료 안내가 다른 수를 보일 수 있다(SSoT · 사용자 2026-10-11
+    「표 숫자 — 관제 표 열쇠」). 앱 모듈은 여기서 늦게 가져온다: 앱 코드가 깨져도 회차는 돌고 이 파일만 못 쓴다(🟡 한 줄).
+
+    수집 DB 는 **읽기 전용**으로 연다(쓰기 연결이 마지막으로 닫히면 WAL 보조 파일이 지워져 앱이 멈춘다 · DF-81 — 읽기 전용은 오히려
+    보조 파일을 남긴다). 「없음」(표가 없다 · 행이 없다)은 줄 수 None 이지 0 이 아니다. 판정(늦음 · 멈춤)은 싣지 않는다 — 날이
+    바뀌면 달라지는 판정은 읽는 쪽이 한다(이 파일은 잰 사실만 · SRP).
+    """
+    from app.services import data_status                  # noqa: PLC0415 — 늦게(위 까닭)
+    now = now or now_kst()
+    db = db_path or config.DB_PATH
+    t0 = time.monotonic()
+    if db.exists():
+        conn = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=60)
+        try:
+            rows, _cal = data_status.table_states(conn, now.date())
+        finally:
+            conn.close()
+    else:
+        rows, _cal = data_status.table_states(None, now.date())
+    tables = []
+    for r in rows:
+        missing = r.get("verdict") == "missing"
+        tables.append({"key": r["key"], "rows": None if missing else r.get("rows"),
+                       "last_date": None if missing else r.get("last_date"), "missing": missing})
+    return {"schema": GUIDE_STATS_SCHEMA, "written_at": _iso(now), "by": by, "db": db.exists(),
+            "seconds": round(time.monotonic() - t0, 1), "tables": tables}
+
+
+def write_side_files(numbers: Optional[str] = None) -> List[str]:
+    """단계 목록 · 이 PC 용량 파일을 쓴다. `numbers` 를 주면(누가 쓰나 — run · only · fill · steps) 자료 안내 숫자 파일도 쓴다 —
+    회차 끝 · 한 단계 다시 뒤 · `steps --write` 때만(회차 시작에는 세지 않는다 — 그때 센 수는 곧 낡는다). 실패해도 회차를 막지
+    않게 까닭만 돌려준다 · 못 센 숫자 파일은 옛 파일을 그대로 둔다(앱이 「수집 뒤 못 씀」 으로 알린다)."""
     errors: List[str] = []
-    for path, make in ((CATALOG_PATH, step_catalog), (DISK_PATH, measure_disk)):
+    jobs = [(CATALOG_PATH, step_catalog), (DISK_PATH, measure_disk)]
+    if numbers:
+        jobs.append((GUIDE_STATS_PATH, lambda: table_numbers(by=numbers)))
+    for path, make in jobs:
         try:
             _write_json_atomic(path, make())
         except Exception as e:                              # 기록 파일 하나 때문에 갱신이 멈추면 안 된다
@@ -949,13 +994,15 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                         rec.update(note="새 자료 없음", reason="no_new_data")
                         continue
                 if step.name == "upload":
-                    pending = _pending_upload()
-                    if pending == []:
+                    # 이름을 따로 둔다 — `pending` 은 빠진 날 사전(load_fill)이다. 같은 이름에 올릴 목록을 넣었더니 올리기가 성공한
+                    # 직후 `pending.get` 이 목록에서 터져 회차가 「러너 오류」 로 멈췄다(DF-103 · 2026-10-11 따라잡기 회차 17:20)
+                    to_upload = _pending_upload()
+                    if to_upload == []:
                         rec.update(note="바뀐 파케이 0개 — 원격과 같다", reason="nothing_to_upload")
                         run.say("upload: 바뀐 파케이가 없어 올리지 않는다")
                         continue
                     run.say(f"upload: 바뀐 파케이 "
-                            f"{'(업로드 기록 없음)' if pending is None else f'{len(pending)}개'}")
+                            f"{'(업로드 기록 없음)' if to_upload is None else f'{len(to_upload)}개'}")
                 gate = app_db_gate(run, step)                # 앱 DB 단계 — 돌리기 전에 전제 조건을 묻는다(안 B)
                 if gate:
                     rec.update(gate)
@@ -1006,7 +1053,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                                    | {"price_max": after.get("price_max"), "rc": rc_total,
                                       "steps": _compact(run.steps)} | trigger,
                                    ensure_ascii=False) + "\n")
-            for err in write_side_files():                  # 용량은 회차 끝에 다시 잰다
+            for err in write_side_files(numbers="run"):     # 용량은 회차 끝에 다시 잰다 · 자료 안내 숫자도 이때
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
             run.say(f"끝 · {'✅ 전부 성공' if ok else '🔴/🟡 실패 단계 있음'} · "
                     f"시세 {after.get('price_max')} · 수정주가 {after.get('adjusted_max')} · "
@@ -1162,7 +1209,7 @@ def _finish_one(run: Run, step: Step, rec: Dict, rc: int, *, gate: Optional[Dict
                             "log": run.log_path.relative_to(ROOT).as_posix(), "trigger": "manual",
                             "steps": _compact([rec])} | extra,
                            ensure_ascii=False) + "\n")
-    for err in write_side_files():
+    for err in write_side_files(numbers="fill" if fill else "only"):
         run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
 
 
@@ -1532,7 +1579,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     r.add_argument("--to", dest="date_to", metavar="YYYY-MM-DD", help="채울 마지막 날(--fill 과 함께)")
     sub.add_parser("status", help="마지막 실행 결과와 예약 상태")
     s = sub.add_parser("steps", help="단계 목록(이름표 · 묶음 · 하는 일) — 앱이 읽는 목록")
-    s.add_argument("--write", action="store_true", help="단계 목록 · 이 PC 용량 파일을 지금 쓴다(회차를 기다리지 않고)")
+    s.add_argument("--write", action="store_true",
+                   help="단계 목록 · 이 PC 용량 · 자료 안내 숫자 파일을 지금 쓴다(회차를 기다리지 않고)")
     i = sub.add_parser("install", help="작업 스케줄러에 매일 실행 등록 (기본 업로드 포함)")
     i.add_argument("--time", default=DEFAULT_TIME, help=f"실행 시각 HH:MM (기본 {DEFAULT_TIME})")
     i.add_argument("--no-upload", action="store_true", help="로컬 갱신만 하고 HF 에 올리지 않는다")
@@ -1573,9 +1621,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 flags = " · ".join(f for f, on in (("멈춤", st.fatal), ("파생", st.derived), ("올리기", st.upload)) if on)
                 print(f"  {st.name:<13} {st.label:<8} {st.desc}" + (f"  [{flags}]" if flags else ""))
         if a.write:
-            errors = write_side_files()
+            errors = write_side_files(numbers="steps")
             print("\n".join(f"🟡 {e}" for e in errors) if errors
-                  else f"\n✅ 썼다: {CATALOG_PATH.relative_to(ROOT).as_posix()} · {DISK_PATH.relative_to(ROOT).as_posix()}")
+                  else f"\n✅ 썼다: {CATALOG_PATH.relative_to(ROOT).as_posix()} · {DISK_PATH.relative_to(ROOT).as_posix()} · "
+                       f"{GUIDE_STATS_PATH.relative_to(ROOT).as_posix()}")
             return 1 if errors else 0
         return 0
     if a.cmd == "install":
