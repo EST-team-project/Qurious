@@ -185,3 +185,59 @@ def test_t2_upsert_same_day_and_keep_old_definition():
     assert total == 4
     assert last[0][:3] == ("tv-2026", "관망", 0.123) and last[0][3] == 3
     assert last[1][0] == "tv-2027" and last[1][1] == recs[-1]["signal"]
+
+
+# ── 배치 — 계산 전에 앱 DB 부터 ──────────────────────────────────────────────
+
+class _Batch:
+    """`scripts/signals_daily.py` 를 수집 DB · 앱 DB 없이 돌린다 — 무엇을 어떤 차례로 불렀는지 남긴다."""
+
+    def __init__(self, monkeypatch, db_up: bool):
+        from scripts import signals_daily as sd
+
+        self.sd, self.calls = sd, []
+        monkeypatch.setattr(sd.ms, "trading_days", lambda start, end: ["2026-08-31"])
+        monkeypatch.setattr(sd.ms, "universe", lambda: ["TEST01", "TEST02"])
+
+        async def check():
+            self.calls.append("check")
+            if not db_up:
+                raise ConnectionRefusedError("앱 DB 꺼짐")
+
+        async def write(records):
+            self.calls.append("write")
+            return len(records)
+
+        def one(args):
+            self.calls.append("compute")
+            return args[0], [{"as_of": date(2026, 8, 31), "signal": "관망"}], None
+
+        class Pool:  # 프로세스를 띄우지 않고 같은 프로세스에서 돈다
+            def __init__(self, workers): pass
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+            def map(self, fn, items): return [fn(x) for x in items]
+
+        monkeypatch.setattr(sd, "_check_db", check)
+        monkeypatch.setattr(sd, "_write", write)
+        monkeypatch.setattr(sd, "_one", one)
+        monkeypatch.setattr(sd, "ProcessPoolExecutor", Pool)
+
+
+def test_batch_stops_before_computing_when_app_db_down(monkeypatch, capsys):
+    b = _Batch(monkeypatch, db_up=False)
+    assert b.sd.main([]) == 3                                   # 앱 DB 꺼짐
+    assert b.calls == ["check"]                                  # 401종목 계산을 하지 않았다
+    assert "앱 DB 에 연결하지 못했다" in capsys.readouterr().out
+
+
+def test_batch_checks_db_then_computes_then_writes(monkeypatch):
+    b = _Batch(monkeypatch, db_up=True)
+    assert b.sd.main([]) == 0
+    assert b.calls == ["check", "compute", "compute", "write"]
+
+
+def test_batch_dry_run_does_not_touch_app_db(monkeypatch):
+    b = _Batch(monkeypatch, db_up=False)                        # DB 가 꺼져 있어도
+    assert b.sd.main(["--dry-run"]) == 0
+    assert b.calls == ["compute", "compute"]
