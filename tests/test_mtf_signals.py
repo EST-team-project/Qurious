@@ -85,6 +85,9 @@ def test_record_shape():
     assert r["signal"] in ("매수", "매도", "관망") and 0.0 <= r["confidence"] <= 1.0 and -6 <= r["composite"] <= 6
     assert [t["timeframe"] for t in r["timeframes"]] == ["60m", "1d", "1w"]
     assert all("score" in t and t["last_bar"] for t in r["timeframes"])
+    # 지표 값도 남긴다 — 설명 근거 표의 관측값(설계서 5.4.1)
+    assert all({"rsi", "ma5", "ma20", "last", "macd", "macd_signal", "bb_upper", "bb_lower"} <= set(t)
+               for t in r["timeframes"])
     assert r["timeframes"][0]["last_bar"].startswith(as_of)          # 60분봉은 그날 봉까지
     assert r["reasons"] and {"timeframe", "text"} <= set(r["reasons"][0])
 

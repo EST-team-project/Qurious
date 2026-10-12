@@ -146,7 +146,8 @@ def signal_at(bars: Bars, as_of: str) -> dict | None:
     patterns = None if "error" in pat else (
         [{"key": p["key"], "name": p["name"], "direction": p["direction"], "date": p["date"]} for p in pat["patterns"]]
         + [{"key": e["key"], "name": e["name"], "direction": e["direction"], "date": as_of} for e in pat["breakouts"]])
-    timeframes = [{k: v for k, v in r.items() if k not in ("ma5", "ma20", "last", "as_of")} for r in rows]
+    # 지표 값(RSI · 이동평균 · 종가 · MACD · 볼린저)도 남긴다 — 설명 근거 표의 관측값(설계서 5.4.1). 봉 시각은 last_bar 로 충분
+    timeframes = [{k: v for k, v in r.items() if k != "as_of"} for r in rows]
     reasons = [{"timeframe": r["label"], "text": t} for r in rows for t in r.get("reasons", [])]
     return {"as_of": a, "symbol": bars.symbol, "definition": DEFINITION, **combined,
             "timeframes": timeframes, "pattern_bias": None if "error" in pat else pat["pattern_bias"],

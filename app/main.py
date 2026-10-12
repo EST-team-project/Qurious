@@ -180,6 +180,9 @@ app.include_router(kb_routes.router)
 # 예금 · 적금 · 연금저축은 금융감독원 오픈 API 실시간(저장하지 않음 · 약관 제9조). 로그인 뒤
 from app.routes import products as products_routes  # noqa: E402
 app.include_router(products_routes.router)
+# 신호 설명 (목표 기능 ② 설계서 5.4 · P01-①-5) — 매일 기록한 다중 주기 신호(T2)를 쉬운 말로, 로그인 뒤
+from app.routes import explain as explain_routes  # noqa: E402
+app.include_router(explain_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")

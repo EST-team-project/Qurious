@@ -228,6 +228,9 @@ def timeframe_score(candles: list[dict]) -> dict:
     if last > float(bb_m.iloc[-1]): score += 1; reasons.append("20MA 위 (추세 우호)")
     else: score -= 1; reasons.append("20MA 아래 (추세 비우호)")
     return {"score": score, "rsi": round(rsi, 1), "ma5": round(ma5, 2), "ma20": round(ma20, 2), "last": round(last, 2),
+            # 근거 표의 관측값(설명 층 1) — 위 규칙이 비교한 값 그대로
+            "macd": round(float(macd_line.iloc[-1]), 3), "macd_signal": round(float(macd_sig.iloc[-1]), 3),
+            "bb_upper": round(float(bb_u.iloc[-1]), 2), "bb_lower": round(float(bb_l.iloc[-1]), 2),
             "reasons": reasons, "bars": len(df), "as_of": df.index[-1].strftime("%Y-%m-%d %H:%M")}
 
 
