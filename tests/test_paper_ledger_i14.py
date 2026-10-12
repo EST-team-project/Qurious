@@ -275,14 +275,31 @@ async def test_manual_sell_cannot_sell_quant_holdings(db):
 # ── 4. 모의투자 초기화는 모의투자 장부만 되돌린다 ───────────────────────
 @needs_db
 @pytest.mark.anyio
-async def test_reset_restores_paper_and_leaves_the_quant_book(db):
+async def test_reset_deletes_only_web_paper_orders(db):
+    """A2 — 리셋은 WEB · PAPER 주문만 삭제, QUANT·kis는 보존."""
     from app.routes import stocks
+    from sqlalchemy import select as sa_select
 
     session, uid = db
+
+    # 1) PAPER/WEB 주문
     await stocks.place_order(_order(stocks, "buy", 2), user={"id": str(uid)}, db=session)
+    await session.commit()
+
+    # 2) QUANT 주문 (자동매매)
     await auto_trade._execute_virtual_trade(session, uid, SYMBOL, NAME, "buy", PRICE, 3, "자동 매수")
+    await session.commit()
+
+    # 3) 리셋
     await paper_trading.reset_account(session, uid)
     await session.commit()
-    assert await _paper_cash(session, uid) == PAPER_INITIAL_CASH
-    assert await _equity_at_cost(session, uid, PORTFOLIO_BOOK_PAPER) == PAPER_INITIAL_CASH
-    assert await _holdings(session, uid, PORTFOLIO_BOOK_QUANT) == {SYMBOL: 3}   # 자동매매 장부는 그대로
+
+    # 4) source 별 주문 남았나
+    rows = (await session.execute(
+        sa_select(Order.source).where(Order.user_id == uid)
+    )).scalars().all()
+    sources = set(rows)
+
+    assert "WEB" not in sources      # 직접매매 삭제됨
+    assert "QUANT" in sources        # 자동매매 보존됨
+    assert (await paper_trading.get_account(session, uid)).epoch == 2

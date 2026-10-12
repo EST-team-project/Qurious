@@ -4,28 +4,35 @@
 
 - record_daily_snapshot: 오늘 자산을 스냅샷으로 저장 (idempotent upsert)
 - get_daily_returns: QFRS 지표 계산용 일별 수익률 numpy 배열
-- backfill_from_now: 과거 데이터가 없으면 오늘부터 시작
 """
 
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import date, datetime, timezone
-from zoneinfo import ZoneInfo
-
-KST = ZoneInfo("Asia/Seoul")
+from datetime import date, datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.paper_snapshot import PaperAccountSnapshot
+from app.models.paper import PaperAccount
+from app.models.paper_snapshot import PaperAccountSnapshot     # ← import만!
 from app.services.paper_trading import account_snapshot
 
+KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
+
+
+async def _get_current_epoch(db: AsyncSession, user_id: uuid.UUID) -> int:
+    """현재 모의계좌 회차 번호 (없으면 1)."""
+    val = (await db.execute(
+        select(PaperAccount.epoch).where(PaperAccount.user_id == user_id)
+    )).scalar_one_or_none()
+    return int(val or 1)
 
 
 async def record_daily_snapshot(
@@ -38,13 +45,14 @@ async def record_daily_snapshot(
     오늘(또는 지정일)의 모의계좌 총자산을 스냅샷으로 저장.
 
     - 같은 날짜에 이미 스냅샷이 있으면 덮어씀 (upsert)
-    - daily_return은 **직전 스냅샷의 total_equity 대비** 계산
+    - daily_return = (오늘 total_equity / 직전 스냅샷 total_equity) - 1
     - 첫 스냅샷은 daily_return = 0.0
+    - A1: 직전 스냅샷과 회차(epoch)가 다르면 daily_return = 0.0
     """
     if snap_date is None:
         snap_date = datetime.now(KST).date()
 
-    # 1. 현재 계좌 상태 (기존 함수 재사용)
+    # 1. 현재 계좌 상태
     snap = await account_snapshot(db, user_id)
     cash = float(snap["cash"])
     stock_eval = float(snap["stockEval"])
@@ -54,7 +62,10 @@ async def record_daily_snapshot(
     total_equity = float(snap["totalAsset"])
     position_count = sum(snap["counts"].values())
 
-    # 2. 직전 스냅샷 조회 (오늘 이전)
+    # 1.5 현재 회차
+    current_epoch = await _get_current_epoch(db, user_id)
+
+    # 2. 직전 스냅샷
     prev_row = (await db.execute(
         select(PaperAccountSnapshot)
         .where(
@@ -65,17 +76,17 @@ async def record_daily_snapshot(
         .limit(1)
     )).scalar_one_or_none()
 
-    if prev_row and prev_row.total_equity > 0:
+    # 3. daily_return — A1 경계 판정
+    if (
+        prev_row is not None
+        and prev_row.total_equity > 0
+        and prev_row.epoch == current_epoch
+    ):
         daily_return = (total_equity / prev_row.total_equity) - 1.0
     else:
         daily_return = 0.0
 
-    # 3. UPSERT (동일 user_id + snap_date면 덮어쓰기)
-    # 자산군별 평가액
-    stock_eval = float(snap["stockEval"])
-    crypto_eval = float(snap["cryptoEval"])
-    alt_eval = float(snap["alternativeEval"])
-
+    # 4. UPSERT
     stmt = pg_insert(PaperAccountSnapshot).values(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -88,6 +99,7 @@ async def record_daily_snapshot(
         stock_value=stock_eval,
         crypto_value=crypto_eval,
         alt_value=alt_eval,
+        epoch=current_epoch,
         snapshot_at=datetime.now(KST),
     )
     stmt = stmt.on_conflict_do_update(
@@ -101,6 +113,7 @@ async def record_daily_snapshot(
             "stock_value": stmt.excluded.stock_value,
             "crypto_value": stmt.excluded.crypto_value,
             "alt_value": stmt.excluded.alt_value,
+            "epoch": stmt.excluded.epoch,
             "snapshot_at": stmt.excluded.snapshot_at,
         },
     )
@@ -108,11 +121,10 @@ async def record_daily_snapshot(
     await db.commit()
 
     logger.info(
-        "snapshot recorded: user=%s date=%s equity=%.2f return=%.4f",
-        user_id, snap_date, total_equity, daily_return,
+        "snapshot recorded: user=%s date=%s epoch=%d equity=%.2f return=%.4f",
+        user_id, snap_date, current_epoch, total_equity, daily_return,
     )
 
-    # 4. 저장된 행 반환
     row = (await db.execute(
         select(PaperAccountSnapshot).where(
             PaperAccountSnapshot.user_id == user_id,
@@ -130,24 +142,7 @@ async def get_daily_returns(
     limit: Optional[int] = None,
     with_dates: bool = False,
 ):
-    """
-    QFRS 지표 계산용 일별 수익률 & 총자산 시계열.
-
-    Parameters
-    ----------
-    with_dates : bool
-        True 면 (날짜[], returns, equity) 3-튜플 반환.
-        날짜는 **returns 와 1:1 정렬** (첫 스냅샷은 daily_return=0 이라 제외).
-        기본 False — 기존 호출자(returns, equity) 2-튜플 그대로.
-
-    Returns
-    -------
-    with_dates=False : (returns, equity)
-    with_dates=True  : (dates, returns, equity)
-        - dates   : list[str] ISO 날짜 (returns 와 같은 길이)
-        - returns : daily_return 배열 (첫 값 제외)
-        - equity  : total_equity 배열 (전체)
-    """
+    """QFRS 지표 계산용 일별 수익률 & 총자산 시계열."""
     stmt = (
         select(PaperAccountSnapshot)
         .where(PaperAccountSnapshot.user_id == user_id)
@@ -167,7 +162,6 @@ async def get_daily_returns(
     equity = np.array([r.total_equity for r in rows], dtype=float)
     returns = np.array([r.daily_return for r in rows], dtype=float)
 
-    # 첫 스냅샷은 daily_return=0 이므로 지표 계산 시 제외 — 날짜도 같이 제외
     returns_dates = dates_all[1:] if len(dates_all) > 1 else []
     if len(returns) > 0:
         returns = returns[1:]
@@ -180,7 +174,7 @@ async def get_daily_returns(
     if with_dates:
         return returns_dates, returns, equity
     return returns, equity
-    
+
 
 async def snapshot_count(db: AsyncSession, user_id: uuid.UUID) -> int:
     """저장된 스냅샷 개수 (디버깅/진단용)."""

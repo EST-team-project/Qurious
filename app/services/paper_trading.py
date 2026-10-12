@@ -67,12 +67,48 @@ async def apply_cash(db: AsyncSession, user_id: uuid.UUID, delta: float) -> Pape
 
 
 async def reset_account(db: AsyncSession, user_id: uuid.UUID) -> PaperAccount:
-    """주식·코인·대체자산 포지션과 주문 이력을 모두 지우고 초기 현금으로 되돌린다."""
+    """
+    모의계좌 리셋.
+
+    - A1: 회차(epoch)를 +1 해 새 회차 시작 — 스냅샷 경계 판정에 쓰임
+    - A2: 모의 장부 주문(PAPER)만 삭제. 자동매매(QUANT) · 증권사 체결(KIS)
+          주문 기록은 보존한다(주석과 실제 동작을 일치시킴).
+    - 코인 · 대체자산은 모의 장부와 별개 테이블이라 그대로 삭제.
+    """
     account = await get_account(db, user_id, lock=True)
-    for model in (Order, CryptoHolding, CryptoOrder, AlternativePosition, AlternativeOrder):
+
+    # ── A2: 주식 주문은 모의 장부(PAPER)만 삭제 ──
+    #  · 주문 테이블의 book(또는 broker) 칸 값으로 판별.
+    #    자동매매 = PORTFOLIO_BOOK_QUANT / "quant_ai"
+    #    증권사 체결 = "kis"
+    #    모의투자 = PORTFOLIO_BOOK_PAPER / "paper"
+    #  → 아래 where 절의 칸 이름(book vs broker)은 실제 Order 모델에 맞춰 확정.
+    # A2: 모의투자 화면(PAPER) · 직접매매 화면(WEB) 주문만 삭제.
+    # 보존: 자동매매(QUANT) · 외부 API(OPENAPI) · 파인(PINE) · 증권사 체결(broker="kis")
+    await db.execute(
+        delete(Order).where(
+            Order.user_id == user_id,
+            Order.source.in_(["WEB", "PAPER"]),
+            Order.broker != "kis",
+        )
+    )
+
+    # 코인 · 대체자산은 그대로 전체 삭제 (모의 장부와 별개)
+    for model in (CryptoHolding, CryptoOrder, AlternativePosition, AlternativeOrder):
         await db.execute(delete(model).where(model.user_id == user_id))
-    # 자동매매 가상계좌(QUANT 장부) 포지션은 모의계좌 리셋 대상이 아니다
-    await db.execute(delete(Portfolio).where(Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_PAPER))
+
+    # 모의 장부 포지션(Portfolio)만 삭제 — QUANT 장부 포지션은 보존
+    await db.execute(
+        delete(Portfolio).where(
+            Portfolio.user_id == user_id,
+            Portfolio.book == PORTFOLIO_BOOK_PAPER,
+        )
+    )
+
+    # ── A1: 새 회차 시작 ──
+    account.epoch = int(account.epoch or 1) + 1
+
+    # 시작 금액 리셋 (금액 선택 기능은 A3 — 지금은 기본값 유지)
     account.cash = float(PAPER_INITIAL_CASH)
     account.initial_cash = float(PAPER_INITIAL_CASH)
     return account
