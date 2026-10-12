@@ -96,3 +96,118 @@
   .pd-tab { padding: 6px 10px; font-size: 12px; }
   .pd-name { min-width: 180px; }
 }
+
+/* ── 상품 상세 창(js/productchart.js · 2026-10-12) — 가운데 모달 · 반응형(사용자 화면 피드백 2026-10-12 「가운데에 모달을 반응형으로
+ * 크게 띄워서 확인하는 것이 가독성이 좋을 것」 · 리서치: 집중 · 완결된 상세 보기는 가운데 모달, 좁은 화면은 화면 전체 — Primer · SAP).
+ * 꼴은 두 안의 융합(Figma 03-3 · 사용자 결정 「둘을 잘 융합해서 단점 최소화」):
+ *   위 = 전체 폭(주의 띠 · 숫자 셋) — 두 단 안의 「좁은 칸에 띠가 여섯 줄」 을 없앤다
+ *   가운데 = 두 단(왼쪽 칩 · 쉬운 말 / 오른쪽 큰 그림 · 캡션 · 기간 · 표) — 한 단 안의 「그림이 첫 화면 아래로 밀림」 을 없앤다
+ *   왼쪽 단은 창 폭의 36%(최소 300) — 1024 폭에서도 그림 칸이 좁아지지 않게
+ *   1024 아래는 한 단(위 → 왼쪽 → 오른쪽 차례 그대로) · 760 아래는 화면 전체.
+ * 색은 app.css 토큰 · 좋고 나쁨 색(오름 빨강 · 내림 파랑)을 쓰지 않는다. 덮개는 앱의 다른 모달(#term-modal)과 같다.
+ * 목록의 ETF 이름은 창을 여는 단추다. */
+.pd-open { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--text); text-align: left; cursor: pointer; }
+.pd-open:hover, .pd-open:focus-visible { color: var(--accent); text-decoration: underline; }
+#pc-modal { display: none; }
+#pc-modal.open { display: block; }
+.pc-dim { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); backdrop-filter: blur(2px); z-index: 905; }
+/* 창 높이는 고정 — 칩 · 기간을 바꿔 내용 길이가 달라져도 창이 다시 가운데로 움직이지 않게(칩이 손 밑에서 달아나지 않게) */
+.pc-panel { position: fixed; z-index: 906; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(1120px, calc(100vw - 48px)); height: min(880px, calc(100vh - 48px)); display: flex; flex-direction: column;
+  background: var(--surf); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 60px rgba(0, 0, 0, .18); overflow: hidden; }
+.pc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 20px 28px 10px;
+  border-bottom: 1px solid #eef1f6; }
+.pc-head-txt { min-width: 0; }
+.pc-head h3 { font-size: 22px; font-weight: 700; color: var(--text); }
+.pc-sub { font-size: 12.5px; color: var(--text-mute); margin-top: 3px; line-height: 1.5; }
+.pc-close { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); border-radius: 8px;
+  padding: 5px 12px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.pc-close:hover { background: var(--surf2); color: var(--text); }
+.pc-body { flex: 1; overflow-y: auto; padding: 16px 28px 24px; display: grid; grid-template-columns: minmax(300px, 36%) minmax(0, 1fr);
+  grid-template-areas: "top top" "left right" "foot foot"; gap: 16px 28px; align-items: start; }
+.pc-top { grid-area: top; }
+.pc-left { grid-area: left; }
+.pc-right { grid-area: right; }
+.pc-foot { grid-area: foot; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #eef1f6; padding-top: 10px; }
+.pc-top, .pc-left, .pc-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pc-body > .pc-msg { grid-column: 1 / -1; }
+/* 칸이 줄어들지 않게 — 그림 칸은 overflow:hidden 이라 최소 높이가 0 이 되어 내용이 길면 찌그러졌다(2026-10-12 화면 확인) */
+.pc-body > *, .pc-top > *, .pc-left > *, .pc-right > * { flex-shrink: 0; }
+.pc-msg { font-size: 13px; color: var(--text-dim); padding: 8px 0; line-height: 1.6; }
+.pc-msg--err { color: var(--red); }
+.pc-msg--note { font-size: 12.5px; color: #92400e; background: #fffbeb; border-radius: 8px; padding: 6px 10px; }
+.pc-band { font-size: 12.5px; line-height: 1.6; color: #78350f; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 10px; padding: 9px 12px; }
+.pc-band b { color: #92400e; }
+.pc-band-req { display: block; margin-top: 2px; color: #92400e; }
+/* 숫자 셋 — 이름과 값을 한 줄에(넓으면) · 칸이 좁으면 값이 다음 줄로 내려간다 */
+.pc-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pc-tile { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; background: #f1f5f9; border-radius: 10px;
+  padding: 9px 14px; min-width: 0; }
+.pc-tile span { font-size: 12.5px; color: #64748b; }
+.pc-tile strong { font-size: 20px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.pc-tile small { flex-basis: 100%; margin-top: 1px; font-size: 11px; color: var(--text-mute); }
+.pc-tiles-note { font-size: 11px; color: var(--text-mute); margin-top: -6px; }
+.pc-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pc-chip { flex: 0 0 auto; font: inherit; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); white-space: nowrap; }
+.pc-chip:hover { border-color: var(--accent); }
+.pc-chip.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pc-chip--warn { border-color: #f59e0b; }
+.pc-chip--warn.is-on { background: #b45309; border-color: #b45309; }
+.pc-say { font-size: 14.5px; line-height: 1.75; color: var(--text); background: #f8fafc; border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0; padding: 12px 14px; }
+.pc-say p { font-weight: 600; }
+.pc-why { margin: 6px 0 0; padding-left: 18px; list-style: disc; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px;
+  line-height: 1.65; color: var(--text-dim); }
+.pc-why li { display: list-item; }
+.pc-chart { position: relative; height: 340px; border: 1px solid #eef1f6; border-radius: 10px; overflow: hidden; }
+.pc-chart--tall { height: 360px; }   /* 1280 × 800 첫 화면에서 그림 아래 범례(세 값)까지 보이게 — 400 이면 범례 둘째 줄이 잘렸다 */
+.pc-chart--none { height: auto !important; padding: 10px 12px; }
+.pc-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--text-dim); }
+.pc-legend i { display: inline-block; width: 14px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 5px; }
+.pc-legend i.dash { border-top-style: dashed; }
+.pc-legend i.dot { width: 9px; height: 9px; border: 0; border-radius: 50%; background: #64748b; }
+.pc-legend b { font-weight: 700; color: var(--text); }
+.pc-cap { font-size: 11.5px; line-height: 1.6; color: #64748b; }
+.pc-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.pc-periods { display: flex; gap: 4px; flex-wrap: wrap; }
+.pc-per { font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surf);
+  color: var(--text-dim); cursor: pointer; }
+.pc-per.is-on { background: var(--text); border-color: var(--text); color: #fff; }
+.pc-per:disabled { color: #cbd5e1; border-style: dashed; cursor: not-allowed; }
+.pc-links { display: flex; gap: 12px; }
+.pc-link { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 700; color: var(--accent); cursor: pointer; }
+.pc-link i { font-size: 11px; transition: transform .15s; }
+.pc-link[aria-expanded="true"] i { transform: rotate(180deg); }
+.pc-how { font-size: 12.5px; line-height: 1.65; color: var(--text-dim); background: #f1f5f9; border-radius: 10px; padding: 10px 12px; }
+.pc-how dt { font-weight: 700; color: #64748b; font-size: 12px; margin-top: 4px; }
+.pc-how dt:first-child { margin-top: 0; }
+.pc-table-wrap { max-height: 320px; overflow: auto; border: 1px solid #eef1f6; border-radius: 10px; }
+.pc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pc-table caption { text-align: left; padding: 6px 8px; font-size: 11.5px; color: #64748b; }
+.pc-table th, .pc-table td { padding: 4px 8px; border-bottom: 1px solid #eef1f6; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pc-table thead th { position: sticky; top: 0; background: var(--surf); font-weight: 500; color: var(--text-mute); }
+.pc-table th[scope="row"] { text-align: left; font-weight: 500; color: var(--text-dim); }
+.pc-notes { margin: 0; padding-left: 16px; list-style: disc; font-size: 11.5px; line-height: 1.6; color: var(--text-mute); }
+.pc-credit { font-size: 11px; color: var(--text-mute); }
+.pc-credit a { color: #64748b; }
+/* 창이 열린 동안은 기능 완성도 배지(z-index 9000)가 창을 가리지 않게 숨긴다(자료 안내 서랍과 같은 규칙) */
+body:has(#pc-modal.open) #view-completion-indicator { display: none; }
+@media (max-width: 1023px) {
+  .pc-panel { width: min(960px, calc(100vw - 32px)); }
+  /* 한 단 — align-items 를 다시 stretch 로: 두 단의 start(세로 맞춤)가 한 단에서는 가로 맞춤이 되어 오른쪽 단이 그림 폭(이전 크기)에
+     묶였다(2026-10-12 화면 확인 — 폭 390 에서 그림 칸이 810 으로 남아 창 밖으로 나감) */
+  .pc-body { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+  .pc-chart { height: 320px; }
+  .pc-chart--tall { height: 380px; }
+}
+@media (max-width: 760px) {
+  .pc-panel { left: 0; top: 0; transform: none; width: 100vw; height: 100%; border: 0; border-radius: 0; }
+  .pc-head { padding: 14px 16px 8px; }
+  .pc-body { padding: 12px 16px 24px; }
+  .pc-tile { padding: 8px 10px; }
+  .pc-tile strong { font-size: 17px; }
+  .pc-chips { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .pc-chart { height: 220px; }
+  .pc-chart--tall { height: 260px; }
+}

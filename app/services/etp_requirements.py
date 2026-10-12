@@ -142,11 +142,34 @@ def _need(r: dict) -> str:
     return f"{r['label']} — 사려면 {'과 '.join(parts)}이 필요합니다(시행 {r['since']})."
 
 
+def multiple_label(multiple: int) -> str:
+    """2 → 「2배」 · −1 → 「−1배」 — 화면 글의 배수 표기를 한 곳에서."""
+    return f"{'−' if multiple < 0 else ''}{abs(multiple)}배"
+
+
+def risk_note(multiple: int | None = None) -> str:
+    """위험 구조 한 줄 — 배수를 모르면 목록 칸 머리 글, 알면 그 상품 서랍의 고정 띠(닫기 없음).
+
+    문구를 한 곳에 둬서 목록 머리와 서랍 띠가 갈라지지 않게 한다(금융감독원 2026-03-18 「단기 투자용」 원문).
+    """
+    if multiple is None:
+        return ("레버리지 · 인버스는 기초자산의 하루 수익률을 배수로 따르는 단기 투자용 상품입니다 — 여러 날 이어진 수익률은 "
+                "배수와 다를 수 있고, 오르내림을 되풀이하면 기초자산이 제자리여도 손실이 날 수 있습니다(음의 복리).")
+    m = multiple_label(multiple)
+    return (f"이 상품은 기초자산의 하루 수익률을 {m}로 따르는 단기 투자용 상품입니다 — 여러 날 이어진 수익률은 "
+            f"‘기초자산 × {m}’와 다를 수 있고, 오르내림을 되풀이하면 기초자산이 제자리여도 손실이 날 수 있습니다"
+            "(음의 복리 · 금융감독원 2026-03-18).")
+
+
+def need(key: str | None) -> str | None:
+    """요건 키 → 한 문장(숫자는 표에서만) · 키가 없으면 None."""
+    return _need(REQUIREMENTS[key]) if key else None
+
+
 def notes() -> list[str]:
     """레버리지 · 인버스 칸 머리에 싣는 안내 — 위험 구조 한 줄 + 요건마다 한 줄 + 기준일."""
     return [
-        "레버리지 · 인버스는 기초자산의 하루 수익률을 배수로 따르는 단기 투자용 상품입니다 — 여러 날 이어진 수익률은 "
-        "배수와 다를 수 있고, 오르내림을 되풀이하면 기초자산이 제자리여도 손실이 날 수 있습니다(음의 복리).",
+        risk_note(),
         *(_need(REQUIREMENTS[k]) for k in ("leveraged_2x", "single_stock", "inverse_1x")),
         f"요건은 {AS_OF} 기준 금융위원회 · 금융감독원 원문으로 확인한 것입니다. {NOTICE}",
     ]

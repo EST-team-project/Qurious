@@ -56,6 +56,9 @@ SORT_KEYS = {
     "vol_1y": ("vol_1y_pct", "1년 변동성"),
     "name": ("name", "이름"),
 }
+# 상품 상세 서랍(`product_chart`)도 같은 글을 싣는다 — 이름으로 집어 가게 따로 둔다(순서가 바뀌어도 갈라지지 않게)
+NOTE_NOT_OFFICIAL = "변동성 · 최대 낙폭은 우리가 모은 자료로 잰 숫자이며, 금융회사가 매기는 공식 투자위험등급이 아닙니다."
+NOTE_NO_TER = "총보수와 추적오차는 이 자료에 없습니다 — 운용사 공시에서 확인해 주세요."
 NOTES = (
     "순서는 정해진 기준(기본 순자산총액 큰 순)에 따른 것이며 상품의 좋고 나쁨을 뜻하지 않습니다.",
     "1년 수익률은 거래소 기준가로 날마다 이은 값입니다 — 분배락일에 낮춘 기준가를 되돌려 분배금을 다시 넣었다고 본 "
@@ -63,8 +66,8 @@ NOTES = (
     "변동성은 최근 1년 일간 수익률(분배락으로 내린 몫은 뺀 값)의 표준편차를 연 환산한 값입니다.",
     "최대 낙폭은 최근 1년 동안 직전 최고점에서 가장 크게 내려간 비율입니다 — 1년 수익률과 같은 기준가 이음 값으로 "
     "잽니다.",
-    "변동성 · 최대 낙폭은 우리가 모은 자료로 잰 숫자이며, 금융회사가 매기는 공식 투자위험등급이 아닙니다.",
-    "총보수와 추적오차는 이 자료에 없습니다 — 운용사 공시에서 확인해 주세요.",
+    NOTE_NOT_OFFICIAL,
+    NOTE_NO_TER,
 )
 
 # 레버리지 · 인버스 칸의 묶음 — 차례가 화면 차례다. 요건은 묶음마다 하나로 정해지고, 주식 밖 자산은 종목마다
@@ -110,6 +113,20 @@ def _day(bas_dt: str) -> date:
     return date(int(bas_dt[:4]), int(bas_dt[4:6]), int(bas_dt[6:]))
 
 
+def chain_return(close: int | None, vs: int | None) -> float | None:
+    """하루 수익률 한 칸 — `종가 ÷ (종가 − 전일 대비) − 1`(거래소 기준가로 잰 값 · 분배락 하락을 되돌린다).
+
+    목록(`_metrics`)과 상품 상세 서랍(`product_chart`)이 같은 규칙을 쓰게 한 곳에 둔다(SSoT) — 기준가를 못 만들면
+    None 이다(그날은 이음에서 빠지고 빈 날로 센다 · 다른 값으로 메우지 않는다).
+    """
+    if close is None or vs is None:
+        return None
+    base = close - vs
+    if base <= 0:
+        return None
+    return close / base - 1.0
+
+
 def _derivative_group(cls: ec.EtfClass) -> str | None:
     """분류 결과 → 레버리지 · 인버스 칸의 묶음(아니면 None)."""
     if cls.group != "leveraged_inverse":
@@ -149,11 +166,11 @@ def _metrics(hist: list[tuple[str, int | None, int | None, int | None]], year_ag
     # 1년 기준가 이음 · 일간 수익률(변동성용)
     daily, missing = [], 0
     for d, c, v in rows[i0 + 1:]:
-        base = c - v if v is not None else None
-        if base is None or base <= 0:
+        r = chain_return(c, v)
+        if r is None:
             missing += 1
             continue
-        daily.append(c / base - 1.0)
+        daily.append(r)
     if first <= year_ago:                           # 1년 넘게 있었던 것만 1년 수익률을 낸다(짧으면 빈칸)
         out["price_return_1y_pct"] = (rows[-1][1] / rows[i0][1] - 1.0) * 100.0
         n_days = len(rows) - i0 - 1
@@ -257,6 +274,17 @@ def _load() -> dict:
     with _lock:
         _cache["v"] = (key, data)
     return data
+
+
+def find_item(code: str) -> tuple[dict, dict | None]:
+    """(목록 계산 결과, 그 종목 줄) — 상품 상세 서랍이 머리 숫자를 목록 줄과 같은 값으로 싣게 한다(SSoT).
+
+    그날(마지막 거래일) 목록에 없는 종목이면 줄은 None 이다.
+    """
+    data = _load()
+    if data["status"] != "ok":
+        return data, None
+    return data, next((x for x in data["items"] if x["code"] == code), None)
 
 
 def _common(data: dict) -> dict:

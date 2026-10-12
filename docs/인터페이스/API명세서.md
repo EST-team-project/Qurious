@@ -1,14 +1,14 @@
-# API 명세서 v0.21 — Qurious
+# API 명세서 v0.22 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.21 (Minor — 라우트 241 → **244** · 새 라우터 `products`(31번째) · 상품 안내 셋 `API-PROD-01 ~ 03`(ETF 자산군 · 묶음 한눈에 · ETF 목록 · 예금 · 적금 · 연금저축 금융감독원 실시간) · 2.1절 한 줄 · 응답 모양 · 정답 대조 243/243) |
-| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · **v0.21** |
+| **문서 버전** | v0.22 (Minor — 라우트 244 → **246** · 새 라우터 `explain`(32번째 · 신장환 #169) · 상품 상세 창 `API-PROD-04`(한 종목 기간 계열 · 칩마다 쉬운 말 요약 · 근거 줄 · 레버리지 세 값) · 신호 설명 `API-EXPL-01` · 2.1절 두 줄 · 응답 모양 · 정답 대조 245/245) |
+| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · **v0.22** |
 | **작성자** | 이동원 (P-A) |
-| **기준 코드** | `main` = `8c71d92`(PR #164 강사님 기초 코드 반영 1단계) + 상품 안내 서버(이 판과 같은 PR) — 라우트 **244** · 라우터 **31** · 지난 판 `main` = `b247d41`(PR #158 자료 안내 2단계) + 강사님 기초 코드 반영 1단계 — 라우트 241 · 라우터 30 · 지난 판 `main` = `9e580b6`(PR #157 수집 단추 남은 것) + 자료 안내 2단계 — 라우트 241 · 지난 판 `main` = `5d470c3`(PR #155 화면 수집 단추) + 수집 단추 남은 것 — 라우트 241 · 지난 판 `main` = `83a0b12`(PR #148) + 화면 수집 단추 — 라우트 241 · 지난 판 `main` = `9a53f5b`(PR #147 · 그 앞 #146 러너 묶음 · #145 리밸런싱 예약 취소) + 화면 수집 요청 서버 — 라우트 241 · 지난 판 `main` = `5f3c325`(PR #144) + 러너 묶음 · 자료 안내 1단계 — 라우트 236(#145 머지 뒤 237) · 지난 판 `main` = `73f075b`(PR #141 강사님 th06 서버 쪽 반영) + 크롤링 세 화면 구현 — 라우트 235 · 지난 판 `main` = `ef8cf5b`(PR #139 크롤링 세 화면 서버) + 강사님 th06 서버 쪽 반영 — 라우트 233 · 지난 판 `main` = `ff30238`(팀원 PR #131 · #130) + 크롤링 세 화면 서버(단계 이름표 한 곳 · 수집 일정 API · 주소 검사) · 지난 판 `main` = `5e5a393`(PR #120 · #119) + 근거 답 「없다」 단정 거름 · 지난 판 `main` = `a39e531`(PR #118 · #113 위에 팀원 #114 리밸런싱 정책 · #115 발표 문서 · #116 첫 거래일 예약 · #118 하루 점검) + 섹터 질문 분류 · 일정 2판 화면 · 리서치 화면(이 판과 같은 PR) — 라우트 **228** · 라우터 **29** (v0.1 은 `5adfb81` · 146 · 19) |
+| **기준 코드** | `main` = `d4a9d66`(PR #169 신장환 신호 설명 · 그 앞 #167 상품 안내) + 상품 상세 창(이 판과 같은 PR) — 라우트 **246** · 라우터 **32** · 지난 판 `main` = `8c71d92`(PR #164 강사님 기초 코드 반영 1단계) + 상품 안내 서버 — 라우트 **244** · 라우터 **31** · 지난 판 `main` = `b247d41`(PR #158 자료 안내 2단계) + 강사님 기초 코드 반영 1단계 — 라우트 241 · 라우터 30 · 지난 판 `main` = `9e580b6`(PR #157 수집 단추 남은 것) + 자료 안내 2단계 — 라우트 241 · 지난 판 `main` = `5d470c3`(PR #155 화면 수집 단추) + 수집 단추 남은 것 — 라우트 241 · 지난 판 `main` = `83a0b12`(PR #148) + 화면 수집 단추 — 라우트 241 · 지난 판 `main` = `9a53f5b`(PR #147 · 그 앞 #146 러너 묶음 · #145 리밸런싱 예약 취소) + 화면 수집 요청 서버 — 라우트 241 · 지난 판 `main` = `5f3c325`(PR #144) + 러너 묶음 · 자료 안내 1단계 — 라우트 236(#145 머지 뒤 237) · 지난 판 `main` = `73f075b`(PR #141 강사님 th06 서버 쪽 반영) + 크롤링 세 화면 구현 — 라우트 235 · 지난 판 `main` = `ef8cf5b`(PR #139 크롤링 세 화면 서버) + 강사님 th06 서버 쪽 반영 — 라우트 233 · 지난 판 `main` = `ff30238`(팀원 PR #131 · #130) + 크롤링 세 화면 서버(단계 이름표 한 곳 · 수집 일정 API · 주소 검사) · 지난 판 `main` = `5e5a393`(PR #120 · #119) + 근거 답 「없다」 단정 거름 · 지난 판 `main` = `a39e531`(PR #118 · #113 위에 팀원 #114 리밸런싱 정책 · #115 발표 문서 · #116 첫 거래일 예약 · #118 하루 점검) + 섹터 질문 분류 · 일정 2판 화면 · 리서치 화면(이 판과 같은 PR) — 라우트 **228** · 라우터 **29** (v0.1 은 `5adfb81` · 146 · 19) |
 | **추출기** | [`scripts/api_scan.py`](../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../tests/test_api_scan.py) (TC-AP 15건) |
-| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **245줄 · 사용 244 · 폐기 1**(2026-10-12 `API-PROD-01 ~ 03` 더함 — 상품 안내 · `--assign S108` · 그 앞 2026-10-10 `API-DATA-12 ~ 15` 더함 — 화면 수집 요청 · `--assign S103` · 그 앞 2026-10-08 `API-RBAL-10` — 팀원 #145 예약 취소 · `--assign S102`) · 그 앞 237줄(2026-10-08 `API-DATA-11` 더함 — 자료 안내 · `--assign S102` · 그 앞 `API-DATA-08 ~ 10` 더함 · `API-ADM-01` 폐기 — 라우트가 처음 사라진 경우라 `--assign` 이 아니라 손으로 「폐기」 · 그 번호는 다시 쓰지 않는다) · 그 앞 233줄(2026-10-08 `API-KMON-01 · 02` · v0.1 146 → 강사님 기초 코드 두 번 · 계정 · 용어사전 · 개념 학습 · 금융 강의 · 데이터 · 달력 · 근거 문서 · 근거 답 · 팀원 모의계좌 — 2.1절) · 한 번 붙인 ID 는 바뀌지 않는다 |
-| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
+| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **247줄 · 사용 246 · 폐기 1**(2026-10-12 `API-PROD-04` · `API-EXPL-01` 더함 — 상품 상세 창 · 신장환 신호 설명(그 PR 이 대장 관리 몫이라 고치지 않아 이 판에서 · 새 라우터 약어 `EXPL` · 파트 P-B) · `--assign S109` · 그 앞 2026-10-12 `API-PROD-01 ~ 03` 더함 — 상품 안내 · `--assign S108` · 그 앞 2026-10-10 `API-DATA-12 ~ 15` 더함 — 화면 수집 요청 · `--assign S103` · 그 앞 2026-10-08 `API-RBAL-10` — 팀원 #145 예약 취소 · `--assign S102`) · 그 앞 237줄(2026-10-08 `API-DATA-11` 더함 — 자료 안내 · `--assign S102` · 그 앞 `API-DATA-08 ~ 10` 더함 · `API-ADM-01` 폐기 — 라우트가 처음 사라진 경우라 `--assign` 이 아니라 손으로 「폐기」 · 그 번호는 다시 쓰지 않는다) · 그 앞 233줄(2026-10-08 `API-KMON-01 · 02` · v0.1 146 → 강사님 기초 코드 두 번 · 계정 · 용어사전 · 개념 학습 · 금융 강의 · 데이터 · 달력 · 근거 문서 · 근거 답 · 팀원 모의계좌 — 2.1절) · 한 번 붙인 ID 는 바뀌지 않는다 |
+| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **245/245 일치**(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
 
@@ -175,8 +175,9 @@ flowchart LR
 | `data` | `app/routes/data.py` | 15 | 0 | 11 | 3 | P-A 15 |
 | `calendar` | `app/routes/calendar.py` | 3 | 3 | 3 | 0 | P-A 3 |
 | `kb` | `app/routes/kb.py` | 3 | 1 | 1 | 2 | P-A 3 |
-| `products` | `app/routes/products.py` | 3 | 0 | 2 | 0 | P-A 3 |
-| **합계** | 31개 | **244** | **55** | **118** | **72** | |
+| `products` | `app/routes/products.py` | 4 | 0 | 2 | 0 | P-A 4 |
+| `explain` | `app/routes/explain.py` | 1 | 0 | 0 | 1 | P-B 1 |
+| **합계** | 32개 | **246** | **55** | **118** | **73** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -210,8 +211,9 @@ flowchart LR
 | `data` | 11 | · | · | · | 4 | · | · | · | · | · | · | · | · | 1 |
 | `calendar` | 3 | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `kb` | · | · | · | · | · | · | · | 2 | 2 | · | · | · | · | · |
-| `products` | 2 | · | · | · | · | · | · | · | · | · | · | · | · | 3 |
-| **합계** | **59** | **64** | **9** | **4** | **166** | **31** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **62** |
+| `products` | 3 | · | · | · | · | · | · | · | · | · | · | · | · | 4 |
+| `explain` | · | · | · | · | 1 | · | · | · | · | · | · | · | · | · |
+| **합계** | **60** | **64** | **9** | **4** | **167** | **31** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **63** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -277,11 +279,11 @@ flowchart LR
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
 | `403` | 권한 없음 | 2 | API-AUTH-06, API-TV-01 |
-| `404` | 대상 없음 | 23 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 17 |
+| `404` | 대상 없음 | 25 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 19 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 8 | API-STK-24, API-STK-41, API-STK-27, API-RBAL-10, API-RBAL-06, API-FRML-05 외 2 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
-| `422` | 검증 실패 | 28 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 22 |
+| `422` | 검증 실패 | 29 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 23 |
 | `429` | 호출 한도 초과 | 2 | API-CHAT-01, API-TV-01 |
 | `500` | 서버 내부 오류 | 1 | API-CHAT-01 |
 | `502` | 바깥 서버 실패 | 11 | API-CHAT-01, API-STK-06, API-STK-07, API-STK-19, API-STK-20, API-STK-21 외 5 |
@@ -299,6 +301,8 @@ v0.1 은 판을 올리지 않고 9절에 노트를 쌓았다(2026-09-30 ~ 10-03)
 
 | 날짜 | 라우트 (ID) | 수 | 누가 · 왜 | 인증 | 상태 코드 · 규칙 (요점) | 설계 · 시험 |
 |---|---|:-:|---|---|---|---|
+| **10-12** | `explain` +1 (**EXPL-01** `GET /api/explain`) — 새 라우터(신장환 PR #169) | 1 | 신호 설명 층 1(XAI · 요구 `P01-①-5`) — 매일 기록한 다중 주기 신호(T2 `signal_snapshots`) 한 줄을 쉬운 말 한두 문장 · 근거 표(지표 · 값 · 규칙 · 방향 · 기여도) · 신뢰도 풀이로 | 세션 | `kind`(지금 `signal` 하나) · `symbol`* · `date`(비우면 가장 최근) · 그날 기록이 없으면 그 앞 가장 가까운 거래일 · 기록이 아예 없으면 404 · 근거 기여도 합 = 종합 점수 · 문장 숫자 = 응답 값(그 PR 의 시험) · 쓰지 않는 말(「AI」 · 확률 · 「강력」 · 「추천」 등) | TC-XR |
+| **10-12** | `products` +1 (**PROD-04** `GET /api/products/etfs/{code}/chart`) | 1 | 상품 상세 창(투자 성향별 상품 안내 · Figma 03-2 · 05 [결정] 안 B) — 숫자만으로는 모르는 사람을 위해 한 종목의 기간 그림 자료와 칩마다 쉬운 말 요약 · 근거 줄 | 세션 | `period` 1m · 6m · 1y(기본) · 3y · 머리 숫자는 목록 줄과 같은 값(`item` — 목록 계산 결과 그대로) · 같은 하루 규칙(`chain_return`) · 레버리지 · 인버스 세 값(기초지수 × 배수 · 날마다 다시 맞춘 값 · 실제)은 같은 날 상관 0.95 이상 · 기초지수 이름 그대로일 때만(아니면 까닭) · 그 종목이 기간 첫날 전부터 없으면 200 + `status: short` + 까닭 · 그날 목록에 없는 종목 404 · 종목코드 꼴 · 기간 422 | TC-PCH · TC-PCS |
 | **10-12** | `products` +3 (**PROD-01** `GET /api/products/etfs/overview` · **PROD-02** `GET /api/products/etfs` · **PROD-03** `GET /api/products/savings`) | 3 | 로보 어드바이저 「맞춤 상품 추천」 → 투자 성향별 상품 안내(주인 없는 화면 · 결정 ② A) — 자산군마다 공시된 상품 정보를 정해진 기준으로(추천 아님 · 비중은 `API-ML-04` 가 정본) | 세션 | 01 · 02: 수집 DB `etf_daily` 마지막 거래일 전부(숨기지 않음 — 자산군 칸 + 레버리지 · 인버스 칸 = 전체) · 정렬 기준 글 · 1년 수익률 · 최대 낙폭은 거래소 기준가 이음(분배 포함 근사) + 가격만 수익률 · 레버리지 · 인버스 요건은 상수표 한 곳(`etp_requirements` · 기준일 · 출처 · 확실도) · 422 모르는 정렬 · 자산군 · 묶음 / 03: 금융감독원 오픈 API 를 부를 때마다(저장 안 함 · 약관 제9조) · 출처 문구 · 키 없음 · 키 거절 · 하루 한도 · 연결 실패는 200 + `status`(고칠 곳은 관리자에게만 `admin_detail`) · 422 모르는 기간 | TC-EC · TC-PG · TC-FL |
 | **10-10** | `data` +4 (**DATA-12** `POST /api/data/runner/requests` · **DATA-13** `GET /api/data/runner/requests` · **DATA-14** `POST /api/data/runner/requests/{request_id}/cancel` · **DATA-15** `GET /api/data/runner/worker`) · 응답 칸 (**DATA-05** 단계 목록 `catalog` 의 출처 파일에 막는 때 `guards`) | 4 | 화면 수집 요청 서버(사용자 결정 2026-10-08 「사이트 단추로 언제든 한 단계 · 전체 수집」 · 2026-10-10 「작업자는 매 분 예약 · 올리기 포함」) — 앱은 요청 줄만 남기고 PC 작업자(`scripts/collect_worker.py`)가 가져가 러너를 돌린다(앱은 러너를 부르지 않는다) | 세션 · **관리자** · 만들기 · 취소는 화면 머리글 `X-Qurious-Action: collect` 더(`Sec-Fetch-Site` 가 있으면 `same-origin` 만) | DATA-12 새 줄 **202** · 같은 대상(종류 + 단계)의 대기 · 도는 중 줄이 있으면 그 줄 **200**(멱등 · DB 부분 고유 색인이 정본) · 종류(`step` · `all`) · 단계(러너 단계 목록의 이름 · `^[a-z][a-z_]*$` · 32자)가 아니면 **422** · 머리글 없음 **403** / DATA-14 대기가 아니면 **409**(도는 중은 멈추지 않는다) · 없으면 **404** · 요청 번호는 UUID 만(아니면 422) / DATA-13 `limit` 1 ~ 100 · 새것 먼저 · 3시간 넘게 시작하지 못한 대기 줄은 보이기만 「만료」(목록은 줄을 고치지 않는다) / 작업자가 꺼져 있어도 받고 줄에 「대기 — PC 작업자 꺼짐」 | [조사서 — 화면 실행 통로](../조사/러너단계결과-화면실행통로-조사.md) 안 1 · TC-CQ 15 · TC-CW 12 · TC-DU |
 | **10-08** | `rebalance` +1 (**RBAL-10** `POST /api/rebalance/runs/{run_id}/cancel`) | 1 | 팀원 #145 — 리밸런싱 예외(미체결 예약 취소 · 휴장 이동 · 미체결 종료 · 이슈 #124) | 세션 | 본인의 미체결 예약만 · 취소 재요청은 같은 결과 · 이미 체결 · 부분 체결된 이력은 취소하지 않는다(#124 주담당 정리 글) | 팀원 설계서 v0.3(로컬 작성본) · `tests/test_rebalance_exceptions.py` |
@@ -362,6 +366,41 @@ GET /api/products/savings?kind=deposit|saving|annuity&sector=bank|savings_bank|i
   연금저축    { company, product, pension_kind, product_type, disclosed_rate, guaranteed_rate, avg_return, past_returns[3],
                sales_companies[], sale_start }
   422 모르는 기간(1 · 3 · 6 · 12 · 24 · 36 밖)
+```
+
+**`API-PROD-04` 응답 모양** (2026-10-12 · 상품 상세 창) — 숫자 칸과 글 칸을 함께 싣는다. 글(`explain`)은 서버가 숫자와 함께 만든다(부호는 낱말 — 「3.2% 내렸습니다」 · 낼 수 없는 숫자는 빈칸 + 까닭 · 문장의 숫자 = 요약 칸 숫자를 같은 자리에서 반올림 · TC-PCH). 화면은 그 글을 그대로 보인다(TC-PCS — 화면 코드에 문장 꼬리가 없다). 계열은 칸마다 배열이라 3년도 약 10만 자다.
+
+```text
+GET /api/products/etfs/{code}/chart?period=1m|6m|1y|3y        (세션 · code 는 영문 대문자 · 숫자 6자리 · 기본 1y)
+  200 { status: ok | short | no_data | error, code, as_of, source, notes[](공공누리 제4유형 · 공식 등급 아님 · 분배금 근사 · 총보수 없음),
+        item(목록 줄과 같은 값 — API-PROD-02 의 항목), band(레버리지 · 인버스면 위험 한 줄 — 요건 상수표 · 아니면 null),
+        requirement_note(요건 한 줄 | null), period, period_label,
+        periods: [{ key, label, from, available, reason | null }](그 종목이 창 첫날 전부터 있었을 때만 열림 · 우리 자료가 짧으면 그 까닭),
+        — status: short 이면 여기까지 + reason —
+        window { from, to, trading_days, label }, default_chip(견줄 수 있는 파생형이면 leverage · 아니면 return), caption,
+        series { date[], close[], nav[], index_close[], tr[](분배금 되돌린 이음 · 시작 100), px[](가격만), peak[], drawdown_pct[],
+                 ret_d_pct[], idx[], idx_ret_d_pct[], premium_pct[], halted[], lev_naive[] · lev_reset[](견줄 수 있는 파생형만) }
+                 (칸마다 배열 · 길이 = 거래일 수 · 빈 값은 null — 0 이 아니다 · 전일 대비가 5% 넘게 비면 tr · peak · drawdown 은 모두 null),
+        events { distributions[{date, amount(1좌당 원 · 근사), pct}], adjustments[](10% 넘는 기준가 차이 — 분할 등),
+                 drawdown, extremes { best, worst }, missing_vs_days, index_names[] },
+        stats { return { tr_pct | null, px_pct, example_krw, tr_value, px_value, dist_count, dist_sum, dist_pct_sum, missing_vs_days },
+                drawdown { depth_pct, peak_date, trough_date, recovered_date | null, recovered, days_underwater, need_to_recover_pct } | null,
+                volatility { annual_pct, daily_typical_pct, days_within, days_total } | null(하루 수익률 60개 미만),
+                premium { last_pct, mean_abs_pct, max_abs{date, pct}, days_over, days_total, threshold_pct } | null,
+                leverage { multiple, comparable, reason | null, fit_corr, fit_beta, fit_days,
+                           index_pct, naive_pct, reset_pct, actual_pct, path_effect_pctp, cost_effect_pctp(comparable 일 때만) } | null(1배) },
+        explain: [{ chip: return | drawdown | leverage, title, sentence(그림 위 한 줄 요약), points[](근거 줄), how(재는 법), limits(한계) }] }
+  404 그날(마지막 거래일) 상품 목록에 없는 종목      422 종목코드 꼴 · 모르는 기간
+```
+
+**`API-EXPL-01` 응답 모양** (2026-10-12 · 신장환 PR #169 · 신호 설명 층 1) — 그 PR 본문의 설명을 받지 못해 코드(`app/routes/explain.py` · `app/services/signal_explain.py`)에서 옮겼다. 칸의 뜻은 목표 기능 ② 설계서 5.4.4 · <표 13> 이 정본이다.
+
+```text
+GET /api/explain?kind=signal&symbol=005930&date=YYYY-MM-DD   (세션 · symbol 은 005930 · 005930.KS 모두 · date 를 비우면 가장 최근)
+  200 { kind: signal, method: rule, symbol, as_of, definition, signal, strength, confidence, composite,
+        summary(쉬운 말 한두 문장), confidence_text(신뢰도 풀이 — 확률이 아님), reasons[](신호 쪽 근거), counter_reasons[](반대 근거),
+        evidence[](근거 표 — 지표 · 값 · 규칙 · 방향 · 기여도 · 기여도 합 = composite), notes[], disclaimer }
+  404 그 종목 · 그날(또는 그 앞)의 신호 기록 없음      422 symbol 길이 · 모르는 kind
 ```
 
 **`API-DATA-12 ~ 15` 응답 모양** (2026-10-10 · 화면 수집 요청 · v0.18 빠진 날 채우기) — 상태를 바꾸는 함수는 `app/services/collect_requests.py` 한 곳(앱 API 와 PC 작업자가 같이 쓴다). 요청 줄과 감사 줄(`audit_events` · `collect.request` · `collect.cancel`)은 한 트랜잭션이다.
@@ -859,13 +898,20 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-KB-02 | GET | `/api/kb/search` | 세션 | `q`* · `k` · `as_of` · `kind` · `docs` · `mode` · `model` · `route` · `links` · `synonyms` · `sector` | 모델 없음 | ? | Qdrant · LLM | — | P-A | P01-①-3 | kb.py:33 |
 | API-KB-03 | POST | `/api/kb/ask` | 세션 | 본문 `AskBody` | 모델 없음 | ? | Qdrant · LLM | `agent-chat` | P-A | — | kb.py:77 |
 
-#### `products` — `app/routes/products.py` · 3개
+#### `products` — `app/routes/products.py` · 4개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-PROD-01 | GET | `/api/products/etfs/overview` | 세션 | `per_group` | 모델 없음 | — | 수집DB · 외부(www.data.go.kr, www.fsc.go.kr …) | `agent-products` | P-A | — | products.py:25 |
-| API-PROD-02 | GET | `/api/products/etfs` | 세션 | `asset_class` · `group` · `q` · `sort` · `order` · `offset` · `limit` | 모델 없음 | 422 | 수집DB · 외부(www.data.go.kr, www.fsc.go.kr …) | (다른 곳) | P-A | — | products.py:34 |
-| API-PROD-03 | GET | `/api/products/savings` | 세션 | `kind`* · `sector` · `term` · `sort` | 모델 없음 | 422 | 외부(finlife.fss.or.kr) | `agent-products` | P-A | — | products.py:53 |
+| API-PROD-01 | GET | `/api/products/etfs/overview` | 세션 | `per_group` | 모델 없음 | — | 수집DB · 외부(www.data.go.kr, www.fsc.go.kr …) | `agent-products` | P-A | — | products.py:27 |
+| API-PROD-02 | GET | `/api/products/etfs` | 세션 | `asset_class` · `group` · `q` · `sort` · `order` · `offset` · `limit` | 모델 없음 | 422 | 수집DB · 외부(www.data.go.kr, www.fsc.go.kr …) | (다른 곳) | P-A | — | products.py:36 |
+| API-PROD-04 | GET | `/api/products/etfs/{code}/chart` | 세션 | `{code}` · `period` | 모델 없음 | 404 · 422 | 수집DB · 외부(www.data.go.kr) | (다른 곳) | P-A | — | products.py:55 |
+| API-PROD-03 | GET | `/api/products/savings` | 세션 | `kind`* · `sector` · `term` · `sort` | 모델 없음 | 422 | 외부(finlife.fss.or.kr) | `agent-products` | P-A | — | products.py:71 |
+
+#### `explain` — `app/routes/explain.py` · 1개
+
+| API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| API-EXPL-01 | GET | `/api/explain` | 세션 | `kind` · `symbol`* · `date` | 모델 없음 | 404 | PostgreSQL | — | P-B | — | explain.py:23 |
 
 <!-- /api_scan:routes -->
 
@@ -1074,6 +1120,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.22 | 2026-10-12 | 추가 — 라우트 둘 `API-PROD-04`(상품 상세 창) · `API-EXPL-01`(신장환 #169 신호 설명 — 새 라우터 `explain` · 약어 `EXPL` · 파트 P-B · `--assign S109`) · 2.1절 두 줄 · 응답 모양 두 덩어리 / 변경 — 4 · 5절 표 · API 문서 카탈로그(스캐너로 다시 채움 · 246) · 정답 대조 245/245 | 숫자를 차트 + 쉬운 말 근거로(사용자 10-12) — 서버 먼저 · Figma 세 안 → 안 B 결정 · 팀원 PR 의 대장 반영 부탁 | `app/services/product_chart.py` · `app/routes/products.py` · `scripts/api_scan.py`(약어 · 파트 한 줄씩) · 시험 TC-PCH · TC-PCS |
 | v0.21 | 2026-10-12 | 추가 — 라우트 셋 `API-PROD-01 ~ 03`(새 라우터 `products` · `--assign S108`) · 2.1절 한 줄 · 응답 모양 덩어리(같은 날 결정 ② ③ ④ — 전략 묶음 · 배수 · 단일종목 · 1년 최대 낙폭 · 레버리지 · 인버스 맨 위 칸 · 요건 상수표 칸까지) · 스캐너 담당 표에 `products` → P-A / 변경 — 4 · 5절 표 · API 문서 카탈로그(스캐너로 다시 채움 · 244) · 정답 대조 243/243 | 로보 어드바이저 「맞춤 상품 추천」 을 투자 성향별 상품 안내로 고쳐 씀 — 서버 먼저(사용자 결정 2026-10-12 · 비중은 자산 배분이 정본 · ETF 범위는 숨기지 않고 묶음으로 · 금감원 약관 제5 · 7 · 9조 원문 다시 확인) | `app/routes/products.py` · `app/services/product_etfs.py` · `etf_classify.py` · `fss_products.py` · 시험 TC-EC · TC-PG · TC-FL |
 | v0.20 | 2026-10-12 | 변경 — `API-FRML-13` 오류 코드 422(서버가 산식을 Pine v6 로 옮기지 못하면 깨진 코드 대신 422 + 까닭) · 6절 오류 코드 표(422 25 → 26) · API 문서 카탈로그의 그 줄 `errors` / 남김 — 라우트 241 · 인자 · 본문 모델(스캐너 결과 같음) · 정답 대조 241/241 일치 | 강사님 기초 코드 반영 1단계 — Pine v6 변환 서버 셋(`formula.py` · 라우트 · 시험)을 강사님 판 그대로 받음(사용자 결정 「추천 차례대로」 · 물을 것 일곱 모두 (a) · 2026-10-12) | `app/routes/formula.py` · `app/services/formula.py` · TC-FM · TC-PE · `api_scan.py --openapi` |
 | v0.19 | 2026-10-11 | 변경 — `API-DATA-11` 응답 모양(자료마다 칸 정의 `columns` — 일반 사용자는 쉬운 이름 · 단위 · 뜻만 · 칸 이름 · 타입 · 열쇠 · 표 이름은 관리자만 / 숫자 파일 상태 `stats.numbers` · `measured_at` = 파일을 쓴 때 · `total_state` fresh · stale · none · 자료 상태 `pending` · `rows_from` numbers / 없앰 — `status_pending` · `counting`) · 안내 줄 여섯과 차례 · 6절 오류 글 판(2) / 남김 — 라우트 241 · 4 · 5절 표(스캐너 결과 같음) | 자료 안내 2단계 — 사용자 결정 2026-10-11(칸 정의 35표 · 376칸 모두 · 숫자 파일은 관제 표 열쇠 15줄 · 회차 끝 곁 파일 · 칸 절 안 B · 열쇠는 관리자에게만 · 상태 글 여섯) | `app/services/data_guide.py` · `scripts/data_guide_scan.py` · `scripts/daily_update.py` `table_numbers` · `docs/데이터/대장/자료안내-칸.tsv` · TC-DG-01 ~ 11 · TC-DU +3 |

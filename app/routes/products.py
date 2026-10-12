@@ -2,6 +2,8 @@
 
 - GET /api/products/etfs/overview : 자산군 → 묶음별 ETF 개수와 순자산 큰 순 몇 개(수집 DB · 마지막 거래일)
 - GET /api/products/etfs          : 한 자산군 · 묶음의 ETF 전체 목록(정렬 · 쪽 나눔 · 이름 찾기)
+- GET /api/products/etfs/{code}/chart : 한 종목의 상품 상세 창 — 기간 계열 · 칩마다 요약과 쉬운 말 문장(서버가 만든다)
+  · 레버리지 · 인버스의 「왜 n배가 아닌가」 세 값 · 머리 숫자는 목록 줄과 같은 값
 - GET /api/products/savings       : 예금 · 적금 · 연금저축 — 금융감독원 「금융상품 한눈에」 오픈 API 를 **부를 때마다**
   받아 보여 준다(약관 제9조 — 저장하지 않는다 · 응답의 출처 문구를 화면이 그대로 보인다)
 
@@ -14,10 +16,10 @@ from __future__ import annotations
 import asyncio
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from app.lib.session import get_current_user
-from app.services import fss_products, product_etfs
+from app.services import fss_products, product_chart, product_etfs
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
@@ -48,6 +50,22 @@ async def etf_list(
                                        sort=sort, order=order, offset=offset, limit=limit)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+
+
+@router.get("/etfs/{code}/chart", summary="상품 안내 — ETF 한 종목의 기간 그림 자료(상품 상세 창)")
+async def etf_chart(
+    code: str = Path(..., pattern=r"^[0-9A-Z]{6}$", description="종목코드(단축 6자리 — 예 069500 · 0000D0)"),
+    period: Literal["1m", "6m", "1y", "3y"] = Query("1y", description="1개월 · 6개월 · 1년 · 3년(기준일부터 거슬러)"),
+    _user=Depends(get_current_user),
+):
+    # 목록 계산(캐시)을 먼저 보고 한 종목만 색인으로 읽는다 — 첫 부름이면 목록 계산 1초 안팎이 함께 든다
+    try:
+        result = await asyncio.to_thread(product_chart.chart, code, period)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    if result["status"] == "not_found":
+        raise HTTPException(404, "그날 상품 목록에 없는 종목입니다")
+    return result
 
 
 @router.get("/savings", summary="상품 안내 — 예금 · 적금 · 연금저축(금융감독원 실시간)")
