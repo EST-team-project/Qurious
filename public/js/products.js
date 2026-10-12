@@ -17,6 +17,7 @@
  *   - 비중: 같은 표를 여기 복제하지 않는다. 배분 API(POST /api/ml/robo/allocation)는 종목을 훑어 무거우므로(첫 부름 14초 안팎)
  *     「비중 불러오기」 단추로만 부르고, 받은 비중은 이 탭(sessionStorage)에만 둔다 — 가벼운 길이 생기면(이슈 「비중 함수」) 바꾼다.
  * 강사님 파일(app.html · main.js · core.js · agent.js)에는 뿌리 칸 · 부르는 줄 · 메뉴 이름 · 옛 단추 가드만 두고 그리기는 모두 여기서.
+ * ETF 이름을 누르면 상품 상세 창(js/productchart.js · API-PROD-04 · Figma 03-2 · 05 [결정] 안 B)이 열린다 — 차트 · 쉬운 말 근거는 그 파일에.
  *
  * 응답을 읽는 변수 이름은 객체마다 하나로 고정한다 — 시험(TC-PD)이 「변수.칸」 을 모아 서버 응답 칸과 맞댄다.
  *   ov 한눈에 응답 · ls 목록 응답 · it ETF 한 줄 · cls 자산군 · grp 묶음 · dv 레버리지 · 인버스 칸 · rq 요건 하나 ·
@@ -24,6 +25,7 @@
  */
 import { api, escHtml, fmt } from "/js/common.js";
 import { navigate } from "/js/core.js";
+import { openProductChart } from "/js/productchart.js";
 
 const VIEW = "agent-products";
 const PER_GROUP = 5;             // 묶음마다 먼저 보일 줄 수(Figma 안 A)
@@ -108,7 +110,8 @@ function badges(it) {
 function etfTable(items) {
   if (!items.length) return `<p class="pd-empty">이 묶음에 상품이 없습니다.</p>`;
   const rows = items.map(it => `<tr>
-      <td class="pd-name"><div class="pd-name-main">${escHtml(it.name)}</div>
+      <td class="pd-name"><button type="button" class="pd-name-main pd-open" data-chart="${escHtml(it.code)}"
+        aria-label="${escHtml(it.name)} 상세 — 수익 · 낙폭 그림과 쉬운 말 근거">${escHtml(it.name)}</button>
         <div class="pd-name-sub">${escHtml(it.code)} · ${escHtml(it.index_name || "기초지수 정보 없음")}</div>${badges(it)}</td>
       <td class="pd-num">${won(it.aum)}</td>
       <td class="pd-num">${won(it.trade_value_20d)}</td>
@@ -434,6 +437,8 @@ function onClick(ev) {
   const t = ev.target.closest("button");
   if (!t || !root()?.contains(t)) return;
   const d = t.dataset;
+  // ETF 이름 → 상품 상세 창(js/productchart.js) — 닫으면 초점을 이 단추로 돌려준다
+  if (d.chart) { openProductChart(d.chart, { name: t.textContent.trim(), returnFocus: t }); return; }
   if (d.go) { navigate(d.go); return; }
   if (d.tab) {
     active = d.tab;

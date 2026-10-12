@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 244,
- "routers": 31,
+ "count": 246,
+ "routers": 32,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -6970,7 +6970,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/products.py",
-   "line": 25,
+   "line": 27,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6998,8 +6998,35 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/products.py",
-   "line": 34,
+   "line": 36,
    "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PROD-04",
+   "router": "products",
+   "method": "GET",
+   "path": "/api/products/etfs/{code}/chart",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "www.data.go.kr"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/products.py",
+   "line": 55,
+   "errors": [
+    "404",
     "422"
    ],
    "keys": [],
@@ -7025,9 +7052,32 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/products.py",
-   "line": 53,
+   "line": 71,
    "errors": [
     "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-EXPL-01",
+   "router": "explain",
+   "method": "GET",
+   "path": "/api/explain",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-B",
+   "req": [],
+   "file": "app/routes/explain.py",
+   "line": 23,
+   "errors": [
+    "404"
    ],
    "keys": [],
    "body": [],
