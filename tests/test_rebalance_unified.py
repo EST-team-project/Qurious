@@ -38,7 +38,11 @@ def forbid_quotes(monkeypatch):
     monkeypatch.setattr(rb.pt, 'resolve_stock', fail)
 
 
-def test_manual_preview_execution_use_close_and_only_reserve(monkeypatch, clock, ready_data):
+@pytest.mark.parametrize('runner_warning', [False, True])
+def test_manual_preview_execution_use_close_and_only_reserve(monkeypatch, clock, ready_data, runner_warning):
+    if runner_warning:
+        ready_data[2](ok=False, steps=[{'name': 'price', 'rc': 0}, {'name': 'calendar', 'rc': 0},
+                                     {'name': 'dividend', 'rc': 1, 'fatal': False}])
     monkeypatch.setattr(routes, 'audit', no_audit)
     async def go():
         async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
@@ -71,7 +75,7 @@ def test_manual_routes_wait_without_fallback(monkeypatch, clock, ready_data, con
     elif condition == 'closed':
         clock.current = datetime(2026, 10, 9, 14, tzinfo=rb.KST)
     elif condition == 'failed':
-        ready_data[2](ok=False)
+        ready_data[2](ok=False, steps=[{'name': 'price', 'rc': 0}, {'name': 'calendar', 'rc': 1}])
     else:
         with sqlite3.connect(ready_data[0]) as conn:
             conn.execute("DELETE FROM price_daily WHERE srtn_cd='005930'")

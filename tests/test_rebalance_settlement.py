@@ -109,6 +109,77 @@ def test_close_decision_reserves_then_uses_open_once(monkeypatch, clock, ready_d
 
 
 @needs_db
+@pytest.mark.parametrize('outcome', ['filled', 'untradable'])
+def test_warning_batch_still_requires_exact_stock_etf_prices_and_source_proof(monkeypatch, clock, ready_data, outcome):
+    symbols = ('005930.KS', '0000D0.KS')
+    path = ready_data[0]
+    ready_data[2](ok=False, steps=[{'name': 'price', 'rc': 0}, {'name': 'calendar', 'rc': 0},
+                                 {'name': 'ohlcv', 'rc': 1, 'fatal': False}])
+    with sqlite3.connect(path) as conn:
+        conn.execute("INSERT INTO etf_daily (bas_dt,srtn_cd,clpr) VALUES ('20260930','0000D0',1000)")
+
+    async def go():
+        async with scenario(monkeypatch, symbols=symbols) as (factory, uid):
+            async def forbidden(*args, **kwargs):
+                raise AssertionError('누락 가격을 외부 현재가로 대체하면 안 됨')
+            monkeypatch.setattr(rb.pt, 'resolve_stock', forbidden)
+            async with factory() as db:
+                plan = await rb.get_plan(db, uid)
+                rb.apply_plan_update(plan, dict(targets=[target(s, 40) for s in symbols],
+                                                drift_enabled=True, auto_execute=True))
+                await db.commit()
+            result = await rb.check_all_due(factory)
+            assert result['readiness']['ready'] and result['errors'] == 1
+            async with factory() as db:
+                assert (await rb.get_plan(db, uid)).last_auto_check_date is None
+                assert await db.scalar(select(func.count(RebalanceRun.id)).where(RebalanceRun.user_id == uid)) == 0
+            # 이전 날짜 ETF 종가로 대체하지 않고 정확한 날짜 자료가 들어오면 재시도한다.
+            with sqlite3.connect(path) as conn:
+                conn.execute("INSERT INTO etf_daily (bas_dt,srtn_cd,clpr) VALUES ('20261002','0000D0',1000)")
+            assert (await rb.check_all_due(factory))['checked'] == 1
+            assert (await rb.check_all_due(factory))['checked'] == 0
+            async with factory() as db:
+                run = await st.pending(db, uid)
+                rid = run.id
+                assert run.status == 'scheduled' and run.context['scheduled_for'] == '2026-10-07'
+                assert await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid)) == 0
+
+            clock.current = datetime(2026, 10, 8, 13, 30, tzinfo=rb.KST)
+            ready_data[2](started_at='2026-10-08T12:30:01+09:00', finished_at='2026-10-08T13:00:00+09:00',
+                          after={'price_max': '20261007'})
+            insert_open(path)
+            with sqlite3.connect(path) as conn:
+                conn.execute("INSERT INTO ingest_day (source,bas_dt,status,updated_at) VALUES ('portal','20261007','done','2026-10-08T13:00:00+09:00')")
+            # 주식 수집 완료가 ETF 시가 누락의 미체결 증거가 될 수 없다.
+            await rb.check_all_due(factory)
+            async with factory() as db:
+                assert (await db.get(RebalanceRun, rid)).status == 'scheduled'
+                assert await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid)) == 0
+                assert (await rb.pt.get_account(db, uid)).cash == 200000
+            with sqlite3.connect(path) as conn:
+                conn.execute("INSERT INTO ingest_day (source,bas_dt,status,updated_at) VALUES ('portal_etf','20261007','done','2026-10-08T13:00:00+09:00')")
+                if outcome == 'filled':
+                    conn.execute("INSERT INTO etf_daily (bas_dt,srtn_cd,clpr,mkp,trqu) VALUES ('20261007','0000D0',1200,900,1000)")
+            await rb.check_all_due(factory)
+            async with factory() as db:
+                run = await db.get(RebalanceRun, rid)
+                orders = (await db.execute(select(Order).where(Order.user_id == uid))).scalars().all()
+                if outcome == 'filled':
+                    assert run.status == 'executed' and len(orders) == 2
+                    assert all(o['price'] == 900 for o in run.orders)
+                    assert run.context['actual_cost'] > 0
+                else:
+                    assert run.status == 'cancelled' and not orders
+                    assert run.context['cancel_reason'] == 'open_not_tradable'
+                    assert (await rb.pt.get_account(db, uid)).cash == 200000
+                count = len(orders)
+            await rb.check_all_due(factory)
+            async with factory() as db:
+                assert await db.scalar(select(func.count(Order.id)).where(Order.user_id == uid)) == count
+    asyncio.run(go())
+
+
+@needs_db
 @pytest.mark.parametrize('change', ['cash', 'settings', 'none', 'missing', 'halted'])
 def test_missing_data_or_unresolved_changes_wait(monkeypatch, clock, ready_data, change):
     async def go():

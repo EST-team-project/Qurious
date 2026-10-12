@@ -76,7 +76,7 @@ def test_completed_day_closes_only_confirmed_untradable_reservation(monkeypatch,
             async with factory() as db:
                 plan = await rb.get_plan(db, uid)
                 if kind != 'invalid_open':
-                    # 전체 러너 성공만으로 미체결 확정하지 않는다.
+                    # 러너 준비 판정만으로 미체결 확정하지 않는다.
                     assert (await st.settle(db, uid, plan, state)).status == 'scheduled'
                 complete(ready_data[0])
                 result = await st.settle(db, uid, plan, state)
@@ -108,7 +108,7 @@ def test_cancel_review_preserves_account_budget_and_daily_gate(monkeypatch, cloc
                 await db.commit()
                 stamp = await st.account_stamp(db, uid)
                 budget = sum(e.remaining_budget for e in await rb.pending_cashflows(db, uid))
-                ready_data[2](ok=False)
+                ready_data[2](ok=False, stopped='price failed')
                 user = {'id': str(uid)}
                 if disable:
                     await routes.update_plan(routes.PlanBody(is_active=False), user, db)

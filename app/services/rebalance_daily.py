@@ -17,7 +17,21 @@ def _timestamp(value):
         return None
 
 
+def _required_steps_ok(steps: list[dict]) -> bool:
+    # 전체 회차 ok는 관제용이다. 필수 단계의 명시적 성공만 사용한다.
+    # 중복 기록이나 JSON false를 종료코드 0으로 오인하지 않는다.
+    for name in ("price", "calendar"):
+        matches = [step for step in steps if step.get("name") == name]
+        if len(matches) != 1:
+            return False
+        rc = matches[0].get("rc")
+        if type(rc) is not int or rc != 0:
+            return False
+    return True
+
+
 def readiness(now: datetime | None = None) -> dict:
+    """회차의 필수 자료 준비 여부. 종목별 종가·시가는 각 판단/정산에서 검증한다."""
     now = (now or datetime.now(timezone.utc)).astimezone(KST)
     result = dict(ready=False, state="waiting", message="데이터 갱신 완료 대기",
                   decision_date=now.date().isoformat(), data_as_of=None, update_finished_at=None)
@@ -50,10 +64,8 @@ def readiness(now: datetime | None = None) -> dict:
         if not started or not finished or started.date() != now.date() or started.time() < time(12, 30) or not started <= finished <= now:
             return wait("waiting", "오늘 12:30 이후 데이터 갱신 완료 기록을 기다립니다.")
         result["update_finished_at"] = finished.isoformat()
-        steps = {s["name"]: s for s in last.get("steps", [])}
-        if (last.get("ok") is not True or last.get("stopped")
-                or any(steps.get(name, {}).get("rc") != 0 for name in ("price", "calendar"))):
-            return wait("update_failed", "데이터 갱신에 실패한 단계가 있습니다. 갱신 성공 후 다시 확인합니다.")
+        if last.get("stopped") or not _required_steps_ok(last.get("steps") or []):
+            return wait("update_failed", "데이터 갱신이 중단됐거나 시세·달력 단계의 성공을 확인하지 못했습니다. 다시 확인합니다.")
         result["data_as_of"] = status.get("as_of")
         if status.get("as_of") != previous.isoformat() or last.get("price_max") != previous.isoformat():
             return wait("stale_data", "시세 기준일이 전 거래일과 달라 자동 점검을 기다립니다.")
