@@ -205,6 +205,7 @@ document.getElementById("pcb-search").addEventListener("click", () => runCbQuery
 document.getElementById("ccb-search").addEventListener("click", () => runCbQuery("ccb"));
 
 // ── 금융상품 ──────────────────────────────────────────────────────
+// (2026-10-12) 화면은 js/products.js 로 옮겼다 — 옛 칸이 없으면 단추를 묶지 않는다(?.)
 let productTab = "bank";
 document.querySelectorAll(".product-tab").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -238,8 +239,8 @@ async function searchProducts() {
     el.innerHTML = `<div class='text-red-400'>${escHtml(e.message)}</div>`;
   }
 }
-document.getElementById("bank-search").addEventListener("click", searchProducts);
-document.getElementById("fund-search").addEventListener("click", searchProducts);
+document.getElementById("bank-search")?.addEventListener("click", searchProducts);
+document.getElementById("fund-search")?.addEventListener("click", searchProducts);
 
 // ── 뉴스/RAG ─────────────────────────────────────────────────────
 // 2026-10-06 — 「투자 정보 리서치」 는 js/research.js 가 그린다(수집 자료 검색 · DF-61). 이 단추는 app.html 에서 빠져 묶이지 않는다

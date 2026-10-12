@@ -244,7 +244,8 @@ BADGE_LINE_RE = re.compile(r'^\s*"?([a-z0-9-]+)"?:\s*A\((\d+),\s*"([^"]+)",', re
 def test_배지의_강사님_점수는_점검표와_같다():
     """⑤ 강사님 10-08 판 completion.js 는 지표 비교 45 → 90 · 섹터 인디케이터 42 → 86 으로 올렸다(강사님 판 구현 기준).
     3-way 가 깨끗해 숫자가 말없이 바뀐다. 우리 배지 정본은 점검표 TSV 다(2026-10-04) — 받은 기능은 우리 시험으로 다시 매긴다.
-    팀 줄(배지반영 = 예)은 TC-CP 가 보므로 여기서는 강사님 표를 그대로 쓰는 줄(배지반영 = 아니오)만 본다.
+    팀 줄이 덮어 화면에는 안 보여도 강사님 칸은 completion.js 와 같아야 한다 — 강사님 표가 바뀌면 점검표 강사님 칸을 먼저 고친다
+    (2026-10-12 — 이동원 몫 줄이 모두 배지반영 「예」 가 되어 「아니오」 줄만 보면 볼 줄이 0 이었다 · 팀 줄의 점수는 TC-CP 가 본다).
     팀원 화면은 팀 결정 전이라 이동원 · 주인 없는(—) 줄만 본다(TC-CP 와 같은 까닭 — 팀원 PR 이 실패하지 않게)."""
     import csv
 
@@ -254,7 +255,7 @@ def test_배지의_강사님_점수는_점검표와_같다():
              for m in BADGE_LINE_RE.finditer(src[start:src.index("\n};", start)])}
     with (ROOT / "docs" / "시험" / "대장" / "기능완성도-점검표.tsv").open(encoding="utf-8", newline="") as f:
         rows = [r for r in csv.DictReader(f, delimiter="\t")
-                if r["배지반영"] == "아니오" and r["강사님"].strip()
+                if r["강사님"].strip()
                 and (r["주담당"] == "—" or r["주담당"].startswith("이동원"))]
     assert rows, "점검표에서 볼 줄을 하나도 못 찾았다 — 칸 이름 · 값을 볼 것"
     for r in rows:

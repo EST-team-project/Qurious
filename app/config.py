@@ -177,6 +177,11 @@ class Settings(BaseSettings):
     DOMAIN_RAG_LAB_API_KEY: str = ""
     STRATEGY_SPEC_CACHE_TTL: int = 600
 
+    # ── 금융감독원 「금융상품 한눈에」 오픈 API (상품 안내 — 예금 · 적금 · 연금저축 · 2026-10-12) ──────
+    # 약관: 실시간 연동만(복제 · 저장 · 전송 금지 · 제9조) · 인증키는 발급받은 사람만 · 1인 1키(제5조) · 개인 1일 10,000건(제7조).
+    # 비어 있으면 상품 안내의 예금 · 적금 칸이 「지금은 볼 수 없음」 으로 나온다(app/services/fss_products.py).
+    FINANCE_SUPERVISORY_API_KEY: str = ""
+
     # ── 외부 Open API (/openapi/v1) 호출 제한 ────────────────────────────────
     OPENAPI_RATE_LIMIT_MAX: int = 60       # 키당 분당 호출 수
     OPENAPI_RATE_LIMIT_WINDOW: int = 60    # 초

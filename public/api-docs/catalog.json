@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 241,
- "routers": 30,
+ "count": 244,
+ "routers": 31,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -785,8 +785,7 @@
    "hosts": [],
    "screens": [
     "agent-cb",
-    "agent-chat",
-    "agent-products"
+    "agent-chat"
    ],
    "part": "P-A",
    "req": [
@@ -6945,6 +6944,93 @@
    "body": [
     "AskBody"
    ],
+   "schema": true
+  },
+  {
+   "id": "API-PROD-01",
+   "router": "products",
+   "method": "GET",
+   "path": "/api/products/etfs/overview",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "www.data.go.kr",
+    "www.fsc.go.kr",
+    "www.fss.or.kr",
+    "www.law.go.kr",
+    "www.samsungpop.com"
+   ],
+   "screens": [
+    "agent-products"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/products.py",
+   "line": 25,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PROD-02",
+   "router": "products",
+   "method": "GET",
+   "path": "/api/products/etfs",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "www.data.go.kr",
+    "www.fsc.go.kr",
+    "www.fss.or.kr",
+    "www.law.go.kr",
+    "www.samsungpop.com"
+   ],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/products.py",
+   "line": 34,
+   "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PROD-03",
+   "router": "products",
+   "method": "GET",
+   "path": "/api/products/savings",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "외부"
+   ],
+   "hosts": [
+    "finlife.fss.or.kr"
+   ],
+   "screens": [
+    "agent-products"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/products.py",
+   "line": 53,
+   "errors": [
+    "422"
+   ],
+   "keys": [],
+   "body": [],
    "schema": true
   }
  ]

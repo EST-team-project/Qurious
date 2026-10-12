@@ -25,6 +25,7 @@
   <!-- 데이터 수집 화면 셋 — 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (2026-10-08 · js/collect.js) -->
   <link rel="stylesheet" href="/css/collect.css" />
   <link rel="stylesheet" href="/css/dataguide.css" /><!-- 자료 안내 (2026-10-08 · js/dataguide.js) -->
+  <link rel="stylesheet" href="/css/products.css" /><!-- 투자 성향별 상품 안내 (2026-10-12 · js/products.js) -->
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -252,39 +253,10 @@
             </div>
           </div>
 
-          <!-- 1-3. 맞춤 상품 추천 -->
-          <div class="view" data-view="agent-products">
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-1">💰 맞춤 금융상품 추천</h2>
-              <p class="text-xs text-slate-400 mb-4">로보 어드바이저가 투자 성향에 맞는 최적의 금융상품을 추천합니다</p>
-              <div class="flex gap-3 mb-4 flex-wrap">
-                <button class="product-tab btn-primary" data-tab="bank">은행 수신상품</button>
-                <button class="product-tab btn-secondary" data-tab="fund">공모펀드</button>
-              </div>
-              <div id="bank-search-form">
-                <div class="flex gap-2 flex-wrap">
-                  <input id="bank-rate" class="input w-32" type="number" step="0.1" placeholder="최소금리 %" />
-                  <input id="bank-keyword" class="input flex-1" placeholder="키워드 (상품명, 은행명)" />
-                  <button id="bank-search" class="btn-primary">검색</button>
-                </div>
-              </div>
-              <div id="fund-search-form" class="hidden">
-                <div class="flex gap-2 flex-wrap">
-                  <select id="fund-type" class="input w-36">
-                    <option value="">전체 유형</option>
-                    <option value="국내주식">국내주식</option>
-                    <option value="해외주식">해외주식</option>
-                    <option value="국내채권">국내채권</option>
-                    <option value="국내혼합">국내혼합</option>
-                  </select>
-                  <input id="fund-return" class="input w-32" type="number" step="0.5" placeholder="최소 1년수익률 %" />
-                  <input id="fund-keyword" class="input flex-1" placeholder="키워드 (펀드명, 운용사)" />
-                  <button id="fund-search" class="btn-primary">검색</button>
-                </div>
-              </div>
-              <div id="product-results" class="mt-4 space-y-2 text-sm"></div>
-            </div>
-          </div>
+          <!-- 1-3. 투자 성향별 상품 안내 (2026-10-12 · 옛 「맞춤 상품 추천」 자리 · 화면 키 그대로) — 내용은 js/products.js 가 그린다
+               (Figma 결정 안 A · GET /api/products/etfs/overview · /api/products/etfs · /api/products/savings).
+               옛 칸은 상품 자료 없이 범용 대화 API 에 글로 묻는 검색이었다(강사님 배지 근거 「범용 Agent 질의로 연결」). -->
+          <div class="view" data-view="agent-products"><div class="pd-root"></div></div>
 
           <!-- 1-4. 투자 정보 리서치 (2026-10-06) — 수집 자료 검색(공시 · 정책뉴스 · 언론사 기사) + 종목 시간표.
                내용은 js/research.js 가 그린다(Figma 결정 안 B + C 해석 1). 옛 칸은 안내와 달리 RAG 가 아니라 수집 기사 표의 글자 찾기였다(DF-61). -->

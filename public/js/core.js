@@ -16,7 +16,7 @@ const GNB_MENUS = {
       { key: "robo-decision",   icon: "fa-solid fa-brain",                 label: "모의 투자 의사결정" },
       { key: "robo-testbed",    icon: "fa-solid fa-clipboard-check",       label: "코스콤 테스트베드 기준" },
       { key: "agent-cb",        icon: "fa-solid fa-chart-bar",             label: "신용 리스크 분석" },
-      { key: "agent-products",  icon: "fa-solid fa-coins",                 label: "맞춤 상품 추천" },
+      { key: "agent-products",  icon: "fa-solid fa-coins",                 label: "투자 성향별 상품 안내" },
       { key: "agent-news",      icon: "fa-solid fa-newspaper",             label: "투자 정보 리서치" },
     ],
   },
@@ -236,7 +236,7 @@ const VIEW_GUIDES = {
     relatedTerms: ["sharpe", "mdd", "cost_bps", "slippage", "backtest"],
   },
   "agent-cb":        { summary: "개인·기업 신용(CB) 통계를 조건별로 조회해 리스크를 참고합니다.", steps: ["개인 CB는 기간·성별·연령대를, 기업 CB는 기간·규모·업종코드를 선택하세요.", "'조회' 버튼을 누르면 해당 조건의 집계 통계가 표시됩니다."], relatedTerms: ["cb_score"] },
-  "agent-products":  { summary: "위험 성향에 맞는 은행 수신상품·공모펀드를 검색합니다.", steps: ["상단 탭에서 '은행 수신상품' 또는 '공모펀드'를 선택하세요.", "최소금리(또는 최소수익률)와 키워드로 조건을 좁혀 검색하세요."], relatedTerms: [] },
+  "agent-products":  { summary: "자산 배분 결과의 자산군마다 공시된 상품 정보(ETF · 예금 · 적금 · 연금저축)를 같은 기준으로 모아 봅니다 — 추천이 아니라 정해진 기준의 목록입니다.", steps: ["「자산배분·최적화」 에서 투자 성향을 진단했다면 「내 자산 배분 비중 불러오기」 로 탭 차례를 비중 큰 순으로 바꾸세요.", "자산군 탭을 고르면 거래소 유형 순서의 묶음마다 순자산 큰 순 다섯 줄이 보입니다 — 「n개 모두 보기」 로 전체 목록과 정렬을 엽니다.", "레버리지 · 인버스는 맨 끝 탭에 따로 모았습니다 — 실제로 사려면 필요한 사전교육 · 기본예탁금을 함께 보세요.", "현금성 탭 아래에서 예금 · 적금 · 연금저축을 금융감독원 공시로 그때그때 불러옵니다."], relatedTerms: ["mdd"] },
   "agent-news":      { summary: "전자공시 공시 · 정책뉴스 · 언론사 기사 제목을 낱말 · 종목 · 주제 · 기간으로 찾습니다(AI 가 답을 쓰지 않는 검색 화면).", steps: ["낱말(예: 반도체, 유상증자)을 넣고 검색하세요 — 낱말이 있으면 관련도순, 없으면 최신순입니다.", "왼쪽 거름 칸에서 종류 · 주제 · 기간을 고르면 종류마다 몇 건인지 함께 바뀝니다.", "종목을 고르면 그 종목의 공시 · 기사 · 일정이 날짜 한 줄(시간표)로 바뀝니다. 근거를 단 답은 「AI 투자 상담」 에서 물어보세요."], relatedTerms: [] },
   // 데이터 관제 · 일정 (2026-10-02) — js/datahub.js · js/calendar.js
   "data-status":     { summary: "모은 자료가 며칠 것까지 있는지, 매일 낮 12시 30분 갱신이 돌았는지 한 화면에서 봅니다.", steps: ["위의 카드 넷에서 판정 · 주식 시세 기준일 · 낮 갱신 · 팀 공유 저장소를 먼저 보세요.", "「자료별 기준일」 표에서 늦은 자료가 있는지 보세요 — 「정상」 은 하루 밀림(시세는 다음 날 낮에 들어옵니다)입니다.", "어느 화면에서든 위 메뉴의 「자료 MM-DD · 판정」 을 누르면 요약이 열립니다."], relatedTerms: [] },
