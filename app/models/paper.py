@@ -22,7 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPkMixin
 
-PAPER_INITIAL_CASH = 100_000_000  # 가입 시 지급되는 모의투자 초기 현금(원) — stock-coin-trade와 동일
+PAPER_INITIAL_CASH = 100_000_000
 
 
 class PaperAccount(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
@@ -36,6 +36,11 @@ class PaperAccount(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     cash: Mapped[float] = mapped_column(Float, nullable=False, default=PAPER_INITIAL_CASH)
     initial_cash: Mapped[float] = mapped_column(Float, nullable=False, default=PAPER_INITIAL_CASH)
 
+    # A1 — 리셋 회차. 리셋마다 +1. 스냅샷과 짝지어 경계 판정에 쓴다.
+    epoch: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    
 
 class CryptoHolding(Base, UUIDPkMixin, UpdatedAtMixin):
     """코인 보유 (Upbit KRW 마켓 기준)."""
