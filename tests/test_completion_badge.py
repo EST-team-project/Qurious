@@ -79,6 +79,26 @@ def test_audit_sheet_arithmetic():
 
 
 def test_team_evidence_marks_itself():
-    """TC-CP-05 · 팀 줄의 근거 글은 「팀 점검 10-04」 를 앞에 붙인다(마우스를 올린 사람이 강사님 감사와 구별하게)."""
+    """TC-CP-05 · 팀 줄의 근거 글은 「팀 점검 10-12」 를 앞에 붙인다(마우스를 올린 사람이 강사님 감사와 구별하게 · 2026-10-12 다시 매김 — 그 앞은 10-04)."""
     src = (PUB / "js" / "teamcompletion.js").read_text(encoding="utf-8")
-    assert "evidence: `팀 점검 10-04 · ${evidence}`" in src
+    assert "evidence: `팀 점검 10-12 · ${evidence}`" in src
+
+
+def test_badge_is_admin_only():
+    """TC-CP-06 · 배지는 관리자(개발자)에게만 — 사용자 2026-10-12 「관리자(개발자) 로그인 상태가 아니면 보이지 않아도 됩니다
+    (일반 사용자에게는 필요 없는 화면)」. 강사님 파일(completion.js · completion.css)은 그대로 두고, 세 쪽(app · login ·
+    register)이 모두 읽는 teamcompletion.js 가 「몸통에 q-admin 이 없으면 감춤」 규칙을 붙인다. q-admin 은 앱에서 화면이
+    바뀔 때마다 역할을 보고 붙인다(collect.js) — 로그인 전 쪽(login · register)에서는 늘 감춰진다."""
+    team = (PUB / "js" / "teamcompletion.js").read_text(encoding="utf-8")
+    assert "body:not(.q-admin) #view-completion-indicator { display: none !important; }" in team
+    comp = (PUB / "js" / "completion.js").read_text(encoding="utf-8")
+    assert 'import { TEAM_ASSESSMENTS } from "/js/teamcompletion.js";' in comp     # 세 쪽 모두 이 파일을 읽는다
+    assert 'el.id = "view-completion-indicator";' in comp
+    collect = (PUB / "js" / "collect.js").read_text(encoding="utf-8")
+    assert 'const admin = (user?.roles || []).includes("admin");' in collect
+    assert 'document.body.classList.toggle("q-admin", admin);' in collect
+    main = (PUB / "js" / "main.js").read_text(encoding="utf-8")
+    assert "  onCollectViewActivated(view);" in main                               # 모든 화면 진입에서 역할을 붙인다
+    for page in ("app.html", "login.html", "register.html"):
+        body = re.search(r"<body[^>]*>", (PUB / page).read_text(encoding="utf-8")).group(0)
+        assert "q-admin" not in body, page                                         # 처음부터 관리자로 그리지 않는다

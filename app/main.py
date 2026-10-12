@@ -176,6 +176,10 @@ app.include_router(calendar_routes.router)
 # 근거 문서 (목표 기능 ① W5) — 법령 · 감독규정 판 목록은 로그인 없이, 찾기(임베딩 호출)는 로그인 뒤
 from app.routes import kb as kb_routes  # noqa: E402
 app.include_router(kb_routes.router)
+# 상품 안내 (로보 어드바이저 「맞춤 상품 추천」 → 투자 성향별 상품 안내 · 결정 ② A · 2026-10-12) — ETF 는 수집 DB 를 읽기만,
+# 예금 · 적금 · 연금저축은 금융감독원 오픈 API 실시간(저장하지 않음 · 약관 제9조). 로그인 뒤
+from app.routes import products as products_routes  # noqa: E402
+app.include_router(products_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
