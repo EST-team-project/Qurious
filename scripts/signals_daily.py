@@ -9,7 +9,8 @@
     python scripts/signals_daily.py --from 2026-08-03 --to 2026-08-31 # 기간(지난날 채우기)
     python scripts/signals_daily.py --date 2026-08-31 --dry-run       # DB 에 쓰지 않고 요약만
 
-일일 러너에 단계로 붙이는 일은 러너 담당(목표 기능 ① · 일봉 · 분봉 갱신 단계 뒤)이 한다. 앱 DB 가 꺼져 있으면 종료코드 3.
+일일 러너의 `signals` 단계로 돈다(일봉 · 분봉 갱신 단계 뒤). 앱 DB 에 닿지 못하면 계산하기 전에 멈추고 종료코드 3.
+`--dry-run` 은 DB 를 보지 않는다.
 날짜를 주지 않으면 그날의 운영 기록이다. 기록을 분석 · 검증에 쓸 때는 봉인 구간(2026-09-01 ~ · 설계서 3.2)을 빼고 읽는다.
 """
 from __future__ import annotations
@@ -37,6 +38,21 @@ def _one(args: tuple[str, list[str]]) -> tuple[str, list[dict], str | None]:
         return symbol, [r for d in days if (r := ms.signal_at(bars, d)) is not None], None
     except Exception as e:  # 한 종목이 실패해도 나머지는 기록한다
         return symbol, [], f"{type(e).__name__}: {str(e)[:120]}"
+
+
+async def _check_db() -> None:
+    """앱 DB 에 닿는지만 본다(`SELECT 1`) — 401종목을 계산하기 전에. 닿지 못하면 OSError · ConnectionError 가 난다."""
+    from app.database.postgres import close_postgres, connect_postgres
+
+    try:
+        await connect_postgres()
+    finally:
+        await close_postgres()
+
+
+def _db_down(e: BaseException) -> int:
+    print(f"[실패] 앱 DB 에 연결하지 못했다 — 앱 DB(PostgreSQL)가 떠 있는지 본다 ({type(e).__name__})")
+    return 3
 
 
 async def _write(records: list[dict], batch: int = 500) -> int:
@@ -82,6 +98,12 @@ def main(argv=None) -> int:
     symbols = ms.universe()
     if a.limit:
         symbols = symbols[:a.limit]
+    # 계산 전에 앱 DB 부터 본다 — 닿지 않는 날 계산을 버리지 않게
+    if not a.dry_run:
+        try:
+            asyncio.run(_check_db())
+        except (OSError, ConnectionError) as e:
+            return _db_down(e)
 
     t0 = time.time()
     records, errors = [], {}
@@ -105,9 +127,8 @@ def main(argv=None) -> int:
     if not a.dry_run:
         try:
             written = asyncio.run(_write(records))
-        except (OSError, ConnectionError) as e:
-            print(f"[실패] 앱 DB 에 연결하지 못했다 — 앱 DB(PostgreSQL)가 떠 있는지 본다 ({type(e).__name__})")
-            return 3
+        except (OSError, ConnectionError) as e:  # 확인 뒤 계산하는 사이에 꺼진 경우
+            return _db_down(e)
         print(f"  기록 — signal_snapshots {written:,}줄(같은 날 · 같은 판은 새 값으로 바꿈)")
     if a.json:
         a.json.parent.mkdir(parents=True, exist_ok=True)
