@@ -67,3 +67,6 @@ def test_combine_timeframes_confidence_and_action():
 def test_timeframe_score_reasons():
     r = pt.timeframe_score(make_candles(120))
     assert -6 <= r["score"] <= 6 and len(r["reasons"]) >= 4
+    # 규칙이 비교한 지표 값도 함께 낸다(설명 근거 표의 관측값)
+    assert {"rsi", "ma5", "ma20", "last", "macd", "macd_signal", "bb_upper", "bb_lower"} <= set(r)
+    assert r["bb_lower"] <= r["ma20"] <= r["bb_upper"]
