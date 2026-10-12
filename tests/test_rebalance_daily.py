@@ -48,6 +48,21 @@ def test_complete_after_holiday_uses_previous_trading_day(clock, ready_data):
     assert result['update_finished_at'] == '2026-10-06T13:00:00+09:00'
 
 
+@pytest.mark.parametrize('failed_step', ['dividend', 'disclosure', 'news', 'ohlcv', 'signals'])
+def test_nonessential_failure_allows_readiness_without_hiding_runner_warning(clock, ready_data, failed_step):
+    ready_data[2](ok=False, steps=[{'name': 'price', 'rc': 0}, {'name': 'calendar', 'rc': 0},
+                                 {'name': failed_step, 'rc': 1, 'fatal': False}])
+    path = ready_data[1] / 'daily_update_last.json'
+    original = path.read_bytes()
+    result = daily.readiness()
+    assert result['ready'] and result['data_as_of'] == '2026-10-02'
+    # 리밸런싱 허용이 관제의 전체 회차 실패를 성공으로 바꾸면 안 된다.
+    runner = data_status.runner_state(ready_data[1], clock.current)
+    assert runner['last']['ok'] is False
+    assert next(s for s in runner['last']['steps'] if s['name'] == failed_step)['status'] == 'warning'
+    assert path.read_bytes() == original
+
+
 @pytest.mark.parametrize('changes,expected', [
     ({'finished_at': None}, 'waiting'),
     ({'finished_at': '2026-10-06T14:00:00+09:00'}, 'waiting'),
@@ -55,7 +70,7 @@ def test_complete_after_holiday_uses_previous_trading_day(clock, ready_data):
     ({'started_at': '2026-10-06T11:00:00+09:00'}, 'waiting'),
     ({'started_at': '2026-10-06T12:30:00'}, 'data_unavailable'),
     ({'ok': False, 'stopped': 'price failed'}, 'update_failed'),
-    ({'ok': False}, 'update_failed'),
+    ({'ok': False, 'steps': [{'name':'price','rc':1},{'name':'calendar','rc':0}]}, 'update_failed'),
     ({'steps': [{'name':'price','rc':0}]}, 'update_failed'),
     ({'steps': [{'name':'price','rc':0},{'name':'calendar','rc':3}]}, 'update_failed'),
     ({'after': {'price_max': '20260930'}}, 'stale_data'),
@@ -64,6 +79,21 @@ def test_incomplete_failed_old_or_invalid_update_waits(clock, ready_data, change
     ready_data[2](**changes)
     result = daily.readiness()
     assert not result['ready'] and result['state'] == expected
+
+
+@pytest.mark.parametrize('name', ['price', 'calendar'])
+@pytest.mark.parametrize('rc', [None, 1, '0', False])
+def test_required_step_needs_explicit_success(clock, ready_data, name, rc):
+    ready_data[2](steps=[{'name': step, 'rc': rc if step == name else 0}
+                         for step in ('price', 'calendar')])
+    assert daily.readiness()['state'] == 'update_failed'
+
+
+@pytest.mark.parametrize('name', ['price', 'calendar'])
+def test_duplicate_required_step_cannot_hide_failure(clock, ready_data, name):
+    ready_data[2](steps=[{'name': name, 'rc': 1}, {'name': 'price', 'rc': 0},
+                         {'name': 'calendar', 'rc': 0}])
+    assert daily.readiness()['state'] == 'update_failed'
 
 
 def test_running_update_blocks_previous_success_then_retries(clock, ready_data):
@@ -174,14 +204,14 @@ def test_quote_failure_retries_and_next_day_can_check_again(monkeypatch, clock, 
 
 @needs_db
 def test_waiting_batch_does_not_consume_day(monkeypatch, clock, ready_data):
-    ready_data[2](ok=False)
+    ready_data[2](ok=False, steps=[{'name': 'price', 'rc': 1}, {'name': 'calendar', 'rc': 0}])
     async def go():
         async with scenario(monkeypatch, symbols=('005930.KS', '000660.KS')) as (factory, uid):
             result = await rb.check_all_due(factory)
             assert result['checked'] == 0 and result['readiness']['state'] == 'update_failed'
             async with factory() as db:
                 assert (await rb.get_plan(db, uid)).last_auto_check_date is None
-            ready_data[2](ok=True)
+            ready_data[2](ok=True, steps=[{'name': 'price', 'rc': 0}, {'name': 'calendar', 'rc': 0}])
             result = await rb.check_all_due(factory)
             assert result['checked'] >= 1
             assert (await rb.check_all_due(factory))['checked'] == 0
