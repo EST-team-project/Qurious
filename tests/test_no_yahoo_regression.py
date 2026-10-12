@@ -38,7 +38,9 @@ BASELINE: dict[str, int] = {
     # 2026-10-08 th06 e815be3 반영: 18 → 24 — 강사님이 국내 시세를 KIS(st 게이트웨이) 먼저 · 실패하면 야후로 돌리는
     #   갈래를 더했다(아래 「2026-10-08」 묶음과 같은 까닭). 새 줄 여섯은 설명 둘 · 로그 문구 둘 · 폴백 설정 확인 둘이고
     #   야후 주소를 새로 부르는 줄은 없다(호출은 그대로 `_yahoo_chart` 하나). 국내 일봉은 여전히 수집 DB 가 먼저다.
-    "app/services/stock.py": 24,
+    # 2026-10-12 th06 5b0a768 1단계: 24 → 25 — get_candles 옛 경로 결과에 출처 이름표(`"source": "yahoo"`) 한 줄을
+    #   받았다(강사님 85c3444 · KIS 갈래의 `"kis"` 와 짝). 글자일 뿐 호출은 0 — 부르는 곳은 그대로 `_yahoo_chart` 하나.
+    "app/services/stock.py": 25,
     "app/services/lean_backtest.py": 19,
     "app/services/paper_trading.py": 10,
     "app/services/sync_scheduler.py": 7,

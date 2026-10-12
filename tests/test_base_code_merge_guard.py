@@ -230,3 +230,172 @@ def test_rag_답변_엔진_이름이_서버_동작과_맞다():
         assert "LLM 없이" not in hint, hint
     for text in (option, label):
         assert "Qwen" not in text and "검색 결과 요약" in text, text
+
+
+# ── 2026-10-12 th06 5b0a768 1단계 앞 — 지킴이 여섯 ─────────────────────────────────────────────────────
+# 강사님 10-08 8커밋(서버 e815be3 → 5b0a768 · 화면 9478811 → 5b0a768)을 받기 전에 쓴다. 조사서
+# docs/조사/기초코드-최신판-융합-조사.md 3절 <표 4> 의 「충돌 표시 없이 바뀌는 곳」 가운데 우리 결정을 지키는 여섯이다.
+# 지금 코드에서 통과하고, 저장소 밖 사본에 강사님 판을 한 곳씩 넣으면 실패하는 것을 확인했다(2026-10-12 깨 보기).
+# 값을 영원히 묶으려는 것이 아니다 — 바꾸기로 정하면 같은 PR 에서 이 시험 줄을 함께 바꾼다.
+
+BADGE_LINE_RE = re.compile(r'^\s*"?([a-z0-9-]+)"?:\s*A\((\d+),\s*"([^"]+)",', re.M)
+
+
+def test_배지의_강사님_점수는_점검표와_같다():
+    """⑤ 강사님 10-08 판 completion.js 는 지표 비교 45 → 90 · 섹터 인디케이터 42 → 86 으로 올렸다(강사님 판 구현 기준).
+    3-way 가 깨끗해 숫자가 말없이 바뀐다. 우리 배지 정본은 점검표 TSV 다(2026-10-04) — 받은 기능은 우리 시험으로 다시 매긴다.
+    팀 줄(배지반영 = 예)은 TC-CP 가 보므로 여기서는 강사님 표를 그대로 쓰는 줄(배지반영 = 아니오)만 본다.
+    팀원 화면은 팀 결정 전이라 이동원 · 주인 없는(—) 줄만 본다(TC-CP 와 같은 까닭 — 팀원 PR 이 실패하지 않게)."""
+    import csv
+
+    src = (ROOT / "public" / "js" / "completion.js").read_text(encoding="utf-8")
+    start = src.index("const ASSESSMENTS = {")
+    badge = {m.group(1): (int(m.group(2)), m.group(3))
+             for m in BADGE_LINE_RE.finditer(src[start:src.index("\n};", start)])}
+    with (ROOT / "docs" / "시험" / "대장" / "기능완성도-점검표.tsv").open(encoding="utf-8", newline="") as f:
+        rows = [r for r in csv.DictReader(f, delimiter="\t")
+                if r["배지반영"] == "아니오" and r["강사님"].strip()
+                and (r["주담당"] == "—" or r["주담당"].startswith("이동원"))]
+    assert rows, "점검표에서 볼 줄을 하나도 못 찾았다 — 칸 이름 · 값을 볼 것"
+    for r in rows:
+        key = r["화면키"]
+        assert key in badge, f"{key}: completion.js 에 줄이 없다"
+        assert badge[key] == (int(r["강사님"]), r["강사님_이름표"]), \
+            f"{key}: 배지 {badge[key]} ↔ 점검표 강사님 칸 {r['강사님']} {r['강사님_이름표']} — 점검표를 먼저 고친다"
+
+
+# 글꼴 · 아이콘처럼 지금 쓰는 CDN. 새 바깥 CSS 는 까닭과 함께 여기에 더한다.
+STYLE_HOSTS_ALLOWED = frozenset({"cdn.jsdelivr.net", "cdnjs.cloudflare.com"})
+
+
+def test_html_넷에_바깥_공통_CSS_링크가_없다():
+    """⑥ 강사님 10-08 판은 html 넷(index · login · register · app)에 강사님 도메인의 공통 CSS 한 줄을 넣었다
+    (`https://www.edumgt.co.kr/css/common.css`). 런타임에 바깥 주소를 읽고, 그 CSS 가 모든 footer 를 높이 25px · 한 줄 ·
+    넘치면 잘림(`!important`)으로 묶어 우리 푸터의 투자 권유 고지가 폭에 따라 잘린다(Q3 — 받지 않음 · 2026-10-12).
+    허용 목록 밖 호스트의 stylesheet 링크와 CSS 파일의 바깥 `@import` 를 함께 본다."""
+    from urllib.parse import urlparse
+
+    found = []
+    for page in ("index.html", "login.html", "register.html", "app.html"):
+        html = (ROOT / "public" / page).read_text(encoding="utf-8")
+        for tag in re.findall(r"<link\b[^>]*>", html, re.I):
+            href = re.search(r'href\s*=\s*"([^"]+)"', tag, re.I)
+            if not href or not re.search(r'rel\s*=\s*"[^"]*stylesheet', tag, re.I):
+                continue
+            host = urlparse(href.group(1)).netloc
+            if host and host not in STYLE_HOSTS_ALLOWED:
+                found.append(f"{page}: {tag}")
+    for css in (ROOT / "public" / "css").glob("*.css"):
+        for m in re.finditer(r"@import\s+(?:url\()?\s*['\"]?(https?:)?//", css.read_text(encoding="utf-8")):
+            found.append(f"{css.name}: {m.group(0)}")
+    assert not found, "허용 목록 밖 바깥 CSS:\n" + "\n".join(found)
+
+
+FOOTER_NOTICE = "투자 자문이 아닌 정보 제공 목적입니다."
+
+
+def test_푸터에_투자_권유_고지가_있고_높이를_묶는_규칙이_없다():
+    """⑥ 강사님 10-08 판 app.html 은 푸터를 「© 2026 (주)에듀엠지티 All rights reserved.」 한 줄로 바꿔 고지를 지웠고,
+    공통 CSS 는 footer 를 `height: 25px !important` 로 묶는다. 고지 글은 브랜드 한 곳(brand.js)이 정본이고 푸터 자리가 그 글을 싣는다."""
+    html = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    footer = re.search(r'<footer id="app-footer">(.*?)</footer>', html, re.S)
+    assert footer, "app.html 에 우리 푸터(#app-footer)가 없다"
+    assert 'data-brand="notice"' in footer.group(1) and FOOTER_NOTICE in footer.group(1)
+    assert f'notice: "{FOOTER_NOTICE}"' in (ROOT / "public" / "js" / "brand.js").read_text(encoding="utf-8")
+    pinned = []
+    for css in (ROOT / "public" / "css").glob("*.css"):
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css.read_text(encoding="utf-8")):
+            if "footer" in selector and re.search(r"(?<![-\w])height\s*:\s*[\d.]+px\s*!important", body):
+                pinned.append(f"{css.name}: {selector.strip()}")
+    assert not pinned, f"푸터 높이를 !important 로 묶는 규칙: {pinned}"
+
+
+CYCLE_TEXT_FILES = ("public/js/core.js", "public/js/dashboard.js", "public/app.html")
+CYCLE_PHRASE = re.compile(r"(\d+)\s*분\s*(?:주기|마다|사이클)|주기\s*\(\s*기본\s*(\d+)\s*분\s*\)|사이클\s*\(\s*(\d+)\s*분\s*\)")
+CYCLE_CONTEXT = re.compile(r"매매|시그널|사이클|auto_trade")
+
+
+def test_화면_안내의_자동매매_주기_문구는_설정값이다():
+    """⑩ 강사님 10-08 판 core.js 는 충돌 밖 줄에 「정해진 주기(기본 3분)」 · 「3분 주기」 를 싣는다(강사님 주기 180초).
+    위 `test_자동매매_주기는_600초다` 는 설정만 보므로 화면 문구는 못 잡는다. 같은 줄에 자동매매 문맥(매매 · 시그널 · 사이클)이
+    있는 「N분 주기 · N분마다 · 주기(기본 N분) · 사이클(N분)」 만 센다 — 체결 확인 2분 · 리밸런싱 준비 5분 같은 다른 주기는 세지 않는다."""
+    minutes = _default("QUANT_CYCLE_SEC") // 60
+    seen, wrong = 0, []
+    for rel in CYCLE_TEXT_FILES:
+        for no, line in enumerate((ROOT / rel).read_text(encoding="utf-8").splitlines(), 1):
+            if not CYCLE_CONTEXT.search(line):
+                continue
+            for m in CYCLE_PHRASE.finditer(line):
+                seen += 1
+                if int(next(g for g in m.groups() if g)) != minutes:
+                    wrong.append(f"{rel}:{no}: 「{m.group(0)}」")
+    assert seen, "자동매매 주기 문구를 하나도 못 찾았다 — 문구 꼴이 바뀌었는지 볼 것"
+    assert not wrong, f"설정({minutes}분)과 다른 주기 문구:\n" + "\n".join(wrong)
+
+
+def test_게이트웨이_없이도_한글_종목_검색_결과가_있다(monkeypatch):
+    """① 강사님 10-08 판 종목 검색은 1차 소스를 KRX 상장법인목록에서 바깥 OHLCV 저장소(stock-coin-trade 게이트웨이)로 바꾸고,
+    찾은 종목을 검색 중에 저장소에 적재한다. 게이트웨이가 없으면 저장소 단계가 비고, 야후 자동완성은 「카카오」 같은 한글
+    검색어에 400 을 주어 결과가 빈다(회귀). 우리 판은 KRX 상장법인목록을 먼저 본다(Q2 — 유지 · 2026-10-12)."""
+    from unittest.mock import AsyncMock
+
+    import httpx
+
+    from app.config import settings
+    from app.routes import stocks as stocks_route
+    from app.services import krx_companies
+
+    monkeypatch.setattr(settings, "STOCK_COIN_TRADE_BASE_URL", "")
+    listing = [{"name": "카카오게임즈", "code": "293490", "market": "코스닥", "symbol": "293490.KQ"},
+               {"name": "카카오", "code": "035720", "market": "코스피", "symbol": "035720.KS"}]
+    monkeypatch.setattr(krx_companies, "get_krx_companies", AsyncMock(return_value=listing))
+
+    async def _no_network(*_a, **_k):
+        raise AssertionError("한글 종목 검색이 바깥(야후 · 게이트웨이)으로 나갔다")
+
+    monkeypatch.setattr(httpx.AsyncClient, "send", _no_network)
+    out = asyncio.run(stocks_route.stock_search("카카오"))
+    assert [r["symbol"] for r in out["results"]] == ["035720.KS", "293490.KQ"], out
+
+
+def _calls_with_guards(path: Path, name: str) -> list[tuple[int, int, list[str]]]:
+    """파일에서 `name(...)` · `x.name(...)` 부름마다 (줄, 인자 수, 둘러싼 if 조건 글들) — else 갈래는 조건을 더하지 않는다."""
+    out: list[tuple[int, int, list[str]]] = []
+
+    def walk(node: ast.AST, conds: list[str]) -> None:
+        for child in ast.iter_child_nodes(node):
+            inner = conds + [ast.unparse(node.test)] if isinstance(node, ast.If) and child in node.body else conds
+            if isinstance(child, ast.Call):
+                fn = child.func
+                if (fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", None)) == name:
+                    out.append((child.lineno, len(child.args) + len(child.keywords), inner))
+            walk(child, inner)
+
+    walk(ast.parse(path.read_text(encoding="utf-8")), [])
+    return out
+
+
+# 사용자 행 없이 경로를 잡아도 되는 곳 — 계정 무관 KIS 모의투자 시스템 배치(강사님 10-06 · 2026-10-08 받음)뿐이다.
+SYSTEM_ROUTE_CALLERS = frozenset({"app/services/kis_batch.py"})
+
+
+def test_사용자_주문은_그_사용자_키로만_경로를_잡는다():
+    """④ 강사님 10-08 판 auto_trade.place_manual_kis_order(화면에서 내는 KIS 모의 주문)는 `resolve_route()` 를 사용자 행 없이
+    부르고, 게이트웨이가 없으면 서버 계좌 `kis_credentials.get_credentials()` 를 읽는다. 우리 판(ADR-0004 · 키는 사용자마다)에서는
+    게이트웨이가 없으면 늘 「연동 안 됨」 으로 막히고, 게이트웨이가 있으면 모든 사용자가 서버 계좌 하나로 주문한다.
+    3-way 가 이 함수를 충돌 없이 들여오므로 코드 전체에서 두 규칙을 본다(받을지는 주담당 이슈 B1).
+      ① KIS 경로 해석 `resolve_route` 는 사용자 행을 넘겨 부른다 — 인자 없이는 시스템 배치만
+      ② 서버 계좌 `get_credentials()` 는 `is_managed(...)` 갈래 안에서만 — 우리 판은 그 갈래가 비어 늘 사용자 키로 간다"""
+    no_row, server_account = [], []
+    for path in _app_python_files():
+        rel = path.relative_to(ROOT).as_posix()
+        for line, nargs, _conds in _calls_with_guards(path, "resolve_route"):
+            if nargs == 0 and rel not in SYSTEM_ROUTE_CALLERS:
+                no_row.append(f"{rel}:{line}")
+        if rel == "app/services/kis_credentials.py":
+            continue
+        for line, _nargs, conds in _calls_with_guards(path, "get_credentials"):
+            if not any("is_managed(" in c for c in conds):
+                server_account.append(f"{rel}:{line}")
+    assert not no_row, "사용자 행 없이 KIS 경로를 잡는 곳:\n" + "\n".join(no_row)
+    assert not server_account, "is_managed 갈래 밖에서 서버 계좌를 읽는 곳:\n" + "\n".join(server_account)
