@@ -9,10 +9,15 @@
 
     python scripts/lecture_scan.py            # 사람이 읽는 요약
     python scripts/lecture_scan.py --md       # 추적 이슈 댓글 초안 (마크다운)
-    python scripts/lecture_scan.py --update   # 기준점을 지금 값으로 옮긴다 — 댓글 파일을 쓴 뒤에
+    python scripts/lecture_scan.py --update   # 기준점을 지금 값으로 옮긴다 — 댓글 파일을 쓴 뒤에(모든 줄 ·
+                                              # 한 줄만 옮길 때는 TSV 의 그 줄만 손으로 고친다)
 
 ⚠️ 커밋 **작성자·이메일은 읽지 않는다** — 강사님 원본 이력에 개인 Gmail 이 섞여 있다(모노레포 CLAUDE.md th10 절).
 ⚠️ 모노레포 밖에서 clone 한 Qurious 에는 `learning/` 이 없다 → `--learning` 으로 경로를 준다.
+
+한 저장소를 부분으로 나눠 받는 경우(th06 기초 코드 — 서버와 화면을 다른 때 받는다 · 2026-10-12 결정 Q7)에는 기준점 TSV 에
+같은 th 를 `part` 칸만 다르게 여러 줄 둔다. `part` 가 비면 저장소 전체, 「서버」 · 「화면」 이면 PART_PATHS 의 경로를
+건드린 커밋만 센다 — 「화면을 아직 안 받았다」 가 「서버도 안 받았다」 로 읽히지 않게(기준점은 그 줄만 옮긴다).
 """
 
 from __future__ import annotations
@@ -28,8 +33,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LEARNING = ROOT.parent.parent / "learning"
 DEFAULT_BASELINE = ROOT / "docs" / "github-archive" / "2026-09-28" / "이슈-강사님자료-변경추적" / "기준점.tsv"
-FIELDS = ["th", "repo", "ref", "commit", "commit_date", "checked_at"]
+FIELDS = ["th", "part", "repo", "ref", "commit", "commit_date", "checked_at"]
 LIST_CAP = 20
+# 부분 이름 → git pathspec. 「서버」 는 화면 폴더(public/)를 뺀 나머지 전부다(시험 · 설정 · 문서 포함).
+PART_PATHS: dict[str, list[str]] = {"서버": [".", ":(exclude)public"], "화면": ["public"]}
 
 
 def git(repo: Path, *args: str) -> str | None:
@@ -37,14 +44,57 @@ def git(repo: Path, *args: str) -> str | None:
   return r.stdout.strip() if r.returncode == 0 else None
 
 
-def read_baseline(path: Path) -> dict[str, dict]:
+def read_baseline(path: Path) -> dict[str, list[dict]]:
+  """th 마다 기준점 줄들 — 보통 한 줄, 부분으로 나눠 받는 저장소(th06)는 part 마다 한 줄."""
   if not path.exists():
     return {}
+  out: dict[str, list[dict]] = {}
   with path.open(encoding="utf-8", newline="") as f:
-    return {row["th"]: row for row in csv.DictReader(f, delimiter="\t")}
+    for row in csv.DictReader(f, delimiter="\t"):
+      out.setdefault(row["th"], []).append(row)
+  return out
 
 
-def scan(learning: Path, baseline: dict[str, dict], since_days: int) -> list[dict]:
+def label(r: dict) -> str:
+  """보고에 쓰는 이름 — 부분이 있으면 「th · 부분」."""
+  return f'{r["th"]} · {r["part"]}' if r.get("part") else r["th"]
+
+
+def compare(lecture: Path, ref: str, tip: str, row: dict, base: dict, since_days: int) -> dict:
+  """기준점 한 줄과 원격 끝을 견준다 — part 가 있으면 그 경로를 건드린 커밋만 센다."""
+  spec = PART_PATHS.get(row["part"], [])
+  if row["part"] and not spec:
+    row["state"] = f'모르는 부분 「{row["part"]}」 — PART_PATHS 에 없다'
+    row["commits"] = []
+    return row
+  paths = ["--", *spec] if spec else []
+  fmt = ["--format=%h\t%cd\t%s", "--date=format-local:%m-%d %H:%M"]
+  # 기준점에 짧은 해시가 적혀 있어도 비교가 맞도록 전체 해시로 푼다.
+  base_commit = (git(lecture, "rev-parse", "--verify", "--quiet", f'{base["commit"]}^{{commit}}') or base["commit"]
+                 if base.get("commit") else None)
+  if not base_commit:
+    row["state"] = "기준 없음"
+    log = git(lecture, "log", "--reverse", f"--since={since_days}.days.ago", *fmt, ref, *paths)
+  elif base_commit == tip:
+    row["state"] = "변화 없음"
+    log = ""
+  elif subprocess.run(["git", "-C", str(lecture), "merge-base", "--is-ancestor", base_commit, tip]).returncode == 0:
+    row["base"] = base_commit
+    log = git(lecture, "log", "--reverse", *fmt, f"{base_commit}..{tip}", *paths)
+    if log:
+      row["state"] = "바뀜"
+      row["shortstat"] = git(lecture, "diff", "--shortstat", base_commit, tip, *paths) or ""
+    else:
+      row["state"] = "변화 없음"   # 끝은 움직였지만 이 부분의 경로를 건드린 커밋이 없다
+  else:
+    row["state"] = "이력 바뀜 — 기준 커밋이 원격 이력에 없다"
+    row["base"] = base_commit
+    log = ""
+  row["commits"] = [line.split("\t", 2) for line in (log or "").splitlines() if line]
+  return row
+
+
+def scan(learning: Path, baseline: dict[str, list[dict]], since_days: int) -> list[dict]:
   rows = []
   for d in sorted(p for p in learning.iterdir() if p.is_dir() and p.name.startswith("th")):
     lecture = d / "lecture"
@@ -59,35 +109,14 @@ def scan(learning: Path, baseline: dict[str, dict], since_days: int) -> list[dic
     url = (git(lecture, "remote", "get-url", "origin") or "").removeprefix("https://github.com/").removesuffix(".git")
     git_dir = Path(git(lecture, "rev-parse", "--absolute-git-dir") or lecture / ".git")
     fetch_head = git_dir / "FETCH_HEAD"
-    row = {
+    common = {
       "th": d.name, "repo": url, "ref": ref, "commit": tip,
       "commit_date": git(lecture, "log", "-1", "--format=%cd", "--date=format-local:%Y-%m-%d %H:%M", ref),
       "fetched_at": dt.datetime.fromtimestamp(fetch_head.stat().st_mtime).strftime("%Y-%m-%d %H:%M") if fetch_head.exists() else "-",
       "head_matches": git(lecture, "rev-parse", "HEAD") == tip,
     }
-    base = baseline.get(d.name)
-    # 기준점에 짧은 해시가 적혀 있어도 비교가 맞도록 전체 해시로 푼다.
-    base_commit = (git(lecture, "rev-parse", "--verify", "--quiet", f'{base["commit"]}^{{commit}}') or base["commit"]
-                   if base and base.get("commit") else None)
-    if not base_commit:
-      row["state"] = "기준 없음"
-      log = git(lecture, "log", "--reverse", f"--since={since_days}.days.ago", "--format=%h\t%cd\t%s",
-                "--date=format-local:%m-%d %H:%M", ref)
-    elif base_commit == tip:
-      row["state"] = "변화 없음"
-      log = ""
-    elif subprocess.run(["git", "-C", str(lecture), "merge-base", "--is-ancestor", base_commit, tip]).returncode == 0:
-      row["state"] = "바뀜"
-      row["base"] = base_commit
-      row["shortstat"] = git(lecture, "diff", "--shortstat", base_commit, tip) or ""
-      log = git(lecture, "log", "--reverse", "--format=%h\t%cd\t%s", "--date=format-local:%m-%d %H:%M",
-                f"{base_commit}..{tip}")
-    else:
-      row["state"] = "이력 바뀜 — 기준 커밋이 원격 이력에 없다"
-      row["base"] = base_commit
-      log = ""
-    row["commits"] = [line.split("\t", 2) for line in (log or "").splitlines() if line]
-    rows.append(row)
+    for base in baseline.get(d.name) or [{}]:
+      rows.append(compare(lecture, ref, tip, {**common, "part": (base.get("part") or "").strip()}, base, since_days))
   gone = sorted(set(baseline) - {r["th"] for r in rows})
   rows += [{"th": th, "state": "사라짐 — 기준에는 있었다"} for th in gone]
   return rows
@@ -96,7 +125,7 @@ def scan(learning: Path, baseline: dict[str, dict], since_days: int) -> list[dic
 def to_text(rows: list[dict]) -> str:
   out = []
   for r in rows:
-    head = f'{r["th"]:<26} {r["state"]}'
+    head = f'{label(r):<26} {r["state"]}'
     if "commit" in r:
       head += f'  끝 {r["commit"][:7]} ({r["commit_date"]})  받은 시각 {r["fetched_at"]}'
       if not r["head_matches"]:
@@ -121,18 +150,18 @@ def to_md(rows: list[dict], since_days: int) -> str:
   ]
   for r in rows:
     if "commit" not in r:
-      lines.append(f'| {r["th"]} | — | — | {r["state"]} |')
+      lines.append(f'| {label(r)} | — | — | {r["state"]} |')
       continue
     state = r["state"]
     if state == "바뀜":
       state = f'**{len(r["commits"])}커밋** (`{r["base"][:7]}` 부터)'
     elif state == "기준 없음":
       state = f"기준 없음 · 최근 {since_days}일 {len(r['commits'])}커밋"
-    lines.append(f'| {r["th"]} | `{r["repo"]}` | `{r["commit"][:7]}` {r["commit_date"]} | {state} |')
+    lines.append(f'| {label(r)} | `{r["repo"]}` | `{r["commit"][:7]}` {r["commit_date"]} | {state} |')
   for r in changed + fresh:
     title = (f'`{r["base"][:7]}` → `{r["commit"][:7]}` · {r.get("shortstat", "")}'
              if r["state"] == "바뀜" else f"최근 {since_days}일")
-    lines += ["", f'### {r["th"]} — {len(r["commits"])}커밋 ({title})', ""]
+    lines += ["", f'### {label(r)} — {len(r["commits"])}커밋 ({title})', ""]
     if r["state"] == "바뀜":
       lines.append(f'비교: https://github.com/{r["repo"]}/compare/{r["base"][:7]}...{r["commit"][:7]}')
       lines.append("")
@@ -152,7 +181,7 @@ def write_baseline(path: Path, rows: list[dict]) -> None:
     w.writeheader()
     for r in rows:
       if "commit" in r:
-        w.writerow({"th": r["th"], "repo": r["repo"], "ref": r["ref"], "commit": r["commit"],
+        w.writerow({"th": r["th"], "part": r.get("part", ""), "repo": r["repo"], "ref": r["ref"], "commit": r["commit"],
                     "commit_date": r["commit_date"], "checked_at": now})
 
 

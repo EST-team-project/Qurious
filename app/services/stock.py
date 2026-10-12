@@ -274,7 +274,9 @@ async def get_candles(symbol: str, period: str = "1y", interval: str = "1d", max
     수집 DB 에 없는 기호(지수 · 환율 · 해외 · ETF)나 일봉이 아닌 요청만 아래 옛 경로로 간다
     — 옛 경로는 캐시를 먼저 본다(반복 스캔 때 외부 호출을 줄이려고). 옛 경로의 국내 일봉은
     KIS(MARKET_DATA_SOURCE=kis · 게이트웨이가 있을 때만) → Yahoo 순서다(강사님 10-07 판).
-    max_age_hours: 캐시 허용 나이. 분봉(공격 모드)은 사이클보다 짧게 준다.
+    max_age_hours: 캐시 허용 나이. 분봉(공격 모드)은 사이클보다 짧게 준다. 0 이하면 캐시를 읽지 않고, KIS 갈래는
+      최근 20봉을 따로 다시 받아 합친다(긴 이력이 시세보다 늦을 수 있어서 · 강사님 10-08 판 · 2026-10-12 받음).
+      옛 경로 결과에도 출처 칸(`source`)을 붙인다.
     """
     local = await collector_db.get_daily_candles(symbol, period, interval)
     if local is not None:
@@ -283,14 +285,15 @@ async def get_candles(symbol: str, period: str = "1y", interval: str = "1d", max
     from app.services import kis_market_data as kmd
     use_kis = kmd.is_enabled() and kmd.is_krx(symbol) and interval == "1d"
     cache_key = f"candles:{'kis:' if use_kis else ''}{symbol}:{period}:{interval}"
-    cached = await cache_get(cache_key, max_age_hours=max_age_hours)
+    cached = await cache_get(cache_key, max_age_hours=max_age_hours) if max_age_hours > 0 else None
     if cached is not None:
         return cached
 
     if use_kis:
         try:
-            result = await kmd.get_daily_candles(symbol, period)
+            result = await kmd.get_daily_candles(symbol, period, refresh=max_age_hours <= 0)
             if result.get("candles"):
+                result.setdefault("source", "kis")
                 await cache_set(cache_key, result)
                 return result
             logger.warning("KIS 일봉 빈 응답 %s", symbol)
@@ -325,7 +328,7 @@ async def get_candles(symbol: str, period: str = "1y", interval: str = "1d", max
             "volume": volumes[i] if i < len(volumes) else None,
         })
 
-    result = {"symbol": symbol, "interval": interval, "period": period, "candles": candles}
+    result = {"symbol": symbol, "interval": interval, "period": period, "candles": candles, "source": "yahoo"}
     if candles:
         await cache_set(cache_key, result)
     return result
