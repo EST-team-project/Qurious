@@ -297,7 +297,7 @@ function renderIndicatorBacktest(data) {
       <button type="button" class="btn-secondary text-xs mt-2" onclick='compareTrayAdd(${JSON.stringify({
         source: "성과 검증 (Python)", label: `${strategyLabel}`,
         summary: `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`,
-      }).replace(/'/g, "&#39;")}')">⚖️ 비교에 추가</button>
+      }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
     </div>`;
   renderCompareTrayAll();
 }
