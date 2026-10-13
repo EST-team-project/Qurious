@@ -43,6 +43,7 @@
 42. https://github.com/EST-team-project/Qurious/issues/162
 43. https://github.com/EST-team-project/Qurious/issues/163
 44. https://github.com/EST-team-project/Qurious/issues/168
+45. https://github.com/EST-team-project/Qurious/issues/170
 
 # 열려 있는 논의 (종료한 논의는 닫고 있음)
 1. https://github.com/EST-team-project/Qurious/discussions/10

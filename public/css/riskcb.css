@@ -1,0 +1,122 @@
+/* 재무 · 신용 위험 (2026-10-13 · js/riskcb.js) — Figma 「Qurious · 재무 · 신용 위험」 05 [결정] 설계 D(B · C 융합 — 위 띠 + 탭).
+ * 색 · 간격은 app.css 토큰 그대로 · 카드 · 알약은 products.css · dataguide.css 와 같은 꼴(새 디자인 체계를 만들지 않는다).
+ * 신호등 색을 쓰지 않는다 — 점검 · 구간은 글자와 모양(✔ ✕ ?)으로 가르고, 그림은 강조색 하나 + 회색.
+ * 좁은 화면(1024 아래) 두 단 → 한 단 · 그림 높이는 줄인다. */
+
+.rc-root { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.rc-wait, .rc-error { font-size: 13px; padding: 8px 12px; border-radius: 8px; }
+.rc-error { background: var(--red-bg); color: var(--red); }
+
+/* ── 머리 · 종목 고르기 ── */
+.rc-head { display: flex; flex-direction: column; gap: 10px; }
+.rc-title h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+.rc-sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; line-height: 1.6; }
+.rc-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.rc-pick-label { font-size: 13px; font-weight: 700; color: var(--text-dim); }
+.rc-pick-box { position: relative; flex: 0 1 320px; min-width: 200px; }
+.rc-pick-box .input { width: 100%; }
+.rc-suggest { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px 0; list-style: none;
+  background: var(--surf); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
+.rc-suggest li { padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.rc-suggest li[data-code]:hover { background: #f1f5f9; }
+.rc-examples { display: flex; flex-wrap: wrap; gap: 6px; }
+.rc-chip { font: inherit; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); }
+.rc-chip:hover:not([disabled]) { border-color: var(--accent); }
+.rc-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rc-chip[disabled] { opacity: .45; cursor: default; }
+
+/* ── 탭 ── */
+.rc-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.rc-tab { font: inherit; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); }
+.rc-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── 회사 ── */
+.rc-company, .rc-macro { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rc-band { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 10px 14px; border-radius: 10px; background: #f1f5f9; }
+.rc-band-name strong { font-size: 17px; color: var(--text); }
+.rc-band-name .q-muted { margin-left: 6px; font-size: 12px; }
+.rc-band-basis { font-size: 13px; color: var(--text-dim); }
+.rc-band-basis a { color: var(--accent); }
+.rc-band-note { flex-basis: 100%; font-size: 12px; color: var(--text-dim); }
+.rc-tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 4px; background: #e2e8f0; color: var(--text-dim); }
+.rc-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; color: var(--text-dim); }
+.rc-sum-n { font-size: 20px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+.rc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.rc-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rc-card { border: 1px solid var(--border); border-radius: 12px; background: var(--surf); padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rc-card h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+.rc-card h3 .q-muted { font-size: 12px; font-weight: 500; margin-left: 6px; }
+
+.rc-tiles, .rc-sp-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.rc-sp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rc-tile { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surf); min-width: 0; }
+.rc-tile:hover:not([disabled]) { border-color: var(--accent); }
+.rc-tile.is-on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.rc-tile[disabled] { cursor: default; }
+.rc-tile-label { font-size: 12px; color: var(--text-mute); }
+.rc-tile-value { font-size: 20px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.rc-tile-say { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+.rc-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rc-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.rc-check-icon { flex: 0 0 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-weight: 700; font-size: 12px;
+  border: 1px solid var(--border); color: var(--text-dim); background: var(--surf); }
+.rc-check.is-pass .rc-check-icon { background: var(--text); border-color: var(--text); color: #fff; }
+.rc-check.is-fail .rc-check-icon { border: 2px solid var(--text); color: var(--text); }
+.rc-check.is-unknown .rc-check-icon { border-style: dashed; }
+.rc-check-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rc-check-label { color: var(--text); font-weight: 700; }
+.rc-check-why { font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; }
+
+.rc-z-row { display: flex; align-items: baseline; gap: 10px; }
+.rc-z-value { font-size: 28px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.rc-z-zone { font-size: 13px; color: var(--text-dim); }
+.rc-gauge { position: relative; display: flex; height: 22px; border-radius: 6px; overflow: hidden; font-size: 11px; color: var(--text-dim); }
+.rc-g-seg { display: grid; place-items: center; min-width: 0; overflow: hidden; white-space: nowrap; }
+.rc-g-seg.is-low { background: #e2e8f0; }
+.rc-g-seg.is-mid { background: #edf1f6; }
+.rc-g-seg.is-high { background: #f6f8fb; }
+.rc-g-mark { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1px; background: var(--accent); border-radius: 2px; }
+.rc-g-scale { position: relative; height: 14px; font-size: 11px; color: var(--text-mute); }
+.rc-g-scale span { position: absolute; transform: translateX(-50%); }
+
+.rc-chart { height: 220px; min-width: 0; }
+.rc-chart-z { height: 150px; }
+.rc-nochart { font-size: 12px; padding: 8px 0; }
+.rc-cap { font-size: 12px; }
+.rc-say { font-size: 14px; color: var(--text); line-height: 1.6; }
+.rc-points { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+.rc-unavail ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+/* ── 시장 신용 ── */
+.rc-strip { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surf); font-size: 13px; color: var(--text-dim); }
+.rc-strip b { color: var(--text); font-variant-numeric: tabular-nums; }
+.rc-strip-more { margin-left: auto; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+.rc-macro-body { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--surf); padding: 14px; }
+.rc-macro-body h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+.rc-macro-body h3 .q-muted { font-size: 12px; font-weight: 500; margin-left: 6px; }
+.rc-note { font-size: 12px; }
+.rc-admin { font-size: 12px; font-family: ui-monospace, monospace; }
+
+.rc-foot { font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; gap: 4px; }
+.rc-foot a { color: var(--accent); }
+
+/* ── 탭 — 한 번에 하나 · 시장 신용 탭에서는 띠를 숨긴다(같은 숫자가 바로 아래 칸에 있다) · 회사 탭은 점검 먼저 ── */
+.rc-root.is-tab-company .rc-macro { display: none; }
+.rc-root.is-tab-macro .rc-company, .rc-root.is-tab-macro .rc-strip { display: none; }
+.rc-col-l .rc-checks-card { order: -1; }
+
+@media (max-width: 1024px) {
+  .rc-grid { grid-template-columns: minmax(0, 1fr); }
+  .rc-chart { height: 200px; }
+}
+@media (max-width: 560px) {
+  .rc-tiles, .rc-sp-tiles { grid-template-columns: minmax(0, 1fr); }
+  .rc-title h2 { font-size: 19px; }
+  .rc-pick-box { flex-basis: 100%; }
+}

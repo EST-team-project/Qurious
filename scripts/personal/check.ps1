@@ -21,7 +21,7 @@
              로그아웃 · 토큰 방식 · 비밀번호 규칙을 차례로 — 임시 계정은 끝에 탈퇴 API 로 지운다. 로컬 주소에서만 돈다
     시세     국내 일봉(수집 DB) · 지표 · 현재가 · 차트 패턴 · 다중 시간대 신호 · 지수
     전략     지표 전략 백테스트 · 수식 지표(검사 · 계산) · 저장 지표 목록
-    로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션
+    로보     투자 성향 질문 · 성향 점수 · 자산 배분 · 목표 달성 시뮬레이션 · 재무 · 신용 위험(재무 건전성 · 시장 신용 스프레드)
     용어     용어사전의 판(표가 파일과 같은가) · 분류 · 검색(약어 · 초성) · 화면 키로 한 건 · 없는 이름은 404
     데이터   데이터 상태(일일 갱신 · 표별 기준일과 늦음) · 거래일 달력(60일) · 금융 일정(파생 만기 · 배당락일) ·
              수집 자료 검색(공시) · 재무 주요계정 · 금융 일정 새 종류(금통위 · FOMC · 보고서 기한) ·
@@ -226,6 +226,18 @@ $Checks = @(
   @{ G = '로보'; Name = '목표 달성 확률 (몬테카를로 500회)'; M = 'POST'; P = '/api/ml/robo/goal-simulation'; Auth = $true
      Body = @{ amount_manwon = 5000; horizon_years = 3; target_return_pct = 8.0; n_paths = 500 }
      Test = { param($r) Pass "목표 달성 확률 $($r.Json.probability_pct)% · 손실 확률 $($r.Json.loss_probability_pct)%" } }
+  # 재무 · 신용 위험(2026-10-13) — 회사는 수집 DB 의 시점 고정 재무를 읽고, 시장 신용은 러너 ecos 단계가 받은 한국은행 시장금리를 읽는다.
+  @{ G = '로보'; Name = '재무 · 신용 위험 — 삼성전자 재무 건전성'; M = 'GET'; P = '/api/risk/company?symbol=005930'; Auth = $true
+     Test = { param($r)
+       if (-not $r.Json.metrics) { return (Fail '숫자가 없다 — 재무 수집(python -m collector.financials daily)부터') }
+       $s = $r.Json.summary
+       $cr = @($r.Json.metrics | Where-Object { $_.key -eq 'current_ratio' })[0]
+       Pass "$($r.Json.name) · 기준 $($r.Json.latest.report) $($r.Json.latest.period_end) · 점검 $($s.total) — 그렇다 $($s.pass) · 아니다 $($s.fail) · 자료 없음 $($s.unknown) · 유동비율 $($cr.value)%" } }
+  @{ G = '로보'; Name = '재무 · 신용 위험 — 시장 신용 스프레드(한국은행 ECOS)'; M = 'GET'; P = '/api/risk/macro?years=3'; Auth = $true
+     Test = { param($r)
+       if (-not $r.Json.available) { return (Warn "$($r.Json.reason) $($r.Json.admin_hint)") }
+       $aa = @($r.Json.spreads | Where-Object { $_.key -eq 'aa' })[0]
+       Pass "마지막 날 $($r.Json.as_of) · AA- $($aa.latest.bp)bp(지난 $($aa.stats.years)년 중 아래에서 $($aa.stats.pct_rank)%) · 금리 $(Count @($r.Json.rates))" } }
 
   # ── 용어사전 ────────────────────────────────────────────────────────────────
   # 로그인 없이 읽는 참조 자료다(Auth = $false). 용어는 파일(app\services\glossary_data\terms.json)이 원본이고

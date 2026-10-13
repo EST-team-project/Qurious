@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 246,
- "routers": 32,
+ "count": 248,
+ "routers": 33,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -777,14 +777,17 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "PostgreSQL",
     "Redis",
     "Qdrant",
-    "LLM"
+    "LLM",
+    "외부"
    ],
-   "hosts": [],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
    "screens": [
-    "agent-cb",
     "agent-chat"
    ],
    "part": "P-A",
@@ -818,13 +821,17 @@
    "summary": "에이전트 실행을 Celery 워커에 위임하고 task_id 를 즉시 반환한다.",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "PostgreSQL",
     "Redis",
     "Qdrant",
     "LLM",
-    "Celery"
+    "Celery",
+    "외부"
    ],
-   "hosts": [],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
    "screens": [],
    "part": "P-A",
    "req": [
@@ -2140,7 +2147,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1128,
+   "line": 1129,
    "errors": [],
    "keys": [
     "items"
@@ -2171,7 +2178,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1143,
+   "line": 1144,
    "errors": [
     "422"
    ],
@@ -2202,7 +2209,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1163,
+   "line": 1164,
    "errors": [
     "404"
    ],
@@ -7078,6 +7085,59 @@
    "line": 23,
    "errors": [
     "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RISK-01",
+   "router": "risk",
+   "method": "GET",
+   "path": "/api/risk/company",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
+   "screens": [
+    "agent-cb"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/risk.py",
+   "line": 24,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-RISK-02",
+   "router": "risk",
+   "method": "GET",
+   "path": "/api/risk/macro",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-cb"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/risk.py",
+   "line": 38,
+   "errors": [
+    "?"
    ],
    "keys": [],
    "body": [],

@@ -221,6 +221,10 @@ STEPS: List[Step] = [
     # 한국어 원문 기사의 제목 · 주소 · 시각 · 언론사만. 본문은 받지 않는다.
     Step("gdelt", ["-m", "collector.gdelt_news", "daily", "--quiet"], 30, fatal=False,
          label="언론사 기사", group="받기", desc="제목 · 링크 · 시각 · 언론사만(본문은 받지 않는다)"),
+    # 한국은행 ECOS 시장금리(2026-10-13 · 재무 · 신용 위험 API-RISK-02) — 다섯 항목을 항목마다 마지막 날 앞 14일부터 오늘까지
+    # (처음엔 항목마다 ECOS 첫 날부터 · 한 번에 다섯 번 부름). 키가 없으면 78(설정 결함)로 끝나 숨기지 않는다.
+    Step("ecos", ["-m", "collector.ecos", "daily", "--quiet"], 10, fatal=False,
+         label="시장금리", group="받기", desc="한국은행 ECOS 시장금리 — 국고채 · 회사채(AA- · BBB-) · CD · CP"),
     Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False,
          label="검색 색인", group="계산", desc="수집 자료 검색 색인 — 바뀐 것만 다시 짓는다"),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
