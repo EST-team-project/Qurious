@@ -25,6 +25,7 @@ import { onResearchViewActivated } from "/js/research.js";             // 투자
 import { onCollectViewActivated } from "/js/collect.js";               // 데이터 수집 화면 셋 — 옛 크롤링 세 화면 자리 (2026-10-08)
 import { onDataGuideViewActivated } from "/js/dataguide.js";           // 자료 안내 — 데이터 관제 바로 아래 · 모든 로그인 사용자 (2026-10-08)
 import { onProductsViewActivated } from "/js/products.js";             // 투자 성향별 상품 안내 — 옛 「맞춤 상품 추천」 자리 (2026-10-12)
+import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무 · 신용 위험 — 옛 「신용 리스크 분석」 자리 (2026-10-13)
 
 import { loadDashboard } from "/js/dashboard.js";
 
@@ -90,6 +91,7 @@ function onViewActivated(view) {
   onCollectViewActivated(view);  // 수집 일정 · 단계 / 자료 직접 받기 / 적재 · 백업 (js/collect.js · 관리자)
   onDataGuideViewActivated(view); // 자료 안내 — 화면이 바뀌면 서랍을 닫는다 (js/dataguide.js)
   onProductsViewActivated(view);  // 투자 성향별 상품 안내 (js/products.js)
+  onRiskViewActivated(view);      // 재무 · 신용 위험 (js/riskcb.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }

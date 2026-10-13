@@ -201,8 +201,9 @@ async function runCbQuery(type) {
     resultEl.textContent = "오류: " + e.message;
   }
 }
-document.getElementById("pcb-search").addEventListener("click", () => runCbQuery("pcb"));
-document.getElementById("ccb-search").addEventListener("click", () => runCbQuery("ccb"));
+// (2026-10-13) 화면은 js/riskcb.js 로 옮겼다(재무 · 신용 위험) — 옛 칸이 없으면 단추를 묶지 않는다(?.)
+document.getElementById("pcb-search")?.addEventListener("click", () => runCbQuery("pcb"));
+document.getElementById("ccb-search")?.addEventListener("click", () => runCbQuery("ccb"));
 
 // ── 금융상품 ──────────────────────────────────────────────────────
 // (2026-10-12) 화면은 js/products.js 로 옮겼다 — 옛 칸이 없으면 단추를 묶지 않는다(?.)

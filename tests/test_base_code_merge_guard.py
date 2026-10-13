@@ -400,3 +400,12 @@ def test_사용자_주문은_그_사용자_키로만_경로를_잡는다():
                 server_account.append(f"{rel}:{line}")
     assert not no_row, "사용자 행 없이 KIS 경로를 잡는 곳:\n" + "\n".join(no_row)
     assert not server_account, "is_managed 갈래 밖에서 서버 계좌를 읽는 곳:\n" + "\n".join(server_account)
+
+
+def test_전략_분석_비교에_추가_속성은_괄호_뒤에서_닫힌다():
+    """2026-10-13 · 강사님 `3a135b1` 과 같은 고침 — `onclick='compareTrayAdd(${…})'>`(괄호 → 작은따옴표 → >) 차례.
+    옛 꼴 `}')">` 은 속성 값이 괄호 앞에서 끊겨 누르면 SyntaxError 다(node 재현). 강사님 최신을 받을 때 옛 꼴로 되돌아가지 않게 지킨다 —
+    성과 검증(`indicator.js` · 신장환 님 화면)의 같은 꼴은 이슈로 알렸다."""
+    src = (ROOT / "public" / "js" / "quant.js").read_text(encoding="utf-8")
+    assert "}')\">⚖️ 비교에 추가" not in src
+    assert src.count("})'>⚖️ 비교에 추가") == 1

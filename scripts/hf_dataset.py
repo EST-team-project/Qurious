@@ -375,6 +375,15 @@ TABLES: Dict[str, Dict] = {
         "why": "뉴스(정책브리핑 정책뉴스 · 공공누리 제1유형만 본문). 고친 판이 오면 옛 판은 다시 받을 수 없다",
         "optional": False,
     },
+    # ── 2026-10-13 추가: 시장금리(재무 · 신용 위험) ───────────────────────────────────────────────────────
+    # 받은 것이다. ECOS 는 지난 값을 다시 주지만 계속 제공을 약속하지 않고(이용약관 제9조⑤), 처음 받은 시각(fetched_at)과
+    # 값을 고친 시각(updated_at)은 이 표에만 있다. 연도는 값의 날짜(date · YYYY-MM-DD)로 가른다.
+    "ecos_series": {
+        "partition": "year", "date_col": "date",
+        "sort": ("date", "stat_code", "item_code", "cycle"),
+        "why": "한국은행 ECOS 시장금리(국고채 3년 · 회사채 AA- · BBB- · CD · CP · 일별). 출처 표시 의무(약관 제7조②)",
+        "optional": False,
+    },
 }
 
 #: 올리지 않는 표와 그 이유.
