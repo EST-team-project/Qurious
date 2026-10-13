@@ -286,8 +286,10 @@ document.getElementById("screen-run-btn").addEventListener("click", loadRoboScre
 // 차트를 그릴 때만 불러온다(app.html 에 미리 싣지 않는다).
 // 신호(API-STK-35)는 매일 기록(T2)이 있으면 그 기록, 없으면 그 자리 계산 — 둘 다 같은 쉬운 말 설명(#169)이 붙는다.
 // 패턴 통계(API-STK-34 `stats`)는 전 종목 · 그 종목 5거래일 뒤 결과 — 패턴 이름만으로 방향을 단정하지 않게(설계서 3.5).
+// 근거 표는 설명의 `evidence` 를 그리기만 한다(기여도 막대는 앱에 이미 있는 ApexCharts · 설계서 5.5).
 const PT_LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
 let ptLwcPromise = null;
+let ptEvidenceChart = null;
 let patternChart = null;
 let patternSeries = null;
 let patternMarkers = null;
@@ -318,6 +320,8 @@ function clearPatternResults() {
   patternPriceLines = [];
   patternChart = null;
   patternChartData = null;
+  ptEvidenceChart?.destroy();
+  ptEvidenceChart = null;
   for (const id of ["pt-chart-card", "pt-mtf", "pt-patterns", "pt-sr", "pt-breakouts", "pt-stats"]) {
     document.getElementById(id)?.classList.add("hidden");
   }
@@ -467,9 +471,55 @@ function renderMtf(mtf, symbol, pat) {
       </div>
       <p class="text-xs mb-2" style="color:var(--text-mute);">${source}</p>
       ${ex.summary ? `<div class="rounded-lg p-3 mb-3" style="background:var(--surf2);"><p class="text-sm">${escHtml(ex.summary)}</p>${levels}${ex.confidence_text ? `<p class="text-xs mt-1" style="color:var(--text-dim);">${escHtml(ex.confidence_text)}</p>` : ""}${notes ? `<ul class="text-xs mt-1 list-disc ml-5" style="color:var(--text-dim);">${notes}</ul>` : ""}</div>` : levels}
+      ${renderEvidenceTable(ex, mtf.composite)}
       <table><thead><tr><th>타임프레임</th><th style="text-align:right">가중치</th><th style="text-align:right">점수</th><th style="text-align:right">RSI</th><th style="text-align:right">MA5 / MA20</th><th>근거</th><th>기준 시점</th></tr></thead><tbody>${mtf.timeframes.map(t => t.error ? `<tr><td>${escHtml(t.label)}</td><td colspan="6" class="text-xs" style="color:var(--text-mute)">${escHtml(t.error)}</td></tr>` :
       `<tr><td>${escHtml(t.label)}</td><td style="text-align:right">${Math.round(t.weight * 100)}%</td><td style="text-align:right;font-weight:700;color:${t.score > 0 ? "var(--green)" : t.score < 0 ? "var(--red)" : "var(--text-mute)"}">${t.score > 0 ? "+" : ""}${t.score}</td><td style="text-align:right">${t.rsi ?? "—"}</td><td style="text-align:right">${fmt(t.ma5)} / ${fmt(t.ma20)}</td><td class="text-xs" style="color:var(--text-dim)">${(t.reasons || []).map(escHtml).join(" · ")}</td><td class="text-xs" style="color:var(--text-mute)">${escHtml(ptWhen(t.as_of))}</td></tr>`).join("")}</tbody></table>
       <p class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(mtf.disclaimer || "")}</p>`;
+}
+
+// 소수 둘째 자리에서 0 이면 부호 없이 — 막대 차트 눈금이 0 대신 아주 작은 음수를 넘겨 「-0.00」 이 되던 것
+const ptSigned = v => { const x = Math.round(Number(v) * 100) / 100 || 0; return `${x > 0 ? "+" : ""}${x.toFixed(2)}`; };
+
+// 근거 표 — 주기 · 근거 · 관측값 · 규칙 · 기여도(설명 기준 「충분」: 기여도를 모두 더하면 종합 점수)
+function renderEvidenceTable(ex, composite) {
+  const rows = ex?.evidence || [];
+  if (!rows.length) return "";
+  const color = v => v > 0 ? "var(--green)" : v < 0 ? "var(--red)" : "var(--text-mute)";
+  return `<div class="mb-3">
+      <h4 class="font-semibold text-xs mb-1">근거 표 — 규칙마다 종합 점수에 더하고 뺀 몫(기여도)</h4>
+      <div id="pt-evidence-chart"></div>
+      <table><thead><tr><th>주기</th><th>근거</th><th>관측값</th><th>규칙</th><th style="text-align:right">기여도</th></tr></thead><tbody>${rows.map(r =>
+        `<tr><td>${escHtml(r.label)}</td><td class="text-xs">${escHtml(r.text)}</td><td class="text-xs" style="color:var(--text-dim)">${escHtml(r.observed || "—")}</td><td class="text-xs" style="color:var(--text-dim)">${escHtml(r.rule)}</td><td style="text-align:right;font-weight:600;color:${color(r.contribution)}">${ptSigned(r.contribution)}</td></tr>`).join("")}</tbody></table>
+      <p class="text-xs mt-1" style="color:var(--text-mute);">기여도 = 규칙 점수 × 주기 가중치 ÷ 시세가 있는 주기의 가중치 합 — 모두 더하면 종합 점수 ${escHtml(String(composite))} 입니다. 막대가 오른쪽(초록)이면 매수 쪽, 왼쪽(빨강)이면 매도 쪽으로 민 근거입니다.</p>
+    </div>`;
+}
+
+function renderEvidenceChart(ex) {
+  const el = document.getElementById("pt-evidence-chart");
+  const rows = ex?.evidence || [];
+  if (!el || !rows.length) return;
+  if (!window.ApexCharts) { el.innerHTML = `<p class="text-xs" style="color:var(--text-mute);">막대 차트를 불러오지 못했습니다 — 아래 표의 기여도 숫자는 그대로입니다.</p>`; return; }
+  const css = getComputedStyle(document.documentElement);
+  const text = css.getPropertyValue("--text-dim").trim() || "#334155";
+  const border = css.getPropertyValue("--border").trim() || "#e0e3eb";
+  try {
+    ptEvidenceChart = new ApexCharts(el, {
+      chart: { type: "bar", height: 50 + rows.length * 26, toolbar: { show: false }, background: "transparent", foreColor: text, animations: { enabled: false } },
+      series: [{ name: "기여도", data: rows.map(r => Number(r.contribution.toFixed(4))) }],
+      xaxis: { categories: rows.map(r => `${r.label} · ${r.rule}`), labels: { formatter: v => ptSigned(v) } },
+      yaxis: { labels: { maxWidth: 260 } },
+      plotOptions: { bar: { horizontal: true, distributed: true, barHeight: "60%" } },
+      colors: rows.map(r => r.contribution > 0 ? "#089981" : r.contribution < 0 ? "#ef4444" : "#94a3b8"),
+      dataLabels: { enabled: true, formatter: v => ptSigned(v) },
+      legend: { show: false },
+      grid: { borderColor: border },
+      tooltip: { y: { formatter: v => ptSigned(v) } },
+    });
+    ptEvidenceChart.render();
+  } catch (e) {       // 막대를 못 그려도 표 · 신호 칸은 그대로 둔다
+    ptEvidenceChart = null;
+    el.innerHTML = `<p class="text-xs" style="color:var(--text-mute);">막대 차트를 그리지 못했습니다 — 아래 표의 기여도 숫자는 그대로입니다.</p>`;
+  }
 }
 
 function renderPatternStats(pat) {
@@ -510,6 +560,7 @@ async function loadPatternAnalysis() {
     const pat = patResult.status === "fulfilled" ? patResult.value : null;
     box("pt-mtf", mtfResult.status === "fulfilled" ? renderMtf(mtfResult.value, symbol, pat)
       : `<span class="text-sm" style="color:var(--text-mute);">멀티타임프레임 신호를 불러오지 못했습니다: ${escHtml(mtfResult.reason?.message || "")}</span>`);
+    if (mtfResult.status === "fulfilled") renderEvidenceChart(mtfResult.value.explanation);
     if (!pat) throw patResult.reason;
     const stat = new Map((pat.stats?.patterns || []).map(p => [p.key, p.all]));
     const past = key => { const a = stat.get(key); return a ? `<span class="text-xs" style="color:var(--text-mute)">${ptRet(a.mean_ret_5d)} · 오른 ${ptPct(a.up_ratio)}</span>` : `<span class="text-xs" style="color:var(--text-mute)">—</span>`; };
