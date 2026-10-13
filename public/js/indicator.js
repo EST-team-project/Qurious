@@ -2,7 +2,6 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { compareTrayAdd, renderCompareTrayAll, tt } from "/js/core.js";
-import { renderXaiBlock } from "/js/robo.js";
 
 // ── 투자 인디케이터: 기본 인디케이터 전략 ──────────────────────────
 document.getElementById("ind-load-btn").addEventListener("click", async () => {
@@ -294,13 +293,31 @@ function renderIndicatorBacktest(data) {
       <table><thead><tr><th>비교 대상</th><th style="text-align:right;">누적 수익률</th><th style="text-align:right;">거래 횟수</th><th style="text-align:right;">${tt("승률","수익이 난 거래의 비율","win_rate")}</th></tr></thead>
       <tbody><tr><td>${strategyLabel}</td><td style="text-align:right;color:${Number(data.total_return_pct)>=0?"var(--green)":"var(--red)"};">${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(2)}%</td><td style="text-align:right;">${data.trade_count}회</td><td style="text-align:right;">${Number(data.win_rate_pct).toFixed(1)}%</td></tr><tr><td>매수 후 보유</td><td style="text-align:right;">${Number(data.buy_hold_return_pct).toFixed(2)}%</td><td style="text-align:right;">-</td><td style="text-align:right;">-</td></tr></tbody></table>
       <p class="text-xs mt-2" style="color:var(--text-mute);">비용 차감 전 수익률 ${Number(data.gross_return_pct ?? data.total_return_pct).toFixed(1)}% → 수수료 ${data.cost_bps ?? 0}bp + 슬리피지 ${data.slippage_bps ?? 0}bp 로 누적 ${Number(data.cost_pct || 0).toFixed(2)}%p 차감 · 손절 ${data.stop_loss_pct ? data.stop_loss_pct + "% (" + data.stop_loss_exits + "회 발동)" : "미적용"} · 익절 ${data.take_profit_pct ? data.take_profit_pct + "% (" + data.take_profit_exits + "회 발동)" : "미적용"} · 매매비용 모델: ${data.cost ? data.cost.label : "미반영"} · 매수 후 보유에도 같은 잣대(첫날 매수·마지막날 매도)를 적용했습니다 · 신호는 다음 거래일 수익률에 적용됩니다.</p>
-      ${data.explanation ? renderXaiBlock(data.explanation) : ""}
+      ${renderRuleExplain(data.explanation)}
       <button type="button" class="btn-secondary text-xs mt-2" onclick='compareTrayAdd(${JSON.stringify({
         source: "성과 검증 (Python)", label: `${strategyLabel}`,
         summary: `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`,
       }).replace(/'/g, "&#39;")}')">⚖️ 비교에 추가</button>
     </div>`;
   renderCompareTrayAll();
+}
+
+// 규칙 설명 — 마지막 봉에서 그 전략의 매수 · 매도 조건이 어떻게 읽혔는지(서버 explain_strategy · 강사님 원본 화면을 따름)
+function renderRuleExplain(xai) {
+  if (xai?.kind !== "strategy_rules") return "";
+  const rows = (list = []) => list.map(r => `<li class="rounded-lg p-3 mb-2" style="background:var(--surf2);overflow-wrap:anywhere;"><strong style="color:${r.matched ? "var(--green)" : "var(--text-mute)"};">${r.matched ? "✓ 충족" : "○ 미충족"} · ${escHtml(r.label)}</strong><div class="mt-1">조건: ${escHtml(r.rule)}</div><div style="color:var(--text-dim);">관측값: ${escHtml(r.observed)}</div></li>`).join("");
+  const action = { BUY: "매수 전환", SELL: "매도 전환", HOLD: "상태 유지" }[xai.action] || "확인 불가";
+  return `
+    <div class="mt-3">
+      <h4 class="font-semibold text-sm mb-2">판단 근거 — 규칙 설명</h4>
+      <p class="text-sm mb-1">${escHtml(String(xai.as_of || "").slice(0, 10))} 기준: <strong>${action}</strong> · 기본 전략 상태: ${escHtml(xai.position)}</p>
+      <p class="text-xs mb-3" style="color:var(--text-mute);">이미 같은 상태라면 조건이 충족되어도 새 전환 신호는 나오지 않습니다.</p>
+      <div class="grid md:grid-cols-2 gap-3">
+        <div><h5 class="font-semibold text-sm mb-2">매수 · ${escHtml(xai.buy_logic)}</h5><ul>${rows(xai.buy_conditions)}</ul></div>
+        <div><h5 class="font-semibold text-sm mb-2">매도 · ${escHtml(xai.sell_logic)}</h5><ul>${rows(xai.sell_conditions)}</ul></div>
+      </div>
+      <p class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(xai.scope)}</p>
+    </div>`;
 }
 
 document.getElementById("ibt-run-btn")?.addEventListener("click", loadIndicatorBacktest);
