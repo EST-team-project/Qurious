@@ -312,3 +312,22 @@ def test_screen_markers_without_text_and_small_sample_note():
     assert "text:" not in markers
     assert "patternNamesByTime(pat, candles)" in js and "` · 패턴: ${names.join(\" · \")}`" in js
     assert "이 종목 칸은 사건이 수십 건뿐이라" in js
+
+
+def test_screen_evidence_table_with_contribution_bars():
+    """신호 칸에 근거 표(주기 · 근거 · 관측값 · 규칙 · 기여도) + 기여도 막대(설계서 5.5) — 설명의 `evidence` 를 그리기만 한다.
+    막대는 앱에 이미 있는 ApexCharts · 다시 분석하면 지난 막대를 지움 · 화면이 읽는 칸은 응답에 있고 기여도 합 = 종합 점수."""
+    js = _pattern_js()
+    table = js[js.index("function renderEvidenceTable"):js.index("function renderEvidenceChart")]
+    chart = js[js.index("function renderEvidenceChart"):js.index("function renderPatternStats")]
+    assert all(h in table for h in ("<th>주기</th>", "<th>근거</th>", "<th>관측값</th>", "<th>규칙</th>", "기여도</th>"))
+    assert "renderEvidenceTable(ex, mtf.composite)" in js and "renderEvidenceChart(mtfResult.value.explanation)" in js
+    assert "new ApexCharts(" in chart and "horizontal: true" in chart and "<script" not in chart
+    assert "ptEvidenceChart?.destroy()" in js[js.index("function clearPatternResults"):]
+    assert "apexcharts@3.49.2/" in (_PUB / "app.html").read_text(encoding="utf-8")
+    used = set(re.findall(r"\br\.(\w+)", table + chart))
+    r = pv.from_record(ms.signal_at(b := _bars(seed=11), b.daily[-1]["trade_date"]))
+    rows = r["explanation"]["evidence"]
+    assert rows and all(used <= set(row) for row in rows)
+    assert sum(row["contribution"] for row in rows) == pytest.approx(r["explanation"]["composite"], abs=1e-4)
+    assert not [w for w in se.FORBIDDEN if w in table + chart]
