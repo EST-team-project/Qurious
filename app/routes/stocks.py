@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 import httpx
@@ -847,7 +848,8 @@ async def broker_test(
 
 @router.get("/stocks/patterns")
 async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("1y"), _user=Depends(get_current_user)):
-    """캔들 패턴·지지/저항선·돌파 신호 (일봉)."""
+    """캔들 패턴·지지/저항선·돌파 신호 (일봉) · 패턴 통계(전 종목 · 그 종목) · 가격 수준(지지 · 저항 · ATR)."""
+    from app.services import pattern_view
     from app.services.patterns import pattern_summary
     candles = (await get_candles(symbol, period=period, interval="1d")).get("candles", [])
     if not candles:
@@ -855,14 +857,27 @@ async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("
     result = pattern_summary(candles)
     if "error" in result:
         raise HTTPException(422, result["error"])
-    return {"symbol": symbol, "candles": candles, **result}
+    stats = await asyncio.to_thread(pattern_view.stats_block, symbol)
+    levels = pattern_view.price_levels(candles, result["support_resistance"])
+    return {"symbol": symbol, "candles": candles, **result, "stats": stats, "levels": levels}
 
 
 @router.get("/stocks/mtf-signal")
-async def stock_mtf_signal(symbol: str = Query("005930.KS"), _user=Depends(get_current_user)):
-    """분봉(60m)·일봉·주봉 지표를 종합한 매수·매도·관망 신호와 신뢰도."""
+async def stock_mtf_signal(symbol: str = Query("005930.KS"), db: AsyncSession = Depends(get_pg_session),
+                           _user=Depends(get_current_user)):
+    """분봉(60m)·일봉·주봉 지표를 종합한 매수·매도·관망 신호와 신뢰도.
+
+    매일 기록(T2)이 있으면 그 줄을(기록 날짜 `as_of` 와 함께), 없으면 그 자리에서 계산한다 — 둘 다 같은 설명.
+    """
+    from app.services import pattern_view, signal_explain
     from app.services.patterns import multi_timeframe_signal
-    return await multi_timeframe_signal(symbol)
+    try:
+        snapshot = await signal_explain.load_snapshot(db, symbol)
+    except Exception:
+        snapshot = None   # 앱 DB 에 T2 가 없어도 화면은 그 자리 계산으로 돈다
+    if snapshot is not None:
+        return {"symbol": symbol, **pattern_view.from_record(snapshot)}
+    return {"symbol": symbol, **pattern_view.from_live(symbol, await multi_timeframe_signal(symbol))}
 
 
 # ── 자동매매 제어 ─────────────────────────────────────────────────────
