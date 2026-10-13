@@ -3,8 +3,11 @@
 기본 전략 백테스트 응답의 `explanation` 은 그 전략의 매수 · 매도 규칙을 마지막 두 봉 값과 함께 보인다
 (강사님 원본 2026-10-08 `0ca06dc` 의 `explain_strategy` · 시험을 우리 비용 모델 위에 받음 · #153 B2).
 SHAP(다른 모델의 근거)은 이 응답에 붙이지 않는다. custom 은 설명을 비운다.
+같은 화면(`indicator-backtest`)의 「비교에 추가」 단추 속성도 여기서 지킨다(#174).
 """
 import asyncio
+import re
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -104,3 +107,15 @@ def test_route_returns_rule_explanation_not_shap(monkeypatch):
 
 def test_route_custom_has_no_explanation(monkeypatch):
     assert _call_route(monkeypatch, "custom")["explanation"] is None
+
+
+def test_compare_button_onclick_closes_after_paren():
+    """「비교에 추가」 단추 — `onclick='compareTrayAdd(…)'` 의 작은따옴표가 `)` 뒤에서 닫힌다(#174).
+
+    앞에서 닫히면 속성 값이 `compareTrayAdd({…}` 에서 끊겨 누를 때 문법 오류가 난다(강사님 `3a135b1` 과 같은 고침).
+    """
+    js = (Path(__file__).resolve().parents[1] / "public" / "js" / "indicator.js").read_text(encoding="utf-8")
+    buttons = re.findall(r"onclick='compareTrayAdd\(.*?</button>", js, flags=re.S)
+    assert buttons, "성과 검증의 「비교에 추가」 단추를 찾지 못했다"
+    for b in buttons:
+        assert b.endswith("})'>⚖️ 비교에 추가</button>"), b[-60:]
