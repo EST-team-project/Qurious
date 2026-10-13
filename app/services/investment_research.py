@@ -50,6 +50,49 @@ def _position(df: pd.DataFrame, strategy: str) -> pd.Series:
     return state.ffill().fillna(0.0)
 
 
+def explain_strategy(df: pd.DataFrame, strategy: str, position: pd.Series) -> dict:
+    """마지막 두 봉에서 `_position` 과 같은 규칙을 값과 함께 보인다(강사님 원본 2026-10-08 · 규칙 설명).
+
+    손절 · 익절을 반영하기 전의 기본 전략 상태다 — 주문 지시가 아니다.
+    """
+    strategy = strategy.lower()
+    x, prev = df.iloc[-1], df.iloc[-2]
+
+    def row(label, rule, observed, matched):
+        return {"label": label, "rule": rule, "observed": observed, "matched": bool(matched)}
+
+    if strategy == "rsi":
+        buy = [row("과매도", "RSI(14) < 30", f"RSI {x.rsi:.2f}", x.rsi < 30)]
+        sell = [row("과매수", "RSI(14) > 70", f"RSI {x.rsi:.2f}", x.rsi > 70)]
+    elif strategy == "ma":
+        values = f"전일 MA5/MA20 {prev.ma5:,.2f}/{prev.ma20:,.2f} → 당일 {x.ma5:,.2f}/{x.ma20:,.2f}"
+        buy = [row("상향 교차", "전일 MA5 ≤ MA20, 당일 MA5 > MA20", values, prev.ma5 <= prev.ma20 and x.ma5 > x.ma20)]
+        sell = [row("하향 교차", "전일 MA5 ≥ MA20, 당일 MA5 < MA20", values, prev.ma5 >= prev.ma20 and x.ma5 < x.ma20)]
+    elif strategy == "bollinger":
+        buy = [row("하단 이탈", "종가 < 볼린저 하단(20일 · 2σ)", f"종가 {x.close:,.2f} / 하단 {x.bb_lower:,.2f}", x.close < x.bb_lower)]
+        sell = [row("상단 이탈", "종가 > 볼린저 상단(20일 · 2σ)", f"종가 {x.close:,.2f} / 상단 {x.bb_upper:,.2f}", x.close > x.bb_upper)]
+    else:  # composite — `_position` 의 else 와 같다
+        buy = [row("상승 추세", "MA5 > MA20", f"{x.ma5:,.2f} / {x.ma20:,.2f}", x.ma5 > x.ma20),
+               row("모멘텀", "RSI(14) > 50", f"RSI {x.rsi:.2f}", x.rsi > 50),
+               row("MACD", "MACD > 신호선", f"{x.macd:.3f} / {x.macd_signal:.3f}", x.macd > x.macd_signal)]
+        sell = [row("추세 약화", "MA5 < MA20", f"{x.ma5:,.2f} / {x.ma20:,.2f}", x.ma5 < x.ma20),
+                row("과매수", "RSI(14) > 75", f"RSI {x.rsi:.2f}", x.rsi > 75)]
+    was, now = bool(position.iloc[-2]), bool(position.iloc[-1])
+    action = "BUY" if now and not was else "SELL" if was and not now else "HOLD"
+    return {
+        "kind": "strategy_rules",
+        "strategy": strategy,
+        "as_of": df.index[-1].isoformat(),
+        "action": action,
+        "position": "보유" if now else "현금 대기",
+        "buy_conditions": buy,
+        "sell_conditions": sell,
+        "buy_logic": "모두 충족",
+        "sell_logic": "하나 이상 충족",
+        "scope": "마지막 일봉 종가로 본 기본 전략 신호입니다. 손절 · 익절을 반영한 최종 상태나 주문 지시가 아닙니다.",
+    }
+
+
 def backtest_strategy(
     candles: list[dict],
     strategy: str = "composite",
@@ -99,6 +142,7 @@ def backtest_strategy(
     cost_desc = tcost.describe(cost)
     return {
         "strategy": strategy,
+        "explanation": explain_strategy(df, strategy, position),
         "cost_bps": float(cost_bps),
         "cost": cost_desc,
         # 실제로 뗀 슬리피지 — 비용 모델을 넘긴 호출은 모델의 값이다(인자 slippage_bps 는 쓰지 않는다)
