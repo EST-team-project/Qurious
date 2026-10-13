@@ -1719,12 +1719,26 @@
                   <button id="pt-run" class="btn-primary">분석 실행</button>
                 </div>
               </div>
+              <div id="pt-chart-card" class="card hidden">
+                <h3 id="pt-chart-title" class="font-semibold text-sm mb-2"></h3>
+                <div class="flex flex-wrap gap-3 text-xs mb-2 items-center">
+                  <label><input id="pt-show-sr" type="checkbox" checked /> 지지(초록) · 저항(빨강)</label>
+                  <label><input id="pt-show-patterns" type="checkbox" checked /> 패턴 · 돌파 표시</label>
+                  <span style="color:var(--text-mute);">일봉 1년 · 휠/핀치로 확대 · 드래그로 이동</span>
+                  <button id="pt-chart-reset" class="btn-secondary text-xs" type="button">차트 초기화</button>
+                </div>
+                <p id="pt-chart-ohlc" class="text-xs mb-2" style="color:var(--text-dim);min-height:20px;"></p>
+                <div id="pt-chart" role="img" aria-label="일봉 캔들 차트와 지지·저항 및 패턴 표시" style="height:440px;width:100%;"></div>
+                <p class="text-xs mt-2" style="color:var(--text-mute);">TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc. · <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">tradingview.com</a></p>
+                <p id="pt-chart-note" class="text-xs mt-2" style="color:var(--text-mute);"></p>
+              </div>
               <div id="pt-mtf" class="card hidden"></div>
               <div class="grid lg:grid-cols-2 gap-4">
                 <div id="pt-patterns" class="card hidden"></div>
                 <div id="pt-sr" class="card hidden"></div>
               </div>
               <div id="pt-breakouts" class="card hidden"></div>
+              <div id="pt-stats" class="card hidden"></div>
             </div>
           </div>
 

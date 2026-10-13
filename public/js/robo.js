@@ -281,36 +281,266 @@ document.getElementById("screen-run-btn").addEventListener("click", loadRoboScre
 
 
 // ── 로보 어드바이저: 차트 패턴 · 지지/저항 · 멀티타임프레임 ─────────────
+// 차트는 강사님 기초 코드 끝 판(5b0a768)의 TradingView Lightweight Charts 판에서 캔들 · 패턴 표식 · 지지/저항 점선 ·
+// 켜고 끄기만 받는다 — 30초 자동 갱신 · 캐시 우회는 받지 않는다(#153 B4). 라이브러리는 상품 상세 창(#171)과 같은 파일을
+// 차트를 그릴 때만 불러온다(app.html 에 미리 싣지 않는다).
+// 신호(API-STK-35)는 매일 기록(T2)이 있으면 그 기록, 없으면 그 자리 계산 — 둘 다 같은 쉬운 말 설명(#169)이 붙는다.
+// 패턴 통계(API-STK-34 `stats`)는 전 종목 · 그 종목 5거래일 뒤 결과 — 패턴 이름만으로 방향을 단정하지 않게(설계서 3.5).
+const PT_LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
+let ptLwcPromise = null;
+let patternChart = null;
+let patternSeries = null;
+let patternMarkers = null;
+let patternPriceLines = [];
+let patternChartData = null;
+let patternRun = 0;
+
+function loadPatternLwc() {
+  if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+  if (ptLwcPromise) return ptLwcPromise;
+  ptLwcPromise = new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = PT_LWC_SRC;
+    el.async = true;
+    const timer = setTimeout(() => reject(new Error("차트 도구를 불러오지 못했습니다(시간 초과).")), 15000);
+    el.onload = () => { clearTimeout(timer); window.LightweightCharts ? resolve(window.LightweightCharts) : reject(new Error("차트 도구가 비어 있습니다.")); };
+    el.onerror = () => { clearTimeout(timer); reject(new Error("차트 도구를 불러오지 못했습니다.")); };
+    document.head.appendChild(el);
+  }).catch(e => { ptLwcPromise = null; throw e; });       // 다음 실행에서 다시 시도
+  return ptLwcPromise;
+}
+
+function clearPatternResults() {
+  patternMarkers?.detach();
+  patternMarkers = null;
+  patternChart?.remove();
+  patternSeries = null;
+  patternPriceLines = [];
+  patternChart = null;
+  patternChartData = null;
+  for (const id of ["pt-chart-card", "pt-mtf", "pt-patterns", "pt-sr", "pt-breakouts", "pt-stats"]) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+  document.getElementById("pt-chart")?.replaceChildren();
+}
+
+// 날마다 패턴 이름 — 화살표에는 글자를 그리지 않고(가까운 날 글자가 포개짐), 마우스를 올린 날의 시세 줄에 보인다
+function patternNamesByTime(pat, candles) {
+  const names = new Map();
+  const add = (time, name) => { if (!names.has(time)) names.set(time, []); names.get(time).push(name); };
+  for (const pattern of pat.patterns) {
+    const candle = candles.find(c => new Date(c.time * 1000).toISOString().slice(0, 10) === pattern.date);
+    if (candle) add(candle.time, pattern.name);
+  }
+  if (candles.length) for (const event of pat.breakouts) add(candles[candles.length - 1].time, event.name);
+  return names;
+}
+
+function patternMarkersData(pat, candles) {
+  const colors = { bullish: "#089981", bearish: "#ef4444", neutral: "#64748b" };
+  const groups = new Map();
+  for (const pattern of pat.patterns) {
+    const candle = candles.find(c => new Date(c.time * 1000).toISOString().slice(0, 10) === pattern.date);
+    if (!candle) continue;
+    const key = `${candle.time}:${pattern.direction}`;
+    if (!groups.has(key)) groups.set(key, { candle, direction: pattern.direction, names: [] });
+    groups.get(key).names.push(pattern.name);
+  }
+  if (candles.length) {
+    const candle = candles[candles.length - 1];
+    for (const event of pat.breakouts) {
+      const key = `${candle.time}:${event.direction}`;
+      if (!groups.has(key)) groups.set(key, { candle, direction: event.direction, names: [] });
+      groups.get(key).names.push(event.name);
+    }
+  }
+  return [...groups.values()].map(({ candle, direction, names }) => ({
+    time: candle.time,
+    position: direction === "bullish" ? "belowBar" : "aboveBar",
+    shape: direction === "bullish" ? "arrowUp" : direction === "bearish" ? "arrowDown" : "circle",
+    color: colors[direction] || colors.neutral,
+    // 글자 없이 화살표만 — 강사님 원본은 이름을 붙였지만 1년 차트에서 가까운 날 이름끼리 포개진다
+  })).sort((a, b) => a.time - b.time);
+}
+
+function updatePatternOverlays() {
+  if (!patternSeries || !patternChartData) return;
+  const { pat, candles } = patternChartData;
+  patternPriceLines.forEach(line => patternSeries.removePriceLine(line));
+  patternPriceLines = [];
+  if (document.getElementById("pt-show-sr").checked) {
+    patternPriceLines = pat.support_resistance.levels.filter(l => Number.isFinite(l.price) && l.price > 0).map(level => patternSeries.createPriceLine({
+      price: level.price, color: level.type === "support" ? "#089981" : "#ef4444",
+      lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true,
+      title: `${level.type === "support" ? "지지" : "저항"} · ${level.touches}회`,
+    }));
+  }
+  patternMarkers.setMarkers(document.getElementById("pt-show-patterns").checked ? patternMarkersData(pat, candles) : []);
+  // 지지 · 저항을 켜고 끌 때 확대 · 위치는 두고 세로 범위만 다시 맞춘다
+  patternSeries.applyOptions({ autoscaleInfoProvider: patternAutoscale });
+}
+
+function patternAutoscale(original) {
+  const info = original();
+  if (!info || !patternChartData || !document.getElementById("pt-show-sr").checked) return info;
+  const prices = patternChartData.pat.support_resistance.levels.map(l => l.price).filter(v => Number.isFinite(v) && v > 0);
+  return { ...info, priceRange: {
+    minValue: Math.min(info.priceRange.minValue, ...prices),
+    maxValue: Math.max(info.priceRange.maxValue, ...prices),
+  } };
+}
+
+async function renderPatternChart(pat, symbol) {
+  // Lightweight Charts 는 시각이 겹치지 않고 커지는 차례여야 한다
+  const unique = new Map();
+  for (const c of pat.candles || []) {
+    if (Number.isFinite(c.time) && [c.open, c.high, c.low, c.close].every(v => Number.isFinite(v) && v > 0)) {
+      const time = Math.floor(c.time);
+      unique.set(time, { time, open: c.open, high: c.high, low: c.low, close: c.close });
+    }
+  }
+  const candles = [...unique.values()].sort((a, b) => a.time - b.time);
+  const card = document.getElementById("pt-chart-card");
+  const note = document.getElementById("pt-chart-note");
+  card.classList.remove("hidden");
+  document.getElementById("pt-chart-title").textContent = `${symbol} · 일봉 캔들 · 지지 · 저항 · 패턴 (${pat.as_of} 기준)`;
+  if (!candles.length) { note.textContent = "차트에 표시할 일봉이 없습니다."; return; }
+  let LWC;
+  try { LWC = await loadPatternLwc(); } catch (e) { note.textContent = `${e.message} 아래 표는 그대로 볼 수 있습니다.`; return; }
+  patternChartData = { pat, candles };
+  note.textContent = `일봉 1년 · 종가 기준(장중 미확정 봉으로 다시 그리지 않습니다). 패턴은 최근 5봉에 화살표로 표시하고, 화살표가 있는 날에 마우스를 올리면 위 시세 줄에 패턴 이름이 보입니다. `
+    + `${pat.patterns.length ? "패턴 해설은 아래 표에 있습니다." : "최근 5봉에서 뚜렷한 패턴이 없습니다."} `
+    + "지지 · 저항은 과거에 여러 번 멈췄던 가격대이고, 다음에도 그 자리에서 멈춘다는 뜻은 아닙니다.";
+  const css = getComputedStyle(document.documentElement);
+  const background = css.getPropertyValue("--surf").trim() || "#ffffff";
+  const text = css.getPropertyValue("--text-dim").trim() || "#334155";
+  const border = css.getPropertyValue("--border").trim() || "#e0e3eb";
+  patternChart = LWC.createChart(document.getElementById("pt-chart"), {
+    autoSize: true,
+    layout: { background: { type: LWC.ColorType.Solid, color: background }, textColor: text, fontFamily: "Pretendard, sans-serif", attributionLogo: true },
+    grid: { vertLines: { color: border }, horzLines: { color: border } },
+    rightPriceScale: { borderColor: border, scaleMargins: { top: 0.2, bottom: 0.18 } },
+    timeScale: { borderColor: border, rightOffset: 8, timeVisible: false },
+    crosshair: { mode: LWC.CrosshairMode.Normal },
+    localization: { locale: "ko-KR", priceFormatter: value => new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value) },
+  });
+  patternSeries = patternChart.addSeries(LWC.CandlestickSeries, {
+    upColor: "#089981", downColor: "#ef4444", borderVisible: false,
+    wickUpColor: "#089981", wickDownColor: "#ef4444", autoscaleInfoProvider: patternAutoscale,
+  });
+  patternSeries.setData(candles);
+  patternMarkers = LWC.createSeriesMarkers(patternSeries, [], { autoScale: true });
+  updatePatternOverlays();
+  const dayNames = patternNamesByTime(pat, candles);
+  const showOhlc = candle => {
+    const names = document.getElementById("pt-show-patterns").checked ? dayNames.get(candle.time) : null;
+    document.getElementById("pt-chart-ohlc").textContent = `${new Date(candle.time * 1000).toISOString().slice(0, 10)} · 시가 ${fmt(candle.open)} · 고가 ${fmt(candle.high)} · 저가 ${fmt(candle.low)} · 종가 ${fmt(candle.close)}`
+      + (names?.length ? ` · 패턴: ${names.join(" · ")}` : "");
+  };
+  showOhlc(candles[candles.length - 1]);
+  patternChart.subscribeCrosshairMove(param => {
+    const candle = param.seriesData.get(patternSeries);
+    showOhlc(candle?.open != null ? candle : candles[candles.length - 1]);
+  });
+  patternChart.timeScale().fitContent();
+}
+
+const ptPct = v => v == null || !Number.isFinite(Number(v)) ? "—" : `${Math.round(Number(v) * 100)}%`;
+// 기준 시점 — 기록의 60분봉은 ISO 시각(2026-08-31T14:00:00+09:00)이라 날짜 · 시각만
+const ptWhen = v => String(v || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}([+-]\d{2}:\d{2}|Z)?$/, "$1");
+const ptRet = v => v == null || !Number.isFinite(Number(v)) ? "—" : `${v > 0 ? "+" : ""}${(Number(v) * 100).toFixed(2)}%`;
+
+function renderMtf(mtf, symbol, pat) {
+  const actCls = mtf.signal === "매수" ? "badge-buy" : mtf.signal === "매도" ? "badge-sell" : "badge-hold";
+  const source = mtf.source === "record"
+    ? `매일 기록(T2) · ${escHtml(mtf.as_of)} 종가 기준`
+    : `기록이 없는 종목이라 그 자리에서 계산 · ${escHtml(mtf.as_of)} 일봉까지`;
+  const ex = mtf.explanation || {};
+  // 가격 수준은 패턴 응답의 일봉(차트와 같은 날) — 기록 신호와 날짜가 다를 수 있어 날짜를 붙인다
+  const levels = pat?.levels?.text ? `<p class="text-sm mt-1">가격 수준(${escHtml(pat.levels.as_of)} 일봉 기준): ${escHtml(pat.levels.text)}</p>` : "";
+  const notes = (ex.notes || []).map(n => `<li>${escHtml(n)}</li>`).join("");
+  return `
+      <div class="flex flex-wrap items-center gap-3 mb-1">
+        <h3 class="font-semibold text-sm">📐 멀티타임프레임 종합 신호 — ${escHtml(symbol)}</h3>
+        <span class="${actCls}" style="font-size:14px;">${escHtml(mtf.label)}</span>
+        <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${ptPct(mtf.confidence)}</b> · 방향 일치 ${ptPct(mtf.agreement)}</span>
+      </div>
+      <p class="text-xs mb-2" style="color:var(--text-mute);">${source}</p>
+      ${ex.summary ? `<div class="rounded-lg p-3 mb-3" style="background:var(--surf2);"><p class="text-sm">${escHtml(ex.summary)}</p>${levels}${ex.confidence_text ? `<p class="text-xs mt-1" style="color:var(--text-dim);">${escHtml(ex.confidence_text)}</p>` : ""}${notes ? `<ul class="text-xs mt-1 list-disc ml-5" style="color:var(--text-dim);">${notes}</ul>` : ""}</div>` : levels}
+      <table><thead><tr><th>타임프레임</th><th style="text-align:right">가중치</th><th style="text-align:right">점수</th><th style="text-align:right">RSI</th><th style="text-align:right">MA5 / MA20</th><th>근거</th><th>기준 시점</th></tr></thead><tbody>${mtf.timeframes.map(t => t.error ? `<tr><td>${escHtml(t.label)}</td><td colspan="6" class="text-xs" style="color:var(--text-mute)">${escHtml(t.error)}</td></tr>` :
+      `<tr><td>${escHtml(t.label)}</td><td style="text-align:right">${Math.round(t.weight * 100)}%</td><td style="text-align:right;font-weight:700;color:${t.score > 0 ? "var(--green)" : t.score < 0 ? "var(--red)" : "var(--text-mute)"}">${t.score > 0 ? "+" : ""}${t.score}</td><td style="text-align:right">${t.rsi ?? "—"}</td><td style="text-align:right">${fmt(t.ma5)} / ${fmt(t.ma20)}</td><td class="text-xs" style="color:var(--text-dim)">${(t.reasons || []).map(escHtml).join(" · ")}</td><td class="text-xs" style="color:var(--text-mute)">${escHtml(ptWhen(t.as_of))}</td></tr>`).join("")}</tbody></table>
+      <p class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(mtf.disclaimer || "")}</p>`;
+}
+
+function renderPatternStats(pat) {
+  const st = pat.stats;
+  if (!st) return "";
+  const now = new Set([...pat.patterns.map(p => p.key), ...pat.breakouts.map(e => e.key)]);
+  const gap = Math.max(...st.patterns.map(p => Math.abs(Number(p.all.mean_vs_baseline) || 0))) * 100;
+  const dir = d => d === "bullish" ? `<span class="badge-buy">상승 쪽 이름</span>` : d === "bearish" ? `<span class="badge-sell">하락 쪽 이름</span>` : `<span class="badge-hold">중립</span>`;
+  const mine = s => !s ? `<td colspan="3" class="text-xs" style="color:var(--text-mute)">—</td>` : s.events === 0
+    ? `<td style="text-align:right">0</td><td colspan="2" class="text-xs" style="color:var(--text-mute)">사건 없음</td>`
+    : `<td style="text-align:right">${s.events.toLocaleString("ko-KR")}</td><td style="text-align:right">${ptRet(s.mean_ret_5d)}</td><td style="text-align:right">${ptPct(s.up_ratio)}</td>`;
+  const base = st.baseline;
+  return `<h3 class="font-semibold text-sm mb-1">📊 패턴 뒤 5거래일 — 과거 통계 (${escHtml(st.end)} 까지)</h3>
+      <p class="text-xs mb-2" style="color:var(--text-dim);">전 종목 ${Number(st.all_symbols).toLocaleString("ko-KR")}개에서 11종 모두 아무 날(기준선)과 5일 평균 수익률 차이가 ${gap.toFixed(1)}%p 안입니다 — 패턴 이름만으로 5거래일 뒤 방향이 갈린다고 보기 어렵습니다. ● 는 이 종목에 지금 나온 패턴입니다.</p>
+      <div style="overflow-x:auto;"><table><thead><tr><th rowspan="2">패턴</th><th rowspan="2">이름의 방향</th><th colspan="3" style="text-align:center">전 종목</th><th colspan="3" style="text-align:center">이 종목</th></tr>
+      <tr><th style="text-align:right">사건</th><th style="text-align:right">5일 평균</th><th style="text-align:right">오른 비율</th><th style="text-align:right">사건</th><th style="text-align:right">5일 평균</th><th style="text-align:right">오른 비율</th></tr></thead>
+      <tbody>${st.patterns.map(p => `<tr><td>${now.has(p.key) ? "● " : ""}${escHtml(p.name)}</td><td>${dir(p.direction)}</td><td style="text-align:right">${Number(p.all.events).toLocaleString("ko-KR")}</td><td style="text-align:right">${ptRet(p.all.mean_ret_5d)}</td><td style="text-align:right">${ptPct(p.all.up_ratio)}</td>${mine(p.symbol)}</tr>`).join("")}
+      <tr style="color:var(--text-dim);"><td>(기준선 — 아무 날)</td><td></td><td></td><td style="text-align:right">${ptRet(base.all.mean_ret_5d)}</td><td style="text-align:right">${ptPct(base.all.up_ratio)}</td><td></td><td style="text-align:right">${ptRet(base.symbol?.mean_ret_5d)}</td><td style="text-align:right">${ptPct(base.symbol?.up_ratio)}</td></tr></tbody></table></div>
+      <p class="text-xs mt-2" style="color:var(--text-dim);">이 종목 칸은 사건이 수십 건뿐이라 몇 건만 달라도 숫자가 크게 흔들립니다 — 전 종목 칸과 함께 보세요.</p>
+      <p class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(st.rules)} · ${escHtml(st.note)}${base.symbol ? "" : " · 이 종목은 수집 자료가 없어 전 종목 줄만 보입니다."}</p>`;
+}
+
 async function loadPatternAnalysis() {
   const symbol = document.getElementById("pt-symbol").value.trim() || "005930.KS";
+  const run = ++patternRun;
+  const button = document.getElementById("pt-run");
   const box = (id, html) => { const el = document.getElementById(id); el.innerHTML = html; el.classList.remove("hidden"); };
+  clearPatternResults();
+  button.disabled = true;
+  button.textContent = "분석 중…";
   box("pt-mtf", `<div class="text-sm" style="color:var(--text-mute);">분봉·일봉·주봉 데이터 수집 및 계산 중…</div>`);
   try {
-    const [mtf, pat] = await Promise.all([
+    const [mtfResult, patResult] = await Promise.allSettled([
       api(`/api/stocks/mtf-signal?symbol=${encodeURIComponent(symbol)}`),
       api(`/api/stocks/patterns?symbol=${encodeURIComponent(symbol)}`),
     ]);
-    const actCls = mtf.action.includes("매수") ? "badge-buy" : mtf.action.includes("매도") ? "badge-sell" : "badge-hold";
-    box("pt-mtf", `
-      <div class="flex flex-wrap items-center gap-3 mb-3">
-        <h3 class="font-semibold text-sm">📐 멀티타임프레임 종합 신호 — ${escHtml(symbol)}</h3>
-        <span class="${actCls}" style="font-size:14px;">${escHtml(mtf.action)}</span>
-        <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${mtf.confidence}%</b> · 방향 일치 ${mtf.agreement}%</span>
-      </div>
-      <table><thead><tr><th>타임프레임</th><th style="text-align:right">가중치</th><th style="text-align:right">점수</th><th style="text-align:right">RSI</th><th style="text-align:right">MA5 / MA20</th><th>근거</th><th>기준 시점</th></tr></thead><tbody>${mtf.timeframes.map(t => t.error ? `<tr><td>${escHtml(t.label)}</td><td colspan="6" class="text-xs" style="color:var(--text-mute)">${escHtml(t.error)}</td></tr>` :
-      `<tr><td>${escHtml(t.label)}</td><td style="text-align:right">${Math.round(t.weight * 100)}%</td><td style="text-align:right;font-weight:700;color:${t.score > 0 ? "var(--green)" : t.score < 0 ? "var(--red)" : "var(--text-mute)"}">${t.score > 0 ? "+" : ""}${t.score}</td><td style="text-align:right">${t.rsi}</td><td style="text-align:right">${fmt(t.ma5)} / ${fmt(t.ma20)}</td><td class="text-xs" style="color:var(--text-dim)">${t.reasons.map(escHtml).join(" · ")}</td><td class="text-xs" style="color:var(--text-mute)">${escHtml(t.as_of)}</td></tr>`).join("")}</tbody></table>
-      <p class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(mtf.disclaimer)}</p>`);
+    if (run !== patternRun) return;
+    const pat = patResult.status === "fulfilled" ? patResult.value : null;
+    box("pt-mtf", mtfResult.status === "fulfilled" ? renderMtf(mtfResult.value, symbol, pat)
+      : `<span class="text-sm" style="color:var(--text-mute);">멀티타임프레임 신호를 불러오지 못했습니다: ${escHtml(mtfResult.reason?.message || "")}</span>`);
+    if (!pat) throw patResult.reason;
+    const stat = new Map((pat.stats?.patterns || []).map(p => [p.key, p.all]));
+    const past = key => { const a = stat.get(key); return a ? `<span class="text-xs" style="color:var(--text-mute)">${ptRet(a.mean_ret_5d)} · 오른 ${ptPct(a.up_ratio)}</span>` : `<span class="text-xs" style="color:var(--text-mute)">—</span>`; };
     const dirBadge = (d) => d === "bullish" ? `<span class="badge-buy">상승</span>` : d === "bearish" ? `<span class="badge-sell">하락</span>` : `<span class="badge-hold">중립</span>`;
-    box("pt-patterns", `<h3 class="font-semibold text-sm mb-2">🕯️ 캔들 패턴 (최근 5봉) · 패턴 점수 ${pat.pattern_score} (${escHtml(pat.pattern_bias)})</h3>${pat.patterns.length ? `<table><thead><tr><th>일자</th><th>패턴</th><th>방향</th><th>해설</th></tr></thead><tbody>${pat.patterns.map(p => `<tr><td class="text-xs">${p.date}${p.bars_ago === 0 ? " <b>(최신)</b>" : ""}</td><td style="font-weight:600">${escHtml(p.name)}</td><td>${dirBadge(p.direction)}</td><td class="text-xs" style="color:var(--text-dim)">${escHtml(p.description)}</td></tr>`).join("")}</tbody></table>`
+    box("pt-patterns", `<h3 class="font-semibold text-sm mb-2">🕯️ 캔들 패턴 (최근 5봉) · 패턴 점수 ${pat.pattern_score} (${escHtml(pat.pattern_bias)})</h3>${pat.patterns.length ? `<table><thead><tr><th>일자</th><th>패턴</th><th>방향</th><th>해설</th><th>과거 5일 뒤(전 종목)</th></tr></thead><tbody>${pat.patterns.map(p => `<tr><td class="text-xs">${p.date}${p.bars_ago === 0 ? " <b>(최신)</b>" : ""}</td><td style="font-weight:600">${escHtml(p.name)}</td><td>${dirBadge(p.direction)}</td><td class="text-xs" style="color:var(--text-dim)">${escHtml(p.description)}</td><td>${past(p.key)}</td></tr>`).join("")}</tbody></table><p class="text-xs mt-2" style="color:var(--text-mute);">과거 5일 뒤 — 전 종목 5거래일 뒤 평균 수익률 · 오른 비율(아래 통계 카드). 「—」 는 통계를 내지 않은 패턴입니다(통계는 11종).</p>`
       : `<p class="text-sm" style="color:var(--text-mute)">최근 5봉에서 뚜렷한 캔들 패턴이 없습니다.</p>`}`);
     const sr = pat.support_resistance;
     box("pt-sr", `<h3 class="font-semibold text-sm mb-2">📏 지지·저항선 (최근 ${sr.lookback_bars}봉 피벗 군집) · 현재가 ${fmt(sr.last_price)}</h3>
       <div class="flex gap-3 text-xs mb-2">${sr.nearest_resistance ? `<span class="badge-sell">가장 가까운 저항 ${fmt(sr.nearest_resistance.price)} (${sr.nearest_resistance.distance_pct > 0 ? "+" : ""}${sr.nearest_resistance.distance_pct}%)</span>` : ""}${sr.nearest_support ? `<span class="badge-buy">가장 가까운 지지 ${fmt(sr.nearest_support.price)} (${sr.nearest_support.distance_pct}%)</span>` : ""}</div>
-      ${sr.levels.length ? `<table><thead><tr><th>가격대</th><th>구분</th><th style="text-align:right">터치</th><th>강도</th><th style="text-align:right">현재가 대비</th></tr></thead><tbody>${sr.levels.map(l => `<tr><td style="font-weight:600">${fmt(l.price)}</td><td>${l.type === "support" ? '<span class="badge-buy">지지</span>' : '<span class="badge-sell">저항</span>'}</td><td style="text-align:right">${l.touches}회</td><td>${l.strength}</td><td style="text-align:right;color:${l.distance_pct >= 0 ? "var(--green)" : "var(--red)"}">${l.distance_pct > 0 ? "+" : ""}${l.distance_pct}%</td></tr>`).join("")}</tbody></table>` : `<p class="text-sm" style="color:var(--text-mute)">레벨을 찾지 못했습니다.</p>`}`);
-    box("pt-breakouts", `<h3 class="font-semibold text-sm mb-2">🚀 돌파·크로스 이벤트 (${pat.as_of} 기준)</h3>${pat.breakouts.length ? `<div class="flex flex-wrap gap-2">${pat.breakouts.map(e => `<div class="rounded-lg p-2 text-xs" style="background:var(--surf2);border:1px solid var(--border);min-width:220px;">${dirBadge(e.direction)} <b>${escHtml(e.name)}</b>${e.confirmed ? ' <span style="color:var(--green)">✔ 확인</span>' : ''}<div style="color:var(--text-dim);margin-top:2px;">${escHtml(e.detail || "")}</div></div>`).join("")}</div>`
+      ${sr.levels.length ? `<table><thead><tr><th>가격대</th><th>구분</th><th style="text-align:right">터치</th><th>강도</th><th style="text-align:right">현재가 대비</th></tr></thead><tbody>${sr.levels.map(l => `<tr><td style="font-weight:600">${fmt(l.price)}</td><td>${l.type === "support" ? '<span class="badge-buy">지지</span>' : '<span class="badge-sell">저항</span>'}</td><td style="text-align:right">${l.touches}회</td><td>${l.strength}</td><td style="text-align:right;color:${l.distance_pct >= 0 ? "var(--green)" : "var(--red)"}">${l.distance_pct > 0 ? "+" : ""}${l.distance_pct}%</td></tr>`).join("")}</tbody></table>` : `<p class="text-sm" style="color:var(--text-mute)">레벨을 찾지 못했습니다.</p>`}
+      ${pat.levels?.atr14 != null ? `<p class="text-xs mt-2" style="color:var(--text-dim);">하루 평균 변동 폭(ATR 14일) ${fmt(pat.levels.atr14, Math.abs(pat.levels.atr14) < 1000 ? 2 : 0)} (${pat.levels.atr_pct}%) · ${escHtml(pat.levels.note)}</p>` : ""}`);
+    box("pt-breakouts", `<h3 class="font-semibold text-sm mb-2">🚀 돌파·크로스 이벤트 (${pat.as_of} 기준)</h3>${pat.breakouts.length ? `<div class="flex flex-wrap gap-2">${pat.breakouts.map(e => `<div class="rounded-lg p-2 text-xs" style="background:var(--surf2);border:1px solid var(--border);min-width:220px;">${dirBadge(e.direction)} <b>${escHtml(e.name)}</b>${e.confirmed ? ' <span style="color:var(--green)">✔ 확인</span>' : ''}<div style="color:var(--text-dim);margin-top:2px;">${escHtml(e.detail || "")}</div><div class="mt-1">${past(e.key)}</div></div>`).join("")}</div>`
       : `<p class="text-sm" style="color:var(--text-mute)">현재 봉에서 돌파·크로스 이벤트가 없습니다.</p>`}`);
-  } catch (e) { box("pt-mtf", `<span class="text-red-500 text-sm">${escHtml(e.message)}</span>`); }
+    if (pat.stats) box("pt-stats", renderPatternStats(pat));
+    await renderPatternChart(pat, symbol);
+  } catch (e) {
+    if (run === patternRun) box("pt-mtf", `<span class="text-red-500 text-sm">${escHtml(e?.message || "분석하지 못했습니다.")}</span>`);
+  } finally {
+    if (run === patternRun) {
+      button.disabled = false;
+      button.textContent = "분석 실행";
+    }
+  }
 }
+for (const id of ["pt-show-sr", "pt-show-patterns"]) {
+  document.getElementById(id)?.addEventListener("change", updatePatternOverlays);
+}
+document.getElementById("pt-chart-reset")?.addEventListener("click", () => {
+  patternChart?.priceScale("right").applyOptions({ autoScale: true });
+  patternChart?.timeScale().fitContent();
+});
 document.getElementById("pt-run")?.addEventListener("click", loadPatternAnalysis);
 document.getElementById("pt-symbol")?.addEventListener("keydown", e => { if (e.key === "Enter") loadPatternAnalysis(); });
 // ── 로보 어드바이저: 모의 투자 의사결정 ─────────────────────────────
