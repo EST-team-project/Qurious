@@ -21,6 +21,33 @@ const sideBadge = (s) => s === "BUY" ? `<span class="badge-buy">매수</span>` :
 let weightChart = null;
 let targetRows = [];   // [{symbol, name, weight_pct}]
 let lastProposal = null;
+let targetEditVersion = 0;
+let allocationDraftPending = false;
+
+async function importAllocation() {
+  const button = $("rb-import-allocation");
+  button.disabled = true;
+  try {
+    const saved = await api("/api/ml/robo/allocation/latest");
+    const draft = saved.handoff;
+    if (!draft?.targets?.length) throw new Error("이 배분 결과는 국내주식 목표로 가져올 수 없습니다. 배분을 다시 계산하세요.");
+    const excluded = Object.entries(draft.unapplied_allocations).map(([k, v]) => `${k} ${v}%`).join(" · ");
+    const targets = draft.targets.map(t => `${t.name} (${t.symbol}) ${t.weight_pct}%`).join("\n");
+    if (!confirm(`저장 시각: ${ts(saved.saved_at)}\n\n${targets}\n\n국내주식 합계 ${draft.domestic_weight_pct}% · 현금 ${draft.cash_weight_pct}%\n적용하지 않는 자산군: ${excluded}\n\n${draft.message}\n현재 편집 중인 목표를 바꾸고 자동 실행을 끕니다. 플랜 저장 전에는 적용되지 않습니다. 가져올까요?`)) return;
+    targetEditVersion += 1;
+    allocationDraftPending = true;
+    targetRows = draft.targets.map(t => ({ ...t }));
+    $("rb-auto").checked = false;
+    lastProposal = null;
+    $("rb-execute").disabled = true;
+    $("rb-proposal").textContent = "목표를 저장한 뒤 새로 미리보기 하세요.";
+    $("rb-proposal-summary").textContent = "";
+    renderTargets();
+    $("rb-allocation-note").textContent = `가져온 배분: ${ts(saved.saved_at)} · ${draft.message} 편집안의 자동 실행은 꺼짐입니다. 저장 전까지 서버의 기존 플랜·예약은 유지됩니다.`;
+    setToast("목표 편집안에 가져왔습니다. 비중과 설정을 확인하고 저장하세요.", "ok");
+  } catch (e) { setToast(e.message, "error"); }
+  finally { button.disabled = false; }
+}
 
 /* ── 플랜 편집 ────────────────────────────────────────────── */
 function renderTargets() {
@@ -76,6 +103,7 @@ function importFromPositions(snapshot) {
 }
 
 function fillPlanForm(plan) {
+  $("rb-allocation-note").textContent = "";
   targetRows = (plan.targets || []).map(t => ({ ...t }));
   renderTargets();
   $("rb-name").value = plan.name || "";
@@ -94,6 +122,7 @@ function fillPlanForm(plan) {
 }
 
 async function savePlan() {
+  const version = targetEditVersion;
   const body = {
     name: $("rb-name").value.trim() || undefined,
     is_active: $("rb-active").checked,
@@ -111,6 +140,7 @@ async function savePlan() {
   if (![body.drift_threshold_pct, body.cashflow_min_amount, body.min_order_amount].every(Number.isFinite)) return setToast("설정 금액과 이탈률을 입력하세요.", "error");
   try {
     await api("/api/rebalance/plan", { method: "PUT", body });
+    if (version === targetEditVersion) allocationDraftPending = false;
     setToast("리밸런싱 플랜을 저장했습니다.", "ok");
     await loadStatus();
   } catch (e) { setToast(e.message, "error"); }
@@ -118,10 +148,12 @@ async function savePlan() {
 
 /* ── 현황 ────────────────────────────────────────────────── */
 async function loadStatus() {
+  const version = targetEditVersion;
   try {
     const r = await api("/api/rebalance/status");
+    if (version !== targetEditVersion) return;
     const { plan, snapshot: s, triggers } = r;
-    fillPlanForm(plan);
+    if (!allocationDraftPending) fillPlanForm(plan);
     const daily = r.automatic_check;
     $("rb-daily-check").textContent = daily ? `자동 정기 점검: ${daily.message}`
       + (daily.state === "checked" && daily.last_checked_at ? ` (${ts(daily.last_checked_at)} · 한국시간)` : "") : "";
@@ -210,12 +242,16 @@ function renderOrders(orders, containerId, opts = {}) {
 }
 
 async function previewRebalance() {
+  if (allocationDraftPending) return setToast("가져온 목표를 먼저 플랜에 저장하세요.", "error");
+  const version = targetEditVersion;
   lastProposal = null;
   $("rb-execute").disabled = true;
   $("rb-proposal-summary").textContent = "";
   $("rb-proposal").innerHTML = `<span style="color:var(--text-mute);">전 거래일 종가 기준으로 예상 주문을 산출 중…</span>`;
   try {
-    lastProposal = await api("/api/rebalance/preview", { method: "POST" });
+    const proposal = await api("/api/rebalance/preview", { method: "POST" });
+    if (version !== targetEditVersion) return;
+    lastProposal = proposal;
     renderOrders(lastProposal.orders, "rb-proposal");
     $("rb-proposal-summary").textContent = `판단 기준 ${lastProposal.snapshot.valuation_date} 종가 · 체결 수량은 시가로 재계산 · 예상 회전 금액 ${won(lastProposal.estimated_turnover)} · 예상 비용 ${won(lastProposal.estimated_cost, 2)} · 비용 반영 후 현금 ${won(lastProposal.estimated_cash_after)}` +
       (lastProposal.skipped?.length ? ` · 시세 실패 ${lastProposal.skipped.map(x => x.symbol).join(", ")}` : "");
@@ -224,6 +260,7 @@ async function previewRebalance() {
 }
 
 async function executeRebalance(runId = null, scheduled = false) {
+  if (allocationDraftPending) return setToast("가져온 목표를 먼저 플랜에 저장하세요.", "error");
   if (!confirm("전 거래일 종가로 판단한 목표 비중을 다음 거래일 시가 체결로 예약합니다. 시가 수집 후 수량을 다시 계산하며, 조건이 해소되면 취소될 수 있습니다. 계속할까요?")) return;
   try {
     const r = await api("/api/rebalance/execute", { method: "POST", body: runId ? { run_id: runId } : { note: "화면에서 수동 실행" } });
@@ -237,6 +274,7 @@ async function executeRebalance(runId = null, scheduled = false) {
 }
 
 async function checkTriggers() {
+  if (allocationDraftPending) return setToast("가져온 목표를 먼저 플랜에 저장하세요.", "error");
   try {
     const r = await api("/api/rebalance/check", { method: "POST" });
     const msg = r.message || (r.status === "scheduled" ? (r.already_processed ? "기존 시가 체결 예약을 기다립니다." : "다음 거래일 시가 체결을 예약했습니다.") : r.already_processed ? "오늘 자동 조건 계획은 이미 처리되었습니다. 새 현금흐름 예산은 다음 날로 이월됩니다." : r.trigger ? `${(r.triggers || [r.trigger]).map(t => TRIGGER_LABEL[t]).join(" + ")} 조건 충족 → ${r.status === "executed" ? "자동 체결" : r.status === "proposed" ? "제안 생성" : "주문 없음 또는 일부 실패"}`
@@ -334,6 +372,7 @@ export function initRebalanceView() {
   on("rb-add", "click", addTarget);
   on("rb-add-symbol", "keydown", e => { if (e.key === "Enter") addTarget(); });
   on("rb-save", "click", savePlan);
+  on("rb-import-allocation", "click", importAllocation);
   on("rb-refresh", "click", loadStatus);
   on("rb-preview", "click", previewRebalance);
   on("rb-execute", "click", () => executeRebalance());

@@ -4,32 +4,7 @@ import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common
 import { tt } from "/js/core.js";
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
-const ALLOC_PROFILES = {
-  conservative: { label: "보수적", 국내주식: 15, 해외주식: 10, 국내채권: 50, 대체자산: 5, 현금: 20 },
-  moderate: { label: "중립", 국내주식: 30, 해외주식: 25, 국내채권: 30, 대체자산: 10, 현금: 5 },
-  aggressive: { label: "공격적", 국내주식: 40, 해외주식: 35, 국내채권: 10, 대체자산: 10, 현금: 5 },
-};
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
-const ROBO_PICKS = {
-  conservative: [
-    { name: "삼성전자", code: "005930.KS", weight: 8, reason: "배당 안정성·시총 1위" },
-    { name: "KB금융", code: "105560.KS", weight: 7, reason: "고배당·안정적 수익" },
-    { name: "한국전력채", code: "BOND", weight: 50, reason: "국채 대신 우량 공기업채" },
-  ],
-  moderate: [
-    { name: "삼성전자", code: "005930.KS", weight: 15, reason: "반도체 사이클 회복 수혜" },
-    { name: "SK하이닉스", code: "000660.KS", weight: 10, reason: "HBM 수요 급증" },
-    { name: "NAVER", code: "035420.KS", weight: 5, reason: "AI 플랫폼 성장성" },
-    { name: "AAPL", code: "AAPL", weight: 10, reason: "빅테크 안정 수익" },
-  ],
-  aggressive: [
-    { name: "SK하이닉스", code: "000660.KS", weight: 15, reason: "AI 반도체 최대 수혜" },
-    { name: "NVDA", code: "NVDA", weight: 12, reason: "GPU AI 시장 독점" },
-    { name: "TSLA", code: "TSLA", weight: 8, reason: "전기차 반등 모멘텀" },
-    { name: "LG에너지솔", code: "373220.KS", weight: 5, reason: "2차전지 장기 성장" },
-  ],
-};
-
 // ── XAI: SHAP 기여도 블록 렌더 (로보 추천 · 스크리닝 · 파이프라인 공용) ──
 function renderXaiBlock(ex, { compact = false } = {}) {
   if (!ex) return "";
@@ -59,6 +34,71 @@ function renderXaiBlock(ex, { compact = false } = {}) {
   </div>`;
 }
 
+function renderAllocation(data) {
+  const amount = data.amount_manwon;
+  document.getElementById("robo-risk").value = data.risk_profile;
+  document.getElementById("robo-horizon").value = data.horizon_years;
+  document.getElementById("robo-amount").value = amount;
+  document.getElementById("robo-allocation-saved").textContent = data.saved
+    ? `저장됨 · ${new Date(data.saved.saved_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} (한국시간)` : "";
+  const allocEntries = Object.entries(data.allocations || {});
+  document.getElementById("robo-alloc-cards").innerHTML = allocEntries.map(([cls, pct]) => `
+    <div class="card" style="padding:14px; text-align:center;">
+      <div class="text-xs mb-1" style="color:var(--text-mute);">${cls}</div>
+      <div style="font-size:22px; font-weight:700; color:${ALLOC_COLORS[cls] || "var(--accent)"};">${pct}%</div>
+      <div class="text-xs mt-1" style="color:var(--text-dim);">${Math.round(amount * pct / 100).toLocaleString()}만원</div>
+    </div>
+  `).join("");
+  document.getElementById("robo-alloc-bar").innerHTML = allocEntries.map(([cls, pct]) =>
+    `<div style="width:${pct}%;background:${ALLOC_COLORS[cls] || "#2962ff"};transition:width .4s;" title="${cls} ${pct}%"></div>`
+  ).join("");
+  document.getElementById("robo-alloc-legend").innerHTML = allocEntries.map(([cls, pct]) =>
+    `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${ALLOC_COLORS[cls] || "#2962ff"};display:inline-block;"></span>${cls} ${pct}%</span>`
+  ).join("");
+
+  const picks = data.stock_picks || [];
+  document.getElementById("robo-stock-picks").innerHTML = picks.map(p => `
+    <div class="card" style="padding:14px;">
+      <div class="flex items-center justify-between mb-1">
+        <span class="font-semibold text-sm">${escHtml(p.name)}</span>
+        <span class="text-xs font-bold" style="color:var(--accent);">${p.weight}%</span>
+      </div>
+      <div class="text-xs" style="color:var(--text-mute);">${escHtml(p.reason)}</div>
+      <div class="text-xs mt-1" style="color:var(--text-dim);">${Math.round(amount * p.weight / 100).toLocaleString()}만원</div>
+      ${renderXaiBlock(p.ai_prediction?.explanation, { compact: true })}
+    </div>
+  `).join("");
+
+  const rows = data.projections || [];
+  document.getElementById("robo-perf-table").innerHTML = `
+    <table><thead><tr><th>기간</th><th style="text-align:right;">예상 수익률</th><th style="text-align:right;">예상 수익 (만원)</th><th style="text-align:right;">최대낙폭 (MDD)</th></tr></thead>
+    <tbody>
+      ${rows.map(r => `<tr><td style="color:var(--text-dim);">${r.years}년</td><td style="text-align:right;color:var(--green);font-weight:600;">${r.expected_return_pct >= 0 ? "+" : ""}${r.expected_return_pct}%</td><td style="text-align:right;font-weight:600;">${r.expected_profit_manwon.toLocaleString()}만원</td><td style="text-align:right;color:var(--red);">${r.expected_mdd_pct}%</td></tr>`).join("")}
+    </tbody></table>
+    <p class="text-xs mt-2" style="color:var(--text-mute);">※ 국내주식과 나머지 현금 비중의 추정치입니다. 현금 연 2.5%를 가정하며, 해외주식·채권·대체자산 성과는 반영하지 않습니다. 실제 수익을 보장하지 않습니다.</p>
+  `;
+  document.getElementById("robo-alloc-result").classList.remove("hidden");
+  // 목표 달성 시뮬레이션 기본값: 최적화 포트폴리오의 기대수익·변동성 (주식 바스켓 비중 반영)
+  const opt = data.optimization || {};
+  const stockBucket = (data.allocations?.["국내주식"] || 0) / 100;
+  const mu = (opt.expected_return_pct || 0) * stockBucket + 2.5 * (1 - stockBucket);
+  const sigma = (opt.expected_volatility_pct || 0) * stockBucket;
+  document.getElementById("gs-mu").value = mu.toFixed(1);
+  document.getElementById("gs-sigma").value = sigma.toFixed(1);
+  lastGoalSim = null; document.getElementById("gs-result").innerHTML = "";
+}
+
+document.getElementById("robo-load-allocation").addEventListener("click", async () => {
+  const button = document.getElementById("robo-load-allocation");
+  button.disabled = true;
+  document.getElementById("robo-optimize-btn").disabled = true;
+  try {
+    const saved = await api("/api/ml/robo/allocation/latest");
+    renderAllocation({ ...saved.result, saved });
+  } catch (e) { setToast(e.message, "error"); }
+  finally { button.disabled = false; document.getElementById("robo-optimize-btn").disabled = false; }
+});
+
 document.getElementById("robo-optimize-btn").addEventListener("click", async () => {
   const profile = document.getElementById("robo-risk").value;
   const horizon = parseInt(document.getElementById("robo-horizon").value);
@@ -67,61 +107,19 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
   const originalBtnText = optimizeBtn.textContent;
   // 유니버스 전체(~30종목) 스캔 + AI 학습이라 수 초~수십 초 걸릴 수 있어 로딩 표시 필수
   optimizeBtn.disabled = true;
+  document.getElementById("robo-load-allocation").disabled = true;
   optimizeBtn.textContent = "AI 분석 중... (최대 30초 소요)";
   try {
     const data = await api("/api/ml/robo/allocation", {
       method: "POST",
       body: { risk_profile: profile, horizon_years: horizon, amount_manwon: amount },
     });
-    const allocEntries = Object.entries(data.allocations || {});
-    document.getElementById("robo-alloc-cards").innerHTML = allocEntries.map(([cls, pct]) => `
-      <div class="card" style="padding:14px; text-align:center;">
-        <div class="text-xs mb-1" style="color:var(--text-mute);">${cls}</div>
-        <div style="font-size:22px; font-weight:700; color:${ALLOC_COLORS[cls] || "var(--accent)"};">${pct}%</div>
-        <div class="text-xs mt-1" style="color:var(--text-dim);">${Math.round(amount * pct / 100).toLocaleString()}만원</div>
-      </div>
-    `).join("");
-    document.getElementById("robo-alloc-bar").innerHTML = allocEntries.map(([cls, pct]) =>
-      `<div style="width:${pct}%;background:${ALLOC_COLORS[cls] || "#2962ff"};transition:width .4s;" title="${cls} ${pct}%"></div>`
-    ).join("");
-    document.getElementById("robo-alloc-legend").innerHTML = allocEntries.map(([cls, pct]) =>
-      `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${ALLOC_COLORS[cls] || "#2962ff"};display:inline-block;"></span>${cls} ${pct}%</span>`
-    ).join("");
-
-    const picks = data.stock_picks || [];
-    document.getElementById("robo-stock-picks").innerHTML = picks.map(p => `
-      <div class="card" style="padding:14px;">
-        <div class="flex items-center justify-between mb-1">
-          <span class="font-semibold text-sm">${escHtml(p.name)}</span>
-          <span class="text-xs font-bold" style="color:var(--accent);">${p.weight}%</span>
-        </div>
-        <div class="text-xs" style="color:var(--text-mute);">${escHtml(p.reason)}</div>
-        <div class="text-xs mt-1" style="color:var(--text-dim);">${Math.round(amount * p.weight / 100).toLocaleString()}만원</div>
-        ${renderXaiBlock(p.ai_prediction?.explanation, { compact: true })}
-      </div>
-    `).join("");
-
-    const rows = data.projections || [];
-    document.getElementById("robo-perf-table").innerHTML = `
-      <table><thead><tr><th>기간</th><th style="text-align:right;">예상 수익률</th><th style="text-align:right;">예상 수익 (만원)</th><th style="text-align:right;">최대낙폭 (MDD)</th></tr></thead>
-      <tbody>
-        ${rows.map(r => `<tr><td style="color:var(--text-dim);">${r.years}년</td><td style="text-align:right;color:var(--green);font-weight:600;">${r.expected_return_pct >= 0 ? "+" : ""}${r.expected_return_pct}%</td><td style="text-align:right;font-weight:600;">${r.expected_profit_manwon.toLocaleString()}만원</td><td style="text-align:right;color:var(--red);">${r.expected_mdd_pct}%</td></tr>`).join("")}
-      </tbody></table>
-      <p class="text-xs mt-2" style="color:var(--text-mute);">※ 시장 데이터 기반 추정치이며 실제 수익을 보장하지 않습니다.</p>
-    `;
-    document.getElementById("robo-alloc-result").classList.remove("hidden");
-    // 목표 달성 시뮬레이션 기본값: 최적화 포트폴리오의 기대수익·변동성 (주식 바스켓 비중 반영)
-    const opt = data.optimization || {};
-    const stockBucket = ((data.allocations?.["국내주식"] || 0) + (data.allocations?.["해외주식"] || 0)) / 100;
-    const mu = (opt.expected_return_pct || 0) * stockBucket + 2.5 * (1 - stockBucket);
-    const sigma = (opt.expected_volatility_pct || 0) * stockBucket;
-    document.getElementById("gs-mu").value = mu.toFixed(1);
-    document.getElementById("gs-sigma").value = sigma.toFixed(1);
-    lastGoalSim = null; document.getElementById("gs-result").innerHTML = "";
+    renderAllocation(data);
   } catch (e) {
     setToast("포트폴리오 최적화 오류: " + e.message, "error");
   } finally {
     optimizeBtn.disabled = false;
+    document.getElementById("robo-load-allocation").disabled = false;
     optimizeBtn.textContent = originalBtnText;
   }
 });
