@@ -38,6 +38,9 @@ class SignalSnapshot(Base):
     reasons: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, comment="규칙 근거 문장(설명 층 1 의 입력)")
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, comment="계산 시각")
 
+    opinion: Mapped[str | None] = mapped_column(String(8), comment="매수 · 매도 · 보유")
+    opinion_rule: Mapped[str | None] = mapped_column(String(32), comment="어떤 규칙으로 정해졌나")
+
     __table_args__ = (
         Index("ix_signal_snapshots_symbol_as_of", "symbol", "as_of"),
         {"comment": "T2 다중 주기 신호 — 거래일 · 종목 · 지표 정의 판마다 한 줄 (목표 기능 ② 설계서 6절)"},
