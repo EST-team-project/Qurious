@@ -457,6 +457,14 @@ function renderMtf(mtf, symbol, pat) {
   const source = mtf.source === "record"
     ? `매일 기록(T2) · ${escHtml(mtf.as_of)} 종가 기준`
     : `기록이 없는 종목이라 그 자리에서 계산 · ${escHtml(mtf.as_of)} 일봉까지`;
+  // P01-④-2 — 사용자 보유 여부에 따른 의견
+  const opinion = mtf.opinion || "";
+  const opRule = mtf.opinion_rule || "";
+  const opCls = opinion === "매수" ? "badge-buy" : opinion === "매도" ? "badge-sell" : "badge-hold";
+  const heldMark = mtf.held ? " · 보유 중" : "";
+  const opBadge = opinion
+    ? `<span class="${opCls}" style="font-size:14px;" title="규칙: ${escHtml(opRule)}">의견: ${escHtml(opinion)}${heldMark}</span>`
+    : "";
   const ex = mtf.explanation || {};
   // 가격 수준은 패턴 응답의 일봉(차트와 같은 날) — 기록 신호와 날짜가 다를 수 있어 날짜를 붙인다
   const levels = pat?.levels?.text ? `<p class="text-sm mt-1">가격 수준(${escHtml(pat.levels.as_of)} 일봉 기준): ${escHtml(pat.levels.text)}</p>` : "";
@@ -465,7 +473,8 @@ function renderMtf(mtf, symbol, pat) {
       <div class="flex flex-wrap items-center gap-3 mb-1">
         <h3 class="font-semibold text-sm">📐 멀티타임프레임 종합 신호 — ${escHtml(symbol)}</h3>
         <span class="${actCls}" style="font-size:14px;">${escHtml(mtf.label)}</span>
-        <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${ptPct(mtf.confidence)}</b> · 방향 일치 ${ptPct(mtf.agreement)}</span>
+        ${opBadge}
+        <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${ptPct(mtf.confidence)}</b>· 방향 일치 ${ptPct(mtf.agreement)}</span>
       </div>
       <p class="text-xs mb-2" style="color:var(--text-mute);">${source}</p>
       ${ex.summary ? `<div class="rounded-lg p-3 mb-3" style="background:var(--surf2);"><p class="text-sm">${escHtml(ex.summary)}</p>${levels}${ex.confidence_text ? `<p class="text-xs mt-1" style="color:var(--text-dim);">${escHtml(ex.confidence_text)}</p>` : ""}${notes ? `<ul class="text-xs mt-1 list-disc ml-5" style="color:var(--text-dim);">${notes}</ul>` : ""}</div>` : levels}
