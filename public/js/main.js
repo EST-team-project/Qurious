@@ -28,6 +28,7 @@ import { onProductsViewActivated } from "/js/products.js";             // 투자
 import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무 · 신용 위험 — 옛 「신용 리스크 분석」 자리 (2026-10-13)
 import { onClusterViewActivated } from "/js/clusters.js";              // 종목 군집화 — 옛 강사님 KMeans 칸 자리 (2026-10-14)
 import { onSeasonalViewActivated } from "/js/seasonal.js";            // 계절성 분석 — 옛 강사님 계절성 칸 자리 (2026-10-14)
+import { initGnbMore } from "/js/gnbmore.js";                         // 위 메뉴 「더보기 N ▾」 · 아바타 메뉴 (2026-10-14 · DF-109)
 
 import { loadDashboard } from "/js/dashboard.js";
 
@@ -53,8 +54,8 @@ async function boot() {
   document.getElementById("user-name").textContent = user.name;
   const avatar = document.getElementById("user-avatar");
   if (avatar) avatar.textContent = (user.name || "U").charAt(0).toUpperCase();
-  // 머리글의 이름 · 아바타를 누르면 마이페이지로
-  document.getElementById("gnb-user")?.addEventListener("click", () => navigate("mypage"));
+  // 위 메뉴 「더보기 N ▾」 · 아바타 메뉴(이름 · 내 정보 · 로그아웃) — DF-109 화면 결정 D84(js/gnbmore.js)
+  initGnbMore();
   try {
     loadMarketTicker();
     loadSyncStatus();
