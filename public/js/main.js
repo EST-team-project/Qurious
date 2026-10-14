@@ -26,6 +26,8 @@ import { onCollectViewActivated } from "/js/collect.js";               // 데이
 import { onDataGuideViewActivated } from "/js/dataguide.js";           // 자료 안내 — 데이터 관제 바로 아래 · 모든 로그인 사용자 (2026-10-08)
 import { onProductsViewActivated } from "/js/products.js";             // 투자 성향별 상품 안내 — 옛 「맞춤 상품 추천」 자리 (2026-10-12)
 import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무 · 신용 위험 — 옛 「신용 리스크 분석」 자리 (2026-10-13)
+import { onClusterViewActivated } from "/js/clusters.js";              // 종목 군집화 — 옛 강사님 KMeans 칸 자리 (2026-10-14)
+import { onSeasonalViewActivated } from "/js/seasonal.js";            // 계절성 분석 — 옛 강사님 계절성 칸 자리 (2026-10-14)
 
 import { loadDashboard } from "/js/dashboard.js";
 
@@ -92,6 +94,8 @@ function onViewActivated(view) {
   onDataGuideViewActivated(view); // 자료 안내 — 화면이 바뀌면 서랍을 닫는다 (js/dataguide.js)
   onProductsViewActivated(view);  // 투자 성향별 상품 안내 (js/products.js)
   onRiskViewActivated(view);      // 재무 · 신용 위험 (js/riskcb.js)
+  onClusterViewActivated(view);   // 종목 군집화 (js/clusters.js)
+  onSeasonalViewActivated(view);  // 계절성 분석 (js/seasonal.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }

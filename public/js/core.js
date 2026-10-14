@@ -280,7 +280,7 @@ const VIEW_GUIDES = {
   "company-sector":  { summary: "산업 섹터별 대표 지표와 흐름을 카드로 확인합니다.", steps: ["섹터 카드를 둘러보며 산업별 상대 강도를 비교하세요."], relatedTerms: ["sector_etf"] },
   "ml-compare":      { summary: "7종 ML 모델의 5-fold 교차검증 정확도를 비교합니다.", steps: ["종목·기간을 선택하고 '모델 비교 실행'을 누르세요.", "정확도 순위표에서 어떤 모델이 이 종목에 가장 잘 맞는지 확인하세요.", "'비교에 추가'로 여러 실행 결과를 모아 볼 수 있습니다."], relatedTerms: ["cross_validation", "lightgbm", "mlp", "stacking"] },
   "ml-regression":   { summary: "선형회귀·Ridge·Lasso·SVR로 향후 수익률을 예측하고 오차를 비교합니다.", steps: ["종목·기간을 선택해 실행하면 모델별 예측값과 RMSE/MAE가 표시됩니다.", "오차가 작을수록 해당 구간에서 예측력이 높았다는 의미입니다."], relatedTerms: ["regression", "ridge_lasso"] },
-  "ml-cluster":      { summary: "수익률·변동성 패턴이 비슷한 종목끼리 KMeans(및 DBSCAN 이상치 탐지)로 군집화합니다.", steps: ["대상 종목을 선택(또는 기본값 사용)하고 '군집화 실행'을 누르세요.", "같은 군집으로 묶인 종목들의 공통 특징을 해석해보세요.", "DBSCAN 결과의 '이상치'는 다른 종목과 패턴이 크게 다른 종목입니다."], relatedTerms: ["kmeans", "dbscan"] },
+  "ml-cluster":      { summary: "지난 기간에 서로 비슷하게 움직인 종목끼리 묶어 봅니다 — 「같이 움직임」(시장 몫을 뺀 수익률 상관) 또는 「위험 · 수익 특성」(수익률 · 변동성 · 시장 민감도 · 최대 낙폭).", steps: ["대상 · 기간 · 묶는 법을 고르세요(묶음 수는 자동이 기본입니다).", "종목 지도에서 가까운 점은 비슷하게 움직인 종목입니다 — 점에 마우스를 올리면 이름이 보입니다.", "묶음 카드의 특징 낱말 · 네 숫자로 묶음을 읽고, 31종목은 「같이 움직인 정도」 탭에서 상관 표를 보세요."], relatedTerms: ["kmeans", "dbscan"] },
   "ml-tune":         { summary: "GridSearchCV로 모델의 하이퍼파라미터를 자동 튜닝합니다.", steps: ["모델(SVM/RF/GB)을 선택하고 '튜닝 실행'을 누르세요.", "최적 파라미터 조합과 교차검증 점수를 확인하세요."], relatedTerms: ["gridsearch", "cross_validation"] },
   "ml-deeplearning": { summary: "시계열 딥러닝(LSTM·Transformer)의 구조와 활용법을 학습하는 참고 자료입니다.", steps: ["아키텍처 다이어그램과 비교표, 코드 예시를 통해 개념을 익히세요.", "이 화면은 학습용 정적 자료로 별도 실행 버튼은 없습니다."], relatedTerms: ["regression"] },
   "macro-dashboard": { summary: "금리·유가·환율 등 주요 거시경제 지표를 확인합니다.", steps: ["지표 카드에서 최신 값과 변동을 확인하세요.", "하단 프레임워크 카드로 거시경제 분석 방법을 함께 학습하세요."], relatedTerms: ["macro_indicator", "vix", "dxy"] },
@@ -289,7 +289,7 @@ const VIEW_GUIDES = {
   "invest-technical": { summary: "캔들 패턴·엘리어트파동·되돌림 등 기술적 분석 개념을 학습하는 참고 자료입니다.", steps: ["패턴별 설명과 예시를 보며 실제 차트에 적용해보세요.", "이 화면은 학습용 정적 자료로 별도 실행 버튼은 없습니다."], relatedTerms: ["golden_cross", "dead_cross"] },
   "fin-products":    { summary: "주식/ETF·채권·파생상품의 개요와 운용 전략을 학습합니다.", steps: ["카드별 설명을 읽으며 상품 유형별 특징과 리스크를 비교해보세요."], relatedTerms: [] },
   "fin-allocation":  { summary: "MVO·블랙-리터만·리스크패리티 등 자산배분 모델의 이론을 학습합니다.", steps: ["각 모델의 수식과 설명을 통해 '로보 어드바이저 > 자산배분' 결과의 원리를 이해하세요."], relatedTerms: ["mvo", "black_litterman", "risk_parity"] },
-  "quant-seasonal":  { summary: "월별·요일별·연말 계절성 효과를 데이터로 검증합니다.", steps: ["종목·기간을 선택해 '분석 실행'을 누르세요.", "월별/요일별 막대그래프와 연말 랠리 효과를 확인하세요."], relatedTerms: ["seasonality"] },
+  "quant-seasonal":  { summary: "달 · 요일 · 연말에 값이 어떻게 움직였는지 지난 기록으로 봅니다 — 코스피 · 코스닥(1995 · 2003 ~) 또는 종목, 끝난 달만 셉니다.", steps: ["대상(코스피 · 코스닥 · 종목)과 값(배당 포함 · 가격만)을 고르세요 — 시장 지수는 가격 지수뿐이라 배당이 빠집니다.", "달마다 평균 막대보다 「해마다 표」 의 흩어짐과 맨 아래 「판정」 줄을 먼저 보세요 — 평균이 높아도 내린 해가 많습니다.", "「한 해 흐름」 탭에서 올해가 지난 해들과 어떻게 다른지, 아래 카드에서 요일 · 산타 랠리 · 반년 비교를 보세요."], relatedTerms: ["seasonality"] },
   // 금융 강의 (2026-10-01) — js/finlearn.js
   "fin-lectures":    { summary: "4일 과정과 교재 단원 가운데 읽을 강의를 고릅니다. 표시한 이해도가 카드에 쌓입니다.", steps: ["카드를 누르면 그 주제의 강의 화면으로 갑니다.", "강의 절마다 이해도(0~5)를 눌러 두면 다음에 「이어 읽기」 로 돌아옵니다.", "「퀀트 · AI 실습 모음」 에서 배운 개념을 분석 화면으로 바로 돌려 봅니다."], relatedTerms: [] },
   "fin-topic-futures":    { summary: "선물 · 옵션의 구조와 증거금 · 만기 · 헤지를 강의와 계산기로 익힙니다.", steps: ["위의 「이 강의에서 답하는 질문」 부터 훑어보세요.", "본문의 밑줄 친 용어를 누르면 풀이가 열립니다."], relatedTerms: [] },

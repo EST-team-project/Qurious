@@ -221,12 +221,12 @@ news_item	revision	고친 횟수	개	처음 올라온 판이 1
 news_item	fetched_at	처음 받은 시각	시각	다시 받아도 바뀌지 않는다
 news_item	updated_at	바뀐 판을 받은 시각	시각	내용이 바뀐 판을 마지막으로 받은 시각
 news_item	raw_sha256	원문 지문	지문	이 판이 나온 받은 원문을 가리키는 값
-ecos_series	stat_code	통계표 코드	코드	ECOS 통계표 — 817Y002 시장금리(일별)
-ecos_series	item_code	항목 코드	코드	010200000 국고채 3년 · 010300000 회사채 3년 AA- · 010320000 회사채 3년 BBB- · 010502000 CD 91일 · 010503000 CP 91일
+ecos_series	stat_code	통계표 코드	코드	ECOS 통계표 — 817Y002 시장금리(일별) · 802Y001 주식시장(일별)
+ecos_series	item_code	항목 코드	코드	010200000 국고채 3년 · 010300000 회사채 3년 AA- · 010320000 회사채 3년 BBB- · 010502000 CD 91일 · 010503000 CP 91일 · 0001000 코스피 · 0089000 코스닥
 ecos_series	cycle	주기	코드	D 일별
-ecos_series	date	날짜	날짜	금리의 날짜 — 휴장일에는 줄이 없다
-ecos_series	value	금리	%	연 % — 출처가 빈칸으로 주면 비어 있다
-ecos_series	unit	단위	글	출처가 준 단위(연%)
+ecos_series	date	날짜	날짜	값의 날짜 — 휴장일에는 줄이 없다
+ecos_series	value	값	숫자	금리는 연 % · 지수는 포인트(코스피 1980-01-04 = 100 · 코스닥 1996-07-01 = 1,000) — 항목 코드로 가른다 · 출처가 빈칸으로 주면 비어 있다
+ecos_series	unit	단위	글	출처가 준 단위(금리는 연% · 지수는 기준 시점 = 100 꼴의 글)
 ecos_series	item_name	항목 이름	이름	출처의 한국어 항목 이름
 ecos_series	fetched_at	처음 받은 시각	시각	다시 받아도 바뀌지 않는다
 ecos_series	updated_at	바뀐 값을 받은 시각	시각	값이 바뀐 판을 마지막으로 받은 시각

@@ -80,7 +80,8 @@ document.getElementById("mlk-run-btn")?.addEventListener("click", async () => {
   document.getElementById("mlk-loading").classList.remove("hidden");
   document.getElementById("mlk-result").classList.add("hidden");
   try {
-    const data = await api("/api/ml/cluster", { method: "POST", body: JSON.stringify({}) });
+    // api() 가 본문을 JSON 으로 바꾼다 — 문자열을 넘기면 두 번 바뀌어 늘 422 였다(DF-108 · 2026-10-14). 이 칸은 js/clusters.js 가 대신한다.
+    const data = await api("/api/ml/cluster", { method: "POST", body: {} });
     const colors = ["#6366f1","#22d3ee","#f59e0b","#10b981","#ef4444"];
     const badges = document.getElementById("mlk-cluster-badges");
     badges.innerHTML = data.summary.map(s => `

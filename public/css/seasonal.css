@@ -1,0 +1,87 @@
+/* 계절성 분석 (2026-10-14 · js/seasonal.js) — Figma 「Qurious · 계절성 분석 · 종목 군집화」 03-1 · 사용자 결정 「A + B + C 탭」.
+ * 이름은 se- 로 시작 — 다른 화면 · 강사님 공통 CSS 와 겹치지 않게. 색은 app.css 의 토큰(--bg · --border · --text · --text-mute · --accent).
+ */
+.se-root { display: flex; flex-direction: column; gap: 16px; color: var(--text); }
+.se-head h2 { font-size: 22px; font-weight: 700; margin: 0; }
+.se-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-mute); }
+.se-bar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.se-lbl { font-size: 12px; color: var(--text-mute); }
+.se-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.se-seg button { padding: 6px 12px; font-size: 13px; color: var(--text-mute); background: var(--bg); border: 0; cursor: pointer; }
+.se-seg button + button { border-left: 1px solid var(--border); }
+.se-seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.se-find { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.se-search { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; min-width: 200px; background: var(--bg); color: var(--text); }
+.se-suggest { position: absolute; top: 100%; left: 0; z-index: 30; margin: 4px 0 0; padding: 4px 0; list-style: none; min-width: 240px;
+  background: var(--card, var(--bg)); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
+.se-suggest li { padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.se-suggest li[data-code]:hover, .se-suggest li[data-code]:focus { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.se-muted { color: var(--text-mute); }
+.se-picked { font-size: 13px; font-weight: 600; }
+.se-picked small { font-weight: 400; color: var(--text-mute); }
+.se-kpi { display: flex; flex-wrap: wrap; gap: 12px 28px; }
+.se-kpi div { display: flex; flex-direction: column; font-size: 12px; color: var(--text-mute); }
+.se-kpi b { font-size: 20px; color: var(--text); }
+.se-kpi-sm { gap: 8px 20px; margin: 8px 0; }
+.se-kpi-sm b { font-size: 17px; }
+.se-card { background: var(--card, var(--bg)); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+.se-card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.se-state { font-size: 14px; }
+.se-admin { margin-top: 8px; font-size: 12px; color: var(--text-mute); font-family: ui-monospace, monospace; white-space: pre-wrap; }
+.se-busy { font-size: 13px; color: var(--accent); }
+.se-note { font-size: 12px; color: var(--text-mute); margin: 4px 0; }
+.se-notice { color: var(--accent); }
+.se-bars { min-height: 240px; }
+.se-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.se-tabs button { padding: 8px 14px; border: 0; background: none; font-size: 14px; color: var(--text-mute); cursor: pointer; border-bottom: 2px solid transparent; }
+.se-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+/* 해마다 표 — 머리 줄 · 맨 아래 세 줄(평균 · 오른 해 · 판정)은 표를 내려도 늘 보이게 */
+.se-tbl-wrap { max-height: 560px; overflow: auto; max-width: 100%; }
+.se-tbl { border-collapse: separate; border-spacing: 2px; font-size: 11px; width: 100%; min-width: 620px; font-variant-numeric: tabular-nums; }
+.se-tbl td { text-align: center; padding: 3px 0; border-radius: 3px; }
+.se-tbl th { font-size: 11px; font-weight: 500; color: var(--text-mute); padding: 2px 4px; background: var(--card, var(--bg)); }
+.se-tbl tbody th { text-align: right; }
+/* 줄마다 bottom 값을 주면 줄 높이가 글에 따라 달라 겹친다(2026-10-14 실측 31 · 30 · 22px) — thead · tfoot 덩어리째 고정 */
+.se-tbl thead { position: sticky; top: 0; z-index: 2; }
+.se-tbl tfoot { position: sticky; bottom: 0; z-index: 2; }
+.se-tbl tfoot th, .se-tbl tfoot td { background: var(--card, var(--bg)); font-weight: 700; }
+/* 칸 사이 2px 틈(border-spacing)으로 아래로 지나가는 칸 색이 비치지 않게 같은 바탕으로 덮는다 */
+.se-tbl thead th, .se-tbl tfoot th, .se-tbl tfoot td { box-shadow: 0 0 0 2px var(--card, var(--bg)); }
+.se-tbl tfoot tr:first-child th, .se-tbl tfoot tr:first-child td { border-top: 1px solid var(--border); }
+.se-tbl tfoot th { text-align: right; }
+.se-judge td { font-size: 10px; font-weight: 500; color: var(--text-mute); white-space: nowrap; }
+.se-judge td.on { color: var(--accent); font-weight: 700; }
+.se-line { min-height: 300px; }
+.se-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.se-wk { display: grid; grid-template-columns: 24px minmax(0, 1fr) 64px; gap: 8px; align-items: center; font-size: 12px; margin: 6px 0; }
+.se-track { height: 10px; background: var(--border); border-radius: 5px; position: relative; }
+.se-track i { position: absolute; top: 0; bottom: 0; border-radius: 5px; }
+.se-track b { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--text-mute); }
+.se-num { text-align: right; font-variant-numeric: tabular-nums; }
+.se-santa { display: flex; gap: 2px; align-items: flex-end; height: 64px; margin-top: 4px; }
+.se-santa i { flex: 1; min-width: 2px; opacity: .8; border-radius: 2px 2px 0 0; }
+.se-cmp + .se-cmp { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.se-cmp h4 { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+.se-cmp-nums { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.se-cmp-nums div { display: flex; flex-direction: column; font-size: 11px; color: var(--text-mute); }
+.se-cmp-nums b { font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; }
+.se-badge { display: inline-block; margin: 6px 0 0; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--border); color: var(--text-mute); }
+.se-badge.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-weight: 600; }
+.se-say { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+.se-say li { margin: 2px 0; }
+.se-defs summary { cursor: pointer; font-size: 13px; color: var(--text-mute); }
+.se-defs dl { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 6px 12px; font-size: 13px; margin: 8px 0 0; }
+.se-defs dt { color: var(--text-mute); }
+.se-defs dd { margin: 0; line-height: 1.6; }
+.se-where { color: var(--accent); white-space: nowrap; }
+.se-tip { padding: 6px 8px; font-size: 12px; line-height: 1.5; }
+@media (max-width: 900px) {
+  .se-trio { grid-template-columns: minmax(0, 1fr); }
+  .se-defs dl { grid-template-columns: minmax(0, 1fr); }
+  .se-defs dd { margin-bottom: 6px; }
+}
+@media (max-width: 480px) {
+  .se-kpi b { font-size: 17px; }
+  .se-search { min-width: 0; width: 100%; }
+  .se-find { width: 100%; }
+}
