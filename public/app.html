@@ -129,7 +129,7 @@
             </div>
             <section class="card overview-section mb-4" aria-labelledby="overview-kis-title" style="margin-bottom:16px;">
               <div class="flex items-center justify-between gap-4 flex-wrap">
-                <div class="overview-section-heading" style="margin:0;"><i class="fa-solid fa-play"></i><div><h2 id="overview-kis-title">KIS 모의투자</h2><p class="overview-note">AI 추천 종목 · 10분마다 자동매매 · 내 KIS 모의투자 키로 주문합니다(키는 「증권사 API 설정」 에서 넣습니다).</p></div></div>
+                <div class="overview-section-heading" style="margin:0;"><i class="fa-solid fa-play"></i><div><h2 id="overview-kis-title">KIS 모의투자</h2><p class="overview-note">모델·지표 선정 종목 · 10분마다 자동매매 · 내 KIS 모의투자 키로 주문합니다(키는 「증권사 API 설정」 에서 넣습니다).</p></div></div>
                 <div class="flex items-center gap-2">
                   <button id="overview-kis-start" type="button" class="btn-green" disabled><i class="fa-solid fa-play"></i> KIS 모의투자 시작</button>
                   <a class="btn-secondary text-xs" href="#settings">증권사 API 설정으로</a>
@@ -542,7 +542,7 @@
               <div class="flex items-center justify-between mb-4">
                 <div>
                   <h2 class="text-lg font-semibold">🤖 10분 자동매매 (Agentic AI)</h2>
-                  <p class="text-xs text-slate-400 mt-1">AI가 10분마다 5개 종목을 분석하여 자동으로 가상 매매합니다.</p>
+                  <p class="text-xs text-slate-400 mt-1">설정한 주기와 대상 종목을 기준으로 신호를 계산합니다. 가상 장부와 증권사 주문의 체결 결과는 다를 수 있습니다.</p>
                 </div>
                 <div id="auto-trade-status" class="text-sm text-slate-400"></div>
               </div>
@@ -564,6 +564,9 @@
                 </div>
                 <div id="risk-kpis" class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs"></div>
                 <div id="risk-note" class="text-xs mt-2" style="color:var(--text-mute);"></div>
+                <p class="text-xs mt-2">일손실 한도는 주문 루프를 중단합니다. 손절 매도에도 일 주문 수 한도와 쿨다운이 적용됩니다. 비상 정지는 보유 종목 자동 청산이 아니며, 하한가·거래정지·VI 등으로 주문이 체결되지 않을 수 있습니다.</p>
+                <p id="risk-execution-detail" class="text-xs mt-2"></p>
+                <details class="text-xs mt-2"><summary>공격 모드 비용 반영 손익비 예시</summary><div id="risk-cost-example" class="mt-2 space-y-1"></div></details>
               </div>
               <div id="auto-trade-log" class="space-y-2 text-xs max-h-[400px] overflow-y-auto"></div>
             </div>
@@ -664,7 +667,7 @@
                   <div>
                     <label class="text-sm text-slate-400 block mb-1">종목 선택 방식</label>
                     <select id="quant-symbol-source" class="input">
-                      <option value="ai">AI 추천 종목</option>
+                      <option value="ai">모델·지표 선정 종목</option>
                       <option value="manual">직접 종목 선택</option>
                     </select>
                   </div>
@@ -729,7 +732,7 @@
                 </div>
                 <div class="grid md:grid-cols-2 gap-3">
                   <div>
-                    <label class="text-xs text-slate-400 block mb-1">AI 추천 종목 수 (1~5)</label>
+                    <label class="text-xs text-slate-400 block mb-1">모델·지표 선정 종목 수 (1~5)</label>
                     <input id="quant-ai-top-n" type="number" min="1" max="5" class="input" value="3" />
                   </div>
                   <div>
@@ -772,6 +775,24 @@
                   <p class="text-xs mt-2" style="color:var(--text-mute);">0을 입력하면 해당 규칙을 사용하지 않습니다. 쿨다운은 Redis 키(SET NX
                     EX)로 같은 종목·방향 재주문을 막습니다.</p>
                 </div>
+                <details class="rounded-xl p-3 text-sm" style="border:1px solid var(--border);">
+                  <summary>선택 기능: 위험 기준 수량 · 취소 확정 매도 재주문</summary>
+                  <div class="grid md:grid-cols-2 gap-3 mt-3">
+                    <label>매수 수량 방식<select id="quant-size-kind" class="input mt-1"><option value="fixed_budget">기존 고정 예산</option><option value="risk_pct">비용 포함 위험 금액 기준</option></select></label>
+                    <label>1회 예상 손실 예산 (% · 자동매매 가상 자산)<input id="quant-risk-pct" type="number" min="0.01" max="5" step="0.1" value="1" class="input mt-1" /></label>
+                    <label>손절 거리 (% · 매입 기준)<input id="quant-stop-pct" type="number" min="0.01" max="50" step="0.1" value="1" class="input mt-1" /></label>
+                    <label>편도 슬리피지 가정 (bp)<input id="quant-risk-slip" type="number" min="0" max="100" value="10" class="input mt-1" /></label>
+                  </div>
+                  <p class="text-xs mt-2">위험 기준은 첫 진입만 지원하며 보유 종목을 추가 매수하지 않습니다. 비용·현금·1회 예산·종목 비중 상한을 함께 적용하고 1주도 안 되면 매수하지 않습니다. 이 모드에서는 설정한 손절 거리를 서버 주기마다 확인합니다. 갭·미체결로 실제 손실이 예상 예산을 넘을 수 있습니다.</p>
+                  <label class="flex gap-2 mt-3"><input id="quant-retry-enabled" type="checkbox" /> 취소 확정된 모의 지정가 매도 잔량 재주문 켜기 (기본 꺼짐)</label>
+                  <div class="grid md:grid-cols-3 gap-3 mt-2">
+                    <label>최대 재주문 횟수<input id="quant-retry-attempts" type="number" min="1" max="3" value="1" class="input mt-1" /></label>
+                    <label>원 주문부터 시간 제한 (분)<input id="quant-retry-window" type="number" min="1" max="120" value="15" class="input mt-1" /></label>
+                    <label>가격 변동 허용 (%)<input id="quant-retry-deviation" type="number" min="0.1" max="5" step="0.1" value="1" class="input mt-1" /></label>
+                  </div>
+                  <p class="text-xs mt-2">시장가·매수·실전 주문·취소 요청 중·접수 불명 주문은 대상이 아닙니다. 잔고·열린 주문·일손실·주문 수·쿨다운을 재확인합니다. 기존 쿨다운이 시간 제한보다 길면 재주문하지 않습니다. 재주문을 켜도 미체결 자동 취소 설정을 바꾸지 않습니다.</p>
+                  <p id="quant-execution-capabilities" class="text-xs mt-2"></p>
+                </details>
                 <div class="flex gap-2">
                   <button id="broker-save" class="btn-primary">저장 / 연결</button>
                   <button id="broker-test" class="btn-secondary">연결 테스트</button>
@@ -1413,7 +1434,7 @@
               </div>
               <div class="card">
                 <h2 class="text-lg font-semibold mb-1">📊 자산배분 모델 & 포트폴리오 최적화</h2>
-                <p class="text-xs mb-4" style="color:var(--text-mute);">투자 성향과 기간에 따라 AI가 최적 자산배분 비율을 계산합니다</p>
+                <p class="text-xs mb-4" style="color:var(--text-mute);">성향·기간 규칙으로 자산군 비중을 정하고, 지표·모델 분석으로 국내주식 종목 비중을 계산합니다</p>
                 <div class="grid md:grid-cols-3 gap-4 mb-4">
                   <div>
                     <label class="text-xs font-semibold" style="color:var(--text-dim);">투자 성향</label>
@@ -1457,9 +1478,9 @@
                     <div id="robo-alloc-legend" class="flex flex-wrap gap-3 mt-2 text-xs"></div>
                   </div>
                 </div>
-                <!-- AI 추천 종목 -->
+                <!-- 모델·지표 선정 종목 -->
                 <div class="card">
-                  <h3 class="font-semibold mb-3 text-sm">🤖 국내주식 추천 종목 포트폴리오</h3>
+                  <h3 class="font-semibold mb-3 text-sm">🤖 국내주식 분석 결과 포트폴리오</h3>
                   <p class="text-xs mb-2" style="color:var(--text-mute);">국내주식 비중만 종목으로 나눕니다. 해외주식·채권·대체자산의 매수 종목은 아직 제공하지 않습니다.</p>
                   <div id="robo-stock-picks" class="grid md:grid-cols-3 gap-3"></div>
                 </div>

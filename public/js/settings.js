@@ -18,6 +18,16 @@ async function loadSettings() {
     document.getElementById("quant-per-trade-budget").value = cfg.per_trade_budget || 1000000;
     document.getElementById("quant-buy-ratio").value = Math.round((cfg.buy_ratio ?? 1) * 100);
     document.getElementById("quant-sell-ratio").value = Math.round((cfg.sell_ratio ?? 0.5) * 100);
+    const ep = cfg.execution_policy || {};
+    document.getElementById("quant-size-kind").value = ep.size_kind || "fixed_budget";
+    document.getElementById("quant-risk-pct").value = ep.risk_pct ?? 1;
+    document.getElementById("quant-stop-pct").value = ep.stop_loss_pct ?? 1;
+    document.getElementById("quant-risk-slip").value = ep.slippage_bps ?? 10;
+    document.getElementById("quant-retry-enabled").checked = !!ep.retry_enabled;
+    document.getElementById("quant-retry-attempts").value = ep.retry_max_attempts ?? 1;
+    document.getElementById("quant-retry-window").value = ep.retry_window_min ?? 15;
+    document.getElementById("quant-retry-deviation").value = ep.retry_price_deviation_pct ?? 1;
+    document.getElementById("quant-execution-capabilities").textContent = [cfg.execution_capabilities?.retry_note, cfg.execution_capabilities?.stop_note].filter(Boolean).join(" ");
     const rk = cfg.risk || {};
     document.getElementById("risk-daily-loss").value   = rk.daily_loss_limit_pct ?? 3;
     document.getElementById("risk-max-position").value = rk.max_position_pct ?? 30;
@@ -206,6 +216,16 @@ document.getElementById("broker-save")?.addEventListener("click", async () => {
         per_trade_budget: Number(document.getElementById("quant-per-trade-budget").value || 1000000),
         buy_ratio:  buyRatio,
         sell_ratio: sellRatio,
+        execution_policy: {
+          size_kind: document.getElementById("quant-size-kind").value,
+          risk_pct: Number(document.getElementById("quant-risk-pct").value),
+          stop_loss_pct: Number(document.getElementById("quant-stop-pct").value),
+          slippage_bps: Number(document.getElementById("quant-risk-slip").value),
+          retry_enabled: document.getElementById("quant-retry-enabled").checked,
+          retry_max_attempts: Number(document.getElementById("quant-retry-attempts").value),
+          retry_window_min: Number(document.getElementById("quant-retry-window").value),
+          retry_price_deviation_pct: Number(document.getElementById("quant-retry-deviation").value),
+        },
         strategy_id: document.getElementById("quant-strategy")?.value || "",
         strategy_version: Number(document.getElementById("quant-strategy")?.selectedOptions?.[0]?.dataset?.version || 0),
         broker:     document.getElementById("broker-type").value,

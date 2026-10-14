@@ -214,6 +214,8 @@ async def _call(method: str, path: str, *, json: dict | None = None, params: dic
 def build_intent(symbol: str, side: str, quantity: int, price: float, *, client_order_id: str,
                  order_type: str | None = None, env: str | None = None) -> dict[str, Any]:
     ot = (order_type or default_order_type()).upper()
+    if ot not in ("LIMIT", "MARKET"):
+        raise GatewayError("현재 게이트웨이는 지정가·시장가만 지원합니다. 감시/스탑 주문은 연결하지 않았습니다.", "UNSUPPORTED_ORDER_TYPE", 422)
     side_u = normalize_side(side)
     if int(quantity) < 1:
         raise GatewayError("quantity는 1 이상이어야 합니다.", "INVALID_QUANTITY", 400)
