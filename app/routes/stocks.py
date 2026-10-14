@@ -873,22 +873,55 @@ async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("
 
 
 @router.get("/stocks/mtf-signal")
-async def stock_mtf_signal(symbol: str = Query("005930.KS"), db: AsyncSession = Depends(get_pg_session),
-                           _user=Depends(get_current_user)):
+async def stock_mtf_signal(symbol: str = Query("005930.KS"),
+                           db: AsyncSession = Depends(get_pg_session),
+                           user=Depends(get_current_user)):
     """분봉(60m)·일봉·주봉 지표를 종합한 매수·매도·관망 신호와 신뢰도.
 
     매일 기록(T2)이 있으면 그 줄을(기록 날짜 `as_of` 와 함께), 없으면 그 자리에서 계산한다 — 둘 다 같은 설명.
+    응답에 사용자별 의견(opinion · opinion_rule)을 실어 준다 (P01-④-2).
     """
-    from app.services import pattern_view, signal_explain
+    from sqlalchemy import select
+    from app.models import Portfolio, PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT
+    from app.services import opinion as opinion_svc, pattern_view, signal_explain
     from app.services.patterns import multi_timeframe_signal
+
     try:
         snapshot = await signal_explain.load_snapshot(db, symbol)
     except Exception:
-        snapshot = None   # 앱 DB 에 T2 가 없어도 화면은 그 자리 계산으로 돈다
-    if snapshot is not None:
-        return {"symbol": symbol, **pattern_view.from_record(snapshot)}
-    return {"symbol": symbol, **pattern_view.from_live(symbol, await multi_timeframe_signal(symbol))}
+        snapshot = None
 
+    if snapshot is not None:
+        payload = pattern_view.from_record(snapshot)
+        t2_signal = snapshot.get("signal")
+        t2_confidence = float(snapshot.get("confidence") or 0.0)
+    else:
+        live = await multi_timeframe_signal(symbol)
+        payload = pattern_view.from_live(symbol, live)
+        t2_signal = payload.get("signal") or live.get("action")
+        t2_confidence = float(payload.get("confidence") or 0.0)
+
+    # 사용자 보유 여부 — 정규화 심볼 (005930.KS → 005930)
+    uid = _uid(user["id"])
+    norm = symbol.replace(".KS", "").replace(".KQ", "").upper()
+    held = False
+    if uid:
+        q = select(Portfolio).where(
+            Portfolio.user_id == uid,
+            Portfolio.symbol == symbol,   # 장부는 .KS 포함 저장 (확인 필요)
+            Portfolio.book.in_([PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT]),
+        )
+        rows = (await db.execute(q)).scalars().all()
+        held = any((r.quantity or 0) > 0 for r in rows)
+
+    op, op_rule = opinion_svc.decide(t2_signal, t2_confidence, held=held)
+    return {
+        "symbol": symbol,
+        **payload,
+        "opinion": op,
+        "opinion_rule": op_rule,
+        "held": held,
+    }
 
 # ── 자동매매 제어 ─────────────────────────────────────────────────────
 
