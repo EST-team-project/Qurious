@@ -665,6 +665,19 @@ async function _loadRationaleExplain(symbol, node) {
       lines.push(`<div style="color:var(--text-mute);margin-top:4px;">${meta.join(" · ")}</div>`);
     }
     node.innerHTML = lines.join("") || `<span style="color:var(--text-mute);">설명이 비어 있습니다.</span>`;
+
+    // ★ 헤더 배지를 T2 신호로 통일 (자동매매 신호와 다를 수 있음)
+    if (r && r.signal) {
+      const t2Cls = r.signal === "매수" ? "badge-buy" : r.signal === "매도" ? "badge-sell" : "badge-hold";
+      const card = node.closest(".card");
+      if (card) {
+        const badge = card.querySelector(".badge-buy, .badge-sell, .badge-hold");
+        if (badge) {
+          badge.className = t2Cls;
+          badge.textContent = r.signal;
+        }
+      }
+    }
   } catch (e) {
     const msg = String((e && e.message) || "");
     const isNotFound =
