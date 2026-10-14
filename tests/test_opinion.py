@@ -1,6 +1,22 @@
 """P01-④-2 — 의견 변환 진리표 (TC-OP)."""
-from app.services.opinion import BUY, SELL, HOLD, SKIP, CONFIDENCE_MIN, decide
+import os
+import uuid
+from datetime import date, datetime, timezone
 
+import pytest
+
+from app.models import PORTFOLIO_BOOK_PAPER, Base, Portfolio, User
+from app.models.signal import SignalSnapshot
+from app.services.opinion import BUY, SELL, HOLD, SKIP, CONFIDENCE_MIN, decide
+from app.services.ta_utils import DEFINITION
+
+DB_URL = os.environ.get("QURIOUS_TEST_DATABASE_URL", "")
+needs_db = pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음")
+
+TABLES = [User.__table__, Portfolio.__table__, SignalSnapshot.__table__]
+
+
+# ── 진리표 (순수 함수) ──────────────────────────────────────────
 
 def test_buy_when_not_held_and_buy_signal_with_conf():
     assert decide("매수", CONFIDENCE_MIN, held=False) == (BUY, "buy_new")
@@ -37,3 +53,85 @@ def test_risk_gate_forces_sell_when_held():
 def test_risk_gate_no_effect_when_not_held():
     assert decide("매수", 0.9, held=False, risk_gate=True) == (BUY, "buy_new")
     assert decide("관망", 0.5, held=False, risk_gate=True) == (SKIP, "skip_neutral")
+
+
+# ── API 라우트 (T2 + 보유 여부 → opinion) — 라우트 함수 직접 호출 ────
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.fixture
+async def db():
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    engine = create_async_engine(DB_URL)
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda c: Base.metadata.drop_all(c, tables=TABLES))
+        await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=TABLES))
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        uid = uuid.uuid4()
+        session.add(User(id=uid, name="op", email=f"{uid.hex}@t.local",
+                         password_hash="x", client_id=uid.hex))
+        await session.commit()
+        yield session, uid
+    await engine.dispose()
+
+
+def _t2(symbol, signal, confidence):
+    return SignalSnapshot(
+        as_of=date(2026, 10, 14), symbol=symbol, definition=DEFINITION,
+        signal=signal, strength="보통", confidence=confidence,
+        composite=2.0, agreement=0.5,
+        timeframes=[], reasons=[], computed_at=datetime.now(timezone.utc),
+    )
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_mtf_signal_opinion_buy_new_when_not_held(db):
+    from app.routes.stocks import stock_mtf_signal
+
+    session, uid = db
+    session.add(_t2("035420", "매수", 0.7))
+    await session.commit()
+
+    j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
+    assert j["held"] is False
+    assert j["opinion"] == "매수"
+    assert j["opinion_rule"] == "buy_new"
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_mtf_signal_opinion_sell_held_when_held(db):
+    from app.routes.stocks import stock_mtf_signal
+
+    session, uid = db
+    session.add(_t2("035420", "매도", 0.7))
+    session.add(Portfolio(user_id=uid, symbol="035420.KS",
+                          book=PORTFOLIO_BOOK_PAPER, name="NAVER",
+                          quantity=5, avg_price=100000))
+    await session.commit()
+
+    j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
+    assert j["held"] is True
+    assert j["opinion"] == "매도"
+    assert j["opinion_rule"] == "sell_held"
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_mtf_signal_opinion_skip_neutral_when_not_held_sell(db):
+    from app.routes.stocks import stock_mtf_signal
+
+    session, uid = db
+    session.add(_t2("035420", "매도", 0.7))
+    await session.commit()
+
+    j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
+    assert j["held"] is False
+    assert j["opinion"] == "관망"
+    assert j["opinion_rule"] == "skip_neutral"
