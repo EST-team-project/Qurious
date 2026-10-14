@@ -294,7 +294,9 @@ def apply_stops(close: pd.Series, held: pd.Series, stop_loss_pct: float | None =
 
 def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, slippage_bps: float = 0.0,
              stop_loss_pct: float | None = None, take_profit_pct: float | None = None,
-             cost: Any | None = None) -> dict:
+             cost: Any | None = None,
+             entry_mode: str = "close",
+             exit_mode: str = "close") -> dict:
     """
     벡터화 백테스트: 롱 전략 (signal=+1 보유, 그 외 현금).
 
@@ -308,7 +310,17 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     인자 순서: 강사님 원본의 위치 인자 호출(`formula.py`)이 그대로 돌도록 cost 를 맨 뒤 키워드로 둔다.
 
     Returns: 수익률, 샤프지수, MDD, 승률, 누적수익 시계열, 비용 내역
+
+    entry_mode / exit_mode : 체결 시점 — "close"(그날 종가 · 기본) | "open"(다음 봉 시가 · TradingView 기본)
+    - "close": 신호가 난 날 그 종가에 체결 (지금 동작 · 1차 Alpha_Stack 은 "종가 매수 가정"을 금지)
+    - "open" : 신호가 난 다음 봉 시가에 체결
     """
+
+    if entry_mode not in ("close", "open"):
+        raise ValueError(f"entry_mode 는 close | open 만: {entry_mode}")
+    if exit_mode not in ("close", "open"):
+        raise ValueError(f"exit_mode 는 close | open 만: {exit_mode}")
+
     ret = df["close"].pct_change().fillna(0)
     # 전날 시그널로 오늘 포지션 (룩어헤드 방지)
     pos = signals.shift(1).fillna(0).reindex(ret.index, fill_value=0)
@@ -321,8 +333,33 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     if cost is None and (commission_bps or slippage_bps):
         cost = tcost.FlatCostModel(cost_bps=commission_bps, slippage_bps=slippage_bps)
 
-    gross_ret = ret * held          # 비용 이전 (얼마나 깎였는지 보이려고 남긴다)
+    # ── 체결 시점 반영 (entry_mode · exit_mode) ──────────────────
+    if entry_mode == "close" and exit_mode == "close":
+        gross_ret = ret * held
+    else:
+        close = df["close"].astype(float)
+        open_ = df["open"].astype(float)
+        day_ret = (close / open_ - 1)                      # 시가 → 종가
+        gap_ret = (open_ / close.shift(1) - 1)             # 전일 종가 → 시가
+
+        entry_days = (held == 1) & (held.shift(1, fill_value=0) == 0)   # 0→1 진입일
+        normal_held = (held == 1) & ~entry_days                         # 보유 중 (진입일 제외)
+        exit_days = (held == 0) & (held.shift(1, fill_value=0) == 1)    # 1→0 청산일
+
+        gross_ret = pd.Series(0.0, index=ret.index)
+        # 진입일
+        if entry_mode == "open":
+            gross_ret[entry_days] = day_ret[entry_days]
+        else:
+            gross_ret[entry_days] = ret[entry_days]
+        # 보통 보유일
+        gross_ret[normal_held] = ret[normal_held]
+        # 청산일
+        if exit_mode == "open":
+            gross_ret[exit_days] = gap_ret[exit_days]
+        # exit_mode == "close" 면 청산일은 0    
     strat_ret = gross_ret
+
     bh_ret    = ret
     cost_series = pd.Series(0.0, index=ret.index)
 
@@ -411,6 +448,8 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
         "take_avg_actual_pct":  take_avg_actual,
         "realized_rr":          realized_rr,
         "expectancy":           expectancy,
+        "entry_mode":           entry_mode,
+        "exit_mode":            exit_mode,
     }
 
 
@@ -565,6 +604,8 @@ def backtest_custom_indicator(
     stop_loss_pct: float | None = None,
     take_profit_pct: float | None = None,
     cost: Any | None = None,
+    entry_mode: str = "close",
+    exit_mode: str = "close",
 ) -> dict:
     """사용자 지정 인디케이터 전략 백테스트 (수수료·슬리피지·손절·익절 반영 가능).
 
@@ -613,10 +654,12 @@ def backtest_custom_indicator(
     regime.loc[sell_cond] = 0.0
     position = regime.ffill().fillna(0.0).rename("ml_signal")
 
-    bt = backtest(df, position, commission_bps, slippage_bps, stop_loss_pct, take_profit_pct, cost=cost)
+    bt = backtest(df, position, commission_bps, slippage_bps, stop_loss_pct, take_profit_pct, cost=cost,
+                  entry_mode=entry_mode, exit_mode=exit_mode)
     return {
         "costs": {k: bt[k] for k in ("gross_return_pct", "cost_pct", "commission_bps", "slippage_bps",
-                                     "stop_loss_pct", "take_profit_pct", "stop_loss_exits", "take_profit_exits")},
+                                     "stop_loss_pct", "take_profit_pct", "stop_loss_exits", "take_profit_exits",
+                                     "entry_mode", "exit_mode")},
         "strategy": {
             "name": f"custom_{base}",
             "base": base,
