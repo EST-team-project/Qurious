@@ -57,11 +57,9 @@ def _fss(kind: str, page: dict | None) -> dict:
 
 
 def _allocation_keys() -> set[str]:
-    """배분 API(오준영 님 몫 · app/routes/ml.py)의 응답 칸 — 함수 본문의 마지막 return 사전에서 읽는다(부르지 않는다: 종목을 훑어 무겁다)."""
-    src = (ROOT / "app" / "routes" / "ml.py").read_text(encoding="utf-8")
-    body = src[src.index('@router.post("/robo/allocation")'):]
-    m = re.search(r"^    return \{(.*?)^    \}", body, re.S | re.M)
-    return set(re.findall(r'"(\w+)":', m.group(1)))
+    """상품 화면이 사용하는 가벼운 비중 API의 실제 응답 계약."""
+    from app.routes.ml import robo_weights
+    return set(asyncio.run(robo_weights("moderate", 3, {"id": "test"})))
 
 
 def _merged(objs: list[dict]) -> dict:
@@ -142,7 +140,8 @@ def test_allocation_is_read_only():
     """TC-PD-04"""
     src = JS.read_text(encoding="utf-8")
     assert not re.search(r"(국내주식|해외주식|국내채권|대체자산|현금)[\"']?\s*:\s*\d", src), "비중표를 화면에 복제하지 않는다"
-    assert src.count('"/api/ml/robo/allocation"') == 1
+    assert '"/api/ml/robo/allocation"' not in src
+    assert src.count('api(`/api/ml/robo/weights?') == 1
     calls = [ln for ln in src.splitlines() if "loadWeights()" in ln and "function loadWeights" not in ln]
-    assert len(calls) == 1 and 'd.act === "weights"' in calls[0], "무거운 배분 API 는 단추를 눌렀을 때만"
+    assert len(calls) == 1 and 'd.act === "weights"' in calls[0], "비중 조회는 단추를 눌렀을 때만"
     assert "localStorage.setItem" not in src and 'localStorage.getItem("robo_risk_profile")' in src

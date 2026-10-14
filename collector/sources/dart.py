@@ -248,9 +248,25 @@ def _get(limiter: RateLimiter, url: str, params: Dict, *,
     """
     limiter.wait()
     sess = session or requests
-    r = sess.get(url, params={**params, "crtfc_key": config.dart_key()}, timeout=timeout)
+    key = config.dart_key()
+    try:
+        r = sess.get(url, params={**params, "crtfc_key": key}, timeout=timeout)
+    except requests.RequestException as e:
+        # 연결 오류 글(ConnectTimeout 등)에는 요청 주소가 쿼리 문자열째 실린다 — 그 글이 회차 로그 · 수집 기록 표(ingest_day ·
+        # 백업됨)로 가므로 키를 가린 글로 다시 던진다. 종류는 그대로(부르는 쪽의 except 가 그대로 잡는다) · 원인 사슬은 끊는다
+        # (사슬 안 예외에도 주소가 있다). ECOS 수집기 scrub 과 같은 꼴(2026-10-13 · D79).
+        raise _scrubbed(e, key) from None
     limiter.observe(r.headers)   # DART 는 안 주지만, 언젠가 주면 공짜로 받는다
     return r
+
+
+def _scrubbed(e: requests.RequestException, key: str) -> requests.RequestException:
+    """같은 종류의 예외를 키를 가린 글로 만든다 — 인자 꼴이 다른 하위 예외면 바탕 예외(RequestException)로."""
+    msg = str(e).replace(key, "***") if key and len(key) >= 4 else str(e)
+    try:
+        return type(e)(msg)
+    except Exception:  # noqa: BLE001 — 만들 수 없는 꼴이면 바탕 예외로(글은 이미 가렸다)
+        return requests.RequestException(msg)
 
 
 def _check_status(status: str, message: str, where: str) -> None:

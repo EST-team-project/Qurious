@@ -26,6 +26,7 @@
   <link rel="stylesheet" href="/css/collect.css" />
   <link rel="stylesheet" href="/css/dataguide.css" /><!-- 자료 안내 (2026-10-08 · js/dataguide.js) -->
   <link rel="stylesheet" href="/css/products.css" /><!-- 투자 성향별 상품 안내 (2026-10-12 · js/products.js) -->
+  <link rel="stylesheet" href="/css/riskcb.css" /><!-- 재무 · 신용 위험 (2026-10-13 · js/riskcb.js) -->
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -192,66 +193,10 @@
             </div>
           </div>
 
-          <!-- 1-2. 신용 리스크 분석 -->
-          <div class="view" data-view="agent-cb">
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-1">📊 신용 리스크 분석</h2>
-              <p class="text-xs text-slate-400 mb-4">개인·기업 신용(CB) 데이터를 기반으로 투자 리스크를 평가합니다</p>
-              <div class="grid md:grid-cols-2 gap-4">
-                <!-- 개인 CB -->
-                <div class="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <h3 class="font-semibold text-indigo-300 mb-3">개인 신용 리스크 (CB)</h3>
-                  <div class="space-y-2">
-                    <select id="pcb-period" class="input">
-                      <option value="">전체 기간</option>
-                      <option value="202212">2022년 12월</option>
-                      <option value="202112">2021년 12월</option>
-                      <option value="202012">2020년 12월</option>
-                      <option value="201912">2019년 12월</option>
-                    </select>
-                    <select id="pcb-gender" class="input">
-                      <option value="">전체 성별</option>
-                      <option value="1">남성</option>
-                      <option value="2">여성</option>
-                    </select>
-                    <select id="pcb-age" class="input">
-                      <option value="">전체 연령대</option>
-                      <option value="1">10대 이하</option>
-                      <option value="2">20대</option>
-                      <option value="3">30대</option>
-                      <option value="4">40대</option>
-                      <option value="5">50대</option>
-                      <option value="6">60대 이상</option>
-                    </select>
-                    <button id="pcb-search" class="btn-primary w-full">조회</button>
-                  </div>
-                  <pre id="pcb-result"
-                    class="mt-4 text-xs text-slate-300 bg-black/30 rounded-xl p-3 min-h-[100px]"></pre>
-                </div>
-                <!-- 기업 CB -->
-                <div class="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <h3 class="font-semibold text-purple-300 mb-3">기업 신용 리스크 (CB)</h3>
-                  <div class="space-y-2">
-                    <select id="ccb-period" class="input">
-                      <option value="">전체 기간</option>
-                      <option value="2022">2022년</option>
-                      <option value="2021">2021년</option>
-                    </select>
-                    <select id="ccb-size" class="input">
-                      <option value="">전체 규모</option>
-                      <option value="1">대기업</option>
-                      <option value="2">중견기업</option>
-                      <option value="3">중소기업</option>
-                    </select>
-                    <input id="ccb-industry" class="input" placeholder="업종코드 (예: C=제조업, J=IT)" />
-                    <button id="ccb-search" class="btn-primary w-full">조회</button>
-                  </div>
-                  <pre id="ccb-result"
-                    class="mt-4 text-xs text-slate-300 bg-black/30 rounded-xl p-3 min-h-[100px]"></pre>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 1-2. 재무 · 신용 위험 (2026-10-13 · 옛 「신용 리스크 분석」 자리 · 화면 키 그대로) — 내용은 js/riskcb.js 가 그린다
+               (Figma 「Qurious · 재무 · 신용 위험」 05 [결정] 설계 D · GET /api/risk/company · /api/risk/macro).
+               옛 칸은 개인 · 기업 CB 조건을 글로 만들어 범용 대화 API 에 묻는 검색이었다(빈 CB 표 · 약 2분 — 강사님 배지 근거 「범용 Agent 질의로 연결」). -->
+          <div class="view" data-view="agent-cb"><div class="rc-root"></div></div>
 
           <!-- 1-3. 투자 성향별 상품 안내 (2026-10-12 · 옛 「맞춤 상품 추천」 자리 · 화면 키 그대로) — 내용은 js/products.js 가 그린다
                (Figma 결정 안 A · GET /api/products/etfs/overview · /api/products/etfs · /api/products/savings).
@@ -1493,9 +1438,16 @@
                   </div>
                 </div>
                 <button id="robo-optimize-btn" class="btn-primary">포트폴리오 최적화 실행</button>
+                <button id="robo-load-allocation" class="btn-secondary">저장한 배분 보기</button>
+                <p class="text-xs mt-2" style="color:var(--text-mute);">계산이 끝나면 내 최신 배분 결과가 저장됩니다. 주문이나 리밸런싱 목표는 바뀌지 않습니다.</p>
               </div>
 
               <div id="robo-alloc-result" class="hidden space-y-4">
+                <div class="card text-sm">
+                  <p id="robo-allocation-saved"></p>
+                  <p class="text-xs mt-2">리밸런싱 화면의 ‘저장한 배분 가져오기’에서 국내주식 부분과 현금 비중을 확인할 수 있습니다.</p>
+                  <a href="#robo-rebalance" class="btn-secondary inline-block mt-2">리밸런싱으로 이동</a>
+                </div>
                 <!-- 배분 결과 카드 -->
                 <div class="card">
                   <h3 class="font-semibold mb-3 text-sm">📐 최적 자산배분 결과</h3>
@@ -1507,7 +1459,8 @@
                 </div>
                 <!-- AI 추천 종목 -->
                 <div class="card">
-                  <h3 class="font-semibold mb-3 text-sm">🤖 AI 추천 종목 포트폴리오</h3>
+                  <h3 class="font-semibold mb-3 text-sm">🤖 국내주식 추천 종목 포트폴리오</h3>
+                  <p class="text-xs mb-2" style="color:var(--text-mute);">국내주식 비중만 종목으로 나눕니다. 해외주식·채권·대체자산의 매수 종목은 아직 제공하지 않습니다.</p>
                   <div id="robo-stock-picks" class="grid md:grid-cols-3 gap-3"></div>
                 </div>
                 <!-- 예상 성과 -->
@@ -1572,6 +1525,7 @@
                         style="color:var(--text-dim);">비중(%)</label><input id="rb-add-weight" type="number" min="0"
                         max="100" step="0.5" class="input mt-1" placeholder="30" /></div>
                     <button id="rb-add" class="btn-primary text-xs">추가</button>
+                    <button id="rb-import-allocation" class="btn-secondary text-xs">저장한 배분 가져오기</button>
                     <button id="rb-import-positions" class="btn-secondary text-xs" title="현재 보유 비중을 목표로 복사">보유 비중
                       불러오기</button>
                   </div>
@@ -1589,6 +1543,7 @@
                     </table>
                   </div>
                   <div id="rb-target-sum" class="text-xs mb-4" style="color:var(--text-dim);"></div>
+                  <p id="rb-allocation-note" class="text-xs mb-4" style="color:var(--text-dim);"></p>
 
                   <h4 class="font-semibold text-xs mb-2" style="color:var(--text-dim);">트리거 설정</h4>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -1774,12 +1729,26 @@
                   <button id="pt-run" class="btn-primary">분석 실행</button>
                 </div>
               </div>
+              <div id="pt-chart-card" class="card hidden">
+                <h3 id="pt-chart-title" class="font-semibold text-sm mb-2"></h3>
+                <div class="flex flex-wrap gap-3 text-xs mb-2 items-center">
+                  <label><input id="pt-show-sr" type="checkbox" checked /> 지지(초록) · 저항(빨강)</label>
+                  <label><input id="pt-show-patterns" type="checkbox" checked /> 패턴 · 돌파 표시</label>
+                  <span style="color:var(--text-mute);">일봉 1년 · 휠/핀치로 확대 · 드래그로 이동</span>
+                  <button id="pt-chart-reset" class="btn-secondary text-xs" type="button">차트 초기화</button>
+                </div>
+                <p id="pt-chart-ohlc" class="text-xs mb-2" style="color:var(--text-dim);min-height:20px;"></p>
+                <div id="pt-chart" role="img" aria-label="일봉 캔들 차트와 지지·저항 및 패턴 표시" style="height:440px;width:100%;"></div>
+                <p class="text-xs mt-2" style="color:var(--text-mute);">TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc. · <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">tradingview.com</a></p>
+                <p id="pt-chart-note" class="text-xs mt-2" style="color:var(--text-mute);"></p>
+              </div>
               <div id="pt-mtf" class="card hidden"></div>
               <div class="grid lg:grid-cols-2 gap-4">
                 <div id="pt-patterns" class="card hidden"></div>
                 <div id="pt-sr" class="card hidden"></div>
               </div>
               <div id="pt-breakouts" class="card hidden"></div>
+              <div id="pt-stats" class="card hidden"></div>
             </div>
           </div>
 

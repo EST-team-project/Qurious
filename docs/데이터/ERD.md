@@ -1,15 +1,15 @@
-# ERD v1.8 — Qurious
+# ERD v1.9 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.8 · 초안(검토 전) |
+| **판 · 상태** | v1.9 · 초안(검토 전) |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-10-06 (KST) |
-| **기준** | 코드 `main` `a39e531`(PR #118 · 팀원 리밸런싱 #114 · #116 · #118) + 섹터 질문 분류 · 화면 셋(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-01(시세) · 2026-10-02(공시 · 재무) · 행 수는 2026-10-06 실측(주주총회 과거분 2020-01 ~ 2023-12 를 받은 뒤 · 12:30 회차 전) |
+| **최종 수정** | 2026-10-13 (KST) |
+| **기준** | 코드 `main` `b195c22`(PR #173 신장환 성과 검증 규칙 설명 · 그 앞 #172 모의계좌 리셋 경계) + 재무 · 신용 위험(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-12(시세 · 시장금리) · 행 수는 2026-10-13 실측(12:30 회차와 `ecos` 단계 뒤) · 지난 판 기준: 코드 `main` `a39e531`(PR #118 · 팀원 리밸런싱 #114 · #116 · #118) + 섹터 질문 분류 · 화면 셋(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-01(시세) · 2026-10-02(공시 · 재무) · 행 수는 2026-10-06 실측(주주총회 과거분 2020-01 ~ 2023-12 를 받은 뒤 · 12:30 회차 전) |
 | **관련 문서** | [데이터 사전 v1.6](지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../인터페이스/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../시험/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../문서기준/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.7 → v1.8: 행 수 다시 잼(주주총회 과거분) · 팀원 #114 리밸런싱 칸 7개 · 표 수 그대로 — 전체는 부록 D · 지난 판 — v1.6 → v1.7: 수집 19 → 20표(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.5 → v1.6: 수집 18 → 19표(`corp_schedule` 주주총회 · 배당금 지급 일정 — 계산한 표) · 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · `kb_raw` · `ks_doc` · `ks_choice` · `ks_article`) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.4 → v1.5: 수집 15 → 18표(공시 · 재무 · 공식 일정) · 다섯째 저장소 검색 색인 |
+| **최근 개정** | v1.8 → v1.9: 새 표 넷 — 수집 `ecos_series`(한국은행 시장금리 · 37,648행) · 앱 `collect_requests` · `collect_workers`(화면 수집 요청 — 새 업무 영역 「데이터 수집 운영」) · `signal_snapshots`(신장환 #140 신호 기록 — 대장 줄은 문서 담당 초안 · 작성자가 확인할 칸) · 팀원 #172 의 `epoch` 칸 · 행 수 다시 잼(수집 20 → 21표 · 21,596,884 → 21,855,079행 · 앱 42 → 45표) · 표 속성 대장 71 → 75줄 — 전체는 부록 D · 지난 판 — v1.7 → v1.8: 행 수 다시 잼(주주총회 과거분) · 팀원 #114 리밸런싱 칸 7개 · 표 수 그대로 — 전체는 부록 D · 지난 판 — v1.6 → v1.7: 수집 19 → 20표(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.5 → v1.6: 수집 18 → 19표(`corp_schedule` 주주총회 · 배당금 지급 일정 — 계산한 표) · 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · `kb_raw` · `ks_doc` · `ks_choice` · `ks_article`) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.4 → v1.5: 수집 15 → 18표(공시 · 재무 · 공식 일정) · 다섯째 저장소 검색 색인 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -147,7 +147,7 @@ flowchart LR
 아래 그림과 연결 축 표는 「수집 DB 의 표 열두 개는 무엇을 기본키로 삼고, 어느 칸으로 이어지나」 에 답한다. 스캐너 출력이라 제목에 번호가 없다(부록 B).
 
 <!-- schema_scan:erd-수집 -->
-**수집 DB — 시세 · 배당 · 지수 · 20표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
+**수집 DB — 시세 · 배당 · 지수 · 21표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
 
 ```mermaid
 erDiagram
@@ -195,6 +195,17 @@ erDiagram
     TEXT itms_nm
     TEXT report_nm
     _ 외11칸
+  }
+  ecos_series {
+    TEXT stat_code PK
+    TEXT item_code PK
+    TEXT cycle PK
+    TEXT date PK
+    REAL value
+    TEXT unit
+    TEXT item_name
+    TEXT fetched_at
+    _ 외2칸
   }
   etf_daily {
     TEXT bas_dt PK
@@ -508,7 +519,7 @@ glossary_categories ◀── glossary_terms ──▶ glossary_sources
 아래 다섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 40표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
-**앱 DB — 모의투자·주문·전략 · 22표 · 관계 23개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+**앱 DB — 모의투자·주문·전략 · 23표 · 관계 23개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
 
 ```mermaid
 erDiagram
@@ -646,15 +657,16 @@ erDiagram
     FLOAT cash
     FLOAT position_value
     FLOAT total_equity
-    _ 외7칸
+    _ 외8칸
   }
   paper_accounts {
     UUID user_id FK
     UUID id PK
     FLOAT cash
     FLOAT initial_cash
+    INTEGER epoch
     DATETIME created_at
-    DATETIME updated_at
+    _ 외1칸
   }
   portfolio {
     UUID user_id FK
@@ -690,6 +702,16 @@ erDiagram
     JSONB triggers
     VARCHAR_12 plan_kind
     _ 외11칸
+  }
+  signal_snapshots {
+    DATE as_of PK
+    VARCHAR_16 symbol PK
+    VARCHAR_32 definition PK
+    VARCHAR_8 signal
+    VARCHAR_8 strength
+    FLOAT confidence
+    FLOAT composite
+    _ 외6칸
   }
   strategy_comparisons {
     UUID user_id FK
@@ -937,6 +959,35 @@ erDiagram
   glossary_categories ||--o{ glossary_terms : "category_code"
   glossary_sources ||--o{ glossary_terms : "lead_source_code"
 ```
+
+**앱 DB — 데이터 수집 운영 · 2표 · 관계 2개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+
+```mermaid
+erDiagram
+  collect_requests {
+    UUID requested_by FK
+    UUID id PK
+    VARCHAR_8 kind
+    VARCHAR_32 step
+    VARCHAR_12 status
+    DATETIME requested_at
+    _ 외8칸
+  }
+  collect_workers {
+    VARCHAR_64 name PK
+    UUID request_id FK
+    INTEGER pid
+    DATETIME started_at
+    DATETIME seen_at
+    VARCHAR_12 state
+    _ 외2칸
+  }
+  users {
+    UUID id PK
+  }
+  users ||--o{ collect_requests : "requested_by"
+  collect_requests ||--o{ collect_workers : "request_id"
+```
 <!-- /schema_scan:erd-앱 -->
 
 참조·캐시 영역의 다섯 표는 외래키가 없다 — 사용자와 상관없이 파일 적재나 외부 조회로 채워진다.
@@ -1088,6 +1139,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.9 | 2026-10-13 | 추가 — 수집 20 → 21표(`ecos_series`) · 앱 업무 영역 「데이터 수집 운영」(`collect_requests` · `collect_workers` · 관계 2) · `signal_snapshots`(모의투자 · 주문 · 전략) · 팀원 #172 `epoch` 칸 / 변경 — 행 수 다시 잼(앱 42 → 45표) | 재무 · 신용 위험(시장금리 수집) · 대장에 없던 앱 표 셋 | `scripts/schema_scan.py` · 이 판과 같은 PR |
 | v1.8 | 2026-10-06 | 변경 — 행 수 다시 잼(주주총회 과거분으로 `corp_schedule` · `market_event` · `raw_response` 증가) · 팀원 #114 리밸런싱 칸 7개 · 표 수는 그대로(수집 20 · 앱 42) | 매 세션 판 올리기 · 팀원 머지 | `scripts/schema_scan.py` · 이 판과 같은 PR |
 | v1.7 | 2026-10-05 | 추가 — 수집 DB 표 19 → 20(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터 · 받은 것 · HF 백업 대상) · 표 속성 대장 70 → 71줄 / 변경 — 수집 DB 그림 · 표(스캐너로 다시 채움 · 주주총회 과거분 · 뉴스 행 수) | 목표 기능 ① W7 뉴스 · 매 세션 판 올리기 | `collector/db.py` 18절 · `collector/policy_news.py` · `gdelt_news.py` |
 | v1.6 | 2026-10-05 | 추가 — 수집 DB 표 18 → 19(`corp_schedule` 주주총회 · 배당금 지급 일정 · 공시 본문 원문에서 다시 만드는 계산한 표 · HF 백업 제외) · 1.1절 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · 넷) · 표 속성 대장 66 → 70줄 / 변경 — 수집 DB 그림 · 표(스캐너로 다시 채움) | 목표 기능 ① W7 남은 것 · 근거 문서 섹터별 · 연도별 · 매 세션 판 올리기 | `collector/db.py` 17절 · `collector/kb_sector.py` · [설계서 v1.3](../설계/지난판/목표기능1-데이터지식-설계_v1.3.md) 6절 |

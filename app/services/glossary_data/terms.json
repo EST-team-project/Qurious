@@ -27,7 +27,7 @@
    "title": "Qurious 화면 용어 설명",
    "origin": "이 저장소의 public/js/core.js (강사님 lumina-invest 기초 코드 + 팀이 더한 것)",
    "paths": "public/js/core.js",
-   "terms": 55
+   "terms": 58
   },
   {
    "code": "candidate",
@@ -64,7 +64,7 @@
    "name": "기본적 분석",
    "description": "재무제표 · 가치평가",
    "sort_order": 40,
-   "terms": 26
+   "terms": 27
   },
   {
    "code": "quant",
@@ -4240,6 +4240,32 @@
    "shared_names": []
   },
   {
+   "id": "유동비율",
+   "term": "유동비율",
+   "english": "",
+   "hanja": "",
+   "category": "fundamental",
+   "summary": "1년 안에 돈이 되는 자산(유동자산)을 1년 안에 갚을 빚(유동부채)으로 나눈 값(%)입니다.",
+   "definition": "",
+   "example": "",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "1년 안에 돈이 되는 자산(유동자산)을 1년 안에 갚을 빚(유동부채)으로 나눈 값(%)입니다. 100% 아래면 빚이 더 많습니다.",
+   "lead_source": "qurious",
+   "sources": [
+    "qurious"
+   ],
+   "aliases": [
+    {
+     "alias": "current_ratio",
+     "kind": "화면 키"
+    }
+   ],
+   "notes": [],
+   "shared_names": []
+  },
+  {
    "id": "재무상태표",
    "term": "재무상태표",
    "english": "Balance Sheet",
@@ -5304,10 +5330,11 @@
    "caution": "",
    "formula": "",
    "origin_note": "",
-   "app_note": "",
+   "app_note": "부채총계를 자본총계로 나눈 값(%)입니다. 업종마다 보통 수준이 달라 같은 업종의 회사끼리 견줘야 뜻이 있습니다.",
    "lead_source": "lecture",
    "sources": [
-    "lecture"
+    "lecture",
+    "qurious"
    ],
    "aliases": [
     {
@@ -11302,10 +11329,11 @@
    "caution": "",
    "formula": "",
    "origin_note": "",
-   "app_note": "",
+   "app_note": "같은 날 회사채 금리와 국고채 금리의 차이입니다. 벌어지면 돈을 빌려주는 쪽이 회사에 더 많은 이자를 요구한다는 뜻입니다.",
    "lead_source": "lecture",
    "sources": [
-    "lecture"
+    "lecture",
+    "qurious"
    ],
    "aliases": [
     {

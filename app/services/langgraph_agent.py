@@ -21,6 +21,7 @@ from app.lib.financial_tools import (
     search_bank_products,
     search_funds,
 )
+from app.lib import risk_tools  # Qurious: 재무 · 신용 위험 도구 · 되풀이 막기(2026-10-13 · 새 기능은 새 파일)
 
 MAX_STEPS = 6
 
@@ -50,6 +51,8 @@ SYSTEM_PROMPT = """너는 금융 전문 AI 에이전트다. ReAct(Reason+Act) �
 
 응답 형식 (반드시 유효한 JSON 한 줄):
 {"thought": "추론 과정(한국어)", "action": "도구이름", "args": {...}}"""
+# Qurious: 옛 CB 도구 두 줄 → company_health · credit_spread (CB 표를 채우던 CSV 적재를 뺐다 · 결정 ② A · 2026-10-13)
+SYSTEM_PROMPT = risk_tools.swap_prompt(SYSTEM_PROMPT)
 
 ANSWER_PROMPT = """너는 금융 AI 에이전트다. 수집된 데이터와 전문 지식을 바탕으로 사용자 질문에 충분히 상세하게 답한다.
 
@@ -140,6 +143,8 @@ def build_graph(db: Any, ollama: OllamaClient, llm_model: str):
 
         if not action:
             return {"done": True, "iteration": state["iteration"] + 1}
+        if risk_tools.is_repeat(state["steps"], state["observations"], action):   # Qurious: 같은 도구 되풀이 · 자료 없는 도구를 또 → 답으로(옛 CB 도구가 약 2분)
+            return {"done": True, "iteration": state["iteration"] + 1}
 
         step: dict = {
             "thought": action.get("thought", ""),
@@ -161,7 +166,10 @@ def build_graph(db: Any, ollama: OllamaClient, llm_model: str):
         act  = last_step["action"]
         args = last_step.get("args", {})
 
-        if act == "query_personal_cb":
+        handled = await risk_tools.run(db, act, args)   # Qurious: 재무 · 신용 위험 도구 · 옛 CB 두 도구는 「자료 없음」 한 줄(2026-10-13)
+        if handled is not None:
+            obs = handled
+        elif act == "query_personal_cb":
             obs = await query_personal_cb(db, args)
         elif act == "query_corporate_cb":
             obs = await query_corporate_cb(db, args)

@@ -3,7 +3,7 @@
 이 저장소는 **처음부터 직접 쓴 코드만으로 되어 있지 않다.** 강사님이 배포하신 원본과 팀장의 개인 프로젝트를
 받아 팀 프로젝트로 고쳐 가고 있다. 무엇을 어디서 받았는지, 어떤 조건으로 쓰는지를 이 문서에 적는다.
 
-> 최종 수정 2026-10-02 (KST) · 새 자료를 받을 때마다 **복사하기 전에** 이 문서의 표를 먼저 고친다.
+> 최종 수정 2026-10-12 (KST) · 새 자료를 받을 때마다 **복사하기 전에** 이 문서의 표를 먼저 고친다.
 
 ## 1. 한눈에
 
@@ -14,6 +14,7 @@
 | └ 그 뿌리 | `rag-lab/` 의 백엔드 · 통합 화면 · 강의 사이트 | `edumgt/domain-rag-lab` (강사님) | `e63e675` 과 대조 | 2절 |
 | └ 그 뿌리 | `rag-lab/` 의 분석 화면 · 교재 글 · 용어집 | `edumgt/investment-analysis` (강사님) | `2cb9b7f` 과 대조 | 2절 |
 | 백테스트 엔진 참조 데이터 | `app/services/lean_reference_data/` · `rag-lab/app/services/lean_reference_data/` | `QuantConnect/Lean` | 강사님 원본에 들어 있던 것 | Apache License 2.0 |
+| 차트 라이브러리 TradingView Lightweight Charts™ | `public/js/vendor/lightweight-charts/` (본체 · LICENSE · NOTICE) | 강사님 기초 코드(`edumgt/lumina-invest` 2026-10-08 판)에 들어 있던 사본 — npm `lightweight-charts@5.2.1` 과 같은 파일(sha256 대조) | 5.2.1 | Apache License 2.0 — 3-2절 |
 | 국민연금 국내주식 투자 현황 | `rag-lab/data/국내주식 종목별 투자 현황(…).xlsx` 2개 | 국민연금공단 공시 | 2024 · 2025년 말 | 공공데이터포털 「이용허락범위 제한 없음」 — 3절 |
 
 ## 2. 강사님 자료 — 허가 근거와 한계
@@ -53,12 +54,30 @@
 - 강의 사이트(`rag-lab/frontend/days/`)의 그림에는 증권사 앱 화면 · 거래소 자료를 찍은 것이 있다.
   강의 본문의 일부로 받은 것이며, 제품 화면으로 옮길 때 다시 본다.
 
+## 3-2. 오픈소스 차트 라이브러리 — 화면에 남기는 표시
+
+상품 안내의 상품 상세 창(`public/js/productchart.js`)은 TradingView Lightweight Charts™ 5.2.1 로 그림을 그린다.
+라이선스(Apache License 2.0)와 꾸러미 README 가 요구하는 것은 둘이다 — NOTICE 파일의 attribution notice 와
+https://www.tradingview.com/ 링크를 사용자가 보는 쪽에 두기.
+
+- 링크: 차트 위 TradingView 로고(`attributionLogo`)를 끄지 않는다(README — 「will satisfy the link requirement」) ·
+  창 아래 크레딧 줄에도 둔다.
+- 문구: 아래 NOTICE 원문을 이 문서와 벤더 폴더(`NOTICE`)에 그대로 둔다. npm 꾸러미에는 NOTICE 파일이 없어(5.2.1 등
+  다섯 판 확인) 강사님 사본에서 옮겼다 — 「(с)」 의 「с」 는 키릴 문자 그대로다.
+
+> TradingView Lightweight Charts™
+> Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/
+
+- 화면 이름 · 메뉴에는 「TradingView」 를 쓰지 않는다(상표) — 크레딧 줄에만.
+- 앱의 다른 차트(ApexCharts)는 3.49.2 그대로 둔다 — 5.2.0 부터 MIT 가 아니다.
+
 ## 4. 다시 확인하는 법
 
 ```bash
 python scripts/raglab_scan.py --check      # 폴더가 반입 대장과 같은가 · 뺀 파일이 들어오지 않았나
 python scripts/raglab_data.py status       # 시세 자료 셋 — 내 PC · 비공개 데이터셋
 python -m pytest tests/test_raglab_scan.py # 위 검사 + 비밀값 모양 검사
+python -m pytest tests/test_productchart_screen.py  # 차트 라이브러리 파일 지문 · 표시 의무(3-2절)
 ```
 
 ## 5. 바뀐 기록
@@ -67,3 +86,4 @@ python -m pytest tests/test_raglab_scan.py # 위 검사 + 비밀값 모양 검�
 |---|---|
 | 2026-09-30 | 이 문서를 처음 썼다 · 통합본을 `rag-lab/` 으로 반입(AWS 제외 · 시세 자료 셋은 비공개 데이터셋) |
 | 2026-10-02 | 기초 코드 받은 판 `289bfb5` · 화면의 서비스 이름 · 바닥글을 Qurious 로(원저작자 표시는 이 문서 · README) |
+| 2026-10-12 | 차트 라이브러리 Lightweight Charts 5.2.1 벤더 파일(강사님 기초 코드 사본 · npm 과 같은 파일) · 표시 의무(3-2절) |

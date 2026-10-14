@@ -121,6 +121,8 @@ QURIOUS_CATEGORY: dict[str, str] = {
     "virtual_account": "app", "auto_trade_cycle": "app", "notification_channel": "app", "audit_log": "app",
     "vix": "macro", "dxy": "macro", "sector_etf": "fund", "macro_indicator": "macro",
     "custom_indicator": "app", "position_sizing": "quant", "drawdown": "quant", "broker_catalog": "app",
+    # 2026-10-13 재무 · 신용 위험 화면의 도움말 용어 셋
+    "debt_ratio": "fundamental", "current_ratio": "fundamental", "credit_spread": "macro",
 }
 
 # 자료마다 이름이 달라 자동으로 못 잇는 같은 말 — {자료에 적힌 이름: 대표 이름}.

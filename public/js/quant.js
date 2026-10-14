@@ -199,7 +199,7 @@ document.getElementById("bt-load").addEventListener("click", async () => {
         <button type="button" class="btn-secondary text-xs mt-3" onclick='compareTrayAdd(${JSON.stringify({
           source: "퀀트 전략 분석", label: symbol,
           summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 시그널 ${sig.action || "-"} (점수 ${sig.score ?? "-"})`,
-        }).replace(/'/g, "&#39;")}')">⚖️ 비교에 추가</button>
+        }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
       </div>
     `;
     renderCompareTrayAll();

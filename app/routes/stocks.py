@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 import httpx
@@ -847,7 +848,8 @@ async def broker_test(
 
 @router.get("/stocks/patterns")
 async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("1y"), _user=Depends(get_current_user)):
-    """캔들 패턴·지지/저항선·돌파 신호 (일봉)."""
+    """캔들 패턴·지지/저항선·돌파 신호 (일봉) · 패턴 통계(전 종목 · 그 종목) · 가격 수준(지지 · 저항 · ATR)."""
+    from app.services import pattern_view
     from app.services.patterns import pattern_summary
     candles = (await get_candles(symbol, period=period, interval="1d")).get("candles", [])
     if not candles:
@@ -855,14 +857,27 @@ async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("
     result = pattern_summary(candles)
     if "error" in result:
         raise HTTPException(422, result["error"])
-    return {"symbol": symbol, "candles": candles, **result}
+    stats = await asyncio.to_thread(pattern_view.stats_block, symbol)
+    levels = pattern_view.price_levels(candles, result["support_resistance"])
+    return {"symbol": symbol, "candles": candles, **result, "stats": stats, "levels": levels}
 
 
 @router.get("/stocks/mtf-signal")
-async def stock_mtf_signal(symbol: str = Query("005930.KS"), _user=Depends(get_current_user)):
-    """분봉(60m)·일봉·주봉 지표를 종합한 매수·매도·관망 신호와 신뢰도."""
+async def stock_mtf_signal(symbol: str = Query("005930.KS"), db: AsyncSession = Depends(get_pg_session),
+                           _user=Depends(get_current_user)):
+    """분봉(60m)·일봉·주봉 지표를 종합한 매수·매도·관망 신호와 신뢰도.
+
+    매일 기록(T2)이 있으면 그 줄을(기록 날짜 `as_of` 와 함께), 없으면 그 자리에서 계산한다 — 둘 다 같은 설명.
+    """
+    from app.services import pattern_view, signal_explain
     from app.services.patterns import multi_timeframe_signal
-    return await multi_timeframe_signal(symbol)
+    try:
+        snapshot = await signal_explain.load_snapshot(db, symbol)
+    except Exception:
+        snapshot = None   # 앱 DB 에 T2 가 없어도 화면은 그 자리 계산으로 돈다
+    if snapshot is not None:
+        return {"symbol": symbol, **pattern_view.from_record(snapshot)}
+    return {"symbol": symbol, **pattern_view.from_live(symbol, await multi_timeframe_signal(symbol))}
 
 
 # ── 자동매매 제어 ─────────────────────────────────────────────────────
@@ -1053,6 +1068,7 @@ async def quant_pipeline_indicator_backtest(
     """커스텀 인디케이터 실백테스트 (비용 · 손절 · 익절 반영).
 
     두 화면(커스텀 인디케이터 · 성과 검증)이 같은 이 엔드포인트를 쓴다. 비용은 모델 하나를 두 경로에 같게 넣는다.
+    `explanation` 은 기본 전략의 규칙 설명(`explain_strategy`) · custom 은 null.
     비용 모델 고르기 — `cost_model` 을 주면 그대로. 비우면 강사님 화면처럼 `cost_bps` 를 넘긴 요청은
     flat(수수료 + 슬리피지 · 대칭 — 입력칸 그대로), 비용 인자가 없는 요청은 real(연도별 실제 요율 · Qurious 기본).
     화면의 비용 규격을 real 로 둘지는 팀 결정 거리다(D4 ①). 손절 · 익절은 강사님 원본(2026-09-29)의 인자다.
@@ -1092,9 +1108,9 @@ async def quant_pipeline_indicator_backtest(
         raise HTTPException(422, result["error"])
     result["symbol"] = symbol
     result["period"] = period
-    # XAI: 같은 종목의 LightGBM 판단 근거(SHAP)가 캐시에 있으면 함께 내려준다 (없으면 /api/ml/explain으로 생성)
-    cached_ai = await cache_get(f"ai_predict:v3:{symbol}", max_age_hours=3)
-    result["explanation"] = cached_ai.get("explanation") if cached_ai else None
+    # XAI: 기본 전략은 그 전략의 규칙 설명(backtest_strategy 가 채움) · custom 은 비움.
+    # LightGBM SHAP 은 다른 모델의 근거라 여기 붙이지 않는다 — /api/ml/explain 에 있다.
+    result.setdefault("explanation", None)
     return result
 
 

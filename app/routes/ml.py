@@ -1,5 +1,6 @@
 """ML 모델 비교 · 클러스터링 · 계절성 · 회귀 API."""
 import asyncio
+from typing import Literal
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 import numpy as np
@@ -14,6 +15,10 @@ from app.services.ml_models import (
 )
 from app.services.investment_research import optimize_portfolio, ai_predict_return
 from app.services.data_cache import cache_get, cache_set
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database.postgres import get_pg_session
+from app.services.asset_allocation import asset_allocation, rebalance_draft
+from app.services.allocation_store import save_result, load_result
 
 router = APIRouter(prefix="/api/ml")
 
@@ -83,34 +88,40 @@ async def ml_cluster(
     return result
 
 
+@router.get("/robo/weights")
+async def robo_weights(
+    risk_profile: Literal["conservative", "moderate", "aggressive"] = "moderate",
+    horizon_years: int = Query(3, ge=1, le=10),
+    _user=Depends(get_current_user),
+):
+    return {"risk_profile": risk_profile, "horizon_years": horizon_years,
+            "allocations": asset_allocation(risk_profile, horizon_years)}
+
+
+@router.get("/robo/allocation/latest")
+async def latest_allocation(_user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
+    saved = await load_result(db, _user["id"])
+    if saved is None:
+        raise HTTPException(404, "저장된 배분 결과가 없습니다. 자산배분 화면에서 먼저 계산하세요.")
+    try:
+        saved["handoff"] = rebalance_draft(saved["result"])
+    except (ValueError, KeyError):
+        saved["handoff"] = None
+    return saved
+
+
 @router.post("/robo/allocation")
 async def robo_allocation(
     body: RoboAllocationBody,
     _user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_pg_session),
 ):
     """시장 데이터 기반 간단 자산배분/추천 결과."""
     risk = body.risk_profile if body.risk_profile in ("conservative", "moderate", "aggressive") else "moderate"
     horizon = max(1, min(10, int(body.horizon_years)))
     amount = max(100, int(body.amount_manwon))
 
-    base_alloc = {
-        "conservative": {"국내주식": 15, "해외주식": 10, "국내채권": 50, "대체자산": 10, "현금": 15},
-        "moderate": {"국내주식": 30, "해외주식": 25, "국내채권": 30, "대체자산": 10, "현금": 5},
-        "aggressive": {"국내주식": 45, "해외주식": 35, "국내채권": 10, "대체자산": 8, "현금": 2},
-    }[risk].copy()
-
-    # 투자기간 반영: 장기일수록 현금/채권 축소, 주식 확대
-    horizon_boost = min(6, max(0, horizon - 3))
-    base_alloc["국내주식"] += horizon_boost
-    base_alloc["해외주식"] += horizon_boost
-    base_alloc["국내채권"] -= horizon_boost
-    base_alloc["현금"] -= horizon_boost
-
-    # 합계 100 정규화
-    total = sum(base_alloc.values()) or 100
-    alloc = {k: round(v * 100 / total, 1) for k, v in base_alloc.items()}
-    diff = round(100 - sum(alloc.values()), 1)
-    alloc["현금"] = round(alloc["현금"] + diff, 1)
+    alloc = asset_allocation(risk, horizon)
 
     # 유니버스 전체(~30종목)를 동시 스캔해 과거 성과(샤프비율) + AI 학습 기반
     # 예측 수익률(Ridge 회귀, 피처 엔지니어링)을 함께 스코어링한다.
@@ -220,7 +231,7 @@ async def robo_allocation(
     optimized_weights = optimized["weights"]
     candidates.sort(key=lambda x: optimized_weights.get(x["symbol"], 0), reverse=True)
     top = [p for p in candidates if p["symbol"] in optimized_weights]
-    stock_bucket = alloc["국내주식"] + alloc["해외주식"]
+    stock_bucket = alloc["국내주식"]
     stock_picks = []
     for p in top:
         w = round(stock_bucket * optimized_weights[p["symbol"]] / 100, 1)
@@ -257,7 +268,7 @@ async def robo_allocation(
             "expected_mdd_pct": round(mdd, 2),
         })
 
-    return {
+    result = {
         "risk_profile": risk,
         "horizon_years": horizon,
         "amount_manwon": amount,
@@ -266,6 +277,14 @@ async def robo_allocation(
         "projections": projections,
         "optimization": optimized,
     }
+    # 화면 종목 비중도 가져오기와 같은 합계·반올림 규칙을 사용한다.
+    draft = rebalance_draft(result)
+    target_weights = {t["symbol"]: t["weight_pct"] for t in draft["targets"]}
+    for pick in stock_picks:
+        pick["weight"] = target_weights.get(pick["code"], 0)
+    saved = await save_result(db, _user["id"], result)
+    await db.commit()
+    return {**result, "saved": saved}
 
 
 # ── 투자성향 진단 · 목표 달성 확률 시뮬레이션 ─────────────────────────────

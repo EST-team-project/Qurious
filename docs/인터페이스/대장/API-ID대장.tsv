@@ -244,3 +244,7 @@ API-DATA-15	GET	/api/data/runner/worker	S103	사용
 API-PROD-01	GET	/api/products/etfs/overview	S108	사용
 API-PROD-02	GET	/api/products/etfs	S108	사용
 API-PROD-03	GET	/api/products/savings	S108	사용
+API-PROD-04	GET	/api/products/etfs/{code}/chart	S109	사용
+API-EXPL-01	GET	/api/explain	S109	사용
+API-RISK-01	GET	/api/risk/company	S110	사용
+API-RISK-02	GET	/api/risk/macro	S110	사용

@@ -183,6 +183,10 @@ app.include_router(products_routes.router)
 # 신호 설명 (목표 기능 ② 설계서 5.4 · P01-①-5) — 매일 기록한 다중 주기 신호(T2)를 쉬운 말로, 로그인 뒤
 from app.routes import explain as explain_routes  # noqa: E402
 app.include_router(explain_routes.router)
+# 재무 · 신용 위험 (로보 어드바이저 「신용 리스크 분석」 → 결정 ② A · 2026-10-13) — 상장사 재무 건전성은 DART 주요계정,
+# 거시 신용은 ECOS 시장금리(수집 DB 를 읽기만). 로그인 뒤
+from app.routes import risk as risk_routes  # noqa: E402
+app.include_router(risk_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
