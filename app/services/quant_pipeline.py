@@ -230,25 +230,34 @@ def rule_based_signals(df: pd.DataFrame) -> pd.Series:
 # ── 6. 백테스트 ───────────────────────────────────────────────────────
 
 def apply_stops(close: pd.Series, held: pd.Series, stop_loss_pct: float | None = None,
-                take_profit_pct: float | None = None) -> tuple[pd.Series, int, int]:
+                take_profit_pct: float | None = None, return_exits: bool = False):
     """보유 상태(held, 이미 shift(1) 적용된 0/1)에 손절·익절 규칙을 덧씌운다.
 
     - 진입가 = 보유가 시작되는 날의 전일 종가(held[t]=1이면 t일 수익률을 먹으므로 close[t-1]에 진입)
     - 종가가 진입가 × (1 − 손절%) 이하 → 그날 수익률까지 반영하고 다음 날부터 현금
     - 종가가 진입가 × (1 + 익절%) 이상 → 동일하게 청산
-    - 청산 후에는 원 신호가 0→1로 새로 바뀌는 시점(재진입)까지 현금 유지 (룩어헤드 없음: 모두 과거 종가만 사용)
-    Returns (조정된 held, 손절 횟수, 익절 횟수)
+    - 청산 후에는 원 신호가 0→1로 새로 바뀌는 시점(재진입)까지 현금 유지 (룩어헤드 없음: 모두 과거종가만 사용)
+
+    Returns (기본): (조정된 held, 손절 횟수, 익절 횟수)
+    Returns (return_exits=True): (조정된 held, exits)
+        exits = [{"type": "stop"|"take", "planned_pct": float, "actual_pct": float, "date": iso}, ...]
+        planned_pct = -stop_loss_pct (또는 +take_profit_pct) · actual_pct = (청산 종가/진입가 - 1) × 100
+        gap 여부는 actual_pct < planned_pct (더 나쁘게 체결) 로 판단.
     """
     sl = float(stop_loss_pct) / 100 if stop_loss_pct else None
     tp = float(take_profit_pct) / 100 if take_profit_pct else None
     if not sl and not tp:
-        return held, 0, 0
+        return (held, []) if return_exits else (held, 0, 0)
+
     c = close.values.astype(float)
     h = held.values.astype(float).copy()
     out = np.zeros_like(h)
     entry = None
     blocked = False   # 청산 후 재진입 신호 대기 중
     n_sl = n_tp = 0
+    exits: list[dict] = []
+    idx = held.index
+
     for t in range(len(h)):
         want = h[t] == 1
         fresh_entry = want and (t == 0 or h[t - 1] == 0)
@@ -261,11 +270,26 @@ def apply_stops(close: pd.Series, held: pd.Series, stop_loss_pct: float | None =
         if entry is None:
             entry = c[t - 1] if t > 0 else c[t]
         out[t] = 1
+        if entry and entry > 0:
+            actual_pct = (c[t] / entry - 1) * 100
+        else:
+            actual_pct = 0.0
         if sl and c[t] <= entry * (1 - sl):
-            n_sl += 1; blocked = True; entry = None
+            n_sl += 1; blocked = True
+            exits.append({"type": "stop", "planned_pct": round(-float(stop_loss_pct), 4),
+                          "actual_pct": round(actual_pct, 4),
+                          "date": idx[t].isoformat() if hasattr(idx[t], "isoformat") else str(idx[t])})
+            entry = None
         elif tp and c[t] >= entry * (1 + tp):
-            n_tp += 1; blocked = True; entry = None
-    return pd.Series(out, index=held.index), n_sl, n_tp
+            n_tp += 1; blocked = True
+            exits.append({"type": "take", "planned_pct": round(float(take_profit_pct), 4),
+                          "actual_pct": round(actual_pct, 4),
+                          "date": idx[t].isoformat() if hasattr(idx[t], "isoformat") else str(idx[t])})
+            entry = None
+    adjusted = pd.Series(out, index=held.index)
+    if return_exits:
+        return adjusted, exits
+    return adjusted, n_sl, n_tp
 
 
 def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, slippage_bps: float = 0.0,
@@ -291,7 +315,9 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
 
     held = (pos == 1).astype(float)
     # 손절 · 익절이 보유 상태를 먼저 바꾼다 — 비용 · 승률 · 매매 횟수는 바뀐 보유 상태로 센다
-    held, n_sl, n_tp = apply_stops(df["close"].astype(float), held, stop_loss_pct, take_profit_pct)
+    held, _exits = apply_stops(df["close"].astype(float), held, stop_loss_pct, take_profit_pct, return_exits=True)
+    n_sl = sum(1 for e in _exits if e["type"] == "stop")
+    n_tp = sum(1 for e in _exits if e["type"] == "take")
     if cost is None and (commission_bps or slippage_bps):
         cost = tcost.FlatCostModel(cost_bps=commission_bps, slippage_bps=slippage_bps)
 
@@ -322,6 +348,29 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     held_rets = strat_ret[held == 1]
     win_rate  = float((held_rets > 0).sum() / max(len(held_rets), 1)) * 100
     cost_desc = tcost.describe(cost)
+
+    # ── B2 성과 지표 (계획 vs 실제 손절, 손익비, 기대값) ────────────
+    def _avg(vals):
+        return round(float(np.mean(vals)), 4) if vals else None
+
+    stop_exits = [e for e in _exits if e["type"] == "stop"]
+    take_exits = [e for e in _exits if e["type"] == "take"]
+    stop_avg_planned = _avg([e["planned_pct"] for e in stop_exits])
+    stop_avg_actual = _avg([e["actual_pct"] for e in stop_exits])
+    take_avg_actual = _avg([e["actual_pct"] for e in take_exits])
+    # 갭으로 손절가를 건너뛴 횟수 — 실제가 계획보다 더 나쁨 (예: 계획 -2%, 실제 -3%)
+    stop_gap_count = sum(1 for e in stop_exits if e["actual_pct"] < e["planned_pct"] - 1e-9)
+    # 실현 손익비 = 평균 익절 / |평균 손절|
+    if stop_avg_actual and take_avg_actual and stop_avg_actual < 0:
+        realized_rr = round(take_avg_actual / abs(stop_avg_actual), 4)
+    else:
+        realized_rr = None
+    # 기대값 = 승률 × 손익비 − (1 − 승률), 손실 1단위 기준
+    if realized_rr is not None:
+        p = win_rate / 100.0
+        expectancy = round(p * realized_rr - (1 - p), 4)
+    else:
+        expectancy = None
 
     # 매매 횟수 — 비용을 세는 기준(held)과 같게 맞춘다.
     # 예전에는 pos 를 썼는데, signals 가 -1 을 내는 전략에서는 0→-1 처럼
@@ -356,6 +405,12 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
         "gross_return_pct":     round(total_gross, 2),          # 비용 차감 전
         "cost_drag_pct":        round(total_gross - total_strat, 2),
         "cost":                 cost_desc,
+        "stop_avg_planned_pct": stop_avg_planned,
+        "stop_avg_actual_pct":  stop_avg_actual,
+        "stop_gap_count":       stop_gap_count,
+        "take_avg_actual_pct":  take_avg_actual,
+        "realized_rr":          realized_rr,
+        "expectancy":           expectancy,
     }
 
 

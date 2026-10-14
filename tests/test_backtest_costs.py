@@ -65,3 +65,31 @@ def test_optimize_portfolio_expected_return_is_shrunk():
     r = optimize_portfolio(data, "aggressive")
     assert -11.5 - 1e-6 <= r["expected_return_pct"] <= 18.5 + 1e-6
     assert "expected_return_raw_pct" in r and abs(sum(r["weights"].values()) - 100) < 0.5
+
+
+def test_backtest_stop_gap_and_realized_rr():
+    """B2 — 갭 하락 · 실현 손익비 · 기대값."""
+    idx = pd.date_range("2026-01-01", periods=12, freq="D")
+    close = pd.Series([100, 100, 95, 95, 100, 100, 104, 104, 104, 104, 104, 104], index=idx, dtype=float)
+    df = pd.DataFrame({"open": close, "high": close, "low": close, "close": close, "volume": 1000}, index=idx)
+    signals = pd.Series([0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0], index=idx, dtype=float)
+
+    r = backtest(df, signals, stop_loss_pct=2, take_profit_pct=4)
+    assert r["stop_loss_exits"] >= 1
+    assert r["stop_gap_count"] >= 1                 # 95 ≤ 98 → 갭
+    assert r["stop_avg_actual_pct"] is not None
+    assert r["stop_avg_actual_pct"] < r["stop_avg_planned_pct"]   # 실제가 더 나쁨
+    assert r["realized_rr"] is not None
+    assert r["expectancy"] is not None
+
+
+def test_apply_stops_return_exits():
+    """B2 — return_exits=True 시 exits 리스트 반환."""
+    idx = pd.date_range("2026-01-01", periods=8, freq="D")
+    close = pd.Series([100, 100, 90, 95, 99, 100, 101, 102], index=idx, dtype=float)
+    held = pd.Series([0, 1, 1, 1, 1, 1, 1, 1], index=idx, dtype=float)
+    out, exits = apply_stops(close, held, stop_loss_pct=5, return_exits=True)
+    assert len(exits) == 1
+    assert exits[0]["type"] == "stop"
+    assert exits[0]["planned_pct"] == -5.0
+    assert exits[0]["actual_pct"] == pytest.approx(-10.0, abs=1e-3)   # 90/100 - 1 = -10%

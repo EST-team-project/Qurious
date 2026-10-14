@@ -244,7 +244,9 @@ async def compute_saved(ind_id: str, body: ComputeBody, user=Depends(get_current
     result = await _run(_ind_dict(row), body)
     bt = result.get("backtest") or {}
     metrics = {k: bt.get(k) for k in ("total_return_pct", "gross_return_pct", "cost_pct", "buy_hold_return_pct", "sharpe_ratio", "mdd_pct",
-                                      "trade_count", "win_rate_pct", "stop_loss_exits", "take_profit_exits")} if bt else {}
+                                      "trade_count", "win_rate_pct", "stop_loss_exits", "take_profit_exits",
+                                      "stop_avg_planned_pct", "stop_avg_actual_pct", "stop_gap_count",
+                                      "take_avg_actual_pct", "realized_rr", "expectancy")} if bt else {}    
     res = FormulaIndicatorResult(indicator_id=row.id, user_id=_uid(user), version=row.current_version, checksum=row.checksum,
                                  symbol=body.symbol.upper(), period=body.period, as_of=result["as_of"], rows=result["rows"],
                                  latest_value=result["latest_value"], latest_signal=result["latest_signal"], costs=costs, metrics=metrics,
