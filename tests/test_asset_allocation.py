@@ -4,6 +4,7 @@ from copy import deepcopy
 from decimal import Decimal
 import os
 import uuid
+from unittest.mock import AsyncMock
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -83,6 +84,60 @@ def test_light_api_auth_validation_and_no_market_or_database_calls(monkeypatch):
         assert response.json()["allocations"] == asset_allocation("aggressive", 10)
         for query in ("risk_profile=unknown", "horizon_years=11", "horizon_years=0"):
             assert client.get("/api/ml/robo/weights?" + query).status_code == 422
+
+
+@pytest.mark.parametrize("unavailable_handoff", [False, True])
+def test_latest_contract_preserves_saved_profile_period_and_full_result(monkeypatch, unavailable_handoff):
+    from app.routes import ml
+    uid = str(uuid.uuid4())
+    saved_result = allocation_fixture() | {"risk_profile": "moderate", "horizon_years": 4,
+                                           "future_result_field": {"preserved": True}}
+    if unavailable_handoff:
+        saved_result["optimization"] = {"weights": {"AAPL": 100}}
+    saved = {"id": str(uuid.uuid4()), "saved_at": "2026-10-14T10:00:00+09:00", "result": saved_result}
+    loader = AsyncMock(side_effect=lambda *a: deepcopy(saved))
+    monkeypatch.setattr(ml, "load_result", loader)
+    def forbidden(*args, **kwargs):
+        pytest.fail("저장본 조회는 재계산·저장하지 않는다")
+    for name in ("asset_allocation", "get_candles", "cache_get", "save_result"):
+        monkeypatch.setattr(ml, name, forbidden)
+    app = FastAPI()
+    app.include_router(ml.router)
+    app.dependency_overrides[ml.get_pg_session] = lambda: "fake-session"
+    # 현재 진단이 달라도 사용자가 저장한 성향과 기간을 보존한다.
+    app.dependency_overrides[ml.get_current_user] = lambda: {"id": uid, "risk_profile": "aggressive"}
+    with TestClient(app) as client:
+        response = client.get("/api/ml/robo/allocation/latest")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["result"] == saved_result
+        assert body["saved_at"] == saved["saved_at"] and body["id"] == saved["id"]
+        assert (body["handoff"] is None) == unavailable_handoff
+        assert set(body["result"]["allocations"]) == {"국내주식", "해외주식", "국내채권", "대체자산", "현금"}
+        loader.assert_awaited_once_with("fake-session", uid)
+        schema = client.get("/openapi.json").json()["components"]["schemas"]
+        assert set(schema["SavedAllocationResult"]["required"]) == {"risk_profile", "horizon_years", "allocations"}
+
+
+@pytest.mark.parametrize("outcome", ["unauthenticated", "missing", "failure"])
+def test_latest_distinguishes_no_saved_result_from_auth_and_service_failure(monkeypatch, outcome):
+    from fastapi import HTTPException
+    from app.routes import ml
+    loader = AsyncMock(return_value=None)
+    if outcome == "failure":
+        loader.side_effect = HTTPException(503, "시험: 저장소 사용 불가")
+    monkeypatch.setattr(ml, "load_result", loader)
+    app = FastAPI()
+    app.include_router(ml.router)
+    app.dependency_overrides[ml.get_pg_session] = lambda: None
+    if outcome != "unauthenticated":
+        app.dependency_overrides[ml.get_current_user] = lambda: {"id": str(uuid.uuid4())}
+    with TestClient(app) as client:
+        response = client.get("/api/ml/robo/allocation/latest")
+        assert response.status_code == {"unauthenticated": 401, "missing": 404, "failure": 503}[outcome]
+        assert "result" not in response.json()
+        if outcome == "unauthenticated":
+            loader.assert_not_awaited()
 
 
 @pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), reason="일회용 PG 필요")

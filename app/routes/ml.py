@@ -2,7 +2,7 @@
 import asyncio
 from typing import Literal
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 import numpy as np
 from app.lib.session import get_current_user
 from app.services.stock import get_candles, QUANT_STOCKS
@@ -69,6 +69,26 @@ class RoboAllocationBody(BaseModel):
     amount_manwon: int = 5000
 
 
+class AllocationWeightsResponse(BaseModel):
+    """#179: 상품 안내와 배분 화면이 공유하는 비중 계약."""
+    risk_profile: Literal["conservative", "moderate", "aggressive"]
+    horizon_years: int = Field(ge=1, le=10)
+    allocations: dict[str, float] = Field(
+        description="백분율 비중. 국내주식·해외주식·국내채권·대체자산·현금 다섯 키를 유지한다.")
+
+
+class SavedAllocationResult(AllocationWeightsResponse):
+    # 종목·최적화·성과 등 기존 계산 결과도 그대로 반환한다.
+    model_config = ConfigDict(extra="allow")
+
+
+class LatestAllocationResponse(BaseModel):
+    id: str
+    saved_at: str = Field(description="계산 결과 저장 시각(시간대 포함 ISO 8601)")
+    result: SavedAllocationResult
+    handoff: dict | None
+
+
 @router.post("/cluster")
 async def ml_cluster(
     body: ClusterBody,
@@ -88,7 +108,7 @@ async def ml_cluster(
     return result
 
 
-@router.get("/robo/weights")
+@router.get("/robo/weights", response_model=AllocationWeightsResponse)
 async def robo_weights(
     risk_profile: Literal["conservative", "moderate", "aggressive"] = "moderate",
     horizon_years: int = Query(3, ge=1, le=10),
@@ -98,8 +118,10 @@ async def robo_weights(
             "allocations": asset_allocation(risk_profile, horizon_years)}
 
 
-@router.get("/robo/allocation/latest")
+@router.get("/robo/allocation/latest", response_model=LatestAllocationResponse,
+            responses={404: {"description": "로그인한 사용자의 저장본 없음. 이 경우에만 기본 기간 비중으로 대체한다."}})
 async def latest_allocation(_user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
+    """본인의 마지막 성공 계산 한 건. 현재 진단 성향으로 재계산하거나 저장본을 변경하지 않는다."""
     saved = await load_result(db, _user["id"])
     if saved is None:
         raise HTTPException(404, "저장된 배분 결과가 없습니다. 자산배분 화면에서 먼저 계산하세요.")
