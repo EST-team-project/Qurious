@@ -27,6 +27,8 @@
   <link rel="stylesheet" href="/css/dataguide.css" /><!-- 자료 안내 (2026-10-08 · js/dataguide.js) -->
   <link rel="stylesheet" href="/css/products.css" /><!-- 투자 성향별 상품 안내 (2026-10-12 · js/products.js) -->
   <link rel="stylesheet" href="/css/riskcb.css" /><!-- 재무 · 신용 위험 (2026-10-13 · js/riskcb.js) -->
+  <link rel="stylesheet" href="/css/clusters.css" /><!-- 종목 군집화 (2026-10-14 · js/clusters.js) -->
+  <link rel="stylesheet" href="/css/seasonal.css" /><!-- 계절성 분석 (2026-10-14 · js/seasonal.js) -->
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -2332,47 +2334,9 @@
             </div>
           </div>
 
-          <!-- 종목 군집화 -->
-          <div class="view" data-view="ml-cluster">
-            <div class="card mb-4">
-              <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-circle-nodes"
-                  style="color:var(--accent);"></i>
-                종목 군집화 (KMeans)</h2>
-              <p class="text-sm text-slate-400 mb-4">퀀트 대표 종목의 기술적 피처를 KMeans 클러스터링으로 군집화합니다.</p>
-              <button id="mlk-run-btn" class="btn-primary mb-4">▶ 군집화 실행</button>
-              <div id="mlk-loading" class="hidden text-sm text-slate-400 animate-pulse">데이터 수집 및 군집화 중...</div>
-              <div id="mlk-result" class="hidden">
-                <div class="flex gap-2 mb-3 flex-wrap" id="mlk-cluster-badges"></div>
-                <div class="overflow-x-auto">
-                  <table class="w-full text-xs">
-                    <thead>
-                      <tr class="border-b border-slate-700 text-slate-400">
-                        <th class="py-2 text-left">종목</th>
-                        <th class="py-2 text-center">군집</th>
-                        <th class="py-2 text-right">RSI</th>
-                        <th class="py-2 text-right">MA5 비율</th>
-                        <th class="py-2 text-right">변동성(BB)</th>
-                        <th class="py-2 text-right">거래량비</th>
-                      </tr>
-                    </thead>
-                    <tbody id="mlk-table-body"></tbody>
-                  </table>
-                </div>
-                <p id="mlk-sil" class="text-xs text-slate-400 mt-2"></p>
-              </div>
-            </div>
-            <div class="card">
-              <h3 class="font-semibold mb-2">📖 클러스터링 기법</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-300">
-                <div class="p-3 rounded" style="background:var(--bg);"><strong>KMeans</strong><br>사전에 K 개수 지정. 유클리드 거리
-                  기반 중심점 최적화. 속도 빠름.</div>
-                <div class="p-3 rounded" style="background:var(--bg);"><strong>계층적 군집화</strong><br>거리 행렬로 계층 구조 형성.
-                  덴드로그램으로 최적 K 파악 가능.</div>
-                <div class="p-3 rounded" style="background:var(--bg);"><strong>DBSCAN</strong><br>밀도 기반 군집화. 노이즈 포인트 처리.
-                  비구형 군집 탐지.</div>
-              </div>
-            </div>
-          </div>
+          <!-- 종목 군집화 (2026-10-14 · 옛 강사님 KMeans 칸 자리 · 화면 키 그대로) — 내용은 js/clusters.js 가 그린다
+               (Figma 「Qurious · 계절성 분석 · 종목 군집화」 05 [결정] 안 A + B 융합 · GET /api/clusters) -->
+          <div class="view" data-view="ml-cluster"><div class="cu-root"></div></div>
 
           <!-- 하이퍼파라미터 튜닝 -->
           <div class="view" data-view="ml-tune">
@@ -2775,52 +2739,9 @@ RC_i = wi × (Σw)_i / √(w'Σw)
             </div>
           </div>
 
-          <!-- 계절성 분석 -->
-          <div class="view" data-view="quant-seasonal">
-            <div class="card mb-4">
-              <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-calendar-days"
-                  style="color:var(--accent);"></i> 계절성 분석</h2>
-              <p class="text-sm text-slate-400 mb-4">월별·요일별·연말 효과 분석. 통계적 패턴을 퀀트 전략에 활용합니다.</p>
-              <div class="flex flex-wrap gap-3 mb-4">
-                <select id="seas-symbol" class="input-field" style="width:180px;">
-                  <option value="005930.KS">삼성전자</option>
-                  <option value="000660.KS">SK하이닉스</option>
-                  <option value="035420.KS">NAVER</option>
-                  <option value="^KS11">KOSPI</option>
-                </select>
-                <select id="seas-period" class="input-field" style="width:120px;">
-                  <option value="5y">5년</option>
-                  <option value="10y">10년</option>
-                </select>
-                <button id="seas-run-btn" class="btn-primary">▶ 분석 실행</button>
-              </div>
-              <div id="seas-loading" class="hidden text-sm text-slate-400 animate-pulse">계절성 계산 중...</div>
-              <div id="seas-result" class="hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <h3 class="text-sm font-semibold mb-2">월별 평균 수익률 (%)</h3>
-                    <div id="seas-monthly-bars" class="space-y-1"></div>
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-semibold mb-2">요일별 평균 수익률 (%)</h3>
-                    <div id="seas-weekday-bars" class="space-y-1"></div>
-                  </div>
-                </div>
-                <div id="seas-yearend" class="p-4 rounded" style="background:var(--bg);"></div>
-              </div>
-            </div>
-            <div class="card">
-              <h3 class="font-semibold mb-2">📖 대표적 계절성 효과</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-300">
-                <div class="p-3 rounded" style="background:var(--bg);"><strong>1월 효과</strong><br>연초 소형주·가치주 수익률 양호. 연말
-                  세금 매물 후 재매수 현상.</div>
-                <div class="p-3 rounded" style="background:var(--bg);"><strong>Sell in May</strong><br>"5월에 팔고 10월에 사라."
-                  5~10월 평균 수익률이 11~4월보다 낮은 경향.</div>
-                <div class="p-3 rounded" style="background:var(--bg);"><strong>월요일 효과</strong><br>주말 악재 공개로 월요일 수익률이 낮은
-                  경향. 금요일 수익률이 가장 양호.</div>
-              </div>
-            </div>
-          </div>
+          <!-- 계절성 분석 (2026-10-14 · 옛 강사님 칸 자리 · 화면 키 그대로) — 내용은 js/seasonal.js 가 그린다
+               (Figma 「Qurious · 계절성 분석 · 종목 군집화」 03-1 · 결정 「A + B + C 탭」 · GET /api/seasonality) -->
+          <div class="view" data-view="quant-seasonal"><div class="se-root"></div></div>
 
           <!-- 금융 강의 (2026-10-01) — 강의실 · 주제 화면. 자리만 두고 내용은 js/finlearn.js 가 그린다 -->
           <div class="view" data-view="fin-lectures">

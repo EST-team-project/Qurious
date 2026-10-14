@@ -1,0 +1,66 @@
+/* 종목 군집화 (2026-10-14 · js/clusters.js) — Figma 「Qurious · 계절성 분석 · 종목 군집화」 05 [결정] 안 A + B 융합.
+ * 이름은 cu- 로 시작 — 다른 화면 · 강사님 공통 CSS 와 겹치지 않게. 색은 app.css 의 토큰(--bg · --border · --text · --text-mute · --accent).
+ */
+.cu-root { display: flex; flex-direction: column; gap: 16px; color: var(--text); }
+.cu-head h2 { font-size: 22px; font-weight: 700; margin: 0; }
+.cu-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-mute); }
+.cu-bar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.cu-lbl { font-size: 12px; color: var(--text-mute); }
+.cu-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.cu-seg button { padding: 6px 12px; font-size: 13px; color: var(--text-mute); background: var(--bg); border: 0; cursor: pointer; }
+.cu-seg button + button { border-left: 1px solid var(--border); }
+.cu-seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.cu-k { border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; font-size: 13px; background: var(--bg); color: var(--text); }
+.cu-kpi { display: flex; flex-wrap: wrap; gap: 12px 28px; }
+.cu-kpi div { display: flex; flex-direction: column; font-size: 12px; color: var(--text-mute); }
+.cu-kpi b { font-size: 20px; color: var(--text); }
+.cu-card { background: var(--card, var(--bg)); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+.cu-card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.cu-state { font-size: 14px; }
+.cu-admin { margin-top: 8px; font-size: 12px; color: var(--text-mute); font-family: ui-monospace, monospace; white-space: pre-wrap; }
+.cu-busy { font-size: 13px; color: var(--accent); }
+.cu-note { font-size: 12px; color: var(--text-mute); margin: 4px 0; }
+.cu-notice { color: var(--accent); }
+.cu-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.cu-map { min-height: 340px; }
+.cu-say { margin: 10px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+.cu-say li { margin: 2px 0; }
+.cu-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.cu-tabs button { padding: 8px 14px; border: 0; background: none; font-size: 14px; color: var(--text-mute); cursor: pointer; border-bottom: 2px solid transparent; }
+.cu-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.cu-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.cu-cards .cu-card { border-left: 4px solid var(--cu-c); }
+.cu-card h3 small { font-weight: 500; color: var(--text-mute); margin-left: 4px; }
+.cu-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--cu-c); margin-right: 6px; }
+.cu-words { margin: 6px 0 8px; }
+.cu-words span { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 6px; margin: 2px 4px 2px 0;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.cu-met { display: grid; grid-template-columns: 72px minmax(0, 1fr) 60px; gap: 8px; align-items: center; font-size: 12px; margin: 4px 0; }
+.cu-track { height: 8px; background: var(--border); border-radius: 4px; position: relative; overflow: hidden; }
+.cu-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--cu-c); border-radius: 4px; }
+.cu-num { text-align: right; font-variant-numeric: tabular-nums; }
+.cu-chips { margin-top: 8px; }
+.cu-chip { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; margin: 2px 4px 2px 0; border: 1px solid var(--border); background: var(--bg); }
+.cu-chip em { font-style: normal; color: var(--text-mute); margin-left: 4px; }
+.cu-more { font-size: 12px; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 2px 4px; }
+.cu-mx-wrap { overflow: auto; max-width: 100%; }
+.cu-mx { border-collapse: collapse; font-size: 11px; }
+.cu-mx td { width: 18px; height: 18px; padding: 0; border: 1px solid var(--bg); }
+.cu-mx thead th { height: 110px; vertical-align: bottom; padding: 0 1px; }
+.cu-mx thead th span { writing-mode: vertical-rl; white-space: nowrap; font-weight: 500; }
+.cu-mx tbody th { text-align: right; padding-right: 6px; white-space: nowrap; font-weight: 500; }
+.cu-defs summary, .cu-excl summary { cursor: pointer; font-size: 13px; color: var(--text-mute); }
+.cu-defs dl { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 4px 12px; font-size: 13px; margin: 8px 0 0; }
+.cu-defs dt { color: var(--text-mute); }
+.cu-defs dd { margin: 0; }
+.cu-excl ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.cu-tip { padding: 6px 8px; font-size: 12px; line-height: 1.5; }
+.cu-tip em { font-style: normal; color: #64748b; }
+@media (max-width: 900px) {
+  .cu-grid { grid-template-columns: minmax(0, 1fr); }
+  .cu-cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .cu-kpi b { font-size: 17px; }
+  .cu-met { grid-template-columns: 64px minmax(0, 1fr) 56px; }
+}

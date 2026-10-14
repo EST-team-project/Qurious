@@ -1,4 +1,5 @@
-"""한국은행 경제통계시스템(ECOS) 시장금리 — 신용 스프레드 재료 (④-2 재무 · 신용 위험 · 2026-10-13).
+"""한국은행 경제통계시스템(ECOS) 시장금리 · 주가지수 — 신용 스프레드 · 시장 계절성 재료 (④-2 재무 · 신용 위험 · 2026-10-13 /
+주가지수 2026-10-14 · 금융 필수 지식 › 계절성).
 
     python -m collector.ecos daily [--quiet]                 계열마다 마지막 날 앞 14일부터 오늘까지 — 러너 단계
     python -m collector.ecos backfill [--from 19950101]      지난 값 전부(계열마다 쪽 넘기기 · 이미 있는 줄은 그대로)
@@ -10,6 +11,12 @@
 StatisticItemList · StatisticSearch 를 불러 항목 코드 · 이름(영어판으로 확인) · 단위(연%) · 첫 날을 실측했다.
 값은 거래일만 온다(10-09 한글날 · 주말 줄 없음). 신용 스프레드 = 회사채(3년) − 국고채(3년) — 계산은 앱이 읽을 때 한다
 (`app/services/macro_credit.py`). 이 표에는 ECOS 가 준 값만 둔다.
+
+통계표 802Y001 「1.5.1.1. 주식시장(일)」 의 두 항목(아래 `INDEX_SERIES` — 코스피 1995-01-03 ~ · 코스닥 2003-01-02 ~ ·
+가격 지수(배당 없음) · 단위 「1980.01.04=100」 · 「1996.07.01=1000」). 2026-10-14 공식 샘플 키로 StatisticItemList 를
+불러 아홉 항목 가운데 지수 둘의 코드 · 첫 날 · 줄 수(8,032 · 5,867)를 실측했다. 우리 수집 시세는 2020-01 부터라 달마다 관측이
+6 ~ 7개뿐이어서, 시장 계절성(`app/services/seasonality.py`)은 이 긴 지수로 센다(사용자 결정 2026-10-14). 같은 표 · 같은 키 ·
+같은 약관(제5조① 상업 이용 · 제7조② 출처 표시)이다.
 
 이용 조건 — 「한국은행 경제통계 Open API 이용약관」(2020-11-05 시행 — 원문 끝 부칙 · 2026-10-13 원문을 받아 조항을 옮김)
   제5조①  통계정보를 상업적으로 이용할 수 있다(상업적 이용을 제한하는 통계는 작성기관 승인 뒤).
@@ -60,6 +67,14 @@ SERIES: Tuple[Tuple[str, str, str, str], ...] = (
     ("cd_91d", "010502000", "CD(91일)", "19950103"),
     ("cp_91d", "010503000", "CP(91일)", "19950103"),
 )
+#: 통계표 「1.5.1.1. 주식시장(일)」 — 시장 계절성 재료(2026-10-14 실측 · 앱 `seasonality.MARKETS` 가 열쇠 · 코드를 맞춘다 — TC-SE-01).
+INDEX_STAT = "802Y001"
+INDEX_SERIES: Tuple[Tuple[str, str, str, str], ...] = (
+    ("kospi", "0001000", "KOSPI지수", "19950103"),
+    ("kosdaq", "0089000", "KOSDAQ지수", "20030102"),
+)
+#: 받는 묶음 — (통계표, 계열들). 시장금리는 재무 · 신용 위험이, 주가지수는 계절성이 읽는다.
+GROUPS: Tuple[Tuple[str, Tuple[Tuple[str, str, str, str], ...]], ...] = ((STAT, SERIES), (INDEX_STAT, INDEX_SERIES))
 #: 한 번에 받는 줄 수 — 가장 긴 계열(1995 ~)이 약 8,000줄이라 보통 한 번에 끝난다.
 PAGE = 10_000
 #: 매일 받기는 마지막 날 앞 이만큼부터 다시 받는다 — ECOS 가 고친 값 · 늦게 들어온 날을 따라간다(같은 값은 그대로).
@@ -118,8 +133,10 @@ def ensure_table(conn: sqlite3.Connection) -> None:
 # ==================================================
 # 2. 응답 읽기 — 네트워크 없이 시험한다(TC-ECS)
 # ==================================================
-def parse(body: bytes, cycle: str = CYCLE) -> Tuple[int, List[Dict]]:
-    """StatisticSearch 응답 → (전체 줄 수, 줄들). 「자료 없음」(INFO-200)은 (0, []) · 다른 결과 코드는 `EcosError`."""
+def parse(body: bytes, cycle: str = CYCLE, stat: str = STAT) -> Tuple[int, List[Dict]]:
+    """StatisticSearch 응답 → (전체 줄 수, 줄들). 「자료 없음」(INFO-200)은 (0, []) · 다른 결과 코드는 `EcosError`.
+
+    줄의 통계표 코드는 응답의 STAT_CODE 가 정본이고, 비어 오면 부른 통계표(`stat`)로 둔다."""
     try:
         d = json.loads(bytes(body).decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as ex:
@@ -134,7 +151,7 @@ def parse(body: bytes, cycle: str = CYCLE) -> Tuple[int, List[Dict]]:
             except ValueError:
                 raise EcosError(f"ECOS 값이 숫자가 아니다: {v!r}({r.get('TIME')})") from None
             rows.append({
-                "stat_code": r.get("STAT_CODE") or STAT,
+                "stat_code": r.get("STAT_CODE") or stat,
                 "item_code": r.get("ITEM_CODE1") or "",
                 "cycle": cycle,
                 "date": _iso_day(r.get("TIME") or ""),
@@ -184,13 +201,13 @@ def _session():
 
 
 def fetch_range(conn: sqlite3.Connection, limiter: RateLimiter, key: str, item: str, bgn: str, fin: str, *,
-                session) -> Dict[str, int]:
+                session, stat: str = STAT) -> Dict[str, int]:
     """한 항목의 [bgn, fin](YYYYMMDD) — 쪽마다 원문 · 줄을 한 트랜잭션에. 거래일이 들어 있을 긴 창이 비면 실패."""
     total = {"calls": 0, "rows": 0, "new": 0, "changed": 0, "same": 0}
     start = 1
     while True:
         end = start + PAGE - 1
-        url = URL.format(key=key, start=start, end=end, stat=STAT, cycle=CYCLE, bgn=bgn, fin=fin, item=item)
+        url = URL.format(key=key, start=start, end=end, stat=stat, cycle=CYCLE, bgn=bgn, fin=fin, item=item)
         limiter.wait()
         try:
             r = session.get(url, timeout=30)
@@ -199,10 +216,10 @@ def fetch_range(conn: sqlite3.Connection, limiter: RateLimiter, key: str, item: 
         total["calls"] += 1
         if r.status_code != 200:
             raise EcosError(f"ECOS HTTP {r.status_code}")
-        n, rows = parse(r.content)
+        n, rows = parse(r.content, stat=stat)
         conn.execute("BEGIN IMMEDIATE")
         try:
-            sha = raw_store.save(conn, SOURCE, f"{STAT}/{item}/{CYCLE}/{bgn}-{fin}/{start}", r.content,
+            sha = raw_store.save(conn, SOURCE, f"{stat}/{item}/{CYCLE}/{bgn}-{fin}/{start}", r.content,
                                  http_status=r.status_code, note=f"rows={len(rows)} total={n}")
             u = upsert(conn, rows, at=_now_iso(), raw_sha256=sha)
             conn.execute("COMMIT")
@@ -222,9 +239,9 @@ def fetch_range(conn: sqlite3.Connection, limiter: RateLimiter, key: str, item: 
     return total
 
 
-def last_date(conn: sqlite3.Connection, item: str) -> Optional[date]:
+def last_date(conn: sqlite3.Connection, item: str, stat: str = STAT) -> Optional[date]:
     v = conn.execute("SELECT MAX(date) FROM ecos_series WHERE stat_code=? AND item_code=? AND cycle=?",
-                     (STAT, item, CYCLE)).fetchone()[0]
+                     (stat, item, CYCLE)).fetchone()[0]
     return date.fromisoformat(v) if v else None
 
 
@@ -234,14 +251,15 @@ def collect(conn: sqlite3.Connection, today: date, *, key: str, since: Optional[
     sess = session or _session()
     lim = limiter or RateLimiter(SLEEP, name="ECOS")
     out: Dict[str, Dict[str, int]] = {}
-    for name, item, _label, first in SERIES:
-        if since is not None:
-            bgn = max(since.strftime("%Y%m%d"), first)
-        else:
-            last = last_date(conn, item)
-            bgn = (last - timedelta(days=OVERLAP_DAYS)).strftime("%Y%m%d") if last else first
-        out[name] = fetch_range(conn, lim, key, item, bgn, today.strftime("%Y%m%d"), session=sess)
-        out[name]["from"] = bgn  # type: ignore[assignment]
+    for stat, series in GROUPS:
+        for name, item, _label, first in series:
+            if since is not None:
+                bgn = max(since.strftime("%Y%m%d"), first)
+            else:
+                last = last_date(conn, item, stat)
+                bgn = (last - timedelta(days=OVERLAP_DAYS)).strftime("%Y%m%d") if last else first
+            out[name] = fetch_range(conn, lim, key, item, bgn, today.strftime("%Y%m%d"), session=sess, stat=stat)
+            out[name]["from"] = bgn  # type: ignore[assignment]
     return out
 
 
@@ -249,17 +267,19 @@ def collect(conn: sqlite3.Connection, today: date, *, key: str, since: Optional[
 # 4. 상태 · 명령
 # ==================================================
 def status_lines(conn: sqlite3.Connection) -> Iterator[str]:
-    for name, item, label, _first in SERIES:
-        n, lo, hi = conn.execute("SELECT COUNT(*), MIN(date), MAX(date) FROM ecos_series WHERE stat_code=? AND item_code=? "
-                                 "AND cycle=?", (STAT, item, CYCLE)).fetchone()
-        yield f"  {label:<14} {n:>6,}줄 · {lo or '-'} ~ {hi or '-'}"
+    for stat, series in GROUPS:
+        for name, item, label, _first in series:
+            n, lo, hi = conn.execute("SELECT COUNT(*), MIN(date), MAX(date) FROM ecos_series WHERE stat_code=? AND item_code=? "
+                                     "AND cycle=?", (stat, item, CYCLE)).fetchone()
+            yield f"  {label:<14} {n:>6,}줄 · {lo or '-'} ~ {hi or '-'}"
     w = conn.execute("SELECT COUNT(*) FROM raw_response WHERE source=?", (SOURCE,)).fetchone()[0]
     yield f"  원문 {w:,}건 · 출처 표시: {ATTRIBUTION}"
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     utf8_stdio()
-    p = argparse.ArgumentParser(prog="python -m collector.ecos", description="한국은행 ECOS 시장금리(신용 스프레드 재료) 받기")
+    p = argparse.ArgumentParser(prog="python -m collector.ecos",
+                                description="한국은행 ECOS 시장금리(신용 스프레드 재료) · 주가지수(시장 계절성 재료) 받기")
     sub = p.add_subparsers(dest="mode", required=True)
     d = sub.add_parser("daily", help="계열마다 마지막 날 앞 14일부터 오늘까지 — 러너 단계")
     d.add_argument("--quiet", action="store_true")

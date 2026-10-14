@@ -80,8 +80,10 @@ TABLES = [
     ("news_gdelt", "news_item", "언론사 기사", "뉴스", "GDELT 한국어 기사 — 제목 · 원문 주소 · 시각만(본문 없음) — 마지막 기사 시각", "info",
      "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item WHERE source = 'gdelt'",
      "SELECT COUNT(*) FROM news_item WHERE source = 'gdelt'"),
-    # 한국은행 ECOS 시장금리(2026-10-13 · 재무 · 신용 위험) — 다섯 항목이 한 표 · 마지막 날짜는 표 전체의 마지막 날(참고 — 휴장일엔 값이 없다).
-    ("ecos_series", "ecos_series", "시장금리", "금리", "한국은행 ECOS 시장금리(일별) — 국고채 3년 · 회사채 AA- · BBB- · CD · CP — 마지막 날", "info",
+    # 한국은행 ECOS 시장금리(2026-10-13 · 재무 · 신용 위험) · 주가지수(2026-10-14 · 계절성) — 일곱 항목이 한 표 ·
+    # 마지막 날짜는 표 전체의 마지막 날(참고 — 휴장일엔 값이 없다).
+    ("ecos_series", "ecos_series", "시장금리 · 주가지수", "금리", "한국은행 ECOS — 시장금리(일별 · 국고채 3년 · 회사채 AA- · BBB- · "
+     "CD · CP) · 주가지수(코스피 1995 ~ · 코스닥 2003 ~) — 마지막 날", "info",
      "SELECT MAX(date) FROM ecos_series", "SELECT COUNT(*) FROM ecos_series"),
     ("intraday_60m", "price_intraday", "60분봉", "분봉", "야후 파이낸스(09:00~15:00)", "intraday",
      "SELECT MAX(trade_date) FROM price_intraday WHERE timeframe = '60m'",

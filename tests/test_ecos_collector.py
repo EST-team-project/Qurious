@@ -25,12 +25,16 @@ from collector import config, db, ecos as E
 KEY = "ecosTEST" + "0123456789" + "ABCDEF"
 
 
-def _search(rows, total=None) -> bytes:
-    """StatisticSearch 응답 — rows = [(item, TIME, 값)]."""
+def _search(rows, total=None, stat=None) -> bytes:
+    """StatisticSearch 응답 — rows = [(item, TIME, 값)] · STAT_CODE 는 부른 통계표(실제 ECOS 와 같게)."""
     names = {it: (lab, "연%") for _k, it, lab, _f in E.SERIES}
+    names.update({it: (lab, "1980.01.04=100") for _k, it, lab, _f in E.INDEX_SERIES})
+    stat = stat or E.STAT
     body = {"StatisticSearch": {"list_total_count": len(rows) if total is None else total, "row": [
-        {"STAT_CODE": E.STAT, "STAT_NAME": "1.3.2.1. 시장금리(일별)", "ITEM_CODE1": it, "ITEM_NAME1": names.get(it, ("?",))[0],
-         "ITEM_CODE2": None, "ITEM_NAME2": None, "UNIT_NAME": "연%", "WGT": None, "TIME": t, "DATA_VALUE": v}
+        {"STAT_CODE": stat, "STAT_NAME": "1.3.2.1. 시장금리(일별)" if stat == E.STAT else "1.5.1.1. 주식시장(일)",
+         "ITEM_CODE1": it, "ITEM_NAME1": names.get(it, ("?",))[0],
+         "ITEM_CODE2": None, "ITEM_NAME2": None, "UNIT_NAME": names.get(it, ("?", "연%"))[1], "WGT": None, "TIME": t,
+         "DATA_VALUE": v}
         for it, t, v in rows]}}
     return json.dumps(body, ensure_ascii=False).encode("utf-8")
 
@@ -113,7 +117,8 @@ def _good(req):
     """창 안의 거래일(주말 빼고) 마다 값 — 항목 코드로 값 높이를 다르게."""
     from datetime import datetime, timedelta
 
-    base = {"010200000": 3.9, "010300000": 4.6, "010320000": 10.4, "010502000": 3.24, "010503000": 3.6}[req["item"]]
+    base = {"010200000": 3.9, "010300000": 4.6, "010320000": 10.4, "010502000": 3.24, "010503000": 3.6,
+            "0001000": 2600.0, "0089000": 850.0}[req["item"]]
     d0 = datetime.strptime(req["bgn"], "%Y%m%d").date()
     d1 = datetime.strptime(req["fin"], "%Y%m%d").date()
     days = []
@@ -124,7 +129,7 @@ def _good(req):
         d += timedelta(days=1)
     rows = [(req["item"], x.strftime("%Y%m%d"), f"{base:.3f}") for x in days]
     page = rows[req["start"] - 1:req["end"]]
-    return _Resp(_search(page, total=len(rows)))
+    return _Resp(_search(page, total=len(rows), stat=req["stat"]))
 
 
 def test_collect_first_run_from_series_start_then_overlap(conn):
@@ -132,7 +137,8 @@ def test_collect_first_run_from_series_start_then_overlap(conn):
     s = _Session(_good)
     today = date(2026, 10, 13)
     r = E.collect(conn, today, key=KEY, since=date(2026, 9, 1), session=s, limiter=_NoWait())
-    assert len(s.calls) == 5 and all(f"/{KEY}/" in u for u in s.calls)
+    n_series = len(E.SERIES) + len(E.INDEX_SERIES)                      # 시장금리 다섯 + 주가지수 둘(2026-10-14)
+    assert len(s.calls) == n_series == 7 and all(f"/{KEY}/" in u for u in s.calls)
     assert {x["from"] for x in r.values()} == {"20260901"}
     # 매일 — 마지막 날(10-13 화) 앞 14일부터
     s2 = _Session(_good)
@@ -146,7 +152,7 @@ def test_collect_first_run_from_series_start_then_overlap(conn):
     assert first.split("/")[-3] == "19981113"
     targets = [t for (t,) in conn.execute("SELECT target FROM raw_response WHERE source='ecos'")]
     assert targets and all(KEY not in t for t in targets)
-    assert conn.execute("SELECT COUNT(DISTINCT item_code) FROM ecos_series").fetchone()[0] == 5
+    assert conn.execute("SELECT COUNT(DISTINCT item_code) FROM ecos_series").fetchone()[0] == n_series
 
 
 def test_paging_when_total_exceeds_page(conn, monkeypatch):
@@ -221,6 +227,39 @@ def test_attribution_series_and_terms_are_written_down():
     doc = E.__doc__ or ""
     for clause in ("제5조①", "제6조②5", "제7조②", "2020-11-05 시행"):     # 시행일은 원문 끝 부칙(2026-10-13 받은 원문)
         assert clause in doc
+
+
+def test_index_series_from_stock_market_table(conn):
+    """TC-ECS-12 · 주가지수 둘(통계표 802Y001 — 2026-10-14 실측 코드 · 첫 날) · 그 통계표로 부르고 그 코드로 쌓는다 ·
+    처음엔 ECOS 첫 날(코스피 1995-01-03 · 코스닥 2003-01-02)부터 · 시장금리 줄은 섞이지 않는다 · 상태 줄에 이름."""
+    assert E.INDEX_STAT == "802Y001" and E.GROUPS == ((E.STAT, E.SERIES), (E.INDEX_STAT, E.INDEX_SERIES))
+    assert [(k, c, f) for k, c, _n, f in E.INDEX_SERIES] == [("kospi", "0001000", "19950103"), ("kosdaq", "0089000", "20030102")]
+    s = _Session(_good)
+    today = date(2026, 10, 13)
+    E.collect(conn, today, key=KEY, since=date(2026, 9, 1), session=s, limiter=_NoWait())
+    idx_calls = [u for u in s.calls if u.endswith("/0001000") or u.endswith("/0089000")]
+    assert len(idx_calls) == 2 and all("/802Y001/D/" in u for u in idx_calls)
+    assert all("/817Y002/D/" in u for u in s.calls if u not in idx_calls)
+    by_stat = dict(conn.execute("SELECT stat_code, COUNT(DISTINCT item_code) FROM ecos_series GROUP BY stat_code").fetchall())
+    assert by_stat == {"817Y002": 5, "802Y001": 2}
+    # 처음(지수 줄이 없음)이면 ECOS 첫 날부터 — 다른 계열은 마지막 날 앞 14일부터
+    conn.execute("DELETE FROM ecos_series WHERE stat_code='802Y001'")
+    s2 = _Session(_good)
+    E.collect(conn, today, key=KEY, session=s2, limiter=_NoWait())
+    firsts = {u.rsplit("/", 1)[1]: u.split("/")[-3] for u in s2.calls}
+    assert firsts["0001000"] == "19950103" and firsts["0089000"] == "20030102" and firsts["010200000"] == "20260929"
+    # 지수 줄이 생긴 뒤의 매일 받기는 그 통계표의 마지막 날 앞 14일부터 — 통계표 코드를 잘못 보면 날마다 1995 부터 다시 받는다
+    s3 = _Session(_good)
+    E.collect(conn, today, key=KEY, session=s3, limiter=_NoWait())
+    again = {u.rsplit("/", 1)[1]: u.split("/")[-3] for u in s3.calls}
+    assert again["0001000"] == "20260929" and again["0089000"] == "20260929"
+    targets = [t for (t,) in conn.execute("SELECT target FROM raw_response WHERE source='ecos' AND target LIKE '802Y001/%'")]
+    assert targets and all(KEY not in t for t in targets)
+    lines = "\n".join(E.status_lines(conn))
+    assert "KOSPI지수" in lines and "KOSDAQ지수" in lines and "국고채(3년)" in lines
+    # 줄 수도 그 통계표에서 센다 — 시장금리 코드로 세면 지수 줄이 0 으로 보인다(깨 보기 E5)
+    kospi = next(ln for ln in lines.splitlines() if "KOSPI지수" in ln)
+    assert re.search(r"\s([1-9][\d,]*)줄", kospi), kospi
 
 
 def test_table_in_db_schema_and_wired_everywhere(tmp_path):
