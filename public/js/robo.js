@@ -340,13 +340,50 @@ function renderRoboDecisionLog(logs) {
 function renderRoboRationale(signals) {
   const el = document.getElementById("robo-rationale");
   if (!el) return;
-  if (!signals?.length) { el.innerHTML = `<div class="col-span-3 text-sm" style="color:var(--text-mute);">실행 후 판단 근거가 표시됩니다.</div>`; return; }
-  el.innerHTML = signals.slice(0, 3).map(s => `
-    <div class="card" style="padding:14px;">
-      <div class="font-semibold text-sm mb-1">${escHtml(s.name || s.symbol)}</div>
-      <div class="text-xs mb-2" style="color:var(--text-mute);">신호 점수 ${Number(s.score ?? 0).toFixed(1)} | ${s.signal}</div>
-      <div class="text-xs" style="color:var(--text-dim);">${s.signal === "BUY" ? "📈 매수 신호: 과매도 구간 진입, 반등 기대" : s.signal === "SELL" ? "📉 매도 신호: 과매수, 차익 실현 권고" : "⏸ 홀드: 추세 확인 중, 관망 권고"}</div>
-    </div>`).join("");
+  if (!signals?.length) {
+    el.innerHTML = `<div class="col-span-3 text-sm" style="color:var(--text-mute);">실행 후 판단 근거가 표시됩니다.</div>`;
+    return;
+  }
+
+  const shown = signals.slice(0, 3);
+  el.innerHTML = shown.map(s => {
+    const sym = s.symbol || "";
+    const cardId = `robo-rationale-${sym.replace(/[^0-9A-Za-z]/g, "_")}`;
+    const sigLabel = s.signal === "BUY" ? "매수" : s.signal === "SELL" ? "매도" : "관망";
+    const sigCls = s.signal === "BUY" ? "badge-buy" : s.signal === "SELL" ? "badge-sell" : "badge-hold";
+    return `
+      <div class="card" style="padding:14px;">
+        <div class="flex items-center justify-between mb-1">
+          <span class="font-semibold text-sm">${escHtml(s.name || s.symbol)}</span>
+          <span class="${sigCls}">${sigLabel}</span>
+        </div>
+        <div class="text-xs mb-2" style="color:var(--text-mute);">신호 점수 ${Number(s.score ?? 0).toFixed(1)}</div>
+        <div class="text-xs" id="${cardId}" style="color:var(--text-dim);">근거 불러오는 중…</div>
+      </div>`;
+  }).join("");
+
+  // 각 카드에 실제 신호 이유 채우기 (비동기)
+  shown.forEach(s => {
+    if (!s.symbol) return;
+    const cardId = `robo-rationale-${s.symbol.replace(/[^0-9A-Za-z]/g, "_")}`;
+    const node = document.getElementById(cardId);
+    if (node) _loadRationaleExplain(s.symbol, node);
+  });
+}
+
+async function _loadRationaleExplain(symbol, node) {
+  try {
+    const r = await api(`/api/explain?kind=signal&symbol=${encodeURIComponent(symbol)}`);
+    const parts = [];
+    // 실제 필드 이름은 /api/explain 응답에 맞춰 조정 (아래 0️⃣ 결과 보고 확정)
+    if (r?.summary) parts.push(escHtml(r.summary));
+    if (r?.as_of) parts.push(`<span style="color:var(--text-mute);">기준일 ${escHtml(r.as_of)}</span>`);
+    if (r?.definition) parts.push(`<span style="color:var(--text-mute);">규칙 ${escHtml(r.definition)}</span>`);
+    parts.push(`<span style="color:var(--text-mute);">교육용 모의 · 권유 아님</span>`);
+    node.innerHTML = parts.join(" · ");
+  } catch (e) {
+    node.innerHTML = `<span style="color:var(--text-mute);">근거를 불러오지 못했습니다${e?.message ? ": " + escHtml(e.message) : ""}</span>`;
+  }
 }
 
 document.getElementById("robo-decision-start").addEventListener("click", async () => {
