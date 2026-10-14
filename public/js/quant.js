@@ -11,6 +11,15 @@ async function loadQuantDashboard() {
   loadQuantChart();
 }
 
+// 화면에 보이는 신호 낱말 — 「강력 매수」 → 「매수 · 강」 (#161 A7 · #153)
+// 코드의 sig.action(원본)은 바꾸지 않음 — 자동매매가 그 글자를 읽음
+function _displayAction(action) {
+  if (!action) return "-";
+  if (action === "강력 매수") return "매수 · 강";
+  if (action === "강력 매도" || action === "강력매도") return "매도 · 강";
+  return action;
+}
+
 async function loadMarketCards() {
   try {
     const { indices } = await api("/api/stocks/market");
@@ -50,7 +59,7 @@ async function loadSignalCards() {
         <div class="font-semibold">${escHtml(s.name)}</div>
         <div class="text-slate-400 text-xs">${escHtml(s.symbol)}</div>
         <div class="mt-1 font-medium">${fmt(price)}</div>
-        <div class="mt-1 text-xs font-semibold">${escHtml(sig.action || "-")}</div>
+        <div class="mt-1 text-xs font-semibold">${escHtml(_displayAction(sig.action))}</div>
         <div class="text-xs text-slate-500">RSI: ${rsiV?.toFixed(1) ?? "-"}</div>
       </div>`;
     }).join("");
@@ -118,7 +127,7 @@ async function loadAutoTradeStatus() {
       ).join("");
       const risk = cycle.risk ? `<div class="ml-3 text-slate-500">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span class="text-red-400">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>` : "";
       const sigs = (cycle.signals || []).map(sig =>
-        `<div class="ml-3 text-slate-500">${escHtml(sig.name||sig.symbol)}: ${escHtml(sig.action||"-")} (점수:${sig.score??"-"})</div>`
+        `<div class="ml-3 text-slate-500">${escHtml(sig.name||sig.symbol)}: ${escHtml(_displayAction(sig.action))} (점수:${sig.score??"-"})</div>`
       ).join("");
       return `<div class="rounded-xl border border-white/10 bg-black/20 p-2 mb-1">
         <div class="font-semibold text-indigo-300">${escHtml(cycle.time)}${cycle.note ? ` <span class="text-red-400 font-normal">· ${escHtml(cycle.note)}</span>` : ""}</div>
@@ -192,13 +201,13 @@ document.getElementById("bt-load").addEventListener("click", async () => {
         <div class="grid grid-cols-2 gap-2">
           <div>현재가: <span class="font-semibold">${fmt(data.current_price)}</span></div>
           <div>현재 RSI: <span class="font-semibold">${data.current_rsi?.toFixed(2) ?? "-"}</span></div>
-          <div>AI 시그널: <span class="font-semibold ${sig.action === "매수" || sig.action === "강력 매수" ? "text-emerald-400" : sig.action === "매도" || sig.action === "강력 매도" ? "text-red-400" : "text-slate-300"}">${escHtml(sig.action||"-")}</span></div>
+          <div>AI 시그널: <span class="font-semibold ${sig.action === "매수" || sig.action === "강력 매수" ? "text-emerald-400" : sig.action === "매도" || sig.action === "강력 매도" ? "text-red-400" : "text-slate-300"}">${escHtml(_displayAction(sig.action))}</span></div>
           <div>시그널 점수: <span class="font-semibold">${sig.score ?? "-"}</span></div>
         </div>
         <div class="mt-3 text-xs text-slate-400">${(sig.reasons || []).map(r => "• " + escHtml(r)).join("<br>")}</div>
         <button type="button" class="btn-secondary text-xs mt-3" onclick='compareTrayAdd(${JSON.stringify({
           source: "퀀트 전략 분석", label: symbol,
-          summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 시그널 ${sig.action || "-"} (점수 ${sig.score ?? "-"})`,
+          summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 시그널 ${_displayAction(sig.action)} (점수 ${sig.score ?? "-"})`,
         }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
       </div>
     `;

@@ -49,7 +49,7 @@ document.getElementById("ind-load-btn").addEventListener("click", async () => {
         <span class="badge-sell">매도 신호: ${sellCount}개</span>
         <span class="badge-hold">중립: ${rows.length-buyCount-sellCount}개</span>
       </div>
-      <p class="text-xs mt-2" style="color:var(--text-dim);">종합: ${buyCount > sellCount ? "📈 매수 우위 — 진입 고려" : sellCount > buyCount ? "📉 매도 우위 — 익절 고려" : "⏸ 중립 — 관망 권장"}</p>`;
+      <p class="text-xs mt-2" style="color:var(--text-dim);">종합: ${buyCount > sellCount ? "📈 매수 조건 다수 충족" : sellCount > buyCount ? "📉 매도 조건 다수 충족" : "⏸ 중립 — 관망"}</p>`;
 
     document.getElementById("ind-strategy-result").classList.remove("hidden");
   } catch(e) { setToast(e.message, "error"); }
