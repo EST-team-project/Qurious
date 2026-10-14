@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 
-from app.services.quant_pipeline import apply_stops, backtest, feature_engineer, preprocess
+from app.services.quant_pipeline import apply_stops, backtest, backtest_custom_indicator, feature_engineer, preprocess
 from app.services.investment_research import backtest_strategy
 from tests.conftest import make_candles
 
@@ -93,3 +93,54 @@ def test_apply_stops_return_exits():
     assert exits[0]["type"] == "stop"
     assert exits[0]["planned_pct"] == -5.0
     assert exits[0]["actual_pct"] == pytest.approx(-10.0, abs=1e-3)   # 90/100 - 1 = -10%
+
+
+def test_backtest_entry_mode_open_captures_day_only():
+    """B3 — entry_mode='open'은 진입일 시가→종가만 반영."""
+    idx = pd.date_range("2026-01-01", periods=8, freq="D")
+    # 시가·종가 다르게
+    open_ = pd.Series([100, 100, 110, 111, 112, 113, 114, 115], index=idx, dtype=float)
+    close = pd.Series([100, 100, 121, 111, 112, 113, 114, 115], index=idx, dtype=float)
+    df = pd.DataFrame({"open": open_, "high": close, "low": open_, "close": close, "volume": 1000}, index=idx)
+    signals = pd.Series([0, 1, 1, 0, 0, 0, 0, 0], index=idx, dtype=float)
+
+    # 종가 진입 (기본): 진입일 종가→다음 종가 = close[2]/close[1] = 121/100
+    r_close = backtest(df, signals, entry_mode="close", exit_mode="close")
+    # 시가 진입: 진입일 시가→종가 = close[2]/open[2] = 121/110
+    r_open = backtest(df, signals, entry_mode="open", exit_mode="close")
+
+    assert r_close["total_return_pct"] > r_open["total_return_pct"]   # 종가 진입이 이 날은 더 유리
+    assert r_close["entry_mode"] == "close"
+    assert r_open["entry_mode"] == "open"
+
+
+def test_backtest_exit_mode_open_captures_gap():
+    """B3 — exit_mode='open'은 청산일 시가로 나가므로 갭만 반영."""
+    idx = pd.date_range("2026-01-01", periods=6, freq="D")
+    close = pd.Series([100, 100, 110, 120, 120, 120], index=idx, dtype=float)
+    open_ = pd.Series([100, 100, 110, 120, 115, 120], index=idx, dtype=float)
+    df = pd.DataFrame({"open": open_, "high": close, "low": open_, "close": close, "volume": 1000}, index=idx)
+    signals = pd.Series([0, 1, 1, 0, 0, 0], index=idx, dtype=float)
+
+    r_close = backtest(df, signals, exit_mode="close")
+    r_open = backtest(df, signals, exit_mode="open")
+    assert r_close["exit_mode"] == "close"
+    assert r_open["exit_mode"] == "open"
+    # open 청산은 4일차 시가(115)로 나감 → 종가(120) 청산보다 손해
+    assert r_open["total_return_pct"] < r_close["total_return_pct"]
+
+
+def test_backtest_invalid_mode_raises():
+    idx = pd.date_range("2026-01-01", periods=4, freq="D")
+    close = pd.Series([100, 101, 102, 103], index=idx, dtype=float)
+    df = pd.DataFrame({"open": close, "high": close, "low": close, "close": close, "volume": 1000}, index=idx)
+    sig = pd.Series([0, 1, 1, 0], index=idx, dtype=float)
+    with pytest.raises(ValueError):
+        backtest(df, sig, entry_mode="intrabar")
+
+
+def test_backtest_custom_indicator_passes_entry_mode():
+    """B3 — backtest_custom_indicator 가 entry_mode 를 받아 backtest 에 전달."""
+    r = backtest_custom_indicator(make_candles(300), base="rsi_ma", entry_mode="open", exit_mode="open")
+    assert r["costs"]["entry_mode"] == "open"
+    assert r["costs"]["exit_mode"] == "open"
