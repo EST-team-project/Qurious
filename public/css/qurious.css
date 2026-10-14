@@ -185,3 +185,70 @@
   #logout-btn, #gnb-more-btn { padding: 6px 9px !important; }
   #hamburger-btn { display: inline-flex !important; align-items: center; }
 }
+
+/* ── 위 메뉴 넘침 고침 (DF-109 · 2026-10-14 화면 결정 D84 = 융합안 D) ─────────────────────────────────
+ * 묶음 탭 열 개(약 1,174px)와 머리 오른쪽(588 ~ 727px)이 한 줄을 다투어 1920 에서도 뒤 두 묶음이 숨었고,
+ * 숨은 묶음의 입구는 오른쪽 끝 「⋮」 아이콘 하나였다. ① 오른쪽을 줄인다 — 이름 · 로그아웃은 아바타 ▾ 메뉴로,
+ * 「n분 전 동기화」 는 점(글은 title), 시세는 1920 이상 둘 · 2560 이상 셋(사용자 결정 (가)) ② 「⋮」 대신 탭 줄 끝
+ * 「더보기 N ▾」(js/gnbmore.js) ③ 탭 여백 14 · 다 안 들어가면 아이콘부터 뺀다(js/core.js fitGnbTabs).
+ * 강사님 새 판(5bb0e7e)의 탭 칸 내용 폭 고정 · 오른쪽 잘림은 app.css 로 충돌 없이 들어올 수 있다 — 아래 두 줄이
+ * 덮어 우선순위+ 가 멈추지 않게 한다(이 파일은 app.css 뒤에 읽힌다 · TC-NV-10). */
+#gnb .gnb-tabs { flex: 1 1 0%; min-width: 0; }
+#gnb .gnb-right { flex: 0 0 auto; overflow: visible; }
+#gnb .gnb-item { padding: 0 14px; flex-shrink: 0; }
+#gnb.gnb-noicons .gnb-item > i { display: none; }
+#user-name, #logout-btn, #gnb-more-btn, #sync-badge-text { display: none !important; }
+#sync-badge { padding: 6px; }
+#market-ticker { display: none; }
+@media (min-width: 1920px) {
+  #market-ticker { display: flex; }
+  #market-ticker .ticker-item:nth-child(n+3) { display: none; }
+}
+@media (min-width: 2560px) {
+  #market-ticker .ticker-item:nth-child(n+3) { display: flex; }
+}
+/* 탭이 다 안 들어가면 로고 부제부터 접는다(js/core.js fitGnbTabs 가 붙이는 이름표 — 폭 경계로 접으면 경계에서 탭이 준다) */
+#gnb.gnb-notagline .gnb-logo-text span[data-brand="tagline"] { display: none; }
+/* 더보기 단추 — 탭 줄 끝 · 숨은 묶음 수 알약 */
+.gnb-more-tab {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 100%; padding: 0 14px;
+  border: none; border-bottom: 2px solid transparent; background: none; color: var(--text-dim);
+  font: inherit; font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer;
+}
+.gnb-more-tab:hover, .gnb-more-tab[aria-expanded="true"] { color: var(--text); background: var(--surf2); }
+.gnb-more-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.gnb-more-tab:focus-visible, #gnb .gnb-user:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gnb-more-count {
+  display: none; min-width: 20px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surf2); color: var(--text-dim); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.gnb-more-tab.has-count .gnb-more-count { display: inline-block; }
+.gnb-more-tab.active .gnb-more-count { border-color: var(--accent); color: var(--accent); }
+.gnb-more-caret { font-size: 10px; opacity: .7; }
+/* 아바타 ▾ */
+#gnb .gnb-user { gap: 4px; padding: 3px 6px 3px 3px; border-radius: 999px; }
+#gnb .gnb-user:hover, #gnb .gnb-user[aria-expanded="true"] { background: var(--surf2); }
+.gnb-user-caret { font-size: 10px; color: var(--text-mute); }
+/* 펼침 목록 · 아바타 메뉴 — 탭 칸이 넘침을 자르므로 body 에 붙여 fixed 로 단추 아래에 둔다(js/gnbmore.js) */
+.gnb-pop {
+  position: fixed; z-index: 120; min-width: 240px; max-width: min(340px, calc(100vw - 16px));
+  max-height: calc(100vh - var(--gnb-h) - 16px); overflow-y: auto; padding: 6px;
+  background: var(--surf); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(15, 23, 42, .14);
+}
+.gnb-pop[hidden] { display: none; }
+.gnb-pop-title { padding: 8px 10px 4px; font-size: 11px; font-weight: 700; color: var(--text-mute); letter-spacing: .04em; }
+.gnb-pop-head { margin-bottom: 4px; padding: 10px 10px 8px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: var(--text); }
+.gnb-pop-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none; border-radius: 8px;
+  background: none; color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.gnb-pop-item:hover, .gnb-pop-item:focus-visible { background: var(--surf2); outline: none; }
+.gnb-pop-item > i:first-child { width: 16px; text-align: center; color: var(--text-mute); }
+.gnb-pop-meta { margin-left: auto; font-size: 12px; color: var(--text-mute); white-space: nowrap; }
+.gnb-pop-sep { height: 1px; margin: 6px 4px; background: var(--border); }
+/* 좁은 화면(390) — 더보기는 글자를 줄이고 숫자만 남긴다 · 오른쪽 사이를 좁힌다 */
+@media (max-width: 480px) {
+  .gnb-more-tab { padding: 0 10px; font-size: 14px; }
+  #gnb .gnb-user { padding: 3px; }
+  .gnb-user-caret { display: none; }
+}

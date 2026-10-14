@@ -26,6 +26,12 @@ def _str_list(name: str) -> list[str]:
     return re.findall(r'"([a-z]+)"', m.group(1))
 
 
+def _fn(src: str, head: str) -> str:
+    """`head` 로 시작하는 함수 본문(다음 줄 첫 칸의 `}` 까지)."""
+    body = src[src.index(head):]
+    return body[: body.index("\n}")]
+
+
 def _gnb_menu_keys() -> list[str]:
     block = CORE[CORE.index("const GNB_MENUS = {"):]
     block = block[: block.index("\n};")]
@@ -56,7 +62,9 @@ def test_full_menu_keeps_headings_and_outside_links():
     assert "it.heading" in fn and 'class="lnb-heading"' in fn
     assert "it.href" in fn and "<a " in fn and "data-menu-href" in fn
     assert '!["agent", "company"].includes' not in CORE, "강사님 판 빌더 · 더보기 표시가 되돌아왔다"
-    assert "markMoreActive()" in CORE[CORE.index("function navigate("):]
+    # 화면을 옮기면 탭을 다시 맞춘다 — 지금 묶음 바꿔 끼우기 · 더보기 표시(fitGnbTabs 가 markMoreActive 까지 부른다 · DF-109)
+    assert "fitGnbTabs()" in CORE[CORE.index("function navigate("):]
+    assert "markMoreActive();" in _fn(CORE, "function fitGnbTabs()")
 
 
 def test_first_screen_is_the_dashboard():
@@ -100,3 +108,63 @@ def test_dashboard_tabs_use_our_words_and_real_screens():
     assert links, "링크가 있는 탭"
     for key in links:
         assert f'data-view="{key}"' in APP, f"#{key} 화면이 앱에 없다"
+
+
+# ── 위 메뉴 넘침 고침 (DF-109 · 2026-10-14 화면 결정 D84 = 융합안 D) ─────────────────────────────────
+# 폭별 동작(숨은 수 = 더보기 숫자 · 넓어지면 탭이 줄지 않음 · 가로 넘침 0 · 1920 에서 열 묶음)은 브라우저 점검
+# tests/e2e/gnb_widths.py 가 본다 — 여기서는 그 동작이 기대는 약속을 파일에서 본다.
+MORE = (PUB / "js" / "gnbmore.js").read_text(encoding="utf-8")
+QCSS = (PUB / "css" / "qurious.css").read_text(encoding="utf-8")
+
+
+def test_more_tab_is_a_labelled_disclosure_button():
+    """TC-NV-08 · 탭 줄 끝 더보기는 글자 「더보기」 를 가진 button 이고 aria-expanded · aria-controls 로 목록을 연다(APG
+    Disclosure) — 아이콘 하나(「⋮」)가 아니고, 링크 · 단추 목록이라 role="menu" 를 쓰지 않는다. 목록은 GNB_MENUS 로 그린다."""
+    assert 'more.type = "button"' in MORE and "더보기" in MORE
+    assert 'setAttribute("aria-expanded"' in MORE and 'setAttribute("aria-controls"' in MORE
+    assert 'role="menu"' not in MORE and "role = \"menu\"" not in MORE and "\"menu\")" not in MORE
+    assert re.search(r'^import \{[^}]*GNB_MENUS[^}]*\} from "/js/core\.js";', MORE, flags=re.M), "목록은 core.js GNB_MENUS 하나로"
+    assert 'bar.appendChild(more)' in MORE, "더보기는 탭 칸(.gnb-tabs) 끝에 — 오른쪽 끝이 아니다"
+    assert "if (event.key === \"Escape\")" in MORE and "lumina:view-changed" in MORE, "Esc · 화면이 바뀌면 닫힘"
+
+
+def test_fit_reserves_more_drops_icons_and_swaps_current_group():
+    """TC-NV-09 · fitGnbTabs 는 ① 더보기 자리를 먼저 떼고 ② 다 안 들어가면 아이콘부터 빼고 ③ 지금 묶음이 숨으면 바꿔 끼우고
+    ④ 숨은 묶음 키 · 수를 더보기에 적는다(목록은 그 값을 읽는다 — 계산은 한 곳)."""
+    fn = _fn(CORE, "function fitGnbTabs()")
+    assert 'getElementById("gnb-more-tab")' in fn and "more.offsetWidth" in fn
+    assert 'classList.remove("gnb-noicons", "gnb-notagline")' in fn
+    # 접는 차례 — 로고 부제 → 탭 아이콘 → 탭(폭 경계로 접으면 경계에서 넓어지는데 탭이 준다 · 1020 → 1040 실측)
+    assert 0 < fn.index('classList.add("gnb-notagline")') < fn.index('classList.add("gnb-noicons")') < fn.index("shown.push(i)")
+    assert '#gnb.gnb-notagline .gnb-logo-text span[data-brand="tagline"] { display: none; }' in QCSS
+    assert "currentGnb" in fn and "shown.pop()" in fn, "지금 묶음 바꿔 끼우기"
+    assert "more.dataset.hidden" in fn and "gnb-more-count" in fn
+    assert "dataset.hidden =" not in MORE, "숨은 묶음 계산을 gnbmore.js 가 다시 하지 않는다(읽기만)"
+    assert "#gnb.gnb-noicons .gnb-item > i { display: none; }" in QCSS
+
+
+def test_header_defends_against_instructor_fixed_tab_strip():
+    """TC-NV-10 · 강사님 새 판(5bb0e7e)의 `.gnb-tabs { flex: 0 0 auto }` · `.gnb-right { overflow: hidden }` 이 app.css 로 충돌 없이
+    들어와도 우리 덧씌우기(qurious.css · app.css 뒤에 읽힘)가 탭 칸을 늘이고 오른쪽을 자르지 않게 덮는다 — 안 덮으면
+    우선순위+ 가 멈춰 900 ~ 1366 에서 문서가 1,375px 로 넘치고 로그아웃 · 더보기가 사라진다(조사 실측)."""
+    assert "#gnb .gnb-tabs { flex: 1 1 0%; min-width: 0; }" in QCSS
+    assert "#gnb .gnb-right { flex: 0 0 auto; overflow: visible; }" in QCSS
+    assert APP.index('href="/css/qurious.css') > APP.index('href="/css/app.css'), "덧씌우기는 app.css 뒤에 읽혀야 덮는다"
+
+
+def test_avatar_menu_keeps_account_and_logout():
+    """TC-NV-11 · 이름 · 로그아웃 단추는 머리에서 빠지고 아바타 메뉴로 간다 — 메뉴의 「내 계정」 항목은 GNB_MENUS.account 에서,
+    로그아웃은 main.js 의 로그아웃 처리(숨은 #logout-btn)를 그대로 누른다(로그아웃 길은 하나)."""
+    assert '#user-name, #logout-btn, #gnb-more-btn' in QCSS
+    assert 'const ACCOUNT_GROUP = "account"' in MORE and "GNB_MENUS[ACCOUNT_GROUP]" in MORE
+    assert 'getElementById("logout-btn")' in MORE and ".click()" in MORE
+    assert 'document.getElementById("logout-btn").addEventListener("click"' in MAIN, "로그아웃 처리는 main.js 한 곳"
+    assert 'addEventListener("click", () => navigate("mypage"))' not in MAIN, "아바타 누름은 메뉴를 연다(바로 이동하지 않음)"
+    assert "initGnbMore();" in MAIN
+
+
+def test_sync_badge_text_moves_to_title():
+    """TC-NV-12 · 「n분 전 동기화」 글은 머리에서 숨기고(점만) 같은 글을 title · aria-label 로 옮긴다 — 글이 바뀔 때마다 따라간다."""
+    assert "#sync-badge-text" in QCSS
+    assert "MutationObserver" in MORE and 'getElementById("sync-badge-text")' in MORE
+    assert "badge.title" in MORE and 'badge.setAttribute("aria-label"' in MORE

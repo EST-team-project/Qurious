@@ -41,9 +41,8 @@
 41. https://github.com/EST-team-project/Qurious/issues/161
 42. https://github.com/EST-team-project/Qurious/issues/162
 43. https://github.com/EST-team-project/Qurious/issues/163
-44. https://github.com/EST-team-project/Qurious/issues/168
-45. https://github.com/EST-team-project/Qurious/issues/170
-46. https://github.com/EST-team-project/Qurious/issues/179
+44. https://github.com/EST-team-project/Qurious/issues/170
+45. https://github.com/EST-team-project/Qurious/issues/179
 47. https://github.com/EST-team-project/Qurious/issues/183
 
 # 열려 있는 논의 (종료한 논의는 닫고 있음)

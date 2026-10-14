@@ -502,7 +502,8 @@ function drawerItem(it) {
     document.getElementById("gnb-offcanvas-close").focus();
   }
   function closeOffcanvas() {
-    trigger.focus();
+    // 「⋮」 단추는 DF-109 부터 숨어 있다(서랍은 「더보기 N ▾」 목록 맨 아래에서 연다) — 숨은 단추엔 초점이 못 가니 보이는 더보기로
+    (trigger.offsetParent ? trigger : document.getElementById("gnb-more-tab") || trigger).focus();
     panel.classList.remove("open");
     backdrop.classList.remove("open");
     panel.inert = true;
@@ -525,17 +526,42 @@ function drawerItem(it) {
 
 // 위 메뉴 Priority+ — 탭을 우선순위 순서대로 채우다 폭을 넘는 탭부터 통째로 숨긴다(.gnb-overflow).
 // 탭 칸 폭이 바뀔 때(창 크기 · 오른쪽 시세 · 자료 표시가 늦게 채워질 때 · 글꼴이 늦게 읽힐 때) 다시 잰다.
+// DF-109(2026-10-14 화면 결정 D84 = 융합안 D) — ① 탭 줄 끝 「더보기 N ▾」(js/gnbmore.js) 자리를 먼저 떼고
+// ② 아이콘을 단 채로 다 안 들어가면 아이콘부터 빼고(GitHub Primer UnderlineNav 의 iconsVisible 꼴)
+// ③ 지금 묶음이 숨으면 뒤 탭을 빼서 그 자리에 바꿔 끼운다(Primer 의 swap) — 지금 묶음 탭이 늘 보인다.
+// 숨은 묶음 키 · 수 · 이름은 더보기 단추에 적는다 — 목록(gnbmore.js)은 그 값을 읽기만 한다(계산은 여기 한 곳).
 function fitGnbTabs() {
-  const bar = document.querySelector("#gnb .gnb-tabs");
+  const gnb = document.getElementById("gnb");
+  const bar = gnb?.querySelector(".gnb-tabs");
   if (!bar) return;
-  const tabs = [...bar.querySelectorAll(".gnb-item")];
+  const tabs = [...bar.querySelectorAll(".gnb-item[data-gnb]")];
+  const more = document.getElementById("gnb-more-tab");
   tabs.forEach(t => t.classList.remove("gnb-overflow"));
-  const avail = bar.clientWidth;
+  gnb.classList.remove("gnb-noicons", "gnb-notagline");
+  if (more) more.classList.add("has-count");   // 숫자 칸까지 넣은 폭으로 자리를 뗀다(숫자가 빠지면 그만큼 남을 뿐 · 되먹임 없음)
+  // 다 안 들어가면 로고 부제 → 탭 아이콘 차례로 접는다 — 폭 경계(@media)로 접으면 경계에서 넓어지는데 탭이 준다(1020 → 1040 실측)
+  const roomNow = () => bar.clientWidth - (more ? more.offsetWidth : 0);
+  const fitsAll = () => tabs.reduce((sum, t) => sum + t.offsetWidth, 0) <= roomNow();
+  if (!fitsAll()) gnb.classList.add("gnb-notagline");
+  if (!fitsAll()) gnb.classList.add("gnb-noicons");
+  const room = roomNow();
+  const widths = tabs.map(t => t.offsetWidth);
+  const shown = [];
   let used = 0;
-  let full = false;
-  for (const t of tabs) {
-    used += t.offsetWidth;
-    if (full || used > avail) { t.classList.add("gnb-overflow"); full = true; }
+  for (let i = 0; i < tabs.length && used + widths[i] <= room; i++) { shown.push(i); used += widths[i]; }
+  const cur = tabs.findIndex(t => t.dataset.gnb === currentGnb);
+  if (cur >= 0 && !shown.includes(cur)) {
+    while (shown.length && used + widths[cur] > room) used -= widths[shown.pop()];
+    if (used + widths[cur] <= room) shown.push(cur);   // 좁은 폭에서 지금 묶음도 안 들어가면 더보기만 둔다
+  }
+  const hidden = tabs.filter((t, i) => !shown.includes(i));
+  hidden.forEach(t => t.classList.add("gnb-overflow"));
+  if (more) {
+    more.dataset.hidden = hidden.map(t => t.dataset.gnb).join(" ");
+    more.classList.toggle("has-count", hidden.length > 0);
+    more.querySelector(".gnb-more-count").textContent = hidden.length ? String(hidden.length) : "";
+    more.setAttribute("aria-label", hidden.length ? `더보기, 숨은 메뉴 묶음 ${hidden.length}개` : "더보기");
+    more.title = hidden.length ? `숨은 메뉴 — ${hidden.map(t => t.textContent.trim()).join(" · ")}` : "그 밖의 메뉴 · 전체 메뉴";
   }
   markMoreActive();
 }
@@ -544,6 +570,7 @@ function markMoreActive() {
   const tab = document.querySelector(`#gnb .gnb-item[data-gnb="${currentGnb}"]`);
   const inBar = !!tab && !tab.classList.contains("gnb-overflow") && tab.offsetParent !== null;
   document.getElementById("gnb-more-btn")?.classList.toggle("active", !inBar);
+  document.getElementById("gnb-more-tab")?.classList.toggle("active", !inBar);   // 탭 줄 끝 더보기(DF-109)
 }
 (function () {
   const bar = document.querySelector("#gnb .gnb-tabs");
@@ -588,7 +615,7 @@ function navigate(viewKey) {
     if (active) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   });
-  markMoreActive();   // 지금 묶음이 위 메뉴에 없으면 더보기에 표시(Priority+ · fitGnbTabs)
+  fitGnbTabs();   // 지금 묶음이 숨었으면 바꿔 끼우고 더보기 숫자 · 표시를 다시(Priority+ · DF-109)
 
   // Update LNB
   renderLnb(currentGnb);
@@ -607,14 +634,14 @@ function navigate(viewKey) {
   _viewActivated(viewKey);
 }
 
-// GNB click
+// GNB click — 묶음의 첫 화면으로(위 탭 · 더보기 목록이 같은 함수를 부른다 · js/gnbmore.js)
+function openGnbGroup(gnbKey) {
+  const first = GNB_MENUS[gnbKey].items.find(it => it.key);   // 소제목(heading)은 건너뛴다
+  if (first.href) { location.href = first.href; return; }   // 개념 학습 묶음 — 별도 HTML 로
+  navigate(first.key);
+}
 document.querySelectorAll("[data-gnb]").forEach(el => {
-  el.addEventListener("click", () => {
-    const gnbKey = el.dataset.gnb;
-    const first = GNB_MENUS[gnbKey].items.find(it => it.key);   // 소제목(heading)은 건너뛴다
-    if (first.href) { location.href = first.href; return; }   // 개념 학습 묶음 — 별도 HTML 로
-    navigate(first.key);
-  });
+  el.addEventListener("click", () => openGnbGroup(el.dataset.gnb));
 });
 
 // ── Market Ticker ─────────────────────────────────────────────────
@@ -722,4 +749,4 @@ let _viewActivated = () => {};
 export function registerViewActivation(fn) { _viewActivated = fn; }
 
 
-export { GNB_MENUS, compareTrayAdd, loadMarketTicker, loadSyncStatus, navigate, renderCompareTrayAll, tt };
+export { GNB_MENUS, MENU_DRAWER_ONLY, compareTrayAdd, fitGnbTabs, loadMarketTicker, loadSyncStatus, navigate, openGnbGroup, renderCompareTrayAll, tt };
