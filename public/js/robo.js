@@ -65,7 +65,6 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
   const amount = parseInt(document.getElementById("robo-amount").value) || 5000;
   const optimizeBtn = document.getElementById("robo-optimize-btn");
   const originalBtnText = optimizeBtn.textContent;
-  // 유니버스 전체(~30종목) 스캔 + AI 학습이라 수 초~수십 초 걸릴 수 있어 로딩 표시 필수
   optimizeBtn.disabled = true;
   optimizeBtn.textContent = "AI 분석 중... (최대 30초 소요)";
   try {
@@ -110,7 +109,6 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
       <p class="text-xs mt-2" style="color:var(--text-mute);">※ 시장 데이터 기반 추정치이며 실제 수익을 보장하지 않습니다.</p>
     `;
     document.getElementById("robo-alloc-result").classList.remove("hidden");
-    // 목표 달성 시뮬레이션 기본값: 최적화 포트폴리오의 기대수익·변동성 (주식 바스켓 비중 반영)
     const opt = data.optimization || {};
     const stockBucket = ((data.allocations?.["국내주식"] || 0) + (data.allocations?.["해외주식"] || 0)) / 100;
     const mu = (opt.expected_return_pct || 0) * stockBucket + 2.5 * (1 - stockBucket);
@@ -209,6 +207,7 @@ async function runGoalSimulation() {
   } catch (e) { el.innerHTML = `<span class="text-red-500 text-sm">${escHtml(e.message)}</span>`; }
 }
 document.getElementById("gs-run")?.addEventListener("click", runGoalSimulation);
+
 // ── 로보 어드바이저: 종목 스크리닝 ──────────────────────────────────
 async function loadRoboScreening() {
   const signal = document.getElementById("screen-signal")?.value || "all";
@@ -313,6 +312,7 @@ async function loadPatternAnalysis() {
 }
 document.getElementById("pt-run")?.addEventListener("click", loadPatternAnalysis);
 document.getElementById("pt-symbol")?.addEventListener("keydown", e => { if (e.key === "Enter") loadPatternAnalysis(); });
+
 // ── 로보 어드바이저: 모의 투자 의사결정 ─────────────────────────────
 async function loadRoboDecision() {
   try {
@@ -323,7 +323,6 @@ async function loadRoboDecision() {
     renderRoboRationale(data.signals || []);
   } catch { }
 
-  // 🆕 QFRS 성과 지표 로드
   loadRoboPerformanceMetrics();
 }
 
@@ -337,6 +336,7 @@ function renderRoboDecisionLog(logs) {
     </div>`).join("") : `<div style="color:var(--text-mute);">AI 의사결정 로그가 없습니다. 시작 버튼을 눌러 실행하세요.</div>`;
 }
 
+// B1 (#160) — 근거 카드: 고정 문구 → 실제 신호 이유(/api/explain)
 function renderRoboRationale(signals) {
   const el = document.getElementById("robo-rationale");
   if (!el) return;
@@ -347,10 +347,9 @@ function renderRoboRationale(signals) {
 
   const shown = signals.slice(0, 3);
   el.innerHTML = shown.map(s => {
-    const sym = s.symbol || "";
-    const cardId = `robo-rationale-${sym.replace(/[^0-9A-Za-z]/g, "_")}`;
     const sigLabel = s.signal === "BUY" ? "매수" : s.signal === "SELL" ? "매도" : "관망";
     const sigCls = s.signal === "BUY" ? "badge-buy" : s.signal === "SELL" ? "badge-sell" : "badge-hold";
+    const cardId = "robo-rat-" + (s.symbol || "").replace(/[^0-9A-Za-z]/g, "_");
     return `
       <div class="card" style="padding:14px;">
         <div class="flex items-center justify-between mb-1">
@@ -358,14 +357,13 @@ function renderRoboRationale(signals) {
           <span class="${sigCls}">${sigLabel}</span>
         </div>
         <div class="text-xs mb-2" style="color:var(--text-mute);">신호 점수 ${Number(s.score ?? 0).toFixed(1)}</div>
-        <div class="text-xs" id="${cardId}" style="color:var(--text-dim);">근거 불러오는 중…</div>
+        <div id="${cardId}" class="text-xs" style="color:var(--text-dim);line-height:1.5;">근거 불러오는 중…</div>
       </div>`;
   }).join("");
 
-  // 각 카드에 실제 신호 이유 채우기 (비동기)
   shown.forEach(s => {
     if (!s.symbol) return;
-    const cardId = `robo-rationale-${s.symbol.replace(/[^0-9A-Za-z]/g, "_")}`;
+    const cardId = "robo-rat-" + s.symbol.replace(/[^0-9A-Za-z]/g, "_");
     const node = document.getElementById(cardId);
     if (node) _loadRationaleExplain(s.symbol, node);
   });
@@ -373,16 +371,32 @@ function renderRoboRationale(signals) {
 
 async function _loadRationaleExplain(symbol, node) {
   try {
-    const r = await api(`/api/explain?kind=signal&symbol=${encodeURIComponent(symbol)}`);
-    const parts = [];
-    // 실제 필드 이름은 /api/explain 응답에 맞춰 조정 (아래 0️⃣ 결과 보고 확정)
-    if (r?.summary) parts.push(escHtml(r.summary));
-    if (r?.as_of) parts.push(`<span style="color:var(--text-mute);">기준일 ${escHtml(r.as_of)}</span>`);
-    if (r?.definition) parts.push(`<span style="color:var(--text-mute);">규칙 ${escHtml(r.definition)}</span>`);
-    parts.push(`<span style="color:var(--text-mute);">교육용 모의 · 권유 아님</span>`);
-    node.innerHTML = parts.join(" · ");
+    const r = await api("/api/explain?kind=signal&symbol=" + encodeURIComponent(symbol));
+    const lines = [];
+    if (r && r.summary) {
+      lines.push(`<div style="color:var(--text);">${escHtml(r.summary)}</div>`);
+    }
+    const meta = [];
+    if (r && r.confidence_text) meta.push(escHtml(r.confidence_text));
+    if (r && r.as_of) meta.push("기준일 " + escHtml(r.as_of));
+    if (r && r.definition) meta.push("규칙 " + escHtml(r.definition));
+    meta.push("교육용 모의 · 권유 아님");
+    if (meta.length) {
+      lines.push(`<div style="color:var(--text-mute);margin-top:4px;">${meta.join(" · ")}</div>`);
+    }
+    node.innerHTML = lines.join("") || `<span style="color:var(--text-mute);">설명이 비어 있습니다.</span>`;
   } catch (e) {
-    node.innerHTML = `<span style="color:var(--text-mute);">근거를 불러오지 못했습니다${e?.message ? ": " + escHtml(e.message) : ""}</span>`;
+    const msg = String((e && e.message) || "");
+    const isNotFound =
+      msg.includes("404") ||
+      msg.includes("없음") ||
+      msg.includes("신호 기록 없음") ||
+      (e && e.status === 404);
+    node.innerHTML = `<span style="color:var(--text-mute);">${
+      isNotFound
+        ? "이 종목은 매일 기록된 신호(T2)가 아직 없습니다."
+        : "근거를 불러오지 못했습니다."
+    }</span>`;
   }
 }
 
@@ -392,7 +406,7 @@ document.getElementById("robo-decision-start").addEventListener("click", async (
 document.getElementById("robo-decision-stop").addEventListener("click", async () => {
   try { await api("/api/quant/auto/stop", { method: "POST" }); setToast("중지됨", "ok"); loadRoboDecision(); } catch (e) { setToast(e.message, "error"); }
 });
-document.getElementById("robo-decision-refresh").addEventListener("click", loadRoboDecision)
+document.getElementById("robo-decision-refresh").addEventListener("click", loadRoboDecision);
 
 document.getElementById("robo-metrics-simulate")?.addEventListener("click", async () => {
   if (!confirm("기존 스냅샷을 지우고 15일치 데모 데이터를 생성합니다. 계속할까요?")) return;
@@ -403,7 +417,7 @@ document.getElementById("robo-metrics-simulate")?.addEventListener("click", asyn
   } catch (e) {
     setToast("실패: " + e.message, "error");
   }
-});;
+});
 
 
 // ═══════════════════════════════════════════════════════════
@@ -414,12 +428,12 @@ let _roboMetricsChart = null;
 async function loadRoboPerformanceMetrics() {
   const cardsEl = document.getElementById("robo-metrics-cards");
   const chartEl = document.getElementById("robo-metrics-chart");
-  const tableEl = document.getElementById("robo-metrics-table");   // 🆕
+  const tableEl = document.getElementById("robo-metrics-table");
   if (!cardsEl) return;
 
   cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--text-mute);">지표 계산 중...</div>`;
   if (chartEl) chartEl.innerHTML = "";
-  if (tableEl) tableEl.innerHTML = "";                             // 🆕
+  if (tableEl) tableEl.innerHTML = "";
 
   try {
     const data = await api("/api/paper/performance/metrics");
@@ -438,7 +452,6 @@ async function loadRoboPerformanceMetrics() {
     const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";
     const dsrColor = (m.dsr || 0) >= 0.95 ? "var(--green)" : "var(--text)";
 
-    // ── 요약 카드 4개 ──────────────────────────────────
     cardsEl.innerHTML = `
       <div class="card" style="padding:12px;text-align:center;">
         <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
@@ -457,7 +470,6 @@ async function loadRoboPerformanceMetrics() {
         <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
       </div>`;
 
-    // ── 차트 (스타일 그대로 유지) ─────────────────────
     if (chartEl && Array.isArray(data.equity_curve) && data.equity_curve.length > 1) {
       if (_roboMetricsChart) { _roboMetricsChart.destroy(); _roboMetricsChart = null; }
 
@@ -511,7 +523,6 @@ async function loadRoboPerformanceMetrics() {
       _roboMetricsChart.render();
     }
 
-    // ── 🆕 상세 지표 테이블 ───────────────────────────
     if (tableEl) {
       const rows = [
         {
@@ -635,7 +646,6 @@ async function loadRoboTestbed() {
 const _rtErr = (e) => `<div class="text-xs" style="color:var(--red);padding:20px;">${escHtml(e.message)}</div>`;
 const _rtEmpty = (msg) => `<div class="text-xs" style="color:var(--text-mute);padding:40px 0;text-align:center;">${msg}</div>`;
 
-// ① 기준가 라인
 async function _rtLoadBase() {
   const el = document.getElementById("rt-base-chart");
   if (!el) return;
@@ -668,7 +678,6 @@ async function _rtLoadBase() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ② 매매회전율 vs 누적수익률 (산점도)
 async function _rtLoadTurnoverChart() {
   const el = document.getElementById("rt-turnover-chart");
   if (!el) return;
@@ -710,7 +719,6 @@ async function _rtLoadTurnoverChart() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ③ 레이더 차트
 async function _rtLoadRadar() {
   const el = document.getElementById("rt-radar-chart");
   if (!el) return;
@@ -720,10 +728,9 @@ async function _rtLoadRadar() {
     if (_rtCharts.radar) _rtCharts.radar.destroy();
 
     const m = data["1y"] || data["6m"] || data["3m"] || data["1m"] || {};
-    // 정규화 (0~100 스케일)
     const std = Math.min(100, Math.abs(m.std_dev || 0) * 100);
     const sharpe = Math.min(100, Math.max(0, (m.sharpe || 0) * 30));
-    const mddScore = 50;  // MDD 별도 계산 필요 (지금은 placeholder)
+    const mddScore = 50;
     const alpha = Math.min(100, Math.max(0, (m.jensen_alpha || 0) * 500));
     const ir = Math.min(100, Math.max(0, (m.information_ratio || 0) * 50));
 
@@ -742,7 +749,6 @@ async function _rtLoadRadar() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ④ 표준편차 vs 샤프 (기간별 산점도)
 async function _rtLoadRiskScatter() {
   const el = document.getElementById("rt-risk-scatter-chart");
   if (!el) return;
@@ -790,7 +796,6 @@ async function _rtLoadRiskScatter() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ⑤ 자산 비중 스택바
 async function _rtLoadAllocation() {
   const el = document.getElementById("rt-allocation-chart");
   if (!el) return;
@@ -819,7 +824,6 @@ async function _rtLoadAllocation() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ⑥ KOSPI 비교
 async function _rtLoadBenchmark() {
   const el = document.getElementById("rt-benchmark-chart");
   if (!el) return;
@@ -860,7 +864,6 @@ function _rtRenderBenchmark() {
   _rtCharts.benchmark.render();
 }
 
-// 기간 버튼 (이벤트 위임)
 document.addEventListener("click", (e) => {
   if (e.target.classList.contains("rt-period")) {
     _rtBenchmarkDays = Number(e.target.dataset.days) || 0;
@@ -872,7 +875,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// ⑦ 수익률표
 async function _rtLoadReturnsTable() {
   const el = document.getElementById("rt-returns-table");
   if (!el) return;
@@ -906,7 +908,6 @@ async function _rtLoadReturnsTable() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ⑧ 위험지표표
 async function _rtLoadRiskTable() {
   const el = document.getElementById("rt-risk-table");
   if (!el) return;
@@ -942,7 +943,6 @@ async function _rtLoadRiskTable() {
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
-// ⑨ 매매회전율표
 async function _rtLoadTurnoverTable() {
   const el = document.getElementById("rt-turnover-table");
   if (!el) return;
