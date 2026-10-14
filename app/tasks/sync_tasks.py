@@ -142,11 +142,14 @@ def quant_confirm_fills() -> dict:
         from app.database.postgres import connect_postgres, close_postgres
         from app.lib.redis_cache import connect_redis, close_redis
         from app.services.auto_trade import confirm_live_fills
+        from app.services.order_retry import retry_cancelled_orders
 
         await connect_redis()
         await connect_postgres()
         try:
-            return await confirm_live_fills()
+            result = await confirm_live_fills()
+            result["retry"] = await retry_cancelled_orders()
+            return result
         finally:
             await close_redis()
             await close_postgres()

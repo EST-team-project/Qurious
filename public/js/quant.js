@@ -153,14 +153,28 @@ async function loadRiskStatus() {
     document.getElementById("risk-note").textContent = r.kill_switch
       ? `정지 사유: ${r.halt_reason || "수동 비상 정지"} — 해제 후 자동매매를 다시 시작할 수 있습니다.`
       : `시작 자산 ${r.day_start_equity != null ? fmt(r.day_start_equity) + "원" : "-"} · 현재 자산 ${r.current_equity != null ? fmt(r.current_equity) + "원" : "-"} (${r.date})`;
+    const g = r.execution_guidance;
+    document.getElementById("risk-execution-detail").textContent = g
+      ? `서버가 ${g.cycle_seconds}초 간격으로 판단합니다. 작업 지연·중단 시 더 늦어질 수 있습니다. 증권사 상주 감시 주문이 아니며, 판단 사이의 가격 변동이나 손절가 체결을 보장하지 않습니다. `
+        + (g.cancel_open_after_min > 0 ? `게이트웨이 주문은 ${g.cancel_open_after_min}분 이상 미체결이면 취소를 요청합니다.` : "시간 경과에 따른 미체결 자동 취소는 꺼져 있습니다.")
+      : "실행 주기와 비용 가정을 불러오지 못했습니다.";
+    const example = g?.cost_example;
+    document.getElementById("risk-cost-example").innerHTML = example ? `
+      <p>공격 모드 ${g.aggressive_enabled ? "켜짐" : "꺼짐"} · 설정상 익절 +${escHtml(g.take_profit_pct)}% / 손절 −${escHtml(g.stop_loss_pct)}%의 비용 비교 (${escHtml(example.as_of)})</p>
+      <p>${escHtml(example.basis)}</p>
+      ${(example.scenarios || []).map(s => `<p>편도 슬리피지 ${escHtml(s.slippage_bps_per_side)}bp 가정: 익절 순수익 ${escHtml(s.net_take_profit_pct)}% · 손절 순손익 ${escHtml(s.net_stop_loss_pct)}% · 손익비 ${s.reward_risk_ratio == null ? "산출 불가(익절 순이익 없음)" : escHtml(s.reward_risk_ratio)} · 본전 승률 ${s.break_even_win_rate_pct == null ? "산출 불가" : escHtml(s.break_even_win_rate_pct) + "%"}</p>`).join("")}
+      <p>익절·손절가 체결을 가정한 예시입니다. 갭 하락·미체결·수량별 절사는 반영하지 않으며 실제 승률 예측이 아닙니다.</p>` : "";
   } catch (e) { document.getElementById("risk-kpis").innerHTML = `<span class="text-red-400">${escHtml(e.message)}</span>`; }
 }
 
 document.getElementById("risk-kill-on").addEventListener("click", async () => {
-  if (!confirm("자동매매를 즉시 중지하고 비상 정지 상태로 전환합니다. 계속할까요?")) return;
+  if (!confirm("자동매매를 중지하고 추적 중인 미체결 게이트웨이 주문의 취소를 요청합니다. 이미 전달된 주문의 체결이나 취소 성공을 보장하지 않으며 보유 종목을 자동 청산하지 않습니다. 계속할까요?")) return;
   try {
-    await api("/api/quant/risk/kill-switch", { method: "POST", body: { enabled: true, reason: "사용자 수동 비상 정지" } });
-    setToast("비상 정지 ON — 자동매매가 중지되었습니다.", "ok"); loadAutoTradeStatus();
+    const r = await api("/api/quant/risk/kill-switch", { method: "POST", body: { enabled: true, reason: "사용자 수동 비상 정지" } });
+    const c = r.cancellation;
+    const attention = c?.failed > 0 || c?.skipped > 0;
+    setToast(`비상 정지 ON · 취소 요청 ${c?.requested || 0}건. 보유 종목은 유지됩니다.`
+      + (attention ? " 취소 실패·미확인 주문은 증권사에서 확인하세요." : " 접수 여부가 불명확한 주문도 증권사에서 확인하세요."), attention ? "error" : "ok"); loadAutoTradeStatus();
   } catch (e) { setToast(e.message, "error"); }
 });
 document.getElementById("risk-kill-off").addEventListener("click", async () => {

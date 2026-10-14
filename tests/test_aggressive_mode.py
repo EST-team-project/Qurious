@@ -218,14 +218,14 @@ def fake_gateway():
     return calls
 
 
-def run_cycle(broker_row, intraday, portfolio=()):
+def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, orders_today=0, slot_allowed=True):
     db = FakeDb(broker_row, portfolio)
     persisted, slots = {}, []
     async def persist(uid, log): persisted.update(log)
     async def virtual_trade(db_, uid, symbol, name, action, price, qty, reason):
         return {"status": "filled", "symbol": symbol, "action": action, "quantity": qty, "price": price, "reason": reason}
     async def acquire(user_id, symbol, side, cooldown):
-        slots.append((symbol, side, cooldown)); return True
+        slots.append((symbol, side, cooldown)); return slot_allowed
     with patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
          patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
          patch.object(ag, "get_intraday_indicators", intraday), \
@@ -233,8 +233,8 @@ def run_cycle(broker_row, intraday, portfolio=()):
          patch.object(auto_trade, "_execute_virtual_trade", virtual_trade), \
          patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(9_700_000.0, 10_000_000.0, {}))), \
          patch.object(auto_trade, "_persist_cycle", persist), \
-         patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=10_000_000.0)), \
-         patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=0)), \
+         patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=start_equity)), \
+         patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=orders_today)), \
          patch.object(auto_trade.risk_guard, "acquire_order_slot", acquire), \
          patch.object(auto_trade.risk_guard, "increment_orders_today", AsyncMock(return_value=1)), \
          patch.object(auto_trade.risk_guard, "release_order_slot", AsyncMock()), \
@@ -243,6 +243,8 @@ def run_cycle(broker_row, intraday, portfolio=()):
          patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()), \
          patch.object(auto_trade.notification, "notify_order_error", AsyncMock()), \
          patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()), \
+         patch.object(auto_trade.notification, "notify_risk_halt", AsyncMock()), \
+         patch.object(auto_trade, "audit", AsyncMock()), \
          patch.object(gw, "is_krx_market_open", return_value=True):
         asyncio.run(auto_trade._run_quant_cycle(str(UID)))
     return db, persisted, slots
@@ -297,3 +299,56 @@ def test_cycle_disabled_mode_untouched(monkeypatch):
     assert ag.is_enabled() is False
     base = RiskLimits(cooldown_min=30, max_orders_per_day=10)
     assert ag.apply_limits(base).cooldown_min == 5      # apply_limits 자체는 조건 없음; 호출 여부는 사이클이 결정
+
+
+def test_daily_loss_halts_before_stop_loss_sell_without_liquidation():
+    calls = fake_gateway()
+    held = SimpleNamespace(symbol="035420.KS", name="NAVER", quantity=7, avg_price=110_000.0, book="QUANT", user_id=UID)
+    row = broker()
+    db, log, slots = run_cycle(row, all_hold, portfolio=[held], start_equity=10_400_000)
+    assert log["risk"]["halted"] and row.risk_kill_switch
+    assert not row.quant_auto_enabled and held.quantity == 7
+    assert slots == [] and not any(method == "POST" for method, _, _ in calls)
+    assert not [r for r in db.added if isinstance(r, LiveOrder)]
+
+
+@pytest.mark.parametrize("gate", ["daily_orders", "cooldown"])
+def test_stop_loss_sell_is_subject_to_order_limits(gate):
+    calls = fake_gateway()
+    held = SimpleNamespace(symbol="035420.KS", name="NAVER", quantity=7, avg_price=110_000.0, book="QUANT", user_id=UID)
+    db, log, _ = run_cycle(broker(), all_hold, portfolio=[held],
+                           orders_today=200 if gate == "daily_orders" else 0, slot_allowed=(gate != "cooldown"))
+    assert "손절" in log["aggressive"]["sell"]["035420.KS"]
+    skipped = [s for s in log["risk"]["skipped"] if s["side"] == "sell"]
+    assert len(skipped) == 1
+    assert ("일 주문 수" if gate == "daily_orders" else "중복 주문") in skipped[0]["reason"]
+    assert held.quantity == 7 and not [r for r in db.added if isinstance(r, LiveOrder)]
+    assert not any(method == "POST" for method, _, _ in calls)
+
+
+@pytest.mark.parametrize("budget,expected", [(300_000, 2), (90_000, 0)])
+def test_risk_sized_cycle_respects_budget_including_costs(budget, expected):
+    fake_gateway()
+    _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct"},
+                                  quant_per_trade_budget=budget), all_hold)
+    buys = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "buy"]
+    assert sum(t["quantity"] for t in buys) == expected
+    if not expected:
+        assert any("1주도" in s["reason"] for s in log["risk"]["skipped"])
+
+
+def test_risk_stop_is_used_even_when_aggressive_stop_has_not_triggered():
+    fake_gateway()
+    held = SimpleNamespace(symbol="035420.KS", name="NAVER", quantity=7, avg_price=100_700.0, book="QUANT", user_id=UID)
+    _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct", "stop_loss_pct": .5}), all_hold, [held])
+    sells = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "sell"]
+    assert len(sells) == 1 and sells[0]["quantity"] == 7
+    assert "위험 수량 설정 손절" in sells[0]["reason"]
+
+
+def test_risk_sized_cycle_does_not_average_into_existing_holding():
+    fake_gateway()
+    held = SimpleNamespace(symbol="000660.KS", name="SK하이닉스", quantity=7, avg_price=100_000.0, book="QUANT", user_id=UID)
+    _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct"}), all_hold, [held])
+    assert not [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "buy"]
+    assert any("추가 매수" in s["reason"] for s in log["risk"]["skipped"])

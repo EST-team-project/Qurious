@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import (
     Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Index,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPkMixin
@@ -117,6 +117,7 @@ class BrokerSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     quant_per_trade_budget: Mapped[float] = mapped_column(Float, nullable=False, default=1_000_000)
     quant_buy_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     quant_sell_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    quant_execution_policy: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     # domain-rag-lab 백테스트 합격 전략 (종목 선정 화면 드롭다운). 비어 있으면 기존 하드코딩 시그널 규칙 사용
     quant_strategy_id: Mapped[str] = mapped_column(String(40), nullable=False, default="")
     quant_strategy_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -197,3 +198,6 @@ class LiveOrder(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     avg_filled_price: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     message: Mapped[str] = mapped_column(String(300), nullable=False, default="")
     raw: Mapped[str] = mapped_column(Text, nullable=False, default="")                    # 마지막 게이트웨이 응답 JSON
+    retry_of: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("live_orders.id"), unique=True)
+    retry_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    retry_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

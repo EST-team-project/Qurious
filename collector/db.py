@@ -496,18 +496,18 @@ CREATE INDEX IF NOT EXISTS ix_news_updated ON news_item(updated_at);
 SCHEMA += NEWS_ITEM_DDL
 
 
-#: 19. 한국은행 ECOS 시장금리(받은 것 · 2026-10-13 · 재무 · 신용 위험 API-RISK-02) — collector/ecos.py · 러너 ecos 단계.
+#: 19. 한국은행 ECOS 시장금리(받은 것 · 2026-10-13 · 재무 · 신용 위험 API-RISK-02) · 주가지수(2026-10-14 · 표 802Y001 코스피 · 코스닥 — 계절성 분석 API-SEAS-01) — collector/ecos.py · 러너 ecos 단계.
 #:    표 817Y002 「시장금리(일별)」 의 다섯 항목(국고채 3년 · 회사채 3년 AA- · BBB- · CD 91일 · CP 91일) — 신용 스프레드의 재료.
 #:    같은 날 값을 다시 받으면 fetched_at(처음 받은 시각)은 그대로 두고, 값이 바뀌었을 때만 value · updated_at 을 고친다.
 #: ⚠️ 출처 표시가 의무다(ECOS Open API 이용약관 제7조②) — 앱 응답 · 화면 · 대화 답에 「한국은행 경제통계시스템(ECOS)」.
 ECOS_SERIES_DDL = """
 CREATE TABLE IF NOT EXISTS ecos_series (
-    stat_code   TEXT    NOT NULL,              -- 통계표 코드(817Y002 시장금리 일별)
-    item_code   TEXT    NOT NULL,              -- 항목 코드(010200000 국고채 3년 · 010300000 회사채 AA- …)
+    stat_code   TEXT    NOT NULL,              -- 통계표 코드(817Y002 시장금리 일별 · 802Y001 주식시장 일별)
+    item_code   TEXT    NOT NULL,              -- 항목 코드(010200000 국고채 3년 · 010300000 회사채 AA- … · 0001000 코스피 · 0089000 코스닥)
     cycle       TEXT    NOT NULL,              -- 주기(D 일)
     date        TEXT    NOT NULL,              -- YYYY-MM-DD — ECOS TIME(20261012)을 바꿈
-    value       REAL,                          -- 값(연%) — ECOS 가 빈칸으로 주면 NULL
-    unit        TEXT    NOT NULL DEFAULT '',   -- 단위(연%)
+    value       REAL,                          -- 값(금리는 연% · 지수는 포인트) — ECOS 가 빈칸으로 주면 NULL
+    unit        TEXT    NOT NULL DEFAULT '',   -- 단위(연% · 지수는 1980.01.04=100 꼴)
     item_name   TEXT    NOT NULL DEFAULT '',   -- 항목 이름(ECOS 한국어판)
     fetched_at  TEXT    NOT NULL,              -- 처음 받은 시각 KST(다시 받아도 그대로)
     updated_at  TEXT    NOT NULL,              -- 값이 바뀐 판을 마지막으로 받은 시각 KST

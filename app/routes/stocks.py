@@ -18,6 +18,9 @@ from app.services.stock import (
 from app.services.krx_companies import search_companies
 from app.services import auto_trade
 from app.services import risk_guard
+from app.services.risk_execution import execution_guidance
+from app.services.execution_policy import ExecutionPolicy, policy_for
+from app.services.brokers.capabilities import execution_capabilities
 from app.services import strategy_loader
 from app.services.brokers import stock_coin_trade_gateway
 from app.services import kis_credentials
@@ -416,6 +419,7 @@ class QuantSettingsBody(BaseModel):
     per_trade_budget: float = Field(default=1_000_000, ge=10_000, le=10_000_000)
     buy_ratio: float = Field(default=1.0, ge=0.1, le=1.0)
     sell_ratio: float = Field(default=0.5, ge=0.1, le=1.0)
+    execution_policy: ExecutionPolicy | None = None
     # domain-rag-lab 합격 전략 (비우면 기존 규칙)
     strategy_id: str = Field(default="", max_length=40)
     strategy_version: int = Field(default=0, ge=0)
@@ -587,6 +591,8 @@ async def get_quant_settings(
             "ai_top_n": 3, "per_trade_budget": 1_000_000.0, "buy_ratio": 1.0, "sell_ratio": 0.5,
             "risk": risk_guard.RiskLimits().to_dict(), "risk_halt_reason": "",
             "strategy_id": "", "strategy_version": 0,
+            "execution_policy": ExecutionPolicy().model_dump(),
+            "execution_capabilities": execution_capabilities(),
             "live_gateway": _live_gateway_info(),
             "kis_managed": None, "managed_brokers": sorted(kis_credentials.MANAGED_BROKERS),
             "brokers": catalog, "stocks": stocks,
@@ -611,6 +617,8 @@ async def get_quant_settings(
         "per_trade_budget": row.quant_per_trade_budget,
         "buy_ratio": row.quant_buy_ratio,
         "sell_ratio": row.quant_sell_ratio,
+        "execution_policy": policy_for(row).model_dump(),
+        "execution_capabilities": execution_capabilities(),
         "risk": risk_guard.RiskLimits.from_row(row).to_dict(),
         "risk_halt_reason": row.risk_halt_reason,
         "strategy_id": row.quant_strategy_id or "",
@@ -661,6 +669,8 @@ async def save_quant_settings(
     row.quant_per_trade_budget = body.per_trade_budget
     row.quant_buy_ratio = body.buy_ratio
     row.quant_sell_ratio = body.sell_ratio
+    if body.execution_policy is not None:
+        row.quant_execution_policy = body.execution_policy.model_dump()
     strategy_id = (body.strategy_id or "").strip().lower()
     if strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)
@@ -915,6 +925,8 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
     uid = _uid(user["id"])
     row = await _get_broker_settings_row(db, uid)
     limits = risk_guard.RiskLimits.from_row(row)
+    if auto_trade.aggressive_mode.is_enabled():
+        limits = auto_trade.aggressive_mode.apply_limits(limits)
     user_key = user.get("id", "quant_system")
     # 자동매매 가상계좌 기준 현재 자산 (현재가 캐시 우선, 없으면 평균단가)
     acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
@@ -932,6 +944,7 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
     status = await risk_guard.risk_status(user_key, limits, equity, row.risk_halt_reason if row else "")
     status["auto_trade_running"] = bool(row and row.quant_auto_enabled)
     status["last_cycle_risk"] = (await auto_trade.get_status(db, uid)).get("risk", {})
+    status["execution_guidance"] = execution_guidance()
     return status
 
 
@@ -943,11 +956,18 @@ async def quant_kill_switch(body: KillSwitchBody, user=Depends(get_current_user)
     row.risk_halt_reason = (body.reason or ("사용자 수동 비상 정지" if body.enabled else ""))[:300]
     await db.commit()
     stopped = False
+    cancellation = None
     if body.enabled:
         stopped = await auto_trade.stop_auto_trade_for(db, user["id"])
+        try:
+            cancellation = await auto_trade.cancel_open_live_orders(db, _uid(user["id"]), row.risk_halt_reason)
+        except Exception:
+            logging.getLogger(__name__).exception("수동 비상 정지 후 미체결 주문 취소 확인 실패")
+            cancellation = {"requested": 0, "failed": 1, "skipped": 0}
         await notification.notify_risk_halt(row.risk_halt_reason, user_id=user.get("id"))
     await audit(user["id"], "", "quant.kill_switch", {"enabled": body.enabled, "reason": row.risk_halt_reason})
-    return {"ok": True, "kill_switch": row.risk_kill_switch, "auto_trade_stopped": stopped}
+    return {"ok": True, "kill_switch": row.risk_kill_switch, "auto_trade_stopped": stopped,
+            "cancellation": cancellation}
 
 
 # ── 통합 대시보드: KIS 모의투자 원클릭 ───────────────────────────────

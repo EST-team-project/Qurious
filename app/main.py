@@ -187,6 +187,14 @@ app.include_router(explain_routes.router)
 # 거시 신용은 ECOS 시장금리(수집 DB 를 읽기만). 로그인 뒤
 from app.routes import risk as risk_routes  # noqa: E402
 app.include_router(risk_routes.router)
+# 계절성 분석 (금융 필수 지식 › 계절성 · 2026-10-14) — 시장 지수(ECOS 1995 ~)와 종목(수집 시세 2020 ~)의 달 · 요일 · 연말 창.
+# 강사님 /api/ml/seasonality 는 그대로 두고 화면만 이 길로. 수집 DB 를 읽기만 · 로그인 뒤
+from app.routes import seasonality as seasonality_routes  # noqa: E402
+app.include_router(seasonality_routes.router)
+# 종목 군집화 (ML·딥러닝 › 종목 군집화 · 2026-10-14) — 같이 움직인 묶음(상관 거리) · 위험 · 수익 특성 묶음(수집 시세 총수익).
+# 강사님 POST /api/ml/cluster 는 그대로 두고 화면만 이 길로. 수집 DB 를 읽기만 · 로그인 뒤
+from app.routes import clusters as clusters_routes  # noqa: E402
+app.include_router(clusters_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
