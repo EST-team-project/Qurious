@@ -324,3 +324,31 @@ def test_stop_loss_sell_is_subject_to_order_limits(gate):
     assert ("일 주문 수" if gate == "daily_orders" else "중복 주문") in skipped[0]["reason"]
     assert held.quantity == 7 and not [r for r in db.added if isinstance(r, LiveOrder)]
     assert not any(method == "POST" for method, _, _ in calls)
+
+
+@pytest.mark.parametrize("budget,expected", [(300_000, 2), (90_000, 0)])
+def test_risk_sized_cycle_respects_budget_including_costs(budget, expected):
+    fake_gateway()
+    _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct"},
+                                  quant_per_trade_budget=budget), all_hold)
+    buys = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "buy"]
+    assert sum(t["quantity"] for t in buys) == expected
+    if not expected:
+        assert any("1주도" in s["reason"] for s in log["risk"]["skipped"])
+
+
+def test_risk_stop_is_used_even_when_aggressive_stop_has_not_triggered():
+    fake_gateway()
+    held = SimpleNamespace(symbol="035420.KS", name="NAVER", quantity=7, avg_price=100_700.0, book="QUANT", user_id=UID)
+    _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct", "stop_loss_pct": .5}), all_hold, [held])
+    sells = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "sell"]
+    assert len(sells) == 1 and sells[0]["quantity"] == 7
+    assert "위험 수량 설정 손절" in sells[0]["reason"]
+
+
+def test_risk_sized_cycle_does_not_average_into_existing_holding():
+    fake_gateway()
+    held = SimpleNamespace(symbol="000660.KS", name="SK하이닉스", quantity=7, avg_price=100_000.0, book="QUANT", user_id=UID)
+    _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct"}), all_hold, [held])
+    assert not [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "buy"]
+    assert any("추가 매수" in s["reason"] for s in log["risk"]["skipped"])

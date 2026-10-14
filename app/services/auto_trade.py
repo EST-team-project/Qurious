@@ -42,6 +42,7 @@ from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.data_cache import cache_get, cache_set
 from app.services import trading_cost
 from app.services import aggressive_mode
+from app.services.execution_policy import policy_for, risk_quantity
 
 logger = logging.getLogger(__name__)
 
@@ -575,6 +576,15 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                         row.message = "자동매매 중지·비상 정지 또는 주문 설정 미확인으로 재전송 보류. 접수 여부는 증권사 주문 내역에서 확인하세요."
                         summary["skipped"] += 1
                         continue
+                    if row.retry_of is not None:
+                        from app.services.order_retry import enabled as retry_enabled, coordination_ready
+                        retry_policy = policy_for(broker)
+                        age = (datetime.now(timezone.utc) - row.retry_started_at).total_seconds() if row.retry_started_at else float("inf")
+                        if (not retry_enabled(broker, retry_policy) or row.environment != "paper" or gateway.environment() != "paper"
+                                or not 0 <= age <= retry_policy.retry_window_min * 60 or not await coordination_ready()):
+                            row.message = "재주문 설정 해제·시간 창 종료로 응답 불명 주문 재전송 보류. 증권사 내역 확인 필요"
+                            summary["skipped"] += 1
+                            continue
                     # 응답을 못 받은 주문: 계약서의 멱등키(clientOrderId)로 **같은 intent 를 재전송**한다.
                     # st 가 원 주문을 기록했으면 새 주문 없이 저장된 order 를 duplicate=true 로 돌려주고,
                     # 원 요청이 st 에 닿지 않았으면 이번에 접수된다(최대 1회 실행 보장). 시간 창을 넘기면 LOST 로 종료해 비중 점유를 푼다.
@@ -603,6 +613,11 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                         summary["skipped"] += 1
                         continue
                 else:
+                    if row.retry_of is not None:
+                        # 준비만 저장한 뒤 작업이 중단된 경우: 종목·수량 추정으로 다른 주문과 연결하지 않는다.
+                        row.message = "재주문 준비 후 전송 미확인. 새 주문 없이 수동 확인 대기"
+                        summary["skipped"] += 1
+                        continue
                     # 주문번호를 못 받은(PENDING) 건: 당일 목록에서 같은 종목·방향·수량으로 추정 매칭
                     code = gateway.normalize_symbol(row.symbol)
                     candidates = [o for o in await gateway.list_today_orders(env=row.environment)
@@ -706,6 +721,11 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
 
         bs_result = await db.execute(select(BrokerSettings).where(BrokerSettings.user_id == uid))
         broker_row = bs_result.scalar_one_or_none()
+        try:
+            execution = policy_for(broker_row)
+        except ValueError:
+            await _persist_cycle(uid, {**cycle_log, "note": "주문 수량·재주문 설정 오류로 자동매매를 보류합니다."})
+            return
 
         mode = broker_row.quant_mode if broker_row and broker_row.quant_mode in ("paper", "live") else (
             "live" if broker_row and broker_row.paper is False else "paper"
@@ -814,7 +834,27 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             "per_trade_budget": per_trade_budget,
             "buy_ratio": buy_ratio,
             "sell_ratio": sell_ratio,
+            "execution_policy": execution.model_dump(),
         }
+
+        risk_holdings = {}
+        risk_stops = set()
+        if execution.size_kind == "risk_pct":
+            for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
+                if p.quantity <= 0:
+                    continue
+                risk_holdings[p.symbol] = p
+                price = price_map.get(p.symbol)
+                if price and p.avg_price and price <= float(p.avg_price) * (1 - execution.stop_loss_pct / 100):
+                    if (aggressive and forced_action.get(p.symbol, {}).get("action") != "매도"
+                            and sum(v["action"] == "매도" for v in forced_action.values())
+                            >= max(0, int(app_settings.QUANT_AGGRESSIVE_MAX_SELLS_PER_CYCLE))):
+                        continue  # 선택 기능도 기존 사이클별 매도 수 상한을 우회하지 않는다.
+                    risk_stops.add(p.symbol)
+                    forced_action[p.symbol] = {"action": "매도", "ratio": 1.0,
+                                              "note": f"위험 수량 설정 손절 {execution.stop_loss_pct}% 도달"}
+                    if p.symbol in stock_map and p.symbol not in target_symbols:
+                        target_symbols.append(p.symbol)
 
         # ── 위험관리 사전 점검: 일손실 한도 ───────────────────────────────
         cash_now, equity_now, position_values = await _equity_snapshot(db, uid, price_map)
@@ -852,6 +892,15 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
 
         async def _risk_gate(symbol: str, name: str, side: str, qty: int, price: float) -> tuple[int, str | None]:
             """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)"""
+            if mode == "live" and gateway.is_configured():
+                opened = (await db.execute(select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.symbol == symbol,
+                                              LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)))).scalars().all()
+                if opened:
+                    return 0, "같은 종목의 접수·체결 미확인 주문이 있어 새 주문을 보류합니다."
+                if execution.retry_enabled:
+                    from app.services.order_retry import coordination_ready
+                    if not await coordination_ready():
+                        return 0, "재주문 중복 방지 저장소 연결을 확인할 수 없습니다."
             if limits.max_orders_per_day > 0 and await risk_guard.orders_today(user_id) >= limits.max_orders_per_day:
                 return 0, f"일 주문 수 한도 {limits.max_orders_per_day}건 도달"
             if side == "buy":
@@ -860,7 +909,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     return 0, note
             else:
                 note = None
-            if not await risk_guard.acquire_order_slot(user_id, symbol, side, limits.cooldown_min):
+            cooldown = max(1, limits.cooldown_min) if execution.retry_enabled else limits.cooldown_min
+            if not await risk_guard.acquire_order_slot(user_id, symbol, side, cooldown):
                 return 0, f"중복 주문 방지: {limits.cooldown_min}분 내 동일 종목·방향 주문 존재"
             return qty, note
 
@@ -902,6 +952,11 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         sell_ratio_here = float(forced["ratio"])
                 else:
                     action = "관망"   # 공격 모드에서는 plan 이 정한 종목만 거래한다(사이클당 매수·매도 수 한도)
+            if symbol in risk_stops:
+                forced = forced_action[symbol]
+                if forced["action"] == "매도":
+                    action, sell_ratio_here = "매도", 1.0
+                    reasons = [forced["note"], *reasons]
             cycle_log["signals"].append({
                 "symbol": stock["symbol"], "name": stock["name"],
                 "price": price, "action": action, "score": score,
@@ -911,6 +966,26 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             if action in ("강력 매수", "매수"):
                 budget = per_trade_budget * buy_ratio
                 qty = max(1, int(budget / price))
+                if execution.size_kind == "risk_pct":
+                    # 추가 매수는 평균단가·기존 손절 위험을 바꾸므로 첫 진입만 지원한다.
+                    if symbol in risk_holdings:
+                        await _risk_skip(symbol, stock["name"], "buy", price, "위험 기준 수량은 보유 종목 추가 매수를 하지 않습니다.")
+                        continue
+                    try:
+                        sizing = risk_quantity(equity=equity_now, cash=cash_now, price=price,
+                            stop_price=float(price) * (1 - execution.stop_loss_pct / 100), budget=budget,
+                            existing_value=position_values.get(symbol, 0), position_cap_pct=limits.max_position_pct,
+                            risk_pct=execution.risk_pct, slippage_bps=execution.slippage_bps,
+                            when=trading_cost.today_kst(), market=trading_cost.market_of(symbol),
+                            is_etf=trading_cost.is_etf_name(stock["name"]))
+                    except ValueError as exc:
+                        await _risk_skip(symbol, stock["name"], "buy", price, str(exc))
+                        continue
+                    qty = sizing["quantity"]
+                    if qty == 0:
+                        await _risk_skip(symbol, stock["name"], "buy", price, "위험·현금·예산·비중 상한으로 1주도 매수할 수 없습니다.")
+                        continue
+                    reasons = [*reasons, f"위험 기준 {qty}주 · 손절 기준 {sizing['stop_price']:,.0f}원 · 비용 포함 예상 손실 {sizing['estimated_loss']:,.0f}원"]
                 qty, risk_note = await _risk_gate(stock["symbol"], stock["name"], "buy", qty, price)
                 if qty <= 0:
                     await _risk_skip(stock["symbol"], stock["name"], "buy", price, risk_note or "위험관리 규칙")
@@ -925,6 +1000,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 if trade.get("status") != "filled":
                     await risk_guard.release_order_slot(user_id, stock["symbol"], "buy")
                 if trade.get("status") == "filled":
+                    cash_now = float(trade.get("cash_balance", max(0, cash_now - price * trade.get("quantity", qty))))
                     cycle_log["risk"]["orders_today"] = await risk_guard.increment_orders_today(user_id)
                     position_values[stock["symbol"]] = position_values.get(stock["symbol"], 0.0) + price * trade.get("quantity", qty)
                     await notification.notify_auto_trade_executed(

@@ -775,6 +775,24 @@
                   <p class="text-xs mt-2" style="color:var(--text-mute);">0을 입력하면 해당 규칙을 사용하지 않습니다. 쿨다운은 Redis 키(SET NX
                     EX)로 같은 종목·방향 재주문을 막습니다.</p>
                 </div>
+                <details class="rounded-xl p-3 text-sm" style="border:1px solid var(--border);">
+                  <summary>선택 기능: 위험 기준 수량 · 취소 확정 매도 재주문</summary>
+                  <div class="grid md:grid-cols-2 gap-3 mt-3">
+                    <label>매수 수량 방식<select id="quant-size-kind" class="input mt-1"><option value="fixed_budget">기존 고정 예산</option><option value="risk_pct">비용 포함 위험 금액 기준</option></select></label>
+                    <label>1회 예상 손실 예산 (% · 자동매매 가상 자산)<input id="quant-risk-pct" type="number" min="0.01" max="5" step="0.1" value="1" class="input mt-1" /></label>
+                    <label>손절 거리 (% · 매입 기준)<input id="quant-stop-pct" type="number" min="0.01" max="50" step="0.1" value="1" class="input mt-1" /></label>
+                    <label>편도 슬리피지 가정 (bp)<input id="quant-risk-slip" type="number" min="0" max="100" value="10" class="input mt-1" /></label>
+                  </div>
+                  <p class="text-xs mt-2">위험 기준은 첫 진입만 지원하며 보유 종목을 추가 매수하지 않습니다. 비용·현금·1회 예산·종목 비중 상한을 함께 적용하고 1주도 안 되면 매수하지 않습니다. 이 모드에서는 설정한 손절 거리를 서버 주기마다 확인합니다. 갭·미체결로 실제 손실이 예상 예산을 넘을 수 있습니다.</p>
+                  <label class="flex gap-2 mt-3"><input id="quant-retry-enabled" type="checkbox" /> 취소 확정된 모의 지정가 매도 잔량 재주문 켜기 (기본 꺼짐)</label>
+                  <div class="grid md:grid-cols-3 gap-3 mt-2">
+                    <label>최대 재주문 횟수<input id="quant-retry-attempts" type="number" min="1" max="3" value="1" class="input mt-1" /></label>
+                    <label>원 주문부터 시간 제한 (분)<input id="quant-retry-window" type="number" min="1" max="120" value="15" class="input mt-1" /></label>
+                    <label>가격 변동 허용 (%)<input id="quant-retry-deviation" type="number" min="0.1" max="5" step="0.1" value="1" class="input mt-1" /></label>
+                  </div>
+                  <p class="text-xs mt-2">시장가·매수·실전 주문·취소 요청 중·접수 불명 주문은 대상이 아닙니다. 잔고·열린 주문·일손실·주문 수·쿨다운을 재확인합니다. 기존 쿨다운이 시간 제한보다 길면 재주문하지 않습니다. 재주문을 켜도 미체결 자동 취소 설정을 바꾸지 않습니다.</p>
+                  <p id="quant-execution-capabilities" class="text-xs mt-2"></p>
+                </details>
                 <div class="flex gap-2">
                   <button id="broker-save" class="btn-primary">저장 / 연결</button>
                   <button id="broker-test" class="btn-secondary">연결 테스트</button>

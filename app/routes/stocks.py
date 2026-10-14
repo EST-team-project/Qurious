@@ -19,6 +19,8 @@ from app.services.krx_companies import search_companies
 from app.services import auto_trade
 from app.services import risk_guard
 from app.services.risk_execution import execution_guidance
+from app.services.execution_policy import ExecutionPolicy, policy_for
+from app.services.brokers.capabilities import execution_capabilities
 from app.services import strategy_loader
 from app.services.brokers import stock_coin_trade_gateway
 from app.services import kis_credentials
@@ -417,6 +419,7 @@ class QuantSettingsBody(BaseModel):
     per_trade_budget: float = Field(default=1_000_000, ge=10_000, le=10_000_000)
     buy_ratio: float = Field(default=1.0, ge=0.1, le=1.0)
     sell_ratio: float = Field(default=0.5, ge=0.1, le=1.0)
+    execution_policy: ExecutionPolicy | None = None
     # domain-rag-lab 합격 전략 (비우면 기존 규칙)
     strategy_id: str = Field(default="", max_length=40)
     strategy_version: int = Field(default=0, ge=0)
@@ -588,6 +591,8 @@ async def get_quant_settings(
             "ai_top_n": 3, "per_trade_budget": 1_000_000.0, "buy_ratio": 1.0, "sell_ratio": 0.5,
             "risk": risk_guard.RiskLimits().to_dict(), "risk_halt_reason": "",
             "strategy_id": "", "strategy_version": 0,
+            "execution_policy": ExecutionPolicy().model_dump(),
+            "execution_capabilities": execution_capabilities(),
             "live_gateway": _live_gateway_info(),
             "kis_managed": None, "managed_brokers": sorted(kis_credentials.MANAGED_BROKERS),
             "brokers": catalog, "stocks": stocks,
@@ -612,6 +617,8 @@ async def get_quant_settings(
         "per_trade_budget": row.quant_per_trade_budget,
         "buy_ratio": row.quant_buy_ratio,
         "sell_ratio": row.quant_sell_ratio,
+        "execution_policy": policy_for(row).model_dump(),
+        "execution_capabilities": execution_capabilities(),
         "risk": risk_guard.RiskLimits.from_row(row).to_dict(),
         "risk_halt_reason": row.risk_halt_reason,
         "strategy_id": row.quant_strategy_id or "",
@@ -662,6 +669,8 @@ async def save_quant_settings(
     row.quant_per_trade_budget = body.per_trade_budget
     row.quant_buy_ratio = body.buy_ratio
     row.quant_sell_ratio = body.sell_ratio
+    if body.execution_policy is not None:
+        row.quant_execution_policy = body.execution_policy.model_dump()
     strategy_id = (body.strategy_id or "").strip().lower()
     if strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)
