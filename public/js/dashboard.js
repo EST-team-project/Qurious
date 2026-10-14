@@ -127,7 +127,7 @@ async function loadKisQuickstart() {
     } else if (st.ready) {
       btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-play"></i> KIS 모의투자 시작';
       const d = st.defaults || {};
-      el.innerHTML = `${link} · 시작하면 AI 추천 ${d.quant_ai_top_n ?? 3}종목 · 1회 ${Number(d.quant_per_trade_budget ?? 300000).toLocaleString('ko-KR')}원 · 쿨다운 ${d.risk_cooldown_min ?? 30}분 · 종목 비중 ${d.risk_max_position_pct ?? 20}% 로 자동매매를 켭니다.` +
+      el.innerHTML = `${link} · 시작하면 모델·지표 선정 ${d.quant_ai_top_n ?? 3}종목 · 1회 ${Number(d.quant_per_trade_budget ?? 300000).toLocaleString('ko-KR')}원 · 쿨다운 ${d.risk_cooldown_min ?? 30}분 · 종목 비중 ${d.risk_max_position_pct ?? 20}% 로 자동매매를 켭니다.` +
         (st.running ? ` 현재 ${escHtml(st.mode)}/${escHtml(st.broker)} 자동매매가 켜져 있어 설정이 KIS 모의투자로 바뀝니다.` : '');
     } else {
       btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-play"></i> KIS 모의투자 시작';
@@ -144,7 +144,7 @@ async function loadKisQuickstart() {
 document.getElementById('overview-kis-start')?.addEventListener('click', async () => {
   const btn = document.getElementById('overview-kis-start');
   const el = document.getElementById('overview-kis-status');
-  if (!confirm('KIS 모의투자(Testbed)를 시작합니다.\nAI 추천 종목으로 10분마다 시그널을 평가하고, 매수/매도 시 내 한국투자증권 모의투자 계좌로 주문이 나갑니다.\n\n계속하시겠습니까?')) return;
+  if (!confirm('KIS 모의투자(Testbed)를 시작합니다.\n모델·지표 선정 종목으로 설정한 주기마다 시그널을 평가하고, 매수/매도 시 내 한국투자증권 모의투자 계좌로 주문이 나갑니다.\n\n계속하시겠습니까?')) return;
   btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 시작 중…';
   try {
     const r = await api('/api/quant/kis/quickstart', { method: 'POST' });

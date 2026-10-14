@@ -20,7 +20,9 @@ def test_cooldown_expiry_boundary(monkeypatch):
     assert asyncio.run(rg.acquire_order_slot("u", "005930.KS", "buy", 0))   # 쿨다운 0 = 비활성
 
 
-def test_daily_order_counter_reaches_limit():
+def test_daily_order_counter_reaches_limit(monkeypatch):
+    # 메모리 폴백 단위 시험은 외부 Redis 연결·재시도에 의존하지 않는다.
+    monkeypatch.setattr(rg, "_redis", lambda: None)
     rg._mem_counters.clear()
     limits = rg.RiskLimits(max_orders_per_day=2)
     assert asyncio.run(rg.orders_today("u2")) == 0

@@ -18,6 +18,7 @@ from app.services.stock import (
 from app.services.krx_companies import search_companies
 from app.services import auto_trade
 from app.services import risk_guard
+from app.services.risk_execution import execution_guidance
 from app.services import strategy_loader
 from app.services.brokers import stock_coin_trade_gateway
 from app.services import kis_credentials
@@ -915,6 +916,8 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
     uid = _uid(user["id"])
     row = await _get_broker_settings_row(db, uid)
     limits = risk_guard.RiskLimits.from_row(row)
+    if auto_trade.aggressive_mode.is_enabled():
+        limits = auto_trade.aggressive_mode.apply_limits(limits)
     user_key = user.get("id", "quant_system")
     # 자동매매 가상계좌 기준 현재 자산 (현재가 캐시 우선, 없으면 평균단가)
     acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
@@ -932,6 +935,7 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
     status = await risk_guard.risk_status(user_key, limits, equity, row.risk_halt_reason if row else "")
     status["auto_trade_running"] = bool(row and row.quant_auto_enabled)
     status["last_cycle_risk"] = (await auto_trade.get_status(db, uid)).get("risk", {})
+    status["execution_guidance"] = execution_guidance()
     return status
 
 
@@ -943,11 +947,18 @@ async def quant_kill_switch(body: KillSwitchBody, user=Depends(get_current_user)
     row.risk_halt_reason = (body.reason or ("사용자 수동 비상 정지" if body.enabled else ""))[:300]
     await db.commit()
     stopped = False
+    cancellation = None
     if body.enabled:
         stopped = await auto_trade.stop_auto_trade_for(db, user["id"])
+        try:
+            cancellation = await auto_trade.cancel_open_live_orders(db, _uid(user["id"]), row.risk_halt_reason)
+        except Exception:
+            logging.getLogger(__name__).exception("수동 비상 정지 후 미체결 주문 취소 확인 실패")
+            cancellation = {"requested": 0, "failed": 1, "skipped": 0}
         await notification.notify_risk_halt(row.risk_halt_reason, user_id=user.get("id"))
     await audit(user["id"], "", "quant.kill_switch", {"enabled": body.enabled, "reason": row.risk_halt_reason})
-    return {"ok": True, "kill_switch": row.risk_kill_switch, "auto_trade_stopped": stopped}
+    return {"ok": True, "kill_switch": row.risk_kill_switch, "auto_trade_stopped": stopped,
+            "cancellation": cancellation}
 
 
 # ── 통합 대시보드: KIS 모의투자 원클릭 ───────────────────────────────

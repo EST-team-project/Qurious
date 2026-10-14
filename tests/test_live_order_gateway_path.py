@@ -4,6 +4,7 @@ DB 는 add/commit/execute 만 흉내 내는 가짜 AsyncSession, 게이트웨이
 """
 import asyncio
 import uuid
+from types import SimpleNamespace
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -37,9 +38,11 @@ class FakeDb:
         self.added: list = []
         self.commits = 0
         self.rows = rows or []
+        self.broker = SimpleNamespace(risk_kill_switch=False, quant_auto_enabled=True, quant_mode="live")
     def add(self, obj): self.added.append(obj)
     async def commit(self): self.commits += 1
     async def execute(self, *_a, **_k): return FakeResult(self.rows)
+    async def scalar(self, *_a, **_k): return self.broker
 
 
 @pytest.fixture(autouse=True)
@@ -269,6 +272,59 @@ def test_unknown_past_window_becomes_lost_and_notifies(env, monkeypatch):
     env["errored"].assert_awaited_once()
     from app.models import LIVE_ORDER_OPEN_STATUSES
     assert "LOST" not in LIVE_ORDER_OPEN_STATUSES
+
+
+@pytest.mark.parametrize("side", ["BUY", "SELL"])
+@pytest.mark.parametrize("state", ["halted", "stopped", "virtual", "missing"])
+def test_unknown_replay_cannot_create_order_after_stop(env, state, side):
+    calls = _server((200, {"ok": True}))
+    row = _unknown_row(age_min=2)
+    row.side = side
+    db = FakeDb(rows=[row])
+    if state == "halted":
+        db.broker.risk_kill_switch = True
+    elif state == "stopped":
+        db.broker.quant_auto_enabled = False
+    elif state == "virtual":
+        db.broker.quant_mode = "virtual"
+    else:
+        db.broker = None
+    with patch.object(auto_trade, "get_session_factory", return_value=_factory(db)):
+        summary = asyncio.run(auto_trade.confirm_live_fills())
+    assert calls == []  # 승인 토큰 요청도 새 주문도 보내지 않는다.
+    assert summary["skipped"] == 1 and row.status == "UNKNOWN"
+    assert "재전송 보류" in row.message
+
+
+def test_known_order_still_confirms_fill_after_halt(env):
+    calls = _server((200, {"ok": True}))
+    row = _unknown_row(age_min=2)
+    row.order_no = "0000001234"
+    row.status = "PARTIALLY_FILLED"
+    row.filled_quantity = 1
+    db = FakeDb(rows=[row])
+    db.broker.risk_kill_switch = True
+    with patch.object(auto_trade, "get_session_factory", return_value=_factory(db)):
+        summary = asyncio.run(auto_trade.confirm_live_fills())
+    assert summary["filled"] == 1 and row.status == "FILLED"
+    assert all(method == "GET" for method, _ in calls)
+
+
+def test_partial_sell_stays_partial_without_new_order(env, monkeypatch):
+    monkeypatch.setattr(settings, "STOCK_COIN_TRADE_CANCEL_OPEN_AFTER_MIN", 0)
+    calls = []
+    def handler(request):
+        calls.append(request.method)
+        return httpx.Response(200, json={"ok": True, "order": {
+            "orderNo": "77", "status": "PARTIALLY_FILLED", "filledQuantity": 5, "avgFilledPrice": 12000}})
+    gw.set_transport(httpx.MockTransport(handler))
+    row = _unknown_row(age_min=2)
+    row.side, row.order_no, row.status = "SELL", "77", "ACCEPTED"
+    with patch.object(auto_trade, "get_session_factory", return_value=_factory(FakeDb(rows=[row]))):
+        summary = asyncio.run(auto_trade.confirm_live_fills())
+    assert row.status == "PARTIALLY_FILLED" and row.filled_quantity == 5
+    assert row.quantity == 23 and summary["filled"] == 0 and calls == ["GET"]
+    env["filled"].assert_not_awaited()
 
 
 def test_unknown_market_closed_waits(env, monkeypatch):

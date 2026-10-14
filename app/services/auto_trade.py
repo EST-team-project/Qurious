@@ -1,8 +1,8 @@
-"""주기 자동매매 Agentic AI(QUANT_CYCLE_SEC, 기본 3분) - PostgreSQL 기반.
+"""주기 자동매매(QUANT_CYCLE_SEC, 기본 10분) - PostgreSQL 기반.
 
 실행 모델
   - 활성 여부는 BrokerSettings.quant_auto_enabled(DB)에 저장한다. 앱 재시작·다중 인스턴스에서도 상태가 유지된다.
-  - 주기 실행은 Celery Beat(`quant.auto_trade_cycle`, QUANT_CYCLE_SEC 기본 3분)이 활성 사용자 전원에 대해 run_cycle_for_enabled_users()를 돌린다.
+  - 주기 실행은 Celery Beat(`quant.auto_trade_cycle`, QUANT_CYCLE_SEC 기본 10분)이 활성 사용자 전원에 대해 run_cycle_for_enabled_users()를 돌린다.
   - 시작 시에는 즉시 1회 사이클을 백그라운드로 실행해 화면 반응을 준다(인프로세스 루프는 더 이상 쓰지 않는다).
   - 사이클 로그는 data_cache(`quant:cycle_log:{uid}`)에 최근 50개를 남겨 API 프로세스와 워커가 공유한다.
 
@@ -49,7 +49,7 @@ _auto_trade_task: asyncio.Task | None = None
 _trade_log: list[dict] = []
 _is_running = False
 _auto_trade_user_id = "quant_system"
-_INTERVAL_SEC = int(app_settings.QUANT_CYCLE_SEC)   # celery_app.beat_schedule 과 같은 값(기본 180 = 3분)
+_INTERVAL_SEC = int(app_settings.QUANT_CYCLE_SEC)   # celery_app.beat_schedule 과 같은 값
 _INITIAL_CAPITAL = 10_000_000
 _last_risk: dict = {}          # 마지막 사이클의 위험관리 상태 (status 응답용)
 
@@ -566,6 +566,15 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                 if row.order_no:
                     latest = await gateway.get_order_status(row.order_no, env=row.environment)
                 elif row.status == "UNKNOWN" and row.client_order_id:
+                    # 멱등 재전송도 원 요청이 도착하지 않았다면 새 주문이다.
+                    # 체결 확인 작업은 자동매매 정지 후에도 돌아가므로 DB의 현재 허용 상태를 별도로 확인한다.
+                    broker = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == row.user_id)
+                                             .execution_options(populate_existing=True))
+                    if (broker is None or broker.risk_kill_switch or not broker.quant_auto_enabled
+                            or broker.quant_mode != "live"):
+                        row.message = "자동매매 중지·비상 정지 또는 주문 설정 미확인으로 재전송 보류. 접수 여부는 증권사 주문 내역에서 확인하세요."
+                        summary["skipped"] += 1
+                        continue
                     # 응답을 못 받은 주문: 계약서의 멱등키(clientOrderId)로 **같은 intent 를 재전송**한다.
                     # st 가 원 주문을 기록했으면 새 주문 없이 저장된 order 를 duplicate=true 로 돌려주고,
                     # 원 요청이 st 에 닿지 않았으면 이번에 접수된다(최대 1회 실행 보장). 시간 창을 넘기면 LOST 로 종료해 비중 점유를 푼다.
