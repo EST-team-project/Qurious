@@ -14,8 +14,8 @@
  *     출처 문구 그대로 · 약관 제9조). 그 탭을 처음 열 때 한 번 부르고, 조건을 바꿀 때만 다시 부른다(하루 호출 한도).
  * 투자 성향 · 자산 배분 비중은 읽기만 한다(오준영 님 몫 — 「자산배분·최적화」 화면).
  *   - 성향: 그 화면이 이 브라우저에 남긴 진단 결과(localStorage robo_risk_profile)를 읽는다.
- *   - 비중: 같은 표를 여기 복제하지 않는다. 배분 API(POST /api/ml/robo/allocation)는 종목을 훑어 무거우므로(첫 부름 14초 안팎)
- *     「비중 불러오기」 단추로만 부르고, 받은 비중은 이 탭(sessionStorage)에만 둔다 — 가벼운 길이 생기면(이슈 「비중 함수」) 바꾼다.
+ *   - 비중: 같은 표를 여기 복제하지 않는다. 가벼운 GET /api/ml/robo/weights를
+ *     「비중 불러오기」 단추로 부르고, 받은 비중은 이 탭(sessionStorage)에만 둔다.
  * 강사님 파일(app.html · main.js · core.js · agent.js)에는 뿌리 칸 · 부르는 줄 · 메뉴 이름 · 옛 단추 가드만 두고 그리기는 모두 여기서.
  * ETF 이름을 누르면 상품 상세 창(js/productchart.js · API-PROD-04 · Figma 03-2 · 05 [결정] 안 B)이 열린다 — 차트 · 쉬운 말 근거는 그 파일에.
  *
@@ -140,7 +140,7 @@ function headerHtml() {
       <button class="pd-link" data-go="robo-portfolio">자산 배분 보기 →</button>`;
   } else {
     mix = `<button class="btn-secondary pd-weights-btn" data-act="weights" ${weightsLoading ? "disabled" : ""}>
-        ${weightsLoading ? "비중 계산 중… (10초 넘게 걸릴 수 있습니다)" : "내 자산 배분 비중 불러오기"}</button>
+        ${weightsLoading ? "비중 불러오는 중…" : "내 자산 배분 비중 불러오기"}</button>
       <button class="pd-link" data-go="robo-portfolio">성향 다시 진단 →</button>`;
   }
   const chip = prof ? `<span class="pd-chip">투자 성향 ${escHtml(prof.level || prof.risk_profile)}</span>` : `<span class="pd-chip pd-chip--none">투자 성향 진단 전</span>`;
@@ -408,7 +408,7 @@ async function loadWeights() {
   weightsLoading = true;
   draw();
   try {
-    const al = await api("/api/ml/robo/allocation", { method: "POST", body: { risk_profile: prof.risk_profile } });
+    const al = await api(`/api/ml/robo/weights?risk_profile=${encodeURIComponent(prof.risk_profile)}&horizon_years=3`);
     weights = { risk_profile: al.risk_profile, level: prof.level, allocations: al.allocations, horizon_years: al.horizon_years };
     try { sessionStorage.setItem(WEIGHTS_KEY, JSON.stringify(weights)); } catch (_) { }
     active = tabOrder()[0];

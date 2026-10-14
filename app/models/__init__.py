@@ -26,6 +26,7 @@ from app.models.paper import (
 from app.models.paper_snapshot import PaperAccountSnapshot
 from app.models.signal import SignalSnapshot
 from app.models.rebalance import RebalancePlan, CashflowEvent, RebalanceRun
+from app.models.allocation import AllocationResult
 from app.models.tradingview import WebhookSignal, StrategyComparison
 from app.models.formula import FormulaIndicator, FormulaIndicatorVersion, FormulaIndicatorResult
 from app.models.chat import Conversation, Chat
@@ -71,6 +72,7 @@ __all__ = [
     "ApiKey",
     "LeanBacktestRun",
     "PAPER_INITIAL_CASH",
+    "AllocationResult",
     "RebalancePlan",
     "CashflowEvent",
     "RebalanceRun",
