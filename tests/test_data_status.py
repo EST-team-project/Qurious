@@ -58,10 +58,16 @@ def write_state(state: Path, *, last: dict | None = None, lock: dict | None = No
             "\n".join(json.dumps(h, ensure_ascii=False) for h in history) + "\n", encoding="utf-8")
 
 
-def write_catalog(state: Path) -> dict:
-    """러너가 회차마다 쓰는 단계 목록을 그대로 만든다 — 러너 코드(``scripts/daily_update.step_catalog``)에서."""
+def write_catalog(state: Path, **changes) -> dict:
+    """러너가 회차마다 쓰는 단계 목록을 그대로 만든다 — 러너 코드(``scripts/daily_update.step_catalog``)에서. `changes` 는 칸을
+    바꾸거나(`schedule="13:05"`) 지운다(`schedule=None` — 그 칸이 없는 옛 목록)."""
     from scripts import daily_update as du
     cat = du.step_catalog(at("2026-10-02T12:30:01"))
+    for k, v in changes.items():
+        if v is None:
+            cat.pop(k, None)
+        else:
+            cat[k] = v
     state.mkdir(parents=True, exist_ok=True)
     (state / ds.CATALOG_FILE).write_text(json.dumps(cat, ensure_ascii=False), encoding="utf-8")
     return cat
@@ -126,6 +132,7 @@ def test_attention_run_makes_overall_verdict_check_needed(monkeypatch):
 def test_runner_running_lock_and_stale_lock(tmp_path):
     """TC-DST-02 · 4시간 안 잠금 = 도는 중 · 그보다 오래된 잠금은 죽은 잠금이라 무시한다."""
     st = tmp_path / "state"
+    write_catalog(st)                                         # 회차 시각(12:30)은 러너가 쓴 단계 목록에서만 읽는다(D104)
     write_state(st, last=last_run("2026-10-01", [step("price")]),
                 lock={"pid": 1, "started_at": "2026-10-02T12:30:00+09:00"})
     r = ds.runner_state(st, at("2026-10-02T12:40:00"))
@@ -154,6 +161,7 @@ def test_running_step_from_progress_of_the_same_run(tmp_path):
 def test_runner_late_only_after_an_hour_and_missing(tmp_path):
     """TC-DST-03 · 오늘 회차가 없으면 13:30 부터 「오늘 회차 없음」 · 그 전엔 어제 성공 그대로 · 기록이 없으면 「기록 없음」."""
     st = tmp_path / "state"
+    write_catalog(st)                                         # 회차 시각(12:30)은 러너가 쓴 단계 목록에서만 읽는다(D104)
     write_state(st, last=last_run("2026-10-01", [step("price")]),
                 history=[{"started_at": "2026-10-01T12:30:01+09:00", "finished_at": "2026-10-01T12:51:16+09:00",
                           "ok": True, "upload": True, "stopped": None, "price_max": "20260930"},
@@ -193,11 +201,7 @@ def market(tmp_path, monkeypatch):
     conn.close()
     monkeypatch.setenv(collector_db.ENV_DB_PATH, str(path))
     ds._cache.clear()
-    ds._counts.update(sig=None, rows={}, at=None)
-    yield path
-    t = ds._count_job["thread"]                     # 뒤에서 세는 스레드가 임시 DB 를 쥔 채 끝나지 않게
-    if t is not None:
-        t.join(10)
+    return path
 
 
 def _states(today: date):
@@ -403,48 +407,68 @@ def test_api_requires_login(market):
     assert j["verdict"] in ("ok", "warning", "error") and {t["key"] for t in j["tables"]} >= {"price_daily", "market_calendar"}
 
 
-def test_row_counts_in_background_reused_and_recounted(market, monkeypatch):
-    """TC-DST-10 · 행 수는 뒤에서 센다 — 처음엔 곧바로 「세는 중」(줄 수 None)으로 답하고, 다 세면 그 값(fresh)을 쓴다.
-    파일이 그대로면 다시 세지 않고, 러너가 도는 중이면 지난 값(old)과 그 까닭을, 러너가 끝나면 뒤에서 다시 센다.
-    (컨테이너에서 큰 표 다섯의 COUNT(*) 가 첫 호출에 14.8초 · 점검 스크립트에서 21초 걸렸다 — 2026-10-02)"""
-    import sqlite3 as _sq
+def _numbers_file(state: Path, rows: dict | None = None, *, written_at: str = "2026-10-02T12:51:20+09:00",
+                  schema: int = 1, extras: list | None = None) -> Path:
+    """러너가 회차 끝에 쓰는 숫자 파일(자료 안내와 같은 파일) — 표 열쇠는 관제 표 정의(TABLES)에서 · 줄 수는 7 이 기본."""
+    rows = rows or {}
+    data = {"schema": schema, "written_at": written_at, "by": "run", "db": True, "seconds": 1.4,
+            "tables": [{"key": k, "rows": rows.get(k, 7), "last_date": "2026-09-30", "missing": False} for k, *_ in ds.TABLES]}
+    if extras is not None:
+        data["extras"] = extras
+    state.mkdir(parents=True, exist_ok=True)
+    p = state / ds.NUMBERS_FILE
+    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    return p
+
+
+def test_row_counts_come_from_the_runner_numbers_file(market):
+    """TC-DST-10 · 관제의 줄 수는 러너가 회차 끝에 쓴 숫자 파일(자료 안내와 같은 파일 · 셈법 한 곳)에서 읽는다(자료 안내 3단계 ·
+    2026-10-15 사용자 결정) — 앱은 수집 DB 를 세지 않는다(뒤에서 세던 스레드를 없앰 · 컨테이너 15 ~ 20초 「세는 중」). 기준일 · 판정은
+    지금처럼 관제가 직접 본다. 마지막 수집 뒤에 쓴 파일이면 그 값(fresh · 쓴 시각을 `rows_counted_at` 에) · 도는 중이면 「지난 수집 기준」 ·
+    마지막 수집(한 단계 다시 포함) 뒤에 못 썼으면 그 값과 까닭(stale) · 없음 · 옛 판 · 깨짐이면 줄 수를 비우고 까닭(말없이 세지 않는다).
+    리밸런싱 시험이 갈아 끼우는 `counts_view` 의 이름 · 키워드로 부르는 꼴 · 「fresh」 는 그대로다(팀원 시험 `ready_data`)."""
+    import inspect
     import threading
-
-    gate = threading.Event()
-    real = ds._count_rows
-    monkeypatch.setattr(ds, "_count_rows", lambda path, sig: (gate.wait(10), real(path, sig)))
+    st = market.parent / "state"
+    write_catalog(st)
+    write_state(st, last=last_run("2026-10-02", [step("price"), step("calendar")]))
     now = at("2026-10-02T14:00:00")
-    s = ds.get_status(now)
-    assert s["rows_state"] == "pending" and "세는 중" in s["rows_note"]
-    assert all(t["rows"] is None for t in s["tables"] if t["verdict"] != "missing"), "세는 동안 줄 수는 비운다"
-    assert {t["key"]: t["last_date"] for t in s["tables"]}["price_daily"] == "2026-09-30", "기준일 · 판정은 그대로"
-    gate.set()
-    ds._count_job["thread"].join(10)
-    s = ds.get_status(now)
-    rows = {t["key"]: t["rows"] for t in s["tables"]}
-    assert s["rows_state"] == "fresh" and rows["price_daily"] > 0 and "rows_note" not in s
-
-    real_start = ds.start_count
-    started = []
-    monkeypatch.setattr(ds, "start_count", lambda **k: started.append(1) or True)
-    assert ds.get_status(now)["rows_state"] == "fresh" and not started, "파일이 그대로면 다시 세지 않는다"
-
-    w = _sq.connect(market)                                   # 러너가 쓰는 중 — 파일이 바뀐다
-    w.execute("INSERT INTO price_daily (bas_dt, srtn_cd, clpr) VALUES ('20261001', '000660', 1)")
-    w.commit()
-    w.close()
-    write_state(market.parent / "state", lock={"pid": 1, "started_at": "2026-10-02T13:55:00+09:00"})
-    s = ds.get_status(now)
-    assert s["rows_state"] == "old" and "도는 중" in s["rows_note"] and not started, "러너가 쓰는 동안은 다시 세지 않는다"
-    assert {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"]
-
-    (market.parent / "state" / "daily_update.lock").unlink()   # 러너가 끝났다 — 다시 센다
-    monkeypatch.setattr(ds, "start_count", real_start)
-    s = ds.get_status(now)
-    assert s["rows_state"] == "old" and "다시 세는 중" in s["rows_note"]
-    ds._count_job["thread"].join(10)
-    s = ds.get_status(now)
-    assert s["rows_state"] == "fresh" and {t["key"]: t["rows"] for t in s["tables"]}["price_daily"] == rows["price_daily"] + 1
+    before = threading.active_count()
+    # 파일 없음 — 줄 수는 비우고 까닭 · 기준일 · 판정은 그대로
+    s = ds.get_status(now, use_cache=False)
+    t = {x["key"]: x for x in s["tables"]}
+    assert s["rows_state"] == "none" and "숫자 파일" in s["rows_note"] and s["rows_counted_at"] is None
+    assert all(x["rows"] is None for x in s["tables"] if x["verdict"] != "missing"), "세지 않는다 — 비운다"
+    assert t["price_daily"]["last_date"] == "2026-09-30", "기준일 · 판정은 관제가 직접"
+    assert threading.active_count() == before, "뒤에서 세는 스레드가 없다"
+    # 마지막 수집 뒤에 쓴 파일 — 그 값
+    _numbers_file(st, {"price_daily": 4_503_767})
+    s = ds.get_status(now, use_cache=False)
+    t = {x["key"]: x for x in s["tables"]}
+    assert (s["rows_state"], s["rows_counted_at"]) == ("fresh", "2026-10-02T12:51:20+09:00") and "rows_note" not in s
+    assert (t["price_daily"]["rows"], t["price_adjusted"]["rows"]) == (4_503_767, 7)
+    # 도는 중 — 값은 그대로 · 지난 수집 기준이라고 알린다
+    write_state(st, lock={"pid": 1, "started_at": "2026-10-02T13:55:00+09:00"})
+    s = ds.get_status(now, use_cache=False)
+    assert s["rows_state"] == "fresh" and "도는 중" in s["rows_note"] and "10-02 12:51" in s["rows_note"]
+    (st / "daily_update.lock").unlink()
+    # 마지막 수집(한 단계 다시) 뒤에 파일을 못 썼다 — 값은 그대로 · 그 시각 기준
+    write_state(st, last={**last_run("2026-10-02", [step("price")]),
+                          "reruns": [{"name": "news", "at": "2026-10-02T13:40:00+09:00", "rc": 0}]})
+    s = ds.get_status(now, use_cache=False)
+    assert s["rows_state"] == "stale" and "10-02 12:51 수집 기준" in s["rows_note"]
+    assert {x["key"]: x["rows"] for x in s["tables"]}["price_daily"] == 4_503_767
+    # 옛 판 · 깨짐 — 비우고 까닭
+    _numbers_file(st, schema=99)
+    s = ds.get_status(now, use_cache=False)
+    assert s["rows_state"] == "old" and "옛 판" in s["rows_note"]
+    assert all(x["rows"] is None for x in s["tables"] if x["verdict"] != "missing")
+    (st / ds.NUMBERS_FILE).write_text("{깨짐", encoding="utf-8")
+    s = ds.get_status(now, use_cache=False)
+    assert s["rows_state"] == "error" and "읽지 못" in s["rows_note"]
+    # 팀원 시험이 갈아 끼우는 이름 · 꼴 — 키워드로 부르고 (사전, 상태) 를 받는다 · 세는 길은 남지 않는다
+    assert "counts_view(running=" in inspect.getsource(ds.get_status)
+    assert not hasattr(ds, "start_count") and not hasattr(ds, "_count_rows")
 
 
 def test_last_date_queries_use_indexes(tmp_path):
@@ -610,3 +634,134 @@ def test_publish_deadline_matches_the_data_guide_source_table():
     assert all(ds.FRESHNESS[k] == ("deadline", (14, 0)) for k in ("price_daily", "etf_daily", "index_daily"))
     assert "사흘" in rows["briefing"]["공개"] and ds.FRESHNESS["news_item"] == ("gap_days", 2)
     assert "30시간" in rows["gdelt"]["공개"] and ds.FRESHNESS["news_gdelt"][0] == "max_hours"
+
+
+# ── 회차 시각 한 곳 · 자료 안내 여덟 자료(2026-10-15) ─────────────────────────
+def test_schedule_is_read_from_the_runner_catalog_only(tmp_path, monkeypatch):
+    """TC-DST-27 · 회차 시각은 러너가 쓴 단계 목록의 `schedule` 하나에서 읽는다(D104 · #163 02 약속 셋째 · SSoT) — 관제(다음 회차 ·
+    「오늘 회차 없음」 판정과 글) · 자료 안내 흐름 · 수집 일정 도움말(막히는 때)이 같은 값을 쓴다. 목록이 없거나 그 칸이 없거나 꼴이
+    틀리면 「회차 시각 모름」 을 글로 내고 다음 회차는 비우며 「오늘 회차 없음」 을 판정하지 않는다(말없이 12:30 으로 메우지 않는다).
+    앱에는 회차 시각 사본이 없다(`SCHEDULE_HM` · 코드 안 「12:30」 글자 · (12, 30))."""
+    import ast
+    import inspect
+    from app.services import data_guide as dg
+    st = tmp_path / "state"
+    write_catalog(st, schedule="13:05")
+    write_state(st, last=last_run("2026-10-01", [step("price")]))
+    r = ds.runner_state(st, at("2026-10-02T13:30:00"))
+    assert (r["schedule"], r["next_expected"], r["state"]) == ("매일 13:05", "2026-10-03T13:05+09:00", "ok"), \
+        "13:05 회차는 14:05 전까지 「오늘 회차 없음」 이 아니다(12:30 사본이면 13:30 에 늦음)"
+    late = ds.runner_state(st, at("2026-10-02T14:06:00"))
+    assert late["state"] == "late" and late["detail"].startswith("13:05 회차 기록이 아직 없다")
+    assert dg.runner_view(late, ds.load_catalog(st))["schedule"] == "매일 13:05"
+    monkeypatch.setattr(ds, "collector_dir", lambda: tmp_path)
+    assert ds.runner_detail(at("2026-10-02T14:06:00"))["rerun"]["blocked"].startswith("13:05 회차와 겹치는 때")
+    # 그 칸이 없는 옛 목록 · 목록 없음 — 모름을 글로 · 판정하지 않는다
+    for prep in (lambda: write_catalog(st, schedule=None), lambda: (st / ds.CATALOG_FILE).unlink()):
+        prep()
+        r = ds.runner_state(st, at("2026-10-02T23:00:00"))
+        assert (r["schedule"], r["next_expected"]) == (ds.SCHEDULE_UNKNOWN, None)
+        assert r["state"] == "ok", "시각을 모르면 「오늘 회차 없음」 을 판정하지 않는다(어제 성공 그대로)"
+        assert dg.runner_view(r, ds.load_catalog(st))["schedule"] == ds.SCHEDULE_UNKNOWN
+        assert ds.runner_detail(at("2026-10-02T23:00:00"))["rerun"]["blocked"].startswith(ds.SCHEDULE_UNKNOWN)
+    missing = ds.runner_state(tmp_path / "없음", at("2026-10-02T23:00:00"))
+    assert (missing["state"], missing["schedule"], missing["next_expected"]) == ("missing", ds.SCHEDULE_UNKNOWN, None)
+    # 잘못된 꼴은 모름 — 말없이 고치지 않는다
+    for bad in ("25:00", "12시 30분", "7:5", 1230):
+        write_catalog(st, schedule=bad)
+        assert ds.load_catalog(st)["schedule"] is None, bad
+    # 사본이 없다 — 상수 · 코드 안 「12:30」 글자 · (12, 30) 묶음(설명 글 · 주석은 보지 않는다)
+    assert not hasattr(ds, "SCHEDULE_HM")
+    for mod in (ds, dg):
+        tree = ast.parse(inspect.getsource(mod))
+        docs = {id(n.body[0].value) for n in ast.walk(tree)
+                if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                and n.body and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant)}
+        texts = [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docs]
+        assert not [x for x in texts if "12:30" in x], f"{mod.__name__} 에 「12:30」 이 코드 글자로 남았다"
+        pairs = [n for n in ast.walk(tree) if isinstance(n, ast.Tuple) and [getattr(e, "value", None) for e in n.elts] == [12, 30]]
+        assert not pairs, f"{mod.__name__} 에 (12, 30) 사본이 남았다"
+
+
+def _extra_dbs(cdir: Path) -> None:
+    """여덟 자료 가운데 DB 넷(수집 · 근거 · 섹터 법령 · 검색)을 수집기의 진짜 표 만드는 문으로 만들고 몇 줄 넣는다."""
+    from collector import kb_law, kb_sector, search_index
+    cdir.mkdir(parents=True, exist_ok=True)
+    m = db.connect(cdir / "market.sqlite3")
+    m.executemany("INSERT INTO corp_schedule (rcept_no, kind, event_date, parsed_at) VALUES (?, ?, ?, 't')",
+                  [("r1", "agm", "2026-03-20"), ("r2", "dividend_pay", "2026-04-17"), ("r3", "agm", "")])
+    m.executemany("INSERT INTO holiday_kasi (locdate, date_name, is_holiday, date_kind, seq, fetched_at) VALUES (?, ?, 'Y', '', 1, 't')",
+                  [("2020-01-01", "1월1일"), ("2027-12-25", "기독탄신일")])
+    m.executemany("INSERT INTO policy_meeting (org, meeting_date, title, source_url, fetched_at) VALUES (?, ?, ?, 'u', 't')",
+                  [("bok", "2026-10-23", "금통위"), ("fomc", "2026-10-29", "FOMC")])
+    m.commit()
+    m.close()
+    k = kb_law.connect(cdir / "kb.sqlite3")
+    cols = [r[1] for r in k.execute("PRAGMA table_info(kb_document)")]
+    k.execute(f"INSERT INTO kb_document ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+              [("2026-10-02" if c == "effective_at" else 1 if c in ("grade", "articles", "chunks") else "x") for c in cols])
+    ccols = [r[1] for r in k.execute("PRAGMA table_info(kb_chunk)") if r[1] != "rid"]
+    for i in range(3):
+        k.execute(f"INSERT INTO kb_chunk ({', '.join(ccols)}) VALUES ({', '.join('?' * len(ccols))})",
+                  [(f"c{i}" if c == "chunk_id" else i if c in ("seq", "chars", "grade") else "x") for c in ccols])
+    k.close()
+    s = kb_sector.connect(cdir / "kb_sector.sqlite3")
+    s.executemany("INSERT INTO ks_article (title, year, seq, label, text) VALUES ('은행법', ?, ?, '제1조', '목적')",
+                  [(2024, 0), (2026, 0), (2026, 1)])
+    s.close()
+    q = search_index.connect(cdir / "search.sqlite3")
+    q.executemany("INSERT INTO doc (doc_id, kind, title, published, source) VALUES (?, ?, 't', ?, ?)",
+                  [("D:1", "disclosure", "2026-10-15", "dart"), ("N:1", "news", "2020-01-02T09:00+09:00", "naver")])
+    q.close()
+
+
+def test_extra_counts_for_the_eight_guide_items(tmp_path, monkeypatch):
+    """TC-DST-28 · 자료 안내의 관제 밖 자료 여덟(3단계 · 2026-10-15 사용자 결정 「추천 표대로」) — 줄 수 · 마지막 날 · 처음 날을 잰 사실로
+    (판정 없음). 일정 셋은 수집 DB · 근거 · 섹터 법령 · 검색은 각자의 DB(읽기 전용 — 연결 주소마다 `mode=ro`) · 용어는 앱 파일 ·
+    회차 기록은 러너 이력. 파일 · 표가 없거나 행이 없으면 줄 수 None · missing(0 이 아니다) · 깨진 파일은 그 줄만 missing 과 까닭.
+    SQL 은 수집기의 진짜 표 만드는 문으로 만든 DB 에 돈다(칸 이름이 바뀌면 여기서 깨진다)."""
+    import sqlite3 as _sq
+    cdir = tmp_path / "collector"
+    _extra_dbs(cdir)
+    gfile = tmp_path / "terms.json"
+    gfile.write_text(json.dumps({"format_version": 2, "terms": [{"id": i} for i in range(5)]}), encoding="utf-8")
+    st = cdir / "state"
+    write_state(st, history=[{"started_at": "2026-09-28T12:30:01+09:00", "ok": True},
+                             {"started_at": "2026-10-01T13:00:00+09:00", "skipped": "다른 실행이 돌고 있다"},
+                             {"started_at": "2026-10-02T12:30:01+09:00", "ok": True}])
+    with (st / "daily_update_history.jsonl").open("a", encoding="utf-8") as h:
+        h.write("{깨진 줄\n")
+    seen: list[str] = []
+    real = ds.sqlite3.connect
+    monkeypatch.setattr(ds.sqlite3, "connect", lambda target, *a, **k: (seen.append(str(target)), real(target, *a, **k))[1])
+    mconn = _sq.connect(f"file:{(cdir / 'market.sqlite3').as_posix()}?mode=ro", uri=True)
+    try:
+        out = ds.extra_counts(mconn, cdir, st, glossary=gfile)
+    finally:
+        mconn.close()
+    assert [x["key"] for x in out] == list(ds.EXTRA_KEYS)
+    got = {x["key"]: (x["rows"], x["last_date"], x["first_date"], x["missing"]) for x in out}
+    assert got == {
+        "corp_schedule": (3, "2026-04-17", None, False),             # 날짜를 못 읽은 일정(빈칸)은 줄로만 센다 · 처음 날은 두지 않는다
+        "holiday_kasi": (2, "2027-12-25", "2020-01-01", False),
+        "policy_meeting": (2, "2026-10-29", "2026-10-23", False),
+        "kb_law": (3, "2026-10-02", None, False),
+        "kb_sector": (3, "2026-12-31", None, False),
+        "search_index": (2, "2026-10-15", "2020-01-02", False),
+        "glossary": (5, None, None, False),
+        "run_history": (3, "2026-10-02", "2026-09-28", False),       # 깨진 줄은 세지 않는다 · 건너뛴 회차 줄은 센다
+    }
+    assert seen and all("mode=ro" in x for x in seen), f"읽기 전용으로만 연다: {seen}"
+    # 없음 — 파일 · 표가 없다(0 이 아니라 None)
+    none = ds.extra_counts(None, tmp_path / "없음", None, glossary=tmp_path / "없음.json")
+    assert all(x["missing"] and x["rows"] is None for x in none)
+    # 행이 없는 표도 「없음」 · 깨진 파일은 그 줄만 · 까닭(관리자용)
+    from collector import search_index
+    empty = tmp_path / "빈"
+    empty.mkdir()
+    search_index.connect(empty / "search.sqlite3").close()
+    (empty / "kb.sqlite3").write_bytes(b"not a database" * 100)
+    out = {x["key"]: x for x in ds.extra_counts(None, empty, None, glossary=gfile)}
+    assert out["search_index"]["missing"] and out["search_index"]["rows"] is None and not out["search_index"].get("why")
+    assert out["kb_law"]["missing"] and out["kb_law"]["why"], "깨진 DB 는 그 줄만 까닭과 함께"
+    assert out["glossary"]["rows"] == 5 and not out["glossary"]["missing"]

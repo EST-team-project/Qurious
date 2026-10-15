@@ -150,7 +150,9 @@ FILL_PATH = config.STATE_DIR / "daily_update_fill.json"
 #: 이 파일만 읽는다 — 1단계는 요청 때 상태 계산을 기다렸고 수집이 도는 동안 줄 수가 「세는 중」 으로 비었다. 단계로 더하지
 #: 않고 곁 파일로 둔다(사용자 2026-10-11 「회차 끝 곁 파일」 — 이 PC 용량 파일과 같은 자리 · 단계 수 20 그대로).
 GUIDE_STATS_PATH = config.STATE_DIR / "data_guide_stats.json"
-#: 숫자 파일의 판 — 앱 `data_guide.NUMBERS_SCHEMA` 와 같아야 한다(다르면 앱은 「옛 판」 으로 숫자를 비운다 · TC-DG-11)
+#: 숫자 파일의 판 — 앱 `data_status.NUMBERS_SCHEMA` 와 같아야 한다(다르면 앱은 「옛 판」 으로 숫자를 비운다 · TC-DG-11).
+#: 2026-10-15(자료 안내 3단계) — 관제 행 수도 이 파일을 읽고(앱이 세지 않는다), 관제 밖 자료 여덟을 `extras` 칸으로 더했다(더한 칸이라
+#: 판은 그대로 — 그 칸이 없는 옛 파일이면 앱은 여덟만 「기다림」).
 GUIDE_STATS_SCHEMA = 1
 
 #: 빠진 날 채우기 한 번의 범위 상한(일 · 양 끝 포함) — 사용자 결정 2026-10-10 「31일」. 앱은 단계 목록의 ``fill_max_days`` 로
@@ -586,26 +588,33 @@ def table_numbers(now: Optional[datetime.datetime] = None, db_path: Optional[Pat
     수집 DB 는 **읽기 전용**으로 연다(쓰기 연결이 마지막으로 닫히면 WAL 보조 파일이 지워져 앱이 멈춘다 · DF-81 — 읽기 전용은 오히려
     보조 파일을 남긴다). 「없음」(표가 없다 · 행이 없다)은 줄 수 None 이지 0 이 아니다. 판정(늦음 · 멈춤)은 싣지 않는다 — 날이
     바뀌면 달라지는 판정은 읽는 쪽이 한다(이 파일은 잰 사실만 · SRP).
+
+    `extras` — 관제 밖 자료 여덟(일정 셋 · 근거 둘 · 검색 색인 · 용어 · 회차 기록 · 2026-10-15 자료 안내 3단계)도 같은 꼴로 세어 싣는다.
+    셈법 · 열쇠는 관제 모듈 한 곳(`data_status.EXTRA_SQL` · `extra_counts`)이고, 이 함수는 연 수집 DB 연결과 **DB 옆** 폴더(근거 ·
+    섹터 법령 · 검색 DB · 상태 폴더의 이력)를 넘길 뿐이다 — 상태 폴더를 DB 옆에서 찾아 시험(임시 DB)이 진짜 이력을 읽지 않게 한다.
     """
     from app.services import data_status                  # noqa: PLC0415 — 늦게(위 까닭)
     now = now or now_kst()
     db = db_path or config.DB_PATH
+    cdir = db.parent                                       # 진짜 회차에서는 config.DATA_DIR(상태 폴더 = config.STATE_DIR)
     t0 = time.monotonic()
     if db.exists():
         conn = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True, timeout=60)
         try:
             rows, _cal = data_status.table_states(conn, now.date())
+            extras = data_status.extra_counts(conn, cdir, cdir / "state")
         finally:
             conn.close()
     else:
         rows, _cal = data_status.table_states(None, now.date())
+        extras = data_status.extra_counts(None, cdir, cdir / "state")
     tables = []
     for r in rows:
         missing = r.get("verdict") == "missing"
         tables.append({"key": r["key"], "rows": None if missing else r.get("rows"),
                        "last_date": None if missing else r.get("last_date"), "missing": missing})
     return {"schema": GUIDE_STATS_SCHEMA, "written_at": _iso(now), "by": by, "db": db.exists(),
-            "seconds": round(time.monotonic() - t0, 1), "tables": tables}
+            "seconds": round(time.monotonic() - t0, 1), "tables": tables, "extras": extras}
 
 
 def write_side_files(numbers: Optional[str] = None) -> List[str]:
@@ -1194,10 +1203,14 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                    "upload": upload, "stopped": f"러너 오류 {type(e).__name__}: {e}",
                    "steps": run.steps, "log": log_path.relative_to(ROOT).as_posix()} | trigger
             _write_json_atomic(LAST_PATH, err)
-            if request_id:                                  # 작업자가 요청 번호로 결과를 찾는다 — 러너 오류도 기록으로
-                with HISTORY_PATH.open("a", encoding="utf-8") as h:
-                    h.write(json.dumps({k: err[k] for k in ("started_at", "finished_at", "ok", "upload", "stopped", "log")}
-                                       | {"rc": 1, "steps": _compact(run.steps)} | trigger, ensure_ascii=False) + "\n")
+            # 이력 줄은 회차마다 한 줄 — 정기 회차의 러너 오류도(2026-10-15 · 자료 안내 3단계). 화면 요청 회차만 남겨서 DF-103 회차
+            # (10-11 17:20 따라잡기)가 이력에 없었다(관제 · 수집 일정의 지난 회차에서 빠짐). 작업자는 요청 번호로 이 줄을 찾는다
+            with HISTORY_PATH.open("a", encoding="utf-8") as h:
+                h.write(json.dumps({k: err[k] for k in ("started_at", "finished_at", "ok", "upload", "stopped", "log")}
+                                   | {"rc": 1, "steps": _compact(run.steps)} | trigger, ensure_ascii=False) + "\n")
+            # 회차 끝처럼 곁 파일도 다시 — 오류 앞 단계가 자료를 바꿨을 수 있다(못 쓰면 🟡 · 옛 파일은 그대로 · 앱은 「수집 뒤 못 씀」)
+            for werr in write_side_files(numbers="run"):
+                run.say(f"🟡 기록 파일을 쓰지 못했다 — {werr}")
             rc_total = 1
         finally:
             clear_progress()

@@ -2,6 +2,9 @@
 2026-10-11 · 2단계 — 칸 정의 · 러너가 회차마다 쓰는 숫자 파일).
 
 `GET /api/data/guide` 가 부른다. 화면은 public/js/dataguide.js(「데이터 › 자료 안내」 · 데이터 관제 바로 아래).
+2026-10-15 · 3단계 — 관제 밖 자료 여덟(일정 셋 · 근거 둘 · 검색 색인 · 용어 · 회차 기록)도 숫자 파일의 `extras` 에서 숫자를 받고,
+숫자 파일 읽기는 관제와 같은 함수(`data_status.load_numbers` — 관제 행 수도 이 파일에서 읽는다)를 쓰고, 회차 시각은 러너 단계 목록
+하나에서(D104), 오늘 회차가 없으면 안내 줄로 알린다.
 
 설명과 숫자를 나눈다 (2026-10-08 결정 ④ · SSoT)
 -----------------------------------------------
@@ -52,10 +55,11 @@ logger = logging.getLogger(__name__)
 GUIDE_PATH = Path(__file__).resolve().parent / "data_guide.json"
 #: 설명 생성물의 판 — 2 = 자료마다 칸 정의(2026-10-11). 스캐너(`scripts/data_guide_scan.py` SCHEMA)와 같아야 한다(TC-DG-01).
 SCHEMA = 2
-#: 러너가 회차 끝 · 한 단계 다시 뒤에 쓰는 숫자 파일(`scripts/daily_update.py` GUIDE_STATS_PATH · 상태 폴더 안) — 판이 다르면
-#: 숫자를 비운다(「옛 판」). 러너 GUIDE_STATS_SCHEMA 와 같아야 한다(TC-DG-11 이 러너가 쓴 파일을 그대로 읽어 지킨다).
-NUMBERS_FILE = "data_guide_stats.json"
-NUMBERS_SCHEMA = 1
+#: 러너가 회차 끝 · 한 단계 다시 뒤에 쓰는 숫자 파일 — 이름 · 판 · 읽는 함수는 관제 모듈 한 곳(`data_status` · 2026-10-15 에
+#: 옮김 · 관제 행 수도 같은 파일을 읽는다). 함수는 별칭 없이 `data_status.load_numbers` 처럼 부른다(그 함수를 고치면 여기도 같이
+#: 바뀌게). 상수 이름은 시험 · 러너 주석이 부르므로 같은 이름으로 다시 내보낸다.
+NUMBERS_FILE = data_status.NUMBERS_FILE
+NUMBERS_SCHEMA = data_status.NUMBERS_SCHEMA
 
 #: 관리자 화면 — 일반 사용자 응답의 「쓰는 화면」 · 「어디서」 에서 뺀다. css/collect.css 가 일반 사용자의 메뉴에서 숨기는 셋과
 #: 같다(TC-DG 가 맞댄다 — 관리자 화면이 늘면 두 곳을 함께 고친다).
@@ -80,6 +84,8 @@ NOTE = {
     "none": "숫자는 매일 낮 수집이 끝날 때 셉니다 — 다음 수집 뒤에 보입니다",
     "running": "매일 낮 수집이 도는 중입니다 — 숫자는 지난 수집({at}) 기준입니다",
     "stale": "숫자는 {at} 수집 기준입니다 — 마지막 수집 뒤에 숫자를 새로 쓰지 못했습니다",
+    # 관제 「오늘 회차 없음」(러너 단계 목록의 회차 시각 + 1시간이 지나도 오늘 기록이 없다 · 2026-10-15 3단계) — 숫자는 그대로
+    "late": "오늘 낮 수집이 아직 없습니다 — 숫자는 {at} 수집 기준입니다",
 }
 
 _lock = threading.Lock()
@@ -270,59 +276,10 @@ def series(spec: str, mans: dict) -> dict | None:
     return None
 
 
-# ── 숫자 — 러너가 쓴 숫자 파일(2단계) ────────────────────────────────────────
-def load_numbers(state_dir: Path | None) -> dict:
-    """러너가 쓴 숫자 파일 → {state, written_at, by, tables(열쇠 → {rows, last_date, verdict}) | None, why}.
-
-    state — ok(읽음) · none(파일 없음) · old(판이 다름) · error(읽지 못함 — 깨진 JSON · 꼴이 다름). ok 가 아니면 tables 는 None 이고
-    `why` 에 관리자용 까닭을 단다(화면 글은 compute_stats 의 안내 줄). 파일은 2KB 안팎이라 요청마다 읽는다(캐시 없음 — 러너가 막
-    다시 쓴 판을 곧바로 보인다). 「없음」 표는 줄 수 None(0 이 아니다) · verdict missing 으로 바꿔 자료 한 줄 계산이 1단계와 같은
-    규칙(「없음」 이면 0 을 쓰지 않는다)을 그대로 쓰게 한다.
-    """
-    out = {"state": "none", "written_at": None, "by": None, "tables": None, "why": ""}
-    if state_dir is None:
-        return {**out, "why": "수집 폴더가 없다 — 이 PC 에서 매일 수집을 돌리지 않는다"}
-    path = state_dir / NUMBERS_FILE
-    if not path.exists():
-        return {**out, "why": f"{NUMBERS_FILE} 이 아직 없다 — 러너가 회차 끝 · 한 단계 다시 · steps --write 때 쓴다"}
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as e:
-        return {**out, "state": "error", "why": f"{NUMBERS_FILE} 을 읽지 못했다: {type(e).__name__}"}
-    if not isinstance(raw, dict) or not isinstance(raw.get("tables"), list):
-        return {**out, "state": "error", "why": f"{NUMBERS_FILE} 의 꼴이 다르다 — tables 목록이 없다"}
-    if raw.get("schema") != NUMBERS_SCHEMA:
-        return {**out, "state": "old", "why": f"{NUMBERS_FILE} 의 판({raw.get('schema')})이 앱이 아는 판({NUMBERS_SCHEMA})과 "
-                                              "다르다 — 다음 회차에 러너가 새 판으로 쓴다"}
-    tables: dict[str, dict] = {}
-    for t in raw["tables"]:
-        if not isinstance(t, dict) or not t.get("key"):
-            continue
-        missing = bool(t.get("missing"))
-        tables[t["key"]] = {"rows": None if missing else t.get("rows"), "last_date": None if missing else t.get("last_date"),
-                            "verdict": "missing" if missing else "ok"}
-    return {"state": "ok", "written_at": raw.get("written_at"), "by": raw.get("by"), "tables": tables, "why": ""}
-
-
+# ── 숫자 — 러너가 쓴 숫자 파일(2단계) — 읽는 함수는 관제 모듈 한 곳(위에서 다시 내보냄 · 2026-10-15) ────────
 def _hm(iso: str | None) -> str:
     """2026-10-08T13:25:30+09:00 → 10-08 13:25 (안내 줄 · 관리자 까닭)"""
     return f"{iso[5:10]} {iso[11:16]}" if iso and len(iso) >= 16 else "—"
-
-
-def last_run_event(runner: dict | None) -> str | None:
-    """러너 기록의 가장 늦은 일 — 회차가 끝난 때 · 한 단계 다시 · 채우기를 한 때 가운데 늦은 것(ISO). 없으면 None."""
-    last = (runner or {}).get("last") or {}
-    stamps = [last.get("finished_at")] + [r.get("at") for r in last.get("reruns") or [] if isinstance(r, dict)]
-    parsed = [(data_status._parse_ts(s), s) for s in stamps if s]  # noqa: SLF001 — 같은 시각 읽기
-    parsed = [(p, s) for p, s in parsed if p is not None]
-    return max(parsed)[1] if parsed else None
-
-
-def numbers_stale(written_at: str | None, runner: dict | None) -> bool:
-    """숫자 파일이 마지막 수집(한 단계 다시 포함)보다 앞인가 — 러너가 그 뒤에 파일을 못 썼다(🟡 「기록 파일을 쓰지 못했다」)."""
-    ev = last_run_event(runner)
-    w, e = data_status._parse_ts(written_at), data_status._parse_ts(ev)  # noqa: SLF001
-    return bool(w and e and w < e)
 
 
 # ── 숫자 — 자료 한 줄 · 전체 ────────────────────────────────────────────────
@@ -331,11 +288,13 @@ def item_stats(item: dict, tables: dict[str, dict] | None, mans: dict, dev: list
 
     줄 수 · 마지막 날은 숫자 파일(러너가 회차 끝에 센 값)을 먼저 쓰고, 그 파일에 줄이 없는 자료(가격 조정 기록 · 분봉 대상 ·
     받은 원문 · 주봉)만 백업 매니페스트의 합 · 마지막 날을 쓴다(rows_from 으로 어디서 왔는지 남긴다). 연도별 · 처음 · 시장별은
-    매니페스트에서만 온다. 파일이 아직 없거나 옛 판이면 「기다림(pending)」 · 깨졌으면 「읽지 못함(error)」 — 0 을 넣지 않는다.
+    매니페스트에서 온다 — 관제 밖 자료 여덟(3단계)은 처음 날도 숫자 파일에서(`first_from` 으로 가른다 · 모은 기간 머리에는 백업 목록
+    처음 날만). 파일이 아직 없거나 옛 판이면 「기다림(pending)」 · 깨졌으면 「읽지 못함(error)」 — 0 을 넣지 않는다. 옛 러너 파일에
+    `extras` 칸이 없으면 그 여덟도 「기다림」 이다(`tables` 의 그 열쇠 줄에 `pending` 표시).
     """
     sf = item.get("stats_from") or {}
     keys, spec = sf.get("status") or [], sf.get("backup") or ""
-    out = {"state": "ok", "why": "", "rows": None, "rows_from": None, "last": None, "first": None,
+    out = {"state": "ok", "why": "", "rows": None, "rows_from": None, "last": None, "first": None, "first_from": None,
            "first_year": None, "years": None, "markets": None}
     if not keys and not spec:
         return {**out, "state": "no_link", "why": ITEM_WHY["no_link"]}
@@ -347,10 +306,12 @@ def item_stats(item: dict, tables: dict[str, dict] | None, mans: dict, dev: list
         else:
             rows = [tables.get(k) for k in keys]
             unknown = [k for k, r in zip(keys, rows) if r is None]
-            if unknown:
+            if any(r and r.get("pending") for r in rows):
+                waiting = True                     # 옛 러너 파일 — 관제 밖 여덟(extras)이 아직 없다 · 다음 수집 뒤에 보인다
+            elif unknown:
                 error = True
                 dev.append(f"{item['key']}: 숫자_상태 {', '.join(unknown)} 가 숫자 파일({NUMBERS_FILE})에 없다"
-                           " — 러너는 관제 표 정의(data_status.TABLES)의 열쇠로 쓴다")
+                           " — 러너는 관제 표 정의(data_status.TABLES · EXTRA_KEYS)의 열쇠로 쓴다")
             # verdict missing = 수집 DB 나 표가 없다 · 행이 없다 — 그때 줄 수는 None(「없음」)이라 쓰지 않는다
             elif all(r.get("verdict") != "missing" for r in rows):
                 vals = [r.get("rows") for r in rows]
@@ -361,12 +322,16 @@ def item_stats(item: dict, tables: dict[str, dict] | None, mans: dict, dev: list
                     dev.append(f"{item['key']}: 숫자 파일의 줄 수가 정수가 아니다 — {vals}")
                 lasts = [r["last_date"] for r in rows if r.get("last_date")]
                 out["last"] = max(lasts) if lasts else None
+                firsts = [r["first_date"] for r in rows if r.get("first_date")]
+                if firsts:
+                    out.update(first=min(firsts), first_from="numbers")
     ser = series(spec, mans) if spec else None
     if spec and ser is None and mans.get("daily" if spec.startswith("hf:") else "ohlcv") is not None:
         dev.append(f"{item['key']}: 숫자_백업 {spec} 줄이 매니페스트에 없다")
     if ser:
         out["years"] = ser["years"] or None
-        out["first"] = ser["first"]
+        if ser["first"]:
+            out.update(first=ser["first"], first_from="backup")
         out["markets"] = ser["markets"]
         nonzero = [y for y, n in (ser["years"] or {}).items() if n]
         out["first_year"] = min(nonzero) if nonzero else None
@@ -403,9 +368,9 @@ def runner_view(runner: dict | None, catalog: dict | None) -> dict:
     for s in last.get("steps") or []:
         if s.get("status") in ("failed", "warning") or s.get("followup"):
             attention[s.get("group") or ""] = attention.get(s.get("group") or "", 0) + 1
-    hh, mm = data_status.SCHEDULE_HM
     return {
-        "schedule": r.get("schedule") or f"매일 {hh:02d}:{mm:02d}",
+        # 회차 시각은 러너가 쓴 단계 목록 하나에서(D104) — 관제가 읽은 글 그대로 · 모르면 「회차 시각 모름」(12:30 으로 메우지 않는다)
+        "schedule": r.get("schedule") or data_status.SCHEDULE_UNKNOWN,
         "running": bool(r.get("running")),
         "total_steps": len(steps),
         "groups": [{"key": g, "count": sum(1 for s in steps if s.get("group") == g),
@@ -421,9 +386,17 @@ def compute_stats(guide: dict, nums: dict, runner: dict | None, mans: dict, cata
     숫자는 그대로 싣고, 숫자 파일에서 오는 칸만 비운 채 까닭을 단다(안내 줄 · 관리자 까닭)."""
     tables = nums.get("tables")
     state = nums.get("state") or "none"
-    items = {it["key"]: item_stats(it, tables, mans, dev, state) for it in guide.get("items", [])}
+    # 자료 줄이 읽는 열쇠 — 관제 표 열쇠 + 관제 밖 여덟(3단계). 「모은 줄」 합은 관제 표 열쇠만(아래 `present`)
+    lookup = None
+    if tables is not None:
+        extras = nums.get("extras")
+        if extras is None:                         # 옛 러너 파일 — 여덟은 기다림(깨짐이 아니다)
+            extras = {k: {"pending": True} for k in data_status.EXTRA_KEYS}
+            dev.append(f"{NUMBERS_FILE} 에 관제 밖 자료 여덟(extras)이 없다 — 옛 러너가 쓴 파일 · 다음 회차 · steps --write 뒤에 생긴다")
+        lookup = {**tables, **extras}
+    items = {it["key"]: item_stats(it, lookup, mans, dev, state) for it in guide.get("items", [])}
     written = nums.get("written_at") if state == "ok" else None
-    stale = state == "ok" and numbers_stale(written, runner)
+    stale = state == "ok" and data_status.numbers_stale(written, runner)
 
     # 모은 줄 — 숫자 파일 표 줄의 합(주봉처럼 부를 때 계산하는 자료 · 근거 문서 · 용어는 빼고). 「없음」 표는 빼고 센다.
     present = [t for t in (tables or {}).values() if t.get("verdict") != "missing"]
@@ -432,7 +405,8 @@ def compute_stats(guide: dict, nums: dict, runner: dict | None, mans: dict, cata
         total, total_state = None, "none"
     else:
         total, total_state = sum(vals), ("stale" if stale else "fresh")
-    firsts = [s["first"] for s in items.values() if s.get("first")]
+    # 모은 기간 머리 — 백업 목록(시세 · 공시 …)의 처음 날만. 관제 밖 여덟의 처음 날(공휴일 2020-01-01 등)은 섞지 않는다
+    firsts = [s["first"] for s in items.values() if s.get("first") and s.get("first_from") == "backup"]
     first = min(firsts) if firsts else None
     # 처음 날보다 이른 해가 있는 자료(재무는 보고서를 접수한 해 2019 부터) — 숫자 띠의 한 줄
     early = sorted(({"item": k, "year": s["first_year"]} for k, s in items.items()
@@ -443,7 +417,7 @@ def compute_stats(guide: dict, nums: dict, runner: dict | None, mans: dict, cata
     available = any(s["rows"] is not None or s["years"] for s in items.values())
     view = runner_view(runner, catalog)
 
-    # 안내 줄 — 차례가 뜻이 있다: 파일을 못 읽음 > 옛 판 > 모은 자료 없음 > 파일 아직 없음 > 수집 중 > 수집 뒤 못 씀
+    # 안내 줄 — 차례가 뜻이 있다: 파일을 못 읽음 > 옛 판 > 모은 자료 없음 > 파일 아직 없음 > 수집 중 > 수집 뒤 못 씀 > 오늘 회차 없음
     if state == "error":
         note = NOTE["error"]
         problems.append("숫자 파일을 읽지 못했습니다")
@@ -457,12 +431,14 @@ def compute_stats(guide: dict, nums: dict, runner: dict | None, mans: dict, cata
         note = NOTE["running"].format(at=_hm(written))
     elif stale:
         note = NOTE["stale"].format(at=_hm(written))
+    elif (runner or {}).get("state") == "late":
+        note = NOTE["late"].format(at=_hm(written))
     else:
         note = ""
     if nums.get("why"):
         dev.append(nums["why"])
     if stale:
-        dev.append(f"{NUMBERS_FILE}({_hm(written)})이 마지막 수집({_hm(last_run_event(runner))})보다 앞이다 — 러너 로그의 "
+        dev.append(f"{NUMBERS_FILE}({_hm(written)})이 마지막 수집({_hm(data_status.last_run_event(runner))})보다 앞이다 — 러너 로그의 "
                    "「기록 파일을 쓰지 못했다」 줄을 본다")
     if mans.get("daily") is None and mans.get("ohlcv") is None and available:
         # 화면에는 바둑판 카드가 「이 PC 에는 연도별 숫자가 없습니다」 로 이미 알린다 — 까닭(파일 위치)은 관리자에게만
@@ -490,7 +466,7 @@ def read(admin: bool, now: datetime | None = None) -> dict:
     cdir = data_status.collector_dir()
     sdir = cdir / "state" if cdir else None
     runner = data_status.runner_state(sdir, now)
-    nums = load_numbers(sdir)
+    nums = data_status.load_numbers(sdir)
     mans = manifests(cdir)
     catalog = data_status.load_catalog(sdir)
     stats = compute_stats(guide, nums, runner, mans, catalog, problems, dev)

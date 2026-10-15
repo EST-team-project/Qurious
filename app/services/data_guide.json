@@ -2683,7 +2683,7 @@
     "market-calendar"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "마지막 날은 가장 늦은 일정 날이다(앞으로 열릴 주총 · 지급일 포함) · 날짜를 못 읽은 일정도 줄로 센다",
    "grid": "",
    "dev": {
     "tables": [
@@ -2695,7 +2695,9 @@
     "command": "python -m collector.corp_schedule build --rebuild"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "corp_schedule"
+    ],
     "backup": ""
    },
    "columns": {
@@ -2841,7 +2843,7 @@
    "avoid": "거래소 휴장일과 같지 않다 — 근로자의 날 · 연말 휴장은 거래일 달력이 더한다",
    "views": [],
    "read_hint": "거래일 달력으로",
-   "note": "",
+   "note": "마지막 날은 받은 해의 마지막 공휴일이다(내년까지)",
    "grid": "",
    "dev": {
     "tables": [
@@ -2853,7 +2855,9 @@
     "command": "python -m collector.market_calendar build"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "holiday_kasi"
+    ],
     "backup": ""
    },
    "columns": {
@@ -3242,7 +3246,7 @@
     "market-calendar"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "마지막 날은 발표된 가장 늦은 회의 날이다",
    "grid": "",
    "dev": {
     "tables": [
@@ -3254,7 +3258,9 @@
     "command": "python -m collector.event_sources fetch --force"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "policy_meeting"
+    ],
     "backup": ""
    },
    "columns": {
@@ -3949,7 +3955,7 @@
     "agent-chat"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "줄 수는 근거 조각 수다(조를 나눈 조각 · 지난 판 포함) — 마지막 날은 가장 늦은 판의 시행일이다",
    "grid": "",
    "dev": {
     "tables": [
@@ -3964,7 +3970,9 @@
     "command": "python -m collector.kb_law fetch"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "kb_law"
+    ],
     "backup": ""
    },
    "columns": {
@@ -4499,7 +4507,7 @@
     "agent-chat"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "줄 수는 조문 수다(해마다 고른 판 · 섹터 열하나와 공통) — 마지막 날은 가장 늦은 해의 끝이다",
    "grid": "",
    "dev": {
     "tables": [
@@ -4513,7 +4521,9 @@
     "command": "python -m collector.kb_sector fetch"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "kb_sector"
+    ],
     "backup": ""
    },
    "columns": {
@@ -4842,7 +4852,7 @@
     "agent-news"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "줄 수는 색인한 문서 수다(공시 · 정책뉴스 · 언론사 기사)",
    "grid": "",
    "dev": {
     "tables": [
@@ -4855,7 +4865,9 @@
     "command": "python -m collector.search_index build --full"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "search_index"
+    ],
     "backup": ""
    },
    "columns": {
@@ -5052,7 +5064,7 @@
     "fin-glossary"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "줄 수는 용어 수다(다른 이름 · 관계는 세지 않는다)",
    "grid": "",
    "dev": {
     "tables": [
@@ -5069,7 +5081,9 @@
     "command": "python scripts/glossary_build.py"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "glossary"
+    ],
     "backup": ""
    },
    "columns": {
@@ -5903,7 +5917,7 @@
     "crawl-auto"
    ],
    "read_hint": "",
-   "note": "",
+   "note": "줄 수는 회차 이력 줄이다(한 단계 다시 · 채우기 · 건너뛴 회차도 한 줄씩)",
    "grid": "",
    "dev": {
     "tables": [],
@@ -5913,7 +5927,9 @@
     "command": "python scripts/daily_update.py status"
    },
    "stats_from": {
-    "status": [],
+    "status": [
+     "run_history"
+    ],
     "backup": ""
    },
    "columns": null

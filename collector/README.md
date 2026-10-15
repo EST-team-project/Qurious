@@ -1218,12 +1218,16 @@ flowchart LR
    같은 칸 · `finished_at` 빈칸 · 남은 단계)과 앞 회차들의 이력 줄(최근 한 달)을 `data/hf_export/meta/run_record.json` 에 쓰고,
    올리기 자식에게만 그 회차의 시작 시각(`QURIOUS_RUN_RECORD`)을 넘긴다. `hf_dataset.upload()` 는 그 시각과 사본의 회차가 같을 때만
    싣고, 러너 밖에서 올리거나 지난 회차 사본이면 지운다(`meta/*` 라 같은 커밋 · 요청 번호는 빼고 글 칸의 경로는 파일 이름만).
+10. **러너 오류로 끝난 회차도 이력에 한 줄을 남긴다(2026-10-15).** 러너 자체의 결함(예외)으로 끝난 회차는 회차 기록에 「러너 오류 …」 를
+   적고, 이력 줄(종료코드 1 · 단계별 결과)도 **정기 회차까지** 남긴다 — 고치기 전에는 화면 요청 회차만 남겨 DF-103 회차(10-11 17:20
+   따라잡기)가 관제 · 수집 일정의 지난 회차 목록에서 빠졌다. 회차 끝처럼 곁 파일(단계 목록 · 용량 · 자료 안내 숫자)도 다시 쓴다 — 오류
+   앞 단계가 자료를 바꿨을 수 있다(못 쓰면 🟡 · 옛 파일은 그대로).
 
 ### 쓰는 법
 
 ```bash
 python scripts/daily_update.py install              # 매일 12:30 · 업로드 포함 (한 번만)
-python scripts/daily_update.py install --time 18:30 --no-upload
+python scripts/daily_update.py install --time 18:30 --no-upload   # ⚠️ 화면 · 막는 때는 아직 DEFAULT_TIME(12:30) 기준 — D107
 python scripts/daily_update.py start                # 등록된 작업을 지금 한 번 (이 터미널과 무관하게 돈다)
 python scripts/daily_update.py status               # 예약 상태 + 마지막 실행 단계별 결과
 python scripts/daily_update.py run                  # 이 터미널에서 직접 (업로드 없이)
@@ -1245,6 +1249,12 @@ python scripts/daily_update.py uninstall            # 등록 해제
 회차 기록에 함께 쓰고, 앱(`app/services/data_status.py` · `GET /api/data/runner`)은 그 기록만 읽는다 — 단계를 더할 때 앱을 고치지
 않아도 화면이 따라온다. 앱 컨테이너는 수집 폴더를 읽기만 하므로 이 PC 용량도 러너가 잰다.
 
+**회차 시각도 러너 한 곳이다**(D104 · 2026-10-15 · #163 02 약속 셋째). 러너가 단계 목록에 `schedule`(`DEFAULT_TIME` 「12:30」)을 쓰고,
+앱은 그 값만 읽어 다음 회차 · 「오늘 회차 없음」(그 시각 + 1시간) · 자료 안내 흐름 머리 · 수집 일정의 「막히는 때」 글을 만든다(앱의 12:30
+사본 `SCHEDULE_HM` 을 지웠다 · TC-DST-27 이 코드 안 「12:30」 글자까지 지킨다). 목록이 없거나 그 칸이 없거나 꼴이 틀리면 「회차 시각 모름」
+을 글로 내고 다음 회차를 비우며 「오늘 회차 없음」 을 판정하지 않는다(말없이 12:30 으로 메우지 않는다). ⚠️ `install --time` 으로 등록
+시각을 바꿔도 단계 목록의 `schedule` 과 러너의 막는 때 셈은 아직 `DEFAULT_TIME` 이다 — 등록 기록을 한 곳으로 삼을지는 정할 것(D107).
+
 **자료 안내 숫자 파일**(2026-10-11 · 자료 안내 2단계 · 사용자 결정) — 러너가 회차 끝 · 한 단계 다시 · 빠진 날 채우기 뒤 · `steps --write` 때
 `state/data_guide_stats.json` 을 곁 파일로 쓴다(회차 시작에는 쓰지 않는다 · 단계 수 20 그대로). 데이터 관제와 같은 표 열쇠 15줄의 줄 수 ·
 마지막 날이고, 셈법은 앱의 `data_status.table_states` 를 그대로 부른다(`table_numbers` — 앱 코드를 늦게 불러 수집 DB 를 읽기 전용
@@ -1253,6 +1263,14 @@ python scripts/daily_update.py uninstall            # 등록 해제
 수집 DB 가 없거나 표 · 행이 없으면 그 표는 `missing` · 줄 수 None 이다(0 을 넣지 않는다). 못 세면 회차를 멈추지 않고 🟡 한 줄을 남긴 채
 옛 파일을 둔다 — 화면은 파일이 마지막 회차 · 한 단계 다시보다 옛것이면 「마지막 수집 뒤에 숫자를 새로 쓰지 못했습니다」 로 안다.
 머지 뒤 처음에는 파일이 없으니 `steps --write` 를 한 번 돌리거나 다음 회차를 기다린다.
+**3단계(2026-10-15 · 사용자 결정)** — ① **데이터 관제의 행 수도 이 파일에서 읽는다.** 앱이 켜질 때마다 뒤에서 세던 스레드(컨테이너
+15 ~ 20초 「세는 중」)를 없앴다 — 기준일 · 판정은 지금처럼 관제가 수집 DB 의 마지막 날로 바로 보고, 행 수만 「마지막 수집 기준」 이다
+(`rows_state` fresh · stale · none · old · error · 읽는 함수 `data_status.load_numbers` 하나를 두 화면이 쓴다). ② **관제 밖 자료 여덟**
+(주총 · 배당 지급 일정 · 공휴일 · 금통위 · FOMC — 수집 DB / 법령 근거 `kb.sqlite3` · 섹터 법령 `kb_sector.sqlite3` · 검색 색인
+`search.sqlite3` — 읽기 전용 · 셋 모두 롤백 저널 / 용어사전 — 앱 파일 `terms.json` / 회차 기록 — 이력 줄)을 `extras[]{key, rows,
+last_date, first_date, missing}` 로 더 싣는다(열쇠 · SQL 은 `data_status.EXTRA_SQL` · `extra_counts` 한 곳 · 「모은 줄」 합에는 넣지
+않는다 · 더한 칸이라 판 `schema` 는 1 그대로 — 그 칸이 없는 옛 파일이면 앱은 여덟만 「기다림」). 한 번에 1.1초(수집 DB 캐시가 찬 첫
+번은 9초 — 여덟 자료 몫은 0.3초 안).
 
 **한 단계 다시는 끝에 수집 DB 를 읽기 전용으로 한 번 연다**(`rearm_wal` · 2026-10-07 · DF-81). 수집 DB 는 WAL 이고 앱은 `data/` 를
 읽기 전용으로 붙여 여는데, 이 PC 의 쓰기 연결이 마지막으로 닫히면 SQLite 가 보조 파일(`-wal` · `-shm`)을 지워 앱의 데이터 API 가
