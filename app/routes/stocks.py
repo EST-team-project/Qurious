@@ -198,10 +198,10 @@ async def stock_signals(
             "change_pct": quote.get("change_pct"),
         }
         # XAI: 최근 3시간 내 계산된 LightGBM 설명이 캐시에 있으면 요약만 첨부 (없으면 /api/ml/explain으로 온디맨드 계산)
-        cached_ai = await cache_get(f"ai_predict:v3:{stock['symbol']}", max_age_hours=3)
+        cached_ai = await cache_get(f"ai_predict:v4:{stock['symbol']}", max_age_hours=3)
         if cached_ai and cached_ai.get("explanation"):
             ex = cached_ai["explanation"]
-            row["xai"] = {"signal_label": ex["signal_label"], "probability_pct": ex["probability_pct"],
+            row["xai"] = {"signal_label": ex["signal_label"], "model_signal_label": ex.get("model_signal_label"), "probability_pct": ex["probability_pct"],
                           "summary": ex["summary"], "top_positive": ex["top_positive"][:2], "top_negative": ex["top_negative"][:2]}
         rows.append(row)
 

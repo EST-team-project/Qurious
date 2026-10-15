@@ -352,12 +352,12 @@ async def robo_goal_simulation(body: GoalSimBody, _user=Depends(get_current_user
 @router.get("/explain")
 async def ml_explain(
     symbol: str = Query(..., description="예: 005930.KS / AAPL"),
-    refresh: int = Query(0, description="1이면 캐시 무시하고 재학습"),
-    _user=Depends(get_current_user),
+    refresh: int = Query(0, description="1이면 캐시 무시하고 재학습 — 관리자만(아니면 무시)"),
+    user=Depends(get_current_user),
 ):
     """XAI: 종목의 LightGBM 매수/관망/매도 판단 근거(SHAP 기여도 + 자연어 설명)."""
-    cache_key = f"ai_predict:v3:{symbol}"
-    ai = None if refresh else await cache_get(cache_key, max_age_hours=3)
+    cache_key = f"ai_predict:v4:{symbol}"  # v4: 판단 · 확률을 오늘 줄로
+    ai = None if refresh and "admin" in user.get("roles", []) else await cache_get(cache_key, max_age_hours=3)
     if ai is None:
         data = await get_candles(symbol, period="2y", interval="1d")
         candles = data.get("candles", [])
