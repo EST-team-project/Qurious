@@ -195,6 +195,10 @@ app.include_router(seasonality_routes.router)
 # 강사님 POST /api/ml/cluster 는 그대로 두고 화면만 이 길로. 수집 DB 를 읽기만 · 로그인 뒤
 from app.routes import clusters as clusters_routes  # noqa: E402
 app.include_router(clusters_routes.router)
+# 모델 비교 (ML·딥러닝 › 모델 비교 · 2026-10-15) — 강사님 모델 8개 + 기준선 넷을 시간 순서 검증(워크포워드 · 간격)으로 견줌.
+# 강사님 GET /api/ml/compare 는 그대로 두고 화면만 이 길로. 수집 DB 일봉을 읽기만 · 로그인 뒤 · 겹 수 · 간격은 관리자만
+from app.routes import model_compare as model_compare_routes  # noqa: E402
+app.include_router(model_compare_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")

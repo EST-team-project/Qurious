@@ -87,7 +87,7 @@ const GNB_MENUS = {
   ml: {
     label: "<i class='fa-solid fa-microchip'></i> ML·딥러닝",
     items: [
-      { key: "ml-compare",     icon: "fa-solid fa-scale-balanced",  label: "모델 비교 (7종)" },
+      { key: "ml-compare",     icon: "fa-solid fa-scale-balanced",  label: "모델 비교" },
       { key: "ml-regression",  icon: "fa-solid fa-chart-line",      label: "회귀 분석" },
       { key: "ml-cluster",     icon: "fa-solid fa-circle-nodes",    label: "종목 군집화" },
       { key: "ml-tune",        icon: "fa-solid fa-sliders",         label: "하이퍼파라미터 튜닝" },
@@ -278,7 +278,7 @@ const VIEW_GUIDES = {
   "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "개요/밸류에이션/수익성 탭과 분기·재무상태표 데이터를 확인하세요."], relatedTerms: ["dcf", "fcf"] },
   "company-compare": { summary: "여러 기업의 핵심 지표를 표로 나란히 비교합니다.", steps: ["비교 표에서 기업별 지표 값을 확인하며 상대적 위치를 파악하세요."], relatedTerms: ["dcf", "eva"] },
   "company-sector":  { summary: "산업 섹터별 대표 지표와 흐름을 카드로 확인합니다.", steps: ["섹터 카드를 둘러보며 산업별 상대 강도를 비교하세요."], relatedTerms: ["sector_etf"] },
-  "ml-compare":      { summary: "7종 ML 모델의 5-fold 교차검증 정확도를 비교합니다.", steps: ["종목·기간을 선택하고 '모델 비교 실행'을 누르세요.", "정확도 순위표에서 어떤 모델이 이 종목에 가장 잘 맞는지 확인하세요.", "'비교에 추가'로 여러 실행 결과를 모아 볼 수 있습니다."], relatedTerms: ["cross_validation", "lightgbm", "mlp", "stacking"] },
+  "ml-compare":      { summary: "지난 시세로 학습한 모델들이 5거래일 뒤 오름 · 관망 · 내림을 얼마나 맞히는지, 아무것도 배우지 않은 기준선과 견줍니다(과거로 학습하고 바로 뒤 구간으로 시험).", steps: ["종목 · 기간을 고르고 '비교하기'를 누르세요 — 처음 계산은 10 ~ 30초, 한 번 계산한 결과는 저장돼 바로 보입니다.", "맨 위 문장과 카드로 「기준선을 뚜렷이 넘은 모델이 있나」 를 먼저 보세요 — 순위보다 이 판정이 중요합니다.", "'자세히'에서 겹마다 점수 · 표를 보고, '비교에 추가'로 여러 결과를 모아 볼 수 있습니다."], relatedTerms: ["cross_validation", "lightgbm", "mlp", "stacking"] },
   "ml-regression":   { summary: "선형회귀·Ridge·Lasso·SVR로 향후 수익률을 예측하고 오차를 비교합니다.", steps: ["종목·기간을 선택해 실행하면 모델별 예측값과 RMSE/MAE가 표시됩니다.", "오차가 작을수록 해당 구간에서 예측력이 높았다는 의미입니다."], relatedTerms: ["regression", "ridge_lasso"] },
   "ml-cluster":      { summary: "지난 기간에 서로 비슷하게 움직인 종목끼리 묶어 봅니다 — 「같이 움직임」(시장 몫을 뺀 수익률 상관) 또는 「위험 · 수익 특성」(수익률 · 변동성 · 시장 민감도 · 최대 낙폭).", steps: ["대상 · 기간 · 묶는 법을 고르세요(묶음 수는 자동이 기본입니다).", "종목 지도에서 가까운 점은 비슷하게 움직인 종목입니다 — 점에 마우스를 올리면 이름이 보입니다.", "묶음 카드의 특징 낱말 · 네 숫자로 묶음을 읽고, 31종목은 「같이 움직인 정도」 탭에서 상관 표를 보세요."], relatedTerms: ["kmeans", "dbscan"] },
   "ml-tune":         { summary: "GridSearchCV로 모델의 하이퍼파라미터를 자동 튜닝합니다.", steps: ["모델(SVM/RF/GB)을 선택하고 '튜닝 실행'을 누르세요.", "최적 파라미터 조합과 교차검증 점수를 확인하세요."], relatedTerms: ["gridsearch", "cross_validation"] },

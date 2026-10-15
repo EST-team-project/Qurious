@@ -94,3 +94,7 @@ docs/TIL/이동원/역량지도.md
 # 저장소 밖(team_project/_git-drafts/)에 두던 것을 찾기 쉽게 docs 안으로 옮겼다 — 올리지 않는다.
 # 올릴 글의 원본은 여전히 docs/github-archive/ 다(여기는 명령 · 초안만).
 docs/_git-drafts/
+
+# 개인 로컬 자료(섹터 xlsx · 강의 양식 docx) — 올리지 않는다(2026-10-15 docs 정리).
+# 맨 위 xlsx/ · 계획서/ 에 흩어져 git status 에 늘 「??」 로 뜨던 것을 한 자리로 모았다.
+docs/_local/

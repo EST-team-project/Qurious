@@ -28,6 +28,7 @@ import { onProductsViewActivated } from "/js/products.js";             // 투자
 import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무 · 신용 위험 — 옛 「신용 리스크 분석」 자리 (2026-10-13)
 import { onClusterViewActivated } from "/js/clusters.js";              // 종목 군집화 — 옛 강사님 KMeans 칸 자리 (2026-10-14)
 import { onSeasonalViewActivated } from "/js/seasonal.js";            // 계절성 분석 — 옛 강사님 계절성 칸 자리 (2026-10-14)
+import { onModelCompareViewActivated } from "/js/mlcompare.js";      // 모델 비교 — 옛 강사님 5-Fold 칸 자리 (2026-10-15)
 import { initGnbMore } from "/js/gnbmore.js";                         // 위 메뉴 「더보기 N ▾」 · 아바타 메뉴 (2026-10-14 · DF-109)
 
 import { loadDashboard } from "/js/dashboard.js";
@@ -97,6 +98,7 @@ function onViewActivated(view) {
   onRiskViewActivated(view);      // 재무 · 신용 위험 (js/riskcb.js)
   onClusterViewActivated(view);   // 종목 군집화 (js/clusters.js)
   onSeasonalViewActivated(view);  // 계절성 분석 (js/seasonal.js)
+  onModelCompareViewActivated(view); // 모델 비교 (js/mlcompare.js)
   if (view === "trading-chart") loadStockChart();
   if (view === "trading-portfolio") loadPortfolio();
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }
