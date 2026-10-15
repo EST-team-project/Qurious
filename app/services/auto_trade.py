@@ -891,7 +891,12 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 return
 
         async def _risk_gate(symbol: str, name: str, side: str, qty: int, price: float) -> tuple[int, str | None]:
-            """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)"""
+            """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)
+
+            게이트웨이 경로는 같은 사용자의 같은 종목에 열린 주문이 있으면
+            비중 여유·매수/매도 방향·선택 재주문 활성 여부와 무관하게 먼저 보류한다.
+            미체결 매수 노출 계산은 이 보류 정책과 별도로 유지한다(#183).
+            """
             if mode == "live" and gateway.is_configured():
                 opened = (await db.execute(select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.symbol == symbol,
                                               LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)))).scalars().all()
