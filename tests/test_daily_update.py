@@ -918,6 +918,14 @@ def test_table_numbers_use_the_status_rules_and_read_only(tmp_path, monkeypatch)
     none = du.table_numbers(db_path=tmp_path / "없음.sqlite3", now=at)
     assert none["db"] is False and all(t["missing"] and t["rows"] is None for t in none["tables"])
     assert len(none["tables"]) == len(ds.TABLES)
+    # 관제 밖 자료 여덟(자료 안내 3단계 · 2026-10-15) — 관제 모듈의 정의 한 곳(EXTRA_KEYS · extra_counts)으로 · DB 옆 상태 폴더만 본다
+    assert [x["key"] for x in out["extras"]] == list(ds.EXTRA_KEYS)
+    ex = {x["key"]: x for x in out["extras"]}
+    terms = len(json.loads(ds.GLOSSARY_FILE.read_text(encoding="utf-8"))["terms"])
+    assert (ex["glossary"]["rows"], ex["glossary"]["missing"]) == (terms, False)
+    assert ex["kb_law"]["missing"] and ex["kb_law"]["rows"] is None, "없는 DB 는 「없음」(0 이 아니다)"
+    assert ex["run_history"]["missing"], "이 DB 옆 상태 폴더(임시)만 본다 — 진짜 상태 폴더의 이력을 읽지 않는다"
+    assert [x["key"] for x in none["extras"]] == list(ds.EXTRA_KEYS)
 
 
 def test_run_writes_guide_numbers_at_the_end_and_after_one_step(fake_runner, monkeypatch):
@@ -1115,3 +1123,34 @@ def test_no_record_when_nothing_is_uploaded_and_a_failed_write_is_said(fake_runn
     assert up["rc"] == 0 and "회차 기록 사본을 쓰지 못함" in up["note"]
     log = sorted((t / "logs").glob("daily_update-*.log"))[-1].read_text(encoding="utf-8")
     assert "🟡 회차 기록 사본을 쓰지 못했다 — OSError: 디스크 가득" in log
+
+
+def test_runner_error_on_a_scheduled_run_still_leaves_a_history_line(fake_runner, monkeypatch):
+    """러너 오류로 끝난 정기 회차도 이력에 한 줄을 남긴다(자료 안내 3단계 · 2026-10-15) — 화면 요청 회차(`request_id`)일 때만 남겨서
+    DF-103 회차(10-11 17:20 따라잡기)가 이력에 없었다(관제 · 수집 일정의 지난 회차 목록에서 빠짐). 이력 줄 = 회차 기록과 같은 칸 ·
+    종료코드 1 · 단계별 결과 · 요청 회차여도 한 줄만. 회차 끝처럼 자료 안내 숫자 파일도 다시 쓴다(오류 앞 단계가 자료를 바꿨을 수
+    있다 · 못 쓰면 지금처럼 🟡)."""
+    t = fake_runner
+    db = t / "real.sqlite3"
+    _numbers_db(db)
+    monkeypatch.setattr(du.config, "DB_PATH", db)
+
+    def boom(run, steps):
+        raise RuntimeError("일부러 낸 러너 결함")
+
+    monkeypatch.setattr(du, "prepare_app_db", boom)
+    assert du.run_all() == 1
+    last = _last(t)
+    assert (last["ok"], last["stopped"]) == (False, "러너 오류 RuntimeError: 일부러 낸 러너 결함")
+    hist = [json.loads(x) for x in (t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert len(hist) == 1 and (hist[0]["stopped"], hist[0]["rc"], hist[0]["trigger"]) == (last["stopped"], 1, "schedule")
+    assert "request_id" not in hist[0] and hist[0]["started_at"] == last["started_at"]
+    nums = json.loads((t / "state/data_guide_stats.json").read_text(encoding="utf-8"))
+    assert nums["by"] == "run" and {x["key"]: x for x in nums["tables"]}["price_daily"]["rows"] == 2
+    assert {x["key"]: x for x in nums["extras"]}["run_history"]["rows"] == 1, "숫자 파일은 이력 줄 뒤에 쓴다"
+    log = sorted((t / "logs").glob("daily_update-*.log"))[-1].read_text(encoding="utf-8")
+    assert "🔴 러너 오류: RuntimeError: 일부러 낸 러너 결함" in log
+    # 요청 회차 — 한 줄만(두 번 쓰지 않는다)
+    assert du.run_all(manual=True, request_id=RID) == 1
+    hist = [json.loads(x) for x in (t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert len(hist) == 2 and hist[1]["request_id"] == RID and hist[1]["trigger"] == "manual"

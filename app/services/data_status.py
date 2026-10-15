@@ -5,7 +5,11 @@
 
 읽는 것 — 전부 읽기 전용(앱은 수집 DB 에 쓰지 않는다)
   - 러너 기록   data/collector/state/daily_update_last.json · daily_update_history.jsonl · daily_update.lock
-  - 수집 DB     표별 행 수 · 마지막 날짜(`collector_db.db_path()` — 도커에서는 /app/data/csv/collector)
+  - 단계 목록   data/collector/state/daily_update_steps.json — 단계 이름표 · 막는 때 · **회차 시각(`schedule`)** 도 여기서만
+                읽는다(D104 · 2026-10-15 — 앱에 12:30 사본을 두지 않는다 · 없으면 「회차 시각 모름」)
+  - 숫자 파일   data/collector/state/data_guide_stats.json — 표별 **행 수**는 러너가 회차 끝에 센 이 파일에서 읽는다(자료 안내와
+                같은 파일 · 3단계 2026-10-15 사용자 결정). 앱은 수집 DB 를 세지 않는다(뒤에서 세던 스레드를 없앴다)
+  - 수집 DB     표별 마지막 날짜 · 거래일(`collector_db.db_path()` — 도커에서는 /app/data/csv/collector)
   - 거래일 달력 market_calendar — 「몇 거래일 늦었나」 를 세는 자. 없으면 평일로 어림하고 `approx` 를 켠다
   - HF 기록     data/hf_export/meta/manifest.json(krx-daily-market) · data/collector/ohlcv_export/manifest.json(krx-ohlcv)
 
@@ -24,8 +28,8 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
-import threading
 import time
 from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
@@ -34,8 +38,12 @@ from app.services import collector_db
 
 KST = timezone(timedelta(hours=9))
 
-#: 러너가 매일 도는 시각(scripts/daily_update.py DEFAULT_TIME). 다른 PC 는 작업 스케줄러에 등록해야 돈다.
-SCHEDULE_HM = (12, 30)
+#: 회차 시각을 모를 때의 글(D104 · #163 02 약속 셋째 · 2026-10-15). 회차 시각은 러너(`scripts/daily_update.py` DEFAULT_TIME)가
+#: 단계 목록에 쓴 `schedule` 하나다 — 앱이 사본을 들고 있으면 러너 시각을 바꿀 때 관제 · 자료 안내 · 도움말이 말없이 옛 시각을
+#: 보인다(SSoT). 목록이 없거나(이 PC 에서 러너를 돌린 적 없음) 그 칸이 없거나 꼴이 틀리면 이 글을 내고, 다음 회차를 비우고,
+#: 「오늘 회차 없음」 을 판정하지 않는다(말없이 12:30 으로 메우지 않는다 — TC-DST-27).
+SCHEDULE_UNKNOWN = "회차 시각 모름"
+_HM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 LOCK_STALE_HOURS = 4
 HISTORY_N = 7
 CACHE_SECONDS = 30
@@ -50,6 +58,12 @@ CATALOG_FILE = "daily_update_steps.json"
 DISK_FILE = "pc_disk.json"
 #: 도는 중의 지금 단계 — 러너가 단계를 시작할 때마다 쓴다(잠금 파일과 따로 · 2026-10-08). 수집 일정 화면의 「수집 중 — n번째 단계」.
 PROGRESS_FILE = "daily_update_progress.json"
+#: 숫자 파일 — 러너가 회차 끝 · 한 단계 다시 · 채우기 뒤 · `steps --write` 때 쓴다(`scripts/daily_update.py` GUIDE_STATS_PATH ·
+#: 상태 폴더 안). 자료 안내(2단계 · 2026-10-11)와 관제 줄 수(3단계 · 2026-10-15)가 **같은 파일 · 같은 읽기 함수**(`load_numbers`)를
+#: 쓴다 — 두 화면이 다른 수를 보이지 않게. 판이 다르면 숫자를 비운다(「옛 판」). 러너 GUIDE_STATS_SCHEMA 와 같아야 한다(TC-DG-11).
+#: `extras`(관제 밖 자료 여덟 · 3단계)는 더한 칸이라 판을 올리지 않았다 — 그 칸이 없는 옛 파일이면 여덟만 「기다림」 이다.
+NUMBERS_FILE = "data_guide_stats.json"
+NUMBERS_SCHEMA = 1
 
 #: (키, 표, 이름, 묶음, 출처, 판정 방식, 마지막 날짜 SQL, 행 수 SQL)
 TABLES = [
@@ -134,14 +148,37 @@ LABEL_REFETCH = "늦음 · 다시 받기"
 
 _cache: dict = {}
 
-#: 표별 행 수 — **뒤에서 센다**(2026-10-02 · W4). 앱이 다시 켜진 뒤 첫 호출에서 컨테이너가 큰 표 다섯의 COUNT(*) 에
-#: 14.8초를 썼다(바인드 마운트 · 실측 — 마지막 날 찾기는 모두 수 ms · 점검 스크립트에서 21초). 그동안 화면이 멈추지 않게
-#: 응답은 곧바로 지난 값(없으면 「세는 중」 · 줄 수 None)으로 주고, 세기는 스레드 하나가 맡는다.
-#: DB 파일(본 파일 + WAL)의 크기 · 시각이 그대로면 다시 세지 않고, 러너가 큰 표를 다시 쓰는 동안은(파일이 몇 초마다
-#: 바뀐다 · 그때 COUNT(*) 가 16초까지) 지난 값을 쓴다.
-_counts: dict = {"sig": None, "rows": {}, "at": None}
-_count_lock = threading.Lock()
-_count_job: dict = {"thread": None, "error": None}
+#: 표별 행 수는 앱이 세지 않는다(2026-10-15 · 자료 안내 3단계 · 사용자 결정 「숫자 파일에서 읽기」). 2026-10-02 부터 뒤에서 세는
+#: 스레드가 있었다 — 앱이 다시 켜진 뒤 첫 호출에서 컨테이너가 큰 표 다섯의 COUNT(*) 에 14.8 ~ 21초를 써서 그동안 「세는 중」 이었고,
+#: 같은 수를 러너도 회차 끝에 따로 셌다(자료 안내 숫자 파일 · 2026-10-11). 이제 러너가 센 한 벌(`load_numbers`)만 읽는다.
+
+#: 자료 안내의 관제 밖 자료 여덟 — 줄 수 · 마지막 날 · 처음 날(3단계 · 2026-10-15 사용자 결정 「추천 표대로」). 러너가 회차 끝에
+#: `extra_counts` 로 세어 숫자 파일의 `extras` 에 쓰고(`scripts/daily_update.table_numbers`), 자료 안내는 대장 「숫자_상태」 칸의
+#: 열쇠로 읽는다. 관제 표(TABLES)가 아니라 판정 · 「모은 줄」 합에는 넣지 않는다(근거 조각 · 용어 · 회차 줄은 시세 줄과 뜻이 다르다).
+#: 앱은 이 함수를 부르지 않는다(요청 때 세지 않는다 — 자료 안내 결정 ④ · TC-DG-06).
+#: (열쇠, 수집 폴더 안 DB 파일, 표, 줄 수 SQL, 마지막 날 SQL, 처음 날 SQL | None)
+EXTRA_SQL = [
+    ("corp_schedule", "market.sqlite3", "corp_schedule", "SELECT COUNT(*) FROM corp_schedule",
+     "SELECT MAX(event_date) FROM corp_schedule WHERE event_date <> ''", None),
+    ("holiday_kasi", "market.sqlite3", "holiday_kasi", "SELECT COUNT(*) FROM holiday_kasi",
+     "SELECT MAX(locdate) FROM holiday_kasi", "SELECT MIN(locdate) FROM holiday_kasi"),
+    ("policy_meeting", "market.sqlite3", "policy_meeting", "SELECT COUNT(*) FROM policy_meeting",
+     "SELECT MAX(meeting_date) FROM policy_meeting", "SELECT MIN(meeting_date) FROM policy_meeting"),
+    # 근거 DB — 줄 = 근거 조각(조를 나눈 조각 · 지난 판 포함) · 마지막 날 = 가장 늦은 판의 시행일(시행 예정 판도)
+    ("kb_law", "kb.sqlite3", "kb_chunk", "SELECT COUNT(*) FROM kb_chunk",
+     "SELECT MAX(effective_at) FROM kb_document", None),
+    # 섹터 법령 — 줄 = 조문(해마다 고른 판) · 마지막 날 = 가장 늦은 해의 끝
+    ("kb_sector", "kb_sector.sqlite3", "ks_article", "SELECT COUNT(*) FROM ks_article",
+     "SELECT MAX(year) || '-12-31' FROM ks_article", None),
+    # 검색 색인 — 줄 = 색인한 문서(공시 · 정책뉴스 · 언론사 기사) · 날짜는 게시일의 날 부분. 칸 그대로 MAX · MIN 을 구한 뒤 자른다 —
+    # 「YYYY-MM-DD…」 글은 글자 차례가 날 차례라 결과가 같고, 색인(ix_doc_pub) 끝만 읽는다(0.2ms · 자른 뒤 구하면 84만 줄을 다 읽어 118ms)
+    ("search_index", "search.sqlite3", "doc", "SELECT COUNT(*) FROM doc",
+     "SELECT substr(MAX(published), 1, 10) FROM doc", "SELECT substr(MIN(published), 1, 10) FROM doc"),
+]
+#: 용어사전 — 앱 파일(원본이 이것 · 앱이 켜질 때 DB 에 넣는다). 줄 = 용어(다른 이름 · 관계는 세지 않는다)
+GLOSSARY_FILE = Path(__file__).resolve().parent / "glossary_data" / "terms.json"
+#: 숫자 파일 `extras` 의 열쇠 · 차례 — 자료 안내 대장 「숫자_상태」 칸이 부르는 이름(TC-DG-02 가 맞댄다)
+EXTRA_KEYS = tuple(k for k, *_ in EXTRA_SQL) + ("glossary", "run_history")
 
 
 def _now() -> datetime:
@@ -182,12 +219,20 @@ def _parse_ts(v: str | None) -> datetime | None:
 
 
 # ── 러너 ──────────────────────────────────────────────────────────────────
+def _parse_hm(v) -> tuple[int, int] | None:
+    """「HH:MM」(00:00 ~ 23:59) → (시, 분). 그 밖의 꼴(「25:00」 · 「7:5」 · 숫자)은 None — 말없이 고치지 않는다."""
+    m = _HM.match(v) if isinstance(v, str) else None
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
 def load_catalog(state_dir: Path | None) -> dict:
-    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at, guards, fill_max_days}. 없으면 빈 목록.
+    """러너가 쓴 단계 목록 — {groups, steps(차례 그대로), by_name, written_at, guards, fill_max_days, schedule}. 없으면 빈 목록.
 
     `guards` 는 화면 실행을 막는 때(2026-10-10 · 러너가 막는 데 쓰는 함수로 셈한 시각) — 옛 목록에는 없어 빈 사전이다.
     `fill_max_days` 는 빠진 날 채우기 한 번의 범위 상한(일 · 러너 `FILL_MAX_DAYS`) — 옛 목록에는 없어 None 이고, 그러면 앱은
     채우기를 받지 않는다(짐작 금지 · TC-CQ-18 · 23).
+    `schedule` 은 회차 시각 (시, 분) — 러너 DEFAULT_TIME 이 쓴 「HH:MM」 하나(D104 · 2026-10-15). 없거나 꼴이 틀리면 None 이고,
+    그러면 관제는 「회차 시각 모름」 을 보이고 「오늘 회차 없음」 을 판정하지 않는다.
     """
     cat = _read_json(state_dir / CATALOG_FILE) if state_dir is not None else None
     steps = [s for s in (cat or {}).get("steps") or [] if isinstance(s, dict) and s.get("name")]
@@ -196,7 +241,8 @@ def load_catalog(state_dir: Path | None) -> dict:
     return {"groups": (cat or {}).get("groups") or [], "steps": steps,
             "by_name": {s["name"]: s for s in steps}, "written_at": (cat or {}).get("written_at"),
             "guards": guards if isinstance(guards, dict) else {},
-            "fill_max_days": max_days if isinstance(max_days, int) and not isinstance(max_days, bool) else None}
+            "fill_max_days": max_days if isinstance(max_days, int) and not isinstance(max_days, bool) else None,
+            "schedule": _parse_hm((cat or {}).get("schedule"))}
 
 
 def _step_view(rec: dict, by_name: dict | None = None, *, admin: bool = False) -> dict:
@@ -240,13 +286,23 @@ def pc_disk(state_dir: Path | None) -> dict | None:
             "total_gb": gb(d.get("total_bytes")), "collector_db_gb": gb(d.get("collector_db_bytes"))}
 
 
+def schedule_text(hm: tuple[int, int] | None) -> str:
+    """회차 시각 글 — 「매일 HH:MM」 · 모르면 「회차 시각 모름」(화면은 이 글을 그대로 쓴다 — 「매일 낮 {시각} — …」)."""
+    return f"매일 {hm[0]:02d}:{hm[1]:02d}" if hm else SCHEDULE_UNKNOWN
+
+
 def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) -> dict:
-    hh, mm = SCHEDULE_HM
-    today_run = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-    nxt = today_run if now < today_run else today_run + timedelta(days=1)
-    out: dict = {"schedule": f"매일 {hh:02d}:{mm:02d}", "next_expected": nxt.isoformat(timespec="minutes"),
-                 "schedule_note": "이 PC 의 작업 스케줄러 설정 기준 — 다른 PC 는 등록해야 돈다(scripts/daily_update.py install)",
-                 "running": False, "last": None, "history": [], "groups": []}
+    # 회차 시각은 러너가 쓴 단계 목록 하나에서(D104) — 없으면 다음 회차 · 「오늘 회차 없음」 을 셈하지 않는다(짐작 금지)
+    catalog = load_catalog(state_dir)
+    hm = catalog["schedule"]
+    today_run = now.replace(hour=hm[0], minute=hm[1], second=0, microsecond=0) if hm else None
+    nxt = (today_run if now < today_run else today_run + timedelta(days=1)) if today_run else None
+    note = ("러너 단계 목록의 회차 시각 — 작업 스케줄러에는 이 PC 에서 install 할 때 같은 시각으로 등록한다(다른 PC 는 등록해야 돈다)"
+            if hm else "러너 단계 목록에 회차 시각이 없다 — 이 PC 에서 매일 수집을 돌린 적이 없거나 옛 목록이다")
+    if admin:
+        note += " · python scripts/daily_update.py " + ("install" if hm else "steps --write")
+    out: dict = {"schedule": schedule_text(hm), "next_expected": nxt.isoformat(timespec="minutes") if nxt else None,
+                 "schedule_note": note, "running": False, "last": None, "history": [], "groups": []}
     if state_dir is None or not state_dir.is_dir():
         out.update(state="missing", label="기록 없음", detail="러너 기록 폴더가 없다 — 이 PC 에서 일일 갱신을 돌린 적이 없다")
         return out
@@ -262,7 +318,6 @@ def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) 
         if step and _parse_ts(prog.get("started_at")) == since:
             out["running_step"] = {k: step.get(k) for k in ("index", "total", "name", "label")}
 
-    catalog = load_catalog(state_dir)
     by_name = catalog["by_name"]
     out["groups"] = catalog["groups"]
     last = _read_json(state_dir / "daily_update_last.json")
@@ -318,9 +373,10 @@ def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) 
         out.update(state="missing", label="기록 없음", detail="일일 갱신이 끝난 기록이 없다")
     elif not lr["ok"] and lr["stopped"]:
         out.update(state="failed", label="실패", detail=f"멈춘 단계: {lr['stopped']}")
-    elif not ran_today and now >= today_run + timedelta(hours=1):
+    elif not ran_today and today_run is not None and now >= today_run + timedelta(hours=1):
+        # 회차 시각을 모르면(today_run None) 판정하지 않는다 — 「오늘 회차 없음」 을 짐작으로 띄우지 않는다(D104)
         out.update(state="late", label="오늘 회차 없음",
-                   detail="12:30 회차 기록이 아직 없다 — PC 가 꺼져 있었으면 켜진 뒤 돈다(작업 스케줄러 StartWhenAvailable)")
+                   detail=f"{hm[0]:02d}:{hm[1]:02d} 회차 기록이 아직 없다 — PC 가 꺼져 있었으면 켜진 뒤 돈다(작업 스케줄러 StartWhenAvailable)")
     elif any(s["status"] in ("failed", "warning") for s in lr["steps"]):
         bad = [s["label"] for s in lr["steps"] if s["status"] in ("failed", "warning")]
         out.update(state="warning", label="일부 실패", detail="실패한 단계: " + " · ".join(bad))
@@ -371,75 +427,95 @@ def _verdict_portal(n: int) -> str:
     return "fresh" if n == 0 else "ok" if n == 1 else "late" if n == 2 else "stale"
 
 
-def _db_sig(path: Path | None):
-    if path is None:
-        return None
-    out = []
-    for f in (path, path.with_name(path.name + "-wal")):
-        try:
-            st = f.stat()
-        except OSError:
-            out.append(None)
-            continue
-        # 0바이트 WAL 은 「쓴 것 없음」 — 읽기 전용 연결이 처음 읽을 때 빈 WAL 을 만든다(없는 것과 같게 친다)
-        out.append(None if f.name.endswith("-wal") and st.st_size == 0 else (st.st_mtime_ns, st.st_size))
-    return tuple(out)
+def _mmdd_hm(iso: str | None) -> str:
+    """2026-10-08T13:25:30+09:00 → 10-08 13:25 (안내 글)"""
+    return f"{iso[5:10]} {iso[11:16]}" if iso and len(iso) >= 16 else "—"
 
 
-def _count_rows(path: Path, sig) -> None:
-    """(스레드) 표마다 행 수를 세어 `_counts` 에 둔다. 다 세면 30초 응답 캐시를 비워 다음 호출이 새 값을 보게 한다.
-    세기를 시작할 때의 파일 지문을 함께 적는다 — 세는 사이에 파일이 바뀌었으면 다음 호출이 다시 센다."""
-    try:
-        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
-        try:
-            rows = {key: conn.execute(count_sql).fetchone()[0]
-                    for key, table, *_rest, count_sql in TABLES if _has_table(conn, table)}
-        finally:
-            conn.close()
-        with _count_lock:
-            _counts.update(sig=sig, rows=rows, at=_now().isoformat(timespec="seconds"))
-            _count_job["error"] = None
-        _cache.clear()
-    except sqlite3.Error as e:            # 세지 못하면 지난 값을 두고 까닭만 남긴다(다음 호출이 다시 시도)
-        with _count_lock:
-            _count_job["error"] = str(e)
+# ── 숫자 파일 — 러너가 회차 끝에 센 줄 수(자료 안내 · 관제가 같은 읽기) ──────────────
+def load_numbers(state_dir: Path | None) -> dict:
+    """러너가 쓴 숫자 파일 → {state, written_at, by, tables(열쇠 → {rows, last_date, verdict}) | None, extras | None, why}.
 
-
-def start_count(*, wait: bool = False) -> bool:
-    """행 수 세기를 뒤에서 시작한다 — 이미 도는 중이면 그대로 둔다(스레드는 하나). 새로 시작했으면 참.
-    `wait` 는 시험 · 명령 줄에서 끝날 때까지 기다릴 때만 쓴다(화면 요청은 기다리지 않는다)."""
-    path = collector_db.db_path()
-    if path is None:
-        return False
-    with _count_lock:
-        t = _count_job["thread"]
-        started = not (t is not None and t.is_alive())
-        if started:
-            t = threading.Thread(target=_count_rows, args=(path, _db_sig(path)), name="data-status-count", daemon=True)
-            _count_job["thread"] = t
-            t.start()
-    if wait:
-        t.join()
-    return started
-
-
-def counts_view(*, running: bool) -> tuple[dict, str]:
-    """지금 쓸 행 수와 그 상태.
-
-    fresh   파일이 마지막으로 센 뒤 그대로다 — 그 값
-    old     파일이 바뀌었다 — 지난 값을 주고 뒤에서 다시 센다(러너가 쓰는 중이면 끝날 때까지 다시 세지 않는다)
-    pending 아직 한 번도 못 셌다(앱을 켠 뒤 처음) — 뒤에서 세기 시작하고 빈 값을 준다
+    state — ok(읽음) · none(파일 없음) · old(판이 다름) · error(읽지 못함 — 깨진 JSON · 꼴이 다름). ok 가 아니면 tables · extras 는
+    None 이고 `why` 에 관리자용 까닭을 단다(화면 글은 읽는 쪽의 안내 줄). 파일은 몇 KB 라 요청마다 읽는다(캐시 없음 — 러너가 막
+    다시 쓴 판을 곧바로 보인다). 「없음」 표는 줄 수 None(0 이 아니다) · verdict missing 으로 바꿔 읽는 쪽이 「없음」 이면 0 을 쓰지
+    않는 규칙을 그대로 쓰게 한다. `extras`(관제 밖 자료 여덟 · 3단계)는 그 칸이 없는 옛 러너 파일이면 None 이다(여덟만 「기다림」).
+    2026-10-15 까지 자료 안내(`data_guide`)에 있던 것을 관제도 쓰게 옮겼다 — 두 화면이 같은 파일을 다르게 읽지 않게(SSoT).
     """
-    sig = _db_sig(collector_db.db_path())
-    with _count_lock:
-        same = sig is not None and sig == _counts["sig"]
-        rows = dict(_counts["rows"])
-    if same:
-        return rows, "fresh"
-    # 러너가 쓰는 동안은 파일이 몇 초마다 바뀐다 — 지난 값이 있으면 새로 세지 않는다(세는 사이에 또 낡는다)
-    if not (running and rows):
-        start_count()
-    return rows, ("old" if rows else "pending")
+    out = {"state": "none", "written_at": None, "by": None, "tables": None, "extras": None, "why": ""}
+    if state_dir is None:
+        return {**out, "why": "수집 폴더가 없다 — 이 PC 에서 매일 수집을 돌리지 않는다"}
+    path = state_dir / NUMBERS_FILE
+    if not path.exists():
+        return {**out, "why": f"{NUMBERS_FILE} 이 아직 없다 — 러너가 회차 끝 · 한 단계 다시 · steps --write 때 쓴다"}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return {**out, "state": "error", "why": f"{NUMBERS_FILE} 을 읽지 못했다: {type(e).__name__}"}
+    if not isinstance(raw, dict) or not isinstance(raw.get("tables"), list):
+        return {**out, "state": "error", "why": f"{NUMBERS_FILE} 의 꼴이 다르다 — tables 목록이 없다"}
+    if raw.get("schema") != NUMBERS_SCHEMA:
+        return {**out, "state": "old", "why": f"{NUMBERS_FILE} 의 판({raw.get('schema')})이 앱이 아는 판({NUMBERS_SCHEMA})과 "
+                                              "다르다 — 다음 회차에 러너가 새 판으로 쓴다"}
+
+    def rows_of(items) -> dict[str, dict]:
+        got: dict[str, dict] = {}
+        for t in items:
+            if not isinstance(t, dict) or not t.get("key"):
+                continue
+            missing = bool(t.get("missing"))
+            got[t["key"]] = {"rows": None if missing else t.get("rows"), "last_date": None if missing else t.get("last_date"),
+                             "first_date": None if missing else t.get("first_date"), "verdict": "missing" if missing else "ok"}
+        return got
+
+    extras = raw.get("extras")
+    return {"state": "ok", "written_at": raw.get("written_at"), "by": raw.get("by"), "tables": rows_of(raw["tables"]),
+            "extras": rows_of(extras) if isinstance(extras, list) else None, "why": ""}
+
+
+def last_run_event(runner: dict | None) -> str | None:
+    """러너 기록의 가장 늦은 일 — 회차가 끝난 때 · 한 단계 다시 · 채우기를 한 때 가운데 늦은 것(ISO). 없으면 None."""
+    last = (runner or {}).get("last") or {}
+    stamps = [last.get("finished_at")] + [r.get("at") for r in last.get("reruns") or [] if isinstance(r, dict)]
+    parsed = [(_parse_ts(s), s) for s in stamps if s]
+    parsed = [(p, s) for p, s in parsed if p is not None]
+    return max(parsed)[1] if parsed else None
+
+
+def numbers_stale(written_at: str | None, runner: dict | None) -> bool:
+    """숫자 파일이 마지막 수집(한 단계 다시 포함)보다 앞인가 — 러너가 그 뒤에 파일을 못 썼다(🟡 「기록 파일을 쓰지 못했다」)."""
+    ev = last_run_event(runner)
+    w, e = _parse_ts(written_at), _parse_ts(ev)
+    return bool(w and e and w < e)
+
+
+def counts_view(*, running: bool, numbers: dict | None = None, runner: dict | None = None) -> tuple[dict, str]:
+    """관제 표의 행 수와 그 상태 — 러너가 회차 끝에 쓴 숫자 파일에서 읽는다(자료 안내 3단계 · 2026-10-15 · 세지 않는다).
+
+    fresh   마지막 수집(한 단계 다시 포함) 뒤에 쓴 파일 — 그 값(도는 중이어도 지난 수집 값 그대로 · 안내 글은 get_status)
+    stale   마지막 수집 뒤에 파일을 못 썼다 — 지난 값과 까닭
+    none · old · error   파일 없음 · 판이 다름 · 읽지 못함 — 빈 사전(행 수 「—」 · 말없이 세지 않는다)
+    이름 · 키워드로 부르는 꼴 · (사전, 상태) 답은 2026-10-02 판과 같다 — 리밸런싱 시험(`test_rebalance_daily.ready_data`)이 갈아
+    끼운다(이름은 지키고 뜻만 바꿈). `running` 은 그 꼴을 지키려고 받는다(값을 바꾸지 않는다).
+    """
+    nums = numbers if numbers is not None else {"state": "none"}
+    if nums.get("state") != "ok":
+        return {}, nums.get("state") or "none"
+    rows = {k: t.get("rows") for k, t in (nums.get("tables") or {}).items()}
+    return rows, ("stale" if numbers_stale(nums.get("written_at"), runner) else "fresh")
+
+
+def _rows_note(state: str, written_at: str | None, running: bool) -> str:
+    """관제 행 수의 안내 글(화면이 그대로 보인다 · 명령 없음 — 모두가 보는 답). 기준일 · 판정은 행 수와 따로 맞다."""
+    at = _mmdd_hm(written_at)
+    if state == "fresh":
+        return f"일일 갱신이 도는 중이라 행 수는 지난 수집({at}) 기준이다" if running else ""
+    return {
+        "stale": f"행 수는 {at} 수집 기준이다 — 마지막 수집 뒤에 숫자를 새로 쓰지 못했다",
+        "none": "행 수는 매일 수집이 끝날 때 센다 — 아직 숫자 파일이 없다(다음 수집 뒤에 보인다) · 기준일 · 판정은 그대로 맞다",
+        "old": "숫자 파일이 옛 판이라 행 수를 비워 둔다 — 다음 수집 때 새로 쓴다 · 기준일 · 판정은 그대로 맞다",
+        "error": "숫자 파일을 읽지 못해 행 수를 비워 둔다 — 기준일 · 판정은 그대로 맞다",
+    }.get(state, "")
 
 
 def _next_trading(conn: sqlite3.Connection, has_cal: bool, day: str) -> str:
@@ -609,6 +685,73 @@ def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | 
     return out, cal
 
 
+def _sql_counts(conn: sqlite3.Connection, table: str, count_sql: str, last_sql: str, first_sql: str | None) -> dict:
+    """한 표의 줄 수 · 마지막 날 · 처음 날 — 표가 없거나 행이 없으면 「없음」(줄 수 None · 0 이 아니다)."""
+    if not _has_table(conn, table):
+        return {"rows": None, "last_date": None, "first_date": None, "missing": True}
+    n = conn.execute(count_sql).fetchone()[0]
+    if not n:
+        return {"rows": None, "last_date": None, "first_date": None, "missing": True}
+    last = conn.execute(last_sql).fetchone()[0]
+    first = conn.execute(first_sql).fetchone()[0] if first_sql else None
+    return {"rows": n, "last_date": _iso_day(last), "first_date": _iso_day(first), "missing": False}
+
+
+def extra_counts(market: sqlite3.Connection | None, cdir: Path | None, state_dir: Path | None, *,
+                 glossary: Path | None = None) -> list[dict]:
+    """관제 밖 자료 여덟의 잰 사실 — [{key, rows, last_date, first_date, missing(, why)}] (`EXTRA_KEYS` 차례 · 판정 없음).
+
+    **러너만 부른다**(`scripts/daily_update.table_numbers` — 회차 끝 · 한 단계 다시 뒤 · `steps --write`). 앱은 요청 때 세지 않는다.
+    `market` 은 러너가 이미 읽기 전용으로 연 수집 DB 연결(일정 셋 — corp_schedule · holiday_kasi · policy_meeting) · 근거 · 섹터 법령 ·
+    검색 DB 는 수집 폴더(`cdir`)에서 **읽기 전용(`mode=ro`)으로 열고 바로 닫는다** — 셋은 롤백 저널이라 보조 파일이 없다(DF-67 · DF-74 —
+    도커 앱이 읽기 전용으로 붙여 여는 파일). 용어는 앱 파일(`GLOSSARY_FILE`)의 용어 수 · 회차 기록은 상태 폴더 이력 줄(깨진 줄은 세지
+    않는다 · 건너뛴 회차 줄은 센다). 파일이 없으면 「없음」(까닭 없음 — 그 PC 에 그 자료가 없을 뿐) · 열거나 읽지 못하면 그 줄만 「없음」
+    과 관리자용 까닭(`why`) — 한 자료 때문에 숫자 파일 전체를 못 쓰지 않게.
+    """
+    out: dict[str, dict] = {}
+    missing = {"rows": None, "last_date": None, "first_date": None, "missing": True}
+    for key, fname, table, count_sql, last_sql, first_sql in EXTRA_SQL:
+        try:
+            if fname == "market.sqlite3":
+                out[key] = _sql_counts(market, table, count_sql, last_sql, first_sql) if market is not None else dict(missing)
+                continue
+            path = cdir / fname if cdir is not None else None
+            if path is None or not path.exists():
+                out[key] = dict(missing)
+                continue
+            conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+            try:
+                out[key] = _sql_counts(conn, table, count_sql, last_sql, first_sql)
+            finally:
+                conn.close()
+        except sqlite3.Error as e:
+            out[key] = {**missing, "why": f"{fname} {table} 을 읽지 못했다: {type(e).__name__}: {e}"}
+    g = glossary or GLOSSARY_FILE
+    try:
+        terms = json.loads(g.read_text(encoding="utf-8")).get("terms")
+        out["glossary"] = ({"rows": len(terms), "last_date": None, "first_date": None, "missing": False}
+                           if isinstance(terms, list) and terms else dict(missing))
+    except FileNotFoundError:
+        out["glossary"] = dict(missing)
+    except (OSError, ValueError, AttributeError) as e:
+        out["glossary"] = {**missing, "why": f"{g.name} 을 읽지 못했다: {type(e).__name__}"}
+    days: list[str] = []
+    try:
+        lines = (state_dir / "daily_update_history.jsonl").read_text(encoding="utf-8").splitlines() if state_dir else []
+    except OSError:
+        lines = []
+    for ln in lines:
+        try:
+            h = json.loads(ln)
+        except ValueError:
+            continue
+        if isinstance(h, dict) and isinstance(h.get("started_at"), str) and len(h["started_at"]) >= 10:
+            days.append(h["started_at"][:10])
+    out["run_history"] = ({"rows": len(days), "last_date": max(days), "first_date": min(days), "missing": False}
+                          if days else dict(missing))
+    return [{"key": k, **out[k]} for k in EXTRA_KEYS]
+
+
 # ── HF ────────────────────────────────────────────────────────────────────
 def hf_state(cdir: Path | None) -> list[dict]:
     if cdir is None:
@@ -636,8 +779,17 @@ def hf_state(cdir: Path | None) -> list[dict]:
 RERUN = {
     "from_screen": False,
     "command": "python scripts/daily_update.py run --only <단계>",
-    "blocked": "12:30 회차와 겹치는 때(회차 시작 − 그 단계 시간 한도 ~ 13:30) · 다른 실행이 도는 동안 · 올리기 단계는 --upload 와 함께만",
 }
+
+
+def rerun_help(catalog: dict) -> dict:
+    """한 단계 다시 돌리기 도움말 — 「막히는 때」 는 러너 단계 목록의 회차 시각 · 막는 때 끝(`guards.full.to`)에서 만든다(D104 · 사본 없음).
+    시각을 모르면 「회차 시각 모름」 으로 시작한다(겹치는 때를 짐작하지 않는다)."""
+    hm = catalog.get("schedule")
+    end = ((catalog.get("guards") or {}).get("full") or {}).get("to")
+    when = (f"{hm[0]:02d}:{hm[1]:02d} 회차와 겹치는 때(회차 시작 − 그 단계 시간 한도 ~ {end or '회차 끝'})" if hm
+            else f"{SCHEDULE_UNKNOWN} — 회차와 겹치는 때를 셀 수 없다")
+    return {**RERUN, "blocked": f"{when} · 다른 실행이 도는 동안 · 올리기 단계는 --upload 와 함께만"}
 
 
 def runner_detail(now: datetime | None = None) -> dict:
@@ -653,30 +805,29 @@ def runner_detail(now: datetime | None = None) -> dict:
     out["catalog"] = {"written_at": cat["written_at"],
                       "steps": [{**{k: s.get(k) for k in keys}, "fill": s.get("fill") or ""} for s in cat["steps"]]}
     out["disk"] = pc_disk(sdir)
-    out["rerun"] = RERUN
+    out["rerun"] = rerun_help(cat)
     out["checked_at"] = now.isoformat(timespec="seconds")
     return out
 
 
 def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
-    """화면이 30초마다 불러도 DB 를 매번 세지 않게 30초 동안 같은 답을 준다."""
+    """화면이 30초마다 불러도 같은 답을 주게 30초 동안 둔다. 행 수는 러너가 회차 끝에 쓴 숫자 파일에서(세지 않는다 · 2026-10-15) ·
+    기준일 · 판정은 수집 DB 의 마지막 날로 지금 본다."""
     if use_cache and now is None and _cache.get("value") and time.monotonic() - _cache["at"] < CACHE_SECONDS:
         return _cache["value"]
     now = now or _now()
     cdir = collector_dir()
-    runner = runner_state(cdir / "state" if cdir else None, now)
+    sdir = cdir / "state" if cdir else None
+    runner = runner_state(sdir, now)
+    nums = load_numbers(sdir)
     conn = _connect_ro()
     rows_state, rows_note = "fresh", ""
     try:
         rows_map = None
         if conn is not None:
-            rows_map, rows_state = counts_view(running=runner["running"])
+            rows_map, rows_state = counts_view(running=runner["running"], numbers=nums, runner=runner)
+            rows_note = _rows_note(rows_state, nums.get("written_at"), runner["running"])
         tables, cal = table_states(conn, now.date(), rows_map, now=now, runner_last=runner.get("last"))
-        if rows_state == "old":
-            rows_note = ("일일 갱신이 도는 중이라 행 수는 지난번에 센 값이다" if runner["running"] else
-                         "DB 가 바뀌어 행 수를 다시 세는 중이다 — 지금 보이는 것은 지난번 값")
-        elif rows_state == "pending":
-            rows_note = "행 수를 세는 중이다(앱을 켠 뒤 처음 한 번 · 컨테이너에서 15 ~ 20초) — 기준일 · 판정은 그대로 맞다"
     finally:
         if conn is not None:
             conn.close()
@@ -699,7 +850,8 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
         "hf": hf_state(cdir),
         "source": "collector",
         "rows_state": rows_state,
-        "rows_counted_at": _counts.get("at"),
+        # 행 수를 센 때 = 숫자 파일을 쓴 때(러너) — load_numbers 는 읽은(ok) 파일에만 시각을 준다(없음 · 옛 판 · 깨짐은 None · 메우지 않는다)
+        "rows_counted_at": nums.get("written_at"),
     }
     if rows_note:
         value["rows_note"] = rows_note

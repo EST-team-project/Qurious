@@ -61,11 +61,17 @@ LAST = {"started_at": "2026-10-08T12:30:01+09:00", "finished_at": "2026-10-08T13
 WRITTEN = "2026-10-08T13:25:30+09:00"
 
 
-def _numbers(rows: int | None = 1000, missing: bool = False, written_at: str = WRITTEN, schema: int = 1) -> dict:
-    """가짜 숫자 파일 — 러너가 회차 끝에 쓰는 꼴(표 열쇠는 실제 상태 정의 data_status.TABLES 에서 · 셈법 한 곳)."""
-    return {"schema": schema, "written_at": written_at, "by": "run", "seconds": 1.2,
-            "tables": [{"key": key, "rows": None if missing else rows, "last_date": None if missing else "2021-10-07",
-                        "missing": missing} for key, *_ in ds.TABLES]}
+def _numbers(rows: int | None = 1000, missing: bool = False, written_at: str = WRITTEN, schema: int = 1,
+             extras: bool = True) -> dict:
+    """가짜 숫자 파일 — 러너가 회차 끝에 쓰는 꼴(표 열쇠는 실제 상태 정의 data_status.TABLES 에서 · 셈법 한 곳).
+    `extras` 는 관제 밖 자료 여덟(3단계 · 2026-10-15 · 열쇠는 data_status.EXTRA_KEYS) — False 면 그 칸이 없는 옛 러너 꼴."""
+    out = {"schema": schema, "written_at": written_at, "by": "run", "seconds": 1.2,
+           "tables": [{"key": key, "rows": None if missing else rows, "last_date": None if missing else "2021-10-07",
+                       "missing": missing} for key, *_ in ds.TABLES]}
+    if extras:
+        out["extras"] = [{"key": key, "rows": None if missing else 50, "last_date": None if missing else "2021-10-07",
+                          "first_date": None if missing else "2020-01-02", "missing": missing} for key in ds.EXTRA_KEYS]
+    return out
 
 
 def _hf_manifest() -> dict:
@@ -107,6 +113,7 @@ def _write(path: Path, data: dict) -> None:
 
 #: 진짜 셈법 — 픽스처가 막기 전에 잡아 둔다(TC-DG-11 은 러너 쪽에서 진짜로 센다)
 _REAL_TABLE_STATES = ds.table_states
+_REAL_EXTRA_COUNTS = ds.extra_counts
 
 
 def _no_counting(*_a, **_k):
@@ -125,7 +132,7 @@ def env(tmp_path, monkeypatch):
     _write(cdir / "state" / dg.NUMBERS_FILE, _numbers())
     monkeypatch.setenv(collector_db.ENV_DB_PATH, str(cdir / "market.sqlite3"))     # 없는 파일 — 진짜 수집 DB 를 열 길이 없다
     monkeypatch.setattr(ds, "collector_dir", lambda: cdir)
-    for name in ("get_status", "table_states", "start_count", "_connect_ro"):
+    for name in ("get_status", "table_states", "extra_counts", "_connect_ro"):
         monkeypatch.setattr(ds, name, _no_counting)
     return SimpleNamespace(cdir=cdir, state=cdir / "state", numbers=cdir / "state" / dg.NUMBERS_FILE)
 
@@ -178,7 +185,8 @@ def test_every_collector_table_is_in_the_guide_or_excluded():
     attr = {r["표"] for r in scan.read_attr()}
     assert {t for it in guide["items"] for t in it["dev"]["tables"]} <= attr
     status_keys = [k for it in guide["items"] for k in it["stats_from"]["status"]]
-    assert sorted(status_keys) == sorted(key for key, *_ in ds.TABLES)
+    assert sorted(status_keys) == sorted([key for key, *_ in ds.TABLES] + list(ds.EXTRA_KEYS)), \
+        "숫자 열쇠 = 관제 표 열쇠 + 관제 밖 여덟(3단계) — 하나씩"
     # 규칙 — 자료가 쓰지 않는 표 · 까닭 없이 뺀 표 · 쓰면서 뺀 표를 가린다
     fake = {"items": [{"dev": {"tables": ["a", "d"]}}], "excluded": [{"table": "b", "why": " "}, {"table": "d", "why": "까닭"}]}
     assert scan.coverage(fake, {"a", "b", "c", "d"}) == {"빠진_표": ["c"], "까닭_없는_뺀_표": ["b"], "안내와_뺀_표에_모두": ["d"]}
@@ -500,8 +508,11 @@ def test_runner_numbers_file_is_what_the_guide_reads(env, tmp_path, monkeypatch)
     conn.close()
     at = datetime(2026, 10, 8, 13, 26, tzinfo=du.KST)
     monkeypatch.setattr(ds, "table_states", _REAL_TABLE_STATES)            # 쓰는 쪽(러너)은 진짜로 센다
+    monkeypatch.setattr(ds, "extra_counts", _REAL_EXTRA_COUNTS)
     nums = du.table_numbers(db_path=db, now=at)
     monkeypatch.setattr(ds, "table_states", _no_counting)                  # 읽는 쪽(앱)은 다시 세면 실패한다
+    monkeypatch.setattr(ds, "extra_counts", _no_counting)
+    assert [x["key"] for x in nums["extras"]] == list(ds.EXTRA_KEYS), "여덟 자료 — 열쇠 · 차례 = 관제 모듈의 정의(한 곳)"
     assert [t["key"] for t in nums["tables"]] == [key for key, *_ in ds.TABLES], "열쇠 · 차례 = 관제의 표 정의(한 곳)"
     du._write_json_atomic(env.numbers, nums)
     out = dg.read(admin=True)
@@ -512,3 +523,63 @@ def test_runner_numbers_file_is_what_the_guide_reads(env, tmp_path, monkeypatch)
     assert st["items"]["events"]["rows"] == 1 and st["items"]["events"]["last"] == "2021-10-08"
     assert st["items"]["etf-day"]["rows"] is None, "없는 표의 숫자는 0 이 아니라 「없음」"
     assert st["total_rows"] == 4 and st["total_partial"] is True
+    terms = len(json.loads(ds.GLOSSARY_FILE.read_text(encoding="utf-8"))["terms"])
+    assert (st["items"]["glossary"]["rows"], st["items"]["glossary"]["state"]) == (terms, "ok"), "용어는 앱 파일에서 센 수"
+    assert st["items"]["law-base"]["state"] == "none" and st["items"]["law-base"]["rows"] is None, "근거 DB 가 없는 곳은 「없음」"
+
+
+# ── 12. 관제 밖 자료 여덟(3단계 · 2026-10-15) ──────────────────────────────────
+EIGHT = {"corp-dates": "corp_schedule", "holidays": "holiday_kasi", "rate-meetings": "policy_meeting", "law-base": "kb_law",
+         "sector-law": "kb_sector", "search": "search_index", "glossary": "glossary", "run-log": "run_history"}
+
+
+def test_eight_items_get_numbers_from_the_extras_list(env):
+    """TC-DG-12 · 관제 밖 자료 여덟(주총 · 배당 지급 일정 · 공휴일 · 금통위 · FOMC · 법령 근거 · 섹터 법령 · 검색 색인 · 용어사전 ·
+    회차 기록)은 러너 숫자 파일의 `extras` 에서 줄 수 · 마지막 날 · 처음 날을 받는다(사용자 결정 「추천 표대로」) — 대장 「숫자_상태」
+    칸이 잇고, 「이 화면에서는 세지 않는 자료」 가 없어진다. 「모은 줄」 합 · 모은 기간의 처음 날에는 넣지 않는다(근거 조각 · 용어 · 회차
+    줄은 시세 줄과 뜻이 다르다 · 공휴일 처음 날이 시세 처음 날을 밀어내지 않게). 옛 러너 파일(extras 없음)이면 여덟은 「기다림」(깨짐이
+    아니다 — 관리자에게 까닭) · 그 자료가 없는 PC 는 「이 PC 에는 이 자료가 없습니다」."""
+    guide = dg.load_guide()
+    links = {it["key"]: it["stats_from"]["status"] for it in guide["items"]}
+    assert {k: links[k] for k in EIGHT} == {k: [v] for k, v in EIGHT.items()}, "대장 「숫자_상태」 칸이 여덟을 잇는다"
+    assert not [it["key"] for it in guide["items"] if not it["stats_from"]["status"] and not it["stats_from"]["backup"]]
+    _write(env.numbers, _numbers(rows=1234))
+    st = dg.read(admin=False)["stats"]
+    for key in EIGHT:
+        s = st["items"][key]
+        assert (s["state"], s["rows"], s["rows_from"], s["last"], s["first"]) == ("ok", 50, "numbers", "2021-10-07", "2020-01-02"), key
+    assert st["total_rows"] == 1234 * len(ds.TABLES), "모은 줄 합에는 넣지 않는다"
+    assert st["first"] == "2020-01-02" and st["items"]["stock-day"]["first"] == "2020-01-02"
+    _write(env.numbers, {**_numbers(rows=1234), "extras": [
+        {"key": k, "rows": 50, "last_date": "2027-12-25", "first_date": "2019-01-01", "missing": False} for k in ds.EXTRA_KEYS]})
+    st = dg.read(admin=False)["stats"]
+    assert st["first"] == "2020-01-02", "여덟 자료의 처음 날(2019)은 모은 기간 머리에 섞지 않는다"
+    assert st["items"]["holidays"]["first"] == "2019-01-01", "자료 한 줄에는 그대로"
+    # 옛 러너 파일 — extras 칸이 없다 · 여덟은 기다림(다음 수집 뒤) · 나머지는 그대로
+    _write(env.numbers, _numbers(rows=1234, extras=False))
+    st = dg.read(admin=True)["stats"]
+    assert all((st["items"][k]["state"], st["items"][k]["why"]) == ("pending", dg.ITEM_WHY["pending"]) for k in EIGHT)
+    assert st["items"]["stock-day"]["state"] == "ok" and st["note"] == ""
+    assert any("extras" in x for x in st["dev"]["problems"]), "관리자에게는 까닭(옛 러너가 쓴 파일)"
+    # 그 자료가 없는 PC — 여덟이 「없음」
+    _write(env.numbers, _numbers(rows=1234) | {"extras": [
+        {"key": k, "rows": None, "last_date": None, "first_date": None, "missing": True} for k in ds.EXTRA_KEYS]})
+    st = dg.read(admin=False)["stats"]
+    assert all((st["items"][k]["state"], st["items"][k]["rows"]) == ("none", None) for k in EIGHT)
+
+
+def test_note_when_todays_run_is_missing_and_schedule_from_the_runner(env):
+    """TC-DG-13 · 오늘 회차가 없으면(관제 「오늘 회차 없음」 — 러너 단계 목록의 회차 시각 + 1시간이 지나도 오늘 기록이 없다) 안내 줄
+    「오늘 낮 수집이 아직 없습니다 — 숫자는 MM-DD HH:MM 수집 기준입니다」(숫자는 그대로 · 자료 안내 3단계 · 2026-10-15) · 흐름 머리의
+    회차 시각은 러너가 쓴 단계 목록에서(D104) — 목록에 시각이 없으면 「회차 시각 모름」 이고 「오늘 회차 없음」 을 판정하지 않는다."""
+    _write(env.state / ds.CATALOG_FILE, {"written_at": "2026-10-08T12:30:00+09:00", "groups": GROUPS, "steps": STEPS,
+                                         "schedule": "12:30"})
+    kst = ds.KST
+    st = dg.read(admin=False, now=datetime(2026, 10, 9, 13, 0, tzinfo=kst))["stats"]
+    assert st["runner"]["schedule"] == "매일 12:30" and st["note"] == "", "13:30 전에는 오늘 회차를 기다린다"
+    st = dg.read(admin=False, now=datetime(2026, 10, 9, 14, 0, tzinfo=kst))["stats"]
+    assert st["note"] == "오늘 낮 수집이 아직 없습니다 — 숫자는 10-08 13:25 수집 기준입니다"
+    assert st["items"]["stock-day"]["rows"] == 1000 and st["numbers"]["state"] == "ok", "숫자는 그대로"
+    _write(env.state / ds.CATALOG_FILE, {"written_at": "2026-10-08T12:30:00+09:00", "groups": GROUPS, "steps": STEPS})
+    st = dg.read(admin=False, now=datetime(2026, 10, 9, 23, 0, tzinfo=kst))["stats"]
+    assert st["runner"]["schedule"] == ds.SCHEDULE_UNKNOWN and st["note"] == "", "시각을 모르면 판정하지 않는다"
