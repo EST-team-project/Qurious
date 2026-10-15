@@ -6,6 +6,9 @@ import { tt } from "/js/core.js";
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
 // ── XAI: SHAP 기여도 블록 렌더 (로보 추천 · 스크리닝 · 파이프라인 공용) ──
+// 배지 글자 — 품질 관문이 낮춘 판단을 앞에, 확률이 가리키는 모델 판단을 뒤에(「관망 · 모델 매수 49.8%」)
+const xaiBadgeText = ex => `${ex.model_signal_label ? `${ex.signal_label} · 모델 ${ex.model_signal_label}` : ex.signal_label} ${ex.probability_pct}%`;
+
 function renderXaiBlock(ex, { compact = false } = {}) {
   if (!ex) return "";
   const rows = (compact ? [...(ex.top_positive || []), ...(ex.top_negative || [])] : (ex.contributions || [])).slice(0, compact ? 4 : 12);
@@ -18,14 +21,14 @@ function renderXaiBlock(ex, { compact = false } = {}) {
       <div style="flex:1;height:8px;background:var(--surf3);border-radius:4px;overflow:hidden;position:relative;">
         <div style="width:${w}%;height:100%;background:${pos ? "var(--green)" : "var(--red)"};"></div>
       </div>
-      <span style="width:52px;flex:none;text-align:right;color:${pos ? "var(--green)" : "var(--red)"};">${r.contribution >= 0 ? "+" : ""}${Number(r.contribution).toFixed(2)}</span>
+      <span style="width:52px;flex:none;text-align:right;color:${pos ? "var(--green)" : "var(--red)"};">${ptSigned(r.contribution)}</span>
     </div>`;
   }).join("");
   const sigCls = ex.signal === 1 ? "badge-buy" : ex.signal === -1 ? "badge-sell" : "badge-hold";
   return `<div class="mt-2 rounded-lg p-2" style="background:var(--surf2);border:1px solid var(--border);">
     <div class="flex items-center justify-between mb-1">
       <span class="text-xs font-semibold">🧠 ${tt("AI 판단 근거 (XAI)", "SHAP 기여도: 각 지표가 모델의 매수/관망/매도 판단을 얼마나 밀어 올렸는지(+)/끌어내렸는지(−)", "shap")}</span>
-      <span class="${sigCls}" style="font-size:11px;">${escHtml(ex.signal_label)} ${ex.probability_pct}%</span>
+      <span class="${sigCls}" style="font-size:11px;">${escHtml(xaiBadgeText(ex))}</span>
     </div>
     ${ex.quality_warning ? `<p class="text-xs mb-1 px-2 py-1 rounded" style="background:rgba(242,54,69,.08);color:var(--red);border:1px solid rgba(242,54,69,.25);">⚠ 모델 성능 기준선 미달 — ${escHtml(ex.quality_warning)}</p>` : ""}
     <p class="text-xs mb-2" style="color:var(--text-dim);">${escHtml((ex.summary || "").replace(/^⚠ [^ ]*.*?참고용입니다\. /, ""))}</p>
@@ -249,7 +252,7 @@ function renderScreenTable(signals) {
         <td style="text-align:right;color:${pct >= 0 ? "var(--green)" : "var(--red)"};">${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%</td>
         <td style="text-align:right;">${s.rsi?.toFixed(1) ?? "--"}</td>
         <td><span class="${sigClass}">${s.signal}</span></td>
-        <td style="font-size:11px;color:var(--text-mute);">${escHtml(s.reason || "계산된 패턴 신호")}${s.xai ? `<div style="color:var(--text-dim);margin-top:2px;">🧠 ${escHtml(s.xai.signal_label)} ${s.xai.probability_pct}% — ${escHtml((s.xai.top_positive?.[0]?.label) || "")}</div>` : ""}</td>
+        <td style="font-size:11px;color:var(--text-mute);">${escHtml(s.reason || "계산된 패턴 신호")}${s.xai ? `<div style="color:var(--text-dim);margin-top:2px;">🧠 ${escHtml(xaiBadgeText(s.xai))} —${escHtml((s.xai.top_positive?.[0]?.label) || "")}</div>` : ""}</td>
         <td><button class="btn-secondary text-xs" onclick="showScreenXai('${escHtml(s.symbol)}')" title="LightGBM SHAP 기여도로 판단 근거 설명">🧠 설명</button></td>
       </tr>`;
   }).join("")}</tbody>

@@ -281,7 +281,8 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
                 {"objective": "multiclass", "num_class": 3, "verbosity": -1},
                 lgb.Dataset(X, label=y_cls), num_boost_round=50,
             )
-        probs = lgb_model.predict(X[-1:])[0]
+        # X 는 5일 뒤 수익률이 있는 줄만이라 끝이 5거래일 전 — 판단 · 확률은 SHAP 과 같은 오늘 줄로
+        probs = lgb_model.predict(latest_features)[0]
         signal = int(np.argmax(probs)) - 1
         signal_confidence = float(np.max(probs))
         try:
@@ -298,6 +299,10 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
                 explanation["quality_warning"] = (f"검증 정확도 {cls_acc:.2f}가 기준선(다수 클래스 {baseline:.2f}) 대비 유의하게 높지 않아 "
                                                   f"모델 신호를 '관망'으로 낮췼습니다. 아래 기여도는 참고용입니다.")
                 explanation["summary"] = "⚠ " + explanation["quality_warning"] + " " + explanation["summary"]
+                # 배지는 낮춘 판단(관망)을 보이고, 확률 · 기여도가 가리키는 모델 판단은 따로 남긴다
+                if explanation["signal"] != 0:
+                    explanation["model_signal"], explanation["model_signal_label"] = explanation["signal"], explanation["signal_label"]
+                    explanation["signal"], explanation["signal_label"] = 0, "관망"
     except Exception:
         signal = 1 if pred_5d > 0 else (-1 if pred_5d < 0 else 0)
         explanation = None
