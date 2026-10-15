@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 252,
- "routers": 35,
+ "count": 256,
+ "routers": 36,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -2548,9 +2548,7 @@
    "hosts": [
     "query2.finance.yahoo.com"
    ],
-   "screens": [
-    "ml-compare"
-   ],
+   "screens": [],
    "part": "P-D",
    "req": [
     "P01-④-1"
@@ -5957,7 +5955,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/formula.py",
-   "line": 257,
+   "line": 259,
    "errors": [],
    "keys": [
     "results"
@@ -5980,7 +5978,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/formula.py",
-   "line": 265,
+   "line": 267,
    "errors": [
     "422"
    ],
@@ -7236,6 +7234,102 @@
    "req": [],
    "file": "app/routes/clusters.py",
    "line": 22,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MCMP-01",
+   "router": "model_compare",
+   "method": "GET",
+   "path": "/api/model-compare",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/model_compare.py",
+   "line": 62,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MCMP-02",
+   "router": "model_compare",
+   "method": "GET",
+   "path": "/api/model-compare/choices",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "ml-compare"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/model_compare.py",
+   "line": 77,
+   "errors": [],
+   "keys": [
+    "choices",
+    "admin",
+    "model_count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MCMP-03",
+   "router": "model_compare",
+   "method": "POST",
+   "path": "/api/model-compare/jobs",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/model_compare.py",
+   "line": 82,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [
+    "ModelCompareJobBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-MCMP-04",
+   "router": "model_compare",
+   "method": "GET",
+   "path": "/api/model-compare/jobs/{job_id}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/model_compare.py",
+   "line": 94,
    "errors": [
     "?"
    ],

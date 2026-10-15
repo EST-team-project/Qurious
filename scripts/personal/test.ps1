@@ -108,7 +108,9 @@ try {
       $mapped = & docker port $TestDbName 5432/tcp
       $TestDbPort = [int](("$(@($mapped)[0])" -split ':')[-1])
     } else {
-      if ($st.State -ne 'missing') { $null = & docker rm -f $TestDbName }
+      # -v : pgvector 이미지가 데이터 폴더를 이름 없는 볼륨으로 잡는다 — 함께 지우지 않으면 돌릴 때마다 하나씩 쌓인다
+      #      (2026-10-15 실측 — 8일 만에 47개 · 2.66 GB).
+      if ($st.State -ne 'missing') { $null = & docker rm -f -v $TestDbName }
       $TestDbPort = Find-QFreePort $TestDbPortCandidates
       if ($TestDbPort -eq 0) {
         Write-QFail ("시험 DB 에 쓸 포트가 없습니다 (후보 {0} 모두 예약 · 사용 중)." -f ($TestDbPortCandidates -join ', '))
@@ -161,10 +163,10 @@ try {
     else { Set-Item "Env:$k" $saved[$k] }
   }
   if (-not $NoDb -and -not $KeepDb) {
-    $null = & docker rm -f $TestDbName 2>&1
-    Write-QOk "시험 DB 컨테이너($TestDbName)를 지웠습니다"
+    $null = & docker rm -f -v $TestDbName 2>&1           # -v : 데이터 볼륨까지(위 2/4 의 주석)
+    Write-QOk "시험 DB 컨테이너($TestDbName)와 데이터 볼륨을 지웠습니다"
   } elseif ($KeepDb) {
-    Write-QInfo "시험 DB 를 남겼습니다 — 지우기: docker rm -f $TestDbName"
+    Write-QInfo "시험 DB 를 남겼습니다 — 지우기: docker rm -f -v $TestDbName"
   }
 }
 

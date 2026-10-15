@@ -128,6 +128,6 @@ $volumes = & docker volume ls --filter "name=$QComposeProject" --format '{{.Name
 if ($volumes) { Write-QInfo ('볼륨(데이터): ' + (@($volumes) -join ' · ') + '  — stop.ps1 -DeleteData 로만 지워진다') }
 $testDb = Get-QContainerState 'qurious-test-pg'
 if ($testDb.State -ne 'missing') {
-  Write-QWarn "시험 DB 컨테이너(qurious-test-pg)가 남아 있습니다 ($($testDb.State)) — 지우려면: docker rm -f qurious-test-pg"
+  Write-QWarn "시험 DB 컨테이너(qurious-test-pg)가 남아 있습니다 ($($testDb.State)) — 지우려면: docker rm -f -v qurious-test-pg"
 }
 exit 0

@@ -19,7 +19,8 @@
 .view[data-view="fin-allocation"] .text-slate-300,
 .view[data-view="quant-seasonal"] .text-slate-300,
 .view[data-view="invest-technical"] .text-slate-300,
-.view[data-view="invest-fundamental"] .text-slate-300 { color: var(--text-dim) !important; }
+.view[data-view="invest-fundamental"] .text-slate-300,
+.view[data-view="ml-compare"] .text-slate-300 { color: var(--text-dim) !important; }   /* 모델 비교 아래 강사님 「모델별 특성」 카드(대비 약 1.4:1 · 2026-10-15) */
 .view[data-view="fin-products"] .text-slate-400,
 .view[data-view="fin-allocation"] .text-slate-400,
 .view[data-view="quant-seasonal"] .text-slate-400 { color: #64748b !important; }

@@ -29,6 +29,7 @@
   <link rel="stylesheet" href="/css/riskcb.css" /><!-- 재무 · 신용 위험 (2026-10-13 · js/riskcb.js) -->
   <link rel="stylesheet" href="/css/clusters.css" /><!-- 종목 군집화 (2026-10-14 · js/clusters.js) -->
   <link rel="stylesheet" href="/css/seasonal.css" /><!-- 계절성 분석 (2026-10-14 · js/seasonal.js) -->
+  <link rel="stylesheet" href="/css/mlcompare.css" /><!-- 모델 비교 (2026-10-15 · js/mlcompare.js) -->
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
 </head>
@@ -2221,49 +2222,9 @@
 
           <!-- ML 모델 비교 -->
           <div class="view" data-view="ml-compare">
-            <div class="card mb-4">
-              <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-scale-balanced"
-                  style="color:var(--accent);"></i> ML 모델 비교 — 5-Fold 교차검증</h2>
-              <p class="text-sm text-slate-400 mb-4">LinearSVM · RBF SVM · RandomForest · GradientBoosting · MLP ·
-                Ensemble(Voting) · LightGBM — 동일 피처로 공정 비교</p>
-              <div class="flex flex-wrap gap-3 mb-4">
-                <select id="mlc-symbol" class="input-field" style="width:180px;">
-                  <option value="005930.KS">삼성전자</option>
-                  <option value="000660.KS">SK하이닉스</option>
-                  <option value="035420.KS">NAVER</option>
-                  <option value="005380.KS">현대자동차</option>
-                  <option value="051910.KS">LG화학</option>
-                </select>
-                <select id="mlc-period" class="input-field" style="width:120px;">
-                  <option value="2y">2년</option>
-                  <option value="3y">3년</option>
-                  <option value="5y">5년</option>
-                </select>
-                <button id="mlc-run-btn" class="btn-primary">▶ 비교 실행</button>
-              </div>
-              <div id="mlc-loading" class="hidden text-sm text-slate-400 animate-pulse">모델 학습 중... (10~30초 소요)</div>
-              <div id="mlc-result" class="hidden">
-                <div class="flex gap-3 mb-3 flex-wrap" id="mlc-summary-cards"></div>
-                <div class="overflow-x-auto">
-                  <table class="w-full text-xs">
-                    <thead>
-                      <tr class="border-b border-slate-700 text-slate-400">
-                        <th class="py-2 text-left">순위</th>
-                        <th class="py-2 text-left">모델</th>
-                        <th class="py-2 text-right">CV 평균</th>
-                        <th class="py-2 text-right">CV 표준편차</th>
-                        <th class="py-2 text-right">학습 정확도</th>
-                        <th class="py-2 text-right">검증 정확도</th>
-                      </tr>
-                    </thead>
-                    <tbody id="mlc-table-body"></tbody>
-                  </table>
-                </div>
-                <p id="mlc-best" class="text-sm mt-3 font-semibold" style="color:var(--accent);"></p>
-                <button type="button" id="mlc-compare-add" class="btn-secondary text-xs">⚖️ 비교에 추가</button>
-              </div>
-              <div id="mlc-compare-tray"></div>
-            </div>
+            <!-- 모델 비교 (2026-10-15 · js/mlcompare.js · css/mlcompare.css) — 강사님 「ML 모델 비교 — 5-Fold 교차검증」 칸 자리.
+                 계산은 GET /api/model-compare(시간 순서 검증 · 기준선 넷) · 강사님 GET /api/ml/compare 와 아래 「모델별 특성」 카드는 그대로 -->
+            <div class="mv-root mb-4"></div>
             <div class="card">
               <h3 class="font-semibold mb-2">📖 모델별 특성</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300">
