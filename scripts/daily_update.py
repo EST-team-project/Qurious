@@ -77,9 +77,18 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py start            # 등록된 작업을 지금 한 번 돌린다(비동기)
     python scripts/daily_update.py uninstall        # 등록 해제
 
-종료코드 — 0 성공 · 2 고를 수 없는 단계 · 받는 값이 틀림 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시 · 채우기) · 75 막힘(12:30 회차와
-겹침 · 다른 실행 — 나중에 다시 · EX_TEMPFAIL) · 78 앱 DB 주소를 만들지 못함(EX_CONFIG) · 124 시간 초과 · 그 밖 = 실패한 단계의
+종료코드 — 0 성공 · 2 고를 수 없는 단계 · 받는 값이 틀림 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시 · 채우기) · 69 시세를 다 받지
+못함(실패한 날 · 한도 소진 — 받은 날은 저장 · 경고로 세고 뒤 단계는 돈다 · EX_UNAVAILABLE · DF-92) · 75 막힘(12:30 회차와 겹침 ·
+다른 실행 — 나중에 다시 · EX_TEMPFAIL) · 78 앱 DB 주소를 만들지 못함(EX_CONFIG) · 124 시간 초과 · 그 밖 = 실패한 단계의
 종료코드. 화면 수집 요청(`scripts/collect_worker.py`)은 75 를 「다시 기다림」 으로, 나머지를 결과로 읽는다(2026-10-10).
+
+따라잡기 회차(DF-99 · 2026-10-15) — 12:30 에 PC 가 꺼져 있던 날의 회차는 켜진 뒤 약 10분에 돈다(``StartWhenAvailable``). 그 회차가
+11:00 ~ 12:28 에 시작하면 이력에 「건너뜀」 한 줄만 남기고 끝낸다 — 돌면 12:30 회차가 잠금에 걸려 통째로 건너뛰고 그날 「12:30 뒤
+시작한 회차」 가 없어 리밸런싱 하루 점검이 하루 내내 기다린다. 12:30 회차가 같은 일을 한다(``catch_up_blocked``).
+
+회차 기록 사본(#124 · 2026-10-15) — 올리기 단계 직전에 그 회차가 그때까지 한 일(마지막 회차 기록과 같은 칸 · ``finished_at`` 빈칸)과
+앞 회차들의 이력 줄을 HF 내보내기 폴더 ``meta/run_record.json`` 에 쓴다 — 같은 커밋에 실려 한 판에서 수집 DB 와 그 DB 를 만든
+회차 기록을 함께 받는다(``write_upload_record``).
 
 실패한 단계의 까닭(DF-101) — 단계 줄에 까닭 한 줄(``error`` · 그 단계 로그 구간의 마지막 예외 줄 · 경로 · 비밀값을 걸러 200자)과
 로그 파일 이름(``log_name``)을 남긴다. 결과 줄이 「종료코드 1」 만 남아 로그를 열어야 까닭을 알던 것(2026-10-10 배당 · 기업 일정)을
@@ -184,6 +193,10 @@ class Step:
     # 빠진 날 채우기 인자 — ``{from}`` · ``{to}`` 자리에 날짜를 넣어 ``run --fill`` 이 돌린다(2026-10-10 · 화면 「빠진 날 채우기」).
     # 이것이 있는 단계만 채우기를 받고, 명령 글(``fill``)도 여기서 만든다 — 명령 글과 실제 인자가 두 곳에서 갈라지지 않게.
     fill_args: List[str] = field(default_factory=list)
+    # 경고로 셀 종료코드 — 멈추는 단계(``fatal``)라도 이 값이면 뒤 단계를 막지 않고 단계 줄에 ``warn`` 을 적는다(DF-92 · 2026-10-15).
+    # 「무엇이 허용된 실패인가」 는 그 작업의 정의가 정한다(Airflow ``skip_on_exit_code`` · GitLab ``allow_failure:exit_codes`` 꼴 —
+    # 러너 조사서 2절). 앱은 러너가 적은 ``warn`` 을 그대로 읽는다(종료코드를 다시 해석하지 않는다).
+    warn_codes: tuple = ()
 
     def __post_init__(self) -> None:
         if self.fill_args and not self.fill:
@@ -199,8 +212,13 @@ GROUPS: List[Dict[str, str]] = [
     {"key": "근거 문서", "note": "근거 답이 쓰는 법령을 대조한다"},
 ]
 
+#: 시세를 다 받지 못함(실패한 날 · 한도 소진 — 받은 날은 저장했고 다음 회차가 다시 받는다) — 시세 명령(``collector/backfill.py``)의
+#: 같은 이름 값과 같아야 한다(TC-BF-05). 75 는 「지금은 못 돈다」(러너 · 작업자)라 쓰지 않는다 — 아래 종료코드 약속.
+EX_UNAVAILABLE = 69
+
 STEPS: List[Step] = [
-    Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30,
+    # 시세는 멈추는 단계 — 예외 · 시간 넘김은 뒤를 막는다. 69(다 받지 못함)만 경고로 세어 받은 만큼으로 뒤 단계를 돌린다(DF-92).
+    Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30, warn_codes=(EX_UNAVAILABLE,),
          label="시세", group="받기", desc="최근 거래일 시세를 받아 빈 날을 메운다"),
     Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet"], 60,
          fatal=False, label="배당", group="받기", desc="최근 두 달 배당 공시를 다시 훑어 배당 기록을 고친다"),
@@ -530,9 +548,24 @@ def _compact(recs: List[Dict]) -> List[Dict]:
     for r in recs:
         row = {"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
         row.update({k: r[k] for k in ("reason", "followup", "date", "fill_from", "fill_to", "fill_days", "fill_rest",
-                                      "error", "log_name") if r.get(k)})
+                                      "error", "log_name", "warn") if r.get(k)})
         out.append(row)
     return out
+
+
+def _mark_warn(step: Step, rc: Optional[int], rec: Dict) -> bool:
+    """단계 정의가 경고로 정한 종료코드면 단계 줄에 ``warn`` 을 적고 참(DF-92) — 정기 회차 · 한 단계 다시 · 채우기가 같은 규칙."""
+    if rc and rc in step.warn_codes:
+        rec["warn"] = True
+        return True
+    return False
+
+
+def _mark(step: Step, rc: int) -> str:
+    """로그 줄 머리 — 성공 ✅ · 경고(멈추지 않는 단계의 실패 · 경고 종료코드) 🟡 · 멈춤 🔴."""
+    if rc == 0:
+        return "✅"
+    return "🟡" if (not step.fatal or rc in step.warn_codes) else "🔴"
 
 
 def measure_disk(now: Optional[datetime.datetime] = None, db_path: Optional[Path] = None) -> Dict:
@@ -895,8 +928,10 @@ def app_db_gate(run: Run, step: Step) -> Optional[Dict]:
             "note": f"앱 DB 꺼짐 · {_db_where(run.app_db_env['DATABASE_URL'])} {why} · 건너뜀"}
 
 
-def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout_min: Optional[int] = None) -> int:
-    """단계 하나를 자식 파이썬으로 — ``args`` · ``timeout_min`` 은 빠진 날 채우기(날짜를 넣은 채우기 인자 · 범위로 센 한도)."""
+def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout_min: Optional[int] = None,
+              env_extra: Optional[Dict[str, str]] = None) -> int:
+    """단계 하나를 자식 파이썬으로 — ``args`` · ``timeout_min`` 은 빠진 날 채우기(날짜를 넣은 채우기 인자 · 범위로 센 한도) ·
+    ``env_extra`` 는 그 단계에만 넘길 값(올리기 단계의 회차 기록 시각 — ``write_upload_record``)."""
     args = list(args) if args is not None else step.args
     timeout_min = timeout_min or step.timeout_min
     env = dict(os.environ)
@@ -908,6 +943,8 @@ def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout
         env.pop("QURIOUS_RAW_SHARING", None)
     if step.app_db:
         env.update(run.app_db_env)             # ← ``host_app_db_env`` — 컨테이너 주소가 아니라 compose 가 연 포트
+    if env_extra:
+        env.update(env_extra)
     run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(args)}\n{'=' * 70}\n")
     run.log.flush()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -927,6 +964,90 @@ def _prune_logs() -> None:
         old.unlink(missing_ok=True)
 
 
+def _skip_line(started: datetime.datetime, why: str, **extra: str) -> None:
+    """정기 회차가 돌지 않은 까닭을 이력에 한 줄 — 로그 · 잠금 · 회차 기록은 만들지 않는다(돌고 있는 쪽 · 12:30 회차의 기록이 정본)."""
+    if sys.stdout is not None:
+        print(f"{_iso(started)} 건너뜀: {why}")
+    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with HISTORY_PATH.open("a", encoding="utf-8") as h:
+        h.write(json.dumps({"started_at": _iso(started), "skipped": why} | extra, ensure_ascii=False) + "\n")
+
+
+#: 회차 기록 사본의 판 — 칸을 바꾸면 올린다(받는 쪽이 옛 꼴을 가린다).
+RUN_RECORD_SCHEMA = 1
+#: 사본에 싣는 이력 줄의 기간(일) — 시세 변화 감지 창과 같은 값(한 달 · 줄 하나 약 2KB).
+RUN_RECORD_HISTORY_DAYS = SNAPSHOT_WINDOW_DAYS
+#: 사본에서 걸러 쓰는 글 칸 — 경로는 파일 이름만 · 주소의 물음표 뒤 · 계정 · 「키 = 값」 · 긴 토큰은 ***(``scrub_line``)
+_RECORD_TEXT_KEYS = ("note", "error", "stopped", "skipped")
+
+
+def _scrub_record(obj):
+    """올릴 사본 — 요청 번호(앱 DB 의 요청자와 잇는 열쇠 · 대조에 필요 없음)는 빼고 글 칸은 ``scrub_line`` 으로 한 번 더 거른다."""
+    if isinstance(obj, dict):
+        return {k: (scrub_line(v) if k in _RECORD_TEXT_KEYS and isinstance(v, str) else _scrub_record(v))
+                for k, v in obj.items() if k != "request_id"}
+    if isinstance(obj, list):
+        return [_scrub_record(v) for v in obj]
+    return obj
+
+
+def _recent_history(now: datetime.datetime, days: int = RUN_RECORD_HISTORY_DAYS) -> List[Dict]:
+    """이력 줄 가운데 최근 ``days`` 일 — 끝난 회차 · 건너뜀 · 다시 돌림 줄 그대로(깨진 줄은 뺀다)."""
+    since = (now - datetime.timedelta(days=days)).date().isoformat()
+    out: List[Dict] = []
+    try:
+        lines = HISTORY_PATH.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return out
+    for ln in lines:
+        try:
+            h = json.loads(ln)
+        except ValueError:
+            continue
+        if isinstance(h, dict) and str(h.get("started_at") or "")[:10] >= since:
+            out.append(h)
+    return out
+
+
+def write_upload_record(run: Run, step: Step, rec: Dict, *, before: Dict, stop: str, derived: Optional[str],
+                        trigger: Dict[str, str]) -> Optional[Dict[str, str]]:
+    """올리기 단계 직전 — 이 판의 수집 DB 를 만든 회차 기록을 HF 내보내기 폴더에 쓰고(``hf_dataset.write_run_record`` ·
+    ``meta/run_record.json`` 이라 같은 커밋에 실린다), 올리기 자식에게 넘길 값(그 회차의 시작 시각)을 돌려준다(#124 약속 ② · 2026-10-15).
+
+    올리기는 회차 중간이라 그 회차의 마지막 기록(``finished_at``)은 아직 없다 — 그래서 싣는 것은 ① 이 회차가 올리기 직전까지 한 일
+    (마지막 회차 기록과 같은 칸 · ``finished_at`` 빈칸 · 기록한 시각 · 남은 단계) ② 앞 회차들의 이력 줄(최근 한 달 — 끝난 회차의
+    요약 · 이 회차의 요약은 다음 판에 든다). 요청 번호는 빼고 글 칸은 한 번 더 거른다(``_scrub_record``).
+    못 쓰면 올리기는 그대로 돈다(백업이 먼저) — 그 단계 줄 메모와 로그에 남기고 None(올리기 쪽은 시각을 받지 못해 옛 사본을 지운다).
+    """
+    from scripts import hf_dataset                  # noqa: PLC0415 — 늦게: HF 도구가 깨져도 회차는 돈다(올리기만 실패)
+    names = [s.name for s in STEPS]
+    steps = [dict(r) for r in run.steps]            # 지금까지 — 올리기 줄은 아직 rc 없음
+    try:
+        after = snapshot()                           # 읽기 전용 — 올리기 앞 단계가 수집 DB 를 다 고친 뒤
+    except (sqlite3.Error, OSError):
+        after = None
+    record = {
+        "schema": RUN_RECORD_SCHEMA,
+        "what": ("이 판의 수집 DB 를 만든 회차 — 올리기 단계 직전까지의 기록. finished_at 은 회차가 끝나야 생겨 비어 있다. "
+                 "history 는 앞 회차들의 마지막 요약(이 회차의 요약은 다음 판에 든다)."),
+        "run": {"started_at": _iso(run.started), "finished_at": None, "recorded_at": _iso(now_kst()),
+                "ok": not stop and all(s.get("rc") in (None, 0) for s in steps),      # 올리기 앞까지
+                "upload": run.upload, "stopped": stop or None, "derived": derived, "steps": steps,
+                "pending_steps": names[names.index(step.name):] if step.name in names else [step.name],
+                "before": before, "after": after, "log": run.log_path.relative_to(ROOT).as_posix()} | trigger,
+        "history": _recent_history(run.started),
+    }
+    try:
+        hf_dataset.write_run_record(_scrub_record(record))
+    except Exception as e:                           # 기록 사본 하나 때문에 백업이 멈추면 안 된다
+        rec["note"] = f"회차 기록 사본을 쓰지 못함 — {type(e).__name__}"
+        run.say(f"🟡 회차 기록 사본을 쓰지 못했다 — {type(e).__name__}: {scrub_line(str(e))}")
+        return None
+    run.say(f"회차 기록 사본 meta/{hf_dataset.RUN_RECORD_PATH.name} — 올리기 앞 단계 {len(steps) - 1} · "
+            f"앞 회차 이력 {len(record['history'])}줄 · 같은 커밋에 싣는다")
+    return {hf_dataset.ENV_RUN_RECORD: record["run"]["started_at"]}
+
+
 def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool = False,
             request_id: Optional[str] = None) -> int:
     """회차 하나 — 정기(작업 스케줄러) 또는 수동(화면 「전체 수집」 · ``manual``).
@@ -943,6 +1064,12 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             if sys.stdout is not None:
                 print(f"멈춤: {why}")
             return EX_TEMPFAIL
+    else:
+        # 따라잡기 회차(DF-99 (가)) — 12:30 회차를 밀어내지 않게 잠금 · 로그 · 회차 기록을 만들지 않고 이력 한 줄만(말없이 사라지지 않게)
+        why = catch_up_blocked(started)
+        if why:
+            _skip_line(started, why, reason="before_schedule", trigger="schedule")
+            return 0
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log_path = LOG_DIR / f"daily_update-{started.strftime('%Y%m%d-%H%M%S')}{'-manual' if manual else ''}.log"
     trigger: Dict[str, str] = {"trigger": "manual" if manual else "schedule"}
@@ -956,12 +1083,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                 print(f"멈춤: {busy}")
             return EX_TEMPFAIL
         # 로그를 새로 만들지 않는다 — 돌고 있는 쪽 로그가 정본이다.
-        msg = f"{_iso(started)} 건너뜀: {busy}"
-        if sys.stdout is not None:
-            print(msg)
-        with HISTORY_PATH.open("a", encoding="utf-8") as h:
-            h.write(json.dumps({"started_at": _iso(started), "skipped": busy},
-                               ensure_ascii=False) + "\n")
+        _skip_line(started, busy)
         return 0
 
     rc_total = 0
@@ -997,6 +1119,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                     if not derived_why:
                         rec.update(note="새 자료 없음", reason="no_new_data")
                         continue
+                env_extra: Optional[Dict[str, str]] = None
                 if step.name == "upload":
                     # 이름을 따로 둔다 — `pending` 은 빠진 날 사전(load_fill)이다. 같은 이름에 올릴 목록을 넣었더니 올리기가 성공한
                     # 직후 `pending.get` 이 목록에서 터져 회차가 「러너 오류」 로 멈췄다(DF-103 · 2026-10-11 따라잡기 회차 17:20)
@@ -1007,6 +1130,9 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                         continue
                     run.say(f"upload: 바뀐 파케이 "
                             f"{'(업로드 기록 없음)' if to_upload is None else f'{len(to_upload)}개'}")
+                    # 이 판의 수집 DB 를 만든 회차 기록 — 같은 커밋에 싣는다(#124 약속 ②). 못 쓰면 올리기는 그대로(백업이 먼저)
+                    env_extra = write_upload_record(run, step, rec, before=before, stop=stop, derived=derived_why,
+                                                    trigger=trigger)
                 gate = app_db_gate(run, step)                # 앱 DB 단계 — 돌리기 전에 전제 조건을 묻는다(안 B)
                 if gate:
                     rec.update(gate)
@@ -1023,7 +1149,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                 run.say(f"▶ {step.name} …")
                 write_progress(started, step, run)         # 수집 일정 화면의 「수집 중 — n번째 단계」
                 mark = _log_mark(run)
-                rc = _run_step(run, step)
+                rc = _run_step(run, step, env_extra=env_extra)
                 rec["rc"], rec["seconds"] = rc, round(time.time() - t0, 1)
                 rec.update(step_failure(run, step, rc, mark))   # 실패면 까닭 한 줄 · 로그 파일 이름(DF-101)
                 if rc == 0 and pending.get(step.name):     # 앱 DB 가 다시 떴다 — 이 회차가 계산한 그날만 지운다
@@ -1031,11 +1157,11 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                     if day in pending[step.name]:
                         pending[step.name].remove(day)
                         pending_changed = True
-                run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} "
-                        f"{step.name} · 종료코드 {rc} · {rec['seconds']:,.0f}초")
+                run.say(f"{_mark(step, rc)} {step.name} · 종료코드 {rc} · {rec['seconds']:,.0f}초")
                 if rc != 0:
                     rc_total = rc_total or rc
-                    if step.fatal:
+                    # 단계 정의가 경고로 정한 종료코드(시세 69 — 다 받지 못함 · 받은 날은 저장)는 뒤를 막지 않는다(DF-92)
+                    if not _mark_warn(step, rc, rec) and step.fatal:
                         stop = f"{step.name} 종료코드 {rc}"
             if pending_changed:
                 _save_fill(run, pending)
@@ -1089,14 +1215,19 @@ RERUN_GUARD_AFTER_MIN = 60
 MANUAL_FULL_GUARD_BEFORE_MIN = 90
 
 
+def schedule_at(now: datetime.datetime) -> datetime.datetime:
+    """그날의 정기 회차 시각(``DEFAULT_TIME``) — 막는 때 셈이 모두 이것에서 시작한다."""
+    hh, mm = (int(x) for x in DEFAULT_TIME.split(":"))
+    return now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+
+
 def guard_window(before_min: int, now: datetime.datetime) -> tuple:
     """그날 화면 실행을 막는 때 — (회차 시작 − before_min, 회차 시작 + ``RERUN_GUARD_AFTER_MIN``).
 
     한 단계 다시(그 단계 시간 한도) · 수동 전체 수집(``MANUAL_FULL_GUARD_BEFORE_MIN``) · 단계 목록의 「막는 때」 가 모두 이 함수
     하나로 센다 — 셈이 두 곳에 있으면 한쪽만 고쳐 화면과 판정이 어긋난다(2026-10-10).
     """
-    hh, mm = (int(x) for x in DEFAULT_TIME.split(":"))
-    sched = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    sched = schedule_at(now)
     return sched - datetime.timedelta(minutes=before_min), sched + datetime.timedelta(minutes=RERUN_GUARD_AFTER_MIN)
 
 
@@ -1120,6 +1251,28 @@ def full_run_blocked(now: datetime.datetime) -> Optional[str]:
     if lo <= now <= hi:
         return (f"{lo.strftime('%H:%M')} ~ {hi.strftime('%H:%M')} 에는 전체 수집을 돌리지 않는다 — {DEFAULT_TIME} 회차와 겹친다"
                 f"(정기 회차가 그날 전체를 돈다)")
+    return None
+
+
+#: 정기 회차를 막는 때의 끝 여유(분) — 12:30 보다 이만큼 앞부터는 돈다(DF-99 · 2026-10-15). 진짜 12:30 회차가 시계 차이로 몇 초
+#: 일찍 깨어나도 건너뛰지 않게 — 잘못 건너뛰면 그날 수집을 통째로 잃고(작업 스케줄러는 다시 띄우지 않는다), 잘못 돌면 지금과 같다.
+CATCH_UP_SLACK_MIN = 2
+
+
+def catch_up_blocked(now: datetime.datetime) -> Optional[str]:
+    """정기 회차(수동이 아닌 ``run`` — 작업 스케줄러의 따라잡기)를 지금 돌리면 12:30 회차를 밀어내는가 — 그렇다면 까닭 한 줄(DF-99 (가)).
+
+    12:30 에 PC 가 꺼져 있던 날의 회차는 켜진 뒤 약 10분에 따라잡기로 돈다(``StartWhenAvailable``). 그 회차가 11:00 ~ 12:28 에 시작하면
+    12:30 까지 끝나지 않아 12:30 회차가 잠금에 걸려 통째로 건너뛰고(``IgnoreNew`` — 다시 띄우지 않는다), 그날 「12:30 뒤 시작한 회차」
+    가 없어 리밸런싱 하루 점검이 하루 내내 기다린다(관제는 오늘 회차가 있어 「성공」 — 말없이 하루를 잃음). 12:30 회차가 같은 일을 하므로
+    (시세 14일 · 공시 3일 · 기사 30시간 창) 따라잡기는 돌지 않아도 잃는 것이 없다. 앞쪽 끝은 수동 전체 수집과 같은 값 · 같은 셈.
+    """
+    sched = schedule_at(now)
+    lo = sched - datetime.timedelta(minutes=MANUAL_FULL_GUARD_BEFORE_MIN)
+    hi = sched - datetime.timedelta(minutes=CATCH_UP_SLACK_MIN)
+    if lo <= now < hi:
+        return (f"{lo:%H:%M} ~ {hi:%H:%M} 에 시작한 정기 회차(따라잡기)는 돌지 않는다 — 곧 {DEFAULT_TIME} 회차가 같은 일을 한다"
+                f"(지금 돌면 그 회차가 잠금에 걸려 건너뛴다)")
     return None
 
 
@@ -1178,7 +1331,7 @@ def _finish_one(run: Run, step: Step, rec: Dict, rc: int, *, gate: Optional[Dict
         after_error = {"at": rec["rerun_at"], "why": f"{type(e).__name__}: {e}"}
         run.say(f"🟡 시세 기준일을 다시 재지 못했다 — {after_error['why']} · 회차 기록의 기준일은 회차 때 값 그대로다")
     if not gate:                                     # 돌리지 않은 단계는 위에서 까닭 한 줄을 이미 남겼다
-        run.say(f"{'✅' if rc == 0 else ('🟡' if not step.fatal else '🔴')} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초"
+        run.say(f"{_mark(step, rc)} {name} · 종료코드 {rc} · {rec['seconds']:,.0f}초"
                 + (f" · 시세 기준일 {after.get('price_max')}" if after else ""))
     extra: Dict[str, object] = ({"request_id": request_id} if request_id else {}) | ({"fill": fill} if fill else {})
     last = None
@@ -1274,6 +1427,7 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
                 rc = _run_step(run, step)
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
                 rec.update(step_failure(run, step, rc, mark))
+                _mark_warn(step, rc, rec)                    # 경고 종료코드는 정기 회차와 같은 표시(DF-92)
                 if rc == 0 and pending.get(name):
                     day = _as_of_day()
                     if day in pending[name]:
@@ -1342,6 +1496,7 @@ def run_fill(name: str, d_from: str, d_to: str, *, now: Optional[datetime.dateti
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note=f"빠진 날 채움 {d_from} ~ {d_to}",
                            rerun_at=_iso(now_kst()))
                 rec.update(step_failure(run, step, rc, mark, limit))
+                _mark_warn(step, rc, rec)
                 if rc == 0 and pending.get(name):            # 채운 범위의 빠진 날만 지운다 — 범위 밖 날은 그대로 「채울 것」
                     pending[name] = [d for d in pending[name] if not d_from <= d <= d_to]
                     _save_fill(run, pending)
@@ -1445,7 +1600,20 @@ def _schtasks(*args: str) -> subprocess.CompletedProcess:
                           encoding="mbcs" if os.name == "nt" else "utf-8", errors="replace")
 
 
+def install_time_error(time_hm: str) -> Optional[str]:
+    """등록할 시각이 틀렸나 — 꼴(HH:MM)이 틀리거나, 따라잡기 막는 때 안이면(그 시각의 정기 회차는 날마다 건너뛴다 · DF-99) 까닭 한 줄."""
+    m = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", time_hm or "")
+    if not m:
+        return f"시각은 HH:MM(00:00 ~ 23:59)이다 — {time_hm!r}"
+    why = catch_up_blocked(now_kst().replace(hour=int(m[1]), minute=int(m[2]), second=0, microsecond=0))
+    return f"{time_hm} 에 등록하면 정기 회차가 날마다 돌지 않는다 — {why}" if why else None
+
+
 def install(time_hm: str = DEFAULT_TIME, upload: bool = True) -> int:
+    err = install_time_error(time_hm)
+    if err:
+        print(f"멈춤: {err}")
+        return 2
     if os.name != "nt":
         print("작업 스케줄러 등록은 Windows 전용이다. 다른 OS 는 cron 에 "
               f"`cd {ROOT} && python scripts/daily_update.py run --upload` 를 건다.")
@@ -1532,7 +1700,8 @@ def status() -> int:
         print(f"  멈춘 곳: {s['stopped']}")
     for st in s.get("steps", []):
         rc = st.get("rc")
-        mark = "·" if rc is None else ("✅" if rc == 0 else "🔴")
+        # 경고(멈추지 않는 단계의 실패 · 경고 종료코드 — DF-92)는 🟡 · 멈춘 단계만 🔴
+        mark = "·" if rc is None else ("✅" if rc == 0 else ("🟡" if st.get("warn") or not st.get("fatal", True) else "🔴"))
         print(f"    {mark} {st['name']:<13} "
               + (f"종료코드 {rc} · {st.get('seconds', 0):,.0f}초" if rc is not None else "")
               + (f"  {st['note']}" if st.get("note") else ""))

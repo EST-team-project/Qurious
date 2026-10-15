@@ -25,6 +25,13 @@
 빈 응답은 휴장일일 수도 있고 아직 안 올라온 거래일일 수도 있는데, 포털은 둘을 구분해
 주지 않는다. 시간이 구분해 준다: 충분히 지난 날이 여전히 비어 있으면 그것은 휴장이다.
 ``SETTLE_DAYS`` 가 그 "충분히" 다.
+
+종료코드 (DF-92 · 2026-10-15)
+----------------------------
+``0`` 받을 날을 다 처리했다(빈 날 — 아직 안 올라옴 · 휴장 — 은 실패가 아니다) · ``69`` 다 받지 못했다(실패한 날이 있거나 한도
+소진 · 하루치가 나뉘어 와 멈췄다 — 받은 날은 저장했고 다음 실행이 빈 날을 다시 받는다) · ``1`` 그 밖의 예외. 고치기 전에는 늘
+0 이라 일일 러너에 「✅ 시세」 로 보였다. 러너는 시세 단계의 69 를 경고로 센다(뒤 단계를 막지 않는다 · ``scripts/daily_update.py``
+단계 정의의 ``warn_codes``).
 """
 
 from __future__ import annotations
@@ -57,6 +64,12 @@ RECENT_WINDOW = 14
 #: 34회로 확인했다. 2019-12-27 주는 0건, 2019-12-30 주부터 자료가 있다. 2019년 마지막
 #: 거래일(12-30)까지 포함하도록 그 주 월요일을 시작으로 잡는다 — 12-31 은 휴장이라 0건이다.
 DEFAULT_START = date(2019, 12, 30)
+
+#: 다 받지 못했다 — 실패한 날이 있거나(통신 · 응답 오류) 받다가 멈췄다(한도 소진 · 하루치가 나뉘어 옴). sysexits 의
+#: ``EX_UNAVAILABLE``(출처가 다 주지 못함). 75(``EX_TEMPFAIL``)를 쓰지 않는 까닭 — 75 는 러너 · PC 작업자의 「지금은 못 돈다」
+#: 라서, 단계 결과로 쓰면 회차 종료코드가 75 가 되어 작업자가 화면 수집 요청을 다시 대기로 돌린다(되풀이 · 2026-10-10 종료코드 약속).
+#: 러너의 같은 값(``scripts/daily_update.py`` ``EX_UNAVAILABLE``)과 맞는지는 시험이 본다(TC-BF-05).
+EX_UNAVAILABLE = 69
 
 
 # ==================================================
@@ -125,8 +138,12 @@ def pick_targets(conn: sqlite3.Connection, days: List[str], *,
 # 2. 러너
 # ==================================================
 def run(start: date, end: date, *, limit: Optional[int] = None,
-        refetch: bool = False, quiet: bool = False) -> Dict[str, int]:
-    """구간을 받는다. 한도가 바닥나면 **깔끔히 멈추고** 지금까지를 보고한다."""
+        refetch: bool = False, quiet: bool = False) -> Dict[str, object]:
+    """구간을 받는다. 한도가 바닥나면 **깔끔히 멈추고** 지금까지를 보고한다.
+
+    돌려주는 것 — 날 수(``done`` · ``empty`` · ``error`` · ``rows`` · ``skipped``)와 멈춘 까닭 한 줄(``stopped`` · 없으면 빈 글).
+    다 받지 못했으면(실패한 날 · 멈춤) 마지막 줄에 「🟡 다 받지 못했다」 를 한 번 찍는다 — 러너가 그 줄을 단계 까닭으로 잡는다.
+    """
     conn = db.connect()
     limiter = RateLimiter(config.PORTAL_SLEEP, reserve=config.PORTAL_RESERVE, name="포털")
     session = requests.Session()
@@ -136,7 +153,8 @@ def run(start: date, end: date, *, limit: Optional[int] = None,
     if limit:
         targets = targets[:limit]
 
-    tally = {"done": 0, "empty": 0, "error": 0, "rows": 0, "skipped": len(days) - len(targets)}
+    tally: Dict[str, object] = {"done": 0, "empty": 0, "error": 0, "rows": 0,
+                                "skipped": len(days) - len(targets), "stopped": ""}
     if not targets:
         print(f"받을 날이 없다 — 주중 {len(days):,}일이 모두 처리돼 있다.")
         conn.close()
@@ -171,10 +189,21 @@ def run(start: date, end: date, *, limit: Optional[int] = None,
     print(limiter.report())
     if stopped:
         print(f"\n중단됨:\n{stopped}")
+        tally["stopped"] = stopped.strip().splitlines()[0]   # 까닭의 첫 줄만(「할 일」 줄은 로그에)
+    if exit_code(tally):
+        # 마지막 줄 — 러너의 실패 까닭 한 줄(`failure_line`)이 🔴 · 실패 표시 줄을 뒤에서부터 찾는다
+        print(f"\n🟡 다 받지 못했다 — 실패 {tally['error']:,}일"
+              + (f" · 멈춤: {tally['stopped']}" if tally["stopped"] else "")
+              + f" · 받은 날은 저장했고 다음 실행이 빈 날을 다시 받는다(종료코드 {EX_UNAVAILABLE})")
     return tally
 
 
-def run_recent(*, window: int = RECENT_WINDOW, quiet: bool = False) -> Dict[str, int]:
+def exit_code(tally: Dict[str, object]) -> int:
+    """결과 → 종료코드. 실패한 날이 있거나 멈췄으면 ``EX_UNAVAILABLE``(69), 아니면 0 — 빈 날(아직 안 올라옴)은 실패가 아니다."""
+    return EX_UNAVAILABLE if (tally.get("error") or tally.get("stopped")) else 0
+
+
+def run_recent(*, window: int = RECENT_WINDOW, quiet: bool = False) -> Dict[str, object]:
     """일일 수집. 최근 창 안에서 **빠진 날만** 채운다."""
     today = datetime.now().date()
     return run(today - timedelta(days=window), today, quiet=quiet)
@@ -263,13 +292,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         print_status()
         return 0
     if a.mode == "recent":
-        run_recent(window=a.window, quiet=a.quiet)
-        return 0
+        return exit_code(run_recent(window=a.window, quiet=a.quiet))
 
     start = _parse_day(a.start) if a.start else DEFAULT_START
     end = _parse_day(a.end) if a.end else datetime.now().date()
-    run(start, end, limit=a.limit, refetch=a.refetch, quiet=a.quiet)
-    return 0
+    return exit_code(run(start, end, limit=a.limit, refetch=a.refetch, quiet=a.quiet))
 
 
 def print_status() -> None:

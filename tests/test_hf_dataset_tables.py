@@ -20,7 +20,10 @@
 """
 from __future__ import annotations
 
+import fnmatch
+import json
 import sqlite3
+import types
 from pathlib import Path
 
 import pytest
@@ -235,3 +238,90 @@ def test_partial_verify_or_restore_is_not_a_deletion_green(tmp_path, monkeypatch
     full = verdict({"deep": True, "fails": 0, "db_present": True, "full": True, "tables": ["price_daily", "etf_daily"]},
                    {"ok": True, "tables": ["price_daily", "etf_daily"]})
     assert full == (True, True)
+
+
+# ── 회차 기록 사본(#124 약속 ② · 2026-10-15) ─────────────────────────────────────────────
+STARTED = "2026-10-15T12:30:02+09:00"
+
+
+@pytest.fixture
+def export_tmp(tmp_path, monkeypatch):
+    """임시 내보내기 폴더 — 매니페스트 · 데이터셋 카드 · 회차 기록 사본을 모두 그 안에(진짜 data/hf_export 를 건드리지 않는다)."""
+    exp = tmp_path / "hf_export"
+    for name, rel in (("EXPORT_DIR", None), ("MANIFEST_PATH", "meta/manifest.json"), ("README_PATH", "README.md"),
+                      ("RUN_RECORD_PATH", "meta/run_record.json")):
+        monkeypatch.setattr(hf_dataset, name, exp / rel if rel else exp)
+    (exp / "meta").mkdir(parents=True)
+    monkeypatch.delenv(hf_dataset.ENV_RUN_RECORD, raising=False)
+    return exp
+
+
+def test_only_the_record_of_the_run_that_uploads_is_kept(export_tmp, monkeypatch):
+    """TC-HF-08 · 올리기는 러너가 넘긴 회차(`QURIOUS_RUN_RECORD` = 그 회차 시작 시각)의 사본만 싣는다 — 값이 없거나(러너 밖에서 손으로
+    올림) 사본의 회차와 다르면(지난 회차가 남긴 사본) 싣지 않고 지운다(지난 기록이 새 판에 「이 판을 만든 회차」 로 섞이지 않게) ·
+    미리 보기(dry-run)는 아무것도 지우지 않는다."""
+    p = hf_dataset.RUN_RECORD_PATH
+    rec = {"schema": 1, "run": {"started_at": STARTED}, "history": []}
+    assert hf_dataset.write_run_record(rec) == p and json.loads(p.read_text(encoding="utf-8")) == rec
+    monkeypatch.setenv(hf_dataset.ENV_RUN_RECORD, STARTED)
+    assert hf_dataset.run_record_for_upload(apply=True) == (rec, f"회차 {STARTED}") and p.exists()
+    monkeypatch.setenv(hf_dataset.ENV_RUN_RECORD, "2026-10-14T12:30:01+09:00")
+    got, why = hf_dataset.run_record_for_upload(apply=False)
+    assert got is None and "다른 회차" in why and p.exists(), "미리 보기는 지우지 않는다"
+    got, why = hf_dataset.run_record_for_upload(apply=True)
+    assert got is None and not p.exists()
+    hf_dataset.write_run_record(rec)
+    monkeypatch.delenv(hf_dataset.ENV_RUN_RECORD)
+    got, why = hf_dataset.run_record_for_upload(apply=True)
+    assert got is None and "러너 밖" in why and not p.exists()
+    p.write_text("{깨진", encoding="utf-8")
+    monkeypatch.setenv(hf_dataset.ENV_RUN_RECORD, STARTED)
+    assert hf_dataset.run_record_for_upload(apply=True)[0] is None and not p.exists()
+
+
+def test_upload_puts_this_runs_record_in_the_same_commit(export_tmp, monkeypatch):
+    """TC-HF-09 · 실제 올리기 길(가짜 HF API) — 커밋을 만드는 순간 폴더에 이 회차의 사본이 있고 `meta/*` 로 같은 커밋에 실린다 ·
+    러너 밖에서 올리면 지난 사본을 지우고 올린다(그 판에는 회차 기록이 없다)."""
+    hf_dataset._write_json_atomic(export_tmp / "meta" / "manifest.json",
+                                  {"tables": {}, "generated_at": "2026-10-15T13:25:48+09:00"})
+    monkeypatch.setenv("QURIOUS_RAW_SHARING", "1")
+    monkeypatch.setattr(hf_dataset, "_token", lambda required=True: "x")
+    monkeypatch.setattr(hf_dataset, "write_status_snapshot", lambda **k: None)   # 진짜 수집 DB 를 열지 않게
+    seen: dict = {}
+
+    class FakeApi:
+        def __init__(self, token=None):
+            pass
+
+        def create_repo(self, *a, **k):
+            pass
+
+        def repo_info(self, *a, **k):
+            return types.SimpleNamespace(private=True)
+
+        def upload_folder(self, **k):
+            rr = Path(k["folder_path"]) / "meta" / "run_record.json"
+            seen["patterns"] = k.get("allow_patterns") or []
+            seen["record"] = json.loads(rr.read_text(encoding="utf-8")) if rr.exists() else None
+
+        def create_tag(self, *a, **k):
+            seen["tag"] = k.get("tag")
+
+    import huggingface_hub
+    monkeypatch.setattr(huggingface_hub, "HfApi", FakeApi)
+    rec = {"schema": 1, "run": {"started_at": STARTED}, "history": []}
+    hf_dataset.write_run_record(rec)
+    assert hf_dataset.upload(yes=False, incremental=True) == 0                 # 미리 보기 — 값이 없어도 사본을 지우지 않는다
+    assert hf_dataset.RUN_RECORD_PATH.exists() and "patterns" not in seen, "미리 보기는 올리지도 지우지도 않는다"
+    monkeypatch.setenv(hf_dataset.ENV_RUN_RECORD, STARTED)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0
+    assert seen["record"] == rec and any(fnmatch.fnmatch("meta/run_record.json", pat) for pat in seen["patterns"])
+    monkeypatch.delenv(hf_dataset.ENV_RUN_RECORD)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0
+    assert seen["record"] is None and not hf_dataset.RUN_RECORD_PATH.exists()
+
+
+def test_dataset_card_explains_the_run_record():
+    """TC-HF-10 · 데이터셋 카드가 회차 기록 사본을 설명한다 — 무엇이 · 언제부터 · finished_at 이 왜 비었나 · 이 회차의 요약은 어디에."""
+    card = hf_dataset._readme_yaml({"tables": {}, "generated_at": "2026-10-15T13:25:48+09:00"})
+    assert "meta/run_record.json" in card and "finished_at" in card and "다음 판" in card
