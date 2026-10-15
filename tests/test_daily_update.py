@@ -211,6 +211,11 @@ def fake_runner(tmp_path, monkeypatch):
     steps = [du.Step("alpha", ["-c", "pass"], 1, label="가 단계", group="받기", desc="첫 일"),
              du.Step("beta", ["-c", "import sys; sys.exit(3)"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")]
     monkeypatch.setattr(du, "STEPS", steps)
+    # 시계는 월 15:00 부터 부를 때마다 1초 — 정기 회차는 12:30 앞 막는 때(11:00 ~ 12:28 · DF-99)에 돌지 않으므로, 시계를 고정하지
+    # 않으면 이 시험들이 그 시간에 돌 때만 실패한다(2026-10-15). 시각을 보는 시험은 저마다 다시 고정한다.
+    base = datetime.datetime(2026, 10, 12, 15, 0, tzinfo=du.KST)
+    ticks = iter(range(10_000_000))
+    monkeypatch.setattr(du, "now_kst", lambda: base + datetime.timedelta(seconds=next(ticks)))
     (tmp_path / "state").mkdir()
     return tmp_path
 
@@ -965,3 +970,148 @@ def test_steps_write_also_writes_guide_numbers(fake_runner, monkeypatch, capsys)
     monkeypatch.setattr(du, "table_numbers", lambda **_k: (_ for _ in ()).throw(OSError("디스크 없음")))
     assert du.main(["steps", "--write"]) == 1
     assert "🟡 data_guide_stats.json: OSError: 디스크 없음" in capsys.readouterr().out
+
+
+# ── 8. 따라잡기 회차 · 시세 경고 · 회차 기록 사본(2026-10-15 · DF-99 · DF-92 · #124 약속 ②) ───────────────
+def _marker_step(path, name="alpha", **kw):
+    """돌면 파일 하나를 만드는 가짜 단계 — 「돌았나」 를 본다."""
+    return du.Step(name, ["-c", f"open({str(path)!r}, 'w').write('x')"], 1, label=kw.pop("label", "가 단계"),
+                   group=kw.pop("group", "받기"), desc=kw.pop("desc", "첫 일"), **kw)
+
+
+def test_catch_up_run_right_before_1230_leaves_one_line_and_does_nothing(fake_runner, monkeypatch):
+    """DF-99 (가) · 11:00 ~ 12:28 에 시작한 정기 회차(꺼져 있던 PC 의 따라잡기 — 작업 스케줄러 StartWhenAvailable)는 잠금 · 로그 ·
+    회차 기록을 만들지 않고 이력에 「건너뜀」 한 줄(까닭 before_schedule)만 남기고 0. 12:30 회차가 같은 일을 한다(시세 14일 ·
+    공시 3일 · 기사 30시간 창) — 돌면 12:30 회차가 잠금에 걸려 통째로 건너뛰고(IgnoreNew) 그날 「12:30 뒤 시작한 회차」 가 없어
+    리밸런싱 하루 점검이 하루 내내 기다린다. 12:28 부터는 돈다."""
+    t = fake_runner
+    marker = t / "ran.txt"
+    du.STEPS[0] = _marker_step(marker)
+    hist, lock = t / "state/daily_update_history.jsonl", t / "state/daily_update.lock"
+    monkeypatch.setattr(du, "now_kst", lambda: _at(11, 10))
+    assert du.run_all(upload=True) == 0
+    h = json.loads(hist.read_text(encoding="utf-8").splitlines()[-1])
+    assert (h["reason"], h["trigger"], h["started_at"]) == ("before_schedule", "schedule", _at(11, 10).isoformat())
+    assert "12:30" in h["skipped"]
+    assert not marker.exists() and not lock.exists() and not (t / "logs").exists()
+    assert not (t / "state/daily_update_last.json").exists(), "마지막 회차 기록은 그대로 — 건너뜀은 이력 한 줄"
+    monkeypatch.setattr(du, "now_kst", lambda: _at(12, 28))
+    assert du.run_all() == 3 and marker.exists(), "12:28 부터는 돈다(진짜 12:30 회차가 몇 초 일찍 깨어나도 건너뛰지 않게)"
+
+
+@pytest.mark.parametrize("hm, blocked", [((10, 59), False), ((11, 0), True), ((12, 27), True), ((12, 28), False),
+                                         ((12, 30), False), ((13, 0), False), ((15, 0), False)])
+def test_catch_up_window_edges(hm, blocked):
+    """DF-99 (가) · 막는 때는 [12:30 − 90분, 12:30 − 2분) — 앞쪽은 수동 전체 수집과 같은 값(`MANUAL_FULL_GUARD_BEFORE_MIN` · 같은 시각
+    셈 · SSoT) · 뒤쪽 2분은 진짜 12:30 회차를 잘못 건너뛰지 않을 여유(잘못 건너뛰면 그날 수집을 통째로 잃고, 잘못 돌면 지금과 같다)."""
+    why = du.catch_up_blocked(_at(*hm))
+    assert (why is not None) == blocked, (hm, why)
+    if why:
+        assert "12:30" in why and "따라잡기" in why
+
+
+def test_install_refuses_a_time_the_catch_up_rule_would_always_skip(monkeypatch, capsys):
+    """DF-99 (가) · 그 막는 때 안의 시각으로 등록하면 정기 회차가 날마다 건너뛴다 — 등록하지 않고 2(작업 스케줄러를 부르지 않는다) ·
+    형식이 틀린 시각도 2 · 12:30 · 저녁 시각은 그대로 받는다."""
+    monkeypatch.setattr(du, "_schtasks", lambda *a: pytest.fail("등록하면 안 된다"))
+    for hm in ("11:00", "11:30", "12:27", "25:00", "1230"):
+        assert du.install(hm) == 2, hm
+    assert "12:30" in capsys.readouterr().out
+    assert du.install_time_error("12:30") is None and du.install_time_error("18:30") is None
+    assert du.install_time_error("12:28") is None and du.install_time_error("10:59") is None
+
+
+def test_warn_code_of_a_stopping_step_is_a_warning_and_the_run_goes_on(fake_runner):
+    """DF-92 · 멈추는 단계(시세)라도 단계 정의의 `warn_codes`(69 — 출처가 다 주지 못함 · 받은 날은 저장)는 경고 — 뒤 단계가 돌고
+    회차는 「일부 실패」(ok 거짓 · stopped 없음) · 단계 줄 · 이력 줄에 `warn` 을 적는다(앱은 종료코드를 다시 해석하지 않는다).
+    다른 종료코드(1 — 예외)는 지금처럼 멈춘다 · 한 단계 다시도 같은 규칙."""
+    t = fake_runner
+    du.STEPS[0] = du.Step("alpha", ["-c", "import sys; sys.exit(69)"], 1, warn_codes=(69,), label="가 단계", group="받기", desc="첫 일")
+    du.STEPS[1] = du.Step("beta", ["-c", "pass"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일")
+    assert du.run_all() == 69
+    last = _last(t)
+    a, b = last["steps"]
+    assert (a["rc"], a.get("warn"), b["rc"], last["stopped"], last["ok"]) == (69, True, 0, None, False)
+    h = json.loads((t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert h["steps"][0].get("warn") is True and "warn" not in h["steps"][1]
+    du.STEPS[0] = du.Step("alpha", ["-c", "import sys; sys.exit(1)"], 1, warn_codes=(69,), label="가 단계", group="받기", desc="첫 일")
+    assert du.run_all() == 1
+    last = _last(t)
+    assert last["stopped"] == "alpha 종료코드 1" and last["steps"][1]["reason"] == "upstream_failed"
+    assert "warn" not in last["steps"][0]
+    du.STEPS[0] = du.Step("alpha", ["-c", "import sys; sys.exit(69)"], 1, warn_codes=(69,), label="가 단계", group="받기", desc="첫 일")
+    assert du.run_one("alpha", now=_at(15, 10)) == 69
+    assert _last(t)["steps"][0].get("warn") is True
+
+
+def test_price_step_warns_on_69_and_still_stops_on_a_crash():
+    """DF-92 · 시세 단계는 멈추는 단계 그대로(예외 · 시간 넘김은 뒤를 막는다)이고 69 만 경고다 · 러너의 69 는 시세 명령의 값과 같다."""
+    from collector import backfill
+    price = next(s for s in du.STEPS if s.name == "price")
+    assert price.fatal is True and price.warn_codes == (du.EX_UNAVAILABLE,) == (backfill.EX_UNAVAILABLE,)
+    assert [s.name for s in du.STEPS if s.warn_codes] == ["price"]
+
+
+def _record_steps(t, rec_path, env_name):
+    """올리기 앞 · 올리기 · 뒤 단계 — 올리기 자식만 회차 시작 시각을 받고, 그 시각이 사본의 회차와 같아야 0."""
+    check = (f"import json,os,sys; r=json.load(open({str(rec_path)!r},encoding='utf-8')); "
+             f"ok = os.environ.get({env_name!r}) == r['run']['started_at'] and "
+             "[s['name'] for s in r['run']['steps']] == ['alpha','beta','upload']; sys.exit(0 if ok else 9)")
+    no_env = f"import os,sys; sys.exit(9 if os.environ.get({env_name!r}) else 0)"
+    return [du.Step("alpha", ["-c", no_env], 1, label="가 단계", group="받기", desc="첫 일"),
+            du.Step("beta", ["-c", "import sys; sys.exit(3)"], 1, fatal=False, label="나 단계", group="계산", desc="둘째 일"),
+            du.Step("upload", ["-c", check], 1, upload=True, sharing=True, label="올리기", group="백업", desc="올린다"),
+            du.Step("after", ["-c", no_env], 1, fatal=False, upload=True, label="뒤 단계", group="백업", desc="뒤 일")]
+
+
+def test_upload_step_gets_a_record_of_this_run(fake_runner, monkeypatch):
+    """#124 약속 ② · 올리기 단계 직전에 그 회차가 그때까지 한 일을 HF 내보내기 폴더(`meta/run_record.json` — `meta/*` 라 같은 커밋)에
+    쓰고, 올리기 자식에게만 그 회차의 시작 시각을 넘긴다(`QURIOUS_RUN_RECORD` — 공유 스위치와 같은 꼴 · 다른 단계에는 없다).
+    사본은 마지막 회차 기록과 같은 칸 + finished_at 빈칸 · 기록한 시각 · 남은 단계, 그리고 앞 회차들의 이력 줄(31일)을 싣는다 ·
+    요청 번호는 빼고 글 칸의 이 PC 경로는 파일 이름만."""
+    t = fake_runner
+    rec_path = t / "hf_export" / "meta" / "run_record.json"
+    monkeypatch.setattr(hf_dataset, "RUN_RECORD_PATH", rec_path)
+    monkeypatch.setattr(du, "_pending_upload", lambda: ["price_daily/year=2026/x.parquet"])
+    du.STEPS[:] = _record_steps(t, rec_path, hf_dataset.ENV_RUN_RECORD)
+    old = {"started_at": "2026-10-11T12:30:01+09:00", "finished_at": "2026-10-11T12:40:00+09:00", "ok": False,
+           "upload": True, "stopped": "러너 오류 FileNotFoundError: " + "C:" + "\\Users\\someone\\data\\x.json",
+           "log": "data/collector/logs/daily_update-20261011-123001.log", "trigger": "manual", "request_id": RID, "rc": 1,
+           "steps": [{"name": "alpha", "rc": 1, "seconds": 1.0, "note": "", "error": "x"}]}
+    ancient = dict(old, started_at="2026-08-01T12:30:01+09:00", stopped=None)
+    (t / "state/daily_update_history.jsonl").write_text(
+        "\n".join(json.dumps(x, ensure_ascii=False) for x in (ancient, old)) + "\n", encoding="utf-8")
+    assert du.run_all(upload=True, manual=True, request_id=RID) == 3          # beta 의 3(멈추지 않는 실패)
+    last = _last(t)
+    assert [(s["name"], s["rc"]) for s in last["steps"]] == [("alpha", 0), ("beta", 3), ("upload", 0), ("after", 0)], \
+        "올리기 자식만 회차 시각을 받고 · 그 시각이 사본의 회차와 같다(9 면 어긋남)"
+    r = json.loads(rec_path.read_text(encoding="utf-8"))
+    run = r["run"]
+    assert (r["schema"], run["finished_at"], run["started_at"], run["trigger"]) == (1, None, last["started_at"], "manual")
+    assert run["recorded_at"] and run["pending_steps"] == ["upload", "after"]
+    assert [s["name"] for s in run["steps"]] == ["alpha", "beta", "upload"] and run["steps"][2]["rc"] is None
+    assert "request_id" not in run, "요청 번호(앱 DB 요청자와 잇는 열쇠)는 뺀다"
+    assert [h["started_at"] for h in r["history"]] == ["2026-10-11T12:30:01+09:00"], "31일 안 줄만"
+    assert "request_id" not in r["history"][0] and r["history"][0]["stopped"].endswith("x.json")
+    assert "someone" not in json.dumps(r, ensure_ascii=False), "글 칸의 이 PC 경로는 파일 이름만"
+
+
+def test_no_record_when_nothing_is_uploaded_and_a_failed_write_is_said(fake_runner, monkeypatch):
+    """#124 약속 ② · 올릴 것이 없어 올리기를 건너뛴 회차는 사본을 쓰지 않는다 · 사본을 못 쓰면 올리기는 그대로 돌고(백업이 먼저)
+    그 단계 줄 메모와 로그에 「회차 기록 사본을 쓰지 못함」 을 남긴다(올리기 쪽은 시각을 받지 않아 옛 사본을 지운다)."""
+    t = fake_runner
+    rec_path = t / "hf_export" / "meta" / "run_record.json"
+    monkeypatch.setattr(hf_dataset, "RUN_RECORD_PATH", rec_path)
+    du.STEPS[:] = _record_steps(t, rec_path, hf_dataset.ENV_RUN_RECORD)
+    monkeypatch.setattr(du, "_pending_upload", lambda: [])
+    du.run_all(upload=True)
+    assert not rec_path.exists() and _last(t)["steps"][2]["reason"] == "nothing_to_upload"
+    monkeypatch.setattr(du, "_pending_upload", lambda: ["x"])
+    monkeypatch.setattr(hf_dataset, "write_run_record", lambda rec: (_ for _ in ()).throw(OSError("디스크 가득")))
+    du.STEPS[2] = du.Step("upload", ["-c", f"import os,sys; sys.exit(9 if os.environ.get({hf_dataset.ENV_RUN_RECORD!r}) else 0)"],
+                          1, upload=True, sharing=True, label="올리기", group="백업", desc="올린다")
+    du.run_all(upload=True)
+    up = _last(t)["steps"][2]
+    assert up["rc"] == 0 and "회차 기록 사본을 쓰지 못함" in up["note"]
+    log = sorted((t / "logs").glob("daily_update-*.log"))[-1].read_text(encoding="utf-8")
+    assert "🟡 회차 기록 사본을 쓰지 못했다 — OSError: 디스크 가득" in log

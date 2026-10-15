@@ -181,6 +181,13 @@ MANIFEST_PATH = EXPORT_DIR / "meta" / "manifest.json"
 VERIFY_LOG_PATH = EXPORT_DIR / "meta" / "last_verify.json"
 RESTORE_LOG_PATH = EXPORT_DIR / "meta" / "last_restore.json"
 
+#: 이 판의 수집 DB 를 만든 일일 갱신 회차의 기록(#124 · 2026-10-15) — 일일 러너가 올리기 단계 직전에 쓴다(`scripts/daily_update.py`
+#: `write_upload_record` · 칸은 러너 한 곳). `meta/*` 라 바뀐 파케이와 **같은 커밋**에 실린다 — 한 판에서 DB 와 그 회차 기록을 함께 받는다.
+RUN_RECORD_PATH = EXPORT_DIR / "meta" / "run_record.json"
+#: 러너가 올리기 자식에게만 넘기는 값 — 그 회차의 시작 시각(공유 스위치처럼 명령줄 · `.env` 로는 오지 않는다). 사본의 회차와 같을
+#: 때만 싣는다(`run_record_for_upload`).
+ENV_RUN_RECORD = "QURIOUS_RUN_RECORD"
+
 #: 「지워도 되는가」 판정 기록 — 앱의 적재 · 백업 화면(`GET /api/data/backup`)이 읽는다(2026-10-08 결정 다).
 #: 판정 규칙은 이 파일 한 곳(`_deletion_verdict`)이고 앱에는 사본이 없다(앱 컨테이너에는 scripts/ 가 없다).
 #: 검증 · 올리기 · 복원 리허설 · `status --write` 가 끝날 때마다 다시 쓴다. 러너 기록과 같은 상태 폴더라 HF 에는 올라가지 않는다.
@@ -1935,6 +1942,13 @@ PYTHONPATH=. python scripts/hf_dataset.py restore \\
 복원은 ① 행수 ② 파티션별 **내용 지문** ③ `raw_response` 전량 gzip 해제 후 sha256
 재계산 ④ `price_daily.raw_sha256` → `raw_response.sha256` 감사 링크까지 확인한다.
 
+## 회차 기록 — `meta/run_record.json`
+
+이 판의 수집 DB 를 만든 일일 갱신 회차의 기록이다(2026-10-15 부터 · 일일 러너가 올린 판에만 있다 — 손으로 올린 판에는 없다).
+`run` 은 올리기 단계 직전까지의 기록이다 — 러너의 `daily_update_last.json` 과 같은 칸이고, `finished_at` 은 회차가 끝나야 생겨
+비어 있으며 `pending_steps` 가 그때 남은 단계(올리기와 그 뒤)다. `history` 는 앞 회차들의 마지막 요약(최근 한 달)이고, 이 회차의
+요약은 다음 판의 `history` 에 든다. 화면 수집 요청 번호는 빼고, 글 칸의 경로는 파일 이름만 남겼다.
+
 ## 정의
 - `price_adjusted` — **PR**(가격) 계열. 분할·권리락만 고친 수정주가.
 - `price_total_return` — **TR** 계열. `tr_index` 는 세전, `tr_index_net` 은 세후 15.4%.
@@ -2037,6 +2051,35 @@ def _select(man: Dict, patterns: Optional[List[str]]) -> List[Tuple[str, List[Di
     return out
 
 
+def write_run_record(record: Dict) -> Path:
+    """회차 기록 사본을 내보내기 폴더 `meta/run_record.json` 에 쓴다(원자적 — 반쯤 쓴 파일이 올라가지 않게). 쓰는 쪽은 일일 러너."""
+    _write_json_atomic(RUN_RECORD_PATH, record)
+    return RUN_RECORD_PATH
+
+
+def run_record_for_upload(apply: bool) -> Tuple[Optional[Dict], str]:
+    """이번 올리기에 실을 회차 기록 — (사본 · 까닭 한 줄). 러너가 넘긴 시각(`ENV_RUN_RECORD`)과 사본의 회차가 같을 때만 싣는다.
+
+    값이 없거나(러너 밖에서 손으로 올림) 다르거나(지난 회차가 남긴 사본) 깨졌으면 싣지 않고, `apply` 면 그 사본을 지운다 — 지난 회차의
+    기록이 새 판에 「이 판을 만든 회차」 로 섞이지 않게(말없이 낡은 값을 쓰지 않는다). 미리 보기(dry-run)는 아무것도 지우지 않는다.
+    """
+    want = os.environ.get(ENV_RUN_RECORD, "")
+    if not RUN_RECORD_PATH.exists():
+        return None, "사본 없음" + ("" if want else " — 러너 밖에서 올림")
+    try:
+        got = json.loads(RUN_RECORD_PATH.read_text(encoding="utf-8"))
+        started = ((got or {}).get("run") or {}).get("started_at")
+    except (OSError, ValueError, AttributeError):
+        got, started = None, None
+    if want and got is not None and started == want:
+        return got, f"회차 {want}"
+    why = ("러너 밖에서 올림 — 지난 회차의 사본은 싣지 않는다" if not want else
+           "사본이 깨졌다" if got is None else f"다른 회차의 사본이다({started})")
+    if apply:
+        RUN_RECORD_PATH.unlink(missing_ok=True)
+    return None, why
+
+
 def _assert_private(api, create: bool) -> bool:
     """원격이 **실제로 private 인지** 확인한다. 아니면 올리지 않는다.
 
@@ -2113,6 +2156,8 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
               f"{_human(sum(f['bytes'] for f in fs)):>10} "
               f"· {sum(f['rows'] for f in fs):>10,}행{tagtxt}")
     print("  README.md · meta/manifest.json · meta/last_*.json 도 함께 올린다")
+    rr, rr_why = run_record_for_upload(apply=False)
+    print(f"  회차   meta/{RUN_RECORD_PATH.name} " + (f"— 싣는다({rr_why})" if rr else f"— 싣지 않는다 · {rr_why}"))
     print(f"  제외   {', '.join(UPLOAD_IGNORE)}")
     if missing:
         print(f"  ❌ 매니페스트에 있는데 디스크에 없는 파일 {len(missing):,}개 "
@@ -2188,6 +2233,8 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
     if not _assert_private(api, create=True):   # 게이트 4
         return 1
 
+    # 이 회차의 사본만 싣는다 — 러너 밖에서 올리거나 지난 회차의 사본이면 지운다(`meta/*` 가 그대로 올리지 않게 · #124)
+    run_record_for_upload(apply=True)
     README_PATH.write_text(_readme_yaml(man), encoding="utf-8")
 
     t0 = time.time()

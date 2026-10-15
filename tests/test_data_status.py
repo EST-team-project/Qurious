@@ -254,7 +254,8 @@ def test_news_rows_split_by_source(market):
     assert counts == {"news_item": 2, "news_gdelt": 3}
     t, _ = _states(date(2026, 10, 8))
     assert (t["news_item"]["label"], t["news_item"]["last_date"]) == ("정책뉴스", "2026-10-01"), "언론사 기사 날짜로 당겨지지 않는다"
-    assert (t["news_gdelt"]["label"], t["news_gdelt"]["last_date"], t["news_gdelt"]["verdict"]) == ("언론사 기사", "2026-10-07", "info")
+    # 판정은 2026-10-15 부터 36시간 규칙(TC-DST-22 · DF-91) — 시각을 주지 않으면 그날 0시라 마지막 기사(10-07 09:15)가 14시간 45분 전 · 「정상」
+    assert (t["news_gdelt"]["label"], t["news_gdelt"]["last_date"], t["news_gdelt"]["verdict"]) == ("언론사 기사", "2026-10-07", "ok")
 
 
 def test_tables_without_calendar_are_approximate(tmp_path, monkeypatch):
@@ -470,3 +471,142 @@ def test_last_date_queries_use_indexes(tmp_path):
                 "market_event"} <= set(checked), checked
     finally:
         conn.close()
+
+
+# ── 4. 출처마다 공개 마감을 아는 신선도(DF-91 · 2026-10-15 · 벤치마크 조사서 4.1절 · 2차-1) ─────────────────
+def _states_at(now: datetime, runner_last: dict | None = None):
+    conn = ds._connect_ro()
+    try:
+        tables, cal = ds.table_states(conn, now.date(), now=now, runner_last=runner_last)
+    finally:
+        conn.close()
+    return {t["key"]: t for t in tables}, cal
+
+
+def _add_price(market, day: str):
+    conn = db.connect(market)
+    conn.execute("INSERT INTO price_daily (bas_dt, srtn_cd, clpr) VALUES (?, '005930', 1)", (day,))
+    conn.commit()
+    conn.close()
+
+
+def test_portal_one_day_behind_is_normal_until_the_publish_deadline(market):
+    """TC-DST-19 · 시세가 하루 밀린 것(n=1)은 빠진 거래일의 다음 거래일 14:00(포털 약속 13:00 + 1시간)까지만 「정상 · 공개 전」 —
+    그 뒤에도 비면 「늦음 · 다시 받기」(고치기 전에는 그날 내내 「정상」 · n=2 가 되는 0시에야 「늦음」 이었다).
+    10-02(금)에 10-01 시세가 없으면 마감은 10-02 14:00 · 둘이 비면(n=2) 첫날 마감이 이미 지나 곧바로 「늦음 · 다시 받기」."""
+    t, _ = _states_at(at("2026-10-02T12:29:00"))
+    p = t["price_daily"]
+    assert (p["behind_trading_days"], p["verdict"], p["verdict_label"]) == (1, "ok", "정상 · 공개 전")
+    assert p["deadline_at"] == "2026-10-02T14:00:00+09:00" and "14:00" in p["detail"]
+    assert _states_at(at("2026-10-02T13:59:59"))[0]["price_daily"]["verdict"] == "ok"
+    late = _states_at(at("2026-10-02T14:01:00"))[0]["price_daily"]
+    assert (late["verdict"], late["verdict_label"]) == ("late", "늦음 · 다시 받기")
+    assert "10-02 14:00" in late["detail"] and "2026-10-01" in late["detail"]
+    two = _states_at(at("2026-10-06T09:00:00"))[0]["price_daily"]
+    assert (two["behind_trading_days"], two["verdict"], two["verdict_label"]) == (2, "late", "늦음 · 다시 받기")
+    assert _states_at(at("2026-10-08T09:00:00"))[0]["price_daily"]["verdict"] == "stale", "셋 이상은 그대로 「멈춤」"
+
+
+def test_friday_prices_are_due_the_next_trading_day_after_a_substitute_holiday(market):
+    """TC-DST-20 · 금요일 시세는 다음 영업일 14:00 까지 정상(포털 원문 「금요일 데이터는 차주 월요일」) — 월요일이 대체공휴일(10-05)이면
+    그다음 거래일(10-06 화) 14:00 · 마감 셈은 거래일 달력으로(휴장일을 건너뛴다)."""
+    _add_price(market, "20261001")                                    # 10-01(목)까지 · 10-02(금)가 빔
+    for when in ("2026-10-03T10:00:00", "2026-10-05T15:00:00", "2026-10-06T13:59:00"):
+        p = _states_at(at(when))[0]["price_daily"]
+        assert (p["verdict"], p["deadline_at"]) == ("ok", "2026-10-06T14:00:00+09:00"), when
+    assert _states_at(at("2026-10-06T14:01:00"))[0]["price_daily"]["verdict"] == "late"
+
+
+def test_disclosure_list_is_late_when_older_than_the_previous_trading_day(market):
+    """TC-DST-21 · 공시 목록 — 마지막 접수일이 전 거래일보다 앞이면 「늦음」(상장사 공시는 거래일 하루 약 700건 · 하루라도 비면 멈춘 것).
+    전 거래일까지 있으면 「정상」 · 행이 없으면 지금처럼 「없음」."""
+    conn = db.connect(market)
+    conn.execute("INSERT INTO disclosure (rcept_no, rcept_dt, corp_code, report_nm, fetched_at, updated_at) "
+                 "VALUES ('20261001000001', '20261001', '00126380', '보고서', '2026-10-01T12:30:00+09:00', '2026-10-01T12:30:00+09:00')")
+    conn.commit()
+    conn.close()
+    d = _states_at(at("2026-10-02T09:00:00"))[0]["disclosure"]
+    assert (d["verdict"], d["verdict_label"]) == ("ok", "정상")
+    d = _states_at(at("2026-10-06T09:00:00"))[0]["disclosure"]
+    assert d["verdict"] == "late" and "2026-10-02" in d["detail"], "10-06 의 전 거래일은 10-02(10-05 대체공휴일)"
+
+
+def test_news_articles_are_late_after_36_hours_and_policy_news_after_two_trading_days(market):
+    """TC-DST-22 · 언론사 기사(GDELT 15분 파일)는 마지막 기사 시각이 36시간 넘게 지나면 「늦음」(날짜가 아니라 시각으로) ·
+    정책뉴스는 마지막 승인일 뒤 · 오늘 앞 거래일이 둘 이상 비면 「늦음」(받는 창이 3일이라 더 밀리면 빠진다 — 창은 추정)."""
+    conn = db.connect(market)
+    rows = [("policy:1", "policy_news", "2026-10-01T09:00:00+09:00"), ("gdelt:c", "gdelt", "2026-10-07T09:15:00+09:00")]
+    conn.executemany("INSERT INTO news_item (news_id, source, title, pub_at, available_at, fetched_at, updated_at) "
+                     "VALUES (?, ?, '제목', ?, ?, '2026-10-07T12:30:00+09:00', '2026-10-07T12:30:00+09:00')",
+                     [(i, s, p, p) for i, s, p in rows])
+    conn.commit()
+    conn.close()
+    g = _states_at(at("2026-10-08T21:14:00"))[0]["news_gdelt"]
+    assert (g["verdict"], g["last_date"], g["last_at"]) == ("ok", "2026-10-07", "2026-10-07T09:15:00+09:00")
+    g = _states_at(at("2026-10-08T21:16:00"))[0]["news_gdelt"]
+    assert g["verdict"] == "late" and "36시간" in g["detail"]
+    assert _states_at(at("2026-10-06T09:00:00"))[0]["news_item"]["verdict"] == "ok", "10-02 하나만 빔"
+    n = _states_at(at("2026-10-07T09:00:00"))[0]["news_item"]
+    assert n["verdict"] == "late" and n["behind_trading_days"] == 2
+
+
+def test_event_tables_say_whether_the_last_run_checked_them(market):
+    """TC-DST-23 · 재무 · 배당 · 금융 일정 · 시장금리(새 행이 없는 날이 정상인 자료)는 자료 날짜 대신 「마지막 회차가 그 단계를 돌려
+    확인했나」 — 그 단계가 0 이면 「정상」 · 실패면 「늦음」 · 돌지 않았거나 회차 기록이 없으면 「참고」(모른다를 정상으로 꾸미지 않는다).
+    오늘 회차가 없는 것은 회차 판정(「오늘 회차 없음」)이 따로 알린다."""
+    conn = db.connect(market)
+    conn.execute("INSERT INTO dividend (srtn_cd, record_dt, rcept_no) VALUES ('005930', '20260930', '20260915000001')")
+    conn.execute("INSERT INTO financial_statement (corp_code, bsns_year, reprt_code, fs_div, sj_div, ord, account_nm, rcept_no, "
+                 "known_at, fetched_at) VALUES ('00126380', '2026', '11012', 'CFS', 'IS', 1, '매출액', '20260814000001', "
+                 "'20260814', '2026-08-14T12:30:00+09:00')")
+    conn.commit()
+    conn.close()
+    last = {"started_at": "2026-10-02T12:30:01+09:00", "finished_at": "2026-10-02T12:51:16+09:00",
+            "steps": [{"name": "dividend", "rc": 0, "status": "ok"}, {"name": "financial", "rc": 1, "status": "warning"},
+                      {"name": "calendar", "rc": None, "status": "skipped"}]}
+    t, _ = _states_at(at("2026-10-02T15:00:00"), runner_last=last)
+    assert (t["dividend"]["verdict"], t["financial_statement"]["verdict"], t["market_event"]["verdict"]) == ("ok", "late", "info")
+    assert "10-02 12:30" in t["dividend"]["detail"] and "실패" in t["financial_statement"]["detail"]
+    assert t["ecos_series"]["verdict"] == "missing", "행이 없으면 지금처럼 「없음」"
+    t, _ = _states_at(at("2026-10-02T15:00:00"))
+    assert t["dividend"]["verdict"] == "info", "회차 기록이 없으면 모른다"
+
+
+def test_late_status_and_rebalance_readiness_point_the_same_way(market):
+    """TC-DST-24 · 14:01 에 시세가 하루 밀려 있으면(n=1) 관제는 「늦음 · 다시 받기」 · 리밸런싱 준비는 「기다림」 — 같은 쪽을 본다
+    (고치기 전에는 관제 「정상」 · 준비 「기다림」 으로 갈렸다). 준비 판정은 리밸런싱 주담당 코드라 고치지 않고 여기서 어긋남만 본다."""
+    from app.services import rebalance_daily
+    cdir = market.parent
+    write_state(cdir / "state", last={"started_at": "2026-10-02T12:30:01+09:00", "finished_at": "2026-10-02T12:51:16+09:00",
+                                      "ok": True, "upload": True, "stopped": None, "derived": None,
+                                      "steps": [step("price"), step("calendar")], "after": {"price_max": "20260930"}})
+    now = at("2026-10-02T14:01:00")
+    s = ds.get_status(now, use_cache=False)
+    price = next(x for x in s["tables"] if x["key"] == "price_daily")
+    assert (price["verdict"], s["verdict"]) == ("late", "warning")
+    r = rebalance_daily.readiness(now)
+    assert r["ready"] is False and r["state"] == "stale_data"
+
+
+def test_step_warn_from_the_runner_is_a_warning(tmp_path):
+    """TC-DST-25 · 러너가 경고로 적은 단계 줄(`warn` — 멈추는 단계의 경고 종료코드 · 시세 69 · DF-92)은 「경고」 · 회차는 「일부 실패」 —
+    앱은 종료코드를 다시 해석하지 않고 러너의 칸을 그대로 읽는다(멈추는 단계라도 「실패 · 멈춤」 이 아니다)."""
+    st = tmp_path / "state"
+    write_catalog(st)
+    price = dict(step("price", 69), warn=True)
+    write_state(st, last=last_run("2026-10-02", [price, step("calendar")], ok=False))
+    r = ds.runner_state(st, at("2026-10-02T14:00:00"))
+    assert r["last"]["steps"][0]["status"] == "warning" and r["state"] == "warning" and "시세" in r["detail"]
+
+
+def test_publish_deadline_matches_the_data_guide_source_table():
+    """TC-DST-26 · 관제의 공개 마감(`FRESHNESS`)과 자료 안내 출처 표의 「공개」 칸이 같은 약속을 말한다 — 시세(금융위원회 · 포털)는
+    「기준일 다음 영업일 13시 뒤」 이고 관제 마감은 그 1시간 뒤(14:00) · 정책뉴스는 사흘 창 · 언론사 기사는 지난 30시간. 한쪽만 고치면
+    화면 글과 판정이 갈라진다(SSoT — 판정은 관제 한 곳 · 사람 글은 대장 한 곳 · 이 시험이 둘을 맞댄다)."""
+    import csv
+    rows = {r["출처"]: r for r in csv.DictReader((ROOT / "docs" / "데이터" / "대장" / "자료안내-출처.tsv").open(encoding="utf-8"),
+                                                delimiter="\t")}
+    assert "다음 영업일 13시" in rows["fsc"]["공개"]
+    assert all(ds.FRESHNESS[k] == ("deadline", (14, 0)) for k in ("price_daily", "etf_daily", "index_daily"))
+    assert "사흘" in rows["briefing"]["공개"] and ds.FRESHNESS["news_item"] == ("gap_days", 2)
+    assert "30시간" in rows["gdelt"]["공개"] and ds.FRESHNESS["news_gdelt"][0] == "max_hours"

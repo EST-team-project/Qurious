@@ -13,6 +13,10 @@
   표의 마지막 날 뒤 · 오늘 앞에 있는 거래일 수(n)로 가른다.
     n = 0 최신 · 1 정상(12:30 갱신 전이면 보통 하루 밀려 있다) · 2 늦음 · 3 이상 멈춤
   계산 표(수정주가 · TR · 자체 지수)는 주식 일봉과 같은 날이어야 정상이다.
+  출처마다 공개 마감을 안다(DF-91 · 2026-10-15 · ``FRESHNESS`` 한 곳) — 시세 · ETF · 지수의 n = 1 은 빠진 거래일의 다음 거래일
+  14:00(포털 약속 13:00 + 1시간)까지만 「정상 · 공개 전」 이고 그 뒤에도 비면 「늦음 · 다시 받기」 다(고치기 전에는 그날 내내 「정상」
+  이라 같은 자료를 리밸런싱 준비는 「기다림」 으로 봤다). 공시 목록 · 기사 · 정책뉴스는 정한 창, 재무 · 배당 · 일정 · 시장금리는
+  「마지막 회차가 그 단계를 확인했나」 로 본다(새 행이 없는 날이 정상인 자료).
 
 러너가 도는지는 컨테이너에서 PID 로 확인할 수 없다 — 잠금 파일이 있고 4시간 안이면 「도는 중」 으로 본다
 (러너의 LOCK_STALE_HOURS 와 같은 값).
@@ -23,7 +27,7 @@ import json
 import sqlite3
 import threading
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 
 from app.services import collector_db
@@ -77,8 +81,9 @@ TABLES = [
     ("news_item", "news_item", "정책뉴스", "뉴스", "정책브리핑 정책뉴스(공공데이터포털 · 기사마다 공공누리 유형 — 제1유형만 본문) — 마지막 승인일", "info",
      "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item WHERE source = 'policy_news'",
      "SELECT COUNT(*) FROM news_item WHERE source = 'policy_news'"),
+    # 마지막 기사 「시각」 까지 — 36시간 판정이 날짜가 아니라 시각을 본다(DF-91). 줄의 마지막 날은 `_iso_day` 가 앞 10자로 자른다.
     ("news_gdelt", "news_item", "언론사 기사", "뉴스", "GDELT 한국어 기사 — 제목 · 원문 주소 · 시각만(본문 없음) — 마지막 기사 시각", "info",
-     "SELECT MAX(substr(pub_at, 1, 10)) FROM news_item WHERE source = 'gdelt'",
+     "SELECT MAX(pub_at) FROM news_item WHERE source = 'gdelt'",
      "SELECT COUNT(*) FROM news_item WHERE source = 'gdelt'"),
     # 한국은행 ECOS 시장금리(2026-10-13 · 재무 · 신용 위험) · 주가지수(2026-10-14 · 계절성) — 일곱 항목이 한 표 ·
     # 마지막 날짜는 표 전체의 마지막 날(참고 — 휴장일엔 값이 없다).
@@ -99,6 +104,33 @@ TABLES = [
 
 VERDICT_LABEL = {"fresh": "최신", "ok": "정상", "late": "늦음", "stale": "멈춤", "missing": "없음", "info": "참고"}
 _RANK = {"fresh": 0, "ok": 0, "info": 0, "late": 1, "missing": 1, "stale": 2}
+
+#: 출처마다 공개 마감 · 신선도 규칙(DF-91 · 2026-10-15 · 자동 수집 벤치마크 조사서 4.1절 · 2차-1) — 표 열쇠 → (꼴, 값).
+#: 출처의 약속을 판정에 묶는 **한 곳**이다(판정 · 화면 글이 같은 값을 쓴다). 여기 없는 「참고」 표는 지금처럼 판정하지 않는다.
+#:   deadline      빠진 거래일 d 의 공개 마감 = d 다음 거래일의 이 시각(포털 원문 「기준일자로부터 영업일 하루 뒤 오후 1시 이후」 +
+#:                 1시간 여유 — 회차 판정의 「12:30 + 1시간」 과 같은 꼴). n = 1 이고 마감 전 「정상 · 공개 전」 · 마감 뒤 · n = 2 는
+#:                 「늦음 · 다시 받기」 · 3 이상은 「멈춤」 그대로. 영업일은 거래일 달력으로 어림한다(휴장일을 건너뛴다)
+#:   prev_day      마지막 날이 전 거래일보다 앞이면 늦음(상장사 공시 — 거래일 하루 약 700건이라 하루라도 비면 멈춘 것)
+#:   max_hours     마지막 시각이 이 시간을 넘게 지나면 늦음(GDELT 15분 파일 — 회차가 지난 30시간을 읽는다 · 날짜가 아니라 시각)
+#:   gap_days      마지막 날 뒤 · 오늘 앞 거래일이 이만큼 비면 늦음(정책뉴스 — 받는 창이 3일이라 더 밀리면 빠진다 · 값은 추정 —
+#:                 지난 분포를 재어 고친다)
+#:   step_checked  새 행이 없는 날이 정상인 자료 — 자료 날짜 대신 마지막 회차의 그 단계 결과(0 정상 · 실패 늦음 · 돌지 않음 · 기록
+#:                 없음은 참고 — 모른다를 정상으로 꾸미지 않는다). 오늘 회차가 없는 것은 회차 판정(「오늘 회차 없음」)이 알린다
+FRESHNESS: dict[str, tuple] = {
+    "price_daily": ("deadline", (14, 0)),
+    "etf_daily": ("deadline", (14, 0)),
+    "index_daily": ("deadline", (14, 0)),
+    "disclosure": ("prev_day", None),
+    "news_gdelt": ("max_hours", 36),
+    "news_item": ("gap_days", 2),
+    "dividend": ("step_checked", "dividend"),
+    "financial_statement": ("step_checked", "financial"),
+    "market_event": ("step_checked", "calendar"),
+    "ecos_series": ("step_checked", "ecos"),
+}
+#: 마감을 아는 판정의 상태 이름(조사서 4.1절 · 2차-1 — 「정상 · 공개 전」 · 「늦음 · 다시 받기」)
+LABEL_BEFORE_PUBLISH = "정상 · 공개 전"
+LABEL_REFETCH = "늦음 · 다시 받기"
 
 _cache: dict = {}
 
@@ -181,7 +213,8 @@ def _step_view(rec: dict, by_name: dict | None = None, *, admin: bool = False) -
     elif rc == 0:
         status = "ok"
     else:
-        status = "failed" if fatal else "warning"
+        # 러너가 경고로 적은 줄(`warn` — 멈추는 단계의 경고 종료코드 · 시세 69 · DF-92)은 멈추는 단계여도 경고다(러너 판정 그대로)
+        status = "failed" if (fatal and not rec.get("warn")) else "warning"
     out = {"name": name, "label": rec.get("label") or meta.get("label") or name,
            "group": rec.get("group") or meta.get("group") or "", "desc": rec.get("desc") or meta.get("desc") or "",
            "status": status, "rc": rc, "seconds": rec.get("seconds") or 0, "note": rec.get("note") or ""}
@@ -409,18 +442,109 @@ def counts_view(*, running: bool) -> tuple[dict, str]:
     return rows, ("old" if rows else "pending")
 
 
-def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | None = None) -> tuple[list[dict], dict]:
+def _next_trading(conn: sqlite3.Connection, has_cal: bool, day: str) -> str:
+    """`day` 다음 거래일(공개 마감 셈 — 영업일을 거래일 달력으로 어림). 달력이 그 뒤를 덮지 못하면 다음 평일로 어림한다."""
+    if has_cal:
+        r = conn.execute("SELECT MIN(cal_date) FROM market_calendar WHERE is_trading_day = 1 AND cal_date > ?",
+                         (day,)).fetchone()
+        if r and r[0]:
+            return r[0]
+    d = date.fromisoformat(day) + timedelta(days=1)
+    while d.weekday() >= 5:
+        d += timedelta(days=1)
+    return d.isoformat()
+
+
+def _prev_trading(conn: sqlite3.Connection, has_cal: bool, tiso: str) -> str | None:
+    """오늘 앞 마지막 거래일 — 달력이 없으면 None(공시 목록 판정을 하지 않는다 · 짐작하지 않는다)."""
+    if not has_cal:
+        return None
+    r = conn.execute("SELECT cal_date FROM market_calendar WHERE is_trading_day = 1 AND cal_date < ? "
+                     "ORDER BY cal_date DESC LIMIT 1", (tiso,)).fetchone()
+    return r[0] if r else None
+
+
+def _apply_deadline(conn: sqlite3.Connection, has_cal: bool, row: dict, behind: list[str], now: datetime,
+                    hm: tuple[int, int]) -> None:
+    """시세 · ETF · 지수(포털) — 빠진 첫 거래일의 공개 마감(다음 거래일 hm)으로 n = 1 을 「정상 · 공개 전」 과 「늦음 · 다시 받기」 로
+    가르고, n = 2 도 「늦음 · 다시 받기」 로 적는다(첫날 마감이 이미 지났다). 3 이상은 「멈춤」 그대로(DF-91)."""
+    first = behind[0]
+    due = datetime.combine(date.fromisoformat(_next_trading(conn, has_cal, first)), dt_time(*hm), KST)
+    row["deadline_at"] = due.isoformat(timespec="seconds")
+    if len(behind) == 1 and now < due:
+        row.update(verdict="ok", verdict_label=LABEL_BEFORE_PUBLISH,
+                   detail=f"{first} 자료는 아직 공개 전이다 — 출처 약속은 다음 영업일 13:00 이후 · 마감 {due:%m-%d %H:%M}")
+    elif len(behind) <= 2:
+        row.update(verdict="late", verdict_label=LABEL_REFETCH,
+                   detail=f"공개 마감({due:%m-%d %H:%M})이 지났는데 {' · '.join(behind)} 자료가 아직 없다")
+
+
+def _apply_rule(conn: sqlite3.Connection, has_cal: bool, row: dict, rule: tuple, last: str, last_raw, *,
+                now: datetime, tiso: str, prev_td: str | None, runner_last: dict | None) -> None:
+    """「참고」 표의 신선도 규칙(`FRESHNESS`) — 공시 목록 · 기사 · 정책뉴스는 정한 창, 사건 자료는 마지막 회차의 그 단계 결과."""
+    kind, value = rule
+    if kind == "prev_day":
+        if prev_td is None:
+            row.update(verdict="info", detail="거래일 달력이 없어 전 거래일을 모른다")
+        elif last < prev_td:
+            row.update(verdict="late", detail=f"전 거래일({prev_td}) 자료가 없다 — 마지막 {last}")
+        else:
+            row.update(verdict="ok", detail=f"전 거래일({prev_td})까지 있다")
+    elif kind == "max_hours":
+        ts = _parse_ts(str(last_raw)) if last_raw else None
+        if ts is None:
+            row.update(verdict="info", detail="마지막 시각을 읽지 못했다")
+        else:
+            ts = ts if ts.tzinfo else ts.replace(tzinfo=KST)
+            hours = (now - ts).total_seconds() / 3600
+            row["last_at"] = ts.isoformat(timespec="seconds")
+            if hours > value:
+                row.update(verdict="late", detail=f"마지막 자료가 {hours:.0f}시간 전이다 — {value}시간이 넘었다")
+            else:
+                row.update(verdict="ok", detail=f"마지막 자료 {ts:%m-%d %H:%M} · {max(hours, 0):.0f}시간 전")
+    elif kind == "gap_days":
+        behind, approx = _trading_after(conn, has_cal, last, tiso)
+        row.update(behind_trading_days=len(behind), approx=approx)
+        if len(behind) >= value:
+            row.update(verdict="late", detail=f"그 뒤 거래일 {len(behind)}일째 새 자료가 없다({', '.join(behind[:3])}"
+                                              + (" …" if len(behind) > 3 else "") + ")")
+        else:
+            row.update(verdict="ok", detail=("오늘 앞 마지막 거래일까지 있다" if not behind else
+                                             f"그 뒤 거래일 {len(behind)}일이 아직 없다({', '.join(behind)})"))
+    elif kind == "step_checked":
+        steps = {s.get("name"): s for s in ((runner_last or {}).get("steps") or []) if isinstance(s, dict)}
+        s = steps.get(value)
+        when = _parse_ts((runner_last or {}).get("started_at"))
+        at = f"{when:%m-%d %H:%M} 회차" if when else "마지막 회차"
+        if s is None:
+            row.update(verdict="info", detail="회차 기록에 이 단계가 없어 확인했는지 모른다")
+        elif s.get("rc") == 0:
+            row.update(verdict="ok", detail=f"{at}가 확인했다 — 새 행이 없는 날도 정상")
+        elif s.get("rc") is None:
+            row.update(verdict="info", detail=f"{at}가 이 단계를 돌리지 않았다" + (f"({s['note']})" if s.get("note") else ""))
+        else:
+            row.update(verdict="late", detail=f"{at}에서 이 단계가 실패했다(종료코드 {s.get('rc')})")
+
+
+def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | None = None, *,
+                 now: datetime | None = None, runner_last: dict | None = None) -> tuple[list[dict], dict]:
     """표마다 기준일 · 늦음 판정 · 행 수. `rows_map` 을 주면 행 수는 그 값(없는 표는 None = 세는 중)이고, 안 주면
-    그 자리에서 센다(시험 · 명령 줄 — 큰 DB 에서는 느리다)."""
+    그 자리에서 센다(시험 · 명령 줄 — 큰 DB 에서는 느리다).
+
+    `now` 는 공개 마감 판정의 지금 시각(DF-91) — 없으면 그날 0시(하루 밀린 시세는 「정상 · 공개 전」 · 고치기 전과 같은 판정 · 러너의
+    자료 안내 숫자처럼 판정을 쓰지 않는 쪽). `runner_last` 는 마지막 회차 기록(`runner_state()["last"]`) — 사건 자료의 「그 단계를
+    확인했나」 를 본다(없으면 「참고」)."""
     if conn is None:
         return [{"key": k, "table": t, "label": lab, "group": g, "source": src, "verdict": "missing",
                  "verdict_label": VERDICT_LABEL["missing"], "rows": 0, "last_date": None,
                  "detail": "수집 DB 가 없다"} for k, t, lab, g, src, *_ in TABLES], {}
+    now = now or datetime.combine(today, dt_time(0, 0), KST)
     has_cal = _has_table(conn, "market_calendar") and \
         conn.execute("SELECT 1 FROM market_calendar LIMIT 1").fetchone() is not None
     out: list[dict] = []
     price_last = None
     tiso = today.isoformat()
+    prev_td = _prev_trading(conn, has_cal, tiso)
     for key, table, label, group, source, mode, last_sql, count_sql in TABLES:
         row = {"key": key, "table": table, "label": label, "group": group, "source": source}
         if not _has_table(conn, table):
@@ -428,9 +552,11 @@ def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | 
                        detail="표가 아직 없다")
             out.append(row)
             continue
-        last = _iso_day(conn.execute(last_sql).fetchone()[0])
+        last_raw = conn.execute(last_sql).fetchone()[0]
+        last = _iso_day(last_raw)
         rows = rows_map.get(key) if rows_map is not None else conn.execute(count_sql).fetchone()[0]
         row.update(rows=rows, last_date=last)
+        rule = FRESHNESS.get(key)
         if key == "price_daily":
             price_last = last
         if not last:
@@ -443,6 +569,8 @@ def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | 
                                f"그 뒤 거래일 {len(behind)}일이 아직 없다({', '.join(behind[:3])}"
                                + (" …" if len(behind) > 3 else "") + ")"
                                + (" — 포털은 다음 날 낮에 준다" if v == "ok" else "")))
+            if rule and rule[0] == "deadline" and behind:
+                _apply_deadline(conn, has_cal, row, behind, now, rule[1])
         elif mode == "derived":
             if price_last and last < price_last:
                 lag, _ = _trading_after(conn, has_cal, last, (date.fromisoformat(price_last) + timedelta(days=1)).isoformat())
@@ -458,24 +586,25 @@ def table_states(conn: sqlite3.Connection | None, today: date, rows_map: dict | 
                 row.update(verdict="late", detail=f"달력 끝이 {left}일 남았다 — 내년 공휴일이 발표되면 늘어난다")
             else:
                 row.update(verdict="ok", detail=f"{last} 까지 있다 · 만든 시각 {(upd or '')[:16].replace('T', ' ')}")
+        elif rule:
+            _apply_rule(conn, has_cal, row, rule, last, last_raw, now=now, tiso=tiso, prev_td=prev_td,
+                        runner_last=runner_last)
         else:
             row.update(verdict="info", detail="")
-        row["verdict_label"] = VERDICT_LABEL[row["verdict"]]
+        row.setdefault("verdict_label", VERDICT_LABEL[row["verdict"]])   # 마감을 아는 판정은 제 이름(「정상 · 공개 전」 등)을 이미 적었다
         out.append(row)
 
     cal: dict = {}
     if has_cal:
         nxt = conn.execute("SELECT cal_date FROM market_calendar WHERE is_trading_day = 1 AND cal_date >= ? "
                            "ORDER BY cal_date LIMIT 1", (tiso,)).fetchone()
-        prev = conn.execute("SELECT cal_date FROM market_calendar WHERE is_trading_day = 1 AND cal_date < ? "
-                            "ORDER BY cal_date DESC LIMIT 1", (tiso,)).fetchone()
         today_row = conn.execute("SELECT is_trading_day, reason FROM market_calendar WHERE cal_date = ?",
                                  (tiso,)).fetchone()
         cal = {
             "today_is_trading_day": bool(today_row[0]) if today_row else None,
             "today_reason": today_row[1] if today_row else "",
             "next_trading_day": nxt[0] if nxt else None,
-            "previous_trading_day": prev[0] if prev else None,
+            "previous_trading_day": prev_td,
         }
     return out, cal
 
@@ -542,7 +671,7 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
         rows_map = None
         if conn is not None:
             rows_map, rows_state = counts_view(running=runner["running"])
-        tables, cal = table_states(conn, now.date(), rows_map)
+        tables, cal = table_states(conn, now.date(), rows_map, now=now, runner_last=runner.get("last"))
         if rows_state == "old":
             rows_note = ("일일 갱신이 도는 중이라 행 수는 지난번에 센 값이다" if runner["running"] else
                          "DB 가 바뀌어 행 수를 다시 세는 중이다 — 지금 보이는 것은 지난번 값")
