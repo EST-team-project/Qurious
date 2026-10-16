@@ -517,7 +517,7 @@ function renderMtf(mtf, symbol, pat, auto) {
         <h3 class="font-semibold text-sm">📐 멀티타임프레임 종합 신호 — ${escHtml(symbol)}</h3>
         <span class="${actCls}" style="font-size:14px;">${escHtml(mtf.label)}</span>
         ${opBadge}
-        <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${ptPct(mtf.confidence)}</b>· 방향 일치 ${ptPct(mtf.agreement)}</span>
+        <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${ptPct(mtf.confidence)}</b> · 방향 일치 ${ptPct(mtf.agreement)}</span>
       </div>
       <p class="text-xs mb-2" style="color:var(--text-mute);">${source} · ${rule}</p>
       ${renderAutoRule(auto, mtf)}
