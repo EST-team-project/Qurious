@@ -331,3 +331,94 @@ def test_screen_evidence_table_with_contribution_bars():
     assert rows and all(used <= set(row) for row in rows)
     assert sum(row["contribution"] for row in rows) == pytest.approx(r["explanation"]["composite"], abs=1e-4)
     assert not [w for w in se.FORBIDDEN if w in table + chart]
+
+
+# ── 입력 꼴 · 판단 출처(#213 · 차트 패턴 6자리 코드) ──────────────────────────
+
+def _market_db(tmp_path):
+    import sqlite3
+    path = tmp_path / "market.sqlite3"
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE price_daily (bas_dt TEXT, srtn_cd TEXT, mrkt_ctg TEXT)")
+    conn.executemany("INSERT INTO price_daily VALUES (?, ?, ?)",
+                     [("20260831", "055550", "KOSPI"), ("20260831", "247540", "KOSDAQ")])
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_resolve_symbol_six_digits_lowercase_and_market(tmp_path, monkeypatch):
+    """6자리 · 소문자 입력도 수집 DB 다리 · T2 · 장부가 쓰는 대문자 `.KS` · `.KQ` 로 — 시장은 수집 DB 에서."""
+    path = _market_db(tmp_path)
+    monkeypatch.setattr(pv.collector_db, "db_path", lambda: path)
+    assert pv.resolve_symbol("055550") == "055550.KS"
+    assert pv.resolve_symbol(" 247540 ") == "247540.KQ"
+    assert pv.resolve_symbol("055550.ks") == "055550.KS"
+    assert pv.resolve_symbol("069500") == "069500.KS"      # 주식 표에 없는 코드(ETF 등)는 코스피로
+    assert pv.resolve_symbol("aapl") == "AAPL"
+    monkeypatch.setattr(pv.collector_db, "db_path", lambda: None)
+    assert pv.resolve_symbol("247540") == "247540.KS"      # 수집 DB 가 없으면 코스피로
+
+
+def test_patterns_and_mtf_routes_resolve_input(monkeypatch):
+    """패턴 · 다중 주기 라우트가 맞춘 종목으로 시세 · T2 를 읽고 그 이름을 돌려준다(6자리 → 「종목 데이터 없음」 이 아님)."""
+    monkeypatch.setattr(pv.collector_db, "db_path", lambda: None)
+    seen = []
+
+    async def fake_candles(symbol, period, interval):
+        seen.append(symbol)
+        return {"candles": make_candles(300)}
+
+    monkeypatch.setattr(stocks, "get_candles", fake_candles)
+    monkeypatch.setattr(pv, "symbol_stats", lambda symbol: None)
+    r = asyncio.run(stocks.stock_patterns(symbol="055550", period="1y", _user=None))
+    assert seen == ["055550.KS"] and r["symbol"] == "055550.KS"
+
+    loaded = []
+
+    async def load(db, symbol, on=None):
+        loaded.append(symbol)
+        b = _bars(seed=13)
+        return ms.signal_at(b, b.daily[-1]["trade_date"])
+
+    monkeypatch.setattr(se, "load_snapshot", load)
+    monkeypatch.setattr(stocks, "_uid", lambda raw: None)    # 로그인 없음 — 장부 조회를 건너뜀
+    r = asyncio.run(stocks.stock_mtf_signal(symbol="055550.ks", db=None, user={"id": ""}))
+    assert loaded == ["055550.KS"] and r["symbol"] == "055550.KS" and r["source"] == "record"
+
+
+def test_screening_rows_carry_last_daily_bar_date(monkeypatch):
+    """스크리닝 줄마다 기준일(마지막 일봉 날) — 화면이 「무엇으로 · 언제 시세로 냈나」 를 보인다."""
+    candles = make_candles(300)
+
+    async def fake_candles(symbol, period, interval):
+        return {"candles": candles}
+
+    async def fake_quote(symbol):
+        return {"price": 1.0, "change_pct": 0.0}
+
+    async def no_cache(key, max_age_hours=None):
+        return None
+
+    monkeypatch.setattr(stocks, "get_candles", fake_candles)
+    monkeypatch.setattr(stocks, "get_quote", fake_quote)
+    monkeypatch.setattr(stocks, "cache_get", no_cache)
+    r = asyncio.run(stocks.stock_signals(signal="all", model="lightgbm", min_confidence=0, symbols="005930.KS"))
+    assert r["signals"] and r["signals"][0]["as_of"] == pv.candle_day(candles) == preprocess(candles).index[-1].strftime("%Y-%m-%d")
+
+
+def test_screens_say_how_each_judgment_is_made():
+    """스크리닝 · XAI · 다중 주기 · 캔들 패턴이 「무엇으로 냈나」 를 말하고, 규칙 합산을 학습 모델 · AI 로 부르지 않는다(#213)."""
+    html = (_PUB / "app.html").read_text(encoding="utf-8")
+    js = (_PUB / "js" / "robo.js").read_text(encoding="utf-8")
+    for old in ("LightGBM (앙상블)", "ML 파이프라인", "AI 패턴 인식", "<th>AI 신호</th>"):
+        assert old not in html and old not in js, old
+    assert "규칙 앙상블 (추세 · MACD · RSI)" in html and 'placeholder="005930 또는 005930.KS"' in html
+    assert "SCREEN_BASIS[model]" in js and "renderScreenTable(signals, model)" in js            # 스크리닝 판단 한 줄
+    assert "판단 = 학습 모델(LightGBM" in js                                                   # XAI 판단 한 줄
+    pattern = _pattern_js()
+    assert "규칙: 일 · 주 · 60분마다" in pattern and "캔들 모양 규칙 · 일봉 최근 5봉" in pattern   # 다중 주기 · 캔들 패턴
+    assert "/api/stocks/quant/indicators?symbol=${encodeURIComponent(resolved)}&period=2y" in pattern  # 자동매매가 읽는 판단
+    assert "${renderAutoRule(auto, mtf)}" in pattern and "판단이 다릅니다" in pattern          # 신호 칸에 실제로 그림
+    assert "openPatternFor('${escHtml(s.symbol)}')" in js and "openPatternFor('${escHtml(r.symbol)}')" in js
+    assert 'navigate("robo-patterns")' in js

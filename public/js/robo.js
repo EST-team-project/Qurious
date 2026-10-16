@@ -1,7 +1,7 @@
 /* 로보 어드바이저: 자산배분 최적화, XAI 블록, 투자성향 설문, 목표 달성 시뮬레이션, 스크리닝, 패턴/멀티타임프레임, 모의 의사결정
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
-import { tt } from "/js/core.js";
+import { navigate, tt } from "/js/core.js";
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
@@ -218,7 +218,7 @@ async function loadRoboScreening() {
   try {
     const { signals } = await api(`/api/stocks/signals?signal=${encodeURIComponent(signal)}&model=${encodeURIComponent(model)}&min_confidence=${encodeURIComponent(confidence)}`);
     renderScreenSignalCards(signals);
-    renderScreenTable(signals);
+    renderScreenTable(signals, model);
   } catch { renderScreenSignalCards([]); }
 }
 
@@ -237,12 +237,20 @@ function renderScreenSignalCards(signals) {
   }).join("");
 }
 
-function renderScreenTable(signals) {
+// 스크리닝 판단이 무엇으로 나왔나 — 학습 모델이 아니라 일봉 규칙(investment_research.screen_pattern)
+const SCREEN_BASIS = {
+  lightgbm: "규칙 앙상블 — 추세(5일선 · 20일선) ±1 · MACD ±1 · RSI(45 아래 +1 · 65 위 −1)의 합",
+  rsi: "RSI 역추세 — RSI 30 에서 떨어진 정도",
+  ma: "이동평균 교차 — 5일선 · 20일선",
+  bollinger: "볼린저밴드 — 종가가 하단 아래 · 상단 위",
+};
+
+function renderScreenTable(signals, model = "lightgbm") {
   const el = document.getElementById("screen-result-table");
   if (!el) return;
   if (!signals?.length) { el.innerHTML = `<p class="text-slate-400 text-sm">조회된 종목이 없습니다.</p>`; return; }
   el.innerHTML = `<table>
-    <thead><tr><th>종목명</th><th style="text-align:right;">현재가</th><th style="text-align:right;">등락률</th><th style="text-align:right;">RSI</th><th>AI 신호</th><th>패턴 근거</th><th>XAI</th></tr></thead>
+    <thead><tr><th>종목명</th><th style="text-align:right;">현재가</th><th style="text-align:right;">등락률</th><th style="text-align:right;">RSI</th><th>규칙 신호</th><th>패턴 근거</th><th>XAI</th></tr></thead>
     <tbody>${signals.map(s => {
     const pct = s.change_pct ?? 0;
     const sigClass = s.signal === "BUY" ? "badge-buy" : s.signal === "SELL" ? "badge-sell" : "badge-hold";
@@ -253,12 +261,24 @@ function renderScreenTable(signals) {
         <td style="text-align:right;">${s.rsi?.toFixed(1) ?? "--"}</td>
         <td><span class="${sigClass}">${s.signal}</span></td>
         <td style="font-size:11px;color:var(--text-mute);">${escHtml(s.reason || "계산된 패턴 신호")}${s.xai ? `<div style="color:var(--text-dim);margin-top:2px;">🧠 ${escHtml(xaiBadgeText(s.xai))} — ${escHtml((s.xai.top_positive?.[0]?.label) || "")}</div>` : ""}</td>
-        <td><button class="btn-secondary text-xs" onclick="showScreenXai('${escHtml(s.symbol)}')" title="LightGBM SHAP 기여도로 판단 근거 설명">🧠 설명</button></td>
+        <td><button class="btn-secondary text-xs" onclick="showScreenXai('${escHtml(s.symbol)}')" title="LightGBM SHAP 기여도로 판단 근거 설명">🧠 설명</button>
+          <button class="btn-secondary text-xs mt-1" onclick="openPatternFor('${escHtml(s.symbol)}')" title="같은 종목의 다중 주기 신호 · 자동매매 기본 규칙 판단을 패턴 화면에서">다중 주기 ↗</button></td>
       </tr>`;
   }).join("")}</tbody>
   </table>
+  <p class="text-xs mt-2" style="color:var(--text-mute);">판단 = ${escHtml(SCREEN_BASIS[model] || SCREEN_BASIS.lightgbm)} · 일봉 1년 · 기준일 ${escHtml([...new Set(signals.map(s => s.as_of).filter(Boolean))].sort().pop() || "—")}.
+    학습 모델이 아닌 규칙이라, 다중 주기 신호(일 · 주 · 60분) · 자동매매 기본 규칙과 판단이 다를 수 있습니다 — 「다중 주기 ↗」 로 견줘 보세요.</p>
   <div id="screen-xai-panel" class="mt-3"></div>`;
 }
+
+// 스크리닝 · XAI 에서 같은 종목을 패턴 화면으로 — 다중 주기 신호와 자동매매 기본 규칙 판단을 나란히 본다
+function openPatternFor(symbol) {
+  navigate("robo-patterns");
+  const input = document.getElementById("pt-symbol");
+  if (input) input.value = symbol;
+  loadPatternAnalysis();
+}
+window.openPatternFor = openPatternFor;
 
 async function showScreenXai(symbol) {
   const panel = document.getElementById("screen-xai-panel");
@@ -272,6 +292,8 @@ async function showScreenXai(symbol) {
         <h3 class="font-semibold text-sm">🧠 ${escHtml(r.name)} <span class="text-xs font-mono" style="color:var(--text-mute);">${escHtml(r.symbol)}</span> — AI 판단 근거</h3>
         <span class="text-xs" style="color:var(--text-mute);">5일 예측 ${pr.pred_5d_return_pct ?? "-"}% · 모델 ${escHtml(pr.model || "")} · 신뢰도 ${pr.confidence ?? "-"}</span>
       </div>
+      <p class="text-xs mb-1" style="color:var(--text-mute);">판단 = 학습 모델(LightGBM · 2년 일봉으로 5거래일 뒤 방향을 예측 · 기준일 ${escHtml(pr.as_of || "—")}) — 규칙 신호(스크리닝 · 다중 주기 · 자동매매 기본 규칙)와 방법이 달라 판단이 다를 수 있습니다.
+        <button class="btn-secondary text-xs" onclick="openPatternFor('${escHtml(r.symbol)}')">다중 주기 신호 보기 ↗</button></p>
       ${r.explanation ? renderXaiBlock(r.explanation) : `<p class="text-xs" style="color:var(--text-mute);">이 종목은 LightGBM 분류를 학습할 수 없어 설명을 제공하지 못했습니다.</p>`}
     </div>`;
   } catch (e) { panel.innerHTML = `<span class="text-xs text-red-500">${escHtml(e.message)}</span>`; }
@@ -455,11 +477,29 @@ const ptPct = v => v == null || !Number.isFinite(Number(v)) ? "—" : `${Math.ro
 const ptWhen = v => String(v || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}([+-]\d{2}:\d{2}|Z)?$/, "$1");
 const ptRet = v => v == null || !Number.isFinite(Number(v)) ? "—" : `${v > 0 ? "+" : ""}${(Number(v) * 100).toFixed(2)}%`;
 
-function renderMtf(mtf, symbol, pat) {
+// 자동매매 기본 규칙(stock._generate_signal · API-STK-04 의 signal) — 자동매매가 주문 전에 읽는 그 판단을 나란히
+function renderAutoRule(auto, mtf) {
+  const s = auto?.signal;
+  if (!s || s.score == null) return "";
+  const dir = /매수/.test(s.action) ? "매수" : /매도/.test(s.action) ? "매도" : "관망";
+  const cls = dir === "매수" ? "badge-buy" : dir === "매도" ? "badge-sell" : "badge-hold";
+  const why = (s.reasons || []).map(r => String(r).replace(/\s*\([^)]*\)\s*$/, "")).join(" · ");
+  const differs = dir !== mtf.signal
+    ? `<p class="mt-1" style="color:var(--text-dim);">위 다중 주기 신호(${escHtml(mtf.signal)})와 판단이 다릅니다 — 자동매매 기본 규칙은 일봉 하나로 과매도에서 반등을 노리는 쪽에 무게가 있고, 다중 주기 신호는 일 · 주 · 60분의 추세 · MACD 까지 함께 봅니다.</p>`
+    : "";
+  return `<div class="rounded-lg p-2 mb-3 text-xs" style="border:1px dashed var(--border);">
+      <b>자동매매 기본 규칙</b> <span class="${cls}">${dir}</span> · 점수 ${escHtml(String(s.score))} (−6 ~ +6) · ${escHtml(auto.as_of || "")} 일봉 — 일봉 RSI(30 · 70) · 이동평균 · 볼린저만 보는 규칙(MACD · 주봉 없음)${why ? ` · ${escHtml(why)}` : ""}
+      ${differs}
+      <p class="mt-1" style="color:var(--text-mute);">실제 자동매매 주문은 사용자 규칙 · 위험 관리 · 공격 모드를 거쳐 달라질 수 있습니다.</p>
+    </div>`;
+}
+
+function renderMtf(mtf, symbol, pat, auto) {
   const actCls = mtf.signal === "매수" ? "badge-buy" : mtf.signal === "매도" ? "badge-sell" : "badge-hold";
   const source = mtf.source === "record"
     ? `매일 기록(T2) · ${escHtml(mtf.as_of)} 종가 기준`
     : `기록이 없는 종목이라 그 자리에서 계산 · ${escHtml(mtf.as_of)} 일봉까지`;
+  const rule = `규칙: 일 · 주 · 60분마다 RSI · 이동평균 · MACD · 볼린저 점수를 주기 가중치로 합침(정의 ${escHtml(mtf.definition || "")})`;
   // P01-④-2 — 사용자 보유 여부에 따른 의견
   const opinion = mtf.opinion || "";
   const opRule = mtf.opinion_rule || "";
@@ -479,7 +519,8 @@ function renderMtf(mtf, symbol, pat) {
         ${opBadge}
         <span class="text-xs" style="color:var(--text-dim);">종합 점수 ${mtf.composite} · ${tt("신뢰도", "타임프레임 방향 일치도(50%) + 점수 크기(50%)", "confidence")} <b>${ptPct(mtf.confidence)}</b>· 방향 일치 ${ptPct(mtf.agreement)}</span>
       </div>
-      <p class="text-xs mb-2" style="color:var(--text-mute);">${source}</p>
+      <p class="text-xs mb-2" style="color:var(--text-mute);">${source} · ${rule}</p>
+      ${renderAutoRule(auto, mtf)}
       ${ex.summary ? `<div class="rounded-lg p-3 mb-3" style="background:var(--surf2);"><p class="text-sm">${escHtml(ex.summary)}</p>${levels}${ex.confidence_text ? `<p class="text-xs mt-1" style="color:var(--text-dim);">${escHtml(ex.confidence_text)}</p>` : ""}${notes ? `<ul class="text-xs mt-1 list-disc ml-5" style="color:var(--text-dim);">${notes}</ul>` : ""}</div>` : levels}
       ${renderEvidenceTable(ex, mtf.composite)}
       <table><thead><tr><th>타임프레임</th><th style="text-align:right">가중치</th><th style="text-align:right">점수</th><th style="text-align:right">RSI</th><th style="text-align:right">MA5 / MA20</th><th>근거</th><th>기준 시점</th></tr></thead><tbody>${mtf.timeframes.map(t => t.error ? `<tr><td>${escHtml(t.label)}</td><td colspan="6" class="text-xs" style="color:var(--text-mute)">${escHtml(t.error)}</td></tr>` :
@@ -568,14 +609,18 @@ async function loadPatternAnalysis() {
     ]);
     if (run !== patternRun) return;
     const pat = patResult.status === "fulfilled" ? patResult.value : null;
-    box("pt-mtf", mtfResult.status === "fulfilled" ? renderMtf(mtfResult.value, symbol, pat)
+    const resolved = (mtfResult.status === "fulfilled" && mtfResult.value.symbol) || pat?.symbol || symbol;
+    const auto = mtfResult.status === "fulfilled"
+      ? await api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(resolved)}&period=2y`).catch(() => null) : null;
+    if (run !== patternRun) return;
+    box("pt-mtf", mtfResult.status === "fulfilled" ? renderMtf(mtfResult.value, resolved, pat, auto)
       : `<span class="text-sm" style="color:var(--text-mute);">멀티타임프레임 신호를 불러오지 못했습니다: ${escHtml(mtfResult.reason?.message || "")}</span>`);
     if (mtfResult.status === "fulfilled") renderEvidenceChart(mtfResult.value.explanation);
     if (!pat) throw patResult.reason;
     const stat = new Map((pat.stats?.patterns || []).map(p => [p.key, p.all]));
     const past = key => { const a = stat.get(key); return a ? `<span class="text-xs" style="color:var(--text-mute)">${ptRet(a.mean_ret_5d)} · 오른 ${ptPct(a.up_ratio)}</span>` : `<span class="text-xs" style="color:var(--text-mute)">—</span>`; };
     const dirBadge = (d) => d === "bullish" ? `<span class="badge-buy">상승</span>` : d === "bearish" ? `<span class="badge-sell">하락</span>` : `<span class="badge-hold">중립</span>`;
-    box("pt-patterns", `<h3 class="font-semibold text-sm mb-2">🕯️ 캔들 패턴 (최근 5봉) · 패턴 점수 ${pat.pattern_score} (${escHtml(pat.pattern_bias)})</h3>${pat.patterns.length ? `<table><thead><tr><th>일자</th><th>패턴</th><th>방향</th><th>해설</th><th>과거 5일 뒤(전 종목)</th></tr></thead><tbody>${pat.patterns.map(p => `<tr><td class="text-xs">${p.date}${p.bars_ago === 0 ? " <b>(최신)</b>" : ""}</td><td style="font-weight:600">${escHtml(p.name)}</td><td>${dirBadge(p.direction)}</td><td class="text-xs" style="color:var(--text-dim)">${escHtml(p.description)}</td><td>${past(p.key)}</td></tr>`).join("")}</tbody></table><p class="text-xs mt-2" style="color:var(--text-mute);">과거 5일 뒤 — 전 종목 5거래일 뒤 평균 수익률 · 오른 비율(아래 통계 카드). 「—」 는 통계를 내지 않은 패턴입니다(통계는 11종).</p>`
+    box("pt-patterns", `<h3 class="font-semibold text-sm mb-2">🕯️ 캔들 패턴 (최근 5봉) · 패턴 점수 ${pat.pattern_score} (${escHtml(pat.pattern_bias)})</h3><p class="text-xs mb-2" style="color:var(--text-mute);">캔들 모양 규칙 · 일봉 최근 5봉 · ${escHtml(pat.as_of || "")} 기준 — 다중 주기 신호와 따로 낸 점수입니다.</p>${pat.patterns.length ? `<table><thead><tr><th>일자</th><th>패턴</th><th>방향</th><th>해설</th><th>과거 5일 뒤(전 종목)</th></tr></thead><tbody>${pat.patterns.map(p => `<tr><td class="text-xs">${p.date}${p.bars_ago === 0 ? " <b>(최신)</b>" : ""}</td><td style="font-weight:600">${escHtml(p.name)}</td><td>${dirBadge(p.direction)}</td><td class="text-xs" style="color:var(--text-dim)">${escHtml(p.description)}</td><td>${past(p.key)}</td></tr>`).join("")}</tbody></table><p class="text-xs mt-2" style="color:var(--text-mute);">과거 5일 뒤 — 전 종목 5거래일 뒤 평균 수익률 · 오른 비율(아래 통계 카드). 「—」 는 통계를 내지 않은 패턴입니다(통계는 11종).</p>`
       : `<p class="text-sm" style="color:var(--text-mute)">최근 5봉에서 뚜렷한 캔들 패턴이 없습니다.</p>`}`);
     const sr = pat.support_resistance;
     box("pt-sr", `<h3 class="font-semibold text-sm mb-2">📏 지지·저항선 (최근 ${sr.lookback_bars}봉 피벗 군집) · 현재가 ${fmt(sr.last_price)}</h3>
@@ -585,7 +630,7 @@ async function loadPatternAnalysis() {
     box("pt-breakouts", `<h3 class="font-semibold text-sm mb-2">🚀 돌파·크로스 이벤트 (${pat.as_of} 기준)</h3>${pat.breakouts.length ? `<div class="flex flex-wrap gap-2">${pat.breakouts.map(e => `<div class="rounded-lg p-2 text-xs" style="background:var(--surf2);border:1px solid var(--border);min-width:220px;">${dirBadge(e.direction)} <b>${escHtml(e.name)}</b>${e.confirmed ? ' <span style="color:var(--green)">✔ 확인</span>' : ''}<div style="color:var(--text-dim);margin-top:2px;">${escHtml(e.detail || "")}</div><div class="mt-1">${past(e.key)}</div></div>`).join("")}</div>`
       : `<p class="text-sm" style="color:var(--text-mute)">현재 봉에서 돌파·크로스 이벤트가 없습니다.</p>`}`);
     if (pat.stats) box("pt-stats", renderPatternStats(pat));
-    await renderPatternChart(pat, symbol);
+    await renderPatternChart(pat, pat.symbol || symbol);
   } catch (e) {
     if (run === patternRun) box("pt-mtf", `<span class="text-red-500 text-sm">${escHtml(e?.message || "분석하지 못했습니다.")}</span>`);
   } finally {

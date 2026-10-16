@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import sqlite3
 from datetime import date, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -25,6 +27,37 @@ from app.services import ta_utils as ta
 from app.services.quant_pipeline import preprocess
 
 logger = logging.getLogger(__name__)
+
+_KR_CODE = re.compile(r"^\d{6}$")
+
+
+def resolve_symbol(raw: str) -> str:
+    """화면 입력 → 시세 다리 · T2 · 장부가 쓰는 꼴. `055550` · `055550.ks` → `055550.KS`(코스닥이면 `.KQ`).
+
+    수집 DB 다리는 대문자 `숫자6.KS` · `.KQ` 만 받아, 6자리 · 소문자는 다른 출처로 가서 다른 봉을 그렸다.
+    시장은 수집 DB 의 그 종목 마지막 줄로 보고, 모르면(ETF · DB 없음) 코스피로 둔다.
+    """
+    s = (raw or "").strip().upper()
+    if not _KR_CODE.match(s):
+        return s
+    path = collector_db.db_path()
+    row = None
+    if path is not None:
+        try:
+            conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+            try:
+                row = conn.execute("SELECT mrkt_ctg FROM price_daily WHERE srtn_cd = ? ORDER BY bas_dt DESC LIMIT 1",
+                                   (s,)).fetchone()
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            logger.warning("종목 시장 조회 실패 %s", s, exc_info=True)
+    return f"{s}.KQ" if row and row[0] == "KOSDAQ" else f"{s}.KS"
+
+
+def candle_day(candles: list[dict]) -> str | None:
+    """마지막 봉의 날짜 — `price_levels` 의 `as_of` 와 같은 꼴(UTC 날짜)."""
+    return pd.to_datetime(candles[-1]["time"], unit="s", utc=True).strftime("%Y-%m-%d") if candles else None
 
 SUMMARY_PATH = Path(__file__).with_name("pattern_stats_summary.json")
 #: 화면 다중 주기(`patterns.TIMEFRAMES`)의 주기 이름 → T2 · 설명이 쓰는 이름
