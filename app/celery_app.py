@@ -117,6 +117,14 @@ celery_app.conf.update(
             "schedule": crontab(hour=15, minute=40),  # KST 15:40
             "options": {"expires": 3600},
         },
+                # ── B5 · 스탑 주문 자동 발동 (1분마다) ────────────────────────────
+        # pending 스탑 주문이 있으면 시세 도달 시 시장가로 발동한다.
+        # 체결 보장 아님 · 갭이면 더 나쁜 가격 · 장 시간 판정은 다음 이터레이션.
+        "quant-check-stop-orders": {
+            "task": "quant.check_stop_orders",
+            "schedule": 60.0,
+            "options": {"expires": 50},
+        },
     },
 )
 

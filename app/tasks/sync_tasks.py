@@ -157,3 +157,29 @@ def quant_confirm_fills() -> dict:
     result = asyncio.run(_async())
     logger.info("[beat] quant_confirm_fills 완료: %s", result)
     return result
+
+
+@celery_app.task(name="quant.check_stop_orders", time_limit=60)
+def quant_check_stop_orders() -> dict:
+    """B5 — pending 스탑 주문 순회 → 시세 도달 시 시장가 발동 (1분마다)."""
+
+    async def _async() -> dict:
+        from app.database.postgres import close_postgres, connect_postgres, get_session_factory
+        from app.lib.redis_cache import close_redis, connect_redis
+        from app.services import paper_trading as pt
+
+        await connect_redis()
+        await connect_postgres()
+        try:
+            factory = get_session_factory()
+            async with factory() as db:
+                fired = await pt.check_stop_orders(db)
+                await db.commit()
+                return {"fired": len(fired), "orders": fired}
+        finally:
+            await close_redis()
+            await close_postgres()
+
+    result = asyncio.run(_async())
+    logger.info("[beat] quant_check_stop_orders 완료: %s", result)
+    return result
