@@ -144,3 +144,18 @@ def test_backtest_custom_indicator_passes_entry_mode():
     r = backtest_custom_indicator(make_candles(300), base="rsi_ma", entry_mode="open", exit_mode="open")
     assert r["costs"]["entry_mode"] == "open"
     assert r["costs"]["exit_mode"] == "open"
+
+
+def test_backtest_strategy_accepts_entry_mode():
+    """B3 — backtest_strategy 도 entry_mode · exit_mode 를 받는다."""
+    r = backtest_strategy(make_candles(400), strategy="ma",
+                          entry_mode="open", exit_mode="open")
+    assert "error" not in r
+    assert r["entry_mode"] == "open"
+    assert r["exit_mode"] == "open"
+
+
+def test_backtest_strategy_rejects_bad_mode():
+    r = backtest_strategy(make_candles(400), strategy="ma", entry_mode="intrabar")
+    assert "error" in r
+    assert "close | open" in r["error"]
