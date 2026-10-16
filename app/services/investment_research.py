@@ -101,6 +101,8 @@ def backtest_strategy(
     slippage_bps: float = 0.0,
     stop_loss_pct: float | None = None,
     take_profit_pct: float | None = None,
+    entry_mode: str = "close",
+    exit_mode: str = "close",
 ) -> dict:
     """롱온리 일봉 백테스트. 매매비용은 포지션 변동 시 차감한다.
 
@@ -112,6 +114,8 @@ def backtest_strategy(
           무비용을 고를 수 없다(그러면 인자 생략과 구분되지 않는다).
     stop_loss_pct · take_profit_pct: 진입가 대비 종가 기준 손절 · 익절(%) — 강사님 원본(2026-09-29)의
           `quant_pipeline.apply_stops`. 비우면 적용하지 않는다. 비용보다 먼저 보유 상태를 바꾼다.
+              entry_mode / exit_mode: 체결 시점 — "close"(그날 종가 · 기본) | "open"(다음 봉 시가 · TradingView 기본).
+          backtest() 와 같은 뜻.
     """
     from app.services.quant_pipeline import apply_stops
     df = indicators(candles).dropna()
@@ -125,8 +129,29 @@ def backtest_strategy(
     held, n_sl, n_tp = apply_stops(df["close"].astype(float), held, stop_loss_pct, take_profit_pct)
     if cost is None:
         cost = tcost.FlatCostModel(cost_bps=cost_bps, slippage_bps=slippage_bps)
+    if entry_mode not in ("close", "open") or exit_mode not in ("close", "open"):
+        return {"error": f"entry_mode · exit_mode 는 close | open 만: {entry_mode} / {exit_mode}"}
+
     buy_turn, sell_turn = tcost.position_delta(held)
-    gross = returns * held
+    if entry_mode == "close" and exit_mode == "close":
+        gross = returns * held
+    else:
+        close = df["close"].astype(float)
+        open_ = df["open"].astype(float)
+        day_ret = (close / open_ - 1)
+        gap_ret = (open_ / close.shift(1) - 1)
+        entry_days = (held == 1) & (held.shift(1, fill_value=0) == 0)
+        normal_held = (held == 1) & ~entry_days
+        exit_days = (held == 0) & (held.shift(1, fill_value=0) == 1)
+        gross = pd.Series(0.0, index=returns.index)
+        if entry_mode == "open":
+            gross[entry_days] = day_ret[entry_days]
+        else:
+            gross[entry_days] = returns[entry_days]
+        gross[normal_held] = returns[normal_held]
+        if exit_mode == "open":
+            gross[exit_days] = gap_ret[exit_days]
+
     # 비용은 방향별로 뗀다 — 매수와 매도의 요율이 다르다
     cost_series = cost.turnover_cost(held)
     net = gross - cost_series
@@ -166,6 +191,8 @@ def backtest_strategy(
         "times": [x.isoformat() for x in df.index[-252:]],
         "cum_returns": [round(float(x - 1) * 100, 2) for x in equity.iloc[-252:]],
         "bh_returns": [round(float(x - 1) * 100, 2) for x in benchmark.iloc[-252:]],
+        "entry_mode": entry_mode,
+        "exit_mode": exit_mode,
     }
 
 
