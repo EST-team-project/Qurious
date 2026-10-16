@@ -230,6 +230,11 @@ def annualized_volatility(closes: list[float], trading_periods: int = 252) -> fl
 
 
 async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: str, quantity: int) -> dict:
+    """주문 미리보기 — 비용(수수료 · 세금) 반영한 순정산액까지 (이슈 DF-21).
+
+    실제 체결(_fill_stock_order)과 같은 trading_cost.order_costs 로 계산한다.
+    이전에는 `가격 × 수량` 만 보여 실제 체결금액과 달랐다.
+    """
     side = (side or "").upper()
     if side not in (BUY, SELL) or not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("side(BUY/SELL)와 1 이상의 정수 quantity를 입력하세요.")
@@ -239,18 +244,49 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
     position = await _stock_position(db, user_id, info["symbol"])
     held = position.quantity if position else 0
     amount = price * quantity
-    executable = amount <= account.cash if side == BUY else quantity <= held
+
+    # 비용 계산 — 실체결과 같은 함수
+    cost = trading_cost.order_costs(
+        side=side.lower(), price=price, quantity=quantity,
+        when=trading_cost.today_kst(),
+        market=info.get("market") or trading_cost.market_of(info["symbol"]),
+        is_etf=info.get("is_etf", trading_cost.is_etf_name(info.get("name", ""))),
+    )
+
+    # 현금 변화 — net_amount 기준 (실체결과 같음)
+    if side == BUY:
+        executable = cost.net_amount <= account.cash
+        cash_after = account.cash - cost.net_amount
+    else:
+        executable = quantity <= held
+        cash_after = account.cash + cost.net_amount
+
     return {
-        "executable": executable, "symbol": info["symbol"], "name": info["name"], "side": side,
-        "quantity": quantity, "estimatedPrice": price, "estimatedAmount": amount,
+        "executable": executable,
+        "symbol": info["symbol"], "name": info["name"], "side": side,
+        "quantity": quantity,
+        "estimatedPrice": price,
+        "estimatedAmount": amount,
+        # 신규 — 비용 세부
+        "commission": cost.commission,
+        "tax_transfer": cost.tax_transfer,
+        "tax_rural": cost.tax_rural,
+        "fee_clearing": cost.fee_clearing,
+        "totalCost": cost.total_cost,
+        "netAmount": cost.net_amount,
         "cashBefore": account.cash,
-        "cashAfter": account.cash - amount if side == BUY else account.cash + amount,
+        "cashAfter": cash_after,
         "positionBefore": held,
         "positionAfter": held + quantity if side == BUY else held - quantity,
-        "reason": None if executable else ("보유 현금이 부족합니다." if side == BUY else "매도 가능 수량이 부족합니다."),
-        "notice": "주문 미리보기는 체결·잔고를 변경하지 않으며, 실제 주문 시점 가격은 달라질 수 있습니다.",
+        "reason": None if executable else (
+            f"보유 현금이 부족합니다 (필요 {cost.net_amount:,.0f}원 · 보유 {account.cash:,.0f}원)."
+            if side == BUY else "매도 가능 수량이 부족합니다."
+        ),
+        "notice": (
+            "주문 미리보기는 체결·잔고를 변경하지 않으며, 실제 주문 시점 가격은 달라질 수 있습니다. "
+            f"예상 비용(수수료+세금) {cost.total_cost:,.0f}원 · 순정산액 {cost.net_amount:,.0f}원."
+        ),
     }
-
 
 async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: str, quantity: int,
                       source: str = "PAPER") -> dict:
