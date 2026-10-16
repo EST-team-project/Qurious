@@ -131,23 +131,32 @@ async function loadUsChart() {
   }
 }
 
+// 국내 종목인가 — 서버 `app/services/overseas_orders.py` `is_domestic` 과 같은 규칙(TC-USO 가 두 곳을 맞댄다).
+const isKrSymbol = s => /\.(KS|KQ|KN)$/i.test(s) || (/^[0-9A-Z]{6}$/i.test(s) && /\d/.test(s));
+const KST_TIME = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+
 async function loadUsOrderHistory() {
   const el = document.getElementById("us-order-history");
   if (!el) return;
   try {
-    const { orders } = await api("/api/orders");
-    // 미국주식 주문(달러 표기 종목)만 표시: KR 티커(.KS/.KQ)가 아닌 주문
-    const usOnly = orders.filter(o => !/\.(KS|KQ)$/i.test(o.symbol || ""));
+    // 모의 장부(원화)의 주문 기록 — 새 주문은 서버가 환율을 곱한 원화 체결가다. 옛 주문(원화 가상 매매 길 · source WEB)은
+    // 달러 금액이 원화 장부에 그대로 들어갔으므로 달러로 적고 그 사실을 붙인다(2026-10-16 점검 🔴).
+    const { history } = await api("/api/paper/stocks/orders/history?limit=200");
+    const usOnly = (history || []).filter(o => !isKrSymbol(String(o.symbol || "")));
     if (!usOnly.length) { el.innerHTML = "<div style='color:var(--text-mute);'>주문 내역 없음</div>"; return; }
-    el.innerHTML = usOnly.slice(0, 20).map(o => `
+    el.innerHTML = usOnly.slice(0, 20).map(o => {
+      const buy = String(o.type || "").toUpperCase() === "BUY";
+      const old = o.source === "WEB";
+      return `
       <div class="flex items-center gap-3 rounded-lg px-3 py-2" style="background:var(--surf2);border:1px solid var(--border);font-size:12px;">
-        <span class="${o.order_type==="buy"?"badge-buy":"badge-sell"}">${o.order_type==="buy"?"BUY":"SELL"}</span>
+        <span class="${buy?"badge-buy":"badge-sell"}">${buy?"BUY":"SELL"}</span>
         <span class="font-semibold">${escHtml(o.symbol)}</span>
         <span>${fmt(o.quantity)}주</span>
-        <span style="color:var(--text-dim);">$${fmt(o.price,2)}</span>
-        <span class="ml-auto" style="color:var(--text-mute);">${(o.created_at||"").slice(0,16).replace("T", " ")}</span>
-      </div>
-    `).join("");
+        <span style="color:var(--text-dim);">${old ? `$${fmt(o.price,2)}` : `${fmt(o.price)}원`}</span>
+        ${old ? `<span style="color:var(--text-mute);font-size:11px;">옛 주문 — 달러 금액이 원화 장부에 그대로 들어감</span>` : ""}
+        <span class="ml-auto" style="color:var(--text-mute);">${o.ts ? KST_TIME.format(new Date(o.ts)) : ""}</span>
+      </div>`;
+    }).join("");
   } catch (e) {
     el.innerHTML = `<div style='color:var(--red);'>${escHtml(e.message)}</div>`;
   }
@@ -159,48 +168,51 @@ async function loadUsPortfolio() {
   const pfEl = document.getElementById("us-portfolio-table");
   acEl.innerHTML = "<div class='text-xs' style='color:var(--text-mute);'>조회 중...</div>";
   try {
-    const { holdings } = await api("/api/portfolio");
-    const usHoldings = holdings.filter(h => !/\.(KS|KQ)$/i.test(h.symbol || ""));
-    if (!usHoldings.length) {
+    // 모의 장부(원화)의 보유 — 평균단가 · 평가 · 손익은 서버가 원화로 셈한다(환율을 곱한 체결가 · 원화 환산 현재가).
+    const { positions } = await api("/api/paper/stocks/positions");
+    const usPos = (positions || []).filter(p => !isKrSymbol(String(p.symbol || "")));
+    if (!usPos.length) {
       acEl.innerHTML = "";
       pfEl.innerHTML = "<div style='color:var(--text-mute);'>보유 종목이 없습니다. '미국주식 주문'에서 매수해보세요.</div>";
       return;
     }
+    // 달러 시세 · 환율 글은 모의 시세(서버가 환율을 곱한 그 응답)에서 — 장부 셈에는 쓰지 않는다.
     const quotes = await Promise.all(
-      usHoldings.map(h => api(`/api/stocks/quote?symbol=${encodeURIComponent(h.symbol)}`).catch(() => ({})))
+      usPos.map(p => api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(p.symbol)}`).catch(() => ({})))
     );
-    const positions = usHoldings.map((h, i) => {
-      const price = quotes[i]?.price ?? h.avg_price;
-      const mktVal = price * h.quantity;
-      const pnl = mktVal - h.avg_price * h.quantity;
-      const pnlPct = h.avg_price ? (pnl / (h.avg_price * h.quantity)) * 100 : 0;
-      return { ...h, price, mktVal, pnl, pnlPct };
-    });
-    const totalMkt = positions.reduce((a,p)=>a+p.mktVal,0);
-    const totalPnl = positions.reduce((a,p)=>a+p.pnl,0);
+    const totalMkt = usPos.reduce((a,p)=>a+(p.evalAmount||0),0);
+    const totalPnl = usPos.reduce((a,p)=>a+(p.pnl||0),0);
+    // 옛 주문 길로 생긴 보유는 단가가 달러 그대로라 원화 현재가와 수백 배 차이가 난다 — 그때만 바로잡는 법을 알린다.
+    const oldBook = usPos.some(p => p.avgPrice > 0 && p.currentPrice / p.avgPrice > 100);
+    const fxNote = (quotes.find(q => q && q.fx_note) || {}).fx_note;
     acEl.innerHTML = [
-      { label:"주식 평가 합계", value:`$${fmt(totalMkt,2)}` },
-      { label:"총 손익",       value:`${totalPnl>=0?"+":""}$${fmt(totalPnl,2)}`, color: totalPnl>=0?"var(--green)":"var(--red)" },
-      { label:"보유 종목 수",   value:`${positions.length}개` },
+      { label:"주식 평가 합계", value:`${fmt(totalMkt)}원` },
+      { label:"총 손익",       value:`${totalPnl>=0?"+":""}${fmt(totalPnl)}원`, color: totalPnl>=0?"var(--green)":"var(--red)" },
+      { label:"보유 종목 수",   value:`${usPos.length}개` },
     ].map(c=>`<div class="card text-center" style="padding:14px;">
       <div class="text-xs" style="color:var(--text-dim);">${c.label}</div>
       <div class="text-lg font-bold mt-1" style="color:${c.color||"var(--text)"};">${c.value}</div>
     </div>`).join("");
     pfEl.innerHTML = `<table>
       <thead><tr><th>종목</th><th>수량</th><th>평균단가</th><th>현재가</th><th>평가금액</th><th>손익</th></tr></thead>
-      <tbody>${positions.map(p=>{
+      <tbody>${usPos.map((p, i)=>{
+        const q = quotes[i] || {};
         const pnlColor = p.pnl>=0?"var(--green)":"var(--red)";
         const sign = p.pnl>=0?"+":"";
+        const local = q.price_local != null && q.currency && q.currency !== "KRW"
+          ? `<div style="color:var(--text-mute);font-size:11px;">${fmt(q.price_local,2)} ${escHtml(q.currency)}</div>` : "";
         return `<tr>
           <td><div class="font-semibold">${escHtml(p.symbol)}</div><div style="color:var(--text-mute);font-size:11px;">${escHtml(p.name)}</div></td>
           <td>${fmt(p.quantity)}</td>
-          <td>$${fmt(p.avg_price,2)}</td>
-          <td>$${fmt(p.price,2)}</td>
-          <td>$${fmt(p.mktVal,2)}</td>
-          <td style="color:${pnlColor};">${sign}$${fmt(Math.abs(p.pnl),2)}<div style="font-size:11px;">${sign}${p.pnlPct.toFixed(2)}%</div></td>
+          <td>${fmt(p.avgPrice)}원</td>
+          <td>${fmt(p.currentPrice)}원${local}</td>
+          <td>${fmt(p.evalAmount)}원</td>
+          <td style="color:${pnlColor};">${sign}${fmt(Math.abs(p.pnl))}원<div style="font-size:11px;">${sign}${Number(p.pnlRate||0).toFixed(2)}%</div></td>
         </tr>`;
       }).join("")}</tbody>
-    </table>`;
+    </table>
+    ${fxNote ? `<div class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(fxNote)}</div>` : ""}
+    ${oldBook ? `<div class="text-xs mt-1" style="color:var(--red);">예전 주문 방식으로 생긴 보유는 달러 금액이 원화 장부에 그대로 들어가 평균단가 · 손익이 맞지 않습니다 — 모의계좌 초기화로 바로잡을 수 있습니다.</div>` : ""}`;
   } catch (e) {
     acEl.innerHTML = `<div class="text-xs" style="color:var(--red);">${escHtml(e.message)}</div>`;
   }
@@ -210,18 +222,14 @@ async function placeUsOrder(side) {
   const symbol = document.getElementById("us-ord-symbol").value.trim().toUpperCase();
   const qty    = parseInt(document.getElementById("us-ord-qty").value);
   const type   = document.getElementById("us-ord-type").value;
-  let price    = parseFloat(document.getElementById("us-ord-price").value);
   if (!symbol || !qty) return setToast("종목코드와 수량을 입력하세요.", "error");
+  // 모의 장부는 원화 하나 — 서버가 시세 · 환율을 정하는 모의 주문 길로 보낸다(가격을 보내지 않는다 · 2026-10-16 점검 🔴).
+  if (type === "limit") return setToast("지정가 모의 주문은 아직 없습니다 — 시장가로 주문하세요.", "error");
+  // 해외 매도는 비용(증권사 해외 수수료 · 매도 SEC 수수료) 계산이 준비될 때까지 막는다 — 지금 서버 길은 해외 매도에서 멈춘다.
+  if (side === "sell") return setToast("해외 종목 모의 매도는 아직 열지 않았습니다 — 해외 매도 비용 계산이 준비되면 열립니다.", "error");
   try {
-    if (type === "market" || !price) {
-      const q = await api(`/api/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
-      price = q.price;
-      if (!price) throw new Error("현재가를 조회할 수 없습니다. 지정가를 직접 입력하세요.");
-    }
-    await api("/api/orders", { method: "POST", body: {
-      symbol, name: symbol, order_type: side, quantity: qty, price, broker: "virtual",
-    }});
-    setToast(`${side==="buy"?"매수":"매도"} 주문 완료: ${symbol} ${qty}주`, "ok");
+    const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side: "BUY", quantity: qty } });
+    setToast(`매수 주문 완료: ${r.symbol} ${qty}주 · 원화 환산 체결가 ${fmt(r.price)}원`, "ok");
     loadUsOrderHistory();
   } catch (e) {
     setToast(e.message, "error");

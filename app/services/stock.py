@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services import collector_db
+from app.services import data_provenance
 from app.services import ta_utils
 from app.services.data_cache import cache_get, cache_set
 
@@ -408,6 +409,8 @@ async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
         # current_price 는 마지막 봉 종가다. 수집 DB 에서 왔으면 오늘이 아니라 as_of 의 값이다.
         "as_of": data.get("as_of"),
         "source": data.get("source"),
+        # 화면이 그대로 보일 출처 · 기준일 한 줄(#134 · 글은 서버 한 곳) — 전략 분석이 「현재가」 대신 이 글을 보인다.
+        "data_note": data_provenance.candle_provenance(data)["data_note"],
         "definition": ta_utils.DEFINITION,
     }
 

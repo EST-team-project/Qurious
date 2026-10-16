@@ -96,6 +96,8 @@ def _call_route(monkeypatch, strategy):
         symbol="005930.KS", period="10y", base="rsi_ma", short=5, mid=20, rsi=14, buy_th=35.0,
         strategy=strategy, cost_bps=None, cost_model=None, slippage_bps=None, market=None,
         stop_loss_pct=None, take_profit_pct=None, _user=None,
+        # 라우트를 직접 부르면 기본값이 Query(...) 객체로 들어간다 — #221 의 새 인자 둘은 값으로 넘긴다
+        entry_mode="close", exit_mode="close",
     ))
 
 

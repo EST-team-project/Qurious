@@ -222,11 +222,12 @@ document.getElementById("bt-load").addEventListener("click", async () => {
       <div class="rounded-xl border border-white/10 bg-black/20 p-4">
         <div class="font-semibold text-indigo-300 mb-2">${escHtml(symbol)} 10년 퀀트 분석</div>
         <div class="grid grid-cols-2 gap-2">
-          <div>현재가: <span class="font-semibold">${fmt(data.current_price)}</span></div>
-          <div>현재 RSI: <span class="font-semibold">${data.current_rsi?.toFixed(2) ?? "-"}</span></div>
+          <div>마지막 종가: <span class="font-semibold">${fmt(data.current_price)}</span></div>
+          <div>마지막 봉 RSI: <span class="font-semibold">${data.current_rsi?.toFixed(2) ?? "-"}</span></div>
           <div>AI 시그널: <span class="font-semibold ${sig.action === "매수" || sig.action === "강력 매수" ? "text-emerald-400" : sig.action === "매도" || sig.action === "강력 매도" ? "text-red-400" : "text-slate-300"}">${escHtml(_displayAction(sig.action))}</span></div>
           <div>시그널 점수: <span class="font-semibold">${sig.score ?? "-"}</span></div>
         </div>
+        ${data.data_note ? `<div class="mt-2 text-xs text-slate-400">자료: ${escHtml(data.data_note)}</div>` : ""}
         <div class="mt-3 text-xs text-slate-400">${(sig.reasons || []).map(r => "• " + escHtml(r)).join("<br>")}</div>
         <button type="button" class="btn-secondary text-xs mt-3" onclick='compareTrayAdd(${JSON.stringify({
       source: "퀀트 전략 분석", label: symbol,
@@ -269,6 +270,7 @@ document.getElementById("bt-pipeline-run").addEventListener("click", async () =>
         <div class="text-xs mt-2" style="color:var(--text-mute);">
           entry_mode=${escHtml(d.entry_mode || entryMode)} · exit_mode=${escHtml(d.exit_mode || entryMode)}
         </div>
+        ${d.data_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">자료: ${escHtml(d.data_note)}</div>` : ""}
       </div>`;
   } catch (e) { el.innerHTML = `<div class='text-red-400'>${escHtml(e.message)}</div>`; }
 });

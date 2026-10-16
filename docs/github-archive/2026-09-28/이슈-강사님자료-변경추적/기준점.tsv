@@ -1,6 +1,6 @@
 th	part	repo	ref	commit	commit_date	checked_at
 th01-investment-analysis		edumgt/investment-analysis	origin/main	12f423deb2e0faaca04b4fa0eb0a06a6e29a32cd	2026-10-02 17:37	2026-10-07 13:54
-th02-docker		edumgt/docker-class	origin/main	50547fd32243d7a79a23c1f779604ad73030aff5	2026-09-11 15:23	2026-10-02 10:08
+th02-docker		edumgt/docker-class	origin/main	633d3511c347d3a5e09670e6b237ac241d357334	2026-10-13 16:08	2026-10-16 16:22
 th03-stock-coin-trade		edumgt/stock-coin-trade	origin/main	9242a3d6d3a386d456338610c5a71fef5cf47438	2026-10-07 17:36	2026-10-08 10:31
 th05-quant-krx		edumgt/quant-test-20260828	origin/main	8684a2b1926d45954a2e5dcaa3e45ab07b5fd727	2026-08-28 17:46	2026-10-02 10:08
 th06-lumina-invest	서버	edumgt/lumina-invest	origin/main	e815be3f1a00dcacabc48d9e967172a704eae3da	2026-10-07 17:36	2026-10-12 09:50
@@ -17,7 +17,7 @@ th15-aihub-rag		edumgt/aihub-rag	origin/main	a1fbe8d23ecfb49db72321fd24c4b2495c1
 th16-ai-agent-lab		edumgt/ai-agent-lab	origin/main	7151a887c27c5f082c38d789e4e9f7887451d44b	2026-06-29 12:49	2026-10-02 10:08
 th17-invest-flow		edumgt/invest-flow	origin/main	81165da48748ede3cee15c2ee3f8ce4fbe033ce8	2026-07-02 14:06	2026-10-02 10:08
 th18-langchain-lab		edumgt/langchain-lab	origin/main	87bc4d5c9c1acf86a3762a394e5c11745ff2c1a4	2026-06-29 11:58	2026-10-02 10:08
-th19-multi-db-lab		edumgt/multi-db-lab	origin/main	aaec902866071ffe5b24d674e88d5d9fab5ae204	2026-06-30 15:18	2026-10-02 10:08
+th19-multi-db-lab		edumgt/multi-db-lab	origin/main	29a9a9273fd187cac673c2d55744093f2529884a	2026-10-12 15:53	2026-10-16 16:22
 th20-aws-serverless		edumgt/aws-serverless	origin/main	206b70cdf7f8d4e4bad63ef15f7daed15671a26b	2026-10-01 11:49	2026-10-02 10:08
 th21-ollama-llava-canvas		edumgt/ollama-llava-canvas	origin/main	fb4ea94509f5dfdb57d71fc816a158ee8be5d021	2026-07-30 04:11	2026-10-02 10:08
 th22-vdp-agent		edumgt/vdp-agent	origin/main	8745eb94a988ceaa50805164dd0f5b8a8ab11845	2026-07-07 11:18	2026-10-02 10:08

@@ -727,7 +727,7 @@ def load_daily(code: str, period: str, *, today: Optional[date] = None, path=Non
     """수집 DB 일봉(수정주가)만 — 데이터 관문(`data_ohlcv.read_ohlcv`, API-DATA-02 와 같은 함수) 한 길.
 
     - 못 읽음 503 · 종목 없음 404 · ETF 는 422 로 가른다(수집 DB 다리 `read_daily_candles` 는 읽기 오류를 삼켜 「없음」 과
-      구별되지 않는다). 다른 출처(KIS · Yahoo)로 말없이 넘어가지 않는다.
+      구별되지 않는다). 다른 출처(KIS · 야후)로 말없이 넘어가지 않는다.
     - 기간 창은 **자료 기준일**(그 종목의 마지막 봉)에서 거꾸로 센다 — 같은 기준일이면 언제 불러도 같은 날들이라
       결과 캐시와 「같은 입력이면 같은 답」 이 지켜진다. 넉넉히 읽은 뒤 자른다.
     """

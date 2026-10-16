@@ -30,7 +30,7 @@ from app.models import (
     PAPER_INITIAL_CASH,
 )
 from app.services.krx_companies import get_krx_companies
-from app.services.fx import to_krw
+from app.services import fx
 from app.services.stock import HEADERS, _yahoo_chart, get_candles, get_quote
 from app.services import trading_cost
 
@@ -166,9 +166,12 @@ async def resolve_stock(symbol: str) -> dict:
         raise PaperTradeError("실시간 시세를 확인할 수 없어 주문할 수 없습니다. 잠시 후 다시 시도해주세요.")
     currency = (quote.get("currency") or "KRW").upper()
     # 모의계좌는 원화 단일 통화 — 해외 종목은 환율을 곱해 KRW 로 환산해 체결·평가한다
-    price_krw, fx_rate = await to_krw(float(price), currency)
+    price_krw, fxi = await fx.to_krw_info(float(price), currency)
+    fx_rate = fxi["rate"]
     prev_close = quote.get("prev_close")
+    # 환율 출처(live · last · fallback · missing · 원화는 None) · 받은 시각 · 한 줄 글 — 대체값을 말없이 쓰지 않는다(fx.py).
     data = {**meta, "price": price_krw, "price_local": float(price), "currency": currency, "fx_rate": fx_rate,
+            "fx_source": fxi["source"], "fx_as_of": fxi["as_of"], "fx_note": fxi["note"],
             "prev_close": (float(prev_close) * fx_rate) if prev_close else None, "prev_close_local": prev_close,
             "settlement_currency": "KRW"}
     _STOCK_CACHE[symbol] = {"ts": now, "data": data}
