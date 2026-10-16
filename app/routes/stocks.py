@@ -234,10 +234,29 @@ async def get_portfolio(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
+    """보유 종목 목록 — 현재가 · 평가금액(예상) 도 함께 (이슈 #235)."""
     result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == _uid(user["id"]), Portfolio.book == PORTFOLIO_BOOK_PAPER).order_by(Portfolio.updated_at.desc())
+        select(Portfolio).where(
+            Portfolio.user_id == _uid(user["id"]),
+            Portfolio.book == PORTFOLIO_BOOK_PAPER,
+        ).order_by(Portfolio.updated_at.desc())
     )
-    holdings = [_portfolio_to_dict(h) for h in result.scalars().all()]
+    holdings = []
+    for h in result.scalars().all():
+        d = _portfolio_to_dict(h)
+        # 현재가로 평가금액 계산 — 모의계좌 현황과 같은 값 (이슈 #235)
+        try:
+            q = await get_quote(h.symbol)
+            px = float(q.get("price") or 0)
+        except Exception:
+            px = 0
+        if px > 0:
+            d["current_price"] = px
+            d["eval_amount"] = round(px * h.quantity, 0)
+        else:
+            d["current_price"] = None
+            d["eval_amount"] = None
+        holdings.append(d)
     return {"holdings": holdings}
 
 
@@ -247,17 +266,15 @@ async def upsert_holding(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    stmt = pg_insert(Portfolio).values(
-        user_id=_uid(user["id"]), symbol=body.symbol, name=body.name,
-        quantity=body.quantity, avg_price=body.avg_price, book=PORTFOLIO_BOOK_PAPER,
+    """이슈 #235 — 모의투자 장부(PAPER)는 주문(매수·매도)으로만 바뀐다.
+
+    이 화면의 「추가 · 수정」 은 현금 이동 없이 수량·평단가만 바꿔 총자산을 왜곡하므로 막는다.
+    손으로 넣는 「관심 · 실제 보유 메모」 는 다른 장부로 분리해야 한다 (3차 후보).
+    """
+    raise HTTPException(
+        403,
+        "포트폴리오는 주문으로만 바뀝니다 — 국내주식 모의주문에서 매수 · 매도하세요.",
     )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=[Portfolio.user_id, Portfolio.symbol, Portfolio.book],
-        set_={"name": body.name, "quantity": body.quantity, "avg_price": body.avg_price},
-    )
-    await db.execute(stmt)
-    await db.commit()
-    return {"ok": True}
 
 
 @router.delete("/portfolio/{symbol}")
@@ -266,14 +283,11 @@ async def delete_holding(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == _uid(user["id"]), Portfolio.symbol == symbol, Portfolio.book == PORTFOLIO_BOOK_PAPER)
+    """이슈 #235 — 삭제도 같은 이유로 막는다."""
+    raise HTTPException(
+        403,
+        "포트폴리오는 주문으로만 바뀝니다 — 국내주식 모의주문에서 매도하세요.",
     )
-    holding = result.scalar_one_or_none()
-    if holding:
-        await db.delete(holding)
-        await db.commit()
-    return {"ok": True}
 
 
 # ── 수동 주문 ─────────────────────────────────────────────────────────

@@ -255,15 +255,14 @@
           <div class="view" data-view="trading-portfolio">
             <div class="card">
               <h2 class="text-lg font-semibold mb-4">💼 내 포트폴리오</h2>
-              <!-- 보유 종목 추가 -->
-              <div class="rounded-xl border border-white/10 bg-black/20 p-4 mb-4">
-                <h3 class="text-sm font-semibold text-slate-300 mb-3">종목 추가/수정</h3>
-                <div class="flex gap-2 flex-wrap">
-                  <input id="pf-symbol" class="input w-32" placeholder="005930.KS" />
-                  <input id="pf-name" class="input w-32" placeholder="삼성전자" />
-                  <input id="pf-qty" class="input w-24" type="number" placeholder="수량" />
-                  <input id="pf-price" class="input w-28" type="number" placeholder="평균단가" />
-                  <button id="pf-add" class="btn-primary">추가</button>
+              <!-- 이슈 #235 — 모의투자 장부는 주문으로만 바뀐다. 수동 추가/수정 폼 제거. -->
+              <div class="rounded-xl border p-4 mb-4" style="background:var(--surf2);border-color:var(--border);">
+                <div class="text-sm" style="color:var(--text-dim);">
+                  💡 보유 종목은 <b style="color:var(--text);">국내주식 모의주문</b>의 매수 · 매도로만 바뀝니다.
+                </div>
+                <div class="text-xs mt-1" style="color:var(--text-mute);">
+                  이 화면의 수동 추가 · 삭제는 현금 이동 없이 총자산을 왜곡해 2026-10-16부터 막았습니다.
+                  국내주식 모의주문 메뉴로 이동하세요.
                 </div>
               </div>
               <div id="portfolio-table" class="text-sm"></div>

@@ -57,47 +57,40 @@ async function loadPortfolio() {
   try {
     const { holdings } = await api("/api/portfolio");
     const el = document.getElementById("portfolio-table");
-    if (!holdings.length) { el.innerHTML = "<div class='text-slate-400 text-xs'>보유 종목이 없습니다.</div>"; return; }
-    el.innerHTML = `<table class="w-full text-xs border-collapse">
-      <thead><tr class="text-slate-400 border-b border-white/10">
-        <th class="py-2 text-left">종목</th><th class="py-2 text-right">수량</th>
-        <th class="py-2 text-right">평균단가</th><th class="py-2 text-right">평가금액(예상)</th>
-        <th class="py-2 text-right">조작</th>
-      </tr></thead>
-      <tbody>
-        ${holdings.map(h => `
-          <tr class="border-b border-white/5">
-            <td class="py-2">${escHtml(h.name)}<div class="text-slate-500">${escHtml(h.symbol)}</div></td>
-            <td class="py-2 text-right">${fmt(h.quantity)}</td>
-            <td class="py-2 text-right">${fmt(h.avg_price)}</td>
-            <td class="py-2 text-right text-slate-400">-</td>
-            <td class="py-2 text-right">
-              <button class="text-red-400 hover:text-red-300 delete-holding" data-symbol="${escHtml(h.symbol)}">삭제</button>
-            </td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>`;
-    el.querySelectorAll(".delete-holding").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        await api(`/api/portfolio/${encodeURIComponent(btn.dataset.symbol)}`, { method: "DELETE" });
-        loadPortfolio();
-      });
-    });
+    if (!holdings.length) {
+      el.innerHTML = "<div class='text-slate-400 text-xs'>보유 종목이 없습니다.</div>";
+      return;
+    }
+    el.innerHTML = `
+      <div class="text-xs mb-2" style="color:var(--text-mute);">
+        ※ 보유 종목은 <b>국내주식 모의주문</b>의 매수·매도로만 바뀝니다.
+        <a class="underline" href="#paper-stock">국내주식 모의주문 →</a>
+      </div>
+      <table class="w-full text-xs border-collapse">
+        <thead><tr class="text-slate-400 border-b border-white/10">
+          <th class="py-2 text-left">종목</th>
+          <th class="py-2 text-right">수량</th>
+          <th class="py-2 text-right">평균단가</th>
+          <th class="py-2 text-right">현재가</th>
+          <th class="py-2 text-right">평가금액</th>
+        </tr></thead>
+        <tbody>
+          ${holdings.map(h => `
+            <tr class="border-b border-white/5">
+              <td class="py-2">${escHtml(h.name)}<div class="text-slate-500">${escHtml(h.symbol)}</div></td>
+              <td class="py-2 text-right">${fmt(h.quantity)}</td>
+              <td class="py-2 text-right">${fmt(h.avg_price)}</td>
+              <td class="py-2 text-right">${h.current_price != null ? fmt(h.current_price) : "-"}</td>
+              <td class="py-2 text-right">${h.eval_amount != null ? fmt(h.eval_amount) + "원" : "-"}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
   } catch {}
 }
 
-document.getElementById("pf-add").addEventListener("click", async () => {
-  const symbol = document.getElementById("pf-symbol").value.trim();
-  const name = document.getElementById("pf-name").value.trim();
-  const qty = parseInt(document.getElementById("pf-qty").value);
-  const price = parseFloat(document.getElementById("pf-price").value);
-  if (!symbol || !name || !qty || !price) return setToast("모든 항목을 입력하세요.", "error");
-  try {
-    await api("/api/portfolio", { method: "POST", body: { symbol, name, quantity: qty, avg_price: price } });
-    setToast("추가 완료", "ok");
-    loadPortfolio();
-  } catch (e) { setToast(e.message, "error"); }
+document.getElementById("pf-add")?.addEventListener("click", () => {
+  setToast("포트폴리오는 국내주식 모의주문으로만 바뀝니다.", "error");
 });
 
 // ── 주문 ─────────────────────────────────────────────────────────
