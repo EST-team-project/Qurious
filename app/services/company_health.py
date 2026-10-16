@@ -323,8 +323,9 @@ def read_health(symbol: str, as_of: Optional[str] = None, fs: str = "CFS") -> Di
             continue
         z, _x, _r = z_score(accounts_of(p))
         if z is not None:
-            z_hist.append({"period_end": p.get("period_end"), "bsns_year": p.get("bsns_year"), "value": round(z, 2),
-                           "zone": zone_of(z)})
+            shown = round(z, 2)      # 구간은 보이는 숫자로 — 2.6049 가 「2.60 · 높은 구간(2.60 초과)」 으로 보이지 않게
+            z_hist.append({"period_end": p.get("period_end"), "bsns_year": p.get("bsns_year"), "value": shown,
+                           "zone": zone_of(shown)})
     zinfo: Dict = {"value": None, "zone": None, "zone_label": None, "x": None, "basis": None, "history": z_hist,
                    "formula": "6.56 × X1 + 3.26 × X2 + 6.72 × X3 + 1.05 × X4",
                    "thresholds": {"low": Z_LOW, "high": Z_HIGH}}
@@ -338,16 +339,18 @@ def read_health(symbol: str, as_of: Optional[str] = None, fs: str = "CFS") -> Di
         if z is None:
             zinfo["reason"] = why
         else:
-            zone = zone_of(z)
+            # 구간 · 경계 알림은 화면에 보이는 숫자(소수 둘째 자리)로 정한다 — 숫자와 판정 글이 어긋나지 않게
+            shown = round(z, 2)
+            zone = zone_of(shown)
             zinfo.update({
-                "value": round(z, 2), "zone": zone, "zone_label": ZONES[zone],
+                "value": shown, "zone": zone, "zone_label": ZONES[zone],
                 "x": {k: round(v, 4) for k, v in x.items()}, "basis": _basis(annual[0]), "reason": "",
-                "sentence": f"Altman Z'' 점수는 {z:.2f} — 모형이 정한 {ZONES[zone]}입니다({annual[0].get('bsns_year')}년 사업보고서).",
+                "sentence": f"Altman Z'' 점수는 {shown:.2f} — 모형이 정한 {ZONES[zone]}입니다({annual[0].get('bsns_year')}년 사업보고서).",
                 "points": [
                     "재는 법: 6.56 × (운전자본 ÷ 자산) + 3.26 × (이익잉여금 ÷ 자산) + 6.72 × (영업이익 ÷ 자산) + 1.05 × (자본 ÷ 부채)",
                     f"이 모형을 만든 표본(미국 · 신흥국의 제조업이 아닌 회사)에서 부실로 간 회사는 주로 {Z_LOW:.2f} 아래에 있었습니다 — "
                     "이 회사의 앞날을 맞히는 값이 아닙니다",
-                    *_near_edge(z),
+                    *_near_edge(shown),
                     "높은 구간이어도 업황 · 차입 조건이 바뀌면 달라집니다 — 해마다의 흐름을 함께 보세요",
                     "영업이익을 이자 · 세금 전 이익(EBIT) 대신 씁니다 — 우리 자료에 이자비용이 없습니다",
                     *_restated_point(annual[0])],

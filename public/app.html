@@ -1155,7 +1155,7 @@
                       <option value="market">시장가</option>
                       <option value="limit">지정가</option>
                     </select>
-                    <input id="us-ord-price" class="input" type="number" step="0.01" placeholder="지정가 (USD, 시장가 불필요)" />
+                    <input id="us-ord-price" class="input" type="number" step="0.01" placeholder="지정가 (USD) — 지금은 시장가만 됩니다" />
                     <div class="flex gap-2">
                       <button id="us-ord-buy" class="btn-green flex-1">매수 (Buy)</button>
                       <button id="us-ord-sell" class="btn-red flex-1">매도 (Sell)</button>
@@ -1167,7 +1167,7 @@
                   <div class="space-y-2">
                     <div class="text-xs px-3 py-2 rounded-lg"
                       style="background:rgba(67,97,238,0.12);color:#a5b4fc;border:1px solid rgba(67,97,238,0.3);">
-                      주문은 앱 내 가상 포트폴리오(/api/orders)에 실시간 체결가로 기록됩니다. Alpaca 키를 등록하면 퀀트 파이프라인의 Paper Trading 실주문과 연동됩니다.
+                      주문은 원화 모의 계좌(국내주식 모의주문과 같은 계좌)에 기록됩니다 — 받은 시세에 그때 환율을 곱한 원화 값으로 체결합니다. 지금은 시장가 매수만 됩니다(지정가 · 매도는 준비 중). Alpaca 키를 등록하면 퀀트 파이프라인의 Paper Trading 실주문과 연동됩니다.
                     </div>
                     <input id="alpaca-key" class="input" placeholder="Alpaca API Key ID" />
                     <input id="alpaca-secret" class="input" type="password" placeholder="Alpaca Secret Key" />

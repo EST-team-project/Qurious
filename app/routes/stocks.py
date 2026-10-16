@@ -27,6 +27,8 @@ from app.services import kis_credentials
 from app.services import kis_quickstart
 from app.services.quant_pipeline import backtest_custom_indicator
 from app.services.investment_research import backtest_strategy, screen_pattern
+from app.services import data_provenance
+from app.services import overseas_orders
 from app.services.brokers.factory import get_broker_client, live_trading_allowed
 from app.services.brokers.catalog import get_broker_catalog, get_broker_codes
 from app.services import notification
@@ -331,6 +333,9 @@ async def place_order(
     db: AsyncSession = Depends(get_pg_session),
 ):
     uid = _uid(user["id"])
+    # 원화 가상 매매 장부는 국내 종목만 — 해외 종목의 달러 값이 원화 현금에서 그대로 빠졌다(2026-10-16 점검 🔴).
+    if body.broker == "virtual" and not overseas_orders.is_domestic(body.symbol):
+        raise HTTPException(400, overseas_orders.VIRTUAL_REFUSAL)
     # 매매비용을 먼저 계산한다 — 현금 증감은 `가격 × 수량` 이 아니라 정산금액이다.
     # 매수는 수수료·유관기관비가 더 나가고, 매도는 그것에 세금까지 빼고 들어온다.
     cost = trading_cost.order_costs(
@@ -1208,6 +1213,8 @@ async def quant_pipeline_indicator_backtest(
         raise HTTPException(422, result["error"])
     result["symbol"] = symbol
     result["period"] = period
+    # 자료 출처 · 마지막 봉 날짜 · 사람이 읽는 한 줄(#134) — `source` 는 강사님 판과 같은 이름 · 글은 서버 한 곳.
+    result.update(data_provenance.candle_provenance(candle_data))
     # XAI: 기본 전략은 그 전략의 규칙 설명(backtest_strategy 가 채움) · custom 은 비움.
     # LightGBM SHAP 은 다른 모델의 근거라 여기 붙이지 않는다 — /api/ml/explain 에 있다.
     result.setdefault("explanation", None)

@@ -66,7 +66,10 @@ S26 까지의 규격은 ``fltRt``(등락률 %) 를 누적하는 것이었다. �
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sqlite3
+import time
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from collector import db
@@ -315,21 +318,35 @@ def cumulative(day_factors: List[Tuple[str, float, Optional[Dict]]]) -> Dict[str
 
 
 def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
-            *, verbose: bool = False) -> Dict[str, int]:
-    """수정주가와 조정 이벤트를 다시 만든다. **몇 번을 돌려도 같은 결과**가 된다."""
+            *, verbose: bool = False, timings: Optional[Dict[str, float]] = None) -> Dict[str, int]:
+    """수정주가와 조정 이벤트를 다시 만든다. **몇 번을 돌려도 같은 결과**가 된다.
+
+    timings: 사전을 주면 단계 안 시간(초)을 채운다 — list 종목 목록 · begin 쓰기 잠금 · read 읽기 · compute 계산 ·
+      write 쓰기(지우고 넣기) · commit 커밋. DF-104(평소 570 ~ 790초가 회차를 건너뛴 뒤 1,787초)의 까닭을 재려고
+      둔다 — 재는 것만 하고 결과는 바꾸지 않는다(시험이 두 결과를 맞댄다).
+    """
+    clock = time.perf_counter
+    spent = {"list": 0.0, "begin": 0.0, "read": 0.0, "compute": 0.0, "write": 0.0, "commit": 0.0}
+    a = clock()
     if codes is None:
         codes = [r[0] for r in conn.execute(
             "SELECT DISTINCT srtn_cd FROM price_daily ORDER BY srtn_cd")]
     codes = list(codes)
+    spent["list"] = clock() - a
 
     tally = {"codes": 0, "rows": 0, "events": 0, "suspect": 0, "suspect_backed": 0,
              EV_SPLIT: 0, EV_RIGHTS: 0, EV_REVIEW: 0, EV_SHARES: 0}
+    a = clock()
     conn.execute("BEGIN IMMEDIATE")
+    spent["begin"] = clock() - a
     try:
         for code in codes:
+            a = clock()
             rows = _series(conn, code)
+            spent["read"] += clock() - a
             if not rows:
                 continue
+            a = clock()
             ff = factors(rows)
             cum = cumulative(ff)
 
@@ -372,6 +389,8 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
                             ev["lstg_before"], ev["lstg_after"],
                             ev["lstg_cross"], ev["needs_review"], ev["kind"]))
 
+            b = clock()
+            spent["compute"] += b - a
             conn.execute("DELETE FROM price_adjusted WHERE srtn_cd=?", (code,))
             conn.executemany(
                 "INSERT INTO price_adjusted "
@@ -384,14 +403,70 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
                     "(bas_dt,srtn_cd,itms_nm,prev_clpr,base_price,factor,lstg_before,lstg_after,"
                     " lstg_cross,needs_review,kind) "
                     "VALUES (?,?,?,?,?,?,?,?,?,?,?)", evs)
+            spent["write"] += clock() - b
             tally["codes"] += 1
             tally["rows"] += len(adj)
             tally["events"] += len(evs)
+        a = clock()
         conn.execute("COMMIT")
+        spent["commit"] = clock() - a
     except Exception:
         conn.execute("ROLLBACK")
         raise
+    if timings is not None:
+        timings.update(spent)
     return tally
+
+
+# ==================================================
+# 단계 안 시간 — DF-104 를 재는 줄(재기만 · 결과는 그대로)
+# ==================================================
+#: 로그 한 줄에 찍는 차례와 이름 — 로그 표 도구(`parse_timing_line`)가 같은 이름으로 읽는다.
+#: 「CPU 시간」 은 이 프로세스가 실제로 계산한 시간(`process_time`)이다 — 걸린 시간보다 훨씬 짧으면 디스크나 다른
+#: 프로그램을 기다린 것이다(10-06 · 10-11 의 느린 회차는 같은 꼴의 수집 DB 쓰기 단계도 함께 느렸다).
+TIMING_PARTS = (("list", "종목 목록"), ("begin", "잠금"), ("read", "읽기"), ("compute", "계산"),
+                ("write", "쓰기"), ("commit", "커밋"), ("delisted", "폐지 목록"), ("cpu", "CPU 시간"))
+TIMING_HEAD = "⏱ 단계 안 시간 — "
+
+
+def wal_bytes(conn: sqlite3.Connection) -> Optional[int]:
+    """연결이 가리키는 DB 파일의 쓰기 앞 기록(``-wal``) 크기(바이트). 메모리 DB · 파일 없음은 None.
+
+    경로는 연결에서 읽는다(``PRAGMA database_list``) — 설정의 기본 경로를 짐작해 다른 DB 를 보지 않게(시험 · 사본).
+    """
+    try:
+        row = conn.execute("PRAGMA database_list").fetchone()
+    except sqlite3.Error:
+        return None
+    path = row[2] if row else ""
+    if not path:
+        return None
+    try:
+        return os.path.getsize(path + "-wal")
+    except OSError:
+        return None
+
+
+def _mb(n: Optional[int]) -> str:
+    return "?" if n is None else f"{n / 2**20:,.0f} MB"
+
+
+def timing_line(timings: Dict[str, float], wal_before: Optional[int], wal_after: Optional[int]) -> str:
+    """요약 뒤에 찍는 한 줄 — 「⏱ 단계 안 시간 — 종목 목록 0.4초 · 잠금 0.0초 · … · WAL 12 MB → 1,850 MB」."""
+    parts = [f"{label} {timings.get(key, 0.0):.1f}초" for key, label in TIMING_PARTS]
+    wal = "WAL 없음" if wal_before is None and wal_after is None else f"WAL {_mb(wal_before)} → {_mb(wal_after)}"
+    return "  " + TIMING_HEAD + " · ".join(parts) + f" · {wal}"
+
+
+def parse_timing_line(line: str) -> Dict[str, float]:
+    """로그의 「⏱ 단계 안 시간」 줄 → {이름: 초}. WAL 칸은 읽지 않는다(크기라 초가 아니다)."""
+    body = line.split(TIMING_HEAD, 1)[1] if TIMING_HEAD in line else line
+    out: Dict[str, float] = {}
+    for chunk in body.split(" · "):
+        m = re.fullmatch(r"(.+?) ([\d,]+\.\d)초", chunk.strip())
+        if m:
+            out[m.group(1)] = float(m.group(2).replace(",", ""))
+    return out
 
 
 # ==================================================
@@ -432,8 +507,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.parse_args(argv)
 
     conn = db.connect()
+    wal_before = wal_bytes(conn)
+    timings: Dict[str, float] = {}
+    cpu0 = time.process_time()
     print("수정주가 다시 계산 중 …")
-    t = rebuild(conn, verbose=True)
+    t = rebuild(conn, verbose=True, timings=timings)
     print(f"  종목 {t['codes']:,} · 행 {t['rows']:,} · 조정 이벤트 {t['events']:,}")
     print(f"    분할·병합(두 신호 일치) {t[EV_SPLIT]:,} · "
           f"권리락(주식수 불변) {t[EV_RIGHTS]:,} · "
@@ -441,8 +519,12 @@ def main(argv: Optional[List[str]] = None) -> int:
           f"⚠️ 확인 필요 {t[EV_REVIEW]:,}"
           + (f" · ⚠️ 상식 밖 {t['suspect']:,}" if t["suspect"] else "")
           + (f" · 상식 밖이지만 주식 수로 뒷받침 {t['suspect_backed']:,}" if t["suspect_backed"] else ""))
+    a = time.perf_counter()
     d = delisted(conn)
+    timings["delisted"] = time.perf_counter() - a
+    timings["cpu"] = time.process_time() - cpu0
     print(f"  최근 기준일에 없는 종목 {len(d):,} (지우지 않는다 — 생존 편향)")
+    print(timing_line(timings, wal_before, wal_bytes(conn)))
     conn.close()
     return 0
 

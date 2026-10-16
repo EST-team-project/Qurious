@@ -256,3 +256,7 @@ API-MCMP-01	GET	/api/model-compare	S113	사용
 API-MCMP-02	GET	/api/model-compare/choices	S113	사용
 API-MCMP-03	POST	/api/model-compare/jobs	S113	사용
 API-MCMP-04	GET	/api/model-compare/jobs/{job_id}	S113	사용
+API-PAPR-41	POST	/api/paper/stocks/orders/stop	S118	사용
+API-PAPR-42	GET	/api/paper/stocks/orders/stop	S118	사용
+API-PAPR-43	DELETE	/api/paper/stocks/orders/stop/{order_id}	S118	사용
+API-PAPR-44	POST	/api/paper/stocks/orders/stop/check	S118	사용
