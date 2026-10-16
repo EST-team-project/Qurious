@@ -13,6 +13,7 @@ import pytest
 
 from app.routes import stocks
 from app.services import mtf_signals as ms
+from app.services import opinion
 from app.services import pattern_stats as ps
 from app.services import pattern_view as pv
 from app.services import signal_explain as se
@@ -201,6 +202,18 @@ def test_wording_has_no_forbidden_words():
 
 # ── 라우트 ────────────────────────────────────────────────────────────────
 
+USER = {"id": "00000000-0000-0000-0000-000000000001"}
+
+
+class _NoDb:
+    """닿지 않는 앱 DB — 장부 · 위험 관문 조회가 연결 오류로 끝난다."""
+    async def execute(self, *args, **kw):
+        raise ConnectionRefusedError("app db unreachable")
+
+
+NO_DB = _NoDb()
+
+
 def test_mtf_route_uses_record_whenever_it_exists_else_live(monkeypatch):
     """기록(T2)이 있으면 날짜와 상관없이 그 기록(`as_of` 로 날짜를 보임) · 없으면 그 자리 계산(#153 B4)."""
     b = _bars(seed=13)
@@ -218,19 +231,19 @@ def test_mtf_route_uses_record_whenever_it_exists_else_live(monkeypatch):
 
     monkeypatch.setattr(se, "load_snapshot", load)
     monkeypatch.setattr("app.services.patterns.multi_timeframe_signal", fake_live)
-    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=None, _user=None))
+    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=NO_DB, user=USER))
     assert r["source"] == "record" and r["as_of"] == snap["as_of"].isoformat() and not live_calls
     old = dict(snap, as_of=date(2025, 1, 2))           # 오래된 기록이어도 기록을 쓴다
     found["row"] = old
-    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=None, _user=None))
+    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=NO_DB, user=USER))
     assert r["source"] == "record" and r["as_of"] == "2025-01-02" and not live_calls
     found["row"] = None
-    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=None, _user=None))
+    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=NO_DB, user=USER))
     assert r["source"] == "live" and live_calls == ["TEST01"] and r["label"] == "관망"
 
 
 def test_mtf_route_survives_missing_t2(monkeypatch):
-    """앱 DB 에 T2 가 없거나 닿지 않아도 그 자리 계산으로 돈다."""
+    """앱 DB 가 닿지 않아 T2 · 장부 둘 다 못 읽어도 그 자리 계산으로 신호가 나온다 — 보유는 미보유로 본다(#194)."""
     async def broken(db, symbol, on=None):
         raise RuntimeError("relation signal_snapshots does not exist")
 
@@ -239,8 +252,24 @@ def test_mtf_route_survives_missing_t2(monkeypatch):
 
     monkeypatch.setattr(se, "load_snapshot", broken)
     monkeypatch.setattr("app.services.patterns.multi_timeframe_signal", fake_live)
-    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=None, _user=None))
+    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=NO_DB, user=USER))
     assert r["source"] == "live" and r["signal"] == "관망"
+    assert r["held"] is False and r["opinion"] == "관망"
+
+
+def test_mtf_route_gives_signal_without_ledger(monkeypatch):
+    """T2 는 읽히고 장부만 닿지 않아도 기록 신호가 그대로 나온다 — 보유는 미보유로 보고 의견을 낸다(#194)."""
+    b = _bars(seed=13)
+    snap = ms.signal_at(b, b.daily[-1]["trade_date"])
+
+    async def load(db, symbol, on=None):
+        return snap
+
+    monkeypatch.setattr(se, "load_snapshot", load)
+    r = asyncio.run(stocks.stock_mtf_signal(symbol="TEST01", db=NO_DB, user=USER))
+    assert r["source"] == "record" and r["signal"] == snap["signal"]
+    assert r["held"] is False and r["risk_gate"] is False
+    assert (r["opinion"], r["opinion_rule"]) == opinion.decide(snap["signal"], float(snap["confidence"]), held=False)
 
 
 def test_patterns_route_survives_stats_error(monkeypatch):
