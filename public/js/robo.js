@@ -506,7 +506,7 @@ function renderMtf(mtf, symbol, pat, auto) {
   const opCls = opinion === "매수" ? "badge-buy" : opinion === "매도" ? "badge-sell" : "badge-hold";
   const heldMark = mtf.held ? " · 보유 중" : "";
   const opBadge = opinion
-    ? `<span class="${opCls}" style="font-size:14px;" title="규칙: ${escHtml(opRule)}">의견: ${escHtml(opinion)}${heldMark}</span>`
+    ? `<span class="${opCls}" style="font-size:14px;" title="규칙: ${escHtml(opRule)}">규칙 판단: ${escHtml(opinion)}${heldMark}</span>`
     : "";
   const ex = mtf.explanation || {};
   // 가격 수준은 패턴 응답의 일봉(차트와 같은 날) — 기록 신호와 날짜가 다를 수 있어 날짜를 붙인다
@@ -730,7 +730,7 @@ async function _loadRationaleExplain(symbol, node) {
     if (r.opinion) {
       const opCls = r.opinion === "매수" ? "badge-buy" : r.opinion === "매도" ? "badge-sell" : "badge-hold";
       const heldMark = r.held ? " · 보유 중" : "";
-      lines.push(`<div style="margin-top:4px;"><span class="${opCls}" title="규칙: ${escHtml(r.opinion_rule || "")}">의견: ${escHtml(r.opinion)}${heldMark}</span></div>`);
+      lines.push(`<div style="margin-top:4px;"><span class="${opCls}" title="규칙: ${escHtml(r.opinion_rule || "")}">규칙 판단: ${escHtml(r.opinion)}${heldMark}</span></div>`);
     }
 
     // (3) 위험 관문 경고 (P02-⑤-2)

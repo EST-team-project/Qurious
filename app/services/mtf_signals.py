@@ -187,15 +187,31 @@ def trading_days(start: str, end: str, *, path: Path | None = None) -> list[str]
 # ── 기록 ──────────────────────────────────────────────────────────────────
 
 async def write_snapshots(session, records: list[dict]) -> int:
-    """T2 에 쓴다 — 같은 (as_of · symbol · definition) 은 다시 계산한 값으로 바꾸고, 다른 판의 줄은 건드리지 않는다."""
+    """T2 에 쓴다 — 같은 (as_of · symbol · definition) 은 다시 계산한 값으로 바꾸고, 다른 판의 줄은 건드리지 않는다.
+
+    opinion · opinion_rule 도 함께 채운다 (P01-④-2 · 이슈 #199).
+    배치 시점엔 사용자별 보유 여부를 모르므로 **미보유 가정(held=False)** 으로 계산한다.
+    → 매도 신호는 관망(skip_neutral) 로 저장됨.
+    화면(/api/stocks/mtf-signal)은 여전히 요청마다 사용자별로 다시 계산 — 저장값은 과거 의견 조회 · 종목 허브용.
+    """
     if not records:
         return 0
     from sqlalchemy.dialects.postgresql import insert
 
     from app.models.signal import SignalSnapshot
+    from app.services import opinion as opinion_svc
 
     now = datetime.now(timezone.utc)
-    rows = [{**r, "computed_at": now} for r in records]
+    rows = []
+    for r in records:
+        op, op_rule = opinion_svc.decide(
+            r.get("signal") or "관망",
+            float(r.get("confidence") or 0.0),
+            held=False,
+            risk_gate=False,
+        )
+        rows.append({**r, "opinion": op, "opinion_rule": op_rule, "computed_at": now})
+
     stmt = insert(SignalSnapshot).values(rows)
     keys = ("as_of", "symbol", "definition")
     stmt = stmt.on_conflict_do_update(index_elements=list(keys),
