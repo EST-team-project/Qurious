@@ -618,7 +618,7 @@
               <p class="text-sm text-slate-400 mb-4">
                 대표 5종목의 근 10년 데이터 기반 퀀트 지표를 조회합니다.
               </p>
-              <div class="flex gap-2 mb-4">
+              <div class="flex flex-wrap gap-2 mb-4">
                 <select id="bt-symbol" class="input w-44">
                   <option value="005930.KS">삼성전자</option>
                   <option value="000660.KS">SK하이닉스</option>
@@ -627,6 +627,13 @@
                   <option value="051910.KS">LG화학</option>
                 </select>
                 <button id="bt-load" class="btn-primary">분석</button>
+
+                <!-- B3 · 체결 시점 선택 + 파이프라인 백테스트 -->
+                <select id="bt-entry-mode" class="input w-32" title="체결 시점">
+                  <option value="close" selected>종가 (기본)</option>
+                  <option value="open">시가 (TradingView)</option>
+                </select>
+                <button id="bt-pipeline-run" class="btn-secondary">전략 백테스트</button>
               </div>
               <div id="bt-result" class="text-sm space-y-3"></div>
               <div id="bt-compare-tray"></div>
