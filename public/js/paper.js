@@ -804,6 +804,12 @@ async function loadPaperPerformance() {
     }
 
     const m = data.metrics || {};
+    if (m.reason) {
+      cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--text-mute);padding:20px;">📊 ${escHtml(m.reason)}</div>`;
+      if (chartEl) chartEl.innerHTML = "";
+      if (tableEl) tableEl.innerHTML = "";
+      return;
+    }
     const pct = (v) => v == null ? "-" : (v * 100).toFixed(2) + "%";
     const num = (v) => v == null ? "-" : Number(v).toFixed(3);
     const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";

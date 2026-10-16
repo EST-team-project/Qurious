@@ -676,6 +676,11 @@ async function _loadRationaleExplain(symbol, node) {
       const heldMark = r.held ? " · 보유 중" : "";
       lines.push(`<div style="margin-top:4px;"><span class="${opCls}" title="규칙: ${escHtml(r.opinion_rule || "")}">의견: ${escHtml(r.opinion)}${heldMark}</span></div>`);
     }
+    // 위험 관문 경고 (P02-⑤-2 연계)
+    if (r.risk_gate) {
+      lines.push(`<div style="margin-top:4px;"><span class="badge-sell">⚠️ 위험 관문 — 매도 강제</span> <span style="color:var(--text-mute);font-size:11px;">킬 스위치 또는 당일 손실 한도 초과</span></div>`);
+    }
+
     const meta = [];
     if (ex.confidence_text) meta.push(escHtml(ex.confidence_text));
     if (r.as_of) meta.push("기준일 " + escHtml(r.as_of));
@@ -758,6 +763,12 @@ async function loadRoboPerformanceMetrics() {
     }
 
     const m = data.metrics || {};
+    if (m.reason) {
+      cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--text-mute);padding:20px;">📊 ${escHtml(m.reason)}</div>`;
+      if (chartEl) chartEl.innerHTML = "";
+      if (tableEl) tableEl.innerHTML = "";
+      return;
+    }
     const pct = (v) => v == null ? "-" : (v * 100).toFixed(2) + "%";
     const num = (v) => v == null ? "-" : Number(v).toFixed(3);
     const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";

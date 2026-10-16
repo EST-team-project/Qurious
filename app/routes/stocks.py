@@ -880,10 +880,12 @@ async def stock_mtf_signal(symbol: str = Query("005930.KS"),
 
     매일 기록(T2)이 있으면 그 줄을(기록 날짜 `as_of` 와 함께), 없으면 그 자리에서 계산한다 — 둘 다 같은 설명.
     응답에 사용자별 의견(opinion · opinion_rule)을 실어 준다 (P01-④-2).
+    위험 관문(킬 스위치 또는 당일 손실 한도 초과)이 걸리면 opinion 이 매도를 강제한다.
     """
     from sqlalchemy import select
     from app.models import Portfolio, PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT
-    from app.services import opinion as opinion_svc, pattern_view, signal_explain
+    from app.services import opinion as opinion_svc, pattern_view, risk_guard, signal_explain
+    from app.services.paper_trading import account_snapshot
     from app.services.patterns import multi_timeframe_signal
 
     try:
@@ -901,28 +903,50 @@ async def stock_mtf_signal(symbol: str = Query("005930.KS"),
         t2_signal = payload.get("signal") or live.get("action")
         t2_confidence = float(payload.get("confidence") or 0.0)
 
-    # 사용자 보유 여부 — 정규화 심볼 (005930.KS → 005930)
+    # 사용자 보유 여부
     uid = _uid(user["id"])
-    norm = symbol.replace(".KS", "").replace(".KQ", "").upper()
     held = False
     if uid:
         q = select(Portfolio).where(
             Portfolio.user_id == uid,
-            Portfolio.symbol == symbol,   # 장부는 .KS 포함 저장 (확인 필요)
+            Portfolio.symbol == symbol,
             Portfolio.book.in_([PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT]),
         )
         rows = (await db.execute(q)).scalars().all()
         held = any((r.quantity or 0) > 0 for r in rows)
 
-    op, op_rule = opinion_svc.decide(t2_signal, t2_confidence, held=held)
+    # 위험 관문 — 킬 스위치 또는 당일 손실 한도 초과 (P02-⑤-2 연계)
+    risk_gate = False
+    if uid:
+        try:
+            row = await _get_broker_settings_row(db, uid)
+            limits = risk_guard.RiskLimits.from_row(row)
+            if limits.kill_switch:
+                risk_gate = True
+            else:
+                snap = await account_snapshot(db, uid)
+                current_equity = float(snap.get("totalAsset") or 0)
+                if current_equity > 0:
+                    start = await risk_guard.day_start_equity(str(uid), current_equity)
+                    if start and risk_guard.daily_loss_breached(
+                        start, current_equity, limits.daily_loss_limit_pct
+                    ):
+                        risk_gate = True
+        except Exception:
+            # 위험 관문 계산 실패는 opinion 기본값으로 (요청 자체를 막지 않음)
+            pass
+
+    op, op_rule = opinion_svc.decide(t2_signal, t2_confidence, held=held, risk_gate=risk_gate)
     return {
         "symbol": symbol,
         **payload,
         "opinion": op,
         "opinion_rule": op_rule,
         "held": held,
+        "risk_gate": risk_gate,
     }
 
+    
 # ── 자동매매 제어 ─────────────────────────────────────────────────────
 
 @router.post("/auto-trade/start")

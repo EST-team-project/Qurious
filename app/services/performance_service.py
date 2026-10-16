@@ -94,6 +94,42 @@ async def get_robo_metrics(
         sterling_top_k=sterling_top_k,
     )
 
+    # 이상값 방지 — 기록 부족 · 변동성 극소면 지표를 숨긴다 (이슈 #220)
+    MIN_SNAPSHOTS = 20          # 최소 20일 (약 한 달)
+    MIN_STD_DEV = 0.005         # 일간 표준편차 0.5% 이상
+
+    n = len(returns)
+    std_dev_daily = float(np.std(returns, ddof=1)) if n >= 2 else 0.0
+    too_short = n < MIN_SNAPSHOTS
+    too_flat = std_dev_daily < MIN_STD_DEV
+
+    def _safe(v, cap=100.0):
+        """극단값은 None — |v| > cap 이면 뜻이 없음."""
+        if v is None or not np.isfinite(v):
+            return None
+        return None if abs(v) > cap else float(v)
+
+    if too_short or too_flat:
+        # 스냅샷 부족 or 변동성 극소 → 지표 숨김
+        metrics_out = {k: None for k in (
+            "mdd", "sharpe_ratio", "sortino_ratio",
+            "sterling_ratio", "calmar_ratio", "dsr",
+        )}
+        metrics_out["reason"] = (
+            f"아직 판단할 만큼 기록이 없습니다 "
+            f"(스냅샷 {n}개 · 일변동성 {std_dev_daily*100:.2f}%) — "
+            f"모의 주문을 더 해 보세요."
+        )
+    else:
+        metrics_out = {
+            "mdd": _clean(metrics["MDD"]),
+            "sharpe_ratio": _safe(metrics["Sharpe Ratio"], cap=10.0),
+            "sortino_ratio": _safe(metrics["Sortino Ratio"], cap=10.0),
+            "sterling_ratio": _safe(metrics["Sterling Ratio"], cap=20.0),
+            "calmar_ratio": _safe(metrics["Calmar Ratio"], cap=20.0),
+            "dsr": _clean(metrics["Deflated Sharpe Ratio"]),
+        }
+
     # 누적 수익률 (첫 스냅샷 대비)
     total_return = float(equity[-1] / equity[0] - 1) if len(equity) > 0 else 0.0
 
@@ -108,14 +144,7 @@ async def get_robo_metrics(
         "status": "ok",
         "snapshot_count": len(equity),
         "total_return": _clean(total_return),
-        "metrics": {
-            "mdd": _clean(metrics["MDD"]),
-            "sharpe_ratio": _clean(metrics["Sharpe Ratio"]),
-            "sortino_ratio": _clean(metrics["Sortino Ratio"]),
-            "sterling_ratio": _clean(metrics["Sterling Ratio"]),
-            "calmar_ratio": _clean(metrics["Calmar Ratio"]),
-            "dsr": _clean(metrics["Deflated Sharpe Ratio"]),
-        },
+        "metrics": metrics_out,          # ← 여기
         "equity_curve": [_clean(v) for v in equity.tolist()],
         "drawdown_curve": [_clean(v) for v in drawdown_curve],
         "snap_dates": snap_dates,

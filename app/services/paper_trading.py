@@ -326,8 +326,16 @@ async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled
 
 
 async def stock_order_history(db: AsyncSession, user_id: uuid.UUID, limit: int = 50) -> list[dict]:
+    """모의투자 화면(paper-stock) 주문 내역 — QUANT(자동매매) 장부는 제외.
+
+    자동매매 주문은 paper_accounts(모의투자 1억)와 별개인 quant_virtual_accounts(자동매매 1천만)
+    장부에 들어가므로, 이 화면의 보유·현금과 어긋난다 (이슈 #219).
+    """
     rows = (await db.execute(
-        select(Order).where(Order.user_id == user_id).order_by(Order.created_at.desc()).limit(limit)
+        select(Order).where(
+            Order.user_id == user_id,
+            Order.source.in_(("WEB", "PAPER", "PINE")),   # ← QUANT·OPENAPI 제외
+        ).order_by(Order.created_at.desc()).limit(limit)
     )).scalars().all()
     out = []
     for o in rows:
