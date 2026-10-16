@@ -33,7 +33,7 @@ async function loadMarketCards() {
         <div class="${cls} text-xs">${sign}${pct?.toFixed(2) ?? "-"}%</div>
       </div>`;
     }).join("");
-  } catch {}
+  } catch { }
 }
 
 async function loadSignalCards() {
@@ -49,11 +49,13 @@ async function loadSignalCards() {
       const sig = r?.signal || {};
       const price = r?.current_price;
       const rsiV = r?.current_rsi;
-      const colorMap = { "강력 매수": "border-emerald-500/50 bg-emerald-500/10",
+      const colorMap = {
+        "강력 매수": "border-emerald-500/50 bg-emerald-500/10",
         "매수": "border-emerald-500/30 bg-emerald-500/5",
         "강력 매도": "border-red-500/50 bg-red-500/10",
         "매도": "border-red-500/30 bg-red-500/5",
-        "관망": "border-white/10 bg-white/5" };
+        "관망": "border-white/10 bg-white/5"
+      };
       const cls = colorMap[sig.action] || "border-white/10 bg-white/5";
       return `<div class="rounded-xl border p-2 ${cls}">
         <div class="font-semibold">${escHtml(s.name)}</div>
@@ -83,13 +85,15 @@ async function loadQuantChart() {
     const mapS = (arr) => arr.map((v, i) => [toMs(times[i]), v != null ? +v.toFixed(2) : null]).filter(p => p[1] != null);
 
     quantChartInstance = new ApexCharts(container, {
-      chart: { type: "line", height: 380, background: "#fff", toolbar: { show: true },
-               animations: { enabled: false }, fontFamily: "Pretendard, sans-serif",
-               zoom: { enabled: true } },
+      chart: {
+        type: "line", height: 380, background: "#fff", toolbar: { show: true },
+        animations: { enabled: false }, fontFamily: "Pretendard, sans-serif",
+        zoom: { enabled: true }
+      },
       series: [
-        { name: "종가",   data: mapS(data.closes)   },
-        { name: "MA20",   data: mapS(data.ma20 || []) },
-        { name: "MA60",   data: mapS(data.ma60 || []) },
+        { name: "종가", data: mapS(data.closes) },
+        { name: "MA20", data: mapS(data.ma20 || []) },
+        { name: "MA60", data: mapS(data.ma60 || []) },
         { name: "BB 상단", data: mapS(data.bb_upper || []) },
         { name: "BB 하단", data: mapS(data.bb_lower || []) },
       ],
@@ -118,23 +122,28 @@ async function loadAutoTradeStatus() {
     document.getElementById("auto-trade-status").textContent =
       (s.running ? "🟢 실행 중" : "⭕ 정지") + (s.scheduler ? ` · ${s.scheduler}` : "") + (s.last_cycle_at ? ` · 마지막 사이클 ${s.last_cycle_at} UTC` : "");
     const el = document.getElementById("auto-trade-log");
-    if (!s.log?.length) { el.innerHTML = "<div class='text-slate-400'>자동매매 로그가 없습니다.</div>"; return; }
+    if (!s.log?.length) {
+      el.innerHTML = `<div style="color:var(--text-mute);">자동매매 로그가 없습니다.</div>`;
+      return;
+    }
     el.innerHTML = [...s.log].reverse().map(cycle => {
       const trades = (cycle.trades || []).map(t =>
         t.type === "risk" || t.status === "skipped"
-          ? `<div class="ml-3 text-amber-400">⚠️ ${t.action === "buy" ? "매수" : "매도"} 생략 ${escHtml(t.name)} — ${escHtml(t.reason || "")}</div>`
-          : `<div class="ml-3 text-slate-300">${t.action === "buy" ? "🟢매수" : "🔴매도"} ${escHtml(t.name)} ${fmt(t.quantity)}주 @${fmt(t.price)}</div>`
+          ? `<div class="ml-3" style="color:var(--amber);font-weight:500;">⚠️ ${t.action === "buy" ? "매수" : "매도"} 생략 ${escHtml(t.name)} — ${escHtml(t.reason || "")}</div>`
+          : `<div class="ml-3" style="color:var(--text);"><b style="color:${t.action === "buy" ? "var(--green)" : "var(--red)"};">${t.action === "buy" ? "🟢 매수" : "🔴 매도"}</b> ${escHtml(t.name)} ${fmt(t.quantity)}주 @${fmt(t.price)}</div>`
       ).join("");
-      const risk = cycle.risk ? `<div class="ml-3 text-slate-500">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span class="text-red-400">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>` : "";
+      const risk = cycle.risk
+        ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
+        : "";
       const sigs = (cycle.signals || []).map(sig =>
-        `<div class="ml-3 text-slate-500">${escHtml(sig.name||sig.symbol)}: ${escHtml(_displayAction(sig.action))} (점수:${sig.score??"-"})</div>`
+        `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(_displayAction(sig.action))}</b> (점수:${sig.score ?? "-"})</div>`
       ).join("");
-      return `<div class="rounded-xl border border-white/10 bg-black/20 p-2 mb-1">
-        <div class="font-semibold text-indigo-300">${escHtml(cycle.time)}${cycle.note ? ` <span class="text-red-400 font-normal">· ${escHtml(cycle.note)}</span>` : ""}</div>
-        ${risk}${sigs}${trades ? '<div class="mt-1 font-medium text-xs">체결/생략:</div>' + trades : ""}
+      return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
+        <div class="font-semibold" style="color:var(--accent);">${escHtml(cycle.time)}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
+        ${risk}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">체결 / 생략:</div>` + trades : ""}
       </div>`;
     }).join("");
-  } catch {}
+  } catch { }
 }
 
 async function loadRiskStatus() {
@@ -156,7 +165,7 @@ async function loadRiskStatus() {
     const g = r.execution_guidance;
     document.getElementById("risk-execution-detail").textContent = g
       ? `서버가 ${g.cycle_seconds}초 간격으로 판단합니다. 작업 지연·중단 시 더 늦어질 수 있습니다. 증권사 상주 감시 주문이 아니며, 판단 사이의 가격 변동이나 손절가 체결을 보장하지 않습니다. `
-        + (g.cancel_open_after_min > 0 ? `게이트웨이 주문은 ${g.cancel_open_after_min}분 이상 미체결이면 취소를 요청합니다.` : "시간 경과에 따른 미체결 자동 취소는 꺼져 있습니다.")
+      + (g.cancel_open_after_min > 0 ? `게이트웨이 주문은 ${g.cancel_open_after_min}분 이상 미체결이면 취소를 요청합니다.` : "시간 경과에 따른 미체결 자동 취소는 꺼져 있습니다.")
       : "실행 주기와 비용 가정을 불러오지 못했습니다.";
     const example = g?.cost_example;
     document.getElementById("risk-cost-example").innerHTML = example ? `
@@ -220,9 +229,9 @@ document.getElementById("bt-load").addEventListener("click", async () => {
         </div>
         <div class="mt-3 text-xs text-slate-400">${(sig.reasons || []).map(r => "• " + escHtml(r)).join("<br>")}</div>
         <button type="button" class="btn-secondary text-xs mt-3" onclick='compareTrayAdd(${JSON.stringify({
-          source: "퀀트 전략 분석", label: symbol,
-          summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 시그널 ${_displayAction(sig.action)} (점수 ${sig.score ?? "-"})`,
-        }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
+      source: "퀀트 전략 분석", label: symbol,
+      summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 시그널 ${_displayAction(sig.action)} (점수 ${sig.score ?? "-"})`,
+    }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
       </div>
     `;
     renderCompareTrayAll();
