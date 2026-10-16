@@ -663,23 +663,31 @@ function renderRoboRationale(signals) {
 
 async function _loadRationaleExplain(symbol, node) {
   try {
-    const r = await api("/api/explain?kind=signal&symbol=" + encodeURIComponent(symbol));
+    // P01-④-2 — explanation + opinion + signal 한 번에
+    const r = await api("/api/stocks/mtf-signal?symbol=" + encodeURIComponent(symbol));
+    const ex = r.explanation || {};
     const lines = [];
-    if (r && r.summary) {
-      lines.push(`<div style="color:var(--text);">${escHtml(r.summary)}</div>`);
+    if (ex.summary) {
+      lines.push(`<div style="color:var(--text);">${escHtml(ex.summary)}</div>`);
+    }
+    // 의견 배지 (P01-④-2)
+    if (r.opinion) {
+      const opCls = r.opinion === "매수" ? "badge-buy" : r.opinion === "매도" ? "badge-sell" : "badge-hold";
+      const heldMark = r.held ? " · 보유 중" : "";
+      lines.push(`<div style="margin-top:4px;"><span class="${opCls}" title="규칙: ${escHtml(r.opinion_rule || "")}">의견: ${escHtml(r.opinion)}${heldMark}</span></div>`);
     }
     const meta = [];
-    if (r && r.confidence_text) meta.push(escHtml(r.confidence_text));
-    if (r && r.as_of) meta.push("기준일 " + escHtml(r.as_of));
-    if (r && r.definition) meta.push("규칙 " + escHtml(r.definition));
+    if (ex.confidence_text) meta.push(escHtml(ex.confidence_text));
+    if (r.as_of) meta.push("기준일 " + escHtml(r.as_of));
+    if (r.definition) meta.push("규칙 " + escHtml(r.definition));
     meta.push("교육용 모의 · 권유 아님");
     if (meta.length) {
       lines.push(`<div style="color:var(--text-mute);margin-top:4px;">${meta.join(" · ")}</div>`);
     }
     node.innerHTML = lines.join("") || `<span style="color:var(--text-mute);">설명이 비어 있습니다.</span>`;
 
-    // ★ 헤더 배지를 T2 신호로 통일 (자동매매 신호와 다를 수 있음)
-    if (r && r.signal) {
+    // 헤더 배지를 T2 신호로 통일
+    if (r.signal) {
       const t2Cls = r.signal === "매수" ? "badge-buy" : r.signal === "매도" ? "badge-sell" : "badge-hold";
       const card = node.closest(".card");
       if (card) {
@@ -693,10 +701,8 @@ async function _loadRationaleExplain(symbol, node) {
   } catch (e) {
     const msg = String((e && e.message) || "");
     const isNotFound =
-      msg.includes("404") ||
-      msg.includes("없음") ||
-      msg.includes("신호 기록 없음") ||
-      (e && e.status === 404);
+      msg.includes("404") || msg.includes("없음") ||
+      msg.includes("신호 기록 없음") || (e && e.status === 404);
     node.innerHTML = `<span style="color:var(--text-mute);">${
       isNotFound
         ? "이 종목은 매일 기록된 신호(T2)가 아직 없습니다."
