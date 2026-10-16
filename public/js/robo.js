@@ -770,11 +770,13 @@ async function _loadRationaleExplain(symbol, node) {
   }
 }
 
-document.getElementById("robo-decision-start").addEventListener("click", async () => {
-  try { await api("/api/quant/auto/start", { method: "POST" }); setToast("AI 의사결정 시작됨", "ok"); loadRoboDecision(); } catch (e) { setToast(e.message, "error"); }
-});
-document.getElementById("robo-decision-stop").addEventListener("click", async () => {
-  try { await api("/api/quant/auto/stop", { method: "POST" }); setToast("중지됨", "ok"); loadRoboDecision(); } catch (e) { setToast(e.message, "error"); }
+// #231 — 의사결정 화면 스위치 제거. 자동매매 현황(오준영 님) 한 곳에서만 켜고 끈다.
+// 여기는 판단 · 근거 · 성과 보기 전용. 링크로 이동만 안내.
+document.getElementById("robo-decision-goto-auto")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  // 퀀트자동매매 GNB 클릭 → 자동매매 현황 뷰로 이동
+  const gnb = document.querySelector('[data-gnb="quant"]');
+  if (gnb) gnb.click();
 });
 document.getElementById("robo-decision-refresh").addEventListener("click", loadRoboDecision);
 
