@@ -1,7 +1,4 @@
-/* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직.
- * stock-coin-trade(frontend/js/order.js, hold_crypto.js, alternatives.js, api-keys.js, alpaca-test.js)와
- * domain-rag-lab(frontend/app.js의 backtest 워크플로우)을 lumina-invest SPA(app.html)로 이식한 모듈.
- * app.html의 메인 모듈에서 initPaperViews() / onPaperViewActivated(view) 로 연결한다. */
+/* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
 
 const $ = (id) => document.getElementById(id);
@@ -70,6 +67,7 @@ async function resetPaperAccount() {
 async function loadPaperStock() {
   loadStockPositions();
   loadStockHistory();
+  loadStopOrders();          // ★ B5 스탑 주문 목록
   try {
     const a = await api("/api/paper/account");
     $("ps-cash").textContent = won(a.cash);
@@ -154,11 +152,8 @@ async function loadStockHistory() {
       </tr></thead>
       <tbody>${history.length ? history.map(o => {
       const isBuy = (o.type || "").toUpperCase() === "BUY";
-      // 수수료 = 위탁수수료 + 유관기관 제비용 (매수·매도 양쪽)
       const fee = (o.commission || 0) + (o.fee_clearing || 0);
-      // 세금 = 증권거래세 + 농어촌특별세 (매도만)
       const tax = (o.tax_transfer || 0) + (o.tax_rural || 0);
-      // 순정산액: 응답에 없으면 거래금액으로 폴백 (옛 주문)
       const net = o.net_amount != null ? o.net_amount : o.amount;
       const sign = isBuy ? "−" : "+";
       const netColor = isBuy ? "var(--red)" : "var(--green)";
@@ -183,13 +178,88 @@ async function loadStockHistory() {
 }
 
 /* ────────────────────────────────────────────────────────────────
+ * B5 · 스탑(감시) 주문 (paper-stock)
+ * ──────────────────────────────────────────────────────────────── */
+async function loadStopOrders() {
+  const el = $("ps-stop-list");
+  if (!el) return;
+  try {
+    const { orders } = await api("/api/paper/stocks/orders/stop");
+    if (!orders.length) {
+      el.innerHTML = `<div class="text-xs" style="color:var(--text-mute);">대기 중인 스탑 주문이 없습니다.</div>`;
+      return;
+    }
+    el.innerHTML = `<table><thead><tr>
+      <th>등록 시각</th><th>매매</th><th>종목</th>
+      <th style="text-align:right">수량</th>
+      <th style="text-align:right">스탑가</th>
+      <th></th></tr></thead><tbody>${
+      orders.map(o => `<tr>
+        <td class="text-xs">${escHtml((o.created_at || "").slice(0, 19).replace("T", " "))}</td>
+        <td>${sideBadge(o.side)}</td>
+        <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span></td>
+        <td style="text-align:right">${fmt(o.quantity)}</td>
+        <td style="text-align:right">${won(o.stop_price)}</td>
+        <td style="text-align:right"><button class="btn-secondary text-xs ps-stop-cancel" data-id="${escHtml(o.order_id)}">취소</button></td>
+      </tr>`).join("")}</tbody></table>`;
+    el.querySelectorAll(".ps-stop-cancel").forEach(b => b.addEventListener("click", () => cancelStopOrder(b.dataset.id)));
+  } catch (e) {
+    el.innerHTML = `<div class="text-xs text-red-500">${escHtml(e.message)}</div>`;
+  }
+}
+
+async function stockStopQuote() {
+  const symbol = $("ps-stop-symbol").value.trim();
+  if (!symbol) return setToast("종목코드를 입력하세요.", "error");
+  $("ps-stop-quote").innerHTML = `<span style="color:var(--text-mute);">조회 중…</span>`;
+  try {
+    const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
+    const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
+    $("ps-stop-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
+      <div class="text-lg font-bold mt-1">${fmt(q.price, q.currency === "KRW" ? 0 : 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
+    // 자동으로 스탑가 input에 현재가 채우기 (편의)
+    if (!$("ps-stop-price").value && q.price) {
+      $("ps-stop-price").value = Math.round(q.price);
+    }
+    // 종목코드 정규화 (005930 → 005930.KS)
+    $("ps-stop-symbol").value = q.symbol;
+  } catch (e) { $("ps-stop-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+}
+
+async function placeStopOrder(side) {
+  const symbol = $("ps-stop-symbol").value.trim();
+  const quantity = parseInt($("ps-stop-qty").value);
+  const stop_price = parseFloat($("ps-stop-price").value);
+  if (!symbol || !quantity || !stop_price) return setToast("종목코드 · 수량 · 스탑가를 입력하세요.", "error");
+  try {
+    const r = await api("/api/paper/stocks/orders/stop", {
+      method: "POST",
+      body: { symbol, side, quantity, stop_price },
+    });
+    setToast(`${r.name} ${side === "BUY" ? "매수" : "매도"} 스탑 ${fmt(r.quantity)}주 @${won(r.stop_price)} 등록됨`, "ok");
+    $("ps-stop-symbol").value = "";
+    $("ps-stop-qty").value = "";
+    $("ps-stop-price").value = "";
+    loadStopOrders();
+  } catch (e) { setToast(e.message, "error"); }
+}
+
+async function cancelStopOrder(orderId) {
+  if (!confirm("이 스탑 주문을 취소할까요?")) return;
+  try {
+    await api(`/api/paper/stocks/orders/stop/${encodeURIComponent(orderId)}`, { method: "DELETE" });
+    setToast("스탑 주문을 취소했습니다.", "ok");
+    loadStopOrders();
+  } catch (e) { setToast(e.message, "error"); }
+}
+
+/* ────────────────────────────────────────────────────────────────
  * 3. 코인 모의매매 (Upbit KRW 마켓)
  * ──────────────────────────────────────────────────────────────── */
 async function loadPaperCrypto() {
   if (!cryptoMarkets.length) {
     try {
       const { markets } = await api("/api/paper/crypto/market-list");
-      // 주요 코인을 앞에 두고 기본 선택은 비트코인
       const major = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-SOL", "KRW-DOGE", "KRW-ADA", "KRW-USDT"];
       cryptoMarkets = [...markets].sort((a, b) => {
         const ia = major.indexOf(a.market), ib = major.indexOf(b.market);
@@ -607,6 +677,12 @@ export function initPaperViews() {
   on("ps-buy", "click", () => stockOrder("BUY"));
   on("ps-sell", "click", () => stockOrder("SELL"));
 
+  // ★ B5 스탑 주문 버튼 + 시세 조회
+  on("ps-stop-quote-btn", "click", stockStopQuote);
+  on("ps-stop-symbol", "keydown", e => { if (e.key === "Enter") stockStopQuote(); });
+  on("ps-stop-buy", "click", () => placeStopOrder("BUY"));
+  on("ps-stop-sell", "click", () => placeStopOrder("SELL"));
+
   on("pc-market", "change", cryptoTicker);
   on("pc-refresh", "click", cryptoTicker);
   on("pc-preview-buy", "click", () => cryptoPreview("BUY"));
@@ -628,7 +704,6 @@ export function initPaperViews() {
   on("ql-run", "click", runLeanBacktest);
 }
 
-
 export function onPaperViewActivated(view) {
   if (view === "paper-dashboard") {
     loadPaperDashboard();
@@ -641,7 +716,6 @@ export function onPaperViewActivated(view) {
   if (view === "paper-openapi") loadPaperOpenApi();
   if (view === "quant-lean") loadLeanView();
 }
-
 
 /* ═══════════════════════════════════════════════════════════
  * 자산 구성 도넛 (paper-dashboard)
@@ -753,7 +827,6 @@ async function loadPaperPerformance() {
         <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
       </div>`;
 
-    // Equity Curve
     if (chartEl && Array.isArray(data.equity_curve) && data.equity_curve.length > 1) {
       if (_pdEquityChart) { _pdEquityChart.destroy(); _pdEquityChart = null; }
 

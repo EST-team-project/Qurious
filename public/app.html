@@ -374,7 +374,10 @@
                 <span class="text-sm ml-auto" style="color:var(--text-mute);">보유 현금 <b id="ps-cash"
                     style="color:var(--text);">-</b></span>
               </div>
+
+              <!-- 상단 2열: 왼쪽 주문 입력 / 오른쪽 스탑 주문 -->
               <div class="grid md:grid-cols-2 gap-4 mb-4">
+                <!-- 왼쪽 · 주문 입력 -->
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">주문 입력</h3>
                   <div class="flex gap-2 mb-2">
@@ -394,12 +397,43 @@
                   <div class="text-xs mt-2" style="color:var(--text-mute);">* 체결가는 Yahoo Finance 현재가(지연)이며, 직접매매
                     포트폴리오·Open API 주문과 같은 잔고를 씁니다.</div>
                 </div>
-                <div id="ps-preview" class="text-sm"></div>
+
+                <!-- 오른쪽 · 스탑(감시) 주문 -->
+                <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <h3 class="font-semibold mb-3">🛑 스탑(감시) 주문</h3>
+                  <div class="flex gap-2 mb-2">
+                    <input id="ps-stop-symbol" class="input" placeholder="종목코드 (예: 005930)" />
+                    <button id="ps-stop-quote-btn" class="btn-secondary">시세 조회</button>
+                  </div>
+                  <div id="ps-stop-quote" class="text-sm mb-2 min-h-[24px]"></div>
+                  <div class="flex gap-2 mb-2">
+                    <input id="ps-stop-qty" class="input w-32" type="number" min="1" placeholder="수량" />
+                    <input id="ps-stop-price" class="input flex-1" type="number" min="1" placeholder="스탑가 (원)" />
+                  </div>
+                  <div class="flex gap-2 mb-2">
+                    <button id="ps-stop-buy" class="btn-green flex-1">매수 스탑 등록</button>
+                    <button id="ps-stop-sell" class="btn-red flex-1">매도 스탑 등록</button>
+                  </div>
+                  <div class="text-xs" style="color:var(--text-mute);">
+                    * 가격 도달 시 <b>시장가 주문</b> · <b>체결 보장 아님</b> · 갭이면 더 나쁜 가격 · 장 시간에만
+                  </div>
+                </div>
               </div>
+
+              <!-- 미리보기 결과 (전체 폭) -->
+              <div id="ps-preview" class="text-sm mb-4"></div>
+
+              <!-- 보유 종목 -->
               <h3 class="font-semibold mb-2 text-sm">보유 종목</h3>
               <div id="ps-positions" class="overflow-x-auto text-sm mb-4"></div>
+
+              <!-- 주문 내역 -->
               <h3 class="font-semibold mb-2 text-sm">주문 내역</h3>
-              <div id="ps-history" class="overflow-x-auto text-sm"></div>
+              <div id="ps-history" class="overflow-x-auto text-sm mb-4"></div>
+
+              <!-- 대기 중인 스탑 주문 -->
+              <h3 class="font-semibold mb-2 text-sm">🛑 대기 중인 스탑 주문</h3>
+              <div id="ps-stop-list" class="overflow-x-auto text-sm"></div>
             </div>
           </div>
 
