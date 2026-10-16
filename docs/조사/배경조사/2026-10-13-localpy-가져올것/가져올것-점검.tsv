@@ -1,0 +1,195 @@
+경로	강사님 상태	우리 판 상태	판정	까닭	영역	주담당	다음 할 일	확실도
+.env.example	M 바꿈	다름	일부	우리 판 유지 — 강사님 줄(서버 KIS 칸 · 배치 칸 · QUANT_CYCLE_SEC=180 · RECONCILE_ENABLED=true)을 복사하면 코드 기본값을 덮어써서 받지 않음(댓글 08 · 13 · TC-BM 「.env.example 이 우리 값을 덮어쓰지 않는다」). 내용은 출력하지 않고 줄 수만 셈 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 9/18 · b2 0/40]	설정 예시	공통	없음	높음
+.github/workflows/deploy.yml	M 바꿈	없음	안 받음	CI · 배포 워크플로는 09-21 에 걷어냄(ADR-0003 「CI 를 걷어내고 먼저 논의」) · 강사님 EC2 배포 · AWS 는 로컬 완성 뒤	배포 워크플로(강사님 EC2)	공통	없음	높음
+.github/workflows/test.yml	A 더함	없음	안 받음	ADR-0003 — CI 는 팀 논의 뒤 다시 세움(그때 참고)	CI 시험 워크플로	공통	없음	높음
+.gitignore	M 바꿈	다름	받음	같은 규칙(aws-work 시크릿)을 우리 주석으로 둠(84~85줄) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 1/2]	저장소 설정	공통	없음	높음
+alembic/versions/0003_rebalance.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0004_rebalance.py(리비전 줄 빼고 강사님 줄 61/61)	DB 마이그레이션	오준영	없음	높음
+alembic/versions/0004_risk_guard.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0005_risk_guard.py(리비전 줄 빼고 강사님 줄 16/16)	DB 마이그레이션	강민석	없음	높음
+alembic/versions/0005_tradingview.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0006_tradingview.py(리비전 줄 빼고 강사님 줄 40/40)	DB 마이그레이션	이동원	없음	높음
+alembic/versions/0006_portfolio_book.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0007_portfolio_book.py(리비전 줄 빼고 강사님 줄 15/15)	DB 마이그레이션	강민석	없음	높음
+alembic/versions/0007_quant_auto_flag.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0008_quant_auto_flag.py(리비전 줄 빼고 강사님 줄 9/9)	DB 마이그레이션	강민석	없음	높음
+alembic/versions/0008_formula_indicators.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0009_formula_indicators.py(리비전 줄 빼고 강사님 줄 46/46)	DB 마이그레이션	신장환	없음	높음
+alembic/versions/0009_live_orders.py	A 더함	없음	받음	번호를 바꿔 받음 → 우리 alembic/versions/0013_live_orders.py(리비전 줄 빼고 강사님 줄 38/38)	DB 마이그레이션	강민석	없음	높음
+app/celery_app.py	M 바꿈	다름	받음	태스크 등록은 우리 include 로 먼저 고침 · 리밸런싱 점검은 오준영 님의 「갱신 뒤 하루 1회」 예약으로 바뀜(1시간 주기 대신) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 10/16 · b2 11/11]	Celery 예약	공통	없음	높음
+app/config.py	M 바꿈	다름	일부	운용 값 넷의 값은 우리 것(설정 이름만 · 댓글 13 · 강민석 답 10-12) · 8624e81 의 KIS 차트 기다림 45초 · 지표 동시 조회 6 은 미반영(댓글 16 — 강민석 판단 · 지킴이 한 줄 제안) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 46/46 · b2 40/45 · b4 0/6]	서버 설정	공통	주담당 이슈	높음
+app/lib/jwt_auth.py	M 바꿈	다름	받음	같은 결함(폐기 키가 토큰 앞부분이라 모두 폐기)을 09-20 에 우리가 먼저 고침 — jti · sha256(header.payload) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 8/12]	JWT 폐기 목록	공통	없음	높음
+app/lib/llm_client.py	M 바꿈	다름	받음	강사님 줄은 모두 있음 · 우리 설정 칸을 더함 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 15/15]	LLM 호출	이동원	없음	높음
+app/lib/redis_cache.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	세션 · 캐시(Redis)	공통	없음	높음
+app/lib/session.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	로그인 세션(슬라이딩 만료)	공통	없음	높음
+app/main.py	M 바꿈	다름	받음	세션 확인 리다이렉트 · 슬라이딩 쿠키 미들웨어는 우리 꼴로 이미 있음(main.py 16 · 87 · 215~233줄) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 44/55 · b2 2/2]	앱 시작 · 미들웨어	공통	없음	높음
+app/models/__init__.py	M 바꿈	다름	받음	강사님 줄은 모두 있음 · 우리 모델을 더함 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 21/21]	모델 묶음	공통	없음	높음
+app/models/formula.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	산식 지표 저장(모델)	신장환	없음	높음
+app/models/rebalance.py	A 더함	다름	받음	09-30 에 받은 뒤(f31011c) 오준영 님이 리밸런싱을 다시 씀(예약 · 하루 점검) — 빠진 5줄은 그 고침 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 60/65]	리밸런싱(모델)	오준영	없음	중간
+app/models/trading.py	M 바꿈	다름	받음	강사님 줄 41/42 · import 한 줄만 꼴이 다름 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 40/41 · b2 1/1]	매매 · 위험 한도 칸(모델)	강민석	없음	높음
+app/models/tradingview.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	TradingView 연동(모델)	이동원	없음	높음
+app/routes/auth.py	M 바꿈	다름	받음	강사님 줄 20/21 — 주석 한 줄만 없음 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 20/21]	로그인 · 토큰(라우트)	공통	없음	높음
+app/routes/chat.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	AI 투자 상담 채팅(라우트)	이동원	없음	높음
+app/routes/dashboard.py	A 더함	다름	받음	사용자별 KIS 키 문구 · 화면 이름으로 고쳐 받음(댓글 08 · 09 · ADR-0004) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 110/119 · b2 9/9]	통합 대시보드(라우트)	강민석	없음	높음
+app/routes/formula.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	산식 → Pine v6 내보내기(라우트 · 3차 Pine 은 이동원)	신장환	없음	높음
+app/routes/health.py	M 바꿈	다름	받음	KIS 환경 표시만 실거래 관문을 지난 값으로 고침(댓글 13) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 10/11]	헬스 확인	공통	없음	높음
+app/routes/kis_monitor.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	KIS 모의투자결과(서버)	강민석	없음	높음
+app/routes/lean.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	LEAN 백테스트(라우트)	강민석	없음	높음
+app/routes/ml.py	M 바꿈	다름	받음	강사님 줄은 모두 있음 · 우리 고침 더함 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 40/40]	ML · 투자 성향(라우트)	이동원	없음	높음
+app/routes/openapi.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	외부 API(라우트)	공통	없음	높음
+app/routes/quant.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	퀀트(라우트)	강민석	없음	높음
+app/routes/rebalance.py	A 더함	다름	일부	09-30 판은 받고 오준영 님이 다시 씀 · e54b0d0(KIS 계좌 소스 · 섹터 2단 목표)는 B5 — 오준영 님 답 대기(#153 · 서버 계좌 하나 = ADR-0004 와 어긋남) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 81/94 · b2 0/9]	리밸런싱(라우트)	오준영	주담당 이슈	높음
+app/routes/stocks.py	M 바꿈	다름	일부	10-08 판(b3) 미반영 — 종목 검색 바깥 저장소(Q2 (a) 안 받음 · 「야후 400 → 빈 결과」 만 2단계) · /stocks/sectors(2단계) · 수동 KIS 주문 · 주문 가능 여부(B1 안 받음 · 강민석 답) · /quant/compare 와 규칙 설명(B2 — 신장환 PR 예정 · 비교 비용은 real) · 패턴 응답 refresh(B4 안 받음 · 신장환 답) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 192/199 · b2 52/52 · b3 0/87]	서버 · 라우트 여러 기능	공통	이동원 2단계	높음
+app/routes/tradingview.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	TradingView 연동(라우트)	이동원	없음	높음
+app/services/aggressive_mode.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	공격 모드 분봉 신호 · 판단 불가	강민석	없음	높음
+app/services/auto_trade.py	M 바꿈	다름	일부	b3 수동 KIS 주문 · NONE 신호는 B1 안 받음(강민석 답 10-12 · ADR-0004) · b4 8624e81 체결 확인 75초 예산 · 당일 주문 목록 1회는 미반영(댓글 16 — 강민석 판단) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 406/422 · b2 81/81 · b3 0/70 · b4 0/37]	자동매매 · 수동 주문 · 체결 확인	강민석	주담당 이슈	높음
+app/services/brokers/kis.py	M 바꿈	다름	받음	강사님 한 줄 있음 · 다른 곳은 우리 고침(토큰 재사용 DF-84 는 따로 열림) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 1/1]	KIS 클라이언트	오준영	없음	높음
+app/services/brokers/stock_coin_trade_gateway.py	A 더함	다름	받음	환경 판정을 _env() 하나로 모아 실거래 승인 관문을 더해 받음(댓글 08 · ADR-0001 6절) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 156/162 · b2 9/9]	증권사 게이트웨이	오준영	없음	높음
+app/services/formula.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	산식 → Pine v6 변환(3차 Pine 은 이동원)	신장환	없음	높음
+app/services/fx.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	환율	이동원	없음	높음
+app/services/graph_rag.py	M 바꿈	다름	받음	답 길이 · 문맥은 설정 칸(LLM_ANSWER_NUM_PREDICT 1024 · LLM_NUM_CTX 0)으로 받음 — 256토큰이면 답이 문장 중간에 끊김(댓글 13 · TC-BM) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 0/2]	그래프 RAG 답	이동원	없음	높음
+app/services/investment_research.py	M 바꿈	다름	일부	b1 비용은 우리 비용 모델(trading_cost · real)로 바꿔 받음 · b3 멀티 전략 비교 · 규칙 기반 XAI 는 B2 — 신장환 님 「규칙 설명을 우리 비용 모델 위에」 PR 예정(10-21 전) · 비교 비용은 #134 real(강민석 답) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 35/45 · b3 0/53]	전략 백테스트 · XAI · 비교	신장환	주담당 이슈	높음
+app/services/kis_batch.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	KIS 모의투자 배치(시스템 계좌)	강민석	없음	높음
+app/services/kis_credentials.py	A 더함	다름	일부	사용자별 KIS 키(ADR-0004)로 고쳐 받음 — 서버 관리(Secrets Manager) 갈래는 뺌(댓글 08 · TC-BM) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 36/135]	KIS 자격증명	오준영	없음	높음
+app/services/kis_market_data.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	KIS 차트 시세 경로	이동원	없음	높음
+app/services/kis_quickstart.py	A 더함	다름	일부	원클릭은 받음 · 1회 30만 원(우리 값 · 강민석 답) · 사용자별 키 · 배치 단독 실행은 막음(댓글 13) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 85/98 · b2 34/36]	KIS 모의투자 원클릭	강민석	없음	높음
+app/services/langgraph_agent.py	M 바꿈	다름	받음	답 길이는 설정 칸(댓글 13) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 1/2]	에이전트 답	이동원	없음	높음
+app/services/lean_remote.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	LEAN 백테스트 위임	강민석	없음	높음
+app/services/ml_symbol_score.py	A 더함	다름	받음	RSI 는 우리 공용 계산(ta_utils.rsi)으로 — 강사님 지역 함수 대신 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 57/64]	종목 ML 점수	강민석	없음	중간
+app/services/notification.py	M 바꿈	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	알림	공통	없음	높음
+app/services/ohlcv_catalog.py	A 더함	없음	안 받음	종목 검색을 바깥 OHLCV 저장소로 · 검색 중 적재 — 게이트웨이 없으면 한글 검색 회귀 · 앱이 수집 저장소에 씀(설계서 4.1) · Q2 (a)(TC-BM ⑤)	종목 카탈로그(바깥 저장소)	이동원	없음	높음
+app/services/paper_trading.py	M 바꿈	다름	받음	리셋은 우리 꼴 — #172(10-12) A1 회차(epoch) · A2 QUANT · KIS 주문 보존(강사님 판은 주문을 모두 지움) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 13/16]	모의 계좌	강민석	없음	높음
+app/services/patterns.py	A 더함	다름	받음	1단계(#164)로 받음 — 단 다중 주기 신호의 캐시 우회(261 · 271줄 max_age_hours=0)는 신장환 님 B4 답 「캐시 우회는 받지 않음」 과 어긋남 → 되돌릴지 확인 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 231/231 · b3 2/2]	차트 패턴 · 다중 주기 신호	신장환	묻기	높음
+app/services/quant_pipeline.py	M 바꿈	다름	받음	손절 · 익절(apply_stops)은 받고 비용은 우리 비용 모델 위에(cost 인자 · 271~284줄) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 54/72]	ML 파이프라인 백테스트	강민석	없음	중간
+app/services/rag_pipeline.py	M 바꿈	다름	일부	문서 저장 · 검색은 우리 판(DF-38 고침 · 실패는 503 과 이유) + 강사님 읽기 호환 클래스만(댓글 13) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 10/36]	RAG 저장 · 검색	이동원	없음	높음
+app/services/rebalance.py	A 더함	다름	일부	09-30 판은 받고 오준영 님이 다시 씀(종가 판단 · 시가 예약 · 하루 점검) · e54b0d0 KIS 계좌 소스 · 섹터 2단 목표는 B5 — 오준영 님 답 대기 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 158/358 · b2 1/185]	리밸런싱(서비스)	오준영	주담당 이슈	높음
+app/services/reconciliation.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	정합성 점검(기본 꺼짐)	강민석	없음	높음
+app/services/risk_guard.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	자동매매 위험관리 다섯	강민석	없음	높음
+app/services/robo_profile.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	투자 성향 점수(자산배분 입력)	오준영	없음	높음
+app/services/sector_indicators.py	A 더함	없음	안 받음	아직 — 섹터 인디케이터는 2단계(2차 구현 뒤 리팩터링 세션 · 조사서 <표 9> 2 · Q1 재무는 DART 수집 DB 로) · 섹터 묶음 · 판정 낱말(「비중확대」 는 권유로 읽힘)은 우리 것(부록 A 후보 2)	섹터 인디케이터	이동원	이동원 2단계	높음
+app/services/stock.py	M 바꿈	다름	일부	b2 유니버스 3섹터 31종목은 안 받음(운용 값 · 유니버스는 오준영 님 판단 대기) · b3 get_candles 구간만 받음(1단계) · 재무 복원력 · 지표 응답 칸은 2단계(2차 구현 뒤 리팩터링 세션 · 조사서 <표 9> 2 · Q1 재무는 DART 수집 DB 로) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 19/59 · b3 6/77]	시세 · 재무 · 유니버스	이동원	이동원 2단계	높음
+app/services/strategy_loader.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	합격 전략 불러오기	강민석	없음	높음
+app/services/tradingview.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	TradingView 연동(서비스)	이동원	없음	높음
+app/services/xai.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	XAI 설명(①-5)	신장환	없음	높음
+app/tasks/beat_health.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	Celery Beat 상태 점검	공통	없음	높음
+app/tasks/sync_tasks.py	M 바꿈	다름	받음	강사님 줄 31/32 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 16/17 · b2 15/15]	Celery 태스크	공통	없음	높음
+aws-work/ansible/inventories/osaka/group_vars/secrets.yml	D 지움	없음	해당 없음	우리 판에 aws-work/ 없음(09-15 걷어냄) — 다만 우리 저장소 이력(09-15 커밋 5806284 · 2e2d3f8 등)에 이 경로가 남아 있음(내용은 열지 않음 · 확인 필요)	강사님 AWS 시크릿(강사님이 09-29 삭제)	공통	묻기	높음
+aws-work/ansible/inventories/prod/group_vars/secrets.yml	D 지움	없음	해당 없음	위와 같음 — 우리 이력에 경로가 남아 있음(내용은 열지 않음 · 확인 필요)	강사님 AWS 시크릿(강사님이 09-29 삭제)	공통	묻기	높음
+compose.fd.yml	A 더함	없음	안 받음	강사님 fd 서버 운영 compose(댓글 13 「강사님 운영 파일은 받지 않았다」)	강사님 서버 운영 설정	공통	없음	높음
+docker-compose.yml	M 바꿈	다름	받음	강사님 판(healthcheck · 문맥 길이 · CPU 우선순위) + 기본 채팅 모델만 qwen2.5:1.5b — 3b 는 연구용 라이선스(댓글 13 · TC-BM) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 35/35 · b2 10/13]	도커 compose	공통	없음	높음
+docs/contracts/kis-autotrade-api.md	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	KIS 자동매매 연동 계약서	오준영	없음	높음
+infra/fd-edumgt/Caddyfile	A 더함	없음	안 받음	강사님 fd.edumgt.co.kr 역프록시 — 우리 배포와 무관(대장 · 조사서 <표 7>) · infra/ 는 09-15 에 걷어냄	강사님 서버 역프록시	공통	없음	높음
+local-py/.env.example	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md) · 이 파일은 값을 가리고 변수 이름만 봄	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/.gitignore	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/README.md	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI 안내	강민석	없음	높음
+local-py/lumina_local/__init__.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/aggressive.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/auto_trade.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 · 사이클	강민석	없음	높음
+local-py/lumina_local/backtest.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 · 백테스트(fee_bps 가 편도마다 붙어 기본 왕복 0.50% — 문서는 0.25%)	강민석	없음	높음
+local-py/lumina_local/broker.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md) · 토큰을 data/kis_token.json 에 두고 다시 쓰는 방식은 DF-84 고치는 안의 참고(오준영)	로컬 자동매매 · KIS 브로커(토큰 파일 재사용)	오준영	주담당 이슈	높음
+local-py/lumina_local/cli.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/config.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/indicators.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/market_data.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/risk_guard.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 · 위험관리 다섯	강민석	없음	높음
+local-py/lumina_local/store.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 · JSON 장부	강민석	없음	높음
+local-py/lumina_local/strategy.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/lumina_local/universe.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/requirements.txt	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/strategies/ma-cross-basic.json	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/strategies/momentum-breakout.json	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/strategies/score-threshold.json	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+local-py/tests/test_local.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 · 자가 시험 32	강민석	없음	높음
+local-py/trade.py	A 더함	없음	안 받음	앱에 합치지 않음 — 실전 서버(openapi :9443) 주문이 되는데 실거래 관문(ADR-0001)이 없고 별도 스택이다(조사서 <표 7> · 변경 추적 댓글 14 · 15). S110 에 저장소 밖 사본에서 mock · paper · 야후로만 따로 띄움(시험 32/32 · 증권사 호출 0 · localpy-실행기록.md)	로컬 자동매매 CLI(실험 도구)	주인 없음	없음	높음
+public/app.html	M 바꿈	다름	일부	b1 은 공백 접은 토큰 비교로 조각 158 받음(댓글 09 — 빠진 9 는 일부러 바꾼 글 · 줄 대조는 자동 서식 탓에 하한) · b2 · b3 화면은 Figma 뒤 · 바깥 공통 CSS 링크 · 푸터 교체는 안 받음(Q3) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 156/235 · b2 1/66 · b3 1/123 · b4 0/1]	화면 전체(한 파일)	공통	리팩터링 세션	중간
+public/css/app.css	A 더함	다름	일부	b2 · b3(대기 모달 · 모래시계 · XAI 모달)는 화면은 Figma 결정 뒤(조사서 <표 9> 4단계 · 기준점 화면 줄 9478811) · b4 476d538 스크롤바 규칙을 바깥 공통 CSS 로 옮김은 안 받음(댓글 16 — 지킴이 한 줄 제안 · 아직 없음) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 415/415 · b2 0/20 · b3 0/22 · b4 0/18]	화면 · 스타일	이동원	리팩터링 세션	높음
+public/css/completion.css	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	기능 완성도 배지 스타일	이동원	없음	높음
+public/index.html	M 바꿈	다름	안 받음	바깥 공통 CSS 링크 한 줄뿐 — Q3 (a)(TC-BM ②) · 우리 판 = 반입 기준 그대로 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b4 0/1]	첫 화면	이동원	없음	높음
+public/js/agent.js	A 더함	다름	받음	답변 엔진 선택을 우리 이름(「Local Ollama」 · 「검색 결과 요약」)으로 받음 — 10-08 결정 · TC-BM rag 이름 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 168/210 · b2 0/1]	AI 투자 상담 화면	이동원	없음	높음
+public/js/common.js	M 바꿈	다름	받음	요청 취소(AbortError) + 우리 네트워크 오류 status 0(1단계 #164) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 20/20 · b3 3/3]	화면 · 공통 API	이동원	없음	높음
+public/js/company-indicator-help.js	A 더함	없음	안 받음	따로 두지 않고 우리 용어사전에 — 21개 중 12개 있음 · 8개 더함(부록 A 후보 4 · 용어사전 갱신 세션)	재무 용어 도움말	이동원	이동원 2단계	높음
+public/js/company.js	A 더함	다름	일부	b3 지표 비교 30종목 · 섹터 화면은 2단계(2차 구현 뒤 리팩터링 세션 · 조사서 <표 9> 2 · Q1 재무는 DART 수집 DB 로) · AG Grid(Q4) 와 함께 · b2 는 화면은 Figma 결정 뒤(조사서 <표 9> 4단계 · 기준점 화면 줄 9478811) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 155/155 · b2 0/4 · b3 0/257]	기업 지표 세 화면	이동원	이동원 2단계	높음
+public/js/completion.js	A 더함	다름	일부	배지 구조는 받음 · 강사님 점수(company-compare 90 · company-sector 86)는 안 받음 — 배지 정본은 점검표 TSV(TC-BM ①) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 93/93 · b3 0/2]	기능 완성도 배지	이동원	없음	높음
+public/js/core.js	A 더함	다름	일부	b1 더보기 빌더는 우리 메뉴로 바꿔 받음(댓글 09) · b2 · b3 메뉴 개편은 B7 우리 메뉴 유지(강민석 답) · 「기본 3분」 문구는 TC-BM ④ · 화면은 Figma 결정 뒤(조사서 <표 9> 4단계 · 기준점 화면 줄 9478811) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 408/432 · b2 0/6 · b3 0/3]	화면 · 메뉴 · 안내	이동원	리팩터링 세션	높음
+public/js/dashboard.js	A 더함	다름	일부	b2 KIS 패널(배치 · 공격 모드 · 주기를 서버 값으로)은 B6 「구조만 받음 · 기본값 · 문구는 우리 것」(강민석 답 10-12) — 아직 반영 전 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 103/109 · b2 0/15]	대시보드 KIS 패널	강민석	이동원 2단계	높음
+public/js/formula-chart-help.js	A 더함	없음	안 받음	아직 — 산식 그래프 읽는 법(「매수 신호를 뜻하지 않는다」 문장 포함)은 (가) 받을 것 · 화면은 Figma 결정 뒤(조사서 <표 9> 4단계 · 기준점 화면 줄 9478811) · 신장환 님 알림 누락(#153 댓글 01 에 없음)	산식 그래프 읽는 법	신장환	주담당 이슈	높음
+public/js/formula.js	A 더함	다름	일부	b3 산식 그래프 읽는 법 호출 · 다시 계산 전 차트 비우기는 화면은 Figma 결정 뒤(조사서 <표 9> 4단계 · 기준점 화면 줄 9478811) · 신장환 님께 알림이 #153 댓글 01 에 빠짐 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 134/134 · b3 0/5]	자유 산식 화면	신장환	주담당 이슈	높음
+public/js/indicator.js	A 더함	다름	일부	b3 멀티 전략 비교 · Pine v6 편집 · 수동 KIS 주문 단추 미반영 — 규칙 설명 그리는 부분은 B2 신장환 님 PR 예정 · 수동 주문 단추는 B1 안 받음(강민석 답) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 210/210 · b3 0/287]	인디케이터 · 성과 검증 화면	신장환	주담당 이슈	높음
+public/js/kis_monitor.js	A 더함	없음	안 받음	B3 — 지금은 안 받음 · Figma 뒤 · 받으면 문구는 우리 경로(내 키 · 30만 원 · 600초)(강민석 답 10-12) · 서버는 10-08 받음	KIS 모의투자결과 화면	강민석	주담당 이슈	높음
+public/js/main.js	A 더함	다름	일부	부트 · 로그아웃 흐름은 우리 꼴 · b2 kis-monitor 진입 · 스크리닝 자동 실행 끔은 B3 · B4 와 함께 화면은 Figma 결정 뒤(조사서 <표 9> 4단계 · 기준점 화면 줄 9478811) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 61/79 · b2 0/4]	화면 전환	이동원	리팩터링 세션	중간
+public/js/ml.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	거시 · 산업 분석 화면	이동원	없음	높음
+public/js/pine-lint.js	A 더함	없음	안 받음	아직 — Pine v6 문법 점검(보수적 로컬 점검)은 3차 TradingView 화면 때 · 화면 Figma 뒤(부록 A 후보 9)	Pine v6 문법 점검	이동원	리팩터링 세션	높음
+public/js/quant.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	퀀트 대시보드 화면	신장환	없음	높음
+public/js/rebalance.js	A 더함	다름	일부	09-30 판은 받고 오준영 님이 고침 · e54b0d0 KIS 계좌 소스 · 섹터 2단은 B5 — 오준영 님 답 대기 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 165/192 · b2 0/65]	리밸런싱 화면	오준영	주담당 이슈	높음
+public/js/robo.js	A 더함	다름	일부	B4 — 패턴 차트는 신장환 님 PR 예정(10-21 전) · 의사결정 근거 카드는 강민석 님(W10) · 스크리닝 1종목씩 · 중지 · XAI 모달은 오준영 님 답 대기 · 자동 서식 탓에 토큰 비교 필요 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 219/254 · b2 2/242 · b3 0/145]	로보 화면(스크리닝 · 패턴 · 의사결정)	신장환	주담당 이슈	높음
+public/js/settings.js	A 더함	다름	받음	서버 관리 키 · 「레거시」 문구를 빼고 사용자 말로 받음(댓글 09) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 264/273]	증권사 API 설정 화면	오준영	없음	높음
+public/js/sysadmin.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시스템 관리 화면	이동원	없음	높음
+public/js/trading.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	직접 매매 화면	이동원	없음	높음
+public/js/tradingview.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	TradingView 연동 화면	이동원	없음	높음
+public/js/us.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	미국 주식 화면	이동원	없음	높음
+public/js/vendor/ag-grid/LICENSE.txt	A 더함	없음	안 받음	아직 — AG Grid 는 Q4 (a) 2단계에 npm 원본에서 받아 해시 대조(강사님 사본 복사 안 함)	표 라이브러리 사용 조건	이동원	이동원 2단계	높음
+public/js/vendor/ag-grid/ag-grid-community-36.2.0.min.js	A 더함	없음	안 받음	아직 — 위와 같음(Q4 (a) · 지표 비교 화면과 함께)	표 라이브러리	이동원	이동원 2단계	높음
+public/js/vendor/lightweight-charts/LICENSE	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	차트 라이브러리 사용 조건(RTM ⑦)	이동원	없음	높음
+public/js/vendor/lightweight-charts/NOTICE	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	차트 라이브러리 고지(RTM ⑦)	이동원	없음	높음
+public/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	차트 라이브러리(RTM ⑦)	이동원	없음	높음
+public/login.html	M 바꿈	다름	일부	세션 · 완성도 표시는 받음(다음 주소 이동은 우리 꼴) · 바깥 공통 CSS 링크는 안 받음(Q3 · TC-BM ②) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 9/10 · b4 0/1]	로그인 화면	이동원	없음	높음
+public/register.html	M 바꿈	다름	일부	위와 같음 — 바깥 공통 CSS 링크만 안 받음(Q3) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 9/10 · b4 0/1]	가입 화면	이동원	없음	높음
+pytest.ini	A 더함	다름	받음	우리 꼴(addopts -q --strict-markers · pythonpath) — 강사님 경고 거름 포함 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 5/6]	시험 설정	공통	없음	높음
+readme.md	M 바꿈	다름	일부	우리 readme 로 고쳐 씀 — 새 절은 todo.md 링크를 빼고 「Qurious 에서 다른 점」(댓글 08) · 강사님 운영 · 배포 절은 받지 않음 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 40/66 · b2 0/1]	안내 문서	이동원	없음	중간
+requirements-dev.txt	A 더함	다름	받음	pytest 핀이 더 높음(우리 >=8.3.0) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 0/1]	개발 의존성	공통	없음	높음
+sagemaker/train.py	M 바꿈	없음	해당 없음	09-15 에 sagemaker/ 를 걷어냄 · SageMaker 배치 점수는 쓰지 않음(댓글 08 · TC-BM 「지운 SageMaker 점수 모듈은 없다」)	SageMaker 학습(AWS)	주인 없음	없음	높음
+screening.md	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	스크리닝 안내 문서	오준영	없음	높음
+scripts/migrate.sh	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	마이그레이션 실행 스크립트	공통	없음	높음
+scripts/setup-github-deploy.sh	A 더함	없음	안 받음	강사님 EC2 배포 준비 스크립트 — AWS 는 로컬 완성 뒤(project-aws-deferred) · CI 는 ADR-0003	배포 스크립트	공통	없음	높음
+services/auth-service/app/config.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/auth-service/app/lib/jwt_auth.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/auth-service/app/lib/redis_cache.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/auth-service/app/lib/session.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/auth-service/app/routes/auth.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/auth-service/main.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/crawl-service/app/config.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/crawl-service/app/lib/jwt_auth.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/crawl-service/app/lib/redis_cache.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/crawl-service/app/lib/session.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+services/crawl-service/main.py	M 바꿈	없음	해당 없음	우리 판은 09-15 에 서비스 분리 폴더 services/ 를 걷어냄(2e2d3f8 · AWS 인프라 · 연동 제거). 같은 세션 고침(d763901)은 app/lib/session.py · redis_cache.py(같음)로 받았고, JWT 폐기 키는 09-20 에 우리가 먼저 고침	서비스 분리(인증 · 크롤 서비스)	공통	없음	높음
+shared-css/README.md	A 더함	없음	안 받음	바깥 공통 CSS — 강사님 도메인을 런타임에 읽고 모든 푸터를 25px 한 줄로 묶어 투자 권유 고지가 잘림. Q3 (a) 받지 않고 지킴이로 고정(조사서 10절 · TC-BM ② ③)	공통 CSS(바깥 주소)	이동원	없음	높음
+shared-css/audit.py	A 더함	없음	안 받음	바깥 공통 CSS — 강사님 도메인을 런타임에 읽고 모든 푸터를 25px 한 줄로 묶어 투자 권유 고지가 잘림. Q3 (a) 받지 않고 지킴이로 고정(조사서 10절 · TC-BM ② ③) · audit.py 는 476d538 공통 CSS 감사 스크립트	공통 CSS(바깥 주소)	이동원	없음	높음
+shared-css/common.css	A 더함	없음	안 받음	바깥 공통 CSS — 강사님 도메인을 런타임에 읽고 모든 푸터를 25px 한 줄로 묶어 투자 권유 고지가 잘림. Q3 (a) 받지 않고 지킴이로 고정(조사서 10절 · TC-BM ② ③)	공통 CSS(바깥 주소)	이동원	없음	높음
+shared-css/deploy.sh	A 더함	없음	안 받음	바깥 공통 CSS — 강사님 도메인을 런타임에 읽고 모든 푸터를 25px 한 줄로 묶어 투자 권유 고지가 잘림. Q3 (a) 받지 않고 지킴이로 고정(조사서 10절 · TC-BM ② ③) · deploy.sh 는 강사님 S3 배포(AWS 제외)	공통 CSS(바깥 주소)	이동원	없음	높음
+tests/conftest.py	A 더함	다름	받음	강사님 픽스처는 있음 · 머리 주석 두 줄만 다름 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 19/21]	시험 공용 픽스처	공통	없음	높음
+tests/e2e/smoke_views.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	화면 연기 시험	공통	없음	높음
+tests/test_aggressive_mode.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 공격 모드	강민석	없음	높음
+tests/test_auto_status_batch_merge.py	A 더함	다름	일부	NONE 신호(데이터 없음) 시험은 auto_trade.py 수동 주문과 한 파일이라 B1 과 함께 보류(#153 댓글 01 · 강민석 답) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 77/77 · b3 0/16]	시험 · 자동매매 상태 합산	강민석	주담당 이슈	높음
+tests/test_backtest_costs.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 백테스트 비용	강민석	없음	높음
+tests/test_beat_health.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · Beat 상태	공통	없음	높음
+tests/test_chat_modes.py	A 더함	다름	받음	우리 이름 · 모델에 맞춰 손봄 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 141/141 · b2 17/17]	시험 · 채팅 모드	이동원	없음	높음
+tests/test_company_fundamentals_resilience.py	A 더함	없음	안 받음	아직 — 재무 복원력은 2단계(2차 구현 뒤 리팩터링 세션 · 조사서 <표 9> 2 · Q1 재무는 DART 수집 DB 로) · 받을 때 시험도 우리 구조로	시험 · 재무 조회 복원력	이동원	이동원 2단계	높음
+tests/test_confirm_fills_call_budget.py	A 더함	없음	안 받음	8624e81 새 시험 — 체결 확인 예산은 강민석 님 판단(댓글 16 · 우리 기본 설정에선 그 경로가 꺼져 있음)	시험 · 체결 확인 예산	강민석	주담당 이슈	높음
+tests/test_dashboard_accounts.py	A 더함	다름	받음	사용자별 키에 맞춰 손봄(댓글 08) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 97/102]	시험 · 대시보드 계좌 탭	강민석	없음	높음
+tests/test_formula.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · Pine v6	신장환	없음	높음
+tests/test_kis_batch.py	A 더함	다름	받음	강사님 줄 154/155 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 154/155]	시험 · KIS 배치	강민석	없음	높음
+tests/test_kis_credentials.py	A 더함	다름	일부	서버 관리(Secrets Manager) 갈래 시험은 해당 없어 빼고 사용자별 키 시험으로 다시 씀(댓글 08) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 27/82]	시험 · KIS 자격증명	오준영	없음	높음
+tests/test_kis_market_data.py	A 더함	다름	받음	강사님 새 시험 하나에 수집 DB 를 비우는 한 줄을 더함(우리 「국내 일봉은 수집 DB 먼저」 다리 · 1단계) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 108/108 · b3 17/18]	시험 · KIS 시세	이동원	없음	높음
+tests/test_kis_monitor_route.py	A 더함	다름	받음	강사님 줄 120/121 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 120/121]	시험 · KIS 모니터 라우트	강민석	없음	높음
+tests/test_kis_quickstart.py	A 더함	다름	받음	우리 값(30만 원 · 600초) · 사용자별 키에 맞춰 손봄 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 85/95 · b2 15/17]	시험 · 원클릭	강민석	없음	높음
+tests/test_kis_quickstart_http.py	A 더함	다름	받음	우리 값 · 사용자별 키에 맞춰 손봄 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 62/80 · b2 0/1]	시험 · 원클릭 HTTP	강민석	없음	높음
+tests/test_lean_remote.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · LEAN 위임	강민석	없음	높음
+tests/test_legacy_kis_order_managed.py	A 더함	다름	일부	서버 관리 키 갈래는 해당 없어 사용자 키 경로로 손봄(ADR-0004 · 댓글 08) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 25/37]	시험 · 옛 KIS 주문 경로	오준영	없음	높음
+tests/test_live_order_gateway_path.py	A 더함	다름	받음	실거래 관문에 맞춰 손봄(댓글 08 · 13) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 148/150 · b2 43/43]	시험 · 실주문 게이트웨이 경로	오준영	없음	높음
+tests/test_manual_kis_order.py	A 더함	없음	안 받음	B1 안 받음(강민석 답 10-12 — 서버 게이트웨이 계좌 하나 = ADR-0004 와 어긋남)	시험 · 수동 KIS 주문	강민석	없음	높음
+tests/test_patterns.py	A 더함	다름	받음	강사님 줄은 모두 있음 · 우리 고침 더함 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 49/49]	시험 · 패턴	신장환	없음	높음
+tests/test_quant_cycle_integration.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 자동매매 사이클	강민석	없음	높음
+tests/test_rebalance.py	A 더함	다름	받음	오준영 님 리밸런싱에 맞춰 손봄 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 26/30]	시험 · 리밸런싱	오준영	없음	높음
+tests/test_rebalance_kis.py	A 더함	없음	안 받음	B5 — 오준영 님 답 대기(리밸런싱 KIS 계좌 소스)	시험 · 리밸런싱 KIS	오준영	주담당 이슈	높음
+tests/test_reconciliation.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 정합성 점검	강민석	없음	높음
+tests/test_risk_guard.py	A 더함	다름	받음	강사님 줄은 모두 있음 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 33/33]	시험 · 위험관리	강민석	없음	높음
+tests/test_risk_guard_boundaries.py	A 더함	다름	받음	강사님 줄 37/39 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 37/39]	시험 · 위험관리 경계	강민석	없음	높음
+tests/test_robo_profile.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 투자 성향	오준영	없음	높음
+tests/test_sector_indicators.py	A 더함	없음	안 받음	아직 — 섹터 인디케이터와 함께 2단계	시험 · 섹터 인디케이터	이동원	이동원 2단계	높음
+tests/test_session_auth.py	A 더함	다름	받음	강사님 줄 204/206 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 204/206]	시험 · 세션 인증	공통	없음	높음
+tests/test_spec_rules_and_ml_symbol.py	A 더함	다름	받음	강사님 줄은 모두 있음 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 31/31]	시험 · 전략 규칙 · ML 점수	강민석	없음	높음
+tests/test_stock_coin_trade_gateway.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 게이트웨이	오준영	없음	높음
+tests/test_strategy_compare.py	A 더함	없음	안 받음	B2 — 비교 기본 비용을 #134 real 로 두기로(강민석 답) → 10bp + 5bp 단언을 고쳐 받아야	시험 · 멀티 전략 비교	강민석	주담당 이슈	높음
+tests/test_strategy_loader.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · 합격 전략	강민석	없음	높음
+tests/test_strategy_spec_apply.py	A 더함	다름	일부	SageMaker 배치 점수 시험 하나는 해당 없어 뺌(ml_scores_by_symbol 은 늘 빈 값 · TC-BM) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 33/41]	시험 · 전략 스펙	강민석	없음	높음
+tests/test_strategy_xai.py	A 더함	없음	안 받음	아직 — B2 규칙 설명 수용(신장환 답) · 신장환 님 PR 예정(10-21 전)	시험 · 규칙 기반 XAI	신장환	주담당 이슈	높음
+tests/test_ta_utils_lookahead.py	A 더함	다름	받음	강사님 줄은 모두 있음 [줄 대조 — 묶음별 우리에/강사님 더한 줄: b1 47/47]	시험 · 지표 미래 참조	신장환	없음	높음
+tests/test_tradingview.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · TradingView	이동원	없음	높음
+tests/test_universe_and_schedule.py	A 더함	다름	일부	유니버스 · 주기를 우리 값에 맞게 손봄(운용 값 넷 · TC-BM 이 값을 지킴) [줄 대조 — 묶음별 우리에/강사님 더한 줄: b2 25/44]	시험 · 유니버스 · 예약	강민석	없음	높음
+tests/test_xai.py	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	시험 · XAI	신장환	없음	높음
+todo.md	A 더함	없음	안 받음	강사님 운영 기록(서버 · 배포 · 키 점검) — 지난 반영 모두 받지 않음(댓글 08 · 13 · 조사서 <표 7>)	강사님 운영 기록	주인 없음	없음	높음
+tradingview.md	A 더함	같음	받음	같은 파일(줄 끝 CRLF · LF 접어 비교)	TradingView 안내 문서	이동원	없음	높음

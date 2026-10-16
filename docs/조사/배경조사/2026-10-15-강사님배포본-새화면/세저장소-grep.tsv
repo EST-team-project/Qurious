@@ -1,0 +1,54 @@
+th03-stock-coin-trade	01_strategy_settings	1	docs/contracts/kis-autotrade-api.md 
+th03-stock-coin-trade	02_return_review	1	docs/contracts/kis-autotrade-api.md 
+th03-stock-coin-trade	03_profile_perf	0	
+th03-stock-coin-trade	04_enhance_approve	0	
+th03-stock-coin-trade	05_usage_modal	10	README.md frontend/js/quant-learning-guide.js frontend/js/tr-pine-course.js frontend/learning/kis-test.html 
+th03-stock-coin-trade	06_batch_control	0	
+th03-stock-coin-trade	07_live_equity	7	frontend/js/hold_crypto.js frontend/learning/kis-test.html python-stock-backend/app/resources/kis_api_catalog.json python-stock-backend/app/services/brokers/aws.py 
+th03-stock-coin-trade	08_korea_master	6	frontend/js/hold_kis.js frontend/js/kis-chart.js frontend/js/schema-column-specs.js frontend/learning/kis-test.html 
+th03-stock-coin-trade	09_dart_per_share	46	.github/workflows/deploy-ec2.yml docs/react-analysis.md frontend/css/alpaca-lab.css frontend/css/kb-lab.css 
+th03-stock-coin-trade	10_formula_help	1	frontend/js/tr-pine-course.js 
+th03-stock-coin-trade	11_order_meta	13	database/db.sql docker/nginx.conf docker/nginx.ssl.conf frontend/js/schema-column-specs.js 
+th03-stock-coin-trade	12_compare_tray	0	
+th03-stock-coin-trade	13_ohlcv_store	53	.env.example .github/workflows/deploy-ec2.yml .gitignore README.md 
+th03-stock-coin-trade	14_ichimoku_vp	4	frontend/js/tr-pine-course.js frontend/learning/tr-pine/step-17.html order-block.md python-stock-backend/app/resources/kis_api_catalog.json 
+th03-stock-coin-trade	15_streamlit	0	
+th03-stock-coin-trade	16_gnb_menu	5	README.md frontend/css/style.css frontend/hts.html frontend/js/common.js 
+th03-stock-coin-trade	17_lean_spec	1	docs/contracts/kis-autotrade-api.md 
+th03-stock-coin-trade	18_kis_monitor	6	frontend/js/analysis.js pg-stock-api-sample/pgstock/jobs/ohlcv_sync.py pg-stock-api-sample/tests/test_ohlcv_sync.py python-stock-backend/app/jobs/ohlcv_sync.py 
+th24-stock-kms-portal	01_strategy_settings	4	frontend/app.js frontend/assets/day4-project-schedule.js frontend/days/04.html frontend/lessons/10.html 
+th24-stock-kms-portal	02_return_review	0	
+th24-stock-kms-portal	03_profile_perf	0	
+th24-stock-kms-portal	04_enhance_approve	0	
+th24-stock-kms-portal	05_usage_modal	11	frontend/app.js frontend/assets/modal-fit.js frontend/assets/theory-data.js frontend/days/01.html 
+th24-stock-kms-portal	06_batch_control	8	frontend/app.js frontend/days/03.html frontend/days/04.html frontend/lessons/06.html 
+th24-stock-kms-portal	07_live_equity	1	frontend/days/02.html 
+th24-stock-kms-portal	08_korea_master	0	
+th24-stock-kms-portal	09_dart_per_share	36	.github/workflows/cd.yml .github/workflows/ci.yml app/services/lean_reference_data/symbol-properties/symbol-properties-database.csv deploy/st-iv/compose.lean-remote.yml 
+th24-stock-kms-portal	10_formula_help	14	frontend/app.js frontend/assets/day4-project-schedule.js frontend/assets/theory-data.js frontend/days/01.html 
+th24-stock-kms-portal	11_order_meta	1	deploy/st-iv/nginx.iv.conf 
+th24-stock-kms-portal	12_compare_tray	0	
+th24-stock-kms-portal	13_ohlcv_store	0	
+th24-stock-kms-portal	14_ichimoku_vp	2	frontend/lessons/06.html frontend/lessons/content/05.md 
+th24-stock-kms-portal	15_streamlit	1	streamlit_app.py 
+th24-stock-kms-portal	16_gnb_menu	15	frontend/app.js frontend/days/01.html frontend/days/02.html frontend/days/03.html 
+th24-stock-kms-portal	17_lean_spec	0	
+th24-stock-kms-portal	18_kis_monitor	1	frontend/assets/day4-project-schedule.js 
+th07-domain-rag-lab	01_strategy_settings	8	app/api/routes/strategies.py app/services/strategy_store.py docs/contracts/kis-autotrade-api.md frontend/app.js 
+th07-domain-rag-lab	02_return_review	1	docs/contracts/kis-autotrade-api.md 
+th07-domain-rag-lab	03_profile_perf	0	
+th07-domain-rag-lab	04_enhance_approve	0	
+th07-domain-rag-lab	05_usage_modal	9	deploy/pr-edumgt/kr_holiday_stop_schedules.py frontend/app.js frontend/assets/modal-fit.js frontend/assets/theory-data.js 
+th07-domain-rag-lab	06_batch_control	3	frontend/app.js frontend/days/03.html frontend/days/04.html 
+th07-domain-rag-lab	07_live_equity	1	frontend/days/02.html 
+th07-domain-rag-lab	08_korea_master	0	
+th07-domain-rag-lab	09_dart_per_share	16	.github/workflows/cd.yml .github/workflows/ci.yml app/services/lean_reference_data/symbol-properties/symbol-properties-database.csv frontend/app.js 
+th07-domain-rag-lab	10_formula_help	8	frontend/app.js frontend/assets/day4-deliverable-samples.js frontend/assets/day4-project-schedule.js frontend/assets/theory-data.js 
+th07-domain-rag-lab	11_order_meta	0	
+th07-domain-rag-lab	12_compare_tray	0	
+th07-domain-rag-lab	13_ohlcv_store	8	.env.example app/core/config.py app/schemas/chat.py app/services/lean_backtest_service.py 
+th07-domain-rag-lab	14_ichimoku_vp	0	
+th07-domain-rag-lab	15_streamlit	2	README.md streamlit_app.py 
+th07-domain-rag-lab	16_gnb_menu	13	frontend/app.js frontend/assets/project2-presentation.js frontend/assets/walk-forward-page.js frontend/days/01.html 
+th07-domain-rag-lab	17_lean_spec	11	README.md app/api/routes/strategies.py app/schemas/strategy.py app/services/strategy_export.py 
+th07-domain-rag-lab	18_kis_monitor	2	app/services/system_schedule_data.py frontend/assets/day4-project-schedule.js 

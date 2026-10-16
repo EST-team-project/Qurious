@@ -1154,3 +1154,19 @@ def test_runner_error_on_a_scheduled_run_still_leaves_a_history_line(fake_runner
     assert du.run_all(manual=True, request_id=RID) == 1
     hist = [json.loads(x) for x in (t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()]
     assert len(hist) == 2 and hist[1]["request_id"] == RID and hist[1]["trigger"] == "manual"
+
+
+def test_app_beat_schedules_no_collector_task():
+    """TC-DU · 수집 예약은 이 PC 러너 하나다(D106) — 앱 Celery Beat 예약 목록에 `collector.*` 태스크가 없다.
+
+    예약기가 둘이면 같은 수집 DB 를 서로 다른 잠금으로 쓰게 되고, 앱 컨테이너에는 collector 패키지가
+    없어 저녁 예약(18 · 19 · 20시)이 import 에서 실패했다. 태스크 정의는 손으로 부를 수 있게 남긴다.
+    """
+    from app.celery_app import celery_app
+    from app.tasks import collector_tasks
+
+    sched = celery_app.conf.beat_schedule
+    assert "quant-auto-trade-cycle" in sched, "예약 목록을 제대로 읽었는지(다른 예약은 그대로)"
+    found = sorted(k for k, v in sched.items() if str(v.get("task", "")).startswith("collector."))
+    assert found == [], f"앱 Beat 에 수집 예약이 있다: {found}"
+    assert collector_tasks.portal_recent_task.name == "collector.portal_recent", "태스크 정의는 남긴다"

@@ -14,25 +14,27 @@
  *     출처 문구 그대로 · 약관 제9조). 그 탭을 처음 열 때 한 번 부르고, 조건을 바꿀 때만 다시 부른다(하루 호출 한도).
  * 투자 성향 · 자산 배분 비중은 읽기만 한다(오준영 님 몫 — 「자산배분·최적화」 화면).
  *   - 성향: 그 화면이 이 브라우저에 남긴 진단 결과(localStorage robo_risk_profile)를 읽는다.
- *   - 비중: 같은 표를 여기 복제하지 않는다. 가벼운 GET /api/ml/robo/weights를
- *     「비중 불러오기」 단추로 부르고, 받은 비중은 이 탭(sessionStorage)에만 둔다.
+ *   - 비중: 같은 표를 여기 복제하지 않는다. 화면에 들어올 때마다 저절로 부른다 — 저장본 먼저 · 404 일 때만 기본 비중 ·
+ *     그 밖 오류는 까닭(#179 계약 · 2026-10-16). 판단은 js/productweights.js 한 곳에 두고 여기서는 그 결과만 그린다.
+ *     받은 비중은 브라우저에 남기지 않는다(같은 탭에서 다른 사람이 로그인해도 앞사람 비중이 보이지 않게).
  * 강사님 파일(app.html · main.js · core.js · agent.js)에는 뿌리 칸 · 부르는 줄 · 메뉴 이름 · 옛 단추 가드만 두고 그리기는 모두 여기서.
  * ETF 이름을 누르면 상품 상세 창(js/productchart.js · API-PROD-04 · Figma 03-2 · 05 [결정] 안 B)이 열린다 — 차트 · 쉬운 말 근거는 그 파일에.
  *
  * 응답을 읽는 변수 이름은 객체마다 하나로 고정한다 — 시험(TC-PD)이 「변수.칸」 을 모아 서버 응답 칸과 맞댄다.
  *   ov 한눈에 응답 · ls 목록 응답 · it ETF 한 줄 · cls 자산군 · grp 묶음 · dv 레버리지 · 인버스 칸 · rq 요건 하나 ·
- *   sv 예금 · 적금 · 연금저축 응답 · p 그 상품 한 줄 · rt 그 기간 금리 줄 · al 배분 응답
+ *   sv 예금 · 적금 · 연금저축 응답 · p 그 상품 한 줄 · rt 그 기간 금리 줄 · al 기본 비중 응답 · sa 저장본 응답
+ *   (al · sa 는 js/productweights.js 에서 읽는다 — 시험은 두 파일을 함께 모은다)
  */
 import { api, escHtml, fmt } from "/js/common.js";
 import { navigate } from "/js/core.js";
 import { openProductChart } from "/js/productchart.js";
+import { resolveWeights } from "/js/productweights.js";
 
 const VIEW = "agent-products";
 const PER_GROUP = 5;             // 묶음마다 먼저 보일 줄 수(Figma 안 A)
 const PAGE = 50;                 // 「모두 보기」 한 번에 받을 줄 수
 const DEFAULT_ORDER = ["국내주식", "해외주식", "국내채권", "대체자산", "현금", "그 밖"];
 const DERIV_TAB = "derivatives";
-const WEIGHTS_KEY = "pd_weights_v1";
 //: 「모두 보기」 정렬 — 서버 SORT_KEYS 의 키 · 방향(이름은 화면 글)
 const SORTS = [
   ["aum:desc", "순자산 큰 순"], ["trade_value:desc", "20일 거래대금 큰 순"], ["return_1y:desc", "1년 수익률 높은 순"],
@@ -53,8 +55,10 @@ let savings = { kind: "deposit", sector: "bank", term: 12, sort: "base", sv: nul
 let savingsSeq = 0;              // 조건을 연달아 바꿀 때 옛 응답이 새 조건의 화면을 덮지 않게
 //: 연금저축은 보험 · 금융투자 업권에 있다(2026-10-12 실측 은행 0 · 보험 46 · 금융투자 297) — 다른 업권에서 바꾸면 보험으로
 const ANNUITY_SECTORS = ["insurance", "investment"];
-let weights = readWeights();     // { risk_profile, level, allocations, horizon_years } | null
+let weights = null;              // productweights.js resolveWeights 가 돌려준 것({ state: "ok" | "none" | "error", … }) | null
 let weightsLoading = false;
+let weightsSeq = 0;              // 화면에 다시 들어온 사이에 온 옛 응답이 새 결과를 덮지 않게
+let tabPicked = false;           // 사용자가 탭을 고른 뒤에는 비중이 바뀌어도 고른 탭을 그대로 둔다
 
 // ── 작은 도구 ──────────────────────────────────────────────────────────
 /** 25.2조 · 4,213억 · 5,000만 — 순자산 · 거래대금 */
@@ -75,8 +79,25 @@ function rate(v) { return v == null ? "—" : `${v.toFixed(2)}%`; }
 function readProfile() {
   try { return JSON.parse(localStorage.getItem("robo_risk_profile") || "null"); } catch (_) { return null; }
 }
-function readWeights() {
-  try { return JSON.parse(sessionStorage.getItem(WEIGHTS_KEY) || "null"); } catch (_) { return null; }
+/** 비중을 받았을 때만 자산군 → % (그 밖에는 null — 탭은 기본 차례) */
+function loadedAllocations() { return weights?.state === "ok" ? weights.allocations : null; }
+/** 자산 배분 화면의 성향 고르기 글(app.html #robo-risk) — 이름표를 여기 따로 적지 않는다. 없으면 빈 글 */
+function riskLabel(key) {
+  const opt = document.querySelector(`#robo-risk option[value="${CSS.escape(key || "")}"]`);
+  return opt ? opt.textContent.trim() : "";
+}
+/** 저장 시각(ISO · 시간대 포함) → 「10월 15일 14:32」(KST) */
+function savedWhen(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  // 이름 parts — 머리말 규칙의 p(상품 한 줄)와 겹치면 TC-PD-01 이 응답 칸으로 읽는다
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map(x => [x.type, x.value]));
+  return `${parts.month}월 ${parts.day}일 ${parts.hour}:${parts.minute}`;
+}
+/** 개념 학습 장으로 가는 링크(새 탭 — 고른 탭 · 펼친 묶음을 잃지 않게). 장 이름(slug)은 시험(TC-PD-07)이 교재에 있는지 본다 */
+function learnLink(slug, title) {
+  return `<a class="pd-learn-link" href="/learn/#/p/${slug}" target="_blank" rel="noopener">「${escHtml(title)}」 →</a>`;
 }
 function classLabel(key) {
   const cls = (ov?.classes || []).find(c => c.key === key);
@@ -87,7 +108,7 @@ function root() { return document.querySelector(`.view[data-view="${VIEW}"] .pd-
 /** 탭 차례 — 비중을 불러왔으면 비중 큰 순(같으면 기본 차례), 아니면 기본 차례. 「그 밖」 · 레버리지 · 인버스는 늘 끝 */
 function tabOrder() {
   const keys = DEFAULT_ORDER.filter(k => k !== "그 밖");
-  const wt = weights?.allocations;
+  const wt = loadedAllocations();
   if (wt) keys.sort((a, b) => (wt[b] ?? -1) - (wt[a] ?? -1) || DEFAULT_ORDER.indexOf(a) - DEFAULT_ORDER.indexOf(b));
   return [...keys, "그 밖", DERIV_TAB];
 }
@@ -127,27 +148,49 @@ function etfTable(items) {
     <tbody>${rows}</tbody></table></div>`;
 }
 
+/** 머리의 자산 배분 줄 — 상태 다섯(불러오는 중 · 저장본 · 기본 비중 · 둘 다 없음 · 못 읽음)을 productweights.js 결과 그대로 */
+function mixHtml(prof) {
+  const w = weights;
+  if (!w) {
+    return `<span class="pd-dim">${weightsLoading ? "자산 배분 비중을 불러오는 중…" : ""}</span>`;
+  }
+  if (w.state === "none") {
+    return `<span>투자 성향을 진단하면 탭이 내 자산 배분 비중 큰 순으로 바뀝니다.</span>
+      <button class="pd-link" data-go="robo-portfolio">투자 성향 진단하기 →</button>`;
+  }
+  if (w.state === "error") {
+    const what = w.step === "default" ? "저장한 배분이 없어 기본 비중을 불러오려 했지만 읽지 못했습니다" : "자산 배분 비중을 읽지 못했습니다";
+    return `<span class="pd-mix-err">${what} — ${escHtml(w.message)} · 탭은 기본 차례입니다.</span>
+      <button class="btn-secondary pd-weights-btn" data-act="weights" ${weightsLoading ? "disabled" : ""}>
+        ${weightsLoading ? "다시 불러오는 중…" : "다시 불러오기"}</button>
+      <button class="pd-link" data-go="robo-portfolio">자산 배분 화면 →</button>`;
+  }
+  const wt = w.allocations;
+  const parts = tabOrder().filter(k => wt[k] != null).map(k => `${escHtml(classLabel(k))} ${wt[k]}%`);
+  const basis = w.source === "saved"
+    ? `저장한 배분${savedWhen(w.saved_at) ? ` · ${savedWhen(w.saved_at)}` : ""} · 투자 기간 ${escHtml(w.horizon_years)}년`
+    : `저장한 배분이 없어 진단 성향의 기본 비중 · 투자 기간 ${escHtml(w.horizon_years)}년`;
+  const go = w.source === "saved" ? "자산 배분 보기 →" : "자산 배분 계산하기 →";
+  let out = `<span>자산 배분 — ${parts.join(" · ")} <span class="pd-dim">(${basis})</span></span>
+    <button class="pd-link" data-go="robo-portfolio">${go}</button>`;
+  if (w.differs) {
+    const savedName = riskLabel(w.risk_profile);
+    // 성향 이름표에 괄호가 들어 있어(「보수적 (안정추구형)」) 괄호로 다시 감싸지 않고 낫표로 — 겹친 괄호는 읽기 어렵다
+    out += `<p class="pd-mix-note">저장한 배분은 ${savedName ? `「${escHtml(savedName)}」 성향으로` : "다른 성향으로"} 계산했고,
+      지금 진단한 성향은 「${escHtml(prof?.level || "")}」 입니다 — 자산 배분 화면에서 다시 계산하면 탭 차례도 새 비중으로 바뀝니다.
+      <button class="pd-link" data-go="robo-portfolio">다시 계산하러 가기 →</button></p>`;
+  }
+  return out;
+}
+
 function headerHtml() {
   const prof = readProfile();
-  const wt = weights?.allocations;
-  let mix;
-  if (!prof) {
-    mix = `<span>투자 성향을 진단하면 탭이 내 자산 배분 비중 큰 순으로 바뀝니다.</span>
-      <button class="pd-link" data-go="robo-portfolio">투자 성향 진단하기 →</button>`;
-  } else if (wt && weights.risk_profile === prof.risk_profile) {
-    const parts = tabOrder().filter(k => wt[k] != null).map(k => `${escHtml(classLabel(k))} ${wt[k]}%`);
-    mix = `<span>자산 배분 — ${parts.join(" · ")} <span class="pd-dim">(투자 기간 ${escHtml(weights.horizon_years)}년 기준)</span></span>
-      <button class="pd-link" data-go="robo-portfolio">자산 배분 보기 →</button>`;
-  } else {
-    mix = `<button class="btn-secondary pd-weights-btn" data-act="weights" ${weightsLoading ? "disabled" : ""}>
-        ${weightsLoading ? "비중 불러오는 중…" : "내 자산 배분 비중 불러오기"}</button>
-      <button class="pd-link" data-go="robo-portfolio">성향 다시 진단 →</button>`;
-  }
   const chip = prof ? `<span class="pd-chip">투자 성향 ${escHtml(prof.level || prof.risk_profile)}</span>` : `<span class="pd-chip pd-chip--none">투자 성향 진단 전</span>`;
   return `<div class="pd-head">
       <h2>투자 성향별 상품 안내</h2>
       <p class="pd-lead">자산 배분 결과의 자산군마다 공시된 상품 정보를 같은 기준으로 모아 보여 줍니다.</p>
-      <div class="pd-mix">${chip}${mix}</div>
+      <p class="pd-learn">처음이라면 — 개념 학습 ${learnLink("funds-etf", "펀드와 ETF")} · ${learnLink("investor-profile-suitability", "투자 성향과 적합성")}</p>
+      <div class="pd-mix">${chip}${mixHtml(prof)}</div>
     </div>
     <div class="pd-note">공시된 상품 정보를 같은 기준으로 나열한 것입니다. 특정 상품의 추천이나 투자 권유가 아니며,
       순서(묶음은 거래소 유형 순서 · 묶음 안은 순자산 큰 순)는 상품의 좋고 나쁨을 뜻하지 않습니다.
@@ -156,7 +199,7 @@ function headerHtml() {
 }
 
 function tabsHtml() {
-  const wt = weights?.allocations;
+  const wt = loadedAllocations();
   const btns = tabOrder().map(key => {
     const on = key === active;
     if (key === DERIV_TAB) {
@@ -168,7 +211,7 @@ function tabsHtml() {
     return `<button role="tab" aria-selected="${on}" class="pd-tab ${on ? "is-on" : ""}" data-tab="${escHtml(key)}">
       ${escHtml(cls.label)}${w} <span class="pd-tab-n">${fmt(cls.count)}</span></button>`;
   }).join("");
-  const order = wt ? "탭 차례 = 내 자산 배분 비중 큰 순" : "탭 차례 = 기본 차례(비중을 불러오면 큰 순으로 바뀝니다)";
+  const order = wt ? "탭 차례 = 내 자산 배분 비중 큰 순" : "탭 차례 = 기본 차례";
   return `<div class="pd-tabs" role="tablist">${btns}</div>
     <p class="pd-dim pd-tabs-note">${order} · 숫자 = 상품 수(모든 탭을 더하면 ${fmt(ov.total)}개 = 그날 상장 ETF 전부)</p>`;
 }
@@ -235,7 +278,8 @@ function derivativesHtml() {
   const notes = [dv.notes[0], dv.notes[dv.notes.length - 1]].filter(Boolean).map(t => `<li>${escHtml(t)}</li>`).join("");
   const groups = dv.groups.filter(grp => grp.count > 0).map(grp => groupHtml(grp, DERIV_TAB)).join("");
   return `<div class="pd-warn" role="note"><b>주의 — 하루 수익률을 배수(또는 반대)로 따라가는 단기 매매용 상품입니다.
-      자산 배분 비중을 채우는 상품이 아닙니다.</b><ul>${notes}</ul></div>
+      자산 배분 비중을 채우는 상품이 아닙니다.</b><ul>${notes}</ul>
+      <p class="pd-learn">오래 들고 있으면 왜 기초지수 수익률의 배수와 달라지나 — 개념 학습 ${learnLink("funds-etf", "펀드와 ETF")}</p></div>
     ${requirementsHtml()}${groups}`;
 }
 
@@ -402,20 +446,16 @@ async function loadSavings() {
   draw();
 }
 
+/** 비중 — 화면에 들어올 때마다 저절로(가벼운 GET 하나 · 저장본이 없을 때만 둘) · 못 읽었을 때는 「다시 불러오기」 단추로 */
 async function loadWeights() {
-  const prof = readProfile();
-  if (!prof || weightsLoading) return;
+  const my = ++weightsSeq;
   weightsLoading = true;
   draw();
-  try {
-    const al = await api(`/api/ml/robo/weights?risk_profile=${encodeURIComponent(prof.risk_profile)}&horizon_years=3`);
-    weights = { risk_profile: al.risk_profile, level: prof.level, allocations: al.allocations, horizon_years: al.horizon_years };
-    try { sessionStorage.setItem(WEIGHTS_KEY, JSON.stringify(weights)); } catch (_) { }
-    active = tabOrder()[0];
-  } catch (e) {
-    weights = null;
-  }
+  const w = await resolveWeights(api, readProfile());
+  if (my !== weightsSeq) return;                                    // 다시 들어온 사이에 온 옛 결과는 버린다
+  weights = w;
   weightsLoading = false;
+  if (!tabPicked && ov?.status === "ok") active = tabOrder()[0];    // 고른 탭이 없을 때만 비중 큰 탭으로
   draw();
   if (active === "현금" && !savings.sv && !savings.loading) loadSavings();
 }
@@ -442,6 +482,7 @@ function onClick(ev) {
   if (d.go) { navigate(d.go); return; }
   if (d.tab) {
     active = d.tab;
+    tabPicked = true;
     draw();
     root()?.querySelector(".pd-tabs")?.scrollIntoView({ block: "nearest" });
     if (active === "현금" && !savings.sv && !savings.loading) loadSavings();
@@ -493,7 +534,7 @@ function wire() {
 export function onProductsViewActivated(view) {
   if (view !== "agent-products") return;   // 글자 그대로 — 화면 스캐너(scripts/view_scan.py)가 이 모양으로 진입 훅을 읽는다
   wire();
-  weights = readWeights();
   draw();
   loadOverview();
+  loadWeights();
 }

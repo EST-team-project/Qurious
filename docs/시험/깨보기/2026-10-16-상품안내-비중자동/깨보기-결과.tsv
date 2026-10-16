@@ -1,0 +1,24 @@
+id	시험 파일	-k	무엇을 깼나	결과	실패한 시험 · 끝 줄	시간
+C1	tests/test_products_screen.py	(전부)	대조군 — 깨지 않음	통과	7 passed in 5.43s	10s
+C2	tests/test_product_etfs.py	(전부)	대조군 — 깨지 않음	통과	22 passed in 3.86s	8s
+C3	tests/test_base_code_merge_guard.py	(전부)	대조군 — 깨지 않음	통과	22 passed in 6.11s	10s
+W1	tests/test_products_screen.py	(전부)	모든 오류를 「저장본 없음」 으로 보고 기본 비중으로 메움(말없는 fallback)	잡음	FAILED tests/test_products_screen.py::test_allocation_is_read_only - Assertio...	9s
+W2	tests/test_products_screen.py	(전부)	저장본이 있어도 기본 비중을 씀(저장본 먼저를 어김)	잡음	FAILED tests/test_products_screen.py::test_weights_follow_issue_179_contract	10s
+W3	tests/test_products_screen.py	(전부)	성향이 달라도 다시 계산 안내를 끔	잡음	FAILED tests/test_products_screen.py::test_weights_follow_issue_179_contract	9s
+W4	tests/test_products_screen.py	(전부)	진단 성향이 없으면 「중립」 으로 메워 기본 비중을 부름(말없는 기본값)	잡음	FAILED tests/test_products_screen.py::test_weights_follow_issue_179_contract	9s
+W5	tests/test_products_screen.py	(전부)	기본 비중의 투자 기간 3년 → 5년	잡음	FAILED tests/test_products_screen.py::test_weights_follow_issue_179_contract	9s
+W6	tests/test_products_screen.py	(전부)	상태 번호가 없는 오류를 0(연결 실패)으로 바꿔 적음	잡음	FAILED tests/test_products_screen.py::test_weights_follow_issue_179_contract	9s
+W7	tests/test_products_screen.py	(전부)	handoff 가 null 이면 비중도 버림(계약 4 어김)	잡음	FAILED tests/test_products_screen.py::test_weights_follow_issue_179_contract	12s
+W8	tests/test_products_screen.py	(전부)	서버가 보내지 않는 칸을 읽음(saved_at → savedAt)	잡음	FAILED tests/test_products_screen.py::test_screen_reads_only_fields_the_server_sends	10s
+S1	tests/test_products_screen.py	(전부)	화면이 진단 성향을 넘기지 않음(기본 비중이 늘 「none」)	잡음	FAILED tests/test_products_screen.py::test_allocation_is_read_only - Assertio...	12s
+S2	tests/test_products_screen.py	(전부)	들어올 때 저절로 부르지 않음(단추로만 — 옛 꼴)	잡음	FAILED tests/test_products_screen.py::test_allocation_is_read_only - Assertio...	11s
+S3	tests/test_products_screen.py	(전부)	받은 비중을 sessionStorage 에 남김(같은 탭 다른 사용자)	잡음	FAILED tests/test_products_screen.py::test_allocation_is_read_only - Assertio...	13s
+S4	tests/test_products_screen.py	(전부)	못 읽음 상태를 그리지 않고 비중 줄로 넘어감(화면 그리기 — DOM 시험 없음)	잡음	FAILED tests/test_products_screen.py::test_header_states_and_tab_keep - Asser...	14s
+S5	tests/test_products_screen.py	(전부)	사용자가 고른 탭을 비중이 오면 덮어씀(화면 상태 — DOM 시험 없음)	잡음	FAILED tests/test_products_screen.py::test_header_states_and_tab_keep - Asser...	13s
+S6	tests/test_products_screen.py	(전부)	불러오는 동안 안내 글을 뺌	잡음	FAILED tests/test_products_screen.py::test_header_states_and_tab_keep - asser...	10s
+S7	tests/test_products_screen.py	(전부)	다시 계산 안내에 저장본 성향 대신 지금 진단 성향 이름을 씀	잡음	FAILED tests/test_products_screen.py::test_header_states_and_tab_keep - asser...	11s
+S8	tests/test_products_screen.py	(전부)	저장 시각을 KST 대신 UTC 로	잡음	FAILED tests/test_products_screen.py::test_header_states_and_tab_keep - asser...	11s
+S9	tests/test_products_screen.py	(전부)	못 읽음 상태의 「다시 불러오기」 단추가 아무 일도 안 함	잡음	FAILED tests/test_products_screen.py::test_header_states_and_tab_keep - asser...	11s
+L1	tests/test_products_screen.py	(전부)	머리의 학습 링크가 없는 장을 가리킴(장 이름 오타)	잡음	FAILED tests/test_products_screen.py::test_learn_links_both_ways - AssertionE...	12s
+L2	tests/test_products_screen.py	(전부)	레버리지 · 인버스 주의 상자의 학습 링크를 뺌	잡음	FAILED tests/test_products_screen.py::test_learn_links_both_ways - assert 'le...	11s
+L3	tests/test_products_screen.py	(전부)	학습 링크가 같은 탭에서 열림(고른 탭 · 펼친 묶음을 잃음)	잡음	FAILED tests/test_products_screen.py::test_learn_links_both_ways - AssertionE...	11s

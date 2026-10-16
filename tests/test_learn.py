@@ -8,7 +8,7 @@
 3. 팀 자료 저장소(가짜 HF): 새 글 · 고치기 · 지우기 · 낡은 판은 Conflict · 다른 글 때문의 412 는 한 번 다시 ·
    내 글이 바뀐 412 는 Conflict · 권한 없음은 403 · 받아 오기가 더하고 바꾸고 지운다 · 해시가 다르면 쓰지 않는다.
 4. API: 기본 교재는 로그인 없이 · 팀 자료 읽기 · 쓰기는 로그인 뒤 · 기본 교재 이름은 팀 자료가 못 쓴다.
-5. 교재: 기본 교재 34편이 규격 · 링크 · 선수 장을 지키고, 3.1 RAG 장의 「직접 해 보기」 출력이 지금 예제 코드와 같다.
+5. 교재: 기본 교재 35편이 규격 · 링크 · 선수 장을 지키고, 3.1 RAG 장의 「직접 해 보기」 출력이 지금 예제 코드와 같다.
 
 네트워크 · DB 없이 돈다(HF 는 가짜, 로그인은 의존성 덮어쓰기).
 """
@@ -384,7 +384,7 @@ def test_builtin_textbook_pages_are_valid_and_linked():
     """TC-LN-15 · 기본 교재 전부가 규격을 지키고, 선수 장 · 장 안 링크(#/p/…)가 있는 장을 가리킨다."""
     pages, errors = lp.load_builtin(CONTENT)
     assert errors == []
-    assert len(pages) == 34
+    assert len(pages) == 35
     assert {p.meta["section"] for p in pages.values()} == {"tech", "finance"}
     for page in pages.values():
         for pre in page.meta.get("prereq", []):

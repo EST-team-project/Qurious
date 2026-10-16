@@ -1,0 +1,8 @@
+id	시험 파일	-k	무엇을 깼나	결과	실패한 시험 · 끝 줄	시간
+C1	tests/test_model_compare.py	mv01 or mv04 or mv17 or mv18 or mv20 or mv22b	대조군 — 깨지 않음	통과	6 passed, 30 deselected in 19.55s	24s
+C2	tests/test_model_compare_screen.py	(전부)	대조군 — 깨지 않음	통과	5 passed in 2.97s	7s
+C3	tests/test_collector_status.py	(전부)	대조군 — 깨지 않음	통과	20 passed in 2.68s	6s
+V6	tests/test_model_compare.py	mv06 or mv07 or mv08	홀름 보정을 건너뜀(원래 p 값으로 판정)	잡음	FAILED tests/test_model_compare.py::test_mv08c_holm_is_applied_per_baseline_over_all_models	24s
+V17	tests/test_model_compare.py	mv21	자료 지문이 거래량을 보지 않음	잡음	FAILED tests/test_model_compare.py::test_mv21_fingerprints_change_with_data_and_settings	8s
+V22	tests/test_model_compare.py	mv20	계산 시작 라우트에서 화면 머리글 검사를 떼어 냄(함수는 남김)	잡음	FAILED tests/test_model_compare.py::test_mv20_routes_admin_flag_screen_header_and_errors	9s
+D2	tests/test_collector_status.py	sds05	한 트랜잭션 없이 종목마다 다른 순간을 읽음(BEGIN 뺌)	잡음	FAILED tests/test_collector_status.py::test_sds05_read_only_single_connection	5s

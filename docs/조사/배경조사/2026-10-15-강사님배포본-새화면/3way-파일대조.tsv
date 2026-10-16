@@ -1,0 +1,187 @@
+경로	기준점	강사님변경	우리상태	강사님더한줄	강사님뺀줄
+.env.example	e815be3	바꿈	우리 다름(3-way 필요)	21	0
+Dockerfile	e815be3	바꿈	우리 다름(3-way 필요)	2	0
+app/celery_app.py	e815be3	바꿈	우리 다름(3-way 필요)	7	0
+app/config.py	e815be3	바꿈	우리 다름(3-way 필요)	41	1
+app/main.py	e815be3	바꿈	우리 다름(3-way 필요)	6	1
+app/models/__init__.py	e815be3	바꿈	우리 다름(3-way 필요)	2	0
+app/models/trading.py	e815be3	바꿈	우리 다름(3-way 필요)	5	0
+app/routes/formula.py	e815be3	바꿈	우리 다름(3-way 필요)	5	1
+app/routes/ingest.py	e815be3	바꿈	우리 다름(3-way 필요)	1	1
+app/routes/ml.py	e815be3	바꿈	우리 다름(3-way 필요)	4	2
+app/routes/rebalance.py	e815be3	바꿈	우리 다름(3-way 필요)	5	3
+app/routes/stocks.py	e815be3	바꿈	우리 다름(3-way 필요)	188	33
+app/services/aggressive_mode.py	e815be3	바꿈	우리 다름(3-way 필요)	11	5
+app/services/auto_trade.py	e815be3	바꿈	우리 다름(3-way 필요)	263	25
+app/services/brokers/stock_coin_trade_gateway.py	e815be3	바꿈	우리 다름(3-way 필요)	1	1
+app/services/crawl.py	e815be3	바꿈	우리 다름(3-way 필요)	3	3
+app/services/investment_research.py	e815be3	바꿈	우리 다름(3-way 필요)	73	2
+app/services/kis_market_data.py	e815be3	바꿈	우리 다름(3-way 필요)	16	7
+app/services/patterns.py	e815be3	바꿈	우리 다름(3-way 필요)	210	7
+app/services/rebalance.py	e815be3	바꿈	우리 다름(3-way 필요)	28	16
+app/services/stock.py	e815be3	바꿈	우리 다름(3-way 필요)	312	87
+app/services/sync_scheduler.py	e815be3	바꿈	우리 다름(3-way 필요)	5	32
+app/services/ta_utils.py	e815be3	바꿈	우리 다름(3-way 필요)	15	0
+app/tasks/sync_tasks.py	e815be3	바꿈	우리 다름(3-way 필요)	40	0
+docker-compose.yml	e815be3	바꿈	우리 다름(3-way 필요)	17	0
+public/app.html	9478811	바꿈	우리 다름(3-way 필요)	688	224
+public/css/app.css	9478811	바꿈	우리 다름(3-way 필요)	134	34
+public/js/agent.js	9478811	바꿈	우리 다름(3-way 필요)	4	3
+public/js/common.js	9478811	바꿈	우리 다름(3-way 필요)	3	1
+public/js/completion.js	9478811	지움	우리 다름(3-way 필요)	0	116
+public/js/core.js	9478811	바꿈	우리 다름(3-way 필요)	234	49
+public/js/dashboard.js	9478811	바꿈	우리 다름(3-way 필요)	16	12
+public/js/indicator.js	9478811	바꿈	우리 다름(3-way 필요)	380	99
+public/js/main.js	9478811	바꿈	우리 다름(3-way 필요)	13	4
+public/js/ml.js	9478811	바꿈	우리 다름(3-way 필요)	4	3
+public/js/paper.js	9478811	바꿈	우리 다름(3-way 필요)	7	3
+public/js/quant.js	9478811	바꿈	우리 다름(3-way 필요)	48	25
+public/js/rebalance.js	9478811	바꿈	우리 다름(3-way 필요)	81	15
+public/js/robo.js	9478811	바꿈	우리 다름(3-way 필요)	593	55
+public/js/settings.js	9478811	바꿈	우리 다름(3-way 필요)	16	14
+public/login.html	9478811	바꿈	우리 다름(3-way 필요)	6	14
+public/register.html	9478811	바꿈	우리 다름(3-way 필요)	6	14
+readme.md	e815be3	바꿈	우리 다름(3-way 필요)	58	4
+scripts/take_screenshots.py	e815be3	바꿈	우리 다름(3-way 필요)	2	2
+tests/test_aggressive_mode.py	e815be3	바꿈	우리 다름(3-way 필요)	18	2
+tests/test_kis_batch.py	e815be3	바꿈	우리 다름(3-way 필요)	73	0
+tests/test_kis_market_data.py	e815be3	바꿈	우리 다름(3-way 필요)	31	4
+tests/test_kis_monitor_route.py	e815be3	바꿈	우리 다름(3-way 필요)	72	3
+tests/test_patterns.py	e815be3	바꿈	우리 다름(3-way 필요)	91	0
+tests/test_strategy_spec_apply.py	e815be3	바꿈	우리 다름(3-way 필요)	3	0
+tests/test_universe_and_schedule.py	e815be3	바꿈	우리 다름(3-way 필요)	8	8
+app/services/formula.py	e815be3	바꿈	우리=강사님 최신	180	27
+public/js/vendor/lightweight-charts/LICENSE	9478811	더함	우리=강사님 최신	201	0
+public/js/vendor/lightweight-charts/NOTICE	9478811	더함	우리=강사님 최신	2	0
+public/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js	9478811	더함	우리=강사님 최신	7	0
+tests/test_formula.py	e815be3	바꿈	우리=강사님 최신	45	1
+app/lib/financial_tools.py	e815be3	바꿈	우리=기준점(손 안 댐)	2	2
+app/routes/kis_monitor.py	e815be3	바꿈	우리=기준점(손 안 댐)	77	11
+app/routes/notification.py	e815be3	바꿈	우리=기준점(손 안 댐)	1	1
+app/routes/quant.py	e815be3	바꿈	우리=기준점(손 안 댐)	2	1
+app/routes/tradingview.py	e815be3	바꿈	우리=기준점(손 안 댐)	1	1
+app/services/data_cache.py	e815be3	바꿈	우리=기준점(손 안 댐)	15	0
+app/services/kis_batch.py	e815be3	바꿈	우리=기준점(손 안 댐)	69	0
+app/services/lean_backtest.py	e815be3	바꿈	우리=기준점(손 안 댐)	24	30
+app/services/notification.py	e815be3	바꿈	우리=기준점(손 안 댐)	10	12
+app/services/reconciliation.py	e815be3	바꿈	우리=기준점(손 안 댐)	1	1
+app/services/strategy_loader.py	e815be3	바꿈	우리=기준점(손 안 댐)	40	0
+docs/01.md	e815be3	바꿈	우리=기준점(손 안 댐)	14	14
+docs/02.md	e815be3	바꿈	우리=기준점(손 안 댐)	10	10
+docs/03.md	e815be3	바꿈	우리=기준점(손 안 댐)	10	10
+docs/04.md	e815be3	바꿈	우리=기준점(손 안 댐)	57	57
+docs/05.md	e815be3	바꿈	우리=기준점(손 안 댐)	25	25
+docs/contracts/kis-autotrade-api.md	e815be3	바꿈	우리=기준점(손 안 댐)	12	1
+docs/rfp-2.md	e815be3	바꿈	우리=기준점(손 안 댐)	1	1
+public/css/completion.css	9478811	지움	우리=기준점(손 안 댐)	0	38
+public/index.html	9478811	바꿈	우리=기준점(손 안 댐)	9	5
+public/js/company.js	9478811	바꿈	우리=기준점(손 안 댐)	530	105
+public/js/formula.js	9478811	바꿈	우리=기준점(손 안 댐)	38	13
+public/js/sysadmin.js	9478811	바꿈	우리=기준점(손 안 댐)	2	2
+public/js/us.js	9478811	바꿈	우리=기준점(손 안 댐)	3	2
+tests/test_auto_status_batch_merge.py	e815be3	바꿈	우리=기준점(손 안 댐)	23	0
+tests/test_strategy_loader.py	e815be3	바꿈	우리=기준점(손 안 댐)	36	0
+.github/workflows/deploy.yml	e815be3	바꿈	우리에 없음	12	1
+Dockerfile.streamlit	e815be3	더함	우리에 없음	11	0
+alembic/versions/0010_live_orders_origin.py	e815be3	더함	우리에 없음	43	0
+alembic/versions/0011_kis_equity_snapshots.py	e815be3	더함	우리에 없음	58	0
+app/data/korea-master-layouts.json	e815be3	더함	우리에 없음	282	0
+app/data/korea-universe.json	e815be3	더함	우리에 없음	1	0
+app/data/legacy-sector-themes.json	e815be3	더함	우리에 없음	1	0
+app/data/legacy-trading-symbols.json	e815be3	더함	우리에 없음	1	0
+app/lib/request_meta.py	e815be3	더함	우리에 없음	31	0
+app/models/review.py	e815be3	더함	우리에 없음	29	0
+app/routes/return_review.py	e815be3	더함	우리에 없음	227	0
+app/routes/strategy_settings.py	e815be3	더함	우리에 없음	244	0
+app/services/dart.py	e815be3	더함	우리에 없음	648	0
+app/services/korea_market_scan.py	e815be3	더함	우리에 없음	165	0
+app/services/korea_universe.py	e815be3	더함	우리에 없음	123	0
+app/services/ohlcv_catalog.py	e815be3	더함	우리에 없음	95	0
+app/services/ohlcv_store.py	e815be3	더함	우리에 없음	250	0
+app/services/return_review.py	e815be3	더함	우리에 없음	705	0
+app/services/sector_indicators.py	e815be3	더함	우리에 없음	422	0
+app/services/signal_mode.py	e815be3	더함	우리에 없음	79	0
+app/services/strategy_settings.py	e815be3	더함	우리에 없음	530	0
+aws-work/README.md	e815be3	바꿈	우리에 없음	30	30
+compose.fd.yml	e815be3	바꿈	우리에 없음	7	0
+deploy/fd-dart-profitability.sh	e815be3	더함	우리에 없음	28	0
+deploy/fd-dashboard-shortcuts.sh	e815be3	더함	우리에 없음	21	0
+deploy/fd-kis-batch-control.sh	e815be3	더함	우리에 없음	16	0
+deploy/fd-return-review-live.sh	e815be3	더함	우리에 없음	24	0
+deploy/fd-strategy-settings.sh	e815be3	더함	우리에 없음	27	0
+deploy/fd-streamlit.sh	e815be3	더함	우리에 없음	20	0
+docs/korea-market-universe.md	e815be3	더함	우리에 없음	53	0
+infra/fd-edumgt/Caddyfile	e815be3	바꿈	우리에 없음	23	1
+local-py/.env.example	e815be3	더함	우리에 없음	51	0
+local-py/.gitignore	e815be3	더함	우리에 없음	5	0
+local-py/README.md	e815be3	더함	우리에 없음	272	0
+local-py/lumina_local/__init__.py	e815be3	더함	우리에 없음	12	0
+local-py/lumina_local/aggressive.py	e815be3	더함	우리에 없음	146	0
+local-py/lumina_local/auto_trade.py	e815be3	더함	우리에 없음	346	0
+local-py/lumina_local/backtest.py	e815be3	더함	우리에 없음	84	0
+local-py/lumina_local/broker.py	e815be3	더함	우리에 없음	249	0
+local-py/lumina_local/cli.py	e815be3	더함	우리에 없음	296	0
+local-py/lumina_local/config.py	e815be3	더함	우리에 없음	176	0
+local-py/lumina_local/indicators.py	e815be3	더함	우리에 없음	149	0
+local-py/lumina_local/market_data.py	e815be3	더함	우리에 없음	219	0
+local-py/lumina_local/risk_guard.py	e815be3	더함	우리에 없음	175	0
+local-py/lumina_local/store.py	e815be3	더함	우리에 없음	193	0
+local-py/lumina_local/strategy.py	e815be3	더함	우리에 없음	140	0
+local-py/lumina_local/universe.py	e815be3	더함	우리에 없음	70	0
+local-py/requirements.txt	e815be3	더함	우리에 없음	5	0
+local-py/strategies/ma-cross-basic.json	e815be3	더함	우리에 없음	10	0
+local-py/strategies/momentum-breakout.json	e815be3	더함	우리에 없음	10	0
+local-py/strategies/score-threshold.json	e815be3	더함	우리에 없음	8	0
+local-py/tests/test_local.py	e815be3	더함	우리에 없음	307	0
+local-py/trade.py	e815be3	더함	우리에 없음	15	0
+public/css/font-rendering.css	9478811	더함	우리에 없음	48	0
+public/js/company-indicator-help.js	9478811	더함	우리에 없음	119	0
+public/js/formula-chart-help.js	9478811	더함	우리에 없음	35	0
+public/js/formula-guide.js	9478811	더함	우리에 없음	61	0
+public/js/icons.js	9478811	더함	우리에 없음	18	0
+public/js/indicator-chart.js	9478811	더함	우리에 없음	82	0
+public/js/kis_batch_ctl.js	9478811	더함	우리에 없음	68	0
+public/js/kis_monitor.js	9478811	더함	우리에 없음	283	0
+public/js/korea-universe.js	9478811	더함	우리에 없음	32	0
+public/js/pine-lint.js	9478811	더함	우리에 없음	88	0
+public/js/return_review.js	9478811	더함	우리에 없음	240	0
+public/js/strategy_settings.js	9478811	더함	우리에 없음	379	0
+public/js/vendor/ag-grid/LICENSE.txt	9478811	더함	우리에 없음	21	0
+public/js/vendor/ag-grid/ag-grid-community-36.2.0.min.js	9478811	더함	우리에 없음	14971	0
+services/crawl-service/app/routes/ingest.py	e815be3	바꿈	우리에 없음	1	1
+services/crawl-service/app/services/crawl.py	e815be3	바꿈	우리에 없음	3	3
+shared-css/README.md	e815be3	더함	우리에 없음	95	0
+shared-css/audit.py	e815be3	더함	우리에 없음	127	0
+shared-css/common.css	e815be3	더함	우리에 없음	175	0
+shared-css/deploy.sh	e815be3	더함	우리에 없음	29	0
+streamlit_app/__init__.py	e815be3	더함	우리에 없음	1	0
+streamlit_app/api.py	e815be3	더함	우리에 없음	108	0
+streamlit_app/app.py	e815be3	더함	우리에 없음	59	0
+streamlit_app/pages/__init__.py	e815be3	더함	우리에 없음	0	0
+streamlit_app/pages/agent_chat.py	e815be3	더함	우리에 없음	56	0
+streamlit_app/pages/company.py	e815be3	더함	우리에 없음	68	0
+streamlit_app/pages/dashboard.py	e815be3	더함	우리에 없음	44	0
+streamlit_app/pages/generic.py	e815be3	더함	우리에 없음	41	0
+streamlit_app/pages/kis_monitor.py	e815be3	더함	우리에 없음	44	0
+streamlit_app/pages/login.py	e815be3	더함	우리에 없음	20	0
+streamlit_app/pages/return_review.py	e815be3	더함	우리에 없음	82	0
+streamlit_app/pages/strategy_settings.py	e815be3	더함	우리에 없음	82	0
+streamlit_app/requirements.txt	e815be3	더함	우리에 없음	4	0
+streamlit_app/ui.py	e815be3	더함	우리에 없음	69	0
+tests/test_company_fundamentals_resilience.py	e815be3	더함	우리에 없음	100	0
+tests/test_confirm_fills_call_budget.py	e815be3	더함	우리에 없음	117	0
+tests/test_dart_financials.py	e815be3	더함	우리에 없음	210	0
+tests/test_dart_per_share.py	e815be3	더함	우리에 없음	173	0
+tests/test_dart_profitability.py	e815be3	더함	우리에 없음	192	0
+tests/test_korea_market.py	e815be3	더함	우리에 없음	100	0
+tests/test_manual_kis_order.py	e815be3	더함	우리에 없음	169	0
+tests/test_ohlcv_store.py	e815be3	더함	우리에 없음	174	0
+tests/test_rebalance_kis.py	e815be3	바꿈	우리에 없음	2	2
+tests/test_return_review.py	e815be3	더함	우리에 없음	373	0
+tests/test_sector_indicators.py	e815be3	더함	우리에 없음	81	0
+tests/test_signal_mode.py	e815be3	더함	우리에 없음	60	0
+tests/test_strategy_compare.py	e815be3	더함	우리에 없음	104	0
+tests/test_strategy_settings.py	e815be3	더함	우리에 없음	346	0
+tests/test_strategy_xai.py	e815be3	더함	우리에 없음	40	0
+tests/test_streamlit_app.py	e815be3	더함	우리에 없음	93	0
+todo.md	e815be3	바꿈	우리에 없음	1034	10

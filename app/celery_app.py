@@ -71,30 +71,13 @@ celery_app.conf.update(
             "options": {"expires": 82800},
         },
 
-        # ── 시세 수집 (collector 패키지) ─────────────────────────────────────
-        # 셋을 한 시간 간격으로 벌려 둔다. 수정주가는 수집이 끝난 뒤에 돌아야 하고,
-        # 매니페스트는 그 둘이 끝난 상태의 지문이어야 하기 때문이다.
-        #
-        # crontab 을 쓰는 이유: 위의 두 개처럼 초 단위 간격으로 두면 워커를 재시작할
-        # 때마다 실행 시각이 밀려, "어제는 몇 시에 돌았나" 를 아무도 모르게 된다.
-        #
-        # 시각은 KST 다 (timezone="Asia/Seoul"). 당일 시세를 받는 것이 아니라 최근
-        # 2주의 빈 날을 채우는 것이라, 장 마감 시각과 맞출 이유가 없다.
-        "collector-portal-recent": {
-            "task": "collector.portal_recent",
-            "schedule": crontab(hour=18, minute=0),
-            "options": {"expires": 3600 * 5},
-        },
-        "collector-rebuild-adjusted": {
-            "task": "collector.rebuild_adjusted",
-            "schedule": crontab(hour=19, minute=0),
-            "options": {"expires": 3600 * 5},
-        },
-        "collector-write-manifest": {
-            "task": "collector.write_manifest",
-            "schedule": crontab(hour=20, minute=0),
-            "options": {"expires": 3600 * 3},
-        },
+        # ── 시세 수집은 여기서 예약하지 않는다 (D106 · 2026-10-15) ────────────
+        # 수집 · 수정주가 · 목록표는 이 PC 작업 스케줄러의 일일 수집(매일 12:30 ·
+        # scripts/daily_update.py)이 한다. 예약기가 둘이면 같은 수집 DB 를 서로 다른
+        # 잠금으로 쓰게 되고, 앱 컨테이너에는 collector 패키지가 없어 여기 있던 저녁
+        # 예약 셋(18 · 19 · 20시)은 태스크 안 import 에서 실패할 수밖에 없었다.
+        # 태스크 정의(app/tasks/collector_tasks.py)는 손으로 부를 수 있게 남긴다.
+        # 시험: TC-DU — 예약 목록에 collector.* 가 없다.
 
         # ── 강사님 원본(2026-09-29)에서 옮겨 온 예약 작업 ──────────────────────
         # 자동매매 사이클은 증권사 클라이언트를 brokers.factory 로 얻는다 — 실거래는
