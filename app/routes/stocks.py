@@ -16,7 +16,7 @@ from app.services.stock import (
     get_quant_indicators, get_fundamentals, QUANT_STOCKS,
 )
 from app.services.krx_companies import search_companies
-from app.services import auto_trade
+from app.services import auto_trade, pattern_view
 from app.services import risk_guard
 from app.services.risk_execution import execution_guidance
 from app.services.execution_policy import ExecutionPolicy, policy_for
@@ -195,7 +195,7 @@ async def stock_signals(
             "reason": result["reason"],
             "rsi": result["rsi"],
             "price": quote.get("price") or result["price"],
-            "change_pct": quote.get("change_pct"),
+            "change_pct": quote.get("change_pct"), "as_of": pattern_view.candle_day(candles),
         }
         # XAI: 최근 3시간 내 계산된 LightGBM 설명이 캐시에 있으면 요약만 첨부 (없으면 /api/ml/explain으로 온디맨드 계산)
         cached_ai = await cache_get(f"ai_predict:v4:{stock['symbol']}", max_age_hours=3)
@@ -861,7 +861,7 @@ async def stock_patterns(symbol: str = Query("005930.KS"), period: str = Query("
     """캔들 패턴·지지/저항선·돌파 신호 (일봉) · 패턴 통계(전 종목 · 그 종목) · 가격 수준(지지 · 저항 · ATR)."""
     from app.services import pattern_view
     from app.services.patterns import pattern_summary
-    candles = (await get_candles(symbol, period=period, interval="1d")).get("candles", [])
+    candles = (await get_candles(symbol := pattern_view.resolve_symbol(symbol), period=period, interval="1d")).get("candles", [])
     if not candles:
         raise HTTPException(404, f"종목 데이터 없음: {symbol}")
     result = pattern_summary(candles)
@@ -885,7 +885,7 @@ async def stock_mtf_signal(symbol: str = Query("005930.KS"),
     from app.models import Portfolio, PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT
     from app.services import opinion as opinion_svc, pattern_view, signal_explain
     from app.services.patterns import multi_timeframe_signal
-
+    symbol = pattern_view.resolve_symbol(symbol)   # 6자리 · 소문자도 같은 종목 · 같은 장부 줄로
     try:
         snapshot = await signal_explain.load_snapshot(db, symbol)
     except Exception:

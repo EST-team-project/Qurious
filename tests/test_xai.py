@@ -141,3 +141,14 @@ def test_screen_badge_text_uses_lowered_signal():
     import inspect
     assert '"model_signal_label": ex.get("model_signal_label")' in inspect.getsource(stocks)
     assert not re.search(r"signal_label\)\} \$\{[^}]*probability_pct\}%", js)   # 옛 꼴(판단 + 확률 그대로) 남지 않음
+
+
+def test_ai_predict_carries_last_daily_bar_date():
+    """XAI 판단 한 줄의 기준일 — 학습 · 예측에 쓴 마지막 일봉 날(#213 「무엇으로 냈나 · 기준일」)."""
+    import pathlib
+    from app.services.investment_research import ai_predict_return
+    from app.services.pattern_view import candle_day
+    candles = make_candles(500)
+    assert ai_predict_return(candles)["as_of"] == candle_day(candles)
+    js = pathlib.Path("public/js/robo.js").read_text(encoding="utf-8")
+    assert "기준일 ${escHtml(pr.as_of" in js

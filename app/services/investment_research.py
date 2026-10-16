@@ -318,6 +318,7 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
 
     return {
         "pred_5d_return_pct": round(pred_5d * 100, 3),
+        "as_of": pd.to_datetime(candles[-1]["time"], unit="s", utc=True).strftime("%Y-%m-%d"),  # 학습 · 예측에 쓴 마지막 일봉 날
         "pred_ann_return_pct": round(max(-90.0, min(300.0, pred_ann * 100)), 2),
         "val_r2": round(best_r2, 4),
         "model": f"{best_name}(TimeSeriesSplit {n_splits}-fold)",
