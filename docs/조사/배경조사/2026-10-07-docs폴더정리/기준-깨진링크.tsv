@@ -1,0 +1,17 @@
+파일	링크
+docs/계획서/이동원파트-할일_v0.1.md	../화면/화면IA_v1.2.md
+docs/계획서/이동원파트-할일_v0.2.md	../화면/화면IA_v1.2.md
+docs/문서그림지침_v0.1.md	img/infra-local-network_v0.1.png
+docs/문서그림지침_v0.2.md	img/infra-local-network_v0.1.png
+docs/문서그림지침_v0.3.md	img/infra-local-network_v0.1.png
+docs/문서작성기준_v0.1.md	상대
+docs/문서작성기준_v0.2.md	상대
+docs/조사/로컬LLM-퀀트활용-조사_v0.1.md	:SetEnvironmentVariable("OLLAMA_IGPU_ENABLE",
+onprem.md	aws.md
+onprem.md	aws.md
+pipeline.md	aws.md
+pipeline.md	sagemaker/train.py
+pipeline.md	infra/quant-ai/
+pipeline.md	app/services/quant_ai_scores.py
+public/learn/content/intraday-timezone.md	YFPricesMissingError('possibly
+docs/문서기준/지난판/문서작성기준_v0.2.md	상대

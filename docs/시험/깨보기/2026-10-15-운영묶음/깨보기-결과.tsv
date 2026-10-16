@@ -1,0 +1,46 @@
+id	시험 파일	-k	무엇을 깼나	결과	실패한 시험 · 끝 줄	시간
+C1	tests/test_daily_update.py	catch_up or install_refuses or warn_code or price_step_warns or record	대조군 — 깨지 않음	통과	17 passed, 50 deselected in 6.70s	11s
+C2	tests/test_hf_dataset_tables.py	(전부)	대조군 — 깨지 않음	통과	10 passed in 1.76s	6s
+C3	tests/test_backfill_exit.py	(전부)	대조군 — 깨지 않음	통과	7 passed in 0.33s	4s
+C4	tests/test_data_status.py	(전부)	대조군 — 깨지 않음	통과	25 passed in 3.51s	8s
+U1	tests/test_daily_update.py	catch_up	따라잡기 막음을 끔(늘 돈다)	잡음	FAILED tests/test_daily_update.py::test_catch_up_run_right_before_1230_leaves_one_line_and_does_nothing	5s
+U2	tests/test_daily_update.py	catch_up_window_edges	끝 여유 2분을 없앰(12:28 도 막음)	잡음	FAILED tests/test_daily_update.py::test_catch_up_window_edges[hm3-False] - As...	4s
+U3	tests/test_daily_update.py	catch_up_window_edges	앞쪽 끝을 수동 막음과 다른 값(60분)으로	잡음	FAILED tests/test_daily_update.py::test_catch_up_window_edges[hm1-True] - Ass...	4s
+U4	tests/test_daily_update.py	right_before_1230	건너뛰며 이력 줄을 남기지 않음(말없는 건너뜀)	잡음	FAILED tests/test_daily_update.py::test_catch_up_run_right_before_1230_leaves_one_line_and_does_nothing	4s
+U5	tests/test_daily_update.py	install_refuses	등록 시각 검사를 뺌	잡음	FAILED tests/test_daily_update.py::test_install_refuses_a_time_the_catch_up_rule_would_always_skip	4s
+U6	tests/test_daily_update.py	warn_code	경고 종료코드를 표시하지 않음(멈춤으로)	잡음	FAILED tests/test_daily_update.py::test_warn_code_of_a_stopping_step_is_a_warning_and_the_run_goes_on	5s
+U7	tests/test_daily_update.py	warn_code	경고로 적고도 멈춤	잡음	FAILED tests/test_daily_update.py::test_warn_code_of_a_stopping_step_is_a_warning_and_the_run_goes_on	4s
+U8	tests/test_daily_update.py	warn_code	이력 줄에서 warn 칸을 뺌	잡음	FAILED tests/test_daily_update.py::test_warn_code_of_a_stopping_step_is_a_warning_and_the_run_goes_on	5s
+U9	tests/test_daily_update.py	warn_code	한 단계 다시는 경고를 표시하지 않음	잡음	FAILED tests/test_daily_update.py::test_warn_code_of_a_stopping_step_is_a_warning_and_the_run_goes_on	5s
+U10	tests/test_daily_update.py	price_step_warns	시세 단계에서 경고 종료코드를 뺌	잡음	FAILED tests/test_daily_update.py::test_price_step_warns_on_69_and_still_stops_on_a_crash	5s
+U11	tests/test_daily_update.py	gets_a_record	올리기 자식에게 회차 시각을 넘기지 않음	잡음	FAILED tests/test_daily_update.py::test_upload_step_gets_a_record_of_this_run	4s
+U12	tests/test_daily_update.py	gets_a_record	요청 번호를 빼지 않음	잡음	FAILED tests/test_daily_update.py::test_upload_step_gets_a_record_of_this_run	5s
+U13	tests/test_daily_update.py	gets_a_record	글 칸을 거르지 않음(경로가 남음)	잡음	FAILED tests/test_daily_update.py::test_upload_step_gets_a_record_of_this_run	5s
+U14	tests/test_daily_update.py	gets_a_record	이력 줄을 한 달로 자르지 않음	잡음	FAILED tests/test_daily_update.py::test_upload_step_gets_a_record_of_this_run	5s
+U15	tests/test_daily_update.py	gets_a_record	남은 단계에서 올리기를 뺌	잡음	FAILED tests/test_daily_update.py::test_upload_step_gets_a_record_of_this_run	5s
+U16	tests/test_daily_update.py	failed_write_is_said	사본을 못 쓴 것을 단계 메모에 남기지 않음	잡음	FAILED tests/test_daily_update.py::test_no_record_when_nothing_is_uploaded_and_a_failed_write_is_said	6s
+U17	tests/test_daily_update.py	failed_write_is_said	올릴 것이 없어도 사본을 씀	잡음	FAILED tests/test_daily_update.py::test_no_record_when_nothing_is_uploaded_and_a_failed_write_is_said	5s
+H1	tests/test_hf_dataset_tables.py	only_the_record	다른 회차 · 러너 밖 올리기의 사본을 지우지 않음	잡음	FAILED tests/test_hf_dataset_tables.py::test_only_the_record_of_the_run_that_uploads_is_kept	4s
+H2	tests/test_hf_dataset_tables.py	only_the_record	회차를 맞대지 않고 아무 사본이나 실음	잡음	FAILED tests/test_hf_dataset_tables.py::test_only_the_record_of_the_run_that_uploads_is_kept	4s
+H3	tests/test_hf_dataset_tables.py	same_commit	올리기 전에 지난 사본을 치우지 않음	잡음	FAILED tests/test_hf_dataset_tables.py::test_upload_puts_this_runs_record_in_the_same_commit	5s
+H4	tests/test_hf_dataset_tables.py	same_commit	미리 보기에서도 사본을 지움	잡음	FAILED tests/test_hf_dataset_tables.py::test_upload_puts_this_runs_record_in_the_same_commit	4s
+H5	tests/test_hf_dataset_tables.py	card	데이터셋 카드에서 회차 기록 절을 뺌	잡음	FAILED tests/test_hf_dataset_tables.py::test_dataset_card_explains_the_run_record	4s
+B1	tests/test_backfill_exit.py	failed_day	실패한 날을 종료코드에 싣지 않음	잡음	FAILED tests/test_backfill_exit.py::test_failed_day_ends_with_69_and_is_kept_for_the_next_run	5s
+B2	tests/test_backfill_exit.py	stopped_run	멈춤을 종료코드에 싣지 않음	잡음	FAILED tests/test_backfill_exit.py::test_stopped_run_ends_with_69_and_says_why_once[budget-\ud55c\ub3c4]	4s
+B3	tests/test_backfill_exit.py	cli_returns	명령 줄(recent)이 늘 0	잡음	FAILED tests/test_backfill_exit.py::test_cli_returns_the_exit_code - Assertio...	4s
+B4	tests/test_backfill_exit.py	stopped_run	멈춘 까닭을 첫 줄로 자르지 않음(할 일 줄까지)	잡음	FAILED tests/test_backfill_exit.py::test_stopped_run_ends_with_69_and_says_why_once[split-\ud558\ub8e8\uce58\uac00 \ud55c \ubc88\uc5d0 \uc548 \ub4e4\uc5b4\uc628	4s
+B5	tests/test_backfill_exit.py	failed_day	마지막 줄 「다 받지 못했다」 를 찍지 않음	잡음	FAILED tests/test_backfill_exit.py::test_failed_day_ends_with_69_and_is_kept_for_the_next_run	4s
+B6	tests/test_backfill_exit.py	does_not_collide	69 대신 75(러너 · 작업자의 「지금은 못 돈다」)	잡음	FAILED tests/test_backfill_exit.py::test_69_does_not_collide_with_runner_and_worker_codes	4s
+S1	tests/test_data_status.py	publish_deadline	마감을 보지 않음(n=1 이면 늘 공개 전)	잡음	FAILED tests/test_data_status.py::test_portal_one_day_behind_is_normal_until_the_publish_deadline	6s
+S2	tests/test_data_status.py	publish_deadline	마감을 14:00 대신 13:00 으로(여유 없음)	잡음	FAILED tests/test_data_status.py::test_portal_one_day_behind_is_normal_until_the_publish_deadline	5s
+S3	tests/test_data_status.py	substitute_holiday	마감 셈에 거래일 달력을 쓰지 않음(평일로)	잡음	FAILED tests/test_data_status.py::test_friday_prices_are_due_the_next_trading_day_after_a_substitute_holiday	6s
+S4	tests/test_data_status.py	same_way	관제가 지금 시각을 넘기지 않음(시각 모름)	잡음	FAILED tests/test_data_status.py::test_late_status_and_rebalance_readiness_point_the_same_way	6s
+S5	tests/test_data_status.py	disclosure_list	공시 목록의 전 거래일 비교를 끔	잡음	FAILED tests/test_data_status.py::test_disclosure_list_is_late_when_older_than_the_previous_trading_day	6s
+S6	tests/test_data_status.py	36_hours	기사 기준을 36시간 대신 48시간으로	잡음	FAILED tests/test_data_status.py::test_news_articles_are_late_after_36_hours_and_policy_news_after_two_trading_days	6s
+S7	tests/test_data_status.py	36_hours	기사 마지막 값을 시각이 아니라 날짜로	잡음	FAILED tests/test_data_status.py::test_news_articles_are_late_after_36_hours_and_policy_news_after_two_trading_days	6s
+S8	tests/test_data_status.py	36_hours	정책뉴스 창을 2 대신 3 으로	잡음	FAILED tests/test_data_status.py::test_news_articles_are_late_after_36_hours_and_policy_news_after_two_trading_days	6s
+S9	tests/test_data_status.py	last_run_checked	실패한 단계도 확인함으로	잡음	FAILED tests/test_data_status.py::test_event_tables_say_whether_the_last_run_checked_them	6s
+S10	tests/test_data_status.py	last_run_checked	회차 기록이 없으면 정상으로 꾸밈	잡음	FAILED tests/test_data_status.py::test_event_tables_say_whether_the_last_run_checked_them	6s
+S11	tests/test_data_status.py	step_warn	러너의 warn 을 읽지 않음(멈추는 단계면 실패)	잡음	FAILED tests/test_data_status.py::test_step_warn_from_the_runner_is_a_warning	6s
+S12	tests/test_data_status.py	publish_deadline	마감 판정의 이름을 표 기본 이름으로 덮음	잡음	FAILED tests/test_data_status.py::test_portal_one_day_behind_is_normal_until_the_publish_deadline	6s
+S13	tests/test_data_status.py	publish_deadline	둘이 빈 날(n=2)을 「다시 받기」 로 적지 않음	잡음	FAILED tests/test_data_status.py::test_portal_one_day_behind_is_normal_until_the_publish_deadline	6s

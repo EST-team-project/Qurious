@@ -1,5 +1,9 @@
 """수집기를 Celery Beat 에 얹는 어댑터 — **얇게** 둔다.
 
+⚠️ 2026-10-15(D106) — 앱 Celery Beat 의 예약 셋은 지웠다. 수집 예약은 이 PC 작업
+   스케줄러(scripts/daily_update.py · 매일 12:30) 하나다. 앱 컨테이너에는 collector
+   패키지가 없어 예약이 import 에서 실패했다. 아래 태스크는 손으로 부를 때만 쓴다.
+
 이 파일에는 로직이 없다. 전부 ``collector`` 패키지가 하고, 여기서는 일정만 붙인다.
 그래야 수집기가 스택 없이도 돌아간다(collector/config.py 머리말).
 

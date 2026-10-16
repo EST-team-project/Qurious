@@ -2636,7 +2636,9 @@
    "auth": "세션",
    "reaches": [],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "agent-products"
+   ],
    "part": "P-C",
    "req": [],
    "file": "app/routes/ml.py",
@@ -2662,6 +2664,7 @@
    ],
    "hosts": [],
    "screens": [
+    "agent-products",
     "robo-portfolio"
    ],
    "part": "P-C",

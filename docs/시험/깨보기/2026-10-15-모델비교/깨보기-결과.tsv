@@ -1,0 +1,41 @@
+id	시험 파일	-k	무엇을 깼나	결과	실패한 시험 · 끝 줄	시간
+C1	tests/test_model_compare.py	mv01 or mv04 or mv17 or mv18 or mv20 or mv22b	대조군 — 깨지 않음	통과	6 passed, 29 deselected in 21.40s	26s
+C2	tests/test_model_compare_screen.py	(전부)	대조군 — 깨지 않음	통과	5 passed in 4.01s	8s
+C3	tests/test_collector_status.py	(전부)	대조군 — 깨지 않음	통과	20 passed in 3.55s	8s
+V1	tests/test_model_compare.py	mv01	시험 겹 앞의 간격을 0 으로(라벨 창이 겹침)	잡음	FAILED tests/test_model_compare.py::test_mv01_test_fold_always_after_train_with_gap	27s
+V2	tests/test_model_compare.py	mv02	간격 아래 한계 검사를 뺌	잡음	FAILED tests/test_model_compare.py::test_mv02_gap_bounds_are_rejected_with_reason	8s
+V3	tests/test_model_compare.py	mv03	미래가 없는 끝 행에도 라벨(0)을 붙임	잡음	FAILED tests/test_model_compare.py::test_mv03_tail_rows_without_future_get_no_label	8s
+V4	tests/test_model_compare.py	mv04	스케일러 · 모델을 모든 행으로 맞춤(시험 행 누수)	잡음	FAILED tests/test_model_compare.py::test_mv04_scaler_is_fit_on_train_rows_only	8s
+V5	tests/test_model_compare.py	mv06 or mv07 or mv08	「낫다」 를 기준선 셋 모두가 아니라 하나만 넘어도	잡음	FAILED tests/test_model_compare.py::test_mv06_random_walk_models_do_not_clearly_beat_baseline[12]	8s
+V6	tests/test_model_compare.py	mv06 or mv07 or mv08	홀름 보정을 건너뜀(원래 p 값으로 판정)	못 잡음	7 passed, 28 deselected in 20.54s	25s
+V7	tests/test_model_compare.py	mv09	시험 행이 적어도 판정	잡음	FAILED tests/test_model_compare.py::test_mv09_small_sample_is_not_judged - As...	9s
+V8	tests/test_model_compare.py	mv15	계층 균형 가중을 넘기지 않음	잡음	FAILED tests/test_model_compare.py::test_mv15_balanced_weights_reach_every_model_that_accepts_them	33s
+V9	tests/test_model_compare.py	mv23	진행의 몇째 모델을 늘 0 으로(지어낸 진행)	잡음	FAILED tests/test_model_compare.py::test_mv23_progress_reports_real_counts - ...	9s
+V10	tests/test_model_compare.py	mv24	「왜」 세 줄을 비움	잡음	FAILED tests/test_model_compare.py::test_mv24_insights_labels_and_suggest_come_from_server	27s
+V11	tests/test_model_compare.py	mv19b	기간 창을 자료 기준일이 아니라 오늘에서 거꾸로	잡음	FAILED tests/test_model_compare.py::test_mv19b_window_counts_back_from_data_as_of_not_today	9s
+V12	tests/test_model_compare.py	mv18	관문 503 을 그대로 두지 않음(못 읽음 → 다른 갈래)	잡음	FAILED tests/test_model_compare.py::test_mv18_unavailable_503_not_found_404_etf_422	8s
+V13	tests/test_model_compare.py	mv18	ETF(관문 422 · 수정주가 없음)를 종목 꼴 오류로	잡음	FAILED tests/test_model_compare.py::test_mv18_unavailable_503_not_found_404_etf_422	8s
+V14	tests/test_model_compare.py	mv17	겹 수 · 간격을 일반 사용자도 바꿈	잡음	FAILED tests/test_model_compare.py::test_mv17_arguments_and_admin_only_knobs	8s
+V15	tests/test_model_compare.py	mv17	출처 글을 서버 상수가 아닌 글로	잡음	FAILED tests/test_model_compare.py::test_mv17_arguments_and_admin_only_knobs	8s
+V16	tests/test_model_compare.py	mv21	설정 지문에서 응답 꼴 판을 뺌	잡음	FAILED tests/test_model_compare.py::test_mv21_fingerprints_change_with_data_and_settings	9s
+V17	tests/test_model_compare.py	mv21	자료 지문이 거래량을 보지 않음	못 잡음	1 passed, 34 deselected in 2.61s	7s
+V18	tests/test_model_compare.py	mv22b	자료 지문이 달라도 저장본을 줌	잡음	FAILED tests/test_model_compare.py::test_mv22b_stale_cache_with_other_fingerprint_is_recomputed	9s
+V19	tests/test_model_compare.py	mv22c	엔진의 뜻밖 오류를 500 compute_failed 로 바꾸지 않음	잡음	ERROR    app.services.model_compare_jobs:model_compare_jobs.py:135 [model_compare] 005930 2y 계산 실패	9s
+V20	tests/test_model_compare.py	mv20	화면 머리글 없이도 계산을 띄움	잡음	FAILED tests/test_model_compare.py::test_mv20_routes_admin_flag_screen_header_and_errors	9s
+V21	tests/test_model_compare.py	mv20	다른 사이트(Sec-Fetch-Site)에서 온 요청도 받음	잡음	FAILED tests/test_model_compare.py::test_mv20_routes_admin_flag_screen_header_and_errors	8s
+V22	tests/test_model_compare.py	mv20	계산 시작 라우트에서 화면 머리글 검사를 떼어 냄(함수는 남김)	못 잡음	1 passed, 34 deselected in 3.13s	7s
+S1	tests/test_model_compare_screen.py	mvs02	판정 짧은 이름표를 화면 코드에 적음	잡음	FAILED tests/test_model_compare_screen.py::test_mvs02_server_strings_are_not_written_in_screen_code	9s
+S2	tests/test_model_compare_screen.py	mvs02	출처 글을 화면 코드에 적음	잡음	FAILED tests/test_model_compare_screen.py::test_mvs02_server_strings_are_not_written_in_screen_code	8s
+S3	tests/test_model_compare_screen.py	mvs03	계산 시작 POST 에서 화면 머리글을 뺌	잡음	FAILED tests/test_model_compare_screen.py::test_mvs03_calls_new_routes_with_screen_header_and_polls	8s
+S4	tests/test_model_compare_screen.py	mvs03	진행 묻기를 2초로	잡음	FAILED tests/test_model_compare_screen.py::test_mvs03_calls_new_routes_with_screen_header_and_polls	8s
+S5	tests/test_model_compare_screen.py	mvs03	겹 수 · 간격을 관리자가 아니어도 보냄	잡음	FAILED tests/test_model_compare_screen.py::test_mvs03_calls_new_routes_with_screen_header_and_polls	8s
+S6	tests/test_model_compare_screen.py	mvs05	비교 트레이 자리를 뺌	잡음	FAILED tests/test_model_compare_screen.py::test_mvs05_compare_tray_has_a_place_on_this_screen	8s
+S7	tests/test_model_compare_screen.py	mvs04	CSS 에 color-mix(캡처가 검게 그림)	잡음	FAILED tests/test_model_compare_screen.py::test_mvs04_no_capture_hook_and_no_color_mix	8s
+S8	tests/test_model_compare_screen.py	mvs01	진입 훅 글자를 바꿈(화면 스캐너가 못 읽음)	잡음	FAILED tests/test_model_compare_screen.py::test_mvs01_wiring_hook_root_css_and_menu_label	8s
+S9	tests/test_model_compare_screen.py	mvs01	app.html 에서 뿌리 칸을 뺌	잡음	FAILED tests/test_model_compare_screen.py::test_mvs01_wiring_hook_root_css_and_menu_label	9s
+D1	tests/test_collector_status.py	sds05	수집 DB 를 쓰기 가능하게 엶	잡음	FAILED tests/test_collector_status.py::test_sds05_read_only_single_connection	4s
+D2	tests/test_collector_status.py	sds05	한 트랜잭션 없이 종목마다 다른 순간을 읽음(BEGIN 뺌)	못 잡음	1 passed, 19 deselected in 0.27s	4s
+D3	tests/test_collector_status.py	sds03 or sds06	거래량 칸이 비면 0 으로 꾸밈	잡음	FAILED tests/test_collector_status.py::test_sds03_row_halted_volume_facts - a...	4s
+D4	tests/test_collector_status.py	sds01	두 표에 다 있는 종목을 주식으로	잡음	FAILED tests/test_collector_status.py::test_sds01_kind_by_tables_seen_and_sources_carried	4s
+D5	tests/test_collector_status.py	sds02	수집기가 모르는 상태 값을 지움	잡음	FAILED tests/test_collector_status.py::test_sds02_collected_status_passthrough_and_none_with_reason	4s
+D6	tests/test_collector_status.py	sds03 or sds06	거래정지 칸을 보지 않음	잡음	FAILED tests/test_collector_status.py::test_sds03_row_halted_volume_facts - a...	5s

@@ -13,10 +13,17 @@
 /* ── 머리 ── */
 .pd-head h2 { font-size: 22px; font-weight: 700; color: var(--text); }
 .pd-lead { font-size: 13px; color: var(--text-dim); margin-top: 4px; line-height: 1.6; }
+/* 개념 학습으로 가는 길(2026-10-16) — 머리 아래 · 레버리지 · 인버스 주의 상자 안. 새 탭으로 열린다 */
+.pd-learn { font-size: 12px; color: var(--text-mute); margin-top: 4px; }
+.pd-learn-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+.pd-learn-link:hover { text-decoration: underline; }
 .pd-mix { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
 .pd-chip { padding: 4px 10px; border-radius: 999px; background: var(--accent-glow); color: var(--accent); font-weight: 700; }
 .pd-chip--none { background: #eef1f6; color: var(--text-dim); }
 .pd-weights-btn { font-size: 13px; padding: 5px 12px; }
+/* 자산 배분 줄 — 못 읽은 까닭(빨강 글) · 성향이 다를 때 다시 계산 안내(한 줄 전체 · 주의 노랑 글) — 2026-10-16 #179 */
+.pd-mix-err { color: var(--red); }
+.pd-mix-note { flex-basis: 100%; margin: 0; font-size: 12px; line-height: 1.6; color: #92400e; }
 .pd-note { font-size: 13px; line-height: 1.65; padding: 10px 14px; border-radius: 10px; background: #f1f5f9; color: var(--text-dim); }
 .pd-note a { color: var(--accent); }
 
