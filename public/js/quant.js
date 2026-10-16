@@ -1,6 +1,6 @@
 /* 퀀트자동매매: 대시보드, 자동매매·위험관리 상태, 전략 분석
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
-import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/js/common.js";
 import { compareTrayAdd, renderCompareTrayAll } from "/js/core.js";
 
 let quantChartInstance = null;
@@ -120,7 +120,7 @@ async function loadAutoTradeStatus() {
   try {
     const s = await api("/api/auto-trade/status");
     document.getElementById("auto-trade-status").textContent =
-      (s.running ? "🟢 실행 중" : "⭕ 정지") + (s.scheduler ? ` · ${s.scheduler}` : "") + (s.last_cycle_at ? ` · 마지막 사이클 ${s.last_cycle_at} UTC` : "");
+      (s.running ? "🟢 실행 중" : "⭕ 정지") + (s.scheduler ? ` · ${s.scheduler}` : "") + (s.last_cycle_at ? ` · 마지막 사이클 ${kstTime(s.last_cycle_at)}` : "");
     const el = document.getElementById("auto-trade-log");
     if (!s.log?.length) {
       el.innerHTML = `<div style="color:var(--text-mute);">자동매매 로그가 없습니다.</div>`;
@@ -139,7 +139,7 @@ async function loadAutoTradeStatus() {
         `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(_displayAction(sig.action))}</b> (점수:${sig.score ?? "-"})</div>`
       ).join("");
       return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
-        <div class="font-semibold" style="color:var(--accent);">${escHtml(cycle.time)}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
+        <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
         ${risk}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">체결 / 생략:</div>` + trades : ""}
       </div>`;
     }).join("");

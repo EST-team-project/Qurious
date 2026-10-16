@@ -147,3 +147,29 @@ export function colorPct(n) {
   if (n == null) return "";
   return parseFloat(n) >= 0 ? "text-emerald-400" : "text-red-400";
 }
+
+
+/**
+ * UTC 시각 문자열 → KST 표시 (이슈 #234)
+ * 서버는 UTC 를 문자열로 그대로 보냄 — 화면마다 다르게 처리하지 않고 한 곳에서 KST 로 바꾼다.
+ * 입력: "2026-10-16 02:55:24" · "2026-10-16T02:55:30.563353+00:00" 등
+ * 출력: "2026-10-16 11:55:24" (KST · 24시간)
+ */
+export function kstTime(s) {
+  if (!s) return "";
+  try {
+    let iso = String(s).trim().replace(" ", "T");
+    // tz 표시(Z · ±HH:MM) 없으면 UTC 로 해석
+    if (!/[Zz]$|[+-]\d{2}:?\d{2}$/.test(iso)) iso += "Z";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(s);
+    return d.toLocaleString("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return String(s);
+  }
+}

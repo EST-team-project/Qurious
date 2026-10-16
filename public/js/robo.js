@@ -1,6 +1,6 @@
 /* 로보 어드바이저: 자산배분 최적화, XAI 블록, 투자성향 설문, 목표 달성 시뮬레이션, 스크리닝, 패턴/멀티타임프레임, 모의 의사결정
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
-import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/js/common.js";
 import { navigate, tt } from "/js/core.js";
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
@@ -668,7 +668,7 @@ function renderRoboDecisionLog(logs) {
   if (!el) return;
   el.innerHTML = logs.length ? logs.map(l => `
     <div class="rounded p-2" style="background:var(--surf2);border:1px solid var(--border);">
-      <span style="color:var(--text-mute);">${escHtml(l.time || "")}</span>
+      <span style="color:var(--text-mute);">${escHtml(kstTime(l.time))}</span>
       <span style="margin-left:8px;">${escHtml(l.message || "")}</span>
     </div>`).join("") : `<div style="color:var(--text-mute);">AI 의사결정 로그가 없습니다. 시작 버튼을 눌러 실행하세요.</div>`;
 }
