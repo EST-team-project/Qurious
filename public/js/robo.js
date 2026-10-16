@@ -252,7 +252,7 @@ function renderScreenTable(signals) {
         <td style="text-align:right;color:${pct >= 0 ? "var(--green)" : "var(--red)"};">${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%</td>
         <td style="text-align:right;">${s.rsi?.toFixed(1) ?? "--"}</td>
         <td><span class="${sigClass}">${s.signal}</span></td>
-        <td style="font-size:11px;color:var(--text-mute);">${escHtml(s.reason || "계산된 패턴 신호")}${s.xai ? `<div style="color:var(--text-dim);margin-top:2px;">🧠 ${escHtml(xaiBadgeText(s.xai))} —${escHtml((s.xai.top_positive?.[0]?.label) || "")}</div>` : ""}</td>
+        <td style="font-size:11px;color:var(--text-mute);">${escHtml(s.reason || "계산된 패턴 신호")}${s.xai ? `<div style="color:var(--text-dim);margin-top:2px;">🧠 ${escHtml(xaiBadgeText(s.xai))} — ${escHtml((s.xai.top_positive?.[0]?.label) || "")}</div>` : ""}</td>
         <td><button class="btn-secondary text-xs" onclick="showScreenXai('${escHtml(s.symbol)}')" title="LightGBM SHAP 기여도로 판단 근거 설명">🧠 설명</button></td>
       </tr>`;
   }).join("")}</tbody>
