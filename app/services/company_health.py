@@ -187,6 +187,29 @@ def _history(periods_asc: List[Dict], fn) -> List[Dict]:
 NAME_SQL = "SELECT itms_nm, mrkt_ctg FROM price_daily WHERE srtn_cd = ? ORDER BY bas_dt DESC LIMIT 1"
 
 
+CODE_SQL = "SELECT srtn_cd FROM price_daily WHERE itms_nm = ? ORDER BY bas_dt DESC LIMIT 1"
+
+
+def code_of(name: str) -> str:
+    """상장사 이름(정확히 같은 이름) → 6자리 코드 · 못 찾으면 "" (DF-124 · 2026-10-16).
+
+    대화 에이전트가 종목코드를 짐작해 「신한지주」 를 LG화학(051910)으로 부른 적이 있다(10-16 실측 6회 중 2회) —
+    이름은 질문에 있는 글이라 서버가 코드를 찾는 쪽이 맞다. 비슷한 이름 고르기는 하지 않는다(되물으라고 돌려준다).
+    """
+    path = collector_db.db_path()
+    if path is None or not (name or "").strip():
+        return ""
+    try:
+        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        try:
+            row = conn.execute(CODE_SQL, (name.strip(),)).fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return ""
+    return (row[0] or "") if row else ""
+
+
 def name_of(symbol: str) -> Tuple[str, str]:
     path = collector_db.db_path()
     if path is None:

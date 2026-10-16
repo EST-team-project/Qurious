@@ -161,13 +161,15 @@ async function loadMacroDashboard() {
   try {
     const data = await api("/api/macro/indicators");
     grid.innerHTML = data.indicators.map(ind => {
-      const isUp = ind.change_p >= 0;
-      const clr  = isUp ? "#22c55e" : "#ef4444";
+      // Qurious(DF-123 · 2026-10-16): 서버는 전일 대비를 모르면 None 을 준다 — 「▲ 0.00%」 로 메우지 않고 「—」
+      const known = typeof ind.change_p === "number";
+      const isUp = known && ind.change_p >= 0;
+      const clr  = !known ? "var(--text-mute)" : isUp ? "#22c55e" : "#ef4444";
       return `
         <div class="p-3 rounded" style="background:var(--bg);border:1px solid var(--border);">
           <div class="text-xs text-slate-400 mb-1">${escHtml(ind.name)}</div>
-          <div class="text-base font-bold">${fmt(ind.price)} <span class="text-xs">${escHtml(ind.unit)}</span></div>
-          <div class="text-xs mt-1" style="color:${clr};">${isUp ? "▲" : "▼"} ${Math.abs(ind.change_p).toFixed(2)}%</div>
+          <div class="text-base font-bold">${ind.price == null ? "—" : fmt(ind.price)} <span class="text-xs">${escHtml(ind.unit || "")}</span></div>
+          <div class="text-xs mt-1" style="color:${clr};">${known ? `${isUp ? "▲" : "▼"} ${Math.abs(ind.change_p).toFixed(2)}%` : "—"}</div>
         </div>
       `;
     }).join("");
@@ -189,15 +191,17 @@ async function loadMacroIndustry() {
     const data = await api("/api/macro/industry");
     const tbody = document.getElementById("industry-table-body");
     tbody.innerHTML = data.sectors.map(s => {
-      const isUp = s.change_p >= 0;
-      const clr  = isUp ? "#22c55e" : "#ef4444";
+      // Qurious(DF-123 · 2026-10-16): 모르는 등락은 「—」(서버 정렬도 모르는 줄을 맨 뒤로 둔다)
+      const known = typeof s.change_p === "number";
+      const isUp = known && s.change_p >= 0;
+      const clr  = !known ? "var(--text-mute)" : isUp ? "#22c55e" : "#ef4444";
       return `
         <tr class="border-b border-slate-800 text-slate-300">
           <td class="py-2 font-medium">${escHtml(s.name)}</td>
           <td class="py-2 text-slate-400">${escHtml(s.symbol)}</td>
-          <td class="py-2 text-right">${fmt(s.price)}</td>
-          <td class="py-2 text-right" style="color:${clr};">${isUp ? "+" : ""}${fmt(s.change)}</td>
-          <td class="py-2 text-right" style="color:${clr};">${isUp ? "▲" : "▼"} ${Math.abs(s.change_p).toFixed(2)}%</td>
+          <td class="py-2 text-right">${s.price == null ? "—" : fmt(s.price)}</td>
+          <td class="py-2 text-right" style="color:${clr};">${known ? `${isUp ? "+" : ""}${fmt(s.change)}` : "—"}</td>
+          <td class="py-2 text-right" style="color:${clr};">${known ? `${isUp ? "▲" : "▼"} ${Math.abs(s.change_p).toFixed(2)}%` : "—"}</td>
         </tr>
       `;
     }).join("");

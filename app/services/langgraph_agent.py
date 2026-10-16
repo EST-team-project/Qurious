@@ -206,6 +206,7 @@ def build_graph(db: Any, ollama: OllamaClient, llm_model: str):
         answer = await ollama.chat(
             llm_model, final_messages, {"temperature": 0.2, **answer_options()}   # Qurious: 답 상한 · 문맥 창은 설정 한 곳(app/lib/llm_limits.py · 2026-10-08)
         )
+        answer = risk_tools.guard_answer(answer, state["observations"], question)   # Qurious: 재무 숫자는 서버 값을 함께(DF-124 · 2026-10-16)
         return {"final_answer": answer}
 
     # ── 라우팅 ────────────────────────────────────────────────────────────────

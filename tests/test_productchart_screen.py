@@ -31,6 +31,7 @@ from tests.test_product_chart import _make_db
 ROOT = Path(__file__).resolve().parents[1]
 PUB = ROOT / "public"
 JS = PUB / "js" / "productchart.js"
+PRODUCTS_CSS = PUB / "css" / "products.css"   # TC-PCS-06 이 읽는다 — 깨 보기가 이 칸을 사본으로 바꿔 끼운다
 VENDOR = PUB / "js" / "vendor" / "lightweight-charts"
 #: productchart.js 머리말의 변수 이름 규칙과 같다 — 객체마다 이름 하나
 JS_READ = re.compile(r"(?<![\w.])(r|it|st|sr|dd|lv|ex|s|pr|ev)((?:\??\.[A-Za-z_]\w*)+)")
@@ -169,3 +170,26 @@ def test_list_opens_modal_and_layout_guards():
     one = re.search(r"@media \(max-width: 1023px\) \{(.*?)\n\}", css, re.S)
     assert one and re.search(r"\.pc-body \{[^}]*align-items: stretch;", one.group(1))   # 한 단에서 그림 칸이 이전 폭에 묶이지 않게
     assert "body:has(#pc-modal.open) #view-completion-indicator { display: none; }" in css
+
+
+def test_practice_box_leads_to_paper_order():
+    """TC-PCS-06 · 읽은 다음 걸음(2026-10-16 · Figma 「모의투자 여정 고치기」 03-7 결정) — 설명 아래 연습 상자 하나 ·
+    권유 아님 · 모의 계좌 · 시세 늦음 문구를 단추 곁에 · 누르면 창을 닫고 국내주식 모의주문을 그 코드로 열어 「시세 조회」 까지만
+    (주문 단추는 누르지 않는다 · 그 화면 코드는 바꾸지 않는다) · 왼쪽 단은 두 단에서만 창 안에 고정, 한 단은 고정하지 않는다."""
+    js = JS.read_text(encoding="utf-8")
+    fn = js[js.index("function practiceHtml"):js.index("function openPractice")]
+    for need in ("이 상품을 사라는 뜻이 아닙니다", "모의 계좌(가상 돈)에서만", "그때 받은 시세(늦을 수 있음)", 'data-pc="practice"'):
+        assert need in fn, need
+    assert "${chipsHtml(r)}${sayHtml(ex)}${practiceHtml()}</div>" in js, "설명 바로 아래(왼쪽 단) 한 곳"
+    assert js.count("${practiceHtml()}") == 1 and js.count('class="pc-practice"') == 1 and js.count('data-pc="practice"') == 1
+    op = js[js.index("function openPractice"):js.index("function footHtml")]
+    assert op.index("closeProductChart()") < op.index('navigate("paper-stock")') < op.index('getElementById("ps-symbol")')
+    assert 'getElementById("ps-quote-btn")?.click()' in op
+    for bad in ("ps-buy", "ps-sell", "ps-preview", "/api/paper"):
+        assert bad not in op, f"연습 상자가 주문까지 하지 않는다 — {bad}"
+    assert 'if (d.pc === "practice") { openPractice(state.code); return; }' in js
+    assert 'import { navigate } from "/js/core.js";' in js
+    css = PRODUCTS_CSS.read_text(encoding="utf-8")
+    assert re.search(r"^\.pc-left \{ grid-area: left; position: sticky; top: 0; \}", css, re.M), "두 단 — 왼쪽 단 고정"
+    one = re.search(r"@media \(max-width: 1023px\) \{(.*?)\n\}", css, re.S)
+    assert one and ".pc-left { position: static; }" in one.group(1), "한 단 — 고정하지 않는다"

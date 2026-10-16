@@ -9,9 +9,10 @@ Start/stop is managed by main.py lifespan.
 """
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 
-from app.services import collector_db
+from app.services import collector_db, data_provenance, stock
 from app.services.data_cache import cache_set, is_internet_available
 from app.services.stock import (
     _yahoo_chart,
@@ -95,21 +96,49 @@ def get_sync_status() -> dict:
 # ── Sync helpers ─────────────────────────────────────────────────────────────
 
 async def _yahoo_latest(symbol: str, unit: str) -> dict:
-    data = await _yahoo_chart(symbol, "1d", "5d")
+    """최신 시세 한 줄 — 미국주식 대시보드 · 거시경제 지표 · 산업 분석이 함께 쓰는 **한 곳**(라우트 `macro._get_latest` 도
+    이 함수를 부른다 · DF-123 · 2026-10-16).
+
+    - **기간 1일**로 받는다. 응답의 `chartPreviousClose` 는 「차트 첫 봉 바로 앞 종가」라 기간이 5일이면 5거래일 전 종가다
+      (옛 코드가 그랬다 — 10-16 실측 AAPL −0.28% 가 +0.46% · TSLA −1.29% 가 −3.35%). `get_quote` 의 9-28 고침(TC-A1)과 같은 꼴.
+    - 전일 대비는 `stock._change_from_prev` 한 곳 — 모르면 None(0 은 「보합」 이라는 거짓 · 화면은 「—」).
+    - 현재가가 없으면 오류 줄이다 — 옛 코드는 전일 종가나 0 을 현재가로 채웠다(말없는 fallback).
+    - `as_of` 는 그 값이 생긴 시각(마지막 체결 · KST) — 화면이 「언제 값인지」 말하게(L8).
+    """
+    data = await _yahoo_chart(symbol, "1d", "1d")
     if not data:
         return {"symbol": symbol, "error": "데이터 없음", "unit": unit}
     meta = data.get("meta", {})
-    price = meta.get("regularMarketPrice") or meta.get("previousClose", 0)
-    prev  = meta.get("previousClose") or meta.get("chartPreviousClose") or price
-    chg   = price - prev
-    chg_p = (chg / prev * 100) if prev else 0
+    price = meta.get("regularMarketPrice")
+    if price is None:
+        return {"symbol": symbol, "error": "현재가 없음", "unit": unit}
+    chg, chg_p = stock._change_from_prev(price, meta.get("previousClose") or meta.get("chartPreviousClose"))
+    now = time.time()
+    reg = (meta.get("currentTradingPeriod") or {}).get("regular") or {}
+    # 받을 때 그 종목 정규장 안이었나 — 공급자가 준 정규장 시작 · 끝(유닉스 초). 모르면 None(지어내지 않는다).
+    # ⚠️ 코스피(^KS11)는 공급자 정규장 끝이 15:00 으로 와(실제 15:30) 15:00 ~ 15:30 에는 「닫힘」 으로 나온다(10-16 실측).
+    opened = (reg["start"] <= now < reg["end"]) if isinstance(reg.get("start"), (int, float)) \
+        and isinstance(reg.get("end"), (int, float)) else None
     return {
-        "symbol":   symbol,
-        "price":    price,
-        "change":   round(chg, 4),
-        "change_p": round(chg_p, 2),
-        "unit":     unit,
+        "symbol":      symbol,
+        "price":       price,
+        "change":      chg,
+        "change_p":    chg_p,
+        "unit":        unit,
+        "as_of":       data_provenance.quote_time_kst(meta.get("regularMarketTime")),
+        "fetched_at":  data_provenance.quote_time_kst(now),
+        "market_open": opened,
     }
+
+
+def sort_by_change(rows: list[dict]) -> list[dict]:
+    """등락률 큰 차례 · 모르는 줄(None · 오류)은 맨 뒤 — 산업 분석 라우트와 예약 동기화가 같은 정렬(DF-123).
+
+    옛 정렬(`x.get("change_p", 0)`)은 None 끼리 견주다 500 이 나거나 모르는 줄을 0 자리에 끼웠다.
+    """
+    known = [r for r in rows if isinstance(r.get("change_p"), (int, float))]
+    unknown = [r for r in rows if not isinstance(r.get("change_p"), (int, float))]
+    return sorted(known, key=lambda r: r["change_p"], reverse=True) + unknown
 
 
 async def _sync_market_indices() -> None:
@@ -140,7 +169,7 @@ async def _sync_sector_etfs() -> None:
             enriched.append({**s, "error": str(r)})
         else:
             enriched.append({**s, **r})
-    enriched.sort(key=lambda x: x.get("change_p", 0), reverse=True)
+    enriched = sort_by_change(enriched)
     await cache_set(KEY_SECTOR_ETFS, enriched)
     logger.info("[sync] sector_etfs: %d items", len(enriched))
 

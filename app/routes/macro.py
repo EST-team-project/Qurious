@@ -7,26 +7,18 @@ from app.services.sync_scheduler import (
     KEY_MACRO_INDICATORS, KEY_SECTOR_ETFS, KEY_US_STOCKS,
     MACRO_SYMBOLS, SECTOR_ETFS, US_STOCKS,
 )
+from app.services import data_provenance, sync_scheduler
 
 router = APIRouter(prefix="/api/macro")
 
 
 async def _get_latest(symbol: str, unit: str) -> dict:
-    data = await _yahoo_chart(symbol, "1d", "5d")
-    if not data:
-        return {"symbol": symbol, "error": "데이터 없음"}
-    meta = data.get("meta", {})
-    price = meta.get("regularMarketPrice") or meta.get("previousClose", 0)
-    prev  = meta.get("previousClose") or meta.get("chartPreviousClose") or price
-    chg   = price - prev
-    chg_p = (chg / prev * 100) if prev else 0
-    return {
-        "symbol":   symbol,
-        "price":    price,
-        "change":   round(chg, 4),
-        "change_p": round(chg_p, 2),
-        "unit":     unit,
-    }
+    """최신 시세 한 줄 — 예약 동기화와 **같은 함수**(아래 return 줄 · DF-123 · 2026-10-16).
+
+    옛 판은 같은 꼴을 여기 따로 두고 기간 5일로 받아 「전일 대비」 가 5거래일 전 종가 대비였다(동기화 쪽도 같았다).
+    별칭으로 묶지 않고 모듈 이름으로 부른다 — 그쪽을 고치거나 시험이 갈아 끼우면 이 라우트도 따라간다.
+    """
+    return await sync_scheduler._yahoo_latest(symbol, unit)
 
 
 @router.get("/indicators")
@@ -35,13 +27,15 @@ async def macro_indicators(_user=Depends(get_current_user)):
     import asyncio
     cached = await cache_get(KEY_MACRO_INDICATORS, max_age_hours=2)
     if cached is not None:
-        return {"indicators": cached, "from_cache": True}
+        return {"indicators": cached, "from_cache": True,
+                "note": data_provenance.quote_note(cached, from_cache=True)}   # 지연 · 시각 · 저장본(L8 · DF-123)
 
     tasks = [_get_latest(m["symbol"], m["unit"]) for m in MACRO_SYMBOLS]
     results = await asyncio.gather(*tasks)
     enriched = [{**m, **r} for m, r in zip(MACRO_SYMBOLS, results)]
     await cache_set(KEY_MACRO_INDICATORS, enriched)
-    return {"indicators": enriched, "from_cache": False}
+    return {"indicators": enriched, "from_cache": False,
+            "note": data_provenance.quote_note(enriched, from_cache=False)}
 
 
 @router.get("/industry")
@@ -50,14 +44,16 @@ async def macro_industry(_user=Depends(get_current_user)):
     import asyncio
     cached = await cache_get(KEY_SECTOR_ETFS, max_age_hours=2)
     if cached is not None:
-        return {"sectors": cached, "from_cache": True}
+        return {"sectors": cached, "from_cache": True,
+                "note": data_provenance.quote_note(cached, from_cache=True)}
 
     tasks = [_get_latest(s["symbol"], "") for s in SECTOR_ETFS]
     results = await asyncio.gather(*tasks)
     enriched = [{**s, **r} for s, r in zip(SECTOR_ETFS, results)]
-    enriched.sort(key=lambda x: x.get("change_p", 0), reverse=True)
+    enriched = sync_scheduler.sort_by_change(enriched)   # 모르는 줄은 맨 뒤(동기화와 같은 정렬 · DF-123)
     await cache_set(KEY_SECTOR_ETFS, enriched)
-    return {"sectors": enriched, "from_cache": False}
+    return {"sectors": enriched, "from_cache": False,
+            "note": data_provenance.quote_note(enriched, from_cache=False)}
 
 
 @router.get("/us-stocks")
@@ -66,13 +62,15 @@ async def macro_us_stocks(_user=Depends(get_current_user)):
     import asyncio
     cached = await cache_get(KEY_US_STOCKS, max_age_hours=2)
     if cached is not None:
-        return {"stocks": cached, "from_cache": True}
+        return {"stocks": cached, "from_cache": True,
+                "note": data_provenance.quote_note(cached, from_cache=True)}
 
     tasks = [_get_latest(s["symbol"], "USD") for s in US_STOCKS]
     results = await asyncio.gather(*tasks)
     enriched = [{**s, **r} for s, r in zip(US_STOCKS, results)]
     await cache_set(KEY_US_STOCKS, enriched)
-    return {"stocks": enriched, "from_cache": False}
+    return {"stocks": enriched, "from_cache": False,
+            "note": data_provenance.quote_note(enriched, from_cache=False)}
 
 
 @router.get("/fundamental")

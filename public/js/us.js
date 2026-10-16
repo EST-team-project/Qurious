@@ -1,18 +1,12 @@
 /* 미국주식 대시보드·차트·주문·포트폴리오
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+// Qurious: 등락 글 · ±1.5% 표시 · 시세 시각 글은 판단 모듈 한 곳(node 시험 TC-QVS · Figma 03-5 결정 · 2026-10-16)
+import { pctText, direction, moveTag, asOfText, MOVE_LIMIT } from "/js/quoteview.js";
 
 // ── 미국주식 ──────────────────────────────────────────────────────
-const US_STOCKS = [
-  { symbol:"AAPL",  name:"Apple" },
-  { symbol:"MSFT",  name:"Microsoft" },
-  { symbol:"GOOGL", name:"Alphabet" },
-  { symbol:"AMZN",  name:"Amazon" },
-  { symbol:"NVDA",  name:"NVIDIA" },
-  { symbol:"TSLA",  name:"Tesla" },
-  { symbol:"META",  name:"Meta" },
-  { symbol:"NFLX",  name:"Netflix" },
-];
+// Qurious(2026-10-16): 고정 종목 목록 · 예시 가격(mockUsPrice)을 지웠다 — 시세를 못 받으면 예시 가격을 말없이 보이던
+// 길(말없는 fallback)이었다. 종목 목록은 서버 한 곳(`app/services/sync_scheduler.py` US_STOCKS)이 정한다.
 
 const US_INDEX_SYMBOLS = [
   { symbol:"^GSPC", name:"S&P 500" },
@@ -21,20 +15,15 @@ const US_INDEX_SYMBOLS = [
   { symbol:"KRW=X", name:"USD/KRW" },
 ];
 
-function mockUsPrice(symbol) {
-  // 실시간 조회 실패 시에만 사용하는 최후 fallback (표시용 근사치)
-  const base = { AAPL:189.3,MSFT:415.2,GOOGL:172.8,AMZN:192.4,NVDA:875.6,TSLA:248.3,META:512.7,NFLX:638.4 };
-  const p = base[symbol] || 100;
-  return { symbol, price: p, change_pct: 0 };
-}
-
 let usChartInstance = null;
+
+const DIR_COLOR = { up: "var(--green)", down: "var(--red)", flat: "var(--text-dim)", none: "var(--text-mute)" };
 
 async function loadUsDashboard() {
   const marketEl = document.getElementById("us-market-cards");
   const sigEl    = document.getElementById("us-signal-cards");
 
-  // 지수/환율 카드: /api/stocks/quote 로 실시간 조회 (Yahoo Finance, 심볼 무관)
+  // 지수/환율 카드: /api/stocks/quote(외부 지연 시세) — 등락률은 서버가 낸 값(`change_pct` · 모르면 「—」)을 그대로 쓴다
   try {
     const quotes = await Promise.all(
       US_INDEX_SYMBOLS.map(idx => api(`/api/stocks/quote?symbol=${encodeURIComponent(idx.symbol)}`).catch(() => null))
@@ -47,46 +36,42 @@ async function loadUsDashboard() {
           <div class="text-sm mt-1" style="color:var(--text-mute);">데이터 없음</div>
         </div>`;
       }
-      const chg = q.prev_close ? (q.price - q.prev_close) / q.prev_close * 100 : 0;
-      const cls = chg >= 0 ? "var(--green)" : "var(--red)";
-      const sign = chg >= 0 ? "+" : "";
       return `<div class="card text-center" style="padding:14px;">
         <div class="text-xs" style="color:var(--text-dim);">${escHtml(idx.name)}</div>
         <div class="text-xl font-bold mt-1">${fmt(q.price, 2)}</div>
-        <div class="text-xs font-semibold mt-1" style="color:${cls};">${sign}${chg.toFixed(2)}%</div>
+        <div class="text-xs font-semibold mt-1" style="color:${DIR_COLOR[direction(q.change_pct)]};">${pctText(q.change_pct)}</div>
       </div>`;
     }).join("");
   } catch (e) {
     marketEl.innerHTML = `<div class="text-xs" style="color:var(--red);grid-column:1/-1;">${escHtml(e.message)}</div>`;
   }
 
-  // 종목 시그널 카드: 실시간 시세 (from /api/macro/us-stocks, 캐시 우선)
-  let liveStocks = null;
-  try {
-    const resp = await api("/api/macro/us-stocks");
-    liveStocks = resp.stocks || null;
-  } catch {}
-  const stocks = liveStocks || US_STOCKS.map(s => ({ ...mockUsPrice(s.symbol), name: s.name }));
-  const fromCache = liveStocks !== null;
+  // 종목 카드: /api/macro/us-stocks(저장본 최대 2시간) — 평소 등락률만 · ±1.5% 를 넘은 종목에만 「크게 오름 · 크게 내림」
+  // (Figma 03-5 융합안). 머리 글 한 줄(지연 · 장 닫힘 · 마지막 체결 · 받은 시각 · 저장본 나이)은 서버 한 곳(`data_provenance.quote_note`).
+  let resp = null;
+  try { resp = await api("/api/macro/us-stocks"); } catch {}
+  const stocks = (resp && resp.stocks || []).filter(s => s && s.price != null);
+  const titleEl = document.getElementById("us-signal-count");
+  if (titleEl) titleEl.textContent = stocks.length ? String(stocks.length) : "";
+  const ruleEl = document.getElementById("us-signal-rule");   // 문턱 숫자는 판단 모듈 한 곳(MOVE_LIMIT)에서
+  if (ruleEl) ruleEl.textContent = `전일 대비 ±${MOVE_LIMIT}% 를 넘은 종목에만 「크게 오름」 · 「크게 내림」 을 붙입니다 — 규칙 표시일 뿐 매매 신호가 아닙니다(학습 모델 아님).`;
+  if (!stocks.length) {
+    sigEl.innerHTML = `<div class="text-sm" style="color:var(--text-mute);grid-column:1/-1;">시세를 받지 못했습니다 — 잠시 뒤 「새로고침」 을 눌러 주세요.</div>`;
+    return;
+  }
   sigEl.innerHTML = stocks.map(s => {
-    const pct = s.change_p ?? s.change_pct ?? 0;
-    // 단순 등락률 기준 시그널 (실시간 가격 변동에 연동, 난수 아님)
-    const action = pct >= 1.5 ? "BUY" : pct <= -1.5 ? "SELL" : "HOLD";
-    const acColor = action==="BUY" ? "var(--green)" : action==="SELL" ? "var(--red)" : "var(--text-dim)";
-    const sign = pct >= 0 ? "+" : "";
-    const pctColor = pct >= 0 ? "var(--green)" : "var(--red)";
+    const pct = s.change_p ?? s.change_pct;
+    const tag = moveTag(pct);
     return `<div class="card" style="padding:12px;">
       <div class="font-bold text-sm">${escHtml(s.symbol)}</div>
       <div class="text-xs" style="color:var(--text-dim);">${escHtml(s.name || "")}</div>
       <div class="font-semibold mt-2">$${fmt(s.price,2)}</div>
-      <div class="text-xs mt-1" style="color:${pctColor};">${sign}${(+pct).toFixed(2)}%</div>
-      <div class="text-xs font-bold mt-2" style="color:${acColor};">${action}</div>
+      <div class="text-xs mt-1" style="color:${DIR_COLOR[direction(pct)]};">${pctText(pct)}</div>
+      <div class="text-xs font-bold mt-2" style="color:${DIR_COLOR[tag.dir]};min-height:16px;">${escHtml(tag.text)}</div>
     </div>`;
   }).join("");
-
-  if (fromCache) {
-    const note = liveStocks?.[0]?.from_cache ? " (캐시)" : "";
-    sigEl.insertAdjacentHTML("beforeend", `<div class="text-xs" style="color:var(--text-mute);grid-column:1/-1;text-align:right;">실시간 데이터${note} · Yahoo Finance</div>`);
+  if (resp.note) {
+    sigEl.insertAdjacentHTML("beforeend", `<div class="text-xs" style="color:var(--text-mute);grid-column:1/-1;text-align:right;">${escHtml(resp.note)}</div>`);
   }
 }
 
@@ -102,11 +87,11 @@ async function loadUsChart() {
       api(`/api/stocks/candles?symbol=${encodeURIComponent(symbol)}&period=${period}`),
     ]);
     const price = quote.price ?? null;
-    const chg = quote.prev_close ? (price - quote.prev_close) / quote.prev_close * 100 : null;
-    const pctColor = chg >= 0 ? "var(--green)" : "var(--red)";
+    const when = asOfText(quote.as_of);   // 그 값이 생긴 시각 — 장이 닫혔으면 마감 시각이 온다(L8)
     infoEl.innerHTML = `<span class="font-semibold">${escHtml(symbol)}</span>
       <span class="ml-3">${price != null ? "$" + fmt(price,2) : "-"}</span>
-      ${chg != null ? `<span class="ml-2 font-semibold" style="color:${pctColor};">${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%</span>` : ""}`;
+      <span class="ml-2 font-semibold" style="color:${DIR_COLOR[direction(quote.change_pct)]};">${pctText(quote.change_pct)}</span>
+      <span class="ml-3 text-xs" style="color:var(--text-mute);">지연 시세${when ? " · " + escHtml(when) : ""}</span>`;
 
     if (usChartInstance) { usChartInstance.destroy(); usChartInstance = null; }
     const ohlcv = (candles.candles || [])

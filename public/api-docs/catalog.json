@@ -1021,6 +1021,7 @@
    ],
    "screens": [
     "company-dashboard",
+    "quant-backtest",
     "quant-dashboard",
     "trading-chart"
    ],
@@ -2008,9 +2009,7 @@
     "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
-   "screens": [
-    "robo-decision"
-   ],
+   "screens": [],
    "part": "P-E",
    "req": [
     "P01-④-3",
@@ -2045,9 +2044,7 @@
     "api.coolsms.co.kr",
     "api.telegram.org"
    ],
-   "screens": [
-    "robo-decision"
-   ],
+   "screens": [],
    "part": "P-E",
    "req": [
     "P02-⑤-2"
@@ -2917,11 +2914,12 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 32,
+   "line": 24,
    "errors": [],
    "keys": [
     "indicators",
-    "from_cache"
+    "from_cache",
+    "note"
    ],
    "body": [],
    "schema": true
@@ -2949,11 +2947,12 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 47,
+   "line": 41,
    "errors": [],
    "keys": [
     "sectors",
-    "from_cache"
+    "from_cache",
+    "note"
    ],
    "body": [],
    "schema": true
@@ -2981,11 +2980,12 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 63,
+   "line": 59,
    "errors": [],
    "keys": [
     "stocks",
-    "from_cache"
+    "from_cache",
+    "note"
    ],
    "body": [],
    "schema": true
@@ -3011,7 +3011,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 78,
+   "line": 76,
    "errors": [],
    "keys": [
     "symbol",
