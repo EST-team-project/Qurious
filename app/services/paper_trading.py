@@ -12,6 +12,7 @@ import re
 import time
 import uuid
 from datetime import date, timedelta
+from datetime import datetime, timezone
 
 import httpx
 from sqlalchemy import delete, select
@@ -804,3 +805,132 @@ async def account_snapshot(db: AsyncSession, user_id: uuid.UUID) -> dict:
         "totalPnlRate": round((total_asset - initial) / initial * 100, 4) if initial else 0,
         "counts": {"stocks": len(stocks), "crypto": len(crypto["holdCryptoList"]), "alternatives": len(alts)},
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# B5 — 스탑 주문 (감시 주문) · 체결 보장 아님 · 장 시간에만
+# ═══════════════════════════════════════════════════════════════
+
+class StopOrderError(PaperTradeError):
+    """스탑 주문 등록·취소 오류."""
+
+
+async def place_stop_order(
+    db: AsyncSession, user_id: uuid.UUID, symbol: str, side: str, quantity: int,
+    stop_price: float, *, source: str = "PAPER",
+) -> dict:
+    """감시 주문 등록 — pending 상태로 Order 한 줄 추가.
+
+    · stop_price 도달 시 시장가로 발동 (체결 보장 아님 · 갭이면 더 나쁘게 체결)
+    · 매도 스탑은 보유 수량 확인 · 매수 스탑은 발동 시점에 현금 재확인
+    · 장 시간 판정은 호출자(스케줄러/라우트) 몫 — 지금은 시세 도달이면 발동
+    """
+    side = (side or "").upper()
+    if side not in (BUY, SELL):
+        raise StopOrderError("side는 BUY 또는 SELL이어야 합니다.")
+    if not isinstance(quantity, int) or quantity <= 0:
+        raise StopOrderError("quantity는 1 이상의 정수여야 합니다.")
+    if not math.isfinite(float(stop_price)) or float(stop_price) <= 0:
+        raise StopOrderError("stop_price는 양수여야 합니다.")
+
+    info = await resolve_stock(symbol)
+
+    if side == SELL:
+        position = await _stock_position(db, user_id, info["symbol"])
+        if position is None or position.quantity < quantity:
+            raise StopOrderError("매도 스탑은 보유 수량이 필요합니다.")
+
+    order = Order(
+        user_id=user_id, symbol=info["symbol"], name=info["name"],
+        order_type=side.lower(), quantity=quantity, price=float(stop_price),
+        status="pending", broker="virtual", source=source,
+        order_kind="stop", stop_price=float(stop_price), order_price=float(stop_price),
+    )
+    db.add(order)
+    await db.flush()
+    return {
+        "status": "pending", "order_id": str(order.id),
+        "symbol": info["symbol"], "name": info["name"], "side": side,
+        "quantity": quantity, "stop_price": float(stop_price),
+        "note": "가격 도달 시 시장가 주문 · 체결 보장 아님 · 장 시간에만",
+    }
+
+
+async def list_pending_stop_orders(db: AsyncSession, user_id: uuid.UUID) -> list[dict]:
+    rows = (await db.execute(
+        select(Order).where(Order.user_id == user_id,
+                             Order.order_kind == "stop",
+                             Order.status == "pending")
+        .order_by(Order.created_at.desc())
+    )).scalars().all()
+    return [{
+        "order_id": str(o.id), "symbol": o.symbol, "name": o.name,
+        "side": o.order_type, "quantity": o.quantity,
+        "stop_price": o.stop_price, "created_at": o.created_at.isoformat() if o.created_at else None,
+    } for o in rows]
+
+
+async def cancel_stop_order(db: AsyncSession, user_id: uuid.UUID, order_id: str) -> dict:
+    try:
+        oid = uuid.UUID(order_id)
+    except Exception:
+        raise StopOrderError("유효하지 않은 주문 ID 입니다.")
+    order = (await db.execute(
+        select(Order).where(Order.id == oid, Order.user_id == user_id,
+                             Order.order_kind == "stop", Order.status == "pending")
+    )).scalar_one_or_none()
+    if order is None:
+        raise StopOrderError("취소할 스탑 주문을 찾을 수 없습니다.")
+    order.status = "cancelled"
+    return {"status": "cancelled", "order_id": str(order.id)}
+
+
+async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) -> list[dict]:
+    """pending 스탑 주문 순회 → 시세 도달 시 시장가 발동.
+
+    갭이면 stop_price 보다 더 나쁜 가격에 체결된다 (그게 정상 · 안내 문구에 명시).
+    """
+    stmt = select(Order).where(Order.order_kind == "stop", Order.status == "pending")
+    if user_id is not None:
+        stmt = stmt.where(Order.user_id == user_id)
+    rows = (await db.execute(stmt)).scalars().all()
+
+    fired = []
+    for order in rows:
+        try:
+            info = await resolve_stock(order.symbol)
+        except Exception:
+            continue
+        current = float(info["price"])
+        reached = (
+            (order.order_type == "sell" and current <= float(order.stop_price)) or
+            (order.order_type == "buy" and current >= float(order.stop_price))
+        )
+        if not reached:
+            continue
+
+        order.triggered_at = datetime.now(timezone.utc)
+        order.status = "triggered"
+        try:
+            fill = await _fill_stock_order(
+                db, order.user_id, info, order.order_type.upper(),
+                order.quantity, source=order.source,
+            )
+            order.status = "filled"
+            order.avg_fill_price = fill["price"]
+            order.filled_quantity = fill["quantity"]
+            order.filled_at = datetime.now(timezone.utc)
+            order.net_amount = fill["net_amount"]
+            fired.append({
+                "order_id": str(order.id), "symbol": order.symbol,
+                "side": order.order_type, "quantity": order.quantity,
+                "stop_price": order.stop_price, "fill_price": fill["price"],
+                "status": "filled",
+            })
+        except PaperTradeError as exc:
+            order.status = "skipped"
+            fired.append({
+                "order_id": str(order.id), "symbol": order.symbol,
+                "status": "skipped", "reason": str(exc),
+            })
+    return fired
