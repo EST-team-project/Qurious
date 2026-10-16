@@ -98,8 +98,12 @@ async function stockPreview(side) {
         <div class="flex items-center gap-2 mb-2">${sideBadge(p.side)} <strong>${escHtml(p.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(p.symbol)}</span>
           <span class="ml-auto text-xs font-bold ${p.executable ? "text-emerald-600" : "text-red-600"}">${p.executable ? "체결 가능" : escHtml(p.reason || "체결 불가")}</span></div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-          <div>예상 단가<br><b>${won(p.estimatedPrice)}</b></div><div>예상 금액<br><b>${won(p.estimatedAmount)}</b></div>
-          <div>현금 ${won(p.cashBefore)} → <b>${won(p.cashAfter)}</b></div><div>보유 ${fmt(p.positionBefore)}주 → <b>${fmt(p.positionAfter)}주</b></div>
+          <div>예상 단가<br><b>${won(p.estimatedPrice)}</b></div>
+          <div>예상 금액<br><b>${won(p.estimatedAmount)}</b></div>
+          <div>수수료·세금<br><b>${won(p.totalCost || 0)}</b></div>
+          <div>순정산액<br><b>${won(p.netAmount ?? p.estimatedAmount)}</b></div>
+          <div>현금 ${won(p.cashBefore)} → <b>${won(p.cashAfter)}</b></div>
+          <div class="col-span-3">보유 ${fmt(p.positionBefore)}주 → <b>${fmt(p.positionAfter)}주</b></div>
         </div>
         <div class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(p.notice)}</div>
       </div>`;
