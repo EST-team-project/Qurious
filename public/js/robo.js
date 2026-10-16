@@ -687,14 +687,18 @@ function renderRoboRationale(signals) {
     const sigLabel = s.signal === "BUY" ? "매수" : s.signal === "SELL" ? "매도" : "관망";
     const sigCls = s.signal === "BUY" ? "badge-buy" : s.signal === "SELL" ? "badge-sell" : "badge-hold";
     const cardId = "robo-rat-" + (s.symbol || "").replace(/[^0-9A-Za-z]/g, "_");
+    // 자동매매 실제 사유 (signals[].reasons)
+    const reasons = (s.reasons || []).slice(0, 4)
+      .map(r => `<div style="color:var(--text-dim);">· ${escHtml(r)}</div>`).join("");
     return `
       <div class="card" style="padding:14px;">
         <div class="flex items-center justify-between mb-1">
           <span class="font-semibold text-sm">${escHtml(s.name || s.symbol)}</span>
-          <span class="${sigCls}">${sigLabel}</span>
+          <span class="${sigCls}" title="자동매매 규칙 판단">자동매매 ${sigLabel}</span>
         </div>
-        <div class="text-xs mb-2" style="color:var(--text-mute);">신호 점수 ${Number(s.score ?? 0).toFixed(1)}</div>
-        <div id="${cardId}" class="text-xs" style="color:var(--text-dim);line-height:1.5;">근거 불러오는 중…</div>
+        <div class="text-xs mb-2" style="color:var(--text-mute);">자동매매 점수 ${Number(s.score ?? 0).toFixed(1)} (일봉 규칙 · −6 ~ +6)</div>
+        ${reasons ? `<div class="text-xs mb-2">${reasons}</div>` : ""}
+        <div id="${cardId}" class="text-xs" style="color:var(--text-dim);line-height:1.5;border-top:1px dashed var(--border);padding-top:6px;margin-top:6px;">다중 주기 신호 불러오는 중…</div>
       </div>`;
   }).join("");
 
@@ -708,27 +712,43 @@ function renderRoboRationale(signals) {
 
 async function _loadRationaleExplain(symbol, node) {
   try {
-    // P01-④-2 — explanation + opinion + signal 한 번에
+    // P01-④-2 — 다중 주기 신호 + 의견
     const r = await api("/api/stocks/mtf-signal?symbol=" + encodeURIComponent(symbol));
     const ex = r.explanation || {};
     const lines = [];
+
+    // (1) 다중 주기 신호(T2) — 이름표 달아 별도 줄
+    const t2Signal = r.signal || "관망";
+    const t2Date = r.as_of ? ` (${escHtml(r.as_of)} 기록)` : "";
+    lines.push(`<div style="color:var(--text);"><b>다중 주기 신호${t2Date}: ${escHtml(t2Signal)}</b></div>`);
+
     if (ex.summary) {
-      lines.push(`<div style="color:var(--text);">${escHtml(ex.summary)}</div>`);
+      lines.push(`<div style="color:var(--text-dim);margin-top:2px;">${escHtml(ex.summary)}</div>`);
     }
-    // 의견 배지 (P01-④-2)
+
+    // (2) 의견 배지 (P01-④-2)
     if (r.opinion) {
       const opCls = r.opinion === "매수" ? "badge-buy" : r.opinion === "매도" ? "badge-sell" : "badge-hold";
       const heldMark = r.held ? " · 보유 중" : "";
       lines.push(`<div style="margin-top:4px;"><span class="${opCls}" title="규칙: ${escHtml(r.opinion_rule || "")}">의견: ${escHtml(r.opinion)}${heldMark}</span></div>`);
     }
-    // 위험 관문 경고 (P02-⑤-2 연계)
+
+    // (3) 위험 관문 경고 (P02-⑤-2)
     if (r.risk_gate) {
-      lines.push(`<div style="margin-top:4px;"><span class="badge-sell">⚠️ 위험 관문 — 매도 강제</span> <span style="color:var(--text-mute);font-size:11px;">킬 스위치 또는 당일 손실 한도 초과</span></div>`);
+      lines.push(`<div style="margin-top:4px;"><span class="badge-sell">⚠️ 위험 관문 — 매도 강제</span> <span style="color:var(--text-mute);font-size:11px;">킬 스위치 또는 당일 손실한도 초과</span></div>`);
     }
 
+    // (4) 자동매매와 다중 주기 다름 안내
+    const card = node.closest(".card");
+    const autoBadge = card ? card.querySelector('[title="자동매매 규칙 판단"]') : null;
+    const autoAction = autoBadge ? autoBadge.textContent.replace("자동매매 ", "").trim() : "";
+    if (autoAction && autoAction !== t2Signal) {
+      lines.push(`<div style="margin-top:4px;color:var(--text-mute);font-size:11px;">※ 자동매매 기본 규칙(일봉 RSI·볼린저, 역추세)과 다중 주기 신호가 다를 수 있습니다.</div>`);
+    }
+
+    // (5) 메타 (기준일 · 규칙 · 고지)
     const meta = [];
     if (ex.confidence_text) meta.push(escHtml(ex.confidence_text));
-    if (r.as_of) meta.push("기준일 " + escHtml(r.as_of));
     if (r.definition) meta.push("규칙 " + escHtml(r.definition));
     meta.push("교육용 모의 · 권유 아님");
     if (meta.length) {
@@ -736,18 +756,7 @@ async function _loadRationaleExplain(symbol, node) {
     }
     node.innerHTML = lines.join("") || `<span style="color:var(--text-mute);">설명이 비어 있습니다.</span>`;
 
-    // 헤더 배지를 T2 신호로 통일
-    if (r.signal) {
-      const t2Cls = r.signal === "매수" ? "badge-buy" : r.signal === "매도" ? "badge-sell" : "badge-hold";
-      const card = node.closest(".card");
-      if (card) {
-        const badge = card.querySelector(".badge-buy, .badge-sell, .badge-hold");
-        if (badge) {
-          badge.className = t2Cls;
-          badge.textContent = r.signal;
-        }
-      }
-    }
+    // 헤더 배지 덮어쓰기는 삭제 — 자동매매 배지 유지
   } catch (e) {
     const msg = String((e && e.message) || "");
     const isNotFound =
