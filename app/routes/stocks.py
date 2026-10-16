@@ -903,17 +903,20 @@ async def stock_mtf_signal(symbol: str = Query("005930.KS"),
         t2_signal = payload.get("signal") or live.get("action")
         t2_confidence = float(payload.get("confidence") or 0.0)
 
-    # 사용자 보유 여부
+    # 사용자 보유 여부 — 앱 DB 가 닿지 않아도 신호·의견은 나온다 (이슈 #194 결함 1)
     uid = _uid(user["id"])
     held = False
     if uid:
-        q = select(Portfolio).where(
-            Portfolio.user_id == uid,
-            Portfolio.symbol == symbol,
-            Portfolio.book.in_([PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT]),
-        )
-        rows = (await db.execute(q)).scalars().all()
-        held = any((r.quantity or 0) > 0 for r in rows)
+        try:
+            q = select(Portfolio).where(
+                Portfolio.user_id == uid,
+                Portfolio.symbol == symbol,
+                Portfolio.book.in_([PORTFOLIO_BOOK_PAPER, PORTFOLIO_BOOK_QUANT]),
+            )
+            rows = (await db.execute(q)).scalars().all()
+            held = any((r.quantity or 0) > 0 for r in rows)
+        except Exception:
+            held = False   # DB 못 닿으면 미보유 가정 — 매수 신호는 그대로, 매도는 관망으로
 
     # 위험 관문 — 킬 스위치 또는 당일 손실 한도 초과 (P02-⑤-2 연계)
     risk_gate = False

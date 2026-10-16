@@ -175,3 +175,31 @@ async def test_mtf_signal_no_risk_gate_normal(db):
 
     j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
     assert j["risk_gate"] is False
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_mtf_signal_held_lookup_fails_gracefully(db, monkeypatch):
+    """#194 결함 1 — 보유 조회가 실패해도 신호·의견은 나온다."""
+    from sqlalchemy.exc import OperationalError
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.routes.stocks import stock_mtf_signal
+
+    session, uid = db
+    session.add(_t2("035420", "매수", 0.7))
+    await session.commit()
+
+    original_execute = AsyncSession.execute
+
+    async def _broken(self, *args, **kw):
+        stmt = str(args[0]) if args else ""
+        if "portfolio" in stmt.lower():
+            raise OperationalError("connection lost", None, None)
+        return await original_execute(self, *args, **kw)
+
+    monkeypatch.setattr(AsyncSession, "execute", _broken)
+
+    j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
+    assert j["held"] is False           # DB 못 닿으면 미보유 가정
+    assert j["opinion"] == "매수"        # 신호·의견은 정상
