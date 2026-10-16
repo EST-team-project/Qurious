@@ -28,6 +28,7 @@
  *   pr 기간 칩 한 칸(r.periods) · ev 사건 묶음(r.events)
  */
 import { api, escHtml } from "/js/common.js";
+import { navigate } from "/js/core.js";
 
 const LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
 const LWC_TIMEOUT_MS = 15000;
@@ -191,6 +192,26 @@ function tableHtml(r) {
       <tbody>${rows.reverse().join("")}</tbody></table></div>`;
 }
 
+/** 읽은 다음 걸음 — 모의 주문으로 잇는 상자(2026-10-16 · Figma 「모의투자 여정 고치기」 03-7 융합안 결정).
+ *  설명 바로 아래 · 권유 아님 문구를 단추 곁에 · 왼쪽 단은 두 단일 때 창 안에서 고정(products.css)이라 그림 · 표를 내려도 보인다.
+ *  누르면 창을 닫고 국내주식 모의주문을 이 코드로 열어 시세 조회까지만 한다 — 주문은 사용자가 누른다. */
+function practiceHtml() {
+  return `<div class="pc-practice"><p class="pc-practice-t">이 ETF 로 사고팔기를 연습해 볼 수 있습니다</p>
+    <p class="pc-practice-s">모의 계좌(가상 돈)에서만 · 이 상품을 사라는 뜻이 아닙니다 · 체결가는 그때 받은 시세(늦을 수 있음)</p>
+    <button type="button" class="btn-secondary pc-practice-go" data-pc="practice">모의 주문에서 열기 →</button></div>`;
+}
+
+/** 모의 주문 화면으로 — 그 화면(주담당 강민석)의 코드는 바꾸지 않고 칸에 코드를 넣고 「시세 조회」 를 누른다(스크리닝 → 패턴 화면과 같은 꼴). */
+function openPractice(code) {
+  closeProductChart();
+  navigate("paper-stock");
+  const input = document.getElementById("ps-symbol");
+  if (!input) return;
+  input.value = code;
+  document.getElementById("ps-quote-btn")?.click();
+  input.focus();
+}
+
 function footHtml(r) {
   return `<div class="pc-foot"><ul class="pc-notes">${(r.notes || []).map(n => `<li>${escHtml(n)}</li>`).join("")}</ul>
     <p class="pc-credit">차트: TradingView Lightweight Charts™ · <a href="${CREDIT_URL}" target="_blank" rel="noopener noreferrer">tradingview.com</a></p></div>`;
@@ -336,7 +357,7 @@ function render() {
   const tall = state.chip !== "return";
   const note = state.autoNote ? `<p class="pc-msg pc-msg--note">${escHtml(state.autoNote)}</p>` : "";
   body.innerHTML = `<div class="pc-top">${head}${note}</div>
-    <div class="pc-left">${chipsHtml(r)}${sayHtml(ex)}</div>
+    <div class="pc-left">${chipsHtml(r)}${sayHtml(ex)}${practiceHtml()}</div>
     <div class="pc-right">
       <div class="pc-chart${tall ? " pc-chart--tall" : ""}" role="img" aria-label="${escHtml(ex ? ex.sentence : "")}"></div>
       <div class="pc-legend"></div>
@@ -400,6 +421,7 @@ function onClick(event) {
   if (!t || !state) return;
   const d = t.dataset;
   if (d.pc === "close") { closeProductChart(); return; }
+  if (d.pc === "practice") { openPractice(state.code); return; }
   if (d.pc === "how") { state.how = !state.how; render(); return; }
   if (d.pc === "table") { state.table = !state.table; render(); return; }
   if (d.chip && d.chip !== state.chip) { state.chip = d.chip; state.seq = ++seq; render(); return; }

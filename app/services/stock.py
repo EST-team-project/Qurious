@@ -139,6 +139,8 @@ async def get_quote(symbol: str) -> dict:
         "change_pct": change_pct,
         "currency": meta.get("currency", "KRW"),
         "market": meta.get("exchangeName"),
+        # 그 값이 생긴 시각(마지막 체결 · KST) — 화면이 「언제 값인지」 말하게(L8 · 2026-10-16 · 모르면 None)
+        "as_of": data_provenance.quote_time_kst(meta.get("regularMarketTime")),
     }
 
 

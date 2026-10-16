@@ -36,6 +36,50 @@ UNKNOWN_NOTE = "자료 출처를 알 수 없습니다"
 INTRADAY_NOTE = "오늘 봉은 장중 값일 수 있음"
 
 
+def quote_time_kst(epoch) -> str | None:
+    """시세 시각(공급자가 준 마지막 체결 시각 · 유닉스 초) → 「YYYY-MM-DD HH:MM」(KST). 모르면 None(지어내지 않는다).
+
+    받은 때가 아니라 **그 값이 생긴 때**다 — 미국 장이 닫힌 뒤 받으면 마감 시각(16:00 ET = 다음 날 05:00 KST · 서머타임)이 온다.
+    """
+    if not isinstance(epoch, (int, float)) or isinstance(epoch, bool) or epoch <= 0:
+        return None
+    return datetime.fromtimestamp(epoch, tz=KST).strftime("%Y-%m-%d %H:%M")
+
+
+#: 최신 시세(미국주식 대시보드 · 거시경제 지표 · 산업 분석)의 출처 이름 — 화면에 그대로 보인다.
+QUOTE_SOURCE_LABEL = "야후 파이낸스"
+
+
+def quote_note(rows, *, from_cache: bool, now: datetime | None = None) -> str:
+    """최신 시세 목록 응답의 머리 글 한 줄(L8 · DF-123 · 2026-10-16) — 화면은 이 글을 이스케이프해 보이기만 한다.
+
+    「실시간」 이라고 쓰지 않는다 — 비공식 길 · 저장본 최대 2시간 · 국내 시세 20분 지연(조사서 「실시간 시세 보기」 1절).
+    장이 닫힌 뒤 받은 값이면 그렇다고 적는다(받을 때 그 종목 정규장 안이었나 · 줄마다 `market_open`).
+    모르는 칸은 지어내지 않는다 — 옛 저장본에는 시각 칸이 없다(「모름」).
+
+        rows        예약 동기화 · macro 라우트가 함께 쓰는 최신 시세 줄들(`as_of` · `fetched_at` · `market_open`)
+        from_cache  저장본에서 읽었나(응답 머리 칸 — 줄마다 있는 칸이 아니다)
+        now         저장본 나이를 잴 지금(시험이 시계를 고정할 때) — 비우면 지금 KST
+    """
+    rows = [r for r in rows or [] if isinstance(r, dict)]
+    as_ofs = sorted(r["as_of"] for r in rows if r.get("as_of"))
+    fetched = sorted(r["fetched_at"] for r in rows if r.get("fetched_at"))
+    opens = [r["market_open"] for r in rows if isinstance(r.get("market_open"), bool)]
+    parts = [f"{QUOTE_SOURCE_LABEL} 지연 시세"]
+    if opens and all(o is False for o in opens):
+        parts.append("장이 닫힌 뒤 받은 값")
+    elif opens and all(opens):
+        parts.append("장중에 받은 값")
+    parts.append(f"마지막 체결 {as_ofs[-1][5:]}(KST)" if as_ofs else "체결 시각 모름")
+    if fetched:
+        got = datetime.strptime(fetched[-1], "%Y-%m-%d %H:%M").replace(tzinfo=KST)
+        age = int(((now or datetime.now(KST)) - got).total_seconds() // 60)
+        parts.append(f"받은 시각 {fetched[-1][5:]}" + (f"(저장본 · {age}분 전)" if from_cache and age >= 1 else ""))
+    elif from_cache:
+        parts.append("저장본 · 받은 시각 모름(최대 2시간 전)")
+    return " · ".join(parts)
+
+
 def source_label(source: str | None) -> str | None:
     """원천 이름 → 사람이 읽는 이름. 표에 없는 원천은 이름을 그대로 보인다(바꿔 부르지 않는다)."""
     if not source:

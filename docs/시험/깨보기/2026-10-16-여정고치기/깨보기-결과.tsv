@@ -1,0 +1,44 @@
+id	시험 파일	-k	무엇을 깼나	결과	실패한 시험 · 끝 줄	시간
+대조1	tests/test_quote_latest.py	(전부)	대조군 — 깨지 않음	통과	10 passed in 2.84s	9s
+대조2	tests/test_agent_risk_tools.py	(전부)	대조군 — 깨지 않음	통과	16 passed in 1.82s	7s
+대조3	tests/test_quoteview_screen.py	(전부)	대조군 — 깨지 않음	통과	4 passed in 0.51s	8s
+대조4	tests/test_stockpick_screen.py	(전부)	대조군 — 깨지 않음	통과	4 passed in 0.53s	7s
+대조5	tests/test_productchart_screen.py	(전부)	대조군 — 깨지 않음	통과	7 passed in 2.20s	8s
+대조6	tests/test_data_provenance.py	(전부)	대조군 — 깨지 않음	통과	16 passed in 6.91s	13s
+Q1	tests/test_quote_latest.py	(전부)	최신 시세를 다시 기간 5일로 받음(5거래일 전 종가 대비)	잡음	FAILED tests/test_quote_latest.py::test_latest_reads_one_day_range_and_matches_provider	14s
+Q2	tests/test_quote_latest.py	(전부)	전일 종가를 모르면 현재가로 메움(0% 「보합」 거짓)	잡음	FAILED tests/test_quote_latest.py::test_latest_prefers_previous_close_and_unknown_is_none	10s
+Q3	tests/test_quote_latest.py	(전부)	현재가가 없으면 0 으로 메움	잡음	FAILED tests/test_quote_latest.py::test_latest_without_price_is_error_not_zero	10s
+Q4	tests/test_quote_latest.py	(전부)	시세 시각을 싣지 않음	잡음	FAILED tests/test_quote_latest.py::test_latest_as_of_is_kst - AssertionError:...	10s
+Q5	tests/test_quote_latest.py	(전부)	라우트가 같은 꼴을 따로 셈(한 곳이 아님)	잡음	FAILED tests/test_quote_latest.py::test_route_and_sync_share_one_function - K...	11s
+Q6	tests/test_quote_latest.py	(전부)	모르는 등락을 0 자리에 끼워 정렬	잡음	FAILED tests/test_quote_latest.py::test_industry_sort_puts_unknown_last - Ass...	12s
+Q7	tests/test_quote_latest.py	(전부)	장 열림을 늘 참으로	잡음	FAILED tests/test_quote_latest.py::test_latest_market_open_and_fetched_at - a...	11s
+Q8	tests/test_quote_latest.py	(전부)	머리 글이 「실시간 시세」 라고 말함	잡음	FAILED tests/test_quote_latest.py::test_quote_note_never_says_live - Assertio...	12s
+Q9	tests/test_quote_latest.py	(전부)	저장본 나이를 말하지 않음	잡음	FAILED tests/test_quote_latest.py::test_quote_note_never_says_live - Assertio...	10s
+Q10	tests/test_quote_latest.py	(전부)	저장본에서 읽은 거시 지표 응답에 머리 글을 싣지 않음	잡음	FAILED tests/test_quote_latest.py::test_us_stocks_route_carries_note_on_both_paths	8s
+Q11	tests/test_quote_latest.py	(전부)	현재가 조회(get_quote)에 시세 시각을 싣지 않음	잡음	FAILED tests/test_quote_latest.py::test_get_quote_carries_as_of - AssertionEr...	10s
+A1	tests/test_agent_risk_tools.py	(전부)	셀 수 없는 지표를 다시 「—」 로	잡음	FAILED tests/test_agent_risk_tools.py::test_health_text_says_cannot_compute_instead_of_dash	10s
+A2	tests/test_agent_risk_tools.py	(전부)	답 끝에 서버가 계산한 값을 붙이지 않음	잡음	FAILED tests/test_agent_risk_tools.py::test_guard_answer_flags_numbers_that_differ_from_server[\uc2e0\ud55c\uc9c0\uc8fc\uc758 \uc7ac\ubb34 \uac74\uc804\uc131\uc	10s
+A3	tests/test_agent_risk_tools.py	(전부)	기준 문장(「200% 이상이면」)도 그 회사 값으로 봄	잡음	FAILED tests/test_agent_risk_tools.py::test_guard_answer_flags_other_company_and_skips_thresholds	10s
+A4	tests/test_agent_risk_tools.py	(전부)	서버가 본 회사가 질문과 달라도 말하지 않음	잡음	FAILED tests/test_agent_risk_tools.py::test_guard_answer_flags_other_company_and_skips_thresholds	10s
+A5	tests/test_agent_risk_tools.py	(전부)	이름과 코드가 함께 오면 모델이 짐작한 코드가 이김	잡음	FAILED tests/test_agent_risk_tools.py::test_company_health_takes_name_and_name_wins	9s
+A6	tests/test_agent_risk_tools.py	(전부)	그래프 답 노드가 지킴을 거치지 않음	잡음	FAILED tests/test_agent_risk_tools.py::test_graph_answer_carries_server_values	10s
+A7	tests/test_agent_risk_tools.py	(전부)	값이 든 괄호까지 지움	잡음	FAILED tests/test_agent_risk_tools.py::test_guard_answer_flags_numbers_that_differ_from_server[*   \uc720\ub3d9\ube44\uc728: \uae08\uc735\ud68c\uc0ac\uc758 \u20	10s
+U1	tests/test_quoteview_screen.py	(전부)	카드가 모르는 등락을 0 으로 메움	잡음	FAILED tests/test_quoteview_screen.py::test_us_js_uses_server_values_and_no_mock	7s
+U2	tests/test_quoteview_screen.py	(전부)	머리 글을 화면이 따로 지음(서버 글을 버림)	잡음	FAILED tests/test_quoteview_screen.py::test_us_js_uses_server_values_and_no_mock	7s
+U3	tests/test_quoteview_screen.py	(전부)	시세를 못 받아도 「받지 못했습니다」 길을 타지 않음(동작 깨기 — 정적 시험 한계)	못 잡음(예상 — 정적 시험 한계)	4 passed in 0.48s	6s
+U4	tests/test_quoteview_screen.py	(전부)	머리 칩을 다시 「● LIVE」 로	잡음	FAILED tests/test_quoteview_screen.py::test_us_dashboard_html_does_not_say_live	6s
+U5	tests/test_quoteview_screen.py	(전부)	크게 움직임 문턱을 1.0 으로	잡음	FAILED tests/test_quoteview_screen.py::test_quoteview_rules_in_node - assert ...	6s
+U6	tests/test_quoteview_screen.py	(전부)	문턱 경계(±1.5 정확히)를 보합으로	잡음	FAILED tests/test_quoteview_screen.py::test_quoteview_rules_in_node - Asserti...	7s
+U7	tests/test_quoteview_screen.py	(전부)	모르는 등락률을 「+0.00%」 로	잡음	FAILED tests/test_quoteview_screen.py::test_quoteview_rules_in_node - Asserti...	8s
+U8	tests/test_quoteview_screen.py	(전부)	꼴이 다른 시세 시각도 그대로 붙임(지어냄)	잡음	FAILED tests/test_quoteview_screen.py::test_quoteview_rules_in_node - Asserti...	9s
+U9	tests/test_quoteview_screen.py	(전부)	거시 지표가 모르는 등락을 화살표로	잡음	FAILED tests/test_quoteview_screen.py::test_macro_screens_show_dash_for_unknown_change	8s
+K1	tests/test_stockpick_screen.py	(전부)	찾기 결과에서 국내 기호만 고르지 않음	잡음	FAILED tests/test_stockpick_screen.py::test_stockpick_pure_functions_in_node	9s
+K2	tests/test_stockpick_screen.py	(전부)	최근 목록이 원래 목록을 바꿈(같은 기호 두 번)	잡음	FAILED tests/test_stockpick_screen.py::test_stockpick_pure_functions_in_node	6s
+K3	tests/test_stockpick_screen.py	(전부)	대표 종목에서 최근에 있는 기호를 빼지 않음	잡음	FAILED tests/test_stockpick_screen.py::test_stockpick_pure_functions_in_node	7s
+K4	tests/test_stockpick_screen.py	(전부)	화면 기호 규칙이 서버 다리와 갈림(KN 받음)	잡음	FAILED tests/test_stockpick_screen.py::test_symbol_rule_matches_collector_bridge	7s
+K5	tests/test_stockpick_screen.py	(전부)	결과 제목을 「10년 퀀트 분석」 으로 되돌림	잡음	FAILED tests/test_stockpick_screen.py::test_quant_backtest_wiring - Assertion...	8s
+K6	tests/test_stockpick_screen.py	(전부)	목록을 누를 때 초점을 잃음(mousedown 막기 지움)	잡음	FAILED tests/test_stockpick_screen.py::test_combobox_accessibility_markup - A...	7s
+C1	tests/test_productchart_screen.py	(전부)	연습 상자에서 권유 아님 문구를 뺌	잡음	FAILED tests/test_productchart_screen.py::test_practice_box_leads_to_paper_order	11s
+C2	tests/test_productchart_screen.py	(전부)	연습 상자가 매수 단추까지 누름	잡음	FAILED tests/test_productchart_screen.py::test_practice_box_leads_to_paper_order	11s
+C3	tests/test_productchart_screen.py	(전부)	두 단에서 왼쪽 단을 고정하지 않음	잡음	FAILED tests/test_productchart_screen.py::test_practice_box_leads_to_paper_order	9s
+C4	tests/test_productchart_screen.py	(전부)	한 단에서도 고정(풀지 않음)	잡음	FAILED tests/test_productchart_screen.py::test_practice_box_leads_to_paper_order	8s

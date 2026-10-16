@@ -2,8 +2,27 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/js/common.js";
 import { compareTrayAdd, renderCompareTrayAll } from "/js/core.js";
+// Qurious: 전략 분석 종목 칸 = 찾기 칸 하나(최근 본 종목 + 대표 종목 · Figma 03-6 결정 · 2026-10-16)
+import { mountStockPick, labelOf } from "/js/stockpick.js";
 
 let quantChartInstance = null;
+
+// ── 전략 분석 종목 칸 ─────────────────────────────────────────────
+// 대표 종목 — 옛 고르기 상자의 다섯(한 곳). 고른 기호는 숨은 칸 #bt-symbol 에 넣어 아래 두 단추가 그대로 읽는다.
+const BT_PRESETS = [
+  { symbol: "005930.KS", name: "삼성전자" }, { symbol: "000660.KS", name: "SK하이닉스" }, { symbol: "035420.KS", name: "NAVER" },
+  { symbol: "005380.KS", name: "현대자동차" }, { symbol: "051910.KS", name: "LG화학" },
+];
+let btPicked = BT_PRESETS[0];
+const btHost = document.getElementById("bt-symbol-pick");
+if (btHost) {
+  mountStockPick(btHost, {
+    presets: BT_PRESETS, recentKey: "qurious.recent.quant-backtest", initial: btPicked,
+    search: q => api(`/api/stocks/search?q=${encodeURIComponent(q)}`, { redirectOnUnauthorized: false }).then(r => r.results || []),
+    onPick: it => { btPicked = it; const h = document.getElementById("bt-symbol"); if (h) h.value = it.symbol; },
+  });
+}
+const btLabel = symbol => (btPicked && btPicked.symbol === symbol ? labelOf(btPicked) : symbol);
 // ── 퀀트 대시보드 ────────────────────────────────────────────────
 async function loadQuantDashboard() {
   loadMarketCards();
@@ -213,25 +232,27 @@ document.getElementById("auto-refresh").addEventListener("click", loadAutoTradeS
 document.getElementById("bt-load").addEventListener("click", async () => {
   const symbol = document.getElementById("bt-symbol").value;
   const el = document.getElementById("bt-result");
-  el.innerHTML = "<div class='text-slate-400'>분석 중 (10년치 데이터)...</div>";
+  el.innerHTML = "<div style='color:var(--text-mute);'>분석 중…</div>";
   try {
     const data = await api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(symbol)}&period=10y`);
     if (data.error) { el.innerHTML = `<div class='text-red-400'>${escHtml(data.error)}</div>`; return; }
     const sig = data.signal || {};
+    // Qurious(2026-10-16 · Figma 03-6): 「10년」 은 부른 기간일 뿐 실제 자료 기간은 「자료」 줄(서버 data_note)이 말한다 ·
+    // 신호는 RSI · 이동평균 · 볼린저 규칙의 합산이라 「AI」 라 부르지 않는다 · 카드 색은 화면 색 변수(밝은 화면에서도 읽힘)
     el.innerHTML = `
-      <div class="rounded-xl border border-white/10 bg-black/20 p-4">
-        <div class="font-semibold text-indigo-300 mb-2">${escHtml(symbol)} 10년 퀀트 분석</div>
+      <div class="rounded-xl p-4" style="background:var(--surf2);border:1px solid var(--border);">
+        <div class="font-semibold mb-2" style="color:var(--text);">${escHtml(btLabel(symbol))} 퀀트 분석</div>
         <div class="grid grid-cols-2 gap-2">
           <div>마지막 종가: <span class="font-semibold">${fmt(data.current_price)}</span></div>
           <div>마지막 봉 RSI: <span class="font-semibold">${data.current_rsi?.toFixed(2) ?? "-"}</span></div>
-          <div>AI 시그널: <span class="font-semibold ${sig.action === "매수" || sig.action === "강력 매수" ? "text-emerald-400" : sig.action === "매도" || sig.action === "강력 매도" ? "text-red-400" : "text-slate-300"}">${escHtml(_displayAction(sig.action))}</span></div>
-          <div>시그널 점수: <span class="font-semibold">${sig.score ?? "-"}</span></div>
+          <div>규칙 신호(RSI · 이동평균 · 볼린저 합산): <span class="font-semibold ${sig.action === "매수" || sig.action === "강력 매수" ? "text-emerald-400" : sig.action === "매도" || sig.action === "강력 매도" ? "text-red-400" : ""}">${escHtml(_displayAction(sig.action))}</span></div>
+          <div>신호 점수: <span class="font-semibold">${sig.score ?? "-"}</span></div>
         </div>
-        ${data.data_note ? `<div class="mt-2 text-xs text-slate-400">자료: ${escHtml(data.data_note)}</div>` : ""}
-        <div class="mt-3 text-xs text-slate-400">${(sig.reasons || []).map(r => "• " + escHtml(r)).join("<br>")}</div>
+        ${data.data_note ? `<div class="mt-2 text-xs" style="color:var(--text-dim);">자료: ${escHtml(data.data_note)}</div>` : ""}
+        <div class="mt-3 text-xs" style="color:var(--text-dim);">${(sig.reasons || []).map(r => "• " + escHtml(r)).join("<br>")}</div>
         <button type="button" class="btn-secondary text-xs mt-3" onclick='compareTrayAdd(${JSON.stringify({
-      source: "퀀트 전략 분석", label: symbol,
-      summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 시그널 ${_displayAction(sig.action)} (점수 ${sig.score ?? "-"})`,
+      source: "퀀트 전략 분석", label: btLabel(symbol),
+      summary: `RSI ${data.current_rsi?.toFixed(1) ?? "-"} · 규칙 신호 ${_displayAction(sig.action)} (점수 ${sig.score ?? "-"})`,
     }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
       </div>
     `;
@@ -244,7 +265,7 @@ document.getElementById("bt-pipeline-run").addEventListener("click", async () =>
   const symbol = document.getElementById("bt-symbol").value;
   const entryMode = document.getElementById("bt-entry-mode")?.value || "close";
   const el = document.getElementById("bt-result");
-  el.innerHTML = "<div class='text-slate-400'>전략 백테스트 중 (10년치)...</div>";
+  el.innerHTML = "<div style='color:var(--text-mute);'>전략 백테스트 중…</div>";
   try {
     const url = `/api/quant/pipeline?symbol=${encodeURIComponent(symbol)}`
       + `&period=10y&strategy=ma&entry_mode=${entryMode}&exit_mode=${entryMode}`;
@@ -252,9 +273,9 @@ document.getElementById("bt-pipeline-run").addEventListener("click", async () =>
     if (d.error) { el.innerHTML = `<div class='text-red-400'>${escHtml(d.error)}</div>`; return; }
     const up = (v) => (v ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
     el.innerHTML = `
-      <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+      <div class="rounded-xl p-4" style="background:var(--surf2);border:1px solid var(--border);">
         <div class="flex items-center gap-2 mb-2">
-          <span class="font-semibold text-indigo-300">${escHtml(symbol)} · ${escHtml(d.strategy || "ma")}</span>
+          <span class="font-semibold" style="color:var(--text);">${escHtml(btLabel(symbol))} · ${escHtml(d.strategy || "ma")}</span>
           <span class="text-xs px-2 py-0.5 rounded" style="background:var(--surf3);">체결: ${escHtml(entryMode === "open" ? "다음 봉 시가" : "그날 종가")}</span>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
