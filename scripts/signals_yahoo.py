@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.config import settings
 from app.database import postgres as pg
 from app.models.signal import SignalSnapshot
+from app.services import opinion as opinion_svc
 from app.services import mtf_signals as ms
 from app.services import stock
 from app.services.data_ohlcv import weekly as build_weekly
@@ -111,6 +112,13 @@ async def compute_one(sym: str, as_of: date) -> dict | None:
     for r in results:
         reasons.extend(r.get("reasons") or [])
 
+    # P01-④-2 — opinion · opinion_rule (미보유 가정 · 이슈 #199)
+    op, op_rule = opinion_svc.decide(
+        combo["signal"],
+        float(combo["confidence"]),
+        held=False,
+        risk_gate=False,
+    )
     return {
         "as_of": as_of,
         "symbol": sym.replace(".KS", "").replace(".KQ", ""),
@@ -124,6 +132,8 @@ async def compute_one(sym: str, as_of: date) -> dict | None:
         "pattern_bias": None,
         "patterns": None,
         "reasons": reasons,
+        "opinion": op,
+        "opinion_rule": op_rule,
         "computed_at": datetime.now(timezone.utc),
     }
 
@@ -161,7 +171,9 @@ async def main() -> int:
                 set_={
                     k: getattr(stmt.excluded, k) for k in (
                         "signal", "strength", "confidence", "composite", "agreement",
-                        "timeframes", "pattern_bias", "patterns", "reasons", "computed_at",
+                        "timeframes", "pattern_bias", "patterns", "reasons",
+                        "opinion", "opinion_rule",
+                        "computed_at",
                     )
                 },
             )

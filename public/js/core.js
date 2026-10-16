@@ -364,7 +364,7 @@ function compareTrayAdd(entry) {
   list.push({ id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, addedAt: new Date().toLocaleString("ko-KR"), ...entry });
   compareTraySet(list);
   renderCompareTrayAll();
-  setToast("비교 트레이에 추가했습니다", "ok");
+  setToast("결과 비교에 추가했습니다", "ok");
 }
 function compareTrayRemove(id) {
   compareTraySet(compareTrayGet().filter(x => x.id !== id));
@@ -386,7 +386,7 @@ function renderCompareTray(containerId) {
   el.innerHTML = `
     <div class="card" style="margin-top:12px;">
       <div class="flex items-center justify-between mb-2">
-        <h3 class="font-semibold text-sm">⚖️ 비교 트레이 (${list.length})</h3>
+        <h3 class="font-semibold text-sm">⚖️ 결과 비교 (${list.length})</h3>
         <button type="button" class="btn-secondary text-xs" onclick="compareTrayClear()">전체 지우기</button>
       </div>
       <p class="text-xs mb-2" style="color:var(--text-mute);">서로 다른 화면에서 '비교에 추가'한 백테스트·모델 결과를 한 표에서 비교합니다 (이 브라우저에만 저장됨).</p>
