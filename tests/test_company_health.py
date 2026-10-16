@@ -303,3 +303,20 @@ def test_route_hint_commands_only_for_admin(monkeypatch):
     assert admin.json()["detail"]["hint"].startswith("python -m collector.financials")
     _fake(monkeypatch, {})
     assert "hint" in call([]).json()["detail"]          # 404 의 힌트(다른 fs 로 · 아직 받지 않음)는 누구에게나
+
+
+def test_zone_follows_the_shown_two_decimals(monkeypatch):
+    """TC-FH-18 · 구간 · 경계 알림은 보이는 숫자(소수 둘째 자리)로 — Z'' 2.6049 는 「2.60 · 가운데 구간」.
+
+    고치기 전에는 반올림 전 값(2.6049 > 2.60)으로 높은 구간이라 「2.60 · 높은 구간(2.60 초과)」 이 됐다
+    (2026-10-16 · 강사님 th07 Altman 수집기와 대조하다 찾음 — 그쪽은 반올림 뒤 구간)."""
+    acc = dict(GOOD, current_assets=1000, current_liabilities=1000, retained_earnings=0, operating_income=0,
+               equity=24809, liabilities=10000, noncurrent_liabilities=9000, assets=34809)
+    z, _x, why = H.z_score(acc)
+    assert why == "" and round(z, 2) == 2.60 and z > H.Z_HIGH          # 반올림 전에는 경계 위
+    _fake(monkeypatch, {"CFS": [_p("2025-12-31", acc=acc)]})
+    zs = H.read_health("005930")["zscore"]
+    assert zs["value"] == 2.6 and zs["zone"] == "middle"
+    assert "2.60" in zs["sentence"] and H.ZONES["middle"] in zs["sentence"]
+    assert zs["history"][-1]["value"] == 2.6 and zs["history"][-1]["zone"] == "middle"
+    assert any("경계(2.60)와 0.00 차이" in p for p in zs["points"])

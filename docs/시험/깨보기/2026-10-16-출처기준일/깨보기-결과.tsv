@@ -1,0 +1,57 @@
+id	시험 파일	-k	무엇을 깼나	결과	실패한 시험 · 끝 줄	시간
+C1	tests/test_data_provenance.py	(전부)	대조군 — 깨지 않음	통과	16 passed in 3.73s	8s
+C2	tests/test_fx_provenance.py	(전부)	대조군 — 깨지 않음	통과	11 passed in 1.85s	7s
+C3	tests/test_preprocess_timing.py	(전부)	대조군 — 깨지 않음	통과	5 passed in 0.16s	5s
+C4	tests/test_company_health.py	(전부)	대조군 — 깨지 않음	통과	18 passed in 0.97s	5s
+C5	tests/test_strategy_explain.py	(전부)	대조군 — 깨지 않음	통과	23 passed in 4.55s	9s
+C6	tests/test_preprocess_df01.py	(전부)	대조군 — 깨지 않음	통과	21 passed in 50.51s	56s
+C7	tests/test_rebalance_policy.py	(전부)	대조군 — 깨지 않음	통과	22 passed, 16 skipped in 4.79s	10s
+C8	tests/test_rebalance_unified.py	(전부)	대조군 — 깨지 않음	통과	15 skipped in 2.18s	7s
+C9	tests/test_rebalance_settlement.py	(전부)	대조군 — 깨지 않음	통과	2 passed, 14 skipped in 2.04s	7s
+C10	tests/test_us_order_path.py	(전부)	대조군 — 깨지 않음	통과	24 passed in 4.34s	10s
+C11	tests/test_paper_ledger_i14.py	(전부)	대조군 — 깨지 않음	통과	2 passed, 7 skipped in 2.81s	9s
+P1	tests/test_data_provenance.py	(전부)	주어진 as_of 를 버리고 늘 마지막 봉에서 셈(수집 DB 의 기준일을 무시)	잡음	FAILED tests/test_data_provenance.py::test_pipeline_response_carries_source_and_last_bar	13s
+P2	tests/test_data_provenance.py	(전부)	수집 DB 이름표에서 「수정주가」 를 뺌	잡음	FAILED tests/test_data_provenance.py::test_collector_source_uses_given_as_of_and_label	10s
+P3	tests/test_data_provenance.py	(전부)	바깥 길의 오늘 봉도 「종가까지」 로 적음(장중 표시를 끔)	잡음	FAILED tests/test_data_provenance.py::test_today_bar_from_outside_source_is_flagged_as_maybe_intraday	13s
+P4	tests/test_data_provenance.py	(전부)	수집 DB 의 오늘 날짜에도 장중 표시를 붙임	잡음	FAILED tests/test_data_provenance.py::test_collector_today_is_never_flagged	13s
+P5	tests/test_data_provenance.py	(전부)	모르는 출처를 「collector」 로 메움(말없는 기본값)	잡음	FAILED tests/test_data_provenance.py::test_unknown_source_is_not_invented - A...	10s
+P6	tests/test_data_provenance.py	(전부)	참 · 거짓 값을 봉 시각으로 읽음	잡음	FAILED tests/test_data_provenance.py::test_last_bar_date_reads_text_dates_too	10s
+P7	tests/test_data_provenance.py	(전부)	표에 없는 출처를 이름 없이 「외부 시세 일봉」 으로만 적음	잡음	FAILED tests/test_data_provenance.py::test_other_source_keeps_its_name_without_guessing	9s
+P8	tests/test_data_provenance.py	(전부)	첫 봉 날짜를 마지막 봉으로 적음(「10년」 이 실제로 몇 년인지 숨김 · DF-15 D-1)	잡음	FAILED tests/test_data_provenance.py::test_collector_source_uses_given_as_of_and_label	9s
+P9	tests/test_data_provenance.py	(전부)	기간 글에서 첫 봉을 뺌(마지막 날만)	잡음	FAILED tests/test_data_provenance.py::test_collector_source_uses_given_as_of_and_label	10s
+R1	tests/test_data_provenance.py	(전부)	지표 백테스트 응답에 출처 칸을 싣지 않음(옛 꼴)	잡음	FAILED tests/test_data_provenance.py::test_pipeline_response_carries_source_and_last_bar	9s
+R2	tests/test_data_provenance.py	(전부)	지표 백테스트가 빈 사전으로 출처를 셈	잡음	FAILED tests/test_data_provenance.py::test_pipeline_response_carries_source_and_last_bar	9s
+R3	tests/test_data_provenance.py	(전부)	전략 분석 응답에서 서버 글을 뺌	잡음	FAILED tests/test_data_provenance.py::test_indicators_response_has_server_note	9s
+S1	tests/test_data_provenance.py	(전부)	마지막 봉 종가를 다시 「현재가」 로 부름	잡음	FAILED tests/test_data_provenance.py::test_strategy_screen_does_not_call_last_close_current_price	9s
+S2	tests/test_data_provenance.py	(전부)	서버 출처 글 줄을 뺌	잡음	FAILED tests/test_data_provenance.py::test_strategy_screen_shows_server_note_escaped	9s
+S3	tests/test_data_provenance.py	(전부)	서버 글을 이스케이프하지 않고 넣음	잡음	FAILED tests/test_data_provenance.py::test_strategy_screen_shows_server_note_escaped	10s
+S4	tests/test_data_provenance.py	(전부)	화면이 출처 글을 따로 적음(두 벌)	잡음	FAILED tests/test_data_provenance.py::test_screens_do_not_hardcode_source_labels	9s
+S5	tests/test_data_provenance.py	(전부)	체결 시점 백테스트 칸(#224)에서 서버 출처 줄을 뺌	잡음	FAILED tests/test_data_provenance.py::test_strategy_screen_backtest_block_shows_server_note_escaped	9s
+F1	tests/test_fx_provenance.py	(전부)	10분 안 캐시의 받은 시각을 지금으로 적음	잡음	FAILED tests/test_fx_provenance.py::test_cached_rate_keeps_the_fetch_time - A...	6s
+F2	tests/test_fx_provenance.py	(전부)	조회 실패 뒤 마지막 값을 「live」 로 적음	잡음	FAILED tests/test_fx_provenance.py::test_failed_fetch_after_ttl_uses_last_value_and_says_so	6s
+F3	tests/test_fx_provenance.py	(전부)	고정 대체값을 「live」 로 적음(말없는 fallback)	잡음	FAILED tests/test_fx_provenance.py::test_never_fetched_uses_fixed_fallback_and_says_so[bad0]	6s
+F4	tests/test_fx_provenance.py	(전부)	모르는 통화를 「fallback」 으로 적음(1 로 계산한다는 경고가 사라짐)	잡음	FAILED tests/test_fx_provenance.py::test_unknown_currency_is_flagged_missing	7s
+F5	tests/test_fx_provenance.py	(전부)	원화에도 출처 「live」 를 붙임	잡음	FAILED tests/test_fx_provenance.py::test_krw_needs_no_conversion - AssertionE...	6s
+F6	tests/test_fx_provenance.py	(전부)	0 원 환율을 받은 값으로 씀	잡음	FAILED tests/test_fx_provenance.py::test_never_fetched_uses_fixed_fallback_and_says_so[0]	6s
+F7	tests/test_fx_provenance.py	(전부)	10분 캐시를 안 씀(늘 다시 물음)	잡음	FAILED tests/test_fx_provenance.py::test_cached_rate_keeps_the_fetch_time - A...	7s
+F8	tests/test_fx_provenance.py	(전부)	옛 약속 get_rate_to_krw 가 숫자 대신 사전을 돌려줌	잡음	FAILED tests/test_fx_provenance.py::test_old_contract_is_kept - AssertionErro...	6s
+F9	tests/test_fx_provenance.py	(전부)	모의투자 시세에서 환율 출처를 뺌	잡음	FAILED tests/test_fx_provenance.py::test_resolve_stock_tells_when_fx_is_a_fallback	7s
+U1	tests/test_us_order_path.py	(전부)	해외 종목도 국내로 봄(원화 가상 매매가 다시 받음)	잡음	FAILED tests/test_us_order_path.py::test_overseas_or_unknown_symbols[AAPL] - ...	9s
+U2	tests/test_us_order_path.py	(전부)	원화 가상 매매의 해외 거름을 지움(옛 꼴)	잡음	FAILED tests/test_us_order_path.py::test_virtual_order_refuses_overseas_symbol_before_touching_cash	9s
+U3	tests/test_us_order_path.py	(전부)	거름을 모든 증권사 길에 걺(다른 관문의 몫까지)	잡음	FAILED tests/test_us_order_path.py::test_non_virtual_broker_is_not_filtered_here	9s
+U4	tests/test_us_order_path.py	(전부)	미국 주문 화면이 다시 원화 가상 매매로 보냄	잡음	FAILED tests/test_us_order_path.py::test_order_goes_to_the_paper_ledger_path_without_a_price	8s
+U5	tests/test_us_order_path.py	(전부)	화면이 가격을 보냄(서버가 정한 시세 · 환율을 우회)	잡음	FAILED tests/test_us_order_path.py::test_order_goes_to_the_paper_ledger_path_without_a_price	9s
+U6	tests/test_us_order_path.py	(전부)	지정가 거름을 지움	잡음	FAILED tests/test_us_order_path.py::test_limit_and_sell_are_refused_with_a_reason	9s
+U7	tests/test_us_order_path.py	(전부)	해외 매도 거름을 지움(서버 500 으로 감)	잡음	FAILED tests/test_us_order_path.py::test_limit_and_sell_are_refused_with_a_reason	9s
+U8	tests/test_us_order_path.py	(전부)	주문 내역이 다시 옛 길(/api/orders)을 읽음	잡음	FAILED tests/test_us_order_path.py::test_history_reads_the_ledger_and_marks_units	9s
+U9	tests/test_us_order_path.py	(전부)	포트폴리오가 달러 시세로 장부를 다시 셈(옛 꼴)	잡음	FAILED tests/test_us_order_path.py::test_portfolio_reads_ledger_positions_and_server_fx_note	11s
+U10	tests/test_us_order_path.py	(전부)	화면의 국내 판정이 서버와 갈림(숫자 섞인 새 코드를 해외로)	잡음	FAILED tests/test_us_order_path.py::test_screen_rule_equals_server_rule - ass...	10s
+U11	tests/test_us_order_path.py	(전부)	환율 글을 이스케이프하지 않음	잡음	FAILED tests/test_us_order_path.py::test_portfolio_reads_ledger_positions_and_server_fx_note	10s
+A1	tests/test_preprocess_timing.py	(전부)	재는 사전을 채우지 않음	잡음	FAILED tests/test_preprocess_timing.py::test_rebuild_fills_six_parts_and_keeps_the_result	4s
+A2	tests/test_preprocess_timing.py	(전부)	요약 뒤 한 줄을 찍지 않음	잡음	FAILED tests/test_preprocess_timing.py::test_main_prints_one_parsable_line - ...	5s
+A3	tests/test_preprocess_timing.py	(전부)	WAL 경로를 연결이 아닌 곳에서 읽음(늘 못 찾음)	잡음	FAILED tests/test_preprocess_timing.py::test_wal_bytes_reads_the_connected_file_only	6s
+A4	tests/test_preprocess_timing.py	(전부)	줄 이름 하나를 바꿈(로그 표 도구가 못 읽음)	잡음	FAILED tests/test_preprocess_timing.py::test_main_prints_one_parsable_line - ...	6s
+A5	tests/test_preprocess_timing.py	(전부)	WAL 크기를 늘 「없음」 으로 적음	잡음	FAILED tests/test_preprocess_timing.py::test_timing_line_round_trips - Assert...	5s
+H1	tests/test_company_health.py	(전부)	머리 숫자의 구간을 반올림 전 값으로(고치기 전 꼴)	잡음	FAILED tests/test_company_health.py::test_zone_follows_the_shown_two_decimals	8s
+H2	tests/test_company_health.py	(전부)	해마다 이력의 구간을 반올림 전 값으로(고치기 전 꼴)	잡음	FAILED tests/test_company_health.py::test_zone_follows_the_shown_two_decimals	7s
+H3	tests/test_company_health.py	(전부)	문장의 숫자를 반올림 전 값으로(소수 둘째 자리 표기는 같음 — 동작이 같아 못 잡는 것이 맞음)	못 잡음(예상 — 동작이 같음)	18 passed in 0.93s	6s

@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 256,
+ "count": 260,
  "routers": 36,
  "routes": [
   {
@@ -872,7 +872,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 51,
+   "line": 53,
    "errors": [],
    "keys": [
     "indices",
@@ -898,16 +898,14 @@
     "robo-patterns",
     "trading-chart",
     "us-chart",
-    "us-dashboard",
-    "us-order",
-    "us-portfolio"
+    "us-dashboard"
    ],
    "part": "P-A",
    "req": [
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 62,
+   "line": 64,
    "errors": [],
    "keys": [],
    "body": [],
@@ -939,7 +937,7 @@
     "P02-④-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 67,
+   "line": 69,
    "errors": [],
    "keys": [],
    "body": [],
@@ -963,7 +961,8 @@
    "screens": [
     "indicator-strategy",
     "quant-backtest",
-    "quant-dashboard"
+    "quant-dashboard",
+    "robo-patterns"
    ],
    "part": "P-B",
    "req": [
@@ -973,7 +972,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 88,
+   "line": 90,
    "errors": [],
    "keys": [],
    "body": [],
@@ -996,7 +995,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 107,
+   "line": 109,
    "errors": [],
    "keys": [
     "stocks"
@@ -1030,7 +1029,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 112,
+   "line": 114,
    "errors": [
     "502"
    ],
@@ -1065,7 +1064,7 @@
     "RFP2-3.1.4-②"
    ],
    "file": "app/routes/stocks.py",
-   "line": 156,
+   "line": 158,
    "errors": [
     "502"
    ],
@@ -1100,7 +1099,7 @@
     "RFP2-3.1.4-③"
    ],
    "file": "app/routes/stocks.py",
-   "line": 165,
+   "line": 167,
    "errors": [],
    "keys": [
     "signals",
@@ -1114,16 +1113,18 @@
    "router": "stocks",
    "method": "GET",
    "path": "/api/portfolio",
-   "summary": "",
+   "summary": "보유 종목 목록 — 현재가 · 평가금액(예상) 도 함께 (이슈 #235).",
    "auth": "세션",
    "reaches": [
+    "야후",
     "PostgreSQL"
    ],
-   "hosts": [],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
    "screens": [
     "robo-patterns",
-    "trading-portfolio",
-    "us-portfolio"
+    "trading-portfolio"
    ],
    "part": "P-E",
    "req": [
@@ -1131,7 +1132,7 @@
     "P01-③-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 232,
+   "line": 234,
    "errors": [],
    "keys": [
     "holdings"
@@ -1144,38 +1145,7 @@
    "router": "stocks",
    "method": "POST",
    "path": "/api/portfolio",
-   "summary": "",
-   "auth": "세션",
-   "reaches": [
-    "PostgreSQL"
-   ],
-   "hosts": [],
-   "screens": [
-    "robo-patterns",
-    "trading-portfolio",
-    "us-portfolio"
-   ],
-   "part": "P-E",
-   "req": [
-    "P01-④-3"
-   ],
-   "file": "app/routes/stocks.py",
-   "line": 244,
-   "errors": [],
-   "keys": [
-    "ok"
-   ],
-   "body": [
-    "HoldingBody"
-   ],
-   "schema": true
-  },
-  {
-   "id": "API-STK-11",
-   "router": "stocks",
-   "method": "DELETE",
-   "path": "/api/portfolio/{symbol}",
-   "summary": "",
+   "summary": "이슈 #235 — 모의투자 장부(PAPER)는 주문(매수·매도)으로만 바뀐다.",
    "auth": "세션",
    "reaches": [
     "PostgreSQL"
@@ -1190,11 +1160,38 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 263,
-   "errors": [],
-   "keys": [
-    "ok"
+   "line": 265,
+   "errors": [
+    "403"
    ],
+   "keys": [],
+   "body": [
+    "HoldingBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-STK-11",
+   "router": "stocks",
+   "method": "DELETE",
+   "path": "/api/portfolio/{symbol}",
+   "summary": "이슈 #235 — 삭제도 같은 이유로 막는다.",
+   "auth": "세션",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [
+    "P01-④-3"
+   ],
+   "file": "app/routes/stocks.py",
+   "line": 282,
+   "errors": [
+    "403"
+   ],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -1211,15 +1208,14 @@
    "hosts": [],
    "screens": [
     "robo-patterns",
-    "trading-order",
-    "us-order"
+    "trading-order"
    ],
    "part": "P-E",
    "req": [
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 313,
+   "line": 329,
    "errors": [
     "400"
    ],
@@ -1246,15 +1242,14 @@
    "hosts": [],
    "screens": [
     "robo-patterns",
-    "trading-order",
-    "us-order"
+    "trading-order"
    ],
    "part": "P-E",
    "req": [
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 367,
+   "line": 386,
    "errors": [],
    "keys": [
     "orders"
@@ -1277,7 +1272,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 481,
+   "line": 500,
    "errors": [],
    "keys": [
     "brokers"
@@ -1306,7 +1301,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 486,
+   "line": 505,
    "errors": [
     "422"
    ],
@@ -1339,7 +1334,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 506,
+   "line": 525,
    "errors": [],
    "keys": [
     "broker",
@@ -1368,7 +1363,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 543,
+   "line": 562,
    "errors": [],
    "keys": [
     "configured",
@@ -1394,7 +1389,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 549,
+   "line": 568,
    "errors": [],
    "keys": [
     "gateway",
@@ -1424,7 +1419,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 579,
+   "line": 598,
    "errors": [],
    "keys": [
     "mode",
@@ -1474,7 +1469,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 632,
+   "line": 651,
    "errors": [
     "422"
    ],
@@ -1512,7 +1507,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 711,
+   "line": 730,
    "errors": [
     "502"
    ],
@@ -1554,7 +1549,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 730,
+   "line": 749,
    "errors": [
     "502"
    ],
@@ -1591,7 +1586,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 754,
+   "line": 773,
    "errors": [
     "502"
    ],
@@ -1629,7 +1624,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 777,
+   "line": 796,
    "errors": [
     "422",
     "502"
@@ -1669,7 +1664,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 843,
+   "line": 862,
    "errors": [
     "502"
    ],
@@ -1701,7 +1696,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 859,
+   "line": 878,
    "errors": [
     "404",
     "422"
@@ -1725,24 +1720,30 @@
    "reaches": [
     "수집DB",
     "야후",
-    "PostgreSQL"
+    "PostgreSQL",
+    "Redis",
+    "외부"
    ],
    "hosts": [
+    "api.upbit.com",
+    "kind.krx.co.kr",
     "query2.finance.yahoo.com"
    ],
    "screens": [
+    "robo-decision",
     "robo-patterns"
    ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 875,
+   "line": 894,
    "errors": [],
    "keys": [
     "symbol",
     "opinion",
     "opinion_rule",
-    "held"
+    "held",
+    "risk_gate"
    ],
    "body": [],
    "schema": true
@@ -1783,7 +1784,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 928,
+   "line": 974,
    "errors": [
     "409"
    ],
@@ -1819,7 +1820,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 937,
+   "line": 983,
    "errors": [],
    "keys": [
     "ok",
@@ -1850,7 +1851,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 943,
+   "line": 989,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1877,7 +1878,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 955,
+   "line": 1001,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1905,7 +1906,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 984,
+   "line": 1030,
    "errors": [],
    "keys": [
     "ok",
@@ -1935,7 +1936,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1008,
+   "line": 1054,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1973,7 +1974,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1014,
+   "line": 1060,
    "errors": [
     "409"
    ],
@@ -2017,7 +2018,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1023,
+   "line": 1069,
    "errors": [
     "409"
    ],
@@ -2052,7 +2053,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1033,
+   "line": 1079,
    "errors": [],
    "keys": [
     "ok",
@@ -2083,7 +2084,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1040,
+   "line": 1086,
    "errors": [],
    "keys": [
     "running",
@@ -2126,7 +2127,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1098,
+   "line": 1144,
    "errors": [
     "404",
     "422"
@@ -2157,7 +2158,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1197,
+   "line": 1251,
    "errors": [],
    "keys": [
     "items"
@@ -2188,7 +2189,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1212,
+   "line": 1266,
    "errors": [
     "422"
    ],
@@ -2219,7 +2220,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1232,
+   "line": 1286,
    "errors": [
     "404"
    ],
@@ -3796,13 +3797,16 @@
     "kind.krx.co.kr",
     "query2.finance.yahoo.com"
    ],
-   "screens": [],
+   "screens": [
+    "robo-patterns",
+    "us-portfolio"
+   ],
    "part": "P-E",
    "req": [
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 90,
+   "line": 97,
    "errors": [
     "404"
    ],
@@ -3829,14 +3833,16 @@
    ],
    "screens": [
     "market-calendar",
-    "paper-stock"
+    "paper-stock",
+    "robo-patterns",
+    "us-portfolio"
    ],
    "part": "P-E",
    "req": [
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 98,
+   "line": 105,
    "errors": [],
    "keys": [
     "positions"
@@ -3867,7 +3873,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 104,
+   "line": 111,
    "errors": [],
    "keys": [],
    "body": [
@@ -3891,13 +3897,15 @@
     "kind.krx.co.kr",
     "query2.finance.yahoo.com"
    ],
-   "screens": [],
+   "screens": [
+    "us-order"
+   ],
    "part": "P-E",
    "req": [
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 125,
+   "line": 132,
    "errors": [],
    "keys": [],
    "body": [
@@ -3927,7 +3935,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 130,
+   "line": 137,
    "errors": [],
    "keys": [],
    "body": [
@@ -3957,7 +3965,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 135,
+   "line": 142,
    "errors": [],
    "keys": [],
    "body": [
@@ -3987,7 +3995,7 @@
     "P02-③-1"
    ],
    "file": "app/routes/paper.py",
-   "line": 140,
+   "line": 147,
    "errors": [],
    "keys": [],
    "body": [
@@ -4007,17 +4015,122 @@
    ],
    "hosts": [],
    "screens": [
-    "paper-stock"
+    "paper-stock",
+    "us-order"
    ],
    "part": "P-E",
    "req": [
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 146,
+   "line": 153,
    "errors": [],
    "keys": [
     "history"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-41",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/stop",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "paper-stock"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 162,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "StopOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-42",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/stocks/orders/stop",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "paper-stock"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 177,
+   "errors": [],
+   "keys": [
+    "orders"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-43",
+   "router": "paper",
+   "method": "DELETE",
+   "path": "/api/paper/stocks/orders/stop/{order_id}",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 182,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-44",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/stop/check",
+   "summary": "pending 스탑 주문 중 시세 도달한 것 발동. (지금은 수동 · 나중에 스케줄러)",
+   "auth": "세션·JWT",
+   "reaches": [
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 195,
+   "errors": [],
+   "keys": [
+    "fired"
    ],
    "body": [],
    "schema": true
@@ -4041,7 +4154,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 171,
+   "line": 222,
    "errors": [],
    "keys": [
     "markets",
@@ -4069,7 +4182,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 177,
+   "line": 228,
    "errors": [],
    "keys": [
     "rankings"
@@ -4096,7 +4209,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 182,
+   "line": 233,
    "errors": [],
    "keys": [
     "tickers"
@@ -4123,7 +4236,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 187,
+   "line": 238,
    "errors": [
     "400",
     "502"
@@ -4156,7 +4269,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 197,
+   "line": 248,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4182,7 +4295,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 202,
+   "line": 253,
    "errors": [
     "404"
    ],
@@ -4216,7 +4329,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 213,
+   "line": 264,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4240,7 +4353,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 220,
+   "line": 271,
    "errors": [],
    "keys": [],
    "body": [
@@ -4266,7 +4379,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 228,
+   "line": 279,
    "errors": [],
    "keys": [],
    "body": [
@@ -4292,7 +4405,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 240,
+   "line": 291,
    "errors": [],
    "keys": [],
    "body": [
@@ -4317,7 +4430,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 252,
+   "line": 303,
    "errors": [],
    "keys": [
     "history"
@@ -4344,7 +4457,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 266,
+   "line": 317,
    "errors": [],
    "keys": [
     "markets",
@@ -4372,7 +4485,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 272,
+   "line": 323,
    "errors": [
     "404"
    ],
@@ -4403,7 +4516,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 280,
+   "line": 331,
    "errors": [],
    "keys": [
     "positions",
@@ -4429,7 +4542,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 286,
+   "line": 337,
    "errors": [],
    "keys": [
     "history"
@@ -4455,7 +4568,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 291,
+   "line": 342,
    "errors": [],
    "keys": [],
    "body": [
@@ -4481,7 +4594,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 299,
+   "line": 350,
    "errors": [],
    "keys": [],
    "body": [
@@ -4508,7 +4621,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 327,
+   "line": 378,
    "errors": [],
    "keys": [
     "keys"
@@ -4535,7 +4648,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 333,
+   "line": 384,
    "errors": [],
    "keys": [
     "apiKey"
@@ -4564,7 +4677,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 346,
+   "line": 397,
    "errors": [
     "404"
    ],
@@ -4591,7 +4704,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 392,
+   "line": 443,
    "errors": [],
    "keys": [
     "ok",
@@ -4626,7 +4739,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 402,
+   "line": 453,
    "errors": [],
    "keys": [
     "ok",
@@ -4664,7 +4777,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 414,
+   "line": 465,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4692,7 +4805,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 423,
+   "line": 474,
    "errors": [],
    "keys": [
     "status",
@@ -4721,7 +4834,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 444,
+   "line": 495,
    "errors": [],
    "keys": [
     "status",
@@ -4749,7 +4862,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 503,
+   "line": 554,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4776,7 +4889,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 511,
+   "line": 562,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4799,7 +4912,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 519,
+   "line": 570,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4822,7 +4935,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 527,
+   "line": 578,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4849,7 +4962,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 536,
+   "line": 587,
    "errors": [],
    "keys": [],
    "body": [],
@@ -7127,9 +7240,7 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [
-    "robo-decision"
-   ],
+   "screens": [],
    "part": "P-B",
    "req": [],
    "file": "app/routes/explain.py",
