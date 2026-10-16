@@ -87,6 +87,13 @@ class StockOrderBody(BaseModel):
     quantity: int = Field(..., ge=1)
 
 
+class StopOrderBody(BaseModel):
+    symbol: str
+    side: str  # BUY | SELL
+    quantity: int = Field(..., ge=1)
+    stop_price: float = Field(..., gt=0)
+
+
 @router.get("/stocks/quote")
 async def stock_quote(symbol: str = Query(...)):
     try:
@@ -148,6 +155,50 @@ async def stock_history(limit: int = Query(200, ge=1, le=1000), user=Depends(get
                         db: AsyncSession = Depends(get_pg_session)):
     return {"history": await pt.stock_order_history(db, _uid(user), limit=limit)}
 
+
+
+# ── 스탑 주문 (B5 · 감시 주문 · #160) ─────────────────────────────
+
+@router.post("/stocks/orders/stop")
+async def place_stop_order(body: StopOrderBody, user=Depends(get_current_user_any),
+                           db: AsyncSession = Depends(get_pg_session)):
+    try:
+        result = await pt.place_stop_order(
+            db, _uid(user), body.symbol, body.side, body.quantity, body.stop_price, source="PAPER")
+    except pt.PaperTradeError as exc:
+        await db.rollback()
+        raise _bad(exc)
+    await db.commit()
+    await audit(user["id"], user.get("client_id", ""), "paper.stop.place",
+                {"symbol": result["symbol"], "side": result["side"], "stop_price": result["stop_price"]})
+    return result
+
+
+@router.get("/stocks/orders/stop")
+async def list_stop_orders(user=Depends(get_current_user_any), db: AsyncSession = Depends(get_pg_session)):
+    return {"orders": await pt.list_pending_stop_orders(db, _uid(user))}
+
+
+@router.delete("/stocks/orders/stop/{order_id}")
+async def cancel_stop_order(order_id: str, user=Depends(get_current_user_any),
+                            db: AsyncSession = Depends(get_pg_session)):
+    try:
+        result = await pt.cancel_stop_order(db, _uid(user), order_id)
+    except pt.PaperTradeError as exc:
+        await db.rollback()
+        raise _bad(exc)
+    await db.commit()
+    await audit(user["id"], user.get("client_id", ""), "paper.stop.cancel", {"order_id": order_id})
+    return result
+
+
+@router.post("/stocks/orders/stop/check")
+async def check_stop_orders(user=Depends(get_current_user_any), db: AsyncSession = Depends(get_pg_session)):
+    """pending 스탑 주문 중 시세 도달한 것 발동. (지금은 수동 · 나중에 스케줄러)"""
+    fired = await pt.check_stop_orders(db, _uid(user))
+    await db.commit()
+    return {"fired": fired}
+    
 
 # ── 코인 ─────────────────────────────────────────────────────────────────
 

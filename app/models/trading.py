@@ -65,7 +65,13 @@ class Order(Base, UUIDPkMixin, CreatedAtMixin):
     net_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     # none(안 뗌) | estimated(요율표로 계산) | broker(증권사가 준 실제 금액)
     cost_basis: Mapped[str] = mapped_column(String(20), nullable=False, default="none")
-
+    # ── 주문 종류 (B5 · 스탑 주문) ─────────────────────────────────
+    # market: 즉시 시장가 (기본) | stop: 감시 주문 (stop_price 도달 시 시장가 발동)
+    order_kind: Mapped[str] = mapped_column(String(10), nullable=False, default="market", server_default="market")
+    # 감시 발동가 — order_kind="stop" 일 때만 채움
+    stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # 발동 시각 (stop 주문이 도달해서 시장가로 넘어간 시각)
+    triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 class OrderFill(Base, UUIDPkMixin, CreatedAtMixin):
     """부분체결 한 건. 주문 1건이 여러 번에 나눠 체결될 수 있다.
