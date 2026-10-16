@@ -136,7 +136,7 @@ def test_screen_badge_text_uses_lowered_signal():
     block = js[js.index("function renderXaiBlock"):js.index("function renderAllocation")]
     assert "${escHtml(xaiBadgeText(ex))}" in block and "${ptSigned(r.contribution)}" in block
     assert "toFixed(2)" not in block
-    assert "xaiBadgeText(s.xai)" in js
+    assert "xaiBadgeText(s.xai))} — ${" in js                          # 요약 줄 「— 」 뒤 띄어쓰기(#205 에서 빠졌던 것)
     from app.routes import stocks                                     # 표 요약 줄이 쓸 모델 판단 칸을 서버가 넘긴다
     import inspect
     assert '"model_signal_label": ex.get("model_signal_label")' in inspect.getsource(stocks)
