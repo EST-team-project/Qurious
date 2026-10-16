@@ -3,15 +3,18 @@
 DB 는 select 대상 엔티티별로 응답하는 가짜 AsyncSession, 지표·가상체결·알림·Redis 는 패치, 게이트웨이는 MockTransport.
 """
 import asyncio
+import os
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
+from sqlalchemy.sql import operators
+from sqlalchemy.sql.elements import BooleanClauseList, BinaryExpression
 
 from app.config import settings
-from app.models import BrokerSettings, LiveOrder, Portfolio, QuantVirtualAccount
+from app.models import BrokerSettings, LiveOrder, Portfolio, QuantVirtualAccount, LIVE_ORDER_OPEN_STATUSES
 from app.services import auto_trade
 from app.services.brokers import stock_coin_trade_gateway as gw
 
@@ -44,14 +47,28 @@ class FakeDb:
     async def execute(self, stmt, *_a, **_k):
         entity = stmt.column_descriptions[0]["entity"]
         if entity is QuantVirtualAccount:
-            return Result(one=SimpleNamespace(cash_balance=9_700_000.0, initial_capital=10_000_000.0))
+            return Result(one=SimpleNamespace(cash_balance=10_000_000.0, initial_capital=10_000_000.0))
         if entity is BrokerSettings:
             return Result(one=self.broker_row)
         if entity is Portfolio:
             return Result(one=None, many=[])
         if entity is LiveOrder:
-            return Result(many=self.live_rows)
+            # 노출 조회(BUY)와 주문 보류 조회(같은 종목, 양방향)의 WHERE를 모두 반영한다.
+            return Result(many=[row for row in self.live_rows if matches(stmt.whereclause, row)])
         raise AssertionError(f"unexpected select: {entity}")
+
+
+def matches(clause, row):
+    """이 시험의 단순 WHERE만 평가한다. 미지원 SQL은 무시하지 않고 실패시킨다."""
+    if isinstance(clause, BooleanClauseList) and clause.operator is operators.and_:
+        return all(matches(part, row) for part in clause.clauses)
+    if isinstance(clause, BinaryExpression):
+        value, expected = getattr(row, clause.left.key), clause.right.value
+        if clause.operator is operators.eq:
+            return value == expected
+        if clause.operator is operators.in_op:
+            return value in expected
+    raise AssertionError(f"unsupported predicate: {clause}")
 
 
 class Factory:
@@ -85,6 +102,7 @@ async def indicators(symbol, period="2y"):
 
 @pytest.fixture(autouse=True)
 def env(monkeypatch):
+    monkeypatch.setattr(settings, "QUANT_AGGRESSIVE_MODE", False)
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_BASE_URL", "https://sct.test")
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_API_KEY", "key")
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_KIS_ENVIRONMENT", "paper")
@@ -102,7 +120,7 @@ def run_cycle(broker_row, live_rows=()):
          patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
          patch.object(auto_trade, "get_quant_indicators", indicators), \
          patch.object(auto_trade, "_execute_virtual_trade", virtual_trade), \
-         patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(9_700_000.0, 10_000_000.0, {}))), \
+         patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(10_000_000.0, 10_000_000.0, {}))), \
          patch.object(auto_trade, "_persist_cycle", persist), \
          patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=10_000_000.0)), \
          patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=0)), \
@@ -113,6 +131,7 @@ def run_cycle(broker_row, live_rows=()):
          patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()), \
          patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()), \
          patch.object(auto_trade.notification, "notify_order_error", AsyncMock()), \
+         patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()), \
          patch.object(gw, "is_krx_market_open", return_value=True):
         asyncio.run(auto_trade._run_quant_cycle(str(UID)))
     return db, persisted
@@ -140,15 +159,93 @@ def test_paper_mode_never_calls_gateway():
     assert calls == [] and not any(isinstance(a, LiveOrder) for a in db.added)
 
 
-def test_open_live_buy_orders_count_toward_position_cap():
-    fake_gateway()
-    # 이미 ACCEPTED 매수 실주문 40주×70,000 = 2,800,000 이 열려 있고 한도 30%(3,000,000) → 남은 여유 200,000 → 2주만 허용
-    open_row = LiveOrder(user_id=UID, client_order_id="c0", environment="paper", symbol="005930.KS", name="삼성전자", side="BUY",
-                         order_type="LIMIT", quantity=40, price=70_000.0, status="ACCEPTED", filled_quantity=0)
+@pytest.mark.parametrize("status", LIVE_ORDER_OPEN_STATUSES)
+@pytest.mark.parametrize("side", ["BUY", "SELL"])
+def test_open_same_symbol_order_blocks_new_order_even_with_position_cap_room(status, side):
+    calls = fake_gateway()
+    # 280만 원 노출이면 한도상 2주 여유가 있어도, 같은 종목 열린 주문은 먼저 보류한다.
+    open_row = LiveOrder(user_id=UID, client_order_id="c0", environment="paper", symbol="005930.KS", name="삼성전자", side=side,
+                         order_type="LIMIT", quantity=40, price=70_000.0, status=status, filled_quantity=0)
     db, log = run_cycle(broker("live"), live_rows=[open_row])
-    assert log["risk"]["open_live_exposure"] == {"005930.KS": 2_800_000.0}
+    assert log["risk"].get("open_live_exposure", {}) == ({"005930.KS": 2_800_000.0} if side == "BUY" else {})
     trades = [t for t in log["trades"] if t.get("type") == "auto"]
-    assert trades[0]["quantity"] == 2
+    assert trades == []
+    assert log["risk"]["skipped"] == [{"symbol": "005930.KS", "name": "삼성전자", "side": "buy",
+        "reason": "같은 종목의 접수·체결 미확인 주문이 있어 새 주문을 보류합니다."}]
+    assert not any(isinstance(row, LiveOrder) for row in db.added)
+    assert not any(method == "POST" for method, _, _ in calls)
+
+
+@pytest.mark.parametrize("status", ["FILLED", "CANCELLED", "REJECTED", "ERROR"])
+def test_terminal_order_does_not_block_new_order_or_count_as_open_exposure(status):
+    fake_gateway()
+    row = LiveOrder(user_id=UID, symbol="005930.KS", side="BUY", quantity=40, price=70000,
+                    status=status, filled_quantity=0)
+    db, log = run_cycle(broker("live"), live_rows=[row])
+    assert not log["risk"].get("open_live_exposure")
+    trades = [t for t in log["trades"] if t.get("type") == "auto"]
+    assert len(trades) == 1 and trades[0]["quantity"] == 4
+    assert len([r for r in db.added if isinstance(r, LiveOrder)]) == 1
+
+
+@pytest.mark.parametrize("other", ["symbol", "owner"])
+def test_unrelated_open_order_does_not_block_selected_symbol(other):
+    fake_gateway()
+    row = LiveOrder(user_id=uuid.uuid4() if other == "owner" else UID,
+                    symbol="000660.KS" if other == "symbol" else "005930.KS", side="BUY",
+                    quantity=40, price=70000, status="ACCEPTED", filled_quantity=0)
+    _, log = run_cycle(broker("live"), live_rows=[row])
+    trades = [t for t in log["trades"] if t.get("type") == "auto"]
+    assert len(trades) == 1 and trades[0]["quantity"] == 4
+    assert log["risk"].get("open_live_exposure", {}) == ({"000660.KS": 2800000} if other == "symbol" else {})
+
+
+@pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), reason="일회용 PG 필요")
+@pytest.mark.usefixtures("rebalance_db_schema")
+def test_open_buy_exposure_and_position_cap_with_real_database():
+    """주문 허용 여부와 분리해, 원 시험의 같은 종목 노출·비중 계산 근거를 보존한다."""
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from app.models import User
+
+    async def go():
+        engine = create_async_engine(os.environ["QURIOUS_TEST_DATABASE_URL"])
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        uid, other = uuid.uuid4(), uuid.uuid4()
+        try:
+            async with factory() as db:
+                db.add_all([User(id=u, name="exposure test", email=f"{u}@example.com",
+                                 client_id=u.hex, password_hash="test") for u in (uid, other)])
+                await db.flush()
+                def order(**changes):
+                    data = dict(user_id=uid, client_order_id=uuid.uuid4().hex, environment="paper",
+                                symbol="005930.KS", side="BUY", order_type="LIMIT", quantity=40,
+                                price=70000, status="ACCEPTED", filled_quantity=0)
+                    return LiveOrder(**(data | changes))
+                parent = order()
+                db.add_all([parent, order(symbol="000660.KS", quantity=3, price=200000),
+                            order(user_id=other), order(side="SELL"),
+                            *[order(status=s) for s in ("FILLED", "CANCELLED", "REJECTED", "ERROR")]])
+                await db.commit()
+                for filled, expected_exposure, expected_qty in ((0, 2800000, 2), (10, 2100000, 12), (40, 0, 42)):
+                    parent.filled_quantity = filled
+                    parent.status = "PARTIALLY_FILLED" if filled else "ACCEPTED"
+                    await db.commit()
+                    exposure = await auto_trade.open_live_order_exposure(db, uid)
+                    assert exposure == ({"005930.KS": expected_exposure, "000660.KS": 600000}
+                                        if expected_exposure else {"000660.KS": 600000})
+                    allowed, _ = auto_trade.risk_guard.cap_buy_quantity(50, 70000, exposure.get("005930.KS", 0), 10000000, 30)
+                    assert allowed == expected_qty
+                # 같은 종목의 여러 주문은 잔량을 합산하고 실제 보유 평가액도 상한에서 차감한다.
+                parent.filled_quantity = 10
+                db.add(order(quantity=5))
+                await db.commit()
+                exposure = await auto_trade.open_live_order_exposure(db, uid)
+                assert exposure["005930.KS"] == 2450000
+                assert auto_trade.risk_guard.cap_buy_quantity(50, 70000, 350000 + exposure["005930.KS"], 10000000, 30)[0] == 2
+                assert auto_trade.risk_guard.cap_buy_quantity(50, 70000, 550000 + exposure["005930.KS"], 10000000, 30)[0] == 0
+        finally:
+            await engine.dispose()
+    asyncio.run(go())
 
 
 def test_kill_switch_blocks_cycle_without_orders():

@@ -21,6 +21,7 @@ import asyncio
 import json
 import logging
 import uuid
+from weakref import WeakValueDictionary
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -46,13 +47,10 @@ from app.services.execution_policy import policy_for, risk_quantity
 
 logger = logging.getLogger(__name__)
 
-_auto_trade_task: asyncio.Task | None = None
-_trade_log: list[dict] = []
-_is_running = False
-_auto_trade_user_id = "quant_system"
+_auto_trade_tasks: dict[uuid.UUID, asyncio.Task] = {}
+_control_locks: WeakValueDictionary[uuid.UUID, asyncio.Lock] = WeakValueDictionary()
 _INTERVAL_SEC = int(app_settings.QUANT_CYCLE_SEC)   # celery_app.beat_schedule 과 같은 값
 _INITIAL_CAPITAL = 10_000_000
-_last_risk: dict = {}          # 마지막 사이클의 위험관리 상태 (status 응답용)
 
 
 def _resolve_user_id(raw: str) -> uuid.UUID:
@@ -66,12 +64,7 @@ def _log_key(uid: uuid.UUID) -> str:
 
 
 async def _persist_cycle(uid: uuid.UUID, cycle_log: dict) -> None:
-    """사이클 로그를 프로세스 메모리와 data_cache 양쪽에 남긴다 (워커↔API 공유)."""
-    global _trade_log, _last_risk
-    _trade_log.append(cycle_log)
-    if len(_trade_log) > 100:
-        _trade_log = _trade_log[-100:]
-    _last_risk = cycle_log.get("risk") or _last_risk
+    """사용자별 DB 캐시에만 기록한다. 캐시가 비면 다른 사용자의 로그로 대체하지 않는다."""
     try:
         cached = await cache_get(_log_key(uid), max_age_hours=24 * 30) or {}
         cycles = (cached.get("cycles") or [])[-49:] + [cycle_log]
@@ -98,7 +91,7 @@ async def get_status(db: AsyncSession, uid: uuid.UUID) -> dict:
     """DB 플래그 + 공유 캐시 로그 기반 상태 (프로세스에 무관)."""
     enabled = await is_enabled(db, uid)
     cached = await cache_get(_log_key(uid), max_age_hours=24 * 30) or {}
-    cycles = cached.get("cycles") or list(_trade_log[-50:])
+    cycles = cached.get("cycles") or []
     last_risk = next((c.get("risk") for c in reversed(cycles) if c.get("risk")), {})
     return {
         "running":      enabled,
@@ -111,9 +104,12 @@ async def get_status(db: AsyncSession, uid: uuid.UUID) -> dict:
     }
 
 
-def is_running() -> bool:
-    """(하위 호환) 인프로세스 즉시 실행 태스크가 돌고 있는지."""
-    return _is_running
+def is_running(user_id: str | None = None) -> bool:
+    """즉시 실행 작업 상태. 인자를 생략하면 프로세스 전체를 확인한다."""
+    if user_id is not None:
+        task = _auto_trade_tasks.get(_resolve_user_id(user_id))
+        return bool(task and not task.done())
+    return any(not task.done() for task in _auto_trade_tasks.values())
 
 
 async def _execute_virtual_trade(
@@ -686,7 +682,7 @@ async def emergency_halt(db: AsyncSession, broker_row: BrokerSettings | None, us
         broker_row.risk_halt_reason = reason[:300]
         broker_row.quant_auto_enabled = False
         await db.commit()
-    stop_auto_trade()
+    stop_auto_trade(user_id)
     try:
         cancelled = await cancel_open_live_orders(db, _resolve_user_id(user_id), reason)
         if cancelled.get("requested") or cancelled.get("failed"):
@@ -699,7 +695,6 @@ async def emergency_halt(db: AsyncSession, broker_row: BrokerSettings | None, us
 
 
 async def _run_quant_cycle(user_id: str = "quant_system") -> None:
-    global _trade_log, _last_risk
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     cycle_log: dict = {"time": now_str, "trades": [], "signals": []}
 
@@ -891,7 +886,12 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 return
 
         async def _risk_gate(symbol: str, name: str, side: str, qty: int, price: float) -> tuple[int, str | None]:
-            """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)"""
+            """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)
+
+            게이트웨이 경로는 같은 사용자의 같은 종목에 열린 주문이 있으면
+            비중 여유·매수/매도 방향·선택 재주문 활성 여부와 무관하게 먼저 보류한다.
+            미체결 매수 노출 계산은 이 보류 정책과 별도로 유지한다(#183).
+            """
             if mode == "live" and gateway.is_configured():
                 opened = (await db.execute(select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.symbol == symbol,
                                               LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)))).scalars().all()
@@ -1095,63 +1095,77 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                                  f"일손실 한도 초과(체결 후): 당일 {day_pnl_after:+.2f}% ≤ -{limits.daily_loss_limit_pct}%", day_pnl_after)
 
 
-async def _auto_trade_loop(user_id: str) -> None:
-    global _is_running
-    _is_running = True
-    try:
-        while True:
-            await _run_quant_cycle(user_id)
-            await asyncio.sleep(_INTERVAL_SEC)
-    except asyncio.CancelledError:
-        pass
-    finally:
-        _is_running = False
+def _control_lock(uid: uuid.UUID) -> asyncio.Lock:
+    # 같은 프로세스에서 같은 사용자의 시작/중지가 교차하지 않게 한다.
+    # 진행 중인 호출만 lock을 보유하여 사용자가 늘어도 항목이 계속 쌓이지 않는다.
+    lock = _control_locks.get(uid)
+    if lock is None:
+        lock = asyncio.Lock()
+        _control_locks[uid] = lock
+    return lock
+
+
+def _forget_task(uid: uuid.UUID, task: asyncio.Task) -> None:
+    # 이전 작업의 종료 콜백이 재시작한 새 작업을 지우지 않게 한다.
+    if _auto_trade_tasks.get(uid) is task:
+        del _auto_trade_tasks[uid]
 
 
 async def _run_once(user_id: str) -> None:
-    global _is_running
-    _is_running = True
     try:
         await _run_quant_cycle(user_id)
     except Exception:
         logger.exception("자동매매 즉시 실행 실패 user=%s", user_id)
-    finally:
-        _is_running = False
 
 
 async def start_auto_trade(db: AsyncSession, user_id: str) -> bool:
-    """자동매매 활성화: DB 플래그 ON + 즉시 1회 사이클(백그라운드). 이후 주기 실행은 Celery Beat."""
-    global _auto_trade_task, _auto_trade_user_id
+    """사용자별 활성화 + 즉시 1회 실행. 이후 주기 실행은 Celery Beat."""
     uid = _resolve_user_id(user_id)
-    if await is_enabled(db, uid):
-        return False
-    await set_enabled(db, uid, True)
-    _auto_trade_user_id = user_id or "quant_system"
-    if not (_auto_trade_task and not _auto_trade_task.done()):
-        _auto_trade_task = asyncio.create_task(_run_once(_auto_trade_user_id))
-    asyncio.create_task(notification.notify_auto_trade_started(user_id=_auto_trade_user_id))
-    asyncio.create_task(audit(_auto_trade_user_id, "", "auto_trade.start", {"scheduler": "celery-beat"}))
-    return True
+    user_id = str(uid)
+    async with _control_lock(uid):
+        if await is_enabled(db, uid):
+            return False
+        await set_enabled(db, uid, True)
+        if not is_running(user_id):
+            task = asyncio.create_task(_run_once(user_id))
+            _auto_trade_tasks[uid] = task
+            task.add_done_callback(lambda done: _forget_task(uid, done))
+        asyncio.create_task(notification.notify_auto_trade_started(user_id=user_id))
+        asyncio.create_task(audit(user_id, "", "auto_trade.start", {"scheduler": "celery-beat"}))
+        return True
 
 
 async def stop_auto_trade_for(db: AsyncSession, user_id: str) -> bool:
     uid = _resolve_user_id(user_id)
-    was = await is_enabled(db, uid)
-    await set_enabled(db, uid, False)
-    stop_auto_trade()
-    if was:
-        asyncio.create_task(notification.notify_auto_trade_stopped(user_id=user_id))
-        asyncio.create_task(audit(user_id, "", "auto_trade.stop", {}))
-    return was
+    async with _control_lock(uid):
+        was = await is_enabled(db, uid)
+        await set_enabled(db, uid, False)
+        task = _auto_trade_tasks.get(uid)
+        stop_auto_trade(user_id)
+        if task is not None and task is not asyncio.current_task():
+            # 취소 정리가 끝나기 전에 재시작하여 이전 작업과 겹치지 않게 한다.
+            await asyncio.gather(task, return_exceptions=True)
+        if was:
+            asyncio.create_task(notification.notify_auto_trade_stopped(user_id=user_id))
+            asyncio.create_task(audit(user_id, "", "auto_trade.stop", {}))
+        return was
 
 
-def stop_auto_trade() -> bool:
-    """(하위 호환) 인프로세스 즉시 실행 태스크 취소. 플래그는 호출자가 내린다."""
-    global _auto_trade_task
-    if _auto_trade_task and not _auto_trade_task.done():
-        _auto_trade_task.cancel()
-        return True
-    return False
+def stop_auto_trade(user_id: str | None = None) -> bool:
+    """해당 사용자의 즉시 실행만 취소. 인자 생략은 프로세스 종료 시 전체 정리용.
+
+    자기 사이클의 손실 한도에서 호출되면 자신을 취소하지 않는다. DB 정지 상태를
+    저장한 뒤 미체결 취소·감사 기록·최종 사이클 기록까지 마치고 정상 반환해야 한다.
+    """
+    tasks = list(_auto_trade_tasks.values()) if user_id is None else [
+        _auto_trade_tasks.get(_resolve_user_id(user_id))
+    ]
+    cancelled = False
+    for task in tasks:
+        if task is not None and not task.done() and task is not asyncio.current_task():
+            task.cancel()
+            cancelled = True
+    return cancelled
 
 
 async def run_cycle_for_enabled_users() -> dict:
