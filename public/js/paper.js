@@ -110,6 +110,13 @@ async function stockOrder(side) {
   const symbol = $("ps-symbol").value.trim();
   const quantity = parseInt($("ps-qty").value);
   if (!symbol || !quantity) return setToast("종목코드와 수량을 입력하세요.", "error");
+  // 시장가 즉시 체결 — 한 번 확인 (#218)
+  const ok = confirm(
+    `${side === "BUY" ? "매수" : "매도"} 주문을 냅니다.\n\n` +
+    `종목: ${symbol}\n수량: ${quantity}주\n유형: 시장가 (즉시 체결)\n\n` +
+    `체결가는 지연 현재가이며, 미체결·취소는 지원하지 않습니다. 계속할까요?`
+  );
+  if (!ok) return;
   try {
     const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side, quantity } });
     setToast(`${r.name} ${side === "BUY" ? "매수" : "매도"} ${fmt(r.quantity)}주 체결 (@${won(r.price)})`, "ok");
