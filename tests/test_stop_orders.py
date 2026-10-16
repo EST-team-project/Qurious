@@ -11,7 +11,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from app.models import Base, Portfolio, User
+from app.models import Base, BrokerSettings, Portfolio, User
 from app.models.paper import PaperAccount
 from app.models.trading import Order, OrderFill
 from app.services import paper_trading as pt
@@ -19,8 +19,9 @@ from app.services import paper_trading as pt
 DB_URL = os.environ.get("QURIOUS_TEST_DATABASE_URL", "")
 needs_db = pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음")
 
-TABLES = [User.__table__, Portfolio.__table__, Order.__table__, OrderFill.__table__, PaperAccount.__table__]
-
+TABLES = [User.__table__, Portfolio.__table__, Order.__table__,
+          OrderFill.__table__, PaperAccount.__table__, BrokerSettings.__table__]
+          
 
 @pytest.fixture
 def anyio_backend():
@@ -153,3 +154,22 @@ async def test_cancel_stop_order(db, monkeypatch):
     # 이미 취소된 걸 다시 취소 → 에러
     with pytest.raises(pt.StopOrderError):
         await pt.cancel_stop_order(session, uid, r["order_id"])
+
+@needs_db
+@pytest.mark.anyio
+async def test_stock_order_history_excludes_quant(db):
+    """#219 — 모의주문 내역에 QUANT 장부 주문은 안 나온다."""
+    session, uid = db
+    from app.models.trading import Order
+    session.add(Order(user_id=uid, symbol="055550.KS", name="신한지주",
+                       order_type="buy", quantity=1, price=50000,
+                       status="filled", broker="virtual", source="PAPER"))
+    session.add(Order(user_id=uid, symbol="055550.KS", name="신한지주",
+                       order_type="buy", quantity=3, price=50000,
+                       status="filled", broker="quant_ai", source="QUANT"))
+    await session.commit()
+
+    rows = await pt.stock_order_history(session, uid)
+    sources = {r.get("source") for r in rows}
+    assert "QUANT" not in sources
+    assert "PAPER" in sources
