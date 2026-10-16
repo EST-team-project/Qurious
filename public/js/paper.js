@@ -809,24 +809,29 @@ async function loadPaperPerformance() {
     const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";
     const dsrColor = (m.dsr || 0) >= 0.95 ? "var(--green)" : "var(--text)";
 
-    cardsEl.innerHTML = `
-      <div class="card" style="padding:10px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
-        <div class="font-bold" style="color:${trColor}">${pct(data.total_return)}</div>
-      </div>
-      <div class="card" style="padding:10px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">MDD</div>
-        <div class="font-bold" style="color:var(--red)">${pct(m.mdd)}</div>
-      </div>
-      <div class="card" style="padding:10px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">Sharpe</div>
-        <div class="font-bold">${num(m.sharpe_ratio)}</div>
-      </div>
-      <div class="card" style="padding:10px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">DSR</div>
-        <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
-      </div>`;
+    if (m.reason) {
+      cardsEl.innerHTML = `<div class="text-xs col-span-2" style="color:var(--text-mute);padding:20px;">📊 ${escHtml(m.reason)}</div>`;
+    } else {
+      cardsEl.innerHTML = `
+        <div class="card" style="padding:10px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
+          <div class="font-bold" style="color:${trColor}">${pct(data.total_return)}</div>
+        </div>
+        <div class="card" style="padding:10px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">MDD</div>
+          <div class="font-bold" style="color:var(--red)">${pct(m.mdd)}</div>
+        </div>
+        <div class="card" style="padding:10px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">Sharpe</div>
+          <div class="font-bold">${num(m.sharpe_ratio)}</div>
+        </div>
+        <div class="card" style="padding:10px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">DSR</div>
+          <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
+        </div>`;
+    }
 
+    // 자산 추이는 reason과 무관하게 그림
     if (chartEl && Array.isArray(data.equity_curve) && data.equity_curve.length > 1) {
       if (_pdEquityChart) { _pdEquityChart.destroy(); _pdEquityChart = null; }
 

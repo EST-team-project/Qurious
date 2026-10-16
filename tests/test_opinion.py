@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from app.models import PORTFOLIO_BOOK_PAPER, Base, Portfolio, User
+from app.models import PORTFOLIO_BOOK_PAPER, Base, BrokerSettings, Portfolio, User
 from app.models.signal import SignalSnapshot
 from app.services.opinion import BUY, SELL, HOLD, SKIP, CONFIDENCE_MIN, decide
 from app.services.ta_utils import DEFINITION
@@ -13,7 +13,7 @@ from app.services.ta_utils import DEFINITION
 DB_URL = os.environ.get("QURIOUS_TEST_DATABASE_URL", "")
 needs_db = pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음")
 
-TABLES = [User.__table__, Portfolio.__table__, SignalSnapshot.__table__]
+TABLES = [User.__table__, Portfolio.__table__, SignalSnapshot.__table__, BrokerSettings.__table__]
 
 
 # ── 진리표 (순수 함수) ──────────────────────────────────────────
@@ -66,9 +66,13 @@ def anyio_backend():
 async def db():
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+    from sqlalchemy import text
+
     engine = create_async_engine(DB_URL)
     async with engine.begin() as conn:
-        await conn.run_sync(lambda c: Base.metadata.drop_all(c, tables=TABLES))
+        # FK 얽힘 때문에 drop_all 대신 raw CASCADE
+        for t in reversed(TABLES):
+            await conn.execute(text(f'DROP TABLE IF EXISTS "{t.name}" CASCADE'))
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=TABLES))
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
@@ -135,3 +139,39 @@ async def test_mtf_signal_opinion_skip_neutral_when_not_held_sell(db):
     assert j["held"] is False
     assert j["opinion"] == "관망"
     assert j["opinion_rule"] == "skip_neutral"
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_mtf_signal_risk_gate_forces_sell(db, monkeypatch):
+    """A — 킬 스위치가 켜지면 opinion 이 매도 강제."""
+    from app.routes.stocks import stock_mtf_signal
+    from app.models import BrokerSettings
+
+    session, uid = db
+    session.add(_t2("035420", "관망", 0.5))   # 신호가 관망이어도
+    session.add(Portfolio(user_id=uid, symbol="035420.KS",
+                          book=PORTFOLIO_BOOK_PAPER, name="NAVER",
+                          quantity=5, avg_price=100000))
+    session.add(BrokerSettings(user_id=uid, risk_kill_switch=True))
+    await session.commit()
+
+    j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
+    assert j["held"] is True
+    assert j["risk_gate"] is True
+    assert j["opinion"] == "매도"
+    assert j["opinion_rule"] == "sell_risk_gate"
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_mtf_signal_no_risk_gate_normal(db):
+    """A — 킬 스위치 꺼져 있고 손실 없으면 risk_gate=False."""
+    from app.routes.stocks import stock_mtf_signal
+
+    session, uid = db
+    session.add(_t2("035420", "매수", 0.7))
+    await session.commit()
+
+    j = await stock_mtf_signal(symbol="035420.KS", db=session, user={"id": str(uid)})
+    assert j["risk_gate"] is False
