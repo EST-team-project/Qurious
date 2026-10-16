@@ -763,34 +763,33 @@ async function loadRoboPerformanceMetrics() {
     }
 
     const m = data.metrics || {};
-    if (m.reason) {
-      cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--text-mute);padding:20px;">📊 ${escHtml(m.reason)}</div>`;
-      if (chartEl) chartEl.innerHTML = "";
-      if (tableEl) tableEl.innerHTML = "";
-      return;
-    }
     const pct = (v) => v == null ? "-" : (v * 100).toFixed(2) + "%";
     const num = (v) => v == null ? "-" : Number(v).toFixed(3);
     const trColor = (data.total_return || 0) >= 0 ? "var(--green)" : "var(--red)";
     const dsrColor = (m.dsr || 0) >= 0.95 ? "var(--green)" : "var(--text)";
 
-    cardsEl.innerHTML = `
-      <div class="card" style="padding:12px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
-        <div class="font-bold" style="color:${trColor}">${pct(data.total_return)}</div>
-      </div>
-      <div class="card" style="padding:12px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">MDD</div>
-        <div class="font-bold" style="color:var(--red)">${pct(m.mdd)}</div>
-      </div>
-      <div class="card" style="padding:12px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">Sharpe</div>
-        <div class="font-bold">${num(m.sharpe_ratio)}</div>
-      </div>
-      <div class="card" style="padding:12px;text-align:center;">
-        <div class="text-xs" style="color:var(--text-mute);">DSR</div>
-        <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
-      </div>`;
+    if (m.reason) {
+      cardsEl.innerHTML = `<div class="text-xs col-span-4" style="color:var(--text-mute);padding:20px;">📊 ${escHtml(m.reason)}</div>`;
+      if (tableEl) tableEl.innerHTML = "";
+    } else {
+      cardsEl.innerHTML = `
+        <div class="card" style="padding:12px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">누적 수익률</div>
+          <div class="font-bold" style="color:${trColor}">${pct(data.total_return)}</div>
+        </div>
+        <div class="card" style="padding:12px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">MDD</div>
+          <div class="font-bold" style="color:var(--red)">${pct(m.mdd)}</div>
+        </div>
+        <div class="card" style="padding:12px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">Sharpe</div>
+          <div class="font-bold">${num(m.sharpe_ratio)}</div>
+        </div>
+        <div class="card" style="padding:12px;text-align:center;">
+          <div class="text-xs" style="color:var(--text-mute);">DSR</div>
+          <div class="font-bold" style="color:${dsrColor}">${m.dsr == null ? "-" : (m.dsr * 100).toFixed(1) + "%"}</div>
+        </div>`;
+    }
 
     if (chartEl && Array.isArray(data.equity_curve) && data.equity_curve.length > 1) {
       if (_roboMetricsChart) { _roboMetricsChart.destroy(); _roboMetricsChart = null; }
