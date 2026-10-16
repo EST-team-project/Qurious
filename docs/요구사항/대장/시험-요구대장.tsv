@@ -36,7 +36,7 @@ TC-FM	tests/test_formula.py	P02-③-1	🟡	산식에서 Pine 코드를 만든다
 TC-PE	tests/test_formula_pine_export.py	P02-③-1	🟡	Pine 내보내기 라우트 — 저장한 산식을 Pine v6 로 내보내고, 옮길 수 없는 식은 500 대신 422 + 까닭(파이썬 내보내기는 같은 식도 그대로) — 강사님 시험(TC-FM)은 함수만 봐서 라우트의 422 바꾸기가 빠져도 못 잡는다(2026-10-12 깨 보기) · TradingView 컴파일은 재지 않는다
 TC-LA	tests/test_ta_utils_lookahead.py	P02-②-2	🟢	t 시점 지표 · 피처 값은 뒤 데이터가 바뀌어도 같고, 백테스트는 t 일 신호를 t+1 일에 적용한다
 TC-LA	tests/test_ta_utils_lookahead.py	P02-①-1	🟡	RSI 범위 · 샤프 · MDD 도우미 — TradingView 정의와 같은지는 재지 않는다
-TC-IN	tests/test_indicator_defs.py	P01-②-1	🟢	RSI · 볼린저 · ATR 이 TradingView 정의 한 벌(Wilder 평활 · 모집단 표준편차)로 계산되고, 화면(API-STK-04) · 로보 스크리닝의 RSI · 볼린저가 같은 값이다 — 손계산 · 교과서 예제 · 갈래 0(자동매매 종목 점수는 담당 파트 몫)
+TC-IN	tests/test_indicator_defs.py	P01-②-1	🟢	RSI · 볼린저 · ATR 이 TradingView 정의 한 벌(Wilder 평활 · 모집단 표준편차)로 계산되고, 화면(API-STK-04) · 로보 스크리닝의 RSI · 볼린저가 같은 값이다 — 손계산 · 교과서 예제 · 갈래 0(자동매매 종목 점수는 담당 파트 몫) · (2026-10-16 #208 신장환 +1 — 인수 기준 2 · TradingView 화면 RSI 대조 · 12 → 13 은 대장 몫으로 반영)
 TC-PT	tests/test_patterns.py	P01-②-2	🟢	캔들 패턴 · 지지와 저항 · 52주 · 20일 돌파 · 여러 주기 종합 신호
 TC-RB	tests/test_rebalance.py	P01-③-1	🟡	목표 비중 정리와 다음 주기(월 · 분기 · 연) 계산 — 계획 · 체결 · 이력은 재지 않는다 · 이탈률 · 현금흐름 계기(③-2 · ③-3)는 시험 없음
 TC-RG	tests/test_risk_guard.py	P02-⑤-2	🟡	중복 주문 쿨다운 · 일 주문 수 · 종목 비중 · 일손실 한도 판정 — 비상 정지 동작은 재지 않는다
@@ -51,6 +51,7 @@ TC-GL	tests/test_glossary.py	P01-①-1	🟡	화면 용어 키 · 이름 · 약�
 TC-GL	tests/test_glossary.py	RFP2-3.2-③	🟡	용어 파일을 다시 빌드하면 한 글자도 다르지 않다 — 체크섬이 흔들리지 않는다
 TC-RL	tests/test_raglab_scan.py	RFP2-3.2-④	🟡	통합본 반입 폴더가 대장과 같고, 그 화면 · API 가 빠짐없이 기능 묶음 하나에 든다 — 옮겨 놓은 코드를 구현으로 세지 않는다
 TC-LN	tests/test_learn.py	P01-①-1	🟡	개념 학습(용어 → 개념 확장 · 제안) — 기본 교재 35편이 규격 · 선수 장 · 장 안 링크를 지키고, 팀 자료(HF 비공개)의 새 글 · 고치기 · 지우기 · 낡은 판 409 · 412 한 번 재시도를 가짜 HF 로, API 로그인 경계를, 3.1 RAG 장의 출력이 예제 코드 결과와 같은지를 잰다 — 화면(학습 사이트)은 브라우저로만 확인
+TC-HT	tests/test_howto.py	P01-①-1	🟡	화면 사용법 창(가운데 창 · 2026-10-16 결정 안 A · F07) — core.js 는 사용법 글 · 용어 · 메뉴 이름을 넘기기만(옛 접이식 · 열림 기억 · 기초 코드 판 창이 돌아오면 깨짐) · 메뉴의 앱 안 화면 70곳 모두 사용법 · TERMS 에 있는 용어만 칩 · 창 안 용어 카드는 용어 서랍과 같은 받기 함수(fillTermCard) · 끝줄 = 그 화면의 개념 학습 장(38곳 · 제목은 장 머리말과 대조) + 용어사전 + 목차 · 창 크기는 화면마다(작게 560 · 보통 680 · 크게 840 — 차트 · 분석 화면과 영상은 크게 · CSS 폭과 대조) · 영상은 있을 때만 · 브라우저 저장소 없음 — 손 몫(창 · Esc 차례 · 초점 · 폭 넷 · 다시 그리는 화면)은 tests/e2e/howto_dialog.py
 TC-OH	tests/test_ohlcv.py	P01-①-2	🟡	가격 · 거래량 자료의 공통 규격(ohlcv-v1) — 값 규칙 · 주봉(정지일 · 휴장 · 주 중간 권리락) · 분봉 시각(UTC → KST · 장 구간) · ETF · 지수 일봉 적재 · 분봉 유니버스 · 내보내기를 잰다. 실제 출처 호출 · HF 업로드는 시험 밖(손으로 돌린 결과는 설계서 부록 C)
 TC-CT	tests/test_intake.py	P01-①-2	🟡	다른 출처의 시세 파일을 받아 전처리 — 칸 맞추기 · 값 규칙 · 수집 DB 와 대조(원 · 수정) · 원인 찾기(하루 밀림 · 단위 · 수정 방식 · 배당 반영) · 정제 · 보고서를 가짜 파일로 잰다
 TC-LC	tests/test_lectures.py	P01-①-1	🟡	금융 강의(강의실 · 주제 화면 아홉)가 메뉴 · 화면 자리 · 주제 목록에서 서로 맞고 앱 밖 링크가 없다 — 개념을 배우는 자리
@@ -95,6 +96,7 @@ TC-US	tests/test_universe_and_schedule.py	P02-⑤-2	🟢	설정 하나(QUANT_CYC
 TC-DA	tests/test_dashboard_accounts.py	U9	🟡	통합 대시보드 사이트별 투자액 탭 — KIS 가 첫 탭 · 한 탭이 실패해도 나머지는 보인다(성과 지표 칸은 재지 않는다)
 TC-DA	tests/test_dashboard_accounts.py	U10	🟡	KIS 탭의 자동매매 실행 중 · 열린 실주문 수 · 사용자 키로 조회
 TC-QC	tests/test_quant_cycle_integration.py	P02-⑤-2	🟢	자동매매 사이클 통합 — 합격 전략 적용 · 위험 한도 · 실계좌 일손실 한도
+TC-ATI	tests/test_auto_trade_isolation.py	P02-⑤-2	🟢	자동매매 계정 분리(2026-10-16 #207 오준영) — 두 사용자의 사이클 로그 · 즉시 실행 · 중지 · 일손실 한도가 서로 간섭하지 않는다(외부 주문 없음) · 수정 · 검증 기록 docs/시험/자동매매-계정분리-검증.md — 대장 등록은 이동원(RTM 관리)
 TC-RK	tests/test_risk_guard_boundaries.py	P02-⑤-2	🟢	쿨다운 만료 경계 · 일 주문 한도 · 비상 정지 매핑 · 위험 저장소(Redis)가 없으면 실전 주문을 내지 않는다
 TC-SR	tests/test_spec_rules_and_ml_symbol.py	P01-④-2	🟡	전략 스펙의 진입 · 청산 규칙 평가와 캔들 Ridge ML 점수
 TC-SP	tests/test_strategy_spec_apply.py	P01-④-2	🟢	합격 전략 스펙으로 신호를 다시 판정(임계값 · 종목 범위 · 최대 종목 수) · 배치 ML 점수는 늘 비어 있음

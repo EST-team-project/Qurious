@@ -1,0 +1,62 @@
+/* 화면 사용법 — 윗줄 「사용법」 단추 + 가운데 창(js/howto.js · 크기 · HTML 은 js/howtoview.js) (2026-10-16 결정 안 A)
+ * 색 · 글자는 앱 변수(--surf · --accent …)를 그대로 쓴다. 옛 접이식 모양(app.css .view-guide*)은 기초 코드 쪽에 그대로 둔다(쓰이지 않음). */
+
+/* ── 윗줄 — 화면 맨 위(화면 뿌리 밖) · 왼쪽 지금 위치 · 오른쪽 「▶ 영상」(있을 때만) · 「사용법」 ── */
+.q-howto-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 34px; margin: -4px 0 10px; }
+.q-howto-path { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--text-mute); }
+.q-howto-path i { font-size: 10px; opacity: .7; }
+.q-howto-path-group { white-space: nowrap; }
+.q-howto-path-here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-weight: 600; }
+.q-howto-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.q-howto-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surf); color: var(--text-dim); font-size: 13px; font-weight: 600; line-height: 1.4; cursor: pointer; white-space: nowrap; }
+.q-howto-btn:hover { background: var(--surf2); color: var(--text); }
+.q-howto-btn:focus-visible, .q-howto-close:focus-visible, .q-howto-back:focus-visible, .q-howto-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.q-howto-btn i { color: var(--accent); }
+.q-howto-btn--video { background: var(--accent-glow); border-color: transparent; color: var(--accent); }
+@media (max-width: 480px) {
+  .q-howto-path-group, .q-howto-path i { display: none; }          /* 좁으면 묶음 이름은 빼고 화면 이름만 */
+}
+
+/* ── 가운데 창 — 폭은 화면마다(작게 560 · 보통 680 · 크게 840 · 결정 ⑦) · 높이는 내용만큼(최대 화면 − 48) ── */
+.q-howto-dialog { --howto-w: 680px; width: min(var(--howto-w), calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 48px);
+  padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--surf); color: var(--text);
+  box-shadow: 0 20px 70px rgba(15, 23, 42, .25); overflow: auto; overscroll-behavior: contain; }
+.q-howto-dialog--s { --howto-w: 560px; }
+.q-howto-dialog--m { --howto-w: 680px; }
+.q-howto-dialog--l { --howto-w: 840px; }
+.q-howto-dialog::backdrop { background: rgba(15, 23, 42, .5); }
+html:has(.q-howto-dialog[open]) { overflow: hidden; }                /* 창이 열린 동안 뒤 화면이 굴러가지 않게 */
+@media (max-width: 760px) {                                          /* 좁은 화면은 화면 전체(상품 상세 창과 같은 경계) */
+  .q-howto-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+}
+
+/* ── 창 안 ── */
+.q-howto-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px 12px;
+  border-bottom: 1px solid var(--border); background: var(--surf); position: sticky; top: 0; z-index: 1; }
+.q-howto-head-txt { min-width: 0; }
+.q-howto-kicker { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; font-size: 12px; font-weight: 700; color: var(--accent); }
+.q-howto-head h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--text); outline: none; overflow-wrap: anywhere; }
+.q-howto-close { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surf); color: var(--text-dim); border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.q-howto-close:hover { background: var(--surf2); color: var(--text); }
+.q-howto-body { padding: 14px 22px 22px; font-size: 14px; line-height: 1.7; color: var(--text-dim); }
+.q-howto-summary { margin: 0 0 14px; font-size: 14.5px; font-weight: 600; color: var(--text); }
+.q-howto-video { margin: 0 0 6px; }
+.q-howto-video-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--surf2); color: var(--text); text-align: left; cursor: pointer; }
+.q-howto-video-btn:hover { border-color: var(--accent); }
+.q-howto-video-btn small { display: block; font-size: 12px; font-weight: 500; color: var(--text-mute); }
+.q-howto-play { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }
+.q-howto-player { display: block; width: 100%; border-radius: 10px; background: #0f172a; aspect-ratio: 16 / 10; }
+.q-howto-h { margin: 14px 0 8px; font-size: 13px; font-weight: 700; color: var(--text-mute); }
+.q-howto-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.q-howto-steps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }
+.q-howto-n { width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; background: var(--accent-glow); color: var(--accent);
+  font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+.q-howto-terms { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.q-howto-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.q-howto-link { font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.q-howto-link:hover { text-decoration: underline; }
+.q-howto-back { border: 0; background: none; padding: 0; margin: 0 0 8px; color: var(--accent); font-weight: 700; cursor: pointer; }
+.q-howto-guide[hidden], .q-howto-termview[hidden] { display: none; }

@@ -396,7 +396,8 @@ function mountSideCard(viewKey) {
     main.className = "q-main";
     side = document.createElement("div");
     side.className = "q-side";
-    [...view.children].filter(c => !c.classList.contains("view-guide")).forEach(c => main.appendChild(c));
+    // 사용법 윗줄(js/howto.js)과 옛 접이식은 두 단 위에 그대로 둔다
+    [...view.children].filter(c => !c.classList.contains("view-guide") && !c.classList.contains("q-howto-top")).forEach(c => main.appendChild(c));
     wrap.append(main, side);
     view.appendChild(wrap);
   }

@@ -204,6 +204,20 @@ async function show(key, opts = {}, push = true) {
   body.innerHTML = `<div class="q-term-loading" aria-label="불러오는 중"><span></span><span></span><span></span></div>`;
 
   const mine = ++seq;
+  const drawn = await fillTermCard(body, key, { label: opts.label, fallback: opts.fallback, isCurrent: () => mine === seq });
+  if (!drawn) return;                     // 그사이 다른 용어를 눌렀다
+  body.querySelector(".q-term-retry")?.addEventListener("click", () => show(key, opts, false));
+  const room = needsRoom(body);
+  root.classList.toggle("q-term--wide", room && mode === "drawer");
+  if (room && mode === "modal-sm") root.className = "q-term--modal-lg";
+  body.scrollTop = 0;
+  root.querySelector(".q-term-close").focus({ preventScroll: true });
+}
+
+/** 용어 한 건을 받아 el 에 카드로 그리고 카드 안 단추를 잇는다 — 용어 서랍(show)과 사용법 창(js/howto.js)이 같이 쓴다.
+ *  용어사전에 없으면(404) fallback(화면의 짧은 설명) · 그 밖의 실패는 그 글에 「다시 시도」 를 붙인다(다시 시도는 부른 쪽이 잇는다).
+ *  isCurrent() 가 거짓이면(그사이 다른 용어를 눌렀다) 그리지 않고 false 를 돌려준다. */
+export async function fillTermCard(el, key, { label = "", fallback = null, onTerm, isCurrent = () => true } = {}) {
   let term = null;
   let failed = false;
   try {
@@ -211,17 +225,12 @@ async function show(key, opts = {}, push = true) {
   } catch (err) {
     failed = err?.status !== 404;
   }
-  if (mine !== seq) return;               // 그사이 다른 용어를 눌렀다
-  if (term) body.innerHTML = termCardHtml(term, { label: opts.label || opts.fallback?.title || "" });
-  else if (opts.fallback) body.innerHTML = fallbackHtml(opts.fallback, failed);
-  else body.innerHTML = notFoundHtml(key, failed);
-  wireCard(body);
-  body.querySelector(".q-term-retry")?.addEventListener("click", () => show(key, opts, false));
-  const room = needsRoom(body);
-  root.classList.toggle("q-term--wide", room && mode === "drawer");
-  if (room && mode === "modal-sm") root.className = "q-term--modal-lg";
-  body.scrollTop = 0;
-  root.querySelector(".q-term-close").focus({ preventScroll: true });
+  if (!isCurrent()) return false;
+  if (term) el.innerHTML = termCardHtml(term, { label: label || fallback?.title || "" });
+  else if (fallback) el.innerHTML = fallbackHtml(fallback, failed);
+  else el.innerHTML = notFoundHtml(key, failed);
+  wireCard(el, { onTerm });
+  return true;
 }
 
 /** 용어 풀이를 연다. key = 화면 키 · 대표 이름 · 약어 · 다른 이름. opts.fallback = { title, body } */
