@@ -1117,6 +1117,10 @@ async def quant_pipeline_indicator_backtest(
     stop_loss_pct: float | None = Query(None, ge=0.1, le=90.0, description="손절 % (진입가 대비)"),
     take_profit_pct: float | None = Query(None, ge=0.1, le=500.0, description="익절 % (진입가 대비)"),
     _user=Depends(get_current_user),
+    entry_mode: str = Query("close", pattern="^(close|open)$",
+                            description="체결 시점 — close(그날 종가 · 기본) | open(다음 봉 시가 · TradingView 기본)"),
+    exit_mode: str = Query("close", pattern="^(close|open)$",
+                           description="청산 시점 — close | open"),
 ):
     """커스텀 인디케이터 실백테스트 (비용 · 손절 · 익절 반영).
 
@@ -1150,12 +1154,14 @@ async def quant_pipeline_indicator_backtest(
         if strategy not in ("rsi", "ma", "bollinger", "composite"):
             raise HTTPException(422, "strategy는 custom, rsi, ma, bollinger, composite 중 하나여야 합니다.")
         result = backtest_strategy(candles, strategy=strategy, cost_bps=commission, cost=cost,
-                                   stop_loss_pct=stop_loss_pct, take_profit_pct=take_profit_pct)
+                                   stop_loss_pct=stop_loss_pct, take_profit_pct=take_profit_pct,
+                                   entry_mode=entry_mode, exit_mode=exit_mode)
     else:
         result = backtest_custom_indicator(
             candles=candles, base=base, short_window=short, mid_window=mid,
             rsi_period=rsi, buy_threshold=buy_th, commission_bps=commission,
             stop_loss_pct=stop_loss_pct, take_profit_pct=take_profit_pct, cost=cost,
+            entry_mode=entry_mode, exit_mode=exit_mode,
         )
     if "error" in result:
         raise HTTPException(422, result["error"])
