@@ -229,5 +229,40 @@ document.getElementById("bt-load").addEventListener("click", async () => {
   } catch (e) { el.innerHTML = `<div class='text-red-400'>${escHtml(e.message)}</div>`; }
 });
 
+// B3 · 체결 시점 백테스트 (/api/quant/pipeline)
+document.getElementById("bt-pipeline-run").addEventListener("click", async () => {
+  const symbol = document.getElementById("bt-symbol").value;
+  const entryMode = document.getElementById("bt-entry-mode")?.value || "close";
+  const el = document.getElementById("bt-result");
+  el.innerHTML = "<div class='text-slate-400'>전략 백테스트 중 (10년치)...</div>";
+  try {
+    const url = `/api/quant/pipeline?symbol=${encodeURIComponent(symbol)}`
+      + `&period=10y&strategy=ma&entry_mode=${entryMode}&exit_mode=${entryMode}`;
+    const d = await api(url);
+    if (d.error) { el.innerHTML = `<div class='text-red-400'>${escHtml(d.error)}</div>`; return; }
+    const up = (v) => (v ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
+    el.innerHTML = `
+      <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="font-semibold text-indigo-300">${escHtml(symbol)} · ${escHtml(d.strategy || "ma")}</span>
+          <span class="text-xs px-2 py-0.5 rounded" style="background:var(--surf3);">체결: ${escHtml(entryMode === "open" ? "다음 봉 시가" : "그날 종가")}</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div>총 수익률: <span class="font-semibold ${up(d.total_return_pct)}">${(d.total_return_pct ?? 0).toFixed(2)}%</span></div>
+          <div>비용 전: <span class="font-semibold">${(d.gross_return_pct ?? 0).toFixed(2)}%</span></div>
+          <div>MDD: <span class="font-semibold text-red-400">${(d.mdd_pct ?? 0).toFixed(2)}%</span></div>
+          <div>샤프: <span class="font-semibold">${(d.sharpe_ratio ?? 0).toFixed(3)}</span></div>
+          <div>단순 보유: <span class="font-semibold ${up(d.buy_hold_return_pct)}">${(d.buy_hold_return_pct ?? 0).toFixed(2)}%</span></div>
+          <div>거래 횟수: <span class="font-semibold">${d.trade_count ?? 0}</span></div>
+          <div>승률: <span class="font-semibold">${(d.win_rate_pct ?? 0).toFixed(2)}%</span></div>
+          <div>비용: <span class="font-semibold">${(d.cost_pct ?? 0).toFixed(3)}%</span></div>
+        </div>
+        <div class="text-xs mt-2" style="color:var(--text-mute);">
+          entry_mode=${escHtml(d.entry_mode || entryMode)} · exit_mode=${escHtml(d.exit_mode || entryMode)}
+        </div>
+      </div>`;
+  } catch (e) { el.innerHTML = `<div class='text-red-400'>${escHtml(e.message)}</div>`; }
+});
+
 
 export { loadAutoTradeStatus, loadQuantDashboard };
