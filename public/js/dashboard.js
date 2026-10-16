@@ -97,8 +97,20 @@ async function loadAccountTabs() {
   ];
   const roboTab = { key: 'robo', label: '로보 모의계좌', site: '리밸런싱 엔진', connected: robo.status === 'fulfilled' };
   if (robo.status === 'fulfilled') {
-    const { snapshot: s, plan } = robo.value;
-    roboTab.html = metric('모의계좌 총 자산', number(s.total_asset, '원', 0)) + metric('현금 비중', number(s.cash_weight_pct, '%')) + metric('최대 비중 이탈', number(s.max_drift_pct, '%p')) + metric('리밸런싱 계획', plan.is_active ? '활성' : '비활성', plan.auto_execute ? '자동 체결' : '수동 승인');
+    const { snapshot: s, plan } = robo.value || {};
+    if (s && typeof s === 'object') {
+      roboTab.html =
+        metric('모의계좌 총 자산', number(s.total_asset, '원', 0)) +
+        metric('현금 비중', number(s.cash_weight_pct, '%')) +
+        metric('최대 비중 이탈', number(s.max_drift_pct, '%p')) +
+        metric('리밸런싱 계획',
+          plan && plan.is_active ? '활성' : '비활성',
+          plan && plan.auto_execute ? '자동 체결' : '수동 승인');
+    } else {
+      // snapshot 없음 — 로보 탭에만 안내, 나머지 탭은 정상 (이슈 #210)
+      roboTab.connected = false;
+      roboTab.html = `<div class="overview-metric wide"><span>로보 모의계좌</span><strong>자료 없음</strong><small>리밸런싱 목표를 저장하면 보입니다.</small><a class="underline text-xs" href="#rebalance">리밸런싱 엔진 →</a></div>`;
+    }
   }
   accountTabs.push(roboTab);
   if (!accountTabs.some(t => t.key === activeTab)) activeTab = 'kis';
