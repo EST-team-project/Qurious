@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qurious 2차 발표</title>
+<!--
+  2차 발표 자료 v0.1 (2026-10-17 초안) — 틀: 같은 4장 릴레이(나와 내 문제 · 영상 · 증거 셋 · 배운 점) + 사용자 여정 지도.
+  넘기기: ← → · Space · PageUp/Down · Home/End · N 말할 거리 · F 전체 화면 · 주소 끝 ?all = 모든 장 한 쪽(인쇄 · Figma 옮기기).
+  영상: 이 파일 옆 media/ 폴더(git 에 넣지 않음)에 V01 ~ V07 .webm 을 둔다 — 받는 곳은 HF 비공개 데이터셋 qurious-quant/demo-videos.
+  숫자 기준일: 10-12 ~ 10-17 문서 · 측정 — 발표 전 다시 확인한다(장마다 출처 줄).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0f172a; --text: #1e293b; --muted: #64748b; --faint: #94a3b8; --line: #e2e8f0; --surf: #f8fafc;
+  --accent: #4f46e5; --accent-soft: #eef2ff; --teal: #0f766e; --teal-soft: #ecfdf5; --amber: #b45309; --amber-soft: #fffbeb;
+  --rose: #be123c; --rose-soft: #fff1f2; --sky: #0369a1; --sky-soft: #f0f9ff; --bg: #ffffff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #0b1020; color: var(--text);
+  font-family: 'Noto Sans KR', 'Pretendard', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; word-break: keep-all; }
+.deck { position: fixed; inset: 0; overflow: hidden; }
+.slide { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; background: var(--bg);
+  padding: 92px 120px 0; display: none; overflow: hidden; }
+.slide.on { display: block; }
+body.all { background: #e5e7eb; height: auto; }
+body.all .deck { position: static; overflow: visible; padding: 40px 0; }
+body.all .slide { display: block; position: relative; left: auto; top: auto; margin: 0 auto 48px; transform: none !important;
+  box-shadow: 0 10px 40px rgba(15,23,42,.18); }
+/* 머리 · 꼬리 */
+.kicker { display: inline-flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; color: var(--accent); letter-spacing: .01em; }
+.kicker .who { color: var(--muted); font-weight: 500; }
+h1.claim { font-size: 66px; line-height: 1.28; font-weight: 800; color: var(--ink); margin-top: 22px; letter-spacing: -.01em; max-width: 1560px; }
+.lead { font-size: 32px; line-height: 1.6; color: var(--text); margin-top: 28px; max-width: 1500px; }
+.src { position: absolute; left: 120px; bottom: 58px; right: 360px; font-size: 19px; line-height: 1.5; color: var(--faint); }
+.foot { position: absolute; right: 120px; bottom: 54px; font-size: 20px; color: var(--faint); display: flex; gap: 18px; align-items: center; }
+.foot b { color: var(--muted); font-weight: 700; }
+.bar { position: absolute; left: 0; top: 0; width: 100%; height: 10px; background: linear-gradient(90deg, #4f46e5, #0ea5e9 60%, #10b981); }
+/* 숫자 */
+.nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; margin-top: 64px; }
+.nums.two { grid-template-columns: repeat(2, 1fr); max-width: 1300px; }
+.num { border: 1px solid var(--line); border-radius: 28px; padding: 40px 44px 44px; background: var(--surf); }
+.num .v { font-size: 120px; font-weight: 800; line-height: 1; color: var(--ink); letter-spacing: -.02em; }
+.num .v small { font-size: 52px; font-weight: 700; margin-left: 6px; color: var(--muted); }
+.num .l { font-size: 27px; line-height: 1.5; margin-top: 22px; color: var(--text); }
+.num.accent .v { color: var(--accent); } .num.teal .v { color: var(--teal); } .num.amber .v { color: var(--amber); } .num.rose .v { color: var(--rose); }
+.meter { height: 26px; border-radius: 13px; background: var(--line); margin-top: 26px; overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+/* 표지 */
+.cover { padding: 0; background: radial-gradient(1200px 700px at 85% 10%, #e0e7ff 0%, rgba(224,231,255,0) 60%),
+  radial-gradient(900px 600px at 0% 100%, #ccfbf1 0%, rgba(204,251,241,0) 55%), #fff; }
+.cover .in { position: absolute; left: 140px; top: 210px; right: 140px; }
+.logo { display: flex; align-items: center; gap: 26px; }
+.logo .mark { width: 96px; height: 96px; border-radius: 26px; background: linear-gradient(135deg, #4f46e5, #0ea5e9 55%, #10b981); }
+.logo .name { font-size: 104px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+.cover .one { font-size: 52px; line-height: 1.45; font-weight: 700; color: var(--ink); margin-top: 64px; max-width: 1500px; }
+.cover .two { font-size: 30px; line-height: 1.6; color: var(--muted); margin-top: 26px; max-width: 1500px; }
+.cover .team { position: absolute; left: 140px; bottom: 120px; display: flex; gap: 18px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 600; padding: 12px 22px; border-radius: 999px;
+  background: #fff; border: 1px solid var(--line); color: var(--text); }
+.chip i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+.cover .date { position: absolute; right: 140px; bottom: 128px; font-size: 24px; color: var(--muted); }
+/* 여정 지도 */
+.journey { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; margin-top: 70px; align-items: stretch; }
+.step { position: relative; padding: 0 14px; }
+.step .card { height: 100%; border-radius: 24px; border: 1px solid var(--line); background: var(--surf); padding: 26px 22px 24px;
+  display: flex; flex-direction: column; align-items: flex-start; }
+.step .card .d { flex: 1; }
+.step .no { font-size: 20px; font-weight: 800; color: var(--accent); }
+.step .t { font-size: 30px; font-weight: 800; color: var(--ink); margin-top: 8px; line-height: 1.3; }
+.step .d { font-size: 21px; line-height: 1.5; color: var(--muted); margin-top: 12px; min-height: 96px; }
+.step .owner { margin-top: 18px; font-size: 20px; font-weight: 700; padding: 7px 14px; border-radius: 999px; display: inline-block; }
+.step .vid { margin-top: 12px; font-size: 19px; color: var(--muted); }
+.step:not(:last-child)::after { content: ""; position: absolute; right: -9px; top: 50%; width: 18px; height: 18px; border-top: 3px solid var(--faint);
+  border-right: 3px solid var(--faint); transform: translateY(-50%) rotate(45deg); z-index: 2; background: transparent; }
+.o-lee { background: var(--accent-soft); color: var(--accent); } .o-shin { background: var(--amber-soft); color: var(--amber); }
+.o-oh { background: var(--teal-soft); color: var(--teal); } .o-kang { background: var(--sky-soft); color: var(--sky); }
+.legend { display: flex; gap: 16px; margin-top: 40px; flex-wrap: wrap; }
+/* 영상 */
+.video-wrap { margin-top: 36px; width: 1440px; height: 810px; border-radius: 22px; overflow: hidden; background: #0f172a; position: relative;
+  box-shadow: 0 18px 48px rgba(15,23,42,.22); }
+.video-wrap video { width: 100%; height: 100%; display: block; background: #0f172a; }
+.video-wrap .missing { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center;
+  color: #e2e8f0; font-size: 28px; line-height: 1.6; padding: 60px; }
+.video-wrap.nofile .missing { display: flex; } .video-wrap.nofile video { display: none; }
+.video-side { position: absolute; left: 1600px; top: 214px; width: 200px; font-size: 22px; line-height: 1.6; color: var(--muted); }
+.video-side b { display: block; color: var(--ink); font-size: 26px; margin-bottom: 8px; }
+/* 세 줄 */
+.rows { margin-top: 64px; display: grid; gap: 26px; max-width: 1560px; }
+.row { display: grid; grid-template-columns: 260px 1fr; gap: 34px; align-items: start; padding: 30px 36px; border-radius: 24px; background: var(--surf);
+  border: 1px solid var(--line); }
+.row .k { font-size: 28px; font-weight: 800; color: var(--accent); }
+.row .v { font-size: 31px; line-height: 1.55; color: var(--text); }
+/* 채울 칸 */
+.todo { margin-top: 56px; border: 3px dashed #cbd5e1; border-radius: 28px; padding: 44px 52px; max-width: 1560px; background: #fafafa; }
+.todo .h { font-size: 30px; font-weight: 800; color: var(--muted); }
+.todo ul { margin-top: 20px; padding-left: 34px; } .todo li { font-size: 27px; line-height: 1.75; color: var(--muted); }
+.todo .due { margin-top: 22px; font-size: 23px; color: var(--faint); }
+/* 표 */
+table.list { margin-top: 48px; border-collapse: collapse; width: 1680px; font-size: 25px; }
+table.list th { text-align: left; color: var(--muted); font-weight: 700; padding: 16px 18px; border-bottom: 2px solid var(--line); }
+table.list td { padding: 16px 18px; border-bottom: 1px solid var(--line); color: var(--text); }
+table.list td.code { font-weight: 800; color: var(--accent); }
+/* 말할 거리 */
+.notes { display: none; }
+#notes-panel { position: fixed; left: 0; right: 0; bottom: 0; max-height: 34vh; overflow: auto; background: rgba(15,23,42,.94); color: #e2e8f0;
+  font-size: 16px; line-height: 1.7; padding: 16px 24px; display: none; z-index: 10; }
+#notes-panel.on { display: block; }
+#hint { position: fixed; right: 14px; bottom: 10px; font-size: 12px; color: rgba(226,232,240,.55); z-index: 11; }
+body.all #hint, body.all #notes-panel { display: none; }
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { background: #fff; }
+  .deck { position: static; } .slide { display: block !important; position: relative; left: auto; top: auto; margin: 0; transform: none !important;
+    page-break-after: always; box-shadow: none; }
+  #hint, #notes-panel { display: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+<!-- 1 표지 -->
+<section class="slide cover" data-title="표지">
+  <div class="bar"></div>
+  <div class="in">
+    <div class="logo"><div class="mark"></div><div class="name">Qurious</div></div>
+    <p class="one">자기 투자 규칙이 있는 개인투자자가,<br>그 규칙을 믿어도 되는지 판단하게 돕는 로보 어드바이저</p>
+    <p class="two">공식 자료와 법령 근거로 묻고 · 신호를 쉬운 말로 읽고 · 성향에 맞춰 나누고 · 비용을 뺀 성과를 모의투자로 기록합니다</p>
+  </div>
+  <div class="team">
+    <span class="chip"><i style="background:#4f46e5"></i>이동원 · 데이터 · 근거</span>
+    <span class="chip"><i style="background:#b45309"></i>신장환 · 신호 · 설명</span>
+    <span class="chip"><i style="background:#0f766e"></i>오준영 · 배분 · 리밸런싱</span>
+    <span class="chip"><i style="background:#0369a1"></i>강민석 · 성과 · 모의투자</span>
+  </div>
+  <div class="date">2차 프로젝트 발표 · 2026-10-21</div>
+  <aside class="notes">인사 다음 바로 한 문장: 「Qurious 는 자기 투자 규칙이 있는 개인투자자가, 그 규칙을 믿어도 되는지 판단하게 돕는 로보 어드바이저입니다.」</aside>
+</section>
+
+<!-- 2 배경 ① -->
+<section class="slide" data-title="배경 ① 문제">
+  <div class="kicker">배경 ① 문제</div>
+  <h1 class="claim">개인투자자 대부분은<br>자기 규칙이 맞는지 잴 방법이 없습니다</h1>
+  <div class="nums">
+    <div class="num rose"><div class="v">28<small>%</small></div><div class="l">2020 ~ 2022년 개인투자자 10만 2천 명 중<br>비용을 빼고도 돈을 번 사람(국내)</div>
+      <div class="meter"><i style="width:28%;background:#be123c"></i><i style="width:72%;background:#e2e8f0"></i></div></div>
+    <div class="num"><div class="v">1,442<small>만 명</small></div><div class="l">주식을 가진 개인<br>(2025년 결산)</div></div>
+    <div class="num amber"><div class="v">31.5<small>%</small></div><div class="l">그중 한 종목만 가진 사람</div></div>
+  </div>
+  <p class="src">출처: 자본시장연구원 연구보고서 26-04(2026-02-09) · 한국예탁결제원 2025년 결산 주식 소유자 현황(2026-03-18 · 보도 확인) · 조회 2026-10-15</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「주식을 가진 개인은 1,442만 명입니다. 2020년부터 3년 동안 10만 명을 따라가 보니, 비용을 빼고 돈을 번 사람은 국내 기준 28% 였습니다.」 · 「순수익률」 은 「비용을 빼고 번 돈」 으로 풀어 말한다 → 다음 장 「그럼 도구는?」</aside>
+</section>
+
+<!-- 3 배경 ② -->
+<section class="slide" data-title="배경 ② 빈자리">
+  <div class="kicker">배경 ② 빈자리</div>
+  <h1 class="claim">도구는 「맡기는」 쪽에 있고,<br>과장 광고는 위법입니다</h1>
+  <div class="nums two">
+    <div class="num accent"><div class="v">99.6<small>%</small></div><div class="l">검증을 통과한 로보어드바이저 계약 중<br>「알아서 굴려 주는」 일임 계약 비율(2026년 9월 말)</div>
+      <div class="meter"><i style="width:99.6%;background:#4f46e5"></i><i style="width:.4%;background:#0ea5e9"></i></div></div>
+    <div class="num rose"><div class="v">133<small>건</small></div><div class="l">「목표 수익률」 같은 광고로 적발된 위법<br>(유사투자자문 105개 업체 · 2025년)</div></div>
+  </div>
+  <p class="lead">스스로 판단하려는 사람에게 필요한 것은 대신 굴려 주는 서비스가 아니라 <b>과장 없는 근거</b>입니다.</p>
+  <p class="src">출처: 코스콤 RA 테스트베드 「RA 시장규모 추이(26년 9월말)」(2026-10-12 게시 · 테스트베드 통과사만) · 금융위원회 보도자료(2026-04-20) · 조회 2026-10-15</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「일임」 은 「알아서 굴려 주는 계약」, 「자문」 은 「조언만 받는 계약」 으로 풀어 말한다.</aside>
+</section>
+
+<!-- 4 해결 그림 — 사용자 여정 지도 -->
+<section class="slide" data-title="해결 — 사용자 여정">
+  <div class="kicker">해결 · 사용자 여정</div>
+  <h1 class="claim">네 사람이 한 여정을 나눠 맡았습니다</h1>
+  <div class="journey">
+    <div class="step"><div class="card"><div class="no">1</div><div class="t">성향 진단 · 자산 배분</div><div class="d">질문 일곱 개로 성향을 알고 자산군 비중을 나눔</div><span class="owner o-oh">오준영</span><div class="vid">영상 V01</div></div></div>
+    <div class="step"><div class="card"><div class="no">2</div><div class="t">상품 안내</div><div class="d">나눈 비중대로 상장 상품을 공시 정보로 비교</div><span class="owner o-lee">이동원</span><div class="vid">영상 V02</div></div></div>
+    <div class="step"><div class="card"><div class="no">3</div><div class="t">신호 · 패턴</div><div class="d">규칙 신호로 종목을 거르고 차트 패턴을 읽음</div><span class="owner o-shin">신장환</span><div class="vid">영상 V03</div></div></div>
+    <div class="step"><div class="card"><div class="no">4</div><div class="t">모의 주문</div><div class="d">가상 돈으로 국내 · 미국 주식을 주문(비용 먼저)</div><span class="owner o-kang">강민석</span><div class="vid">영상 V04</div></div></div>
+    <div class="step"><div class="card"><div class="no">5</div><div class="t">리밸런싱</div><div class="d">목표 비중에서 벗어나면 다시 맞추는 계획</div><span class="owner o-oh">오준영</span><div class="vid">영상 V05</div></div></div>
+    <div class="step"><div class="card"><div class="no">6</div><div class="t">계좌 · 성과</div><div class="d">비용을 뺀 성과와 판단 기록을 되돌아봄</div><span class="owner o-kang">강민석</span><div class="vid">영상 V06</div></div></div>
+    <div class="step"><div class="card"><div class="no">7</div><div class="t">근거 상담</div><div class="d">근거를 댈 수 없으면 답하지 않는 AI 상담</div><span class="owner o-lee">이동원</span><div class="vid">영상 V07</div></div></div>
+  </div>
+  <p class="lead" style="margin-top:46px;">밑바탕: 매일 낮 공식 자료를 모아 검증하고(이동원) · 신호마다 쉬운 말 설명을 붙입니다(신장환)</p>
+  <p class="src">영상은 장마다 3분 안 · 시연 전용 계정 · 가상 돈 · 투자 권유가 아닌 기능 시연</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">팀 한 문장의 둘째 문장 → 「지금부터 이 차례대로 네 명이 자기 칸을 보여 드립니다.」 · 칸 이름 · 낱말은 팀원 확인 뒤 고친다.</aside>
+</section>
+
+<!-- 5 이동원 ① -->
+<section class="slide" data-title="이동원 ① 나와 내 문제">
+  <div class="kicker">이동원 <span class="who">팀장 · 데이터 · 근거</span></div>
+  <h1 class="claim">법은 바뀌고 AI 는 그럴듯하게 지어냅니다 —<br>그래서 근거를 댈 수 없으면 답하지 않게 만들었습니다</h1>
+  <div class="rows">
+    <div class="row"><div class="k">내 파트 한 문장</div><div class="v">근거를 댈 수 없으면 답하지 않는 금융 AI 상담</div></div>
+    <div class="row"><div class="k">맡은 일</div><div class="v">공식 자료 수집 · 검증(매일 낮) · 법령 근거 답 · 상품 안내 · 미국주식 주문</div></div>
+    <div class="row"><div class="k">지향 직무</div><div class="v">AI 에이전트 · 에이전트 플랫폼 개발</div></div>
+  </div>
+  <p class="src">근거 자료: 2026년 시행 판 법령 · 감독규정 조문(국가법령정보 Open API)</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「AI 에게 법을 물으면 그럴듯하게 답합니다. 그런데 법은 해마다 바뀝니다. 그래서 저는 답마다 2026년 시행 판 조문의 출처 번호를 달고, 근거를 못 대면 답하지 않게 만들었습니다.」</aside>
+</section>
+
+<!-- 6 이동원 ② 영상 -->
+<section class="slide" data-title="이동원 ② 영상">
+  <div class="kicker">이동원 · 영상 V07</div>
+  <div class="video-wrap" data-video="V07-근거상담">
+    <video controls preload="metadata" poster="media/V07-근거상담.jpg" src="media/V07-근거상담.webm"></video>
+    <div class="missing">영상 파일이 아직 이 자리에 없습니다<br>media/V07-근거상담.webm 을 이 파일 옆 media 폴더에 두세요<br>(받는 곳: HF 비공개 데이터셋 qurious-quant/demo-videos)</div>
+  </div>
+  <div class="video-side"><b>질문 셋</b>답이 있는 질문<br>근거가 없는 질문<br>투자 권유 질문</div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">재생 전 한 줄: 「질문 세 개를 넣어 보겠습니다 — 답이 있는 질문, 근거가 없는 질문, 투자 권유 질문.」 재생 중에는 말하지 않는다(자막이 말한다).</aside>
+</section>
+
+<!-- 7 이동원 ③ 증거 셋 -->
+<section class="slide" data-title="이동원 ③ 증거 셋">
+  <div class="kicker">이동원 · 증거 셋</div>
+  <h1 class="claim">찾고, 지어내지 않고,<br>믿을 수 없는 잣대는 버렸습니다</h1>
+  <div class="nums">
+    <div class="num accent"><div class="v">47<small>/ 50</small></div><div class="l">정답 조문을 상위 5개 안에 찾은 질문<br>(일상 말을 법령 말로 넓히기 전 43)</div></div>
+    <div class="num teal"><div class="v">0<small>/ 3</small></div><div class="l">근거 밖 질문에<br>지어낸 답</div></div>
+    <div class="num amber"><div class="v">0.658</div><div class="l">AI 채점 잣대가 사람 판정을 가른 정도<br>(0.5 = 동전) → 품질 지표에서 뺐다</div></div>
+  </div>
+  <p class="lead" style="font-size:26px;color:#64748b;">한계 — 표본이 작습니다(답 15문항 중 정답 12 · 95% 구간 0.55 ~ 0.93) · 공시 · 뉴스 근거 답은 아직 재지 않았습니다</p>
+  <p class="src">출처: 근거 답 품질 보고서 v0.1 &lt;표 1&gt; · 측정 2026-10-03 ~ 10-06 · 답 모델 qwen3:4b-instruct(로컬) · 발표 전 숫자를 다시 확인</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「세 가지를 쟀습니다. 잘 찾는지, 지어내지 않는지, 그리고 그걸 재는 잣대를 믿을 수 있는지. 마지막 잣대는 동전 던지기와 크게 다르지 않아서, 점수로 쓰지 않고 사람이 직접 판정한 표본과 서버 거름으로 지키기로 했습니다.」</aside>
+</section>
+
+<!-- 8 이동원 ④ -->
+<section class="slide" data-title="이동원 ④ 배운 점">
+  <div class="kicker">이동원 · 해결 · 남은 과제 · 배운 점</div>
+  <h1 class="claim">출처 번호가 맞는다고<br>답이 맞는 것은 아닙니다</h1>
+  <div class="rows">
+    <div class="row"><div class="k">해결한 문제</div><div class="v">출처 번호만 검사하던 것을 「근거 없음」 단정 · 질문 되풀이 거름까지 더했습니다</div></div>
+    <div class="row"><div class="k">남은 과제</div><div class="v">공시 · 뉴스 근거 답 평가 · 두 사람 판정 일치도 · 다른 PC 재현</div></div>
+    <div class="row"><div class="k">배운 점</div><div class="v">시험한 답 모델 다섯이 모두 출처 번호는 맞혔지만, 그중 둘은 근거가 없는 질문에 답을 지어냈습니다</div></div>
+  </div>
+  <p class="src">상품 안내 영상 V02 · 데이터 관제 · 수집 흐름은 README 의 영상 목록에서</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">넘김 한 줄: 「이렇게 쌓은 자료로 신장환 님이 신호를 계산합니다.」</aside>
+</section>
+
+<!-- 9 ~ 12 신장환 -->
+<section class="slide" data-title="신장환 ① 나와 내 문제">
+  <div class="kicker">신장환 <span class="who">신호 · 설명</span></div>
+  <h1 class="claim">(주장 한 문장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 신장환 · 10-19</div><ul><li>이름 · 관심 분야 · 지향 직무 한 줄</li><li>내 파트 한 문장(무엇을 · 누구에게 · 왜)</li><li>앞 사람(데이터)에게서 받는 것 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="신장환 ② 영상">
+  <div class="kicker">신장환 · 영상 V03</div>
+  <div class="video-wrap" data-video="V03-신호로-종목살피기">
+    <video controls preload="metadata" poster="media/V03-신호로-종목살피기.jpg" src="media/V03-신호로-종목살피기.webm"></video>
+    <div class="missing">영상 파일이 아직 이 자리에 없습니다<br>media/V03-신호로-종목살피기.webm (팀원이 더 나은 판을 찍으면 바꿔 끼움)</div>
+  </div>
+  <div class="video-side"><b>장면</b>스크리닝 → 차트 패턴 · 지지 · 저항</div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="신장환 ③ 증거 셋">
+  <div class="kicker">신장환 · 증거 셋</div>
+  <h1 class="claim">(증거로 말할 주장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 신장환 · 10-19</div><ul><li>숫자 셋(장마다 셋 이하) · 출처 한 줄 · 잰 날짜</li><li>한계 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="신장환 ④ 배운 점">
+  <div class="kicker">신장환 · 해결 · 남은 과제 · 배운 점</div>
+  <h1 class="claim">(배운 점 한 문장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 신장환 · 10-19</div><ul><li>해결한 문제 · 남은 과제 · 배운 점 — 한 줄씩</li><li>다음 사람(오준영)에게 넘기는 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+
+<!-- 13 ~ 16 오준영 -->
+<section class="slide" data-title="오준영 ① 나와 내 문제">
+  <div class="kicker">오준영 <span class="who">배분 · 리밸런싱</span></div>
+  <h1 class="claim">(주장 한 문장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 오준영 · 10-19</div><ul><li>이름 · 관심 분야 · 지향 직무 한 줄</li><li>내 파트 한 문장(무엇을 · 누구에게 · 왜)</li><li>앞 사람(신호)에게서 받는 것 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="오준영 ② 영상">
+  <div class="kicker">오준영 · 영상 V01 · V05</div>
+  <div class="video-wrap" data-video="V01-성향진단-자산배분">
+    <video controls preload="metadata" poster="media/V01-성향진단-자산배분.jpg" src="media/V01-성향진단-자산배분.webm"></video>
+    <div class="missing">영상 파일이 아직 이 자리에 없습니다<br>media/V01-성향진단-자산배분.webm · V05-리밸런싱.webm</div>
+  </div>
+  <div class="video-side"><b>장면</b>성향 진단 → 자산 배분 · 이어서 V05 리밸런싱</div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="오준영 ③ 증거 셋">
+  <div class="kicker">오준영 · 증거 셋</div>
+  <h1 class="claim">(증거로 말할 주장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 오준영 · 10-19</div><ul><li>숫자 셋(장마다 셋 이하) · 출처 한 줄 · 잰 날짜</li><li>한계 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="오준영 ④ 배운 점">
+  <div class="kicker">오준영 · 해결 · 남은 과제 · 배운 점</div>
+  <h1 class="claim">(배운 점 한 문장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 오준영 · 10-19</div><ul><li>해결한 문제 · 남은 과제 · 배운 점 — 한 줄씩</li><li>다음 사람(강민석)에게 넘기는 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+
+<!-- 17 ~ 20 강민석 -->
+<section class="slide" data-title="강민석 ① 나와 내 문제">
+  <div class="kicker">강민석 <span class="who">성과 · 모의투자</span></div>
+  <h1 class="claim">(주장 한 문장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 강민석 · 10-19</div><ul><li>이름 · 관심 분야 · 지향 직무 한 줄</li><li>내 파트 한 문장(무엇을 · 누구에게 · 왜)</li><li>앞 사람(배분)에게서 받는 것 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="강민석 ② 영상">
+  <div class="kicker">강민석 · 영상 V04 · V06</div>
+  <div class="video-wrap" data-video="V04-모의주문-국내미국">
+    <video controls preload="metadata" poster="media/V04-모의주문-국내미국.jpg" src="media/V04-모의주문-국내미국.webm"></video>
+    <div class="missing">영상 파일이 아직 이 자리에 없습니다<br>media/V04-모의주문-국내미국.webm · V06-모의계좌-자동매매.webm</div>
+  </div>
+  <div class="video-side"><b>장면</b>모의 주문(국내 · 미국 예약) · 이어서 V06 계좌 · 의사결정</div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="강민석 ③ 증거 셋">
+  <div class="kicker">강민석 · 증거 셋</div>
+  <h1 class="claim">(증거로 말할 주장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 강민석 · 10-19</div><ul><li>숫자 셋(장마다 셋 이하) · 출처 한 줄 · 잰 날짜</li><li>한계 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+<section class="slide" data-title="강민석 ④ 배운 점">
+  <div class="kicker">강민석 · 해결 · 남은 과제 · 배운 점</div>
+  <h1 class="claim">(배운 점 한 문장 — 채울 칸)</h1>
+  <div class="todo"><div class="h">채울 칸 · 강민석 · 10-19</div><ul><li>해결한 문제 · 남은 과제 · 배운 점 — 한 줄씩</li><li>마무리로 넘기는 한 줄</li></ul></div>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+
+<!-- 21 마무리 -->
+<section class="slide cover" data-title="마무리">
+  <div class="bar"></div>
+  <div class="in" style="top:190px;">
+    <div class="logo"><div class="mark"></div><div class="name">Qurious</div></div>
+    <p class="one">자기 투자 규칙이 있는 개인투자자가,<br>그 규칙을 믿어도 되는지 판단하게 돕는 로보 어드바이저</p>
+    <div class="rows" style="margin-top:56px;max-width:1400px;">
+      <div class="row"><div class="k">저장소</div><div class="v">github.com/EST-team-project/Qurious — README 에 실행 방법 · 영상 목록</div></div>
+      <div class="row"><div class="k">영상</div><div class="v">V01 ~ V07 · 사용자 여정 차례 · 장마다 3분 안</div></div>
+    </div>
+  </div>
+  <div class="date" style="font-size:44px;font-weight:800;color:#0f172a;bottom:120px;">질문 받겠습니다</div>
+  <aside class="notes">팀 한 문장 한 번 더 → 「질문 받겠습니다.」</aside>
+</section>
+
+<!-- 부록 영상 목록 -->
+<section class="slide" data-title="부록 — 영상 목록">
+  <div class="kicker">부록 · 영상 목록</div>
+  <table class="list">
+    <thead><tr><th>영상</th><th>무엇을</th><th>화면</th><th>주담당</th><th>길이</th></tr></thead>
+    <tbody>
+      <tr><td class="code">V01</td><td>성향 진단 → 자산 배분</td><td>자산배분 · 최적화</td><td>오준영</td><td data-len="V01-성향진단-자산배분">—</td></tr>
+      <tr><td class="code">V02</td><td>나눈 비중대로 상품 비교</td><td>투자 성향별 상품 안내</td><td>이동원</td><td data-len="V02-성향별-상품안내">—</td></tr>
+      <tr><td class="code">V03</td><td>신호로 종목 거르기 · 차트 패턴</td><td>스크리닝 · 차트 패턴</td><td>신장환</td><td data-len="V03-신호로-종목살피기">—</td></tr>
+      <tr><td class="code">V04</td><td>국내 · 미국 모의 주문</td><td>국내 모의주문 · 미국 주문</td><td>강민석 · 이동원</td><td data-len="V04-모의주문-국내미국">—</td></tr>
+      <tr><td class="code">V05</td><td>리밸런싱 계획 · 주문 산출</td><td>리밸런싱 엔진</td><td>오준영</td><td data-len="V05-리밸런싱">—</td></tr>
+      <tr><td class="code">V06</td><td>모의 계좌 · 의사결정 · 자동매매</td><td>모의계좌 · 의사결정 · 자동매매</td><td>강민석 · 오준영</td><td data-len="V06-모의계좌-자동매매">—</td></tr>
+      <tr><td class="code">V07</td><td>근거를 댈 수 없으면 답하지 않는 상담</td><td>AI 투자 상담</td><td>이동원</td><td data-len="V07-근거상담">—</td></tr>
+    </tbody>
+  </table>
+  <p class="src">영상 원본: HF 비공개 데이터셋 qurious-quant/demo-videos · 장면 파일: 저장소 docs/발표/영상/장면/ · 화면이 바뀌면 그 장면만 다시 찍는다</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+</section>
+
+</div>
+<div id="notes-panel"></div>
+<div id="hint">← → 넘기기 · N 말할 거리 · F 전체 화면</div>
+<script>
+(() => {
+  const slides = [...document.querySelectorAll('.slide')];
+  const all = new URLSearchParams(location.search).has('all');
+  const panel = document.getElementById('notes-panel');
+  slides.forEach((s, i) => { const pg = s.querySelector('.pg'); if (pg) pg.textContent = `${i + 1} / ${slides.length}`; });
+  document.querySelectorAll('.video-wrap').forEach(w => {
+    const v = w.querySelector('video');
+    const miss = () => w.classList.add('nofile');
+    v.addEventListener('error', miss, true);
+    v.querySelector && v.addEventListener('loadedmetadata', () => {
+      const cell = document.querySelector(`[data-len="${w.dataset.video}"]`);
+      if (cell && isFinite(v.duration)) cell.textContent = `${Math.floor(v.duration / 60)}분 ${Math.round(v.duration % 60)}초`;
+    });
+  });
+  if (all) { document.body.classList.add('all'); return; }
+  let cur = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+  function fit() {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    slides.forEach(el => { el.style.transform = `scale(${s})`; });
+  }
+  function show(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((el, k) => {
+      el.classList.toggle('on', k === cur);
+      if (k !== cur) el.querySelectorAll('video').forEach(v => v.pause());
+    });
+    history.replaceState(null, '', `#${cur + 1}`);
+    const n = slides[cur].querySelector('.notes');
+    panel.textContent = n ? `${cur + 1}. ${slides[cur].dataset.title} — ${n.textContent.trim()}` : `${cur + 1}. ${slides[cur].dataset.title}`;
+  }
+  addEventListener('resize', fit);
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'VIDEO' && (e.key === ' ' || e.key === 'Spacebar')) return;
+    if (['ArrowRight', 'PageDown', ' ', 'Spacebar'].includes(e.key)) { e.preventDefault(); show(cur + 1); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key === 'n' || e.key === 'N') panel.classList.toggle('on');
+    else if (e.key === 'f' || e.key === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  });
+  fit(); show(cur);
+})();
+</script>
+</body>
+</html>

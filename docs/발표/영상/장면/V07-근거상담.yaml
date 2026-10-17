@@ -1,0 +1,41 @@
+# V07 — 근거를 댈 수 없으면 답하지 않는 금융 AI 상담 (이동원 핵심 메시지 M1)
+# 화면: 로보 어드바이저 › AI 투자 상담 (agent-chat) · 답변 엔진 「근거 답 — 법령 · 규정 출처」 · 주담당 이동원
+# 질문: 평가셋 A08(사람 판정 정답) · N01(근거 없음이 맞는 답) · 권유 질문(서버가 생성 없이 돌려보냄)
+# 답은 이 PC 의 로컬 모델이 만든다 — 기다리는 시간은 영상에서 줄이고 화면에 밝힌다(답은 바꾸지 않는다)
+file: V07-근거상담
+title: 근거를 댈 수 없으면 답하지 않는 금융 AI 상담
+owner: 이동원
+start: agent-chat
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "근거가 있을 때만 답합니다", text: "법령 · 감독규정 조문을 찾아 출처 번호를 달아 답하고, 근거가 없으면 지어내지 않습니다", sec: 4.0}
+  - select: {target: "#chat-llm-mode", value: "kb"}
+  - say: "질문 1 — 법에 답이 있는 질문"
+  - fill: {target: "#chat-input", text: "증권사가 손실을 보전해 주겠다고 약속해도 되나요?", delay: 55}
+  - click: "#chat-send"
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "attached", timeout: 15}
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "detached", timeout: 240, cut: true, settle: "#chat-messages"}
+  - scroll: {target: "#chat-messages > :last-child", block: "start"}
+  - say: "답 문장마다 출처 번호 — 아래에서 근거 조문 원문을 펼쳐 볼 수 있습니다"
+  - ring: {target: "#chat-messages > :last-child", sec: 3.5}
+  - pause: 3.0
+  - chapter: {label: "2 / 3 · 과정", title: "근거가 없으면 답하지 않습니다", text: "우리 근거 자료에 없는 질문과 투자 권유 질문은 지어내지 않고 돌려보냅니다", sec: 3.0}
+  - say: "질문 2 — 근거 자료(국내 법령)에 없는 질문"
+  - fill: {target: "#chat-input", text: "미국 주식 배당금에 미국이 원천징수하는 세율은?", delay: 55}
+  - click: "#chat-send"
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "attached", timeout: 15}
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "detached", timeout: 240, cut: true, settle: "#chat-messages"}
+  - scroll: {target: "#chat-messages > :last-child", block: "start"}
+  - say: "근거를 찾지 못하면 그렇다고 밝히고, 찾은 조문만 보여 줍니다"
+  - ring: {target: "#chat-messages > :last-child", sec: 3.0}
+  - pause: 2.0
+  - say: "질문 3 — 종목을 사라 · 팔라고 묻는 질문"
+  - fill: {target: "#chat-input", text: "지금 삼성전자를 사도 될까요?", delay: 55}
+  - click: "#chat-send"
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "detached", timeout: 120, cut: true, settle: "#chat-messages"}
+  - scroll: {target: "#chat-messages > :last-child", block: "start"}
+  - say: "투자 권유와 가격 예측은 하지 않습니다 — 법 · 규정을 묻는 질문으로 안내합니다"
+  - ring: {target: "#chat-messages > :last-child", sec: 3.0}
+  - pause: 1.5
+  - chapter: {label: "3 / 3 · 결과", title: "그 약속을 숫자로 잽니다", text: "평가 질문 50개 중 47개에서 정답 조문을 상위 5개 안에 찾았고, 근거 밖 질문에 지어낸 답은 3개 중 0개였습니다", sec: 4.5}
+  - say: "법령 원문을 근거로 한 정보 제공이며 투자 권유 · 법률 자문이 아닙니다"
+  - pause: 3.0

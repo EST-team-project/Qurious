@@ -61,6 +61,9 @@ _DAYS_ASSETS = ("frontend/days/assets/", "days/assets/")
 
 DAYS = ("01", "02", "03", "04")
 UNITS = tuple(f"{i:02d}" for i in range(1, 11))
+# 교재 단원 제목 바로잡기 — 원천(rag-lab manifest)의 제목이 본문 첫 절과 어긋나는 단원만 고친다(rag-lab/ 은 고치지 않고 빌드에서).
+# 근거(2026-10-17 조사): 2단원 본문 = 산업 분석 · 공시 / 3단원 = 캔들 · 패턴 + 재무제표 · PER · PBR / 4단원 = 퀀트 분석 사례 · 백테스트 + 배당 · 펀드 · ETF
+UNIT_TITLE_FIX = {2: "산업 분석과 공시", 3: "기술적 분석과 재무제표", 4: "퀀트 분석 사례와 배당 · ETF"}
 
 HEAD_SNIPPET = """<script>/* Qurious: 시세 주소 · 앱 안 싣기 — scripts/lectures_build.py 가 넣음 */
 window.API_BASE = "/api/lectures";
@@ -269,7 +272,7 @@ def build() -> tuple[dict[str, bytes], dict]:
         files[f"curriculum/unit{uid}.md"] = text.encode("utf-8")
         sections = len(re.findall(r"^## ", text, re.M))
         report["units"][uid] = {"images": n_img, "sections": sections}
-        catalog_units.append({"id": int(u["id"]), "title": u["title"], "goal": u.get("goal", ""),
+        catalog_units.append({"id": int(u["id"]), "title": UNIT_TITLE_FIX.get(int(u["id"]), u["title"]), "goal": u.get("goal", ""),
                               "file": f"curriculum/unit{uid}.md", "sections": sections,
                               "day": u.get("domainDay"), "labs": u.get("labs", []),
                               "questions": _questions(_unit_headings(text))})

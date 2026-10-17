@@ -1,0 +1,28 @@
+# V05 — 목표 비중에서 벗어나면 다시 맞추는 계획을 세운다
+# 화면: 로보 어드바이저 › 리밸런싱 엔진 (robo-rebalance) · 주담당 오준영
+# 실행(시가 체결 예약)은 누르지 않는다 — 계획 저장 · 주문 산출(미리 보기)까지
+file: V05-리밸런싱
+title: 목표 비중에서 벗어나면 다시 맞추는 계획을 세웁니다
+owner: 오준영
+start: robo-rebalance
+dialogs: accept      # 「저장한 배분 가져오기」 는 브라우저 확인 창으로 적용을 묻는다 — 「확인」
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "비중이 틀어지면 다시 맞춥니다", text: "목표 비중과 점검 주기 · 허용 이탈 폭을 정해 두면 주문을 계산해 줍니다", sec: 3.5}
+  - say: "계획 이름을 정하고, 앞에서 저장한 배분을 확인한 뒤 목표로 가져옵니다"
+  - fill: {target: "#rb-name", text: "내 성향 배분 — 위험중립형"}
+  - click: "#rb-import-allocation"
+  - pause: 2.5
+  - chapter: {label: "2 / 3 · 과정", title: "언제 · 얼마나 벗어나면 맞출까", text: "매월 첫 거래일에 점검하고, 5%p 넘게 벗어난 자산만 맞춥니다", sec: 3.0}
+  - select: {target: "#rb-period", label: "매월 첫 거래일"}
+  - select: {target: "#rb-drift-preset", label: "5%p"}
+  - say: "점검 주기와 허용 이탈 폭을 정하고 계획을 저장합니다"
+  - click: "#rb-save"
+  - pause: 2.0
+  - click: "#rb-preview"
+  - say: "지금 보유와 목표를 견줘 사고팔 주문을 미리 계산합니다"
+  - pause: 3.5
+  - scroll: {target: "#rb-execute", block: "center"}
+  - pause: 2.0
+  - chapter: {label: "3 / 3 · 결과", title: "실행은 사용자가 정합니다", text: "계산한 주문은 미리 보기이고, 시가 체결 예약은 직접 누를 때만 나갑니다", sec: 3.0}
+  - say: "모의 계좌 기준 계산이며 투자 권유가 아닙니다"
+  - pause: 3.0
