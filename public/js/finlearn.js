@@ -22,10 +22,10 @@ export const TOPICS = [
   { key: "fin-topic-funds",      label: "펀드와 ETF",           icon: "fa-solid fa-basket-shopping",  day: "02" },
   { key: "fin-topic-bonds",      label: "채권 · 금리 · 코인",   icon: "fa-solid fa-landmark",         day: "03" },
   { key: "fin-topic-allocation", label: "자산배분과 퀀트",      icon: "fa-solid fa-chart-pie",        day: "04" },
-  { key: "fin-topic-company",    label: "회사 구조 · 세무회계", icon: "fa-solid fa-building",         units: [1, 10] },
-  { key: "fin-topic-stocks",     label: "주식시장 기초",        icon: "fa-solid fa-chart-simple",     units: [2] },
-  { key: "fin-topic-technical",  label: "기술적 분석 기초",     icon: "fa-solid fa-chart-line",       units: [3] },
-  { key: "fin-topic-industry",   label: "산업 · 기업 · 재무",   icon: "fa-solid fa-industry",         units: [4] },
+  { key: "fin-topic-company",    label: "회사 구조 · 세무회계", icon: "fa-solid fa-building",         units: [1] },
+  { key: "fin-topic-stocks",     label: "산업 분석과 공시",     icon: "fa-solid fa-chart-simple",     units: [2] },
+  { key: "fin-topic-technical",  label: "기술적 분석 · 재무제표",  icon: "fa-solid fa-chart-line",       units: [3] },
+  { key: "fin-topic-industry",   label: "퀀트 사례 · 배당 · ETF",   icon: "fa-solid fa-industry",         units: [4] },
   { key: "fin-topic-macro",      label: "거시경제와 시장",      icon: "fa-solid fa-globe",            units: [5] },
 ];
 const TOPIC_BY_KEY = Object.fromEntries(TOPICS.map(t => [t.key, t]));
@@ -129,7 +129,7 @@ async function renderHub(el) {
         </div>
       </div>
     </div>
-    <p class="fl-muted" style="font-size:13px;margin-top:14px">교재 6~9단원은 4일 과정과 같은 내용이라 4일 과정에서 읽습니다. 10단원의 본문은 「회사 구조 · 세무회계」 뒤에 이어 붙였습니다.</p>`;
+    <p class="fl-muted" style="font-size:13px;margin-top:14px">교재 6~9단원은 4일 과정과 같은 내용이라 4일 과정에서 읽습니다. 10단원은 원천 교재에서 지난 판이 되어 지금은 싣지 않습니다.</p>`;
   el.querySelectorAll("[data-go]").forEach(c => {
     const go = () => navigate(c.dataset.go);
     c.addEventListener("click", go);

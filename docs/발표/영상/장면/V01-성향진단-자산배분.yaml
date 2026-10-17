@@ -1,0 +1,42 @@
+# V01 — 내 투자 성향을 알고, 그 성향대로 자산을 나눈다
+# 화면: 로보 어드바이저 › 자산배분·최적화 (robo-portfolio) · 주담당 오준영
+# 시연 인물(예시 답): 30대 · 3 ~ 5년 뒤에 쓸 돈 · 펀드 · ETF 경험 · 손실은 -10% 까지 견딤
+file: V01-성향진단-자산배분
+title: 내 투자 성향을 알고, 그 성향대로 자산을 나눕니다
+owner: 오준영
+start: robo-portfolio
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "내 투자 성향부터 압니다", text: "질문 일곱 개에 답하면 투자 성향이 나오고, 그 성향에 맞춰 자산을 나눕니다", sec: 3.5}
+  - say: "투자성향 진단 — 질문 일곱 개에 답합니다"
+  - click: "#rp-toggle"
+  - say: "연령 · 돈을 쓸 시기 · 투자 경험을 고릅니다 (예시 답)"
+  - click: '#rp-form label:has(input[name="rp-age"][value="1"])'
+  - click: '#rp-form label:has(input[name="rp-horizon"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-experience"][value="2"])'
+  - say: "소득 · 견딜 수 있는 손실 · 투자 목적 · 금융 지식도 답합니다"
+  - click: '#rp-form label:has(input[name="rp-income"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-loss"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-goal"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-knowledge"][value="2"])'
+  - click: "#rp-submit"
+  - wait: {target: "#rp-result", timeout: 30}
+  - pause: 0.8
+  - say: "진단 결과 — 점수와 투자 성향 유형이 나옵니다"
+  - ring: {target: "#rp-result", sec: 3.0}
+  - pause: 2.5
+  - chapter: {label: "2 / 3 · 과정", title: "성향에 맞춰 자산을 나눕니다", text: "위험 성향 · 투자 기간 · 금액을 넣고 포트폴리오 최적화를 실행합니다", sec: 3.0}
+  - scroll: {target: "#robo-risk"}
+  - say: "진단한 성향 · 투자 기간 · 금액(만 원)을 확인합니다"
+  - ring: {target: "#robo-risk", sec: 1.6}
+  - select: {target: "#robo-horizon", value: "5"}
+  - fill: {target: "#robo-amount", text: "5000"}
+  - click: "#robo-optimize-btn"
+  - say: "자산군마다 비중을 계산합니다"
+  - wait: {target: "text=최적 자산배분 결과", timeout: 120, cut: true}
+  - pause: 1.0
+  - scroll: {target: "text=최적 자산배분 결과", block: "start"}
+  - say: "자산군별 비중과 기대 수익 · 변동성이 나옵니다"
+  - pause: 4.0
+  - chapter: {label: "3 / 3 · 결과", title: "나눈 비중은 다음 화면이 이어서 씁니다", text: "상품 안내는 이 비중을 불러와 상품을 비교하고, 리밸런싱 엔진은 이 비중을 목표로 삼습니다", sec: 3.5}
+  - say: "과거 자료로 계산한 결과이며 미래 수익을 보장하지 않습니다"
+  - pause: 3.0
