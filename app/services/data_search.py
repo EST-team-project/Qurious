@@ -49,6 +49,20 @@ _ASCII = re.compile(r"[A-Za-z0-9]+")
 _SYMBOL = re.compile(r"^\d{6}$|^[0-9A-Z]{6}$")
 _DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+#: 「투자 관련만」 거름(tagged) — 공시는 모두 넣고, 뉴스는 종목 · 주제 이름표가 붙은 것만. 개수(facets.untagged)도 이 식 하나로 센다.
+TAGGED_COND = ("(d.source = 'dart' OR EXISTS (SELECT 1 FROM doc_tag t WHERE t.rid = d.rid "
+               "AND t.tag_type IN ('symbol', 'topic')))")
+
+#: 제목이 사이트 이름뿐인 언론사 기사(2026-10-17 · 모의투자 점검 L11) — GDELT 는 페이지 <title> 을 그대로 받아, 어떤 언론사는
+#: 모든 기사 제목이 「KBS 뉴스」 · 「허프포스트코리아」 다. 같은 제목이 주소 SITE_TITLE_MIN_URLS 개 이상 · SITE_TITLE_MIN_DAYS 날 이상에
+#: 붙으면 그 제목으로 본다(10-17 색인: 넷 — 340 · 280 · 16 · 13개 / 실제 기사가 여러 주소로 되풀이된 것은 7개까지 · 하루에 몰린
+#: 사진 묶음은 8개). 가장 최근 기사로부터 SITE_TITLE_WINDOW_DAYS 일만 센다(색인이 커져도 한 번 세는 값이 늘지 않게).
+SITE_TITLE_MIN_URLS = 10
+SITE_TITLE_MIN_DAYS = 3
+SITE_TITLE_WINDOW_DAYS = 30
+#: 색인 파일(경로 · 고친 시각 · 크기) → 사이트 이름 제목 — 색인은 하루 한 번 다시 지어지니 그때만 다시 센다(10-17 실측 0.13 ~ 0.3초)
+_site_title_cache: dict[tuple[str, int, int], frozenset[str]] = {}
+
 #: 정기보고서 요약에 싣는 계정 — 응답 이름 그대로(같은 뜻의 다른 이름을 함께 본다)
 KEY_ACCOUNTS = (
     ("revenue", ("매출액", "수익(매출액)", "영업수익")),
@@ -93,6 +107,28 @@ def _open_ro(path: Path) -> sqlite3.Connection:
     return conn
 
 
+def site_name_titles(conn: sqlite3.Connection, path: Path) -> frozenset[str]:
+    """제목이 사이트 이름뿐인 언론사 기사 제목들 — 색인 파일이 바뀌었을 때만 다시 센다(위 SITE_TITLE_* 규칙).
+
+    `kind` 색인을 타도록 뉴스로 먼저 좁힌다(출처 칸에는 색인이 없어 공시 77만 줄을 훑으면 0.9 ~ 9초)."""
+    st = path.stat()
+    key = (str(path.resolve()), st.st_mtime_ns, st.st_size)
+    hit = _site_title_cache.get(key)
+    if hit is not None:
+        return hit
+    newest = conn.execute("SELECT MAX(published) FROM doc WHERE kind = 'news' AND source = 'gdelt'").fetchone()[0]
+    out: frozenset[str] = frozenset()
+    if newest:
+        since = (date.fromisoformat(newest[:10]) - timedelta(days=SITE_TITLE_WINDOW_DAYS)).isoformat()
+        out = frozenset(r[0] for r in conn.execute(
+            "SELECT title FROM doc WHERE kind = 'news' AND published >= ? AND source = 'gdelt' GROUP BY title"
+            " HAVING COUNT(*) >= ? AND COUNT(DISTINCT substr(published, 1, 10)) >= ?",
+            (since, SITE_TITLE_MIN_URLS, SITE_TITLE_MIN_DAYS)))
+    _site_title_cache.clear()                        # 지난 색인 값은 다시 쓰지 않는다
+    _site_title_cache[key] = out
+    return out
+
+
 def match_expr(q: str) -> str:
     """검색어 → FTS5 MATCH 식. 낱말마다 한글 덩어리는 두 글자 묶음 구절, 영문 · 숫자는 그 낱말. 모두 AND."""
     parts: list[str] = []
@@ -127,9 +163,15 @@ def _next_day(v: str) -> str:
 def search(q: str = "", kind: str | None = None, symbol: str | None = None, topic: str | None = None,
            term: str | None = None, dtype: str | None = None, from_: str | None = None, to: str | None = None,
            sort: str = "date", limit: int = DEFAULT_LIMIT, offset: int = 0, source: str | None = None,
-           facets: bool = False) -> dict:
+           facets: bool = False, tagged: bool = False) -> dict:
     """`source`(dart · policy_news · gdelt)로 출처를 고르고, `facets` 면 같은 조건에서 출처마다 몇 건인지 함께 센다 —
-    리서치 화면 왼쪽 「종류」 칸의 개수(고른 출처와 상관없이 셋 다 센다 · 2026-10-05)."""
+    리서치 화면 왼쪽 「종류」 칸의 개수(고른 출처와 상관없이 셋 다 센다 · 2026-10-05).
+
+    `tagged` 면 공시 + 종목 · 주제 이름표가 붙은 뉴스만 — 이름표 없는 일반 기사(정치 · 사회 등)를 뺀다(2026-10-17 ·
+    모의투자 점검 L4 「첫 목록 맨 위가 투자와 무관한 기사」). 개수(facets)도 이 거름을 넣고 센다. 기본은 꺼짐(지금 화면 그대로).
+    `facets` 면 `untagged` 에 같은 조건에서 이름표 없는 뉴스 수를 출처마다 함께 싣는다(tagged 와 상관없이 같은 수) — 화면 스위치
+    「이름표 없는 기사까지 보기 (n건 숨김)」 의 n 을 서버 한 곳에서 센다(리서치 설계 A — 숨긴 것을 수로 밝힌다).
+    언론사 기사마다 `site_name_title` — 제목이 사이트 이름뿐인지(위 SITE_TITLE_* 규칙 · 화면이 목록 끝에 모은다 · L11)."""
     q = (q or "").strip()
     if len(q) > MAX_Q:
         raise SearchError(422, "q_too_long", f"검색어는 {MAX_Q}자까지입니다(지금 {len(q)}자).")
@@ -173,9 +215,13 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
     if d_to:
         where.append("d.published < ?")
         args.append(_next_day(d_to))
-    # 출처별 개수는 종류 · 출처 거름을 빼고 센다 — 「종류」 칸에서 하나를 골라도 나머지 둘의 수가 보이게
+    # 출처별 개수는 종류 · 출처 거름을 빼고 센다 — 「종류」 칸에서 하나를 골라도 나머지 둘의 수가 보이게.
+    # 「투자 관련만」 거름도 개수 질의에서는 빼고, 이름표 없는 수(untagged)를 같은 질의 한 번에 따로 센다(tagged 면 출처 수 = 전체 − 그 수).
     base_cond = (" WHERE " + " AND ".join(where)) if where else ""
     base_args = list(args)
+    if tagged:
+        # 이름표 표의 기본키(rid, tag_type, tag)로 줄마다 본다 — 공시는 이름표와 상관없이 넣는다
+        where.append(TAGGED_COND)
     if kind:
         where.append("d.kind = ?")
         args.append(kind)
@@ -186,11 +232,15 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
 
     conn = _open_ro(path)
     facet_counts: dict[str, int] = {}
+    untagged_counts: dict[str, int] = {}
     try:
         if facets:
             facet_counts = {s: 0 for s in SOURCES}
-            for r in conn.execute(f"SELECT d.source, COUNT(*) FROM doc d{base_cond} GROUP BY d.source", base_args):
-                facet_counts[r[0]] = r[1]
+            untagged_counts = {s: 0 for s in SOURCES}
+            for r in conn.execute(f"SELECT d.source, COUNT(*), SUM(CASE WHEN {TAGGED_COND} THEN 0 ELSE 1 END)"
+                                  f" FROM doc d{base_cond} GROUP BY d.source", base_args):
+                facet_counts[r[0]] = r[1] - (r[2] if tagged else 0)
+                untagged_counts[r[0]] = r[2]
         if sort == "relevance" and expr:
             sql = ("SELECT d.*, bm25(doc_fts) AS score FROM doc d JOIN doc_fts ON doc_fts.rowid = d.rid"
                    + cond + " AND doc_fts MATCH ? ORDER BY score, d.published DESC LIMIT ? OFFSET ?")
@@ -205,6 +255,7 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
             for t in conn.execute(f"SELECT rid, tag_type, tag FROM doc_tag WHERE rid IN ({','.join('?' * len(rids))})"
                                   " ORDER BY rid, tag_type, tag", rids):
                 tags.setdefault(t["rid"], {}).setdefault(t["tag_type"], []).append(t["tag"])
+        site_titles = site_name_titles(conn, path) if any(r["source"] == "gdelt" for r in rows) else frozenset()
         meta = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM meta")}
     except sqlite3.OperationalError as e:
         raise SearchError(503, "index_unreadable", f"검색 색인을 읽지 못했습니다: {e}",
@@ -220,9 +271,11 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
             "url": r["url"], "published": r["published"], "source": r["source"],
             "corp_name": r["corp_name"], "stock_code": r["stock_code"],
             "tags": tags.get(r["rid"], {}), "extra": extra,
+            "site_name_title": r["source"] == "gdelt" and r["title"] in site_titles,
         })
     _attach_key_numbers(items)
-    out_facets = {"source": facet_counts, "source_labels": SOURCE_LABELS} if facets else None
+    out_facets = ({"source": facet_counts, "untagged": untagged_counts, "source_labels": SOURCE_LABELS}
+                  if facets else None)
     return {
         "items": items,
         "total": min(n, COUNT_CAP),
@@ -230,11 +283,13 @@ def search(q: str = "", kind: str | None = None, symbol: str | None = None, topi
         **({"facets": out_facets} if facets else {}),
         "query": {"q": q, "match": expr, "kind": kind, "source": source, "symbol": symbol, "topic": topic,
                   "term": term, "dtype": dtype, "from": d_from, "to": d_to, "sort": sort, "limit": limit,
-                  "offset": offset},
+                  "offset": offset, "tagged": tagged},
         "index_built_at": meta.get("built_at"),
         "source": "전자공시(DART) 공시 목록 · 정책브리핑 정책뉴스(공공누리 제1유형) — 수집기 검색 색인",
         "note": "검색 결과에는 제목 · 요약(공시 꼬리 설명 · 뉴스 부제) · 주소만 싣는다. 원문은 url 로 연다. 뉴스는 "
-                "extra.attribution 의 출처 표시를 함께 보인다. 이름표는 규칙으로 붙였다(정밀도 표본 판정 전).",
+                "extra.attribution 의 출처 표시를 함께 보인다. 이름표는 규칙으로 붙였다(정밀도 표본 판정 전). "
+                "site_name_title 은 제목이 사이트 이름뿐인 언론사 기사다(같은 제목이 주소 "
+                f"{SITE_TITLE_MIN_URLS}개 · {SITE_TITLE_MIN_DAYS}일 이상).",
     }
 
 

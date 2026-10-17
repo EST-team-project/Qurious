@@ -226,6 +226,118 @@ def test_source_filter_and_facets_with_news(env):
     assert c.get("/api/data/search", params={"source": "naver"}).status_code == 422
 
 
+def test_tagged_filter_drops_untagged_news(env):
+    """TC-DQ-11 · tagged — 공시 + 종목 · 주제 이름표가 붙은 뉴스만 · 이름표 없는 일반 기사는 뺀다 · 개수도 그 거름으로 센다 ·
+    기본(꺼짐)은 지금 그대로(2026-10-17 · 모의투자 점검 L4 — 첫 목록 맨 위가 정치 · 사회 기사)."""
+    from collector import policy_news as PN
+
+    conn = db.connect(env["src"])
+    base = {"subtitle": "", "body": "", "publisher": "", "category": "", "kogl_type": "", "embargo_at": "",
+            "modified_at": "", "revision": 1}
+    rows = [dict(base, news_id="gdelt:tagged", source="gdelt", title="GS건설 유상증자 흥행", url="https://www.example.co.kr/2",
+                 publisher="example.co.kr", pub_at="2026-10-03T09:00:00+09:00", available_at="2026-10-03T09:00:00+09:00"),
+            dict(base, news_id="gdelt:plain", source="gdelt", title="선관위 특검 공방 격화", url="https://www.example.co.kr/3",
+                 publisher="example.co.kr", pub_at="2026-10-05T09:00:00+09:00", available_at="2026-10-05T09:00:00+09:00")]
+    conn.execute("BEGIN IMMEDIATE")
+    PN.upsert(conn, rows, at="2026-10-05T14:00:00+09:00")
+    conn.execute("COMMIT")
+    conn.close()
+    SI.build(src_path=env["src"], out_path=env["out"], quiet=True)
+    c = _login(env)
+    every = c.get("/api/data/search", params={"facets": "true"}).json()
+    titles = [i["title"] for i in every["items"]]
+    assert "선관위 특검 공방 격화" in titles and every["query"]["tagged"] is False
+    assert every["facets"]["source"]["gdelt"] == 2
+    only = c.get("/api/data/search", params={"facets": "true", "tagged": "true"}).json()
+    kept = [i["title"] for i in only["items"]]
+    assert "선관위 특검 공방 격화" not in kept and "GS건설 유상증자 흥행" in kept and only["query"]["tagged"] is True
+    assert only["facets"]["source"]["gdelt"] == 1 and only["facets"]["source"]["dart"] == every["facets"]["source"]["dart"]
+    assert only["total"] == every["total"] - 1
+    # 낱말 · 출처 거름과 함께 써도 같은 뜻
+    assert c.get("/api/data/search", params={"source": "gdelt", "tagged": "true"}).json()["total"] == 1
+
+
+def _add_news(env, rows: list[dict]) -> None:
+    """수집 DB 에 뉴스 줄을 넣고 색인을 다시 짓는다 — 줄마다 news_id · source · title · url · pub_at 만 주면 된다."""
+    from collector import policy_news as PN
+
+    base = {"subtitle": "", "body": "", "publisher": "example.co.kr", "category": "", "kogl_type": "", "embargo_at": "",
+            "modified_at": "", "revision": 1}
+    conn = db.connect(env["src"])
+    conn.execute("BEGIN IMMEDIATE")
+    PN.upsert(conn, [dict(base, available_at=r["pub_at"], **r) for r in rows], at="2026-10-05T14:00:00+09:00")
+    conn.execute("COMMIT")
+    conn.close()
+    SI.build(src_path=env["src"], out_path=env["out"], quiet=True)
+
+
+def test_facets_count_untagged_news_for_the_switch(env):
+    """TC-DQ-12 · 스위치 「이름표 없는 기사까지 보기 (n건 숨김)」 의 수 — `facets.untagged` 는 같은 조건에서 종목 · 주제 이름표가 없는
+    뉴스 수다(출처마다 · 공시는 늘 0). tagged 를 켜든 끄든 같은 수 · 켜면 출처 수 = 전체 − untagged · 낱말 · 기간 조건을 따른다
+    (2026-10-17 · 리서치 설계 A — 숨긴 것을 수로 밝힌다 · 수는 서버 한 곳에서 센다)."""
+    _add_news(env, [
+        dict(news_id="gdelt:t1", source="gdelt", title="GS건설 유상증자 흥행", url="https://www.example.co.kr/t1",
+             pub_at="2026-10-03T09:00:00+09:00"),
+        dict(news_id="gdelt:p1", source="gdelt", title="선관위 특검 공방 격화", url="https://www.example.co.kr/p1",
+             pub_at="2026-10-05T09:00:00+09:00"),
+        dict(news_id="gdelt:p2", source="gdelt", title="가을 축제 개막 안내", url="https://www.example.co.kr/p2",
+             pub_at="2026-09-20T09:00:00+09:00"),
+        dict(news_id="policy:p1", source="policy_news", title="청년 정책 설명회 열려", url="https://www.korea.kr/p1",
+             pub_at="2026-10-04T10:00:00+09:00", publisher="문화체육관광부", kogl_type="1"),
+    ])
+    c = _login(env)
+    every = c.get("/api/data/search", params={"facets": "true"}).json()
+    only = c.get("/api/data/search", params={"facets": "true", "tagged": "true"}).json()
+    want = {"dart": 0, "policy_news": 1, "gdelt": 2}
+    assert every["facets"]["untagged"] == want and only["facets"]["untagged"] == want
+    for s in DS.SOURCES:
+        assert only["facets"]["source"][s] == every["facets"]["source"][s] - want[s], s
+    assert only["total"] == every["total"] - sum(want.values())
+    # 낱말 조건을 따른다 — 「특검」 은 이름표 없는 기사 하나뿐이라 켜면 0건 · 숨긴 수 1
+    q = c.get("/api/data/search", params={"facets": "true", "tagged": "true", "q": "특검"}).json()
+    assert q["total"] == 0 and q["facets"]["untagged"] == {"dart": 0, "policy_news": 0, "gdelt": 1}
+    # 기간 조건을 따른다 — 10-01 부터면 09-20 기사는 세지 않는다
+    f = c.get("/api/data/search", params={"facets": "true", "tagged": "true", "from": "2026-10-01"}).json()
+    assert f["facets"]["untagged"]["gdelt"] == 1
+    # 출처 거름은 개수에서 빼고 센다(종류 칸과 같은 규칙) — 언론사 기사만 골라도 정책뉴스 숨긴 수가 보인다
+    g = c.get("/api/data/search", params={"facets": "true", "tagged": "true", "source": "gdelt"}).json()
+    assert g["facets"]["untagged"] == want
+    assert "facets" not in c.get("/api/data/search", params={"tagged": "true"}).json()
+
+
+def test_site_name_titles_are_marked(env):
+    """TC-DQ-13 · 제목이 사이트 이름뿐인 언론사 기사(「KBS 뉴스」 처럼 같은 제목이 주소 10개 이상 · 3일 이상)는 `site_name_title`
+    로 알린다 — 9개 · 하루에 몰린 10개 · 가장 최근 기사보다 30일 넘게 앞선 것은 아니다 · 공시 · 정책뉴스는 늘 아니다 · 색인을 다시
+    지으면 다시 센다(2026-10-17 · 모의투자 점검 L11 — 첫 목록 맨 위 열 줄 가운데 여섯이 「KBS 뉴스」)."""
+    rows = []
+    for i in range(10):            # 사흘에 걸친 10개 — 사이트 이름 제목
+        rows.append(dict(news_id=f"gdelt:kbs{i}", source="gdelt", title="KBS 뉴스", url=f"https://news.kbs.co.kr/{i}",
+                         pub_at=f"2026-10-0{1 + i % 3}T09:{i:02d}:00+09:00", publisher="kbs.co.kr"))
+    for i in range(9):             # 9개 — 아직 아니다
+        rows.append(dict(news_id=f"gdelt:huff{i}", source="gdelt", title="허프포스트코리아", url=f"https://huffpost.kr/{i}",
+                         pub_at=f"2026-10-0{1 + i % 3}T10:{i:02d}:00+09:00", publisher="huffingtonpost.kr"))
+    for i in range(10):            # 하루에 몰린 10개(공지 · 사진 묶음 꼴) — 아니다
+        rows.append(dict(news_id=f"gdelt:mtn{i}", source="gdelt", title="공지사항 - 머니투데이방송", url=f"https://mtn.co.kr/{i}",
+                         pub_at=f"2026-10-03T11:{i:02d}:00+09:00", publisher="mtn.co.kr"))
+    for i in range(10):            # 가장 최근 기사(10-03)보다 30일 넘게 앞선 10개 — 세지 않는다
+        rows.append(dict(news_id=f"gdelt:old{i}", source="gdelt", title="씨네21", url=f"https://cine21.com/{i}",
+                         pub_at=f"2026-08-0{1 + i % 3}T09:{i:02d}:00+09:00", publisher="cine21.com"))
+    rows.append(dict(news_id="gdelt:plain", source="gdelt", title="가을 축제 개막 안내", url="https://www.example.co.kr/plain",
+                     pub_at="2026-10-03T12:00:00+09:00"))
+    _add_news(env, rows)
+    c = _login(env)
+    items = c.get("/api/data/search", params={"source": "gdelt", "limit": 100}).json()["items"]
+    marked = {i["title"] for i in items if i["site_name_title"]}
+    assert marked == {"KBS 뉴스"}, marked
+    assert all(i["site_name_title"] is False for i in c.get("/api/data/search", params={"limit": 100}).json()["items"]
+               if i["source"] != "gdelt")
+    # 색인을 다시 지으면 다시 센다 — 허프포스트코리아가 10개가 되면 알린다
+    _add_news(env, [dict(news_id="gdelt:huff9", source="gdelt", title="허프포스트코리아", url="https://huffpost.kr/9",
+                         pub_at="2026-10-03T10:09:00+09:00", publisher="huffingtonpost.kr")])
+    items = c.get("/api/data/search", params={"source": "gdelt", "limit": 100}).json()["items"]
+    assert {i["title"] for i in items if i["site_name_title"]} == {"KBS 뉴스", "허프포스트코리아"}
+
+
 def test_rules_fingerprint_ignores_line_endings(tmp_path):
     """TC-DQ-08 · 규칙 지문은 줄 끝(CRLF · LF)에 따라 바뀌지 않는다 — 글이 바뀌면 바뀐다(DF-68).
 

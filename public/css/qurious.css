@@ -40,6 +40,9 @@
   background: var(--accent-glow); color: var(--accent); border: 0; }
 .q-term-chip--link { cursor: pointer; margin: 0 6px 6px 0; }
 .q-term-chip--link:hover { background: rgba(37, 99, 235, .2); }
+/* 글 끝 「이 글의 용어」 칩 줄(js/termchips.js · 2026-10-17) — 어느 화면의 글 끝에도 붙는 부품 */
+.q-term-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.q-term-chips-label { font-size: 11.5px; font-weight: 700; color: var(--text-mute); margin: 0 8px 6px 0; }
 .q-term-sub { font-size: 13px; color: var(--text-mute); margin: 6px 0 0; }
 .q-term-summary { font-size: 16px; font-weight: 700; color: var(--text); margin: 12px 0 4px; line-height: 1.55; }
 .q-term-summary--plain { font-size: 14px; font-weight: 400; color: var(--text-dim); }
@@ -162,13 +165,42 @@
 .kb-again-note { font-size: 11.5px; color: var(--text-mute); }
 .kb-ex { margin: 4px 4px 0 0; padding: 2px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surf);
   font-size: 12px; color: var(--accent); cursor: pointer; }
+/* 답 위 앱 판단 카드(js/stockcard.js · 2026-10-17 결정 A) — 말풍선과 다른 모양(앱 값이라 AI 답과 헷갈리지 않게) */
+.kb-sc-slot:empty { display: none; }
+.kb-sc { margin: 4px 0 2px; padding: 14px 16px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px;
+  background: var(--surf); font-size: 13px; color: var(--text); max-width: 88%; }
+.kb-sc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.kb-sc-head strong { font-size: 15px; }
+.kb-sc-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+  background: var(--surf2); color: var(--text-dim); }
+.kb-sc-price { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kb-sc-price b.up { color: #dc2626; }          /* 우리 시장 관례 — 오름 빨강 · 내림 파랑 */
+.kb-sc-price b.dn { color: #2563eb; }
+.kb-sc-price small { margin-left: 4px; font-size: 11px; font-weight: 600; color: var(--text-mute); }
+.kb-sc-read { margin: 6px 0 4px; font-size: 11.5px; color: var(--text-mute); }
+.kb-sc-row { padding: 8px 0; border-top: 1px solid var(--border); }
+.kb-sc-rowhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.kb-sc-label { font-weight: 700; font-size: 12.5px; }
+.kb-sc-right { margin-left: auto; font-size: 11px; color: var(--text-mute); }
+.kb-sc-text { margin: 4px 0 0; line-height: 1.6; }
+.kb-sc-text a { color: var(--accent); text-decoration: none; }
+.kb-sc-text a:hover { text-decoration: underline; }
+.kb-sc-note, .kb-sc-why { margin: 3px 0 0; font-size: 11.5px; color: var(--text-mute); line-height: 1.55; }
+.kb-sc-links { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.kb-sc-link { padding: 3px 10px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surf); font-size: 12px;
+  color: var(--accent); cursor: pointer; }
+.kb-sc-link:hover { background: var(--accent-glow); }
+.kb-sc-foot { margin: 8px 0 0; font-size: 11px; color: var(--text-mute); }
+.kb-sc-more { margin: 4px 0 2px; max-width: 88%; }
+.kb-sc-more > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--accent); padding: 4px 0; }
 @media (max-width: 768px) {
   /* 채팅 머리(제목 · 답변 엔진)를 위아래로 — 엔진 이름이 길어져 좁은 화면에서 제목 칸이 눌렸다 */
   [data-view="agent-chat"] > .card > .flex:first-child { flex-direction: column; align-items: stretch; gap: 10px; }
   [data-view="agent-chat"] .chat-mode-select { flex: 1; min-width: 0; }
 }
 @media (max-width: 640px) {
-  .kb-bubble { max-width: 100%; }
+  .kb-bubble, .kb-sc, .kb-sc-more { max-width: 100%; }
+  .kb-sc-price { margin-left: 0; flex-basis: 100%; }   /* 좁으면 지금가를 이름 아래 줄로 */
   .kb-src-eff { display: none; }   /* 좁은 화면은 제목을 넓게 — 시행일은 펼친 칸의 판 줄에 있다 */
 }
 

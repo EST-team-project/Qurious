@@ -188,16 +188,40 @@
 .rs-chip:disabled { opacity: .45; cursor: default; }
 .rs-more-topics { border: 0; background: none; color: var(--accent); font-size: 12px; font-weight: 700; cursor: pointer; padding: 3px 4px; }
 .rs-sym-box { position: relative; }
-.rs-sym-q { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; font-size: 13px; background: var(--surf); color: var(--text); }
+/* 종목 칸은 찾기 줄에(2026-10-17 사용자 결정) — 겉모습은 낱말 칸과 같은 .input · 넓이만 정한다 */
+.rs-sym-q { width: 100%; }
+.rs-sym-hint { font-size: 12px; }
 .rs-suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; background: var(--surf); border: 1px solid var(--border);
   border-radius: 10px; box-shadow: 0 8px 20px rgba(15, 23, 42, .12); max-height: 280px; overflow-y: auto; }
 .rs-suggest li { padding: 7px 10px; font-size: 13px; cursor: pointer; }
-.rs-suggest li[data-code]:hover { background: var(--surf2); }
+.rs-suggest li[data-code]:hover, .rs-suggest li[data-code]:focus { background: var(--surf2); }
+.rs-suggest li[data-code]:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
 .rs-sym-chip { display: flex; justify-content: space-between; align-items: center; gap: 6px; background: var(--surf2); border-radius: 10px; padding: 7px 10px; font-size: 13px; }
 .rs-sym-x { border: 0; background: none; cursor: pointer; color: var(--text-dim); font-size: 13px; }
 .rs-main { padding: 18px 20px; min-width: 0; }
 .rs-bar { display: flex; gap: 8px; }
 .rs-bar .rs-q { flex: 1; min-width: 0; }
+.rs-bar .rs-sym-box { flex: 0 0 220px; min-width: 0; }
+/* 조건 줄 + 스위치 「이름표 없는 기사까지 보기 (n건 숨김)」(설계 A) — 좁으면 스위치가 아래 줄로 */
+.rs-cond-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 10px 0 4px; }
+.rs-cond-row .rs-cond { margin: 0; }
+.rs-switch { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); background: var(--surf); color: var(--text-dim);
+  border-radius: 999px; padding: 3px 10px 3px 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.rs-switch-knob { position: relative; width: 26px; height: 16px; border-radius: 999px; background: var(--surf2); flex: none; transition: background .15s; }
+.rs-switch-knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .3); transition: transform .15s; }
+.rs-switch[aria-checked="true"] { color: var(--accent); border-color: var(--accent); }
+.rs-switch[aria-checked="true"] .rs-switch-knob { background: var(--accent); }
+.rs-switch[aria-checked="true"] .rs-switch-knob::after { transform: translateX(10px); }
+/* 같은 제목 묶음 · 제목에 사이트 이름만 있는 기사 묶음(목록 끝) */
+.rs-same { font-size: 12px; color: var(--text-dim); }
+.rs-same > summary { cursor: pointer; font-weight: 700; color: var(--accent); align-self: flex-start; }
+.rs-same ul, .rs-sitegroup ul { margin: 6px 0 0 4px; padding-left: 14px; display: flex; flex-direction: column; gap: 3px; }
+.rs-same a, .rs-sitegroup a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.rs-sitegroups { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.rs-sitegroup { border: 1px dashed var(--border); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--text-dim); }
+.rs-sitegroup > summary { cursor: pointer; font-weight: 700; color: var(--text); }
+.rs-sitegroup p { margin: 6px 0 0; }
 .rs-cond { font-size: 12px; margin: 10px 0 4px; }
 .rs-list { display: flex; flex-direction: column; }
 .rs-item { padding: 14px 0; border-bottom: 1px solid #eef1f6; display: flex; flex-direction: column; gap: 5px; }
@@ -247,6 +271,10 @@
   .cal-sum { flex-basis: 100%; }
   .cal-modal-meta { grid-template-columns: minmax(0, 1fr); }
   .q-data-badge span:last-child { max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+  /* 찾기 줄 — 낱말 칸은 한 줄 통째로 · 종목 칸 + 「검색」 은 다음 줄 */
+  .rs-bar { flex-wrap: wrap; }
+  .rs-bar .rs-q { flex: 1 1 100%; }
+  .rs-bar .rs-sym-box { flex: 1 1 auto; }
 }
 /* 폭 390 — 위 머리글이 넘치지 않게 글자를 빼고 색 점만(테두리 · 점 색이 판정 · 누르면 서랍 · 요약은 title) · IA I12 · 2026-10-10 */
 @media (max-width: 480px) {

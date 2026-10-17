@@ -17,9 +17,17 @@
  *
  * 결정 · 근거: Figma 「Qurious · AI 투자 상담 — 근거 답과 출처」 05 결정 기록(2026-10-04) · 목표 기능 ① 설계서 v1.0
  *   5.3.4 · 5.3.6 · 조사서 「근거 답의 출처 표시 화면」.
+ * 2026-10-17 더함(같은 Figma 03-2 · 모의투자 점검 L2 · L5):
+ *   · 답 위 앱 판단 카드 — 질문에 종목 이름이 그대로 있으면 AI 답보다 먼저 우리 앱이 그 종목에 대해 아는 것(종목 허브 묶음)을 카드로.
+ *     질문 말풍선 바로 뒤에 자리를 먼저 잡고 근거 답과 함께 불러온다(답을 기다리게 하지 않음) · 그리기는 js/stockcard.js.
+ *   · 답 끝 「이 답의 용어」 칩 — 서버가 찾은 글 속 용어(POST /api/glossary/scan) · 누르면 용어 서랍 · 부품은 js/termchips.js.
  * 강사님 파일(agent.js)에는 가져오기 · 보내기 갈림만 두고 그리기는 모두 여기서 한다 — 다음 기초 코드 반영 때 충돌을 줄이려고.
  */
 import { api, setToast, escHtml } from "/js/common.js";
+import { navigate } from "/js/core.js";
+import { openResearchSymbol } from "/js/research.js";
+import { stockCardsHtml, stockHubPath } from "/js/stockcard.js";
+import { appendTermChips } from "/js/termchips.js";
 
 export const KB_MODES = new Set(["auto", "kb"]);
 /** 서버 AskBody.q 의 max_length — 넘으면 422 이므로 보내기 전에 막는다(화면 → API 상한) */
@@ -183,6 +191,55 @@ function excerptLead(res) {
   return "답 모델의 글을 근거로 확인할 수 없어 찾은 조문을 그대로 보여 드립니다.";
 }
 
+// ── 2-1. 답 위 앱 판단 카드(2026-10-17 · 결정 A · L2) ────────────────
+/** 카드의 「다른 화면으로」 — 그 화면으로 옮기고, 종목 칸이 있으면 코드를 넣어 연다(상품 상세의 연습 상자와 같은 꼴 · S119).
+ *  navigate 는 끝에서 화면 진입 훅을 바로 부르므로(core.js) 옮긴 직후 그 화면 칸이 있다. */
+const STOCK_CARD_OPEN = {
+  "robo-patterns": code => {
+    navigate("robo-patterns");
+    const input = document.getElementById("pt-symbol");
+    if (input) { input.value = code; document.getElementById("pt-run")?.click(); }
+  },
+  "robo-screening": () => navigate("robo-screening"),
+  "agent-cb": code => {                             // 재무 · 신용 위험 — 6자리 코드에 Enter 면 바로 그 회사를 연다(js/riskcb.js)
+    navigate("agent-cb");
+    const input = document.getElementById("rc-q");
+    if (input) { input.value = code; input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); }
+  },
+  "agent-news": (code, name) => { navigate("agent-news"); openResearchSymbol(code, name); },
+  "paper-stock": code => {
+    navigate("paper-stock");
+    const input = document.getElementById("ps-symbol");
+    if (input) { input.value = code; document.getElementById("ps-quote-btn")?.click(); input.focus(); }
+  },
+};
+
+/** 질문 말풍선 바로 뒤의 카드 자리 — 답보다 위에 오게 먼저 잡아 두고 채운다(종목이 없으면 지운다) */
+function reserveStockCard(box) {
+  const slot = el("div", "kb-sc-slot");
+  box.appendChild(slot);
+  return slot;
+}
+
+/** 질문 속 종목(서버 최대 둘)을 찾아 카드를 그린다. 종목이 없으면 자리를 지운다 · 종목을 읽었는데 앱 자료를 못 읽으면 그렇다고 한 줄 */
+async function fillStockCards(slot, q) {
+  let mentions = [];
+  try {
+    const m = await api(`/api/stock-hub/mentions?q=${encodeURIComponent(q.slice(0, MAX_Q))}`);
+    mentions = (m.items || []).slice(0, 2);
+  } catch (e) {
+    console.warn("질문 속 종목을 찾지 못해 앱 판단 카드를 그리지 않았습니다:", e.message);
+  }
+  if (!mentions.length) { slot.remove(); return; }
+  const hubs = await Promise.all(mentions.map(x => api(stockHubPath(x.symbol)).catch(() => null)));
+  const cards = mentions.map((mention, i) => ({ mention, hub: hubs[i] })).filter(card => card.hub);   // c 는 출처 카드 이름(TC-KS-03)
+  const lost = mentions.filter((_, i) => !hubs[i]).map(x => `「${x.matched || x.name}」`);
+  slot.innerHTML = stockCardsHtml(cards)
+    + (lost.length ? `<p class="kb-sc-why">질문의 ${escHtml(lost.join(" · "))} 을(를) 종목으로 읽었지만 앱 자료를 지금 읽지 못했습니다 — 잠시 뒤 다시 물어 주세요.</p>` : "");
+  slot.querySelectorAll("[data-sc-view]").forEach(b => b.addEventListener("click", () =>
+    STOCK_CARD_OPEN[b.dataset.scView]?.(b.dataset.scCode, b.dataset.scName)));
+}
+
 // ── 3. 상태마다 그리기 ───────────────────────────────────────────────
 /** answered · excerpt — 답(또는 발췌 안내)과 그 아래 출처 카드 */
 function renderKbAnswer(box, res) {
@@ -196,6 +253,7 @@ function renderKbAnswer(box, res) {
   }
   bubble.appendChild(el("div", "kb-foot", footHtml(res, { excerpt })));
   bubble.querySelectorAll(".kb-ans .kb-n").forEach(b => b.addEventListener("click", () => focusCard(bubble, b.dataset.n)));
+  if (!excerpt) appendTermChips(bubble, res.answer, { label: "이 답의 용어" });   // 발췌는 조문 글이라 칩을 붙이지 않는다
 }
 
 /** declined — 답하지 않는 질문 · 물을 수 있는 예시(누르면 입력칸에 넣는다) */
@@ -283,6 +341,7 @@ async function askGeneralAi(q, ctx) {
       bubble.insertAdjacentHTML("afterbegin",
         `<div class="kb-tag"><span class="kb-pill kb-pill--general">일반 AI 답 · 출처 없음</span>Local Ollama</div>`);
       bubble.insertAdjacentHTML("beforeend", `<div class="kb-foot kb-warn">${escHtml(GENERAL_NOTE)}</div>`);
+      appendTermChips(bubble, chat.answer, { label: "이 답의 용어" });   // 답 끝 용어 칩(결정 (가) · L5) — 답 글은 그대로
     }
   } catch (e) {
     waiting.stop();
@@ -307,6 +366,9 @@ export async function sendKbChat(q, mode, ctx, { keepInput = false } = {}) {
   }
   if (!keepInput) ctx.clearInput?.();
   ctx.appendUserMsg(q);
+  // 질문에 종목 이름이 있으면 답 위에 앱 판단 카드(결정 A · L2) — 자리를 먼저 잡고 근거 답과 함께 불러온다(답을 기다리게 하지 않음)
+  const slot = reserveStockCard(box);
+  fillStockCards(slot, q);
   const waiting = startWaiting(box, "법령 · 감독규정에서 근거를 찾고 답을 쓰는 중");
   let res;
   try {
@@ -337,8 +399,17 @@ export async function sendKbChat(q, mode, ctx, { keepInput = false } = {}) {
 /** 다른 엔진(Local Ollama · OpenAI · 순수 RAG)의 답 아래 — 같은 질문을 근거 답으로 다시 묻는 단추 */
 export function afterChatAnswer(q, mode, ctx) {
   if (KB_MODES.has(mode)) return;
-  const bubble = document.getElementById("chat-messages")?.lastElementChild?.firstElementChild;
+  const box = document.getElementById("chat-messages");
+  const row = box?.lastElementChild;
+  const bubble = row?.firstElementChild;
   if (!bubble) return;
+  // 다른 엔진 답 — 앱 판단 카드는 그 답 줄 위에(답보다 먼저 보이게 · 결정 A) · 용어 칩은 답 끝(다시 묻기 단추 위)에
+  const slot = reserveStockCard(box);
+  box.insertBefore(slot, row);
+  fillStockCards(slot, q);
+  const chipsHost = el("div", "kb-chips-host");
+  bubble.appendChild(chipsHost);
+  appendTermChips(chipsHost, bubble.querySelector("pre")?.textContent || "", { label: "이 답의 용어" });
   const wrap = el("div", "kb-again-wrap");
   const btn = el("button", "kb-again", "근거 답으로 다시 묻기");
   btn.type = "button";

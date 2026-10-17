@@ -260,3 +260,6 @@ API-PAPR-41	POST	/api/paper/stocks/orders/stop	S118	사용
 API-PAPR-42	GET	/api/paper/stocks/orders/stop	S118	사용
 API-PAPR-43	DELETE	/api/paper/stocks/orders/stop/{order_id}	S118	사용
 API-PAPR-44	POST	/api/paper/stocks/orders/stop/check	S118	사용
+API-GLOS-06	POST	/api/glossary/scan	S120	사용
+API-HUB-01	GET	/api/stock-hub	S120	사용
+API-HUB-02	GET	/api/stock-hub/mentions	S120	사용
