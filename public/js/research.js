@@ -229,10 +229,9 @@ async function fetchResearchStocks(q) {
     return (r.results || []).map(x => ({ code: String(x.symbol || "").replace(/\.(KS|KQ)$/i, ""), name: x.name || "", market: x.exchange || "" }))
       .filter(x => /^[0-9A-Z]{6}$/.test(x.code)).slice(0, 8);
   } catch (err) {
-    // 502 는 국내 상장 목록에서 못 찾은 뒤 해외 자동완성까지 실패한 경우다(app/routes/stocks.py — 국내 목록에서 찾으면 그 전에
-    // 돌려주고, 해외 자동완성은 한글 검색어에 400 을 준다). 국내 종목만 고르는 이 화면에선 「찾지 못함」 과 같다.
-    // 그 밖의 오류는 「없음」 으로 덮지 않는다 — 찾기 실패로 알린다(2026-10-17 손 시험에서 찾음).
-    return err?.status === 502 ? [] : null;
+    // 「찾지 못함」 은 서버가 200 · 빈 목록으로 준다(DF-125 고침 · #257 — 해외 자동완성의 400 을 서버가 「없음」 으로 바꿈).
+    // 여기로 오는 오류(502 · 연결 끊김)는 진짜 찾기 실패라 「없음」 으로 덮지 않는다(2026-10-17 손 시험 · 옛 우회 지움).
+    return null;
   }
 }
 
