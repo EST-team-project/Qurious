@@ -8,10 +8,15 @@
  * DF-61 — 옛 화면(강사님 agent.js)은 「AI RAG로 검색」 이라 적고 수집 기사 표를 글자로 찾아 5건을 돌려줬다.
  *   이 화면은 AI 가 답을 쓰지 않는다(근거를 단 답은 「AI 투자 상담」 · js/kbchat.js). 찾는 것은 수집기가 매일 12:30 에
  *   다시 짓는 검색 색인(공시 77만 · 정책뉴스 3만 · 언론사 기사 제목)이다.
- * 읽는 API: GET /api/data/search(API-DATA-03 · source · facets) · /api/calendar/events(종목 일정 · API-CAL-02)
+ * 2026-10-17 고침(Figma 같은 파일 03-2 — 설계 A · 세 안 공통 · 모의투자 점검 L4 · L11):
+ *   첫 목록은 「투자 관련만」(서버 tagged — 공시 + 종목 · 주제 이름표가 붙은 뉴스) · 스위치 「이름표 없는 기사까지 보기 (n건 숨김)」
+ *   (n 은 서버 facets.untagged) · 같은 제목은 한 줄로 · 제목이 사이트 이름뿐인 기사는 목록 끝에 모음(판단은 js/researchrows.js) ·
+ *   종목 칸은 찾기 줄로(낱말 칸 옆 · 사용자 결정) — Enter · 「검색」 이 제안 목록을 기다리지 않고 바로 종목을 찾는다.
+ * 읽는 API: GET /api/data/search(API-DATA-03 · source · facets · tagged) · /api/calendar/events(종목 일정 · API-CAL-02)
  *           GET /api/stocks/search(종목 이름 → 코드)
  */
 import { api, escHtml } from "/js/common.js";
+import { groupResearchRows, researchSwitchText, resolveStockQuery } from "/js/researchrows.js";
 
 const VIEW = "agent-news";
 //: 출처 → [이름, 색 이름] — 서버 data_search.SOURCES 와 같은 셋
@@ -40,7 +45,8 @@ const WEEK = "일월화수목금토";
 const S = {
   q: "", source: "", symbol: "", symbolName: "", topic: "", period: "1m", tlPeriod: "6m", sort: "",   // sort "" = 자동
   view: "list", tlKinds: new Set(["disclosure", "news", "event"]), topicsOpen: false,
-  items: [], total: 0, capped: false, facets: null, offset: 0, loading: false, error: "", hint: "",
+  tagged: true,                                   // 첫 목록은 「투자 관련만」(2026-10-17 설계 A) — 스위치로 이름표 없는 기사까지
+  items: [], total: 0, capped: false, facets: null, untagged: null, offset: 0, loading: false, error: "", hint: "",
   tl: null,                                       // 시간표 { disc, news, events, totals, offsets, error }
 };
 let seq = 0;                                      // 늦게 온 응답이 새 조건의 결과를 덮지 않게
@@ -89,9 +95,10 @@ function listParams(offset) {
   if (S.source) p.set("source", S.source);
   if (S.symbol) p.set("symbol", S.symbol);
   if (S.topic) p.set("topic", S.topic);
+  if (S.tagged) p.set("tagged", "true");
   const from = fromDate(S.period);
   if (from) p.set("from", from);
-  if (!offset) p.set("facets", "true");            // 종류 칸의 개수는 첫 쪽에서만(같은 조건이면 그대로)
+  if (!offset) p.set("facets", "true");            // 종류 칸의 개수 · 숨긴 수는 첫 쪽에서만(같은 조건이면 그대로)
   return p.toString();
 }
 
@@ -106,7 +113,7 @@ async function loadList(more = false) {
     if (my !== seq) return;
     S.items = more ? [...S.items, ...(r.items || [])] : (r.items || []);
     S.total = r.total || 0; S.capped = Boolean(r.total_capped);
-    if (r.facets) S.facets = r.facets.source;
+    if (r.facets) { S.facets = r.facets.source; S.untagged = r.facets.untagged || null; }
     S.offset = S.items.length;
   } catch (err) {
     if (my !== seq) return;
@@ -174,10 +181,10 @@ function filtersHtml() {
   const kinds = [["", "전체", S.facets ? all : null], ...Object.entries(SOURCES).map(([k, [label]]) => [k, label, S.facets ? (f[k] || 0) : null])]
     .map(([k, label, n]) => `<button type="button" class="rs-kind ${S.source === k ? "on" : ""}" data-source="${k}" aria-pressed="${S.source === k}">
       <span>${escHtml(label)}</span><span class="rs-count">${n === null ? "—" : num(n)}</span></button>`).join("");
+  // 종목 칸은 찾기 줄로 옮겼다(2026-10-17 사용자 결정) — 거름 칸에는 고른 종목 칩(풀기 ✕)만
   const sym = S.symbol
     ? `<div class="rs-sym-chip"><span>${escHtml(S.symbolName || S.symbol)} ${escHtml(S.symbol)}</span><button type="button" class="rs-sym-x" aria-label="종목 거름 풀기">✕</button></div>`
-    : `<div class="rs-sym-box"><input type="search" class="rs-sym-q" placeholder="종목 이름 · 코드" aria-label="종목 이름이나 코드로 고르기" autocomplete="off">
-        <ul class="rs-suggest" role="listbox" hidden></ul></div>`;
+    : `<p class="q-muted rs-sym-hint">찾기 줄의 종목 칸에서 고릅니다.</p>`;
   const tl = S.view === "timeline" && S.symbol;
   const topics = (S.topicsOpen ? TOPICS : TOPICS.slice(0, TOPICS_SHOWN)).map(t => chipBtn("data-topic", t, t, S.topic === t)).join("")
     + `<button type="button" class="rs-more-topics">${S.topicsOpen ? "접기" : `더 보기 ${TOPICS.length - TOPICS_SHOWN}`}</button>`;
@@ -211,47 +218,131 @@ function paintFilters() {
     if (S.tlKinds.has(k) && S.tlKinds.size > 1) S.tlKinds.delete(k); else S.tlKinds.add(k);
     paintFilters(); loadTimeline();
   }));
-  box.querySelector(".rs-sym-x")?.addEventListener("click", () => { S.symbol = ""; S.symbolName = ""; S.view = "list"; paintAll(); loadList(); });
-  const input = box.querySelector(".rs-sym-q");
-  if (input) {
-    input.addEventListener("input", () => { clearTimeout(suggestTimer); suggestTimer = setTimeout(() => suggest(input), 250); });
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter") { e.preventDefault(); box.querySelector(".rs-suggest li")?.click(); }
-      if (e.key === "Escape") { box.querySelector(".rs-suggest").hidden = true; }
-    });
+  box.querySelector(".rs-sym-x")?.addEventListener("click", () => clearResearchSymbol());
+}
+
+// ── 종목 칸(찾기 줄) ──────────────────────────────────────────────────────
+/** 국내 종목 후보 — 이름 · 코드로 찾아 6자리 코드만(제안 목록 · Enter · 「검색」 이 함께 쓴다) · 찾기가 실패하면 null */
+async function fetchResearchStocks(q) {
+  try {
+    const r = await api(`/api/stocks/search?q=${encodeURIComponent(q)}`, { redirectOnUnauthorized: false });
+    return (r.results || []).map(x => ({ code: String(x.symbol || "").replace(/\.(KS|KQ)$/i, ""), name: x.name || "", market: x.exchange || "" }))
+      .filter(x => /^[0-9A-Z]{6}$/.test(x.code)).slice(0, 8);
+  } catch (err) {
+    // 502 는 국내 상장 목록에서 못 찾은 뒤 해외 자동완성까지 실패한 경우다(app/routes/stocks.py — 국내 목록에서 찾으면 그 전에
+    // 돌려주고, 해외 자동완성은 한글 검색어에 400 을 준다). 국내 종목만 고르는 이 화면에선 「찾지 못함」 과 같다.
+    // 그 밖의 오류는 「없음」 으로 덮지 않는다 — 찾기 실패로 알린다(2026-10-17 손 시험에서 찾음).
+    return err?.status === 502 ? [] : null;
   }
 }
 
-/** 종목 고르기 — 이름 · 코드로 찾아 국내 종목(6자리)만 보인다 */
-async function suggest(input) {
+/** 제안 목록을 그린다 — 줄을 누르거나(Enter) 고르면 그 종목 · ↑ ↓ 로 옮기고 Esc 로 닫는다 */
+function showResearchSuggest(input, rows) {
   const list = input.parentElement.querySelector(".rs-suggest");
-  const q = input.value.trim();
-  if (!q) { list.hidden = true; return; }
-  let rows = [];
-  try {
-    const r = await api(`/api/stocks/search?q=${encodeURIComponent(q)}`, { redirectOnUnauthorized: false });
-    rows = (r.results || []).map(x => ({ code: String(x.symbol || "").replace(/\.(KS|KQ)$/i, ""), name: x.name || "", market: x.exchange || "" }))
-      .filter(x => /^[0-9A-Z]{6}$/.test(x.code)).slice(0, 8);
-  } catch { rows = []; }
-  if (input.value.trim() !== q) return;            // 그사이 더 쳤다
-  list.innerHTML = rows.length
-    ? rows.map(x => `<li role="option" tabindex="-1" data-code="${escHtml(x.code)}" data-name="${escHtml(x.name)}"><strong>${escHtml(x.name)}</strong> <span class="q-muted">${escHtml(x.code)} · ${escHtml(x.market)}</span></li>`).join("")
-    : `<li class="rs-suggest-none q-muted">국내 상장 종목에서 찾지 못했습니다</li>`;
+  list.innerHTML = rows === null
+    ? `<li class="rs-suggest-none q-muted">종목 찾기가 잠시 안 됩니다 — 다시 눌러 보세요</li>`
+    : rows.length
+      ? rows.map(x => `<li role="option" tabindex="-1" data-code="${escHtml(x.code)}" data-name="${escHtml(x.name)}"><strong>${escHtml(x.name)}</strong> <span class="q-muted">${escHtml(x.code)} · ${escHtml(x.market)}</span></li>`).join("")
+      : `<li class="rs-suggest-none q-muted">국내 상장 종목에서 찾지 못했습니다</li>`;
   list.hidden = false;
-  list.querySelectorAll("li[data-code]").forEach(li => li.addEventListener("click", () => pickSymbol(li.dataset.code, li.dataset.name)));
+  input.setAttribute("aria-expanded", "true");
+  const items = [...list.querySelectorAll("li[data-code]")];
+  items.forEach((li, i) => {
+    li.addEventListener("click", () => pickSymbol(li.dataset.code, li.dataset.name));
+    li.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); li.click(); }
+      if (e.key === "ArrowDown") { e.preventDefault(); (items[i + 1] || li).focus(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); (items[i - 1] || input).focus(); }
+      if (e.key === "Escape") { e.preventDefault(); hideResearchSuggest(input); input.focus(); }
+    });
+  });
 }
 
-/** 종목 하나를 고르면 같은 자리가 시간표로 바뀐다(결정 해석 1). 시간표는 그 종목 전부로 시작한다 — 찾던 낱말이
- *  남으면(「반도체」 로 찾다 삼성전기를 누름) 공시 0 · 기사 1 처럼 비어 보인다(2026-10-06 화면 확인). 낱말은 다시 넣어 좁힌다. */
-function pickSymbol(code, name) {
-  S.symbol = code; S.symbolName = name || ""; S.view = "timeline"; S.q = "";
-  const input = root()?.querySelector(".rs-q");
-  if (input) input.value = "";
+function hideResearchSuggest(input) {
+  const list = input?.parentElement?.querySelector(".rs-suggest");
+  if (list) list.hidden = true;
+  input?.setAttribute("aria-expanded", "false");
+}
+
+/** 치는 동안의 제안 목록(0.25초 쉼 뒤) — 이름 · 코드로 찾아 국내 종목(6자리)만 보인다 */
+async function suggest(input) {
+  const q = input.value.trim();
+  if (!q) { hideResearchSuggest(input); return; }
+  const rows = await fetchResearchStocks(q);
+  if (input.value.trim() !== q) return;            // 그사이 더 쳤다
+  showResearchSuggest(input, rows);
+}
+
+/** Enter · 「검색」 — 제안 목록을 기다리지 않고 바로 찾는다(점검 <표 2> 라 · 마). 이름 · 코드가 정확히 같은 것 하나면 그 종목으로
+ *  바로 · 여럿이면 제안 목록을 열고 첫 줄에 초점 · 없으면 「찾지 못했습니다」(판단은 researchrows.js). 돌려주는 값: 판단 종류 · "stale". */
+async function findResearchStock(input, { keepQuery = false } = {}) {
+  clearTimeout(suggestTimer);                      // 쉬는 중인 제안 목록 부르기는 버린다(같은 글을 두 번 찾지 않게)
+  const q = input.value.trim();
+  const rows = q ? await fetchResearchStocks(q) : [];
+  if (input.value.trim() !== q) return "stale";
+  if (rows === null) { showResearchSuggest(input, null); return "failed"; }
+  const got = resolveStockQuery(rows, q);
+  if (got.kind === "pick") { pickSymbol(got.code, got.name, { keepQuery }); return "pick"; }
+  if (got.kind === "empty") { hideResearchSuggest(input); return "empty"; }
+  showResearchSuggest(input, rows);
+  if (got.kind === "list") input.parentElement.querySelector(".rs-suggest li[data-code]")?.focus();
+  return got.kind;
+}
+
+/** 종목 칸 키 — Enter 는 「검색」 과 같은 길(낱말 · 종목을 함께 · 제안 목록을 기다리지 않음) · ↓ 는 제안 목록으로 · Esc 는 닫기 */
+function onResearchSymbolKey(e) {
+  const input = e.currentTarget;
+  if (e.key === "Enter") { e.preventDefault(); input.form?.requestSubmit(); }
+  if (e.key === "ArrowDown") {
+    const first = input.parentElement.querySelector(".rs-suggest:not([hidden]) li[data-code]");
+    if (first) { e.preventDefault(); first.focus(); }
+  }
+  if (e.key === "Escape") hideResearchSuggest(input);
+}
+
+/** 종목 칸 글을 지금 고른 종목에 맞춘다 — 고르면 그 이름 · 풀면 빈칸 */
+function syncResearchSymbolInput() {
+  const input = root()?.querySelector(".rs-sym-q");
+  if (input) input.value = S.symbol ? (S.symbolName || S.symbol) : "";
+}
+
+/** 종목 거름 풀기(거름 칸 칩 ✕ · 종목 칸을 비우고 검색 · 칸의 ✕) — 목록으로 돌아간다 · 낱말 · 다른 거름은 그대로 */
+function clearResearchSymbol() {
+  S.symbol = ""; S.symbolName = ""; S.view = "list";
+  syncResearchSymbolInput();
+  paintAll(); loadList();
+}
+
+/** 찾기 줄의 종목 칸 묶기 — 치는 동안 제안 목록(0.25초 쉼) · 키 · 칸의 ✕ · 칸 밖으로 나가면 목록 닫기 */
+function wireResearchBar(r) {
+  const input = r.querySelector(".rs-sym-q");
+  input.addEventListener("input", () => { clearTimeout(suggestTimer); suggestTimer = setTimeout(() => suggest(input), 250); });
+  input.addEventListener("keydown", onResearchSymbolKey);
+  input.addEventListener("search", () => { if (!input.value.trim() && S.symbol) clearResearchSymbol(); });   // 칸의 ✕
+  const box = input.parentElement;
+  box.addEventListener("focusout", e => { if (!box.contains(e.relatedTarget)) hideResearchSuggest(input); });
+  // 「검색」 단추로 연 목록은 초점이 이미 칸 밖이라 초점 잃음으로는 못 닫는다 — 칸 밖을 누르면 닫는다(손 시험에서 찾음)
+  document.addEventListener("click", e => { if (!box.contains(e.target)) hideResearchSuggest(input); });
+}
+
+/** 종목 하나를 고르면 같은 자리가 시간표로 바뀐다(결정 해석 1). 제안 목록에서 고르면 그 종목 전부로 시작한다 — 찾던 낱말이
+ *  남으면(「반도체」 로 찾다 삼성전기를 누름) 공시 0 · 기사 1 처럼 비어 보인다(2026-10-06 화면 확인). 낱말은 다시 넣어 좁힌다.
+ *  「검색」 이 낱말 칸 · 종목 칸을 함께 보낼 때만(keepQuery) 친 낱말을 남긴다(2026-10-17 — 두 칸이 한 찾기 줄에 있다). */
+function pickSymbol(code, name, { keepQuery = false } = {}) {
+  S.symbol = code; S.symbolName = name || ""; S.view = "timeline";
+  if (!keepQuery) {
+    S.q = "";
+    const input = root()?.querySelector(".rs-q");
+    if (input) input.value = "";
+  }
+  const symInput = root()?.querySelector(".rs-sym-q");
+  hideResearchSuggest(symInput);
+  syncResearchSymbolInput();
   paintAll(); loadTimeline();
   if (!S.symbolName) {                             // 이름표에는 코드만 있을 때 — 이름을 채운다(실패해도 코드로 보인다)
     api(`/api/stocks/search?q=${encodeURIComponent(code)}`, { redirectOnUnauthorized: false }).then(r => {
       const hit = (r.results || []).find(x => String(x.symbol || "").replace(/\.(KS|KQ)$/i, "") === code);
-      if (hit && S.symbol === code) { S.symbolName = hit.name || ""; paintFilters(); paintResults(); }
+      if (hit && S.symbol === code) { S.symbolName = hit.name || ""; syncResearchSymbolInput(); paintFilters(); paintResults(); }
     }).catch(() => {});
   }
 }
@@ -268,7 +359,31 @@ function keyNumbersHtml(k) {
   return `<p class="rs-key">${escHtml(parts.join(" · "))} <span class="q-muted">(${k.fs_div === "CFS" ? "연결" : "별도"}${k.same_filing ? "" : " · 같은 기간의 가장 최근 판"})</span></p>`;
 }
 
-function itemHtml(it) {
+/** 같은 제목 묶음 — 「같은 제목 n건」 을 펴면 묶인 기사마다 시각 · 게시처 · 원문(쪽 넘기기는 그대로 · 2026-10-17 설계 A) */
+function sameTitleHtml(it, same) {
+  if (!same.length) return "";
+  const all = [it, ...same];
+  return `<details class="rs-same"><summary>같은 제목 ${num(all.length)}건</summary><ul>${all.map(x => {
+    const url = safeUrl(x.url);
+    const where = [shortDay(x.published) + (timeOf(x.published) ? ` ${timeOf(x.published)}` : ""),
+      (x.extra || {}).publisher || SOURCES[x.source]?.[0] || ""].filter(Boolean).join(" · ");
+    return `<li>${escHtml(where)}${url ? ` · <a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">원문 ›</a>` : ""}</li>`;
+  }).join("")}</ul></details>`;
+}
+
+/** 제목이 사이트 이름뿐인 기사 묶음(서버 site_name_title · L11) — 받은 목록 끝에 게시처마다 접힌 한 줄 */
+function siteGroupHtml(g) {
+  const lines = g.items.map(x => {
+    const url = safeUrl(x.url);
+    const at = shortDay(x.published) + (timeOf(x.published) ? ` ${timeOf(x.published)}` : "");
+    return `<li>${escHtml(at)}${url ? ` · <a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">기사 원문 ›</a>` : ""}</li>`;
+  }).join("");
+  // 수는 받은 줄 가운데 몇 건인지다(전체 수가 아님 — 「더 보기」 로 더 받으면 는다)
+  return `<details class="rs-sitegroup"><summary>제목에 사이트 이름만 있는 기사 — 「${escHtml(g.title)}」${g.publisher ? ` · ${escHtml(g.publisher)}` : ""} · 받은 ${num(g.items.length)}건</summary>
+    <p class="q-muted">제목만으로는 무슨 기사인지 알 수 없어 목록 끝에 모았습니다. 원문을 열어 확인하세요.</p><ul>${lines}</ul></details>`;
+}
+
+function itemHtml(it, same = []) {
   const [label, tone] = SOURCES[it.source] || [it.source, "dart"];
   const ex = it.extra || {};
   const meta = [shortDay(it.published) + (timeOf(it.published) ? ` ${timeOf(it.published)}` : "")];
@@ -292,6 +407,7 @@ function itemHtml(it) {
     ${sum}${keyNumbersHtml(it.key_numbers)}
     ${ex.attribution ? `<p class="rs-attr">출처: ${escHtml(ex.attribution)}</p>` : ""}
     ${url ? `<a class="rs-link" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${linkLabel} ›</a>` : ""}
+    ${sameTitleHtml(it, same)}
   </article>`;
 }
 
@@ -307,7 +423,17 @@ function conditionText() {
   if (S.source) parts.push(SOURCES[S.source][0]);
   if (S.topic) parts.push(`주제 「${S.topic}」`);
   parts.push(PERIODS[S.period][0], sortNow() === "relevance" ? "관련도순" : "최신순");
+  if (S.tagged && S.source !== "dart") parts.push("투자 관련만");   // 공시만 볼 때는 거름이 하는 일이 없다
   return parts.join(" · ");
+}
+
+/** 스위치 「이름표 없는 기사까지 보기 (n건 숨김)」 — 목록일 때만 · n 은 서버 facets.untagged · 숨길 것이 없으면 감춘다 */
+function switchHtml() {
+  if (S.view === "timeline" && S.symbol) return "";
+  if (S.source === "dart" || !S.untagged) return "";
+  const { n, text } = researchSwitchText(S.tagged, S.untagged);
+  if (!n) return "";
+  return `<button type="button" class="rs-switch" role="switch" aria-checked="${!S.tagged}"><span class="rs-switch-knob" aria-hidden="true"></span>${escHtml(text)}</button>`;
 }
 
 function listHtml() {
@@ -319,7 +445,10 @@ function listHtml() {
   const exact = exactTotal();
   const more = S.items.length < S.total
     ? `<button type="button" class="btn-secondary rs-more">더 보기 (${num(S.items.length)} / ${num(exact ?? S.total)}${exact === null && S.capped ? "+" : ""})</button>` : "";
-  return `<div class="rs-list">${S.items.map(itemHtml).join("")}</div>${more}`;
+  // 같은 제목은 한 줄로 · 제목이 사이트 이름뿐인 기사는 끝에(판단은 researchrows.js — 받은 줄 전부를 다시 묶는다)
+  const g = groupResearchRows(S.items);
+  const sites = g.siteGroups.length ? `<div class="rs-sitegroups">${g.siteGroups.map(siteGroupHtml).join("")}</div>` : "";
+  return `<div class="rs-list">${g.rows.map(row => itemHtml(row.it, row.same)).join("")}</div>${sites}${more}`;
 }
 
 function tlItemHtml(x) {
@@ -371,6 +500,11 @@ function paintResults() {
   const tl = S.view === "timeline" && S.symbol;
   const exact = exactTotal();
   head.innerHTML = `${escHtml(conditionText())}${tl ? "" : ` — <strong>${S.loading ? "…" : num(exact ?? S.total)}${exact === null && S.capped ? "+" : ""}건</strong>`}`;
+  const sw = r.querySelector(".rs-switch-box");
+  if (sw) {
+    sw.innerHTML = switchHtml();
+    sw.querySelector(".rs-switch")?.addEventListener("click", () => { S.tagged = !S.tagged; loadList(); });
+  }
   box.innerHTML = tl ? timelineHtml() : listHtml();
   box.querySelector(".rs-more")?.addEventListener("click", () => loadList(true));
   box.querySelector(".rs-tl-more")?.addEventListener("click", () => loadTimeline(true));
@@ -408,20 +542,34 @@ function renderResearch() {
       <details class="card rs-filters" open><summary>거름 칸</summary><div class="rs-filters-body"></div></details>
       <div class="card rs-main">
         <form class="rs-bar" role="search"><input type="search" class="input rs-q" aria-label="찾을 낱말" value="${escHtml(S.q)}">
+          <div class="rs-sym-box"><input type="search" class="input rs-sym-q" placeholder="종목 — 이름 · 코드" aria-label="종목 이름이나 코드로 고르기"
+            autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rs-suggest-list" value="${escHtml(S.symbol ? (S.symbolName || S.symbol) : "")}">
+            <ul class="rs-suggest" id="rs-suggest-list" role="listbox" aria-label="종목 후보" hidden></ul></div>
           <button type="submit" class="btn-primary">검색</button></form>
-        <p class="rs-cond q-muted"></p>
+        <div class="rs-cond-row"><p class="rs-cond q-muted"></p><div class="rs-switch-box"></div></div>
         <div class="rs-results"></div>
         <p class="q-up-note">자료는 수집기가 매일 12:30 에 받아 검색 색인을 다시 짓습니다. 공시는 전자공시(DART) 목록, 정책뉴스는 공공누리 제1유형 기사만 본문을 두고,
           언론사 기사는 제목 · 주소만(GDELT 메타데이터) — 본문은 원문 링크로 엽니다. 이름표(종목 · 주제)는 규칙으로 붙였습니다.</p>
       </div></div>`;
   if (window.matchMedia?.("(max-width: 900px)").matches) r.querySelector(".rs-filters").open = false;   // 좁은 화면은 접어 두기
-  r.querySelector(".rs-bar").addEventListener("submit", e => {
+  r.querySelector(".rs-bar").addEventListener("submit", async e => {
     e.preventDefault();
     S.q = r.querySelector(".rs-q").value.trim();   // 차례를 고르지 않았으면 낱말이 생길 때 관련도순으로(sortNow)
     if (!S.q && S.sort === "relevance") S.sort = "";   // 낱말 없는 관련도순은 뜻이 없다 — 자동(최신순)으로(DF-86)
+    // 종목 칸 — 새로 친 종목은 먼저 찾는다(제안 목록을 기다리지 않음 · 점검 <표 2> 마 「검색은 종목 칸 글을 버린다」 고침).
+    // 정확히 같은 것 하나면 낱말과 함께 그 종목의 시간표로 · 여럿 · 없음이면 목록 · 알림을 보이고 사용자가 고른다.
+    const symInput = r.querySelector(".rs-sym-q");
+    const typed = symInput.value.trim();
+    const current = S.symbol ? (S.symbolName || S.symbol) : "";
+    if (typed && typed !== current) {
+      await findResearchStock(symInput, { keepQuery: true });
+      return;
+    }
+    if (!typed && S.symbol) { clearResearchSymbol(); return; }   // 종목 칸을 비우고 검색 — 종목 거름을 푼다
     paintFilters();
     reload();
   });
+  wireResearchBar(r);
   // 검색어를 비우면 바로 최신 소식으로(2026-10-08 결정 · DF-86) — ✕ 를 누르거나 글을 다 지운 순간 낱말 조건을 빼고 차례를
   // 자동(낱말이 없으면 최신순)으로 되돌려 다시 받는다. 종류 · 종목 · 주제 · 기간 거름은 그대로 둔다(옛 동작: 칸만 비고 결과는 옛 낱말).
   const qInput = r.querySelector(".rs-q");
@@ -430,6 +578,13 @@ function renderResearch() {
   qInput.addEventListener("search", onResearchQueryCleared);   // 검색 칸의 ✕ (input 과 함께 오면 두 번째는 아무것도 안 한다)
   paintAll();
   loadList();                                       // 처음은 늘 목록(종목을 고르기 전)
+}
+
+/** 다른 화면(AI 투자 상담의 앱 판단 카드 · js/kbchat.js)에서 종목을 넘겨 연다 — 제안 목록에서 고른 것처럼 그 종목 전부의 시간표로.
+ *  화면 진입 훅이 먼저 그렸으면 그대로 두고(renderResearch 가 가린다) 종목만 바꾼다(앞 목록 응답은 seq 로 버린다). */
+export function openResearchSymbol(code, name) {
+  renderResearch();
+  pickSymbol(code, name);
 }
 
 /** main.js 의 화면 진입 훅 — 처음 들어올 때 그리고, 다시 들어오면 고른 조건 · 결과를 그대로 둔다(renderResearch 가 가린다). */

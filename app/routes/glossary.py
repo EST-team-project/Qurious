@@ -6,9 +6,11 @@
 - GET /api/glossary/{name}        : 용어 한 건 — 대표 이름 · ID · 약어 · 영어 이름 · 화면 키 어느 것으로도 찾는다
                                     (2026-10-02~ 연관 개념 `related[]` — 헷갈리는 말 · 상위 · 하위 · 연관)
 - GET /api/glossary/{name}/graph  : 관계 지도 — 한 용어에서 1 · 2 단계까지 이어진 용어(노드)와 관계(간선)
+- POST /api/glossary/scan         : 글 속 용어 찾기 — 답 · 신호 이름 · 본문에 든 용어(2026-10-17 · `app/services/glossary_scan.py`)
+                                    글이 길어(상담 답 4,000자까지) 주소 대신 본문으로 받는다 · 아무것도 바꾸지 않는다
 
 로그인 없이 읽는다
-    용어 풀이는 누구에게나 같은 참조 자료이고 사용자 데이터가 없다. 읽기 전용이라 바꾸는 주소도 없다.
+    용어 풀이는 누구에게나 같은 참조 자료이고 사용자 데이터가 없다. 읽기 전용이라 바꾸는 주소도 없다(찾기의 POST 도 읽기만).
     (용어를 고치는 길은 API 가 아니라 파일이다 — scripts/glossary_build.py)
 
 주소 차례
@@ -17,13 +19,32 @@
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgres import get_pg_session
-from app.services import glossary
+from app.services import glossary, glossary_scan
 
 router = APIRouter(prefix="/api/glossary", tags=["glossary"])
+
+
+class ScanBody(BaseModel):
+    text: str = Field(..., min_length=1, max_length=glossary_scan.MAX_TEXT, description="찾을 글(상담 답 · 신호 이름 · 본문)")
+    limit: int = Field(glossary_scan.DEFAULT_LIMIT, ge=1, le=glossary_scan.MAX_LIMIT, description="돌려줄 용어 수 상한")
+
+
+@router.post("/scan", summary="글 속 용어 찾기 — 답 · 신호 이름 · 본문에 든 용어사전 용어")
+async def scan_terms(body: ScanBody):
+    """글에 든 용어(대표 이름 · 약어 · 다른 이름)를 나온 차례로 — 화면은 `id` 로 용어 칩(`data-term`)을 붙인다."""
+    items = await asyncio.to_thread(glossary_scan.scan, body.text, limit=body.limit)
+    return {
+        "items": items,
+        "rule": ("띄어쓰기는 접어 견줍니다 · 영문은 대문자 약어만 · 한글 두 글자 이하는 금융 고유어만 · 겹치면 긴 이름 · "
+                 "같은 용어는 한 번 · 글에 나온 차례"),
+    }
 
 
 @router.get("", summary="용어 목록 · 검색")

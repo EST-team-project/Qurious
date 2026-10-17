@@ -24,7 +24,7 @@
 용어를 고치려면 — 자료 글은 고치지 않는다(`rag-lab/` 은 원본 그대로 둔다). 이 파일의 표 넷 가운데 하나에 한 줄을 더한다.
     뜻 · 분류가 틀렸다            → OVERRIDES   {대표 이름: {칸: 값}}
     이름이 다른 같은 말이다        → SAME_AS     {자료에 적힌 이름: 대표 이름}
-    이름이 같은데 다른 말이다      → RENAME      {자료에 적힌 제목: 이 사전에서 쓸 제목}
+    이름이 같은데 다른 말이다      → RENAME      {자료에 적힌 제목: 이 사전에서 쓸 제목} (강의 자료 · 용어집 표)
     이름 옆의 말이 이름이 아니다   → NOT_ALIAS   {대표 이름: 별칭에서 뺄 말}
     화면 용어를 더한다            → public/js/core.js 의 TERMS 에 더하고 QURIOUS_CATEGORY 에 분류를 적는다.
     자료에 없는 말을 더한다        → CANDIDATES 에 「후보」(status candidate)로 적고, 풀이를 검토받은 뒤 approved 로 바꾼다
@@ -123,6 +123,8 @@ QURIOUS_CATEGORY: dict[str, str] = {
     "custom_indicator": "app", "position_sizing": "quant", "drawdown": "quant", "broker_catalog": "app",
     # 2026-10-13 재무 · 신용 위험 화면의 도움말 용어 셋
     "debt_ratio": "fundamental", "current_ratio": "fundamental", "credit_spread": "macro",
+    # 2026-10-17 같은 화면 재무 건전성 칸의 자기자본비율 — 용어집의 같은 이름은 은행 BIS 비율이라 회사 재무의 뜻을 따로 둔다
+    "equity_ratio": "fundamental",
 }
 
 # 자료마다 이름이 달라 자동으로 못 잇는 같은 말 — {자료에 적힌 이름: 대표 이름}.
@@ -168,6 +170,12 @@ OVERRIDES: dict[str, dict[str, str]] = {
     "환헤지": {"category": "fund"},
     # 강의 풀이가 「장내거래는 …」 으로 시작해, 첫 문장을 뜻 한 줄로 쓰면 장외의 뜻이 아니다 — 같은 풀이의 둘째 문단 첫 문장을 쓴다.
     "장외": {"summary": "장외(OTC)거래는 거래소의 공개 주문장 밖에서 금융회사·기업 등 당사자가 거래 조건을 직접 합의하는 방식입니다."},
+    # 회사 재무의 자기자본비율(화면 용어 equity_ratio 가 뜻을 준다) — 은행의 BIS 비율과 헷갈리지 않게 영어 이름 · 식 · 주의를 단다
+    # (2026-10-17 · 용어집의 같은 이름 줄은 BIS 비율로 옮김 — RENAME).
+    "자기자본비율": {"english": "Equity Ratio",
+                "formula": "자기자본비율(%) = 자본총계 ÷ 자산총계 × 100",
+                "caution": "은행 · 보험 같은 금융회사는 예금 · 보험 부채가 장사 밑천이라 이 값이 낮게 나옵니다 — 같은 업종끼리 견줍니다. "
+                           "은행의 건전성을 보는 BIS 비율(규제자본 ÷ 위험가중자산 · 최소 8%)과는 다른 지표입니다."},
 }
 
 # 자료의 제목이 괄호로 가른 **다른 개념** — 괄호를 떼면 이름이 같아져 다른 풀이와 한 용어로 합쳐진다.
@@ -177,6 +185,9 @@ RENAME: dict[str, str] = {
     "수익률(YTM)": "만기수익률(YTM)",         # 강의 3일차 — 채권의 만기수익률. 일반 수익률과 다른 말이다
     "국채 ETF(EDV)": "EDV",                  # 강의 3일차 — 국채 ETF 일반이 아니라 상품 하나의 풀이다
     "미국국채 ETF(TLT)": "TLT",
+    # 용어집(finance) 「이론 용어」 표 — 풀이가 「은행이 위험자산 대비 … 최소 8%」 인 은행 BIS 비율이다. 회사 재무의 자기자본비율
+    # (자본총계 ÷ 자산총계 · 재무 건전성 칸 · 화면 용어 equity_ratio)과 이름만 같다(2026-10-17 · 용어집 표에도 이 표가 걸린다).
+    "자기자본비율": "BIS 비율(BIS 자기자본비율)",
 }
 
 # 자료가 이름 옆에 적어 둔 말 가운데 **이름이 아닌 것** — 별칭으로 넣으면 그 말로 찾았을 때 엉뚱한 용어가 나온다.
@@ -208,8 +219,12 @@ PAIR_NAMES: dict[str, str] = {
 }
 
 #: 사람이 고른 관계 — (용어, 종류, 용어, 설명). 재료는 이름을 함께 쓰는 용어(shared_names) · 설명문에 다른 표제어가
-#: 나오는 경우다(설계서 5.4.2 — 「후보 · 사람이 고름」). 아직 고른 것이 없다.
-RELATIONS: list[tuple[str, str, str, str]] = []
+#: 나오는 경우다(설계서 5.4.2 — 「후보 · 사람이 고름」).
+RELATIONS: list[tuple[str, str, str, str]] = [
+    # 2026-10-17 — 같은 「자기자본비율」 이라는 말이 회사 재무와 은행 규제에서 다른 식이다(상담 답 · 재무 건전성 칸 · L5 칩)
+    ("자기자본비율", "confused_with", "BIS 비율",
+     "회사의 자기자본비율은 자본총계 ÷ 자산총계 · 은행의 BIS 비율은 규제자본 ÷ 위험가중자산(최소 8%)"),
+]
 
 #: 후보 용어 — 비교 쌍 표에는 있는데 자료 넷에 표제어가 없던 말(2026-10-02 조사 → 사용자 결정 「후보로 넣고 검토 뒤 공개」).
 #: 시소러스 표준 ANSI/NISO Z39.19 §11.1.6 · §11.4.5(후보는 용어와 **같은 모양의 기록**에 표시를 달고, 승인되면 표시를 뗀다)와
@@ -547,7 +562,10 @@ def parse_finance(text: str) -> list[Raw]:
             for r in t["rows"]:
                 if len(r) < 5:
                     continue
-                base, aliases = term_parts(r[0])
+                title = clean(r[0])
+                if title in RENAME:                          # 이름이 같은데 다른 말 — 강의 자료와 같은 표(2026-10-17 · 자기자본비율)
+                    _RENAME_SEEN.add(title)
+                base, aliases = term_parts(RENAME.get(title, r[0]))
                 english, hanja = split_names(r[2])
                 extra_en, extra_han = split_names(r[1])      # 「한자/약어」 칸 — 한자이거나 약어다
                 if extra_en and norm(extra_en) != norm(base):

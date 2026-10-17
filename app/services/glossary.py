@@ -64,7 +64,8 @@ MAX_LIMIT = 100
 ALIAS_KIND_PRIMARY = "대표 이름"
 
 # 주소 /api/glossary/{이름} 에서 용어 ID 로 쓸 수 없는 이름 — 같은 자리에 고정 주소가 있다.
-RESERVED_IDS = ("categories", "meta")
+# scan 은 POST(글 속 용어 찾기 · 2026-10-17)라 GET 과 부딪히지 않지만, 「고정 주소 이름은 용어 ID 로 쓰지 않는다」 한 규칙으로 둔다.
+RESERVED_IDS = ("categories", "meta", "scan")
 
 
 # ─────────────────────────────────────────────────────────────────────

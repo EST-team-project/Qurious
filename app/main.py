@@ -199,6 +199,10 @@ app.include_router(clusters_routes.router)
 # 강사님 GET /api/ml/compare 는 그대로 두고 화면만 이 길로. 수집 DB 일봉을 읽기만 · 로그인 뒤 · 겹 수 · 간격은 관리자만
 from app.routes import model_compare as model_compare_routes  # noqa: E402
 app.include_router(model_compare_routes.router)
+# 종목 허브 자료 묶음 (결정 D95 · 2026-10-17) — 한 종목의 근거(시세 · 신호 · 재무 · 공시 · 기사 · 일정)를 이미 있는 함수로
+# 칸마다 모은다(새 계산 없음) + 질문 속 종목 찾기(AI 투자 상담 카드). 수집 DB 를 읽기만 · 로그인 뒤 · 화면은 3차
+from app.routes import stock_hub as stock_hub_routes  # noqa: E402
+app.include_router(stock_hub_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")

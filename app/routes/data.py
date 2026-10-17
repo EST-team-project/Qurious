@@ -189,11 +189,12 @@ async def search(
     offset: int = Query(0, ge=0, le=data_search.MAX_OFFSET),
     source: str | None = Query(None, max_length=20, description="dart(공시) · policy_news(정책뉴스) · gdelt(언론사 기사) — 비우면 전부"),
     facets: bool = Query(False, description="참이면 같은 조건에서 출처마다 몇 건인지 함께(종류 · 출처 거름은 빼고 센다)"),
+    tagged: bool = Query(False, description="참이면 공시 + 종목 · 주제 이름표가 붙은 뉴스만 — 이름표 없는 일반 기사는 뺀다"),
     _user=Depends(get_current_user),
 ):
     try:
         return await asyncio.to_thread(data_search.search, q, kind, symbol, topic, term, dtype, from_, to,
-                                       sort, limit, offset, source, facets)
+                                       sort, limit, offset, source, facets, tagged)
     except data_search.SearchError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None
 

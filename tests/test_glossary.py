@@ -408,6 +408,7 @@ def test_alias_goes_to_the_term_that_names_it_whole(monkeypatch):
     """
     for name in ("OVERRIDES", "SAME_AS", "RENAME", "NOT_ALIAS", "PAIR_NAMES"):   # PAIR_NAMES — 관계 이름 바꿈(2026-10-02)
         monkeypatch.setattr(gb, name, {})
+    monkeypatch.setattr(gb, "RELATIONS", [])          # 사람이 고른 관계도 사람이 적은 규칙이다(2026-10-17 첫 줄 — 이 자료에 없는 이름)
     monkeypatch.setattr(gb, "read_sources", lambda: [
         _raw("괴리율", "finance", "fund", english="Premium / Discount", short="시장가격과 순자산가치의 차이"),
         _raw("프리미엄", "lecture", "derivatives", english="Premium", long="옵션을 살 때 내는 값입니다."),
@@ -450,6 +451,24 @@ def test_committed_file_equals_a_fresh_build(built):
     assert gb.OUT.read_bytes().decode("utf-8").replace("\r\n", "\n") == gb.render(built), \
         "python scripts/glossary_build.py 를 돌려 terms.json 을 다시 만든다"
     assert gb.render(gb.build()) == gb.render(built)                 # 다시 돌려도 같은 글자 — 체크섬이 흔들리지 않는다
+
+
+def test_equity_ratio_is_the_company_ratio_not_the_bank_bis_ratio(built):
+    """TC-GL-37 · 이름이 같은데 다른 말 — 용어집의 「자기자본비율」 줄은 은행 BIS 비율의 풀이(「위험자산 대비 … 최소 8%」)라 「BIS 비율」 로
+    옮기고(RENAME 이 용어집에도 걸린다), 사전의 「자기자본비율」 은 회사 재무의 뜻(자본총계 ÷ 자산총계 · 화면 용어 equity_ratio)이다.
+    BIS 약어 · 영어 이름은 BIS 비율 쪽에 두고 두 용어를 「혼동」 짝으로 잇는다(2026-10-17 — 상담 답 「자기자본비율 7%」 에 BIS 풀이
+    칩이 붙으면 「최소 8% 미달」 로 읽힌다 · 모의투자 점검 L5)."""
+    finance = (ROOT / "rag-lab" / "data" / "samples" / "finance_glossary.txt").read_text(encoding="utf-8")
+    raws = _by_term(gb.parse_finance(finance))
+    assert "자기자본비율" not in raws and "BIS 자기자본비율" in raws["BIS 비율"][0].aliases
+    by_id = {t["id"]: t for t in built["terms"]}
+    eq, bis = by_id["자기자본비율"], by_id["bis-비율"]
+    assert "자본총계" in eq["summary"] and "자산총계" in eq["summary"] and eq["lead_source"] == "qurious"
+    assert eq["english"] == "Equity Ratio" and eq["category"] == "fundamental" and "BIS 비율" in eq["caution"]
+    assert {"BIS Ratio", "CAR"}.isdisjoint(a["alias"] for a in eq["aliases"])
+    assert {"BIS Ratio", "CAR", "BIS 자기자본비율"} <= {a["alias"] for a in bis["aliases"]}
+    assert "8%" in bis["summary"] + " ".join(n["text"] for n in bis["notes"])
+    assert any({r["from"], r["to"]} == {"자기자본비율", "bis-비율"} and r["kind"] == "confused_with" for r in built["relations"])
 
 
 def test_seed_checksum_ignores_line_endings(tmp_path):
@@ -870,6 +889,7 @@ def test_relations_link_to_term_ids_and_report_the_rest(monkeypatch):
     raws = gb.parse_relations(_REL_TEXT) + [
         {"a": "PBR", "b": "주가수익비율", "kind": "confused_with", "note": "뒤집힌 같은 짝", "detail": "", "where": "x"}]
     monkeypatch.setattr(gb, "PAIR_NAMES", {})
+    monkeypatch.setattr(gb, "RELATIONS", [])          # 사람이 고른 관계는 이 작은 사전에 없는 이름을 가리킨다(2026-10-17 첫 줄)
     rels, missing = gb.link_relations(terms, raws)
     assert [(r["from"], r["to"], r["kind"]) for r in rels] == [("per", "pbr", "confused_with"), ("금리", "기준금리", "related")]
     assert len(missing) == 2 and any("매출액" in m for m in missing) and any("시장금리" in m for m in missing)

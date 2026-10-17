@@ -27,7 +27,7 @@
    "title": "Qurious 화면 용어 설명",
    "origin": "이 저장소의 public/js/core.js (강사님 lumina-invest 기초 코드 + 팀이 더한 것)",
    "paths": "public/js/core.js",
-   "terms": 58
+   "terms": 59
   },
   {
    "code": "candidate",
@@ -64,7 +64,7 @@
    "name": "기본적 분석",
    "description": "재무제표 · 가치평가",
    "sort_order": 40,
-   "terms": 27
+   "terms": 28
   },
   {
    "code": "quant",
@@ -120,7 +120,7 @@
    "name": "금융 일반",
    "description": "여러 주제에 걸쳐 나오는 말",
    "sort_order": 120,
-   "terms": 54
+   "terms": 53
   },
   {
    "code": "abbr",
@@ -4259,6 +4259,32 @@
    "aliases": [
     {
      "alias": "current_ratio",
+     "kind": "화면 키"
+    }
+   ],
+   "notes": [],
+   "shared_names": []
+  },
+  {
+   "id": "자기자본비율",
+   "term": "자기자본비율",
+   "english": "Equity Ratio",
+   "hanja": "",
+   "category": "fundamental",
+   "summary": "자본총계를 자산총계로 나눈 값(%)입니다.",
+   "definition": "",
+   "example": "",
+   "caution": "은행 · 보험 같은 금융회사는 예금 · 보험 부채가 장사 밑천이라 이 값이 낮게 나옵니다 — 같은 업종끼리 견줍니다. 은행의 건전성을 보는 BIS 비율(규제자본 ÷ 위험가중자산 · 최소 8%)과는 다른 지표입니다.",
+   "formula": "자기자본비율(%) = 자본총계 ÷ 자산총계 × 100",
+   "origin_note": "",
+   "app_note": "자본총계를 자산총계로 나눈 값(%)입니다. 자산 가운데 빚이 아닌 몫이 얼마인지 봅니다 — 7% 면 자산 100원 가운데 7원이 빚이 아닌 몫입니다.",
+   "lead_source": "qurious",
+   "sources": [
+    "qurious"
+   ],
+   "aliases": [
+    {
+     "alias": "equity_ratio",
      "kind": "화면 키"
     }
    ],
@@ -12004,42 +12030,6 @@
    "shared_names": []
   },
   {
-   "id": "bis-비율",
-   "term": "BIS 비율",
-   "english": "Capital Adequacy Ratio",
-   "hanja": "",
-   "category": "general",
-   "summary": "은행 등의 규제자본을 위험가중자산(RWA)으로 나눈 자본적정성 지표입니다.",
-   "definition": "은행 등의 규제자본을 위험가중자산(RWA)으로 나눈 자본적정성 지표입니다. 손실을 감당할 여력을 평가할 때 활용합니다.",
-   "example": "",
-   "caution": "",
-   "formula": "",
-   "origin_note": "",
-   "app_note": "",
-   "lead_source": "lecture",
-   "sources": [
-    "lecture"
-   ],
-   "aliases": [
-    {
-     "alias": "BIS",
-     "kind": "약어"
-    },
-    {
-     "alias": "Capital Adequacy Ratio",
-     "kind": "영어"
-    }
-   ],
-   "notes": [
-    {
-     "source": "lecture",
-     "label": "공통 용어",
-     "text": "은행 등의 규제자본을 위험가중자산(RWA)으로 나눈 자본적정성 지표입니다. 넓은 뜻으로는 총자본비율을 가리키며, CET1·기본자본비율과 함께 손실흡수 여력을 봅니다."
-    }
-   ],
-   "shared_names": []
-  },
-  {
    "id": "nft",
    "term": "NFT",
    "english": "Non-Fungible Token",
@@ -18208,6 +18198,60 @@
    "shared_names": []
   },
   {
+   "id": "bis-비율",
+   "term": "BIS 비율",
+   "english": "BIS Ratio, CAR",
+   "hanja": "",
+   "category": "theory",
+   "summary": "은행이 위험자산 대비 얼마나 자기 자본을 쌓고 있는지 (최소 8% 이상 유지)",
+   "definition": "",
+   "example": "\"BIS 비율이 낮다 → 은행 부실 위험 신호\"",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "",
+   "lead_source": "finance",
+   "sources": [
+    "finance",
+    "lecture"
+   ],
+   "aliases": [
+    {
+     "alias": "BIS 자기자본비율",
+     "kind": "다른 이름"
+    },
+    {
+     "alias": "BIS Ratio",
+     "kind": "영어"
+    },
+    {
+     "alias": "CAR",
+     "kind": "약어"
+    },
+    {
+     "alias": "BIS",
+     "kind": "약어"
+    },
+    {
+     "alias": "Capital Adequacy Ratio",
+     "kind": "영어"
+    }
+   ],
+   "notes": [
+    {
+     "source": "lecture",
+     "label": "공통 용어",
+     "text": "은행 등의 규제자본을 위험가중자산(RWA)으로 나눈 자본적정성 지표입니다. 손실을 감당할 여력을 평가할 때 활용합니다."
+    },
+    {
+     "source": "lecture",
+     "label": "공통 용어",
+     "text": "은행 등의 규제자본을 위험가중자산(RWA)으로 나눈 자본적정성 지표입니다. 넓은 뜻으로는 총자본비율을 가리키며, CET1·기본자본비율과 함께 손실흡수 여력을 봅니다."
+    }
+   ],
+   "shared_names": []
+  },
+  {
    "id": "고용보험",
    "term": "고용보험",
    "english": "Employment Insurance",
@@ -18865,36 +18909,6 @@
     {
      "alias": "Deductible",
      "kind": "영어"
-    }
-   ],
-   "notes": [],
-   "shared_names": []
-  },
-  {
-   "id": "자기자본비율",
-   "term": "자기자본비율",
-   "english": "BIS Ratio, CAR",
-   "hanja": "",
-   "category": "theory",
-   "summary": "은행이 위험자산 대비 얼마나 자기 자본을 쌓고 있는지 (최소 8% 이상 유지)",
-   "definition": "",
-   "example": "\"BIS 비율이 낮다 → 은행 부실 위험 신호\"",
-   "caution": "",
-   "formula": "",
-   "origin_note": "",
-   "app_note": "",
-   "lead_source": "finance",
-   "sources": [
-    "finance"
-   ],
-   "aliases": [
-    {
-     "alias": "BIS Ratio",
-     "kind": "영어"
-    },
-    {
-     "alias": "CAR",
-     "kind": "약어"
     }
    ],
    "notes": [],
@@ -21648,6 +21662,15 @@
    "detail": "금융위 인가 — 엄격 심사·높은 자본 요건 (투자매매·중개·집합·신탁) · 금융위 등록 — 요건 충족 신고로 가능 (자문·일임)",
    "source": "finance",
    "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "자기자본비율",
+   "to": "bis-비율",
+   "kind": "confused_with",
+   "note": "회사의 자기자본비율은 자본총계 ÷ 자산총계 · 은행의 BIS 비율은 규제자본 ÷ 위험가중자산(최소 8%)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "정액보상",

@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 260,
- "routers": 36,
+ "count": 263,
+ "routers": 37,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -6103,6 +6103,32 @@
    "schema": true
   },
   {
+   "id": "API-GLOS-06",
+   "router": "glossary",
+   "method": "POST",
+   "path": "/api/glossary/scan",
+   "summary": "글에 든 용어(대표 이름 · 약어 · 다른 이름)를 나온 차례로 — 화면은 `id` 로 용어 칩(`data-term`)을 붙인다.",
+   "auth": "없음",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "agent-chat"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/glossary.py",
+   "line": 39,
+   "errors": [],
+   "keys": [
+    "items",
+    "rule"
+   ],
+   "body": [
+    "ScanBody"
+   ],
+   "schema": true
+  },
+  {
    "id": "API-GLOS-01",
    "router": "glossary",
    "method": "GET",
@@ -6119,7 +6145,7 @@
     "P01-①-1"
    ],
    "file": "app/routes/glossary.py",
-   "line": 29,
+   "line": 50,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6142,7 +6168,7 @@
     "P01-①-1"
    ],
    "file": "app/routes/glossary.py",
-   "line": 41,
+   "line": 62,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6165,7 +6191,7 @@
     "P01-①-1"
    ],
    "file": "app/routes/glossary.py",
-   "line": 47,
+   "line": 68,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6182,13 +6208,15 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "agent-chat"
+   ],
    "part": "P-A",
    "req": [
     "P01-①-1"
    ],
    "file": "app/routes/glossary.py",
-   "line": 53,
+   "line": 74,
    "errors": [
     "404"
    ],
@@ -6211,7 +6239,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/glossary.py",
-   "line": 64,
+   "line": 85,
    "errors": [
     "404"
    ],
@@ -6936,7 +6964,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 201,
+   "line": 202,
    "errors": [
     "?"
    ],
@@ -6961,7 +6989,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 222,
+   "line": 223,
    "errors": [
     "503"
    ],
@@ -7448,6 +7476,60 @@
     "?"
    ],
    "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-HUB-01",
+   "router": "stock_hub",
+   "method": "GET",
+   "path": "/api/stock-hub",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stock_hub.py",
+   "line": 23,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-HUB-02",
+   "router": "stock_hub",
+   "method": "GET",
+   "path": "/api/stock-hub/mentions",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "agent-chat"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stock_hub.py",
+   "line": 38,
+   "errors": [],
+   "keys": [
+    "items",
+    "rule",
+    "note"
+   ],
    "body": [],
    "schema": true
   }
