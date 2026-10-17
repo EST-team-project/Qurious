@@ -3,6 +3,8 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 // Qurious: 등락 글 · ±1.5% 표시 · 시세 시각 글은 판단 모듈 한 곳(node 시험 TC-QVS · Figma 03-5 결정 · 2026-10-16)
 import { pctText, direction, moveTag, asOfText, MOVE_LIMIT } from "/js/quoteview.js";
+// Qurious: 주문 칸의 시세 카드 · 예상 금액 · 확인 상자 · 예약 목록 그리기는 판단 모듈 한 곳(node 시험 TC-USS · Figma 「미국주식 주문 화면」 C · 2026-10-17)
+import { usoQuoteHtml, usoEstimateHtml, usoConfirm, usoReservationsHtml, usoBuyLabel } from "/js/usorder.js";
 
 // ── 미국주식 ──────────────────────────────────────────────────────
 // Qurious(2026-10-16): 고정 종목 목록 · 예시 가격(mockUsPrice)을 지웠다 — 시세를 못 받으면 예시 가격을 말없이 보이던
@@ -146,7 +148,7 @@ async function loadUsOrderHistory() {
     el.innerHTML = `<div style='color:var(--red);'>${escHtml(e.message)}</div>`;
   }
 }
-function renderUsOrders() { loadUsOrderHistory(); }
+function renderUsOrders() { loadUsOrderHistory(); loadUsReservations(); }
 
 async function loadUsPortfolio() {
   const acEl = document.getElementById("us-account-summary");
@@ -203,6 +205,97 @@ async function loadUsPortfolio() {
   }
 }
 
+// ── 주문 칸 — 시세 카드 · 예상 금액 · 확인 상자 · 장 닫힌 날 예약 (2026-10-17 · 모의투자 점검 L10 · Figma C) ──
+// 장 상태 · 예약 규칙은 서버 한 곳(`app/services/us_reserve.py`)이 정하고 이 화면은 그 값으로 단추 글 · 길만 고른다.
+const usOrd = { market: null, q: null, pq: null, p: null, seq: 0 };
+
+async function loadUsMarket() {
+  try { usOrd.market = await api("/api/paper/stocks/us-market"); } catch { usOrd.market = null; }
+  const buy = document.getElementById("us-ord-buy");
+  if (buy) buy.textContent = usoBuyLabel(usOrd.market);
+}
+
+/** 종목을 넣으면 시세 카드 — 지연 시세(현지 통화 · 등락 · 마지막 체결)와 모의 시세(원화 · 환율 글)를 함께 */
+async function refreshUsQuote() {
+  const el = document.getElementById("us-ord-quote");
+  const symbol = (document.getElementById("us-ord-symbol")?.value || "").trim().toUpperCase();
+  const seq = ++usOrd.seq;                      // 늦게 온 옛 응답이 새 종목 카드를 덮지 않게
+  usOrd.q = usOrd.pq = usOrd.p = null;
+  if (!el) return;
+  if (!symbol) { el.innerHTML = ""; renderUsEstimate(); return; }
+  el.innerHTML = "<div class='text-xs' style='color:var(--text-mute);'>시세를 불러오는 중…</div>";
+  const enc = encodeURIComponent(symbol);
+  const [q, pq] = await Promise.all([
+    api(`/api/stocks/quote?symbol=${enc}`).catch(() => null),
+    api(`/api/paper/stocks/quote?symbol=${enc}`).catch(e => ({ _error: e.message })),
+  ]);
+  if (seq !== usOrd.seq) return;
+  if (pq && pq._error) { el.innerHTML = `<div class="text-xs" style="color:var(--red);">${escHtml(pq._error)}</div>`; return; }
+  usOrd.q = q; usOrd.pq = pq;
+  el.innerHTML = usoQuoteHtml(q, pq, usOrd.market);
+  refreshUsEstimate();
+}
+
+/** 수량을 넣으면 예상 금액 — 서버 미리 보기(체결과 같은 비용 셈)를 그대로 */
+async function refreshUsEstimate() {
+  const symbol = (document.getElementById("us-ord-symbol")?.value || "").trim().toUpperCase();
+  const qty = parseInt(document.getElementById("us-ord-qty")?.value);
+  usOrd.p = null;
+  if (symbol && qty > 0 && usOrd.pq) {
+    const seq = usOrd.seq;
+    try {
+      const p = await api("/api/paper/stocks/orders/preview", { method: "POST", body: { symbol, side: "BUY", quantity: qty } });
+      if (seq === usOrd.seq) usOrd.p = p;
+    } catch { usOrd.p = null; }
+  }
+  renderUsEstimate();
+}
+
+function renderUsEstimate() {
+  const el = document.getElementById("us-ord-estimate");
+  if (el) el.innerHTML = usoEstimateHtml(usOrd.p, usOrd.market);
+}
+
+/** 앱 안 확인 상자(<dialog> — 뒤 화면을 막고 초점을 가둔다 · 시연 녹화에 찍힘). 누른 단추로 true / false */
+function askUsConfirm({ title, html, okLabel }) {
+  let dlg = document.getElementById("us-ord-dialog");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "us-ord-dialog";
+    dlg.setAttribute("aria-labelledby", "us-ord-dialog-title");
+    dlg.style.cssText = "max-width:420px;width:calc(100% - 32px);border:1px solid var(--border);border-radius:14px;background:var(--surf2);color:var(--text);padding:16px 18px;";
+    document.body.appendChild(dlg);
+  }
+  dlg.innerHTML = `<h3 id="us-ord-dialog-title" class="text-sm font-semibold mb-2">${escHtml(title)}</h3>${html}
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button type="button" data-us-dlg="no" class="px-3 py-1 rounded" style="border:1px solid var(--border);">취소</button>
+      <button type="button" data-us-dlg="ok" class="btn-green px-3 py-1">${escHtml(okLabel)}</button></div>`;
+  return new Promise(resolve => {
+    let done = false;
+    const finish = v => { if (done) return; done = true; if (dlg.open) dlg.close(); resolve(v); };
+    dlg.querySelector('[data-us-dlg="ok"]').addEventListener("click", () => finish(true));
+    dlg.querySelector('[data-us-dlg="no"]').addEventListener("click", () => finish(false));
+    dlg.addEventListener("close", () => finish(false), { once: true });
+    dlg.showModal();
+    dlg.querySelector('[data-us-dlg="no"]').focus();     // 실수로 Enter 를 눌러도 주문이 나가지 않게
+  });
+}
+
+async function loadUsReservations() {
+  const el = document.getElementById("us-reserve-list");
+  if (!el) return;
+  try {
+    const d = await api("/api/paper/stocks/reservations");
+    usOrd.market = d.market || usOrd.market;
+    const buy = document.getElementById("us-ord-buy");
+    if (buy) buy.textContent = usoBuyLabel(usOrd.market);
+    el.innerHTML = usoReservationsHtml(d);
+    if ((d.fired || []).some(f => f.status === "filled")) { loadUsOrderHistory(); loadUsPortfolio(); }
+  } catch (e) {
+    el.innerHTML = `<div class="text-xs" style="color:var(--red);">예약 주문을 불러오지 못했습니다 — ${escHtml(e.message)}</div>`;
+  }
+}
+
 async function placeUsOrder(side) {
   const symbol = document.getElementById("us-ord-symbol").value.trim().toUpperCase();
   const qty    = parseInt(document.getElementById("us-ord-qty").value);
@@ -212,14 +305,40 @@ async function placeUsOrder(side) {
   if (type === "limit") return setToast("지정가 모의 주문은 아직 없습니다 — 시장가로 주문하세요.", "error");
   // 해외 매도는 비용(증권사 해외 수수료 · 매도 SEC 수수료) 계산이 준비될 때까지 막는다 — 지금 서버 길은 해외 매도에서 멈춘다.
   if (side === "sell") return setToast("해외 종목 모의 매도는 아직 열지 않았습니다 — 해외 매도 비용 계산이 준비되면 열립니다.", "error");
+  // 확인 상자 — 장 상태를 다시 묻고(열어 둔 화면의 옛 상태로 주문하지 않게) 시세 · 미리 보기를 보인 뒤 한 번 더 묻는다
+  await loadUsMarket();
+  if (!usOrd.pq || (usOrd.pq.symbol !== symbol && usOrd.pq.code !== symbol)) await refreshUsQuote();
+  if (!usOrd.pq) return setToast("시세를 받지 못해 주문할 수 없습니다 — 종목코드를 확인하세요.", "error");
+  const c = usoConfirm({ symbol, qty, q: usOrd.q || {}, pq: usOrd.pq, p: usOrd.p, market: usOrd.market });
+  if (!(await askUsConfirm(c))) return;
   try {
-    const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side: "BUY", quantity: qty } });
-    setToast(`매수 주문 완료: ${r.symbol} ${qty}주 · 원화 환산 체결가 ${fmt(r.price)}원`, "ok");
-    loadUsOrderHistory();
+    if (c.reserve) {
+      // 장이 닫힌 때는 예약 — 다음 정규장 시작가로 체결된다(서버가 장 상태를 다시 보고, 열려 있으면 409 로 돌려준다)
+      const r = await api("/api/paper/stocks/reservations", { method: "POST", body: { symbol, quantity: qty } });
+      setToast(`매수 예약: ${r.symbol} ${qty}주 · ${r.next_open_kst || "다음 정규장"}(KST) 정규장 시작가로 체결됩니다`, "ok");
+      loadUsReservations();
+    } else {
+      const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side: "BUY", quantity: qty } });
+      setToast(`매수 주문 완료: ${r.symbol} ${qty}주 · 원화 환산 체결가 ${fmt(r.price)}원`, "ok");
+      loadUsOrderHistory();
+    }
   } catch (e) {
     setToast(e.message, "error");
   }
 }
+
+let usQuoteTimer = 0, usQtyTimer = 0;
+document.getElementById("us-ord-symbol")?.addEventListener("input", () => { clearTimeout(usQuoteTimer); usQuoteTimer = setTimeout(refreshUsQuote, 450); });
+document.getElementById("us-ord-qty")?.addEventListener("input", () => { clearTimeout(usQtyTimer); usQtyTimer = setTimeout(refreshUsEstimate, 300); });
+document.getElementById("us-reserve-list")?.addEventListener("click", async e => {
+  const id = e.target?.closest?.("[data-uso-cancel]")?.getAttribute("data-uso-cancel");
+  if (!id) return;
+  try {
+    await api(`/api/paper/stocks/reservations/${encodeURIComponent(id)}`, { method: "DELETE" });
+    setToast("예약을 취소했습니다.", "ok");
+  } catch (err) { setToast(err.message, "error"); }
+  loadUsReservations();
+});
 
 document.getElementById("us-ord-buy")?.addEventListener("click",  ()=>placeUsOrder("buy"));
 document.getElementById("us-ord-sell")?.addEventListener("click", ()=>placeUsOrder("sell"));

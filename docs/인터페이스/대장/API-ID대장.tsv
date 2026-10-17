@@ -263,3 +263,7 @@ API-PAPR-44	POST	/api/paper/stocks/orders/stop/check	S118	사용
 API-GLOS-06	POST	/api/glossary/scan	S120	사용
 API-HUB-01	GET	/api/stock-hub	S120	사용
 API-HUB-02	GET	/api/stock-hub/mentions	S120	사용
+API-USRV-01	GET	/api/paper/stocks/us-market	S121	사용
+API-USRV-02	GET	/api/paper/stocks/reservations	S121	사용
+API-USRV-03	POST	/api/paper/stocks/reservations	S121	사용
+API-USRV-04	DELETE	/api/paper/stocks/reservations/{order_id}	S121	사용

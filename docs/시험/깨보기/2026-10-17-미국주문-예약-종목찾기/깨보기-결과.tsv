@@ -1,0 +1,60 @@
+바퀴	id	시험 파일	무엇을 깼나	결과	처음 실패한 시험 · 끝 줄	시간
+첫째	대조1	tests/test_us_reserve.py	대조군 — 깨지 않음	통과	21 passed in 5.55s	12s
+첫째	대조2	tests/test_us_order_screen.py	대조군 — 깨지 않음	통과	11 passed in 7.13s	13s
+첫째	대조3	tests/test_stock_search_route.py	대조군 — 깨지 않음	통과	7 passed in 9.22s	16s
+첫째	대조4	tests/test_us_order_path.py	대조군 — 깨지 않음	통과	25 passed in 7.23s	16s
+첫째	U1	tests/test_us_reserve.py	토요일을 장 서는 날로	잡음	FAILED tests/test_us_reserve.py::test_saturday_is_closed_and_next_open_is_monday_2230_kst	13s
+첫째	U2	tests/test_us_reserve.py	휴장일을 보지 않음	잡음	FAILED tests/test_us_reserve.py::test_holidays_and_early_close_follow_the_nyse_notice	10s
+첫째	U3	tests/test_us_reserve.py	서머타임 무시(늘 −5시간)	잡음	FAILED tests/test_us_reserve.py::test_saturday_is_closed_and_next_open_is_monday_2230_kst	12s
+첫째	U4	tests/test_us_reserve.py	조기 마감 무시	잡음	FAILED tests/test_us_reserve.py::test_holidays_and_early_close_follow_the_nyse_notice	12s
+첫째	U5	tests/test_us_reserve.py	표 밖의 해를 연다고 짐작	잡음	FAILED tests/test_us_reserve.py::test_years_outside_the_table_are_unknown_not_open	12s
+첫째	U6	tests/test_us_reserve.py	장 시작 그 순간을 닫힘으로	잡음	FAILED tests/test_us_reserve.py::test_open_during_the_regular_session - asser...	12s
+첫째	U7	tests/test_us_reserve.py	장이 열려 있어도 예약 받음	잡음	FAILED tests/test_us_reserve.py::test_reserve_is_refused_while_the_market_is_open	11s
+첫째	U8	tests/test_us_reserve.py	국내 종목 예약 받음	잡음	FAILED tests/test_us_reserve.py::test_reserve_refuses_domestic_and_bad_quantity[005930-1]	11s
+첫째	U17	tests/test_us_reserve.py	대기 상한 없음	잡음	FAILED tests/test_us_reserve.py::test_cancel_only_own_pending_and_list_shows_next_open	14s
+첫째	U9	tests/test_us_reserve.py	시가 대신 지금 시세로 체결	잡음	FAILED tests/test_us_reserve.py::test_reserve_then_fill_at_the_first_session_open	14s
+첫째	U10	tests/test_us_reserve.py	시가를 못 받으면 마지막 봉 값으로 메움	잡음	FAILED tests/test_us_reserve.py::test_session_open_price_matches_the_day_by_utc_date[False]	13s
+첫째	U11	tests/test_us_reserve.py	체결 시각을 정규장 시작 대신 지금으로	잡음	FAILED tests/test_us_reserve.py::test_reserve_then_fill_at_the_first_session_open	13s
+첫째	U12	tests/test_us_reserve.py	체결한 줄도 다시 체결(대기 거름 없음)	잡음	FAILED tests/test_us_reserve.py::test_reserve_then_fill_at_the_first_session_open	11s
+첫째	U13	tests/test_us_reserve.py	체결 줄을 RESERVED 로(내역에서 사라짐)	잡음	FAILED tests/test_us_reserve.py::test_reserve_then_fill_at_the_first_session_open	11s
+첫째	U14	tests/test_us_reserve.py	예약 줄을 PAPER 로(내역에 섞임)	잡음	FAILED tests/test_us_reserve.py::test_reserve_then_fill_at_the_first_session_open	15s
+첫째	U15	tests/test_us_reserve.py	남의 예약도 취소	잡음	FAILED tests/test_us_reserve.py::test_cancel_only_own_pending_and_list_shows_next_open	14s
+첫째	U16	tests/test_us_reserve.py	건너뛴 까닭을 버림	잡음	FAILED tests/test_us_reserve.py::test_fill_is_skipped_with_a_reason_when_cash_is_short	14s
+첫째	R1	tests/test_us_reserve.py	장 열림을 400 으로	잡음	FAILED tests/test_us_reserve.py::test_post_maps_market_open_to_409_and_reasons_to_400	13s
+첫째	R2	tests/test_us_reserve.py	체결을 저장하기 전에 목록	잡음	FAILED tests/test_us_reserve.py::test_get_fills_due_reservations_commits_then_lists	16s
+첫째	R3	tests/test_us_reserve.py	거절 때 되돌리지 않음	잡음	FAILED tests/test_us_reserve.py::test_post_maps_market_open_to_409_and_reasons_to_400	12s
+첫째	S1	tests/test_stock_search_route.py	해외 400 도 502 로	잡음	FAILED tests/test_stock_search_route.py::test_korean_name_not_listed_is_not_found_not_502	18s
+첫째	S2	tests/test_stock_search_route.py	연결 끊김을 빈 목록으로 덮음	잡음	FAILED tests/test_stock_search_route.py::test_connection_errors_stay_502 - Fa...	17s
+첫째	S3	tests/test_stock_search_route.py	5xx 도 「찾지 못함」 으로	잡음	FAILED tests/test_stock_search_route.py::test_server_errors_stay_502[h0] - Fa...	17s
+첫째	S4	tests/test_stock_search_route.py	한글 이름에 국내 목록 안내 없음	잡음	FAILED tests/test_stock_search_route.py::test_korean_name_not_listed_is_not_found_not_502	15s
+첫째	S5	tests/test_stock_search_route.py	빈 결과에 안내 글 없음	잡음	FAILED tests/test_stock_search_route.py::test_empty_foreign_result_also_explains	15s
+첫째	F1	tests/test_stock_search_route.py	리서치 화면이 502 를 다시 빈 목록으로	잡음	FAILED tests/test_stock_search_route.py::test_research_screen_no_longer_hides_502	14s
+첫째	J1	tests/test_us_order_screen.py	장 상태 모름을 닫힘으로	잡음	FAILED tests/test_us_order_screen.py::test_buy_label_follows_the_server_market_state	21s
+첫째	J2	tests/test_us_order_screen.py	모르는 원화 값을 0원으로	잡음	FAILED tests/test_us_order_screen.py::test_quote_card_shows_server_values_and_texts	18s
+첫째	J3	tests/test_us_order_screen.py	이스케이프 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_quote_card_shows_server_values_and_texts	17s
+첫째	J4	tests/test_us_order_screen.py	예약 확인에서 취소 안내 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_confirm_reserves_only_when_the_server_says_closed	18s
+첫째	J5	tests/test_us_order_screen.py	대기 아닌 줄에도 취소 단추	잡음	FAILED tests/test_us_order_screen.py::test_reservation_list_rows_cancel_buttons_and_fired_notes	17s
+첫째	J6	tests/test_us_order_screen.py	예상 금액을 미리 보기 대신 다른 값으로	잡음	FAILED tests/test_us_order_screen.py::test_estimate_uses_preview_fields_and_says_when_it_is_only_a_guess	17s
+첫째	J7	tests/test_us_order_screen.py	출처 이름이 서버와 다름	잡음	FAILED tests/test_us_order_screen.py::test_quote_card_shows_server_values_and_texts	20s
+첫째	K1	tests/test_us_order_screen.py	확인 상자를 거치지 않음	잡음	FAILED tests/test_us_order_screen.py::test_order_flow_is_filter_then_confirm_then_order_or_reserve	19s
+첫째	K2	tests/test_us_order_screen.py	확인 상자 초점을 확인 단추에	잡음	FAILED tests/test_us_order_screen.py::test_dialog_focuses_cancel_and_guards_stale_quotes	17s
+첫째	K3	tests/test_us_order_screen.py	옛 응답이 새 카드를 덮음	잡음	FAILED tests/test_us_order_screen.py::test_dialog_focuses_cancel_and_guards_stale_quotes	17s
+첫째	K4	tests/test_us_order_screen.py	주문 전에 장 상태를 다시 묻지 않음	잡음	FAILED tests/test_us_order_screen.py::test_order_flow_is_filter_then_confirm_then_order_or_reserve	20s
+첫째	K5	tests/test_us_order_screen.py	예약 본문에 가격	잡음	FAILED tests/test_us_order_screen.py::test_order_flow_is_filter_then_confirm_then_order_or_reserve	19s
+첫째	A1	tests/test_us_order_screen.py	예약 목록 칸 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_containers_sit_inside_the_order_panel	18s
+둘째	대조2	tests/test_us_order_screen.py	대조군 — 깨지 않음	통과	11 passed in 9.52s	17s
+둘째	J1	tests/test_us_order_screen.py	장 상태 모름을 닫힘으로	잡음	FAILED tests/test_us_order_screen.py::test_buy_label_follows_the_server_market_state	18s
+둘째	J2	tests/test_us_order_screen.py	모르는 원화 값을 0원으로	잡음	FAILED tests/test_us_order_screen.py::test_quote_card_shows_server_values_and_texts	18s
+둘째	J3	tests/test_us_order_screen.py	이스케이프 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_quote_card_shows_server_values_and_texts	16s
+둘째	J4	tests/test_us_order_screen.py	예약 확인에서 취소 안내 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_confirm_reserves_only_when_the_server_says_closed	20s
+둘째	J5	tests/test_us_order_screen.py	대기 아닌 줄에도 취소 단추	잡음	FAILED tests/test_us_order_screen.py::test_reservation_list_rows_cancel_buttons_and_fired_notes	14s
+둘째	J6	tests/test_us_order_screen.py	예상 금액을 미리 보기 대신 다른 값으로	잡음	FAILED tests/test_us_order_screen.py::test_estimate_uses_preview_fields_and_says_when_it_is_only_a_guess	14s
+둘째	J7	tests/test_us_order_screen.py	출처 이름이 서버와 다름	잡음	FAILED tests/test_us_order_screen.py::test_quote_card_shows_server_values_and_texts	17s
+둘째	K1	tests/test_us_order_screen.py	확인 상자를 거치지 않음	잡음	FAILED tests/test_us_order_screen.py::test_order_flow_is_filter_then_confirm_then_order_or_reserve	17s
+둘째	K2	tests/test_us_order_screen.py	확인 상자 초점을 확인 단추에	잡음	FAILED tests/test_us_order_screen.py::test_dialog_focuses_cancel_and_guards_stale_quotes	17s
+둘째	K3	tests/test_us_order_screen.py	옛 응답이 새 카드를 덮음	잡음	FAILED tests/test_us_order_screen.py::test_dialog_focuses_cancel_and_guards_stale_quotes	18s
+둘째	K4	tests/test_us_order_screen.py	주문 전에 장 상태를 다시 묻지 않음	잡음	FAILED tests/test_us_order_screen.py::test_order_flow_is_filter_then_confirm_then_order_or_reserve	18s
+둘째	K5	tests/test_us_order_screen.py	예약 본문에 가격	잡음	FAILED tests/test_us_order_screen.py::test_order_flow_is_filter_then_confirm_then_order_or_reserve	17s
+둘째	A1	tests/test_us_order_screen.py	예약 목록 칸 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_containers_sit_inside_the_order_panel	15s
+둘째	J8	tests/test_us_order_screen.py	확인 상자 원화 단가를 미리 보기 대신 카드 값으로	잡음	FAILED tests/test_us_order_screen.py::test_confirm_reserves_only_when_the_server_says_closed	16s
+둘째	A2	tests/test_us_order_screen.py	안내 상자에서 예약 문장 빠짐	잡음	FAILED tests/test_us_order_screen.py::test_containers_sit_inside_the_order_panel	21s

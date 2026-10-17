@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import uuid
 import httpx
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -150,9 +151,23 @@ async def stock_search(q: str = Query(..., min_length=1)):
             for item in quotes
             if item.get("symbol")
         ]
-        return {"results": results}
+        return {"results": results, "note": "" if results else search_not_found_note(q)}
+    except httpx.HTTPStatusError as exc:
+        # 해외 자동완성은 받지 않는 검색어(한글 이름 등)에 400 「Invalid Search Query」 를 준다 — 서버 장애가 아니라
+        # 「찾지 못함」 이다(DF-125 · #257). 502 로 돌려주면 화면이 「검색 실패」 로 읽어 다시 시도하게 만든다.
+        if exc.response is not None and exc.response.status_code == 400:
+            return {"results": [], "note": search_not_found_note(q)}
+        raise HTTPException(status_code=502, detail=f"종목 검색 실패: 해외 검색 응답 {exc.response.status_code if exc.response is not None else '없음'}") from exc
     except Exception as exc:
+        # 연결 끊김 · 시간 초과는 「없음」 이 아니다 — 말없이 빈 목록으로 바꾸지 않는다(502 그대로)
         raise HTTPException(status_code=502, detail=f"종목 검색 실패: {exc}") from exc
+
+
+def search_not_found_note(q: str) -> str:
+    """종목 찾기가 아무것도 못 찾았을 때 화면에 그대로 보일 한 줄 — 다음에 무엇을 넣으면 되는지까지(DF-125)."""
+    if re.search(r"[가-힣]", q or ""):
+        return f"국내 상장 목록에 「{q.strip()[:20]}」 와 맞는 종목이 없습니다 — 해외 종목은 영어 이름이나 티커(예: TSLA)로 찾으세요."
+    return f"「{(q or '').strip()[:20]}」 와 맞는 종목을 찾지 못했습니다 — 종목코드(예: 005930)나 티커(예: AAPL)로 다시 찾아 보세요."
 
 
 @router.get("/stocks/fundamentals")

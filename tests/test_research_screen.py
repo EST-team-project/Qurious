@@ -263,10 +263,11 @@ def test_first_list_and_stock_box_are_wired():
     assert "clearTimeout(suggestTimer)" in find and "resolveStockQuery(" in find
     submit = code[code.index('addEventListener("submit"'):code.index("const qInput")]
     assert re.search(r"await findResearchStock\(symInput, \{ keepQuery: true \}\)", submit)
-    # 종목 찾기 API 의 502 는 「국내 목록에 없고 해외 자동완성도 실패」(app/routes/stocks.py) — 국내만 고르는 이 화면에선 「없음」.
-    # 그 밖의 오류는 「없음」 으로 덮지 않고 찾기 실패로 알린다(말없는 대체 금지 · 2026-10-17 손 시험에서 찾음)
+    # 「찾지 못함」 은 서버가 200 · 빈 목록으로 준다(DF-125 고침 · S121 — 해외 자동완성 400 을 서버가 「없음」 으로) — 그래서 이 화면의
+    # 옛 「502 → 빈 목록」 우회는 지웠고, 오류(502 · 연결 끊김)는 「없음」 으로 덮지 않고 찾기 실패(null)로 알린다(말없는 대체 금지)
     fetch = code[code.index("async function fetchResearchStocks"):code.index("\n}\n", code.index("async function fetchResearchStocks"))]
-    assert "err?.status === 502 ? [] : null" in fetch
+    catch = fetch[fetch.index("} catch"):]
+    assert "return null;" in catch and "status === 502" not in catch and "? [] :" not in catch
     show = code[code.index("function showResearchSuggest"):code.index("\n}\n", code.index("function showResearchSuggest"))]
     assert "rows === null" in show and "종목 찾기가 잠시 안 됩니다" in show and "국내 상장 종목에서 찾지 못했습니다" in show
     # 「검색」 단추로 연 목록은 초점이 이미 칸 밖이다 — 칸 밖을 누르면 닫는다(초점 잃음만으로는 못 닫음 · 손 시험에서 찾음)

@@ -142,6 +142,9 @@ app.include_router(conversations.router)
 app.include_router(tasks.router)
 # 모의투자(주식·코인·대체자산) + Open API 키 — stock-coin-trade 이식
 app.include_router(paper.router)
+# 미국주식 예약 주문 · 미국 정규장 상태(장 닫힌 날은 다음 정규장 시작가로 — 2026-10-17)
+from app.routes import us_reserve as us_reserve_routes  # noqa: E402
+app.include_router(us_reserve_routes.router)
 # 통합 대시보드 — 투자 사이트별 현재 투자액 탭
 from app.routes import dashboard as dashboard_routes  # noqa: E402
 app.include_router(dashboard_routes.router)
