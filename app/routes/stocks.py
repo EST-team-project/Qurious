@@ -403,8 +403,14 @@ async def order_history(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
+    # 직접매매 › 주문/매매 의 「최근 주문 내역」 — 자동매매(QUANT) · Open API · 미국 예약(RESERVED) 주문은 다른 장부라 뺀다
+    # (보유 · 현금과 어긋나지 않게). 규칙은 모의주문 내역(paper_trading.stock_order_history · #219)과 같고,
+    # 두 결과가 같은지는 TC-TOH 가 맞댄다. 빠진 주문은 화면이 「자동매매 현황」 으로 안내한다.
     result = await db.execute(
-        select(Order).where(Order.user_id == _uid(user["id"])).order_by(Order.created_at.desc()).limit(200)
+        select(Order).where(
+            Order.user_id == _uid(user["id"]),
+            Order.source.in_(("WEB", "PAPER", "PINE")),
+        ).order_by(Order.created_at.desc()).limit(200)
     )
     orders = [{
         "symbol": o.symbol, "name": o.name, "order_type": o.order_type,

@@ -17,7 +17,7 @@ from datetime import datetime
 
 from app.services import data_status
 
-STATUS_FILE = "hf_backup_status.json"     # 상태 폴더(data/collector/state) — 러너의 다른 기록과 같은 자리
+STATUS_FILE = data_status.BACKUP_STATUS_FILE   # 상태 폴더(data/collector/state) — 러너의 다른 기록과 같은 자리(이름은 data_status 한 곳)
 SCHEMA = 1
 
 #: 화면의 단추 · 안내가 보이는 명령(PC 에서 돌린다)
@@ -63,6 +63,9 @@ def read(now: datetime | None = None) -> dict:
     out: dict = {"checked_at": now.isoformat(timespec="seconds"), "commands": COMMANDS,
                  "datasets": data_status.hf_state(cdir), "disk": data_status.pc_disk(sdir)}
     snap = data_status._read_json(sdir / STATUS_FILE) if sdir is not None else None  # noqa: SLF001
+    # 복구 시험 — 「마지막 성공 리허설 n일 전」(셈은 data_status 한 곳 · 관제와 같은 글)
+    weekly = data_status._read_json(sdir / data_status.WEEKLY_REHEARSAL_FILE) if sdir is not None else None  # noqa: SLF001
+    out["rehearsal"] = data_status.rehearsal_view(snap, weekly, now)
     if not snap or not isinstance(snap.get("conditions"), list):
         out.update(available=False,
                    message="아직 백업 판정 기록이 없습니다 — 다음 수집 회차가 끝나면 생깁니다",

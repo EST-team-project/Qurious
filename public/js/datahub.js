@@ -20,6 +20,12 @@ const VERDICT_CLASS = { fresh: "fresh", ok: "ok", info: "info", late: "late", st
 //: 전체 판정 — 정상은 초록(표 안의 「정상 = 하루 밀림」 파랑과 다르다 · Figma 와 위 메뉴 표시가 초록)
 const OVERALL = { ok: ["fresh", "정상"], warning: ["late", "확인 필요"], error: ["stale", "멈춤"] };
 const RUNNER_CLASS = { ok: "fresh", warning: "late", failed: "stale", running: "ok", late: "late", missing: "info" };
+// 복구 시험(2차-3) — 서버(rehearsal_view)가 정한 상태 넷의 색 · 날 수 · 글은 서버가 센다(화면은 다시 세지 않는다)
+const REHEARSAL_CLASS = { ok: "fresh", stale: "late", failed: "stale", never: "late", unknown: "info" };
+function rehearsalBrief(rh) {
+  if (!rh) return "기록 없음";
+  return `<span class="q-pill q-pill--${REHEARSAL_CLASS[rh.state] || "info"}">${escHtml(rh.state_label)}</span> ${escHtml(rh.label)} · ${escHtml(rh.schedule_label)}`;
+}
 const STEP_MARK = { ok: ["✓", "fresh"], warning: ["!", "late"], failed: ["✕", "stale"], skipped: ["–", "info"] };
 const WEEK = "일월화수목금토";
 
@@ -121,6 +127,7 @@ function drawerHtml(st) {
     ["다음 갱신", r.next_expected ? `${withWeekday(r.next_expected)} ${hm(r.next_expected)}` : "—"],
     ["늦은 자료", late.length ? late.map(t => `${escHtml(t.label)} ${pill(t.verdict, t.verdict_label)}`).join(" ") : "없음"],
     ["팀 공유 저장소", up ? `${mmdd(up)} 올림 — ${(st.hf || []).map(h => escHtml(h.what)).join(" · ")}` : "올린 기록 없음"],
+    ["복원 리허설", rehearsalBrief(st.rehearsal)],
   ];
   return `<div class="q-dd-verdict q-tone--${cls}"><span class="q-dot"></span><strong>${escHtml(label)}</strong>
       <span>${escHtml(st.summary || "")}</span></div>
@@ -162,6 +169,8 @@ function summaryCards(st) {
     ["주식 시세 기준일", `<span class="dh-big">${escHtml(withWeekday(st.as_of))}</span>`, "시세는 다음 날 낮에 들어옵니다"],
     ["낮 갱신", `<span class="dh-big q-tone--${RUNNER_CLASS[r.state] || "info"}">${escHtml(runText)}</span>`, runSub],
     ["팀 공유 저장소", `<span class="dh-big">${up ? `${mmdd(up)} 올림` : "기록 없음"}</span>`, (st.hf || []).map(h => h.what).join(" · ") || "—"],
+    ["복원 리허설", `<span class="dh-big q-tone--${REHEARSAL_CLASS[st.rehearsal?.state] || "info"}">${escHtml(st.rehearsal?.state_label || "—")}</span>`,
+      st.rehearsal ? `${st.rehearsal.label} · ${st.rehearsal.schedule_label}` : "—"],
   ];
   return `<div class="dh-sum">${cards.map(([k, v, d]) => `<div class="card dh-card"><div class="dh-k">${k}</div>${v}<div class="dh-d">${escHtml(d)}</div></div>`).join("")}</div>`;
 }

@@ -180,6 +180,10 @@ MANIFEST_PATH = EXPORT_DIR / "meta" / "manifest.json"
 #: 판정을 말이 아니라 **실행 기록**에 묶어 두려고 파일로 남긴다.
 VERIFY_LOG_PATH = EXPORT_DIR / "meta" / "last_verify.json"
 RESTORE_LOG_PATH = EXPORT_DIR / "meta" / "last_restore.json"
+#: 마지막 **성공** 복원(2차-3 · 2026-10-18). `last_restore.json` 은 리허설마다 덮어써, 이번이 실패하면 앞 성공을 잃는다 —
+#: 관제 · 적재 · 백업 화면의 「마지막 성공 리허설 n일 전」 은 이 기록을 판정 기록의 `rehearsal` 칸으로 읽는다(`rehearsal_record`).
+#: 상태 폴더라 HF 에는 올라가지 않는다(meta/* 는 파케이와 같은 커밋으로 올라간다).
+RESTORE_OK_PATH = config.STATE_DIR / "hf_restore_last_ok.json"
 
 #: 이 판의 수집 DB 를 만든 일일 갱신 회차의 기록(#124 · 2026-10-15) — 일일 러너가 올리기 단계 직전에 쓴다(`scripts/daily_update.py`
 #: `write_upload_record` · 칸은 러너 한 곳). `meta/*` 라 바뀐 파케이와 **같은 커밋**에 실린다 — 한 판에서 DB 와 그 회차 기록을 함께 받는다.
@@ -1133,6 +1137,28 @@ def status_snapshot(remote_ok: Optional[bool] = None, *, remote_checked: bool = 
         "conditions": conds,
         "can_delete": all(c["ok"] is True for c in conds),
         "remaining": [c["label"] for c in conds if c["ok"] is not True],
+        "rehearsal": rehearsal_record(),
+    }
+
+
+def rehearsal_record() -> Dict:
+    """판정 기록의 「복구 시험」 칸 — 마지막 리허설 · 마지막 **성공** 리허설 · 마지막 깊은 대조(2차-3 · 2026-10-18).
+
+    화면은 이 칸에서 「마지막 성공 리허설 n일 전」 만 센다(규칙 · 기록은 도구 한 곳 — 앱 컨테이너에는 scripts/ 가 없다).
+    성공 기록(``RESTORE_OK_PATH``)이 아직 없으면 — 이 판 전에 돌린 리허설 — ``last_restore.json`` 이 성공일 때만 그것을 쓴다.
+    조건 판정(``_deletion_verdict`` 의 ⑤)과는 따로다: 그쪽은 「지금 매니페스트로 되살아나나」, 이쪽은 「언제 마지막으로 증명했나」.
+    """
+    last = _load_manifest(RESTORE_LOG_PATH)
+    ok_rec = _load_manifest(RESTORE_OK_PATH) or (last if last.get("ok") is True else {})
+    deep = _load_manifest(VERIFY_LOG_PATH)
+
+    def pick(rec: Dict, keys: Sequence[str]) -> Optional[Dict]:
+        return {k: rec.get(k) for k in keys} if rec else None
+
+    return {
+        "last": pick(last, ("at", "ok", "seconds", "rehearsal", "manifest_generated_at")),
+        "last_ok": pick(ok_rec, ("at", "seconds", "rows", "rehearsal", "manifest_generated_at")),
+        "deep_last": pick(deep, ("at", "fails", "checks", "manifest_generated_at")) if deep.get("deep") else None,
     }
 
 
@@ -1830,6 +1856,11 @@ def restore(into: Optional[str] = None, src: Optional[str] = None,
         "manifest_fp": _manifest_fp(man),
         "manifest_generated_at": man.get("generated_at"),
     })
+    if ok:                                    # 마지막 성공만 따로 — 다음 리허설이 실패해도 「언제 마지막으로 증명했나」 가 남는다
+        _write_json_atomic(RESTORE_OK_PATH, {
+            "at": _now_kst(), "rehearsal": rehearsal, "rows": total_rows, "tables": len(picked),
+            "seconds": round(time.time() - t0, 1), "manifest_generated_at": man.get("generated_at"),
+        })
     write_status_snapshot(by="restore")       # 적재 · 백업 화면의 판정 — 리허설 결과까지 넣어 다시
     return 0 if ok else 1
 
