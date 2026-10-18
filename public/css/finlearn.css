@@ -2,12 +2,12 @@
  * 색 · 글꼴은 app.css 의 값(--surf · --border · --accent · --text-dim …)만 쓴다 — 새 디자인 체계를 만들지 않는다.
  */
 
-/* ── 왼쪽 메뉴: 소제목 · 들여쓴 항목 (core.js renderLnb 의 heading · sub) ── */
+/* ── 왼쪽 메뉴: 소제목 · 들여쓴 항목 (core.js lnbItem 의 heading · sub) ── */
 .lnb-heading {
   padding: 12px 14px 4px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-mute);
+  color: var(--text-heading);   /* 대비 4.75 — 옛 --text-mute 는 2.56(2026-10-18 · Figma 06-5 · css/qurious.css) */
   letter-spacing: 0.02em;
 }
 .lnb-item.lnb-sub { padding-left: 38px; font-size: 14px; }

@@ -206,30 +206,30 @@
 
 /* ── 좁은 화면(폭 390)의 위 머리글 (IA I12 · 2026-10-10) ───────────────────────────────────────────
  * 머리글이 약 800px 로 넘쳐 「⋮ 더보기」(전체 메뉴) · 로그아웃이 화면 밖에 있었고, ☰(왼쪽 메뉴)는 늘 숨어 있었다.
- * 768 아래에서는 오른쪽의 시세 · 동기화 글자 · 이름을 빼고(점 · 아바타는 남김) ☰ 을 보인다 — 탭은 들어가는 만큼만
- * (js/core.js fitGnbTabs) · 나머지는 「더보기」. 강사님 app.html · app.css 는 고치지 않는다(☰ 의 display:none 은 style 속성이라 !important). */
+ * 768 아래에서는 오른쪽의 시세 · 동기화 글자 · 이름을 빼고(점 · 아바타는 남김) ☰ 을 보인다 — ☰ 는 왼쪽
+ * 「전체 메뉴」 트리를 연다(js/core.js setMobileLnb · 2026-10-18 D129). 강사님 app.html · app.css 는 고치지 않는다(☰ 의 display:none 은 style 속성이라 !important). */
 @media (max-width: 768px) {
   .gnb-logo { padding: 0 10px; gap: 8px; }
   .gnb-logo-text span[data-brand="tagline"] { display: none; }
   .gnb-right { gap: 6px; padding: 0 8px; }
   #market-ticker, #user-name, #sync-badge-text { display: none; }
   #sync-badge { padding: 6px; }
-  #logout-btn, #gnb-more-btn { padding: 6px 9px !important; }
+  #logout-btn { padding: 6px 9px !important; }
   #hamburger-btn { display: inline-flex !important; align-items: center; }
 }
 
 /* ── 위 메뉴 넘침 고침 (DF-109 · 2026-10-14 화면 결정 D84 = 융합안 D) ─────────────────────────────────
  * 묶음 탭 열 개(약 1,174px)와 머리 오른쪽(588 ~ 727px)이 한 줄을 다투어 1920 에서도 뒤 두 묶음이 숨었고,
  * 숨은 묶음의 입구는 오른쪽 끝 「⋮」 아이콘 하나였다. ① 오른쪽을 줄인다 — 이름 · 로그아웃은 아바타 ▾ 메뉴로,
- * 「n분 전 동기화」 는 점(글은 title), 시세는 1920 이상 둘 · 2560 이상 셋(사용자 결정 (가)) ② 「⋮」 대신 탭 줄 끝
- * 「더보기 N ▾」(js/gnbmore.js) ③ 탭 여백 14 · 다 안 들어가면 아이콘부터 뺀다(js/core.js fitGnbTabs).
+ * 「n분 전 동기화」 는 점(글은 title), 시세는 1920 이상 둘 · 2560 이상 셋(사용자 결정 (가)) ② (2026-10-18 D129) 탭은 고정 여섯 —
+ * 「더보기」 는 없앴다 · 다 안 들어가면 부제 → 아이콘 → 탭 줄 통째로 접는다(js/core.js fitGnbTabs).
  * 강사님 새 판(5bb0e7e)의 탭 칸 내용 폭 고정 · 오른쪽 잘림은 app.css 로 충돌 없이 들어올 수 있다 — 아래 두 줄이
- * 덮어 우선순위+ 가 멈추지 않게 한다(이 파일은 app.css 뒤에 읽힌다 · TC-NV-10). */
+ * 덮어 탭 폭 재기가 멈추지 않게 한다(이 파일은 app.css 뒤에 읽힌다 · TC-NV-10). */
 #gnb .gnb-tabs { flex: 1 1 0%; min-width: 0; }
 #gnb .gnb-right { flex: 0 0 auto; overflow: visible; }
 #gnb .gnb-item { padding: 0 14px; flex-shrink: 0; }
 #gnb.gnb-noicons .gnb-item > i { display: none; }
-#user-name, #logout-btn, #gnb-more-btn, #sync-badge-text { display: none !important; }
+#user-name, #logout-btn, #sync-badge-text { display: none !important; }
 #sync-badge { padding: 6px; }
 #market-ticker { display: none; }
 @media (min-width: 1920px) {
@@ -241,34 +241,18 @@
 }
 /* 탭이 다 안 들어가면 로고 부제부터 접는다(js/core.js fitGnbTabs 가 붙이는 이름표 — 폭 경계로 접으면 경계에서 탭이 준다) */
 #gnb.gnb-notagline .gnb-logo-text span[data-brand="tagline"] { display: none; }
-/* 더보기 단추 — 탭 줄 끝 · 숨은 묶음 수 알약 */
-.gnb-more-tab {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 100%; padding: 0 14px;
-  border: none; border-bottom: 2px solid transparent; background: none; color: var(--text-dim);
-  font: inherit; font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer;
-}
-.gnb-more-tab:hover, .gnb-more-tab[aria-expanded="true"] { color: var(--text); background: var(--surf2); }
-.gnb-more-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-.gnb-more-tab:focus-visible, #gnb .gnb-user:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.gnb-more-count {
-  display: none; min-width: 20px; padding: 0 6px; border: 1px solid var(--border); border-radius: 999px;
-  background: var(--surf2); color: var(--text-dim); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
-}
-.gnb-more-tab.has-count .gnb-more-count { display: inline-block; }
-.gnb-more-tab.active .gnb-more-count { border-color: var(--accent); color: var(--accent); }
-.gnb-more-caret { font-size: 10px; opacity: .7; }
+#gnb .gnb-user:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* 아바타 ▾ */
 #gnb .gnb-user { gap: 4px; padding: 3px 6px 3px 3px; border-radius: 999px; }
 #gnb .gnb-user:hover, #gnb .gnb-user[aria-expanded="true"] { background: var(--surf2); }
 .gnb-user-caret { font-size: 10px; color: var(--text-mute); }
-/* 펼침 목록 · 아바타 메뉴 — 탭 칸이 넘침을 자르므로 body 에 붙여 fixed 로 단추 아래에 둔다(js/gnbmore.js) */
+/* 아바타 메뉴 — body 에 붙여 fixed 로 단추 아래에 둔다(js/gnbmore.js) */
 .gnb-pop {
   position: fixed; z-index: 120; min-width: 240px; max-width: min(340px, calc(100vw - 16px));
   max-height: calc(100vh - var(--gnb-h) - 16px); overflow-y: auto; padding: 6px;
   background: var(--surf); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(15, 23, 42, .14);
 }
 .gnb-pop[hidden] { display: none; }
-.gnb-pop-title { padding: 8px 10px 4px; font-size: 11px; font-weight: 700; color: var(--text-mute); letter-spacing: .04em; }
 .gnb-pop-head { margin-bottom: 4px; padding: 10px 10px 8px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: var(--text); }
 .gnb-pop-item {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: none; border-radius: 8px;
@@ -276,11 +260,51 @@
 }
 .gnb-pop-item:hover, .gnb-pop-item:focus-visible { background: var(--surf2); outline: none; }
 .gnb-pop-item > i:first-child { width: 16px; text-align: center; color: var(--text-mute); }
-.gnb-pop-meta { margin-left: auto; font-size: 12px; color: var(--text-mute); white-space: nowrap; }
 .gnb-pop-sep { height: 1px; margin: 6px 4px; background: var(--border); }
-/* 좁은 화면(390) — 더보기는 글자를 줄이고 숫자만 남긴다 · 오른쪽 사이를 좁힌다 */
+/* 좁은 화면(390) — 오른쪽 사이를 좁힌다 */
 @media (max-width: 480px) {
-  .gnb-more-tab { padding: 0 10px; font-size: 14px; }
   #gnb .gnb-user { padding: 3px; }
   .gnb-user-caret { display: none; }
+}
+
+/* ── 왼쪽 「전체 메뉴」 트리 (2026-10-18 메뉴 개편 D129 안 가 · js/core.js renderLnbTree · Figma 「Qurious · 메뉴 개편」 04 · 06) ──
+ * 모든 묶음을 접이식(details)으로 두고 지금 묶음만 펼친다 · 접은 띠(54px)에서는 묶음 아이콘 + 펼친 묶음의 항목 아이콘만.
+ * 대비 고침(Figma 06-5 · 사용자 S124 「셋 다 함께」) — 지금 탭 · 지금 항목 글 --accent-h 5.66(옛 4.37) ·
+ * 소제목 --text-heading 4.75(옛 2.56 · css/finlearn.css) · 「전체 메뉴」 제목 --brand-text 5.02(옛 3.19). */
+:root { --text-heading: #64748b; --brand-text: #b45309; --lnb-w: clamp(240px, 15vw, 288px); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+#lnb .lnb-section-title { color: var(--brand-text); }
+.lnb-group { flex-shrink: 0; }
+.lnb-group-head {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  list-style: none; color: var(--text-dim); font-size: 14px; font-weight: 600; white-space: nowrap; user-select: none;
+}
+.lnb-group-head::-webkit-details-marker { display: none; }
+.lnb-group-head:hover { background: var(--surf2); color: var(--text); }
+.lnb-group-head > i:first-child { width: 18px; text-align: center; font-size: 14px; opacity: .85; flex-shrink: 0; }
+.lnb-group-head > span:not(.lnb-tag) { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lnb-group.active > .lnb-group-head { color: var(--accent-h); }
+.lnb-chevron { margin-left: auto; font-size: 10px; color: var(--text-mute); transition: transform .15s; flex-shrink: 0; }
+.lnb-group[open] > .lnb-group-head .lnb-chevron { transform: rotate(180deg); }
+.lnb-tag { padding: 0 6px; border: 1px solid var(--border); border-radius: 999px; font-size: 10px; font-weight: 600; color: var(--text-mute); flex-shrink: 0; }
+.lnb-group-items { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 6px 8px; }
+button.lnb-item, a.lnb-item { width: 100%; background: none; font-family: inherit; text-align: left; text-decoration: none; }
+#lnb .lnb-item.active { color: var(--accent-h); }
+/* 트리 글은 자르지 않는다(사용자 10-18 「메뉴 글씨 안 짤리도록」) — 빈칸에서 먼저 줄을 바꾸고 긴 덩어리는 아무 데서나 */
+#lnb-nav .lnb-item, #lnb-nav .lnb-group-head { white-space: normal; line-height: 1.4; }
+#lnb-nav .lnb-item > span:not(.sr-only), #lnb-nav .lnb-group-head > span:not(.lnb-tag) { flex: 1 1 auto; min-width: 0; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.lnb-out { margin-left: auto; font-size: 10px; opacity: .55; flex-shrink: 0; }
+.lnb-group-head:focus-visible, .lnb-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+#gnb .gnb-item.active { color: var(--accent-h); }
+/* 접은 띠(54px) — 이름 · 꺾쇠 · 알약 · 바깥 주소 표시는 숨기고 아이콘만(이름은 title · 소제목은 css/finlearn.css 가 숨김) */
+#lnb.collapsed .lnb-group-head { justify-content: center; padding: 9px 0; }
+#lnb.collapsed .lnb-group-head > span, #lnb.collapsed .lnb-chevron, #lnb.collapsed .lnb-out { display: none; }
+#lnb.collapsed .lnb-group-items { padding-left: 0; }
+/* 탭이 다 안 들어가면 탭 줄을 통째로 접는다(js/core.js fitGnbTabs) — 메뉴는 왼쪽 트리 · ☰ 에 같다 */
+#gnb.gnb-notabs .gnb-tabs .gnb-item { display: none; }
+/* 좁은 화면 — ☰ 로 연 트리(같은 #lnb) · 뒤는 어두운 막(js/core.js setMobileLnb) */
+#lnb-backdrop { display: none; }
+@media (max-width: 768px) {
+  #lnb-backdrop.open { display: block; position: fixed; inset: var(--gnb-h) 0 0 0; z-index: 98; background: rgba(15, 23, 42, .35); }
+  #lnb.mobile-open { width: min(300px, 86vw); box-shadow: 4px 0 24px rgba(15, 23, 42, .18); }
 }

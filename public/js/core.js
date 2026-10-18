@@ -106,7 +106,7 @@ const GNB_MENUS = {
     ],
   },
   // 금융 필수 지식 (2026-10-01 화면 설계 결정) — 「강의」(강의실 + 주제 아홉 · js/finlearn.js) · 「요약」(지금 화면 셋).
-  // heading 은 클릭되지 않는 소제목, sub 는 강의실 아래 들여쓴 주제다(renderLnb). 금융 지식은 이 메뉴 안에서 읽는다 —
+  // heading 은 클릭되지 않는 소제목, sub 는 강의실 아래 들여쓴 주제다(lnbItem). 금융 지식은 이 메뉴 안에서 읽는다 —
   // 예전의 「금융 교재 (개념 학습)」 링크(/learn/ 로 나감)는 뺐다.
   finance: {
     label: "<i class='fa-solid fa-coins'></i> 금융 필수 지식",
@@ -150,7 +150,7 @@ const GNB_MENUS = {
       { key: "sysadmin-api",       icon: "fa-solid fa-plug",        label: "API 문서",   href: "/api-docs/" },
     ],
   },
-  // 내 계정 (2026-09-30) — 더보기 메뉴의 「내 계정」 · 머리글의 이름을 눌러도 온다(js/main.js · js/mypage.js)
+  // 내 계정 (2026-09-30) — 왼쪽 「전체 메뉴」 트리 맨 아래 · 머리글 아바타 ▾ 메뉴에서도 온다(js/gnbmore.js · js/mypage.js)
   account: {
     label: "<i class='fa-solid fa-user-gear'></i> 내 계정",
     items: [
@@ -412,141 +412,88 @@ window.renderCompareTrayAll = renderCompareTrayAll;
 
 let currentGnb = "agent";
 let currentView = "agent-chat";
-function renderLnb(gnbKey) {
-  const nav = document.getElementById("lnb-nav");
-  const titleEl = document.getElementById("lnb-section-title");
-  const menu = GNB_MENUS[gnbKey];
-  // Section title: strip HTML tags for text-only display
-  if (titleEl) titleEl.textContent = menu.label.replace(/<[^>]+>/g, "").trim();
-  // heading = 클릭되지 않는 소제목 · sub = 들여쓴 항목 (금융 필수 지식 2026-10-01 · 모양은 css/finlearn.css)
-  nav.innerHTML = menu.items.map(it => it.heading ? `<div class="lnb-heading">${it.heading}</div>` : `
-    <div class="lnb-item ${it.sub ? "lnb-sub" : ""} ${it.key === currentView ? "active" : ""}" data-view="${it.key}" title="${it.label}">
-      <i class="${it.icon}"></i>
-      <span>${it.label}</span>${it.href ? ' <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;opacity:.55"></i>' : ""}
-    </div>
-  `).join("");
-  nav.querySelectorAll(".lnb-item").forEach(el => {
-    // href 가 있는 항목(개념 학습 · 2026-10-01)은 앱 화면이 아니라 그 주소(별도 HTML)로 간다
-    const item = menu.items.find(it => it.key === el.dataset.view);
-    el.addEventListener("click", () => (item && item.href ? (location.href = item.href) : navigate(el.dataset.view)));
-  });
-}
 
-// 전체 메뉴(더보기) — 2026-10-03 화면 결정 ② D(융합안 · Figma 「Qurious · 투자 대시보드 · 메뉴 정리」 03 설계).
-// 위 메뉴 탭은 app.html 에 아래 우선순위 순서로 있고, 화면 폭에 들어가는 만큼만 보인다(Priority+ · fitGnbTabs).
-// 안 들어가는 묶음은 반만 잘리지 않고 통째로 숨는다 — 숨은 묶음은 이 서랍(모든 묶음을 담은 「전체 메뉴」)에 늘 있다.
-// 강사님 판(9478811)의 펼침 목록 · Esc · 포커스 처리는 그대로 두고, 우리 메뉴의 소제목(heading) · 들여쓴 항목(sub) ·
-// 바깥 주소(href · 개념 학습)를 깨지 않게 그린다 — 강사님 판 그대로면 소제목이 「undefined」 단추가 되고,
-// 개념 학습 항목은 없는 화면으로 navigate 해 아무 일도 일어나지 않는다.
-// 근거: NN/g 「Hamburger Menus and Hidden Navigation Hurt UX Metrics」(2016 — 데스크톱에서 숨긴 메뉴 27% · 보이는 메뉴 48%)
-//       · CSS-Tricks 「The Priority+ Navigation Pattern」(2015) · NN/g 「Mega Menus Work Well for Site Navigation」(2017).
-const MENU_PRIORITY = ["agent", "company", "finance", "paper", "crawl", "quant", "trading", "us", "invest", "ml"];
-const MENU_DRAWER_ONLY = ["learn", "sysadmin", "account"];   // 위 메뉴에 두지 않는 묶음(서랍에만)
-function drawerItem(it) {
-  if (it.heading) return `<div class="lnb-heading">${it.heading}</div>`;   // 누를 수 없는 소제목(왼쪽 메뉴와 같은 모양)
+// ── 메뉴 짜임 — 위 고정 탭 여섯 + 왼쪽 「전체 메뉴」 트리 (2026-10-18 화면 결정 D129 안 가 · Figma 「Qurious · 메뉴 개편」 05 시안) ──
+// 위 메뉴는 늘 보이는 여섯 묶음만 둔다 — 폭에 따라 탭을 하나씩 숨기지 않는다(다 보이거나, 다 안 들어가면 탭 줄을 통째로
+// 접는다 · fitGnbTabs). 모든 묶음은 왼쪽 트리에 늘 있고(지금 묶음만 펼침), 좁은 화면은 ☰ 가 같은 트리를 연다.
+// 그래서 옛 「더보기 N ▾」 · 오른쪽 서랍 「전체 메뉴」(DF-109 · 2026-10-14 결정 D84 융합안 D)는 없앴다 — 숨은 묶음이 없다.
+// 근거: 사용자 10-18 「위의 메뉴바에는 필요한 기능만 넣고 옆 사이드에 전체 메뉴」 · 조사(KRX 정보데이터시스템의 통계 트리 ·
+//       강사님 fe-vanilla 의 좌측 트리) · NN/g 「Hamburger Menus and Hidden Navigation Hurt UX Metrics」(2016 — 데스크톱에서
+//       숨긴 메뉴 27% · 보이는 메뉴 48%).
+// 탭 「학습」 = 금융 필수 지식(누르면 강의실) + 개념 학습(트리에서 바로 아래) — Schwab · Webull · Coinbase 가 위 메뉴에 두는
+//       「Learn」 을 다른 탭처럼 우리말 명사로(2026-10-18 각 첫 화면 메뉴 글 확인 · 사용자 「가장 범용적인 이름」).
+const MENU_TOP = ["agent", "company", "paper", "quant", "finance", "crawl"];   // app.html 위 탭과 같은 차례(TC-NV-01)
+const MENU_TREE = ["agent", "company", "paper", "quant", "trading", "us", "invest", "ml",
+  "finance", "learn", "crawl", "sysadmin", "account"];   // 왼쪽 트리 차례 — 모든 묶음이 한 번씩(TC-NV-02)
+const menuIcon = label => (label.match(/class='([^']+)'/) || [])[1] || "fa-solid fa-folder";
+const menuText = label => label.replace(/<[^>]+>/g, "").trim();
+// 트리 항목 하나 — 소제목(heading)은 누를 수 없는 글, 바깥 주소(href)는 링크, 그 밖은 화면 단추(키보드로 닿게 button)
+function lnbItem(it) {
+  if (it.heading) return `<div class="lnb-heading">${it.heading}</div>`;
   const cls = `lnb-item${it.sub ? " lnb-sub" : ""}`;
   if (it.href) {
-    // 바깥 주소(별도 HTML) — 링크가 그대로 연다. 「새 화면」 표시를 붙인다
-    return `<a class="${cls}" href="${it.href}" data-menu-href="${it.key}"><i class="${it.icon}"></i><span>${it.label}</span>` +
-      `<i class="fa-solid fa-arrow-up-right-from-square offcanvas-out" aria-hidden="true"></i><span class="sr-only">(새 화면)</span></a>`;
+    return `<a class="${cls}" href="${it.href}" data-menu-href="${it.key}" title="${it.label} (새 화면)"><i class="${it.icon}" aria-hidden="true"></i>` +
+      `<span>${it.label}</span><i class="fa-solid fa-arrow-up-right-from-square lnb-out" aria-hidden="true"></i><span class="sr-only">(새 화면)</span></a>`;
   }
-  return `<button type="button" class="${cls}" data-menu-view="${it.key}"><i class="${it.icon}"></i><span>${it.label}</span></button>`;
+  return `<button type="button" class="${cls}" data-view="${it.key}" title="${it.label}"><i class="${it.icon}" aria-hidden="true"></i><span>${it.label}</span></button>`;
 }
-(function () {
-  const backdrop = document.getElementById("gnb-offcanvas-backdrop");
-  const panel = document.getElementById("gnb-offcanvas");
-  const trigger = document.getElementById("gnb-more-btn");
-  const nav = document.getElementById("gnb-offcanvas-nav");
-  trigger.setAttribute("aria-controls", panel.id);
-  trigger.setAttribute("aria-expanded", "false");
-  panel.inert = true;
-  nav.innerHTML = [...MENU_PRIORITY, ...MENU_DRAWER_ONLY].filter(key => GNB_MENUS[key]).map(key => {
+// 트리는 한 번만 그린다(메뉴는 고정) — 화면을 옮길 때는 펼침 · 지금 표시만 바꾼다(syncLnbTree)
+function renderLnbTree() {
+  const nav = document.getElementById("lnb-nav");
+  if (!nav) return;
+  nav.innerHTML = MENU_TREE.filter(key => GNB_MENUS[key]).map(key => {
     const menu = GNB_MENUS[key];
     const outOnly = menu.items.every(it => it.heading || it.href);   // 개념 학습처럼 모두 바깥 주소인 묶음
-    return `
-    <details class="offcanvas-group" data-menu-group="${key}">
-      <summary class="lnb-item">${menu.label}${outOnly ? '<span class="offcanvas-tag">새 화면</span>' : ""}<i class="fa-solid fa-chevron-down offcanvas-chevron"></i></summary>
-      <div class="offcanvas-submenu">${menu.items.map(drawerItem).join("")}</div>
-    </details>`;
+    const name = menuText(menu.label);
+    return `<details class="lnb-group" data-lnb-group="${key}">` +
+      `<summary class="lnb-group-head" title="${name}"><i class="${menuIcon(menu.label)}" aria-hidden="true"></i><span>${name}</span>` +
+      `${outOnly ? '<span class="lnb-tag">새 화면</span>' : ""}<i class="fa-solid fa-chevron-down lnb-chevron" aria-hidden="true"></i></summary>` +
+      `<div class="lnb-group-items">${menu.items.map(lnbItem).join("")}</div></details>`;
   }).join("");
-  function openOffcanvas() {
-    panel.inert = false;
-    panel.classList.add("open");
-    backdrop.classList.add("open");
-    trigger.setAttribute("aria-expanded", "true");
-    nav.querySelectorAll("details").forEach(group => { group.open = group.dataset.menuGroup === currentGnb; });
-    document.getElementById("gnb-offcanvas-close").focus();
-  }
-  function closeOffcanvas() {
-    // 「⋮」 단추는 DF-109 부터 숨어 있다(서랍은 「더보기 N ▾」 목록 맨 아래에서 연다) — 숨은 단추엔 초점이 못 가니 보이는 더보기로
-    (trigger.offsetParent ? trigger : document.getElementById("gnb-more-tab") || trigger).focus();
-    panel.classList.remove("open");
-    backdrop.classList.remove("open");
-    panel.inert = true;
-    trigger.setAttribute("aria-expanded", "false");
-  }
-  trigger.addEventListener("click", openOffcanvas);
-  document.getElementById("gnb-offcanvas-close").addEventListener("click", closeOffcanvas);
-  backdrop.addEventListener("click", closeOffcanvas);
   nav.addEventListener("click", event => {
-    const item = event.target.closest("[data-menu-view]");
-    if (item) { navigate(item.dataset.menuView); closeOffcanvas(); return; }
-    if (event.target.closest("[data-menu-href]")) closeOffcanvas();   // 바깥 주소는 링크가 연다 — 서랍만 닫는다
+    const item = event.target.closest("button.lnb-item[data-view]");
+    if (item) { navigate(item.dataset.view); setMobileLnb(false); return; }
+    if (event.target.closest("[data-menu-href]")) setMobileLnb(false);   // 바깥 주소는 링크가 연다 — ☰ 트리만 닫는다
   });
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && panel.classList.contains("open")) closeOffcanvas();
+}
+let treeGnb = null;   // 트리에서 마지막으로 펼쳐 준 지금 묶음 — 묶음이 바뀔 때만 다른 묶음을 접는다
+function syncLnbTree(gnbKey, viewKey) {
+  const nav = document.getElementById("lnb-nav");
+  if (!nav) return;
+  const moved = gnbKey !== treeGnb;
+  treeGnb = gnbKey;
+  nav.querySelectorAll("details.lnb-group").forEach(group => {
+    const here = group.dataset.lnbGroup === gnbKey;
+    group.classList.toggle("active", here);
+    if (moved) group.open = here;   // 다른 묶음으로 옮기면 지금 묶음만 펼친다(같은 묶음 안 이동은 사용자가 펼친 그대로 · 사용자 S124)
   });
-  // 서랍을 연 채 다른 길(뒤로 가기 · 주소 입력)로 화면이 바뀌어도 닫는다 — 열린 채 남던 것을 2026-10-03 브라우저에서 확인
-  document.addEventListener("lumina:view-changed", () => { if (panel.classList.contains("open")) closeOffcanvas(); });
-})();
+  let current = null;
+  nav.querySelectorAll(".lnb-item[data-view]").forEach(el => {
+    const active = el.dataset.view === viewKey;
+    el.classList.toggle("active", active);
+    if (active) { el.setAttribute("aria-current", "page"); current = el; } else el.removeAttribute("aria-current");
+  });
+  // 트리가 길어 지금 항목이 칸 밖이면 트리 칸만 굴린다(창 전체를 굴리지 않게 scrollIntoView 를 쓰지 않음)
+  if (current && moved) {
+    const r = current.getBoundingClientRect(), n = nav.getBoundingClientRect();
+    if (n.height && (r.top < n.top || r.bottom > n.bottom)) nav.scrollTop += r.top - n.top - n.height / 3;
+  }
+}
+renderLnbTree();
 
-// 위 메뉴 Priority+ — 탭을 우선순위 순서대로 채우다 폭을 넘는 탭부터 통째로 숨긴다(.gnb-overflow).
-// 탭 칸 폭이 바뀔 때(창 크기 · 오른쪽 시세 · 자료 표시가 늦게 채워질 때 · 글꼴이 늦게 읽힐 때) 다시 잰다.
-// DF-109(2026-10-14 화면 결정 D84 = 융합안 D) — ① 탭 줄 끝 「더보기 N ▾」(js/gnbmore.js) 자리를 먼저 떼고
-// ② 아이콘을 단 채로 다 안 들어가면 아이콘부터 빼고(GitHub Primer UnderlineNav 의 iconsVisible 꼴)
-// ③ 지금 묶음이 숨으면 뒤 탭을 빼서 그 자리에 바꿔 끼운다(Primer 의 swap) — 지금 묶음 탭이 늘 보인다.
-// 숨은 묶음 키 · 수 · 이름은 더보기 단추에 적는다 — 목록(gnbmore.js)은 그 값을 읽기만 한다(계산은 여기 한 곳).
+// 위 메뉴 폭 — 탭 여섯은 하나씩 숨기지 않는다. 다 안 들어가면 로고 부제 → 탭 아이콘 → 탭 줄 통째(gnb-notabs — 같은 메뉴가
+// 왼쪽 트리 · ☰ 에 있다) 차례로 접는다. 폭 경계(@media)가 아니라 실제 폭으로 잰다 — 경계로 접으면 경계에서 넓어지는데 탭이
+// 준다(1020 → 1040 실측 · S112). 탭 칸 폭이 바뀔 때(창 크기 · 늦게 채워지는 자료 표시 · 글꼴이 늦게 읽힐 때) 다시 잰다.
 function fitGnbTabs() {
   const gnb = document.getElementById("gnb");
   const bar = gnb?.querySelector(".gnb-tabs");
   if (!bar) return;
   const tabs = [...bar.querySelectorAll(".gnb-item[data-gnb]")];
-  const more = document.getElementById("gnb-more-tab");
-  tabs.forEach(t => t.classList.remove("gnb-overflow"));
-  gnb.classList.remove("gnb-noicons", "gnb-notagline");
-  if (more) more.classList.add("has-count");   // 숫자 칸까지 넣은 폭으로 자리를 뗀다(숫자가 빠지면 그만큼 남을 뿐 · 되먹임 없음)
-  // 다 안 들어가면 로고 부제 → 탭 아이콘 차례로 접는다 — 폭 경계(@media)로 접으면 경계에서 넓어지는데 탭이 준다(1020 → 1040 실측)
-  const roomNow = () => bar.clientWidth - (more ? more.offsetWidth : 0);
-  const fitsAll = () => tabs.reduce((sum, t) => sum + t.offsetWidth, 0) <= roomNow();
+  gnb.classList.remove("gnb-noicons", "gnb-notagline", "gnb-notabs");
+  const fitsAll = () => tabs.reduce((sum, t) => sum + t.offsetWidth, 0) <= bar.clientWidth;
   if (!fitsAll()) gnb.classList.add("gnb-notagline");
   if (!fitsAll()) gnb.classList.add("gnb-noicons");
-  const room = roomNow();
-  const widths = tabs.map(t => t.offsetWidth);
-  const shown = [];
-  let used = 0;
-  for (let i = 0; i < tabs.length && used + widths[i] <= room; i++) { shown.push(i); used += widths[i]; }
-  const cur = tabs.findIndex(t => t.dataset.gnb === currentGnb);
-  if (cur >= 0 && !shown.includes(cur)) {
-    while (shown.length && used + widths[cur] > room) used -= widths[shown.pop()];
-    if (used + widths[cur] <= room) shown.push(cur);   // 좁은 폭에서 지금 묶음도 안 들어가면 더보기만 둔다
-  }
-  const hidden = tabs.filter((t, i) => !shown.includes(i));
-  hidden.forEach(t => t.classList.add("gnb-overflow"));
-  if (more) {
-    more.dataset.hidden = hidden.map(t => t.dataset.gnb).join(" ");
-    more.classList.toggle("has-count", hidden.length > 0);
-    more.querySelector(".gnb-more-count").textContent = hidden.length ? String(hidden.length) : "";
-    more.setAttribute("aria-label", hidden.length ? `더보기, 숨은 메뉴 묶음 ${hidden.length}개` : "더보기");
-    more.title = hidden.length ? `숨은 메뉴 — ${hidden.map(t => t.textContent.trim()).join(" · ")}` : "그 밖의 메뉴 · 전체 메뉴";
-  }
-  markMoreActive();
-}
-// 지금 묶음이 위 메뉴에 보이지 않으면(숨었거나 서랍에만 있는 묶음) 더보기 단추에 「여기 안에 있음」 표시
-function markMoreActive() {
-  const tab = document.querySelector(`#gnb .gnb-item[data-gnb="${currentGnb}"]`);
-  const inBar = !!tab && !tab.classList.contains("gnb-overflow") && tab.offsetParent !== null;
-  document.getElementById("gnb-more-btn")?.classList.toggle("active", !inBar);
-  document.getElementById("gnb-more-tab")?.classList.toggle("active", !inBar);   // 탭 줄 끝 더보기(DF-109)
+  if (!fitsAll()) gnb.classList.add("gnb-notabs");   // 반만 잘린 탭 · 일부만 보이는 탭 줄은 두지 않는다
 }
 (function () {
   const bar = document.querySelector("#gnb .gnb-tabs");
@@ -577,24 +524,14 @@ function navigate(viewKey) {
   }
   currentView = viewKey;
 
-  // Update GNB
+  // 위 탭 — 지금 묶음이 여섯 안이면 그 탭에 불(「학습」 탭은 금융 필수 지식 · 개념 학습은 바깥 화면이라 앱 안에서는 늘 금융 필수 지식)
   document.querySelectorAll("[data-gnb]").forEach(el => {
     el.classList.toggle("active", el.dataset.gnb === currentGnb);
   });
+  fitGnbTabs();   // 지금 탭은 굵은 글이라 폭이 조금 바뀐다 — 다시 잰다
 
-  document.querySelectorAll("[data-menu-group]").forEach(el => {
-    el.classList.toggle("active", el.dataset.menuGroup === currentGnb);
-  });
-  document.querySelectorAll("[data-menu-view]").forEach(el => {
-    const active = el.dataset.menuView === currentView;
-    el.classList.toggle("active", active);
-    if (active) el.setAttribute("aria-current", "page");
-    else el.removeAttribute("aria-current");
-  });
-  fitGnbTabs();   // 지금 묶음이 숨었으면 바꿔 끼우고 더보기 숫자 · 표시를 다시(Priority+ · DF-109)
-
-  // Update LNB
-  renderLnb(currentGnb);
+  // 왼쪽 트리 — 지금 묶음 펼침 · 지금 화면 표시
+  syncLnbTree(currentGnb, viewKey);
 
   // Show/hide views
   document.querySelectorAll(".view").forEach(el => {
@@ -610,7 +547,7 @@ function navigate(viewKey) {
   _viewActivated(viewKey);
 }
 
-// GNB click — 묶음의 첫 화면으로(위 탭 · 더보기 목록이 같은 함수를 부른다 · js/gnbmore.js)
+// GNB click — 묶음의 첫 화면으로(위 탭이 부른다)
 function openGnbGroup(gnbKey) {
   const first = GNB_MENUS[gnbKey].items.find(it => it.key);   // 소제목(heading)은 건너뛴다
   if (first.href) { location.href = first.href; return; }   // 개념 학습 묶음 — 별도 HTML 로
@@ -691,11 +628,33 @@ async function triggerSync() {
   await loadSyncStatus();
 }
 
-// ── 햄버거 메뉴 (모바일) ─────────────────────────────────────────
-document.getElementById("hamburger-btn")?.addEventListener("click", () => {
+// ── 좁은 화면 — ☰ 가 왼쪽 「전체 메뉴」 트리를 연다(같은 트리 한 벌 · 2026-10-18 사용자 S124) ─────────────
+// 어두운 막 누름 · Esc · 메뉴 고름 · 화면이 바뀌면 닫는다(IA I12 남은 것 — 바깥 누름 닫기). 열면 초점은 지금 항목, 닫으면 ☰ 로.
+const lnbBackdrop = document.createElement("div");
+lnbBackdrop.id = "lnb-backdrop";
+document.body.appendChild(lnbBackdrop);
+function setMobileLnb(open) {
   const lnb = document.getElementById("lnb");
-  lnb?.classList.toggle("mobile-open");
-});
+  const btn = document.getElementById("hamburger-btn");
+  if (!lnb || lnb.classList.contains("mobile-open") === open) return;
+  if (open && lnb.classList.contains("collapsed")) document.getElementById("lnb-toggle-btn")?.click();   // 넓은 화면에서 접어 둔 띠는 펴서 연다
+  lnb.classList.toggle("mobile-open", open);
+  lnbBackdrop.classList.toggle("open", open);
+  btn?.setAttribute("aria-expanded", String(open));
+  if (open) (document.querySelector("#lnb-nav .lnb-item.active") || document.querySelector("#lnb-nav .lnb-group-head"))?.focus();
+}
+(function () {
+  const btn = document.getElementById("hamburger-btn");
+  if (!btn) return;
+  btn.setAttribute("aria-controls", "lnb");
+  btn.setAttribute("aria-expanded", "false");
+  btn.addEventListener("click", () => setMobileLnb(!document.getElementById("lnb")?.classList.contains("mobile-open")));
+  lnbBackdrop.addEventListener("click", () => { setMobileLnb(false); btn.focus(); });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && document.getElementById("lnb")?.classList.contains("mobile-open")) { setMobileLnb(false); btn.focus(); }
+  });
+  document.addEventListener("lumina:view-changed", () => setMobileLnb(false));
+})();
 
 // ── Footer 연도 ───────────────────────────────────────────────────
 const footerYear = document.getElementById("footer-year");
@@ -725,4 +684,4 @@ let _viewActivated = () => {};
 export function registerViewActivation(fn) { _viewActivated = fn; }
 
 
-export { GNB_MENUS, MENU_DRAWER_ONLY, compareTrayAdd, fitGnbTabs, loadMarketTicker, loadSyncStatus, navigate, openGnbGroup, renderCompareTrayAll, tt };
+export { GNB_MENUS, MENU_TOP, MENU_TREE, compareTrayAdd, fitGnbTabs, loadMarketTicker, loadSyncStatus, navigate, openGnbGroup, renderCompareTrayAll, tt };
