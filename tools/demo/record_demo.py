@@ -6,7 +6,9 @@
   python tools/demo/record_demo.py --inventory agent-chat,robo-portfolio   # 화면마다 누를 곳 목록
 
 나오는 것 (tools/demo/out/ · git 에 넣지 않는다 — 보관은 HF 비공개 데이터셋)
-  <이름>.webm · <이름>.ko.vtt(자막) · <이름>.chapters.vtt(장) · <이름>.json(단계별 시각 · 줄인 기다림 · 콘솔 오류 수)
+  <이름>.webm · <이름>.ko.vtt(자막) · <이름>.chapters.vtt(장) · <이름>.ch<n>.jpg(장마다 제목 카드 그림)
+  · <이름>.json(단계별 시각 · go 단계의 화면 키 · 시작 화면 · 줄인 기다림 · 콘솔 오류 수)
+  → 앱의 사용법 창에서 보려면 tools/demo/help_videos.py build (영상 표를 만들어 data/help/ 로)
 
 계정: 환경 변수 DEMO_EMAIL · DEMO_PASSWORD (없으면 이 PC 로컬 전용 시연 계정 · --ensure-account 면 없을 때 만든다)
 
@@ -276,12 +278,13 @@ async def run_step(page, rec, step, ctx_state):
     await page.evaluate("([k, t, d]) => __demo.chapter(k, t, d, true)", [opt.get("label", ""), opt.get("title", ""), opt.get("text", "")])
     await asyncio.sleep(0.9)
     ctx_state["snap"]("chapter")
+    ctx_state["poster"]()                       # 장 제목 카드가 다 떴을 때 — 사용법 창 영상의 첫 그림(poster)
     await asyncio.sleep(max(0.0, float(opt.get("sec", 3.0)) - 0.9))
     await page.evaluate("() => __demo.chapter('', '', '', false)")
     await asyncio.sleep(0.4)
   elif kind == "go":
     view = v if isinstance(v, str) else opt["view"]
-    item = page.locator(f'[data-menu-view="{view}"]').first
+    item = page.locator(f'#lnb-nav button[data-view="{view}"]').first   # 왼쪽 「전체 메뉴」 트리 항목(2026-10-18 메뉴 개편 D129)
     if opt.get("menu") and await item.is_visible():
       _, x, y = await point_at(page, item)
       await page.evaluate("([x, y]) => __demo.ripple(x, y)", [x, y])
@@ -330,7 +333,10 @@ async def run_step(page, rec, step, ctx_state):
       loc = await locate(page, target, timeout)
       await loc.evaluate("(e, b) => e.scrollIntoView({behavior: 'smooth', block: b})", opt.get("block", "center"))
     else:
-      await page.evaluate("y => window.scrollBy({top: y, behavior: 'smooth'})", int(opt.get("by", 400)))
+      # 앱의 굴러가는 칸은 창이 아니라 내용 칸(#main-content)이다 — 창을 굴리면 아무 일도 없다(2026-10-18 발표 장면 초안에서 찾음)
+      await page.evaluate("y => { const m = document.getElementById('main-content');"
+                          " const el = m && m.scrollHeight > m.clientHeight ? m : document.scrollingElement;"
+                          " el.scrollBy({top: y, behavior: 'smooth'}); }", int(opt.get("by", 400)))
     await asyncio.sleep(float(opt.get("after", 1.0)))
   elif kind == "pause":
     await asyncio.sleep(float(v))
@@ -365,6 +371,7 @@ async def run_step(page, rec, step, ctx_state):
 async def record(scene_path, args):
   scene = yaml.safe_load(Path(scene_path).read_text(encoding="utf-8"))
   name = scene["file"]
+  OUT_DIR = Path(args.out)                          # 사용법 영상은 tools/demo/out · 발표 영상은 tools/demo/out/present(--out)
   OUT_DIR.mkdir(parents=True, exist_ok=True)
   frame_dir = Path(tempfile.mkdtemp(prefix=f"demo-{name}-"))
   base = args.base.rstrip("/")
@@ -385,9 +392,11 @@ async def record(scene_path, args):
     # 실패한 응답은 방식 · 주소(쿼리 뺌) · 상태만 — 본문은 남기지 않는다(보낸 값이 되돌아올 수 있다)
     page.on("response", lambda r: errors.append(f"HTTP {r.status} {r.request.method} {r.url.split('?')[0].replace(base, '')}") if r.status >= 400 else None)
     await page.add_init_script(OVERLAY_JS)
-    masks = scene.get("mask") or []
-    if masks:
-      rule = ",".join(masks) + "{filter:blur(9px)!important}"
+    masks = scene.get("mask") or []                 # 흐리게 — 이 PC 정보처럼 자리는 보이되 값은 안 보여야 할 칸
+    hides = scene.get("hide") or []                 # 감추기 — 관리자 · 개발용 표시(기능 완성도 배지 등)처럼 영상에 나올 까닭이 없는 칸
+    rules = ([",".join(masks) + "{filter:blur(9px)!important}"] if masks else []) + ([",".join(hides) + "{display:none!important}"] if hides else [])
+    if rules:
+      rule = "".join(rules)
       await page.add_init_script(f"document.addEventListener('DOMContentLoaded',()=>{{const s=document.createElement('style');s.textContent={json.dumps(rule)};document.head.appendChild(s);}});")
     await page.goto(f"{base}/app.html#{scene.get('start', 'dashboard')}", wait_until="load")
     await asyncio.sleep(float(scene.get("warmup", 3.0)))
@@ -408,12 +417,17 @@ async def record(scene_path, args):
       cur["chap"], cur["chap_t"] = title, rec.t
 
     shots = []
+    posters = []                                 # 장마다 제목 카드 프레임 번호(장 차례 그대로)
 
     def snap(kind):
       if args.frames and rec.enabled and rec.cur is not None:
         shots.append((len(shots) + 1, kind, rec.cur))
 
-    state = {"say": on_say, "chapter": on_chapter, "cuts": [], "snap": snap}
+    def poster():
+      if rec.enabled and rec.cur is not None:
+        posters.append(rec.cur)
+
+    state = {"say": on_say, "chapter": on_chapter, "cuts": [], "snap": snap, "poster": poster}
     await rec.start()
     for i, step in enumerate(scene["steps"], 1):
       t0 = rec.t
@@ -423,7 +437,11 @@ async def record(scene_path, args):
         ok, failed_at = False, f"{i}번째 단계 {json.dumps(step, ensure_ascii=False)[:120]} — {type(e).__name__}: {str(e).splitlines()[0][:160]}"
         print("멈춤:", failed_at)
         break
-      log.append({"i": i, "step": list(step)[0], "t": round(t0, 2), "dur": round(rec.t - t0, 2)})
+      entry = {"i": i, "step": list(step)[0], "t": round(t0, 2), "dur": round(rec.t - t0, 2)}
+      if entry["step"] == "go":                  # 화면 키를 기록에 남긴다 — 영상 표(사용법 창의 「그 화면이 나오는 장부터」)가
+        g = step["go"]                           # 장면 파일이 나중에 바뀌어도 이 녹화의 시각과 어긋나지 않게
+        entry["view"] = g if isinstance(g, str) else g.get("view")
+      log.append(entry)
     await asyncio.sleep(float(scene.get("tail", 1.0)))
     on_say(None)
     on_chapter(None)
@@ -431,7 +449,8 @@ async def record(scene_path, args):
     await browser.close()
 
   dur = rec.t
-  result = {"scene": str(scene_path), "file": name, "ok": ok, "failed_at": failed_at, "duration_sec": round(dur, 2),
+  result = {"scene": str(scene_path), "file": name, "title": scene.get("title", ""), "start": scene.get("start", "dashboard"),
+            "ok": ok, "failed_at": failed_at, "duration_sec": round(dur, 2),
             "over_limit": dur > LIMIT_SEC, "cut_sec": round(sum(state["cuts"]), 1), "frames_unique": rec.n,
             "console_errors": len(errors), "console_samples": errors[:5],
             "app_commit": subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip(),
@@ -443,6 +462,12 @@ async def record(scene_path, args):
     (OUT_DIR / f"{name}.ko.vtt").write_text("\n".join(vtt), encoding="utf-8", newline="\n")
     chv = ["WEBVTT", ""] + [f"{vtt_time(a)} --> {vtt_time(b)}\n{t}\n" for a, b, t in chapters if b - a > 0.2]
     (OUT_DIR / f"{name}.chapters.vtt").write_text("\n".join(chv), encoding="utf-8", newline="\n")
+    for old in OUT_DIR.glob(f"{name}.ch*.jpg"):  # 장 수가 줄었을 때 지난 녹화의 그림이 남지 않게
+      old.unlink()
+    result["posters"] = []
+    for k, fi in enumerate(posters, 1):
+      shutil.copy(frame_dir / f"{fi:06d}.jpg", OUT_DIR / f"{name}.ch{k}.jpg")
+      result["posters"].append(f"{name}.ch{k}.jpg")
   (OUT_DIR / f"{name}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
   if shots:
     sd = OUT_DIR / f"{name}-frames"
@@ -485,6 +510,8 @@ def main():
   ap.add_argument("--frames", action="store_true", help="자막 · 장 제목 · 강조 순간의 프레임을 out/<이름>-frames/ 에 남긴다(눈으로 훑기)")
   ap.add_argument("--ensure-account", action="store_true", help="시연 계정이 없으면 만든다(이 PC 로컬 DB)")
   ap.add_argument("--inventory", help="화면 키(쉼표로) — 화면마다 누를 곳 목록")
+  ap.add_argument("--out", default=str(OUT_DIR),
+                  help="결과 폴더 — 사용법 영상은 기본(tools/demo/out) · 발표 영상은 tools/demo/out/present(사용법 영상 표에 섞이지 않게)")
   args = ap.parse_args()
   if args.inventory:
     asyncio.run(inventory([v.strip() for v in args.inventory.split(",") if v.strip()], args))

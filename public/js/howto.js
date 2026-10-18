@@ -7,14 +7,49 @@
  *   · 용어 칩은 창 안에서 용어 카드를 그린다 — 맨 위 층 창 뒤에는 용어 서랍(QTerm)이 깔려 눌리지 않는다.
  *     받기 · 대체 글 · 다시 시도는 용어 서랍과 같은 함수(termcard.js fillTermCard)를 쓴다.
  * 무엇도 브라우저에 남기지 않는다(옛 접이식의 열림 기억을 버림) · 화면을 바꾸면 창을 닫는다.
+ *
+ * 사용법 영상(D132 첫 단계 · 2026-10-18): 첫 화면을 그릴 때 영상 표(/help/videos.json — git 밖 로컬 폴더)를 한 번 받는다.
+ *   · 받으면 이미 그린 윗줄을 다시 그려 「▶ 영상」 이 나타난다 · 빈 표(받지 않은 PC)거나 못 받으면 영상 칸 · 단추가 숨는다(결정 ⑥).
+ *   · 로그인 전(401)이면 1분 뒤 다음 화면을 그릴 때 다시 묻는다.
+ *   · 「영상으로 보기」 를 누르면 그 자리에서 그 화면이 나오는 장부터 튼다 · 장 단추로 옮기고 지금 장은 파랑.
  */
 import { fillTermCard } from "/js/termcard.js";
-import { howtoHtml, sizeOf, topRowHtml, VIDEOS } from "/js/howtoview.js";
+import { chapterBadge, chapterIndexAt, howtoHtml, playerHtml, sizeOf, topRowHtml, VIDEO_MANIFEST_URL, videoOf } from "/js/howtoview.js";
 
 const DATA = new Map();    // 화면 키 → { guide, terms, label, group } — 단추를 누를 때 읽는다
 let dialog = null;
 let trigger = null;        // 창을 연 단추 — 닫으면 초점을 돌려준다
 let termSeq = 0;           // 용어를 연달아 누르면 앞 응답은 버린다
+let manifest = null;       // 영상 표 — 못 받았으면 null(영상 칸 숨김)
+let videosState = "idle";  // idle · loading · done · later(로그인 전 — retryAt 뒤 다시)
+let retryAt = 0;
+
+function videoFor(viewKey) {
+  return videoOf(viewKey, manifest);
+}
+
+async function loadVideos() {
+  videosState = "loading";
+  try {
+    const r = await fetch(VIDEO_MANIFEST_URL, { cache: "no-cache", credentials: "same-origin" });
+    if (r.status === 401) { videosState = "later"; retryAt = Date.now() + 60_000; return; }
+    if (!r.ok) { videosState = "done"; return; }
+    manifest = await r.json();
+    videosState = "done";
+    if (manifest?.missing) return;                             // 영상을 받지 않은 PC — 빈 표(서버가 200 으로 준다)
+    if (!Object.keys(manifest?.views || {}).some((k) => videoOf(k, manifest))) {
+      console.warn("사용법 영상 표의 꼴이 맞지 않아 영상 칸을 숨깁니다");
+    }
+  } catch (err) {
+    videosState = "done";
+    console.warn("사용법 영상 표를 받지 못해 영상 칸을 숨깁니다", err);
+  }
+  for (const [k, d] of DATA) render(k, d.guide, d);           // 표가 늦게 와도 이미 그린 윗줄에 단추가 나타나게
+}
+
+function ensureVideos() {
+  if (videosState === "idle" || (videosState === "later" && Date.now() >= retryAt)) loadVideos();
+}
 
 function render(viewKey, guide, { terms = {}, label = "", group = "" } = {}) {
   const viewEl = document.querySelector(`.view[data-view="${viewKey}"]`);
@@ -23,6 +58,7 @@ function render(viewKey, guide, { terms = {}, label = "", group = "" } = {}) {
   let row = viewEl.querySelector(":scope > .q-howto-top");
   if (!guide) { row?.remove(); DATA.delete(viewKey); return; }
   DATA.set(viewKey, { guide, terms, label, group });
+  ensureVideos();
   if (!row) {
     row = document.createElement("div");
     row.className = "q-howto-top";
@@ -32,7 +68,7 @@ function render(viewKey, guide, { terms = {}, label = "", group = "" } = {}) {
     });
     viewEl.prepend(row);
   }
-  row.innerHTML = topRowHtml(viewKey, { group, label, video: VIDEOS[viewKey] || null });
+  row.innerHTML = topRowHtml(viewKey, { group, label, video: videoFor(viewKey) });
 }
 
 function ensureDialog() {
@@ -49,6 +85,7 @@ function ensureDialog() {
     backToGuide();
   });
   dialog.addEventListener("close", () => {
+    dialog.querySelectorAll("video").forEach((v) => v.pause());   // 닫힌 창 뒤에서 영상이 계속 돌지 않게
     termSeq++;                                     // 받는 중인 용어 응답은 버린다
     if (trigger?.isConnected) trigger.focus();
     trigger = null;
@@ -66,7 +103,7 @@ function open(viewKey, button, { play = false } = {}) {
   const d = DATA.get(viewKey);
   if (!d) return;
   const dlg = ensureDialog();
-  const video = VIDEOS[viewKey] || null;
+  const video = videoFor(viewKey);
   dlg.className = `q-howto-dialog q-howto-dialog--${sizeOf(viewKey, d.guide, { video })}`;
   dlg.dataset.view = viewKey;
   dlg.innerHTML = howtoHtml(viewKey, d.guide, { terms: d.terms, label: d.label, video });
@@ -96,20 +133,30 @@ function onDialogClick(e) {
 }
 
 function playVideo(btn) {
-  const v = VIDEOS[btn.dataset.howtoVideo];
+  const v = videoFor(btn.dataset.howtoVideo);
   if (!v) return;
   const wrap = btn.closest(".q-howto-video");
-  const video = document.createElement("video");
-  video.className = "q-howto-player";
-  video.controls = true;
-  video.preload = "metadata";
-  video.src = v.src;
-  if (v.captions) {
-    const track = document.createElement("track");
-    Object.assign(track, { kind: "captions", srclang: "ko", label: "한국어", src: v.captions, default: true });
-    video.appendChild(track);
-  }
-  wrap.replaceChildren(video);
+  wrap.innerHTML = playerHtml(v);                  // 그 화면이 나오는 장부터(#t=) · 장 단추 · 장 표시
+  const video = wrap.querySelector("video");
+  const chaps = [...wrap.querySelectorAll("[data-howto-chap]")];
+  const badge = wrap.querySelector(".q-howto-chapbadge");
+  let shown = v.startChapter;
+  const mark = () => {
+    const k = chapterIndexAt(v.chapters, video.currentTime);
+    if (k === shown) return;
+    shown = k;
+    chaps.forEach((b, i) => (i === k ? b.setAttribute("aria-current", "true") : b.removeAttribute("aria-current")));
+    if (badge) badge.textContent = chapterBadge(k, v.chapters.length);
+  };
+  video.addEventListener("timeupdate", mark);
+  video.addEventListener("seeked", mark);
+  wrap.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-howto-chap]");
+    const ch = b && v.chapters[Number(b.dataset.howtoChap)];
+    if (!ch) return;
+    video.currentTime = ch.start;
+    video.play().catch(() => { /* 자동 재생이 막히면 재생 단추를 누르면 된다 */ });
+  });
   video.play().catch(() => { /* 자동 재생이 막히면 재생 단추를 누르면 된다 */ });
 }
 

@@ -368,6 +368,9 @@ export function initRebalanceView() {
   for (const [selectId, inputId] of [["rb-drift-preset", "rb-drift"], ["rb-cf-preset", "rb-cf-min"]]) {
     on(selectId, "change", () => { if ($(selectId).value !== "custom") $(inputId).value = $(selectId).value; else $(inputId).focus(); });
     on(inputId, "input", () => syncPreset(selectId, inputId));
+    // 계획이 아직 없는 사람은 칸이 비어 있는데 고르기 칸은 「금액 무관」 · 「3%p」 로 보여, 저장이 「설정 금액과 이탈률을
+    // 입력하세요」 로 막혔다 — 빈 칸은 보이는 고르기 값으로 채운다(2026-10-18 잠정 반영 D124 · 주담당 오준영 · 시연 영상에서 찾음).
+    if ($(inputId) && $(inputId).value === "" && $(selectId)?.value !== "custom") $(inputId).value = $(selectId).value;
   }
   on("rb-add", "click", addTarget);
   on("rb-add-symbol", "keydown", e => { if (e.key === "Enter") addTarget(); });

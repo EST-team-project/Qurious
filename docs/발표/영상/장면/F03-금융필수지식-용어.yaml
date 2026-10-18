@@ -1,0 +1,30 @@
+# F03 — 모르는 금융 낱말을 배우고 찾는다 (기능 영상 · 2026-10-18)
+# 화면: 학습 › 금융 필수 지식 강의실 (fin-lectures) · 펀드와 ETF (fin-topic-funds) · 용어사전 (fin-glossary) → 개념 학습(/learn/ · 새 화면) · 주담당 이동원
+# 초성 찾기 예시는 화면 자리표시에 있는 「ㅅㄱㅊㅇ」 = 시가총액(재료 초안의 「상관계수」 는 틀린 예)
+# 감춤: 개념 학습 아래 띠(#statusbar — 팀 자료 저장소 이름이 보인다 · 발표 판과 같게)
+file: F03-금융필수지식-용어
+title: 모르는 금융 낱말을 배우고 찾습니다
+owner: 이동원
+start: fin-lectures
+hide: ["#statusbar"]
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "처음 보는 낱말에서 막히지 않게", text: "강의실 · 주제 화면 · 용어사전 · 개념 학습을 한 길로 잇습니다", sec: 3.5}
+  - say: "강의실 — 금융 필수 지식 주제를 고릅니다"
+  - pause: 1.5
+  - ring: {target: '[data-go="fin-topic-funds"]', sec: 1.5}
+  # 카드를 누르는 대신 go — 녹화 기록에 화면 키가 남아야 그 화면 사용법 창에 이 영상이 붙는다(카드 누름은 기록에 키가 없다)
+  - go: fin-topic-funds
+  - say: "주제 하나 — 펀드와 ETF"
+  - scroll: {by: 420}
+  - pause: 2.5
+  - chapter: {label: "2 / 3 · 과정", title: "낱말은 용어사전에서", text: "이름 · 약어 · 영어 · 초성으로 찾고, 연관 개념으로 넘어갑니다", sec: 3.0}
+  - go: fin-glossary
+  - fill: {target: "#q-gl-q", text: "ㅅㄱㅊㅇ", delay: 140}
+  - pause: 1.5
+  - say: "초성만 넣어도 찾습니다 — 「시가총액」 처럼"
+  - pause: 3.0
+  - chapter: {label: "3 / 3 · 결과", title: "더 깊게는 개념 학습에서", text: "용어에서 개념 장으로 이어져, 화면에서 본 지표의 뜻과 계산을 따라갈 수 있습니다", sec: 3.5}
+  - js: "location.href = '/learn/'"
+  - pause: 3.0
+  - say: "교육용 내용이며 특정 상품의 매수 · 매도를 권하지 않습니다"
+  - pause: 3.0

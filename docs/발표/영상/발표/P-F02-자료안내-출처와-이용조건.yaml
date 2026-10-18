@@ -1,0 +1,70 @@
+# 발표 판 — 화면의 숫자가 어디서 왔고, 어디까지 쓸 수 있는지 본다 (자세한 판 · 2 ~ 3분 · 2026-10-18)
+# 화면: 데이터 › 자료 안내 (data-guide) · 주담당 이동원
+# 계정: 일반(기본 계정) — 개발 칸(표 이름 · 명령)은 서버가 관리자에게만 실어 영상에 나오지 않는다(public/js/dataguide.js)
+# 늘린 것: 요약 띠 다섯 · 연도별 표 읽는 법 · 서랍 두 장(주식 일봉 · 60분봉 — 이용 조건이 다른 두 출처) · 쓰지 말 곳 · 묶음 거름 칩 · 무엇을 읽나 · 틀리기 쉬운 것
+# 누르지 않는다: 새로 고침 · 화면으로 가는 링크(서랍 · 표의 「쓰는 화면 ›」)
+file: 발표-F02-자료안내-출처와-이용조건
+title: 화면의 숫자가 어디서 왔고, 어디까지 쓸 수 있는지 봅니다
+owner: 이동원
+start: data-guide
+steps:
+  # ── 1 / 3 · 목적 — 무엇이 있나 ──
+  - chapter: {label: "1 / 3 · 목적", title: "숫자마다 출처가 있습니다", text: "우리가 모으는 자료를 묶음별로, 출처 · 갱신 · 이용 조건과 함께 보여 줍니다", sec: 4.0}
+  - wait: {target: ".view.active .dg-band", timeout: 30}
+  - say: "자료 안내 — Qurious 가 모으는 자료가 무엇이고, 어떻게 모으고, 무엇을 읽으면 되는지 봅니다"
+  - pause: 4.5
+  - ring: {target: ".view.active .dg-band", sec: 2.5}
+  - say: "맨 위 다섯 칸 — 자료 묶음 · 출처 · 모은 기간 · 매일 낮 수집 · 모은 줄"
+  - pause: 4.0
+  - scroll: {target: '.view.active .dg-card:has-text("연도별로 얼마나 있나")', block: "center"}
+  - say: "연도별 표 — 칸 하나가 그해 모은 줄 수이고, 그 자료에서 많은 해일수록 진합니다"
+  - pause: 5.0
+  - ring: {target: '.view.active .dg-card:has-text("연도별로 얼마나 있나") tr:has-text("60분봉")', sec: 2.0}
+  - say: "60분봉처럼 늦게 모으기 시작한 자료는 앞 칸이 비어 있고, 처음 ~ 마지막 날이 줄 끝에 있습니다"
+  - pause: 5.0
+  # ── 2 / 3 · 과정 — 자료 한 장(서랍) ──
+  - chapter: {label: "2 / 3 · 과정", title: "자료 한 장을 엽니다", text: "출처 · 갱신 주기 · 이용 조건 · 쓰지 말아야 할 곳까지 서랍 하나에", sec: 3.5}
+  - click: 'button[data-item="stock-day"]'
+  - wait: {target: "#dg-d-title", timeout: 15}
+  - say: "주식 일봉 — 기간 · 줄 수 · 범위 · 갱신을 먼저 봅니다 · 상장폐지 종목까지 들어 있습니다"
+  - pause: 5.0
+  - ring: {target: ".dg-d-years", sec: 2.0}
+  - say: "연도별 · 시장별 줄 수 — 올해는 시세 기준일까지만 셉니다"
+  - pause: 4.0
+  - scroll: {target: '.dg-d-sec:has-text("어떻게 모았나")', block: "start"}
+  - say: "어떻게 모았나 — 출처 · 모으는 법 · 공개 시각 · 받은 값을 어떻게 다듬었는지"
+  - pause: 4.5
+  - ring: {target: '.dg-d-row:has-text("쓰지 말 곳")', sec: 2.0}
+  - say: "쓰지 말 곳 — 분할 앞뒤를 이어 수익률을 셀 때는 이 값 대신 수정주가를 씁니다"
+  - pause: 5.0
+  - scroll: {target: '.dg-d-sec:has-text("이용 조건")', block: "start"}
+  # 서랍 끝이라 이용 조건 글이 화면 아래에 걸린다 — 자막을 한 줄로 두어 그 글을 가리지 않게
+  - say: "이용 조건 — 공공누리 제4유형 · 출처 표시 · 상업적 이용 금지"
+  - pause: 4.5
+  - key: Escape
+  - scroll: {target: "#dg-sec-have-list", block: "start"}
+  - click: 'button.dg-chip:has-text("분봉")'
+  - pause: 1.0
+  - say: "자료 목록은 묶음으로 거릅니다 — 분봉 묶음의 세 가지"
+  - pause: 4.0
+  - click: '#dg-sec-have-list button[data-item="bar-60m"]'
+  - wait: {target: "#dg-d-title", timeout: 15}
+  - scroll: {target: '.dg-d-sec:has-text("이용 조건")', block: "start"}
+  - say: "60분봉은 출처가 달라 이용 조건도 다릅니다 — 개인 · 비상업"
+  - pause: 5.0
+  - key: Escape
+  # ── 3 / 3 · 결과 — 무엇을 읽나 · 틀리기 쉬운 것 ──
+  - chapter: {label: "3 / 3 · 결과", title: "조건에 맞춰 보여 줍니다", text: "다시 나눠 주면 안 되는 자료는 이 서비스 안에서만 보고, 내려받기는 두지 않습니다", sec: 3.5}
+  - scroll: {target: "#dg-sec-read", block: "start"}
+  - say: "무엇을 읽나 — 하려는 일마다 읽을 자료와, 그 자료를 쓰는 화면을 짝지어 둡니다"
+  - pause: 4.5
+  - ring: {target: '.view.active .dg-tasks tr:has-text("차트 · 지표를 본다")', sec: 2.0}
+  - say: "차트라면 가격은 수정주가에서, 거래량은 주식 일봉에서 읽습니다"
+  - pause: 4.5
+  - click: ".dg-pit-toggle"
+  - pause: 0.8
+  - scroll: {target: "#dg-pit-body", block: "start"}
+  - say: "틀리기 쉬운 것 여섯 — 기준이 반대인 두 값처럼, 잘못 읽기 쉬운 곳을 미리 적어 둡니다"
+  - pause: 5.0
+  - say: "자료마다 이용 조건을 지키는 정보 제공이며 투자 권유가 아닙니다"
+  - pause: 4.0

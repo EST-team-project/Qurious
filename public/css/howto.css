@@ -49,6 +49,26 @@ html:has(.q-howto-dialog[open]) { overflow: hidden; }                /* 창이 �
 .q-howto-video-btn small { display: block; font-size: 12px; font-weight: 500; color: var(--text-mute); }
 .q-howto-play { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }
 .q-howto-player { display: block; width: 100%; border-radius: 10px; background: #0f172a; aspect-ratio: 16 / 10; }
+
+/* ── 영상 재생 칸(D132 첫 단계 · Figma 10-2) — 16:10 틀 위아래 띠에 장 표시 · 아래 장 단추(지금 장은 파랑 · Tab 으로 닿음) ── */
+.q-howto-stage { position: relative; }
+.q-howto-chapbadge { position: absolute; left: 10px; top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(15, 23, 42, .72);
+  color: #e2e8f0; font-size: 12px; font-weight: 600; line-height: 1.6; pointer-events: none; }
+.q-howto-chaps { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.q-howto-chap { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surf2); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1.4;
+  text-align: left; cursor: pointer; }
+.q-howto-chap b { font-weight: 600; }
+.q-howto-chap i, .q-howto-chap small { color: var(--text-mute); }
+.q-howto-chap small { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.q-howto-chap:hover { border-color: var(--accent); }
+.q-howto-chap[aria-current="true"] { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+.q-howto-chap[aria-current="true"] i, .q-howto-chap[aria-current="true"] small { color: var(--accent); }
+.q-howto-chap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 760px) {                                          /* 좁은 화면 — 장 단추를 줄마다 하나씩 쌓는다(10-2 ④) */
+  .q-howto-chaps { flex-direction: column; align-items: stretch; }
+}
+.q-howto-note { margin: 12px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-mute); }
 .q-howto-h { margin: 14px 0 8px; font-size: 13px; font-weight: 700; color: var(--text-mute); }
 .q-howto-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .q-howto-steps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }

@@ -65,9 +65,17 @@ export const LEARN_OF = Object.freeze({
   "sysadmin-dashboard":    { slug: "docker-compose-dev", title: "Docker Compose 와 개발 모드" },
 });
 
-// 화면 → 영상 { src, captions, duration } — 시연 녹화 묶음(D82 · 단계 파일 → 녹화 → git 밖 보관)에서 채운다.
-// 지금은 비어 있어 모든 화면에서 영상 칸 · 윗줄 「▶ 영상」 이 숨는다(결정 ⑥).
-export const VIDEOS = Object.freeze({});
+// 화면 → 영상 — 영상 표(videos.json)는 git · 이미지 밖 로컬 폴더(data/help/)에 있다(D132 · 2026-10-18).
+// tools/demo/help_videos.py 가 녹화 기록의 단계 시각 · 화면 키와 장 파일을 맞대어 만들고, 앱은 로그인한 사람에게 /help/ 로 낸다.
+// 표를 못 받았거나(영상을 받지 않은 PC) 그 화면 줄이 없거나 꼴이 틀리면 videoOf 가 null → 영상 칸 · 윗줄 「▶ 영상」 을 숨긴다(결정 ⑥).
+export const VIDEO_MANIFEST_URL = "/help/videos.json";
+export const VIDEO_FORMAT = 1;
+// 우리 폴더의 파일 주소만 받는다 — 바깥 주소 · 경로 오르기 · 다른 꼴은 표에 있어도 쓰지 않는다
+const HELP_MEDIA_URL = /^\/help\/media\/[A-Za-z0-9%._~-]+(\?v=[0-9a-f]{6,64})?$/;
+const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+
+// 창 바닥 고지 한 줄(10-1 시안 ④) — 영상 · 사용법 모두 기능 안내이지 투자 권유가 아니다
+export const HOWTO_NOTE = "투자 권유가 아닙니다 · 투자 판단과 결과는 이용자 몫입니다";
 
 // common.js 의 escHtml 과 같은 규칙(& < > " ') — node 시험에서 불러 쓰려고 가져오지 않는다(시험이 둘을 맞댄다).
 export function esc(s) {
@@ -93,6 +101,73 @@ export function sizeOf(viewKey, guide, { video = null } = {}) {
   if (n < SIZE_LIMITS.s) return "s";
   if (n < SIZE_LIMITS.m) return "m";
   return "l";
+}
+
+/** 초 → 「분:초」(1:03) — 영상 길이 · 장 시작 시각. 브라우저 재생 막대처럼 내림(30.6초 → 0:30). */
+export function fmtTime(sec) {
+  const s = Math.max(0, Math.floor(Number(sec) || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function helpUrl(u) {
+  return typeof u === "string" && HELP_MEDIA_URL.test(u) && !u.includes("..") ? u : "";
+}
+
+/** 영상 표에서 한 화면의 영상 — { src, captions, chaptersSrc, chapters[{title, start, end, poster}], startChapter, start, poster, duration, durationSec }.
+ *  여러 화면에 걸친 영상은 그 화면이 처음 나오는 장부터(D132 · 차트 패턴 = ② 0:15). 표 · 줄이 없거나 꼴이 틀리면 null. */
+export function videoOf(viewKey, manifest) {
+  if (!manifest || manifest.format !== VIDEO_FORMAT) return null;
+  const ref = manifest.views?.[viewKey];
+  const v = ref && manifest.videos?.[ref.video];
+  const src = helpUrl(v?.src);
+  if (!src || !Array.isArray(v.chapters) || !v.chapters.length) return null;
+  const chapters = v.chapters.map((c) => ({
+    title: String(c?.title ?? ""),
+    start: Math.max(0, Number(c?.start) || 0),
+    end: Math.max(0, Number(c?.end) || 0),
+    poster: helpUrl(c?.poster),
+  }));
+  const k = Math.min(Math.max(0, Math.trunc(Number(ref.chapter) || 0)), chapters.length - 1);
+  const durationSec = Number(v.duration) || chapters[chapters.length - 1].end;
+  return {
+    src,
+    captions: helpUrl(v.captions),
+    chaptersSrc: helpUrl(v.chapters_src),
+    chapters,
+    startChapter: k,
+    start: chapters[k].start,
+    poster: chapters[k].poster,
+    durationSec,
+    duration: fmtTime(durationSec),
+  };
+}
+
+/** 재생 시각이 든 장 차례 — 장 시작이 지금보다 늦지 않은 마지막 장(장 사이 틈은 앞 장). */
+export function chapterIndexAt(chapters, t) {
+  let k = 0;
+  (chapters || []).forEach((c, i) => { if (c.start <= Number(t) + 0.05) k = i; });
+  return k;
+}
+
+/** 영상 왼쪽 위 장 표시 「② / 3」. */
+export function chapterBadge(k, n) {
+  return `${CIRCLED[k] || String(k + 1)} / ${n}`;
+}
+
+/** 「영상으로 보기」 를 누른 뒤의 칸 — 영상(그 화면의 장부터) + 장 단추(지금 장은 파랑 · Tab 으로 닿음).
+ *  자막은 영상에 들어 있어 자막 트랙은 켜지 않는다(켜면 같은 글이 두 줄로 겹친다 · 브라우저 CC 단추로 켤 수 있음). */
+export function playerHtml(video) {
+  const n = video.chapters.length;
+  const k = video.startChapter;
+  const at = video.start > 0 ? `#t=${video.start}` : "";
+  const tracks = (video.captions ? `<track kind="captions" srclang="ko" label="한국어" src="${esc(video.captions)}">` : "")
+    + (video.chaptersSrc ? `<track kind="chapters" srclang="ko" label="장" src="${esc(video.chaptersSrc)}">` : "");
+  const chaps = video.chapters.map((c, i) => `<button type="button" class="q-howto-chap" data-howto-chap="${i}"${i === k ? ' aria-current="true"' : ""}>`
+    + `<i class="fa-regular fa-clock" aria-hidden="true"></i><b>${esc(c.title)}</b><small>${fmtTime(c.start)}</small></button>`).join("");
+  return `<div class="q-howto-stage"><video class="q-howto-player" controls preload="metadata" playsinline`
+    + `${video.poster ? ` poster="${esc(video.poster)}"` : ""} src="${esc(video.src + at)}">${tracks}</video>`
+    + `<span class="q-howto-chapbadge" aria-hidden="true">${chapterBadge(k, n)}</span></div>`
+    + `<div class="q-howto-chaps" role="group" aria-label="장으로 가기">${chaps}</div>`;
 }
 
 /** 화면에 이어 줄 개념 학습 장 { slug, title } — 없으면 null(끝줄은 목차만). */
@@ -139,5 +214,6 @@ export function howtoHtml(viewKey, guide, { terms = {}, label = "", video = null
       <ol class="q-howto-steps">${(guide.steps || []).map((s, i) => `<li><span class="q-howto-n" aria-hidden="true">${i + 1}</span><span>${esc(s)}</span></li>`).join("")}</ol>
       ${chips.length ? `<h3 class="q-howto-h">이 화면의 용어</h3><div class="q-howto-terms">${chips.map((k) => `<button type="button" class="term-chip q-howto-term" data-howto-term="${esc(k)}">${esc(terms[k].title || k)} <i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>`).join("")}</div>` : ""}
       <div class="q-howto-foot">${foot}</div>
+      <p class="q-howto-note">${esc(HOWTO_NOTE)}</p>
     </div><div class="q-howto-termview" hidden></div></div>`;
 }

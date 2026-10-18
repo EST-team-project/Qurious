@@ -1,0 +1,60 @@
+# 발표 영상 — 규칙 신호로 종목을 거르고, 한 종목의 차트를 읽는다 (자세한 판 · 2 ~ 3분 · 2026-10-18)
+# 화면: 로보 어드바이저 › 패턴 인식·종목 스크리닝 (robo-screening) · 차트 패턴·지지/저항·멀티타임프레임 (robo-patterns) · 주담당 신장환
+# 사용법 판(장면/V03)과 다른 점: 표 읽는 법 · 「설명」(학습 모델 근거 막대 · 규칙과 엇갈릴 수 있다는 안내) · 그 종목 차트로 바로 감 · 시간 단위별 종합 신호와 근거 막대 ·
+#   가장 가까운 지지 · 저항과 하루 평균 변동 · 패턴 · 지지/저항 표
+# 첫 줄 종목은 그날 스크리닝 결과에 따라 바뀐다 — 자막에 종목 이름 · 숫자를 넣지 않는다
+# 「설명」 창은 머리(5일 예측 모델 이름)와 본문(SHAP 설명 모델 이름)이 다르게 보인다 — 자막은 모델 이름을 말하지 않는다(2026-10-18)
+file: 발표-V03-신호로-종목살피기
+title: 규칙 신호로 종목을 거르고 차트를 읽습니다
+owner: 신장환
+start: robo-screening
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "신호로 후보를 좁힙니다", text: "추세 · MACD · RSI 규칙으로 매수 · 매도 신호와 신뢰도를 계산하고, 그렇게 본 근거를 함께 보여 줍니다", sec: 5.5}
+  - say: "보고 싶은 신호와 신뢰도 기준을 고르고 스크리닝을 실행합니다"
+  - select: {target: "#screen-signal", label: "매수 신호"}
+  - select: {target: "#screen-confidence", label: "65% 이상"}
+  - pause: 1.5
+  - click: "#screen-run-btn"
+  - wait: {target: ".view.active table tbody tr", timeout: 150, cut: true}
+  - pause: 1.0
+  - scroll: {target: ".view.active table", block: "start"}
+  - say: "조건에 맞는 종목 — 현재가 · 등락률 · RSI 와 규칙 신호, 그 신호를 낸 패턴 근거가 한 줄에"
+  - ring: {target: ".view.active table", sec: 4.5}
+  - pause: 3.0
+  - say: "줄마다 「설명」 은 학습 모델이 본 근거를, 「다중 주기」 는 같은 종목을 60분 · 일 · 주 단위로 보여 줍니다"
+  - ring: {target: '.view.active table tbody tr >> text=다중 주기', sec: 4.0}
+  - pause: 1.5
+  - click: '.view.active table tbody tr button[onclick^="showScreenXai"]'
+  - wait: {target: "#screen-xai-panel .card", timeout: 150, cut: true}
+  - pause: 1.0
+  - scroll: {target: "#screen-xai-panel", block: "start"}
+  - say: "「설명」 — 학습 모델이 5거래일 뒤 방향을 본 근거 · 지표마다 판단을 밀어 올린(+) · 끌어내린(−) 몫을 막대로"
+  - ring: {target: "#screen-xai-panel .card", sec: 5.0}
+  - pause: 1.5
+  - say: "규칙 신호와 학습 모델은 방법이 달라 판단이 엇갈릴 수 있습니다 — 화면이 그렇다고 먼저 밝힙니다"
+  - ring: {target: "#screen-xai-panel .card > p", sec: 4.5}
+  - chapter: {label: "2 / 3 · 실행 과정", title: "한 종목의 차트를 읽습니다", text: "차트 패턴 · 지지와 저항 · 여러 시간 단위의 신호를 한 화면에서 봅니다", sec: 5.0}
+  - click: "#screen-xai-panel .card > p button"
+  - wait: {target: '#pt-run:has-text("분석 중")', state: "hidden", timeout: 150, cut: true}
+  - pause: 1.5
+  - say: "캔들 차트 위에 지지(초록) · 저항(빨강) 선과 찾은 패턴 · 돌파 지점을 겹쳐 그립니다"
+  - ring: {target: "#pt-chart-card", sec: 4.5}
+  - pause: 3.0
+  - scroll: {target: "#pt-mtf", block: "start"}
+  - say: "시간 단위별 신호 — 60분 · 일 · 주봉의 신호와 종합 점수, 방향이 얼마나 맞는지로 본 신뢰도"
+  - ring: {target: "#pt-mtf", sec: 4.5}
+  - pause: 3.0
+  - say: "근거 막대 — 규칙마다 종합 점수에 더하고 뺀 몫입니다 · 어느 규칙이 판단을 끌었는지 바로 보입니다"
+  - scroll: {by: 340}
+  - pause: 5.5
+  # 지지 · 저항 카드 머리에 「가장 가까운 저항 · 지지(%)」, 바닥에 하루 평균 변동 폭(ATR)이 있다 — 그 카드가 보인 뒤에 말한다(2026-10-18 확인 그림)
+  - scroll: {target: "#pt-patterns", block: "start"}
+  - say: "찾은 패턴과 지지 · 저항선 — 선은 몇 번 닿았는지로 강도를 매깁니다"
+  - pause: 6.0
+  - say: "가장 가까운 저항 · 지지까지 몇 % 인지와 하루 평균 변동 폭(ATR)을 함께 적어, 선이 얼마나 가까운지 가늠하게 합니다"
+  - pause: 6.0
+  - say: "자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 수정주가 · 지표는 Qurious 가 계산"
+  - pause: 4.5
+  - chapter: {label: "3 / 3 · 결과", title: "신호는 판단의 재료입니다", text: "규칙으로 계산한 신호와 근거를 보여 줄 뿐, 사고팔지는 사용자가 정합니다", sec: 5.0}
+  - say: "규칙으로 계산한 신호이며 투자 권유가 아닙니다 · 같은 종목도 시간 단위에 따라 신호가 다를 수 있습니다"
+  - pause: 6.0

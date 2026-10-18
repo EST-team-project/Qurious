@@ -502,7 +502,7 @@ async function renderCollectFetch() {
 function gb(bytes) { return bytes ? `${(bytes / 1e9).toFixed(1)} GB` : "—"; }
 function backupHtml(b) {
   const disk = b.disk;
-  const diskCard = `<div class="card"><h3 class="cl-h">이 PC 용량</h3>
+  const diskCard = `<div class="card cl-disk"><h3 class="cl-h">이 PC 용량</h3>
     ${disk ? `<div class="cl-tile cl-tile--soft" style="margin-bottom:10px"><div class="k">${escHtml(disk.drive || "")} 드라이브 여유</div><div class="v">${disk.free_gb} GB</div>
         <div class="d">전체 ${disk.total_gb} GB</div></div>
       <div class="cl-tile cl-tile--soft"><div class="k">수집 DB</div><div class="v">${disk.collector_db_gb} GB</div></div>

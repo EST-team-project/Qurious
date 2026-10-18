@@ -17,6 +17,12 @@
 9. 창 동작의 줄 — showModal(뒤 화면 막음 · 초점 가둠은 브라우저) · Esc 는 창 안 용어 카드부터 · 화면을 바꾸면 닫힘 · 닫으면 단추로 초점 ·
    용어 받기는 용어 서랍과 같은 함수 한 곳(termcard.js fillTermCard). (TC-HT-09)
    손으로 보는 것(창 · Esc · 초점 · 폭 넷 · 다시 그리는 화면)은 tests/e2e/howto_dialog.py.
+10. 영상 표 읽기(D132 첫 단계 · 2026-10-18) — videoOf 는 표의 판 · 그 화면 줄 · 우리 폴더 주소만 받고, 그 화면이 나오는 장부터
+    (차트 패턴 = 장 2) · 장 차례는 표 범위 안으로 · 길이는 브라우저처럼 내림. 표가 없거나 꼴이 틀리면 null. (TC-HT-10)
+11. 재생 칸 — 그 장의 시각부터(#t=) · 장 단추(지금 장 aria-current) · 장 표시 「② / 3」 · 장 제목은 글자로 · 자막 트랙은 켜지 않음
+    (자막이 영상에 들어 있어 겹친다) · 창 바닥 고지 한 줄. (TC-HT-11)
+12. 창의 영상 줄 — 영상 표는 한 번(no-cache) · 받으면 그린 윗줄을 다시 · 로그인 전(401)은 나중에 다시 · 창을 닫으면 영상 멈춤 ·
+    장 단추가 시각을 옮긴다. 손 몫(재생 · 장부터 · 장 단추 · Range · 404 숨김 · 390)은 tests/e2e/howto_video.py. (TC-HT-12)
 """
 from __future__ import annotations
 
@@ -172,6 +178,10 @@ out.glossary = hv.howtoHtml("fin-glossary", {{ summary: "s", steps: ["a"] }}, {{
     assert '>이 화면</h2>' in out["nolabel"] and "개념 학습 「" not in out["nolabel"], "이름이 없으면 「이 화면」 · 이어 줄 장이 없으면 목차만"
     assert "이 화면의 용어" not in out["nolabel"], "용어가 없으면 소제목도 없다"
     assert "용어사전에서 더 찾기" not in out["glossary"], "용어사전 화면에서는 자기 자신으로 가는 줄을 빼다"
+    # 창 바닥 고지 한 줄(10-1 시안 ④) — 영상이 있든 없든 끝줄 아래
+    for html in (h, hv_, out["nolabel"]):
+        assert '<p class="q-howto-note">투자 권유가 아닙니다 · 투자 판단과 결과는 이용자 몫입니다</p>' in html
+        assert html.index("q-howto-foot") < html.index("q-howto-note"), "고지는 끝줄 아래"
 
 
 def test_top_row_and_sizes(tmp_path, data):
@@ -185,7 +195,7 @@ out.rowVideo = hv.topRowHtml("data-status", {{ group: "데이터", label: "데�
 out.sizes = Object.fromEntries(Object.entries(guides).map(([k, g]) => [k, hv.sizeOf(k, g)]));
 out.amount = Object.fromEntries(Object.entries(guides).map(([k, g]) => [k, hv.textAmount(g)]));
 out.withVideo = hv.sizeOf("fin-topic-funds", guides["fin-topic-funds"], {{ video: {{ src: "a" }} }});
-out.limits = hv.SIZE_LIMITS; out.px = hv.SIZE_PX; out.wide = [...hv.WIDE_VIEWS]; out.videos = hv.VIDEOS;
+out.limits = hv.SIZE_LIMITS; out.px = hv.SIZE_PX; out.wide = [...hv.WIDE_VIEWS];
 const mk = (n) => ({{ summary: "가".repeat(n), steps: [], relatedTerms: [] }});
 out.edges = [119, 120, 259, 260].map((n) => hv.sizeOf("x", mk(n)));
 """)
@@ -206,7 +216,6 @@ out.edges = [119, 120, 259, 260].map((n) => hv.sizeOf("x", mk(n)));
         want = "s" if n < 120 else "m" if n < 260 else "l"
         assert out["sizes"][k] == want, (k, n, out["sizes"][k])
     assert out["withVideo"] == "l", "영상이 생기면 「크게」"
-    assert all(k in guides and v.get("src") for k, v in out["videos"].items()), "영상 목록은 사용법이 있는 화면만 · 주소가 있어야"
     # 화면마다 다르게(결정 ⑦) — 셋 모두 쓰인다 · 차트 · 분석 화면의 대표는 늘 「크게」
     assert {"s", "m", "l"} <= set(out["sizes"].values())
     for k in CHART_EXAMPLES:
@@ -261,3 +270,104 @@ def test_escape_matches_common(tmp_path):
     mine = chain(VIEW.read_text(encoding="utf-8"), "export function esc(")
     theirs = chain(COMMON.read_text(encoding="utf-8"), "export function escHtml(")
     assert mine == theirs and len(mine) == 5, (mine, theirs)
+
+
+# 영상 표 본보기 — tools/demo/help_videos.py 가 쓰는 꼴(판 1). 신호로 종목 살피기 = 스크리닝(장 1) → 차트 패턴(장 2 · 15.48초)
+_TAG = "0123456789ab"
+MANIFEST = {
+    "format": 1,
+    "videos": {
+        "A": {"title": "t", "src": f"/help/media/A.webm?v={_TAG}", "captions": f"/help/media/A.ko.vtt?v={_TAG}",
+              "chapters_src": f"/help/media/A.chapters.vtt?v={_TAG}", "duration": 38.64,
+              "chapters": [{"title": "하나", "start": 0, "end": 15.48, "poster": f"/help/media/A.ch1.jpg?v={_TAG}"},
+                           {"title": "둘 <b>굵게</b>", "start": 15.48, "end": 30.6, "poster": f"/help/media/A.ch2.jpg?v={_TAG}"},
+                           {"title": "셋", "start": 30.6, "end": 38.36, "poster": ""}]},
+        "EVIL": {"src": "https://example.com/x.webm", "chapters": [{"title": "x", "start": 0, "end": 1}]},
+        "UP": {"src": "/help/media/../../.env", "chapters": [{"title": "x", "start": 0, "end": 1}]},
+        "NOCH": {"src": f"/help/media/N.webm?v={_TAG}", "chapters": []},
+    },
+    "views": {"robo-screening": {"video": "A", "chapter": 0}, "robo-patterns": {"video": "A", "chapter": 1},
+              "far": {"video": "A", "chapter": 9}, "neg": {"video": "A", "chapter": -3},
+              "evil": {"video": "EVIL", "chapter": 0}, "up": {"video": "UP", "chapter": 0},
+              "noch": {"video": "NOCH", "chapter": 0}, "ghost": {"video": "NONE", "chapter": 0}},
+}
+
+
+def test_video_of_reads_the_table(tmp_path):
+    """TC-HT-10 · 영상 표 읽기 — 판 · 그 화면 줄 · 우리 폴더 주소만 · 그 화면이 나오는 장부터 · 장 차례는 범위 안 · 길이는 내림"""
+    out = _run(tmp_path, f"""
+const m = {json.dumps(MANIFEST, ensure_ascii=False)};
+out.first = hv.videoOf("robo-screening", m);
+out.mid = hv.videoOf("robo-patterns", m);
+out.far = hv.videoOf("far", m); out.neg = hv.videoOf("neg", m);
+out.bad = ["evil", "up", "noch", "ghost", "missing"].map((k) => hv.videoOf(k, m));
+out.none = [hv.videoOf("robo-patterns", null), hv.videoOf("robo-patterns", {{ ...m, format: 2 }}), hv.videoOf("robo-patterns", {{}})];
+const A = m.videos.A;
+out.badPoster = hv.videoOf("robo-patterns", {{ ...m, videos: {{ ...m.videos, A: {{ ...A, chapters: A.chapters.map((c) => ({{ ...c, poster: "javascript:alert(1)" }})) }} }} }});
+out.fmt = [0, 0.9, 15.48, 30.6, 59.99, 63, 3600.2].map(hv.fmtTime);
+out.at = [0, 15.0, 15.46, 15.48, 30, 31, 99].map((t) => hv.chapterIndexAt(A.chapters, t));
+out.badge = [hv.chapterBadge(0, 3), hv.chapterBadge(1, 3), hv.chapterBadge(25, 30)];
+out.url = hv.VIDEO_MANIFEST_URL;
+""")
+    f, m = out["first"], out["mid"]
+    assert f["startChapter"] == 0 and f["start"] == 0 and f["poster"].endswith("A.ch1.jpg?v=" + _TAG)
+    assert f["src"] == f"/help/media/A.webm?v={_TAG}" and f["duration"] == "0:38" and f["durationSec"] == 38.64
+    assert m["startChapter"] == 1 and m["start"] == 15.48 and m["poster"].endswith("A.ch2.jpg?v=" + _TAG), "그 화면이 나오는 장부터(차트 패턴 = 장 2)"
+    assert out["far"]["startChapter"] == 2 and out["neg"]["startChapter"] == 0, "표의 장 차례가 범위 밖이면 끝 · 처음으로"
+    assert out["bad"] == [None] * 5, "바깥 주소 · 경로 오르기 · 장 없음 · 없는 영상 · 없는 화면은 숨김"
+    assert out["none"] == [None] * 3, "표가 없거나 판이 다르면 숨김(결정 ⑥)"
+    assert out["badPoster"]["poster"] == "" and out["badPoster"]["src"], "우리 폴더 밖 그림 주소는 버린다"
+    assert out["fmt"] == ["0:00", "0:00", "0:15", "0:30", "0:59", "1:03", "60:00"], "브라우저 재생 막대처럼 내림"
+    assert out["at"] == [0, 0, 1, 1, 1, 2, 2], "지금 장 = 시작이 지금보다 늦지 않은 마지막 장"
+    assert out["badge"] == ["① / 3", "② / 3", "26 / 30"]
+    assert out["url"] == "/help/videos.json"
+
+
+def test_player_html(tmp_path):
+    """TC-HT-11 · 재생 칸 — 그 장의 시각부터 · 장 단추(지금 장 aria-current) · 장 표시 · 장 제목은 글자로 · 자막 트랙은 켜지 않음"""
+    out = _run(tmp_path, f"""
+const m = {json.dumps(MANIFEST, ensure_ascii=False)};
+out.mid = hv.playerHtml(hv.videoOf("robo-patterns", m));
+out.first = hv.playerHtml(hv.videoOf("robo-screening", m));
+out.slot = hv.howtoHtml("robo-patterns", {{ summary: "s", steps: ["a"] }}, {{ video: hv.videoOf("robo-patterns", m) }});
+""")
+    h = out["mid"]
+    assert f'src="/help/media/A.webm?v={_TAG}#t=15.48"' in h, "그 화면이 나오는 장의 시각부터(미디어 조각 #t=)"
+    assert f'poster="/help/media/A.ch2.jpg?v={_TAG}"' in h, "첫 그림 = 그 장의 제목 카드"
+    assert f'<track kind="captions" srclang="ko" label="한국어" src="/help/media/A.ko.vtt?v={_TAG}">' in h
+    assert "default" not in h, "자막은 영상에 들어 있다 — 트랙을 켜면 같은 글이 두 줄로 겹친다"
+    assert f'<track kind="chapters" srclang="ko" label="장" src="/help/media/A.chapters.vtt?v={_TAG}">' in h
+    assert h.count('data-howto-chap="') == 3 and h.count('aria-current="true"') == 1 and 'data-howto-chap="1" aria-current="true"' in h
+    assert "둘 &lt;b&gt;굵게&lt;/b&gt;" in h and "<b>굵게</b>" not in h, "장 제목은 글자로"
+    assert "<small>0:00</small>" in h and "<small>0:15</small>" in h and "<small>0:30</small>" in h
+    assert '<span class="q-howto-chapbadge" aria-hidden="true">② / 3</span>' in h
+    assert 'role="group" aria-label="장으로 가기"' in h and h.index("q-howto-stage") < h.index("q-howto-chaps"), "장 단추는 영상 아래"
+    f = out["first"]
+    assert "#t=" not in f and 'data-howto-chap="0" aria-current="true"' in f and "① / 3" in f, "처음부터 트는 화면은 시각 조각 없이"
+    s = out["slot"]
+    assert "영상으로 보기" in s and "0:38 · 한국어 자막" in s and "<video" not in s, "창을 열면 칸만 — 누르면 그 자리에서 튼다"
+
+
+def test_dialog_video_lines():
+    """TC-HT-12 · 창의 영상 줄 — 표는 한 번(no-cache) · 받으면 다시 그림 · 401 은 나중에 · 닫으면 멈춤 · 장 단추가 시각을 옮김"""
+    src = HOWTO.read_text(encoding="utf-8")
+    load = _block(src, "async function loadVideos()", "\n}\n")
+    assert 'fetch(VIDEO_MANIFEST_URL, { cache: "no-cache"' in load, "다시 녹화한 표를 놓치지 않게 매번 묻기"
+    assert "r.status === 401" in load and "retryAt = Date.now() + 60_000" in load, "로그인 전이면 1분 뒤 다시"
+    assert "for (const [k, d] of DATA) render(k, d.guide, d)" in load, "표가 늦게 와도 그린 윗줄에 단추가 나타나게"
+    ensure = _block(src, "function ensureVideos()", "\n}\n")
+    assert 'videosState === "idle"' in ensure and 'videosState === "later" && Date.now() >= retryAt' in ensure
+    render = _block(src, "function render(", "\n}\n")
+    assert "ensureVideos();" in render and "video: videoFor(viewKey)" in render
+    assert "const video = videoFor(viewKey);" in _block(src, "function open(", "\n}\n")
+    closed = _block(src, 'addEventListener("close"', "});")
+    assert 'dialog.querySelectorAll("video").forEach((v) => v.pause())' in closed, "닫힌 창 뒤에서 영상이 돌지 않게"
+    play = _block(src, "function playVideo(", "\n}\n")
+    assert "wrap.innerHTML = playerHtml(v);" in play and "video.currentTime = ch.start;" in play
+    assert 'video.addEventListener("timeupdate", mark);' in play and "chapterIndexAt(v.chapters, video.currentTime)" in play
+    assert "VIDEOS" not in src and "VIDEOS" not in VIEW.read_text(encoding="utf-8"), "고정 영상 표는 없앴다 — 표는 영상 폴더 한 곳"
+    # 좁은 화면 경계는 CSS 두 곳(창 화면 전체 · 장 단추 세로)이 같은 값 — 어긋나면 창은 전체인데 단추는 가로로 넘친다
+    css = HOWTO_CSS.read_text(encoding="utf-8")
+    edges = re.findall(r"@media \(max-width: (\d+)px\) \{\s*/\*[^*]*\*/\s*\.q-howto-(dialog|chaps) \{", css)
+    assert sorted(edges) == [("760", "chaps"), ("760", "dialog")], edges
+    assert '.q-howto-chap[aria-current="true"] { border-color: var(--accent);' in css, "지금 장은 파랑"
