@@ -206,6 +206,10 @@ app.include_router(model_compare_routes.router)
 # 칸마다 모은다(새 계산 없음) + 질문 속 종목 찾기(AI 투자 상담 카드). 수집 DB 를 읽기만 · 로그인 뒤 · 화면은 3차
 from app.routes import stock_hub as stock_hub_routes  # noqa: E402
 app.include_router(stock_hub_routes.router)
+# 사용법 영상 (결정 D132 · 2026-10-18) — git · 이미지 밖 로컬 폴더(data/help/ · 도커는 이미 붙은 /app/data/csv/help)를
+# 로그인한 사람에게만 /help/… 로 낸다. 폴더가 없으면 404 → 사용법 창의 영상 칸 · 단추를 숨긴다(결정 ⑥)
+from app.routes import help_media as help_media_routes  # noqa: E402
+app.include_router(help_media_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")

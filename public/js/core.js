@@ -522,6 +522,7 @@ function navigate(viewKey) {
       break;
     }
   }
+  const moved = currentView !== viewKey;   // 다른 화면으로 옮기나(같은 화면을 다시 부르면 스크롤 자리를 둔다)
   currentView = viewKey;
 
   // 위 탭 — 지금 묶음이 여섯 안이면 그 탭에 불(「학습」 탭은 금융 필수 지식 · 개념 학습은 바깥 화면이라 앱 안에서는 늘 금융 필수 지식)
@@ -537,6 +538,9 @@ function navigate(viewKey) {
   document.querySelectorAll(".view").forEach(el => {
     el.classList.toggle("active", el.dataset.view === viewKey);
   });
+  // 다른 화면으로 옮기면 내용 칸을 맨 위로 — 굴러가는 칸이 창이 아니라 #main-content 라 브라우저가 자리를 되돌려 주지 않아,
+  // 앞 화면에서 내려간 자리를 물려받아 새 화면 중간에 떨어졌다(DF-134 · 2026-10-18 시연 영상을 찍다가 찾음)
+  if (moved) document.getElementById("main-content")?.scrollTo(0, 0);
 
   // 사용법 안내 패널 (전체 화면 공통)
   renderViewGuide(viewKey);

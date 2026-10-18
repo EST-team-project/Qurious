@@ -1,0 +1,30 @@
+# F04 — 한 종목의 공시 · 기사 · 재무 건전성 · 일정을 한 길로 본다 (기능 영상 · 2026-10-18)
+# 화면: 로보 어드바이저 › 투자 정보 리서치 (agent-news) · 재무 · 신용 위험 (agent-cb) · 학습 › 거래일 · 금융 일정 (market-calendar) · 주담당 이동원
+# 세 화면 사이에 종목이 저절로 이어지지 않는다 — 화면마다 종목을 다시 고른다(이음은 3차 종목 허브)
+file: F04-한종목-근거-모으기
+title: 한 종목의 공시 · 재무 · 일정을 한 길로 봅니다
+owner: 이동원
+start: agent-news
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "근거를 한 종목으로 모읍니다", text: "공시 · 정책뉴스 · 언론사 기사 제목을 종목 하나로 엮어 봅니다", sec: 3.5}
+  - fill: {target: ".rs-sym-q", text: "삼성전자", delay: 90}
+  - wait: {target: '.rs-suggest li[data-code="005930"]', timeout: 15}
+  - click: '.rs-suggest li[data-code="005930"]'
+  - pause: 2.5
+  - say: "투자 정보 리서치 — 이 종목의 공시와 기사를 날짜순으로"
+  - scroll: {by: 360}
+  - pause: 3.0
+  - chapter: {label: "2 / 3 · 과정", title: "회사가 튼튼한지 봅니다", text: "재무 건전성 지표를 공시된 재무제표로 계산합니다", sec: 3.0}
+  - go: agent-cb
+  - click: '.rc-examples .rc-chip[data-code="005930"]'
+  - pause: 3.0
+  - say: "재무 건전성 — 유동비율 · 부채비율 · 자기자본비율을 공시 기준일과 함께"
+  - pause: 3.5
+  - go: market-calendar
+  - click: ".cal-today-btn"
+  - pause: 1.5
+  - say: "일정 — 휴장 · 금리 회의 · 배당 기준일 · 배당락일 · 주주총회를 달력 하나에"
+  - pause: 3.0
+  - chapter: {label: "3 / 3 · 결과", title: "판단은 사용자가 합니다", text: "근거를 모아 보여 줄 뿐, 사고팔지는 정하지 않습니다", sec: 3.0}
+  - say: "공시 · 재무 원문을 근거로 한 정보 제공이며 투자 권유가 아닙니다"
+  - pause: 3.0

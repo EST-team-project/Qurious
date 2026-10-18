@@ -1,0 +1,67 @@
+# 발표 영상 — 근거를 댈 수 없으면 답하지 않는 금융 AI 상담 (자세한 판 · 2 ~ 3분 · 2026-10-18 · 이동원 핵심 메시지 M1)
+# 화면: 로보 어드바이저 › AI 투자 상담 (agent-chat) · 답변 엔진 「근거 답 — 법령 · 규정 출처」 · 주담당 이동원
+# 사용법 판(장면/V07)과 다른 점: 기준일 · 근거 카드 · 함께 찾은 근거 한 줄 펼치기 · 답 꼬리(모델 · 시간 · 확인 안내) ·
+#   근거 없을 때 찾은 조문 펼치기 · 권유 질문에 먼저 뜨는 종목 카드(값은 앱 화면 그대로 · 다른 화면으로) · 결과 장의 숫자
+# 답은 이 PC 의 로컬 모델이 만든다 — 기다리는 시간은 영상에서 줄이고 화면에 밝힌다(답은 바꾸지 않는다)
+# 선택자: 「text=함께 찾은 근거」 는 출처 묶음 머리 줄(div)에 먼저 맞아 누름이 헛돈다 — 단추는 클래스(.kb-more)로 고른다(2026-10-18 녹화 확인)
+# 결과 장 숫자 근거: 발표 개요 초안 7행 · 이동원파트-할일 「근거 충실도 자동 지표」 줄(판정 모델 AUC 0.576 · 0.658 → 품질 지표에서 뺌)
+file: 발표-V07-근거상담
+title: 근거를 댈 수 없으면 답하지 않는 금융 AI 상담
+owner: 이동원
+start: agent-chat
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "근거가 있을 때만 답합니다", text: "법은 바뀌고 AI 는 그럴듯하게 지어냅니다 — 지금 시행 중인 법령 · 감독규정 조문을 찾아 출처 번호를 달고, 근거가 없으면 답하지 않습니다", sec: 6.0}
+  - select: {target: "#chat-llm-mode", value: "kb"}
+  - say: "답변 엔진을 「근거 답」 으로 — 법령 · 감독규정 조문만 근거로 씁니다"
+  - pause: 3.5
+  - say: "질문 1 — 법에 답이 있는 질문"
+  - fill: {target: "#chat-input", text: "증권사가 손실을 보전해 주겠다고 약속해도 되나요?", delay: 55}
+  - click: "#chat-send"
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "attached", timeout: 15}
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "detached", timeout: 240, cut: true, settle: "#chat-messages"}
+  - scroll: {target: "#chat-messages > :last-child", block: "start"}
+  - say: "맨 위 「근거 답」 과 기준일 — 오늘 시행 중인 판의 조문만 씁니다"
+  - ring: {target: "#chat-messages > :last-child .kb-tag", sec: 3.5}
+  - say: "답 문장 끝의 번호가 아래 근거 카드 번호입니다 — 법령 이름 · 조 · 시행일 · 원문 링크와 조문 글"
+  - ring: {target: "#chat-messages > :last-child .kb-src", sec: 5.0}
+  - pause: 1.5
+  - scroll: {target: "#chat-messages > :last-child .kb-more", block: "center"}
+  - say: "함께 찾은 근거 — 답에 쓰지 않았지만 가까운 조문도 한 줄씩 남겨, 답이 고른 근거와 견줘 볼 수 있습니다"
+  - ring: {target: "#chat-messages > :last-child .kb-extra", sec: 4.5}
+  - click: "#chat-messages > :last-child .kb-extra .kb-src-head"
+  - say: "한 줄을 누르면 그 조문 글이 펼쳐집니다"
+  - pause: 4.0
+  - say: "답 아래에는 쓴 모델 · 걸린 시간과 「조문을 열어 확인하세요」 가 늘 붙습니다"
+  - ring: {target: "#chat-messages > :last-child .kb-foot", sec: 4.0}
+  - chapter: {label: "2 / 3 · 실행 과정", title: "근거가 없으면 지어내지 않습니다", text: "우리 근거 자료에 없는 질문과 투자 권유 질문은 답을 만들지 않고 그렇다고 밝힙니다", sec: 5.0}
+  - say: "질문 2 — 근거 자료(국내 법령)에 없는 질문"
+  - fill: {target: "#chat-input", text: "미국 주식 배당금에 미국이 원천징수하는 세율은?", delay: 55}
+  - click: "#chat-send"
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "attached", timeout: 15}
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "detached", timeout: 240, cut: true, settle: "#chat-messages"}
+  - scroll: {target: "#chat-messages > :last-child", block: "start"}
+  - say: "근거를 찾지 못하면 그렇다고 밝힙니다 — 답에 쓴 근거 0"
+  - ring: {target: "#chat-messages > :last-child .kb-tag", sec: 3.5}
+  - click: "#chat-messages > :last-child .kb-more"
+  - say: "찾은 조문은 숨기지 않고 펼쳐 보입니다 — 질문과 맞는 조문이 없었다는 것을 사람이 확인할 수 있게"
+  - ring: {target: "#chat-messages > :last-child .kb-extra", sec: 4.5}
+  - pause: 1.5
+  - say: "법 밖의 질문은 「일반 AI 에게 묻기」 로 따로 묻습니다 — 근거 답과 섞지 않습니다"
+  - ring: {target: "#chat-messages > :last-child .kb-again", sec: 3.5}
+  - say: "질문 3 — 종목을 사라 · 팔라고 묻는 질문"
+  - fill: {target: "#chat-input", text: "지금 삼성전자를 사도 될까요?", delay: 55}
+  - click: "#chat-send"
+  - wait: {target: "#chat-messages .fa-spin, #chat-messages .animate-pulse", state: "detached", timeout: 120, cut: true, settle: "#chat-messages"}
+  - scroll: {target: "#chat-messages .kb-sc", block: "start"}
+  - say: "사라 · 팔라는 답은 만들지 않습니다 — 대신 앱이 그 종목에 대해 이미 아는 것을 카드 한 장으로 먼저 보입니다"
+  - ring: {target: "#chat-messages .kb-sc", sec: 5.0}
+  - say: "마지막 종가 · 다중 주기 신호 · 재무 건전성 · 최근 공시 — 앱 화면의 값을 그대로 옮겨, AI 가 숫자를 바꿀 수 없습니다"
+  - ring: {target: "#chat-messages .kb-sc-read", sec: 4.5}
+  - say: "칩을 누르면 그 종목을 들고 차트 패턴 · 스크리닝 · 재무 위험 · 공시 시간표 · 모의 주문 화면으로 갑니다"
+  - ring: {target: "#chat-messages .kb-sc-links", sec: 4.5}
+  - scroll: {target: "#chat-messages > :last-child", block: "center"}
+  - say: "근거 답은 이번에도 지어내지 않았습니다 — 찾은 조문 가운데 답에 쓸 근거가 없다고 밝힙니다"
+  - ring: {target: "#chat-messages > :last-child .kb-tag", sec: 4.0}
+  - chapter: {label: "3 / 3 · 결과", title: "그 약속을 숫자로 잽니다", text: "평가 질문 50개 중 47개에서 정답 조문을 상위 5개 안에 찾았고, 근거 밖 질문에 지어낸 답은 3개 중 0개였습니다 · 답을 채점하던 AI 판정은 사람 판정과 맞지 않아 잣대에서 뺐습니다", sec: 9.0}
+  - say: "법령 원문을 근거로 한 정보 제공이며 투자 권유 · 법률 자문이 아닙니다"
+  - pause: 4.5

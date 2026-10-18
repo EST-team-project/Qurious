@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 267,
- "routers": 38,
+ "count": 269,
+ "routers": 39,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -7649,6 +7649,46 @@
     "rule",
     "note"
    ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-HELP-01",
+   "router": "help_media",
+   "method": "GET",
+   "path": "/help/videos.json",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/help_media.py",
+   "line": 84,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-HELP-02",
+   "router": "help_media",
+   "method": "GET",
+   "path": "/help/media/{name}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/help_media.py",
+   "line": 93,
+   "errors": [
+    "404"
+   ],
+   "keys": [],
    "body": [],
    "schema": true
   }

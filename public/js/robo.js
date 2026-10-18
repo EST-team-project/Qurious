@@ -147,14 +147,17 @@ async function submitRiskProfile() {
   try {
     const r = await api("/api/ml/robo/risk-profile", { method: "POST", body: { answers } });
     const cls = r.risk_profile === "aggressive" ? "badge-sell" : r.risk_profile === "moderate" ? "badge-hold" : "badge-buy";
+    // 화면에는 서버 값(moderate 같은 영어 낱말) 대신 아래 「투자 성향」 선택 칸의 글(「중립 (위험중립형)」)을 보인다 —
+    // 2026-10-18 잠정 반영(D124 · 주담당 오준영 · 시연 영상에서 찾음). 되돌리려면 profileLabel 대신 r.risk_profile 을 쓴다.
+    const profileLabel = document.querySelector(`#robo-risk option[value="${r.risk_profile}"]`)?.textContent || r.risk_profile;
     document.getElementById("rp-result").innerHTML = `
-      <div class="flex flex-wrap items-center gap-2 mb-1"><span class="${cls}" style="font-size:14px;">${escHtml(r.level)}</span><span class="text-xs" style="color:var(--text-mute);">점수 ${r.score} / ${r.max_score} · 시스템 프로파일 <b>${escHtml(r.risk_profile)}</b> (자산배분 성향에 반영됨)</span></div>
+      <div class="flex flex-wrap items-center gap-2 mb-1"><span class="${cls}" style="font-size:14px;">${escHtml(r.level)}</span><span class="text-xs" style="color:var(--text-mute);">점수 ${r.score} / ${r.max_score} · 자산배분 성향 <b>${escHtml(profileLabel)}</b>(아래 최적화에 반영됨)</span></div>
       <p class="text-xs" style="color:var(--text-dim);">${escHtml(r.description)}</p>
       <div class="flex gap-1 mt-2">${r.scale.map(sc => `<span class="text-xs px-2 py-0.5 rounded" style="background:${sc.level === r.level ? "var(--accent)" : "var(--surf3)"};color:${sc.level === r.level ? "#fff" : "var(--text-mute)"};">${escHtml(sc.level)} ${sc.min}+</span>`).join("")}</div>`;
     document.getElementById("robo-risk").value = r.risk_profile;
     document.getElementById("rp-form").classList.add("hidden"); document.getElementById("rp-toggle").textContent = "설문 다시 하기";
     try { localStorage.setItem("robo_risk_profile", JSON.stringify({ level: r.level, risk_profile: r.risk_profile, score: r.score })); } catch (_) { }
-    setToast(`투자성향: ${r.level} → 자산배분 성향을 ${r.risk_profile}로 설정했습니다.`, "ok");
+    setToast(`투자성향: ${r.level} → 자산배분 성향을 「${profileLabel}」 로 설정했습니다.`, "ok");
   } catch (e) { setToast(e.message, "error"); }
 }
 document.getElementById("rp-toggle")?.addEventListener("click", async () => {

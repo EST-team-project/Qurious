@@ -242,3 +242,15 @@ def test_tree_text_wraps_and_width_follows_screen():
     assert "overflow-wrap: anywhere;" in QCSS and "text-overflow: clip;" in QCSS
     rule = re.search(r"^button\.lnb-item, a\.lnb-item \{([^}]*)\}", QCSS, flags=re.M)
     assert rule and "font-family: inherit" in rule.group(1) and "font: inherit" not in rule.group(1)
+
+def test_view_change_scrolls_content_to_top():
+    """TC-NV-16 · 다른 화면으로 옮기면 내용 칸(#main-content)을 맨 위로 — 굴러가는 칸이 창이 아니라 그 칸이라 브라우저가 자리를
+    되돌려 주지 않는다. 앞 화면에서 내려간 자리를 물려받아 새 화면 중간에 떨어졌다(DF-134 · 2026-10-18 시연 영상을 찍다가 찾음).
+    같은 화면을 다시 부르면 자리를 둔다."""
+    nav = _fn(CORE, "function navigate(viewKey) {")
+    assert nav.index("const moved = currentView !== viewKey;") < nav.index("currentView = viewKey;"), "옮기는지는 지금 화면을 바꾸기 전에 잰다"
+    assert 'if (moved) document.getElementById("main-content")?.scrollTo(0, 0);' in nav
+    assert '<main id="main-content">' in APP, "내용 칸 이름이 바뀌면 맨 위로 되돌리기가 헛돈다"
+    css = (PUB / "css" / "app.css").read_text(encoding="utf-8")
+    rule = re.search(r"#main-content \{([^}]*)\}", css)
+    assert rule and "overflow-y: auto" in rule.group(1), "굴러가는 칸이 #main-content 가 아니면 이 시험을 다시 본다"

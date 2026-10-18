@@ -84,6 +84,10 @@ def main() -> int:
                     print(f"깨기 닻 {body.count(BREAK['old'])}곳 — {BREAK['path']}")
                 route.fulfill(response=resp, body=body.replace(BREAK["old"], BREAK["new"], 1))
             ctx.route(f"**{BREAK['path']}", _break)
+        # 이 점검은 「영상이 없는 창」(창 크기 · 초점 · Esc)을 본다 — 영상을 받은 PC 에서도 같게 영상 표를 빈 표로 바꿔 받는다
+        # (영상을 받지 않은 PC 에 서버가 주는 꼴 · app/routes/help_media.py EMPTY_MANIFEST). 영상 칸은 tests/e2e/howto_video.py 가 본다(D132).
+        ctx.route("**/help/videos.json", lambda route: route.fulfill(status=200, content_type="application/json",
+                                                                      body='{"format": 1, "videos": {}, "views": {}, "missing": true}'))
         page = ctx.new_page()
         errors: list[str] = []
         page.on("pageerror", lambda err: errors.append(str(err)))

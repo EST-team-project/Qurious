@@ -1,0 +1,30 @@
+# F01 — 매일 낮 공식 자료를 받아 검증하고 백업하는 모습 (기능 영상 · 2026-10-18)
+# 화면: 데이터 › 데이터 관제 (data-status) · 수집 일정 · 단계 (crawl-auto) · 적재 · 백업 (crawl-ingest) · 주담당 이동원
+# 관리자 계정으로 찍는다 — 수집 세 화면은 관리자에게만 보인다. 계정은 환경 변수 DEMO_EMAIL · DEMO_PASSWORD 로만 넘긴다(파일에 쓰지 않음)
+# 누르지 않는다: 전체 수집 · 다시 받기 · 명령 · 원격 다시 확인 · 복원 리허설(실제로 돈다) — 보기만
+# 가림: 적재 · 백업의 「이 PC 용량」 카드(.cl-disk — 이 PC 의 드라이브 정보) · 감춤: 관리자에게만 뜨는 「기능 완성도」 배지(개발용 표시)
+file: F01-매일-자료-수집-검증
+title: 매일 낮, 공식 자료를 받아 검증하고 백업합니다
+owner: 이동원
+start: data-status
+mask: [".cl-disk"]
+hide: ["#view-completion-indicator"]
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "자료가 오늘도 들어왔나", text: "시세 · 공시 · 재무 · 뉴스를 매일 낮 12:30 에 받고, 자료마다 신선한지 화면에서 봅니다", sec: 3.5}
+  - wait: {target: ".view.active .dh-sum", timeout: 90, cut: true}
+  - say: "데이터 관제 — 자료마다 기준일 · 판정 · 줄 수를 봅니다"
+  - ring: {target: ".view.active .dh-sum", sec: 2.5}
+  - scroll: {by: 420}
+  - pause: 2.5
+  - chapter: {label: "2 / 3 · 과정", title: "스물한 단계가 한 회차입니다", text: "받기 · 계산 · 백업 · 근거 문서 — 단계마다 결과와 걸린 시간이 남습니다", sec: 3.0}
+  - go: crawl-auto
+  - say: "오늘 회차 — 단계마다 성공 · 실패와 걸린 시간"
+  - pause: 3.0
+  - scroll: {by: 380}
+  - pause: 2.5
+  - go: crawl-ingest
+  - say: "백업 — 표 · 행 수 · 파일이 같은지, 값까지 같은지, 복원이 되는지를 하나씩 확인합니다"
+  - pause: 4.0
+  - chapter: {label: "3 / 3 · 결과", title: "실패는 숨기지 않습니다", text: "받지 못한 날과 실패한 단계는 까닭과 함께 남고, 다시 받을 수 있습니다", sec: 3.5}
+  - say: "공식 자료는 이 서비스 안에서만 보여 주며, 원자료는 비공개 저장소에만 둡니다"
+  - pause: 3.0

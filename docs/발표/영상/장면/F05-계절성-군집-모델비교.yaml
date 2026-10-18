@@ -1,0 +1,29 @@
+# F05 — 시장 속설과 모델을 데이터로 따져 본다 (기능 영상 · 2026-10-18)
+# 화면: ML·딥러닝 › 계절성 분석 (quant-seasonal) · 종목 군집화 (ml-cluster) · 모델 비교 (ml-compare) · 주담당 이동원
+# 출처(D54 · 2026-10-18 코드 확인): 계절성의 코스피 · 코스닥은 한국은행 ECOS 가격지수 · 군집 · 모델 비교는 수집 DB 의 수정주가(금융위원회 주식시세정보)
+file: F05-계절성-군집-모델비교
+title: 시장 속설과 모델을 데이터로 따져 봅니다
+owner: 이동원
+start: quant-seasonal
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "그 효과, 정말 있나요", text: "달 · 요일 효과를 해마다 일관성과 함께 검정하고, 우연과 가르기 어려우면 그렇다고 보입니다", sec: 3.5}
+  - wait: {target: "#se-bar", timeout: 90, cut: true}
+  - say: "계절성 — 코스피의 달마다 평균과 오른 해의 비율"
+  - ring: {target: "#se-bar", sec: 2.5}
+  - pause: 2.0
+  - chapter: {label: "2 / 3 · 과정", title: "비슷한 종목끼리 묶고, 모델은 기준선과 견줍니다", text: "시장 전체 움직임을 뺀 뒤 묶고, 모델은 시간 순서대로만 평가합니다", sec: 3.0}
+  - go: ml-cluster
+  - wait: {target: "#cu-map", timeout: 120, cut: true}
+  - say: "종목 군집화 — 묶음마다 까닭이 되는 특징"
+  - ring: {target: "#cu-map", sec: 2.5}
+  - go: ml-compare
+  - click: 'button[data-act="run"]'
+  - wait: {target: 'button[data-tab="plot"]', timeout: 420, cut: true}
+  - pause: 1.0
+  - say: "모델마다 기준선보다 뚜렷하게 나은지 — 아니면 「낫다고 말할 수 없음」"
+  - pause: 3.5
+  - say: "자료: 한국은행 ECOS(지수) · 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 수익률 · 지표는 Qurious 가 계산"
+  - pause: 3.0
+  - chapter: {label: "3 / 3 · 결과", title: "모르면 모른다고 보입니다", text: "관측이 적거나 기준선과 가르지 못하면 판정하지 않습니다", sec: 3.0}
+  - say: "과거 자료로 계산한 분석이며 미래 수익을 보장하지 않습니다"
+  - pause: 3.0

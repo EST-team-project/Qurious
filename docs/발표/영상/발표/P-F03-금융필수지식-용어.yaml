@@ -1,0 +1,74 @@
+# 발표 판 — 모르는 금융 낱말을 배우고 찾는다 (자세한 판 · 2 ~ 3분 · 2026-10-18)
+# 화면: 학습 › 금융 필수 지식 강의실 (fin-lectures) · 펀드와 ETF (fin-topic-funds) · 용어사전 (fin-glossary) → 개념 학습(/learn/ · 1.2 수정주가 장) · 주담당 이동원
+# 계정: 일반(기본 계정)
+# 늘린 것: 강의 카드 읽는 법(절 · 용어 · 이해도) · 실습 모음 · 주제 화면의 질문 넷 · 절마다 이해도 · 초성 찾기 → 용어 한 장 · 자주 찾는 용어 · 연관 개념(헷갈리기 쉬운 말) · 개념 학습의 완성된 장(그림으로 읽기)
+# 개념 학습의 금융 장(F.1 ~ F.10)은 아직 모두 「뼈대」 라 결과 장은 완성된 「1.2 수정주가」 를 연다
+# 감춤: 개념 학습 아래 띠(#statusbar — 팀 자료 저장소 이름이 보인다) · 「새로 받기」 단추는 누르지 않는다
+# 초성 예시 「ㅅㄱㅊㅇ」 = 시가총액(화면 자리표시와 같음)
+file: 발표-F03-금융필수지식-용어
+title: 모르는 금융 낱말을 배우고 찾습니다
+owner: 이동원
+start: fin-lectures
+hide: ["#statusbar"]
+steps:
+  # ── 1 / 3 · 목적 — 강의실 · 주제 화면 ──
+  - chapter: {label: "1 / 3 · 목적", title: "처음 보는 낱말에서 막히지 않게", text: "강의실 · 주제 화면 · 용어사전 · 개념 학습을 한 길로 잇습니다", sec: 4.0}
+  - say: "강의실 — 하루 한 주제씩, 상품의 구조와 위험을 읽고 내 기준으로 비교합니다"
+  - pause: 4.5
+  - ring: {target: '[data-go="fin-topic-funds"]', sec: 2.0}
+  - say: "카드마다 절 수 · 용어 수와, 내가 표시한 이해도가 함께 보입니다"
+  - pause: 4.5
+  - ring: {target: '.view.active button[data-view="ml-compare"]', sec: 2.0}
+  - say: "배운 개념은 실습 모음에서 이 서비스의 분석 화면으로 바로 이어집니다"
+  - pause: 4.5
+  # 카드를 누르는 대신 go — 녹화 기록에 화면 키가 남아야 그 화면 사용법 창에 이 영상이 붙는다
+  - go: fin-topic-funds
+  # 맨 위에서 시작해 300 만 내린다(420 이면 절 머리의 「이해도」 다섯 칸이 화면 위로 사라진다) · 굴러가는 칸은 내용 칸(#main-content)
+  # (앱도 화면을 바꾸면 맨 위로 되돌린다 — DF-134 · 그 전에는 앞 화면에서 내려간 자리를 물려받았다)
+  - js: "document.getElementById('main-content').scrollTo({top: 0})"
+  - say: "주제 하나 — 펀드와 ETF · 이 강의가 답하는 질문 넷을 먼저 보여 줍니다"
+  - pause: 4.5
+  - js: "document.getElementById('main-content').scrollBy({top: 300, behavior: 'smooth'})"
+  - pause: 0.8
+  - say: "본문은 절마다 나뉘고, 절마다 이해도를 다섯 칸으로 스스로 표시합니다"
+  - pause: 4.5
+  # ── 2 / 3 · 과정 — 용어사전 ──
+  - chapter: {label: "2 / 3 · 과정", title: "낱말은 용어사전에서", text: "이름 · 약어 · 영어 · 초성으로 찾고, 한 장에서 뜻 · 계산식 · 주의할 점을 봅니다", sec: 3.5}
+  - go: fin-glossary
+  - say: "용어사전 — 분류로 둘러보거나, 찾기 칸에 바로 넣습니다"
+  - pause: 4.0
+  - fill: {target: "#q-gl-q", text: "ㅅㄱㅊㅇ", delay: 140}
+  - pause: 1.5
+  - say: "초성만 넣어도 찾습니다 — 「ㅅㄱㅊㅇ」 은 시가총액"
+  - pause: 4.0
+  - click: '#q-gl-main .q-gl-row'
+  - wait: {target: ".q-gl-page", timeout: 15}
+  - say: "용어 한 장 — 뜻 · 쉽게 풀면 · 계산식 · 주의할 점"
+  - pause: 4.0
+  - say: "시가총액은 주가 × 발행주식 수 — 주가만으로 회사 크기를 견주면 안 되는 까닭까지 적어 둡니다"
+  - pause: 5.0
+  - click: '.q-gl-popular button[data-open="PER"]'
+  - wait: {target: ".q-gl-page .q-term-related", timeout: 15}
+  - say: "자주 찾는 용어 PER — 주가가 1주당 이익의 몇 배인지 · 예시와 주의할 점도 함께"
+  - pause: 4.5
+  - ring: {target: ".q-gl-page .q-term-related", sec: 2.0}
+  - say: "연관 개념 — 헷갈리기 쉬운 EV/EBITDA · PBR 과 무엇이 다른지 한 줄로 견줍니다"
+  - pause: 5.0
+  - click: '.q-gl-page .q-term-related button:has-text("PBR")'
+  - wait: {target: ".q-gl-page", timeout: 15}
+  - say: "누르면 그 낱말의 한 장으로 넘어가 이어 읽습니다"
+  - pause: 4.0
+  # ── 3 / 3 · 결과 — 개념 학습 ──
+  - chapter: {label: "3 / 3 · 결과", title: "더 깊게는 개념 학습에서", text: "화면에 나오는 개념을 실제 사례와 그림으로 풀어 둔 장으로 이어집니다", sec: 3.5}
+  - js: "location.href = '/learn/#/p/adjusted-price'"
+  - pause: 2.5
+  - say: "개념 학습 — 수정주가 장 · 이 장을 읽고 나면 할 수 있게 되는 것부터 적혀 있습니다"
+  - pause: 4.5
+  - scroll: {target: 'h2:has-text("액면분할 다음 날")', block: "start"}
+  - say: "질문 하나로 시작합니다 — 액면분할 다음 날 주가가 5분의 1 이 되면 손실일까요?"
+  - pause: 4.5
+  - ring: {target: "#view figure", sec: 2.0}
+  - say: "원 가격으로 셈하면 하루 −78% 지만, 수정 가격으로 이으면 주주가 실제로 겪은 흐름이 보입니다"
+  - pause: 5.0
+  - say: "교육용 내용이며 특정 상품의 매수 · 매도를 권하지 않습니다"
+  - pause: 4.0

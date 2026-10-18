@@ -1,6 +1,7 @@
 # V05 — 목표 비중에서 벗어나면 다시 맞추는 계획을 세운다
 # 화면: 로보 어드바이저 › 리밸런싱 엔진 (robo-rebalance) · 주담당 오준영
 # 실행(시가 체결 예약)은 누르지 않는다 — 계획 저장 · 주문 산출(미리 보기)까지
+# 주문 산출은 전 거래일 종가가 수집된 뒤에만 된다(주말 · 공개 전이면 「자료 준비 후 다시」) — 평일 12:30 회차 뒤에 찍는다(10-18 밤 판은 산출이 안 돼 버림)
 file: V05-리밸런싱
 title: 목표 비중에서 벗어나면 다시 맞추는 계획을 세웁니다
 owner: 오준영
@@ -14,15 +15,20 @@ steps:
   - pause: 2.5
   - chapter: {label: "2 / 3 · 과정", title: "언제 · 얼마나 벗어나면 맞출까", text: "매월 첫 거래일에 점검하고, 5%p 넘게 벗어난 자산만 맞춥니다", sec: 3.0}
   - select: {target: "#rb-period", label: "매월 첫 거래일"}
+  - js: "(() => { const c = document.getElementById('rb-drift-enabled'); if (c && !c.checked) c.click(); })()"   # 허용 이탈을 켠다(자막이 말하는 것)
   - select: {target: "#rb-drift-preset", label: "5%p"}
   - say: "점검 주기와 허용 이탈 폭을 정하고 계획을 저장합니다"
   - click: "#rb-save"
   - pause: 2.0
   - click: "#rb-preview"
+  - wait: {target: "#rb-proposal-summary:not(:empty)", timeout: 240, cut: true}
   - say: "지금 보유와 목표를 견줘 사고팔 주문을 미리 계산합니다"
   - pause: 3.5
   - scroll: {target: "#rb-execute", block: "center"}
   - pause: 2.0
+  # D54 — 미리 보기 가격은 수집 DB 의 전 거래일 원 종가(주식시세 · 없으면 증권상품시세)다 — 수정주가가 아니라 문구를 사실대로
+  - say: "자료: 금융위원회 주식시세정보 · 증권상품시세정보(공공데이터포털 · 공공누리 제4유형) · 전 거래일 종가 · 주문 수량은 Qurious 가 계산"
+  - pause: 3.0
   - chapter: {label: "3 / 3 · 결과", title: "실행은 사용자가 정합니다", text: "계산한 주문은 미리 보기이고, 시가 체결 예약은 직접 누를 때만 나갑니다", sec: 3.0}
   - say: "모의 계좌 기준 계산이며 투자 권유가 아닙니다"
   - pause: 3.0
