@@ -454,6 +454,14 @@ PYTHONPATH=. python scripts/hf_dataset.py upload        # ← dry-run 이 기본
 PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 ```
 
+**되살려 보기는 주 1회 저절로(2026-10-18)** — 백업은 되살려 봐야 증명된다. `python scripts/weekly_rehearsal.py install` 이 작업 스케줄러에 매주 일요일 15:00 바퀴를 건다 — ① `verify --deep`(파케이 ↔ 수집 DB 값까지) ② `restore`(임시 폴더에 되살려 지문 대조 · 수집 DB 는 그대로) ③ `status --write`(판정 기록)를 차례대로 돌리고, 앞 단계가 실패해도 뒤는 돈다. 러너 잠금을 함께 쥐고, 12:30 회차 앞뒤(11:30 ~ 13:30)와 다른 실행 중에는 시작하지 않는다(종료코드 75 · 까닭은 상태 폴더 `weekly_rehearsal.json`). 마지막 성공은 데이터 관제 「복원 리허설」 줄과 적재 · 백업 화면에 「마지막 성공 n일 전」 으로 보이고, 8일보다 오래되면 「오래됨」 이다.
+
+```bash
+python scripts/weekly_rehearsal.py install   # 작업 스케줄러에 매주 일요일 15:00
+python scripts/weekly_rehearsal.py run       # 한 바퀴(손으로도 된다)
+python scripts/weekly_rehearsal.py status    # 마지막 바퀴 · 예약
+```
+
 ⚠️ `data/hf_export/` 는 556MB 다. **이 팀 저장소는 Public** 이므로 `.gitignore` 에 반드시
 들어 있어야 한다 — `status` 가 매번 확인해서 경고한다.
 
@@ -526,7 +534,8 @@ PYTHONPATH=. python scripts/hf_dataset.py upload --yes  # 실제 업로드
 | `kb_law.py` · `kb_index.py` · `kb_sector.py` | 879 · 216 · 354 | 근거 문서(법령 · 감독규정) 받기 · 판 고르기 · 조각 · 임베딩 · 섹터별 · 연도별 법령 |
 | `kb_eval.py` · `kb_answer_eval.py` · `kb_sector_exp.py` | 168 · 187 · 213 | 근거 검색 · 근거 답 평가 · 섹터 법령을 넣은 길을 사본 DB · 다른 컬렉션(`kb_v1_sector`)에 만들어 같은 평가를 돌리는 실험(2026-10-05) |
 | `../app/tasks/collector_tasks.py` | 83 | Celery Beat 어댑터 (얇음) |
-| `../scripts/hf_dataset.py` | 2,128 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 |
+| `../scripts/hf_dataset.py` | 2,385 | SQLite → 파케이 → HF 증분 업로드 · 복구 리허설 · 마지막 성공 리허설 기록(`hf_restore_last_ok.json` → 판정 기록의 `rehearsal` 칸 · 2026-10-18) |
+| `../scripts/weekly_rehearsal.py` | 265 | **주 1회 복구 시험** — 매주 일요일 15:00 깊은 대조 → 복원 리허설 → 판정 기록 · 12:30 회차 앞뒤와 다른 실행 때는 건너뜀 · 러너 잠금 (§9.3 · 2026-10-18) |
 | `../scripts/daily_update.py` | 1589 | **일일 자동 갱신** — 위 단계를 순서대로 · 작업 스케줄러 등록 · 한 단계 다시 · 빠진 날 채우기 · 실패한 단계의 까닭 (§15 · 줄 수 2026-10-10) |
 | `../scripts/collect_worker.py` | 614 | **화면 수집 요청 작업자** — 요청 표에서 가져가 러너를 부른다(단계 하나 · 전체 수집 · 빠진 날 채우기) · 매 분 작업 등록 (§15 · 2026-10-10) |
 

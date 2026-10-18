@@ -773,6 +773,62 @@ def hf_state(cdir: Path | None) -> list[dict]:
     return out
 
 
+# ── 복구 시험(2차-3 · 2026-10-18) ─────────────────────────────────────────
+#: 도구(scripts/hf_dataset.py)가 쓰는 백업 판정 기록 · 주간 리허설(scripts/weekly_rehearsal.py)의 상태 기록 — 상태 폴더 안 이름.
+#: 앱 컨테이너에는 scripts/ 가 없어 이름을 여기에도 적는다(같은지 TC-WR 이 맞댄다).
+BACKUP_STATUS_FILE = "hf_backup_status.json"
+WEEKLY_REHEARSAL_FILE = "weekly_rehearsal.json"
+#: 마지막 성공 리허설에서 이만큼 지나면 「오래됨」 — 주 1회 + 하루 여유(예약 쪽 STALE_AFTER_DAYS 와 같은지 TC-WR 이 맞댄다).
+REHEARSAL_STALE_DAYS = 8
+REHEARSAL_COMMAND = "python scripts/hf_dataset.py restore"
+REHEARSAL_STATE = {"ok": "최근", "stale": "오래됨", "failed": "실패", "never": "없음", "unknown": "모름"}
+
+
+def rehearsal_view(snap: dict | None, weekly: dict | None, now: datetime) -> dict:
+    """「마지막 성공 리허설 n일 전」 — 도구가 판정 기록에 실은 `rehearsal` 칸(증거)과 주간 예약 기록을 읽기만 한다.
+
+    날 수는 KST 날짜로 센다(어제 밤 리허설은 「1일 전」). 마지막 리허설이 마지막 성공보다 뒤에 실패했으면 「실패」 — 성공 날짜도
+    함께 보인다. 성공 기록이 없으면 지어내지 않고 「없음」 + 돌릴 명령. 판정 기록에 리허설 칸 자체가 없으면(옛 도구가 쓴 기록 ·
+    기록 없음) 「없음」 이 아니라 「모름」 — 리허설은 있었을 수 있다. 예약 칸은 등록(install)이 쓴 것만 믿는다.
+    """
+    if not isinstance((snap or {}).get("rehearsal"), dict):
+        sched = (weekly or {}).get("schedule")
+        return {"state": "unknown", "state_label": REHEARSAL_STATE["unknown"],
+                "label": "리허설 기록을 아직 읽지 못했습니다(다음 회차가 판정 기록을 쓰면 생깁니다)",
+                "last_ok_at": None, "days_ago": None, "schedule": sched,
+                "schedule_label": f"{sched} 자동" if sched else "주간 예약 없음(손으로 돌림)",
+                "command": REHEARSAL_COMMAND}
+    reh = snap["rehearsal"]
+    ok_at = _parse_ts((reh.get("last_ok") or {}).get("at"))
+    last = reh.get("last") or {}
+    last_at = _parse_ts(last.get("at"))
+    days = (now.date() - ok_at.astimezone(KST).date()).days if ok_at else None
+    if ok_at is None:
+        state = "never"
+    elif last.get("ok") is False and last_at is not None and last_at > ok_at:
+        state = "failed"
+    elif days > REHEARSAL_STALE_DAYS:
+        state = "stale"
+    else:
+        state = "ok"
+    ago = "" if days is None else ("오늘" if days == 0 else f"{days}일 전")
+    when = f"{ok_at.astimezone(KST):%m-%d}" if ok_at else ""
+    if state == "never":
+        label = "아직 성공한 복원 리허설이 없습니다"
+    elif state == "failed":
+        label = f"마지막 리허설 실패({last_at.astimezone(KST):%m-%d}) · 마지막 성공 {ago}({when})"
+    else:
+        label = f"마지막 성공 {ago}({when})" + (" · 주 1회보다 오래됨" if state == "stale" else "")
+    sched = (weekly or {}).get("schedule")
+    out = {"state": state, "state_label": REHEARSAL_STATE[state], "label": label,
+           "last_ok_at": ok_at.isoformat() if ok_at else None, "days_ago": days,
+           "schedule": sched, "schedule_label": f"{sched} 자동" if sched else "주간 예약 없음(손으로 돌림)",
+           "command": REHEARSAL_COMMAND if state != "ok" else None}
+    if weekly and weekly.get("result"):
+        out["last_round"] = {k: weekly.get(k) for k in ("finished_at", "result", "why")}
+    return out
+
+
 # ── 모으기 ────────────────────────────────────────────────────────────────
 #: 한 단계 다시 돌리기 — 앱은 러너를 부를 수 없다(컨테이너는 수집 폴더를 읽기만 하고, 러너는 PC 쪽 프로세스다).
 #: 화면에서 바로 돌릴 통로(쓰기 폴더 · 요청 표 등)는 정할 것이라, 지금은 PC 에서 돌릴 명령과 막히는 때를 알려 준다.
@@ -848,6 +904,9 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
         "tables": tables,
         "calendar": cal,
         "hf": hf_state(cdir),
+        # 복구 시험 — 판정(verdict)에는 섞지 않는다(자료가 최신인가와 따로인 물음 · 화면이 줄 하나로 따로 보인다)
+        "rehearsal": rehearsal_view(_read_json(sdir / BACKUP_STATUS_FILE) if sdir else None,
+                                    _read_json(sdir / WEEKLY_REHEARSAL_FILE) if sdir else None, now),
         "source": "collector",
         "rows_state": rows_state,
         # 행 수를 센 때 = 숫자 파일을 쓴 때(러너) — load_numbers 는 읽은(ok) 파일에만 시각을 준다(없음 · 옛 판 · 깨짐은 None · 메우지 않는다)

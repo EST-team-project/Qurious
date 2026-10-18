@@ -39,6 +39,8 @@ def _snapshot_to_tmp(tmp_path, monkeypatch):
     """검증 · 복원 · 올리기는 끝에 판정 기록(적재 · 백업 화면이 읽는 파일)을 쓴다(2026-10-08) — 시험이 진짜 상태 폴더를
     시험 자료로 덮지 않게 이 파일의 모든 시험에서 임시 폴더로 돌린다(빠뜨리면 실제 화면이 시험 판정을 보인다)."""
     monkeypatch.setattr(hf_dataset, "STATUS_SNAPSHOT_PATH", tmp_path / "state" / "hf_backup_status.json")
+    # 마지막 성공 리허설 기록(2차-3 · 2026-10-18)도 상태 폴더라 같은 까닭으로 돌린다 — 성공한 restore 가 진짜 기록을 덮지 않게
+    monkeypatch.setattr(hf_dataset, "RESTORE_OK_PATH", tmp_path / "state" / "hf_restore_last_ok.json")
 
 
 def _collector_tables(path: Path) -> set[str]:
@@ -175,6 +177,10 @@ def test_export_then_restore_round_trip(tmp_path, monkeypatch):
 
     into = tmp_path / "restored.sqlite3"
     assert hf_dataset.restore(into=str(into), verbose=False) == 0
+    # 성공한 복원은 「마지막 성공」 을 따로 남긴다(2차-3) — 다음 리허설이 실패해도 덮이지 않는다 · 판정 기록이 그것을 싣는다
+    ok_rec = json.loads((tmp_path / "state" / "hf_restore_last_ok.json").read_text(encoding="utf-8"))
+    assert ok_rec["rehearsal"] is False and ok_rec["rows"] == sum(counts.values())
+    assert hf_dataset.rehearsal_record()["last_ok"]["at"] == ok_rec["at"]
     for t in OHLCV_TABLES:
         assert _rows(into, t) == _rows(src, t), t
     conn = sqlite3.connect(into)

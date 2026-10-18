@@ -523,8 +523,10 @@ function backupHtml(b) {
       <div class="cl-tile cl-tile--soft"><div class="k">원본 ${gb(m.db_bytes)} 대비</div><div class="v">${ratio}</div></div></div>`;
   const up = b.uploaded;
   const list = (b.groups || []).map(g => {
+    // 복원 리허설 줄에는 「마지막 성공 n일 전 · 예약」 을 붙인다(셈 · 글은 서버 rehearsal_view — 관제와 같은 글)
     const label = g.key === "upload" && up?.at
-      ? `마지막 올림 ${day(up.at)} ${hm(up.at)}${up.files_total ? ` · 파일 ${up.files_same} / ${up.files_total} 일치` : ""}` : g.label;
+      ? `마지막 올림 ${day(up.at)} ${hm(up.at)}${up.files_total ? ` · 파일 ${up.files_same} / ${up.files_total} 일치` : ""}`
+      : g.key === "restore" && b.rehearsal ? `복원 리허설 — ${b.rehearsal.label} · ${b.rehearsal.schedule_label}` : g.label;
     return `<li><span class="q-dot cl-st--${GROUP_TONE[g.state]}"></span><span>${escHtml(label)}<span class="why">${escHtml(g.why || "")}</span></span>
       <span class="cl-st cl-st--${GROUP_TONE[g.state]}">${escHtml(g.state_label)}</span></li>`;
   }).join("");

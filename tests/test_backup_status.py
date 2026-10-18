@@ -126,7 +126,8 @@ def test_tool_writes_what_the_app_reads(tmp_path, monkeypatch):
     out = tmp_path / "hf_export"                       # 앱은 수집 폴더 옆 hf_export 의 매니페스트도 읽는다(다른 데이터셋 줄)
     for name, path in (("EXPORT_DIR", out), ("MANIFEST_PATH", out / "meta" / "manifest.json"), ("README_PATH", out / "README.md"),
                        ("VERIFY_LOG_PATH", out / "meta" / "last_verify.json"), ("RESTORE_LOG_PATH", out / "meta" / "last_restore.json"),
-                       ("STATUS_SNAPSHOT_PATH", cdir / "state" / bs.STATUS_FILE)):
+                       ("STATUS_SNAPSHOT_PATH", cdir / "state" / bs.STATUS_FILE),
+                       ("RESTORE_OK_PATH", cdir / "state" / "hf_restore_last_ok.json")):
         monkeypatch.setattr(hf_dataset, name, path)
     monkeypatch.setattr(hf_dataset.config, "DB_PATH", src)
     monkeypatch.setenv(collector_db.ENV_DB_PATH, str(src))

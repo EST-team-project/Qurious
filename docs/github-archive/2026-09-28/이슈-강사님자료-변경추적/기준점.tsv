@@ -5,7 +5,7 @@ th03-stock-coin-trade		edumgt/stock-coin-trade	origin/main	9242a3d6d3a386d456338
 th05-quant-krx		edumgt/quant-test-20260828	origin/main	8684a2b1926d45954a2e5dcaa3e45ab07b5fd727	2026-08-28 17:46	2026-10-02 10:08
 th06-lumina-invest	서버	edumgt/lumina-invest	origin/main	e815be3f1a00dcacabc48d9e967172a704eae3da	2026-10-07 17:36	2026-10-12 09:50
 th06-lumina-invest	화면	edumgt/lumina-invest	origin/main	947881100d8df529a960ccc77b558f4e48a62e37	2026-10-02 16:06	2026-10-03 17:30
-th07-domain-rag-lab		edumgt/domain-rag-lab	origin/main	35f9027b68cdccaead6830774fd6fcea2580fa60	2026-10-08 17:45	2026-10-10 18:38
+th07-domain-rag-lab		edumgt/domain-rag-lab	origin/main	ebcd85466568f9a0225eae36b7950f95b8ebae4c	2026-10-15 17:51	2026-10-18 12:28
 th08-aws-ec2-alb-lab		edumgt/aws-ec2-alb-lab	origin/main	d47c244817e77350cb3da970423a95e50181cdb5	2026-09-21 14:54	2026-10-02 10:08
 th09-python-ai-basic-lab		edumgt/python-ai-basic-lab	origin/main	b7238260f998d9cc83d43f471b2040666eb31b36	2026-07-30 04:23	2026-10-02 10:08
 th10-stock-ml-dl-project		edumgt/stock-ml-dl-project	origin/main	ef0240e6bf049aaa639c09331b54c1a8278440a0	2026-10-02 17:46	2026-10-07 13:54
@@ -22,5 +22,5 @@ th20-aws-serverless		edumgt/aws-serverless	origin/main	206b70cdf7f8d4e4bad63ef15
 th21-ollama-llava-canvas		edumgt/ollama-llava-canvas	origin/main	fb4ea94509f5dfdb57d71fc816a158ee8be5d021	2026-07-30 04:11	2026-10-02 10:08
 th22-vdp-agent		edumgt/vdp-agent	origin/main	8745eb94a988ceaa50805164dd0f5b8a8ab11845	2026-07-07 11:18	2026-10-02 10:08
 th23-meeting-agent		edumgt/meeting-agent	origin/main	0b563827f19ce9c661b7915cda6bfbb4a9f8676e	2026-07-06 15:03	2026-10-02 10:08
-th24-stock-kms-portal		edumgt/stock-kms-portal	origin/main	48b707e80262fd9261fb11fb1b8bdb5a9c3b8e0d	2026-10-07 17:36	2026-10-08 10:31
+th24-stock-kms-portal		edumgt/stock-kms-portal	origin/main	cb6d8791f4041b4df35d2e98bc824b09d21ab54c	2026-10-16 16:08	2026-10-18 12:28
 th25-fe-vanilla		edumgt/fe-vanilla	origin/main	f76c882acf668321c14750fca157a79c5dff9182	2026-10-02 17:34	2026-10-07 13:54

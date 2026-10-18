@@ -147,7 +147,7 @@
 ### Infra (로컬 Docker)
 ```
 PostgreSQL 16  ·  Redis 8(AOF)  ·  Neo4j 5  ·  Qdrant 1.19  ·  앱(FastAPI)  ·  Celery Worker · Beat  ·  인제스트
-(이 PC: Ollama · 수집기 — 작업 스케줄러 매일 12:30)
+(이 PC: Ollama · 수집기 — 작업 스케줄러 매일 12:30 · 복원 리허설 매주 일요일 15:00)
 ```
 
 ---
@@ -372,6 +372,7 @@ FastAPI (Uvicorn · Python 3.12) — 화면(app.html · /js · /css) · 개념 �
 
 Celery Worker · Beat ── 예약 작업 · 무거운 계산 · 알림
 이 PC(도커 밖) ── 수집기(collector) · 작업 스케줄러 12:30 → 수집 DB → HF 비공개 데이터셋
+                  매주 일요일 15:00 복원 리허설(HF → 임시 폴더 · 지문 대조 — scripts/weekly_rehearsal.py)
 ```
 
 ---

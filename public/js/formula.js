@@ -1,5 +1,7 @@
 /* 자유 산식 커스텀 지표 화면 (indicator-formula)
  * DSL 편집기 · 함수 레퍼런스 · 검증/계산 · 저장(버전) · 결과 이력 · Pine/Python 내보내기 */
+import { initFormulaGuide } from "/js/formula-guide.js";            // D124 A2 · 잠정 — 지우면 원래대로
+import { renderFormulaChartHelp } from "/js/formula-chart-help.js"; // D124 A3 · 잠정 — 지우면 원래대로
 import { api, setToast, escHtml, fmt } from "/js/common.js";
 
 const $ = (id) => document.getElementById(id);
@@ -55,6 +57,7 @@ function renderResult(r, meta = "") {
     ["손절/익절", `${bt.stop_loss_exits ?? 0}/${bt.take_profit_exits ?? 0}회`, "var(--text-mute)"],
   ] : [["지표 평균(1y)", stats.mean?.toFixed(4) ?? "-", "var(--text)"], ["표준편차", stats.std?.toFixed(4) ?? "-", "var(--text)"], ["최소", stats.min?.toFixed(4) ?? "-", "var(--text)"], ["최대", stats.max?.toFixed(4) ?? "-", "var(--text)"]];
   $("fx-cards").innerHTML = cards.map(([l, v, c]) => `<div class="card" style="padding:12px;text-align:center;"><div class="text-xs" style="color:var(--text-mute);">${l}</div><div style="font-size:17px;font-weight:700;color:${c};">${v}</div></div>`).join("");
+  renderFormulaChartHelp(r);
   if (window.ApexCharts && s) {
     const x = s.times.map(t => new Date(t).getTime());
     const buys = new Set(s.buy_dates), sells = new Set(s.sell_dates);
@@ -162,6 +165,8 @@ async function loadResults() {
 }
 
 export function initFormulaView() {
+  // 앱을 켤 때 한 번 — 쉬운 입력 칸이 없으면(마크업이 빠지면) 건너뛴다: 예외가 나면 main.js 의 첫 화면 이동까지 멈춘다
+  if ($("fx-easy-kind")) initFormulaGuide(d => { newIndicator(); fillDefinition(d); setToast("조건을 적용했습니다. 「검증」 뒤 「계산 실행」 을 누르세요.", "ok"); });
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on("fx-validate", "click", validate); on("fx-compute", "click", computeNow); on("fx-save", "click", save); on("fx-new", "click", newIndicator);
   on("fx-toggle-ref", "click", () => $("fx-ref").classList.toggle("hidden"));

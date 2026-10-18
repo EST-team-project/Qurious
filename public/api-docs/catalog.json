@@ -1275,7 +1275,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 515,
+   "line": 521,
    "errors": [],
    "keys": [
     "brokers"
@@ -1304,7 +1304,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 520,
+   "line": 526,
    "errors": [
     "422"
    ],
@@ -1337,7 +1337,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 540,
+   "line": 546,
    "errors": [],
    "keys": [
     "broker",
@@ -1366,7 +1366,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 577,
+   "line": 583,
    "errors": [],
    "keys": [
     "configured",
@@ -1392,7 +1392,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 583,
+   "line": 589,
    "errors": [],
    "keys": [
     "gateway",
@@ -1422,7 +1422,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 613,
+   "line": 619,
    "errors": [],
    "keys": [
     "mode",
@@ -1472,7 +1472,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 666,
+   "line": 672,
    "errors": [
     "422"
    ],
@@ -1510,7 +1510,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 745,
+   "line": 751,
    "errors": [
     "502"
    ],
@@ -1552,7 +1552,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 764,
+   "line": 770,
    "errors": [
     "502"
    ],
@@ -1589,7 +1589,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 788,
+   "line": 794,
    "errors": [
     "502"
    ],
@@ -1627,7 +1627,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 811,
+   "line": 817,
    "errors": [
     "422",
     "502"
@@ -1667,7 +1667,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 877,
+   "line": 883,
    "errors": [
     "502"
    ],
@@ -1699,7 +1699,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 893,
+   "line": 899,
    "errors": [
     "404",
     "422"
@@ -1739,7 +1739,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 909,
+   "line": 915,
    "errors": [],
    "keys": [
     "symbol",
@@ -1787,7 +1787,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 989,
+   "line": 995,
    "errors": [
     "409"
    ],
@@ -1823,7 +1823,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 998,
+   "line": 1004,
    "errors": [],
    "keys": [
     "ok",
@@ -1854,7 +1854,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1004,
+   "line": 1010,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1881,7 +1881,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1016,
+   "line": 1022,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1909,7 +1909,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1045,
+   "line": 1051,
    "errors": [],
    "keys": [
     "ok",
@@ -1939,7 +1939,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1069,
+   "line": 1075,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1977,7 +1977,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1075,
+   "line": 1081,
    "errors": [
     "409"
    ],
@@ -2019,7 +2019,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1084,
+   "line": 1090,
    "errors": [
     "409"
    ],
@@ -2052,7 +2052,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1094,
+   "line": 1100,
    "errors": [],
    "keys": [
     "ok",
@@ -2083,7 +2083,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1101,
+   "line": 1107,
    "errors": [],
    "keys": [
     "running",
@@ -2126,7 +2126,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1159,
+   "line": 1165,
    "errors": [
     "404",
     "422"
@@ -2157,7 +2157,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1266,
+   "line": 1272,
    "errors": [],
    "keys": [
     "items"
@@ -2188,7 +2188,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1281,
+   "line": 1287,
    "errors": [
     "422"
    ],
@@ -2219,7 +2219,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1301,
+   "line": 1307,
    "errors": [
     "404"
    ],

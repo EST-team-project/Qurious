@@ -1261,6 +1261,20 @@
                 <p class="text-xs mb-2" style="color:var(--text-mute);">가격·거래량·변동성 함수를 자유롭게 조합한 산식을 쓰고
                   정규화(zscore·normalize·rank)까지 적용합니다. 저장할 때마다 산식이 바뀌면 버전이 올라가고, 계산 결과는 (버전·종목·기간) 별로 저장되어 재사용됩니다. 모든 함수는
                   과거 봉만 참조합니다(shift ≥ 1).</p>
+                <!-- 숫자만 바꿔 조건 만들기 — D124 A2 · 잠정(신장환 님 화면) · 강사님 lumina-invest 5b6fc9a · 지우면 원래대로(formula.js 는 칸이 없으면 건너뜀) -->
+                <div class="rounded-lg p-3 mb-3" style="background:var(--surf2);border:1px solid var(--border);">
+                  <h3 class="text-sm font-semibold mb-2"><i class="fa-solid fa-sliders" aria-hidden="true"></i> 숫자만 바꿔 조건 만들기</h3>
+                  <div class="grid md:grid-cols-4 gap-2">
+                    <div><label for="fx-easy-kind" class="text-xs">보고 싶은 지표</label><select id="fx-easy-kind" class="input"><option value="rsi">RSI — 최근 상승·하락 강도</option><option value="gap">평균 가격과의 거리</option><option value="cross">단기·장기 평균선 교차</option></select></div>
+                    <div><label id="fx-easy-n-label" for="fx-easy-n" class="text-xs">계산 기간 (거래일)</label><input id="fx-easy-n" type="number" class="input" min="2" max="250" step="1" value="14" /></div>
+                    <div><label id="fx-easy-a-label" for="fx-easy-a" class="text-xs">매수 기준 (미만)</label><input id="fx-easy-a" type="number" class="input" value="30" step="1" /></div>
+                    <div><label id="fx-easy-b-label" for="fx-easy-b" class="text-xs">매도 기준 (초과)</label><input id="fx-easy-b" type="number" class="input" value="70" step="1" /></div>
+                  </div>
+                  <p id="fx-easy-summary" class="text-sm mt-2" role="status" aria-live="polite"></p>
+                  <p id="fx-easy-example" class="text-xs mt-2" style="color:var(--text-dim);"></p>
+                  <button id="fx-easy-apply" type="button" class="btn-primary text-xs mt-2">이 조건을 입력칸에 적용</button>
+                  <p class="text-xs mt-2" style="color:var(--text-mute);">적용하면 현재 입력한 지표·매수·매도 조건을 바꿉니다. 계산과 저장은 아래 버튼으로 실행합니다. 숫자 예시는 이해를 위한 가정이며 실제 시세가 아닙니다.</p>
+                </div>
                 <div id="fx-templates" class="flex flex-wrap gap-1 mb-2"></div>
                 <div id="fx-ref" class="hidden mb-3">
                   <ul id="fx-rules" class="text-xs list-disc ml-5 mb-2" style="color:var(--text-dim);"></ul>

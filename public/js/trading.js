@@ -122,6 +122,8 @@ async function loadOrderHistory() {
         <span class="ml-3 text-slate-500">${escHtml(o.broker)} · ${(o.created_at||"").slice(0,10)}</span>
       </div>
     `).join("") || "<div class='text-slate-400'>주문 내역 없음</div>";
+    // 서버가 자동매매 · Open API · 예약 주문을 뺀다(#219 와 같은 규칙) — 빠진 주문을 어디서 보는지 알린다
+    el.insertAdjacentHTML("beforeend", `<div class="text-xs mt-1" style="color:var(--text-mute);">자동매매 · Open API 주문은 <a href="#quant-auto" class="underline">자동매매 현황</a>에서 봅니다.</div>`);
   } catch {}
 }
 
