@@ -1,0 +1,20 @@
+번호	무엇을_깼나	결과	처음_실패한_시험
+대조	대조군 — 깨지 않음	통과	—
+B1	위 탭 차례에 직접매매를 끼움(퀀트자동매매 자리)	잡음	test_nav_dashboard_shell.py::test_top_tabs_are_the_fixed_six
+B2	왼쪽 트리에서 내 계정 묶음을 뺌	잡음	test_nav_dashboard_shell.py::test_every_menu_group_is_in_the_left_tree
+B3	개념 학습을 「학습」(금융 필수 지식) 위로 올림	잡음	test_nav_dashboard_shell.py::test_every_menu_group_is_in_the_left_tree
+B4	트리 화면 항목을 button 대신 div 로(키보드로 못 닿음)	잡음	test_nav_dashboard_shell.py::test_tree_keeps_headings_outside_links_and_buttons
+B5	바깥 주소 항목의 숨은 글 「(새 화면)」 을 뺌	잡음	test_nav_dashboard_shell.py::test_tree_keeps_headings_outside_links_and_buttons
+B6	다른 묶음 화면으로 옮겨도 앞 묶음을 접지 않음	잡음	test_nav_dashboard_shell.py::test_tree_keeps_headings_outside_links_and_buttons
+B7	지금 화면의 aria-current 를 뺌	잡음	test_nav_dashboard_shell.py::test_tree_keeps_headings_outside_links_and_buttons
+B8	「더보기」 이름을 되살림(gnbmore.js)	잡음	test_nav_dashboard_shell.py::test_more_tab_and_right_drawer_are_gone
+B9	탭을 하나씩 숨기는 옛 꼴(gnb-overflow)로 되돌림	잡음(앞 시험)	test_nav_dashboard_shell.py::test_more_tab_and_right_drawer_are_gone
+B10	접는 차례를 아이콘 → 부제로 바꿈	잡음	test_nav_dashboard_shell.py::test_fit_folds_tagline_icons_then_whole_row
+B11	☰ 의 aria-expanded 를 뺌	잡음	test_nav_dashboard_shell.py::test_hamburger_opens_the_same_tree
+B12	어두운 막을 눌러도 ☰ 트리가 닫히지 않음	잡음	test_nav_dashboard_shell.py::test_hamburger_opens_the_same_tree
+B13	트리 항목을 골라도 ☰ 트리가 닫히지 않음	잡음	test_nav_dashboard_shell.py::test_hamburger_opens_the_same_tree
+B14	☰ 트리 너비를 240 고정으로	잡음	test_nav_dashboard_shell.py::test_hamburger_opens_the_same_tree
+B15	트리 소제목 색을 옛 회색(대비 2.56)으로	잡음	test_nav_dashboard_shell.py::test_menu_text_colors_meet_contrast
+B16	「전체 메뉴」 제목 색을 옛 주황(대비 3.19)으로	잡음	test_nav_dashboard_shell.py::test_menu_text_colors_meet_contrast
+B17	지금 탭 글 색을 옛 파랑(대비 4.37)으로	잡음	test_nav_dashboard_shell.py::test_menu_text_colors_meet_contrast
+B18	화면에서만 숨기는 글(.sr-only) 정의를 뺌	잡음	test_nav_dashboard_shell.py::test_menu_text_colors_meet_contrast

@@ -55,7 +55,7 @@ docs/github-archive/
 │   ├── PR-chore-lumina-invest-b055ab0/  00-본문.md  (#68)
 │   ├── 논의-강사님최신-반영/           00-본문.md  (#69 · 옛 D8 번호와 다른 글)
 │   ├── PR-feat-local-run-scripts/      00-본문.md  (#71)
-│   ├── 이슈-로컬실행-사용법/           00-본문.md · 01 · 02 갱신 댓글  (#70)
+│   ├── 이슈-로컬실행-사용법/           00-본문.md · 01 · 02 · 03 갱신 댓글  (#70)
 │   ├── 이슈-계정-CRUD-점검/            00-본문.md  (#76 · 작업 기록 — PR #75 가 닫음)
 │   ├── PR-feat-account-crud-mypage/    00-본문.md  (#75)
 │   ├── 이슈-통합본-반입-용어사전/      00-본문.md  (번호는 올린 뒤 · 작업 기록 — PR 이 닫는다)
@@ -75,7 +75,7 @@ docs/github-archive/
 ├── 2026-10-03/        ← 새 글 7건
 │   ├── PR-feat-kb-search-eval-and-glossary-candidates/  00-본문.md  (#97)
 │   ├── PR-chore-instructor-base-9478811-server/  00-본문.md  (#98)
-│   ├── 논의-강사님기초코드-9478811-반영/  00-본문.md · 01-2026-10-03-화면-결정.md(10-04 올림)  (#99)
+│   ├── 논의-강사님기초코드-9478811-반영/  00-본문.md · 01-2026-10-03-화면-결정.md(10-04 올림) · 02-2026-10-18-갱신.md  (#99)
 │   ├── PR-chore-instructor-base-9478811-screens/  00-본문.md  (#100)
 │   ├── 이슈-백테스트보고서-결과칸-요청/  00-본문.md · 01 닫기(10-12 · 짝 #134 는 PR #147 로 닫힘)  (#103 · 10-04 올림)
 │   ├── PR-docs-deliverables-v01-doc-figures/  00-본문.md  (#101)
@@ -371,7 +371,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | [PR chore-lumina-invest-b055ab0](2026-09-30/PR-chore-lumina-invest-b055ab0/00-본문.md) | chore: 강사님 lumina-invest 최신(b055ab0)을 기초 코드로 반영 — 리밸런싱 · 위험 한도 · TradingView · 수식 지표 · 시험 59건 (우리 고침은 지킨다) | 4,004 | [#68](https://github.com/EST-team-project/Qurious/pull/68) · 머지 `88d5813` (S69 에 채움) |
 | [논의 강사님최신-반영](2026-09-30/논의-강사님최신-반영/00-본문.md) | [논의] 강사님 lumina-invest 최신을 받았습니다 — 「나만의」 방향으로 고칠 곳 10가지 (설계 · 의견 기한 제안 10-06 09:00) | 4,827 | [#69](https://github.com/EST-team-project/Qurious/discussions/69) (09-30 · 설계 · S69 채움 · 사용자 `Github-링크.md` · 페이지 확인 · 댓글 0) — 이 글이 #13 · #18 · #44 · #41 · #43 · #61 의 옛 서술을 대신한다(갱신 대장 1절 S68) |
 | [PR feat-local-run-scripts](2026-09-30/PR-feat-local-run-scripts/00-본문.md) | feat: 로컬 실행 스크립트 — PowerShell 세 줄로 띄우고 기능 45건을 점검한다 (로컬 실행 안내서 v0.1) | 2,799 | [#71](https://github.com/EST-team-project/Qurious/pull/71) · 머지 `92087da` (S70 에 채움) |
-| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | [#70](https://github.com/EST-team-project/Qurious/issues/70) (09-30 게시 · S70 채움 · 사용자 `Github-링크.md` · 페이지 확인) · [갱신 댓글](2026-09-30/이슈-로컬실행-사용법/01-2026-09-30-갱신.md)(개발 모드 · 점검 56) **올림**(S71 사용자 보고) · [갱신 댓글 (2)](2026-09-30/이슈-로컬실행-사용법/02-2026-09-30-갱신.md)(`rag-lab/` · 점검 62 · 시험 367) 준비 — 통합본 반입 PR 머지 뒤 |
+| [이슈 로컬실행-사용법](2026-09-30/이슈-로컬실행-사용법/00-본문.md) | [안내] 로컬 실행 스크립트 사용법 — start · check · stop 세 줄로 Qurious 전체를 띄우고 확인합니다 | 4,460 | [#70](https://github.com/EST-team-project/Qurious/issues/70) (09-30 게시 · S70 채움 · 사용자 `Github-링크.md` · 페이지 확인) · [갱신 댓글](2026-09-30/이슈-로컬실행-사용법/01-2026-09-30-갱신.md)(개발 모드 · 점검 56) **올림**(S71 사용자 보고) · [갱신 댓글 (2)](2026-09-30/이슈-로컬실행-사용법/02-2026-09-30-갱신.md)(`rag-lab/` · 점검 62 · 시험 367) 준비 — 통합본 반입 PR 머지 뒤 · [갱신 댓글 (3)](2026-09-30/이슈-로컬실행-사용법/03-2026-10-18-갱신.md)(메뉴 개편 — 위 탭 여섯 · 왼쪽 전체 메뉴 · 아바타 › 내 정보) 준비 — 메뉴 개편 PR 머지 뒤 |
 | [이슈 계정-CRUD-점검](2026-09-30/이슈-계정-CRUD-점검/00-본문.md) | [작업] 계정 관리 — 이메일 대소문자 무관 · 비밀번호 규칙 · 마이페이지(이름 · 비밀번호 · 탈퇴) · 로그인 유지 | 2,747 | [#76](https://github.com/EST-team-project/Qurious/issues/76) · **닫힘**(PR #75 머지 · S71 채움 · 사용자 보고) — 작업 기록 |
 | [PR feat-account-crud-mypage](2026-09-30/PR-feat-account-crud-mypage/00-본문.md) | feat: 계정 관리 — 이메일 대소문자 무관 · 마이페이지(수정 · 탈퇴) · 로그인 유지 · 개발 모드 · 기능별 동작 원리서 v0.1 · IA · 와이어프레임 v0.3 | 3,146 | [#75](https://github.com/EST-team-project/Qurious/pull/75) · 머지 `90dde10` (S71 에 채움 · 로컬 `git log`) |
 | [이슈 통합본-반입-용어사전](2026-09-30/이슈-통합본-반입-용어사전/00-본문.md) | [작업] 통합본(investment-rag-lab) 반입 · 용어사전 서버 쪽 — 용어 755개를 API 넷으로 (화면 · 연관 개념은 다음 작업) | 3,485 | (올린 뒤 적음) — 작업 기록 · PR 이 `Closes` 로 닫는다 |
@@ -403,7 +403,7 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 |---|---|---:|---|
 | [PR feat-kb-search-eval-and-glossary-candidates](2026-10-03/PR-feat-kb-search-eval-and-glossary-candidates/00-본문.md) | feat: 근거 찾기 API · 청크 머리(편 · 장 경로) · 검색 평가셋 v0 · 후보 용어 다섯 · 분류 화면 결함(DF-44) — 목표 기능 ① W5 | 3,847 | [#97](https://github.com/EST-team-project/Qurious/pull/97) |
 | [PR chore-instructor-base-9478811-server](2026-10-03/PR-chore-instructor-base-9478811-server/00-본문.md) | chore: 강사님 기초 코드 9478811 서버 쪽 반영 — KIS 키 사용자별(ADR-0004) · 게이트웨이 실거래 관문 · 마이그레이션 0013 · 문서 판 올림 | 2,937 | [#98](https://github.com/EST-team-project/Qurious/pull/98) — 10-03 16:23 머지 |
-| [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | [#99](https://github.com/EST-team-project/Qurious/discussions/99) — 댓글 [01 화면 결정](2026-10-03/논의-강사님기초코드-9478811-반영/01-2026-10-03-화면-결정.md)(10-04 올림) |
+| [논의 강사님기초코드-9478811-반영](2026-10-03/논의-강사님기초코드-9478811-반영/00-본문.md) | [논의] 강사님 기초 코드 9478811 반영 — KIS 키는 사용자마다 · 실주문 추적 표 둘 · 첫 화면과 메뉴 | 6,042 | [#99](https://github.com/EST-team-project/Qurious/discussions/99) — 댓글 [01 화면 결정](2026-10-03/논의-강사님기초코드-9478811-반영/01-2026-10-03-화면-결정.md)(10-04 올림) · [02 갱신](2026-10-03/논의-강사님기초코드-9478811-반영/02-2026-10-18-갱신.md)(결정 ② → D129) 준비 — 메뉴 개편 PR 머지 뒤 |
 | [PR chore-instructor-base-9478811-screens](2026-10-03/PR-chore-instructor-base-9478811-screens/00-본문.md) | chore: 강사님 기초 코드 9478811 화면 쪽 반영 — 첫 화면 투자 대시보드 · 위 메뉴 들어가는 만큼 + 전체 메뉴 · 설정 새 칸 · 문서 판 올림 | 2,760 | [#100](https://github.com/EST-team-project/Qurious/pull/100) — 10-03 18:04 머지 |
 | [이슈 백테스트보고서-결과칸-요청](2026-10-03/이슈-백테스트보고서-결과칸-요청/00-본문.md) | [요청] 백테스트 보고서 v0.1 결과 칸 — 비용 반영 성과(강민석 님 · 10-13 오후 칸 전) | 2,066 | [#103](https://github.com/EST-team-project/Qurious/issues/103) — 10-04 올림 · **닫음(2026-10-12 · 사용자)** — 닫기 댓글 [01](2026-10-03/이슈-백테스트보고서-결과칸-요청/01-2026-10-12-닫기.md) |
 | [PR docs-deliverables-v01-doc-figures](2026-10-03/PR-docs-deliverables-v01-doc-figures/00-본문.md) | docs: 빠진 주요 산출물 15개 v0.1 · 문서 그림 지침(Figma) · 문서 작성 기준 v0.2 | 1,572 | [#101](https://github.com/EST-team-project/Qurious/pull/101) — 10-03 20:24 머지 |
@@ -630,7 +630,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
-| [PR feat-weekly-rehearsal-team-front](2026-10-18/PR-feat-weekly-rehearsal-team-front/00-본문.md) | feat: 주 1회 복원 리허설 · 팀원 화면 잠정 반영 셋(D124) · 직접매매 최근 주문 내역 거름(DF-130) · 2차 중간 점검 반영 | 5,855 | (올린 뒤 적음) |
+| [PR feat-weekly-rehearsal-team-front](2026-10-18/PR-feat-weekly-rehearsal-team-front/00-본문.md) | feat: 주 1회 복원 리허설 · 팀원 화면 잠정 반영 셋(D124) · 직접매매 최근 주문 내역 거름(DF-130) · 2차 중간 점검 반영 | 5,855 | [#264](https://github.com/EST-team-project/Qurious/pull/264) · 10-18 15:17 머지 · 이동원 |
+| [PR feat-menu-fixed-tabs-tree](2026-10-18/PR-feat-menu-fixed-tabs-tree/00-본문.md) | feat: 메뉴 개편 — 위 고정 탭 여섯 · 왼쪽 「전체 메뉴」 트리 · ☰ 같은 트리 · 메뉴 글 대비(D129) | 4,403 | (올린 뒤 적음) |
 
 - **같은 날 다른 초안은 옛 글 폴더 줄에 붙였다**(위 표들의 「초안」 링크) — #170 10 요약 · #242 · #243 01 알림 · #254 01 · 02 · #210 02 · 03 · #219 02 · #220 02 · #212 01 · #213 03 · #196 01. 올리는 차례는 작업 폴더 `명령.md`.
 

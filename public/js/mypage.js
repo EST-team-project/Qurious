@@ -1,6 +1,6 @@
 /* 내 계정 — 마이페이지 (2026-09-30)
  *
- * 화면   app.html 의 data-view="mypage" (더보기 › 내 계정 · 머리글의 이름을 눌러도 온다)
+ * 화면   app.html 의 data-view="mypage" (왼쪽 「전체 메뉴」 › 내 계정 · 머리글 아바타 ▾ 메뉴에서도 온다)
  * API    app/routes/auth.py 의 「계정 관리」 절 — GET /api/me · PATCH /api/me · PUT /api/me/password
  *        · GET /api/sessions · DELETE /api/sessions · DELETE /api/me · GET /api/auth/password-policy
  * 규칙   app/services/account.py (이메일 소문자 · 비밀번호 규칙 · 탈퇴 때 데이터 파기)
