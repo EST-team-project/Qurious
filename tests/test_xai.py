@@ -59,6 +59,8 @@ def test_ai_predict_badge_probability_is_today_row(monkeypatch):
     probs = seen["model"].predict(today.reshape(1, -1))[0]
     cls = int(np.argmax(probs))
     ex = ai["explanation"]
+    assert ai["model_signal"] == cls - 1
+    assert ai["model_signal_probability_pct"] == pytest.approx(round(float(probs[cls]) * 100, 1))
     assert ex.get("model_signal", ex["signal"]) == cls - 1           # 배지 확률 · 기여도가 가리키는 모델 판단
     assert ex["probability_pct"] == pytest.approx(round(float(probs[cls]) * 100, 1), abs=0.051)
     assert ex["class_probabilities"]["매수"] == pytest.approx(round(float(probs[2]) * 100, 1), abs=0.051)

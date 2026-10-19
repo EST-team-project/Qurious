@@ -66,7 +66,13 @@ function renderAllocation(data) {
         <span class="font-semibold text-sm">${escHtml(p.name)}</span>
         <span class="text-xs font-bold" style="color:var(--accent);">${p.weight}%</span>
       </div>
-      <div class="text-xs" style="color:var(--text-mute);">${escHtml(p.reason)}</div>
+      <div class="text-xs" style="color:var(--text-mute);">${escHtml(p.historical_reason ?? p.reason)}</div>
+      ${p.ai_prediction?.display ? `<div class="text-xs mt-2" style="color:var(--text-dim);">
+        <p>${escHtml(p.ai_prediction.display.return_text)}</p>
+        <p>${escHtml(p.ai_prediction.display.signal_text)}</p>
+        <p>${escHtml(p.ai_prediction.display.probability_note)}</p>
+        ${p.ai_prediction.display.quality_warning ? `<p class="mt-1" style="color:var(--red);">⚠ ${escHtml(p.ai_prediction.display.quality_warning)}</p>` : ""}
+      </div>` : ""}
       <div class="text-xs mt-1" style="color:var(--text-dim);">${Math.round(amount * p.weight / 100).toLocaleString()}만원</div>
       ${renderXaiBlock(p.ai_prediction?.explanation, { compact: true })}
     </div>

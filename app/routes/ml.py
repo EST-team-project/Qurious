@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.postgres import get_pg_session
 from app.services.asset_allocation import asset_allocation, rebalance_draft
 from app.services.allocation_store import save_result, load_result
+from app.services.allocation_prediction_view import allocation_view
 
 router = APIRouter(prefix="/api/ml")
 
@@ -125,6 +126,7 @@ async def latest_allocation(_user=Depends(get_current_user), db: AsyncSession = 
     saved = await load_result(db, _user["id"])
     if saved is None:
         raise HTTPException(404, "저장된 배분 결과가 없습니다. 자산배분 화면에서 먼저 계산하세요.")
+    saved["result"] = allocation_view(saved["result"])
     try:
         saved["handoff"] = rebalance_draft(saved["result"])
     except (ValueError, KeyError):
@@ -166,7 +168,7 @@ async def robo_allocation(
 
         # TimeSeriesSplit 앙상블 + LightGBM 분류는 종목당 꽤 무거워서(유니버스 전체면
         # 응답이 수십 초까지 걸릴 수 있음) 매 요청마다 재계산하지 않고 캐시한다.
-        cache_key = f"ai_predict:v3:{s['symbol']}"  # v2: XAI explanation 포함
+        cache_key = f"ai_predict:v4:{s['symbol']}"  # XAI 조회와 같은 기준일의 판단·확률
         ai = await cache_get(cache_key, max_age_hours=3)
         if ai is None:
             # CPU 바운드(sklearn/lightgbm 학습)라 to_thread로 돌려 이벤트 루프를
@@ -257,18 +259,12 @@ async def robo_allocation(
     stock_picks = []
     for p in top:
         w = round(stock_bucket * optimized_weights[p["symbol"]] / 100, 1)
-        signal_labels = {1: "매수", 0: "관망", -1: "매도"}
-        notes = []
-        if p["ai"]:
-            sig = signal_labels.get(p["ai"].get("signal"), "")
-            notes.append(f"AI 예측 수익률 {p['ai']['pred_ann_return_pct']}% ({sig}, 신뢰도 {p['ai']['confidence']:.2f})")
-        note_text = (", " + ", ".join(notes)) if notes else ""
         stock_picks.append({
             "name": p["name"],
             "code": p["symbol"],
             "sector": p["sector"],
             "weight": w,
-            "reason": f"연환산 수익률 {p['ann_return_pct']}%, 변동성 {p['ann_vol_pct']}%{note_text}",
+            "reason": f"과거 연환산 수익률 {p['ann_return_pct']}%, 변동성 {p['ann_vol_pct']}%",
             "ai_prediction": p["ai"],
         })
 
@@ -304,6 +300,8 @@ async def robo_allocation(
     target_weights = {t["symbol"]: t["weight_pct"] for t in draft["targets"]}
     for pick in stock_picks:
         pick["weight"] = target_weights.get(pick["code"], 0)
+    # 순위·비중 계산이 끝난 뒤 응답·저장용 표시를 정리한다.
+    result = allocation_view(result)
     saved = await save_result(db, _user["id"], result)
     await db.commit()
     return {**result, "saved": saved}
