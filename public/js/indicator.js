@@ -3,6 +3,17 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { compareTrayAdd, renderCompareTrayAll, tt } from "/js/core.js";
 
+// ── 성과 검증 · 커스텀 인디케이터 결과가 같이 쓰는 것 (#245 · #250) ─────
+// 거래 0회 — 수익률 · 샤프 · 낙폭 · 승률은 0 이 아니라 매길 수 없는 값이다. 글은 대시보드(dashboard.js noTradeMetric)와 같게(TC-RX 가 맞댄다).
+function noTradeHtml(buyHoldPct) {
+  const bh = buyHoldPct !== null && buyHoldPct !== undefined && Number.isFinite(Number(buyHoldPct))
+    ? Number(buyHoldPct).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + "%" : "데이터 없음";
+  return `<div class="card" style="padding:14px;"><div class="text-xs mb-1" style="color:var(--text-mute);">거래 0회</div><div style="font-size:18px;font-weight:700;">신호 없음</div>` +
+    `<div class="text-xs mt-1" style="color:var(--text-dim);">이 기간에 한 번도 사고팔지 않아 수익률 · 샤프 · 최대 낙폭 · 승률을 매기지 않습니다. 같은 기간 매수 후 보유 수익률은 ${escHtml(bh)} 입니다.</div></div>`;
+}
+// 자료 출처 · 기간 — 글은 서버 data_note 그대로(app/services/data_provenance.py 한 곳 · 전략 분석과 같은 꼴)
+const dataNoteHtml = d => (d && d.data_note ? `<p class="text-xs mt-2" style="color:var(--text-dim);">자료: ${escHtml(d.data_note)}</p>` : "");
+
 // ── 투자 인디케이터: 기본 인디케이터 전략 ──────────────────────────
 document.getElementById("ind-load-btn").addEventListener("click", async () => {
   const symbol = document.getElementById("ind-symbol").value;
@@ -157,6 +168,12 @@ document.getElementById("ci-test-btn").addEventListener("click", async () => {
     if (sl) q.set("stop_loss_pct", sl); if (tp) q.set("take_profit_pct", tp);
     const r = await api(`/api/quant/pipeline?${q}`);
     const c = r.costs || {};
+    // 커스텀 화면엔 종목 칸이 없어 성과 검증 칸의 종목으로 계산한다 — 무슨 종목인지 결과 위에 밝힌다(#245)
+    const ibtOpt = document.getElementById("ibt-symbol")?.selectedOptions?.[0];
+    const symName = ibtOpt && ibtOpt.value === symbol ? ibtOpt.textContent.trim() : "";
+    const ciSym = document.getElementById("ci-bt-symbol");
+    if (ciSym) ciSym.innerHTML = `계산 종목: <b>${escHtml(symName ? `${symName}(${symbol.split(".")[0]})` : symbol)}</b> — 성과 검증 화면에서 고른 종목`;
+    const noTrade = Number(r.trade_count) === 0;
     const data = [
       { label:"누적 수익률", value: `${(r.return_total*100 >= 0 ? "+" : "")}${(r.return_total*100).toFixed(1)}%`, color:"var(--green)" },
       { label:tt("샤프 비율","위험 대비 수익 지표. 높을수록 좋음","sharpe"),   value: Number(r.sharpe || 0).toFixed(2), color:"var(--accent)" },
@@ -165,7 +182,9 @@ document.getElementById("ci-test-btn").addEventListener("click", async () => {
       { label:tt("비용 차감","수수료+슬리피지 누적 차감(%p)","cost_bps"), value: `-${Number(c.cost_pct || 0).toFixed(2)}%p`, color:"var(--text-mute)" },
       { label:"손절/익절 발동", value: `${c.stop_loss_exits ?? 0}회 / ${c.take_profit_exits ?? 0}회`, color:"var(--text-mute)" },
     ];
-    document.getElementById("ci-bt-cards").innerHTML = data.map(d=>`
+    document.getElementById("ci-bt-cards").innerHTML = noTrade
+      ? `<div class="col-span-2 md:col-span-4">${noTradeHtml(r.return_buy_hold === null || r.return_buy_hold === undefined ? null : Number(r.return_buy_hold) * 100)}</div>`
+      : data.map(d=>`
       <div class="card" style="padding:14px;text-align:center;">
         <div class="text-xs mb-1" style="color:var(--text-mute);">${d.label}</div>
         <div style="font-size:18px;font-weight:700;color:${d.color};">${d.value}</div>
@@ -179,6 +198,8 @@ document.getElementById("ci-test-btn").addEventListener("click", async () => {
         ? `매매비용: ${r.cost.label} — 비용 전 ${gross.toFixed(1)}% 에서 ${drag.toFixed(1)}%p 를 뺀 값입니다. 신호는 다음 거래일 수익률에 적용됩니다.`
         : "";
     }
+    const ciSrc = document.getElementById("ci-bt-source");
+    if (ciSrc) ciSrc.innerHTML = dataNoteHtml(r);
     document.getElementById("ci-backtest-result").classList.remove("hidden");
     setToast(`${name} 백테스트 완료 (${symbol})`, "ok");
   } catch (e) {
@@ -279,24 +300,28 @@ function renderIndicatorBacktest(data) {
   if (!el || !data) return;
   const strategy = document.getElementById("ibt-strategy")?.value || "rsi";
   const strategyLabel = { rsi:"RSI 역추세", ma:"이동평균 교차", bollinger:"볼린저밴드", composite:"복합 인디케이터" }[strategy] || "";
+  // 거래 0회면 수익률 · 샤프 · 낙폭 · 승률 대신 「신호 없음」 글 — 대시보드와 같은 말(#245)
+  const noTrade = Number(data.trade_count) === 0;
+  const card = c => `<div class="card" style="padding:14px;text-align:center;"><div class="text-xs mb-1" style="color:var(--text-mute);">${c.l}</div><div style="font-size:18px;font-weight:700;color:${c.c};">${c.v}</div></div>`;
   el.innerHTML = `
     <div class="grid md:grid-cols-4 gap-3">
-      ${[
-        { l:"전략",       v: strategyLabel, c:"var(--accent)" },
+      ${card({ l:"전략", v: strategyLabel, c:"var(--accent)" })}
+      ${noTrade ? `<div class="md:col-span-3">${noTradeHtml(data.buy_hold_return_pct)}</div>` : [
         { l:"누적 수익률", v: `${data?.total_return_pct >= 0 ? "+" : ""}${Number(data?.total_return_pct || 0).toFixed(1)}%`, c:"var(--green)" },
         { l:tt("샤프 비율","위험 대비 수익 지표. 높을수록 좋음","sharpe"),  v: Number(data?.sharpe_ratio || 0).toFixed(2), c:"var(--text)" },
         { l:tt("최대 낙폭","전략 보유 기간 중 최악의 손실 구간(MDD)","mdd"),  v: `${Number(data?.mdd_pct || 0).toFixed(1)}%`, c:"var(--red)" },
-      ].map(c=>`<div class="card" style="padding:14px;text-align:center;"><div class="text-xs mb-1" style="color:var(--text-mute);">${c.l}</div><div style="font-size:18px;font-weight:700;color:${c.c};">${c.v}</div></div>`).join("")}
+      ].map(card).join("")}
     </div>
     <div class="card">
       <h3 class="font-semibold mb-2 text-sm">📊 Python 백테스트 상세</h3>
       <table><thead><tr><th>비교 대상</th><th style="text-align:right;">누적 수익률</th><th style="text-align:right;">거래 횟수</th><th style="text-align:right;">${tt("승률","수익이 난 거래의 비율","win_rate")}</th></tr></thead>
-      <tbody><tr><td>${strategyLabel}</td><td style="text-align:right;color:${Number(data.total_return_pct)>=0?"var(--green)":"var(--red)"};">${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(2)}%</td><td style="text-align:right;">${data.trade_count}회</td><td style="text-align:right;">${Number(data.win_rate_pct).toFixed(1)}%</td></tr><tr><td>매수 후 보유</td><td style="text-align:right;">${Number(data.buy_hold_return_pct).toFixed(2)}%</td><td style="text-align:right;">-</td><td style="text-align:right;">-</td></tr></tbody></table>
+      <tbody><tr><td>${strategyLabel}</td>${noTrade ? `<td style="text-align:right;">-</td><td style="text-align:right;">0회</td><td style="text-align:right;">-</td>` : `<td style="text-align:right;color:${Number(data.total_return_pct)>=0?"var(--green)":"var(--red)"};">${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(2)}%</td><td style="text-align:right;">${data.trade_count}회</td><td style="text-align:right;">${Number(data.win_rate_pct).toFixed(1)}%</td>`}</tr><tr><td>매수 후 보유</td><td style="text-align:right;">${Number(data.buy_hold_return_pct).toFixed(2)}%</td><td style="text-align:right;">-</td><td style="text-align:right;">-</td></tr></tbody></table>
       <p class="text-xs mt-2" style="color:var(--text-mute);">비용 차감 전 수익률 ${Number(data.gross_return_pct ?? data.total_return_pct).toFixed(1)}% → 수수료 ${data.cost_bps ?? 0}bp + 슬리피지 ${data.slippage_bps ?? 0}bp 로 누적 ${Number(data.cost_pct || 0).toFixed(2)}%p 차감 · 손절 ${data.stop_loss_pct ? data.stop_loss_pct + "% (" + data.stop_loss_exits + "회 발동)" : "미적용"} · 익절 ${data.take_profit_pct ? data.take_profit_pct + "% (" + data.take_profit_exits + "회 발동)" : "미적용"} · 매매비용 모델: ${data.cost ? data.cost.label : "미반영"} · 매수 후 보유에도 같은 잣대(첫날 매수·마지막날 매도)를 적용했습니다 · 신호는 다음 거래일 수익률에 적용됩니다.</p>
+      ${dataNoteHtml(data)}
       ${renderRuleExplain(data.explanation)}
       <button type="button" class="btn-secondary text-xs mt-2" onclick='compareTrayAdd(${JSON.stringify({
         source: "성과 검증 (Python)", label: `${strategyLabel}`,
-        summary: `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`,
+        summary: noTrade ? `거래 0회 · 신호 없음 · 매수 후 보유 ${Number(data.buy_hold_return_pct||0).toFixed(1)}%` : `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`,
       }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
     </div>`;
   renderCompareTrayAll();

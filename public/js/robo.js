@@ -11,7 +11,7 @@ const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내�
 // 배지 글자 — 품질 관문이 낮춘 판단을 앞에, 확률이 가리키는 모델 판단을 뒤에(「관망 · 모델 매수 49.8%」)
 const xaiBadgeText = ex => `${ex.model_signal_label ? `${ex.signal_label} · 모델 ${ex.model_signal_label}` : ex.signal_label} ${ex.probability_pct}%`;
 
-function renderXaiBlock(ex, { compact = false } = {}) {
+function renderXaiBlock(ex, { compact = false, probNote = false } = {}) {
   if (!ex) return "";
   const rows = (compact ? [...(ex.top_positive || []), ...(ex.top_negative || [])] : (ex.contributions || [])).slice(0, compact ? 4 : 12);
   const maxAbs = Math.max(0.0001, ...rows.map(r => Math.abs(r.contribution)));
@@ -32,6 +32,7 @@ function renderXaiBlock(ex, { compact = false } = {}) {
       <span class="text-xs font-semibold">🧠 ${tt("AI 판단 근거 (XAI)", "SHAP 기여도: 각 지표가 모델의 매수/관망/매도 판단을 얼마나 밀어 올렸는지(+)/끌어내렸는지(−)", "shap")}</span>
       <span class="${sigCls}" style="font-size:11px;">${escHtml(xaiBadgeText(ex))}</span>
     </div>
+    ${probNote ? `<p class="text-xs mb-1" style="color:var(--text-mute);text-align:right;">배지의 % 는 모델의 분류 확률이며 실제 수익이 날 확률은 아닙니다.</p>` : ""}
     ${ex.quality_warning ? `<p class="text-xs mb-1 px-2 py-1 rounded" style="background:rgba(242,54,69,.08);color:var(--red);border:1px solid rgba(242,54,69,.25);">⚠ 모델 성능 기준선 미달 — ${escHtml(ex.quality_warning)}</p>` : ""}
     <p class="text-xs mb-2" style="color:var(--text-dim);">${escHtml((ex.summary || "").replace(/^⚠ [^ ]*.*?참고용입니다\. /, ""))}</p>
     <div class="space-y-1">${bars}</div>
@@ -321,11 +322,11 @@ async function showScreenXai(symbol) {
     panel.innerHTML = `<div class="card" style="padding:14px;">
       <div class="flex items-center justify-between mb-1">
         <h3 class="font-semibold text-sm">🧠 ${escHtml(r.name)} <span class="text-xs font-mono" style="color:var(--text-mute);">${escHtml(r.symbol)}</span> — AI 판단 근거</h3>
-        <span class="text-xs" style="color:var(--text-mute);">5일 예측 ${pr.pred_5d_return_pct ?? "-"}% · 모델 ${escHtml(pr.model || "")} · 신뢰도 ${pr.confidence ?? "-"}</span>
+        <span class="text-xs" style="color:var(--text-mute);" title="${escHtml(pr.model || "")}">5일 수익률 예측(회귀 · ${escHtml(String(pr.model || "").split("(")[0] || "모델 미확인")}) ${pr.pred_5d_return_pct ?? "-"}%</span>
       </div>
-      <p class="text-xs mb-1" style="color:var(--text-mute);">판단 = 학습 모델(LightGBM · 2년 일봉으로 5거래일 뒤 방향을 예측 · 기준일 ${escHtml(pr.as_of || "—")}) — 규칙 신호(스크리닝 · 다중 주기 · 자동매매 기본 규칙)와 방법이 달라 판단이 다를 수 있습니다.
+      <p class="text-xs mb-1" style="color:var(--text-mute);">방향 판단(LightGBM 분류 · 2년 일봉으로 5거래일 뒤 방향을 예측 · 기준일 ${escHtml(pr.as_of || "—")}) — 아래 배지의 확률과 SHAP 기여도가 이 판단의 것입니다. 규칙 신호(스크리닝 · 다중 주기 · 자동매매 기본 규칙)와 방법이 달라 판단이 다를 수 있습니다.
         <button class="btn-secondary text-xs" onclick="openPatternFor('${escHtml(r.symbol)}')">다중 주기 신호 보기 ↗</button></p>
-      ${r.explanation ? renderXaiBlock(r.explanation) : `<p class="text-xs" style="color:var(--text-mute);">이 종목은 LightGBM 분류를 학습할 수 없어 설명을 제공하지 못했습니다.</p>`}
+      ${r.explanation ? renderXaiBlock(r.explanation, { probNote: true }) : `<p class="text-xs" style="color:var(--text-mute);">이 종목은 LightGBM 분류를 학습할 수 없어 설명을 제공하지 못했습니다.</p>`}
     </div>`;
   } catch (e) { panel.innerHTML = `<span class="text-xs text-red-500">${escHtml(e.message)}</span>`; }
 }
