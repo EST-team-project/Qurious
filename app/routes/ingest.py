@@ -11,6 +11,7 @@ from app.models import CrawledDoc
 from app.services.financial_ingest import run_full_ingest
 from app.services.crawl import run_auto_crawl, crawl_url, crawl_naver_stock, _chunk_text, _store_qdrant
 from app.services import url_guard  # Qurious: 주소 검사(허용 목록 · 내부망 · robots) — 규칙은 그 파일에
+from app.services.task_access import enqueue_owned_task
 from app.services.translation_ingest import (
     run_translation_ingest,
     translation_search,
@@ -173,46 +174,47 @@ async def search_translation(
 # ── 비동기 인제스트 엔드포인트 (Celery) ──────────────────────────────────────────
 
 @router.post("/ingest/financial/async", summary="금융 데이터 비동기 인제스트")
-async def ingest_financial_async(user=Depends(get_current_user)):
+async def ingest_financial_async(user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
     """CSV 금융 데이터 인제스트를 Celery 워커에 위임하고 task_id 를 반환한다.
     GET /api/tasks/{task_id} 로 완료 여부와 결과를 폴링한다.
     """
     from app.tasks.ingest_tasks import financial_ingest_task
-    task = financial_ingest_task.delay()
-    return {"task_id": task.id, "poll_url": f"/api/tasks/{task.id}"}
+    task_id = await enqueue_owned_task(db, user, financial_ingest_task)
+    return {"task_id": task_id, "poll_url": f"/api/tasks/{task_id}"}
 
 
 @router.post("/ingest/crawl/auto/async", summary="자동 크롤링 비동기 인제스트")
-async def crawl_auto_async(user=Depends(get_current_user)):
+async def crawl_auto_async(user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
     """자동 크롤링을 Celery 워커에 위임한다."""
     from app.tasks.ingest_tasks import auto_crawl_task
-    task = auto_crawl_task.delay()
-    return {"task_id": task.id, "poll_url": f"/api/tasks/{task.id}"}
+    task_id = await enqueue_owned_task(db, user, auto_crawl_task)
+    return {"task_id": task_id, "poll_url": f"/api/tasks/{task_id}"}
 
 
 @router.post("/ingest/crawl/url/async", summary="URL 크롤링 비동기 인제스트")
-async def crawl_url_async(body: CrawlUrlBody, user=Depends(get_current_user)):
+async def crawl_url_async(body: CrawlUrlBody, user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
     """단일 URL 크롤링을 Celery 워커에 위임한다."""
     await url_guard.ensure_allowed(body.url)  # Qurious: 막히면 400
     from app.tasks.ingest_tasks import url_crawl_task
-    task = url_crawl_task.delay(url=body.url)
-    return {"task_id": task.id, "poll_url": f"/api/tasks/{task.id}"}
+    task_id = await enqueue_owned_task(db, user, url_crawl_task, url=body.url)
+    return {"task_id": task_id, "poll_url": f"/api/tasks/{task_id}"}
 
 
 @router.post("/ingest/translation-data/async", summary="번역 데이터 비동기 인제스트")
 async def ingest_translation_async(
     body: TranslationIngestBody,
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_pg_session),
 ):
     """다국어 번역 데이터 인제스트를 Celery 워커에 위임한다."""
     from app.tasks.ingest_tasks import translation_ingest_task
-    task = translation_ingest_task.delay(
+    task_id = await enqueue_owned_task(db, user, translation_ingest_task,
         data_type=body.data_type,
         categories=body.categories or None,
         languages=body.languages or None,
         max_docs=body.max_docs,
     )
-    return {"task_id": task.id, "poll_url": f"/api/tasks/{task.id}"}
+    return {"task_id": task_id, "poll_url": f"/api/tasks/{task_id}"}
 
 
 @router.get("/ingest/crawl/list")
