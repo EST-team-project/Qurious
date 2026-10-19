@@ -357,20 +357,30 @@ async function loadRuns() {
 }
 
 /* ── 초기화 ─────────────────────────────────────────────── */
+function showCustomInput(selectId, inputId) {
+  $(`${inputId}-custom`).hidden = $(selectId).value !== "custom";
+}
+
 function syncPreset(selectId, inputId) {
   const select = $(selectId), input = $(inputId);
   const match = [...select.options].find(o => o.value !== "custom" && Number(o.value) === Number(input.value));
   select.value = match ? match.value : "custom";
+  showCustomInput(selectId, inputId);
 }
 
 export function initRebalanceView() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   for (const [selectId, inputId] of [["rb-drift-preset", "rb-drift"], ["rb-cf-preset", "rb-cf-min"]]) {
-    on(selectId, "change", () => { if ($(selectId).value !== "custom") $(inputId).value = $(selectId).value; else $(inputId).focus(); });
-    on(inputId, "input", () => syncPreset(selectId, inputId));
+    on(selectId, "change", () => {
+      if ($(selectId).value !== "custom") $(inputId).value = $(selectId).value;
+      showCustomInput(selectId, inputId);
+      if ($(selectId).value === "custom") $(inputId).focus();
+    });
+    // 직접 입력 중에는 프리셋 값과 같아져도 칸을 숨기지 않는다 (예: 5 → 5.5).
     // 계획이 아직 없는 사람은 칸이 비어 있는데 고르기 칸은 「금액 무관」 · 「3%p」 로 보여, 저장이 「설정 금액과 이탈률을
     // 입력하세요」 로 막혔다 — 빈 칸은 보이는 고르기 값으로 채운다(2026-10-18 잠정 반영 D124 · 주담당 오준영 · 시연 영상에서 찾음).
     if ($(inputId) && $(inputId).value === "" && $(selectId)?.value !== "custom") $(inputId).value = $(selectId).value;
+    syncPreset(selectId, inputId);
   }
   on("rb-add", "click", addTarget);
   on("rb-add-symbol", "keydown", e => { if (e.key === "Enter") addTarget(); });

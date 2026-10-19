@@ -1616,15 +1616,23 @@
                         <option value="yearly">매년 첫 거래일 (1월)</option>
                       </select>
                     </div>
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">② 허용 이탈률 (%p)</label>
-                      <div class="flex flex-wrap items-center gap-2 mt-1"><input id="rb-drift-enabled" type="checkbox"
-                          class="h-4 w-4" /><select id="rb-drift-preset" class="input" style="width:110px"><option value="3">3%p</option><option value="5">5%p</option><option value="10">10%p</option><option value="custom">직접 입력</option></select><input id="rb-drift" type="number" min="0.5" max="50" step="0.5"
-                          class="input" style="width:100px" /></div>
-                    </div>
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">③ 현금흐름 재배분 기준 (원)</label>
-                      <div class="flex flex-wrap items-center gap-2 mt-1"><input id="rb-cf-enabled" type="checkbox"
-                          class="h-4 w-4" /><select id="rb-cf-preset" class="input" style="width:110px"><option value="0">금액 무관</option><option value="50000">5만 원</option><option value="100000">10만 원</option><option value="500000">50만 원</option><option value="1000000">100만 원</option><option value="custom">직접 입력</option></select><input id="rb-cf-min" type="number" min="0" step="10000" class="input" style="width:110px" />
+                    <div><label for="rb-drift-preset" class="text-xs font-semibold" style="color:var(--text-dim);">② 허용 이탈률 (%p)</label>
+                      <label class="flex items-center gap-2 mt-1 text-xs"><input id="rb-drift-enabled" type="checkbox" class="h-4 w-4" />이탈률 기준 사용</label>
+                      <select id="rb-drift-preset" class="input mt-1" aria-describedby="rb-drift-help"><option value="3">3%p</option><option value="5">5%p</option><option value="10">10%p</option><option value="custom">직접 입력</option></select>
+                      <div id="rb-drift-custom" class="mt-2" hidden>
+                        <label for="rb-drift" class="text-xs">허용 이탈률 직접 입력 (%p)</label>
+                        <div class="flex items-center gap-2 mt-1"><input id="rb-drift" type="number" min="0.5" max="50" step="0.5" class="input" style="width:100px" aria-describedby="rb-drift-help" /><span>%p</span></div>
                       </div>
+                      <p id="rb-drift-help" class="text-xs mt-1" style="color:var(--text-mute);">목표 비중과 현재 비중의 차이 기준입니다. 예: 목표 20% → 현재 25%이면 5%p 차이입니다. 설정한 확인 시점에 이 차이가 기준 이상인지 판단합니다.</p>
+                    </div>
+                    <div><label for="rb-cf-preset" class="text-xs font-semibold" style="color:var(--text-dim);">③ 현금흐름 재배분 기준 (원)</label>
+                      <label class="flex items-center gap-2 mt-1 text-xs"><input id="rb-cf-enabled" type="checkbox" class="h-4 w-4" />현금흐름 기준 사용</label>
+                      <select id="rb-cf-preset" class="input mt-1" aria-describedby="rb-cf-help"><option value="0">금액 무관</option><option value="50000">5만 원</option><option value="100000">10만 원</option><option value="500000">50만 원</option><option value="1000000">100만 원</option><option value="custom">직접 입력</option></select>
+                      <div id="rb-cf-min-custom" class="mt-2" hidden>
+                        <label for="rb-cf-min" class="text-xs">재배분 기준 금액 직접 입력 (원)</label>
+                        <div class="flex items-center gap-2 mt-1"><input id="rb-cf-min" type="number" min="0" step="10000" class="input" style="width:140px" aria-describedby="rb-cf-help" /><span>원</span></div>
+                      </div>
+                      <p id="rb-cf-help" class="text-xs mt-1" style="color:var(--text-mute);">재배분 가능한 금액이 이 기준 이상이면 조건을 충족합니다. 100000원 = 10만 원입니다. ‘금액 무관’도 재배분 가능한 금액이 있어야 합니다.</p>
                     </div>
                     <div><label class="text-xs font-semibold" style="color:var(--text-dim);">최소 주문금액 (원)</label><input
                         id="rb-min-order" type="number" min="0" step="10000" class="input mt-1" /></div>
@@ -1637,7 +1645,7 @@
                     <label class="min-w-0">이탈률 확인 시점<select id="rb-drift-mode" class="input mt-1"><option value="always">매 점검 시</option><option value="scheduled">주기 도래 시 + 이탈 기준 충족</option></select></label>
                     <label class="flex items-center gap-2"><input id="rb-protect" type="checkbox" />플랜 밖 종목 유지 (주문·비중 계산에서 제외)</label>
                   </div>
-                  <p class="text-xs mt-3" style="color:var(--text-mute);">입금·배당은 매수만, 출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 기준은 입금액 자체가 아닌 목표 대비 현금 초과·부족과 누적 미사용 재배분 예산 중 작은 금액입니다. 일반 매매는 예산에 포함하지 않습니다.</p>
+                  <p class="text-xs mt-3" style="color:var(--text-mute);">입금·배당은 매수만, 출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 재배분 가능한 금액은 입금액 자체가 아닌 목표 대비 현금 초과·부족과 누적 미사용 재배분 예산 중 작은 금액입니다. 현금 초과 시 매수 예산, 현금 부족 시 매도 예산이 있어야 합니다. 일반 매매는 예산에 포함하지 않습니다.</p>
                   <p class="text-xs mt-2" style="color:var(--text-mute);">시간 주기는 다음 월·분기·연의 첫 거래일 기준입니다. 자동 정기 점검은 12:30 이후 데이터 갱신이 성공하고 시세 기준일이 전 거래일인지 확인한 뒤 하루 한 번 진행합니다. 준비 여부는 5분마다 확인하며, 갱신 실패·지연 시에는 기다립니다. ‘지금 점검’도 같은 하루 1회 판단을 사용하며, 입출금·배당 뒤에는 다음 일별 점검 회차까지 기다립니다. 자동 정기 점검은 수집 DB의 전 거래일 종가로 계산하고 다음 거래일 시가 수집 후 모의 체결을 확정합니다. 수동 점검·미리보기·실행도 같은 가격 기준을 사용합니다. 예약은 목표 비중을 기준으로 시가 수집 후 수량을 다시 계산합니다. 체결일 당일 이후 계좌 변경과 플랜 변경은 확인 대기합니다.</p>
                   <p id="rb-schedule-warning" class="text-sm mt-2 text-amber-500" role="status" hidden></p>
                   <div class="mt-3"><button id="rb-save" class="btn-primary">플랜 저장</button></div>
