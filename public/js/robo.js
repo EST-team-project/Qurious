@@ -3,6 +3,7 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/js/common.js";
 import { navigate, tt } from "/js/core.js";
 import { setRiskProfileUser, riskProfileContext, readRiskProfile, saveRiskProfile, hasLegacyRiskProfile } from "/js/riskprofile.js";
+import { latestCycleSignals, renderDecisionBasis } from "/js/decision-signals.js";
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
@@ -712,11 +713,11 @@ function renderRoboRationale(signals) {
     return;
   }
 
-  const shown = signals.slice(0, 3);
-  el.innerHTML = shown.map(s => {
-    const sigLabel = s.signal === "BUY" ? "매수" : s.signal === "SELL" ? "매도" : "관망";
+  const shown = latestCycleSignals(signals);
+  el.innerHTML = shown.map((s, i) => {
+    const sigLabel = s.error || s.signal === "UNAVAILABLE" ? "판단 불가" : s.signal === "BUY" ? "매수" : s.signal === "SELL" ? "매도" : s.signal === "HOLD" ? "관망" : "미확인";
     const sigCls = s.signal === "BUY" ? "badge-buy" : s.signal === "SELL" ? "badge-sell" : "badge-hold";
-    const cardId = "robo-rat-" + (s.symbol || "").replace(/[^0-9A-Za-z]/g, "_");
+    const cardId = "robo-rat-" + i;
     // 자동매매 실제 사유 (signals[].reasons)
     const reasons = (s.reasons || []).slice(0, 4)
       .map(r => `<div style="color:var(--text-dim);">· ${escHtml(r)}</div>`).join("");
@@ -724,17 +725,17 @@ function renderRoboRationale(signals) {
       <div class="card" style="padding:14px;">
         <div class="flex items-center justify-between mb-1">
           <span class="font-semibold text-sm">${escHtml(s.name || s.symbol)}</span>
-          <span class="${sigCls}" title="자동매매 규칙 판단">자동매매 ${sigLabel}</span>
+          <span class="${sigCls}" title="자동매매 주문 전 판단">자동매매 ${sigLabel}</span>
         </div>
-        <div class="text-xs mb-2" style="color:var(--text-mute);">자동매매 점수 ${Number(s.score ?? 0).toFixed(1)} (일봉 규칙 · −6 ~ +6)</div>
+        ${renderDecisionBasis(s, escHtml, kstTime)}
         ${reasons ? `<div class="text-xs mb-2">${reasons}</div>` : ""}
         <div id="${cardId}" class="text-xs" style="color:var(--text-dim);line-height:1.5;border-top:1px dashed var(--border);padding-top:6px;margin-top:6px;">다중 주기 신호 불러오는 중…</div>
       </div>`;
   }).join("");
 
-  shown.forEach(s => {
+  shown.forEach((s, i) => {
     if (!s.symbol) return;
-    const cardId = "robo-rat-" + s.symbol.replace(/[^0-9A-Za-z]/g, "_");
+    const cardId = "robo-rat-" + i;
     const node = document.getElementById(cardId);
     if (node) _loadRationaleExplain(s.symbol, node);
   });
@@ -748,9 +749,10 @@ async function _loadRationaleExplain(symbol, node) {
     const lines = [];
 
     // (1) 다중 주기 신호(T2) — 이름표 달아 별도 줄
-    const t2Signal = r.signal || "관망";
+    const t2Signal = r.signal || "미확인";
     const t2Date = r.as_of ? ` (${escHtml(r.as_of)} 기록)` : "";
     lines.push(`<div style="color:var(--text);"><b>다중 주기 신호${t2Date}: ${escHtml(t2Signal)}</b></div>`);
+    if (typeof r.composite === "number" && Number.isFinite(r.composite)) lines.push(`<div>다중 주기 점수 ${escHtml(r.composite.toFixed(1))}</div>`);
 
     if (ex.summary) {
       lines.push(`<div style="color:var(--text-dim);margin-top:2px;">${escHtml(ex.summary)}</div>`);
@@ -770,10 +772,10 @@ async function _loadRationaleExplain(symbol, node) {
 
     // (4) 자동매매와 다중 주기 다름 안내
     const card = node.closest(".card");
-    const autoBadge = card ? card.querySelector('[title="자동매매 규칙 판단"]') : null;
+    const autoBadge = card ? card.querySelector('[title="자동매매 주문 전 판단"]') : null;
     const autoAction = autoBadge ? autoBadge.textContent.replace("자동매매 ", "").trim() : "";
     if (autoAction && autoAction !== t2Signal) {
-      lines.push(`<div style="margin-top:4px;color:var(--text-mute);font-size:11px;">※ 자동매매 기본 규칙(일봉 RSI·볼린저, 역추세)과 다중 주기 신호가 다를 수 있습니다.</div>`);
+      lines.push(`<div style="margin-top:4px;color:var(--text-mute);font-size:11px;">※ 자동매매와 다중 주기 신호는 판단 방식·기준 시각이 달라 결과가 다를 수 있습니다.</div>`);
     }
 
     // (5) 메타 (기준일 · 규칙 · 고지)

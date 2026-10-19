@@ -5,6 +5,7 @@ import { compareTrayAdd, renderCompareTrayAll } from "/js/core.js";
 // Qurious: 전략 분석 종목 칸 = 찾기 칸 하나(최근 본 종목 + 대표 종목 · Figma 03-6 결정 · 2026-10-16)
 import { mountStockPick, labelOf } from "/js/stockpick.js";
 import { renderTradeExecution } from "/js/trade-status.js";
+import { renderDecisionBasis } from "/js/decision-signals.js";
 
 let quantChartInstance = null;
 
@@ -152,7 +153,7 @@ async function loadAutoTradeStatus() {
         ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
         : "";
       const sigs = (cycle.signals || []).map(sig =>
-        `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(_displayAction(sig.action))}</b> (점수:${sig.score ?? "-"})</div>`
+        `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(sig.error ? '판단 불가' : _displayAction(sig.action))}</b>${renderDecisionBasis({...sig, cycle_at: cycle.time}, escHtml, kstTime)}</div>`
       ).join("");
       return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
         <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>

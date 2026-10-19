@@ -49,6 +49,7 @@ from app.services import aggressive_mode
 from app.services.execution_policy import policy_for, risk_quantity
 from app.services.trade_outcome import describe_trade, failure_message
 from app.services import kis_execution
+from app.services.decision_signal_view import signal_view
 from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,9 @@ async def get_status(db: AsyncSession, uid: uuid.UUID) -> dict:
             execution = describe_trade(t, (c.get("settings") or {}).get("mode"), proof)
             trades.append({**t, "status": execution["status"], "virtual_status": execution["virtual_status"],
                            "execution": execution})
-        output.append({**c, "trades": trades})
+        output.append({**c, "trades": trades, "signals": [
+            signal_view(sig, c.get("settings") or {}, c.get("time")) for sig in c.get("signals", [])
+        ]})
     cycles = output
     last_risk = next((c.get("risk") for c in reversed(cycles) if c.get("risk")), {})
     return {
@@ -1098,6 +1101,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             cycle_log["signals"].append({
                 "symbol": stock["symbol"], "name": stock["name"],
                 "price": price, "action": action, "score": score,
+                "basis": {"as_of": indicators.get("as_of"),
+                          "interval": indicators.get("interval") or (None if aggressive else "1d"),
+                          "normalized_score": signal.get("normalized_score")},
                 "reasons": [str(r) for r in list(reasons)[:6]],   # 의사결정 화면 「판단 근거」 카드에 실제 사유를 보여 준다
             })
 

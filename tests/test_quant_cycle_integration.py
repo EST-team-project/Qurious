@@ -99,7 +99,8 @@ def fake_gateway(*, cash=10_000_000, rejected=False, holdings=()):
 
 async def indicators(symbol, period="2y"):
     if symbol == "005930.KS":
-        return {"signal": {"action": "매수", "score": 3, "reasons": ["골든크로스"]}, "current_price": 70_000.0}
+        return {"signal": {"action": "매수", "score": 3, "reasons": ["골든크로스"]}, "current_price": 70_000.0,
+                "as_of": "2026-10-16"}
     return {"signal": {"action": "관망", "score": 0, "reasons": []}, "current_price": 200_000.0}
 
 
@@ -192,6 +193,7 @@ def test_paper_mode_never_calls_gateway():
     trades = [t for t in log["trades"] if t.get("type") == "auto"]
     assert len(trades) == 1 and "live_order" not in trades[0]
     assert calls == [] and not any(isinstance(a, LiveOrder) for a in db.added)
+    assert log["signals"][0]["basis"] == {"as_of": "2026-10-16", "interval": "1d", "normalized_score": None}
 
 
 @pytest.mark.parametrize("status", LIVE_ORDER_OPEN_STATUSES)
