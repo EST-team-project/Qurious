@@ -1136,7 +1136,8 @@ async def quant_auto_status(user=Depends(get_current_user), db: AsyncSession = D
                 action = sig.get("action", "관망")
                 signals.append({
                     **sig, "source": "batch" if prefix else "me",
-                    "signal": "BUY" if "매수" in action else "SELL" if "매도" in action else "HOLD",
+                    "cycle_at": cycle.get("time"),
+                    "signal": "UNAVAILABLE" if sig.get("error") else "BUY" if "매수" in action else "SELL" if "매도" in action else "HOLD",
                 })
             account = cycle.get("account")
             if account:
@@ -1168,6 +1169,8 @@ async def quant_auto_status(user=Depends(get_current_user), db: AsyncSession = D
                     "message": f"{prefix}[{execution['label']}] {trade.get('name', trade.get('symbol', ''))} {side} "
                                f"{quantity_label} {trade.get('quantity', 0)}주{confirmed} — {execution['ledger']} · {execution['detail']} · {trade.get('reason', '')}",
                 })
+    from app.services.decision_signal_view import cycle_timestamp
+    signals.sort(key=lambda x: cycle_timestamp(x.get("cycle_at")))
     logs.sort(key=lambda x: x.get("time") or "")
     from app.services import reconciliation
     try:

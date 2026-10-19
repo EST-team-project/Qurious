@@ -725,10 +725,10 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-STK-27 | POST | `/api/quant/auto/start` | 세션 | — | {ok, started} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1102 |
 | API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | — | P-E | P02-⑤-2 | stocks.py:1112 |
 | API-STK-29 | GET | `/api/quant/auto/status` | 세션 | — | {running, me_running, batch, reconcile, logs} 외 1 | — | PostgreSQL | `dashboard`, `robo-decision`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1119 |
-| API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-backtest`, `indicator-custom`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1185 |
-| API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1292 |
-| API-STK-32 | POST | `/api/custom-indicators` | 세션 | 본문 `CustomIndicatorBody` | 모델 없음 | 422 | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-①-2 · P02-②-1 · P02-②-3 | stocks.py:1307 |
-| API-STK-33 | DELETE | `/api/custom-indicators/{indicator_id}` | 세션 | `{indicator_id}` | {ok} | 404 | PostgreSQL | `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1327 |
+| API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-backtest`, `indicator-custom`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1188 |
+| API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1295 |
+| API-STK-32 | POST | `/api/custom-indicators` | 세션 | 본문 `CustomIndicatorBody` | 모델 없음 | 422 | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-①-2 · P02-②-1 · P02-②-3 | stocks.py:1310 |
+| API-STK-33 | DELETE | `/api/custom-indicators/{indicator_id}` | 세션 | `{indicator_id}` | {ok} | 404 | PostgreSQL | `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1330 |
 
 #### `kis_monitor` — `app/routes/kis_monitor.py` · 2개
 
@@ -1170,6 +1170,16 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 ---
 
 ## 6. 오류 코드와 오류 응답 형식
+
+### 자동매매 판단 출처와 최근 회차 (#213 · 2026-10-19)
+
+`GET /api/auto-trade/status`의 `log[].signals[]`와 `GET /api/quant/auto/status`의 `signals[]`는 각 판단의 `cycle_at` 및 표시용 `decision`을 제공한다. `decision`은 `kind`(`basic`, `aggressive`, `strategy`, `unknown`, `unavailable`), `method`, `score_text`, `as_of`, `interval`, `note`를 담는다. 일봉 기본 규칙·분봉 공격 모드·실제 적용된 사용자 전략을 기록된 회차 설정으로 구분하며, 설정이 없는 과거 기록은 미확인으로 표시한다. 계산 실패는 `UNAVAILABLE`·판단 불가로 표시하고 누락 점수를 0으로 채우지 않는다.
+
+새 사이클은 신호의 `basis`에 실제 지표의 마지막 봉 시각·주기와 사용자 전략의 정규화 점수를 보존한다. 원래 행동·점수·주문 규칙은 변경하지 않으며, 조회 시 과거 캐시도 덮어쓰지 않는다. 판단 회차 시각과 지표 기준 봉 시각은 서로 구분한다. 과거에 남기지 않은 지표 기준일을 현재 날짜로 추정하지 않는다.
+
+`/quant/auto/status`는 내 자동매매와 시스템 배치의 신호를 실제 회차 시각순으로 합친 뒤 최근 40개를 반환한다. 의사결정 화면은 가장 최근 회차의 최대 세 판단을 표시하며 계정·배치가 같은 종목을 내더라도 설명 칸이 겹치지 않는다. 자동매매의 주문 전 판단·지표 점수와 다중 주기 신호·점수를 별도 이름으로 표시하며, 비교 응답이 자동매매 배지를 덮어쓰지 않는다. 주문·체결 결과는 실행 로그에서 확인한다.
+
+검증: `tests/test_decision_signal_view.py`(14건), 관련 자동매매·주문·계정 분리 회귀 시험 총 99건 통과. 실제 Chrome `tests/e2e/decision_sources.py` 15항목 통과(합성 API). 판단 규칙 통합은 이 변경 범위에 포함하지 않는다.
 
 ### 투자 성향 진단의 브라우저 저장 (#251 · 2026-10-19)
 
