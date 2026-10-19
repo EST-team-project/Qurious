@@ -7,7 +7,7 @@
   - 사이클 로그는 data_cache(`quant:cycle_log:{uid}`)에 최근 50개를 남겨 API 프로세스와 워커가 공유한다.
 
 장부 (강사님 원본 2026-09-29 방식 · Qurious 2026-09-30 반영)
-  - 자동매매는 **자기 장부**를 쓴다: 현금 `QuantVirtualAccount`(초기 1천만 원) + 보유 `Portfolio.book = QUANT`.
+  - 가상매매(paper)만 **자기 장부**를 쓴다: 현금 `QuantVirtualAccount`(초기 1천만 원) + 보유 `Portfolio.book = QUANT`.
     모의투자 · 직접매매 · 리밸런싱 · TradingView 는 `PaperAccount` + `book = PAPER` 다. 두 장부는 섞이지 않는다.
   - 예전(두 장부가 보유 표 하나를 같이 써서) 자동매매가 산 주식이 모의투자 화면에 「없는 수익」 으로 잡히던
     결함을, Qurious I14(2026-09-28)는 현금을 `PaperAccount` 하나로 합쳐 고쳤다. 강사님 원본은 장부를 나눠
@@ -16,11 +16,14 @@
     · 현금 행 잠금(FOR UPDATE — 즉시 1회 실행과 예약 사이클이 겹쳐도 차감이 덮어써지지 않게).
   - 강사님 9478811(2026-10-03 반영): 게이트웨이 실주문 · 합격 전략 · 실계좌 위험 한도 · 체결 확인은 그대로 받았다.
     바꾼 것 셋 — KIS 키는 사용자마다(`kis_credentials`) · 게이트웨이에도 실거래 승인 관문 · SageMaker 배치 점수 없음.
+  - #212: KIS 연동(live)은 가상 장부를 변경하지 않는다. KIS 잔고로 판단하고 live_orders에
+    접수·실패·응답 불명 상태를 남긴 뒤 별도 체결 조회로 수량·가격을 확인한다.
 """
 import asyncio
 import json
 import logging
 import uuid
+import math
 from weakref import WeakValueDictionary
 from datetime import datetime, timezone
 
@@ -44,6 +47,9 @@ from app.services.data_cache import cache_get, cache_set
 from app.services import trading_cost
 from app.services import aggressive_mode
 from app.services.execution_policy import policy_for, risk_quantity
+from app.services.trade_outcome import describe_trade, failure_message
+from app.services import kis_execution
+from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +98,25 @@ async def get_status(db: AsyncSession, uid: uuid.UUID) -> dict:
     enabled = await is_enabled(db, uid)
     cached = await cache_get(_log_key(uid), max_age_hours=24 * 30) or {}
     cycles = cached.get("cycles") or []
+    # 저장된 옛 filled는 가상 장부 기록이다. 응답에서는 증권사 근거와 분리한다.
+    ids = {t["live_order"]["client_order_id"] for c in cycles for t in c.get("trades", [])
+           if (t.get("live_order") or {}).get("client_order_id")}
+    tracked = {}
+    if ids:
+        rows = (await db.execute(select(LiveOrder).where(
+            LiveOrder.user_id == uid, LiveOrder.client_order_id.in_(ids)))).scalars().all()
+        tracked = {r.client_order_id: {"status": r.status, "filled_quantity": r.filled_quantity,
+                                      "avg_filled_price": r.avg_filled_price} for r in rows}
+    output = []
+    for c in cycles:
+        trades = []
+        for t in c.get("trades", []):
+            proof = tracked.get((t.get("live_order") or {}).get("client_order_id"))
+            execution = describe_trade(t, (c.get("settings") or {}).get("mode"), proof)
+            trades.append({**t, "status": execution["status"], "virtual_status": execution["virtual_status"],
+                           "execution": execution})
+        output.append({**c, "trades": trades})
+    cycles = output
     last_risk = next((c.get("risk") for c in reversed(cycles) if c.get("risk")), {})
     return {
         "running":      enabled,
@@ -242,11 +267,10 @@ async def _place_live_order(
     user_id: str,
     db: AsyncSession | None = None,
 ) -> dict | None:
-    """실전(live) 모드에서 가상계좌 체결과 별도로 실제 증권사에 주문을 전송한다.
+    """KIS 연동(live) 모드의 증권사 주문. 가상 장부 체결은 만들지 않는다.
 
-    가상계좌 기록(포트폴리오/현금)은 앱 대시보드 표시용으로 항상 남기고,
-    이 함수는 그 위에 실제 브로커 주문을 얹는다. 브로커 미승인/오류 시에도
-    자동매매 사이클 자체는 계속 진행되도록 예외를 여기서 흡수한다.
+    접수 전 추적 행을 저장하고 실패·응답 불명·접수를 구분한다.
+    체결은 별도 조회로 확인하며, 응답 불명 주문은 실패로 단정하지 않는다.
 
     ★ 실거래 주문은 rfp-2 §4.2 의 **제외 범위**다. 그래서 `quant_mode == "live"` 라
     해도 실계좌로 나가지 않는다 — `QURIOUS_ALLOW_LIVE_TRADING` 이 켜져 있지 않으면
@@ -273,26 +297,92 @@ async def _place_live_order(
         app_secret = broker_row.app_secret
         account_no = broker_row.account_no
     if broker == "mock" or not app_key or not app_secret or not account_no:
-        return None
+        return {"status": "skipped", "broker": broker, "reason": "broker_not_configured"}
 
     # 3-way(강사님 9478811 · 2026-10-03): 강사님 판은 자격증명이 정한 `paper`, 우리 판은 실거래 승인 관문이다.
     # 둘 다 지킨다 — 모의로 정해졌으면 모의, 아니면 승인(QURIOUS_ALLOW_LIVE_TRADING) 없이는 모의(팩토리에도 같은 관문).
     client = get_broker_client(
         broker, app_key, app_secret, paper=paper or not live_trading_allowed()
     )
+    env = "paper" if paper or not live_trading_allowed() else "real"
+    direct_row = None
+    if broker == "kis" and db is not None:
+        direct_row = LiveOrder(user_id=_resolve_user_id(user_id), client_order_id="direct:" + uuid.uuid4().hex,
+                               environment=env, broker="kis-direct", symbol=symbol, name=name, side=side.upper(),
+                               order_type="LIMIT", quantity=quantity, price=price, status="PENDING",
+                               raw=json.dumps({"account_key": kis_execution.account_key(app_key, account_no, env)}))
+        db.add(direct_row)
+        await db.commit()  # 추적 기록 저장에 실패하면 주문을 전송하지 않는다.
+
+    async def record(outcome):
+        if direct_row is not None:
+            direct_row.status = {"submitted": "ACCEPTED", "error": "ERROR", "unknown": "UNKNOWN"}[outcome["status"]]
+            direct_row.order_no = outcome.get("order_no", "")
+            direct_row.message = failure_message(outcome) if outcome["status"] == "error" else "주문 응답·체결 확인 대기"
+            await db.commit()
+            outcome["client_order_id"] = direct_row.client_order_id
+        return outcome
+
     try:
         result = await client.place_order(account_no, symbol, side, quantity, price)
-        await notification.notify_order_placed(
-            symbol=symbol, side=side, quantity=quantity, price=price, user_id=user_id,
-        )
-        return {"status": "submitted", "broker": broker, "response": result}
+        order_no = str((result.get("output") or {}).get("ODNO") or (result.get("output") or {}).get("odno") or "")
     except Exception as e:
         logger.warning("실전 자동매매 주문 실패 (%s, %s %s): %s", broker, side, symbol, e)
-        await notification.notify_order_error(
+        code = getattr(e, "code", "")
+        outcome = {"status": "unknown" if code == "ORDER_SUBMISSION_UNKNOWN" else "error",
+                   "broker": broker, "code": code, "error": str(e)}
+        message = "접수 여부 미확인 — 재주문 전에 증권사 주문 내역을 확인해 주세요." if outcome["status"] == "unknown" else failure_message(outcome)
+        await record(outcome)
+        try:
+            await notification.notify_order_error(
+                symbol=symbol, side=side, quantity=quantity, price=price,
+                error=message, user_id=user_id,
+            )
+        except Exception:
+            logger.exception("증권사 실패 알림 전송 실패 user=%s symbol=%s", user_id, symbol)
+        return outcome
+    if broker == "kis" and not order_no:
+        return await record({"status": "unknown", "broker": broker, "code": "ORDER_SUBMISSION_UNKNOWN"})
+    outcome = await record({"status": "submitted", "broker": broker, "response": result, "order_no": order_no,
+                            "environment": env, "tracking": "direct" if direct_row else "unavailable"})
+    # 알림 전송 장애를 이미 접수한 증권사 주문 실패로 바꾸지 않는다.
+    try:
+        await notification.notify_order_placed(
             symbol=symbol, side=side, quantity=quantity, price=price,
-            error=str(e), user_id=user_id,
-        )
-        return {"status": "error", "broker": broker, "error": str(e)}
+            broker=f"{broker.upper()} {'모의' if paper or not live_trading_allowed() else '실전'} · 체결 미확인", user_id=user_id)
+    except Exception:
+        logger.exception("증권사 접수 알림 전송 실패 user=%s symbol=%s", user_id, symbol)
+    return outcome
+
+
+async def _report_execution(db, broker_row, trade: dict, user_id: str, *, mode="paper") -> None:
+    """KIS 주문 결과와 가상매매 알림을 모드에 맞게 처리한다."""
+    if mode == "live":
+        try:
+            result = await _place_live_order(broker_row, trade["symbol"], trade.get("name", trade["symbol"]),
+                                            trade["action"], trade["quantity"], trade["price"], user_id, db=db)
+        except Exception:
+            logger.exception("자동매매 주문 결과 저장 실패 user=%s symbol=%s", user_id, trade["symbol"])
+            result = {"status": "unknown", "code": "ORDER_SUBMISSION_UNKNOWN"}
+        trade["live_order"] = result or {"status": "skipped", "reason": "broker_not_configured"}
+    else:
+        await notification.notify_auto_trade_executed(
+            symbol=trade["symbol"], name=trade.get("name", trade["symbol"]), action=trade["action"],
+            quantity=trade["quantity"], price=trade["price"], reason=trade.get("reason", ""), user_id=user_id)
+
+
+async def _execute_trade(db, uid, broker_row, mode, symbol, name, action, price, quantity, reason):
+    if mode == "paper":
+        trade = await _execute_virtual_trade(db, uid, symbol, name, action, price, quantity, reason)
+        if trade.get("status") == "filled":
+            await _report_execution(db, None, trade, str(uid))
+        return trade
+    trade = {"time": datetime.now(timezone.utc).isoformat(), "symbol": symbol, "name": name,
+             "action": action, "quantity": quantity, "price": price, "reason": reason,
+             "status": "pending", "virtual_status": "not_recorded"}
+    await _report_execution(db, broker_row, trade, str(uid), mode="live")
+    trade["status"] = trade["live_order"]["status"]
+    return trade
 
 
 _SIGNAL_SCORE_SCALE = 8.0   # stock.py 지표 점수(대략 -8~+8)를 스펙 임계값([-1,1])과 비교하기 위한 정규화 분모
@@ -426,8 +516,8 @@ async def _place_live_order_via_gateway(
 ) -> dict:
     """stock-coin-trade 게이트웨이로 KIS 주문을 내고 live_orders 에 추적 행을 남긴다.
 
-    실패해도 예외를 올리지 않는다(사이클 지속). 가상계좌 체결은 이미 끝났으므로 쿨다운 슬롯은 반납하지 않는다 —
-    반납하면 다음 사이클에 가상 포지션이 중복으로 쌓인다. 실패는 알림 + live_orders.status=ERROR 로 남긴다.
+    가상 장부는 변경하지 않는다. 확정 실패는 ERROR, 응답 불명은 UNKNOWN으로 남긴다.
+    UNKNOWN은 열린 주문으로 유지하여 새 주문을 막고 체결 확인 작업에서 확인한다.
     """
     uid = _resolve_user_id(user_id)
     env = gateway.environment()
@@ -463,17 +553,24 @@ async def _place_live_order_via_gateway(
             row.message = f"[{e.code}] {e}"[:300]
             row.raw = json.dumps(e.details, ensure_ascii=False)[:4000]
             await db.commit()
-        await notification.notify_order_error(symbol=symbol, side=side, quantity=quantity, price=price, error=f"[{e.code}] {e}", user_id=user_id)
-        return {"status": "error", "broker": "kis", "via": "stock-coin-trade", "environment": env, "code": e.code, "error": str(e), "client_order_id": client_order_id}
+        detail = "접수 여부 미확인 — 재주문 전에 증권사 주문 내역을 확인해 주세요." if e.code == "GATEWAY_UNREACHABLE" else "증권사 주문 실패. " + failure_message({"code": e.code})
+        await notification.notify_order_error(symbol=symbol, side=side, quantity=quantity, price=price, error=detail, user_id=user_id)
+        return {"status": "unknown" if e.code == "GATEWAY_UNREACHABLE" else "error", "broker": "kis", "via": "stock-coin-trade", "environment": env, "code": e.code, "error": str(e), "client_order_id": client_order_id}
 
     order = result["order"]
     if row is not None:
-        row.status = str(order.get("status") or "ACCEPTED")
+        # 주문 응답의 FILLED 문자열만으로 체결 확인을 끝내지 않는다. 후속 체결 조회에 남긴다.
+        row.status = "ACCEPTED" if order.get("status") == "FILLED" else str(order.get("status") or "ACCEPTED")
         row.order_no = str(order.get("orderNo") or "")
         row.price = float(result["intent"].get("price") or price)
         row.message = str(order.get("message") or "")[:300]
         row.raw = json.dumps(order, ensure_ascii=False)[:4000]
         await db.commit()
+    if order.get("status") in ("ERROR", "REJECTED"):
+        await notification.notify_order_error(symbol=symbol, side=side, quantity=quantity, price=price,
+                                               error="증권사가 주문을 거절했습니다.", user_id=user_id)
+        return {"status": "error", "broker": "kis", "via": "stock-coin-trade", "environment": env,
+                "client_order_id": client_order_id, "code": "BROKER_REJECTED"}
     await notification.notify_order_placed(symbol=symbol, side=side, quantity=quantity, price=float(result["intent"].get("price") or price),
                                            broker=f"KIS({env}) via stock-coin-trade", user_id=user_id)
     return {"status": "submitted", "broker": "kis", "via": "stock-coin-trade", "environment": env,
@@ -522,14 +619,13 @@ async def live_account_daily_loss(user_id: str, limit_pct: float) -> dict:
 async def cancel_open_live_orders(db: AsyncSession, uid: uuid.UUID, reason: str = "") -> dict:
     """사용자의 미체결 실주문(ACCEPTED/PARTIALLY_FILLED)을 게이트웨이로 전량 취소 요청한다. kill switch 에서 호출."""
     summary = {"requested": 0, "failed": 0, "skipped": 0}
-    if not gateway.is_configured():
-        summary["skipped"] = -1
-        return summary
     result = await db.execute(
         select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.status.in_(("ACCEPTED", "PARTIALLY_FILLED")))
     )
     for row in result.scalars().all():
-        if not row.order_no:
+        if not row.order_no or row.broker == "kis-direct" or not gateway.is_configured():
+            if row.broker == "kis-direct":
+                row.message = "자동매매는 중지됐습니다. 직접 주문의 취소는 KIS 주문 내역에서 확인해 주세요."
             summary["skipped"] += 1
             continue
         try:
@@ -546,11 +642,8 @@ async def cancel_open_live_orders(db: AsyncSession, uid: uuid.UUID, reason: str 
 
 
 async def confirm_live_fills(limit: int = 100) -> dict:
-    """열린 live_orders 를 게이트웨이 체결 조회로 갱신한다. Celery `quant.confirm_fills`(2분)가 호출."""
+    """열린 live_orders 를 KIS 직접/게이트웨이 체결 조회로 갱신한다."""
     summary = {"checked": 0, "updated": 0, "filled": 0, "errors": 0, "skipped": 0}
-    if not gateway.is_configured():
-        summary["skipped"] = -1
-        return summary
     session_factory = get_session_factory()
     async with session_factory() as db:
         result = await db.execute(
@@ -560,7 +653,17 @@ async def confirm_live_fills(limit: int = 100) -> dict:
         for row in rows:
             summary["checked"] += 1
             try:
-                if row.order_no:
+                if row.broker == "kis-direct":
+                    broker = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == row.user_id))
+                    latest = await kis_execution.direct_status(row, broker)
+                    if latest is None:
+                        row.message = "접수·체결 근거 미확인 — KIS 주문 내역에서 확인 필요. 자동 재주문하지 않습니다."
+                        summary["skipped"] += 1
+                        continue
+                elif not gateway.is_configured():
+                    summary["skipped"] += 1
+                    continue
+                elif row.order_no:
                     latest = await gateway.get_order_status(row.order_no, env=row.environment)
                 elif row.status == "UNKNOWN" and row.client_order_id:
                     # 멱등 재전송도 원 요청이 도착하지 않았다면 새 주문이다.
@@ -614,20 +717,32 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                         row.message = "재주문 준비 후 전송 미확인. 새 주문 없이 수동 확인 대기"
                         summary["skipped"] += 1
                         continue
-                    # 주문번호를 못 받은(PENDING) 건: 당일 목록에서 같은 종목·방향·수량으로 추정 매칭
-                    code = gateway.normalize_symbol(row.symbol)
-                    candidates = [o for o in await gateway.list_today_orders(env=row.environment)
-                                  if o.get("symbol") == code and o.get("side") == row.side and int(o.get("orderedQuantity") or 0) == row.quantity]
-                    if not candidates:
-                        summary["skipped"] += 1
-                        continue
-                    latest = candidates[-1]
-                    row.order_no = str(latest.get("orderNo") or "")
-            except gateway.GatewayError as e:
+                    # 같은 종목·수량은 다른 주문일 수 있다. 주문번호 없이 체결을 추정하지 않는다.
+                    row.message = "주문번호 미확인 — KIS 주문 내역에서 확인 필요. 종목·수량으로 추정 연결하지 않습니다."
+                    summary["skipped"] += 1
+                    continue
+            except Exception as e:
                 summary["errors"] += 1
-                logger.warning("체결 확인 실패 (%s): [%s] %s", row.client_order_id, e.code, e)
+                logger.warning("체결 확인 실패 (%s): %s", row.client_order_id, e)
+                continue
+            if latest.get("lookup") not in (None, ""):
+                row.message = "잔고 변화에 따른 추정은 체결 확정 근거가 아닙니다. 증권사 체결 내역 확인 대기"
+                summary["skipped"] += 1
                 continue
             new_status = str(latest.get("status") or row.status)
+            try:
+                fill_qty = int(latest.get("filledQuantity") or 0)
+                fill_price = float(latest.get("avgFilledPrice") or 0)
+            except (TypeError, ValueError, OverflowError):
+                summary["errors"] += 1
+                row.message = "체결 수량·가격 응답을 해석할 수 없어 상태 갱신을 보류합니다."
+                continue
+            if (not (int(row.filled_quantity or 0) <= fill_qty <= row.quantity)
+                    or not math.isfinite(fill_price) or (fill_qty > 0 and fill_price <= 0)
+                    or (new_status == "FILLED" and fill_qty != row.quantity)):
+                summary["errors"] += 1
+                row.message = "체결 수량·가격 응답이 불완전해 상태 갱신을 보류합니다."
+                continue
             changed = new_status != row.status or int(latest.get("filledQuantity") or 0) != row.filled_quantity
             row.status = new_status
             row.filled_quantity = int(latest.get("filledQuantity") or 0)
@@ -637,10 +752,10 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                 summary["updated"] += 1
             if changed and new_status == "FILLED":
                 summary["filled"] += 1
-                # 가상계좌 체결가(row.price) 대비 실체결 괴리(슬리피지). 매수는 +가 불리, 매도는 -가 불리.
+                # 주문 기준가(row.price) 대비 증권사 체결가의 괴리.
                 if row.price and row.avg_filled_price:
                     slip = (row.avg_filled_price / row.price - 1) * 100
-                    row.message = f"체결 완료 · 슬리피지 {slip:+.3f}% (가상 {row.price:,.0f} → 실체결 {row.avg_filled_price:,.0f})"[:300]
+                    row.message = f"체결 완료 · 슬리피지 {slip:+.3f}% (주문 기준 {row.price:,.0f} → 증권사 체결 {row.avg_filled_price:,.0f})"[:300]
                     summary.setdefault("slippage_pct", []).append(round(slip, 3))
                 await notification.notify_order_filled(
                     symbol=row.symbol, side=row.side.lower(), quantity=row.filled_quantity,
@@ -648,7 +763,7 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                 )
             # 미체결 N분 경과 → 취소 요청 (설정 0이면 끔)
             cancel_after = int(getattr(app_settings, "STOCK_COIN_TRADE_CANCEL_OPEN_AFTER_MIN", 0) or 0)
-            if cancel_after > 0 and new_status in ("ACCEPTED", "PARTIALLY_FILLED") and row.order_no and row.created_at:
+            if row.broker != "kis-direct" and cancel_after > 0 and new_status in ("ACCEPTED", "PARTIALLY_FILLED") and row.order_no and row.created_at:
                 age = datetime.now(timezone.utc) - row.created_at.astimezone(timezone.utc)
                 if age >= timedelta(minutes=cancel_after):
                     try:
@@ -706,14 +821,6 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
     uid = _resolve_user_id(user_id)
 
     async with session_factory() as db:
-        # 가상계좌 idempotent 초기화 (자동매매 전용 장부)
-        result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
-        if not result.scalar_one_or_none():
-            db.add(QuantVirtualAccount(
-                user_id=uid, initial_capital=float(_INITIAL_CAPITAL), cash_balance=float(_INITIAL_CAPITAL),
-            ))
-            await db.commit()
-
         bs_result = await db.execute(select(BrokerSettings).where(BrokerSettings.user_id == uid))
         broker_row = bs_result.scalar_one_or_none()
         try:
@@ -725,6 +832,14 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         mode = broker_row.quant_mode if broker_row and broker_row.quant_mode in ("paper", "live") else (
             "live" if broker_row and broker_row.paper is False else "paper"
         )
+        if mode == "paper":
+            result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
+            if not result.scalar_one_or_none():
+                db.add(QuantVirtualAccount(
+                    user_id=uid, initial_capital=float(_INITIAL_CAPITAL), cash_balance=float(_INITIAL_CAPITAL),
+                ))
+                await db.commit()
+
         symbol_source = broker_row.quant_symbol_source if broker_row and broker_row.quant_symbol_source in ("ai", "manual") else "ai"
         selected_symbols = list(broker_row.quant_selected_symbols or []) if broker_row else []
         ai_top_n = max(1, min(int(broker_row.quant_ai_top_n if broker_row else 3), len(QUANT_STOCKS)))
@@ -799,11 +914,24 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             else:
                 strategy_log["error"] = "domain-rag-lab 에서 스펙을 받지 못해 기본 규칙 사용"
 
+        live_snapshot = None
+        if mode == "live":
+            try:
+                live_snapshot = await kis_execution.account_snapshot(broker_row, gateway, stock_map)
+            except Exception:
+                logger.exception("KIS 잔고 확인 실패 user=%s", user_id)
+                await _persist_cycle(uid, {**cycle_log, "note": "KIS 계좌 잔고를 확인하지 못해 주문을 보류합니다. 가상 장부로 대체하지 않습니다."})
+                return
+            portfolio_rows = [SimpleNamespace(**h) for h in live_snapshot["holdings"].values()]
+        else:
+            portfolio_rows = (await db.execute(select(Portfolio).where(
+                Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all()
+
         # ── 공격 모드: 보유분 점검 + 이번 사이클 매수/매도 계획 ──
         forced_action: dict[str, dict] = {}
         if aggressive:
             holdings: dict[str, tuple[int, float]] = {}
-            for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
+            for p in portfolio_rows:
                 if p.quantity > 0:
                     holdings[p.symbol] = (int(p.quantity), float(p.avg_price or 0))
             ag_plan = aggressive_mode.plan(indicator_map, target_symbols, holdings, price_map)
@@ -835,7 +963,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         risk_holdings = {}
         risk_stops = set()
         if execution.size_kind == "risk_pct":
-            for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
+            for p in portfolio_rows:
                 if p.quantity <= 0:
                     continue
                 risk_holdings[p.symbol] = p
@@ -852,8 +980,17 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         target_symbols.append(p.symbol)
 
         # ── 위험관리 사전 점검: 일손실 한도 ───────────────────────────────
-        cash_now, equity_now, position_values = await _equity_snapshot(db, uid, price_map)
-        start_equity = await risk_guard.day_start_equity(user_id, equity_now)
+        if live_snapshot is not None:
+            cash_now, equity_now = live_snapshot["cash"], live_snapshot["equity"]
+            position_values = {s: h["value"] for s, h in live_snapshot["holdings"].items()}
+        else:
+            cash_now, equity_now, position_values = await _equity_snapshot(db, uid, price_map)
+        risk_account_key = user_id
+        if mode == "live":
+            account_env = gateway.environment() if gateway.is_configured() else ("real" if live_trading_allowed() else "paper")
+            account_scope = "gateway" if gateway.is_configured() else kis_execution.account_key(broker_row.app_key, broker_row.account_no, account_env)
+            risk_account_key = f"{user_id}:live:{account_env}" + ("" if gateway.is_configured() else f":{account_scope}")
+        start_equity = await risk_guard.day_start_equity(risk_account_key, equity_now)
         day_pnl = risk_guard.daily_pnl_pct(start_equity, equity_now)
         cycle_log["risk"] = {
             "day_start_equity": round(start_equity, 2), "equity": round(equity_now, 2), "day_pnl_pct": day_pnl,
@@ -867,23 +1004,18 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             await emergency_halt(db, broker_row, user_id, reason, day_pnl)
             return
 
-        # ── 실계좌(게이트웨이) 기준 일손실: live 모드에서 가상계좌와 별도로 KIS 계좌 평가액을 본다 ──
-        if mode == "live" and gateway.is_configured():
+        # KIS 계좌의 미체결 매수 금액을 현금·종목 비중 한도에 예약한다.
+        if mode == "live":
             # 미체결 매수 실주문은 체결되면 비중이 되므로 종목 비중 한도 계산에 미리 포함한다.
             open_exposure = await open_live_order_exposure(db, uid)
+            cash_now = max(0.0, cash_now - sum(open_exposure.values()))
             for sym, value in open_exposure.items():
                 position_values[sym] = position_values.get(sym, 0.0) + value
             if open_exposure:
                 cycle_log["risk"]["open_live_exposure"] = {k: round(v, 2) for k, v in open_exposure.items()}
-            live_risk = await live_account_daily_loss(user_id, limits.daily_loss_limit_pct)
+            live_risk = {"environment": account_env, "day_pnl_pct": day_pnl,
+                         "equity": equity_now, "day_start_equity": start_equity, "breached": False}
             cycle_log["risk"]["live"] = live_risk
-            if live_risk.get("breached"):
-                reason = f"실계좌 일손실 한도 초과({live_risk['environment']}): 당일 {live_risk['day_pnl_pct']:+.2f}% ≤ -{limits.daily_loss_limit_pct}%"
-                cycle_log["risk"]["halted"] = True
-                cycle_log["risk"]["reason"] = reason
-                await _persist_cycle(uid, cycle_log)
-                await emergency_halt(db, broker_row, user_id, reason, live_risk["day_pnl_pct"])
-                return
 
         async def _risk_gate(symbol: str, name: str, side: str, qty: int, price: float) -> tuple[int, str | None]:
             """주문 직전 위험관리 게이트. (허용 수량, 생략/조정 사유)
@@ -892,7 +1024,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             비중 여유·매수/매도 방향·선택 재주문 활성 여부와 무관하게 먼저 보류한다.
             미체결 매수 노출 계산은 이 보류 정책과 별도로 유지한다(#183).
             """
-            if mode == "live" and gateway.is_configured():
+            if mode == "live":
                 opened = (await db.execute(select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.symbol == symbol,
                                               LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)))).scalars().all()
                 if opened:
@@ -904,6 +1036,12 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             if limits.max_orders_per_day > 0 and await risk_guard.orders_today(user_id) >= limits.max_orders_per_day:
                 return 0, f"일 주문 수 한도 {limits.max_orders_per_day}건 도달"
             if side == "buy":
+                if mode == "live":
+                    rate = trading_cost.cost_rate("buy", trading_cost.today_kst(), slippage_bps=0,
+                                                  market=trading_cost.market_of(symbol))
+                    qty = min(qty, int(cash_now / (price * (1 + rate))))
+                    if qty <= 0:
+                        return 0, "KIS 현금과 접수 대기 주문을 고려하면 매수 가능한 수량이 없습니다."
                 qty, note = risk_guard.cap_buy_quantity(qty, price, position_values.get(symbol, 0.0), equity_now, limits.max_position_pct)
                 if qty <= 0:
                     return 0, note
@@ -992,38 +1130,26 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     continue
                 if risk_note:
                     reasons = [*reasons, f"위험관리: {risk_note}"]
-                trade = await _execute_virtual_trade(
-                    db, uid, stock["symbol"], stock["name"],
+                trade = await _execute_trade(
+                    db, uid, broker_row, mode, stock["symbol"], stock["name"],
                     "buy", price, qty, f"[{mode}] " + " | ".join(reasons),
                 )
                 cycle_log["trades"].append({**trade, "type": "auto"})
-                if trade.get("status") != "filled":
+                if trade.get("status") not in ("filled", "submitted", "unknown"):
                     await risk_guard.release_order_slot(user_id, stock["symbol"], "buy")
-                if trade.get("status") == "filled":
+                if trade.get("status") in ("filled", "submitted", "unknown"):
                     cash_now = float(trade.get("cash_balance", max(0, cash_now - price * trade.get("quantity", qty))))
                     cycle_log["risk"]["orders_today"] = await risk_guard.increment_orders_today(user_id)
                     position_values[stock["symbol"]] = position_values.get(stock["symbol"], 0.0) + price * trade.get("quantity", qty)
-                    await notification.notify_auto_trade_executed(
-                        symbol   = stock["symbol"],
-                        name     = stock["name"],
-                        action   = "buy",
-                        quantity = trade.get("quantity", qty),
-                        price    = price,
-                        reason   = " | ".join(reasons),
-                        user_id  = user_id,
-                    )
-                    live_result = await _place_live_order(
-                        broker_row, stock["symbol"], stock["name"], "buy",
-                        trade.get("quantity", qty), price, user_id, db=db,
-                    )
-                    if live_result:
-                        cycle_log["trades"][-1]["live_order"] = live_result
 
             elif action in ("강력 매도", "매도"):
-                port_result = await db.execute(
-                    select(Portfolio).where(Portfolio.user_id == uid, Portfolio.symbol == stock["symbol"], Portfolio.book == PORTFOLIO_BOOK_QUANT)
-                )
-                existing = port_result.scalar_one_or_none()
+                if mode == "live":
+                    existing = next((p for p in portfolio_rows if p.symbol == stock["symbol"]), None)
+                else:
+                    port_result = await db.execute(
+                        select(Portfolio).where(Portfolio.user_id == uid, Portfolio.symbol == stock["symbol"], Portfolio.book == PORTFOLIO_BOOK_QUANT)
+                    )
+                    existing = port_result.scalar_one_or_none()
                 if existing and existing.quantity > 0:
                     qty = max(1, int(existing.quantity * sell_ratio_here))
                     if sell_ratio_here >= 1.0:
@@ -1032,51 +1158,43 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     if qty <= 0:
                         await _risk_skip(stock["symbol"], stock["name"], "sell", price, risk_note or "위험관리 규칙")
                         continue
-                    trade = await _execute_virtual_trade(
-                        db, uid, stock["symbol"], stock["name"],
+                    trade = await _execute_trade(
+                        db, uid, broker_row, mode, stock["symbol"], stock["name"],
                         "sell", price, qty, f"[{mode}] " + " | ".join(reasons),
                     )
                     cycle_log["trades"].append({**trade, "type": "auto"})
-                    if trade.get("status") != "filled":
+                    if trade.get("status") not in ("filled", "submitted", "unknown"):
                         await risk_guard.release_order_slot(user_id, stock["symbol"], "sell")
-                    if trade.get("status") == "filled":
+                    if trade.get("status") in ("filled", "submitted", "unknown"):
                         cycle_log["risk"]["orders_today"] = await risk_guard.increment_orders_today(user_id)
                         position_values[stock["symbol"]] = max(0.0, position_values.get(stock["symbol"], 0.0) - price * trade.get("quantity", qty))
-                        await notification.notify_auto_trade_executed(
-                            symbol   = stock["symbol"],
-                            name     = stock["name"],
-                            action   = "sell",
-                            quantity = trade.get("quantity", qty),
-                            price    = price,
-                            reason   = " | ".join(reasons),
-                            user_id  = user_id,
-                        )
-                        live_result = await _place_live_order(
-                            broker_row, stock["symbol"], stock["name"], "sell",
-                            trade.get("quantity", qty), price, user_id, db=db,
-                        )
-                        if live_result:
-                            cycle_log["trades"][-1]["live_order"] = live_result
 
-        acc_result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
-        account = acc_result.scalar_one_or_none()
-        cash_balance = float(account.cash_balance) if account else float(_INITIAL_CAPITAL)
-        initial_capital = float(account.initial_capital) if account else float(_INITIAL_CAPITAL)
+        if live_snapshot is None:
+            acc_result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
+            account = acc_result.scalar_one_or_none()
+            cash_balance = float(account.cash_balance) if account else float(_INITIAL_CAPITAL)
+            initial_capital = float(account.initial_capital) if account else float(_INITIAL_CAPITAL)
 
-        holdings_value = 0.0
-        pf_result = await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))
-        for p in pf_result.scalars().all():
-            if p.quantity <= 0:
-                continue
-            if p.symbol not in price_map:
-                logger.warning("현재가 미수신되어 평균단가 사용: user=%s symbol=%s", user_id, p.symbol)
-            mark_price = float(price_map.get(p.symbol, p.avg_price))
-            holdings_value += p.quantity * mark_price
+            holdings_value = 0.0
+            pf_result = await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))
+            for p in pf_result.scalars().all():
+                if p.quantity <= 0:
+                    continue
+                if p.symbol not in price_map:
+                    logger.warning("현재가 미수신되어 평균단가 사용: user=%s symbol=%s", user_id, p.symbol)
+                mark_price = float(price_map.get(p.symbol, p.avg_price))
+                holdings_value += p.quantity * mark_price
 
+    if live_snapshot is not None:
+        # 주문 전 증권사 조회값이다. 접수 수량을 보유·현금에 성공 체결로 더하지 않는다.
+        cash_balance = live_snapshot["cash"]
+        holdings_value = live_snapshot["equity"] - cash_balance
+        initial_capital = start_equity
     total_equity = cash_balance + holdings_value
     pnl_pct = round((total_equity / initial_capital - 1) * 100, 2) if initial_capital > 0 else None
     cycle_log["account"] = {
-        "ledger": "quant_virtual_accounts (book=QUANT)",
+        "ledger": "kis_account" if live_snapshot is not None else "quant_virtual_accounts (book=QUANT)",
+        "checked_at": live_snapshot["checked_at"] if live_snapshot is not None else now_str,
         "initial_capital": initial_capital,
         "cash_balance": round(cash_balance, 2),
         "holdings_value": round(holdings_value, 2),

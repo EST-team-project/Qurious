@@ -63,8 +63,8 @@ def test_status_merges_batch_cycles_when_batch_running(client):
     body = r.json()
     assert body["running"] is True and body["me_running"] is False and body["batch"]["running"] is True
     msgs = [l["message"] for l in body["logs"]]
-    assert any(m.startswith("[배치] ") and "000660.KS BUY 3주" in m and "실주문 submitted" in m for m in msgs)
-    assert any("005930.KS BUY 3주" in m and not m.startswith("[배치]") for m in msgs)
+    assert any(m.startswith("[배치] ") and "000660.KS 매수 가상 기록 3주" in m and "증권사 접수·체결 미확인" in m for m in msgs)
+    assert any("005930.KS 매수 가상 기록 3주" in m and not m.startswith("[배치]") for m in msgs)
     assert any("[배치] [공격 모드] 매수 시그널 없음" in m for m in msgs)
     assert any("[위험관리 생략] X BUY" in m for m in msgs)
     assert {s["source"] for s in body["signals"]} == {"me", "batch"}
@@ -81,6 +81,23 @@ def test_status_without_batch_only_shows_me(client):
     body = r.json()
     assert calls == [UID] and body["running"] is True and body["me_running"] is True
     assert all(not l["message"].startswith("[배치]") for l in body["logs"])
+
+
+def test_partial_fill_log_and_zero_equity_are_explicit(client):
+    c, _ = client
+    log = cycle('me', '005930.KS', 100)
+    log['account'] = {'ledger': 'kis_account', 'total_equity': 0, 'pnl_pct': None}
+    from app.services.trade_outcome import describe_trade
+    trade = log['trades'][0]
+    trade['virtual_status'] = 'not_recorded'
+    trade['execution'] = describe_trade(trade, 'live', {'status': 'PARTIALLY_FILLED', 'filled_quantity': 1, 'avg_filled_price': 99})
+    with patch.object(auto_trade, 'get_status', AsyncMock(return_value={'running': False, 'log': [log]})), \
+         patch.object(kis_batch, 'system_status', AsyncMock(return_value={'enabled': False, 'running': False})):
+        r = c.get('/api/quant/auto/status')
+    assert r.status_code == 200
+    msgs = [x['message'] for x in r.json()['logs']]
+    assert any('매수 주문 요청 3주 · 증권사 확인 1주 @99원' in m for m in msgs)
+    assert any('KIS 계좌 평가(주문 전 조회) 0원 / 손익 계산 불가' in m for m in msgs)
 
 
 def test_live_orders_include_system_rows_when_batch_running(client):

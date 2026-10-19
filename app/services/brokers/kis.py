@@ -6,6 +6,8 @@
 """
 import asyncio
 import httpx
+import time
+from .kis_token import KISTokenError, cache_key, shared_token
 from datetime import datetime, timedelta, timezone
 from .base import (
     BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo, FillSummary,
@@ -13,6 +15,11 @@ from .base import (
 
 REAL_URL  = "https://openapi.koreainvestment.com:9443"
 PAPER_URL = "https://openapivts.koreainvestment.com:29443"
+
+
+class OrderSubmissionUnknown(RuntimeError):
+    """주문 전송 뒤 응답이 불확실하다. 자동 재전송하지 않는다."""
+    code = "ORDER_SUBMISSION_UNKNOWN"
 
 
 class KISClient(BrokerClient):
@@ -72,6 +79,12 @@ class KISClient(BrokerClient):
         return h
 
     async def get_token(self) -> TokenInfo:
+        data = await shared_token(cache_key(self.base_url, self.app_key, self.app_secret), self._issue_token)
+        self._token = data["token"]
+        self._token_exp = datetime.fromtimestamp(data["expires_at"], timezone.utc)
+        return TokenInfo(access_token=self._token, expires_in=max(0, int(data["expires_at"] - time.time())))
+
+    async def _issue_token(self) -> dict:
         async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.post(
                 f"{self.base_url}/oauth2/tokenP",
@@ -81,13 +94,14 @@ class KISClient(BrokerClient):
                     "appsecret":  self.app_secret,
                 },
             )
-            r.raise_for_status()
             d = r.json()
-        self._token = d["access_token"]
-        return TokenInfo(access_token=self._token, expires_in=d.get("expires_in", 86400))
+            if r.is_error or not d.get("access_token"):
+                code = "KIS_TOKEN_RATE_LIMIT" if d.get("error_code") == "EGW00133" else "KIS_TOKEN_UNAVAILABLE"
+                raise KISTokenError(code, "KIS 접속 토큰 발급에 실패했습니다.")
+        return {"token": d["access_token"], "expires_at": time.time() + int(d.get("expires_in", 86400))}
 
     async def _ensure_token(self):
-        if not self._token:
+        if not self._token or not self._token_exp or self._token_exp <= datetime.now(timezone.utc) + timedelta(seconds=30):
             await self.get_token()
 
     async def get_price(self, symbol: str) -> PriceInfo:
@@ -184,6 +198,13 @@ class KISClient(BrokerClient):
         else:
             tr_id = "VTTC0011U" if self.paper else "TTTC0011U"
 
+        try:
+            return await self._send_order(code, side, quantity, price, tr_id, cano, acnt_prdt)
+        except (httpx.RequestError, httpx.HTTPStatusError, ValueError, TypeError) as exc:
+            # 전송 후 끊김/HTTP 오류는 KIS가 접수했을 수도 있다. 실패로 단정하거나 재시도하지 않는다.
+            raise OrderSubmissionUnknown("증권사 주문 응답을 확인하지 못했습니다.") from exc
+
+    async def _send_order(self, code, side, quantity, price, tr_id, cano, acnt_prdt):
         async with httpx.AsyncClient(timeout=10) as cli:
             r = await cli.post(
                 f"{self.base_url}/uapi/domestic-stock/v1/trading/order-cash",
@@ -205,7 +226,10 @@ class KISClient(BrokerClient):
             r.raise_for_status()
         # rt_cd 를 반드시 본다 — 거부된 주문을 성공으로 넘기면 자동매매가
         # 있지도 않은 체결을 전제로 다음 판단을 한다.
-        return self._check(r.json(), f"{side} 주문")
+        body = r.json()
+        if not isinstance(body, dict) or str(body.get("rt_cd", "")).strip() == "":
+            raise OrderSubmissionUnknown("증권사 주문 응답의 결과 코드를 확인하지 못했습니다.")
+        return self._check(body, f"{side} 주문")
 
     async def get_daily_ohlcv(self, symbol: str, start: str, end: str) -> list[dict]:
         """일봉 OHLCV. start/end: YYYYMMDD"""

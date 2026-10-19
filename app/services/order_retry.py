@@ -39,6 +39,8 @@ async def coordination_ready():
 async def prepare_retry(db, parent_id, now=None):
     now = now or datetime.now(timezone.utc)
     parent = await db.scalar(select(LiveOrder).where(LiveOrder.id == parent_id).with_for_update(skip_locked=True))
+    if parent is not None and parent.broker == "kis-direct":
+        return None
     if (parent is None or parent.status != "CANCELLED" or parent.side != "SELL" or parent.environment != "paper"
             or not parent.order_no or parent.order_type != "LIMIT"):
         return None
@@ -149,7 +151,7 @@ async def retry_cancelled_orders(limit=50):
     factory = get_session_factory()
     async with factory() as db:
         ids = (await db.scalars(select(LiveOrder.id).join(BrokerSettings, BrokerSettings.user_id == LiveOrder.user_id).where(
-            LiveOrder.status == "CANCELLED", LiveOrder.side == "SELL", LiveOrder.environment == "paper",
+            LiveOrder.status == "CANCELLED", LiveOrder.side == "SELL", LiveOrder.environment == "paper", LiveOrder.broker == "kis",
             LiveOrder.created_at >= datetime.now(timezone.utc) - timedelta(minutes=120),
             BrokerSettings.quant_execution_policy["retry_enabled"].as_boolean().is_(True))
             .order_by(LiveOrder.created_at.desc()).limit(limit))).all()

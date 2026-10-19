@@ -74,7 +74,9 @@ function renderAccountPanel() {
     metric('현금 · 예수금', money(tab.cash, tab.currency)) +
     metric('총 자산', money(tab.total, tab.currency), pnlNote) +
     metric('보유 종목', tab.positions === null || tab.positions === undefined ? '데이터 없음' : number(tab.positions, '개', 0));
-  if (tab.key === 'kis') html += metric('자동매매', tab.auto_trade_running ? '실행 중 (live · KIS)' : '꺼짐', `미체결 실주문 ${number(tab.open_live_orders, '건', 0)} · ${escHtml(tab.environment === 'real' ? '실전' : '모의(Testbed)')}`);
+  if (tab.key === 'kis') html += metric('자동매매', tab.auto_trade_running ? '실행 중 (live · KIS)' : '꺼짐',
+    `앱 추적 미체결 주문 ${number(tab.open_live_orders, '건', 0)} · 과거·외부 주문 제외 · ${tab.environment === 'real' ? '실전' : '모의(Testbed)'}`);
+  if (tab.key === 'quant') html += metric('장부 구분', '앱 가상매매 전용', 'KIS 주문은 이 장부에 반영하지 않습니다. 과거에 가상 체결로 기록된 KIS 실패 주문은 남아 있을 수 있습니다.');
   if (tab.key === 'paper' && tab.breakdown) html += metric('자산별 평가', `주식 ${money(tab.breakdown.stocks)}`, `코인 ${money(tab.breakdown.crypto)} · 대체 ${money(tab.breakdown.alternatives)}`);
   panel.innerHTML = html;
 }

@@ -60,6 +60,7 @@ async def kis_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     tab["batch_running"] = bool(batch.get("running"))
     tab["me_running"] = me_running
     tab["open_live_orders"] = len(open_orders)
+    tab["order_tracking"] = "gateway" if gateway.is_configured() else "direct"
     if gateway.is_configured():
         tab["route"] = "stock-coin-trade"
         tab["environment"] = gateway.environment()

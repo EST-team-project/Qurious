@@ -51,7 +51,7 @@ def test_new_user_never_receives_another_users_log(control, own_cache):
         control[1][svc._log_key(B)] = own_cache
         a = await svc.get_status(None, A)
         b = await svc.get_status(None, B)
-        assert a['log'][0]['trades'] == [{'quantity': 17}]
+        assert [t['quantity'] for t in a['log'][0]['trades']] == [17]
         assert b['log'] == [] and b['risk'] == {} and b['last_cycle_at'] is None
     asyncio.run(run())
 

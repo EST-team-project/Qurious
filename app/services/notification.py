@@ -517,25 +517,25 @@ async def notify_auto_trade_executed(
     reason: str,
     user_id: str | None = None,
 ) -> None:
-    """자동매매 체결 알림."""
+    """자동매매 가상 장부 기록 알림(증권사 체결 아님)."""
     emoji = "📈" if action == "buy" else "📉"
     label = "매수" if action == "buy" else "매도"
     html = (
-        f"{emoji} <b>[자동매매] {label} 체결</b>\n\n"
+        f"{emoji} <b>[자동매매] {label} 가상 체결</b>\n\n"
         f"종목: {name} (<code>{symbol}</code>)\n"
         f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"사유: {reason}"
+        f"사유: {reason}\n앱 가상 장부 기록이며 증권사 체결이 아닙니다."
     )
     plain = (
-        f"{emoji} [자동매매] {label} 체결\n"
+        f"{emoji} [자동매매] {label} 가상 체결\n"
         f"종목: {name} ({symbol})\n"
         f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"사유: {reason}"
+        f"사유: {reason}\n앱 가상 장부 기록이며 증권사 체결이 아닙니다."
     )
     await dispatch(
         plain,
         html_message=html,
-        subject=f"[매매 알림] {label} 체결 – {name}",
+        subject=f"[매매 알림] {label} 가상 체결 – {name}",
         user_id=user_id,
     )
 

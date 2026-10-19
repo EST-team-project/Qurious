@@ -672,7 +672,7 @@ function renderRoboDecisionLog(logs) {
   el.innerHTML = logs.length ? logs.map(l => `
     <div class="rounded p-2" style="background:var(--surf2);border:1px solid var(--border);">
       <span style="color:var(--text-mute);">${escHtml(kstTime(l.time))}</span>
-      <span style="margin-left:8px;">${escHtml(l.message || "")}</span>
+      <span style="margin-left:8px;color:${l.level === 'error' ? 'var(--red)' : l.level === 'warning' ? 'var(--amber)' : 'var(--text)'};">${escHtml(l.message || "")}</span>
     </div>`).join("") : `<div style="color:var(--text-mute);">AI 의사결정 로그가 없습니다. 시작 버튼을 눌러 실행하세요.</div>`;
 }
 

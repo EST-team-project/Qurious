@@ -206,3 +206,6 @@ TC-HM	tests/test_help_media.py	RFP2-3.2-④	🟡	사용법 영상의 원천(D132
 TC-RPL	tests/test_robo_profile_label.py	U1	🟡	투자성향 진단 결과 글(잠정 반영 D124 · 주담당 오준영 · 2026-10-18) — 결과 줄 · 알림은 서버 성향 값(moderate 같은 영어 낱말) 대신 「투자 성향」 선택 칸의 글을 보이고 선택 칸 세 값은 한국어 글(TC-RPL-01) · 시연 영상에서 찾음 · 사전 알림 #244 01
 TC-RPL	tests/test_robo_profile_label.py	U5	🟡	리밸런싱 처음 계획 저장(잠정 반영 D124 · 주담당 오준영 · 2026-10-18) — 계획이 없는 사람의 빈 이탈률 · 현금흐름 칸은 보이는 고르기 값으로 채워 저장이 「설정 금액과 이탈률을 입력하세요」 로 막히지 않고, 저장된 계획 값은 덮지 않으며 저장 검사 규칙은 그대로(TC-RPL-02)
 TC-TASK	tests/test_task_access.py	P02-⑤-3	🟢	#200 비동기 작업 조회·취소 인증 및 소유자 확인 — 쿠키·JWT·본인·타인·소유자 없음·관리자·강제 종료 제한·발행 전 소유자 저장·장애 시 차단·내부 오류 비노출·실제 PostgreSQL 커밋과 탈퇴 삭제
+TC-KEX	tests/test_kis_execution_outcomes.py	P02-⑤-1	🟢	#212: 토큰 공유·만료·403·응답 불명, 직접 주문 추적·계좌별 체결 대조. 격리 Redis와 PostgreSQL로 KIS 주문의 QUANT 미변경 검증(실제 KIS 접속은 별도)
+TC-KEX	tests/test_kis_execution_outcomes.py	P02-⑤-3	🟢	#212: 과거 가상 체결과 증권사 실패·접수·확인된 체결을 구분
+TC-KEXUI	tests/test_trade_status_screen.py	P02-⑤-3	🟢	#212: 실제 JS 렌더러로 실패·미확인 색상, 요청/체결 수량 분리, 과거 가상 기록, HTML 이스케이프 확인(Node 필요)

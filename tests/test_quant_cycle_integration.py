@@ -5,6 +5,7 @@ DB 는 select 대상 엔티티별로 응답하는 가짜 AsyncSession, 지표·�
 import asyncio
 import os
 import uuid
+import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -78,16 +79,18 @@ class Factory:
     async def __aexit__(self, *a): return False
 
 
-def fake_gateway():
+def fake_gateway(*, cash=10_000_000, rejected=False, holdings=()):
     calls = []
     def handler(request: httpx.Request) -> httpx.Response:
         body = request.read()
         calls.append((request.method, request.url.path, body))
         if request.url.path.endswith("/balance"):
-            return httpx.Response(200, json={"ok": True, "balance": {"totalEvalAmount": 10_000_000, "cashBalance": 1, "holdings": []}})
+            return httpx.Response(200, json={"ok": True, "balance": {"totalEvalAmount": 10_000_000, "cashBalance": cash, "holdings": list(holdings)}})
         if request.url.path.endswith("/order-approval"):
             return httpx.Response(200, json={"ok": True, "approvalToken": "t", "expiresIn": 60})
         if request.url.path.endswith("/kis/orders") and request.method == "POST":
+            if rejected:
+                return httpx.Response(403, json={"ok": False, "error": "KIS_TOKEN_UNAVAILABLE", "message": "token rejected"})
             return httpx.Response(200, json={"ok": True, "duplicate": False, "order": {"orderNo": "0000031000", "status": "ACCEPTED", "message": "ok"}})
         return httpx.Response(404, json={"ok": False, "error": "NOT_FOUND", "message": request.url.path})
     gw.set_transport(httpx.MockTransport(handler))
@@ -115,6 +118,7 @@ def run_cycle(broker_row, live_rows=()):
     persisted = {}
     async def persist(uid, log): persisted.update(log)
     async def virtual_trade(db_, uid, symbol, name, action, price, qty, reason):
+        assert broker_row.quant_mode == "paper", "KIS 주문은 가상 장부를 변경하면 안 된다"
         return {"status": "filled", "symbol": symbol, "action": action, "quantity": qty, "price": price}
     with patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
          patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
@@ -128,12 +132,14 @@ def run_cycle(broker_row, live_rows=()):
          patch.object(auto_trade.risk_guard, "increment_orders_today", AsyncMock(return_value=1)), \
          patch.object(auto_trade.risk_guard, "release_order_slot", AsyncMock()), \
          patch.object(auto_trade.risk_guard, "_redis", return_value=object()), \
-         patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()), \
+         patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()) as virtual_alert, \
          patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()), \
          patch.object(auto_trade.notification, "notify_order_error", AsyncMock()), \
          patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()), \
          patch.object(gw, "is_krx_market_open", return_value=True):
         asyncio.run(auto_trade._run_quant_cycle(str(UID)))
+        if broker_row.quant_mode == "live":
+            virtual_alert.assert_not_awaited()
     return db, persisted
 
 
@@ -149,6 +155,35 @@ def test_live_mode_routes_buy_signal_through_gateway_and_tracks_live_order():
     rows = [a for a in db.added if isinstance(a, LiveOrder)]
     assert len(rows) == 1 and rows[0].status == "ACCEPTED" and rows[0].quantity == 4 and rows[0].symbol == "005930.KS"
     assert log["risk"]["live"]["breached"] is False and log["settings"]["mode"] == "live"
+    assert trades[0]['status'] == 'submitted' and trades[0]['virtual_status'] == 'not_recorded'
+
+
+def test_live_rejection_keeps_virtual_book_and_order_counter_unchanged():
+    fake_gateway(rejected=True)
+    db, log = run_cycle(broker('live'))
+    assert log['trades'][0]['status'] == 'error'
+    assert log['trades'][0]['virtual_status'] == 'not_recorded'
+    assert log['risk']['orders_today'] == 0
+    assert log['account']['ledger'] == 'kis_account' and log['account']['cash_balance'] == 10_000_000
+    assert all(isinstance(row, LiveOrder) for row in db.added)
+
+
+def test_live_uses_broker_cash_even_if_virtual_account_has_ten_million():
+    calls = fake_gateway(cash=0)
+    _, log = run_cycle(broker('live'))
+    assert log['trades'][0]['type'] == 'risk'
+    assert all(method != 'POST' for method, _, _ in calls)
+
+
+def test_live_sell_uses_broker_holding_not_empty_virtual_portfolio(monkeypatch):
+    fake_gateway(holdings=[{'symbol': '005930', 'quantity': 3, 'avgPrice': 65000, 'evalAmount': 210000}])
+    async def sell(*args):
+        return {'current_price': 70000, 'signal': {'action': '매도', 'score': -3, 'reasons': ['시험']}}
+    monkeypatch.setattr(sys.modules[__name__], 'indicators', sell)
+    db, log = run_cycle(broker('live'))
+    trade = log['trades'][0]
+    assert trade['action'] == 'sell' and trade['quantity'] == 1 and trade['status'] == 'submitted'
+    assert all(isinstance(row, LiveOrder) for row in db.added)
 
 
 def test_paper_mode_never_calls_gateway():

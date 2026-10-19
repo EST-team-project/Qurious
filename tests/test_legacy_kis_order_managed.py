@@ -41,7 +41,7 @@ def _place(row):
     class FakeClient:
         async def place_order(self, account_no, symbol, side, quantity, price):
             captured["account_no"] = account_no
-            return {"rt_cd": "0"}
+            return {"rt_cd": "0", "output": {"ODNO": "000123"}}
 
     def fake_factory(broker, app_key, app_secret, paper):
         captured.update(broker=broker, app_key=app_key, app_secret=app_secret, paper=paper)
@@ -69,4 +69,4 @@ def test_서버_env_의_KIS_키는_주문에_쓰지_않는다(monkeypatch):
 
 def test_사용자_키가_없으면_주문하지_않는다():
     out, captured = _place(_row(app_key="", app_secret=""))
-    assert out is None and captured == {}
+    assert out["status"] == "skipped" and captured == {}

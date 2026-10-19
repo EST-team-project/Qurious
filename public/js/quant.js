@@ -4,6 +4,7 @@ import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/
 import { compareTrayAdd, renderCompareTrayAll } from "/js/core.js";
 // Qurious: 전략 분석 종목 칸 = 찾기 칸 하나(최근 본 종목 + 대표 종목 · Figma 03-6 결정 · 2026-10-16)
 import { mountStockPick, labelOf } from "/js/stockpick.js";
+import { renderTradeExecution } from "/js/trade-status.js";
 
 let quantChartInstance = null;
 
@@ -146,11 +147,7 @@ async function loadAutoTradeStatus() {
       return;
     }
     el.innerHTML = [...s.log].reverse().map(cycle => {
-      const trades = (cycle.trades || []).map(t =>
-        t.type === "risk" || t.status === "skipped"
-          ? `<div class="ml-3" style="color:var(--amber);font-weight:500;">⚠️ ${t.action === "buy" ? "매수" : "매도"} 생략 ${escHtml(t.name)} — ${escHtml(t.reason || "")}</div>`
-          : `<div class="ml-3" style="color:var(--text);"><b style="color:${t.action === "buy" ? "var(--green)" : "var(--red)"};">${t.action === "buy" ? "🟢 매수" : "🔴 매도"}</b> ${escHtml(t.name)} ${fmt(t.quantity)}주 @${fmt(t.price)}</div>`
-      ).join("");
+      const trades = (cycle.trades || []).map(t => renderTradeExecution(t, escHtml, fmt)).join("");
       const risk = cycle.risk
         ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
         : "";
@@ -159,7 +156,7 @@ async function loadAutoTradeStatus() {
       ).join("");
       return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
         <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
-        ${risk}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">체결 / 생략:</div>` + trades : ""}
+        ${risk}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
       </div>`;
     }).join("");
   } catch { }
