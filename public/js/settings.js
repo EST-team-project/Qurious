@@ -1,9 +1,11 @@
 /* 증권사 Open API 설정, 알림 설정
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { executionModeView, renderExecutionMode } from "/js/execution-mode.js";
 
 // ── 설정 (증권사 Open API) ────────────────────────────────────────
 let lastLoadedMode = "paper";
+let lastLiveGateway = null;
 async function loadSettings() {
   try {
     const cfg = await api("/api/quant/settings");
@@ -47,7 +49,8 @@ async function loadSettings() {
     document.getElementById("broker-status").textContent = cfg.kis_managed
       ? (cfg.connected ? `✅ 연결됨 (KIS · 서버 관리 자격증명)` : "⚠️ KIS 자격증명 미연동 – Mockup 모드")
       : (cfg.connected ? `✅ 연결됨 (${cfg.broker})` : "⚠️ API 키 미설정 – Mockup 모드");
-    renderLiveRoute(cfg.live_gateway);
+    lastLiveGateway = cfg.live_gateway || null;
+    renderLiveRoute();
     await loadStrategies(cfg.strategy_id || "", cfg.strategy_version || 0);
     loadLiveOrders();
     loadCycleStatus();
@@ -80,22 +83,21 @@ function renderManagedBroker() {
     (st.account_masked ? ` · 계좌 ${escHtml(st.account_masked)}` : (st.configured ? " · 계좌번호 없음" : "")) +
     (st.error ? `<br>오류: ${escHtml(st.error)}` : "") + `</span>`;
 }
-document.getElementById("broker-type")?.addEventListener("change", renderManagedBroker);
+document.getElementById("broker-type")?.addEventListener("change", () => {
+  renderManagedBroker();
+  renderLiveRoute();
+});
+document.getElementById("quant-mode")?.addEventListener("change", renderLiveRoute);
 
 // ── 실주문 경로 안내 (live 모드 주문이 어디로 나가는지) ─────────────────
-function renderLiveRoute(gw) {
+function selectedExecutionMode() {
+  return { mode: document.getElementById("quant-mode").value,
+    broker: document.getElementById("broker-type").value, live_gateway: lastLiveGateway };
+}
+function renderLiveRoute() {
   const el = document.getElementById("quant-live-route");
   if (!el) return;
-  if (!gw) { el.textContent = ""; return; }
-  if (gw.configured) {
-    const env = gw.environment === "real" ? "KIS 실전" : "KIS 모의(Testbed)";
-    el.textContent = `live 주문 → stock-coin-trade 게이트웨이 → ${env} · ${gw.order_type}`;
-  } else {
-    // Qurious: 게이트웨이는 켜지 않는다(ADR-0001 6절). 직접 호출 길도 실거래 승인 없이는 모의투자 서버로 나간다
-    el.textContent = gw.environment === "real"
-      ? "실전으로 바꾸면 내 KIS 키로 실전 주문이 나갑니다(실거래 승인이 켜져 있음)."
-      : "실전으로 바꿔도 실거래 승인이 꺼져 있으면 모의투자 서버로 주문합니다.";
-  }
+  renderExecutionMode(document.getElementById("quant-mode"), el, selectedExecutionMode());
 }
 
 // ── domain-rag-lab 백테스트 합격 전략 드롭다운 ───────────────────────────
@@ -195,10 +197,13 @@ document.getElementById("quant-symbol-source")?.addEventListener("change", toggl
 
 document.getElementById("broker-save")?.addEventListener("click", async () => {
   const modeNow = document.getElementById("quant-mode").value;
+  const view = executionModeView(selectedExecutionMode());
+  if (modeNow === "live" && !view.available) {
+    setToast(view.detail, "error");
+    return;
+  }
   if (modeNow === "live" && lastLoadedMode !== "live") {
-    const route = document.getElementById("quant-live-route")?.textContent || "";
-    // Qurious: 실거래 승인이 꺼져 있으면 모의투자 서버로 나간다 — 경로 안내(renderLiveRoute)를 그대로 보여 준다
-    if (!confirm(`실전투자(live) 모드로 바꿉니다.\n${route || "실전으로 바꿔도 실거래 승인이 꺼져 있으면 모의투자 서버로 주문합니다."}\n\n계속할까요?`)) return;
+    if (!confirm(`${view.label} 모드로 바꿉니다.\n${view.detail}\n\n계속할까요?`)) return;
   }
   try {
     const selectedSymbols = [...document.querySelectorAll(".quant-symbol:checked")].map((el) => el.value);

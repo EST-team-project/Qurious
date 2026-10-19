@@ -4,6 +4,7 @@
 // 거래가 0회인 기본 전략은 수익률을 0 으로 보이지 않고 「신호 없음」 이라 말한다(Figma 「투자 대시보드 · 메뉴 정리」 02 · 03).
 import { api, escHtml, setToast } from '/js/common.js';
 import { GNB_MENUS } from '/js/core.js';
+import { executionModeView, kisEnvironmentLabel } from '/js/execution-mode.js';
 
 let loading = false;
 const metric = (label, value, note = '') => `<div class="overview-metric"><span>${escHtml(label)}</span><strong>${escHtml(value)}</strong><small>${escHtml(note)}</small></div>`;
@@ -74,7 +75,7 @@ function renderAccountPanel() {
     metric('현금 · 예수금', money(tab.cash, tab.currency)) +
     metric('총 자산', money(tab.total, tab.currency), pnlNote) +
     metric('보유 종목', tab.positions === null || tab.positions === undefined ? '데이터 없음' : number(tab.positions, '개', 0));
-  if (tab.key === 'kis') html += metric('자동매매', tab.auto_trade_running ? '실행 중 (live · KIS)' : '꺼짐',
+  if (tab.key === 'kis') html += metric('자동매매', tab.auto_trade_running ? `실행 중 · ${kisEnvironmentLabel(tab.environment)}` : '꺼짐',
     `앱 추적 미체결 주문 ${number(tab.open_live_orders, '건', 0)} · 과거·외부 주문 제외 · ${tab.environment === 'real' ? '실전' : '모의(Testbed)'}`);
   if (tab.key === 'quant') html += metric('장부 구분', '앱 가상매매 전용', 'KIS 주문은 이 장부에 반영하지 않습니다. 과거에 가상 체결로 기록된 KIS 실패 주문은 남아 있을 수 있습니다.');
   if (tab.key === 'paper' && tab.breakdown) html += metric('자산별 평가', `주식 ${money(tab.breakdown.stocks)}`, `코인 ${money(tab.breakdown.crypto)} · 대체 ${money(tab.breakdown.alternatives)}`);
@@ -124,7 +125,7 @@ async function loadAccountTabs() {
 // Qurious: KIS 키는 사용자마다(ADR-0004) — 서버 설정 이름 대신 사용자가 할 일을 말한다
 const KIS_BLOCK_TEXT = {
   not_connected: '「증권사 API 설정」 에서 내 KIS 모의투자 키(App Key · Secret · 계좌번호)를 넣으면 시작할 수 있어요.',
-  real_environment: '지금 KIS 경로가 실전이라 원클릭 모의투자는 시작하지 않습니다. 「증권사 API 설정」 에서 모의투자로 바꾸세요.',
+  real_environment: '지금 KIS 경로가 실전이라 원클릭 모의투자는 시작하지 않습니다. 관리자에게 KIS 모의투자 경로 설정을 요청해 주세요.',
   kill_switch: '비상 정지 상태입니다. 자동매매 현황에서 해제한 뒤 시작하세요.',
 };
 // 자동매매 주기(분)는 서버 값(퀵스타트 응답 interval_min = QUANT_CYCLE_SEC)을 쓴다 — 응답 전 글자는 우리 기본 10분 주기(D124 A1 · 잠정)
@@ -139,13 +140,13 @@ async function loadKisQuickstart() {
     const badge = st.connected ? '<span class="badge-buy">연동됨</span>' : '<span class="badge-sell">미연동</span>';
     const link = `${badge} ${escHtml(st.route_detail || '')}`;
     if (st.already_started) {
-      btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-check"></i> KIS 모의투자 실행 중';
-      el.innerHTML = `${link} · 자동매매 <b>실행 중</b> (live · KIS · ${kisIntervalMin}분 주기). <a href="#quant-auto" class="underline">자동매매 현황</a>`;
+      btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-check"></i> ${escHtml(kisEnvironmentLabel(st.environment))} 실행 중`;
+      el.innerHTML = `${link} · 자동매매 <b>실행 중</b> (${escHtml(kisEnvironmentLabel(st.environment))} · ${kisIntervalMin}분 주기). <a href="#quant-auto" class="underline">자동매매 현황</a>`;
     } else if (st.ready) {
       btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-play"></i> KIS 모의투자 시작';
       const d = st.defaults || {};
       el.innerHTML = `${link} · 시작하면 모델·지표 선정 ${d.quant_ai_top_n ?? 3}종목 · ${kisIntervalMin}분 주기 · 1회 ${Number(d.quant_per_trade_budget ?? 300000).toLocaleString('ko-KR')}원 · 쿨다운 ${d.risk_cooldown_min ?? 30}분 · 종목 비중 ${d.risk_max_position_pct ?? 20}% 로 자동매매를 켭니다.` +
-        (st.running ? ` 현재 ${escHtml(st.mode)}/${escHtml(st.broker)} 자동매매가 켜져 있어 설정이 KIS 모의투자로 바뀝니다.` : '');
+        (st.running ? ` 현재 ${escHtml(executionModeView({ mode: st.mode, broker: st.broker, live_gateway: st }).label)}가 켜져 있어 설정이 KIS 모의투자로 바뀝니다.` : '');
     } else {
       btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-play"></i> KIS 모의투자 시작';
       // 키가 없을 때는 서버 안내(route_detail)와 같은 말을 두 번 하지 않는다

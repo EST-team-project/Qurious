@@ -903,7 +903,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-DASH-01 | GET | `/api/dashboard/accounts` | 세션 | — | {tabs, order, generated_at} | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(api.upbit.com, developer.kbsec.com …) | `dashboard` | 미배정 | — | dashboard.py:166 |
+| API-DASH-01 | GET | `/api/dashboard/accounts` | 세션 | — | {tabs, order, generated_at} | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(api.upbit.com, developer.kbsec.com …) | `dashboard` | 미배정 | — | dashboard.py:170 |
 
 #### `openapi` — `app/routes/openapi.py` · 9개
 
@@ -1170,6 +1170,12 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 ---
 
 ## 6. 오류 코드와 오류 응답 형식
+
+### 자동매매 주문 방식 표시 (#211 · 2026-10-19)
+
+`GET /api/quant/settings`의 `mode=live`는 증권사 연동을 뜻하며 실전 계좌를 뜻하지 않는다. 화면은 `mode=paper`를 **앱 안 가상매매**, `mode=live`이면서 `live_gateway.environment=paper`이면 **KIS 모의투자(Testbed)로 주문**, `environment=real`이면 **KIS 실전투자로 주문**으로 표시한다. 환경은 기존 서버의 실거래 승인 관문을 적용한 값이다. 환경을 확인하지 못했거나 KIS가 아니면 증권사 주문 옵션을 비활성화하고 설정 재확인을 안내한다.
+
+중복된 「모의투자」 체크박스는 사용자 설정 항목에서 제거했다. 직접매매 코드가 읽는 기존 호환값은 숨겨 두며, 저장 계약(`mode`, `paper`)과 주문 경로·실거래 승인 조건은 바꾸지 않는다. 대시보드 계좌 탭의 `label`·`site`도 실제 모의/실전 환경을 따르고, 자동매매 안내에 내부 값 `live`를 노출하지 않는다. [검증 기록](../시험/2026-10-19-KIS-주문방식-표시-검증.md).
 
 ### KIS 자동매매 주문 결과 (#212 · 2026-10-19)
 

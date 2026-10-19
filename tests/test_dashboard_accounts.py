@@ -61,6 +61,22 @@ SNAP = {"cash": 7_000_000.0, "stockEval": 2_000_000.0, "cryptoEval": 500_000.0, 
         "totalAsset": 10_000_000.0, "totalPnl": 0.0, "totalPnlRate": 0.0, "counts": {"stocks": 2, "crypto": 1, "alternatives": 1}}
 
 
+@pytest.mark.parametrize('via', ['direct', 'gateway'])
+def test_real_account_is_not_labelled_testbed(monkeypatch, via):
+    """#211: 승인된 실전 계좌도 탭 이름·사이트가 실제 환경과 맞아야 한다."""
+    monkeypatch.setenv('QURIOUS_ALLOW_LIVE_TRADING', '1')
+    monkeypatch.setattr(settings, 'STOCK_COIN_TRADE_KIS_ENVIRONMENT', 'real')
+    monkeypatch.setattr(settings, 'STOCK_COIN_TRADE_BASE_URL', '' if via == 'direct' else 'https://sct.test')
+    row = SimpleNamespace(broker='kis', app_key='dummy-key', app_secret='dummy-secret', account_no='1234567801',
+                          quant_auto_enabled=True, quant_mode='live')
+    _gateway({'cashBalance': 100, 'totalEvalAmount': 100, 'holdings': []})
+    fake = SimpleNamespace(get_balance=AsyncMock(return_value=SimpleNamespace(cash=100, total_eval=100, total_gain=0, holdings=[])))
+    with patch.object(d, 'get_broker_client', return_value=fake):
+        out = asyncio.run(d.kis_tab(FakeDb(broker=row), UID))
+    assert out['environment'] == 'real'
+    assert out['label'] == 'KIS 실전투자' and out['site'] == '한국투자증권 실계좌'
+
+
 def test_tabs_order_and_kis_first_via_gateway():
     _gateway({"environment": "paper", "cashBalance": 9_500_000, "totalEvalAmount": 10_120_000, "totalProfitLoss": 120_000,
               "holdings": [{"symbol": "005930", "quantity": 3, "evalAmount": 214_500}, {"symbol": "035720", "quantity": 10, "evalAmount": 405_500}]})
@@ -75,6 +91,7 @@ def test_tabs_order_and_kis_first_via_gateway():
     assert keys == ["kis", "quant", "paper", "us"] and keys[0] == "kis"
     kis = out["tabs"][0]
     assert kis["connected"] and kis["route"] == "stock-coin-trade" and kis["environment"] == "paper"
+    assert kis['label'] == 'KIS 모의투자' and kis['site'] == '한국투자증권 Testbed'
     assert kis["cash"] == 9_500_000 and kis["invested"] == 620_000 and kis["total"] == 10_120_000 and kis["positions"] == 2
     assert kis["auto_trade_running"] is True and kis["open_live_orders"] == 1
     quant = out["tabs"][1]
