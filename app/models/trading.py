@@ -175,11 +175,12 @@ LIVE_ORDER_TERMINAL_STATUSES = ("FILLED", "CANCELLED", "REJECTED", "ERROR")
 
 
 class LiveOrder(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
-    """자동매매가 stock-coin-trade 게이트웨이를 통해 KIS에 낸 실주문 1건의 추적 기록.
+    """자동매매가 KIS에 낸 주문 1건의 추적 기록(직접 또는 게이트웨이).
 
-    가상계좌 Order(source=QUANT)와 별도다. quant.confirm_fills 태스크가 열린 상태(LIVE_ORDER_OPEN_STATUSES)를
+    가상계좌 Order(source=QUANT)와 별도다. broker=kis-direct는 사용자 KIS 직접 주문이다.
+    quant.confirm_fills 태스크가 열린 상태(LIVE_ORDER_OPEN_STATUSES)를
     주기적으로 체결 조회해 갱신한다. status 값은 계약서(docs/contracts/kis-autotrade-api.md)의 정규화 표를 따르고,
-    게이트웨이 호출 자체가 실패한 경우만 ERROR 를 쓴다.
+    접수 실패는 ERROR, 응답을 잃어 접수 여부를 모르는 경우는 UNKNOWN을 쓴다.
     """
 
     __tablename__ = "live_orders"
@@ -203,7 +204,7 @@ class LiveOrder(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     filled_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     avg_filled_price: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     message: Mapped[str] = mapped_column(String(300), nullable=False, default="")
-    raw: Mapped[str] = mapped_column(Text, nullable=False, default="")                    # 마지막 게이트웨이 응답 JSON
+    raw: Mapped[str] = mapped_column(Text, nullable=False, default="")                    # 마지막 응답 JSON · 직접 연동은 계좌 해시 포함
     retry_of: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("live_orders.id"), unique=True)
     retry_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     retry_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

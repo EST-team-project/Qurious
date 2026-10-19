@@ -109,6 +109,7 @@ def test_unreachable_gateway_leaves_unknown_for_confirm_fills(env):
     db = FakeDb()
     result = _place(db)
     assert result["code"] == "GATEWAY_UNREACHABLE"
+    assert result["status"] == "unknown"
     assert db.added[0].status == "UNKNOWN"
 
 
@@ -131,10 +132,10 @@ def test_legacy_path_when_gateway_not_configured(monkeypatch):
     # Qurious(2026-10-03): KIS 도 사용자 키를 쓴다(서버 관리 아님) — 사용자 키가 없으면 다른 증권사처럼 None
     # (강사님 판: 서버 자격증명이 없으면 {"status": "skipped", "reason": "kis_credentials_not_configured"})
     out = asyncio.run(auto_trade._place_live_order(broker, "005930.KS", "삼성전자", "buy", 1, 70_000.0, str(UID), db=FakeDb()))
-    assert out is None
+    assert out["status"] == "skipped"
     # 서버 관리 대상이 아닌 증권사는 종전대로 자격증명 없으면 None
     broker.broker = "kb"
-    assert asyncio.run(auto_trade._place_live_order(broker, "005930.KS", "삼성전자", "buy", 1, 70_000.0, str(UID), db=FakeDb())) is None
+    assert asyncio.run(auto_trade._place_live_order(broker, "005930.KS", "삼성전자", "buy", 1, 70_000.0, str(UID), db=FakeDb()))["status"] == "skipped"
 
 
 def test_confirm_live_fills_updates_rows_and_notifies(env):
@@ -302,12 +303,29 @@ def test_known_order_still_confirms_fill_after_halt(env):
     row.order_no = "0000001234"
     row.status = "PARTIALLY_FILLED"
     row.filled_quantity = 1
+    row.quantity = 2  # 2주 중 1주 체결 → 증권사 조회에서 2주 전량 체결
     db = FakeDb(rows=[row])
     db.broker.risk_kill_switch = True
     with patch.object(auto_trade, "get_session_factory", return_value=_factory(db)):
         summary = asyncio.run(auto_trade.confirm_live_fills())
     assert summary["filled"] == 1 and row.status == "FILLED"
     assert all(method == "GET" for method, _ in calls)
+
+
+@pytest.mark.parametrize('response', [
+    {"status": "FILLED", "filledQuantity": 23, "avgFilledPrice": 100, "lookup": "balance"},
+    {"status": "FILLED", "filledQuantity": 24, "avgFilledPrice": 100},
+    {"status": "FILLED", "filledQuantity": 23, "avgFilledPrice": "invalid"},
+    {"status": "FILLED", "filledQuantity": 23, "avgFilledPrice": 0},
+])
+def test_inferred_or_invalid_fill_does_not_confirm(env, response):
+    row = _unknown_row(age_min=2)
+    row.order_no, row.status = "77", "ACCEPTED"
+    with patch.object(gw, 'get_order_status', AsyncMock(return_value=response)), \
+         patch.object(auto_trade, 'get_session_factory', return_value=_factory(FakeDb(rows=[row]))):
+        summary = asyncio.run(auto_trade.confirm_live_fills())
+    assert row.status == 'ACCEPTED' and not row.filled_quantity and summary['filled'] == 0
+    env['filled'].assert_not_awaited()
 
 
 def test_partial_sell_stays_partial_without_new_order(env, monkeypatch):

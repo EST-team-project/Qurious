@@ -162,9 +162,7 @@ async function loadLiveOrders() {
     const data = await api("/api/quant/live-orders?limit=30");
     const rows = data.orders || [];
     if (!rows.length) {
-      el.innerHTML = data.gateway?.configured
-        ? "아직 실주문이 없습니다."
-        : "실주문 추적은 꺼져 있습니다 — 이 서비스는 모의투자가 기본입니다.";
+      el.innerHTML = "앱에서 추적 중인 증권사 주문이 없습니다. 과거·외부 주문은 KIS 주문 내역에서 확인해 주세요.";
       return;
     }
     el.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs">

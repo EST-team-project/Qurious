@@ -21,6 +21,7 @@ from app.models.base import SYSTEM_USER_ID
 from app.services import kis_batch, reconciliation
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.data_cache import cache_get
+from app.services.trade_outcome import describe_trade
 from app.services.stock import QUANT_STOCKS, QUANT_SECTORS
 
 router = APIRouter(prefix="/api/quant/kis", tags=["kis-monitor"])
@@ -35,11 +36,11 @@ def _f(v, default=0.0) -> float:
 
 
 def realized_pnl(rows: list) -> dict:
-    """FILLED 실주문을 시간순으로 평균단가법 처리해 종목별 실현손익·보유원가를 계산한다."""
+    """부분 체결을 포함한 확인 수량으로 평균단가법 손익·보유원가를 계산한다."""
     pos: dict[str, dict] = {}
     realized: dict[str, float] = {}
     for r in sorted(rows, key=lambda x: (x.created_at or datetime.min.replace(tzinfo=timezone.utc))):
-        if r.status != "FILLED" or not r.filled_quantity or not r.avg_filled_price:
+        if not r.filled_quantity or not r.avg_filled_price:
             continue
         code = gateway.normalize_symbol(r.symbol)
         qty, px = int(r.filled_quantity), float(r.avg_filled_price)
@@ -130,7 +131,7 @@ async def kis_monitor(limit: int = Query(50, ge=1, le=200), cycles: int = Query(
         "realized_pnl": pnl,
     }
 
-    # 가상 장부(시스템) — 봇 관리 종목 표시용
+    # 가상 장부(시스템)는 참고 기록이다. KIS 보유 증거로 쓰지 않는다.
     virtual = {}
     for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == SYSTEM_USER_ID, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
         if p.quantity > 0:
@@ -143,14 +144,17 @@ async def kis_monitor(limit: int = Query(50, ge=1, le=200), cycles: int = Query(
         try:
             bal = await gateway.get_balance()
             holdings = []
-            bot_codes = set(virtual) | set(pnl["open_cost"])
+            # 직접 연동 계좌의 체결을 공용 게이트웨이 계좌 보유와 합치지 않는다.
+            gateway_positions = realized_pnl([r for r in rows if getattr(r, "broker", "kis") != "kis-direct"
+                                              and r.environment == env])["open_cost"]
+            bot_codes = set(gateway_positions)
             for h in bal.get("holdings") or []:
                 code = gateway.normalize_symbol(str(h.get("symbol") or ""))
                 holdings.append({
                     "symbol": code, "name": h.get("name"), "quantity": int(h.get("quantity") or 0), "avg_price": _f(h.get("avgPrice")),
                     "current_price": _f(h.get("currentPrice")), "eval_amount": _f(h.get("evalAmount")),
                     "profit_loss": _f(h.get("profitLoss")), "profit_loss_rate": _f(h.get("profitLossRate")),
-                    "bot_managed": code in bot_codes, "bot_quantity": virtual.get(code, {}).get("quantity", 0),
+                    "bot_managed": code in bot_codes, "bot_quantity": gateway_positions.get(code, {}).get("qty", 0),
                 })
             cash = _f(bal.get("cashBalance"))
             invested = sum(x["eval_amount"] for x in holdings)
@@ -174,7 +178,8 @@ async def kis_monitor(limit: int = Query(50, ge=1, le=200), cycles: int = Query(
             "buy": ag.get("buy", []), "sell": ag.get("sell", {}), "notes": ag.get("notes", []),
             "trades": [{"symbol": t.get("symbol"), "name": t.get("name"), "action": t.get("action"), "quantity": t.get("quantity"),
                         "price": t.get("price"), "live": (t.get("live_order") or {}).get("status"),
-                        "live_reason": (t.get("live_order") or {}).get("reason") or (t.get("live_order") or {}).get("error")} for t in trades],
+                        "live_reason": (t.get("live_order") or {}).get("reason") or (t.get("live_order") or {}).get("error"),
+                        "execution": describe_trade(t, (c.get("settings") or {}).get("mode"))} for t in trades],
             "skipped": len(risk.get("skipped") or []), "halted": bool(risk.get("halted")), "halt_reason": risk.get("reason"),
             "day_pnl_pct": risk.get("day_pnl_pct"), "equity": (c.get("account") or {}).get("total_equity"),
         })

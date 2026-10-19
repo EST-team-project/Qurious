@@ -165,7 +165,7 @@ async def run_reconciliation(db: AsyncSession, uid=SYSTEM_USER_ID) -> dict:
     day_start = (now.astimezone(timezone(timedelta(hours=9)))).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
     # KIS Testbed 계좌는 배치와 로그인 사용자들이 **공용**으로 쓴다(KIS_PAPER_BATCH_EXCLUSIVE=false). 실제 보유와 대조할 때는
     # 같은 환경(env)의 모든 사용자 실주문 체결을 합산하고, 가상 장부·주문 상태 점검은 이 uid 의 주문만 본다.
-    rows_account = list((await db.execute(select(LiveOrder).where(LiveOrder.environment == env).order_by(LiveOrder.created_at.desc()).limit(1000))).scalars().all())
+    rows_account = list((await db.execute(select(LiveOrder).where(LiveOrder.environment == env, LiveOrder.broker == "kis").order_by(LiveOrder.created_at.desc()).limit(1000))).scalars().all())
     rows = [r for r in rows_account if getattr(r, "user_id", uid) == uid]
     rows_today = [r for r in rows if getattr(r, "created_at", None) and r.created_at.astimezone(timezone.utc) >= day_start]
     net_live = net_filled_by_symbol(rows)                 # 이 uid 의 봇 체결 순수량 (가상 장부 대조용)
@@ -189,7 +189,8 @@ async def run_reconciliation(db: AsyncSession, uid=SYSTEM_USER_ID) -> dict:
 
     issues: list[dict] = []
     issues += compare_positions({k: int(v) for k, v in (baseline.get("holdings") or {}).items()}, net_account, actual_qty)
-    issues += compare_virtual(virtual, net_live)
+    # #212: 가상매매와 KIS 주문은 별도 장부다. 수량이 같다는 불변식은 더 이상 적용하지 않는다.
+    # 과거의 가상 성공/KIS 실패 기록은 아래 phantom_trades로 계속 알린다.
     issues += phantom_trades(cycles)
     issues += order_issues(rows_today, now, int(settings.RECONCILE_OPEN_ORDER_MAX_MIN), float(settings.RECONCILE_SLIPPAGE_ALERT_PCT))
 

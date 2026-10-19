@@ -91,7 +91,7 @@ def test_detects_kis_mismatch_virtual_mismatch_and_phantom(env):
     assert r["ok"] is False
     assert types.count("kis_position_mismatch") == 1 and next(i for i in r["issues"] if i["type"] == "kis_position_mismatch")["symbol"] == "240810"
     vm = [i for i in r["issues"] if i["type"] == "virtual_vs_live_mismatch"]
-    assert [i["symbol"] for i in vm] == ["018290"] and vm[0]["virtual"] == 23 and vm[0]["live_filled"] == 0
+    assert vm == []  # 별도 장부의 수량 일치를 요구하지 않는다. 과거 실패는 phantom으로 남긴다.
     ph = [i for i in r["issues"] if i["type"] == "phantom_trade"]
     assert {p["symbol"] for p in ph} == {"018290.KQ", "192820.KS"} and {p["live_status"] for p in ph} == {"error", "none"}
     assert any(i["type"] == "unresolved_order" and i["status"] == "LOST" for i in r["issues"])
@@ -113,10 +113,10 @@ def test_stale_open_and_slippage(env):
 def test_notify_only_when_issue_set_changes(env):
     env["store"][rc._baseline_key(SYSTEM_USER_ID, "paper")] = {"captured_at": "t0", "holdings": {}}
     db = FakeDb(portfolio=[pos("005930.KS", 3)], orders=[])
-    run(db, {}); run(db, {})
+    run(db, {"005930": 3}); run(db, {"005930": 3})
     assert env["dispatch"].await_count == 1
     db2 = FakeDb(portfolio=[pos("005930.KS", 4)], orders=[])
-    run(db2, {})
+    run(db2, {"005930": 4})
     assert env["dispatch"].await_count == 2
 
 

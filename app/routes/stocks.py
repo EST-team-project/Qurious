@@ -592,7 +592,7 @@ async def list_live_orders(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    """게이트웨이 경유 KIS 실주문 추적 목록 (quant.confirm_fills 가 갱신).
+    """KIS 직접·게이트웨이 주문 추적 목록 (quant.confirm_fills 가 갱신).
     KIS 모의투자 배치가 실행 중이면 시스템 사용자(배치) 주문도 함께 반환한다(owner=batch)."""
     from app.services import kis_batch
     me = _uid(user["id"])
@@ -1128,9 +1128,12 @@ async def quant_auto_status(user=Depends(get_current_user), db: AsyncSession = D
                 })
             account = cycle.get("account")
             if account:
+                account_label = "KIS 계좌 평가(주문 전 조회)" if account.get("ledger") == "kis_account" else "퀀트 가상 장부 평가(KIS 계좌 아님)"
+                pnl = account.get("pnl_pct")
+                pnl_text = f"{pnl:+.2f}%" if pnl is not None else "계산 불가"
                 logs.append({
                     "time": cycle.get("time", ""),
-                    "message": f"{prefix}모의계좌 평가 {account.get('total_equity', 0):,.0f}원 / 손익 {account.get('pnl_pct', 0):+.2f}%",
+                    "message": f"{prefix}{account_label} {account.get('total_equity', 0):,.0f}원 / 손익 {pnl_text}",
                 })
             ag = cycle.get("aggressive") or {}
             for note in ag.get("notes", []):
@@ -1141,12 +1144,17 @@ async def quant_auto_status(user=Depends(get_current_user), db: AsyncSession = D
             for trade in cycle.get("trades", []):
                 if trade.get("type") == "risk":
                     continue   # 위 skipped 로 이미 표시
-                live = trade.get("live_order") or {}
-                live_txt = f" · 실주문 {live.get('status')}" + (f"({live.get('reason') or live.get('error')})" if live.get("reason") or live.get("error") else "") if live else ""
+                from app.services.trade_outcome import describe_trade
+                execution = trade.get("execution") or describe_trade(trade, (cycle.get("settings") or {}).get("mode"))
+                side = "매수" if trade.get("action") == "buy" else "매도"
+                quantity_label = "가상 기록" if execution.get("virtual_status") == "filled" else "주문 요청"
+                confirmed = (f" · 증권사 확인 {execution['filled_quantity']}주 @{execution.get('avg_filled_price', 0):,.0f}원"
+                             if execution.get("filled_quantity") else "")
                 logs.append({
                     "time": trade.get("time", cycle.get("time", "")),
-                    "message": f"{prefix}{trade.get('name', trade.get('symbol', ''))} {trade.get('action', '').upper()} "
-                               f"{trade.get('quantity', 0)}주 — {trade.get('reason', '')}{live_txt}",
+                    "level": execution["level"], "execution": execution,
+                    "message": f"{prefix}[{execution['label']}] {trade.get('name', trade.get('symbol', ''))} {side} "
+                               f"{quantity_label} {trade.get('quantity', 0)}주{confirmed} — {execution['ledger']} · {execution['detail']} · {trade.get('reason', '')}",
                 })
     logs.sort(key=lambda x: x.get("time") or "")
     from app.services import reconciliation

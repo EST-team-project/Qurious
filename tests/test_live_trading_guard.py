@@ -237,7 +237,7 @@ def _실주문_요청(monkeypatch) -> dict:
 
     class 가짜_증권사:
         async def place_order(self, *a, **k):
-            return {"ok": True}
+            return {"rt_cd": "0", "output": {"ODNO": "000123"}}
 
     def 가짜_팩토리(broker, app_key="", app_secret="", paper=True):
         받은.update(broker=broker, paper=paper)

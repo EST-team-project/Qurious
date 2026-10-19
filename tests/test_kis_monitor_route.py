@@ -59,7 +59,8 @@ def client(monkeypatch):
     orders = [order("240810.KQ", "BUY", 2, "FILLED", avg=100.3, price=100.0, age_min=30),
               order("018290.KQ", "BUY", 23, "LOST", age_min=20),
               order("005930.KS", "BUY", 1, "ACCEPTED", age_min=5, user=UID, order_type="LIMIT")]
-    portfolio = [SimpleNamespace(symbol="240810.KQ", quantity=2, avg_price=100.0, name="원익IPS"), SimpleNamespace(symbol="018290.KQ", quantity=23, avg_price=12520.0, name="브이티")]
+    # 과거 가상 수량은 증권사 체결 근거가 아니다. 실제 2주와 다른 99주를 남겨 검증한다.
+    portfolio = [SimpleNamespace(symbol="240810.KQ", quantity=99, avg_price=100.0, name="원익IPS"), SimpleNamespace(symbol="018290.KQ", quantity=23, avg_price=12520.0, name="브이티")]
     db = FakeDb(orders, portfolio)
     app = FastAPI(); app.include_router(km.router)
     app.dependency_overrides[get_current_user] = lambda: {"id": str(UID), "email": "t@t"}
@@ -103,8 +104,10 @@ def test_monitor_assembles_everything(client):
     assert bot["bot_managed"] is True and bot["bot_quantity"] == 2
     assert next(h for h in a["holdings"] if h["symbol"] == "005930")["bot_managed"] is False
     assert d["virtual_positions"]["018290"]["quantity"] == 23
+    assert d["virtual_positions"]["240810"]["quantity"] == 99
     c = d["cycles"]
     assert c["count"] == 1 and c["recent"][0]["trades"][0]["live"] == "error" and c["recent"][0]["skipped"] == 1 and c["recent"][0]["notes"]
+    assert c["recent"][0]["trades"][0]["execution"]["status"] == "broker_failed"
     assert d["last_beat_run"]["ran"] == 1 and d["reconcile"]["ok"] is False
 
 

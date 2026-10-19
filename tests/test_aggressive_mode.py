@@ -228,6 +228,7 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
         slots.append((symbol, side, cooldown)); return slot_allowed
     with patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
          patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
+         patch.object(auto_trade.kis_execution, "account_snapshot", AsyncMock(return_value={"cash": 9_700_000.0, "equity": 10_000_000.0, "checked_at": "test", "holdings": {p.symbol: {"symbol": p.symbol, "quantity": p.quantity, "avg_price": p.avg_price, "value": p.quantity * p.avg_price} for p in portfolio}})), \
          patch.object(ag, "get_intraday_indicators", intraday), \
          patch.object(auto_trade, "get_quant_indicators", AsyncMock(side_effect=AssertionError("일봉 지표를 쓰면 안 된다"))), \
          patch.object(auto_trade, "_execute_virtual_trade", virtual_trade), \
