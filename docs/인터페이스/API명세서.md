@@ -1,14 +1,14 @@
-# API 명세서 v0.33 — Qurious
+# API 명세서 v0.34 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.33 (Minor — 라우트 둘 더함 — `API-HELP-01` `GET /help/videos.json`(사용법 영상 표 · 화면 키 → 영상 · 장 · 영상이 없는 PC 는 빈 표 200 · `missing: true`) · `API-HELP-02` `GET /help/media/{name}`(영상 · 자막 · 장 · 첫 그림 파일 · 정해진 꼴(.webm · .vtt · .jpg)만 · 구간 요청 206) · 둘 다 로그인한 사람만(세션 · 401) · 사용법 창 영상 칸(D132 첫 단계) · 새 라우터 약어 `HELP` · 파트 P-A(스캐너 담당 표 한 줄) / 4 · 5절 표 다시 채움(`--assign S125` · `--doc` · `--catalog` 269) · 그 앞 v0.32 — 응답 `rehearsal` · `GET /api/orders` 출처 거름) |
-| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 **v0.33** |
+| **문서 버전** | v0.34 (Minor — 라우트 269 → 266: `API-LRN-03 · 04 · 05`(팀 자료 새 글 · 고치기 · 지우기) 폐기 — 사용자 결정 D133 · `API-LRN-02` 응답 `history_url` 은 관리자에게만 · `API-LRN-07` `POST /api/learn/sync` 를 관리자만(일반 사용자 403 `LEARN_ADMIN_ONLY` · 2026-10-19 결정) · `API-LRN-01` 응답 `team` 은 관리자에게만 저장소 이름 · 서버 글(일반 사용자 · 익명은 `state` · `synced_at` · `admin` · 상태 칸 `editable` 없앰) · 팀원 PR #267 의 `API-TASK-01 · 02` 로그인 · 소유자 확인(표는 그 PR 이 채움)을 이 판에 담음) / 옛 판 v0.33 (Minor — 라우트 둘 더함 — `API-HELP-01` `GET /help/videos.json`(사용법 영상 표 · 화면 키 → 영상 · 장 · 영상이 없는 PC 는 빈 표 200 · `missing: true`) · `API-HELP-02` `GET /help/media/{name}`(영상 · 자막 · 장 · 첫 그림 파일 · 정해진 꼴(.webm · .vtt · .jpg)만 · 구간 요청 206) · 둘 다 로그인한 사람만(세션 · 401) · 사용법 창 영상 칸(D132 첫 단계) · 새 라우터 약어 `HELP` · 파트 P-A(스캐너 담당 표 한 줄) / 4 · 5절 표 다시 채움(`--assign S125` · `--doc` · `--catalog` 269) · 그 앞 v0.32 — 응답 `rehearsal` · `GET /api/orders` 출처 거름) |
+| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 **v0.34** |
 | **작성자** | 이동원 (P-A) |
-| **기준 코드** | `main` = `32f23bd`(PR #265 — 메뉴 개편 · 라우트 그대로) + 이 판 PR(사용법 영상 라우트 둘 · `app/routes/help_media.py`) |
+| **기준 코드** | `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
 | **추출기** | [`scripts/api_scan.py`](../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../tests/test_api_scan.py) (TC-AP 15건) |
 | **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **270줄 · 사용 269 · 폐기 1**(2026-10-18 `API-HELP-01 · 02` 더함 — 사용법 창 영상 · 새 라우터 약어 `HELP` · `--assign S125` · 그 앞 268줄 · 2026-10-17 `API-USRV-01 ~ 04` 더함 — 미국 장 · 예약 주문 · `--assign S121` · 그 앞 264줄 · 2026-10-17 `API-HUB-01 · 02` · `API-GLOS-06` 더함 — 종목 허브 · 글 속 용어 · 새 라우터 약어 `HUB` · `--assign S120` · 그 앞: 2026-10-16 `API-PAPR-41 ~ 44` 더함 — #215 강민석 님 모의 스탑 주문 · `--assign S118` · 그 앞: 2026-10-15 `API-MCMP-01 ~ 04` 더함 — 모델 비교 · 새 라우터 약어 `MCMP` · 파트 P-A(주인 없던 화면 · 10-07 결정 · 스캐너 담당 표 한 줄) · `--assign S113` · 그 앞 253줄 · 2026-10-14 `API-ML-11 · 12` 더함 — 오준영 #180 가벼운 비중 · 저장한 배분 결과(그 PR 이 대장 관리 몫이라 이 판에서 · 파트 P-C · 스캐너 담당 표에 `/api/ml/robo/weights` → P-C 한 줄) · `API-SEAS-01` · `API-CLUS-01` 더함 — 새 라우터 약어 `SEAS` · `CLUS` · 파트 P-A(주인 없던 화면 · 10-07 결정) · `--assign S111` · 그 앞 249줄 · 2026-10-13 `API-RISK-01 · 02` 더함 — 재무 · 신용 위험 · 새 라우터 약어 `RISK` · 파트 P-A(주인 없는 화면 · 10-07 결정) · `--assign S110` · 그 앞 247줄 · 2026-10-12 `API-PROD-04` · `API-EXPL-01` 더함 — 상품 상세 창 · 신장환 신호 설명(그 PR 이 대장 관리 몫이라 고치지 않아 이 판에서 · 새 라우터 약어 `EXPL` · 파트 P-B) · `--assign S109` · 그 앞 2026-10-12 `API-PROD-01 ~ 03` 더함 — 상품 안내 · `--assign S108` · 그 앞 2026-10-10 `API-DATA-12 ~ 15` 더함 — 화면 수집 요청 · `--assign S103` · 그 앞 2026-10-08 `API-RBAL-10` — 팀원 #145 예약 취소 · `--assign S102`) · 그 앞 237줄(2026-10-08 `API-DATA-11` 더함 — 자료 안내 · `--assign S102` · 그 앞 `API-DATA-08 ~ 10` 더함 · `API-ADM-01` 폐기 — 라우트가 처음 사라진 경우라 `--assign` 이 아니라 손으로 「폐기」 · 그 번호는 다시 쓰지 않는다) · 그 앞 233줄(2026-10-08 `API-KMON-01 · 02` · v0.1 146 → 강사님 기초 코드 두 번 · 계정 · 용어사전 · 개념 학습 · 금융 강의 · 데이터 · 달력 · 근거 문서 · 근거 답 · 팀원 모의계좌 — 2.1절) · 한 번 붙인 ID 는 바뀌지 않는다 |
-| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **268/268 일치**(2026-10-18 v0.33 · 개발 모드 앱 · 이 판 PR · 스캔 269 = 스키마 268 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
+| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **265/265 일치**(2026-10-19 v0.34 · 개발 모드 앱 `61b3e43` + 이 판 PR(쓰기 셋 없앤 뒤) — main 을 두 번째로 받은 뒤 다시 맞댐 · openapi 에만 0 · 스캔에만 0 · 인자 다름 0 · 본문 모델 다름 0 · 스캔 266 = 스키마 265 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
 
@@ -171,7 +171,7 @@ flowchart LR
 | `tradingview` | `app/routes/tradingview.py` | 5 | 1 | 3 | 0 | 미배정 5 |
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
 | `glossary` | `app/routes/glossary.py` | 6 | 6 | 2 | 1 | P-A 6 |
-| `learn` | `app/routes/learn.py` | 7 | 2 | 0 | 7 | P-A 7 |
+| `learn` | `app/routes/learn.py` | 4 | 2 | 0 | 4 | P-A 4 |
 | `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
 | `data` | `app/routes/data.py` | 15 | 0 | 11 | 3 | P-A 15 |
 | `calendar` | `app/routes/calendar.py` | 3 | 3 | 3 | 0 | P-A 3 |
@@ -184,7 +184,7 @@ flowchart LR
 | `model_compare` | `app/routes/model_compare.py` | 4 | 0 | 1 | 1 | P-A 4 |
 | `stock_hub` | `app/routes/stock_hub.py` | 2 | 0 | 1 | 0 | 미배정 2 |
 | `help_media` | `app/routes/help_media.py` | 2 | 0 | 0 | 2 | P-A 2 |
-| **합계** | 39개 | **269** | **55** | **131** | **80** | |
+| **합계** | 39개 | **266** | **55** | **131** | **77** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -214,7 +214,7 @@ flowchart LR
 | `tradingview` | · | 2 | · | · | 4 | 1 | · | · | · | · | 1 | 1 | 1 | 1 |
 | `formula` | 3 | 3 | · | · | 12 | · | · | · | · | · | · | · | · | · |
 | `glossary` | · | · | · | · | 5 | · | · | · | · | · | · | · | · | · |
-| `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 7 |
+| `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 4 |
 | `lectures` | 6 | 5 | · | · | · | · | · | · | · | · | · | · | · | 2 |
 | `data` | 11 | · | · | · | 4 | · | · | · | · | · | · | · | · | 1 |
 | `calendar` | 3 | · | · | · | · | · | · | · | · | · | · | · | · | · |
@@ -227,7 +227,7 @@ flowchart LR
 | `model_compare` | 2 | · | · | · | 2 | · | · | · | · | · | · | · | · | · |
 | `stock_hub` | 2 | · | · | · | 1 | · | · | · | · | · | · | · | · | 1 |
 | `help_media` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| **합계** | **71** | **69** | **9** | **4** | **181** | **38** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **72** |
+| **합계** | **71** | **69** | **9** | **4** | **181** | **38** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **69** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -289,13 +289,13 @@ flowchart LR
 
 | 코드 | 뜻 | 본문에 적힌 API 수 | API ID |
 |---|---|---:|---|
-| `400` | 요청 값이 틀림 | 16 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-CHAT-01, API-STK-12, API-DOC-01 외 10 |
+| `400` | 요청 값이 틀림 | 14 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-CHAT-01, API-STK-12, API-DOC-01 외 8 |
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
-| `403` | 권한 없음 | 5 | API-AUTH-06, API-STK-10, API-STK-11, API-TASK-02, API-TV-01 |
-| `404` | 대상 없음 | 28 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 22 |
+| `403` | 권한 없음 | 6 | API-AUTH-06, API-STK-10, API-STK-11, API-TASK-02, API-TV-01, API-LRN-07 |
+| `404` | 대상 없음 | 26 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 20 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
-| `409` |  | 9 | API-STK-24, API-STK-41, API-STK-27, API-USRV-03, API-RBAL-10, API-RBAL-06 외 3 |
+| `409` |  | 8 | API-STK-24, API-STK-41, API-STK-27, API-USRV-03, API-RBAL-10, API-RBAL-06 외 2 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
 | `422` | 검증 실패 | 29 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 23 |
 | `429` | 호출 한도 초과 | 2 | API-CHAT-01, API-TV-01 |
@@ -981,17 +981,14 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-GLOS-04 | GET | `/api/glossary/{name}` | 없음 | `{name}` | 모델 없음 | 404 | PostgreSQL | `agent-chat` | P-A | P01-①-1 | glossary.py:74 |
 | API-GLOS-05 | GET | `/api/glossary/{name}/graph` | 없음 | `{name}` · `depth` | 모델 없음 | 404 | PostgreSQL | (다른 곳) | P-A | — | glossary.py:85 |
 
-#### `learn` — `app/routes/learn.py` · 7개
+#### `learn` — `app/routes/learn.py` · 4개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-LRN-01 | GET | `/api/learn/catalog` | 없음 | `section` · `q` | {contract, pages, builtin_errors, team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:69 |
-| API-LRN-02 | GET | `/api/learn/pages/{slug}` | 없음 | `{slug}` | {history_url} | 401 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:91 |
-| API-LRN-03 | POST | `/api/learn/pages` | 세션 | 본문 `PageIn` | {slug, version, commit} | 409 | 외부(huggingface.co) | — | P-A | — | learn.py:109 |
-| API-LRN-04 | PUT | `/api/learn/pages/{slug}` | 세션 | `{slug}` · 본문 `PageUpdate` | {slug, version, commit, changed} | 400 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:124 |
-| API-LRN-05 | DELETE | `/api/learn/pages/{slug}` | 세션 | `{slug}` · `base_version`* | Response | 400 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:143 |
-| API-LRN-06 | GET | `/api/learn/pages/{slug}/history` | 세션 | `{slug}` | {slug, commits, url} | 404 | 외부(huggingface.co) | — | P-A | — | learn.py:160 |
-| API-LRN-07 | POST | `/api/learn/sync` | 세션 | — | {team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:172 |
+| API-LRN-01 | GET | `/api/learn/catalog` | 없음 | `section` · `q` | {contract, pages, builtin_errors, team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:54 |
+| API-LRN-02 | GET | `/api/learn/pages/{slug}` | 없음 | `{slug}` | 모델 없음 | 401 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:75 |
+| API-LRN-06 | GET | `/api/learn/pages/{slug}/history` | 세션 | `{slug}` | {slug, commits, url} | 404 | 외부(huggingface.co) | — | P-A | — | learn.py:96 |
+| API-LRN-07 | POST | `/api/learn/sync` | 세션 | — | {team} | 403 | 외부(huggingface.co) | — | P-A | — | learn.py:108 |
 
 #### `lectures` — `app/routes/lectures.py` · 8개
 
@@ -1145,8 +1142,6 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | `NotificationSettingsBody` | `channels: list[str]` = `Field(default_factory=list, description='활성화할 채널 목록')` · `telegram_token: str` = `''` · `telegram_chat_id: str` = `''` · `slack_webhook_url: str` = `''` · `email_to: str` = `''` · `email_host: str` = `''` · `email_port: int` = `Field(default=587, ge=1, le=65535)` · `email_user: str` = `''` · `email_password: str` = `''` · `email_from: str` = `''` · `kakao_api_key: str` = `''` · `kakao_api_secret: str` = `''` · `kakao_sender_key: str` = `''` · `kakao_phone: str` = `''` · `sms_api_key: str` = `''` · `sms_api_secret: str` = `''` · `sms_from: str` = `''` · `sms_to: str` = `''` | API-NOTI-02 |
 | `OpenApiOrderBody` | `symbol: str` · `side: str` = `Field(..., description='BUY \| SELL')` · `quantity: int` = `Field(..., ge=1)` | API-OAPI-05 |
 | `OrderBody` | `symbol: str` · `name: str` · `order_type: str` · `quantity: int` · `price: float` · `broker: str` = `'virtual'` | API-STK-12 |
-| `PageIn` | `meta: dict[str, MetaValue]` = `Field(..., description='머리말 칸(규격 learn-v1 · 설계서 6절 표 6)')` · `body: str` = `Field('', max_length=lp.MAX_BODY, description='본문 마크다운')` | API-LRN-03 |
-| `PageUpdate` | `base_version: str` = `Field(..., pattern=VERSION_PATTERN, description='편집을 시작할 때 받은 판(git 블롭 해시)')` | API-LRN-04 |
 | `PasswordChangeBody` | `current_password: str` · `new_password: str` | API-AUTH-13 |
 | `PlanBody` | `name: str \| None` = `None` · `is_active: bool \| None` = `None` · `targets: list[TargetBody] \| None` = `None` · `time_period: str \| None` = `Field(None, description='none \| monthly \| quarterly \| yearly')` · `drift_enabled: bool \| None` = `None` · `drift_threshold_pct: float \| None` = `Field(None, ge=0.5, le=50, multiple_of=0.5, allow_inf_nan=False)` · `drift_check_mode: Literal['always', 'scheduled'] \| None` = `None` · `exclude_unplanned: bool \| None` = `None` · `cashflow_enabled: bool \| None` = `None` · `cashflow_min_amount: float \| None` = `Field(None, ge=0, allow_inf_nan=False)` · `auto_execute: bool \| None` = `None` · `min_order_amount: float \| None` = `Field(None, ge=0, allow_inf_nan=False)` | API-RBAL-02 |
 | `ProfileUpdateBody` | `name: str` | API-AUTH-12 |
@@ -1431,6 +1426,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.34 | 2026-10-19 | 폐기 — 라우트 셋 `API-LRN-03 · 04 · 05`(팀 자료 새 글 · 고치기 · 지우기 · 사용자 결정 D133 · ID 대장 「폐기」) · `API-LRN-02` 응답 `history_url` 관리자에게만 · 상태 칸 `editable` 없앰 · 라우트 269 → 266 / 고침 — `API-LRN-07` `POST /api/learn/sync` 관리자만(일반 사용자 403 `LEARN_ADMIN_ONLY` — 개념 학습 아래 띠의 「새로 받기」 도 관리자에게만 · 사용자 결정 10-19) · `API-LRN-01` 응답 `team` 칸을 관리자 · 일반 사용자로 나눔(저장소 이름 · 머리 판 · 서버 글 · 깨진 파일 목록은 관리자만 — 서버 한 곳 `_team_view`) · 학습 라우트 줄 번호 · 오류 코드 요약 403 에 `API-LRN-07` · 팀원 PR #267(`API-TASK-01 · 02` 로그인 · 소유자 확인) · #268 · #271(증권사 관문 줄 · `API-KMON-01 · 02` · `API-DASH-01` 줄 · 「자동매매 주문 방식 표시(#211)」 · 「KIS 자동매매 주문 결과(#212)」 두 글) · #273 · #274 · #276 · #278(「증권사 연결 테스트 안내(#232)」 · 「자산배분 예측 표시(#249)」 · 「투자 성향 진단의 브라우저 저장(#251)」 · 「자동매매 판단 출처와 최근 회차(#213)」 네 글 · 표 줄 번호 · 502 요약)을 판에 담음(그 PR 들이 표 · 글을 채우고 판은 올리지 않음 · main `ab6ee1a` · `61b3e43` 을 받으며 세 갈래 병합 충돌 0 · `--doc` 다시 채움) · 카탈로그 다시 씀 · 정답 대조 어긋남 0 | 개념 학습 아래 띠에 일반 사용자에게도 팀 자료 저장소 이름 · 개발 낱말 · 새로 받기가 보였다(사용자 결정 — 서버가 응답에서 뺀다) · 팀원 PR 은 표만 채우고 판을 올리지 않았다 | `scripts/api_scan.py --doc` · `--catalog` · `--openapi` · TC-LN-20 · 20b |
 | v0.33 | 2026-10-18 | 추가 — 라우트 둘(`API-HELP-01` `GET /help/videos.json` · `API-HELP-02` `GET /help/media/{name}`) · 새 라우터 약어 `HELP` · 파트 P-A · 4 · 5절 표 다시 채움(`--assign S125` · `--doc` · `--catalog` 269) / 라우트 267 → 269 · 스키마 대조 268/268 | 사용법 창 안 영상 칸(D132 첫 단계 — 그 화면의 영상을 창 안에서 · 여러 화면 영상은 그 화면이 나오는 장부터) · 영상은 HF 비공개 저장소에서 받아 로컬 폴더(`data/help/` · git · 이미지 밖)에 두고 로그인한 사람에게만 · 영상이 없는 PC 는 칸이 숨음 | `app/routes/help_media.py` · `tools/demo/help_videos.py` · `public/js/howto.js` · `public/js/howtoview.js` · TC-HM · TC-HT-06 · 10 ~ 12 |
 | v0.32 | 2026-10-18 | 변경 — `API-DATA-01` · `API-DATA-10` 응답에 `rehearsal`(복원 리허설 판정 · 상태 다섯) · `API-STK-13` 최근 주문 내역은 출처 WEB · PAPER · PINE 만 · 4절 표(스캐너 다시 채움) · 라우트 · ID 그대로 | 주 1회 복원 리허설(2차-3) — 관제 · 적재 · 백업이 「마지막 성공 n일 전」 을 서버 글 그대로 싣게 · 직접매매 주문 내역에 자동매매 주문이 섞임(DF-130 · #219 남은 반) | `app/services/data_status.py` `rehearsal_view` · `app/services/backup_status.py` · `app/routes/stocks.py` `order_history` · TC-WR · TC-WRS · TC-TOH |
 | v0.31 | 2026-10-17 | 추가 — 라우트 넷(`API-USRV-01` `GET /api/paper/stocks/us-market` · `API-USRV-02` `GET /api/paper/stocks/reservations` · `API-USRV-03` `POST /api/paper/stocks/reservations` · `API-USRV-04` `DELETE /api/paper/stocks/reservations/{order_id}`) · 변경 — `API-STK-06` 종목 찾기가 해외 자동완성의 400 을 「찾지 못함」(200 · `results: []` · `note`)으로 · 5xx · 연결 끊김은 502 그대로(DF-125) · 4 · 5절 표 다시 채움(`--assign S121` · `--doc` · `--catalog` 267) · 정답 대조 266/266 |

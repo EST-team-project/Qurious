@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 269,
+ "count": 266,
  "routers": 39,
  "routes": [
   {
@@ -873,7 +873,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 54,
+   "line": 57,
    "errors": [],
    "keys": [
     "indices",
@@ -907,7 +907,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 65,
+   "line": 68,
    "errors": [],
    "keys": [],
    "body": [],
@@ -939,7 +939,7 @@
     "P02-④-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 70,
+   "line": 73,
    "errors": [],
    "keys": [],
    "body": [],
@@ -974,7 +974,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 91,
+   "line": 94,
    "errors": [],
    "keys": [],
    "body": [],
@@ -997,7 +997,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 110,
+   "line": 113,
    "errors": [],
    "keys": [
     "stocks"
@@ -1032,7 +1032,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 115,
+   "line": 118,
    "errors": [
     "502"
    ],
@@ -1068,7 +1068,7 @@
     "RFP2-3.1.4-②"
    ],
    "file": "app/routes/stocks.py",
-   "line": 173,
+   "line": 176,
    "errors": [
     "502"
    ],
@@ -1103,7 +1103,7 @@
     "RFP2-3.1.4-③"
    ],
    "file": "app/routes/stocks.py",
-   "line": 182,
+   "line": 185,
    "errors": [],
    "keys": [
     "signals",
@@ -1136,7 +1136,7 @@
     "P01-③-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 249,
+   "line": 252,
    "errors": [],
    "keys": [
     "holdings"
@@ -1164,7 +1164,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 280,
+   "line": 283,
    "errors": [
     "403"
    ],
@@ -1191,7 +1191,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 297,
+   "line": 300,
    "errors": [
     "403"
    ],
@@ -1219,7 +1219,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 344,
+   "line": 347,
    "errors": [
     "400"
    ],
@@ -1253,7 +1253,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 401,
+   "line": 404,
    "errors": [],
    "keys": [
     "orders"
@@ -1276,7 +1276,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 521,
+   "line": 524,
    "errors": [],
    "keys": [
     "brokers"
@@ -1305,7 +1305,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 526,
+   "line": 529,
    "errors": [
     "422"
    ],
@@ -1338,7 +1338,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 546,
+   "line": 549,
    "errors": [],
    "keys": [
     "broker",
@@ -1367,7 +1367,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 583,
+   "line": 586,
    "errors": [],
    "keys": [
     "configured",
@@ -1381,7 +1381,7 @@
    "router": "stocks",
    "method": "GET",
    "path": "/api/quant/live-orders",
-   "summary": "게이트웨이 경유 KIS 실주문 추적 목록 (quant.confirm_fills 가 갱신).",
+   "summary": "KIS 직접·게이트웨이 주문 추적 목록 (quant.confirm_fills 가 갱신).",
    "auth": "세션",
    "reaches": [
     "PostgreSQL"
@@ -1393,7 +1393,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 589,
+   "line": 592,
    "errors": [],
    "keys": [
     "gateway",
@@ -1423,7 +1423,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 619,
+   "line": 622,
    "errors": [],
    "keys": [
     "mode",
@@ -1473,7 +1473,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 672,
+   "line": 675,
    "errors": [
     "422"
    ],
@@ -1495,6 +1495,7 @@
    "reaches": [
     "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
@@ -1511,10 +1512,8 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 751,
-   "errors": [
-    "502"
-   ],
+   "line": 767,
+   "errors": [],
    "keys": [
     "symbol",
     "name",
@@ -1524,7 +1523,10 @@
     "low",
     "volume",
     "change",
-    "change_pct"
+    "change_pct",
+    "source",
+    "scope",
+    "account_verified"
    ],
    "body": [],
    "schema": true
@@ -1539,6 +1541,7 @@
    "reaches": [
     "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
@@ -1553,7 +1556,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 770,
+   "line": 783,
    "errors": [
     "502"
    ],
@@ -1576,6 +1579,7 @@
    "reaches": [
     "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
@@ -1590,7 +1594,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 794,
+   "line": 807,
    "errors": [
     "502"
    ],
@@ -1611,6 +1615,7 @@
     "증권사",
     "주문",
     "PostgreSQL",
+    "Redis",
     "알림",
     "외부"
    ],
@@ -1628,7 +1633,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 817,
+   "line": 830,
    "errors": [
     "422",
     "502"
@@ -1652,6 +1657,7 @@
    "reaches": [
     "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
@@ -1668,13 +1674,15 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 883,
-   "errors": [
-    "502"
-   ],
+   "line": 896,
+   "errors": [],
    "keys": [
     "ok",
-    "broker_price"
+    "broker_price",
+    "source",
+    "scope",
+    "account_verified",
+    "message"
    ],
    "body": [],
    "schema": true
@@ -1700,7 +1708,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 899,
+   "line": 911,
    "errors": [
     "404",
     "422"
@@ -1740,7 +1748,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 915,
+   "line": 927,
    "errors": [],
    "keys": [
     "symbol",
@@ -1788,7 +1796,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 995,
+   "line": 1007,
    "errors": [
     "409"
    ],
@@ -1824,7 +1832,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1004,
+   "line": 1016,
    "errors": [],
    "keys": [
     "ok",
@@ -1855,7 +1863,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1010,
+   "line": 1022,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1882,7 +1890,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1022,
+   "line": 1034,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1910,7 +1918,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1051,
+   "line": 1063,
    "errors": [],
    "keys": [
     "ok",
@@ -1940,7 +1948,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1075,
+   "line": 1087,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1978,7 +1986,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1081,
+   "line": 1093,
    "errors": [
     "409"
    ],
@@ -2020,7 +2028,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1090,
+   "line": 1102,
    "errors": [
     "409"
    ],
@@ -2053,7 +2061,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1100,
+   "line": 1112,
    "errors": [],
    "keys": [
     "ok",
@@ -2084,7 +2092,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1107,
+   "line": 1119,
    "errors": [],
    "keys": [
     "running",
@@ -2127,7 +2135,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1165,
+   "line": 1188,
    "errors": [
     "404",
     "422"
@@ -2158,7 +2166,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1272,
+   "line": 1295,
    "errors": [],
    "keys": [
     "items"
@@ -2189,7 +2197,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1287,
+   "line": 1310,
    "errors": [
     "422"
    ],
@@ -2220,7 +2228,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1307,
+   "line": 1330,
    "errors": [
     "404"
    ],
@@ -2246,7 +2254,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/kis_monitor.py",
-   "line": 87,
+   "line": 88,
    "errors": [],
    "keys": [],
    "body": [],
@@ -2267,7 +2275,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/kis_monitor.py",
-   "line": 215,
+   "line": 220,
    "errors": [],
    "keys": [
     "total",
@@ -2555,7 +2563,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 26,
+   "line": 27,
    "errors": [
     "404",
     "422"
@@ -2587,7 +2595,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 43,
+   "line": 44,
    "errors": [
     "404",
     "422"
@@ -2618,7 +2626,7 @@
     "RFP2-3.1.4-④"
    ],
    "file": "app/routes/ml.py",
-   "line": 92,
+   "line": 93,
    "errors": [
     "422"
    ],
@@ -2643,7 +2651,7 @@
    "part": "P-C",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 111,
+   "line": 112,
    "errors": [],
    "keys": [
     "risk_profile",
@@ -2671,7 +2679,7 @@
    "part": "P-C",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 121,
+   "line": 122,
    "errors": [
     "404"
    ],
@@ -2706,7 +2714,7 @@
     "RFP2-3.1.4-④"
    ],
    "file": "app/routes/ml.py",
-   "line": 135,
+   "line": 137,
    "errors": [
     "422"
    ],
@@ -2741,7 +2749,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 328,
+   "line": 326,
    "errors": [],
    "keys": [
     "questions",
@@ -2765,7 +2773,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 334,
+   "line": 332,
    "errors": [
     "422"
    ],
@@ -2790,7 +2798,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 344,
+   "line": 342,
    "errors": [],
    "keys": [],
    "body": [
@@ -2819,7 +2827,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 352,
+   "line": 350,
    "errors": [
     "422"
    ],
@@ -2853,7 +2861,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 375,
+   "line": 373,
    "errors": [
     "404",
     "422"
@@ -2885,7 +2893,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 392,
+   "line": 390,
    "errors": [
     "404",
     "422"
@@ -5104,6 +5112,7 @@
     "야후",
     "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
@@ -5122,7 +5131,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/dashboard.py",
-   "line": 165,
+   "line": 170,
    "errors": [],
    "keys": [
     "tabs",
@@ -6388,7 +6397,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/learn.py",
-   "line": 69,
+   "line": 54,
    "errors": [],
    "keys": [
     "contract",
@@ -6416,101 +6425,9 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/learn.py",
-   "line": 91,
+   "line": 75,
    "errors": [
     "401",
-    "404"
-   ],
-   "keys": [
-    "history_url"
-   ],
-   "body": [],
-   "schema": true
-  },
-  {
-   "id": "API-LRN-03",
-   "router": "learn",
-   "method": "POST",
-   "path": "/api/learn/pages",
-   "summary": "",
-   "auth": "세션",
-   "reaches": [
-    "외부"
-   ],
-   "hosts": [
-    "huggingface.co"
-   ],
-   "screens": [],
-   "part": "P-A",
-   "req": [],
-   "file": "app/routes/learn.py",
-   "line": 109,
-   "errors": [
-    "409"
-   ],
-   "keys": [
-    "slug",
-    "version",
-    "commit"
-   ],
-   "body": [
-    "PageIn"
-   ],
-   "schema": true
-  },
-  {
-   "id": "API-LRN-04",
-   "router": "learn",
-   "method": "PUT",
-   "path": "/api/learn/pages/{slug}",
-   "summary": "",
-   "auth": "세션",
-   "reaches": [
-    "외부"
-   ],
-   "hosts": [
-    "huggingface.co"
-   ],
-   "screens": [],
-   "part": "P-A",
-   "req": [],
-   "file": "app/routes/learn.py",
-   "line": 124,
-   "errors": [
-    "400",
-    "404"
-   ],
-   "keys": [
-    "slug",
-    "version",
-    "commit",
-    "changed"
-   ],
-   "body": [
-    "PageUpdate"
-   ],
-   "schema": true
-  },
-  {
-   "id": "API-LRN-05",
-   "router": "learn",
-   "method": "DELETE",
-   "path": "/api/learn/pages/{slug}",
-   "summary": "",
-   "auth": "세션",
-   "reaches": [
-    "외부"
-   ],
-   "hosts": [
-    "huggingface.co"
-   ],
-   "screens": [],
-   "part": "P-A",
-   "req": [],
-   "file": "app/routes/learn.py",
-   "line": 143,
-   "errors": [
-    "400",
     "404"
    ],
    "keys": [],
@@ -6534,7 +6451,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/learn.py",
-   "line": 160,
+   "line": 96,
    "errors": [
     "404"
    ],
@@ -6551,7 +6468,7 @@
    "router": "learn",
    "method": "POST",
    "path": "/api/learn/sync",
-   "summary": "",
+   "summary": "관리자만 — 일반 사용자는 5분마다 저절로 받은 글을 본다(화면의 「새로 받기」 도 관리자에게만 · 2026-10-19 결정).",
    "auth": "세션",
    "reaches": [
     "외부"
@@ -6563,8 +6480,10 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/learn.py",
-   "line": 172,
-   "errors": [],
+   "line": 108,
+   "errors": [
+    "403"
+   ],
    "keys": [
     "team"
    ],

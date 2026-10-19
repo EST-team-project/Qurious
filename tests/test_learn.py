@@ -5,9 +5,9 @@
 
 1. 규격: 머리말 읽기 · 쓰기가 왕복하고, 틀린 칸은 어느 칸인지 알려 준다. 팀 자료만 글 속 실행 조각을 거절한다.
 2. 판: 글의 판(git 블롭 해시)이 `git hash-object` 와 같다 — HF 의 blob_id 와 비교하는 근거다.
-3. 팀 자료 저장소(가짜 HF): 새 글 · 고치기 · 지우기 · 낡은 판은 Conflict · 다른 글 때문의 412 는 한 번 다시 ·
-   내 글이 바뀐 412 는 Conflict · 권한 없음은 403 · 받아 오기가 더하고 바꾸고 지운다 · 해시가 다르면 쓰지 않는다.
-4. API: 기본 교재는 로그인 없이 · 팀 자료 읽기 · 쓰기는 로그인 뒤 · 기본 교재 이름은 팀 자료가 못 쓴다.
+3. 팀 자료 저장소(가짜 HF): 앱은 읽기만 한다(2026-10-19 D133 — 쓰기 기능을 없앰) · 받아 오기가 더하고 바꾸고 지운다 ·
+   해시가 다르면 쓰지 않는다 · 고친 기록은 커밋 제목으로 그 글만 · 토큰이 없으면 「꺼짐」.
+4. API: 기본 교재는 로그인 없이 · 팀 자료 읽기는 로그인 뒤 · 쓰기 길(새 글 · 고치기 · 지우기)은 없다 · HF 주소는 관리자에게만.
 5. 교재: 기본 교재 35편이 규격 · 링크 · 선수 장을 지키고, 3.1 RAG 장의 「직접 해 보기」 출력이 지금 예제 코드와 같다.
 
 네트워크 · DB 없이 돈다(HF 는 가짜, 로그인은 의존성 덮어쓰기).
@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import types
 from pathlib import Path
@@ -210,64 +211,28 @@ def store(tmp_path, fake):
     return s
 
 
-def test_create_update_delete_and_history(store, fake):
-    """TC-LN-05 · 새 글 → 고치기 → 지우기가 커밋 셋이 되고, 이력은 커밋 제목으로 그 글만 거른다."""
-    page, oid = store.create(dict(META), "첫 판", "이동원", builtin_slugs={"rag-basics"})
-    assert oid == fake.head and fake.files()["pages/team-note.md"] == page.text.encode()
-    assert page.meta["owner"] == "이동원" and page.meta["updated_by"] == "이동원"
-    page2, oid2 = store.update("team-note", dict(META), "둘째 판", page.version, "신장환")
-    assert oid2 and page2.meta["owner"] == "이동원" and page2.meta["updated_by"] == "신장환"
-    same, none = store.update("team-note", dict(META), "둘째 판", page2.version, "신장환")
-    assert none is None and same.version == page2.version            # 바뀐 것이 없으면 커밋하지 않는다
-    store.delete("team-note", page2.version, "이동원")
-    assert "pages/team-note.md" not in fake.files() and store.pages() == {}
-    titles = [h["title"] for h in store.history("team-note")]
-    assert titles == ["learn: team-note 지움 (이동원)", "learn: team-note 고침 (신장환)", "learn: team-note 새 글 (이동원)"]
-
-
-def test_stale_version_is_a_conflict_with_the_current_page(store, fake):
-    """TC-LN-06 · 내가 연 판이 낡았으면 Conflict — 지금 글을 함께 돌려주고 덮어쓰지 않는다."""
-    v1 = store.create(dict(META), "첫 판", "이동원", set())[0].version
-    v2 = store.update("team-note", dict(META), "둘째 판", v1, "오준영")[0].version
-    before = fake.head
-    with pytest.raises(lt.Conflict) as e:
-        store.update("team-note", dict(META), "낡은 판에서 고침", v1, "이동원")
-    assert e.value.current.version == v2 and fake.head == before
-    with pytest.raises(lt.Conflict):
-        store.delete("team-note", v1, "이동원")
-
-
-def test_412_from_another_page_retries_once(store, fake):
-    """TC-LN-07 · 동기화와 커밋 사이에 **다른 글**이 바뀌어 412 가 나면 새로 받고 한 번 다시 커밋한다."""
-    v1 = store.create(dict(META), "첫 판", "이동원", set())[0].version
-    fake.race = {"pages/other-note.md": page_text("other-note", "다른 사람 글").encode()}
-    page, oid = store.update("team-note", dict(META), "둘째 판", v1, "이동원")
-    assert oid == fake.head and fake.calls.count("create_commit") == 3      # 새 글 1 + 412 1 + 다시 1
+def test_history_lists_only_that_pages_commits(store, fake):
+    """TC-LN-05 · 고친 기록은 HF 커밋 제목 「learn: <slug> 」 으로 그 글만 거른다 — 앱은 쓰지 않고(D133) 이동원이 HF 에서 직접 커밋한다."""
+    fake.push({"pages/team-note.md": page_text(body="첫 판").encode()}, "learn: team-note 새 글 (이동원)")
+    fake.push({"pages/other-note.md": page_text("other-note").encode()}, "learn: other-note 새 글 (이동원)")
+    fake.push({"pages/team-note.md": page_text(body="둘째 판").encode()}, "learn: team-note 고침 (이동원)")
+    store.sync()
     assert set(store.pages()) == {"team-note", "other-note"}
+    titles = [h["title"] for h in store.history("team-note")]
+    assert titles == ["learn: team-note 고침 (이동원)", "learn: team-note 새 글 (이동원)"]
+    assert "create_commit" not in fake.calls                          # 앱은 HF 에 쓰지 않는다
 
 
-def test_412_from_my_page_is_a_conflict(store, fake):
-    """TC-LN-07b · 경합으로 끼어든 변경이 **내 글**이면 다시 시도하지 않고 Conflict."""
-    v1 = store.create(dict(META), "첫 판", "이동원", set())[0].version
-    theirs = page_text(body="강민석이 먼저 고침").encode()
-    fake.race = {"pages/team-note.md": theirs}
-    with pytest.raises(lt.Conflict) as e:
-        store.update("team-note", dict(META), "내 고침", v1, "이동원")
-    assert e.value.current.text.encode() == theirs
-
-
-def test_permission_error_and_missing_token(store, fake, tmp_path):
-    """TC-LN-08 · 쓰기 권한이 없으면 403 으로, 토큰이 없으면 503 「꺼짐」 으로 알린다."""
-    fake.fail_next_commit = 403
-    with pytest.raises(lt.TeamStoreError) as e:
-        store.create(dict(META), "본문", "이동원", set())
-    assert e.value.status == 403
+def test_missing_token_turns_the_team_store_off(tmp_path):
+    """TC-LN-08 · 토큰이 없으면 「꺼짐」 으로 알리고 고친 기록도 503 · 상태에 쓰기 칸이 없고 저장소에 쓰기 함수가 없다(D133)."""
     off = lt.TeamStore(api_factory=lambda: None, cache_dir=tmp_path / "off")
     off.maybe_sync()
-    assert off.status()["state"] == "off" and off.status()["editable"] is False
+    st = off.status()
+    assert st["state"] == "off" and "editable" not in st
     with pytest.raises(lt.TeamStoreError) as e:
-        off.create(dict(META), "본문", "이동원", set())
+        off.history("team-note")
     assert e.value.status == 503
+    assert not any(hasattr(lt.TeamStore, name) for name in ("create", "update", "delete", "_commit"))
 
 
 def test_sync_adds_updates_removes_and_skips_corrupt_downloads(store, fake):
@@ -304,13 +269,6 @@ def test_broken_team_file_is_listed_not_hidden(store, fake):
     assert [e["file"] for e in store.status()["errors"]] == ["bad-note.md"]
 
 
-def test_create_rejects_builtin_slug(store):
-    """TC-LN-10 · 팀 자료는 기본 교재와 같은 slug 를 쓸 수 없다(기본 교재를 가리지 못하게)."""
-    with pytest.raises(lp.PageError) as e:
-        store.create({**META, "slug": "rag-basics"}, "x", "이동원", builtin_slugs={"rag-basics"})
-    assert e.value.field == "slug"
-
-
 # ── 4. API ───────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -327,46 +285,79 @@ def login(app, name="시험 사용자"):
     app.dependency_overrides[get_optional_user] = lambda: user
 
 
-def test_builtin_pages_are_public_team_pages_need_login(client, store):
-    """TC-LN-11 · 기본 교재는 로그인 없이 읽고, 팀 자료는 목록에도 안 보이며 읽기 · 쓰기는 401."""
-    store.create(dict(META), "팀 메모", "이동원", set())
+def test_builtin_pages_are_public_team_pages_need_login(client, store, fake):
+    """TC-LN-11 · 기본 교재는 로그인 없이 읽고, 팀 자료는 목록에도 안 보이며 읽기는 401."""
+    fake.push({"pages/team-note.md": page_text(body="팀 메모").encode()}, "learn: team-note 새 글 (이동원)")
+    store.sync()
     c = TestClient(client)
     cat = c.get("/api/learn/catalog").json()
     assert cat["team"]["state"] == "login_required"
     assert {p["store"] for p in cat["pages"]} == {"builtin"}
     assert c.get("/api/learn/pages/rag-basics").status_code == 200
     assert c.get("/api/learn/pages/team-note").status_code == 401
-    assert c.post("/api/learn/pages", json={"meta": META, "body": "x"}).status_code == 401
 
 
-def test_logged_in_crud_and_conflict_through_api(client):
-    """TC-LN-12 · 로그인하면 새 글 201 · 고치기 200 · 낡은 판 409(지금 글 포함) · 지우기 204."""
-    login(client)
-    c = TestClient(client)
-    r = c.post("/api/learn/pages", json={"meta": META, "body": "첫 판"})
-    assert r.status_code == 201
-    v1 = r.json()["version"]
-    r = c.put("/api/learn/pages/team-note", json={"meta": META, "body": "둘째 판", "base_version": v1})
-    assert r.status_code == 200 and r.json()["changed"] is True
-    v2 = r.json()["version"]
-    r = c.put("/api/learn/pages/team-note", json={"meta": META, "body": "낡은 판", "base_version": v1})
-    assert r.status_code == 409 and r.json()["detail"]["current"]["version"] == v2
-    cat = c.get("/api/learn/catalog").json()
-    assert any(p["slug"] == "team-note" and p["store"] == "team" for p in cat["pages"])
-    assert c.delete(f"/api/learn/pages/team-note?base_version={v2}").status_code == 204
-    assert c.get("/api/learn/pages/team-note").status_code == 404
-
-
-def test_api_rejects_builtin_writes_and_bad_input(client):
-    """TC-LN-13 · 기본 교재는 앱에서 못 고치고(400), 규격 위반은 어느 칸인지 400 으로 알린다."""
+def test_no_write_path_and_team_pages_are_read_only(client, store, fake):
+    """TC-LN-12 · 쓰기 길이 없다(D133) — 로그인해도 새 글 · 고치기 · 지우기 요청은 404 · 405 이고 HF 에 커밋하지 않는다 ·
+    로그인한 사람은 팀 자료를 읽고, HF 주소(history_url)는 관리자에게만."""
+    fake.push({"pages/team-note.md": page_text(body="팀 메모").encode()}, "learn: team-note 새 글 (이동원)")
     login(client)
     c = TestClient(client)
     v = "0" * 40
-    assert c.put("/api/learn/pages/rag-basics", json={"meta": META, "body": "x", "base_version": v}).status_code == 400
-    assert c.delete(f"/api/learn/pages/rag-basics?base_version={v}").status_code == 400
-    r = c.post("/api/learn/pages", json={"meta": {**META, "section": "misc"}, "body": "x"})
-    assert r.status_code == 400 and r.json()["detail"]["field"] == "section"
-    assert c.put("/api/learn/pages/team-note", json={"meta": META, "body": "x", "base_version": "not-a-sha"}).status_code == 422
+    assert c.post("/api/learn/pages", json={"meta": META, "body": "x"}).status_code in (404, 405)
+    assert c.put("/api/learn/pages/team-note", json={"meta": META, "body": "x", "base_version": v}).status_code == 405
+    assert c.delete(f"/api/learn/pages/team-note?base_version={v}").status_code == 405
+    assert "create_commit" not in fake.calls
+    cat = c.get("/api/learn/catalog").json()
+    assert any(p["slug"] == "team-note" and p["store"] == "team" for p in cat["pages"])
+    page = c.get("/api/learn/pages/team-note").json()
+    assert page["meta"]["slug"] == "team-note" and "history_url" not in page          # 일반 사용자 — HF 주소 없음
+    admin = {"id": "a1", "name": "관리자", "email": "a@example.com", "roles": ["admin"]}
+    client.dependency_overrides[get_current_user] = lambda: admin
+    client.dependency_overrides[get_optional_user] = lambda: admin
+    assert c.get("/api/learn/pages/team-note").json()["history_url"].startswith("https://huggingface.co/datasets/")
+
+
+def test_team_repo_name_and_server_text_are_for_admins_only(client, store):
+    """TC-LN-20 · 저장소 이름 · 서버 글 · 「새로 받기」 는 관리자에게만 — 익명 · 일반 사용자 응답엔 칸이 없고 새로 받기는 403(2026-10-19 결정)."""
+    c = TestClient(client)
+    anon = c.get("/api/learn/catalog").json()["team"]
+    assert anon == {"state": "login_required", "admin": False}
+    login(client)                                                    # 일반 사용자 — 역할 칸 없음
+    store.sync()
+    team = c.get("/api/learn/catalog").json()["team"]
+    assert set(team) <= {"state", "synced_at", "admin"} and team["admin"] is False
+    assert store.repo_id not in json.dumps(c.get("/api/learn/catalog").json(), ensure_ascii=False)
+    r = c.post("/api/learn/sync")
+    assert r.status_code == 403 and r.json()["detail"]["code"] == "LEARN_ADMIN_ONLY"
+    admin = {"id": "a1", "name": "관리자", "email": "a@example.com", "roles": ["admin"]}
+    client.dependency_overrides[get_current_user] = lambda: admin
+    client.dependency_overrides[get_optional_user] = lambda: admin
+    team = c.get("/api/learn/catalog").json()["team"]
+    assert team["admin"] is True and team["repo"] == store.repo_id and "message" in team
+    r = c.post("/api/learn/sync")
+    assert r.status_code == 200 and r.json()["team"]["repo"] == store.repo_id
+
+
+def test_learn_page_shows_repo_and_sync_button_only_for_admins():
+    """TC-LN-20b · 화면도 같은 약속 — 띠의 저장소 이름 · 「새로 받기」 · 팀 자료 머리의 HF 글은 t.admin 일 때만 그린다."""
+    js = (ROOT / "public" / "learn" / "learn.js").read_text(encoding="utf-8")
+    status = js[js.index("function renderStatus"):js.index("async function syncNow")]
+    assert "t.admin && t.repo" in status and "t.admin && t.state" in status
+    general = status[status.index("} : {"):status.index("})[t.state]")]          # 일반 사용자 글 묶음
+    assert "HF" not in general and "저장소" not in general and 'ok: "팀 자료"' in general
+    assert status.index("HF 토큰 없음") < status.index("} : {")                       # 개발 낱말은 관리자 묶음에만
+    team = js[js.index("function renderTeam"):js.index("html += teamNotice(t);")]
+    assert team.index("t.admin") < team.index("HF 비공개 데이터셋")
+
+
+def test_learn_screen_has_no_editor():
+    """TC-LN-21 · 화면에도 쓰기 길이 없다(D133) — 편집기 · 새 글 링크 · 쓰기 요청이 없고, 옛 편집기 주소는 팀 자료로 보낸다."""
+    js = (ROOT / "public" / "learn" / "learn.js").read_text(encoding="utf-8")
+    html = (ROOT / "public" / "learn" / "index.html").read_text(encoding="utf-8")
+    assert "renderEditor" not in js and 'method: "PUT"' not in js and 'method: "DELETE"' not in js
+    assert 'api("/pages", { method: "POST"' not in js and 'href="#/new"' not in js and "link-new" not in html
+    assert 'if (head === "new" || head === "edit") { location.replace("#/team"); return; }' in js
 
 
 def test_main_registers_router_and_learn_site():

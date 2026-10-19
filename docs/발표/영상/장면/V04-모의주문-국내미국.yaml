@@ -1,12 +1,13 @@
 # V04 — 가상 돈으로 국내 · 미국 주식을 주문해 본다
 # 화면: 모의투자 › 국내주식 모의주문 (paper-stock · 주담당 강민석) · 미국주식 › 주문/매매 (us-order · 주담당 이동원)
-# 장이 닫힌 날 첫 판: 국내는 미리 보기까지 · 미국은 다음 정규장 예약 → 취소. 장중에 다시 찍으면 국내 체결까지 넣는다.
+# 장중 판(2026-10-19): 국내는 시장가 매수 체결까지 · 미국은 한국 낮에 정규장이 닫혀 있어 다음 정규장 예약 → 취소.
+#   (10-17 첫 판은 장이 닫힌 날이라 국내는 미리 보기까지였다)
 file: V04-모의주문-국내미국
 title: 가상 돈으로 국내 · 미국 주식을 주문해 봅니다
 owner: 강민석 · 이동원
 start: paper-stock
 mask: ["#alpaca-key", "#alpaca-secret"]
-dialogs: accept      # 예약 취소가 브라우저 확인 창을 쓰면 「확인」
+dialogs: accept      # 시장가 매수 · 예약 취소의 브라우저 확인 창은 「확인」
 steps:
   - chapter: {label: "1 / 3 · 목적", title: "가상 돈으로 먼저 해 봅니다", text: "모의 계좌(가상 1억 원)로 주문하고, 비용까지 미리 확인합니다", sec: 3.5}
   - say: "종목 코드를 넣고 시세를 조회합니다"
@@ -19,7 +20,12 @@ steps:
   - click: "#ps-preview-buy"
   - pause: 2.0
   - ring: {target: "#ps-preview", sec: 3.0}
-  - chapter: {label: "2 / 3 · 과정", title: "장이 닫힌 날에는 예약으로", text: "미국 주식은 장이 닫혀 있으면 다음 정규장 시작가로 예약합니다", sec: 3.0}
+  - say: "시장가 매수 — 지연 현재가로 바로 체결되고 보유 종목에 들어갑니다"
+  - click: "#ps-buy"
+  - wait: {target: "#ps-positions table", timeout: 20}
+  - pause: 1.5
+  - ring: {target: "#ps-positions", sec: 2.5}
+  - chapter: {label: "2 / 3 · 과정", title: "미국 장이 닫힌 시간에는 예약으로", text: "한국 낮에는 미국 정규장이 닫혀 있어, 다음 정규장 시작가로 예약합니다", sec: 3.0}
   - go: us-order
   - fill: {target: "#us-ord-symbol", text: "AAPL"}
   - pause: 2.0

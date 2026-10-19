@@ -76,6 +76,8 @@ def test_dv03_head_version_reads_three_header_styles():
   assert docs_scan.head_version("| **문서 버전** | v0.11 (Patch — 응답 칸 둘) |") == "0.11"
   assert docs_scan.head_version("# 문서 그림 지침 v0.4 — 그림\n") == "0.4"
   assert docs_scan.head_version("# 메모\n본문의 v1.2 는 판이 아니다\n") is None
+  assert docs_scan.head_version("| 머리표 | 내용 |\n|---|---|\n| 판 | v0.2 (2026-10-18 · 새 메뉴) |\n") == "0.2"   # 굵지 않은 칸(영상 README)
+  assert docs_scan.head_version("| 판 | 날짜 | 바뀐 것 |\n| v0.2 | 2026-10-18 | x |\n") is None             # 개정 이력 머리는 판이 아니다
 
 
 def test_dv04_check_finds_top_versioned_and_orphan_copies(tmp_path):
@@ -91,3 +93,58 @@ def test_dv04_check_finds_top_versioned_and_orphan_copies(tmp_path):
   assert len(got) == 2
   assert any("맨 위에 판 붙은 문서" in g and "RTM_v1.13.md" in g for g in got)
   assert any("짝 없는 지난판 사본" in g and "동작원리_v0.1.md" in g for g in got)
+
+
+DECK = ('<!--\n  2차 발표 자료 v0.1 (2026-10-17 초안) — 틀\n-->\n<!doctype html><html><head><title>t</title></head><body>\n'
+        '<video controls poster="../영상/파일/발표/P-V07.jpg" src="../영상/파일/발표/P-V07.mp4"></video>\n'
+        '<img src="img/a.png"> <a href="#s3">셋째 장</a> <a href="https://example.com/x.html">밖</a>\n'
+        '<video src="media/없는.webm"></video> <p>본문의 v9.9 는 판이 아니다</p>\n</body></html>\n')
+
+
+def _deck_tree(tmp_path):
+  (tmp_path / "docs/발표/영상/파일/발표").mkdir(parents=True)
+  (tmp_path / "docs/발표/2차/img").mkdir(parents=True)
+  for f in ("P-V07.mp4", "P-V07.jpg"):
+    (tmp_path / "docs/발표/영상/파일/발표" / f).write_bytes(b"x")
+  (tmp_path / "docs/발표/2차/img/a.png").write_bytes(b"x")
+  p = tmp_path / "docs/발표/2차/발표자료.html"
+  p.write_bytes(DECK.replace("\n", "\r\n").encode("utf-8"))
+  return p
+
+
+def test_dv05_bump_presentation_html_moves_media_links(tmp_path):
+  """TC-DV-05 · 발표 자료(docs/발표/<묶음>/<이름>.html) — 사본 = 그 묶음의 지난판/<이름>_v<판>.html · 영상(src · poster) · 그림 · 링크는
+  새 자리에 맞춤(사본에서도 재생) · 문서 안 · 주소 · 없는 파일은 그대로 · 줄 끝 그대로(2026-10-19 사용자 「발표 자료가 판 관리로 갱신이 안 됐다」)."""
+  src = _deck_tree(tmp_path)
+  before = src.read_bytes()
+  dst = docs_scan.bump(src, root=tmp_path)
+  assert dst == tmp_path / "docs/발표/2차/지난판/발표자료_v0.1.html"
+  out = dst.read_bytes().decode("utf-8")
+  assert 'poster="../../영상/파일/발표/P-V07.jpg" src="../../영상/파일/발표/P-V07.mp4"' in out
+  assert '<img src="../img/a.png">' in out and 'href="#s3"' in out and 'href="https://example.com/x.html"' in out
+  assert 'src="media/없는.webm"' in out                                   # 원래 없던 파일은 고치지 않는다
+  assert out.count("\r\n") == before.decode("utf-8").count("\r\n") and src.read_bytes() == before
+
+
+def test_dv06_html_version_meta_first_then_first_comment():
+  """TC-DV-06 · HTML 판 읽기 — <meta name="doc-version"> 가 먼저 · 없으면 첫 주석의 vX.Y · 본문 · 뒤 주석의 vX.Y 는 판이 아니다."""
+  assert docs_scan.head_version(DECK, html=True) == "0.1"
+  meta = '<!-- 2차 발표 자료 v0.1 -->\n<head><meta name="doc-version" content="0.2"></head>'
+  assert docs_scan.head_version(meta, html=True) == "0.2"
+  assert docs_scan.head_version("<html><p>v1.2</p><!-- 나중 주석 v3.4 --></html>", html=True) is None
+
+
+def test_dv07_check_covers_presentation_bundles(tmp_path):
+  """TC-DV-07 · 검사가 발표 묶음 폴더(docs/발표/<묶음>/)도 본다 — md · html 의 맨 위 판 붙은 이름 · 짝 없는 지난판 사본."""
+  src = _deck_tree(tmp_path)
+  docs_scan.bump(src, root=tmp_path)
+  assert docs_scan.check(root=tmp_path) == []
+  (tmp_path / "docs/발표/2차/발표자료_v0.3.html").write_text(DECK, encoding="utf-8")
+  (tmp_path / "docs/발표/영상/지난판").mkdir()
+  (tmp_path / "docs/발표/영상/지난판/README_v0.1.md").write_text("x", encoding="utf-8")
+  got = docs_scan.check(root=tmp_path)
+  assert len(got) == 2
+  assert any("맨 위에 판 붙은 문서" in g and "발표자료_v0.3.html" in g for g in got)
+  assert any("짝 없는 지난판 사본" in g and "README_v0.1.md" in g for g in got)
+  (tmp_path / "docs/발표/영상/README.md").write_text("# 영상 v0.2\n", encoding="utf-8")
+  assert len(docs_scan.check(root=tmp_path)) == 1                        # 짝이 생기면 사본은 통과

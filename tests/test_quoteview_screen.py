@@ -9,6 +9,7 @@
 3. us.js 는 서버 값을 그대로 쓴다 — 예시 가격(mockUsPrice) 길이 없고(말없는 fallback) · 머리 글은 응답 `note` ·
    등락률은 서버 `change_p` · `change_pct`(화면이 전일 종가로 다시 셈하지 않는다) · 차트 머리에 시세 시각 · 판단 모듈을 부른다. (TC-QVS-03)
 4. 거시경제 지표 · 산업 분석은 모르는 등락을 「▲ 0.00%」 로 그리지 않는다(서버가 None 을 준다 · DF-123). (TC-QVS-04)
+5. 거시경제 지표 · 산업 분석도 숫자 아래에 서버 출처 글(응답 `note` — 지연 시세 · 받은 시각)을 그대로 한 줄 보인다(2026-10-19). (TC-QVS-05)
 """
 from __future__ import annotations
 
@@ -113,3 +114,16 @@ def test_macro_screens_show_dash_for_unknown_change():
         guarded = '${known ? `${isUp ? "▲" : "▼"} ${Math.abs(' + var + '.change_p).toFixed(2)}%` : "—"}'
         assert guarded in body, f"{fn} — 화살표 · % 는 숫자일 때만"
         assert body.count("Math.abs(") == 1, f"{fn} — 지키지 않은 Math.abs 가 남았다"
+
+
+def test_macro_screens_show_server_quote_note():
+    """TC-QVS-05 · 거시경제 지표 · 산업 분석 — 숫자 아래 출처 · 받은 시각 한 줄은 응답 `note` 그대로(화면이 글을 만들지 않는다)."""
+    src = ML.read_text(encoding="utf-8")
+    helper = src[src.index("function macroQuoteNote"):src.index("async function loadMacroDashboard")]
+    assert "el.textContent = note || \"\";" in helper and "innerHTML" not in helper      # 서버 글은 글자로만
+    for fn, call in (("async function loadMacroDashboard", 'macroQuoteNote(grid, "macro-note", data.note);'),
+                     ("async function loadMacroIndustry", 'macroQuoteNote(wrap, "industry-note", data.note);')):
+        i = src.index(fn)
+        body = src[i:src.index("\n}\n", i)]
+        assert call in body, f"{fn} — 응답 note 를 그리지 않는다"
+    assert "야후" not in helper and "지연 시세" not in helper                                  # 출처 낱말은 서버 한 곳

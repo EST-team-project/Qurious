@@ -1,11 +1,11 @@
-/* Qurious 개념 학습 — 주소(#/…)를 보고 목차 · 장 · 팀 자료 · 편집기를 그린다.
+/* Qurious 개념 학습 — 주소(#/…)를 보고 목차 · 장 · 팀 자료를 그린다(팀 자료는 읽기만 — D133).
  *
- * 설계: docs/설계/개념학습-설계.md (8절 화면 · 5.6절 충돌 · 6절 글 규격)
+ * 설계: docs/설계/개념학습-설계.md (8절 화면 · 6절 글 규격)
  *
  * 주소
  *   #/                 목차(기술 개념 · 금융 지식)        #/s/finance   금융 필수 지식만
  *   #/p/<slug>         장 한 편 (?h=제목id 면 그 제목으로)  #/team        팀 자료
- *   #/new              새 글(팀 자료)                     #/edit/<slug> 팀 자료 고치기
+ *   (앱 안 새 글 · 고치기는 없앴다 — 2026-10-19 D133 · 옛 주소 #/new · #/edit/… 는 팀 자료로 보낸다)
  *   #/search?q=…       찾기
  *
  * 글 그리기 — 마크다운 → HTML(marked) → 거르기(DOMPurify) → 후처리(알림 상자 · 출력 상자 · Mermaid · 코드 색칠 · 제목 id)
@@ -121,7 +121,6 @@
     if (data.builtin_errors && data.builtin_errors.length) console.warn("기본 교재 규격 오류", data.builtin_errors);
     renderNav();
     renderStatus();
-    $("#link-new").hidden = !(state.team && state.team.editable);
   }
 
   function navItem(p, current) {
@@ -147,7 +146,7 @@
     html += `<div class="nav-sec"><a class="nav-sec-title" href="#/team"><i class="fa-solid fa-users"></i>팀 자료${team.length ? ` (${team.length})` : ""}</a>`;
     const t = state.team || {};
     if (t.state === "login_required") html += `<div class="nav-empty">로그인하면 보입니다 · <a href="/login.html">로그인</a></div>`;
-    else if (!team.length) html += `<div class="nav-empty">아직 글이 없습니다${t.editable ? ' · <a href="#/new">새 글</a>' : ""}</div>`;
+    else if (!team.length) html += '<div class="nav-empty">아직 글이 없습니다</div>';
     else html += team.map((p) => navItem(p, current)).join("");
     html += "</div>";
     $("#nav-tree").innerHTML = html;
@@ -155,16 +154,20 @@
 
   function renderStatus() {
     const t = state.team || {};
-    const label = {
+    // 저장소 이름 · HF 낱말 · 「새로 받기」 는 관리자에게만 — 서버가 일반 사용자 응답에서 저장소 이름 · 서버 글을 뺀다(2026-10-19 결정)
+    const label = (t.admin ? {
       ok: "팀 자료 저장소 연결됨", off: "HF 토큰 없음 — 팀 자료 꺼짐", missing: "팀 자료 저장소 없음 · 권한 없음",
-      error: "HF 에 닿지 못함 — 마지막으로 받은 글", never: "팀 자료 확인 전", login_required: "로그인하면 팀 자료가 보입니다",
-    }[t.state] || t.state || "";
+      error: "HF 에 닿지 못함 — 마지막으로 받은 글", never: "팀 자료 확인 전",
+    } : {
+      ok: "팀 자료", off: "팀 자료를 지금 볼 수 없습니다", missing: "팀 자료를 지금 볼 수 없습니다",
+      error: "팀 자료 — 마지막으로 받은 글", never: "팀 자료 확인 전", login_required: "로그인하면 팀 자료가 보입니다",
+    })[t.state] || (t.admin ? t.state || "" : "");
     const builtin = state.pages.filter((p) => p.store === "builtin");
     const ready = builtin.filter((p) => p.status === "ready").length;
     $("#statusbar").innerHTML = `<span class="dot ${esc(t.state)}"></span>`
-      + `<span>${esc(label)}${t.repo && t.state !== "login_required" ? ` · ${esc(t.repo)}` : ""}${t.synced_at ? ` · 받은 때 ${esc(fmtTime(t.synced_at))}` : ""}</span>`
+      + `<span>${esc(label)}${t.admin && t.repo ? ` · ${esc(t.repo)}` : ""}${t.synced_at ? ` · 받은 때 ${esc(fmtTime(t.synced_at))}` : ""}</span>`
       + `<span class="muted">· 기본 교재 ${builtin.length}편(완성 ${ready})</span>`
-      + (t.state && t.state !== "login_required" && t.state !== "off" ? '<button type="button" id="btn-sync">새로 받기</button>' : "");
+      + (t.admin && t.state && t.state !== "off" ? '<button type="button" id="btn-sync">새로 받기</button>' : "");
     const btn = $("#btn-sync");
     if (btn) btn.addEventListener("click", syncNow);
   }
@@ -209,8 +212,7 @@
     if (head === "s") return renderHome(arg);
     if (head === "p" && arg) return renderPage(arg, params);
     if (head === "team") return renderTeam();
-    if (head === "new") return renderEditor(null, params);
-    if (head === "edit" && arg) return renderEditor(arg, params);
+    if (head === "new" || head === "edit") { location.replace("#/team"); return; }   // 옛 편집기 주소 — 쓰기는 없앴다(D133)
     if (head === "search") return renderSearch(params.get("q") || "");
     $("#view").innerHTML = '<div class="notice">없는 주소입니다. <a href="#/">목차로</a></div>';
   }
@@ -278,9 +280,9 @@
       m.updated ? `고친 날 ${esc(m.updated)}` : "",
     ].filter(Boolean).join(" · ");
     const actions = data.store === "team"
-      ? `<div class="page-actions"><a class="btn" href="#/edit/${esc(m.slug)}"><i class="fa-solid fa-pen"></i>고치기</a>`
+      ? '<div class="page-actions">'
         + '<button type="button" class="btn" id="btn-history"><i class="fa-solid fa-clock-rotate-left"></i>고친 기록</button>'
-        + (data.history_url ? `<a class="btn" href="${esc(data.history_url)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i>HF 에서 보기</a>` : "")
+        + (data.history_url && state.team && state.team.admin ? `<a class="btn" href="${esc(data.history_url)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i>HF 에서 보기</a>` : "")
         + '</div><div id="history-box"></div>'
       : "";
     view.innerHTML = `<article class="page">
@@ -498,7 +500,7 @@
 
   function teamNotice(t) {
     if (t.state === "login_required") return '<div class="notice warn">팀 자료는 로그인한 뒤 볼 수 있습니다. <a href="/login.html">로그인</a></div>';
-    if (["off", "missing", "error"].includes(t.state)) return `<div class="notice ${t.state === "error" ? "warn" : "bad"}">${esc(t.message || "팀 자료 저장소를 쓸 수 없습니다.")}</div>`;
+    if (["off", "missing", "error"].includes(t.state)) return `<div class="notice ${t.state === "error" ? "warn" : "bad"}">${esc(t.message || (t.admin ? "팀 자료 저장소를 쓸 수 없습니다." : "팀 자료를 지금 볼 수 없습니다."))}</div>`;
     if (t.errors && t.errors.length) return `<div class="notice warn">규격이 깨져 목록에서 뺀 글 ${t.errors.length}편: ${t.errors.map((e) => esc(e.file)).join(", ")}</div>`;
     return "";
   }
@@ -513,10 +515,11 @@
     const t = state.team || {};
     const team = state.pages.filter((p) => p.store === "team");
     let html = '<section class="hero"><p class="crumbs">Qurious · 개념 학습</p><h1>팀 자료</h1>'
-      + `<p>팀원이 앱 편집기로 쓰고 고치는 글입니다. HF 비공개 데이터셋 <code>${esc(t.repo || "")}</code> 에 저장되고, 각자 PC 의 앱이 5분마다 새 글을 받아 옵니다. 같은 글을 둘이 고치면 늦게 저장한 쪽에 알려 주고 덮어쓰지 않습니다.</p></section>`;
+      + (t.admin
+        ? `<p>이동원이 HF 비공개 데이터셋 <code>${esc(t.repo || "")}</code> 에서 직접 쓰고 고치는 글입니다(앱 안 편집기는 없앴습니다 — 2026-10-19). 각자 PC 의 앱이 5분마다 새 글을 받아 옵니다.</p></section>`
+        : "<p>팀이 정리한 학습 자료입니다. 새 글이 생기면 5분 안에 이 목록에 나타납니다.</p></section>");
     html += teamNotice(t);
     html += `<div class="cards"><article class="card"><h2>글 ${team.length}편</h2><div class="meta">${t.synced_at ? `마지막으로 받은 때 ${esc(fmtTime(t.synced_at))}` : ""}</div>`;
-    if (t.editable) html += '<p><a class="btn primary" href="#/new"><i class="fa-solid fa-plus"></i>새 글 쓰기</a></p>';
     if (team.length) html += listItems(team);
     html += "</article></div>";
     $("#view").innerHTML = html;
@@ -534,208 +537,6 @@
     $("#view").innerHTML = `<section class="hero"><p class="crumbs">찾기</p><h1>「${esc(q)}」 — ${hits.length}편</h1></section>`
       + `<div class="cards"><article class="card">${hits.length ? listItems(hits) : '<p class="muted">맞는 장이 없습니다. 꼬리표나 짧은 낱말로 찾아 보세요.</p>'}</article></div>`;
     document.title = `찾기: ${q} — Qurious 개념 학습`;
-  }
-
-  // ── 편집기 (팀 자료) ──────────────────────────────────────────────
-
-  const FIELDS = [
-    ["title", "제목", "text", "wide"], ["slug", "slug(주소 · 영문)", "text", ""], ["section", "구역", "select", ""],
-    ["part", "부(목차 묶음)", "text", ""], ["order", "정렬 번호(부.장)", "text", ""], ["status", "상태", "select", ""],
-    ["level", "수준", "select", ""], ["minutes", "읽는 시간(분)", "number", ""], ["tags", "꼬리표(쉼표)", "text", "wide"],
-    ["prereq", "먼저 읽을 장 slug(쉼표)", "text", ""], ["feature", "닿는 요구 ID", "text", ""],
-    ["summary", "한 줄 소개(200자 안)", "text", "full"],
-  ];
-  const OPTIONS = {
-    section: [["tech", "개념 학습(기술)"], ["finance", "금융 필수 지식"]],
-    status: [["draft", "초안"], ["ready", "완성"], ["skeleton", "뼈대"]],
-    level: [["", "—"], ["입문", "입문"], ["기초", "기초"], ["심화", "심화"]],
-  };
-
-  async function renderEditor(slug, params) {
-    const view = $("#view");
-    const t = state.team || {};
-    if (t.state === "login_required") {
-      view.innerHTML = '<div class="notice warn">글을 쓰려면 로그인하세요. <a href="/login.html">로그인</a></div>';
-      return;
-    }
-    let page = null;
-    if (slug) {
-      try {
-        page = await api(`/pages/${encodeURIComponent(slug)}`);
-      } catch (e) {
-        view.innerHTML = `<div class="notice bad">${esc(e.message)}</div>`;
-        return;
-      }
-      if (page.store !== "team") {
-        view.innerHTML = `<div class="notice warn">기본 교재는 앱에서 고치지 않습니다 — 저장소 파일 <code>public/learn/content/${esc(slug)}.md</code> 를 고쳐 PR 로 올리세요.</div>`;
-        return;
-      }
-    }
-    let baseVersion = page ? page.version : null;
-    const meta = page ? { ...page.meta } : {
-      section: params.get("section") === "finance" ? "finance" : "tech", status: "draft", part: "팀 자료", order: "9.1", level: "입문",
-    };
-    const draftKey = `learn-draft:${slug || "new"}`;
-
-    view.innerHTML = `<section class="editor">
-      <div class="crumbs"><a href="#/team">팀 자료</a><span>›</span><span>${slug ? "고치기" : "새 글"}</span></div>
-      <h1>${slug ? `「${esc(meta.title)}」 고치기` : "새 글 쓰기"}</h1>
-      ${teamNotice(t)}
-      <div id="draft-box"></div>
-      <div class="meta-grid" id="meta-grid"></div>
-      <div class="edit-bar">
-        <button type="button" class="btn" id="btn-template"><i class="fa-solid fa-table-list"></i>장 틀 넣기</button>
-        <span class="muted edit-msg" id="edit-msg">쓰는 동안 이 브라우저에 임시 저장됩니다. HF 에는 「저장」 을 눌러야 올라갑니다.</span>
-        <span class="grow"></span>
-        ${slug ? '<button type="button" class="btn danger" id="btn-delete"><i class="fa-solid fa-trash"></i>지우기</button>' : ""}
-        <a class="btn" href="${slug ? `#/p/${esc(slug)}` : "#/team"}">취소</a>
-        <button type="button" class="btn primary" id="btn-save" ${t.editable ? "" : "disabled"}><i class="fa-solid fa-floppy-disk"></i>저장</button>
-      </div>
-      <div id="conflict-box"></div>
-      <div class="edit-split">
-        <div class="edit-body"><textarea id="ed-body" spellcheck="false" aria-label="본문(마크다운)"></textarea></div>
-        <div class="edit-preview" aria-label="미리보기"><div class="prose" id="ed-preview"></div></div>
-      </div>
-    </section>`;
-
-    const grid = $("#meta-grid");
-    grid.innerHTML = FIELDS.map(([key, label, type, span]) => {
-      const id = `ed-${key}`;
-      const value = Array.isArray(meta[key]) ? meta[key].join(", ") : (meta[key] ?? "");
-      if (type === "select") {
-        return `<label class="${span}">${esc(label)}<select id="${id}">${OPTIONS[key].map(([v, l]) => `<option value="${esc(v)}" ${String(value) === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>`;
-      }
-      const ro = key === "slug" && slug ? "readonly" : "";
-      return `<label class="${span}">${esc(label)}<input id="${id}" type="${type}" value="${esc(value)}" ${ro} ${type === "number" ? 'min="1" max="600"' : ""}></label>`;
-    }).join("");
-
-    const body = $("#ed-body");
-    body.value = page ? page.body : "";
-    const preview = $("#ed-preview");
-    const msg = (text, cls = "") => { const m = $("#edit-msg"); m.textContent = text; m.className = `edit-msg ${cls}`; };
-
-    function collect() {
-      const out = {};
-      for (const [key] of FIELDS) {
-        const v = $(`#ed-${key}`).value.trim();
-        if (!v) continue;
-        out[key] = key === "minutes" ? Number(v) : v;
-      }
-      return out;
-    }
-
-    let timer = null;
-    const refresh = () => {
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
-        await renderMarkdown(body.value, preview);
-        local.set(draftKey, JSON.stringify({ meta: collect(), body: body.value, base: baseVersion, at: Date.now() }));
-      }, 450);
-    };
-    body.addEventListener("input", refresh);
-    grid.addEventListener("input", refresh);
-    await renderMarkdown(body.value, preview);
-
-    // 임시 저장이 남아 있으면 — 저장하지 못하고 떠났거나 충돌로 다시 연 경우
-    const saved = local.get(draftKey);
-    if (saved) {
-      try {
-        const d = JSON.parse(saved);
-        if (d.body !== body.value) {
-          $("#draft-box").innerHTML = `<div class="notice warn">${esc(fmtTime(new Date(d.at).toISOString()))} 에 임시 저장된 글이 있습니다. `
-            + '<button type="button" class="btn" id="btn-draft-load">불러오기</button> <button type="button" class="btn" id="btn-draft-drop">버리기</button></div>';
-          $("#btn-draft-load").addEventListener("click", async () => {
-            for (const [key] of FIELDS) {
-              if (key === "slug" && slug) continue;
-              const v = d.meta[key];
-              $(`#ed-${key}`).value = Array.isArray(v) ? v.join(", ") : (v ?? "");
-            }
-            body.value = d.body;
-            $("#draft-box").innerHTML = "";
-            await renderMarkdown(body.value, preview);
-          });
-          $("#btn-draft-drop").addEventListener("click", () => { local.del(draftKey); $("#draft-box").innerHTML = ""; });
-        }
-      } catch { local.del(draftKey); }
-    }
-
-    $("#btn-template").addEventListener("click", () => {
-      if (body.value.trim() && !confirm("지금 본문 뒤에 장 틀을 붙일까요?")) return;
-      body.value = body.value.trim() ? `${body.value.trim()}\n\n${TEMPLATE}` : TEMPLATE;
-      refresh();
-    });
-
-    function markBad(field) {
-      grid.querySelectorAll(".bad").forEach((x) => x.classList.remove("bad"));
-      body.classList.remove("bad");
-      const el = field === "body" ? body : $(`#ed-${field}`);
-      if (el) { el.classList.add("bad"); el.focus(); }
-    }
-
-    function showConflict(detail) {
-      const cur = detail && detail.current;
-      local.set(draftKey, JSON.stringify({ meta: collect(), body: body.value, base: baseVersion, at: Date.now() }));
-      const box = $("#conflict-box");
-      if (!cur) {
-        box.innerHTML = `<div class="conflict"><h2>이 글이 그사이 지워졌습니다</h2><p>${esc(detail ? detail.message : "")} 내 글은 이 브라우저에 임시 저장해 두었습니다 — 새 글로 다시 만들 수 있습니다.</p></div>`;
-        return;
-      }
-      box.innerHTML = `<div class="conflict"><h2>다른 사람이 먼저 고쳤습니다</h2>
-        <p>${esc(detail.message)} 지금 글은 <b>${esc(cur.meta.updated_by || cur.meta.owner || "")}</b> 님이 ${esc(cur.meta.updated || "")} 에 고친 판입니다. 내 글은 임시 저장해 두었습니다.</p>
-        <details><summary>지금 글 보기</summary><pre>${esc(cur.body)}</pre></details>
-        <p style="margin-top:10px"><button type="button" class="btn" id="btn-take-theirs">지금 글로 다시 열기(내 글은 임시 저장에서 불러올 수 있음)</button>
-        <button type="button" class="btn danger" id="btn-overwrite">내 글로 덮어쓰기</button></p></div>`;
-      $("#btn-take-theirs").addEventListener("click", () => route());
-      $("#btn-overwrite").addEventListener("click", () => {
-        if (!confirm("지금 글을 내 글로 덮어씁니다. 지금 글은 HF 이력에 남습니다. 계속할까요?")) return;
-        baseVersion = cur.version;
-        save();
-      });
-    }
-
-    async function save() {
-      const m = collect();
-      msg("저장하는 중…");
-      $("#btn-save").disabled = true;
-      try {
-        if (!slug) {
-          const r = await api("/pages", { method: "POST", body: JSON.stringify({ meta: m, body: body.value }) });
-          local.del(draftKey);
-          await loadCatalog(true);
-          location.hash = `#/p/${r.slug}`;
-        } else {
-          const r = await api(`/pages/${encodeURIComponent(slug)}`, { method: "PUT", body: JSON.stringify({ meta: m, body: body.value, base_version: baseVersion }) });
-          local.del(draftKey);
-          await loadCatalog(true);
-          if (!r.changed) { msg("바뀐 것이 없어 저장하지 않았습니다.", "ok"); $("#btn-save").disabled = false; return; }
-          location.hash = `#/p/${slug}`;
-        }
-      } catch (e) {
-        $("#btn-save").disabled = false;
-        if (e.status === 409 && e.detail && e.detail.code === "LEARN_CONFLICT") { msg(e.message, "bad"); showConflict(e.detail); return; }
-        if (e.status === 400 && e.detail && e.detail.field) markBad(e.detail.field);
-        if (e.status === 401) { msg("로그인이 풀렸습니다 — 다른 탭에서 로그인한 뒤 다시 저장하세요(글은 임시 저장돼 있습니다).", "bad"); return; }
-        msg(e.message, "bad");
-      }
-    }
-    $("#btn-save").addEventListener("click", save);
-
-    const del = $("#btn-delete");
-    if (del) {
-      del.addEventListener("click", async () => {
-        if (!confirm(`「${meta.title}」 을 지울까요? HF 이력에 남아 되살릴 수 있습니다.`)) return;
-        try {
-          await api(`/pages/${encodeURIComponent(slug)}?base_version=${encodeURIComponent(baseVersion)}`, { method: "DELETE" });
-          local.del(draftKey);
-          await loadCatalog(true);
-          location.hash = "#/team";
-        } catch (e) {
-          if (e.status === 409) { showConflict(e.detail); return; }
-          msg(e.message, "bad");
-        }
-      });
-    }
-    document.title = `${slug ? "고치기" : "새 글"} — Qurious 개념 학습`;
   }
 
   // ── 좁은 화면 목차 서랍 · 찾기 ────────────────────────────────────
