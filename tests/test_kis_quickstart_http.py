@@ -115,3 +115,31 @@ def test_quickstart_승인_없으면_real_설정도_모의로_시작한다(clien
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_KIS_ENVIRONMENT", "real")
     r = c.get("/api/quant/kis/quickstart")
     assert r.json()["environment"] == "paper" and r.json()["ready"] is True
+
+
+@pytest.mark.parametrize('via', ['direct', 'gateway'])
+@pytest.mark.parametrize('allowed', [False, True])
+@pytest.mark.parametrize('mode', ['paper', 'live'])
+def test_execution_label_environment_follows_actual_guard(client, monkeypatch, via, allowed, mode):
+    """#211: legacy paper=False나 mode=live가 실전 환경의 증거는 아니다."""
+    c, db = client
+    monkeypatch.setenv('QURIOUS_ALLOW_LIVE_TRADING', '1' if allowed else '0')
+    monkeypatch.setattr(settings, 'STOCK_COIN_TRADE_BASE_URL', '' if via == 'direct' else 'https://sct.test')
+    monkeypatch.setattr(settings, 'STOCK_COIN_TRADE_KIS_ENVIRONMENT', 'real')
+    db.row.quant_mode, db.row.paper = mode, False
+    result = c.get('/api/quant/settings')
+    assert result.status_code == 200
+    body = result.json()
+    assert body['mode'] == mode
+    assert body['live_gateway']['environment'] == ('real' if allowed else 'paper')
+    assert db.commits == 0 and db.row.paper is False
+
+
+def test_quickstart_then_settings_shows_effective_paper_route(client, monkeypatch):
+    c, db = client
+    monkeypatch.setattr(settings, 'STOCK_COIN_TRADE_BASE_URL', '')
+    with patch.object(qs.auto_trade, 'start_auto_trade', AsyncMock(return_value=True)), patch.object(qs, 'audit', AsyncMock()):
+        assert c.post('/api/quant/kis/quickstart').status_code == 200
+    body = c.get('/api/quant/settings').json()
+    assert body['mode'] == 'live' and body['paper'] is False
+    assert body['live_gateway']['environment'] == 'paper'

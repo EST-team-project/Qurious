@@ -84,7 +84,7 @@ TC-KL	tests/test_legacy_kis_order_managed.py	P02-⑤-1	🟢	게이트웨이가 �
 TC-KL	tests/test_legacy_kis_order_managed.py	RFP2-4.2-①	🟢	승인 없이는 사용자 키 실주문도 모의(paper=True)를 요청한다
 TC-KQ	tests/test_kis_quickstart.py	P02-⑤-1	🟢	「KIS 모의투자 시작」 원클릭 — 경로 판정 · 차단(키 없음 · 실전 · 비상 정지) · 설정 저장 + 자동매매 켜기 · 사용자 키를 남김 · 배치 단독 실행 중이면 시작을 막는다(기본 꺼짐 · 강사님 10-07 · 2건)
 TC-KQ	tests/test_kis_quickstart.py	U10	🟡	원클릭 상태(이미 시작 · 비상 정지 사유)를 대시보드에 돌려준다
-TC-KH	tests/test_kis_quickstart_http.py	P02-⑤-1	🟢	HTTP: 설정 화면에는 가린 키만 · 저장이 사용자 키를 남김 · 원클릭 두 라우트 · 실전이면 409(승인했을 때)
+TC-KH	tests/test_kis_quickstart_http.py	P02-⑤-1	🟢	HTTP: 설정 화면에는 가린 키만 · 저장이 사용자 키를 남김 · 원클릭 두 라우트 · 실전이면 409(승인했을 때) · #211 직접/게이트웨이와 승인 여부별 화면용 실제 환경 · 원클릭 후 설정 재조회
 TC-AG	tests/test_aggressive_mode.py	P02-⑤-2	🟡	공격 모드(기본 꺼짐) — 5분봉 신호 · 익절 · 손절 · 시장가 · 사이클당 매수/매도 수 한도 · 쿨다운 · 일 주문 수 덮어쓰기(강사님 10-07 시험 · 2026-10-08 반영) · 2026-10-12 분봉이 없으면 「판단 불가」 + 판단 근거 칸(as_of · price_source · 강사님 10-08)
 TC-AS	tests/test_auto_status_batch_merge.py	P02-⑤-3	🟡	KIS 배치가 돌면 자동매매 상태 응답에 시스템 사용자 사이클을 [배치] 로 합쳐 보인다(강사님 시험 · 배치 기본 꺼짐)
 TC-BH	tests/test_beat_health.py	P02-⑤-3	🟢	Celery beat 생존 신호 키(1분)와 컨테이너 healthcheck 판정 — 키가 늙으면 실패(강사님 시험)
@@ -93,7 +93,7 @@ TC-KMD	tests/test_kis_market_data.py	P01-①-2	🟡	KIS 시세(게이트웨이 �
 TC-KMO	tests/test_kis_monitor_route.py	P02-⑤-3	🟡	KIS 모의투자 결과 · 실주문 검색 API(API-KMON-01 · 02) — 본인과 시스템 사용자 주문만 · 기간 · 상태 · 쪽 · CSV 칸 · 유니버스 섹터는 우리 목록(손봄)
 TC-RC	tests/test_reconciliation.py	P02-⑤-3	🟡	로그(가상 장부 · 실주문 · 사이클) ↔ KIS 실거래 잔고 정합성 점검 — 불일치 종류 · 열린 주문 시간 · 슬리피지 경보(Qurious 는 점검을 꺼 둠 · 켰을 때의 계산)
 TC-US	tests/test_universe_and_schedule.py	P02-⑤-2	🟢	설정 하나(QUANT_CYCLE_SEC)가 예약 주기 · 만료 · 시간 한도 · 원클릭 주기 · 헬스 표시를 모두 정한다 · 유니버스 형식(KRX 6자리 · 중복 없음) — 값은 TC-BM 이 지킨다(강사님 시험을 우리 값에 맞게 손봄)
-TC-DA	tests/test_dashboard_accounts.py	U9	🟡	통합 대시보드 사이트별 투자액 탭 — KIS 가 첫 탭 · 한 탭이 실패해도 나머지는 보인다(성과 지표 칸은 재지 않는다)
+TC-DA	tests/test_dashboard_accounts.py	U9	🟡	통합 대시보드 사이트별 투자액 탭 — KIS 가 첫 탭 · 한 탭이 실패해도 나머지는 보인다(성과 지표 칸은 재지 않는다) · #211 계좌 탭 모의/실전 이름
 TC-DA	tests/test_dashboard_accounts.py	U10	🟡	KIS 탭의 자동매매 실행 중 · 열린 실주문 수 · 사용자 키로 조회
 TC-QC	tests/test_quant_cycle_integration.py	P02-⑤-2	🟢	자동매매 사이클 통합 — 합격 전략 적용 · 위험 한도 · 실계좌 일손실 한도
 TC-ATI	tests/test_auto_trade_isolation.py	P02-⑤-2	🟢	자동매매 계정 분리(2026-10-16 #207 오준영) — 두 사용자의 사이클 로그 · 즉시 실행 · 중지 · 일손실 한도가 서로 간섭하지 않는다(외부 주문 없음) · 수정 · 검증 기록 docs/시험/자동매매-계정분리-검증.md — 대장 등록은 이동원(RTM 관리)

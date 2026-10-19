@@ -49,7 +49,7 @@ def _f(v, default=0.0) -> float:
 
 async def kis_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     """KIS 모의투자(Testbed) 계좌 — 게이트웨이(stock-coin-trade) 우선, 없으면 이 사용자의 KIS 키로 직접 조회."""
-    tab = _tab("kis", "KIS 모의투자", "한국투자증권 Testbed", link="#settings")
+    tab = _tab("kis", "KIS 계좌", "한국투자증권", link="#settings")
     row = (await db.execute(select(BrokerSettings).where(BrokerSettings.user_id == uid))).scalar_one_or_none()
     from app.services import kis_batch
     batch = await kis_batch.system_status(db)
@@ -64,6 +64,8 @@ async def kis_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     if gateway.is_configured():
         tab["route"] = "stock-coin-trade"
         tab["environment"] = gateway.environment()
+        tab.update(label="KIS 모의투자" if tab["environment"] == "paper" else "KIS 실전투자",
+                   site="한국투자증권 Testbed" if tab["environment"] == "paper" else "한국투자증권 실계좌")
         bal = await gateway.get_balance()
         holdings = bal.get("holdings") or []
         cash = _f(bal.get("cashBalance"))
@@ -79,6 +81,8 @@ async def kis_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
         return tab
     tab["route"] = "kis-direct"
     tab["environment"] = creds.environment
+    tab.update(label="KIS 모의투자" if creds.paper else "KIS 실전투자",
+               site="한국투자증권 Testbed" if creds.paper else "한국투자증권 실계좌")
     client = get_broker_client("kis", creds.app_key, creds.app_secret, paper=creds.paper)
     bal = await client.get_balance(creds.account_no)
     holdings = list(getattr(bal, "holdings", []) or [])
