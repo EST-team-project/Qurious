@@ -93,9 +93,10 @@ function savedWhen(iso) {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map(x => [x.type, x.value]));
   return `${parts.month}월 ${parts.day}일 ${parts.hour}:${parts.minute}`;
 }
-/** 개념 학습 장으로 가는 링크(새 탭 — 고른 탭 · 펼친 묶음을 잃지 않게). 장 이름(slug)은 시험(TC-PD-07)이 교재에 있는지 본다 */
+/** 개념 학습 장으로 가는 링크(새 탭 — 고른 탭 · 펼친 묶음을 잃지 않게 · 2026-10-19 부터 앱 안 장 화면 #learn/<slug>).
+ *  장 이름(slug)은 시험(TC-PD-07)이 교재에 있는지 본다 */
 function learnLink(slug, title) {
-  return `<a class="pd-learn-link" href="/learn/#/p/${slug}" target="_blank" rel="noopener">「${escHtml(title)}」 →</a>`;
+  return `<a class="pd-learn-link" href="/app.html#learn/${slug}" target="_blank" rel="noopener">「${escHtml(title)}」 →</a>`;
 }
 function classLabel(key) {
   const cls = (ov?.classes || []).find(c => c.key === key);

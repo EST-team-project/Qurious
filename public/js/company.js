@@ -100,6 +100,9 @@ async function fetchAndRenderCompany(symbol) {
       d = await api(`/api/stocks/fundamentals?symbol=${encodeURIComponent(symbol)}`);
       companyFundCache[symbol] = d;
     }
+    // 「현재가」 칸은 지금 값(quote_now) — 기업 지표의 야후 값은 6시간 저장본이라 그대로 두면 장중 값과 어긋난다(2026-10-19)
+    const now = await api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`).catch(() => null);
+    if (now?.price != null) d = { ...d, price: now.price, chg: now.change_pct != null ? Number(now.change_pct.toFixed(2)) : d.chg, priceNote: now.label };
     if (selectedCompanySymbol === symbol) renderCompanyData(d);
   } catch (e) {
     overviewEl.innerHTML = `<div class="text-xs" style="color:var(--red);grid-column:1/-1;">데이터 조회 실패: ${escHtml(e.message)}</div>`;
@@ -112,7 +115,7 @@ function renderCompanyData(d) {
 
   // 개요 카드 4개
   document.getElementById("co-overview").innerHTML = [
-    { label:"현재가", value:nfmt(d.price, "원"), sub:d.chg!=null?`${sign}${d.chg}%`:"", subColor:pctColor },
+    { label:"현재가", value:nfmt(d.price, "원"), sub:[d.chg!=null?`${sign}${d.chg}%`:"", d.priceNote || ""].filter(Boolean).join(" · "), subColor:pctColor },
     { label:"시가총액", value:d.cap!=null?`${fmt(Math.round(d.cap/10000))}조원`:"N/A", sub:d.name||"" },
     { label:"EPS", value:nfmt(d.eps, "원"), sub:`PER ${d.per!=null?d.per.toFixed(1)+"x":"N/A"}` },
     { label:"BPS", value:nfmt(d.bps, "원"), sub:`PBR ${d.pbr!=null?d.pbr.toFixed(2)+"x":"N/A"}` },

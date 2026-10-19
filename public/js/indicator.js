@@ -24,12 +24,19 @@ document.getElementById("ind-load-btn").addEventListener("click", async () => {
     const golden = ma5 > ma20;
     const sig = { signal: ind.signal?.action?.includes("매수") ? "BUY" : ind.signal?.action?.includes("매도") ? "SELL" : "HOLD" };
 
+    // 「현재가」 는 지금 값 — 서버 quote_now(내 증권사 키 → 지연 시세 → 지난 종가)와 그 출처 · 시각 글(2026-10-19 · 화면에 지난 종가가
+    // 「현재가」 로 보였다: 210,000 ↔ 실제 217,000). 지표 · 신호는 아래 「지표 기준」 의 일봉 그대로다. 받지 못하면 일봉 값에 기준 글을 단다.
+    const now = await api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`).catch(() => null);
+    const nowPrice = now?.price ?? price;
+    const nowPct = now?.price != null ? (now.change_pct ?? 0) : chgPct;
+    const nowNote = now?.price != null ? now.label : (ind.data_note || "");
     document.getElementById("ind-summary-cards").innerHTML = [
-      { label:"현재가",   value:`${fmt(price)}원`, sub:`${chgPct>=0?"+":""}${chgPct.toFixed(2)}%`, color: chgPct>=0?"var(--green)":"var(--red)" },
+      { label:"현재가",   value:`${fmt(nowPrice)}원`, sub:`${nowPct>=0?"+":""}${Number(nowPct).toFixed(2)}% · ${escHtml(nowNote)}`, color: nowPct>=0?"var(--green)":"var(--red)" },
       { label:"RSI(14)",  value:rsi.toFixed(1),    sub: rsi>70?"과매수":rsi<30?"과매도":"중립", color: rsi>70?"var(--red)":rsi<30?"var(--green)":"var(--text-dim)" },
       { label:"MA 교차",  value: golden?"골든크로스":"데드크로스", sub:`MA5 ${golden?">":" <"} MA20`, color: golden?"var(--green)":"var(--red)" },
       { label:"종합 신호", value: sig.signal || "HOLD", sub:"AI 판단", color: sig.signal==="BUY"?"var(--green)":sig.signal==="SELL"?"var(--red)":"var(--text-mute)" },
-    ].map(c => `<div class="card" style="padding:14px;"><div class="text-xs" style="color:var(--text-mute);">${c.label}</div><div style="font-size:20px;font-weight:700;margin:4px 0;color:${c.color};">${c.value}</div><div style="font-size:12px;color:${c.color};">${c.sub}</div></div>`).join("");
+    ].map(c => `<div class="card" style="padding:14px;"><div class="text-xs" style="color:var(--text-mute);">${c.label}</div><div style="font-size:20px;font-weight:700;margin:4px 0;color:${c.color};">${c.value}</div><div style="font-size:12px;color:${c.color};">${c.sub}</div></div>`).join("")
+      + (ind.data_note ? `<div class="ind-basis text-xs" style="grid-column:1/-1;color:var(--text-mute);">지표 기준: ${escHtml(ind.data_note)}</div>` : "");
 
     const rows = [];
     if (useMA5 && useMA20) rows.push(["MA5 vs MA20", `${fmt(Math.round(ma5))} vs ${fmt(Math.round(ma20))}`, golden?"골든크로스 ✅":"데드크로스 ❌", golden?"매수":"매도"]);

@@ -1,0 +1,27 @@
+flowchart LR
+  subgraph G1["받기 8 — 바깥 출처에서 원본을 받는다"]
+    direction TB
+    a1["시세"] --> a2["배당"] --> a3["공시"] --> a4["재무"] --> a5["기업 일정"] --> a6["정책뉴스"] --> a7["언론사 기사"] --> a8["시장금리"]
+  end
+  subgraph G2["계산 7 — 원본에서 다시 만든다"]
+    direction TB
+    b1["검색 색인"] --> b2["시장 달력"] --> b3["수정주가"] --> b4["총수익"] --> b5["벤치마크"] --> b6["일봉 · 분봉"] --> b7["신호"]
+  end
+  subgraph G3["백업 5 — 지문을 남기고 올린다"]
+    direction TB
+    c1["목록표"] --> c2["내보내기"] --> c3["대조"] --> c4["올리기"] --> c5["일봉 올리기"]
+  end
+  subgraph G4["근거 문서 1"]
+    direction TB
+    d1["섹터 법령<br/>7일에 한 번 개정 대조"]
+  end
+  G1 ==> G2 ==> G3 ==> G4
+
+  classDef get fill:#fffbeb,stroke:#b45309,color:#0f172a
+  classDef calc fill:#eef2ff,stroke:#4f46e5,color:#0f172a
+  classDef bak fill:#ecfdf5,stroke:#0f766e,color:#0f172a
+  classDef law fill:#f8fafc,stroke:#64748b,color:#0f172a
+  class a1,a2,a3,a4,a5,a6,a7,a8 get
+  class b1,b2,b3,b4,b5,b6,b7 calc
+  class c1,c2,c3,c4,c5 bak
+  class d1 law

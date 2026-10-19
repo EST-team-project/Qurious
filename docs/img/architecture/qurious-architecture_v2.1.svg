@@ -1,0 +1,221 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2752" height="1536" viewBox="0 0 2752 1536" role="img" aria-labelledby="title desc">
+  <title id="title">Qurious 시스템 아키텍처 v2.1</title>
+  <desc id="desc">브라우저는 포트 8966 의 FastAPI 앱 하나로 들어오고, 앱과 Celery 워커가 PostgreSQL · Redis · Qdrant · Neo4j 를 쓴다. 도커 밖의 수집 러너가 매일 12:30 에 공식 자료를 받아 수집 DB 와 근거 문서 DB 에 쌓고 Hugging Face 비공개 데이터셋에 백업하며, 앱은 두 DB 를 읽기 전용으로만 연다. 실거래 주문은 서버 한 곳에서 막고, 실시간 시세는 사용자 자기 키 · 자기 화면까지만 쓴다.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/><stop offset="0.55" stop-color="#0b1728"/><stop offset="1" stop-color="#101a2d"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172e52"/><stop offset="1" stop-color="#10233f"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#302557"/><stop offset="1" stop-color="#1d2140"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#143c3e"/><stop offset="1" stop-color="#102b32"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#44351f"/><stop offset="1" stop-color="#2a281f"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173a4a"/><stop offset="1" stop-color="#112834"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#7fa7d8"/>
+    </marker>
+    <marker id="arrowg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#5eead4"/>
+    </marker>
+    <style>
+      text{font-family:'Pretendard Variable','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;fill:#f5f8ff}
+      .title{font-size:60px;font-weight:800;letter-spacing:-2px}
+      .subtitle{font-size:27px;fill:#aebcd1}
+      .zone{font-size:28px;font-weight:800;letter-spacing:1px}
+      .h1{font-size:36px;font-weight:800}
+      .h2{font-size:30px;font-weight:800}
+      .body{font-size:25px;fill:#c7d3e5}
+      .small{font-size:21px;fill:#aebcd1}
+      .pill{font-size:20px;font-weight:700}
+      .card{stroke-width:2;filter:url(#shadow)}
+      .line{fill:none;stroke:#7fa7d8;stroke-width:4;marker-end:url(#arrow)}
+      .ro{fill:none;stroke:#5eead4;stroke-width:7;marker-end:url(#arrowg)}
+      .dash{fill:none;stroke:#6984a6;stroke-width:3;stroke-dasharray:10 10;marker-end:url(#arrow)}
+      .bus{fill:none;stroke:#6984a6;stroke-width:3;stroke-dasharray:10 10}
+    </style>
+  </defs>
+
+  <rect width="2752" height="1536" fill="url(#bg)"/>
+  <circle cx="2240" cy="210" r="430" fill="#1e3a60" opacity=".12"/>
+  <circle cx="820" cy="1320" r="500" fill="#194c47" opacity=".09"/>
+
+  <text x="120" y="96" class="title">Qurious 시스템 아키텍처 v2.1</text>
+  <text x="122" y="142" class="subtitle">AI Financial Quant Platform · 2차 로보 어드바이저 기준(2026-10-19) · 로컬 Docker Compose 서비스 10개 + 도커 밖 수집 러너 · 클라우드는 2 · 3차에 쓰지 않음</text>
+
+  <!-- CLIENT -->
+  <rect x="60" y="230" width="340" height="470" rx="28" fill="url(#violet)" stroke="#766bd1" class="card"/>
+  <text x="90" y="278" class="zone" fill="#bdb8ff">CLIENT</text>
+  <rect x="103" y="312" width="254" height="150" rx="14" fill="#0c1727" stroke="#7b89e8" stroke-width="4"/>
+  <rect x="121" y="334" width="218" height="98" rx="8" fill="#152c4b"/>
+  <circle cx="140" cy="353" r="6" fill="#f87171"/><circle cx="162" cy="353" r="6" fill="#fbbf24"/><circle cx="184" cy="353" r="6" fill="#34d399"/>
+  <path d="M127 448h206" stroke="#7b89e8" stroke-width="7" stroke-linecap="round"/>
+  <text x="230" y="515" text-anchor="middle" class="h2">웹 브라우저</text>
+  <text x="230" y="558" text-anchor="middle" class="small">앱 화면 72 · 위 탭 6</text>
+  <text x="230" y="590" text-anchor="middle" class="small">왼쪽 전체 메뉴 트리</text>
+  <text x="230" y="622" text-anchor="middle" class="small">학습 = 금융 필수 지식</text>
+  <text x="230" y="654" text-anchor="middle" class="small">+ 개념 학습(앱 안)</text>
+
+  <path class="line" d="M402 420H476"/>
+
+  <!-- 컴포즈 구역 -->
+  <rect x="440" y="185" width="1450" height="1015" rx="34" fill="#091424" stroke="#40618f" stroke-width="3" opacity=".96"/>
+  <text x="475" y="232" class="zone" fill="#dce8ff">로컬 PC · DOCKER COMPOSE</text>
+  <text x="475" y="266" class="small">서비스 10개가 한 네트워크에 있다 · 개발 모드는 코드 폴더를 붙여 저장하면 바로 반영된다</text>
+  <text x="404" y="456" class="small">HTTP</text>
+
+  <!-- APP -->
+  <rect x="480" y="295" width="690" height="250" rx="24" fill="url(#blue)" stroke="#4d82cc" class="card"/>
+  <rect x="510" y="322" width="160" height="40" rx="20" fill="#2563eb"/>
+  <text x="590" y="349" text-anchor="middle" class="pill">APP · :8966</text>
+  <text x="510" y="410" class="h1">FastAPI · Uvicorn · Python 3.12</text>
+  <text x="510" y="452" class="body">화면과 API 267 을 한 주소에서 내보낸다</text>
+  <text x="510" y="486" class="body">로보 어드바이저 · 모의투자 · 인디케이터 · 근거 상담</text>
+  <text x="510" y="524" class="small">로그인 = 세션 쿠키(HttpOnly) + Redis · Alembic 이전</text>
+
+  <!-- WORKERS -->
+  <rect x="1200" y="295" width="650" height="250" rx="24" fill="url(#violet)" stroke="#8b78db" class="card"/>
+  <rect x="1230" y="322" width="150" height="40" rx="20" fill="#6d5ae0"/>
+  <text x="1305" y="349" text-anchor="middle" class="pill">WORKERS</text>
+  <text x="1230" y="410" class="h1">Celery Worker · Beat</text>
+  <text x="1230" y="452" class="body">자동매매 10분 · 리밸런싱 1시간 예약</text>
+  <text x="1230" y="486" class="body">AI 상담 · 문서 넣기 같은 무거운 일</text>
+  <text x="1230" y="524" class="small">브로커 · 결과 = Redis · 증권사 토큰도 Redis 로 공유</text>
+
+  <path class="line" d="M1172 420H1196"/>
+
+  <!-- 저장소 -->
+  <text x="480" y="612" class="zone" fill="#a7f3d0">DATA STORES</text>
+  <path class="bus" d="M720 578H1695"/>
+  <path class="bus" d="M825 547V578"/>
+  <path class="bus" d="M1525 547V578"/>
+  <path class="dash" d="M720 578V626"/>
+  <path class="dash" d="M995 578V626"/>
+  <path class="dash" d="M1345 578V626"/>
+  <path class="dash" d="M1695 578V626"/>
+
+  <rect x="480" y="630" width="330" height="220" rx="22" fill="url(#green)" stroke="#2fa38a" class="card"/>
+  <ellipse cx="535" cy="676" rx="26" ry="10" fill="#5eead4"/><rect x="509" y="676" width="52" height="46" fill="#2f8f7f"/><ellipse cx="535" cy="722" rx="26" ry="10" fill="#2f8f7f"/>
+  <text x="580" y="690" class="h2">PostgreSQL 16</text>
+  <text x="505" y="768" class="body">앱 DB 45표</text>
+  <text x="505" y="800" class="body">계정 · 모의 장부 · 주문</text>
+  <text x="505" y="834" class="small">체결 · 리밸런싱 · 대화 기록</text>
+
+  <rect x="830" y="630" width="330" height="220" rx="22" fill="url(#green)" stroke="#2fa38a" class="card"/>
+  <ellipse cx="885" cy="676" rx="26" ry="10" fill="#fca5a5"/><rect x="859" y="676" width="52" height="46" fill="#b54848"/><ellipse cx="885" cy="722" rx="26" ry="10" fill="#b54848"/>
+  <text x="930" y="690" class="h2">Redis 8</text>
+  <text x="855" y="768" class="body">로그인 세션 · 캐시</text>
+  <text x="855" y="800" class="body">Celery 작업 큐</text>
+  <text x="855" y="834" class="small">증권사 접근 토큰 공유</text>
+
+  <rect x="1180" y="630" width="330" height="220" rx="22" fill="url(#green)" stroke="#2fa38a" class="card"/>
+  <rect x="1213" y="662" width="56" height="56" rx="10" fill="#7c3aed" opacity=".85"/>
+  <circle cx="1228" cy="677" r="5" fill="#ede9fe"/><circle cx="1254" cy="677" r="5" fill="#ede9fe"/><circle cx="1228" cy="703" r="5" fill="#ede9fe"/><circle cx="1254" cy="703" r="5" fill="#ede9fe"/><circle cx="1241" cy="690" r="5" fill="#c4b5fd"/>
+  <text x="1280" y="690" class="h2">Qdrant 1.19</text>
+  <text x="1205" y="768" class="body">문서 조각의 의미 벡터</text>
+  <text x="1205" y="800" class="body">근거 답 · 올린 문서 검색</text>
+  <text x="1205" y="834" class="small">컬렉션 둘 · bge-m3 임베딩</text>
+
+  <rect x="1530" y="630" width="330" height="220" rx="22" fill="url(#green)" stroke="#2fa38a" class="card"/>
+  <circle cx="1585" cy="690" r="26" fill="#0ea5e9" opacity=".9"/><circle cx="1570" cy="684" r="7" fill="#e0f2fe"/><circle cx="1600" cy="700" r="7" fill="#e0f2fe"/><path d="M1570 684L1600 700" stroke="#e0f2fe" stroke-width="3"/>
+  <text x="1630" y="690" class="h2">Neo4j 5</text>
+  <text x="1555" y="768" class="body">종목 · 개념 관계</text>
+  <text x="1555" y="800" class="body">관계 탐색 화면</text>
+  <text x="1555" y="834" class="small">선택 기능</text>
+
+  <!-- AI · 퀀트 -->
+  <rect x="480" y="880" width="1380" height="290" rx="24" fill="url(#amber)" stroke="#c2953b" class="card"/>
+  <rect x="510" y="906" width="150" height="40" rx="20" fill="#b8892c"/>
+  <text x="585" y="933" text-anchor="middle" class="pill">AI · 퀀트</text>
+  <text x="510" y="994" class="h1">근거 답(RAG) · scikit-learn · LightGBM · QuantConnect LEAN</text>
+  <text x="510" y="1040" class="body">근거 답 = 낱말 검색(FTS5) + 의미 검색(bge-m3 · Qdrant) → 로컬 답 모델(Ollama · qwen3:4b-instruct) → 서버 거름 셋</text>
+  <text x="510" y="1080" class="body">모델 비교 · 군집 · 계절성 · XAI 설명 · 비용 · 손절 · 익절을 넣은 백테스트(LEAN 은 Docker socket 으로)</text>
+  <text x="510" y="1126" class="small">판단 · 학습 · 백테스트는 저장 자료로 · 장중 현재가는 출처와 시각을 붙여 보이고, 실시간 구조는 3차에 올린다</text>
+
+  <!-- 이 PC · 도커 밖 -->
+  <rect x="1930" y="185" width="780" height="600" rx="26" fill="url(#teal)" stroke="#38bdf8" class="card"/>
+  <text x="1960" y="232" class="zone" fill="#bae6fd">이 PC · 도커 밖</text>
+  <rect x="1960" y="255" width="720" height="245" rx="20" fill="#0c2230" stroke="#38bdf8" stroke-width="2"/>
+  <rect x="1990" y="280" width="250" height="40" rx="20" fill="#0e7490"/>
+  <text x="2115" y="307" text-anchor="middle" class="pill">RUNNER · 매일 12:30</text>
+  <text x="1990" y="362" class="h2">수집 러너 · 21단계</text>
+  <text x="1990" y="402" class="body">받기 8 → 계산 7 → 백업 5 → 근거 문서 1</text>
+  <text x="1990" y="440" class="small">작업 스케줄러 12:30 · PC 작업자 매 분(화면 요청)</text>
+  <text x="1990" y="474" class="small">잠금 · 회차 기록 · 종료코드 약속 · 일요일 복구 리허설</text>
+
+  <rect x="1960" y="525" width="350" height="235" rx="20" fill="#0c2230" stroke="#38bdf8" stroke-width="2"/>
+  <ellipse cx="2010" cy="566" rx="24" ry="9" fill="#7dd3fc"/><rect x="1986" y="566" width="48" height="42" fill="#2b7fa8"/><ellipse cx="2010" cy="608" rx="24" ry="9" fill="#2b7fa8"/>
+  <text x="2050" y="580" class="h2">수집 DB</text>
+  <text x="2050" y="612" class="small">SQLite · 5.1 GB</text>
+  <text x="1985" y="668" class="body">약 2,192만 행</text>
+  <text x="1985" y="702" class="body">시세 · 공시 · 재무 · 파생</text>
+  <text x="1985" y="740" class="small">앱에는 읽기 전용으로 붙인다</text>
+
+  <rect x="2330" y="525" width="350" height="235" rx="20" fill="#0c2230" stroke="#38bdf8" stroke-width="2"/>
+  <ellipse cx="2380" cy="566" rx="24" ry="9" fill="#a7f3d0"/><rect x="2356" y="566" width="48" height="42" fill="#2f8f7f"/><ellipse cx="2380" cy="608" rx="24" ry="9" fill="#2f8f7f"/>
+  <text x="2420" y="580" class="h2">근거 문서 DB</text>
+  <text x="2420" y="612" class="small">SQLite</text>
+  <text x="2355" y="668" class="body">법령 · 감독규정 조문</text>
+  <text x="2355" y="702" class="body">섹터 법령 117문서</text>
+  <text x="2355" y="740" class="small">7일에 한 번 개정 대조</text>
+
+  <path class="ro" d="M1958 640H1898"/>
+  <text x="1902" y="626" class="small" text-anchor="end" fill="#5eead4">읽기 전용</text>
+
+  <!-- EXTERNAL -->
+  <text x="1930" y="838" class="zone" fill="#dce8ff">EXTERNAL SERVICES</text>
+  <path class="line" d="M2262 858V792"/>
+  <path class="dash" d="M2520 790V856"/>
+  <text x="2532" y="830" class="small">매일 백업</text>
+
+  <rect x="1930" y="860" width="380" height="160" rx="22" fill="url(#blue)" stroke="#5480bd" class="card"/>
+  <text x="1955" y="902" class="h2">공식 데이터</text>
+  <text x="1955" y="940" class="small">공공데이터포털 시세 · OpenDART</text>
+  <text x="1955" y="972" class="small">한국은행 ECOS · 국가법령정보</text>
+  <text x="1955" y="1004" class="small">정책브리핑 · GDELT(제목만)</text>
+
+  <rect x="2330" y="860" width="380" height="160" rx="22" fill="url(#violet)" stroke="#8b78db" class="card"/>
+  <text x="2355" y="902" class="h2">Hugging Face · 비공개</text>
+  <text x="2355" y="940" class="small">qurious-quant 데이터셋 17</text>
+  <text x="2355" y="972" class="small">매일 102 파일 · 지문 · 판</text>
+  <text x="2355" y="1004" class="small">원자료는 여기에만 둔다</text>
+
+  <rect x="1930" y="1040" width="380" height="160" rx="22" fill="url(#blue)" stroke="#5480bd" class="card"/>
+  <text x="1955" y="1082" class="h2">시세 표시</text>
+  <text x="1955" y="1120" class="small">Yahoo Finance 지연 시세</text>
+  <text x="1955" y="1152" class="small">화면 표시만 · 저장하지 않음</text>
+  <text x="1955" y="1184" class="small">미국 · 지수 · 거시 지표</text>
+  <path class="line" d="M1928 1120H1894"/>
+
+  <rect x="2330" y="1040" width="380" height="160" rx="22" fill="url(#amber)" stroke="#c2953b" class="card"/>
+  <text x="2355" y="1082" class="h2">증권사 · 모의 API</text>
+  <text x="2355" y="1120" class="small">KIS 모의 · Alpaca Paper</text>
+  <text x="2355" y="1152" class="small">키는 사용자마다 따로 저장</text>
+  <text x="2355" y="1184" class="small">실거래는 서버 한 곳에서 차단</text>
+
+  <!-- 보안 · 운영 경계 -->
+  <rect x="60" y="1255" width="2650" height="230" rx="28" fill="#0d1a2c" stroke="#3a5577" stroke-width="2"/>
+  <text x="95" y="1305" class="h2">보안 및 운영 경계</text>
+  <text x="95" y="1350" class="body">브라우저는 DB 와 외부 인증 정보에 직접 닿지 않는다 · 키는 .env 에만 두고 Git 에 올리지 않는다 · 원자료는 비공개 저장소에만 둔다 · 실시간 시세는 사용자 자기 키 · 자기 화면까지만 쓴다</text>
+  <g>
+    <rect x="95" y="1388" width="240" height="46" rx="23" fill="#1d4ed8" opacity=".55"/><text x="215" y="1419" text-anchor="middle" class="pill">세션 쿠키 HttpOnly</text>
+    <rect x="351" y="1388" width="270" height="46" rx="23" fill="#047857" opacity=".55"/><text x="486" y="1419" text-anchor="middle" class="pill">.env 비공개 · Git 제외</text>
+    <rect x="637" y="1388" width="230" height="46" rx="23" fill="#0e7490" opacity=".55"/><text x="752" y="1419" text-anchor="middle" class="pill">수집 DB 읽기 전용</text>
+    <rect x="883" y="1388" width="270" height="46" rx="23" fill="#6d28d9" opacity=".55"/><text x="1018" y="1419" text-anchor="middle" class="pill">원자료는 HF 비공개에만</text>
+    <rect x="1169" y="1388" width="300" height="46" rx="23" fill="#a16207" opacity=".55"/><text x="1319" y="1419" text-anchor="middle" class="pill">야후 시세는 적재하지 않음</text>
+    <rect x="1485" y="1388" width="310" height="46" rx="23" fill="#b91c1c" opacity=".55"/><text x="1640" y="1419" text-anchor="middle" class="pill">실거래 주문은 서버에서 차단</text>
+    <rect x="1811" y="1388" width="340" height="46" rx="23" fill="#0f766e" opacity=".6"/><text x="1981" y="1419" text-anchor="middle" class="pill">실시간 시세는 자기 키 · 자기 화면</text>
+    <rect x="2167" y="1388" width="300" height="46" rx="23" fill="#334155" opacity=".85"/><text x="2317" y="1419" text-anchor="middle" class="pill">클라우드는 2 · 3차에 쓰지 않음</text>
+  </g>
+</svg>

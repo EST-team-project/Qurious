@@ -82,6 +82,7 @@ async function loadSignalCards() {
         <div class="font-semibold">${escHtml(s.name)}</div>
         <div class="text-slate-400 text-xs">${escHtml(s.symbol)}</div>
         <div class="mt-1 font-medium">${fmt(price)}</div>
+        ${r?.as_of ? `<div class="text-xs text-slate-500">${escHtml(r.as_of.slice(5))} 종가</div>` : ""}
         <div class="mt-1 text-xs font-semibold">${escHtml(_displayAction(sig.action))}</div>
         <div class="text-xs text-slate-500">RSI: ${rsiV?.toFixed(1) ?? "-"}</div>
       </div>`;

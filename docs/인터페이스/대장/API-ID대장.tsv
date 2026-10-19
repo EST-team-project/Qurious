@@ -269,3 +269,4 @@ API-USRV-03	POST	/api/paper/stocks/reservations	S121	사용
 API-USRV-04	DELETE	/api/paper/stocks/reservations/{order_id}	S121	사용
 API-HELP-01	GET	/help/videos.json	S125	사용
 API-HELP-02	GET	/help/media/{name}	S125	사용
+API-QUOT-01	GET	/api/quote/now	S127	사용

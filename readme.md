@@ -1,1058 +1,426 @@
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-
-<p align="center">
-  <img src="./docs/img/architecture/qurious-architecture_v2.0.png" alt="Qurious 시스템 아키텍처 v2.0" width="900">
-</p>
-
 # Qurious — AI Financial Quant Platform
 
-자기 투자 규칙을 가진 개인투자자가 **규칙을 만들고**(로보 어드바이저 · 투자 인디케이터) **검증하고**(비용을 넣은 백테스트 · LEAN) **모의투자로 기록하는** 학습 · 검증 플랫폼입니다. 그 바탕이 되는 금융 지식(강의 · 용어사전)과 공식 시세 자료(수집 DB · 일일 갱신)를 함께 둡니다.
+자기 투자 규칙을 가진 개인투자자가 그 규칙을 믿어도 되는지 판단하도록 돕는 학습 · 검증 플랫폼입니다.
+투자 성향 진단과 자산 배분으로 규칙을 세우고, 비용을 뺀 성과와 모의투자로 검증하고, 판단에 쓴 근거를 법령 원문 번호와 함께 보여 줍니다.
 
-> 교육 · 연습용입니다. 증권사 연결은 모의 · 읽기 전용이고, 실거래 주문은 승인 전까지 막혀 있습니다. 투자 권유가 아닙니다.
+> 교육 · 연습용입니다. 증권사에는 모의투자 계좌로만 주문하고, 실거래 주문은 승인 전까지 서버가 막습니다([ADR-0001](docs/ADR/ADR-0001-실거래-주문-경로-차단.md)). 투자 권유가 아닙니다.
 
-## 판
+**<표 1> 판과 프로젝트 단계** · 판 번호 = 프로젝트 단계(2차 v2.x · 3차 v3.x)
 
-| 판 | 날짜 | 무엇이 바뀌었나 |
+| 판 | 단계 | 과제 | 기간 | 상태 |
+|---|---|---|---|---|
+| v3.0 | 3차 | 나만의 투자 인디케이터 개발 및 성과 검증 | 2026-10-22 ~ 11-11 | 예정 |
+| v2.0 | 2차 | 나만의 로보 어드바이저 개발 및 성과 검증 | 2026-10-01 ~ 10-21(준비 2026-09-15 ~ 09-30) | 진행 · 이 README 는 10-21 발표 기준 |
+| v1.0 | 1차 | Alpha_Stack(이 저장소 밖 · 팀의 별도 저장소) | — | 완료 |
+
+같은 단계 안에서 README 를 고치면 v2.1 · v2.2 처럼 뒷자리를 올리고, 구조 그림도 같은 판 번호를 씁니다.
+
+[시연 영상](#시연-영상) · [주요 기능](#주요-기능) · [구조](#구조) · [빠른 시작](#빠른-시작) · [사용법](#사용법) · [팀](#팀) · [문서](#문서)
+
+## 소개
+
+개인 주식 소유자 1,442만 명 가운데 459만 명(31.5%)이 한 종목만 들고 있고, 2020 ~ 2022년 표본에서 순수익률이 양(+)인 개인은 국내 28% 였습니다(한국예탁결제원 · 한국은행 · 자본시장연구원, 2026-04 · [프로젝트 계획서](docs/계획서/프로젝트계획서.md) 표 1).
+우리는 종목 고르기보다 **자기 규칙을 믿어도 되는지 판단할 방법이 없는 것**이 더 큰 문제라고 봤습니다.
+그래서 Qurious 는 같은 데이터 · 같은 비용 · 같은 지표 정의 위에서 규칙을 세우고 재고 기록하게 합니다.
+2차에서는 규칙을 세우고 검증하는 로보 어드바이저를, 3차에서는 규칙을 지표로 만들어 외부 도구로 다시 검증하는 투자 인디케이터를 만듭니다(<표 1>).
+
+이번 과제에서 하지 않는 일도 정해 두었습니다.
+
+- 실제 계좌로 실거래 자동 주문: 실거래 승인 없이는 모든 주문 경로가 모의로 낮춰집니다.
+- 상용 서비스 배포 · 다른 사람의 자산 운용.
+- 클라우드 배포: 2 · 3차에는 AWS 를 쓰지 않기로 팀이 정했습니다(2026-10-16). 공개 데모 주소 대신 로컬 실행과 시연 영상으로 보여 줍니다.
+- 유료 LLM API: 기본 답과 임베딩은 PC 안의 로컬 모델(Ollama)로 만듭니다.
+- 원자료 재배포: 시세 · 공시 · 뉴스는 출처마다 이용 조건을 따르고, 원자료와 수집 DB 는 공개 저장소에 올리지 않습니다([출처와 이용 조건](#출처와-이용-조건)).
+
+## 시연 영상
+
+2차(v2.0) 기능은 영상 열다섯 편(여정 일곱 · 기능 여덟)으로 볼 수 있고, 여정 영상은 처음 쓰는 사람이 지나는 차례로 찍었습니다(<표 2>).
+영상에는 공식 자료 화면(금융위원회 시세 · OpenDART 공시 등)이 찍혀 있어, 이용 조건에 따라 공개 저장소에는 올리지 않습니다.
+발표에서는 발표 자료가 발표 PC 의 파일을 바로 재생하고, 팀원은 아래 방법으로 받습니다.
+
+**<표 2> 여정 영상** · 처음 쓰는 사람이 지나는 차례
+
+| 편 | 보여 주는 것 | 화면 |
 |---|---|---|
-| **2.0** | 2026-10-01 | 2차 착수 — 「금융 필수 지식」 강의실 · 주제 화면 아홉(4일 과정 강의 · 교재 10단원) · 강의 시세 API(수집 DB 먼저 · 저장 없음) · 용어사전 755(서버) · OHLCV 규격 자료(일봉 · ETF · 지수 · 분봉) · 수집기 일일 갱신 · 계정 관리(마이페이지 · 탈퇴) · 개념 학습(/learn) |
-| 1.x | 2026-09 | 강사님 기초 코드(lumina-invest) 위에 로보 어드바이저 · 모의투자 · 인디케이터 · 퀀트 자동매매 화면 · 실거래 차단 · 비용 모델 · 수집 DB 다리 |
+| V01 | 내 투자 성향을 알고, 그 성향대로 자산을 나눕니다 | 자산배분·최적화 |
+| V02 | 나눈 비중대로 상품을 공시 정보로 비교합니다 | 투자 성향별 상품 안내 |
+| V03 | 규칙 신호로 종목을 거르고 차트를 읽습니다 | 패턴 인식·종목 스크리닝 · 차트 패턴 |
+| V04 | 가상 돈으로 국내 · 미국 주식을 주문하고 기록을 남깁니다 | 국내주식 모의주문 · 미국주식 주문/매매 |
+| V05 | 리밸런싱 계획을 세우고 팔고 살 주문을 미리 봅니다 | 리밸런싱 엔진 |
+| V06 | 가상 돈으로 한 거래를 계좌와 기록으로 되돌아봅니다 | 모의계좌 현황 · 모의 투자 의사결정 · 자동매매 현황 |
+| V07 | 근거를 댈 수 없으면 답하지 않는 금융 AI 상담 | AI 투자 상담 |
 
-## 아키텍처 그림의 판 관리
+<details>
+<summary>기능 영상 여덟 편</summary>
 
-- 그림은 **SVG 가 원본**이고 PNG 는 그 SVG 를 구운 것입니다 — `docs/img/architecture/qurious-architecture_v<판>.svg · .png`.
-- 구성이 바뀌면 판을 올린 **새 파일**을 만들고(옛 판은 지우지 않습니다) 위의 `<img>` 주소와 판 표를 같이 고칩니다.
-- PNG 는 SVG 를 브라우저(Pretendard 글꼴)에서 2752 × 1536 으로 찍어 만듭니다.
-
-# 목표 시스템
-
-## 나만의 로보 어드바이저 개발 및 성과 검증 프로젝트	
-- AI 기반의 자동화 로보 어드바이저 모델 개발 
-- 패턴 인식 기법을 활용한 주식 시장 예측 프로젝트 
-- 자산배분모델을 활용한 포트폴리오 최적화, 주식 스크리닝을 통한 종목 선정 등 직접 수행 
-- 구축한 퀀트 모델의 결과를 해석해보고 자체적으로 모의 투자 의사결정 진행	
-
-## 나만의 투자 인디케이터 개발 및 성과 검증 프로젝트	
-- 기본적인 인디케이터(MA, RSI등)로 전략 설계 
-- 커스텀 인디케이터 개발 
-- 트레이딩뷰 플랫폼으로 성과 확인 및 코딩 실습(PineScript) 
-- 파이썬 프로그래밍을 통한 성과 검증 
-- 증권사 연동(API 활용)을 통한 자동화 모델 구현
-  
-## 목차
-
-1. [프로젝트 시작 전 개인별 준비사항](#프로젝트-시작-전-개인별-준비사항)
-2. [기능 개요](#기능-개요)
-3. [기술 스택](#기술-스택)
-4. [아키텍처](#아키텍처)
-5. [로컬 실행 가이드](#로컬-실행-가이드)
-6. [환경변수](#환경변수)
-7. [Qdrant 구성 제안](#qdrant-구성-제안)
-8. [Qdrant 데이터 공유 방법](#qdrant-데이터-공유-방법)
-9. [주요 화면](#주요-화면)
-
----
-
-## 프로젝트 시작 전 개인별 준비사항
-
-### 1) 개인별 습득 기술 스택 (권장 우선순위)
-
-| 우선순위 | 영역 | 학습 포인트 |
+| 편 | 보여 주는 것 | 화면 |
 |---|---|---|
-| 1 | Python / FastAPI | 비동기 API(`async`/`await`), 라우팅, 의존성 주입, Pydantic 모델 |
-| 1 | Docker / Docker Compose | 컨테이너 기동, 볼륨, 서비스 간 네트워크, 로그 확인 |
-| 1 | 데이터 기초 | SQLite 쿼리, MongoDB 기본 CRUD, Redis 세션 개념 |
-| 2 | LLM / RAG | Ollama 모델 관리, 임베딩, Qdrant 컬렉션/업서트/검색 |
-| 2 | 금융 데이터 처리 | pandas/numpy 기반 지표 계산(RSI, SMA, Bollinger) |
-| 3 | 운영/배포 | 환경변수 관리, 로컬·온프레미스 배포 흐름, 모니터링 기초 |
+| F01 | 매일 낮, 공식 자료를 받아 검증하고 백업합니다 | 데이터 관제 · 수집 일정 · 단계 · 적재 · 백업(관리자) |
+| F02 | 화면의 숫자가 어디서 왔고, 어디까지 쓸 수 있는지 봅니다 | 자료 안내 |
+| F03 | 모르는 금융 낱말을 배우고 찾습니다 | 강의실 · 펀드와 ETF · 용어사전 · 개념 학습 |
+| F04 | 한 종목의 공시 · 일정 · 재무를 한 길로 봅니다 | 투자 정보 리서치 · 재무 · 신용 위험 · 일정 |
+| F05 | 시장 속설과 모델을 데이터로 따져 봅니다 | 계절성 분석 · 종목 군집화 · 모델 비교 |
+| F06 | 지수 · 금리 · 산업 · 일정으로 시장을 봅니다 | 거시경제 지표 · 산업 분석 · 일정 |
+| F07 | 국내 · 미국 주가 차트와 시세 시각을 봅니다 | 직접매매 › 주가 차트 · 미국주식 › 대시보드 · 주가 차트 |
+| F08 | 지표와 계좌 요약을 첫 화면에서 봅니다 | 퀀트 대시보드 · 통합 대시보드 |
 
-### 2) 본인 PC 사양 가이드
+</details>
 
-| 구분 | 최소 사양(학습/실습) | 권장 사양(원활한 개발) |
+영상 파일은 팀 안에서만 나눕니다.
+
+- 앱 안에서 보기: `python tools/demo/help_videos.py pull` 로 Hugging Face 비공개 데이터셋에서 각자 PC 의 `data/help/` 에 받습니다(조직 회원만). 받은 뒤에는 로그인한 화면 위쪽의 「▶ 영상」 단추나 「사용법」 창의 「영상으로 보기」 에서 그 화면이 나오는 장부터 재생됩니다.
+- 발표용 mp4: 녹화한 PC 에서 `python tools/demo/export_mp4.py` 로 만들어 `docs/발표/영상/파일/` 에 둡니다(git 밖).
+- 목록 · 다시 찍는 법 · 바꿔 끼우는 기준은 [시연 영상 안내](docs/발표/영상/README.md)에 있습니다.
+
+## 주요 기능
+
+기능은 프로젝트 단계로 나눕니다. 2차 로보 어드바이저(v2.0)가 이번 발표의 범위이고, 3차 투자 인디케이터(v3.0)는 2026-10-22 에 시작합니다.
+상태 칸은 [요구 추적표](docs/요구사항/RTM.md) 3절의 「진행」 을 옮겼습니다. 「완료」 는 동작하고 자동 시험이 그 요구를 직접 재는 것, 「진행」 은 시험이 일부만 있거나 아직 없는 것입니다. 사람이 인수 기준으로 검사를 끝낸 요구는 아직 없습니다.
+
+### 2차 · 로보 어드바이저 (v2.0)
+
+2차에서 만든 기능은 열네 가지이고, 열두 가지가 「완료」 입니다(<표 3>).
+
+**<표 3> 2차 기능** · 화면 이름은 앱 메뉴 글자 그대로 · 주담당은 프로젝트 계획서 4.2절(UI 요소는 4.4절 제안)
+
+| 기능 | 대표 화면 | 주담당 | 상태 |
+|---|---|---|---|
+| 투자 성향 진단(7문항 · 5단계) | 자산배분·최적화 | 오준영 | 완료 |
+| 자산 배분(평균-분산 · 블랙-리터만 · 리스크 패리티)과 비중 그림 | 자산배분·최적화 | 오준영 | 완료 |
+| 목표 수익률 달성 확률 | 자산배분·최적화 | 강민석 | 완료 |
+| 과거 구간 수익 분포 시뮬레이션 | 자산배분·최적화 | 강민석 | 진행 |
+| 나눈 비중대로 상품을 공시 정보로 비교(추천 목록이 아님) | 투자 성향별 상품 안내 | 이동원 | 완료 |
+| 지표 · 차트 패턴 · 지지/저항 · 여러 주기 신호와 신뢰도 | 패턴 인식·종목 스크리닝 · 차트 패턴·지지/저항·멀티타임프레임 | 신장환 | 완료 |
+| 판단 이유를 쉬운 말과 기여도로 설명(XAI) | 패턴 인식·종목 스크리닝 | 신장환 | 완료 |
+| 리밸런싱(시간 · 이탈률 · 현금흐름 조건 → 주문 산출) | 리밸런싱 엔진 | 오준영 | 완료 |
+| 비용을 뺀 성과와 매수 · 매도 · 보유 의견 | 모의 투자 의사결정 | 강민석 | 완료 |
+| 모의 주문과 포트폴리오(가상 돈 1억 원) | 국내주식 모의주문 · 모의계좌 현황 | 강민석 | 완료 |
+| 근거 번호를 단 상담(2026년 시행 법령 · 감독규정 · 근거가 없으면 답하지 않음) | AI 투자 상담 | 이동원 | 완료 |
+| 가격 · 거래량 · 재무 · 뉴스 매일 수집 · 검사 · 비공개 백업 | 데이터 관제 · 자료 안내 | 이동원 | 완료 |
+| 갱신일 · 금융 일정 · 정기 배치 | 일정 · 데이터 관제 | 이동원 | 완료 |
+| 용어사전과 연관 개념(용어 761 · 분류 22) | 용어사전 | 이동원 | 진행 |
+
+2차 기능 밖에서 함께 쓰는 화면도 있습니다. 모의투자 탭의 코인 · 대체자산 · Open API 키, 퀀트자동매매 탭의 10분 주기 모의 자동매매와 위험 한도, 학습 탭의 금융 필수 지식 강의(주제 아홉) · 요약 · 개념 학습, 왼쪽 전체 메뉴의 직접매매 · 미국주식(지연 시세) · 투자분석 기초(거시 · 산업 · 재무제표 · 기술적 분석 · 일정) · ML·딥러닝(모델 비교 · 회귀 · 군집 · 튜닝 · 딥러닝) · 시스템관리 · 내 계정입니다.
+화면마다 「사용법」 창이 있고, 영상을 받아 둔 PC 에서는 「▶ 영상」 단추도 보입니다.
+「현재가」 칸과 모의 주문 체결가는 지금 값을 씁니다 — 내 증권사 키가 있으면 증권사 조회 값, 없으면 지연 시세(약 20분), 그것도 없으면 「10월 16일 종가」 처럼 날짜를 밝힌 지난 종가이고, 값마다 출처와 시각을 붙입니다. 판단 · 백테스트 · 학습은 같은 자료로 다시 돌릴 수 있게 저장 자료 그대로 둡니다([실시간 시세 조사서](docs/조사/실시간시세-지연표기-조사.md) 7절).
+
+### 3차 · 투자 인디케이터 (v3.0 · 예정)
+
+투자 인디케이터 탭과 퀀트자동매매 탭에는 강사님 기초 코드에서 온 화면이 이미 있고, 3차에 주담당이 설계부터 다시 맞춥니다. 3차에 할 일과 지금 있는 것은 <표 4> 에 적었습니다. 「지금」 칸은 그 기초 화면과 요구 추적표의 「진행」 입니다.
+
+**<표 4> 3차 기능** · 주담당은 프로젝트 계획서 4.3절(화면 요소는 4.4절 제안)
+
+| 기능 | 주담당 | 지금 | 상태 |
+|---|---|---|---|
+| 기본 인디케이터 전략: 이동평균 · RSI · MACD 를 조합한 매수 · 매도 조건, 기간 · 임계값 백테스트 | 신장환 | 「기본 인디케이터 전략」 화면 · 시험 일부 | 예정 |
+| 커스텀 인디케이터: 가격 · 거래량 · 변동성 지표, 미래 데이터 참조 차단, API 로 제공 | 신장환 | 「커스텀 인디케이터 개발」 · 「자유 산식 지표 (DSL·버전)」 화면 · 시험 있음(API 제공은 흔적만) | 예정 |
+| TradingView · Pine Script: 지표 · 전략 구현, Strategy Tester 1차 성과, 알림 Webhook | 이동원 | 「TradingView 연동 (Webhook·교차검증)」 화면 · 시험 일부 | 예정 |
+| QuantConnect LEAN 성과 검증: 같은 데이터 · 기간 · 수수료로 누적수익률 · MDD · 샤프 · 승률, TradingView 결과와 비교 | 강민석 | 「LEAN 백테스트 (QuantConnect)」 화면 · 시험 일부 | 예정 |
+| 증권사 API 연동 자동화: LEAN 신호를 증권사 API 주문으로, 중복 주문 방지, 실행 일정 | 오준영 | 「증권사 API 설정」 · 자동매매 · 시험 있음 | 예정 |
+| 실시간 시세 구조: 사용자 자기 키의 증권사 웹소켓 → Redis 최신 값 → SSE 로 화면 갱신, 신호는 장중 마감된 분봉으로, 실시간 값은 주문 직전 확인에만 쓰고 저장 · 공유하지 않음 | 3차에 정함 | 조사 · 설계([실시간 시세 조사서](docs/조사/실시간시세-지연표기-조사.md) 6.2절) | 예정 |
+| 화면 요소와 일정표 칸: 전략 설정 · 지표 차트 · 백테스트 · 성과 대시보드 · 자동매매 모니터링 · 강건성 검증 · 주문 정정 | 신장환 · 강민석 · 오준영(제안) | — | 예정 |
+
+## 구조
+
+Qurious 는 PC 한 대에서 돕니다. 브라우저는 8966 포트 하나로 앱에 닿고, 앱 · 예약 작업 · 저장소는 도커 컴포즈 안에 있습니다.
+시세 · 공시 · 법령을 받는 수집 러너는 도커 밖에서 매일 12:30 에 돌고, 앱은 그 결과(수집 DB · 근거 DB)를 읽기 전용으로 붙여 씁니다.
+전체 연결은 <그림 1> 과 같습니다.
+
+**<그림 1> 시스템 구성 v2.1** · 2026-10-19 · 원본 [SVG](docs/img/architecture/qurious-architecture_v2.1.svg)
+
+<p align="center">
+  <img src="docs/img/architecture/qurious-architecture_v2.1.png" alt="Qurious 시스템 구성 v2.1 — 브라우저는 8966 포트의 FastAPI 앱 하나로 들어오고, 앱 · Celery 워커와 비트 · PostgreSQL · Redis · Qdrant · Neo4j · Ollama 는 도커 컴포즈 안에 있다. 도커 밖의 수집 러너가 매일 12:30 공식 자료를 받아 수집 DB · 근거 DB(SQLite)에 쓰고 Hugging Face 비공개 데이터셋에 백업하며, 앱은 그 DB 를 읽기 전용으로 붙여 쓴다" width="900">
+</p>
+
+수집 러너가 받은 자료는 검사를 거쳐 수집 DB 에 쌓이고, Hugging Face 비공개 데이터셋에 백업됩니다.
+매주 일요일 15:00 에는 그 백업을 임시 폴더에 되살려 지문을 맞대는 복원 리허설을 합니다.
+2026-10-19 낮 회차 기준으로 국내 주식 일봉만 451만 행이 쌓였습니다(<그림 2>).
+
+**<그림 2> 수집 DB 의 주요 자료** · 2026-10-19 낮 회차 · 단위 만 행 · 막대 한 칸 = 25만 행
+
+```text
+국내 주식 일봉    ██████████████████  451  (2020-01-02 ~ 2026-10-16)
+재무 주요계정     ████████            188
+ETF 일봉          █████               123
+공시 목록         ███                  78
+지수 일봉         █                    26
+그 밖             배당 9,207건 · 정책뉴스 33,168건 · 언론사 기사(GDELT) 44,059건
+```
+
+포트 · 망 · 볼륨은 [인프라 · 네트워크 구성도](docs/설계/인프라-네트워크구성도.md), API 는 [API 명세서](docs/인터페이스/API명세서.md), 기능이 안에서 도는 방식은 [기능별 동작 원리서](docs/설계/기능동작원리.md)에 있습니다.
+
+## 빠른 시작
+
+준비물은 Windows 10 · 11, Docker Desktop, PowerShell 5.1(Windows 기본)입니다. 디스크는 이미지에 약 4 GB, AI 모델에 약 1.3 GB 가 듭니다.
+
+```powershell
+git clone https://github.com/EST-team-project/Qurious.git
+cd Qurious
+.\scripts\personal\start.ps1        # 띄우기: .env 만들기 → DB → 앱 → 브라우저 (처음에는 몇 분)
+docker compose up -d model-pull     # 처음 한 번: 채팅 · 임베딩 모델 받기 (약 1.3 GB)
+.\scripts\personal\check.ps1        # 기능 점검: API 66건을 불러 통과 · 실패 표
+```
+
+브라우저에서 <http://localhost:8966> 을 열고 회원가입한 뒤 로그인합니다.
+끌 때는 `.\scripts\personal\stop.ps1`(DB 데이터는 남습니다), 지금 무엇이 떠 있는지는 `.\scripts\personal\status.ps1` 로 봅니다.
+스크립트 실행이 막히면 [scripts/personal/README.md](scripts/personal/README.md) 의 「실행 정책」 을 따릅니다.
+
+처음 띄운 PC 에서 알아 둘 점이 넷 있습니다.
+
+- 공개 데모 주소는 없습니다. 발표는 발표 PC 의 로컬 앱과 시연 영상으로 합니다.
+- 계정은 각 PC 의 로컬 DB 에만 있으므로 첫 화면에서 회원가입하면 됩니다. 데이터 수집 · 시스템관리 화면은 `.env` 의 `ADMIN_EMAILS` 에 적은 이메일로 가입한 계정에만 열립니다.
+- 국내 시세 · 지표가 제 숫자로 나오려면 수집 DB 가 있어야 합니다. 수집 DB 는 이용 조건 때문에 공개 저장소에 없고 팀 Hugging Face 비공개 데이터셋에서 받습니다([개발자 참고](#개발자-참고)). 없으면 국내 일봉 · 지표가 외부 시세로 가서 느리거나 막힐 수 있습니다.
+- AI 투자 상담의 답 문장은 `qwen3:4b-instruct`, 근거 찾기는 `bge-m3` 모델을 씁니다. 두 모델이 없으면 낱말 검색으로 찾은 근거 조문만 보입니다.
+
+## 사용법
+
+로그인하면 위 탭 여섯과 왼쪽 전체 메뉴가 보입니다. 2차 로보 어드바이저를 처음 쓰는 사람은 투자 성향 진단에서 시작해 결과 보기까지 여덟 단계를 지납니다(<그림 3>). 3차 투자 인디케이터의 사용법은 v3.0 에서 더합니다.
+
+**<그림 3> 처음 쓰는 차례** · 실선 = 차례 · 점선 = 다시 돌아감
+
+```mermaid
+flowchart LR
+  s1["① 가입 · 로그인"] --> s2["② 투자 성향 진단"]
+  s2 --> s3["③ 자산 배분"]
+  s3 --> s4["④ 상품 안내"]
+  s4 --> s5["⑤ 모의 주문"]
+  s5 --> s6["⑥ 자동매매"]
+  s6 --> s7["⑦ 리밸런싱"]
+  s7 --> s8["⑧ 결과 보기"]
+  s8 -.-> s2
+  anytime["언제든 · AI 투자 상담 · 투자분석 기초 · 학습"]
+```
+
+단계마다 여는 화면은 <표 5> 에 적었습니다. 메뉴 이름은 앱에 보이는 글자 그대로입니다.
+
+**<표 5> 단계별 화면** · 2차 로보 어드바이저 여정
+
+| 단계 | 메뉴 | 하는 일 |
 |---|---|---|
-| OS | Windows 11 / macOS / Ubuntu 최신 | 동일 |
-| CPU | 4코어 이상 | 8코어 이상 |
-| RAM | 16GB | 32GB 이상 |
-| 저장공간 | 여유 30GB 이상(도커 이미지+모델+데이터) | 여유 80GB 이상 |
-| Docker | Desktop/Engine + Compose v2 필수 | 필수 |
-| Python | 3.12 | 3.12 |
-| 네트워크 | 모델/이미지 다운로드 가능한 안정적 회선 | 동일 |
-
-> 참고: 로컬에서 Ollama(`llama3.1`, `nomic-embed-text`)까지 구동하므로 메모리와 디스크 여유가 작업 체감 성능에 큰 영향을 줍니다.
-
-### 3) 가입/계정 준비가 필요한 플랫폼
-
-| 구분 | 필수 여부 | 용도 |
-|---|---|---|
-| GitHub | 필수 | 코드 접근, 토큰 발급(`GITHUB_TOKEN`) 시 크롤링 rate limit 완화 |
-| Docker Hub 계정 | 권장 | 도커 이미지 pull rate limit 관리 |
-| Qdrant Cloud 계정 | 선택 | 로컬 대신 관리형 벡터DB 사용 시 |
-| 증권 API 계정(Alpaca/키움/토스 등) | 선택 | 현재는 Mock 기반, 실거래/외부 연동 확장 시 필요 |
-
-### 4) 예상 비용(카드 청구 예상금액)
-
-| 시나리오 | 월 예상비용(1인) | 비고 |
-|---|---|---|
-| 로컬 개발만 사용 | **0원 ~ 2만원** | 기본은 무료, 필요 시 유료 IDE/클라우드 스토리지 구독 정도 |
-| 로컬 + Qdrant Cloud(PoC) | **2만원 ~ 8만원** | 사용량/플랜에 따라 변동 |
-
-> 비용은 2026년 기준 일반적인 사용 패턴 기준의 보수적 범위입니다.  
-> 실제 청구액은 사용 시간, 저장 용량, 트래픽, GPU 사양에 따라 달라집니다.
-
----
-
-## 기능 개요
-
-| GNB | 기능 |
-|---|---|
-| **금융정보 Agent** | ReAct 루프 기반 AI 챗봇. 개인CB / 기업CB / 금융상품 CSV를 SQLite로 집계 후 자연어 질의 |
-| **크롤링** | GitHub docs (python-quant) 크롤링 → Qdrant RAG. URL 직접 크롤링 지원 |
-| **직접매매** | 가상 포트폴리오 관리, 매수/매도 주문, 키움증권·토스증권 API Mockup |
-| **모의투자** | (stock-coin-trade 이식) 공유 현금 1억원 모의계좌 — 국내주식 실시간 시세 모의주문·미리보기·계좌 리셋, Upbit KRW 마켓 코인 모의매매(국내 거래소 가격 비교·거래대금 랭킹), 대체자산(선물·옵션·파생 ETN·금·은·부동산 지분) 모의주문, 외부 시스템용 Open API 키 발급(`/openapi/v1`), Alpaca Paper 읽기 전용 연결 테스트 |
-| **퀀트자동매매** | RSI·SMA·볼린저밴드 시그널, 10분 주기 Agentic AI 자동매매 Mockup, 10년 백테스트, **QuantConnect LEAN 백테스트**(domain-rag-lab 이식: Yahoo 일봉 → LEAN Docker 실행, 매수후보유·MA교차·DCA·모멘텀 전략), **위험관리**(중복 주문 방지 쿨다운·일손실 한도·종목 비중 한도·일 주문 수·비상 정지 스위치) |
-| **리밸런싱 엔진** | 목표 비중 플랜 + 3가지 트리거(시간: 월/분기/연 · 이탈률: 허용 %p 초과 · 현금흐름: 입금/출금/배당) → 매도→매수 주문 산출·모의 체결(`source=REBALANCE`), 자동 체결/제안 승인 모드, Celery Beat 1시간 점검 (`/api/rebalance/*`) |
-| **XAI (설명 가능한 AI)** | LightGBM TreeSHAP(`pred_contrib`) 기여도로 매수/관망/매도 판단 근거를 자연어로 설명 (`/api/ml/explain`, 로보 추천 종목·스크리닝·성과 검증 화면) |
-| **ML·딥러닝 · 금융 필수 지식** | 우리 수집 자료로 다시 만든 분석 셋 — **모델 비교**(모델 8개를 시간 순서 5겹 · 기준선 넷과 같은 날들로 견주고 블록 부트스트랩 + 홀름으로 기준선 셋 모두보다 뚜렷할 때만 「낫다」 · 수집 일봉 수정주가 · 자료 지문 저장본 · 앱 안 작업 + 진행 표시 · `/api/model-compare`) · **계절성 분석**(달 · 요일 · 산타 랠리 · 반년 · 홀름 판정 · `/api/seasonality`) · **종목 군집화**(시장 몫을 뺀 상관 · Ward · 실루엣 · `/api/clusters`) |
-| **차트 패턴·멀티타임프레임** | 캔들 패턴(해머·장악형·샛별형 등)·피벗 지지/저항선·돌파/골든크로스 탐지, 60분봉·일봉·주봉 종합 신호 + 신뢰도 (`/api/stocks/patterns`, `/api/stocks/mtf-signal`) |
-| **TradingView 연동** | 알림 Webhook 수신(`POST /api/webhooks/tradingview`, API 키 인증, 모의 체결·중복 방지·알림 전달) + Strategy Tester 성과/거래 목록 CSV ↔ LEAN 백테스트 교차 검증 |
-| **투자성향·목표 시뮬레이션** | 7문항 투자성향 진단(5단계) → 자산배분 성향 반영, 목표 연수익률 달성 확률 몬테카를로(월 적립·백분위 경로) |
-| **자유 산식 커스텀 지표** | 안전한 수식 DSL(`app/services/formula.py`: 화이트리스트 AST, 37개 causal 함수, `shift`≥1로 룩어헤드 차단)로 지표·매수·매도 산식과 params 정의 → 산식 변경 시 자동 버전 증가·복원, (버전·종목·기간)별 계산 결과 저장·재사용, Pine/Python 내보내기 (`/api/formula-indicators/*`) |
-| **백테스트 비용 모델** | 수수료·슬리피지(bp)·손절·익절(%) 반영 (`/api/quant/pipeline`, `/api/quant/ml/run`) |
-
----
+| ① 가입 · 로그인 | 첫 화면 | 「회원가입」 으로 계정을 만들고 로그인합니다. |
+| ② 투자 성향 진단 | 로보 어드바이저 › 자산배분·최적화 | 「투자성향 진단」 설문 7문항에 답하면 안정형 ~ 공격투자형 다섯 단계 가운데 하나가 나옵니다. |
+| ③ 자산 배분 | 같은 화면 | 진단한 성향이 자산배분 모델에 들어갑니다. 「포트폴리오 최적화 실행」 으로 비중을 계산하고 「저장한 배분 보기」 로 다시 봅니다. |
+| ④ 상품 안내 | 로보 어드바이저 › 투자 성향별 상품 안내 | 나눈 비중대로 상품을 공시 정보로 나란히 비교합니다. 추천이 아니라 같은 기준으로 늘어놓은 목록입니다. |
+| ⑤ 모의 주문 | 모의투자 › 국내주식 모의주문 | 가상 돈 1억 원으로 사고팝니다. 장이 닫힌 날에는 주문 미리 보기까지 됩니다. |
+| ⑥ 자동매매 | 퀀트자동매매 › 자동매매 현황 | 「▶ 자동매매 시작」 을 누르면 10분마다 신호를 계산해 모의로 주문합니다. 위험 한도를 넘는 주문은 막힙니다. |
+| ⑦ 리밸런싱 | 로보 어드바이저 › 리밸런싱 엔진 | 목표 비중과 조건(시간 · 이탈률 · 현금흐름)을 정하고 「주문 산출」 로 팔고 살 수량을 미리 봅니다. |
+| ⑧ 결과 보기 | 모의투자 › 모의계좌 현황 · 로보 어드바이저 › 모의 투자 의사결정 | 계좌 숫자와 거래 기록, 최근 규칙 판단 근거와 모의 투자 성과 분석을 봅니다. |
+| 언제든 | 로보 어드바이저 › AI 투자 상담 | 질문하면 2026년에 시행 중인 법령 · 감독규정 조문을 근거 번호와 함께 답합니다. 근거를 찾지 못하면 답하지 않습니다. |
+| 언제든 | 왼쪽 전체 메뉴 › 투자분석 기초 · 위 탭 학습 | 거시경제 지표 · 산업 분석 · 재무제표 분석 · 기술적 분석 · 일정을 보고, 강의실 · 용어사전 · 개념 학습에서 낱말과 개념을 익힙니다. |
 
 ## 기술 스택
 
-### Backend
-| 항목 | 기술 |
+기술은 쓰는 곳과 함께 <표 6> 에 적었습니다.
+
+**<표 6> 기술 스택**
+
+| 영역 | 기술 | 쓰는 곳 |
+|---|---|---|
+| 앱 | Python 3.12 · FastAPI · Uvicorn | 화면 내보내기 · API 267(라우터 40) |
+| 화면 | Vanilla JS(ES Modules · 빌드 없음) · Tailwind CSS(CDN) · TradingView Lightweight Charts | 차트 · 표 · 사용법 창 |
+| 앱 DB | PostgreSQL 16 · SQLAlchemy(async) · Alembic | 계정 · 모의 장부 · 주문 · 리밸런싱 · 용어사전 · 감사 기록 |
+| 세션 · 예약 | Redis 8 · Celery(워커 · 비트) | 로그인 세션 · 캐시 · 자동매매 · 체결 확인 · 리밸런싱 점검 |
+| 수집 | Python 수집기 · SQLite · Windows 작업 스케줄러 · Hugging Face Hub | 시세 · 배당 · 수정주가 · 공시 · 재무 · 뉴스 · 법령 → 수집 DB · 근거 DB → 비공개 백업 |
+| AI · 검색 | Ollama · LangChain · LangGraph · Qdrant 1.19 · Neo4j 5 | 근거 답(`qwen3:4b-instruct`) · 채팅(`qwen2.5:1.5b`) · 임베딩 · 벡터 검색 · 종목 관계 그래프 |
+| 분석 | pandas · NumPy · LightGBM · scikit-learn | 지표 · 모델 비교 · 군집 · XAI 기여도 |
+| 백테스트 | QuantConnect LEAN(도커) | LEAN 백테스트 |
+| 시험 · 도구 | pytest · Playwright | 자동 시험 · 시연 영상 녹화 |
+
+## 검증
+
+- 자동 시험은 2,352건입니다(2026-10-19 · `pytest --collect-only`). 마지막 전체 실행(2026-10-19)은 통과 2,208 · 건너뜀 2 · 실패 7 이고, 실패 일곱은 결함대장에 올라 있는 알려진 두 결함(DF-110 · DF-135)입니다. 시험은 일회용 시험 DB 를 띄워 로컬에서 돌립니다. CI 는 두지 않았습니다([ADR-0003](docs/ADR/ADR-0003-CI를-걷어내고-먼저-논의한다.md)).
+- 기능 점검 `check.ps1` 은 떠 있는 앱의 API 66건을 밖에서 불러 봅니다.
+- API 명세는 정적 스캐너(`scripts/api_scan.py`)가 라우트를 뽑아 만들고, 앱의 OpenAPI 와 맞대어 봅니다.
+- 근거 답은 사람이 판정한 평가셋(20문항)으로 잽니다. 기본 답 모델은 답할 수 있는 질문 15개 가운데 12개를 맞혔고, 근거 밖 질문 3개에는 지어낸 답이 없었습니다.
+- 백테스트와 주문이 같은 비용표(위탁수수료 · 유관기관 제비용 · 연도별 증권거래세 · 농어촌특별세 · 슬리피지)를 씁니다. 2026년 국내주식 왕복 비용은 0.4354% 로, 예전 대칭 가정(왕복 0.2%)의 2.18배입니다.
+
+시험 범위 · 결과서 · 결함대장은 [테스트 계획서](docs/시험/테스트계획서.md)에 있습니다.
+
+## 팀
+
+역할은 2026-10-01 팀이 정했습니다(<표 7>). 주담당은 자기 기능의 설계 → 산출물 → 코드를 끝까지 맡고, 확인은 네 명 모두 합니다.
+
+**<표 7> 팀과 주담당**
+
+| 이름 | 2차 나만의 로보 어드바이저 | 3차 나만의 투자 인디케이터 |
+|---|---|---|
+| 이동원(팀장) | 목표 기능 ① 세부 1 ~ 4: 용어사전 · 투자 자료 수집 · 근거 RAG · 일정과 정기 배치 | ③ TradingView · Pine Script 성과 확인 |
+| 신장환 | ① 세부 5 XAI · ② 패턴 인식 예측 | ① 기본 인디케이터 전략 · ② 커스텀 인디케이터 |
+| 오준영 | ③ 자산배분 · 스크리닝 · 리밸런싱 | ⑤ 증권사 API 연동 자동화 |
+| 강민석 | ④ 성과 해석 · 모의투자 | ④ QuantConnect LEAN 성과 검증 |
+
+사람별 일정과 산출물은 [프로젝트 계획서](docs/계획서/프로젝트계획서.md) 4 · 5절에 있습니다.
+
+## 문서
+
+산출물은 저장소 안에 판을 붙여 둡니다. 자주 찾는 문서만 <표 8> 에 모았습니다.
+
+**<표 8> 자주 찾는 문서**
+
+| 알고 싶은 것 | 문서 |
 |---|---|
-| 언어 / 프레임워크 | Python 3.12 / FastAPI (async) |
-| LLM / 임베딩 | Ollama (`llama3.1` / `nomic-embed-text`) — 이 PC 에서 돈다 |
-| 관계형 DB | PostgreSQL 16 (SQLAlchemy async · Alembic 마이그레이션) — 계정 · 모의 장부 · 주문 · 용어사전 · 감사 기록 |
-| 시세 자료 | 수집 DB (SQLite · 읽기 전용) — 공공데이터포털 KRX 시세 · 배당 · 수정주가 · ETF · 지수 · 분봉 (2020-01-02 ~) |
-| 지식 그래프 | Neo4j 5 |
-| 벡터 DB | Qdrant 1.19 (compose `qdrant` · 2026-10-02 부터 늘 켬) — 올린 문서 · 크롤링 조각의 근거 검색(RAG) · 임베딩 `nomic-embed-text` 768차원 |
-| 세션 · 큐 | Redis (`redis.asyncio`) + HTTP-only 쿠키, 슬라이딩 만료(활동 시 서버 TTL·브라우저 쿠키 만료 동시 연장) · Celery 브로커 |
-| 예정 | MongoDB(퀴즈 · 시험 · 활동 기록) — 2026-10 화면 자리 조사에서 정함 |
-| 외부 HTTP | httpx (async) — 화면 표시용 외부 시세(저장하지 않음) · Ollama API |
-| HTML 파싱 | BeautifulSoup4 |
-| 환경변수 | pydantic-settings |
+| 목표 · 범위 · 역할 · 일정 | [프로젝트 계획서](docs/계획서/프로젝트계획서.md) |
+| 기능 설계 | [기능 설계서](docs/설계/기능설계.md) · [목표 기능 ① 데이터 · 지식](docs/설계/목표기능1-데이터지식-설계.md) · [② 패턴 예측 · XAI](docs/설계/목표기능2-패턴예측-XAI-설계.md) · [③ 리밸런싱](docs/설계/목표기능3-리밸런싱-설계.md) |
+| 기능이 안에서 도는 방식 | [기능별 동작 원리서](docs/설계/기능동작원리.md) |
+| 구성 · 포트 | [인프라 · 네트워크 구성도](docs/설계/인프라-네트워크구성도.md) |
+| API | [API 명세서](docs/인터페이스/API명세서.md) |
+| 시험 · 결함 · 성과 | [테스트 계획서](docs/시험/테스트계획서.md) · [백테스트 보고서](docs/시험/백테스트보고서.md) |
+| 로컬 실행 · 문제 해결 | [로컬 실행 안내서](docs/배포/로컬실행안내서.md) · [scripts/personal](scripts/personal/README.md) |
+| 결정 기록 | [ADR](docs/ADR/) · [논의 결정 대장](docs/계획서/논의결정대장.md) |
+| 시연 영상 | [시연 영상 안내](docs/발표/영상/README.md) |
+| 산출물 전체 · 폴더 지도 | [산출물 목록](docs/산출물목록.md) · [docs 안내](docs/README.md) |
 
-### Frontend
-| 항목 | 기술 |
+## 출처와 이용 조건
+
+앱은 강사님 기초 코드(lumina-invest) 위에 만들었습니다. 받은 것과 조건은 [NOTICE](NOTICE.md)에 적었고, 원본에 라이선스 파일이 없어 이 저장소에도 오픈소스 라이선스를 붙이지 않습니다.
+
+데이터는 출처마다 이용 조건이 다릅니다. 주요 출처만 <표 9> 에 모았고, 전체 열네 줄은 [출처 대장](docs/데이터/대장/자료안내-출처.tsv)과 앱의 「자료 안내」 화면에 있습니다.
+
+**<표 9> 주요 데이터 출처**
+
+| 출처 | 무엇 | 이용 조건 |
+|---|---|---|
+| 금융위원회 시세(공공데이터포털) | 주식 · ETF · 지수 일봉 | 공공누리 제4유형: 출처 표시 · 상업적 이용 금지 · 변경 금지 · 다시 나눠 주지 않음 |
+| OpenDART | 공시 · 재무 · 배당 | 원자료를 다시 나눠 주지 않음 |
+| 국가법령정보센터 | 근거 상담의 법령 · 행정규칙 원문 | 법령 · 고시는 저작권 보호 대상이 아님(저작권법 제7조) |
+| 한국은행 ECOS | 거시 통계 · 지수 | 출처 표시 |
+| 야후 파이낸스 | 분봉 · 화면 표시용 지연 시세 | 개인 · 비상업 이용 · 원문을 남기지 않음 |
+| 한국투자증권 Open API | 사용자 자기 키의 현재가 조회 · 모의 주문 | 그 사람의 화면에서만(제3자 제공 금지 · 고객 이용약관 제5조 3항) · 실시간 값은 저장 · 백업하지 않음 |
+| 정책브리핑 · GDELT | 뉴스 | 기사마다 공공누리 유형이 다름(제1유형만 본문) · GDELT 는 제목 · 링크만 |
+
+- 화면의 시세 출처는 「자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 수정주가 · 지표는 Qurious 가 계산」 꼴로 적습니다.
+- 원자료 · 수집 DB · 시연 영상은 공개 저장소에 두지 않고 Hugging Face 비공개 데이터셋에만 둡니다.
+- 이 저장소의 화면과 숫자는 교육 · 연습용이며 투자 권유가 아닙니다.
+
+## 개발자 참고
+
+<details>
+<summary>스크립트 · 주소 · 포트</summary>
+
+`scripts/personal/` 의 PowerShell 스크립트로 띄우고 점검합니다. 옵션과 자주 막히는 곳은 [scripts/personal/README.md](scripts/personal/README.md) 에 있습니다.
+
+| 스크립트 | 하는 일 | 자주 쓰는 옵션 |
+|---|---|---|
+| `start.ps1` | 사전 점검 → `.env` → 망 `shared-net` → DB 넷 → 앱 · Celery → 헬스 체크 → 브라우저 | `-Dev` · `-NoCelery` · `-Build` · `-NoBrowser` |
+| `check.ps1` | 기능 점검(API 66건) | `-Full` · `-Write` · `-Group <묶음>` |
+| `status.ps1` | 컨테이너 · 앱 응답 · 이미지 신선도 · 수집 DB · 디스크 | `-Data` |
+| `logs.ps1` | 컨테이너 로그 | `-Service app` · `-Follow` |
+| `stop.ps1` | 끄기(데이터 유지) | `-Keep` · `-DeleteData` |
+| `test.ps1` | 일회용 시험 DB 를 띄워 pytest | `-Path <파일>` · `-NoDb` |
+
+| 무엇 | 주소 · 포트 |
 |---|---|
-| 빌드 | Vanilla JS (ES Modules, CDN-only, 빌드 툴 없음) |
-| 스타일 | Tailwind CSS v3 (CDN) |
-| 차트 | TradingView Lightweight Charts v4 (CDN) |
+| 화면 | <http://localhost:8966> |
+| API 자동 문서(FastAPI) | <http://localhost:8966/docs> |
+| API 문서(앱 디자인 · 관리자 메뉴) | <http://localhost:8966/api-docs/> |
+| PostgreSQL · Redis · Qdrant · Neo4j | 15432 · 16379 · 16333 · 17474 / 7687 |
 
-### Infra (로컬 Docker)
-```
-PostgreSQL 16  ·  Redis 8(AOF)  ·  Neo4j 5  ·  Qdrant 1.19  ·  앱(FastAPI)  ·  Celery Worker · Beat  ·  인제스트
-(이 PC: Ollama · 수집기 — 작업 스케줄러 매일 12:30 · 복원 리허설 매주 일요일 15:00)
-```
+</details>
 
----
+<details>
+<summary>개발 모드(코드를 고치며 보기)</summary>
 
-## 퀀트 매매 ML 파이프라인
-
-```mermaid
-flowchart TD
-    A([원시 시장 데이터\nOHLCV · Yahoo Finance]) --> B
-
-    subgraph PRE["① 전처리 (Preprocessing)"]
-        B[결측치 처리\nffill / bfill] --> C[이상치 제거\n종가 0 이하 필터] --> D[DatetimeIndex 정렬]
-    end
-
-    D --> E
-
-    subgraph FE["② 피처 엔지니어링 (Feature Engineering)"]
-        E[수익률\nret_1 / ret_5 / ret_20] --> F[이동평균 비율\nMA5 / MA20 ratio]
-        F --> G[RSI 14]
-        G --> H[MACD 12/26/9]
-        H --> I[볼린저밴드\nbb_width · bb_pos]
-        I --> J[거래량 비율 · ATR]
-    end
-
-    J --> K{모델 선택}
-
-    subgraph ML["③-A ML 모델"]
-        K -->|lgb| L[LightGBM\n방향성 3-class 분류\n매수 / 관망 / 매도]
-    end
-
-    subgraph DL["③-B DL 모델"]
-        K -->|mlp| M[MLP Neural Net\n64→32 ReLU\nsklearn MLPClassifier]
-        K -->|lstm| N[LSTM · Transformer\nPyTorch 확장 옵션]
-    end
-
-    subgraph RULE["③-C Fallback"]
-        K -->|rule| O[규칙 기반\nRSI+MACD+BB 점수합산]
-    end
-
-    L --> P([시그널 생성\n+1 매수 / 0 관망 / -1 매도])
-    M --> P
-    N --> P
-    O --> P
-
-    P --> Q
-
-    subgraph BT["④ 백테스트 (Backtest)"]
-        Q[누적 수익률] --> R[샤프지수\n연간화 √252]
-        R --> S[MDD 최대낙폭]
-        S --> T[승률 · 매매 횟수]
-    end
-
-    T --> U{시그널 검증}
-    U -->|통과| V
-    U -->|기각| FE
-
-    subgraph EXEC["⑤ 실시간 실행 (Alpaca API)"]
-        V[POST /v2/orders\nPaper Trading] --> W[포트폴리오 업데이트\nMongoDB orders · portfolio]
-    end
-
-    W --> X([10분 Agentic Loop\nauto_trade.py]) --> A
-
-    style PRE fill:#e8f4fd,stroke:#2962ff
-    style FE  fill:#e8f5e9,stroke:#089981
-    style ML  fill:#fff3e0,stroke:#f57c00
-    style DL  fill:#fce4ec,stroke:#e91e63
-    style RULE fill:#f3e5f5,stroke:#7b1fa2
-    style BT  fill:#e0f2f1,stroke:#00695c
-    style EXEC fill:#e8eaf6,stroke:#3949ab
+```powershell
+.\scripts\personal\start.ps1 -Dev                  # 코드 폴더를 컨테이너에 연결 (주소는 그대로 8966)
+.\scripts\personal\logs.ps1 -Service app -Follow   # 다시 켜지는 모습 보기
 ```
 
----
+`app\*.py` 를 저장하면 앱과 Celery 가 몇 초 안에 다시 켜지고, `public\` 은 브라우저 새로고침만 하면 됩니다. `requirements.txt` · `Dockerfile` 을 바꾸면 `start.ps1 -Dev` 를 다시 돌립니다.
 
-## 매매비용 (`app/services/trading_cost.py`)
+</details>
 
-백테스트와 주문이 **같은 요율표**를 쓴다. 국내주식 비용은 매수·매도가 대칭이 아니다.
-
-| 항목 | 요율 (편도) | 매수 | 매도 |
-|---|---:|:---:|:---:|
-| 위탁수수료 (뱅키스 온라인 KRX) | 0.0140527% | ○ | ○ |
-| 유관기관 제비용 | 0.0036396% | ○ | ○ |
-| 증권거래세 + 농어촌특별세 | **연도별** (아래) | ✕ | ○ |
-| 슬리피지 | 기본 10bp (가정) | ○ | ○ |
-
-매도세 합계는 시행일로 갈린다 — **코스피와 코스닥이 같다**(농특세는 코스피에만 붙지만
-코스닥은 거래세가 그만큼 높다). 코넥스만 0.10% 로 낮다.
-
-| 시행일 | 2019-06-03 | 2021-01-01 | 2023-01-01 | 2024-01-01 | 2025-01-01 | 2026-01-01 |
-|---|---:|---:|---:|---:|---:|---:|
-| 매도세 합계 | 0.25% | 0.23% | 0.20% | 0.18% | **0.15%** | **0.20%** |
-
-2025년 구간에 0.20% 를 쓰면 매도 비용을 33% 과대계상하고, 2026년에 0.15% 를 쓰면
-과소계상한다. 왕복 실제 비용은 2026년 기준 **0.4354%** 로, 예전에 쓰던 대칭 가정
-(왕복 10bp = 0.2%)의 **2.18배**다.
-
-### API 파라미터 (`GET /api/quant/pipeline`)
-
-| 파라미터 | 기본값 | 뜻 |
-|---|---|---|
-| `cost_model` | `real` | `real`(연도별 실제 요율) · `flat`(왕복 대칭 `cost_bps`) · `none`(무비용) |
-| `slippage_bps` | `10` | 편도 슬리피지(bp). `cost_model=real` 에서만 쓴다 |
-| `market` | (자동) | `KOSPI`·`KOSDAQ`·`KONEX`. 비우면 종목코드 접미사로 추론 |
-| `cost_bps` | `10` | `cost_model=flat` 에서만 쓰는 왕복 대칭 비용 |
-
-응답에 `cost`(무엇을 어떤 기준으로 뗐는지) · `gross_return_pct`(비용 전) ·
-`cost_drag_pct`(깎인 폭)가 함께 나간다. 비용을 넣지 않으면 `cost.model` 이 `none` 으로
-나가므로, 무비용 수치가 아무 표시 없이 화면에 나가지 않는다.
-
-`cost_basis` 는 그 비용이 어디서 왔는지다 — `none`(안 뗌) · `estimated`(요율표로 계산) ·
-`broker`(증권사가 준 실제 금액). 백테스트와 화면이 만드는 값은 모두 `estimated` 이고,
-`broker` 는 증권사 체결을 들여왔을 때만 붙는다 (아래 「증권사 체결 들여오기」).
-
-### 주문 쪽 — 현금은 `net_amount` 로 움직인다
-
-```
-매수: net_amount = 체결가 × 수량 + 수수료 + 유관기관비
-매도: net_amount = 체결가 × 수량 − 수수료 − 유관기관비 − 증권거래세 − 농어촌특별세
-```
-
-주문 세 경로(직접매매 화면 · 자동매매 · 모의투자 화면)가 모두 이 값으로 현금을 옮긴다.
-`가격 × 수량` 으로 옮기면 매수는 수수료만큼 부족해지고 매도는 세금만큼 많이 들어온다.
-
-`orders` 에 집계값(`filled_quantity`·`avg_fill_price`·비용 4칸·`net_amount`)을 두고,
-부분체결의 근거는 `order_fills` 에 남긴다 — FIX 가 `CumQty`·`AvgPx`(집계)와
-`LastQty`·`LastPx`(개별)를 둘 다 두는 것과 같은 구조다.
-
-`portfolio.avg_price` 는 **체결가 기준**으로 둔다. 매입부대비용을 단가에 녹이면 화면의
-"평균단가"가 체결가와 달라져 읽는 사람이 혼동한다 — 비용은 주문 행에 남고, 현금이
-그만큼 덜 남으므로 총자산에는 이미 반영된다.
-
-### 증권사 체결 들여오기 (`app/services/fill_sync.py`)
-
-실전 주문 경로(직접매매 화면의 증권사 주문 · 자동매매)는 **증권사에 주문만 내고 DB 에는
-아무것도 남기지 않는다.** 그래서 실제 체결은 우리 쪽에 기록이 없다. 체결 조회가 그
-구멍을 메운다.
-
-```
-BrokerClient.get_daily_fills(계좌, 시작일, 종료일) → list[FillInfo]
-        │
-        └─ fill_sync.sync_daily_fills() ─→ orders (증권사 주문번호로 갱신)
-                                        └─ order_fills (근거)
-```
-
-KIS 는 주식일별주문체결조회에서 **추정제비용합계(`prsm_tlex_smtl`)** 를 함께 준다.
-우리 요율표로 계산한 값과 이것을 맞대어 보고, **합계가 맞을 때만** `cost_basis="broker"`
-를 붙인다. 어긋나면 `estimated` 로 두고 차액을 `mismatched` 에 담아 돌려준다 — 틀린
-값을 "증권사가 준 값" 이라 부르면 검증이 무의미해진다.
-
-| 상황 | `cost_basis` | `net_amount` |
-|---|---|---|
-| 증권사 합계 = 우리 추정 (±1원) | `broker` | 증권사 합계 기준 |
-| 어긋남 | `estimated` | 우리 추정 기준 + 차액 보고 |
-| 증권사가 제비용을 안 줌 | `estimated` | 우리 추정 기준 |
-
-어긋났을 때 증권사 합계를 `net_amount` 에 쓰지 않는 이유는, 그러면 `net = 체결금액 ±
-세목합` 이라는 불변식이 깨져 **어느 세목이 틀렸는지 알 수 없게** 되기 때문이다.
-
-**TR 이 기간으로 갈린다.** 같은 URL 인데 최근 3개월과 그 이전이 서로 다른 TR 이다
-(`TTTC0081R` / `CTSC9215R`, 모의는 `V` 접두사). 한쪽만 알면 과거 체결을 못 본다.
-
-구현하지 않은 증권사는 `NotImplementedError` 를 던진다. 빈 리스트를 돌려주면 "체결이
-없다" 와 "조회할 수 없다" 가 구분되지 않아 비용 검증이 조용히 건너뛰어진다.
-
-#### KIS 응답을 다룰 때 조심할 것
-
-- 🔴 **KIS 는 실패해도 HTTP 200 을 준다.** 성공 여부는 본문 `rt_cd` 에 있다
-  (`0` 이 성공). `raise_for_status()` 만 보면 거부된 주문이 성공으로 올라간다 —
-  2026-09-20(일) 모의계좌 주문이 `모의투자 영업일이 아닙니다`(`rt_cd=1`) 로 거부됐는데
-  화면에는 `{"ok": true}` 가 뜨고 "주문 완료" 알림까지 나갔다. 지금은 모든 호출이
-  `KISClient._check()` 를 지난다.
-- 🔴 **계좌번호는 8자리 + 상품코드 2자리다.** `.env` 에 8자리만 있으면 `ACNT_PRDT_CD`
-  가 빈 칸으로 나가고 **잔고 조회가 HTTP 500** 으로 떨어진다. `_split_account()` 가
-  8자리일 때 `01`(종합위탁)을 채운다.
-- 🟡 체결시각을 주지 않는다. `ord_tmd` 는 **주문시각**이라 지정가가 나중에 체결되면
-  둘이 다르다. 지금은 이 값을 체결시각 자리에 쓴다.
-- 🟡 일별주문체결조회는 **주문 단위 집계**(총체결수량·체결평균가)를 준다. 개별
-  부분체결 한 건씩이 아니다 — 그래서 `order_fills` 에는 집계 행 하나(`seq=1`)만 남고,
-  `broker_exec_id` 가 비어 있는 것이 그 표시다.
-
-### 검증
+<details>
+<summary>Windows 밖에서 띄우기(이 절차는 시험하지 않았습니다)</summary>
 
 ```bash
-PYTHONPATH=. python scripts/verify_trading_cost.py            # 요율표·방향·경계
-PYTHONPATH=. python scripts/verify_trading_cost.py --repro     # 실데이터 재현 (수집기 DB 필요)
-PYTHONPATH=. python scripts/verify_fill_sync.py               # 체결 동기화 (임시 Postgres 필요)
-PYTHONPATH=. python scripts/sync_fills.py --days 90           # KIS 모의계좌 실조회·비용 대조
+docker network create shared-net
+cp .env.example .env
+docker compose up -d postgres redis neo4j qdrant
+docker compose up -d app celery-worker celery-beat
+docker compose up -d model-pull
 ```
 
-`sync_fills.py` 는 기본이 **모의계좌**(`KIS_MOCK_*`)다. 실계좌(`--real`)는 승인 없이
-쓰지 않는다.
+</details>
 
----
+<details>
+<summary>환경 변수</summary>
 
-## 아키텍처
+`.env.example` 이 정본입니다(변수 67개). `start.ps1` 은 `.env` 가 없으면 이것을 복사합니다. 값은 저장소에 올리지 않습니다.
 
-배포 환경별 상세 목표 설계서는 다음 문서를 기준으로 합니다.
-
-- [온프레미스 아키텍처 설계서](onprem.md): Docker Compose, Kubernetes, 로컬 Ollama, NVIDIA GPU, 데이터·보안·백업·관측성
-- [데이터 파이프라인 설계서](pipeline.md): 주식 백데이터 원천 인벤토리, 수집 스케줄, 캐시·적재 스키마, OHLCV/텍스트 전처리 규칙, 히스토리 테이블 목표안
-
-> 2.0 구성 그림은 이 README 맨 위([`docs/img/architecture/qurious-architecture_v2.0.png`](docs/img/architecture/qurious-architecture_v2.0.png) · 원본 SVG 같은 폴더)입니다. 예전 판의 MongoDB · SQLite 기준 구성도는 지웠습니다 — 계정 · 매매는 강사님 기초 코드가 이미 PostgreSQL 로 옮겼습니다.
-
-```
-Browser
-  │  HTTP :8966
-  ▼
-FastAPI (Uvicorn · Python 3.12) — 화면(app.html · /js · /css) · 개념 학습 /learn · 금융 강의 /lectures · API 204
-  ├── /api/auth/* · /api/me      → PostgreSQL (계정) + Redis (세션)
-  ├── /api/paper/* · /api/orders → PostgreSQL (모의 장부 · 주문 · 비용)
-  ├── /api/stocks/* · /api/quant → 수집 DB(국내 일봉) 먼저 → 없으면 외부 시세(표시만)
-  ├── /api/glossary/*            → PostgreSQL (용어 755 · 파일이 원본)
-  ├── /api/lectures/*            → 수집 DB(지수 · ETF · 종목) 먼저 → 해외 지수 · 1분봉만 외부 (저장 없음)
-  ├── /api/learn/*               → Hugging Face 비공개 데이터셋 (학습 글)
-  ├── /api/documents/* · /api/chat 근거 → Qdrant (문서 조각 벡터) + Ollama 임베딩
-  └── /api/chat · /api/graph/*   → Ollama (이 PC) · Neo4j
-  │
-  ├── PostgreSQL 16 ── 계정 · 모의 장부 · 주문 · 리밸런싱 · 용어사전 · 감사 기록
-  ├── Redis 8 ─────── 세션 · 캐시 · Celery 큐
-  ├── Neo4j 5 ─────── 지식 그래프
-  ├── Qdrant 1.19 ─── 문서 조각 벡터 (컬렉션 fin_chunks · 호스트 포트 16333)
-  └── 수집 DB ──────── data/collector/market.sqlite3 (읽기 전용으로 붙인다)
-
-Celery Worker · Beat ── 예약 작업 · 무거운 계산 · 알림
-이 PC(도커 밖) ── 수집기(collector) · 작업 스케줄러 12:30 → 수집 DB → HF 비공개 데이터셋
-                  매주 일요일 15:00 복원 리허설(HF → 임시 폴더 · 지문 대조 — scripts/weekly_rehearsal.py)
-```
-
----
-
-## 단위 테스트
-
-```bash
-pip install -r requirements-dev.txt   # requirements.txt 를 함께 싣는다
-python -m pytest                      # pytest.ini 에 -q 가 있다 — 또 붙이면 요약 줄이 사라진다
-# tests/: 지표 룩어헤드 방지 · 리밸런싱 · 위험관리 · XAI · TradingView 파서 · 패턴 · 성향/시뮬레이션(강사님 원본)
-#         + 실거래 차단 · 수집 DB · 모의 장부 · 계정 · 용어사전 · 문서 스캐너 · 강의 · 벡터 저장(Qurious) — 473건 (2026-10-02)
-# 채팅 모드 · 벡터 저장 시험은 RAG 패키지(langchain-ollama · langchain-qdrant)가 없는 파이썬에서는 건너뛴다(앱 이미지에는 있다)
-# DB 시험 18건(모의 장부 · 계정 · 용어사전 적재)은 QURIOUS_TEST_DATABASE_URL 이 있을 때만 돈다 — .\scripts\personal\test.ps1 이 일회용 DB 를 띄워 준다
-```
-
-컨테이너 이미지로 실행할 때:
-
-```bash
-docker run --rm -v "$PWD/tests:/app/tests:ro" -v "$PWD/pytest.ini:/app/pytest.ini:ro" \
-  -e DATABASE_URL=postgresql+asyncpg://x:x@localhost/x -e REDIS_URL=redis://localhost:6379/0 \
-  --entrypoint sh lumina-invest-app -c "pip install -q pytest && python -m pytest -q"
-```
-
-강사님 원본에는 GitHub Actions `Unit Tests` 워크플로(push/PR 마다)와 EC2 배포 워크플로가 있지만, **Qurious 는 CI 를 두지 않고**(ADR-0003 · CI 논의 D8) AWS 배포도 뺐다 — 시험은 로컬에서 돌린다.
-
-## 로컬 실행 가이드
-
-> **Qurious — PowerShell 스크립트로 한 번에 (2026-09-30)**: Docker Desktop 만 켜 두고 저장소 폴더에서
-> `.\scripts\personal\start.ps1`(띄우기) → `.\scripts\personal\check.ps1`(기능 점검 · curl 처럼 API 62건) →
-> `.\scripts\personal\stop.ps1`(끄기). 코드를 받은 뒤에도 `start.ps1` 이 이미지를 스스로 다시 만든다.
-> 사용법은 [`scripts/personal/README.md`](scripts/personal/README.md), 동작 원리 · 점검 항목 · 문제 해결은
-> [로컬 실행 안내서 v0.1](docs/배포/로컬실행안내서.md). 아래는 강사님 원본의 수동 절차다(일부는 옛 구성 기준).
-
-### 사전 요구사항
-- Docker Desktop + Docker Compose v2
-- Python 3.12 (로컬 개발 시)
-
-### 1. 인프라 기동
-
-```bash
-# Ollama(qwen2.5:1.5b + nomic-embed-text) 포함 전체 기동
-docker compose up -d
-
-# 모델 준비 대기 (약 1~5분, 이미 받아둔 모델이면 즉시 종료)
-docker compose logs -f model-pull
-
-# 다른 모델을 쓰려면: COMPOSE_LLM_MODEL=llama3.1 docker compose up -d
-# 호스트 Ollama 를 쓰려면: COMPOSE_OLLAMA_URL=http://host.docker.internal:11434 docker compose up -d app
-```
-
-### 2. Python 앱 로컬 실행
-
-```bash
-# 가상환경
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
-pip install -r requirements.txt
-
-# 환경변수
-cp .env.example .env.dev
-
-# DB 초기화 + CSV 인제스트
-python -m app.services.financial_ingest
-
-# 앱 실행
-uvicorn app.main:app --reload --port 8000
-```
-
-### 3. Docker 전체 실행
-
-```bash
-docker compose up -d --build
-
-# CSV 인제스트 (최초 1회)
-docker compose run --rm ingest
-```
-
-브라우저: `http://localhost:8000`
-
----
-
-## 환경변수
-
-`.env.example` 참고. 핵심 변수:
-
-| 변수 | 기본값 | 설명 |
-|---|---|---|
-| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama 서버 주소 |
-| `LLM_MODEL` | `llama3.1` | 채팅 모델 |
-| `EMBED_MODEL` | `nomic-embed-text` | 임베딩 모델 |
-| `MONGO_URI` | — | MongoDB 연결 문자열 |
-| `REDIS_URL` | `redis://localhost:6379` | Redis 연결 문자열 |
-| `SQLITE_PATH` | `./data/app.db` | SQLite 파일 경로 |
-| `DATA_DIR` | `./data` | CSV 파일 루트 디렉토리 |
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant 서버 주소 — 도커 안에서는 compose 가 `http://qdrant:6333` 으로 덮어쓴다(바꾸려면 `.env` 에 `COMPOSE_QDRANT_URL`) · 호스트에서 앱을 돌리면 `http://localhost:16333` |
-| `QDRANT_COLLECTION` | `fin_chunks` | Qdrant 컬렉션명 |
-| `GITHUB_TOKEN` | — | GitHub API rate limit 완화 |
-| `LEAN_MODE` | `auto` | LEAN 백테스트 실행 방식 `auto\|ssh\|docker\|local` (아래 참고) |
-| `LEAN_DOCKER_IMAGE` | `quantconnect/lean:latest` | LEAN 엔진 이미지 |
-| `LEAN_SSH_HOST` / `LEAN_SSH_KEY_PATH` | — | ssh 모드: 원격 LEAN 실행 서버 |
-| `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | — | Alpaca Paper 연결 테스트·퀀트 파이프라인 주문 |
-| `OPENAPI_RATE_LIMIT_MAX` | `60` | Open API 키당 분당 호출 제한 |
-
----
-
-### 운영·보안 관련 추가 변수 (2026-09 보강)
-
-| 변수 | 기본값 | 설명 |
-|---|---|---|
-| `RUN_MIGRATIONS_ON_STARTUP` | `true` | 앱 기동 시 `alembic upgrade head` 실행. 복제 인스턴스가 여럿인 운영에서는 `false`로 두고 배포 단계에서 `scripts/migrate.sh`(또는 `docker compose run --rm app alembic upgrade head`)를 1회 실행 |
-| `TRADINGVIEW_ENFORCE_IP` | `false` | TradingView Webhook 발신 IP 허용 목록 검사. 운영에서 `true` |
-| `TRADINGVIEW_ALLOWED_IPS` | TradingView 공식 4개 IP | 쉼표 구분 허용 IP |
-| `TRADINGVIEW_RATE_LIMIT_MAX` | `30` | API 키당 분당 Webhook 알림 수 |
-| `PUBLIC_BASE_URL` | (빈 값) | Webhook URL 안내에 쓰는 외부 공개 주소 |
-| `SESSION_TTL` | `2592000` (30일) | 로그인 세션 유효 기간(초). 슬라이딩 만료라 **마지막 활동**으로부터 이 시간이 지나야 로그아웃된다 |
-| `SESSION_REFRESH_INTERVAL` | `300` | 슬라이딩 갱신 최소 간격(초). 이 간격마다 1회만 Redis `EXPIRE` + 세션 쿠키 재발급(`Set-Cookie`)을 수행한다 |
-| `COOKIE_SECURE` / `COOKIE_SAMESITE` | `false` / `lax` | 세션 쿠키 속성. HTTPS 운영(Caddy 뒤)에서는 `COOKIE_SECURE=true` |
-| `JWT_REFRESH_TTL` | `604800` (7일) | API 클라이언트용 리프레시 토큰 수명. `/api/auth/token/refresh` 가 새 리프레시 토큰도 함께 돌려주므로(슬라이딩) 활동 중인 클라이언트는 재로그인이 필요 없다 |
-
-#### 로보 어드바이저 채팅 답변 엔진 선택 (`/app.html#agent-chat` 우측 상단)
-
-| 모드 | 동작 | 요청 필드 |
-|---|---|---|
-| Local Ollama 연동 사용 | 서버 `LLM_PROVIDER` 설정의 LLM 으로 LangGraph 에이전트 실행 (기본) | `llm_mode=ollama` |
-| OpenAI API Key 입력으로 사용 | 선택 시 나타나는 입력창의 키로 OpenAI Chat Completions 호출. 키는 브라우저 `localStorage` 에만 보관되고 요청 본문으로만 전달되며 서버에 저장·로그되지 않는다. 모델은 `OPENAI_MODEL` | `llm_mode=openai`, `openai_api_key`, `openai_model`(선택) |
-| 순수 RAG 청크 사용 | LLM 호출 없이 Qdrant 유사도 검색 결과(청크·출처·점수)를 그대로 반환 | `llm_mode=rag` |
-
-#### 로그인 세션 유지 동작
-
-- 브라우저: 로그인 시 `fin_session` 쿠키(`max_age=SESSION_TTL`)를 발급한다. 이후 인증된 요청이 들어오면 `SESSION_REFRESH_INTERVAL` 마다 Redis TTL 을 `SESSION_TTL` 로 되돌리고, 같은 응답에 쿠키를 다시 실어 브라우저 쪽 만료도 함께 연장한다 (`app/lib/session.py` 의 `SessionCookieRefreshMiddleware`). 브라우저를 닫았다 다시 열어도 `/`, `/login.html` 은 세션이 살아 있으면 바로 `/app.html` 로 보낸다.
-- 세션 만료 뒤 API 가 401 을 돌려주면 프런트(`public/js/common.js`)가 `/login.html?next=<원래 경로>` 로 보내고, 로그인 후 원래 화면으로 복귀한다.
-- Redis 는 `docker-compose.yml` 에서 AOF(`--appendonly yes`)로 기동하므로 컨테이너 재시작/재배포 후에도 세션이 남는다. Redis 가 잠시 내려가면 인증 요청은 500 이 아니라 503 을 돌려주고, 복구되면 재로그인 없이 이어서 동작한다.
-- JWT 폐기 목록의 키는 토큰마다 다르다 — 토큰의 `jti`(uuid4), `jti` 가 없는 옛 토큰은 `sha256(header.payload)` (과거 "토큰 앞 32자" 방식은 JWT 헤더가 모든 토큰에서 같아 토큰 하나를 폐기하면 전체 토큰이 폐기되는 버그가 있었다. 강사님 기초 코드는 토큰 전체의 SHA-256 으로 고쳤고, Qurious 는 2026-09-20 에 먼저 고친 `jti` 방식을 유지한다 — `app/lib/jwt_auth.py` 머리말).
-- 비밀번호를 바꾸면 다른 기기의 세션은 모두 끊기고, 바꾼 기기는 새 세션 ID 를 받는다(쿠키 재발급 미들웨어에도 새 ID 를 알린다 — `app/routes/auth.py` `change_password`).
-
-자동매매는 인프로세스 루프가 아니라 **DB 플래그(`broker_settings.quant_auto_enabled`) + Celery Beat 10분 태스크(`quant.auto_trade_cycle`)**로 실행되므로 `celery-beat`, `celery-worker` 컨테이너가 반드시 떠 있어야 합니다. 사이클 로그는 `data_cache`에 공유 저장됩니다.
-
-(강사님 원본 안내 — Ansible 실제 시크릿 `aws-work/ansible/inventories/*/group_vars/secrets.yml` 은 더 커밋하지 않는다. Qurious 는 AWS 폴더를 통째로 뺐으므로 해당 파일이 없고, `.gitignore` 에 같은 규칙만 옮겨 두었다.)
-
-## 모의투자 · Open API (stock-coin-trade 이식)
-
-`/home/ubuntu/stock-coin-trade`(Flask + MariaDB)의 모의투자 기능을 FastAPI + PostgreSQL 구조로 옮긴 것이다.
-주식·코인·대체자산이 `paper_accounts.cash`(유저당 1행, 초기 1억원) 하나를 공유하며, 주식 포지션/주문은
-기존 직접매매 화면의 `portfolio` / `orders` 테이블을 그대로 재사용한다(직접매매의 가상 주문도 이 현금과 연동).
-
-| 화면 (GNB 모의투자) | API | 원본 |
-|---|---|---|
-| 모의계좌 현황 | `GET /api/paper/account`, `POST /api/paper/account/reset` | `stocks.py` account/reset |
-| 국내주식 모의주문 | `GET /api/paper/stocks/quote`, `POST /api/paper/stocks/orders[/preview\|/buy\|/sell\|/pine]`, `GET /api/paper/stocks/positions\|orders/history` | `stock_trading.py`, `stocks.py` |
-| 코인 모의매매 | `GET /api/paper/crypto/market-list\|rankings\|ticker\|{code}/candles\|{code}/domestic-prices`, `GET /api/paper/trade/hold`, `POST /api/paper/trade/order/buy\|sell\|preview` | `crypto.py` |
-| 대체자산 | `GET /api/paper/alternatives/markets[/{symbol}/chart]\|positions\|orders/history`, `POST /api/paper/alternatives/orders[/preview]` | `alternatives.py` |
-| Open API 키 | `GET/POST /api/paper/api-keys`, `DELETE /api/paper/api-keys/{id}` | `api_keys.py` |
-| Alpaca 연결 테스트 | `POST /api/paper/alpaca/account\|positions` (읽기 전용) | `alpaca_test.py` |
-
-외부 시스템은 발급받은 키로 `/openapi/v1/*`를 호출한다 (`Authorization: Bearer <key>`, 키당 분당 60회):
-
-```bash
-curl -H "Authorization: Bearer $KEY" http://localhost:8966/openapi/v1/quote/005930
-curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-     -d '{"symbol":"005930","side":"BUY","quantity":10}' http://localhost:8966/openapi/v1/orders
-```
-
-엔드포인트: `GET /stocks`, `GET /quote/{symbol}`, `GET /account`, `GET /positions`, `POST /orders`, `GET /orders`,
-`GET /crypto/hold`, `GET /alternatives/positions`. 오류 응답은 원본과 같은 `{"error": CODE, "message": ...}` 형식이다.
-
-> 원본 중 이식하지 않은 것: 봇 계정 자동 매매(`market_bots.py`), API 사용 이력·오류 분석 화면, 4일 커리큘럼 문서, KIS MCP 서버.
-> 증권사 읽기 전용 테스트(KIS/KB)는 이미 있는 `/api/broker/*`(brokers/ 어댑터)가 같은 역할을 한다.
-
-## QuantConnect LEAN 백테스트 (domain-rag-lab 이식)
-
-`/home/ubuntu/domain-rag-lab`의 `lean_backtest_service.py` + `/backtests/run`을 `app/services/lean_backtest.py`,
-`POST /api/backtests/lean/run`으로 옮겼다. 화면은 GNB **퀀트자동매매 > LEAN 백테스트**.
-
-흐름: Yahoo Finance 일봉(httpx, yfinance 불필요) → `prices.csv` + 전략별 LEAN 알고리즘(`main.py`) 생성 →
-`quantconnect/lean` 컨테이너 실행(`--environment backtesting --algorithm-language Python ...`) →
-`*-summary.json` 통계 + 로그 회수 → pandas로 계산한 수익률·MDD·샤프·시장 노출 일수와 함께 반환.
-LEAN이 Initialize() 전에 요구하는 `market-hours` / `symbol-properties` 참조 데이터는
-`app/services/lean_reference_data/`에 벤더링되어 있다.
-
-| `LEAN_MODE` | 동작 | 출처 |
-|---|---|---|
-| `docker` | 같은 호스트 Docker 데몬에서 실행. 컨테이너 안에서는 `/var/run/docker.sock` 마운트 + named volume `lean-workflows`를 `/workspace`로 공유(docker-compose.yml에 설정됨). docker CLI가 없으면 Engine API(소켓)로 실행 | stock-coin-trade `ai_sheet.py` |
-| `ssh` | `LEAN_SSH_HOST`로 scp 후 원격에서 `docker run` | domain-rag-lab |
-| `local` | LEAN 미실행, pandas 지표만 | — |
-| `auto` (기본) | ssh 설정 → docker 가용 → local 순서로 자동 선택 | — |
-
-```bash
-docker pull quantconnect/lean:latest   # docker 모드 사전 준비 (약 14GB)
-```
-
-실행 이력은 `lean_backtest_runs` 테이블에 남고 `GET /api/backtests/lean/history`로 조회한다.
-
-## 용어사전 · 통합본 반입 폴더 (investment-rag-lab 이식 · Qurious)
-
-강사님 요구 원문의 첫 세부 기능 「용어사전과 연관 개념 탐색」 의 구현 방안은 「domain-rag-lab 와 investment-analysis 의 통합」 이다.
-그 통합본을 AWS 만 빼고 [`rag-lab/`](rag-lab/00-반입안내.md) 에 들여왔다 — **앱과 이어지지 않은 읽기 · 이식용 사본**이고
-(도커 이미지에도 들어가지 않는다), 기능은 묶음마다 `app/` · `public/` 에 새로 쓴다. 출처와 조건은 [NOTICE](NOTICE.md).
-
-첫 묶음인 용어사전은 서버 쪽이 됐다(2026-09-30). 화면 연결 · 연관 개념은 다음 작업이다.
-
-| 무엇 | 어디 |
+| 변수 | 쓰임 |
 |---|---|
-| 용어 755개 · 분류 22개 | 원본 `app/services/glossary_data/terms.json`(git) → 앱이 켜질 때 표 다섯(`glossary_*`)에 넣는다 |
-| API (로그인 없이 읽기) | `GET /api/glossary?q=` · `/api/glossary/categories` · `/api/glossary/meta` · `/api/glossary/{이름}` |
-| 용어를 고칠 때 | `scripts/glossary_build.py` 의 표에 한 줄 → `python scripts/glossary_build.py` → 바뀐 `terms.json` 을 함께 커밋 |
-| 점검 | `.\scripts\personal\check.ps1 -Group 용어` · `python scripts/raglab_scan.py --check`(반입 폴더가 대장과 같은가) |
+| `ADMIN_EMAILS` | 이 이메일로 가입한 계정이 관리자가 됩니다(쉼표로 여럿) |
+| `COMPOSE_OLLAMA_URL` · `COMPOSE_LLM_MODEL` | PC 에 따로 깐 Ollama 와 채팅 모델을 쓸 때 |
+| `KB_ANSWER_MODEL` | 근거 상담 답 모델을 바꿀 때(기본 `qwen3:4b-instruct`) |
+| `SESSION_TTL` | 로그인 유지 기간(기본 30일 · 마지막 활동부터) |
+| `QDRANT_CPUS` | Qdrant CPU 상한(기본 2) |
+| `LEAN_MODE` | LEAN 실행 방식 `auto` · `docker` · `ssh` · `local` |
 
-```bash
-curl "http://localhost:8966/api/glossary?q=PER&limit=3"     # 이름 · 약어 · 영어 · 초성(ㅅㄱㅊㅇ) · 풀이로 찾는다
-curl "http://localhost:8966/api/glossary/sharpe"            # 화면의 용어 키로 한 건
+증권사(KIS) 모의투자 키는 사용자마다 「증권사 API 설정」 화면에서 넣고 사용자별로 저장됩니다([ADR-0004](docs/ADR/ADR-0004-KIS-자격증명은-사용자마다.md)).
+
+</details>
+
+<details>
+<summary>수집 러너와 데이터</summary>
+
+수집 러너는 도커 밖에서 PC 의 파이썬으로 돌고, 작업 스케줄러가 매일 12:30 에 부릅니다. 자세한 단계와 자료 규격은 [collector/README.md](collector/README.md) 에 있습니다.
+
+```powershell
+python scripts/daily_update.py status           # 마지막 실행 결과와 예약 상태
+python scripts/daily_update.py install          # 작업 스케줄러에 매일 12:30 등록(백업 올리기 포함)
+python scripts/weekly_rehearsal.py install      # 매주 일요일 15:00 복원 리허설 등록
+python scripts/hf_dataset.py restore --from <받은 폴더> --into data/collector/market.sqlite3   # 수집 DB 되살리기
+python -m collector.kb_law fetch                # 근거 DB(data/collector/kb.sqlite3) 만들기
 ```
 
-설계와 근거는 [용어사전 설계서 v0.1](docs/설계/용어사전-설계.md), 통합본 전체 목록과 옮기는 차례는 [통합본 이식 계획서 v0.1](docs/설계/통합본-이식계획.md).
+- 수집 DB · 근거 DB 는 앱 컨테이너에 읽기 전용으로 붙습니다(`./data` → `/app/data/csv`). 앱은 이 파일에 쓰지 않습니다.
+- 근거 상담을 끝까지 쓰려면 앱이 부르는 Ollama 에 두 모델을 더 받습니다: `docker compose exec ollama ollama pull qwen3:4b-instruct` · `docker compose exec ollama ollama pull bge-m3`.
 
----
+</details>
 
-## Qdrant 구성 제안
+<details>
+<summary>시험 돌리기</summary>
 
-### 옵션 비교
-
-| 방식 | 비용 | 관리 | 권장 케이스 |
-|---|---|---|---|
-| **EC2 자가 호스팅** | EC2 비용만 | 직접 | 데이터 외부 전송 불가 / 비용 최적화 |
-| **Qdrant Cloud** | 무료 1GB ~ 유료 | 관리형 | 빠른 PoC / 소규모 |
-| **EKS on EC2** | 중간 | K8s 관리 | 대규모 고가용성 |
-
-### EC2 자가 호스팅 (권장 시작점)
-
-```bash
-# r7g.large (ARM, 16GB RAM) 또는 m7i.large
-docker run -d \
-  -p 6333:6333 -p 6334:6334 \
-  -v /data/qdrant:/qdrant/storage \
-  qdrant/qdrant:latest
+```powershell
+.\scripts\personal\test.ps1                              # 일회용 시험 DB(pgvector)를 띄워 전부 돌리고 지운다
+.\scripts\personal\test.ps1 -Path tests\test_formula.py -NoDb   # 한 파일만 · DB 시험은 건너뜀
 ```
 
-### 컬렉션 설계
+모의 장부 시험은 시험 DB 의 표를 지우고 다시 만듭니다. 그래서 `test.ps1` 은 앱 개발 DB(15432)를 시험에 넘기지 않습니다. 직접 `python -m pytest` 로 돌릴 때 DB 시험은 `QURIOUS_TEST_DATABASE_URL` 이 있을 때만 돕니다.
 
-```python
-# fin_chunks – 크롤링 문서 RAG
-VectorParams(size=768, distance=Distance.COSINE)
-# payload 필드: source_url, chunk_index, doc_type, crawled_at
+</details>
 
-# 권장 인덱스
-create_payload_index("fin_chunks", "doc_type", PayloadSchemaType.KEYWORD)
-create_payload_index("fin_chunks", "crawled_at", PayloadSchemaType.DATETIME)
-```
+<details>
+<summary>매매비용(백테스트와 주문이 같은 표)</summary>
 
-### 스케일링 시 고려사항
+비용 계산은 `app/services/trading_cost.py` 한 곳에 있습니다. 국내주식 비용은 매수와 매도가 대칭이 아닙니다.
 
-- **Qdrant Cluster 모드**: shard 수 = (총 벡터 수 / 200만) × replication factor
-- **메모리**: 768차원 float32 × 벡터 수 × 1.5 (HNSW 오버헤드)
-- **스냅샷 백업**: S3에 주기적 스냅샷 (`POST /collections/{name}/snapshots`)
+| 항목 | 요율(편도) | 매수 | 매도 |
+|---|--:|:-:|:-:|
+| 위탁수수료(온라인 · KRX) | 0.0140527% | 냄 | 냄 |
+| 유관기관 제비용 | 0.0036396% | 냄 | 냄 |
+| 증권거래세 + 농어촌특별세 | 연도별(아래) | — | 냄 |
+| 슬리피지 | 기본 10bp(가정) | 냄 | 냄 |
 
----
+| 시행일 | 2023-01-01 | 2024-01-01 | 2025-01-01 | 2026-01-01 |
+|---|--:|--:|--:|--:|
+| 매도세 합계(코스피 · 코스닥) | 0.20% | 0.18% | 0.15% | 0.20% |
 
-## Qdrant 데이터 공유 방법
+- 코넥스는 0.10% 입니다. 2026년 세율은 대통령령 제36001호를 따릅니다.
+- 화면과 응답에는 비용이 어디서 왔는지(`cost_basis`: `none` · `estimated` · `broker`)가 함께 나갑니다. 증권사 체결의 비용 합계가 우리 계산과 맞을 때만 `broker` 를 붙입니다.
 
-### Docker 이미지만으로는 데이터가 공유되지 않는 이유
+</details>
 
-이 프로젝트의 Qdrant 컨테이너는 **named volume**을 사용합니다 (`docker-compose.yml`):
+<details>
+<summary>증권사 연결 · Open API · LEAN</summary>
 
-```yaml
-qdrant:
-  volumes:
-    - qdrant_data:/qdrant/storage   # named volume
-```
+- 증권사: KIS 모의투자에 사용자별 키로 연결합니다. 실거래 승인(`QURIOUS_ALLOW_LIVE_TRADING`) 없이는 어떤 경로도 모의로 낮춥니다([ADR-0001](docs/ADR/ADR-0001-실거래-주문-경로-차단.md)).
+- Open API: 「Open API · 외부 연동」 화면에서 받은 키로 `/openapi/v1/*` 를 부릅니다(`Authorization: Bearer <키>` · 키당 분당 60회). 엔드포인트는 [API 명세서](docs/인터페이스/API명세서.md)에 있습니다.
+- LEAN 백테스트: `LEAN_MODE=docker` 면 앱이 PC 의 도커로 `quantconnect/lean` 컨테이너를 띄웁니다(이미지 약 14 GB).
+- 루트의 `onprem.md` · `pipeline.md` 는 강사님 기초 코드의 목표 설계서(참고)입니다.
 
-Named volume은 Docker 이미지 레이어 **외부**에 존재합니다.  
-따라서 `docker push` / `docker pull`로 이미지만 공유하면 크롤링·인제스트로 적재한 벡터 데이터는 전달되지 않습니다.  
-데이터를 함께 전달하려면 아래 세 가지 방법 중 하나를 선택하세요.
-
----
-
-### 방법 1 — Volume tarball 추출 (권장)
-
-가장 간단한 방법으로, volume 전체를 압축 파일 하나로 내보냅니다.
-
-**① 내보내기 (공유하는 쪽)**
-
-```bash
-# Qdrant 컨테이너를 먼저 중지해 파일 정합성 보장
-docker compose stop qdrant
-
-docker run --rm \
-  -v qdrant_data:/qdrant/storage \
-  -v $(pwd):/backup \
-  busybox tar czf /backup/qdrant_data.tar.gz -C /qdrant/storage .
-
-# 완료 후 재기동
-docker compose start qdrant
-```
-
-생성된 `qdrant_data.tar.gz` 파일을 상대방에게 전달합니다.
-
-**② 불러오기 (받는 쪽)**
-
-```bash
-# 1. Named volume 생성
-docker volume create qdrant_data
-
-# 2. tarball 압축 해제 후 volume에 적재
-docker run --rm \
-  -v qdrant_data:/qdrant/storage \
-  -v $(pwd):/backup \
-  busybox tar xzf /backup/qdrant_data.tar.gz -C /qdrant/storage
-
-# 3. 전체 스택 기동
-docker compose up -d
-```
-
-> **주의**: `docker compose up -d` 실행 전에 volume을 복원해야 Qdrant가 기동 시 데이터를 올바르게 인식합니다.
+</details>
 
 ---
 
-### 방법 2 — Qdrant Snapshot API (공식 방식)
-
-Qdrant가 내장한 스냅샷 기능으로, **컬렉션 단위**로 선택적 공유가 가능합니다.
-
-**① 스냅샷 생성 및 다운로드 (공유하는 쪽)**
-
-```bash
-# 스냅샷 생성 (컬렉션명: fin_chunks)
-curl -X POST http://localhost:6333/collections/fin_chunks/snapshots
-
-# 생성된 스냅샷 목록 확인
-curl http://localhost:6333/collections/fin_chunks/snapshots
-# 응답 예시: {"result":[{"name":"fin_chunks-123456789.snapshot", ...}]}
-
-# 스냅샷 파일 다운로드
-curl -O http://localhost:6333/collections/fin_chunks/snapshots/fin_chunks-123456789.snapshot
-```
-
-**② 복원 (받는 쪽)**
-
-```bash
-# Qdrant 기동 후, 스냅샷을 업로드하여 컬렉션 복원
-curl -X POST 'http://localhost:6333/collections/fin_chunks/snapshots/upload?priority=snapshot' \
-  -H 'Content-Type: multipart/form-data' \
-  -F 'snapshot=@fin_chunks-123456789.snapshot'
-```
-
-컬렉션이 없으면 자동 생성되고, 이미 있으면 스냅샷 내용으로 덮어씁니다.
-
-> **여러 컬렉션이 있는 경우** 각 컬렉션마다 위 명령을 반복하거나,  
-> 전체 스토리지 수준 백업은 방법 1(tarball)을 사용하세요.
-
----
-
-### 방법 3 — 이미지에 데이터 굽기 (비권장)
-
-```dockerfile
-FROM qdrant/qdrant:latest
-COPY ./qdrant_storage /qdrant/storage
-```
-
-배포는 단순해지나, 데이터가 클수록 이미지가 비대해지고  
-데이터 업데이트 시마다 이미지를 다시 빌드·푸시해야 하므로 권장하지 않습니다.
-
----
-
-### 방법 비교
-
-| 방법 | 공유 단위 | 장점 | 단점 |
-|---|---|---|---|
-| **Volume tarball** | 전체 storage | 명령 2개로 완전 복원, 추가 도구 불필요 | 컨테이너 중지 필요, 파일이 클 수 있음 |
-| **Snapshot API** | 컬렉션 단위 | Qdrant 공식, 선택적·점진적 공유 가능 | 컬렉션이 여러 개면 반복 작업 필요 |
-| **이미지에 굽기** | 이미지 전체 | 이미지 하나로 배포 완결 | 이미지 비대화, 데이터 갱신 불편 |
-
----
-
-## 주요 화면
-
-> Playwright로 캡처한 주요 화면입니다 (한글 폰트 적용, API Mock 기반).
-
-### 1. Agent 홈 화면 (캡처 세트 01)
-![Agent 홈](screenshots/cap01_agent_home.png)
-
-### 2. 로그인 화면 (캡처 세트 01)
-![로그인](screenshots/cap01_login.png)
-
-### 3. 회원가입 화면 (캡처 세트 02)
-![회원가입](screenshots/cap02_register.png)
-
-### 4. 퀀트 화면 (캡처 세트 02)
-![퀀트 초기](screenshots/cap02_quant.png)
-
-### 5. 앱 메인 화면 (캡처 세트 03)
-![앱 메인](screenshots/cap03_app_main.png)
-
-### 6. 미국 주식 화면 (캡처 세트 03)
-![미국 주식](screenshots/cap03_us_stocks.png)
-
-### 7. 기업 분석 화면 (캡처 세트 04)
-![기업 분석 초기](screenshots/cap04_company.png)
-
-### 8. 퀀트 화면 (캡처 세트 04)
-![퀀트 추가](screenshots/cap04_quant.png)
-
-### 9. 기업 분석 화면 (캡처 세트 05)
-![기업 분석 추가](screenshots/cap05_company.png)
-
-### 10. 트레이딩 화면 (캡처 세트 05)
-![트레이딩](screenshots/cap05_trading.png)
-
-### 11. Agent 최종 화면
-![Agent 최종](screenshots/final01_agent.png)
-
-### 12. 주식 APEX 최종 화면
-![주식 APEX](screenshots/final02_stock_apex.png)
-
-### 13. 퀀트 APEX 최종 화면
-![퀀트 APEX](screenshots/final03_quant_apex.png)
-
-### 14. 미국 주식 APEX 최종 화면
-![미국 주식 APEX](screenshots/final04_us_apex.png)
-
-### 15. 기업 분석 최종 화면
-![기업 분석 최종](screenshots/final05_company.png)
-
----
-
-### 투자분석 기초 방법론	
-- 매크로 분석: 경제지표 분석(금리, 물가, 유가 등 주요 지표 보는 법 ), 거시경제상황 분석 실습 
-- 산업 분석: 산업 경쟁력 분석(산업경쟁력 개념/분석모형, 산업별 분석방법), 산업 분석 실습 
-- 기본적 분석: 재무제표분석 (손익계산서/대차대조표/현금흐름표), 기업가치분석(상대가치평가 밸류에이션(멀티플), 절대가치평가 밸류에이션 (DCF, EVA, FCF 등)), 분석기업선정 및 밸류에이션 실습 
-- 기술적 분석: 추세 분석(지지선과 저항선, 이동평균선, 갭 반전, 되돌림 분석 등), 패턴 분석, 캔들 차트 분석, 지표 분석, 앨리어트파동이론, 분석기업선정 및 기술적 분석
-
-### 퀀트를 위한 금융 필수 지식	
-- 금융상품 이해: 주식/ETF 상품(주식/ETF 개요 및 운용 전략), 채권 상품(채권 개요 및 운용 전략), 파생상품(파생상품 개요 및 운용 전략) 
-- 자산배분방법론: 포트폴리오 이론(개요 및 성과분석, 리스크 지표), 자산배분 모델(평균분산, 블랙리터만, Risk-Parity 모델 설명), 사례 분석
-
-### 퀀트를 위한 머신러닝과 딥러닝	
-- 머신러닝(회귀, SVM, Random Forest, Ensemble 등)과 딥러닝(RNN, CNN, LSTM, Transformer) 주요 모델 학습하기 
-- 하이퍼 파라미터 튜닝, 교차 검증, 성능 확인 등 모델링의 주요 개념 이해하기 
-- 클러스터링을 통한 군집화 및 의미 해석하기 
-- 시계열에서 주로 활용되는 모델에 대한 학습(Transformer를 접목한 최신 시계열 분석 모델 학습)	
-
-### 주가 지수 데이터 활용 머신러닝-딥러닝 프로젝트	
-- 국내 증시 데이터를 활용한 시계열 머신러닝-딥러닝 프로젝트 
-- 네이버 주식 웹 페이지 크롤링을 통한 주가 정보 수집 
-- 주가 데이터 클러스터링을 통한 주식 항목 군집화 및 해석 
-- 다양한 지표를 투입한 머신러닝-딥러닝 모델링을 통해 주가 변동 방향성을 직접 예측해보고 검증
-
-### 데이터 활용 퀀트 모델링	
-- 백테스트로 나오는 성과 지표 분석(MDD, Sharp ratio 등) 및 개선방향 논의 
-- 주식 시장의 계절성 분석(연말 랠리, 월별 효과, 요일 효과) 
-- 알고리즘 트레이딩 &amp; 자동매매 기초(트레이딩뷰 PineScript)
-
-### 나만의 로보 어드바이저 개발 및 성과 검증 프로젝트	
-- AI 기반의 자동화 로보 어드바이저 모델 개발 
-- 패턴 인식 기법을 활용한 주식 시장 예측 프로젝트 
-- 자산배분모델을 활용한 포트폴리오 최적화, 주식 스크리닝을 통한 종목 선정 등 직접 수행 
-- 구축한 퀀트 모델의 결과를 해석해보고 자체적으로 모의 투자 의사결정 진행
-
-### 나만의 투자 인디케이터 개발 및 성과 검증 프로젝트	
-- 기본적인 인디케이터(MA, RSI등)로 전략 설계 
-- 커스텀 인디케이터 개발 
-- 트레이딩뷰 플랫폼으로 성과 확인 및 코딩 실습(PineScript) 
-- 파이썬 프로그래밍을 통한 성과 검증 
-- 증권사 연동(API 활용)을 통한 자동화 모델 구현
-
-
----
-
-# <i class="fa-solid fa-book"></i> Neo4j 정리
-
-## 1. 개요
-
-**Neo4j**는 그래프 기반 데이터베이스(Graph Database)로,  
-데이터 간의 **관계(Relationship)**를 중심으로 저장하고 조회하는 DB이다.
-
-기존의 RDB(MySQL, Oracle 등)가 테이블 기반이라면,  
-Neo4j는 **노드(Node)와 관계(Relationship)** 기반으로 데이터를 표현한다.
-
----
-
-## 2. 핵심 개념
-
-### 2.1 Node (노드)
-
-- 데이터를 표현하는 기본 단위
-- 사람, 상품, 장소 등 객체를 의미
-
-```cypher
-(:Person {name: "Kim", age: 30})
-
----
-
-# AI Agent 개발을 위한 Celery 개념 정리
-
-AI 에이전트를 만들 때 **Celery(셀러리)**는 에이전트에게 **"백그라운드에서 지치지 않고 일하는 비서"**를 고용해 주는 것과 같습니다.
-
-LLM(대형 언어 모델)을 사용하는 AI 에이전트는 필연적으로 비싸고 무거운 작업(API 호출, 장시간의 데이터 검색, 코드 실행 등)을 수행합니다. 이때 웹 서버가 이 작업을 직접 처리하면 서버가 멈추거나 사용자가 무한 대기를 겪게 됩니다. Celery는 이 문제를 해결하는 핵심 도구입니다.
-
----
-
-## 1. AI 에이전트에서 Celery가 필요한 이유
-
-기존 웹 서비스와 달리, AI 에이전트는 한 번 요청을 받으면 뒤에서 엄청나게 바쁩니다.
-
-* **동기식 처리 (Celery 없음):** 사용자가 "이번 달 뉴스 요약해 줘"라고 요청함 → 웹 서버가 직접 뉴스 50개 긁고, LLM API 보내고, 요약함 (이동안 웹 서버 마비, 사용자 브라우저 타임아웃 오류 발생).
-* **비동기식 처리 (Celery 사용):** 사용자가 요청함 → 웹 서버가 **"접수 완료! 영수증(Task ID) 줄 테니 이따가 결과 확인해"** 하고 바로 응답 → 실제 무거운 요약 작업은 **Celery**가 백그라운드에서 조용히 처리.
-
----
-
-## 2. Celery의 4가지 핵심 구성 요소
-
-셀러리를 이해할 때 레스토랑 주방을 떠올리면 아주 쉽습니다.
-
-```
-[ 사용자/웹 서버 ] ──(요청/주문서)──> [ 브로커 (Redis/RabbitMQ) ]
-                                              │
-                                       (주문서 전달)
-                                              ▼
-[ 결과 저장소 (Result Backend) ] <──(완성)── [ 워커 (Celery Worker) ]
-```
-
-* **Task (작업):** 에이전트가 해야 할 일입니다. (예: "웹 스크래핑 하기", "LLM으로 이메일 초안 쓰기")
-* **Broker (브로커/중간 관리자):** 웹 서버가 던진 작업(Task)을 순서대로 쌓아두는 큐(Queue, 대기열)입니다. 주로 **Redis**나 **RabbitMQ**라는 도구를 브로커로 사용합니다.
-* **Worker (워커/일꾼):** 실제로 CPU와 메모리를 써서 AI 에이전트의 로직을 실행하는 주체입니다. 웹 서버와 완전히 분리된 별도의 프로세스(혹은 별도의 서버)에서 작동합니다.
-* **Result Backend (결과 저장소):** 일꾼(Worker)이 AI 작업을 끝내고 나온 결과물(예: 요약된 텍스트)을 저장하는 곳입니다. (Redis나 데이터베이스를 주로 사용)
-
----
-
-## 3. AI 에이전트 개발 시 Celery 활용 시나리오
-
-* **롱 러닝 태스크 (Long-running Tasks):** 에이전트가 웹 서칭을 하고, 파일들을 분석하고, 여러 단계의 추론(Reasoning)을 거치는 대형 작업들을 백그라운드에서 안정적으로 처리합니다.
-* **분산 처리 (Scaling):** 사용자가 몰려 대량의 AI 요청이 들어와도, Celery 워커 서버만 늘려서 작업을 쪼개어 병렬 처리할 수 있습니다.
-* **예약 및 주기적 작업 (Celery Beat):** "매일 아침 9시에 뉴스 모니터링 분석 리포트 작성" 같은 스케줄링 기능을 에이전트에 쉽게 부여합니다.
-
----
-
-## 4. Celery GitHub 오픈소스 프로젝트적 특징
-
-Celery는 **GitHub에서 오픈소스로 관리되고 있는 전형적인 파이썬(Python) 프로젝트**입니다. `celery/celery` 저장소에서 전 세계 개발자들에 의해 관리됩니다.
-
-* **100% 파이썬 기반:** 핵심 로직이 파이썬 코드로 작성되어 있어 `pip install celery`로 쉽게 설치 및 연동이 가능합니다.
-* **자유로운 BSD-3-Clause 라이선스:** 상업적 목적의 수정 및 배포가 자유로워 수많은 글로벌 AI 및 IT 기업들이 안심하고 도입하고 있습니다.
-* **파이썬 고급 기술의 집약체:** 데코레이터(`@app.task`)의 우아한 활용, 멀티프로세싱 및 비동기(`asyncio`) 동시성 프로그래밍 기술이 투명하게 공개되어 있습니다.
-
-
----
-
-# Infrastructure as Code (IaC) 및 클라우드 배포 도구 비교 분석 보고서
-
-본 보고서는 현대 데브옵스(DevOps) 생태계에서 핵심적인 역할을 하는 인프라 프로비저닝, 구성 관리, 배포 자동화 도구인 **Terraform, Ansible, AWS CloudFormation, AWS Elastic Beanstalk**의 특징과 차이점을 상세히 비교 분석합니다.
-
----
-
-## 1. IaC 핵심 도구 비교: Terraform vs Ansible
-
-테라폼(Terraform)과 앤서블(Ansible)은 종종 비교 대상이 되지만, 실제로는 서로 보완적인 관계에 가깝습니다.
-
-* **Terraform (인프라 프로비저닝 특화)**
-    * **핵심 역할:** AWS, Azure, GCP 같은 클라우드 환경에서 VPC를 만들고, 서브넷을 쪼개고, EC2 인스턴스를 생성하는 등의 **인프라 자체를 구축(Provisioning)**하는 데 최적화되어 있습니다.
-    * **작동 방식 (선언적 - Declarative):** "내가 원하는 최종 상태"를 코드로 기술합니다. (예: *"나는 AWS에 EC2 인스턴스 3개가 필요해."*) 현재 상태가 2개라면 테라폼이 알아서 계산해서 1개만 추가로 생성합니다.
-    * **상태 관리:** 자체적으로 State 파일(`*.tfstate`)을 유지하여 현재 인프라의 상태를 추적합니다.
-
-* **Ansible (구성 관리 & 애플리케이션 배포 특화)**
-    * **핵심 역할:** 이미 만들어진 서버(인프라)에 접속하여 사용자를 추가하고, Nginx나 Docker를 설치하고, 보안 설정을 적용하는 등의 **구성 관리(Configuration Management)**에 최적화되어 있습니다.
-    * **작동 방식 (절차적/명령형에 가까운 하이브리드):** "순서대로 실행할 작업(Task)"을 순차적으로 기술하는 플레이북(Playbook) 방식을 사용합니다. 단, 개별 모듈들은 **멱등성(Idempotency)**을 보장하므로 이미 세팅된 작업은 안전하게 건너뜁니다.
-    * **상태 관리:** 별도의 State 파일이 없으며, 실행할 때마다 대상 서버의 상태를 실시간으로 확인합니다.
-
-### 아키텍처 및 통신 방식 비교
-
-| 비교 항목 | Terraform | Ansible |
-| :--- | :--- | :--- |
-| **관리 대상과의 연결** | 각 클라우드 공급자의 **API**를 호출하여 제어 | 대상 서버에 **SSH** 또는 WinRM으로 직접 원격 접속 |
-| **에이전트 유무** | **Agentless** (대상 서버에 아무것도 설치 안 함) | **Agentless** (대상 서버에 Python만 있으면 됨) |
-| **주요 언어** | HCL (HashiCorp Configuration Language) | YAML |
-
----
-
-## 2. AWS 진영의 도구 비교: CloudFormation vs Elastic Beanstalk
-
-AWS 환경 내에서 인프라와 배포를 다루는 대표적인 두 서비스입니다. 목적지와 타겟층이 명확하게 구분됩니다.
-
-* **AWS CloudFormation (AWS 공식 표준 IaC 도구)**
-    * **인프라 중심:** VPC, 서브넷, IAM 역할, EC2, RDS 등 AWS의 거의 모든 리소스를 코드로 관리하는 테라폼의 AWS 전용 대항마입니다. JSON이나 YAML 템플릿 파일을 이용해 선언적으로 정의합니다.
-    * **완전 관리형 상태 관리:** 테라폼과 달리 상태 파일(`tfstate`)을 사용자가 직접 관리할 필요 없이 AWS 백엔드에서 알아서 안전하게 관리해 줍니다.
-    * **제한 사항:** AWS 전용 서비스이므로 타사 클라우드(GCP, Azure 등)에는 사용할 수 없습니다.
-
-* **AWS Elastic Beanstalk (개발자를 위한 PaaS형 배포 도구)**
-    * **애플리케이션 중심:** 인프라 제어보다 서비스 배포에 집중하는 **PaaS(Platform as a Service)**에 가깝습니다. Java, Node.js, Python, Docker 등으로 작성된 소스 코드만 업로드하면 인프라가 자동으로 구성됩니다.
-    * **자동화 범위:** 로드 밸런서(ALB) 설정, 오토 스케일링 그룹(서버 자동 증설), 모니터링, OS 패치 등을 Beanstalk이 완전히 알아서 처리합니다.
-    * **비밀 연결고리:** Elastic Beanstalk은 내부적으로 **CloudFormation을 기반으로 작동**합니다. 개발자가 코드를 올리면 Beanstalk이 뒤에서 자동으로 CloudFormation 템플릿을 생성해 리소스를 프로비저닝합니다.
-
----
-
-## 3. 한눈에 보는 4대 도구 종합 비교 Matrix
-
-| 도구 | 주요 역할 | 제어 범위 | 멀티 클라우드 | 난이도 및 특징 |
-| :--- | :--- | :--- | :--- | :--- |
-| **Terraform** | 인프라 프로비저닝 | 인프라 겉껍데기 | **지원 (강점)** | 표준적인 IaC, 대규모 인프라 및 전사적 아키텍처에 적합. |
-| **CloudFormation** | 인프라 프로비저닝 | 인프라 겉껍데기 | **AWS 전용** | AWS 리소스 관리에 최적화, 인프라의 안정적인 선언적 관리. |
-| **Ansible** | 구성 관리 (OS 내부 세팅) | OS 내부 및 소프트웨어 | **지원 (SSH 기반)** | 서버 내 환경 설정, 미들웨어 설치 및 앱 배포 자동화에 탁월. |
-| **Elastic Beanstalk** | 앱 배포 및 관리 (PaaS) | 인프라 + 앱 전체 | **AWS 전용** | 인프라 구조를 몰라도 빠르게 코드를 배포하려는 개발자 친화형. |
-
----
-
-## 💡 실무 적용 및 조합 가이드 (Best Practice)
-
-현업에서는 단일 도구만 사용하기보다 각 도구의 장점을 결합하여 파이프라인을 구축하는 것이 일반적입니다.
-
-1.  **Terraform + Ansible 조합 (멀티 클라우드/하이브리드 표준)**
-    * `Terraform`으로 클라우드 상에 VPC, 보안 그룹, EC2 인스턴스를 깨끗하게 생성합니다.
-    * 인스턴스 생성이 완료되면 해당 서버들의 IP 정보를 `Ansible` 인벤토리에 넘겨줍니다.
-    * `Ansible`이 생성된 서버들에 SSH로 접속하여 보안 패치를 적용하고 필요한 소프트웨어 패키지를 배포합니다.
-2.  **CloudFormation vs Elastic Beanstalk 선택 기준**
-    * **"우리 회사는 오직 AWS만 쓰고, 인프라 아키텍처를 완벽하게 통제하고 싶다"** ➔ **CloudFormation** (또는 시장 주도권이 높은 **Terraform**)
-    * **"인프라 구축이나 복잡한 설정은 최소화하고, 웹 서비스 코드를 AWS에 빠르게 배포하여 서비스하는 것이 최우선이다"** ➔ **Elastic Beanstalk**
-
----
-
-# Vector DB 차원(Dimension) 이해하기
-
-우리가 3차원 공간만 보고 살다 보니, AI가 다루는 **수백~수천 차원의 '고차원 벡터 공간(Vector Space)'**은 상상하기조차 어렵습니다. 머릿속으로 100개의 축이 직교하는 공간을 그리려고 하면 당연히 과부하가 걸립니다.
-
-하지만 너무 어렵게 생각할 필요 없습니다. AI의 고차원을 이해하는 가장 좋은 방법은 차원을 공간이 아니라 **'특징(Feature)의 개수'**로 바라보는 것입니다.
-
----
-
-## 1. 차원 = 공간의 축 (X) → 특징의 개수 (O)
-
-수학이나 AI에서 1차원은 축 1개가 아니라 **'정보 1개'**를 의미합니다.
-
-과일을 분류하는 AI 모델이 있다고 가정해 봅시다.
-
-* **1차원 데이터**: 과일의 **[당도]**만 측정 (예: `[9.5]`)
-* **2차원 데이터**: 과일의 **[당도, 신맛]**을 측정 (예: `[9.5, 2.1]`)
-* **3차원 데이터**: 과일의 **[당도, 신맛, 단단함]**을 측정 (예: `[9.5, 2.1, 8.4]`)
-
-여기까지는 우리가 사는 3차원 공간에 점으로 찍을 수 있습니다. 그렇다면 여기에 **[무게, 색상, 향기, 수분량, 가격...]**을 계속 추가하면 어떻게 될까요?
-
-특징이 100개가 되면 100차원 벡터 `[9.5, 2.1, 8.4, 150, 0.8, ...]`가 됩니다. 기하학적으로는 그릴 수 없지만, 데이터 표(Table)의 열(Column)이 100개인 것과 다를 바 없습니다. 즉, 고차원 벡터는 대상을 엄청나게 구체적으로 묘사한 '특징 리스트'입니다.
-
----
-
-## 2. 고차원 공간에서 '의미'를 찾는 방법
-
-AI의 Vector DB는 이 수많은 특징들을 가지고 무엇을 할까요? 핵심은 **"비슷한 것끼리는 고차원 공간에서도 가까이 모인다"**는 점입니다.
-
-우리가 3차원 공간에서 두 점 사이의 거리를 구할 때 피타고라스 정리를 쓰는 것처럼, AI도 고차원 공간에서 두 벡터 사이의 거리를 계산합니다. (주로 코사인 유사도 같은 방식을 씁니다.)
-
-예를 들어 단어를 벡터로 변환하는 LLM(대형 언어 모델)의 경우:
-
-* **'왕(King)'**과 **'여왕(Queen)'**은 [권력, 왕실, 인간, 역사...] 등 수천 개의 특징(차원)에서 매우 유사한 값을 가집니다. 따라서 수천 차원의 공간 속에서도 두 데이터는 아주 가까운 거리에 위치하게 됩니다.
-* 반면 **'컴퓨터'**는 이들과 특징이 전혀 다르므로 고차원 공간에서 아주 멀리 떨어진 곳에 위치합니다.
-
-결국 Vector DB는 인간처럼 공간을 시각적으로 '보는' 게 아니라, 수천 개의 숫자를 계산해서 "아, 이 두 데이터는 거리가 가까우니 의미가 비슷하구나!" 하고 수학적으로 인지하는 것입니다.
-
----
-
-## 3. 인간이 고차원을 시각적으로 이해하는 꼼수: 차원 축소
-
-그럼에도 인간은 눈으로 봐야 직성이 풀리는 동물입니다. 그래서 과학자들은 1000차원짜리 벡터 데이터를 인간에게 보여주기 위해 **차원 축소(Dimension Reduction)**라는 기술을 씁니다.
-
-가장 대표적인 것이 t-SNE나 UMAP 같은 알고리즘입니다. 이 기술들은 고차원 공간에서 데이터들이 가졌던 '가깝고 먼 관계'를 최대한 유지하면서, 억지로 2차원 평면이나 3차원 공간으로 꾹꾹 눌러서 압축해 줍니다.
-
-이렇게 축소된 화면을 보면, 수천 차원 속에 있던 데이터들이 끼리끼리 모여 군집(Cluster)을 이루고 있는 모습을 우리 눈으로도 확인할 수 있게 됩니다.
-
----
-
-## 💡 요약
-
-인간은 공간의 축(X, Y, Z)으로 차원을 이해하지만, AI의 Vector DB는 **데이터가 가진 '특징의 개수'**로 차원을 이해합니다. 우리가 수천 개의 단어로 어떤 개념을 세밀하게 설명하듯, AI는 수천 개의 숫자로 이루어진 벡터로 개념을 정교하게 인지하는 것이죠.
-
-> 참고: 이 프로젝트의 Qdrant 컬렉션(`fin_chunks`)은 `nomic-embed-text` 임베딩 모델을 사용해 `VectorParams(size=768, distance=Distance.COSINE)`로 768차원 벡터를 저장합니다. 즉 각 금융 문서 청크가 768개의 특징 값으로 표현되며, 코사인 유사도로 의미가 가까운 문서를 검색하는 것입니다.
-
-
-## KIS 자동매매 연동 (3-repo)
-
-자동매매의 **최초 트리거는 이 웹앱의 종목 선정 화면**이다. Celery 10분 사이클이 시그널·위험관리를 거쳐 stock-coin-trade 게이트웨이로 KIS 주문을 내고, 2분 주기 `quant.confirm_fills` 가 체결을 확인한다.
-- 저장소 간 API 계약: [docs/contracts/kis-autotrade-api.md](docs/contracts/kis-autotrade-api.md) (세 저장소 동일 사본)
-- 게이트웨이 설정: `STOCK_COIN_TRADE_BASE_URL`, `STOCK_COIN_TRADE_API_KEY`, `STOCK_COIN_TRADE_KIS_ENVIRONMENT=paper|real` (app/config.py)
-- 테스트: `python -m pytest tests/test_live_order_gateway_path.py tests/test_stock_coin_trade_gateway.py tests/test_strategy_loader.py tests/test_strategy_spec_apply.py tests/test_risk_guard.py tests/test_live_trading_guard.py`
-
-> **Qurious 에서 다른 점** (강사님 9478811 반영 · 2026-10-03)
-> - **KIS 키는 사용자마다** 「종목 선정」 화면에서 넣는다. 강사님 판은 서버 계좌 하나(Secrets Manager → `.env`)를 KIS 를 고른 모두가 같이 쓰는데, 여러 사람이 쓰는 모의투자 플랫폼이라 계좌가 섞이지 않게 바꿨다(`app/services/kis_credentials.py` 머리말).
-> - **게이트웨이는 켜지 않는다** — stock-coin-trade 서버의 KIS 계좌 하나를 모두가 쓰는 길이라 `.env.example` 에 칸을 두지 않았다. 켜더라도 실거래 승인(`QURIOUS_ALLOW_LIVE_TRADING`) 없이는 모의(paper)로만 나간다(ADR-0001 · `tests/test_live_trading_guard.py` 5절).
-> - 강사님 작업 기록 `todo.md` 는 가져오지 않았다(운영 서버 정보가 있다) · AWS(Secrets Manager · SageMaker 배치 점수)는 뺐다(`tests/test_base_code_merge_guard.py`).
+숫자 기준 2026-10-19 · 각 숫자의 출처 문서에 기준 커밋이 있습니다.

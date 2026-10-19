@@ -210,6 +210,9 @@ app.include_router(stock_hub_routes.router)
 # 로그인한 사람에게만 /help/… 로 낸다. 폴더가 없으면 404 → 사용법 창의 영상 칸 · 단추를 숨긴다(결정 ⑥)
 from app.routes import help_media as help_media_routes  # noqa: E402
 app.include_router(help_media_routes.router)
+# 지금 값(2026-10-19) — 「현재가」 칸이 부르는 길 하나: 내 증권사 키 → 지연 시세 → 지난 종가 · 출처와 시각 글(app/services/quote_now.py)
+from app.routes import quote_now as quote_now_routes  # noqa: E402
+app.include_router(quote_now_routes.router)
 
 # 정적 파일 (프론트엔드)
 _public = os.path.join(os.path.dirname(__file__), "..", "public")
