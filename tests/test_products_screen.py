@@ -190,7 +190,8 @@ def test_allocation_is_read_only():
     assert "e?.status !== 404" in pick, "404 일 때만 기본 비중으로 — 그 밖 오류는 메우지 않는다"
     for store in ("localStorage.setItem", "sessionStorage.setItem", "sessionStorage.getItem", "pd_weights_v1"):
         assert store not in src, store            # 받은 비중을 브라우저에 남기지 않는다(같은 탭 다른 사용자)
-    assert 'localStorage.getItem("robo_risk_profile")' in screen
+    assert 'import { readRiskProfile as readProfile } from "/js/riskprofile.js"' in screen
+    assert 'localStorage.getItem("robo_risk_profile")' not in screen
 
 
 #: node 로 돌릴 경우 — 가짜 api 는 부른 길을 적고, 시나리오에 없는 길(무거운 POST 등)을 부르면 599 로 던진다
@@ -303,7 +304,7 @@ function setup(scn) {
     return m && LBL[m[1]] ? { textContent: " " + LBL[m[1]] + " " } : null;
   } };
   globalThis.CSS = { escape: (s) => String(s) };
-  globalThis.localStorage = { getItem: (k) => (k === "robo_risk_profile" && scn.profile ? JSON.stringify(scn.profile) : null),
+  globalThis.localStorage = { getItem: (k) => (k === "robo_risk_profile:v1:test-account" && scn.profile ? JSON.stringify({...scn.profile, score: scn.profile.risk_profile === "aggressive" ? 35 : 7}) : null),
                               setItem: (k) => writes.push(["localStorage", k]) };
   globalThis.sessionStorage = { getItem: (k) => { writes.push(["sessionStorage.get", k]); return null; },
                                 setItem: (k) => writes.push(["sessionStorage", k]) };
@@ -325,6 +326,8 @@ const tabs = (html) => [...html.matchAll(/aria-selected="(true|false)" class="pd
 let n = 0;
 async function open(scn) {
   const env = setup(scn);
+  const { setRiskProfileUser } = await import("__RP__");
+  setRiskProfileUser("test-account"); // 앱 부팅의 /api/me 확인 뒤 계정 문맥
   const mod = await import("__MOD__?case=" + (++n));
   mod.onProductsViewActivated("agent-products");
   await tick();
@@ -379,6 +382,7 @@ def _run_screen(tmp_path: Path, sc: dict) -> dict:
         'import { navigate } from "/js/core.js";': "const { navigate } = globalThis.__stub;",
         'import { openProductChart } from "/js/productchart.js";': "const { openProductChart } = globalThis.__stub;",
         'import { resolveWeights } from "/js/productweights.js";': f'import {{ resolveWeights }} from "{JSW.resolve().as_uri()}";',
+        'import { readRiskProfile as readProfile } from "/js/riskprofile.js";': f'import {{ readRiskProfile as readProfile }} from "{(PUB / "js" / "riskprofile.js").resolve().as_uri()}";',
     }
     for old, new in imports.items():
         assert screen.count(old) == 1, f"화면 파일의 import 꼴이 바뀌었다 — 시험 틀도 함께: {old}"
@@ -387,6 +391,7 @@ def _run_screen(tmp_path: Path, sc: dict) -> dict:
     mod.write_text(screen, encoding="utf-8")
     script = tmp_path / "screen.mjs"
     script.write_text(NODE_SCREEN.replace("__SC__", json.dumps(sc, ensure_ascii=False)).replace("__MOD__", mod.resolve().as_uri())
+                      .replace("__RP__", (PUB / "js" / "riskprofile.js").resolve().as_uri())
                       .replace("__ESC__", _fn_src(common, "export function escHtml(")).replace("__FMT__", _fn_src(common, "export function fmt(")),
                       encoding="utf-8")
     run = subprocess.run([node, str(script)], capture_output=True, text=True, encoding="utf-8", timeout=60)

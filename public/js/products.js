@@ -13,7 +13,7 @@
  *   - 현금성 탭에는 원화 단기 금리 ETF 와 함께 예금 · 적금 · 연금저축(금융감독원 「금융상품 한눈에」 실시간 · 저장하지 않음 ·
  *     출처 문구 그대로 · 약관 제9조). 그 탭을 처음 열 때 한 번 부르고, 조건을 바꿀 때만 다시 부른다(하루 호출 한도).
  * 투자 성향 · 자산 배분 비중은 읽기만 한다(오준영 님 몫 — 「자산배분·최적화」 화면).
- *   - 성향: 그 화면이 이 브라우저에 남긴 진단 결과(localStorage robo_risk_profile)를 읽는다.
+ *   - 성향: 로그인 확인 뒤 같은 계정이 이 브라우저에 남긴 진단 결과(riskprofile.js)를 읽는다.
  *   - 비중: 같은 표를 여기 복제하지 않는다. 화면에 들어올 때마다 저절로 부른다 — 저장본 먼저 · 404 일 때만 기본 비중 ·
  *     그 밖 오류는 까닭(#179 계약 · 2026-10-16). 판단은 js/productweights.js 한 곳에 두고 여기서는 그 결과만 그린다.
  *     받은 비중은 브라우저에 남기지 않는다(같은 탭에서 다른 사람이 로그인해도 앞사람 비중이 보이지 않게).
@@ -29,6 +29,7 @@ import { api, escHtml, fmt } from "/js/common.js";
 import { navigate } from "/js/core.js";
 import { openProductChart } from "/js/productchart.js";
 import { resolveWeights } from "/js/productweights.js";
+import { readRiskProfile as readProfile } from "/js/riskprofile.js";
 
 const VIEW = "agent-products";
 const PER_GROUP = 5;             // 묶음마다 먼저 보일 줄 수(Figma 안 A)
@@ -76,9 +77,6 @@ function signed(v, digits = 1) {
 }
 function plain(v, digits = 1) { return v == null ? "—" : `${v.toFixed(digits)}%`; }
 function rate(v) { return v == null ? "—" : `${v.toFixed(2)}%`; }
-function readProfile() {
-  try { return JSON.parse(localStorage.getItem("robo_risk_profile") || "null"); } catch (_) { return null; }
-}
 /** 비중을 받았을 때만 자산군 → % (그 밖에는 null — 탭은 기본 차례) */
 function loadedAllocations() { return weights?.state === "ok" ? weights.allocations : null; }
 /** 자산 배분 화면의 성향 고르기 글(app.html #robo-risk) — 이름표를 여기 따로 적지 않는다. 없으면 빈 글 */
@@ -185,7 +183,7 @@ function mixHtml(prof) {
 
 function headerHtml() {
   const prof = readProfile();
-  const chip = prof ? `<span class="pd-chip">투자 성향 ${escHtml(prof.level || prof.risk_profile)}</span>` : `<span class="pd-chip pd-chip--none">투자 성향 진단 전</span>`;
+  const chip = prof ? `<span class="pd-chip">투자 성향 ${escHtml(prof.level)}</span>` : `<span class="pd-chip pd-chip--none">투자 성향 진단 전</span>`;
   return `<div class="pd-head">
       <h2>투자 성향별 상품 안내</h2>
       <p class="pd-lead">자산 배분 결과의 자산군마다 공시된 상품 정보를 같은 기준으로 모아 보여 줍니다.</p>

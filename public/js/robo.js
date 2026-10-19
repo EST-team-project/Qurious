@@ -2,6 +2,7 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/js/common.js";
 import { navigate, tt } from "/js/core.js";
+import { setRiskProfileUser, riskProfileContext, readRiskProfile, saveRiskProfile, hasLegacyRiskProfile } from "/js/riskprofile.js";
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
@@ -148,21 +149,25 @@ async function loadRiskQuestions() {
   return rpQuestions;
 }
 async function submitRiskProfile() {
+  const owner = riskProfileContext();
+  if (!owner) { setToast("로그인 정보를 확인할 수 없습니다. 새로고침 후 다시 진단해 주세요.", "error"); return; }
   const answers = {};
   for (const q of rpQuestions) { const v = document.querySelector(`input[name="rp-${q.id}"]:checked`); if (v) answers[q.id] = Number(v.value); }
   try {
     const r = await api("/api/ml/robo/risk-profile", { method: "POST", body: { answers } });
+    const stored = saveRiskProfile(r, owner);
+    if (stored === "unavailable") return; // 진단 중 계정이 바뀌었으면 새 계정 화면에도 표시하지 않는다.
     const cls = r.risk_profile === "aggressive" ? "badge-sell" : r.risk_profile === "moderate" ? "badge-hold" : "badge-buy";
     // 화면에는 서버 값(moderate 같은 영어 낱말) 대신 아래 「투자 성향」 선택 칸의 글(「중립 (위험중립형)」)을 보인다 —
     // 2026-10-18 잠정 반영(D124 · 주담당 오준영 · 시연 영상에서 찾음). 되돌리려면 profileLabel 대신 r.risk_profile 을 쓴다.
-    const profileLabel = document.querySelector(`#robo-risk option[value="${r.risk_profile}"]`)?.textContent || r.risk_profile;
+    const profileLabel = document.querySelector(`#robo-risk option[value="${r.risk_profile}"]`)?.textContent || "미확인";
     document.getElementById("rp-result").innerHTML = `
       <div class="flex flex-wrap items-center gap-2 mb-1"><span class="${cls}" style="font-size:14px;">${escHtml(r.level)}</span><span class="text-xs" style="color:var(--text-mute);">점수 ${r.score} / ${r.max_score} · 자산배분 성향 <b>${escHtml(profileLabel)}</b>(아래 최적화에 반영됨)</span></div>
       <p class="text-xs" style="color:var(--text-dim);">${escHtml(r.description)}</p>
       <div class="flex gap-1 mt-2">${r.scale.map(sc => `<span class="text-xs px-2 py-0.5 rounded" style="background:${sc.level === r.level ? "var(--accent)" : "var(--surf3)"};color:${sc.level === r.level ? "#fff" : "var(--text-mute)"};">${escHtml(sc.level)} ${sc.min}+</span>`).join("")}</div>`;
     document.getElementById("robo-risk").value = r.risk_profile;
     document.getElementById("rp-form").classList.add("hidden"); document.getElementById("rp-toggle").textContent = "설문 다시 하기";
-    try { localStorage.setItem("robo_risk_profile", JSON.stringify({ level: r.level, risk_profile: r.risk_profile, score: r.score })); } catch (_) { }
+    if (stored === "memory") document.getElementById("rp-result").insertAdjacentHTML("beforeend", '<p class="text-xs mt-2">브라우저에 저장하지 못해 현재 탭에서만 유지됩니다. 새로고침하면 다시 진단해야 합니다.</p>');
     setToast(`투자성향: ${r.level} → 자산배분 성향을 「${profileLabel}」 로 설정했습니다.`, "ok");
   } catch (e) { setToast(e.message, "error"); }
 }
@@ -171,7 +176,23 @@ document.getElementById("rp-toggle")?.addEventListener("click", async () => {
   const f = document.getElementById("rp-form"); f.classList.toggle("hidden");
   document.getElementById("rp-toggle").textContent = f.classList.contains("hidden") ? "설문 펼치기" : "설문 접기";
 });
-(() => { try { const saved = JSON.parse(localStorage.getItem("robo_risk_profile") || "null"); if (saved) { document.getElementById("rp-result").innerHTML = `<span class="text-xs" style="color:var(--text-mute);">최근 진단: <b>${escHtml(saved.level)}</b> (${saved.score}점) — 자산배분 성향 ${escHtml(saved.risk_profile)}</span>`; document.getElementById("robo-risk").value = saved.risk_profile; } } catch (_) { } })();
+// main.js가 /api/me로 사용자를 확인한 뒤에만 복원한다. 모듈 import 시에는 공용 저장값을 읽지 않는다.
+export function initRoboRiskProfile(clientId) {
+  setRiskProfileUser(clientId);
+  const saved = readRiskProfile();
+  const el = document.getElementById("rp-result");
+  document.getElementById("robo-risk").value = saved?.risk_profile || "moderate";
+  document.getElementById("rp-form").innerHTML = "";
+  document.getElementById("rp-form").classList.add("hidden");
+  document.getElementById("rp-toggle").textContent = "설문 펼치기";
+  rpQuestions = null;
+  if (!saved) {
+    el.textContent = hasLegacyRiskProfile() ? "이전 공용 진단은 어느 계정의 결과인지 확인할 수 없어 불러오지 않습니다. 다시 진단해 주세요." : "";
+    return;
+  }
+  const label = document.querySelector(`#robo-risk option[value="${saved.risk_profile}"]`)?.textContent || "미확인";
+  el.innerHTML = `<span class="text-xs" style="color:var(--text-mute);">최근 진단: <b>${escHtml(saved.level)}</b> (${saved.score}점) — 자산배분 성향 ${escHtml(label)}</span>`;
+}
 
 // ── 로보 어드바이저: 목표 수익률 달성 확률 시뮬레이션 ────────────────
 let lastGoalSim = null, goalChart = null;
