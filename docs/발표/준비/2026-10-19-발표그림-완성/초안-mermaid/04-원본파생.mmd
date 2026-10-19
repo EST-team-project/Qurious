@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph RAW["원본 — 받은 그대로 두고 지우지 않음"]
+    direction TB
+    r1["일별 시세<br/>포털이 준 값"]
+    r2["배당 공시"]
+    r3["ETF · 지수 시세"]
+    r4["분봉"]
+  end
+  subgraph DER["파생 — 매일 원본에서 다시 계산"]
+    direction TB
+    d1["조정 이벤트<br/>분할 · 병합 · 권리락"]
+    d2["수정주가<br/>분할을 폭락으로 읽지 않게"]
+    d3["총수익 지수<br/>배당까지 재투자"]
+    d4["벤치마크 지수"]
+  end
+  subgraph OPS["운영 기록"]
+    direction TB
+    o1["받은 날 상태<br/>완료 · 빈 날 · 휴장 · 오류"]
+    o2["회차 기록 · 숫자 파일<br/>화면 「자료 안내」 가 읽음"]
+  end
+  r1 --> d1
+  r2 --> d1
+  d1 --> d2 --> d3
+  r1 --> d2
+  r3 --> d4
+  RAW -.-> OPS
+
+  classDef raw fill:#fffbeb,stroke:#b45309,color:#0f172a
+  classDef der fill:#eef2ff,stroke:#4f46e5,color:#0f172a
+  classDef ops fill:#f8fafc,stroke:#64748b,color:#0f172a
+  class r1,r2,r3,r4 raw
+  class d1,d2,d3,d4 der
+  class o1,o2 ops

@@ -453,7 +453,7 @@ def test_learn_links_both_ways():
     src = JS.read_text(encoding="utf-8")
     slugs = re.findall(r'learnLink\("([a-z0-9-]+)"', src)
     assert set(slugs) == {"funds-etf", "investor-profile-suitability"}, slugs
-    assert 'href="/learn/#/p/${slug}" target="_blank" rel="noopener"' in src, "새 탭 · opener 끊기"
+    assert 'href="/app.html#learn/${slug}" target="_blank" rel="noopener"' in src, "새 탭(앱 안 장 화면 · 2026-10-19) · opener 끊기"
     for slug in set(slugs):
         assert slug in pages, slug
         assert "(/app.html#agent-products)" in pages[slug].body and "## 앱에서 해 보기" in pages[slug].body, slug

@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph NOW["2차 — 지금 값을 한 곳에서 받는다 (quote_now)"]
+    direction LR
+    k1["① 내 증권사 키<br/>KIS 현재가 조회"] -->|"키 없음 · 실패"| k2["② 지연 시세<br/>약 20분 · 체결 시각"] -->|"실패"| k3["③ 지난 종가<br/>「10월 16일 종가」"]
+  end
+  subgraph NEXT["3차 — 실시간 구조"]
+    direction LR
+    w["사용자 자기 키<br/>KIS 웹소켓 · 1세션 41종목"] --> rcv["수신기<br/>재접속하면 구독 복원"] --> rk[("Redis 최신 값<br/>짧은 TTL · 쌓지 않음")] --> sse["SSE 로 화면에"]
+  end
+  SAVED[("저장 자료<br/>수집 DB · HF 비공개")] -->|"판단 · 백테스트 · 학습"| JUDGE["판단"]
+  k3 -->|"실행 직전 확인 · 표시"| JUDGE
+  sse -.->|"3차"| JUDGE
+
+  classDef now fill:#eef2ff,stroke:#4f46e5,color:#0f172a
+  classDef next fill:#ecfdf5,stroke:#0f766e,color:#0f172a
+  classDef saved fill:#fffbeb,stroke:#b45309,color:#0f172a
+  class k1,k2,k3 now
+  class w,rcv,rk,sse next
+  class SAVED,JUDGE saved

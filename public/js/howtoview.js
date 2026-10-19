@@ -199,9 +199,9 @@ export function howtoHtml(viewKey, guide, { terms = {}, label = "", video = null
   const chips = (guide.relatedTerms || []).filter((k) => terms[k]);
   const learn = learnOf(viewKey);
   const foot = [
-    learn ? `<a class="q-howto-link" href="/learn/#/p/${esc(learn.slug)}" target="_blank" rel="noopener">개념 학습 「${esc(learn.title)}」 →</a>` : "",
+    learn ? `<a class="q-howto-link" href="#learn/${esc(learn.slug)}" data-howto="leave">개념 학습 「${esc(learn.title)}」 →</a>` : "",
     viewKey !== "fin-glossary" ? `<a class="q-howto-link" href="#fin-glossary" data-howto="leave">용어사전에서 더 찾기 →</a>` : "",
-    `<a class="q-howto-link" href="/learn/#/" target="_blank" rel="noopener">개념 학습 목차 →</a>`,
+    `<a class="q-howto-link" href="#learn-home" data-howto="leave">개념 학습 목차 →</a>`,
   ].filter(Boolean).join("");
   return `<header class="q-howto-head"><div class="q-howto-head-txt">
       <p class="q-howto-kicker"><i class="fa-solid fa-circle-question" aria-hidden="true"></i> 사용법</p>

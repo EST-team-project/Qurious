@@ -1,0 +1,50 @@
+flowchart LR
+  USER(["사용자 브라우저"])
+  subgraph DOCKER["도커 서비스 10개"]
+    direction TB
+    APP["앱 FastAPI<br/>화면 + API 266개<br/>포트 8966 하나"]
+    CW["Celery 워커 · 비트<br/>자동매매 10분 · 리밸런싱 1시간"]
+    PG[("PostgreSQL<br/>앱 DB · 사용자 기록")]
+    RD[("Redis<br/>세션 · 캐시 · 작업 통로")]
+    QD[("Qdrant<br/>벡터 검색")]
+    NEO[("Neo4j<br/>종목 관계")]
+    OLL["Ollama<br/>로컬 답 모델"]
+    ONE["한 번 도는 둘<br/>자료 넣기 · 모델 받기"]
+  end
+  subgraph PC["같은 PC · 도커 밖"]
+    direction TB
+    SCHED["작업 스케줄러<br/>매일 12:30"]
+    WORK["PC 작업자<br/>매 분 · 화면의 수집 요청"]
+    RUN["수집 러너<br/>21단계"]
+    CDB[("수집 DB<br/>SQLite 5.1 GB<br/>약 2,192만 행")]
+    KB[("근거 문서 DB<br/>법령 · 감독규정 · 섹터 법령")]
+  end
+  EXT["공공데이터포털 · OpenDART<br/>한국은행 ECOS · 국가법령정보<br/>GDELT · 야후 · KIS 모의"]
+  HF[("Hugging Face<br/>비공개 데이터셋 백업")]
+
+  USER -->|"화면 · API"| APP
+  APP --- PG
+  APP --- RD
+  APP --- QD
+  APP --- NEO
+  APP --- OLL
+  CW --- RD
+  CW --- PG
+  SCHED --> RUN
+  WORK --> RUN
+  EXT -->|"매일 받기"| RUN
+  RUN --> CDB
+  RUN -.->|"섹터 법령 개정 대조"| KB
+  CDB ==>|"읽기 전용"| APP
+  KB ==>|"읽기 전용"| APP
+  RUN -.->|"매일 백업"| HF
+  EXT -.->|"조회할 때만"| APP
+
+  classDef app fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#0f172a
+  classDef store fill:#f8fafc,stroke:#64748b,color:#0f172a
+  classDef pc fill:#ecfdf5,stroke:#0f766e,stroke-width:2px,color:#0f172a
+  classDef ext fill:#fffbeb,stroke:#b45309,color:#0f172a
+  class APP,CW,OLL,ONE app
+  class PG,RD,QD,NEO,CDB,KB,HF store
+  class SCHED,WORK,RUN pc
+  class EXT,USER ext

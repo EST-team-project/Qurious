@@ -169,14 +169,27 @@ async def resolve_stock(symbol: str) -> dict:
     price_krw, fxi = await fx.to_krw_info(float(price), currency)
     fx_rate = fxi["rate"]
     prev_close = quote.get("prev_close")
+    # 이 값의 출처 · 시각(2026-10-19 · quote_now 와 같은 글) — 게이트웨이(증권사 연계 조회)인지 야후 지연 시세인지 화면이 밝힌다.
+    # 체결 직전에 그 사람의 증권사 키로 다시 확인하는 일은 stock_order 가 한다(_confirm_quote).
+    from app.services import quote_now as _qn   # 순환 가져오기를 피해 여기서
+    q_src = "kis_gateway" if quote.get("source") == "kis" else "delayed"
     # 환율 출처(live · last · fallback · missing · 원화는 None) · 받은 시각 · 한 줄 글 — 대체값을 말없이 쓰지 않는다(fx.py).
     data = {**meta, "price": price_krw, "price_local": float(price), "currency": currency, "fx_rate": fx_rate,
             "fx_source": fxi["source"], "fx_as_of": fxi["as_of"], "fx_note": fxi["note"],
             "prev_close": (float(prev_close) * fx_rate) if prev_close else None, "prev_close_local": prev_close,
-            "settlement_currency": "KRW"}
+            "settlement_currency": "KRW",
+            "quote_source": q_src, "quote_as_of": quote.get("as_of"),
+            "quote_label": _qn.label_for(q_src, quote.get("as_of"), symbol=meta["symbol"])}
     _STOCK_CACHE[symbol] = {"ts": now, "data": data}
     _STOCK_CACHE[meta["symbol"]] = {"ts": now, "data": data}
     return data
+
+
+async def _confirm_quote(db, user_id, info: dict, *, fresh: bool = True) -> dict:
+    """체결 직전 확인(2026-10-19 · 사용자 결정 「모의 주문은 체결 직전 실시간 확인까지」) — 그 사람의 증권사 키가 있으면
+    지금 다시 받은 값으로, 없으면 받아 둔 값에 출처 · 시각 글만. 규칙은 app/services/quote_now.confirm_for_order 한 곳."""
+    from app.services import quote_now   # 순환 가져오기를 피해 함수 안에서
+    return await quote_now.confirm_for_order(db, user_id, info, fresh=fresh)
 
 
 def _price_unit(price: float) -> float:
@@ -242,6 +255,8 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
     if side not in (BUY, SELL) or not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("side(BUY/SELL)와 1 이상의 정수 quantity를 입력하세요.")
     info = await resolve_stock(symbol)
+    # 체결과 같은 길로 미리 본다 — 수량을 고칠 때마다 부르므로 10초 저장본 허용(증권사 한도 · 체결 때는 다시 받는다)
+    info = await _confirm_quote(db, user_id, info, fresh=False)
     price = _price_unit(info["price"])
     account = await get_account(db, user_id)
     position = await _stock_position(db, user_id, info["symbol"])
@@ -281,6 +296,7 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
         "cashAfter": cash_after,
         "positionBefore": held,
         "positionAfter": held + quantity if side == BUY else held - quantity,
+        "quoteSource": info.get("quote_source"), "quoteLabel": info.get("quote_label"),
         "reason": None if executable else (
             f"보유 현금이 부족합니다 (필요 {cost.net_amount:,.0f}원 · 보유 {account.cash:,.0f}원)."
             if side == BUY else "매도 가능 수량이 부족합니다."
@@ -300,7 +316,11 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     if not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("quantity는 1 이상의 정수여야 합니다.")
     info = await resolve_stock(symbol)
-    return await _fill_stock_order(db, user_id, info, side, quantity, source=source)
+    info = await _confirm_quote(db, user_id, info)   # 체결 직전 확인 — 내 증권사 키가 있으면 지금 값으로
+    res = await _fill_stock_order(db, user_id, info, side, quantity, source=source)
+    if isinstance(res, dict):
+        res.update(quote_source=info.get("quote_source"), quote_label=info.get("quote_label"))
+    return res
 
 
 async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled_at=None):
@@ -946,6 +966,8 @@ async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) 
     for order in rows:
         try:
             info = await resolve_stock(order.symbol)
+            # 손절 · 익절 발동도 내 증권사 키가 있으면 지금 값으로 판정 — 10초 저장본(주문이 많아도 증권사 한도 안)
+            info = await _confirm_quote(db, order.user_id, info, fresh=False)
         except Exception:
             continue
         current = float(info["price"])

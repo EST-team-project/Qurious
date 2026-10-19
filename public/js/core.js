@@ -131,14 +131,15 @@ const GNB_MENUS = {
       { key: "fin-glossary",   icon: "fa-solid fa-book",          label: "용어사전" },
     ],
   },
-  // 개념 학습 (2026-10-01) — 구현할 개념을 교재처럼 설명하는 별도 HTML(/learn/ · docs/설계/개념학습-설계.md).
-  // 첫 항목이 href 라 묶음을 누르면 바로 학습 사이트로 간다(GNB click). 장 목록은 학습 사이트의 왼쪽 목차가 맡는다.
+  // 개념 학습 (2026-10-01 · 2026-10-19 앱 안으로) — 기능의 원리와 금융 기초를 교재처럼 장으로 읽는다(js/conceptlearn.js ·
+  // docs/설계/개념학습-설계.md). 전에는 따로 된 쪽(/learn/ · 트리의 「새 화면」)이었다 — 사용자 10-19 「학습을 금융필수지식 +
+  // 개념학습으로 하기로 했는데 분리되어 있는 오류」. 위 탭 「학습」 이 금융 필수 지식과 이 묶음을 함께 덮는다(TAB_OF).
+  // 장(35편)은 메뉴에 하나하나 두지 않고 목차 화면이 고른다 · /learn/ 은 관리자의 팀 자료 받기 · 원문 확인용으로 남는다.
   learn: {
     label: "<i class='fa-solid fa-graduation-cap'></i> 개념 학습",
     items: [
-      { key: "learn-home", icon: "fa-solid fa-map",            label: "전체 목차",  href: "/learn/#/" },
-      { key: "learn-rag",  icon: "fa-solid fa-book-open",      label: "근거 RAG",   href: "/learn/#/p/rag-basics" },
-      { key: "learn-team", icon: "fa-solid fa-users",          label: "팀 자료",    href: "/learn/#/team" },
+      { key: "learn-home", icon: "fa-solid fa-map", label: "전체 목차" },
+      { key: "learn-page", icon: "fa-solid fa-book-open", label: "장 읽기" },
     ],
   },
   sysadmin: {
@@ -305,6 +306,8 @@ const VIEW_GUIDES = {
   "sysadmin-dashboard": { summary: "서버 자원(CPU/메모리/디스크)과 연동 서비스 상태를 모니터링합니다.", steps: ["호스트/서비스/컨테이너 카드에서 이상 여부를 확인하세요.", "응답이 느리거나 실패로 표시되면 해당 서비스(Ollama/Qdrant/Redis) 상태를 점검하세요."], relatedTerms: ["qdrant"] },
   "sysadmin-logs":   { summary: "주문·설정 변경 등 주요 이벤트의 감사 로그를 조회합니다.", steps: ["이벤트 유형·기간으로 필터링해 이력을 확인하세요.", "이상 거래나 설정 변경 원인을 추적할 때 활용하세요."], relatedTerms: ["audit_log"] },
   "fin-glossary":    { summary: "금융 · 투자 용어를 이름 · 약어 · 영어 · 초성으로 찾고, 풀이와 이어진 개념을 봅니다.", steps: ["검색창에 PER · 샤프 · ㅅㄱㅊㅇ 처럼 쳐 보세요 — 줄마다 무엇으로 찾았는지 보여 줍니다.", "분류 카드를 누르면 그 분류의 용어를 가나다순으로 봅니다.", "다른 화면에서 용어를 눌렀을 때 뜨는 창의 모양은 내 계정 › 화면 설정에서 바꿉니다."], relatedTerms: [] },
+  "learn-home":      { summary: "기능이 움직이는 원리(수집 · 근거 답 · 차트 · 서버)와 금융 기초를 부마다 장으로 묶은 목차입니다.", steps: ["장 제목을 누르면 이 화면 안에서 그 장을 읽습니다.", "「완성」 장부터 읽어 보세요. 「뼈대」 장은 아직 차례와 다룰 질문만 있습니다.", "읽던 장은 맨 위 「이어 읽기」 로 돌아옵니다."], relatedTerms: [] },
+  "learn-page":      { summary: "장 한 편을 읽습니다 — 머리에 부 · 번호 · 먼저 읽을 장, 왼쪽에 이 장의 차례가 있습니다.", steps: ["왼쪽 차례를 누르면 그 절로 내려갑니다.", "코드 상자의 「복사」 로 예제를 옮겨 직접 돌려 보세요.", "맨 아래 앞뒤 장으로 이어 읽고, 「전체 목차」 로 돌아갑니다."], relatedTerms: [] },
   "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴합니다.", steps: ["이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
 };
 
@@ -420,9 +423,10 @@ let currentView = "agent-chat";
 // 근거: 사용자 10-18 「위의 메뉴바에는 필요한 기능만 넣고 옆 사이드에 전체 메뉴」 · 조사(KRX 정보데이터시스템의 통계 트리 ·
 //       강사님 fe-vanilla 의 좌측 트리) · NN/g 「Hamburger Menus and Hidden Navigation Hurt UX Metrics」(2016 — 데스크톱에서
 //       숨긴 메뉴 27% · 보이는 메뉴 48%).
-// 탭 「학습」 = 금융 필수 지식(누르면 강의실) + 개념 학습(트리에서 바로 아래) — Schwab · Webull · Coinbase 가 위 메뉴에 두는
+// 탭 「학습」 = 금융 필수 지식(누르면 강의실) + 개념 학습(트리에서 바로 아래 · 2026-10-19 부터 둘 다 앱 안 · TAB_OF) — Schwab · Webull · Coinbase 가 위 메뉴에 두는
 //       「Learn」 을 다른 탭처럼 우리말 명사로(2026-10-18 각 첫 화면 메뉴 글 확인 · 사용자 「가장 범용적인 이름」).
 const MENU_TOP = ["agent", "company", "paper", "quant", "finance", "crawl"];   // app.html 위 탭과 같은 차례(TC-NV-01)
+const TAB_OF = { learn: "finance" };   // 위 탭이 따로 없는 묶음 → 불을 켤 위 탭(「학습」 = 금융 필수 지식 + 개념 학습 · TC-CLV-02)
 const MENU_TREE = ["agent", "company", "paper", "quant", "trading", "us", "invest", "ml",
   "finance", "learn", "crawl", "sysadmin", "account"];   // 왼쪽 트리 차례 — 모든 묶음이 한 번씩(TC-NV-02)
 const menuIcon = label => (label.match(/class='([^']+)'/) || [])[1] || "fa-solid fa-folder";
@@ -443,7 +447,7 @@ function renderLnbTree() {
   if (!nav) return;
   nav.innerHTML = MENU_TREE.filter(key => GNB_MENUS[key]).map(key => {
     const menu = GNB_MENUS[key];
-    const outOnly = menu.items.every(it => it.heading || it.href);   // 개념 학습처럼 모두 바깥 주소인 묶음
+    const outOnly = menu.items.every(it => it.heading || it.href);   // 모두 바깥 주소인 묶음(지금은 없음 — 개념 학습은 2026-10-19 앱 안으로)
     const name = menuText(menu.label);
     return `<details class="lnb-group" data-lnb-group="${key}">` +
       `<summary class="lnb-group-head" title="${name}"><i class="${menuIcon(menu.label)}" aria-hidden="true"></i><span>${name}</span>` +
@@ -525,9 +529,10 @@ function navigate(viewKey) {
   const moved = currentView !== viewKey;   // 다른 화면으로 옮기나(같은 화면을 다시 부르면 스크롤 자리를 둔다)
   currentView = viewKey;
 
-  // 위 탭 — 지금 묶음이 여섯 안이면 그 탭에 불(「학습」 탭은 금융 필수 지식 · 개념 학습은 바깥 화면이라 앱 안에서는 늘 금융 필수 지식)
+  // 위 탭 — 지금 묶음이 여섯 안이면 그 탭에 불 · 위 탭이 따로 없는 묶음은 TAB_OF 의 탭에(개념 학습 → 「학습」)
+  const tabGnb = TAB_OF[currentGnb] || currentGnb;
   document.querySelectorAll("[data-gnb]").forEach(el => {
-    el.classList.toggle("active", el.dataset.gnb === currentGnb);
+    el.classList.toggle("active", el.dataset.gnb === tabGnb);
   });
   fitGnbTabs();   // 지금 탭은 굵은 글이라 폭이 조금 바뀐다 — 다시 잰다
 
@@ -554,7 +559,7 @@ function navigate(viewKey) {
 // GNB click — 묶음의 첫 화면으로(위 탭이 부른다)
 function openGnbGroup(gnbKey) {
   const first = GNB_MENUS[gnbKey].items.find(it => it.key);   // 소제목(heading)은 건너뛴다
-  if (first.href) { location.href = first.href; return; }   // 개념 학습 묶음 — 별도 HTML 로
+  if (first.href) { location.href = first.href; return; }   // 첫 항목이 바깥 주소인 묶음 — 별도 HTML 로(지금은 없음)
   navigate(first.key);
 }
 document.querySelectorAll("[data-gnb]").forEach(el => {

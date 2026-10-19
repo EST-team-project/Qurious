@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="764" viewBox="0 96 1920 764" role="img" aria-labelledby="title desc">
+  <title id="title">근거 답은 찾기 → 쓰기 → 거르기를 지나야 화면에 나온다</title>
+  <desc id="desc">질문이 가격 예측이나 매수 · 매도 권유이면 답하지 않고 까닭을 알린다. 아니면 찾기 — 일상 말을 법령 말로 넓히고(코스피 → 유가증권시장) 낱말 검색(SQLite FTS5 · BM25)과 의미 검색(bge-m3 임베딩 · Qdrant)의 두 순위를 RRF 로 합쳐 상위 조문을 고른다. 쓰기 — 로컬 답 모델 qwen3:4b-instruct 가 찾은 조문만으로 4,500자 안에서 답을 쓴다. 거르기 — 서버가 출처 번호 검사 · 근거 없는 단정 · 질문 되풀이 셋으로 거르고, 통과하면 답과 문장마다 출처 번호와 조문 카드를, 걸리면 「근거로 답하지 못했습니다」 와 찾은 조문 발췌를 보인다. 측정(2026-10-03 ~ 06): 정답 조문 상위 5개 안 47 / 50 · 낱말만 0.78 · 의미만 0.86 · 섞음 0.94 · 근거 밖 질문에 지어낸 답 0 / 3.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/><stop offset="0.55" stop-color="#0b1728"/><stop offset="1" stop-color="#101a2d"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172e52"/><stop offset="1" stop-color="#10233f"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#302557"/><stop offset="1" stop-color="#1d2140"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#143c3e"/><stop offset="1" stop-color="#102b32"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#44351f"/><stop offset="1" stop-color="#2a281f"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173a4a"/><stop offset="1" stop-color="#112834"/>
+    </linearGradient>
+    <linearGradient id="rose" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#46202f"/><stop offset="1" stop-color="#2a1a26"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#000814" flood-opacity=".45"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#7fa7d8"/>
+    </marker>
+    <marker id="arrowS" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#7fa7d8"/>
+    </marker>
+    <style>
+      text{font-family:'Pretendard Variable','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;fill:#f5f8ff}
+      .title{font-size:38px;font-weight:800;letter-spacing:-1px}
+      .subtitle{font-size:22px;fill:#aebcd1}
+      .zone{font-size:24px;font-weight:800;letter-spacing:1px}
+      .h1{font-size:34px;font-weight:800}
+      .h2{font-size:30px;font-weight:800}
+      .body{font-size:24px;fill:#c7d3e5}
+      .small{font-size:20px;fill:#aebcd1}
+      .pill{font-size:20px;font-weight:700}
+      .step{font-size:24px;font-weight:700;fill:#eef4ff}
+      .card{stroke-width:2;filter:url(#shadow)}
+      .chip{fill:#0a1525;fill-opacity:.6;stroke-width:1.5}
+      .area{fill:#091424;stroke:#40618f;stroke-width:3;opacity:.96}
+      .line{fill:none;stroke:#7fa7d8;stroke-width:4;marker-end:url(#arrow)}
+      .lineS{fill:none;stroke:#7fa7d8;stroke-width:4;marker-end:url(#arrowS)}
+      .dash{fill:none;stroke:#6984a6;stroke-width:3;stroke-dasharray:10 10;marker-end:url(#arrow)}
+      .bus{fill:none;stroke:#6984a6;stroke-width:3;stroke-dasharray:10 10}
+    </style>
+  </defs>
+
+  <rect data-bg="1" width="1920" height="860" fill="url(#bg)"/>
+  <circle cx="1500" cy="160" r="320" fill="#1e3a60" opacity=".12"/>
+  <circle cx="560" cy="760" r="360" fill="#194c47" opacity=".09"/>
+
+  <text data-free="1" x="50" y="52" class="title">근거 답은 찾기 → 쓰기 → 거르기를 지나야 화면에 나온다</text>
+  <text data-free="1" x="52" y="88" class="subtitle">가격 예측 · 매수 · 매도 권유 질문에는 답하지 않는다 · 답은 찾은 조문만으로 쓰고 서버가 세 가지로 한 번 더 거른다</text>
+
+  <!-- 왼쪽: 질문 → 갈림 → 예 -->
+  <rect x="50" y="116" width="270" height="60" rx="30" fill="url(#blue)" stroke="#4d82cc" class="card"/>
+  <path transform="translate(-12 0)" d="M146 132H178Q186 132 186 140V152Q186 160 178 160H160L150 168V160H146Q138 160 138 152V140Q138 132 146 132Z" fill="none" stroke="#93c5fd" stroke-width="3" stroke-linejoin="round"/>
+  <text x="192" y="157" class="h2">질문</text>
+  <path class="lineS" d="M185 178V212"/>
+
+  <rect x="50" y="216" width="270" height="140" rx="22" fill="url(#amber)" stroke="#c2953b" class="card"/>
+  <path d="M86 236L102 252L86 268L70 252Z" fill="#b8892c"/>
+  <text x="86" y="259" text-anchor="middle" class="pill" style="font-size:20px">?</text>
+  <text x="114" y="262" class="step" style="fill:#fde68a">갈림</text>
+  <text x="70" y="302" class="step">가격 예측이나</text>
+  <text x="70" y="336" class="step">매수 · 매도 권유인가</text>
+
+  <path class="line" d="M185 358V418"/>
+  <text data-free="1" x="214" y="384" class="small" style="font-weight:800;fill:#fda4af">예</text>
+  <rect x="50" y="424" width="270" height="120" rx="22" fill="url(#rose)" stroke="#e0607e" class="card"/>
+  <text x="76" y="474" class="h2">답하지 않고</text>
+  <text x="76" y="516" class="h2">까닭을 알림</text>
+
+
+  <!-- 찾기 -->
+  <rect x="400" y="110" width="560" height="618" rx="28" class="area"/>
+  <text x="424" y="152" class="h2" style="fill:#93c5fd">찾기</text>
+  <g fill="none" stroke="#93c5fd" stroke-width="4" stroke-linecap="round"><circle cx="512" cy="138" r="11"/><path d="M520 146L530 156"/></g>
+  <path class="line" d="M322 286H420"/>
+  <text data-free="1" x="361" y="270" text-anchor="middle" class="small" style="font-weight:800;fill:#a7f3d0">아니오</text>
+  <rect x="424" y="226" width="512" height="120" rx="20" fill="url(#blue)" stroke="#4d82cc" class="card"/>
+  <text x="448" y="270" class="h2">일상 말을 법령 말로 넓힘</text>
+  <rect x="448" y="288" width="112" height="46" rx="23" fill="#2563eb" opacity=".55"/>
+  <text x="504" y="321" text-anchor="middle" class="step">코스피</text>
+  <path class="lineS" d="M566 310H604"/>
+  <rect x="610" y="288" width="184" height="46" rx="23" fill="#2563eb" opacity=".55"/>
+  <text x="702" y="321" text-anchor="middle" class="step">유가증권시장</text>
+
+  <path class="lineS" d="M548 348V382"/>
+  <path class="lineS" d="M812 348V382"/>
+  <rect x="424" y="386" width="248" height="170" rx="20" fill="url(#blue)" stroke="#4d82cc" class="card"/>
+  <text x="448" y="434" class="h2">낱말 검색</text>
+  <text x="448" y="478" class="body">SQLite FTS5</text>
+  <text x="448" y="516" class="body">BM25</text>
+  <rect x="688" y="386" width="248" height="170" rx="20" fill="url(#blue)" stroke="#4d82cc" class="card"/>
+  <text x="712" y="434" class="h2">의미 검색</text>
+  <text x="712" y="478" class="body">bge-m3 임베딩</text>
+  <text x="712" y="516" class="body">Qdrant</text>
+
+  <path class="lineS" d="M548 558V592"/>
+  <path class="lineS" d="M812 558V592"/>
+  <rect x="424" y="596" width="512" height="110" rx="20" fill="url(#teal)" stroke="#38bdf8" class="card"/>
+  <text x="448" y="640" class="h2">두 순위를 합침</text>
+  <text x="448" y="680" class="body">RRF · 상위 조문</text>
+
+  <!-- 쓰기 -->
+  <rect x="1000" y="110" width="340" height="618" rx="28" class="area"/>
+  <text x="1024" y="152" class="h2" style="fill:#c4b5fd">쓰기</text>
+  <g fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M1104 156L1108 144L1128 124L1136 132L1116 152Z"/><path d="M1122 130L1130 138"/></g>
+  <path class="line" d="M938 651H1020"/>
+  <rect x="1024" y="226" width="292" height="480" rx="22" fill="url(#violet)" stroke="#8b78db" class="card"/>
+  <g transform="translate(0 40)">
+    <rect x="1132" y="262" width="76" height="76" rx="12" fill="none" stroke="#c4b5fd" stroke-width="4"/>
+    <rect x="1152" y="282" width="36" height="36" rx="4" fill="#6d5ae0"/>
+    <path d="M1150 254V262M1170 254V262M1190 254V262M1150 338V346M1170 338V346M1190 338V346M1124 280H1132M1124 300H1132M1124 320H1132M1208 280H1216M1208 300H1216M1208 320H1216" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="1048" y="444" class="h2">로컬 답 모델</text>
+  <text x="1048" y="486" class="body">qwen3:4b-instruct</text>
+  <rect x="1048" y="518" width="244" height="46" rx="23" fill="#6d5ae0" opacity=".55"/>
+  <text x="1170" y="551" text-anchor="middle" class="step">찾은 조문만</text>
+  <rect x="1048" y="576" width="244" height="46" rx="23" fill="#6d5ae0" opacity=".55"/>
+  <text x="1170" y="609" text-anchor="middle" class="step">4,500자 안</text>
+
+  <!-- 거르기 -->
+  <rect x="1380" y="110" width="490" height="618" rx="28" class="area"/>
+  <text x="1404" y="152" class="h2" style="fill:#fcd38d">거르기</text>
+  <path d="M1514 124H1546L1534 140V154L1526 158V140Z" fill="none" stroke="#fcd38d" stroke-width="4" stroke-linejoin="round"/>
+  <path class="line" d="M1318 316H1400"/>
+  <rect x="1404" y="196" width="442" height="232" rx="22" fill="url(#amber)" stroke="#c2953b" class="card"/>
+  <text x="1428" y="242" class="h2">서버 거름 셋</text>
+  <rect x="1428" y="262" width="394" height="46" rx="12" stroke="#c2953b" class="chip"/>
+  <text x="1444" y="294" class="pill" style="fill:#fcd38d">1</text><text x="1472" y="295" class="step">출처 번호 검사</text>
+  <rect x="1428" y="316" width="394" height="46" rx="12" stroke="#c2953b" class="chip"/>
+  <text x="1444" y="348" class="pill" style="fill:#fcd38d">2</text><text x="1472" y="349" class="step">근거 없는 단정</text>
+  <rect x="1428" y="370" width="394" height="46" rx="12" stroke="#c2953b" class="chip"/>
+  <text x="1444" y="402" class="pill" style="fill:#fcd38d">3</text><text x="1472" y="403" class="step">질문 되풀이</text>
+
+  <path class="lineS" d="M1570 430V476"/>
+  <text data-free="1" x="1586" y="462" class="small" style="font-weight:800;fill:#6ee7b7">통과</text>
+  <rect x="1404" y="480" width="332" height="100" rx="20" fill="url(#green)" stroke="#2fa38a" class="card"/>
+  <text x="1428" y="522" class="step">답 + 문장마다 출처 번호</text>
+  <text x="1428" y="560" class="body">+ 조문 카드</text>
+
+  <path class="lineS" d="M1792 430V600"/>
+  <text data-free="1" x="1806" y="520" class="small" style="font-weight:800;fill:#fda4af">걸림</text>
+  <rect x="1404" y="604" width="442" height="102" rx="20" fill="url(#rose)" stroke="#e0607e" class="card"/>
+  <text x="1428" y="646" class="step">근거로 답하지 못했습니다</text>
+  <text x="1428" y="684" class="body">+ 찾은 조문 발췌</text>
+
+  <!-- 아래: 측정 결과 -->
+  <rect x="50" y="748" width="1820" height="96" rx="24" fill="#0d1a2c" stroke="#3a5577" stroke-width="2"/>
+  <text x="78" y="804" class="small" style="font-weight:800">측정 2026-10-03 ~ 06</text>
+  <rect x="310" y="770" width="350" height="52" rx="26" fill="#1d4ed8" opacity=".55"/>
+  <text x="485" y="804" text-anchor="middle" class="pill" style="font-size:22px">정답 조문 상위 5개 안 <tspan style="fill:#fde68a">47 / 50</tspan></text>
+  <rect x="676" y="770" width="430" height="52" rx="26" fill="#0e7490" opacity=".6"/>
+  <text x="891" y="804" text-anchor="middle" class="pill" style="font-size:22px">낱말만 0.78 · 의미만 0.86 · 섞음 <tspan style="fill:#fde68a">0.94</tspan></text>
+  <rect x="1404" y="770" width="360" height="52" rx="26" fill="#a16207" opacity=".6"/>
+  <text x="1584" y="804" text-anchor="middle" class="pill" style="font-size:22px">근거 밖 질문에 지어낸 답 <tspan style="fill:#fde68a">0 / 3</tspan></text>
+</svg>

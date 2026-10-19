@@ -82,7 +82,8 @@ async function stockQuote() {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
     $("ps-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
-      <div class="text-xl font-bold mt-1">${fmt(q.price, q.currency === "KRW" ? 0 : 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
+      <div class="text-xl font-bold mt-1">${fmt(q.price, q.currency === "KRW" ? 0 : 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>
+      ${q.quote_label ? `<div class="text-xs" style="color:var(--text-mute);">${escHtml(q.quote_label)} · 체결 직전에 다시 확인합니다</div>` : ""}`;
     $("ps-symbol").value = q.symbol;
   } catch (e) { $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
@@ -118,12 +119,12 @@ async function stockOrder(side) {
   const ok = confirm(
     `${side === "BUY" ? "매수" : "매도"} 주문을 냅니다.\n\n` +
     `종목: ${symbol}\n수량: ${quantity}주\n유형: 시장가 (즉시 체결)\n\n` +
-    `체결가는 지연 현재가이며, 미체결·취소는 지원하지 않습니다. 계속할까요?`
+    `체결가는 체결 직전에 다시 받은 가격입니다 — 증권사 키를 연결했으면 증권사 조회 값, 아니면 지연 시세(약 20분)입니다.\n미체결·취소는 지원하지 않습니다. 계속할까요?`
   );
   if (!ok) return;
   try {
     const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side, quantity } });
-    setToast(`${r.name} ${side === "BUY" ? "매수" : "매도"} ${fmt(r.quantity)}주 체결 (@${won(r.price)})`, "ok");
+    setToast(`${r.name} ${side === "BUY" ? "매수" : "매도"} ${fmt(r.quantity)}주 체결 (@${won(r.price)}${r.quote_label ? ` · ${r.quote_label}` : ""})`, "ok");
     $("ps-preview").innerHTML = "";
     loadPaperStock();
   } catch (e) { setToast(e.message, "error"); }

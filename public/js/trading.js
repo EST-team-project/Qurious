@@ -13,17 +13,19 @@ async function loadStockChart() {
   infoEl.textContent = "로딩 중...";
   try {
     const [quote, candles] = await Promise.all([
-      api(`/api/stocks/quote?symbol=${encodeURIComponent(symbol)}`),
+      // 머리 값은 지금 값과 그 출처 · 시각(quote_now · 2026-10-19) — 차트 봉은 수집 DB 일봉(직전 거래일까지)이라 날짜가 다를 수 있다
+      api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`).catch(() => api(`/api/stocks/quote?symbol=${encodeURIComponent(symbol)}`)),
       api(`/api/stocks/candles?symbol=${encodeURIComponent(symbol)}&period=${period}`),
     ]);
 
     const price = quote.price ?? "-";
     const prevClose = quote.prev_close ?? 0;
-    const chg = prevClose ? ((price - prevClose) / prevClose * 100).toFixed(2) : null;
+    const chg = quote.change_pct != null ? Number(quote.change_pct).toFixed(2) : prevClose ? ((price - prevClose) / prevClose * 100).toFixed(2) : null;
     const chgClass = chg >= 0 ? "text-emerald-400" : "text-red-400";
     infoEl.innerHTML = `<span class="font-semibold">${escHtml(symbol)}</span>
       <span class="ml-3">${fmt(price)}</span>
-      ${chg != null ? `<span class="ml-2 ${chgClass}">${chg >= 0 ? "+" : ""}${chg}%</span>` : ""}`;
+      ${chg != null ? `<span class="ml-2 ${chgClass}">${chg >= 0 ? "+" : ""}${chg}%</span>` : ""}
+      ${quote.label ? `<span class="ml-2 text-xs" style="color:var(--text-mute);">${escHtml(quote.label)}</span>` : ""}`;
 
     // Chart — ApexCharts 캔들스틱
     container.innerHTML = "";

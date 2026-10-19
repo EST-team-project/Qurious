@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 266,
- "routers": 39,
+ "count": 267,
+ "routers": 40,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -3875,12 +3875,19 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [
@@ -3908,12 +3915,19 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [
@@ -3940,12 +3954,19 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -3970,12 +3991,19 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -4000,12 +4028,19 @@
    "summary": "Pine 전략 실습 화면용 주문. 시그널은 브라우저에서 만들고 체결은 서버가 기록(source=PINE).",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -4134,12 +4169,19 @@
    "summary": "pending 스탑 주문 중 시세 도달한 것 발동. (지금은 수동 · 나중에 스케줄러)",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -5276,12 +5318,19 @@
    "summary": "",
    "auth": "API 키",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -5760,7 +5809,9 @@
    "summary": "TradingView 알림 Webhook. 본문은 JSON(권장) 또는 'key=value' 텍스트.",
    "auth": "없음",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
     "Redis",
     "알림",
@@ -5769,7 +5820,11 @@
    "hosts": [
     "api.coolsms.co.kr",
     "api.telegram.org",
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -7611,6 +7666,45 @@
    "line": 93,
    "errors": [
     "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-QUOT-01",
+   "router": "quote_now",
+   "method": "GET",
+   "path": "/api/quote/now",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "PostgreSQL",
+    "Redis",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "company-dashboard",
+    "indicator-strategy",
+    "robo-patterns",
+    "trading-chart"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/quote_now.py",
+   "line": 23,
+   "errors": [
+    "400"
    ],
    "keys": [],
    "body": [],

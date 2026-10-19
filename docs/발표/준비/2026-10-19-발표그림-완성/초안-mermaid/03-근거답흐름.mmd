@@ -1,0 +1,21 @@
+flowchart LR
+  Q(["질문"]) --> C{"가격 예측이나<br/>매수 · 매도 권유인가"}
+  C -->|"예"| R["답하지 않고<br/>까닭을 알림"]
+  C -->|"아니오"| E["일상 말을 법령 말로 넓힘<br/>코스피 → 유가증권시장"]
+  E --> S1["낱말 검색<br/>SQLite FTS5 · BM25"]
+  E --> S2["의미 검색<br/>bge-m3 임베딩 · Qdrant"]
+  S1 --> F["두 순위를 합침<br/>RRF · 상위 조문"]
+  S2 --> F
+  F --> W["로컬 답 모델<br/>qwen3:4b-instruct<br/>찾은 조문만 · 4,500자 안"]
+  W --> G{"서버 거름 셋<br/>출처 번호 검사<br/>근거 없는 단정<br/>질문 되풀이"}
+  G -->|"통과"| A["답 + 문장마다 출처 번호<br/>+ 조문 카드"]
+  G -->|"걸림"| X["근거로 답하지 못했습니다<br/>+ 찾은 조문 발췌"]
+
+  classDef step fill:#eef2ff,stroke:#4f46e5,color:#0f172a
+  classDef gate fill:#fffbeb,stroke:#b45309,color:#0f172a
+  classDef ok fill:#ecfdf5,stroke:#0f766e,stroke-width:2px,color:#0f172a
+  classDef stop fill:#fff1f2,stroke:#be123c,color:#0f172a
+  class E,S1,S2,F,W step
+  class C,G gate
+  class A ok
+  class R,X stop

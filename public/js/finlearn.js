@@ -129,7 +129,10 @@ async function renderHub(el) {
         </div>
       </div>
     </div>
-    <p class="fl-muted" style="font-size:13px;margin-top:14px">교재 6~9단원은 4일 과정과 같은 내용이라 4일 과정에서 읽습니다. 10단원은 원천 교재에서 지난 판이 되어 지금은 싣지 않습니다.</p>`;
+    <p class="fl-muted" style="font-size:13px;margin-top:14px">교재 6~9단원은 4일 과정과 같은 내용이라 4일 과정에서 읽습니다. 10단원은 원천 교재에서 지난 판이 되어 지금은 싣지 않습니다.</p>
+    <div class="fl-section-title" style="margin-top:22px">개념 학습 <small>이 서비스의 기능이 움직이는 원리 — 수집 · 근거 답 · 차트 · 서버 · 금융 기초 장</small></div>
+    <div class="fl-card cl-entry"><p>강의에서 배운 개념이 Qurious 의 어느 기능에서 어떻게 쓰이는지, 그림 · 직접 돌려 본 예제 · 쓰인 코드로 읽습니다.</p>
+      <a class="fl-link" href="#learn-home">개념 학습 전체 목차 →</a></div>`;
   el.querySelectorAll("[data-go]").forEach(c => {
     const go = () => navigate(c.dataset.go);
     c.addEventListener("click", go);

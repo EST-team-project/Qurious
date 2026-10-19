@@ -105,3 +105,63 @@
   font-size: 14px; font-weight: 600; color: var(--text-dim); cursor: pointer;
 }
 .fl-entry button:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── 개념 학습 — 앱 안 화면(2026-10-19 · js/conceptlearn.js) ─────────────────────
+   강의실 틀(fl-card · fl-grid · fl-reader · fl-toc · fl-article)을 그대로 쓰고, 개념 학습 글의 부품만 더한다
+   (목차 카드 · 상태 꼬리표 · 알림 상자 · 코드 · 출력 상자 · 그림). 이름은 cl- 로 시작해 앱의 다른 화면과 겹치지 않게. */
+.cl-sec { margin-top: 22px; }
+.cl-sec > i { color: var(--accent); margin-right: 6px; }
+.cl-part { display: flex; flex-direction: column; gap: 10px; }
+.cl-part-head { display: flex; align-items: center; gap: 10px; }
+.cl-part-head h3 { font-size: 17px; font-weight: 800; margin: 0; }
+.cl-part-head .fl-chip { margin-left: auto; }
+.cl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.cl-list li { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.cl-num { font-size: 12px; font-weight: 700; color: #64748b; font-variant-numeric: tabular-nums; }
+.cl-row a { font-weight: 700; color: var(--text); }
+.cl-row a:hover { color: var(--accent); text-decoration: underline; }
+.cl-sum { display: block; font-size: 13px; color: #64748b; line-height: 1.5; margin-top: 2px; }
+.cl-st { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 1px 8px; border: 1px solid var(--border); vertical-align: 1px; white-space: nowrap; }
+.cl-st-ready { color: #15803d; background: #ecfdf3; border-color: #bbf7d0; }
+.cl-st-draft { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.cl-st-skeleton { color: #64748b; background: var(--surf2); }
+.cl-note { font-size: 13px; margin-top: 14px; }
+.cl-resume, .cl-home-link { margin-left: auto; }
+.cl-prereq { font-size: 14px; color: var(--text-dim); margin: 0; }
+.cl-reader { margin-top: 16px; }
+.cl-reader > * { min-width: 0; }   /* 좁은 화면에서 넓은 표 · 코드가 칸을 밀어 화면 밖으로 넘치지 않게(390 폭 125px 넘침 · 손 시험에서 찾음) */
+@media (max-width: 900px) { .cl-reader { grid-template-columns: minmax(0, 1fr); } }
+.cl-reader .fl-toc a.cl-toc-h3 { padding-left: 16px; font-size: 12px; }
+.cl-reader .fl-toc a.is-on { background: var(--accent-glow); color: var(--accent); font-weight: 700; }
+.cl-prose .cl-callout { border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; padding: 12px 16px; margin: 0 0 18px; background: var(--surf2); }
+.cl-prose .cl-callout > :last-child { margin-bottom: 0; }
+.cl-callout-title { font-weight: 800; font-size: 14px; margin-bottom: 4px; display: flex; gap: 6px; align-items: center; }
+.cl-callout.goal { border-left-color: var(--accent); }
+.cl-callout.goal .cl-callout-title { color: var(--accent); }
+.cl-callout.note { border-left-color: #2563eb; }
+.cl-callout.note .cl-callout-title { color: #2563eb; }
+.cl-callout.tip { border-left-color: #15803d; }
+.cl-callout.tip .cl-callout-title { color: #15803d; }
+.cl-callout.important { border-left-color: #7c3aed; }
+.cl-callout.important .cl-callout-title { color: #7c3aed; }
+.cl-callout.warning { border-left-color: #b45309; }
+.cl-callout.warning .cl-callout-title { color: #b45309; }
+.cl-prose .cl-code { margin: 0 0 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surf2); overflow: hidden; }
+.cl-code-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; font-size: 12px; color: #64748b; border-bottom: 1px solid var(--border); }
+.cl-code-head button { border: 0; background: transparent; cursor: pointer; color: #64748b; font-size: 12px; }
+.cl-code-head button:hover { color: var(--accent); }
+.cl-prose .cl-code pre { margin: 0; padding: 14px 16px; overflow-x: auto; line-height: 1.6; font-size: 13.5px; }
+.cl-prose .cl-code pre code, .cl-prose .cl-code pre code.hljs { background: transparent; padding: 0; }
+.cl-prose .cl-code.output { background: #0f172a; border-color: #0f172a; }
+.cl-prose .cl-code.output .cl-code-head { background: #1e293b; border-color: #1e293b; color: #94a3b8; }
+.cl-prose .cl-code.output pre { color: #e2e8f0; }
+.cl-prose .cl-mermaid { margin: 8px 0 20px; overflow-x: auto; text-align: center; }
+.cl-prose .cl-mermaid svg { max-width: 100%; height: auto; }
+.cl-prose .cl-mermaid-error { white-space: pre-wrap; font-size: 12px; color: #b91c1c; text-align: left; }
+.cl-prose details { margin: 0 0 12px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: var(--surf); }
+.cl-prose summary { cursor: pointer; font-weight: 700; color: var(--text); }
+.cl-pager { margin-top: 14px; }
+.cl-entry { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }   /* 강의실 맨 아래 개념 학습 입구 — 학습 = 금융 필수 지식 + 개념 학습 */
+.cl-entry p { margin: 0; color: var(--text-dim); font-size: 15px; flex: 1 1 320px; }
+.cl-prose a { overflow-wrap: anywhere; }   /* 「더 읽을거리」 의 긴 주소가 좁은 화면을 밀지 않게(390 폭 92px · 손 시험에서 찾음) */
+@media (max-width: 640px) { .cl-list li { grid-template-columns: 1fr; gap: 2px; } }
