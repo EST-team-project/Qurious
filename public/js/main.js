@@ -9,7 +9,7 @@ import { loadMacroDashboard, loadMacroIndustry } from "/js/ml.js";
 import { initPaperViews, onPaperViewActivated } from "/js/paper.js";
 import { loadAutoTradeStatus, loadQuantDashboard } from "/js/quant.js";
 import { initRebalanceView, onRebalanceViewActivated } from "/js/rebalance.js";
-import { loadPatternAnalysis, loadRoboDecision, loadRoboTestbed, loadRoboScreening, loadRoboPerformanceMetrics } from "/js/robo.js";
+import { initRoboRiskProfile, loadPatternAnalysis, loadRoboDecision, loadRoboTestbed, loadRoboScreening, loadRoboPerformanceMetrics } from "/js/robo.js";
 import { loadNotificationSettings, loadSettings } from "/js/settings.js";
 import { loadAuditLog, loadSystemDashboard } from "/js/sysadmin.js";
 import { loadBrokerStatus, loadOrderHistory, loadPortfolio, loadStockChart } from "/js/trading.js";
@@ -52,6 +52,7 @@ async function boot() {
       await new Promise(r => setTimeout(r, 1500));
     }
   }
+  initRoboRiskProfile(user.clientId);
   document.getElementById("user-name").textContent = user.name;
   const avatar = document.getElementById("user-avatar");
   if (avatar) avatar.textContent = (user.name || "U").charAt(0).toUpperCase();
@@ -75,6 +76,7 @@ async function boot() {
 }
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
+  initRoboRiskProfile(null);
   await api("/api/auth/logout", { method: "POST" }).catch(() => { });
   // replace — 로그아웃 뒤 뒤로가기로 앱 화면 기록이 다시 뜨지 않게
   location.replace("/login.html");
