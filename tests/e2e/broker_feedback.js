@@ -1,0 +1,45 @@
+const result = document.createElement('pre'); result.id = 'broker-feedback-result'; document.body.append(result);
+const checks = [];
+const check = (name, ok) => { if (!ok) throw Error(name); checks.push(name); };
+const $ = id => document.getElementById(id);
+const tick = () => new Promise(resolve => setTimeout(resolve, 30));
+let response = {current: 72000, source: 'broker'}, status = 200;
+let calls = [], release, deferred = false, offline = false;
+window.fetch = async (path, options = {}) => {
+  calls.push({path, method: options.method});
+  if (path !== '/api/broker/price?symbol=005930.KS' || options.method !== 'GET') throw Error('Unexpected request');
+  if (deferred) await new Promise(resolve => { release = resolve; });
+  if (offline) throw Error('NETWORK-SECRET https://internal.example');
+  return new Response(JSON.stringify(response), {status, headers: {'Content-Type': 'application/json'}});
+};
+const submit = async () => { $('broker-test').click(); await tick(); };
+const text = () => $('broker-status').textContent;
+try {
+  await import('/js/settings.js');
+  check('test name and help describe quote-only scope', $('broker-test').textContent.includes('현재가') && $($('broker-test').getAttribute('aria-describedby')).textContent.includes('계좌 잔고와 주문 가능 여부는 확인하지 않습니다'));
+  deferred = true; $('broker-test').click();
+  check('button is disabled while fetching', $('broker-test').disabled);
+  $('broker-test').click();
+  check('repeated click does not start another request', calls.length === 1);
+  deferred = false; release(); await tick();
+  check('success only claims quote lookup', text().includes('현재가 조회 성공') && text().includes('72,000') && text().includes('계좌 잔고와 주문 가능 여부는 확인하지 않았습니다') && !text().includes('연결 성공'));
+  check('button is restored after success', !$('broker-test').disabled);
+  status = 502; response = {detail: {code: 'TOKEN_RATE_LIMIT', scope: 'quote', message: '접속 토큰 발급이 제한됐거나 다른 요청의 발급을 기다리고 있습니다.', hint: '1분 뒤 다시 눌러 주세요. 자동매매나 다른 조회의 토큰 발급과 겹칠 수 있습니다.'}};
+  await submit();
+  check('rate limit explains what to do without declaring disconnection', text().includes('1분 뒤') && text().includes('자동매매') && text().includes('계좌 연결이 끊겼다고 판단할 수 없습니다') && !text().includes('연결 실패'));
+  check('button is restored after failure', !$('broker-test').disabled);
+  response = {detail: {code: 'INVALID_CREDENTIALS', scope: 'quote', message: '증권사가 App Key 또는 App Secret을 확인하지 못했습니다.', hint: '모의·실전 환경에 맞는 키인지 확인하고 저장해 주세요.'}};
+  await submit();
+  check('authentication rejection gives key and environment guidance', text().includes('App Key') && text().includes('모의·실전') && !text().includes('1분 뒤'));
+  response = {detail: "HTTPStatusError: 403 Forbidden https://internal.example?secret=SECRET-MUST-NOT-LEAK"};
+  await submit();
+  check('legacy unstructured errors are not echoed', !text().includes('HTTPStatusError') && !text().includes('SECRET') && !$('_toast_el').textContent.includes('https://'));
+  offline = true; await submit(); offline = false;
+  check('network failure is actionable and button recovers', text().includes('잠시 뒤') && !text().includes('NETWORK-SECRET') && !$('broker-test').disabled);
+  status = 200; response = {current: 72000, source: 'mock'}; await submit();
+  check('mock data is never called broker success', text().includes('증권사 연결을 확인한 결과가 아닙니다') && !text().includes('✅'));
+  response = {current: 72000}; await submit();
+  check('missing source cannot confirm broker connection', text().includes('증권사 연결을 확인한 결과가 아닙니다'));
+  check('only read-only quote requests were made', calls.every(c => c.method === 'GET' && c.path === '/api/broker/price?symbol=005930.KS'));
+  result.textContent = JSON.stringify({ok: true, checks});
+} catch (e) { result.textContent = JSON.stringify({ok: false, checks, error: String(e), stack: e.stack}); }

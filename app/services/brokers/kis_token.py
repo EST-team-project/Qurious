@@ -11,9 +11,11 @@ from app.config import settings
 
 
 class KISTokenError(RuntimeError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, *, upstream_status=None, vendor_code=None):
         super().__init__(message)
         self.code = code
+        self.upstream_status = upstream_status
+        self.vendor_code = vendor_code
 
 
 def cache_key(base_url: str, app_key: str, app_secret: str) -> str:

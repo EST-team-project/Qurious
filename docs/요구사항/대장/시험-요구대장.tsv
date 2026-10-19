@@ -209,3 +209,4 @@ TC-TASK	tests/test_task_access.py	P02-⑤-3	🟢	#200 비동기 작업 조회·�
 TC-KEX	tests/test_kis_execution_outcomes.py	P02-⑤-1	🟢	#212: 토큰 공유·만료·403·응답 불명, 직접 주문 추적·계좌별 체결 대조. 격리 Redis와 PostgreSQL로 KIS 주문의 QUANT 미변경 검증(실제 KIS 접속은 별도)
 TC-KEX	tests/test_kis_execution_outcomes.py	P02-⑤-3	🟢	#212: 과거 가상 체결과 증권사 실패·접수·확인된 체결을 구분
 TC-KEXUI	tests/test_trade_status_screen.py	P02-⑤-3	🟢	#212: 실제 JS 렌더러로 실패·미확인 색상, 요청/체결 수량 분리, 과거 가상 기록, HTML 이스케이프 확인(Node 필요)
+TC-BCF	tests/test_broker_connection_feedback.py	P02-⑤-1	🟢	#232 실제 KIS HTTP 응답을 통한 토큰 제한·키 오류·401/403·시간 초과·비정상 시세 분류, 원문 비노출, 가상 시세와 계좌 확인 범위 구분, 로그인 필수

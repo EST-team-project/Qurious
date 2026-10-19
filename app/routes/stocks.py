@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import re
 import uuid
 import httpx
@@ -31,6 +32,8 @@ from app.services.investment_research import backtest_strategy, screen_pattern
 from app.services import data_provenance
 from app.services import overseas_orders
 from app.services.brokers.factory import get_broker_client, live_trading_allowed
+from app.services.brokers.mock import MockBrokerClient
+from app.services.brokers.quote_feedback import BrokerQuoteError, quote_failure
 from app.services.brokers.catalog import get_broker_catalog, get_broker_codes
 from app.services import notification
 from app.services.audit import audit
@@ -748,23 +751,33 @@ async def _get_broker_client_and_account(user: dict, db: AsyncSession):
 
 # ── 증권사 API 실시간 조회 ────────────────────────────────────────────
 
+async def _broker_quote(user, db, symbol):
+    try:
+        client = await _get_broker_client(user, db)
+        info = await client.get_price(symbol)
+        if not math.isfinite(info.current) or info.current <= 0:
+            raise BrokerQuoteError()
+        return info, "mock" if isinstance(client, MockBrokerClient) else "broker"
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, detail=quote_failure(exc)) from None
+
+
 @router.get("/broker/price")
 async def broker_price(
     symbol: str = Query(...),
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    client = await _get_broker_client(user, db)
-    try:
-        info = await client.get_price(symbol)
-        return {
-            "symbol": info.symbol, "name": info.name,
-            "current": info.current, "open": info.open,
-            "high": info.high, "low": info.low,
-            "volume": info.volume, "change": info.change, "change_pct": info.change_pct,
-        }
-    except Exception as e:
-        raise HTTPException(502, f"증권사 API 오류: {e}")
+    info, source = await _broker_quote(user, db, symbol)
+    return {
+        "symbol": info.symbol, "name": info.name,
+        "current": info.current, "open": info.open,
+        "high": info.high, "low": info.low,
+        "volume": info.volume, "change": info.change, "change_pct": info.change_pct,
+        "source": source, "scope": "quote", "account_verified": False,
+    }
 
 
 @router.get("/broker/balance")
@@ -886,12 +899,11 @@ async def broker_test(
     db: AsyncSession = Depends(get_pg_session),
 ):
     """증권사 연결 테스트용 간단 시세 조회."""
-    client = await _get_broker_client(user, db)
-    try:
-        info = await client.get_price("005930.KS")
-        return {"ok": True, "broker_price": {"symbol": info.symbol, "current": info.current}}
-    except Exception as e:
-        raise HTTPException(502, f"증권사 API 연결 테스트 오류: {e}")
+    info, source = await _broker_quote(user, db, "005930.KS")
+    return {"ok": True, "broker_price": {"symbol": info.symbol, "current": info.current},
+            "source": source, "scope": "quote", "account_verified": False,
+            "message": "앱 안 가상 시세입니다. 증권사 연결을 확인한 결과가 아닙니다." if source == "mock"
+            else "현재가 조회에 성공했습니다. 계좌 잔고와 주문 가능 여부는 확인하지 않았습니다."}
 
 
 # ── 차트 패턴 · 지지/저항 · 멀티타임프레임 ─────────────────────────────

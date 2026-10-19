@@ -8,6 +8,7 @@ import asyncio
 import httpx
 import time
 from .kis_token import KISTokenError, cache_key, shared_token
+from .quote_feedback import BrokerQuoteError
 from datetime import datetime, timedelta, timezone
 from .base import (
     BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo, FillSummary,
@@ -94,10 +95,16 @@ class KISClient(BrokerClient):
                     "appsecret":  self.app_secret,
                 },
             )
-            d = r.json()
+            try:
+                d = r.json()
+            except ValueError:
+                d = {}
+            if not isinstance(d, dict):
+                d = {}
             if r.is_error or not d.get("access_token"):
                 code = "KIS_TOKEN_RATE_LIMIT" if d.get("error_code") == "EGW00133" else "KIS_TOKEN_UNAVAILABLE"
-                raise KISTokenError(code, "KIS 접속 토큰 발급에 실패했습니다.")
+                raise KISTokenError(code, "KIS 접속 토큰 발급에 실패했습니다.",
+                                    upstream_status=r.status_code, vendor_code=d.get("error_code"))
         return {"token": d["access_token"], "expires_at": time.time() + int(d.get("expires_in", 86400))}
 
     async def _ensure_token(self):
@@ -115,7 +122,10 @@ class KISClient(BrokerClient):
                 params={"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": code},
             )
             r.raise_for_status()
-            o = self._check(r.json(), "현재가 조회")["output"]
+            body = r.json()
+            if isinstance(body, dict) and str(body.get("rt_cd", "0")).strip() not in ("0", ""):
+                raise BrokerQuoteError(body.get("msg_cd"))
+            o = self._check(body, "현재가 조회")["output"]
         return PriceInfo(
             symbol    = symbol,
             name      = o.get("hts_kor_isnm", ""),
