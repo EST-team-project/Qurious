@@ -161,7 +161,7 @@ flowchart LR
 | `notification` | `app/routes/notification.py` | 4 | 0 | 4 | 0 | P-B 4 |
 | `graph` | `app/routes/graph.py` | 6 | 6 | 0 | 6 | P-A 6 |
 | `conversations` | `app/routes/conversations.py` | 8 | 0 | 2 | 6 | P-A 8 |
-| `tasks` | `app/routes/tasks.py` | 2 | 2 | 0 | 2 | P-E 2 |
+| `tasks` | `app/routes/tasks.py` | 2 | 0 | 0 | 2 | P-E 2 |
 | `paper` | `app/routes/paper.py` | 44 | 8 | 30 | 7 | P-E 41 · P-B 3 |
 | `us_reserve` | `app/routes/us_reserve.py` | 4 | 1 | 4 | 0 | 미배정 4 |
 | `dashboard` | `app/routes/dashboard.py` | 1 | 0 | 1 | 0 | 미배정 1 |
@@ -184,12 +184,12 @@ flowchart LR
 | `model_compare` | `app/routes/model_compare.py` | 4 | 0 | 1 | 1 | P-A 4 |
 | `stock_hub` | `app/routes/stock_hub.py` | 2 | 0 | 1 | 0 | 미배정 2 |
 | `help_media` | `app/routes/help_media.py` | 2 | 0 | 0 | 2 | P-A 2 |
-| **합계** | 39개 | **269** | **57** | **131** | **80** | |
+| **합계** | 39개 | **269** | **55** | **131** | **80** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | `auth` | · | · | · | · | 7 | 13 | · | · | · | · | · | · | · | · |
-| `ingest` | · | · | · | · | 9 | 4 | · | 9 | 9 | 4 | · | · | · | 3 |
+| `ingest` | · | · | · | · | 10 | 4 | · | 9 | 9 | 4 | · | · | · | 3 |
 | `health` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `chat` | 2 | · | · | · | 2 | 2 | · | 2 | 2 | 1 | · | · | · | 2 |
 | `stocks` | 9 | 15 | 8 | 4 | 37 | 5 | · | · | · | · | · | · | 7 | 13 |
@@ -204,7 +204,7 @@ flowchart LR
 | `notification` | · | · | · | · | 4 | · | · | · | · | · | · | · | 1 | 1 |
 | `graph` | · | · | · | · | · | · | 6 | 1 | 1 | · | · | · | · | · |
 | `conversations` | · | · | · | · | 8 | 5 | · | · | · | · | · | · | · | · |
-| `tasks` | · | · | · | · | · | · | · | · | · | 2 | · | · | · | · |
+| `tasks` | · | · | · | · | 2 | · | · | · | · | 2 | · | · | · | · |
 | `paper` | 6 | 19 | · | · | 35 | · | · | · | · | · | · | · | · | 24 |
 | `us_reserve` | 1 | 2 | · | · | 3 | · | · | · | · | · | · | · | · | 2 |
 | `dashboard` | 1 | 1 | 1 | · | 1 | · | · | · | · | · | · | · | · | 1 |
@@ -227,7 +227,7 @@ flowchart LR
 | `model_compare` | 2 | · | · | · | 2 | · | · | · | · | · | · | · | · | · |
 | `stock_hub` | 2 | · | · | · | 1 | · | · | · | · | · | · | · | · | 1 |
 | `help_media` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| **합계** | **71** | **69** | **9** | **4** | **178** | **32** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **72** |
+| **합계** | **71** | **69** | **9** | **4** | **181** | **32** | **6** | **18** | **17** | **7** | **3** | **3** | **9** | **72** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -254,8 +254,6 @@ flowchart LR
 | API-GRPH-04 | GET | `/api/graph/documents/{symbol}` | Neo4j | — |
 | API-GRPH-05 | POST | `/api/graph/seed` | Neo4j | — |
 | API-GRPH-06 | POST | `/api/graph/rag` | Neo4j · Qdrant · LLM | — |
-| API-TASK-01 | GET | `/api/tasks/{task_id}` | Celery | — |
-| API-TASK-02 | DELETE | `/api/tasks/{task_id}` | Celery | — |
 | API-PAPR-03 | GET | `/api/paper/stocks/quote` | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `robo-patterns`, `us-order`, `us-portfolio` |
 | API-PAPR-11 | GET | `/api/paper/crypto/market-list` | 외부(api.upbit.com) | `paper-crypto` |
 | API-PAPR-12 | GET | `/api/paper/crypto/rankings` | 외부(api.upbit.com) | `paper-crypto` |
@@ -294,7 +292,7 @@ flowchart LR
 | `400` | 요청 값이 틀림 | 16 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-CHAT-01, API-STK-12, API-DOC-01 외 10 |
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
-| `403` | 권한 없음 | 4 | API-AUTH-06, API-STK-10, API-STK-11, API-TV-01 |
+| `403` | 권한 없음 | 5 | API-AUTH-06, API-STK-10, API-STK-11, API-TASK-02, API-TV-01 |
 | `404` | 대상 없음 | 28 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 22 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 9 | API-STK-24, API-STK-41, API-STK-27, API-USRV-03, API-RBAL-10, API-RBAL-06 외 3 |
@@ -303,7 +301,7 @@ flowchart LR
 | `429` | 호출 한도 초과 | 2 | API-CHAT-01, API-TV-01 |
 | `500` | 서버 내부 오류 | 1 | API-CHAT-01 |
 | `502` | 바깥 서버 실패 | 11 | API-CHAT-01, API-STK-06, API-STK-07, API-STK-19, API-STK-20, API-STK-21 외 5 |
-| `503` | 의존 서비스 없음 | 12 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-CHAT-01, API-DOC-01, API-GRPH-01 외 6 |
+| `503` | 의존 서비스 없음 | 14 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-CHAT-01, API-DOC-01, API-GRPH-01 외 8 |
 | `503 MARKET_DATA_UNAVAILABLE` | 의존 서비스 없음 | 1 | API-OAPI-01 |
 | `504` | 시간 초과 | 1 | API-CHAT-01 |
 | `?` |  | 19 | API-TV-01, API-LEC-06, API-DATA-12, API-DATA-14, API-DATA-09, API-DATA-02 외 13 |
@@ -660,18 +658,18 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-ING-01 | POST | `/api/ingest/financial` | 세션 | — | {ok, result, log} | — | PostgreSQL | — | P-A | P01-①-2 | ingest.py:23 |
-| API-ING-02 | POST | `/api/ingest/crawl/auto` | 세션 | — | {ok, result, log} | — | PostgreSQL · Qdrant · LLM · 외부(api.github.com, github.com …) | — | P-A | P01-①-2 | ingest.py:33 |
-| API-ING-03 | POST | `/api/ingest/crawl/url` | 세션 | 본문 `CrawlUrlBody` | {ok, chunks, log} | — | PostgreSQL · Qdrant · LLM | `crawl-manual` | P-A | P01-①-2 | ingest.py:48 |
-| API-ING-04 | POST | `/api/ingest/crawl/naver` | 세션 | 본문 `CrawlNaverBody` | {ok, chunks, message} | — | PostgreSQL · Qdrant · LLM · 외부(finance.naver.com) | — | P-A | P01-①-2 | ingest.py:65 |
-| API-ING-05 | POST | `/api/ingest/local-docs` | 세션 | — | {ok, total_chunks, log} | — | PostgreSQL · Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:80 |
-| API-ING-06 | POST | `/api/ingest/translation-data` | 세션 | 본문 `TranslationIngestBody` | {ok, result, log} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:130 |
-| API-ING-07 | POST | `/api/ingest/translation-search` | 세션 | 본문 `TranslationSearchBody` | {ok, hits, collection} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:156 |
-| API-ING-08 | POST | `/api/ingest/financial/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Celery | — | P-A | P01-①-4 | ingest.py:175 |
-| API-ING-09 | POST | `/api/ingest/crawl/auto/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(api.github.com, github.com …) | — | P-A | P01-①-4 | ingest.py:185 |
-| API-ING-10 | POST | `/api/ingest/crawl/url/async` | 세션 | 본문 `CrawlUrlBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:193 |
-| API-ING-11 | POST | `/api/ingest/translation-data/async` | 세션 | 본문 `TranslationIngestBody` | {task_id, poll_url} | — | Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:202 |
-| API-ING-12 | GET | `/api/ingest/crawl/list` | 세션 | — | {items} | — | PostgreSQL | `crawl-manual` | P-A | P01-①-2 | ingest.py:218 |
+| API-ING-01 | POST | `/api/ingest/financial` | 세션 | — | {ok, result, log} | — | PostgreSQL | — | P-A | P01-①-2 | ingest.py:24 |
+| API-ING-02 | POST | `/api/ingest/crawl/auto` | 세션 | — | {ok, result, log} | — | PostgreSQL · Qdrant · LLM · 외부(api.github.com, github.com …) | — | P-A | P01-①-2 | ingest.py:34 |
+| API-ING-03 | POST | `/api/ingest/crawl/url` | 세션 | 본문 `CrawlUrlBody` | {ok, chunks, log} | — | PostgreSQL · Qdrant · LLM | `crawl-manual` | P-A | P01-①-2 | ingest.py:49 |
+| API-ING-04 | POST | `/api/ingest/crawl/naver` | 세션 | 본문 `CrawlNaverBody` | {ok, chunks, message} | — | PostgreSQL · Qdrant · LLM · 외부(finance.naver.com) | — | P-A | P01-①-2 | ingest.py:66 |
+| API-ING-05 | POST | `/api/ingest/local-docs` | 세션 | — | {ok, total_chunks, log} | — | PostgreSQL · Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:81 |
+| API-ING-06 | POST | `/api/ingest/translation-data` | 세션 | 본문 `TranslationIngestBody` | {ok, result, log} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:131 |
+| API-ING-07 | POST | `/api/ingest/translation-search` | 세션 | 본문 `TranslationSearchBody` | {ok, hits, collection} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:157 |
+| API-ING-08 | POST | `/api/ingest/financial/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Celery | — | P-A | P01-①-4 | ingest.py:176 |
+| API-ING-09 | POST | `/api/ingest/crawl/auto/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(api.github.com, github.com …) | — | P-A | P01-①-4 | ingest.py:186 |
+| API-ING-10 | POST | `/api/ingest/crawl/url/async` | 세션 | 본문 `CrawlUrlBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:194 |
+| API-ING-11 | POST | `/api/ingest/translation-data/async` | 세션 | 본문 `TranslationIngestBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:203 |
+| API-ING-12 | GET | `/api/ingest/crawl/list` | 세션 | — | {items} | — | PostgreSQL | `crawl-manual` | P-A | P01-①-2 | ingest.py:220 |
 
 #### `health` — `app/routes/health.py` · 1개
 
@@ -683,8 +681,8 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-CHAT-01 | POST | `/api/chat` | 세션·JWT | 본문 `ChatBody` | {conversation_id} | 400 · 401 · 429 · 500 · 502 · 503 · 504 | 수집DB · PostgreSQL · Redis · Qdrant · LLM · 외부(dart.fss.or.kr) | `agent-chat` | P-A | P01-①-3 | chat.py:143 |
-| API-CHAT-02 | POST | `/api/chat/async` | 세션·JWT | 본문 `ChatBody` | {task_id, conversation_id, poll_url} | — | 수집DB · PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(dart.fss.or.kr) | — | P-A | P01-①-3 | chat.py:264 |
+| API-CHAT-01 | POST | `/api/chat` | 세션·JWT | 본문 `ChatBody` | {conversation_id} | 400 · 401 · 429 · 500 · 502 · 503 · 504 | 수집DB · PostgreSQL · Redis · Qdrant · LLM · 외부(dart.fss.or.kr) | `agent-chat` | P-A | P01-①-3 | chat.py:144 |
+| API-CHAT-02 | POST | `/api/chat/async` | 세션·JWT | 본문 `ChatBody` | {task_id, conversation_id, poll_url} | — | 수집DB · PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(dart.fss.or.kr) | — | P-A | P01-①-3 | chat.py:265 |
 
 #### `stocks` — `app/routes/stocks.py` · 41개
 
@@ -840,8 +838,8 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-TASK-01 | GET | `/api/tasks/{task_id}` | 없음 | `{task_id}` | {result, error} | — | Celery | — | P-E | P02-⑤-3 | tasks.py:26 |
-| API-TASK-02 | DELETE | `/api/tasks/{task_id}` | 없음 | `{task_id}` · `terminate` | {task_id, revoked, terminate} | — | Celery | — | P-E | P02-⑤-3 | tasks.py:50 |
+| API-TASK-01 | GET | `/api/tasks/{task_id}` | 세션·JWT | `{task_id}` | 모델 없음 | 503 | PostgreSQL · Celery | — | P-E | P02-⑤-3 | tasks.py:34 |
+| API-TASK-02 | DELETE | `/api/tasks/{task_id}` | 세션·JWT | `{task_id}` · `terminate` | {task_id, revoked, terminate} | 403 · 503 | PostgreSQL · Celery | — | P-E | P02-⑤-3 | tasks.py:71 |
 
 #### `paper` — `app/routes/paper.py` · 44개
 
@@ -1172,6 +1170,22 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 ---
 
 ## 6. 오류 코드와 오류 응답 형식
+
+### 작업 조회·취소 권한 (#200 · 2026-10-19)
+
+`API-TASK-01` · `API-TASK-02`는 세션 쿠키 또는 Bearer JWT로 인증하고, PostgreSQL
+`task_ownership`의 소유자를 확인한 뒤에만 Celery 결과를 읽거나 취소를 요청한다.
+채팅 비동기와 인제스트 비동기 네 경로는 큐 발행 전에 이 소유자를 저장한다.
+
+- 비로그인: 401. 타인 작업과 소유자 없는 기존·시스템 작업: 일반 사용자에게 동일한 404.
+- `admin` 역할은 타인·기존·시스템 작업에 접근할 수 있다. 소유자 저장소 장애는 관리자도 503.
+- 본인 작업의 정상 취소(`terminate=false`)만 일반 사용자에게 허용한다. `terminate=true`는 관리자만 허용하며 그 밖에는 403.
+- 취소 응답의 `revoked=true`는 취소 요청 전송이며 실제 중단 확정이 아니다. 이미 실행 중이면 정상 취소로 중단되지 않을 수 있다. 이후 상태 조회로 확인한다.
+- 작업의 `FAILURE`·`REVOKED` 상태는 HTTP 200과 기존 `state=error`로 전달하고, 내부 예외 대신 한국어 안내를 반환한다. DB·결과 저장소·큐 통신 실패는 원문 없이 503.
+- 발행 응답을 확인하지 못한 경우 소유자 기록을 보존하고 자동 재발행하지 않는다. 실제 큐 수신 여부는 관리자 확인이 필요하다.
+
+DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자는 소급 추정하지 않는다.
+3절 F4의 인증 없는 태스크 지적은 이 변경 이전 조사 기록이다.
 
 2절의 오류 코드 표는 **라우트 본문에 적힌 것만** 센다. 실제로 나가는 오류는 그보다 많다.
 

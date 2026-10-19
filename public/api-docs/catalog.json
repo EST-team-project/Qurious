@@ -391,7 +391,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 23,
+   "line": 24,
    "errors": [],
    "keys": [
     "ok",
@@ -425,7 +425,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 33,
+   "line": 34,
    "errors": [],
    "keys": [
     "ok",
@@ -456,7 +456,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 48,
+   "line": 49,
    "errors": [],
    "keys": [
     "ok",
@@ -490,7 +490,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 65,
+   "line": 66,
    "errors": [],
    "keys": [
     "ok",
@@ -521,7 +521,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 80,
+   "line": 81,
    "errors": [],
    "keys": [
     "ok",
@@ -549,7 +549,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 130,
+   "line": 131,
    "errors": [],
    "keys": [
     "ok",
@@ -579,7 +579,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 156,
+   "line": 157,
    "errors": [],
    "keys": [
     "ok",
@@ -610,7 +610,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 175,
+   "line": 176,
    "errors": [],
    "keys": [
     "task_id",
@@ -645,7 +645,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 185,
+   "line": 186,
    "errors": [],
    "keys": [
     "task_id",
@@ -675,7 +675,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 193,
+   "line": 194,
    "errors": [],
    "keys": [
     "task_id",
@@ -694,6 +694,7 @@
    "summary": "다국어 번역 데이터 인제스트를 Celery 워커에 위임한다.",
    "auth": "세션",
    "reaches": [
+    "PostgreSQL",
     "Redis",
     "Qdrant",
     "LLM",
@@ -706,7 +707,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 202,
+   "line": 203,
    "errors": [],
    "keys": [
     "task_id",
@@ -736,7 +737,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 218,
+   "line": 220,
    "errors": [],
    "keys": [
     "items"
@@ -795,7 +796,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/chat.py",
-   "line": 143,
+   "line": 144,
    "errors": [
     "400",
     "401",
@@ -838,7 +839,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/chat.py",
-   "line": 264,
+   "line": 265,
    "errors": [],
    "keys": [
     "task_id",
@@ -3674,8 +3675,9 @@
    "method": "GET",
    "path": "/api/tasks/{task_id}",
    "summary": "task_id 로 Celery 태스크의 진행 상태와 결과를 반환한다.",
-   "auth": "없음",
+   "auth": "세션·JWT",
    "reaches": [
+    "PostgreSQL",
     "Celery"
    ],
    "hosts": [],
@@ -3685,12 +3687,11 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/tasks.py",
-   "line": 26,
-   "errors": [],
-   "keys": [
-    "result",
-    "error"
+   "line": 34,
+   "errors": [
+    "503"
    ],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -3700,8 +3701,9 @@
    "method": "DELETE",
    "path": "/api/tasks/{task_id}",
    "summary": "실행 중이거나 대기 중인 태스크를 취소한다.",
-   "auth": "없음",
+   "auth": "세션·JWT",
    "reaches": [
+    "PostgreSQL",
     "Celery"
    ],
    "hosts": [],
@@ -3711,8 +3713,11 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/tasks.py",
-   "line": 50,
-   "errors": [],
+   "line": 71,
+   "errors": [
+    "403",
+    "503"
+   ],
    "keys": [
     "task_id",
     "revoked",

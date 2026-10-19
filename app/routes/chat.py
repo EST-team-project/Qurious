@@ -30,6 +30,7 @@ from app.lib.llm_client import OpenAIClient, get_llm_client
 from app.lib.user_state import get_active_conversation, set_active_conversation
 from app.services.langgraph_agent import run_agent
 from app.services.rag_pipeline import rag_search
+from app.services.task_access import enqueue_owned_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -292,7 +293,7 @@ async def chat_async(
         except Exception:
             pass
 
-    task = run_agent_task.delay(
+    task_id = await enqueue_owned_task(db, user, run_agent_task,
         user_id=user_id,
         conversation_id=conversation_id,
         question=body.question,
@@ -302,7 +303,7 @@ async def chat_async(
     )
 
     return {
-        "task_id": task.id,
+        "task_id": task_id,
         "conversation_id": conversation_id,
-        "poll_url": f"/api/tasks/{task.id}",
+        "poll_url": f"/api/tasks/{task_id}",
     }
