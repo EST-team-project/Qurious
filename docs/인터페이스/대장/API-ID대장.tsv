@@ -193,9 +193,9 @@ API-GLOS-03	GET	/api/glossary/meta	2026-09-30	사용
 API-GLOS-04	GET	/api/glossary/{name}	2026-09-30	사용
 API-LRN-01	GET	/api/learn/catalog	2026-10-01	사용
 API-LRN-02	GET	/api/learn/pages/{slug}	2026-10-01	사용
-API-LRN-03	POST	/api/learn/pages	2026-10-01	사용
-API-LRN-04	PUT	/api/learn/pages/{slug}	2026-10-01	사용
-API-LRN-05	DELETE	/api/learn/pages/{slug}	2026-10-01	사용
+API-LRN-03	POST	/api/learn/pages	2026-10-01	폐기
+API-LRN-04	PUT	/api/learn/pages/{slug}	2026-10-01	폐기
+API-LRN-05	DELETE	/api/learn/pages/{slug}	2026-10-01	폐기
 API-LRN-06	GET	/api/learn/pages/{slug}/history	2026-10-01	사용
 API-LRN-07	POST	/api/learn/sync	2026-10-01	사용
 API-LEC-01	GET	/api/lectures/market/kospi-history	2026-10-01	사용

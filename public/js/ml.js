@@ -152,6 +152,20 @@ document.getElementById("mlt-run-btn")?.addEventListener("click", async () => {
 // ══════════════════════════════════════════════════════════════════
 // 투자분석 기초 — 거시경제 지표
 // ══════════════════════════════════════════════════════════════════
+// Qurious(2026-10-19): 숫자 아래에 출처 · 받은 시각 한 줄 — 서버 글(data_provenance.quote_note)을 그대로 보인다.
+// 화면이 글을 만들지 않는다(미국주식 대시보드와 같은 꼴 · S118 규칙). 자리는 app.html 을 고치지 않고 여기서 한 번 만든다.
+function macroQuoteNote(afterEl, id, note) {
+  let el = document.getElementById(id);
+  if (!el && afterEl) {
+    el = document.createElement("p");
+    el.id = id;
+    el.className = "text-xs mt-2";
+    el.style.color = "var(--text-mute)";
+    afterEl.insertAdjacentElement("afterend", el);
+  }
+  if (el) el.textContent = note || "";
+}
+
 async function loadMacroDashboard() {
   const grid = document.getElementById("macro-grid");
   const loading = document.getElementById("macro-loading");
@@ -175,6 +189,7 @@ async function loadMacroDashboard() {
     }).join("");
     grid?.classList.remove("hidden");
     loading.classList.add("hidden");
+    macroQuoteNote(grid, "macro-note", data.note);
   } catch (e) {
     loading.textContent = "지표 조회 실패: " + e.message;
   }
@@ -207,6 +222,7 @@ async function loadMacroIndustry() {
     }).join("");
     wrap?.classList.remove("hidden");
     loading.classList.add("hidden");
+    macroQuoteNote(wrap, "industry-note", data.note);
   } catch (e) {
     loading.textContent = "섹터 조회 실패: " + e.message;
   }

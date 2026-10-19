@@ -7,13 +7,11 @@
     팀은 이미 데이터를 HF 비공개 데이터셋으로 나눠 쓰고 있어, 글도 같은 길로 보내면 네 명이 같은 글을 본다.
     HF 저장소는 git 이라 저장 하나가 커밋 하나 — 판 관리 · 되돌리기가 따로 필요 없다.
 
-흐름
+흐름 — 앱은 읽기만 한다
     읽기  앱은 내려받아 둔 글(`<캐시>/pages/*.md`)만 읽는다. 5분에 한 번 HF 최신 커밋을 묻고(API 1회),
           바뀌었으면 파일 목록의 블롭 해시를 비교해 **바뀐 글만** 받고 없어진 글은 지운다.
-    쓰기  「저장」 을 누를 때만 커밋한다(HF 는 커밋 횟수 한도를 공개하지 않는다 — 자동 저장은 브라우저 안에만).
-          커밋에는 `parent_commit`(내가 마지막으로 본 커밋)을 단다. 그사이 누가 저장했으면 HF 가 412 로 거절한다.
-            · 다른 글이 바뀐 것이면  → 새로 받고 한 번 다시 커밋(사람에게 묻지 않는다)
-            · 내 글이 바뀐 것이면    → Conflict(409) — 지금 글을 돌려주고 **말없이 덮어쓰지 않는다**
+    쓰기  앱에는 없다(2026-10-19 사용자 결정 D133) — 가입만 하면 누구나 서버의 쓰기 토큰으로 팀 저장소를 바꿀 수 있었다.
+          팀 자료는 이동원이 모두 맡아 HF 데이터셋에서 직접 고친다(커밋 하나 = 판 하나 · 고친 기록은 앱이 읽어 보인다).
 
 판(version)
     글 파일의 git 블롭 해시(learn_pages.git_blob_sha1). HF 파일 목록의 `blob_id` 와 같은 값이다(2026-10-01 실측).
@@ -34,7 +32,7 @@ from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
-from app.services.learn_pages import Page, PageError, git_blob_sha1, page_from_parts, page_from_text
+from app.services.learn_pages import Page, PageError, git_blob_sha1, page_from_text
 
 log = logging.getLogger(__name__)
 
@@ -56,18 +54,6 @@ class TeamStoreError(Exception):
         self.message = message
 
 
-class Conflict(Exception):
-    """내가 연 판과 지금 판이 다르다 — `current` 는 지금 글(지워졌으면 None)."""
-
-    def __init__(self, current: Page | None):
-        super().__init__("conflict")
-        self.current = current
-
-
-class NotFound(Exception):
-    pass
-
-
 def _status(e: Exception) -> int | None:
     resp = getattr(e, "response", None)
     return getattr(resp, "status_code", None)
@@ -86,12 +72,8 @@ def _iso(ts: float | None) -> str | None:
     return dt.datetime.fromtimestamp(ts, KST).isoformat(timespec="seconds") if ts else None
 
 
-def today_kst() -> str:
-    return dt.datetime.now(KST).date().isoformat()
-
-
 class TeamStore:
-    """팀 자료 한 저장소 — 앱 프로세스에 하나(store()). 받기 · 쓰기는 잠금 하나로 줄 세운다."""
+    """팀 자료 한 저장소 — 앱 프로세스에 하나(store()). 받기는 잠금 하나로 줄 세운다(앱은 쓰지 않는다 — D133)."""
 
     def __init__(self, api_factory: Callable[[], Any | None] = _default_api, repo_id: str = REPO_ID,
                  cache_dir: Path = CACHE_DIR, sync_seconds: int = SYNC_SECONDS,
@@ -119,7 +101,7 @@ class TeamStore:
         return {
             "state": self.state, "repo": self.repo_id, "head": self.head,
             "synced_at": _iso(self.synced_at), "checked_at": _iso(self.checked_at),
-            "editable": self.state == "ok", "message": self.message,
+            "message": self.message,
             "errors": list(self.errors), "count": len(self._pages),
         }
 
@@ -140,61 +122,6 @@ class TeamStore:
             if manual and self.checked_at and self.clock() - self.checked_at < MANUAL_SYNC_GAP:
                 return {"head": self.head, "added": 0, "updated": 0, "removed": 0, "skipped": True}
             return self._sync(raise_errors=False)
-
-    def create(self, meta: dict, body: str, user_name: str, builtin_slugs: set[str]) -> tuple[Page, str]:
-        page = page_from_parts({**meta, "owner": meta.get("owner") or user_name,
-                                "updated_by": user_name, "updated": today_kst()}, body, "team", team=True)
-        if page.slug in builtin_slugs:
-            raise PageError("기본 교재에 같은 slug 가 있습니다 — 다른 이름을 쓰세요.", "slug")
-        with self._lock:
-            api = self._require_api()
-            self._sync(raise_errors=True)
-            if page.slug in self._pages:
-                raise Conflict(self._pages[page.slug])
-            from huggingface_hub import CommitOperationAdd
-            ops = [CommitOperationAdd(path_in_repo=self._path(page.slug), path_or_fileobj=page.text.encode("utf-8"))]
-            oid = self._commit(api, ops, f"learn: {page.slug} 새 글 ({user_name})", {page.slug: None})
-            self._write_local(page.slug, page.text)
-            self._pages[page.slug] = page
-            return page, oid
-
-    def update(self, slug: str, meta: dict, body: str, base_version: str, user_name: str) -> tuple[Page, str | None]:
-        if meta.get("slug", slug) != slug:
-            raise PageError("slug 는 바꿀 수 없습니다 — 새 글로 만들고 옛 글을 지우세요.", "slug")
-        with self._lock:
-            api = self._require_api()
-            self._sync(raise_errors=True)
-            cur = self._pages.get(slug)
-            if cur is None:
-                raise NotFound(slug)
-            if cur.version != base_version:
-                raise Conflict(cur)
-            page = page_from_parts({**meta, "slug": slug, "owner": cur.meta.get("owner") or user_name,
-                                    "updated_by": user_name, "updated": today_kst()}, body, "team", team=True)
-            if page.text == cur.text:
-                return cur, None                              # 바뀐 것이 없으면 커밋하지 않는다
-            from huggingface_hub import CommitOperationAdd
-            ops = [CommitOperationAdd(path_in_repo=self._path(slug), path_or_fileobj=page.text.encode("utf-8"))]
-            oid = self._commit(api, ops, f"learn: {slug} 고침 ({user_name})", {slug: base_version})
-            self._write_local(slug, page.text)
-            self._pages[slug] = page
-            return page, oid
-
-    def delete(self, slug: str, base_version: str, user_name: str) -> str:
-        with self._lock:
-            api = self._require_api()
-            self._sync(raise_errors=True)
-            cur = self._pages.get(slug)
-            if cur is None:
-                raise NotFound(slug)
-            if cur.version != base_version:
-                raise Conflict(cur)
-            from huggingface_hub import CommitOperationDelete
-            ops = [CommitOperationDelete(path_in_repo=self._path(slug))]
-            oid = self._commit(api, ops, f"learn: {slug} 지움 ({user_name})", {slug: base_version})
-            (self.cache_dir / PAGES_DIR / f"{slug}.md").unlink(missing_ok=True)
-            self._pages.pop(slug, None)
-            return oid
 
     def history(self, slug: str, limit: int = 30) -> list[dict]:
         """그 글의 커밋 — 커밋 제목 「learn: <slug> 」 로 거른다(HF 커밋 목록에는 경로 거르기가 없다)."""
@@ -231,7 +158,7 @@ class TeamStore:
     def _require_api(self) -> Any:
         api = self._get_api()
         if api is None:
-            self.state, self.message = "off", "HF 토큰이 없어 팀 자료를 쓸 수 없습니다(.env 의 HUGGINGFACE_ACCESS_TOKEN)."
+            self.state, self.message = "off", "HF 토큰이 없어 팀 자료 이력을 볼 수 없습니다(.env 의 HUGGINGFACE_ACCESS_TOKEN)."
             raise TeamStoreError(503, self.message)
         return api
 
@@ -270,13 +197,6 @@ class TeamStore:
         tmp = self.cache_dir / "state.json.tmp"
         tmp.write_text(json.dumps({"repo": self.repo_id, "head": self.head, "synced_at": self.synced_at}), encoding="utf-8")
         os.replace(tmp, self.cache_dir / "state.json")
-
-    def _write_local(self, slug: str, text: str) -> None:
-        folder = self.cache_dir / PAGES_DIR
-        folder.mkdir(parents=True, exist_ok=True)
-        tmp = folder / f".{slug}.md.tmp"
-        tmp.write_bytes(text.encode("utf-8"))       # 줄바꿈을 바꾸지 않게 바이트로 — 판(블롭 해시)이 그대로 남는다
-        os.replace(tmp, folder / f"{slug}.md")
 
     def _sync(self, *, raise_errors: bool) -> dict:
         """HF 최신 커밋 확인 → 바뀌었으면 바뀐 글만 받기 · 없어진 글 지우기. 잠금 안에서만 부른다."""
@@ -346,29 +266,6 @@ class TeamStore:
             removed += 1
         self._reload_pages()
         return {"added": added, "updated": updated, "removed": removed}
-
-    def _commit(self, api: Any, ops: list, message: str, expect: dict[str, str | None]) -> str:
-        """parent_commit 을 달아 커밋 — 412 면 다시 받아 「내 글이 그대로인가」 를 보고 한 번만 다시."""
-        for attempt in (1, 2):
-            try:
-                info = api.create_commit(repo_id=self.repo_id, repo_type="dataset", operations=ops,
-                                         commit_message=message, parent_commit=self.head)
-                self.head = info.oid
-                self._save_state()
-                return info.oid
-            except Exception as e:  # noqa: BLE001
-                code = _status(e)
-                if code == 412 and attempt == 1:
-                    self._sync(raise_errors=True)
-                    for slug, version in expect.items():
-                        cur = self._pages.get(slug)
-                        if (cur.version if cur else None) != version:
-                            raise Conflict(cur) from e
-                    continue
-                if code in (401, 403):
-                    raise TeamStoreError(403, "저장 권한이 없습니다 — HF 조직 qurious-quant 의 쓰기 권한과 토큰을 확인하세요.") from e
-                raise TeamStoreError(503, f"HF 에 저장하지 못했습니다({code or type(e).__name__}).") from e
-        raise TeamStoreError(503, "다시 시도했지만 그사이 저장소가 또 바뀌었습니다 — 잠시 뒤 다시 저장하세요.")
 
 
 _store: TeamStore | None = None

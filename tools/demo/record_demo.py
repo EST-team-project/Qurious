@@ -9,6 +9,7 @@
   <이름>.webm · <이름>.ko.vtt(자막) · <이름>.chapters.vtt(장) · <이름>.ch<n>.jpg(장마다 제목 카드 그림)
   · <이름>.json(단계별 시각 · go 단계의 화면 키 · 시작 화면 · 줄인 기다림 · 콘솔 오류 수)
   → 앱의 사용법 창에서 보려면 tools/demo/help_videos.py build (영상 표를 만들어 data/help/ 로)
+  → 저장소 · 발표 자료에서 재생할 mp4 는 tools/demo/export_mp4.py (docs/발표/영상/파일/ 로 · 2026-10-19)
 
 계정: 환경 변수 DEMO_EMAIL · DEMO_PASSWORD (없으면 이 PC 로컬 전용 시연 계정 · --ensure-account 면 없을 때 만든다)
 
@@ -23,6 +24,7 @@
 import argparse
 import asyncio
 import base64
+import hashlib
 import json
 import os
 import shutil
@@ -454,7 +456,10 @@ async def record(scene_path, args):
             "over_limit": dur > LIMIT_SEC, "cut_sec": round(sum(state["cuts"]), 1), "frames_unique": rec.n,
             "console_errors": len(errors), "console_samples": errors[:5],
             "app_commit": subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip(),
-            "recorded_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"), "steps": log}
+            "recorded_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST"),
+            # 장면 파일 지문(줄 끝 접음) — export_mp4 가 「녹화 뒤 장면이 바뀐 영상」 을 저장소에 내보내지 않게
+            "scene_sha": hashlib.sha256(Path(scene_path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:16],
+            "steps": log}
   if not args.no_video and rec.timeline:
     encode(rec, OUT_DIR / f"{name}.webm", find_ffmpeg())
     result["webm_bytes"] = (OUT_DIR / f"{name}.webm").stat().st_size
