@@ -770,18 +770,18 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-ML-01 | GET | `/api/ml/compare` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:26 |
-| API-ML-02 | GET | `/api/ml/tune` | 세션 | `symbol` · `period` · `model_name` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-tune` | P-D | P01-④-1 | ml.py:43 |
-| API-ML-03 | POST | `/api/ml/cluster` | 세션 | 본문 `ClusterBody` | 모델 없음 | 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-C | RFP2-3.1.4-① · RFP2-3.1.4-④ | ml.py:92 |
-| API-ML-11 | GET | `/api/ml/robo/weights` | 세션 | `risk_profile` · `horizon_years` | `AllocationWeightsResponse` | — | — | `agent-products` | P-C | — | ml.py:111 |
-| API-ML-12 | GET | `/api/ml/robo/allocation/latest` | 세션 | — | `LatestAllocationResponse` | 404 | PostgreSQL | `agent-products`, `robo-portfolio` | P-C | — | ml.py:121 |
-| API-ML-04 | POST | `/api/ml/robo/allocation` | 세션 | 본문 `RoboAllocationBody` | {saved, symbol, name, sector, candles} 외 4 | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-portfolio` | P-C | RFP2-3.1.3-① · RFP2-3.1.3-② · RFP2-3.1.3-③ · RFP2-3.1.3-④ · RFP2-3.1.4-④ | ml.py:135 |
-| API-ML-07 | GET | `/api/ml/robo/questions` | 세션 | — | {questions, levels} | — | — | `robo-portfolio` | P-D | — | ml.py:328 |
-| API-ML-08 | POST | `/api/ml/robo/risk-profile` | 세션 | 본문 `RiskProfileBody` | 모델 없음 | 422 | — | `robo-portfolio` | P-D | — | ml.py:334 |
-| API-ML-09 | POST | `/api/ml/robo/goal-simulation` | 세션 | 본문 `GoalSimBody` | 모델 없음 | — | — | `robo-portfolio` | P-D | — | ml.py:344 |
-| API-ML-10 | GET | `/api/ml/explain` | 세션 | `symbol`* · `refresh` | {symbol, name, prediction, explanation} | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-screening` | P-D | — | ml.py:352 |
-| API-ML-05 | GET | `/api/ml/seasonality` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:375 |
-| API-ML-06 | GET | `/api/ml/regression` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-regression` | P-D | P01-④-1 | ml.py:392 |
+| API-ML-01 | GET | `/api/ml/compare` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:27 |
+| API-ML-02 | GET | `/api/ml/tune` | 세션 | `symbol` · `period` · `model_name` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-tune` | P-D | P01-④-1 | ml.py:44 |
+| API-ML-03 | POST | `/api/ml/cluster` | 세션 | 본문 `ClusterBody` | 모델 없음 | 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-C | RFP2-3.1.4-① · RFP2-3.1.4-④ | ml.py:93 |
+| API-ML-11 | GET | `/api/ml/robo/weights` | 세션 | `risk_profile` · `horizon_years` | `AllocationWeightsResponse` | — | — | `agent-products` | P-C | — | ml.py:112 |
+| API-ML-12 | GET | `/api/ml/robo/allocation/latest` | 세션 | — | `LatestAllocationResponse` | 404 | PostgreSQL | `agent-products`, `robo-portfolio` | P-C | — | ml.py:122 |
+| API-ML-04 | POST | `/api/ml/robo/allocation` | 세션 | 본문 `RoboAllocationBody` | {saved, symbol, name, sector, candles} 외 4 | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-portfolio` | P-C | RFP2-3.1.3-① · RFP2-3.1.3-② · RFP2-3.1.3-③ · RFP2-3.1.3-④ · RFP2-3.1.4-④ | ml.py:137 |
+| API-ML-07 | GET | `/api/ml/robo/questions` | 세션 | — | {questions, levels} | — | — | `robo-portfolio` | P-D | — | ml.py:326 |
+| API-ML-08 | POST | `/api/ml/robo/risk-profile` | 세션 | 본문 `RiskProfileBody` | 모델 없음 | 422 | — | `robo-portfolio` | P-D | — | ml.py:332 |
+| API-ML-09 | POST | `/api/ml/robo/goal-simulation` | 세션 | 본문 `GoalSimBody` | 모델 없음 | — | — | `robo-portfolio` | P-D | — | ml.py:342 |
+| API-ML-10 | GET | `/api/ml/explain` | 세션 | `symbol`* · `refresh` | {symbol, name, prediction, explanation} | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-screening` | P-D | — | ml.py:350 |
+| API-ML-05 | GET | `/api/ml/seasonality` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:373 |
+| API-ML-06 | GET | `/api/ml/regression` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-regression` | P-D | P01-④-1 | ml.py:390 |
 
 #### `macro` — `app/routes/macro.py` · 4개
 
@@ -1170,6 +1170,23 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 ---
 
 ## 6. 오류 코드와 오류 응답 형식
+
+### 자산배분 예측 표시 (#249 · 2026-10-19)
+
+`POST /api/ml/robo/allocation`과 `GET /api/ml/robo/allocation/latest`는 종목별 `ai_prediction`에 다음 표시 계약을 적용한다. 과거 저장 결과도 조회할 때 변환하며 DB의 과거 결과·저장 시각은 다시 쓰지 않는다.
+
+| 필드 | 의미 |
+|---|---|
+| `pred_ann_return_pct` | 5거래일 회귀 예측을 연환산한 참고값. 계산 경계(-90% 이하·300% 이상)이거나 값이 없으면 `null` |
+| `pred_ann_return_status` | `available`, `out_of_range`, `unavailable`. `out_of_range`는 「모델 범위 밖」으로 표시 |
+| `model_signal`, `model_signal_probability_pct` | 품질 관문을 적용하기 전 분류 모델의 판단(-1/0/1)과 확률(0~100). XAI 생성 실패와 별도로 산출. 옛 캐시는 XAI 값에서 읽으며 없으면 「분류 확률 미확인」 |
+| `confidence` | 기존 내부 반영 점수. 확률로 변환하거나 사용자에게 신뢰 확률로 표시하지 않음 |
+| `display` | `return_text`, `signal_text`, `probability_note`, `quality_warning` 안내 문장. 50% 미만의 최다 분류 확률과 실제 수익 발생 확률을 구분 |
+| `historical_reason` | 과거 연환산 수익률·변동성 설명. 기존 `reason`도 새 안내로 재구성하여 상한값·소수 신뢰도 문장을 제거 |
+
+`quality.reliable=false`이면 최종 판단과 XAI 배지는 관망으로 표시하고, XAI 유무와 무관하게 검증 기준 미달을 안내한다. 검증 지표가 없으면 확인 불가로 표시한다. 원래 모델 판단·분류 확률은 별도로 보존한다. 자산배분의 예측 캐시는 XAI와 같은 `ai_predict:v4:{symbol}`을 사용한다.
+
+표시 변환은 순위·비중 계산 뒤에 적용한다. 이 변경은 모델 보정이나 기대수익·최적화 알고리즘 변경이 아니며, 기존 계산용 원본 값을 수정하지 않는다. 검증: `tests/test_allocation_prediction_view.py`(20건), 관련 Python 시험 총 84건 통과·2건 건너뜀, `tests/e2e/allocation_predictions.py`(실제 Chrome 9항목, 합성 API).
 
 ### 증권사 연결 테스트 안내 (#232 · 2026-10-19)
 

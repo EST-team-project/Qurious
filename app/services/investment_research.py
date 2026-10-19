@@ -289,6 +289,7 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
 
     # 방향성 분류 (LightGBM) — 회귀와 별도로 매수/관망/매도 신호 + 신뢰도 산출
     signal, signal_confidence, cls_acc, baseline = 0, 0.5, None, None
+    model_signal, model_signal_probability_pct = None, None
     try:
         import lightgbm as lgb
         y_cls = (labeled["target"].values + 1).astype(int)
@@ -312,6 +313,8 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
         probs = lgb_model.predict(latest_features)[0]
         signal = int(np.argmax(probs)) - 1
         signal_confidence = float(np.max(probs))
+        # 품질 관문으로 낮추기 전의 분류 확률. 내부 confidence 가중치와 구분한다.
+        model_signal, model_signal_probability_pct = signal, round(signal_confidence * 100, 1)
         try:
             from app.services.xai import explain_signal
             latest_vals = {f: float(v) for f, v in zip(FEATURE_COLS, latest_features[0])}
@@ -351,6 +354,8 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
         "model": f"{best_name}(TimeSeriesSplit {n_splits}-fold)",
         "signal": signal,
         "signal_confidence": round(signal_confidence, 4),
+        "model_signal": model_signal,
+        "model_signal_probability_pct": model_signal_probability_pct,
         "confidence": confidence,
         "quality": {"cls_val_accuracy": None if cls_acc is None else round(cls_acc, 4),
                     "baseline_accuracy": None if baseline is None else round(baseline, 4),
