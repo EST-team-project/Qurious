@@ -212,3 +212,5 @@ TC-KEXUI	tests/test_trade_status_screen.py	P02-⑤-3	🟢	#212: 실제 JS 렌더
 TC-BCF	tests/test_broker_connection_feedback.py	P02-⑤-1	🟢	#232 실제 KIS HTTP 응답을 통한 토큰 제한·키 오류·401/403·시간 초과·비정상 시세 분류, 원문 비노출, 가상 시세와 계좌 확인 범위 구분, 로그인 필수
 TC-APV	tests/test_allocation_prediction_view.py	U5	🟡	#249 자산배분 예측 표시: 경계값·누락값·분류 확률·검증 미달·과거 저장본·신규 저장 HTTP 계약 · 순위 입력과 비중 보존 — 20건
 TC-DSV	tests/test_decision_signal_view.py	P02-⑤-2	🟢	#213 자동매매 판단 출처·회차·점수·누락값·계산 실패 및 내 계정/배치 합산 시각순 HTTP 계약 — 14건
+TC-RBUI	tests/test_rebalance_screen.py	U2	🟢	#170 실제 Chrome: 현재·목표 비중과 이탈률, 현금·계획 밖 종목, 차트 입력 계열, 자료 대기 시 옛 수치 제거 — pytest 1건 안의 브라우저 17항목 · API 합성 응답 · 차트는 입력 기록 어댑터
+TC-RBUI	tests/test_rebalance_screen.py	U5	🟢	#170 실제 Chrome: 다음 확인일·달력 대기·종가 기준일·예약/체결/미체결 이력·주문 상세·비용·빈 이력·조회 중 주문 없음 — 같은 pytest 1건 · 운영 러너/실주문 검증과 구분
