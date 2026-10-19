@@ -444,10 +444,23 @@ def test_screens_say_how_each_judgment_is_made():
         assert old not in html and old not in js, old
     assert "규칙 앙상블 (추세 · MACD · RSI)" in html and 'placeholder="005930 또는 005930.KS"' in html
     assert "SCREEN_BASIS[model]" in js and "renderScreenTable(signals, model)" in js            # 스크리닝 판단 한 줄
-    assert "판단 = 학습 모델(LightGBM" in js                                                   # XAI 판단 한 줄
+    assert "방향 판단(LightGBM 분류" in js                                                     # XAI 판단 한 줄(#269 에서 이름 바꿈)
     pattern = _pattern_js()
     assert "규칙: 일 · 주 · 60분마다" in pattern and "캔들 모양 규칙 · 일봉 최근 5봉" in pattern   # 다중 주기 · 캔들 패턴
     assert "/api/stocks/quant/indicators?symbol=${encodeURIComponent(resolved)}&period=2y" in pattern  # 자동매매가 읽는 판단
     assert "${renderAutoRule(auto, mtf)}" in pattern and "판단이 다릅니다" in pattern          # 신호 칸에 실제로 그림
     assert "openPatternFor('${escHtml(s.symbol)}')" in js and "openPatternFor('${escHtml(r.symbol)}')" in js
     assert 'navigate("robo-patterns")' in js
+
+
+def test_xai_panel_names_each_model_and_drops_mixed_confidence():
+    """스크리닝 「🧠 설명」 창 — 머리는 회귀(5일 수익률 예측), 본문은 분류(방향 판단)로 나눠 이름을 붙이고,
+    두 모델을 반반 섞은 `confidence` 는 확률처럼 보이지 않게 머리에서 뺀다. 배지 % 가 분류 확률임을 한 줄로(#269 · #274 와 같은 말)."""
+    js = (_PUB / "js" / "robo.js").read_text(encoding="utf-8")
+    panel = js[js.index("async function showScreenXai"):js.index("window.showScreenXai")]
+    assert "5일 수익률 예측(회귀 · " in panel and "방향 판단(LightGBM 분류" in panel
+    assert "pr.confidence" not in panel and "신뢰도" not in panel
+    assert "renderXaiBlock(r.explanation, { probNote: true })" in panel
+    assert "모델의 분류 확률이며 실제 수익이 날 확률은 아닙니다" in js
+    # 다른 화면(자산배분 카드)의 compact 블록에는 붙지 않는다 — 기본값 false
+    assert "function renderXaiBlock(ex, { compact = false, probNote = false } = {})" in js

@@ -121,3 +121,56 @@ def test_compare_button_onclick_closes_after_paren():
     assert buttons, "성과 검증의 「비교에 추가」 단추를 찾지 못했다"
     for b in buttons:
         assert b.endswith("})'>⚖️ 비교에 추가</button>"), b[-60:]
+
+
+# ── 성과 검증 · 커스텀 인디케이터 결과 표시(#245 · #250) — 정적 검사 ─────────────
+_PUBLIC = Path(__file__).resolve().parents[1] / "public"
+_NO_TRADE = re.compile(r"이 기간에 한 번도 사고팔지 않아 [^.]*?매기지 않습니다\. 같은 기간 매수 후 보유 수익률은 ")
+
+
+def _indicator_js() -> str:
+    return (_PUBLIC / "js" / "indicator.js").read_text(encoding="utf-8")
+
+
+def _block(js: str, start: str, end: str) -> str:
+    """start 부터 end 앞까지 — 한 화면의 결과를 그리는 곳만 떼어 본다."""
+    i = js.index(start)
+    return js[i:js.index(end, i)]
+
+
+def test_no_trade_sentence_same_as_dashboard():
+    """거래 0회 글은 대시보드 카드(`dashboard.js` noTradeMetric)와 한 글자도 다르지 않다 — 두 화면이 갈리지 않게(#245)."""
+    dash = _NO_TRADE.search((_PUBLIC / "js" / "dashboard.js").read_text(encoding="utf-8"))
+    mine = _NO_TRADE.search(_indicator_js())
+    assert dash and mine, "거래 0회 글을 찾지 못했다"
+    assert mine.group(0) == dash.group(0)
+
+
+def test_both_screens_branch_on_zero_trades_and_show_data_note():
+    """성과 검증 · 커스텀 두 화면 모두 거래 0회면 「신호 없음」 글로 갈라지고, 서버 `data_note` 를 「자료:」 줄로 보인다(#245 · #250).
+    커스텀은 계산한 종목을 결과 위에 밝힌다(#245)."""
+    js = _indicator_js()
+    custom = _block(js, 'getElementById("ci-test-btn")', "// 초기 코드 생성")
+    backtest = _block(js, "function renderIndicatorBacktest", "function renderRuleExplain")
+    for name, part in (("커스텀", custom), ("성과 검증", backtest)):
+        assert re.search(r"Number\(\w+\.trade_count\) === 0", part), f"{name}: 거래 0회 갈래가 없다"
+        assert "noTradeHtml(" in part, f"{name}: 거래 0회 글을 쓰지 않는다"
+        assert "dataNoteHtml(" in part, f"{name}: 자료 줄이 없다"
+    assert "${escHtml(d.data_note)}" in js  # 글은 서버 그대로 — 화면에 같은 글을 따로 두지 않는다
+    assert "계산 종목:" in custom and "성과 검증 화면에서 고른 종목" in custom
+
+
+def test_backtest_subtitle_and_custom_result_slots():
+    """성과 검증 부제는 「10년」 을 약속하지 않고 「자료」 줄을 가리킨다 · 커스텀 결과에 계산 종목 · 자료 줄 자리가 있다(#245 · #250)."""
+    html = (_PUBLIC / "app.html").read_text(encoding="utf-8")
+    assert "퀀트 전략의 10년 성과를 검증합니다" not in html
+    assert "실제 자료 기간은 결과의 「자료」 줄에 적힙니다" in html
+    assert 'id="ci-bt-symbol"' in html and 'id="ci-bt-source"' in html
+
+
+def test_route_carries_data_note(monkeypatch):
+    """화면이 읽는 `data_note` · `trade_count` 가 성과 검증 · 커스텀 응답 모두에 있다(#250 · 글은 `data_provenance` 한 곳)."""
+    for strategy in ("rsi", "custom"):
+        r = _call_route(monkeypatch, strategy)
+        assert r.get("data_note"), strategy
+        assert "trade_count" in r, strategy
