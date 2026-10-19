@@ -33,7 +33,8 @@ async function importAllocation() {
     if (!draft?.targets?.length) throw new Error("이 배분 결과는 국내주식 목표로 가져올 수 없습니다. 배분을 다시 계산하세요.");
     const excluded = Object.entries(draft.unapplied_allocations).map(([k, v]) => `${k} ${v}%`).join(" · ");
     const targets = draft.targets.map(t => `${t.name} (${t.symbol}) ${t.weight_pct}%`).join("\n");
-    if (!confirm(`저장 시각: ${ts(saved.saved_at)}\n\n${targets}\n\n국내주식 합계 ${draft.domestic_weight_pct}% · 현금 ${draft.cash_weight_pct}%\n적용하지 않는 자산군: ${excluded}\n\n${draft.message}\n현재 편집 중인 목표를 바꾸고 자동 실행을 끕니다. 플랜 저장 전에는 적용되지 않습니다. 가져올까요?`)) return;
+    const productHelp = $("rb-products-help").textContent;
+    if (!confirm(`저장 시각: ${ts(saved.saved_at)}\n\n${targets}\n\n국내주식 합계 ${draft.domestic_weight_pct}% · 현금 ${draft.cash_weight_pct}%\n적용하지 않는 자산군: ${excluded}\n\n${draft.message}\n${productHelp}\n상품 안내는 목표 표 아래의 ‘자산군별 상품 보기’에서 열 수 있습니다.\n\n현재 편집 중인 목표를 바꾸고 자동 실행을 끕니다. 플랜 저장 전에는 적용되지 않습니다. 가져올까요?`)) return;
     targetEditVersion += 1;
     allocationDraftPending = true;
     targetRows = draft.targets.map(t => ({ ...t }));
@@ -43,7 +44,7 @@ async function importAllocation() {
     $("rb-proposal").textContent = "목표를 저장한 뒤 새로 미리보기 하세요.";
     $("rb-proposal-summary").textContent = "";
     renderTargets();
-    $("rb-allocation-note").textContent = `가져온 배분: ${ts(saved.saved_at)} · ${draft.message} 편집안의 자동 실행은 꺼짐입니다. 저장 전까지 서버의 기존 플랜·예약은 유지됩니다.`;
+    $("rb-allocation-note").textContent = `가져온 배분: ${ts(saved.saved_at)} · 국내주식 합계 ${draft.domestic_weight_pct}% · 현금 ${draft.cash_weight_pct}% · 적용하지 않는 자산군: ${excluded} · ${draft.message} 편집안의 자동 실행은 꺼짐입니다. 저장 전까지 서버의 기존 플랜·예약은 유지됩니다.`;
     setToast("목표 편집안에 가져왔습니다. 비중과 설정을 확인하고 저장하세요.", "ok");
   } catch (e) { setToast(e.message, "error"); }
   finally { button.disabled = false; }
