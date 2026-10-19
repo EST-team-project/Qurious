@@ -818,9 +818,10 @@
                 </details>
                 <div class="flex gap-2">
                   <button id="broker-save" class="btn-primary">저장 / 연결</button>
-                  <button id="broker-test" class="btn-secondary">연결 테스트</button>
+                  <button id="broker-test" class="btn-secondary" aria-describedby="broker-test-help">연결 테스트 (현재가)</button>
                 </div>
-                <div id="broker-status" class="text-sm text-slate-400"></div>
+                <p id="broker-test-help" class="text-xs" style="color:var(--text-mute);">먼저 설정을 저장해 주세요. 이 테스트는 현재가 조회만 확인하며, 계좌 잔고와 주문 가능 여부는 확인하지 않습니다. 계좌 잔고는 통합 대시보드의 해당 계좌 탭에서 확인해 주세요.</p>
+                <div id="broker-status" class="text-sm text-slate-400" role="status" aria-live="polite"></div>
                 <!-- 자동매매 주기 상태 · 실주문 현황 (강사님 기초 코드 9478811 · js/settings.js) -->
                 <div id="quant-cycle-status" class="rounded-xl p-3 text-sm" style="background:var(--surf2);border:1px solid var(--border);color:var(--text-mute);">자동매매 주기 상태를 불러오는 중…</div>
                 <div class="rounded-xl p-3" style="background:var(--surf2);border:1px solid var(--border);">

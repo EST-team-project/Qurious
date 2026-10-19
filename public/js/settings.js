@@ -248,15 +248,29 @@ document.getElementById("broker-save")?.addEventListener("click", async () => {
 });
 
 document.getElementById("broker-test")?.addEventListener("click", async () => {
+  const button = document.getElementById("broker-test");
   const el = document.getElementById("broker-status");
-  el.textContent = "연결 테스트 중...";
+  if (button.disabled) return;
+  button.disabled = true;
+  el.textContent = "저장된 설정으로 현재가 조회 중...";
   try {
     const data = await api("/api/broker/price?symbol=005930.KS");
-    el.textContent = `✅ 연결 성공 – 삼성전자 현재가: ${fmt(data.current)}원`;
-    setToast("연결 성공", "ok");
+    if (data.source !== "broker") {
+      el.textContent = "증권사 연결을 확인한 결과가 아닙니다. 증권사를 선택하고 API 키를 저장한 뒤 다시 테스트해 주세요.";
+      setToast("증권사 연결 미확인", "error");
+    } else {
+      el.textContent = `✅ 현재가 조회 성공 – 삼성전자 현재가: ${fmt(data.current)}원. 계좌 잔고와 주문 가능 여부는 확인하지 않았습니다.`;
+      setToast("현재가 조회 성공", "ok");
+    }
   } catch (e) {
-    el.textContent = `❌ 연결 실패: ${e.message}`;
-    setToast(e.message, "error");
+    const detail = e.detail;
+    const message = detail?.scope === "quote" ? `${detail.message} ${detail.hint}`
+      : e.status === 401 ? "로그인이 필요합니다. 다시 로그인해 주세요."
+      : "현재가 조회를 완료하지 못했습니다. 잠시 뒤 다시 눌러 주세요.";
+    el.textContent = `현재가 조회 미확인: ${message} 이 결과만으로 계좌 연결이 끊겼다고 판단할 수 없습니다.`;
+    setToast(message, "error");
+  } finally {
+    button.disabled = false;
   }
 });
 
