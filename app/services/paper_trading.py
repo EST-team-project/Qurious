@@ -41,6 +41,47 @@ SELL = "SELL"
 class PaperTradeError(ValueError):
     """사용자에게 그대로 보여줄 수 있는 주문 실패 메시지."""
 
+# 이슈 #255 / DF-96 — 지원하지 않는 시장(해외)은 PaperTradeError 로 변환해
+# 라우트(except pt.PaperTradeError → 400)로 흘려보낸다. 그대로 두면 500.
+def _safe_order_costs(*args, **kwargs):
+    try:
+        return trading_cost.order_costs(*args, **kwargs)
+    except trading_cost.UnsupportedMarketError as e:
+        raise PaperTradeError(str(e)) from e
+
+
+# ── 이슈 #255 / DF-96 — 미지원 시장(해외)의 명시적 거부 ─────────────
+# resolve_stock 은 해외 종목이면 currency='USD', market='NYQ'/'NMS' 등을 반환한다.
+# 이 값이 order_costs 로 넘어가면 _market() 이 UnsupportedMarketError 를 던지고,
+# 라우트가 그 예외를 못 잡아 500 이 된다. 모의투자 주문 진입점에서 먼저 막는다.
+_KRX_ALIASES = {
+    "KS": "KOSPI", "코스피": "KOSPI",
+    "KQ": "KOSDAQ", "코스닥": "KOSDAQ",
+    "KN": "KONEX", "코넥스": "KONEX",
+}
+
+
+def _ensure_supported_market(info: dict) -> None:
+    """모의투자 주문 길 — KRW 종목 + KOSPI/KOSDAQ/KONEX 만 허용.
+
+    - currency 가 KRW 가 아니면 즉시 거부 (해외 종목)
+    - market 이 KRX 3시장이 아니면 거부 (방어선)
+    """
+    symbol = info.get("symbol", "")
+    currency = (info.get("currency") or "KRW").upper()
+    if currency != "KRW":
+        raise PaperTradeError(
+            f"{symbol} 는 해외 종목({currency})입니다. "
+            "국내주식 모의주문은 원화 종목만 지원합니다."
+        )
+    raw = info.get("market") or trading_cost.market_of(symbol)
+    key = _KRX_ALIASES.get(str(raw).upper(), str(raw).upper())
+    if key not in trading_cost.MARKETS:
+        raise PaperTradeError(
+            f"{symbol} 의 시장({raw})은 지원하지 않습니다. "
+            "국내주식 모의주문은 KOSPI/KOSDAQ/KONEX 만 지원합니다."
+        )
+
 
 # ── 공용: 현금 계좌 ─────────────────────────────────────────────────────
 
@@ -255,6 +296,7 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
     if side not in (BUY, SELL) or not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("side(BUY/SELL)와 1 이상의 정수 quantity를 입력하세요.")
     info = await resolve_stock(symbol)
+    _ensure_supported_market(info)   # ★ 이슈 #255 / DF-96 — 해외 종목은 여기서 거부
     # 체결과 같은 길로 미리 본다 — 수량을 고칠 때마다 부르므로 10초 저장본 허용(증권사 한도 · 체결 때는 다시 받는다)
     info = await _confirm_quote(db, user_id, info, fresh=False)
     price = _price_unit(info["price"])
@@ -264,7 +306,7 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
     amount = price * quantity
 
     # 비용 계산 — 실체결과 같은 함수
-    cost = trading_cost.order_costs(
+    cost = _safe_order_costs(
         side=side.lower(), price=price, quantity=quantity,
         when=trading_cost.today_kst(),
         market=info.get("market") or trading_cost.market_of(info["symbol"]),
@@ -307,6 +349,7 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
         ),
     }
 
+
 async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: str, quantity: int,
                       source: str = "PAPER") -> dict:
     """시장가 모의 체결. 현금(PaperAccount) + 포지션(Portfolio) + 이력(Order)을 함께 갱신한다."""
@@ -316,6 +359,7 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     if not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("quantity는 1 이상의 정수여야 합니다.")
     info = await resolve_stock(symbol)
+    _ensure_supported_market(info)   # ★ 이슈 #255 / DF-96 — 해외 종목은 여기서 거부 (_confirm_quote 전에 fail fast)
     info = await _confirm_quote(db, user_id, info)   # 체결 직전 확인 — 내 증권사 키가 있으면 지금 값으로
     res = await _fill_stock_order(db, user_id, info, side, quantity, source=source)
     if isinstance(res, dict):
@@ -330,13 +374,14 @@ async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled
         raise PaperTradeError("side는 BUY 또는 SELL이어야 합니다.")
     if not isinstance(quantity, int) or quantity <= 0:
         raise PaperTradeError("quantity는 1 이상의 정수여야 합니다.")
+    _ensure_supported_market(info)   # ★ 이슈 #255 / DF-96 — 최종 방어선(모든 호출 경로 커버 · check_stop_orders 포함)
     if not math.isfinite(float(info["price"])) or info["price"] <= 0:
         raise PaperTradeError("유효한 체결 가격이 없습니다.")
     price = _price_unit(info["price"])
     gross = price * quantity
     # 정산금액을 따로 구한다 — 현금은 `가격 × 수량` 이 아니라 이 값으로 움직인다.
     # 모의투자도 비용을 뗀다(KIS 모의투자 규정: 수수료 0.0142% · 세금 0.20%).
-    cost = trading_cost.order_costs(
+    cost = _safe_order_costs(
         side=side.lower(), price=price, quantity=quantity,
         when=filled_at.date() if filled_at else trading_cost.today_kst(),
         market=info.get("market") or trading_cost.market_of(info["symbol"]),
@@ -901,6 +946,7 @@ async def place_stop_order(
         raise StopOrderError("stop_price는 양수여야 합니다.")
 
     info = await resolve_stock(symbol)
+    _ensure_supported_market(info)   # ★ 이슈 #255 / DF-96 — 해외 종목 스탑 등록 거부
 
     if side == SELL:
         position = await _stock_position(db, user_id, info["symbol"])
@@ -956,6 +1002,7 @@ async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) 
     """pending 스탑 주문 순회 → 시세 도달 시 시장가 발동.
 
     갭이면 stop_price 보다 더 나쁜 가격에 체결된다 (그게 정상 · 안내 문구에 명시).
+    해외 종목 스탑은 _fill_stock_order 의 _ensure_supported_market 이 잡아 skipped 로 만든다.
     """
     stmt = select(Order).where(Order.order_kind == "stop", Order.status == "pending")
     if user_id is not None:

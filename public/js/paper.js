@@ -81,8 +81,19 @@ async function stockQuote() {
   try {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
+
+    // ── 이슈 #255 — 해외 종목은 현지 통화와 원화 환산을 분리 표시 ──
+    // q.price 는 원화 환산값. q.price_local 이 있으면 해외 종목.
+    const isForeign = q.price_local != null && q.currency && q.currency !== "KRW";
+
+    const priceHtml = isForeign
+      ? `<div class="text-xl font-bold mt-1">${fmt(q.price_local, 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>
+         <div class="text-sm" style="color:var(--text-mute);">약 ${won(q.price)}</div>`
+      : `<div class="text-xl font-bold mt-1">${fmt(q.price, 0)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
+
     $("ps-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
-      <div class="text-xl font-bold mt-1">${fmt(q.price, q.currency === "KRW" ? 0 : 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>
+      ${priceHtml}
+      ${q.fx_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(q.fx_note)}</div>` : ""}
       ${q.quote_label ? `<div class="text-xs" style="color:var(--text-mute);">${escHtml(q.quote_label)} · 체결 직전에 다시 확인합니다</div>` : ""}`;
     $("ps-symbol").value = q.symbol;
   } catch (e) { $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
