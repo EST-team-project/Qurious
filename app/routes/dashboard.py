@@ -33,6 +33,24 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 TAB_ORDER = ("kis", "quant", "paper", "us")
 
 
+def _friendly_account_error(key: str, e: Exception) -> str:
+    """계좌 탭 실패 → 사용자에게 보일 한국어 한 줄 (이슈 #270).
+
+    예외 원문(형 이름 · URL · 영어 안내)은 _safe() 의 logger.warning 으로만 남기고
+    응답(tabs[].error)에는 노출하지 않는다.
+    """
+    msg = str(e) or ""
+    name = type(e).__name__
+    # KIS 접근 토큰 1분 1회 한도 (DF-84 · 403 · oauth2/tokenP)
+    if "/oauth2/tokenP" in msg or "tokenP" in msg or "403" in msg:
+        return "증권사 연결을 잠시 확인하지 못했습니다 — 1분 뒤 새로 고침해 주세요."
+    # 네트워크 타임아웃 · 연결 실패
+    if "Timeout" in name or "Timeout" in msg or "Connection" in name:
+        return "증권사 서버 응답이 지연되고 있습니다 — 잠시 뒤 다시 시도해 주세요."
+    # 그 밖의 미지 오류
+    return "계좌 정보를 불러오지 못했습니다 — 잠시 뒤 다시 시도해 주세요."
+
+
 def _tab(key: str, label: str, site: str, **fields) -> dict:
     base = {"key": key, "label": label, "site": site, "connected": False, "invested": None, "cash": None,
             "total": None, "pnl": None, "pnl_pct": None, "positions": None, "currency": "KRW", "note": "", "error": "", "link": ""}
@@ -164,7 +182,7 @@ async def _safe(key: str, db: AsyncSession, uid: uuid.UUID) -> dict:
         logger.warning("dashboard accounts tab %s 실패: %s", key, e)
         label = {"kis": ("KIS 모의투자", "한국투자증권 Testbed"), "quant": ("퀀트 가상계좌", "자동매매 가상 장부"),
                  "paper": ("모의투자 계좌", "모의투자"), "us": ("미국주식", "Alpaca Paper Trading")}[key]
-        return _tab(key, *label, error=f"{type(e).__name__}: {str(e)[:160]}")
+        return _tab(key, *label, error=_friendly_account_error(key, e))
 
 
 @router.get("/accounts")
