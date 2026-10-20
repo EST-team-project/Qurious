@@ -62,7 +62,7 @@ _KRX_ALIASES = {
 }
 
 
-def _ensure_supported_market(info: dict) -> None:
+def _ensure_supported_market(info: dict, *, side: str | None = None) -> None:
     """모의투자 주문 길 — KRW 종목 + KOSPI/KOSDAQ/KONEX 만 허용.
 
     - currency 가 KRW 가 아니면 즉시 거부 (해외 종목)
