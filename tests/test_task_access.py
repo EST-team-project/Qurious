@@ -185,6 +185,9 @@ def test_uncertain_publish_keeps_owner_and_does_not_retry(env):
     ("/api/ingest/translation-data/async", {"data_type": "labeled", "categories": ["news"], "languages": ["en"], "max_docs": 2}, "translation_ingest_task"),
 ])
 def test_all_http_producers_save_owner_before_publish_and_return_pollable_task(env, monkeypatch, path, body, task_name):
+    # 라우터의 RAG 의존성이 없는 호스트에서는 발행 5건만 건너뛴다.
+    # 인증·소유자 검사 등 이 파일의 다른 보안 시험은 계속 실행한다.
+    pytest.importorskip("langchain_ollama")
     from app.routes import chat, ingest
     from app.tasks import agent_tasks, ingest_tasks
 
