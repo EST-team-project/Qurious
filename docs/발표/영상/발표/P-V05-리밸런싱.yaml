@@ -30,13 +30,24 @@ steps:
   - pause: 3.5
   - js: "(() => { const c = document.getElementById('rb-drift-enabled'); if (c && !c.checked) c.click(); })()"   # 이탈률 기준 사용을 켠다(자막이 말하는 것)
   - select: {target: "#rb-drift-preset", label: "5%p"}
-  - say: "② 이탈률 — 목표 20% 인 자산이 25% 가 되면 5%p 벗어난 것입니다 · 5%p 를 넘은 자산을 맞춥니다"
+  - select: {target: "#rb-drift-mode", label: "매 점검 시"}
+  - say: "② 이탈률 — 관리 종목과 현금 중 최대 비중 차이를 봅니다 · 목표 20% 가 현재 25% 면 기준 5%p 이상이므로 충족합니다"
   - ring: {target: "#rb-drift-help", sec: 4.5}
   - pause: 3.0
-  - say: "③ 현금흐름 — 입금 · 배당은 사는 쪽으로만, 출금은 파는 쪽으로만 나눠 넣습니다"
-  - ring: {target: 'p:has-text("입금·배당은 매수만")', sec: 4.0}
+  - say: "매 점검 시는 시간 또는 이탈 조건, 주기 도래 시는 시간과 이탈 조건을 모두 확인합니다"
+  - ring: {target: "#rb-drift-mode", sec: 4.0}
+  - scroll: {target: "#rb-cf-preset", block: "center"}
+  - say: "③ 현금흐름 — 입출금액 자체가 아니라, 미사용 예산과 목표 대비 현금 초과·부족을 비교한 재배분 가능액을 봅니다"
+  - ring: {target: "#rb-cf-help", sec: 4.0}
   - pause: 2.5
-  - say: "점검 주기와 허용 이탈 폭을 정했으니 플랜을 저장합니다"
+  - scroll: {target: "#rb-order-settings", block: "center"}
+  - say: "공통 주문 제한 — 최소 주문금액은 세 조건 모두에 적용하며, 종목별 산출 주문이 이 금액 미만이면 제외합니다"
+  - ring: {target: "#rb-min-order", sec: 4.0}
+  - say: "현금흐름 기준은 재배분을 시작할 기준이고, 최소 주문금액은 개별 주문을 거르는 기준입니다"
+  - pause: 4.0
+  - scroll: {target: "#rb-execution-settings", block: "center"}
+  - js: "(() => { const c = document.getElementById('rb-auto'); if (c.checked) c.click(); })()"
+  - say: "자동 예약을 끄고 플랜을 저장합니다 — 목표와 조건만 저장하며 즉시 매매하지 않습니다"
   - click: "#rb-save"
   - pause: 2.5
   - scroll: {target: "#rb-weight-chart", block: "start"}
@@ -53,7 +64,7 @@ steps:
   # D54 — 미리 보기 가격은 수집 DB 의 전 거래일 원 종가(주식시세 · 없으면 증권상품시세)다 — 수정주가가 아니라 문구를 사실대로
   - say: "자료: 금융위원회 주식시세정보 · 증권상품시세정보(공공데이터포털 · 공공누리 제4유형) · 전 거래일 종가 · 주문 수량은 Qurious 가 계산"
   - pause: 4.5
-  - chapter: {label: "3 / 3 · 결과", title: "실행은 사용자가 정합니다", text: "계산한 주문은 미리 보기입니다 — 「시가 체결 예약」 은 사용자가 직접 누를 때만 다음 거래일 시가로 나갑니다", sec: 5.5}
+  - chapter: {label: "3 / 3 · 결과", title: "실행은 사용자가 정합니다", text: "자동 예약을 꺼 둔 이 플랜은 사용자가 제안을 확인하고 시가 체결을 예약합니다 — 이 영상에서는 예약하지 않습니다", sec: 5.5}
   - ring: {target: "#rb-execute", sec: 3.0}
   - say: "모의 계좌 기준 계산이며 투자 권유가 아닙니다"
   - pause: 4.0

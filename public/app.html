@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/css/howto.css" /><!-- 화면 사용법 창 (2026-10-16 · js/howto.js) -->
   <link rel="stylesheet" href="/css/helpvideos.css" /><!-- 사용법 영상 목록 (2026-10-20 · js/helpvideos.js) -->
   <link rel="stylesheet" href="/css/stockpick.css" /><!-- 종목 찾기 칸 (2026-10-16 · js/stockpick.js) -->
+  <link rel="stylesheet" href="/css/rebalance.css" />
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
   <script type="module" src="/js/howto.js"></script><!-- main.js 보다 먼저 — 첫 화면을 그릴 때 window.QHowto 가 있어야 한다 -->
@@ -1617,49 +1618,88 @@
                     <a href="#agent-products" class="btn-secondary inline-block text-xs" aria-describedby="rb-products-help">자산군별 상품 보기 →</a>
                   </div>
 
-                  <h4 class="font-semibold text-xs mb-2" style="color:var(--text-dim);">트리거 설정</h4>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">① 시간 기반 주기</label>
-                      <select id="rb-period" class="input mt-1">
-                        <option value="none">사용 안 함</option>
-                        <option value="monthly">매월 첫 거래일</option>
-                        <option value="quarterly">매분기 첫 거래일 (1·4·7·10월)</option>
-                        <option value="yearly">매년 첫 거래일 (1월)</option>
-                      </select>
-                    </div>
-                    <div><label for="rb-drift-preset" class="text-xs font-semibold" style="color:var(--text-dim);">② 허용 이탈률 (%p)</label>
-                      <label class="flex items-center gap-2 mt-1 text-xs"><input id="rb-drift-enabled" type="checkbox" class="h-4 w-4" />이탈률 기준 사용</label>
-                      <select id="rb-drift-preset" class="input mt-1" aria-describedby="rb-drift-help"><option value="3">3%p</option><option value="5">5%p</option><option value="10">10%p</option><option value="custom">직접 입력</option></select>
-                      <div id="rb-drift-custom" class="mt-2" hidden>
-                        <label for="rb-drift" class="text-xs">허용 이탈률 직접 입력 (%p)</label>
-                        <div class="flex items-center gap-2 mt-1"><input id="rb-drift" type="number" min="0.5" max="50" step="0.5" class="input" style="width:100px" aria-describedby="rb-drift-help" /><span>%p</span></div>
+                  <div class="rb-settings">
+                    <section id="rb-condition-settings" aria-labelledby="rb-condition-heading">
+                      <h4 id="rb-condition-heading">조건 판단 — 언제 리밸런싱할까요?</h4>
+                      <p class="rb-settings-intro">사용할 조건을 선택하세요. 조건 충족 여부를 확인한 뒤 주문을 산출합니다.</p>
+                      <div class="rb-condition-list">
+                        <fieldset class="rb-setting-card">
+                          <legend>① 시간 기반 주기</legend>
+                          <label for="rb-period" class="sr-only">시간 기반 주기</label>
+                          <select id="rb-period" class="input">
+                            <option value="none">사용 안 함</option>
+                            <option value="monthly">매월 첫 거래일</option>
+                            <option value="quarterly">매분기 첫 거래일 (1·4·7·10월)</option>
+                            <option value="yearly">매년 첫 거래일 (1월)</option>
+                          </select>
+                          <p class="rb-setting-help">선택한 주기의 첫 거래일이 기준입니다. 자료 준비가 끝난 뒤 점검합니다.</p>
+                        </fieldset>
+                        <fieldset class="rb-setting-card">
+                          <legend>② 허용 이탈률 (%p)</legend>
+                          <label class="rb-setting-check mb-2"><input id="rb-drift-enabled" type="checkbox" />이탈률 기준 사용</label>
+                          <div class="rb-setting-fields">
+                            <div class="rb-setting-field">
+                              <label for="rb-drift-preset">목표 비중과의 차이</label>
+                              <select id="rb-drift-preset" class="input mt-1" aria-describedby="rb-drift-help"><option value="3">3%p</option><option value="5">5%p</option><option value="10">10%p</option><option value="custom">직접 입력</option></select>
+                              <div id="rb-drift-custom" class="mt-2" hidden>
+                                <label for="rb-drift" class="text-xs">허용 이탈률 직접 입력 (%p)</label>
+                                <div class="flex items-center gap-2 mt-1"><input id="rb-drift" type="number" min="0.5" max="50" step="0.5" class="input" aria-describedby="rb-drift-help" /><span>%p</span></div>
+                              </div>
+                            </div>
+                            <label class="rb-setting-field" for="rb-drift-mode">이탈률 확인 시점
+                              <select id="rb-drift-mode" class="input mt-1" aria-describedby="rb-drift-mode-help"><option value="always">매 점검 시</option><option value="scheduled">주기 도래 시 + 이탈 기준 충족</option></select>
+                            </label>
+                          </div>
+                          <p id="rb-drift-help" class="rb-setting-help">목표 20% → 현재 25%이면 5%p 차이입니다. 관리 종목과 현금 중 가장 큰 비중 차이가 기준 이상인지 봅니다.</p>
+                          <p id="rb-drift-mode-help" class="rb-setting-help">매 점검 시: 시간 또는 이탈 조건 충족 / 주기 도래 시: 시간과 이탈 조건 모두 충족.</p>
+                        </fieldset>
+                        <fieldset class="rb-setting-card">
+                          <legend>③ 현금흐름 재배분 기준 (원)</legend>
+                          <label class="rb-setting-check mb-2"><input id="rb-cf-enabled" type="checkbox" />현금흐름 기준 사용</label>
+                          <label for="rb-cf-preset" class="sr-only">현금흐름 재배분 기준 금액</label>
+                          <select id="rb-cf-preset" class="input" aria-describedby="rb-cf-help"><option value="0">금액 무관</option><option value="50000">5만 원</option><option value="100000">10만 원</option><option value="500000">50만 원</option><option value="1000000">100만 원</option><option value="custom">직접 입력</option></select>
+                          <div id="rb-cf-min-custom" class="mt-2" hidden>
+                            <label for="rb-cf-min" class="text-xs">재배분 기준 금액 직접 입력 (원)</label>
+                            <div class="flex items-center gap-2 mt-1"><input id="rb-cf-min" type="number" min="0" step="10000" class="input" aria-describedby="rb-cf-help" /><span>원</span></div>
+                          </div>
+                          <p id="rb-cf-help" class="rb-setting-help">입출금·배당 뒤 실제로 재배분할 수 있는 금액이 기준 이상일 때 충족합니다. 입출금액 자체나 계좌 전체 잔액을 뜻하지 않습니다. ‘금액 무관’도 재배분 가능한 금액이 있어야 합니다.</p>
+                          <details class="rb-settings-details">
+                            <summary>재배분 가능한 금액은 어떻게 계산하나요?</summary>
+                            <p class="mt-2">입금·배당은 매수 예산, 출금은 매도 예산을 만듭니다. 새 예산은 이벤트 금액 × 목표 종목 비중 합계입니다. 예: 종목 80%·현금 20% 목표에서 10만 원 입금 → 매수 예산 8만 원. 반대 방향 이벤트는 상계하고, 체결에 쓴 예산은 차감합니다.</p>
+                            <p class="mt-2">목표 대비 현금 초과·부족과 남은 예산의 방향이 같을 때, 두 금액의 절댓값 중 작은 금액을 사용합니다. 예: 현금 초과 3만 원·남은 매수 예산 8만 원 → 재배분 가능액 3만 원이므로 기준 5만 원에는 못 미칩니다.</p>
+                            <p class="mt-2">현금흐름만 충족하면 순입금·배당은 매수만, 순출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 일반 매매는 현금흐름 예산에 포함하지 않으며, 입출금·배당 반영 뒤 다음 일별 점검에서 판단합니다.</p>
+                          </details>
+                        </fieldset>
                       </div>
-                      <p id="rb-drift-help" class="text-xs mt-1" style="color:var(--text-mute);">목표 비중과 현재 비중의 차이 기준입니다. 예: 목표 20% → 현재 25%이면 5%p 차이입니다. 설정한 확인 시점에 이 차이가 기준 이상인지 판단합니다.</p>
-                    </div>
-                    <div><label for="rb-cf-preset" class="text-xs font-semibold" style="color:var(--text-dim);">③ 현금흐름 재배분 기준 (원)</label>
-                      <label class="flex items-center gap-2 mt-1 text-xs"><input id="rb-cf-enabled" type="checkbox" class="h-4 w-4" />현금흐름 기준 사용</label>
-                      <select id="rb-cf-preset" class="input mt-1" aria-describedby="rb-cf-help"><option value="0">금액 무관</option><option value="50000">5만 원</option><option value="100000">10만 원</option><option value="500000">50만 원</option><option value="1000000">100만 원</option><option value="custom">직접 입력</option></select>
-                      <div id="rb-cf-min-custom" class="mt-2" hidden>
-                        <label for="rb-cf-min" class="text-xs">재배분 기준 금액 직접 입력 (원)</label>
-                        <div class="flex items-center gap-2 mt-1"><input id="rb-cf-min" type="number" min="0" step="10000" class="input" style="width:140px" aria-describedby="rb-cf-help" /><span>원</span></div>
+                    </section>
+
+                    <section id="rb-order-settings" class="rb-order-common" aria-labelledby="rb-order-heading">
+                      <span class="rb-common-label">① · ② · ③ 모든 조건에 공통 적용</span>
+                      <h4 id="rb-order-heading">공통 주문 제한</h4>
+                      <p class="rb-settings-intro">조건 판단 후, 어떤 종목을 얼마 이상 주문할지 정합니다.</p>
+                      <div class="rb-setting-field">
+                        <label for="rb-min-order"><strong>종목별 최소 주문금액 (원)</strong></label>
+                        <input id="rb-min-order" type="number" min="0" step="10000" class="input mt-1" aria-describedby="rb-min-order-help" />
+                        <p id="rb-min-order-help" class="rb-setting-help">예: 1만 원이면 각 종목의 주문금액이 1만 원 미만일 때 제외합니다. 위 ③의 ‘재배분을 시작할 기준’과는 별개입니다.</p>
                       </div>
-                      <p id="rb-cf-help" class="text-xs mt-1" style="color:var(--text-mute);">재배분 가능한 금액이 이 기준 이상이면 조건을 충족합니다. 100000원 = 10만 원입니다. ‘금액 무관’도 재배분 가능한 금액이 있어야 합니다.</p>
-                    </div>
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">최소 주문금액 (원)</label><input
-                        id="rb-min-order" type="number" min="0" step="10000" class="input mt-1" /></div>
-                    <label class="flex items-center gap-2 text-xs"><input id="rb-auto" type="checkbox"
-                        class="h-4 w-4" /> 자동 예약 (해제: 제안만 생성)</label>
-                    <label class="flex items-center gap-2 text-xs"><input id="rb-active" type="checkbox"
-                        class="h-4 w-4" /> 플랜 활성화</label>
+                      <label class="rb-setting-check mt-3"><input id="rb-protect" type="checkbox" /><span>플랜 밖 종목 유지<small>목표 목록에 없는 종목은 주문·비중 계산에서 제외합니다.</small></span></label>
+                    </section>
+
+                    <section id="rb-execution-settings" aria-labelledby="rb-execution-heading">
+                      <h4 id="rb-execution-heading">예약·활성화</h4>
+                      <div class="rb-setting-fields mt-3">
+                        <label class="rb-setting-check"><input id="rb-auto" type="checkbox" /><span>자동 예약<small>조건 충족 시 체결을 예약합니다.<br>끄면 제안만 만들고 승인을 기다립니다.</small></span></label>
+                        <label class="rb-setting-check"><input id="rb-active" type="checkbox" /><span>플랜 활성화<small>이 플랜의 조건 점검을 사용합니다.</small></span></label>
+                      </div>
+                      <details class="rb-settings-details">
+                        <summary>점검 시각과 예약·정산 기준</summary>
+                        <p class="mt-2">시간 주기는 다음 월·분기·연의 첫 거래일 기준입니다. 자동 정기 점검은 12:30 이후 데이터 갱신이 성공하고 시세 기준일이 전 거래일인지 확인한 뒤 하루 한 번 진행합니다. 준비 여부는 5분마다 확인하며, 갱신 실패·지연 시에는 기다립니다. ‘지금 점검’도 같은 하루 1회 판단을 사용하며, 입출금·배당 뒤에는 다음 일별 점검 회차까지 기다립니다.</p>
+                        <p class="mt-2">자동 정기 점검은 수집 DB의 전 거래일 종가로 계산하고 다음 거래일 시가 수집 후 모의 체결을 확정합니다. 수동 점검·미리보기·실행도 같은 가격 기준을 사용합니다. 예약은 목표 비중을 기준으로 시가 수집 후 수량을 다시 계산합니다. 체결일 당일 이후 계좌 변경과 플랜 변경은 확인 대기합니다.</p>
+                      </details>
+                    </section>
+                    <p id="rb-schedule-warning" class="text-sm text-amber-500" role="status" hidden></p>
+                    <div class="rb-settings-save"><button id="rb-save" class="btn-primary">플랜 저장</button><p>목표 비중과 설정을 저장합니다. 즉시 매매하지 않습니다.</p></div>
                   </div>
-                  <div class="grid md:grid-cols-2 gap-3 mt-3 text-sm">
-                    <label class="min-w-0">이탈률 확인 시점<select id="rb-drift-mode" class="input mt-1"><option value="always">매 점검 시</option><option value="scheduled">주기 도래 시 + 이탈 기준 충족</option></select></label>
-                    <label class="flex items-center gap-2"><input id="rb-protect" type="checkbox" />플랜 밖 종목 유지 (주문·비중 계산에서 제외)</label>
-                  </div>
-                  <p class="text-xs mt-3" style="color:var(--text-mute);">입금·배당은 매수만, 출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정합니다. 재배분 가능한 금액은 입금액 자체가 아닌 목표 대비 현금 초과·부족과 누적 미사용 재배분 예산 중 작은 금액입니다. 현금 초과 시 매수 예산, 현금 부족 시 매도 예산이 있어야 합니다. 일반 매매는 예산에 포함하지 않습니다.</p>
-                  <p class="text-xs mt-2" style="color:var(--text-mute);">시간 주기는 다음 월·분기·연의 첫 거래일 기준입니다. 자동 정기 점검은 12:30 이후 데이터 갱신이 성공하고 시세 기준일이 전 거래일인지 확인한 뒤 하루 한 번 진행합니다. 준비 여부는 5분마다 확인하며, 갱신 실패·지연 시에는 기다립니다. ‘지금 점검’도 같은 하루 1회 판단을 사용하며, 입출금·배당 뒤에는 다음 일별 점검 회차까지 기다립니다. 자동 정기 점검은 수집 DB의 전 거래일 종가로 계산하고 다음 거래일 시가 수집 후 모의 체결을 확정합니다. 수동 점검·미리보기·실행도 같은 가격 기준을 사용합니다. 예약은 목표 비중을 기준으로 시가 수집 후 수량을 다시 계산합니다. 체결일 당일 이후 계좌 변경과 플랜 변경은 확인 대기합니다.</p>
-                  <p id="rb-schedule-warning" class="text-sm mt-2 text-amber-500" role="status" hidden></p>
-                  <div class="mt-3"><button id="rb-save" class="btn-primary">플랜 저장</button></div>
                 </div>
 
                 <!-- 현재 vs 목표 -->

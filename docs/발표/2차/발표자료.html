@@ -749,13 +749,132 @@ body.all #hint, body.all #notes-panel { display: none; }
 <!-- ══════════ 3 오준영 ══════════ -->
 <section class="slide" data-title="오준영 · 나">
   <div class="kicker">오준영 <span class="who">배분 · 리밸런싱</span></div>
-  <h1 class="title">성향 진단에서 자산 배분 · 리밸런싱까지<span class="temp">임시 제목</span></h1>
-  <div class="todo"><div class="h">채울 칸 · 오준영 · 10-20</div><ul>
-    <li>이름 · 관심 분야 · 보유 기술과 강점 한 줄 / 지향 직무 한 줄</li>
-    <li>내 칸을 한 문장으로(이 장 제목이 됩니다) / 앞 사람(신장환)에게서 받는 것 한 줄</li></ul>
-    <div class="due">문서로 확인된 것: 2차 자산배분 · 포트폴리오 최적화 · 스크리닝 주담당 · 추천 이유 설명 부담당 / 3차 증권사 API 연동 자동화 주담당</div></div>
+  <h1 class="title">판단을 실행으로 연결하고, 그 결과를 DB 에 남기는 개발자를 지향합니다</h1>
+  <div class="rows">
+    <div class="row"><div class="k">쓰는 기술</div><div class="v">Python · FastAPI · JavaScript · Docker — API · 저장 · 화면을 연결하고 시험합니다</div></div>
+    <div class="row"><div class="k">지향 직무</div><div class="v">AI 에이전트 개발 · DB 관리 — 도구 실행을 제어하고, 사용자별 상태와 실행 이력을 일관되게 관리하는 일</div></div>
+    <div class="row"><div class="k">2차에 맡은 일</div><div class="v">성향 기반 자산배분 · 결과 저장과 복원 · 리밸런싱 조건과 예약 정산 · 자동매매 계정 분리 · 증권사 주문 상태 표시 보완</div></div>
+    <div class="row"><div class="k">3차에 맡을 일</div><div class="v">증권사 API 연동 자동화 — 주문 접수 · 실제 체결 · 취소를 구분하고, 재시도와 실행 이력을 확인할 수 있게 연결</div></div>
+  </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">자기소개 문장은 검토용 초안입니다. 「신장환 님이 신호를 보고 종목을 살피는 부분을 설명해 주셨습니다. 저는 그다음, 얼마씩 나누어 담고 언제 다시 맞출지를 다뤘습니다. AI 에이전트 개발과 DB 관리를 지향하며, 이번에는 그 기반이 되는 실행 제어와 상태 저장을 경험했습니다.」 AI 모델이나 에이전트 자체를 이번에 새로 개발했다는 뜻은 아닙니다.</aside>
 </section>
+
+<section class="slide" data-title="오준영 · 배분에서 예약 정산까지">
+  <div class="kicker">오준영 · 구현 구조</div>
+  <h1 class="title">배분 결과를 저장하고, 같은 가격 기준으로 판단 · 예약 · 정산합니다</h1>
+  <div class="flow4">
+    <div class="st s"><div class="k">① 배분 · 저장</div><div class="v">성향과 투자 기간으로 계산한 결과를 <b>사용자별 DB</b>에 저장합니다. 새로고침 뒤 복원하고, 국내주식 부분을 리밸런싱 초안으로 가져옵니다.</div></div>
+    <div class="st c"><div class="k">② 조건 판단</div><div class="v"><b>시간 · 이탈률 · 현금흐름</b> 조건을 점검합니다. 수집 준비를 확인한 뒤, 관리 대상 자산을 같은 전 거래일 원종가로 평가합니다.</div></div>
+    <div class="st p"><div class="k">③ 목표 비중 예약</div><div class="v">목표 비중을 저장하고 <b>다음 거래일 시가 체결</b>을 예약합니다. 예약만으로 현금과 보유 수량이 바뀌지는 않습니다.</div></div>
+    <div class="st r"><div class="k">④ 자료 확인 · 정산</div><div class="v">체결일의 원시가가 수집되면 수량과 비용을 계산해 모의 장부에 반영합니다. 자료가 없으면 대기하고, <b>체결일과 확인일</b>을 나눠 남깁니다.</div></div>
+  </div>
+  <div class="cols" style="margin-top:28px">
+    <div class="box"><h3>DB 에서 지키는 것</h3><ul class="pts small"><li>사용자별 잠금과 트랜잭션으로 중복 정산을 막고, 예약 뒤 계좌가 바뀌면 확인을 기다립니다</li></ul></div>
+    <div class="box teal"><h3>왜 예약과 정산을 나눴나</h3><ul class="pts small"><li>일봉이 뒤늦게 공개되므로, 판단할 때 아직 모르는 시가를 미리 쓴 것처럼 처리하지 않기 위해서입니다</li></ul></div>
+  </div>
+  <p class="src">코드: allocation_store.py save_result · rebalance_daily.py readiness · rebalance.py lock_user · rebalance_settlement.py reserve / settle<br>범위: 모의 리밸런싱. 배분 전체 자산군을 자동으로 주문하는 기능이나 증권사 실체결을 뜻하지 않음.</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「저장한 배분을 바로 주문하지 않고, 초안 가져오기 → 플랜 저장 → 조건 판단 → 예약 → 정산으로 나눴습니다. 예를 들어 10월 1일 판단에서 10월 2일 시가를 예약하고, 그 시가가 공개된 뒤 장부를 확정합니다.」 기술 선택: PostgreSQL은 사용자 상태와 장부 트랜잭션, SQLite는 수집 자료 읽기. 수량 고정 예약이라는 옛 설명 대신 현재 구현의 목표 비중 예약을 설명합니다. 손으로 입력한 입출금·배당 이벤트는 반영하되, 배당 자동 수집·입금까지 완성했다고 말하지 않습니다.</aside>
+</section>
+
+<section class="slide" data-title="오준영 · 목표 비중 설정">
+  <div class="kicker">오준영 · 설정 화면 ① 목표 비중</div>
+  <h1 class="title">종목과 목표 비중을 정하고, 기존 배분을 가져올 수 있습니다</h1>
+  <div class="cols" style="grid-template-columns:660px 1fr;gap:42px;margin-top:34px">
+    <div>
+      <img src="그림/07a-오준영-목표비중-입력.png" alt="실행 중인 로컬 앱의 목표 비중 플랜 상단. 종목코드와 비중 입력, 추가, 저장한 배분 가져오기, 보유 비중 불러오기, 자산군별 상품 보기 버튼" style="display:block;width:660px;height:auto;border:1px solid var(--line);border-radius:18px">
+      <div class="box teal" style="margin-top:24px;padding:18px 24px">
+        <h3 style="font-size:26px">목표 비중의 합계와 현금을 함께 확인</h3>
+        <p style="font-size:24px;line-height:1.6">종목 비중 합계가 80%라면 나머지 20%는 현금입니다. 100%를 넘는 플랜은 저장할 수 없습니다.</p>
+      </div>
+    </div>
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="box" style="padding:18px 24px">
+        <h3 style="font-size:27px">「종목코드 · 비중(%)」 → 「추가」</h3>
+        <p style="font-size:24px;line-height:1.5">국내 주식·ETF 코드와 원하는 비중을 입력하면 목표 목록에 들어갑니다. 같은 종목을 다시 추가하면 그 종목의 비중을 바꿉니다.</p>
+      </div>
+      <div class="box accent" style="padding:18px 24px">
+        <h3 style="font-size:27px">「저장한 배분 가져오기」</h3>
+        <p style="font-size:24px;line-height:1.5">자산배분 화면에서 저장한 결과 중 <b>국내주식 부분</b>을 가져옵니다. 초안이므로 비중을 확인한 뒤 플랜을 저장합니다.</p>
+      </div>
+      <div class="box" style="padding:18px 24px">
+        <h3 style="font-size:27px">「보유 비중 불러오기」</h3>
+        <p style="font-size:24px;line-height:1.5">현재 보유 종목의 비중을 목표 비중으로 복사합니다. 빈 계정이라 캡처에서는 비활성 상태입니다.</p>
+      </div>
+      <div class="box" style="padding:18px 24px">
+        <h3 style="font-size:27px">「자산군별 상품 보기」</h3>
+        <p style="font-size:24px;line-height:1.5">채권·해외주식·대체자산 관련 국내 상장 ETF 정보를 확인하는 상품 안내로 이동합니다. 돌아와 코드와 목표 비중을 직접 추가합니다.</p>
+      </div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 로컬 실행 앱 · 캡처용 빈 계정의 기본 상태(입력값·화면 내용 변경 없음, 촬영 후 계정 정리)<br>구현: public/js/rebalance.js addTarget / importFromPositions · app/services/asset_allocation.py rebalance_draft</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「먼저 무엇을 얼마나 담을지 정합니다. 직접 종목을 추가할 수도 있고, 저장한 자산배분이나 현재 보유 비중을 가져와 시작할 수도 있습니다.」 코드 칸의 005930과 비중 칸의 30은 입력 예시로 보이는 자리표시자이며 저장된 종목이 아닙니다. 지금 캡처는 빈 계정이라 목표 목록이 비어 있고 보유 비중 불러오기가 꺼져 있습니다. 자산배분 가져오기는 국내주식 부분만 옮기며 해외주식·채권·대체자산을 자동 매수하지 않습니다. 버튼을 누르는 것만으로 주문하지 않고, 다음 장의 조건 설정을 확인해 플랜을 저장합니다.</aside>
+</section>
+
+<section class="slide" data-title="오준영 · 리밸런싱 조건 판단">
+  <div class="kicker">오준영 · 설정 화면 ② 조건 판단</div>
+  <h1 class="title">시간 · 이탈률 · 현금흐름은 「언제 조정할지」를 정합니다</h1>
+  <div class="cols" style="grid-template-columns:600px 1fr;gap:40px;margin-top:28px">
+    <div>
+      <img src="그림/07b-오준영-조건판단-설정.png" alt="실제 앱의 조건 판단 영역. ① 시간, ② 이탈률과 확인 시점, ③ 현금흐름 기준이 각각 상자로 구분되어 있고 최소 주문금액은 이 영역에 없음" style="display:block;width:600px;height:auto;border:1px solid var(--line);border-radius:18px">
+    </div>
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="box accent" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">① 시간 — 설정한 주기가 됐나</h3>
+        <p style="font-size:24px;line-height:1.5">매월·분기·연의 첫 거래일이 기준입니다. 「사용 안 함」이면 시간 조건을 끕니다. 자료 준비 뒤 하루 한 번 자동 판단합니다.</p>
+      </div>
+      <div class="box teal" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">② 이탈률 — 목표 비중에서 벗어났나</h3>
+        <p style="font-size:24px;line-height:1.5">관리 종목과 현금 중 비중 차이의 절댓값이 가장 큰 값을 봅니다. 예: 목표 20% → 현재 25%면 5%p, 기준 5%p 이상이므로 충족합니다.</p>
+        <p style="font-size:22px;line-height:1.5;margin-top:10px;color:var(--teal)"><b>매 점검 시</b>: 시간 또는 이탈 충족<br><b>주기 도래 시</b>: 시간과 이탈 모두 충족</p>
+      </div>
+      <div class="box amber" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">③ 현금흐름 — 재배분 가능한 금액이 기준 이상인가</h3>
+        <p style="font-size:24px;line-height:1.5">입출금·배당으로 생긴 <b>미사용 예산</b>과 <b>목표 대비 현금 초과·부족</b>을 비교합니다. 방향이 같을 때 둘 중 작은 금액이 기준 이상이면 충족합니다.</p>
+        <p style="font-size:22px;line-height:1.5;margin-top:10px;color:var(--amber)"><b>예시</b> 종목 80%·현금 20% 목표 + 10만 원 입금 → 새 매수 예산 8만 원.<br>목표보다 남는 현금이 3만 원이면 재배분 가능액도 3만 원 → 기준 5만 원에는 미달.</p>
+      </div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 수정한 로컬 실행 앱 · 빈 계정 기본값. 오른쪽 금액은 계산 방식 설명용 예시(화면 설정값과 별개).<br>코드: rebalance_policy.py weights / cashflow_signal / choose_triggers · rebalance.py record_cashflow / check_daily</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「조건 판단 세 개는 언제 조정할지를 정합니다. 종목별로 너무 작은 주문을 제외하는 최소 주문금액은 다음 장의 공통 설정입니다.」 이탈률 확인 시점은 ② 상자 안에 있습니다. 현금흐름 조건은 시간·이탈 조합과 별도로 추가됩니다. 미사용 예산은 이벤트 금액 × 목표 종목 비중 합계로 생기고, 반대 방향 입출금은 상계하며 체결에 쓴 만큼 차감합니다. 목표 대비 남거나 부족한 현금과 예산의 방향이 일치해야 하며, 가능액이 0이면 금액 무관 설정도 충족하지 않습니다. 현금흐름만 충족하면 순입금·배당은 매수만, 순출금은 매도만 제안합니다. 시간·이탈 조건도 충족하면 전체 조정을 우선합니다. 입출금·배당 직후 즉시 매매하는 것이 아니라 다음 일별 점검에서 판단합니다. 일반 매매는 외부 현금흐름 예산에 넣지 않습니다.</aside>
+</section>
+
+<section class="slide" data-title="오준영 · 공통 주문 제한과 예약">
+  <div class="kicker">오준영 · 설정 화면 ③ 공통 주문 제한 · 예약</div>
+  <h1 class="title">최소 주문금액은 모든 조건에서 산출한 주문에 공통 적용합니다</h1>
+  <div class="cols" style="grid-template-columns:640px 1fr;gap:40px;margin-top:28px">
+    <div>
+      <img src="그림/07c-오준영-공통주문-예약.png" alt="실제 앱의 공통 주문 제한과 예약·활성화 영역. ①·②·③ 모두 적용 표시 아래 종목별 최소 주문금액과 플랜 밖 종목 유지가 있고, 자동 예약과 활성화는 별도 구획" style="display:block;width:640px;height:auto;border:1px solid var(--line);border-radius:18px">
+      <p style="font-size:23px;line-height:1.55;margin-top:20px;color:var(--muted)">「플랜 저장」은 목표 비중과 설정을 저장합니다.<br>저장 버튼을 누른 즉시 매매하지 않습니다.</p>
+    </div>
+    <div style="display:grid;gap:16px;align-content:start">
+      <div class="box accent" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">종목별 최소 주문금액 — 작은 주문은 제외</h3>
+        <p style="font-size:24px;line-height:1.5"><b>① 시간 · ② 이탈률 · ③ 현금흐름 모두 적용</b>합니다. 종목별 주문금액이 설정값 미만이면 그 주문을 제외합니다.</p>
+        <p style="font-size:22px;line-height:1.5;margin-top:10px;color:var(--accent)"><b>최소 1만 원 예시</b> 9천 원 주문 → 제외 / 2만 원 주문 → 금액 기준 충족</p>
+      </div>
+      <div class="box amber" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">③ 현금흐름 기준과 무엇이 다른가</h3>
+        <p style="font-size:24px;line-height:1.5"><b>현금흐름 기준</b>: 재배분을 시작할 만큼 돈이 생겼는가?<br><b>최소 주문금액</b>: 산출한 개별 주문이 너무 작지는 않은가?</p>
+      </div>
+      <div class="box" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">플랜 밖 종목 유지</h3>
+        <p style="font-size:24px;line-height:1.5">목표 목록에 없는 종목을 주문·비중 계산에서 제외합니다. 리밸런싱으로 건드리지 않을 보유 종목을 보호합니다.</p>
+      </div>
+      <div class="box teal" style="padding:20px 26px">
+        <h3 style="font-size:27px;margin-bottom:9px">자동 예약 · 플랜 활성화</h3>
+        <p style="font-size:24px;line-height:1.5"><b>자동 예약 켬</b>: 조건 충족 후 예약 / <b>끔</b>: 제안 후 승인<br><b>플랜 활성화</b>: 이 플랜의 조건 점검을 사용합니다.</p>
+      </div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 수정한 로컬 실행 앱 · 캡처용 빈 계정. 최소 주문금액은 ‘종목 수량 × 가격’ 기준이며 비용·잔액도 별도 확인.<br>구현: rebalance_policy.py orders · rebalance.py check_due · public/js/rebalance.js savePlan</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「현금흐름 재배분 기준과 최소 주문금액은 서로 다른 단계입니다. 먼저 조건을 보고, 그다음 종목별 주문을 산출할 때 작은 주문을 제외합니다.」 예를 들어 현금흐름 기준 5만 원에 재배분 가능액 8만 원이면 조건은 충족하지만, 종목별 산출 주문 중 9천 원짜리는 최소 주문금액 1만 원에 못 미쳐 빠집니다. 이 숫자는 설명용 가정값입니다. 실제 주문은 정수 수량·잔액·수수료도 확인합니다. 예약은 다음 거래일 시가 자료 수집 후 모의 정산으로 이어지므로 자동 예약을 켜거나 플랜을 저장하는 순간 바로 체결되는 것은 아닙니다. 화면은 조건 판단과 공통 주문 제한, 예약·활성화를 구분해 최소 주문금액이 ② 또는 ③에 종속돼 보이지 않도록 바꿨습니다.</aside>
+</section>
+
 <section class="slide" data-title="오준영 · 영상 V01">
   <div class="kicker">오준영 · 영상 V01 성향 진단 · 자산 배분</div>
   <div class="video-wrap" data-video="V01-성향진단-자산배분">
@@ -767,21 +886,41 @@ body.all #hint, body.all #notes-panel { display: none; }
 </section>
 <section class="slide" data-title="오준영 · 맡은 일과 결과">
   <div class="kicker">오준영 · 맡은 일과 결과</div>
-  <h1 class="title">리밸런싱 세 방식과 그 시험<span class="temp">임시 제목</span></h1>
-  <div class="todo"><div class="h">채울 칸 · 오준영 · 10-20</div><ul>
-    <li>직접 구현한 기능 하나 · 직접 쓴 코드 한 군데 · 화면 캡처 하나</li>
-    <li>숫자 셋 이하(출처 · 잰 날짜) · 한계 한 줄</li></ul>
-    <div class="due">고를 수 있는 재료: 리밸런싱 셋(시간 · 이탈률 · 현금흐름) · 국내주식 부분을 상품 안내로 넘김 · 리밸런싱 묶음의 첫 시험 73건 · 증권사 주문 결과 구분 · 주문 방식 표시</div></div>
+  <h1 class="title">예약이 실행됐는지보다, 현금 · 수량 · 비용이 맞는지 확인했습니다</h1>
+  <div class="cols" style="grid-template-columns:1.22fr 1fr;gap:32px;margin-top:28px">
+    <div>
+      <img src="그림/06-오준영-리밸런싱-검증.png" alt="격리 브라우저 시험의 리밸런싱 화면. 합성 가격과 시험 계좌로 현재 비중과 목표 비중, 정기 점검 완료 상태를 확인한 캡처" style="display:block;width:100%;max-height:620px;object-fit:contain;border:1px solid #e2e8f0;border-radius:18px">
+      <p class="figcap" style="margin-top:12px">2026-10-16 격리 화면 시험 · 합성 가격 / 시험 계좌<br>화면 안 날짜는 시험 시계이며 실시간 시세가 아닙니다</p>
+    </div>
+    <div>
+      <div class="nums two" style="margin-top:0;gap:18px">
+        <div class="num teal" style="padding:22px"><div class="v" style="font-size:64px">6 / 6</div><div class="l" style="font-size:22px">실수집 가격 재현 시나리오 통과<br>(2026-10-12)</div></div>
+        <div class="num accent" style="padding:22px"><div class="v" style="font-size:64px">3<small>회</small></div><div class="l" style="font-size:22px">같은 회차 반복 뒤<br>주문 ID · 현금 · 수량 유지</div></div>
+      </div>
+      <ul class="pts small" style="margin-top:22px">
+        <li>주식끼리 · 주식→ETF · ETF→주식을 정상 회차와 비필수 단계 실패 회차에서 각각 확인</li>
+        <li>수수료 · 세금의 기대값을 <b>별도로 계산</b>해 장부와 대조 — 앱 계산 결과를 정답으로 재사용하지 않음</li>
+        <li><b>reserve / settle</b>로 예약과 정산 분리, <b>lock_user</b>로 같은 사용자의 실행 순서 보호</li>
+      </ul>
+      <div class="box amber" style="margin-top:18px;padding:18px 24px"><p style="font-size:22px;line-height:1.55">한계: 실제 증권사 체결이나 수익률 검증이 아닙니다. 운영 수집 회차와의 연속 동작은 후속 확인 대상입니다.</p></div>
+    </div>
+  </div>
+  <p class="src">수치: docs/시험/리밸런싱-실수집자료-정산검증.md(2026-10-12) · 화면: rebalance-ui-20261016 / isolated-manual-filled-history-and-ledger.png<br>구현: app/services/rebalance_settlement.py reserve / settle · app/services/rebalance.py lock_user</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「실제 수집 가격으로 주식과 ETF 조합을 바꿔 보고, 뉴스 단계가 실패한 경우도 돌렸습니다. 모두 같은 방식으로 현금·수량·비용을 따로 계산해 맞대 봤고, 같은 회차를 다시 실행해도 주문이 더 생기지 않는지 확인했습니다.」 왼쪽은 10월 16일의 별도 합성 화면 시험이며, 오른쪽 10월 12일 실수집 가격 검증의 직접 캡처는 아닙니다. 이번 발표자료 편집에서 시험을 새로 실행한 수치가 아니라 당시 결과서의 수치입니다.</aside>
 </section>
 <section class="slide" data-title="오준영 · 남은 과제와 배운 점">
   <div class="kicker">오준영 · 해결 · 남은 과제 · 배운 점</div>
-  <h1 class="title">3차는 증권사 API 연동 자동화 주담당<span class="temp">임시 제목</span></h1>
-  <div class="todo"><div class="h">채울 칸 · 오준영 · 10-20</div><ul>
-    <li>해결한 문제 · 남은 과제 · 배운 점 — 한 줄씩</li>
-    <li>다음 준비 · 다음 사람(강민석)에게 넘기는 한 줄</li></ul>
-    <div class="due">문서에 적힌 남은 일: 배분 시간 줄이기 · 배분 결과 저장 · 리밸런싱으로 넘기기 · 비중 계산을 함수 하나로 · 증권사 API 설정</div></div>
+  <h1 class="title">계산 결과뿐 아니라, 누구의 상태를 언제 바꾸는지 설계해야 했습니다</h1>
+  <div class="rows">
+    <div class="row"><div class="k">해결한 문제</div><div class="v">배분 저장·복원과 리밸런싱 연결 · 예약 중복 정산 방지 · 다른 계정의 자동매매 기록 노출과 중지 간섭 수정</div></div>
+    <div class="row"><div class="k">남은 과제</div><div class="v">실제 수집 회차와 자동 정산의 연속 검증 · 배당 자동 입금 · 여러 워커에 걸친 실행 제어 · 증권사 주문·체결 대조</div></div>
+    <div class="row"><div class="k">배운 점</div><div class="v">주문 접수와 체결을 구분하고, 사용자 경계와 트랜잭션을 함께 지켜야 합니다. 재시도해도 장부가 같은지까지 확인해야 합니다</div></div>
+    <div class="row"><div class="k">다음 준비</div><div class="v">3차 증권사 API 연동에서 실패·재시도·취소 이력까지 연결</div></div>
+  </div>
+  <p class="src">근거: docs/시험/자동매매-계정분리-검증.md(2026-10-16 · 프로세스 내 사용자 분리) · PR #268(증권사 주문 상태 구분)<br>남은 과제는 구현·운영 검증의 경계. 지향 직무와 다음 준비 문장은 본인 검토용 초안.</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「기능이 한 번 동작하는 것에서 끝내지 않고, 다른 사용자가 동시에 쓰거나 다시 실행해도 기록이 맞는지 보게 됐습니다. 자동매매 계정 분리는 프로세스 안에서 검증한 범위라, 여러 워커에 걸친 분산 제어까지 끝냈다고 말하지는 않겠습니다.」 넘김: 「이렇게 남긴 주문과 장부를 바탕으로, 강민석 님이 비용을 반영한 성과와 모의투자 판단 기록을 설명하겠습니다.」</aside>
 </section>
 
 <!-- ══════════ 3 강민석 ══════════ -->
