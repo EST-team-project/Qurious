@@ -3,7 +3,7 @@
  * 결정(Figma 「투자 대시보드 · 메뉴 정리」 05 결정 기록 ④ ~ ⑧ · 설계 docs/화면/설계안/2026-10-16-사용법모달/설계안.md):
  *   ④ 담는 틀 = 가운데 창 — 차트 · 시각 자료를 넣을 자리 · 상품 상세 창과 같은 꼴(창은 js/howto.js 가 연다)
  *   ⑤ 단추 = 화면 맨 위 윗줄(지금 위치 + 「사용법」) ⑥ 영상이 없으면 칸을 숨긴다
- *   ⑦ 창 크기는 화면마다(sizeOf) ⑧ 끝줄 = 그 화면의 개념 학습 장 + 용어사전 + 개념 학습 목차
+ *   ⑦ 창 크기는 화면마다(sizeOf) ⑧ 끝줄 = 그 화면의 개념 학습 장 + 용어사전 + 학습 홈
  *
  * 이 파일은 아무것도 가져오지 않는다(DOM · 서버 없음) — 시험이 node 로 그대로 불러 돌린다(TC-HT).
  * 사용법 글(VIEW_GUIDES) · 용어(TERMS) · 메뉴 이름은 core.js 가 넘긴다 — 여기에 따로 적지 않는다.
@@ -209,7 +209,7 @@ export function howtoHtml(viewKey, guide, { terms = {}, label = "", video = null
   const foot = [
     learn ? `<a class="q-howto-link" href="#learn/${esc(learn.slug)}" data-howto="leave">개념 학습 「${esc(learn.title)}」 →</a>` : "",
     viewKey !== "fin-glossary" ? `<a class="q-howto-link" href="#fin-glossary" data-howto="leave">용어사전에서 더 찾기 →</a>` : "",
-    `<a class="q-howto-link" href="#learn-home" data-howto="leave">개념 학습 목차 →</a>`,
+    `<a class="q-howto-link" href="#learn-home" data-howto="leave">학습 홈 →</a>`,   // 2026-10-20 학습 한 묶음 — 목차 대신 학습 홈
   ].filter(Boolean).join("");
   return `<header class="q-howto-head"><div class="q-howto-head-txt">
       <p class="q-howto-kicker"><i class="fa-solid fa-circle-question" aria-hidden="true"></i> 사용법</p>

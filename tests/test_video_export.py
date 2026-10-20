@@ -1,9 +1,9 @@
-"""시연 영상 내보내기 시험 (TC-VX) — tools/demo/export_mp4.py · 2026-10-19 사용자 결정 「mp4 + 발표 자료가 재생」 · 같은 날 「mp4 는 git 밖」.
+"""시연 영상 내보내기 시험 (TC-VX) — tools/demo/export_mp4.py · 2026-10-19 사용자 결정 「mp4 + 발표 자료가 재생」 · 같은 날 「mp4 는 git 밖」 → 2026-10-20 「git 에 올림(팀원이 받아 재생)」.
 
 지키는 것
 1. 녹화 뒤 장면 파일이 바뀐 영상은 내보내지 않는다 — 새 녹화는 장면 지문, 지문 없는 옛 녹화는 자막 · 장 제목 맞대기.
 2. 다시 돌리면 0편(원본 · 결과 지문이 목록과 같으면 건너뜀) · 편마다 10 MB 안(넘으면 CRF 를 올리고, 끝까지 넘으면 멈춤).
-3. mp4 · 그림은 git 밖(공식 자료 화면 — 출처 대장의 이용 조건) · 이 PC 에 있으면 목록.json 과 맞고, 발표 자료의 영상 칸은 내보내기 폴더를 가리킨다.
+3. mp4 · 그림은 git 에 둔다(2026-10-20 사용자 결정 — 팀원이 받아 발표 자료에서 재생) · 이 PC 에 있으면 목록.json 과 맞고, 발표 자료의 영상 칸은 내보내기 폴더를 가리킨다.
 """
 from __future__ import annotations
 
@@ -187,16 +187,16 @@ def test_missing_h264_encoder_says_what_to_do(ex, monkeypatch):
     assert "imageio-ffmpeg" in str(e.value) and "QURIOUS_FFMPEG" in str(e.value)
 
 
-def test_local_videos_stay_out_of_git_and_match_the_manifest(ex):
-    """TC-VX-08 · 영상 mp4 · 그림은 git 밖이다(.gitignore — 공식 자료 화면이 찍혀 있어 공개 저장소에 두지 않음 · 2026-10-19 사용자 결정) ·
+def test_local_videos_are_tracked_and_match_the_manifest(ex):
+    """TC-VX-08 · 영상 mp4 · 그림은 git 에 둔다(.gitignore 에 막는 줄이 없다 — 2026-10-20 사용자 결정 「팀원이 받아 발표 자료에서 보게」 · 옛 10-19 결정은 git 밖) ·
     이 PC 에 내보낸 파일이 있으면 목록.json 과 하나씩 맞고(크기 · 지문) 편마다 10 MB 안 · 목록 밖 영상 파일이 없다 — 없는 PC 는 건너뜀."""
     ignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     for pat in ("docs/발표/영상/파일/**/*.mp4", "docs/발표/영상/파일/**/*.jpg"):
-        assert pat in ignore, f".gitignore 에 {pat} 가 없다 — 영상이 공개 저장소로 나간다"
+        assert pat not in ignore, f".gitignore 에 {pat} 가 남아 있다 — 팀원이 받아도 발표 자료 영상이 비어 보인다"
     if not ex.MANIFEST.exists():
         pytest.skip("아직 내보낸 영상이 없다")
     if not any(p.suffix.lower() == ".mp4" for p in ex.DEST.rglob("*")):
-        pytest.skip("이 PC 에는 내보낸 영상이 없다 — 영상은 git 밖(발표 PC · HF 비공개)")
+        pytest.skip("이 PC 에는 내보낸 영상이 없다(내보내기 전 · 받기 전)")
     videos = json.loads(ex.MANIFEST.read_text(encoding="utf-8"))["videos"]
     listed = set()
     for e in videos:
@@ -215,7 +215,7 @@ def test_local_videos_stay_out_of_git_and_match_the_manifest(ex):
 
 def test_deck_videos_point_to_the_export_folder():
     """TC-VX-09 · 발표 자료의 영상 칸(src · poster)은 내보내기 폴더(../영상/파일/발표/)를 가리킨다 — 발표 PC 가 그 파일을 바로 재생한다(YAML 만이 아니라) ·
-    파일은 git 밖이라 이 PC 에 내보낸 영상이 있을 때만 파일이 있는지 본다 · 옛 media/ 폴더는 가리키지 않는다."""
+    내보낸 영상이 있을 때만 파일이 있는지 본다(내보내기 · 받기 전 PC 는 건너뜀) · 옛 media/ 폴더는 가리키지 않는다."""
     deck = ROOT / "docs" / "발표" / "2차" / "발표자료.html"
     html = deck.read_text(encoding="utf-8")
     refs = re.findall(r'<video[^>]*?\s(?:src|poster)="([^"]+)"', html)

@@ -173,7 +173,7 @@ out.glossary = hv.howtoHtml("fin-glossary", {{ summary: "s", steps: ["a"] }}, {{
     assert "q-howto-video" not in h, "영상이 없으면 칸을 숨긴다(결정 ⑥)"
     assert '<a class="q-howto-link" href="#learn/funds-etf" data-howto="leave">개념 학습 「펀드와 ETF」 →</a>' in h, "개념 학습은 앱 안 화면(2026-10-19)"
     assert '<a class="q-howto-link" href="#fin-glossary" data-howto="leave">용어사전에서 더 찾기 →</a>' in h
-    assert '<a class="q-howto-link" href="#learn-home" data-howto="leave">개념 학습 목차 →</a>' in h
+    assert '<a class="q-howto-link" href="#learn-home" data-howto="leave">학습 홈 →</a>' in h
     assert h.index("q-howto-summary") < h.index("이렇게 써요") < h.index("이 화면의 용어") < h.index("q-howto-foot"), "차례"
     hv_ = out["video"]
     assert 'data-howto-video="agent-products"' in hv_ and "영상으로 보기" in hv_ and "0:45 · 한국어 자막" in hv_

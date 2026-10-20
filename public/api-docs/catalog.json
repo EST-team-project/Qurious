@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 267,
+ "count": 271,
  "routers": 40,
  "routes": [
   {
@@ -3764,7 +3764,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 59,
+   "line": 62,
    "errors": [],
    "keys": [],
    "body": [],
@@ -3787,7 +3787,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 74,
+   "line": 77,
    "errors": [],
    "keys": [
     "status",
@@ -3822,7 +3822,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 97,
+   "line": 100,
    "errors": [
     "404"
    ],
@@ -3859,7 +3859,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 105,
+   "line": 108,
    "errors": [],
    "keys": [
     "positions"
@@ -3899,7 +3899,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 111,
+   "line": 114,
    "errors": [],
    "keys": [],
    "body": [
@@ -3938,7 +3938,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 132,
+   "line": 135,
    "errors": [],
    "keys": [],
    "body": [
@@ -3975,7 +3975,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 137,
+   "line": 140,
    "errors": [],
    "keys": [],
    "body": [
@@ -4012,7 +4012,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 142,
+   "line": 145,
    "errors": [],
    "keys": [],
    "body": [
@@ -4049,7 +4049,7 @@
     "P02-③-1"
    ],
    "file": "app/routes/paper.py",
-   "line": 147,
+   "line": 150,
    "errors": [],
    "keys": [],
    "body": [
@@ -4077,7 +4077,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 153,
+   "line": 156,
    "errors": [],
    "keys": [
     "history"
@@ -4107,7 +4107,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 162,
+   "line": 165,
    "errors": [],
    "keys": [],
    "body": [
@@ -4132,7 +4132,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 177,
+   "line": 180,
    "errors": [],
    "keys": [
     "orders"
@@ -4155,7 +4155,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 182,
+   "line": 185,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4188,7 +4188,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 195,
+   "line": 198,
    "errors": [],
    "keys": [
     "fired"
@@ -4215,7 +4215,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 222,
+   "line": 225,
    "errors": [],
    "keys": [
     "markets",
@@ -4243,7 +4243,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 228,
+   "line": 231,
    "errors": [],
    "keys": [
     "rankings"
@@ -4270,7 +4270,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 233,
+   "line": 236,
    "errors": [],
    "keys": [
     "tickers"
@@ -4297,7 +4297,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 238,
+   "line": 241,
    "errors": [
     "400",
     "502"
@@ -4330,7 +4330,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 248,
+   "line": 251,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4356,7 +4356,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 253,
+   "line": 256,
    "errors": [
     "404"
    ],
@@ -4390,7 +4390,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 264,
+   "line": 267,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4414,7 +4414,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 271,
+   "line": 274,
    "errors": [],
    "keys": [],
    "body": [
@@ -4440,7 +4440,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 279,
+   "line": 282,
    "errors": [],
    "keys": [],
    "body": [
@@ -4466,7 +4466,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 291,
+   "line": 294,
    "errors": [],
    "keys": [],
    "body": [
@@ -4491,7 +4491,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 303,
+   "line": 306,
    "errors": [],
    "keys": [
     "history"
@@ -4518,7 +4518,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 317,
+   "line": 320,
    "errors": [],
    "keys": [
     "markets",
@@ -4546,7 +4546,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 323,
+   "line": 326,
    "errors": [
     "404"
    ],
@@ -4577,7 +4577,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 331,
+   "line": 334,
    "errors": [],
    "keys": [
     "positions",
@@ -4603,7 +4603,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 337,
+   "line": 340,
    "errors": [],
    "keys": [
     "history"
@@ -4629,7 +4629,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 342,
+   "line": 345,
    "errors": [],
    "keys": [],
    "body": [
@@ -4655,7 +4655,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 350,
+   "line": 353,
    "errors": [],
    "keys": [],
    "body": [
@@ -4682,7 +4682,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 378,
+   "line": 381,
    "errors": [],
    "keys": [
     "keys"
@@ -4709,7 +4709,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 384,
+   "line": 387,
    "errors": [],
    "keys": [
     "apiKey"
@@ -4738,7 +4738,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 397,
+   "line": 400,
    "errors": [
     "404"
    ],
@@ -4765,7 +4765,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 443,
+   "line": 446,
    "errors": [],
    "keys": [
     "ok",
@@ -4800,7 +4800,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 453,
+   "line": 456,
    "errors": [],
    "keys": [
     "ok",
@@ -4838,7 +4838,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 465,
+   "line": 468,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4866,7 +4866,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 474,
+   "line": 477,
    "errors": [],
    "keys": [
     "status",
@@ -4875,6 +4875,104 @@
     "daily_return",
     "position_count"
    ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-45",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/performance/backtest-100d",
+   "summary": "100일 백테스트를 백그라운드로 시작. task_id 반환.",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "kind.krx.co.kr",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 499,
+   "errors": [],
+   "keys": [
+    "task_id"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-46",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/backtest-100d/status/{task_id}",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 514,
+   "errors": [
+    "404"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-47",
+   "router": "paper",
+   "method": "GET",
+   "path": "/api/paper/performance/backtest-100d/exists",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [
+    "robo-decision"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 522,
+   "errors": [],
+   "keys": [
+    "exists",
+    "count"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-48",
+   "router": "paper",
+   "method": "DELETE",
+   "path": "/api/paper/performance/backtest-100d",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 533,
+   "errors": [],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -4895,7 +4993,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 495,
+   "line": 539,
    "errors": [],
    "keys": [
     "status",
@@ -4923,7 +5021,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 554,
+   "line": 598,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4950,7 +5048,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 562,
+   "line": 606,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4973,7 +5071,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 570,
+   "line": 614,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4996,7 +5094,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 578,
+   "line": 622,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5023,7 +5121,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 587,
+   "line": 631,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5173,7 +5271,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/dashboard.py",
-   "line": 170,
+   "line": 188,
    "errors": [],
    "keys": [
     "tabs",
