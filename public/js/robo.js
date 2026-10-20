@@ -707,14 +707,14 @@ async function loadSimBadge() {
         SIM 백테스트(1억·100일)는 <b>자산추이·QFRS</b>에 반영되어 있습니다 — 
         <a href="#paper-dashboard" class="underline">모의계좌 현황에서 확인</a>.
       </p>`;
-    box.insertBefore(banner, box.firstChild);
+    box.insertBefore(banner, box.firstChild);0
   } catch { /* 무시 */ }
 }
 
 // ── 로보 어드바이저: 모의 투자 의사결정 ─────────────────────────────
 async function loadRoboDecision() {
   loadSimBadge(); 
-  
+
   try {
     const data = await api("/api/quant/auto/status");
     const el = document.getElementById("robo-decision-status");
