@@ -447,7 +447,7 @@ async def stock_order_history(db: AsyncSession, user_id: uuid.UUID, limit: int =
     rows = (await db.execute(
         select(Order).where(
             Order.user_id == user_id,
-            Order.source.in_(("WEB", "PAPER", "PINE")),   # ← QUANT·OPENAPI 제외
+            Order.source.in_(("WEB", "PAPER", "PINE", "SIM")),   # ← QUANT·OPENAPI 제외
         ).order_by(Order.created_at.desc()).limit(limit)
     )).scalars().all()
     out = []

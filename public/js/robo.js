@@ -683,8 +683,38 @@ document.getElementById("pt-chart-reset")?.addEventListener("click", () => {
 document.getElementById("pt-run")?.addEventListener("click", loadPatternAnalysis);
 document.getElementById("pt-symbol")?.addEventListener("keydown", e => { if (e.key === "Enter") loadPatternAnalysis(); });
 
+async function loadSimBadge() {
+  try {
+    const r = await api('/api/paper/performance/backtest-100d/exists');
+    if (!r.exists) return;
+
+    // ★ view 컨테이너는 id 가 아니라 data-view 로 찾아야 함 (core.js navigate 참조)
+    const box = document.querySelector('.view[data-view="robo-decision"]');
+    if (!box) return;
+    if (document.getElementById('sim-backtest-banner')) return;   // 이미 있으면 skip
+
+    const banner = document.createElement('div');
+    banner.id = 'sim-backtest-banner';
+    banner.className = 'card';
+    banner.style.cssText = 'padding:12px;margin-bottom:14px;border-left:3px solid #d97706;';
+    banner.innerHTML = `
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-sm font-semibold">🧪 SIM 백테스트 실행됨</span>
+        <span class="text-xs" style="color:var(--text-mute);">${r.count}건</span>
+      </div>
+      <p class="text-xs" style="color:var(--text-mute);line-height:1.5;">
+        아래 로그는 <b>실시간 QUANT 장부(1천만)</b>의 결과입니다.
+        SIM 백테스트(1억·100일)는 <b>자산추이·QFRS</b>에 반영되어 있습니다 — 
+        <a href="#paper-dashboard" class="underline">모의계좌 현황에서 확인</a>.
+      </p>`;
+    box.insertBefore(banner, box.firstChild);
+  } catch { /* 무시 */ }
+}
+
 // ── 로보 어드바이저: 모의 투자 의사결정 ─────────────────────────────
 async function loadRoboDecision() {
+  loadSimBadge(); 
+  
   try {
     const data = await api("/api/quant/auto/status");
     const el = document.getElementById("robo-decision-status");
