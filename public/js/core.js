@@ -2,6 +2,48 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 
+// ── 한국식 금액 표기 · Y축 라벨 (이슈 #220) ────────────────────
+// 1억 이상은 "억", 1만 이상은 "만", 그 외 원. 9천만 ~ 1.1억 구간은 원 단위로
+// 정확히 보여줘 몇천 원 움직임도 눈금끼리 구분되게 한다.
+export function formatKrw(amount, opts = {}) {
+  const n = Number(amount);
+  if (!isFinite(n)) return "-";
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 1e8) {
+    if (opts.compact) return `${sign}${(abs / 1e8).toFixed(2)}억 원`;
+    const eok = Math.floor(abs / 1e8);
+    const man = Math.floor((abs % 1e8) / 1e4);
+    let s = `${eok.toLocaleString('ko-KR')}억`;
+    if (man > 0) s += ` ${man.toLocaleString('ko-KR')}만`;
+    return `${sign}${s} 원`;
+  }
+  if (abs >= 1e4) {
+    if (opts.compact) return `${sign}${Math.round(abs / 1e4).toLocaleString('ko-KR')}만 원`;  // ★ 추가
+    const man = Math.floor(abs / 1e4);
+    const won = Math.round(abs % 1e4);
+    let s = `${man.toLocaleString('ko-KR')}만`;
+    if (won > 0) s += ` ${won.toLocaleString('ko-KR')}`;
+    return `${sign}${s} 원`;
+  }
+  return `${sign}${Math.round(abs).toLocaleString('ko-KR')}원`;
+}
+
+export function formatYAxisLabel(value) {
+  const n = Number(value);
+  if (!isFinite(n)) return "";
+  const abs = Math.abs(n);
+  // 9,000만 ~ 1억 1,000만 구간은 원 단위로 정확히 (눈금끼리 구분)
+  if (abs >= 9e7 && abs < 1.1e8) return Math.round(n).toLocaleString('ko-KR');
+  if (abs >= 1e8) return (n / 1e8).toFixed(2) + '억';
+  if (abs >= 1e4) return Math.round(n / 1e4).toLocaleString('ko-KR') + '만';
+  return Math.round(n).toLocaleString('ko-KR');
+}
+
+// paper.js · robo.js · dashboard.js 어디서든 window 로 접근 가능 (import 안 건드리게)
+window.formatKrw = formatKrw;
+window.formatYAxisLabel = formatYAxisLabel;
+
 // ── Navigation ────────────────────────────────────────────────────
 const GNB_MENUS = {
   agent: {
