@@ -88,13 +88,6 @@ async function stockQuote() {
          <div class="text-sm" style="color:var(--text-mute);">약 ${won(q.price)}</div>`
       : `<div class="text-xl font-bold mt-1">${fmt(q.price, 0)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
 
-    // ★ 이슈 #256 — 장 닫힘 배너 (KRW 종목 · market_open === false 일 때만)
-    const closedBanner = (!isForeign && q.market_open === false)
-      ? `<div class="text-sm mt-1 font-semibold" style="color:#d97706;">
-           장 닫힘 · ${q.quote_as_of ? q.quote_as_of.slice(5, 10) + " 종가" : "종가"}로 체결됩니다
-         </div>`
-      : "";
-
     $("ps-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
       ${priceHtml}
       ${closedBanner}
