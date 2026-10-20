@@ -655,42 +655,132 @@ body.all #hint, body.all #notes-panel { display: none; }
   <aside class="notes">받는 말 한 줄: 「이동원 님이 쌓은 수정주가 일봉으로, 매일 12:30 회차에서 401종목의 신호를 계산해 남깁니다.」 「제가 맡은 일은 신호를 계산하는 것과, 그 신호가 왜 나왔는지 설명하는 것입니다.」</aside>
 </section>
 
+<section class="slide" data-title="신장환 · 구현 구조">
+  <div class="kicker">신장환 · 구현 구조</div>
+  <h1 class="title">숫자로 재고, 신호로 판단하고, 쉬운 말로 설명합니다</h1>
+  <div class="fig" style="height:620px;margin-top:22px"><img src="그림/10-신호흐름-완성.png" style="max-height:620px;border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.12)" alt="세 단계 그림. 수집 DB(수정주가 일봉 · 60분봉)에서 시작. ① 재다 — 지표 정의 한 벌(RSI · ATR · 볼린저 = TradingView 정의 · Wilder 평활) · TradingView 대조 5일 차 0.00. ② 판단하다 — 차트 패턴 11종(전 종목 3,098개 · 5거래일 뒤 통계 · 그 종목 평균과 0.4%p 안) · 다중 주기 신호(60분 · 일 · 주 점수 합 → 매수 · 매도 · 관망 · 매일 12:30 401종목). ③ 설명하다 — 쉬운 말 · 근거 막대(규칙마다 기여도 · 합 = 종합 점수 · ±1 넘으면 매수 · 매도) · 모델 설명(LightGBM 판단 · SHAP 막대 · 확률의 뜻을 한 줄로). 보이는 곳 — 차트 패턴 · 지지/저항 · 멀티타임프레임 · 종목 스크리닝 「설명」 창 · 성과 검증 규칙 설명"></div>
+  <p class="whyline"><b>왜 한 벌인가</b> 신호를 내는 곳과 그 이유를 말하는 곳이 같은 정의 · 같은 날짜의 숫자를 읽어야, 화면마다 말이 엇갈리지 않습니다.</p>
+  <p class="src">출처: 설계서 ② · ①-5 v0.6 요약 · 3.6 · 5.3.1 · 코드: app/services/ta_utils.py · pattern_stats.py · mtf_signals.py · signal_explain.py · scripts/signals_daily.py · 그림 원본: 그림/10-신호흐름-완성.svg</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「제 일은 위에서 아래로 한 줄입니다. 이동원 님이 쌓은 수정주가로 지표를 한 정의로 계산하고, 거기서 패턴 · 다중 주기 신호 · 모델 설명 · 성과 검증 설명이 갈라져 화면 셋으로 갑니다. 다음 장부터 화면 하나씩 보겠습니다.」</aside>
+</section>
+
 <section class="slide" data-title="신장환 · 패턴 통계">
   <div class="kicker">신장환 · 차트 패턴</div>
-  <h1 class="title">패턴 11종 모두, 5거래일 뒤 수익률이 평소와 0.4%p밖에 다르지 않았습니다</h1>
-  <div class="fig" style="height:560px;margin-top:22px"><img class="dark" src="그림/06-패턴통계-화면.png" style="max-height:560px" alt="패턴 화면의 「패턴 뒤 5거래일 — 과거 통계(2026-08-31까지)」 표. 골든크로스 · 데드크로스 · 52주 신고가 · 해머 · 상승 장악형 · 하락 장악형 · 도지 · 샛별형 · 흑삼병 · 지지선 하향 이탈 · 저항선 상향 돌파 11종마다 이름의 방향(상승 쪽 · 하락 쪽 · 중립)과 전 종목 사건 수 · 5일 평균 · 오른 비율, 그 종목의 같은 칸. 맨 아래 기준선(아무 날) 전 종목 +0.25% · 46%. 머리 글: 전 종목 3,098개에서 11종 모두 아무 날(기준선)과 5일 평균 수익률 차이가 0.4%p 안 — 패턴 이름만으로 5거래일 뒤 방향이 갈린다고 보기 어렵다"></div>
-  <p class="whyline"><b>왜 화면에 함께 두나</b> 평소 = 같은 종목의 모든 날의 5거래일 뒤 평균(+0.25%) · 표 맨 아래 「기준선 — 아무 날」 줄입니다. 패턴 이름만 보면 「오른다 · 내린다」 로 읽기 쉬워서, 3,098종목 · 사건 154만 개로 잰 이 숫자를 패턴 옆에 함께 둡니다.</p>
-  <p class="src">자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 출처: 설계서 ② · ①-5 v0.6 3.5(잰 날 2026-10-07 · 사건 날 2020-04-03 ~ 2026-08-24 · 상장폐지 포함) · 코드: app/services/pattern_stats.py event_study · 비용 없는 가격 통계이지 전략 성과가 아님 · 머리어깨 · 쌍봉 · 삼각형은 아직 없음</p>
+  <h1 class="title">패턴 11종 모두, 5거래일 뒤가 그 종목 평균과 0.4%p 안이었습니다</h1>
+  <div style="display:grid;grid-template-columns:620px 620px;gap:40px;margin-top:22px;align-items:start;justify-content:center">
+    <div>
+      <div role="img" aria-label="패턴 통계 표 앞부분 — 제목 · 머리 · 골든크로스 38,321 · +0.26% · 44% / 데드크로스 37,932 · −0.17% · 46% / 52주 신고가 25,923 · +0.83% · 45% / 해머 154,835 · +0.05% · 44% / 상승 장악형 155,324 · +0.19% · 45% / 하락 장악형 178,612 · +0.19% · 46% (이 종목 칸 포함)" style="width:620px;height:568px;background:url('그림/06-패턴통계-화면.png') 0px -20px / 620px auto no-repeat;border:1px solid var(--line);border-radius:14px;background-color:#fff"></div>
+    </div>
+    <div>
+      <div role="img" aria-label="표 머리 — 패턴 · 이름의 방향 · 전 종목(사건 · 5일 평균 · 오른 비율) · 이 종목(사건 · 5일 평균 · 오른 비율)" style="width:620px;height:97px;background:url('그림/06-패턴통계-화면.png') 0px -80px / 620px auto no-repeat;border:1px solid var(--line);border-radius:14px;background-color:#fff"></div>
+      <div role="img" aria-label="패턴 통계 표 뒷부분과 기준선 — 도지 293,030 · +0.20% · 46% / 샛별형 34,702 · +0.35% · 45% / 흑삼병 30,463 · +0.37% · 48% / 지지선 하향 이탈 307,047 · +0.17% · 46% / 저항선 상향 돌파 290,625 · +0.28% · 45% / 기준선 — 아무 날 +0.25% · 46% · 이 종목 칸 안내" style="width:620px;height:392px;background:url('그림/06-패턴통계-화면.png') 0px -589px / 620px auto no-repeat;border:1px solid var(--line);border-radius:14px;background-color:#fff"></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 36px;margin-top:14px;max-width:1680px">
+    <div style="display:grid;gap:6px;align-content:start">
+    <div style="font-size:17px;line-height:1.45;color:#334155"><b style="color:#0f766e">머리글의 「아무 날(기준선)」 = 그 종목 평균</b> — 「0.4%p 안」 은 사건마다 자기 종목의 모든 날 평균을 빼고 낸 차입니다. 맨 아래 +0.25% 는 전 종목을 합친 평균이라 표 숫자끼리 빼면 다릅니다(52주 신고가 0.83 − 0.25).</div>
+    <div style="font-size:17px;line-height:1.45;color:#334155"><b style="color:#b45309">한계</b> — 비용을 넣지 않은 가격 움직임의 통계이지 전략 성과가 아닙니다. 머리어깨 · 쌍봉 · 삼각형은 아직 없습니다.</div>
+    </div>
+    <div style="display:grid;gap:6px;align-content:start">
+    <div style="font-size:17px;line-height:1.45;color:#334155"><b style="color:#4f46e5">「전 종목」 칸</b> — 3,098종목 · 사건 154만 개. 그 종목 평균과의 차는 데드크로스 −0.36%p · 52주 신고가 +0.36%p 가 가장 크고, 11종 모두 0.4%p 안입니다.</div>
+    <div style="font-size:17px;line-height:1.45;color:#334155"><b style="color:#0f172a">「이름의 방향」</b> — 패턴 이름이 말하는 쪽 — 상승 쪽 · 하락 쪽 · 중립. 실제 결과와 나란히 견줍니다.</div>
+    <div style="font-size:17px;line-height:1.45;color:#334155"><b style="color:#0f172a">「이 종목」 칸</b> — 고른 종목에서 같은 패턴의 결과. 사건이 수십 건뿐이라 흔들려 전 종목 칸과 함께 봅니다.</div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 오후 로컬 앱 · 창 폭 900px(삼성전자 · 통계는 2026-08-31 까지 · 오른쪽 위 표 머리는 같은 사진을 한 번 더) · 자료: 금융위원회 주식시세정보(공공누리 제4유형)<br>출처: 설계서 ② · ①-5 v0.6 3.5 · <표 7-3>(잰 날 2026-10-07 · 3,098종목 · 사건 154만) · 구현: app/services/pattern_stats.py event_study</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">「골든크로스는 오른다, 데드크로스는 내린다 — 이름은 그렇게 말합니다. 3,098종목에서 154만 번을 재 보니 11종 모두 평소(같은 종목의 모든 날 평균)와 0.4%p 안이었습니다.」 재는 법: 패턴이 나온 날 종가 → 5거래일 뒤 종가, 같은 종목의 모든 날 평균과 견줌 · 같은 패턴이 5거래일 안에 또 나오면 한 번만 셈. 한계를 먼저 말한다.</aside>
+  <aside class="notes">「골든크로스는 오른다, 데드크로스는 내린다 — 이름은 그렇게 말합니다. 3,098종목에서 154만 번을 재 보니, 11종 모두 그 종목 평균과 0.4%p 안이었고 오른 비율은 44 ~ 48% 였습니다. 하락 쪽 이름인 흑삼병은 오히려 평균이 더 높습니다.」 재는 법: 패턴이 나온 날 종가 → 5거래일 뒤 종가, 같은 종목의 모든 날과 견줌 · 같은 패턴이 5거래일 안에 또 나오면 한 번만 셈. 질문이 오면: 52주 신고가 +0.83% 는 원래 오르던 종목에서 자주 나와서이고, 그 종목 평균과 견주면 +0.36%p 입니다. 한계를 먼저 말한다.</aside>
 </section>
 
 <section class="slide" data-title="신장환 · 다중 주기 신호">
   <div class="kicker">신장환 · 다중 주기 신호 · 쉬운 말 설명</div>
-  <h1 class="title">세 주기의 규칙 점수를 합쳐 매일 401종목에 신호를 남기고, 그 이유를 막대로 보입니다</h1>
-  <div class="fig" style="height:600px;margin-top:22px"><img class="dark" src="그림/07-다중주기신호-화면.png" style="max-height:600px" alt="패턴 화면의 멀티타임프레임 종합 신호 칸(삼성전자 · 2026-10-15 일봉까지). 머리: 관망 · 규칙 판단 관망 · 종합 점수 -0.3 · 신뢰도 19% · 방향 일치 30%. 자동매매 기본 규칙(매수 · 점수 2)을 나란히 보이고 판단이 다른 까닭을 한 줄로. 쉬운 말 설명: 세 주기를 합친 점수(-0.3)가 매수 · 매도 기준(±1)에 닿지 않아 관망 · 가장 가까운 지지 · 저항과 ATR. 근거 표: 일봉 RSI 30 미만 +1.00, 일봉 5일 평균 ≤ 20일 평균 -0.50 등 규칙마다 기여도 막대"></div>
-  <p class="whyline"><b>왜 막대인가</b> 막대를 모두 더하면 종합 점수가 됩니다. 어느 규칙이 판단을 끌었는지 바로 보이고, 자동매매 기본 규칙이 같은 종목을 다르게 보면 그 까닭도 함께 적습니다.</p>
-  <p class="src">자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 출처: 설계서 ② · ①-5 v0.6 3.6(2026-10-08 · 하루 401종목 18초) · 3.7(2026-10-12 · 기여도 합 = 종합 점수, 401종목 모두) · 코드: app/services/mtf_signals.py combine · signal_explain.py explain · 신뢰도는 확률이 아님 · 캡처 2026-10-20 로컬 앱(이 PC 기록은 08-31 까지라 그 자리에서 계산)</p>
+  <h1 class="title">세 주기 점수로 매일 401종목에 신호를 남기고, 이유를 막대로 보입니다</h1>
+  <div class="cols" style="grid-template-columns:820px 820px;gap:40px;margin-top:16px">
+    <div role="img" aria-label="멀티타임프레임 종합 신호 위쪽 — 005930.KS · 매도 · 규칙 판단 관망 · 종합 점수 -1.1 · 신뢰도 39% · 방향 일치 50% · 자동매매 기본 규칙 칸(매수 · 판단이 다른 까닭 한 줄) · 쉬운 말 설명(주봉 하락 쪽 · 일봉 RSI 27.7 · 가장 가까운 지지 189,200 · 저항 227,500 · ATR 13,063)" style="width:820px;height:560px;background:url('그림/07-다중주기신호-화면.png') 0px 0px / 820px auto no-repeat;border:1px solid var(--line);border-radius:14px;background-color:#fff"></div>
+    <div role="img" aria-label="같은 화면 아래쪽 근거 표 막대 — 일봉 RSI 30 미만 +1.00 · 일봉 5일 평균 ≤ 20일 평균 -0.50 · 일봉 MACD ≤ 신호선 -0.50 · 일봉 종가 &lt; 볼린저 하단 +0.50 · 일봉 종가 ≤ 20일 평균 -0.50 · 주봉 셋 -0.30 · 60분 -0.20 · +0.20 · -0.20" style="width:820px;height:558px;background:url('그림/07-다중주기신호-화면.png') 0px -560px / 820px auto no-repeat;border:1px solid var(--line);border-radius:14px;background-color:#fff"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px">
+    <div class="box teal" style="padding:10px 16px">
+      <h3 style="font-size:19px;margin-bottom:4px">막대를 더하면 종합 점수</h3>
+      <p style="font-size:16px;line-height:1.4">+1.00 −0.5 −0.5 +0.5 −0.5, 주봉 −0.3 세 번, 60분 −0.2 · +0.2 · −0.2 = <b>−1.1</b> → −1 을 넘어 <b>매도</b>.</p>
+    </div>
+    <div class="box" style="padding:10px 16px">
+      <h3 style="font-size:19px;margin-bottom:4px">머리 「종합 점수 · 신뢰도」</h3>
+      <p style="font-size:16px;line-height:1.4">60분 · 일 · 주 점수의 가중 평균이 ±1 을 넘으면 매수 · 매도. 신뢰도 = 방향 일치도 반 + 점수 크기 반 — 확률이 아닙니다.</p>
+    </div>
+    <div class="box accent" style="padding:10px 16px">
+      <h3 style="font-size:19px;margin-bottom:4px">「자동매매 기본 규칙」 칸</h3>
+      <p style="font-size:16px;line-height:1.4">일봉 하나로 보는 자동매매 규칙은 같은 종목을 <b>매수</b>로 봅니다. 판단이 다르면 화면이 까닭을 한 줄로 적습니다.</p>
+    </div>
+    <div class="box" style="padding:10px 16px">
+      <h3 style="font-size:19px;margin-bottom:4px">쉬운 말 설명</h3>
+      <p style="font-size:16px;line-height:1.4">판단 · 엇갈린 근거 · 가장 가까운 지지 · 저항과 하루 평균 변동 폭(ATR)을 한두 문장으로 적습니다.</p>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 오후 로컬 앱 · 창 폭 900px · 한 화면을 둘로 나눠 나란히(삼성전자 · 10-15 일봉까지 · 그 자리에서 계산) · 자료: 금융위원회 주식시세정보(공공누리 제4유형)<br>출처: 설계서 3.6(하루 401종목 18초) · 3.7(기여도 합 = 종합 점수, 401종목 모두) · 구현: app/services/mtf_signals.py combine · signal_explain.py explain</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">「막대를 다 더하면 −0.3 입니다(+1.00 −0.5 −0.5 +0.5 −0.5, 주봉 −0.3 세 번, 60분 +0.2 세 번). 기준 ±1 에 닿지 않아 관망입니다.」 위 점선 칸: 자동매매 기본 규칙은 같은 종목을 매수로 봅니다 — 일봉 하나로 과매도 반등을 보는 규칙이라서이고, 화면이 그 까닭을 함께 적습니다.</aside>
+  <aside class="notes">「막대를 다 더하면 −1.1 입니다(+1.00 −0.5 −0.5 +0.5 −0.5, 주봉 −0.3 세 번, 60분 −0.2 · +0.2 · −0.2). 기준 −1 을 넘어 매도입니다.」 가운데 칸: 자동매매 기본 규칙은 같은 종목을 매수로 봅니다 — 일봉 하나로 과매도 반등을 보는 규칙이라서이고, 화면이 그 까닭을 함께 적습니다. 같은 날 오전에 찍었을 때는 −0.3(관망)이었습니다 — 60분 막대 셋 가운데 둘의 부호가 달라졌습니다(그 시점의 60분봉 자료).</aside>
 </section>
 
 <section class="slide" data-title="신장환 · 모델 설명">
   <div class="kicker">신장환 · 모델 설명(XAI)</div>
-  <h1 class="title">학습 모델의 판단 근거를 막대로 보이고, 규칙과 엇갈릴 수 있다고 먼저 밝힙니다</h1>
-  <div class="fig" style="height:610px;margin-top:22px"><img class="dark" src="그림/08-모델설명-화면.png" style="max-height:610px" alt="스크리닝 「설명」 창(LG · 기준일 2026-10-15). 머리 오른쪽 「5일 수익률 예측(회귀 · GradientBoosting) 2.461%」, 아래 「방향 판단(LightGBM 분류 · 2년 일봉으로 5거래일 뒤 방향을 예측)」 과 규칙 신호와 방법이 달라 판단이 다를 수 있다는 한 줄. 배지 「매수 46.6%」 와 「배지의 % 는 모델의 분류 확률이며 실제 수익이 날 확률은 아닙니다」. SHAP 기여도 막대: 볼린저 밴드폭 +0.14 · MACD +0.10 · 거래량/20일 평균 +0.03 … 종가/MA20 -0.01"></div>
-  <p class="whyline"><b>왜 확률을 뒤에 두나</b> 배지의 % 는 모델의 분류 확률이지 수익이 날 확률이 아닙니다. 그래서 판단을 앞에, 확률을 뒤에 두고 그 뜻을 한 줄로 적습니다.</p>
-  <p class="src">자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 출처: 설계서 ② · ①-5 v0.6 5.4.2 · 코드: public/js/robo.js xaiBadgeText(모델 학습은 팀 공용 코드) · 캡처 2026-10-19 로컬 앱(LG · 기준일 2026-10-15)</p>
+  <h1 class="title">모델 판단의 근거를 막대로 보이고, 규칙과 다를 수 있다고 밝힙니다</h1>
+  <div class="cols" style="grid-template-columns:760px 1fr;gap:36px;margin-top:24px">
+    <div>
+      <img src="그림/08-모델설명-화면.png" alt="스크리닝 「설명」 창(LG 003550.KS · 기준일 2026-10-15). 머리 「5일 수익률 예측(회귀 · GradientBoosting) 2.461%」 · 「방향 판단(LightGBM 분류 · 2년 일봉으로 5거래일 뒤 방향을 예측)」 · 배지 「매수 46.6%」 · 「배지의 % 는 모델의 분류 확률이며 실제 수익이 날 확률은 아닙니다」 · SHAP 막대 볼린저 밴드폭 +0.14 · MACD +0.10 · 거래량/20일 평균 +0.03 …" style="display:block;max-height:690px;max-width:100%;border:1px solid var(--line);border-radius:14px">
+    </div>
+    <div style="display:grid;gap:12px;align-content:start">
+      <div class="box amber" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">규칙 신호와 다를 수 있습니다</h3>
+        <p style="font-size:22px;line-height:1.45">이 판단은 학습 모델의 것이라 규칙 신호와 엇갈릴 수 있고, 화면이 그렇다고 먼저 적습니다.</p>
+      </div>
+      <div class="box" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">머리의 두 모델</h3>
+        <p style="font-size:22px;line-height:1.45">오른쪽 위 「5일 수익률 예측(회귀)」 은 수익률 숫자, 아래 「방향 판단(LightGBM 분류)」 은 오를지 내릴지 — 배지와 막대는 분류 모델의 것입니다.</p>
+      </div>
+      <div class="box accent" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">배지 「매수 46.6%」</h3>
+        <p style="font-size:22px;line-height:1.45">분류 확률이지 수익이 날 확률이 아니라고 바로 아래 한 줄로 밝힙니다. 품질 관문에 걸리면 「관망 · 모델 매수 n%」 꼴입니다.</p>
+      </div>
+      <div class="box" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">SHAP 막대</h3>
+        <p style="font-size:22px;line-height:1.45">지표마다 판단을 밀어 올린(+) · 끌어내린(−) 몫 — 볼린저 밴드폭 +0.14 · MACD +0.10.</p>
+      </div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 오후 로컬 앱 · 창 폭 900px 로 찍음(LG · 기준일 2026-10-15) · 자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형)<br>출처: 설계서 5.4.2 · 구현: public/js/robo.js xaiBadgeText · 모델 학습은 팀 공용 코드</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
   <aside class="notes">「SHAP 막대는 모델이 왜 그렇게 판단했는지를 보여 줄 뿐, 수익을 보장하지 않습니다.」 머리에는 두 모델이 있습니다 — 5일 수익률을 숫자로 예측하는 회귀, 오를지 내릴지를 고르는 분류. 둘의 이름을 나눠 적었습니다.</aside>
 </section>
 
 <section class="slide" data-title="신장환 · 성과 검증 설명">
   <div class="kicker">신장환 · 성과 검증 설명 <span class="who">성과 · 모의투자 부담당</span></div>
-  <h1 class="title">성과 검증 결과에, 왜 샀고 팔았는지와 어떤 자료로 계산했는지를 붙였습니다</h1>
-  <div class="fig" style="height:610px;margin-top:22px"><img class="dark" src="그림/09-성과검증설명-화면.png" style="max-height:610px" alt="성과 검증 화면의 Python 백테스트 상세(삼성전자 · RSI 역추세). 비교 대상 표(RSI 역추세 · 매수 후 보유)와 비용 차감 설명, 「자료: 수집 DB 일봉(수정주가) · 2020-01-02 ~ 2026-10-15 종가」 줄. 아래 「판단 근거 — 규칙 설명」: 2026-10-15 기준 매수 전환 · 매수 모두 충족(충족 · 과매도 RSI(14) < 30 · 관측값 RSI 27.74) · 매도 하나 이상 충족(미충족 · 과매수 RSI(14) > 70) · 「비교에 추가」 단추"></div>
-  <p class="whyline"><b>왜 붙였나</b> 수익률 숫자만으로는 그 전략이 언제 왜 샀는지 알 수 없습니다. 조건마다 충족 여부와 그날 값, 계산한 자료와 기간을 함께 보입니다.</p>
-  <p class="src">자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 출처: 설계서 ② · ①-5 v0.6 5.4.5 · 코드: public/js/indicator.js · 거래가 한 번도 없으면 0.0% 대신 「신호 없음」 · 고를 수 있는 종목은 아직 다섯 · 캡처 2026-10-19 로컬 앱</p>
+  <h1 class="title">성과 검증 결과에 왜 샀고 팔았는지와 쓴 자료를 붙였습니다</h1>
+  <div class="cols" style="grid-template-columns:760px 1fr;gap:36px;margin-top:24px">
+    <div>
+      <img src="그림/09-성과검증설명-화면.png" alt="성과 검증 화면의 Python 백테스트 상세(삼성전자 · RSI 역추세). 비교 표 RSI 역추세 -20.99% · 6회 · 45.5% / 매수 후 보유 333.41% · 비용 차감 설명 · 「자료: 수집 DB 일봉(수정주가) · 2020-01-02 ~ 2026-10-15 종가」 · 판단 근거 — 규칙 설명: 2026-10-15 기준 매수 전환 · 매수 모두 충족(충족 · 과매도 RSI(14) < 30 · 관측값 RSI 27.74) · 매도 하나 이상 충족(미충족 · 과매수 RSI(14) > 70) · 「비교에 추가」 단추" style="display:block;max-height:690px;max-width:100%;border:1px solid var(--line);border-radius:14px">
+    </div>
+    <div style="display:grid;gap:12px;align-content:start">
+      <div class="box teal" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">계산은 그대로, 읽는 법을 더했습니다</h3>
+        <p style="font-size:22px;line-height:1.45">강민석 님 성과 검증 화면에 붙인 설명입니다. 수익률 계산은 바꾸지 않았습니다.</p>
+      </div>
+      <div class="box" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">비교 표 · 「자료」 줄</h3>
+        <p style="font-size:22px;line-height:1.45">같은 기간 매수 후 보유와 나란히, 수수료 10bp · 슬리피지 5bp 를 뺀 뒤 — 어느 자료 · 기간인지 한 줄(2020-01-02 ~ 2026-10-15).</p>
+      </div>
+      <div class="box accent" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">「판단 근거 — 규칙 설명」</h3>
+        <p style="font-size:22px;line-height:1.45">그 전략의 조건마다 충족 ✓ · 미충족 ○ 과 마지막 봉 값(RSI 27.74). 전에는 전략과 다른 모델(SHAP)의 근거가 붙어 있었습니다.</p>
+      </div>
+      <div class="box" style="padding:14px 22px">
+        <h3 style="font-size:25px;margin-bottom:6px">「비교에 추가」 · 신호 없음</h3>
+        <p style="font-size:22px;line-height:1.45">여러 전략을 같은 기간으로 나란히 보는 단추를 고쳤고, 거래가 한 번도 없으면 0.0% 대신 「신호 없음」 을 보입니다.</p>
+      </div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 오후 로컬 앱 · 창 폭 900px 로 찍음(삼성전자 · RSI 역추세) · 자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형)<br>출처: 설계서 5.4.5 · 구현: public/js/indicator.js · 고를 수 있는 종목은 아직 다섯</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
   <aside class="notes">「처음에는 이 자리에 전략과 다른 학습 모델(SHAP)의 근거가 붙어 있었습니다. 그 전략의 매수 · 매도 조건으로 바꿨습니다.」 이 예에서 규칙 전략은 매수 후 보유를 크게 밑돌았고, 화면은 그것을 그대로 보입니다. 강민석 님(성과 · 모의투자 주담당)의 화면에 붙인 설명입니다.</aside>
 </section>
@@ -729,9 +819,9 @@ body.all #hint, body.all #notes-panel { display: none; }
     <video controls preload="metadata" poster="../영상/파일/발표/P-V03-신호로-종목살피기.jpg" src="../영상/파일/발표/P-V03-신호로-종목살피기.mp4"></video>
     <div class="missing">영상 파일을 찾지 못했습니다<br>git pull 로 docs/발표/영상/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
-  <div class="video-side"><b>장면</b>스크리닝<br>「설명」 창<br>캔들 · 지지 · 저항<br>다중 주기 신호<br>근거 막대</div>
+  <div class="video-side"><b>장면</b>스크리닝<br>「설명」 창<br>캔들 · 지지 · 저항<br>다중 주기 신호<br>근거 막대<br>패턴 · 지지/저항 표</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">재생 전 한 줄: 「규칙 신호로 후보를 좁히고, 한 종목의 차트와 근거를 읽어 보겠습니다.」 재생 중에는 말하지 않는다(자막이 말한다). 끝나고 한 줄: 「신호는 판단의 재료이고, 사고팔지는 사용자가 정합니다.」</aside>
+  <aside class="notes">재생 전 한 줄: 「규칙 신호로 후보를 좁히고, 한 종목의 차트와 근거를 읽어 보겠습니다. 패턴 통계는 앞에서 본 표입니다.」 재생 중에는 말하지 않는다(자막이 말한다). 끝나고 한 줄: 「신호는 판단의 재료이고, 사고팔지는 사용자가 정합니다.」 영상은 그날 스크리닝 첫 종목으로 찍혀서 앞 장 사진(삼성전자 · −1.1 매도)과 종목 · 숫자가 다를 수 있다 — 물으면 「같은 화면, 다른 종목 · 다른 시점」.</aside>
 </section>
 
 <section class="slide" data-title="신장환 · 남은 과제와 배운 점">
