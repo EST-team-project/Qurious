@@ -81,9 +81,6 @@ async function stockQuote() {
   try {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
-
-    // ── 이슈 #255 — 해외 종목은 현지 통화와 원화 환산을 분리 표시 ──
-    // q.price 는 원화 환산값. q.price_local 이 있으면 해외 종목.
     const isForeign = q.price_local != null && q.currency && q.currency !== "KRW";
 
     const priceHtml = isForeign
@@ -91,8 +88,16 @@ async function stockQuote() {
          <div class="text-sm" style="color:var(--text-mute);">약 ${won(q.price)}</div>`
       : `<div class="text-xl font-bold mt-1">${fmt(q.price, 0)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
 
+    // ★ 이슈 #256 — 장 닫힘 배너 (KRW 종목 · market_open === false 일 때만)
+    const closedBanner = (!isForeign && q.market_open === false)
+      ? `<div class="text-sm mt-1 font-semibold" style="color:#d97706;">
+           장 닫힘 · ${q.quote_as_of ? q.quote_as_of.slice(5, 10) + " 종가" : "종가"}로 체결됩니다
+         </div>`
+      : "";
+
     $("ps-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
       ${priceHtml}
+      ${closedBanner}
       ${q.fx_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(q.fx_note)}</div>` : ""}
       ${q.quote_label ? `<div class="text-xs" style="color:var(--text-mute);">${escHtml(q.quote_label)} · 체결 직전에 다시 확인합니다</div>` : ""}`;
     $("ps-symbol").value = q.symbol;
@@ -117,6 +122,9 @@ async function stockPreview(side) {
           <div>현금 ${won(p.cashBefore)} → <b>${won(p.cashAfter)}</b></div>
           <div class="col-span-3">보유 ${fmt(p.positionBefore)}주 → <b>${fmt(p.positionAfter)}주</b></div>
         </div>
+        ${p.market_open === false ? `<div class="text-sm mt-2 font-semibold" style="color:#d97706;">
+           장이 닫혀 있습니다 — 마지막 종가(${p.quoteAsOf ? p.quoteAsOf.slice(5,10) : "최근"})로 모의 체결됩니다
+        </div>` : ""}
         <div class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(p.notice)}</div>
       </div>`;
   } catch (e) { setToast(e.message, "error"); }
@@ -126,8 +134,20 @@ async function stockOrder(side) {
   const symbol = $("ps-symbol").value.trim();
   const quantity = parseInt($("ps-qty").value);
   if (!symbol || !quantity) return setToast("종목코드와 수량을 입력하세요.", "error");
-  // 시장가 즉시 체결 — 한 번 확인 (#218)
+
+  // 이슈 #256 — 장 닫힘 안내. resolve_stock 은 60초 캐시라 이미 조회했으면 즉시 반환.
+  // 시세 조회 실패해도 주문은 진행(안내만 생략).
+  let closedLine = "";
+  try {
+    const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
+    if (q.market_open === false) {
+      const when = q.quote_as_of ? `${q.quote_as_of.slice(5, 10)} 종가` : "최근 종가";
+      closedLine = `지금은 장이 닫혀 있습니다 — 마지막 ${when}로 모의 체결합니다.\n\n`;
+    }
+  } catch { /* 무시 */ }
+
   const ok = confirm(
+    closedLine +
     `${side === "BUY" ? "매수" : "매도"} 주문을 냅니다.\n\n` +
     `종목: ${symbol}\n수량: ${quantity}주\n유형: 시장가 (즉시 체결)\n\n` +
     `체결가는 체결 직전에 다시 받은 가격입니다 — 증권사 키를 연결했으면 증권사 조회 값, 아니면 지연 시세(약 20분)입니다.\n미체결·취소는 지원하지 않습니다. 계속할까요?`
@@ -135,7 +155,12 @@ async function stockOrder(side) {
   if (!ok) return;
   try {
     const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side, quantity } });
-    setToast(`${r.name} ${side === "BUY" ? "매수" : "매도"} ${fmt(r.quantity)}주 체결 (@${won(r.price)}${r.quote_label ? ` · ${r.quote_label}` : ""})`, "ok");
+    const closedTag = (r.market_open === false) ? " · 장 닫힘" : "";
+    setToast(
+      `${r.name} ${side === "BUY" ? "매수" : "매도"} ${fmt(r.quantity)}주 체결 ` +
+      `(@${won(r.price)}${r.quote_label ? ` · ${r.quote_label}` : ""}${closedTag})`,
+      "ok"
+    );
     $("ps-preview").innerHTML = "";
     loadPaperStock();
   } catch (e) { setToast(e.message, "error"); }
