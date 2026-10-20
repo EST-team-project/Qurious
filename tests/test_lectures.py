@@ -276,7 +276,8 @@ def test_menu_views_and_topics_agree():
     core = (ROOT / "public" / "js" / "core.js").read_text(encoding="utf-8")
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     fl = (ROOT / "public" / "js" / "finlearn.js").read_text(encoding="utf-8")
-    finance = core[core.index("  finance: {"):core.index("  learn: {")]
+    start = core.index("\n  finance: {")   # 2026-10-20 학습 한 묶음 — 개념 학습 묶음(learn)이 finance 안으로 들어와 끝은 묶음이 닫히는 줄
+    finance = core[start:core.index("\n  },", start)]
     menu_keys = re.findall(r'key: "(fin-[a-z-]+)"', finance)
     topic_keys = re.findall(r'key: "(fin-topic-[a-z]+)"', fl)
     assert "fin-lectures" in menu_keys and len(topic_keys) == 9

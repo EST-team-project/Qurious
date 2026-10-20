@@ -118,7 +118,6 @@ async function stockQuote() {
 
     $("ps-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
       ${priceHtml}
-      ${closedBanner}
       ${q.fx_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(q.fx_note)}</div>` : ""}
       ${q.quote_label ? `<div class="text-xs" style="color:var(--text-mute);">${escHtml(q.quote_label)} · 체결 직전에 다시 확인합니다</div>` : ""}`;
     $("ps-symbol").value = q.symbol;

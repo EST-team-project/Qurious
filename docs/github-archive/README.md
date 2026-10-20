@@ -658,7 +658,8 @@ GH_TOKEN=$T gh pr create --repo EST-team-project/Qurious --base main --head <브
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR feat-learn-merge-help-videos](2026-10-20/PR-feat-learn-merge-help-videos/00-본문.md) | feat: 학습 한 묶음 · 갈래 화면 강의실 꼴 · 특강 1일차 · 사용법 영상 목록 · 「시작하기 전에」 · 개념 학습 72편 | 4,421 | [#291](https://github.com/EST-team-project/Qurious/pull/291) · 10-20 11:52 머지 `77ffb98` · 이동원 |
-| [PR feat-videos-in-git-specs](2026-10-20/PR-feat-videos-in-git-specs/00-본문.md) | feat: 발표 영상을 git 에 올림(팀원 재생) · 새 메뉴로 다시 찍은 30편 · UI 명세서 v0.29 · 테스트 계획서 v1.48 · 결함 DF-137 ~ 139 | 3,246 | (올린 뒤) |
+| [PR feat-videos-in-git-specs](2026-10-20/PR-feat-videos-in-git-specs/00-본문.md) | feat: 발표 영상을 git 에 올림(팀원 재생) · 새 메뉴로 다시 찍은 30편 · UI 명세서 v0.29 · 테스트 계획서 v1.48 · 결함 DF-137 ~ 139 | 3,289 | [#299](https://github.com/EST-team-project/Qurious/pull/299) · 10-20 15:25 머지 `1b40a45` · 이동원 |
+| [PR docs-deck-v11-numbers](2026-10-20/PR-docs-deck-v11-numbers/00-본문.md) | docs: 발표 자료 v1.1 — 강민석 장 대신 채움 · 품질 장 숫자(74차) · 국내 시세 조회 오류 한 줄 고침(DF-141) · V04 다시 찍음 · 시험 둘 고침 | 2,699 | (올린 뒤) |
 | [이슈 피드백-자동매매-거짓정지-시작자산](2026-10-20/이슈-피드백-자동매매-거짓정지-시작자산/00-본문.md) | (#297 · 10-20 올림 · 🟠 · 주담당 강민석 · 오준영 · DF-138 · 코드는 안 고침 — 사용자 10-20) [피드백] 자동매매가 첫 바퀴에 「일손실 한도 초과」 로 멈춘다 — 모의 계좌(1억)와 자동매매 장부(1천만)가 「당일 시작 자산」 열쇠를 함께 쓴다 | 1,934 | [#297](https://github.com/EST-team-project/Qurious/issues/297) |
 | [PR 296-발표자료-신장환장](2026-10-20/PR-296-발표자료-신장환장/00-본문-신장환.md) | (팀원 PR 본문 · 원문 · 제목 · 브랜치 모름 — 본문만 받음) 발표 자료 신장환 장 넷 → 아홉(29 ~ 37장 · 45 → 50장) · 판 올리기는 모인 뒤 한 번 · V03 다시 찍기 | 1,828 | [#296](https://github.com/EST-team-project/Qurious/pull/296) |
 | [PR 298-리밸런싱설정-발표장-오준영](2026-10-20/PR-298-리밸런싱설정-발표장-오준영/00-본문-오준영.md) | (팀원 PR 본문 · 원문 · 제목 · 브랜치 모름 — 본문만 받음) 리밸런싱 설정 구획 나눔(조건 판단 · 공통 주문 제한 · 예약/활성화) · 발표 자료 오준영 장 · V05 장면 파일 둘 | 955 | [#298](https://github.com/EST-team-project/Qurious/pull/298) |

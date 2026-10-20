@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="doc-version" content="1.0">
+<meta name="doc-version" content="1.1">
 <title>Qurious 2차 발표</title>
 <!--
-  2차 발표 자료 v1.0 (2026-10-19) — 개발자 발표 꼴로 다시 씀.
+  2차 발표 자료 v1.1 (2026-10-20) — 팀원 장 넷 채움 · 영상 mp4 를 git 에(팀원도 재생) · 숫자 다시 맞춤 / v1.0 (2026-10-19) — 개발자 발표 꼴로 다시 씀.
   넘기기: ← → · Space · PageUp/Down · Home/End · N 말할 거리 · F 전체 화면 · 주소 끝 ?all = 모든 장 한 쪽(인쇄 · Figma 옮기기).
   그림: 그림/*.mmd(Mermaid 원문)를 tools/deck/render_mermaid.py 로 굳힌 그림/*.svg — 인터넷 없이 보인다.
-  영상: 발표 PC 의 docs/발표/영상/파일/발표/ mp4 를 바로 재생 — 파일은 git 밖(공식 자료 화면이 찍혀 있어 공개 저장소에 두지 않음).
+  영상: docs/발표/영상/파일/발표/ mp4 를 바로 재생 — 파일이 저장소에 있어 팀원도 git pull 한 번 뒤 재생된다(2026-10-20 사용자 결정 · 옛 결정은 git 밖).
   개정 이력: v0.1 2026-10-17 초안 22장 · v0.2 2026-10-19 판 관리 시작 · 영상 재생 · v1.0 2026-10-19 다시 씀 —
     시스템 구성(아키텍처 v2.1) · 매일 회차 · 데이터 층 · 근거 답 구조와 결과 해석 · 문제 해결 셋 · 실시간 확장 설계 · 부록 없음
     (질의응답 대비는 같은 폴더의 별도 문서 질의응답.md).
+    · v1.1 2026-10-20 — 팀원 장 넷(신장환 #296 · 오준영 #298 · 강민석 장은 이동원이 대신 채움) · 영상 mp4 를 git 에 · 영상 칸 안내 · 품질 장 숫자(전체 시험 73차 · 결함 139) · 이동원 장 둘(맡은 화면 · 배운 점).
   숫자 기준일: 장마다 출처 줄 — 발표 전날(10-20) 회차 · 결과서로 다시 맞춘다.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -214,7 +215,7 @@ body.all #hint, body.all #notes-panel { display: none; }
     <span class="chip"><i style="background:#0f766e"></i>오준영 · 배분 · 리밸런싱</span>
     <span class="chip"><i style="background:#0369a1"></i>강민석 · 성과 · 모의투자</span>
   </div>
-  <div class="date" style="bottom:200px">2차 프로젝트 발표 · 2026-10-21 · 자료 v1.0</div>
+  <div class="date" style="bottom:200px">2차 프로젝트 발표 · 2026-10-21 · 자료 v1.1</div>
   <aside class="notes">인사 뒤 한 문장: 「Qurious 는 자기 투자 규칙이 있는 개인투자자가, 그 규칙을 믿어도 되는지 판단하게 돕는 로보 어드바이저입니다.」</aside>
 </section>
 
@@ -414,7 +415,7 @@ body.all #hint, body.all #notes-panel { display: none; }
   <div class="rows">
     <div class="row"><div class="k">쓰는 기술</div><div class="v">Python · FastAPI · SQLite / PostgreSQL · Docker · RAG(낱말 + 의미 검색 · 로컬 LLM) · 시험 자동화</div></div>
     <div class="row"><div class="k">지향 직무</div><div class="v">AI 에이전트 · 에이전트 플랫폼 개발 — 에이전트가 쓰는 자료 · 도구 · 실행 통로를 믿을 수 있게 만드는 일</div></div>
-    <div class="row"><div class="k">2차에 맡은 일</div><div class="v">투자 자료 수집 · 검증 · 백업(매일 12:30) · 근거 문서 질의응답 · 용어사전 · 일정 · 주인이 없던 화면(상품 안내 · 자료 안내 · 개념 학습)</div></div>
+    <div class="row"><div class="k">2차에 맡은 일</div><div class="v">투자 자료 수집 · 검증 · 백업(매일 12:30) · 근거 문서 질의응답 · 용어사전 · 일정 · 주인이 없던 화면(상품 안내 · 자료 안내 · 학습 — 금융 필수 지식 · 개발 개념 · 파이썬 중급 · 특강)</div></div>
     <div class="row"><div class="k">3차에 맡을 일</div><div class="v">TradingView · Pine 지표의 성과 확인 · 실시간 시세 구조</div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -608,7 +609,7 @@ body.all #hint, body.all #notes-panel { display: none; }
   <div class="kicker">이동원 · 영상 V07 근거 상담</div>
   <div class="video-wrap" data-video="V07-근거상담">
     <video controls preload="metadata" poster="../영상/파일/발표/P-V07-근거상담.jpg" src="../영상/파일/발표/P-V07-근거상담.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>영상은 자료 이용 조건 때문에 공개 저장소에 두지 않습니다 — 발표 PC 의 docs/발표/영상/파일/발표/ 에 내보내 두세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>git pull 로 docs/발표/영상/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>질문 셋</b>답이 있는 질문<br>근거가 없는 질문<br>투자 권유 질문</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -619,7 +620,7 @@ body.all #hint, body.all #notes-panel { display: none; }
   <div class="kicker">이동원 · 영상 F01 매일 자료 수집 · 검증</div>
   <div class="video-wrap" data-video="F01-매일-자료-수집-검증">
     <video controls preload="metadata" poster="../영상/파일/발표/P-F01-매일-자료-수집-검증.jpg" src="../영상/파일/발표/P-F01-매일-자료-수집-검증.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>영상은 자료 이용 조건 때문에 공개 저장소에 두지 않습니다 — 발표 PC 의 docs/발표/영상/파일/발표/ 에 내보내 두세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>git pull 로 docs/발표/영상/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>장면</b>데이터 관제<br>회차 기록<br>자료 안내 · 출처</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -632,7 +633,7 @@ body.all #hint, body.all #notes-panel { display: none; }
   <div class="rows">
     <div class="row"><div class="k">해결한 문제</div><div class="v">자료 공개 시각 · 정정 공시 · 분할과 감자를 다루는 수집 구조, 근거 없는 답을 막는 거름, 백업을 실제로 복구해 보는 리허설</div></div>
     <div class="row"><div class="k">남은 과제</div><div class="v">공시 · 뉴스 근거 답 평가 · 사람 판정 두 명의 일치도 · 「현재가」 의 실시간 구조(3차) · 수정주가 단계 시간 줄이기</div></div>
-    <div class="row"><div class="k">배운 점</div><div class="v">시험이 통과해도 실제로 돌려 봐야 하고, 숫자는 재는 법과 한계를 같이 말해야 믿을 수 있습니다</div></div>
+    <div class="row"><div class="k">배운 점</div><div class="v">시험이 통과해도 실제로 돌려 봐야 합니다 — 발표 전날 영상을 다시 찍다가 기능끼리 만나는 자리의 결함 셋을 찾았습니다. 숫자는 재는 법과 한계를 같이 말해야 믿을 수 있습니다</div></div>
     <div class="row"><div class="k">다음 준비</div><div class="v">3차 — TradingView · Pine 지표를 같은 자료로 성과 확인 · 실시간 시세를 사용자 자기 키로</div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -726,7 +727,7 @@ body.all #hint, body.all #notes-panel { display: none; }
   <div class="kicker">신장환 · 영상 V03 신호로 종목 살피기</div>
   <div class="video-wrap" data-video="V03-신호로-종목살피기">
     <video controls preload="metadata" poster="../영상/파일/발표/P-V03-신호로-종목살피기.jpg" src="../영상/파일/발표/P-V03-신호로-종목살피기.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>영상은 자료 이용 조건 때문에 공개 저장소에 두지 않습니다 — 발표 PC 의 docs/발표/영상/파일/발표/ 에 내보내 두세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>git pull 로 docs/발표/영상/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>장면</b>스크리닝<br>「설명」 창<br>캔들 · 지지 · 저항<br>다중 주기 신호<br>근거 막대</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -879,7 +880,7 @@ body.all #hint, body.all #notes-panel { display: none; }
   <div class="kicker">오준영 · 영상 V01 성향 진단 · 자산 배분</div>
   <div class="video-wrap" data-video="V01-성향진단-자산배분">
     <video controls preload="metadata" poster="../영상/파일/발표/P-V01-성향진단-자산배분.jpg" src="../영상/파일/발표/P-V01-성향진단-자산배분.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>영상은 자료 이용 조건 때문에 공개 저장소에 두지 않습니다 — 발표 PC 의 docs/발표/영상/파일/발표/ 에 내보내 두세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>git pull 로 docs/발표/영상/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>장면</b>성향 진단 → 자산 배분 · 이어서 V05 리밸런싱</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -926,56 +927,154 @@ body.all #hint, body.all #notes-panel { display: none; }
 <!-- ══════════ 3 강민석 ══════════ -->
 <section class="slide" data-title="강민석 · 나">
   <div class="kicker">강민석 <span class="who">성과 · 모의투자</span></div>
-  <h1 class="title">비용을 뺀 성과와 모의투자 판단 기록<span class="temp">임시 제목</span></h1>
-  <div class="todo"><div class="h">채울 칸 · 강민석 · 10-20</div><ul>
-    <li>이름 · 관심 분야 · 보유 기술과 강점 한 줄 / 지향 직무 한 줄</li>
-    <li>내 칸을 한 문장으로(이 장 제목이 됩니다) / 앞 사람(오준영)에게서 받는 것 한 줄</li></ul>
-    <div class="due">문서로 확인된 것: 2차 퀀트 모델 결과 해석 · 모의 투자 의사결정 주담당 · 패턴 인식 부담당 / 3차 QuantConnect LEAN 성과 검증 주담당</div></div>
+  <h1 class="title">비용을 뺀 성과를 재고, 모의투자 판단마다 근거를 남깁니다</h1>
+  <div class="rows">
+    <div class="row"><div class="k">쓰는 기술</div><div class="v">Python · FastAPI · PostgreSQL(SQLAlchemy · Alembic) · Celery · NumPy · JavaScript(ApexCharts) · pytest</div></div>
+    <div class="row"><div class="k">2차에 맡은 일</div><div class="v">퀀트 모델 결과 해석 · 모의 투자 의사결정 — 주담당(비용 반영 성과 · 신호를 의견으로 · 모의 주문) / 패턴 인식 — 부담당</div></div>
+    <div class="row"><div class="k">2차에 만든 것</div><div class="v">QFRS 성과 지표 · 코스콤 테스트베드 기준 화면 · 의견 변환 규칙 · 모의 스탑 주문 · 주문 미리보기 비용 · 백테스트 보고서 결과</div></div>
+    <div class="row"><div class="k">3차에 맡을 일</div><div class="v">QuantConnect LEAN 성과 검증 — 주담당 / 인디케이터 · TradingView · 증권사 연동 — 부담당</div></div>
+  </div>
+  <p class="src">출처: 프로젝트 계획서 v2.0 역할 표(2026-10-01 확정) · main 의 강민석 커밋 62개(2026-10-01 ~ 10-20 · git log --author=rkdalstjr --no-merges) · 기술은 그 커밋이 실제로 고친 파일 기준</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">받는 말 한 줄: 「오준영 님이 남긴 주문과 장부를 받아, 저는 그 결과를 비용까지 빼고 재고 판단 기록으로 남기는 일을 맡았습니다.」 관심 분야 · 지향 직무 · 강점은 강민석 님 확인 뒤 채움(근거 문서가 없어 줄을 뺐다 — 확인되면 「쓰는 기술」 아래에 한 줄씩).</aside>
 </section>
+
+<section class="slide" data-title="강민석 · 맡은 일과 성과 기준">
+  <div class="kicker">강민석 · 성과를 재는 기준</div>
+  <h1 class="title">성과를 두 기준으로 재고, 실제 거래 비용을 뺀 숫자로 판단합니다</h1>
+  <div class="cols three" style="margin-top:40px;gap:28px">
+    <div class="box accent"><h3>QFRS 성과 지표</h3><ul class="pts small">
+      <li>최대 낙폭(MDD) · 평균 낙폭</li>
+      <li>샤프 · 소르티노 · 스털링 · 칼마</li>
+      <li>디플레이티드 샤프(DSR) — 이 샤프가 <b>우연이 아닐 확률</b>(0 ~ 1) · 시도 50회 기준, 0.95 이상이면 통계적으로 유의</li>
+      <li>무위험 수익률 2.0% 기준</li></ul></div>
+    <div class="box teal"><h3>코스콤 테스트베드 기준</h3><ul class="pts small">
+      <li><b>KOSPI 대비</b> 초과 성과 — 같은 날짜끼리 짝지어 견줌</li>
+      <li>표준편차 · 베타 · 샤프 · 젠센 알파 · 추적오차 · 정보비율 — 1 · 3 · 6개월 · 1년, 연환산</li>
+      <li>매매회전율 = (매수 + 매도) ÷ 2 ÷ 평균 자산</li></ul></div>
+    <div class="box amber"><h3>실제 거래 비용</h3><ul class="pts small">
+      <li>수수료 · 유관기관 비용 · 증권거래세 · 농특세 + 슬리피지 10bp</li>
+      <li>삼성전자 1년: 매수 <b>0.118%</b> · 매도 <b>0.318%</b></li>
+      <li>일괄 10bp 로 셀 때보다 비용이 <b>약 2.1배</b></li></ul></div>
+  </div>
+  <div class="nums" style="margin-top:34px;gap:28px">
+    <div class="num teal" style="padding:24px 32px 26px"><div class="v" style="font-size:68px">+94.25<small>%</small></div><div class="l" style="font-size:22px;margin-top:12px">매수 후 보유 — 삼성전자 1년</div></div>
+    <div class="num amber" style="padding:24px 32px 26px"><div class="v" style="font-size:68px">+53.24<small>%</small></div><div class="l" style="font-size:22px;margin-top:12px">기준 전략 넷 중 최고(복합) · 실제 비용을 뺀 뒤 — 넷 모두 매수 후 보유보다 낮음</div></div>
+    <div class="num accent" style="padding:24px 32px 26px"><div class="v" style="font-size:68px">2.1<small>배</small></div><div class="l" style="font-size:22px;margin-top:12px">실제 비용 ÷ 일괄 10bp 로 센 비용(같은 전략 · 같은 기간)</div></div>
+  </div>
+  <p class="src">출처: 백테스트 보고서 v0.2 E1 · E2(2026-10-07 로컬 앱 실측 · 삼성전자 1년 · 결과 채움 강민석) · 상승장 1년이라 매수 후 보유에 유리한 구간 · 단일 종목 · RSI 전략은 1년간 신호 0건<br>코드: app/services/evaluation_risk.py calculate_all_metrics · performance_service.py get_risk_metrics · get_turnover · trading_cost.py order_costs · QFRS = Khushi(2026) 참조 · 순수 계산 시험 15건(TC-QFRS)</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「성과는 두 기준으로 잽니다. 하나는 낙폭과 위험 대비 수익을 보는 QFRS 지표, 다른 하나는 KOSPI 와 견주는 코스콤 테스트베드 기준입니다. 둘 다 거래 비용을 뺀 뒤의 숫자입니다.」 비용을 일괄 10bp 로 세면 매도할 때 내는 세금이 빠져, 실제 비용의 절반 정도로 작게 잡힙니다. 마지막 줄은 결론이 아니라 한 종목 · 한 해의 측정입니다 — 「기준 전략이 실제 비용을 빼고도 매수 후 보유를 이기는가」 에 이 구간에서는 「아니다」 가 나왔다는 것까지만 말한다.</aside>
+</section>
+
+<section class="slide" data-title="강민석 · 주문 미리보기">
+  <div class="kicker">강민석 · 모의 주문</div>
+  <h1 class="title">주문하기 전에 수수료 · 세금과 장 상태를 먼저 보여 줍니다</h1>
+  <div class="fig" style="height:400px;margin-top:24px"><img class="dark" src="그림/10-강민석-주문미리보기.png" style="max-height:400px" alt="국내주식 모의주문의 매수 미리보기 칸(삼성전자 10주). 예상 단가 211,000원 · 예상 금액 2,110,000원 · 수수료·세금 373원 · 순정산액 2,110,373원 · 보유 11주 → 21주 · 「체결 가능」. 주황 글 「장이 닫혀 있습니다 — 마지막 종가(10-20)로 모의 체결됩니다」 와 「주문 미리보기는 체결·잔고를 변경하지 않으며…」 안내. 현금 줄은 가림"></div>
+  <div class="cols three" style="margin-top:26px;gap:26px">
+    <div class="box accent" style="padding:22px 28px"><h3 style="font-size:27px">미리보기 = 체결</h3><p style="font-size:23px;line-height:1.55">예전 미리보기는 가격 × 수량만 보여 체결과 달랐습니다(271,500원 ↔ 271,548원). 이제 체결과 <b>같은 비용 계산</b>으로 수수료 · 세금 · 순정산액을 보입니다.</p></div>
+    <div class="box amber" style="padding:22px 28px"><h3 style="font-size:27px">장이 닫힌 시간</h3><p style="font-size:23px;line-height:1.55">마지막 종가로 모의 체결된다고 <b>먼저</b> 알립니다. 주문은 막지 않아 주말에도 연습할 수 있습니다.</p></div>
+    <div class="box teal" style="padding:22px 28px"><h3 style="font-size:27px">스탑(감시) 주문</h3><p style="font-size:23px;line-height:1.55">1분마다 가격을 보고, 정한 가격에 닿으면 시장가로 주문합니다. 체결 보장이 아니며 가격이 건너뛰면 더 나쁜 값에 체결될 수 있다고 적습니다.</p></div>
+  </div>
+  <p class="src">화면: 2026-10-20 15:37 로컬 앱 · 시연 계정 · 삼성전자 10주 매수 미리보기(장부를 바꾸지 않음) · 현금 줄은 가림 · 비용 차이 271,500 ↔ 271,548 은 2026-10-04 점검에서 잰 값(DF-21)<br>코드: app/services/paper_trading.py stock_preview · place_stop_order · trading_cost.py order_costs · app/celery_app.py 스탑 발동 60초 · 시험 TC-STOP</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「미리보기에서 본 금액과 실제 체결 금액이 달랐던 것을, 체결과 같은 비용 함수를 쓰게 해 맞췄습니다. 삼성전자 10주를 사면 수수료 373원이 붙어 순정산액이 2,110,373원입니다. 사는 쪽이라 세금은 없고, 팔 때 증권거래세가 붙습니다.」 장이 닫힌 시간이면 마지막 종가로 체결된다고 먼저 알리고, 주문 자체는 막지 않습니다. 스탑 주문은 체결을 보장하지 않습니다.</aside>
+</section>
+
+<section class="slide" data-title="강민석 · 판단 근거">
+  <div class="kicker">강민석 · 모의 투자 의사결정</div>
+  <h1 class="title">판단마다 이름과 근거를 나눠, 왜 다른지 보이게 했습니다</h1>
+  <div class="cols" style="grid-template-columns:860px 1fr;gap:44px;margin-top:30px">
+    <div><img src="그림/10-강민석-판단근거.png" alt="모의 투자 의사결정 화면의 「최근 규칙 판단 근거」 카드 하나(SK하이닉스). 오른쪽 위 배지 「자동매매 매수」 · 기본 일봉 규칙 RSI·이동평균·볼린저 · 기본 지표 점수 1.0 · 판단 회차 2026-10-20 15:26:49 · 기준 봉 2026-10-19. 아래 「다중 주기 신호(2026-10-19 기록): 매도 · 다중 주기 점수 -1.6」 과 이유 한 줄, 빨간 배지 「규칙 판단: 매도 · 보유 중」, 「자동매매와 다중 주기 신호는 판단 방식·기준 시각이 달라 결과가 다를 수 있습니다」" style="display:block;width:860px;height:auto;border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.22)"></div>
+    <div style="display:grid;gap:18px;align-content:start">
+      <div class="box" style="padding:20px 26px"><h3 style="font-size:27px;margin-bottom:8px">① 자동매매 판단 — 매수</h3><p style="font-size:23px;line-height:1.5">기본 일봉 규칙(RSI · 이동평균 · 볼린저) 점수입니다. 판단 회차 시각과 기준 봉을 함께 적습니다.</p></div>
+      <div class="box teal" style="padding:20px 26px"><h3 style="font-size:27px;margin-bottom:8px">② 다중 주기 신호 — 매도</h3><p style="font-size:23px;line-height:1.5">세 주기의 규칙 점수를 합친 신호와, 그렇게 나온 이유 한 줄입니다.</p></div>
+      <div class="box accent" style="padding:20px 26px"><h3 style="font-size:27px;margin-bottom:8px">③ 규칙 판단 — 매도 · 보유 중</h3><p style="font-size:23px;line-height:1.5">신호 · 신뢰도 · 보유 여부를 의견으로 바꾸는 표입니다.<br><b>매수</b> 미보유 + 매수 신호 + 신뢰도 0.6 이상<br><b>매도</b> 보유 + 매도 신호 + 신뢰도 0.6 이상, 또는 손실 한도<br><b>그 밖</b> 보유 · 관망</p></div>
+    </div>
+  </div>
+  <p class="src">화면: 2026-10-20 15:37 로컬 앱 · 시연 계정의 자동매매 판단 회차(10-20 15:26 · 기준 봉 10-19) · 다중 주기 신호 계산은 신장환 님 몫<br>코드: app/services/opinion.py decide(신뢰도 문턱 0.6 — 설계서 값이 정해지면 바꾸는 자리값) · public/js/robo.js 의사결정 카드 · 시험 test_opinion.py 8건 · 이름 분리 2026-10-16</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「같은 SK하이닉스에 자동매매는 매수, 다중 주기 신호는 매도가 나왔습니다. 처음에는 둘이 한 이름처럼 보여 어느 쪽이 틀렸는지 묻게 됐습니다. 판단마다 이름을 붙이고, 판단 방식과 기준 시각이 다르다고 한 줄 적었습니다.」 규칙 판단은 신호를 그대로 옮기지 않고 보유 여부를 함께 봅니다 — 가진 종목에 매도 신호가 오면 매도, 없는 종목에 매도 신호가 오면 관망. 신뢰도 문턱 0.6 은 아직 자리값이다.</aside>
+</section>
+
+<section class="slide" data-title="강민석 · 문제 해결 ①">
+  <div class="kicker">강민석 · 문제 해결 ①</div>
+  <h1 class="title">계좌 수익률을 다른 날의 KOSPI 와 견주고 있었습니다</h1>
+  <div class="flow4">
+    <div class="st p"><div class="k">문제</div><div class="v">베타 · 추적오차 · 정보비율이 계좌와 <b>다른 날의 KOSPI</b> 수익률로 계산됨</div></div>
+    <div class="st c"><div class="k">원인</div><div class="v">두 수익률 배열을 <b>끝에서부터 순서로</b> 짝지음 — 기록이 띄엄띄엄하면 계좌 [목 금 토 일 월] × KOSPI [화 수 목 금 월]</div></div>
+    <div class="st s"><div class="k">해결</div><div class="v">날짜를 함께 받아 <b>같은 날짜끼리만</b> 짝지음 · 공통 거래일이 5일 미만이면 계산하지 않음 · 기록은 거래일에만</div></div>
+    <div class="st r"><div class="k">결과</div><div class="v">고친 뒤 다시 재니 베타 <b>0.61 → 0.249</b> · 추적오차 0.163 → 0.238 · 정보비율 −0.18 → −1.43</div></div>
+  </div>
+  <div class="cols" style="margin-top:30px;gap:32px">
+    <div class="box rose" style="padding:22px 30px"><h3 style="font-size:26px">고치기 전 — 끝에서부터 순서로 짝지음</h3><div style="display:grid;grid-template-columns:100px repeat(5,74px);gap:10px 12px;align-items:center;font-size:24px;margin-top:6px"><span style="font-weight:700;color:var(--muted)">계좌</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">목</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">금</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">토</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">일</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">월</span><span style="font-weight:700;color:var(--muted)">KOSPI</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">화</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">수</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">목</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #fda4af;background:#fff">금</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">월</span></div><p style="font-size:21px;color:var(--muted);margin-top:12px">다섯 쌍 중 같은 날은 월요일 한 쌍뿐</p></div>
+    <div class="box teal" style="padding:22px 30px"><h3 style="font-size:26px">고친 뒤 — 같은 날짜끼리만</h3><div style="display:grid;grid-template-columns:100px repeat(5,74px);gap:10px 12px;align-items:center;font-size:24px;margin-top:6px"><span style="font-weight:700;color:var(--muted)">계좌</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">목</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">금</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:1px dashed #cbd5e1;background:transparent;color:var(--faint)">토</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:1px dashed #cbd5e1;background:transparent;color:var(--faint)">일</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">월</span><span style="font-weight:700;color:var(--muted)">KOSPI</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">목</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">금</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:1px dashed #cbd5e1;background:transparent;color:var(--faint)">—</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:1px dashed #cbd5e1;background:transparent;color:var(--faint)">—</span><span style="display:block;text-align:center;padding:6px 0;border-radius:10px;border:2px solid #6ee7b7;background:#fff">월</span></div><p style="font-size:21px;color:var(--muted);margin-top:12px">KOSPI 가 없는 주말은 빼고 같은 날 세 쌍만 짝지음</p></div>
+  </div>
+  <p class="lead" style="font-size:26px;color:#475569">두 시계열은 순서가 아니라 날짜로 맞춰야 같은 날을 견줍니다.</p>
+  <p class="src">출처: 커밋 811ba6f · b3c70f1(2026-10-07 · 이슈 #88 지적 9 · 10 · 11) · 결과 숫자는 그 커밋의 검증 기록(이번에 다시 재지 않음) · 코드: app/services/performance_service.py get_risk_metrics(날짜 교집합 · 응답에 공통 거래일 수)</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「계좌 기록은 주말에도 남고 KOSPI 는 거래일에만 있습니다. 둘을 끝에서부터 순서대로 짝지으니 계좌의 토요일이 KOSPI 의 수요일과 비교되고 있었습니다.」 날짜로 맞춘 뒤 베타가 0.61 에서 0.249 로 바뀌었습니다 — 고치기 전 숫자는 다른 날끼리 견준 값이었습니다. 지금도 짧은 기록에서는 계산하지 않습니다.</aside>
+</section>
+
+<section class="slide" data-title="강민석 · 문제 해결 ②">
+  <div class="kicker">강민석 · 문제 해결 ②</div>
+  <h1 class="title">거래가 거의 없는 계좌에 샤프 −442 가 떴습니다</h1>
+  <div class="flow4">
+    <div class="st p"><div class="k">문제</div><div class="v">누적 수익률 −0.00% · MDD 0.00% 인데 <b>샤프 −442</b> · 스털링 −1,438 — 「크게 잃었다」 로 읽힘</div></div>
+    <div class="st c"><div class="k">원인</div><div class="v">기록 12개 · 거래가 거의 없어 <b>변동성이 0 에 가까움</b> → 비율의 분모가 0 에 가까워 값이 커짐</div></div>
+    <div class="st s"><div class="k">해결</div><div class="v">기록 <b>20개 미만</b> 또는 일변동성 <b>0.5% 미만</b>이면 지표 대신 까닭 한 줄 · 샤프가 ±10, 스털링 · 칼마가 ±20 을 넘으면 보이지 않음</div></div>
+    <div class="st r"><div class="k">결과</div><div class="v">모의계좌 현황 · 의사결정 두 화면이 숫자 대신 <b>까닭 한 줄</b>을 보임 · 자산 추이 그래프는 그대로 그림</div></div>
+  </div>
+  <div class="cols" style="margin-top:30px;gap:32px">
+    <div class="box rose" style="padding:22px 30px"><h3 style="font-size:26px">고치기 전 — 계산값을 그대로</h3><p style="font-size:25px;line-height:1.6;font-weight:700;color:var(--rose)">샤프 −442.121 · 소르티노 −15.865<br>스털링 −1,438.458 · 칼마 −1,438.458</p><p style="font-size:21px;color:var(--muted);margin-top:8px">누적 수익률 −0.00% · MDD 0.00% · 스냅샷 12개(2026-10-16)</p></div>
+    <div class="box teal" style="padding:22px 30px"><h3 style="font-size:26px">고친 뒤 — 까닭 한 줄</h3><p style="font-size:25px;line-height:1.6;color:var(--teal);font-weight:700">아직 판단할 만큼 기록이 없습니다(스냅샷 2개 · 일변동성 0.04%) — 모의 주문을 더 해 보세요.</p><p style="font-size:21px;color:var(--muted);margin-top:8px">시연 계정 모의계좌 현황(2026-10-20 15:35)</p></div>
+  </div>
+  <p class="lead" style="font-size:26px;color:#475569">숫자를 보일 수 없는 때를 먼저 정해 두어야, 화면이 실제보다 더 말하지 않습니다.</p>
+  <p class="src">출처: 이슈 #220 본문(2026-10-16 · 스냅샷 12개 기준) · 커밋 87562af · b20b032(2026-10-16) · 결과 글은 2026-10-20 15:35 로컬 앱 시연 계정의 모의계좌 현황 · 코드: app/services/performance_service.py get_robo_metrics · public/js/paper.js · robo.js</p>
+  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「샤프는 수익을 변동성으로 나눈 값이라, 거래가 거의 없어 변동성이 0 에 가까우면 아주 작은 손실도 −442 처럼 커집니다. 계산은 맞지만 뜻이 없는 숫자입니다.」 그래서 기록이 20개가 되기 전이나 하루 변동이 0.5% 도 안 되면 숫자 대신 까닭을 보입니다. 숫자 꼴(원 단위 축 · 도넛 가운데 글)도 같은 묶음에서 고쳤습니다.</aside>
+</section>
+
 <section class="slide" data-title="강민석 · 영상 V04">
   <div class="kicker">강민석 · 영상 V04 모의 주문 · 이어서 V06 계좌</div>
   <div class="video-wrap" data-video="V04-모의주문-국내미국">
     <video controls preload="metadata" poster="../영상/파일/발표/P-V04-모의주문-국내미국.jpg" src="../영상/파일/발표/P-V04-모의주문-국내미국.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>영상은 자료 이용 조건 때문에 공개 저장소에 두지 않습니다 — 발표 PC 의 docs/발표/영상/파일/발표/ 에 내보내 두세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>git pull 로 docs/발표/영상/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
-  <div class="video-side"><b>장면</b>모의 주문(국내 · 미국 예약) · 이어서 V06 계좌 · 의사결정</div>
+  <div class="video-side"><b>장면</b>모의 주문(국내) · 이어서 V06 계좌 · 의사결정</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">재생 전 한 줄: 「가상 돈 1억 원으로 국내 주식을 주문해 보겠습니다. 주문 전에 비용을 먼저 봅니다.」 재생 중에는 말하지 않는다(자막이 말한다). 끝나고 한 줄: 「주문은 모의 계좌에 기록되고, 성과는 비용을 뺀 값으로 봅니다.」 미국 예약 주문 장면은 이번 영상에 없다(오늘 미국 주문이 막혀 국내만 찍음).</aside>
 </section>
-<section class="slide" data-title="강민석 · 맡은 일과 결과">
-  <div class="kicker">강민석 · 맡은 일과 결과</div>
-  <h1 class="title">QFRS · 코스콤 테스트베드, 두 기준으로 보는 성과<span class="temp">임시 제목</span></h1>
-  <div class="todo"><div class="h">채울 칸 · 강민석 · 10-20</div><ul>
-    <li>직접 구현한 기능 하나 · 직접 쓴 코드 한 군데 · 화면 캡처 하나</li>
-    <li>숫자 셋 이하(출처 · 잰 날짜) · 한계 한 줄</li></ul>
-    <div class="due">고를 수 있는 재료: 손익비 · 기대값 · 모의 스탑 주문 · 주문 미리보기 비용 · 백테스트 보고서 v0.2(삼성전자 1년 · 실제 비용 + 슬리피지 10bp 에서 기준 전략 넷 모두 매수 후 보유를 못 이김)</div></div>
-  <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-</section>
+
 <section class="slide" data-title="강민석 · 남은 과제와 배운 점">
   <div class="kicker">강민석 · 해결 · 남은 과제 · 배운 점</div>
-  <h1 class="title">3차에는 QuantConnect LEAN 으로 성과 검증<span class="temp">임시 제목</span></h1>
-  <div class="todo"><div class="h">채울 칸 · 강민석 · 10-20</div><ul>
-    <li>해결한 문제 · 남은 과제 · 배운 점 — 한 줄씩</li>
-    <li>다음 준비 · 마무리로 넘기는 한 줄</li></ul>
-    <div class="due">문서에 적힌 남은 일: 모의투자 검증 · 의사결정 일지 · 의사결정 화면 자동 시험 · 성과 API 시험</div></div>
+  <h1 class="title">성과 숫자를 보이기 전에, 보이면 안 되는 때부터 정했습니다</h1>
+  <div class="rows">
+    <div class="row"><div class="k">해결한 문제</div><div class="v">KOSPI 와 날짜로 짝짓기 · 기록이 적을 때 뜻 없는 지표 막기 · 계좌 초기화 날의 가짜 수익률 · 미리보기와 체결의 비용 차이</div></div>
+    <div class="row"><div class="k">다음 고칠 것</div><div class="v">미국 주식 모의 매수 · 예약 매수가 막힌 것 · 자동매매가 모의 계좌와 같은 손실 기준을 써 첫 판단에 멈추는 것 · 100일 백테스트 확인 오류 · 해외 주식 비용</div></div>
+    <div class="row"><div class="k">배운 점</div><div class="v">성과 지표는 계산식보다, 기록이 모자랄 때 보이지 않게 하는 기준과 날짜를 맞추는 일이 먼저였습니다</div></div>
+    <div class="row"><div class="k">다음 준비</div><div class="v">3차에 QuantConnect LEAN 으로 같은 전략을 다시 검증하고, 백테스트 보고서의 남은 실험을 채웁니다</div></div>
+  </div>
+  <p class="src">근거: 결함대장(2026-10-20 · DF-137 미국 주문 400 · DF-138 자동매매 거짓 정지 · DF-139 확인 라우트 500) · 이슈 #255 후속 A(해외 비용 모델) · 커밋 a4f2b64(2026-10-12 · 초기화 회차) · 4626b29(10-16)<br>배운 점 · 다음 준비 문장은 본인 확인 전 초안 · 백테스트 보고서 v0.2 남은 실험은 3차(E4 ~ E6)</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
+  <aside class="notes">「성과 숫자는 한 번 계산하는 것보다, 언제 그 숫자를 믿으면 안 되는지를 먼저 정하는 일이 더 컸습니다.」 다음 고칠 것 넷은 오늘 찾은 것까지 그대로 적었습니다 — 미국 주문은 해외 매도를 막으려던 방어 코드가 매수까지 막은 것이고, 자동매매 멈춤은 두 장부가 같은 하루 시작 자산을 쓴 것입니다. 넘김: 「이어서 품질 · 한계와 3차 계획입니다.」 배운 점 · 다음 준비 문장은 강민석 님 확인 전 초안.</aside>
 </section>
 
 <!-- ══════════ 4 품질 · 한계 · 3차 ══════════ -->
 <section class="slide" data-title="4 · 품질">
   <div class="kicker">4 · 품질 · 한계 · 3차 계획</div>
-  <h1 class="title">자동 시험 2,208건이 통과하고, 결함 136건을 번호로 관리합니다</h1>
+  <h1 class="title">자동 시험 2,349건이 통과하고, 결함 135건을 번호로 관리합니다</h1>
   <div class="nums four">
-    <div class="num teal"><div class="v">2,208</div><div class="l">자동 시험 통과<br>(10-19 · 전체 실행 9분 52초)</div></div>
-    <div class="num rose"><div class="v">7</div><div class="l">알려진 실패 — 모두 결함대장에 있음<br>(야후 봉인 2 · 시험 환경 5)</div></div>
-    <div class="num"><div class="v">136</div><div class="l">결함대장<br>열림 26 · 일부 닫힘 11 · 닫힘 99</div></div>
+    <div class="num teal"><div class="v">2,349</div><div class="l">자동 시험 통과<br>(10-20 · 전체 실행 9분 32초)</div></div>
+    <div class="num rose"><div class="v">5</div><div class="l">알려진 실패 — 모두 결함대장에 있음<br>(야후 봉인 2 · 미국 예약 2 · 시험 환경 1)</div></div>
+    <div class="num"><div class="v">135</div><div class="l">결함대장<br>열림 30 · 일부 닫힘 11<br>닫힘 94</div></div>
     <div class="num accent"><div class="v">564<small>초</small></div><div class="l">매주 복구 리허설<br>(10-18)</div></div>
   </div>
   <div class="cols" style="margin-top:34px">
     <div class="box"><h3>시험이 진짜 버그를 잡는지</h3><ul class="pts small"><li>새 시험은 고치기 전 코드에서 먼저 실패하는지 보고, 고친 뒤에는 일부러 코드를 깨서 시험이 잡는지 확인합니다(깨 보기)</li></ul></div>
     <div class="box"><h3>솔직히 없는 것</h3><ul class="pts small"><li>저장소에 올릴 때 자동으로 도는 시험(CI)은 없습니다 — 팀 공용 장치라 방식부터 논의하기로 했습니다</li></ul></div>
   </div>
-  <p class="src">출처: 테스트 계획서 v1.46(결과서 72차 2026-10-19 · 결함대장 표 9) · 주간 리허설 기록 · 발표 전날 다시 셈</p>
+  <p class="src">출처: 테스트 계획서 v1.48(전체 시험 74차 2026-10-20 · 결함대장 — 줄로 셈 · 번호는 DF-141 까지 · 쓰지 않은 번호 6) · 주간 리허설 기록 · 발표 전날 다시 셈</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
 </section>
 
@@ -1020,7 +1119,7 @@ body.all #hint, body.all #notes-panel { display: none; }
     <div class="row"><div class="k">공개 저장소</div><div class="v">github.com/EST-team-project/Qurious — 2차 로보 어드바이저(v2.0) · 3차 투자 인디케이터(v3.0 예정)</div></div>
     <div class="row"><div class="k">실행</div><div class="v">Docker Desktop 을 켠 뒤 <code>scripts/personal/start.ps1</code> → 브라우저에서 localhost:8966 · 상태는 <code>status.ps1</code></div></div>
     <div class="row"><div class="k">자료</div><div class="v">원자료는 이용 조건 때문에 비공개 저장소에만 있어, 저장소만 받아서는 그대로 돌려 볼 수 없습니다 — 받는 법은 README 에</div></div>
-    <div class="row"><div class="k">영상</div><div class="v">공식 자료 화면이 찍혀 있어 공개 저장소에 두지 않고, 발표장에서 재생합니다</div></div>
+    <div class="row"><div class="k">영상</div><div class="v">저장소에 함께 있어 git pull 한 번 뒤 이 발표 자료에서 바로 재생됩니다(mp4 · 30편)</div></div>
   </div>
   <p class="src">데모 사이트는 없습니다(2 · 3차는 클라우드를 쓰지 않기로 팀 결정)</p>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>

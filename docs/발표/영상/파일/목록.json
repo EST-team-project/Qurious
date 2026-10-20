@@ -184,14 +184,14 @@
       "scene": "docs/발표/영상/장면/V04-모의주문-국내미국.yaml",
       "mp4": "docs/발표/영상/파일/사용법/V04-모의주문-국내미국.mp4",
       "jpg": "docs/발표/영상/파일/사용법/V04-모의주문-국내미국.jpg",
-      "duration_sec": 45.0,
-      "bytes": 2103647,
+      "duration_sec": 44.84,
+      "bytes": 2091422,
       "crf": 28,
-      "sha": "6cd0cecadbc7e961",
-      "source_sha": "b7a7179310a58601",
+      "sha": "9b1c12bd9cdc2a3a",
+      "source_sha": "d2bce9b0b7c2b41c",
       "scene_sha": "7eca572c94189d14",
-      "recorded_at": "2026-10-20 14:21:43 KST",
-      "app_commit": "0d88d22"
+      "recorded_at": "2026-10-20 15:48:46 KST",
+      "app_commit": "1b40a45"
     },
     {
       "kind": "사용법",
@@ -425,13 +425,13 @@
       "mp4": "docs/발표/영상/파일/발표/P-V04-모의주문-국내미국.mp4",
       "jpg": "docs/발표/영상/파일/발표/P-V04-모의주문-국내미국.jpg",
       "duration_sec": 77.24,
-      "bytes": 2938217,
+      "bytes": 2974499,
       "crf": 28,
-      "sha": "f2265c79c69fc69a",
-      "source_sha": "c6f2e3bdfa5f5e72",
+      "sha": "20966895483985ba",
+      "source_sha": "5e7fe97b6dac6c99",
       "scene_sha": "0be02c19432cb0ba",
-      "recorded_at": "2026-10-20 14:27:42 KST",
-      "app_commit": "0d88d22"
+      "recorded_at": "2026-10-20 15:50:22 KST",
+      "app_commit": "1b40a45"
     },
     {
       "kind": "발표",

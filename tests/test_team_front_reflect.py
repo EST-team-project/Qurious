@@ -57,7 +57,8 @@ def test_A1_KIS_패널_주기는_퀵스타트_응답값이고_응답_전_글자�
   assert int(m.group(1)) == minutes, f"응답 전 글자 {m.group(1)}분 ≠ 설정 기본 {minutes}분"
   assert re.search(r"^\s+kisIntervalMin = Number\(st\.interval_min\) \|\| kisIntervalMin;", src, re.M)
   # 실행 중 · 시작 전 안내 · 확인 창 · 시작 뒤 — 네 문구 모두 같은 변수
-  for phrase in ("(live · KIS · ${kisIntervalMin}분 주기)", "종목 · ${kisIntervalMin}분 주기 · 1회",
+  # 실행 중 문구의 환경 이름은 2026-10-19 #211(오준영 · 실제 주문 환경으로 표시)이 kisEnvironmentLabel 로 바꿨다 — 주기는 같은 변수 그대로
+  for phrase in ("(${escHtml(kisEnvironmentLabel(st.environment))} · ${kisIntervalMin}분 주기)", "종목 · ${kisIntervalMin}분 주기 · 1회",
                  "종목으로 ${kisIntervalMin}분마다 시그널", "${r.interval_min || kisIntervalMin}분마다"):
     assert phrase in src, phrase
   assert not re.search(r"KIS · \d+분 주기", src), "실행 중 문구에 숫자 주기가 박혀 있다"
