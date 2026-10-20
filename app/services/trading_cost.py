@@ -88,6 +88,10 @@ TAX_SCHEDULE: tuple[tuple[date, float, float, float], ...] = (
 MARKETS = ("KOSPI", "KOSDAQ", "KONEX")
 _MARKET_COL = {"KOSPI": 1, "KOSDAQ": 2, "KONEX": 3}
 
+class UnsupportedMarketError(ValueError):
+    """지원하지 않는 시장(해외 등)에 대한 비용 계산 시도 (이슈 #255 / DF-96)."""
+    pass
+
 #: 슬리피지 기본값 (편도 bp). 🟡 **가정이다.**
 #: 호가단위가 만드는 구조적 하한이 반스프레드 2.5~12.5bp, 실증 추정치가 대형주 11.21bp ·
 #: 소형주 21.27bp 이므로 10bp 는 "대형주에 낙관적인 편"이다. 종목 규모로 바꿔 써야 한다.
@@ -152,7 +156,9 @@ def _market(market: str) -> str:
     elif key in ("KN", "코넥스"):
         key = "KONEX"
     if key not in MARKETS:
-        raise ValueError(f"시장 구분은 {MARKETS} 중 하나여야 한다: {market!r}")
+        raise UnsupportedMarketError(
+    f"시장 구분은 {MARKETS} 중 하나여야 한다: {market!r}"
+)
     return key
 
 
@@ -225,6 +231,9 @@ def cost_rate(
     매수 = 수수료 + 유관기관비 + 슬리피지
     매도 = 매수 + 증권거래세 + 농어촌특별세
     """
+    # 이슈 #255 / DF-96 — 지원하지 않는 시장은 조용히 국내 수수료로 계산하지 않는다
+    _market(market)
+
     s = (side or "").lower()
     if s not in ("buy", "sell"):
         raise ValueError(f"side 는 buy 또는 sell 이어야 한다: {side!r}")
@@ -302,6 +311,9 @@ def order_costs(
        않았다. 기본은 절사하지 않는다 — 확인되지 않은 규칙을 조용히 적용하면 실제
        정산액과 어긋날 때 원인을 찾을 수 없다.
     """
+    # 이슈 #255 / DF-96 — 지원하지 않는 시장은 조용히 국내 수수료로 계산하지 않는다
+    _market(market)
+    
     s = (side or "").lower()
     if s not in ("buy", "sell"):
         raise ValueError(f"side 는 buy 또는 sell 이어야 한다: {side!r}")
