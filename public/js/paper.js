@@ -807,13 +807,24 @@ async function loadPaperAllocation() {
               show: true,
               name: { fontSize: "11px", color: "#888" },
               value: {
-                fontSize: "15px", fontWeight: 700, color: "#fff",
-                formatter: (v) => (Number(v) / 10000).toFixed(0) + "만",
+                fontSize: "15px", fontWeight: 700, color: "#111",
+                formatter: (v) => {
+                  const n = Number(v) || 0;
+                  return (typeof window.formatKrw === 'function')
+                    ? window.formatKrw(n, { compact: true })
+                    : (n / 10000).toFixed(0) + "만";
+                },
               },
               total: {
                 show: true, label: "총자산",
                 fontSize: "11px", color: "#888",
-                formatter: () => (Number(snap.totalAsset || 0) / 10000).toFixed(0) + "만원",
+                formatter: () => {
+                  const n = Number(snap?.totalAsset) || 0;
+                  return (typeof window.formatKrw === 'function')
+                    ? window.formatKrw(n, { compact: true })
+                    : (n / 10000).toFixed(0) + "만원";
+                },
+                color: "#111",
               },
             },
           },
@@ -906,7 +917,7 @@ async function loadPaperPerformance() {
         },
         yaxis: {
           labels: {
-            formatter: (v) => v == null ? "" : (v / 10000).toFixed(1) + "만",
+            formatter: (v) => v == null ? "" : window.formatYAxisLabel(v),
             style: { fontSize: "10px", colors: "#888" },
           },
         },
@@ -920,7 +931,7 @@ async function loadPaperPerformance() {
         grid: { borderColor: "rgba(255,255,255,0.06)", strokeDashArray: 3 },
         tooltip: {
           x: { formatter: (val) => `📅 ${val}` },
-          y: { formatter: (v) => v == null ? "-" : `${(v / 10000).toFixed(1)}만원` },
+          y: { formatter: (v) => v == null ? "-" : Math.round(Number(v)).toLocaleString('ko-KR') + "원" },
         },
       });
       _pdEquityChart.render();

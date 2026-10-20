@@ -913,7 +913,7 @@ async function loadRoboPerformanceMetrics() {
         },
         yaxis: {
           labels: {
-            formatter: (v) => v == null ? "" : (v / 10000).toFixed(1) + "만",
+            formatter: (v) => v == null ? "" : window.formatYAxisLabel(v),
             style: { fontSize: "11px", colors: "#888" },
           },
         },
@@ -928,7 +928,7 @@ async function loadRoboPerformanceMetrics() {
         grid: { borderColor: "rgba(255,255,255,0.06)", strokeDashArray: 3 },
         tooltip: {
           x: { formatter: (val) => `📅 ${val}` },
-          y: { formatter: (v) => v == null ? "-" : `${(v / 10000).toFixed(1)}만원` },
+          y: { formatter: (v) => v == null ? "-" : Math.round(Number(v)).toLocaleString('ko-KR') + "원" },
         },
       });
       _roboMetricsChart.render();
@@ -1075,7 +1075,7 @@ async function _rtLoadBase() {
       xaxis: { categories: labels, tickAmount: 5, labels: { style: { fontSize: "10px", colors: "#888" } } },
       yaxis: {
         labels: {
-          formatter: v => v == null ? "" : (v / 10000).toFixed(1) + "만",
+          formatter: v => v == null ? "" : window.formatYAxisLabel(v),
           style: { fontSize: "10px", colors: "#888" },
         },
         tickAmount: 5,
