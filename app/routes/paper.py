@@ -36,6 +36,9 @@ from app.models import ApiKey
 from app.services import paper_trading as pt
 from app.services.audit import audit
 
+from fastapi import BackgroundTasks
+from app.services import backtest_100d
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/paper", tags=["paper-trading"])
@@ -491,6 +494,47 @@ async def paper_performance_snapshot(
     }
 
 
+# ── 100일 historical replay 백테스트 (UI 생성/삭제) ─────────
+
+@router.post("/performance/backtest-100d")
+async def backtest_100d_generate(
+    background: BackgroundTasks,
+    user=Depends(get_current_user_any),
+):
+    """100일 백테스트를 백그라운드로 시작. task_id 반환."""
+    task_id = str(uuid.uuid4())
+    backtest_100d._progress(
+        task_id, status="running", phase="시작", progress=0,
+        started=datetime.now(backtest_100d.KST).isoformat(timespec="seconds"),
+    )
+    background.add_task(backtest_100d.run_backtest, _uid(user), task_id)
+    return {"task_id": task_id}
+
+
+@router.get("/performance/backtest-100d/status/{task_id}")
+async def backtest_100d_status(task_id: str, user=Depends(get_current_user_any)):
+    job = backtest_100d.get_job(task_id)
+    if not job:
+        raise HTTPException(404, "작업을 찾을 수 없습니다.")
+    return job
+
+
+@router.get("/performance/backtest-100d/exists")
+async def backtest_100d_exists(user=Depends(get_current_user_any),
+                                db: AsyncSession = Depends(get_pg_session)):
+    from sqlalchemy import func
+    cnt = (await db.execute(
+        select(func.count()).select_from(Order)
+        .where(Order.user_id == _uid(user), Order.source == "SIM")
+    )).scalar() or 0
+    return {"exists": cnt > 0, "count": int(cnt)}
+
+
+@router.delete("/performance/backtest-100d")
+async def backtest_100d_delete(user=Depends(get_current_user_any),
+                                db: AsyncSession = Depends(get_pg_session)):
+    return await backtest_100d.delete_backtest(db, _uid(user))
+    
 
 @router.post("/performance/simulate")
 async def paper_performance_simulate(

@@ -38,7 +38,7 @@ async function loadPaperDashboard() {
 
   try {
     const [s, c, alt] = await Promise.all([
-      api("/api/paper/stocks/orders/history?limit=10"),
+      api("/api/paper/stocks/orders/history?limit=30"),   // ← SIM 포함 위해 30건
       api("/api/paper/trade/order/history?limit=10"),
       api("/api/paper/alternatives/orders/history?limit=10"),
     ]);
@@ -47,8 +47,36 @@ async function loadPaperDashboard() {
       ...c.history.map(o => ({ ts: o.ts, kind: "코인", name: `${o.koreanName} (${o.marketCode})`, type: o.type, qty: fmt(o.quantity, 8), price: won(o.price), amount: won(o.amount), source: o.source })),
       ...alt.history.map(o => ({ ts: o.ts, kind: o.category, name: o.name, type: o.type, qty: fmt(o.quantity), price: won(o.price), amount: won(o.amount), source: o.source })),
     ].sort((x, y) => y.ts - x.ts).slice(0, 15);
-    $("pd-recent").innerHTML = `<table><thead><tr><th>시각</th><th>구분</th><th>종목</th><th>매매</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th><th>출처</th></tr></thead>
-      <tbody>${rows.length ? rows.map(r => `<tr><td class="text-xs">${ts(r.ts)}</td><td>${escHtml(r.kind)}</td><td>${escHtml(r.name)}</td><td>${sideBadge(r.type)}</td><td style="text-align:right">${r.qty}</td><td style="text-align:right">${r.price}</td><td style="text-align:right">${r.amount}</td><td class="text-xs">${escHtml(r.source)}</td></tr>`).join("") : emptyRow(8, "아직 체결 내역이 없습니다.")}</tbody></table>`;
+
+    // 이슈: SIM(백테스트) 주문을 실시간과 구분
+    const sourceLabel = (src) => src === 'SIM'
+      ? `<span class="text-xs" style="color:#d97706;font-weight:600;" title="100일 historical replay 백테스트 주문">🧪 SIM</span>`
+      : escHtml(src);
+    const simCount = rows.filter(r => r.source === 'SIM').length;
+
+    $("pd-recent").innerHTML =
+      (simCount > 0
+        ? `<p class="text-xs mb-2" style="color:var(--text-mute);">
+             ※ <b>🧪 SIM(백테스트)</b> 주문 ${simCount}건 포함 — 자산추이·QFRS 카드에 반영됨.
+           </p>`
+        : '') +
+      `<table><thead><tr>
+        <th>시각</th><th>구분</th><th>종목</th><th>매매</th>
+        <th style="text-align:right">수량</th>
+        <th style="text-align:right">단가</th>
+        <th style="text-align:right">금액</th>
+        <th>출처</th>
+      </tr></thead>
+      <tbody>${rows.length ? rows.map(r => `<tr>
+        <td class="text-xs">${ts(r.ts)}</td>
+        <td>${escHtml(r.kind)}</td>
+        <td>${escHtml(r.name)}</td>
+        <td>${sideBadge(r.type)}</td>
+        <td style="text-align:right">${r.qty}</td>
+        <td style="text-align:right">${r.price}</td>
+        <td style="text-align:right">${r.amount}</td>
+        <td class="text-xs">${sourceLabel(r.source)}</td>
+      </tr>`).join("") : emptyRow(8, "아직 체결 내역이 없습니다.")}</tbody></table>`;
   } catch (e) { $("pd-recent").innerHTML = `<div class="text-sm text-red-500">${escHtml(e.message)}</div>`; }
 }
 
@@ -750,6 +778,7 @@ export function onPaperViewActivated(view) {
     loadPaperDashboard();
     loadPaperAllocation();
     loadPaperPerformance();
+    loadPaperBacktest();
   }
   if (view === "paper-stock") loadPaperStock();
   if (view === "paper-crypto") loadPaperCrypto();
@@ -939,3 +968,134 @@ async function loadPaperPerformance() {
 // 전역 노출 (main.js에서 접근 가능하도록)
 window.loadPaperAllocation = loadPaperAllocation;
 window.loadPaperPerformance = loadPaperPerformance;
+
+// ═══════════════════════════════════════════════════════════
+// 100일 historical replay 백테스트 카드 (paper-dashboard)
+// ═══════════════════════════════════════════════════════════
+let _btPollTimer = null;
+let _btBound = false;
+
+function _ensureBacktestCard() {
+  const view = document.querySelector('.view[data-view="paper-dashboard"]');
+  if (!view) return null;
+  let card = document.getElementById('pd-backtest-card');
+  if (card) return card;
+
+  card = document.createElement('div');
+  card.id = 'pd-backtest-card';
+  card.className = 'card';
+  card.style.cssText = 'padding:14px;margin-top:14px;';
+  card.innerHTML = `
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-semibold text-sm">🧪 100일 백테스트 (historical replay)</h3>
+      <span id="pd-backtest-badge" class="text-xs" style="color:var(--text-mute);"></span>
+    </div>
+    <p class="text-xs mb-2" style="color:var(--text-mute);line-height:1.5;">
+      <b>auto_trade.py</b> 의 실시간 신호 함수(RSI·이평·볼린저)를 <b>그대로 재생</b>합니다. 실제 과거 시세·그날의 수수료·세율로 장부를 정산하며, 완료 후 QFRS 지표가 100일치로 계산됩니다.<br>
+      <span style="color:#d97706;">⚠️ 실 거래가 아닌 백테스트이며, 실행 시 이 계정의 스냅샷이 백테스트 데이터로 대체됩니다.</span>
+    </p>
+    <div class="flex gap-2 mb-2">
+      <button type="button" class="btn-secondary text-xs" id="pd-backtest-generate">생성 (2~5분)</button>
+      <button type="button" class="btn-secondary text-xs" id="pd-backtest-delete">삭제 · 초기화</button>
+    </div>
+    <div id="pd-backtest-status" class="text-xs" style="color:var(--text-mute);"></div>
+  `;
+  view.appendChild(card);
+
+  if (!_btBound) {
+    document.getElementById('pd-backtest-generate')?.addEventListener('click', _startBacktest);
+    document.getElementById('pd-backtest-delete')?.addEventListener('click', _deleteBacktest);
+    _btBound = true;
+  }
+  return card;
+}
+
+async function loadPaperBacktest() {
+  if (!_ensureBacktestCard()) return;
+  try {
+    const r = await api('/api/paper/performance/backtest-100d/exists');
+    const badge = document.getElementById('pd-backtest-badge');
+    if (badge) {
+      badge.textContent = r.exists ? `백테스트 데이터 ${r.count}건 있음` : '아직 없음';
+      badge.style.color = r.exists ? 'var(--green)' : 'var(--text-mute)';
+    }
+  } catch { /* 무시 */ }
+}
+
+async function _startBacktest() {
+  if (!confirm(
+    '100일 백테스트를 시작합니다.\n\n' +
+    '· auto_trade.py 의 실시간 신호 로직을 그대로 재생합니다.\n' +
+    '· 이 계정의 스냅샷이 백테스트 데이터로 대체됩니다.\n' +
+    '· 2~5분 소요 (완료 시 자동 반영).\n\n' +
+    '계속할까요?'
+  )) return;
+
+  const status = document.getElementById('pd-backtest-status');
+  const genBtn = document.getElementById('pd-backtest-generate');
+  const delBtn = document.getElementById('pd-backtest-delete');
+  try {
+    const r = await api('/api/paper/performance/backtest-100d', { method: 'POST' });
+    if (genBtn) genBtn.disabled = true;
+    if (delBtn) delBtn.disabled = true;
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 시작 중…';
+    _pollBacktest(r.task_id);
+  } catch (e) {
+    status.innerHTML = `<span style="color:var(--red);">${escHtml(e.message)}</span>`;
+  }
+}
+
+function _pollBacktest(taskId) {
+  const status = document.getElementById('pd-backtest-status');
+  const genBtn = document.getElementById('pd-backtest-generate');
+  const delBtn = document.getElementById('pd-backtest-delete');
+
+  if (_btPollTimer) clearInterval(_btPollTimer);
+  _btPollTimer = setInterval(async () => {
+    try {
+      const r = await api(`/api/paper/performance/backtest-100d/status/${taskId}`);
+      const pct = r.progress ?? 0;
+      status.innerHTML =
+        `<div style="height:4px;background:var(--surf2);border-radius:2px;overflow:hidden;margin-bottom:4px;">` +
+        `<div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s;"></div></div>` +
+        `<span>${escHtml(r.phase || '')}</span>`;
+
+      if (r.status === 'done') {
+        clearInterval(_btPollTimer); _btPollTimer = null;
+        status.innerHTML = `<span style="color:var(--green);">✅ ${escHtml(r.phase || '완료')}</span>`;
+        if (genBtn) genBtn.disabled = false;
+        if (delBtn) delBtn.disabled = false;
+        loadPaperPerformance();
+        loadPaperAllocation();
+        loadPaperBacktest();
+      } else if (r.status === 'error') {
+        clearInterval(_btPollTimer); _btPollTimer = null;
+        status.innerHTML = `<span style="color:var(--red);">❌ ${escHtml(r.phase || '실패')}</span>`;
+        if (genBtn) genBtn.disabled = false;
+        if (delBtn) delBtn.disabled = false;
+      }
+    } catch (e) {
+      clearInterval(_btPollTimer); _btPollTimer = null;
+      status.innerHTML = `<span style="color:var(--red);">상태 확인 실패: ${escHtml(e.message)}</span>`;
+      if (genBtn) genBtn.disabled = false;
+      if (delBtn) delBtn.disabled = false;
+    }
+  }, 2000);
+}
+
+async function _deleteBacktest() {
+  if (!confirm('100일 백테스트 데이터(SIM 주문 · 스냅샷 · 포지션)를 모두 삭제하고 계좌를 1억으로 초기화합니다.\n\n계속할까요?')) return;
+  const status = document.getElementById('pd-backtest-status');
+  try {
+    await api('/api/paper/performance/backtest-100d', { method: 'DELETE' });
+    status.innerHTML = '<span style="color:var(--green);">✅ 삭제 완료 · 계좌 1억으로 복구</span>';
+    loadPaperPerformance();
+    loadPaperAllocation();
+    loadPaperBacktest();
+    if (window.loadPaperDashboard) window.loadPaperDashboard();
+  } catch (e) {
+    status.innerHTML = `<span style="color:var(--red);">삭제 실패: ${escHtml(e.message)}</span>`;
+  }
+}
+
+window.loadPaperBacktest = loadPaperBacktest;
