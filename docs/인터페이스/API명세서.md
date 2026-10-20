@@ -171,7 +171,7 @@ flowchart LR
 | `tradingview` | `app/routes/tradingview.py` | 5 | 1 | 3 | 0 | 미배정 5 |
 | `formula` | `app/routes/formula.py` | 13 | 0 | 4 | 0 | 미배정 13 |
 | `glossary` | `app/routes/glossary.py` | 6 | 6 | 2 | 1 | P-A 6 |
-| `learn` | `app/routes/learn.py` | 4 | 2 | 0 | 4 | P-A 4 |
+| `learn` | `app/routes/learn.py` | 4 | 2 | 0 | 3 | P-A 4 |
 | `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
 | `data` | `app/routes/data.py` | 15 | 0 | 11 | 3 | P-A 15 |
 | `calendar` | `app/routes/calendar.py` | 3 | 3 | 3 | 0 | P-A 3 |
@@ -185,7 +185,7 @@ flowchart LR
 | `stock_hub` | `app/routes/stock_hub.py` | 2 | 0 | 1 | 0 | 미배정 2 |
 | `help_media` | `app/routes/help_media.py` | 2 | 0 | 0 | 2 | P-A 2 |
 | `quote_now` | `app/routes/quote_now.py` | 1 | 0 | 1 | 0 | P-A 1 |
-| **합계** | 40개 | **267** | **55** | **132** | **77** | |
+| **합계** | 40개 | **267** | **55** | **132** | **76** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -274,7 +274,7 @@ flowchart LR
 | API-GLOS-03 | GET | `/api/glossary/meta` | PostgreSQL | — |
 | API-GLOS-04 | GET | `/api/glossary/{name}` | PostgreSQL | `agent-chat` |
 | API-GLOS-05 | GET | `/api/glossary/{name}/graph` | PostgreSQL | (다른 곳) |
-| API-LRN-01 | GET | `/api/learn/catalog` | 외부(huggingface.co) | — |
+| API-LRN-01 | GET | `/api/learn/catalog` | 외부(huggingface.co) | (다른 곳) |
 | API-LRN-02 | GET | `/api/learn/pages/{slug}` | 외부(huggingface.co) | — |
 | API-LEC-01 | GET | `/api/lectures/market/kospi-history` | 수집DB · 야후 | (다른 곳) |
 | API-LEC-02 | GET | `/api/lectures/market/rate-market-history` | 수집DB · 야후 | (다른 곳) |
@@ -987,7 +987,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-LRN-01 | GET | `/api/learn/catalog` | 없음 | `section` · `q` | {contract, pages, builtin_errors, team} | — | 외부(huggingface.co) | — | P-A | — | learn.py:54 |
+| API-LRN-01 | GET | `/api/learn/catalog` | 없음 | `section` · `q` | {contract, pages, builtin_errors, team} | — | 외부(huggingface.co) | (다른 곳) | P-A | — | learn.py:54 |
 | API-LRN-02 | GET | `/api/learn/pages/{slug}` | 없음 | `{slug}` | 모델 없음 | 401 · 404 | 외부(huggingface.co) | — | P-A | — | learn.py:75 |
 | API-LRN-06 | GET | `/api/learn/pages/{slug}/history` | 세션 | `{slug}` | {slug, commits, url} | 404 | 외부(huggingface.co) | — | P-A | — | learn.py:96 |
 | API-LRN-07 | POST | `/api/learn/sync` | 세션 | — | {team} | 403 | 외부(huggingface.co) | — | P-A | — | learn.py:108 |

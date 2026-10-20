@@ -26,9 +26,13 @@ steps:
   - pause: 1.0
   - say: "투자 사이트별 현재 투자액 — 계좌를 골라 현재 투자액 · 현금 · 총 자산 · 보유 종목을 봅니다"
   - ring: {target: "#overview-account-panel", sec: 4.0}
+  - click: '#overview-account-tabs .overview-tab[data-key="quant"]'
+  - pause: 1.0
+  - say: "「퀀트 가상계좌」 탭 — 자동매매가 쓰는 전용 가상 장부(1천만 원)의 투자액 · 현금 · 총 자산 · 보유 종목"
+  - ring: {target: "#overview-account-panel", sec: 3.5}
   - say: "KIS 모의투자 칸 — 연동 전이면 「증권사 API 설정」 에서 내 모의투자 키를 넣으라고 알려 줍니다"
   - ring: {target: "#overview-kis-status", sec: 4.5}
-  - say: "로보 어드바이저 칸 — 모의 투자 의사결정이 도는지와 지금 판단 신호 수(이 계정은 중지됨 · 0개)"
+  - say: "로보 어드바이저 칸 — 모의 투자 의사결정이 도는지와 최근 열 바퀴의 판단 신호 수"
   - ring: {target: "#overview-decision", sec: 4.0}
   - say: "기본 전략 성능 — 거래가 한 번도 없으면 「신호 없음」 과 같은 기간 매수 후 보유 수익률을 함께 적습니다"
   - ring: {target: "#overview-indicator-metrics", sec: 4.5}

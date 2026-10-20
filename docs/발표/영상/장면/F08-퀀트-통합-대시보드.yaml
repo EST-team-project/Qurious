@@ -20,6 +20,11 @@ steps:
   - click: '#overview-account-tabs .overview-tab[data-key="paper"]'
   - pause: 1.0
   - say: "통합 대시보드 — 모의투자 계좌의 현재 투자액 · 현금 · 총 자산 · 보유 종목"
+  - pause: 2.0
+  - click: '#overview-account-tabs .overview-tab[data-key="quant"]'
+  - pause: 1.0
+  - say: "「퀀트 가상계좌」 탭 — 자동매매가 쓰는 전용 가상 장부(1천만 원)의 보유와 자산"
+  - ring: {target: "#overview-account-panel", sec: 2.5}
   - pause: 3.5
   - chapter: {label: "3 / 3 · 결과", title: "자세한 것은 각 화면에서", text: "여기서 각 기능 화면으로 이어집니다", sec: 3.0}
   - say: "가상 돈으로 하는 연습이며 투자 권유가 아닙니다"

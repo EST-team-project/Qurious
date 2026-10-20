@@ -1,5 +1,9 @@
 # Qurious — AI Financial Quant Platform
 
+<p align="center">
+  <img src="docs/img/readme/qurious-banner_v2.1.png" alt="Qurious — AI Financial Quant Platform 배너. 자기 투자 규칙을 믿어도 되는지 판단하도록 돕는 학습 · 검증 플랫폼으로, 규칙 세우기(투자 성향 진단 · 자산 배분) · 검증(비용을 뺀 성과 · 모의투자) · 근거(법령 원문 번호)의 세 단계를 보인다" width="900">
+</p>
+
 자기 투자 규칙을 가진 개인투자자가 그 규칙을 믿어도 되는지 판단하도록 돕는 학습 · 검증 플랫폼입니다.
 투자 성향 진단과 자산 배분으로 규칙을 세우고, 비용을 뺀 성과와 모의투자로 검증하고, 판단에 쓴 근거를 법령 원문 번호와 함께 보여 줍니다.
 

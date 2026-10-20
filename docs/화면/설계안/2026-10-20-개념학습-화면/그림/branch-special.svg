@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160" viewBox="0 0 320 160" role="img" aria-label="특강 — 강의 날이 표시된 달력과 강의 화면">
+  <title>특강</title>
+  <!-- 색: 보라 #7c3aed(알림 상자 「중요」 색) · --text-dim #334155 · --surf2 #f0f3f8 · --border2 #c5cdde -->
+  <!-- 달력은 월 ~ 금 다섯 칸 · 넷째 줄까지. 칠한 칸 = 지난 강의, 테두리 칸 = 열릴 강의(둘째 · 셋째 주의 월 · 금) -->
+  <rect width="320" height="160" rx="16" fill="#ffffff"/>
+  <rect width="320" height="160" rx="16" fill="#7c3aed" fill-opacity="0.10"/>
+  <g>
+    <rect x="24" y="30" width="124" height="104" rx="10" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <path d="M25 52 V40 a9 9 0 0 1 9 -9 H138 a9 9 0 0 1 9 9 V52 Z" fill="#7c3aed"/>
+    <rect x="48" y="22" width="6" height="16" rx="3" fill="#334155"/>
+    <rect x="118" y="22" width="6" height="16" rx="3" fill="#334155"/>
+    <!-- 첫째 주 -->
+    <rect x="36" y="62" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="56" y="62" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="76" y="62" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="96" y="62" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="116" y="62" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <!-- 둘째 주: 월(지난 강의) · 금(열릴 강의) -->
+    <rect x="36" y="79" width="16" height="12" rx="3" fill="#7c3aed"/>
+    <rect x="56" y="79" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="76" y="79" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="96" y="79" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="117" y="80" width="14" height="10" rx="3" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <!-- 셋째 주: 월 · 금(열릴 강의) -->
+    <rect x="37" y="97" width="14" height="10" rx="3" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <rect x="56" y="96" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="76" y="96" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="96" y="96" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="117" y="97" width="14" height="10" rx="3" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <!-- 넷째 주 -->
+    <rect x="36" y="113" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="56" y="113" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="76" y="113" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="96" y="113" width="16" height="12" rx="3" fill="#f0f3f8"/>
+    <rect x="116" y="113" width="16" height="12" rx="3" fill="#f0f3f8"/>
+  </g>
+  <!-- 강의 화면 -->
+  <g>
+    <rect x="174" y="32" width="122" height="78" rx="8" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <rect x="186" y="44" width="46" height="6" rx="3" fill="#7c3aed"/>
+    <rect x="186" y="56" width="30" height="5" rx="2.5" fill="#e8ecf3"/>
+    <polyline points="190,98 210,88 228,92 248,76 266,80 282,62" fill="none" stroke="#7c3aed" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="282" cy="62" r="4" fill="#7c3aed"/>
+    <line x1="235" y1="110" x2="235" y2="130" stroke="#c5cdde" stroke-width="3" stroke-linecap="round"/>
+    <line x1="213" y1="132" x2="257" y2="132" stroke="#c5cdde" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

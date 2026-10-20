@@ -17,8 +17,7 @@ updated: 2026-10-01
 ---
 
 > [!NOTE]
-> 이 장은 **뼈대**입니다 — 목표 · 다룰 질문 · 보여 줄 코드 · 1차 자료만 있고, 본문은 W5 구현 직전에 채웁니다.
-> 읽다가 더 알고 싶은 개념이 생기면 알려 주세요. 목차에 더합니다.
+> 이 장은 아직 **뼈대**입니다. 다룰 질문과 참고 자료를 먼저 실었고, 본문은 이어서 채웁니다.
 
 ## 이 장에서 할 수 있게 되는 것
 
@@ -40,8 +39,8 @@ updated: 2026-10-01
 
 ## 우리 프로젝트와 닿는 곳
 
-- 용어사전 설계서 v0.1 · `scripts/glossary_build.py` · `app/services/glossary_data/terms.json`
-- 목표 기능 ① 상세 설계서 5.4(관계 모델 · API `/api/glossary/{id}/graph`)
+- `scripts/glossary_build.py` · `app/services/glossary_data/terms.json`(용어사전 화면의 자료)
+- 용어 관계 API `/api/glossary/{id}/graph`
 
 ## 먼저 읽을 1차 자료
 

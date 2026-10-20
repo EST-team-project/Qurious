@@ -113,12 +113,12 @@ function helpUrl(u) {
   return typeof u === "string" && HELP_MEDIA_URL.test(u) && !u.includes("..") ? u : "";
 }
 
-/** 영상 표에서 한 화면의 영상 — { src, captions, chaptersSrc, chapters[{title, start, end, poster}], startChapter, start, poster, duration, durationSec }.
- *  여러 화면에 걸친 영상은 그 화면이 처음 나오는 장부터(D132 · 차트 패턴 = ② 0:15). 표 · 줄이 없거나 꼴이 틀리면 null. */
-export function videoOf(viewKey, manifest) {
+/** 영상 표의 한 편 — 편 이름(표의 videos 키)과 시작 장으로 { src, captions, chaptersSrc, chapters[{title, start, end, poster}],
+ *  startChapter, start, poster, duration, durationSec }. 화면 영상(videoOf)과 사용법 영상 목록(helpvideosview.js)이 같은 꼴을 쓴다.
+ *  표 · 편이 없거나 꼴이 틀리면 null. */
+export function videoById(id, manifest, chapter = 0) {
   if (!manifest || manifest.format !== VIDEO_FORMAT) return null;
-  const ref = manifest.views?.[viewKey];
-  const v = ref && manifest.videos?.[ref.video];
+  const v = manifest.videos?.[id];
   const src = helpUrl(v?.src);
   if (!src || !Array.isArray(v.chapters) || !v.chapters.length) return null;
   const chapters = v.chapters.map((c) => ({
@@ -127,7 +127,7 @@ export function videoOf(viewKey, manifest) {
     end: Math.max(0, Number(c?.end) || 0),
     poster: helpUrl(c?.poster),
   }));
-  const k = Math.min(Math.max(0, Math.trunc(Number(ref.chapter) || 0)), chapters.length - 1);
+  const k = Math.min(Math.max(0, Math.trunc(Number(chapter) || 0)), chapters.length - 1);
   const durationSec = Number(v.duration) || chapters[chapters.length - 1].end;
   return {
     src,
@@ -140,6 +140,14 @@ export function videoOf(viewKey, manifest) {
     durationSec,
     duration: fmtTime(durationSec),
   };
+}
+
+/** 영상 표에서 한 화면의 영상 — videoById 와 같은 꼴.
+ *  여러 화면에 걸친 영상은 그 화면이 처음 나오는 장부터(D132 · 차트 패턴 = ② 0:15). 표 · 줄이 없거나 꼴이 틀리면 null. */
+export function videoOf(viewKey, manifest) {
+  if (!manifest || manifest.format !== VIDEO_FORMAT) return null;
+  const ref = manifest.views?.[viewKey];
+  return ref ? videoById(ref.video, manifest, ref.chapter) : null;
 }
 
 /** 재생 시각이 든 장 차례 — 장 시작이 지금보다 늦지 않은 마지막 장(장 사이 틈은 앞 장). */

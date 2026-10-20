@@ -24,7 +24,7 @@ steps:
   - say: "초성만 넣어도 찾습니다 — 「시가총액」 처럼"
   - pause: 3.0
   - chapter: {label: "3 / 3 · 결과", title: "더 깊게는 개념 학습에서", text: "용어에서 개념 장으로 이어져, 화면에서 본 지표의 뜻과 계산을 따라갈 수 있습니다", sec: 3.5}
-  - js: "location.href = '/learn/'"
+  - go: learn-home   # 개념 학습은 앱 안 화면(2026-10-19 · 옛 새 탭 /learn/ 아님)
   - pause: 3.0
   - say: "교육용 내용이며 특정 상품의 매수 · 매도를 권하지 않습니다"
   - pause: 3.0

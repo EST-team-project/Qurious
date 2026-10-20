@@ -17,8 +17,7 @@ updated: 2026-10-01
 ---
 
 > [!NOTE]
-> 이 장은 **뼈대**입니다 — 목표 · 다룰 질문 · 보여 줄 코드 · 1차 자료만 있고, 본문은 W4, W7 구현 직전에 채웁니다.
-> 읽다가 더 알고 싶은 개념이 생기면 알려 주세요. 목차에 더합니다.
+> 이 장은 아직 **뼈대**입니다. 다룰 질문과 참고 자료를 먼저 실었고, 본문은 이어서 채웁니다.
 
 ## 이 장에서 할 수 있게 되는 것
 
@@ -40,10 +39,10 @@ updated: 2026-10-01
 
 ## 우리 프로젝트와 닿는 곳
 
-- `scripts/daily_update.py`(9단계 · 잠금 · 로그 · 상태 JSON)
-- 목표 기능 ① 상세 설계서 5.2.1 그림 3 · 5.2.2 `GET /api/data/status`
+- `scripts/daily_update.py`(단계별 실행 · 잠금 · 로그 · 상태 JSON)
+- 데이터 상태 API `GET /api/data/status` 와 「수집 일정 · 단계」 화면
 
 ## 먼저 읽을 1차 자료
 
-- 목표 기능 ① 상세 설계서 5.2절
-- 강사님 저장소 `learning/th10-stock-ml-dl-project` 의 Airflow DAG(로컬)
+- Microsoft 문서 「Task Scheduler」 <https://learn.microsoft.com/windows/win32/taskschd/task-scheduler-start-page>
+- Apache Airflow 문서 「DAGs」 <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html>

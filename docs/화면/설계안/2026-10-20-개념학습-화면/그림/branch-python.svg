@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160" viewBox="0 0 320 160" role="img" aria-label="파이썬 중급 — 들여쓰기가 보이는 코드 창, 갈아 끼우는 두 조각">
+  <title>파이썬 중급</title>
+  <!-- 색: --green #059669 · --green-bg(0.08 → 그림은 0.10) · --surf2 #f0f3f8 · --border #dde2ec · --border2 #c5cdde -->
+  <rect width="320" height="160" rx="16" fill="#ffffff"/>
+  <rect width="320" height="160" rx="16" fill="#059669" fill-opacity="0.10"/>
+  <!-- 코드 창: 들여쓰기 계단 -->
+  <g>
+    <rect x="22" y="30" width="132" height="100" rx="10" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <path d="M23 48 V40 a9 9 0 0 1 9 -9 H144 a9 9 0 0 1 9 9 V48 Z" fill="#f0f3f8"/>
+    <line x1="23" y1="48" x2="153" y2="48" stroke="#dde2ec" stroke-width="2"/>
+    <circle cx="34" cy="39.5" r="3" fill="#c5cdde"/>
+    <circle cx="44" cy="39.5" r="3" fill="#c5cdde"/>
+    <circle cx="54" cy="39.5" r="3" fill="#c5cdde"/>
+    <line x1="40" y1="66" x2="40" y2="122" stroke="#c5cdde" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <line x1="54" y1="78" x2="54" y2="110" stroke="#c5cdde" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <rect x="34" y="58" width="64" height="6" rx="3" fill="#059669"/>
+    <rect x="46" y="70" width="70" height="6" rx="3" fill="#c5cdde"/>
+    <rect x="60" y="82" width="56" height="6" rx="3" fill="#059669" fill-opacity="0.55"/>
+    <rect x="60" y="94" width="76" height="6" rx="3" fill="#c5cdde"/>
+    <rect x="60" y="106" width="44" height="6" rx="3" fill="#c5cdde"/>
+    <rect x="46" y="118" width="50" height="6" rx="3" fill="#059669"/>
+  </g>
+  <!-- 갈아 끼우는 두 조각: 약속(왼쪽)에 맞는 구현(오른쪽) -->
+  <g>
+    <path d="M178 46 H224 V66 A8 8 0 0 1 224 82 V114 H178 Z" fill="#059669"/>
+    <rect x="188" y="58" width="24" height="5" rx="2.5" fill="#ffffff" fill-opacity="0.75"/>
+    <rect x="188" y="69" width="18" height="5" rx="2.5" fill="#ffffff" fill-opacity="0.75"/>
+    <path d="M242 46 H292 V114 H242 V82 A8 8 0 0 0 242 66 Z" fill="#ffffff" stroke="#059669" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="256" y="92" width="26" height="5" rx="2.5" fill="#c5cdde"/>
+    <rect x="256" y="102" width="18" height="5" rx="2.5" fill="#c5cdde"/>
+    <path d="M200 128 C 216 142, 252 142, 266 128" fill="none" stroke="#059669" stroke-width="2" stroke-dasharray="4 4"/>
+    <path d="M260 125 L267 128 L262 134" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

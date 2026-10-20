@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -400,6 +401,17 @@ async def record(scene_path, args):
     if rules:
       rule = "".join(rules)
       await page.add_init_script(f"document.addEventListener('DOMContentLoaded',()=>{{const s=document.createElement('style');s.textContent={json.dumps(rule)};document.head.appendChild(s);}});")
+    # 이 계정의 이 브라우저에 남은 투자 성향(#251 · #276 — 성향은 서버가 아니라 브라우저에 계정별로만 저장된다). 여정 영상은
+    # 편마다 새 브라우저라 앞 편(V01)의 진단이 남지 않는다 — 장면이 risk_profile 을 적으면 같은 계정 · 같은 브라우저를 이어 쓰는 상태로 넣어 둔다.
+    rp = scene.get("risk_profile")
+    if rp:
+      me = await (await ctx.request.get(f"{base}/api/me")).json()
+      u = me.get("user") or {}                       # GET /api/me → {"user": {"clientId": …}} (화면 main.js 와 같은 칸)
+      cid = str(u.get("clientId") or "")
+      if not cid:
+        raise SystemExit("risk_profile — /api/me 에 계정 식별자가 없다")
+      key = "robo_risk_profile:v1:" + urllib.parse.quote(cid, safe="-_.!~*'()")   # 화면의 encodeURIComponent 와 같은 꼴
+      await page.add_init_script(f"try{{localStorage.setItem({json.dumps(key)},{json.dumps(json.dumps(rp, ensure_ascii=False))});}}catch(e){{}}")
     await page.goto(f"{base}/app.html#{scene.get('start', 'dashboard')}", wait_until="load")
     await asyncio.sleep(float(scene.get("warmup", 3.0)))
     await page.evaluate("() => __demo.ensure()")

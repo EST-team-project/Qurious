@@ -55,7 +55,7 @@ def test_every_menu_group_is_in_the_left_tree():
     assert len(tree) == len(set(tree)), "트리에 같은 묶음이 두 번"
     assert sorted(tree) == sorted(_gnb_menu_keys()), "새 묶음을 GNB_MENUS 에 더했다면 MENU_TREE 에도"
     assert set(top) <= set(tree)
-    assert tree.index("learn") == tree.index("finance") + 1, "개념 학습은 「학습」(금융 필수 지식) 바로 아래"
+    assert "learn" not in tree, "개념 학습은 「학습」 한 묶음 안(2026-10-20 안 A — 금융 필수 지식 · 개발 개념 · 파이썬 중급 · 특강)"
 
 
 def test_tree_keeps_headings_outside_links_and_buttons():
@@ -70,7 +70,8 @@ def test_tree_keeps_headings_outside_links_and_buttons():
     assert "MENU_TREE" in tree and '<details class="lnb-group"' in tree and '<summary class="lnb-group-head"' in tree
     assert '!["agent", "company"].includes' not in CORE, "강사님 판 빌더가 되돌아왔다"
     nav = _fn(CORE, "function navigate(")
-    assert "syncLnbTree(currentGnb, viewKey);" in nav and "fitGnbTabs();" in nav
+    assert "syncLnbTree(currentGnb, navKey);" in nav and "fitGnbTabs();" in nav
+    assert "const navKey = VIEW_PARENT[viewKey] || viewKey;" in nav, "메뉴 줄이 없는 화면(장 · 부 목차)은 따를 줄로 트리 · 머리 경로를 고른다(2026-10-20)"
     sync = _fn(CORE, "function syncLnbTree(")
     assert "if (moved) group.open = here;" in sync, "다른 묶음으로 옮기면 지금 묶음만 펼친다(사용자 S124)"
     assert 'setAttribute("aria-current", "page")' in sync

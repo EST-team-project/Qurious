@@ -60,14 +60,14 @@ steps:
   - pause: 4.0
   # ── 3 / 3 · 결과 — 개념 학습 ──
   - chapter: {label: "3 / 3 · 결과", title: "더 깊게는 개념 학습에서", text: "화면에 나오는 개념을 실제 사례와 그림으로 풀어 둔 장으로 이어집니다", sec: 3.5}
-  - js: "location.href = '/learn/#/p/adjusted-price'"
+  - js: "location.hash = '#learn/adjusted-price'"   # 앱 안 장 주소(2026-10-19 · 옛 새 탭 /learn/ 아님)
   - pause: 2.5
   - say: "개념 학습 — 수정주가 장 · 이 장을 읽고 나면 할 수 있게 되는 것부터 적혀 있습니다"
   - pause: 4.5
   - scroll: {target: 'h2:has-text("액면분할 다음 날")', block: "start"}
   - say: "질문 하나로 시작합니다 — 액면분할 다음 날 주가가 5분의 1 이 되면 손실일까요?"
   - pause: 4.5
-  - ring: {target: "#view figure", sec: 2.0}
+  - ring: {target: "#cl-page figure", sec: 2.0}
   - say: "원 가격으로 셈하면 하루 −78% 지만, 수정 가격으로 이으면 주주가 실제로 겪은 흐름이 보입니다"
   - pause: 5.0
   - say: "교육용 내용이며 특정 상품의 매수 · 매도를 권하지 않습니다"

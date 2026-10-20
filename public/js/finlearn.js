@@ -13,6 +13,7 @@
  */
 import { escHtml, setToast } from "/js/common.js";
 import { navigate } from "/js/core.js";
+import { noticeCardHtml, noticeLineHtml } from "/js/learnnotice.js";   // 「시작하기 전에」 고지 한 벌(장 대장 F00 · 2026-10-20)
 
 const BASE = "/lectures/";
 
@@ -105,6 +106,25 @@ function unitCard(cat, t) {
     </div>`;
 }
 
+// 보충 장 — 금융 필수 지식 갈래의 장(머리말 section finance)을 강의실 아래에 잇는다(2026-10-20 학습 한 묶음 ·
+// 전에는 개념 학습 목차에도 「금융 지식 장」 으로 따로 있어 같은 내용이 두 곳에 보였다). 받지 못하면 칸째 뺀다(강의실은 그대로).
+async function flFillSupplement(host) {
+  if (!host) return;
+  try {
+    const r = await fetch("/api/learn/catalog", { credentials: "same-origin" });
+    if (!r.ok) throw new Error(String(r.status));
+    const pages = ((await r.json()).pages || []).filter(p => p.store === "builtin" && p.section === "finance");
+    if (!pages.length) { host.remove(); return; }
+    const tag = st => st === "skeleton" ? ' <span class="cl-st cl-st-skeleton"><i class="fa-regular fa-circle" aria-hidden="true"></i>준비 중</span>'
+      : st === "draft" ? ' <span class="cl-st cl-st-draft"><i class="fa-solid fa-pen" aria-hidden="true"></i>다듬는 중</span>' : "";
+    host.innerHTML = `<div class="fl-section-title" style="margin-top:22px">보충 장 <small>강의 내용을 Qurious 화면과 이어 읽는 장 · ${pages.length}편</small></div>
+      <div class="fl-card"><ul class="cl-list">${pages.map(p => `<li><span class="cl-num">${escHtml(p.order || "")}</span><span class="cl-row">`
+        + `<a href="#learn/${escHtml(p.slug)}">${escHtml(p.title)}</a>${tag(p.status)}<span class="cl-sum">${escHtml(p.summary || "")}</span></span></li>`).join("")}</ul></div>`;
+  } catch {
+    host.remove();
+  }
+}
+
 async function renderHub(el) {
   el.innerHTML = `<div class="fl-card fl-muted">강의 목록을 불러오는 중…</div>`;
   let cat;
@@ -116,7 +136,9 @@ async function renderHub(el) {
   const units = TOPICS.filter(t => t.units);
   el.innerHTML = `
     <div class="fl-hub-head"><h2>강의실</h2>
-      <span class="fl-muted">하루 한 주제씩, 상품의 구조와 위험을 읽고 내 기준으로 비교합니다.</span></div>
+      <span class="fl-muted">하루 한 주제씩, 상품의 구조와 위험을 읽고 내 기준으로 비교합니다.</span>
+      <a class="fl-link cl-home-link" href="#learn-home">← 학습 홈</a></div>
+    ${noticeCardHtml()}
     <div class="fl-section-title">4일 과정 <small>금융상품 이해 · 자산배분 설계</small></div>
     <div class="fl-grid">${days.map(t => courseCard(cat, t)).join("")}</div>
     <div class="fl-section-title" style="margin-top:22px">교재 <small>투자 분석의 기초 — 회사 · 시장 · 차트 · 재무 · 거시</small></div>
@@ -130,9 +152,8 @@ async function renderHub(el) {
       </div>
     </div>
     <p class="fl-muted" style="font-size:13px;margin-top:14px">교재 6~9단원은 4일 과정과 같은 내용이라 4일 과정에서 읽습니다. 10단원은 원천 교재에서 지난 판이 되어 지금은 싣지 않습니다.</p>
-    <div class="fl-section-title" style="margin-top:22px">개념 학습 <small>이 서비스의 기능이 움직이는 원리 — 수집 · 근거 답 · 차트 · 서버 · 금융 기초 장</small></div>
-    <div class="fl-card cl-entry"><p>강의에서 배운 개념이 Qurious 의 어느 기능에서 어떻게 쓰이는지, 그림 · 직접 돌려 본 예제 · 쓰인 코드로 읽습니다.</p>
-      <a class="fl-link" href="#learn-home">개념 학습 전체 목차 →</a></div>`;
+    <div id="fl-supplement"></div>`;
+  flFillSupplement(el.querySelector("#fl-supplement"));
   el.querySelectorAll("[data-go]").forEach(c => {
     const go = () => navigate(c.dataset.go);
     c.addEventListener("click", go);
@@ -252,7 +273,7 @@ async function renderTopic(el, t, hash = "") {
     el.innerHTML = `<div class="fl-card">강의 목록을 불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</div>`;
     return;
   }
-  el.innerHTML = `${topicHead(cat, t)}<div class="fl-body" style="margin-top:16px"></div><div style="margin-top:14px">${topicNav(t)}</div>`;
+  el.innerHTML = `${topicHead(cat, t)}<div class="fl-body" style="margin-top:16px"></div><div style="margin-top:14px">${topicNav(t)}</div>${noticeLineHtml()}`;
   const body = el.querySelector(".fl-body");
   if (t.day) {
     const d = dayOf(cat, t.day);

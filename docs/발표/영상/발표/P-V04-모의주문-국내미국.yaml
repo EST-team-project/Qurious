@@ -15,7 +15,7 @@ steps:
   - say: "국내주식 모의주문 — 왼쪽은 바로 체결되는 시장가 주문, 오른쪽은 가격에 닿으면 나가는 스탑(감시) 주문입니다"
   - ring: {target: '[data-view="paper-stock"] h3:has-text("주문 입력")', sec: 2.0}
   - ring: {target: '[data-view="paper-stock"] h3:has-text("스탑(감시) 주문")', sec: 2.0}
-  - say: "종목 코드를 넣고 시세를 조회합니다 — 종목 이름 · 시장 · 현재가 · 등락률이 함께 보입니다"
+  - say: "종목 코드를 넣고 시세를 조회합니다 — 현재가 · 등락률 아래에 출처(증권사 조회 · 지연 시세 · 지난 종가)와 체결 시각이 붙습니다"
   - fill: {target: "#ps-symbol", text: "005930"}
   - click: "#ps-quote-btn"
   - pause: 2.5
@@ -28,7 +28,7 @@ steps:
   - say: "미리 보기는 체결 · 잔고를 바꾸지 않고, 실제 주문 시점 가격과 다를 수 있다고 함께 알립니다"
   - pause: 4.0
   - chapter: {label: "2 / 3 · 과정", title: "체결하고, 기록을 읽습니다", text: "국내는 시장가로 바로 체결하고, 미국은 장이 닫힌 시간이면 다음 정규장 시작가로 예약합니다", sec: 4.5}
-  - say: "시장가 매수 — 지연 현재가로 바로 체결됩니다"
+  - say: "시장가 매수 — 조회한 시세로 체결되고, 체결 알림에 그 시세의 출처와 시각이 남습니다. 증권사 키를 연결한 계정은 체결 직전에 한 번 더 받습니다"
   - click: "#ps-buy"
   - wait: {target: "#ps-positions table", timeout: 20}
   - pause: 1.5

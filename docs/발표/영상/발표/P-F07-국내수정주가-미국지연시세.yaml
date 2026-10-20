@@ -9,7 +9,7 @@ owner: 신장환 · 이동원
 start: trading-chart
 steps:
   - chapter: {label: "1 / 3 · 목적", title: "가격이 언제의 값인지 함께", text: "국내 · 미국 주가 차트를 보고, 미국 시세는 지연 시세와 받은 시각을 함께 확인합니다", sec: 5.0}
-  - say: "주가 차트 — 국내 종목을 찾고 기간을 골라 캔들 차트와 현재가 · 등락률을 봅니다"
+  - say: "주가 차트 — 국내 종목을 찾고 기간을 골라 캔들 차트와 현재가 · 등락률을 봅니다 · 현재가 옆에 출처와 체결 시각이 붙습니다"
   - ring: {target: "#stock-info", sec: 2.5}
   - ring: {target: "#chart-container", sec: 4.0}
   - say: "기간을 바꿔 다시 조회합니다 — 1개월부터 10년까지"

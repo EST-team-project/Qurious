@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+  <title id="title">Qurious — AI Financial Quant Platform</title>
+  <desc id="desc">자기 투자 규칙을 믿어도 되는지 판단하도록 돕는 학습 · 검증 플랫폼. 오른쪽은 브라우저 창 안의 앱 화면을 모양으로만 줄여 그린 것이다 — 위 탭 줄 · 왼쪽 메뉴 · 「로보 어드바이저」 화면의 카드 셋(자산 배분 도넛 · 리밸런싱 선 두 줄 · 모의투자 목록). 숫자는 없다.</desc>
+  <defs>
+    <!-- theme:start -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#f6f8fc"/><stop offset="1" stop-color="#eef2f8"/>
+    </linearGradient>
+    <radialGradient id="glowBlue">
+      <stop offset="0" stop-color="#2563eb" stop-opacity=".13"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowAmber">
+      <stop offset="0" stop-color="#d97706" stop-opacity=".11"/><stop offset="1" stop-color="#d97706" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#0f172a" flood-opacity=".16"/>
+    </filter>
+    <style>
+      text{font-family:'Pretendard Variable','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;fill:#0f172a}
+      .name{font-size:68px;font-weight:800;letter-spacing:-1.5px}
+      .tag{font-size:24px;font-weight:700;letter-spacing:2.5px;fill:#b45309}
+      .lead{font-size:30px;font-weight:600;fill:#1e293b}
+      .frame{stroke:#c5cdde;stroke-width:1.5}
+    </style>
+    <!-- theme:end -->
+    <style>
+      .mBrand{font-size:24px;font-weight:800;fill:#0f172a;letter-spacing:-.3px}
+      .mTitle{font-size:26px;font-weight:800;fill:#0f172a}
+      .mCard{font-size:24px;font-weight:700;fill:#334155}
+      .mLine{fill:none;stroke:#dde2ec;stroke-width:1.5}
+    </style>
+    <linearGradient id="logo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <clipPath id="win">
+      <rect x="548" y="36" width="668" height="328" rx="18"/>
+    </clipPath>
+  </defs>
+
+  <!-- 바탕 — 가장자리까지 불투명 -->
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <circle cx="900" cy="200" r="380" fill="url(#glowBlue)"/>
+  <circle cx="120" cy="420" r="300" fill="url(#glowAmber)"/>
+
+  <!-- 왼쪽 — 로고 칸 · 이름 · 부제 · 한 문장 -->
+  <rect x="64" y="82" width="72" height="72" rx="18" fill="url(#logo)"/>
+  <g transform="translate(64 82) scale(.818)">
+    <path d="M22 70V58M40 70V48M58 70V54" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+    <path d="M20 40L36 28L50 34L68 16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="68" cy="16" r="4.5" fill="#fff"/>
+  </g>
+  <text x="160" y="141" class="name">Qurious</text>
+  <text x="66" y="196" class="tag">AI FINANCIAL QUANT PLATFORM</text>
+  <text x="64" y="256" class="lead">자기 투자 규칙을 믿어도 되는지</text>
+  <text x="64" y="298" class="lead">판단하도록 돕는 학습 · 검증 플랫폼</text>
+
+  <!-- 오른쪽 — 브라우저 창 · 앱 화면을 모양으로만(숫자 없음) -->
+  <rect x="548" y="36" width="668" height="328" rx="18" fill="#e8ecf3" class="frame" filter="url(#shadow)"/>
+  <g clip-path="url(#win)">
+    <!-- 창 머리 -->
+    <circle cx="572" cy="56" r="6" fill="#f87171"/><circle cx="592" cy="56" r="6" fill="#fbbf24"/><circle cx="612" cy="56" r="6" fill="#34d399"/>
+    <rect x="640" y="46" width="380" height="20" rx="10" fill="#ffffff" stroke="#dde2ec"/>
+    <!-- 앱 바탕 -->
+    <rect x="548" y="76" width="668" height="288" fill="#f4f6fa"/>
+    <!-- 위 탭 줄 -->
+    <rect x="548" y="76" width="668" height="44" fill="#ffffff"/>
+    <path class="mLine" d="M548 120H1216"/>
+    <rect x="562" y="84" width="28" height="28" rx="8" fill="url(#logo)"/>
+    <g transform="translate(562 84) scale(.318)">
+      <path d="M22 70V58M40 70V48M58 70V54" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M20 40L36 28L50 34L68 16" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="600" y="106" class="mBrand">Qurious</text>
+    <rect x="712" y="92" width="64" height="12" rx="6" fill="#2563eb"/>
+    <rect x="788" y="92" width="64" height="12" rx="6" fill="#dde2ec"/>
+    <rect x="864" y="92" width="52" height="12" rx="6" fill="#dde2ec"/>
+    <rect x="928" y="92" width="72" height="12" rx="6" fill="#dde2ec"/>
+    <rect x="1012" y="92" width="36" height="12" rx="6" fill="#dde2ec"/>
+    <rect x="1060" y="92" width="44" height="12" rx="6" fill="#dde2ec"/>
+    <path d="M712 118H776" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="1190" cy="98" r="12" fill="url(#logo)"/>
+    <!-- 왼쪽 메뉴 -->
+    <rect x="548" y="120" width="152" height="244" fill="#ffffff"/>
+    <path class="mLine" d="M700 120V364"/>
+    <rect x="566" y="134" width="56" height="8" rx="4" fill="#c5cdde"/>
+    <rect x="558" y="152" width="132" height="30" rx="8" fill="#2563eb" fill-opacity=".12"/>
+    <rect x="570" y="162" width="84" height="10" rx="5" fill="#2563eb"/>
+    <rect x="570" y="196" width="96" height="10" rx="5" fill="#dde2ec"/>
+    <rect x="570" y="226" width="72" height="10" rx="5" fill="#dde2ec"/>
+    <rect x="570" y="256" width="88" height="10" rx="5" fill="#dde2ec"/>
+    <rect x="570" y="286" width="64" height="10" rx="5" fill="#dde2ec"/>
+    <rect x="570" y="316" width="80" height="10" rx="5" fill="#dde2ec"/>
+    <!-- 화면 머리 -->
+    <text x="724" y="160" class="mTitle">로보 어드바이저</text>
+    <rect x="1112" y="138" width="88" height="28" rx="14" fill="#2563eb"/>
+    <!-- 카드 셋 -->
+    <rect x="724" y="180" width="148" height="164" rx="12" fill="#ffffff" stroke="#dde2ec" stroke-width="1.5"/>
+    <rect x="888" y="180" width="148" height="164" rx="12" fill="#ffffff" stroke="#dde2ec" stroke-width="1.5"/>
+    <rect x="1052" y="180" width="148" height="164" rx="12" fill="#ffffff" stroke="#dde2ec" stroke-width="1.5"/>
+    <text x="740" y="212" class="mCard">자산 배분</text>
+    <text x="904" y="212" class="mCard">리밸런싱</text>
+    <text x="1068" y="212" class="mCard">모의투자</text>
+    <!-- 자산 배분 — 도넛 -->
+    <g fill="none" stroke-width="16" transform="rotate(-90 798 284)">
+      <circle cx="798" cy="284" r="36" stroke="#2563eb" stroke-dasharray="100 126.2"/>
+      <circle cx="798" cy="284" r="36" stroke="#d97706" stroke-dasharray="62 164.2" stroke-dashoffset="-105.4"/>
+      <circle cx="798" cy="284" r="36" stroke="#059669" stroke-dasharray="48 178.2" stroke-dashoffset="-172.8"/>
+    </g>
+    <!-- 리밸런싱 — 실선과 그 아래 점선(눈금 · 숫자 없음) -->
+    <path class="mLine" d="M904 326H1020"/>
+    <path d="M904.0 307.0 C906.7 305.9 915.0 300.4 920.0 300.2 C925.0 300.1 929.0 307.9 934.0 306.3 C939.0 304.7 944.7 291.7 950.0 290.6 C955.3 289.5 961.0 300.4 966.0 299.8 C971.0 299.2 975.0 287.5 980.0 286.9 C985.0 286.3 989.3 296.3 996.0 296.1 C1002.7 296.0 1016.0 287.7 1020.0 286.0" fill="none" stroke="#d97706" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="1.5 7"/>
+    <path d="M904.0 300.0 C906.7 298.7 915.0 292.5 920.0 292.0 C925.0 291.5 929.0 299.0 934.0 297.0 C939.0 295.0 944.7 281.5 950.0 280.0 C955.3 278.5 961.0 289.0 966.0 288.0 C971.0 287.0 975.0 275.0 980.0 274.0 C985.0 273.0 989.3 282.7 996.0 282.0 C1002.7 281.3 1016.0 272.0 1020.0 270.0" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- 모의투자 — 목록 네 줄 -->
+    <circle cx="1074" cy="249" r="7" fill="#2563eb"/><rect x="1090" y="244" width="72" height="10" rx="5" fill="#e8ecf3"/><rect x="1166" y="244" width="20" height="10" rx="5" fill="#c5cdde"/>
+    <circle cx="1074" cy="275" r="7" fill="#d97706"/><rect x="1090" y="270" width="56" height="10" rx="5" fill="#e8ecf3"/><rect x="1166" y="270" width="20" height="10" rx="5" fill="#c5cdde"/>
+    <circle cx="1074" cy="301" r="7" fill="#059669"/><rect x="1090" y="296" width="64" height="10" rx="5" fill="#e8ecf3"/><rect x="1166" y="296" width="20" height="10" rx="5" fill="#c5cdde"/>
+    <circle cx="1074" cy="327" r="7" fill="#94a3b8"/><rect x="1090" y="322" width="44" height="10" rx="5" fill="#e8ecf3"/><rect x="1166" y="322" width="20" height="10" rx="5" fill="#c5cdde"/>
+  </g>
+</svg>
