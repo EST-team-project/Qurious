@@ -982,7 +982,8 @@ async def stock_mtf_signal(symbol: str = Query("005930.KS"),
                 snap = await account_snapshot(db, uid)
                 current_equity = float(snap.get("totalAsset") or 0)
                 if current_equity > 0:
-                    start = await risk_guard.day_start_equity(str(uid), current_equity)
+                    # 이슈 #297 — 모의계좌(paper) 장부 관문은 :paper 접미사
+                    start = await risk_guard.day_start_equity(f"{uid}:paper", current_equity)
                     if start and risk_guard.daily_loss_breached(
                         start, current_equity, limits.daily_loss_limit_pct
                     ):
@@ -1039,7 +1040,8 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
     limits = risk_guard.RiskLimits.from_row(row)
     if auto_trade.aggressive_mode.is_enabled():
         limits = auto_trade.aggressive_mode.apply_limits(limits)
-    user_key = user.get("id", "quant_system")
+    # 이슈 #297 — 자동매매 장부는 :quant 접미사. 모의계좌(paper)와 위험 관문 키가 안 섞이게
+    user_key = f"{uid}:quant"
     # 자동매매 가상계좌 기준 현재 자산 (현재가 캐시 우선, 없으면 평균단가)
     acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
     equity = None
