@@ -35,11 +35,15 @@ steps:
   - wait: {target: "text=최적 자산배분 결과", timeout: 120, cut: true}
   - pause: 1.0
   - scroll: {target: "text=최적 자산배분 결과", block: "start"}
-  - say: "자산군별 비중과 기대 수익 · 변동성이 나옵니다"
+  - say: "자산군별 비중과, 국내주식 종목마다 과거 수익률 · 변동성 · 모델 판단이 나옵니다"
   - pause: 4.0
   # D54 — 종목 비중 · 수익률 · 변동성 · MDD 는 수집 DB 의 수정주가(금융위원회 주식시세정보) 2년으로 계산한다(app/routes/ml.py)
   - say: "자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 수정주가 · 지표는 Qurious 가 계산"
   - pause: 3.0
   - chapter: {label: "3 / 3 · 결과", title: "나눈 비중은 다음 화면이 이어서 씁니다", text: "상품 안내는 이 비중을 불러와 상품을 비교하고, 리밸런싱 엔진은 이 비중을 목표로 삼습니다", sec: 3.5}
+  - scroll: {target: 'a[href="#agent-products"][aria-describedby="robo-products-help"]'}
+  - say: "「자산군별 상품 보기」 를 누르면 이 비중에 맞는 상품 안내로 갑니다"
+  - ring: {target: 'a[href="#agent-products"][aria-describedby="robo-products-help"]', sec: 2.5}
+  - pause: 1.0
   - say: "과거 자료로 계산한 결과이며 미래 수익을 보장하지 않습니다"
   - pause: 3.0

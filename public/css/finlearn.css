@@ -165,3 +165,38 @@
 .cl-entry p { margin: 0; color: var(--text-dim); font-size: 15px; flex: 1 1 320px; }
 .cl-prose a { overflow-wrap: anywhere; }   /* 「더 읽을거리」 의 긴 주소가 좁은 화면을 밀지 않게(390 폭 92px · 손 시험에서 찾음) */
 @media (max-width: 640px) { .cl-list li { grid-template-columns: 1fr; gap: 2px; } }
+
+/* 「시작하기 전에」 고지(장 대장 F00 · 2026-10-20 · js/learnnotice.js) — 강의실 맨 앞 카드 · 두 메뉴 화면 꼬리 한 줄 */
+.q-notice { margin: 4px 0 18px; border-left: 3px solid var(--accent); }
+.q-notice h3 { margin: 0 0 8px; font-size: 15px; font-weight: 700; line-height: 1.45; color: var(--text); }
+.q-notice h3 i { color: var(--accent); margin-right: 4px; }
+.q-notice-rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.6; color: var(--text-dim); }
+.q-notice-rows li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; }
+.q-notice-rows b { color: var(--text); font-weight: 600; }
+@media (max-width: 640px) { .q-notice-rows li { grid-template-columns: 1fr; gap: 0; } }
+.q-notice-line { margin: 16px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-mute); }
+.q-notice-line a { color: var(--accent); }
+
+/* 학습 홈 네 갈래 · 갈래 목차 · 특강 날짜(2026-10-20 안 A · js/conceptlearn.js) */
+.cl-branch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 6px 0 18px; }
+@media (max-width: 720px) { .cl-branch-grid { grid-template-columns: minmax(0, 1fr); } }
+.cl-branch { display: flex; flex-direction: column; gap: 8px; color: var(--text); text-decoration: none; border: 1px solid var(--border); }
+.cl-branch:hover, .cl-branch:focus-visible { border-color: var(--accent); }
+.cl-branch-top { display: flex; align-items: center; gap: 10px; }
+.cl-branch-top i { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;
+  background: var(--accent-glow); color: var(--accent); font-size: 16px; }
+.cl-branch-top h3 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.4; }
+.cl-branch p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-dim); }
+.cl-branch .fl-chip { align-self: flex-start; }
+/* 갈래 홈 · 부 목차 — 강의실 카드 꼴(fl-course)을 그대로 쓴다(2026-10-20 사용자 「강의실처럼 깔끔하게 · 통일」 · js/conceptlearn.js) */
+a.cl-course { color: inherit; text-decoration: none; }
+.cl-course ul { padding-left: 6px; }   /* 점을 안쪽에 두므로 들여쓰기를 줄여 강의실 카드와 글 시작을 맞춘다 */
+.cl-course ul li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; list-style-position: inside; }   /* 줄임표 칸 안에 점이 보이게 */
+.cl-course.is-wait { cursor: default; opacity: .7; }
+.cl-course.is-wait:hover { border-color: var(--border); box-shadow: none; }
+.cl-course .cl-keys { font-size: 13px; color: var(--text-mute); }
+.cl-course .cl-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; }
+.cl-course .fl-foot .fl-muted i { color: var(--accent); }
+.cl-part-no { background: var(--accent); color: #fff; border-radius: 8px; padding: 2px 9px; font-weight: 800; font-size: 13px; }
+.cl-part-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+.cl-read { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; font-size: 12px; font-weight: 600; color: var(--accent); }

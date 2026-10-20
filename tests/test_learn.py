@@ -375,8 +375,9 @@ def test_builtin_textbook_pages_are_valid_and_linked():
     """TC-LN-15 · 기본 교재 전부가 규격을 지키고, 선수 장 · 장 안 링크(#/p/…)가 있는 장을 가리킨다."""
     pages, errors = lp.load_builtin(CONTENT)
     assert errors == []
-    assert len(pages) == 35
-    assert {p.meta["section"] for p in pages.values()} == {"tech", "finance"}
+    assert len(pages) == 72      # 2026-10-20 「특강」 1일차 8(S.11 ~ S.18) · 「파이썬 중급」 6부 뼈대 6 + 7부 저장소 장 1(L03) · 팀 기능 범위 22(7.6 · 8 ~ 12부)
+    assert {p.meta["section"] for p in pages.values()} == set(lp.SECTIONS) == {"tech", "finance", "special"}
+    assert all(p.meta["order"].startswith("S.") for p in pages.values() if p.meta["section"] == "special")   # 특강은 S.<일차><교시>
     for page in pages.values():
         for pre in page.meta.get("prereq", []):
             assert pre in pages, (page.slug, pre)

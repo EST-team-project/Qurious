@@ -7,7 +7,7 @@
 1. 기초 코드 지킴이 — core.js 의 renderViewGuide 는 window.QHowto 에 넘기기만 한다. 옛 접이식 · 열림 기억(localStorage)
    · 기초 코드 판의 <dialog> 가 3-way 반영으로 소리 없이 돌아오면 깨진다. (TC-HT-01)
 2. 연결 — app.html 이 howto.css · howto.js 를 싣고, howto.js 가 main.js 보다 먼저 돈다(첫 화면을 그릴 때 QHowto 가 있어야). (TC-HT-02)
-3. 자료 — 메뉴의 앱 안 화면(바깥 주소 · 소제목 빼고)은 모두 사용법 글이 있고, 글의 용어 키는 모두 TERMS 에 있다. (TC-HT-03)
+3. 자료 — 메뉴의 앱 안 화면(바깥 주소 · 소제목 빼고)은 모두 사용법 글이 있고, 글의 용어 키는 모두 TERMS 에 있다 · 글에 「실시간」 낱말이 없다(지연 시세 · 지난 종가를 실시간이라 부르지 않는다 — UI 명세서 2.2절 ① · 2026-10-20). (TC-HT-03)
 4. 무엇도 브라우저에 남기지 않는다(열림 기억을 버림). (TC-HT-04)
 5. 두 단 화면(거시경제 지표)이 윗줄을 두 단 안으로 옮기지 않는다. (TC-HT-05)
 6. 창 안 내용 — node 로 howtoview.js 를 그대로 돌린다: 요약 · 단계 번호 · TERMS 에 있는 용어만 칩 · 글은 글자로(꺾쇠 주입 막음) ·
@@ -129,6 +129,9 @@ def test_every_menu_screen_has_a_guide(data):
     assert bad_terms == [], f"TERMS 에 없는 용어 키 {bad_terms}"
     for k, g in guides.items():
         assert g["summary"].strip() and g["steps"], f"{k} 요약 · 단계"
+    # UI 명세서 2.2절 ① — 지연 시세 · 지난 종가를 「실시간」 이라 부르지 않는다(2026-10-20 · 사용법 글 셋을 고침)
+    live = [k for k, g in guides.items() if "실시간" in g["summary"] + "".join(g["steps"])]
+    assert live == [], f"「실시간」 낱말이 남은 사용법 글 {live}"
 
 
 def test_nothing_is_stored_in_the_browser():

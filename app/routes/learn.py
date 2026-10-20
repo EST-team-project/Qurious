@@ -53,7 +53,7 @@ def _team_view(team: dict, user: Optional[dict]) -> dict:
 
 @router.get("/catalog", summary="개념 학습 글 목록")
 def catalog(
-    section: Optional[str] = Query(None, pattern="^(tech|finance)$", description="tech(개념 학습) · finance(금융 필수 지식)"),
+    section: Optional[str] = Query(None, pattern="^(tech|finance|special)$", description="tech(개념 학습) · finance(금융 필수 지식) · special(특강)"),
     q: str = Query("", max_length=60, description="검색어 — 제목 · 요약 · 부 · 꼬리표 · slug 에 모두 든 글"),
     user: Optional[dict] = Depends(get_optional_user),
 ):

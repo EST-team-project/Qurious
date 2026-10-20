@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="140" viewBox="0 0 240 140" role="img" aria-label="3부 근거 RAG — 문서를 찾아 근거를 달아 답한다">
+  <title>3부 근거 RAG</title>
+  <!-- 문서 셋 → 돋보기(찾기) → 답 말풍선(출처 칩 둘) · 점선 = 출처가 문서로 이어짐 -->
+  <rect width="240" height="140" rx="14" fill="#ffffff"/>
+  <rect width="240" height="140" rx="14" fill="#2563eb" fill-opacity="0.12"/>
+  <g>
+    <rect x="22" y="38" width="46" height="58" rx="6" fill="#ffffff" stroke="#c5cdde" stroke-width="2" transform="rotate(-8 45 67)"/>
+    <rect x="48" y="36" width="46" height="58" rx="6" fill="#ffffff" stroke="#c5cdde" stroke-width="2" transform="rotate(7 71 65)"/>
+    <rect x="34" y="32" width="46" height="60" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="42" y="42" width="30" height="5" rx="2.5" fill="#2563eb"/>
+    <rect x="42" y="53" width="26" height="4" rx="2" fill="#e8ecf3"/>
+    <rect x="42" y="62" width="30" height="4" rx="2" fill="#e8ecf3"/>
+    <rect x="42" y="71" width="22" height="4" rx="2" fill="#e8ecf3"/>
+  </g>
+  <g>
+    <circle cx="76" cy="76" r="15" fill="#ffffff" fill-opacity="0.7" stroke="#2563eb" stroke-width="3"/>
+    <line x1="87" y1="87" x2="98" y2="98" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <path d="M108 66 H130" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <path d="M126 61 L132 66 L126 71" stroke="#94a3b8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <g>
+    <path d="M150 30 H210 a12 12 0 0 1 12 12 V80 a12 12 0 0 1 -12 12 H160 L148 104 V92 a12 12 0 0 1 -10 -12 V42 a12 12 0 0 1 12 -12 Z" fill="#ffffff" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="150" y="42" width="56" height="5" rx="2.5" fill="#c5cdde"/>
+    <rect x="150" y="52" width="46" height="5" rx="2.5" fill="#c5cdde"/>
+    <rect x="150" y="62" width="52" height="5" rx="2.5" fill="#c5cdde"/>
+    <rect x="150" y="74" width="24" height="10" rx="5" fill="#2563eb" fill-opacity="0.18" stroke="#2563eb" stroke-width="1.5"/>
+    <rect x="180" y="74" width="24" height="10" rx="5" fill="#2563eb" fill-opacity="0.18" stroke="#2563eb" stroke-width="1.5"/>
+  </g>
+  <path d="M162 86 C 150 124, 86 126, 60 98" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3 4"/>
+</svg>

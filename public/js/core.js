@@ -147,13 +147,16 @@ const GNB_MENUS = {
       { key: "market-calendar",   icon: "fa-solid fa-calendar-days",   label: "일정" },
     ],
   },
-  // 금융 필수 지식 (2026-10-01 화면 설계 결정) — 「강의」(강의실 + 주제 아홉 · js/finlearn.js) · 「요약」(지금 화면 셋).
-  // heading 은 클릭되지 않는 소제목, sub 는 강의실 아래 들여쓴 주제다(lnbItem). 금융 지식은 이 메뉴 안에서 읽는다 —
-  // 예전의 「금융 교재 (개념 학습)」 링크(/learn/ 로 나감)는 뺐다.
+  // 학습 (2026-10-20 안 A · 사용자 「개념 학습과 금융 필수 지식을 위에 학습이라고 되어 있는 목차 하나로 통합」) — 학습 홈 아래에
+  // 네 갈래: 금융 필수 지식(강의실 + 주제 아홉 · 요약 셋 · 용어사전 — js/finlearn.js) · 개발 개념 · 파이썬 중급 · 특강(js/conceptlearn.js).
+  // 전에는 「금융 필수 지식」 · 「개념 학습」 두 묶음이 따로 있어 목차의 금융 장과 강의실이 겹쳐 헷갈렸다. 묶음 키는 위 탭 단추와 같은
+  // finance 그대로 · heading 은 클릭되지 않는 소제목, sub 는 강의실 아래 들여쓴 주제다(lnbItem). 장은 메뉴에 하나하나 두지 않고
+  // 갈래 목차가 고른다(장 한 편 · 부 목차는 메뉴 줄 없이 — VIEW_PARENT) · /learn/ 은 관리자의 팀 자료 받기 · 원문 확인용으로 남는다.
   finance: {
-    label: "<i class='fa-solid fa-coins'></i> 금융 필수 지식",
+    label: "<i class='fa-solid fa-book-open'></i> 학습",
     items: [
-      { heading: "강의" },
+      { key: "learn-home", icon: "fa-solid fa-house", label: "학습 홈" },
+      { heading: "금융 필수 지식" },
       { key: "fin-lectures",         icon: "fa-solid fa-chalkboard-user",  label: "강의실 (전체 과정)" },
       { key: "fin-topic-futures",    icon: "fa-solid fa-scale-unbalanced", label: "선물과 옵션", sub: true },
       { key: "fin-topic-funds",      icon: "fa-solid fa-basket-shopping",  label: "펀드와 ETF", sub: true },
@@ -164,24 +167,17 @@ const GNB_MENUS = {
       { key: "fin-topic-technical",  icon: "fa-solid fa-chart-line",       label: "기술적 분석 · 재무제표", sub: true },
       { key: "fin-topic-industry",   icon: "fa-solid fa-industry",         label: "퀀트 사례 · 배당 · ETF", sub: true },
       { key: "fin-topic-macro",      icon: "fa-solid fa-globe",            label: "거시경제와 시장", sub: true },
-      { heading: "요약" },
       { key: "fin-products",   icon: "fa-solid fa-layer-group",   label: "금융상품 이해" },
       { key: "fin-allocation", icon: "fa-solid fa-pie-chart",     label: "자산배분 모델" },
       { key: "quant-seasonal", icon: "fa-solid fa-calendar-days", label: "계절성 분석" },
       // 용어사전 (2026-10-02 화면 설계 결정 ① — 찾기 첫 화면 → 용어 한 장 · js/glossary.js)
-      { heading: "연습" },
       { key: "fin-glossary",   icon: "fa-solid fa-book",          label: "용어사전" },
-    ],
-  },
-  // 개념 학습 (2026-10-01 · 2026-10-19 앱 안으로) — 기능의 원리와 금융 기초를 교재처럼 장으로 읽는다(js/conceptlearn.js ·
-  // docs/설계/개념학습-설계.md). 전에는 따로 된 쪽(/learn/ · 트리의 「새 화면」)이었다 — 사용자 10-19 「학습을 금융필수지식 +
-  // 개념학습으로 하기로 했는데 분리되어 있는 오류」. 위 탭 「학습」 이 금융 필수 지식과 이 묶음을 함께 덮는다(TAB_OF).
-  // 장(35편)은 메뉴에 하나하나 두지 않고 목차 화면이 고른다 · /learn/ 은 관리자의 팀 자료 받기 · 원문 확인용으로 남는다.
-  learn: {
-    label: "<i class='fa-solid fa-graduation-cap'></i> 개념 학습",
-    items: [
-      { key: "learn-home", icon: "fa-solid fa-map", label: "전체 목차" },
-      { key: "learn-page", icon: "fa-solid fa-book-open", label: "장 읽기" },
+      { heading: "개념 학습" },
+      { key: "learn-dev",     icon: "fa-solid fa-microchip",          label: "개발 개념" },
+      { key: "learn-python",  icon: "fa-solid fa-code",               label: "파이썬 중급" },
+      { key: "learn-special", icon: "fa-solid fa-person-chalkboard",  label: "특강" },   // 장 한 편 · 부 목차는 메뉴 줄 없이(VIEW_PARENT)
+      { heading: "도움" },
+      { key: "learn-videos",  icon: "fa-solid fa-circle-play",        label: "사용법 영상" },   // 2026-10-20 D132 — 영상이 없는 PC 에서는 숨김(helpvideos.css)
     ],
   },
   sysadmin: {
@@ -294,15 +290,15 @@ const VIEW_GUIDES = {
   "crawl-manual":    { summary: "매일 수집이 빠뜨린 날이나 과거분을 메웁니다 — 받을 범위를 먼저 보고, 받는 명령을 이 PC 에서 돌립니다(관리자).", steps: ["자료 종류와 기간을 고르고 「받을 범위 보기」 를 누르세요 — 이미 받은 날은 건너뛰고 빈 날만 받습니다.", "빈 날이 있으면 「받기」 를 눌러 나오는 명령을 이 PC 에서 돌린 뒤 범위를 다시 보세요.", "주소로 받을 때는 허용 목록에 있는 곳만 받습니다 — 먼저 「주소 검사」 를 누르세요."], relatedTerms: [] },
   "crawl-ingest":    { summary: "수집 자료를 Hugging Face 비공개 데이터셋에 백업한 상태와 이 PC 용량을 봅니다(관리자).", steps: ["점검 줄이 모두 「통과」 여야 로컬 원본을 지워도 된다고 판정합니다.", "원격 다시 확인 · 복원 리허설은 단추를 눌러 나오는 명령을 이 PC 에서 돌리세요 — 다음 판정에 그 결과가 들어갑니다."], relatedTerms: [] },
   "trading-chart":   { summary: "종목 시세와 캔들 차트를 조회합니다.", steps: ["'종목 검색'으로 원하는 종목을 선택하세요.", "기간을 바꿔가며 캔들 차트와 현재가·등락률을 확인하세요."], relatedTerms: ["ma", "rsi"] },
-  "trading-portfolio": { summary: "직접 보유 종목을 등록해 나만의 포트폴리오를 관리합니다.", steps: ["종목명·수량·평균단가를 입력해 보유 내역을 추가하세요.", "평가손익은 실시간 시세 기준으로 자동 계산됩니다."], relatedTerms: [] },
+  "trading-portfolio": { summary: "직접 보유 종목을 등록해 나만의 포트폴리오를 관리합니다.", steps: ["종목명·수량·평균단가를 입력해 보유 내역을 추가하세요.", "평가손익은 조회할 때의 시세로 자동 계산됩니다."], relatedTerms: [] },
   "paper-dashboard": { summary: "주식·코인·대체자산이 공유하는 모의투자 계좌(초기 1억원)의 현금·평가액·손익을 확인합니다.", steps: ["각 자산군의 평가액과 총 손익을 확인하세요.", "'계좌 초기화'로 모든 포지션·이력을 지우고 처음부터 다시 연습할 수 있습니다."], relatedTerms: ["paper_trading"] },
-  "paper-stock":     { summary: "KRX 종목(또는 해외 티커)을 실시간 시세로 모의 매수/매도합니다.", steps: ["종목코드(예: 005930)를 입력하고 '시세 조회'를 누르세요.", "수량을 넣고 '미리보기'로 체결 가능 여부와 잔고 변화를 확인한 뒤 매수/매도하세요.", "체결은 직접매매 포트폴리오와 같은 잔고를 사용합니다."], relatedTerms: ["paper_trading"] },
+  "paper-stock":     { summary: "KRX 종목(또는 해외 티커)을 조회한 시세로 모의 매수/매도합니다.", steps: ["종목코드(예: 005930)를 입력하고 '시세 조회'를 누르세요.", "수량을 넣고 '미리보기'로 체결 가능 여부와 잔고 변화를 확인한 뒤 매수/매도하세요.", "체결은 직접매매 포트폴리오와 같은 잔고를 사용합니다."], relatedTerms: ["paper_trading"] },
   "paper-crypto":    { summary: "Upbit KRW 마켓 현재가로 코인을 금액(매수)/수량(매도) 기준으로 모의 거래합니다.", steps: ["마켓을 고르면 현재가와 국내 거래소(Upbit·Bithumb·Korbit) 가격 비교가 표시됩니다.", "매수는 원화 금액, 매도는 코인 수량으로 입력합니다."], relatedTerms: ["paper_trading"] },
   "paper-alternative": { summary: "선물·옵션·파생 ETN·금·은·부동산 지분을 교육용 기준가/지연 시세로 모의 주문합니다.", steps: ["상품 카드를 클릭하면 차트와 주문 대상이 바뀝니다.", "선물은 증거금(marginRate)만큼만 현금이 차감됩니다."], relatedTerms: ["paper_trading"] },
   "paper-openapi":   { summary: "외부 시스템에서 모의계좌를 조회·주문할 수 있는 Open API 키를 발급하고, Alpaca Paper 연결을 테스트합니다.", steps: ["라벨을 입력하고 키를 발급하세요. 키 원문은 발급 직후 한 번만 표시됩니다.", "curl 예시처럼 Authorization: Bearer 헤더로 /openapi/v1 엔드포인트를 호출하세요.", "Alpaca Paper 키를 넣으면 계정 상태를 읽기 전용으로 확인합니다."], relatedTerms: ["broker_api", "paper_trading"] },
   "quant-lean":      { summary: "Yahoo Finance 일봉을 QuantConnect LEAN 엔진(Docker)에서 실행해 전략 수익률·MDD·샤프를 검증합니다.", steps: ["예시를 고르거나 전략·티커·기간을 직접 입력하세요.", "'검증 실행'을 누르면 LEAN 컨테이너가 실행되고(수 분 소요) pandas 지표와 함께 결과가 표시됩니다.", "LEAN이 연결되지 않은 환경에서는 pandas 계산 결과만 표시됩니다."], relatedTerms: ["backtest", "sharpe", "mdd"] },
   "trading-order":   { summary: "가상 잔고로 매수/매도 주문을 내고 체결 내역을 확인합니다.", steps: ["매수/매도, 수량, 가격을 입력해 주문하세요.", "증권사 API를 연동하면 실제 계좌 데이터로도 확인할 수 있습니다."], relatedTerms: ["broker_api", "paper_trading"] },
-  "quant-dashboard": { summary: "대표 종목들의 실시간 시세와 퀀트 시그널을 한눈에 봅니다.", steps: ["시장 지수 카드와 종목별 매수/매도 시그널 카드를 확인하세요.", "차트에서 종목을 바꿔가며 지표 흐름을 살펴보세요."], relatedTerms: ["signal", "rsi", "ma"] },
+  "quant-dashboard": { summary: "대표 종목들의 시세와 퀀트 시그널을 한눈에 봅니다.", steps: ["시장 지수 카드와 종목별 매수/매도 시그널 카드를 확인하세요.", "차트에서 종목을 바꿔가며 지표 흐름을 살펴보세요."], relatedTerms: ["signal", "rsi", "ma"] },
   "quant-auto":      { summary: "10분 주기 자동매매를 시작/중지하고 실행 로그를 확인합니다.", steps: ["'시작'을 누르면 설정된 종목·전략으로 자동매매가 실행됩니다.", "로그에서 각 사이클의 매매 내역과 사유를 확인하세요.", "실거래 전 반드시 '증권사 API 설정'에서 모의(paper) 모드로 충분히 검증하세요."], relatedTerms: ["auto_trade_cycle", "virtual_account", "paper_trading"] },
   "quant-backtest":  { summary: "선택한 종목에 규칙 기반 시그널을 적용해 10년치 백테스트 성과를 확인합니다.", steps: ["종목을 선택하고 '백테스트 실행'을 누르세요.", "누적수익률·샤프지수·MDD·승률을 Buy&Hold와 비교해보세요."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate"] },
   "settings":        { summary: "실거래를 위한 증권사 API 키(앱키/시크릿키/계좌번호)를 등록합니다.", steps: ["증권사를 선택하고 발급받은 앱키·시크릿키를 입력하세요.", "'연결 테스트'로 정상 연동 여부를 먼저 확인한 뒤 저장하세요.", "모의(paper) 모드로 충분히 테스트한 후 실거래로 전환하는 것을 권장합니다."], relatedTerms: ["broker_api", "broker_catalog", "paper_trading"] },
@@ -348,8 +344,13 @@ const VIEW_GUIDES = {
   "sysadmin-dashboard": { summary: "서버 자원(CPU/메모리/디스크)과 연동 서비스 상태를 모니터링합니다.", steps: ["호스트/서비스/컨테이너 카드에서 이상 여부를 확인하세요.", "응답이 느리거나 실패로 표시되면 해당 서비스(Ollama/Qdrant/Redis) 상태를 점검하세요."], relatedTerms: ["qdrant"] },
   "sysadmin-logs":   { summary: "주문·설정 변경 등 주요 이벤트의 감사 로그를 조회합니다.", steps: ["이벤트 유형·기간으로 필터링해 이력을 확인하세요.", "이상 거래나 설정 변경 원인을 추적할 때 활용하세요."], relatedTerms: ["audit_log"] },
   "fin-glossary":    { summary: "금융 · 투자 용어를 이름 · 약어 · 영어 · 초성으로 찾고, 풀이와 이어진 개념을 봅니다.", steps: ["검색창에 PER · 샤프 · ㅅㄱㅊㅇ 처럼 쳐 보세요 — 줄마다 무엇으로 찾았는지 보여 줍니다.", "분류 카드를 누르면 그 분류의 용어를 가나다순으로 봅니다.", "다른 화면에서 용어를 눌렀을 때 뜨는 창의 모양은 내 계정 › 화면 설정에서 바꿉니다."], relatedTerms: [] },
-  "learn-home":      { summary: "기능이 움직이는 원리(수집 · 근거 답 · 차트 · 서버)와 금융 기초를 부마다 장으로 묶은 목차입니다.", steps: ["장 제목을 누르면 이 화면 안에서 그 장을 읽습니다.", "「완성」 장부터 읽어 보세요. 「뼈대」 장은 아직 차례와 다룰 질문만 있습니다.", "읽던 장은 맨 위 「이어 읽기」 로 돌아옵니다."], relatedTerms: [] },
-  "learn-page":      { summary: "장 한 편을 읽습니다 — 머리에 부 · 번호 · 먼저 읽을 장, 왼쪽에 이 장의 차례가 있습니다.", steps: ["왼쪽 차례를 누르면 그 절로 내려갑니다.", "코드 상자의 「복사」 로 예제를 옮겨 직접 돌려 보세요.", "맨 아래 앞뒤 장으로 이어 읽고, 「전체 목차」 로 돌아갑니다."], relatedTerms: [] },
+  "learn-videos":    { summary: "찍어 둔 사용법 영상을 차례대로 봅니다 — 로보 어드바이저를 처음부터 끝까지 쓰는 여정과 기능마다 한 편.", steps: ["오른쪽 차례에서 볼 편을 고르세요 — 끝까지 본 편에는 ✓ 가 붙습니다(이 브라우저에만).", "장 단추를 누르면 그 장면부터 봅니다.", "「이 화면 열기」 를 누르면 그 화면으로 가서 사용법 창을 엽니다."], relatedTerms: [] },
+  "learn-home":      { summary: "학습 홈 — 금융 필수 지식 · 개발 개념 · 파이썬 중급 · 특강 네 갈래에서 고르고, 읽던 장을 이어 읽습니다.", steps: ["갈래 카드를 눌러 그 갈래의 목차로 갑니다.", "「이어 읽기」 는 이 브라우저에서 마지막으로 읽은 장입니다.", "준비 중인 장은 다룰 질문과 참고 자료를 먼저 볼 수 있습니다."], relatedTerms: [] },
+  "learn-dev":       { summary: "개발 개념 — 수집 · 근거 답 · 차트 · 서버 · AI 에이전트 · 백테스트처럼 Qurious 기능이 움직이는 원리를 부마다 장으로 읽습니다.", steps: ["부 카드를 누르면 그 부의 장 목록이 열립니다.", "장 머리의 「먼저 읽을 장」 부터 읽으면 이어집니다.", "카드의 「읽은 장」 은 이 브라우저에서 연 장의 수입니다."], relatedTerms: [] },
+  "learn-python":    { summary: "파이썬 중급 — 우리 코드에 쓰인 import · 타입 힌트 · 데이터 그릇 · 인터페이스 · 예외 처리 · 문자열을 차례로 읽습니다.", steps: ["장 카드를 누르면 바로 읽습니다.", "6.1 부터 차례로 읽으면 앞 장이 다음 장의 바탕이 됩니다."], relatedTerms: [] },
+  "learn-special":   { summary: "특강 — 날짜 · 교시마다 특강 내용을 정리한 장입니다. 강의 자료와 다르게 적은 곳은 장마다 출처와 함께 밝혀 두었습니다.", steps: ["날짜 카드를 누르면 그날의 교시 목록이 열립니다.", "장 끝 「강의 자료와 다르게 적은 곳」 에서 바로잡은 내용을 확인하세요."], relatedTerms: [] },
+  "learn-part":      { summary: "부 목차 — 한 부(특강은 하루)의 장을 차례대로 보고 골라 읽습니다.", steps: ["「첫 장부터 읽기」 · 「이어 읽기」 는 아직 열지 않은 첫 장으로 갑니다.", "맨 아래에서 앞뒤 부로 옮기거나 갈래 전체로 돌아갑니다."], relatedTerms: [] },
+  "learn-page":      { summary: "장 한 편을 읽습니다 — 머리에 부 · 번호 · 먼저 읽을 장, 왼쪽에 이 장의 차례가 있습니다.", steps: ["왼쪽 차례를 누르면 그 절로 내려갑니다.", "코드 상자의 「복사」 로 예제를 옮겨 직접 돌려 보세요.", "맨 아래 앞뒤 장으로 이어 읽고, 머리의 「←」 로 목차에 돌아갑니다."], relatedTerms: [] },
   "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴합니다.", steps: ["이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
 };
 
@@ -387,9 +388,9 @@ window.tt = tt;
 // (Qurious 2026-10-16) 화면 사용법 — 윗줄 「사용법」 단추 + 가운데 창은 js/howto.js 가 그린다(결정 안 A ·
 // 설계 docs/화면/설계안/2026-10-16-사용법모달). 자료(사용법 글 · 용어 · 메뉴 이름)는 여기서 넘긴다 —
 // howto.js 가 core.js 를 가져오면 화면 시작 차례가 바뀐다. 옛 접이식과 열림 기억(localStorage)은 버렸다.
-function renderViewGuide(viewKey) {
-  const menu = Object.values(GNB_MENUS).find(m => m.items.some(it => it.key === viewKey));
-  const item = menu?.items.find(it => it.key === viewKey);
+function renderViewGuide(viewKey, pathKey = viewKey) {   // pathKey — 머리 경로에 쓸 메뉴 줄(메뉴 줄이 없는 화면은 따를 줄)
+  const menu = Object.values(GNB_MENUS).find(m => m.items.some(it => it.key === pathKey));
+  const item = menu?.items.find(it => it.key === pathKey);
   window.QHowto?.render(viewKey, VIEW_GUIDES[viewKey], {
     terms: TERMS, label: item?.label || "", group: (menu?.label || "").replace(/<[^>]+>/g, "").trim(),
   });
@@ -465,12 +466,15 @@ let currentView = "agent-chat";
 // 근거: 사용자 10-18 「위의 메뉴바에는 필요한 기능만 넣고 옆 사이드에 전체 메뉴」 · 조사(KRX 정보데이터시스템의 통계 트리 ·
 //       강사님 fe-vanilla 의 좌측 트리) · NN/g 「Hamburger Menus and Hidden Navigation Hurt UX Metrics」(2016 — 데스크톱에서
 //       숨긴 메뉴 27% · 보이는 메뉴 48%).
-// 탭 「학습」 = 금융 필수 지식(누르면 강의실) + 개념 학습(트리에서 바로 아래 · 2026-10-19 부터 둘 다 앱 안 · TAB_OF) — Schwab · Webull · Coinbase 가 위 메뉴에 두는
+// 탭 「학습」 = 한 묶음(누르면 학습 홈 · 2026-10-20 금융 필수 지식 · 개발 개념 · 파이썬 중급 · 특강을 합침) — Schwab · Webull · Coinbase 가 위 메뉴에 두는
 //       「Learn」 을 다른 탭처럼 우리말 명사로(2026-10-18 각 첫 화면 메뉴 글 확인 · 사용자 「가장 범용적인 이름」).
 const MENU_TOP = ["agent", "company", "paper", "quant", "finance", "crawl"];   // app.html 위 탭과 같은 차례(TC-NV-01)
-const TAB_OF = { learn: "finance" };   // 위 탭이 따로 없는 묶음 → 불을 켤 위 탭(「학습」 = 금융 필수 지식 + 개념 학습 · TC-CLV-02)
+// 메뉴 줄이 없는 화면 → 따를 메뉴 줄 — 장 한 편 · 부 목차는 학습 갈래 목차에서 들어온다(메뉴 줄 「장 읽기」 는 뺐다 · 사용자 10-20
+// 「굳이 필요 없는 화면」). 위 탭 · 왼쪽 트리 · 머리 경로가 이 줄을 따르고, 화면이 그린 뒤 들어온 갈래로 바꾼다(showUnder)
+const VIEW_PARENT = { "learn-page": "learn-home", "learn-part": "learn-home" };
+const TAB_OF = {};   // 위 탭이 따로 없는 묶음 → 불을 켤 위 탭(2026-10-20 「학습」 을 한 묶음으로 합쳐 지금은 없음 · 생기면 여기 · TC-CLV-02)
 const MENU_TREE = ["agent", "company", "paper", "quant", "trading", "us", "invest", "ml",
-  "finance", "learn", "crawl", "sysadmin", "account"];   // 왼쪽 트리 차례 — 모든 묶음이 한 번씩(TC-NV-02)
+  "finance", "crawl", "sysadmin", "account"];   // 왼쪽 트리 차례 — 모든 묶음이 한 번씩(TC-NV-02 · 2026-10-20 개념 학습은 「학습」 안으로)
 const menuIcon = label => (label.match(/class='([^']+)'/) || [])[1] || "fa-solid fa-folder";
 const menuText = label => label.replace(/<[^>]+>/g, "").trim();
 // 트리 항목 하나 — 소제목(heading)은 누를 수 없는 글, 바깥 주소(href)는 링크, 그 밖은 화면 단추(키보드로 닿게 button)
@@ -561,9 +565,10 @@ document.getElementById("lnb-toggle-btn")?.addEventListener("click", () => {
 });
 
 function navigate(viewKey) {
+  const navKey = VIEW_PARENT[viewKey] || viewKey;   // 메뉴 줄이 없는 화면은 따를 줄로 묶음 · 트리 · 머리 경로를 고른다
   // Find gnb section for this view
   for (const [gnbKey, menu] of Object.entries(GNB_MENUS)) {
-    if (menu.items.some(it => it.key === viewKey)) {
+    if (menu.items.some(it => it.key === navKey)) {
       currentGnb = gnbKey;
       break;
     }
@@ -579,7 +584,7 @@ function navigate(viewKey) {
   fitGnbTabs();   // 지금 탭은 굵은 글이라 폭이 조금 바뀐다 — 다시 잰다
 
   // 왼쪽 트리 — 지금 묶음 펼침 · 지금 화면 표시
-  syncLnbTree(currentGnb, viewKey);
+  syncLnbTree(currentGnb, navKey);
 
   // Show/hide views
   document.querySelectorAll(".view").forEach(el => {
@@ -590,12 +595,20 @@ function navigate(viewKey) {
   if (moved) document.getElementById("main-content")?.scrollTo(0, 0);
 
   // 사용법 안내 패널 (전체 화면 공통)
-  renderViewGuide(viewKey);
+  renderViewGuide(viewKey, navKey);
   renderCompareTrayAll();
 
   location.hash = viewKey;
   document.dispatchEvent(new CustomEvent("lumina:view-changed", { detail: { view: viewKey } }));
   _viewActivated(viewKey);
+}
+
+// 메뉴 줄이 없는 화면이 그린 뒤 「들어온 갈래」 를 알린다 — 왼쪽 트리 표시 · 머리 경로가 그 메뉴 줄로 바뀐다
+// (장의 갈래는 목록을 받아야 안다 · 그사이 다른 화면으로 옮겼으면 그대로 둔다)
+function showUnder(viewKey, parentKey) {
+  if (currentView !== viewKey || !VIEW_PARENT[viewKey]) return;
+  syncLnbTree(currentGnb, parentKey);
+  renderViewGuide(viewKey, parentKey);
 }
 
 // GNB click — 묶음의 첫 화면으로(위 탭이 부른다)
@@ -735,4 +748,4 @@ let _viewActivated = () => {};
 export function registerViewActivation(fn) { _viewActivated = fn; }
 
 
-export { GNB_MENUS, MENU_TOP, MENU_TREE, compareTrayAdd, fitGnbTabs, loadMarketTicker, loadSyncStatus, navigate, openGnbGroup, renderCompareTrayAll, tt };
+export { GNB_MENUS, MENU_TOP, MENU_TREE, compareTrayAdd, fitGnbTabs, loadMarketTicker, loadSyncStatus, navigate, openGnbGroup, renderCompareTrayAll, showUnder, tt };

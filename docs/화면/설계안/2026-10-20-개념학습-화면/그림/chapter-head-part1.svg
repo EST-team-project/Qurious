@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="150" viewBox="0 0 880 150" role="img" aria-label="장 머리 그림 꼴 — 1부 시세 데이터 장의 머리 띠">
+  <title>장 머리 그림 꼴 (1부 시세 데이터)</title>
+  <!-- 꼴: 왼쪽 60% 는 비운다(앱이 제목 · 요약 · 꼬리표를 글로 얹는다) · 오른쪽에 그 부의 그림 · 아래 3px 띠는 갈래 색.
+       다른 부는 그림과 띠 색만 바꾼다(금융 #d97706 · 개발 #2563eb · 파이썬 #059669 · 특강 #7c3aed). -->
+  <defs>
+    <clipPath id="ch-clip"><rect width="880" height="150" rx="14"/></clipPath>
+    <pattern id="ch-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#2563eb" fill-opacity="0.18"/>
+    </pattern>
+    <linearGradient id="ch-fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#ch-clip)">
+    <rect width="880" height="150" fill="#ffffff"/>
+    <rect width="880" height="150" fill="#2563eb" fill-opacity="0.06"/>
+    <rect x="440" width="440" height="150" fill="url(#ch-dots)"/>
+    <rect width="880" height="150" fill="url(#ch-fade)"/>
+    <!-- 그 부의 그림(1부 = 봉 · 평균선) -->
+    <g transform="translate(600 6)">
+      <g stroke-linecap="round">
+        <line x1="34" y1="78" x2="34" y2="104" stroke="#059669" stroke-width="2"/>
+        <rect x="28" y="84" width="12" height="12" rx="2" fill="#059669"/>
+        <line x1="58" y1="68" x2="58" y2="92" stroke="#059669" stroke-width="2"/>
+        <rect x="52" y="74" width="12" height="12" rx="2" fill="#059669"/>
+        <line x1="82" y1="70" x2="82" y2="94" stroke="#dc2626" stroke-width="2"/>
+        <rect x="76" y="76" width="12" height="12" rx="2" fill="#dc2626"/>
+        <line x1="106" y1="62" x2="106" y2="96" stroke="#059669" stroke-width="2"/>
+        <rect x="100" y="70" width="12" height="18" rx="2" fill="#059669"/>
+        <line x1="130" y1="52" x2="130" y2="74" stroke="#059669" stroke-width="2"/>
+        <rect x="124" y="58" width="12" height="12" rx="2" fill="#059669"/>
+        <line x1="154" y1="54" x2="154" y2="74" stroke="#dc2626" stroke-width="2"/>
+        <rect x="148" y="60" width="12" height="8" rx="2" fill="#dc2626"/>
+        <line x1="178" y1="42" x2="178" y2="72" stroke="#059669" stroke-width="2"/>
+        <rect x="172" y="50" width="12" height="16" rx="2" fill="#059669"/>
+        <line x1="202" y1="32" x2="202" y2="54" stroke="#059669" stroke-width="2"/>
+        <rect x="196" y="38" width="12" height="12" rx="2" fill="#059669"/>
+      </g>
+      <polyline points="34,92 58,82 82,82 106,78 130,66 154,64 178,58 202,46" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <g fill="#c5cdde">
+        <rect x="28" y="118" width="12" height="10" rx="2"/>
+        <rect x="52" y="114" width="12" height="14" rx="2"/>
+        <rect x="76" y="120" width="12" height="8" rx="2"/>
+        <rect x="100" y="112" width="12" height="16" rx="2"/>
+        <rect x="124" y="116" width="12" height="12" rx="2"/>
+        <rect x="148" y="121" width="12" height="7" rx="2"/>
+        <rect x="172" y="113" width="12" height="15" rx="2"/>
+        <rect x="196" y="115" width="12" height="13" rx="2"/>
+      </g>
+    </g>
+    <rect y="147" width="880" height="3" fill="#2563eb"/>
+  </g>
+  <rect x="0.5" y="0.5" width="879" height="149" rx="13.5" fill="none" stroke="#dde2ec"/>
+</svg>

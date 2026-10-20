@@ -49,7 +49,7 @@ steps:
   - say: "결과 — 국내주식 · 해외주식 · 국내채권 · 대체자산 · 현금이 각각 몇 % 이고, 5,000만 원 가운데 얼마인지"
   - pause: 6.5
   - scroll: {by: 380}
-  - say: "국내 주식 안에서는 종목마다 비중과 연 수익률 · 변동성, 그리고 그렇게 본 근거를 카드로 함께 봅니다"
+  - say: "국내 주식 안에서는 종목마다 비중과 과거 연환산 수익률 · 변동성, 그리고 그렇게 본 근거를 카드로 함께 봅니다"
   - pause: 6.5
   - say: "근거 칸은 지표 신호와 모델 판단을 나눠 적습니다 — 숫자 하나가 아니라 왜 그 비중인지를 따라갈 수 있습니다"
   - pause: 6.0
@@ -62,5 +62,9 @@ steps:
   - say: "저장한 배분 — 리밸런싱 화면의 「저장한 배분 가져오기」 가 같은 값을 불러갑니다"
   - ring: {target: "#robo-load-allocation", sec: 3.0}
   - pause: 2.5
+  - scroll: {target: 'a[href="#agent-products"][aria-describedby="robo-products-help"]'}
+  - say: "「자산군별 상품 보기」 — 채권 · 해외주식 · 대체자산은 상품 안내에서 상장 상품(ETF) 정보로 비교합니다"
+  - ring: {target: 'a[href="#agent-products"][aria-describedby="robo-products-help"]', sec: 3.0}
+  - pause: 1.0
   - say: "과거 자료로 계산한 결과이며 미래 수익을 보장하지 않습니다 · 투자 권유가 아닙니다"
   - pause: 4.0

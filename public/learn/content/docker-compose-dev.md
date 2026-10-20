@@ -2,8 +2,8 @@
 slug: docker-compose-dev
 title: Docker Compose 와 개발 모드
 section: tech
-part: 6부 서버 · 운영
-order: 6.2
+part: 7부 서버 · 운영
+order: 7.2
 status: skeleton
 summary: 앱 · DB · Redis · Celery 를 Compose 로 함께 띄우는 법과, 코드를 고치면 바로 반영되는 개발 모드(연결 · 자동 재시작)의 원리를 익힙니다.
 level: 입문
@@ -17,8 +17,7 @@ updated: 2026-10-01
 ---
 
 > [!NOTE]
-> 이 장은 **뼈대**입니다 — 목표 · 다룰 질문 · 보여 줄 코드 · 1차 자료만 있고, 본문은 필요해질 때 채웁니다.
-> 읽다가 더 알고 싶은 개념이 생기면 알려 주세요. 목차에 더합니다.
+> 이 장은 아직 **뼈대**입니다. 다룰 질문과 참고 자료를 먼저 실었고, 본문은 이어서 채웁니다.
 
 ## 이 장에서 할 수 있게 되는 것
 
@@ -39,7 +38,7 @@ updated: 2026-10-01
 
 ## 우리 프로젝트와 닿는 곳
 
-- 로컬 실행 안내서 · `scripts/personal/`
+- 로컬 실행 스크립트 `scripts/personal/`(켜기 · 점검 · 시험)
 
 ## 먼저 읽을 1차 자료
 

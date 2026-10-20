@@ -1,5 +1,5 @@
 {
-  "about": "저장소에서 재생하는 시연 영상 목록 — tools/demo/export_mp4.py 가 쓴다(손으로 고치지 않는다)",
+  "about": "발표 자료가 재생하는 시연 영상 목록(mp4 · 그림은 git 밖) — tools/demo/export_mp4.py 가 쓴다(손으로 고치지 않는다)",
   "videos": [
     {
       "kind": "사용법",
@@ -104,14 +104,14 @@
       "scene": "docs/발표/영상/장면/F07-국내수정주가-미국지연시세.yaml",
       "mp4": "docs/발표/영상/파일/사용법/F07-국내수정주가-미국지연시세.mp4",
       "jpg": "docs/발표/영상/파일/사용법/F07-국내수정주가-미국지연시세.jpg",
-      "duration_sec": 51.56,
-      "bytes": 2197749,
+      "duration_sec": 51.28,
+      "bytes": 2169826,
       "crf": 28,
-      "sha": "0e9c41b0710ce713",
-      "source_sha": "3bf4414d75fac839",
-      "scene_sha": "f5a6736957dec851",
-      "recorded_at": "2026-10-19 09:44:38 KST",
-      "app_commit": "9bea3ee"
+      "sha": "fc36420aecdf1b5e",
+      "source_sha": "d3f19afcac656fa4",
+      "scene_sha": "b6b2de6d7ff8198c",
+      "recorded_at": "2026-10-20 10:22:18 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "사용법",
@@ -136,14 +136,14 @@
       "scene": "docs/발표/영상/장면/V01-성향진단-자산배분.yaml",
       "mp4": "docs/발표/영상/파일/사용법/V01-성향진단-자산배분.mp4",
       "jpg": "docs/발표/영상/파일/사용법/V01-성향진단-자산배분.jpg",
-      "duration_sec": 66.6,
-      "bytes": 3223792,
+      "duration_sec": 71.08,
+      "bytes": 3405789,
       "crf": 28,
-      "sha": "e11e0c51fb5ead29",
-      "source_sha": "9f4728fcf2796141",
-      "scene_sha": null,
-      "recorded_at": "2026-10-18 19:49:47 KST",
-      "app_commit": "32f23bd"
+      "sha": "f5357459f69001d1",
+      "source_sha": "60fbc502a84f4909",
+      "scene_sha": "a0088213a2583644",
+      "recorded_at": "2026-10-20 09:49:06 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "사용법",
@@ -152,14 +152,14 @@
       "scene": "docs/발표/영상/장면/V02-성향별-상품안내.yaml",
       "mp4": "docs/발표/영상/파일/사용법/V02-성향별-상품안내.mp4",
       "jpg": "docs/발표/영상/파일/사용법/V02-성향별-상품안내.jpg",
-      "duration_sec": 42.2,
-      "bytes": 2228122,
+      "duration_sec": 40.76,
+      "bytes": 2328588,
       "crf": 28,
-      "sha": "593d63e9526a3342",
-      "source_sha": "cd91013e3a507c6b",
-      "scene_sha": null,
-      "recorded_at": "2026-10-18 19:09:02 KST",
-      "app_commit": "32f23bd"
+      "sha": "d0bb17782c80b5a8",
+      "source_sha": "1678f25f50a5a839",
+      "scene_sha": "e3bbfecd6e9ab56e",
+      "recorded_at": "2026-10-20 09:59:42 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "사용법",
@@ -184,14 +184,14 @@
       "scene": "docs/발표/영상/장면/V04-모의주문-국내미국.yaml",
       "mp4": "docs/발표/영상/파일/사용법/V04-모의주문-국내미국.mp4",
       "jpg": "docs/발표/영상/파일/사용법/V04-모의주문-국내미국.jpg",
-      "duration_sec": 71.76,
-      "bytes": 2896624,
+      "duration_sec": 72.36,
+      "bytes": 3096130,
       "crf": 28,
-      "sha": "f12bf2c5c75bd410",
-      "source_sha": "e9850cb4582d2bda",
-      "scene_sha": null,
-      "recorded_at": "2026-10-19 09:09:08 KST",
-      "app_commit": "7cc088d"
+      "sha": "6760489d9e04b338",
+      "source_sha": "e3351b712a32cbb4",
+      "scene_sha": "5ed3fc34deee4abc",
+      "recorded_at": "2026-10-20 10:08:33 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "사용법",
@@ -328,14 +328,14 @@
       "scene": "docs/발표/영상/발표/P-F07-국내수정주가-미국지연시세.yaml",
       "mp4": "docs/발표/영상/파일/발표/P-F07-국내수정주가-미국지연시세.mp4",
       "jpg": "docs/발표/영상/파일/발표/P-F07-국내수정주가-미국지연시세.jpg",
-      "duration_sec": 107.4,
-      "bytes": 2881066,
+      "duration_sec": 107.2,
+      "bytes": 3040421,
       "crf": 28,
-      "sha": "8b18314ba7ac6116",
-      "source_sha": "fad169739ab273d3",
-      "scene_sha": "073cce42c2a32ede",
-      "recorded_at": "2026-10-19 09:53:34 KST",
-      "app_commit": "9bea3ee"
+      "sha": "d7ee2e6cee382792",
+      "source_sha": "e78569ee6ad06209",
+      "scene_sha": "e4b84bd6cf8ad636",
+      "recorded_at": "2026-10-20 10:24:22 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "발표",
@@ -360,14 +360,14 @@
       "scene": "docs/발표/영상/발표/P-V01-성향진단-자산배분.yaml",
       "mp4": "docs/발표/영상/파일/발표/P-V01-성향진단-자산배분.mp4",
       "jpg": "docs/발표/영상/파일/발표/P-V01-성향진단-자산배분.jpg",
-      "duration_sec": 131.68,
-      "bytes": 5725226,
+      "duration_sec": 136.0,
+      "bytes": 6068522,
       "crf": 28,
-      "sha": "1c8fdb030e3e4648",
-      "source_sha": "13d17f036d9ac44a",
-      "scene_sha": "6432d745898ea954",
-      "recorded_at": "2026-10-19 10:12:28 KST",
-      "app_commit": "9bea3ee"
+      "sha": "a0a7d02fcb16c727",
+      "source_sha": "2bcc03741d96db13",
+      "scene_sha": "da861b924bb38cf0",
+      "recorded_at": "2026-10-20 09:51:46 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "발표",
@@ -376,14 +376,14 @@
       "scene": "docs/발표/영상/발표/P-V02-성향별-상품안내.yaml",
       "mp4": "docs/발표/영상/파일/발표/P-V02-성향별-상품안내.mp4",
       "jpg": "docs/발표/영상/파일/발표/P-V02-성향별-상품안내.jpg",
-      "duration_sec": 126.0,
-      "bytes": 5989421,
+      "duration_sec": 126.64,
+      "bytes": 5974108,
       "crf": 28,
-      "sha": "b917ee88694833ad",
-      "source_sha": "4cd364b0bf70abcd",
-      "scene_sha": null,
-      "recorded_at": "2026-10-18 21:15:28 KST",
-      "app_commit": "32f23bd"
+      "sha": "4df94aaf78106498",
+      "source_sha": "ee87783167de20a1",
+      "scene_sha": "0fb68050c1d4a699",
+      "recorded_at": "2026-10-20 10:02:05 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "발표",
@@ -408,14 +408,14 @@
       "scene": "docs/발표/영상/발표/P-V04-모의주문-국내미국.yaml",
       "mp4": "docs/발표/영상/파일/발표/P-V04-모의주문-국내미국.mp4",
       "jpg": "docs/발표/영상/파일/발표/P-V04-모의주문-국내미국.jpg",
-      "duration_sec": 120.92,
-      "bytes": 4340824,
+      "duration_sec": 120.6,
+      "bytes": 4453986,
       "crf": 28,
-      "sha": "45b363cc85ca9c57",
-      "source_sha": "ca7f443dcfeaf384",
-      "scene_sha": "4eefa241ed7c0c4a",
-      "recorded_at": "2026-10-19 09:27:30 KST",
-      "app_commit": "7cc088d"
+      "sha": "beef3e3df5207bf5",
+      "source_sha": "6ae94fbe17126959",
+      "scene_sha": "f5a0cb02b93d1a00",
+      "recorded_at": "2026-10-20 10:10:57 KST",
+      "app_commit": "6cbb9fb"
     },
     {
       "kind": "발표",

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="160" viewBox="0 0 320 160" role="img" aria-label="개발 개념 — 코드 창, 서버, 저장소">
+  <title>개발 개념</title>
+  <!-- 색: --accent #2563eb · --accent-glow(0.12) · --green #059669 · --surf2 #f0f3f8 · --border #dde2ec · --border2 #c5cdde · --text-mute #94a3b8 -->
+  <rect width="320" height="160" rx="16" fill="#ffffff"/>
+  <rect width="320" height="160" rx="16" fill="#2563eb" fill-opacity="0.12"/>
+  <!-- 코드 창 -->
+  <g>
+    <rect x="22" y="30" width="128" height="100" rx="10" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <path d="M23 48 V40 a9 9 0 0 1 9 -9 H140 a9 9 0 0 1 9 9 V48 Z" fill="#f0f3f8"/>
+    <line x1="23" y1="48" x2="149" y2="48" stroke="#dde2ec" stroke-width="2"/>
+    <circle cx="34" cy="39.5" r="3" fill="#c5cdde"/>
+    <circle cx="44" cy="39.5" r="3" fill="#c5cdde"/>
+    <circle cx="54" cy="39.5" r="3" fill="#c5cdde"/>
+    <rect x="34" y="58" width="58" height="6" rx="3" fill="#2563eb"/>
+    <rect x="46" y="70" width="74" height="6" rx="3" fill="#c5cdde"/>
+    <rect x="46" y="82" width="52" height="6" rx="3" fill="#c5cdde"/>
+    <rect x="58" y="94" width="62" height="6" rx="3" fill="#059669" fill-opacity="0.7"/>
+    <rect x="46" y="106" width="40" height="6" rx="3" fill="#c5cdde"/>
+    <rect x="34" y="118" width="30" height="6" rx="3" fill="#2563eb"/>
+  </g>
+  <!-- 잇는 선 -->
+  <path d="M152 82 H174" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <path d="M170 77 L176 82 L170 87" stroke="#94a3b8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 서버 -->
+  <g>
+    <rect x="180" y="44" width="64" height="22" rx="6" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <circle cx="192" cy="55" r="3" fill="#059669"/>
+    <rect x="202" y="53" width="32" height="4" rx="2" fill="#e8ecf3"/>
+    <rect x="180" y="72" width="64" height="22" rx="6" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <circle cx="192" cy="83" r="3" fill="#059669"/>
+    <rect x="202" y="81" width="32" height="4" rx="2" fill="#e8ecf3"/>
+    <rect x="180" y="100" width="64" height="22" rx="6" fill="#ffffff" stroke="#c5cdde" stroke-width="2"/>
+    <circle cx="192" cy="111" r="3" fill="#2563eb"/>
+    <rect x="202" y="109" width="32" height="4" rx="2" fill="#e8ecf3"/>
+  </g>
+  <path d="M246 83 H258" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <!-- 저장소 -->
+  <g>
+    <path d="M260 58 V108 A22 8 0 0 0 304 108 V58" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <ellipse cx="282" cy="58" rx="22" ry="8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <path d="M260 75 A22 8 0 0 0 304 75" fill="none" stroke="#2563eb" stroke-opacity="0.5" stroke-width="2"/>
+    <path d="M260 91 A22 8 0 0 0 304 91" fill="none" stroke="#2563eb" stroke-opacity="0.5" stroke-width="2"/>
+  </g>
+</svg>

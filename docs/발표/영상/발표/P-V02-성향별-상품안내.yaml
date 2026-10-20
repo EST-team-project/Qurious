@@ -7,6 +7,7 @@ file: 발표-V02-성향별-상품안내
 title: 나눈 비중대로 상품을 공시 정보로 비교합니다
 owner: 이동원
 start: agent-products
+risk_profile: {level: 위험중립형, risk_profile: moderate, score: 22}   # 앞 편 V01 에서 진단한 성향(같은 계정 · 같은 브라우저를 이어 씀)
 steps:
   - chapter: {label: "1 / 3 · 목적", title: "추천이 아니라 비교입니다", text: "자산군마다 상장된 상품을 보여 주되, 순위를 매기지 않고 공시된 정보와 출처로 나란히 비교하게 합니다", sec: 5.5}
   - say: "앞에서 나눈 비중이 자산군 탭마다 그대로 들어옵니다"

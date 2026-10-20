@@ -23,11 +23,13 @@ CONTRACT = "learn-v1"
 
 # 주소 이름 — 영문 소문자 · 숫자 · '-' 3~64자, 처음과 끝은 '-' 가 아니다. 파일 이름과 같아야 한다.
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$")
-# 정렬 번호 「부.장」 — 기술 개념은 숫자 부(0~9), 금융 지식은 F 부.
-ORDER_RE = re.compile(r"^(F|\d{1,2})\.\d{1,2}$")
+# 정렬 번호 「부.장」 — 기술 개념은 숫자 부(0~12), 금융 지식은 F 부, 특강은 S.<일차><교시>(1일차 1교시 = S.11 · 2일차 = S.21 ~).
+# 특강은 두 자리를 일차 · 교시로 읽으므로 둘 다 1부터인 두 자리만 받는다 — S.1 · S.111 같은 오타를 여기서 막는다.
+ORDER_RE = re.compile(r"^(?:(?:F|\d{1,2})\.\d{1,2}|S\.[1-9][1-9])$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-SECTIONS = ("tech", "finance")
+# 갈래 — 이 차례가 목차의 차례다(order_key). special(특강)은 강의 날짜 · 교시로 묶는 장이라 기술 · 금융 부와 따로 둔다.
+SECTIONS = ("tech", "finance", "special")
 STATUSES = ("ready", "draft", "skeleton")
 LEVELS = ("입문", "기초", "심화")
 
@@ -158,7 +160,8 @@ def validate(meta: dict, body: str, *, team: bool) -> None:
     if meta.get("level") and meta["level"] not in LEVELS:
         raise PageError(f"level 은 {' · '.join(LEVELS)} 중 하나여야 합니다.", "level")
     if not ORDER_RE.match(meta["order"]):
-        raise PageError("order 는 「부.장」 모양이어야 합니다(예: 3.1 · F.2).", "order")
+        # 특강 꼴(S.11)도 예로 든다 — 편집기 · 검사 글만 보고도 특강 차례를 바로 쓸 수 있게
+        raise PageError("order 는 「부.장」 모양이어야 합니다(예: 3.1 · F.2 · 특강 S.11 = 1일차 1교시).", "order")
     if meta.get("updated") and not DATE_RE.match(meta["updated"]):
         raise PageError("updated 는 YYYY-MM-DD 모양이어야 합니다.", "updated")
     if "minutes" in meta and not (1 <= int(meta["minutes"]) <= 600):
@@ -240,9 +243,12 @@ def page_from_parts(meta: dict, body: str, store: str, *, team: bool) -> Page:
 
 
 def order_key(meta: dict) -> tuple:
-    """목차 정렬 — 구역(기술 → 금융) · 부 · 장 · 제목."""
+    """목차 정렬 — 구역(기술 → 금융 → 특강) · 부 · 장 · 제목."""
     major, _, minor = meta.get("order", "99.99").partition(".")
     section_rank = SECTIONS.index(meta["section"]) if meta.get("section") in SECTIONS else 9
+    if major == "S" and len(minor) == 2 and minor.isdigit():
+        # 특강 S.<일차><교시> 는 일차 → 교시로 센다 — 숫자 부(0~99) 뒤 따로 띠(100 + 일차)라 S.11 이 「11부」 와 섞이지 않는다
+        return (section_rank, 100 + int(minor[0]), int(minor[1]), meta.get("title", ""))
     major_rank = 0 if major == "F" else int(major) if major.isdigit() else 99
     return (section_rank, major_rank, int(minor) if minor.isdigit() else 99, meta.get("title", ""))
 
