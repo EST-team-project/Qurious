@@ -38,11 +38,9 @@ data/hf_export/
 # 사용법 영상(결정 D132) — 영상 · 자막 · 장 그림 · 영상 표. 원본은 HF 비공개(qurious-quant/demo-videos)라 커밋하지 않는다.
 #   채우기: python tools/demo/help_videos.py build(녹화한 PC) · pull(다른 PC) — 앱은 로그인한 사람에게 /help/ 로 낸다
 data/help/
-# 시연 영상 mp4 · 포스터(2026-10-19 S126 사용자 결정) — 공식 자료 화면(금융위원회 시세 · 야후 · OpenDART · 용어 풀이)이 찍혀 있어
-#   공개 저장소에 두지 않는다(이용 조건 — docs/데이터/대장/자료안내-출처.tsv). 장면 YAML 과 목록 `목록.json` 만 추적한다.
-#   채우기: python tools/demo/export_mp4.py(녹화한 PC) — 발표 자료는 이 PC 의 파일을 재생한다 · 팀원은 HF 비공개에서 받는다
-docs/발표/영상/파일/**/*.mp4
-docs/발표/영상/파일/**/*.jpg
+# 시연 영상 mp4 · 포스터 — 2026-10-20 사용자 결정으로 추적한다(팀원이 받아 발표 자료에서 바로 재생 · 「그냥 올려 상관없음」).
+#   옛 결정(2026-10-19 S126 「공식 자료 화면이 찍혀 있어 git 밖 · 팀원은 HF 비공개에서 받는다」)을 바꿨다.
+#   채우기: python tools/demo/export_mp4.py(녹화한 PC) → docs/발표/영상/파일/{발표,사용법}/ · 목록.json — 그대로 커밋한다.
 # 통합본(rag-lab/)의 화면 표시용 시세 자료 셋 — 네이버 · 토스증권 · 야후에서 모은 값이라 커밋하지 않는다.
 #   비공개 데이터셋에 두고 필요한 사람이 받는다: python scripts/raglab_data.py pull
 #   (반입 대장 docs/설계/대장/통합본-반입대장.tsv 의 「HF 보관」 줄 · 검사 scripts/raglab_scan.py --check)

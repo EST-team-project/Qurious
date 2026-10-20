@@ -1,4 +1,4 @@
-"""녹화한 영상을 mp4 로 내보낸다 — 발표 자료가 바로 재생하게(2026-10-19 사용자 결정 · 파일은 git 밖).
+"""녹화한 영상을 mp4 로 내보낸다 — 발표 자료가 바로 재생하게(2026-10-19 사용자 결정 · 2026-10-20 부터 파일도 git 에 — 팀원이 받아 재생).
 
 쓰는 법 (저장소 뿌리에서 · 녹화한 PC)
   python tools/demo/export_mp4.py            # 새로 찍었거나 빠진 편만 내보냄(사용법 · 발표 둘 다)
@@ -7,8 +7,8 @@
   python tools/demo/export_mp4.py --readme   # 영상 README 의 파일 표를 목록.json 으로 다시 채움
 
 나오는 것
-  docs/발표/영상/파일/사용법/<장면 이름>.mp4 · .jpg(첫 장 제목 카드 — 재생 전 그림)   ← git 밖(.gitignore)
-  docs/발표/영상/파일/발표/<장면 이름>.mp4 · .jpg                                        ← git 밖(.gitignore)
+  docs/발표/영상/파일/사용법/<장면 이름>.mp4 · .jpg(첫 장 제목 카드 — 재생 전 그림)   ← git 에 커밋(2026-10-20)
+  docs/발표/영상/파일/발표/<장면 이름>.mp4 · .jpg                                        ← git 에 커밋(2026-10-20)
   docs/발표/영상/파일/목록.json — 편마다 장면 · 제목 · 길이 · 크기 · 녹화 시각 · 앱 커밋 · 원본 · 결과 지문  ← git 에 넣는다
 
 왜 이렇게 만들었나
@@ -142,7 +142,7 @@ def load_manifest():
 
 def save_manifest(items):
   videos = sorted(items.values(), key=lambda e: (e["kind"] != "사용법", e["stem"]))
-  body = {"about": "발표 자료가 재생하는 시연 영상 목록(mp4 · 그림은 git 밖) — tools/demo/export_mp4.py 가 쓴다(손으로 고치지 않는다)", "videos": videos}
+  body = {"about": "발표 자료가 재생하는 시연 영상 목록(mp4 · 그림도 git 에 — 2026-10-20) — tools/demo/export_mp4.py 가 쓴다(손으로 고치지 않는다)", "videos": videos}
   MANIFEST.parent.mkdir(parents=True, exist_ok=True)
   MANIFEST.write_bytes((json.dumps(body, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
 
