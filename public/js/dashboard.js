@@ -41,9 +41,16 @@ export async function loadDashboard() {
       loadAccountTabs(),
       fill('overview-decision', () => api('/api/quant/auto/status'), data =>
         metric('모의 투자 의사결정', data.running ? '실행 중' : '중지됨') + metric('현재 판단 신호', number(data.signals?.length, '개', 0))),
-      fill('overview-indicator-metrics', () => api('/api/quant/pipeline?symbol=005930.KS&period=1y&strategy=rsi&cost_bps=10&slippage_bps=0'), data => Number(data.trade_count) === 0
-        ? noTradeMetric(data)
-        : metric('누적 수익률', number(data.total_return_pct, '%')) + metric('샤프 비율', number(data.sharpe_ratio, '', 2)) + metric('최대 낙폭 (MDD)', number(data.mdd_pct, '%')) + metric('승률', number(data.win_rate_pct, '%')) + metric('거래 횟수', number(data.trade_count, '회', 0)) + metric('매수 후 보유 수익률', number(data.buy_hold_return_pct, '%'))),
+      fill('overview-indicator-metrics', () => api('/api/quant/pipeline?symbol=005930.KS&period=1y&strategy=rsi&cost_bps=10&slippage_bps=0'), data => {
+        const base = Number(data.trade_count) === 0
+          ? noTradeMetric(data)
+          : metric('누적 수익률', number(data.total_return_pct, '%')) + metric('샤프 비율', number(data.sharpe_ratio, '', 2)) + metric('최대 낙폭 (MDD)', number(data.mdd_pct, '%')) + metric('승률', number(data.win_rate_pct, '%')) + metric('거래 횟수', number(data.trade_count, '회', 0)) + metric('매수 후 보유 수익률', number(data.buy_hold_return_pct, '%'));
+        // 이슈 #250 — 자료 출처·기간 한 줄 (서버 응답 그대로 · 화면에 글 따로 두지 않음)
+        const srcLine = data.data_note
+          ? `<div class="overview-metric wide"><small>자료: ${escHtml(data.data_note)}</small></div>`
+          : (data.data_as_of ? `<div class="overview-metric wide"><small>자료 기준일: ${escHtml(data.data_as_of)} 종가</small></div>` : '');
+        return base + srcLine;
+      }),
       fill('overview-saved', () => api('/api/custom-indicators'), data => metric('내 커스텀 인디케이터', number(data.items?.length, '개', 0))),
     ]);
     document.getElementById('overview-updated').textContent = '조회 완료 · ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
