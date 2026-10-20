@@ -33,6 +33,7 @@ from app.services.krx_companies import get_krx_companies
 from app.services import fx
 from app.services.stock import HEADERS, _yahoo_chart, get_candles, get_quote
 from app.services import trading_cost
+from app.services.brokers.stock_coin_trade_gateway import is_krx_market_open
 
 BUY = "BUY"
 SELL = "SELL"
@@ -220,7 +221,8 @@ async def resolve_stock(symbol: str) -> dict:
             "prev_close": (float(prev_close) * fx_rate) if prev_close else None, "prev_close_local": prev_close,
             "settlement_currency": "KRW",
             "quote_source": q_src, "quote_as_of": quote.get("as_of"),
-            "quote_label": _qn.label_for(q_src, quote.get("as_of"), symbol=meta["symbol"])}
+            "quote_label": _qn.label_for(q_src, quote.get("as_of"), symbol=meta["symbol"]),
+            "market_open": (is_krx_market_open() if currency == "KRW" else None)}
     _STOCK_CACHE[symbol] = {"ts": now, "data": data}
     _STOCK_CACHE[meta["symbol"]] = {"ts": now, "data": data}
     return data
@@ -347,6 +349,8 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
             "주문 미리보기는 체결·잔고를 변경하지 않으며, 실제 주문 시점 가격은 달라질 수 있습니다. "
             f"예상 비용(수수료+세금) {cost.total_cost:,.0f}원 · 순정산액 {cost.net_amount:,.0f}원."
         ),
+        "market_open": info.get("market_open"),
+        "quoteAsOf": info.get("quote_as_of"),
     }
 
 
@@ -363,7 +367,12 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     info = await _confirm_quote(db, user_id, info)   # 체결 직전 확인 — 내 증권사 키가 있으면 지금 값으로
     res = await _fill_stock_order(db, user_id, info, side, quantity, source=source)
     if isinstance(res, dict):
-        res.update(quote_source=info.get("quote_source"), quote_label=info.get("quote_label"))
+        res.update(
+            quote_source=info.get("quote_source"),
+            quote_label=info.get("quote_label"),
+            market_open=info.get("market_open"),      # ★ 추가
+            quote_as_of=info.get("quote_as_of"),      # ★ 추가
+        )
     return res
 
 
