@@ -988,7 +988,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             position_values = {s: h["value"] for s, h in live_snapshot["holdings"].items()}
         else:
             cash_now, equity_now, position_values = await _equity_snapshot(db, uid, price_map)
-        risk_account_key = user_id
+        # 이슈 #297 — 자동매매 장부는 :quant 접미사. 모의계좌(paper)와 키 안 섞이게
+        risk_account_key = f"{user_id}:quant"
         if mode == "live":
             account_env = gateway.environment() if gateway.is_configured() else ("real" if live_trading_allowed() else "paper")
             account_scope = "gateway" if gateway.is_configured() else kis_execution.account_key(broker_row.app_key, broker_row.account_no, account_env)
