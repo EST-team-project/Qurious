@@ -94,14 +94,29 @@ function renderAccountTabBar() {
 async function loadAccountTabs() {
   const panel = document.getElementById('overview-account-panel');
   if (!panel) return;
-  const [acc, robo] = await Promise.allSettled([api('/api/dashboard/accounts'), api('/api/rebalance/status')]);
+
+  // ── 1단계: 계좌 먼저 — 도착 즉시 4탭 + 로보 placeholder (이슈 #210)
+  // 이전: Promise.allSettled([계좌, 리밸런싱]) 이 둘 다 올 때까지 그리지 않아
+  // 리밸런싱이 느리면(휴장일 13~18초) 칸 전체가 멈췄다.
+  const [acc] = await Promise.allSettled([api('/api/dashboard/accounts')]);
   accountTabs = acc.status === 'fulfilled' ? (acc.value.tabs || []) : [
     { key: 'kis', label: 'KIS 모의투자', site: '한국투자증권 Testbed', connected: false, error: acc.reason?.message || '불러오지 못했습니다' },
   ];
-  const roboTab = { key: 'robo', label: '로보 모의계좌', site: '리밸런싱 엔진', connected: robo.status === 'fulfilled' };
-  if (robo.status === 'fulfilled') {
-    const { snapshot: s, plan } = robo.value || {};
+  const roboTab = {
+    key: 'robo', label: '로보 모의계좌', site: '리밸런싱 엔진', connected: false,
+    html: `<div class="overview-metric wide"><span>로보 모의계좌</span><strong>불러오는 중…</strong><small>리밸런싱 상태를 확인하고 있습니다.</small></div>`,
+  };
+  accountTabs.push(roboTab);
+  if (!accountTabs.some(t => t.key === activeTab)) activeTab = 'kis';
+  renderAccountTabBar();
+  renderAccountPanel();
+
+  // ── 2단계: 리밸런싱 상태 별도 — 도착 시 로보 탭만 갱신 (이슈 #210)
+  try {
+    const robo = await api('/api/rebalance/status');
+    const { snapshot: s, plan } = robo || {};
     if (s && typeof s === 'object') {
+      roboTab.connected = true;
       roboTab.html =
         metric('모의계좌 총 자산', number(s.total_asset, '원', 0)) +
         metric('현금 비중', number(s.cash_weight_pct, '%')) +
@@ -110,16 +125,18 @@ async function loadAccountTabs() {
           plan && plan.is_active ? '활성' : '비활성',
           plan && plan.auto_execute ? '자동 체결' : '수동 승인');
     } else {
-      // snapshot 없음 — 로보 탭에만 안내, 나머지 탭은 정상 (이슈 #210)
+      // snapshot 없음 — 로보 탭에만 안내 (#229 유지)
       roboTab.connected = false;
       roboTab.html = `<div class="overview-metric wide"><span>로보 모의계좌</span><strong>자료 없음</strong><small>리밸런싱 목표를 저장하면 보입니다.</small><a class="underline text-xs" href="#rebalance">리밸런싱 엔진 →</a></div>`;
     }
+  } catch (e) {
+    roboTab.connected = false;
+    roboTab.html = `<div class="overview-metric wide"><span>로보 모의계좌</span><strong>불러오지 못했습니다</strong><small>${escHtml(e?.message || '잠시 후 다시 시도해 주세요')}</small></div>`;
   }
-  accountTabs.push(roboTab);
-  if (!accountTabs.some(t => t.key === activeTab)) activeTab = 'kis';
   renderAccountTabBar();
   renderAccountPanel();
 }
+
 
 // ── KIS 모의투자 원클릭 ─────────────────────────────────────────────────
 // Qurious: KIS 키는 사용자마다(ADR-0004) — 서버 설정 이름 대신 사용자가 할 일을 말한다
