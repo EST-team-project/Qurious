@@ -169,8 +169,8 @@ async function loadStatus() {
       $("rb-proposal-summary").textContent = "";
       $("rb-kpis").textContent = r.valuation_error || "종가 자료 확인 대기";
       $("rb-trigger-badges").textContent = "가격 자료가 준비되면 조건을 확인합니다.";
-      $("rb-weight-table").textContent = "전 거래일 종가 기준 비중 확인 대기";
-      if (weightChart) { weightChart.destroy(); weightChart = null; }
+      renderSavedTargets(plan, r.valuation_error || "전 거래일 종가 자료 확인 대기");
+      renderWeightChart(null, plan);
       await Promise.all([loadRuns(), loadCashflows()]);
       return;
     }
@@ -214,18 +214,39 @@ function renderWeightTable(s) {
       <td style="text-align:right" class="${Math.abs(r.drift_pct) >= 0.01 ? (r.drift_pct > 0 ? "text-red-500" : "text-emerald-600") : ""}">${r.drift_pct > 0 ? "+" : ""}${r.drift_pct}</td></tr>`).join("")}</tbody></table>`;
 }
 
-function renderWeightChart(s) {
-  const managed = s.rows.filter(r => r.managed !== false);
+function renderSavedTargets(plan, reason) {
+  const targets = plan.targets || [];
+  const notice = `<p role="status" class="text-xs mb-3" style="color:var(--text-dim)">${escHtml(reason)}<br>저장된 목표 비중만 표시합니다. 현재 비중·이탈률과 주문 판단은 자료 준비 후 확인합니다.</p>`;
+  if (!targets.length) {
+    $("rb-weight-table").innerHTML = notice + '<p class="text-sm">저장된 목표 종목이 없습니다. 왼쪽에서 종목과 비중을 추가한 뒤 플랜을 저장하세요.</p>';
+    return;
+  }
+  const cash = Math.max(0, 100 - targets.reduce((sum, t) => sum + Number(t.weight_pct), 0));
+  const rows = [...targets, { symbol: "CASH", name: "현금", weight_pct: cash }];
+  $("rb-weight-table").innerHTML = notice + `<table><thead><tr><th>종목</th><th style="text-align:right">현재 비중</th><th style="text-align:right">저장된 목표 비중</th></tr></thead><tbody>${rows.map(t =>
+    `<tr><td>${escHtml(t.name || t.symbol)} <span class="text-xs font-mono" style="color:var(--text-mute)">${escHtml(t.symbol)}</span></td><td style="text-align:right;color:var(--text-mute)">자료 대기</td><td style="text-align:right">${fmt(Number(t.weight_pct), 2)}%</td></tr>`
+  ).join("")}</tbody></table>`;
+}
+
+function renderWeightChart(s, plan = null) {
+  const managed = s ? s.rows.filter(r => r.managed !== false) : (plan?.targets || []);
+  if (!s && !managed.length) {
+    if (weightChart) { weightChart.destroy(); weightChart = null; }
+    $("rb-weight-chart").replaceChildren();
+    return;
+  }
   const cats = [...managed.map(r => r.name), "현금"];
-  const cur = [...managed.map(r => r.current_weight_pct), s.cash_weight_pct];
-  const tgt = [...managed.map(r => r.target_weight_pct), s.cash_target_pct];
+  const tgt = s ? [...managed.map(r => r.target_weight_pct), s.cash_target_pct]
+    : [...managed.map(r => Number(r.weight_pct)), Number(Math.max(0, 100 - managed.reduce((sum, r) => sum + Number(r.weight_pct), 0)).toFixed(2))];
+  const series = s ? [{ name: "현재 비중", data: [...managed.map(r => r.current_weight_pct), s.cash_weight_pct] }, { name: "목표 비중", data: tgt }]
+    : [{ name: "저장된 목표 비중", data: tgt }];
   const opts = {
     chart: { type: "bar", height: 260, toolbar: { show: false }, background: "transparent" },
     theme: { mode: document.documentElement.dataset.theme === "light" ? "light" : "dark" },
-    series: [{ name: "현재 비중", data: cur }, { name: "목표 비중", data: tgt }],
+    series,
     xaxis: { categories: cats }, yaxis: { labels: { formatter: v => `${v}%` } },
     plotOptions: { bar: { columnWidth: "55%", borderRadius: 3 } }, dataLabels: { enabled: false },
-    colors: ["#2962ff", "#089981"], legend: { position: "top" },
+    colors: s ? ["#2962ff", "#089981"] : ["#089981"], legend: { position: "top", showForSingleSeries: true },
     tooltip: { y: { formatter: v => `${v}%` } },
   };
   if (weightChart) { weightChart.updateOptions(opts); return; }
