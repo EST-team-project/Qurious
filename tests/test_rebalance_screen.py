@@ -26,4 +26,4 @@ def test_portfolio_comparison_and_rebalance_history(tmp_path):
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stdout + result.stderr
     evidence = json.loads((tmp_path / "browser-result.json").read_text())
-    assert evidence["ok"] and len(evidence["checks"]) == 17
+    assert evidence["ok"] and len(evidence["checks"]) == 24
