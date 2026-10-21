@@ -215,8 +215,9 @@ def test_local_videos_are_tracked_and_match_the_manifest(ex):
 
 def test_deck_videos_point_to_the_export_folder():
     """TC-VX-09 · 발표 자료의 영상 칸(src · poster)은 내보내기 폴더(../영상/파일/발표/)를 가리킨다 — 발표 PC 가 그 파일을 바로 재생한다(YAML 만이 아니라) ·
-    내보낸 영상이 있을 때만 파일이 있는지 본다(내보내기 · 받기 전 PC 는 건너뜀) · 옛 media/ 폴더는 가리키지 않는다."""
-    deck = ROOT / "docs" / "발표" / "2차" / "발표자료.html"
+    내보낸 영상이 있을 때만 파일이 있는지 본다(내보내기 · 받기 전 PC 는 건너뜀) · 옛 media/ 폴더는 가리키지 않는다.
+    2026-10-21 부터 고치는 원본은 발표자료-원본.html 이다 — 발표자료.html 은 그 원본에서 tools/deck/bundle_deck.py 가 만든 한 파일 판(영상이 파일 안에)."""
+    deck = ROOT / "docs" / "발표" / "2차" / "발표자료-원본.html"
     html = deck.read_text(encoding="utf-8")
     refs = re.findall(r'<video[^>]*?\s(?:src|poster)="([^"]+)"', html)
     assert refs, "영상 칸이 하나도 없다"
