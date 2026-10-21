@@ -234,7 +234,7 @@ def test_rag_답변_엔진_이름이_서버_동작과_맞다():
 
 # ── 2026-10-12 th06 5b0a768 1단계 앞 — 지킴이 여섯 ─────────────────────────────────────────────────────
 # 강사님 10-08 8커밋(서버 e815be3 → 5b0a768 · 화면 9478811 → 5b0a768)을 받기 전에 쓴다. 조사서
-# docs/조사/기초코드-최신판-융합-조사.md 3절 <표 4> 의 「충돌 표시 없이 바뀌는 곳」 가운데 우리 결정을 지키는 여섯이다.
+# docs/2차/조사/기초코드-최신판-융합-조사.md 3절 <표 4> 의 「충돌 표시 없이 바뀌는 곳」 가운데 우리 결정을 지키는 여섯이다.
 # 지금 코드에서 통과하고, 저장소 밖 사본에 강사님 판을 한 곳씩 넣으면 실패하는 것을 확인했다(2026-10-12 깨 보기).
 # 값을 영원히 묶으려는 것이 아니다 — 바꾸기로 정하면 같은 PR 에서 이 시험 줄을 함께 바꾼다.
 
@@ -253,7 +253,7 @@ def test_배지의_강사님_점수는_점검표와_같다():
     start = src.index("const ASSESSMENTS = {")
     badge = {m.group(1): (int(m.group(2)), m.group(3))
              for m in BADGE_LINE_RE.finditer(src[start:src.index("\n};", start)])}
-    with (ROOT / "docs" / "시험" / "대장" / "기능완성도-점검표.tsv").open(encoding="utf-8", newline="") as f:
+    with (ROOT / "docs" / "3차" / "시험" / "대장" / "기능완성도-점검표.tsv").open(encoding="utf-8", newline="") as f:
         rows = [r for r in csv.DictReader(f, delimiter="\t")
                 if r["강사님"].strip()
                 and (r["주담당"] == "—" or r["주담당"].startswith("이동원"))]
