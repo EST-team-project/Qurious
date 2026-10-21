@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   check.ps1 이 「떠 있는 앱을 밖에서 두드려 보는」 점검이라면, 이것은 코드 안쪽을 재는 자동 시험이다
-  (tests\ 폴더 · 지표 계산 · 비용 · 장부 불변식 · 계정 · 용어사전 · 문서 스캐너 등 · 2026-09-30 기준 367건 · 3분 안팎).
+  (tests\ 폴더 · 지표 계산 · 비용 · 장부 불변식 · 계정 · 용어사전 · 문서 스캐너 등 · 2026-10-21 기준 173파일 · 2,365건 · 10분 안팎).
 
   순서
     1. 준비       파이썬 · pytest 가 있는가, 12:30 일일 갱신이 지금 도는 중인가(시험이 수집 DB 를 읽는다)
@@ -17,6 +17,12 @@
      **지우고 다시 만든다.** 그래서 앱 개발 DB(15432 · fin_ai)는 절대 넘기지 않는다. 이 스크립트는
      그런 주소가 환경 변수에 들어 있으면 멈춘다.
 
+  묶음 차례 실행(2026-10-21 · -Split · -Group) — 시험 파일을 묶음(화면 · 데이터 · 지식 · 매매 · 분석 · 나머지)으로
+  나눠 **묶음마다 새 pytest 프로세스**로 돈다. 한 프로세스가 2,000건 넘게 안고 가며 메모리가 쌓이지 않게
+  하려는 것이다(범위는 인자 없는 실행과 같다). 묶음 표는 _test_groups.py 한 곳에 있다.
+  결과는 data\local-run\test\<시각>\ 에 남는다 — 묶음마다 JUnit XML(ui.xml …)과, 묶음이 끝날 때마다
+  한 줄씩 쌓는 run.json(상태 · 묶음별 통과 · 실패 · 건너뜀 · 초 · 종료 코드). 끊겨도 끝난 묶음은 남는다.
+
 .PARAMETER Path
   이 파일(들)만 시험한다. 예) -Path tests\test_rebalance.py
 
@@ -26,20 +32,98 @@
 .PARAMETER KeepDb
   끝나도 시험 DB 컨테이너를 남긴다(여러 번 연달아 돌릴 때 기동 시간을 아낀다).
 
+.PARAMETER Split
+  모든 묶음을 차례로 돈다(묶음마다 새 pytest 프로세스 · 범위는 인자 없는 실행과 같다).
+
+.PARAMETER Group
+  이 묶음만 차례로 돈다. 이름이나 영어 열쇠 — 화면(ui) · 데이터(data) · 지식(kb) · 매매(trade) · 분석(analysis) · 나머지(rest).
+  여럿은 쉼표로. Git Bash 에서 부를 때는 한글 대신 영어 열쇠를 쓴다(인자가 깨질 수 있다).
+
+.PARAMETER Resume
+  마지막 결과 폴더(또는 -RunDir)의 run.json 에서 종료 코드 0 으로 끝난 묶음은 건너뛰고 나머지부터 돈다.
+
+.PARAMETER LastFailed
+  지난 실행에서 실패한 시험만 다시 돈다(pytest --lf · 캐시는 data\local-run\test\cache). 지난 실패가 없으면 아무것도 돌지 않고 통과.
+
+.PARAMETER Detach
+  세션 밖에서 돈다 — 같은 인자로 자기 자신을 숨은 창으로 다시 띄우고 바로 끝난다. 다 됐는지는 결과 폴더의
+  run.json(status 가 done)으로 본다. 화면 출력은 같은 폴더 test.log.
+
+.PARAMETER RunDir
+  결과 폴더. 보통 비운다(새로 만든다) — -Detach 가 띄운 쪽에 넘겨줄 때 · -Resume 으로 특정 폴더를 이어 갈 때 쓴다.
+
 .EXAMPLE
   .\scripts\personal\test.ps1
 .EXAMPLE
   .\scripts\personal\test.ps1 -Path tests\test_formula.py -NoDb
+.EXAMPLE
+  .\scripts\personal\test.ps1 -Split -Detach        # 전체를 묶음 차례로 · 세션 밖에서
+.EXAMPLE
+  .\scripts\personal\test.ps1 -Group ui,kb          # 화면 · 지식 묶음만
+.EXAMPLE
+  .\scripts\personal\test.ps1 -Resume               # 끊긴 묶음 실행을 이어서
+.EXAMPLE
+  .\scripts\personal\test.ps1 -LastFailed           # 지난번 실패한 시험만
 #>
 [CmdletBinding()]
 param(
   [string[]]$Path = @(),
   [switch]$NoDb,
-  [switch]$KeepDb
+  [switch]$KeepDb,
+  [switch]$Split,
+  [string[]]$Group = @(),
+  [switch]$Resume,
+  [switch]$LastFailed,
+  [switch]$Detach,
+  [string]$RunDir = ''
 )
 
 . "$PSScriptRoot\_common.ps1"
 $ErrorActionPreference = 'Continue'
+
+# 결과 폴더 · pytest 캐시 · 잠금 — data\local-run\ 은 .gitignore 대상이라 저장소를 더럽히지 않는다.
+$TestRunRoot  = Join-Path $QRoot 'data\local-run\test'
+$TestCacheRel = 'data/local-run/test/cache'          # pytest 가 저장소 뿌리(rootdir) 기준으로 읽는다
+$TestLock     = Join-Path $TestRunRoot 'test.lock'
+# -File 로 넘어온 「ui,kb」 는 배열이 아니라 글자 하나다 → 쉼표로 나눈다(직접 부를 때와 같게).
+$Group = @($Group | ForEach-Object { "$_" -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$Grouped = $Split -or ($Group.Count -gt 0) -or $Resume
+
+function Get-QNow { (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz') }
+
+# run.json 은 BOM 없는 UTF-8 로 쓴다 — 파이썬 json.load 가 BOM 에서 멈추지 않게.
+function Save-QRunJson([string]$dir, $state) {
+  $json = $state | ConvertTo-Json -Depth 6
+  [IO.File]::WriteAllText((Join-Path $dir 'run.json'), $json, (New-Object Text.UTF8Encoding $false))
+}
+
+# pytest JUnit XML 에서 수를 읽는다(통과 = 전체 − 실패 − 오류 − 건너뜀). 파일이 없으면 0 들.
+function Read-QJunit([string]$file) {
+  $r = [ordered]@{ tests = 0; passed = 0; failed = 0; errors = 0; skipped = 0 }
+  if (-not (Test-Path $file)) { return $r }
+  try {
+    [xml]$x = Get-Content -Raw -Encoding UTF8 $file
+    $suites = @($x.testsuites.testsuite) | Where-Object { $_ }
+    if (-not $suites) { $suites = @($x.testsuite) | Where-Object { $_ } }
+    foreach ($s in $suites) {
+      $r.tests += [int]$s.tests; $r.failed += [int]$s.failures; $r.errors += [int]$s.errors; $r.skipped += [int]$s.skipped
+    }
+    $r.passed = $r.tests - $r.failed - $r.errors - $r.skipped
+  } catch { }
+  return $r
+}
+
+# 다른 test.ps1 이 지금 도는가 — 같은 시험 DB 컨테이너를 함께 쓰면 먼저 끝난 쪽이 지워 버린다.
+function Get-QTestLockPid {
+  if (-not (Test-Path $TestLock)) { return 0 }
+  $held = $null
+  try { $held = Get-Content $TestLock -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
+  if ($held -and [int]$held.pid -ne $PID -and (Get-Process -Id ([int]$held.pid) -ErrorAction SilentlyContinue)) { return [int]$held.pid }
+  return 0
+}
+
+if ($Path.Count -gt 0 -and $Grouped) { Write-QFail '-Path 는 -Split · -Group · -Resume 과 함께 쓰지 않습니다.'; exit 2 }
+if ($LastFailed -and $Grouped) { Write-QFail '-LastFailed 는 묶음 옵션과 함께 쓰지 않습니다(지난 실패 전부를 한 번에 돈다).'; exit 2 }
 
 $TestDbName = 'qurious-test-pg'
 # 시험 DB 포트 후보. 15432(앱 개발 DB)는 절대 쓰지 않는다. 고정 번호가 아니라 후보인 이유는
@@ -76,6 +160,75 @@ if (Test-Path $lock) {
   }
 }
 Write-QOk '일일 갱신: 도는 중 아님'
+
+$otherPid = Get-QTestLockPid
+if ($otherPid) {
+  Write-QFail "다른 자동 시험이 지금 도는 중입니다 (PID $otherPid) — 같은 시험 DB 를 함께 쓰면 서로 깨뜨립니다. 끝난 뒤 다시 돌리세요."
+  exit 1
+}
+
+# 묶음 실행이면 묶음 표(_test_groups.py)를 받아 고른다 — 이름(화면)과 영어 열쇠(ui) 모두 받는다.
+$plan = @()
+$prev = $null
+if ($Grouped) {
+  if ($Resume -and -not $RunDir) {
+    $last = Get-ChildItem $TestRunRoot -Directory -ErrorAction SilentlyContinue |
+      Where-Object { Test-Path (Join-Path $_.FullName 'run.json') } | Sort-Object Name | Select-Object -Last 1
+    if (-not $last) { Write-QFail "이어 갈 결과 폴더가 없습니다 ($TestRunRoot 아래 run.json)."; exit 1 }
+    $RunDir = $last.FullName
+  }
+  if ($Resume) {
+    try { $prev = Get-Content -Raw -Encoding UTF8 (Join-Path $RunDir 'run.json') | ConvertFrom-Json } catch { }
+    if (-not $prev -or -not $prev.groups) { Write-QFail "이어 갈 묶음 기록이 없습니다 — $RunDir\run.json"; exit 1 }
+    # 묶음을 따로 고르지 않았으면 지난 실행이 고른 묶음 그대로 이어 간다.
+    if ($Group.Count -eq 0 -and $prev.plan) { $Group = @($prev.plan) }
+  }
+  $tableJson = & python (Join-Path $PSScriptRoot '_test_groups.py') --json
+  if ($LASTEXITCODE -ne 0) { Write-QFail '묶음 표(_test_groups.py)를 읽지 못했습니다.'; exit 1 }
+  $table = @((($tableJson -join "`n") | ConvertFrom-Json).groups)
+  foreach ($want in $Group) {
+    if (-not ($table | Where-Object { $_.name -eq $want -or $_.key -eq $want })) {
+      Write-QFail ("모르는 묶음 「{0}」 — 고를 수 있는 것: {1}" -f $want, (($table | ForEach-Object { "$($_.name)($($_.key))" }) -join ' · '))
+      exit 2
+    }
+  }
+  if ($Group.Count -gt 0) { $plan = @($table | Where-Object { $Group -contains $_.name -or $Group -contains $_.key }) }
+  else { $plan = $table }
+}
+
+if (($Grouped -or $LastFailed -or $Detach) -and -not $RunDir) {
+  $RunDir = Join-Path $TestRunRoot (Get-Date -Format 'yyyyMMdd-HHmmss')
+}
+if ($RunDir) { $null = New-Item -ItemType Directory -Force -Path $RunDir }
+
+# 세션 밖에서 — 같은 인자로 자기 자신을 숨은 창으로 다시 띄우고 바로 끝난다(세션은 run.json 만 나중에 읽는다).
+if ($Detach) {
+  # Start-Process 는 인자를 따옴표 없이 이어 붙인다 → 빈칸 든 경로를 위해 직접 감싼다(끝 \ 는 따옴표를 먹으니 뗀다).
+  function ConvertTo-QArg([string]$s) { '"' + $s.TrimEnd('\') + '"' }
+  $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (ConvertTo-QArg $PSCommandPath))
+  foreach ($p in $Path) { $argList += @('-Path', (ConvertTo-QArg $p)) }
+  if ($Group.Count -gt 0) { $argList += @('-Group', (($plan | ForEach-Object { $_.key }) -join ',')) }
+  if ($Split) { $argList += '-Split' }
+  if ($Resume) { $argList += '-Resume' }
+  if ($LastFailed) { $argList += '-LastFailed' }
+  if ($NoDb) { $argList += '-NoDb' }
+  if ($KeepDb) { $argList += '-KeepDb' }
+  $argList += @('-RunDir', (ConvertTo-QArg $RunDir))
+  # 이어 가기면 지난 run.json 을 덮지 않는다(띄운 쪽이 그 기록으로 건너뛸 묶음을 고른다).
+  if (-not $Resume) { Save-QRunJson $RunDir ([ordered]@{ status = 'starting'; detached_at = (Get-QNow); run_dir = $RunDir }) }
+  $hostExe = (Get-Process -Id $PID).Path      # 지금 쓰는 PowerShell 그대로(5.1 이면 powershell.exe)
+  $child = Start-Process $hostExe -ArgumentList $argList -WindowStyle Hidden -PassThru `
+    -RedirectStandardOutput (Join-Path $RunDir 'test.log') -RedirectStandardError (Join-Path $RunDir 'test.err.log')
+  Write-QOk "세션 밖에서 돕니다 (PID $($child.Id)) — 결과 폴더: $RunDir"
+  Write-QInfo 'run.json 의 status 가 done 이면 끝 · 묶음별 수는 groups · 합은 totals · 화면 출력은 test.log'
+  exit 0
+}
+
+# 이 실행이 시험 DB 를 쓰는 동안 잠금 — 다른 test.ps1 은 위에서 멈춘다(끝에서 지운다).
+$null = New-Item -ItemType Directory -Force -Path $TestRunRoot
+[IO.File]::WriteAllText($TestLock, (([ordered]@{ pid = $PID; started_at = (Get-QNow); run_dir = $RunDir }) | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
+$state = $null
+$runFinalized = $false
 
 # 환경 변수를 잠깐 바꾸고 끝에서 되돌린다 — 이 스크립트가 끝난 뒤 같은 창에 흔적을 남기지 않으려고.
 #   PYTHONIOENCODING : 비우고 돌린다. 시험 가운데 cp949 콘솔에서의 출력을 재는 것이 있어,
@@ -141,17 +294,89 @@ try {
   # ----------------------------------------------------------------------------
   # 3. 시험
   # ----------------------------------------------------------------------------
-  Write-QStep '3/4 시험 — python -m pytest (3분 안팎 · 끝에 「N passed」 요약 줄)'
   Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue
-  # -p no:cacheprovider : .pytest_cache 폴더를 만들지 않는다(저장소를 더럽히지 않게).
+  # -o cache_dir=… : pytest 캐시를 저장소의 .pytest_cache 가 아니라 data\local-run\test\cache 에 둔다
+  #   (저장소를 더럽히지 않으면서, 다음 -LastFailed 가 지난 실패를 알게).
   # pytest.ini 에 -q 가 이미 있다 — 여기서 또 붙이면 요약 줄이 사라진다.
-  $pytestArgs = @('-m', 'pytest', '-p', 'no:cacheprovider') + $Path
-  Push-Location $QRoot
-  try {
-    & python @pytestArgs
-    $exitCode = $LASTEXITCODE
-  } finally {
-    Pop-Location
+  if ($Grouped) {
+    Write-QStep ("3/4 시험 — 묶음 {0}개를 차례로 (묶음마다 새 pytest 프로세스 · 결과 {1})" -f $plan.Count, $RunDir)
+    # 이어 가기면 지난 기록에서 종료 코드 0 으로 끝난 묶음을 그대로 옮겨 오고 건너뛴다.
+    $done = @{}
+    if ($prev) { foreach ($e in @($prev.groups)) { if ($e.key -and [int]$e.exit_code -eq 0) { $done[$e.key] = $e } } }
+    $mode = 'split'
+    if ($Resume) { $mode = 'resume' } elseif ($Group.Count -gt 0) { $mode = 'group' }
+    $state = [ordered]@{
+      status = 'running'; pid = $PID; mode = $mode; plan = @($plan | ForEach-Object { $_.key })
+      started_at = (Get-QNow); finished_at = $null; run_dir = $RunDir; current = $null
+      groups = (New-Object System.Collections.ArrayList); totals = $null; exit_code = $null
+    }
+    foreach ($g in $plan) {
+      if ($done.ContainsKey($g.key)) {
+        [void]$state.groups.Add($done[$g.key])
+        Write-QInfo "$($g.name)($($g.key)) — 지난 실행에서 통과 · 건너뜀"
+        continue
+      }
+      $state.current = $g.name
+      Save-QRunJson $RunDir $state
+      $xml = Join-Path $RunDir "$($g.key).xml"
+      $t0 = Get-Date
+      $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel", "--junit-xml=$xml") + @($g.files)
+      Push-Location $QRoot
+      try { & python @pytestArgs; $code = $LASTEXITCODE } finally { Pop-Location }
+      $n = Read-QJunit $xml
+      $entry = [ordered]@{
+        name = $g.name; key = $g.key; files = @($g.files).Count
+        tests = $n.tests; passed = $n.passed; failed = $n.failed; errors = $n.errors; skipped = $n.skipped
+        seconds = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1); exit_code = $code
+        finished_at = (Get-QNow); junit = "$($g.key).xml"
+      }
+      [void]$state.groups.Add($entry)
+      $state.current = $null
+      Save-QRunJson $RunDir $state
+      $line = '{0}({1}) · 파일 {2} · 통과 {3} · 실패 {4} · 오류 {5} · 건너뜀 {6} · {7}초' -f `
+        $g.name, $g.key, $entry.files, $n.passed, $n.failed, $n.errors, $n.skipped, $entry.seconds
+      if ($code -eq 0) { Write-QOk $line } else { Write-QFail "$line · 종료 코드 $code" }
+    }
+    $tot = [ordered]@{ tests = 0; passed = 0; failed = 0; errors = 0; skipped = 0; seconds = 0 }
+    foreach ($e in $state.groups) { foreach ($k in @($tot.Keys)) { $tot[$k] += [double]$e.$k } }
+    $tot.seconds = [math]::Round($tot.seconds, 1)
+    $exitCode = 0
+    if (@($state.groups | Where-Object { [int]$_.exit_code -ne 0 }).Count -gt 0) { $exitCode = 1 }
+    $state.totals = $tot; $state.exit_code = $exitCode; $state.status = 'done'; $state.finished_at = (Get-QNow)
+    Save-QRunJson $RunDir $state
+    $runFinalized = $true
+    Write-QInfo ('합 — 통과 {0} · 실패 {1} · 오류 {2} · 건너뜀 {3} · {4}초 · 결과 {5}\run.json' -f `
+      $tot.passed, $tot.failed, $tot.errors, $tot.skipped, $tot.seconds, $RunDir)
+  } else {
+    if ($LastFailed) {
+      Write-QStep '3/4 시험 — 지난번 실패한 시험만 (pytest --lf · 지난 실패가 없으면 아무것도 돌지 않는다)'
+      $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel", '--lf', '--lfnf=none') + $Path
+    } else {
+      Write-QStep '3/4 시험 — python -m pytest (전체는 10분 안팎 · 끝에 「N passed」 요약 줄)'
+      $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel") + $Path
+    }
+    # 결과 폴더가 있을 때(-Detach · -LastFailed)만 JUnit XML 과 run.json 을 남긴다 — 인자 없는 실행은 지금처럼 화면 출력만.
+    if ($RunDir) { $pytestArgs += "--junit-xml=$(Join-Path $RunDir 'all.xml')" }
+    $t0 = Get-Date
+    Push-Location $QRoot
+    try {
+      & python @pytestArgs
+      $exitCode = $LASTEXITCODE
+    } finally {
+      Pop-Location
+    }
+    # --lf --lfnf=none 은 지난 실패가 없으면 모든 시험을 빼고 「모은 시험 없음」(5)으로 끝난다 → 통과로 본다.
+    if ($LastFailed -and $exitCode -eq 5) { Write-QOk '지난 실패가 없습니다 — 다시 돈 시험 0'; $exitCode = 0 }
+    if ($RunDir) {
+      $n = Read-QJunit (Join-Path $RunDir 'all.xml')
+      $mode = 'all'
+      if ($LastFailed) { $mode = 'lastfailed' }
+      Save-QRunJson $RunDir ([ordered]@{
+        status = 'done'; pid = $PID; mode = $mode; finished_at = (Get-QNow); run_dir = $RunDir
+        seconds = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1); totals = $n; exit_code = $exitCode
+      })
+      $runFinalized = $true
+    }
   }
 } finally {
   # ----------------------------------------------------------------------------
@@ -168,6 +393,20 @@ try {
   } elseif ($KeepDb) {
     Write-QInfo "시험 DB 를 남겼습니다 — 지우기: docker rm -f -v $TestDbName"
   }
+  # 끝나지 못한 실행(Ctrl+C · DB 준비 실패)도 결과 폴더에 「멈춤」 을 남긴다 — 세션이 run.json 만 보고 알 수 있게.
+  # 이어 가기는 지난 기록을 덮지 않는다(묶음 단계 전에 멈췄으면 지난 run.json 이 그대로 남는다).
+  if ($RunDir -and -not $runFinalized) {
+    if ($state) {
+      $state.status = 'stopped'; $state.finished_at = (Get-QNow)
+      Save-QRunJson $RunDir $state
+    } elseif (-not $Resume) {
+      Save-QRunJson $RunDir ([ordered]@{
+        status = 'stopped'; pid = $PID; finished_at = (Get-QNow); run_dir = $RunDir
+        note = '시험 단계 전에 멈췄거나 중간에 끊겼습니다 — test.log 를 보세요'
+      })
+    }
+  }
+  if ((Get-QTestLockPid) -eq 0) { Remove-Item $TestLock -ErrorAction SilentlyContinue }
 }
 
 if ($exitCode -eq 0) { Write-QOk '시험 전부 통과' } else { Write-QFail "실패한 시험이 있습니다 (pytest 종료 코드 $exitCode) — 위 FAILED 줄을 보세요." }

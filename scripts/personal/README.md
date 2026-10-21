@@ -63,9 +63,21 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # 내 계정에만 · 내 
 | `status.ps1` | 지금 무엇이 떠 있나 (컨테이너 · 앱 응답 · 이미지 신선도 · 수집 DB · 디스크) | `-Data` 일일 갱신 상세 |
 | `logs.ps1` | 컨테이너 로그 | `-Service app` · `-Service celery-worker` · `-Follow` · `-Tail 200` |
 | `stop.ps1` | 끄기 (데이터 유지) | `-Keep` 멈추기만 · `-DeleteData` DB 까지 삭제(확인 입력) |
-| `test.ps1` | 자동 시험(pytest · 2026-10-02 기준 473건 + 건너뜀 2 · 3분 안팎) — 일회용 시험 DB 를 띄웠다 지운다. 호스트 파이썬에 RAG 패키지(`langchain-ollama` · `langchain-qdrant`)가 없으면 채팅 모드 · 벡터 저장 시험 두 파일만 건너뛴다 | `-Path tests\test_formula.py` · `-NoDb` |
+| `test.ps1` | 자동 시험(pytest · 2026-10-21 기준 173파일 · 2,371건 · 10분 안팎 · `-Split` 이면 묶음 여섯을 묶음마다 새 프로세스로 · `-Detach` 세션 밖 · 결과 `data\local-run\test\<시각>\run.json`) — 일회용 시험 DB 를 띄웠다 지운다. 호스트 파이썬에 RAG 패키지(`langchain-ollama` · `langchain-qdrant`)가 없으면 채팅 모드 · 벡터 저장 시험 두 파일만 건너뛴다 | `-Path tests\test_formula.py` · `-NoDb` |
 | `dev.ps1` | 앱만 내 PC 파이썬으로(DB 는 도커) · 코드 저장 시 자동 재시작 — 패키지 설치가 필요해 보통은 `start.ps1 -Dev` 를 쓴다 | `-Port 8000` |
 | `_common.ps1` | 위 스크립트들이 함께 쓰는 함수 (직접 실행하지 않음) | — |
+
+**나눠 돌리기(2026-10-21)** — 한 덩어리로 오래 돌면 메모리가 쌓이고, 끊기면 어디까지 됐는지 모른다.
+
+```powershell
+.\scripts\personal\test.ps1 -Split -Detach      # 전체를 묶음 차례로(화면 · 데이터 · 지식 · 매매 · 분석) · 세션 밖에서 → run.json 의 status 가 done 이면 끝
+.\scripts\personal\test.ps1 -Group ui,kb        # 그 묶음만(이름 화면 · 지식 도 됨 · 묶음 표는 _test_groups.py)
+.\scripts\personal\test.ps1 -Resume             # 끊긴 묶음 실행을 이어서(통과로 끝난 묶음은 건너뜀)
+.\scripts\personal\test.ps1 -LastFailed         # 지난번 실패한 시험만
+.\scripts\personal\check.ps1 -Quiet -Out data\local-run\check.jsonl   # 주의 · 실패와 요약만 화면에 · 점검마다 한 줄씩 파일로
+```
+
+인자 없는 `test.ps1` · `check.ps1` 은 그대로다(PR 전 완료 기준 — 실패 0).
 
 각 스크립트의 자세한 설명은 PowerShell 도움말로도 볼 수 있습니다: `Get-Help .\scripts\personal\check.ps1 -Full`
 

@@ -69,9 +69,22 @@
   결과를 data\local-run\check-날짜-시각.md 로 저장한다(표 형식 · .gitignore 대상).
   테스트 결과서 · 발표 자료에 「로컬에서 전 기능을 확인했다」 는 증거로 붙일 수 있다.
 
+.PARAMETER Quiet
+  점검마다 찍던 세 줄(판정 · 요청 · 메모)을 「주의 · 실패」 일 때만 찍는다. 끝의 묶음별 요약 · 실패 목록은 그대로.
+  세션 · 긴 묶음(-Full)에서 화면 출력을 줄일 때(85건이면 약 250줄 → 요약 20줄 안팎).
+
+.PARAMETER Out
+  점검 하나가 끝날 때마다 이 파일에 JSON 한 줄을 덧붙인다(JSONL · BOM 없는 UTF-8). 첫 줄은 실행 머리(start),
+  끝 줄은 합(summary). -SaveReport 는 끝에 한 번 쓰므로 중간에 끊기면 남는 것이 없지만, 이것은 끝난 점검까지 남는다.
+  예) -Out data\local-run\check.jsonl  (data\local-run\ 은 .gitignore 대상)
+
 .EXAMPLE
   .\scripts\personal\check.ps1
   기본 묶음 전부 (10초 안팎).
+
+.EXAMPLE
+  .\scripts\personal\check.ps1 -Quiet -Out data\local-run\check.jsonl
+  기본 묶음 전부 · 주의 · 실패와 요약만 화면에 · 점검마다 한 줄씩 파일로.
 
 .EXAMPLE
   .\scripts\personal\check.ps1 -Full -Write -SaveReport
@@ -90,7 +103,9 @@ param(
   [switch]$Full,
   [switch]$Write,
   [switch]$ShowBody,
-  [switch]$SaveReport
+  [switch]$SaveReport,
+  [switch]$Quiet,
+  [string]$Out = ''
 )
 
 . "$PSScriptRoot\_common.ps1"
@@ -586,8 +601,32 @@ Write-QTitle "Qurious 기능 점검 — $BaseUrl"
 $runStart = Get-Date
 $results = New-Object System.Collections.Generic.List[object]
 
+# -Out : 점검마다 한 줄(JSONL)을 바로 덧붙인다 — 느림 묶음 도중에 끊겨도 끝난 점검은 남게.
+#   상대 경로는 PowerShell 의 지금 위치 기준으로 푼다(.NET 의 현재 폴더와 다를 수 있어서).
+$OutPath = ''
+if ($Out) {
+  $OutPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out)
+  $outDir = Split-Path -Parent $OutPath
+  if ($outDir -and -not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
+}
+function Add-OutLine($obj) {
+  if (-not $OutPath) { return }
+  $line = ($obj | ConvertTo-Json -Compress -Depth 4) + "`n"
+  [IO.File]::AppendAllText($OutPath, $line, (New-Object Text.UTF8Encoding $false))
+}
+Add-OutLine ([ordered]@{
+  type = 'start'; at = (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz'); base_url = $BaseUrl
+  groups = @($Group); full = [bool]$Full; write = [bool]$Write
+})
+
 function Add-Result($c, $status, $ms, $v) {
   $results.Add([pscustomobject]@{ Group = $c.G; Name = $c.Name; Method = $c.M; Path = $c.P; Status = $status; Ms = $ms; Verdict = $v.Verdict; Note = $v.Note })
+  Add-OutLine ([ordered]@{
+    type = 'check'; at = (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz'); group = $c.G; name = $c.Name
+    method = $c.M; path = $c.P; status = "$status"; ms = $ms; verdict = $v.Verdict; note = $v.Note
+  })
+  # -Quiet : 통과 · 건너뜀은 화면에 찍지 않는다(끝의 묶음별 요약에 수로만 나온다).
+  if ($Quiet -and ($v.Verdict -eq 'OK' -or $v.Verdict -eq 'SKIP')) { return }
   $tag = @{ OK = '[ OK ]'; WARN = '[주의]'; FAIL = '[실패]'; SKIP = '[건너뜀]' }[$v.Verdict]
   $color = @{ OK = 'Green'; WARN = 'Yellow'; FAIL = 'Red'; SKIP = 'DarkGray' }[$v.Verdict]
   Write-Host ("  {0} [{1}] {2}" -f $tag, $c.G, $c.Name) -ForegroundColor $color
@@ -863,6 +902,11 @@ foreach ($g in $groupsDone) {
 foreach ($x in @($results | Where-Object { $_.Verdict -eq 'FAIL' })) {
   Write-QFail ("[{0}] {1} — {2}" -f $x.Group, $x.Name, $x.Note)
 }
+Add-OutLine ([ordered]@{
+  type = 'summary'; at = (Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz')
+  ok = $cnt.OK; warn = $cnt.WARN; fail = $cnt.FAIL; skip = $cnt.SKIP; seconds = $sec
+})
+if ($OutPath) { Write-QInfo "점검마다 한 줄: $OutPath" }
 
 if ($SaveReport) {
   $dir = Join-Path $QRoot 'data\local-run'
