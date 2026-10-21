@@ -393,7 +393,8 @@ $Checks = @(
   @{ G = '매매'; Name = '증권사 설정 (모의 / 실전)'; M = 'GET'; P = '/api/broker/settings'; Auth = $true; NoBody = $true
      Test = { param($r)
        $msg = "증권사 $($r.Json.broker) · 모의 $($r.Json.paper) · 연결 $($r.Json.connected)"
-       if ($r.Json.paper -eq $false) { Warn "$msg — 실전 모드다(실거래 주문은 코드에서 막혀 있지만 설정을 확인하라)" } else { Pass $msg } } }
+       # paper=false 는 「증권사로 주문을 보낸다(앱 안 가상 체결 아님)」 이다 — 서버가 모의인지 실전인지는 실거래 관문 · KIS 묶음이 판정(2026-10-21)
+       if ($r.Json.paper -eq $false) { Warn "$msg — 증권사로 주문을 보내는 설정이다(서버 모의 · 실전 판정은 KIS 묶음 · 실거래 주문은 관문이 막음)" } else { Pass $msg } } }
 
   # ── KIS: 점검 계정에 KIS 모의 키를 넣었을 때(.\scripts\personal\kis-link.ps1 · 2026-10-08) ─────────
   # 증권사(KIS 모의 서버)는 잔고 1회만 부른다 — 우리 KIS 클라이언트는 접근 토큰을 요청마다 새로 받는데, 증권사는
@@ -402,8 +403,10 @@ $Checks = @(
      Test = { param($r)
        if ($r.Json.broker -ne 'kis' -or $r.Json.connected -ne $true) {
          return (Skip "점검 계정에 KIS 모의 키가 없다(증권사 $($r.Json.broker) · 연결 $($r.Json.connected)) — .\scripts\personal\kis-link.ps1 을 먼저") }
-       if ($r.Json.paper -ne $true) { return (Fail '모의(paper)가 아니다 — kis-link.ps1 은 모의로만 넣는다') }
+       # paper 칸은 「앱 안 가상 체결이냐 · 증권사(KIS 모의 서버)로 주문을 보내느냐」 다 — 원클릭 · 퀀트 설정 live 가 false 로 둔다.
+       # 실제 서버가 모의인지는 다음 줄(원클릭 준비 상태의 environment)이 판정한다 — 여기서 실패로 보지 않는다(2026-10-21).
        $state.kis_linked = $true
+       if ($r.Json.paper -ne $true) { return (Pass '증권사 kis · 연결됨 · 주문 길 = 증권사 모의 서버(앱 안 가상 체결 아님 — 서버 판정은 다음 줄)') }
        Pass '증권사 kis · 모의(paper) · 연결됨' } }
   @{ G = 'KIS'; Name = 'KIS 원클릭 준비 상태 (주문 전에 적용될 금액 · 한도 · 경로 · 증권사 호출 없음)'; M = 'GET'; P = '/api/quant/kis/quickstart'; Auth = $true
      Needs = 'kis_linked'; NeedsNote = '점검 계정에 KIS 키가 없어 건너뜀'

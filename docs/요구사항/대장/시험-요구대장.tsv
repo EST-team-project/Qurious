@@ -98,6 +98,7 @@ TC-DA	tests/test_dashboard_accounts.py	U10	🟡	KIS 탭의 자동매매 실행 �
 TC-QC	tests/test_quant_cycle_integration.py	P02-⑤-2	🟢	자동매매 사이클 통합 — 합격 전략 적용 · 위험 한도 · 실계좌 일손실 한도
 TC-ATI	tests/test_auto_trade_isolation.py	P02-⑤-2	🟢	자동매매 계정 분리(2026-10-16 #207 오준영) — 두 사용자의 사이클 로그 · 즉시 실행 · 중지 · 일손실 한도가 서로 간섭하지 않는다(외부 주문 없음) · 수정 · 검증 기록 docs/시험/자동매매-계정분리-검증.md — 대장 등록은 이동원(RTM 관리)
 TC-RK	tests/test_risk_guard_boundaries.py	P02-⑤-2	🟢	쿨다운 만료 경계 · 일 주문 한도 · 비상 정지 매핑 · 위험 저장소(Redis)가 없으면 실전 주문을 내지 않는다
+TC-RGL	tests/test_risk_guard_ledgers.py	P02-⑤-2	🟡	위험 관문 「당일 시작 자산」 열쇠가 장부마다 따로다(모의 계좌 `<uid>:paper` · 퀀트 장부 `<uid>:quant` — 한쪽 값이 다른 쪽 첫 바퀴를 거짓 정지시키지 않음) · 같은 장부는 첫 값을 지킨다(#297 · DF-138 · 강민석 #303) — 묶음 이름 · 요구 · 확실도는 작성자(강민석) 확인 칸
 TC-SR	tests/test_spec_rules_and_ml_symbol.py	P01-④-2	🟡	전략 스펙의 진입 · 청산 규칙 평가와 캔들 Ridge ML 점수
 TC-SP	tests/test_strategy_spec_apply.py	P01-④-2	🟢	합격 전략 스펙으로 신호를 다시 판정(임계값 · 종목 범위 · 최대 종목 수) · 배치 ML 점수는 늘 비어 있음
 TC-SP	tests/test_strategy_spec_apply.py	P02-①-2	🟡	스펙의 매수 · 매도 규칙을 자동매매 사이클에 적용한다
