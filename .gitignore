@@ -18,6 +18,8 @@ build/
 .env
 .env.dev
 .env.local
+# 운영 compose 환경 파일 — 2026-10-21 추적 끊음(정할 것 D81 · 강사님 원본에서 온 파일 · 각자 PC 에만 둔다)
+.env.prod
 
 # Data (large CSV files)
 data/09*/
