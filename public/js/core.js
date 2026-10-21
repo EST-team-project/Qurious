@@ -386,7 +386,7 @@ function tt(label, hint, key) {
 window.tt = tt;
 
 // (Qurious 2026-10-16) 화면 사용법 — 윗줄 「사용법」 단추 + 가운데 창은 js/howto.js 가 그린다(결정 안 A ·
-// 설계 docs/화면/설계안/2026-10-16-사용법모달). 자료(사용법 글 · 용어 · 메뉴 이름)는 여기서 넘긴다 —
+// 설계 docs/2차/화면/설계안/2026-10-16-사용법모달). 자료(사용법 글 · 용어 · 메뉴 이름)는 여기서 넘긴다 —
 // howto.js 가 core.js 를 가져오면 화면 시작 차례가 바뀐다. 옛 접이식과 열림 기억(localStorage)은 버렸다.
 function renderViewGuide(viewKey, pathKey = viewKey) {   // pathKey — 머리 경로에 쓸 메뉴 줄(메뉴 줄이 없는 화면은 따를 줄)
   const menu = Object.values(GNB_MENUS).find(m => m.items.some(it => it.key === pathKey));

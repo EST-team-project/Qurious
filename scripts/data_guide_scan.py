@@ -8,7 +8,7 @@
 백업 카드 · 문서와 어긋나는 다섯째 사본이 된다(설계 03 문서 13절 ④ — 손으로 옮긴 숫자 · 글이 이미 다섯 곳에서 어긋났다).
 그래서 정본 · 생성물 · 앱을 나눈다(2026-10-08 결정 ④ · SSoT).
 
-  정본    docs/데이터/대장/자료안내-자료.tsv · 자료안내-출처.tsv · 자료안내-길잡이.tsv · 자료안내-뺀표.tsv ·
+  정본    docs/3차/데이터/대장/자료안내-자료.tsv · 자료안내-출처.tsv · 자료안내-길잡이.tsv · 자료안내-뺀표.tsv ·
           자료안내-칸.tsv (사람이 고친다 · 칸은 2026-10-11 부터) · 칸 목록 · 타입 · 열쇠는 코드(수집기 CREATE 문 · 앱 모델)
   생성물  app/services/data_guide.json — 이 스캐너가 만든다 · git 에 들어가고 앱 이미지에 함께 실린다
   앱      생성물을 읽기만 한다(GET /api/data/guide) — 앱 이미지에는 docs/ · scripts/ 가 없다(Dockerfile)
@@ -66,7 +66,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LEDGER_DIR = ROOT / "docs" / "데이터" / "대장"
+LEDGER_DIR = ROOT / "docs" / "3차" / "데이터" / "대장"
 ATTR_LEDGER = LEDGER_DIR / "표-속성대장.tsv"
 APP_HTML = ROOT / "public" / "app.html"
 OUT = ROOT / "app" / "services" / "data_guide.json"
@@ -483,7 +483,7 @@ def dumps(guide: dict) -> str:
 
 
 def _summary(guide: dict, cover: dict[str, list[str]], out: Path) -> None:
-    print("자료 안내 대장 — docs/데이터/대장/자료안내-*.tsv")
+    print("자료 안내 대장 — docs/3차/데이터/대장/자료안내-*.tsv")
     print(f"  묶음 {len(guide['groups'])} · 자료 {len(guide['items'])} · 출처 {len(guide['sources'])}"
           f"(바깥 {sum(1 for s in guide['sources'] if s['kind'] == '바깥')}) · 흐름 상자 {len(guide['flow'])}"
           f" · 길잡이 {len(guide['tasks'])} · 틀리기 쉬운 것 {len(guide['pitfalls'])} · 뺀 표 {len(guide['excluded'])}")

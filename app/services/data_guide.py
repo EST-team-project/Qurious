@@ -8,7 +8,7 @@
 
 설명과 숫자를 나눈다 (2026-10-08 결정 ④ · SSoT)
 -----------------------------------------------
-  설명  app/services/data_guide.json — 대장(docs/데이터/대장/자료안내-*.tsv)과 코드의 칸(수집기 CREATE 문 · 앱 모델)에서
+  설명  app/services/data_guide.json — 대장(docs/3차/데이터/대장/자료안내-*.tsv)과 코드의 칸(수집기 CREATE 문 · 앱 모델)에서
         `scripts/data_guide_scan.py --write` 가 만든 생성물. 앱은 읽기만 한다(앱 이미지에 docs/ · scripts/ 가 없다). 대장과
         어긋나면 시험 TC-DG-01(`--check`)이 알린다. 2단계부터 자료마다 칸 정의(쉬운 이름 · 단위 · 뜻)가 함께 온다.
   숫자  러너가 회차 끝 · 한 단계 다시 뒤에 쓰는 파일 하나(`state/data_guide_stats.json` — 표마다 줄 수 · 마지막 날, 관제와
@@ -472,7 +472,7 @@ def read(admin: bool, now: datetime | None = None) -> dict:
     stats = compute_stats(guide, nums, runner, mans, catalog, problems, dev)
     if admin:
         # 관리자에게만 — 숫자를 잇지 못한 곳(대장 열쇠 · 매니페스트 줄 · 숫자 파일)과 설명을 고치는 곳
-        stats["dev"] = {"problems": dev, "ledgers": "docs/데이터/대장/자료안내-*.tsv",
+        stats["dev"] = {"problems": dev, "ledgers": "docs/3차/데이터/대장/자료안내-*.tsv",
                         "make": "python scripts/data_guide_scan.py --write",
                         "numbers": f"data/collector/state/{NUMBERS_FILE} — python scripts/daily_update.py steps --write"}
     elif dev:

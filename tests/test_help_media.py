@@ -29,7 +29,7 @@ from app.lib.session import get_current_user
 from app.routes import help_media
 
 ROOT = Path(__file__).resolve().parents[1]
-SCENES = ROOT / "docs" / "발표" / "영상" / "장면"
+SCENES = ROOT / "docs" / "영상" / "장면"
 
 
 def _tool():

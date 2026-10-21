@@ -21,7 +21,7 @@
 사용법
 ------
     python scripts/build_plan_docx.py
-    python scripts/build_plan_docx.py --src docs/계획서/프로젝트계획서.md
+    python scripts/build_plan_docx.py --src docs/3차/계획서/프로젝트계획서.md
 """
 
 from __future__ import annotations
@@ -46,9 +46,9 @@ except ImportError:  # pragma: no cover - 환경 안내
     )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SRC = REPO_ROOT / "docs" / "계획서" / "프로젝트계획서.md"
+DEFAULT_SRC = REPO_ROOT / "docs" / "3차" / "계획서" / "프로젝트계획서.md"
 #: 제출본(.docx)을 두는 곳 — 정본(.md)과 섞이지 않게 하위 폴더에 판 번호를 붙여 둔다(2026-10-07 docs 정리).
-EXPORT_DIR = REPO_ROOT / "docs" / "계획서" / "내보내기"
+EXPORT_DIR = REPO_ROOT / "docs" / "3차" / "계획서" / "내보내기"
 #: 머리표의 판 칸 — 계획서는 `판 · 상태`, API 명세서처럼 버전이라고 쓴 칸도 읽는다(예: v2.0 · v0.11).
 #: (RTM 스캐너가 근거 문서 판을 찾는 낱말과 겹치지 않게 칸 이름을 붙여 쓰지 않는다.)
 HEAD_VERSION = re.compile(r"^\|\s*\*\*(?:판[^*|]*|문서 ?버전)\*\*\s*\|\s*v(\d+(?:\.\d+)*)", re.M)
@@ -317,7 +317,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="계획서 Markdown → .docx")
     ap.add_argument("--src", type=Path, default=DEFAULT_SRC, help="원본 .md")
     ap.add_argument("--out", type=Path, default=None,
-                    help="출력 .docx (기본: docs/계획서/내보내기/<이름>_v<머리표의 판>.docx)")
+                    help="출력 .docx (기본: docs/3차/계획서/내보내기/<이름>_v<머리표의 판>.docx)")
     args = ap.parse_args()
 
     src = args.src if args.src.is_absolute() else REPO_ROOT / args.src

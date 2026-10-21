@@ -160,9 +160,9 @@ def test_size_limit_raises_crf_then_stops(ex, layout, monkeypatch):
 def test_readme_table_is_rebuilt_between_markers_only(ex, tmp_path, monkeypatch):
     """TC-VX-06 · README 파일 표는 자리 표시 두 줄 사이만 다시 쓴다(줄 끝 CRLF 그대로 · 두 번째는 바뀐 것 없음) · 파일은 git 밖이라 링크 없이 길이 · 크기만."""
     man = {
-        ("사용법", "V01-예시"): {"kind": "사용법", "stem": "V01-예시", "title": "예시", "mp4": "docs/발표/영상/파일/사용법/V01-예시.mp4",
+        ("사용법", "V01-예시"): {"kind": "사용법", "stem": "V01-예시", "title": "예시", "mp4": "docs/영상/파일/사용법/V01-예시.mp4",
                               "duration_sec": 65.2, "bytes": 2_300_000, "recorded_at": "2026-10-18 20:00:00 KST"},
-        ("발표", "P-V01-예시"): {"kind": "발표", "stem": "P-V01-예시", "title": "예시 — 자세히", "mp4": "docs/발표/영상/파일/발표/P-V01-예시.mp4",
+        ("발표", "P-V01-예시"): {"kind": "발표", "stem": "P-V01-예시", "title": "예시 — 자세히", "mp4": "docs/영상/파일/발표/P-V01-예시.mp4",
                               "duration_sec": 125.8, "bytes": 5_500_000, "recorded_at": "2026-10-19 09:30:00 KST"},
     }
     table = ex.readme_table(man)
@@ -191,7 +191,7 @@ def test_local_videos_are_tracked_and_match_the_manifest(ex):
     """TC-VX-08 · 영상 mp4 · 그림은 git 에 둔다(.gitignore 에 막는 줄이 없다 — 2026-10-20 사용자 결정 「팀원이 받아 발표 자료에서 보게」 · 옛 10-19 결정은 git 밖) ·
     이 PC 에 내보낸 파일이 있으면 목록.json 과 하나씩 맞고(크기 · 지문) 편마다 10 MB 안 · 목록 밖 영상 파일이 없다 — 없는 PC 는 건너뜀."""
     ignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
-    for pat in ("docs/발표/영상/파일/**/*.mp4", "docs/발표/영상/파일/**/*.jpg"):
+    for pat in ("docs/영상/파일/**/*.mp4", "docs/영상/파일/**/*.jpg"):
         assert pat not in ignore, f".gitignore 에 {pat} 가 남아 있다 — 팀원이 받아도 발표 자료 영상이 비어 보인다"
     if not ex.MANIFEST.exists():
         pytest.skip("아직 내보낸 영상이 없다")
@@ -214,17 +214,17 @@ def test_local_videos_are_tracked_and_match_the_manifest(ex):
 
 
 def test_deck_videos_point_to_the_export_folder():
-    """TC-VX-09 · 발표 자료의 영상 칸(src · poster)은 내보내기 폴더(../영상/파일/발표/)를 가리킨다 — 발표 PC 가 그 파일을 바로 재생한다(YAML 만이 아니라) ·
+    """TC-VX-09 · 발표 자료의 영상 칸(src · poster)은 내보내기 폴더(../../영상/파일/발표/ — 2026-10-21 차수 폴더 뒤 덱은 docs/2차/발표/ · 영상은 맨 위 docs/영상/)를 가리킨다 — 발표 PC 가 그 파일을 바로 재생한다(YAML 만이 아니라) ·
     내보낸 영상이 있을 때만 파일이 있는지 본다(내보내기 · 받기 전 PC 는 건너뜀) · 옛 media/ 폴더는 가리키지 않는다.
     2026-10-21 부터 고치는 원본은 발표자료-원본.html 이다 — 발표자료.html 은 그 원본에서 tools/deck/bundle_deck.py 가 만든 한 파일 판(영상이 파일 안에)."""
-    deck = ROOT / "docs" / "발표" / "2차" / "발표자료-원본.html"
+    deck = ROOT / "docs" / "2차" / "발표" / "발표자료-원본.html"
     html = deck.read_text(encoding="utf-8")
     refs = re.findall(r'<video[^>]*?\s(?:src|poster)="([^"]+)"', html)
     assert refs, "영상 칸이 하나도 없다"
-    dest = ROOT / "docs" / "발표" / "영상" / "파일"
+    dest = ROOT / "docs" / "영상" / "파일"
     local = dest.exists() and any(p.suffix.lower() == ".mp4" for p in dest.rglob("*"))
     for ref in refs:
         assert not ref.startswith("media/"), f"옛 media/ 폴더를 가리킨다: {ref}"
-        assert ref.startswith("../영상/파일/발표/"), ref
+        assert ref.startswith("../../영상/파일/발표/"), ref
         if local:
             assert (deck.parent / ref).resolve().exists(), ref

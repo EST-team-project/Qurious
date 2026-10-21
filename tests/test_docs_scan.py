@@ -1,9 +1,10 @@
-"""docs 판 도구 시험 (TC-DV) — 지난판 사본의 링크 · 이름 · 판 규칙 (2026-10-07 docs 정리 뒤).
+"""docs 판 도구 시험 (TC-DV) — 지난판 사본의 링크 · 이름 · 판 규칙 (2026-10-07 docs 정리 · 2026-10-21 차수 폴더).
 
 판을 올릴 때 지금 파일을 지난판/ 에 그냥 복사하면 한 칸 아래 폴더라 상대 링크가 모두 어긋난다.
-`--bump` 가 링크를 새 자리에 맞춰 사본을 만드는지, `--check` 가 맨 위의 판 붙은 문서 · 짝 없는 사본을
-잡는지 본다. 네트워크 · git · DB 를 쓰지 않는다(임시 폴더). 실제 docs 를 시험으로 막지는 않는다 —
-팀원 PR 이 옛 습관(판 붙은 새 파일)으로 실패하지 않게, 실제 폴더는 `--check` 와 점검으로 본다.
+`--bump` 가 링크를 새 자리에 맞춰 사본을 만드는지, `--check` 가 맨 위의 판 붙은 문서 · 짝 없는 사본 ·
+옛 자리(차수 폴더 전 `docs/<종류>/`)에 남은 문서를 잡는지 본다. 네트워크 · git · DB 를 쓰지 않는다(임시 폴더).
+실제 docs 를 시험으로 막지는 않는다 — 팀원 PR 이 옛 습관(판 붙은 새 파일)으로 실패하지 않게, 실제 폴더는
+`--check` 와 점검으로 본다.
 """
 
 import pytest
@@ -14,19 +15,19 @@ HEAD = "# 요구사항 추적표(RTM) v1.12 — Qurious\r\n\r\n| 문서 정보 |
 
 
 def _tree(tmp_path):
-  (tmp_path / "docs/요구사항/지난판").mkdir(parents=True)
-  (tmp_path / "docs/요구사항/대장").mkdir()
-  (tmp_path / "docs/요구사항/img").mkdir()
-  (tmp_path / "docs/설계").mkdir(parents=True)
-  (tmp_path / "docs/설계/기능설계.md").write_text("x", encoding="utf-8")
-  (tmp_path / "docs/요구사항/대장/요구-대장.tsv").write_text("x", encoding="utf-8")
-  (tmp_path / "docs/요구사항/img/a.png").write_bytes(b"x")
-  (tmp_path / "docs/요구사항/지난판/RTM_v1.11.md").write_text("x", encoding="utf-8")
+  (tmp_path / "docs/3차/요구사항/지난판").mkdir(parents=True)
+  (tmp_path / "docs/3차/요구사항/대장").mkdir()
+  (tmp_path / "docs/3차/요구사항/img").mkdir()
+  (tmp_path / "docs/3차/설계").mkdir(parents=True)
+  (tmp_path / "docs/3차/설계/기능설계.md").write_text("x", encoding="utf-8")
+  (tmp_path / "docs/3차/요구사항/대장/요구-대장.tsv").write_text("x", encoding="utf-8")
+  (tmp_path / "docs/3차/요구사항/img/a.png").write_bytes(b"x")
+  (tmp_path / "docs/3차/요구사항/지난판/RTM_v1.11.md").write_text("x", encoding="utf-8")
   body = HEAD + (
     "[설계](../설계/기능설계.md) · [대장](대장/요구-대장.tsv) · [v1.11](지난판/RTM_v1.11.md)\r\n"
     "![그림](img/a.png) · [절](#2-요구) · [이 문서 부록](RTM.md#부록) · [밖](https://example.com/a.md)\r\n"
     "[깨진 예시](없는파일.md) · [대장 폴더](대장/) · [바로가기]\r\n\r\n[바로가기]: ../설계/기능설계.md\r\n")
-  p = tmp_path / "docs/요구사항/RTM.md"
+  p = tmp_path / "docs/3차/요구사항/RTM.md"
   p.write_bytes(body.encode("utf-8"))
   return p
 
@@ -36,7 +37,7 @@ def test_dv01_bump_copies_with_links_moved_one_level_down(tmp_path):
   src = _tree(tmp_path)
   before = src.read_bytes()
   dst = docs_scan.bump(src, root=tmp_path)
-  assert dst == tmp_path / "docs/요구사항/지난판/RTM_v1.12.md"
+  assert dst == tmp_path / "docs/3차/요구사항/지난판/RTM_v1.12.md"
   t = dst.read_bytes().decode("utf-8")
   assert "[설계](../../설계/기능설계.md)" in t
   assert "[대장](../대장/요구-대장.tsv)" in t and "[대장 폴더](../대장/)" in t
@@ -50,24 +51,29 @@ def test_dv01_bump_copies_with_links_moved_one_level_down(tmp_path):
   assert src.read_bytes() == before                          # 원본은 고치지 않는다
 
 
-def test_dv02_bump_refuses_four_cases(tmp_path):
-  """TC-DV-02 · 멈추는 경우 넷 — 사본이 이미 있음 · 판 붙은 이름 · 머리표에 판 없음 · 종류 폴더 맨 위가 아님."""
+def test_dv02_bump_refuses_five_cases(tmp_path):
+  """TC-DV-02 · 멈추는 경우 다섯 — 사본이 이미 있음 · 판 붙은 이름 · 머리표에 판 없음 · 종류 폴더 맨 위가 아님 · 차수 폴더 전 옛 자리."""
   src = _tree(tmp_path)
   docs_scan.bump(src, root=tmp_path)
   with pytest.raises(SystemExit, match="이미 있다"):
     docs_scan.bump(src, root=tmp_path)
-  named = tmp_path / "docs/요구사항/RTM_v1.12.md"
+  named = tmp_path / "docs/3차/요구사항/RTM_v1.12.md"
   named.write_text(HEAD, encoding="utf-8")
   with pytest.raises(SystemExit, match="판 붙은 이름"):
     docs_scan.bump(named, root=tmp_path)
-  plain = tmp_path / "docs/요구사항/메모.md"
+  plain = tmp_path / "docs/3차/요구사항/메모.md"
   plain.write_text("# 메모\n본문의 v1.2 는 판이 아니다\n", encoding="utf-8")
   with pytest.raises(SystemExit, match="판\\(vX.Y\\)"):
     docs_scan.bump(plain, root=tmp_path)
-  deep = tmp_path / "docs/요구사항/대장/설명.md"
+  deep = tmp_path / "docs/3차/요구사항/대장/설명.md"
   deep.write_text(HEAD, encoding="utf-8")
   with pytest.raises(SystemExit, match="종류 폴더 맨 위"):
     docs_scan.bump(deep, root=tmp_path)
+  (tmp_path / "docs/요구사항").mkdir()
+  flat = tmp_path / "docs/요구사항/RTM.md"
+  flat.write_text(HEAD, encoding="utf-8")
+  with pytest.raises(SystemExit, match="차수 폴더다"):           # 옛 자리는 새 자리를 알려 주며 멈춘다
+    docs_scan.bump(flat, root=tmp_path)
 
 
 def test_dv03_head_version_reads_three_header_styles():
@@ -81,46 +87,46 @@ def test_dv03_head_version_reads_three_header_styles():
 
 
 def test_dv04_check_finds_top_versioned_and_orphan_copies(tmp_path):
-  """TC-DV-04 · 검사 — 깨끗한 폴더는 통과 · 맨 위의 판 붙은 문서와 짝 없는 지난판 사본을 하나씩 잡는다."""
+  """TC-DV-04 · 검사 — 깨끗한 폴더는 통과 · 맨 위의 판 붙은 문서와 짝 없는 지난판 사본을 하나씩 잡는다(차수 폴더마다)."""
   _tree(tmp_path)
-  (tmp_path / "docs/요구사항/지난판/RTM_v1.11.md").unlink()
-  docs_scan.bump(tmp_path / "docs/요구사항/RTM.md", root=tmp_path)
+  (tmp_path / "docs/3차/요구사항/지난판/RTM_v1.11.md").unlink()
+  docs_scan.bump(tmp_path / "docs/3차/요구사항/RTM.md", root=tmp_path)
   assert docs_scan.check(root=tmp_path) == []
-  (tmp_path / "docs/요구사항/RTM_v1.13.md").write_text(HEAD, encoding="utf-8")
-  (tmp_path / "docs/설계/지난판").mkdir()
-  (tmp_path / "docs/설계/지난판/동작원리_v0.1.md").write_text("x", encoding="utf-8")
+  (tmp_path / "docs/3차/요구사항/RTM_v1.13.md").write_text(HEAD, encoding="utf-8")
+  (tmp_path / "docs/2차/설계/지난판").mkdir(parents=True)
+  (tmp_path / "docs/2차/설계/지난판/동작원리_v0.1.md").write_text("x", encoding="utf-8")
   got = docs_scan.check(root=tmp_path)
   assert len(got) == 2
   assert any("맨 위에 판 붙은 문서" in g and "RTM_v1.13.md" in g for g in got)
-  assert any("짝 없는 지난판 사본" in g and "동작원리_v0.1.md" in g for g in got)
+  assert any("짝 없는 지난판 사본" in g and "docs/2차/설계/지난판/동작원리_v0.1.md" in g for g in got)
 
 
 DECK = ('<!--\n  2차 발표 자료 v0.1 (2026-10-17 초안) — 틀\n-->\n<!doctype html><html><head><title>t</title></head><body>\n'
-        '<video controls poster="../영상/파일/발표/P-V07.jpg" src="../영상/파일/발표/P-V07.mp4"></video>\n'
+        '<video controls poster="../../영상/파일/발표/P-V07.jpg" src="../../영상/파일/발표/P-V07.mp4"></video>\n'
         '<img src="img/a.png"> <a href="#s3">셋째 장</a> <a href="https://example.com/x.html">밖</a>\n'
         '<video src="media/없는.webm"></video> <p>본문의 v9.9 는 판이 아니다</p>\n</body></html>\n')
 
 
 def _deck_tree(tmp_path):
-  (tmp_path / "docs/발표/영상/파일/발표").mkdir(parents=True)
-  (tmp_path / "docs/발표/2차/img").mkdir(parents=True)
+  (tmp_path / "docs/영상/파일/발표").mkdir(parents=True)
+  (tmp_path / "docs/2차/발표/img").mkdir(parents=True)
   for f in ("P-V07.mp4", "P-V07.jpg"):
-    (tmp_path / "docs/발표/영상/파일/발표" / f).write_bytes(b"x")
-  (tmp_path / "docs/발표/2차/img/a.png").write_bytes(b"x")
-  p = tmp_path / "docs/발표/2차/발표자료.html"
+    (tmp_path / "docs/영상/파일/발표" / f).write_bytes(b"x")
+  (tmp_path / "docs/2차/발표/img/a.png").write_bytes(b"x")
+  p = tmp_path / "docs/2차/발표/발표자료.html"
   p.write_bytes(DECK.replace("\n", "\r\n").encode("utf-8"))
   return p
 
 
 def test_dv05_bump_presentation_html_moves_media_links(tmp_path):
-  """TC-DV-05 · 발표 자료(docs/발표/<묶음>/<이름>.html) — 사본 = 그 묶음의 지난판/<이름>_v<판>.html · 영상(src · poster) · 그림 · 링크는
+  """TC-DV-05 · 발표 자료(docs/<차수>/발표/<이름>.html) — 사본 = 그 폴더의 지난판/<이름>_v<판>.html · 영상(src · poster) · 그림 · 링크는
   새 자리에 맞춤(사본에서도 재생) · 문서 안 · 주소 · 없는 파일은 그대로 · 줄 끝 그대로(2026-10-19 사용자 「발표 자료가 판 관리로 갱신이 안 됐다」)."""
   src = _deck_tree(tmp_path)
   before = src.read_bytes()
   dst = docs_scan.bump(src, root=tmp_path)
-  assert dst == tmp_path / "docs/발표/2차/지난판/발표자료_v0.1.html"
+  assert dst == tmp_path / "docs/2차/발표/지난판/발표자료_v0.1.html"
   out = dst.read_bytes().decode("utf-8")
-  assert 'poster="../../영상/파일/발표/P-V07.jpg" src="../../영상/파일/발표/P-V07.mp4"' in out
+  assert 'poster="../../../영상/파일/발표/P-V07.jpg" src="../../../영상/파일/발표/P-V07.mp4"' in out
   assert '<img src="../img/a.png">' in out and 'href="#s3"' in out and 'href="https://example.com/x.html"' in out
   assert 'src="media/없는.webm"' in out                                   # 원래 없던 파일은 고치지 않는다
   assert out.count("\r\n") == before.decode("utf-8").count("\r\n") and src.read_bytes() == before
@@ -134,17 +140,58 @@ def test_dv06_html_version_meta_first_then_first_comment():
   assert docs_scan.head_version("<html><p>v1.2</p><!-- 나중 주석 v3.4 --></html>", html=True) is None
 
 
-def test_dv07_check_covers_presentation_bundles(tmp_path):
-  """TC-DV-07 · 검사가 발표 묶음 폴더(docs/발표/<묶음>/)도 본다 — md · html 의 맨 위 판 붙은 이름 · 짝 없는 지난판 사본."""
+def test_dv07_check_covers_presentation_and_top_assets(tmp_path):
+  """TC-DV-07 · 검사가 차수 폴더의 발표(docs/<차수>/발표/) · 맨 위 자산(docs/영상/)도 본다 — md · html 의 맨 위 판 붙은 이름 · 짝 없는 지난판 사본."""
   src = _deck_tree(tmp_path)
   docs_scan.bump(src, root=tmp_path)
   assert docs_scan.check(root=tmp_path) == []
-  (tmp_path / "docs/발표/2차/발표자료_v0.3.html").write_text(DECK, encoding="utf-8")
-  (tmp_path / "docs/발표/영상/지난판").mkdir()
-  (tmp_path / "docs/발표/영상/지난판/README_v0.1.md").write_text("x", encoding="utf-8")
+  (tmp_path / "docs/2차/발표/발표자료_v0.3.html").write_text(DECK, encoding="utf-8")
+  (tmp_path / "docs/영상/지난판").mkdir()
+  (tmp_path / "docs/영상/지난판/README_v0.1.md").write_text("x", encoding="utf-8")
   got = docs_scan.check(root=tmp_path)
   assert len(got) == 2
   assert any("맨 위에 판 붙은 문서" in g and "발표자료_v0.3.html" in g for g in got)
   assert any("짝 없는 지난판 사본" in g and "README_v0.1.md" in g for g in got)
-  (tmp_path / "docs/발표/영상/README.md").write_text("# 영상 v0.2\n", encoding="utf-8")
+  (tmp_path / "docs/영상/README.md").write_text("# 영상 v0.2\n", encoding="utf-8")
   assert len(docs_scan.check(root=tmp_path)) == 1                        # 짝이 생기면 사본은 통과
+
+
+def test_dv08_check_finds_docs_left_at_flat_place(tmp_path):
+  """TC-DV-08 · 차수 폴더(2026-10-21) 뒤 옛 자리 `docs/<종류>/` · `docs/발표/` 에 문서가 남으면 잡는다 — 옛 습관으로 만든 새 문서 ·
+  옮기다 빠진 문서. 그림 · 표(문서 아님)만 남은 폴더는 문서 검사가 아니다(다른 PC 의 무시된 양식 docx 같은 것)."""
+  _tree(tmp_path)
+  assert docs_scan.check(root=tmp_path) == []
+  (tmp_path / "docs/계획서").mkdir()
+  (tmp_path / "docs/계획서/양식.docx").write_bytes(b"x")                  # 문서 검사 밖
+  assert docs_scan.check(root=tmp_path) == []
+  (tmp_path / "docs/시험").mkdir()
+  (tmp_path / "docs/시험/새문서.md").write_text("# 새 v0.1\n", encoding="utf-8")
+  (tmp_path / "docs/발표/3차").mkdir(parents=True)
+  (tmp_path / "docs/발표/3차/발표자료.html").write_text("<!-- v0.1 -->", encoding="utf-8")
+  got = docs_scan.check(root=tmp_path)
+  assert len(got) == 2 and all("옛 자리에 문서가 남아 있다" in g for g in got)
+  assert any("docs/시험/새문서.md" in g for g in got) and any("docs/발표/3차/발표자료.html" in g for g in got)
+
+
+def test_dv09_to3_copies_2nd_only_doc_pointing_to_3rd_copies(tmp_path):
+  """TC-DV-09 · --to3 — 2차에만 있는 문서(조사서 · 완료보고서)를 3차에 고치기 전에 3차로 사본 · 링크는 새 자리에 맞추고
+  3차 사본이 있는 대상은 3차로 · 없는 대상은 2차 그대로 · 원본 · 줄 끝 그대로 · 이미 있음 · 2차 밖은 멈춤(2026-10-21 사용자 결정 ⓒ)."""
+  for d in ("docs/2차/조사/img", "docs/2차/설계", "docs/3차/설계"):
+    (tmp_path / d).mkdir(parents=True)
+  for f in ("docs/2차/설계/기능설계.md", "docs/3차/설계/기능설계.md", "docs/2차/설계/옛설계.md"):
+    (tmp_path / f).write_text("x", encoding="utf-8")
+  (tmp_path / "docs/2차/조사/img/a.png").write_bytes(b"x")
+  body = "# 조사 v0.1\r\n[설계](../설계/기능설계.md) · [옛](../설계/옛설계.md) · ![그림](img/a.png) · [깨진](없음.md) · [절](#1)\r\n"
+  src = tmp_path / "docs/2차/조사/x-조사.md"
+  src.write_bytes(body.encode("utf-8"))
+  dst = docs_scan.to3(src, root=tmp_path)
+  assert dst == tmp_path / "docs/3차/조사/x-조사.md"
+  t = dst.read_bytes().decode("utf-8")
+  assert "[설계](../설계/기능설계.md)" in t                  # 3차 사본이 있는 대상은 3차(2차면 ../../2차/설계/… 가 된다)
+  assert "[옛](../../2차/설계/옛설계.md)" in t               # 3차 사본이 없으면 2차 그대로
+  assert "![그림](../../2차/조사/img/a.png)" in t and "[깨진](없음.md)" in t and "[절](#1)" in t
+  assert t.count("\r\n") == 2 and src.read_bytes() == body.encode("utf-8")
+  with pytest.raises(SystemExit, match="이미 있다"):
+    docs_scan.to3(src, root=tmp_path)
+  with pytest.raises(SystemExit, match="2차 종류 폴더 맨 위"):
+    docs_scan.to3(tmp_path / "docs/3차/설계/기능설계.md", root=tmp_path)

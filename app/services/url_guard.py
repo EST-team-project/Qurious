@@ -37,7 +37,7 @@ import httpx
 from fastapi import HTTPException
 
 #: 받아도 되는 출처 — 호스트 이름이 **정확히** 같아야 한다(하위 도메인도 따로 적는다). 이용 조건 근거는
-#: docs/조사/공시-재무-뉴스-이용조건-조사.md · 정책브리핑은 기사마다 공공누리 유형을 따로 본다.
+#: docs/2차/조사/공시-재무-뉴스-이용조건-조사.md · 정책브리핑은 기사마다 공공누리 유형을 따로 본다.
 ALLOWED: dict[str, str] = {
     "opendart.fss.or.kr": "전자공시 OpenAPI",
     "dart.fss.or.kr": "전자공시 원문",

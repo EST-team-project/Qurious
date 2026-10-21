@@ -7,12 +7,12 @@
   python tools/demo/export_mp4.py --readme   # 영상 README 의 파일 표를 목록.json 으로 다시 채움
 
 나오는 것
-  docs/발표/영상/파일/사용법/<장면 이름>.mp4 · .jpg(첫 장 제목 카드 — 재생 전 그림)   ← git 에 커밋(2026-10-20)
-  docs/발표/영상/파일/발표/<장면 이름>.mp4 · .jpg                                        ← git 에 커밋(2026-10-20)
-  docs/발표/영상/파일/목록.json — 편마다 장면 · 제목 · 길이 · 크기 · 녹화 시각 · 앱 커밋 · 원본 · 결과 지문  ← git 에 넣는다
+  docs/영상/파일/사용법/<장면 이름>.mp4 · .jpg(첫 장 제목 카드 — 재생 전 그림)   ← git 에 커밋(2026-10-20)
+  docs/영상/파일/발표/<장면 이름>.mp4 · .jpg                                        ← git 에 커밋(2026-10-20)
+  docs/영상/파일/목록.json — 편마다 장면 · 제목 · 길이 · 크기 · 녹화 시각 · 앱 커밋 · 원본 · 결과 지문  ← git 에 넣는다
 
 왜 이렇게 만들었나
-- 영상에는 공식 자료 화면(금융위원회 시세 · 야후 · OpenDART · 용어 풀이)이 찍혀 있다 — 출처 대장(docs/데이터/대장/자료안내-출처.tsv)의
+- 영상에는 공식 자료 화면(금융위원회 시세 · 야후 · OpenDART · 용어 풀이)이 찍혀 있다 — 출처 대장(docs/3차/데이터/대장/자료안내-출처.tsv)의
   이용 조건(다시 나눠 주지 않음 · 비공개로만)대로 공개 저장소에 두지 않는다(2026-10-19 사용자 결정). 발표 PC 가 이 도구로 만들어 두면
   발표 자료 HTML · 기본 재생기가 파일을 바로 연다(인터넷 없이도) · 팀원은 HF 비공개 데이터셋에서 받는다.
 - GitHub 저장소 화면은 어차피 영상을 재생하지 않는다(공식 문서 「Working with non-code files」 의 렌더 목록에 영상이 없다).
@@ -42,13 +42,13 @@ for _s in (sys.stdout, sys.stderr):
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).resolve().parent / "out"
-DEST = ROOT / "docs" / "발표" / "영상" / "파일"
+DEST = ROOT / "docs" / "영상" / "파일"
 MANIFEST = DEST / "목록.json"
-README = ROOT / "docs" / "발표" / "영상" / "README.md"
+README = ROOT / "docs" / "영상" / "README.md"
 # 갈래 — (이름, 장면 폴더, 녹화 결과 폴더, 내보낼 폴더)
 KINDS = (
-  ("사용법", ROOT / "docs" / "발표" / "영상" / "장면", OUT, DEST / "사용법"),
-  ("발표", ROOT / "docs" / "발표" / "영상" / "발표", OUT / "present", DEST / "발표"),
+  ("사용법", ROOT / "docs" / "영상" / "장면", OUT, DEST / "사용법"),
+  ("발표", ROOT / "docs" / "영상" / "발표", OUT / "present", DEST / "발표"),
 )
 SIZE_LIMIT = 10_000_000          # GitHub 무료 요금제 영상 첨부 한도(10 MB)보다 크지 않게
 CRF_STEPS = (28, 31, 34)         # 한도를 넘으면 차례로 더 줄인다(28 에서 글자가 그대로 읽힘을 확인)
@@ -266,7 +266,7 @@ def write_readme(manifest):
 
 
 def main():
-  ap = argparse.ArgumentParser(description="녹화한 영상 → 발표 자료가 재생할 H.264 mp4 (docs/발표/영상/파일/ · git 밖)")
+  ap = argparse.ArgumentParser(description="녹화한 영상 → 발표 자료가 재생할 H.264 mp4 (docs/영상/파일/ · git 밖)")
   ap.add_argument("--check", action="store_true", help="쓰지 않고 편마다 상태만")
   ap.add_argument("--only", action="append", default=[], help="이 장면 이름만(여러 번 줄 수 있음)")
   ap.add_argument("--readme", action="store_true", help="영상 README 의 파일 표만 목록.json 으로 다시 채움")

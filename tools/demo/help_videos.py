@@ -48,7 +48,7 @@ for _s in (sys.stdout, sys.stderr):
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = Path(__file__).resolve().parent / "out"
-SCENE_DIR = ROOT / "docs" / "발표" / "영상" / "장면"
+SCENE_DIR = ROOT / "docs" / "영상" / "장면"
 DEST = ROOT / "data" / "help"
 MANIFEST_NAME = "videos.json"
 URL_BASE = "/help/media/"

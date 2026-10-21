@@ -1,7 +1,7 @@
 """발표 그림 초안 굳히기 — Mermaid 원문(.mmd)을 SVG 로 (2026-10-19).
 
 그림은 두 단계다 — ① 이 도구로 그리는 간단한 초안(Mermaid) ② 손으로 쓴 완성 그림(어두운 카드 SVG · `svg_check.py --png` 로 구운 PNG ·
-발표 자료가 <img src="그림/…-완성.png"> 로 부른다). 초안은 docs/발표/준비/2026-10-19-발표그림-완성/초안-mermaid/ 에 두고,
+발표 자료가 <img src="그림/…-완성.png"> 로 부른다). 초안은 docs/2차/발표/준비/2026-10-19-발표그림-완성/초안-mermaid/ 에 두고,
 이 PC 의 브라우저에서 한 번 그려 같은 폴더에 .svg 로 남긴다(발표 PC 는 인터넷 없이도 그림을 본다).
 글자는 SVG 글자로 그린다(htmlLabels 끔) — <img> 로 불러도 글자가 보이게. 글꼴은 발표 PC(Windows)에 있는 맑은 고딕.
 
@@ -21,7 +21,7 @@ from xml.dom import minidom
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = Path(__file__).resolve().parents[2]
-SRC_DIR = ROOT / "docs" / "발표" / "준비" / "2026-10-19-발표그림-완성" / "초안-mermaid"
+SRC_DIR = ROOT / "docs" / "2차" / "발표" / "준비" / "2026-10-19-발표그림-완성" / "초안-mermaid"
 PREVIEW = ROOT / ".playwright-mcp" / "deck"
 MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.min.js"
 FONT = "Malgun Gothic, 'Noto Sans KR', sans-serif"
