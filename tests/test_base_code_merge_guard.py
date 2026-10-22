@@ -11,8 +11,11 @@ Qurious 는 강사님 lumina-invest 사본에서 출발했고, 강사님이 기�
 """
 import ast
 import asyncio
+import importlib.util
 import inspect
+import math
 import re
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -409,3 +412,146 @@ def test_전략_분석_비교에_추가_속성은_괄호_뒤에서_닫힌다():
     src = (ROOT / "public" / "js" / "quant.js").read_text(encoding="utf-8")
     assert "}')\">⚖️ 비교에 추가" not in src
     assert src.count("})'>⚖️ 비교에 추가") == 1
+
+
+# ── 강사님 th06 새 10커밋(`8624e81..ebf4668`) 지킴이 넷 + 가져오기 1차 지킴이 (2026-10-22 · D78) ─────────────
+# 넷은 10-13 배경 조사(docs/phase-2/01-analysis/research/배경조사/2026-10-13-강사님기초코드-새10커밋/결과.md 3절 7번)가
+# 고른 것이다. 모두 3-way 가 충돌 표시 없이 들여오는 줄이라, 강사님 최신을 받기 전에 먼저 돌린다.
+
+
+def test_기업_대시보드가_부르는_불러오기_함수가_정의돼_있다():
+    """① 🔴 R1 — 강사님 `c66fa00` 은 통화 단위를 고치며 `fetchAndRenderCompany` 정의를 지웠다. 부르는 곳 둘(`loadCompanyDashboard` ·
+    `selectCompany`)은 남아서 강사님 `ebf4668` 판은 기업 대시보드를 열면 `ReferenceError` 다(node 재현). 우리 기준으로 3-way 해도
+    충돌 0 으로 같은 결과가 된다 → 부르는 이름이 정의돼 있는지, 받아 온 자료를 그리는 함수가 실제로 불리는지 본다."""
+    src = (ROOT / "public" / "js" / "company.js").read_text(encoding="utf-8")
+    defined = set(re.findall(r"^(?:async\s+)?function\s+(\w+)\s*\(", src, flags=re.M))
+    assert "fetchAndRenderCompany" in defined, "company.js 에 fetchAndRenderCompany 정의가 없다(c66fa00 꼴)"
+    callers = re.findall(r"(?<!function )(?<![\w.])fetchAndRenderCompany\s*\(", src)
+    assert len(callers) >= 2, "불러오기를 부르는 곳(목록 열기 · 회사 고르기)이 사라졌다"
+    assert re.search(r"(?<!function )(?<![\w.])renderCompanyData\s*\(", src), "renderCompanyData 를 부르는 곳이 0 — 받은 자료를 그리지 않는다"
+
+
+def test_LEAN_백테스트_종가는_수정_종가다(monkeypatch):
+    """② 🟡 Y1 — 강사님 `2852210` 은 `fetch_close_series` 를 야후 `adjclose`(수정 종가) → 바깥 일봉 저장소의 원시 종가로 바꿨다.
+    우리 파일이 그 직전 판과 같아 말없이 들어온다. 원시 종가는 분할 · 배당락 계단을 손실로 잡아 수익률 · MDD 가 틀어진다
+    → 수정 종가와 원시 종가가 함께 오면 수정 종가를 쓰는지 본다(원천을 바꿀지는 주담당 몫 · 받을 때는 이슈로)."""
+    from app.services import lean_backtest
+
+    payload = {"chart": {"result": [{
+        "timestamp": [1767312000, 1767398400, 1767484800],
+        "indicators": {"quote": [{"close": [200.0, 100.0, 102.0]}],          # 둘째 날 1:2 분할 — 원시 종가는 반 토막
+                       "adjclose": [{"adjclose": [100.0, 100.0, 102.0]}]},
+    }]}}
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return payload
+
+    class _Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return _Resp()
+
+    monkeypatch.setattr(lean_backtest.httpx, "AsyncClient", _Client)
+    series = asyncio.run(lean_backtest.fetch_close_series("TEST", date(2026, 1, 2), date(2026, 1, 4)))
+    assert list(series.values) == [100.0, 100.0, 102.0], "분할 계단(200 → 100)이 종가에 들어왔다 — 원시 종가를 쓴다"
+    assert not {"daily_candles", "ohlcv_store"} & _code_names(lean_backtest)
+
+
+def _used_names(module) -> set[str]:
+    """모듈이 import 하거나 부르는 이름 전부(모듈 경로 · import 한 이름 · 변수 · 속성) — 주석 · 독스트링은 세지 않는다."""
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(inspect.getsource(module))):
+        if isinstance(node, ast.ImportFrom):
+            names.add(node.module or "")
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.add(node.attr)
+    return names
+
+
+def test_일봉은_바깥_OHLCV_저장소를_먼저_읽지_않는다():
+    """③ 🟡 Y2 — 강사님 `2852210` 은 `OHLCV_STORE_FIRST = True` 와 `stock.get_candles` 훅으로 일봉을 강사님 서버 저장소
+    (`/openapi/v1/ohlcv/{code}` · 없으면 `ingest` POST)에서 먼저 읽는다. 우리 일봉 정본은 수집 DB(DF-08)라 받지 않기로 했다(F17 ④)
+    — 설정 깃발 · 저장소 모듈 · 시세 서비스의 호출 셋 모두 없어야 한다."""
+    from app.config import settings
+    from app.services import stock
+
+    assert not hasattr(settings, "OHLCV_STORE_FIRST")
+    assert importlib.util.find_spec("app.services.ohlcv_store") is None
+    assert not [name for name in _used_names(stock) if "ohlcv_store" in name]
+
+
+def _fixed_candles(n: int = 120) -> list[dict]:
+    """정해진 시계열(사인 + 완만한 오름 · 2026-01-02 부터 하루 한 봉) — 점수 식이 바뀌었는지만 보려는 것이라 값에 뜻은 없다."""
+    out, prev = [], 100.0
+    for i in range(n):
+        close = 100 + 10 * math.sin(i / 7) + 0.2 * i
+        out.append({"time": 1767312000 + i * 86400, "open": round(prev, 2), "high": round(max(prev, close) + 1, 2),
+                    "low": round(min(prev, close) - 1, 2), "close": round(close, 2), "volume": 1000 + i * 10})
+        prev = close
+    return out
+
+
+# 정의 이름마다 위 시계열의 (타임프레임 점수 · 근거 · 패턴 점수 · 쏠림 · 캔들 패턴 · 돌파) — 식을 바꾸면 정의를 올리고 한 줄 더한다
+PINNED_SIGNAL_SCORES = {
+    "tv-2026": (-1, ["RSI 24 과매도", "MA5 < MA20 하락 배열", "MACD < 시그널", "20MA 아래 (추세 비우호)"],
+                -1.0, "bearish", [], [("breakdown_20d", False)]),
+}
+
+
+def test_신호_점수_식이_바뀌면_정의_이름도_바뀐다():
+    """④ 🟡 — 강사님 `46da4cc` 은 패턴 분석을 넓히며 타임프레임 점수 범위를 ±6 → ±7 로 바꿨다. 그대로 받으면 매일 쌓는 다중 주기
+    신호(정의 `tv-2026`)의 뜻이 기록 중간에 바뀌어 날짜끼리 견줄 수 없다. 정해진 시계열 하나의 점수 · 근거를 고정해 두고,
+    식이 바뀌면 `ta_utils.DEFINITION` 도 함께 올리게 한다."""
+    from app.services import patterns, ta_utils
+
+    candles = _fixed_candles()
+    tf, ps = patterns.timeframe_score(candles), patterns.pattern_summary(candles)
+    got = (tf["score"], tf["reasons"], ps["pattern_score"], ps["pattern_bias"],
+           [(p["key"], p["bars_ago"]) for p in ps["patterns"]],
+           [(b["key"], b.get("confirmed")) for b in ps["breakouts"]])
+    assert ta_utils.DEFINITION in PINNED_SIGNAL_SCORES, f"정의 {ta_utils.DEFINITION} 의 고정값을 PINNED_SIGNAL_SCORES 에 더하세요"
+    assert got == PINNED_SIGNAL_SCORES[ta_utils.DEFINITION], \
+        "같은 정의 이름인데 점수 식이 바뀌었다 — ta_utils.DEFINITION 을 올리고 새 고정값을 한 줄 더하세요"
+
+
+def _settings_writes(path: Path) -> list[int]:
+    """설정 객체(`settings`)에 값을 쓰는 줄 — `setattr(settings, …)` · `settings.X = …` · `settings.X += …`."""
+    lines = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "setattr" and node.args \
+                and getattr(node.args[0], "id", None) == "settings":
+            lines.append(node.lineno)
+        targets = node.targets if isinstance(node, ast.Assign) else \
+            [node.target] if isinstance(node, (ast.AugAssign, ast.AnnAssign)) else []
+        lines += [node.lineno for t in targets
+                  if isinstance(t, ast.Attribute) and getattr(t.value, "id", None) == "settings"]
+    return lines
+
+
+def test_앱_코드는_실행_중에_설정_객체를_바꾸지_않는다():
+    """⑤ G1 — 강사님 전략설정(`app/services/strategy_settings.py:230`)은 저장할 때 `setattr(settings, …)` 로 프로세스 전체 설정을
+    바꾼다. 한 계정의 저장이 모든 계정의 자동매매에 걸린다(우리는 사용자마다 · ADR-0004). 가져오기 1차(2026-10-22)는 이 줄을 막고
+    본인 설정 저장까지만 받는다 — 앱 코드 어디서든(`app/config.py` 밖) 설정 객체에 값을 쓰는 줄이 없어야 한다."""
+    found = [f"{path.relative_to(ROOT).as_posix()}:{line}"
+             for path in _app_python_files() if path.relative_to(ROOT).as_posix() != "app/config.py"
+             for line in _settings_writes(path)]
+    assert not found, "설정 객체에 값을 쓰는 곳(프로세스 전체 · 모든 계정에 걸림):\n" + "\n".join(found)

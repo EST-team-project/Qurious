@@ -144,7 +144,9 @@ def _git_info() -> Dict:
         try:
             r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True,
                                encoding="utf-8", timeout=30)
-            return r.stdout.strip()
+            # 오른쪽만 지운다 — porcelain 첫 줄은 상태 칸이 공백으로 시작(" M 경로")해서 strip() 이면
+            # 그 공백이 사라져 아래 ln[3:] 가 경로 첫 글자를 자른다("ollector/…" · S135 실측).
+            return r.stdout.rstrip()
         except (OSError, subprocess.SubprocessError):
             return ""
     dirty = [ln[3:] for ln in git("status", "--porcelain", "--", "collector", "scripts/hf_dart.py",

@@ -5,6 +5,7 @@
 2. 같은 내용이면 같은 바이트 — 다시 내보내도 파일 sha256 이 같다(닫힌 해 파일이 바뀌지 않는다 · 올리기가 0바이트로 끝난다).
 3. 카드의 칸 표는 DDL 주석에서 만들고, 주석 없는 칸은 보충 뜻을 쓴다.
 4. 섹터 법령 — 섹터 폴더마다 해마다 파일 하나 · 시행령은 decree=Y 인 법률의 섹터에 · 이번에 쓴 것이 0 이면 옛 파일을 지우지 않는다.
+5. 매니페스트의 커밋 전 변경 경로 — git porcelain 첫 줄의 앞 공백을 지우지 않아 첫 경로가 잘리지 않는다.
 
 네트워크 · 실제 수집 DB 를 쓰지 않는다 — 임시 폴더에 작은 DB 를 만든다.
 """
@@ -73,6 +74,23 @@ def test_dart_card_columns_from_ddl_with_fallback(dart_env):
     assert "| `corp_code` | TEXT | DART 고유번호 8자리 |" in card
     assert "| `known_at` | TEXT | YYYYMMDD — 접수번호 앞 8자리 |" in card
     assert "private 인 까닭" in card and "strict(권장)" in card and "dart-2026-10-04" in card
+
+
+def test_dart_git_info_keeps_first_dirty_path_whole(monkeypatch):
+    """TC-HD-05 · 커밋 전 변경 경로 — porcelain 첫 줄(" M …")의 앞 공백을 지우지 않아 첫 경로가 잘리지 않는다."""
+    class Done:
+        def __init__(self, out):
+            self.stdout = out
+
+    def fake_run(cmd, **kwargs):
+        if "status" in cmd:
+            return Done(" M collector/config.py\n M scripts/hf_dart.py\n")
+        return Done("8739d61\n")
+
+    monkeypatch.setattr(hf_dart.subprocess, "run", fake_run)
+    info = hf_dart._git_info()
+    assert info["dirty_paths"] == ["collector/config.py", "scripts/hf_dart.py"]   # 고치기 전엔 "ollector/config.py"
+    assert (info["commit"], info["dirty"]) == ("8739d61", True)
 
 
 def test_sector_laws_export_folders_years_and_decrees(tmp_path, monkeypatch):
