@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source": "lean",
+  "signal_id": "example-ma-cross-v1-005930-20261026T090500+0900-buy",
+  "strategy_id": "example_ma_cross",
+  "strategy_version": 1,
+  "execution_mode": "paper",
+  "symbol": "005930",
+  "market": "KRX",
+  "action": "BUY",
+  "timeframe": "5m",
+  "bar_end_at": "2026-10-26T09:05:00+09:00",
+  "generated_at": "2026-10-26T09:05:05+09:00",
+  "expires_at": "2026-10-26T09:15:05+09:00",
+  "reference_price": 70000,
+  "reason_code": "EXAMPLE_MA_CROSS_UP"
+}
