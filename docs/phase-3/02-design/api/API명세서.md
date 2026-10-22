@@ -1,11 +1,11 @@
-# API 명세서 v0.37 — Qurious
+# API 명세서 v0.38 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
+| **문서 버전** | v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) |
 | **작성자** | 이동원 (P-A) |
-| **기준 코드** | v0.37 = `main` `6fa8f58`(2차 마지막 머지 #308 까지 — 강민석 님 #302 · #303 · #305 · #306 · 신장환 님 #304 · 오준영 님 #301 · 이동원 #307 · #308) · v0.36 = `main` `0d88d22`(#296 까지 — 강민석 님 #292 ~ #295 · 신장환 님 #296) · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않았다(번호 · 표만) · v0.35 = `main` `f17d310`(PR #281 까지 — 발표 자료 판 관리 · 시연 영상 · D133) + 이 판 PR(「현재가」 지금 값 — `app/services/quote_now.py` · `app/routes/quote_now.py` · 모의 주문 체결 직전 확인 `app/services/paper_trading.py`) / v0.34 = `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
+| **기준 코드** | v0.38 = `main` `4bed63b`(#316) + 이 판 작업 트리(목표 시뮬레이션 입력 범위) · v0.37 = `main` `6fa8f58`(2차 마지막 머지 #308 까지 — 강민석 님 #302 · #303 · #305 · #306 · 신장환 님 #304 · 오준영 님 #301 · 이동원 #307 · #308) · v0.36 = `main` `0d88d22`(#296 까지 — 강민석 님 #292 ~ #295 · 신장환 님 #296) · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않았다(번호 · 표만) · v0.35 = `main` `f17d310`(PR #281 까지 — 발표 자료 판 관리 · 시연 영상 · D133) + 이 판 PR(「현재가」 지금 값 — `app/services/quote_now.py` · `app/routes/quote_now.py` · 모의 주문 체결 직전 확인 `app/services/paper_trading.py`) / v0.34 = `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
 | **추출기** | [`scripts/api_scan.py`](../../../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../../../tests/test_api_scan.py) (TC-AP 15건) |
 | **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **275줄 · 사용 271 · 폐기 4**(2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
 | **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **266/266 일치**(2026-10-19 v0.35 · 개발 모드 앱 `f17d310` + 이 판 작업 트리 · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **265/265 일치**(2026-10-19 v0.34 · 개발 모드 앱 `61b3e43` + 이 판 PR(쓰기 셋 없앤 뒤) — main 을 두 번째로 받은 뒤 다시 맞댐 · openapi 에만 0 · 스캔에만 0 · 인자 다름 0 · 본문 모델 다름 0 · 스캔 266 = 스키마 265 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
@@ -299,7 +299,7 @@ flowchart LR
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 8 | API-STK-24, API-STK-41, API-STK-27, API-USRV-03, API-RBAL-10, API-RBAL-06 외 2 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
-| `422` | 검증 실패 | 29 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 23 |
+| `422` | 검증 실패 | 30 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 24 |
 | `429` | 호출 한도 초과 | 2 | API-CHAT-01, API-TV-01 |
 | `500` | 서버 내부 오류 | 1 | API-CHAT-01 |
 | `502` | 바깥 서버 실패 | 9 | API-CHAT-01, API-STK-06, API-STK-07, API-STK-20, API-STK-21, API-STK-22 외 3 |
@@ -772,18 +772,18 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-ML-01 | GET | `/api/ml/compare` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:27 |
-| API-ML-02 | GET | `/api/ml/tune` | 세션 | `symbol` · `period` · `model_name` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-tune` | P-D | P01-④-1 | ml.py:44 |
-| API-ML-03 | POST | `/api/ml/cluster` | 세션 | 본문 `ClusterBody` | 모델 없음 | 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-C | RFP2-3.1.4-① · RFP2-3.1.4-④ | ml.py:93 |
-| API-ML-11 | GET | `/api/ml/robo/weights` | 세션 | `risk_profile` · `horizon_years` | `AllocationWeightsResponse` | — | — | `agent-products` | P-C | — | ml.py:112 |
-| API-ML-12 | GET | `/api/ml/robo/allocation/latest` | 세션 | — | `LatestAllocationResponse` | 404 | PostgreSQL | `agent-products`, `robo-portfolio` | P-C | — | ml.py:122 |
-| API-ML-04 | POST | `/api/ml/robo/allocation` | 세션 | 본문 `RoboAllocationBody` | {saved, symbol, name, sector, candles} 외 4 | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-portfolio` | P-C | RFP2-3.1.3-① · RFP2-3.1.3-② · RFP2-3.1.3-③ · RFP2-3.1.3-④ · RFP2-3.1.4-④ | ml.py:137 |
-| API-ML-07 | GET | `/api/ml/robo/questions` | 세션 | — | {questions, levels} | — | — | `robo-portfolio` | P-D | — | ml.py:326 |
-| API-ML-08 | POST | `/api/ml/robo/risk-profile` | 세션 | 본문 `RiskProfileBody` | 모델 없음 | 422 | — | `robo-portfolio` | P-D | — | ml.py:332 |
-| API-ML-09 | POST | `/api/ml/robo/goal-simulation` | 세션 | 본문 `GoalSimBody` | 모델 없음 | — | — | `robo-portfolio` | P-D | — | ml.py:342 |
-| API-ML-10 | GET | `/api/ml/explain` | 세션 | `symbol`* · `refresh` | {symbol, name, prediction, explanation} | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-screening` | P-D | — | ml.py:350 |
-| API-ML-05 | GET | `/api/ml/seasonality` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:373 |
-| API-ML-06 | GET | `/api/ml/regression` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-regression` | P-D | P01-④-1 | ml.py:390 |
+| API-ML-01 | GET | `/api/ml/compare` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:29 |
+| API-ML-02 | GET | `/api/ml/tune` | 세션 | `symbol` · `period` · `model_name` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-tune` | P-D | P01-④-1 | ml.py:46 |
+| API-ML-03 | POST | `/api/ml/cluster` | 세션 | 본문 `ClusterBody` | 모델 없음 | 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-C | RFP2-3.1.4-① · RFP2-3.1.4-④ | ml.py:95 |
+| API-ML-11 | GET | `/api/ml/robo/weights` | 세션 | `risk_profile` · `horizon_years` | `AllocationWeightsResponse` | — | — | `agent-products` | P-C | — | ml.py:114 |
+| API-ML-12 | GET | `/api/ml/robo/allocation/latest` | 세션 | — | `LatestAllocationResponse` | 404 | PostgreSQL | `agent-products`, `robo-portfolio` | P-C | — | ml.py:124 |
+| API-ML-04 | POST | `/api/ml/robo/allocation` | 세션 | 본문 `RoboAllocationBody` | {saved, symbol, name, sector, candles} 외 4 | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-portfolio` | P-C | RFP2-3.1.3-① · RFP2-3.1.3-② · RFP2-3.1.3-③ · RFP2-3.1.3-④ · RFP2-3.1.4-④ | ml.py:139 |
+| API-ML-07 | GET | `/api/ml/robo/questions` | 세션 | — | {questions, levels} | — | — | `robo-portfolio` | P-D | — | ml.py:353 |
+| API-ML-08 | POST | `/api/ml/robo/risk-profile` | 세션 | 본문 `RiskProfileBody` | 모델 없음 | 422 | — | `robo-portfolio` | P-D | — | ml.py:359 |
+| API-ML-09 | POST | `/api/ml/robo/goal-simulation` | 세션 | 본문 `GoalSimBody` | 모델 없음 | 422 | — | `robo-portfolio` | P-D | — | ml.py:369 |
+| API-ML-10 | GET | `/api/ml/explain` | 세션 | `symbol`* · `refresh` | {symbol, name, prediction, explanation} | 422 | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-screening` | P-D | — | ml.py:381 |
+| API-ML-05 | GET | `/api/ml/seasonality` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:404 |
+| API-ML-06 | GET | `/api/ml/regression` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-regression` | P-D | P01-④-1 | ml.py:421 |
 
 #### `macro` — `app/routes/macro.py` · 4개
 
@@ -1458,6 +1458,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.38 | 2026-10-22 | 채움 — `API-ML-09`(`POST /api/ml/robo/goal-simulation`) 오류 칸 422 — 입력 모델에 칸마다 범위 표와 한국어 안내 글 · 계산이 넘친 조합도 422(감리 HIGH `FD-FIND-002` · 결함 DF-144 · #317 2-1) · 422 묶음 29 → 30 · `ml.py` 줄 번호 · 4절 표를 `api_scan.py --doc` 로 다시 채움 | 라우트 본문에 422 가 생겨 오류 칸이 바뀜 | `api_scan.py --doc` · `main` `4bed63b` + 이 판 작업 트리 |
 | v0.37 | 2026-10-21 | 채움 — 4절 표의 `stocks.py` 줄 번호 14곳(#302 가 위험 관문 열쇠를 장부별로 바꾸며 줄이 한두 줄 밀림) · API 문서 카탈로그(`public/api-docs/catalog.json` · 271) 같은 줄 / 남김 — 라우트 271 · 대장 275줄(사용 271 · 폐기 4) · 미등록 0 · 대장에만 0 · 화면이 부르는데 맞는 라우트가 없는 호출 0 · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않음 | 2차 최종 판(2차 마감 · 10-21 발표 날) — 팀원 머지 뒤 표가 코드와 같게 · a 의 빠른 확인(`--doc · --catalog --check`) | `main` `6fa8f58` · `api_scan.py --json`(검사 · 대장) |
 | v0.36 | 2026-10-20 | 추가 — 팀원 #295(강민석 · 100일 백테스트) 라우트 넷 `API-PAPR-45` ~ `48`(`POST /api/paper/performance/backtest-100d` · 상태 · 있음 확인 · 지우기) · 라우트 267 → 271 · 카탈로그 271 | 학습 PR(#291) 뒤 팀원 머지를 받고(`0d88d22`) PR 검사가 「명세서가 코드보다 뒤처짐」 으로 멈추지 않게 | `scripts/api_scan.py --assign S129` · `--doc` · `--catalog` |
 | v0.35 | 2026-10-19 | 추가 — 라우트 `API-QUOT-01` `GET /api/quote/now`(「현재가」 지금 값 · 출처 · 시각 · 내 증권사 키 → 지연 시세 → 지난 종가 · 로그인한 사람만 · 실시간 값 저장 안 함) · 새 라우터 약어 `QUOT` · 6절 글 · 8절 DM-05 / 고침 — 모의 주문 응답 출처 칸(`API-PAPR-03` · 주문 결과 `quote_source` · `quote_as_of` · `quote_label` · `API-PAPR-05` `quoteSource` · `quoteLabel`) · 체결 직전 확인(키가 있으면 지금 값으로 체결) · ID 대장 칸의 폐기 수 바로잡음(1 → 4) · 라우트 266 → 267 · 정답 대조 266/266 | 사용자 10-19 「투자 인디케이터 삼성전자 210,000 · 실제 217,000」 · 결정 「모의 주문 체결가까지」 · 「모의 주문은 체결 직전 실시간 확인까지」 · 「자기 키 우선 · 증권사 연계 조회 표기」 | `scripts/api_scan.py --assign S127` · `--doc` · `--catalog` · `--openapi` · TC-QUOT 10건 · 실시간 시세 조사서 v1.0 |
