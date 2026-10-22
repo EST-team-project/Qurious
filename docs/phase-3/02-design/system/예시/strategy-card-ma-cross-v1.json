@@ -1,0 +1,11 @@
+{
+  "strategy_id": "ma_cross_20_60",
+  "version": 1,
+  "name": "이동평균 교차 20 · 60 (연결 시험용 고정 입력)",
+  "universe": ["005930"],
+  "timeframe": "1d",
+  "entry": { "indicator": "ma_cross", "params": { "short_window": 20, "long_window": 60 }, "condition": "short_above_long" },
+  "exit":  { "indicator": "ma_cross", "params": { "short_window": 20, "long_window": 60 }, "condition": "short_below_long" },
+  "signal_weights": { "technical": 1.0, "lightgbm": 0.0, "buy_threshold": 0.6, "sell_threshold": -0.6 },
+  "position_sizing": { "max_position_pct": 30.0, "max_symbols": 5 }
+}
