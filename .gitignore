@@ -42,11 +42,11 @@ data/hf_export/
 data/help/
 # 시연 영상 mp4 · 포스터 — 2026-10-20 사용자 결정으로 추적한다(팀원이 받아 발표 자료에서 바로 재생 · 「그냥 올려 상관없음」).
 #   옛 결정(2026-10-19 S126 「공식 자료 화면이 찍혀 있어 git 밖 · 팀원은 HF 비공개에서 받는다」)을 바꿨다.
-#   채우기: python tools/demo/export_mp4.py(녹화한 PC) → docs/영상/파일/{발표,사용법}/ · 목록.json — 그대로 커밋한다
-#   (2026-10-21 차수 폴더 — docs/발표/영상/ 에서 맨 위 docs/영상/ 으로 옮김).
+#   채우기: python tools/demo/export_mp4.py(녹화한 PC) → docs/common/06-retrospective/videos/파일/{발표,사용법}/ · 목록.json
+#   — 그대로 커밋한다(2026-10-21 차수 폴더 — docs/발표/영상/ 에서 맨 위 docs/영상/ 으로 · 2026-10-22 번호 폴더 — 지금 자리로).
 # 통합본(rag-lab/)의 화면 표시용 시세 자료 셋 — 네이버 · 토스증권 · 야후에서 모은 값이라 커밋하지 않는다.
 #   비공개 데이터셋에 두고 필요한 사람이 받는다: python scripts/raglab_data.py pull
-#   (반입 대장 docs/3차/설계/대장/통합본-반입대장.tsv 의 「HF 보관」 줄 · 검사 scripts/raglab_scan.py --check)
+#   (반입 대장 docs/phase-3/02-design/system/대장/통합본-반입대장.tsv 의 「HF 보관」 줄 · 검사 scripts/raglab_scan.py --check)
 rag-lab/frontend/days/assets/etf-catalog.json
 rag-lab/frontend/days/assets/leverage-etf-volume.json
 rag-lab/frontend/analysis/data/samsung-cup-with-handle-2025.json
@@ -82,10 +82,16 @@ Thumbs.db
 .kis_token_real.json
 
 # 강사님 배포 양식·교재 (교재·강의자료 커밋 금지 규칙)
-# 우리가 만든 계획서 제출본(.docx)은 하위 폴더 docs/<차수>/계획서/내보내기/ 에 둔다 — 아래 줄은 계획서 폴더 맨 위만
-# 거르므로 걸리지 않는다(정본은 .md · .docx 는 scripts/build_plan_docx.py 가 만든다 · 2026-10-07 docs 정리).
-# 2026-10-21 차수 폴더(docs/2차 · docs/3차) — 새 자리(docs/*/계획서/)와 옛 자리(docs/계획서/)를 함께 막는다.
+# 우리가 만든 계획서 제출본(.docx)은 하위 폴더 docs/<차수>/00-management/plans/내보내기/ 에 둔다 — 아래 줄은 계획서
+# 폴더 맨 위만 거르므로 걸리지 않는다(정본은 .md · .docx 는 scripts/build_plan_docx.py 가 만든다 · 2026-10-07 docs 정리).
+# 2026-10-21 차수 폴더(docs/2차 · docs/3차) · 2026-10-22 번호 폴더(docs/phase-2 · docs/phase-3 · 계획서 = 00-management/plans)
+# — 새 자리와 옛 자리(docs/계획서/ · docs/*/계획서/)를 함께 막는다.
 # 옛 자리 줄을 지우면 다른 PC 에 남은 양식 파일(git 이 옮기지 않는 무시 파일)이 「??」 로 떠 커밋에 섞일 수 있다.
+docs/*/00-management/plans/*.docx
+docs/*/00-management/plans/*.doc
+docs/*/00-management/plans/*.hwp
+docs/*/00-management/plans/*.pptx
+docs/*/00-management/plans/*.pdf
 docs/계획서/*.docx
 docs/계획서/*.doc
 docs/계획서/*.hwp
@@ -103,12 +109,13 @@ aws-work/ansible/inventories/*/group_vars/secrets.yml
 # Docker (로컬 개발 전용 override — 팀원마다 경로가 달라 커밋하지 않는다)
 docker-compose.override.yml
 
-# 개인 역량 지도 — 면접 준비 기록이라 공개 팀 저장소에 올리지 않는다(사용자 2026-10-08)
+# 개인 역량 지도 — 면접 준비 기록이라 공개 팀 저장소에 올리지 않는다(사용자 2026-10-08) · 2026-10-22 번호 폴더로 옮김(옛 줄도 둔다)
 docs/TIL/이동원/역량지도.md
+docs/common/06-retrospective/til/이동원/역량지도.md
 
 # 개인 git 초안 — 세션마다 쓰는 커밋 · push · PR 스크립트와 본문 · 다음 세션 프롬프트(사용자 2026-10-08).
 # 저장소 밖(team_project/_git-drafts/)에 두던 것을 찾기 쉽게 docs 안으로 옮겼다 — 올리지 않는다.
-# 올릴 글의 원본은 여전히 docs/github-archive/ 다(여기는 명령 · 초안만).
+# 올릴 글의 원본은 여전히 github-archive 다(2026-10-22 부터 docs/common/00-management/github-archive/ · 여기는 명령 · 초안만).
 docs/_git-drafts/
 
 # 개인 로컬 자료(섹터 xlsx · 강의 양식 docx) — 올리지 않는다(2026-10-15 docs 정리).

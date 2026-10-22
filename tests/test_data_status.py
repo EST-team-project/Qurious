@@ -628,7 +628,7 @@ def test_publish_deadline_matches_the_data_guide_source_table():
     「기준일 다음 영업일 13시 뒤」 이고 관제 마감은 그 1시간 뒤(14:00) · 정책뉴스는 사흘 창 · 언론사 기사는 지난 30시간. 한쪽만 고치면
     화면 글과 판정이 갈라진다(SSoT — 판정은 관제 한 곳 · 사람 글은 대장 한 곳 · 이 시험이 둘을 맞댄다)."""
     import csv
-    rows = {r["출처"]: r for r in csv.DictReader((ROOT / "docs" / "3차" / "데이터" / "대장" / "자료안내-출처.tsv").open(encoding="utf-8"),
+    rows = {r["출처"]: r for r in csv.DictReader((ROOT / "docs" / "phase-3" / "02-design" / "data" / "대장" / "자료안내-출처.tsv").open(encoding="utf-8"),
                                                 delimiter="\t")}
     assert "다음 영업일 13시" in rows["fsc"]["공개"]
     assert all(ds.FRESHNESS[k] == ("deadline", (14, 0)) for k in ("price_daily", "etf_daily", "index_daily"))

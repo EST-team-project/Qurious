@@ -1,0 +1,45 @@
+# 발표 영상 — 지표 · 규칙 신호와 모의 계좌 요약을 첫 화면에서 본다 (자세한 판 · 2 ~ 3분 · 2026-10-19 장중 체결 뒤)
+# 화면: 퀀트자동매매 › 퀀트 대시보드 (quant-dashboard · 신장환) · 로보 어드바이저 › 통합 대시보드 (dashboard · 강민석)
+# 사용법 판(장면/F08)과 다른 점: 지수 카드 · 종목마다 RSI 와 매수 · 매도 표시 · 지표 차트(이동평균 · 볼린저 밴드) ·
+#   계좌 탭 · 기본 전략 성능의 「신호 없음」 읽기 · 기능 바로가기
+# 시연 계정은 KIS 모의 미연동 — 계좌는 「모의투자 계좌」 탭(data-key paper)으로 본다
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-F08-퀀트-통합-대시보드.yaml
+file: 발표-F08-퀀트-통합-대시보드
+title: 지표와 계좌 요약을 첫 화면에서 봅니다
+owner: 신장환 · 강민석
+start: quant-dashboard
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "첫 화면에서 시장과 계좌를", text: "지수 · 규칙 신호와 모의 계좌 요약을 한 번에 보고, 자세한 화면으로 이어갑니다", sec: 5.0}
+  - pause: 1.0
+  - say: "퀀트 대시보드 — KOSPI · KOSDAQ · 원/달러 환율"
+  - ring: {target: "#market-cards", sec: 3.0}
+  - say: "AI 매매 시그널 — 종목마다 RSI 와 매수 · 매도 · 관망 표시"
+  - ring: {target: "#signal-cards", sec: 4.0}
+  - say: "종목을 고르고 차트 로드 — 종가 · 이동평균(MA20 · MA60) · 볼린저 밴드를 함께 그립니다"
+  - click: "#quant-chart-load"
+  - pause: 3.0
+  - ring: {target: "#quant-chart-container", sec: 4.0}
+  - chapter: {label: "2 / 3 · 과정", title: "계좌 요약", text: "통합 대시보드에서 모의 계좌의 투자액 · 현금 · 총 자산 · 보유 종목과 기본 전략 성능을 봅니다", sec: 4.0}
+  - go: dashboard
+  - wait: {target: '#overview-account-tabs .overview-tab[data-key="paper"]', timeout: 40, cut: true}
+  - click: '#overview-account-tabs .overview-tab[data-key="paper"]'
+  - pause: 1.0
+  - say: "투자 사이트별 현재 투자액 — 계좌를 골라 현재 투자액 · 현금 · 총 자산 · 보유 종목을 봅니다"
+  - ring: {target: "#overview-account-panel", sec: 4.0}
+  - click: '#overview-account-tabs .overview-tab[data-key="quant"]'
+  - pause: 1.0
+  - say: "「퀀트 가상계좌」 탭 — 자동매매가 쓰는 전용 가상 장부(1천만 원)의 투자액 · 현금 · 총 자산 · 보유 종목"
+  - ring: {target: "#overview-account-panel", sec: 3.5}
+  - say: "KIS 모의투자 칸 — 연동 전이면 「증권사 API 설정」 에서 내 모의투자 키를 넣으라고 알려 줍니다"
+  - ring: {target: "#overview-kis-status", sec: 4.5}
+  - say: "로보 어드바이저 칸 — 모의 투자 의사결정이 도는지와 최근 열 바퀴의 판단 신호 수"
+  - ring: {target: "#overview-decision", sec: 4.0}
+  - say: "기본 전략 성능 — 거래가 한 번도 없으면 「신호 없음」 과 같은 기간 매수 후 보유 수익률을 함께 적습니다"
+  - ring: {target: "#overview-indicator-metrics", sec: 4.5}
+  - say: "내 커스텀 인디케이터 — 내가 만들어 저장한 지표의 수"
+  - ring: {target: "#overview-saved", sec: 3.0}
+  - say: "기능 바로가기 — 여기서 각 기능 화면으로 이어집니다"
+  - ring: {target: "#overview-robo-features", sec: 3.0}
+  - chapter: {label: "3 / 3 · 결과", title: "자세한 것은 각 화면에서", text: "첫 화면은 요약만 — 숫자의 근거와 설정은 각 기능 화면에서 확인합니다", sec: 4.5}
+  - say: "가상 돈으로 하는 연습이며 투자 권유가 아닙니다"
+  - pause: 3.0

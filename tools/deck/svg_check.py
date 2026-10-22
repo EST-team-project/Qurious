@@ -3,8 +3,8 @@
 문서 그림 지침 「② 완성 그림」 — SVG 가 원본이고 PNG 는 그것을 브라우저(Pretendard)에서 찍은 것이다.
 이 도구는 그림마다 ① 글자가 자기를 감싼 카드(<rect>) 밖으로 넘치는지 재고 ② 원래 크기로 PNG 를 굽는다.
 
-  python tools/deck/svg_check.py docs/img/architecture/qurious-architecture_v2.1.svg          # 점검만
-  python tools/deck/svg_check.py docs/img/architecture/qurious-architecture_v2.1.svg --png    # 점검 + 같은 이름 .png
+  python tools/deck/svg_check.py docs/common/02-design/img/architecture/qurious-architecture_v2.1.svg          # 점검만
+  python tools/deck/svg_check.py docs/common/02-design/img/architecture/qurious-architecture_v2.1.svg --png    # 점검 + 같은 이름 .png
 넘친 글자가 하나라도 있으면 목록을 찍고 종료코드 1. 글꼴은 cdn.jsdelivr.net 의 Pretendard(판 고정)를 받아 쓴다.
 """
 from __future__ import annotations

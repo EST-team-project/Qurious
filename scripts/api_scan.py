@@ -18,7 +18,7 @@ API 명세서의 표는 이 출력을 붙인 것이고, 의심스러우면 다�
 API ID 는 순번이 아니라 대장에서 온다
 -------------------------------------
 RTM 이 배운 것 — 순번으로 부르면 하나가 끼어드는 순간 뒤 번호가 전부 밀린다(RTM v1.0 §2.2).
-그래서 ID 는 `docs/3차/인터페이스/대장/API-ID대장.tsv` 에 한 번 적으면 바뀌지 않는다. 라우트가
+그래서 ID 는 `docs/phase-3/02-design/api/대장/API-ID대장.tsv` 에 한 번 적으면 바뀌지 않는다. 라우트가
 사라지면 줄을 지우지 않고 상태를 「폐기」 로 둔다(그 번호를 다시 쓰지 않는다).
 기본 실행은 대장을 **읽기만** 하고, 고치는 것은 `--assign` 뿐이다.
 
@@ -66,7 +66,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ID_REGISTRY_REL = Path("docs") / "3차" / "인터페이스" / "대장" / "API-ID대장.tsv"
+ID_REGISTRY_REL = Path("docs") / "phase-3" / "02-design" / "api" / "대장" / "API-ID대장.tsv"
 
 HTTP_METHODS = ("get", "post", "put", "delete", "patch")
 PARAM_FACTORIES = {"Query", "Path", "Body", "File", "Form", "Header", "Cookie"}
@@ -161,7 +161,7 @@ SYSTEM_ORDER = (
 )
 
 # 파트 제안 — (라우터 파일, 경로 앞부분) → (파트, 분배안 근거). 위에서부터 처음 맞는 줄.
-# 원문: docs/github-archive/2026-09-21/이슈-062/00-기록.md §3.1 · §3.2 · §3.3 · §4.
+# 원문: docs/common/00-management/github-archive/2026-09-21/이슈-062/00-기록.md §3.1 · §3.2 · §3.3 · §4.
 PART_RULES = (
   ("stocks", "/api/stocks/quant/indicators", "P-B", "P01-②-1 지표"),
   ("stocks", "/api/stocks/signals", "P-B", "P01-②-2 · ②-3 패턴 · 신호"),
@@ -1031,10 +1031,10 @@ def load_requirement_map(root: Path) -> tuple[dict[str, list[str]], str]:
   판 번호 없는 `기능설계.md` 가 있으면 그것을 쓴다(docs 정리(2026-10-07) 뒤 늘 최신 · 지난 판은 지난판/).
   없으면 가장 높은 판(`기능설계_vX.Y.md`)을 쓴다. 블록 밖의 API ID 언급은 세지 않는다.
   """
-  path = root / "docs" / "3차" / "설계" / "기능설계.md"
+  path = root / "docs" / "phase-3" / "02-design" / "system" / "기능설계.md"
   if not path.exists():
     docs = []
-    for p in (root / "docs" / "3차" / "설계").glob("기능설계_v*.md"):
+    for p in (root / "docs" / "phase-3" / "02-design" / "system").glob("기능설계_v*.md"):
       m = re.search(r"_v(\d+)\.(\d+)\.md$", p.name)
       if m:
         docs.append(((int(m.group(1)), int(m.group(2))), p))

@@ -7,7 +7,7 @@ RTM 은 「이 요구는 구현됐는가」에 **증거로** 답하는 문서다
 그래서 사람이 적는 것과 스크립트가 재는 것을 나눈다.
 
 - 사람이 적는다 — 요구의 정의(이름 · 내용 · 유형 · 출처 · 우선순위 · 상태 · 검증 방법 · 관련 요구)는
-  `docs/3차/요구사항/대장/요구-대장.tsv` 에, 시험 파일이 어느 요구를 재는지는 `docs/3차/요구사항/대장/시험-요구대장.tsv` 에.
+  `docs/phase-3/01-analysis/requirements/대장/요구-대장.tsv` 에, 시험 파일이 어느 요구를 재는지는 `docs/phase-3/01-analysis/requirements/대장/시험-요구대장.tsv` 에.
 - 스크립트가 잰다 — ① 코드 흔적(이름 검색) ② 시험 건수(pytest 수집) ③ 설계 절(기능 설계서의
   가장 높은 판에서 요구 ID 가 제목인 절) ④ 받는 API(기능 설계서 부록 A 의 `<!-- req-api-map -->` 블록).
 
@@ -36,9 +36,9 @@ import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-요구_대장 = ROOT / "docs" / "3차" / "요구사항" / "대장" / "요구-대장.tsv"
-시험_대장 = ROOT / "docs" / "3차" / "요구사항" / "대장" / "시험-요구대장.tsv"
-설계_폴더 = ROOT / "docs" / "3차" / "설계"
+요구_대장 = ROOT / "docs" / "phase-3" / "01-analysis" / "requirements" / "대장" / "요구-대장.tsv"
+시험_대장 = ROOT / "docs" / "phase-3" / "01-analysis" / "requirements" / "대장" / "시험-요구대장.tsv"
+설계_폴더 = ROOT / "docs" / "phase-3" / "02-design" / "system"
 
 요구_칸 = ("요구ID", "계열", "차수", "이름", "내용", "유형", "출처", "우선순위", "상태",
           "검증방법", "검사결과", "관련요구", "설계_추가", "제안시험", "비고",
@@ -73,11 +73,14 @@ ROOT = Path(__file__).resolve().parents[1]
     # 흔적으로 세면 아직 만들지 않은 요구(RAG 출처 · 퀴즈 · 세무 등)가 「흔적 있음」 으로 보인다.
     # 기능을 app/ · public/ 으로 옮긴 뒤에야 그 코드가 흔적으로 잡힌다.
     "rag-lab",
-    # 발표 자료 · 시연 영상 대본(docs/<차수>/발표/ · docs/영상/ · 2026-10-17 · 차수 폴더 2026-10-21) — 화면 이름 ·
+    # 발표 자료 · 시연 영상 대본(docs/<차수>/발표/ · docs/common/06-retrospective/videos/ · 2026-10-17 · 차수 폴더 2026-10-21) — 화면 이름 ·
     # 요구 낱말이 들어 있지만 구현이 아니다. 흔적으로 세면 요구 열 줄의 파일 수가 늘어 구현이 는 것처럼 보인다.
-    # 영상은 2026-10-21 docs/발표/영상/ 에서 docs/영상/ 로 옮겨 「발표」 폴더 밖이 됐다 — 이름 「영상」 도 뺀다.
+    # 영상은 2026-10-21 docs/발표/영상/ 에서 docs/common/06-retrospective/videos/ 로 옮겨 「발표」 폴더 밖이 됐다 — 이름 「영상」 도 뺀다.
+    # 2026-10-22 번호 폴더 — 발표는 docs/phase-2/06-retrospective/, 영상은 docs/common/06-retrospective/videos/ 가 됐다.
+    # 폴더를 옮기면 이름으로 거는 규칙이 풀린다(S132 교훈) — 새 이름을 더하고 옛 이름도 둔다(다른 PC 의 옛 사본).
     "발표",
     "영상",
+    "06-retrospective",
     # 개인 git 초안 폴더 docs/_git-drafts/(.gitignore · 2026-10-08) — 세션마다 쓴 편집 · 깨 보기 스크립트(.py 28)가
     # 들어 있다. 저장소 밖에 있던 폴더를 docs 안으로 옮겼으므로, 빼지 않으면 그 스크립트가 흔적으로 잡힌다.
     "_git-drafts",
@@ -751,11 +754,11 @@ def fill_doc(text: str, blocks: dict[str, str]) -> tuple[str, int]:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# A계열 — 저장소 안 제안요청서 `docs/rfp-2.md` 의 체크박스 (요구 개수 논쟁의 한쪽 축)
+# A계열 — 저장소 안 제안요청서 `docs/common/01-analysis/references/rfp-2.md` 의 체크박스 (요구 개수 논쟁의 한쪽 축)
 # ─────────────────────────────────────────────────────────────────────
 def a계열_세기() -> dict:
     """rfp-2.md 의 체크박스를 절별로 센다."""
-    경로 = ROOT / "docs" / "rfp-2.md"
+    경로 = ROOT / "docs" / "common" / "01-analysis" / "references" / "rfp-2.md"
     if not 경로.exists():
         return {"절별": [], "합계": 0}
     현재절, 순서, 개수 = None, [], {}

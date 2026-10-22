@@ -1,0 +1,47 @@
+# 발표 영상 — 국내 · 미국 주가 차트와 시세 시각을 본다 (자세한 판 · 2 ~ 3분 · 2026-10-19)
+# 화면: 직접매매 › 주가 차트 (trading-chart · 신장환 추정) · 미국주식 › 대시보드 · 주가 차트 · 포트폴리오 (us-dashboard · us-chart · us-portfolio · 이동원)
+# 사용법 판(장면/F07)과 다른 점: 「크게 오름 · 크게 내림」 규칙 · 저장본 나이 · 미국 차트 머리의 시세 시각 · 원화 기준 포트폴리오(지금은 빈 화면 — 그대로 보인다)
+# 「국내는 수정주가」 는 국내 주가 차트 화면에 그 표시가 없어 자막에 넣지 않는다(팀원 화면 — 고치지 않음 · 2026-10-19 확인)
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-F07-국내수정주가-미국지연시세.yaml
+file: 발표-F07-국내수정주가-미국지연시세
+title: 국내 · 미국 주가 차트와 시세 시각을 봅니다
+owner: 신장환 · 이동원
+start: trading-chart
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "가격이 언제의 값인지 함께", text: "국내 · 미국 주가 차트를 보고, 미국 시세는 지연 시세와 받은 시각을 함께 확인합니다", sec: 5.0}
+  - say: "주가 차트 — 국내 종목을 찾고 기간을 골라 캔들 차트와 현재가 · 등락률을 봅니다 · 현재가 옆에 출처와 체결 시각이 붙습니다"
+  - ring: {target: "#stock-info", sec: 2.5}
+  - ring: {target: "#chart-container", sec: 4.0}
+  - say: "기간을 바꿔 다시 조회합니다 — 1개월부터 10년까지"
+  - select: {target: "#chart-period", value: "3mo"}
+  - click: "#chart-load"
+  - pause: 3.5
+  - ring: {target: "#chart-container", sec: 3.5}
+  - chapter: {label: "2 / 3 · 과정", title: "미국은 지연 시세", text: "미국 지수 · 대형주 시세는 야후 파이낸스 지연 시세 — 마지막 체결 시각과 받은 시각을 밝힙니다", sec: 4.5}
+  - go: us-dashboard
+  - say: "미국 대시보드 — S&P 500 · NASDAQ · DOW · 원/달러 환율"
+  - ring: {target: "#us-market-cards", sec: 3.5}
+  - say: "대형주 10 의 전일 대비 등락 — ±1.5% 를 넘은 종목에만 「크게 오름」 · 「크게 내림」 을 붙이고, 규칙 표시일 뿐 매매 신호가 아닙니다"
+  - ring: {target: "#us-signal-rule", sec: 4.0}
+  - ring: {target: "#us-signal-cards", sec: 3.0}
+  - say: "아래 줄 — 지연 시세 · 장이 닫힌 뒤 받은 값 · 마지막 체결 시각 · 받은 시각과 저장본이 몇 분 전 값인지"
+  - ring: {target: '[data-view="us-dashboard"] :text("받은 시각")', sec: 4.0}
+  - go: us-chart
+  - say: "미국 주가 차트 — 티커를 넣고 조회하면 캔들 차트와 함께 지연 시세 · 마지막 체결 시각이 차트 머리에 붙습니다"
+  - fill: {target: "#us-symbol", text: "AAPL"}
+  - click: "#us-chart-load"
+  - pause: 3.0
+  - ring: {target: "#us-stock-info", sec: 3.5}
+  - say: "한국 낮에는 미국 정규장이 닫혀 있어, 머리 글의 마지막 체결 시각이 지난밤 값입니다"
+  - pause: 5.0
+  - say: "미국 차트도 기간을 바꿔 봅니다 — 최근 3개월"
+  - select: {target: "#us-period", value: "3mo"}
+  - click: "#us-chart-load"
+  - pause: 3.5
+  - ring: {target: "#us-chart-container", sec: 3.5}
+  - go: us-portfolio
+  - say: "포트폴리오 — 미국 주문이 체결되면 원화 모의 계좌 기준으로 보유 · 손익이 보입니다(지금은 보유 없음)"
+  - pause: 4.0
+  - chapter: {label: "3 / 3 · 결과", title: "값과 시각을 함께 봅니다", text: "차트의 마지막 값이 언제 받은 시세인지 확인한 뒤 판단합니다", sec: 4.5}
+  - say: "정보 제공 목적이며 투자 권유가 아닙니다"
+  - pause: 3.0

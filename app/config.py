@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     ALPACA_API_KEY: str = ""
     ALPACA_SECRET_KEY: str = ""
 
-    # ── KIS 자동매매 실주문 게이트웨이 (stock-coin-trade Open API, 계약: docs/contracts/kis-autotrade-api.md) ──
+    # ── KIS 자동매매 실주문 게이트웨이 (stock-coin-trade Open API, 계약: docs/common/02-design/contracts/kis-autotrade-api.md) ──
     # 비어 있으면 게이트웨이를 쓰지 않고 기존 KISClient 직접 호출(레거시)로 폴백한다.
     STOCK_COIN_TRADE_BASE_URL: str = ""            # 예: https://stock.example.com
     STOCK_COIN_TRADE_API_KEY: str = ""             # stock-coin-trade에서 발급한 Open API 키 (KIS_AUTOTRADE_API_KEY_IDS 등록 필요)

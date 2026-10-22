@@ -59,7 +59,7 @@ GNB_BUTTON_RE = re.compile(r'data-gnb="([a-z]+)"[^>]*>(?:<i[^>]*></i>)?\s*(?:<sp
 DEFAULT_VIEW_RE = re.compile(r'navigate\(hash && [^?]+\? hash : "([^"]+)"\)')
 
 # D1 ③ 1차 분류 — **코드 사실이 아니라 제안**이다(논의 결정 대장 v0.9: ⏳ 2/4 미확정).
-# 원문은 docs/github-archive/2026-09-15/논의-007/00-기록.md 3절 ③ 표. 메뉴 글자를 화면 ID 로 옮긴 것만 이 파일의 몫이다.
+# 원문은 docs/common/00-management/github-archive/2026-09-15/논의-007/00-기록.md 3절 ③ 표. 메뉴 글자를 화면 ID 로 옮긴 것만 이 파일의 몫이다.
 # 코드에 화면이 늘거나 줄면 --md 가 「미분류」로 드러낸다.
 D1_PROPOSAL = {
   "주 경로": [

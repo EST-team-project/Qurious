@@ -179,7 +179,7 @@ class LiveOrder(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
 
     가상계좌 Order(source=QUANT)와 별도다. broker=kis-direct는 사용자 KIS 직접 주문이다.
     quant.confirm_fills 태스크가 열린 상태(LIVE_ORDER_OPEN_STATUSES)를
-    주기적으로 체결 조회해 갱신한다. status 값은 계약서(docs/contracts/kis-autotrade-api.md)의 정규화 표를 따르고,
+    주기적으로 체결 조회해 갱신한다. status 값은 계약서(docs/common/02-design/contracts/kis-autotrade-api.md)의 정규화 표를 따르고,
     접수 실패는 ERROR, 응답을 잃어 접수 여부를 모르는 경우는 UNKNOWN을 쓴다.
     """
 
