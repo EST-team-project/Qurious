@@ -1,7 +1,7 @@
 """시연 영상 녹화기 — 장면 파일(YAML) 하나로 영상 · 자막 · 장 파일을 만든다.
 
 쓰는 법 (앱을 켠 뒤 · 저장소 뿌리에서)
-  python tools/demo/record_demo.py docs/영상/장면/V01-성향진단-자산배분.yaml
+  python tools/demo/record_demo.py docs/common/06-retrospective/videos/장면/V01-성향진단-자산배분.yaml
   python tools/demo/record_demo.py <장면.yaml> --no-video        # 영상 없이 단계만 밟아 보기(누를 곳 확인)
   python tools/demo/record_demo.py --inventory agent-chat,robo-portfolio   # 화면마다 누를 곳 목록
 
@@ -9,7 +9,7 @@
   <이름>.webm · <이름>.ko.vtt(자막) · <이름>.chapters.vtt(장) · <이름>.ch<n>.jpg(장마다 제목 카드 그림)
   · <이름>.json(단계별 시각 · go 단계의 화면 키 · 시작 화면 · 줄인 기다림 · 콘솔 오류 수)
   → 앱의 사용법 창에서 보려면 tools/demo/help_videos.py build (영상 표를 만들어 data/help/ 로)
-  → 저장소 · 발표 자료에서 재생할 mp4 는 tools/demo/export_mp4.py (docs/영상/파일/ 로 · 2026-10-19)
+  → 저장소 · 발표 자료에서 재생할 mp4 는 tools/demo/export_mp4.py (docs/common/06-retrospective/videos/파일/ 로 · 2026-10-19)
 
 계정: 환경 변수 DEMO_EMAIL · DEMO_PASSWORD (없으면 이 PC 로컬 전용 시연 계정 · --ensure-account 면 없을 때 만든다)
 

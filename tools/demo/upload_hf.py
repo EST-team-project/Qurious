@@ -58,10 +58,10 @@ pretty_name: Qurious 시연 영상
 
 # Qurious 시연 영상 (비공개)
 
-2차 로보 어드바이저 여정을 장면 파일(저장소 `docs/영상/장면/*.yaml`)로 녹화한 영상이다.
+2차 로보 어드바이저 여정을 장면 파일(저장소 `docs/common/06-retrospective/videos/장면/*.yaml`)로 녹화한 영상이다.
 녹화 도구는 저장소 `tools/demo/record_demo.py` · 화면이 바뀌면 그 장면만 다시 찍어 같은 이름으로 올린다(지난 판은 이 저장소 이력에 남는다).
 
-- 사용법 영상(앱 사용법 창 · 짧은 편): `videos/` · 발표 영상(기능마다 2 ~ 3분 · 더 자세히): `present/` — 장면 파일은 저장소 `docs/영상/장면/` · `docs/영상/발표/`
+- 사용법 영상(앱 사용법 창 · 짧은 편): `videos/` · 발표 영상(기능마다 2 ~ 3분 · 더 자세히): `present/` — 장면 파일은 저장소 `docs/common/06-retrospective/videos/장면/` · `docs/common/06-retrospective/videos/발표/`
 - 영상: `<폴더>/<이름>.webm`(VP8 · 1920×1080 · 25fps · 소리 없음 · 자막은 화면에 들어 있다)
 - 자막 · 장: `videos/<이름>.ko.vtt` · `videos/<이름>.chapters.vtt`(WebVTT — 도움말 쪽에서 쓴다)
 - 녹화 기록: `videos/<이름>.json`(단계별 시각 · 줄인 기다림 · 콘솔 오류 수 · 앱 커밋)

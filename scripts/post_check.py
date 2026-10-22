@@ -1,12 +1,12 @@
 """GitHub 에 올릴 글 파일 검사기 — 올리기 전에 길이·링크·멘션을 본다.
 
 2026-09-23 옛 계정이 flagged 되자 GitHub 에만 있던 이슈·PR·논의가 남에게 보이지 않게 됐다.
-그래서 조직 저장소에 올리는 글은 `docs/github-archive/<날짜>/<글 폴더>/` 에 **파일로 먼저** 쓰고, 사람이
-git bash 나 웹에서 올린다(docs/github-archive/README.md). 이 스크립트는 그 파일이 GitHub 에 그대로 올라갈 수
+그래서 조직 저장소에 올리는 글은 `docs/common/00-management/github-archive/<날짜>/<글 폴더>/` 에 **파일로 먼저** 쓰고, 사람이
+git bash 나 웹에서 올린다(docs/common/00-management/github-archive/README.md). 이 스크립트는 그 파일이 GitHub 에 그대로 올라갈 수
 있는지 확인한다. 네트워크를 쓰지 않는다.
 
     python scripts/post_check.py                                  # 새 글 전부 + 한도에 걸리는 옛 글
-    python scripts/post_check.py docs/github-archive/2026-09-17   # 그날 폴더만 (옛 글도 전부 보여 준다)
+    python scripts/post_check.py docs/common/00-management/github-archive/2026-09-17   # 그날 폴더만 (옛 글도 전부 보여 준다)
     python scripts/post_check.py ../_discord --limit 2000         # Discord 글 (메시지당 2,000자)
 
 옛 글(`00-기록.md`)은 옛 저장소 기록이라 상대 링크가 정상이다. 폴더 전체를 볼 때는 **한도에 걸리는 옛 글만**
@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_TARGET = ROOT / "docs" / "github-archive"
+DEFAULT_TARGET = ROOT / "docs" / "common" / "00-management" / "github-archive"
 OLD_RECORD = "00-기록.md"
 GITHUB_LIMIT = 65_536
 WARN_RATIO = 60_000 / 65_536
@@ -100,7 +100,7 @@ def main() -> int:
     if hasattr(stream, "reconfigure"):
       stream.reconfigure(encoding="utf-8")
   parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-  parser.add_argument("paths", nargs="*", help="파일이나 폴더 (기본: docs/github-archive 전체)")
+  parser.add_argument("paths", nargs="*", help="파일이나 폴더 (기본: docs/common/00-management/github-archive 전체)")
   parser.add_argument("--limit", type=int, default=GITHUB_LIMIT, help="한 글의 최대 글자 수 (기본 65536)")
   args = parser.parse_args()
 

@@ -1,7 +1,7 @@
 """발표 자료 한 파일 판 만들기 — 덱 HTML 이 부르는 그림 · 포스터 · 영상 · 글꼴을 HTML 한 파일 안에 넣는다.
 
 왜: 발표 PC 가 바뀌어 HTML 한 파일만 옮겨도 영상 · 그림이 모두 보여야 한다(2026-10-21 사용자).
-    원본 덱은 `그림/` · `../../영상/파일/발표/` 를 상대 경로로 불러, HTML 만 옮기면 그림 · 영상이 빈 칸이 된다.
+    원본 덱은 `그림/` · `../../common/06-retrospective/videos/파일/발표/` 를 상대 경로로 불러, HTML 만 옮기면 그림 · 영상이 빈 칸이 된다.
 
 무엇을 넣나:
   - 그림(`<img src>` · 인라인 `url(...)`) · 영상 포스터 → `data:` 주소(base64). 같은 그림을 여러 번 부르면
@@ -18,7 +18,7 @@
 원본을 고친 뒤 다시 만든다 — 같은 원본 · 같은 그림이면 같은 결과(만든 시각을 넣지 않는다).
 
 쓰는 법(저장소 뿌리에서):
-  python tools/deck/bundle_deck.py                       # docs/2차/발표/발표자료-원본.html → 같은 폴더 발표자료.html
+  python tools/deck/bundle_deck.py                       # docs/phase-2/06-retrospective/발표자료-원본.html → 같은 폴더 발표자료.html
   python tools/deck/bundle_deck.py --src <원본> --out <경로>  # 다른 덱 · 다른 곳에 쓰기
   python tools/deck/bundle_deck.py --check               # 쓰지 않고 부르는 파일 · 예상 크기만
   python tools/deck/bundle_deck.py --font <ttf|otf>      # 다른 글꼴 파일(기본: Windows 의 NotoSansKR-VF.ttf)
@@ -42,8 +42,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SRC = ROOT / "docs" / "2차" / "발표" / "발표자료-원본.html"
-DEFAULT_OUT = ROOT / "docs" / "2차" / "발표" / "발표자료.html"
+DEFAULT_SRC = ROOT / "docs" / "phase-2" / "06-retrospective" / "발표자료-원본.html"
+DEFAULT_OUT = ROOT / "docs" / "phase-2" / "06-retrospective" / "발표자료.html"
 DEFAULT_FONT_CANDIDATES = [
   Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "NotoSansKR-VF.ttf",
   Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Windows" / "Fonts" / "NotoSansKR-VF.ttf",

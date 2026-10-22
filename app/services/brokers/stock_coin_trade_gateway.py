@@ -1,6 +1,6 @@
 """stock-coin-trade KIS 자동매매 Open API 클라이언트 (서버 간 호출).
 
-계약: docs/contracts/kis-autotrade-api.md (세 저장소 공통). 주문은 2단계다.
+계약: docs/common/02-design/contracts/kis-autotrade-api.md (세 저장소 공통). 주문은 2단계다.
   ① POST /openapi/v1/kis/order-approval  → 60초 1회용 승인 토큰 (주문 의도 해시에 묶임)
   ② POST /openapi/v1/kis/orders          → 승인 토큰 + 동일 본문 + clientOrderId(멱등키)
 

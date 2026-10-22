@@ -290,7 +290,7 @@ def test_ap13_요구_ID_는_기능_설계서_부록_블록에서만_읽는다(tm
   api_scan.write_registry(root, api_scan.assign_ids(routes, [], "S63"))
   ids = {f'{r["메서드"]} {r["경로"]}': r["API_ID"] for r in api_scan.read_registry(root)}
   candles, price = ids["GET /api/candles"], ids["GET /api/broker/price"]
-  design = root / "docs" / "3차" / "설계"
+  design = root / "docs" / "phase-3" / "02-design" / "system"
   design.mkdir(parents=True)
   (design / "기능설계_v0.1.md").write_text(
     f"<!-- req-api-map -->\n| `P01-①-2` | {price} |\n<!-- /req-api-map -->\n", encoding="utf-8")

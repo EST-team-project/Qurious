@@ -1,0 +1,70 @@
+# 발표 영상 — 내 투자 성향을 알고, 그 성향대로 자산을 나눈다 (자세한 판 · 2 ~ 3분 · 2026-10-18)
+# 화면: 로보 어드바이저 › 자산배분·최적화 (robo-portfolio) · 주담당 오준영
+# 사용법 판(장면/V01)과 다른 점: 질문 묶음마다 무엇을 재는지 · 진단 결과 읽는 법(다섯 단계 중 내 위치) ·
+#   배분 결과의 금액 · 국내 주식 안 종목 카드(수익률 · 변동성 · 판단 근거) · 다음 화면으로 이어지는 저장
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-V01-성향진단-자산배분.yaml
+file: 발표-V01-성향진단-자산배분
+title: 내 투자 성향을 알고, 그 성향대로 자산을 나눕니다
+owner: 오준영
+start: robo-portfolio
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "성향에 맞지 않는 투자를 막습니다", text: "투자를 권하기 전에 투자자의 성향부터 확인합니다(적합성 원칙) — 그 성향이 자산을 나누는 기준이 됩니다", sec: 5.0}
+  - say: "투자성향 진단 — 질문 일곱 개로 투자 기간 · 경험 · 견딜 수 있는 손실을 봅니다"
+  - click: "#rp-toggle"
+  - pause: 3.5
+  - say: "나이와 이 돈을 쓸 시기 — 오래 둘 수 있을수록 값이 오르내려도 기다릴 여유가 큽니다"
+  - click: '#rp-form label:has(input[name="rp-age"][value="1"])'
+  - click: '#rp-form label:has(input[name="rp-horizon"][value="2"])'
+  - pause: 4.0
+  - say: "투자 경험과 소득 — 이 예시는 펀드 · ETF 를 해 봤고, 소득에 견줘 투자 비중이 크지 않습니다"
+  - click: '#rp-form label:has(input[name="rp-experience"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-income"][value="2"])'
+  - pause: 4.0
+  - say: "견딜 수 있는 손실 · 투자 목적 · 금융 지식 — 손실을 어디까지 견디는지가 성향을 가장 크게 가릅니다"
+  - click: '#rp-form label:has(input[name="rp-loss"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-goal"][value="2"])'
+  - click: '#rp-form label:has(input[name="rp-knowledge"][value="2"])'
+  - pause: 2.0
+  - click: "#rp-submit"
+  - wait: {target: "#rp-result", timeout: 30}
+  - pause: 1.0
+  - say: "진단 결과 — 점수와 다섯 단계 가운데 내 위치가 나오고, 아래 자산배분의 성향 칸에 그대로 들어갑니다"
+  - ring: {target: "#rp-result", sec: 4.5}
+  - pause: 2.5
+  - say: "다섯 단계 — 안정형 · 안정추구형 · 위험중립형 · 적극투자형 · 공격투자형 · 점수 구간마다 한 단계입니다"
+  - pause: 5.5
+  - chapter: {label: "2 / 3 · 실행 과정", title: "성향 · 기간 · 금액으로 자산을 나눕니다", text: "자산군 비중은 성향과 기간 규칙으로 정하고, 국내 주식 안의 종목 비중은 시세 자료로 계산합니다", sec: 4.5}
+  - scroll: {target: "#robo-risk"}
+  - say: "진단한 성향이 들어와 있습니다 — 투자 기간과 금액(만 원)을 정하고 최적화를 실행합니다"
+  - ring: {target: "#robo-risk", sec: 2.5}
+  - select: {target: "#robo-horizon", value: "5"}
+  - fill: {target: "#robo-amount", text: "5000"}
+  - pause: 1.5
+  - click: "#robo-optimize-btn"
+  - say: "자산군 비중을 정한 뒤, 국내 주식 후보를 지표와 모델로 분석합니다"
+  - pause: 2.0
+  - wait: {target: "text=최적 자산배분 결과", timeout: 150, cut: true}
+  - pause: 1.0
+  - scroll: {target: "text=최적 자산배분 결과", block: "start"}
+  - say: "결과 — 국내주식 · 해외주식 · 국내채권 · 대체자산 · 현금이 각각 몇 % 이고, 5,000만 원 가운데 얼마인지"
+  - pause: 6.5
+  - scroll: {by: 380}
+  - say: "국내 주식 안에서는 종목마다 비중과 과거 연환산 수익률 · 변동성, 그리고 그렇게 본 근거를 카드로 함께 봅니다"
+  - pause: 6.5
+  - say: "근거 칸은 지표 신호와 모델 판단을 나눠 적습니다 — 숫자 하나가 아니라 왜 그 비중인지를 따라갈 수 있습니다"
+  - pause: 6.0
+  - say: "모델이 기준선보다 낫지 않으면 카드에 「모델 성능 기준선 미달」 경고를 그대로 붙입니다 — 좋은 숫자만 골라 보이지 않습니다"
+  - pause: 7.5
+  - say: "자료: 금융위원회 주식시세정보(공공데이터포털 · 공공누리 제4유형) · 수정주가 · 지표는 Qurious 가 계산"
+  - pause: 4.0
+  - chapter: {label: "3 / 3 · 결과", title: "나눈 비중은 다음 화면이 이어서 씁니다", text: "상품 안내는 이 비중을 불러와 상품을 비교하고, 리밸런싱 엔진은 이 비중을 목표로 삼습니다", sec: 4.5}
+  - scroll: {target: "#robo-load-allocation"}
+  - say: "저장한 배분 — 리밸런싱 화면의 「저장한 배분 가져오기」 가 같은 값을 불러갑니다"
+  - ring: {target: "#robo-load-allocation", sec: 3.0}
+  - pause: 2.5
+  - scroll: {target: 'a[href="#agent-products"][aria-describedby="robo-products-help"]'}
+  - say: "「자산군별 상품 보기」 — 채권 · 해외주식 · 대체자산은 상품 안내에서 상장 상품(ETF) 정보로 비교합니다"
+  - ring: {target: 'a[href="#agent-products"][aria-describedby="robo-products-help"]', sec: 3.0}
+  - pause: 1.0
+  - say: "과거 자료로 계산한 결과이며 미래 수익을 보장하지 않습니다 · 투자 권유가 아닙니다"
+  - pause: 4.0

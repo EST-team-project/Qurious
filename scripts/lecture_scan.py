@@ -32,7 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LEARNING = ROOT.parent.parent / "learning"
-DEFAULT_BASELINE = ROOT / "docs" / "github-archive" / "2026-09-28" / "이슈-강사님자료-변경추적" / "기준점.tsv"
+DEFAULT_BASELINE = ROOT / "docs" / "common" / "00-management" / "github-archive" / "2026-09-28" / "이슈-강사님자료-변경추적" / "기준점.tsv"
 FIELDS = ["th", "part", "repo", "ref", "commit", "commit_date", "checked_at"]
 LIST_CAP = 20
 # 부분 이름 → git pathspec. 「서버」 는 화면 폴더(public/)를 뺀 나머지 전부다(시험 · 설정 · 문서 포함).
