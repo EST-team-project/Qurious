@@ -6,7 +6,12 @@
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
+
+# 계산이 넘쳐 확률을 낼 수 없을 때의 안내 글 — 라우트가 422 로 돌려준다(DF-144)
+GOAL_SIM_TOO_LARGE = "계산 결과가 너무 커서 확률을 낼 수 없습니다 — 금액 · 기간 · 수익률 · 변동성의 입력 범위를 확인해 주세요."
 
 QUESTIONS: list[dict] = [
     {"id": "age", "text": "연령대는?", "options": [
@@ -70,30 +75,43 @@ def goal_simulation(amount_manwon: float, horizon_years: int, target_return_pct:
     months = years * 12
     mu, sigma = float(expected_return_pct) / 100, max(0.0, float(expected_volatility_pct)) / 100
     tgt = float(target_return_pct) / 100
+    # 수익률이 -100% 이하이면 (1 + 수익률) 이 0 이하 — 아래 12제곱근은 복소수, log1p 는 NaN 이 되어
+    # 비교 · JSON 에서 서버 오류 500 이 났다(감리 HIGH FD-FIND-002 · DF-144). 라우트 입력 경계와 별개로 여기서도 막는다.
+    if not (tgt > -1 and mu > -1):
+        raise ValueError("목표 · 기대 연수익률은 -100% 보다 커야 합니다.")
     p0 = max(0.0, float(amount_manwon)); c = max(0.0, float(monthly_contribution_manwon))
     rng = np.random.default_rng(seed)
     dt = 1 / 12
-    # 변동성 0일 때 중앙 경로가 이산 복리 (1+mu)^years 와 정확히 일치하도록 log(1+mu) 기준 드리프트 사용
-    drift = np.log1p(mu) * dt - 0.5 * sigma ** 2 * dt
-    shocks = rng.normal(0, sigma * np.sqrt(dt), size=(n_paths, months)) if sigma > 0 else np.zeros((n_paths, months))
-    growth = np.exp(drift + shocks)                     # (paths, months)
-    values = np.empty((n_paths, months + 1)); values[:, 0] = p0
-    for m in range(1, months + 1):
-        values[:, m] = values[:, m - 1] * growth[:, m - 1] + c
-    final = values[:, -1]
+    # 넘침(inf) · NaN 은 경고 대신 아래 유한성 검사에서 한 번에 안내 글로 바꾼다
+    with np.errstate(over="ignore", invalid="ignore"):
+        # 변동성 0일 때 중앙 경로가 이산 복리 (1+mu)^years 와 정확히 일치하도록 log(1+mu) 기준 드리프트 사용
+        drift = np.log1p(mu) * dt - 0.5 * sigma ** 2 * dt
+        shocks = rng.normal(0, sigma * np.sqrt(dt), size=(n_paths, months)) if sigma > 0 else np.zeros((n_paths, months))
+        growth = np.exp(drift + shocks)                     # (paths, months)
+        values = np.empty((n_paths, months + 1)); values[:, 0] = p0
+        for m in range(1, months + 1):
+            values[:, m] = values[:, m - 1] * growth[:, m - 1] + c
+        final = values[:, -1]
 
-    # 목표 금액: 원금과 매월 적립금을 목표 연수익률로 복리 성장
-    r_m = (1 + tgt) ** (1 / 12) - 1
-    target_value = p0 * (1 + tgt) ** years + (c * (((1 + r_m) ** months - 1) / r_m) if r_m > 0 else c * months)
-    invested = p0 + c * months
-    prob = float((final >= target_value).mean())
-    pct = {k: float(np.percentile(final, k)) for k in (5, 25, 50, 75, 95)}
-    # 원금 손실 확률, 필요 연수익률(적립 없이 원금만 기준 근사)
-    loss_prob = float((final < invested).mean())
-    req = ((target_value / invested) ** (1 / years) - 1) if invested > 0 else 0.0
-    step = max(1, months // 60)
-    curves = {f"p{k}": [round(float(v), 1) for v in np.percentile(values, k, axis=0)[::step]] for k in (5, 50, 95)}
+        # 목표 금액: 원금과 매월 적립금을 목표 연수익률로 복리 성장
+        try:
+            r_m = (1 + tgt) ** (1 / 12) - 1
+            target_value = p0 * (1 + tgt) ** years + (c * (((1 + r_m) ** months - 1) / r_m) if r_m > 0 else c * months)
+        except OverflowError:   # 파이썬 실수 거듭제곱은 inf 대신 예외를 낸다
+            raise ValueError(GOAL_SIM_TOO_LARGE) from None
+        invested = p0 + c * months
+        prob = float((final >= target_value).mean())
+        pct = {k: float(np.percentile(final, k)) for k in (5, 25, 50, 75, 95)}
+        # 원금 손실 확률, 필요 연수익률(적립 없이 원금만 기준 근사)
+        loss_prob = float((final < invested).mean())
+        req = ((target_value / invested) ** (1 / years) - 1) if invested > 0 else 0.0
+        step = max(1, months // 60)
+        curves = {f"p{k}": [round(float(v), 1) for v in np.percentile(values, k, axis=0)[::step]] for k in (5, 50, 95)}
     labels = [round(i * step / 12, 2) for i in range(len(curves["p50"]))]
+    # 응답에 inf · NaN 이 실리면 JSON 을 만들지 못해 500 이 된다 — 계산이 넘친 조합은 안내 글로(DF-144)
+    numbers = [target_value, prob, loss_prob, req, *pct.values(), *(v for curve in curves.values() for v in curve)]
+    if not all(math.isfinite(v) for v in numbers):
+        raise ValueError(GOAL_SIM_TOO_LARGE)
     if prob >= 0.8: verdict = "달성 가능성 높음"
     elif prob >= 0.5: verdict = "달성 가능성 보통"
     elif prob >= 0.25: verdict = "달성 가능성 낮음 — 목표를 낮추거나 적립·기간을 늘리세요"

@@ -41,7 +41,7 @@ TC-PT	tests/test_patterns.py	P01-②-2	🟢	캔들 패턴 · 지지와 저항 ·
 TC-RB	tests/test_rebalance.py	P01-③-1	🟡	목표 비중 정리와 다음 주기(월 · 분기 · 연) 계산 — 계획 · 체결 · 이력은 재지 않는다 · 이탈률 · 현금흐름 계기(③-2 · ③-3)는 시험 없음
 TC-RG	tests/test_risk_guard.py	P02-⑤-2	🟡	중복 주문 쿨다운 · 일 주문 수 · 종목 비중 · 일손실 한도 판정 — 비상 정지 동작은 재지 않는다
 TC-RP	tests/test_robo_profile.py	U1	🟢	설문 점수로 5단계 투자 성향을 정하고 빠진 답을 막는다
-TC-RP	tests/test_robo_profile.py	U4	🟢	목표 수익률 달성 확률을 적립금 · 변동성을 넣어 분포로 계산한다
+TC-RP	tests/test_robo_profile.py	U4	🟢	목표 수익률 달성 확률을 적립금 · 변동성을 넣어 분포로 계산한다 · 범위를 넘는 입력(수익률 −100% 이하 등)은 계산 전에 422 와 한국어 안내 글 · 넘친 계산도 422(DF-144)
 TC-TV	tests/test_tradingview.py	P02-③-3	🟡	TradingView 알림 본문을 매수 · 매도 신호로 읽는다 — 받는 쪽 확인(비밀 토큰 · 중복)과 전달은 재지 않는다
 TC-TV	tests/test_tradingview.py	P02-③-2	🟡	Strategy Tester 거래 목록 CSV 로 성과를 계산한다
 TC-TV	tests/test_tradingview.py	P02-④-3	🟡	TradingView 와 LEAN 성과 차이를 판정한다 — 신호 · 체결 · 비용 층으로 나누지는 않는다

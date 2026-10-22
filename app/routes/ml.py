@@ -1,8 +1,10 @@
 """ML 모델 비교 · 클러스터링 · 계절성 · 회귀 API."""
 import asyncio
+import math
 from typing import Literal
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic_core import PydanticCustomError
 import numpy as np
 from app.lib.session import get_current_user
 from app.services.stock import get_candles, QUANT_STOCKS
@@ -313,6 +315,21 @@ class RiskProfileBody(BaseModel):
     answers: dict[str, int]   # {question_id: 선택 인덱스 0~4}
 
 
+# 목표 시뮬레이션 입력 범위 — 감리 HIGH FD-FIND-002 · DF-144(2026-10-22).
+# 수익률이 -100% 이하이면 (1 + 수익률) 이 0 이하가 되어 복리 계산이 복소수 · NaN 이 되고 서버 오류 500 이 났다.
+# 넘는 값은 계산 전에 422 와 화면에 그대로 보일 안내 글로 돌려준다(public/js/common.js api() 가 detail 의 msg 를 잇는다).
+# 상한은 계산이 넘치지 않는 넉넉한 값이다 — 화면에서 받을 범위는 주담당(자산배분)이 정하면 이 표만 바꾼다.
+GOAL_SIM_LIMITS: dict[str, tuple[float, float, bool, str]] = {
+    # 칸: (하한, 상한, 하한 값 자체도 막나, 안내 글)
+    "amount_manwon": (0, 10_000_000, False, "투자 원금은 0 ~ 10,000,000 만원(1,000억 원) 사이로 넣어 주세요."),
+    "monthly_contribution_manwon": (0, 1_000_000, False, "월 적립은 0 ~ 1,000,000 만원 사이로 넣어 주세요."),
+    "horizon_years": (1, 40, False, "투자 기간은 1 ~ 40년 사이로 넣어 주세요."),
+    "target_return_pct": (-100, 1000, True, "목표 연수익률은 -100% 보다 크고 1,000% 이하로 넣어 주세요 — -100% 는 원금을 모두 잃는다는 뜻이라 확률을 낼 수 없습니다."),
+    "expected_return_pct": (-100, 1000, True, "기대 연수익률은 -100% 보다 크고 1,000% 이하로 넣어 주세요."),
+    "expected_volatility_pct": (0, 300, False, "연변동성은 0 ~ 300% 사이로 넣어 주세요."),
+}
+
+
 class GoalSimBody(BaseModel):
     amount_manwon: float = 5000
     monthly_contribution_manwon: float = 0
@@ -321,6 +338,16 @@ class GoalSimBody(BaseModel):
     expected_return_pct: float = 7.0
     expected_volatility_pct: float = 12.0
     n_paths: int = 3000
+
+    @field_validator(*GOAL_SIM_LIMITS)
+    @classmethod
+    def within_limits(cls, value: float, info: ValidationInfo) -> float:
+        low, high, low_open, guide = GOAL_SIM_LIMITS[info.field_name]
+        above_low = value > low if low_open else value >= low
+        if not (math.isfinite(value) and above_low and value <= high):
+            # PydanticCustomError 는 msg 앞에 「Value error, 」 를 붙이지 않는다 — 안내 글이 화면에 그대로 보인다
+            raise PydanticCustomError("goal_sim_range", guide)
+        return value
 
 
 @router.get("/robo/questions")
@@ -343,8 +370,12 @@ async def robo_risk_profile(body: RiskProfileBody, user=Depends(get_current_user
 async def robo_goal_simulation(body: GoalSimBody, _user=Depends(get_current_user)):
     from app.services.robo_profile import goal_simulation
     n = max(500, min(20000, int(body.n_paths)))
-    return await asyncio.to_thread(goal_simulation, body.amount_manwon, body.horizon_years, body.target_return_pct,
-                                   body.expected_return_pct, body.expected_volatility_pct, body.monthly_contribution_manwon, n)
+    try:
+        return await asyncio.to_thread(goal_simulation, body.amount_manwon, body.horizon_years, body.target_return_pct,
+                                       body.expected_return_pct, body.expected_volatility_pct, body.monthly_contribution_manwon, n)
+    except ValueError as exc:
+        # 입력 범위 안이어도 계산이 넘친 조합의 안전판 — 500 대신 422 와 안내 글(DF-144)
+        raise HTTPException(422, str(exc))
 
 
 @router.get("/explain")

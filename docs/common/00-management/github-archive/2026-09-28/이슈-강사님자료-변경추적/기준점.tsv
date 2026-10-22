@@ -1,26 +1,26 @@
 th	part	repo	ref	commit	commit_date	checked_at
 th01-investment-analysis		edumgt/investment-analysis	origin/main	12f423deb2e0faaca04b4fa0eb0a06a6e29a32cd	2026-10-02 17:37	2026-10-07 13:54
-th02-docker		edumgt/docker-class	origin/main	633d3511c347d3a5e09670e6b237ac241d357334	2026-10-13 16:08	2026-10-16 16:22
-th03-stock-coin-trade		edumgt/stock-coin-trade	origin/main	9242a3d6d3a386d456338610c5a71fef5cf47438	2026-10-07 17:36	2026-10-08 10:31
+th02-docker		edumgt/docker-class	origin/main	a215b9f2ab651c4c0a37a9eb1dd0b65bdbe71267	2026-10-16 15:20	2026-10-22 16:33
+th03-stock-coin-trade		edumgt/stock-coin-trade	origin/main	10a799361188c1d32af99c3b58623e0d19594784	2026-10-22 11:56	2026-10-22 16:33
 th05-quant-krx		edumgt/quant-test-20260828	origin/main	8684a2b1926d45954a2e5dcaa3e45ab07b5fd727	2026-08-28 17:46	2026-10-02 10:08
 th06-lumina-invest	서버	edumgt/lumina-invest	origin/main	e815be3f1a00dcacabc48d9e967172a704eae3da	2026-10-07 17:36	2026-10-12 09:50
 th06-lumina-invest	화면	edumgt/lumina-invest	origin/main	947881100d8df529a960ccc77b558f4e48a62e37	2026-10-02 16:06	2026-10-03 17:30
-th07-domain-rag-lab		edumgt/domain-rag-lab	origin/main	ebcd85466568f9a0225eae36b7950f95b8ebae4c	2026-10-15 17:51	2026-10-18 12:28
+th07-domain-rag-lab		edumgt/domain-rag-lab	origin/main	fda3ed11e56b92b08a2ab5ede7d8b209b370536d	2026-10-21 12:12	2026-10-22 16:33
 th08-aws-ec2-alb-lab		edumgt/aws-ec2-alb-lab	origin/main	d47c244817e77350cb3da970423a95e50181cdb5	2026-09-21 14:54	2026-10-02 10:08
 th09-python-ai-basic-lab		edumgt/python-ai-basic-lab	origin/main	b7238260f998d9cc83d43f471b2040666eb31b36	2026-07-30 04:23	2026-10-02 10:08
 th10-stock-ml-dl-project		edumgt/stock-ml-dl-project	origin/main	ef0240e6bf049aaa639c09331b54c1a8278440a0	2026-10-02 17:46	2026-10-07 13:54
-th11-python-ml-class		edumgt/python-ml-class	origin/main	e84cf65f8927eee4c6c7ac7f9a1d040e0c864e4a	2026-07-30 04:06	2026-10-02 10:08
+th11-python-ml-class		edumgt/python-ml-class	origin/main	79628ff201f947610cce8195a66ff000f0e73799	2026-10-20 11:16	2026-10-22 16:33
 th12-python-crawling-lab		edumgt/python-crawling-lab	origin/main	15722823461e5bb2d772959bb4c1eadf339f26d7	2026-07-02 10:45	2026-10-02 10:08
 th13-py-util		edumgt/py-util	origin/master	e8554b94086be3deaf68da8c1ccdeaa77f96e2a9	2026-06-11 21:41	2026-10-02 10:08
-th14-edumgt-lab-init		edumgt/edumgt-lab-init	origin/main	3783d98532e9eb667b7fc455f730923ed2c6caa7	2026-09-14 21:13	2026-10-02 10:08
+th14-edumgt-lab-init		edumgt/edumgt-lab-init	origin/main	f1ee41b6e1c9ac52274c6a9b21433b362d005dd4	2026-10-20 09:38	2026-10-22 16:33
 th15-aihub-rag		edumgt/aihub-rag	origin/main	a1fbe8d23ecfb49db72321fd24c4b2495c1b8584	2026-07-02 14:42	2026-10-02 10:08
 th16-ai-agent-lab		edumgt/ai-agent-lab	origin/main	7151a887c27c5f082c38d789e4e9f7887451d44b	2026-06-29 12:49	2026-10-02 10:08
 th17-invest-flow		edumgt/invest-flow	origin/main	81165da48748ede3cee15c2ee3f8ce4fbe033ce8	2026-07-02 14:06	2026-10-02 10:08
 th18-langchain-lab		edumgt/langchain-lab	origin/main	87bc4d5c9c1acf86a3762a394e5c11745ff2c1a4	2026-06-29 11:58	2026-10-02 10:08
-th19-multi-db-lab		edumgt/multi-db-lab	origin/main	29a9a9273fd187cac673c2d55744093f2529884a	2026-10-12 15:53	2026-10-16 16:22
+th19-multi-db-lab		edumgt/multi-db-lab	origin/main	9ee1219635941abdcb1762f8e8172435c4d34d1f	2026-10-20 17:09	2026-10-22 16:33
 th20-aws-serverless		edumgt/aws-serverless	origin/main	206b70cdf7f8d4e4bad63ef15f7daed15671a26b	2026-10-01 11:49	2026-10-02 10:08
-th21-ollama-llava-canvas		edumgt/ollama-llava-canvas	origin/main	fb4ea94509f5dfdb57d71fc816a158ee8be5d021	2026-07-30 04:11	2026-10-02 10:08
+th21-ollama-llava-canvas		edumgt/ollama-llava-canvas	origin/main	7ab02e9255b0bcca2f1b3d0a77207784d089f118	2026-10-16 17:43	2026-10-22 16:33
 th22-vdp-agent		edumgt/vdp-agent	origin/main	8745eb94a988ceaa50805164dd0f5b8a8ab11845	2026-07-07 11:18	2026-10-02 10:08
 th23-meeting-agent		edumgt/meeting-agent	origin/main	0b563827f19ce9c661b7915cda6bfbb4a9f8676e	2026-07-06 15:03	2026-10-02 10:08
-th24-stock-kms-portal		edumgt/stock-kms-portal	origin/main	cb6d8791f4041b4df35d2e98bc824b09d21ab54c	2026-10-16 16:08	2026-10-18 12:28
+th24-stock-kms-portal		edumgt/stock-kms-portal	origin/main	a69d6525ff57d737d39a9199729b39fcdcfc8a23	2026-10-20 17:44	2026-10-22 16:33
 th25-fe-vanilla		edumgt/fe-vanilla	origin/main	f76c882acf668321c14750fca157a79c5dff9182	2026-10-02 17:34	2026-10-07 13:54
