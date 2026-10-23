@@ -94,5 +94,28 @@ def test_test_ps1_runs_container_group_read_only_without_host_install():
     assert '-v "${repo}:/w:ro"' in src and '-v "${out}:/out"' in src and "--junit-xml=/out/{1}.xml" in src
     assert "docker image inspect $g.image" in src and "skipped_reason" in src
     run_pip = [ln for ln in src.splitlines() if "pip install" in ln and "Write-Q" not in ln]   # 안내 글은 뺀다
-    assert len(run_pip) == 1 and "|| exit 97" in run_pip[0]                  # 컨테이너 명령 글 하나뿐
+    assert len(run_pip) == 1 and "|| exit 97" in run_pip[0]                  # 컨테이너 명령 글 하나뿐(카나리아도 같은 줄)
     assert "& pip" not in src and "-m pip" not in src and "'-m', 'pip'" not in src
+
+
+def test_container_group_runs_only_on_an_image_built_from_the_lock():
+    # 2026-10-23 · 잠금이 바뀌었는데 옛 이미지로 돌면 「통과」 가 지금 판의 통과가 아니다 — 돌기 전에 이미지 안 잠금 지문을 본다.
+    # 지문은 줄 끝(CR)을 지운 내용(core.autocrlf 로 PC 마다 줄 끝이 다름) · 다르면 실패가 아니라 건너뜀 + 까닭.
+    src = (ROOT / "scripts" / "personal" / "test.ps1").read_text(encoding="utf-8-sig")
+    body = src.split("function Invoke-QContainerGroup", 1)[1].split("\nfunction ", 1)[0]
+    assert "$stale = Test-QImageLock $g.image" in body and "if ($stale) { return @{ code = 0; reason = $stale } }" in body
+    assert "tr -d '\\r' < /app/requirements.lock | sha256sum" in src and "if ($b -ne 13)" in src
+    assert "--network none" in src.split("function Test-QImageLock", 1)[1].split("\nfunction ", 1)[0]
+    assert set(tg.CONTAINER[2]) >= {"test_translation_search.py", "test_vector_db.py"}   # DF-149 회귀 · 문지기 계약
+
+
+def test_canary_is_a_signal_not_a_gate():
+    # 카나리아 줄(-Canary) — 지켜볼 패키지만 최신으로 올려 컨테이너 묶음을 돈다. 결과는 run.json 의 canary 칸에만 · 종료 코드는 늘 0.
+    src = (ROOT / "scripts" / "personal" / "test.ps1").read_text(encoding="utf-8-sig")
+    assert "[switch]$Canary" in src
+    for pkg in ("qdrant-client", "langchain-qdrant", "langchain-core", "langchain-ollama", "langgraph"):
+        assert f"'{pkg}'" in src.split("$CanaryPackages = @(", 1)[1].split(")", 1)[0]
+    block = src.split("if ($Canary) {\n", 1)[1].split("\n}\n", 1)[0]
+    assert "Invoke-QContainerGroup $cg $RunDir $CanaryPackages" in block and "mode = 'canary'" in block
+    assert "$state.canary = $entry" in block and "$state.exit_code = 0" in block and block.rstrip().endswith("exit 0")
+    assert "$up = ' -U ' + ($Upgrade -join ' ')" in src            # 같은 설치 줄에서 -U 로 올린다(호스트에는 깔지 않는다)

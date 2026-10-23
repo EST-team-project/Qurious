@@ -1,11 +1,11 @@
-# API 명세서 v0.39 — Qurious
+# API 명세서 v0.40 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.39 (Patch — 라우트 271 그대로 · 올린 문서 사용자 격리 DF-146: 문서 넷 · 채팅 둘 · 탈퇴의 동작과 오류 칸 · 그래프 여섯 로그인 DF-147) · v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
-| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) |
+| **문서 버전** | v0.40 (Patch — 라우트 271 그대로 · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 문지기 「기본 꺼짐 · 켜도 관리자만」 · 검색 모음 없음 404 · 장애 503 · 0건 200(DF-149) · 상태 API(`API-SYS-01`) Qdrant 줄에 판 짝 칸 · IF-08 문지기 경유) · v0.39 (Patch — 라우트 271 그대로 · 올린 문서 사용자 격리 DF-146: 문서 넷 · 채팅 둘 · 탈퇴의 동작과 오류 칸 · 그래프 여섯 로그인 DF-147) · v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
+| **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
-| **기준 코드** | v0.39 = `main` `177f0e3`(#323) + 이 판 작업 트리(올린 문서 격리 · 그래프 로그인) · v0.38 = `main` `4bed63b`(#316) + 이 판 작업 트리(목표 시뮬레이션 입력 범위) · v0.37 = `main` `6fa8f58`(2차 마지막 머지 #308 까지 — 강민석 님 #302 · #303 · #305 · #306 · 신장환 님 #304 · 오준영 님 #301 · 이동원 #307 · #308) · v0.36 = `main` `0d88d22`(#296 까지 — 강민석 님 #292 ~ #295 · 신장환 님 #296) · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않았다(번호 · 표만) · v0.35 = `main` `f17d310`(PR #281 까지 — 발표 자료 판 관리 · 시연 영상 · D133) + 이 판 PR(「현재가」 지금 값 — `app/services/quote_now.py` · `app/routes/quote_now.py` · 모의 주문 체결 직전 확인 `app/services/paper_trading.py`) / v0.34 = `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
+| **기준 코드** | v0.40 = `main` `5a3bfc9`(#326) + 이 판 작업 트리(번역 문지기 · Qdrant 문지기 `app/lib/vector_db.py` · 상태 API 판 짝) · v0.39 = `main` `177f0e3`(#323) + 이 판 작업 트리(올린 문서 격리 · 그래프 로그인) · v0.38 = `main` `4bed63b`(#316) + 이 판 작업 트리(목표 시뮬레이션 입력 범위) · v0.37 = `main` `6fa8f58`(2차 마지막 머지 #308 까지 — 강민석 님 #302 · #303 · #305 · #306 · 신장환 님 #304 · 오준영 님 #301 · 이동원 #307 · #308) · v0.36 = `main` `0d88d22`(#296 까지 — 강민석 님 #292 ~ #295 · 신장환 님 #296) · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않았다(번호 · 표만) · v0.35 = `main` `f17d310`(PR #281 까지 — 발표 자료 판 관리 · 시연 영상 · D133) + 이 판 PR(「현재가」 지금 값 — `app/services/quote_now.py` · `app/routes/quote_now.py` · 모의 주문 체결 직전 확인 `app/services/paper_trading.py`) / v0.34 = `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
 | **추출기** | [`scripts/api_scan.py`](../../../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../../../tests/test_api_scan.py) (TC-AP 15건) |
 | **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **275줄 · 사용 271 · 폐기 4**(2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
 | **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **266/266 일치**(2026-10-19 v0.35 · 개발 모드 앱 `f17d310` + 이 판 작업 트리 · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **265/265 일치**(2026-10-19 v0.34 · 개발 모드 앱 `61b3e43` + 이 판 PR(쓰기 셋 없앤 뒤) — main 을 두 번째로 받은 뒤 다시 맞댐 · openapi 에만 0 · 스캔에만 0 · 인자 다름 0 · 본문 모델 다름 0 · 스캔 266 = 스키마 265 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
@@ -289,7 +289,7 @@ flowchart LR
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
 | `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
 | `403` | 권한 없음 | 6 | API-AUTH-06, API-STK-10, API-STK-11, API-TASK-02, API-TV-01, API-LRN-07 |
-| `404` | 대상 없음 | 27 | API-AUTH-09, API-STK-34, API-STK-30, API-STK-33, API-QNT-02, API-ML-01 외 21 |
+| `404` | 대상 없음 | 29 | API-AUTH-09, API-ING-06, API-ING-07, API-STK-34, API-STK-30, API-STK-33 외 23 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
 | `409` |  | 8 | API-STK-24, API-STK-41, API-STK-27, API-USRV-03, API-RBAL-10, API-RBAL-06 외 2 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
@@ -297,7 +297,7 @@ flowchart LR
 | `429` | 호출 한도 초과 | 2 | API-CHAT-01, API-TV-01 |
 | `500` | 서버 내부 오류 | 2 | API-CHAT-01, API-DOC-01 |
 | `502` | 바깥 서버 실패 | 9 | API-CHAT-01, API-STK-06, API-STK-07, API-STK-20, API-STK-21, API-STK-22 외 3 |
-| `503` | 의존 서비스 없음 | 16 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-AUTH-14, API-CHAT-01, API-DOC-01 외 10 |
+| `503` | 의존 서비스 없음 | 18 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-AUTH-14, API-ING-06, API-ING-07 외 12 |
 | `503 MARKET_DATA_UNAVAILABLE` | 의존 서비스 없음 | 1 | API-OAPI-01 |
 | `504` | 시간 초과 | 1 | API-CHAT-01 |
 | `?` |  | 19 | API-TV-01, API-LEC-06, API-DATA-12, API-DATA-14, API-DATA-09, API-DATA-02 외 13 |
@@ -654,18 +654,18 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-ING-01 | POST | `/api/ingest/financial` | 세션 | — | {ok, result, log} | — | PostgreSQL | — | P-A | P01-①-2 | ingest.py:24 |
-| API-ING-02 | POST | `/api/ingest/crawl/auto` | 세션 | — | {ok, result, log} | — | PostgreSQL · Qdrant · LLM · 외부(api.github.com, github.com …) | — | P-A | P01-①-2 | ingest.py:34 |
-| API-ING-03 | POST | `/api/ingest/crawl/url` | 세션 | 본문 `CrawlUrlBody` | {ok, chunks, log} | — | PostgreSQL · Qdrant · LLM | `crawl-manual` | P-A | P01-①-2 | ingest.py:49 |
-| API-ING-04 | POST | `/api/ingest/crawl/naver` | 세션 | 본문 `CrawlNaverBody` | {ok, chunks, message} | — | PostgreSQL · Qdrant · LLM · 외부(finance.naver.com) | — | P-A | P01-①-2 | ingest.py:66 |
-| API-ING-05 | POST | `/api/ingest/local-docs` | 세션 | — | {ok, total_chunks, log} | — | PostgreSQL · Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:81 |
-| API-ING-06 | POST | `/api/ingest/translation-data` | 세션 | 본문 `TranslationIngestBody` | {ok, result, log} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:131 |
-| API-ING-07 | POST | `/api/ingest/translation-search` | 세션 | 본문 `TranslationSearchBody` | {ok, hits, collection} | — | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:157 |
-| API-ING-08 | POST | `/api/ingest/financial/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Celery | — | P-A | P01-①-4 | ingest.py:176 |
-| API-ING-09 | POST | `/api/ingest/crawl/auto/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(api.github.com, github.com …) | — | P-A | P01-①-4 | ingest.py:186 |
-| API-ING-10 | POST | `/api/ingest/crawl/url/async` | 세션 | 본문 `CrawlUrlBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:194 |
-| API-ING-11 | POST | `/api/ingest/translation-data/async` | 세션 | 본문 `TranslationIngestBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:203 |
-| API-ING-12 | GET | `/api/ingest/crawl/list` | 세션 | — | {items} | — | PostgreSQL | `crawl-manual` | P-A | P01-①-2 | ingest.py:220 |
+| API-ING-01 | POST | `/api/ingest/financial` | 세션 | — | {ok, result, log} | — | PostgreSQL | — | P-A | P01-①-2 | ingest.py:42 |
+| API-ING-02 | POST | `/api/ingest/crawl/auto` | 세션 | — | {ok, result, log} | — | PostgreSQL · Qdrant · LLM · 외부(api.github.com, github.com …) | — | P-A | P01-①-2 | ingest.py:52 |
+| API-ING-03 | POST | `/api/ingest/crawl/url` | 세션 | 본문 `CrawlUrlBody` | {ok, chunks, log} | — | PostgreSQL · Qdrant · LLM | `crawl-manual` | P-A | P01-①-2 | ingest.py:67 |
+| API-ING-04 | POST | `/api/ingest/crawl/naver` | 세션 | 본문 `CrawlNaverBody` | {ok, chunks, message} | — | PostgreSQL · Qdrant · LLM · 외부(finance.naver.com) | — | P-A | P01-①-2 | ingest.py:84 |
+| API-ING-05 | POST | `/api/ingest/local-docs` | 세션 | — | {ok, total_chunks, log} | — | PostgreSQL · Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:99 |
+| API-ING-06 | POST | `/api/ingest/translation-data` | 세션 + 관리자 | 본문 `TranslationIngestBody` | {ok, result, log} | 404 · 503 | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:149 |
+| API-ING-07 | POST | `/api/ingest/translation-search` | 세션 + 관리자 | 본문 `TranslationSearchBody` | {ok, hits, collection} | 404 · 503 | Qdrant · LLM | — | P-A | P01-①-3 | ingest.py:181 |
+| API-ING-08 | POST | `/api/ingest/financial/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Celery | — | P-A | P01-①-4 | ingest.py:209 |
+| API-ING-09 | POST | `/api/ingest/crawl/auto/async` | 세션 | — | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery · 외부(api.github.com, github.com …) | — | P-A | P01-①-4 | ingest.py:219 |
+| API-ING-10 | POST | `/api/ingest/crawl/url/async` | 세션 | 본문 `CrawlUrlBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:227 |
+| API-ING-11 | POST | `/api/ingest/translation-data/async` | 세션 + 관리자 | 본문 `TranslationIngestBody` | {task_id, poll_url} | — | PostgreSQL · Redis · Qdrant · LLM · Celery | — | P-A | P01-①-4 | ingest.py:236 |
+| API-ING-12 | GET | `/api/ingest/crawl/list` | 세션 | — | {items} | — | PostgreSQL | `crawl-manual` | P-A | P01-①-2 | ingest.py:253 |
 
 #### `health` — `app/routes/health.py` · 1개
 
@@ -1282,6 +1282,37 @@ KIS 연동(`quant_mode=live`)은 증권사 잔고·보유로 판단한다. 잔�
 DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자는 소급 추정하지 않는다.
 3절 F4의 인증 없는 태스크 지적은 이 변경 이전 조사 기록이다.
 
+### 번역 자료 API 문지기 · 응답 갈래 (DF-149 · 결정 T2 · T6 · 2026-10-23)
+
+`API-ING-06`(적재) · `API-ING-07`(검색) · `API-ING-11`(비동기 적재)은 AI허브 71782 번역 자료를 다룬다. 모음 조각에 원문 · 번역이
+그대로 있어(이용정책 5항 「열람」) 문지기 `ingest._translation_gate` 를 지난다 — **기본은 꺼짐**(설정 `TRANSLATION_API_ENABLED=False`) ·
+**켜도 관리자만**. 예전엔 로그인만 봤고, 검색은 `qdrant-client` 1.16 에서 없어진 `search` 를 불러 늘 `hits: []`(DF-149)였다.
+
+| 경우 | 코드 | `detail` | 길 |
+|---|---|---|---|
+| 꺼져 있음(기본) | `403` | 「번역 자료 API 가 꺼져 있습니다 — … (설정 TRANSLATION_API_ENABLED)」 | 셋 모두 · 서비스를 부르지 않음 |
+| 켰는데 관리자 아님 | `403` | 「관리자 권한이 필요합니다.」 | 셋 모두 |
+| 모음 없음(적재 전) | `404` | 「번역 자료가 아직 적재되지 않았습니다 — …」 · 임베딩 모델을 부르지 않음 | `API-ING-07` |
+| 원자료 폴더 없음 | `404` | 「번역 원자료 폴더(data/1.데이터/)가 없습니다 — … 받은 파일 이름 그대로 …」 | `API-ING-06` |
+| Qdrant · 임베딩 장애 | `503` | 「번역 검색을 하지 못했습니다 — …」 · 「번역 자료를 적재하지 못했습니다 — …」 | `API-ING-06` · `07` |
+| 결과 0건 | `200` | `hits: []` | `API-ING-07` |
+
+검색 한 번이 지나는 확인은 <그림 6-1> 과 같다 — 위에서부터 차례로 보고, 처음 걸린 곳의 코드를 돌려준다.
+
+**<그림 6-1> 번역 검색 응답 갈래** · 범례: 노랑 = 문지기(403) · 파랑 = 적재 전(404) · 빨강 = 장애(503) · 초록 = 결과(200)
+
+![번역 검색 응답 갈래 — 설정이 꺼져 있으면 403, 관리자가 아니면 403, 모음이 없으면 임베딩을 부르기 전에 404, 임베딩 · Qdrant 에 닿지 못하면 503, 그 밖에는 200(0건이면 hits 빈 목록). 예전엔 늘 200 빈 목록이라 셋을 가를 수 없었다](img/translation-api-responses_v0.40.png)
+
+<sub>원본: [Figma · Qurious · 문서 그림 · API 명세서 그림 6-1](https://www.figma.com/design/6lstWS4YwuhJPhGB9XoBMD?node-id=76-110) · 그림 판 v0.40 · 기준 `5a3bfc9` + 이 판 · 2026-10-23</sub>
+
+- 검색 `top_k` 는 1 ~ 20 으로 잘라 쓴다(0 이면 5 · 422 가 아니라 자름 · `user_docs` 와 같은 상한). 결과 칸은 그대로(`score` · `text` · `translation` · `doc_no` · `category` · `target_language` · `domain`).
+- 적재 결과(`result`)에 `skipped_chunks`(임베딩이 빈 답이라 넣지 못한 조각) · `zips`(읽은 zip 이름 — 점 ID 가 zip 이름을 품으므로 받은 이름 그대로인지 맞대는 기록 · 결정 T5)를 더했다. 중간에 멈춰도 다시 돌리면 같은 점을 덮어쓴다.
+- 비동기 적재(`API-ING-11`)는 큐에 넣기 전에 문지기를 지난다. 작업 안에서 난 404 · 503 꼴의 예외는 작업 상태(`FAILURE`)로 보인다(위 「작업 조회 · 취소 권한」).
+- Qdrant 를 부르는 길은 문지기 모듈 `app/lib/vector_db.py` 한 곳이다(클라이언트 만들기 · `query_points` · 넣기 · 지우기 · 「닿지 못함」 = qdrant `ApiException` 만 · 우리 코드 잘못은 그대로 올림). 시험 TC-TA(라우트) · TC-TR(서비스 · 메모리 Qdrant) · TC-VD(문지기 계약).
+
+`API-SYS-01`(`GET /api/system/status`)의 `services` 가운데 `Qdrant` 줄에 판 짝 세 칸을 더했다 — `server_version`(서버 `GET /` 의 `version`) ·
+`client_version`(앱의 `qdrant-client`) · `version_ok`(주 판이 같고 부 판 차가 1 이하면 `true` · 모르면 `null`). `check.ps1` 이 `false` 면 「주의」 로 알린다.
+
 2절의 오류 코드 표는 **라우트 본문에 적힌 것만** 센다. 실제로 나가는 오류는 그보다 많다.
 
 | 어디서 | 코드 | 몸통 모양 | 몇 곳 |
@@ -1294,6 +1325,7 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 | 리다이렉트 홉 (`url_guard.guard_request` · 2026-10-08) | `400` 「리다이렉트로 옮겨 간 주소를 받을 수 없다 — 까닭」(그 주소로는 요청을 보내지 않았다) | `{"detail": {"message": "…", "url": "막힌 주소", "hint": "허용 목록: …"}}` | `API-ING-03`(비동기 `API-ING-10` 은 작업 실패로) |
 | 자료 안내 (`data_guide.read` · 2026-10-08) | `503` 「자료 안내 설명 파일이 없습니다」 · 「… 판(N)이 앱이 아는 판(2)과 다릅니다」 | `{"detail": "문자열"}` | 1곳(`API-DATA-11`) |
 | 화면 수집 요청 (`collect_requests` · 2026-10-10) | `403` 「화면에서 보낸 요청만 받습니다 — X-Qurious-Action: collect 머리글이 필요합니다」 · 「다른 사이트에서 온 요청은 받지 않습니다」 · `409` 「대기 중인 요청만 취소합니다 — 지금 「도는 중」」 · `404` 「그런 요청이 없습니다」 · `422` 「모르는 단계입니다 …」 · 「전체 수집에는 단계 이름을 주지 않습니다」(화면 알림에 그대로 나가므로 v0.17 에 「~니다」 로) · v0.18 채우기 — 「「…」 은 빠진 날 채우기를 하지 않는 단계입니다」 · 「날짜(첫날 · 마지막 날)를 YYYY-MM-DD 로 둘 다 줍니다」 · 「첫날(…)이 마지막 날(…)보다 뒤입니다」 · 「마지막 날(…)이 오늘(…)보다 뒤입니다」 · 「한 번에 31일까지 채웁니다 — …」 · 「채우기 상한(fill_max_days)이 단계 목록에 없습니다 — …」 · 「단계 하나 · 전체 수집에는 날짜를 주지 않습니다(…)」 | `{"detail": "문자열"}` | 4곳(`API-DATA-12 ~ 15` — 403 머리글은 만들기 · 취소 둘) |
+| 번역 자료 문지기 (`ingest._translation_gate` · 2026-10-23) | `403` 「번역 자료 API 가 꺼져 있습니다 — …」(기본) · 「관리자 권한이 필요합니다.」 | `{"detail": "문자열"}` | 3곳(`API-ING-06 · 07 · 11`) |
 | FastAPI 스스로 | `422` 요청 검증 실패 | `{"detail": [{"loc", "msg", "type"}, …]}` | 인자가 있는 전부 |
 
 > 🟡 **규약 제안(② 에서 정함)** — 새로 만드는 API 는 한 형식만 쓴다. 후보는 Open API 모양(`error` 이름 + `message`)이다.
@@ -1315,7 +1347,7 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 | IF-05 | 앱 ↔ Redis | Redis 프로토콜 | `REDIS_URL`(`redis://localhost:6379`) · 세션 `fin_session:{sid}` · JWT 폐기 목록 · Open API 한도 `openapi_rl` · Celery 브로커 · 결과 | 본문 22 + **인증 105** | `app/lib/redis_cache.py` · `session.py` | 공통 | 🟢 · 세션 인증 105곳(세션 64 · 세션·JWT 41)이 Redis 를 읽는다 |
 | IF-06 | 앱 ↔ PostgreSQL | asyncpg · 시작 때 alembic `upgrade head` | `DATABASE_URL` | 160 | `app/database/postgres.py` · `main.py:20-25` | 전 파트 | 🟢 · 라우트 캐시 표 `data_cache`(F2 · F10) |
 | IF-07 | 앱 ↔ Neo4j | bolt | `NEO4J_URI`(`bolt://localhost:7687`) | 6 (전부 인증 없음) | `app/database/neo4j.py` · `graph_service.py` | P-A | 🟢 · F4 ③ |
-| IF-08 | 앱 ↔ Qdrant | HTTP | `QDRANT_URL`(`:6333`) · `QDRANT_COLLECTION` = `DOCUMENT_COLLECTION` = `fin_chunks`(기본값이 같다) · `translation_docs` | 16 | `rag_pipeline.py` · `crawl.py` · `translation_ingest.py` | P-A | 🟡 업로드 문서와 크롤 청크가 기본값으로 한 컬렉션(옛 A2 · A10) |
+| IF-08 | 앱 ↔ Qdrant | HTTP | `QDRANT_URL`(`:6333`) · `QDRANT_COLLECTION` = `DOCUMENT_COLLECTION` = `fin_chunks`(기본값이 같다) · `translation_docs` | 16 | 문지기 `app/lib/vector_db.py`(2026-10-23 · 클라이언트 만들기 · 검색 · 넣기 · 지우기 · 판 짝) 를 거쳐 `rag_pipeline.py` · `user_docs.py` · `crawl.py` · `crawl_points.py` · `translation_ingest.py` · 서버 ↔ 클라이언트 부 판 1 이내(잠금 · compose 판 태그@다이제스트) | P-A | 🟡 업로드 문서와 크롤 청크가 기본값으로 한 컬렉션(옛 A2 · A10) |
 | IF-09 | 앱 → LLM | HTTP (Ollama · vLLM OpenAI 호환) | `LLM_PROVIDER` `ollama` · `OLLAMA_BASE_URL`(`127.0.0.1:11434`) · `LLM_MODEL` `llama3.1` · `EMBED_MODEL` `nomic-embed-text` · `VLLM_BASE_URL` | 15 | `app/lib/ollama.py` · `llm_client.py` | P-A | 🟡 스위치가 세 갈래에 안 듣는다(옛 A10) |
 | IF-10 | 앱 → Celery 워커 | Redis 브로커 · `.delay()` | `REDIS_URL` | 7 (+ 조회 · 취소 2 · 인증 없음) | `app/celery_app.py:32-33` · `app/tasks/` | P-E | 🟡 태스크 등록 문제(옛 A4 — 실행 불가 6개)는 이 판에서 다시 재지 않음 |
 | IF-11 | 앱 → LEAN | Docker 소켓 위 HTTP(`http://docker`) 또는 SSH | `LEAN_MODE` `auto` · `DOCKER_SOCK` `/var/run/docker.sock` · `LEAN_SSH_*` | 2 | `app/services/lean_backtest.py:276` | P-D | 🟢 · 도커 소켓은 옛 A3 의 보안 안건 |
@@ -1452,6 +1484,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.40 | 2026-10-23 | 채움 — 6절 <그림 6-1>(번역 검색 응답 갈래 · Figma) · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 인증 「세션 + 관리자」(문지기 · 기본 꺼짐) · 오류 칸 404 · 503 · 6절 「번역 자료 API 문지기 · 응답 갈래」(403 · 404 · 503 · 200 · `top_k` 1 ~ 20 · 적재 결과 `skipped_chunks` · `zips`) · 오류 출처 표에 문지기 줄 · `API-SYS-01` Qdrant 줄 판 짝 칸(`server_version` · `client_version` · `version_ok`) · IF-08 문지기 경유 · 4절 표를 `api_scan.py --doc` 로 다시 채움(`ingest.py` 줄 번호 · 404 묶음 27 → 29 · 503 묶음 16 → 18) | DF-149(번역 검색 늘 0건) 고침 · 결정 T2 · T6(2026-10-23 사용자) · 의존성 판 관리(판 짝) | `app/routes/ingest.py` · `app/lib/vector_db.py` · `app/services/system_info.py` · TC-TA · TC-TR · TC-VD · TC-DL |
 | v0.39 | 2026-10-23 | 올린 문서 사용자 격리(DF-146) — `API-DOC-01` 조각을 비공개 모음에(500 · DB 저장 실패 되돌림) · `API-DOC-03` 조각 지우기 실패면 503 · `API-DOC-04` 내 문서만 · `top_k` 1 ~ 20 · `query` 1 ~ 2000 · `API-CHAT-01` · `02` 근거 = 공용 크롤 + 내 문서 · `API-AUTH-14` 탈퇴 503 · 「벡터 조각」 칸 · `API-GRPH-01` ~ `06` 로그인(`/seed` 관리자 · DF-147) · 스캐너 표 셋 · 카탈로그 다시 채움 | 일회용 계정 둘로 재현한 공용 모음 결함 · 사용자 10-23 「좋은 방식으로 끝까지」 | `scripts/api_scan.py --doc` · `--catalog` · 결함대장 DF-146 · DF-147 |
 | v0.38 | 2026-10-22 | 채움 — `API-ML-09`(`POST /api/ml/robo/goal-simulation`) 오류 칸 422 — 입력 모델에 칸마다 범위 표와 한국어 안내 글 · 계산이 넘친 조합도 422(감리 HIGH `FD-FIND-002` · 결함 DF-144 · #317 2-1) · 422 묶음 29 → 30 · `ml.py` 줄 번호 · 4절 표를 `api_scan.py --doc` 로 다시 채움 | 라우트 본문에 422 가 생겨 오류 칸이 바뀜 | `api_scan.py --doc` · `main` `4bed63b` + 이 판 작업 트리 |
 | v0.37 | 2026-10-21 | 채움 — 4절 표의 `stocks.py` 줄 번호 14곳(#302 가 위험 관문 열쇠를 장부별로 바꾸며 줄이 한두 줄 밀림) · API 문서 카탈로그(`public/api-docs/catalog.json` · 271) 같은 줄 / 남김 — 라우트 271 · 대장 275줄(사용 271 · 폐기 4) · 미등록 0 · 대장에만 0 · 화면이 부르는데 맞는 라우트가 없는 호출 0 · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않음 | 2차 최종 판(2차 마감 · 10-21 발표 날) — 팀원 머지 뒤 표가 코드와 같게 · a 의 빠른 확인(`--doc · --catalog --check`) | `main` `6fa8f58` · `api_scan.py --json`(검사 · 대장) |

@@ -22,6 +22,7 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from app.lib import vector_db
 from app.lib.llm_limits import answer_options
 
 
@@ -70,8 +71,11 @@ def _make_embeddings() -> OllamaEmbeddings:
 
 
 def _make_client() -> QdrantClient:
-    """LangChain 에 넘길 동기 클라이언트(시험은 이 함수를 메모리 Qdrant 로 바꾼다)."""
-    return QdrantClient(url=settings.QDRANT_URL)
+    """LangChain 에 넘길 동기 클라이언트(시험은 이 함수를 메모리 Qdrant 로 바꾼다).
+
+    만드는 곳은 문지기 한 곳이다(app/lib/vector_db.py · 2026-10-23) — 주소 · 판이 바뀌어도 그 파일만 고친다.
+    """
+    return vector_db.sync_client()
 
 
 def _ensure_collection(client: QdrantClient, collection: str) -> None:
@@ -192,9 +196,8 @@ def build_rag_chain(collection: str | None = None):
     """
     coll = collection or settings.QDRANT_COLLECTION
 
-    # 동기 Qdrant 클라이언트 (LCEL retriever는 sync 인터페이스 사용)
-    from qdrant_client import QdrantClient
-    sync_client = QdrantClient(url=settings.QDRANT_URL)
+    # 동기 Qdrant 클라이언트 (LCEL retriever는 sync 인터페이스 사용) — 만드는 곳은 문지기 한 곳(2026-10-23)
+    sync_client = _make_client()
 
     vector_store = CompatibleQdrantStore(
         client=sync_client,

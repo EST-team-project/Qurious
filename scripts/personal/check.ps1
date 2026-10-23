@@ -468,8 +468,13 @@ $Checks = @(
      Test = { param($r)
        $q = @($r.Json.services) | Where-Object { $_.name -eq 'Qdrant' } | Select-Object -First 1
        if (-not $q) { return (Fail '상태 응답에 Qdrant 줄이 없다') }
-       if ($q.ok) { Pass "Qdrant 연결됨 ($($q.url) · $($q.ms)ms)" }
-       else { Fail "Qdrant 에 닿지 않음 ($($q.url)) — .\scripts\personal\logs.ps1 -Service qdrant · compose 의 qdrant 서비스(2026-10-02~ 늘 켬)" } } }
+       if (-not $q.ok) { return (Fail "Qdrant 에 닿지 않음 ($($q.url)) — .\scripts\personal\logs.ps1 -Service qdrant · compose 의 qdrant 서비스(2026-10-02~ 늘 켬)") }
+       # 판 짝(2026-10-23) — 앱 이미지의 qdrant-client(잠금)와 서버가 주 판 같고 부 판 차 1 이하(Qdrant 공식 · 올릴 때는 서버 먼저).
+       # 클라이언트 자체 검사는 경고만 내고 시험은 그 경고를 꺼 두어 여기서 본다. 판을 모르면(옛 앱) 연결만 판정한다.
+       $pair = "서버 $($q.server_version) · 클라이언트 $($q.client_version)"
+       if ($q.version_ok -eq $false) { return (Warn "Qdrant 연결됨 — 판 짝 어긋남($pair) · 부 판 1 이내 · 서버 먼저 — 로컬실행안내서 「의존성 잠금 · 갱신」") }
+       if ($null -eq $q.version_ok) { return (Pass "Qdrant 연결됨 ($($q.url) · $($q.ms)ms · 판 짝 모름)") }
+       Pass "Qdrant 연결됨 ($($q.url) · $($q.ms)ms · 판 짝 $pair)" } }
 
   # ── 관리 (관리자 전용 · 읽기만) ─────────────────────────────────────────────────
   # ⚠️ POST /api/admin/reset(금융 · 사용자 표 전부 삭제)은 점검에 넣지 않는다 — 읽기 API 둘만.

@@ -416,10 +416,11 @@ function Test-QImageStale {
     도커 컨테이너는 **이미지를 만든 순간의 코드**로 돈다. git pull 로 코드를 받거나 파일을 고친 뒤
     이미지를 다시 만들지 않으면, 화면에는 옛 코드가 계속 보인다 — 팀 작업에서 가장 흔한 착각이다.
     그래서 Dockerfile 이 COPY 하는 것들(app · public · prompts · alembic · alembic.ini ·
-    requirements.txt · Dockerfile)의 마지막 수정 시각과 이미지 생성 시각을 비교한다.
+    requirements.txt · requirements.lock · Dockerfile)의 마지막 수정 시각과 이미지 생성 시각을 비교한다.
+    (2026-10-23 · 판은 잠금 파일이 정한다 — 잠금만 바뀌어도 패키지가 바뀌므로 함께 본다.)
     파일 쪽이 더 새로우면 start.ps1 이 `--build` 를 붙여 다시 만든다(바뀐 층만 다시 만들어 보통 수십 초).
   .PARAMETER DepsOnly
-    개발 모드용 — requirements.txt · Dockerfile 만 비교한다. 개발 모드는 코드 폴더를 컨테이너에
+    개발 모드용 — requirements.txt · requirements.lock · Dockerfile 만 비교한다. 개발 모드는 코드 폴더를 컨테이너에
     직접 연결하므로 코드가 새로워도 다시 만들 필요가 없고, 설치 패키지가 바뀔 때만 필요하다.
   #>
   param([switch]$DepsOnly)
@@ -430,8 +431,8 @@ function Test-QImageStale {
   $imageUtc = [datetime]::ParseExact(([string]$created).Substring(0, 19), 'yyyy-MM-ddTHH:mm:ss',
     [System.Globalization.CultureInfo]::InvariantCulture,
     [System.Globalization.DateTimeStyles]'AssumeUniversal, AdjustToUniversal')
-  $names = @('app', 'public', 'prompts', 'alembic', 'alembic.ini', 'requirements.txt', 'Dockerfile')
-  if ($DepsOnly) { $names = @('requirements.txt', 'Dockerfile') }
+  $names = @('app', 'public', 'prompts', 'alembic', 'alembic.ini', 'requirements.txt', 'requirements.lock', 'Dockerfile')
+  if ($DepsOnly) { $names = @('requirements.txt', 'requirements.lock', 'Dockerfile') }
   $sources = $names | ForEach-Object { Join-Path $QRoot $_ } | Where-Object { Test-Path $_ }
   # 폴더는 안쪽까지 훑고, 파일은 그 파일 하나만 본다. 파일 경로에 -Recurse 를 주면 PowerShell 이 그 이름을
   # 「찾을 이름」 으로 읽어 저장소 전체에서 같은 이름의 파일을 찾는다 — 통합본 반입 폴더의

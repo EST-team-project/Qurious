@@ -393,7 +393,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 24,
+   "line": 42,
    "errors": [],
    "keys": [
     "ok",
@@ -427,7 +427,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 34,
+   "line": 52,
    "errors": [],
    "keys": [
     "ok",
@@ -458,7 +458,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 49,
+   "line": 67,
    "errors": [],
    "keys": [
     "ok",
@@ -492,7 +492,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 66,
+   "line": 84,
    "errors": [],
    "keys": [
     "ok",
@@ -523,7 +523,7 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 81,
+   "line": 99,
    "errors": [],
    "keys": [
     "ok",
@@ -539,7 +539,7 @@
    "method": "POST",
    "path": "/api/ingest/translation-data",
    "summary": "data/1.데이터 다국어 번역 ZIP → Qdrant translation_docs 컬렉션 인제스트.",
-   "auth": "세션",
+   "auth": "세션 + 관리자",
    "reaches": [
     "Qdrant",
     "LLM"
@@ -551,8 +551,11 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 131,
-   "errors": [],
+   "line": 149,
+   "errors": [
+    "404",
+    "503"
+   ],
    "keys": [
     "ok",
     "result",
@@ -569,7 +572,7 @@
    "method": "POST",
    "path": "/api/ingest/translation-search",
    "summary": "translation_docs 컬렉션에서 한국어 쿼리로 유사 문서 검색.",
-   "auth": "세션",
+   "auth": "세션 + 관리자",
    "reaches": [
     "Qdrant",
     "LLM"
@@ -581,8 +584,11 @@
     "P01-①-3"
    ],
    "file": "app/routes/ingest.py",
-   "line": 157,
-   "errors": [],
+   "line": 181,
+   "errors": [
+    "404",
+    "503"
+   ],
    "keys": [
     "ok",
     "hits",
@@ -612,7 +618,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 176,
+   "line": 209,
    "errors": [],
    "keys": [
     "task_id",
@@ -647,7 +653,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 186,
+   "line": 219,
    "errors": [],
    "keys": [
     "task_id",
@@ -677,7 +683,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 194,
+   "line": 227,
    "errors": [],
    "keys": [
     "task_id",
@@ -694,7 +700,7 @@
    "method": "POST",
    "path": "/api/ingest/translation-data/async",
    "summary": "다국어 번역 데이터 인제스트를 Celery 워커에 위임한다.",
-   "auth": "세션",
+   "auth": "세션 + 관리자",
    "reaches": [
     "PostgreSQL",
     "Redis",
@@ -709,7 +715,7 @@
     "P01-①-4"
    ],
    "file": "app/routes/ingest.py",
-   "line": 203,
+   "line": 236,
    "errors": [],
    "keys": [
     "task_id",
@@ -739,7 +745,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/ingest.py",
-   "line": 220,
+   "line": 253,
    "errors": [],
    "keys": [
     "items"

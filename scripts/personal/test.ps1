@@ -29,6 +29,13 @@
   폴더(/out)에 쓰고, pytest 는 호스트와 같은 판을 컨테이너 안에만 깐다(호스트에는 아무것도 깔지 않는다).
   Docker 가 꺼졌거나 이미지 · 네트워크가 없으면 실패가 아니라 「건너뜀」 과 까닭을 run.json(skipped_reason)에 남긴다.
   인자 없는 실행 · -Path 는 지금처럼 호스트에서만 돈다(그 셋은 건너뜀).
+  (2026-10-23) 묶음에 번역 적재 · 검색(TC-TR) · Qdrant 문지기 계약(TC-VD)이 더해져 다섯이다. 돌기 전에 「이 이미지가 지금
+  잠금(requirements.lock)으로 만든 것인가」 를 본다 — 아니면 실패가 아니라 건너뜀 + 까닭(docker compose build app 뒤 다시).
+
+  카나리아 줄(2026-10-23 · -Canary) — 같은 컨테이너 묶음을, 지켜볼 패키지(qdrant-client · langchain-qdrant · langchain-core ·
+  langchain-ollama · langgraph)만 최신으로 올린 일회용 컨테이너에서 돈다. 잠금 판 시험과 따로 돌고 결과는 run.json 의
+  canary 칸(올라간 판 · 통과 · 실패)에만 남긴다. 실패해도 종료 코드는 0 — 「다음 판에서 깨진다」 를 미리 알리는 신호다.
+  주 1회 갱신(로컬실행안내서 「의존성 잠금 · 갱신」)에서 갱신 보고서(scripts/personal/deps_report.py) 다음에 돌린다.
 
 .PARAMETER Path
   이 파일(들)만 시험한다. 예) -Path tests\test_rebalance.py
@@ -57,6 +64,9 @@
   세션 밖에서 돈다 — 같은 인자로 자기 자신을 숨은 창으로 다시 띄우고 바로 끝난다. 다 됐는지는 결과 폴더의
   run.json(status 가 done)으로 본다. 화면 출력은 같은 폴더 test.log.
 
+.PARAMETER Canary
+  카나리아 줄만 돈다(위 설명 · -Path · -Split · -Group · -Resume · -LastFailed 와 함께 쓰지 않는다 · -Detach 는 된다).
+
 .PARAMETER RunDir
   결과 폴더. 보통 비운다(새로 만든다) — -Detach 가 띄운 쪽에 넘겨줄 때 · -Resume 으로 특정 폴더를 이어 갈 때 쓴다.
 
@@ -70,6 +80,8 @@
   .\scripts\personal\test.ps1 -Group ui,kb          # 화면 · 지식 묶음만
 .EXAMPLE
   .\scripts\personal\test.ps1 -Group ctr -NoDb      # RAG · 채팅 · 올린 문서 격리 셋만 앱 이미지 컨테이너로
+.EXAMPLE
+  .\scripts\personal\test.ps1 -Canary               # 지켜볼 패키지만 최신으로 — 다음 판에서 깨지나(종료 코드는 늘 0)
 .EXAMPLE
   .\scripts\personal\test.ps1 -Resume               # 끊긴 묶음 실행을 이어서
 .EXAMPLE
@@ -85,6 +97,7 @@ param(
   [switch]$Resume,
   [switch]$LastFailed,
   [switch]$Detach,
+  [switch]$Canary,
   [string]$RunDir = ''
 )
 
@@ -135,16 +148,61 @@ function Get-QTestLockPid {
 # 컨테이너 묶음(_test_groups.py 의 runner = container) — 앱 이미지 일회용 컨테이너에서 그 묶음 파일만 돈다.
 # 저장소는 읽기 전용(/w:ro) · 결과 XML 은 결과 폴더(/out)에 · pytest 는 호스트와 같은 판을 컨테이너 안에만 깐다.
 # 돌려주는 것: @{ code = pytest 종료 코드; reason = 건너뛴 까닭(돌았으면 $null) } — 건너뜀은 실패가 아니다.
-function Invoke-QContainerGroup($g, [string]$dir) {
+# 카나리아 줄이 최신으로 올려 볼 패키지 — Qdrant · LangChain 계약 패키지(갱신 때 시간을 쓰는 것 · 조사 4.6).
+$CanaryPackages = @('qdrant-client', 'langchain-qdrant', 'langchain-core', 'langchain-ollama', 'langgraph')
+
+# 잠금 지문 — 줄 끝(CR)을 지운 requirements.lock 의 SHA-256. core.autocrlf 로 PC 마다 줄 끝이 달라도 같은 잠금이면 같은 값.
+function Get-QLockDigest {
+  $p = Join-Path $QRoot 'requirements.lock'
+  if (-not (Test-Path $p)) { return '' }
+  $bytes = [IO.File]::ReadAllBytes($p)
+  $lf = New-Object 'System.Collections.Generic.List[byte]' ($bytes.Length)
+  foreach ($b in $bytes) { if ($b -ne 13) { $lf.Add($b) } }
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try { return (($sha.ComputeHash($lf.ToArray()) | ForEach-Object { $_.ToString('x2') }) -join '') } finally { $sha.Dispose() }
+}
+
+# 이 이미지가 지금 잠금으로 만든 것인가(2026-10-23) — 잠금이 바뀌었는데 옛 이미지로 돌면 그 「통과」 는 지금 판의 통과가 아니다.
+# 돌려주는 것: 같으면 $null · 다르면 건너뛸 까닭(이미지 안의 /app/requirements.lock 은 Dockerfile 이 넣는다).
+function Test-QImageLock([string]$image) {
+  $want = Get-QLockDigest
+  if (-not $want) { return $null }
+  $out = & docker run --rm --network none $image sh -c "test -f /app/requirements.lock && tr -d '\r' < /app/requirements.lock | sha256sum" 2>$null
+  if ($LASTEXITCODE -ne 0 -or -not $out) { return "앱 이미지 $image 에 잠금 파일이 없다(잠금 전에 만든 이미지) — docker compose build app 뒤 -Group ctr" }
+  $got = ("$(@($out)[0])".Trim() -split '\s+')[0]
+  if ($got -ne $want) { return "앱 이미지 $image 가 지금 잠금(requirements.lock)으로 만든 것이 아니다 — docker compose build app 뒤 -Group ctr" }
+  return $null
+}
+
+# 잠금의 판 — @{ 정규화 이름 = 판 } (카나리아가 올라간 판을 잠금과 견줄 때)
+function Get-QLockVersions {
+  $v = @{}
+  $p = Join-Path $QRoot 'requirements.lock'
+  if (-not (Test-Path $p)) { return $v }
+  foreach ($ln in Get-Content $p -Encoding UTF8) {
+    if ($ln -match '^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;]+)') { $v[($Matches[1].ToLower() -replace '[._]', '-')] = $Matches[2] }
+  }
+  return $v
+}
+
+function Invoke-QContainerGroup($g, [string]$dir, [string[]]$Upgrade = @()) {
   $null = & docker version --format '{{.Server.Version}}' 2>&1
   if ($LASTEXITCODE -ne 0) { return @{ code = 0; reason = 'Docker 엔진이 꺼져 있다 — Docker Desktop 을 켠 뒤 -Group ctr' } }
   $null = & docker image inspect $g.image 2>&1
   if ($LASTEXITCODE -ne 0) { return @{ code = 0; reason = "앱 이미지 $($g.image) 가 없다 — docker compose build app 뒤 -Group ctr" } }
+  $stale = Test-QImageLock $g.image
+  if ($stale) { return @{ code = 0; reason = $stale } }
   $ver = "$(& python -c 'import pytest; print(pytest.__version__)')".Trim()
+  # 카나리아면 지켜볼 패키지를 같은 설치 줄에서 -U 로 올리고(그 밖은 필요할 때만), 올라간 판을 /out/<열쇠>.freeze.txt 에 남긴다.
+  $up = ''; $freeze = ''
+  if ($Upgrade.Count -gt 0) {
+    $up = ' -U ' + ($Upgrade -join ' ')
+    $freeze = 'pip freeze > /out/{0}.freeze.txt; ' -f $g.key
+  }
   # 97 = 컨테이너 안 pytest 설치 실패(대개 네트워크) — 시험 실패(1)와 가른다
-  $inner = ('pip install -q --disable-pip-version-check pytest=={0} >/dev/null 2>&1 || exit 97; ' +
-            'python -m pytest -p no:cacheprovider -W ignore::UserWarning --junit-xml=/out/{1}.xml {2}') -f `
-    $ver, $g.key, (@($g.files) -join ' ')
+  $inner = ('pip install -q --disable-pip-version-check pytest=={0}{3} >/dev/null 2>&1 || exit 97; ' +
+            '{4}python -m pytest -p no:cacheprovider -W ignore::UserWarning --junit-xml=/out/{1}.xml {2}') -f `
+    $ver, $g.key, (@($g.files) -join ' '), $up, $freeze
   $repo = $QRoot -replace '\\', '/'
   $out = $dir -replace '\\', '/'
   & docker run --rm -v "${repo}:/w:ro" -v "${out}:/out" -w /w -e PYTHONDONTWRITEBYTECODE=1 $g.image sh -c $inner
@@ -155,6 +213,7 @@ function Invoke-QContainerGroup($g, [string]$dir) {
 
 if ($Path.Count -gt 0 -and $Grouped) { Write-QFail '-Path 는 -Split · -Group · -Resume 과 함께 쓰지 않습니다.'; exit 2 }
 if ($LastFailed -and $Grouped) { Write-QFail '-LastFailed 는 묶음 옵션과 함께 쓰지 않습니다(지난 실패 전부를 한 번에 돈다).'; exit 2 }
+if ($Canary -and ($Grouped -or $LastFailed -or $Path.Count -gt 0)) { Write-QFail '-Canary 는 혼자 씁니다(-Detach 만 함께).'; exit 2 }
 
 $TestDbName = 'qurious-test-pg'
 # 시험 DB 포트 후보. 15432(앱 개발 DB)는 절대 쓰지 않는다. 고정 번호가 아니라 후보인 이유는
@@ -179,6 +238,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 $pyVer = & python --version
 Write-QOk "$pyVer · pytest 있음"
+# 호스트 파이썬 판이 잠금(= 앱 이미지)과 다른 패키지 — 알리기만 한다(결정 D6 · 발표까지 호스트 환경은 그대로 두고,
+# RAG · 채팅 · 번역 · 문지기 시험은 컨테이너 묶음이 이미지 판으로 돈다). 출력은 ASCII(_requirements_check.py --lock).
+$lockDiff = @(& python (Join-Path $PSScriptRoot '_requirements_check.py') --lock 2>$null)
+if ($lockDiff.Count -gt 0 -and "$($lockDiff[0])" -match '^LOCKDIFF (\d+)' -and [int]$Matches[1] -gt 0) {
+  $nDiff = [int]$Matches[1]
+  $eg = ($lockDiff | Select-Object -Skip 1 -First 4 | ForEach-Object { $q = "$_" -split ' '; '{0} {1} / {2}' -f $q[0], $q[1], $q[2] }) -join ' · '
+  Write-QWarn ("호스트 파이썬 판이 잠금(앱 이미지)과 다른 패키지 {0}개 — 예: {1} (호스트 / 잠금)" -f $nDiff, $eg)
+  Write-QInfo '호스트 통과가 이미지 통과를 뜻하지는 않는다 — 이미지 판 시험은 -Split(맨 끝 ctr) 또는 -Group ctr'
+}
 
 # 12:30 일일 갱신이 수집 DB 를 다시 쓰는 중이면, 그 DB 를 읽는 시험이 흔들린다 → 끝난 뒤에 돌린다.
 $lock = Join-Path $QRoot 'data\collector\state\daily_update.lock'
@@ -227,7 +295,7 @@ if ($Grouped) {
   else { $plan = $table }
 }
 
-if (($Grouped -or $LastFailed -or $Detach) -and -not $RunDir) {
+if (($Grouped -or $LastFailed -or $Detach -or $Canary) -and -not $RunDir) {
   $RunDir = Join-Path $TestRunRoot (Get-Date -Format 'yyyyMMdd-HHmmss')
 }
 if ($RunDir) { $null = New-Item -ItemType Directory -Force -Path $RunDir }
@@ -242,6 +310,7 @@ if ($Detach) {
   if ($Split) { $argList += '-Split' }
   if ($Resume) { $argList += '-Resume' }
   if ($LastFailed) { $argList += '-LastFailed' }
+  if ($Canary) { $argList += '-Canary' }
   if ($NoDb) { $argList += '-NoDb' }
   if ($KeepDb) { $argList += '-KeepDb' }
   $argList += @('-RunDir', (ConvertTo-QArg $RunDir))
@@ -252,6 +321,46 @@ if ($Detach) {
     -RedirectStandardOutput (Join-Path $RunDir 'test.log') -RedirectStandardError (Join-Path $RunDir 'test.err.log')
   Write-QOk "세션 밖에서 돕니다 (PID $($child.Id)) — 결과 폴더: $RunDir"
   Write-QInfo 'run.json 의 status 가 done 이면 끝 · 묶음별 수는 groups · 합은 totals · 화면 출력은 test.log'
+  exit 0
+}
+
+# 카나리아 줄(2026-10-23) — 컨테이너 묶음 파일을 지켜볼 패키지만 최신으로 올려 돈다. 시험 DB 를 쓰지 않아 잠금 앞에서 끝난다.
+# 결과는 run.json 의 canary 칸(올라간 판 · 수)에만 · 종료 코드는 늘 0(머지를 막지 않는 신호 — Fowler 「ContractTest」 · 조사 표 1 행 9 · 10).
+if ($Canary) {
+  $tableJson = & python (Join-Path $PSScriptRoot '_test_groups.py') --json
+  $ctrSpec = @((($tableJson -join "`n") | ConvertFrom-Json).groups) | Where-Object { $_.key -eq 'ctr' } | Select-Object -First 1
+  if (-not $ctrSpec) { Write-QFail '묶음 표에 컨테이너 묶음(ctr)이 없습니다.'; exit 1 }
+  $cg = [pscustomobject]@{ name = '카나리아'; key = 'canary'; files = @($ctrSpec.files); runner = 'container'; image = $ctrSpec.image }
+  Write-QStep ('카나리아 — {0} 만 최신으로 올려 컨테이너 묶음 {1}파일을 돈다 (결과 {2})' -f ($CanaryPackages -join ' · '), @($cg.files).Count, $RunDir)
+  $state = [ordered]@{ status = 'running'; pid = $PID; mode = 'canary'; started_at = (Get-QNow); finished_at = $null
+    run_dir = $RunDir; canary = $null; exit_code = $null }
+  Save-QRunJson $RunDir $state
+  $t0 = Get-Date
+  $r = Invoke-QContainerGroup $cg $RunDir $CanaryPackages
+  $n = Read-QJunit (Join-Path $RunDir 'canary.xml')
+  $lockV = Get-QLockVersions
+  $upgraded = New-Object System.Collections.ArrayList
+  $freezeFile = Join-Path $RunDir 'canary.freeze.txt'
+  if (Test-Path $freezeFile) {
+    foreach ($ln in Get-Content $freezeFile -Encoding UTF8) {
+      if ($ln -match '^([A-Za-z0-9][A-Za-z0-9._-]*)==(\S+)') {
+        $k = $Matches[1].ToLower() -replace '[._]', '-'
+        if ($CanaryPackages -contains $k -and $lockV[$k] -ne $Matches[2]) { [void]$upgraded.Add([ordered]@{ name = $k; lock = $lockV[$k]; canary = $Matches[2] }) }
+      }
+    }
+  }
+  $entry = [ordered]@{ packages = $CanaryPackages; upgraded = $upgraded
+    tests = $n.tests; passed = $n.passed; failed = $n.failed; errors = $n.errors; skipped = $n.skipped
+    seconds = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1); exit_code = $r.code; junit = 'canary.xml' }
+  if ($r.reason) { $entry.skipped_reason = $r.reason }
+  $state.canary = $entry; $state.status = 'done'; $state.finished_at = (Get-QNow); $state.exit_code = 0
+  Save-QRunJson $RunDir $state
+  $ups = ($upgraded | ForEach-Object { '{0} {1} → {2}' -f $_.name, $_.lock, $_.canary }) -join ' · '
+  if (-not $ups) { $ups = '올라간 것 없음(잠금 판이 이미 최신)' }
+  if ($r.reason) { Write-QInfo "카나리아 — 건너뜀: $($r.reason)" }
+  elseif ($r.code -eq 0) { Write-QOk ('카나리아 통과 — 통과 {0} · 건너뜀 {1} · {2}' -f $n.passed, $n.skipped, $ups) }
+  else { Write-QWarn ('카나리아 실패 — 통과 {0} · 실패 {1} · 오류 {2} · {3} — 다음 판에서 깨진다: 결함대장 · 문지기에서 맞춘 뒤 올린다' -f $n.passed, $n.failed, $n.errors, $ups) }
+  Write-QInfo "결과 $RunDir\run.json (canary 칸) · 종료 코드는 0(신호)"
   exit 0
 }
 

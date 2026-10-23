@@ -1,0 +1,336 @@
+{
+ "설명": "번역 적재 · 검색 회귀 시험(TC-TR · tests/test_translation_search.py)의 고정 자료. 시험이 임시 폴더에 zip 을 만들어 data/1.데이터/ 자리로 쓴다. 칸 이름(meta.doc_no · sents[].source_original · source_cleaned · mt · mtpe)과 zip 이름 규칙은 코드(app/services/translation_ingest.py)에 이미 있는 것만 따랐다. AI허브 71782 의 문장은 한 줄도 없다 — SYN-* 는 팀이 쓴 합성 문장(숫자 · 날짜는 지어낸 값), TATOEBA-* 는 Tatoeba 문장(CC BY 2.0 FR · 출처는 ATTRIBUTION.md).",
+ "zips": [
+  {
+   "split": "Training",
+   "sub": "01.원천데이터",
+   "name": "TS_5. 공시정보_1. 영어.zip",
+   "members": [
+    {
+     "name": "SYN-SRC-001.json",
+     "doc": {
+      "meta": {
+       "doc_no": "SYN-SRC-001",
+       "domain": "금융",
+       "source_language": "ko"
+      },
+      "sents": [
+       {
+        "source_original": "당사는 정기 주주총회에서 사외이사 2명을 선임하였다."
+       },
+       {
+        "source_original": "감사위원회 위원도 함께 선임되었다."
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "split": "Training",
+   "sub": "02.라벨링데이터",
+   "name": "TL_5. 공시정보_1. 영어.zip",
+   "members": [
+    {
+     "name": "SYN-DISC-001.json",
+     "doc": {
+      "meta": {
+       "doc_no": "SYN-DISC-001",
+       "domain": "금융",
+       "source_language": "ko"
+      },
+      "sents": [
+       {
+        "source_original": "당사는  2026년 3분기 연결 기준 매출액이 1조 2천억 원이라고 공시하였다.",
+        "source_cleaned": "당사는 2026년 3분기 연결 기준 매출액이 1조 2천억 원이라고 공시하였다.",
+        "mt": "The company disclosed consolidated sales of 1.2 trillion won in the third quarter of 2026.",
+        "mtpe": "The company disclosed consolidated sales of 1.2 trillion won for the third quarter of 2026."
+       },
+       {
+        "source_original": "영업이익은 전년 동기 대비 12% 증가한 980억 원이다.",
+        "mtpe": "Operating profit was 98 billion won, up 12% from the same period last year."
+       },
+       {
+        "source_original": "이사회는 보통주 1주당 500원의 분기 현금배당을 결의하였다.",
+        "mtpe": "The board resolved a quarterly cash dividend of 500 won per common share."
+       },
+       {
+        "source_original": "배당기준일은 2026년 9월 30일이다.",
+        "mtpe": "The record date for the dividend is September 30, 2026."
+       },
+       {
+        "source_original": "배당금 지급 예정일은 2026년 11월 20일이다.",
+        "mtpe": "The dividend is scheduled to be paid on November 20, 2026."
+       },
+       {
+        "source_original": "당사는 자기주식 30만 주를 장내에서 취득할 예정이다.",
+        "mtpe": "The company plans to acquire 300,000 treasury shares on the market."
+       },
+       {
+        "source_original": "취득 예정 기간은 3개월이며 금액은 약 150억 원이다.",
+        "mtpe": "The planned acquisition period is three months, for about 15 billion won."
+       },
+       {
+        "source_original": "이번 결정은 주주가치 제고를 위한 것이다.",
+        "mtpe": "This decision is intended to enhance shareholder value."
+       },
+       {
+        "source_original": "부채비율은 직전 분기 말 대비 4%포인트 낮아졌다.",
+        "mtpe": "The debt ratio fell 4 percentage points from the end of the previous quarter."
+       },
+       {
+        "source_original": "환율 변동은 영업외손익에 반영되었다.",
+        "mtpe": "Exchange rate fluctuations were reflected in non-operating income and expenses."
+       },
+       {
+        "source_original": "당사는 신규 공장 투자 계획을 내년 상반기에 확정할 예정이다.",
+        "mtpe": "The company expects to finalize its new plant investment plan in the first half of next year."
+       },
+       {
+        "source_original": "위 내용은 외부감사인의 검토 전 잠정 실적이다.",
+        "mt": "The above figures are preliminary results before review by the external auditor."
+       }
+      ]
+     }
+    },
+    {
+     "name": "SYN-DISC-002.json",
+     "doc": {
+      "meta": {
+       "doc_no": "SYN-DISC-002",
+       "domain": "금융",
+       "source_language": "ko"
+      },
+      "sents": [
+       {
+        "source_original": "당사는 운영자금 확보를 위해 주주배정 유상증자를 결정하였다.",
+        "mtpe": "The company decided on a rights offering to shareholders to secure working capital."
+       },
+       {
+        "source_original": "신주 발행가액은 1주당 8,000원으로 예정되어 있다.",
+        "mtpe": "The issue price of the new shares is expected to be 8,000 won per share."
+       }
+      ]
+     }
+    },
+    {
+     "name": "SYN-DISC-003.json",
+     "doc": {
+      "meta": {
+       "doc_no": "SYN-DISC-003",
+       "domain": "금융",
+       "source_language": "ko"
+      },
+      "sents": []
+     }
+    },
+    {
+     "name": "SYN-DISC-004.json",
+     "raw": "{ 이 줄은 JSON 이 아니다 — 적재가 건너뛰는지 본다"
+    },
+    {
+     "name": "읽어보기.txt",
+     "raw": "JSON 이 아닌 파일 — 적재가 보지 않는다"
+    }
+   ]
+  },
+  {
+   "split": "Training",
+   "sub": "02.라벨링데이터",
+   "name": "TL_4. 뉴스기사_3. 일본어.zip",
+   "members": [
+    {
+     "name": "SYN-NEWS-JA-001.json",
+     "doc": {
+      "meta": {
+       "doc_no": "SYN-NEWS-JA-001",
+       "domain": "금융",
+       "source_language": "ko"
+      },
+      "sents": [
+       {
+        "source_original": "한국은행 금융통화위원회는 기준금리를 연 2.50%로 동결하였다.",
+        "mtpe": "韓国銀行の金融通貨委員会は政策金利を年2.50%に据え置いた。"
+       },
+       {
+        "source_original": "위원회는 물가 상승률이 목표 수준에 가까워지고 있다고 평가하였다.",
+        "mtpe": "委員会は物価上昇率が目標水準に近づいていると評価した。"
+       },
+       {
+        "source_original": "시장은 다음 회의에서 금리 인하 가능성을 주목하고 있다.",
+        "mtpe": "市場は次回会合での利下げの可能性に注目している。"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "split": "Validation",
+   "sub": "02.라벨링데이터",
+   "name": "TL_4. 뉴스기사_1. 영어.zip",
+   "members": [
+    {
+     "name": "TATOEBA-11105543.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-11105543",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 11105543,
+        "en_id": 3154910
+       }
+      },
+      "sents": [
+       {
+        "source_original": "나는 은행에 갔다.",
+        "mtpe": "I went to the bank."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-5526782.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-5526782",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 5526782,
+        "en_id": 374801
+       }
+      },
+      "sents": [
+       {
+        "source_original": "기름 가격은 이번 주에 떨어졌다.",
+        "mtpe": "The price of oil is down this week."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-11105314.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-11105314",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 11105314,
+        "en_id": 45249
+       }
+      },
+      "sents": [
+       {
+        "source_original": "그 가격에는 세금이 포함되어 있다.",
+        "mtpe": "The price includes tax."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-906615.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-906615",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 906615,
+        "en_id": 1256188
+       }
+      },
+      "sents": [
+       {
+        "source_original": "기름이나 석탄과 같은 원자재의 가격이 계속 상승하고 있다.",
+        "mtpe": "The prices of raw materials such as oil or coal continue to rise."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-2885860.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-2885860",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 2885860,
+        "en_id": 49092
+       }
+      },
+      "sents": [
+       {
+        "source_original": "그 회사가 작년에 십억엔의 손실을 보았다.",
+        "mtpe": "The company suffered a loss of one billion yen last year."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-8401457.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-8401457",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 8401457,
+        "en_id": 238003
+       }
+      },
+      "sents": [
+       {
+        "source_original": "난 경제학을 전공하고 있어.",
+        "mtpe": "I major in economics."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-13008046.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-13008046",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 13008046,
+        "en_id": 5546296
+       }
+      },
+      "sents": [
+       {
+        "source_original": "저희는 가격 안 올렸어요.",
+        "mtpe": "We haven't increased our prices."
+       }
+      ]
+     }
+    },
+    {
+     "name": "TATOEBA-13145959.json",
+     "doc": {
+      "meta": {
+       "doc_no": "TATOEBA-13145959",
+       "domain": "tatoeba",
+       "source_language": "ko",
+       "tatoeba": {
+        "ko_id": 13145959,
+        "en_id": 48625
+       }
+      },
+      "sents": [
+       {
+        "source_original": "그 은행은 여기에서 멉니까?",
+        "mtpe": "Is the bank far from here?"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

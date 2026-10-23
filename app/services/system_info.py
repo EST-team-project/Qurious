@@ -6,6 +6,7 @@ import httpx
 import redis.asyncio as aioredis
 from datetime import datetime, timezone
 from app.config import settings
+from app.lib import vector_db  # Qurious(2026-10-23): Qdrant 서버 ↔ 클라이언트 판 짝(의존성 판 관리)
 
 
 async def _ping_http(url: str, timeout: float = 2.0) -> tuple[bool, float]:
@@ -110,16 +111,17 @@ async def _llm_provider_status() -> dict:
 
 async def get_system_status() -> dict:
     # 서비스 핑을 병렬로
-    (ollama_ok, ollama_ms), (qdrant_ok, qdrant_ms), (redis_ok, redis_ms), llm_status = await asyncio.gather(
+    (ollama_ok, ollama_ms), (qdrant_ok, qdrant_ms), (redis_ok, redis_ms), llm_status, qdrant_versions = await asyncio.gather(
         _ping_http(f"{settings.OLLAMA_BASE_URL}/api/tags"),
         _ping_http(f"{settings.QDRANT_URL}/collections"),
         _ping_redis(settings.REDIS_URL),
         _llm_provider_status(),
+        vector_db.version_pair(),  # Qurious: server_version · client_version · version_ok(부 판 1 이내)
     )
 
     services = [
         {"name": "Ollama (LLM)",  "url": settings.OLLAMA_BASE_URL, "ok": ollama_ok, "ms": ollama_ms},
-        {"name": "Qdrant",        "url": settings.QDRANT_URL,       "ok": qdrant_ok, "ms": qdrant_ms},
+        {"name": "Qdrant",        "url": settings.QDRANT_URL,       "ok": qdrant_ok, "ms": qdrant_ms, **qdrant_versions},  # Qurious: 판 짝
         {"name": "Redis",         "url": settings.REDIS_URL,        "ok": redis_ok,  "ms": redis_ms},
     ]
 

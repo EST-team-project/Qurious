@@ -84,6 +84,10 @@ class _FakeClient:
     async def get_collection(self, name):
         return {"name": name}
 
+    async def collection_exists(self, name):
+        # 2026-10-23 · 저장이 문지기(app/lib/vector_db.py)를 거치며 쓰는 메서드 — 진짜와 같은지는 계약 시험(TC-VD)이 본다
+        return True
+
     async def upsert(self, collection_name, points):
         self.upserts.append((collection_name, points))
 
@@ -108,14 +112,19 @@ def fake_qdrant(monkeypatch):
     for name in ("PointStruct", "Filter", "FieldCondition", "MatchValue", "FilterSelector",
                  "HasIdCondition", "Distance", "VectorParams"):
         setattr(models, name, type(name, (_Rec,), {}))
+    # 문지기가 「닿지 못함」 을 가를 때 쓰는 예외 모듈(진짜는 ResponseHandlingException · UnexpectedResponse 가 이 자식)
+    exceptions = types.ModuleType("qdrant_client.http.exceptions")
+    exceptions.ApiException = type("ApiException", (Exception,), {})
     http = types.ModuleType("qdrant_client.http")
     http.models = models
+    http.exceptions = exceptions
     root = types.ModuleType("qdrant_client")
     root.AsyncQdrantClient = _FakeClient
     root.http = http
     monkeypatch.setitem(sys.modules, "qdrant_client", root)
     monkeypatch.setitem(sys.modules, "qdrant_client.http", http)
     monkeypatch.setitem(sys.modules, "qdrant_client.http.models", models)
+    monkeypatch.setitem(sys.modules, "qdrant_client.http.exceptions", exceptions)
     _FakeClient.made = []
     return _FakeClient
 

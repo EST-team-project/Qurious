@@ -1,5 +1,6 @@
 """크롤링 서비스: GitHub docs, 금융 포털, Qdrant RAG 구축."""
 import httpx
+import logging  # Qurious: 저장 · 검색을 건너뛴 까닭을 남긴다(2026-10-23)
 import re
 from html.parser import HTMLParser
 from bs4 import BeautifulSoup
@@ -11,6 +12,12 @@ from app.lib.ollama import OllamaClient
 from app.models import CrawledDoc
 from app.services.crawl_points import crawl_point_id, prune_stale_points
 from app.services import url_guard  # Qurious: 리다이렉트 홉마다 보내기 전에 주소 검사(규칙은 그 파일에)
+from app.lib import vector_db  # Qurious: Qdrant 문지기 — 클라이언트 · 넣기 · 검색 · 「닿지 못함」 판정(DF-149 · 2026-10-23)
+
+
+def _log():
+    # Qurious: 쓸 때 만든다(모듈을 읽을 때 만든 로거는 앱 시작 때 alembic 로그 설정이 끈다 — rag_pipeline 과 같은 까닭)
+    return logging.getLogger("qurious.crawl")
 
 
 async def _upsert_crawled_doc(db: AsyncSession, url: str, title: str, content: str, source: str) -> None:
@@ -84,44 +91,39 @@ def _chunk_text(text: str) -> list[str]:
 
 async def _store_qdrant(chunks: list[str], meta: dict, ollama: OllamaClient) -> int:
     """Qdrant에 임베딩 저장 (Qdrant 미연결 시 스킵)."""
+    # Qurious(2026-10-23 · DF-149 같은 꼴): Qdrant 는 문지기(app/lib/vector_db.py)로 부르고, 건너뛰는 것은 「닿지 못함」
+    # (Qdrant · 임베딩 서버)뿐이다 — 예전 `except Exception` 은 라이브러리 판이 바뀌어 난 AttributeError 까지 「0건」 으로 숨겼다.
     try:
-        from qdrant_client import AsyncQdrantClient
-        from qdrant_client.http.models import PointStruct
-
-        client = AsyncQdrantClient(url=settings.QDRANT_URL)
+        qm = vector_db.models()
+        client = vector_db.async_client()
         collection = settings.QDRANT_COLLECTION
-
-        # Ensure collection exists
         try:
-            await client.get_collection(collection)
-        except Exception:
-            from qdrant_client.http.models import Distance, VectorParams
-            dim = 768  # nomic-embed-text dimension
-            test_emb = await ollama.embed(settings.EMBED_MODEL, "test")
-            dim = len(test_emb) if test_emb else dim
-            await client.create_collection(
-                collection,
-                vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
-            )
+            async def _dim() -> int:
+                test_emb = await ollama.embed(settings.EMBED_MODEL, "test")
+                return len(test_emb) if test_emb else 768  # nomic-embed-text dimension
 
-        points = []
-        for i, chunk in enumerate(chunks):
-            emb = await ollama.embed(settings.EMBED_MODEL, chunk)
-            if not emb:
-                continue
-            point_id = crawl_point_id(meta.get("url", ""), i)
-            points.append(PointStruct(
-                id=point_id,
-                vector=emb,
-                payload={**meta, "text": chunk, "chunk_index": i},
-            ))
+            await vector_db.ensure_collection(client, collection, _dim)
 
-        if points:
-            await client.upsert(collection_name=collection, points=points)
-            await prune_stale_points(client, collection, meta.get("url", ""), [p.id for p in points])
-        await client.close()
+            points = []
+            for i, chunk in enumerate(chunks):
+                emb = await ollama.embed(settings.EMBED_MODEL, chunk)
+                if not emb:
+                    continue
+                point_id = crawl_point_id(meta.get("url", ""), i)
+                points.append(qm.PointStruct(
+                    id=point_id,
+                    vector=emb,
+                    payload={**meta, "text": chunk, "chunk_index": i},
+                ))
+
+            if points:
+                await vector_db.upsert(client, collection, points)
+                await prune_stale_points(client, collection, meta.get("url", ""), [p.id for p in points])
+        finally:
+            await vector_db.aclose(client)
         return len(points)
-    except Exception as e:
+    except (vector_db.VectorDBUnavailable, httpx.HTTPError) as e:  # Qurious: 닿지 못함만 건너뛴다 · 까닭은 남긴다
+        _log().warning("크롤 조각 저장 건너뜀 (%s): %s", meta.get("url", ""), e)
         return 0  # silently skip if Qdrant unavailable
 
 
@@ -296,20 +298,23 @@ async def run_auto_crawl(db: AsyncSession, ollama: OllamaClient, log: list[str])
 
 async def qdrant_search(query: str, ollama: OllamaClient, top_k: int = 5) -> list[dict]:
     """Qdrant 벡터 검색."""
+    # Qurious(2026-10-23 · DF-149 같은 꼴): 예전 `client.search` 는 qdrant-client 1.16 에서 없어져 늘 AttributeError → 빈 목록이었다.
+    # 지금 부르는 곳은 없다(채팅 근거는 rag_pipeline.rag_search). 고쳐 두는 까닭 — 강사님 기초 코드의 함수라 되살아날 수 있다.
+    # 모음이 없거나(아직 모은 글 없음) 닿지 못하면 빈 목록 + 기록(채팅 근거 검색과 같은 규칙) · 우리 코드 잘못은 올린다.
     try:
-        from qdrant_client import AsyncQdrantClient
         qemb = await ollama.embed(settings.EMBED_MODEL, query)
         if not qemb:
             return []
-        client = AsyncQdrantClient(url=settings.QDRANT_URL)
-        results = await client.search(
-            collection_name=settings.QDRANT_COLLECTION,
-            query_vector=qemb,
-            limit=top_k,
-        )
-        await client.close()
-        return [{"text": r.payload.get("text", ""), "url": r.payload.get("url", ""),
-                 "title": r.payload.get("title", ""), "score": r.score}
-                for r in results]
-    except Exception:
+        client = vector_db.async_client()
+        try:
+            if not await vector_db.exists(client, settings.QDRANT_COLLECTION):
+                return []
+            hits = await vector_db.query(client, settings.QDRANT_COLLECTION, qemb, limit=top_k)
+        finally:
+            await vector_db.aclose(client)
+        return [{"text": h.payload.get("text", ""), "url": h.payload.get("url", ""),
+                 "title": h.payload.get("title", ""), "score": h.score}
+                for h in hits]
+    except (vector_db.VectorDBUnavailable, vector_db.CollectionMissing, httpx.HTTPError) as e:
+        _log().warning("크롤 조각 검색 실패: %s", e)
         return []

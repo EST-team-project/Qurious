@@ -47,12 +47,13 @@ GROUPS: list[tuple[str, str, tuple[str, ...]]] = [
         "test_weekly_rehearsal.py", "test_beat_health.py", "test_fx_*.py", "test_crawl_points.py",
         "test_etf_classify.py", "test_intake.py", "test_universe_and_schedule.py", "test_schema_scan.py",
         "test_migration_heads.py", "test_no_yahoo_regression.py", "test_url_guard.py", "test_route_cache_*.py",
+        "test_translation_api.py",
     )),
     ("지식", "kb", (
         "test_kb_*.py", "test_glossary*.py", "test_lecture*.py", "test_docs_scan.py", "test_rtm_scan.py",
         "test_api_*.py", "test_post_check.py", "test_discussion_scan.py", "test_raglab_scan.py", "test_rag_*.py",
         "test_chat_*.py", "test_opinion.py", "test_tagging.py", "test_console_encoding.py",
-        "test_test_groups.py",
+        "test_test_groups.py", "test_deps_*.py",
     )),
     ("매매", "trade", (
         "test_account_*.py", "test_aggressive_*.py", "test_asset_*.py", "test_auto_*.py", "test_broker_*.py",
@@ -73,8 +74,10 @@ REST = ("나머지", "rest")
 # 앱 이미지 일회용 컨테이너에서 도는 묶음 — 호스트 파이썬엔 qdrant-client · langchain-qdrant · langchain-ollama · langgraph 가
 # 없어 이 파일들이 importorskip 으로 통째로 건너뛰어지고, 전체 시험이 RAG · 채팅 · 올린 문서 격리 회귀를 못 잡았다(2026-10-23 실측).
 # 글롭이 아니라 이름을 그대로 적는다 — 새 시험이 호스트에서 돌 수 있으면 여기 넣지 않는다(컨테이너는 시험 DB 가 없다).
+# 2026-10-23 · DF-149 — 번역 적재 · 검색 회귀(TC-TR)와 Qdrant 문지기 계약(TC-VD)도 진짜 qdrant-client 가 있어야 돈다.
 CONTAINER: tuple[str, str, tuple[str, ...]] = ("컨테이너", "ctr", (
     "test_rag_pipeline.py", "test_chat_modes.py", "test_doc_isolation.py",
+    "test_translation_search.py", "test_vector_db.py",
 ))
 #: docker compose 가 만든 앱 이미지 — 없으면 test.ps1 이 실패가 아니라 「건너뜀」 과 까닭을 남긴다(호스트에 패키지를 깔지 않는다)
 CONTAINER_IMAGE = "qurious-app:latest"

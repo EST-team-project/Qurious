@@ -23,7 +23,7 @@
   컨테이너에 연결하고(scripts\personal\compose.dev.yml), 앱은 uvicorn --reload · Celery 는 watchfiles 로 돌린다.
     app\*.py 저장  → 앱 · Celery 가 몇 초 안에 스스로 다시 켜진다 (logs.ps1 -Service app -Follow 로 보인다)
     public\ 저장   → 브라우저 새로고침(F5)만
-  이미지는 requirements.txt · Dockerfile 이 바뀔 때만 다시 만든다. 호스트 파이썬 패키지가 필요 없다(dev.ps1 과 다른 점).
+  이미지는 requirements.txt · requirements.lock · Dockerfile 이 바뀔 때만 다시 만든다. 호스트 파이썬 패키지가 필요 없다(dev.ps1 과 다른 점).
   보통 모드로 돌아가려면 -Dev 없이 start.ps1 — 앱 · Celery 를 이미지 코드로 다시 만든다(DB 데이터는 그대로).
 
 .PARAMETER Build
@@ -176,9 +176,9 @@ if (-not $NoCelery) { $appServices += @('celery-worker', 'celery-beat') }
 
 $needBuild = $Build
 if ($Dev) {
-  # 개발 모드는 코드를 폴더째 연결하므로, 이미지는 설치 패키지(requirements.txt) · Dockerfile 이 바뀔 때만 다시 만든다.
+  # 개발 모드는 코드를 폴더째 연결하므로, 이미지는 설치 패키지(requirements.txt · requirements.lock) · Dockerfile 이 바뀔 때만 다시 만든다.
   if (-not $needBuild -and (Test-QImageStale -DepsOnly)) {
-    Write-QInfo 'requirements.txt · Dockerfile 이 이미지보다 새로워 이미지를 다시 만듭니다 (패키지 설치 — 몇 분 걸릴 수 있다).'
+    Write-QInfo 'requirements.txt · requirements.lock · Dockerfile 이 이미지보다 새로워 이미지를 다시 만듭니다 (패키지 설치 — 몇 분 걸릴 수 있다).'
     $needBuild = $true
   }
 } elseif (-not $needBuild -and (Test-QImageStale)) {
