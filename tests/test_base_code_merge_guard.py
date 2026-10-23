@@ -207,7 +207,11 @@ def test_시세는_KIS_설정이어도_수집DB가_먼저다(monkeypatch):
 
 
 # 화면 쪽 — 화면 파일은 Figma 결정 뒤에 받는다. 받기 전에 이 시험이 먼저 돈다.
-MENU_KEYS_WE_KEEP = ("agent-cb", "agent-products", "agent-news", "indicator-api", "indicator-tradingview")
+# 10-22 · 10-23 강사님 판은 직접매매 · 미국주식 · 크롤링 메뉴 묶음을 지웠다(3-way 로 충돌 없이 사라짐 — 이슈 #318 3-12) → 묶음째 넣는다.
+MENU_KEYS_WE_KEEP = ("agent-cb", "agent-products", "agent-news", "indicator-api", "indicator-tradingview",
+                     "trading-chart", "trading-portfolio", "trading-order",
+                     "us-dashboard", "us-chart", "us-portfolio", "us-order",
+                     "crawl-auto", "crawl-manual", "crawl-ingest")
 
 
 def test_메뉴에서_우리_화면이_사라지지_않는다():
@@ -293,6 +297,16 @@ def test_html_넷에_바깥_공통_CSS_링크가_없다():
         for m in re.finditer(r"@import\s+(?:url\()?\s*['\"]?(https?:)?//", css.read_text(encoding="utf-8")):
             found.append(f"{css.name}: {m.group(0)}")
     assert not found, "허용 목록 밖 바깥 CSS:\n" + "\n".join(found)
+
+
+def test_html_넷에_글자_줄이기_스크립트가_없다():
+    """강사님 10-22 판(`7652de8`)은 html 넷(index · login · register · app)에 `compact-typography.js` 를 넣었다 — 모든 화면의
+    글자 크기 · 줄 간격을 실행 중에 줄이는 스크립트라, 들어오면 우리 화면(차트 이름표 · 표 · 푸터 고지)의 크기가 Figma 시안과
+    달라진다(이슈 #318 3-12 · 받지 않음). 줄 하나만 더해지는 변경이라 3-way 에서 충돌 없이 들어온다."""
+    found = [page for page in ("index.html", "login.html", "register.html", "app.html")
+             if "compact-typography" in (ROOT / "public" / page).read_text(encoding="utf-8")]
+    assert not found, f"글자 줄이기 스크립트가 들어온 html: {found}"
+    assert not (ROOT / "public" / "js" / "compact-typography.js").exists()
 
 
 FOOTER_NOTICE = "투자 자문이 아닌 정보 제공 목적입니다."

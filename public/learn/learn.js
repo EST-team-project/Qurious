@@ -16,9 +16,9 @@
   "use strict";
 
   const API = "/api/learn";
-  // 섹션 차례 = 이 표의 차례(서버 SECTIONS 와 같게 — 특강은 2026-10-20 · 장 머리말 section special · 차례 S.<일차><교시>)
-  const SECTION_LABEL = { tech: "개념 학습", finance: "금융 필수 지식", special: "특강" };
-  const SECTION_ICON = { tech: "fa-solid fa-graduation-cap", finance: "fa-solid fa-coins", special: "fa-solid fa-person-chalkboard" };
+  // 섹션 차례 = 이 표의 차례(서버 SECTIONS 와 같게)
+  const SECTION_LABEL = { tech: "개념 학습", finance: "금융 필수 지식" };
+  const SECTION_ICON = { tech: "fa-solid fa-graduation-cap", finance: "fa-solid fa-coins" };
   const STATUS_LABEL = { ready: "완성", draft: "초안", skeleton: "뼈대" };
   const STATUS_ICON = { ready: "fa-solid fa-circle-check", draft: "fa-solid fa-pen", skeleton: "fa-regular fa-circle" };
   const CALLOUT = {
@@ -222,9 +222,7 @@
 
   function renderHome(section) {
     const secs = section && SECTION_LABEL[section] ? [section] : Object.keys(SECTION_LABEL);
-    const intro = section === "special"
-      ? "외부 강사 특강의 개념을 날짜 · 교시 차례로 정리합니다. 강의 자료의 그림 · 수치는 공식 자료와 맞대어 다시 그렸고, 다르게 적은 곳은 장마다 표로 밝힙니다."
-      : section === "finance"
+    const intro = section === "finance"
       ? "투자 판단에 필요한 금융 지식을 장으로 정리합니다. 앱의 「금융 필수 지식」 화면(금융상품 이해 · 자산배분 모델 · 계절성 분석)을 보완합니다."
       : "Qurious 를 만들며 구현하는 개념을 교재처럼 설명합니다. 장마다 그림 · 직접 돌려 본 예제 · 우리 코드가 함께 있습니다. 「뼈대」 장은 그 기능을 구현하기 직전에 채웁니다.";
     let html = `<section class="hero"><p class="crumbs">Qurious · 개념 학습</p>`

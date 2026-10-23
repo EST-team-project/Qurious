@@ -177,9 +177,8 @@
 .q-notice-line { margin: 16px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-mute); }
 .q-notice-line a { color: var(--accent); }
 
-/* 학습 홈 네 갈래 · 갈래 목차 · 특강 날짜(2026-10-20 안 A · js/conceptlearn.js) */
-.cl-branch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 6px 0 18px; }
-@media (max-width: 720px) { .cl-branch-grid { grid-template-columns: minmax(0, 1fr); } }
+/* 학습 홈 세 갈래 · 갈래 목차(2026-10-20 안 A · 10-23 세 갈래 — 넓으면 한 줄에 셋, 좁으면 칸 너비 260px 기준으로 접힘 · js/conceptlearn.js) */
+.cl-branch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 6px 0 18px; }
 .cl-branch { display: flex; flex-direction: column; gap: 8px; color: var(--text); text-decoration: none; border: 1px solid var(--border); }
 .cl-branch:hover, .cl-branch:focus-visible { border-color: var(--accent); }
 .cl-branch-top { display: flex; align-items: center; gap: 10px; }
@@ -192,8 +191,6 @@
 a.cl-course { color: inherit; text-decoration: none; }
 .cl-course ul { padding-left: 6px; }   /* 점을 안쪽에 두므로 들여쓰기를 줄여 강의실 카드와 글 시작을 맞춘다 */
 .cl-course ul li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; list-style-position: inside; }   /* 줄임표 칸 안에 점이 보이게 */
-.cl-course.is-wait { cursor: default; opacity: .7; }
-.cl-course.is-wait:hover { border-color: var(--border); box-shadow: none; }
 .cl-course .cl-keys { font-size: 13px; color: var(--text-mute); }
 .cl-course .cl-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; }
 .cl-course .fl-foot .fl-muted i { color: var(--accent); }

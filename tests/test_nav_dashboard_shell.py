@@ -55,7 +55,7 @@ def test_every_menu_group_is_in_the_left_tree():
     assert len(tree) == len(set(tree)), "트리에 같은 묶음이 두 번"
     assert sorted(tree) == sorted(_gnb_menu_keys()), "새 묶음을 GNB_MENUS 에 더했다면 MENU_TREE 에도"
     assert set(top) <= set(tree)
-    assert "learn" not in tree, "개념 학습은 「학습」 한 묶음 안(2026-10-20 안 A — 금융 필수 지식 · 개발 개념 · 파이썬 중급 · 특강)"
+    assert "learn" not in tree, "개념 학습은 「학습」 한 묶음 안(2026-10-20 안 A — 금융 필수 지식 · 개발 개념 · 파이썬 중급)"
 
 
 def test_tree_keeps_headings_outside_links_and_buttons():
