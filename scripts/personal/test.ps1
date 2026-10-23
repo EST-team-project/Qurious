@@ -23,6 +23,13 @@
   결과는 data\local-run\test\<시각>\ 에 남는다 — 묶음마다 JUnit XML(ui.xml …)과, 묶음이 끝날 때마다
   한 줄씩 쌓는 run.json(상태 · 묶음별 통과 · 실패 · 건너뜀 · 초 · 종료 코드). 끊겨도 끝난 묶음은 남는다.
 
+  컨테이너 묶음(2026-10-23 · 컨테이너(ctr) · 맨 끝) — RAG · 채팅 · 올린 문서 격리 시험 셋은 호스트 파이썬에
+  qdrant-client · langchain-qdrant · langchain-ollama · langgraph 가 없어 통째로 건너뛰어진다. 묶음 실행에서는 이 셋을
+  앱 이미지(qurious-app:latest) 일회용 컨테이너에서 돈다 — 저장소는 읽기 전용(/w:ro)으로 붙이고, 결과 XML 만 결과
+  폴더(/out)에 쓰고, pytest 는 호스트와 같은 판을 컨테이너 안에만 깐다(호스트에는 아무것도 깔지 않는다).
+  Docker 가 꺼졌거나 이미지 · 네트워크가 없으면 실패가 아니라 「건너뜀」 과 까닭을 run.json(skipped_reason)에 남긴다.
+  인자 없는 실행 · -Path 는 지금처럼 호스트에서만 돈다(그 셋은 건너뜀).
+
 .PARAMETER Path
   이 파일(들)만 시험한다. 예) -Path tests\test_rebalance.py
 
@@ -36,7 +43,8 @@
   모든 묶음을 차례로 돈다(묶음마다 새 pytest 프로세스 · 범위는 인자 없는 실행과 같다).
 
 .PARAMETER Group
-  이 묶음만 차례로 돈다. 이름이나 영어 열쇠 — 화면(ui) · 데이터(data) · 지식(kb) · 매매(trade) · 분석(analysis) · 나머지(rest).
+  이 묶음만 차례로 돈다. 이름이나 영어 열쇠 — 화면(ui) · 데이터(data) · 지식(kb) · 매매(trade) · 분석(analysis) · 나머지(rest)
+  · 컨테이너(ctr — 앱 이미지 일회용 컨테이너).
   여럿은 쉼표로. Git Bash 에서 부를 때는 한글 대신 영어 열쇠를 쓴다(인자가 깨질 수 있다).
 
 .PARAMETER Resume
@@ -60,6 +68,8 @@
   .\scripts\personal\test.ps1 -Split -Detach        # 전체를 묶음 차례로 · 세션 밖에서
 .EXAMPLE
   .\scripts\personal\test.ps1 -Group ui,kb          # 화면 · 지식 묶음만
+.EXAMPLE
+  .\scripts\personal\test.ps1 -Group ctr -NoDb      # RAG · 채팅 · 올린 문서 격리 셋만 앱 이미지 컨테이너로
 .EXAMPLE
   .\scripts\personal\test.ps1 -Resume               # 끊긴 묶음 실행을 이어서
 .EXAMPLE
@@ -120,6 +130,27 @@ function Get-QTestLockPid {
   try { $held = Get-Content $TestLock -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
   if ($held -and [int]$held.pid -ne $PID -and (Get-Process -Id ([int]$held.pid) -ErrorAction SilentlyContinue)) { return [int]$held.pid }
   return 0
+}
+
+# 컨테이너 묶음(_test_groups.py 의 runner = container) — 앱 이미지 일회용 컨테이너에서 그 묶음 파일만 돈다.
+# 저장소는 읽기 전용(/w:ro) · 결과 XML 은 결과 폴더(/out)에 · pytest 는 호스트와 같은 판을 컨테이너 안에만 깐다.
+# 돌려주는 것: @{ code = pytest 종료 코드; reason = 건너뛴 까닭(돌았으면 $null) } — 건너뜀은 실패가 아니다.
+function Invoke-QContainerGroup($g, [string]$dir) {
+  $null = & docker version --format '{{.Server.Version}}' 2>&1
+  if ($LASTEXITCODE -ne 0) { return @{ code = 0; reason = 'Docker 엔진이 꺼져 있다 — Docker Desktop 을 켠 뒤 -Group ctr' } }
+  $null = & docker image inspect $g.image 2>&1
+  if ($LASTEXITCODE -ne 0) { return @{ code = 0; reason = "앱 이미지 $($g.image) 가 없다 — docker compose build app 뒤 -Group ctr" } }
+  $ver = "$(& python -c 'import pytest; print(pytest.__version__)')".Trim()
+  # 97 = 컨테이너 안 pytest 설치 실패(대개 네트워크) — 시험 실패(1)와 가른다
+  $inner = ('pip install -q --disable-pip-version-check pytest=={0} >/dev/null 2>&1 || exit 97; ' +
+            'python -m pytest -p no:cacheprovider -W ignore::UserWarning --junit-xml=/out/{1}.xml {2}') -f `
+    $ver, $g.key, (@($g.files) -join ' ')
+  $repo = $QRoot -replace '\\', '/'
+  $out = $dir -replace '\\', '/'
+  & docker run --rm -v "${repo}:/w:ro" -v "${out}:/out" -w /w -e PYTHONDONTWRITEBYTECODE=1 $g.image sh -c $inner
+  $code = $LASTEXITCODE
+  if ($code -eq 97) { return @{ code = 0; reason = "컨테이너 안에 pytest $ver 을 깔지 못했다(네트워크?) — 이 묶음만 다시: -Group ctr" } }
+  return @{ code = $code; reason = $null }
 }
 
 if ($Path.Count -gt 0 -and $Grouped) { Write-QFail '-Path 는 -Split · -Group · -Resume 과 함께 쓰지 않습니다.'; exit 2 }
@@ -302,7 +333,8 @@ try {
     Write-QStep ("3/4 시험 — 묶음 {0}개를 차례로 (묶음마다 새 pytest 프로세스 · 결과 {1})" -f $plan.Count, $RunDir)
     # 이어 가기면 지난 기록에서 종료 코드 0 으로 끝난 묶음을 그대로 옮겨 오고 건너뛴다.
     $done = @{}
-    if ($prev) { foreach ($e in @($prev.groups)) { if ($e.key -and [int]$e.exit_code -eq 0) { $done[$e.key] = $e } } }
+    # 건너뛴 컨테이너 묶음(skipped_reason)은 끝난 것이 아니다 — 이어 가기에서 다시 돈다.
+    if ($prev) { foreach ($e in @($prev.groups)) { if ($e.key -and [int]$e.exit_code -eq 0 -and -not $e.skipped_reason) { $done[$e.key] = $e } } }
     $mode = 'split'
     if ($Resume) { $mode = 'resume' } elseif ($Group.Count -gt 0) { $mode = 'group' }
     $state = [ordered]@{
@@ -320,9 +352,16 @@ try {
       Save-QRunJson $RunDir $state
       $xml = Join-Path $RunDir "$($g.key).xml"
       $t0 = Get-Date
-      $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel", "--junit-xml=$xml") + @($g.files)
-      Push-Location $QRoot
-      try { & python @pytestArgs; $code = $LASTEXITCODE } finally { Pop-Location }
+      $skipWhy = $null
+      if ($g.runner -eq 'container') {
+        # 호스트에 없는 RAG · 채팅 패키지는 앱 이미지에 있다 — 호스트에는 깔지 않는다(위 Invoke-QContainerGroup)
+        $ctr = Invoke-QContainerGroup $g $RunDir
+        $code = $ctr.code; $skipWhy = $ctr.reason
+      } else {
+        $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel", "--junit-xml=$xml") + @($g.files)
+        Push-Location $QRoot
+        try { & python @pytestArgs; $code = $LASTEXITCODE } finally { Pop-Location }
+      }
       $n = Read-QJunit $xml
       $entry = [ordered]@{
         name = $g.name; key = $g.key; files = @($g.files).Count
@@ -330,12 +369,15 @@ try {
         seconds = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1); exit_code = $code
         finished_at = (Get-QNow); junit = "$($g.key).xml"
       }
+      if ($g.runner -eq 'container') { $entry.runner = 'container'; $entry.image = $g.image }
+      if ($skipWhy) { $entry.skipped_reason = $skipWhy }
       [void]$state.groups.Add($entry)
       $state.current = $null
       Save-QRunJson $RunDir $state
       $line = '{0}({1}) · 파일 {2} · 통과 {3} · 실패 {4} · 오류 {5} · 건너뜀 {6} · {7}초' -f `
         $g.name, $g.key, $entry.files, $n.passed, $n.failed, $n.errors, $n.skipped, $entry.seconds
-      if ($code -eq 0) { Write-QOk $line } else { Write-QFail "$line · 종료 코드 $code" }
+      if ($skipWhy) { Write-QInfo "$($g.name)($($g.key)) — 건너뜀: $skipWhy" }
+      elseif ($code -eq 0) { Write-QOk $line } else { Write-QFail "$line · 종료 코드 $code" }
     }
     $tot = [ordered]@{ tests = 0; passed = 0; failed = 0; errors = 0; skipped = 0; seconds = 0 }
     foreach ($e in $state.groups) { foreach ($k in @($tot.Keys)) { $tot[$k] += [double]$e.$k } }
@@ -353,6 +395,7 @@ try {
       $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel", '--lf', '--lfnf=none') + $Path
     } else {
       Write-QStep '3/4 시험 — python -m pytest (전체는 10분 안팎 · 끝에 「N passed」 요약 줄)'
+      Write-QInfo 'RAG · 채팅 · 올린 문서 격리 셋은 여기서 건너뛴다(호스트에 패키지 없음) — 앱 이미지로 돌리려면 -Split 또는 -Group ctr'
       $pytestArgs = @('-m', 'pytest', '-o', "cache_dir=$TestCacheRel") + $Path
     }
     # 결과 폴더가 있을 때(-Detach · -LastFailed)만 JUnit XML 과 run.json 을 남긴다 — 인자 없는 실행은 지금처럼 화면 출력만.

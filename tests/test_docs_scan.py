@@ -236,3 +236,122 @@ def test_dv10_number_folders_kind_depth_one_or_two(tmp_path):
   old.write_text("# 테스트 계획서 v1.52\n", encoding="utf-8")
   with pytest.raises(SystemExit, match="번호 폴더다"):
     docs_scan.bump(old, root=tmp_path)
+
+
+# ── 동기화 점검(--sync · --sync-ack · 2026-10-23 사용자 결정 · 동기화 조사 4.2 · 4.3) ──
+
+SYNC_SRC = ("# 3차 시험 설계서 v0.2 — 동기화 시험\r\n\r\n| 문서 정보 | |\r\n|---|---|\r\n| **판 · 상태** | v0.2 · 초안 |\r\n\r\n"
+            "## 4. 설계\r\n\r\n### 4.3 전략 카드\r\n\r\n칸 셋 — [예시](a.json) 참고.\r\n\r\n```python\r\n# 4.5 코드 주석은 머리글이 아니다\r\n```\r\n\r\n"
+            "#### 4.3.1 아래 절\r\n\r\n아래 절 글.\r\n\r\n### 4.5 기준 전략\r\n\r\n조합표.\r\n\r\n## 5. 대안\r\n\r\n대안 글.\r\n")
+SYNC_COLS = "동기화ID\t통합문서\t통합절\t원천파일\t원천절\t방식\t고정판\t고정지문\t옮긴날\t옮긴이\t상태\t비고"
+
+
+def _sync_tree(tmp_path, rows, doc_lines):
+  """원천 설계서 하나 · 통합 문서 하나 · 동기화 대장(CRLF) — rows 는 (ID, 통합절, 원천절, 방식, 고정판, 고정지문)."""
+  (tmp_path / SYS3).mkdir(parents=True, exist_ok=True)
+  (tmp_path / f"{REQ}/대장").mkdir(parents=True, exist_ok=True)
+  (tmp_path / f"{SYS3}/원천.md").write_bytes(SYNC_SRC.encode("utf-8"))
+  (tmp_path / f"{SYS3}/통합.md").write_bytes(("# 통합 설계서 v0.3\r\n\r\n" + "\r\n\r\n".join(doc_lines) + "\r\n").encode("utf-8"))
+  body = [SYNC_COLS] + [f"{i}\tphase-3/02-design/system/통합.md\t{part}\tphase-3/02-design/system/원천.md\t{sec}\t{way}\t{ver}\t{fp}"
+                        f"\t2026-10-23\t이동원\t대기\t비고 {i}" for i, part, sec, way, ver, fp in rows]
+  led = tmp_path / docs_scan.SYNC_LEDGER
+  led.write_bytes(("\r\n".join(body) + "\r\n").encode("utf-8"))
+  return led
+
+
+def _levels(tmp_path):
+  return {(lv, sid) for lv, sid, _ in docs_scan.sync_check(tmp_path)}
+
+
+def test_dv11_fingerprint_ignores_link_targets_and_spacing_only():
+  """TC-DV-11 · 절 지문 = 링크 주소 빼고(글자는 남김) · 줄 끝 공백 · 연속 공백 · 빈 줄 접기 · 줄 끝 꼴 뒤 SHA-256 앞 12자 — 글자가 바뀌면 달라진다."""
+  a = "### 4.3 카드\n\n칸 셋 — [예시](a.json) 참고.  \n\n\n표   하나\n\n[정의]: ../a.md\n"
+  b = "\r\n### 4.3 카드\r\n\r\n칸 셋 — [예시](../../옮긴/a.json \"제목\") 참고.\r\n\r\n표 하나\r\n\r\n[정의]: ../../b.md\r\n\r\n\r\n"
+  fa = docs_scan.fingerprint(a)
+  assert len(fa) == 12 and all(c in "0123456789abcdef" for c in fa)
+  assert docs_scan.fingerprint(b) == fa                                    # 폴더 이동 · 줄 끝 · 띄어쓰기 손질은 그대로
+  assert docs_scan.fingerprint(a.replace("칸 셋", "칸 넷")) != fa           # 글자 하나
+  assert docs_scan.fingerprint(a.replace("[예시]", "[보기]")) != fa         # 링크 글자는 남긴다
+  assert docs_scan.fingerprint(a.replace("표   하나", "표하나")) != fa      # 공백을 없애는 것은 손질이 아니다
+
+
+def test_dv12_section_by_heading_number_skips_code_fences():
+  """TC-DV-12 · 원천 절 = 머리글 첫 낱말(끝의 점 뗌)이 같은 머리글부터 다음 같은 · 높은 머리글 전까지 · 아래 단계는 안에 · 코드 울타리 속 `#` 은 머리글 아님 · 빈 값은 파일 전체."""
+  s43 = docs_scan.section_text(SYNC_SRC, "4.3")
+  assert s43.startswith("### 4.3 전략 카드") and "\r" not in s43
+  assert "#### 4.3.1 아래 절" in s43 and "아래 절 글." in s43 and "# 4.5 코드 주석" in s43
+  assert "조합표." not in s43                                              # 다음 같은 단계(### 4.5)에서 끊는다
+  s4 = docs_scan.section_text(SYNC_SRC, "4")                               # `## 4.` — 끝의 점을 뗀 값
+  assert "조합표." in s4 and "대안 글." not in s4
+  assert docs_scan.section_text(SYNC_SRC, "4.4") is None
+  assert docs_scan.section_text(SYNC_SRC, "") == SYNC_SRC.replace("\r\n", "\n")
+  assert docs_scan.section_text("```\n## 4. 울타리 속\n```\n", "4") is None
+
+
+def test_dv13_sync_levels_error_warning_notice_and_exit_code(tmp_path, monkeypatch, capsys):
+  """TC-DV-13 · 조사 4.3 의 네 단계 — 오류(대장이 틀렸다)만 종료코드 1 · 경고 A(원천이 올랐다) · 경고 B(판 그대로 · 글 바뀜) · 안내(미반영 · 고정 전)는 0."""
+  fp43 = docs_scan.fingerprint(docs_scan.section_text(SYNC_SRC, "4.3"))
+  fp45 = docs_scan.fingerprint(docs_scan.section_text(SYNC_SRC, "4.5"))
+  fp4 = docs_scan.fingerprint(docs_scan.section_text(SYNC_SRC, "4"))
+  rows = [("SY-01", "P-1", "4.3", "갈음", "v0.2", fp43),        # 맞음 — 아무것도 안 나온다
+          ("SY-02", "P-2", "4.5", "갈음", "v0.2", fp45),        # 원천 줄 판 v0.1 ≠ 고정판 → 오류
+          ("SY-03", "P-3", "4", "옮김", "v0.1", fp4),           # 원천 v0.2 > 고정 v0.1 → 경고 A
+          ("SY-04", "P-4", "4.3", "요약", "v0.2", "0" * 12),    # 판 같고 지문 다름 → 경고 B
+          ("SY-05", "P-5", "5", "미반영", "", ""),              # 안내(미반영 · 고정 전)
+          ("SY-06", "P-6", "4.9", "갈음", "v0.2", fp43),        # 원천 절 없음 → 오류
+          ("SY-07", "P-7", "4.3", "갈음", "v0.2", fp43),        # 통합 문서에 원천 줄 없음 → 오류
+          ("SY-08", "P-8", "", "링크만", "v0.3", fp43),         # 원천 v0.2 < 고정 v0.3 → 오류
+          ("SY-09", "P-9", "4.3", "옮기기", "", ""),            # 방식 값 틀림 → 오류
+          ("SY-10", "P-10", "4.3", "링크만", "v0.2", fp43)]     # 링크만 — 원천 줄이 없어도 된다
+  lines = ["> 원천: [설계서](원천.md) 4.3절 · v0.2 · 갈음 · SY-01",
+           "> 원천: [설계서](원천.md) 4.5절 · v0.1 · 갈음 · SY-02",
+           "> 원천: [설계서](원천.md) 4절 · v0.1 · 옮김 · SY-03",
+           "> 원천: [설계서](원천.md) 4.3절 · v0.2 · 요약 · SY-04",
+           "> 원천: [설계서](원천.md) 4.3절 · v0.9 · 갈음 · SY-011",        # SY-01 의 줄이 아니다(ID 경계)
+           "SY-07 은 본문에만 나온다(원천 줄이 아니다)"]
+  _sync_tree(tmp_path, rows, lines)
+  got = _levels(tmp_path)
+  assert got == {("오류", "SY-02"), ("경고 A", "SY-03"), ("경고 B", "SY-04"), ("안내", "SY-05"), ("오류", "SY-06"),
+                 ("오류", "SY-07"), ("오류", "SY-08"), ("오류", "SY-09")}
+  monkeypatch.setattr(docs_scan, "ROOT", tmp_path)
+  assert docs_scan.main(["--sync"]) == 1
+  out = capsys.readouterr().out
+  assert "❌ SY-02 오류" in out and "⚠️ SY-03 경고 A" in out and "오류 5 · 경고 2(A 1 · B 1) · 안내 2" in out
+  keep = [r for r in rows if r[0] in ("SY-01", "SY-03", "SY-04", "SY-05", "SY-10")]   # 오류 줄을 빼면 경고 · 안내만 → 0
+  _sync_tree(tmp_path, keep, lines)
+  assert docs_scan.main(["--sync"]) == 0
+
+
+def test_dv14_sync_ack_writes_three_cells_of_that_row_only(tmp_path):
+  """TC-DV-14 · --sync-ack = 그 줄의 고정판 · 고정지문 · 옮긴날만(다른 줄 · 칸 · CRLF 그대로) · 하나라도 틀린 ID 면 아무것도 안 씀 · 원천 줄이 다르면 알려 줌."""
+  fp4 = docs_scan.fingerprint(docs_scan.section_text(SYNC_SRC, "4"))
+  led = _sync_tree(tmp_path, [("SY-01", "P-1", "4.3", "갈음", "", ""), ("SY-03", "P-3", "4", "옮김", "v0.1", "abcdef012345"),
+                             ("SY-05", "P-5", "5", "미반영", "", "")],
+                   ["> 원천: [설계서](원천.md) 4.3절 · v0.2 · 갈음 · SY-01", "> 원천: [설계서](원천.md) 4절 · v0.1 · 옮김 · SY-03"])
+  before = led.read_bytes()
+  with pytest.raises(SystemExit, match="SY-99 줄이 0개"):
+    docs_scan.sync_ack(["SY-03", "SY-99"], tmp_path, today="2026-10-24")
+  assert led.read_bytes() == before
+  msg = docs_scan.sync_ack(["SY-03"], tmp_path, today="2026-10-24")
+  assert "원천 줄도 v0.2 로" in msg[0] and "통합.md:5" in msg[0]          # 통합 문서는 고치지 않고 알려 준다
+  old, new = before.decode("utf-8").split("\r\n"), led.read_bytes().decode("utf-8").split("\r\n")
+  assert len(old) == len(new) and old[0] == new[0] and old[1] == new[1] and old[3:] == new[3:]
+  cells = new[2].split("\t")
+  assert cells[6:9] == ["v0.2", fp4, "2026-10-24"] and cells[:6] == old[2].split("\t")[:6] and cells[9:] == old[2].split("\t")[9:]
+  assert ("경고 A", "SY-03") not in _levels(tmp_path) and ("오류", "SY-03") in _levels(tmp_path)   # 이제 원천 줄(v0.1)만 남은 일
+  docs_scan.sync_ack(["SY-05"], tmp_path, today="2026-10-24")             # 미반영 — 옮긴날은 그대로(옮긴 적이 없다)
+  five = led.read_bytes().decode("utf-8").split("\r\n")[3].split("\t")
+  assert five[0] == "SY-05" and five[6] == "v0.2" and five[8] == "2026-10-23"
+
+
+def test_dv15_versions_as_numbers_and_source_without_version(tmp_path):
+  """TC-DV-15 · 판은 숫자로 견준다(v0.10 > v0.9) · 판 없는 원천은 「판 없음」 으로 고정하고 지문만 본다 · 나중에 판이 생기면 경고 A."""
+  assert docs_scan._ver_key("v0.10") > docs_scan._ver_key("v0.9") and docs_scan._ver_key("판 없음") is None
+  led = _sync_tree(tmp_path, [("SY-01", "P-1", "4", "갈음", "", "")], ["> 원천: [설계안](원천.md) 4절 · 판 없음 · 갈음 · SY-01"])
+  src = tmp_path / f"{SYS3}/원천.md"
+  src.write_bytes("# 설계안\r\n\r\n## 4. 계약\r\n\r\n신호 칸 둘.\r\n".encode("utf-8"))
+  docs_scan.sync_ack(["SY-01"], tmp_path, today="2026-10-24")
+  assert led.read_bytes().decode("utf-8").split("\r\n")[1].split("\t")[6] == "판 없음"
+  assert _levels(tmp_path) == set()
+  src.write_bytes("# 설계안\r\n\r\n| 판 · 상태 | v0.1 · 협의안 |\r\n\r\n## 4. 계약\r\n\r\n신호 칸 둘.\r\n".encode("utf-8"))
+  assert _levels(tmp_path) == {("경고 A", "SY-01")}
