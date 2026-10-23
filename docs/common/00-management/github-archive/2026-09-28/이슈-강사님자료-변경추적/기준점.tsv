@@ -5,7 +5,7 @@ th03-stock-coin-trade		edumgt/stock-coin-trade	origin/main	cd594a1c629d20c1facdc
 th05-quant-krx		edumgt/quant-test-20260828	origin/main	8684a2b1926d45954a2e5dcaa3e45ab07b5fd727	2026-08-28 17:46	2026-10-02 10:08
 th06-lumina-invest	서버	edumgt/lumina-invest	origin/main	e815be3f1a00dcacabc48d9e967172a704eae3da	2026-10-07 17:36	2026-10-12 09:50
 th06-lumina-invest	화면	edumgt/lumina-invest	origin/main	947881100d8df529a960ccc77b558f4e48a62e37	2026-10-02 16:06	2026-10-03 17:30
-th07-domain-rag-lab		edumgt/domain-rag-lab	origin/main	381d3f4ea817d886ff6d093fdaeabb77b9d5fae0	2026-10-22 16:08	2026-10-23 09:06
+th07-domain-rag-lab		edumgt/domain-rag-lab	origin/main	185d401ba6bbf1a9822c057907c3d2092a06aed4	2026-10-23 09:01	2026-10-23 09:50
 th08-aws-ec2-alb-lab		edumgt/aws-ec2-alb-lab	origin/main	d47c244817e77350cb3da970423a95e50181cdb5	2026-09-21 14:54	2026-10-02 10:08
 th09-python-ai-basic-lab		edumgt/python-ai-basic-lab	origin/main	b7238260f998d9cc83d43f471b2040666eb31b36	2026-07-30 04:23	2026-10-02 10:08
 th10-stock-ml-dl-project		edumgt/stock-ml-dl-project	origin/main	ef0240e6bf049aaa639c09331b54c1a8278440a0	2026-10-02 17:46	2026-10-07 13:54

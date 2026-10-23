@@ -3,9 +3,9 @@
  * 전에는 따로 된 쪽(/learn/ · 왼쪽 메뉴의 「새 화면」)에서 읽었다. 사용자 10-19 「학습을 금융필수지식 + 개념학습으로
  * 하기로 했는데 분리되어 있는 오류」 — 이제 금융 필수 지식 강의실과 같은 틀(fl-card · fl-reader)로 앱 안에서 읽는다.
  *
- *   learn-home   학습 홈 — 네 갈래 카드 · 이어 읽기 · 로그인하면 팀 자료
- *   learn-dev · learn-python · learn-special   갈래 홈 — 강의실(finlearn.js)과 같은 카드 꼴(부 · 날짜 카드, 부가 하나면 장 카드)
- *   learn-part   부 목차 — 한 부(특강은 하루)의 장 줄 · 앞뒤 부(메뉴 줄 없음 · 주소 #learn-part/<갈래>/<부>)
+ *   learn-home   학습 홈 — 세 갈래 카드 · 이어 읽기 · 로그인하면 팀 자료
+ *   learn-dev · learn-python   갈래 홈 — 강의실(finlearn.js)과 같은 카드 꼴(부 카드, 부가 하나면 장 카드)
+ *   learn-part   부 목차 — 한 부의 장 줄 · 앞뒤 부(메뉴 줄 없음 · 주소 #learn-part/<갈래>/<부>)
  *   learn-page   장 한 편 — 머리(부 · 번호 · 상태 · 먼저 읽을 장) · 왼쪽 「이 장의 차례」 · 본문 · 앞뒤 장(메뉴 줄 없음)
  *
  * 장 주소는 #learn/<slug>(?h=<제목 id>) — 사용법 창 · 상품 안내 · 글 속 링크가 쓴다. 앱의 첫 화면 고르기(main.js)와
@@ -23,8 +23,8 @@ import { navigate, showUnder } from "/js/core.js";   // showUnder — 메뉴 줄
 import { noticeCardHtml, noticeLineHtml } from "/js/learnnotice.js";   // 「시작하기 전에」 고지 한 벌(장 대장 F00 · 2026-10-20)
 
 const API = "/api/learn";
-// 학습 네 갈래(2026-10-20 안 A — 사용자 「학습 안에 금융 필수 지식 + 개발 관련 개념 학습 + 파이썬 중급 과정 개념 + 특강」).
-// 서버 응답(section · part)은 그대로 두고 화면이 가른다 — section special → 특강 · finance → 금융 필수 지식 ·
+// 학습 세 갈래(2026-10-20 안 A · 10-23 세 갈래로 — 금융 필수 지식 · 개발 개념 · 파이썬 중급).
+// 서버 응답(section · part)은 그대로 두고 화면이 가른다 — section finance → 금융 필수 지식 ·
 // 부 이름에 「파이썬」 → 파이썬 중급 · 그 밖 → 개발 개념(clBranchOf). 금융 필수 지식 갈래의 첫 화면은 강의실(fin-lectures)이다.
 const BRANCHES = [
   { key: "finance", view: "fin-lectures", label: "금융 필수 지식", icon: "fa-solid fa-coins",
@@ -33,18 +33,9 @@ const BRANCHES = [
     blurb: "수집 · 근거 답 · 차트 · 서버 · AI 에이전트 · 백테스트 — Qurious 기능이 움직이는 원리" },
   { key: "python", view: "learn-python", label: "파이썬 중급", icon: "fa-solid fa-code",
     blurb: "우리 코드에 쓰인 import · 타입 힌트 · 인터페이스 · 예외 처리 · 문자열을 차례로" },
-  { key: "special", view: "learn-special", label: "특강", icon: "fa-solid fa-person-chalkboard",
-    blurb: "날짜 · 교시마다 특강 내용을 정리하고, 강의 자료와 다르게 적은 곳을 출처와 함께 밝힙니다" },
 ];
 const BRANCH = Object.fromEntries(BRANCHES.map(b => [b.key, b]));
-// 특강 날짜(사용자 10-20 「19일 23일 26일 30일」) — 차례 S.<일차><교시>(서버 learn_pages.ORDER_RE) · 제목은 그날 다룬 내용
-const SPECIAL_DAYS = [
-  { day: 1, date: "10월 19일", title: "거시 · 산업 · 재무 · 차트 읽기" },
-  { day: 2, date: "10월 23일", title: "2일차 특강" },
-  { day: 3, date: "10월 26일", title: "3일차 특강" },
-  { day: 4, date: "10월 30일", title: "4일차 특강" },
-];
-// 부 · 날짜 카드의 한 줄 — 강의실 카드의 한 줄과 같은 자리. 장 제목에서 뽑지 않고 사람이 쓴다(부가 바뀌면 이 표에 한 줄)
+// 부 카드의 한 줄 — 강의실 카드의 한 줄과 같은 자리. 장 제목에서 뽑지 않고 사람이 쓴다(부가 바뀌면 이 표에 한 줄)
 const PART_BLURB = {
   "dev:0": "자료를 모아 근거로 답하고, 신호 · 성과 검증 · 자산배분 · 주문으로 이어지는 흐름을 한 장의 그림으로 봅니다.",
   "dev:1": "봉이 만들어지는 규칙부터 수정주가 · 분봉 시간대 · 품질 검사까지, 차트에 그리는 숫자가 어디서 오는지 익힙니다.",
@@ -58,7 +49,6 @@ const PART_BLURB = {
   "dev:10": "체결 시점 · 비용을 지킨 백테스트, 성과 지표 계산, 모의 주문 장부, 시장과 견주는 지표를 봅니다.",
   "dev:11": "성향 점수에서 자산군 비중까지, 리밸런싱 세 방식, 증권사 Open API, 주문 안전장치를 봅니다.",
   "dev:12": "그래디언트 부스팅, 시간 순서를 지킨 평가, 종목 군집화, 계절성 검정 — 모델을 믿을 수 있게 만드는 순서입니다.",
-  "special:S1": "거시 지표 · 경기 국면 · 산업 구조 · 재무제표 · 가치평가 · 차트 읽기 — 기업가치를 여러 방향에서 읽습니다.",
 };
 // 장 상태 낱말 — 화면에는 「완성」 · 「뼈대」 같은 작업 말을 쓰지 않는다(읽을 수 있는 장은 꼬리표 없음)
 const STATUS = { ready: "", draft: "다듬는 중", skeleton: "준비 중" };
@@ -118,7 +108,7 @@ function takeHash() {
   return { slug: m[1], h };
 }
 // 부 목차 주소(#learn-part/<갈래>/<부>) — 장 주소와 같은 방식: 화면 키 주소(#learn-part)로 바꾸고 갈래 · 부는 기록 칸에
-const PART_RE = /^#learn-part\/(dev|python|special)\/(S?\d{1,2})$/;
+const PART_RE = /^#learn-part\/(dev|python)\/(\d{1,2})$/;
 function takePartHash() {
   const m = location.hash.match(PART_RE);
   if (!m) return null;
@@ -226,9 +216,9 @@ function statusChip(st) {
   return `<span class="cl-st cl-st-${escHtml(st)}"><i class="${STATUS_ICON[st] || "fa-regular fa-circle"}" aria-hidden="true"></i>${escHtml(STATUS[st])}</span>`;
 }
 
-// 장 번호 — 특강은 교시로(S.13 → 3교시) · 팀 자료는 「팀」
+// 장 번호 — 팀 자료는 「팀」
 function chapterNum(p) {
-  return p.store === "team" ? "팀" : (/^S\.\d\d$/.test(p.order || "") ? `${p.order.slice(3)}교시` : (p.order || ""));
+  return p.store === "team" ? "팀" : (p.order || "");
 }
 
 function chapterRow(p, read) {
@@ -256,7 +246,6 @@ function partCard(part, items) {
 
 // 갈래 — 장 머리말(section · part)로 가른다(서버 응답 그대로)
 function clBranchOf(p) {
-  if (p.section === "special") return "special";
   if (p.section === "finance") return "finance";
   return /파이썬/.test(p.part || "") ? "python" : "dev";
 }
@@ -282,7 +271,7 @@ async function renderHome(el) {
   const team = c.pages.filter(p => p.store === "team");
   const last = c.bySlug.get(keepStore.get(LAST_KEY));
   let html = `<div class="fl-hub-head"><h2>학습</h2>
-      <span class="fl-muted">금융 필수 지식부터 Qurious 를 만든 개발 개념 · 파이썬 중급 · 특강까지, 네 갈래로 나눠 읽습니다.</span>
+      <span class="fl-muted">금융 필수 지식부터 Qurious 를 만든 개발 개념 · 파이썬 중급까지, 세 갈래로 나눠 읽습니다.</span>
       ${last ? `<a class="fl-link cl-resume" href="#learn/${escHtml(last.slug)}">이어 읽기 — ${escHtml(last.order)} ${escHtml(last.title)} →</a>` : ""}</div>`;
   html += `<div class="cl-branch-grid">${BRANCHES.map(b => clBranchCard(b, builtin.filter(p => clBranchOf(p) === b.key))).join("")}</div>`;
   if (team.length) {
@@ -298,45 +287,33 @@ async function renderHome(el) {
   el.innerHTML = html;
 }
 
-// ── 갈래 홈 · 부 목차 (2026-10-20 사용자 「개발 개념 · 파이썬 중급 · 특강도 강의실처럼 깔끔하게 · 나눠서 · 통일」) ──
-// 강의실(finlearn.js)과 같은 꼴: 갈래 홈은 부 · 날짜 카드(번호 · 제목 · 분량 · 한 줄 · 장 둘 · 막대 · 읽은 장)이고,
+// ── 갈래 홈 · 부 목차 (2026-10-20 사용자 「강의실처럼 깔끔하게 · 나눠서 · 통일」) ──
+// 강의실(finlearn.js)과 같은 꼴: 갈래 홈은 부 카드(번호 · 제목 · 분량 · 한 줄 · 장 둘 · 막대 · 읽은 장)이고,
 // 카드를 누르면 부 목차(learn-part)에서 장을 고른다. 부가 하나뿐인 갈래(파이썬 중급)는 강의실 「교재」 카드처럼 장마다 카드.
 
-// 부(특강은 날짜) 번호 — 장 차례의 앞자리(3.2 → 3 · S.13 → S1 · 서버 learn_pages.ORDER_RE 와 같은 꼴)
+// 부 번호 — 장 차례의 앞자리(3.2 → 3 · 서버 learn_pages.ORDER_RE 와 같은 꼴)
 function partNoOf(p) {
-  const o = String(p.order || "");
-  return o.startsWith("S.") ? `S${o.charAt(2)}` : o.split(".")[0];
+  return String(p.order || "").split(".")[0];
 }
-const clDay = no => SPECIAL_DAYS.find(d => `S${d.day}` === no);
 
-// 갈래의 부 목록 — 목차 차례 그대로(서버 정렬) · 특강은 아직 열리지 않은 날도 카드로
+// 갈래의 부 목록 — 목차 차례 그대로(서버 정렬)
 function clParts(c, key) {
   const pages = c.pages.filter(p => p.store === "builtin" && clBranchOf(p) === key);
-  const parts = [...groupBy(pages, partNoOf)].map(([no, items]) => ({ key, no, items, label: items[0].part || "" }));
-  if (key !== "special") return parts;
-  return SPECIAL_DAYS.map(d => parts.find(x => x.no === `S${d.day}`) || { key, no: `S${d.day}`, items: [], label: "" });
+  return [...groupBy(pages, partNoOf)].map(([no, items]) => ({ key, no, items, label: items[0].part || "" }));
 }
-const partBadge = x => (x.key === "special" ? `0${x.no.slice(1)}` : x.no.padStart(2, "0"));
-const partTitle = x => (x.key === "special" ? (clDay(x.no) || {}).title || x.label : x.label.replace(/^\d+부\s*/, ""));
-// 앞뒤 부 단추 · 장 머리 되돌아가기 글 — 「3부 근거 RAG」 · 「1일차 · 10월 19일」
-const partName = x => { const d = x.key === "special" && clDay(x.no); return d ? `${d.day}일차 · ${d.date}` : x.label; };
+const partBadge = x => x.no.padStart(2, "0");
+const partTitle = x => x.label.replace(/^\d+부\s*/, "");
+// 앞뒤 부 단추 · 장 머리 되돌아가기 글 — 「3부 근거 RAG」
+const partName = x => x.label;
 const minsOf = items => items.reduce((s, p) => s + (Number(p.minutes) || 0), 0);
 const minsText = m => (m >= 90 ? `약 ${Math.round(m / 30) / 2}시간` : `약 ${m}분`);
 
-// 부 · 날짜 카드 — 강의실 「4일 과정」 카드(finlearn courseCard)와 같은 꼴
+// 부 카드 — 강의실 「4일 과정」 카드(finlearn courseCard)와 같은 꼴
 function clCourseCard(x, read) {
-  const d = x.key === "special" ? clDay(x.no) : null;
-  if (!x.items.length) {   // 아직 열리지 않은 특강 날
-    return `<article class="fl-card fl-course cl-course is-wait">
-        <div class="fl-top"><span class="fl-no">${escHtml(partBadge(x))}</span><h3>${escHtml(partTitle(x))}</h3>
-          <span class="fl-chip">${escHtml(d ? `${d.date} · ` : "")}열릴 예정</span></div>
-        <p>특강이 끝나면 교시마다 장으로 정리합니다.</p>
-      </article>`;
-  }
   const n = x.items.length;
   const done = x.items.filter(p => read.has(p.slug)).length;
   const { soon } = clCounts(x.items);
-  const chip = `${d ? `${d.date} · ` : ""}${n}${d ? "교시" : "장"} · ${minsText(minsOf(x.items))}`;
+  const chip = `${n}장 · ${minsText(minsOf(x.items))}`;
   const cta = soon === n ? "목차 보기 →" : !done ? "학습 시작 →" : done < n ? "이어 읽기 →" : "다시 보기 →";
   return `<a class="fl-card fl-course cl-course" href="#learn-part/${x.key}/${x.no}">
       <div class="fl-top"><span class="fl-no">${escHtml(partBadge(x))}</span><h3>${escHtml(partTitle(x))}</h3>
@@ -363,7 +340,7 @@ function clChapterCard(p, read) {
     </a>`;
 }
 
-// 갈래 홈 — 개발 개념 · 파이썬 중급 · 특강
+// 갈래 홈 — 개발 개념 · 파이썬 중급
 async function clRenderBranch(el, key) {
   const b = BRANCH[key];
   el.innerHTML = `<div class="fl-card fl-muted">${escHtml(b.label)} 목차를 불러오는 중…</div>`;
@@ -377,8 +354,8 @@ async function clRenderBranch(el, key) {
   const read = readSet();
   const { readable, soon } = clCounts(pages);
   const drafts = pages.filter(p => p.status === "draft").length;
-  const single = key !== "special" && parts.length === 1;
-  const course = key === "special" ? `${parts.length}일 특강` : single ? `${pages.length}장 과정` : `${parts.length}부 과정`;
+  const single = parts.length === 1;
+  const course = single ? `${pages.length}장 과정` : `${parts.length}부 과정`;
   const stat = pages.length ? `장 ${pages.length} · 읽을 수 있는 장 ${readable}${soon ? ` · 준비 중 ${soon}` : ""} · 모두 읽으면 ${minsText(minsOf(pages))}` : "";
   el.innerHTML = `<div class="fl-hub-head"><h2>${escHtml(b.label)}</h2>
       <span class="fl-muted">${escHtml(b.blurb)}</span>
@@ -390,21 +367,21 @@ async function clRenderBranch(el, key) {
     ${noticeLineHtml()}`;
 }
 
-// 장 머리의 되돌아가기 · 왼쪽 트리 — 부 목차가 있는 갈래(개발 개념 · 특강)는 그 부 목차로, 그 밖은 갈래 첫 화면으로
+// 장 머리의 되돌아가기 · 왼쪽 트리 — 부 목차가 있는 갈래(개발 개념)는 그 부 목차로, 그 밖은 갈래 첫 화면으로
 function backOf(m, store) {
   const home = { href: "#learn-home", label: "학습 홈", parent: "learn-home" };
   if (store === "team") return home;
   const key = clBranchOf(m);
   const b = BRANCH[key];
   if (!b) return home;
-  if (key === "dev" || key === "special") {
+  if (key === "dev") {
     const x = { key, no: partNoOf(m), label: m.part || "" };
     return { href: `#learn-part/${key}/${x.no}`, label: `${partName(x)} 목차`, parent: b.view };
   }
   return { href: `#${b.view}`, label: b.label, parent: b.view };
 }
 
-// 부 목차 — 부 · 날짜 카드를 누르면 열린다(강의실의 주제 화면 자리)
+// 부 목차 — 부 카드를 누르면 열린다(강의실의 주제 화면 자리)
 async function clRenderPart(el, want) {
   const [key, no] = String(want || "").split("/");
   const b = BRANCH[key];
@@ -428,14 +405,13 @@ async function clRenderPart(el, want) {
   const unread = open.find(p => !read.has(p.slug));
   const next = unread || open[0];
   const go = !done ? "첫 장부터 읽기" : unread ? "이어 읽기" : "처음부터 다시 읽기";
-  const d = key === "special" ? clDay(no) : null;
   const blurb = PART_BLURB[`${key}:${no}`] || "";
   tabStore.set(PART_KEY, want);
   if (location.hash === "#learn-part") history.replaceState({ clPart: want }, "", "#learn-part");   // 새로 고침 · 뒤로 가기가 이 부로
   el.innerHTML = `<div class="fl-card fl-topic-head cl-part-page">
       <div class="fl-title-row"><span class="cl-part-no">${escHtml(partBadge(x))}</span><h2>${escHtml(partTitle(x))}</h2>
-        <span class="fl-chip is-accent">${escHtml(b.label)}</span>${d ? `<span class="fl-chip">${escHtml(d.date)}</span>` : ""}
-        <span class="fl-chip">${n}${d ? "교시" : "장"}</span>
+        <span class="fl-chip is-accent">${escHtml(b.label)}</span>
+        <span class="fl-chip">${n}장</span>
         <span class="fl-chip"><i class="fa-regular fa-clock" aria-hidden="true"></i> ${escHtml(minsText(minsOf(x.items)))}</span>
         <a class="fl-link cl-home-link" href="#${b.view}">← ${escHtml(b.label)}</a></div>
       ${blurb ? `<p>${escHtml(blurb)}</p>` : ""}
@@ -700,7 +676,6 @@ function buildToc(toc, art) {
 export function onConceptLearnViewActivated(view) {
   if (view === "learn-dev") { const el = document.getElementById("cl-dev"); if (el) clRenderBranch(el, "dev"); return; }
   if (view === "learn-python") { const el = document.getElementById("cl-python"); if (el) clRenderBranch(el, "python"); return; }
-  if (view === "learn-special") { const el = document.getElementById("cl-special"); if (el) clRenderBranch(el, "special"); return; }
   if (view === "learn-part") {
     const el = document.getElementById("cl-part");
     if (!el) return;
