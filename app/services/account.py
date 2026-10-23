@@ -267,6 +267,14 @@ def user_owned_columns() -> list[tuple[Table, Column]]:
     return out
 
 
+async def uploaded_source_keys(db: AsyncSession, user_id: uuid.UUID) -> list[str]:
+    """그 사람이 올린 문서의 출처 키 — 탈퇴 때 벡터 조각을 먼저 지울지 정한다(없으면 벡터 DB 를 부르지 않는다 · DF-146)."""
+    from app.models import UploadedDoc
+
+    rows = await db.execute(select(UploadedDoc.source_key).where(UploadedDoc.user_id == user_id))
+    return [k for (k,) in rows.all() if k]
+
+
 async def delete_user_data(db: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:
     """한 사용자의 데이터를 모두 지우고 사용자 행까지 지운다. 표별로 바뀐 행 수를 돌려준다.
 

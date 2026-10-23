@@ -25,6 +25,7 @@ JWT 방식 (API 클라이언트 / 모바일):
   PUT    /api/me/password          – 비밀번호 바꾸기 (현재 비밀번호 확인 · 다른 기기 로그아웃)
   DELETE /api/me                   – 회원 탈퇴 (비밀번호 · 확인 문구 · 데이터 파기)
 """
+import logging
 import uuid
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
@@ -467,7 +468,23 @@ async def delete_me(body: AccountDeleteBody, request: Request, response: Respons
         if not account.verify_password(body.password, row.password_hash):
             raise HTTPException(400, "비밀번호가 올바르지 않습니다.")
         uid = row.id
+        # (DF-146 · 2026-10-23) 올린 문서가 있으면 벡터 조각부터 지운다 — 못 지우면 탈퇴를 멈추고 503(사용자 결정 10-23).
+        # 「즉시 파기」 를 약속하므로 DB 만 지우고 조각을 남기지 않는다(예전엔 조각이 남아 남의 채팅에 계속 보였다).
+        # 올린 문서가 없으면 벡터 DB 와 상관없이 탈퇴한다 — 문지기 모듈(LangChain · Qdrant)도 그때만 가져온다.
+        keys = await account.uploaded_source_keys(db, uid)
+        purged = 0
+        if keys:
+            from app.services import user_docs
+            from app.services.rag_pipeline import VectorStoreError
+            try:
+                purged = await user_docs.delete_owner(str(uid), keys)
+            except VectorStoreError as exc:
+                logging.getLogger("qurious.auth").warning("탈퇴 — 올린 문서 조각 지우기 실패: %s", exc)
+                raise HTTPException(503, "올린 문서를 지우지 못해 탈퇴를 멈췄습니다 — 잠시 뒤 다시 해 주세요. "
+                                         "계정과 기록은 그대로 있습니다.") from exc
         counts = await account.delete_user_data(db, uid)
+        if purged:
+            counts["user_docs(벡터 조각)"] = purged
         await db.commit()
     await delete_all_user_sessions(str(uid))
     await clear_user_state(str(uid))

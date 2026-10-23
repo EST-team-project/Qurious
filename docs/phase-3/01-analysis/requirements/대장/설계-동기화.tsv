@@ -1,0 +1,11 @@
+동기화ID	통합문서	통합절	원천파일	원천절	방식	고정판	고정지문	옮긴날	옮긴이	상태	비고
+SY-01	phase-3/02-design/system/기능설계.md	P02-①-2	phase-3/02-design/system/인디케이터-전략-설계.md	4.3	갈음			2026-10-23	이동원	대기	협의(10-26 ~ 27) 끝까지 갈음(S139 결정 ③) · 칸 이름 세 벌은 통합 절의 다른 말 표 · 확정되면 옮김 · 원천 v0.2(#324 · 10-23 · 4.3 칸 이름 · 값 그대로) — 고정판 · 지문은 --sync-ack(S141)
+SY-02	phase-3/02-design/system/기능설계.md	P02-①-3	phase-3/02-design/system/인디케이터-전략-설계.md	4.5	갈음			2026-10-23	이동원	대기	기준 전략 선정 — 조합표 · 시도 기록 · 원천 v0.2(#324 · 10-23 · 4.3 칸 이름 · 값 그대로) — 고정판 · 지문은 --sync-ack(S141)
+SY-03	phase-3/02-design/system/기능설계.md	P02-⑤-1	phase-3/02-design/system/증권사-연동-자동화-설계.md	4	갈음			2026-10-23	이동원	대기	LEAN 신호 계약 초안 · 앱 안 가상 체결(V1) / KIS 모의(V3) 주 경로는 통합 절의 다른 말 표 · 원천 머리표에 판 없음(지문만)
+SY-04	phase-3/02-design/system/기능설계.md	P02-⑤-2	phase-3/02-design/system/증권사-연동-자동화-설계.md	5	갈음			2026-10-23	이동원	대기	중복 · 상태 저장(유일 키 · PENDING · UNKNOWN 보존 · 자동 재주문 없음)
+SY-05	phase-3/04-testing/테스트계획서.md	3차 시험 안	phase-3/02-design/system/증권사-연동-자동화-설계.md	6	미반영				이동원	대기	B1 ~ B14 — 구현 시작(10-26) 뒤 「안」 줄로(통합 점검 6절 순위 6)
+SY-06	phase-3/04-testing/테스트계획서.md	3차 시험 안	phase-3/02-design/system/인디케이터-전략-설계.md	7	미반영				이동원	대기	새 묶음 이름 TC-CRD(옛 안 TC-RL) · TC-BSL(옛 안 TC-GS) · TC-VR — 요구 대장 제안시험 칸에 등록(S140) · 원천 v0.2(#324 · 10-23 · 4.3 칸 이름 · 값 그대로) — 고정판 · 지문은 --sync-ack(S141)
+SY-07	phase-3/01-analysis/requirements/RTM.md	3절 P02-①-2 · ①-3 설계 칸	phase-3/02-design/system/인디케이터-전략-설계.md		링크만			2026-10-23	이동원	대기	요구 대장 설계_추가 칸에서 RTM 이 만든다 · 원천 v0.2(#324 · 10-23 · 4.3 칸 이름 · 값 그대로) — 고정판 · 지문은 --sync-ack(S141)
+SY-08	phase-3/01-analysis/requirements/RTM.md	3절 P02-⑤-1 · ⑤-2 설계 칸	phase-3/02-design/system/증권사-연동-자동화-설계.md		링크만			2026-10-23	이동원	대기	같음
+SY-09	phase-3/01-analysis/requirements/RTM.md	3절 2차 ② 행 설계 칸	phase-3/02-design/system/목표기능2-패턴예측-XAI-설계.md		미반영				이동원	대기	통합 문서에 파일 링크 0(통합 점검 표 2 N) — 내용은 시험 이름으로 들어감
+SY-10	phase-3/02-design/system/기능동작원리.md	부록 C	phase-3/02-design/system/목표기능3-리밸런싱-설계.md		미반영				이동원	대기	본 설계서 v0.1 낡음(통합 점검 표 2 M · 6절 순위 9 · 12) — 주담당 판 올림 뒤 옮김

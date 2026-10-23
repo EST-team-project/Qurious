@@ -569,3 +569,35 @@ def test_앱_코드는_실행_중에_설정_객체를_바꾸지_않는다():
              for path in _app_python_files() if path.relative_to(ROOT).as_posix() != "app/config.py"
              for line in _settings_writes(path)]
     assert not found, "설정 객체에 값을 쓰는 곳(프로세스 전체 · 모든 계정에 걸림):\n" + "\n".join(found)
+
+
+def test_올린_문서는_문지기로만_읽고_쓴다():
+    """DF-146(2026-10-23) — 올린 문서는 사용자 비공개 모음에만 있고, 그 모음은 app/services/user_docs.py 만 연다.
+    강사님 판은 올린 문서를 공용 모음(`DOCUMENT_COLLECTION = "fin_chunks"`)에 넣고 채팅 · 문서 검색이 거르지 않는다 —
+    3-way 병합으로 그 줄들이 충돌 없이 되돌아오면 남의 문서가 다시 보인다."""
+    app_dir = ROOT / "app"
+    literal = re.compile(r"[\"']user_docs[\"']")
+    owners = sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in app_dir.rglob("*.py")
+                    if literal.search(p.read_text(encoding="utf-8")))
+    assert owners == ["app/services/user_docs.py"], f"비공개 모음 이름이 문지기 밖에 있다: {owners}"
+    docs = (app_dir / "routes" / "documents.py").read_text(encoding="utf-8")
+    for old in ("DOCUMENT_COLLECTION", "rag_search", "store_chunks", "delete_chunks_by_source"):
+        assert old not in docs, f"documents.py 가 공용 모음 길({old})을 다시 쓴다"
+    for call in ('user_docs.store(user["id"]', 'user_docs.search(user["id"]', 'user_docs.delete_doc(user["id"]'):
+        assert call in docs, f"documents.py 가 문지기를 거치지 않는다: {call}"
+    chat = (app_dir / "routes" / "chat.py").read_text(encoding="utf-8")
+    assert not re.search(r"\brag_search\(", chat), "chat.py 가 공용 검색만 부른다(내 문서가 빠지고 거름 규칙이 흩어진다)"
+    assert chat.count("search_with_shared(body.question, owner_id=user_id") == 2
+    rag = (app_dir / "services" / "rag_pipeline.py").read_text(encoding="utf-8")
+    assert "filter=shared_filter(filter_source)" in rag and "USER_DOCS_COLLECTION" in rag
+    auth = (app_dir / "routes" / "auth.py").read_text(encoding="utf-8")
+    assert 0 < auth.index("user_docs.delete_owner(") < auth.index("account.delete_user_data(db, uid)"),         "탈퇴가 벡터 조각보다 DB 를 먼저 지운다(조각이 남는다)"
+
+
+def test_그래프_라우터는_로그인한_사람만():
+    """DF-146 조사 곁가지 ①(2026-10-23) — 강사님 판의 /api/graph 라우터에는 로그인이 없어, 로그인 안 한 사람도 벡터 조각을
+    읽고 그래프를 다시 채울(/seed) 수 있었다 → 라우터 전체는 로그인한 사람 · /seed 는 관리자."""
+    graph = (ROOT / "app" / "routes" / "graph.py").read_text(encoding="utf-8")
+    assert re.search(r"APIRouter\([^)]*dependencies=\[Depends\(get_current_user_any\)\]", graph)
+    assert '@router.post("/seed", dependencies=[Depends(require_roles("admin"))])' in graph
+

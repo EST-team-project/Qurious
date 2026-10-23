@@ -101,6 +101,7 @@ def chat_app(monkeypatch):
 
     async def fake_rag(question, top_k=5, **kw):
         calls["rag"].append(question)
+        calls.setdefault("owner", []).append(kw.get("owner_id"))   # DF-146 — 채팅은 내 ID 로 내 문서만
         return DOCS
 
     async def fake_agent(db, llm, llm_model, question, history, rag_context=""):
@@ -110,7 +111,7 @@ def chat_app(monkeypatch):
     async def noop(*a, **k): pass
 
     monkeypatch.setattr(chat_mod, "_get_or_create_conversation", fake_conv)
-    monkeypatch.setattr(chat_mod, "rag_search", fake_rag)
+    monkeypatch.setattr(chat_mod, "search_with_shared", fake_rag)
     monkeypatch.setattr(chat_mod, "run_agent", fake_agent)
     monkeypatch.setattr(chat_mod, "set_active_conversation", noop)
     monkeypatch.setattr(chat_mod, "get_llm_client", lambda: "OLLAMA-CLIENT")
@@ -136,6 +137,7 @@ def test_rag_mode_falls_back_to_rule_answer_when_llm_unavailable(chat_app):
     assert len(body["chunks"]) == 2
     assert calls["agent"] == []                    # LangGraph 에이전트 미호출
     assert calls["rag"] == ["삼성전자 실적"]
+    assert calls["owner"] == [USER["id"]], "채팅 근거 검색에 로그인한 사람의 ID 가 가야 한다(DF-146)"
     assert "LLM 미사용" in body["answer"]
     assert "삼성전자 실적" in body["answer"] and "https://ex.com/a" in body["answer"]
     assert body["citations"][0]["title"] == "삼성전자 실적"
@@ -167,7 +169,7 @@ def test_rag_mode_with_no_docs(chat_app, monkeypatch):
     client, _ = chat_app
 
     async def empty(*a, **k): return []
-    monkeypatch.setattr(chat_mod, "rag_search", empty)
+    monkeypatch.setattr(chat_mod, "search_with_shared", empty)
     res = client.post("/api/chat", json={"question": "없는 내용", "llm_mode": "rag", "use_rag": False})
     assert res.status_code == 200
     assert res.json()["chunks"] == []

@@ -1,11 +1,14 @@
 """Neo4j 그래프 관련 API 라우터."""
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.services import graph_service
 from app.services.graph_rag import graph_rag_search, graph_rag_answer
+from app.lib.jwt_auth import get_current_user_any, require_roles
 
-router = APIRouter(prefix="/api/graph", tags=["graph"])
+# (Qurious 2026-10-23 · DF-146 조사 곁가지 ①) 예전에는 이 라우터 어디에도 로그인이 없어, 로그인 안 한 사람도 그래프 검색으로
+# 벡터 조각을 읽고 그래프를 다시 채울(/seed) 수 있었다. 읽기는 로그인한 사람 · 다시 채우기는 관리자만.
+router = APIRouter(prefix="/api/graph", tags=["graph"], dependencies=[Depends(get_current_user_any)])
 
 
 @router.get("/related/{symbol}")
@@ -55,7 +58,7 @@ async def documents_for_symbol(symbol: str):
     return {"symbol": symbol, "documents": docs, "count": len(docs)}
 
 
-@router.post("/seed")
+@router.post("/seed", dependencies=[Depends(require_roles("admin"))])
 async def seed_graph():
     """종목 관계 그래프 초기 데이터를 Neo4j에 삽입한다."""
     try:

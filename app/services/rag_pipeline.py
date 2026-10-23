@@ -17,7 +17,9 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_ollama import ChatOllama
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, VectorParams
+from qdrant_client.http.models import (
+    Distance, FieldCondition, Filter, IsEmptyCondition, MatchValue, PayloadField, VectorParams,
+)
 
 from app.config import settings
 from app.lib.llm_limits import answer_options
@@ -43,6 +45,21 @@ class CompatibleQdrantStore(QdrantVectorStore):
 
 #: LangChain 은 메타데이터를 payload 의 "metadata" 아래에 둔다 → 출처로 거르거나 지울 때의 키(예전 "source" 는 늘 0건).
 SOURCE_KEY = "metadata.source"
+
+#: (Qurious 2026-10-23 · DF-146) 올린 꼴 조각에만 있는 칸 — 옛 올린 조각은 올린 사람 이메일(uploader), 새 조각은 주인 ID.
+#: 공용 검색은 두 칸이 모두 빈 조각(크롤)만 읽는다. 올린 문서는 app/services/user_docs.py 의 비공개 모음에만 있다.
+UPLOADER_KEY = "metadata.uploader"
+OWNER_KEY = "metadata.owner_id"
+
+
+def shared_filter(source: str | None = None) -> Filter:
+    """공용 모음 검색의 거름 — 올린 꼴 조각을 뺀다(옛 조각을 옮기기 전에도 바로 막히고, 병합으로 올린 조각이
+    공용에 다시 들어와도 안전망이 된다 · 조사 6절 ①). Qdrant 의 IsEmpty 는 `metadata` 칸이 아예 없는 크롤 점도 잡는다(실측 M1)."""
+    must: list = [IsEmptyCondition(is_empty=PayloadField(key=UPLOADER_KEY)),
+                  IsEmptyCondition(is_empty=PayloadField(key=OWNER_KEY))]
+    if source:
+        must.append(FieldCondition(key=SOURCE_KEY, match=MatchValue(value=source)))
+    return Filter(must=must)
 
 
 def _make_embeddings() -> OllamaEmbeddings:
@@ -78,8 +95,10 @@ class VectorStoreError(RuntimeError):
 async def _open_store(collection: str) -> tuple[QdrantClient, QdrantVectorStore]:
     client = _make_client()
     await asyncio.to_thread(_ensure_collection, client, collection)
+    # (Qurious 2026-10-23) 크롤 조각은 본문을 payload 맨 위 「text」 에 둔다 — 보통 QdrantVectorStore 로 읽으면 본문 ·
+    # 제목이 빈 글이 되어(실측 M18) 채팅 근거에 크롤 글이 비어 들어갔다. 두 꼴을 다 읽는 CompatibleQdrantStore 로 연다.
     store = await asyncio.to_thread(
-        QdrantVectorStore, client=client, collection_name=collection, embedding=_make_embeddings(),
+        CompatibleQdrantStore, client=client, collection_name=collection, embedding=_make_embeddings(),
     )
     return client, store
 
@@ -105,17 +124,15 @@ async def rag_search(
         [{"text": ..., "url": ..., "title": ..., "source": ..., "score": ...}, ...]
     """
     coll = collection or settings.QDRANT_COLLECTION
+    # (DF-146) 비공개 모음은 주인 거름을 거는 문지기로만 연다 — 여기로 오면 남의 문서가 섞인다. try 밖에서 막아 삼키지 않는다.
+    from app.services.user_docs import USER_DOCS_COLLECTION
+    if coll == USER_DOCS_COLLECTION:
+        raise ValueError("비공개 모음은 app/services/user_docs.py 로만 연다")
     try:
         client, store = await _open_store(coll)
 
-        qdrant_filter = None
-        if filter_source:
-            qdrant_filter = Filter(
-                must=[FieldCondition(key=SOURCE_KEY, match=MatchValue(value=filter_source))]
-            )
-
         results = await store.asimilarity_search_with_score(
-            query, k=top_k, filter=qdrant_filter
+            query, k=top_k, filter=shared_filter(filter_source)
         )
         client.close()
 
@@ -185,7 +202,7 @@ def build_rag_chain(collection: str | None = None):
         embedding=_make_embeddings(),
         content_payload_key="text",
     )
-    retriever = vector_store.as_retriever(search_kwargs={"k": settings.TOP_K})
+    retriever = vector_store.as_retriever(search_kwargs={"k": settings.TOP_K, "filter": shared_filter()})   # DF-146
 
     prompt = ChatPromptTemplate.from_messages([
         (
