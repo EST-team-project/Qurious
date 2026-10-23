@@ -34,8 +34,8 @@ def test_every_test_file_lands_in_exactly_one_group():
 
 
 def test_group_names_and_keys_are_unique_and_keys_ascii():
-    labels = [g[0] for g in tg.GROUPS] + [tg.REST[0]]
-    keys = [g[1] for g in tg.GROUPS] + [tg.REST[1]]
+    labels = [g[0] for g in tg.GROUPS] + [tg.REST[0], tg.CONTAINER[0]]
+    keys = [g[1] for g in tg.GROUPS] + [tg.REST[1], tg.CONTAINER[1]]
     assert len(set(labels)) == len(labels)
     assert len(set(keys)) == len(keys)
     # 영어 열쇠는 Git Bash → PowerShell 인자 · 결과 파일 이름(ui.xml)에 쓴다
@@ -72,3 +72,27 @@ def test_test_ps1_reads_this_table():
     src = (ROOT / "scripts" / "personal" / "test.ps1").read_text(encoding="utf-8-sig")
     assert "_test_groups.py') --json" in src
     assert '"--junit-xml=$xml") + @($g.files)' in src
+
+
+def test_container_group_takes_rag_chat_isolation_first_and_runs_last():
+    # 호스트에 RAG · 채팅 패키지가 없어 통째로 건너뛰던 셋(TC-VS · TC-CM · TC-DI)을 앱 이미지 컨테이너 묶음이 가진다(2026-10-23)
+    label, key, names = tg.CONTAINER
+    for n in names:
+        assert (tg.TESTS / n).is_file(), f"컨테이너 묶음의 {n} 이 tests/ 에 없다(이름이 바뀌었으면 표도 고친다)"
+        assert tg.group_of(n) == (label, key)                              # 지식 묶음의 test_rag_* · test_chat_* 보다 먼저
+    assert tg.group_of("test_chat_answer_cache.py") == ("지식", "kb")      # 이름을 적은 셋만 — 글롭이 아니다
+    groups = tg.assign(tg.test_files())
+    assert groups[-1]["key"] == key and groups[-1]["runner"] == "container" and groups[-1]["image"] == tg.CONTAINER_IMAGE
+    assert all(g["runner"] == "host" for g in groups[:-1])                 # 실행은 맨 끝 · 나머지는 모두 호스트
+
+
+def test_test_ps1_runs_container_group_read_only_without_host_install():
+    # 컨테이너 묶음 — 저장소는 읽기 전용 · 결과만 /out · 이미지 · Docker 가 없으면 실패가 아니라 건너뜀 + 까닭
+    # · pip 는 컨테이너 명령 안에만(호스트 파이썬에 패키지를 깔지 않는다)
+    src = (ROOT / "scripts" / "personal" / "test.ps1").read_text(encoding="utf-8-sig")
+    assert "if ($g.runner -eq 'container')" in src and "Invoke-QContainerGroup $g $RunDir" in src
+    assert '-v "${repo}:/w:ro"' in src and '-v "${out}:/out"' in src and "--junit-xml=/out/{1}.xml" in src
+    assert "docker image inspect $g.image" in src and "skipped_reason" in src
+    run_pip = [ln for ln in src.splitlines() if "pip install" in ln and "Write-Q" not in ln]   # 안내 글은 뺀다
+    assert len(run_pip) == 1 and "|| exit 97" in run_pip[0]                  # 컨테이너 명령 글 하나뿐
+    assert "& pip" not in src and "-m pip" not in src and "'-m', 'pip'" not in src

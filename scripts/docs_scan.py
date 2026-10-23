@@ -12,9 +12,19 @@ docs 는 차수 폴더로 나뉜다(2026-10-21 · docs/README.md 2절) — `docs
     python scripts/docs_scan.py --bump docs/phase-3/04-testing/테스트계획서.md   지금 판(머리표)을 지난판/ 에 사본으로 — 그다음 원본을 고친다
     python scripts/docs_scan.py --check                                  맨 위의 판 붙은 문서 · 짝 없는 지난판 사본 · 옛 자리에 남은 문서 (있으면 종료코드 1)
     python scripts/docs_scan.py --to3 docs/phase-2/01-analysis/research/섹터별-근거법령-조사.md  2차에만 있는 문서를 3차에 고치기 전에 3차로 사본(한 번)
+    python scripts/docs_scan.py --sync                                   동기화 대장 — 원천(팀원 설계서)이 올랐거나 글이 바뀐 절 (오류만 종료코드 1)
+    python scripts/docs_scan.py --sync-ack SY-01 SY-02                   읽고 옮긴 뒤 — 그 줄의 고정판 · 고정지문 · 옮긴날을 지금 원천 값으로
 
 판 올리는 순서: ① --bump ② 원본(판 없는 이름)을 고치고 머리표의 판 · 최종 수정 · 개정 이력 ③ 산출물목록 0.1절 판 칸.
-다른 문서의 링크는 고치지 않아도 된다 — 최신을 가리키는 이름이 그대로라서.
+다른 문서의 링크는 고치지 않아도 된다 — 최신을 가리키는 이름이 그대로라서. 원천이 있는 통합 문서면 ④ --sync-ack · --sync 경고 0.
+
+동기화(--sync · 2026-10-23 사용자 결정 · 동기화 조사 4.2 · 4.3): 통합 문서 절이 어느 팀원 설계서의 어느 절을 몇 판 기준으로
+옮겼는지는 `대장/설계-동기화.tsv` 한 곳이 정본이다. 판만 고정하면 판이 안 오른 채 바뀐 글을 못 보므로 절 지문도 고정한다 —
+지문 = 링크 주소를 빼고(글자는 남김) · 줄 끝 공백 지움 · 연속 공백 하나로 · 빈 줄 접기 뒤 SHA-256 앞 12자. 원천 절은 머리글
+첫 낱말에서 끝의 점을 뗀 값(`## 4.` → 4 · `### 4.3` → 4.3)으로 찾고 다음 같은 · 높은 머리글 전까지 자른다(코드 울타리 안의
+`#` 줄은 머리글이 아니다 · 원천절이 비면 파일 전체). 오류(대장이 틀렸다)만 종료코드 1 — 경고 A(원천이 올랐다) · 경고 B(판은
+그대로인데 글이 바뀌었다) · 안내(미반영 · 아직 고정 안 함)는 머지를 막지 않는다. 통합 문서는 고치지 않는다(읽고 알리기 ·
+고정 값 기록까지).
 
 받는 자리 셋:
   docs/<차수>/<번호>-<묶음>[/<종류>]/<이름>.md   종류 12(KIND_DIRS — 04 · 05 는 번호 폴더가 곧 종류)
@@ -31,10 +41,12 @@ docs 는 차수 폴더로 나뉜다(2026-10-21 · docs/README.md 2절) — `docs
 from __future__ import annotations
 
 import argparse
+import hashlib
 import posixpath
 import re
 import sys
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -71,6 +83,21 @@ HTML_COMMENT_VERSION = re.compile(r"<!--(?:(?!-->).)*?\bv(\d+(?:\.\d+)+)", re.S)
 HTML_ATTR = re.compile(r'(\b(?:src|href|poster)=")([^"]+)(")')
 WHERE = ("docs/<차수>/<번호>-<묶음>[/<종류>]/<이름>.md · docs/<차수>/06-retrospective/<이름>.md|html · "
          + " · ".join(f"docs/{d}/<이름>.md" for d in TOP_DIRS))
+#: 동기화 대장 — 요구 대장 · 시험-요구 대장 곁의 셋째 추적 대장(2026-10-23). 통합문서 · 원천파일 칸은 docs 기준 경로
+SYNC_LEDGER = "docs/phase-3/01-analysis/requirements/대장/설계-동기화.tsv"
+SYNC_COLS = ("동기화ID", "통합문서", "통합절", "원천파일", "원천절", "방식", "고정판", "고정지문", "옮긴날", "옮긴이", "상태", "비고")
+#: 방식 다섯 — 앞의 셋은 통합 문서 절 머리에 「> 원천: [이름](경로) 4.3절 · v0.2 · 갈음 · SY-01」 줄을 둔다.
+#: 링크만 · 미반영은 원천 줄이 없다(RTM 설계 칸은 원천을 이름으로 적는다) — 원천 쪽 판 · 지문만 본다.
+SYNC_WAYS = ("옮김", "요약", "갈음", "링크만", "미반영")
+SYNC_LINE_WAYS = ("옮김", "요약", "갈음")
+NO_VER = "판 없음"
+SYNC_LEVELS = ("오류", "경고 A", "경고 B", "안내")
+HEADING = re.compile(r"^(#{1,6})[ \t]+(\S+)")
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+#: 지문에서 뺄 링크 주소 — `[글](주소 "제목")` 은 `[글]` 로, 참조 정의 `[이름]: 주소` 는 `[이름]:` 로
+FP_LINK = re.compile(r"(!?\[[^\]\n]*\])\((?:<[^>\n]*>|[^)\n]*)\)")
+FP_REFDEF = re.compile(r"^([ \t]{0,3}\[[^\]\n]+\]:)[ \t]*\S.*$", re.M)
+KST = timezone(timedelta(hours=9))
 
 
 def head_version(text: str, html: bool = False) -> str | None:
@@ -259,13 +286,240 @@ def check(root: Path = ROOT) -> list[str]:
   return problems
 
 
+def section_text(text: str, sec: str) -> str | None:
+  """원천 절 — 머리글 첫 낱말에서 끝의 점을 뗀 값이 `sec` 인 첫 머리글부터 다음 같은 · 높은 머리글 전까지(머리글 줄 포함).
+
+  `sec` 가 비면 파일 전체. 코드 울타리(``` · ~~~) 안의 `#` 줄은 머리글이 아니다. 못 찾으면 None. 줄 끝은 LF 로 돌려준다.
+  """
+  lines = text.replace("\r\n", "\n").split("\n")
+  if not sec:
+    return "\n".join(lines)
+  start = level = None
+  fence = ""
+  for i, line in enumerate(lines):
+    f = FENCE.match(line)
+    if f:
+      mark = f.group(1)
+      if not fence:
+        fence = mark
+      elif mark[0] == fence[0] and len(mark) >= len(fence):    # 여는 울타리와 같은 글자 · 같거나 긴 줄이 닫는다
+        fence = ""
+      continue
+    h = None if fence else HEADING.match(line)
+    if not h:
+      continue
+    if start is None:
+      if h.group(2).rstrip(".") == sec:
+        start, level = i, len(h.group(1))
+    elif len(h.group(1)) <= level:
+      return "\n".join(lines[start:i])
+  return "\n".join(lines[start:]) if start is not None else None
+
+
+def fingerprint(text: str) -> str:
+  """절 지문 — 링크 주소를 빼고(글자는 남김) · 줄 끝 공백 지움 · 연속 공백 하나로 · 빈 줄 접기 뒤 SHA-256 앞 12자.
+
+  폴더를 옮겨 링크만 다시 쓴 커밋 · 줄 바꿈 꼴 · 띄어쓰기 손질에는 지문이 그대로이고, 글자가 하나라도 바뀌면 달라진다.
+  """
+  t = FP_REFDEF.sub(r"\1", FP_LINK.sub(r"\1", text.replace("\r\n", "\n")))
+  out: list[str] = []
+  for line in t.split("\n"):
+    line = re.sub(r"[ \t]+", " ", line.rstrip())
+    if line or (out and out[-1]):                                # 빈 줄이 이어지면 하나만 · 맨 앞 빈 줄은 버림
+      out.append(line)
+  while out and not out[-1]:
+    out.pop()
+  return hashlib.sha256("\n".join(out).encode("utf-8")).hexdigest()[:12]
+
+
+def _ver_key(v: str | None) -> tuple[int, ...] | None:
+  """`v0.10` · `0.10` → (0, 10) — 판은 글자가 아니라 숫자로 견준다(0.10 > 0.9). 판 꼴이 아니면 None."""
+  m = re.fullmatch(r"v?(\d+(?:\.\d+)*)", (v or "").strip())
+  return tuple(int(x) for x in m.group(1).split(".")) if m else None
+
+
+def _show_ver(v: str | None) -> str:
+  """대장 · 원천 줄에 쓰는 꼴 — `v0.2`, 판이 없으면 「판 없음」."""
+  k = _ver_key(v)
+  return "v" + ".".join(map(str, k)) if k else NO_VER
+
+
+def _ledger(root: Path):
+  """동기화 대장 — (경로, 줄 끝, 줄 목록, 머리 칸, [(줄 번호, 칸 목록, 칸 사전)]). 빈 줄은 건너뛴다."""
+  path = root / SYNC_LEDGER
+  if not path.is_file():
+    raise SystemExit(f"멈춤 — 동기화 대장이 없다: {SYNC_LEDGER}")
+  raw = path.read_bytes().decode("utf-8")
+  nl = "\r\n" if "\r\n" in raw else "\n"
+  lines = raw.split(nl)
+  head = lines[0].split("\t")
+  missing = [c for c in SYNC_COLS if c not in head]
+  if missing:
+    raise SystemExit(f"멈춤 — 동기화 대장 머리에 칸이 없다: {' · '.join(missing)} ({SYNC_LEDGER})")
+  rows = []
+  for i, line in enumerate(lines[1:], 1):
+    if line.strip():
+      cells = line.split("\t")
+      cells += [""] * (len(head) - len(cells))
+      rows.append((i, cells, {c: cells[head.index(c)].strip() for c in SYNC_COLS}))
+  return path, nl, lines, head, rows
+
+
+def _source_lines(text: str, sid: str) -> list[tuple[int, str | None]]:
+  """통합 문서의 `> 원천: … · SY-01` 줄 — (줄 번호, 그 줄의 판 `v0.2` · 「판 없음」 · 못 읽으면 None). SY-1 은 SY-10 에 맞지 않는다."""
+  out = []
+  idre = re.compile(rf"(?<![\w-]){re.escape(sid)}(?![\w-])")
+  for n, line in enumerate(text.replace("\r\n", "\n").split("\n"), 1):
+    if re.match(r"^ {0,3}>\s*원천\s*:", line) and idre.search(line):
+      parts = [p.strip() for p in FP_LINK.sub(r"\1", line).split("·")]
+      out.append((n, next((p for p in parts if p == NO_VER or re.fullmatch(r"v\d+(?:\.\d+)*", p)), None)))
+  return out
+
+
+def _read_source(root: Path, row: dict):
+  """원천 파일 · 절 — (파일 글, 절 글) · 못 찾으면 (None, 까닭)."""
+  src = root / "docs" / row["원천파일"]
+  if not row["원천파일"] or not src.is_file():
+    return None, f"원천 파일이 없다 — docs/{row['원천파일']}"
+  text = src.read_bytes().decode("utf-8")
+  body = section_text(text, row["원천절"])
+  if body is None:
+    return None, f"원천 절 {row['원천절']} 을 못 찾았다 — docs/{row['원천파일']}(머리글 첫 낱말에서 끝의 점을 뗀 값)"
+  return text, body
+
+
+def sync_check(root: Path = ROOT) -> list[tuple[str, str, str]]:
+  """동기화 대장 줄마다 — 원천 판 · 절 지문을 고정 값과 견주고, 통합 문서의 원천 줄이 대장과 맞는지(조사 4.3).
+
+  돌려주는 것: [(단계, 동기화ID, 글)] — 단계는 SYNC_LEVELS. 오류 = 대장이 틀렸다(고칠 것) · 경고 A = 원천이 올랐다(옮길 일) ·
+  경고 B = 판은 그대로인데 글이 바뀌었다(읽고 옮기거나 ack) · 안내 = 미반영 · 아직 고정 안 함.
+  """
+  _, _, _, _, rows = _ledger(root)
+  out: list[tuple[str, str, str]] = []
+  seen: set[str] = set()
+  for _, _, r in rows:
+    sid = r["동기화ID"]
+
+    def add(level: str, msg: str) -> None:
+      out.append((level, sid, msg))
+
+    if sid in seen:
+      add("오류", "대장에 같은 ID 가 두 줄이다")
+      continue
+    seen.add(sid)
+    way = r["방식"]
+    if way not in SYNC_WAYS:
+      add("오류", f"방식 「{way}」 — {' · '.join(SYNC_WAYS)} 가운데 하나")
+      continue
+    stext, body = _read_source(root, r)
+    if stext is None:
+      add("오류", body)
+      continue
+    doc = root / "docs" / r["통합문서"]
+    if not r["통합문서"] or not doc.is_file():
+      add("오류", f"통합 문서가 없다 — docs/{r['통합문서']}")
+      continue
+    fixed_v, fixed_fp = r["고정판"], r["고정지문"]
+    if fixed_v and fixed_v != NO_VER and _ver_key(fixed_v) is None:
+      add("오류", f"고정판 「{fixed_v}」 을 못 읽는다 — v0.2 꼴 · 「{NO_VER}」 · 빈 칸(아직 고정 안 함)")
+      continue
+    if fixed_fp and not re.fullmatch(r"[0-9a-f]{12}", fixed_fp):
+      add("오류", f"고정지문 「{fixed_fp}」 — 손으로 쓰지 않는다(--sync-ack {sid})")
+      continue
+    if way in SYNC_LINE_WAYS:
+      found = _source_lines(doc.read_bytes().decode("utf-8"), sid)
+      if not found:
+        add("오류", f"통합 문서에 원천 줄(> 원천: … · {sid})이 없다 — docs/{r['통합문서']} {r['통합절']}")
+      elif fixed_v:
+        for n, lv in found:
+          if lv != _show_ver(fixed_v):
+            add("오류", f"원천 줄의 판 {lv or '(못 읽음)'} ≠ 대장 고정판 {_show_ver(fixed_v)} — docs/{r['통합문서']}:{n}")
+    where = f"{r['원천절']}절" if r["원천절"] else "파일 전체"
+    if way == "미반영":
+      add("안내", f"미반영 — 아직 안 이어졌다(docs/{r['통합문서']} {r['통합절']} ← {where})")
+    if not fixed_v or not fixed_fp:
+      add("안내", f"아직 고정 안 함 — 원천을 읽은 뒤 --sync-ack {sid}")
+      continue
+    sver = head_version(stext)
+    fk, sk = _ver_key(fixed_v), _ver_key(sver)
+    now_fp = fingerprint(body)
+    if fk and not sk:
+      add("오류", f"원천 판을 못 읽는다(고정판 {_show_ver(fixed_v)}) — docs/{r['원천파일']} 머리표")
+    elif fk and sk < fk:
+      add("오류", f"원천 판 {_show_ver(sver)} < 고정판 {_show_ver(fixed_v)} — 대장이 틀렸다")
+    elif sk and (not fk or sk > fk):
+      same = "그대로(판만 올랐다면 확인 뒤 ack)" if now_fp == fixed_fp else "바뀜"
+      add("경고 A", f"원천이 올랐다 {_show_ver(fixed_v)} → {_show_ver(sver)} · {where} 글 {same} — "
+                   f"읽고 통합 절을 고친 뒤 --sync-ack {sid}")
+    elif now_fp != fixed_fp:
+      add("경고 B", f"판은 그대로({_show_ver(fixed_v)})인데 {where} 글이 바뀌었다 {fixed_fp} → {now_fp} — "
+                   f"읽고 옮기거나 --sync-ack {sid}")
+  return out
+
+
+def sync_ack(ids: list[str], root: Path = ROOT, today: str | None = None) -> list[str]:
+  """대장 줄의 고정판 · 고정지문 · 옮긴날(KST)을 지금 원천 값으로 쓴다 — 그 줄의 세 칸만(다른 줄 · 칸 · 줄 끝 그대로).
+  미반영 줄은 옮긴 적이 없으므로 옮긴날을 두고 고정판 · 고정지문만 쓴다(원천이 바뀌면 경고로 알게).
+
+  ID 하나라도 못 찾거나 원천 절이 없으면 아무것도 쓰지 않고 멈춘다. 통합 문서는 고치지 않는다 — 원천 줄의 판이 새 고정판과
+  다르면 고칠 줄을 알려 준다(다음 --sync 에서 오류).
+  """
+  path, nl, lines, head, rows = _ledger(root)
+  today = today or datetime.now(KST).date().isoformat()
+  byid: dict[str, list] = {}
+  for i, cells, r in rows:
+    byid.setdefault(r["동기화ID"], []).append((i, cells, r))
+  done = []
+  for sid in ids:
+    hits = byid.get(sid, [])
+    if len(hits) != 1:
+      raise SystemExit(f"멈춤 — 대장에 {sid} 줄이 {len(hits)}개다(하나여야 한다) · 아무것도 쓰지 않았다 ({SYNC_LEDGER})")
+    i, cells, r = hits[0]
+    stext, body = _read_source(root, r)
+    if stext is None:
+      raise SystemExit(f"멈춤 — {sid}: {body} · 아무것도 쓰지 않았다")
+    ver = _show_ver(head_version(stext))
+    put = [("고정판", ver), ("고정지문", fingerprint(body))] + ([] if r["방식"] == "미반영" else [("옮긴날", today)])
+    for col, val in put:
+      cells[head.index(col)] = val
+    lines[i] = "\t".join(cells)
+    msg = f"{sid} — {ver} · {cells[head.index('고정지문')]} · {r['원천절'] + '절' if r['원천절'] else '파일 전체'}"
+    doc = root / "docs" / r["통합문서"]
+    if r["방식"] in SYNC_LINE_WAYS and doc.is_file():
+      for n, lv in _source_lines(doc.read_bytes().decode("utf-8"), sid):
+        if lv != ver:
+          msg += f" · ⚠️ 원천 줄도 {ver} 로: docs/{r['통합문서']}:{n}(지금 {lv or '못 읽음'})"
+    done.append(msg)
+  path.write_bytes(nl.join(lines).encode("utf-8"))
+  return done
+
+
 def main(argv: list[str] | None = None) -> int:
   sys.stdout.reconfigure(encoding="utf-8")
   ap = argparse.ArgumentParser(description="docs 문서 판 도구 — 지난판 사본 · 이름 · 판 규칙 검사")
   ap.add_argument("--bump", metavar="문서", type=Path, help="지금 판을 지난판/ 에 사본으로(링크를 새 자리에 맞춤)")
   ap.add_argument("--check", action="store_true", help="판 붙은 문서 · 짝 없는 지난판 사본 · 옛 자리 문서가 있으면 종료코드 1")
   ap.add_argument("--to3", metavar="문서", type=Path, help="2차에만 있는 문서를 3차로 사본(링크를 새 자리에 · 3차 사본이 있는 대상은 3차로)")
+  ap.add_argument("--sync", action="store_true",
+                  help="동기화 대장 — 원천이 올랐거나 글이 바뀐 절 · 원천 줄이 대장과 다른 곳(오류만 종료코드 1)")
+  ap.add_argument("--sync-ack", metavar="ID", nargs="+",
+                  help="읽고 옮긴 뒤 — 대장 그 줄의 고정판 · 고정지문 · 옮긴날을 지금 원천 값으로")
   args = ap.parse_args(argv)
+  code = 0
+  if args.sync_ack:
+    for line in sync_ack(args.sync_ack, ROOT):
+      print(f"✅ 고정 {line}")
+  if args.sync:
+    found = sync_check(ROOT)
+    icon = {"오류": "❌", "경고 A": "⚠️", "경고 B": "⚠️", "안내": "ℹ️"}
+    for level, sid, msg in sorted(found, key=lambda x: (SYNC_LEVELS.index(x[0]), x[1])):
+      print(f"{icon[level]} {sid} {level} — {msg}")
+    n = {lv: sum(1 for x in found if x[0] == lv) for lv in SYNC_LEVELS}
+    rows = len(_ledger(ROOT)[4])
+    warn = n["경고 A"] + n["경고 B"]
+    head = "✅" if not n["오류"] and not warn else ("❌" if n["오류"] else "⚠️")
+    print(f"{head} 동기화 대장 {rows}줄 — 오류 {n['오류']} · 경고 {warn}(A {n['경고 A']} · B {n['경고 B']}) · 안내 {n['안내']}")
+    code = 1 if n["오류"] else 0
   if args.to3:
     dst = to3(args.to3)
     print(f"✅ 3차 사본 → {dst.relative_to(ROOT).as_posix()}")
@@ -281,10 +535,10 @@ def main(argv: list[str] | None = None) -> int:
     for p in problems:
       print(f"⚠️ {p}")
     print("✅ 이름 · 판 규칙을 지킨다" if not problems else f"⚠️ {len(problems)}건")
-    return 1 if problems else 0
-  if not (args.bump or args.check or args.to3):
+    return 1 if problems else code
+  if not (args.bump or args.check or args.to3 or args.sync or args.sync_ack):
     ap.print_help()
-  return 0
+  return code
 
 
 if __name__ == "__main__":

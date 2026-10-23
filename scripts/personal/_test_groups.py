@@ -11,6 +11,9 @@ test.ps1 의 -Split · -Group 이 이 파일에서 「묶음 → 시험 파일�
   * 글롭은 tests/ 아래 파일 이름만 본다 · 대소문자는 가리지 않는다(PowerShell -like 와 같게).
   * 묶음마다 영어 열쇠를 둔다 — Git Bash 에서 PowerShell 로 한글 인자를 넘기면 깨질 수 있어서
     (-Group 화면 과 -Group ui 가 같다) · 결과 파일 이름(ui.xml)도 이 열쇠로 짓는다.
+  * 「컨테이너(ctr)」 묶음만 호스트가 아니라 앱 이미지 일회용 컨테이너에서 돈다(2026-10-23 · runner = container).
+    호스트 파이썬에는 RAG · 채팅 패키지가 없어 그 파일들이 통째로 건너뛰어지기 때문이다. 맞대기는 맨 먼저
+    (지식 묶음의 test_rag_* · test_chat_* 와 겹쳐도 여기로) · 실행은 맨 끝(호스트 묶음이 다 돈 뒤).
 
 쓰는 법::
 
@@ -67,6 +70,14 @@ GROUPS: list[tuple[str, str, tuple[str, ...]]] = [
     )),
 ]
 REST = ("나머지", "rest")
+# 앱 이미지 일회용 컨테이너에서 도는 묶음 — 호스트 파이썬엔 qdrant-client · langchain-qdrant · langchain-ollama · langgraph 가
+# 없어 이 파일들이 importorskip 으로 통째로 건너뛰어지고, 전체 시험이 RAG · 채팅 · 올린 문서 격리 회귀를 못 잡았다(2026-10-23 실측).
+# 글롭이 아니라 이름을 그대로 적는다 — 새 시험이 호스트에서 돌 수 있으면 여기 넣지 않는다(컨테이너는 시험 DB 가 없다).
+CONTAINER: tuple[str, str, tuple[str, ...]] = ("컨테이너", "ctr", (
+    "test_rag_pipeline.py", "test_chat_modes.py", "test_doc_isolation.py",
+))
+#: docker compose 가 만든 앱 이미지 — 없으면 test.ps1 이 실패가 아니라 「건너뜀」 과 까닭을 남긴다(호스트에 패키지를 깔지 않는다)
+CONTAINER_IMAGE = "qurious-app:latest"
 
 
 def test_files(tests_dir: Path = TESTS) -> list[str]:
@@ -75,8 +86,10 @@ def test_files(tests_dir: Path = TESTS) -> list[str]:
 
 
 def group_of(name: str) -> tuple[str, str]:
-    """파일 이름 하나가 드는 (묶음 이름, 열쇠). 맞는 글롭이 없으면 나머지."""
+    """파일 이름 하나가 드는 (묶음 이름, 열쇠). 컨테이너 묶음 이름이 먼저 · 맞는 글롭이 없으면 나머지."""
     low = name.lower()
+    if low in {n.lower() for n in CONTAINER[2]}:
+        return CONTAINER[0], CONTAINER[1]
     for label, key, globs in GROUPS:
         if any(fnmatch.fnmatchcase(low, g.lower()) for g in globs):
             return label, key
@@ -84,12 +97,22 @@ def group_of(name: str) -> tuple[str, str]:
 
 
 def assign(names: list[str]) -> list[dict]:
-    """묶음 차례대로 [{name, key, files}] — 파일이 없는 묶음(대개 나머지)은 빼서 빈 pytest 실행이 없게."""
-    order = [(label, key) for label, key, _ in GROUPS] + [REST]
+    """묶음 차례대로 [{name, key, files, runner(, image)}] — 파일이 없는 묶음(대개 나머지)은 빼서 빈 pytest 실행이 없게.
+
+    runner 는 host(호스트 파이썬) · container(앱 이미지 일회용 컨테이너 · 맨 끝).
+    """
+    order = [(label, key) for label, key, _ in GROUPS] + [REST] + [CONTAINER[:2]]
     buckets: dict[str, list[str]] = {key: [] for _, key in order}
     for n in names:
         buckets[group_of(n)[1]].append(n)
-    return [{"name": label, "key": key, "files": buckets[key]} for label, key in order if buckets[key]]
+    out = []
+    for label, key in order:
+        if buckets[key]:
+            g = {"name": label, "key": key, "files": buckets[key], "runner": "host"}
+            if key == CONTAINER[1]:
+                g.update(runner="container", image=CONTAINER_IMAGE)
+            out.append(g)
+    return out
 
 
 def main(argv: list[str]) -> int:
@@ -102,7 +125,8 @@ def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     total = sum(len(g["files"]) for g in groups)
     for g in groups:
-        print(f"{g['name']}({g['key']}) {len(g['files'])}")
+        where = f" · 앱 이미지 컨테이너({g['image']})" if g["runner"] == "container" else ""
+        print(f"{g['name']}({g['key']}) {len(g['files'])}{where}")
         if g["key"] == REST[1]:
             print("  " + " ".join(g["files"]))
     print(f"합계 {total}")
