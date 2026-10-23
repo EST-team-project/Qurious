@@ -53,3 +53,44 @@ def test_compare_metrics_verdicts():
     assert r["verdict"] == "불일치"
     assert any("수수료" in c for c in r["causes"]) and any("거래 횟수" in c for c in r["causes"])
     assert tv.compare_metrics({}, {})["verdict"] == "비교 불가"
+
+
+def test_parse_trade_list_csv_preserves_entry_exit_fills():
+    metrics = tv.parse_trade_list_csv(CSV)
+    fills = metrics["fills"]
+    assert len(fills) == 6
+    assert fills[0]["event"] == "entry"
+    assert fills[0]["side"] == "buy"
+    assert fills[0]["date"] == "2025-01-10"
+    assert fills[0]["price"] == pytest.approx(55000)
+    assert fills[1]["event"] == "exit"
+    assert fills[1]["side"] == "sell"
+    assert fills[1]["date"] == "2025-02-10"
+
+
+def test_compare_fills_reports_date_side_and_price_differences():
+    tv_fills = tv.parse_trade_list_csv(CSV)["fills"][:2]
+    lean_fills = [
+        {
+            "order_id": 1, "date": "2025-01-10",
+            "direction": "buy", "fill_price": 55000,
+        },
+        {
+            "order_id": 2, "date": "2025-02-10",
+            "direction": "sell", "fill_price": 58100,
+        },
+    ]
+    result = tv.compare_fills(tv_fills, lean_fills)
+    assert result["status"] == "compared"
+    assert result["paired_event_count"] == 2
+    assert result["date_match_count"] == 2
+    assert result["side_match_count"] == 2
+    assert result["date_and_side_match_count"] == 2
+    assert result["avg_abs_price_diff_pct"] == pytest.approx(0.0862, abs=0.0001)
+
+
+def test_compare_fills_without_real_csv_is_unavailable():
+    result = tv.compare_fills([], [{"date": "2025-01-10", "direction": "buy"}])
+    assert result["status"] == "unavailable"
+    assert result["lean_fill_count"] == 1
+    assert result["tradingview_fill_count"] == 0

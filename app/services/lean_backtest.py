@@ -30,6 +30,7 @@ import httpx
 import pandas as pd
 
 from app.config import settings
+from app.services import trading_cost
 from app.services.stock import HEADERS
 
 STRATEGY_LABELS = {
@@ -152,17 +153,20 @@ class LeanBacktestService:
         if len(series) < 2 or len(comparison) < 2:
             raise LeanBacktestError("선택한 기간에 거래일 데이터가 충분하지 않습니다.")
 
-        strategy_curve = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window)
+        strategy_curve_gross = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window, ticker=ticker, apply_costs=False)
+        strategy_curve = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window, ticker=ticker, apply_costs=True)
         if len(strategy_curve) < 2:
             raise LeanBacktestError("선택한 기간에 전략을 계산할 데이터가 충분하지 않습니다.")
 
         # LEAN 실행 (블로킹 subprocess → 스레드)
         mode = resolve_lean_mode()
-        algorithm_source = self._algorithm_source(strategy, start_date, end_date, initial_cash, short_window, long_window, dca_interval_days, breakout_window)
+        algorithm_source = self._algorithm_source(ticker, strategy, start_date, end_date, initial_cash, short_window, long_window, dca_interval_days, breakout_window)
         lean_log, lean_stats, lean_ok = "", {}, False
+        lean_fills = []
         if mode in ("ssh", "docker"):
             try:
                 lean_log, lean_stats = await asyncio.to_thread(self._run_lean, mode, strategy, close, algorithm_source)
+                lean_fills = lean_stats.pop("_lean_fills", [])
                 lean_ok = bool(lean_stats)
             except LeanBacktestError as exc:
                 lean_log = f"[LEAN 실행 실패] {exc}"
@@ -171,21 +175,47 @@ class LeanBacktestService:
         else:
             lean_log = "[LEAN 미실행] LEAN_MODE=local — LEAN_SSH_HOST(원격) 또는 Docker(로컬)를 설정하면 동일 전략을 QuantConnect LEAN 엔진에서 실행합니다."
 
-        strategy_return = (float(strategy_curve.iloc[-1]) / float(strategy_curve.iloc[0]) - 1) * 100
-        benchmark_return = self._return(series)
-        comparison_return = self._return(comparison)
-        drawdown = (strategy_curve / strategy_curve.cummax() - 1).min() * 100
+        strategy_return = (float(strategy_curve.iloc[-1]) - 1.0) * 100
+        gross_strategy_return = (float(strategy_curve_gross.iloc[-1]) - 1.0) * 100
+
+        benchmark_curve = self._strategy_curve(
+            "buy_hold", series,
+            series.index[0].date(), series.index[-1].date(),
+            short_window, long_window, dca_interval_days, breakout_window,
+            ticker=ticker, apply_costs=True,
+        )
+        comparison_curve = self._strategy_curve(
+            "buy_hold", comparison,
+            comparison.index[0].date(), comparison.index[-1].date(),
+            short_window, long_window, dca_interval_days, breakout_window,
+            ticker=ticker, apply_costs=True,
+        )
+        benchmark_return = (float(benchmark_curve.iloc[-1]) - 1.0) * 100
+        comparison_return = (float(comparison_curve.iloc[-1]) - 1.0) * 100
+        drawdown = (
+            strategy_curve / strategy_curve.cummax().clip(lower=1.0) - 1
+        ).min() * 100
         analytics = self._analytics(strategy, close, strategy_curve, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window)
         step = max(1, len(strategy_curve) // 120)
         points = [{"date": idx.strftime("%Y-%m-%d"), "value": round(float(value * initial_cash), 2)}
                   for idx, value in strategy_curve.iloc[::step].items()]
-        bench_curve = series / float(series.iloc[0])
+        bench_curve = benchmark_curve
         bench_points = [{"date": idx.strftime("%Y-%m-%d"), "value": round(float(value * initial_cash), 2)}
                         for idx, value in bench_curve.iloc[::max(1, len(bench_curve) // 120)].items()]
 
         engine = {"ssh": "QuantConnect LEAN (remote docker) + Yahoo Finance",
                   "docker": "QuantConnect LEAN (local docker) + Yahoo Finance",
                   "local": "pandas (LEAN 미실행) + Yahoo Finance"}[mode]
+        cost_model = self._cost_model_for_ticker(ticker)
+        cost_description = (
+            cost_model.describe()
+            if cost_model is not None
+            else {
+                "model": "not_applied",
+                "label": "이 티커에는 KRX 비용 모델을 적용하지 않았습니다.",
+                "cost_basis": "not_applied",
+            }
+        )
         return {
             "ticker": ticker,
             "engine": engine,
@@ -199,6 +229,9 @@ class LeanBacktestService:
             "compare_end_date": compare_end_date.isoformat(),
             "initial_cash": initial_cash,
             "strategy_return_pct": round(strategy_return, 2),
+            "gross_strategy_return_pct": round(gross_strategy_return, 2),
+            "strategy_cost_drag_pct": round(gross_strategy_return - strategy_return, 2),
+            "cost_model": cost_description,
             "benchmark_return_pct": round(benchmark_return, 2),
             "comparison_return_pct": round(comparison_return, 2),
             "outperformance_pct": round(strategy_return - comparison_return, 2),
@@ -207,9 +240,10 @@ class LeanBacktestService:
             "points": points,
             "benchmark_points": bench_points,
             "lean_statistics": lean_stats,
+            "lean_fills": lean_fills,
             "lean_log": lean_log[-6000:],
             "algorithm_source": algorithm_source,
-            "disclaimer": "Yahoo Finance 일봉 기반 교육용 예시입니다. 배당·세금·수수료·슬리피지·데이터 품질과 실제 체결은 반영하지 않으며 투자 권유가 아닙니다.",
+            "disclaimer": "Yahoo Finance 일봉 기반 교육용 예시입니다. KRX 비용은 요율 기반 추정치이고 슬리피지는 고정 10bp 가정이며, 실시간 호가·유동성·실제 증권사 체결과 데이터 조정 차이를 완전히 재현하지 않습니다. 투자 권유가 아닙니다.",
         }
 
     # ── LEAN 실행 ───────────────────────────────────────────────────────
@@ -264,6 +298,7 @@ class LeanBacktestService:
             else:
                 raise LeanBacktestError("docker CLI도 Docker 소켓(/var/run/docker.sock)도 없어 LEAN을 실행할 수 없습니다.")
             stats = self._read_summary(local / "results")
+            stats["_lean_fills"] = self._read_order_events(local / "results")
         finally:
             if not settings.LEAN_KEEP_WORKDIR:
                 shutil.rmtree(local, ignore_errors=True)
@@ -336,9 +371,85 @@ class LeanBacktestService:
                     stats = self._pick_statistics(json.loads(summary))
             except Exception:
                 stats = {}
+            try:
+                events_text = self._ssh(
+                    f"cat {remote}/results/*-order-events.json 2>/dev/null || true",
+                    check=False,
+                )
+                events = json.loads(events_text) if events_text.strip() else []
+                stats["_lean_fills"] = self._normalize_order_events(events)
+            except Exception:
+                stats["_lean_fills"] = []
             if not settings.LEAN_KEEP_WORKDIR:
                 self._ssh(f"rm -rf {remote}", check=False)
         return log, stats
+
+
+    @staticmethod
+    def _normalize_order_events(events) -> list[dict]:
+        """LEAN 이벤트에서 실제 체결(filled)만 표준화한다."""
+        if not isinstance(events, list):
+            return []
+
+        fills = []
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            if str(event.get("status", "")).lower() != "filled":
+                continue
+
+            try:
+                quantity = float(event.get("fillQuantity") or 0.0)
+                price = float(event.get("fillPrice") or 0.0)
+                timestamp = float(event.get("time"))
+                time_utc = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+            except (TypeError, ValueError, OverflowError, OSError):
+                continue
+
+            if abs(quantity) <= 1e-12 or price <= 0:
+                continue
+
+            direction = str(event.get("direction") or "").lower()
+            if direction not in ("buy", "sell"):
+                direction = "buy" if quantity > 0 else "sell"
+
+            try:
+                order_id = int(event.get("orderId") or 0)
+            except (TypeError, ValueError):
+                order_id = 0
+
+            try:
+                fee = float(event.get("orderFeeAmount") or 0.0)
+            except (TypeError, ValueError):
+                fee = 0.0
+
+            fills.append({
+                "order_id": order_id,
+                "date": time_utc.date().isoformat(),
+                "time_utc": time_utc.isoformat(timespec="seconds"),
+                "timestamp": timestamp,
+                "direction": direction,
+                "quantity": abs(quantity),
+                "signed_quantity": quantity,
+                "fill_price": price,
+                "fee": fee,
+                "fee_currency": event.get("orderFeeCurrency"),
+                "symbol": event.get("symbolPermtick") or event.get("symbolValue"),
+            })
+
+        return sorted(fills, key=lambda x: (x["timestamp"], x["order_id"]))
+
+    @classmethod
+    def _read_order_events(cls, results_dir: Path) -> list[dict]:
+        """결과 디렉터리의 LEAN 주문 이벤트 파일에서 실제 체결을 추출한다."""
+        for name in sorted(glob.glob(str(results_dir / "*-order-events.json"))):
+            try:
+                events = json.loads(Path(name).read_text(encoding="utf-8"))
+                if isinstance(events, list):
+                    return cls._normalize_order_events(events)
+            except (OSError, ValueError, TypeError):
+                continue
+        return []
 
     @staticmethod
     def _read_summary(results_dir: Path) -> dict:
@@ -394,10 +505,20 @@ class LeanBacktestService:
     # ── 분석 ────────────────────────────────────────────────────────────
 
     def _analytics(self, strategy, close, strategy_curve, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window) -> dict:
-        daily = strategy_curve.pct_change().dropna()
+        daily = strategy_curve.pct_change()
+        if len(daily):
+            daily.iloc[0] = float(strategy_curve.iloc[0]) - 1.0
+        daily = daily.fillna(0.0)
         periods = max(1, len(strategy_curve) - 1)
         years = periods / 252
-        annualized_return = ((float(strategy_curve.iloc[-1]) / float(strategy_curve.iloc[0])) ** (1 / years) - 1) * 100 if years > 0 else 0.0
+        final_equity = float(strategy_curve.iloc[-1])
+        if years > 0:
+            annualized_return = (
+                (final_equity ** (1.0 / years) - 1.0) * 100
+                if final_equity > 0 else -100.0
+            )
+        else:
+            annualized_return = 0.0
         annualized_volatility = float(daily.std(ddof=0) * (252 ** 0.5) * 100) if len(daily) else 0.0
         sharpe = ((annualized_return / 100) - 0.02) / (annualized_volatility / 100) if annualized_volatility else 0.0
 
@@ -453,21 +574,95 @@ class LeanBacktestService:
             return entry(long_window if strategy == "ma_cross" else breakout_window)
         return entry
 
-    def _strategy_curve(self, strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window):
-        if strategy == "dca":
-            window = close.loc[(close.index.date >= start_date) & (close.index.date <= end_date)]
-            return self._equity_dca(window, dca_interval_days)
-        if strategy == "ma_cross":
-            position_full = self._position_ma_cross(close, short_window, long_window)
-        elif strategy == "momentum":
-            position_full = self._position_momentum(close, breakout_window)
+    @staticmethod
+    def _cost_model_for_ticker(ticker: str | None):
+        symbol = str(ticker or "").upper()
+        if symbol.endswith(".KQ"):
+            market = "KOSDAQ"
+        elif symbol.endswith(".KN"):
+            market = "KONEX"
+        elif symbol.endswith(".KS") or (
+            len(symbol) == 6 and symbol.isdigit()
+        ):
+            market = "KOSPI"
         else:
-            position_full = close * 0 + 1.0
-        equity_full = self._equity_from_position(close, position_full)
-        window_equity = equity_full.loc[(equity_full.index.date >= start_date) & (equity_full.index.date <= end_date)]
-        if len(window_equity) < 2:
-            return window_equity
-        return window_equity / float(window_equity.iloc[0])
+            return None
+
+        return trading_cost.KrxCostModel(
+            slippage_bps=trading_cost.DEFAULT_SLIPPAGE_BPS,
+            market=market,
+        )
+
+    def _strategy_curve(
+        self, strategy, close, start_date, end_date, short_window,
+        long_window, dca_interval_days, breakout_window,
+        ticker=None, apply_costs=True,
+    ):
+        mask = (
+            (close.index.date >= start_date)
+            & (close.index.date <= end_date)
+        )
+        window = close.loc[mask]
+
+        if strategy == "dca":
+            gross_curve = self._equity_dca(
+                window, dca_interval_days
+            )
+            interval = max(1, int(dca_interval_days))
+            buy_indexes = list(range(0, len(window), interval))
+            portion = 1.0 / max(1, len(buy_indexes))
+            # 누적 매입 예산 비율. DCA의 매수 시점에만 비용을 계산한다.
+            held = pd.Series(
+                [
+                    min(i // interval + 1, len(buy_indexes)) * portion
+                    for i in range(len(window))
+                ],
+                index=window.index,
+                dtype=float,
+            )
+        else:
+            if strategy == "ma_cross":
+                position_full = self._position_ma_cross(
+                    close, short_window, long_window
+                )
+            elif strategy == "momentum":
+                position_full = self._position_momentum(
+                    close, breakout_window
+                )
+            else:
+                position_full = close * 0 + 1.0
+
+            equity_full = self._equity_from_position(
+                close, position_full
+            )
+            window_equity = equity_full.loc[mask]
+            if len(window_equity) < 2:
+                return window_equity
+
+            gross_curve = window_equity / float(window_equity.iloc[0])
+            held = position_full.reindex(gross_curve.index).astype(float)
+
+        if len(gross_curve) < 2:
+            return gross_curve
+
+        gross_curve = gross_curve.astype(float)
+        if not apply_costs:
+            return gross_curve
+
+        model = self._cost_model_for_ticker(ticker)
+        if model is None:
+            return gross_curve
+
+        costs = model.turnover_cost(
+            held.reindex(gross_curve.index).astype(float)
+        )
+        gross_returns = gross_curve.pct_change().fillna(0.0)
+        net_returns = (
+            gross_returns - costs.reindex(gross_curve.index).fillna(0.0)
+        ).clip(lower=-0.999999)
+
+        # 첫날 매수 비용도 초기 자산 대비 수익률에 반영한다.
+        return (1.0 + net_returns).cumprod()
 
     @staticmethod
     def _equity_from_position(close, position):
@@ -558,27 +753,91 @@ class LeanBacktestService:
             '        return item\n\n'
         )
 
-    def _algorithm_source(self, strategy, start, end, cash, short_window, long_window, dca_interval_days, breakout_window) -> str:
+    def _algorithm_source(self, ticker, strategy, start, end, cash, short_window, long_window, dca_interval_days, breakout_window) -> str:
+        ticker_upper = str(ticker or "").upper()
+        if ticker_upper.endswith(".KQ"):
+            market_name, market_column = "KOSDAQ", 2
+        elif ticker_upper.endswith(".KN"):
+            market_name, market_column = "KONEX", 3
+        elif ticker_upper.endswith(".KS") or (
+            len(ticker_upper) == 6 and ticker_upper.isdigit()
+        ):
+            market_name, market_column = "KOSPI", 1
+        else:
+            market_name, market_column = None, None
+
+        is_krx = market_column is not None
+        currency = "KRW" if is_krx else "USD"
+        cash_setup = (
+            f"self.set_account_currency('KRW', {cash})"
+            if is_krx else f"self.set_cash({cash})"
+        )
+
+        fee_model_source = ""
+        model_setup = ""
+        if is_krx:
+            tax_rows = [
+                (row[0].isoformat(), float(row[market_column]))
+                for row in trading_cost.TAX_SCHEDULE
+            ]
+            base_rate = (
+                trading_cost.FEE_ONLINE_KRX
+                + trading_cost.FEE_CLEARING
+            )
+            rural_rate = (
+                trading_cost.RURAL_TAX if market_name == "KOSPI" else 0.0
+            )
+            fee_lines = [
+                "class KrxFeeModel(FeeModel):",
+                f"    tax_schedule = {tax_rows!r}",
+                f"    base_rate = {base_rate!r}",
+                f"    rural_rate = {rural_rate!r}",
+                "    def get_order_fee(self, parameters):",
+                "        order = parameters.order",
+                "        security = parameters.security",
+                "        gross = abs(float(security.price) * float(order.absolute_quantity))",
+                "        rate = self.base_rate",
+                "        if order.direction == OrderDirection.SELL:",
+                "            trade_date = order.time.date()",
+                "            transfer_rate = self.tax_schedule[0][1]",
+                "            for effective_date, candidate_rate in self.tax_schedule:",
+                "                if trade_date >= datetime.strptime(effective_date, '%Y-%m-%d').date():",
+                "                    transfer_rate = candidate_rate",
+                "            rate += transfer_rate + self.rural_rate",
+                "        return OrderFee(CashAmount(gross * rate, 'KRW'))",
+                "",
+            ]
+            fee_model_source = "\n".join(fee_lines) + "\n\n"
+
+            slip_fraction = (
+                float(trading_cost.DEFAULT_SLIPPAGE_BPS) / 10_000.0
+            )
+            model_setup = (
+                "        self.securities[self.asset].set_fee_model(KrxFeeModel())\n"
+                f"        self.securities[self.asset].set_slippage_model(ConstantSlippageModel({slip_fraction!r}))"
+            )
         header = f'''    def initialize(self):
         self.set_start_date({start.year}, {start.month}, {start.day})
         self.set_end_date({end.year}, {end.month}, {end.day})
-        self.set_cash({cash})
+        {cash_setup}
         self.asset = self.add_data(YFPrice, "YF", Resolution.DAILY).symbol
         # 커스텀 데이터의 기본 lot size(1주)는 cash/price < 1 인 경우 SetHoldings()를 0으로 만든다.
         # 아주 작은 lot size를 지정해 소수 단위 포지션을 허용한다.
-        self.securities[self.asset].symbol_properties = SymbolProperties("", "USD", 1, 0.01, 0.0000001, "")
+        self.securities[self.asset].symbol_properties = SymbolProperties("", "{currency}", 1, 0.01, 0.0000001, "")
+{model_setup}
 '''
         if strategy == "ma_cross":
             body = f'''{header}        self.short_window = {short_window}
         self.long_window = {long_window}
         self.prices = []
+        self.set_warm_up(timedelta(days=self.long_window * 2 + 15), Resolution.DAILY)
 
     def on_data(self, data):
         if not data.contains_key(self.asset):
             return
         self.prices.append(float(data[self.asset].value))
         self.prices = self.prices[-self.long_window:]
-        if len(self.prices) < self.long_window:
+        if len(self.prices) < self.long_window or self.is_warming_up:
             return
         short_ma = sum(self.prices[-self.short_window:]) / self.short_window
         long_ma = sum(self.prices) / self.long_window
@@ -631,7 +890,7 @@ class LeanBacktestService:
             self.set_holdings(self.asset, 1)
 '''
             class_name = "YFinanceBuyHoldAlgorithm"
-        return self._reader_boilerplate() + f"class {class_name}(QCAlgorithm):\n" + body
+        return self._reader_boilerplate() + fee_model_source + f"class {class_name}(QCAlgorithm):\n" + body
 
 
 service = LeanBacktestService()

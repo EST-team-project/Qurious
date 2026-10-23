@@ -1,0 +1,120 @@
+2026-10-23T06:44:35.6088213Z TRACE:: Engine.Main(): LEAN ALGORITHMIC TRADING ENGINE v2.5.0.0 Mode: DEBUG (64bit) Host: d5945ad1969f
+2026-10-23T06:44:35.6129548Z TRACE:: Engine.Main(): Started 6:44 AM
+2026-10-23T06:44:35.6292018Z TRACE:: JobQueue.NextJob(): Selected /workspace/workflow-b35209e55b2b/main.py
+2026-10-23T06:44:35.6620846Z TRACE:: AlgorithmManager.CreateTokenBucket(): Initializing LeakyBucket: Capacity: 120 RefillAmount: 18 TimeInterval: 1440
+2026-10-23T06:44:35.6675720Z TRACE:: Engine.Run(): Resource limits '0' CPUs. 2147483647 MB RAM.
+2026-10-23T06:44:35.6680258Z TRACE:: TextSubscriptionDataSourceReader.SetCacheSize(): Setting cache size to 71582788 items
+2026-10-23T06:44:36.0917676Z TRACE:: PythonInitializer.Initialize(): start...
+2026-10-23T06:44:36.2738377Z TRACE:: PythonInitializer.Initialize(): ended
+2026-10-23T06:44:36.2748504Z TRACE:: AlgorithmPythonWrapper(): Python version 3.11.14 (main, Oct 21 2025, 18:40:40) [GCC 11.2.0]: Importing python module main
+2026-10-23T06:44:38.2745509Z TRACE:: AlgorithmPythonWrapper(): main successfully imported.
+2026-10-23T06:44:38.2828105Z TRACE:: AlgorithmPythonWrapper(): Creating IAlgorithm instance.
+2026-10-23T06:44:38.4312227Z TRACE:: LocalObjectStore.Initialize(): Storage Root: /Lean/Launcher/bin/Debug/storage. StorageFileCount 10000. StorageLimit 10240MB. StoragePermissions Read=True Write=True Delete=True
+2026-10-23T06:44:38.4412593Z TRACE:: HistoryProviderManager.Initialize(): history providers [SubscriptionDataReaderHistoryProvider]
+2026-10-23T06:44:38.4439626Z TRACE:: BaseSetupHandler.Setup(LocalPlatform): UID: 0, PID: 0, Version: 2.5.0.0, Source: WebIDE
+2026-10-23T06:44:38.5085030Z TRACE:: Extensions.IsDirectoryEmpty(): directory '/workspace/workflow-b35209e55b2b/data/equity/usa/map_files' not found or empty
+2026-10-23T06:44:38.5089368Z ERROR:: LocalDiskMapFileProvider.GetMapFileResolver(usa): The specified directory does not exist: /workspace/workflow-b35209e55b2b/data/equity/usa/map_files
+2026-10-23T06:44:38.5317129Z TRACE:: WeightedWorkScheduler(): will use 4 workers and MaxWorkWeight is 400
+2026-10-23T06:44:38.5385607Z TRACE:: BaseSetupHandler.SetupCurrencyConversions():
+Account Type: Margin
+
+Symbol      Quantity    Conversion = Value in USD
+USD: $     1000000.00 @       1.00 = $1000000
+-------------------------------------------------
+CashBook Total Value:                $1000000
+
+2026-10-23T06:44:38.5403784Z TRACE:: Total margin information: TotalMarginUsed: 0.00, MarginRemaining: 1000000.00
+2026-10-23T06:44:38.5406781Z TRACE:: SetUp Backtesting: User: 0 ProjectId: 0 AlgoId: YFinanceMovingAverageCrossAlgorithm
+2026-10-23T06:44:38.5422845Z TRACE:: Dates: Start: 01/02/2024 End: 03/29/2024 Cash: ¤1,000,000.00 MaximumRuntime: 100.00:00:00 MaxOrders: 2147483647
+2026-10-23T06:44:38.5458612Z TRACE:: BacktestingResultHandler(): Sample Period Set: 31.68
+2026-10-23T06:44:38.5462860Z TRACE:: JOB HANDLERS:
+         DataFeed:             QuantConnect.Lean.Engine.DataFeeds.FileSystemDataFeed
+         Setup:                QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler
+         RealTime:             QuantConnect.Lean.Engine.RealTime.BacktestingRealTimeHandler
+         Results:              QuantConnect.Lean.Engine.Results.BacktestingResultHandler
+         Transactions:         QuantConnect.Lean.Engine.TransactionHandlers.BacktestingTransactionHandler
+         Object Store:         QuantConnect.Lean.Engine.Storage.LocalObjectStore
+         History Provider:     QuantConnect.Lean.Engine.HistoricalData.HistoryProviderManager
+         Brokerage:            QuantConnect.Brokerages.Backtesting.BacktestingBrokerage
+         Data Provider:        QuantConnect.Lean.Engine.DataFeeds.DefaultDataProvider
+
+2026-10-23T06:44:38.5581107Z TRACE:: Event Name "Daily Sampling", scheduled to run.
+2026-10-23T06:44:38.5594227Z TRACE:: AlgorithmManager.Run(): Begin DataStream - Start: 1/2/2024 12:00:00 AM Stop: 3/29/2024 11:59:59 PM Time: 11/8/2023 12:00:00 AM Warmup: True
+2026-10-23T06:44:38.5786692Z TRACE:: Debug: 2023-11-08 00:00:00 Launching analysis for YFinanceMovingAverageCrossAlgorithm with LEAN Engine v2.5.0.0
+2026-10-23T06:44:38.6632913Z TRACE:: UniverseSelection.AddPendingInternalDataFeeds(): Adding internal benchmark data feed SPY,#0,SPY,Hour,TradeBar,Trade,Adjusted,OpenInterest,Internal
+2026-10-23T06:44:38.6639862Z TRACE:: Extensions.IsDirectoryEmpty(): directory '/workspace/workflow-b35209e55b2b/data/equity/usa/factor_files' not found or empty
+2026-10-23T06:44:38.6735744Z TRACE:: AlgorithmManager.Stream(): Subscriptions count before warm up: 1
+2026-10-23T06:44:38.7238610Z TRACE:: AlgorithmManager.Run(): Subscriptions count after warm up: 1
+2026-10-23T06:44:38.7292324Z TRACE:: Debug: 2023-11-08 00:00:00 Algorithm starting warm up...
+2026-10-23T06:44:38.7794625Z TRACE:: Debug: 2024-01-02 00:00:00 Algorithm finished warming up.
+2026-10-23T06:44:38.7913822Z TRACE:: Synchronizer.GetEnumerator(): Exited thread.
+2026-10-23T06:44:38.7919103Z TRACE:: AlgorithmManager.Run(): Firing On End Of Algorithm...
+2026-10-23T06:44:38.7924491Z TRACE:: Engine.Run(): Exiting Algorithm Manager
+2026-10-23T06:44:38.7950185Z TRACE:: OrderRequestProcessingPool.Dispose(): completed
+2026-10-23T06:44:38.7956819Z TRACE:: StopSafely(): Waiting for 'Isolator Thread' thread to stop...
+2026-10-23T06:44:38.7959128Z TRACE:: FileSystemDataFeed.Exit(): Start. Setting cancellation token...
+2026-10-23T06:44:38.7966357Z TRACE:: FileSystemDataFeed.Exit(): Exit Finished.
+2026-10-23T06:44:38.7968116Z TRACE:: DataMonitor.Exit(): start...
+2026-10-23T06:44:38.7968409Z TRACE:: StopSafely(): Waiting for '' thread to stop...
+2026-10-23T06:44:38.7988186Z TRACE:: DataMonitor.GenerateReport():
+DATA USAGE:: Total data requests 4
+DATA USAGE:: Succeeded data requests 2
+DATA USAGE:: Failed data requests 2
+DATA USAGE:: Failed data requests percentage 50%
+DATA USAGE:: Total universe data requests 0
+DATA USAGE:: Succeeded universe data requests 0
+DATA USAGE:: Failed universe data requests 0
+DATA USAGE:: Failed universe data requests percentage 0%
+2026-10-23T06:44:38.7989850Z TRACE:: DataMonitor.Exit(): end
+2026-10-23T06:44:38.7992079Z TRACE:: BacktestingResultHandler.Exit(): starting...
+2026-10-23T06:44:38.7993872Z TRACE:: BacktestingResultHandler.Exit(): Saving logs...
+2026-10-23T06:44:38.8001787Z TRACE:: Debug: 2024-03-30 00:00:00 Algorithm Id:(YFinanceMovingAverageCrossAlgorithm) completed in 0.25 seconds at 0k data points per second. Processing total of 98 data points.
+2026-10-23T06:44:38.8001830Z TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...
+2026-10-23T06:44:38.8002011Z TRACE:: Debug: 2024-03-30 00:00:00 Your log was successfully created and can be retrieved from: /workspace/workflow-b35209e55b2b/results/YFinanceMovingAverageCrossAlgorithm-log.txt
+2026-10-23T06:44:38.8002057Z TRACE:: BacktestingResultHandler.Run(): Ending Thread...
+2026-10-23T06:44:38.8372805Z ERROR:: InterestRateProvider.FromCsvFile(): no interest rates were loaded, please make sure the file is present '/workspace/workflow-b35209e55b2b/data/alternative/interest-rate/usa/interest-rate.csv'
+2026-10-23T06:44:38.9962524Z TRACE:: 
+STATISTICS:: Total Orders 5
+STATISTICS:: Average Win 0%
+STATISTICS:: Average Loss -5.60%
+STATISTICS:: Compounding Annual Return -3.346%
+STATISTICS:: Drawdown 13.300%
+STATISTICS:: Expectancy -1
+STATISTICS:: Start Equity 1000000
+STATISTICS:: End Equity 991832.91
+STATISTICS:: Net Profit -0.817%
+STATISTICS:: Sharpe Ratio -0.128
+STATISTICS:: Sortino Ratio -0.14
+STATISTICS:: Probabilistic Sharpe Ratio 25.639%
+STATISTICS:: Loss Rate 100%
+STATISTICS:: Win Rate 0%
+STATISTICS:: Profit-Loss Ratio 0
+STATISTICS:: Alpha 0
+STATISTICS:: Beta 0
+STATISTICS:: Annual Standard Deviation 0.162
+STATISTICS:: Annual Variance 0.026
+STATISTICS:: Information Ratio -0.066
+STATISTICS:: Tracking Error 0.162
+STATISTICS:: Treynor Ratio 0
+STATISTICS:: Total Fees $0.00
+STATISTICS:: Estimated Strategy Capacity $0
+STATISTICS:: Lowest Capacity Asset YF.YFPrice 2S
+STATISTICS:: Portfolio Turnover 5.74%
+STATISTICS:: Drawdown Recovery 0
+STATISTICS:: OrderListHash 42f5f6b2a73ba863847b16f75ccefe68
+2026-10-23T06:44:38.9962899Z TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet
+2026-10-23T06:44:38.9966667Z TRACE:: Engine.Run(): Disconnecting from brokerage...
+2026-10-23T06:44:38.9967442Z TRACE:: Engine.Run(): Disposing of setup handler...
+2026-10-23T06:44:38.9967793Z TRACE:: Engine.Main(): Analysis Completed and Results Posted.
+2026-10-23T06:44:38.9991890Z TRACE:: Engine.Main(): Packet removed from queue: YFinanceMovingAverageCrossAlgorithm
+2026-10-23T06:44:38.9992981Z TRACE:: LeanEngineSystemHandlers.Dispose(): start...
+2026-10-23T06:44:38.9999097Z TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.
+2026-10-23T06:44:39.0000708Z TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...
+2026-10-23T06:44:39.0002166Z TRACE:: LocalObjectStore.Dispose(): start...
+2026-10-23T06:44:39.0004616Z TRACE:: LocalObjectStore.Dispose(): end
+2026-10-23T06:44:39.0006252Z TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.
+2026-10-23T06:44:39.0008439Z TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...
+2026-10-23T06:44:39.0010598Z TRACE:: PythonInitializer.Shutdown(): start
+2026-10-23T06:44:39.0012527Z TRACE:: PythonInitializer.Shutdown(): calling engine shutdown...
+2026-10-23T06:44:41.9117459Z TRACE:: PythonInitializer.Shutdown(): ended
+2026-10-23T06:44:41.9118530Z TRACE:: Program.Main(): Exiting Lean...

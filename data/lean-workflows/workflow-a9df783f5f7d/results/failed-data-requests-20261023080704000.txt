@@ -1,0 +1,7 @@
+/forex/oanda/daily/usdkrw.zip
+/forex/oanda/daily/usdkrw.zip
+/forex/oanda/daily/usdkrw.zip
+/forex/oanda/daily/usdkrw.zip
+/forex/oanda/daily/usdkrw.zip
+/equity/usa/daily/spy.zip
+/equity/usa/hour/spy.zip

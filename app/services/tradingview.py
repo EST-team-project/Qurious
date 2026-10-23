@@ -155,6 +155,11 @@ _COL_ALIASES = {
     "profit_pct": ("profit %", "profit%", "p&l %", "net p&l %", "수익 %", "손익 %"),
     "cum_profit_pct": ("cum. profit %", "cumulative profit %", "cum profit %", "누적 수익 %"),
     "drawdown_pct": ("drawdown %", "draw down %", "낙폭 %"),
+    "trade_num": ("trade #", "trade number", "거래 번호"),
+    "signal": ("signal", "신호"),
+    "date_time": ("date/time", "date", "날짜/시간", "시간"),
+    "price": ("price", "가격"),
+    "quantity": ("contracts", "quantity", "수량", "계약"),
 }
 
 
@@ -165,6 +170,75 @@ def _find_col(header: list[str], key: str) -> int | None:
             if h == alias or h.startswith(alias):
                 return i
     return None
+
+
+
+def parse_trade_list_fills(text: str) -> list[dict]:
+    """TradingView 거래 목록 CSV에서 시간순 진입·청산 이벤트를 보존한다."""
+    if not (text or "").strip():
+        return []
+
+    reader = csv.reader(io.StringIO(text))
+    header = next(reader, None)
+    if not header:
+        return []
+
+    ci_type = _find_col(header, "type")
+    ci_signal = _find_col(header, "signal")
+    ci_date = _find_col(header, "date_time")
+    ci_price = _find_col(header, "price")
+    ci_quantity = _find_col(header, "quantity")
+    ci_trade = _find_col(header, "trade_num")
+
+    def cell(row, index):
+        return row[index].strip() if index is not None and len(row) > index else ""
+
+    def number(value):
+        try:
+            cleaned = str(value).strip().replace(",", "").replace("%", "")
+            return float(cleaned) if cleaned not in ("", "-", "—") else None
+        except (TypeError, ValueError):
+            return None
+
+    def date_key(value):
+        match = re.search(r"\d{4}[-/]\d{2}[-/]\d{2}", value or "")
+        return match.group(0).replace("/", "-") if match else None
+
+    fills = []
+    for row in reader:
+        typ = cell(row, ci_type).lower()
+        is_entry = typ.startswith(("entry", "open", "진입", "매수"))
+        is_exit = typ.startswith(("exit", "close", "청산", "매도"))
+        if not is_entry and not is_exit:
+            continue
+
+        if "short" in typ:
+            side = "sell" if is_entry else "buy"
+        elif "long" in typ:
+            side = "buy" if is_entry else "sell"
+        else:
+            signal = cell(row, ci_signal).lower()
+            if signal in ("l", "long", "buy", "매수"):
+                side = "buy"
+            elif signal in ("s", "short", "sell", "매도"):
+                side = "sell"
+            else:
+                continue
+
+        raw_time = cell(row, ci_date)
+        price = number(cell(row, ci_price))
+        quantity = number(cell(row, ci_quantity))
+        fills.append({
+            "trade_id": cell(row, ci_trade) or None,
+            "event": "entry" if is_entry else "exit",
+            "side": side,
+            "time": raw_time or None,
+            "date": date_key(raw_time),
+            "price": price,
+            "quantity": abs(quantity) if quantity is not None else None,
+        })
+
+    return sorted(fills, key=lambda x: (x.get("date") or "", x.get("time") or ""))
 
 
 def parse_trade_list_csv(text: str) -> dict:
@@ -210,6 +284,7 @@ def parse_trade_list_csv(text: str) -> dict:
         "total_trades": len(profits),
         "win_rate_pct": round(wins / len(profits) * 100, 2),
         "avg_trade_pct": round(sum(profits) / len(profits), 3),
+        "fills": parse_trade_list_fills(text),
         "source": "TradingView 거래 목록 CSV",
     }
 
@@ -219,6 +294,7 @@ def parse_trade_list_csv(text: str) -> dict:
 
 def lean_metrics_from_result(res: dict) -> dict:
     stats = res.get("lean_statistics") or {}
+    fills = res.get("lean_fills") or []
 
     def _pct(v):
         try:
@@ -226,10 +302,17 @@ def lean_metrics_from_result(res: dict) -> dict:
         except (TypeError, ValueError):
             return None
 
+    # 매수·매도 주문 수가 아니라 청산 매도 체결 수를 완료된 왕복 거래 수로 본다.
+    if res.get("lean_ok"):
+        completed_trades = sum(1 for fill in fills if str(fill.get("direction", "")).lower() == "sell")
+    else:
+        completed_trades = res.get("trade_count")
+
     return {
         "net_profit_pct": res.get("strategy_return_pct"),
         "max_drawdown_pct": res.get("max_drawdown_pct"),
-        "total_trades": res.get("trade_count") if res.get("trade_count") is not None else _pct(stats.get("Total Orders")),
+        "total_trades": completed_trades,
+        "total_orders": _pct(stats.get("Total Orders")),
         "win_rate_pct": _pct(stats.get("Win Rate")),
         "sharpe_ratio": res.get("sharpe_ratio"),
         "engine": res.get("engine"),
@@ -237,6 +320,114 @@ def lean_metrics_from_result(res: dict) -> dict:
         "lean_statistics": stats,
         "source": "QuantConnect LEAN",
     }
+
+
+
+def compare_fills(tv_fills: list[dict], lean_fills: list[dict]) -> dict:
+    """TradingView와 LEAN 체결을 시간순 이벤트로 비교한다.
+
+    거래 ID가 엔진 간 공유되지 않으므로, 같은 순번 이벤트를 비교하는 진단용이다.
+    """
+    tv_rows = sorted(
+        tv_fills or [],
+        key=lambda x: (str(x.get("date") or ""), str(x.get("time") or "")),
+    )
+    lean_rows = sorted(
+        lean_fills or [],
+        key=lambda x: (str(x.get("date") or ""), str(x.get("time_utc") or "")),
+    )
+
+    base = {
+        "status": "unavailable",
+        "tradingview_fill_count": len(tv_rows),
+        "lean_fill_count": len(lean_rows),
+        "paired_event_count": min(len(tv_rows), len(lean_rows)),
+        "date_match_count": 0,
+        "side_match_count": 0,
+        "date_and_side_match_count": 0,
+        "date_match_rate_pct": None,
+        "side_match_rate_pct": None,
+        "avg_abs_price_diff_pct": None,
+        "rows": [],
+        "alignment_method": "시간순 이벤트 순번 비교. 엔진 간 공통 체결 ID가 없어 진단용 비교입니다.",
+        "timezone_note": "LEAN 날짜는 UTC 타임스탬프 기준입니다. TradingView CSV의 차트/거래소 시간대가 다르면 날짜 불일치가 발생할 수 있습니다.",
+    }
+    if not tv_rows or not lean_rows:
+        base["reason"] = (
+            "TradingView 거래 목록 CSV의 개별 진입·청산과 LEAN 체결 목록이 모두 있어야 비교할 수 있습니다."
+        )
+        return base
+
+    rows = []
+    price_diffs = []
+    date_checks = []
+    side_checks = []
+
+    for i in range(max(len(tv_rows), len(lean_rows))):
+        tv_fill = tv_rows[i] if i < len(tv_rows) else None
+        lean_fill = lean_rows[i] if i < len(lean_rows) else None
+
+        tv_date = (tv_fill or {}).get("date")
+        lean_date = (lean_fill or {}).get("date")
+        tv_side = str((tv_fill or {}).get("side") or "").lower()
+        lean_side = str((lean_fill or {}).get("direction") or "").lower()
+        if not lean_side:
+            lean_side = str((lean_fill or {}).get("side") or "").lower()
+
+        date_match = tv_date == lean_date if tv_date and lean_date else None
+        side_match = tv_side == lean_side if tv_side and lean_side else None
+        if date_match is not None:
+            date_checks.append(date_match)
+        if side_match is not None:
+            side_checks.append(side_match)
+
+        tv_price = (tv_fill or {}).get("price")
+        lean_price = (lean_fill or {}).get("fill_price")
+        price_diff = None
+        try:
+            tv_price = float(tv_price)
+            lean_price = float(lean_price)
+            if tv_price > 0 and lean_price > 0:
+                price_diff = (lean_price / tv_price - 1.0) * 100
+                price_diffs.append(abs(price_diff))
+        except (TypeError, ValueError):
+            pass
+
+        rows.append({
+            "sequence": i + 1,
+            "tradingview_date": tv_date,
+            "lean_date": lean_date,
+            "tradingview_side": tv_side or None,
+            "lean_side": lean_side or None,
+            "date_match": date_match,
+            "side_match": side_match,
+            "tradingview_price": (tv_fill or {}).get("price"),
+            "lean_fill_price": (lean_fill or {}).get("fill_price"),
+            "lean_vs_tradingview_price_diff_pct": round(price_diff, 4) if price_diff is not None else None,
+            "tradingview_trade_id": (tv_fill or {}).get("trade_id"),
+            "lean_order_id": (lean_fill or {}).get("order_id"),
+        })
+
+    date_matches = sum(date_checks)
+    side_matches = sum(side_checks)
+    both_matches = sum(
+        1 for row in rows
+        if row["date_match"] is True and row["side_match"] is True
+    )
+
+    base.update({
+        "status": "compared",
+        "date_match_count": date_matches,
+        "side_match_count": side_matches,
+        "date_and_side_match_count": both_matches,
+        "date_match_rate_pct": round(date_matches / len(date_checks) * 100, 2) if date_checks else None,
+        "side_match_rate_pct": round(side_matches / len(side_checks) * 100, 2) if side_checks else None,
+        "avg_abs_price_diff_pct": round(sum(price_diffs) / len(price_diffs), 4) if price_diffs else None,
+        "rows": rows,
+        "unmatched_tradingview_events": max(0, len(tv_rows) - len(lean_rows)),
+        "unmatched_lean_events": max(0, len(lean_rows) - len(tv_rows)),
+    })
+    return base
 
 
 def compare_metrics(tv: dict, lean: dict, ticker: str = "", strategy: str = "") -> dict:
