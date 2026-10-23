@@ -2,6 +2,7 @@
  * DSL 편집기 · 함수 레퍼런스 · 검증/계산 · 저장(버전) · 결과 이력 · Pine/Python 내보내기 */
 import { initFormulaGuide } from "/js/formula-guide.js";            // D124 A2 · 잠정 — 지우면 원래대로
 import { renderFormulaChartHelp } from "/js/formula-chart-help.js"; // D124 A3 · 잠정 — 지우면 원래대로
+import { functionHelp } from "/js/formula-guide.js";
 import { api, setToast, escHtml, fmt } from "/js/common.js";
 
 const $ = (id) => document.getElementById(id);
@@ -11,7 +12,7 @@ let chart = null, current = null, reference = null;
 function readDefinition() {
   let params = {};
   const raw = $("fx-params").value.trim();
-  if (raw) { try { params = JSON.parse(raw); } catch { throw new Error('params 는 JSON 객체여야 합니다. 예) {"n": 20}'); } }
+  if (raw) { try { params = JSON.parse(raw); } catch { throw new Error('숫자 설정은 JSON 객체로 입력하세요. 예) {"n": 20}'); } }
   return { indicator_expr: $("fx-indicator").value.trim(), buy_expr: $("fx-buy").value.trim(), sell_expr: $("fx-sell").value.trim(), params };
 }
 function readCosts() {
@@ -28,9 +29,16 @@ function fillDefinition(d) {
 async function loadReference() {
   if (reference) return;
   reference = await api("/api/formula-indicators/reference");
-  $("fx-functions").innerHTML = reference.functions.map(f => `<div class="rounded p-2 text-xs cursor-pointer fx-fn" data-ex="${escHtml(f.example)}" style="background:var(--surf2);border:1px solid var(--border);" title="클릭하면 예시를 indicator 산식 끝에 추가">
-    <code style="color:var(--accent);">${escHtml(f.signature)}</code><div style="color:var(--text-dim);">${escHtml(f.description)}</div><div style="color:var(--text-mute);">예) ${escHtml(f.example)}</div></div>`).join("");
-  $("fx-functions").querySelectorAll(".fx-fn").forEach(el => el.addEventListener("click", () => { const t = $("fx-indicator"); t.value = (t.value.trim() ? t.value.trim() + " " : "") + el.dataset.ex; t.focus(); }));
+  $("fx-functions").innerHTML = reference.functions.map((f, i) => {
+    const key = f.signature.split(/[ ,(\/]/)[0], help = functionHelp[key];
+    const usable = !["변수", "연산"].includes(key);
+    return `<div class="rounded p-3 text-xs" style="background:var(--surf2);border:1px solid var(--border);"><strong>${escHtml(help?.[0] || f.description)}</strong><div class="mt-1"><code>${escHtml(f.signature)}</code></div><p class="mt-1">${escHtml(help?.[1] || f.description)} <span style="color:var(--text-mute);">(가정 예시)</span></p><div class="mt-1"><code>${escHtml(f.example)}</code></div>${usable ? `<button type="button" class="btn-secondary text-xs mt-2 fx-fn" data-i="${i}">이 예시로 바꾸기</button>` : ""}</div>`;
+  }).join("");
+  $("fx-functions").querySelectorAll(".fx-fn").forEach(el => el.addEventListener("click", () => {
+    const t = $($("fx-ref-target").value);
+    t.value = reference.functions[+el.dataset.i].example; t.dispatchEvent(new Event("input")); t.focus();
+    setToast("선택한 입력칸을 예시로 바꿨습니다. 산식 확인 후 계산하세요.", "ok");
+  }));
   $("fx-templates").innerHTML = reference.templates.map((t, i) => `<button class="btn-secondary text-xs fx-tpl" data-i="${i}" title="${escHtml(t.description)}">${escHtml(t.name)}</button>`).join(" ");
   $("fx-templates").querySelectorAll(".fx-tpl").forEach(b => b.addEventListener("click", () => { current = null; fillDefinition(reference.templates[+b.dataset.i]); $("fx-save").textContent = "새 지표로 저장"; setToast("템플릿을 불러왔습니다. 수정 후 저장하세요.", "ok"); }));
   $("fx-rules").innerHTML = reference.rules.map(r => `<li>${escHtml(r)}</li>`).join("");
@@ -40,8 +48,8 @@ async function validate() {
   try {
     const body = { ...readDefinition(), symbol: $("fx-symbol").value.trim() || null };
     const r = await api("/api/formula-indicators/validate", { method: "POST", body });
-    const tr = r.trial ? ` · 시험 계산(${escHtml(body.symbol)} 1y): 최신값 ${r.trial.latest_value ?? "-"}, 신호 ${r.trial.latest_signal}, buy ${r.trial.signal_counts.buy}회 / sell ${r.trial.signal_counts.sell}회` : (r.trial_error ? ` · <span class="text-red-500">시험 계산 실패: ${escHtml(String(r.trial_error))}</span>` : "");
-    $("fx-validate-result").innerHTML = `<span class="badge-buy">문법 OK</span> 함수 ${r.functions.map(escHtml).join(", ") || "-"} · 변수 ${r.variables.map(escHtml).join(", ") || "-"} · 체크섬 <code>${r.checksum}</code>${tr}${r.warnings.length ? `<div class="text-amber-500 mt-1">⚠ ${r.warnings.map(escHtml).join(" / ")}</div>` : ""}`;
+    const tr = r.trial ? ` · 시험 계산(${escHtml(body.symbol)} 1y): 최신값 ${r.trial.latest_value ?? "-"}, 신호 ${r.trial.latest_signal}, 매수 조건 충족 ${r.trial.signal_counts.buy}일 / 매도 조건 충족 ${r.trial.signal_counts.sell}일` : (r.trial_error ? ` · <span class="text-red-500">시험 계산 실패: ${escHtml(String(r.trial_error))}</span>` : "");
+    $("fx-validate-result").innerHTML = `<span class="badge-buy">문법 OK</span> 함수 ${r.functions.map(escHtml).join(", ") || "-"} · 변수 ${r.variables.map(escHtml).join(", ") || "-"}${tr}${r.warnings.length ? `<div class="text-amber-500 mt-1">⚠ ${r.warnings.map(escHtml).join(" / ")}</div>` : ""}`;
   } catch (e) { $("fx-validate-result").innerHTML = `<span class="badge-sell">오류</span> <span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 
@@ -80,18 +88,27 @@ function renderResult(r, meta = "") {
   }
 }
 
+function sameAsSaved(draft) {
+  return !!current && ["indicator_expr", "buy_expr", "sell_expr"].every(k => (draft[k] || "") === (current[k] || ""))
+    && JSON.stringify(Object.entries(draft.params).sort()) === JSON.stringify(Object.entries(current.params || {}).sort());
+}
+
 async function computeNow() {
+  if (chart) { chart.destroy(); chart = null; }
+  $("fx-chart").innerHTML = ""; $("fx-cards").innerHTML = "";
+  if ($("fx-chart-help")) $("fx-chart-help").hidden = true;
   $("fx-result-meta").innerHTML = `<span style="color:var(--text-mute);">계산 중…</span>`; $("fx-result").classList.remove("hidden");
   try {
     const costs = readCosts();
+    const draft = readDefinition();
     let r;
-    if (current) {
+    if (sameAsSaved(draft)) {
       r = await api(`/api/formula-indicators/${current.id}/compute`, { method: "POST", body: { ...costs, use_cache: $("fx-use-cache").checked } });
       renderResult(r, `<b>${escHtml(current.name)}</b> v${r.version} · ${escHtml(costs.symbol)} ${costs.period}`);
       loadResults();
     } else {
-      r = await api("/api/formula-indicators/compute", { method: "POST", body: { ...readDefinition(), ...costs } });
-      renderResult(r, `<b>저장 안 된 산식</b> · ${escHtml(costs.symbol)} ${costs.period}`);
+      r = await api("/api/formula-indicators/compute", { method: "POST", body: { ...draft, ...costs } });
+      renderResult(r, `<b>입력한 산식 미리보기 · 결과 미저장</b> · ${escHtml(costs.symbol)} ${costs.period}`);
     }
   } catch (e) { $("fx-result-meta").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
@@ -103,7 +120,7 @@ async function save() {
     let r;
     if (current) { r = await api(`/api/formula-indicators/${current.id}`, { method: "PUT", body }); setToast(r.version_bumped ? `산식이 바뀌어 v${r.current_version} 으로 저장했습니다.` : "이름/설명만 갱신했습니다(산식 동일).", "ok"); }
     else { r = await api("/api/formula-indicators", { method: "POST", body }); setToast(`'${r.name}' v1 저장`, "ok"); }
-    current = r; $("fx-note").value = "";
+    current = r; $("fx-note").value = ""; $("fx-current").textContent = `${current.name} · 저장된 v${current.current_version}`;
     await loadList(); await loadVersions(); await loadResults(); $("fx-save").textContent = "저장 (변경 시 새 버전)";
   } catch (e) { setToast(e.message, "error"); }
 }
@@ -123,12 +140,13 @@ async function loadList() {
 
 async function openIndicator(id) {
   current = await api(`/api/formula-indicators/${id}`); fillDefinition(current);
-  $("fx-save").textContent = "저장 (변경 시 새 버전)"; $("fx-current").textContent = `${current.name} · v${current.current_version} · ${current.checksum}`;
+  $("fx-save").textContent = "저장 (변경 시 새 버전)"; $("fx-current").textContent = `${current.name} · 저장된 v${current.current_version}`;
   await loadList(); await loadVersions(); await loadResults();
 }
 function newIndicator() {
   current = null; fillDefinition({}); $("fx-current").textContent = "새 지표 (미저장)"; $("fx-save").textContent = "새 지표로 저장";
   $("fx-versions").innerHTML = ""; $("fx-results").innerHTML = ""; $("fx-export").innerHTML = "";
+  $("fx-result").classList.add("hidden"); $("fx-validate-result").textContent = "";
 }
 
 async function loadVersions() {
@@ -170,6 +188,11 @@ export function initFormulaView() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on("fx-validate", "click", validate); on("fx-compute", "click", computeNow); on("fx-save", "click", save); on("fx-new", "click", newIndicator);
   on("fx-toggle-ref", "click", () => $("fx-ref").classList.toggle("hidden"));
+  for (const id of ["fx-indicator", "fx-buy", "fx-sell", "fx-params"]) on(id, "input", () => {
+    $("fx-validate-result").textContent = "입력이 바뀌었습니다. 산식을 다시 확인하세요.";
+    $("fx-result").classList.add("hidden");
+    if (current) $("fx-current").textContent = `${current.name} · v${current.current_version}에서 수정 중 · 계산은 입력값 미리보기`;
+  });
 }
 export function onFormulaViewActivated(view) {
   if (view !== "indicator-formula") return;
