@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import hashlib
 
+from app.lib import vector_db  # Qdrant 문지기 — 모델 모듈 · 지우기 · 「닿지 못함」 판정(DF-149 · 2026-10-23)
+
 
 def crawl_point_id(url: str, chunk_index: int) -> int:
     """크롤 조각의 Qdrant 점 ID — 같은 주소의 같은 번째 조각은 어느 프로세스에서나 같은 값."""
@@ -37,12 +39,8 @@ async def prune_stale_points(client, collection: str, url: str, keep_ids: list[i
     """
     if not url or not keep_ids:
         return
-    from qdrant_client.http.models import FieldCondition, Filter, FilterSelector, HasIdCondition, MatchValue
-
-    await client.delete(
-        collection_name=collection,
-        points_selector=FilterSelector(filter=Filter(
-            must=[FieldCondition(key="url", match=MatchValue(value=url))],
-            must_not=[HasIdCondition(has_id=keep_ids)],
-        )),
-    )
+    qm = vector_db.models()
+    await vector_db.delete(client, collection, qm.FilterSelector(filter=qm.Filter(
+        must=[qm.FieldCondition(key="url", match=qm.MatchValue(value=url))],
+        must_not=[qm.HasIdCondition(has_id=keep_ids)],
+    )))

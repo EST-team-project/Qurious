@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -12,13 +12,31 @@ from app.services.financial_ingest import run_full_ingest
 from app.services.crawl import run_auto_crawl, crawl_url, crawl_naver_stock, _chunk_text, _store_qdrant
 from app.services import url_guard  # Qurious: 주소 검사(허용 목록 · 내부망 · robots) — 규칙은 그 파일에
 from app.services.task_access import enqueue_owned_task
+from app.config import settings  # Qurious: 번역 자료 API 켜기 설정(TRANSLATION_API_ENABLED)
+from app.lib import vector_db  # Qurious: 「모음 없음」 · 「Qdrant 장애」 를 가르는 예외(DF-149)
 from app.services.translation_ingest import (
     run_translation_ingest,
     translation_search,
     TRANSLATION_COLLECTION,
+    EmbeddingUnavailable,  # Qurious
+    TranslationDataMissing,  # Qurious
 )
 
 router = APIRouter(prefix="/api")
+
+
+def _translation_gate(user=Depends(get_current_user)):
+    """Qurious(2026-10-23 · 결정 T6): 번역 자료 API 문지기 — 기본은 꺼짐 · 켜도 관리자만.
+
+    모음 조각에 AI허브 원문 · 번역이 그대로 있어, 로그인만 보면 승인받지 않은 사람이 원문을 본다(이용정책 5항 「열람」).
+    꺼짐 · 관리자 아님 모두 403 — 404 는 「모음 없음(적재 전)」 에만 쓴다(검색 응답과 헷갈리지 않게).
+    """
+    if not settings.TRANSLATION_API_ENABLED:
+        raise HTTPException(403, "번역 자료 API 가 꺼져 있습니다 — AI허브 원문은 승인받은 사람만 볼 수 있어 기본으로 끕니다"
+                                 "(설정 TRANSLATION_API_ENABLED).")
+    if "admin" not in user.get("roles", []):
+        raise HTTPException(403, "관리자 권한이 필요합니다.")
+    return user
 
 
 @router.post("/ingest/financial")
@@ -131,19 +149,25 @@ class TranslationIngestBody(BaseModel):
 @router.post("/ingest/translation-data")
 async def ingest_translation_data(
     body: TranslationIngestBody,
-    user=Depends(get_current_user),
+    user=Depends(_translation_gate),  # Qurious: 기본 끔 · 관리자만(결정 T6)
 ):
     """data/1.데이터 다국어 번역 ZIP → Qdrant translation_docs 컬렉션 인제스트."""
     ollama = get_llm_client()
     log: list[str] = []
-    result = await run_translation_ingest(
-        ollama,
-        log,
-        data_type=body.data_type,
-        categories=body.categories or None,
-        languages=body.languages or None,
-        max_docs=body.max_docs,
-    )
+    try:  # Qurious: 예전엔 원자료가 없어도 · 임베딩이 죽어도 200(0건 · error 칸)이었다
+        result = await run_translation_ingest(
+            ollama,
+            log,
+            data_type=body.data_type,
+            categories=body.categories or None,
+            languages=body.languages or None,
+            max_docs=body.max_docs,
+        )
+    except TranslationDataMissing:
+        raise HTTPException(404, "번역 원자료 폴더(data/1.데이터/)가 없습니다 — AI허브 71782 자료를 각자 신청해 받아 "
+                                 "받은 파일 이름 그대로 두세요(이 PC 에만 · 저장소 · 해외 서버에 올리지 않음).") from None
+    except (vector_db.VectorDBUnavailable, EmbeddingUnavailable) as exc:
+        raise HTTPException(503, f"번역 자료를 적재하지 못했습니다 — {exc}") from None
     return {"ok": True, "result": result, "log": log}
 
 
@@ -157,17 +181,26 @@ class TranslationSearchBody(BaseModel):
 @router.post("/ingest/translation-search")
 async def search_translation(
     body: TranslationSearchBody,
-    user=Depends(get_current_user),
+    user=Depends(_translation_gate),  # Qurious: 기본 끔 · 관리자만(결정 T6)
 ):
-    """translation_docs 컬렉션에서 한국어 쿼리로 유사 문서 검색."""
+    """translation_docs 컬렉션에서 한국어 쿼리로 유사 문서 검색.
+
+    Qurious(DF-149 · 결정 T2): 모음 없음 = 404 · Qdrant · 임베딩 장애 = 503 · 결과 0건 = 200 빈 목록(top_k 는 20 까지).
+    """
     ollama = get_llm_client()
-    hits = await translation_search(
-        body.query,
-        ollama,
-        top_k=body.top_k,
-        category=body.category,
-        target_language=body.target_language,
-    )
+    try:
+        hits = await translation_search(
+            body.query,
+            ollama,
+            top_k=body.top_k,
+            category=body.category,
+            target_language=body.target_language,
+        )
+    except vector_db.CollectionMissing:
+        raise HTTPException(404, "번역 자료가 아직 적재되지 않았습니다 — 관리자가 data/1.데이터/ 에 AI허브 자료를 두고 "
+                                 "POST /api/ingest/translation-data 로 적재한 뒤 검색할 수 있습니다.") from None
+    except (vector_db.VectorDBUnavailable, EmbeddingUnavailable) as exc:
+        raise HTTPException(503, f"번역 검색을 하지 못했습니다 — {exc}") from None
     return {"ok": True, "hits": hits, "collection": TRANSLATION_COLLECTION}
 
 
@@ -203,7 +236,7 @@ async def crawl_url_async(body: CrawlUrlBody, user=Depends(get_current_user), db
 @router.post("/ingest/translation-data/async", summary="번역 데이터 비동기 인제스트")
 async def ingest_translation_async(
     body: TranslationIngestBody,
-    user=Depends(get_current_user),
+    user=Depends(_translation_gate),  # Qurious: 기본 끔 · 관리자만(결정 T6) — 비동기 길도 같은 문지기
     db: AsyncSession = Depends(get_pg_session),
 ):
     """다국어 번역 데이터 인제스트를 Celery 워커에 위임한다."""

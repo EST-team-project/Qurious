@@ -109,13 +109,21 @@ def test_search_failure_returns_empty_so_chat_still_answers(monkeypatch):
 
 
 def test_vector_store_gets_a_sync_client():
-    """TC-VS-05 · LangChain 에 넘기는 클라이언트는 동기 QdrantClient 다(비동기를 넘기면 만들 때 죽는다 — DF-38 재발 방지)."""
+    """TC-VS-05 · LangChain 에 넘기는 클라이언트는 동기 QdrantClient 다(비동기를 넘기면 만들 때 죽는다 — DF-38 재발 방지).
+
+    2026-10-23 · 만드는 곳이 문지기(app/lib/vector_db.py)로 옮겨 갔다 — RAG 쪽은 문지기의 동기 함수만 부르고,
+    문지기의 동기 함수는 동기 QdrantClient 를 만든다(체인 `build_rag_chain` 도 같은 길)."""
     import inspect
+
+    from app.lib import vector_db
 
     src = inspect.getsource(rp)
     # 머리 주석이 옛 방식(비동기 클라이언트)을 설명하므로 이름 자체가 아니라 「가져오기 · 만들기」 만 본다.
     assert "import AsyncQdrantClient" not in src and "AsyncQdrantClient(" not in src
-    assert "QdrantClient(url=settings.QDRANT_URL)" in inspect.getsource(rp._make_client)
+    assert "vector_db.sync_client()" in inspect.getsource(rp._make_client)
+    assert "_make_client()" in inspect.getsource(rp.build_rag_chain) and "QdrantClient(" not in inspect.getsource(rp.build_rag_chain)
+    sync_src = inspect.getsource(vector_db.sync_client)
+    assert "QdrantClient(url=settings.QDRANT_URL)" in sync_src and "AsyncQdrantClient" not in sync_src
 
 
 def test_rag_chain_store_reads_both_payload_layouts(memory_qdrant):

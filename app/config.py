@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
 
@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_COLLECTION: str = "fin_chunks"
     DOCUMENT_COLLECTION: str = "fin_chunks"  # Qdrant collection for uploaded documents
+    # Qurious(2026-10-23 · 결정 T6): AI허브 번역 자료 API 둘(적재 · 검색)은 기본으로 끈다 — 모음 조각에 원문 · 번역이
+    # 그대로 있어, 켜 두면 로그인한 누구나 승인 없이 원문을 본다(이용정책 5항 「열람」). 켜도 관리자만(app/routes/ingest.py).
+    TRANSLATION_API_ENABLED: bool = False
 
     DATA_DIR: str = "./data"
     TOP_K: int = 6
@@ -228,9 +231,9 @@ class Settings(BaseSettings):
     SMS_FROM: str = ""           # 발신 번호
     SMS_TO: str = ""             # 수신 번호
 
-    class Config:
-        env_file = os.getenv("ENV_FILE", ".env.dev")
-        extra = "ignore"
+    # Qurious(2026-10-23): class 식 `Config` 는 Pydantic V2 에서 폐기(V3 에서 없어짐) — 같은 뜻의 model_config 로.
+    # pytest 가 우리 코드의 폐기 API 를 오류로 보게 한 날(pytest.ini · DF-149 후속) 처음 잡혔다. 읽는 파일 · 모르는 칸 무시는 그대로.
+    model_config = SettingsConfigDict(env_file=os.getenv("ENV_FILE", ".env.dev"), extra="ignore")
 
     @property
     def admin_email_list(self) -> list[str]:
