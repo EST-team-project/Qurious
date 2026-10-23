@@ -29,7 +29,8 @@ from app.lib.jwt_auth import get_current_user_any
 from app.lib.llm_client import OpenAIClient, get_llm_client
 from app.lib.user_state import get_active_conversation, set_active_conversation
 from app.services.langgraph_agent import run_agent
-from app.services.rag_pipeline import rag_search
+# (Qurious 2026-10-23 · DF-146) 채팅 근거는 공용 크롤 조각 + 「내가」 올린 문서만 — 예전 rag_search 는 남의 올린 문서도 실었다.
+from app.services.user_docs import search_with_shared
 from app.services.task_access import enqueue_owned_task
 
 logger = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ async def chat(
     docs: list[dict] = []
     if body.use_rag or body.llm_mode == "rag":
         try:
-            docs = await rag_search(body.question, top_k=settings.TOP_K)
+            docs = await search_with_shared(body.question, owner_id=user_id, top_k=settings.TOP_K)
             if docs:
                 rag_context = "\n\n".join(
                     f"[{d['title']}] {d['text'][:500]}" for d in docs
@@ -285,7 +286,7 @@ async def chat_async(
     rag_context = ""
     if body.use_rag:
         try:
-            docs = await rag_search(body.question, top_k=settings.TOP_K)
+            docs = await search_with_shared(body.question, owner_id=user_id, top_k=settings.TOP_K)
             if docs:
                 rag_context = "\n\n".join(
                     f"[{d['title']}] {d['text'][:500]}" for d in docs
