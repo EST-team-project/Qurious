@@ -146,6 +146,7 @@ async def compare(body: CompareBody, user=Depends(get_current_user_any), db: Asy
     if body.tv_metrics:
         manual = {k: v for k, v in body.tv_metrics.model_dump().items() if v is not None}
         tv_metrics = {**tv_metrics, **manual, "source": (tv_metrics.get("source", "") + " + " if tv_metrics else "") + "직접 입력"} if manual else tv_metrics
+    tv_fills = tv_metrics.pop("fills", [])
     if not tv_metrics:
         raise HTTPException(422, "TradingView 성과(직접 입력) 또는 거래 목록 CSV 중 하나는 필요합니다.")
 
@@ -167,6 +168,9 @@ async def compare(body: CompareBody, user=Depends(get_current_user_any), db: Asy
 
     lean_metrics = tv.lean_metrics_from_result(lean_res)
     result = tv.compare_metrics(tv_metrics, lean_metrics, ticker, body.strategy)
+    result["fill_comparison"] = tv.compare_fills(tv_fills, lean_res.get("lean_fills") or [])
+    if result["fill_comparison"]["status"] != "compared":
+        result["causes"].append(result["fill_comparison"].get("reason", "개별 체결 비교를 수행할 수 없습니다."))
     result["strategy_label"] = STRATEGY_LABELS.get(body.strategy, body.strategy)
     result["period"] = {"start": body.start_date.isoformat(), "end": body.end_date.isoformat()}
     result["lean_points"] = lean_res.get("points", [])
