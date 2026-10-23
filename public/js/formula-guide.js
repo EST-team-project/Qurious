@@ -1,6 +1,6 @@
 /* 식 편집기 「숫자만 바꿔 조건 만들기」 — 강사님 lumina-invest `5b6fc9a`(10-14) 의 public/js/formula-guide.js 를 그대로 옮겼다.
  * 팀원 화면 프론트 반영(D124 · 잠정 · 주담당 신장환) — 반대하면 이 파일과 formula.js 의 부르는 줄(import · initFormulaGuide)을 지우면 원래대로다.
- * 화면은 initFormulaGuide 만 부른다. functionHelp(함수 도움말 카드용)는 원본 그대로 두되 아직 쓰지 않는다 — 카드 손질은 주담당 판단. */
+ * 화면은 initFormulaGuide 와 functionHelp(함수 카드의 뜻 · 가정 예시 · #243)를 부른다. */
 const $ = id => document.getElementById(id);
 export const functionHelp = {
   sma: ['일정 기간의 평균 가격', '최근 종가가 90·100·110원이면 3일 평균은 100원입니다.'],
