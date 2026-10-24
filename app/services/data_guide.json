@@ -10,7 +10,7 @@
   {
    "key": "계산",
    "name": "계산",
-   "items": 5
+   "items": 6
   },
   {
    "key": "분봉",
@@ -1494,6 +1494,517 @@
     "backup": "ohlcv:1w"
    },
    "columns": null
+  },
+  {
+   "key": "paper-journal",
+   "group": "계산",
+   "name": "모의투자 그림자 일지",
+   "line": "등록한 규칙 판이 거래일마다 그날 종가로 판단하고 다음 거래일 시가에 가상으로 사고판 기록 — 관망한 날도 남긴다",
+   "scope": "국내 주식 일봉 · 규칙 둘(이동평균 교차 카드 판 1 · 자동매매 기본 규칙) · 2026-09-01 부터(그 가운데 2026-10-26 부터가 봉인 구간)",
+   "update": "매 거래일 · 하루 늦게",
+   "sources": [
+    "ours",
+    "fsc"
+   ],
+   "tag": "우리 계산",
+   "how": "매일 낮 수집의 「모의 일지」 단계가 마지막 행 뒤의 거래일을 판마다 한 행씩 더한다 — 증권사 주문은 내지 않는다",
+   "processing": "더하기만 하고 고치거나 지우지 않는다 · 규칙 코드가 바뀌면 새 판으로 새 계좌에서 다시 시작한다",
+   "uses": "모의투자 판정(규칙대로 돌았나 · 백테스트와 얼마나 다른가) · 모의 투자 의사결정 일지",
+   "avoid": "몇 주 기록으로 규칙이 좋다 · 나쁘다를 말하지 않는다 — 기술 통계로만 · 봉인 구간 앞(2026-09-01 ~ 10-23)은 사후 시험이라 증거가 약하다",
+   "views": [],
+   "read_hint": "백업 파일",
+   "note": "줄 수는 판마다 거래일 행을 더한 수다(규칙 둘이면 하루 두 줄)",
+   "grid": "",
+   "dev": {
+    "tables": [
+     "paper_journal_versions",
+     "paper_journal_days",
+     "paper_journal_notes"
+    ],
+    "keys": "paper_journal_days.version_id + trade_date · paper_journal_versions.rule_id + version_no",
+    "read": "앱 API 없음 — 내보내기 폴더 data/paper_journal/export · python scripts/paper_journal.py status",
+    "backup": "qurious-paper-log versions/<규칙>-v<판>.json · rows/<규칙>/v<판>/<거래일>.parquet · notes/ — 추가만(지난 파일이 바뀌면 올리지 않는다)",
+    "command": "python scripts/paper_journal.py daily"
+   },
+   "stats_from": {
+    "status": [
+     "paper_journal"
+    ],
+    "backup": ""
+   },
+   "columns": {
+    "count": 44,
+    "filled": 44,
+    "tables": [
+     {
+      "title": "그림자 일지 규칙 판",
+      "count": 17,
+      "dev": {
+       "table": "paper_journal_versions"
+      },
+      "cols": [
+       {
+        "name": "판 번호",
+        "unit": "차례",
+        "text": "등록마다 붙는 일련번호",
+        "dev": {
+         "col": "id",
+         "type": "INTEGER",
+         "key": true
+        }
+       },
+       {
+        "name": "규칙",
+        "unit": "코드",
+        "text": "card_ma_cross_20_60 = 이동평균 교차 카드 · auto_default = 자동매매 기본 규칙",
+        "dev": {
+         "col": "rule_id",
+         "type": "VARCHAR(40)",
+         "key": false
+        }
+       },
+       {
+        "name": "판",
+        "unit": "차례",
+        "text": "그 규칙의 몇 번째 판인가",
+        "dev": {
+         "col": "version_no",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "시도 수",
+        "unit": "개",
+        "text": "등록할 때까지 모든 규칙을 통틀어 등록한 판의 수",
+        "dev": {
+         "col": "attempt_no",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "등록 시각",
+        "unit": "시각",
+        "text": "판을 얼린 때",
+        "dev": {
+         "col": "registered_at",
+         "type": "DATETIME",
+         "key": false
+        }
+       },
+       {
+        "name": "등록한 쪽",
+        "unit": "코드",
+        "text": "manual = 사람이 등록 · auto_fingerprint = 코드가 바뀐 것을 알아채 자동으로",
+        "dev": {
+         "col": "registered_by",
+         "type": "VARCHAR(20)",
+         "key": false
+        }
+       },
+       {
+        "name": "봉인 시작일",
+        "unit": "날짜",
+        "text": "등록 뒤 처음 장이 마감하는 거래일 — 이날 판단부터 전진 기록",
+        "dev": {
+         "col": "seal_start",
+         "type": "DATE",
+         "key": false
+        }
+       },
+       {
+        "name": "사후 시험 첫날",
+        "unit": "날짜",
+        "text": "판 1 만 — 봉인 구간 앞을 한 번만 여는 시험의 첫날",
+        "dev": {
+         "col": "post_hoc_from",
+         "type": "DATE",
+         "key": false
+        }
+       },
+       {
+        "name": "사후 시험 마지막 날",
+        "unit": "날짜",
+        "text": "판 1 만 — 봉인 시작 앞 마지막 거래일",
+        "dev": {
+         "col": "post_hoc_to",
+         "type": "DATE",
+         "key": false
+        }
+       },
+       {
+        "name": "판 지문",
+        "unit": "지문",
+        "text": "규칙을 이루는 코드 · 설정 조각 지문의 묶음",
+        "dev": {
+         "col": "fingerprint",
+         "type": "VARCHAR(64)",
+         "key": false
+        }
+       },
+       {
+        "name": "지문 조각",
+        "unit": "목록",
+        "text": "함수 · 설정마다 지문 앞 12자 — 무엇이 바뀌었나를 가린다",
+        "dev": {
+         "col": "fingerprint_parts",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "참고 지문",
+        "unit": "목록",
+        "text": "실제 자동매매 회차 코드의 지문 — 바뀌어도 판은 그대로",
+        "dev": {
+         "col": "watch_parts",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "얼린 명세",
+        "unit": "글",
+        "text": "종목 · 판단 · 크기 · 체결 · 비용 · 판정을 등록 때 그대로 적은 것",
+        "dev": {
+         "col": "spec",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "코드 판",
+        "unit": "코드",
+        "text": "등록할 때의 코드 버전 표시",
+        "dev": {
+         "col": "code_commit",
+         "type": "VARCHAR(40)",
+         "key": false
+        }
+       },
+       {
+        "name": "언어 판",
+        "unit": "코드",
+        "text": "등록할 때의 실행 언어 버전 — 지문 계산 방식이 기대는 값",
+        "dev": {
+         "col": "python",
+         "type": "VARCHAR(20)",
+         "key": false
+        }
+       },
+       {
+        "name": "앞 판",
+        "unit": "차례",
+        "text": "자동으로 등록한 판이면 그 앞 판의 번호",
+        "dev": {
+         "col": "supersedes_id",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "바뀐 조각",
+        "unit": "목록",
+        "text": "앞 판과 지문이 다른 조각 이름",
+        "dev": {
+         "col": "change_parts",
+         "type": "JSONB",
+         "key": false
+        }
+       }
+      ]
+     },
+     {
+      "title": "그림자 일지 거래일 행",
+      "count": 20,
+      "dev": {
+       "table": "paper_journal_days"
+      },
+      "cols": [
+       {
+        "name": "행 번호",
+        "unit": "차례",
+        "text": "한 줄마다 붙는 일련번호",
+        "dev": {
+         "col": "id",
+         "type": "INTEGER",
+         "key": true
+        }
+       },
+       {
+        "name": "판 번호",
+        "unit": "차례",
+        "text": "이 행을 낸 규칙 판의 번호",
+        "dev": {
+         "col": "version_id",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "거래일",
+        "unit": "날짜",
+        "text": "이 행이 담은 거래일 — 그날 시가 체결 · 종가 평가 · 종가 판단",
+        "dev": {
+         "col": "trade_date",
+         "type": "DATE",
+         "key": false
+        }
+       },
+       {
+        "name": "등급",
+        "unit": "코드",
+        "text": "post_hoc = 봉인 구간 앞의 사후 시험 · forward = 등록 뒤 전진 기록",
+        "dev": {
+         "col": "grade",
+         "type": "VARCHAR(10)",
+         "key": false
+        }
+       },
+       {
+        "name": "상태",
+        "unit": "코드",
+        "text": "ok · partial(자료가 없는 종목이 있었다)",
+        "dev": {
+         "col": "status",
+         "type": "VARCHAR(10)",
+         "key": false
+        }
+       },
+       {
+        "name": "계산 시각",
+        "unit": "시각",
+        "text": "이 행을 만든 때",
+        "dev": {
+         "col": "computed_at",
+         "type": "DATETIME",
+         "key": false
+        }
+       },
+       {
+        "name": "늦게 계산",
+        "unit": "0 또는 1",
+        "text": "전진 기록인데 예정(다음 거래일)보다 늦게 만들었다 — 값은 같다",
+        "dev": {
+         "col": "recomputed",
+         "type": "BOOLEAN",
+         "key": false
+        }
+       },
+       {
+        "name": "자료 기준일",
+        "unit": "날짜",
+        "text": "판단에 쓴 마지막 일봉 날짜",
+        "dev": {
+         "col": "data_as_of",
+         "type": "DATE",
+         "key": false
+        }
+       },
+       {
+        "name": "코드 판",
+        "unit": "코드",
+        "text": "계산할 때의 코드 버전 표시",
+        "dev": {
+         "col": "code_commit",
+         "type": "VARCHAR(40)",
+         "key": false
+        }
+       },
+       {
+        "name": "판 지문",
+        "unit": "지문",
+        "text": "규칙을 이루는 코드 · 설정의 지문 — 그 판의 지문과 같아야 한다",
+        "dev": {
+         "col": "fingerprint",
+         "type": "VARCHAR(64)",
+         "key": false
+        }
+       },
+       {
+        "name": "체결",
+        "unit": "목록",
+        "text": "앞 거래일 판단으로 낸 주문을 그날 시가에 사고판 결과 — 가격 · 수량 · 비용",
+        "dev": {
+         "col": "fills",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "판단",
+        "unit": "목록",
+        "text": "그날 종가까지의 자료로 낸 종목별 판단과 근거",
+        "dev": {
+         "col": "decisions",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "점수 순위",
+        "unit": "목록",
+        "text": "자동매매 기본 규칙이 종목을 고른 근거 — 31종목 점수",
+        "dev": {
+         "col": "ranking",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "다음 날 주문",
+        "unit": "목록",
+        "text": "다음 거래일 시가에 낼 주문 — 종목 · 사고팖 · 수량 · 판단가",
+        "dev": {
+         "col": "orders",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "빠진 주문",
+        "unit": "목록",
+        "text": "비중 한도 · 주문 수 한도로 내지 않은 주문과 까닭",
+        "dev": {
+         "col": "skipped",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "현금",
+        "unit": "원",
+        "text": "그날 끝 현금",
+        "dev": {
+         "col": "cash",
+         "type": "FLOAT",
+         "key": false
+        }
+       },
+       {
+        "name": "보유",
+        "unit": "목록",
+        "text": "종목마다 수량 · 평균 단가 · 그날 종가 · 평가액",
+        "dev": {
+         "col": "positions",
+         "type": "JSONB",
+         "key": false
+        }
+       },
+       {
+        "name": "평가액",
+        "unit": "원",
+        "text": "현금과 보유를 그날 종가로 평가한 합",
+        "dev": {
+         "col": "equity",
+         "type": "FLOAT",
+         "key": false
+        }
+       },
+       {
+        "name": "하루 수익률",
+        "unit": "비율",
+        "text": "앞 행 평가액 대비 — 0.01 이 1%",
+        "dev": {
+         "col": "day_return",
+         "type": "FLOAT",
+         "key": false
+        }
+       },
+       {
+        "name": "표시",
+        "unit": "목록",
+        "text": "일손실 한도를 넘은 날 · 가격 조정 사건 · 참고 코드가 바뀐 날",
+        "dev": {
+         "col": "flags",
+         "type": "JSONB",
+         "key": false
+        }
+       }
+      ]
+     },
+     {
+      "title": "그림자 일지 메모",
+      "count": 7,
+      "dev": {
+       "table": "paper_journal_notes"
+      },
+      "cols": [
+       {
+        "name": "메모 번호",
+        "unit": "차례",
+        "text": "메모마다 붙는 일련번호",
+        "dev": {
+         "col": "id",
+         "type": "INTEGER",
+         "key": true
+        }
+       },
+       {
+        "name": "판 번호",
+        "unit": "차례",
+        "text": "어느 판의 메모인가(빈칸이면 판 없는 메모)",
+        "dev": {
+         "col": "version_id",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "거래일",
+        "unit": "날짜",
+        "text": "어느 날의 메모인가(빈칸 가능)",
+        "dev": {
+         "col": "trade_date",
+         "type": "DATE",
+         "key": false
+        }
+       },
+       {
+        "name": "종류",
+        "unit": "코드",
+        "text": "opening = 개봉 기록 · change_reason = 판 바뀜 까닭 · judgment = 판정 범위 · interpretation = 해석 · ops = 운영",
+        "dev": {
+         "col": "kind",
+         "type": "VARCHAR(20)",
+         "key": false
+        }
+       },
+       {
+        "name": "쓴 사람",
+        "unit": "이름",
+        "text": "사람 이름 또는 journal(자동)",
+        "dev": {
+         "col": "author",
+         "type": "VARCHAR(40)",
+         "key": false
+        }
+       },
+       {
+        "name": "쓴 시각",
+        "unit": "시각",
+        "text": "메모를 남긴 때",
+        "dev": {
+         "col": "written_at",
+         "type": "DATETIME",
+         "key": false
+        }
+       },
+       {
+        "name": "글",
+        "unit": "글",
+        "text": "메모 본문",
+        "dev": {
+         "col": "text",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     }
+    ]
+   }
   },
   {
    "key": "bar-60m",
@@ -3962,7 +4473,8 @@
      "kb_raw",
      "kb_document",
      "kb_chunk",
-     "kb_vector"
+     "kb_vector",
+     "kb_sector_word"
     ],
     "keys": "doc_id + version_label · 조각 rid",
     "read": "API-KB-01 GET /api/kb/documents · API-KB-02 GET /api/kb/search · API-KB-03 POST /api/kb/ask",
@@ -3976,8 +4488,8 @@
     "backup": ""
    },
    "columns": {
-    "count": 47,
-    "filled": 47,
+    "count": 53,
+    "filled": 53,
     "tables": [
      {
       "title": "근거 문서 응답 원문",
@@ -4479,6 +4991,75 @@
         "text": "한국 시각",
         "dev": {
          "col": "indexed_at",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     },
+     {
+      "title": "섹터 질문 분류 낱말",
+      "count": 6,
+      "dev": {
+       "table": "kb_sector_word"
+      },
+      "cols": [
+       {
+        "name": "맞추는 낱말",
+        "unit": "글",
+        "text": "질문에서 찾는 꼴 — 띄어쓰기 · 가운뎃점을 빼고 로마자는 소문자",
+        "dev": {
+         "col": "word",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "표에 적힌 낱말",
+        "unit": "글",
+        "text": "섹터 표에 적힌 그대로의 꼴 — 답의 근거 길에 보인다",
+        "dev": {
+         "col": "shown",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "근거 문서 번호",
+        "unit": "코드",
+        "text": "이 낱말이 있으면 검색 후보에 드는 섹터 법령(법률과 그 시행령)",
+        "dev": {
+         "col": "doc_id",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "섹터 코드",
+        "unit": "코드",
+        "text": "섹터 열한 가지와 공통(All)",
+        "dev": {
+         "col": "sector_code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "섹터",
+        "unit": "이름",
+        "text": "에너지 · 소재 · … · 공통",
+        "dev": {
+         "col": "sector",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "낱말 출처",
+        "unit": "코드",
+        "text": "정식 이름 · 약칭 · 업 이름",
+        "dev": {
+         "col": "source",
          "type": "TEXT",
          "key": false
         }

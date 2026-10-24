@@ -37,6 +37,9 @@ data/local-run/
 #   ⚠️ `git check-ignore -v` 로 판정하지 말 것 — 슬래시를 붙이면 빈 줄에 가짜 매치가 나
 #      exit 0 을 준다. 판정은 `git status --short` 로 한다.
 data/hf_export/
+# 모의투자 그림자 일지 내보내기(판 · 거래일 행 · 메모 · 지문 목록) — 원본은 HF 비공개(qurious-quant/qurious-paper-log)라 커밋하지 않는다.
+#   채우기: 일일 회차의 「모의 일지」 단계가 씀 · 손으로는 python scripts/paper_journal.py export
+data/paper_journal/
 # 사용법 영상(결정 D132) — 영상 · 자막 · 장 그림 · 영상 표. 원본은 HF 비공개(qurious-quant/demo-videos)라 커밋하지 않는다.
 #   채우기: python tools/demo/help_videos.py build(녹화한 PC) · pull(다른 PC) — 앱은 로그인한 사람에게 /help/ 로 낸다
 data/help/

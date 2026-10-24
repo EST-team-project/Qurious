@@ -49,6 +49,8 @@ from app.models.reference import (
 from app.models.glossary import GlossaryCategory, GlossarySource, GlossaryTerm, GlossaryAlias, GlossaryLoad, GlossaryRelation
 # 화면 수집 요청 · PC 작업자 신호 (2026-10-10 · 목표 기능 ① 수집 단추) — 표 둘.
 from app.models.collect import CollectRequest, CollectWorker
+# 모의투자 그림자 일지 (2026-10-24 · 할 일 ①-26) — 판 등록 · 매 거래일 1행 · 메모. 표 셋 · 추가만.
+from app.models.paper_journal import PaperJournalVersion, PaperJournalDay, PaperJournalNote
 
 __all__ = [
     "Base",
@@ -103,4 +105,7 @@ __all__ = [
     "GlossaryRelation",
     "CollectRequest",
     "CollectWorker",
+    "PaperJournalVersion",
+    "PaperJournalDay",
+    "PaperJournalNote",
 ]
