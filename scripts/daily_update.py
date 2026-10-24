@@ -221,21 +221,49 @@ GROUPS: List[Dict[str, str]] = [
 #: 같은 이름 값과 같아야 한다(TC-BF-05). 75 는 「지금은 못 돈다」(러너 · 작업자)라 쓰지 않는다 — 아래 종료코드 약속.
 EX_UNAVAILABLE = 69
 
+#: DART 하루 호출 장부(기록만 · 2026-10-24) — 단계마다 자식 프로세스에 경로를 넘기면 끝날 때 부른 횟수를 한 줄 덧붙인다
+#: (`collector.sources.dart.LEDGER_ENV`). 러너는 단계 앞뒤로 재어 단계 줄에 `dart_calls` 를 적는다(관제 · 수집 일정 화면 · status).
+#: DART 는 남은 횟수를 알려 주지 않아 우리가 세어야 안다. 막지는 않는다 — 몫은 아래 상한이 지킨다.
+DART_LEDGER_PATH = config.STATE_DIR / "dart_calls.jsonl"
+#: 회차 DART 단계의 하루 몫(사용자 결정 2026-10-24 「고정 몫 + 회차 뒤에만」) — 하루 한도 20,000(개발가이드 020 「일반적으로는 20,000건
+#: 이상」) 가운데 회차가 쓰는 몫. 2026-10-14 ~ 10-24 실측은 하루 약 80 ~ 100회(배당 39 ~ 48 · 공시 30 ~ 35 · 재무 0 ~ 3 · 일정 6 ~ 9).
+#: 나머지는 지난 해 채우기 15,000(회차가 끝난 뒤에만 · `collector.financials_full backfill`) · 예비 1,000 · 사람 확인 1,000.
+DART_ROUND_BUDGET = 3_000
+#: 단계마다 상한(합 = 몫 · TC-DU 가 지킨다) — 실측의 열 배 넘게 잡되, 일정(3월 주총철 소집결의 몰림)과 전체 재무제표(분 · 반기 마감 날
+#: 351곳 수백 건 + 분기 대조 하루 300 ~ 400)에 더 준다. 닿으면 그 단계는 멈추고 다음 회차가 이어서 받는다.
+DART_CAPS: Dict[str, int] = {"dividend": 500, "disclosure": 300, "financial": 200, "financial_full": 1_000,
+                             "company": 400, "schedule": 600}
+
 STEPS: List[Step] = [
     # 시세는 멈추는 단계 — 예외 · 시간 넘김은 뒤를 막는다. 69(다 받지 못함)만 경고로 세어 받은 만큼으로 뒤 단계를 돌린다(DF-92).
     Step("price", ["-m", "collector.backfill", "recent", "--quiet"], 30, warn_codes=(EX_UNAVAILABLE,),
          label="시세", group="받기", desc="최근 거래일 시세를 받아 빈 날을 메운다"),
-    Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet"], 60,
+    Step("dividend", ["-m", "collector.dividend", "scan", "--recent", "2", "--quiet",
+                      "--max-calls", str(DART_CAPS["dividend"])], 60,
          fatal=False, label="배당", group="받기", desc="최근 두 달 배당 공시를 다시 훑어 배당 기록을 고친다"),
     # 공시 · 재무 · 검색 색인(2026-10-04 · 목표 기능 ① W7) — 시세와 무관하고 실패해도 기존 단계를 막지 않는다.
     # 공시 목록(최근 3일 · 유형 A~J × 시장 3 · 약 40회) → 새 정기보고서 · 정정본의 재무 → 이름표 · 낱말 색인(바뀐 것만).
     # 달력(③-②) **앞에** 둔다 — 실적 · 주총 일정을 공시 목록에서 만든다.
-    Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet"], 15, fatal=False,
+    Step("disclosure", ["-m", "collector.disclosure", "daily", "--quiet", "--max-calls", str(DART_CAPS["disclosure"])],
+         15, fatal=False,
          label="공시", group="받기", desc="전자공시(DART) 최근 3일 상장사 공시 목록"),
-    Step("financial", ["-m", "collector.financials", "daily", "--quiet"], 15, fatal=False,
-         label="재무", group="받기", desc="새 정기보고서 · 정정본의 재무 주요계정"),
+    Step("financial", ["-m", "collector.financials", "daily", "--quiet", "--max-calls", str(DART_CAPS["financial"])],
+         15, fatal=False, label="재무", group="받기", desc="새 정기보고서 · 정정본의 재무 주요계정"),
+    # 전체 재무제표(2026-10-24 · 할 일 ①-05 G3 · 사용자 결정 「새 공시 + 분기마다 대조」) — 공시 목록(앞 단계 disclosure)에서 분봉 유니버스
+    # 351곳의 새 정기보고서 · 정정본을 회사 하나씩 받고, 분기마다 하루 50곳씩 최근 두 사업연도를 다시 받아 대조한다(조용한 고침 · 놓친 판).
+    # 한도 · 상한에서 멈추면 종료코드 3(경고 — 남은 것은 다음 회차). 지난 해(2015 ~ 2020) 채우기는 단계가 아니다(회차 뒤에만).
+    Step("financial_full", ["-m", "collector.financials_full", "daily", "--quiet",
+                            "--max-calls", str(DART_CAPS["financial_full"])], 20, fatal=False, warn_codes=(3,),
+         label="재무 전체", group="받기",
+         desc="분봉 유니버스 351곳 새 정기보고서의 전체 재무제표 · 분기마다 대조(하루 50곳)"),
+    # 업종코드 · KSIC(2026-10-24 · G2 · 사용자 결정 「7일에 한 번 전체」) — 기업개황 351곳을 7일마다 다시(그 밖의 날은 새로 든 회사만 ·
+    # 「건너뜀」 한 줄) · 같은 회차에 KSIC 고시 원본 지문 대조(바뀌었거나 확인 못 하면 종료코드 10 — 경고).
+    Step("company", ["-m", "collector.dart_company", "weekly", "--quiet", "--max-calls", str(DART_CAPS["company"])],
+         10, fatal=False, warn_codes=(3, 10), label="기업 업종", group="받기",
+         desc="DART 기업개황 업종코드(351곳 · 7일마다 전체) · KSIC 고시 원본 대조"),
     # 주주총회 · 배당금 지급 일정(2026-10-05) — 최근 60일 소집결의 본문(새 것만 · 하루 수십 회) → 날짜 읽기. 달력 앞.
-    Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet"], 15, fatal=False,
+    Step("schedule", ["-m", "collector.corp_schedule", "daily", "--quiet", "--max-calls", str(DART_CAPS["schedule"])],
+         15, fatal=False,
          label="기업 일정", group="받기", desc="주주총회 · 배당금 지급 같은 기업 일정"),
     # 정책브리핑 정책뉴스(2026-10-05) — 오늘까지 3일 창 한 번(공공데이터포털 · 하루 1,000회). 이름표 · 색인 앞.
     Step("news", ["-m", "collector.policy_news", "daily", "--quiet"], 10, fatal=False,
@@ -246,8 +274,11 @@ STEPS: List[Step] = [
          label="언론사 기사", group="받기", desc="제목 · 링크 · 시각 · 언론사만(본문은 받지 않는다)"),
     # 한국은행 ECOS 시장금리(2026-10-13 · 재무 · 신용 위험 API-RISK-02) — 다섯 항목을 항목마다 마지막 날 앞 14일부터 오늘까지
     # (처음엔 항목마다 ECOS 첫 날부터 · 한 번에 다섯 번 부름). 키가 없으면 78(설정 결함)로 끝나 숨기지 않는다.
+    # 2026-10-24(할 일 ①-05 G1) — G1 셋(기준금리 · 원/달러 · 소비자물가 — 물가는 월) · 국고채 10년을 더해 열한 계열. 새 계열은 첫 회차가
+    # ECOS 첫 시점부터 저절로 다 받는다(원/달러 1964 ~ 는 두 쪽).
     Step("ecos", ["-m", "collector.ecos", "daily", "--quiet"], 10, fatal=False,
-         label="시장금리", group="받기", desc="한국은행 ECOS 시장금리 — 국고채 · 회사채(AA- · BBB-) · CD · CP"),
+         label="한국은행 통계", group="받기",
+         desc="한국은행 ECOS — 시장금리(국고채 3 · 10년 · 회사채 · CD · CP) · 주가지수 · 기준금리 · 원/달러 · 소비자물가"),
     Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False,
          label="검색 색인", group="계산", desc="수집 자료 검색 색인 — 바뀐 것만 다시 짓는다"),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
@@ -564,7 +595,7 @@ def _compact(recs: List[Dict]) -> List[Dict]:
     for r in recs:
         row = {"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
         row.update({k: r[k] for k in ("reason", "followup", "date", "fill_from", "fill_to", "fill_days", "fill_rest",
-                                      "error", "log_name", "warn") if r.get(k)})
+                                      "error", "log_name", "warn", "dart_calls") if r.get(k)})
         out.append(row)
     return out
 
@@ -924,6 +955,8 @@ class Run:
     app_db_env: Dict[str, str] = field(default_factory=dict)
     #: 주소를 못 만들었으면 그 까닭 — 앱 DB 단계는 돌리지 않고 이 까닭으로 경고를 남긴다
     app_db_why: str = ""
+    #: 단계마다 DART 호출 수(장부 앞뒤로 잼 · 0 이면 적지 않는다)
+    dart_calls: Dict[str, int] = field(default_factory=dict)
 
     def say(self, msg: str) -> None:
         line = f"[{now_kst().strftime('%H:%M:%S')}] {msg}"
@@ -986,6 +1019,8 @@ def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout
         env.update(run.app_db_env)             # ← ``host_app_db_env`` — 컨테이너 주소가 아니라 compose 가 연 포트
     if env_extra:
         env.update(env_extra)
+    env["QURIOUS_DART_LEDGER"] = str(DART_LEDGER_PATH)    # ← DART 하루 호출 장부(기록만) — 부른 횟수를 끝날 때 한 줄
+    at0 = _ledger_size()
     run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(args)}\n{'=' * 70}\n")
     run.log.flush()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -997,6 +1032,50 @@ def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout
     except subprocess.TimeoutExpired:
         run.log.write(f"\n⏱ {timeout_min}분을 넘겨 멈췄다\n")
         return 124
+    finally:
+        n = sum(int(x.get("calls") or 0) for x in _ledger_since(at0))
+        if n:
+            run.dart_calls[step.name] = n
+
+
+def _ledger_size() -> int:
+    try:
+        return DART_LEDGER_PATH.stat().st_size
+    except OSError:
+        return 0
+
+
+def _ledger_since(offset: int) -> List[Dict]:
+    """장부의 `offset` 바이트 뒤 줄들 — 그 단계의 자식이 끝나며 덧붙인 것(한 단계 = 보통 한 줄)."""
+    from collector.sources.dart import ledger_lines   # 늦게 — 러너가 DART 모듈을 읽지 않고도 뜨게
+    return ledger_lines(DART_LEDGER_PATH, offset)[1]
+
+
+def _put_dart(run: Run, step: Step, rec: Dict) -> None:
+    """단계 줄에 DART 호출 수 — 그 단계가 불렀을 때만(관제 · 수집 일정 화면 · status)."""
+    n = run.dart_calls.get(step.name)
+    if n:
+        rec["dart_calls"] = n
+
+
+def dart_calls_today(day: Optional[str] = None) -> Dict[str, int]:
+    """오늘(KST) 장부 합 — 회차 단계(cmd 가 러너 단계의 모듈)와 그 밖(지난 해 채우기 · 손 명령)으로 나눈다."""
+    day = day or now_kst().date().isoformat()
+    step_mods = {a.split(".")[-1] for st in STEPS for a in st.args[1:2] if st.args and st.args[0] == "-m"}
+    out = {"round": 0, "other": 0}
+    for x in (ledger_lines_safe()):
+        if x.get("date") != day:
+            continue
+        mod = str(x.get("cmd") or "").split(" ")[0]
+        out["round" if mod in step_mods and "backfill" not in str(x.get("cmd")) else "other"] += int(x.get("calls") or 0)
+    return out
+
+
+def ledger_lines_safe() -> List[Dict]:
+    try:
+        return _ledger_since(0)
+    except Exception:  # noqa: BLE001 — 장부는 기록만 — 읽지 못해도 status 는 끝까지
+        return []
 
 
 def _prune_logs() -> None:
@@ -1192,6 +1271,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                 mark = _log_mark(run)
                 rc = _run_step(run, step, env_extra=env_extra)
                 rec["rc"], rec["seconds"] = rc, round(time.time() - t0, 1)
+                _put_dart(run, step, rec)
                 rec.update(step_failure(run, step, rc, mark))   # 실패면 까닭 한 줄 · 로그 파일 이름(DF-101)
                 if _clear_done(step, rc, pending):         # 앱 DB 가 다시 떴다 — 이 회차가 계산한 그날만(따라잡는 단계는 모두) 지운다
                     pending_changed = True
@@ -1210,6 +1290,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             state = {
                 "started_at": _iso(started), "finished_at": _iso(now_kst()),
                 "ok": ok, "upload": upload, "stopped": stop or None,
+                "dart_calls": sum(run.dart_calls.values()), "dart_budget": DART_ROUND_BUDGET,
                 "derived": derived_why, "steps": run.steps,
                 "before": before, "after": after,
                 "log": log_path.relative_to(ROOT).as_posix(),
@@ -1468,6 +1549,7 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
                 mark = _log_mark(run)
                 rc = _run_step(run, step)
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
+                _put_dart(run, step, rec)
                 rec.update(step_failure(run, step, rc, mark))
                 _mark_warn(step, rc, rec)                    # 경고 종료코드는 정기 회차와 같은 표시(DF-92)
                 if _clear_done(step, rc, pending):
@@ -1534,6 +1616,7 @@ def run_fill(name: str, d_from: str, d_to: str, *, now: Optional[datetime.dateti
                 rc = _run_step(run, step, args=args, timeout_min=limit)
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note=f"빠진 날 채움 {d_from} ~ {d_to}",
                            rerun_at=_iso(now_kst()))
+                _put_dart(run, step, rec)
                 rec.update(step_failure(run, step, rc, mark, limit))
                 _mark_warn(step, rc, rec)
                 if rc == 0 and pending.get(name):            # 채운 범위의 빠진 날만 지운다 — 범위 밖 날은 그대로 「채울 것」
@@ -1743,6 +1826,7 @@ def status() -> int:
         mark = "·" if rc is None else ("✅" if rc == 0 else ("🟡" if st.get("warn") or not st.get("fatal", True) else "🔴"))
         print(f"    {mark} {st['name']:<13} "
               + (f"종료코드 {rc} · {st.get('seconds', 0):,.0f}초" if rc is not None else "")
+              + (f" · DART {st['dart_calls']:,}회" if st.get("dart_calls") else "")
               + (f"  {st['note']}" if st.get("note") else ""))
         if st.get("error"):                                  # 실패한 단계의 까닭(DF-101) — 로그를 열기 전에 한 줄
             print(f"        까닭: {st['error']} · 로그 {st.get('log_name', '')}")
@@ -1750,6 +1834,10 @@ def status() -> int:
     print(f"  데이터: 시세 {a.get('price_max')} · 수정주가 {a.get('adjusted_max')} · "
           f"TR {a.get('tr_max')} · 벤치마크 {a.get('benchmark_max')} · "
           f"배당 {(a.get('dividend') or [None])[0]}건")
+    if s.get("dart_calls") is not None:
+        today = dart_calls_today()
+        print(f"  DART   이 회차 {s['dart_calls']:,}회(회차 몫 {s.get('dart_budget', DART_ROUND_BUDGET):,}) · 오늘 장부 — 회차 "
+              f"{today['round']:,} · 그 밖(지난 해 채우기 · 손 명령) {today['other']:,} · 하루 한도 {config.DART_DAILY_LIMIT:,}")
     print(f"  로그   {s.get('log')}")
     return 0
 

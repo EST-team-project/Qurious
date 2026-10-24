@@ -1,4 +1,4 @@
-# API 명세서 v0.40 — Qurious
+# API 명세서 v0.41 — Qurious
 
 | 항목 | 내용 |
 |------|------|
@@ -440,7 +440,7 @@ GET /api/risk/company?symbol=005930&as_of=YYYY-MM-DD&fs=CFS|OFS      (세션 · 
 ```text
 GET /api/risk/macro?years=3      (세션 · years 1 ~ 10 은 그림 기간 · 위치 통계는 늘 지난 10년)
   200 { available: true, region: KR, as_of(마지막 날), years,
-        rates: [{ key: treasury_3y | corp_aa_3y | corp_bbb_3y | cd_91d | cp_91d, label, date, value(연%), unit }],
+        rates: [{ key: treasury_3y | corp_aa_3y | corp_bbb_3y | cd_91d | cp_91d | treasury_10y(2026-10-24), label, date, value(연%), unit }],
         spreads: [{ key: aa | bbb | cp_cd, label, latest{ date, bp } | null, history[{ date, bp }](그림 기간),
                     stats{ years, days, from, min, max, median, pct_rank(같거나 낮은 날의 몫 %) } | null,
                     change{ days, from, bp } | null, sentence, points[](재는 법 · 출처) }],
@@ -599,6 +599,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | `fill_from` · `fill_to` · `fill_days` · `fill_rest` | 단계 줄(`last.steps[]` · 이력 `steps[]`) | 모두(`01` · `05`) | 빠진 날 — 앱 DB 가 꺼져 건너뛴 거래일을 러너가 상태 파일(`daily_update_fill.json`)에 모아 적은 첫날 · 마지막 날 · 날 수(한 묶음 = 첫날부터 31일 안) · 다음 묶음 날 수. 성공한 줄에도 남은 날이 있으면 `followup: "fill"` 과 함께 실린다 |
 | `error` · `log_name` | 단계 줄 | **관리자만**(`05`) | 실패한 단계의 까닭 한 줄(마지막 예외 줄 · 경로는 파일 이름만 · 주소의 물음표 뒤 · 「키 = 값」 비밀값 · 긴 토큰을 지움 · 200자) · 로그 파일 이름(경로 없이) — DF-101 |
 | `fill` | 이력 줄(`history[]`) | 모두 | 빠진 날 채우기 줄의 범위 `{from, to}` — 화면은 「↳ 빠진 날 채움」 으로 나눈다 |
+| `dart_calls` | 단계 줄(`last.steps[]` · 이력 `steps[]`) | 모두(`01` · `05`) | (2026-10-24 · G1 ~ G3) 그 단계가 부른 OpenDART 호출 수 — 러너가 단계 앞뒤로 하루 호출 장부(`dart_calls.jsonl`)를 재어 적은 그대로 · 0 이면 칸이 없다 · 기록만(몫은 러너 `DART_CAPS` 가 지킨다 · 회차 몫 하루 3,000) · 화면은 「DART n회」 |
 | `reruns[].log` · `reruns[].request_id` | `last.reruns[]` | **관리자만**(`05`) | 다시 돌림 줄의 로그 경로 · 화면 요청 번호 — v0.18 부터 모두가 보는 `01` 에서는 뺐다(까닭 · 로그 이름과 같은 결정) |
 
 ## 3. 발견 — 명세를 만들며 드러난 것
@@ -1484,6 +1485,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.41 | 2026-10-24 | `API-DATA-01` · `05` 단계 줄에 `dart_calls`(그 단계의 OpenDART 호출 수 · 기록만) 칸 — 더한 칸 표 한 줄 · `API-RISK-02` 금리 목록(`rates`)에 국고채 10년(`treasury_10y` — 수집기 G1 과 같은 항목 표 · TC-MC-01) | G1 ~ G3 매일 단계 — DART 하루 몫 · 호출 장부(할 일 ①-05) | `app/services/data_status.py` `_step_view` · `scripts/daily_update.py` · TC-DU |
 | v0.40 | 2026-10-23 | 채움 — 6절 <그림 6-1>(번역 검색 응답 갈래 · Figma) · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 인증 「세션 + 관리자」(문지기 · 기본 꺼짐) · 오류 칸 404 · 503 · 6절 「번역 자료 API 문지기 · 응답 갈래」(403 · 404 · 503 · 200 · `top_k` 1 ~ 20 · 적재 결과 `skipped_chunks` · `zips`) · 오류 출처 표에 문지기 줄 · `API-SYS-01` Qdrant 줄 판 짝 칸(`server_version` · `client_version` · `version_ok`) · IF-08 문지기 경유 · 4절 표를 `api_scan.py --doc` 로 다시 채움(`ingest.py` 줄 번호 · 404 묶음 27 → 29 · 503 묶음 16 → 18) | DF-149(번역 검색 늘 0건) 고침 · 결정 T2 · T6(2026-10-23 사용자) · 의존성 판 관리(판 짝) | `app/routes/ingest.py` · `app/lib/vector_db.py` · `app/services/system_info.py` · TC-TA · TC-TR · TC-VD · TC-DL |
 | v0.39 | 2026-10-23 | 올린 문서 사용자 격리(DF-146) — `API-DOC-01` 조각을 비공개 모음에(500 · DB 저장 실패 되돌림) · `API-DOC-03` 조각 지우기 실패면 503 · `API-DOC-04` 내 문서만 · `top_k` 1 ~ 20 · `query` 1 ~ 2000 · `API-CHAT-01` · `02` 근거 = 공용 크롤 + 내 문서 · `API-AUTH-14` 탈퇴 503 · 「벡터 조각」 칸 · `API-GRPH-01` ~ `06` 로그인(`/seed` 관리자 · DF-147) · 스캐너 표 셋 · 카탈로그 다시 채움 | 일회용 계정 둘로 재현한 공용 모음 결함 · 사용자 10-23 「좋은 방식으로 끝까지」 | `scripts/api_scan.py --doc` · `--catalog` · 결함대장 DF-146 · DF-147 |
 | v0.38 | 2026-10-22 | 채움 — `API-ML-09`(`POST /api/ml/robo/goal-simulation`) 오류 칸 422 — 입력 모델에 칸마다 범위 표와 한국어 안내 글 · 계산이 넘친 조합도 422(감리 HIGH `FD-FIND-002` · 결함 DF-144 · #317 2-1) · 422 묶음 29 → 30 · `ml.py` 줄 번호 · 4절 표를 `api_scan.py --doc` 로 다시 채움 | 라우트 본문에 422 가 생겨 오류 칸이 바뀜 | `api_scan.py --doc` · `main` `4bed63b` + 이 판 작업 트리 |

@@ -90,6 +90,15 @@ TABLES = [
      "전자공시(DART) 다중회사 주요계정 — 마지막으로 값이 실린 보고서 접수일", "info",
      "SELECT substr((SELECT MAX(rcept_no) FROM financial_statement), 1, 8)",
      "SELECT COUNT(*) FROM financial_statement"),
+    # 전체 재무제표 · 기업 업종(2026-10-24 · 할 일 ①-05 G3 · G2) — 마지막 날은 주요계정과 같은 꼴(접수번호 색인 끝 한 칸 · DF-80).
+    ("financial_statement_full", "financial_statement_full", "재무 전체 계정", "공시",
+     "전자공시(DART) 단일회사 전체 재무제표 — 분봉 유니버스 351곳 · 마지막으로 값이 실린 보고서 접수일", "info",
+     "SELECT substr((SELECT MAX(rcept_no) FROM financial_statement_full), 1, 8)",
+     "SELECT COUNT(*) FROM financial_statement_full"),
+    ("dart_company", "dart_company", "기업 업종", "공시",
+     "전자공시(DART) 기업개황 업종코드 — 351곳 · 7일마다 전체 · 마지막으로 다시 받아 본 날", "info",
+     "SELECT substr((SELECT MAX(last_seen_at) FROM dart_company), 1, 10)",
+     "SELECT COUNT(*) FROM dart_company"),
     # 뉴스 표 하나에 출처 둘이 들어 있다(2026-10-04 부터 GDELT 언론사 기사) — 출처마다 한 줄씩(DF-87 · 2026-10-08).
     # 한 줄로 세면 정책뉴스 줄이 언론사 기사까지 세고, 마지막 날짜도 매일 받는 언론사 기사 쪽으로 당겨져 정책뉴스가 멈춰도 안 보인다.
     ("news_item", "news_item", "정책뉴스", "뉴스", "정책브리핑 정책뉴스(공공데이터포털 · 기사마다 공공누리 유형 — 제1유형만 본문) — 마지막 승인일", "info",
@@ -101,8 +110,8 @@ TABLES = [
      "SELECT COUNT(*) FROM news_item WHERE source = 'gdelt'"),
     # 한국은행 ECOS 시장금리(2026-10-13 · 재무 · 신용 위험) · 주가지수(2026-10-14 · 계절성) — 일곱 항목이 한 표 ·
     # 마지막 날짜는 표 전체의 마지막 날(참고 — 휴장일엔 값이 없다).
-    ("ecos_series", "ecos_series", "시장금리 · 주가지수", "금리", "한국은행 ECOS — 시장금리(일별 · 국고채 3년 · 회사채 AA- · BBB- · "
-     "CD · CP) · 주가지수(코스피 1995 ~ · 코스닥 2003 ~) — 마지막 날", "info",
+    ("ecos_series", "ecos_series", "금리 · 지수 · 환율 · 물가", "금리", "한국은행 ECOS — 시장금리(일별 · 국고채 3 · 10년 · 회사채 AA- · "
+     "BBB- · CD · CP) · 주가지수(코스피 1995 ~ · 코스닥 2003 ~) · 기준금리 · 원/달러(일별) · 소비자물가(월별) — 마지막 날", "info",
      "SELECT MAX(date) FROM ecos_series", "SELECT COUNT(*) FROM ecos_series"),
     ("intraday_60m", "price_intraday", "60분봉", "분봉", "야후 파이낸스(09:00~15:00)", "intraday",
      "SELECT MAX(trade_date) FROM price_intraday WHERE timeframe = '60m'",
@@ -141,6 +150,8 @@ FRESHNESS: dict[str, tuple] = {
     "financial_statement": ("step_checked", "financial"),
     "market_event": ("step_checked", "calendar"),
     "ecos_series": ("step_checked", "ecos"),
+    "financial_statement_full": ("step_checked", "financial_full"),
+    "dart_company": ("step_checked", "company"),
 }
 #: 마감을 아는 판정의 상태 이름(조사서 4.1절 · 2차-1 — 「정상 · 공개 전」 · 「늦음 · 다시 받기」)
 LABEL_BEFORE_PUBLISH = "정상 · 공개 전"
@@ -275,6 +286,9 @@ def _step_view(rec: dict, by_name: dict | None = None, *, admin: bool = False) -
     out.update({k: rec[k] for k in ("reason", "followup", "date") if rec.get(k)})
     # 빠진 날(2026-10-10) — 채울 날 수 · 첫날 · 마지막 날 · 다음 묶음. 러너가 상태 파일에서 모아 적은 그대로(앱은 날짜를 셈하지 않는다)
     out.update({k: rec[k] for k in ("fill_from", "fill_to", "fill_days", "fill_rest") if rec.get(k)})
+    # DART 호출 수(2026-10-24 · 하루 호출 장부 · 기록만) — 러너가 단계 앞뒤로 잰 그 단계의 OpenDART 호출 수. 몫은 러너 DART_CAPS
+    if rec.get("dart_calls"):
+        out["dart_calls"] = rec["dart_calls"]
     if admin:
         out.update({k: rec[k] for k in ("error", "log_name") if rec.get(k)})
     return out

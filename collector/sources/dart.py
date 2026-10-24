@@ -72,12 +72,16 @@ TR 에 배당을 더해야 하는 날은 기준일이 아니라 **배당락일**
 
 from __future__ import annotations
 
+import atexit
 import bisect
 import io
 import json
+import os
 import re
 import sqlite3
+import sys
 import zipfile
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -238,6 +242,55 @@ def is_dividend_report(report_nm: str) -> bool:
 # ==================================================
 # 1. 호출 — 한 군데로 모은다
 # ==================================================
+#: 하루 호출 장부(기록만 · 2026-10-24 · 사용자 결정 「고정 몫 + 회차 뒤에만」 — 실제 호출 수는 관제에 보인다). DART 는 남은 횟수를
+#: 알려 주지 않으므로(config.DART_SLEEP 주석) 「오늘 몇 번 불렀나」 는 우리가 세어야 안다. 러너가 단계마다 이 환경변수로 장부 파일
+#: 경로를 넘기고(`scripts/daily_update.py` DART_LEDGER_PATH), 지난 해 채우기 명령은 스스로 넘긴다. 환경변수가 없으면(시험 · 손 명령)
+#: 아무것도 쓰지 않는다 — 가짜 세션으로 부른 시험이 진짜 장부를 더럽히지 않게.
+#: 한 프로세스가 끝날 때 한 줄: {"date": KST 날짜, "at": 끝난 시각, "cmd": 모듈 · 첫 인자, "pid", "calls"} — 막지는 않는다(몫은 각 단계의
+#: `--max-calls` 가 지킨다).
+LEDGER_ENV = "QURIOUS_DART_LEDGER"
+_ledger = {"calls": 0, "armed": False}
+
+
+def _ledger_count() -> None:
+    _ledger["calls"] += 1
+    if not _ledger["armed"] and os.environ.get(LEDGER_ENV):
+        _ledger["armed"] = True
+        atexit.register(_ledger_flush)
+
+
+def _ledger_flush() -> None:
+    path = os.environ.get(LEDGER_ENV)
+    if not path or not _ledger["calls"]:
+        return
+    now = datetime.now().astimezone()
+    argv = [os.path.basename(sys.argv[0]).rsplit(".", 1)[0]] + [a for a in sys.argv[1:2]]
+    line = {"date": now.date().isoformat(), "at": now.isoformat(timespec="seconds"), "cmd": " ".join(argv),
+            "pid": os.getpid(), "calls": _ledger["calls"]}
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except OSError:
+        pass   # 장부는 기록만 — 못 써도 수집은 끝까지 간다(관제에 그 단계 칸이 비어 보인다)
+
+
+def ledger_lines(path, since: int = 0):
+    """장부의 `since` 바이트 뒤 줄들(러너가 단계 앞뒤로 잰다) — (다음 시작 바이트, 줄 목록). 파일이 없으면 (0, [])."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(since)
+            data = f.read()
+    except OSError:
+        return 0, []
+    out = []
+    for raw in data.decode("utf-8", errors="replace").splitlines():
+        try:
+            out.append(json.loads(raw))
+        except ValueError:
+            continue
+    return since + len(data), out
+
+
 def _get(limiter: RateLimiter, url: str, params: Dict, *,
          session: Optional[requests.Session] = None, timeout: int = 60) -> requests.Response:
     """간격을 지켜 한 번 부른다.
@@ -247,6 +300,7 @@ def _get(limiter: RateLimiter, url: str, params: Dict, *,
     쪽이 ``limiter.calls`` 를 세서 지킨다.
     """
     limiter.wait()
+    _ledger_count()
     sess = session or requests
     key = config.dart_key()
     try:

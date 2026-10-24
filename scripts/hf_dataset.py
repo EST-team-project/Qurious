@@ -392,7 +392,38 @@ TABLES: Dict[str, Dict] = {
     "ecos_series": {
         "partition": "year", "date_col": "date",
         "sort": ("date", "stat_code", "item_code", "cycle"),
-        "why": "한국은행 ECOS 시장금리(국고채 3년 · 회사채 AA- · BBB- · CD · CP · 일별). 출처 표시 의무(약관 제7조②)",
+        "why": "한국은행 ECOS 시장금리(국고채 3 · 10년 · 회사채 AA- · BBB- · CD · CP · 일별) · 주가지수 · 기준금리 · 원/달러(원 출처 "
+               "서울외국환중개 — 영리 재배포 금지 약관) · 소비자물가(월 · date 는 YYYY-MM). 출처 표시 의무(약관 제7조②)",
+        "optional": False,
+    },
+    # ── 2026-10-24 추가: 전체 재무제표 · 업종(할 일 ①-05 G2 · G3) ───────────────────────────────────────────
+    # 받은 것이다. 전체 재무제표는 주요계정 표와 같은 까닭으로 백업이 유일한 옛 판 보관이다(DART 는 최신 정정본만 다시 준다).
+    # 연도는 값이 실린 보고서의 접수일(known_at)로 가른다 — 주요계정 표와 같은 규칙(닫힌 해의 파일이 바뀌지 않는다).
+    "financial_statement_full": {
+        "partition": "year", "date_col": "known_at",
+        "sort": ("known_at", "corp_code", "bsns_year", "reprt_code", "fs_div", "sj_div", "ord", "account_id",
+                 "account_detail", "rcept_no"),
+        "why": "전체 재무제표(DART 단일회사 · 분봉 유니버스 351곳 · 정정본마다 한 벌). 옛 판은 이 백업뿐이다",
+        "optional": False, "heavy": True,
+    },
+    "financial_full_check": {
+        "partition": None, "date_col": "checked_at",
+        "sort": ("quarter", "corp_code", "bsns_year", "reprt_code", "fs_div"),
+        "why": "전체 재무제표 분기 대조 결과(같음 · 없던 판 · 조용한 고침 · 사라짐) — 다시 만들 수 없는 그때의 대조 기록",
+        "optional": False,
+    },
+    # 업종코드 — 값이 바뀌면 새 판 한 줄(옛 판은 DART 가 다시 주지 않는다 · 개인 칸은 처음부터 없다).
+    "dart_company": {
+        "partition": None, "date_col": "last_seen_at",
+        "sort": ("corp_code", "first_seen_at", "fields_sha256"),
+        "why": "DART 기업개황 업종코드(351곳 · 판마다 한 줄 · 대표자 · 연락처 칸 없음)",
+        "optional": False,
+    },
+    # KSIC — 고시 엑셀에서 다시 읽을 수 있지만, 그 판(원본 지문)과 함께 남겨 업종코드를 읽던 표를 되살린다.
+    "ksic_code": {
+        "partition": None, "date_col": "loaded_at",
+        "sort": ("revision", "level", "code"),
+        "why": "한국표준산업분류 10 · 11차 코드표(고시 첨부 엑셀 · 원본 지문)",
         "optional": False,
     },
 }

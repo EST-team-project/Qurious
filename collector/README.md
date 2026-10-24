@@ -1488,3 +1488,53 @@ flowchart LR
 - 개장 시각이 바뀌는 날(새해 첫 거래일 · 수능일 10:00 개장) — 다음에 일정 종류로.
 - 거래소의 갑작스러운 임시 휴장 — 미리 모른다. 지난날이 되면 시세가 바로잡는다(`note` 에 어긋남이 남는다).
 - 포털 수집 규칙(§7)은 바꾸지 않았다.
+
+## 18. G1 ~ G3 매일 단계 — 거시 계열 · 업종 · 전체 재무제표 · DART 몫 · 장부  ★ 2026-10-24 추가
+
+2026-10-22 에 한 번 받아 둔 자료 셋을 매일 12:30 회차의 단계로 옮겼다(할 일 ①-05). 설계와 정한 까닭은
+[목표 기능 ① 설계서 v1.8](../docs/phase-3/02-design/system/목표기능1-데이터지식-설계.md) 5.2.5 · 결정 대장 v1.10 부록 C 에 있다.
+
+| 묶음 | 단계(러너) | 모듈 | 표 | 주기 |
+|---|---|---|---|---|
+| G1 거시 | `ecos`(계열만 늘림) | `collector/ecos.py` | `ecos_series`(칸 `cycle` D · M) | 매일 — 열한 계열(시장금리 여섯 · 주가지수 둘 · 기준금리 · 원/달러 · 소비자물가 **월**) |
+| G2 업종 | `company`(새) | `collector/dart_company.py` | `dart_company` · `ksic_code` | **7일에 한 번 전체**(351곳) · 그 밖의 날은 새로 든 회사만 · KSIC 는 원본 지문 대조 |
+| G3 전체 재무제표 | `financial_full`(새 · `financial` 뒤) | `collector/financials_full.py` | `financial_statement_full` · `financial_full_check` | 새 정기보고서 · 정정본 + **분기마다 대조**(하루 50곳 · 최근 두 사업연도) |
+
+### 쓰는 법
+
+| 명령 | 하는 일 |
+|---|---|
+| `python -m collector.financials_full daily --max-calls 1000` | 러너 단계와 같다 — 새 정기보고서 · 분기 대조 · 새로 든 회사 |
+| `python -m collector.financials_full backfill --years 2015-2020` | 지난 해 채우기 — **회차 밖에서만**(시작할 때 · 부르기 전마다 회차 잠금과 12:20 ~ 13:20 을 보고 멈춤 · 같은 명령으로 이어 받음 · 하루 15,000회 · 0.6초 간격) |
+| `python -m collector.financials_full seed --raw-dir <폴더>` | 10-22 일회 수집 원문(gz) → 표(네트워크 0회 · 받은 시각 = 파일 시각) |
+| `python -m collector.dart_company weekly` · `refresh` · `seed` · `ksic-load` | 7일 판정 · 지금 전체 다시 · 일회 수집 원문으로 · KSIC 엑셀 → 표 |
+| `python -m collector.financials_full status` · `python -m collector.dart_company status` | 재무 전체: 줄 · 회사 · 판(연도별) · 이번 분기 대조 결과 수 / 업종: 회사 · 판 · 자릿수 · 마지막 · 다음 전체 · KSIC 차수별 줄 · 원본 지문 |
+
+종료코드 — 0 끝 · 1 일부 실패(받은 것은 저장) · **3 한도 · 상한 · 회차 시간에 멈춤(경고 — 다음 회차가 이어서)** · 10 KSIC 원본이 바뀌었거나 확인 못 함(경고) · 78 키 없음.
+
+### DART 하루 몫 — 상한이 지키고 장부는 적기만 한다
+
+OpenDART 하루 한도는 「일반적으로는 20,000건 이상」(개발가이드 020)이고 남은 횟수를 알려 주지 않는다. 그래서 몫을 고정해 나눴다
+(사용자 결정 2026-10-24 「고정 몫 + 회차 뒤에만」):
+
+| 몫 | 하루 | 누가 지키나 |
+|---|--:|---|
+| 회차 DART 단계 — 배당 500 · 공시 300 · 재무 200 · 재무 전체 1,000 · 업종 400 · 일정 600 | 3,000 | 단계마다 `--max-calls`(`scripts/daily_update.py` `DART_CAPS` · 합은 TC-DU 가 지킨다) |
+| 지난 해 채우기 | 15,000 | `backfill --max-calls` · 회차가 끝난 뒤에만 |
+| 예비 | 1,000 | — |
+| 사람 확인 | 1,000 | — |
+
+**장부** — 환경변수 `QURIOUS_DART_LEDGER` 에 파일 경로가 있으면 `collector/sources/dart.py` 가 프로세스가 끝날 때 부른 횟수를 한 줄
+덧붙인다(`data/collector/state/dart_calls.jsonl` · `{"date", "at", "cmd", "pid", "calls"}`). 러너가 단계마다 경로를 넘기고 앞뒤로 재어
+단계 줄에 `dart_calls` 를 적는다 → `daily_update.py status` · 데이터 관제 · 수집 일정 화면의 「DART n회」. **장부는 막지 않는다** — 못 써도
+수집은 끝까지 가고, 환경변수가 없으면(시험 · 손 명령) 쓰지 않는다.
+
+### 지키는 것
+
+- **같은 판은 처음 값** — 분기 대조에서 같은 접수번호인데 값이 다르면(조용한 고침) 우리 줄은 고치지 않고 `financial_full_check` 에
+  `silent_change` 와 응답 원문을 남긴다. 결과는 다섯 — `same` · `new_version`(표에 더함) · `silent_change` · `gone` · `no_data`.
+- **개인 칸 없음** — 기업개황의 대표자 · 등록번호 · 주소 · 전화 · 팩스는 표에 없고 원문도 남기지 않는다(지문만).
+- **바로 백업** — 새 표 넷은 `krx-daily-market` 백업 표 목록(`scripts/hf_dataset.py` `TABLES`)에 있다. 수집 DB 에 새 자료를 넣으면 12:30 을
+  기다리지 말고 `python scripts/daily_update.py run --only export --upload` → `--only verify --upload` → `--only upload --upload`.
+- 10-22 일회 수집본(HF `kr-macro-series` · `dart-full-financials`)은 고치지 않는다 — 그날 판의 보관본이다.
+

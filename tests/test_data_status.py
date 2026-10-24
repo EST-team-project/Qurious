@@ -477,11 +477,13 @@ def test_last_date_queries_use_indexes(tmp_path):
     재무 표(188만 행)의 `MAX(known_at)` 는 그 칸에 색인이 없어 도커 앱에서 19 ~ 31초 걸렸다 — 30초 응답 캐시가 끊길 때마다
     데이터 상태 API 가 그만큼 멈췄고, 기능 점검(check.ps1 데이터)이 30초 시간 초과로 실패했다(2026-10-07).
     수집기의 실제 표 정의(`collector.db.connect` — 기본 키 · 색인 그대로)로 빈 DB 를 만들고, 질의 계획에서 그 표를 읽는 줄이
-    모두 색인 · 기본 키를 쓰는지(`USING`) 본다. 작은 표 둘(배당 · 정책뉴스 — 수천 행)은 글자를 잘라 견주느라 전체를 읽어도 된다.
+    모두 색인 · 기본 키를 쓰는지(`USING`) 보고, `MAX(칸)` 이면 쓰는 색인의 앞 칸이 그 칸인지까지 본다(2026-10-24). 작은 표 셋(배당 · 정책뉴스 — 수천 행 ·
+    ECOS — 약 8만 행)은 전체를 읽어도 된다.
     """
     conn = db.connect(tmp_path / "plan.sqlite3")
     try:
-        small = {"dividend", "news_item"}
+        # ecos_series(열한 계열 · 첫 시점으로 세면 약 8만 줄)는 MAX(date) 가 기본 키 색인을 다 훑는다 — 9만 7천 줄 임시 DB 에서 7.45ms(2026-10-24)
+        small = {"dividend", "news_item", "ecos_series"}
         checked = []
         for key, table, *_rest, last_sql, _count_sql in ds.TABLES:
             if table in small or not ds._has_table(conn, table):
@@ -490,9 +492,20 @@ def test_last_date_queries_use_indexes(tmp_path):
             reads = [p for p in plan if re.search(rf"\b{table}\b", p)]
             assert reads, (key, plan)
             assert all("USING" in p for p in reads), f"{key}: 색인 없이 표를 훑는다 — {last_sql} → {plan}"
+            # 「USING」 만으로는 모자란다 — 찾는 칸의 색인이 없으면 SQLite 는 기본 키 자동 색인을 처음부터 끝까지 훑으면서도
+            # 계획 글을 「SEARCH … USING COVERING INDEX sqlite_autoindex_…」 로 적는다(깨 보기 M18 · 2026-10-24 — 60만 줄에서
+            # 0.0ms → 72ms). 그래서 MAX(칸) 질의는 쓰는 색인의 앞 칸(같다고 거른 칸 다음)이 그 칸인지 본다.
+            for col in re.findall(r"MAX\((\w+)\)", last_sql):
+                for p in reads:
+                    m = re.search(r"USING (?:COVERING )?INDEX (\w+)(?: \((.*)\))?", p)
+                    if not m:
+                        continue
+                    cols = [r[2] for r in conn.execute(f"PRAGMA index_info({m.group(1)})")]
+                    eq = (m.group(2) or "").count("=?")
+                    assert col in cols[: eq + 1], f"{key}: MAX({col}) 가 그 칸의 색인 없이 {m.group(1)}{cols} 를 훑는다 — {plan}"
             checked.append(table)
         assert {"price_daily", "price_adjusted", "disclosure", "financial_statement", "price_intraday",
-                "market_event"} <= set(checked), checked
+                "market_event", "financial_statement_full", "dart_company"} <= set(checked), checked
     finally:
         conn.close()
 

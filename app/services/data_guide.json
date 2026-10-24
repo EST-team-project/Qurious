@@ -20,7 +20,7 @@
   {
    "key": "공시 · 재무",
    "name": "공시 · 재무",
-   "items": 4
+   "items": 6
   },
   {
    "key": "일정",
@@ -120,10 +120,10 @@
   {
    "key": "ecos",
    "name": "한국은행 ECOS",
-   "org": "한국은행 경제통계시스템(ECOS) Open API — 시장금리 · 주식시장(일별)",
+   "org": "한국은행 경제통계시스템(ECOS) Open API — 시장금리 · 주식시장(일별) · 기준금리 · 원/달러 환율 · 소비자물가(월별)",
    "kind": "바깥",
    "tag": "출처 표시",
-   "terms": "이용약관 — 상업적 이용 가능(제한 표시가 없는 통계 · 제5조①) · ECOS 에서 제공된 정보임을 표시(제7조②) · 인증키는 양도하지 않는다(제6조②5)",
+   "terms": "이용약관 — 상업적 이용 가능(제한 표시가 없는 통계 · 제5조①) · ECOS 에서 제공된 정보임을 표시(제7조②) · 인증키는 양도하지 않는다(제6조②5) · 환율의 원 출처 서울외국환중개 약관은 사전 승낙 없는 영리 목적 복제 · 배포를 막는다 · 물가의 원 출처는 국가데이터처(통계정보 이용지침 — 출처 명시 · 임의 변경 금지)",
    "release": "영업일마다 — 받는 날 아침에는 전 영업일 값까지 있다(2026-10-13 확인)"
   },
   {
@@ -179,6 +179,15 @@
    "tag": "작업 기록",
    "terms": "이 PC 의 작업 기록 — 개인정보 · 비밀값은 없다",
    "release": "받을 때 · 회차마다"
+  },
+  {
+   "key": "kssc",
+   "name": "통계분류포털",
+   "org": "통계청(현 국가데이터처) 통계분류포털 — 한국표준산업분류 고시 첨부 파일",
+   "kind": "바깥",
+   "tag": "공개 자료",
+   "terms": "고시는 저작권 보호 대상이 아니다(저작권법 제7조) · 고시 제2024-2호(11차 · 2024-07-01 시행)",
+   "release": "고시가 바뀔 때 — 7일마다 원본 파일 지문을 맞춰 본다"
   }
  ],
  "items": [
@@ -4297,24 +4306,24 @@
   {
    "key": "market-rates",
    "group": "금리",
-   "name": "시장금리 · 주가지수",
-   "line": "국고채 · 회사채(AA- · BBB-) · CD · CP 금리와 코스피 · 코스닥 지수 — 신용 스프레드 · 계절성의 재료",
-   "scope": "한국은행 시장금리(일별) 다섯 항목 — 1995 년부터(국고채 3년은 1998-11 · BBB- 는 2000-09 부터) · 주식시장(일별) 지수 둘 — 코스피 1995 · 코스닥 2003 년부터",
-   "update": "매일 · 항목마다 마지막 날 앞 14일부터",
+   "name": "금리 · 지수 · 환율 · 물가",
+   "line": "국고채(3 · 10년) · 회사채(AA- · BBB-) · CD · CP 금리 · 코스피 · 코스닥 지수 · 기준금리 · 원/달러 환율 · 소비자물가 — 신용 스프레드 · 계절성 · 거시 화면의 재료",
+   "scope": "한국은행 시장금리(일별) 여섯 항목 — 1995 년부터(국고채 3년은 1998-11 · 10년은 2000-12 · BBB- 는 2000-09 부터) · 주식시장(일별) 지수 둘 — 코스피 1995 · 코스닥 2003 년부터 · 기준금리(일별) 1999-05 · 원/달러 매매기준율(일별) 1964-05 · 소비자물가지수 총지수(월별) 1965-01 부터",
+   "update": "매일 · 항목마다 마지막 날 앞 14일(물가는 3달)부터",
    "sources": [
     "ecos"
    ],
    "tag": "출처 표시",
-   "how": "항목마다 마지막 날 앞 14일부터 오늘까지 다시 받는다 · 처음엔 항목마다 첫 날부터 한 번",
+   "how": "항목마다 마지막 날 앞 14일(물가는 마지막 달 앞 3달)부터 오늘까지 다시 받는다 · 처음엔 항목마다 첫 날부터 한 번",
    "processing": "같은 값은 그대로 두고 바뀐 값만 고친다 — 처음 받은 시각은 그대로",
-   "uses": "재무 · 신용 위험의 시장 신용(회사채와 국고채의 금리 차이) · 계절성 분석(코스피 · 코스닥의 달 · 요일 · 연말)",
-   "avoid": "어느 한 회사의 위험으로 읽지 않는다 — 시장 전체의 금리 차이다 · 지수는 배당이 빠진 가격 지수다 — 총수익으로 읽지 않는다",
+   "uses": "재무 · 신용 위험의 시장 신용(회사채와 국고채의 금리 차이) · 계절성 분석(코스피 · 코스닥의 달 · 요일 · 연말) · 거시 화면(만드는 중 — 기준금리 · 환율 · 물가 · 장단기 금리차)",
+   "avoid": "어느 한 회사의 위험으로 읽지 않는다 — 시장 전체의 금리 차이다 · 지수는 배당이 빠진 가격 지수다 — 총수익으로 읽지 않는다 · 환율은 원 출처(서울외국환중개) 약관이 영리 목적 재배포를 막는다 — 밖으로 내보내지 않는다",
    "views": [
     "agent-cb",
     "quant-seasonal"
    ],
    "read_hint": "",
-   "note": "같은 날 두 금리가 다 있는 날끼리만 뺀다 — 빈 날을 앞날 값으로 메우지 않는다",
+   "note": "같은 날 두 금리가 다 있는 날끼리만 뺀다 — 빈 날을 앞날 값으로 메우지 않는다 · 물가는 달마다 한 줄이다(날짜 칸이 2026-09 꼴)",
    "grid": "",
    "dev": {
     "tables": [
@@ -4336,7 +4345,7 @@
     "filled": 10,
     "tables": [
      {
-      "title": "시장금리 · 주가지수(한국은행 ECOS)",
+      "title": "한국은행 통계 — 금리 · 지수 · 환율 · 물가(ECOS)",
       "count": 10,
       "dev": {
        "table": "ecos_series"
@@ -6514,6 +6523,747 @@
     "backup": ""
    },
    "columns": null
+  },
+  {
+   "key": "fin-full",
+   "group": "공시 · 재무",
+   "name": "전체 재무제표",
+   "line": "재무상태표 · 손익 · 현금흐름 · 자본변동표의 모든 계정 — 정정된 판까지 · 분기마다 출처와 다시 맞춰 본다",
+   "scope": "분봉 종목 목록 351곳(코스피 201 · 코스닥 150 — 금융업처럼 전체 재무제표를 내지 않는 회사는 빠진다) · 2021 사업연도부터(2015 ~ 2020 은 채우는 중)",
+   "update": "매일 · 새 정기보고서 · 정정본 · 분기마다 대조",
+   "sources": [
+    "dart"
+   ],
+   "tag": "출처 표시",
+   "how": "최근 열흘 공시 목록의 정기보고서 · 정정본 가운데 값이 없는 것을 회사 하나씩 받는다 · 분기마다 하루 50곳씩 최근 두 사업연도를 다시 받아 우리 판과 맞춘다",
+   "processing": "옛 판을 지우지 않고 판마다 쌓는다 · 같은 판을 다시 받았는데 값이 다르면 처음 받은 값을 그대로 두고 대조 기록에 적는다",
+   "uses": "재무제표 분석(현금흐름 · 차입금 · 재고) · 스크리닝(부채비율 · 단기 차입 비중) · 종목 허브 재무 칸(만드는 중)",
+   "avoid": "지난날을 시험할 때는 그날까지 접수된 판만 쓴다 · 351곳 밖 회사는 재무 주요 항목을 쓴다",
+   "views": [],
+   "read_hint": "백업 파일",
+   "note": "연도별은 보고서를 접수한 해로 센다 · 줄은 계정 줄이다(자본변동표는 자본 구성마다 한 줄)",
+   "grid": "",
+   "dev": {
+    "tables": [
+     "financial_statement_full",
+     "financial_full_check"
+    ],
+    "keys": "financial_statement_full.corp_code + bsns_year + reprt_code + fs_div + sj_div + ord + account_id + account_detail + rcept_no · financial_full_check.quarter + corp_code + bsns_year + reprt_code + fs_div",
+    "read": "앱 API 없음 — python -m collector.financials_full status",
+    "backup": "krx-daily-market financial_statement_full/year=YYYY · financial_full_check",
+    "command": "python -m collector.financials_full backfill --years 2015-2020"
+   },
+   "stats_from": {
+    "status": [
+     "financial_statement_full"
+    ],
+    "backup": "hf:financial_statement_full"
+   },
+   "columns": {
+    "count": 38,
+    "filled": 38,
+    "tables": [
+     {
+      "title": "전체 재무제표(DART 단일회사)",
+      "count": 27,
+      "dev": {
+       "table": "financial_statement_full"
+      },
+      "cols": [
+       {
+        "name": "회사 고유번호",
+        "unit": "코드",
+        "text": "전자공시가 회사마다 매긴 여덟 자리 번호",
+        "dev": {
+         "col": "corp_code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "사업연도",
+        "unit": "연도",
+        "text": "보고서가 다루는 해 — 2025 꼴",
+        "dev": {
+         "col": "bsns_year",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "보고서 종류",
+        "unit": "코드",
+        "text": "11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업보고서",
+        "dev": {
+         "col": "reprt_code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "재무제표 범위",
+        "unit": "코드",
+        "text": "CFS 연결 · OFS 별도 — 연결재무제표를 내지 않는 회사 · 기간은 별도",
+        "dev": {
+         "col": "fs_div",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "재무제표 종류",
+        "unit": "코드",
+        "text": "BS 재무상태표 · IS 손익계산서 · CIS 포괄손익계산서 · CF 현금흐름표 · SCE 자본변동표",
+        "dev": {
+         "col": "sj_div",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "재무제표 이름",
+        "unit": "이름",
+        "text": "출처가 준 재무제표 이름",
+        "dev": {
+         "col": "sj_nm",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "계정 차례",
+        "unit": "차례",
+        "text": "보고서 안에서 계정이 놓인 차례(출처 그대로)",
+        "dev": {
+         "col": "ord",
+         "type": "INTEGER",
+         "key": true
+        }
+       },
+       {
+        "name": "표준 계정",
+        "unit": "코드",
+        "text": "국제회계기준 표준 계정 코드 — 회사가 따로 만든 계정은 「표준계정코드 미사용」 으로 온다",
+        "dev": {
+         "col": "account_id",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "계정 이름",
+        "unit": "이름",
+        "text": "회사가 보고서에 쓴 계정 이름(띄어쓰기만 하나로 접음)",
+        "dev": {
+         "col": "account_nm",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "자본 구성",
+        "unit": "글",
+        "text": "자본변동표의 열(자본금 · 이익잉여금 같은 자본 구성요소) — 다른 표는 「-」",
+        "dev": {
+         "col": "account_detail",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "접수번호",
+        "unit": "코드",
+        "text": "이 값이 실린 보고서의 공시 접수번호 — 앞 여덟 자리가 접수일 · 정정이 있으면 정정본 번호",
+        "dev": {
+         "col": "rcept_no",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "종목코드",
+        "unit": "코드",
+        "text": "거래소 종목 단축코드 여섯 자리 — 우리 종목 목록에서 붙인다",
+        "dev": {
+         "col": "stock_code",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "당기 이름",
+        "unit": "글",
+        "text": "이번 기간의 이름 — 「제 57 기 3분기말」 꼴",
+        "dev": {
+         "col": "thstrm_nm",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "당기 금액",
+        "unit": "원",
+        "text": "이번 기간 금액 — 분 · 반기 손익은 석 달치 · 달러로 보고한 회사는 달러",
+        "dev": {
+         "col": "thstrm_amount",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "당기 누적",
+        "unit": "원",
+        "text": "분 · 반기 손익의 그해 처음부터 쌓인 금액",
+        "dev": {
+         "col": "thstrm_add_amount",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "전기 이름",
+        "unit": "글",
+        "text": "앞 기간의 이름",
+        "dev": {
+         "col": "frmtrm_nm",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "전기 금액",
+        "unit": "원",
+        "text": "앞 기간 금액 — 재무상태표는 앞 사업연도 말",
+        "dev": {
+         "col": "frmtrm_amount",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "전기 같은 분기 이름",
+        "unit": "글",
+        "text": "앞해 같은 분기의 이름(분 · 반기 보고서만)",
+        "dev": {
+         "col": "frmtrm_q_nm",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "전기 같은 분기 금액",
+        "unit": "원",
+        "text": "앞해 같은 분기 금액(분 · 반기 손익)",
+        "dev": {
+         "col": "frmtrm_q_amount",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "전기 누적",
+        "unit": "원",
+        "text": "앞해 같은 기간까지 쌓인 금액",
+        "dev": {
+         "col": "frmtrm_add_amount",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "전전기 이름",
+        "unit": "글",
+        "text": "두 해 앞 기간의 이름(사업보고서만)",
+        "dev": {
+         "col": "bfefrmtrm_nm",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "전전기 금액",
+        "unit": "원",
+        "text": "두 해 앞 금액(사업보고서만)",
+        "dev": {
+         "col": "bfefrmtrm_amount",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "통화",
+        "unit": "코드",
+        "text": "금액의 통화 — 거의 원(KRW) · 달러(USD)로 보고하는 회사도 있다",
+        "dev": {
+         "col": "currency",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "알 수 있었던 날",
+        "unit": "날짜",
+        "text": "이 값 그대로를 처음 알 수 있었던 날 — 접수번호 앞 여덟 자리",
+        "dev": {
+         "col": "known_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "처음 공개일",
+        "unit": "날짜",
+        "text": "그 기간 보고서가 처음 나온 날(정정 전 원본) — 공시 목록에서 잇는다 · 모르면 빈칸",
+        "dev": {
+         "col": "first_known_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "받은 시각",
+        "unit": "시각",
+        "text": "출처에서 받은 시각",
+        "dev": {
+         "col": "fetched_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "원문 지문",
+        "unit": "지문",
+        "text": "이 값이 나온 응답 원문의 지문",
+        "dev": {
+         "col": "raw_sha256",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     },
+     {
+      "title": "전체 재무제표 분기 대조",
+      "count": 11,
+      "dev": {
+       "table": "financial_full_check"
+      },
+      "cols": [
+       {
+        "name": "대조 분기",
+        "unit": "글",
+        "text": "대조한 분기 — 2026Q4 꼴(한국 시각)",
+        "dev": {
+         "col": "quarter",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "회사 고유번호",
+        "unit": "코드",
+        "text": "전자공시가 회사마다 매긴 여덟 자리 번호",
+        "dev": {
+         "col": "corp_code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "사업연도",
+        "unit": "연도",
+        "text": "대조한 보고서의 해",
+        "dev": {
+         "col": "bsns_year",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "보고서 종류",
+        "unit": "코드",
+        "text": "11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업보고서",
+        "dev": {
+         "col": "reprt_code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "재무제표 범위",
+        "unit": "코드",
+        "text": "CFS 연결 · OFS 별도",
+        "dev": {
+         "col": "fs_div",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "대조 결과",
+        "unit": "코드",
+        "text": "same 같음 · new_version 우리에게 없던 판(더함) · silent_change 같은 접수번호인데 값이 다름(우리 값은 그대로 · 원문은 남김) · gone 출처가 더는 주지 않음 · no_data 둘 다 없음",
+        "dev": {
+         "col": "result",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "지금 판 접수번호",
+        "unit": "코드",
+        "text": "대조할 때 출처가 준 판의 접수번호",
+        "dev": {
+         "col": "api_rcept_no",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "우리 판 접수번호",
+        "unit": "코드",
+        "text": "대조 전 우리에게 있던 그 기간의 가장 늦은 판",
+        "dev": {
+         "col": "our_rcept_no",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "다른 줄 수",
+        "unit": "개",
+        "text": "같은 판에서 값 · 이름이 다르거나 한쪽에만 있는 계정 줄 수",
+        "dev": {
+         "col": "changed_rows",
+         "type": "INTEGER",
+         "key": false
+        }
+       },
+       {
+        "name": "대조 시각",
+        "unit": "시각",
+        "text": "대조한 시각",
+        "dev": {
+         "col": "checked_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "원문 지문",
+        "unit": "지문",
+        "text": "대조한 응답 원문의 지문 — 같음이면 원문은 남기지 않는다",
+        "dev": {
+         "col": "raw_sha256",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "key": "company-industry",
+   "group": "공시 · 재무",
+   "name": "기업 업종 · 산업분류",
+   "line": "회사마다 전자공시에 등록된 업종코드와, 그 코드를 읽는 한국표준산업분류표",
+   "scope": "분봉 종목 목록 351곳 · 한국표준산업분류 10차 · 11차(11차는 2024-07-01 시행)",
+   "update": "7일마다 · 산업분류는 고시가 바뀔 때",
+   "sources": [
+    "dart",
+    "kssc"
+   ],
+   "tag": "출처 표시 · 공개 자료",
+   "how": "7일에 한 번 351곳의 기업개황을 다시 받는다(그 밖의 날은 새로 든 회사만) · 같은 날 산업분류 고시 원본 파일의 지문을 맞춰 본다",
+   "processing": "값이 하나라도 바뀌면 새 판 한 줄 · 대표자 이름 · 등록번호 · 주소 · 전화 · 팩스는 저장하지 않는다",
+   "uses": "종목 허브 섹터 칸 · 산업 분석 화면(만드는 중) · 섹터 법령 잇기",
+   "avoid": "업종코드 단계가 회사마다 다르다(세 ~ 다섯 자리) — 같은 단계로 맞춰 견준다 · 우리 섹터 열한 개와 다른 체계다",
+   "views": [],
+   "read_hint": "백업 파일",
+   "note": "줄은 판이다 — 값이 바뀐 회사는 두 줄 이상이다",
+   "grid": "",
+   "dev": {
+    "tables": [
+     "dart_company",
+     "ksic_code"
+    ],
+    "keys": "dart_company.corp_code + fields_sha256 · ksic_code.revision + level + code",
+    "read": "앱 API 없음 — python -m collector.dart_company status",
+    "backup": "krx-daily-market dart_company · ksic_code",
+    "command": "python -m collector.dart_company refresh"
+   },
+   "stats_from": {
+    "status": [
+     "dart_company"
+    ],
+    "backup": "hf:dart_company"
+   },
+   "columns": {
+    "count": 24,
+    "filled": 24,
+    "tables": [
+     {
+      "title": "기업 업종(DART 기업개황)",
+      "count": 16,
+      "dev": {
+       "table": "dart_company"
+      },
+      "cols": [
+       {
+        "name": "회사 고유번호",
+        "unit": "코드",
+        "text": "전자공시가 회사마다 매긴 여덟 자리 번호",
+        "dev": {
+         "col": "corp_code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "판 지문",
+        "unit": "지문",
+        "text": "아래 칸 값들의 지문 — 값이 하나라도 바뀌면 새 판 한 줄",
+        "dev": {
+         "col": "fields_sha256",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "종목코드",
+        "unit": "코드",
+        "text": "거래소 종목 단축코드 여섯 자리",
+        "dev": {
+         "col": "stock_code",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "회사 이름",
+        "unit": "이름",
+        "text": "정식 회사 이름",
+        "dev": {
+         "col": "corp_name",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "영문 이름",
+        "unit": "이름",
+        "text": "회사의 영문 이름",
+        "dev": {
+         "col": "corp_name_eng",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "종목 이름",
+        "unit": "이름",
+        "text": "거래소에 올라 있는 종목 이름",
+        "dev": {
+         "col": "stock_name",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "시장 구분",
+        "unit": "코드",
+        "text": "Y 유가증권 · K 코스닥 · N 코넥스 · E 기타",
+        "dev": {
+         "col": "corp_cls",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "업종코드",
+        "unit": "코드",
+        "text": "한국표준산업분류 코드 — 회사마다 세 자리(소분류) ~ 다섯 자리(세세분류)",
+        "dev": {
+         "col": "induty_code",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "설립일",
+        "unit": "날짜",
+        "text": "회사를 세운 날 — 20010101 꼴",
+        "dev": {
+         "col": "est_dt",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "결산월",
+        "unit": "코드",
+        "text": "사업연도가 끝나는 달 — 12 꼴",
+        "dev": {
+         "col": "acc_mt",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "회사 누리집",
+        "unit": "주소",
+        "text": "회사가 적은 누리집 주소",
+        "dev": {
+         "col": "hm_url",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "IR 누리집",
+        "unit": "주소",
+        "text": "회사가 적은 투자자 정보 누리집 주소",
+        "dev": {
+         "col": "ir_url",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "받을 때 종목 목록 판",
+        "unit": "글",
+        "text": "받을 때 든 분봉 종목 목록의 판 이름",
+        "dev": {
+         "col": "universe",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "처음 본 시각",
+        "unit": "시각",
+        "text": "이 판을 처음 받은 시각",
+        "dev": {
+         "col": "first_seen_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "마지막 확인",
+        "unit": "시각",
+        "text": "이 판을 마지막으로 다시 받아 본 시각 — 회사마다 가장 늦은 줄이 지금 판",
+        "dev": {
+         "col": "last_seen_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "원문 지문",
+        "unit": "지문",
+        "text": "처음 받은 응답 원문의 지문 — 원문은 남기지 않는다(대표자 · 연락처 칸이 들어 있다)",
+        "dev": {
+         "col": "raw_sha256",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     },
+     {
+      "title": "한국표준산업분류 코드표",
+      "count": 8,
+      "dev": {
+       "table": "ksic_code"
+      },
+      "cols": [
+       {
+        "name": "개정 차수",
+        "unit": "코드",
+        "text": "한국표준산업분류 몇 차 개정인가 — 11 · 10",
+        "dev": {
+         "col": "revision",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "분류 단계",
+        "unit": "이름",
+        "text": "대분류 · 중분류 · 소분류 · 세분류 · 세세분류",
+        "dev": {
+         "col": "level",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "분류 코드",
+        "unit": "코드",
+        "text": "대분류는 영문자 하나 · 그 밖은 숫자 두 ~ 다섯 자리",
+        "dev": {
+         "col": "code",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "항목명",
+        "unit": "이름",
+        "text": "고시의 항목 이름",
+        "dev": {
+         "col": "name",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "위 단계 코드",
+        "unit": "코드",
+        "text": "한 단계 위 분류의 코드 — 대분류는 빈칸",
+        "dev": {
+         "col": "parent_code",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "대분류",
+        "unit": "코드",
+        "text": "그 코드가 속한 대분류",
+        "dev": {
+         "col": "section",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "읽은 시각",
+        "unit": "시각",
+        "text": "고시 파일을 읽어 표로 만든 시각",
+        "dev": {
+         "col": "loaded_at",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "원본 지문",
+        "unit": "지문",
+        "text": "읽은 고시 파일의 지문",
+        "dev": {
+         "col": "source_sha256",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     }
+    ]
+   }
   }
  ],
  "flow": [
