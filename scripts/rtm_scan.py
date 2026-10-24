@@ -10,6 +10,9 @@ RTM 은 「이 요구는 구현됐는가」에 **증거로** 답하는 문서다
   `docs/phase-3/01-analysis/requirements/대장/요구-대장.tsv` 에, 시험 파일이 어느 요구를 재는지는 `docs/phase-3/01-analysis/requirements/대장/시험-요구대장.tsv` 에.
 - 스크립트가 잰다 — ① 코드 흔적(이름 검색) ② 시험 건수(pytest 수집) ③ 설계 절(기능 설계서의
   가장 높은 판에서 요구 ID 가 제목인 절) ④ 받는 API(기능 설계서 부록 A 의 `<!-- req-api-map -->` 블록).
+- 사람이 적고 스크립트가 따라가 본다 — 요구 대장의 「감리번호」(강사님 감리대응 화면의 요구 번호)와
+  「인수기준」(설계서 인수 기준 표의 자리) 칸. 번호 꼴 · 겹침 · 빠진 번호와, 그 자리에 정말 이 요구의
+  기준이 있는지를 본다(2026-10-24).
 
     python scripts/rtm_scan.py                     # 사람이 읽는 요약 + 대장 점검
     python scripts/rtm_scan.py --md                # RTM 문서에 붙일 표 전부
@@ -42,7 +45,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 요구_칸 = ("요구ID", "계열", "차수", "이름", "내용", "유형", "출처", "우선순위", "상태",
           "검증방법", "검사결과", "관련요구", "설계_추가", "제안시험", "비고",
-          "주담당", "부담당", "담당상태")
+          "주담당", "부담당", "담당상태", "감리번호", "인수기준")
 요구_필수칸 = ("요구ID", "계열", "차수", "이름", "내용", "유형", "출처", "우선순위", "상태", "검증방법")
 시험_칸 = ("묶음", "파일", "요구ID", "확실도", "무엇을_확인")
 # 담당 칸에 쓸 수 있는 이름 — 2026-10-01 팀이 정한 역할(계획서 v2.0 4절). 「팀」 은 네 명이 함께 지는 공통 요구.
@@ -61,6 +64,13 @@ ROOT = Path(__file__).resolve().parents[1]
 }
 검증_방법 = ("시험", "시연", "검사", "분석")
 확실도_값 = ("🟢", "🟡", "—")
+# 강사님 감리 번호(th07 감리대응 화면의 요구 번호) — 우리 요구 ID 는 그대로 두고 칸 하나로 잇는다(2026-10-23 결정).
+# 원문 세부 기능은 강사님 쪽과 같은 차례라 묶음 머리가 정해져 있다(RA = PROJECT 01 로보 어드바이저 · IND = PROJECT 02
+# 투자 인디케이터 · 감리대응 대조 2026-10-23 <표 3>).
+감리_꼴 = re.compile(r"(RA|IND)-(\d{3})")
+감리_머리 = {"P01-": "RA", "P02-": "IND"}
+# 인수 기준 칸 = 「<설계서>.md <표 N> #a ~ b」 — 설계서는 3차 시스템 설계 폴더(설계_폴더)에서 찾는다.
+인수_꼴 = re.compile(r"(?P<파일>[^\s<>]+\.md) <표 (?P<표>\d+)> #(?P<가>\d+)(?: ~ (?P<나>\d+))?")
 진행_차례 = ("검증 끝(검사)", "시험 있음", "시험 일부", "흔적 있음", "구현 전")
 
 # 훑지 않을 곳. 가상환경 · 캐시 · 데이터는 우리 구현이 아니다.
@@ -258,6 +268,114 @@ def 담당_점검(요구들: list[dict[str, str]]) -> list[str]:
         # 강사님 원문 세부 기능(P01 · P02)은 2026-10-01 에 모두 주담당이 정해졌다 — 빠지면 그날 결정이 대장에서 샌 것
         if q.get("계열") == "B" and qid.startswith("P0") and not (주 and q.get("담당상태") == "확정"):
             문제.append(f"{qid} — 원문 세부 기능인데 확정된 주담당이 없다")
+    return 문제
+
+
+def 감리번호_점검(요구들: list[dict[str, str]]) -> list[str]:
+    """감리 번호 칸의 문제를 모은다 — 꼴(`RA-NNN` · `IND-NNN`) · 원문 묶음과 머리 · 겹침 · 빠진 번호.
+
+    빈칸은 문제가 아니다 — 강사님 감리 요구에 짝이 없는 우리 요구(제안요청서 `RFP2-*` · 공식 일정표 `SCH-*`)가 있다.
+    한 번호가 여러 줄에 붙어도 되는 것은 사용자 스토리(`U*`)뿐이다 — 강사님이 UI 필요 요소 다섯을 한 줄로
+    이었다(`RA-015` = U1 ~ U5 · `IND-016` = U6 ~ U10). 원문 세부 기능끼리 번호가 겹치면 옮겨 적다 밀린 것이다.
+    """
+    문제: list[str] = []
+    붙은: dict[str, list[str]] = {}
+    for q in 요구들:
+        qid = q.get("요구ID", "")
+        for 번호 in 나누기(q.get("감리번호", "")):
+            m = 감리_꼴.fullmatch(번호)
+            if not m:
+                문제.append(f"{qid} — 감리 번호 「{번호}」 는 RA-NNN · IND-NNN 꼴이 아니다")
+                continue
+            for 앞, 머리 in 감리_머리.items():
+                if qid.startswith(앞) and m.group(1) != 머리:
+                    문제.append(f"{qid} — 감리 번호 {번호} 의 머리는 {머리} 여야 한다(원문 {앞.rstrip('-')} 묶음)")
+            붙은.setdefault(번호, []).append(qid)
+    for 번호, ids in 붙은.items():
+        if len(ids) > 1 and not all(re.fullmatch(r"U\d+", x) for x in ids):
+            문제.append(f"감리 번호 {번호} 가 겹친다: {' · '.join(ids)}")
+    for 머리 in ("RA", "IND"):
+        수 = sorted({int(m.group(2)) for b in 붙은 if (m := 감리_꼴.fullmatch(b)) and m.group(1) == 머리})
+        빠진 = [f"{머리}-{n:03d}" for n in range(1, 수[-1] + 1) if n not in 수] if 수 else []
+        if 빠진:
+            문제.append(f"감리 번호 {' · '.join(빠진)} 가 어느 요구에도 없다 — {머리}-001 ~ {머리}-{수[-1]:03d} 사이")
+    return 문제
+
+
+def _인수_표(글: str, 표: str) -> list[tuple[int, str]] | None:
+    """설계서 글에서 `**<표 N> …**` 제목 바로 아래 표의 (기준 번호, 그 줄의 요구) 목록. 표가 없으면 None.
+
+    인수 기준 표는 한 요구의 기준 여럿을 줄마다 적고 요구 칸은 첫 줄에만 쓴다 — 빈 요구 칸은 위 줄을 잇는다.
+    """
+    줄들 = 글.splitlines()
+    i = next((k for k, 줄 in enumerate(줄들) if 줄.lstrip().startswith("**") and f"<표 {표}>" in 줄), None)
+    if i is None:
+        return None
+    j = next((k for k in range(i + 1, len(줄들)) if 줄들[k].startswith("|")), None)
+    if j is None:
+        return None
+    머리 = [x.strip() for x in 줄들[j].strip().strip("|").split("|")]
+    if "#" not in 머리 or "요구" not in 머리:
+        return None
+    번호칸, 요구칸 = 머리.index("#"), 머리.index("요구")
+    out: list[tuple[int, str]] = []
+    지금 = ""
+    for 줄 in 줄들[j + 2:]:
+        if not 줄.startswith("|"):
+            break
+        칸들 = [x.strip() for x in 줄.strip().strip("|").split("|")]
+        if len(칸들) <= max(번호칸, 요구칸):
+            continue
+        if 칸들[요구칸]:
+            지금 = 칸들[요구칸].strip("`")
+        if 칸들[번호칸].isdigit():
+            out.append((int(칸들[번호칸]), 지금))
+    return out
+
+
+def 인수기준_점검(요구들: list[dict[str, str]], 폴더: Path | None = None) -> list[str]:
+    """인수 기준 칸의 문제를 모은다 — 꼴 · 없는 설계서 · 없는 표 · 없는 번호 · 다른 요구의 기준.
+
+    칸은 「<설계서>.md <표 N> #a ~ b」 다. 설계서가 표 번호나 기준 번호를 바꾸면 칸이 말없이 엉뚱한 기준을
+    가리키게 되니, 번호마다 그 줄의 요구가 이 요구인지 본다. 설계서 표의 요구 칸은 온전한 ID(`P01-①-1`)나
+    원문 묶음을 뺀 짧은 ID(목표 기능 ② 설계서의 `②-1`)를 쓴다.
+
+    ⚠️ 한계 — 짧은 ID 는 원문 묶음을 가리지 못한다(`②-1` 은 `P01-②-1` 에도 `P02-②-1` 에도 맞는다).
+    그 표가 어느 원문의 것인지는 설계서 이름(목표 기능 = 2차 PROJECT 01)으로 사람이 본다.
+    """
+    폴더 = 폴더 or 설계_폴더
+    문제: list[str] = []
+    글들: dict[str, str | None] = {}
+    for q in 요구들:
+        qid, 칸 = q.get("요구ID", ""), q.get("인수기준", "")
+        if not 칸 or 칸 == "—":
+            continue
+        m = 인수_꼴.fullmatch(칸)
+        if not m:
+            문제.append(f"{qid} — 인수 기준 「{칸}」 은 「<설계서>.md <표 N> #a ~ b」 꼴이 아니다")
+            continue
+        파일, 표번호 = m["파일"], m["표"]
+        if 파일 not in 글들:
+            경로 = 폴더 / 파일
+            글들[파일] = 경로.read_text(encoding="utf-8") if 경로.is_file() else None
+        글 = 글들[파일]
+        if 글 is None:
+            문제.append(f"{qid} — 인수 기준의 설계서 {파일} 가 {폴더.name}/ 에 없다")
+            continue
+        표 = _인수_표(글, 표번호)
+        if 표 is None:
+            문제.append(f"{qid} — {파일} 에 인수 기준 <표 {표번호}>(요구 · # 칸)가 없다")
+            continue
+        가, 나 = int(m["가"]), int(m["나"] or m["가"])
+        if 나 < 가:
+            문제.append(f"{qid} — 인수 기준 번호가 거꾸로다(#{가} ~ {나})")
+            continue
+        줄 = dict(표)
+        for n in range(가, 나 + 1):
+            if n not in 줄:
+                문제.append(f"{qid} — {파일} <표 {표번호}> 에 #{n} 이 없다")
+            elif not (줄[n] == qid or qid.endswith("-" + 줄[n])):
+                문제.append(f"{qid} — {파일} <표 {표번호}> #{n} 은 {줄[n] or '(요구 없음)'} 의 기준이다")
     return 문제
 
 
@@ -611,6 +729,46 @@ def 요구_표(요구들: list[dict[str, str]], 제목: str) -> str:
     return "\n".join(줄)
 
 
+def 감리_표(요구들: list[dict]) -> str:
+    """강사님 감리 번호 → 우리 요구 · 이름 · 인수 기준.
+
+    감리관은 자기 번호(`RA-007`)로 찾는다 — 3절 큰 표에 칸을 더하지 않고(2026-10-23 결정) 여기 따로 둔다.
+    인수 기준은 RTM 문서(`requirements/`)에서 설계서(`02-design/system/`)로 가는 상대 링크로 적는다.
+    """
+    붙은: dict[str, list[dict]] = {}
+    for q in 요구들:
+        for 번호 in 나누기(q.get("감리번호", "")):
+            붙은.setdefault(번호, []).append(q)
+
+    def 차례(번호: str) -> tuple[int, int]:
+        m = 감리_꼴.fullmatch(번호)
+        return (("RA", "IND").index(m.group(1)), int(m.group(2))) if m else (9, 0)
+
+    def 인수_링크(칸: str) -> str:
+        m = 인수_꼴.fullmatch(칸)
+        return f"[{칸}](../../02-design/system/{m['파일']})" if m else _칸(칸)
+
+    이은 = sum(len(v) for v in 붙은.values())
+    줄 = [f"**강사님 감리 번호 → 우리 요구 · 번호 {len(붙은)}개 · 이은 요구 {이은}줄**", "",
+          "| 감리 번호 | 우리 요구 | 이름 | 인수 기준 |",
+          "|---|---|---|---|"]
+    for 번호 in sorted(붙은, key=차례):
+        qs = 붙은[번호]
+        ids = " · ".join(f"`{q['요구ID']}`" for q in qs)
+        이름 = _칸(" · ".join(q["이름"] for q in qs))
+        인수 = " · ".join(인수_링크(q["인수기준"]) for q in qs if q.get("인수기준")) or "—"
+        줄.append(f"| `{번호}` | {ids} | {이름} | {인수} |")
+    짝없음: dict[str, int] = {}
+    for q in 요구들:
+        if not 나누기(q.get("감리번호", "")):
+            머리 = q["요구ID"].split("-")[0]
+            짝없음[머리] = 짝없음.get(머리, 0) + 1
+    if 짝없음:
+        줄 += ["", "감리 번호가 없는 우리 요구 — " + " · ".join(f"`{k}-*` {n}줄" for k, n in 짝없음.items())
+               + " (강사님 감리 요구에 짝이 없는 요구 — 제안요청서 · 공식 일정표에서 왔다)"]
+    return "\n".join(줄)
+
+
 def _설계_칸(행: dict) -> str:
     조각 = [f"설계서 {행['설계절']}절"] if 행["설계절"] else []
     조각 += [x.replace("기능 설계서 ", "설계서 ") for x in 나누기(행.get("설계_추가", ""))]
@@ -723,6 +881,7 @@ def 블록들(행들: list[dict], 짝들: list[dict[str, str]], 건수: dict[str
     out = {}
     for 키, (제목, 고름) in 묶음_이름.items():
         out[키] = 요구_표([h for h in 행들 if 고름(h)], 제목)
+    out["감리"] = 감리_표(행들)
     out["추적"] = 추적_표(행들)
     out["시험"] = 시험_표(짝들, 건수, 파일들)
     out["분포"] = 분포_그림(행들)
@@ -786,6 +945,9 @@ def 사람용_출력(행들: list[dict], 문제: list[str], 빠진: list[str], �
     print(f"  설계서 {설계경로 or '(없음)'} — 절을 찾은 요구 {sum(1 for h in 행들 if h['설계절'])} · "
           f"부록 A 에 API 가 있는 요구 {sum(1 for h in 행들 if h['API'] or h['새API'])}")
     print(f"  rfp-2 체크박스 {a['합계']}개 — " + " · ".join(f"{이름} {수}" for 이름, 수 in a["절별"]))
+    감리수 = {b for h in 행들 for b in 나누기(h.get("감리번호", ""))}
+    print(f"  강사님 감리 번호 {len(감리수)}개 — 이은 요구 {sum(1 for h in 행들 if 나누기(h.get('감리번호', '')))}줄 · "
+          f"인수 기준 링크 {sum(1 for h in 행들 if h.get('인수기준'))}줄")
     주담당수: dict[str, int] = {}
     for h in 행들:
         for 이름 in 나누기(h.get("주담당", "")):
@@ -830,7 +992,7 @@ def main(argv: list[str] | None = None) -> int:
     요구들 = 대장_읽기(요구_대장)
     짝들 = 대장_읽기(시험_대장)
     파일들 = 시험_파일들()
-    문제 = 요구대장_점검(요구들) + 담당_점검(요구들)
+    문제 = 요구대장_점검(요구들) + 담당_점검(요구들) + 감리번호_점검(요구들) + 인수기준_점검(요구들)
     요구ID들 = {q["요구ID"] for q in 요구들}
     시험문제, 빠진 = 시험대장_점검(짝들, 요구ID들, 파일들)
     문제 += 시험문제

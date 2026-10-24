@@ -43,8 +43,8 @@ TC-RG	tests/test_risk_guard.py	P02-⑤-2	🟡	중복 주문 쿨다운 · 일 주
 TC-RP	tests/test_robo_profile.py	U1	🟢	설문 점수로 5단계 투자 성향을 정하고 빠진 답을 막는다
 TC-RP	tests/test_robo_profile.py	U4	🟢	목표 수익률 달성 확률을 적립금 · 변동성을 넣어 분포로 계산한다 · 범위를 넘는 입력(수익률 −100% 이하 등)은 계산 전에 422 와 한국어 안내 글 · 넘친 계산도 422(DF-144)
 TC-TV	tests/test_tradingview.py	P02-③-3	🟡	TradingView 알림 본문을 매수 · 매도 신호로 읽는다 — 받는 쪽 확인(비밀 토큰 · 중복)과 전달은 재지 않는다
-TC-TV	tests/test_tradingview.py	P02-③-2	🟡	Strategy Tester 거래 목록 CSV 로 성과를 계산한다
-TC-TV	tests/test_tradingview.py	P02-④-3	🟡	TradingView 와 LEAN 성과 차이를 판정한다 — 신호 · 체결 · 비용 층으로 나누지는 않는다
+TC-TV	tests/test_tradingview.py	P02-③-2	🟡	Strategy Tester 거래 목록 CSV 로 성과를 계산하고 진입 · 청산 체결 줄을 남긴다(#329)
+TC-TV	tests/test_tradingview.py	P02-④-3	🟡	TradingView 와 LEAN 성과 차이를 판정하고, 체결은 날짜 · 방향 · 가격으로 줄마다 맞댄다(#329 · 실제 CSV 가 없으면 「비교 불가」) — 신호 층 · 비용 층은 나누지 않는다
 TC-XA	tests/test_xai.py	P01-①-5	🟢	LightGBM 기여도로 예측 근거 문장을 만든다(lightgbm 이 없으면 건너뜀) · 배지 판단 · 확률 = 근거 기여도와 같은 오늘 줄 예측 · 품질 관문이 낮춘 판단(관망)과 모델 판단을 함께 · 다시 학습(refresh)은 관리자만 · 캐시 키 v4(2026-10-15 #205 · 신장환 — 대장 등록은 이동원 PR)
 TC-AC	tests/test_account_crud.py	—	—	계정 관리(가입 · 로그인 · 이름 · 비밀번호 바꾸기 · 탈퇴) — 요구 밖 기능(2026-09-30 팀장 요청) · 요구로 올릴지는 팀 결정
 TC-GL	tests/test_glossary.py	P01-①-1	🟡	화면 용어 키 · 이름 · 약어 · 초성으로 용어를 찾아 뜻 한 줄 · 자세한 뜻을 돌려주고, 용어 파일이 표에 같은 판으로 들어간다 — 서버 쪽만 잰다 · 연관 개념(관계 27 — 헷갈리는 말 25 · 연관 2 · 두 끝에서 읽기 · 관계 지도)도 잰다(2026-10-02) · (2026-10-17 +1 · 3 고침 — 이름이 같은데 다른 말: 용어집의 「자기자본비율」(은행 BIS 뜻)은 BIS 비율로 옮김 · 사전의 자기자본비율은 회사 재무의 뜻(자본총계 ÷ 자산총계 · 화면 용어 equity_ratio) · 혼동 짝 · 예약 ID 에 scan(POST /api/glossary/scan) · 큐레이션 표를 비우는 시험은 RELATIONS 도 비움)
@@ -230,3 +230,5 @@ TC-TA	tests/test_translation_api.py	P01-①-3	🟡	번역 자료 API 셋(결정 
 TC-VD	tests/test_vector_db.py	P01-①-3	🟡	Qdrant 문지기 계약(app/lib/vector_db.py · 2026-10-23) — 앱이 부르는 메서드가 동기 · 비동기 클라이언트에 다 있다 · query_points 인자 · 점 1 → 1건 · 결과 세 칸 · 거름 · 빈 넣기 · 빈 지우기를 부르지 않음 · 모음 만들기 한 번 · 연결 실패 = VectorDBUnavailable · 원격 404 = CollectionMissing · 코드 잘못은 그대로 — 앱 이미지 컨테이너 묶음 · 카나리아가 같은 파일을 최신 판으로
 TC-VR	tests/test_formula_versions.py	P02-②-3	🟡	자유 산식 판 — 연 지표를 고치지 않으면 저장본 경로 · 고치면 입력값 미리보기 · 저장본과 같게 되돌리면 다시 저장본 · 함수 카드는 고른 칸만(옛 판 다시 계산은 10/28 에 더함 · 신장환 #324)
 TC-VR	tests/test_formula_versions.py	P02-②-1	🟢	커스텀 경로 · 자유 산식 경로가 비용 인자를 수익률에서 뗀다(비용 전 수익률 · 거래 수는 같음 · 신장환 #324)
+TC-LCS	tests/test_lean_costs.py	P02-④-1	🟡	LEAN 과 같은 조건의 로컬 기준 곡선(`_strategy_curve`)에 국내 주식 비용(KRX 요율 추정 · 진입 비용)이 들어가고, 국내 종목이 아니면 KRX 비용을 붙이지 않는다(#329 · 강민석) — 실제 LEAN 실행 결과와 맞대지는 않는다
+TC-LOE	tests/test_lean_order_events.py	P02-④-3	🟡	LEAN 주문 이벤트에서 체결된 것만 날짜 · 방향 · 수량 · 수수료로 뽑는다(#329 · 강민석) — TradingView 체결과 맞댈 목록의 바탕 · 실제 LEAN 출력 파일로는 재지 않는다
