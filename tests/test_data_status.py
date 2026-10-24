@@ -750,6 +750,7 @@ def test_extra_counts_for_the_eight_guide_items(tmp_path, monkeypatch):
         "search_index": (2, "2026-10-15", "2020-01-02", False),
         "glossary": (5, None, None, False),
         "run_history": (3, "2026-10-02", "2026-09-28", False),       # 깨진 줄은 세지 않는다 · 건너뛴 회차 줄은 센다
+        "paper_journal": (None, None, None, True),                  # 일지 내보내기가 없는 PC — 「없음」(TC-DST-29 가 있는 꼴을 잰다)
     }
     assert seen and all("mode=ro" in x for x in seen), f"읽기 전용으로만 연다: {seen}"
     # 없음 — 파일 · 표가 없다(0 이 아니라 None)
@@ -765,3 +766,27 @@ def test_extra_counts_for_the_eight_guide_items(tmp_path, monkeypatch):
     assert out["search_index"]["missing"] and out["search_index"]["rows"] is None and not out["search_index"].get("why")
     assert out["kb_law"]["missing"] and out["kb_law"]["why"], "깨진 DB 는 그 줄만 까닭과 함께"
     assert out["glossary"]["rows"] == 5 and not out["glossary"]["missing"]
+
+
+def test_paper_journal_numbers_and_hf_line(tmp_path):
+    """TC-DST-29 · 모의투자 그림자 일지(2026-10-24) — 자료 안내 숫자는 앱 DB 를 세지 않고 일지 내보내기 지문 목록에서(행 파일 = 판마다
+    거래일 하루 · 날짜는 파일 이름) · 관제 「팀 공유 저장소」 줄은 올리기 기록이 있을 때만. 깨진 목록은 「없음」."""
+    cdir = tmp_path / "collector"
+    (cdir / "state").mkdir(parents=True)
+    exp = tmp_path.joinpath(*ds.PAPER_JOURNAL_MANIFEST)
+    exp.parent.mkdir(parents=True)
+    files = {"versions/card_ma_cross_20_60-v1.json": {"kind": "version"}, "notes/000001.json": {"kind": "note"},
+             "rows/card_ma_cross_20_60/v1/2026-09-01.parquet": {"kind": "day"},
+             "rows/card_ma_cross_20_60/v1/2026-09-02.parquet": {"kind": "day"},
+             "rows/auto_default/v1/2026-09-02.parquet": {"kind": "day"}}
+    exp.write_text(json.dumps({"schema": 1, "files": files}), encoding="utf-8")
+    got = {x["key"]: x for x in ds.extra_counts(None, cdir, cdir / "state")}["paper_journal"]
+    assert (got["rows"], got["last_date"], got["first_date"], got["missing"]) == (3, "2026-09-02", "2026-09-01", False)
+    assert [h["repo"] for h in ds.hf_state(cdir)] == [], "올리기 기록이 없으면 줄이 없다"
+    (cdir / "state" / ds.PAPER_JOURNAL_HF_LAST).write_text(json.dumps(
+        {"at": "2026-10-24T13:43:29+09:00", "repo_id": "qurious-quant/qurious-paper-log", "counts": {"day": 3}}), encoding="utf-8")
+    line = ds.hf_state(cdir)[-1]
+    assert (line["repo"], line["uploaded_at"], line["rows"]) == ("qurious-quant/qurious-paper-log", "2026-10-24T13:43:29+09:00", 3)
+    assert "그림자 일지" in line["what"]
+    exp.write_text("{깨진", encoding="utf-8")
+    assert {x["key"]: x for x in ds.extra_counts(None, cdir, cdir / "state")}["paper_journal"]["missing"] is True

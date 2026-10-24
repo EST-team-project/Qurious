@@ -199,6 +199,9 @@ class Step:
     # 「무엇이 허용된 실패인가」 는 그 작업의 정의가 정한다(Airflow ``skip_on_exit_code`` · GitLab ``allow_failure:exit_codes`` 꼴 —
     # 러너 조사서 2절). 앱은 러너가 적은 ``warn`` 을 그대로 읽는다(종료코드를 다시 해석하지 않는다).
     warn_codes: tuple = ()
+    # 스스로 따라잡는 단계인가 — 앱 DB 가 꺼져 건너뛴 날을 다음 회차가 알아서 모두 계산한다(모의 일지 · 2026-10-24). 그런 단계는
+    # 성공(또는 정의한 경고)하면 빠진 날을 **모두** 지운다 — 보통 단계는 그 회차가 계산한 그날만 지운다(채우기 명령이 따로 있다).
+    catch_up: bool = False
 
     def __post_init__(self) -> None:
         if self.fill_args and not self.fill:
@@ -269,6 +272,13 @@ STEPS: List[Step] = [
     Step("signals", ["scripts/signals_daily.py"], 10, fatal=False, app_db=True,
          label="신호", group="계산", desc="분봉 유니버스 401종목의 다중 주기 신호를 T2 에 기록",
          fill_args=["scripts/signals_daily.py", "--from", "{from}", "--to", "{to}"]),
+    # 모의투자 그림자 일지(2026-10-24 · 할 일 ①-26 · 설계 `모의투자-그림자일지-설계.md` 9절) — 신호 **뒤**에 돈다. 등록한 규칙
+    # 판으로 마지막 행 뒤의 준비된 거래일을 차례로 계산해 앱 DB 에 더하고(추가만 · 다음 거래일 시가 가상 체결) 내보내기 폴더를
+    # 쓴다. 규칙 코드가 바뀌어 새 판을 등록한 회차는 종료코드 10(`app.services.paper_journal.EXIT_VERSION_CHANGED` · 경고 —
+    # TC-PJ-13). 앱 DB 가 꺼진 날은 건너뛰고 다음 회차가 그날까지 채운다(catch_up · 채우기 명령 없음).
+    Step("journal", ["scripts/paper_journal.py", "daily", "--quiet"], 10, fatal=False, app_db=True, catch_up=True,
+         warn_codes=(10,), label="모의 일지", group="계산",
+         desc="등록한 규칙 판으로 거래일마다 판단 1행 · 다음 거래일 시가 가상 체결(추가만)"),
     Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False,
          label="목록표", group="백업", desc="백업할 표 · 행 수 · 지문 목록(대조용)"),
     Step("export", ["scripts/hf_dataset.py", "export", "--quiet"], 30,
@@ -279,6 +289,10 @@ STEPS: List[Step] = [
          upload=True, sharing=True, label="올리기", group="백업", desc="시세 데이터셋에 바뀐 조각만 올린다"),
     Step("ohlcv_upload", ["scripts/hf_ohlcv.py", "upload", "--yes"], 30,
          fatal=False, upload=True, sharing=True, label="일봉 올리기", group="백업", desc="일봉 · 분봉 데이터셋에 올린다"),
+    # 그림자 일지 원장(2026-10-24) — 앞 단계가 쓴 내보내기 폴더의 새 파일만 HF 비공개 `qurious-paper-log` 에 덧붙인다. 원격에 있던
+    # 파일이 없어지거나 내용이 바뀌었으면 올리지 않고 멈춘다(추가만). 앱 DB 는 쓰지 않는다.
+    Step("journal_upload", ["scripts/paper_journal.py", "upload", "--yes", "--quiet"], 10, fatal=False, upload=True,
+         sharing=True, label="일지 올리기", group="백업", desc="모의 일지를 HF 비공개 원장에 날짜별 파일로 덧붙인다(새 파일만)"),
     # 섹터별 · 연도별 근거 법령(2026-10-05) — 7일에 한 번만 실제로 돈다(판 목록 대조 → 바뀐 해만 본문 → 내보내기 → 바뀌었으면
     # HF kb-sector-laws 에 올리고 받아서 대조). 그 밖의 날은 「건너뜀」 한 줄. 실패해도 다른 단계를 막지 않는다.
     Step("sector_laws", ["scripts/hf_sector_laws.py", "weekly", "--yes", "--quiet"], 40,
@@ -757,6 +771,24 @@ def _apply_fill(rec: Dict, days: List[str]) -> None:
         rec["note"] = " · ".join(x for x in (rec.get("note"), _fill_note(f)) if x)
 
 
+def _clear_done(step: "Step", rc: int, pending: Dict[str, List[str]]) -> bool:
+    """단계를 돌린 뒤 빠진 날 지우기 — 바뀌었으면 True. 보통 단계는 성공했을 때 이 회차가 계산한 그날만 · 스스로 따라잡는 단계
+    (``catch_up``)는 성공 또는 정의한 경고(``warn_codes``)일 때 남은 날을 모두(그 단계가 이미 다 계산했다)."""
+    days = pending.get(step.name)
+    if not days:
+        return False
+    if step.catch_up and (rc == 0 or rc in step.warn_codes):
+        pending[step.name] = []
+        return True
+    if rc != 0:
+        return False
+    day = _as_of_day()
+    if day in days:
+        days.remove(day)
+        return True
+    return False
+
+
 def _save_fill(run: "Run", pending: Dict[str, List[str]]) -> None:
     try:
         save_fill(pending)
@@ -1161,11 +1193,8 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                 rc = _run_step(run, step, env_extra=env_extra)
                 rec["rc"], rec["seconds"] = rc, round(time.time() - t0, 1)
                 rec.update(step_failure(run, step, rc, mark))   # 실패면 까닭 한 줄 · 로그 파일 이름(DF-101)
-                if rc == 0 and pending.get(step.name):     # 앱 DB 가 다시 떴다 — 이 회차가 계산한 그날만 지운다
-                    day = _as_of_day()
-                    if day in pending[step.name]:
-                        pending[step.name].remove(day)
-                        pending_changed = True
+                if _clear_done(step, rc, pending):         # 앱 DB 가 다시 떴다 — 이 회차가 계산한 그날만(따라잡는 단계는 모두) 지운다
+                    pending_changed = True
                 run.say(f"{_mark(step, rc)} {step.name} · 종료코드 {rc} · {rec['seconds']:,.0f}초")
                 if rc != 0:
                     rc_total = rc_total or rc
@@ -1441,11 +1470,8 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
                 rec.update(step_failure(run, step, rc, mark))
                 _mark_warn(step, rc, rec)                    # 경고 종료코드는 정기 회차와 같은 표시(DF-92)
-                if rc == 0 and pending.get(name):
-                    day = _as_of_day()
-                    if day in pending[name]:
-                        pending[name].remove(day)
-                        _save_fill(run, pending)
+                if _clear_done(step, rc, pending):
+                    _save_fill(run, pending)
                 _rearm_or_say(run)
             _apply_fill(rec, pending.get(name, []))
             _finish_one(run, step, rec, rc, gate=gate, started=started, upload=upload, request_id=request_id)

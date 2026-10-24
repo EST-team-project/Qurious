@@ -385,3 +385,53 @@ ingest_day	rows	받은 줄 수	개	그날 받아 넣은 줄 수
 ingest_day	attempts	시도 횟수	개	그날을 받으려 한 횟수
 ingest_day	updated_at	고친 시각	시각	한국 시각
 ingest_day	message	메모	글	실패 까닭 같은 메모
+paper_journal_days	id	행 번호	차례	한 줄마다 붙는 일련번호
+paper_journal_days	version_id	판 번호	차례	이 행을 낸 규칙 판의 번호
+paper_journal_days	trade_date	거래일	날짜	이 행이 담은 거래일 — 그날 시가 체결 · 종가 평가 · 종가 판단
+paper_journal_days	grade	등급	코드	post_hoc = 봉인 구간 앞의 사후 시험 · forward = 등록 뒤 전진 기록
+paper_journal_days	status	상태	코드	ok · partial(자료가 없는 종목이 있었다)
+paper_journal_days	computed_at	계산 시각	시각	이 행을 만든 때
+paper_journal_days	recomputed	늦게 계산	0 또는 1	전진 기록인데 예정(다음 거래일)보다 늦게 만들었다 — 값은 같다
+paper_journal_days	data_as_of	자료 기준일	날짜	판단에 쓴 마지막 일봉 날짜
+paper_journal_days	code_commit	코드 판	코드	계산할 때의 코드 버전 표시
+paper_journal_days	fingerprint	판 지문	지문	규칙을 이루는 코드 · 설정의 지문 — 그 판의 지문과 같아야 한다
+paper_journal_days	fills	체결	목록	앞 거래일 판단으로 낸 주문을 그날 시가에 사고판 결과 — 가격 · 수량 · 비용
+paper_journal_days	decisions	판단	목록	그날 종가까지의 자료로 낸 종목별 판단과 근거
+paper_journal_days	ranking	점수 순위	목록	자동매매 기본 규칙이 종목을 고른 근거 — 31종목 점수
+paper_journal_days	orders	다음 날 주문	목록	다음 거래일 시가에 낼 주문 — 종목 · 사고팖 · 수량 · 판단가
+paper_journal_days	skipped	빠진 주문	목록	비중 한도 · 주문 수 한도로 내지 않은 주문과 까닭
+paper_journal_days	cash	현금	원	그날 끝 현금
+paper_journal_days	positions	보유	목록	종목마다 수량 · 평균 단가 · 그날 종가 · 평가액
+paper_journal_days	equity	평가액	원	현금과 보유를 그날 종가로 평가한 합
+paper_journal_days	day_return	하루 수익률	비율	앞 행 평가액 대비 — 0.01 이 1%
+paper_journal_days	flags	표시	목록	일손실 한도를 넘은 날 · 가격 조정 사건 · 참고 코드가 바뀐 날
+paper_journal_versions	id	판 번호	차례	등록마다 붙는 일련번호
+paper_journal_versions	rule_id	규칙	코드	card_ma_cross_20_60 = 이동평균 교차 카드 · auto_default = 자동매매 기본 규칙
+paper_journal_versions	version_no	판	차례	그 규칙의 몇 번째 판인가
+paper_journal_versions	attempt_no	시도 수	개	등록할 때까지 모든 규칙을 통틀어 등록한 판의 수
+paper_journal_versions	registered_at	등록 시각	시각	판을 얼린 때
+paper_journal_versions	registered_by	등록한 쪽	코드	manual = 사람이 등록 · auto_fingerprint = 코드가 바뀐 것을 알아채 자동으로
+paper_journal_versions	seal_start	봉인 시작일	날짜	등록 뒤 처음 장이 마감하는 거래일 — 이날 판단부터 전진 기록
+paper_journal_versions	post_hoc_from	사후 시험 첫날	날짜	판 1 만 — 봉인 구간 앞을 한 번만 여는 시험의 첫날
+paper_journal_versions	post_hoc_to	사후 시험 마지막 날	날짜	판 1 만 — 봉인 시작 앞 마지막 거래일
+paper_journal_versions	fingerprint	판 지문	지문	규칙을 이루는 코드 · 설정 조각 지문의 묶음
+paper_journal_versions	fingerprint_parts	지문 조각	목록	함수 · 설정마다 지문 앞 12자 — 무엇이 바뀌었나를 가린다
+paper_journal_versions	watch_parts	참고 지문	목록	실제 자동매매 회차 코드의 지문 — 바뀌어도 판은 그대로
+paper_journal_versions	spec	얼린 명세	글	종목 · 판단 · 크기 · 체결 · 비용 · 판정을 등록 때 그대로 적은 것
+paper_journal_versions	code_commit	코드 판	코드	등록할 때의 코드 버전 표시
+paper_journal_versions	python	언어 판	코드	등록할 때의 실행 언어 버전 — 지문 계산 방식이 기대는 값
+paper_journal_versions	supersedes_id	앞 판	차례	자동으로 등록한 판이면 그 앞 판의 번호
+paper_journal_versions	change_parts	바뀐 조각	목록	앞 판과 지문이 다른 조각 이름
+paper_journal_notes	id	메모 번호	차례	메모마다 붙는 일련번호
+paper_journal_notes	version_id	판 번호	차례	어느 판의 메모인가(빈칸이면 판 없는 메모)
+paper_journal_notes	trade_date	거래일	날짜	어느 날의 메모인가(빈칸 가능)
+paper_journal_notes	kind	종류	코드	opening = 개봉 기록 · change_reason = 판 바뀜 까닭 · judgment = 판정 범위 · interpretation = 해석 · ops = 운영
+paper_journal_notes	author	쓴 사람	이름	사람 이름 또는 journal(자동)
+paper_journal_notes	written_at	쓴 시각	시각	메모를 남긴 때
+paper_journal_notes	text	글	글	메모 본문
+kb_sector_word	word	맞추는 낱말	글	질문에서 찾는 꼴 — 띄어쓰기 · 가운뎃점을 빼고 로마자는 소문자
+kb_sector_word	shown	표에 적힌 낱말	글	섹터 표에 적힌 그대로의 꼴 — 답의 근거 길에 보인다
+kb_sector_word	doc_id	근거 문서 번호	코드	이 낱말이 있으면 검색 후보에 드는 섹터 법령(법률과 그 시행령)
+kb_sector_word	sector_code	섹터 코드	코드	섹터 열한 가지와 공통(All)
+kb_sector_word	sector	섹터	이름	에너지 · 소재 · … · 공통
+kb_sector_word	source	낱말 출처	코드	정식 이름 · 약칭 · 업 이름

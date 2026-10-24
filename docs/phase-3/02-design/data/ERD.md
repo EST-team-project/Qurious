@@ -1,15 +1,15 @@
-# ERD v1.10 — Qurious
+# ERD v1.11 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.10 · Qdrant 비공개 모음 / v1.9 · 초안(검토 전) |
+| **판 · 상태** | v1.11 · 그림자 일지 표 셋 / v1.10 · Qdrant 비공개 모음 / v1.9 · 초안(검토 전) |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-10-23 (KST) |
-| **기준** | 코드 `main` `b195c22`(PR #173 신장환 성과 검증 규칙 설명 · 그 앞 #172 모의계좌 리셋 경계) + 재무 · 신용 위험(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-12(시세 · 시장금리) · 행 수는 2026-10-13 실측(12:30 회차와 `ecos` 단계 뒤) · 지난 판 기준: 코드 `main` `a39e531`(PR #118 · 팀원 리밸런싱 #114 · #116 · #118) + 섹터 질문 분류 · 화면 셋(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-01(시세) · 2026-10-02(공시 · 재무) · 행 수는 2026-10-06 실측(주주총회 과거분 2020-01 ~ 2023-12 를 받은 뒤 · 12:30 회차 전) |
+| **최종 수정** | 2026-10-24 (KST) |
+| **기준** | v1.11 은 코드 `main` `949b685` + 이 판 작업 트리(그림자 일지 표 셋 · 마이그레이션 `0026_paper_journal`) — 그림은 스캐너가 다시 채움(그동안 팀원 PR 로 들어온 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도 함께) / v1.10 까지는 코드 `main` `b195c22`(PR #173 신장환 성과 검증 규칙 설명 · 그 앞 #172 모의계좌 리셋 경계) + 재무 · 신용 위험(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-12(시세 · 시장금리) · 행 수는 2026-10-13 실측(12:30 회차와 `ecos` 단계 뒤) · 지난 판 기준: 코드 `main` `a39e531`(PR #118 · 팀원 리밸런싱 #114 · #116 · #118) + 섹터 질문 분류 · 화면 셋(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-01(시세) · 2026-10-02(공시 · 재무) · 행 수는 2026-10-06 실측(주주총회 과거분 2020-01 ~ 2023-12 를 받은 뒤 · 12:30 회차 전) |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.9 → v1.10: Qdrant 모음 둘 → 셋 — 올린 문서는 새 비공개 모음 `user_docs`(주인 칸 `is_tenant` 색인 · 문서 ID) · `fin_chunks` 는 크롤 조각(공용)만 / v1.8 → v1.9: 새 표 넷 — 수집 `ecos_series`(한국은행 시장금리 · 37,648행) · 앱 `collect_requests` · `collect_workers`(화면 수집 요청 — 새 업무 영역 「데이터 수집 운영」) · `signal_snapshots`(신장환 #140 신호 기록 — 대장 줄은 문서 담당 초안 · 작성자가 확인할 칸) · 팀원 #172 의 `epoch` 칸 · 행 수 다시 잼(수집 20 → 21표 · 21,596,884 → 21,855,079행 · 앱 42 → 45표) · 표 속성 대장 71 → 75줄 — 전체는 부록 D · 지난 판 — v1.7 → v1.8: 행 수 다시 잼(주주총회 과거분) · 팀원 #114 리밸런싱 칸 7개 · 표 수 그대로 — 전체는 부록 D · 지난 판 — v1.6 → v1.7: 수집 19 → 20표(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.5 → v1.6: 수집 18 → 19표(`corp_schedule` 주주총회 · 배당금 지급 일정 — 계산한 표) · 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · `kb_raw` · `ks_doc` · `ks_choice` · `ks_article`) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.4 → v1.5: 수집 15 → 18표(공시 · 재무 · 공식 일정) · 다섯째 저장소 검색 색인 |
+| **최근 개정** | v1.10 → v1.11: 새 표 셋 — 모의투자 그림자 일지(`paper_journal_versions` · `days` · `notes` · 추가만 · 4.6절) · 스캐너 그림 다시 채움(팀원 PR 의 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도) · 4.1 표 8 · 그림 5 를 기계로 센 숫자로(앱 50표 · 관계 44 · users 에서 30) · 4.5 2026-10-24 대조 어긋남 0 · 표 속성 대장 다섯 줄(일지 셋 · `allocation_results` · `kb_sector_word`) / v1.9 → v1.10: Qdrant 모음 둘 → 셋 — 올린 문서는 새 비공개 모음 `user_docs`(주인 칸 `is_tenant` 색인 · 문서 ID) · `fin_chunks` 는 크롤 조각(공용)만 / v1.8 → v1.9: 새 표 넷 — 수집 `ecos_series`(한국은행 시장금리 · 37,648행) · 앱 `collect_requests` · `collect_workers`(화면 수집 요청 — 새 업무 영역 「데이터 수집 운영」) · `signal_snapshots`(신장환 #140 신호 기록 — 대장 줄은 문서 담당 초안 · 작성자가 확인할 칸) · 팀원 #172 의 `epoch` 칸 · 행 수 다시 잼(수집 20 → 21표 · 21,596,884 → 21,855,079행 · 앱 42 → 45표) · 표 속성 대장 71 → 75줄 — 전체는 부록 D · 지난 판 — v1.7 → v1.8: 행 수 다시 잼(주주총회 과거분) · 팀원 #114 리밸런싱 칸 7개 · 표 수 그대로 — 전체는 부록 D · 지난 판 — v1.6 → v1.7: 수집 19 → 20표(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.5 → v1.6: 수집 18 → 19표(`corp_schedule` 주주총회 · 배당금 지급 일정 — 계산한 표) · 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · `kb_raw` · `ks_doc` · `ks_choice` · `ks_article`) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.4 → v1.5: 수집 15 → 18표(공시 · 재무 · 공식 일정) · 다섯째 저장소 검색 색인 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -22,7 +22,7 @@
 
 1. 데이터는 **두 DB** 에 나뉘어 있다 — 수집 DB(SQLite · 18표 · 21,475,163행)는 시세 · 배당 · 지수 · ETF · 분봉 · 거래일 달력 · 공시 목록 · 재무 주요계정을, 앱 DB(PostgreSQL · 42표)는 사용자 · 주문 · 대화 · 용어사전을 담는다. 그 밖에 저장소가 둘 더 있다 — 법령 · 감독규정 근거 문서 DB(별도 SQLite `kb.sqlite3` · 4표 · 문서 14 · 청크 4,067)와 벡터 저장소 Qdrant(컬렉션 둘), 공시를 찾는 검색 색인(별도 SQLite `search.sqlite3` · 넷 · 2026-10-04 · 1.1절).
 2. 두 DB 는 **앱의 읽기 전용 연결에서만** 만난다 — 수집 DB 어댑터가 국내 주식 일봉을, 금융 강의 시세 모듈이 강의 그림의 지수 · ETF 를 읽는다(2.1절). 일봉 요청은 앱의 캐시 표를 거치지 않아 매일 12:30 갱신이 바로 보인다. 차트의 지수 · 해외 · 실시간 시세는 외부 API 에서 온다.
-3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 관계 36개 중 27개가 `users` 에서 뻗는다. 모델과 DB 의 어긋남은 **하나** — 팀원이 모델의 `portfolio.user_id` 외래키에 CASCADE 를 붙였는데 마이그레이션이 없다(2026-10-03 alembic check · 4.5절 · #88). 이번에 들어온 실주문 추적 표(0013)는 모델과 같다.
+3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 **50표 · 관계 44개** 중 30개가 `users` 에서 뻗는다(2026-10-24 · 스캐너 그림을 기계로 셈). 모델과 DB 의 어긋남은 **0** — 2026-10-24 일회용 DB 에 마이그레이션을 `0026_paper_journal` 까지 올려 모델 전체와 견주니 차이가 없었다(4.5절 · 2026-10-03 의 `portfolio.user_id` 외래키 어긋남은 그 뒤 마이그레이션으로 풀렸다). 새 표 셋은 모의투자 그림자 일지(4.6절 · 추가만)다.
 
 ---
 
@@ -467,9 +467,9 @@ price_daily            포털이 준 값 그대로 (정수 · 원)
 
 ## 4. 앱 DB — 업무 영역별 🟡
 
-### 4.1 한눈에 — 업무 영역 다섯
+### 4.1 한눈에 — 업무 영역 여섯
 
-앱 DB 의 40표는 쓰임새로 다섯 영역에 묶인다. 영역은 [표 속성 대장](대장/표-속성대장.tsv) 의 「업무 영역」 칸이고, **담당이 아니다** — 담당은 계획서 v2.0 4절과 요구 대장의 담당 칸(2026-10-01 역할 확정)이 정한다.
+앱 DB 의 50표는 쓰임새로 여섯 영역에 묶인다. 영역은 [표 속성 대장](대장/표-속성대장.tsv) 의 「업무 영역」 칸이고, **담당이 아니다** — 담당은 계획서 v2.0 4절과 요구 대장의 담당 칸(2026-10-01 역할 확정)이 정한다.
 
 표 8 은 「앱 DB 는 어떤 묶음으로 나뉘고, 묶음마다 무엇을 담나」 에 답한다.
 
@@ -477,12 +477,13 @@ price_daily            포털이 준 값 그대로 (정수 · 원)
 
 | 업무 영역 | 표 | 관계 | 담는 것 |
 |---|--:|--:|---|
-| 모의투자·주문·전략 | 21 | 22 | 주문 · 체결 · 보유(장부별) · 모의 현금 · 증권사 연결 · 코인과 대체자산 모의투자 · 커스텀 · 수식 지표 · 백테스트 기록 · 리밸런싱 · TradingView 신호 · 모의계좌 일별 스냅샷 |
-| 계정·알림·감사 | 5 | 4 | 사용자 · 발급 API 키 · 감사 기록 · 알림 설정 · 알림 발송 기록 |
+| 모의투자·주문·전략 | 27 | 28 | 주문 · 체결 · 보유(장부별) · 모의 현금 · 증권사 연결 · 실주문 추적(재주문 연결) · 코인과 대체자산 모의투자 · 커스텀 · 수식 지표 · 백테스트 기록 · 리밸런싱 · 배분 결과 저장본 · TradingView 신호 · 모의계좌 일별 스냅샷 · 다중 주기 신호 · **모의투자 그림자 일지 셋(2026-10-24 · 4.6절)** |
+| 계정·알림·감사 | 6 | 5 | 사용자 · 발급 API 키 · 감사 기록 · 알림 설정 · 알림 발송 기록 · 비동기 작업 소유자 |
 | 대화·문서 | 4 | 4 | 대화 · 메시지 · 업로드 문서 목록 · 크롤링 문서 |
 | 참조·캐시 | 5 | 0 | 은행 · 펀드 상품 · 신용(CB) 통계 · 외부 조회 캐시 — 사용자에 매이지 않는다 |
-| 용어사전 | 5 | 3 | 용어 · 이름(대표 · 약어 · 영어 · 화면 키) · 분류 · 자료 원천 · 적재 이력 — **파일이 원본이고 표는 사본**(앱이 켜질 때 행 체크섬이 다르면 다시 넣는다) |
-| **합계** | **40** | **33** | |
+| 용어사전 | 6 | 5 | 용어 · 이름(대표 · 약어 · 영어 · 화면 키) · 분류 · 자료 원천 · 관계 · 적재 이력 — **파일이 원본이고 표는 사본**(앱이 켜질 때 행 체크섬이 다르면 다시 넣는다) |
+| 데이터 수집 운영 | 2 | 2 | 화면 수집 요청 · PC 작업자 신호 |
+| **합계** | **50** | **44** | 2026-10-24 · 4.2 그림의 머리 줄 · 관계 줄을 기계로 셈 |
 
 그림 5 는 「관계가 어디서 뻗나」 에 답한다.
 
@@ -501,29 +502,43 @@ users ──┬──▶ orders ──▶ order_fills        주문 1건 : 체�
         ├──▶ webhook_signals · strategy_comparisons
         ├──▶ paper_account_snapshots        모의계좌 일별 스냅샷 (2026-10-01)
         ├──▶ quant_virtual_accounts         자동매매 현금 장부 (강사님 기초 코드 반영 뒤 쓰인다)
+        ├──▶ live_orders ──▶ live_orders    실주문 · 재주문은 앞 주문을 가리킨다(retry_of)
+        ├──▶ signal_snapshots · allocation_results
 (계정·알림·감사)
-        ├──▶ api_keys · audit_events
+        ├──▶ api_keys · audit_events · task_ownership
         ├──▶ notification_settings · notification_log
 (대화·문서)
         ├──▶ conversations ──▶ chats        대화 1건 : 메시지 여러 건
         └──▶ chats · uploaded_docs
+(모의투자 그림자 일지 — users 에 매이지 않는다 · 2026-10-24)
+paper_journal_versions ──┬──▶ paper_journal_days    판 하나 : 거래일 행 여럿(추가만)
+         ▲               ├──▶ paper_journal_notes   개봉 기록 · 판 바뀜 까닭 · 판정 범위
+         └── 앞 판 ◀─────┘                          supersedes_id — 기계가 새 판을 등록할 때
 (용어사전 — users 에 매이지 않는다)
 glossary_categories ◀── glossary_terms ──▶ glossary_sources
-                         ▲
+                         ▲   └──▶ glossary_relations (from · to)
                          └── glossary_aliases    이름 여럿 : 용어 하나
+(데이터 수집 운영)
+collect_requests ──▶ collect_workers
 ```
 
-관계 33개 중 26개가 `users` 에서 뻗는다. `users` 에서 뻗지 않는 관계는 일곱이다 — `conversations → chats` · `orders → order_fills` · `formula_indicators → versions · results` · 용어사전 셋(`glossary_terms → categories · sources` · `glossary_aliases → terms`).
+관계 44개 중 30개가 `users` 에서 뻗는다. `users` 에서 뻗지 않는 관계는 열넷이다 — `conversations → chats` · `orders → order_fills` · `live_orders → live_orders`(재주문) · `formula_indicators → versions · results` · 그림자 일지 셋(`paper_journal_versions → days · notes · 앞 판`) · 용어사전 다섯(`glossary_terms → categories · sources · aliases` · `glossary_relations` 의 from · to) · `collect_requests → collect_workers`.
 
 ### 4.2 그림 — 업무 영역마다 하나
 
-아래 다섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 40표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
+아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 50표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
-**앱 DB — 모의투자·주문·전략 · 23표 · 관계 23개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+**앱 DB — 모의투자·주문·전략 · 27표 · 관계 28개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
 
 ```mermaid
 erDiagram
+  allocation_results {
+    UUID user_id PK
+    UUID result_id
+    JSONB result
+    DATETIME updated_at
+  }
   alternative_orders {
     UUID user_id FK
     UUID id PK
@@ -549,7 +564,7 @@ erDiagram
     VARCHAR_200 app_key
     VARCHAR_200 app_secret
     VARCHAR_50 account_no
-    _ 외18칸
+    _ 외19칸
   }
   cashflow_events {
     UUID user_id FK
@@ -626,12 +641,13 @@ erDiagram
   }
   live_orders {
     UUID user_id FK
+    UUID retry_of FK
     UUID id PK
     VARCHAR_64 client_order_id
     VARCHAR_10 environment
     VARCHAR_20 broker
     VARCHAR_20 symbol
-    _ 외13칸
+    _ 외15칸
   }
   order_fills {
     UUID order_id FK
@@ -649,7 +665,7 @@ erDiagram
     VARCHAR_100 name
     VARCHAR_10 order_type
     INTEGER quantity
-    _ 외17칸
+    _ 외20칸
   }
   paper_account_snapshots {
     UUID user_id FK
@@ -668,6 +684,33 @@ erDiagram
     INTEGER epoch
     DATETIME created_at
     _ 외1칸
+  }
+  paper_journal_days {
+    INTEGER id PK
+    INTEGER version_id FK
+    DATE trade_date
+    VARCHAR_10 grade
+    VARCHAR_10 status
+    DATETIME computed_at
+    _ 외14칸
+  }
+  paper_journal_notes {
+    INTEGER id PK
+    INTEGER version_id FK
+    DATE trade_date
+    VARCHAR_20 kind
+    VARCHAR_40 author
+    DATETIME written_at
+    _ 외1칸
+  }
+  paper_journal_versions {
+    INTEGER id PK
+    INTEGER supersedes_id FK
+    VARCHAR_40 rule_id
+    INTEGER version_no
+    INTEGER attempt_no
+    DATETIME registered_at
+    _ 외11칸
   }
   portfolio {
     UUID user_id FK
@@ -712,7 +755,7 @@ erDiagram
     VARCHAR_8 strength
     FLOAT confidence
     FLOAT composite
-    _ 외6칸
+    _ 외8칸
   }
   strategy_comparisons {
     UUID user_id FK
@@ -735,6 +778,7 @@ erDiagram
   users {
     UUID id PK
   }
+  users ||--o{ allocation_results : "user_id"
   users ||--o{ alternative_orders : "user_id"
   users ||--o{ alternative_positions : "user_id"
   users ||--o{ broker_settings : "user_id"
@@ -748,10 +792,14 @@ erDiagram
   users ||--o{ formula_indicators : "user_id"
   users ||--o{ lean_backtest_runs : "user_id"
   users ||--o{ live_orders : "user_id"
+  live_orders ||--o{ live_orders : "retry_of"
   orders ||--o{ order_fills : "order_id"
   users ||--o{ orders : "user_id"
   users ||--o{ paper_account_snapshots : "user_id"
   users ||--o{ paper_accounts : "user_id"
+  paper_journal_versions ||--o{ paper_journal_days : "version_id"
+  paper_journal_versions ||--o{ paper_journal_notes : "version_id"
+  paper_journal_versions ||--o{ paper_journal_versions : "supersedes_id"
   users ||--o{ portfolio : "user_id"
   users ||--o{ quant_virtual_accounts : "user_id"
   users ||--o{ rebalance_plans : "user_id"
@@ -760,7 +808,7 @@ erDiagram
   users ||--o{ webhook_signals : "user_id"
 ```
 
-**앱 DB — 계정·알림·감사 · 5표 · 관계 4개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
+**앱 DB — 계정·알림·감사 · 6표 · 관계 5개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
 
 ```mermaid
 erDiagram
@@ -798,6 +846,11 @@ erDiagram
     VARCHAR_300 slack_webhook_url
     _ 외15칸
   }
+  task_ownership {
+    VARCHAR_36 task_id PK
+    UUID user_id FK
+    DATETIME created_at
+  }
   users {
     UUID id PK
     VARCHAR_200 name
@@ -810,6 +863,7 @@ erDiagram
   users ||--o{ audit_events : "user_id"
   users ||--o{ notification_log : "user_id"
   users ||--o{ notification_settings : "user_id"
+  users ||--o{ task_ownership : "user_id"
 ```
 
 **앱 DB — 대화·문서 · 4표 · 관계 4개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
@@ -1034,6 +1088,8 @@ v1.2 는 이 표를 「쓰지 않는 표」 로 적었다. 2026-09-30 강사님 
 
 ### 4.5 모델과 DB 대조 — 어긋남 1(`portfolio` 외래키) · 실주문 추적 표는 맞다
 
+> **2026-10-24 다시 잼 — 어긋남 0.** 일회용 DB(`pgvector/pgvector:pg16`)에 마이그레이션을 `0026_paper_journal` 까지 올리고 모델 전체(그림자 일지 표 셋 포함)와 `alembic.autogenerate.compare_metadata` 로 견주니 차이가 0건이었다 · `0026` 을 내려 `0025` 로 갔다가 다시 올려도 같았다. 아래 그림 7 은 2026-10-03 의 기록이다.
+
 마이그레이션을 head(`0013` · 강사님 `0009_live_orders` 를 번호만 바꿈)까지 올린 DB 를 alembic 으로 모델과 대조했다. 2026-10-03 에 앱 컨테이너 안에서 `alembic check` 를 돌렸다(절차는 부록 B).
 
 **그림 7. alembic 대조 결과** · 기준: 2026-10-03 다시 잼
@@ -1059,6 +1115,20 @@ v1.3 까지의 기록 — 어긋남 4곳(v1.2)은 마이그레이션 9d4a38ea92b
 - 운영 DB 를 본 것은 아니다 — 운영 DB 가 따로 없고, 팀원 각자의 로컬 DB 는 이 대조와 다를 수 있다.
 
 ---
+
+### 4.6 모의투자 그림자 일지 — 추가만 하는 표 셋 (2026-10-24)
+
+등록한 규칙 판이 거래일마다 「그날 종가로 판단 → 다음 거래일 시가 가상 체결」 을 한 행씩 남기는 표다([설계](../system/모의투자-그림자일지-설계.md) 5절). 기존 모의 장부(`orders` · `portfolio`)와 섞지 않는다 — 회전율 · 계좌 초기화 · 100일 백테스트 주문이 섞이면 판정할 수 없다(결정 대장 2026-10-23).
+
+| 표 | 한 줄 | 열쇠 | 쓰는 곳 |
+|---|---|---|---|
+| `paper_journal_versions` | 규칙 판 하나 — 얼린 명세 · 판 지문 · 봉인 시작일 · 사후 봉인 시험 구간 · 앞 판 | `id` · (`rule_id`, `version_no`) 유일 | 판 1 은 등록 명령 · 판 n+1 은 러너 `journal` 단계(지문이 바뀐 회차) |
+| `paper_journal_days` | 판 하나의 거래일 하루 — 체결 · 평가 · 판단 · 다음 날 주문 · 표시 | `id` · (`version_id`, `trade_date`) 유일 | 러너 `journal` 단계 · HF `qurious-paper-log` `rows/` |
+| `paper_journal_notes` | 개봉 기록 · 판 바뀜 까닭 · 판정 범위 · 해석 | `id` | 등록 · 판 바뀜(기계) · `note` 명령(사람) |
+
+- **추가만** — 서비스(`app/services/paper_journal.py`)에 고치기 · 지우기 문이 없다(TC-PJ-12 가 구문 나무로 지킴) · 같은 판 · 같은 날을 두 번 넣으면 `ON CONFLICT DO NOTHING`.
+- `users` 에 매이지 않는다 — 사용자 장부가 아니라 팀이 지켜보는 시스템 기록이다(봉인 전용 사용자 대신 · D7 ③ C1 의 「쓰기는 일지 실행기만」 을 표로 지킴).
+- 묶음 칸(`fills` · `decisions` · `ranking` · `orders` · `skipped` · `positions` · `flags` · `spec`)은 JSONB — 칸 뜻은 데이터 사전 · 자료 안내 칸 대장.
 
 ## 5. 이 문서가 답하지 않는 것 — 어디서 보나
 
@@ -1140,6 +1210,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.11 | 2026-10-24 | 새 표 셋 — 모의투자 그림자 일지(`paper_journal_versions` · `days` · `notes` · 추가만 · 4.6절) · 스캐너 그림 다시 채움(팀원 PR 의 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도) · 4.1 표 8 · 그림 5 를 기계로 센 숫자로(앱 50표 · 관계 44 · users 에서 30) · 4.5 2026-10-24 대조 어긋남 0 · 표 속성 대장 다섯 줄(일지 셋 · `allocation_results` · `kb_sector_word`) | 그림자 일지 실행기(할 일 ①-26) · 문서가 코드보다 뒤처져 있었다(스캐너 `--check`) | `scripts/schema_scan.py --doc` · 일회용 DB 마이그레이션 대조(2026-10-24) · 결정 대장 2026-10-23 · 10-24 |
 | v1.10 | 2026-10-23 | Qdrant 모음 둘 → 셋 — 올린 문서는 새 비공개 모음 `user_docs`(주인 칸 `is_tenant` 색인 · 문서 ID) · `fin_chunks` 는 크롤 조각(공용)만 | 올린 문서가 공용 모음에 섞여 남의 채팅 · 검색에 보였다(DF-146 · 2026-10-23 재현) | 결함대장 DF-146 · 시험 TC-DI · TC-DIA · 조사 `2026-10-23-올린문서-사용자격리` |
 | v1.9 | 2026-10-13 | 추가 — 수집 20 → 21표(`ecos_series`) · 앱 업무 영역 「데이터 수집 운영」(`collect_requests` · `collect_workers` · 관계 2) · `signal_snapshots`(모의투자 · 주문 · 전략) · 팀원 #172 `epoch` 칸 / 변경 — 행 수 다시 잼(앱 42 → 45표) | 재무 · 신용 위험(시장금리 수집) · 대장에 없던 앱 표 셋 | `scripts/schema_scan.py` · 이 판과 같은 PR |
 | v1.8 | 2026-10-06 | 변경 — 행 수 다시 잼(주주총회 과거분으로 `corp_schedule` · `market_event` · `raw_response` 증가) · 팀원 #114 리밸런싱 칸 7개 · 표 수는 그대로(수집 20 · 앱 42) | 매 세션 판 올리기 · 팀원 머지 | `scripts/schema_scan.py` · 이 판과 같은 PR |

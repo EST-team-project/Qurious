@@ -448,13 +448,15 @@ def test_signals_step_after_daily_bars_before_manifest():
     """#142 — 다중 주기 신호 배치(`scripts/signals_daily.py` · 팀원 #140)는 일봉 · 분봉(ohlcv) 뒤 · 목록표(manifest) 앞.
     그날 일봉 · 60분봉이 들어온 다음에 돌아야 하고, 실패해도 백업을 막지 않는다(fatal=False). 파생 판정 · 올리기와 무관하다."""
     names = [s.name for s in du.STEPS]
-    assert names.index("ohlcv") + 1 == names.index("signals") and names.index("signals") + 1 == names.index("manifest")
+    # 신호 뒤에는 모의 일지(2026-10-24 · 신호와 같은 계산 묶음) — 그 뒤가 목록표다(TC-PJ-13)
+    assert names.index("ohlcv") + 1 == names.index("signals") and names.index("signals") + 1 == names.index("journal")
+    assert names.index("journal") + 1 == names.index("manifest")
     sig = next(s for s in du.STEPS if s.name == "signals")
     assert sig.args == ["scripts/signals_daily.py"], "인자 없이 — 수집 DB 의 마지막 거래일 하루"
     assert (sig.fatal, sig.derived, sig.upload, sig.sharing) == (False, False, False, False)
     assert (sig.label, sig.group) == ("신호", "계산") and sig.timeout_min >= 5
     assert sig.app_db is True, "앱 DB(T2)에 쓰는 단계 — PC 쪽 주소를 받아야 한다"
-    assert [s.name for s in du.STEPS if s.app_db] == ["signals"], "앱 DB 를 쓰는 단계는 신호 하나뿐이다"
+    assert [s.name for s in du.STEPS if s.app_db] == ["signals", "journal"], "앱 DB 를 쓰는 단계는 신호 · 모의 일지 둘뿐이다"
 
 
 # ── 8. 앱 DB 를 쓰는 단계의 전제 조건(2026-10-08 · 조사서 안 B · 사용자 결정) ─────────────────────
@@ -733,6 +735,36 @@ def test_run_records_why_a_step_failed(fake_runner, monkeypatch):
     monkeypatch.setattr(du, "_run_step", lambda run, step, **kw: 124)
     assert du.run_one("beta", now=datetime.datetime(2026, 10, 8, 15, 5, tzinfo=du.KST)) == 124
     assert _last(t)["steps"][1]["error"] == "시간 한도 1분을 넘겨 멈춤"
+
+
+def test_catch_up_step_clears_all_missed_days_on_success(fake_runner, monkeypatch):
+    """스스로 따라잡는 단계(`catch_up` · 모의 일지 2026-10-24) — 앱 DB 가 꺼진 회차마다 빠진 날을 모으는 것은 같고, 다시 뜬 회차가
+    성공하면(또는 정의한 경고 종료코드면) 남은 날을 **모두** 지운다 — 단계가 마지막 행 뒤의 날을 스스로 다 계산하므로 「채울 날」 이
+    성공 줄에 남지 않는다. 보통 단계(아래 시험)는 그날만 지운다."""
+    import socket
+    t = fake_runner
+    asof = {"price_max": "20261002"}
+    monkeypatch.setattr(du, "snapshot", lambda *a, **k: dict(asof))
+    monkeypatch.setattr(du, "host_app_db_env", _db_env(_closed_port()))
+    du.STEPS[1] = du.Step("beta", ["-c", "import sys; sys.exit(10)"], 1, fatal=False, app_db=True, catch_up=True,
+                          warn_codes=(10,), label="나 단계", group="계산", desc="둘째 일")
+    du.run_all()
+    asof["price_max"] = "20261006"
+    du.run_all()
+    assert json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))["steps"]["beta"]["days"] == \
+        ["2026-10-02", "2026-10-06"]
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+    try:                                                          # 앱 DB 가 다시 뜸 — 단계가 경고 종료코드(판 바뀜)로 끝남
+        monkeypatch.setattr(du, "host_app_db_env", _db_env(srv.getsockname()[1]))
+        du.run_all()
+    finally:
+        srv.close()
+    b = _last(t)["steps"][1]
+    assert b["rc"] == 10 and b.get("warn") is True and "followup" not in b and "채울 날" not in (b.get("note") or "")
+    state = json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))
+    assert "beta" not in state["steps"], "남은 날을 모두 지웠다"
 
 
 def test_app_db_down_days_accumulate_and_a_good_run_removes_only_its_day(fake_runner, monkeypatch):
@@ -1057,7 +1089,9 @@ def test_price_step_warns_on_69_and_still_stops_on_a_crash():
     from collector import backfill
     price = next(s for s in du.STEPS if s.name == "price")
     assert price.fatal is True and price.warn_codes == (du.EX_UNAVAILABLE,) == (backfill.EX_UNAVAILABLE,)
-    assert [s.name for s in du.STEPS if s.warn_codes] == ["price"]
+    # 경고 종료코드를 둔 단계는 시세(69 — 다 받지 못함)와 모의 일지(10 — 판 바뀜 · 2026-10-24 · TC-PJ-13) 둘이다
+    assert [s.name for s in du.STEPS if s.warn_codes] == ["price", "journal"]
+    assert next(s for s in du.STEPS if s.name == "journal").warn_codes == (10,)
 
 
 def _record_steps(t, rec_path, env_name):

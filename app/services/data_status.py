@@ -177,8 +177,12 @@ EXTRA_SQL = [
 ]
 #: 용어사전 — 앱 파일(원본이 이것 · 앱이 켜질 때 DB 에 넣는다). 줄 = 용어(다른 이름 · 관계는 세지 않는다)
 GLOSSARY_FILE = Path(__file__).resolve().parent / "glossary_data" / "terms.json"
-#: 숫자 파일 `extras` 의 열쇠 · 차례 — 자료 안내 대장 「숫자_상태」 칸이 부르는 이름(TC-DG-02 가 맞댄다)
-EXTRA_KEYS = tuple(k for k, *_ in EXTRA_SQL) + ("glossary", "run_history")
+#: 숫자 파일 `extras` 의 열쇠 · 차례 — 자료 안내 대장 「숫자_상태」 칸이 부르는 이름(TC-DG-02 가 맞댄다).
+#: 모의투자 그림자 일지(`paper_journal` · 2026-10-24)는 앱 DB 표라 러너가 DB 를 세지 않고 일지 단계가 쓴 내보내기 지문 목록에서 읽는다.
+EXTRA_KEYS = tuple(k for k, *_ in EXTRA_SQL) + ("glossary", "run_history", "paper_journal")
+#: 그림자 일지 내보내기 · 올리기 기록 — 수집 폴더의 형제 폴더 · 상태 폴더(`scripts/paper_journal.py` EXPORT_DIR · HF_LAST_PATH 와 같은 자리)
+PAPER_JOURNAL_MANIFEST = ("paper_journal", "export", "manifest.json")
+PAPER_JOURNAL_HF_LAST = "paper_journal_hf_last.json"
 
 
 def _now() -> datetime:
@@ -749,6 +753,14 @@ def extra_counts(market: sqlite3.Connection | None, cdir: Path | None, state_dir
             days.append(h["started_at"][:10])
     out["run_history"] = ({"rows": len(days), "last_date": max(days), "first_date": min(days), "missing": False}
                           if days else dict(missing))
+    # 모의투자 그림자 일지 — 줄 = 판마다 거래일 행의 합(규칙 둘이면 하루 두 줄) · 날짜 = 행 파일 이름의 거래일
+    # (rows/<규칙>/v<판>/<거래일>.parquet). 지문 목록이 없거나 깨졌으면 「없음」(그 PC 에 일지가 없다 · 앱 DB 는 세지 않는다).
+    man = _read_json(cdir.parent.joinpath(*PAPER_JOURNAL_MANIFEST)) if cdir is not None else None
+    files = man.get("files") if isinstance(man, dict) else None
+    dates = sorted(rel.rsplit("/", 1)[-1][:10] for rel, m in (files if isinstance(files, dict) else {}).items()
+                   if isinstance(m, dict) and m.get("kind") == "day")
+    out["paper_journal"] = ({"rows": len(dates), "last_date": dates[-1], "first_date": dates[0], "missing": False}
+                            if dates else dict(missing))
     return [{"key": k, **out[k]} for k in EXTRA_KEYS]
 
 
@@ -770,6 +782,12 @@ def hf_state(cdir: Path | None) -> list[dict]:
         out.append({"repo": "qurious-quant/krx-ohlcv", "what": "OHLCV 규격 자료(ohlcv-v1)",
                     "tag": up.get("tag"), "uploaded_at": up.get("at"), "exported_at": oman.get("built_at"),
                     "as_of": oman.get("as_of"), "rows": oman.get("rows")})
+    # 모의투자 그림자 일지 원장(2026-10-24) — 올리기 기록이 있을 때만(일지를 등록하지 않은 PC 는 줄이 없다)
+    pj = _read_json(cdir / "state" / PAPER_JOURNAL_HF_LAST)
+    if pj:
+        out.append({"repo": pj.get("repo_id") or "qurious-quant/qurious-paper-log", "what": "모의투자 그림자 일지(추가만)",
+                    "tag": None, "uploaded_at": pj.get("at"), "exported_at": None,
+                    "rows": (pj.get("counts") or {}).get("day")})
     return out
 
 
