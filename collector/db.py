@@ -42,6 +42,13 @@ OHLCV 규격(`collector/ohlcv.py` · 2026-10-01)으로 더한 넷 ::
     disclosure          공시 목록(받은 것 · DART list.json · 상장사 · 유형 A~J)
     financial_statement 재무제표 주요계정(받은 것 · DART fnlttMultiAcnt · 정정본마다 한 벌)
 
+업종 · 전체 재무제표(`collector/dart_company.py` · `collector/financials_full.py` · 2026-10-24 · 할 일 ①-05 G2 · G3)로 더한 넷 ::
+
+    dart_company             기업개황 업종코드(받은 것 · DART company.json · 분봉 유니버스 351곳 · 칸 값이 바뀌면 새 판 · 개인 칸 없음)
+    ksic_code                한국표준산업분류 10 · 11차 코드표(받은 것 · 통계분류포털 고시 첨부 엑셀)
+    financial_statement_full 전체 재무제표(받은 것 · DART fnlttSinglAcntAll · 351곳 · 정정본마다 한 벌)
+    financial_full_check     전체 재무제표 분기 대조 결과(우리 판 ↔ API 지금 판 · 분기마다 회사 · 기간 한 줄)
+
 이름표 · 검색 색인은 이 파일에 두지 않는다 — 다시 만드는 것이라 `data/collector/search.sqlite3` 에 따로 둔다
 (`collector/search_index.py`).
 
@@ -497,15 +504,18 @@ SCHEMA += NEWS_ITEM_DDL
 
 
 #: 19. 한국은행 ECOS 시장금리(받은 것 · 2026-10-13 · 재무 · 신용 위험 API-RISK-02) · 주가지수(2026-10-14 · 표 802Y001 코스피 · 코스닥 — 계절성 분석 API-SEAS-01) — collector/ecos.py · 러너 ecos 단계.
-#:    표 817Y002 「시장금리(일별)」 의 다섯 항목(국고채 3년 · 회사채 3년 AA- · BBB- · CD 91일 · CP 91일) — 신용 스프레드의 재료.
+#:    표 817Y002 「시장금리(일별)」 의 여섯 항목(국고채 3년 · 10년 · 회사채 3년 AA- · BBB- · CD 91일 · CP 91일) — 신용 스프레드 ·
+#:    장단기 금리차의 재료. 2026-10-24(할 일 ①-05 · G1) 표 셋을 더했다 — 722Y001 기준금리(일) · 731Y001 원/달러 매매기준율(일 ·
+#:    원 출처 서울외국환중개 — 영리목적 복제 · 배포 금지 약관 · 비공개 백업에만) · 901Y009 소비자물가지수 총지수(**월** · 원 출처
+#:    국가데이터처). 월 줄의 date 는 `YYYY-MM`(가짜 날을 붙이지 않는다) — 읽는 쪽은 `cycle` 로 거른다.
 #:    같은 날 값을 다시 받으면 fetched_at(처음 받은 시각)은 그대로 두고, 값이 바뀌었을 때만 value · updated_at 을 고친다.
 #: ⚠️ 출처 표시가 의무다(ECOS Open API 이용약관 제7조②) — 앱 응답 · 화면 · 대화 답에 「한국은행 경제통계시스템(ECOS)」.
 ECOS_SERIES_DDL = """
 CREATE TABLE IF NOT EXISTS ecos_series (
-    stat_code   TEXT    NOT NULL,              -- 통계표 코드(817Y002 시장금리 일별 · 802Y001 주식시장 일별)
+    stat_code   TEXT    NOT NULL,              -- 통계표 코드(817Y002 시장금리 일별 · 802Y001 주식시장 일별 · 722Y001 기준금리 · 731Y001 환율 · 901Y009 소비자물가)
     item_code   TEXT    NOT NULL,              -- 항목 코드(010200000 국고채 3년 · 010300000 회사채 AA- … · 0001000 코스피 · 0089000 코스닥)
-    cycle       TEXT    NOT NULL,              -- 주기(D 일)
-    date        TEXT    NOT NULL,              -- YYYY-MM-DD — ECOS TIME(20261012)을 바꿈
+    cycle       TEXT    NOT NULL,              -- 주기(D 일 · M 월)
+    date        TEXT    NOT NULL,              -- 일 YYYY-MM-DD(ECOS TIME 20261012) · 월 YYYY-MM(202609)
     value       REAL,                          -- 값(금리는 연% · 지수는 포인트) — ECOS 가 빈칸으로 주면 NULL
     unit        TEXT    NOT NULL DEFAULT '',   -- 단위(연% · 지수는 1980.01.04=100 꼴)
     item_name   TEXT    NOT NULL DEFAULT '',   -- 항목 이름(ECOS 한국어판)
@@ -516,6 +526,122 @@ CREATE TABLE IF NOT EXISTS ecos_series (
 );
 """
 SCHEMA += ECOS_SERIES_DDL
+
+
+#: 20. DART 기업개황 업종코드(받은 것 · 2026-10-24 · 할 일 ①-05 G2) — collector/dart_company.py · 러너 company 단계.
+#:    분봉 유니버스(마지막 판 · ETF 뺌 · 351곳)의 company.json 을 7일마다 다시 받는다. **칸 값이 바뀌면 새 판 한 줄**(같으면
+#:    last_seen_at 만) — 지금 판 = 회사마다 last_seen_at 이 가장 늦은 줄. 업종코드는 KSIC 를 따르고 자릿수가 회사마다 다르다
+#:    (3 · 4 · 5자리 — 소 · 세 · 세세분류).
+#: ⚠️ 대표자 이름 · 법인/사업자 등록번호 · 주소 · 전화 · 팩스 칸은 받되 **저장하지 않는다** — 원문(그 칸이 든 응답)도 남기지
+#:    않고 지문(raw_sha256)만 둔다(2026-10-22 일회 수집과 같은 규칙 · 원문 백업 표는 HF 로 올라간다).
+DART_COMPANY_DDL = """
+CREATE TABLE IF NOT EXISTS dart_company (
+    corp_code       TEXT    NOT NULL,              -- DART 고유번호 8자리
+    fields_sha256   TEXT    NOT NULL,              -- 아래 남기는 칸(stock_code ~ ir_url)의 지문 — 판을 가른다
+    stock_code      TEXT    NOT NULL DEFAULT '',   -- 종목 단축코드 6자리
+    corp_name       TEXT    NOT NULL DEFAULT '',
+    corp_name_eng   TEXT    NOT NULL DEFAULT '',
+    stock_name      TEXT    NOT NULL DEFAULT '',
+    corp_cls        TEXT    NOT NULL DEFAULT '',   -- Y 유가 · K 코스닥 · N 코넥스 · E 기타
+    induty_code     TEXT    NOT NULL DEFAULT '',   -- 업종코드(KSIC 코드 — 단계는 자릿수로)
+    est_dt          TEXT    NOT NULL DEFAULT '',   -- 설립일 YYYYMMDD
+    acc_mt          TEXT    NOT NULL DEFAULT '',   -- 결산월 MM
+    hm_url          TEXT    NOT NULL DEFAULT '',   -- 회사 누리집
+    ir_url          TEXT    NOT NULL DEFAULT '',   -- IR 누리집
+    universe        TEXT    NOT NULL DEFAULT '',   -- 받을 때 든 분봉 유니버스 판(예 u2-20260930)
+    first_seen_at   TEXT    NOT NULL,              -- 이 판을 처음 받은 시각 KST
+    last_seen_at    TEXT    NOT NULL,              -- 이 판을 마지막으로 다시 받아 본 시각 KST(같은 값이어도)
+    raw_sha256      TEXT    NOT NULL DEFAULT '',   -- 처음 받은 응답 원문(개인 칸 포함)의 지문 — 원문은 남기지 않는다
+    PRIMARY KEY (corp_code, fields_sha256)
+);
+CREATE INDEX IF NOT EXISTS ix_dart_company_stock ON dart_company(stock_code);
+CREATE INDEX IF NOT EXISTS ix_dart_company_seen ON dart_company(last_seen_at);
+"""
+SCHEMA += DART_COMPANY_DDL
+
+
+#: 21. 한국표준산업분류(받은 것 · 2026-10-24 · G2) — 통계청(현 국가데이터처) 고시 제2024-2호(11차 · 2024-07-01 시행) 첨부 엑셀
+#:    「분류체계(대-중-소-세-세세 구분)」 의 시트 둘(11차 · 10차)을 읽은 코드표. 개정 때만 바뀐다(10차 2017-07 · 11차 2024-07) —
+#:    러너 company 단계가 7일마다 원본 파일 지문만 대조한다. 고시는 저작권법 제7조의 보호받지 않는 저작물.
+KSIC_CODE_DDL = """
+CREATE TABLE IF NOT EXISTS ksic_code (
+    revision      TEXT    NOT NULL,              -- 개정 차수(11 · 10)
+    level         TEXT    NOT NULL,              -- 대분류 · 중분류 · 소분류 · 세분류 · 세세분류
+    code          TEXT    NOT NULL,              -- 분류 코드(대분류는 영문자 · 그 밖은 숫자 2 ~ 5자리)
+    name          TEXT    NOT NULL DEFAULT '',   -- 항목명
+    parent_code   TEXT    NOT NULL DEFAULT '',   -- 한 단계 위 코드(대분류는 빈칸)
+    section       TEXT    NOT NULL DEFAULT '',   -- 대분류 코드
+    loaded_at     TEXT    NOT NULL,              -- 표를 읽은 시각 KST
+    source_sha256 TEXT    NOT NULL DEFAULT '',   -- 읽은 엑셀 파일의 지문
+    PRIMARY KEY (revision, level, code)
+);
+"""
+SCHEMA += KSIC_CODE_DDL
+
+
+#: 22. 전체 재무제표(받은 것 · 2026-10-24 · 할 일 ①-05 G3) — DART 단일회사 전체 재무제표(fnlttSinglAcntAll · 회사 하나 · 보고서
+#:    하나 · 연결/별도 하나씩) 한 줄 = 한 행. 만드는 쪽: collector/financials_full.py(러너 financial_full 단계 · 지난 해 채우기).
+#:    주요계정 표(financial_statement)와 **따로 둔다** — 같은 표에 넣으면 기본 키(…ord · account_nm · rcept_no)가 주요계정 줄과
+#:    겹친다(2026-10-24 실측 — 2024년 27만 6천 줄에서 겹치지 않는 열쇠는 ord · account_id · account_detail 을 함께 써야 한다).
+#:    재무상태표 · 손익 · 포괄손익 · 현금흐름 · 자본변동표의 모든 계정 · 정정본마다 한 벌(접수번호를 기본 키에 · 주요계정 표와 같은
+#:    날짜 둘 known_at · first_known_at).
+FIN_FULL_DDL = """
+CREATE TABLE IF NOT EXISTS financial_statement_full (
+    corp_code         TEXT    NOT NULL,
+    bsns_year         TEXT    NOT NULL,             -- 사업연도 YYYY
+    reprt_code        TEXT    NOT NULL,             -- 11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업
+    fs_div            TEXT    NOT NULL,             -- CFS 연결 · OFS 별도(부른 값 — 응답에는 없다)
+    sj_div            TEXT    NOT NULL,             -- BS 재무상태표 · IS 손익계산서 · CIS 포괄손익계산서 · CF 현금흐름표 · SCE 자본변동표
+    sj_nm             TEXT    NOT NULL DEFAULT '',
+    ord               INTEGER NOT NULL,             -- 계정 정렬 순서(응답 그대로)
+    account_id        TEXT    NOT NULL,             -- XBRL 계정 ID(예 ifrs-full_Revenue · 회사 고유 계정은 「-표준계정코드 미사용-」)
+    account_nm        TEXT    NOT NULL,             -- 계정 이름(응답 그대로)
+    account_detail    TEXT    NOT NULL DEFAULT '',  -- 자본변동표의 열(자본 구성요소) — 그 밖은 「-」
+    rcept_no          TEXT    NOT NULL,             -- 이 값이 실린 보고서 접수번호(정정이 있으면 정정본)
+    stock_code        TEXT    NOT NULL DEFAULT '',  -- 우리 매핑(응답에는 없다)
+    thstrm_nm         TEXT    NOT NULL DEFAULT '',  -- 당기 이름(예 제 57 기 3분기말)
+    thstrm_amount     INTEGER,
+    thstrm_add_amount INTEGER,                      -- 당기 누적(분 · 반기 손익)
+    frmtrm_nm         TEXT    NOT NULL DEFAULT '',
+    frmtrm_amount     INTEGER,
+    frmtrm_q_nm       TEXT    NOT NULL DEFAULT '',
+    frmtrm_q_amount   INTEGER,                      -- 전기 같은 분기(분 · 반기 손익)
+    frmtrm_add_amount INTEGER,
+    bfefrmtrm_nm      TEXT    NOT NULL DEFAULT '',
+    bfefrmtrm_amount  INTEGER,                      -- 전전기(사업보고서만)
+    currency          TEXT    NOT NULL DEFAULT 'KRW',
+    known_at          TEXT    NOT NULL,             -- YYYYMMDD — 접수번호 앞 8자리
+    first_known_at    TEXT    NOT NULL DEFAULT '',  -- YYYYMMDD — 그 기간 원본 보고서 접수일(disclosure 에서 잇는다 · 모르면 빈칸)
+    fetched_at        TEXT    NOT NULL,             -- 받은 시각 KST
+    raw_sha256        TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (corp_code, bsns_year, reprt_code, fs_div, sj_div, ord, account_id, account_detail, rcept_no)
+);
+CREATE INDEX IF NOT EXISTS ix_finfull_rcept ON financial_statement_full(rcept_no);
+CREATE INDEX IF NOT EXISTS ix_finfull_stock ON financial_statement_full(stock_code, bsns_year, reprt_code);
+"""
+SCHEMA += FIN_FULL_DDL
+
+
+#: 23. 전체 재무제표 분기 대조(계산한 것 · 2026-10-24 · 사용자 결정 「새 공시 + 분기마다 대조」) — 분기마다 351곳의 최근 두 사업연도를
+#:    다시 받아 우리 판과 맞춘 결과. 같은 접수번호인데 값이 다르면(API 쪽 조용한 고침) 우리 줄은 **처음 받은 그대로** 두고 여기에
+#:    적는다(그때 받은 응답 원문은 raw_response 에 남긴다) — 「그날 무엇을 알았나」 를 지키려는 것. 우리에게 없던 판은 표에 더한다.
+FIN_FULL_CHECK_DDL = """
+CREATE TABLE IF NOT EXISTS financial_full_check (
+    quarter       TEXT    NOT NULL,              -- 대조한 분기 YYYYQn(KST)
+    corp_code     TEXT    NOT NULL,
+    bsns_year     TEXT    NOT NULL,
+    reprt_code    TEXT    NOT NULL,
+    fs_div        TEXT    NOT NULL,
+    result        TEXT    NOT NULL,              -- same 같음 · new_version 없던 판 · silent_change 같은 접수번호 다른 값 · gone 우리엔 있는데 API 가 안 줌 · no_data 둘 다 없음
+    api_rcept_no  TEXT    NOT NULL DEFAULT '',   -- API 가 지금 준 판
+    our_rcept_no  TEXT    NOT NULL DEFAULT '',   -- 우리 표의 그 기간 가장 늦은 판(대조 전)
+    changed_rows  INTEGER NOT NULL DEFAULT 0,    -- 다른 줄 수(값 · 이름 · 새 줄 · 없어진 줄)
+    checked_at    TEXT    NOT NULL,
+    raw_sha256    TEXT    NOT NULL DEFAULT '',   -- 대조한 응답 원문의 지문(같음이면 원문은 남기지 않는다)
+    PRIMARY KEY (quarter, corp_code, bsns_year, reprt_code, fs_div)
+);
+"""
+SCHEMA += FIN_FULL_CHECK_DDL
 
 
 def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:

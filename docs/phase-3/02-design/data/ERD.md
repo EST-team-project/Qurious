@@ -1,15 +1,15 @@
-# ERD v1.11 — Qurious
+# ERD v1.12 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.11 · 그림자 일지 표 셋 / v1.10 · Qdrant 비공개 모음 / v1.9 · 초안(검토 전) |
+| **판 · 상태** | v1.12 · G1 ~ G3 표 넷 / v1.11 · 그림자 일지 표 셋 / v1.10 · Qdrant 비공개 모음 / v1.9 · 초안(검토 전) |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
 | **최종 수정** | 2026-10-24 (KST) |
-| **기준** | v1.11 은 코드 `main` `949b685` + 이 판 작업 트리(그림자 일지 표 셋 · 마이그레이션 `0026_paper_journal`) — 그림은 스캐너가 다시 채움(그동안 팀원 PR 로 들어온 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도 함께) / v1.10 까지는 코드 `main` `b195c22`(PR #173 신장환 성과 검증 규칙 설명 · 그 앞 #172 모의계좌 리셋 경계) + 재무 · 신용 위험(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-12(시세 · 시장금리) · 행 수는 2026-10-13 실측(12:30 회차와 `ecos` 단계 뒤) · 지난 판 기준: 코드 `main` `a39e531`(PR #118 · 팀원 리밸런싱 #114 · #116 · #118) + 섹터 질문 분류 · 화면 셋(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-01(시세) · 2026-10-02(공시 · 재무) · 행 수는 2026-10-06 실측(주주총회 과거분 2020-01 ~ 2023-12 를 받은 뒤 · 12:30 회차 전) |
+| **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 / v1.11 은 코드 `main` `949b685` + 이 판 작업 트리(그림자 일지 표 셋 · 마이그레이션 `0026_paper_journal`) — 그림은 스캐너가 다시 채움(그동안 팀원 PR 로 들어온 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도 함께) / v1.10 까지는 코드 `main` `b195c22`(PR #173 신장환 성과 검증 규칙 설명 · 그 앞 #172 모의계좌 리셋 경계) + 재무 · 신용 위험(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-12(시세 · 시장금리) · 행 수는 2026-10-13 실측(12:30 회차와 `ecos` 단계 뒤) · 지난 판 기준: 코드 `main` `a39e531`(PR #118 · 팀원 리밸런싱 #114 · #116 · #118) + 섹터 질문 분류 · 화면 셋(이 판과 같은 PR) · 수집 DB 데이터 기준일 2026-10-01(시세) · 2026-10-02(공시 · 재무) · 행 수는 2026-10-06 실측(주주총회 과거분 2020-01 ~ 2023-12 를 받은 뒤 · 12:30 회차 전) |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.10 → v1.11: 새 표 셋 — 모의투자 그림자 일지(`paper_journal_versions` · `days` · `notes` · 추가만 · 4.6절) · 스캐너 그림 다시 채움(팀원 PR 의 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도) · 4.1 표 8 · 그림 5 를 기계로 센 숫자로(앱 50표 · 관계 44 · users 에서 30) · 4.5 2026-10-24 대조 어긋남 0 · 표 속성 대장 다섯 줄(일지 셋 · `allocation_results` · `kb_sector_word`) / v1.9 → v1.10: Qdrant 모음 둘 → 셋 — 올린 문서는 새 비공개 모음 `user_docs`(주인 칸 `is_tenant` 색인 · 문서 ID) · `fin_chunks` 는 크롤 조각(공용)만 / v1.8 → v1.9: 새 표 넷 — 수집 `ecos_series`(한국은행 시장금리 · 37,648행) · 앱 `collect_requests` · `collect_workers`(화면 수집 요청 — 새 업무 영역 「데이터 수집 운영」) · `signal_snapshots`(신장환 #140 신호 기록 — 대장 줄은 문서 담당 초안 · 작성자가 확인할 칸) · 팀원 #172 의 `epoch` 칸 · 행 수 다시 잼(수집 20 → 21표 · 21,596,884 → 21,855,079행 · 앱 42 → 45표) · 표 속성 대장 71 → 75줄 — 전체는 부록 D · 지난 판 — v1.7 → v1.8: 행 수 다시 잼(주주총회 과거분) · 팀원 #114 리밸런싱 칸 7개 · 표 수 그대로 — 전체는 부록 D · 지난 판 — v1.6 → v1.7: 수집 19 → 20표(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.5 → v1.6: 수집 18 → 19표(`corp_schedule` 주주총회 · 배당금 지급 일정 — 계산한 표) · 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · `kb_raw` · `ks_doc` · `ks_choice` · `ks_article`) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.4 → v1.5: 수집 15 → 18표(공시 · 재무 · 공식 일정) · 다섯째 저장소 검색 색인 |
+| **최근 개정** | v1.11 → v1.12: 추가 — 수집 21 → 25표(G1 ~ G3 — `dart_company` · `ksic_code` · `financial_statement_full` · `financial_full_check` · 3.7절) · `ecos_series` 월 주기 / 변경 — 스캐너 그림 · 행 수 다시 채움(수집 23,686,395행) · 요약 1 / v1.10 → v1.11: 새 표 셋 — 모의투자 그림자 일지(`paper_journal_versions` · `days` · `notes` · 추가만 · 4.6절) · 스캐너 그림 다시 채움(팀원 PR 의 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도) · 4.1 표 8 · 그림 5 를 기계로 센 숫자로(앱 50표 · 관계 44 · users 에서 30) · 4.5 2026-10-24 대조 어긋남 0 · 표 속성 대장 다섯 줄(일지 셋 · `allocation_results` · `kb_sector_word`) / v1.9 → v1.10: Qdrant 모음 둘 → 셋 — 올린 문서는 새 비공개 모음 `user_docs`(주인 칸 `is_tenant` 색인 · 문서 ID) · `fin_chunks` 는 크롤 조각(공용)만 / v1.8 → v1.9: 새 표 넷 — 수집 `ecos_series`(한국은행 시장금리 · 37,648행) · 앱 `collect_requests` · `collect_workers`(화면 수집 요청 — 새 업무 영역 「데이터 수집 운영」) · `signal_snapshots`(신장환 #140 신호 기록 — 대장 줄은 문서 담당 초안 · 작성자가 확인할 칸) · 팀원 #172 의 `epoch` 칸 · 행 수 다시 잼(수집 20 → 21표 · 21,596,884 → 21,855,079행 · 앱 42 → 45표) · 표 속성 대장 71 → 75줄 — 전체는 부록 D · 지난 판 — v1.7 → v1.8: 행 수 다시 잼(주주총회 과거분) · 팀원 #114 리밸런싱 칸 7개 · 표 수 그대로 — 전체는 부록 D · 지난 판 — v1.6 → v1.7: 수집 19 → 20표(`news_item` 뉴스 — 정책뉴스 · 언론사 기사 메타데이터) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.5 → v1.6: 수집 18 → 19표(`corp_schedule` 주주총회 · 배당금 지급 일정 — 계산한 표) · 여섯째 저장소 섹터 법령 DB(`kb_sector.sqlite3` · `kb_raw` · `ks_doc` · `ks_choice` · `ks_article`) · 앱 42표 그대로 — 전체는 부록 D · 지난 판 — v1.4 → v1.5: 수집 15 → 18표(공시 · 재무 · 공식 일정) · 다섯째 저장소 검색 색인 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -20,7 +20,7 @@
 
 ## 요약
 
-1. 데이터는 **두 DB** 에 나뉘어 있다 — 수집 DB(SQLite · 18표 · 21,475,163행)는 시세 · 배당 · 지수 · ETF · 분봉 · 거래일 달력 · 공시 목록 · 재무 주요계정을, 앱 DB(PostgreSQL · 42표)는 사용자 · 주문 · 대화 · 용어사전을 담는다. 그 밖에 저장소가 둘 더 있다 — 법령 · 감독규정 근거 문서 DB(별도 SQLite `kb.sqlite3` · 4표 · 문서 14 · 청크 4,067)와 벡터 저장소 Qdrant(컬렉션 둘), 공시를 찾는 검색 색인(별도 SQLite `search.sqlite3` · 넷 · 2026-10-04 · 1.1절).
+1. 데이터는 **두 DB** 에 나뉘어 있다 — 수집 DB(SQLite · **25표 · 23,686,395행** · 2026-10-24 스캐너 실측)는 시세 · 배당 · 지수 · ETF · 분봉 · 거래일 달력 · 공시 목록 · 재무 주요계정 · **전체 재무제표 · 업종 · 한국은행 통계(2026-10-24 G1 ~ G3 · 3.7절)** 를, 앱 DB(PostgreSQL · 42표)는 사용자 · 주문 · 대화 · 용어사전을 담는다. 그 밖에 저장소가 둘 더 있다 — 법령 · 감독규정 근거 문서 DB(별도 SQLite `kb.sqlite3` · 4표 · 문서 14 · 청크 4,067)와 벡터 저장소 Qdrant(컬렉션 둘), 공시를 찾는 검색 색인(별도 SQLite `search.sqlite3` · 넷 · 2026-10-04 · 1.1절).
 2. 두 DB 는 **앱의 읽기 전용 연결에서만** 만난다 — 수집 DB 어댑터가 국내 주식 일봉을, 금융 강의 시세 모듈이 강의 그림의 지수 · ETF 를 읽는다(2.1절). 일봉 요청은 앱의 캐시 표를 거치지 않아 매일 12:30 갱신이 바로 보인다. 차트의 지수 · 해외 · 실시간 시세는 외부 API 에서 온다.
 3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 **50표 · 관계 44개** 중 30개가 `users` 에서 뻗는다(2026-10-24 · 스캐너 그림을 기계로 셈). 모델과 DB 의 어긋남은 **0** — 2026-10-24 일회용 DB 에 마이그레이션을 `0026_paper_journal` 까지 올려 모델 전체와 견주니 차이가 없었다(4.5절 · 2026-10-03 의 `portfolio.user_id` 외래키 어긋남은 그 뒤 마이그레이션으로 풀렸다). 새 표 셋은 모의투자 그림자 일지(4.6절 · 추가만)다.
 
@@ -148,7 +148,7 @@ flowchart LR
 아래 그림과 연결 축 표는 「수집 DB 의 표 열두 개는 무엇을 기본키로 삼고, 어느 칸으로 이어지나」 에 답한다. 스캐너 출력이라 제목에 번호가 없다(부록 B).
 
 <!-- schema_scan:erd-수집 -->
-**수집 DB — 시세 · 배당 · 지수 · 21표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
+**수집 DB — 시세 · 배당 · 지수 · 25표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
 
 ```mermaid
 erDiagram
@@ -179,6 +179,15 @@ erDiagram
     INTEGER base_price
     REAL factor
     _ 외5칸
+  }
+  dart_company {
+    TEXT corp_code PK
+    TEXT fields_sha256 PK
+    TEXT stock_code
+    TEXT corp_name
+    TEXT corp_name_eng
+    TEXT stock_name
+    _ 외10칸
   }
   disclosure {
     TEXT rcept_no PK
@@ -217,6 +226,18 @@ erDiagram
     INTEGER vs
     _ 외14칸
   }
+  financial_full_check {
+    TEXT quarter PK
+    TEXT corp_code PK
+    TEXT bsns_year PK
+    TEXT reprt_code PK
+    TEXT fs_div PK
+    TEXT result
+    TEXT api_rcept_no
+    TEXT our_rcept_no
+    INTEGER changed_rows
+    _ 외2칸
+  }
   financial_statement {
     TEXT corp_code PK
     TEXT bsns_year PK
@@ -229,6 +250,19 @@ erDiagram
     TEXT scope
     TEXT stock_code
     _ 외11칸
+  }
+  financial_statement_full {
+    TEXT corp_code PK
+    TEXT bsns_year PK
+    TEXT reprt_code PK
+    TEXT fs_div PK
+    TEXT sj_div PK
+    INTEGER ord PK
+    TEXT sj_nm
+    TEXT account_id PK
+    TEXT account_nm
+    TEXT account_detail PK
+    _ 외17칸
   }
   holiday_kasi {
     TEXT locdate PK
@@ -264,6 +298,16 @@ erDiagram
     TEXT market
     TEXT reason
     INTEGER rank
+  }
+  ksic_code {
+    TEXT revision PK
+    TEXT level PK
+    TEXT code PK
+    TEXT name
+    TEXT parent_code
+    TEXT section
+    TEXT loaded_at
+    _ 외1칸
   }
   market_calendar {
     TEXT cal_date PK
@@ -351,7 +395,13 @@ erDiagram
 | 연결 축 | 이 칸을 기본키로 쓰는 표 |
 |---|---|
 | `bas_dt` (8표) | `benchmark_index`, `corporate_action`, `etf_daily`, `index_daily`, `ingest_day`, `price_adjusted`, `price_daily`, `price_total_return` |
-| `rcept_no` (3표) | `corp_schedule`, `disclosure`, `financial_statement` |
+| `bsns_year` (3표) | `financial_full_check`, `financial_statement`, `financial_statement_full` |
+| `corp_code` (4표) | `dart_company`, `financial_full_check`, `financial_statement`, `financial_statement_full` |
+| `fs_div` (3표) | `financial_full_check`, `financial_statement`, `financial_statement_full` |
+| `ord` (2표) | `financial_statement`, `financial_statement_full` |
+| `rcept_no` (4표) | `corp_schedule`, `disclosure`, `financial_statement`, `financial_statement_full` |
+| `reprt_code` (3표) | `financial_full_check`, `financial_statement`, `financial_statement_full` |
+| `sj_div` (2표) | `financial_statement`, `financial_statement_full` |
 | `source` (2표) | `ingest_day`, `raw_response` |
 | `srtn_cd` (6표) | `corporate_action`, `dividend`, `etf_daily`, `price_adjusted`, `price_daily`, `price_total_return` |
 | `symbol` (2표) | `intraday_universe`, `price_intraday` |
@@ -464,6 +514,20 @@ price_daily            포털이 준 값 그대로 (정수 · 원)
 - 어댑터의 시험은 수집기의 실제 스키마로 시험용 DB 를 만들어, 표 모양이 어긋나면 실패한다(TC-CD).
 
 ---
+
+### 3.7 G1 ~ G3 매일 단계의 표 넷 — 업종 · 전체 재무제표 (2026-10-24)
+
+10-22 일회 수집 자료를 매일 회차 단계로 옮기며 수집 DB 에 표 넷을 더했다([목표 기능 ① 설계 v1.8](../system/목표기능1-데이터지식-설계.md) 5.2.5). 모두 외래키 없이 DART 고유번호(`corp_code`)로 이어진다.
+
+| 표 | 한 줄 | 기본 키 | 이어지는 곳 |
+|---|---|---|---|
+| `dart_company` | 회사 하나의 기업개황 판 하나 — 칸 값이 바뀌면 새 판 한 줄(지금 판 = `last_seen_at` 이 가장 늦은 줄) · 개인 칸 없음 | `corp_code` · `fields_sha256` | `induty_code` → `ksic_code.code` · `stock_code` → 시세 표 |
+| `ksic_code` | 한국표준산업분류 10 · 11차 코드 하나 | `revision` · `level` · `code` | `parent_code` → 같은 표(한 단계 위) |
+| `financial_statement_full` | 전체 재무제표 한 줄(계정 하나 · 정정본마다 한 벌) | `corp_code` · `bsns_year` · `reprt_code` · `fs_div` · `sj_div` · `ord` · `account_id` · `account_detail` · `rcept_no` | `rcept_no` → `disclosure` · 주요계정 표와 같은 날짜 둘 |
+| `financial_full_check` | 분기 대조 결과 한 줄(분기 · 회사 · 기간 · 구분) | `quarter` · `corp_code` · `bsns_year` · `reprt_code` · `fs_div` | `our_rcept_no` · `api_rcept_no` → `financial_statement_full` |
+
+- 전체 재무제표를 주요계정 표(`financial_statement`)에 넣지 않은 까닭 — 그 표의 기본 키(… `ord` · `account_nm` · `rcept_no`)로는 전체 재무제표 줄이 서로 겹친다(2024년 27만 6천 줄 실측 — 겹치지 않으려면 `account_id` · `account_detail` 까지 써야 한다).
+- `ecos_series` 는 표를 더하지 않고 계열만 늘었다(열한 계열) — 소비자물가는 **월 주기**(`cycle` = M · `date` = `YYYY-MM`)라 읽는 쪽은 `cycle` 로 거른다.
 
 ## 4. 앱 DB — 업무 영역별 🟡
 
@@ -1210,6 +1274,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.12 | 2026-10-24 | 추가 — 수집 21 → 25표(G1 ~ G3 — `dart_company` · `ksic_code` · `financial_statement_full` · `financial_full_check` · 3.7절) · `ecos_series` 월 주기 / 변경 — 스캐너 그림 · 행 수 다시 채움(수집 23,686,395행) · 요약 1 | 할 일 ①-05 — G1 ~ G3 매일 수집 단계 | `collector/db.py` 20 ~ 23절 · `scripts/schema_scan.py` · 목표 기능 ① 설계 v1.8 5.2.5 |
 | v1.11 | 2026-10-24 | 새 표 셋 — 모의투자 그림자 일지(`paper_journal_versions` · `days` · `notes` · 추가만 · 4.6절) · 스캐너 그림 다시 채움(팀원 PR 의 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도) · 4.1 표 8 · 그림 5 를 기계로 센 숫자로(앱 50표 · 관계 44 · users 에서 30) · 4.5 2026-10-24 대조 어긋남 0 · 표 속성 대장 다섯 줄(일지 셋 · `allocation_results` · `kb_sector_word`) | 그림자 일지 실행기(할 일 ①-26) · 문서가 코드보다 뒤처져 있었다(스캐너 `--check`) | `scripts/schema_scan.py --doc` · 일회용 DB 마이그레이션 대조(2026-10-24) · 결정 대장 2026-10-23 · 10-24 |
 | v1.10 | 2026-10-23 | Qdrant 모음 둘 → 셋 — 올린 문서는 새 비공개 모음 `user_docs`(주인 칸 `is_tenant` 색인 · 문서 ID) · `fin_chunks` 는 크롤 조각(공용)만 | 올린 문서가 공용 모음에 섞여 남의 채팅 · 검색에 보였다(DF-146 · 2026-10-23 재현) | 결함대장 DF-146 · 시험 TC-DI · TC-DIA · 조사 `2026-10-23-올린문서-사용자격리` |
 | v1.9 | 2026-10-13 | 추가 — 수집 20 → 21표(`ecos_series`) · 앱 업무 영역 「데이터 수집 운영」(`collect_requests` · `collect_workers` · 관계 2) · `signal_snapshots`(모의투자 · 주문 · 전략) · 팀원 #172 `epoch` 칸 / 변경 — 행 수 다시 잼(앱 42 → 45표) | 재무 · 신용 위험(시장금리 수집) · 대장에 없던 앱 표 셋 | `scripts/schema_scan.py` · 이 판과 같은 PR |

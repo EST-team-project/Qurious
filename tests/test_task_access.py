@@ -195,25 +195,31 @@ def test_all_http_producers_save_owner_before_publish_and_return_pollable_task(e
     env.app.include_router(ingest.router)
     monkeypatch.setattr(chat, "_get_or_create_conversation", AsyncMock(return_value=str(uuid.uuid4())))
     monkeypatch.setattr(ingest.url_guard, "ensure_allowed", AsyncMock())
+    if task_name == "translation_ingest_task":
+        # 번역 자료 API 는 기본으로 꺼져 있다(DF-149 문지기 · 2026-10-23) — 이 시험은 켠 상태의 발행 순서만 본다
+        # (꺼짐 · 403 은 TC-TA). 호스트에 langchain_ollama 가 없으면 위에서 건너뛰어 그동안 드러나지 않았다(2026-10-24).
+        from app.config import settings
+        monkeypatch.setattr(settings, "TRANSLATION_API_ENABLED", True)  # 켜도 관리자만 — 주인은 ADMIN
+    who = ADMIN if task_name == "translation_ingest_task" else A
     task = getattr(agent_tasks if task_name == "run_agent_task" else ingest_tasks, task_name)
     captured = []
 
     def publish(*, task_id, kwargs, retry):
         # 발행 함수가 불리는 순간 이미 커밋된 행이어야 한다.
-        assert str(env.db.rows[task_id].user_id) == A["id"]
+        assert str(env.db.rows[task_id].user_id) == who["id"]
         assert retry is False and not env.db.pending
         captured.append((task_id, kwargs))
         return SimpleNamespace(id=task_id)
 
     monkeypatch.setattr(task, "apply_async", publish)
-    response = env.client.post(path, json=body, headers=auth(kind="cookie"))
+    response = env.client.post(path, json=body, headers=auth(who, kind="cookie"))
     assert response.status_code == 200, response.text
     result = response.json()
     assert len(captured) == 1 and captured[0][0] == result["task_id"]
-    assert env.client.get(result["poll_url"], headers=auth()).status_code == 200
+    assert env.client.get(result["poll_url"], headers=auth(who)).status_code == 200
     assert env.client.get(result["poll_url"], headers=auth(B)).status_code == 404
     if task_name == "run_agent_task":
-        assert captured[0][1]["user_id"] == A["id"]
+        assert captured[0][1]["user_id"] == who["id"]
         assert captured[0][1]["question"] == body["question"]
     elif task_name == "url_crawl_task":
         assert captured[0][1] == {"url": body["url"]}

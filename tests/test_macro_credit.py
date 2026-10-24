@@ -71,7 +71,8 @@ def test_read_macro_latest_history_stats_change_and_attribution(dbfile):
     for i, d in enumerate(days):
         ds = d.isoformat()
         rows += [("010200000", ds, 3.0), ("010300000", ds, 3.0 + 0.5 + (i % 100) / 1000),
-                 ("010320000", ds, 9.0), ("010502000", ds, 3.2), ("010503000", ds, 3.5)]
+                 ("010320000", ds, 9.0), ("010502000", ds, 3.2), ("010503000", ds, 3.5),
+                 ("010210000", ds, 3.4)]
     _fill(dbfile, rows)
     out = M.read_macro(years=3, today=today)
     assert out["available"] and out["as_of"] == "2026-10-12" and out["source"] == M.ATTRIBUTION and out["region"] == "KR"

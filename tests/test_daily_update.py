@@ -17,6 +17,7 @@ import sqlite3
 
 import pytest
 
+from collector import config
 from collector.dividend import recent_months
 from scripts import daily_update as du
 from scripts import hf_dataset
@@ -1089,8 +1090,9 @@ def test_price_step_warns_on_69_and_still_stops_on_a_crash():
     from collector import backfill
     price = next(s for s in du.STEPS if s.name == "price")
     assert price.fatal is True and price.warn_codes == (du.EX_UNAVAILABLE,) == (backfill.EX_UNAVAILABLE,)
-    # 경고 종료코드를 둔 단계는 시세(69 — 다 받지 못함)와 모의 일지(10 — 판 바뀜 · 2026-10-24 · TC-PJ-13) 둘이다
-    assert [s.name for s in du.STEPS if s.warn_codes] == ["price", "journal"]
+    # 경고 종료코드를 둔 단계 — 시세(69 — 다 받지 못함) · 전체 재무제표(3 — 한도 · 상한에서 멈춤 · 2026-10-24 G3) · 기업 업종(3 · 10 —
+    # KSIC 원본 바뀜 · 확인 못 함 · G2) · 모의 일지(10 — 판 바뀜 · 2026-10-24 · TC-PJ-13)
+    assert [s.name for s in du.STEPS if s.warn_codes] == ["price", "financial_full", "company", "journal"]
     assert next(s for s in du.STEPS if s.name == "journal").warn_codes == (10,)
 
 
@@ -1204,3 +1206,74 @@ def test_app_beat_schedules_no_collector_task():
     found = sorted(k for k, v in sched.items() if str(v.get("task", "")).startswith("collector."))
     assert found == [], f"앱 Beat 에 수집 예약이 있다: {found}"
     assert collector_tasks.portal_recent_task.name == "collector.portal_recent", "태스크 정의는 남긴다"
+
+
+# ── DART 몫 · 하루 호출 장부(2026-10-24 · 할 일 ①-05 · 사용자 결정 「고정 몫 + 회차 뒤에만」) ──────────────────────────
+#: DART 를 부르는 수집기 모듈 — 러너 단계 가운데 이 모듈을 부르는 것은 모두 몫 표에 있어야 한다(몫 밖 호출이 없게).
+DART_MODULES = {"collector.dividend", "collector.disclosure", "collector.financials", "collector.financials_full",
+                "collector.dart_company", "collector.corp_schedule"}
+
+
+def test_dart_caps_sum_to_the_round_budget():
+    """TC-DU · 회차 DART 몫 — 단계 상한의 합 = 하루 몫 3,000(= 20,000 − 지난 해 채우기 15,000 − 예비 1,000 − 사람 확인 1,000) ·
+    DART 를 부르는 단계는 모두 몫 표에 있고 그 상한을 명령 인자로 받는다 · DART 를 안 부르는 단계에는 상한 인자가 없다."""
+    assert sum(du.DART_CAPS.values()) == du.DART_ROUND_BUDGET == 3_000
+    assert du.DART_ROUND_BUDGET + 15_000 + config.DART_RESERVE + 1_000 == config.DART_DAILY_LIMIT
+    dart_steps = {s.name for s in du.STEPS if s.args[:1] == ["-m"] and s.args[1] in DART_MODULES}
+    assert dart_steps == set(du.DART_CAPS), "DART 단계 = 몫 표"
+    for s in du.STEPS:
+        if s.name in du.DART_CAPS:
+            assert s.args[s.args.index("--max-calls") + 1] == str(du.DART_CAPS[s.name]), s.name
+        else:
+            assert "--max-calls" not in s.args, s.name
+
+
+def test_dart_ledger_is_measured_around_each_step(tmp_path, monkeypatch):
+    """TC-DU · 장부 — 러너는 단계마다 장부 경로를 자식에게 넘기고(환경변수) 앞뒤로 재어 그 단계 줄에 호출 수를 적는다 ·
+    이력 줄에도 남는다 · 오늘 합은 회차 단계 · 그 밖(지난 해 채우기)으로 나눈다 · 장부가 없으면 0 이고 회차는 그대로 돈다."""
+    ledger = tmp_path / "dart_calls.jsonl"
+    monkeypatch.setattr(du, "DART_LEDGER_PATH", ledger)
+    code = ("import json, os; open(os.environ['QURIOUS_DART_LEDGER'], 'a', encoding='utf-8').write(json.dumps("
+            "{'date': '2026-10-25', 'cmd': 'dividend scan', 'calls': 7}) + chr(10))")
+    step = du.Step("alpha", ["-c", code], 1, label="알파", group="받기", desc="시험")
+    log_path = tmp_path / "run.log"
+    with log_path.open("w", encoding="utf-8") as log:
+        run = du.Run(du.now_kst(), False, log, log_path)
+        assert du._run_step(run, step) == 0
+        rec = du._rec(step)
+        du._put_dart(run, step, rec)
+    assert run.dart_calls == {"alpha": 7} and rec["dart_calls"] == 7
+    assert du._compact([dict(rec, rc=0)])[0]["dart_calls"] == 7
+    with ledger.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"date": "2026-10-25", "cmd": "financials_full backfill", "calls": 500}) + "\n")
+        f.write(json.dumps({"date": "2026-10-24", "cmd": "dividend scan", "calls": 40}) + "\n")
+    assert du.dart_calls_today("2026-10-25") == {"round": 7, "other": 500}
+    quiet = du.Step("beta", ["-c", "pass"], 1, label="베타", group="받기", desc="시험")
+    with log_path.open("a", encoding="utf-8") as log:
+        run2 = du.Run(du.now_kst(), False, log, log_path)
+        du._run_step(run2, quiet)
+    assert run2.dart_calls == {}, "DART 를 안 부른 단계는 적지 않는다"
+    monkeypatch.setattr(du, "DART_LEDGER_PATH", tmp_path / "없음.jsonl")
+    assert du.dart_calls_today("2026-10-25") == {"round": 0, "other": 0}
+
+
+def test_dart_ledger_writes_only_when_the_runner_asks(tmp_path, monkeypatch):
+    """TC-DU · 장부 쓰기는 환경변수가 있을 때만 — 시험 · 손 명령(환경변수 없음)은 가짜 세션으로 불러도 진짜 장부를 더럽히지 않는다 ·
+    프로세스가 끝날 때 한 줄(날짜 · 명령 · 호출 수)."""
+    from collector.sources import dart
+
+    monkeypatch.setattr(dart, "_ledger", {"calls": 0, "armed": False})
+    monkeypatch.delenv(dart.LEDGER_ENV, raising=False)
+    registered = []
+    monkeypatch.setattr(dart.atexit, "register", lambda fn: registered.append(fn))
+    dart._ledger_count()
+    assert dart._ledger == {"calls": 1, "armed": False} and registered == []
+    ledger = tmp_path / "l.jsonl"
+    monkeypatch.setenv(dart.LEDGER_ENV, str(ledger))
+    dart._ledger_count()
+    dart._ledger_count()
+    assert registered == [dart._ledger_flush] and dart._ledger["calls"] == 3
+    dart._ledger_flush()
+    line = json.loads(ledger.read_text(encoding="utf-8"))
+    assert line["calls"] == 3 and len(line["date"]) == 10 and line["cmd"]
+    assert dart.ledger_lines(ledger, 0)[1] == [line] and dart.ledger_lines(tmp_path / "x", 0) == (0, [])

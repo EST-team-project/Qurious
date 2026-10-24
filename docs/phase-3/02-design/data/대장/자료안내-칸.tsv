@@ -435,3 +435,65 @@ kb_sector_word	doc_id	근거 문서 번호	코드	이 낱말이 있으면 검색
 kb_sector_word	sector_code	섹터 코드	코드	섹터 열한 가지와 공통(All)
 kb_sector_word	sector	섹터	이름	에너지 · 소재 · … · 공통
 kb_sector_word	source	낱말 출처	코드	정식 이름 · 약칭 · 업 이름
+financial_statement_full	corp_code	회사 고유번호	코드	전자공시가 회사마다 매긴 여덟 자리 번호
+financial_statement_full	bsns_year	사업연도	연도	보고서가 다루는 해 — 2025 꼴
+financial_statement_full	reprt_code	보고서 종류	코드	11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업보고서
+financial_statement_full	fs_div	재무제표 범위	코드	CFS 연결 · OFS 별도 — 연결재무제표를 내지 않는 회사 · 기간은 별도
+financial_statement_full	sj_div	재무제표 종류	코드	BS 재무상태표 · IS 손익계산서 · CIS 포괄손익계산서 · CF 현금흐름표 · SCE 자본변동표
+financial_statement_full	sj_nm	재무제표 이름	이름	출처가 준 재무제표 이름
+financial_statement_full	ord	계정 차례	차례	보고서 안에서 계정이 놓인 차례(출처 그대로)
+financial_statement_full	account_id	표준 계정	코드	국제회계기준 표준 계정 코드 — 회사가 따로 만든 계정은 「표준계정코드 미사용」 으로 온다
+financial_statement_full	account_nm	계정 이름	이름	회사가 보고서에 쓴 계정 이름(띄어쓰기만 하나로 접음)
+financial_statement_full	account_detail	자본 구성	글	자본변동표의 열(자본금 · 이익잉여금 같은 자본 구성요소) — 다른 표는 「-」
+financial_statement_full	rcept_no	접수번호	코드	이 값이 실린 보고서의 공시 접수번호 — 앞 여덟 자리가 접수일 · 정정이 있으면 정정본 번호
+financial_statement_full	stock_code	종목코드	코드	거래소 종목 단축코드 여섯 자리 — 우리 종목 목록에서 붙인다
+financial_statement_full	thstrm_nm	당기 이름	글	이번 기간의 이름 — 「제 57 기 3분기말」 꼴
+financial_statement_full	thstrm_amount	당기 금액	원	이번 기간 금액 — 분 · 반기 손익은 석 달치 · 달러로 보고한 회사는 달러
+financial_statement_full	thstrm_add_amount	당기 누적	원	분 · 반기 손익의 그해 처음부터 쌓인 금액
+financial_statement_full	frmtrm_nm	전기 이름	글	앞 기간의 이름
+financial_statement_full	frmtrm_amount	전기 금액	원	앞 기간 금액 — 재무상태표는 앞 사업연도 말
+financial_statement_full	frmtrm_q_nm	전기 같은 분기 이름	글	앞해 같은 분기의 이름(분 · 반기 보고서만)
+financial_statement_full	frmtrm_q_amount	전기 같은 분기 금액	원	앞해 같은 분기 금액(분 · 반기 손익)
+financial_statement_full	frmtrm_add_amount	전기 누적	원	앞해 같은 기간까지 쌓인 금액
+financial_statement_full	bfefrmtrm_nm	전전기 이름	글	두 해 앞 기간의 이름(사업보고서만)
+financial_statement_full	bfefrmtrm_amount	전전기 금액	원	두 해 앞 금액(사업보고서만)
+financial_statement_full	currency	통화	코드	금액의 통화 — 거의 원(KRW) · 달러(USD)로 보고하는 회사도 있다
+financial_statement_full	known_at	알 수 있었던 날	날짜	이 값 그대로를 처음 알 수 있었던 날 — 접수번호 앞 여덟 자리
+financial_statement_full	first_known_at	처음 공개일	날짜	그 기간 보고서가 처음 나온 날(정정 전 원본) — 공시 목록에서 잇는다 · 모르면 빈칸
+financial_statement_full	fetched_at	받은 시각	시각	출처에서 받은 시각
+financial_statement_full	raw_sha256	원문 지문	지문	이 값이 나온 응답 원문의 지문
+financial_full_check	quarter	대조 분기	글	대조한 분기 — 2026Q4 꼴(한국 시각)
+financial_full_check	corp_code	회사 고유번호	코드	전자공시가 회사마다 매긴 여덟 자리 번호
+financial_full_check	bsns_year	사업연도	연도	대조한 보고서의 해
+financial_full_check	reprt_code	보고서 종류	코드	11013 1분기 · 11012 반기 · 11014 3분기 · 11011 사업보고서
+financial_full_check	fs_div	재무제표 범위	코드	CFS 연결 · OFS 별도
+financial_full_check	result	대조 결과	코드	same 같음 · new_version 우리에게 없던 판(더함) · silent_change 같은 접수번호인데 값이 다름(우리 값은 그대로 · 원문은 남김) · gone 출처가 더는 주지 않음 · no_data 둘 다 없음
+financial_full_check	api_rcept_no	지금 판 접수번호	코드	대조할 때 출처가 준 판의 접수번호
+financial_full_check	our_rcept_no	우리 판 접수번호	코드	대조 전 우리에게 있던 그 기간의 가장 늦은 판
+financial_full_check	changed_rows	다른 줄 수	개	같은 판에서 값 · 이름이 다르거나 한쪽에만 있는 계정 줄 수
+financial_full_check	checked_at	대조 시각	시각	대조한 시각
+financial_full_check	raw_sha256	원문 지문	지문	대조한 응답 원문의 지문 — 같음이면 원문은 남기지 않는다
+dart_company	corp_code	회사 고유번호	코드	전자공시가 회사마다 매긴 여덟 자리 번호
+dart_company	fields_sha256	판 지문	지문	아래 칸 값들의 지문 — 값이 하나라도 바뀌면 새 판 한 줄
+dart_company	stock_code	종목코드	코드	거래소 종목 단축코드 여섯 자리
+dart_company	corp_name	회사 이름	이름	정식 회사 이름
+dart_company	corp_name_eng	영문 이름	이름	회사의 영문 이름
+dart_company	stock_name	종목 이름	이름	거래소에 올라 있는 종목 이름
+dart_company	corp_cls	시장 구분	코드	Y 유가증권 · K 코스닥 · N 코넥스 · E 기타
+dart_company	induty_code	업종코드	코드	한국표준산업분류 코드 — 회사마다 세 자리(소분류) ~ 다섯 자리(세세분류)
+dart_company	est_dt	설립일	날짜	회사를 세운 날 — 20010101 꼴
+dart_company	acc_mt	결산월	코드	사업연도가 끝나는 달 — 12 꼴
+dart_company	hm_url	회사 누리집	주소	회사가 적은 누리집 주소
+dart_company	ir_url	IR 누리집	주소	회사가 적은 투자자 정보 누리집 주소
+dart_company	universe	받을 때 종목 목록 판	글	받을 때 든 분봉 종목 목록의 판 이름
+dart_company	first_seen_at	처음 본 시각	시각	이 판을 처음 받은 시각
+dart_company	last_seen_at	마지막 확인	시각	이 판을 마지막으로 다시 받아 본 시각 — 회사마다 가장 늦은 줄이 지금 판
+dart_company	raw_sha256	원문 지문	지문	처음 받은 응답 원문의 지문 — 원문은 남기지 않는다(대표자 · 연락처 칸이 들어 있다)
+ksic_code	revision	개정 차수	코드	한국표준산업분류 몇 차 개정인가 — 11 · 10
+ksic_code	level	분류 단계	이름	대분류 · 중분류 · 소분류 · 세분류 · 세세분류
+ksic_code	code	분류 코드	코드	대분류는 영문자 하나 · 그 밖은 숫자 두 ~ 다섯 자리
+ksic_code	name	항목명	이름	고시의 항목 이름
+ksic_code	parent_code	위 단계 코드	코드	한 단계 위 분류의 코드 — 대분류는 빈칸
+ksic_code	section	대분류	코드	그 코드가 속한 대분류
+ksic_code	loaded_at	읽은 시각	시각	고시 파일을 읽어 표로 만든 시각
+ksic_code	source_sha256	원본 지문	지문	읽은 고시 파일의 지문

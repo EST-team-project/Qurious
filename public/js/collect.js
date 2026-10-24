@@ -215,7 +215,7 @@ function stepsTable(d, view) {
         : "";
       return `<tr class="${s.status === "failed" ? "cl-row--fail" : ""} ${isRerun ? "cl-row--rerun" : ""} ${why ? "cl-row--why" : ""}" data-step="${escHtml(s.name)}">
         <td class="cl-n">${idx}</td><td class="cl-name">${escHtml(s.label || s.name)}</td>
-        <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}${days}</td>
+        <td class="cl-desc">${escHtml(s.desc || "")}${s.status === "skipped" && s.note ? ` <span class="q-muted">· ${escHtml(s.note)}</span>` : ""}${days}${s.dart_calls ? ` <span class="q-muted">· DART ${escHtml(Number(s.dart_calls).toLocaleString("ko-KR"))}회</span>` : ""}</td>
         <td>${time}</td><td class="cl-res cl-st--${tone === "skip" ? "pending" : tone}">${txt}${s.fill_days ? `<span class="cl-badge">채울 날 ${escHtml(String(s.fill_days))}</span>` : ""}</td>
         <td class="cl-act">${stepActionHtml(s.name, d.running, fillFor(d, s.name))}</td></tr>${why}`;
     }).join("");
