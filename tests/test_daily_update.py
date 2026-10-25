@@ -922,6 +922,25 @@ def test_upload_step_keeps_the_fill_days_and_the_run_goes_on(fake_runner, monkey
     fill = json.loads((t / "state/daily_update_fill.json").read_text(encoding="utf-8"))
     assert fill["steps"] == {"signals": {"days": ["2026-10-06"]}}, "빠진 날 상태가 올릴 목록으로 덮이지 않는다"
 
+
+def test_runner_tests_write_the_run_record_copy_only_under_tmp(fake_runner, monkeypatch):
+    """시험은 진짜 회차 기록 사본(`data/hf_export/meta/run_record.json`)을 쓰지 않는다(DF-156 · 2026-10-25) — 올리기 단계가 있는
+    가짜 러너 시험이 `hf_dataset.RUN_RECORD_PATH` 를 덮지 않아, 머지 뒤 c 명령의 빠른 시험이 데스크톱의 진짜 사본을 시험 기록
+    (2026-10-12 15:00 · 단계 alpha · upload)으로 바꿨다. 올리기는 러너가 넘긴 시각과 다른 사본을 싣지 않고 지워 원격 피해는 없었다.
+    모든 시험의 자동 픽스처(`tests/conftest.py` `_no_real_hub`)가 그 경로를 임시 폴더로 돌린다 — 경로부터 보고(고치기 앞 판에서도
+    진짜 파일을 쓰지 않고 멈추게) 회차를 돈다."""
+    t = fake_runner
+    real = hf_dataset.EXPORT_DIR / "meta" / hf_dataset.RUN_RECORD_PATH.name
+    assert t in hf_dataset.RUN_RECORD_PATH.parents, f"회차 기록 사본이 임시 폴더 밖이다: {hf_dataset.RUN_RECORD_PATH}"
+    before = real.stat().st_mtime_ns if real.exists() else None
+    du.STEPS[:] = [du.Step("alpha", ["-c", "pass"], 1, label="가 단계", group="받기", desc="첫 일"),
+                   du.Step("upload", ["-c", "pass"], 1, upload=True, label="올리기", group="백업", desc="바뀐 조각을 올린다")]
+    monkeypatch.setattr(du, "_pending_upload", lambda: ["price_daily/year=2026/part-00000.parquet"])
+    assert du.run_all(upload=True) == 0
+    rec = json.loads(hf_dataset.RUN_RECORD_PATH.read_text(encoding="utf-8"))
+    assert [s["name"] for s in rec["run"]["steps"]] == ["alpha", "upload"], "올리기 앞에 이 회차 기록을 임시 폴더에 쓴다"
+    assert (real.stat().st_mtime_ns if real.exists() else None) == before, "진짜 사본은 그대로"
+
 # ── 자료 안내 숫자 파일(2026-10-11 · 자료 안내 2단계 · 결정 ④ 「숫자는 러너가 회차마다 쓰는 파일」) ──────────────
 def _numbers_db(path):
     """표 하나(주식 일봉 두 줄)만 있는 작은 수집 DB — 나머지 표는 없다(「없음」 이 되어야 한다)."""
