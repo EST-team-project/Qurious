@@ -84,8 +84,11 @@ def run_child(args: Sequence[str], log: TextIO, timeout_s: int) -> int:
     """`hf_dataset.py <args>` 를 자식으로 — 출력은 로그 파일로(작업 스케줄러는 창 없는 pythonw 로 부른다)."""
     cmd = [du.child_python(), str(ROOT / "scripts" / "hf_dataset.py"), *args]
     env = {**os.environ, "PYTHONPATH": str(ROOT), "PYTHONIOENCODING": "utf-8"}
+    # 창 없이 — 자식(콘솔 python)이 창과 함께 뜨면 그 창이 닫힐 때 단계가 0xC000013A 로 끊긴다(DF-158 · 러너 · 작업자와 같은 깃발)
+    flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     try:
-        return subprocess.run(cmd, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=timeout_s).returncode
+        return subprocess.run(cmd, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=timeout_s,
+                              creationflags=flags).returncode
     except subprocess.TimeoutExpired:
         return 124
 

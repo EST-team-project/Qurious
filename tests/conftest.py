@@ -39,10 +39,12 @@ def _clear_live_trading_env(monkeypatch):
 def _no_real_hub(monkeypatch, tmp_path):
     """시험은 실제 Hugging Face 에 닿지 않는다(2026-10-25 S147 — 러너 시험이 `.env` 토큰으로 실제 백업 저장소의 임대 가지에
     잡기 · 닫기 커밋을 썼다). ① huggingface_hub 오프라인 — 실제 HTTP 요청은 모두 ``OfflineModeIsEnabled`` 로 멈춘다(가짜 HfApi 를
-    넘기는 시험은 그대로 돈다) ② 여러 PC 모듈의 토큰 읽기(``make_api``)를 막는다 ③ 그 모듈들의 상태 파일을 임시 폴더로."""
+    넘기는 시험은 그대로 돈다) ② 여러 PC 모듈의 토큰 읽기(``make_api``)를 막는다 ③ 그 모듈들의 상태 파일을 임시 폴더로
+    ④ 회차 기록 사본(``hf_dataset.RUN_RECORD_PATH`` — 러너가 올리기 단계 직전에 쓴다)도 임시 폴더로(DF-156 · 2026-10-25 S148 — 올리기
+    단계가 있는 가짜 러너 시험이 진짜 `data/hf_export/meta/run_record.json` 을 시험 기록으로 덮었다)."""
     import huggingface_hub.constants as hub_constants
 
-    from scripts import hf_sync, run_lease
+    from scripts import hf_dataset, hf_sync, run_lease
 
     monkeypatch.setattr(hub_constants, "HF_HUB_OFFLINE", True)
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
@@ -57,6 +59,7 @@ def _no_real_hub(monkeypatch, tmp_path):
     monkeypatch.setattr(hf_sync, "BASE_PATH", state / "hf_sync_base.json")
     monkeypatch.setattr(hf_sync, "LAST_PATH", state / "hf_sync_last.json")
     monkeypatch.setattr(hf_sync, "STAGE_DIR", state / "hf_sync_stage")
+    monkeypatch.setattr(hf_dataset, "RUN_RECORD_PATH", tmp_path / "hf_export" / "meta" / "run_record.json")
 
 
 @pytest.fixture

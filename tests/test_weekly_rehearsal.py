@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -192,3 +193,21 @@ def test_두_곳에_적힌_값이_같다():
   assert hf_dataset.STATUS_SNAPSHOT_PATH.name == ds.BACKUP_STATUS_FILE == bs.STATUS_FILE
   assert ds.REHEARSAL_COMMAND == bs.COMMANDS["restore"]
   assert wr.TIMEOUT_MIN * 60 >= 495 * 2, "한 바퀴 한도가 10-08 리허설(495초)의 두 배는 된다"
+
+def test_자식은_창_없이_띄운다(monkeypatch):
+  """작업 스케줄러는 창 없는 pythonw 로 부른다 — 자식(콘솔 python)을 창 없이 띄우지 않으면 단계마다 검은 창이 뜨고, 그 창이 닫히면
+  단계가 0xC000013A 로 끊긴다(DF-158 · 2026-10-25 15:00 데스크톱의 복원 리허설이 140초 만에 끊김). 러너(`daily_update`) · 수집 요청
+  작업자와 같은 깃발."""
+  seen = {}
+
+  class _Done:
+    returncode = 0
+
+  def fake_run(cmd, **kw):
+    seen.update(kw)
+    return _Done()
+
+  monkeypatch.setattr(wr.subprocess, "run", fake_run)
+  assert wr.run_child(["status", "--write"], log=None, timeout_s=60) == 0
+  want = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+  assert seen.get("creationflags", 0) == want, f"자식이 창과 함께 뜬다: creationflags={seen.get('creationflags')}"
