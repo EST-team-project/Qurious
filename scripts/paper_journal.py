@@ -7,12 +7,20 @@
     python scripts/paper_journal.py note --version 1 --kind change_reason --text "…" [--author 이동원] [--date YYYY-MM-DD]
     python scripts/paper_journal.py export                                앱 DB → 내보내기 폴더만 다시
     python scripts/paper_journal.py upload [--yes]                        내보내기 폴더 → HF 비공개 원장(새 파일만 · 추가만 확인)
+    python scripts/paper_journal.py pull                                  HF 비공개 원장 → 이 PC 앱 DB(없는 판 · 행 · 메모만 · 여러 PC)
+    python scripts/paper_journal.py daily --pull                          원장을 먼저 받고 그 뒤를 계산(12:30 러너가 이렇게 부른다)
 
-12:30 러너의 `journal` 단계가 `daily --quiet` 를, `journal_upload` 단계가 `upload --yes --quiet` 를 부른다. 앱 DB 주소는 러너가
-넘겨 준다 — 손으로 돌릴 때 `DATABASE_URL` 이 없으면 러너와 같은 방법(compose 에서 PC 쪽 포트)으로 만든다.
+12:30 러너의 `journal` 단계가 `daily --quiet --pull` 을, `journal_upload` 단계가 `upload --yes --quiet` 를 부른다. 앱 DB 주소는
+러너가 넘겨 준다 — 손으로 돌릴 때 `DATABASE_URL` 이 없으면 러너와 같은 방법(compose 에서 PC 쪽 포트)으로 만든다.
 
-종료코드 — 0 성공 · 1 실패(추가만 위반 · private 아님 포함) · 2 받는 값이 틀림 · 3 앱 DB 꺼짐 · 10 판 바뀜(새 판을 등록했다 —
-러너가 「경고」 로 센다)
+여러 PC(2026-10-25 · 설계 `여러PC-회차-설계.md` 6절) — 회차가 PC 를 옮겨 다니면 판 등록 · 행이 앞 PC 의 앱 DB 에만 있다. 그대로
+`daily` 를 돌리면 판이 「아직 등록 안 함」 으로 건너뛰거나, 원장에 있는 날을 다시 계산해 올리기가 「추가만 위반」 으로 멈춘다.
+그래서 계산 앞에 원장(정본)을 받는다 — 판 · 메모 번호는 원장 그대로 넣고(판 지문 · 메모가 그 번호를 가리킨다), 넣은 뒤 다시
+내보낸 내용 지문이 원장과 **모두** 같아야 커밋한다. 같은 경로에 다른 내용이 있으면 아무것도 쓰지 않고 멈춘다(사람이 정한다).
+판 지문에 든 함수(`app/services/paper_journal.py`)는 고치지 않았다 — 받기는 이 파일에만 있다.
+
+종료코드 — 0 성공 · 1 실패(추가만 위반 · private 아님 포함) · 2 받는 값이 틀림 · 3 앱 DB 꺼짐 · 4 원장 받기 실패(닿지 못함 · 이
+PC 와 겹침 — 그날 계산도 하지 않는다) · 10 판 바뀜(새 판을 등록했다 — 러너가 「경고」 로 센다)
 """
 from __future__ import annotations
 
@@ -149,6 +157,11 @@ def _export() -> dict:
 def cmd_daily(a) -> int:
     from app.services import paper_journal as pj
 
+    if getattr(a, "pull", False):                     # 여러 PC — 원장을 먼저 맞춘다(못 맞추면 계산하지 않는다)
+        rc = cmd_pull(a)
+        if rc:
+            print("[건너뜀] 원장을 맞추지 못해 오늘 계산을 하지 않는다 — 다음 회차가 이어서 계산한다(catch_up)")
+            return rc
     until = date.fromisoformat(a.to) if a.to else None
 
     async def go(session):
@@ -318,6 +331,178 @@ def cmd_upload(a) -> int:
     return 0
 
 
+# ── HF 받기 (원장 → 이 PC 앱 DB · 여러 PC · 2026-10-25) ───────────────────────
+
+#: 마지막 받기 요약 — 러너의 따라가기가 「받은 것이 있었나」 를 읽는다(아무것도 없으면 조용히 끝낸다).
+PULL_LAST_PATH = config.STATE_DIR / "paper_journal_pull_last.json"
+#: 원장 받기 실패 — 닿지 못했거나 이 PC 앱 DB 와 겹친다(러너는 경고로 센다 · 다음 회차가 다시).
+EXIT_PULL = 4
+
+
+def _ledger_download(api) -> tuple[Optional[str], dict, Optional[Path]]:
+    """원장을 머리(40자)로 고정해 전부 받는다(작다 · 1MB 남짓) — (머리, 지문 목록, 받은 폴더). 저장소가 없으면 (None, {}, None)."""
+    import hashlib
+    import tempfile
+
+    from huggingface_hub.errors import RepositoryNotFoundError
+
+    try:
+        head = api.repo_info(REPO_ID, repo_type="dataset", timeout=30).sha
+    except RepositoryNotFoundError:
+        return None, {}, None
+    root = Path(tempfile.mkdtemp(prefix="qurious-journal-pull-"))
+    api.snapshot_download(REPO_ID, repo_type="dataset", revision=head, local_dir=str(root))
+    man = _read_json(root / "manifest.json")
+    for rel, meta in (man.get("files") or {}).items():
+        p = root / rel
+        if not p.exists() or hashlib.sha256(p.read_bytes()).hexdigest() != meta.get("sha256"):
+            raise ValueError(f"원장 파일이 지문 목록과 다르다 — {rel}")
+    return head, man, root
+
+
+def _ledger_record(path: Path) -> dict:
+    """원장 파일 하나 → 내보낼 때의 기록 — json 은 그대로 · parquet 은 한 행(묶음 칸은 JSON 글자를 푼다)."""
+    from app.services import paper_journal as pj
+
+    if path.suffix == ".json":
+        return json.loads(path.read_text(encoding="utf-8"))
+    import pyarrow.parquet as pq
+
+    row = pq.ParquetFile(path).read().to_pylist()[0]
+    return {k: (json.loads(v) if k in pj.NESTED and isinstance(v, str) else v) for k, v in row.items()}
+
+
+def _d(s):
+    return date.fromisoformat(s) if s else None
+
+
+def _t(s):
+    return datetime.fromisoformat(s) if s else None
+
+
+def _version_row(r: dict) -> dict:
+    keep = ("id", "rule_id", "version_no", "attempt_no", "registered_by", "fingerprint", "fingerprint_parts", "watch_parts",
+            "spec", "code_commit", "python", "supersedes_id", "change_parts")
+    return {**{k: r.get(k) for k in keep}, "registered_at": _t(r.get("registered_at")),
+            "seal_start": _d(r.get("seal_start")), "post_hoc_from": _d(r.get("post_hoc_from")),
+            "post_hoc_to": _d(r.get("post_hoc_to"))}
+
+
+def _note_row(r: dict) -> dict:
+    return {"id": r.get("id"), "version_id": r.get("version_id"), "trade_date": _d(r.get("trade_date")),
+            "kind": r.get("kind"), "author": r.get("author"), "written_at": _t(r.get("written_at")), "text": r.get("text")}
+
+
+def _day_row(r: dict) -> dict:
+    from app.services import paper_journal as pj
+
+    out = {k: r.get(k) for k in pj.DAY_FIELDS}
+    out.update(trade_date=_d(r.get("trade_date")), data_as_of=_d(r.get("data_as_of")),
+               computed_at=_t(r.get("computed_at")))
+    return out
+
+
+async def _pull(session, remote: dict, root: Path) -> dict:
+    """원장 → 이 PC 앱 DB — 없는 판 · 메모 · 행만 더한다(추가만). 같은 경로에 다른 내용이 있거나 번호가 겹치면 아무것도 쓰지 않는다.
+
+    넣은 뒤 다시 내보낸 내용 지문이 원장의 모든 파일과 같아야 커밋한다(아니면 되돌린다) — 다음 올리기의 「추가만」 확인과 같은 잣대.
+    """
+    from sqlalchemy import text
+
+    from app.models.paper_journal import PaperJournalDay, PaperJournalNote, PaperJournalVersion
+    from app.services import paper_journal as pj
+
+    async def stop(state: str, why: str, paths: list) -> dict:
+        await session.rollback()
+        return {"state": state, "why": why, "paths": paths[:10]}
+
+    versions, days, notes = await pj.load_all(session)
+    local = pj.export_rows(versions, days, notes)
+    rfiles = remote.get("files") or {}
+    clash = sorted(rel for rel, meta in rfiles.items()
+                   if rel in local and pj.content_sha(local[rel]["record"]) != meta.get("content_sha256"))
+    if clash:
+        return await stop("conflict", "같은 경로에 다른 내용 — 이 PC 앱 DB 의 일지가 원장과 갈라졌다", clash)
+    todo = sorted(rel for rel in rfiles if rel not in local)
+    if not todo:
+        return {"state": "same", "imported": 0}
+    recs = {rel: _ledger_record(root / rel) for rel in todo}
+    new_versions = sorted((r for rel, r in recs.items() if rel.startswith("versions/")), key=lambda r: r["id"])
+    taken = [f"판 id {r['id']}" for r in new_versions if r["id"] in {v["id"] for v in versions}]
+    if taken:
+        return await stop("conflict", "원장의 판 번호를 이 PC 의 다른 판이 쓰고 있다", taken)
+    for r in new_versions:                            # 판 먼저 — 메모 · 행이 판 번호를 가리킨다(번호는 원장 그대로)
+        session.add(PaperJournalVersion(**_version_row(r)))
+    await session.flush()
+    vid = {(v["rule_id"], v["version_no"]): v["id"] for v in versions}
+    vid.update({(r["rule_id"], r["version_no"]): r["id"] for r in new_versions})
+    have_notes = {n["id"] for n in notes}
+    for rel, r in sorted(recs.items()):
+        if rel.startswith("notes/"):
+            if r.get("id") in have_notes:
+                return await stop("conflict", "원장의 메모 번호를 이 PC 의 다른 메모가 쓰고 있다", [rel])
+            session.add(PaperJournalNote(**_note_row(r)))
+        elif rel.startswith("rows/"):
+            key = (r.get("rule_id"), r.get("version_no"))
+            if key not in vid:
+                return await stop("conflict", "행의 판이 이 PC 에도 원장에도 없다", [rel])
+            session.add(PaperJournalDay(version_id=vid[key], **_day_row(r)))
+    await session.flush()
+    for t in ("paper_journal_versions", "paper_journal_notes", "paper_journal_days"):   # 원장 번호를 넣었으니 다음 자동 번호는 그 뒤로
+        await session.execute(text(f"SELECT setval(pg_get_serial_sequence('{t}', 'id'), "
+                                   f"(SELECT COALESCE(MAX(id), 0) + 1 FROM {t}), false)"))
+    v2, d2, n2 = await pj.load_all(session)
+    again = pj.export_rows(v2, d2, n2)
+    bad = sorted(rel for rel, meta in rfiles.items()
+                 if rel not in again or pj.content_sha(again[rel]["record"]) != meta.get("content_sha256"))
+    if bad:
+        return await stop("mismatch", "받아 넣은 뒤 다시 내보낸 내용 지문이 원장과 다르다 — 되돌렸다", bad)
+    await session.commit()
+    kinds = [rel.split("/", 1)[0] for rel in todo]
+    return {"state": "imported", "imported": len(todo), "versions": kinds.count("versions"), "rows": kinds.count("rows"),
+            "notes": kinds.count("notes")}
+
+
+def cmd_pull(a) -> int:
+    from huggingface_hub import HfApi
+
+    from scripts import run_lease
+
+    tok = _token(required=False)
+    if not tok:
+        print("[건너뜀] HUGGINGFACE_ACCESS_TOKEN 이 없다 — 원장을 받을 수 없다(.env)")
+        _write_json(PULL_LAST_PATH, {"at": _now().isoformat(timespec="seconds"), "state": "no_token", "imported": 0})
+        return EXIT_PULL
+    run_lease.set_timeouts()
+    try:
+        head, remote, root = _ledger_download(HfApi(token=tok))
+    except Exception as e:  # noqa: BLE001 — 닿지 못함 · 지문 다름: 받기 실패로 끝낸다(계산하지 않는다)
+        print(f"[실패] 원장을 받지 못했다 — {type(e).__name__}: {str(e)[:120]}")
+        _write_json(PULL_LAST_PATH, {"at": _now().isoformat(timespec="seconds"), "state": "error",
+                                     "why": type(e).__name__, "imported": 0})
+        return EXIT_PULL
+    if not remote:
+        print("― 원장이 아직 없다(받을 것 없음)")
+        _write_json(PULL_LAST_PATH, {"at": _now().isoformat(timespec="seconds"), "state": "empty", "imported": 0})
+        return 0
+    import shutil
+
+    try:
+        out = asyncio.run(_with_session(lambda s: _pull(s, remote, root)))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+    out.update(at=_now().isoformat(timespec="seconds"), head=(head or "")[:12])
+    _write_json(PULL_LAST_PATH, out)
+    if out["state"] in ("conflict", "mismatch"):
+        print(f"[멈춤] {out['why']} — {', '.join(out['paths'])}")
+        return EXIT_PULL
+    if out["state"] == "imported":
+        print(f"― 원장 받기 {(head or '')[:8]} · 판 {out['versions']} · 행 {out['rows']} · 메모 {out['notes']}")
+    elif not getattr(a, "quiet", False):
+        print(f"― 원장 받기 {(head or '')[:8]} · 새 파일 0 — 이 PC 앱 DB 와 같다")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python scripts/paper_journal.py", description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -328,6 +513,9 @@ def main(argv=None) -> int:
     p.add_argument("--to", help="이날까지만(YYYY-MM-DD · 기본 오늘)")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--no-export", action="store_true", help="내보내기 폴더를 다시 쓰지 않는다")
+    p.add_argument("--quiet", action="store_true")
+    p.add_argument("--pull", action="store_true", help="계산 앞에 HF 원장을 이 PC 앱 DB 로 받는다(여러 PC)")
+    p = sub.add_parser("pull", help="HF 원장 → 이 PC 앱 DB(없는 판 · 행 · 메모만)")
     p.add_argument("--quiet", action="store_true")
     p = sub.add_parser("note")
     p.add_argument("--version", type=int, help="판 id(빈칸이면 판 없는 메모)")
@@ -356,7 +544,7 @@ def main(argv=None) -> int:
         return 3
     try:
         return {"status": cmd_status, "register": cmd_register, "daily": cmd_daily, "note": cmd_note,
-                "export": cmd_export}[a.cmd](a)
+                "export": cmd_export, "pull": cmd_pull}[a.cmd](a)
     except FileNotFoundError as e:
         print(f"[실패] {e}")
         return 1

@@ -393,7 +393,8 @@ def test_pj13_runner_steps():
     names = [s.name for s in du.STEPS]
     assert names.index("signals") + 1 == names.index("journal") and names.index("journal") + 1 == names.index("manifest")
     j = next(s for s in du.STEPS if s.name == "journal")
-    assert j.args == ["scripts/paper_journal.py", "daily", "--quiet"] and j.app_db and not j.fatal and j.catch_up
+    # 여러 PC(2026-10-25) — 계산 앞에 HF 원장을 이 PC 앱 DB 로 받는다(``--pull`` · 받지 못하면 4 · 그날 계산 안 함)
+    assert j.args == ["scripts/paper_journal.py", "daily", "--quiet", "--pull"] and j.app_db and not j.fatal and j.catch_up
     assert pj.EXIT_VERSION_CHANGED in j.warn_codes and not j.fill_args
     u = next(s for s in du.STEPS if s.name == "journal_upload")
     assert names.index("ohlcv_upload") + 1 == names.index("journal_upload")
@@ -478,3 +479,91 @@ def test_pj14_register_daily_idempotent_and_auto_version(cdb, monkeypatch):
     assert vers[1].post_hoc_from is None and vers[1].seal_start == date(2026, 9, 21)
     assert n3 == 13, "옛 판의 남은 날(09-18)은 계산하지 않는다"
     assert kinds == ["opening", "ops"]
+
+# ── TC-PJ-17 · 18 원장 받기(여러 PC · 2026-10-25) ───────────────────────────────────────────
+
+def test_pj17_ledger_round_trip_keeps_every_content_fingerprint(tmp_path):
+    """TC-PJ-17 · 원장 파일 → 앱 DB 줄로 되돌린 값으로 다시 내보내면 모든 파일의 내용 지문이 원장과 같다(판 · 메모 번호 · 시각 · 날짜 ·
+    묶음 칸 JSON · 실수) — 받아 넣은 PC 의 다음 올리기가 「추가만 위반」 으로 멈추지 않는 근거(DB 없이 도는 쪽)."""
+    import types
+
+    from scripts import paper_journal as cli
+
+    v = {"id": 7, "rule_id": pj.RULE_CARD, "version_no": 1, "attempt_no": 1,
+         "registered_at": datetime(2026, 10, 24, 13, 0, 5, tzinfo=KST), "registered_by": "manual",
+         "seal_start": date(2026, 10, 26), "post_hoc_from": date(2026, 9, 1), "post_hoc_to": date(2026, 10, 23),
+         "fingerprint": "f" * 64, "fingerprint_parts": {"stock._generate_signal": "a" * 12}, "watch_parts": {"auto": "b" * 12},
+         "spec": {"symbols": [CARD], "slippage_bps": 10.0, "nested": {"x": [1, 2.5, None]}}, "code_commit": "abc", "python": "3.12.14",
+         "supersedes_id": None, "change_parts": []}
+    day = {"trade_date": "2026-09-15", "grade": "post_hoc", "status": "ok", "computed_at": "2026-10-24T13:01:02+09:00",
+           "recomputed": False, "data_as_of": "2026-09-15", "code_commit": "abc", "fingerprint": "f" * 64,
+           "fills": [{"symbol": CARD, "qty": 1, "price": 71234.5}], "decisions": [{"symbol": CARD, "action": "매수"}],
+           "ranking": [], "orders": [], "skipped": [{"why": "비중 30% 상한"}], "cash": 9_928_765.5,
+           "positions": {CARD: {"qty": 1, "avg": 71234.5}}, "equity": 9_999_999.25, "day_return": -0.000123456789, "flags": []}
+    note = {"id": 3, "version_id": 7, "trade_date": date(2026, 10, 24), "kind": "opening", "author": "journal",
+            "written_at": datetime(2026, 10, 24, 13, 0, 6, tzinfo=KST), "text": "사후 봉인 시험 구간을 열었다"}
+    man = pj.write_export(pj.export_rows([v], [(v, day)], [note]), tmp_path / "ledger")
+    back_v, back_d, back_n = [], [], []
+    for rel in man["files"]:
+        rec = cli._ledger_record(tmp_path / "ledger" / rel)
+        if rel.startswith("versions/"):
+            back_v.append(types.SimpleNamespace(**cli._version_row(rec)))
+        elif rel.startswith("notes/"):
+            back_n.append(cli._note_row(rec))
+        else:
+            back_d.append(types.SimpleNamespace(**cli._day_row(rec)))
+    vd = pj.version_dict(back_v[0])
+    again = pj.export_rows([vd], [(vd, pj.day_dict(d)) for d in back_d], back_n)
+    assert set(again) == set(man["files"])
+    for rel, meta in man["files"].items():
+        assert pj.content_sha(again[rel]["record"]) == meta["content_sha256"], rel
+
+
+@pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음 — scripts/personal/test.ps1 로 돈다")
+def test_pj18_pull_imports_the_ledger_into_an_empty_app_db(cdb, tmp_path):
+    """TC-PJ-18 · 판이 없는 PC(앱 DB 비었음)가 원장을 받으면 판 · 행 · 메모가 같은 번호로 들어가고 다시 내보낸 지문이 원장과 같다 ·
+    다음 자동 번호는 그 뒤 · 두 번 받으면 0 · 같은 경로에 다른 내용이면 아무것도 쓰지 않고 멈춘다(conflict)."""
+    from sqlalchemy import func, select
+
+    from app.models.paper_journal import PaperJournalDay, PaperJournalNote, PaperJournalVersion
+    from scripts import paper_journal as cli
+
+    reg_at = datetime(2026, 9, 10, 10, 0, tzinfo=KST)
+    run_at = datetime(2026, 9, 18, 13, 30, tzinfo=KST)
+    ledger = tmp_path / "ledger"
+
+    async def make_ledger(session):                              # 앞 PC — 등록 · 회차 · 내보내기(원장)
+        await pj.register(session, pj.RULE_CARD, now=reg_at, commit="test")
+        await session.commit()
+        await pj.run_daily(session, now=run_at, until=date(2026, 9, 17))
+        versions, days, notes = await pj.load_all(session)
+        return pj.write_export(pj.export_rows(versions, days, notes), ledger)
+
+    man = _db(make_ledger)
+
+    async def pull_into_empty(session):                          # 이 PC — 일지 표가 빈 앱 DB
+        first = await cli._pull(session, man, ledger)
+        n_days = await session.scalar(select(func.count()).select_from(PaperJournalDay))
+        vers = (await session.execute(select(PaperJournalVersion))).scalars().all()
+        again = await cli._pull(session, man, ledger)
+        note = await pj.add_note(session, kind="ops", text="받은 뒤 첫 메모", now=run_at)
+        await session.commit()
+        max_imported = max(int(rel.split("/")[1].split(".")[0]) for rel in man["files"] if rel.startswith("notes/"))
+        return first, n_days, [(v.id, v.version_no, v.fingerprint) for v in vers], again, note.id, max_imported
+
+    first, n_days, vers, again, note_id, max_imported = _db(pull_into_empty)
+    assert first["state"] == "imported" and first["versions"] == 1 and first["rows"] == man["counts"]["day"] == n_days
+    assert vers[0][0] == json.loads((ledger / f"versions/{pj.RULE_CARD}-v1.json").read_text(encoding="utf-8"))["id"]
+    assert again == {"state": "same", "imported": 0}
+    assert note_id > max_imported, "원장 번호를 넣은 뒤 자동 번호가 그 뒤로 간다(setval)"
+
+    async def clash(session):                                    # 이 PC 에 같은 판 경로 · 다른 내용(따로 등록한 판)
+        await pj.register(session, pj.RULE_CARD, now=datetime(2026, 9, 11, 10, 0, tzinfo=KST), commit="other")
+        await session.commit()
+        out = await cli._pull(session, man, ledger)
+        n = await session.scalar(select(func.count()).select_from(PaperJournalDay))
+        notes_n = await session.scalar(select(func.count()).select_from(PaperJournalNote))
+        return out, n, notes_n
+
+    out, n, notes_n = _db(clash)
+    assert out["state"] == "conflict" and f"versions/{pj.RULE_CARD}-v1.json" in out["paths"] and n == 0

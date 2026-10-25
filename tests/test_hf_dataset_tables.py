@@ -53,7 +53,11 @@ def _collector_tables(path: Path) -> set[str]:
 
 
 def test_every_collector_table_is_backed_up_or_excluded(tmp_path):
-    """TC-HF-01 · 수집기 SCHEMA 의 표는 전부 TABLES 나 EXCLUDED(이유 있음) 에 있다 — 둘 다에 있는 표는 없다."""
+    """TC-HF-01 · 수집기 SCHEMA 의 표는 전부 TABLES 나 EXCLUDED(이유 있음) 에 있다 — 둘 다에 있는 표는 없다.
+    2026-10-25(여러 PC) — 거래일 달력 · 일정 표 다섯도 백업한다(따라가는 PC 가 받는다) · EXCLUDED 는 비었다."""
+    for name in ("holiday_kasi", "market_calendar", "market_event", "policy_meeting", "corp_schedule"):
+        assert name in hf_dataset.TABLES and not hf_dataset.TABLES[name]["optional"], name
+    assert hf_dataset.EXCLUDED == {}
     names = _collector_tables(tmp_path / "m.sqlite3")
     assert names, "수집기 SCHEMA 가 표를 만들지 않았다"
     unmapped = names - set(hf_dataset.TABLES) - set(hf_dataset.EXCLUDED)
@@ -248,6 +252,57 @@ def test_partial_verify_or_restore_is_not_a_deletion_green(tmp_path, monkeypatch
 
 # ── 회차 기록 사본(#124 약속 ② · 2026-10-15) ─────────────────────────────────────────────
 STARTED = "2026-10-15T12:30:02+09:00"
+#: 가짜 원격 main 머리 · 올린 뒤 새 커밋(40자) — 여러 PC 올리기(2026-10-25)
+HEAD, NEW = "a" * 40, "c" * 40
+
+
+def _fake_api_class(seen: dict, *, remote_manifest: dict | None = None, fail_412: bool = False,
+                    has_large_folder: bool = False):
+    """가짜 HfApi — main 머리 HEAD · 원격 매니페스트(None 이면 「아직 없음」) · create_commit 은 조각 · 앞 커밋 · 회차 사본을 적는다."""
+    import tempfile
+
+    import httpx2
+    from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError
+
+    class FakeApi:
+        def __init__(self, token=None):
+            pass
+
+        def create_repo(self, *a, **k):
+            pass
+
+        def repo_info(self, *a, **k):
+            return types.SimpleNamespace(private=True, sha=HEAD)
+
+        def hf_hub_download(self, repo_id, filename, **k):
+            if remote_manifest is None:
+                raise EntryNotFoundError("없음")
+            p = Path(tempfile.mkdtemp()) / "manifest.json"
+            p.write_text(json.dumps(remote_manifest), encoding="utf-8")
+            return str(p)
+
+        def create_commit(self, repo_id, operations, **k):
+            if fail_412:
+                resp = httpx2.Response(412, request=httpx2.Request("POST", "https://hub.test/commit"))
+                raise HfHubHTTPError("A commit has happened since", response=resp)
+            ops = list(operations)
+            seen["paths"] = [o.path_in_repo for o in ops]
+            seen["parent"] = k.get("parent_commit")
+            seen["commits"] = seen.get("commits", 0) + 1
+            rr = next((o for o in ops if o.path_in_repo == "meta/run_record.json"), None)
+            seen["record"] = json.loads(Path(rr.path_or_fileobj).read_text(encoding="utf-8")) if rr else None
+            return types.SimpleNamespace(oid=NEW)
+
+        def upload_folder(self, **k):
+            seen["folder"] = k.get("folder_path")
+
+        def create_tag(self, *a, **k):
+            seen["tag"] = k.get("tag")
+            seen["tag_revision"] = k.get("revision")
+
+    if has_large_folder:
+        FakeApi.upload_large_folder = lambda self, **k: seen.setdefault("large", True)
+    return FakeApi
 
 
 @pytest.fixture
@@ -295,36 +350,81 @@ def test_upload_puts_this_runs_record_in_the_same_commit(export_tmp, monkeypatch
     monkeypatch.setattr(hf_dataset, "write_status_snapshot", lambda **k: None)   # 진짜 수집 DB 를 열지 않게
     seen: dict = {}
 
-    class FakeApi:
-        def __init__(self, token=None):
-            pass
-
-        def create_repo(self, *a, **k):
-            pass
-
-        def repo_info(self, *a, **k):
-            return types.SimpleNamespace(private=True)
-
-        def upload_folder(self, **k):
-            rr = Path(k["folder_path"]) / "meta" / "run_record.json"
-            seen["patterns"] = k.get("allow_patterns") or []
-            seen["record"] = json.loads(rr.read_text(encoding="utf-8")) if rr.exists() else None
-
-        def create_tag(self, *a, **k):
-            seen["tag"] = k.get("tag")
-
     import huggingface_hub
-    monkeypatch.setattr(huggingface_hub, "HfApi", FakeApi)
+    monkeypatch.setattr(huggingface_hub, "HfApi", _fake_api_class(seen))
     rec = {"schema": 1, "run": {"started_at": STARTED}, "history": []}
     hf_dataset.write_run_record(rec)
     assert hf_dataset.upload(yes=False, incremental=True) == 0                 # 미리 보기 — 값이 없어도 사본을 지우지 않는다
-    assert hf_dataset.RUN_RECORD_PATH.exists() and "patterns" not in seen, "미리 보기는 올리지도 지우지도 않는다"
+    assert hf_dataset.RUN_RECORD_PATH.exists() and "paths" not in seen, "미리 보기는 올리지도 지우지도 않는다"
     monkeypatch.setenv(hf_dataset.ENV_RUN_RECORD, STARTED)
     assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0
-    assert seen["record"] == rec and any(fnmatch.fnmatch("meta/run_record.json", pat) for pat in seen["patterns"])
+    # 여러 PC(2026-10-25) — 한 커밋(create_commit) · 앞 커밋 = 방금 읽은 main 머리 · 태그는 그 커밋에
+    assert seen["record"] == rec and "meta/run_record.json" in seen["paths"]
+    assert seen["parent"] == HEAD and seen["tag_revision"] == NEW and seen["commits"] == 1
+    assert hf_dataset._load_manifest()["uploaded"]["commit"] == NEW
     monkeypatch.delenv(hf_dataset.ENV_RUN_RECORD)
     assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0
     assert seen["record"] is None and not hf_dataset.RUN_RECORD_PATH.exists()
+    assert "meta/run_record.json" not in seen["paths"]
+
+
+def _upload_ready(export_tmp, monkeypatch, seen: dict, **kw) -> None:
+    hf_dataset._write_json_atomic(export_tmp / "meta" / "manifest.json",
+                                  {"tables": {}, "generated_at": "2026-10-25T13:25:48+09:00"})
+    monkeypatch.setenv("QURIOUS_RAW_SHARING", "1")
+    monkeypatch.setattr(hf_dataset, "_token", lambda required=True: "x")
+    monkeypatch.setattr(hf_dataset, "write_status_snapshot", lambda **k: None)
+    import huggingface_hub
+    monkeypatch.setattr(huggingface_hub, "HfApi", _fake_api_class(seen, **kw))
+
+
+def test_upload_refuses_when_remote_is_ahead_of_this_pc(export_tmp, monkeypatch):
+    """TC-HF-11 · 여러 PC — 원격 매니페스트가 이 PC 의 기준과 다르면(다른 PC 가 올렸다) 올리지 않고 76. 커밋을 만들지 않는다 —
+    뒤처진 PC 의 올해 파일이 다른 PC 가 받은 날을 덮어 지우지 않게. 기준이 원격과 같으면(머리만 옮김) 올린다."""
+    from scripts import hf_sync
+
+    seen: dict = {}
+    remote = {"tables": {"price_daily": {"files": [{"path": "price_daily/year=2026/part-00000.parquet", "sha256": "r"}]}}}
+    _upload_ready(export_tmp, monkeypatch, seen, remote_manifest=remote)
+    hf_sync.save_base({"price_daily/year=2026/part-00000.parquet": {"sha256": "old", "table": "price_daily"}},
+                      "b" * 40, by="upload")
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == hf_dataset.EX_REMOTE_MOVED
+    assert "commits" not in seen, "앞선 원격 위에는 올리지 않는다"
+    hf_sync.save_base({"price_daily/year=2026/part-00000.parquet": {"sha256": "r", "table": "price_daily"}},
+                      "b" * 40, by="upload")
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0 and seen["commits"] == 1
+
+
+def test_upload_stops_on_412_and_on_a_moved_parent(export_tmp, monkeypatch):
+    """TC-HF-12 · 올리는 사이 남이 올리면(412) 76 · 러너가 넘긴 앞 커밋(맞출 때 본 main)이 지금 머리와 다르면 커밋 전에 76 —
+    태그 · 올린 기록 · 기준을 쓰지 않는다. 같으면 그 머리를 앞 커밋으로 올리고 기준 = 새 머리."""
+    from scripts import hf_sync
+
+    seen: dict = {}
+    _upload_ready(export_tmp, monkeypatch, seen, fail_412=True)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == hf_dataset.EX_REMOTE_MOVED
+    assert "tag" not in seen and not hf_dataset._load_manifest().get("uploaded") and not hf_sync.load_base()
+    seen2: dict = {}
+    _upload_ready(export_tmp, monkeypatch, seen2)
+    monkeypatch.setenv(hf_dataset.ENV_PARENT, "d" * 40)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == hf_dataset.EX_REMOTE_MOVED
+    assert "commits" not in seen2
+    monkeypatch.setenv(hf_dataset.ENV_PARENT, HEAD)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0 and seen2["parent"] == HEAD
+    assert hf_sync.load_base()["main"] == NEW, "올린 뒤 기준 = 새 main 머리"
+
+
+def test_full_upload_falls_back_when_large_folder_is_missing(export_tmp, monkeypatch):
+    """TC-HF-13 · huggingface_hub 2.x 에는 upload_large_folder 가 없다(1.31 에만 · 조사 2026-10-25 4.4) — 전체 올리기는 그것이
+    있으면 쓰고 없으면 upload_folder 로 간다(전에는 AttributeError 로 멈췄다) · 태그는 올린 뒤의 main 머리에."""
+    seen: dict = {}
+    _upload_ready(export_tmp, monkeypatch, seen)
+    assert hf_dataset.upload(yes=True, incremental=False, allow_lfs=True) == 0
+    assert seen.get("folder") and "large" not in seen and seen["tag_revision"] == HEAD
+    seen2: dict = {}
+    _upload_ready(export_tmp, monkeypatch, seen2, has_large_folder=True)
+    assert hf_dataset.upload(yes=True, incremental=False, allow_lfs=True) == 0
+    assert seen2.get("large") and "folder" not in seen2
 
 
 def test_dataset_card_explains_the_run_record():
