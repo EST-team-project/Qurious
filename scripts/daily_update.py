@@ -76,6 +76,9 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py install --time 18:30 --no-upload
     python scripts/daily_update.py start            # 등록된 작업을 지금 한 번 돌린다(비동기)
     python scripts/daily_update.py uninstall        # 등록 해제
+    python scripts/daily_update.py sync             # 원격 백업과 이 PC 수집 DB 를 맞춘다(바뀐 조각만 · 여러 PC · 11:00 ~ 13:30 막힘)
+    python scripts/daily_update.py sync --discard-local   # 겹친 조각은 원격 것으로(이 PC 의 올리지 않은 변경을 버린다 — 사람이 고름)
+    python scripts/daily_update.py sync --full      # 수집 DB 가 없는 새 PC — 원격 전부를 받아 복원
 
 종료코드 — 0 성공 · 2 고를 수 없는 단계 · 받는 값이 틀림 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시 · 채우기) · 69 시세를 다 받지
 못함(실패한 날 · 한도 소진 — 받은 날은 저장 · 경고로 세고 뒤 단계는 돈다 · EX_UNAVAILABLE · DF-92) · 75 막힘(12:30 회차와 겹침 ·
@@ -94,6 +97,17 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
 로그 파일 이름(``log_name``)을 남긴다. 결과 줄이 「종료코드 1」 만 남아 로그를 열어야 까닭을 알던 것(2026-10-10 배당 · 기업 일정)을
 고쳤다. 빠진 날(앱 DB 가 꺼져 신호가 건너뛴 거래일)은 ``state/daily_update_fill.json`` 에 모아 단계 줄에 「채울 날 n · 첫날 ·
 마지막 날」 로 적고, ``run --fill`` 이 채운 날만 지운다(이틀 넘게 꺼졌던 때 · 2026-10-10 사용자 결정).
+
+여러 PC(2026-10-25 · 설계 `docs/phase-3/02-design/system/여러PC-회차-설계.md`) — 12:30 회차는 어느 PC 에서든 돈다(사용자
+결정 「노트북/데스크톱 상관없이」). 모든 PC 에 같은 예약 작업을 걸고, 올리는 회차(``--upload``)는 ① HF 백업 저장소의 임대
+가지에서 회차 자리를 잡는다(``scripts/run_lease.py`` — 먼저 잡은 PC 하나만) ② 돌기 전에 원격이 앞섰으면 바뀐 조각만 받아
+맞춘다(``scripts/hf_sync.py``) ③ 단계 사이마다(15분에 한 번까지) 임대를 갱신한다(90분 무소식이면 다른 PC 가 이어받는다)
+④ 올리기 바로 앞에 아직 내 임대인지 보고, 맞출 때 본 main 머리를 앞 커밋으로 넘긴다(그사이 남이 올렸으면 412 로 멈춤)
+⑤ 끝나면 회차 자리 기록(누가 · 언제 · 결과 · 단계 줄)을 남기고 닫는다. 못 잡은 PC 는 **따라간다** — 쥔 PC 가 끝날 때까지
+읽기만 하고(5분마다 · 3시간까지), 끝나면 바뀐 조각만 받고(복구용 원문 표는 건너뜀) 이 PC 앱 DB 단계(신호 빈 날 · 일지 받기)와
+검색 색인만 돈 뒤, 그 회차를 이 PC 회차 기록으로 남긴다(관제 · 리밸런싱 하루 점검이 이 PC 에서도 그 회차를 본다). 받을 것도
+할 일도 없으면 기록 없이 조용히 끝난다 — 예약 작업이 1시간마다 10시간 다시 깨어나(절전 · 로그온이 늦은 PC 의 따라잡기 ·
+HF 가 잠시 안 될 때 다시 잡기) 기록이 쌓이지 않게. HF 에 닿지 못하면 회차를 잡지 않는다(fail-closed · 이력에 「건너뜀」 한 줄).
 
 로그는 `data/collector/logs/daily_update-*.log`(최근 30개 보관), 마지막 결과는
 `data/collector/state/daily_update_last.json`, 이력은 같은 폴더 `daily_update_history.jsonl`.
@@ -202,6 +216,9 @@ class Step:
     # 스스로 따라잡는 단계인가 — 앱 DB 가 꺼져 건너뛴 날을 다음 회차가 알아서 모두 계산한다(모의 일지 · 2026-10-24). 그런 단계는
     # 성공(또는 정의한 경고)하면 빠진 날을 **모두** 지운다 — 보통 단계는 그 회차가 계산한 그날만 지운다(채우기 명령이 따로 있다).
     catch_up: bool = False
+    # 빈 범위 채우기 — 앱 DB 기록의 마지막 날 뒤가 이틀 넘게 비었으면 그 범위를 채우기 인자로 한 번에(31일까지 · 여러 PC
+    # 2026-10-25). 회차가 다른 PC 에서 돈 날은 이 PC 앱 DB 에 기록이 없다 — 다음에 이 PC 가 돌 때 그 날들을 함께 계산한다.
+    gap_fill: bool = False
 
     def __post_init__(self) -> None:
         if self.fill_args and not self.fill:
@@ -300,14 +317,15 @@ STEPS: List[Step] = [
     # 다중 주기 신호(2026-10-08 · 팀원 #140 배치 · #142 요청) — 그날 일봉 · 60분봉이 들어온 **뒤**에 돈다. 인자 없이 수집 DB 의
     # 마지막 거래일 하루를 계산해 앱 DB(PostgreSQL)의 T2 `signal_snapshots` 에 쓴다(같은 날은 값만 바뀐다 — 여러 번 돌려도 안전).
     # 수집 DB 는 읽기 전용으로 연다. 배치 코드는 목표 기능 ② 주담당 것이라 여기서는 부르기만 한다.
-    Step("signals", ["scripts/signals_daily.py"], 10, fatal=False, app_db=True,
+    Step("signals", ["scripts/signals_daily.py"], 10, fatal=False, app_db=True, gap_fill=True,
          label="신호", group="계산", desc="분봉 유니버스 401종목의 다중 주기 신호를 T2 에 기록",
          fill_args=["scripts/signals_daily.py", "--from", "{from}", "--to", "{to}"]),
     # 모의투자 그림자 일지(2026-10-24 · 할 일 ①-26 · 설계 `모의투자-그림자일지-설계.md` 9절) — 신호 **뒤**에 돈다. 등록한 규칙
     # 판으로 마지막 행 뒤의 준비된 거래일을 차례로 계산해 앱 DB 에 더하고(추가만 · 다음 거래일 시가 가상 체결) 내보내기 폴더를
     # 쓴다. 규칙 코드가 바뀌어 새 판을 등록한 회차는 종료코드 10(`app.services.paper_journal.EXIT_VERSION_CHANGED` · 경고 —
-    # TC-PJ-13). 앱 DB 가 꺼진 날은 건너뛰고 다음 회차가 그날까지 채운다(catch_up · 채우기 명령 없음).
-    Step("journal", ["scripts/paper_journal.py", "daily", "--quiet"], 10, fatal=False, app_db=True, catch_up=True,
+    # TC-PJ-13). 앱 DB 가 꺼진 날은 건너뛰고 다음 회차가 그날까지 채운다(catch_up · 채우기 명령 없음). 계산 앞에 HF 원장을 이
+    # PC 앱 DB 로 받는다(``--pull`` · 여러 PC 2026-10-25 — 회차가 다른 PC 에서 돈 날의 판 · 행을 다시 계산하지 않게 · 받지 못하면 4).
+    Step("journal", ["scripts/paper_journal.py", "daily", "--quiet", "--pull"], 10, fatal=False, app_db=True, catch_up=True,
          warn_codes=(10,), label="모의 일지", group="계산",
          desc="등록한 규칙 판으로 거래일마다 판단 1행 · 다음 거래일 시가 가상 체결(추가만)"),
     Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False,
@@ -1168,6 +1186,317 @@ def write_upload_record(run: Run, step: Step, rec: Dict, *, before: Dict, stop: 
     return {hf_dataset.ENV_RUN_RECORD: record["run"]["started_at"]}
 
 
+# ==================================================
+# 3-2. 여러 PC — 임대 · 맞추기 · 따라가기 (2026-10-25 · 설계 `여러PC-회차-설계.md`)
+# ==================================================
+#: 올리기 자식에게 넘기는 앞 커밋(main 머리 40자) — ``hf_dataset.ENV_PARENT`` 와 같아야 한다(TC-DU 가 맞댄다).
+ENV_HF_PARENT = "QURIOUS_HF_PARENT"
+
+
+class _Done(Exception):
+    """올리는 회차가 단계를 돌지 않고 끝났다(따라가기 · 건너뜀 · 막힘) — ``run_all`` 이 그 종료코드로 끝낸다."""
+
+    def __init__(self, rc: int, *, drop_log: bool = False):
+        super().__init__(rc)
+        self.rc = rc
+        self.drop_log = drop_log
+
+
+@dataclass
+class Coord:
+    """올리는 회차의 여러 PC 상태 — 쥔 임대(``run_lease.Held``) · 맞춘 main 머리 · 잃은 까닭(있으면 공유 쓰기를 하지 않는다)."""
+    api: object
+    kind: str
+    held: Optional[object] = None
+    main: Optional[str] = None
+    lost: str = ""
+    sync: Dict = field(default_factory=dict)
+
+
+def coord_begin(run: Run, kind: str) -> tuple:
+    """회차 앞 — 임대를 잡고 원격을 맞춘다. (할 일, 상태, 까닭, 임대 내용):
+
+    · ``lead``     임대를 잡고 맞췄다 — 단계를 돈다
+    · ``follow``   이 자리는 남이 끝냈거나 도는 중(정기 회차) — 기다렸다 받기만(``follow_run``)
+    · ``busy``     남이 도는 중(화면 전체 수집 · 한 단계 다시) — 75 로 끝낸다(작업자가 다시 대기로)
+    · ``skip``     HF 에 닿지 못함 · 토큰 없음 · 맞추기 실패 — 돌지 않는다(fail-closed · 다음 반복 실행이 다시)
+    · ``conflict`` 이 PC 의 올리지 않은 변경과 원격 변경이 겹친다 — 사람이 정할 때까지 이 PC 는 회차를 잡지 않는다
+    """
+    from scripts import hf_sync, run_lease
+
+    if (hf_sync._read_json(hf_sync.LAST_PATH) or {}).get("result") == "conflict":
+        return ("conflict", None, "이 PC 의 맞추기가 겹침으로 멈춰 있다 — python scripts/daily_update.py sync --discard-local "
+                "(또는 사람이 정한 뒤) 다시", None)
+    try:
+        api = run_lease.make_api()
+        status, held, doc, why = run_lease.acquire(api, now=now_kst(), kind=kind, run=_iso(run.started))
+    except run_lease.LeaseError as e:
+        return "skip", None, f"임대를 잡지 못했다 — {e.why}", None
+    if status != "acquired":
+        run.say(f"임대 — {why}")
+        return ("follow" if kind == "schedule" else "busy"), Coord(api, kind), why, doc
+    coord = Coord(api, kind, held=held)
+    run.say(f"임대를 잡았다 — 자리 {held.doc['slot']} · 세대 {held.doc['gen']} · {why}")
+    try:
+        rc, rec = hf_sync.pull(api, mode="lead", say=lambda m: run.say(f"맞추기 {m.strip()}"))
+    except Exception as e:  # noqa: BLE001 — 받다가 끊김 · 디스크: 돌지 않는다(임대는 자리를 채우지 않고 닫는다)
+        rc, rec = 1, {"result": "error", "why": f"{type(e).__name__}: {scrub_line(str(e))}"}
+    coord.sync = rec
+    run.say(f"맞추기 — {rec.get('result')} · 바뀐 조각 {rec.get('changed', 0)}"
+            + (f" · {rec.get('why')}" if rec.get("why") else ""))
+    if rc != 0:
+        coord_end(run, coord, ok=False, rc=rc, summary={"stopped": f"맞추기 {rec.get('result')}"}, fill_slot=False)
+        mode = "conflict" if rc == hf_sync.EX_CONFLICT else "skip"
+        return mode, None, f"맞추기가 멈췄다 — {rec.get('why') or rec.get('result')}", held.doc
+    coord.main = rec.get("main")
+    return "lead", coord, why, held.doc
+
+
+def coord_tick(run: Run, coord: Optional[Coord]) -> Optional[str]:
+    """단계 사이 — 임대 갱신(15분에 한 번까지). 빼앗겼으면 그 까닭(뒤 단계 · 공유 쓰기를 하지 않는다)."""
+    if not coord or not coord.held:
+        return None
+    from scripts import run_lease
+
+    try:
+        coord.held = run_lease.renew(coord.api, coord.held, now_kst())
+    except run_lease.LeaseLost as e:
+        coord.lost, coord.held = str(e), None
+        return f"임대를 잃었다 — {e}"
+    except run_lease.LeaseError as e:                       # 잠깐 닿지 못함 — 만료(90분) 안이라 계속 돌고 다음 단계에 다시
+        run.say(f"🟡 임대를 갱신하지 못했다 — {e.why}(다음 단계에 다시)")
+    return None
+
+
+def coord_before_upload(run: Run, coord: Optional[Coord]) -> Optional[str]:
+    """백업 올리기 바로 앞 — 아직 내 임대인가(절전에서 깨어난 옛 쥔 PC 막기). 아니면 그 까닭."""
+    if not coord:
+        return None
+    if not coord.held:
+        return f"임대를 잃었다 — {coord.lost or '쥔 임대가 없다'}"
+    from scripts import run_lease
+
+    try:
+        ok, why = run_lease.still_mine(coord.api, coord.held)
+    except run_lease.LeaseError as e:
+        return f"임대를 확인하지 못했다 — {e.why}"
+    if not ok:
+        coord.lost, coord.held = why, None
+        return f"임대를 잃었다 — {why}"
+    return None
+
+
+def coord_after_upload(coord: Optional[Coord]) -> None:
+    """올리기 뒤 — 새 main 머리를 기준 파일에서 읽는다(올리기 자식이 ``hf_sync.after_upload`` 로 썼다)."""
+    if coord:
+        from scripts import hf_sync
+
+        coord.main = (hf_sync.load_base() or {}).get("main") or coord.main
+
+
+def coord_end(run: Run, coord: Optional[Coord], *, ok: bool, rc: int, summary: Dict, fill_slot: bool = True) -> None:
+    """임대를 닫는다 — 정기 · 전체 수집이면 회차 자리 기록을 남긴다(``fill_slot``). 못 닫아도 회차 결과는 그대로(90분 뒤 만료)."""
+    if not coord or not coord.held:
+        return
+    from scripts import run_lease
+
+    try:
+        held = run_lease.release(coord.api, coord.held, now=now_kst(), ok=ok, rc=rc, summary=summary,
+                                 fill_slot=fill_slot)
+        run.say("임대를 닫았다" + (f" — 자리 {coord.held.doc.get('slot')} 기록" if fill_slot and held else "")
+                if held else "🟡 임대를 닫지 못했다 — 그사이 다른 PC 가 이어받았다")
+    except run_lease.LeaseError as e:
+        run.say(f"🟡 임대를 닫지 못했다 — {e.why}(90분 뒤 만료로 풀린다)")
+    coord.held = None
+
+
+def coord_state(coord: Coord) -> Dict:
+    """회차 기록에 싣는 여러 PC 칸 — 자리 · 세대 · PC · 맞춘 main · 맞추기 요약 · 잃은 까닭."""
+    doc = getattr(coord.held, "doc", None) or {}
+    return {"slot": doc.get("slot"), "gen": doc.get("gen"), "pc": doc.get("pc"), "main": coord.main,
+            "sync": {k: coord.sync.get(k) for k in ("result", "changed", "rows", "bytes", "seconds", "why")},
+            "lost": coord.lost or None}
+
+
+def lease_summary(state: Dict, coord: Coord) -> Dict:
+    """회차 자리 기록 — 따라가는 PC 가 이것으로 이 PC 의 회차 기록을 만든다(시작 · 끝 · 시세 기준일 · 단계 줄)."""
+    return {"started_at": state.get("started_at"), "finished_at": state.get("finished_at"), "main": coord.main,
+            "price_max": (state.get("after") or {}).get("price_max"), "stopped": state.get("stopped"),
+            "steps": [[s.get("name"), s.get("rc")] for s in state.get("steps") or []]}
+
+
+def app_db_last_signal(env: Dict[str, str], timeout: float = 10.0) -> tuple:
+    """앱 DB 신호 기록(``signal_snapshots.as_of``)의 마지막 날 — (날, 못 읽은 까닭). 표가 비면 (None, "")."""
+    import asyncio
+
+    url = env.get("DATABASE_URL", "").replace("postgresql+asyncpg://", "postgresql://", 1)
+
+    async def q():
+        import asyncpg
+
+        conn = await asyncpg.connect(url, timeout=timeout)
+        try:
+            return await conn.fetchval("SELECT max(as_of) FROM signal_snapshots")
+        finally:
+            await conn.close()
+
+    try:
+        return asyncio.run(q()), ""
+    except Exception as e:  # noqa: BLE001 — 읽지 못하면 평소처럼(그날 하루)
+        return None, type(e).__name__
+
+
+def gap_range(env: Dict[str, str], as_of: Optional[str]) -> Optional[tuple]:
+    """앱 DB 기록이 끊긴 범위 — (첫날, 끝날 = 수집 DB 시세 마지막 날) · 31일까지(기록이 비었으면 끝날 앞 31일). 비지 않았으면 None."""
+    if not as_of:
+        return None
+    end = datetime.date.fromisoformat(as_of)
+    last, why = app_db_last_signal(env)
+    if why or (last is not None and last >= end):
+        return None
+    floor = end - datetime.timedelta(days=FILL_MAX_DAYS - 1)
+    start = max(last + datetime.timedelta(days=1), floor) if last else floor
+    return start.isoformat(), end.isoformat()
+
+
+def gap_args(run: Run, step: Step) -> tuple:
+    """빈 범위 채우기 인자 — (인자, 시간 한도, 범위). 비지 않았거나 그날 하루면 (None, None, None) — 평소 인자로 돈다."""
+    gap = gap_range(run.app_db_env, _as_of_day())
+    if not gap or gap[0] == gap[1]:
+        return None, None, None
+    run.say(f"{step.name}: 앱 DB 기록이 {gap[0]} 부터 비었다 — {gap[0]} ~ {gap[1]} 를 한 번에 채운다(여러 PC · 31일까지)")
+    return ([a.replace("{from}", gap[0]).replace("{to}", gap[1]) for a in step.fill_args],
+            fill_timeout_min(step, gap[0], gap[1]), gap)
+
+
+def _write_wait_progress(run: Run, doc: Optional[Dict]) -> None:
+    """따라가며 기다리는 동안의 진행 파일 — 화면이 「수집 중」 대신 「다른 PC 회차를 기다림」 을 보인다."""
+    try:
+        _write_json_atomic(PROGRESS_PATH, {"started_at": _iso(run.started), "at": _iso(now_kst()),
+                                           "step": {"index": 0, "total": len(STEPS), "name": "follow_wait",
+                                                    "label": f"다른 PC({(doc or {}).get('pc') or '?'}) 회차를 기다림"}})
+    except OSError:
+        pass
+
+
+def write_follow_record(run: Run, rec: Dict, slot: str, acts: List[Dict]) -> None:
+    """따라간 PC 의 회차 기록 — 쥔 PC 의 회차(시작 · 끝 · 단계 결과)를 이 PC 기록으로 남긴다. 시세 기준일은 맞춘 뒤 이 PC
+    수집 DB 에서 잰다 — 관제와 리밸런싱 하루 점검(``app/services/rebalance_daily.py`` — 「오늘 12:30 뒤 시작 · 끝남 · 시세 · 달력 성공 ·
+    시세 기준일 = 전 거래일」)이 이 PC 에서도 그 회차를 본다."""
+    by = {s.name: s for s in STEPS}
+    pc = rec.get("pc") or "?"
+    steps = [((_rec(by[n]) if n in by else {"name": n}) | {"rc": rc, "note": f"{pc} 에서 돌았다", "remote": True})
+             for n, rc in rec.get("steps") or []]
+    after = snapshot()
+    followed = {"pc": pc, "slot": slot, "main": rec.get("main"), "at": _iso(now_kst())}
+    state = {"started_at": rec.get("started_at"), "finished_at": rec.get("finished_at"), "ok": bool(rec.get("ok")),
+             "upload": True, "stopped": rec.get("stopped"), "derived": None, "steps": steps, "before": None,
+             "after": after, "log": run.log_path.relative_to(ROOT).as_posix(), "trigger": "follow",
+             "followed": followed, "follow": acts}
+    _write_json_atomic(LAST_PATH, state)
+    with HISTORY_PATH.open("a", encoding="utf-8") as h:
+        h.write(json.dumps({k: state[k] for k in ("started_at", "finished_at", "ok", "upload", "stopped", "log")}
+                           | {"price_max": after.get("price_max"), "rc": 0, "steps": _compact(steps),
+                              "trigger": "follow", "followed": followed}, ensure_ascii=False) + "\n")
+    for err in write_side_files(numbers="run"):
+        run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
+
+
+def follow_run(run: Run, coord: Coord, doc: Optional[Dict], *, wait: bool = True) -> tuple:
+    """따라가기 — (``retake`` · ``timeout`` · ``done``, 종료코드, 조용히 끝났나).
+
+    남이 그 자리를 돌고 있으면 끝날 때까지 읽기만 한다(5분마다 · 3시간까지 · 만료 · 자리 비움이면 ``retake`` — 이어받기).
+    끝났으면 바뀐 조각만 받고(복구용 표 건너뜀) 이 PC 앱 DB 단계(신호 빈 날 · 일지 받기)와 검색 색인을 돈다. 받은 것도 할 일도
+    없으면 기록 없이 끝낸다(1시간마다 깨어나는 반복 실행이 기록을 쌓지 않게).
+    """
+    from scripts import hf_sync, paper_journal, run_lease
+
+    slot = run_lease.slot_of(run.started)
+    waited = False
+    if wait and doc and doc.get("state") == "running" and not ((doc.get("slots") or {}).get(slot)):
+        run.say(f"따라가기 — {doc.get('pc')} 가 {slot} 자리를 도는 중 · 끝날 때까지 {run_lease.POLL_MIN}분마다 읽는다"
+                f"(최대 {run_lease.WAIT_MAX_MIN}분)")
+        _write_wait_progress(run, doc)
+        try:
+            outcome, doc, _head = run_lease.wait_done(coord.api, slot, now_fn=now_kst, sleep_fn=time.sleep,
+                                                      on_poll=lambda d: _write_wait_progress(run, d))
+        except run_lease.LeaseError as e:
+            run.say(f"🟡 기다리다 HF 에 닿지 못했다 — {e.why}(다음 반복 실행이 다시)")
+            return "timeout", 0, False
+        waited = True
+        if outcome in ("expired", "free"):
+            run.say("따라가기 — " + ("쥔 PC 의 임대가 90분 넘게 소식이 없다" if outcome == "expired"
+                                    else "쥔 PC 가 자리를 채우지 않고 끝냈다") + " — 이어받아 본다")
+            return "retake", 0, False
+        if outcome == "timeout":
+            run.say(f"🟡 {run_lease.WAIT_MAX_MIN}분을 기다려도 끝나지 않았다 — 다음 반복 실행이 다시 본다")
+            return "timeout", 0, False
+    rec = ((doc or {}).get("slots") or {}).get(slot) or {}
+    run.say(f"따라가기 — {slot} 자리는 {rec.get('pc') or '?'} 가 {'끝냈다' if rec.get('ok') else '돌았다(실패 단계 있음)'}")
+    prepare_app_db(run, STEPS)
+    acts: List[Dict] = []
+    try:
+        rc, srec = hf_sync.pull(coord.api, mode="follow", say=lambda m: run.say(f"맞추기 {m.strip()}"))
+    except Exception as e:  # noqa: BLE001
+        rc, srec = 1, {"result": "error", "why": f"{type(e).__name__}: {scrub_line(str(e))}"}
+    changed = srec.get("result") in ("synced", "full")
+    acts.append({"name": "sync", "rc": rc, "note": f"맞추기 {srec.get('result')} · 조각 {srec.get('changed', 0)}"
+                                                   + (f" · {srec.get('why')}" if srec.get("why") else "")})
+    run.say(f"맞추기 — {acts[-1]['note']}")
+    if rc != 0:
+        write_follow_record(run, dict(rec, stopped=rec.get("stopped") or f"이 PC 맞추기 {srec.get('result')}"), slot, acts)
+        return "done", rc, False
+    by = {s.name: s for s in STEPS}
+    if changed and "search" in by:                          # 받은 것이 있을 때만 — 색인은 이 PC 파일이다(받은 공시 · 뉴스를 더한다)
+        acts.append({"name": "search", "rc": _run_step(run, by["search"]), "note": "검색 색인 — 받은 자료로"})
+    did = False
+    sig = by.get("signals")
+    if sig and not app_db_gate(run, sig):
+        args, limit, gap = gap_args(run, sig)
+        if args or gap_range(run.app_db_env, _as_of_day()):
+            r = _run_step(run, sig, args=args, timeout_min=limit)
+            acts.append({"name": "signals", "rc": r, "note": f"신호 {'빈 범위 ' + gap[0] + ' ~ ' + gap[1] if gap else '그날'}"})
+            did = True
+    jr = by.get("journal")
+    imported = 0
+    if jr and not app_db_gate(run, jr):
+        r = _run_step(run, jr, args=["scripts/paper_journal.py", "pull", "--quiet"])
+        imported = int((paper_journal._read_json(paper_journal.PULL_LAST_PATH) or {}).get("imported") or 0)
+        acts.append({"name": "journal_pull", "rc": r, "note": f"일지 원장 받기 {imported}파일"})
+    quiet = not (waited or changed or did or imported)
+    if quiet:
+        run.say("따라가기 — 받을 것 · 할 일 없음(기록 없이 끝)")
+        return "done", 0, True
+    if changed:
+        _rearm_or_say(run)
+    write_follow_record(run, rec, slot, acts)
+    return "done", 0, False
+
+
+def _coordinate_run(run: Run, *, manual: bool) -> Coord:
+    """올리는 회차의 앞 — 잡으면 맞춘 뒤의 상태를 돌려주고, 아니면 할 일을 끝내고 ``_Done`` 을 던진다(따라가기 · 건너뜀 · 막힘)."""
+    kind = "manual" if manual else "schedule"
+    mode, coord, why, doc = coord_begin(run, kind)
+    if mode == "follow":
+        out, rc, quiet = follow_run(run, coord, doc)
+        if out == "retake":                                   # 쥔 PC 의 임대가 끝났다(만료 · 자리 비움) — 한 번 더 잡아 본다
+            mode, coord, why, doc = coord_begin(run, kind)
+            if mode == "follow":
+                out, rc, quiet = follow_run(run, coord, doc, wait=False)
+        if mode == "follow":
+            raise _Done(rc, drop_log=quiet)
+    if mode == "lead":
+        return coord
+    if mode == "busy":                                        # 화면 전체 수집 — 남이 도는 중(작업자가 다시 대기로)
+        run.say(f"멈춤: {why}")
+        raise _Done(EX_TEMPFAIL, drop_log=True)
+    run.say(f"🟡 돌지 않는다 — {why}")                          # skip · conflict — fail-closed
+    if manual:
+        raise _Done(EX_TEMPFAIL if mode == "skip" else 1)
+    _skip_line(run.started, why, reason=f"multi_pc_{mode}", trigger="schedule")
+    raise _Done(0)
+
+
 def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool = False,
             request_id: Optional[str] = None) -> int:
     """회차 하나 — 정기(작업 스케줄러) 또는 수동(화면 「전체 수집」 · ``manual``).
@@ -1207,11 +1536,15 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
         return 0
 
     rc_total = 0
+    coord: Optional[Coord] = None
+    drop_log = False
     with log_path.open("w", encoding="utf-8") as log:
         run = Run(started, upload, log, log_path)
         try:
             run.say(f"일일 갱신 시작 · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}"
                     + (f" · 수동(화면 요청 {request_id[:8]})" if request_id else (" · 수동" if manual else "")))
+            if upload:                                      # 여러 PC — 임대를 잡고 맞춘다 · 못 잡으면 따라가기(``_Done``)
+                coord = _coordinate_run(run, manual=manual)
             for err in write_side_files():                  # 단계 목록 · 이 PC 용량(앱이 읽는다)
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {err}")
             prepare_app_db(run, STEPS)
@@ -1224,6 +1557,11 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             for step in STEPS:
                 rec = _rec(step)
                 run.steps.append(rec)
+                if coord and not stop:                       # 단계 사이 — 임대 갱신(15분에 한 번까지) · 빼앗겼으면 뒤를 멈춘다
+                    lost = coord_tick(run, coord)
+                    if lost:
+                        stop = lost
+                        run.say(f"🔴 {lost} — 뒤 단계 · 올리기를 하지 않는다")
                 # 건너뛴 줄에는 까닭 코드를 함께 적는다 — 화면이 「할 일 없는 건너뜀(회색)」 과 「채울 것이 있는 건너뜀(노랑)」 을 가른다
                 if step.upload and not upload:
                     rec.update(note="업로드 끔", reason="upload_off")
@@ -1250,9 +1588,17 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                         continue
                     run.say(f"upload: 바뀐 파케이 "
                             f"{'(업로드 기록 없음)' if to_upload is None else f'{len(to_upload)}개'}")
+                    lost = coord_before_upload(run, coord)  # 여러 PC — 올리기 바로 앞에 아직 내 임대인가(좀비 막기)
+                    if lost:
+                        stop = lost
+                        rec.update(note=lost, reason="lease_lost")
+                        run.say(f"🔴 upload: {lost} — 올리지 않는다")
+                        continue
                     # 이 판의 수집 DB 를 만든 회차 기록 — 같은 커밋에 싣는다(#124 약속 ②). 못 쓰면 올리기는 그대로(백업이 먼저)
                     env_extra = write_upload_record(run, step, rec, before=before, stop=stop, derived=derived_why,
                                                     trigger=trigger)
+                    if coord:                                # 맞출 때 본 main 머리를 앞 커밋으로(그사이 남이 올렸으면 412)
+                        env_extra = dict(env_extra or {}, **{ENV_HF_PARENT: coord.main or ""})
                 gate = app_db_gate(run, step)                # 앱 DB 단계 — 돌리기 전에 전제 조건을 묻는다(안 B)
                 if gate:
                     rec.update(gate)
@@ -1265,12 +1611,20 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                             days.append(gate["date"])
                             pending_changed = True
                     continue
+                args, limit, gap = gap_args(run, step) if step.gap_fill else (None, None, None)
                 t0 = time.time()
                 run.say(f"▶ {step.name} …")
                 write_progress(started, step, run)         # 수집 일정 화면의 「수집 중 — n번째 단계」
                 mark = _log_mark(run)
-                rc = _run_step(run, step, env_extra=env_extra)
+                rc = _run_step(run, step, args=args, timeout_min=limit, env_extra=env_extra)
                 rec["rc"], rec["seconds"] = rc, round(time.time() - t0, 1)
+                if gap:                                    # 빈 범위를 채웠다 — 그 범위의 빠진 날도 지운다(말없이 남지 않게)
+                    rec["note"] = f"빈 범위 {gap[0]} ~ {gap[1]} 채움"
+                    if rc == 0 and pending.get(step.name):
+                        pending[step.name] = [d for d in pending[step.name] if not gap[0] <= d <= gap[1]]
+                        pending_changed = True
+                if step.name == "upload" and rc == 0:
+                    coord_after_upload(coord)              # 새 main 머리 — 닫을 때 회차 자리 기록에
                 _put_dart(run, step, rec)
                 rec.update(step_failure(run, step, rc, mark))   # 실패면 까닭 한 줄 · 로그 파일 이름(DF-101)
                 if _clear_done(step, rc, pending):         # 앱 DB 가 다시 떴다 — 이 회차가 계산한 그날만(따라잡는 단계는 모두) 지운다
@@ -1295,6 +1649,8 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                 "before": before, "after": after,
                 "log": log_path.relative_to(ROOT).as_posix(),
             } | trigger
+            if coord:                                       # 여러 PC — 자리 · 세대 · 맞춘 main · 맞추기 요약
+                state["multi"] = coord_state(coord)
             _write_json_atomic(LAST_PATH, state)
             with HISTORY_PATH.open("a", encoding="utf-8") as h:
                 h.write(json.dumps({k: state[k] for k in
@@ -1307,6 +1663,10 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             run.say(f"끝 · {'✅ 전부 성공' if ok else '🔴/🟡 실패 단계 있음'} · "
                     f"시세 {after.get('price_max')} · 수정주가 {after.get('adjusted_max')} · "
                     f"TR {after.get('tr_max')} · 벤치마크 {after.get('benchmark_max')}")
+            if coord:                                       # 임대를 닫는다 — 회차 자리 기록(따라가는 PC 의 재료)
+                coord_end(run, coord, ok=ok, rc=rc_total, summary=lease_summary(state, coord))
+        except _Done as d:                                  # 단계를 돌지 않고 끝남(따라가기 · 건너뜀 · 막힘) — 기록은 그쪽이 남겼다
+            rc_total, drop_log = d.rc, d.drop_log
         except Exception as e:                              # 러너 자체의 결함도 기록으로 남긴다
             run.say(f"🔴 러너 오류: {type(e).__name__}: {e}")
             err = {"started_at": _iso(started), "finished_at": _iso(now_kst()), "ok": False,
@@ -1322,9 +1682,14 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             for werr in write_side_files(numbers="run"):
                 run.say(f"🟡 기록 파일을 쓰지 못했다 — {werr}")
             rc_total = 1
+            coord_end(run, coord, ok=False, rc=1, summary={"stopped": err["stopped"], "started_at": err["started_at"],
+                                                           "finished_at": err["finished_at"],
+                                                           "steps": [[s.get("name"), s.get("rc")] for s in run.steps]})
         finally:
             clear_progress()
             release_lock()
+    if drop_log:                                            # 조용히 끝난 따라가기 — 로그를 남기지 않는다(1시간마다 쌓이지 않게)
+        log_path.unlink(missing_ok=True)
     _prune_logs()
     return rc_total
 
@@ -1532,6 +1897,15 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
         with log_path.open("w", encoding="utf-8") as log:
             run = Run(started, upload, log, log_path)
             run.say(f"한 단계만 다시 돌림 · {name}({step.label}) · 업로드 {'켬' if upload else '끔'} · PID {os.getpid()}")
+            # 여러 PC(2026-10-25) — 남이 회차를 도는 중이면 75 · 잡으면 원격을 먼저 맞춘다(옛 DB 위에서 돌지 않게). HF 에 닿지
+            # 못하면 올리지 않는 단계만 이 PC 에서 돈다(다음 맞추기가 견준다) · 겹침이면 멈춘다(사람이 정함).
+            mode, coord, why, _doc = coord_begin(run, "only")
+            if mode == "busy" or (mode == "skip" and upload) or mode == "conflict":
+                run.say(f"멈춤: {why}")
+                return EX_TEMPFAIL if mode != "conflict" else 1
+            if mode == "skip":
+                run.say(f"🟡 {why} — 이 PC 에서만 돈다(올리지 않음 · 다음 맞추기가 견준다)")
+                coord = None
             rec = _rec(step)
             prepare_app_db(run, [step])
             gate = app_db_gate(run, step)                    # 앱 DB 단계 — 꺼져 있으면 돌리지 않는다(정기 회차와 같은 규칙)
@@ -1545,10 +1919,19 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
                     pending.setdefault(name, []).append(gate["date"])
                     _save_fill(run, pending)
             else:
+                env_extra = None
+                if step.name == "upload" and coord:              # 올리기 — 아직 내 임대 · 맞춘 main 머리를 앞 커밋으로
+                    lost = coord_before_upload(run, coord)
+                    if lost:
+                        run.say(f"멈춤: {lost}")
+                        return EX_TEMPFAIL
+                    env_extra = {ENV_HF_PARENT: coord.main or ""}
                 write_progress(started, step, run)
                 mark = _log_mark(run)
-                rc = _run_step(run, step)
+                rc = _run_step(run, step, env_extra=env_extra)
                 rec.update(rc=rc, seconds=round(time.time() - t0, 1), note="다시 돌림", rerun_at=_iso(now_kst()))
+                if step.name == "upload" and rc == 0:
+                    coord_after_upload(coord)
                 _put_dart(run, step, rec)
                 rec.update(step_failure(run, step, rc, mark))
                 _mark_warn(step, rc, rec)                    # 경고 종료코드는 정기 회차와 같은 표시(DF-92)
@@ -1557,6 +1940,8 @@ def run_one(name: str, upload: bool = False, *, now: Optional[datetime.datetime]
                 _rearm_or_say(run)
             _apply_fill(rec, pending.get(name, []))
             _finish_one(run, step, rec, rc, gate=gate, started=started, upload=upload, request_id=request_id)
+            coord_end(run, coord, ok=rc == 0, rc=rc, fill_slot=False,
+                      summary={"stopped": None if rc == 0 else f"{name} 종료코드 {rc}", "steps": [[name, rc]]})
     finally:
         clear_progress()
         release_lock()
@@ -1654,6 +2039,9 @@ def task_xml(time_hm: str, upload: bool, *, python_w: str, root: Path,
     · ``RunOnlyIfNetworkAvailable`` — 네트워크 없이 돌면 ①부터 실패하므로 기다린다.
     · ``InteractiveToken`` — 로그인해 있을 때만 돈다. 비밀번호를 저장하지 않는다.
     · ``IgnoreNew`` — 이전 실행이 아직 돌면 새 실행을 만들지 않는다(러너의 잠금과 이중).
+    · ``Repetition`` 1시간마다 10시간(12:30 ~ 22:30 · 2026-10-25 여러 PC) — 깨어날 때마다 임대를 읽어 오늘 자리가 끝났으면 받기만
+      하고, 받을 것이 없으면 기록 없이 몇 초 만에 끝난다. 절전에서 깨어났는데 따라잡지 않은 PC · 로그온이 늦은 PC · HF 가 잠시
+      안 돼 건너뛴 날 · 쥔 PC 가 꺼진 날의 이어받기를 다음 정시에 줍는다(조사 `2026-10-25-여러PC-회차-임대` 3절 ⑥).
     """
     hh, mm = (int(x) for x in time_hm.split(":"))
     start = datetime.datetime.combine(today or datetime.date.today(), datetime.time(hh, mm))
@@ -1674,6 +2062,11 @@ def task_xml(time_hm: str, upload: bool, *, python_w: str, root: Path,
   </RegistrationInfo>
   <Triggers>
     <CalendarTrigger>
+      <Repetition>
+        <Interval>PT{REPEAT_EVERY_H}H</Interval>
+        <Duration>PT{REPEAT_FOR_H}H</Duration>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
       <StartBoundary>{start.isoformat(timespec="seconds")}</StartBoundary>
       <Enabled>true</Enabled>
       <ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>
@@ -1709,6 +2102,11 @@ def task_xml(time_hm: str, upload: bool, *, python_w: str, root: Path,
   </Actions>
 </Task>
 """
+
+
+#: 예약 작업이 다시 깨어나는 간격 · 기간(시간) — 12:30 부터 22:30 까지 정시마다(``task_xml`` 머리말 · 여러 PC).
+REPEAT_EVERY_H = 1
+REPEAT_FOR_H = 10
 
 
 def _pythonw() -> str:
@@ -1754,6 +2152,8 @@ def install(time_hm: str = DEFAULT_TIME, upload: bool = True) -> int:
     print(f"✅ 작업 스케줄러에 등록했다 — '{TASK_NAME}' · 매일 {time_hm} · "
           f"업로드 {'켬' if upload else '끔'}")
     print("   PC 가 그 시각에 꺼져 있었으면 켜진 뒤 곧바로 돈다(StartWhenAvailable).")
+    print(f"   {REPEAT_FOR_H}시간 동안 {REPEAT_EVERY_H}시간마다 다시 깨어난다 — 오늘 회차가 끝났으면 받기만(여러 PC)")
+    print("   모든 PC 에 같은 작업을 건다 — 하루 한 회차는 임대가 고르고, 못 잡은 PC 는 끝나길 기다렸다 받는다.")
     print("   지금 한 번 돌리려면: python scripts/daily_update.py start")
     return 0
 
@@ -1762,6 +2162,43 @@ def uninstall() -> int:
     p = _schtasks("/Delete", "/TN", TASK_NAME, "/F")
     print("✅ 등록을 해제했다" if p.returncode == 0 else f"🟡 {p.stdout}{p.stderr}".strip())
     return p.returncode
+
+
+def sync_cmd(discard_local: bool = False, full: bool = False) -> int:
+    """원격 백업과 이 PC 수집 DB 를 맞춘다(사람이 부름) — 러너 잠금을 잡고, 12:30 회차와 겹치는 때(11:00 ~ 13:30)는 막는다.
+
+    0 맞춤 · 같음 / 65 겹침(이 PC 의 올리지 않은 변경 — ``--discard-local`` 이면 원격 것으로) / 75 막힘 / 1 실패.
+    """
+    started = now_kst()
+    why = full_run_blocked(started)
+    if why:
+        print(f"멈춤: {why.replace('전체 수집', '맞추기')}")
+        return EX_TEMPFAIL
+    busy = acquire_lock(now=started)
+    if busy:
+        print(f"멈춤: {busy}")
+        return EX_TEMPFAIL
+    try:
+        from scripts import hf_sync, run_lease
+
+        try:
+            api = run_lease.make_api()
+        except run_lease.LeaseError as e:
+            print(f"멈춤: {e.why}")
+            return 1
+        if full:
+            rc, rec = hf_sync.full(api)
+        else:
+            rc, rec = hf_sync.pull(api, mode="lead", discard_local=discard_local)
+        print(f"{'✅' if rc == 0 else '🔴'} 맞추기 {rec.get('result')} · main {str(rec.get('main') or '-')[:8]}"
+              f" · 바뀐 조각 {rec.get('changed', 0)}" + (f" · {rec.get('why')}" if rec.get("why") else ""))
+        if rc == 0 and rec.get("result") in ("synced", "full"):
+            rearm_wal()
+            for err in write_side_files(numbers="steps"):
+                print(f"🟡 {err}")
+        return rc
+    finally:
+        release_lock()
 
 
 def start() -> int:
@@ -1839,7 +2276,21 @@ def status() -> int:
         print(f"  DART   이 회차 {s['dart_calls']:,}회(회차 몫 {s.get('dart_budget', DART_ROUND_BUDGET):,}) · 오늘 장부 — 회차 "
               f"{today['round']:,} · 그 밖(지난 해 채우기 · 손 명령) {today['other']:,} · 하루 한도 {config.DART_DAILY_LIMIT:,}")
     print(f"  로그   {s.get('log')}")
+    _status_multi()
     return 0
+
+
+def _status_multi() -> None:
+    """여러 PC — 이 PC 가 마지막으로 본 임대와 맞추기(망 없이 읽는다 · 원격은 ``python scripts/run_lease.py status``)."""
+    from scripts import hf_sync, run_lease
+
+    seen = run_lease.seen()
+    print("\n― 여러 PC (이 PC 가 마지막으로 본 것 · 원격은 run_lease.py status · hf_sync.py status) ―")
+    if seen:
+        print("\n".join("  " + ln for ln in run_lease.status_lines(seen.get("lease"), seen.get("head"))))
+    else:
+        print("  임대 — 아직 본 적 없음(올리는 회차가 처음 돌 때 생긴다)")
+    print("\n".join("  " + ln for ln in hf_sync.status_lines(None)))
 
 
 # ==================================================
@@ -1886,6 +2337,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     i.add_argument("--no-upload", action="store_true", help="로컬 갱신만 하고 HF 에 올리지 않는다")
     sub.add_parser("start", help="등록된 작업을 지금 한 번 돌린다(비동기 · 세션과 무관)")
     sub.add_parser("uninstall", help="작업 스케줄러 등록 해제")
+    y = sub.add_parser("sync", help="원격 백업과 이 PC 수집 DB 를 맞춘다 — 바뀐 조각만(여러 PC)")
+    y.add_argument("--discard-local", action="store_true",
+                   help="이 PC 의 올리지 않은 변경과 겹친 조각은 원격 것으로(사람이 고름)")
+    y.add_argument("--full", action="store_true", help="수집 DB 가 없는 새 PC — 원격 전부를 받아 복원")
     a = p.parse_args(argv)
 
     if a.cmd == "run":
@@ -1931,6 +2386,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return install(a.time, upload=not a.no_upload)
     if a.cmd == "start":
         return start()
+    if a.cmd == "sync":
+        return sync_cmd(discard_local=a.discard_local, full=a.full)
     return uninstall()
 
 

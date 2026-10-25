@@ -28,6 +28,15 @@ SQLite 를 되살리는 `restore` 를 함께 둔다. (2026-10-02 — OHLCV 원�
 다시 만들 수 있는 거래일 달력 표 셋만 `EXCLUDED` 에 이유와 함께 둔다 — DF-40.) `restore` 가 실제로 성공해야만 `status` 가
 "지워도 된다"고 말한다 — **리허설 없이 초록을 내지 않는다.**
 
+★ 2026-10-25 — 여러 PC 가 이 저장소를 함께 쓴다
+-----------------------------------------------
+12:30 회차가 어느 PC 에서든 돈다(설계 `docs/phase-3/02-design/system/여러PC-회차-설계.md`). 그래서 ① 거래일 달력 · 일정
+표 다섯도 백업한다 — 따라가는 PC 가 바깥 출처(KASI · 한국은행 · 연준)를 다시 부르지 않고 회차를 돈 PC 의 것을 받는다
+(`EXCLUDED` 는 비었다) ② 증분 올리기는 **한 커밋**이고 main 머리를 앞 커밋으로 비교한다(`create_commit(parent_commit=…)` —
+그사이 남이 올렸으면 412 로 멈춘다 · `EX_REMOTE_MOVED`) ③ 올리기 앞에서 「원격이 이 PC 의 기준보다 앞섰나」 를 본다
+(`scripts/hf_sync.py` · 앞섰으면 먼저 맞추기 — 뒤처진 PC 의 올해 파일이 다른 PC 가 받은 날을 덮어 지우지 않게) ④ 태그는
+올린 커밋에 직접 단다. 「오늘 회차는 이 PC」 표시(임대)는 같은 저장소의 가지 `runner-lease` 에 있다(`scripts/run_lease.py`).
+
 원자료를 밖으로 내보내는 근거 (팀 결정 · 2026-09-20)
 -----------------------------------------------------
 `collector/README.md §9` 는 `RAW_SHARING` 을 기본 꺼짐으로 두고 두 가지를 미결로
@@ -191,6 +200,12 @@ RUN_RECORD_PATH = EXPORT_DIR / "meta" / "run_record.json"
 #: 러너가 올리기 자식에게만 넘기는 값 — 그 회차의 시작 시각(공유 스위치처럼 명령줄 · `.env` 로는 오지 않는다). 사본의 회차와 같을
 #: 때만 싣는다(`run_record_for_upload`).
 ENV_RUN_RECORD = "QURIOUS_RUN_RECORD"
+#: 올리기의 앞 커밋(main 머리 40자) — 러너가 맞추기 때 본 머리를 넘긴다(2026-10-25 · 여러 PC). 지금 머리와 다르면 올리지 않고,
+#: 같으면 그 머리를 ``parent_commit`` 으로 한 커밋을 만든다(그사이 남이 올렸으면 HF 가 412 로 거절). 값이 없으면(손으로 올림)
+#: 올리기 직전에 읽은 머리를 쓴다 — 어느 쪽이든 「원격이 이 PC 의 기준보다 앞섰나」 를 먼저 본다(``scripts/hf_sync.behind``).
+ENV_PARENT = "QURIOUS_HF_PARENT"
+#: 원격이 이 PC 의 기준보다 앞섰거나 올리는 사이 바뀌었다 — 올리지 않았다(먼저 맞추기 · sysexits EX_PROTOCOL).
+EX_REMOTE_MOVED = 76
 
 #: 「지워도 되는가」 판정 기록 — 앱의 적재 · 백업 화면(`GET /api/data/backup`)이 읽는다(2026-10-08 결정 다).
 #: 판정 규칙은 이 파일 한 곳(`_deletion_verdict`)이고 앱에는 사본이 없다(앱 컨테이너에는 scripts/ 가 없다).
@@ -426,6 +441,39 @@ TABLES: Dict[str, Dict] = {
         "why": "한국표준산업분류 10 · 11차 코드표(고시 첨부 엑셀 · 원본 지문)",
         "optional": False,
     },
+    # ── 2026-10-25 추가: 거래일 달력 · 일정 표 다섯(여러 PC 맞추기 · 설계 `여러PC-회차-설계.md` 5.3) ────────────────────────
+    # 다시 만들 수 있어 2026-10-02 에 뺐던 표다(옛 EXCLUDED). 회차가 PC 를 옮겨 다니자 따라가는 PC 가 바깥 출처를 다시 부르지 않고
+    # 회차를 돈 PC 의 표를 그대로 받게 넣었다 — 작은 표라(합 약 10만 행 · 수 MB) 백업 비용이 거의 없다.
+    "holiday_kasi": {
+        "partition": None, "date_col": "locdate",
+        "sort": ("locdate", "date_name"),
+        "why": "공휴일 · 기념일(한국천문연구원 특일 정보) — 거래일 달력의 재료",
+        "optional": False,
+    },
+    "market_calendar": {
+        "partition": None, "date_col": "cal_date",
+        "sort": ("cal_date",),
+        "why": "거래일 달력(계산한 표 — 공휴일 · 시세로 만든다)",
+        "optional": False,
+    },
+    "market_event": {
+        "partition": None, "date_col": "event_date",
+        "sort": ("event_date", "kind", "event_id"),
+        "why": "금융 일정(계산한 표 — 배당락 · 실적 · 주총 · 정책 회의)",
+        "optional": False,
+    },
+    "policy_meeting": {
+        "partition": None, "date_col": "meeting_date",
+        "sort": ("meeting_date", "org"),
+        "why": "금통위 · FOMC 공식 일정(한국은행 · 연준 누리집)",
+        "optional": False,
+    },
+    "corp_schedule": {
+        "partition": None, "date_col": "event_date",
+        "sort": ("rcept_no", "kind"),
+        "why": "주주총회 · 배당금 지급 일정(계산한 표 — 공시 본문 원문에서 읽은 날짜)",
+        "optional": False,
+    },
 }
 
 #: 올리지 않는 표와 그 이유.
@@ -437,13 +485,9 @@ TABLES: Dict[str, Dict] = {
 #: 2026-10-02 — 거래일 달력 표 셋은 언제든 다시 만들 수 있어 뺀다. OHLCV 원자료 표 넷(etf_daily ·
 #: index_daily · price_intraday · intraday_universe)은 여기 적지 않았다 — 적으면 「DB 를 지워도 된다」
 #: 판정이 거짓으로 초록이 된다(결함 DF-40). 같은 날 데이터 파트가 「넷 다 백업」 으로 정해 위 TABLES 에 넣었다.
-EXCLUDED: Dict[str, str] = {
-    "holiday_kasi": "특일 정보(한국천문연구원 · 이용허락범위 제한 없음)를 언제든 다시 받는다 — python -m collector.market_calendar build",
-    "market_calendar": "계산한 표 — python -m collector.market_calendar build 가 공휴일 · 시세로 다시 만든다",
-    "market_event": "계산한 표 — python -m collector.market_calendar build 가 달력 · 배당 표로 다시 만든다",
-    "policy_meeting": "금통위 · FOMC 공식 일정(한국은행 · 연준 누리집)을 언제든 다시 받는다 — python -m collector.event_sources fetch --force",
-    "corp_schedule": "계산한 표 — python -m collector.corp_schedule build --rebuild 가 공시 본문 원문(raw_response 의 dart agm/ · dividend/ — 백업됨)에서 다시 만든다",
-}
+#: 2026-10-25 — 여기 있던 다섯(공휴일 · 달력 · 금융 일정 · 정책 회의 · 기업 일정)을 TABLES 로 옮겨 비었다(여러 PC 맞추기 —
+#: 따라가는 PC 가 다시 만들지 않고 받는다). 뺄 표가 다시 생기면 이유와 함께 여기 적는다(TC-HF-01 이 이유 칸을 본다).
+EXCLUDED: Dict[str, str] = {}
 
 #: SQLite 선언 타입 → arrow 타입. TEXT 는 string, INTEGER 는 int64, REAL 은 float64,
 #: BLOB 은 binary(원문 바이트를 그대로 담는다 — 문자열로 바꾸면 인코딩 추측이 끼어들고
@@ -983,6 +1027,7 @@ def export(tables: Optional[List[str]] = None, years: Optional[List[str]] = None
                 "sort": list(spec["sort"]),
                 "partition": spec["partition"],
                 "partition_col": spec.get("partition_col"),
+                "date_col": spec.get("date_col"),        # 여러 PC 맞추기 — 이 표를 모르는 판이 연도 조각을 고른다(2026-10-25)
                 "fetch_rows": int(spec.get("fetch_rows") or FETCH_ROWS),
                 "restore_only": bool(spec.get("restore_only")),
                 # ★ 스키마를 함께 들고 나간다 — 이것이 있어야 파케이만으로 복구된다.
@@ -1979,7 +2024,9 @@ slug 만 받아서 줄인 표기다. 실제 조건은 이렇다: 공공데이터
 - 야후 파이낸스 — 60분 · 5분 분봉(`price_intraday` · 09:00~15:00만 · 분할 비율 반영). 야후는 5분봉 60일 ·
   60분봉 730일보다 오래된 것을 다시 주지 않아, 지난 분봉은 이 백업에만 남는다
 - KRX 정보데이터시스템 지수구성종목(사람이 받은 CSV) — 분봉 유니버스 명단(`intraday_universe`)
-- 전자공시시스템 OpenDART — 현금·현물 배당 공시
+- 전자공시시스템 OpenDART — 현금·현물 배당 공시 · 공시 목록 · 재무 · 기업개황 · 주총 · 배당 지급 일정(`corp_schedule` — 본문에서 읽음)
+- 한국천문연구원 특일 정보(공공데이터포털) — 공휴일(`holiday_kasi`) · 거래일 달력(`market_calendar` — 계산) · 금융 일정(`market_event` — 계산)
+- 한국은행 · 미국 연준 누리집 — 금통위 · FOMC 공식 일정(`policy_meeting`)
 
 ## 규모
 생성 {man.get('generated_at','?')} · 수집기 커밋 `{man.get('collector_commit','?')}`
@@ -2010,6 +2057,12 @@ PYTHONPATH=. python scripts/hf_dataset.py restore \\
 `run` 은 올리기 단계 직전까지의 기록이다 — 러너의 `daily_update_last.json` 과 같은 칸이고, `finished_at` 은 회차가 끝나야 생겨
 비어 있으며 `pending_steps` 가 그때 남은 단계(올리기와 그 뒤)다. `history` 는 앞 회차들의 마지막 요약(최근 한 달)이고, 이 회차의
 요약은 다음 판의 `history` 에 든다. 화면 수집 요청 번호는 빼고, 글 칸의 경로는 파일 이름만 남겼다.
+
+## 여러 PC — 임대 가지 `runner-lease` (2026-10-25)
+
+12:30 회차가 여러 PC 에서 돈다. 「오늘 회차는 이 PC」 표시는 이 저장소의 **가지 `runner-lease`** 의 `lease.json` 하나다 — main(이
+데이터)과 이력이 섞이지 않는다. 데이터를 받을 때는 main 을 쓴다. main 의 커밋은 회차가 올린 데이터뿐이고, 각 커밋은 앞 커밋이
+그대로일 때만 받아들여진다(다른 PC 의 올리기를 덮지 않는다).
 
 ## 정의
 - `price_adjusted` — **PR**(가격) 계열. 분할·권리락만 고친 수정주가.
@@ -2100,6 +2153,20 @@ def changed_since_upload(man: Optional[Dict] = None) -> Optional[List[str]]:
     files = {f["path"]: f["sha256"]
              for t in man.get("tables", {}).values() for f in t.get("files", [])}
     return sorted(p for p, s in files.items() if up.get(p) != s)
+
+
+def _commit_ops(patterns: List[str]) -> list:
+    """증분 올리기의 커밋 조각 — 내보내기 폴더에서 패턴에 맞는 파일(반쪽 · 캐시 제외)을 한 커밋의 ``CommitOperationAdd`` 로.
+
+    ``upload_folder`` 와 같은 고르기(``filter_repo_objects`` · ``UPLOAD_IGNORE``)다. 그쪽을 쓰지 않는 까닭은 큰 묶음을 여러 커밋으로
+    쪼개 첫 커밋에만 앞 커밋 비교가 걸리고, 스스로 다시 보내 이긴 커밋을 412 로 보이게 하기 때문이다(여러 PC 조사 Q1 · 2026-10-25).
+    """
+    from huggingface_hub import CommitOperationAdd
+    from huggingface_hub.utils import filter_repo_objects
+
+    rels = sorted(p.relative_to(EXPORT_DIR).as_posix() for p in EXPORT_DIR.rglob("*") if p.is_file())
+    keep = list(filter_repo_objects(rels, allow_patterns=patterns, ignore_patterns=UPLOAD_IGNORE))
+    return [CommitOperationAdd(path_in_repo=r, path_or_fileobj=str(EXPORT_DIR / r)) for r in keep]
 
 
 def _select(man: Dict, patterns: Optional[List[str]]) -> List[Tuple[str, List[Dict]]]:
@@ -2291,9 +2358,27 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
     _sharing_gate("HF 업로드")            # 게이트 1 — 꺼져 있으면 여기서 멈춘다
 
     from huggingface_hub import HfApi
+    from huggingface_hub.errors import HfHubHTTPError
+
+    from scripts import hf_sync, run_lease
+    run_lease.set_timeouts()                 # 요청 한도 — 기본 클라이언트는 끝없이 기다린다(여러 PC 조사 Q1 함정 3)
     api = HfApi(token=_token())              # 토큰은 여기서만 쓰고 절대 찍지 않는다
     if not _assert_private(api, create=True):   # 게이트 4
         return 1
+
+    # 게이트 5(여러 PC · 2026-10-25) — ① 러너가 맞추기 때 본 main 머리가 지금도 머리인가 ② 원격이 이 PC 의 기준보다 앞서지
+    # 않았나. 어느 하나라도 아니면 올리지 않는다 — 뒤처진 PC 의 올해 파일이 원격을 덮어 다른 PC 가 받은 날을 지우지 않게.
+    head = hf_sync.remote_head(api)
+    want = os.environ.get(ENV_PARENT, "")
+    if want and want != head:
+        print(f"  🔴 원격 main 이 그사이 바뀌었다({want[:8]} → {head[:8]}) — 다른 PC 가 올렸다. 올리지 않는다.\n"
+              f"     할 일: python scripts/daily_update.py sync 로 맞춘 뒤 다시")
+        return EX_REMOTE_MOVED
+    why = hf_sync.behind(api, head)
+    if why:
+        print(f"  🔴 {why}")
+        return EX_REMOTE_MOVED
+    print(f"  ✅ 원격 main {head[:8]} 이 이 PC 의 기준과 같다 — 이 머리를 앞 커밋으로 올린다")
 
     # 이 회차의 사본만 싣는다 — 러너 밖에서 올리거나 지난 회차의 사본이면 지운다(`meta/*` 가 그대로 올리지 않게 · #124)
     run_record_for_upload(apply=True)
@@ -2301,32 +2386,44 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
 
     t0 = time.time()
     if incremental:
-        # 증분: 바뀐 파일 + 메타만. 단일 커밋이라 커밋 메시지를 남길 수 있다.
-        api.upload_folder(
-            repo_id=REPO_ID, repo_type="dataset", folder_path=str(EXPORT_DIR),
-            allow_patterns=patterns, ignore_patterns=UPLOAD_IGNORE,
-            commit_message=msg)
+        # 증분: 바뀐 파일 + 메타를 **한 커밋**으로 · 앞 커밋 = 방금 본 main 머리(`_commit_ops` 머리말). 그사이 남이 올렸으면
+        # HF 가 412 로 거절한다 — 그때는 올리지 않고 멈춘다(먼저 맞추기).
+        try:
+            info = api.create_commit(REPO_ID, _commit_ops(patterns), commit_message=msg, repo_type="dataset",
+                                     revision="main", parent_commit=head)
+        except HfHubHTTPError as e:
+            if getattr(getattr(e, "response", None), "status_code", None) == 412:
+                print("  🔴 올리는 사이 원격 main 이 바뀌었다(412) — 다른 PC 가 먼저 올렸다. 올리지 않았다.\n"
+                      "     할 일: python scripts/daily_update.py sync 로 맞춘 뒤 다시")
+                return EX_REMOTE_MOVED
+            raise
+        commit = str(getattr(info, "oid", "") or "")
     else:
-        # 전체: 중단돼도 **재개**된다(진행 상태를 폴더 안 `.cache/huggingface` 에 캐시).
-        # ⚠️ commit_message·path_in_repo·run_as_future 를 지원하지 않는다 —
-        #    커밋이 여러 개로 쪼개지기 때문이다. 넘기면 실패한다.
-        api.upload_large_folder(
-            repo_id=REPO_ID, repo_type="dataset", folder_path=str(EXPORT_DIR),
-            ignore_patterns=UPLOAD_IGNORE, num_workers=8, print_report=True)
-    # ★ 태그는 업로드가 **끝난 뒤에** 단다(전체 업로드는 커밋이 여러 개다).
-    #   `exist_ok=True` 가 없으면 같은 날 두 번째 업로드가 270MB 를 다 올린 뒤
-    #   409 로 죽는다 — 일이 다 끝나고 나서 실패하는 최악의 자리다.
-    api.create_tag(REPO_ID, repo_type="dataset", tag=tag_name, tag_message=msg,
+        # 전체: 사람이 새 저장소에 처음 올릴 때만. huggingface_hub 2.x 에는 `upload_large_folder` 가 없다(1.31 에만 있었다 —
+        # 여러 PC 조사 4.4 · 2026-10-25) → 있으면 그것(중단돼도 재개 · 커밋 메시지 없음), 없으면 `upload_folder`(xet 파이프라인 ·
+        # 큰 묶음은 여러 커밋으로 쪼갠다).
+        if hasattr(api, "upload_large_folder"):
+            api.upload_large_folder(
+                repo_id=REPO_ID, repo_type="dataset", folder_path=str(EXPORT_DIR),
+                ignore_patterns=UPLOAD_IGNORE, num_workers=8, print_report=True)
+        else:
+            api.upload_folder(repo_id=REPO_ID, repo_type="dataset", folder_path=str(EXPORT_DIR),
+                              ignore_patterns=UPLOAD_IGNORE, commit_message=msg)
+        commit = hf_sync.remote_head(api)
+    # ★ 태그는 업로드가 **끝난 뒤에**, **올린 커밋에** 단다 — 이름만 주면 그사이 생긴 남의 커밋에 붙을 수 있다(여러 PC).
+    #   `exist_ok=True` 가 없으면 같은 날 두 번째 업로드가 다 올린 뒤 409 로 죽는다 — 일이 다 끝나고 나서 실패하는 최악의 자리다.
+    api.create_tag(REPO_ID, repo_type="dataset", tag=tag_name, tag_message=msg, revision=commit or None,
                    exist_ok=True)
 
     # 무엇을 올렸는지 매니페스트에 적는다 — 다음 증분 업로드가 이 기록으로 차이를 낸다.
     up_files = {f["path"]: f["sha256"] for _, fs in sel for f in fs}
     prev_up = (man.get("uploaded") or {}).get("files") or {}
     prev_up.update(up_files)
-    man["uploaded"] = {"at": _now_kst(), "tag": tag_name, "repo_id": REPO_ID,
+    man["uploaded"] = {"at": _now_kst(), "tag": tag_name, "repo_id": REPO_ID, "commit": commit,
                        "mode": "incremental" if incremental else "full",
                        "files": prev_up}
     _write_json_atomic(MANIFEST_PATH, man)
+    hf_sync.after_upload(man, commit)         # 기준 = 지금 원격(다음 맞추기 · 올리기가 이것과 견준다)
     write_status_snapshot(by="upload")        # 적재 · 백업 화면의 「마지막 올림」 — 이 업로드 기록까지 넣어 다시
 
     print(f"  ✅ 끝 · {time.time() - t0:,.1f}초 · "

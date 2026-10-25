@@ -422,6 +422,7 @@ CI 에서 성공과 구분하려면 종료코드가 아니라 출력을 봐야 �
 | `benchmark_index` | 한 파일 · 선택 | 자체 재현 벤치마크. 없으면 조용히 건너뛴다 |
 | `raw_response` | 출처별 파일 | ★ 응답 **원문**(gzip BLOB). 감사·재정규화의 유일한 근거 |
 | `ingest_day` | 한 파일 | ★ 기준일별 수집 상태. 어디까지 받았는지의 기록 |
+| `holiday_kasi` · `market_calendar` · `market_event` · `policy_meeting` · `corp_schedule` | 한 파일씩 | 2026-10-25 넣음 — 여러 PC 맞추기(따라가는 PC 가 다시 만들지 않고 받는다 · 19절) |
 
 ★ 표시 둘은 **2026-09-20 에 대상으로 옮겼다.** 파케이로 바꾸면 297.3MB → 298.6MB 로 오히려
 커지지만, 그 대가로 **백업이 완전해진다** — 아래가 그 이유다.
@@ -1538,3 +1539,28 @@ OpenDART 하루 한도는 「일반적으로는 20,000건 이상」(개발가이
   기다리지 말고 `python scripts/daily_update.py run --only export --upload` → `--only verify --upload` → `--only upload --upload`.
 - 10-22 일회 수집본(HF `kr-macro-series` · `dart-full-financials`)은 고치지 않는다 — 그날 판의 보관본이다.
 
+## 19. 어느 PC 에서든 — 임대 · 맞추기 · 따라가기  ★ 2026-10-25 추가
+
+12:30 회차는 사용자 PC 어디서든 돈다(사용자 10-24 · 10-25 · 설계 [여러 PC 회차 설계](../docs/phase-3/02-design/system/여러PC-회차-설계.md)).
+
+| 무엇 | 어디 | 한 줄 |
+|---|---|---|
+| 임대 | `scripts/run_lease.py` · HF `krx-daily-market` 가지 `runner-lease` 의 `lease.json` | 한 자리 한 PC — 앞 커밋 비교(412) · 단계 사이 15분 갱신 · 90분 무소식이면 이어받기 |
+| 맞추기 | `scripts/hf_sync.py` · 기준 `data/collector/state/hf_sync_base.json` | 기준 · 원격 · 이 PC 세 판 — 원격만 바꾼 조각은 갈아 끼움 · 둘 다 바꿨으면 멈춤 · 원문은 합치기 |
+| 따라가기 | `scripts/daily_update.py` `follow_run` | 못 잡은 PC 는 5분마다 읽기만 하다가 받기 · 검색 색인 · 신호 빈 범위 · 일지 원장 받기 · 그 회차를 이 PC 기록으로 |
+| 백업 올리기 | `scripts/hf_dataset.py upload` | 원격이 앞섰으면 76 · 한 커밋 · 앞 커밋 = 맞춘 main · 태그는 올린 커밋에 |
+
+**설치 · 명령**
+
+    python scripts/daily_update.py install             # 모든 PC 에 같은 예약(12:30 · 1시간마다 10시간 다시 깨어남)
+    python scripts/daily_update.py sync                # 사람이 부르는 맞추기(11:00 ~ 13:30 막힘)
+    python scripts/daily_update.py sync --discard-local   # 겹친 조각은 원격 것으로(이 PC 의 올리지 않은 변경을 버린다)
+    python scripts/daily_update.py sync --full         # 수집 DB 가 없는 새 PC — 원격 전부 받아 복원
+    python scripts/run_lease.py status                 # 지금 임대 · 최근 회차 자리(원격 읽기만)
+    python scripts/hf_sync.py status --plan            # 기준 · 원격 · 받을 조각(읽기만)
+
+**지키는 것**
+- HF 에 닿지 못하면 회차를 잡지 않는다(fail-closed · 이력 「건너뜀」 · 다음 정시에 다시).
+- 올리지 않는 회차(`run` 만)는 지금처럼 이 PC 만 돈다 — 그 변경은 다음 맞추기가 견준다(겹치면 멈춤).
+- 수집 DB 에 새 자료를 넣으면 바로 백업(18절) — 올리기 앞에서 「원격이 앞섰나」 를 보므로 다른 PC 가 먼저 올렸으면 `sync` 뒤에 다시.
+- 시험은 진짜 HF 에 닿지 않는다(`tests/conftest.py` 오프라인 · 2026-10-25 사고 뒤).

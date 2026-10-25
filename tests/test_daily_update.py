@@ -217,6 +217,9 @@ def fake_runner(tmp_path, monkeypatch):
     base = datetime.datetime(2026, 10, 12, 15, 0, tzinfo=du.KST)
     ticks = iter(range(10_000_000))
     monkeypatch.setattr(du, "now_kst", lambda: base + datetime.timedelta(seconds=next(ticks)))
+    # 여러 PC(2026-10-25) — 이 픽스처의 회차는 임대 · 맞추기 없이 돈다(옛 시험 그대로). 여러 PC 흐름은 그 시험이 가짜 HF 로 다시 켠다.
+    monkeypatch.setattr(du, "_coordinate_run", lambda run, manual=False: None)
+    monkeypatch.setattr(du, "coord_begin", lambda run, kind: ("lead", None, "시험 — 여러 PC 끔", None))
     (tmp_path / "state").mkdir()
     return tmp_path
 
@@ -1277,3 +1280,248 @@ def test_dart_ledger_writes_only_when_the_runner_asks(tmp_path, monkeypatch):
     line = json.loads(ledger.read_text(encoding="utf-8"))
     assert line["calls"] == 3 and len(line["date"]) == 10 and line["cmd"]
     assert dart.ledger_lines(ledger, 0)[1] == [line] and dart.ledger_lines(tmp_path / "x", 0) == (0, [])
+
+# ── 여러 PC — 임대 · 맞추기 · 따라가기 (2026-10-25 · 설계 `docs/phase-3/02-design/system/여러PC-회차-설계.md`) ──────────
+# 픽스처 `fake_runner` 는 여러 PC 흐름을 끈다(옛 시험 그대로). 여기서는 진짜 흐름을 다시 켜고 임대는 가짜 HF(`FakeHub`), 맞추기는
+# 결과를 시험이 정하는 가짜로 둔다 — 진짜 HF 에는 닿지 않는다(conftest 가 오프라인으로 막는다 · 2026-10-25 사고 뒤).
+_REAL_COORDINATE_RUN = du._coordinate_run
+_REAL_COORD_BEGIN = du.coord_begin
+_SLOT = "2026-10-12"
+
+
+@pytest.fixture
+def multi(fake_runner, monkeypatch):
+    import types
+
+    from scripts import hf_sync, run_lease
+    from tests.test_run_lease import FakeHub
+
+    hub = FakeHub()
+    monkeypatch.setattr(du, "_coordinate_run", _REAL_COORDINATE_RUN)
+    monkeypatch.setattr(du, "coord_begin", _REAL_COORD_BEGIN)
+    monkeypatch.setattr(run_lease, "make_api", lambda: hub)
+    calls: list = []
+    result = {"lead": (0, {"result": "same", "main": "a" * 40, "changed": 0}),
+              "follow": (0, {"result": "synced", "main": "a" * 40, "changed": 2})}
+
+    def fake_pull(api, *, mode="lead", discard_local=False, dry_run=False, say=print):
+        calls.append(mode)
+        return result[mode]
+
+    monkeypatch.setattr(hf_sync, "pull", fake_pull)
+    return types.SimpleNamespace(t=fake_runner, hub=hub, calls=calls, result=result, pc=run_lease.this_pc())
+
+
+def _other_pc(hub, *, at=datetime.datetime(2026, 10, 12, 12, 30, 1, tzinfo=du.KST), done=True, ok=True):
+    """다른 PC(PC-B)가 그 자리를 잡는다 — done 이면 50분 뒤 닫고 자리 기록(시세 · 달력 성공)을 남긴다."""
+    from scripts import run_lease
+
+    _, held, _, _ = run_lease.acquire(hub, now=at, kind="schedule", run=at.isoformat(), pc="PC-B", pid=7)
+    if done:
+        end = at + datetime.timedelta(minutes=50)
+        run_lease.release(hub, held, now=end, ok=ok, rc=0 if ok else 1,
+                          summary={"started_at": at.isoformat(), "finished_at": end.isoformat(), "main": "a" * 40,
+                                   "price_max": "20261009", "stopped": None,
+                                   "steps": [["price", 0], ["calendar", 0], ["upload", 0]]})
+    return held
+
+
+def _hist(t) -> list:
+    p = t / "state/daily_update_history.jsonl"
+    return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
+
+
+def test_multi_pc_lead_takes_lease_syncs_runs_and_records_the_slot(multi):
+    """TC-DU · 여러 PC — 올리는 정기 회차는 임대를 잡고(세대 1) 앞 맞추기(lead)를 한 뒤 단계를 돌고, 닫을 때 그 자리 기록(이 PC ·
+    단계 줄)을 남긴다 · 회차 기록에 여러 PC 칸(자리 · 세대 · 맞추기 요약)."""
+    m = multi
+    assert du.run_all(upload=True) == 3                       # beta 가 3(픽스처)
+    assert m.calls == ["lead"]
+    lease = m.hub.lease()
+    rec = lease["slots"][_SLOT]
+    assert lease["state"] == "failed" and rec["pc"] == m.pc and rec["kind"] == "schedule"
+    assert rec["steps"] == [["alpha", 0], ["beta", 3]] and rec["started_at"].startswith("2026-10-12T15:00")
+    multi_rec = _last(m.t)["multi"]
+    assert (multi_rec["slot"], multi_rec["gen"], multi_rec["sync"]["result"]) == (_SLOT, 1, "same")
+
+
+def test_multi_pc_upload_step_gets_the_synced_main_as_parent(multi, monkeypatch):
+    """TC-DU · 올리기 단계 바로 앞에 아직 내 임대인지 보고, 맞출 때 본 main 머리를 올리기 자식에게 앞 커밋으로 넘긴다."""
+    code = "import os, sys; sys.exit(0 if os.environ.get('QURIOUS_HF_PARENT') == 'a' * 40 else 9)"
+    monkeypatch.setattr(du, "STEPS", [du.Step("upload", ["-c", code], 1, upload=True, label="올리기", group="백업", desc="d")])
+    monkeypatch.setattr(du, "_pending_upload", lambda: ["x"])
+    monkeypatch.setattr(du, "write_upload_record", lambda *a, **k: {"QURIOUS_RUN_RECORD": "t"})
+    assert du.run_all(upload=True) == 0
+    assert _last(multi.t)["steps"][0]["rc"] == 0 and multi.hub.lease()["slots"][_SLOT]["main"] == "a" * 40
+
+
+def test_multi_pc_upload_is_skipped_when_the_lease_is_no_longer_mine(multi, monkeypatch):
+    """TC-DU · 올리기 바로 앞에 임대가 남의 것이 됐으면(절전에서 깨어난 옛 쥔 PC) 올리기를 돌리지 않고 회차를 멈춘다."""
+    from scripts import run_lease
+
+    code = "import sys; sys.exit(9)"                                   # 돌면 실패 — 돌지 않아야 한다
+    monkeypatch.setattr(du, "STEPS", [du.Step("upload", ["-c", code], 1, upload=True, label="올리기", group="백업", desc="d")])
+    monkeypatch.setattr(du, "_pending_upload", lambda: ["x"])
+    monkeypatch.setattr(run_lease, "still_mine", lambda api, held: (False, "PC-B 가 이어받았다(세대 2 · running)"))
+    assert du.run_all(upload=True) == 0
+    last = _last(multi.t)
+    assert last["steps"][0]["reason"] == "lease_lost" and last["steps"][0]["rc"] is None and "임대를 잃었다" in last["stopped"]
+
+
+def test_multi_pc_follower_records_the_round_then_stays_quiet(multi):
+    """TC-DU · 그 자리를 다른 PC 가 끝냈으면 따라간다 — 맞추기(follow) 뒤 그 회차를 이 PC 회차 기록으로(시작 · 끝 · 단계 줄 = 쥔 PC 것 ·
+    리밸런싱 하루 점검의 시세 · 달력 성공이 보인다). 받을 것 · 할 일이 없는 다음 반복 실행은 이력 · 로그를 남기지 않는다."""
+    from app.services import rebalance_daily
+
+    m = multi
+    _other_pc(m.hub)
+    assert du.run_all(upload=True) == 0 and m.calls == ["follow"]
+    last = _last(m.t)
+    assert last["trigger"] == "follow" and last["followed"]["pc"] == "PC-B" and last["started_at"].startswith("2026-10-12T12:30:01")
+    assert [(s["name"], s["rc"], s.get("remote")) for s in last["steps"]] == [("price", 0, True), ("calendar", 0, True),
+                                                                             ("upload", 0, True)]
+    assert rebalance_daily._required_steps_ok(last["steps"]) and last["ok"] is True
+    hist = _hist(m.t)
+    assert hist[-1]["trigger"] == "follow" and hist[-1]["followed"]["pc"] == "PC-B"
+    logs = sorted((m.t / "logs").glob("daily_update-*.log"))
+    m.result["follow"] = (0, {"result": "same", "main": "a" * 40, "changed": 0})
+    assert du.run_all(upload=True) == 0
+    assert len(_hist(m.t)) == len(hist), "조용히 — 이력 줄을 더하지 않는다"
+    assert sorted((m.t / "logs").glob("daily_update-*.log")) == logs, "조용히 끝난 따라가기는 로그를 남기지 않는다"
+    assert _last(m.t)["followed"]["pc"] == "PC-B"
+
+
+def test_multi_pc_follower_runs_this_pcs_app_db_steps(multi, monkeypatch):
+    """TC-DU · 따라가기는 받은 것이 있으면 검색 색인 · 신호 빈 범위(이 PC 앱 DB) · 일지 원장 받기를 이 PC 에서 돈다 — 바깥 출처는
+    부르지 않는다."""
+    from scripts import paper_journal
+
+    m = multi
+    _other_pc(m.hub)
+    steps = [du.Step(n, ["-c", "pass"], 1, app_db=n in ("signals", "journal"), gap_fill=n == "signals",
+                     fill_args=["scripts/signals_daily.py", "--from", "{from}", "--to", "{to}"] if n == "signals" else [],
+                     label=n, group="계산", desc=n) for n in ("search", "signals", "journal")]
+    monkeypatch.setattr(du, "STEPS", steps)
+    ran: list = []
+    monkeypatch.setattr(du, "_run_step", lambda run, step, args=None, timeout_min=None, env_extra=None:
+                        ran.append((step.name, args)) or 0)
+    monkeypatch.setattr(du, "prepare_app_db", lambda run, steps: setattr(run, "app_db_env", {"DATABASE_URL": "x"}))
+    monkeypatch.setattr(du, "app_db_gate", lambda run, step: None)
+    monkeypatch.setattr(du, "app_db_last_signal", lambda env: (datetime.date(2026, 10, 1), ""))
+    monkeypatch.setattr(du, "_as_of_day", lambda: "2026-10-10")
+    pull_last = m.t / "state" / "paper_journal_pull_last.json"
+    pull_last.write_text(json.dumps({"state": "imported", "imported": 3}), encoding="utf-8")
+    monkeypatch.setattr(paper_journal, "PULL_LAST_PATH", pull_last)
+    assert du.run_all(upload=True) == 0
+    assert ran == [("search", None), ("signals", ["scripts/signals_daily.py", "--from", "2026-10-02", "--to", "2026-10-10"]),
+                   ("journal", ["scripts/paper_journal.py", "pull", "--quiet"])]
+    acts = {a["name"]: a for a in _last(m.t)["follow"]}
+    assert acts["journal_pull"]["note"].endswith("3파일") and "2026-10-02 ~ 2026-10-10" in acts["signals"]["note"]
+
+
+def test_multi_pc_follower_waits_for_the_running_pc(multi, monkeypatch):
+    """TC-DU · 남이 그 자리를 도는 중이면 정기 회차는 5분마다 읽기만 하며 기다리고(진행 파일은 「다른 PC 회차를 기다림」), 끝나면
+    따라간다. 화면 전체 수집은 기다리지 않고 75(작업자가 다시 대기로) · 「건너뜀」 이력 줄 없음."""
+    from scripts import run_lease
+
+    m = multi
+    at = datetime.datetime(2026, 10, 12, 14, 59, tzinfo=du.KST)
+    held = _other_pc(m.hub, at=at, done=False)
+    assert du.run_all(upload=True, manual=True) == du.EX_TEMPFAIL
+    assert not any("skipped" in h for h in _hist(m.t)) and m.hub.lease()["pc"] == "PC-B"
+    sleeps: list = []
+
+    def finish_other(sec):
+        sleeps.append(sec)
+        progress = json.loads((m.t / "state/daily_update_progress.json").read_text(encoding="utf-8"))
+        assert progress["step"]["name"] == "follow_wait" and "PC-B" in progress["step"]["label"]
+        run_lease.release(m.hub, held, now=at + datetime.timedelta(minutes=30), ok=True, rc=0,
+                          summary={"started_at": at.isoformat(), "finished_at": (at + datetime.timedelta(minutes=30)).isoformat(),
+                                   "steps": [["price", 0], ["calendar", 0]], "main": "a" * 40})
+
+    monkeypatch.setattr(du.time, "sleep", finish_other)
+    assert du.run_all(upload=True) == 0
+    assert sleeps == [run_lease.POLL_MIN * 60] and _last(m.t)["followed"]["pc"] == "PC-B" and m.calls == ["follow"]
+
+
+def test_multi_pc_unreachable_hub_skips_the_round(fake_runner, monkeypatch):
+    """TC-DU · HF 에 닿지 못하면(토큰 없음 · 망) 회차를 잡지 않는다(fail-closed) — 이력에 「건너뜀」 한 줄(까닭 코드 multi_pc_skip) ·
+    회차 기록은 쓰지 않는다 · 다음 반복 실행이 다시 잡는다."""
+    monkeypatch.setattr(du, "_coordinate_run", _REAL_COORDINATE_RUN)
+    monkeypatch.setattr(du, "coord_begin", _REAL_COORD_BEGIN)
+    assert du.run_all(upload=True) == 0
+    line = _hist(fake_runner)[-1]
+    assert line["reason"] == "multi_pc_skip" and "임대를 잡지 못했다" in line["skipped"]
+    assert not (fake_runner / "state/daily_update_last.json").exists()
+
+
+def test_multi_pc_conflict_blocks_until_resolved_and_frees_the_slot(multi):
+    """TC-DU · 회차를 잡은 PC 의 맞추기가 겹침이면 단계를 돌지 않고 임대를 자리 기록 없이 닫는다(다른 PC 가 그날을 잡을 수 있게) ·
+    겹침이 풀릴 때까지 이 PC 는 임대를 건드리지 않고 건너뛴다."""
+    from scripts import hf_sync
+
+    m = multi
+    m.result["lead"] = (hf_sync.EX_CONFLICT, {"result": "conflict", "why": "겹침", "main": "a" * 40})
+    assert du.run_all(upload=True) == 0
+    lease = m.hub.lease()
+    assert lease["state"] == "failed" and _SLOT not in lease["slots"]
+    assert _hist(m.t)[-1]["reason"] == "multi_pc_conflict" and not (m.t / "state/daily_update_last.json").exists()
+    hf_sync._write_json(hf_sync.LAST_PATH, {"result": "conflict"})
+    n = len(m.hub.commits)
+    assert du.run_all(upload=True) == 0
+    assert len(m.hub.commits) == n and "sync --discard-local" in _hist(m.t)[-1]["skipped"]
+
+
+def test_multi_pc_lost_lease_stops_before_shared_writes(multi, monkeypatch):
+    """TC-DU · 단계 사이 갱신에서 임대를 잃었으면(다른 PC 가 이어받음) 뒤 단계 · 올리기를 하지 않고 회차를 멈춘다."""
+    from scripts import run_lease
+
+    def lost(*a, **k):
+        raise run_lease.LeaseLost("PC-B 가 이어받았다(세대 2 · running)")
+
+    monkeypatch.setattr(run_lease, "renew", lost)
+    assert du.run_all(upload=True) == 0
+    last = _last(multi.t)
+    assert "임대를 잃었다" in last["stopped"] and all(s.get("reason") == "upstream_failed" for s in last["steps"])
+    assert last["multi"]["lost"]
+
+
+def test_task_xml_repeats_hourly_for_ten_hours(tmp_path):
+    """TC-DU · 예약 작업은 12:30 부터 1시간마다 10시간 다시 깨어난다 — 반복은 시작 시각 앞(작업 스케줄러가 내보내는 차례) ·
+    놓친 회차 따라잡기 · 겹침 무시 · 로그온 토큰은 그대로."""
+    xml = du.task_xml("12:30", True, python_w="pythonw", root=tmp_path, today=datetime.date(2026, 10, 25))
+    assert "<Interval>PT1H</Interval>" in xml and "<Duration>PT10H</Duration>" in xml
+    assert "<StopAtDurationEnd>false</StopAtDurationEnd>" in xml
+    assert xml.index("<Repetition>") < xml.index("<StartBoundary>")
+    assert "<StartWhenAvailable>true</StartWhenAvailable>" in xml and "<MultipleInstancesPolicy>IgnoreNew" in xml
+    assert "<LogonType>InteractiveToken</LogonType>" in xml
+
+
+def test_gap_args_fill_the_signal_gap_up_to_31_days(fake_runner, monkeypatch):
+    """TC-DU · 신호 빈 범위 — 앱 DB 기록의 마지막 날 다음부터 수집 DB 마지막 거래일까지 한 번에(31일까지 · 기록이 비었으면 끝날 앞
+    31일) · 그날 하루뿐이거나 비지 않았으면 평소 인자 · 앱 DB 를 읽지 못하면 평소처럼."""
+    import types
+
+    run = types.SimpleNamespace(app_db_env={"DATABASE_URL": "x"}, say=lambda msg: None)
+    sig = du.Step("signals", ["scripts/signals_daily.py"], 10, gap_fill=True, app_db=True,
+                  fill_args=["scripts/signals_daily.py", "--from", "{from}", "--to", "{to}"])
+    monkeypatch.setattr(du, "_as_of_day", lambda: "2026-10-12")
+    for last, want in ((datetime.date(2026, 10, 1), ("2026-10-02", "2026-10-12")), (datetime.date(2026, 10, 11), None),
+                       (datetime.date(2026, 10, 12), None), (None, ("2026-09-12", "2026-10-12"))):
+        monkeypatch.setattr(du, "app_db_last_signal", lambda env, last=last: (last, ""))
+        args, limit, gap = du.gap_args(run, sig)
+        assert gap == want, (last, gap)
+        if want:
+            assert args == ["scripts/signals_daily.py", "--from", want[0], "--to", want[1]] and limit >= sig.timeout_min
+    monkeypatch.setattr(du, "app_db_last_signal", lambda env: (None, "ConnectionRefusedError"))
+    assert du.gap_args(run, sig) == (None, None, None)
+
+
+def test_rerun_one_step_respects_other_pcs(fake_runner, monkeypatch):
+    """TC-DU · 한 단계 다시 — 남이 회차를 도는 중이면 75 · 이 PC 맞추기가 겹침이면 1 · HF 에 닿지 못하면 올리지 않는 단계만 이 PC 에서 돈다."""
+    monkeypatch.setattr(du, "coord_begin", lambda run, kind: ("busy", None, "PC-B 가 도는 중", None))
+    assert du.run_one("alpha") == du.EX_TEMPFAIL
+    monkeypatch.setattr(du, "coord_begin", lambda run, kind: ("conflict", None, "겹침", None))
+    assert du.run_one("alpha") == 1
+    monkeypatch.setattr(du, "coord_begin", lambda run, kind: ("skip", None, "HF 에 닿지 못했다", None))
+    assert du.run_one("alpha") == 0
