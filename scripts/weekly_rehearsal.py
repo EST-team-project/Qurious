@@ -140,7 +140,8 @@ def run(*, now: Optional[datetime.datetime] = None, child: Optional[Callable[[Se
     return 0 if ok else 1
 
 
-def task_xml(*, python_w: str, root: Path, today: Optional[datetime.date] = None) -> str:
+def task_xml(*, python_w: str, root: Path, today: Optional[datetime.date] = None,
+             until: Optional[datetime.date] = None) -> str:
     """작업 스케줄러 정의(XML · 매주). 설정의 뜻은 러너 `task_xml` 과 같다 — 다른 점만:
 
     · ``ScheduleByWeek`` 일요일 · ``RunOnlyIfNetworkAvailable`` 끔(리허설은 로컬 파일만 본다).
@@ -167,7 +168,7 @@ def task_xml(*, python_w: str, root: Path, today: Optional[datetime.date] = None
   <Triggers>
     <CalendarTrigger>
       <StartBoundary>{start.isoformat(timespec="seconds")}</StartBoundary>
-      <Enabled>true</Enabled>
+{du.end_boundary_xml(until)}      <Enabled>true</Enabled>
       <ScheduleByWeek><DaysOfWeek><{WEEKDAY_XML} /></DaysOfWeek><WeeksInterval>1</WeeksInterval></ScheduleByWeek>
     </CalendarTrigger>
   </Triggers>
@@ -203,12 +204,17 @@ def task_xml(*, python_w: str, root: Path, today: Optional[datetime.date] = None
 """
 
 
-def install() -> int:
+def install(until: Optional[str] = None) -> int:
+    err = du.until_error(until)
+    if err:
+        print(f"멈춤: {err}")
+        return 2
     if os.name != "nt":
         print("작업 스케줄러 등록은 Windows 전용이다. 다른 OS 는 cron 에 매주 일요일 15:00 "
               f"`cd {ROOT} && python scripts/weekly_rehearsal.py run` 을 건다.")
         return 1
-    xml = task_xml(python_w=du._pythonw(), root=ROOT)
+    end, note = du.resolve_until(until, TASK_NAME)
+    xml = task_xml(python_w=du._pythonw(), root=ROOT, until=end)
     fd, tmp = tempfile.mkstemp(suffix=".xml")
     os.close(fd)
     try:
@@ -221,6 +227,7 @@ def install() -> int:
         return p.returncode
     write_state(schedule=schedule_text(), installed_at=du._iso(du.now_kst()))
     print(f"✅ 작업 스케줄러에 등록했다 — '{TASK_NAME}' · {schedule_text()}")
+    print(du.until_lines(end, note))
     print("   상태: python scripts/weekly_rehearsal.py status · 끄기: python scripts/weekly_rehearsal.py uninstall")
     return 0
 
@@ -258,10 +265,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("run", help="한 바퀴(작업 스케줄러가 매주 부른다)")
     sub.add_parser("status", help="마지막 바퀴 · 예약")
-    sub.add_parser("install", help=f"작업 스케줄러에 {schedule_text()} 등록")
+    i = sub.add_parser("install", help=f"작업 스케줄러에 {schedule_text()} 등록")
+    i.add_argument("--until", metavar="YYYY-MM-DD|none",
+                   help="예약이 저절로 멈추는 날(그 날 23:59:59). 안 적으면 지금 등록된 끝 날짜를 잇고, none 이면 지운다")
     sub.add_parser("uninstall", help="작업 스케줄러 등록 해제")
     a = ap.parse_args(argv)
-    return {"run": run, "status": status, "install": install, "uninstall": uninstall}[a.cmd]()
+    if a.cmd == "install":
+        return install(until=a.until)
+    return {"run": run, "status": status, "uninstall": uninstall}[a.cmd]()
 
 
 if __name__ == "__main__":

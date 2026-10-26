@@ -454,8 +454,16 @@ $Checks = @(
        $msg = "모드 $($r.Json.mode) · 전략 $(Count $r.Json.strategies) 개"
        if ($r.Json.mode -eq 'docker') {
          # docker 모드에서 백테스트를 실제로 돌리면 quantconnect/lean 이미지(약 14GB)를 받기 시작한다.
-         $null = & docker image inspect quantconnect/lean:latest 2>$null
-         if ($LASTEXITCODE -ne 0) { return (Warn "$msg — LEAN 이미지(약 14GB)가 없다. 실행하면 받기 시작한다. 로컬 점검은 .env 에 LEAN_MODE=local 권장") }
+         # 이미지 이름은 상태 API 가 주는 값(LEAN_DOCKER_IMAGE — 번호 태그@다이제스트로 고정)을 쓴다. 직접 적으면 기본값을 고정한 뒤 엉뚱한 이미지를 본다.
+         $leanImage = [string]$r.Json.image
+         # .env 의 LEAN_DOCKER_IMAGE 가 기본값을 덮어쓴다 — 예시에서 옛 값(:latest)을 복사해 둔 PC 는 고정한 기본값이 조용히 무시된다.
+         if ($leanImage -and ($leanImage -match ':latest($|@)' -or $leanImage -notmatch '@sha256:[0-9a-f]{64}$')) {
+           return (Warn "$msg — LEAN 이미지가 고정돼 있지 않다($leanImage). .env 의 LEAN_DOCKER_IMAGE 줄을 지우거나 .env.example 값으로 고친다(앱 재시작 필요)")
+         }
+         if ($leanImage) {
+           $null = & docker image inspect $leanImage 2>$null
+           if ($LASTEXITCODE -ne 0) { return (Warn "$msg — LEAN 이미지($leanImage · 약 14GB)가 없다. 실행하면 받기 시작한다. 로컬 점검은 .env 에 LEAN_MODE=local 권장") }
+         }
        }
        Pass $msg } }
   @{ G = '시스템'; Name = 'AI(LLM) 연결 — AI 채팅 · 문서 검색의 전제'; M = 'GET'; P = '/api/system/status'; Auth = $true

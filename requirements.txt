@@ -46,6 +46,11 @@ huggingface_hub>=0.30.0
 # 있으면 블록 단위로 바뀐 곳만 간다. huggingface_hub 가 자동으로 찾아 쓴다.
 hf_xet>=1.0.0
 
+# 수집기 분봉 받기 · 일봉 대조 — collector/sources/yahoo_intraday.py · collector/ohlcv_load.py (DF-157 · 2026-10-26)
+# 🔴 이 줄이 없던 때는 노트북에만 손으로 깔려 있어, 데스크톱 첫 회차에서 분봉 60분 · 5분 단계가 ModuleNotFoundError 로 실패했다.
+#    분봉 정규화(봉 시각 · 빈 봉 버림)는 0.2.66 에서 실측한 것이다 — 큰 판(0.3 이상)은 시험으로 확인한 뒤 올린다.
+yfinance>=0.2.66,<0.3
+
 # Document parsing (PPT, DOC, XLS, PDF)
 python-pptx>=1.0.0
 python-docx>=1.1.0

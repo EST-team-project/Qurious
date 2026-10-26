@@ -36,6 +36,14 @@ DB_PATH = DATA_DIR / "market.sqlite3"
 MANIFEST_DIR = DATA_DIR / "manifest"
 STATE_DIR = DATA_DIR / "state"
 
+# 여러 PC 규칙 판(정수) — 임대 · 올리기 · 맞추기 규칙이 **표 · 칸은 그대로인 채** 바뀔 때 올린다(2026-10-26 판 문지기 · 할 일 ①-28).
+# 쥔 PC 는 임대 문서 · 자리 기록 · 매니페스트에 이 번호를 싣고(`scripts/run_lease.py` · `scripts/hf_dataset.py`), 원격 임대 문서의
+# `min_protocol` 이 이 번호보다 크면 그 PC 는 회차를 잡지도 올리지도 않고 `git pull` 을 안내한다.
+# 올리는 차례(Kafka 꼴 두 단계): ① 새 번호를 **읽을 줄 아는** 코드를 모든 PC 에 먼저 보낸다(번호는 그대로) → ② 상태 표(`run_lease.py status`)에서
+# 모든 PC 가 새 코드임을 본 뒤 사람이 원격 `min_protocol` 을 올린다(회차가 도는 중이 아닐 때). 옛 코드는 문서를 다시 만들며 `min_protocol` 을
+# 지우므로 ② 전에 한 PC 라도 옛 코드면 문지기가 풀린다.
+RUNNER_PROTOCOL = 1
+
 
 # ==================================================
 # 1. .env 읽기

@@ -316,3 +316,215 @@ def test_le12_unreachable_hub_is_a_lease_error_not_a_crash():
     with pytest.raises(rl.LeaseError) as e:
         _acquire(Down())
     assert "닿지 못했다" in e.value.why
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# 판 문지기(할 일 ①-28 · 2026-10-26) — 프로토콜 번호. 이번 판은 「싣기」 까지 + 원격 `min_protocol` 이 있을 때만 읽는다(없으면 통과).
+# 이번 판은 `min_protocol` 을 정하지 않는다 — 아직 이 코드를 받지 못한 PC 가 내일 12:30 에 멈추면 안 된다(Kafka 꼴 첫 단계:
+# 모든 PC 가 새 코드를 받은 것을 상태 표에서 본 뒤에야 번호를 올린다).
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+import importlib.util  # noqa: E402
+import sys  # noqa: E402
+import uuid  # noqa: E402
+
+from collector import config as _config  # noqa: E402
+
+OLD_FIXTURE = Path(__file__).parent / "fixtures" / "run_lease_v1_no_protocol.py"
+
+
+@pytest.fixture
+def old_rl(monkeypatch, tmp_path):
+    """판 문지기를 넣기 전에 다른 PC 들이 돌리던 임대 코드(얼려 둔 사본) — 진짜 상태 파일 · HF 에 닿지 않게 막고 불러온다.
+
+    ``tests/fixtures/run_lease_v1_no_protocol.py`` 는 2026-10-26 main ``e1399fe`` 의 ``scripts/run_lease.py`` 그대로다 — 고치지
+    않는다(고치면 「옛 코드」 가 아니게 된다). 다음에 규칙이 또 바뀌면 그때의 사본을 곁에 하나 더 둔다."""
+    spec = importlib.util.spec_from_file_location("run_lease_v1_no_protocol", OLD_FIXTURE)
+    old = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, old)       # @dataclass 가 소속 모듈을 sys.modules 에서 찾는다(시험이 끝나면 되돌린다)
+    spec.loader.exec_module(old)
+    monkeypatch.setattr(old, "STATE_PATH", tmp_path / "old_run_lease.json")      # 진짜 상태 파일을 덮지 않는다
+
+    def _blocked():
+        raise old.LeaseError("시험 — 실제 Hugging Face 에 닿지 않는다")
+
+    monkeypatch.setattr(old, "make_api", _blocked)
+    return old
+
+
+def _set_min(hub, value):
+    """사람이 임대 문서에 ``min_protocol`` 을 적어 올린다 — 새 커밋 한 개."""
+    rl._write(hub, dict(hub.lease(), min_protocol=value, write=uuid.uuid4().hex), hub.branches[rl.BRANCH], "min_protocol")
+
+
+def _done_once(hub, pc="PC-A", now=T0):
+    """한 회차를 잡고 닫아 두어 다음 PC 가 새로 잡게 한다(문서는 done)."""
+    _, held, _, _ = _acquire(hub, now=now, pc=pc)
+    rl.release(hub, held, now=now + datetime.timedelta(minutes=40), ok=True, rc=0, summary={"price_max": "20261023"})
+
+
+def test_le13_protocol_constant_is_shared_with_the_manifest_writer():
+    """TC-LE-13 · 규칙 판 번호는 `collector/config.py` 한 곳 — 임대 · 매니페스트가 같은 값을 쓴다(정수 · 1 이상)."""
+    assert rl.PROTOCOL == _config.RUNNER_PROTOCOL
+    assert type(rl.PROTOCOL) is int and rl.PROTOCOL >= 1
+
+
+def test_le14_new_doc_carries_protocol_and_code_and_never_sets_min_protocol(monkeypatch):
+    """TC-LE-14 · 쥔 PC 는 임대 문서에 규칙 판(protocol) · 코드(code · git 짧은 SHA)를 싣고 닫을 때 자리 기록에도 남긴다 ·
+    `min_protocol` 은 코드가 정하지 않는다(사람이 적는다)."""
+    monkeypatch.setattr(rl, "code_version", lambda: "abc1234")
+    hub = FakeHub()
+    _, held, doc, _ = _acquire(hub)
+    assert doc["protocol"] == rl.PROTOCOL and doc["code"] == "abc1234" and "min_protocol" not in doc
+    rl.release(hub, held, now=T0 + datetime.timedelta(minutes=40), ok=True, rc=0, summary={})
+    rec = hub.lease()["slots"]["2026-10-26"]
+    assert rec["protocol"] == rl.PROTOCOL and rec["code"] == "abc1234"
+    assert "min_protocol" not in hub.lease()
+
+
+def test_le15_code_version_is_a_short_sha_or_none(monkeypatch):
+    """TC-LE-15 · git 이 없거나 실패하면 None(회차를 막지 않는다) · 있으면 짧은 SHA 한 줄."""
+    monkeypatch.setattr(rl.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="abc1234\n"))
+    assert rl.code_version() == "abc1234"
+
+    def boom(*a, **k):
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(rl.subprocess, "run", boom)
+    assert rl.code_version() is None
+    monkeypatch.setattr(rl.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=128, stdout=""))
+    assert rl.code_version() is None
+
+
+def test_le16_gate_stops_an_old_pc_when_remote_min_protocol_is_higher():
+    """TC-LE-16 · 원격 `min_protocol` 이 이 코드의 번호보다 크면 임대를 잡지 않는다(ProtocolTooOld ⊂ LeaseError · 아무것도 쓰지 않음) —
+    까닭에 `git pull` 이 있다. 읽기(status)는 막지 않는다."""
+    hub = FakeHub()
+    _done_once(hub)
+    _set_min(hub, rl.PROTOCOL + 1)
+    n, before = len(hub.commits), hub.lease()
+    with pytest.raises(rl.ProtocolTooOld) as e:
+        _acquire(hub, now=T0 + datetime.timedelta(days=1), pc="PC-B")
+    assert isinstance(e.value, rl.LeaseError) and not e.value.later
+    assert "git pull" in e.value.why and str(rl.PROTOCOL + 1) in e.value.why
+    assert len(hub.commits) == n and hub.lease() == before, "멈춘 PC 는 원격에 아무것도 쓰지 않는다"
+    head, doc = rl.read(hub)                                  # 읽기는 막지 않는다
+    assert doc["min_protocol"] == rl.PROTOCOL + 1 and head == hub.branches[rl.BRANCH]
+
+
+@pytest.mark.parametrize("value", [None, 0, 1, "9", 2.0, True, [3], {"n": 3}])
+def test_le17_gate_ignores_absent_equal_lower_or_garbage(value):
+    """TC-LE-17 · `min_protocol` 이 없거나 같거나 낮거나 정수가 아니면 통과 — 칸을 잘못 적어도 모든 PC 가 멈추지 않는다(fail-open 은
+    이 칸 하나만 · 임대 자체의 닿지 못함은 그대로 fail-closed)."""
+    hub = FakeHub()
+    _done_once(hub)
+    if value is not None:
+        _set_min(hub, value)
+    st, held, doc, _ = _acquire(hub, now=T0 + datetime.timedelta(days=1), pc="PC-B")
+    assert st == "acquired" and doc["gen"] == 2
+
+
+def test_le18_new_doc_keeps_a_human_written_min_protocol():
+    """TC-LE-18 · 사람이 적어 둔 `min_protocol`(이 코드의 번호 이하)은 다음 회차 문서에 이어진다 — 새 문서를 처음부터 만드는 코드가
+    칸을 지우면 문지기가 조용히 사라진다."""
+    hub = FakeHub()
+    _done_once(hub)
+    _set_min(hub, rl.PROTOCOL)
+    _, held, doc, _ = _acquire(hub, now=T0 + datetime.timedelta(days=1), pc="PC-B")
+    assert doc["min_protocol"] == rl.PROTOCOL and hub.lease()["min_protocol"] == rl.PROTOCOL
+
+
+def test_le19_holder_renew_does_not_erase_min_protocol_written_mid_run():
+    """TC-LE-19 · 돌고 있는 회차 중에 사람이 `min_protocol` 을 적으면(원격 머리가 앞서 412) 쥔 PC 의 다음 갱신 · 닫기가 그 칸을
+    지우지 않는다 · 올리기 앞(still_mine)은 번호가 모자라면 ProtocolTooOld 로 올리기를 막는다."""
+    hub = FakeHub()
+    _, held, _, _ = _acquire(hub)
+    _set_min(hub, rl.PROTOCOL + 1)
+    before = hub.branches[rl.BRANCH]
+    with pytest.raises(rl.ProtocolTooOld):
+        rl.still_mine(hub, held)                              # 올리기 앞 — 이 코드는 규칙보다 옛것
+    held = rl.renew(hub, held, T0 + datetime.timedelta(minutes=20), force=True)
+    assert hub.branches[rl.BRANCH] != before and hub.lease()["min_protocol"] == rl.PROTOCOL + 1
+    rl.release(hub, held, now=T0 + datetime.timedelta(minutes=30), ok=True, rc=0, summary={})
+    assert hub.lease()["min_protocol"] == rl.PROTOCOL + 1 and hub.lease()["state"] == "done"
+
+
+def test_le20_status_lines_show_protocol_and_code_and_tolerate_old_docs(monkeypatch):
+    """TC-LE-20 · 상태 표는 쥔 PC 의 규칙 판 · 코드를 보이고, 옛 문서(칸 없음)도 깨지지 않는다 — 「누가 어느 판인가」 를 화면 없이 본다."""
+    monkeypatch.setattr(rl, "code_version", lambda: "abc1234")
+    hub = FakeHub()
+    _, _, doc, _ = _acquire(hub)
+    text = "\n".join(rl.status_lines(doc, hub.branches[rl.BRANCH]))
+    assert "abc1234" in text and f"규칙 {rl.PROTOCOL}" in text
+    old_doc = {k: v for k, v in doc.items() if k not in ("protocol", "code")}
+    assert "규칙" not in "\n".join(rl.status_lines(old_doc, "0" * 40))
+
+
+# ── 판 섞임 — 지금 다른 PC 들이 도는 옛 코드(얼린 사본)와 새 코드가 같은 저장소를 쓴다 ────────────────────────
+
+
+def test_le21_old_code_reads_and_continues_a_new_doc_without_crashing(old_rl):
+    """TC-LE-21 · 새 코드가 쓴 문서(protocol · code · min_protocol · 자리 기록의 새 칸)를 옛 코드가 읽고 · 만료 뒤 이어받고 · 갱신하고 ·
+    닫는다 — 죽지도 거절하지도 않는다(문지기는 옛 코드에 없다). 옛 코드는 문서를 처음부터 다시 만들어 최상위 새 칸 · `min_protocol`
+    을 잃는다 — 그래서 `min_protocol` 은 모든 PC 가 새 코드가 된 뒤에만 올린다(알려진 한계 · 이 단언이 그 사실을 고정한다)."""
+    hub = FakeHub()
+    _done_once(hub, pc="NEW-A")
+    _set_min(hub, rl.PROTOCOL)
+    assert "protocol" in hub.lease() and "protocol" in hub.lease()["slots"]["2026-10-26"]
+    later = T0 + datetime.timedelta(days=1)
+    st, held, doc, _ = old_rl.acquire(hub, now=later, kind="schedule", run=later.isoformat(), pc="OLD-B", pid=7)
+    assert st == "acquired" and doc["gen"] == 2 and doc["pc"] == "OLD-B"
+    assert doc["slots"]["2026-10-26"]["protocol"] == rl.PROTOCOL, "자리 기록의 새 칸은 지나간다"
+    held = old_rl.renew(hub, held, later + datetime.timedelta(minutes=20), force=True)
+    assert old_rl.release(hub, held, now=later + datetime.timedelta(minutes=50), ok=True, rc=0, summary={}) is not None
+    assert hub.lease()["state"] == "done" and hub.lease()["pc"] == "OLD-B"
+    assert "min_protocol" not in hub.lease() and "protocol" not in hub.lease(), "옛 코드는 최상위 새 칸을 잃는다(알려진 한계)"
+
+
+def test_le22_new_code_takes_over_a_doc_written_by_old_code():
+    """TC-LE-22 · 옛 코드가 쓴 문서(protocol 칸 없음)를 새 코드가 이어받으면 새 칸을 싣는다 — 옛 문서는 통과(min_protocol 없음)."""
+    hub = FakeHub()
+    _acquire(hub, pc="OLD-A")
+    d = hub.lease()
+    for k in ("protocol", "code"):
+        d.pop(k, None)
+    rl._write(hub, dict(d, write=uuid.uuid4().hex), hub.branches[rl.BRANCH], "옛 코드가 쓴 꼴")
+    st, _, doc, _ = _acquire(hub, now=T0 + datetime.timedelta(minutes=95), pc="NEW-B")
+    assert st == "acquired" and doc["protocol"] == rl.PROTOCOL and doc["taken_from"]["pc"] == "OLD-A"
+
+
+def test_le23_old_and_new_code_see_each_others_running_lease_as_busy(old_rl):
+    """TC-LE-23 · 옛 코드가 도는 동안 새 코드는 busy · 새 코드가 도는 동안 옛 코드도 busy — 같은 회차 자리를 둘이 함께 돌지 않는다
+    (판이 섞여도 임대 자체의 보장은 그대로)."""
+    hub = FakeHub()
+    st, _, _, _ = old_rl.acquire(hub, now=T0, kind="schedule", run=T0.isoformat(), pc="OLD-A", pid=1)
+    assert st == "acquired"
+    st2, held2, _, why2 = _acquire(hub, now=T0 + datetime.timedelta(minutes=5), pc="NEW-B")
+    assert st2 == "busy" and held2 is None and "OLD-A" in why2
+    hub2 = FakeHub()
+    _acquire(hub2, pc="NEW-A")
+    st3, held3, doc3, _ = old_rl.acquire(hub2, now=T0 + datetime.timedelta(minutes=5), kind="schedule", run="r", pc="OLD-B", pid=2)
+    assert st3 == "busy" and held3 is None and doc3["pc"] == "NEW-A"
+
+
+def test_le24_runner_turns_protocol_too_old_into_skip_and_blocks_upload(monkeypatch):
+    """TC-LE-24 · 러너 연결 — 판 문지기에 걸리면 회차는 돌지 않고(skip · 까닭에 `git pull`) 임대를 쥔 채 규칙이 오른 회차는 백업 올리기를
+    막는다(`LeaseError` 갈래의 기존 처리를 그대로 탄다 · 다음 반복 실행이 다시 본다)."""
+    from scripts import daily_update as du
+    from scripts import hf_sync
+
+    msg = "원격이 규칙 판 2 이상을 요구한다 — 이 저장소에서 `git pull` 로 코드를 먼저 맞춘 뒤 다시"
+    monkeypatch.setattr(hf_sync, "_read_json", lambda p: {})
+    monkeypatch.setattr(rl, "make_api", lambda: object())
+
+    def too_old(*a, **k):
+        raise rl.ProtocolTooOld(msg)
+
+    monkeypatch.setattr(rl, "acquire", too_old)
+    run = types.SimpleNamespace(started=T0, say=lambda m: None)
+    mode, coord, why, doc = du.coord_begin(run, "schedule")
+    assert mode == "skip" and coord is None and doc is None and "git pull" in why
+
+    monkeypatch.setattr(rl, "still_mine", lambda api, held: too_old())
+    held = rl.Held("0" * 40, {"gen": 1, "nonce": "n"})
+    block = du.coord_before_upload(run, du.Coord(api=object(), kind="schedule", held=held))
+    assert block and "git pull" in block

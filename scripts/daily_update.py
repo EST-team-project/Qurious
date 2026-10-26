@@ -130,7 +130,7 @@ import uuid
 import zoneinfo
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, TextIO
+from typing import Dict, List, Optional, Sequence, TextIO, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -2026,8 +2026,58 @@ def _pending_upload() -> Optional[List[str]]:
 # ==================================================
 # 4. 작업 스케줄러 — 세션이 끝나도 도는 부분
 # ==================================================
+#: ``install --until none`` — 끝 날짜를 지운다(안 적으면 지금 등록된 끝 날짜를 잇는다).
+UNTIL_NONE = "none"
+_END_BOUNDARY_RE = re.compile(r"<EndBoundary>(\d{4}-\d{2}-\d{2})T")
+
+
+def end_boundary_xml(until: Optional[datetime.date]) -> str:
+    """트리거의 끝 날짜 줄(``StartBoundary`` 바로 뒤) — 그 날 23:59:59 에 예약이 저절로 멈춘다. 없으면 빈 글(예전 XML 과 글자까지 같다)."""
+    return f"      <EndBoundary>{until.isoformat()}T23:59:59</EndBoundary>\n" if until else ""
+
+
+def until_error(text: Optional[str], today: Optional[datetime.date] = None) -> Optional[str]:
+    """``--until`` 값이 틀렸나 — 안 적음 · ``none`` · 오늘 이후의 YYYY-MM-DD 만 받는다(지난 날짜면 등록하자마자 멈춘다)."""
+    if text is None or text.lower() == UNTIL_NONE:
+        return None
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return f"끝 날짜는 YYYY-MM-DD 이거나 {UNTIL_NONE}(지움)이다 — {text!r}"
+    try:
+        d = datetime.date.fromisoformat(text)
+    except ValueError:
+        return f"없는 날짜다 — {text!r}"
+    if d < (today or now_kst().date()):
+        return f"끝 날짜 {text} 가 오늘보다 앞이다 — 등록하자마자 멈춘다"
+    return None
+
+
+def registered_until(task_name: str) -> Optional[datetime.date]:
+    """지금 등록된 예약의 끝 날짜(없거나 등록이 없으면 None) — 작업 스케줄러에서 읽기만 한다."""
+    p = _schtasks("/Query", "/TN", task_name, "/XML")
+    m = _END_BOUNDARY_RE.search(p.stdout or "") if p.returncode == 0 else None
+    return datetime.date.fromisoformat(m.group(1)) if m else None
+
+
+def resolve_until(text: Optional[str], task_name: str,
+                  today: Optional[datetime.date] = None) -> Tuple[Optional[datetime.date], str]:
+    """등록할 끝 날짜와 알릴 말. 안 적으면 지금 등록된 끝 날짜를 **잇는다**(``/F`` 로 통째로 바꾸면 손으로 넣은 날짜가 사라지므로) —
+    이미 지난 옛 날짜는 잇지 않는다. ``none`` 은 지운다."""
+    if text is not None:
+        return (None, "") if text.lower() == UNTIL_NONE else (datetime.date.fromisoformat(text), "")
+    kept = registered_until(task_name)
+    if kept and kept < (today or now_kst().date()):
+        return None, f"지금 등록된 끝 날짜 {kept} 는 이미 지났다 — 잇지 않는다(새로 정하려면 --until YYYY-MM-DD)"
+    return kept, (f"지금 등록된 끝 날짜 {kept} 를 이어 간다(바꾸려면 --until · 지우려면 --until {UNTIL_NONE})" if kept else "")
+
+
+def until_lines(until: Optional[datetime.date], note: str) -> str:
+    """install 이 끝에 찍는 끝 날짜 안내."""
+    head = f"   끝 날짜: {until} 23:59:59 — 그 뒤 예약은 저절로 멈춘다(다시 켜려면 install --until)" if until else "   끝 날짜: 없음"
+    return head + (f"\n   {note}" if note else "")
+
+
 def task_xml(time_hm: str, upload: bool, *, python_w: str, root: Path,
-             today: Optional[datetime.date] = None) -> str:
+             today: Optional[datetime.date] = None, until: Optional[datetime.date] = None) -> str:
     """작업 스케줄러 정의(XML). ``schtasks /Create /XML`` 로 등록한다.
 
     PowerShell ``Register-ScheduledTask`` 대신 XML 인 이유 — Windows PowerShell 5.1 은
@@ -2068,7 +2118,7 @@ def task_xml(time_hm: str, upload: bool, *, python_w: str, root: Path,
         <StopAtDurationEnd>false</StopAtDurationEnd>
       </Repetition>
       <StartBoundary>{start.isoformat(timespec="seconds")}</StartBoundary>
-      <Enabled>true</Enabled>
+{end_boundary_xml(until)}      <Enabled>true</Enabled>
       <ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>
     </CalendarTrigger>
   </Triggers>
@@ -2129,8 +2179,8 @@ def install_time_error(time_hm: str) -> Optional[str]:
     return f"{time_hm} 에 등록하면 정기 회차가 날마다 돌지 않는다 — {why}" if why else None
 
 
-def install(time_hm: str = DEFAULT_TIME, upload: bool = True) -> int:
-    err = install_time_error(time_hm)
+def install(time_hm: str = DEFAULT_TIME, upload: bool = True, until: Optional[str] = None) -> int:
+    err = install_time_error(time_hm) or until_error(until)
     if err:
         print(f"멈춤: {err}")
         return 2
@@ -2138,7 +2188,8 @@ def install(time_hm: str = DEFAULT_TIME, upload: bool = True) -> int:
         print("작업 스케줄러 등록은 Windows 전용이다. 다른 OS 는 cron 에 "
               f"`cd {ROOT} && python scripts/daily_update.py run --upload` 를 건다.")
         return 1
-    xml = task_xml(time_hm, upload, python_w=_pythonw(), root=ROOT)
+    end, note = resolve_until(until, TASK_NAME)
+    xml = task_xml(time_hm, upload, python_w=_pythonw(), root=ROOT, until=end)
     fd, tmp = tempfile.mkstemp(suffix=".xml")
     os.close(fd)
     try:
@@ -2153,6 +2204,7 @@ def install(time_hm: str = DEFAULT_TIME, upload: bool = True) -> int:
           f"업로드 {'켬' if upload else '끔'}")
     print("   PC 가 그 시각에 꺼져 있었으면 켜진 뒤 곧바로 돈다(StartWhenAvailable).")
     print(f"   {REPEAT_FOR_H}시간 동안 {REPEAT_EVERY_H}시간마다 다시 깨어난다 — 오늘 회차가 끝났으면 받기만(여러 PC)")
+    print(until_lines(end, note))
     print("   모든 PC 에 같은 작업을 건다 — 하루 한 회차는 임대가 고르고, 못 잡은 PC 는 끝나길 기다렸다 받는다.")
     print("   지금 한 번 돌리려면: python scripts/daily_update.py start")
     return 0
@@ -2335,6 +2387,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     i = sub.add_parser("install", help="작업 스케줄러에 매일 실행 등록 (기본 업로드 포함)")
     i.add_argument("--time", default=DEFAULT_TIME, help=f"실행 시각 HH:MM (기본 {DEFAULT_TIME})")
     i.add_argument("--no-upload", action="store_true", help="로컬 갱신만 하고 HF 에 올리지 않는다")
+    i.add_argument("--until", metavar="YYYY-MM-DD|none",
+                   help="예약이 저절로 멈추는 날(그 날 23:59:59). 안 적으면 지금 등록된 끝 날짜를 잇고, none 이면 지운다")
     sub.add_parser("start", help="등록된 작업을 지금 한 번 돌린다(비동기 · 세션과 무관)")
     sub.add_parser("uninstall", help="작업 스케줄러 등록 해제")
     y = sub.add_parser("sync", help="원격 백업과 이 PC 수집 DB 를 맞춘다 — 바뀐 조각만(여러 PC)")
@@ -2383,7 +2437,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 1 if errors else 0
         return 0
     if a.cmd == "install":
-        return install(a.time, upload=not a.no_upload)
+        return install(a.time, upload=not a.no_upload, until=a.until)
     if a.cmd == "start":
         return start()
     if a.cmd == "sync":
