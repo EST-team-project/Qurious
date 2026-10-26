@@ -464,7 +464,7 @@ class LeanBacktestService:
     def _pick_statistics(summary: dict) -> dict:
         statistics = (summary or {}).get("statistics") or {}
         keys = ["Start Equity", "End Equity", "Net Profit", "Compounding Annual Return", "Sharpe Ratio",
-                "Drawdown", "Total Orders", "Win Rate", "Annual Standard Deviation"]
+                "Drawdown", "Total Orders", "Win Rate", "Total Fees", "Annual Standard Deviation"]
         picked = {k: statistics[k] for k in keys if k in statistics}
         if not picked and statistics:
             picked = dict(list(statistics.items())[:10])
