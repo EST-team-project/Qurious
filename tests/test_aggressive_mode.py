@@ -1,4 +1,5 @@
 """공격 모드(QUANT_AGGRESSIVE_MODE): 5분봉 시그널, 매수·매도 계획, 한도 덮어쓰기, 사이클 통합."""
+from contextlib import ExitStack
 import asyncio
 import uuid
 from types import SimpleNamespace
@@ -226,27 +227,29 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
         return {"status": "filled", "symbol": symbol, "action": action, "quantity": qty, "price": price, "reason": reason}
     async def acquire(user_id, symbol, side, cooldown):
         slots.append((symbol, side, cooldown)); return slot_allowed
-    with patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
-         patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
-         patch.object(auto_trade.kis_execution, "account_snapshot", AsyncMock(return_value={"cash": 9_700_000.0, "equity": 10_000_000.0, "checked_at": "test", "holdings": {p.symbol: {"symbol": p.symbol, "quantity": p.quantity, "avg_price": p.avg_price, "value": p.quantity * p.avg_price} for p in portfolio}})), \
-         patch.object(ag, "get_intraday_indicators", intraday), \
-         patch.object(auto_trade, "get_quant_indicators", AsyncMock(side_effect=AssertionError("일봉 지표를 쓰면 안 된다"))), \
-         patch.object(auto_trade, "_execute_virtual_trade", virtual_trade), \
-         patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(9_700_000.0, 10_000_000.0, {}))), \
-         patch.object(auto_trade, "_persist_cycle", persist), \
-         patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=start_equity)), \
-         patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=orders_today)), \
-         patch.object(auto_trade.risk_guard, "acquire_order_slot", acquire), \
-         patch.object(auto_trade.risk_guard, "increment_orders_today", AsyncMock(return_value=1)), \
-         patch.object(auto_trade.risk_guard, "release_order_slot", AsyncMock()), \
-         patch.object(auto_trade.risk_guard, "_redis", return_value=object()), \
-         patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()), \
-         patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()), \
-         patch.object(auto_trade.notification, "notify_order_error", AsyncMock()), \
-         patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()), \
-         patch.object(auto_trade.notification, "notify_risk_halt", AsyncMock()), \
-         patch.object(auto_trade, "audit", AsyncMock()), \
-         patch.object(gw, "is_krx_market_open", return_value=True):
+    with ExitStack() as stack:
+        enter = stack.enter_context
+        enter(patch.object(auto_trade, "get_session_factory", return_value=Factory(db)))
+        enter(patch.object(auto_trade, "QUANT_STOCKS", STOCKS))
+        enter(patch.object(auto_trade.kis_execution, "account_snapshot", AsyncMock(return_value={"cash": 9_700_000.0, "equity": 10_000_000.0, "checked_at": "test", "holdings": {p.symbol: {"symbol": p.symbol, "quantity": p.quantity, "avg_price": p.avg_price, "value": p.quantity * p.avg_price} for p in portfolio}})))
+        enter(patch.object(ag, "get_intraday_indicators", intraday))
+        enter(patch.object(auto_trade, "get_quant_indicators", AsyncMock(side_effect=AssertionError("일봉 지표를 쓰면 안 된다"))))
+        enter(patch.object(auto_trade, "_execute_virtual_trade", virtual_trade))
+        enter(patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(9_700_000.0, 10_000_000.0, {}))))
+        enter(patch.object(auto_trade, "_persist_cycle", persist))
+        enter(patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=start_equity)))
+        enter(patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=orders_today)))
+        enter(patch.object(auto_trade.risk_guard, "acquire_order_slot", acquire))
+        enter(patch.object(auto_trade.risk_guard, "increment_orders_today", AsyncMock(return_value=1)))
+        enter(patch.object(auto_trade.risk_guard, "release_order_slot", AsyncMock()))
+        enter(patch.object(auto_trade.risk_guard, "_redis", return_value=object()))
+        enter(patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()))
+        enter(patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()))
+        enter(patch.object(auto_trade.notification, "notify_order_error", AsyncMock()))
+        enter(patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()))
+        enter(patch.object(auto_trade.notification, "notify_risk_halt", AsyncMock()))
+        enter(patch.object(auto_trade, "audit", AsyncMock()))
+        enter(patch.object(gw, "is_krx_market_open", return_value=True))
         asyncio.run(auto_trade._run_quant_cycle(str(UID)))
     return db, persisted, slots
 
