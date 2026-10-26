@@ -27,6 +27,11 @@ main 쓰기를 막아 주지 않는다 — 조사 Q4).
 
 HF 에 닿지 못하면 회차를 잡지 않는다(fail-closed · ``LeaseError``) — 다음 반복 실행(1시간마다)이 다시 잡는다.
 
+판 문지기(2026-10-26 · 할 일 ①-28) — 쥔 PC 는 임대 문서 · 자리 기록에 규칙 판(``protocol``)과 코드(``code`` · git 짧은 SHA)를 싣고, 원격
+문서의 ``min_protocol`` 이 이 코드의 번호보다 크면 잡기 · 올리기 앞에서 ``ProtocolTooOld``(``LeaseError`` 의 한 갈래)로 멈추며 ``git pull``
+을 안내한다. **이 판은 ``min_protocol`` 을 정하지 않는다**(칸이 없으면 통과) — 아직 이 코드를 받지 못한 PC 를 멈추지 않으려는 첫 단계다.
+올리는 차례는 `collector/config.py` 의 ``RUNNER_PROTOCOL`` 주석. 옛 코드는 문서를 처음부터 다시 만들어 이 칸들을 잃는다 — 한계는 TC-LE-21.
+
     python scripts/run_lease.py status       # 지금 임대 · 최근 회차 자리(원격을 읽기만)
 """
 from __future__ import annotations
@@ -36,6 +41,7 @@ import datetime
 import json
 import os
 import platform
+import subprocess
 import sys
 import uuid
 import zoneinfo
@@ -57,6 +63,8 @@ REPO_ID = "qurious-quant/krx-daily-market"
 BRANCH = "runner-lease"
 PATH_IN_REPO = "lease.json"
 SCHEMA = 1
+#: 여러 PC 규칙 판 — 판 문지기(아래 ``protocol_gate``). 번호의 뜻 · 올리는 차례는 `collector/config.py` 의 ``RUNNER_PROTOCOL``.
+PROTOCOL = config.RUNNER_PROTOCOL
 
 #: 이만큼 소식이 없으면 다른 PC 가 이어받는다(분 · 사용자 결정 2026-10-25 「90분 무소식」).
 EXPIRE_MIN = 90
@@ -101,6 +109,11 @@ class LeaseError(Exception):
         self.later = later
 
 
+class ProtocolTooOld(LeaseError):
+    """원격 임대 문서가 이 코드보다 새 규칙 판(``min_protocol``)을 요구한다 — 회차를 잡지도 올리지도 않는다(``git pull`` 먼저).
+    ``LeaseError`` 의 한 갈래라 러너의 기존 처리(회차를 돌지 않고 까닭을 남김 · 다음 반복 실행이 다시)를 그대로 탄다."""
+
+
 class LeaseLost(Exception):
     """남이 이어받았다 — 공유 쓰기(백업 올리기 · 닫기)를 하지 않는다."""
 
@@ -134,6 +147,31 @@ def _parse(s: Optional[str]) -> Optional[datetime.datetime]:
 def this_pc() -> str:
     """PC 이름 — 임대 · 회차 기록에 「어느 PC」 로 남는다(사용자 이름 · 경로는 적지 않는다)."""
     return platform.node() or os.environ.get("COMPUTERNAME") or "unknown"
+
+
+def code_version() -> Optional[str]:
+    """이 PC 코드의 git 짧은 SHA(모르면 None) — 임대 문서 · 자리 기록에 「어느 판 코드가 돌았나」 로 남는다. 못 구해도 회차를 막지 않는다."""
+    flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0      # 창 없는 부모(작업 스케줄러 pythonw)에서 검은 창이 깜빡이지 않게(DF-158 과 같은 갈래)
+    try:
+        p = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=10,
+                           creationflags=flags)
+    except Exception:  # noqa: BLE001 — git 없음 · 시간 초과
+        return None
+    out = (p.stdout or "").strip()
+    return out if p.returncode == 0 and out else None
+
+
+def protocol_gate(doc: Optional[Dict]) -> Optional[str]:
+    """판 문지기 — 원격 임대 문서의 ``min_protocol`` 이 이 코드의 번호보다 크면 멈출 까닭 한 줄(아니면 None).
+
+    칸이 없거나 · 같거나 낮거나 · 정수가 아니면 통과한다 — 잘못 적은 칸 하나가 모든 PC 를 멈추게 하지 않는다. (HF 에 닿지 못함은 이
+    함수 밖에서 그대로 fail-closed.) ``min_protocol`` 은 코드가 정하지 않는다 — 모든 PC 가 새 코드가 된 것을 본 뒤 사람이 올린다.
+    """
+    need = (doc or {}).get("min_protocol")
+    if type(need) is not int or need <= PROTOCOL:
+        return None
+    return (f"원격이 규칙 판 {need} 이상을 요구한다(이 PC 코드는 {PROTOCOL} · 코드 {code_version() or '판을 모름'}) — "
+            f"이 저장소에서 `git pull` 로 코드를 먼저 맞춘 뒤 다시")
 
 
 def slot_of(now: datetime.datetime) -> str:
@@ -333,10 +371,14 @@ def _new_doc(cur: Optional[Dict], *, now: datetime.datetime, kind: str, slot: st
     taken = None
     if cur.get("state") == "running":                        # 이어받기 — 누구의 무엇을(기록)
         taken = {k: cur.get(k) for k in ("pc", "gen", "slot", "kind", "renewed_at")}
-    return {"schema": SCHEMA, "gen": int(cur.get("gen") or 0) + 1, "nonce": uuid.uuid4().hex, "write": uuid.uuid4().hex,
-            "state": "running", "slot": slot, "kind": kind, "pc": pc, "pid": pid, "run": run,
-            "acquired_at": _iso(now), "renewed_at": _iso(now), "finished_at": None, "result": None,
-            "taken_from": taken, "slots": _prune(dict(cur.get("slots") or {})), "squashed_at": cur.get("squashed_at")}
+    doc = {"schema": SCHEMA, "gen": int(cur.get("gen") or 0) + 1, "nonce": uuid.uuid4().hex, "write": uuid.uuid4().hex,
+           "state": "running", "slot": slot, "kind": kind, "pc": pc, "pid": pid, "run": run,
+           "protocol": PROTOCOL, "code": code_version(),
+           "acquired_at": _iso(now), "renewed_at": _iso(now), "finished_at": None, "result": None,
+           "taken_from": taken, "slots": _prune(dict(cur.get("slots") or {})), "squashed_at": cur.get("squashed_at")}
+    if type(cur.get("min_protocol")) is int:                 # 사람이 적은 판 문지기 칸 — 새 문서가 처음부터 만들어져도 이어 간다
+        doc["min_protocol"] = cur["min_protocol"]
+    return doc
 
 
 def acquire(api, *, now: datetime.datetime, kind: str, run: str, pc: Optional[str] = None,
@@ -360,6 +402,9 @@ def acquire(api, *, now: datetime.datetime, kind: str, run: str, pc: Optional[st
         cleaned = _clean_branch(api, head)                    # 남이 먼저 했으면(412) 다시 읽는다
         head, cur = (cleaned, cur) if cleaned else read(api)
     for _ in range(2):
+        old_why = protocol_gate(cur)                          # 판 문지기 — 이 코드가 규칙보다 옛것이면 잡지도 따라가지도 않는다(아무것도 쓰지 않음)
+        if old_why:
+            raise ProtocolTooOld(old_why)
         what, why = decide(cur, now=now, kind=kind, slot=slot, pc=pc)
         if what != "take":
             _remember(cur, head)
@@ -387,7 +432,10 @@ def _lost_why(cur: Optional[Dict]) -> str:
 
 
 def _write_mine(api, held: Held, doc: Dict, message: str) -> str:
-    """내 임대를 다시 쓴다 — 412 면 다시 읽어 아직 내 것(세대 · nonce 같음)이면 새 머리 위에 한 번 더(가지 정리 등) · 아니면 LeaseLost."""
+    """내 임대를 다시 쓴다 — 412 면 다시 읽어 아직 내 것(세대 · nonce 같음)이면 새 머리 위에 한 번 더(가지 정리 등) · 아니면 LeaseLost.
+
+    그 사이 사람이 돌던 중에 적은 ``min_protocol`` 은 지우지 않는다 — 원격 값을 ``doc`` 에 그대로 옮긴다(``doc`` 을 제자리에서 고친다 ·
+    부르는 쪽이 같은 사전을 다음 ``Held`` 로 쓰므로 뒤 갱신 · 닫기도 이어 간다)."""
     parent = held.head
     for _ in range(2):
         try:
@@ -397,6 +445,10 @@ def _write_mine(api, held: Held, doc: Dict, message: str) -> str:
             if not head or not _same_holder(cur, held.doc):
                 raise LeaseLost(_lost_why(cur))
             parent = head
+            if type(cur.get("min_protocol")) is int:
+                doc["min_protocol"] = cur["min_protocol"]
+            else:
+                doc.pop("min_protocol", None)
     raise LeaseError("임대를 다시 쓰지 못했다(두 번 겨룸)", later=True)
 
 
@@ -414,6 +466,9 @@ def renew(api, held: Held, now: datetime.datetime, *, force: bool = False) -> He
 def still_mine(api, held: Held) -> Tuple[bool, str]:
     """백업 올리기 바로 앞 — 아직 내 임대인가(세대 · nonce · running). 아니면 그 까닭."""
     head, cur = read(api)
+    old_why = protocol_gate(cur)                              # 도는 중에 규칙이 올랐으면 올리지 않는다(옛 규칙으로 공유 자료를 쓰지 않게)
+    if old_why:
+        raise ProtocolTooOld(old_why)
     ok = _same_holder(cur, held.doc)
     return ok, ("" if ok else _lost_why(cur))
 
@@ -438,7 +493,7 @@ def release(api, held: Held, *, now: datetime.datetime, ok: bool, rc: int, summa
     if fill_slot and doc.get("kind") in ("schedule", "manual"):   # 한 단계 다시(only)는 자리를 채우지 않는다
         slots = dict(doc.get("slots") or {})
         slots[doc["slot"]] = {"pc": doc.get("pc"), "kind": doc.get("kind"), "ok": bool(ok), "rc": rc,
-                              "finished_at": doc["finished_at"], **summary}
+                              "finished_at": doc["finished_at"], "protocol": doc.get("protocol"), "code": doc.get("code"), **summary}
         doc["slots"] = _prune(slots)
     squash = _due_squash(doc, now)
     if squash:
@@ -496,7 +551,11 @@ def status_lines(doc: Optional[Dict], head: Optional[str]) -> list:
     out = [f"― 임대 {REPO_ID}@{BRANCH} · 머리 {(head or '')[:8]}",
            f"  지금  {doc.get('state')} · {doc.get('pc')} · {doc.get('kind')} · 자리 {doc.get('slot')} · 세대 {doc.get('gen')}"
            f" · 잡음 {doc.get('acquired_at')} · 갱신 {doc.get('renewed_at')}"
-           + (f" · 끝 {doc.get('finished_at')}" if doc.get("finished_at") else "")]
+           + (f" · 끝 {doc.get('finished_at')}" if doc.get("finished_at") else "")
+           + (f" · 규칙 {doc.get('protocol')}" + (f" · 코드 {doc.get('code')}" if doc.get("code") else "")
+              if doc.get("protocol") is not None else "")]
+    if doc.get("min_protocol") is not None:
+        out.append(f"  규칙 하한 min_protocol {doc.get('min_protocol')} — 이 코드(규칙 {PROTOCOL})가 더 옛것이면 회차를 잡지 않는다")
     if doc.get("taken_from"):
         t = doc["taken_from"]
         out.append(f"  이어받음 ← {t.get('pc')} 세대 {t.get('gen')}(마지막 갱신 {t.get('renewed_at')})")

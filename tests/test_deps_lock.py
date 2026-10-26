@@ -29,6 +29,9 @@ from packaging.version import Version
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = ROOT / "requirements.lock"
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
+# 정확한 판 태그 — 점이 든 판(16.15 · v1.19.1 · 5.18.1-community) 또는 3자리 이상 번호 태그(LEAN 의 17748 꼴).
+# 점 없는 짧은 숫자(16 · 8)나 16-alpine 같은 뜨는 태그는 거부한다.
+EXACT_TAG = re.compile(r"^(v?\d+\.\d+(\.\d+)?(-[a-z0-9.]+)?|\d{3,})$")
 
 
 def _req_lines(path: Path):
@@ -133,10 +136,78 @@ def test_compose_external_images_pinned_by_tag_and_digest():
     for name, image in external.items():
         ref, _, digest = (image or "").partition("@")
         tag = ref.rsplit(":", 1)[-1] if ":" in ref else ""
-        exact = re.match(r"^v?\d+\.\d+(\.\d+)?(-[a-z0-9.]+)?$", tag)
+        exact = EXACT_TAG.match(tag)
         if not image or not DIGEST.search("@" + digest) or not exact or "latest" in tag:
             bad.append(f"{name}: {image}")
     assert not bad, "외부 이미지는 「정확한 판 태그@sha256:…」 로 묶는다: " + " · ".join(bad)
+
+
+@pytest.mark.parametrize("tag,ok", [
+    ("16.15-alpine", True), ("v1.19.1", True), ("5.18.1-community", True), ("17748", True),
+    ("16-alpine", False), ("16", False), ("latest", False), ("", False),
+])
+def test_exact_tag_rule(tag, ok):
+    """TC-DL-04 · 태그 판정 — 점이 든 판과 3자리 이상 번호 태그만 정확한 판으로 본다(뜨는 태그는 거부)."""
+    assert bool(EXACT_TAG.match(tag)) is ok
+
+
+def _lean_image_defaults() -> dict[str, str]:
+    """LEAN 이미지 기본값이 적힌 곳 — 설정 코드 · 환경 예시(파일 글자를 그대로 읽는다 · 앱을 import 하지 않는다)."""
+    cfg = re.search(r'^\s*LEAN_DOCKER_IMAGE:\s*str\s*=\s*"([^"]+)"', (ROOT / "app" / "config.py").read_text(encoding="utf-8"), re.M)
+    env = re.search(r"^LEAN_DOCKER_IMAGE=(\S+)", (ROOT / ".env.example").read_text(encoding="utf-8"), re.M)
+    assert cfg and env, "LEAN_DOCKER_IMAGE 기본값 줄을 못 찾았다(app/config.py · .env.example)"
+    return {"app/config.py": cfg.group(1), ".env.example": env.group(1)}
+
+
+def test_lean_image_default_pinned_by_tag_and_digest():
+    """TC-DL-04(확장) · LEAN 이미지 기본값 — 설정 코드와 환경 예시 모두 「번호 태그@sha256」 이고 둘이 같다(latest 금지) ·
+    그림자 일지 대조 스크립트가 쓰는 다이제스트와도 같다(강민석 님 10-26 동의 — 엔진이 바뀌면 대조가 의미를 잃는다)."""
+    defaults = _lean_image_defaults()
+    bad = []
+    for where, image in defaults.items():
+        ref, _, digest = image.partition("@")
+        tag = ref.rsplit(":", 1)[-1] if ":" in ref else ""
+        if not ref.startswith("quantconnect/lean:") or not EXACT_TAG.match(tag) or not DIGEST.search("@" + digest):
+            bad.append(f"{where}: {image}")
+    assert not bad, "LEAN 이미지는 「quantconnect/lean:번호@sha256:…」 로 묶는다: " + " · ".join(bad)
+    assert len(set(defaults.values())) == 1, f"설정 코드와 환경 예시의 LEAN 이미지가 다르다: {defaults}"
+    scan = re.search(r'^LEAN_IMAGE\s*=\s*"[^"@]+@(sha256:[0-9a-f]{64})"', (ROOT / "scripts" / "indicator_lean_scan.py").read_text(encoding="utf-8"), re.M)
+    assert scan, "scripts/indicator_lean_scan.py 의 LEAN_IMAGE 줄을 못 찾았다"
+    assert next(iter(defaults.values())).endswith("@" + scan.group(1)), "기본값의 다이제스트가 indicator_lean_scan.py 와 다르다"
+
+
+def test_collector_third_party_imports_are_all_in_the_lock():
+    """TC-DL-12 · 수집기 · 러너가 import 하는 바깥 패키지는 모두 잠금(요구 파일 + 전이 의존)에 있다 — 함수 안 늦은 import 도 센다.
+    (DF-157 · yfinance 가 노트북에만 손으로 깔려 있어 데스크톱 첫 회차에서 분봉 단계가 ModuleNotFoundError 로 실패했다.)
+    선택 도구(ragas · torch 등)는 `OPTIONAL` 에 까닭과 함께 둔 것만 빠진다."""
+    from scripts import collector_env_check as env
+
+    not_installed, not_declared = env.check()
+    assert not not_declared, f"잠금에 없는 패키지를 수집기가 쓴다(손으로 깔린 것): {not_declared}"
+    assert not not_installed, f"이 파이썬에 설치 안 된 패키지를 수집기가 쓴다: {not_installed}"
+
+
+def test_collector_env_check_scanner(tmp_path):
+    """TC-DL-12 · 점검 도구 자체 — 함수 안 import · from-import 를 세고, 표준 라이브러리 · 상대 import · 저장소 안 이름은 빼고,
+    잠금 파일 이름은 `_` · `-` · 대소문자 차이를 같게 본다."""
+    from scripts import collector_env_check as env
+
+    (tmp_path / "collector").mkdir()
+    (tmp_path / "collector" / "mine.py").write_text("X = 1\n", encoding="utf-8")
+    (tmp_path / "collector" / "a.py").write_text(
+        "import os, json\nimport requests\nfrom . import mine\nfrom .mine import X\nfrom collector import mine as m2\n"
+        "def late():\n    import Some_Pkg\n    from other.sub import thing\n", encoding="utf-8")
+    (tmp_path / "requirements.lock").write_text("requests==2.34.2\n    # via x\nsome-pkg==1.0\n", encoding="utf-8")
+    found = env.third_party_imports(tmp_path)
+    assert set(found) == {"requests", "Some_Pkg", "other"}, found
+    assert env.locked_names(tmp_path) == {"requests", "some-pkg"}
+
+
+def test_check_script_reads_lean_image_from_status_not_hardcoded():
+    """TC-DL-04(확장) · 점검 스크립트(check.ps1)는 LEAN 이미지 이름을 직접 적지 않는다 — 기본값을 고정하면 `:latest` 로 찾던 점검이
+    엉뚱한 이미지를 본다. 상태 API 가 주는 image 칸을 쓴다."""
+    src = (ROOT / "scripts" / "personal" / "check.ps1").read_text(encoding="utf-8-sig")
+    assert "quantconnect/lean:latest" not in src, "check.ps1 이 LEAN 이미지 이름을 latest 로 직접 적고 있다"
 
 
 def _minor(v: str) -> tuple[int, int]:

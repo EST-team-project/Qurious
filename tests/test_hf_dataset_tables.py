@@ -167,6 +167,7 @@ def test_export_then_restore_round_trip(tmp_path, monkeypatch):
     tally = hf_dataset.export(tables=list(OHLCV_TABLES), verbose=False)
     man = hf_dataset._load_manifest()
     assert not man["partial"]
+    assert man["protocol"] == hf_dataset.config.RUNNER_PROTOCOL      # 판 문지기 — 매니페스트에도 규칙 판이 남는다(TC-LE-13)
     assert {t: man["tables"][t]["rows"] for t in OHLCV_TABLES} == counts
     # 분봉은 해마다 한 파일 — 2025 · 2026 둘(옛 경계였다면 0행 파일 둘이었다)
     paths = sorted(f["path"] for f in man["tables"]["price_intraday"]["files"])

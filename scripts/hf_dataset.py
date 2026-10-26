@@ -951,6 +951,7 @@ def export(tables: Optional[List[str]] = None, years: Optional[List[str]] = None
             "generated_at": _now_kst(),
             "repo_id": REPO_ID,
             "collector_commit": _git_head(),
+            "protocol": config.RUNNER_PROTOCOL,   # 여러 PC 규칙 판(판 문지기 · `scripts/run_lease.py`) — 어느 규칙으로 만든 파일인가
             # ⚠️ 사용자 절대경로를 적지 않는다 — 그대로 HF 로 올라간다.
             "db_relpath": _rel_root(config.DB_PATH),
             "db_bytes": config.DB_PATH.stat().st_size,

@@ -76,7 +76,9 @@ class Settings(BaseSettings):
     # ── QuantConnect LEAN 백테스트 (domain-rag-lab / stock-coin-trade 이식) ──────
     # auto | ssh | docker | local  (auto: SSH 설정 있으면 ssh → docker CLI 있으면 docker → local)
     LEAN_MODE: str = "auto"
-    LEAN_DOCKER_IMAGE: str = "quantconnect/lean:latest"
+    # 번호 태그@다이제스트로 고정 — latest 는 날마다 바뀌어 같은 전략이 다른 엔진에서 돈다(그림자 일지 대조가 의미를 잃는다 · 2026-10-26 강민석 님 동의).
+    # 18203 = 2026-10-22 게시판 · 올릴 때는 .env.example · scripts/indicator_lean_scan.py 의 다이제스트와 함께 바꾼다(TC-DL-04).
+    LEAN_DOCKER_IMAGE: str = "quantconnect/lean:18203@sha256:aa3e0248d8d20f891e9337e395045a1317e2612986413136bfd8e2fc25c709e6"
     LEAN_TIMEOUT_SECONDS: int = 300
     LEAN_KEEP_WORKDIR: bool = False           # 디버깅용: 실행 폴더(main.py/prices.csv/results) 보존
     # docker 모드: 이 프로세스가 쓰는 작업 폴더. 컨테이너 안에서 실행하면 같은 경로가 호스트에서
