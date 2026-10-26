@@ -108,7 +108,7 @@ def test_risk_status_displays_effective_aggressive_limits(monkeypatch):
     row = SimpleNamespace(risk_max_orders_per_day=5, risk_cooldown_min=30, risk_halt_reason="", quant_auto_enabled=True)
     monkeypatch.setattr(stocks, "_get_broker_settings_row", AsyncMock(return_value=row))
     monkeypatch.setattr(stocks.auto_trade, "get_status", AsyncMock(return_value={}))
-    async def risk_status(uid, limits, equity, reason):
+    async def risk_status(uid, limits, equity, reason, **kwargs):
         return {"limits": limits.to_dict()}
     monkeypatch.setattr(stocks.risk_guard, "risk_status", risk_status)
     db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(scalar_one_or_none=lambda: None)))
@@ -155,3 +155,36 @@ def test_unknown_replay_checks_each_owners_persisted_state(monkeypatch):
         finally:
             await engine.dispose()
     asyncio.run(go())
+
+
+def test_risk_status_orders_key_matches_writer(monkeypatch):
+    """DF-152 — 상태 API가 쓰는 쪽(auto_trade·order_retry)과 같은 주문 수 열쇠를 본다."""
+    from app.services import risk_guard as rg
+    monkeypatch.setattr(rg, "_mem_counters", {})
+    uid = str(uuid.uuid4())
+    asyncio.run(rg.increment_orders_today(uid))            # 쓰는 쪽과 같은 접미사 없는 uid
+    limits = SimpleNamespace(max_orders_per_day=10, kill_switch=False,
+                             daily_loss_limit_pct=0, to_dict=lambda: {})
+    status = asyncio.run(rg.risk_status(f"{uid}:quant", limits, None, orders_user_id=uid))
+    assert status["orders_today"] == 1
+    assert status["orders_remaining"] == 9
+
+
+def test_quant_risk_status_passes_plain_uid_for_orders(monkeypatch):
+    """DF-152 — 라우트가 시작 자산은 :quant, 주문 수는 접미사 없는 uid로 넘긴다."""
+    from app.routes import stocks
+    captured = {}
+    async def fake_risk_status(uid_key, limits, equity, reason="", **kwargs):
+        captured["uid_key"] = uid_key
+        captured["orders_user_id"] = kwargs.get("orders_user_id")
+        return {"limits": limits.to_dict()}
+    monkeypatch.setattr(stocks.risk_guard, "risk_status", fake_risk_status)
+    raw_id = str(uuid.uuid4())
+    row = SimpleNamespace(risk_max_orders_per_day=5, risk_cooldown_min=30,
+                          risk_halt_reason="", quant_auto_enabled=False)
+    monkeypatch.setattr(stocks, "_get_broker_settings_row", AsyncMock(return_value=row))
+    monkeypatch.setattr(stocks.auto_trade, "get_status", AsyncMock(return_value={}))
+    db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(scalar_one_or_none=lambda: None)))
+    asyncio.run(stocks.quant_risk_status({"id": raw_id}, db))
+    assert captured["uid_key"] == f"{raw_id}:quant"
+    assert captured["orders_user_id"] == raw_id
