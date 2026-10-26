@@ -21,6 +21,11 @@ def _close(n=300):
     lambda c: ta.macd(c, 12, 26, 9)[0],
     lambda c: ta.bollinger(c, 20, 2.0)[0],
     lambda c: ta.bollinger(c, 20, 2.0)[2],
+    lambda c: ta.bollinger(c, 20, 2.0)[1],
+    lambda c: ta.ema(c, 20),
+    lambda c: ta.macd(c, 12, 26, 9)[1],
+    lambda c: ta.macd(c, 12, 26, 9)[2],
+    lambda c: ta.rma(c, 14),
 ])
 def test_indicators_are_causal(fn):
     c = _close(300)
@@ -28,6 +33,49 @@ def test_indicators_are_causal(fn):
     truncated = fn(c.iloc[:250])
     # 앞 250개 구간의 값은 뒤 50개 데이터 존재 여부와 무관해야 한다
     pd.testing.assert_series_equal(full.iloc[:250].dropna(), truncated.dropna(), check_names=False)
+
+
+_STREAM = {
+    "sma20": lambda d: ta.sma(d["close"], 20),
+    "ema20": lambda d: ta.ema(d["close"], 20),
+    "rma14": lambda d: ta.rma(d["close"], 14),
+    "rsi14": lambda d: ta.rsi(d["close"], 14),
+    "macd": lambda d: ta.macd(d["close"], 12, 26, 9)[0],
+    "macd_signal": lambda d: ta.macd(d["close"], 12, 26, 9)[1],
+    "macd_hist": lambda d: ta.macd(d["close"], 12, 26, 9)[2],
+    "bb_upper": lambda d: ta.bollinger(d["close"], 20, 2.0)[0],
+    "bb_mid": lambda d: ta.bollinger(d["close"], 20, 2.0)[1],
+    "bb_lower": lambda d: ta.bollinger(d["close"], 20, 2.0)[2],
+    "atr14": lambda d: ta.atr(d["high"], d["low"], d["close"], 14),
+    "plus_di14": lambda d: ta.dmi(d["high"], d["low"], d["close"], 14, 14)[0],
+    "minus_di14": lambda d: ta.dmi(d["high"], d["low"], d["close"], 14, 14)[1],
+    "adx14": lambda d: ta.dmi(d["high"], d["low"], d["close"], 14, 14)[2],
+    "rs20": lambda d: ta.relative_strength(d["close"], d["high"].rolling(3).mean(), 20),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_STREAM))
+def test_one_new_bar_matches_full_recompute(name):
+    df = preprocess(make_candles(300))[["high", "low", "close"]].astype(float)
+    fn = _STREAM[name]
+    full = fn(df)
+    prev = fn(df.iloc[:240])
+    for k in range(241, len(df) + 1):
+        cur = fn(df.iloc[:k])
+        pd.testing.assert_series_equal(cur.iloc[:-1], prev, check_names=False, rtol=1e-12, atol=0)
+        assert cur.iloc[-1] == pytest.approx(full.iloc[k - 1], rel=1e-12, abs=0)
+        prev = cur
+
+
+@pytest.mark.parametrize("name", sorted(_STREAM))
+def test_missing_bar_keeps_past_and_recovers(name):
+    df = preprocess(make_candles(300))[["high", "low", "close"]].astype(float)
+    gap = df.copy()
+    gap.iloc[150] = np.nan
+    fn = _STREAM[name]
+    full, holed = fn(df), fn(gap)
+    pd.testing.assert_series_equal(holed.iloc[:150], full.iloc[:150], check_names=False)
+    assert holed.iloc[200:].notna().all()
 
 
 def test_atr_is_causal():

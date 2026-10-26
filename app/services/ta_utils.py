@@ -79,6 +79,30 @@ def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> 
     return rma(tr, period)
 
 
+def dmi(high: pd.Series, low: pd.Series, close: pd.Series, di_length: int = 14,
+        adx_smoothing: int = 14) -> tuple[pd.Series, pd.Series, pd.Series]:
+    high, low, close = high.astype(float), low.astype(float), close.astype(float)
+    up, down = high.diff(), -low.diff()
+    plus_dm = up.where((up > down) & (up > 0), 0.0).where(up.notna())
+    minus_dm = down.where((down > up) & (down > 0), 0.0).where(down.notna())
+    prev_close = close.shift(1)
+    tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1, skipna=False)
+    trur = rma(tr, di_length)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        plus = (100 * rma(plus_dm, di_length) / trur).replace([np.inf, -np.inf], np.nan)
+        minus = (100 * rma(minus_dm, di_length) / trur).replace([np.inf, -np.inf], np.nan)
+    started = trur.notna().cummax()
+    plus, minus = plus.ffill().where(started), minus.ffill().where(started)
+    total = plus + minus
+    adx = 100 * rma((plus - minus).abs() / total.where(total != 0, 1.0), adx_smoothing)
+    return plus, minus, adx
+
+
+def relative_strength(close: pd.Series, benchmark: pd.Series, period: int) -> pd.Series:
+    ratio = close.astype(float) / benchmark.astype(float).reindex(close.index)
+    return ratio / ratio.shift(period) - 1
+
+
 def sharpe_ratio(returns: pd.Series, periods_per_year: int = 252) -> float:
     if returns.empty or returns.std() == 0:
         return 0.0
