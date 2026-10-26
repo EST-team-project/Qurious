@@ -1072,7 +1072,10 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
                 except Exception:
                     pass
                 equity += p.quantity * float(px or p.avg_price)
-    status = await risk_guard.risk_status(user_key, limits, equity, row.risk_halt_reason if row else "")
+    # DF-152 — 시작 자산은 :quant(장부 구분) 열쇠, 주문 수는 쓰는 쪽과 같은 접미사 없는 uid
+    status = await risk_guard.risk_status(
+        user_key, limits, equity, row.risk_halt_reason if row else "", orders_user_id=str(uid)
+    )
     status["auto_trade_running"] = bool(row and row.quant_auto_enabled)
     status["last_cycle_risk"] = (await auto_trade.get_status(db, uid)).get("risk", {})
     status["execution_guidance"] = execution_guidance()

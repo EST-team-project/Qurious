@@ -184,9 +184,18 @@ def cap_buy_quantity(qty: int, price: float, existing_value: float, total_equity
 # ── 상태 조회 ───────────────────────────────────────────────────────────
 
 
-async def risk_status(user_id: str, limits: RiskLimits, current_equity: float | None, halt_reason: str = "") -> dict:
+async def risk_status(user_id: str, limits: RiskLimits, current_equity: float | None,
+                     halt_reason: str = "", *, orders_user_id: str | None = None) -> dict:
+    """위험관리 상태.
+
+    user_id는 시작 자산(quant:day-equity) 열쇠에 그대로 쓴다(:quant 등 장부 구분 포함).
+    주문 수는 쓰는 쪽(auto_trade·order_retry)과 같은 접미사 없는 uid로 읽어야
+    화면·한도가 같은 값을 본다(DF-152). orders_user_id를 안 넘기면 user_id로 되돌아간다.
+    """
     start = await day_start_equity(user_id, current_equity) if current_equity is not None else None
     pnl = daily_pnl_pct(start, current_equity) if (start and current_equity is not None) else None
+    orders_id = orders_user_id if orders_user_id is not None else user_id
+    orders = await orders_today(orders_id)
     return {
         "limits": limits.to_dict(),
         "kill_switch": limits.kill_switch,
@@ -196,6 +205,6 @@ async def risk_status(user_id: str, limits: RiskLimits, current_equity: float | 
         "current_equity": round(current_equity, 2) if current_equity is not None else None,
         "day_pnl_pct": pnl,
         "daily_loss_breached": bool(start and current_equity is not None and daily_loss_breached(start, current_equity, limits.daily_loss_limit_pct)),
-        "orders_today": await orders_today(user_id),
-        "orders_remaining": max(0, limits.max_orders_per_day - await orders_today(user_id)) if limits.max_orders_per_day > 0 else None,
+        "orders_today": orders,
+        "orders_remaining": max(0, limits.max_orders_per_day - orders) if limits.max_orders_per_day > 0 else None,
     }

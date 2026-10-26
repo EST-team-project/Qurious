@@ -52,11 +52,12 @@ from app.models import (
     PORTFOLIO_BOOK_PAPER,
     PORTFOLIO_BOOK_QUANT,
     PaperAccount,
+    PaperAccountSnapshot,
     Portfolio,
     QuantVirtualAccount,
     User,
 )
-from app.services import auto_trade, paper_trading
+from app.services import auto_trade, paper_snapshot_service, paper_trading
 
 DB_URL = os.environ.get("QURIOUS_TEST_DATABASE_URL", "")
 needs_db = pytest.mark.skipif(
@@ -65,7 +66,8 @@ needs_db = pytest.mark.skipif(
 # `reset_account` 가 코인·대체자산 표까지 지우므로 그 넷도 만든다.
 TABLES = [User.__table__, PaperAccount.__table__, Portfolio.__table__, Order.__table__,
           QuantVirtualAccount.__table__, CryptoHolding.__table__, CryptoOrder.__table__,
-          AlternativePosition.__table__, AlternativeOrder.__table__]
+          AlternativePosition.__table__, AlternativeOrder.__table__,
+          PaperAccountSnapshot.__table__]   # DF-95 — 리셋 후 첫 스냅샷 회귀 시험용
 
 SYMBOL, NAME, PRICE = "005930.KS", "삼성전자", 70_000.0
 QUANT_INITIAL = float(auto_trade._INITIAL_CAPITAL)
@@ -303,3 +305,72 @@ async def test_reset_deletes_only_web_paper_orders(db):
     assert "WEB" not in sources      # 직접매매 삭제됨
     assert "QUANT" in sources        # 자동매매 보존됨
     assert (await paper_trading.get_account(session, uid)).epoch == 2
+
+
+# ── DF-95 — 리셋(회차+1) 직후 첫 스냅샷은 일수익률 0 ────────────────────
+@needs_db
+@pytest.mark.anyio
+async def test_first_snapshot_after_reset_has_zero_daily_return(db, monkeypatch):
+    """DF-95 — 리셋(회차+1) 직후 첫 스냅샷은 직전 회차 자산과 비교하지 않고 daily_return=0."""
+    from datetime import date as _date
+    session, uid = db
+
+    # 회차 1: 첫 스냅샷 1억 → daily_return 0 (첫 스냅샷 규칙)
+    async def _snap_1(db_, uid_):
+        return {"cash": 100_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
+                "alternativeEval": 0.0, "totalAsset": 100_000_000.0,
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+    monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_1)
+    await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 1))
+
+    # 리셋 → 회차 2
+    await paper_trading.reset_account(session, uid)
+    await session.commit()
+    assert (await paper_trading.get_account(session, uid)).epoch == 2
+
+    # 회차 2 첫 스냅샷: 자산이 +5%로 보여도 회차 경계라 daily_return=0
+    async def _snap_2(db_, uid_):
+        return {"cash": 105_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
+                "alternativeEval": 0.0, "totalAsset": 105_000_000.0,
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+    monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_2)
+    await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 2))
+
+    snap = (await session.execute(
+        select(PaperAccountSnapshot).where(
+            PaperAccountSnapshot.user_id == uid,
+            PaperAccountSnapshot.snap_date == _date(2026, 1, 2))
+    )).scalar_one()
+    assert snap.epoch == 2
+    assert snap.daily_return == 0.0
+
+
+# ── 대조군 — 같은 회차 내 다음 스냅샷은 일수익률을 실제로 계산 ─────────────
+@needs_db
+@pytest.mark.anyio
+async def test_snapshot_same_epoch_computes_return(db, monkeypatch):
+    """대조군 — 회차 경계가 아닐 때는 daily_return이 실제로 계산된다(시험이 '항상 0'이 아님)."""
+    from datetime import date as _date
+    session, uid = db
+
+    async def _snap_a(db_, uid_):
+        return {"cash": 100_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
+                "alternativeEval": 0.0, "totalAsset": 100_000_000.0,
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+    monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_a)
+    await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 1))
+
+    async def _snap_b(db_, uid_):
+        return {"cash": 110_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
+                "alternativeEval": 0.0, "totalAsset": 110_000_000.0,
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+    monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_b)
+    await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 2))
+
+    snap = (await session.execute(
+        select(PaperAccountSnapshot).where(
+            PaperAccountSnapshot.user_id == uid,
+            PaperAccountSnapshot.snap_date == _date(2026, 1, 2))
+    )).scalar_one()
+    assert snap.epoch == 1
+    assert abs(snap.daily_return - 0.1) < 0.001
