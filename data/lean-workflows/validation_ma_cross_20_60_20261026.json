@@ -1,0 +1,587 @@
+{
+  "run_at": "2026-10-26T14:21:27.980472+09:00",
+  "conditions": {
+    "ticker": "005930.KS",
+    "start_date": "2024-01-02",
+    "end_date": "2024-03-29",
+    "strategy": "ma_cross",
+    "short_window": 20,
+    "long_window": 60,
+    "initial_cash_krw": 1000000,
+    "price_source": "Yahoo Finance daily close",
+    "cost_model": {
+      "model": "krx_real",
+      "label": "국내주식 실제 요율 (연도별 매도세 + 수수료 + 유관기관비 + 슬리피지)",
+      "market": "KOSPI",
+      "slippage_bps": 10.0,
+      "fee_rate_pct": 0.0140527,
+      "clearing_rate_pct": 0.0036396,
+      "include_tax": true,
+      "cost_basis": "estimated",
+      "note": "슬리피지는 가정이다 — 호가 데이터가 없어 직접 측정하지 못했다."
+    }
+  },
+  "lean_ok": true,
+  "engine": "QuantConnect LEAN (local docker) + Yahoo Finance",
+  "pandas_metrics": {
+    "strategy_return_pct": -5.63,
+    "gross_strategy_return_pct": -5.12,
+    "strategy_cost_drag_pct": 0.51,
+    "max_drawdown_pct": -10.91,
+    "sharpe_ratio": -1.28,
+    "annualized_return_pct": -21.61,
+    "annualized_volatility_pct": 18.5,
+    "trade_count": 3
+  },
+  "lean_statistics": {
+    "Start Equity": "1000000",
+    "End Equity": "977451.66",
+    "Net Profit": "-2.255%",
+    "Compounding Annual Return": "-9.119%",
+    "Sharpe Ratio": "-0.462",
+    "Drawdown": "7.600%",
+    "Total Orders": "3",
+    "Win Rate": "0%",
+    "Total Fees": "₩2140.16",
+    "Annual Standard Deviation": "0.14"
+  },
+  "lean_fills": [
+    {
+      "order_id": 1,
+      "date": "2024-01-03",
+      "time_utc": "2024-01-03T06:29:00+00:00",
+      "timestamp": 1704263340.0,
+      "direction": "buy",
+      "quantity": 13.1174855,
+      "signed_quantity": 13.1174855,
+      "fill_price": 73620.249828125,
+      "fee": 170.68607710974388,
+      "fee_currency": "KRW",
+      "symbol": "YF.YFPrice"
+    },
+    {
+      "order_id": 2,
+      "date": "2024-02-26",
+      "time_utc": "2024-02-26T06:29:00+00:00",
+      "timestamp": 1708928940.0,
+      "direction": "sell",
+      "quantity": 13.1174855,
+      "signed_quantity": -13.1174855,
+      "fill_price": 69465.543046875,
+      "fee": 1803.2016407198637,
+      "fee_currency": "KRW",
+      "symbol": "YF.YFPrice"
+    },
+    {
+      "order_id": 3,
+      "date": "2024-03-27",
+      "time_utc": "2024-03-27T06:29:00+00:00",
+      "timestamp": 1711520940.0,
+      "direction": "buy",
+      "quantity": 12.3302308,
+      "signed_quantity": 12.3302308,
+      "fill_price": 76297.361765625,
+      "fee": 166.2765267992622,
+      "fee_currency": "KRW",
+      "symbol": "YF.YFPrice"
+    }
+  ],
+  "lean_total_orders": "3",
+  "lean_completed_round_trips": 1,
+  "lean_log_tail": "rue\n20261026 05:21:24.700 TRACE:: Debug: 2023-08-20 00:00:00 Launching analysis for YFinanceMovingAverageCrossAlgorithm with LEAN Engine v2.5.0.0\n20261026 05:21:24.753 TRACE:: UniverseSelection.AddPendingInternalDataFeeds(): Adding internal benchmark data feed SPY,#0,SPY,Hour,TradeBar,Trade,Adjusted,OpenInterest,Internal\n20261026 05:21:24.754 TRACE:: Extensions.IsDirectoryEmpty(): directory '/workspace/workflow-50ba58a269eb/data/equity/usa/factor_files' not found or empty\n20261026 05:21:24.808 TRACE:: AlgorithmManager.Stream(): Subscriptions count before warm up: 1\n20261026 05:21:24.854 TRACE:: Debug: 2024-01-02 00:00:00 Changing account currency from USD to KRW, with a starting cash of 1000000...\n20261026 05:21:24.856 TRACE:: Debug: 2023-08-20 00:00:00 Algorithm starting warm up...\n20261026 05:21:24.870 TRACE:: AlgorithmManager.Run(): Subscriptions count after warm up: 1\n20261026 05:21:24.956 TRACE:: Debug: 2024-01-02 00:00:00 Algorithm finished warming up.\n20261026 05:21:24.956 TRACE:: Debug: 2024-01-02 01:29:00 Warning: market orders on daily resolution data sent during market hours are automatically converted into MarketOnClose orders (or MarketOnOpen near the close) to avoid filling at the stale previous close. Note: in live trading this conversion is not applied, as the order fills at the current market price.\n20261026 05:21:24.963 TRACE:: Synchronizer.GetEnumerator(): Exited thread.\n20261026 05:21:24.964 TRACE:: AlgorithmManager.Run(): Firing On End Of Algorithm...\n20261026 05:21:24.965 TRACE:: Engine.Run(): Exiting Algorithm Manager\n20261026 05:21:24.968 TRACE:: OrderRequestProcessingPool.Dispose(): completed\n20261026 05:21:24.971 TRACE:: StopSafely(): Waiting for 'Isolator Thread' thread to stop...\n20261026 05:21:24.972 TRACE:: FileSystemDataFeed.Exit(): Start. Setting cancellation token...\n20261026 05:21:24.972 TRACE:: FileSystemDataFeed.Exit(): Exit Finished.\n20261026 05:21:24.973 TRACE:: DataMonitor.Exit(): start...\n20261026 05:21:24.973 TRACE:: StopSafely(): Waiting for '' thread to stop...\n20261026 05:21:24.975 TRACE:: DataMonitor.GenerateReport():\nDATA USAGE:: Total data requests 9\nDATA USAGE:: Succeeded data requests 2\nDATA USAGE:: Failed data requests 7\nDATA USAGE:: Failed data requests percentage 78%\nDATA USAGE:: Total universe data requests 0\nDATA USAGE:: Succeeded universe data requests 0\nDATA USAGE:: Failed universe data requests 0\nDATA USAGE:: Failed universe data requests percentage 0%\n20261026 05:21:24.975 TRACE:: DataMonitor.Exit(): end\n20261026 05:21:24.975 TRACE:: BacktestingResultHandler.Exit(): starting...\n20261026 05:21:24.976 TRACE:: BacktestingResultHandler.Exit(): Saving logs...\n20261026 05:21:24.977 TRACE:: Debug: 2024-03-29 02:29:00 Algorithm Id:(YFinanceMovingAverageCrossAlgorithm) completed in 0.30 seconds at 1k data points per second. Processing total of 150 data points.\n20261026 05:21:24.977 TRACE:: Debug: 2024-03-29 02:29:00 Your log was successfully created and can be retrieved from: /workspace/workflow-50ba58a269eb/results/YFinanceMovingAverageCrossAlgorithm-log.txt\n20261026 05:21:24.977 TRACE:: BacktestingResultHandler.Run(): Ending Thread...\n20261026 05:21:24.977 TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...\n20261026 05:21:25.195 TRACE:: \nSTATISTICS:: Total Orders 3\nSTATISTICS:: Average Win 0%\nSTATISTICS:: Average Loss -5.81%\nSTATISTICS:: Compounding Annual Return -9.119%\nSTATISTICS:: Drawdown 7.600%\nSTATISTICS:: Expectancy -1\nSTATISTICS:: Start Equity 1000000\nSTATISTICS:: End Equity 977451.66\nSTATISTICS:: Net Profit -2.255%\nSTATISTICS:: Sharpe Ratio -0.462\nSTATISTICS:: Sortino Ratio -0.576\nSTATISTICS:: Probabilistic Sharpe Ratio 19.807%\nSTATISTICS:: Loss Rate 100%\nSTATISTICS:: Win Rate 0%\nSTATISTICS:: Profit-Loss Ratio 0\nSTATISTICS:: Alpha 0\nSTATISTICS:: Beta 0\nSTATISTICS:: Annual Standard Deviation 0.14\nSTATISTICS:: Annual Variance 0.02\nSTATISTICS:: Information Ratio -0.39\nSTATISTICS:: Tracking Error 0.14\nSTATISTICS:: Treynor Ratio 0\nSTATISTICS:: Total Fees ₩2140.16\nSTATISTICS:: Estimated Strategy Capacity ₩0\nSTATISTICS:: Lowest Capacity Asset YF.YFPrice 2S\nSTATISTICS:: Portfolio Turnover 3.33%\nSTATISTICS:: Drawdown Recovery 0\nSTATISTICS:: OrderListHash 02cd3812abc84d4226c3253f20f5317d\n20261026 05:21:25.195 TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet\n20261026 05:21:25.196 TRACE:: Engine.Run(): Disconnecting from brokerage...\n20261026 05:21:25.196 TRACE:: Engine.Run(): Disposing of setup handler...\n20261026 05:21:25.196 TRACE:: Engine.Main(): Analysis Completed and Results Posted.\nEngine.Main(): Analysis Complete.\nEngine.Main(): Press any key to continue.\n20261026 05:21:25.199 TRACE:: Engine.Main(): Packet removed from queue: YFinanceMovingAverageCrossAlgorithm\n20261026 05:21:25.199 TRACE:: LeanEngineSystemHandlers.Dispose(): start...\n20261026 05:21:25.199 TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.\n20261026 05:21:25.200 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...\n20261026 05:21:25.200 TRACE:: LocalObjectStore.Dispose(): start...\n20261026 05:21:25.200 TRACE:: LocalObjectStore.Dispose(): end\n20261026 05:21:25.200 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.\n20261026 05:21:25.200 TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...\n20261026 05:21:25.201 TRACE:: PythonInitializer.Shutdown(): start\n20261026 05:21:25.201 TRACE:: PythonInitializer.Shutdown(): calling engine shutdown...\n20261026 05:21:27.802 TRACE:: PythonInitializer.Shutdown(): ended\n20261026 05:21:27.802 TRACE:: Program.Main(): Exiting Lean...\n\n20261026 05:21:24.554 ERROR:: LocalDiskMapFileProvider.GetMapFileResolver(usa): The specified directory does not exist: /workspace/workflow-50ba58a269eb/data/equity/usa/map_files\n20261026 05:21:25.033 ERROR:: InterestRateProvider.FromCsvFile(): no interest rates were loaded, please make sure the file is present '/workspace/workflow-50ba58a269eb/data/alternative/interest-rate/usa/interest-rate.csv'",
+  "workflow_directories": [
+    "/home/a/Qurious/data/lean-workflows/workflow-50ba58a269eb"
+  ],
+  "pandas_points": [
+    {
+      "date": "2024-01-02",
+      "value": 1000000.0
+    },
+    {
+      "date": "2024-01-03",
+      "value": 966159.52
+    },
+    {
+      "date": "2024-01-04",
+      "value": 961140.8
+    },
+    {
+      "date": "2024-01-05",
+      "value": 961140.8
+    },
+    {
+      "date": "2024-01-08",
+      "value": 959885.83
+    },
+    {
+      "date": "2024-01-09",
+      "value": 937300.49
+    },
+    {
+      "date": "2024-01-10",
+      "value": 923498.15
+    },
+    {
+      "date": "2024-01-11",
+      "value": 918479.22
+    },
+    {
+      "date": "2024-01-12",
+      "value": 917224.36
+    },
+    {
+      "date": "2024-01-15",
+      "value": 927262.32
+    },
+    {
+      "date": "2024-01-16",
+      "value": 910950.57
+    },
+    {
+      "date": "2024-01-17",
+      "value": 890874.33
+    },
+    {
+      "date": "2024-01-18",
+      "value": 899657.64
+    },
+    {
+      "date": "2024-01-19",
+      "value": 937300.49
+    },
+    {
+      "date": "2024-01-22",
+      "value": 942319.22
+    },
+    {
+      "date": "2024-01-23",
+      "value": 943574.18
+    },
+    {
+      "date": "2024-01-24",
+      "value": 928517.18
+    },
+    {
+      "date": "2024-01-25",
+      "value": 929771.84
+    },
+    {
+      "date": "2024-01-26",
+      "value": 920988.63
+    },
+    {
+      "date": "2024-01-29",
+      "value": 933536.01
+    },
+    {
+      "date": "2024-01-30",
+      "value": 932281.46
+    },
+    {
+      "date": "2024-01-31",
+      "value": 912205.43
+    },
+    {
+      "date": "2024-02-01",
+      "value": 923498.15
+    },
+    {
+      "date": "2024-02-02",
+      "value": 943574.18
+    },
+    {
+      "date": "2024-02-05",
+      "value": 932281.46
+    },
+    {
+      "date": "2024-02-06",
+      "value": 933536.01
+    },
+    {
+      "date": "2024-02-07",
+      "value": 941064.66
+    },
+    {
+      "date": "2024-02-08",
+      "value": 929771.84
+    },
+    {
+      "date": "2024-02-13",
+      "value": 943574.18
+    },
+    {
+      "date": "2024-02-14",
+      "value": 928517.18
+    },
+    {
+      "date": "2024-02-15",
+      "value": 918479.22
+    },
+    {
+      "date": "2024-02-16",
+      "value": 913460.09
+    },
+    {
+      "date": "2024-02-19",
+      "value": 926007.67
+    },
+    {
+      "date": "2024-02-20",
+      "value": 919733.77
+    },
+    {
+      "date": "2024-02-21",
+      "value": 915969.6
+    },
+    {
+      "date": "2024-02-22",
+      "value": 917224.36
+    },
+    {
+      "date": "2024-02-23",
+      "value": 914714.84
+    },
+    {
+      "date": "2024-02-26",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-02-27",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-02-28",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-02-29",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-04",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-05",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-06",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-07",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-08",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-11",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-12",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-13",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-14",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-15",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-18",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-19",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-20",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-21",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-22",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-25",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-26",
+      "value": 911991.81
+    },
+    {
+      "date": "2024-03-27",
+      "value": 909777.14
+    },
+    {
+      "date": "2024-03-28",
+      "value": 925364.09
+    },
+    {
+      "date": "2024-03-29",
+      "value": 943688.12
+    }
+  ],
+  "benchmark_points": [
+    {
+      "date": "2024-01-02",
+      "value": 998823.08
+    },
+    {
+      "date": "2024-01-03",
+      "value": 966197.96
+    },
+    {
+      "date": "2024-01-04",
+      "value": 961179.04
+    },
+    {
+      "date": "2024-01-05",
+      "value": 961179.04
+    },
+    {
+      "date": "2024-01-08",
+      "value": 959924.02
+    },
+    {
+      "date": "2024-01-09",
+      "value": 937337.79
+    },
+    {
+      "date": "2024-01-10",
+      "value": 923534.9
+    },
+    {
+      "date": "2024-01-11",
+      "value": 918515.77
+    },
+    {
+      "date": "2024-01-12",
+      "value": 917260.86
+    },
+    {
+      "date": "2024-01-15",
+      "value": 927299.22
+    },
+    {
+      "date": "2024-01-16",
+      "value": 910986.81
+    },
+    {
+      "date": "2024-01-17",
+      "value": 890909.78
+    },
+    {
+      "date": "2024-01-18",
+      "value": 899693.44
+    },
+    {
+      "date": "2024-01-19",
+      "value": 937337.79
+    },
+    {
+      "date": "2024-01-22",
+      "value": 942356.71
+    },
+    {
+      "date": "2024-01-23",
+      "value": 943611.72
+    },
+    {
+      "date": "2024-01-24",
+      "value": 928554.13
+    },
+    {
+      "date": "2024-01-25",
+      "value": 929808.83
+    },
+    {
+      "date": "2024-01-26",
+      "value": 921025.28
+    },
+    {
+      "date": "2024-01-29",
+      "value": 933573.16
+    },
+    {
+      "date": "2024-01-30",
+      "value": 932318.55
+    },
+    {
+      "date": "2024-01-31",
+      "value": 912241.73
+    },
+    {
+      "date": "2024-02-01",
+      "value": 923534.9
+    },
+    {
+      "date": "2024-02-02",
+      "value": 943611.72
+    },
+    {
+      "date": "2024-02-05",
+      "value": 932318.55
+    },
+    {
+      "date": "2024-02-06",
+      "value": 933573.16
+    },
+    {
+      "date": "2024-02-07",
+      "value": 941102.11
+    },
+    {
+      "date": "2024-02-08",
+      "value": 929808.83
+    },
+    {
+      "date": "2024-02-13",
+      "value": 943611.72
+    },
+    {
+      "date": "2024-02-14",
+      "value": 928554.13
+    },
+    {
+      "date": "2024-02-15",
+      "value": 918515.77
+    },
+    {
+      "date": "2024-02-16",
+      "value": 913496.43
+    },
+    {
+      "date": "2024-02-19",
+      "value": 926044.51
+    },
+    {
+      "date": "2024-02-20",
+      "value": 919770.37
+    },
+    {
+      "date": "2024-02-21",
+      "value": 916006.05
+    },
+    {
+      "date": "2024-02-22",
+      "value": 917260.86
+    },
+    {
+      "date": "2024-02-23",
+      "value": 914751.24
+    },
+    {
+      "date": "2024-02-26",
+      "value": 913496.43
+    },
+    {
+      "date": "2024-02-27",
+      "value": 914751.24
+    },
+    {
+      "date": "2024-02-28",
+      "value": 918515.77
+    },
+    {
+      "date": "2024-02-29",
+      "value": 921025.28
+    },
+    {
+      "date": "2024-03-04",
+      "value": 939847.3
+    },
+    {
+      "date": "2024-03-05",
+      "value": 924789.7
+    },
+    {
+      "date": "2024-03-06",
+      "value": 914751.24
+    },
+    {
+      "date": "2024-03-07",
+      "value": 905967.58
+    },
+    {
+      "date": "2024-03-08",
+      "value": 919770.37
+    },
+    {
+      "date": "2024-03-11",
+      "value": 908477.1
+    },
+    {
+      "date": "2024-03-12",
+      "value": 919770.37
+    },
+    {
+      "date": "2024-03-13",
+      "value": 929808.83
+    },
+    {
+      "date": "2024-03-14",
+      "value": 932318.55
+    },
+    {
+      "date": "2024-03-15",
+      "value": 907222.49
+    },
+    {
+      "date": "2024-03-18",
+      "value": 913496.43
+    },
+    {
+      "date": "2024-03-19",
+      "value": 913496.43
+    },
+    {
+      "date": "2024-03-20",
+      "value": 964943.36
+    },
+    {
+      "date": "2024-03-21",
+      "value": 995058.55
+    },
+    {
+      "date": "2024-03-22",
+      "value": 990039.52
+    },
+    {
+      "date": "2024-03-25",
+      "value": 981255.76
+    },
+    {
+      "date": "2024-03-26",
+      "value": 1002587.3
+    },
+    {
+      "date": "2024-03-27",
+      "value": 1001332.59
+    },
+    {
+      "date": "2024-03-28",
+      "value": 1018488.14
+    },
+    {
+      "date": "2024-03-29",
+      "value": 1038656.21
+    }
+  ]
+}

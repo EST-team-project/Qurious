@@ -632,6 +632,15 @@ class LeanBacktestService:
             else:
                 position_full = close * 0 + 1.0
 
+            if strategy in ("ma_cross", "momentum") and len(window.index):
+                # 평가 기간 이전의 신호가 시작일 보유 상태로 이어지지 않게 한다.
+                position_full = position_full.copy()
+                position_full.loc[window.index[0]] = 0.0
+
+            if strategy in ("ma_cross", "momentum") and len(window.index):
+                position_full = position_full.copy()
+                position_full.loc[window.index[0]] = 0.0
+
             equity_full = self._equity_from_position(
                 close, position_full
             )
@@ -641,7 +650,6 @@ class LeanBacktestService:
 
             gross_curve = window_equity / float(window_equity.iloc[0])
             held = position_full.reindex(gross_curve.index).astype(float)
-
         if len(gross_curve) < 2:
             return gross_curve
 
@@ -667,7 +675,11 @@ class LeanBacktestService:
     @staticmethod
     def _equity_from_position(close, position):
         daily_return = close.pct_change().fillna(0.0)
-        return (1.0 + daily_return * position).cumprod()
+        # 포지션은 체결일의 종가 이후부터 보유한 것으로 간주한다.
+        # 따라서 체결일의 종가 변동이 아닌 다음 구간의 수익률을 적용한다.
+        held = position.reindex(close.index).astype(float).shift(1).fillna(0.0)
+        return (1.0 + daily_return * held).cumprod()
+
 
     @staticmethod
     def _position_ma_cross(close, short_window: int, long_window: int):
@@ -747,8 +759,7 @@ class LeanBacktestService:
             '        d, close = line.split(",")\n'
             '        item = YFPrice()\n'
             '        item.symbol = config.symbol\n'
-            '        item.time = datetime.strptime(d, "%Y-%m-%d")\n'
-            '        item.end_time = item.time + timedelta(days=1)\n'
+            '        item.time = datetime.strptime(d, "%Y-%m-%d").replace(hour=15, minute=29)\n'
             '        item.value = float(close)\n'
             '        return item\n\n'
         )
@@ -816,12 +827,24 @@ class LeanBacktestService:
                 "        self.securities[self.asset].set_fee_model(KrxFeeModel())\n"
                 f"        self.securities[self.asset].set_slippage_model(ConstantSlippageModel({slip_fraction!r}))"
             )
+        if is_krx:
+            subscription_setup = "\n".join(
+                [
+                    '        market_hours = MarketHoursDatabase.from_data_folder().get_entry(Market.KRX, "005930", SecurityType.INDEX).exchange_hours',
+                    '        custom_properties = SymbolProperties("", "KRW", 1, 0.01, 0.0000001, "YF")',
+                    '        self.asset = self.add_data(YFPrice, "YF", custom_properties, market_hours, Resolution.DAILY).symbol',
+                ]
+            )
+        else:
+            subscription_setup = (
+                '        self.asset = self.add_data(YFPrice, "YF", Resolution.DAILY).symbol'
+            )
+
         header = f'''    def initialize(self):
         self.set_start_date({start.year}, {start.month}, {start.day})
         self.set_end_date({end.year}, {end.month}, {end.day})
         {cash_setup}
-        self.asset = self.add_data(YFPrice, "YF", Resolution.DAILY).symbol
-        # 커스텀 데이터의 기본 lot size(1주)는 cash/price < 1 인 경우 SetHoldings()를 0으로 만든다.
+{subscription_setup}\n        # 커스텀 데이터의 기본 lot size(1주)는 cash/price < 1 인 경우 SetHoldings()를 0으로 만든다.
         # 아주 작은 lot size를 지정해 소수 단위 포지션을 허용한다.
         self.securities[self.asset].symbol_properties = SymbolProperties("", "{currency}", 1, 0.01, 0.0000001, "")
 {model_setup}

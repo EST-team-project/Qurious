@@ -1,0 +1,6 @@
+2023-08-20 00:00:00 Launching analysis for YFinanceMovingAverageCrossAlgorithm with LEAN Engine v2.5.0.0
+2024-01-02 00:00:00 Changing account currency from USD to KRW, with a starting cash of 1000000...
+2023-08-20 00:00:00 Algorithm starting warm up...
+2024-01-02 00:00:00 Algorithm finished warming up.
+2024-01-02 01:29:00 Warning: market orders on daily resolution data sent during market hours are automatically converted into MarketOnClose orders (or MarketOnOpen near the close) to avoid filling at the stale previous close. Note: in live trading this conversion is not applied, as the order fills at the current market price.
+2024-03-29 02:29:00 Algorithm Id:(YFinanceMovingAverageCrossAlgorithm) completed in 0.24 seconds at 1k data points per second. Processing total of 150 data points.
