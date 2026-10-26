@@ -6,9 +6,10 @@
 """
 import asyncio
 import httpx
+import math
 import time
 from .kis_token import KISTokenError, cache_key, shared_token
-from .quote_feedback import BrokerQuoteError
+from .quote_feedback import BrokerBalanceError, BrokerQuoteError
 from datetime import datetime, timedelta, timezone
 from .base import (
     BrokerClient, TokenInfo, PriceInfo, AccountBalance, BalanceItem, FillInfo, FillSummary,
@@ -161,20 +162,53 @@ class KISClient(BrokerClient):
                 },
             )
             r.raise_for_status()
-            data = self._check(r.json(), "잔고 조회")
+            data = r.json()
+
+        return self._parse_balance(data)
+
+    @staticmethod
+    def _balance_number(row: dict, field: str, *, signed: bool = False) -> float:
+        """필수 금액이 빠진 응답은 0원 잔고로 바꾸지 않는다."""
+        value = row.get(field)
+        if value is None or isinstance(value, bool) or value == "":
+            raise BrokerBalanceError()
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            raise BrokerBalanceError() from None
+        if not math.isfinite(number) or (not signed and number < 0):
+            raise BrokerBalanceError()
+        return number
+
+    @classmethod
+    def _parse_balance(cls, data) -> AccountBalance:
+        if not isinstance(data, dict) or str(data.get("rt_cd", "")).strip() != "0":
+            raise BrokerBalanceError(data.get("msg_cd") if isinstance(data, dict) else None)
+        rows, summaries = data.get("output1"), data.get("output2")
+        if (not isinstance(rows, list) or not isinstance(summaries, list)
+                or len(summaries) != 1 or not isinstance(summaries[0], dict)):
+            raise BrokerBalanceError()
 
         holdings = []
-        for h in data.get("output1", []):
-            qty = int(h.get("hldg_qty", 0))
-            if qty <= 0:
+        for h in rows:
+            if not isinstance(h, dict):
+                raise BrokerBalanceError()
+            quantity = cls._balance_number(h, "hldg_qty")
+            if not quantity.is_integer():
+                raise BrokerBalanceError()
+            qty = int(quantity)
+            if qty == 0:
                 continue
-            avg   = float(h.get("pchs_avg_pric", 0))
-            curr  = float(h.get("prpr", 0))
-            eval_ = float(h.get("evlu_amt", 0))
-            gain  = float(h.get("evlu_pfls_amt", 0))
-            pct   = float(h.get("evlu_pfls_rt", 0))
+            symbol = h.get("pdno")
+            if not isinstance(symbol, str) or not symbol.strip():
+                raise BrokerBalanceError()
+            avg   = cls._balance_number(h, "pchs_avg_pric")
+            curr  = cls._balance_number(h, "prpr")
+            eval_ = cls._balance_number(h, "evlu_amt")
+            gain  = cls._balance_number(h, "evlu_pfls_amt", signed=True)
+            pct   = cls._balance_number(h, "evlu_pfls_rt", signed=True)
             holdings.append(BalanceItem(
-                symbol        = h.get("pdno", ""),
+                symbol        = symbol,
                 name          = h.get("prdt_name", ""),
                 quantity      = qty,
                 avg_price     = avg,
@@ -184,13 +218,13 @@ class KISClient(BrokerClient):
                 gain_pct      = pct,
             ))
 
-        s2 = data.get("output2", [{}])[0]
+        s2 = summaries[0]
         return AccountBalance(
-            total_eval = float(s2.get("tot_evlu_amt", 0)),
-            total_buy  = float(s2.get("pchs_amt_smtl_amt", 0)),
-            total_gain = float(s2.get("evlu_pfls_smtl_amt", 0)),
+            total_eval = cls._balance_number(s2, "tot_evlu_amt"),
+            total_buy  = cls._balance_number(s2, "pchs_amt_smtl_amt"),
+            total_gain = cls._balance_number(s2, "evlu_pfls_smtl_amt", signed=True),
             holdings   = holdings,
-            cash       = float(s2.get("dnca_tot_amt", 0)),  # 예수금
+            cash       = cls._balance_number(s2, "dnca_tot_amt"),  # 예수금 · 주문 가능 금액 검증과는 별도
         )
 
     async def place_order(
