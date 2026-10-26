@@ -81,7 +81,11 @@ async function loadPaperDashboard() {
 }
 
 async function resetPaperAccount() {
-  if (!confirm("주식·코인·대체자산 포지션과 주문 이력을 모두 삭제하고 초기 현금(1억원)으로 되돌립니다. 계속할까요?")) return;
+  if (!confirm(
+    "모의투자(PAPER)·직접매매(WEB) 주문, 모의 장부 보유, 코인·대체자산 보유/주문을 모두 삭제하고 현금을 1억원으로 초기화합니다(회차 +1).\n\n" +
+    "자동매매·파인·외부 API·증권사 체결 주문과 자동매매 보유는 보존됩니다.\n" +
+    "되돌릴 수 없습니다. 계속할까요?"
+  )) return;
   try {
     const r = await api("/api/paper/account/reset", { method: "POST" });
     setToast(`계좌를 초기화했습니다. 현금 ${won(r.cash)}`, "ok");
@@ -991,7 +995,7 @@ function _ensureBacktestCard() {
     </div>
     <p class="text-xs mb-2" style="color:var(--text-mute);line-height:1.5;">
       <b>auto_trade.py</b> 의 실시간 신호 함수(RSI·이평·볼린저)를 <b>그대로 재생</b>합니다. 실제 과거 시세·그날의 수수료·세율로 장부를 정산하며, 완료 후 QFRS 지표가 100일치로 계산됩니다.<br>
-      <span style="color:#d97706;">⚠️ 실 거래가 아닌 백테스트이며, 실행 시 이 계정의 스냅샷이 백테스트 데이터로 대체됩니다.</span>
+      <span style="color:#d97706;">⚠️ 실행 시 SIM 주문·일별 스냅샷이 백테스트 데이터로 대체되고, 모의투자·직접매매 주문, 모의 장부 보유, 코인·대체자산 보유/주문이 함께 삭제되며 계좌가 현금 1억으로 초기화됩니다(회차 +1). 자동매매·파인·외부 API·증권사 체결 주문과 자동매매 보유는 보존됩니다. 되돌릴 수 없습니다.</span>
     </p>
     <div class="flex gap-2 mb-2">
       <button type="button" class="btn-secondary text-xs" id="pd-backtest-generate">생성 (2~5분)</button>
@@ -1025,8 +1029,10 @@ async function _startBacktest() {
   if (!confirm(
     '100일 백테스트를 시작합니다.\n\n' +
     '· auto_trade.py 의 실시간 신호 로직을 그대로 재생합니다.\n' +
-    '· 이 계정의 스냅샷이 백테스트 데이터로 대체됩니다.\n' +
-    '· 2~5분 소요 (완료 시 자동 반영).\n\n' +
+    '· SIM 주문·일별 스냅샷을 백테스트 데이터로 대체합니다.\n' +
+    '· 모의투자·직접매매 주문, 모의 장부 보유, 코인·대체자산 보유/주문이 함께 삭제되고 현금 1억으로 초기화됩니다(회차 +1).\n' +
+    '· 자동매매·파인·외부 API·증권사 체결 주문과 자동매매 보유는 보존됩니다.\n' +
+    '· 2~5분 소요. 되돌릴 수 없습니다.\n\n' +
     '계속할까요?'
   )) return;
 
@@ -1083,7 +1089,11 @@ function _pollBacktest(taskId) {
 }
 
 async function _deleteBacktest() {
-  if (!confirm('100일 백테스트 데이터(SIM 주문 · 스냅샷 · 포지션)를 모두 삭제하고 계좌를 1억으로 초기화합니다.\n\n계속할까요?')) return;
+  if (!confirm(
+    '100일 백테스트 데이터(SIM 주문·스냅샷)를 삭제하고, 모의투자·직접매매 주문, 모의 장부 보유, 코인·대체자산 보유/주문도 함께 삭제한 뒤 현금 1억으로 초기화합니다(회차 +1).\n\n' +
+    '자동매매·파인·외부 API·증권사 체결 주문과 자동매매 보유는 보존됩니다. 되돌릴 수 없습니다.\n\n' +
+    '계속할까요?'
+  )) return;
   const status = document.getElementById('pd-backtest-status');
   try {
     await api('/api/paper/performance/backtest-100d', { method: 'DELETE' });
