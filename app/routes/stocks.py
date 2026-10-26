@@ -33,7 +33,7 @@ from app.services import data_provenance
 from app.services import overseas_orders
 from app.services.brokers.factory import get_broker_client, live_trading_allowed
 from app.services.brokers.mock import MockBrokerClient
-from app.services.brokers.quote_feedback import BrokerQuoteError, quote_failure
+from app.services.brokers.quote_feedback import BrokerQuoteError, balance_failure, quote_failure
 from app.services.brokers.catalog import get_broker_catalog, get_broker_codes
 from app.services import notification
 from app.services.audit import audit
@@ -488,13 +488,32 @@ async def _get_or_create_broker_settings_row(db: AsyncSession, user_id: uuid.UUI
 
 
 def _apply_credentials(row: BrokerSettings, broker: str, app_key: str, app_secret: str, account_no: str) -> None:
-    """서버 관리 증권사(KIS)는 사용자가 보낸 키·계좌를 저장하지 않는다 — Secrets Manager 값을 쓴다."""
-    if kis_credentials.is_managed(broker):
+    """같은 증권사의 빈 입력·화면 마스크는 유지. 증권사를 바꾸면 키를 재사용하지 않는다."""
+    if broker == "mock" or kis_credentials.is_managed(broker):
+        row.broker = broker
         row.app_key = row.app_secret = row.account_no = ""
         return
-    row.app_key = app_key
-    row.app_secret = app_secret
-    row.account_no = account_no
+    same_broker = (getattr(row, "broker", "") or "").strip().lower() == broker
+    old_key = (row.app_key or "") if same_broker else ""
+    old_secret = (row.app_secret or "") if same_broker else ""
+    old_account = (row.account_no or "") if same_broker else ""
+    key, secret, account = app_key.strip(), app_secret.strip(), account_no.strip()
+    if "*" in key:
+        if not old_key or "*" in old_key or key != old_key[:4] + "****":
+            raise HTTPException(422, "저장된 키와 일치하지 않습니다. API 키와 비밀키를 다시 입력해 주세요.")
+        key = old_key
+    else:
+        key = key or old_key
+    if "*" in secret or "*" in account:
+        raise HTTPException(422, "가려진 비밀키·계좌번호는 저장할 수 없습니다. 원래 값을 입력해 주세요.")
+    if key != old_key and not secret:
+        raise HTTPException(422, "API 키를 변경할 때는 비밀키도 함께 입력해 주세요.")
+    secret = secret or old_secret
+    if bool(key) != bool(secret):
+        raise HTTPException(422, "API 키와 비밀키를 함께 입력해 주세요.")
+    # 검증을 마친 뒤 반영한다. 잘못된 입력으로 기존 증권사나 키 일부만 바뀌지 않는다.
+    row.broker = broker
+    row.app_key, row.app_secret, row.account_no = key, secret, account or old_account
 
 
 async def _resolve_credentials(row: BrokerSettings | None) -> tuple[str, str, str, str, bool]:
@@ -537,7 +556,6 @@ async def save_broker_settings(
         raise HTTPException(422, f"지원하지 않는 broker: {broker}")
 
     row = await _get_or_create_broker_settings_row(db, _uid(user["id"]))
-    row.broker = broker
     _apply_credentials(row, broker, body.app_key, body.app_secret, body.account_no)
     row.paper = body.paper
     await db.commit()
@@ -702,7 +720,6 @@ async def save_quant_settings(
     selected = list(dict.fromkeys(requested))
 
     row = await _get_or_create_broker_settings_row(db, _uid(user["id"]))
-    row.broker = broker
     _apply_credentials(row, broker, body.app_key, body.app_secret, body.account_no)
     row.paper = mode == "paper"
     row.quant_mode = mode
@@ -785,8 +802,8 @@ async def broker_balance(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    client, _broker_name, account_no = await _get_broker_client_and_account(user, db)
     try:
+        client, _broker_name, account_no = await _get_broker_client_and_account(user, db)
         bal = await client.get_balance(account_no)
         return {
             "total_eval": bal.total_eval,
@@ -801,7 +818,7 @@ async def broker_balance(
             ],
         }
     except Exception as e:
-        raise HTTPException(502, f"증권사 API 오류: {e}")
+        raise HTTPException(502, detail=balance_failure(e)) from None
 
 
 @router.get("/broker/ohlcv")

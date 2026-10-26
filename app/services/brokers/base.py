@@ -42,7 +42,7 @@ class AccountBalance:
     total_buy: float
     total_gain: float
     holdings: list[BalanceItem]
-    cash: float = 0.0  # 예수금 (주문 가능 현금)
+    cash: float = 0.0  # 예수금. 증권사의 주문 가능 금액·수량은 별도로 확인한다.
 
 
 @dataclass
