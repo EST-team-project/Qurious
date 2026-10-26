@@ -773,9 +773,15 @@ flowchart LR
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR any-pc-daily-run](2026-10-25/PR-any-pc-daily-run/00-본문.md) | feat: 어느 PC 에서든 12:30 회차 — 임대 · 맞추기 · 따라가기 · 일지 원장 받기 · TC-LE 12 · TC-HS 14 · 결정 여덟 | 4,238 | [#338](https://github.com/EST-team-project/Qurious/pull/338) · 10-25 12:57 머지 `963ee1a` · 이동원 |
-| [PR run-record-isolation-realtime-design](2026-10-25/PR-run-record-isolation-realtime-design/00-본문.md) | fix: 시험이 진짜 회차 기록 사본을 덮지 않게(DF-156) · 노트북 은퇴 실측 · 실시간 표시 vs 저장 자료 설계 · #314 05 답글 초안 | 2,709 | (머지 뒤) · 이동원 |
+| [PR run-record-isolation-realtime-design](2026-10-25/PR-run-record-isolation-realtime-design/00-본문.md) | fix: 시험이 진짜 회차 기록 사본을 덮지 않게(DF-156) · 노트북 은퇴 실측 · 실시간 표시 vs 저장 자료 설계 · #314 05 답글 초안 | 2,709 | [#339](https://github.com/EST-team-project/Qurious/pull/339) · 10-25 15:17 머지 `cae2fd9` · 이동원 |
 
 - **다른 글 폴더의 댓글 · 답글(10-25)**: [#197 01 신장환 님 답글](2026-10-15/이슈-실사용자피드백-추세축-신장환/01-2026-10-25-답글-신장환.md)(원문 · 사용자 전달 · [대조 결과](../../../phase-3/01-analysis/research/배경조사/2026-10-25-197-신장환답글-대조/결과.md) — 회신은 사용자 결정 전) · #319 댓글 03 올림 확인(사용자 · 10-25 — 기준점 th07 · th24 옮김) · [#314 05 이동원 답글 초안](2026-10-22/이슈-협의-LEAN-KIS-모의주문-연결/05-2026-10-25-답글-이동원.md)(S148 · 안 올림 · 10-26 오전 — 오준영 님 「팀장 확인」 넷 답 + 웹훅 신호 위험 관문 물음 · 이력 표 하나로 쓸지)
+
+### 2026-10-26 — 이동원 PR 본문(③ TradingView · Pine · 교차 검증 설계 v0.1 · 웹훅 풀 구현 · IP 강제 · 학원 하드 작업 결정)
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR tradingview-crosscheck-design](2026-10-26/PR-tradingview-crosscheck-design/00-본문.md) | docs: ③ TradingView · Pine · 교차 검증 설계 v0.1 · 웹훅 풀 구현 · IP 강제 · 학원 하드 작업 결정 · 협의(#335) 답 기록 | 2,574 | (이 판의 PR — 머지 뒤) · 이동원 |
 
 ---
 
