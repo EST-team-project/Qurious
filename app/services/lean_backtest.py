@@ -163,10 +163,12 @@ class LeanBacktestService:
         algorithm_source = self._algorithm_source(ticker, strategy, start_date, end_date, initial_cash, short_window, long_window, dca_interval_days, breakout_window)
         lean_log, lean_stats, lean_ok = "", {}, False
         lean_fills = []
+        lean_signals = []
         if mode in ("ssh", "docker"):
             try:
                 lean_log, lean_stats = await asyncio.to_thread(self._run_lean, mode, strategy, close, algorithm_source)
                 lean_fills = lean_stats.pop("_lean_fills", [])
+                lean_signals = lean_stats.pop("_lean_signals", [])
                 lean_ok = bool(lean_stats)
             except LeanBacktestError as exc:
                 lean_log = f"[LEAN 실행 실패] {exc}"
@@ -241,6 +243,7 @@ class LeanBacktestService:
             "benchmark_points": bench_points,
             "lean_statistics": lean_stats,
             "lean_fills": lean_fills,
+            "lean_signals": lean_signals,
             "lean_log": lean_log[-6000:],
             "algorithm_source": algorithm_source,
             "disclaimer": "Yahoo Finance 일봉 기반 교육용 예시입니다. KRX 비용은 요율 기반 추정치이고 슬리피지는 고정 10bp 가정이며, 실시간 호가·유동성·실제 증권사 체결과 데이터 조정 차이를 완전히 재현하지 않습니다. 투자 권유가 아닙니다.",
@@ -299,6 +302,7 @@ class LeanBacktestService:
                 raise LeanBacktestError("docker CLI도 Docker 소켓(/var/run/docker.sock)도 없어 LEAN을 실행할 수 없습니다.")
             stats = self._read_summary(local / "results")
             stats["_lean_fills"] = self._read_order_events(local / "results")
+            stats["_lean_signals"] = self._read_signal_events(local / "results")
         finally:
             if not settings.LEAN_KEEP_WORKDIR:
                 shutil.rmtree(local, ignore_errors=True)
@@ -380,6 +384,14 @@ class LeanBacktestService:
                 stats["_lean_fills"] = self._normalize_order_events(events)
             except Exception:
                 stats["_lean_fills"] = []
+            try:
+                signal_text = self._ssh(
+                    f"cat {remote}/results/qurious-signals.csv 2>/dev/null || true",
+                    check=False,
+                )
+                stats["_lean_signals"] = self._parse_signal_csv_text(signal_text)
+            except Exception:
+                stats["_lean_signals"] = []
             if not settings.LEAN_KEEP_WORKDIR:
                 self._ssh(f"rm -rf {remote}", check=False)
         return log, stats
@@ -450,6 +462,58 @@ class LeanBacktestService:
             except (OSError, ValueError, TypeError):
                 continue
         return []
+
+    @staticmethod
+    def _parse_signal_csv_text(text: str) -> list[dict]:
+        """LEAN이 기록한 date,entry_state,exit_state 파일을 읽는다."""
+        lines = (text or "").lstrip("\ufeff").splitlines()
+        if len(lines) < 2:
+            return []
+        header = [value.strip().lower() for value in lines[0].split(",")]
+        required = ("date", "entry_state", "exit_state")
+        if any(name not in header for name in required):
+            return []
+        indexes = [header.index(name) for name in required]
+
+        rows = []
+        for line in lines[1:]:
+            cells = line.split(",")
+            if len(cells) <= max(indexes):
+                continue
+            raw_date, raw_entry, raw_exit = (cells[i].strip() for i in indexes)
+            try:
+                date = raw_date[:10].replace("/", "-")
+                datetime.strptime(date, "%Y-%m-%d")
+            except (TypeError, ValueError):
+                continue
+
+            def flag(value):
+                value = value.strip().lower()
+                if value in ("1", "1.0", "true"):
+                    return True
+                if value in ("0", "0.0", "false"):
+                    return False
+                return None
+
+            entry_state = flag(raw_entry)
+            exit_state = flag(raw_exit)
+            if entry_state is None and exit_state is None:
+                continue
+            rows.append({
+                "date": date,
+                "entry_state": entry_state,
+                "exit_state": exit_state,
+            })
+        return sorted(rows, key=lambda row: row["date"])
+
+    @classmethod
+    def _read_signal_events(cls, results_dir: Path) -> list[dict]:
+        """결과 디렉터리에서 날짜별 신호 상태를 읽는다."""
+        path = results_dir / "qurious-signals.csv"
+        try:
+            return cls._parse_signal_csv_text(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return []
 
     @staticmethod
     def _read_summary(results_dir: Path) -> dict:
@@ -853,6 +917,11 @@ class LeanBacktestService:
             body = f'''{header}        self.short_window = {short_window}
         self.long_window = {long_window}
         self.prices = []
+        self.signal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "qurious-signals.csv")
+        os.makedirs(os.path.dirname(self.signal_path), exist_ok=True)
+        self.signal_file = open(self.signal_path, "w", encoding="utf-8")
+        self.signal_file.write("date,entry_state,exit_state" + chr(10))
+        self.signal_file.flush()
         self.set_warm_up(timedelta(days=self.long_window * 2 + 15), Resolution.DAILY)
 
     def on_data(self, data):
@@ -864,10 +933,23 @@ class LeanBacktestService:
             return
         short_ma = sum(self.prices[-self.short_window:]) / self.short_window
         long_ma = sum(self.prices) / self.long_window
-        if short_ma > long_ma and not self.portfolio.invested:
+        entry_state = short_ma > long_ma
+        exit_state = short_ma < long_ma
+        signal_date = data[self.asset].time.date().isoformat()
+        self.signal_file.write(
+            "{{}},{{}},{{}}".format(signal_date, int(entry_state), int(exit_state)) + chr(10)
+        )
+        self.signal_file.flush()
+        if entry_state and not self.portfolio.invested:
             self.set_holdings(self.asset, 1)
-        elif short_ma <= long_ma and self.portfolio.invested:
+        elif exit_state and self.portfolio.invested:
             self.liquidate(self.asset)
+
+    def on_end_of_algorithm(self):
+        signal_file = getattr(self, "signal_file", None)
+        if signal_file is not None and not signal_file.closed:
+            signal_file.flush()
+            signal_file.close()
 '''
             class_name = "YFinanceMovingAverageCrossAlgorithm"
         elif strategy == "dca":

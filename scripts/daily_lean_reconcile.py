@@ -20,6 +20,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app.services.lean_backtest import LeanBacktestService
 
+# CP949 터미널에서도 한글과 UTF-8 기호를 안전하게 출력합니다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 JOURNAL_RULE_ID = "card_ma_cross_20_60"
 JOURNAL_VERSION_NO = 1
 START_DATE = date(2026, 9, 1)
@@ -262,31 +267,80 @@ def judge_price(journal_rows, lean_grouped) -> dict:
     return {"results": results, "skipped": skipped}
 
 
-def judge_fee(journal_rows, lean_stats) -> dict:
-    """층 4: 비용 '요율(bp)' 비교. 거래대금 차이 제거."""
+def judge_fee(journal_rows, lean_stats, lean_fills) -> dict:
+    """층 4: 일지와 LEAN의 거래대금 대비 비용 요율(bp)을 비교."""
     j_cost, j_gross, j_failed = 0.0, 0.0, 0
+
     for row in journal_rows:
-        for f in row.get("fills") or []:
-            c = get_fill_cost(f.get("cost"))
-            g = get_fill_gross(f.get("cost"), f)
-            if c is None or g is None or g <= 0:
+        for fill in row.get("fills") or []:
+            cost = get_fill_cost(fill.get("cost"))
+            gross = get_fill_gross(fill.get("cost"), fill)
+            if cost is None or gross is None or gross <= 0:
                 j_failed += 1
             else:
-                j_cost += c; j_gross += g
-    l_cost = parse_lean_fees((lean_stats or {}).get("Total Fees", ""))
+                j_cost += cost
+                j_gross += gross
 
-    # LEAN 거래대금은 fills로 계산 (매수+매도 합)
-    lean_fills = lean_stats.get("_lean_fills") or []  # 없으면 통계만
-    # LEAN gross는 statistics에 없으므로, fills로 추정 — 없으면 None
-    # 실제: lean_result['lean_fills']로 계산해야 함 (여기선 lean_stats만 받음 → 0으로 표기)
+    lean_stats = lean_stats if isinstance(lean_stats, dict) else {}
+    l_cost = parse_lean_fees(lean_stats.get("Total Fees", ""))
 
-    if j_failed or l_cost is None or j_gross <= 0:
-        return {"verdict": "판정 불가",
-                "reason": f"일지 cost 파싱 실패 {j_failed}건 / LEAN 파싱 {'OK' if l_cost else 'FAIL'}",
-                "j_cost": j_cost, "j_gross": j_gross, "l_cost": l_cost}
+    # 실제 결과의 최상위 lean_fills를 사용한다.
+    lean_fills = lean_fills if isinstance(lean_fills, list) else []
+    l_gross, lean_failed = 0.0, 0
+
+    for fill in lean_fills:
+        if not isinstance(fill, dict):
+            lean_failed += 1
+            continue
+        try:
+            quantity = abs(float(fill.get("quantity", fill.get("signed_quantity"))))
+            price = float(fill.get("fill_price"))
+        except (TypeError, ValueError):
+            lean_failed += 1
+            continue
+
+        if quantity <= 0 or price <= 0:
+            lean_failed += 1
+            continue
+
+        l_gross += quantity * price
+
+    reasons = []
+    if j_failed:
+        reasons.append(f"일지 비용/거래대금 파싱 실패 {j_failed}건")
+    if not lean_fills:
+        reasons.append("LEAN 체결 목록 없음")
+    if lean_failed:
+        reasons.append(f"LEAN 체결 파싱 실패 {lean_failed}건")
+    if l_cost is None:
+        reasons.append("LEAN 총 수수료 파싱 실패")
+    if j_gross <= 0:
+        reasons.append("일지 거래대금 없음")
+    if l_gross <= 0:
+        reasons.append("LEAN 거래대금 없음")
+
+    if reasons:
+        return {
+            "verdict": "판정 불가",
+            "reason": " / ".join(reasons),
+            "j_cost": j_cost,
+            "j_gross": j_gross,
+            "l_cost": l_cost,
+            "l_gross": l_gross,
+        }
+
     j_bp = j_cost / j_gross * 10000
-    return {"verdict": "참고용(요율)", "j_bp": j_bp, "j_cost": j_cost,
-            "j_gross": j_gross, "l_cost": l_cost}
+    l_bp = l_cost / l_gross * 10000
+    return {
+        "verdict": "참고용(요율)",
+        "j_bp": j_bp,
+        "l_bp": l_bp,
+        "delta_bp": l_bp - j_bp,
+        "j_cost": j_cost,
+        "j_gross": j_gross,
+        "l_cost": l_cost,
+        "l_gross": l_gross,
+    }
 
 
 def render(target, j_n, sig, odr, prc, fee, lean_stats) -> str:
@@ -308,8 +362,13 @@ def render(target, j_n, sig, odr, prc, fee, lean_stats) -> str:
 
     fee_v = fee["verdict"]
     if fee_v == "참고용(요율)":
-        fee_note = (f"일지 요율 {fee['j_bp']:.2f}bp (비용 ₩{fee['j_cost']:,.2f} / 대금 ₩{fee['j_gross']:,.0f}) · "
-                    f"LEAN 총액 ₩{fee['l_cost']:,.2f} (거래대금 다름 → 총액 직접비교 불가)")
+        fee_note = (
+            f"일지 {fee['j_bp']:.2f}bp "
+            f"(비용 ₩{fee['j_cost']:,.2f} / 대금 ₩{fee['j_gross']:,.0f}) · "
+            f"LEAN {fee['l_bp']:.2f}bp "
+            f"(비용 ₩{fee['l_cost']:,.2f} / 대금 ₩{fee['l_gross']:,.0f}) · "
+            f"차이(LEAN−일지) {fee['delta_bp']:+.2f}bp"
+        )
     else:
         fee_note = fee.get("reason", "")
 
@@ -371,7 +430,7 @@ async def main():
     sig = judge_signal(j_rows, lean_grouped)
     odr = judge_order(j_rows, lean_grouped)
     prc = judge_price(j_rows, lean_grouped)
-    fee = judge_fee(j_rows, lean.get("lean_statistics") or {})
+    fee = judge_fee(j_rows, lean.get("lean_statistics") or {}, lean.get("lean_fills") or [])
     markdown = render(end_date, len(j_rows), sig, odr, prc, fee, lean.get("lean_statistics") or {})
 
     out_dir = ROOT / "docs" / "phase-3" / "04-testing" / "lean-검증-2026-10-26" / "daily"

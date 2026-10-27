@@ -127,6 +127,7 @@ class CompareBody(BaseModel):
     breakout_window: int = Field(20, ge=5, le=120)
     tv_metrics: TvMetricsBody | None = None
     tv_trades_csv: str | None = Field(None, description="Strategy Tester 거래 목록 CSV 원문")
+    tv_signal_csv: str | None = Field(None, description="차트 데이터 CSV의 SignalState_Entry/Exit 열")
 
 
 @router.post("/api/tradingview/compare")
@@ -148,8 +149,22 @@ async def compare(body: CompareBody, user=Depends(get_current_user_any), db: Asy
         manual = {k: v for k, v in body.tv_metrics.model_dump().items() if v is not None}
         tv_metrics = {**tv_metrics, **manual, "source": (tv_metrics.get("source", "") + " + " if tv_metrics else "") + "직접 입력"} if manual else tv_metrics
     tv_fills = tv_metrics.pop("fills", [])
-    if not tv_metrics:
-        raise HTTPException(422, "TradingView 성과(직접 입력) 또는 거래 목록 CSV 중 하나는 필요합니다.")
+    tv_signals = []
+    if body.tv_signal_csv and body.tv_signal_csv.strip():
+        try:
+            tv_signals = tv.parse_signal_csv(body.tv_signal_csv)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+        if tv_signals and body.strategy != "ma_cross":
+            raise HTTPException(
+                422,
+                "현재 날짜별 신호 CSV 비교는 ma_cross 전략에서만 지원합니다.",
+            )
+    if not tv_metrics and not tv_signals:
+        raise HTTPException(
+            422,
+            "TradingView 성과, 거래 목록 CSV 또는 신호 CSV 중 하나는 필요합니다.",
+        )
 
     # 2) LEAN 백테스트 (동일 종목·기간·전략)
     ticker = body.ticker.strip().upper()
@@ -168,23 +183,103 @@ async def compare(body: CompareBody, user=Depends(get_current_user_any), db: Asy
         raise HTTPException(502, f"LEAN 백테스트 실행 오류: {exc}")
 
     lean_metrics = tv.lean_metrics_from_result(lean_res)
-    result = tv.compare_metrics(tv_metrics, lean_metrics, ticker, body.strategy)
-    result["fill_comparison"] = tv.compare_fills(tv_fills, lean_res.get("lean_fills") or [])
-    if result["fill_comparison"]["status"] != "compared":
-        result["causes"].append(result["fill_comparison"].get("reason", "개별 체결 비교를 수행할 수 없습니다."))
+    has_metrics_input = bool(tv_metrics)
+    has_signal_input = bool(tv_signals)
+
+    if has_metrics_input:
+        result = tv.compare_metrics(tv_metrics, lean_metrics, ticker, body.strategy)
+        performance_status = (
+            "unavailable" if result.get("verdict") == "비교 불가" else "compared"
+        )
+        result["performance_comparison"] = {
+            "status": performance_status,
+            "verdict": result.get("verdict"),
+        }
+        if performance_status == "unavailable":
+            result["performance_comparison"]["reason"] = (
+                "비교 가능한 성과지표가 충분하지 않습니다."
+            )
+    else:
+        result = {
+            "ticker": ticker,
+            "strategy": body.strategy,
+            "verdict": "신호 비교 전용",
+            "rows": [],
+            "diff": {},
+            "causes": [],
+            "tradingview": {},
+            "lean": {},
+            "performance_comparison": {
+                "status": "not_requested",
+                "reason": "성과 입력이 없어 성과 비교를 수행하지 않았습니다.",
+            },
+        }
+
+    if tv_fills:
+        result["fill_comparison"] = tv.compare_fills(
+            tv_fills, lean_res.get("lean_fills") or []
+        )
+        if result["fill_comparison"]["status"] != "compared":
+            result["causes"].append(
+                result["fill_comparison"].get(
+                    "reason", "개별 체결 비교를 수행할 수 없습니다."
+                )
+            )
+    else:
+        result["fill_comparison"] = {
+            "status": "not_requested",
+            "reason": "거래 목록 CSV가 제공되지 않아 체결 비교를 수행하지 않았습니다.",
+        }
+
+    if has_signal_input:
+        result["signal_comparison"] = tv.compare_signals(
+            tv_signals, lean_res.get("lean_signals") or []
+        )
+        if result["signal_comparison"]["status"] != "compared":
+            result["causes"].append(
+                result["signal_comparison"].get(
+                    "reason", "신호 비교를 수행할 수 없습니다."
+                )
+            )
+    else:
+        result["signal_comparison"] = {
+            "status": "not_requested",
+            "reason": "신호 CSV가 제공되지 않아 신호 비교를 수행하지 않았습니다.",
+        }
+
     result["strategy_label"] = STRATEGY_LABELS.get(body.strategy, body.strategy)
-    result["period"] = {"start": body.start_date.isoformat(), "end": body.end_date.isoformat()}
+    result["period"] = {
+        "start": body.start_date.isoformat(),
+        "end": body.end_date.isoformat(),
+    }
     result["lean_points"] = lean_res.get("points", [])
 
-    row = StrategyComparison(
-        user_id=_uid(user), ticker=ticker, strategy=body.strategy, start_date=body.start_date.isoformat(),
-        end_date=body.end_date.isoformat(), verdict=result["verdict"], tv_metrics=tv_metrics,
-        lean_metrics={k: v for k, v in lean_metrics.items() if k != "lean_statistics"}, diff=result["diff"], causes=result["causes"],
-    )
-    db.add(row)
-    await db.commit()
-    await db.refresh(row)
-    result["id"] = str(row.id)
+    # 성과 이력에는 실제 성과 비교 요청만 저장한다.
+    if has_metrics_input:
+        row = StrategyComparison(
+            user_id=_uid(user),
+            ticker=ticker,
+            strategy=body.strategy,
+            start_date=body.start_date.isoformat(),
+            end_date=body.end_date.isoformat(),
+            verdict=result["verdict"],
+            tv_metrics=tv_metrics,
+            lean_metrics={
+                k: v for k, v in lean_metrics.items()
+                if k != "lean_statistics"
+            },
+            diff=result["diff"],
+            causes=result["causes"],
+        )
+        db.add(row)
+        await db.commit()
+        await db.refresh(row)
+        result["id"] = str(row.id)
+        result["saved_to_performance_history"] = True
+    else:
+        result["id"] = None
+        result["saved_to_performance_history"] = False
+
     await audit(user["id"], user.get("client_id", ""), "tradingview.compare",
                 {"ticker": ticker, "strategy": body.strategy, "verdict": result["verdict"]})
     return result
