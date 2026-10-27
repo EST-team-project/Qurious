@@ -6,6 +6,7 @@
   - 일반 사용자 답에는 예외 글 · 할 일(hint)이 없다(관리자만)
   - 새 계산 없음 — 칸마다 이미 있는 함수를 모듈 이름으로 부른다(갈아 끼우면 따라온다)
   - 질문 속 종목은 이름이 그대로 든 것만 · 짧은 이름은 낱말 경계 · 흔한 낱말 제외 · 겹치면 긴 이름
+  - 신호 기록 순위(`signal_rank`)는 허브 `signal` 칸과 같은 값 · 줄마다 기준일 · 낯선 근거 문장 한 줄이 나머지를 막지 않는다(TC-HUB-21 ~ 24)
   - 이 PC 의 실제 수집 DB 를 열지 않는다(autouse 고정물 — S96 · S119)
 """
 from __future__ import annotations
@@ -418,3 +419,95 @@ def test_endpoints_require_login(client):
     del client.app_ref.dependency_overrides[get_current_user]
     assert client.get("/api/stock-hub?symbol=055550").status_code == 401
     assert client.get("/api/stock-hub/mentions?q=x").status_code == 401
+
+
+# ── 신호 기록 순위(#197 · 할 일 ②-19) ─────────────────────────────────────────
+
+def _day_rows(n=6):
+    """합성 기록 n 종목 — 종목마다 다른 봉에서 낸 T2 한 줄(`signal_at`) · 읽는 쪽 순서(종합 점수 → 신뢰도 → 종목코드)로 놓음."""
+    from tests.test_signal_explain import _snapshots
+    snaps = [_snapshots(seeds=[s], step=90)[0] for s in range(1, n + 1)]
+    rows = [{**s, "symbol": f"T{i:05d}"} for i, s in enumerate(snaps)]
+    rows.sort(key=lambda r: (-r["composite"], -r["confidence"], r["symbol"]))
+    return rows
+
+
+def _stub_day(monkeypatch, rows, missing=(), seen=None):
+    async def load_day(db, on=None, symbols=None):
+        if seen is not None:
+            seen.append((on, symbols))
+        return {"on": on, "definition": "def-test", "rows": list(rows), "missing": list(missing)}
+    monkeypatch.setattr(signal_explain, "load_day", load_day)
+
+
+def test_signal_rank_rows(monkeypatch):
+    """TC-HUB-21 · 순위는 읽은 순서 그대로 · 줄마다 기준일 · 근거 개수 = 근거 표의 부호 수 · 자르면 total 이 남는다 · components 는 요청할 때만."""
+    rows = _day_rows(6)
+    miss = [{"symbol": "T99999", "reason": signal_explain.NOT_UNIVERSE}, {"symbol": "T88888", "reason": signal_explain.NONE}]
+    _stub_day(monkeypatch, rows, miss)
+    out = asyncio.run(H.signal_rank(object(), symbols=["T99999", "T88888"], limit=4))
+    assert out["total"] == 6 and out["count"] == 4 and out["limit"] == 4 and out["definition"] == "def-test"
+    assert [r["symbol"] for r in out["rows"]] == [r["symbol"] for r in rows[:4]]
+    assert [r["rank"] for r in out["rows"]] == [1, 2, 3, 4]
+    for got, snap in zip(out["rows"], rows):
+        c = signal_explain.side_counts(snap)
+        assert got["counts"] == {k: c[k] for k in ("buy", "neutral", "sell")} and "components" not in got
+        assert got["as_of"] == str(snap["as_of"]) and got["signal"] == snap["signal"]
+        assert got["composite"] == round(float(snap["composite"]), 4) and got["confidence"] == round(float(snap["confidence"]), 4)
+    assert out["missing"] == [{"symbol": "T99999", "reason": "not_universe", "message": H.SIGNAL_NOT_UNIVERSE},
+                              {"symbol": "T88888", "reason": "none", "message": H.SIGNAL_NONE}]
+    assert out["notice"] == signal_explain.DISCLAIMER and out["source"] == H.SIGNAL_SOURCE and out["note"] == H.SIGNAL_RANK_NOTE
+    full = asyncio.run(H.signal_rank(object(), components=True))
+    assert full["count"] == 6 and full["rows"][0]["components"] == signal_explain.side_counts(rows[0])["components"]
+
+
+def test_signal_rank_matches_hub_signal_section(monkeypatch):
+    """TC-HUB-22 · 같은 종목은 허브 `signal` 칸과 같은 값 — 신호 · 기준일 · 신뢰도(같은 기록 · 같은 반올림)."""
+    rows = _day_rows(4)
+    by_symbol = {r["symbol"]: r for r in rows}
+    _stub_day(monkeypatch, rows)
+
+    async def load(db, symbol, on=None):
+        return by_symbol.get(symbol)
+    monkeypatch.setattr(signal_explain, "load_snapshot", load)
+    out = asyncio.run(H.signal_rank(object()))
+    assert out["count"] == 4
+    for row in out["rows"]:
+        hub = asyncio.run(H.signal(object(), row["symbol"], True))
+        assert hub["status"] == H.OK
+        assert (hub["as_of"], hub["data"]["signal"], hub["data"]["strength"], hub["data"]["confidence"]) == \
+               (row["as_of"], row["signal"], row["strength"], row["confidence"])
+
+
+def test_signal_rank_one_unknown_reason_does_not_block_the_rest(monkeypatch):
+    """TC-HUB-23 · 낯선 근거 문장이 든 줄은 counts 만 비고(안내 글) 점수 · 순서 · 나머지 줄은 그대로 · unreadable 이 센다."""
+    rows = _day_rows(5)
+    bad = {**rows[1], "timeframes": [{**t, "reasons": list(t.get("reasons", [])) + ["RSI 다이버전스"]} if "score" in t else t
+                                     for t in rows[1]["timeframes"]]}
+    with pytest.raises(signal_explain.UnknownReason):
+        signal_explain.side_counts(bad)
+    _stub_day(monkeypatch, [rows[0], bad, *rows[2:]])
+    out = asyncio.run(H.signal_rank(object()))
+    assert out["count"] == 5 and out["unreadable"] == 1
+    assert [r["symbol"] for r in out["rows"]] == [r["symbol"] for r in rows]
+    assert out["rows"][1]["counts"] is None and out["rows"][1]["counts_note"] == H.SIGNAL_RANK_UNREADABLE
+    assert out["rows"][1]["composite"] == round(float(bad["composite"]), 4) and out["rows"][1]["signal"] == bad["signal"]
+    assert all(r["counts"] is not None and "counts_note" not in r for i, r in enumerate(out["rows"]) if i != 1)
+
+
+def test_signal_rank_endpoint(client, monkeypatch):
+    """TC-HUB-24 · GET /api/stock-hub/signal-rank — 200 · 기준일 · 종목(.KS 꼬리 떼기) · 줄 수가 읽는 쪽에 그대로 가고,
+    잘못된 종목 · 빈 목록 · 100개 초과 · 줄 수 0 · 잘못된 날짜는 422 · 로그인한 사람만(401)."""
+    from app.lib.session import get_current_user
+    seen = []
+    _stub_day(monkeypatch, _day_rows(3), seen=seen)
+    r = client.get("/api/stock-hub/signal-rank?limit=2")
+    assert r.status_code == 200 and r.json()["count"] == 2 and r.json()["total"] == 3 and seen[-1] == (None, None)
+    ok = client.get("/api/stock-hub/signal-rank", params={"on": "2026-10-16", "symbols": "005930.KS, 000660 ,0000d0"})
+    assert ok.status_code == 200 and seen[-1] == (date(2026, 10, 16), ["005930", "000660", "0000D0"])
+    for q in ({"symbols": "삼성전자"}, {"symbols": " , "}, {"symbols": ""}, {"symbols": ",".join(["005930"] * 101)},
+              {"limit": 0}, {"limit": 501}, {"on": "2026-13-01"}):
+        assert client.get("/api/stock-hub/signal-rank", params=q).status_code == 422, q
+    assert client.get("/api/stock-hub/signal-rank", params={"symbols": ",".join(["005930"] * 100)}).status_code == 200
+    del client.app_ref.dependency_overrides[get_current_user]
+    assert client.get("/api/stock-hub/signal-rank").status_code == 401

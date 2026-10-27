@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 271,
+ "count": 272,
  "routers": 40,
  "routes": [
   {
@@ -1284,7 +1284,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 524,
+   "line": 543,
    "errors": [],
    "keys": [
     "brokers"
@@ -1313,7 +1313,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 529,
+   "line": 548,
    "errors": [
     "422"
    ],
@@ -1346,7 +1346,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 549,
+   "line": 567,
    "errors": [],
    "keys": [
     "broker",
@@ -1375,7 +1375,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 586,
+   "line": 604,
    "errors": [],
    "keys": [
     "configured",
@@ -1401,7 +1401,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 592,
+   "line": 610,
    "errors": [],
    "keys": [
     "gateway",
@@ -1431,7 +1431,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 622,
+   "line": 640,
    "errors": [],
    "keys": [
     "mode",
@@ -1481,7 +1481,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 675,
+   "line": 693,
    "errors": [
     "422"
    ],
@@ -1520,7 +1520,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 767,
+   "line": 784,
    "errors": [],
    "keys": [
     "symbol",
@@ -1564,7 +1564,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 783,
+   "line": 800,
    "errors": [
     "502"
    ],
@@ -1602,7 +1602,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 807,
+   "line": 824,
    "errors": [
     "502"
    ],
@@ -1641,7 +1641,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 830,
+   "line": 847,
    "errors": [
     "422",
     "502"
@@ -1682,7 +1682,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 896,
+   "line": 913,
    "errors": [],
    "keys": [
     "ok",
@@ -1716,7 +1716,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 911,
+   "line": 928,
    "errors": [
     "404",
     "422"
@@ -1756,7 +1756,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 927,
+   "line": 944,
    "errors": [],
    "keys": [
     "symbol",
@@ -1804,7 +1804,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1008,
+   "line": 1025,
    "errors": [
     "409"
    ],
@@ -1840,7 +1840,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1017,
+   "line": 1034,
    "errors": [],
    "keys": [
     "ok",
@@ -1871,7 +1871,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1023,
+   "line": 1040,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1898,7 +1898,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1035,
+   "line": 1052,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1926,7 +1926,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1065,
+   "line": 1085,
    "errors": [],
    "keys": [
     "ok",
@@ -1956,7 +1956,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1089,
+   "line": 1109,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1994,7 +1994,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1095,
+   "line": 1115,
    "errors": [
     "409"
    ],
@@ -2036,7 +2036,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1104,
+   "line": 1124,
    "errors": [
     "409"
    ],
@@ -2069,7 +2069,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1114,
+   "line": 1134,
    "errors": [],
    "keys": [
     "ok",
@@ -2100,7 +2100,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1121,
+   "line": 1141,
    "errors": [],
    "keys": [
     "running",
@@ -2143,7 +2143,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1190,
+   "line": 1210,
    "errors": [
     "404",
     "422"
@@ -2174,7 +2174,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1297,
+   "line": 1317,
    "errors": [],
    "keys": [
     "items"
@@ -2205,7 +2205,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1312,
+   "line": 1332,
    "errors": [
     "422"
    ],
@@ -2236,7 +2236,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1332,
+   "line": 1352,
    "errors": [
     "404"
    ],
@@ -5975,7 +5975,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 85,
+   "line": 86,
    "errors": [],
    "keys": [
     "webhook_url",
@@ -6003,7 +6003,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 103,
+   "line": 104,
    "errors": [],
    "keys": [
     "signals"
@@ -6031,7 +6031,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 131,
+   "line": 132,
    "errors": [
     "422",
     "502"
@@ -6059,7 +6059,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 188,
+   "line": 193,
    "errors": [],
    "keys": [
     "comparisons"
@@ -7706,8 +7706,33 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
-   "line": 23,
+   "line": 26,
    "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-HUB-03",
+   "router": "stock_hub",
+   "method": "GET",
+   "path": "/api/stock-hub/signal-rank",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "PostgreSQL"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/stock_hub.py",
+   "line": 41,
+   "errors": [
+    "422",
     "?"
    ],
    "keys": [],
@@ -7731,7 +7756,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
-   "line": 38,
+   "line": 63,
    "errors": [],
    "keys": [
     "items",

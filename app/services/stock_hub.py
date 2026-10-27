@@ -23,6 +23,10 @@ Figma 세 안 · 화면은 3차). 실사용자 피드백 「종목 하나를 기
   - 일반 사용자 답에는 표 이름 · 명령 · 예외 글을 싣지 않는다 — 할 일(hint)은 관리자에게만.
   - 수집 DB 는 읽기 전용으로만 연다(부르는 함수들이 그렇게 연다 · 이 파일의 두 질의도 `mode=ro`).
 
+신호 기록 순위(`signal_rank`) — 순위 화면이 하루치 기록을 한 번에 읽는다(할 일 ②-19 · #197). 종목마다 그날(또는 그날 이전 가장 가까운)
+  기록 한 줄을 `signal_explain.load_day` 로 읽어 종합 점수 순으로 돌려주고, 줄마다 근거 개수(`side_counts`)를 붙인다. 허브 `signal` 칸과
+  같은 기록 · 같은 규칙이라 같은 종목은 같은 값이다. 새로 계산하지 않고, 줄마다 기준일(as_of)을 싣는다.
+
 질문 속 종목 찾기(`mentions`) — AI 투자 상담이 질문에 든 종목의 앱 판단 카드를 붙일 때 쓴다(모의투자 점검 L2).
   회사 이름이 질문에 **그대로** 있을 때만 그 종목으로 읽는다(비슷한 이름 고르기 없음 — `company_health.code_of` 와 같은 원칙
   · DF-124). 세 글자 이상은 글자 그대로 찾고, 두 글자 이하는 앞뒤가 낱말 경계일 때만 · 흔한 낱말(「대상」 · 「태양」 …)은 빼고
@@ -79,6 +83,10 @@ SIGNAL_SOURCE = "다중 주기 신호 — 60분 · 일 · 주봉 지표 규칙 �
 SIGNAL_NOT_UNIVERSE = ("이 종목은 다중 주기 신호를 매일 기록하는 종목(분봉을 모으는 401종목)에 들지 않습니다 — "
                        "차트 패턴 화면에서 그때그때 계산해 볼 수 있습니다.")
 SIGNAL_NONE = "아직 이 종목의 다중 주기 신호 기록이 없습니다."
+SIGNAL_RANK_DEFAULT, SIGNAL_RANK_MAX, SIGNAL_RANK_SYMBOLS_MAX = 50, 500, 100
+SIGNAL_RANK_NOTE = ("순위는 매 거래일 기록해 둔 규칙 점수(종합 점수 → 신뢰도 → 종목코드)를 그대로 줄 세운 것입니다 — 이 요청에서 새로 계산하지 않았습니다. "
+                    "줄마다 기준일(as_of)이 그 줄이 기록된 거래일이라, 그날 기록이 없는 종목은 앞 날짜의 줄이 보입니다.")
+SIGNAL_RANK_UNREADABLE = "이 줄의 근거 문장 가운데 앱이 아직 모르는 것이 있어 근거 개수를 세지 못했습니다 — 신호 · 점수는 기록 그대로입니다."
 SECTOR_PENDING = "섹터 분류는 준비 중입니다 — 분류 기준과 자료 출처를 확인하고 있습니다."
 NEWS_LIMIT = 5
 DISCLOSURE_LIMIT = 5
@@ -235,6 +243,42 @@ async def signal(db, symbol: str, in_universe: bool | None) -> dict:
             "reasons": [{k: r.get(k) for k in keep} for r in ex["reasons"][:3]],
             "counter_reasons": [{k: r.get(k) for k in keep} for r in ex["counter_reasons"][:2]]}
     return section("signal", OK, data=data, as_of=ex["as_of"], source=SIGNAL_SOURCE, notice=ex["disclaimer"])
+
+
+async def signal_rank(db, on: date | None = None, symbols: list[str] | None = None, limit: int = SIGNAL_RANK_DEFAULT,
+                      components: bool = False) -> dict:
+    """신호 기록 순위 — 종목마다 `on` 이전(포함) 가장 최근 기록 한 줄을 종합 점수 → 신뢰도 → 종목코드 순으로(#197 2).
+
+    새로 계산하지 않는다(`load_day` 가 읽고 `side_counts` 가 근거 표 줄의 부호를 센다). 근거 문장 하나가 낯설어도
+    그 줄의 `counts` 만 비우고(`counts_note`) 나머지 줄은 그대로 돌려준다. `symbols` 를 주면 그 종목만 보고, 기록이 없는
+    종목은 `missing` 에 허브와 같은 두 갈래 · 같은 안내 문장으로 남긴다.
+    """
+    day = await signal_explain.load_day(db, on=on, symbols=symbols)
+    rows, unreadable = [], 0
+    for snap in day["rows"][:limit]:
+        as_of = snap["as_of"]
+        row = {"rank": len(rows) + 1, "symbol": snap["symbol"],
+               "as_of": as_of.isoformat() if isinstance(as_of, date) else str(as_of),
+               "signal": snap["signal"], "strength": snap.get("strength"),
+               "confidence": round(float(snap["confidence"]), 4), "composite": round(float(snap["composite"]), 4),
+               "counts": None}
+        try:
+            c = signal_explain.side_counts(snap)
+        except signal_explain.UnknownReason:
+            unreadable += 1
+            row["counts_note"] = SIGNAL_RANK_UNREADABLE
+        else:
+            row["counts"] = {k: c[k] for k in ("buy", "neutral", "sell")}
+            if components:
+                row["components"] = c["components"]
+        rows.append(row)
+    missing = [{"symbol": m["symbol"], "reason": m["reason"],
+                "message": SIGNAL_NOT_UNIVERSE if m["reason"] == signal_explain.NOT_UNIVERSE else SIGNAL_NONE}
+               for m in day["missing"]]
+    on_day = day["on"]
+    return {"definition": day["definition"], "on": on_day.isoformat() if on_day else None, "total": len(day["rows"]),
+            "count": len(rows), "limit": limit, "rows": rows, "missing": missing, "unreadable": unreadable,
+            "source": SIGNAL_SOURCE, "notice": signal_explain.DISCLAIMER, "note": SIGNAL_RANK_NOTE}
 
 
 def financials(symbol: str) -> dict:
