@@ -150,6 +150,7 @@ def test_relative_strength_leaves_missing_benchmark_day_empty():
 # 값이 처음 나오는 봉(0부터 센 자리 · 설계서 4.1 warm-up 표) — EMA · MACD 는 첫 봉부터 값이 있지만 시작값의 영향이 한동안 남는다
 _WARMUP = {
     "sma20": (lambda d: ta.sma(d["close"], 20), 19),
+    "sma60": (lambda d: ta.sma(d["close"], 60), 59),
     "ema20": (lambda d: ta.ema(d["close"], 20), 0),
     "macd": (lambda d: ta.macd(d["close"], 12, 26, 9)[0], 0),
     "macd_signal": (lambda d: ta.macd(d["close"], 12, 26, 9)[1], 0),

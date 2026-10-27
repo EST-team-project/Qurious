@@ -1,0 +1,17 @@
+{
+  "strategy_id": "ma_cross_20_60",
+  "version": 2,
+  "name": "이동평균 교차 20 · 60 — 판 2(손절 · 익절 · 수량 · 체결 시점)",
+  "universe": ["005930"],
+  "timeframe": "1d",
+  "entry": { "indicator": "ma_cross", "params": { "short_window": 20, "long_window": 60 }, "condition": "short_above_long" },
+  "exit":  { "indicator": "ma_cross", "params": { "short_window": 20, "long_window": 60 }, "condition": "short_below_long" },
+  "signal_weights": { "technical": 1.0, "lightgbm": 0.0, "buy_threshold": 0.6, "sell_threshold": -0.6 },
+  "position_sizing": { "max_position_pct": 30.0, "max_symbols": 5, "size_kind": "risk_pct", "risk_pct": 1.0 },
+  "entry_mode": "open",
+  "exit_mode": "open",
+  "stops": { "stop_kind": "atr", "atr_period": 14, "atr_mult": 2.0, "take_kind": "rr", "take_rr": 2.0, "judge": "close", "lock": "entry" },
+  "reentry": "new_signal",
+  "warmup_bars": 60,
+  "price_basis": "adj_base"
+}

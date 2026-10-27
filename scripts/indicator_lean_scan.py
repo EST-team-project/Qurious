@@ -17,7 +17,7 @@ DMI 는 고가 상승폭과 저가 하락폭이 같은 날(동률)의 규칙이 
   ATR 14        ta_utils.atr        ↔ AverageTrueRange(14, WILDERS)
   볼린저 20 · 2  ta_utils.bollinger  ↔ BollingerBands(20, 2, SIMPLE) 가운데 · 위 · 아래
   DMI 14 · 14   ta_utils.dmi        ↔ AverageDirectionalIndex(14) +DI · −DI · ADX
-  SMA 20        ta_utils.sma        ↔ SimpleMovingAverage(20)
+  SMA 20 · 60   ta_utils.sma        ↔ SimpleMovingAverage(20) · SimpleMovingAverage(60)
   EMA 20        ta_utils.ema        ↔ ExponentialMovingAverage(20)
   MACD 12 · 26 · 9  ta_utils.macd   ↔ MovingAverageConvergenceDivergence(12, 26, 9, EXPONENTIAL) 선 · 시그널 · 히스토그램
 
@@ -66,6 +66,7 @@ INDICATORS: dict[str, tuple] = {
     "minus_di14": (lambda d: ta_utils.dmi(d["high"], d["low"], d["close"], 14, 14)[1], "adx.negative_directional_index"),
     "adx14": (lambda d: ta_utils.dmi(d["high"], d["low"], d["close"], 14, 14)[2], "adx"),
     "sma20": (lambda d: ta_utils.sma(d["close"], 20), "sma"),
+    "sma60": (lambda d: ta_utils.sma(d["close"], 60), "sma60"),
     "ema20": (lambda d: ta_utils.ema(d["close"], 20), "ema"),
     "macd": (lambda d: ta_utils.macd(d["close"], 12, 26, 9)[0], "macd"),
     "macd_signal": (lambda d: ta_utils.macd(d["close"], 12, 26, 9)[1], "macd.signal"),
@@ -79,6 +80,7 @@ LEAN_SETUP = """\
             "bb": BollingerBands(20, 2, MovingAverageType.SIMPLE),
             "adx": AverageDirectionalIndex(14),
             "sma": SimpleMovingAverage(20),
+            "sma60": SimpleMovingAverage(60),
             "ema": ExponentialMovingAverage(20),
             "macd": MovingAverageConvergenceDivergence(12, 26, 9, MovingAverageType.EXPONENTIAL),
         }

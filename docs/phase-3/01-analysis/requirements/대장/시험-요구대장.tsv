@@ -248,3 +248,4 @@ TC-KBF	tests/test_broker_balance_feedback.py	P02-⑤-1	🟢	KIS 잔고 조회 �
 TC-KSP	tests/test_broker_settings_preservation.py	P02-⑤-1	🟢	DF-145: 화면에서 설정을 다시 저장해도 사용자 자격증명이 보존된다 — 키 아닌 설정만 바꿔도 같은 키 · 명시 교체만 새 키 · 틀리거나 남의 가림값은 설정을 못 바꿈 · 키 없이 증권사를 바꾸면 옛 키를 안 씀 · 로그인 없이는 저장 못 함
 TC-KRC	tests/test_broker_readiness_card.py	P02-⑤-1	🟢	#314 준비: 연결용 고정 카드 판 1(ma_cross_20_60 · 005930)이 기존 앱 판단 함수에서 매수 · 매도 · 관망을 내고, 봉이 모자라면 카드 규칙 결과로 치지 않는다 — LEAN · 주문 없이
 TC-LCA	tests/test_lean_calendar.py	P02-④-1	🟡	LEAN 알고리즘 생성 — KRX 종목은 KRX 거래시간 · 종가 시각(15:29)으로 넣고 다음 날로 밀지 않는다 · 그 밖은 기존 구독 길 · 생성 코드가 파이썬으로 유효하다 · 수익 곡선은 진입 종가 뒤부터 · 판 시작은 항상 현금(소스 문자열 검사 — 실제 LEAN 실행은 아님 · 2026-10-26 강민석)
+TC-CRD	tests/test_strategy_card.py	P02-①-2	🟡	전략 카드 판 2(2026-10-27 · 인디케이터 전략 설계서 4.3 · #314) — 칸 이름 · 값이 읽는 쪽 코드(수량 설정 `ExecutionPolicy` · 백테스트 `entry_mode` · `exit_mode`)와 같고, 판 2 가 판 1 과 같은 매수 · 매도 판단(합성 일봉 · 005930 2년)을 내며, 판단이 마지막 `warmup_bars` 봉에만 기댄다 — 같은 봉 손절 먼저 · 크기 합 · Pine 대조는 재지 않는다
