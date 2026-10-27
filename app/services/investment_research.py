@@ -117,7 +117,7 @@ def backtest_strategy(
               entry_mode / exit_mode: 체결 시점 — "close"(그날 종가 · 기본) | "open"(다음 봉 시가 · TradingView 기본).
           backtest() 와 같은 뜻.
     """
-    from app.services.quant_pipeline import apply_stops
+    from app.services.quant_pipeline import STOP_JUDGE, apply_stops
     df = indicators(candles).dropna()
     if len(df) < 60:
         return {"error": f"데이터 부족: {len(df)}행 (최소 60 필요)"}
@@ -193,6 +193,7 @@ def backtest_strategy(
         "bh_returns": [round(float(x - 1) * 100, 2) for x in benchmark.iloc[-252:]],
         "entry_mode": entry_mode,
         "exit_mode": exit_mode,
+        "judge": STOP_JUDGE,
     }
 
 
