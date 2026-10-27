@@ -288,3 +288,69 @@ async def load_snapshot(session, symbol: str, on: date | None = None) -> dict | 
     if row is None:
         return None
     return {c.name: getattr(row, c.name) for c in SignalSnapshot.__table__.columns}
+
+
+# ── 하루치 읽기 · 근거 세기 — 순위 화면이 부른다(#197 1 · 2 · 4) ─────────────
+
+NOT_UNIVERSE, NONE = "not_universe", "none"
+
+
+def _universe() -> frozenset | None:
+    """매일 기록하는 종목(분봉 유니버스) — 못 읽으면 None(「대상인지 모름」 · 말없이 「아님」 으로 읽지 않는다)."""
+    import sqlite3
+
+    from app.services import mtf_signals
+
+    try:
+        return frozenset(mtf_signals.universe()) or None
+    except (OSError, sqlite3.Error):
+        return None
+
+
+async def load_day(session, on: date | None = None, symbols: list[str] | None = None) -> dict:
+    """지금 정의 판에서 종목마다 `on` 이전(포함)의 가장 최근 T2 줄 — `load_snapshot` 과 같은 규칙을 모든 종목에.
+
+    정렬은 종합 점수 내림차순 → 신뢰도 내림차순 → 종목코드(#197 2). 줄마다 `as_of` 가 그 줄의 기준일이라
+    그날 줄이 없는 종목은 앞 날짜가 그대로 보인다. `symbols` 를 주면 그 종목만 보고, 줄이 하나도 없는 종목은
+    `missing` 에 허브(`stock_hub.signal`)와 같은 두 갈래로 남긴다 — `not_universe`(매일 기록하는 종목 밖) · `none`(기록 없음).
+    """
+    from sqlalchemy import func, select
+
+    from app.models.signal import SignalSnapshot as S
+    from app.services.ta_utils import DEFINITION
+
+    latest = select(S.symbol, func.max(S.as_of).label("as_of")).where(S.definition == DEFINITION)
+    if on is not None:
+        latest = latest.where(S.as_of <= on)
+    codes = None
+    if symbols is not None:
+        codes = list(dict.fromkeys(normalize_symbol(s) for s in symbols))
+        latest = latest.where(S.symbol.in_(codes))
+    latest = latest.group_by(S.symbol).subquery()
+    stmt = (select(S).join(latest, (S.symbol == latest.c.symbol) & (S.as_of == latest.c.as_of))
+            .where(S.definition == DEFINITION)
+            .order_by(S.composite.desc(), S.confidence.desc(), S.symbol))
+    rows = [{c.name: getattr(r, c.name) for c in S.__table__.columns}
+            for r in (await session.execute(stmt)).scalars()]
+    missing = []
+    if codes is not None:
+        found = {r["symbol"] for r in rows}
+        universe = _universe() if len(found) < len(codes) else None
+        missing = [{"symbol": c, "reason": NOT_UNIVERSE if universe is not None and c not in universe else NONE}
+                   for c in codes if c not in found]
+    return {"on": on, "definition": DEFINITION, "rows": rows, "missing": missing}
+
+
+def side_counts(snapshot: dict) -> dict:
+    """근거 표(`evidence`) 줄마다 기여도의 부호를 센다 — 매수 쪽 · 중립 · 매도 쪽(#197 4).
+
+    순위 표의 「매수 쪽 근거 n개」 와 설명 창의 근거 표가 같은 수를 말한다. `components` 는 강사님 퀀트 대시보드의
+    근거별 점수(`reason` · `points`)와 같은 꼴에 주기 · 기여도를 더했다 — 차례는 설명 창 근거 표와 같다.
+    """
+    rows = _order(evidence(snapshot))
+    out = {"buy": 0, "neutral": 0, "sell": 0}
+    for r in rows:
+        out["buy" if r["contribution"] > 0 else "sell" if r["contribution"] < 0 else "neutral"] += 1
+    out["components"] = [{"reason": r["text"], "points": r["points"], "timeframe": r["timeframe"],
+                          "contribution": r["contribution"]} for r in rows]
+    return out

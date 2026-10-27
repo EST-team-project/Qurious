@@ -278,3 +278,49 @@ def test_load_latest_row_of_current_definition():
     assert first["as_of"] == date.fromisoformat(days[0]) and latest["as_of"] == date.fromisoformat(days[-1])
     assert latest["definition"] == ms.DEFINITION and before is None
     assert se.explain(latest)["summary"]
+
+
+# ── 하루치 읽기 · 근거 세기 — 순위 화면(#197 1 · 2 · 4) ─────────────────────
+
+def test_side_counts_are_the_evidence_table():
+    for s in _snapshots():
+        rows, c = se.explain(s)["evidence"], se.side_counts(s)
+        assert c["buy"] + c["neutral"] + c["sell"] == len(rows) == len(c["components"])
+        assert c["buy"] == sum(r["contribution"] > 0 for r in rows) and c["sell"] == sum(r["contribution"] < 0 for r in rows)
+        assert [x["reason"] for x in c["components"]] == [r["text"] for r in rows]
+        assert sum(x["contribution"] for x in c["components"]) == pytest.approx(s["composite"])
+
+
+def test_side_counts_without_prices_are_zero():
+    s = {**BUY, "timeframes": [{k: v for k, v in t.items() if k != "score"} for t in BUY["timeframes"]]}
+    assert se.side_counts(s) == {"buy": 0, "neutral": 0, "sell": 0, "components": []}
+
+
+@pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음(QURIOUS_TEST_DATABASE_URL)")
+def test_load_day_ranks_each_symbols_latest_row(monkeypatch):
+    b1, b2, b3 = (_bars(seed=s, symbol=f"TEST0{s}") for s in (1, 2, 3))
+    days = [r["trade_date"] for r in b1.daily[-3:]]
+    last, first = date.fromisoformat(days[-1]), date.fromisoformat(days[0])
+    recs = [ms.signal_at(b1, days[-1]), ms.signal_at(b2, days[-1]), ms.signal_at(b3, days[0])]   # TEST03 은 앞 날짜만
+    old = {**recs[0], "definition": "old-def", "composite": 99.0}
+    monkeypatch.setattr(se, "_universe", lambda: frozenset({"TEST01", "TEST02", "TEST03", "TEST04"}))
+
+    async def go(session):
+        await ms.write_snapshots(session, recs + [old])
+        day = await se.load_day(session, last)
+        before = await se.load_day(session, first - timedelta(days=1))
+        picked = await se.load_day(session, last, ["TEST03.KS", "TEST04", "999999"])
+        monkeypatch.setattr(se, "_universe", lambda: None)
+        unknown = await se.load_day(session, last, ["999999"])
+        return day, before, picked, unknown
+
+    day, before, picked, unknown = _run(go)
+    rows = day["rows"]
+    keys = [(-r["composite"], -r["confidence"], r["symbol"]) for r in rows]
+    assert keys == sorted(keys) and {r["symbol"] for r in rows} == {"TEST01", "TEST02", "TEST03"}
+    assert all(r["definition"] == ms.DEFINITION for r in rows) and day["definition"] == ms.DEFINITION
+    assert {r["symbol"]: r["as_of"] for r in rows} == {"TEST01": last, "TEST02": last, "TEST03": first}
+    assert before["rows"] == [] and before["missing"] == []
+    assert [r["symbol"] for r in picked["rows"]] == ["TEST03"]
+    assert picked["missing"] == [{"symbol": "TEST04", "reason": se.NONE}, {"symbol": "999999", "reason": se.NOT_UNIVERSE}]
+    assert unknown["missing"] == [{"symbol": "999999", "reason": se.NONE}]   # 대상인지 모르면 「아님」 이라 하지 않는다
