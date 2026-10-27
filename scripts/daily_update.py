@@ -78,6 +78,7 @@ private 확인·xet 확인 등 나머지 게이트는 `hf_dataset.upload()` 가 
     python scripts/daily_update.py uninstall        # 등록 해제
     python scripts/daily_update.py sync             # 원격 백업과 이 PC 수집 DB 를 맞춘다(바뀐 조각만 · 여러 PC · 11:00 ~ 13:30 막힘)
     python scripts/daily_update.py sync --discard-local   # 겹친 조각은 원격 것으로(이 PC 의 올리지 않은 변경을 버린다 — 사람이 고름)
+    python scripts/daily_update.py sync --allow-shrink    # 원격 조각이 이 PC 보다 줄었어도 받는다(옛 코드가 줄여 올린 게 아님을 사람이 확인한 뒤)
     python scripts/daily_update.py sync --full      # 수집 DB 가 없는 새 PC — 원격 전부를 받아 복원
 
 종료코드 — 0 성공 · 2 고를 수 없는 단계 · 받는 값이 틀림 · 3 앱 DB 꺼짐으로 건너뜀(한 단계 다시 · 채우기) · 69 시세를 다 받지
@@ -2216,7 +2217,7 @@ def uninstall() -> int:
     return p.returncode
 
 
-def sync_cmd(discard_local: bool = False, full: bool = False) -> int:
+def sync_cmd(discard_local: bool = False, full: bool = False, allow_shrink: bool = False) -> int:
     """원격 백업과 이 PC 수집 DB 를 맞춘다(사람이 부름) — 러너 잠금을 잡고, 12:30 회차와 겹치는 때(11:00 ~ 13:30)는 막는다.
 
     0 맞춤 · 같음 / 65 겹침(이 PC 의 올리지 않은 변경 — ``--discard-local`` 이면 원격 것으로) / 75 막힘 / 1 실패.
@@ -2241,7 +2242,7 @@ def sync_cmd(discard_local: bool = False, full: bool = False) -> int:
         if full:
             rc, rec = hf_sync.full(api)
         else:
-            rc, rec = hf_sync.pull(api, mode="lead", discard_local=discard_local)
+            rc, rec = hf_sync.pull(api, mode="lead", discard_local=discard_local, allow_shrink=allow_shrink)
         print(f"{'✅' if rc == 0 else '🔴'} 맞추기 {rec.get('result')} · main {str(rec.get('main') or '-')[:8]}"
               f" · 바뀐 조각 {rec.get('changed', 0)}" + (f" · {rec.get('why')}" if rec.get("why") else ""))
         if rc == 0 and rec.get("result") in ("synced", "full"):
@@ -2394,6 +2395,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     y = sub.add_parser("sync", help="원격 백업과 이 PC 수집 DB 를 맞춘다 — 바뀐 조각만(여러 PC)")
     y.add_argument("--discard-local", action="store_true",
                    help="이 PC 의 올리지 않은 변경과 겹친 조각은 원격 것으로(사람이 고름)")
+    y.add_argument("--allow-shrink", action="store_true",
+                   help="원격 조각의 행 수가 이 PC 보다 줄었어도 받는다(옛 코드가 줄여 올린 게 아님을 사람이 확인한 뒤 — --discard-local 과 별개)")
     y.add_argument("--full", action="store_true", help="수집 DB 가 없는 새 PC — 원격 전부를 받아 복원")
     a = p.parse_args(argv)
 
@@ -2441,7 +2444,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if a.cmd == "start":
         return start()
     if a.cmd == "sync":
-        return sync_cmd(discard_local=a.discard_local, full=a.full)
+        return sync_cmd(discard_local=a.discard_local, full=a.full, allow_shrink=a.allow_shrink)
     return uninstall()
 
 
