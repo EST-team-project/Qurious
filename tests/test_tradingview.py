@@ -94,3 +94,98 @@ def test_compare_fills_without_real_csv_is_unavailable():
     assert result["status"] == "unavailable"
     assert result["lean_fill_count"] == 1
     assert result["tradingview_fill_count"] == 0
+
+
+def test_compare_fills_converts_lean_utc_to_kst_and_reports_bps():
+    tv_fills = [{
+        "trade_id": "1",
+        "event": "entry",
+        "side": "buy",
+        "date": "2025-01-11",
+        "time": "2025-01-11",
+        "price": 100.0,
+    }]
+    lean_fills = [{
+        "order_id": 1,
+        "date": "2025-01-10",
+        "time_utc": "2025-01-10T16:00:00+00:00",
+        "direction": "buy",
+        "fill_price": 100.1,
+    }]
+
+    result = tv.compare_fills(tv_fills, lean_fills)
+
+    assert result["date_match_count"] == 1
+    assert result["avg_abs_price_diff_bps"] == pytest.approx(10.0, abs=0.01)
+    assert result["rows"][0]["lean_vs_tradingview_price_diff_bps"] == pytest.approx(
+        10.0, abs=0.01
+    )
+
+
+def test_compare_fills_keeps_alignment_after_missing_middle_event():
+    tv_fills = [
+        {"date": "2025-01-01", "time": "2025-01-01", "side": "buy", "price": 100},
+        {"date": "2025-01-02", "time": "2025-01-02", "side": "sell", "price": 110},
+        {"date": "2025-01-03", "time": "2025-01-03", "side": "buy", "price": 105},
+    ]
+    lean_fills = [
+        {"date": "2025-01-01", "direction": "buy", "fill_price": 100},
+        {"date": "2025-01-03", "direction": "buy", "fill_price": 105},
+    ]
+
+    result = tv.compare_fills(tv_fills, lean_fills)
+
+    assert result["paired_event_count"] == 2
+    assert result["unmatched_tradingview_events"] == 1
+    assert result["unmatched_lean_events"] == 0
+    assert [
+        row["match_status"]
+        for row in result["rows"]
+    ] == ["paired", "unmatched_tradingview", "paired"]
+
+
+SIGNAL_CSV = """time,SignalState_Entry,SignalState_Exit
+2025-01-01,1,0
+2025-01-02,0,1
+2025-01-03,1,0
+"""
+
+
+def test_parse_signal_csv_reads_daily_entry_exit_states():
+    signals = tv.parse_signal_csv(SIGNAL_CSV)
+    assert len(signals) == 3
+    assert signals[0] == {
+        "date": "2025-01-01",
+        "entry_state": True,
+        "exit_state": False,
+    }
+    assert signals[1]["entry_state"] is False
+    assert signals[1]["exit_state"] is True
+
+
+def test_compare_signals_is_separate_from_fill_comparison():
+    tv_signals = tv.parse_signal_csv(SIGNAL_CSV)
+    lean_signals = [
+        {"date": "2025-01-01", "entry_state": True, "exit_state": False},
+        {"date": "2025-01-02", "entry_state": False, "exit_state": False},
+        {"date": "2025-01-03", "entry_state": True, "exit_state": False},
+    ]
+
+    result = tv.compare_signals(tv_signals, lean_signals)
+
+    assert result["status"] == "compared"
+    assert result["matched_date_count"] == 3
+    assert result["entry_match_rate_pct"] == 100.0
+    assert result["exit_match_rate_pct"] == pytest.approx(66.67, abs=0.01)
+    assert result["mismatch_date_count"] == 1
+    assert result["mismatch_dates"][0]["date"] == "2025-01-02"
+
+
+def test_compare_signals_without_both_sources_is_unavailable():
+    result = tv.compare_signals([], [{"date": "2025-01-01", "entry_state": True}])
+    assert result["status"] == "unavailable"
+
+
+def test_parse_signal_csv_rejects_missing_state_columns():
+    with pytest.raises(ValueError):
+        tv.parse_signal_csv("time,close\n2025-01-01,100\n")
