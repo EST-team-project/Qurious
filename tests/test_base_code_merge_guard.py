@@ -211,7 +211,9 @@ def test_시세는_KIS_설정이어도_수집DB가_먼저다(monkeypatch):
 MENU_KEYS_WE_KEEP = ("agent-cb", "agent-products", "agent-news", "indicator-api", "indicator-tradingview",
                      "trading-chart", "trading-portfolio", "trading-order",
                      "us-dashboard", "us-chart", "us-portfolio", "us-order",
-                     "crawl-auto", "crawl-manual", "crawl-ingest")
+                     "crawl-auto", "crawl-manual", "crawl-ingest",
+                     # 10-27 강사님 lumina-invest 가 「시스템관리」 에서 두 줄을 내렸다(#319 댓글 04) — 같은 칸을 강사님 쪽으로 풀면 함께 빠진다
+                     "sysadmin-dashboard", "sysadmin-logs")
 
 
 def test_메뉴에서_우리_화면이_사라지지_않는다():
