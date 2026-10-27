@@ -782,7 +782,13 @@ flowchart LR
 | 글 | 제목 | 글자 | 새 저장소 |
 |---|---|---:|---|
 | [PR tradingview-crosscheck-design](2026-10-26/PR-tradingview-crosscheck-design/00-본문.md) | docs: ③ TradingView · Pine · 교차 검증 설계 v0.1 · 웹훅 풀 구현 · IP 강제 · 학원 하드 작업 결정 · 협의(#335) 답 기록 | 2,574 | #347 · 이동원 |
-| [PR lean-pin-until-protocol-gate](2026-10-26/PR-lean-pin-until-protocol-gate/00-본문.md) | feat: LEAN 이미지 번호 태그@다이제스트 고정 · install --until · 판 문지기(프로토콜 번호) · 수집기 환경 점검(yfinance 선언) | 4,125 | (이 판의 PR — 머지 뒤) · 이동원 |
+| [PR lean-pin-until-protocol-gate](2026-10-26/PR-lean-pin-until-protocol-gate/00-본문.md) | feat: LEAN 이미지 번호 태그@다이제스트 고정 · install --until · 판 문지기(프로토콜 번호) · 수집기 환경 점검(yfinance 선언) | 4,125 | #348 · 이동원 |
+
+### 2026-10-27 — 이동원 PR 본문(판 문지기 ② · 상태 표 PC 목록 · Pine v6 strategy() 생성기 v0.1)
+
+| 글 | 제목 | 글자 | 새 저장소 |
+|---|---|---:|---|
+| [PR gate-read-side-pine-strategy](2026-10-27/PR-gate-read-side-pine-strategy/00-본문.md) | feat: 판 문지기 ② 읽는 쪽 확인 · 상태 표 PC 목록 · Pine v6 strategy() 생성기 v0.1 · #197 결정 반영 | 2,966 | 머지 뒤 번호 · 이동원 |
 
 ---
 

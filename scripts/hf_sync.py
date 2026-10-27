@@ -12,6 +12,11 @@
     원격 ≠ 기준 · 이 PC = 원격            → 받기만(DB 는 이미 같다 — 파일 · 목록만)
     원격 ≠ 기준 · 이 PC = 기준 또는 빈 조각 → 갈아 끼움 — 지우고 원격 파일로 채워 내용 지문이 원격과 같을 때만 커밋
     원격 ≠ 기준 · 이 PC ≠ 기준             → 겹침 — 멈춘다(``discard_local`` 이면 원격 것으로 · 사람이 정한다)
+    갈아 끼울 조각의 원격 행 수 < 이 PC · 기준 → shrink — 멈춘다(``allow_shrink`` 로만 받는다 · 겹침 처리로는 우회되지 않는다)
+
+판 문지기 ②(2026-10-27 · 할 일 ①-28) — 원격 매니페스트의 ``protocol``(``run_lease.py`` 가 싣는 규칙 판)이 이 코드보다 크면 DB 를 건드리기
+전에 멈춘다(``git pull``). **없으면 멈추지 않는다** — 옛 코드가 올린 원격을 막으면 새 코드 PC 가 영영 못 올리는 교착이라, 받되 기록에만 남기고
+줄어든 조각(shrink)만 가른다. 멈추면 기준이 원격으로 옮겨 가지 않아 올리기 앞의 「원격이 앞섰다」 검사가 그대로 막는다.
 
 응답 원문(``raw_response``)은 갈아 끼우지 않고 **없는 줄만 더한다** — 기본 키에 받은 시각이 들어 있어 덧붙이기만 하는 표라(``raw_store``
 가 새 시각으로 넣는다) 합치기가 늘 맞고, 412MB 짜리 조각을 지웠다 다시 쓰지 않는다. 따라가는 PC(``mode="follow"``)는 복구용 표
@@ -83,6 +88,7 @@ class Part:
     local_rows: int = 0
     local_sig: Optional[str] = None
     why: str = ""
+    shrunk: bool = False        # 원격 행 수가 줄었는데 사람이 allow_shrink 로 받기로 한 조각(기록에 남는다)
 
 
 def _now() -> str:
@@ -96,6 +102,32 @@ def files_of(man: Dict) -> Dict[str, Dict]:
         for f in rec.get("files") or []:
             out[f["path"]] = dict(f, table=t)
     return out
+
+
+def remote_protocol(rman: Dict) -> Optional[int]:
+    """원격 매니페스트가 실은 규칙 판(``protocol``) — 없거나 정수가 아니면 None(= 이 칸을 모르던 옛 코드가 올렸다)."""
+    v = (rman or {}).get("protocol")
+    return v if type(v) is int else None
+
+
+def protocol_too_new(rman: Dict) -> Optional[str]:
+    """원격이 이 코드보다 새 규칙 판으로 올렸으면 멈출 까닭 한 줄(아니면 None). 없음(None)은 통과 — 머리말."""
+    rp = remote_protocol(rman)
+    if rp is None or rp <= config.RUNNER_PROTOCOL:
+        return None
+    return (f"원격 백업이 규칙 판 {rp} 로 올라왔다(이 PC 코드는 {config.RUNNER_PROTOCOL}) — 이 저장소에서 `git pull` 로 코드를 먼저 "
+            f"맞춘 뒤 다시(아무것도 받지 않았다)")
+
+
+def shrink_why(remote: Dict, base: Optional[Dict], local_rows: int) -> Optional[str]:
+    """갈아 끼울 조각의 원격 행 수가 이 PC · 기준보다 줄었으면 까닭 한 줄(아니면 None). 행 수를 모르면 줄었을 수 있다고 본다."""
+    have = max(int(local_rows or 0), int((base or {}).get("rows") or 0))
+    want = remote.get("rows")
+    if type(want) is not int:
+        return f"원격 매니페스트에 이 조각의 행 수가 없다(이 PC {have:,}행)"
+    if want < have:
+        return f"원격 {want:,}행 < 이 PC {have:,}행"
+    return None
 
 
 def fp_of(files: Dict[str, Dict]) -> str:
@@ -253,11 +285,12 @@ def remote_columns(rtab: Dict) -> Optional[List[str]]:
         mem.close()
 
 
-def plan(base: Dict, rman: Dict, conn: sqlite3.Connection, *, mode: str = "lead") -> List[Part]:
+def plan(base: Dict, rman: Dict, conn: sqlite3.Connection, *, mode: str = "lead", allow_shrink: bool = False) -> List[Part]:
     """원격이 기준과 다른 조각마다 할 일 — 머리말의 표. ``mode="follow"`` 면 복구용 표는 건너뛴다(skip)."""
     bfiles = (base or {}).get("files") or {}
     out: List[Part] = []
     for path, r in sorted(files_of(rman).items()):
+        shrunk = False
         b = bfiles.get(path)
         if b and b.get("sha256") == r.get("sha256"):
             continue                                          # 원격이 기준 그대로
@@ -290,11 +323,16 @@ def plan(base: Dict, rman: Dict, conn: sqlite3.Connection, *, mode: str = "lead"
             act, why = "replace", "이 PC 에는 그 조각이 비었다"
         elif b and b.get("sig") and sig == b.get("sig"):
             act, why = "replace", "원격만 바뀌었다"
+            lost = shrink_why(r, b, rows)
+            if lost and not allow_shrink:
+                act, why = "shrink", f"원격 조각이 줄었다({lost}) — 옛 코드가 줄여 올렸을 수 있어 바꾸지 않는다"
+            elif lost:
+                why, shrunk = f"원격만 바뀌었다 · 줄었지만 사람이 받기로 했다({lost})", True
         else:
             act = "conflict"
             why = ("이 PC 도 그 조각을 바꿨다(기준과 다름 · 아직 올리지 않음)" if b and b.get("sig")
                    else "이 PC 의 기준을 모른다 — 이 PC 도 바꾼 것으로 본다")
-        out.append(Part(path, table, part, act, r, b, rows, sig, why))
+        out.append(Part(path, table, part, act, r, b, rows, sig, why, shrunk))
     return out
 
 
@@ -409,7 +447,7 @@ def _record(result: str, **kw) -> Dict:
 
 
 def pull(api=None, *, mode: str = "lead", discard_local: bool = False, dry_run: bool = False,
-         say=print) -> Tuple[int, Dict]:
+         allow_shrink: bool = False, say=print) -> Tuple[int, Dict]:
     """원격이 앞섰으면 바뀐 조각만 받아 맞춘다 — (종료코드, 요약). 0 같음 · 맞춤 / 65 겹침 / 1 실패 · 그 밖은 까닭이 요약에.
 
     ``mode="lead"`` 는 회차를 잡은 PC(전부 맞춤 — 끝나면 기준 = 원격) · ``follow`` 는 따라가는 PC(복구용 표 건너뜀 — 받은 조각만 기준에).
@@ -427,18 +465,27 @@ def pull(api=None, *, mode: str = "lead", discard_local: bool = False, dry_run: 
     if base and fp_of(rfiles) == base.get("fp"):
         save_base(base.get("files") or {}, head, by=f"{mode}-same", partial=False)
         return 0, _record("same", main=head, mode=mode, why="원격 파일 구성이 기준과 같다(머리만 옮김)", changed=0)
+    rproto = remote_protocol(rman)
+    too_new = protocol_too_new(rman)
+    if too_new:
+        return 1, _record("protocol", main=head, mode=mode, remote_protocol=rproto, why=too_new)
     if not config.DB_PATH.exists():
         return 1, _record("no_db", main=head, mode=mode,
                           why="이 PC 에 수집 DB 가 없다 — 새 PC 는 python scripts/daily_update.py sync --full")
     conn = sqlite3.connect(config.DB_PATH, timeout=60, isolation_level=None)
     try:
-        parts = plan(base, rman, conn, mode=mode)
-        by = {a: [p for p in parts if p.action == a] for a in ("adopt", "replace", "union", "conflict", "schema", "skip")}
+        parts = plan(base, rman, conn, mode=mode, allow_shrink=allow_shrink)
+        by = {a: [p for p in parts if p.action == a]
+              for a in ("adopt", "replace", "union", "conflict", "schema", "shrink", "skip")}
         for p in parts:
             say(f"  {p.action:<8} {p.path} · {p.why}")
         if by["schema"]:
             return 1, _record("schema", main=head, mode=mode, why=by["schema"][0].why,
                               parts=[p.path for p in by["schema"]])
+        if by["shrink"]:                                  # 겹침 처리(discard_local)로는 우회되지 않는다 — 같은 판의 다른 조각도 받지 않는다
+            return 1, _record("shrink", main=head, mode=mode, remote_protocol=rproto, parts=[p.path for p in by["shrink"]],
+                              why=(f"갈아 끼울 조각의 원격 행 수가 이 PC 보다 줄었다 {len(by['shrink'])}조각({by['shrink'][0].why}) — "
+                                   f"아무것도 바꾸지 않았다. 원격이 맞다고 사람이 확인했으면 python scripts/daily_update.py sync --allow-shrink"))
         if by["conflict"] and not discard_local:
             return EX_CONFLICT, _record(
                 "conflict", main=head, mode=mode, parts=[p.path for p in by["conflict"]],
@@ -470,7 +517,8 @@ def pull(api=None, *, mode: str = "lead", discard_local: bool = False, dry_run: 
         files = dict((base or {}).get("files") or {})         # 따라가기 — 받은 조각만 기준에(복구용 표는 옛 기준 그대로)
         files.update({p.path: p.remote for p in work})
         save_base(files, head, by=mode, partial=True)
-    return 0, _record("synced", main=head, mode=mode, changed=len(work), rows=rows,
+    return 0, _record("synced", main=head, mode=mode, changed=len(work), rows=rows, remote_protocol=rproto,
+                      shrunk=[p.path for p in work if p.shrunk],
                       bytes=sum(int(p.remote.get("bytes") or 0) for p in work),
                       plan={a: len(v) for a, v in by.items()}, seconds=round(time.time() - t0, 1),
                       discarded=[p.path for p in by["conflict"]] if discard_local else [])
@@ -487,6 +535,9 @@ def full(api=None, *, say=print) -> Tuple[int, Dict]:
     rman = remote_manifest(api, head)
     if _empty_remote(rman):
         return 1, _record("empty", main=head, mode="full", why="원격에 아직 데이터가 없다 — 받을 것이 없다")
+    too_new = protocol_too_new(rman)
+    if too_new:
+        return 1, _record("protocol", main=head, mode="full", remote_protocol=remote_protocol(rman), why=too_new)
     rfiles = files_of(rman)
     stage = STAGE_DIR / f"full-{head[:12]}"
     stage.mkdir(parents=True, exist_ok=True)

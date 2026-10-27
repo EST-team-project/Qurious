@@ -545,6 +545,40 @@ def seen(path: Optional[Path] = None) -> Dict:
         return {}
 
 
+def pc_records(doc: Optional[Dict]) -> Dict[str, Dict]:
+    """PC 별 마지막 기록 — ``{PC: {slot, protocol, code}}``. 자리 기록(오래된 → 새)에서 뽑고, 지금 문서를 쓴 PC 는 그 문서가 가장 새 기록이다.
+
+    ``min_protocol`` 을 올려도 되는지 보는 눈이다(모든 PC 가 새 코드여야 한다). 자리 기록은 며칠만 남아 **안 보이는 PC 는 새 코드라는 뜻이 아니다**.
+    """
+    out: Dict[str, Dict] = {}
+    if not doc:
+        return out
+    for slot, rec in sorted((doc.get("slots") or {}).items()):
+        if isinstance(rec, dict) and rec.get("pc"):
+            out[rec["pc"]] = {"slot": slot, "protocol": rec.get("protocol"), "code": rec.get("code")}
+    if doc.get("pc"):
+        out[doc["pc"]] = {"slot": doc.get("slot"), "protocol": doc.get("protocol"), "code": doc.get("code")}
+    return out
+
+
+def pc_lines(doc: Optional[Dict]) -> list:
+    pcs = pc_records(doc)
+    if not pcs:
+        return []
+    out, old = ["― PC 별 마지막 기록(자리 기록 · 지금 문서에서 뽑음)"], []
+    for pc, r in sorted(pcs.items()):
+        p = r.get("protocol")
+        new = type(p) is int and p >= PROTOCOL
+        if not new:
+            old.append(pc)
+        out.append(f"  {pc}  " + (f"규칙 {p}" if type(p) is int else "판 정보 없음") + (f" · 코드 {r['code']}" if r.get("code") else "")
+                   + f" · 자리 {r.get('slot') or '-'}  " + ("✅" if new else "🔴 옛 코드"))
+    out.append(f"  → 옛 코드로 보이는 PC: {', '.join(old)} — 이 PC 들이 새 코드가 되기 전에는 min_protocol 을 올리지 않는다" if old
+               else f"  → 보이는 PC 는 모두 규칙 {PROTOCOL} 이상이다")
+    out.append("  ※ 안 보이는 PC 는 새 코드라는 뜻이 아니다(자리 기록은 며칠만 남는다) — 모든 PC 에서 `git pull` 한 것을 확인한 뒤에만 min_protocol 을 올린다")
+    return out
+
+
 def status_lines(doc: Optional[Dict], head: Optional[str]) -> list:
     if not doc:
         return [f"― 임대 {REPO_ID}@{BRANCH} · 아직 없음" + (f"(가지 머리 {head[:8]})" if head else "(가지 없음)")]
@@ -562,7 +596,7 @@ def status_lines(doc: Optional[Dict], head: Optional[str]) -> list:
     for slot, rec in sorted((doc.get("slots") or {}).items(), reverse=True)[:7]:
         out.append(f"  {slot}  {rec.get('pc')} · {'✅' if rec.get('ok') else '🔴/🟡'} · 종료코드 {rec.get('rc')}"
                    f" · {rec.get('started_at') or ''} → {rec.get('finished_at') or ''} · 시세 {rec.get('price_max') or '-'}")
-    return out
+    return out + pc_lines(doc)
 
 
 def main(argv: Optional[list] = None) -> int:

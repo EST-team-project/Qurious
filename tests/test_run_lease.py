@@ -528,3 +528,60 @@ def test_le24_runner_turns_protocol_too_old_into_skip_and_blocks_upload(monkeypa
     held = rl.Held("0" * 40, {"gen": 1, "nonce": "n"})
     block = du.coord_before_upload(run, du.Coord(api=object(), kind="schedule", held=held))
     assert block and "git pull" in block
+
+
+# ── 상태 표의 PC 목록 — min_protocol 을 올려도 되는지 화면 없이 본다(판 문지기 ② · 2026-10-27) ────────────────
+
+
+def _pc_doc(**slots_and_top) -> dict:
+    """상태 표에 넘길 임대 문서 — 최상위(지금 문서를 쓴 PC)와 자리 기록을 직접 짠다."""
+    top = {"state": "done", "gen": 7, "slot": "2026-10-26", "kind": "schedule", "pc": "PC-A", "protocol": rl.PROTOCOL, "code": "abc1234"}
+    top.update(slots_and_top.pop("top", {}))
+    return dict(top, slots=slots_and_top.get("slots", {}))
+
+
+def test_le32_pc_list_marks_old_code_pcs_and_warns_that_unseen_is_not_new(monkeypatch):
+    """TC-LE-32 · PC 가 여럿 — 새 코드(규칙 판 이상)는 ✅ · 규칙 칸이 없거나 낮은 PC 는 「옛 코드」 로 가르고, 그런 PC 가 있으면 올리지 말라고 말한다.
+    표에 안 보이는 PC 는 새 코드라는 뜻이 아니다(자리 기록은 며칠만 남는다)."""
+    doc = _pc_doc(slots={
+        "2026-10-25": {"pc": "PC-B", "ok": True, "rc": 0, "finished_at": "2026-10-25T13:10:00+09:00"},                 # 규칙 칸 없음 = 옛 코드
+        "2026-10-26": {"pc": "PC-A", "ok": True, "rc": 0, "protocol": rl.PROTOCOL, "code": "abc1234"},
+    })
+    text = "\n".join(rl.status_lines(doc, "0" * 40))
+    assert "PC-A" in text and "PC-B" in text and "abc1234" in text
+    line_b = next(ln for ln in text.splitlines() if "PC-B" in ln and "자리" in ln)
+    line_a = next(ln for ln in text.splitlines() if "PC-A" in ln and "자리" in ln)
+    assert "옛 코드" in line_b and "옛 코드" not in line_a
+    warn = next(ln for ln in text.splitlines() if "올리지" in ln)
+    assert "PC-B" in warn and "min_protocol" in warn, "옛 코드 PC 가 있는 동안 min_protocol 을 올리지 말라고 그 PC 를 짚는다"
+    assert "안 보이는 PC" in text and "새 코드" in text
+
+
+def test_le33_pc_list_with_everyone_on_the_new_code_says_so_but_keeps_the_unseen_caveat():
+    """TC-LE-33 · 보이는 PC 가 전부 새 코드면 그렇게 말하되 「안 보이는 PC 는 모른다」 는 한 줄을 지우지 않는다 · 더 높은 규칙 판도 통과."""
+    doc = _pc_doc(slots={"2026-10-26": {"pc": "PC-A", "ok": True, "rc": 0, "protocol": rl.PROTOCOL, "code": "abc1234"},
+                         "2026-10-25": {"pc": "PC-B", "ok": True, "rc": 0, "protocol": rl.PROTOCOL + 1, "code": "def5678"}})
+    text = "\n".join(rl.status_lines(doc, "0" * 40))
+    assert "옛 코드" not in text and "올리지" not in text
+    assert f"모두 규칙 {rl.PROTOCOL} 이상" in text and "안 보이는 PC" in text
+
+
+def test_le34_pc_list_latest_record_wins_and_the_current_doc_counts():
+    """TC-LE-34 · 같은 PC 의 기록이 여럿이면 가장 새 자리가 이긴다(옛 코드였다가 새 코드가 된 PC 는 새 코드) · 지금 문서를 쓴 PC 도 목록에 든다."""
+    doc = _pc_doc(top={"pc": "PC-C", "protocol": rl.PROTOCOL, "code": "c0ffee1", "slot": "2026-10-27", "state": "running"},
+                  slots={"2026-10-24": {"pc": "PC-B", "ok": True, "rc": 0},
+                         "2026-10-26": {"pc": "PC-B", "ok": True, "rc": 0, "protocol": rl.PROTOCOL, "code": "bbb2222"}})
+    lines = rl.status_lines(doc, "0" * 40)
+    pcs = rl.pc_records(doc)
+    assert set(pcs) == {"PC-B", "PC-C"} and pcs["PC-B"]["slot"] == "2026-10-26" and pcs["PC-B"]["protocol"] == rl.PROTOCOL
+    assert pcs["PC-C"]["slot"] == "2026-10-27", "아직 닫히지 않은 지금 문서의 PC"
+    assert not any("옛 코드" in ln and "PC-B" in ln for ln in lines)
+
+
+def test_le35_pc_list_with_no_pc_at_all_adds_nothing_and_does_not_crash():
+    """TC-LE-35 · PC 가 하나도 안 보이는 문서(옛 형식 · 비어 있음) · 문서 자체가 없는 경우 — 목록 구역을 만들지 않고 깨지지 않는다."""
+    bare = {"state": "done", "gen": 1, "slot": "2026-10-20", "slots": {}}
+    text = "\n".join(rl.status_lines(bare, "0" * 40))
+    assert "PC 별" not in text
+    assert rl.pc_records(bare) == {} and rl.pc_records(None) == {}
+    assert "PC 별" not in "\n".join(rl.status_lines(None, None))

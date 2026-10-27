@@ -374,3 +374,110 @@ def test_hs14_full_restore_for_a_new_pc(synced):
     assert hs.load_base()["main"] == w.remote.head and hd._load_manifest()["uploaded"]["files"]
     rc, rec = hs.full(w.remote)
     assert rc == 1 and rec["result"] == "exists"
+
+
+# ---- 판 문지기 ② — 읽는 쪽 확인(2026-10-27 · 할 일 ①-28 남은 것) -----------------------------------------------------------------
+
+
+def _edit_manifest(w, fn) -> None:
+    """원격 머리 판의 매니페스트를 고쳐 쓴다 — 옛 코드(규칙 판을 모름)가 올린 것 · 더 새 규칙이 올린 것을 흉내."""
+    snap = w.remote.snap[w.remote.head]
+    man = json.loads(snap["meta/manifest.json"])
+    fn(man)
+    snap["meta/manifest.json"] = json.dumps(man, ensure_ascii=False).encode("utf-8")
+
+
+def _snapshot(w, pc: PC) -> tuple:
+    """멈춘 뒤에도 그대로여야 하는 것 — 수집 DB 의 모든 표 · 기준 파일."""
+    return (json.dumps(hs.load_base(), sort_keys=True), {t: _rows(pc, t) for t in TABLES})
+
+
+def _a_drops_one_2026_price_row(w) -> str:
+    """A 가 2026 조각의 한 줄을 지우고 올린다 — 원격 조각의 행 수가 B 의 기준보다 줄어든다."""
+    _sql(w.use(w.a), "DELETE FROM price_daily WHERE bas_dt = '20260102' AND srtn_cd = '000660'")
+    return _export_upload(w, w.a)
+
+
+def test_hs15_manifest_without_protocol_is_taken_when_rows_do_not_shrink(synced):
+    """TC-HS-15 · 규칙 판(protocol)이 없는 매니페스트(옛 코드가 올린 것)도 줄지 않았으면 받는다 — 멈추면 새 코드 PC 가 영영 못 올리는 교착이다."""
+    w = synced
+    _sql(w.use(w.a), "INSERT INTO price_daily (bas_dt, srtn_cd, itms_nm, clpr, mkp) VALUES ('20260105','005930','삼성전자',55000,54100)")
+    _export_upload(w, w.a)
+    _edit_manifest(w, lambda m: m.pop("protocol", None))
+    w.use(w.b)
+    rc, rec = hs.pull(w.remote)
+    assert (rc, rec["result"]) == (0, "synced") and rec["remote_protocol"] is None, "받되 「옛 코드가 올렸다」 는 사실은 기록에 남는다"
+    assert _rows(w.b, "price_daily") == _rows(w.a, "price_daily")
+
+
+@pytest.mark.parametrize("protocol", ["keep", "missing"])
+def test_hs16_shrinking_remote_part_stops_everything_and_changes_nothing(synced, protocol):
+    """TC-HS-16 · 갈아 끼울 조각의 원격 행 수가 이 PC 보다 줄었으면 멈춘다 — 규칙 판이 같아도 없어도. 다른 조각도 함께 받지 않고 DB · 기준은 그대로."""
+    w = synced
+    _sql(w.use(w.a), "INSERT INTO price_daily (bas_dt, srtn_cd, itms_nm, clpr, mkp) VALUES ('20251231','005930','삼성전자',53100,53000)")
+    _a_drops_one_2026_price_row(w)
+    if protocol == "missing":
+        _edit_manifest(w, lambda m: m.pop("protocol", None))
+    before = _snapshot(w, w.use(w.b))
+    rc, rec = hs.pull(w.remote)
+    assert rc == 1 and rec["result"] == "shrink" and "줄었다" in rec["why"] and P2026 in rec["parts"]
+    assert _snapshot(w, w.b) == before, "한 조각이 줄었으면 같은 판의 다른 조각(2025 에 더한 줄)도 받지 않는다"
+    assert hs.load_base()["main"] == w.r1, "기준이 원격으로 옮겨 가지 않아야 다음 올리기가 「원격이 앞섰다」 로 거부된다"
+    assert hs.behind(w.remote), "올리기 앞의 「앞섰나」 가 여전히 막는다(fail-closed 의 실제 근거)"
+
+
+def test_hs17_newer_protocol_stops_before_touching_the_db(synced):
+    """TC-HS-17 · 원격이 이 코드보다 새 규칙 판으로 올렸으면 DB 를 건드리기 전에 멈춘다(git pull 안내) — 증분 맞추기도 새 PC 전체 받기도."""
+    w = synced
+    _sql(w.use(w.a), "INSERT INTO price_daily (bas_dt, srtn_cd, itms_nm, clpr, mkp) VALUES ('20260105','005930','삼성전자',55000,54100)")
+    _export_upload(w, w.a)
+    _edit_manifest(w, lambda m: m.__setitem__("protocol", hs.config.RUNNER_PROTOCOL + 1))
+    before = _snapshot(w, w.use(w.b))
+    w.remote.downloads.clear()
+    rc, rec = hs.pull(w.remote)
+    assert rc == 1 and rec["result"] == "protocol" and "git pull" in rec["why"] and rec["remote_protocol"] == hs.config.RUNNER_PROTOCOL + 1
+    assert _snapshot(w, w.b) == before and w.remote.downloads == ["meta/manifest.json"], "조각을 하나도 받지 않았다"
+    c = PC(w.a.root.parent / "C")
+    w.use(c)
+    rc, rec = hs.full(w.remote)
+    assert rc == 1 and rec["result"] == "protocol" and not c.db.exists(), "새 PC 도 DB 를 만들기 전에 멈춘다"
+
+
+def test_hs18_union_and_empty_parts_are_not_shrink_checked(synced):
+    """TC-HS-18 · 덧붙이기만 하는 표(응답 원문)는 원격 행이 적어도 받고(없는 줄만 더함), 이 PC 에서 비어 있는 조각은 얼마든 채운다."""
+    w = synced
+    _sql(w.use(w.a), "DELETE FROM raw_response WHERE target = 'price/20260101'")
+    _export_upload(w, w.a)
+    w.use(w.b)
+    raw_before = _rows(w.b, "raw_response")
+    rc, rec = hs.pull(w.remote)
+    assert (rc, rec["result"]) == (0, "synced") and rec["plan"]["union"] >= 1 and rec["plan"].get("shrink", 0) == 0
+    assert _rows(w.use(w.b), "raw_response") == raw_before, "합치기는 줄이지 않는다"
+    _sql(w.use(w.a), "INSERT INTO price_daily (bas_dt, srtn_cd, itms_nm, clpr, mkp) VALUES ('20260105','005930','삼성전자',55000,54100)")
+    _export_upload(w, w.a)
+    _sql(w.use(w.b), "DELETE FROM price_daily WHERE bas_dt >= '20260101'")             # 이 PC 의 2026 조각이 비었다
+    rc, rec = hs.pull(w.remote)
+    assert (rc, rec["result"]) == (0, "synced")
+    assert _rows(w.b, "price_daily") == _rows(w.a, "price_daily")
+
+
+def test_hs19_allow_shrink_is_a_separate_human_choice_discard_local_does_not_bypass(synced):
+    """TC-HS-19 · 줄어든 원격을 정말 받으려면 사람이 allow_shrink 로 따로 고른다 — --discard-local(겹침 처리)로는 우회되지 않는다. 받으면 기록에 남는다."""
+    w = synced
+    _a_drops_one_2026_price_row(w)
+    before = _snapshot(w, w.use(w.b))
+    rc, rec = hs.pull(w.remote, discard_local=True)
+    assert rc == 1 and rec["result"] == "shrink" and _snapshot(w, w.b) == before
+    rc, rec = hs.pull(w.remote, allow_shrink=True)
+    assert (rc, rec["result"]) == (0, "synced") and rec["shrunk"] == [P2026]
+    assert _rows(w.b, "price_daily") == _rows(w.a, "price_daily")
+    assert hs.load_base()["main"] == w.remote.head
+
+
+def test_hs20_dry_run_reports_shrink_without_changing_anything(synced):
+    """TC-HS-20 · 계획만 보는 실행(status --plan)도 줄어든 조각을 `shrink` 로 센다 — 받아 보기 전에 알 수 있다."""
+    w = synced
+    _a_drops_one_2026_price_row(w)
+    before = _snapshot(w, w.use(w.b))
+    rc, rec = hs.pull(w.remote, dry_run=True)
+    assert rc == 1 and rec["result"] == "shrink" and _snapshot(w, w.b) == before
