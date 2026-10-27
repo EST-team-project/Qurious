@@ -15,7 +15,8 @@ import pytest
 from app.services.auto_trade import apply_strategy_spec_to_signal, evaluate_spec_rules
 from app.services.collector_db import read_daily_candles
 from app.services.execution_policy import ExecutionPolicy
-from app.services.quant_pipeline import backtest, preprocess
+from app.services.investment_research import backtest_strategy
+from app.services.quant_pipeline import backtest, backtest_custom_indicator, preprocess
 from tests.conftest import make_candles
 
 CARDS = Path(__file__).resolve().parents[1] / "docs/phase-3/02-design/system/예시"
@@ -50,6 +51,16 @@ def test_v2_fill_timing_is_what_backtest_reads_and_reports():
     df = preprocess(make_candles(120))
     out = backtest(df, pd.Series(0, index=df.index), entry_mode=V2["entry_mode"], exit_mode=V2["exit_mode"])
     assert (out["entry_mode"], out["exit_mode"]) == (V2["entry_mode"], V2["exit_mode"])
+
+
+def test_v2_judge_is_what_every_backtest_response_reports():
+    # 세 백테스트 모두 손절 · 익절을 apply_stops(그날 종가)로 판정한다 — 응답이 카드 판 2 의 `stops.judge` 와 같은 값을 싣는다
+    df = preprocess(make_candles(120))
+    plain = backtest(df, pd.Series(0, index=df.index), stop_loss_pct=5.0)
+    custom = backtest_custom_indicator(make_candles(300), base="rsi_ma", stop_loss_pct=5.0)
+    strategy = backtest_strategy(make_candles(400), strategy="ma", stop_loss_pct=5.0)
+    assert "error" not in strategy
+    assert plain["judge"] == custom["costs"]["judge"] == strategy["judge"] == V2["stops"]["judge"]
 
 
 def test_warmup_bars_is_where_the_card_starts_judging():

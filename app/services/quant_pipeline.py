@@ -229,6 +229,10 @@ def rule_based_signals(df: pd.DataFrame) -> pd.Series:
 
 # ── 6. 백테스트 ───────────────────────────────────────────────────────
 
+# 손절 · 익절을 무엇으로 판정하나 — apply_stops 는 그날 종가로 본다(전략 카드 판 2 `stops.judge` 와 같은 낱말 · #161 A3).
+STOP_JUDGE = "close"
+
+
 def apply_stops(close: pd.Series, held: pd.Series, stop_loss_pct: float | None = None,
                 take_profit_pct: float | None = None, return_exits: bool = False):
     """보유 상태(held, 이미 shift(1) 적용된 0/1)에 손절·익절 규칙을 덧씌운다.
@@ -450,6 +454,7 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
         "expectancy":           expectancy,
         "entry_mode":           entry_mode,
         "exit_mode":            exit_mode,
+        "judge":                STOP_JUDGE,
     }
 
 
@@ -659,7 +664,7 @@ def backtest_custom_indicator(
     return {
         "costs": {k: bt[k] for k in ("gross_return_pct", "cost_pct", "commission_bps", "slippage_bps",
                                      "stop_loss_pct", "take_profit_pct", "stop_loss_exits", "take_profit_exits",
-                                     "entry_mode", "exit_mode")},
+                                     "entry_mode", "exit_mode", "judge")},
         "strategy": {
             "name": f"custom_{base}",
             "base": base,
