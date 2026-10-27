@@ -403,6 +403,8 @@ def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) 
         # 회차 ok 는 러너가 쓴 그대로 둔다(리밸런싱 하루 점검은 신호를 읽지 않는다). 까닭은 러너 메모의 첫 마디
         held = [f"{s['label']}({(s.get('note') or '').split(' · ')[0] or '건너뜀'})" for s in lr["steps"] if s.get("followup")]
         out.update(state="attention", label="일부 건너뜀", detail="채울 단계: " + " · ".join(held))
+    elif not lr["finished_at"]:
+        out.update(state="attention", label="회차 종료 확인 전", detail="전체 회차 종료 시각을 아직 확인하지 못했습니다.")
     else:
         out.update(state="ok", label="성공", detail=f"{(lr['finished_at'] or '')[:16].replace('T', ' ')} 에 끝났다")
     return out

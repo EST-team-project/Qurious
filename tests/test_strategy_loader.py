@@ -42,3 +42,16 @@ def test_list_and_get_with_cache():
     assert hits["n"] == 1  # 캐시 적중
     assert asyncio.run(sl.get_strategy("ma_cross"))["universe"] == ["005930"]
     assert asyncio.run(sl.get_strategy("missing")) is None
+
+
+def test_expired_cache_is_not_used_on_upstream_failure(monkeypatch):
+    sl._cache["/backtests/strategies/x"] = (0, {"strategy_id": "x", "version": 1})
+    sl.set_transport(httpx.MockTransport(lambda request: httpx.Response(503)))
+    assert asyncio.run(sl.get_strategy("x")) is None
+
+
+@pytest.mark.parametrize("body", [[], {"strategy_id": "other", "version": 1},
+    {"strategy_id": "x", "version": 2}, {"strategy_id": "x", "version": True}])
+def test_wrong_card_or_version_is_rejected(body):
+    sl.set_transport(httpx.MockTransport(lambda request: httpx.Response(200, json=body)))
+    assert asyncio.run(sl.get_strategy("x", 1)) is None

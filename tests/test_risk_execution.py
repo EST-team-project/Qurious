@@ -157,17 +157,31 @@ def test_unknown_replay_checks_each_owners_persisted_state(monkeypatch):
     asyncio.run(go())
 
 
-def test_risk_status_orders_key_matches_writer(monkeypatch):
-    """DF-152 — 상태 API가 쓰는 쪽(auto_trade·order_retry)과 같은 주문 수 열쇠를 본다."""
+@pytest.mark.parametrize("backend", ["memory", "redis"])
+def test_risk_status_orders_key_matches_writer(monkeypatch, backend):
+    """DF-152: 장부별 시작 자산과 사용자별 주문 수는 다른 키. 같은 루프에서 실제 읽기/쓰기."""
     from app.services import risk_guard as rg
+    if backend == "redis" and not os.getenv("QURIOUS_TEST_REDIS_URL"):
+        pytest.skip("일회용 Redis 필요")
     monkeypatch.setattr(rg, "_mem_counters", {})
     uid = str(uuid.uuid4())
-    asyncio.run(rg.increment_orders_today(uid))            # 쓰는 쪽과 같은 접미사 없는 uid
-    limits = SimpleNamespace(max_orders_per_day=10, kill_switch=False,
-                             daily_loss_limit_pct=0, to_dict=lambda: {})
-    status = asyncio.run(rg.risk_status(f"{uid}:quant", limits, None, orders_user_id=uid))
-    assert status["orders_today"] == 1
-    assert status["orders_remaining"] == 9
+    async def go():
+        client = None
+        if backend == "redis":
+            from redis.asyncio import Redis
+            client = Redis.from_url(os.environ["QURIOUS_TEST_REDIS_URL"], decode_responses=True)
+        monkeypatch.setattr(rg, "_redis", lambda: client)
+        try:
+            await rg.increment_orders_today(uid)
+            limits = SimpleNamespace(max_orders_per_day=10, kill_switch=False,
+                                     daily_loss_limit_pct=0, to_dict=lambda: {})
+            status = await rg.risk_status(f"{uid}:quant", limits, None, orders_user_id=uid)
+            assert status["orders_today"] == 1 and status["orders_remaining"] == 9
+        finally:
+            if client is not None:
+                await client.delete(f"quant:orders:{uid}:{rg.today_key()}")
+                await client.aclose()
+    asyncio.run(go())
 
 
 def test_quant_risk_status_passes_plain_uid_for_orders(monkeypatch):

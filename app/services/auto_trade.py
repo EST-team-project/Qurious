@@ -20,6 +20,7 @@
     접수·실패·응답 불명 상태를 남긴 뒤 별도 체결 조회로 수량·가격을 확인한다.
 """
 import asyncio
+import sqlite3
 import json
 import logging
 import uuid
@@ -38,7 +39,7 @@ from app.services import notification
 from app.services import strategy_loader
 from app.config import settings as app_settings
 from datetime import timedelta
-from app.services import risk_guard
+from app.services import risk_guard, quant_valuation
 from app.services.audit import audit
 from app.services.brokers.factory import get_broker_client, live_trading_allowed
 from app.services import kis_credentials
@@ -49,6 +50,7 @@ from app.services import aggressive_mode
 from app.services.execution_policy import policy_for, risk_quantity
 from app.services.trade_outcome import describe_trade, failure_message
 from app.services import kis_execution
+from app.services.strategy_execution import card_symbols, validate_rule_input
 from app.services.decision_signal_view import signal_view
 from types import SimpleNamespace
 
@@ -269,6 +271,7 @@ async def _place_live_order(
     price: float,
     user_id: str,
     db: AsyncSession | None = None,
+    *, client_order_id: str | None = None, decision_record=None,
 ) -> dict | None:
     """KIS 연동(live) 모드의 증권사 주문. 가상 장부 체결은 만들지 않는다.
 
@@ -310,11 +313,14 @@ async def _place_live_order(
     env = "paper" if paper or not live_trading_allowed() else "real"
     direct_row = None
     if broker == "kis" and db is not None:
-        direct_row = LiveOrder(user_id=_resolve_user_id(user_id), client_order_id="direct:" + uuid.uuid4().hex,
+        direct_row = LiveOrder(user_id=_resolve_user_id(user_id), client_order_id=client_order_id or "direct:" + uuid.uuid4().hex,
                                environment=env, broker="kis-direct", symbol=symbol, name=name, side=side.upper(),
                                order_type="LIMIT", quantity=quantity, price=price, status="PENDING",
                                raw=json.dumps({"account_key": kis_execution.account_key(app_key, account_no, env)}))
         db.add(direct_row)
+        if decision_record is not None:
+            await db.flush()
+            decision_record.client_order_id = direct_row.client_order_id
         await db.commit()  # 추적 기록 저장에 실패하면 주문을 전송하지 않는다.
 
     async def record(outcome):
@@ -392,13 +398,8 @@ _SIGNAL_SCORE_SCALE = 8.0   # stock.py 지표 점수(대략 -8~+8)를 스펙 임
 
 
 def apply_strategy_spec_to_symbols(target_symbols: list[str], spec: dict) -> list[str]:
-    """스펙 universe(6자리 코드)에 있는 종목만 남기고 position_sizing.max_symbols 로 자른다. 교집합이 없으면 원본 유지."""
-    universe = {str(c)[:6] for c in (spec.get("universe") or [])}
-    restricted = [s for s in target_symbols if str(s)[:6] in universe] if universe else list(target_symbols)
-    if not restricted:
-        return list(target_symbols)
-    max_symbols = int((spec.get("position_sizing") or {}).get("max_symbols") or 0)
-    return restricted[:max_symbols] if max_symbols > 0 else restricted
+    """카드 universe 전체를 평가한다. AI 상위 목록이나 max_symbols로 잘라내지 않는다."""
+    return card_symbols(spec, [s["symbol"] for s in QUANT_STOCKS] + target_symbols)
 
 
 _ml_meta: dict = {}   # 마지막으로 로드한 배치 학습 메타(generated_at 등) — 사이클 로그에 기록
@@ -781,17 +782,6 @@ async def confirm_live_fills(limit: int = 100) -> dict:
     return summary
 
 
-async def _equity_snapshot(db: AsyncSession, uid: uuid.UUID, price_map: dict[str, float]) -> tuple[float, float, dict[str, float]]:
-    """(현금, 총자산, 종목별 평가액)."""
-    acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
-    cash = float(acc.cash_balance) if acc else float(_INITIAL_CAPITAL)
-    values: dict[str, float] = {}
-    for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
-        if p.quantity > 0:
-            values[p.symbol] = p.quantity * float(price_map.get(p.symbol, p.avg_price))
-    return cash, cash + sum(values.values()), values
-
-
 async def emergency_halt(db: AsyncSession, broker_row: BrokerSettings | None, user_id: str, reason: str,
                          day_pnl_pct: float | None = None) -> None:
     """비상 정지: kill switch를 DB에 켜고 루프를 멈추고 알림을 보낸다."""
@@ -906,7 +896,23 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             strategy_log.update(id=broker_row.quant_strategy_id, version=broker_row.quant_strategy_version or 0)
             strategy_spec = await strategy_loader.get_strategy(broker_row.quant_strategy_id, broker_row.quant_strategy_version or None)
             if strategy_spec:
-                target_symbols = apply_strategy_spec_to_symbols(target_symbols, strategy_spec)
+                try:
+                    target_symbols = apply_strategy_spec_to_symbols(target_symbols, strategy_spec)
+                    if aggressive:
+                        raise ValueError("카드 규칙과 공격 모드를 동시에 실행할 수 없습니다.")
+                except (ValueError, TypeError, sqlite3.Error) as exc:
+                    strategy_log["error"] = str(exc)
+                    await _persist_cycle(uid, {**cycle_log, "strategy": strategy_log, "note": "전략 카드 검증 실패 — 주문 보류"})
+                    return
+                for symbol in target_symbols:
+                    if symbol not in stock_map:
+                        stock_map[symbol] = {"symbol": symbol, "name": symbol}
+                    if symbol not in indicator_map:
+                        try:
+                            indicator_map[symbol] = await get_quant_indicators(symbol, "2y")
+                            price_map[symbol] = float(indicator_map[symbol]["current_price"])
+                        except Exception:
+                            cycle_log["signals"].append({"symbol": symbol, "error": "카드 종목 지표 계산 실패"})
                 strategy_log.update(version=int(strategy_spec.get("version") or strategy_log["version"]), applied=True)
                 if float((strategy_spec.get("signal_weights") or {}).get("lightgbm", 0) or 0) > 0:
                     ml_weight_on = True
@@ -915,7 +921,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     strategy_log["ml_generated_at"] = _ml_meta.get("generated_at")
                     strategy_log["ml_model"] = _ml_meta.get("model")
             else:
-                strategy_log["error"] = "domain-rag-lab 에서 스펙을 받지 못해 기본 규칙 사용"
+                strategy_log["error"] = "domain-rag-lab 에서 선택한 카드·판을 확인하지 못했습니다."
+                await _persist_cycle(uid, {**cycle_log, "strategy": strategy_log, "note": "전략 카드 조회 실패 — 주문 보류"})
+                return
 
         live_snapshot = None
         if mode == "live":
@@ -987,7 +995,14 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             cash_now, equity_now = live_snapshot["cash"], live_snapshot["equity"]
             position_values = {s: h["value"] for s, h in live_snapshot["holdings"].items()}
         else:
-            cash_now, equity_now, position_values = await _equity_snapshot(db, uid, price_map)
+            valuation = await quant_valuation.snapshot(db, uid)
+            if not valuation["complete"]:
+                cycle_log["risk"] = {"valuation": quant_valuation.basis(valuation), "day_pnl_pct": None}
+                cycle_log["note"] = valuation["label"] + " — 주문 보류"
+                await _persist_cycle(uid, cycle_log)
+                return
+            cash_now, equity_now, position_values = valuation["cash"], valuation["equity"], valuation["values"]
+            price_map.update({sym: q["price"] for sym, q in valuation["quotes"].items()})
         # 이슈 #297 — 자동매매 장부는 :quant 접미사. 모의계좌(paper)와 키 안 섞이게
         risk_account_key = f"{user_id}:quant"
         if mode == "live":
@@ -1000,6 +1015,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             "day_start_equity": round(start_equity, 2), "equity": round(equity_now, 2), "day_pnl_pct": day_pnl,
             "orders_today": await risk_guard.orders_today(user_id), "limits": limits.to_dict(), "skipped": [],
         }
+        if mode == "paper":
+            cycle_log["risk"]["valuation"] = quant_valuation.basis(valuation)
         if risk_guard.daily_loss_breached(start_equity, equity_now, limits.daily_loss_limit_pct):
             reason = f"일손실 한도 초과: 당일 {day_pnl:+.2f}% ≤ -{limits.daily_loss_limit_pct}%"
             cycle_log["risk"]["halted"] = True
@@ -1040,13 +1057,22 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             if limits.max_orders_per_day > 0 and await risk_guard.orders_today(user_id) >= limits.max_orders_per_day:
                 return 0, f"일 주문 수 한도 {limits.max_orders_per_day}건 도달"
             if side == "buy":
+                if strategy_spec:
+                    sizing = strategy_spec.get("position_sizing") or {}
+                    max_symbols = int(sizing.get("max_symbols") or 0)
+                    if max_symbols > 0 and position_values.get(symbol, 0) <= 0 and sum(v > 0 for v in position_values.values()) >= max_symbols:
+                        return 0, f"카드 보유 종목 수 상한 {max_symbols}개 도달"
                 if mode == "live":
                     rate = trading_cost.cost_rate("buy", trading_cost.today_kst(), slippage_bps=0,
                                                   market=trading_cost.market_of(symbol))
                     qty = min(qty, int(cash_now / (price * (1 + rate))))
                     if qty <= 0:
                         return 0, "KIS 현금과 접수 대기 주문을 고려하면 매수 가능한 수량이 없습니다."
-                qty, note = risk_guard.cap_buy_quantity(qty, price, position_values.get(symbol, 0.0), equity_now, limits.max_position_pct)
+                cap = limits.max_position_pct
+                if strategy_spec:
+                    card_cap = float((strategy_spec.get("position_sizing") or {}).get("max_position_pct", cap))
+                    cap = min(cap, card_cap) if cap > 0 else card_cap
+                qty, note = risk_guard.cap_buy_quantity(qty, price, position_values.get(symbol, 0.0), equity_now, cap)
                 if qty <= 0:
                     return 0, note
             else:
@@ -1065,12 +1091,19 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             await notification.notify_risk_skip(symbol, name, side, reason, user_id=user_id)
 
         for symbol in target_symbols:
+            if strategy_spec and symbol not in card_symbols(strategy_spec, list(stock_map)):
+                continue  # 손절 등 추가 경로도 선택 카드의 universe를 벗어나지 않는다.
             stock = stock_map.get(symbol)
             if not stock:
                 continue
             indicators = indicator_map.get(symbol) or {}
             signal = indicators.get("signal", {})
             if strategy_spec:
+                try:
+                    validate_rule_input(strategy_spec, indicators)
+                except (ValueError, TypeError) as exc:
+                    cycle_log["signals"].append({"symbol": symbol, "action": "관망", "error": str(exc)})
+                    continue
                 ml_score = ml_scores.get(symbol, ml_scores.get(str(symbol)[:6]))
                 if ml_score is None and ml_weight_on:
                     ml_score = await symbol_ml_score(symbol)
@@ -1108,9 +1141,33 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 "reasons": [str(r) for r in list(reasons)[:6]],   # 의사결정 화면 「판단 근거」 카드에 실제 사유를 보여 준다
             })
 
+            execution_basis = {}
+            if mode == "paper" and action in ("강력 매수", "매수", "강력 매도", "매도"):
+                try:
+                    q = await quant_valuation.quote(db, uid, symbol, fresh=True)
+                except ValueError as exc:
+                    await _risk_skip(symbol, stock["name"], "buy" if "매수" in action else "sell", price, str(exc))
+                    continue
+                execution_basis = {"signal_price": price, "signal_as_of": indicators.get("as_of"),
+                                   "quote": q, "price_delta_pct": round((q["price"] / price - 1) * 100, 4)}
+                reasons = [*reasons, f"판단 {price:,.0f}원({indicators.get('as_of') or '기준일 미확인'}) → 가상 체결 {q['price']:,.0f}원 · {q['label']}"]
+                price = q["price"]
+                price_map[symbol] = price
+                held = next((p for p in portfolio_rows if p.symbol == symbol), None)
+                if held and held.quantity > 0:
+                    new_value = held.quantity * price
+                    equity_now += new_value - position_values.get(symbol, 0)
+                    position_values[symbol] = new_value
+                if risk_guard.daily_loss_breached(start_equity, equity_now, limits.daily_loss_limit_pct):
+                    await _risk_skip(symbol, stock["name"], "buy" if "매수" in action else "sell", price, "체결 직전 평가액의 일손실 한도 초과")
+                    continue
+
             if action in ("강력 매수", "매수"):
                 budget = per_trade_budget * buy_ratio
-                qty = max(1, int(budget / price))
+                qty = max(0, int(budget / price))
+                if qty == 0:
+                    await _risk_skip(symbol, stock["name"], "buy", price, "1회 예산으로 1주를 매수할 수 없습니다.")
+                    continue
                 if execution.size_kind == "risk_pct":
                     # 추가 매수는 평균단가·기존 손절 위험을 바꾸므로 첫 진입만 지원한다.
                     if symbol in risk_holdings:
@@ -1141,7 +1198,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     db, uid, broker_row, mode, stock["symbol"], stock["name"],
                     "buy", price, qty, f"[{mode}] " + " | ".join(reasons),
                 )
-                cycle_log["trades"].append({**trade, "type": "auto"})
+                cycle_log["trades"].append({**trade, "type": "auto", "price_basis": execution_basis})
                 if trade.get("status") not in ("filled", "submitted", "unknown"):
                     await risk_guard.release_order_slot(user_id, stock["symbol"], "buy")
                 if trade.get("status") in ("filled", "submitted", "unknown"):
@@ -1169,7 +1226,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         db, uid, broker_row, mode, stock["symbol"], stock["name"],
                         "sell", price, qty, f"[{mode}] " + " | ".join(reasons),
                     )
-                    cycle_log["trades"].append({**trade, "type": "auto"})
+                    cycle_log["trades"].append({**trade, "type": "auto", "price_basis": execution_basis})
                     if trade.get("status") not in ("filled", "submitted", "unknown"):
                         await risk_guard.release_order_slot(user_id, stock["symbol"], "sell")
                     if trade.get("status") in ("filled", "submitted", "unknown"):
@@ -1177,20 +1234,15 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         position_values[stock["symbol"]] = max(0.0, position_values.get(stock["symbol"], 0.0) - price * trade.get("quantity", qty))
 
         if live_snapshot is None:
-            acc_result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
-            account = acc_result.scalar_one_or_none()
-            cash_balance = float(account.cash_balance) if account else float(_INITIAL_CAPITAL)
-            initial_capital = float(account.initial_capital) if account else float(_INITIAL_CAPITAL)
-
-            holdings_value = 0.0
-            pf_result = await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))
-            for p in pf_result.scalars().all():
-                if p.quantity <= 0:
-                    continue
-                if p.symbol not in price_map:
-                    logger.warning("현재가 미수신되어 평균단가 사용: user=%s symbol=%s", user_id, p.symbol)
-                mark_price = float(price_map.get(p.symbol, p.avg_price))
-                holdings_value += p.quantity * mark_price
+            after = await quant_valuation.snapshot(db, uid)
+            cycle_log["risk"]["valuation"] = quant_valuation.basis(after)
+            if not after["complete"]:
+                cycle_log["risk"].update(equity=None, day_pnl_pct=None)
+                cycle_log["note"] = after["label"] + " — 체결 후 손익 미확인"
+                await _persist_cycle(uid, cycle_log)
+                return
+            cash_balance, initial_capital = after["cash"], after["initial"]
+            holdings_value = sum(after["values"].values())
 
     if live_snapshot is not None:
         # 주문 전 증권사 조회값이다. 접수 수량을 보유·현금에 성공 체결로 더하지 않는다.

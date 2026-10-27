@@ -235,7 +235,6 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
         enter(patch.object(ag, "get_intraday_indicators", intraday))
         enter(patch.object(auto_trade, "get_quant_indicators", AsyncMock(side_effect=AssertionError("일봉 지표를 쓰면 안 된다"))))
         enter(patch.object(auto_trade, "_execute_virtual_trade", virtual_trade))
-        enter(patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(9_700_000.0, 10_000_000.0, {}))))
         enter(patch.object(auto_trade, "_persist_cycle", persist))
         enter(patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=start_equity)))
         enter(patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=orders_today)))
@@ -338,7 +337,7 @@ def test_risk_sized_cycle_respects_budget_including_costs(budget, expected):
     buys = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "buy"]
     assert sum(t["quantity"] for t in buys) == expected
     if not expected:
-        assert any("1주도" in s["reason"] for s in log["risk"]["skipped"])
+        assert any("1회 예산으로 1주" in s["reason"] for s in log["risk"]["skipped"])
 
 
 def test_risk_stop_is_used_even_when_aggressive_stop_has_not_triggered():

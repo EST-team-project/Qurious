@@ -41,8 +41,9 @@ class Result:
 
 
 class FakeDb:
-    def __init__(self, broker_row, live_rows=()):
+    def __init__(self, broker_row, live_rows=(), positions=()):
         self.broker_row, self.live_rows, self.added, self.commits = broker_row, list(live_rows), [], 0
+        self.positions = list(positions)
     def add(self, obj): self.added.append(obj)
     async def commit(self): self.commits += 1
     async def execute(self, stmt, *_a, **_k):
@@ -52,7 +53,7 @@ class FakeDb:
         if entity is BrokerSettings:
             return Result(one=self.broker_row)
         if entity is Portfolio:
-            return Result(one=None, many=[])
+            return Result(one=None, many=self.positions)
         if entity is LiveOrder:
             # 노출 조회(BUY)와 주문 보류 조회(같은 종목, 양방향)의 WHERE를 모두 반영한다.
             return Result(many=[row for row in self.live_rows if matches(stmt.whereclause, row)])
@@ -114,18 +115,21 @@ def env(monkeypatch):
     gw.set_transport(None)
 
 
-def run_cycle(broker_row, live_rows=()):
-    db = FakeDb(broker_row, live_rows)
+def run_cycle(broker_row, live_rows=(), quote_price=70_000, positions=()):
+    db = FakeDb(broker_row, live_rows, positions)
     persisted = {}
     async def persist(uid, log): persisted.update(log)
     async def virtual_trade(db_, uid, symbol, name, action, price, qty, reason):
         assert broker_row.quant_mode == "paper", "KIS 주문은 가상 장부를 변경하면 안 된다"
         return {"status": "filled", "symbol": symbol, "action": action, "quantity": qty, "price": price}
-    with patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
+    async def quoted(symbol, **kwargs):
+        return {"price": quote_price, "source": "kis_user", "as_of": "2026-10-27 14:00",
+                "fetched_at": "2026-10-27 14:00:00", "label": "증권사 조회 · 14:00:00", "fallback": []}
+    with patch.object(auto_trade.quant_valuation.quote_now, "quote_now", quoted), \
+         patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
          patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
          patch.object(auto_trade, "get_quant_indicators", indicators), \
          patch.object(auto_trade, "_execute_virtual_trade", virtual_trade), \
-         patch.object(auto_trade, "_equity_snapshot", AsyncMock(return_value=(10_000_000.0, 10_000_000.0, {}))), \
          patch.object(auto_trade, "_persist_cycle", persist), \
          patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=10_000_000.0)), \
          patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=0)), \
@@ -157,6 +161,33 @@ def test_live_mode_routes_buy_signal_through_gateway_and_tracks_live_order():
     assert len(rows) == 1 and rows[0].status == "ACCEPTED" and rows[0].quantity == 4 and rows[0].symbol == "005930.KS"
     assert log["risk"]["live"]["breached"] is False and log["settings"]["mode"] == "live"
     assert trades[0]['status'] == 'submitted' and trades[0]['virtual_status'] == 'not_recorded'
+
+
+def test_selected_card_load_failure_never_uses_default_buy(monkeypatch):
+    calls = fake_gateway()
+    monkeypatch.setattr(auto_trade.strategy_loader, "get_strategy", AsyncMock(return_value=None))
+    db, log = run_cycle(broker("live", quant_strategy_id="missing", quant_strategy_version=1))
+    assert calls == [] and db.added == []
+    assert "조회 실패" in log["note"]
+
+
+def test_budget_less_than_one_share_never_sends_order():
+    calls = fake_gateway()
+    db, log = run_cycle(broker("live", quant_per_trade_budget=10_000))
+    assert not any(path.endswith("/orders") for _, path, _ in calls)
+    assert not any(isinstance(row, LiveOrder) for row in db.added)
+    assert any("1회 예산" in t.get("reason", "") for t in log["trades"])
+
+
+def test_card_with_insufficient_bars_never_uses_indicator_buy(monkeypatch):
+    import json
+    from pathlib import Path
+    spec = json.loads(Path("docs/phase-3/02-design/system/예시/strategy-card-ma-cross-v1.json").read_text())
+    calls = fake_gateway()
+    monkeypatch.setattr(auto_trade.strategy_loader, "get_strategy", AsyncMock(return_value=spec))
+    db, log = run_cycle(broker("live", quant_strategy_id=spec["strategy_id"], quant_strategy_version=1))
+    assert not any(path.endswith("/orders") for _, path, _ in calls)
+    assert any("종가" in s.get("error", "") for s in log["signals"])
 
 
 def test_live_rejection_keeps_virtual_book_and_order_counter_unchanged():
@@ -290,3 +321,31 @@ def test_kill_switch_blocks_cycle_without_orders():
     with patch.object(auto_trade, "set_enabled", AsyncMock()):
         db, log = run_cycle(broker("live", risk_kill_switch=True, risk_halt_reason="수동 정지"))
     assert log["risk"]["halted"] is True and log.get("trades") == [] and calls == []
+
+
+def test_virtual_execution_uses_refreshed_price_for_quantity_and_keeps_signal_basis():
+    calls = fake_gateway()
+    _, log = run_cycle(broker("paper"), quote_price=100_000)
+    trade = next(t for t in log["trades"] if t.get("type") == "auto")
+    assert trade["price"] == 100_000 and trade["quantity"] == 3
+    assert log["signals"][0]["price"] == 70_000
+    assert trade["price_basis"]["signal_price"] == 70_000
+    assert trade["price_basis"]["quote"]["source"] == "kis_user"
+    assert calls == []
+
+
+@pytest.mark.parametrize("price", [None, 0, -1, float("nan"), float("inf")])
+def test_virtual_missing_or_invalid_execution_quote_never_trades(price):
+    calls = fake_gateway()
+    db, log = run_cycle(broker("paper"), quote_price=price)
+    assert not any(t.get("type") == "auto" for t in log["trades"])
+    assert any("가격·출처" in t.get("reason", "") for t in log["trades"])
+    assert db.added == [] and calls == []
+
+
+def test_unpriced_holding_blocks_entire_cycle_before_risk_baseline_or_orders():
+    _, log = run_cycle(broker("paper"), quote_price=None,
+                       positions=[SimpleNamespace(symbol="035720.KS", quantity=2, avg_price=50_000)])
+    assert log["trades"] == [] and "주문 보류" in log["note"]
+    assert log["risk"]["valuation"]["missing"] == ["035720.KS"]
+    assert log["risk"]["day_pnl_pct"] is None

@@ -48,6 +48,53 @@ def test_complete_after_holiday_uses_previous_trading_day(clock, ready_data):
     assert result['update_finished_at'] == '2026-10-06T13:00:00+09:00'
 
 
+def write_hf_proof(ready_data):
+    from app.services import hf_snapshot
+    from scripts.hf_collector_follower import atomic_json
+    folder = ready_data[0].parent
+    record = json.loads((ready_data[1] / 'daily_update_last.json').read_text())
+    record.update(finished_at=None, recorded_at='2026-10-06T12:47:00+09:00',
+                  pending_steps=['upload', 'ohlcv_upload', 'journal_upload', 'sector_laws'])
+    record['steps'] += [{'name': 'export', 'rc': 0}, {'name': 'verify', 'rc': 0}]
+    manifest = {'partial': False, 'generated_at': '2026-10-06T12:45:00+09:00', 'tables': {
+        name: {'files': [{'path': name + '/2026.parquet', 'sha256': 'a' * 64, 'bytes': 4}]}
+        for name in ('price_daily', 'price_adjusted', 'market_calendar')}}
+    verify = {'at': '2026-10-06T12:46:00+09:00', 'fails': 0, 'checks': 97, 'full': True,
+              'manifest_fp': hf_snapshot.manifest_fingerprint(manifest), 'manifest_generated_at': manifest['generated_at']}
+    receipt = hf_snapshot.validate_snapshot('a' * 40, {'run': record}, manifest, verify)
+    receipt.update(files_verified=True, data_ready_at='2026-10-06T13:00:00+09:00')
+    for path, value in {'provenance.json': receipt, 'meta/run_record.json': {'run': record},
+                        'meta/manifest.json': manifest, 'meta/last_verify.json': verify,
+                        'state/daily_update_last.json': record}.items():
+        atomic_json(folder / path, value)
+
+
+def test_verified_hf_snapshot_is_ready_without_fabricating_finished_at(clock, ready_data):
+    write_hf_proof(ready_data)
+    result = daily.readiness()
+    assert result['ready'] and result['data_as_of'] == '2026-10-02'
+    assert result['update_finished_at'] is None
+    assert result['data_ready_at'] == '2026-10-06T13:00:00+09:00'
+    assert result['source_commit'] == 'a' * 40
+    status = data_status.runner_state(ready_data[1], clock.current)
+    assert status['state'] == 'attention' and status['label'] == '회차 종료 확인 전'
+
+
+@pytest.mark.parametrize('bad', ['verify', 'receipt', 'local_run', 'future_publication'])
+def test_hf_proof_mismatch_never_falls_back_to_old_completion(clock, ready_data, bad):
+    write_hf_proof(ready_data)
+    folder = ready_data[0].parent
+    path = folder / ('meta/last_verify.json' if bad == 'verify' else 'state/daily_update_last.json' if bad == 'local_run' else 'provenance.json')
+    value = json.loads(path.read_text())
+    if bad == 'verify': value['fails'] = 1
+    if bad == 'receipt': value['files_verified'] = False
+    if bad == 'local_run': value['finished_at'] = '2026-10-06T13:00:00+09:00'
+    if bad == 'future_publication': value['data_ready_at'] = '2026-10-06T14:00:00+09:00'
+    path.write_text(json.dumps(value))
+    result = daily.readiness()
+    assert not result['ready'] and result['state'] == 'data_unavailable'
+
+
 @pytest.mark.parametrize('failed_step', ['dividend', 'disclosure', 'news', 'ohlcv', 'signals'])
 def test_nonessential_failure_allows_readiness_without_hiding_runner_warning(clock, ready_data, failed_step):
     ready_data[2](ok=False, steps=[{'name': 'price', 'rc': 0}, {'name': 'calendar', 'rc': 0},

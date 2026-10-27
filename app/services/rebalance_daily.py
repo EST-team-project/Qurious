@@ -4,7 +4,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime, time, timezone
 
-from app.services import data_status, market_calendar, rebalance_schedule
+from app.services import data_status, market_calendar, rebalance_schedule, hf_snapshot
 
 KST = rebalance_schedule.KST
 
@@ -34,7 +34,8 @@ def readiness(now: datetime | None = None) -> dict:
     """회차의 필수 자료 준비 여부. 종목별 종가·시가는 각 판단/정산에서 검증한다."""
     now = (now or datetime.now(timezone.utc)).astimezone(KST)
     result = dict(ready=False, state="waiting", message="데이터 갱신 완료 대기",
-                  decision_date=now.date().isoformat(), data_as_of=None, update_finished_at=None)
+                  decision_date=now.date().isoformat(), data_as_of=None, update_finished_at=None,
+                  data_ready_at=None, source_commit=None)
 
     def wait(state, message):
         return {**result, "state": state, "message": message}
@@ -61,15 +62,28 @@ def readiness(now: datetime | None = None) -> dict:
             return wait("updating", "데이터 갱신 중입니다. 완료 후 자동 점검합니다.")
         last = runner.get("last") or {}
         started, finished = _timestamp(last.get("started_at")), _timestamp(last.get("finished_at"))
-        if not started or not finished or started.date() != now.date() or started.time() < time(12, 30) or not started <= finished <= now:
+        prepared = finished
+        if folder and (folder / "provenance.json").exists():
+            # HF 사본은 전체 회차 종료가 아니라, 동일 커밋의 검증된 자료 준비를 확인한다.
+            # 검증 표지가 잘못됐으면 과거 완료 기록으로 우회하지 않는다.
+            import json
+            receipt = json.loads((folder / "provenance.json").read_text(encoding="utf-8"))
+            if "proof_version" in receipt:
+                proof = hf_snapshot.read_ready_proof(folder, now=now)
+                if proof["started_at"] != last.get("started_at"):
+                    return wait("data_unavailable", "동기화 자료와 실행 기록의 회차가 달라 자동 점검을 기다립니다.")
+                prepared = _timestamp(proof["data_ready_at"])
+                result.update(data_ready_at=proof["data_ready_at"], source_commit=proof["snapshot_commit"])
+        if not started or not prepared or started.date() != now.date() or started.time() < time(12, 30) or not started <= prepared <= now:
             return wait("waiting", "오늘 12:30 이후 데이터 갱신 완료 기록을 기다립니다.")
-        result["update_finished_at"] = finished.isoformat()
+        result["update_finished_at"] = finished.isoformat() if finished else None
         if last.get("stopped") or not _required_steps_ok(last.get("steps") or []):
             return wait("update_failed", "데이터 갱신이 중단됐거나 시세·달력 단계의 성공을 확인하지 못했습니다. 다시 확인합니다.")
         result["data_as_of"] = status.get("as_of")
         if status.get("as_of") != previous.isoformat() or last.get("price_max") != previous.isoformat():
             return wait("stale_data", "시세 기준일이 전 거래일과 달라 자동 점검을 기다립니다.")
-        return {**result, "ready": True, "state": "ready", "message": "데이터 갱신 완료 · 자동 점검 준비됨"}
+        message = "동기화 자료 검증 완료 · 자동 점검 준비됨" if result["data_ready_at"] else "데이터 갱신 완료 · 자동 점검 준비됨"
+        return {**result, "ready": True, "state": "ready", "message": message}
     except (market_calendar.CalendarUnavailable, sqlite3.Error, OSError, ValueError, TypeError, KeyError):
         return wait("data_unavailable", "거래일 달력 또는 갱신 상태를 확인할 수 없어 자동 점검을 기다립니다.")
 
