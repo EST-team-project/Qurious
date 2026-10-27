@@ -9,6 +9,25 @@ import pytest
 from scripts import hf_collector_follower as s
 from app.services import hf_snapshot as proof
 
+import os
+import tempfile
+
+
+def _can_symlink():
+    """수신기는 releases/<세대> 를 심볼릭 링크로 바꾸고 ``current`` 를 ``os.replace`` 로 원자적으로 갈아 끼운다 — POSIX 전용 동작이다.
+    Windows 는 일반 권한이면 링크를 못 만들고(WinError 1314), 개발자 모드로 만들 수 있어도 링크 디렉터리를 ``os.replace`` 로 못 바꾼다(WinError 5)."""
+    if os.name == "nt":
+        return False
+    with tempfile.TemporaryDirectory() as folder:
+        try:
+            os.symlink(folder, os.path.join(folder, "link"), target_is_directory=True)
+            return True
+        except OSError:
+            return False
+
+
+needs_symlink = pytest.mark.skipif(not _can_symlink(), reason="수신기의 원자적 세대 전환은 POSIX 전용(Windows 는 링크 권한 · os.replace 모두 안 됨) — 수신기는 Linux 컨테이너 전용")
+
 
 @pytest.mark.parametrize("stamp,expected", [
     ("2026-10-27T12:40:00+09:00", 900),
@@ -99,6 +118,7 @@ def received(tmp_path, metadata):
 
 
 @pytest.mark.parametrize('hour,state', [(12, 'before_publication'), (13, 'waiting_for_hf'), (16, 'late')])
+@needs_symlink
 def test_hf_waits_for_required_day_without_using_old_prices(received, hour, state):
     root, _, _ = received
     result = s.price_readiness(root, datetime.fromisoformat(f'2026-10-27T{hour}:05:00+09:00'))
@@ -106,6 +126,7 @@ def test_hf_waits_for_required_day_without_using_old_prices(received, hour, stat
     assert result['price_date'] == '2026-10-23' and result['required_price_date'] == '2026-10-26'
 
 
+@needs_symlink
 def test_received_current_day_proof_is_ready_but_does_not_order(received):
     root, folder, metadata = received
     record, manifest, verification = metadata
@@ -122,6 +143,7 @@ def test_received_current_day_proof_is_ready_but_does_not_order(received):
     assert record['run']['finished_at'] is None
 
 
+@needs_symlink
 def test_calendar_gap_and_corrupted_proof_fail_closed(received):
     root, folder, _ = received
     now = datetime.fromisoformat('2026-10-27T13:05:00+09:00')
@@ -132,6 +154,7 @@ def test_calendar_gap_and_corrupted_proof_fail_closed(received):
     assert s.price_readiness(root, now)['ready'] is False
 
 
+@needs_symlink
 def test_holiday_does_not_wait_for_nonexistent_bar(received):
     root, _, _ = received
     result = s.price_readiness(root, datetime.fromisoformat('2026-10-31T13:05:00+09:00'))
@@ -148,6 +171,7 @@ def test_proof_rejects_mutated_local_record_or_fabricated_finish(tmp_path, metad
         proof.read_ready_proof(tmp_path)
 
 
+@needs_symlink
 def test_follower_uses_head_commit_without_date_tag_and_reuses_verified_generation(tmp_path, metadata, monkeypatch):
     head = "a" * 40
     folder = tmp_path / "releases" / (head + "-ready-v1")
@@ -172,6 +196,7 @@ def test_follower_uses_head_commit_without_date_tag_and_reuses_verified_generati
     assert calls == [s.API]
 
 
+@needs_symlink
 def test_mismatched_metadata_keeps_current_generation(tmp_path, metadata, monkeypatch):
     old = generation(tmp_path, "old", "old")
     s.publish(tmp_path, old)
@@ -193,6 +218,7 @@ def generation(root,name,text):
  s.atomic_json(p/'state/daily_update_last.json',{'source':text})
  return p
 
+@needs_symlink
 def test_whole_generation_switch_is_atomic_and_rejects_incomplete(tmp_path):
  a=generation(tmp_path,'a','old');b=generation(tmp_path,'b','new')
  s.publish(tmp_path,a)
@@ -205,6 +231,7 @@ def test_whole_generation_switch_is_atomic_and_rejects_incomplete(tmp_path):
  with pytest.raises(ValueError):s.publish(tmp_path,bad)
  assert (tmp_path/'current').resolve()==b
 
+@needs_symlink
 def test_read_private_info_failure_keeps_current_pointer(tmp_path,monkeypatch):
  old=generation(tmp_path,'old','old')
  s.publish(tmp_path,old)
@@ -213,6 +240,7 @@ def test_read_private_info_failure_keeps_current_pointer(tmp_path,monkeypatch):
  with pytest.raises(ValueError,match='privacy'):follower.cycle()
  assert (tmp_path/'current').resolve()==old
 
+@needs_symlink
 def test_network_failure_keeps_current_pointer(tmp_path,monkeypatch):
  old=generation(tmp_path,'old','old');s.publish(tmp_path,old)
  follower=s.Follower('test-token',tmp_path)

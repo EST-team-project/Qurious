@@ -1,13 +1,13 @@
-# ③ TradingView · Pine · 교차 검증 설계 v0.2 — Qurious
+# ③ TradingView · Pine · 교차 검증 설계 v0.3 — Qurious
 
 | 문서 정보 | 내용 |
 |---|---|
-| **판 · 상태** | v0.2 · 초안 — 이동원 검토 전 · 강민석 님(비용·체결 층 허용 오차) · 오준영 님(위험 관문·이력 표) · 신장환 님(규칙 명세 칸) 확인 전 |
+| **판 · 상태** | v0.3 · 초안 — 이동원 검토 전 · 강민석 님(비용·체결 층 허용 오차) · 오준영 님(위험 관문·이력 표) · 신장환 님(규칙 명세 칸) 확인 전 |
 | **구분** | 6. 시스템 설계 — 3차 ③ 「TradingView · Pine · 알림」 전용 설계서 |
 | **담당** | 이동원(Pine 생성기 · 웹훅 받는 쪽 · 알림 보내는 쪽 · 대사표 · 화면) · 부 강민석(비용·체결 층 · 한 성과 정의) · 규칙 명세 신장환 · 위험 관문 오준영 |
 | **검토** | 검토 전 |
 | **최종 수정** | 2026-10-27 (KST) |
-| **기준** | 코드 `main` `cae2fd9` — 코드 줄은 읽어 확인했고 앱 · 시험은 돌리지 않았다 · 정한 것 = [논의 결정 대장](../../00-management/plans/논의결정대장.md) 부록 C · 팀 글 = #314 · #333 · #335(10-26 협의) |
+| **기준** | 코드 `main` `4031c34`(생성기 v0.2 — 판 2 번역 · `TC-PN` 33건 통과) — 코드 줄은 읽어 확인했고 앱 · 시험은 돌리지 않았다 · 정한 것 = [논의 결정 대장](../../00-management/plans/논의결정대장.md) 부록 C · 팀 글 = #314 · #333 · #335(10-26 협의) |
 | **근거 조사** | TradingView 공식 지원 문서 「Strategy properties」(2026-10-26 조회 — 슬리피지 틱 단위 · 수수료 양쪽 · 체결 시점) · 웹훅 조건은 [할 일 v1.7 8.2 R6](../../00-management/plans/지난판/이동원파트-할일_v1.7.md)(공식 문서 요약) |
 | **관련 문서** | [이동원 파트 할 일](../../00-management/plans/이동원파트-할일.md) ①-07 · ①-08 · ①-11 · ①-14 · ①-15 · ①-22 · [인디케이터 전략 설계](인디케이터-전략-설계.md) 4.3(규칙 카드) · [증권사 연동 설계안](증권사-연동-자동화-설계.md) 4 · 5절 · [실시간 표시 vs 저장 자료](실시간표시-저장자료-설계.md) · [그림자 일지 설계](모의투자-그림자일지-설계.md) · [카드 판 1](예시/strategy-card-ma-cross-v1.json) · [LEAN 신호 예](예시/lean-signal-v1.json) |
 
@@ -97,7 +97,7 @@
 
 ### 3.2 규칙 명세 칸 → Pine 줄 대응표 (`P02-③-1`)
 
-카드 칸은 [인디케이터 전략 설계 4.3](인디케이터-전략-설계.md)의 이름을 그대로 쓴다. **판 1 은 계약 칸만**, 판 2 칸은 신장환 님 청산 칸(#161 A1)이 오면 맞춘다(그 전에는 아래 「판 2 칸」 을 비워 둔 채 생성기를 만든다).
+카드 칸은 [인디케이터 전략 설계 4.3](인디케이터-전략-설계.md)의 이름을 그대로 쓴다. **`stops` 가 없는 카드는 판 1(계약 칸만)**, **`stops` 가 있는 카드는 판 2** — 생성기 v0.2 가 아래 판 2 줄을 코드로 옮긴다(신장환 님 #353 예시 `strategy-card-ma-cross-v2.json`). 정의가 없거나 판정 봉과 체결 봉이 어긋날 수 있는 값은 조용히 다르게 만들지 않고 **거부**한다.
 
 | 카드 칸 | Pine 로 옮기는 법 | 생성기 검사 |
 |---|---|---|
@@ -107,16 +107,18 @@
 | `entry` · `exit` `ma_cross` (`short_above_long` · `short_below_long`) | `fast = ta.sma(close, 20)` · `slow = ta.sma(close, 60)` · **상태 판정** `fast > slow` (교차 순간이 아니다 — 앱 `apply_strategy_spec_to_signal` 도 같다, [4.3](인디케이터-전략-설계.md)) | 지표는 `ta.*` 에 있는 것만 |
 | `signal_weights` | `lightgbm` = 0 일 때만 Pine 로 옮길 수 있다 | > 0 이면 거부(비목표) |
 | `position_sizing.max_position_pct` · `max_symbols` | `qty = math.floor(strategy.equity * pct / 100 / close)` 로 상한 | `max_symbols` 는 한 종목 생성에서 무시(주석) |
-| 판 2 `size_kind` = `risk_pct` | `qty = math.floor(strategy.equity * risk/100 / (atr_mult * atrEntry))` (진입 때 ATR 고정) | |
-| 판 2 `size_kind` = `fixed_budget` | `qty = math.floor(budget / close)` | |
-| 판 2 `stops.stop_kind` = `atr` (`atr_period` 14 · `atr_mult` 2.0) · `lock` = `entry` | ATR 은 **판단 봉**에서 `atrEntry := ta.atr(atr_period)` 로 고정해 둔다(체결 봉의 ATR 을 쓰면 판단 뒤 정보가 섞인다 — 4.3 의 「진입 때 ATR 고정」). 체결이 확인된 첫 봉에서 `var float stopPx := strategy.position_avg_price - atr_mult * atrEntry` 로 **고정** — 기준은 판단 봉 `close` 가 아니라 **진입 체결가**(카드 규칙 · #314 10-22 글 3절) | 체결가가 슬리피지를 포함하는지는 카드 · 설계서에 정의가 없다(8절) |
-| 판 2 `stops.take_kind` = `rr` (`take_rr` 기본 2) | `takePx := strategy.position_avg_price + take_rr * (strategy.position_avg_price - stopPx)` — 익절선도 진입 체결가 기준 | |
-| 판 2 `judge` = `close` | 봉 마감에서 `if close <= stopPx or close >= takePx` → `strategy.close()` — **판정 가격 = 그날 종가**. 체결 시점은 `judge` 가 아니라 `exit_mode` 가 정한다(`open` 이면 다음 봉 시가) | **v0.1 지원** |
-| 판 2 `judge` = `next_open` | 판정 가격이 다음 봉 시가(`open <= stopPx or open >= takePx`)인 값이다(#314 10-27 글 4절: 「무엇으로 판정하나」). 체결 시점은 마찬가지로 `exit_mode` | **v0.1 지원** — 단 `exit_mode = open` 과 함께 쓸 때 Pine 에서 어느 봉 시가에 체결되는지는 신장환 님 정의 확인 전(8절) |
-| 판 2 `judge` = `intrabar` | `strategy.exit(stop = stopPx, limit = takePx)` | v0.1 은 생성하되 대사 범위 밖으로 표시(3.3 ①) |
-| 판 2 `entry_mode` · `exit_mode` = `open` (체결 시점이 다음 봉 시가 — `judge` 의 `next_open` 과는 다른 칸) | `process_orders_on_close = false`(기본) | 대사 설정 기본 |
-| 판 2 `entry_mode` · `exit_mode` = `close` | `process_orders_on_close = true` | 「같은 종가에 체결」 — 현실에서는 불가한 가정이라 주석으로 경고 |
-| 판 2 `reentry` = `new_signal` | 청산한 봉에서 재진입하지 않는다 — `strategy.position_size == 0 and fast > slow and not exitedThisBar` | |
+| 판 2 `size_kind` = `risk_pct` (`risk_pct` 1.0) | `riskQty = math.floor(strategy.equity * riskPct / 100 / (atrMult * atrNow))` 와 비중 상한 `capQty` 중 **작은 쪽**이 수량(`qty = math.min(riskQty, capQty)`). ATR 이 없거나 0 이면 0 | `risk_pct` 는 0 초과 100 이하 |
+| 판 2 `size_kind` = `fixed_budget` | 만들지 않는다 — 예산 칸 이름이 카드에 정의돼 있지 않다 | **거부**(예산 칸이 정해지면 `qty = math.floor(budget / close)` 로 연다) |
+| 판 2 `stops.stop_kind` = `atr` (`atr_period` 14 · `atr_mult` 2.0) · `lock` = `entry` | ATR 은 **판단 봉**에서 `atrEntry := atrNow` 로 고정한다(체결 봉의 ATR 을 쓰면 판단 뒤 정보가 섞인다 — 4.3 의 「진입 때 ATR 고정」). 체결이 확인된 첫 봉에서 `stopPx := strategy.position_avg_price - atrMult * atrEntry` 로 **고정** — 기준은 판단 봉 `close` 가 아니라 **진입 체결가**이고, `position_avg_price` 는 슬리피지를 포함한 체결가다(**정함 10-27 사용자** — 8절). 앱 ATR 은 `ta_utils.atr`(Wilder) 로 Pine `ta.atr` 과 같은 계산 | `stop_kind` 가 atr 이 아니거나 `lock` 이 entry 가 아니면 **거부** · 기간 · 배수는 0 초과 |
+| 판 2 `stops.take_kind` = `rr` (`take_rr` 기본 2) | `takePx := strategy.position_avg_price + takeRr * (strategy.position_avg_price - stopPx)` — 익절선도 진입 체결가 기준 | `take_kind` 가 rr 이 아니면 **거부** |
+| 판 2 `judge` = `close` | 봉 마감에서 `stopHit = close <= stopPx` · `takeHit = close >= takePx` → `strategy.close("L")` — **판정 가격 = 그날 종가**. 체결 시점은 `judge` 가 아니라 `exit_mode` 가 정한다(`open` 이면 다음 봉 시가) | **v0.2 지원** |
+| 판 2 `judge` = `next_open` | 판정 가격이 다음 봉 시가인 값이다(#314 10-27 글 4절). `exit_mode = open` 과 함께 쓰면 Pine 에서 판정 봉과 체결 봉이 어긋날 수 있어(다음 봉 시가인지 그다음 봉인지 신장환 님 4.3 정의 확인 전) | **거부**(정함 10-27 사용자) — 정의가 오면 연다 |
+| 판 2 `judge` = `intrabar` | `strategy.exit("X", "L", stop = stopPx, limit = takePx)` + 청산한 봉에 매수 상태가 이어지면 `needFresh` | 생성하되 경고 — 대사 범위 밖(3.3 ①) |
+| 판 2 `entry_mode` · `exit_mode` = `open` (체결 시점이 다음 봉 시가 — `judge` 의 `next_open` 과는 다른 칸) | `process_orders_on_close = false`(기본) | 대사 설정 기본 · 둘이 다르면 **거부**(Pine 은 체결 시점을 전략 전체에 하나만 둔다) |
+| 판 2 `entry_mode` · `exit_mode` = `close` | `process_orders_on_close = true` | 「같은 종가에 체결」 — 현실에서는 불가한 가정이라 경고 |
+| 판 2 `reentry` = `new_signal` (청산 뒤 새 매수 신호에서만) | 손절 · 익절로 청산한 봉에서 `needFresh := true`, `entryCond` 가 한 번 꺼지면(`if not entryCond`) 풀린다. 이동평균 청산이면 `entryCond` 가 이미 꺼져 있다 | `new_signal` 이 아니면 **거부** |
+| 판 2 `warmup_bars` (60) | `ready = bar_index + 1 >= warmupBars` — 진입은 워밍업이 끝난 뒤에만 | 0 초과 정수 |
+| 판 2 `price_basis` = `adj_base` | Pine 코드로는 정할 수 없다 — 차트의 수정주가(Adjust data) 설정을 우리 수집 DB 수정주가와 같은 상태로 두고 대사한다(코드 주석 + 경고) | `adj_base` 가 아니면 **거부** |
 | 수수료 · 슬리피지 · 시작 자본 | `strategy(..., commission_type=…, commission_value=…, slippage=…, initial_capital=…, pyramiding=0)` — 값과 한계는 3.3 · `pyramiding=0` 은 같은 방향 추가 진입을 막는다(앱 카드의 「매 신호마다 추가 매수」 와 다른 점은 3.4 신호 정의 차이) | 값은 생성 입력(기본: 3.3 표) |
 
 **생성 결과 대조 시험**(`TC-PN`): 카드 → 코드 → 코드에서 뽑은 숫자(기간 · 수수료 · 슬리피지 · 시작 자본 · 수량 식)가 카드 값과 같은지 본다. 컴파일은 TradingView 편집기에서 **손으로 한 번** 확인하고 화면을 캡처한다(공식 문법 검사기가 없다 — 강사님 `pine-lint.js` 를 받으면 내보내기 전 점검에 쓴다, 8절).
@@ -250,7 +252,7 @@ TradingView 쪽 알림 메시지 틀(제안 — `{{…}}` 자리표시자는 손
 
 | 묶음 | 지킬 것 | 시험 수준 |
 |---|---|---|
-| `TC-PN`(Pine) | 카드 → 코드 숫자 대조 · 같은 카드 → 같은 코드 · 거부 사례(`lightgbm` > 0 · 일봉 아님) · `judge` 별 줄 · 슬리피지 틱 환산(0 이 되는 경우 포함) | 자동 + 컴파일은 손 확인 1회(캡처) |
+| `TC-PN`(Pine) | 카드 → 코드 숫자 대조 · 같은 카드 → 같은 코드 · 거부 사례(`lightgbm` > 0 · 일봉 아님) · 판 2 번역(손절 · 익절 · 위험 % 수량 · 체결 시점 · 새 신호 재진입 · 워밍업) · 모르는 값 거부 13개 · `judge` 별 줄 · 슬리피지 틱 환산(0 이 되는 경우 포함) | 자동 + 컴파일은 손 확인 1회(캡처) |
 | `TC-XV`(교차 검증) | 층 순서(윗층 어긋남 → 아랫층 무효) · 원인 코드 분류 · 전환일 짝짓기 · UTC → KST 날짜 변환 · 미설명 건수 | 자동 |
 | `TC-WH`(웹훅) | 3.6 의 1 ~ 8 한 줄씩 + 3초 응답(느린 채널 흉내) + 위조 `x-forwarded-for` | 자동(흉내 요청 — 실제 수신은 요금제 · 터널이 있을 때 한 번) |
 | E2E(①-22) | 웹훅 → 기록 → 알림 → DB 한 흐름 | 11-05 |
@@ -268,14 +270,16 @@ TradingView 쪽 알림 메시지 틀(제안 — `{{…}}` 자리표시자는 손
 | 7 | 지연 한도(일봉 5분 · 분봉 60초) | 이동원(사용자) | 제안대로 | ①-08 시험으로 확정 |
 | 8 | **웹훅 범위** — 요구 대장 `P02-③-3` 은 필수 · 확정인데 외부 벤치마킹 이슈 초안(10-26)은 「외부 공개 HTTPS 웹훅」 을 P2(P0 통과 뒤 별도 범위)로 둔다. 3.6 은 **설계 + 흉내 요청 시험**까지로 두고 실제 수신은 요금제 · 터널이 있을 때만 | 이동원(사용자) | 필수 유지 · 실제 수신은 뒤로 | **정함(10-26) — 「그대로 풀 구현」**(추천과 다름 · 실제 수신 포함). 선행 조건은 8절 |
 | 9 | **설정 화면의 자리**(사용자 의견 10-26 — 화면 설계 병렬 피드백) — 증권사 API 자동화 · TradingView 연동 · Open API 외부 연동 · 증권사 API 설정 · 알림 설정 가운데 **시스템(관리자)이 관리하는 것은 「시스템 관리」** 에 두되, **사용자가 직접 설정해야 하는 것이 많으므로 「내 계정(마이페이지)」 목록에도** 더한다. 이 문서의 웹훅 주소 · 토큰 · 받은 신호 목록 · 알림 이력은 마이페이지 쪽이 기본이 된다 | 이동원(사용자) | 의견대로 | **의견(10-26)** — 정식 반영(IA · 와이어프레임 · UI 명세)은 그 문서들의 다음 판에서 Figma 로 먼저 확인 |
+| 10 | 손절 · 익절선을 잴 **진입 체결가가 슬리피지를 포함하는가** | 이동원(사용자) | 포함 | **정함(10-27)** — 포함(Pine `position_avg_price` 그대로 · 앱 · LEAN 도 체결가 기준 · 환산 오차는 대사표 `cost` 원인 코드) · TradingView 편집기에서 손으로 한 번 확인(8절) |
+| 11 | `judge = next_open` + `exit_mode = open` 을 만들 것인가 | 이동원(사용자) | 거부 | **정함(10-27)** — 거부(생성기 기본 원칙). 신장환 님이 4.3 에서 판정 봉과 체결 봉의 정의를 확정하면 연다 |
 
 ## 8. 확인 중인 것 · 남은 일
 
 - **웹훅 풀 구현의 선행 조건(7절 물음 8 — 사용자가 정한 범위)**: ① TradingView 에서 웹훅이 되는 요금제와 계정 2단계 인증 ② **밖에서 닿는 HTTPS 주소**(포트 80 · 443 · IPv6 안 됨) — 이 PC 는 공개 주소가 없어 터널 또는 배포 주소가 필요하다 ③ 공개 주소를 여는 것이므로 인증 · 재전송 · 중복 주문 보안 검토(3.6 의 1 ~ 8)를 구현 전에 끝낸다 ④ 이 세 가지가 10-30 전에 준비되지 않으면 ①-08 은 흉내 요청 시험까지만 하고 실제 수신은 준비되는 날로 미룬다. 벤치마킹 이슈 초안은 이 항목을 P2 로 보므로, P0(Pine 컴파일 · LEAN 대사 · 안전장치)가 먼저 끝나야 시간을 쓴다.
 - 🟡 TradingView `{{…}}` 자리표시자 · 요금제별 웹훅 가능 여부 · KRX 호가 단위(슬리피지 환산) — 손 확인 한 번.
 - 🟡 응답 뒤 처리(3.6 #7)가 `webhook_signals` 에 **한 줄 갱신**을 넣는다 — 「추가만」 규칙은 일지 쪽 원칙이고 이 표는 갱신 표다(ERD 변경은 ①-08 에서).
-- 🟡 **판 2 손절·익절의 체결가 정의**(#314 10-27 글 4절 · 이동원 몫 1) — 3.2 는 `strategy.position_avg_price` 기준으로 고쳤다. 다만 카드에 「체결가가 슬리피지를 포함하는가」 가 정의돼 있지 않다. Pine 의 `position_avg_price` 가 슬리피지를 반영한 값인지는 TradingView 공식 문서로 확인하지 못했다(⚪) — 앱 카드의 「진입 체결가」 와 같은 값인지 신장환 님 정의와 함께 확인한다.
-- 🟡 **`judge = next_open` + `exit_mode = open`** — 판정 가격이 다음 봉 시가인데 체결도 「다음 봉 시가」 면 Pine 에서 판정 봉과 체결 봉이 어긋날 수 있다(판정 다음 봉의 시가에 체결인지, 그 다음 봉인지). 신장환 님 4.3 정의 확인 전에는 `judge = close` 만 대사 범위로 본다.
+- ✅ **판 2 손절·익절의 체결가 정의** — **정함 10-27(사용자)**: 슬리피지를 포함한 진입 체결가(`strategy.position_avg_price`). 앱 · LEAN 이 같은 정의인지는 판 2 대조 경로에서 본다. 🟡 남은 일: TradingView 편집기에서 `position_avg_price` 가 슬리피지를 반영하는지 손으로 한 번 확인(캡처).
+- ✅ **`judge = next_open` + `exit_mode = open`** — **정함 10-27(사용자)**: 생성기가 **거부**한다. 🟡 신장환 님이 4.3 에서 판정 봉과 체결 봉(다음 봉 시가인지 그다음 봉인지)을 확정하면 연다.
 - 🟡 **수정주가 ATR 과 실제 체결가의 가격 기준**(강민석 님 #314 10-27 3번) — `price_basis` 는 판단(지표 계산)에 수집 DB 수정주가를 쓰고 실제 체결은 원래 가격이다. 수정주가로 잰 ATR 을 원래 체결가에 그대로 빼면 분할 · 권리락 같은 가격 조정 구간에서 단위가 어긋날 수 있다 → 손절 거리에 쓸 ATR 의 기준 · 변환 규칙을 함께 정해야 한다. 3.2 의 `atrEntry` 는 Pine 이 보는 차트 가격끼리 계산하므로 TradingView 쪽은 같은 가격 기준이라고 보지만 차트 가격 조정 설정은 확인하지 못했다(⚪).
 - 🟡 **판 2 대조 경로**(강민석 님 #314 10-27 5번) — `daily_lean_reconcile.py` 는 판 1(`ma_cross 20/60`)만 재실행한다. 판 2 는 판 1 과 별도 버전 · 결과 기록으로 두고, 신호 일치뿐 아니라 다음 시가 체결 · ATR 손절 · 익절 · 위험 비율 수량 · 현금 · 비중 제한 · 전량 청산까지 검증 범위로 적는다(판 2 카드 · 그림자 일지 등록 뒤 연결). `judge` 결과 응답 칸은 카드 규격과 함께 다루는 다음 PR 에서.
 - 강사님 `pine-lint.js` 를 받을지는 「받았다」 고 하실 때 점검(규칙).
@@ -287,6 +291,7 @@ TradingView 쪽 알림 메시지 틀(제안 — `{{…}}` 자리표시자는 손
 ## 개정 이력
 
 | 판 | 날짜 | 내용 |
+| v0.3 | 2026-10-27 | 생성기 v0.2(`app/services/pine_strategy.py`) — 판 2 카드(`stops` 가 있는 카드)를 코드로 옮긴다: ATR 손절 · rr 익절(진입 체결가 기준) · `risk_pct` 수량 · 체결 시점 · 새 신호 재진입 · 워밍업 · 3.2 표를 코드와 맞춤(`warmup_bars` · `price_basis` 줄 추가 · 거부 조건 명시). 7절 10 · 11 **정함**(체결가 = 슬리피지 포함 · `next_open` 거부) · 8절 두 줄 ✅. `TC-PN` 33건 통과(PN-08 수정 · PN-11 ~ 13 추가) |
 |---|---|---|
 | v0.2 | 2026-10-27 | #314 신장환 님 10-27 글 대조(`배경조사/2026-10-27-314-신장환답글-대조/결과.md` 이동원 몫 1 · 2 · 3) 반영 — 3.2 판 2 손절·익절을 진입 체결가(`strategy.position_avg_price`) 기준으로 · `judge`(판정 가격)와 `entry_mode`·`exit_mode`(체결 시점) 줄을 갈라 `(= next_open)` 별칭 삭제 · 3.3 ① 문구 · 7절 물음 3 상태를 「신장환 찬성 · 강민석 대기」 로 · 8절 열린 물음 둘. 판 2 칸 이름·위치는 10-28 오전 팀 의견 뒤 v0.3 에서 |
 | v0.1 | 2026-10-26 | 첫 판 — 규칙 → Pine 대응 · TradingView 구조적 차이 넷 · 교차 검증 층 넷과 허용 오차 칸 · 대사표 칸 · 웹훅 검증 여덟 · 알림 정책 초안 · 화면 안 셋. 근거: 요구 대장 `P02-③-1 ~ 3` · #314 · #333 · 10-26 협의(#335) · TradingView 공식 지원 문서 |

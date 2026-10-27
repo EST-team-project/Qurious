@@ -1,14 +1,20 @@
-"""전략 카드(규칙 명세 JSON) → TradingView Pine v6 `strategy()` 코드 (생성기 v0.1 · 할 일 ①-07 · `P02-③-1`).
+"""전략 카드(규칙 명세 JSON) → TradingView Pine v6 `strategy()` 코드 (생성기 v0.2 · 할 일 ①-07 · `P02-③-1`).
 
 설계 `docs/phase-3/02-design/system/TradingView-교차검증-설계.md` 3.2 (카드 칸 → Pine 줄 대응표) · 3.3 (TradingView 가 우리와 구조적으로 다른 곳).
 순수 함수 — 네트워크 · 시각 · 난수가 없다. **같은 카드 + 같은 입력 → 바이트까지 같은 코드**(대사표가 첫 줄 지문으로 카드를 가리킨다).
 
-지금 만드는 것 (판 1 = 계약 칸만)
+만드는 것 — 판 1 (계약 칸만; `stops` 가 없는 카드)
     일봉 · `ma_cross` 상태 판정(`fast > slow` — 교차 순간이 아니다) · 한 종목씩 · 수량 상한(`max_position_pct`) · 수수료 · 슬리피지 · 시작 자본 · `pyramiding=0`
+만드는 것 — 판 2 (`stops` 가 있는 카드 · 신장환 님 #314/#353 · 설계서 v0.5)
+    ATR 손절선 · 위험 비율 익절선(`take_rr`) · `risk_pct` 수량(= min(위험 금액 수량, 비중 상한 수량)) · 체결 시점(`entry_mode` · `exit_mode`) · 새 신호에서만 재진입(`reentry`)
+    · 워밍업(`warmup_bars`). 손절 · 익절선은 **진입 체결가(`strategy.position_avg_price` — 슬리피지 포함, 사용자 결정 2026-10-27)** 에서 잰다.
 만들지 않는 것 (조용히 다르게 만들지 않고 **거부**한다)
     일봉이 아닌 주기 · `lightgbm` 가중 > 0 · `ma_cross` 가 아닌 지표 · 수량 상한이 없는 카드 · 진입 · 청산의 이동평균 기간이 다른 카드
-옮기지 않는 것 (**경고**로 남긴다 — 신장환 님 청산 칸 A1 확정 전)
-    판 2 칸: `stops` · `size_kind` · `judge` · `reentry` · `entry_mode` · `exit_mode`
+    · 판 2: `judge = next_open`(판정 봉과 체결 봉이 어긋날 수 있다 — 신장환 님 4.3 정의 확인 전 · 설계서 8절) · `stop_kind` 가 atr 이 아닌 것 · `take_kind` 가 rr 이 아닌 것
+      · `lock` 이 entry 가 아닌 것 · `entry_mode` ≠ `exit_mode` · `reentry` 가 new_signal 이 아닌 것 · `size_kind` 가 risk_pct 가 아닌 것(`fixed_budget` 은 예산 칸이 카드에 없다)
+      · `price_basis` 가 adj_base 가 아닌 것
+옮기지 않는 것 (**경고**로 남긴다 — `stops` 가 없는 카드에 판 2 칸이 따로 있을 때)
+    판 2 칸: `size_kind` · `judge` · `reentry` · `entry_mode` · `exit_mode` 등
 
 컴파일 확인은 TradingView 편집기에서 손으로 한 번 한다(공식 문법 검사기가 없다). 이 모듈의 시험(`TC-PN`)은 코드에서 다시 뽑은 숫자가 카드 값과 같은지 본다.
 
@@ -88,6 +94,56 @@ def _rule(spec: Dict, key: str, label: str) -> tuple:
     return cond, s, l
 
 
+def _need(value, label: str, *, hi: Optional[float] = None, integer: bool = False):
+    """0 보다 큰 유한한 숫자(``hi`` 가 있으면 그 이하, ``integer`` 면 정수)만 받는다 — 아니면 거부."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise GenerationError(f"{label} 이(가) 숫자가 아니거나 카드에 없다") from None
+    if not math.isfinite(v) or v <= 0 or (hi is not None and v > hi) or (integer and v != int(v)):
+        raise GenerationError(f"{label} 값 {value!r} 은(는) 범위 밖이다")
+    return int(v) if integer else v
+
+
+def _v2_params(spec: Dict) -> Dict:
+    """판 2 카드(``stops`` 가 있는 카드)의 칸을 검사해 값을 뽑는다 — 모르는 값은 조용히 다르게 만들지 않고 거부한다."""
+    stops = spec.get("stops") or {}
+    sizing = spec.get("position_sizing") or {}
+    if stops.get("stop_kind") != "atr":
+        raise GenerationError(f"stops.stop_kind {stops.get('stop_kind')!r} — 판 2 는 atr 만 만든다")
+    if stops.get("take_kind") != "rr":
+        raise GenerationError(f"stops.take_kind {stops.get('take_kind')!r} — 판 2 는 rr 만 만든다")
+    judge = stops.get("judge")
+    if judge == "next_open":
+        raise GenerationError("stops.judge = next_open — 판정 봉과 체결 봉이 Pine 에서 어긋날 수 있어(신장환 님 4.3 정의 확인 전 · 설계서 8절) 만들지 않는다")
+    if judge not in ("close", "intrabar"):
+        raise GenerationError(f"stops.judge {judge!r} 는 모른다(close · intrabar 만)")
+    if stops.get("lock") != "entry":
+        raise GenerationError(f"stops.lock {stops.get('lock')!r} — 손절선은 진입 때 고정(entry)만 만든다")
+    entry_mode, exit_mode = spec.get("entry_mode"), spec.get("exit_mode")
+    if entry_mode not in ("open", "close") or exit_mode not in ("open", "close"):
+        raise GenerationError(f"entry_mode {entry_mode!r} · exit_mode {exit_mode!r} — open · close 만 안다")
+    if entry_mode != exit_mode:
+        raise GenerationError(f"entry_mode({entry_mode}) 와 exit_mode({exit_mode}) 가 다르다 — Pine 은 체결 시점을 전략 전체에 하나만 둔다(process_orders_on_close)")
+    if spec.get("reentry") != "new_signal":
+        raise GenerationError(f"reentry {spec.get('reentry')!r} — new_signal(청산 뒤 새 매수 신호에서만)만 만든다")
+    kind = sizing.get("size_kind")
+    if kind == "fixed_budget":
+        raise GenerationError("position_sizing.size_kind = fixed_budget — 예산 칸 이름이 카드에 정의돼 있지 않아 만들지 않는다")
+    if kind != "risk_pct":
+        raise GenerationError(f"position_sizing.size_kind {kind!r} — 판 2 는 risk_pct 만 만든다")
+    if spec.get("price_basis") != "adj_base":
+        raise GenerationError(f"price_basis {spec.get('price_basis')!r} — adj_base 만 만든다")
+    return {
+        "judge": judge, "mode": entry_mode,
+        "risk_pct": _need(sizing.get("risk_pct"), "position_sizing.risk_pct", hi=100),
+        "atr_period": _need(stops.get("atr_period"), "stops.atr_period", integer=True),
+        "atr_mult": _need(stops.get("atr_mult"), "stops.atr_mult"),
+        "take_rr": _need(stops.get("take_rr"), "stops.take_rr"),
+        "warmup_bars": _need(spec.get("warmup_bars"), "warmup_bars", integer=True),
+    }
+
+
 def generate(spec: Dict, *, symbol: Optional[str] = None, ref_price: Optional[float] = None, mintick: Optional[float] = None,
              fee_pct="0.015", sell_tax_pct="0.18", slippage_bp=10, initial_capital: int = 10_000_000) -> PineResult:
     """카드 한 장 → Pine v6 코드 한 벌. 만들 수 없으면 ``GenerationError``.
@@ -117,10 +173,19 @@ def generate(spec: Dict, *, symbol: Optional[str] = None, ref_price: Optional[fl
         raise GenerationError(f"{sym} 는 카드 유니버스({', '.join(universe)}) 안에 없다")
 
     warnings: List[str] = []
-    skipped = [k for k in V2_KEYS if k in spec] + [f"{a}.{b}" for a, b in V2_NESTED if b in (spec.get(a) or {})]
-    if skipped:
-        warnings.append(f"판 2 칸 {', '.join(skipped)} 는 신장환 님 청산 칸 A1(#314 제안 10-27)이 확정되기 전이라 코드에 옮기지 않았다 — "
-                        f"손절 · 익절 · 위험 % 수량 · 체결 시점이 TradingView 에 반영되지 않는다")
+    v2 = _v2_params(spec) if "stops" in spec else None
+    skipped: List[str] = []
+    if v2 is None:                          # 판 1 — 판 2 칸이 따로 있으면 옮기지 않고 경고
+        skipped = [k for k in V2_KEYS if k in spec] + [f"{a}.{b}" for a, b in V2_NESTED if b in (spec.get(a) or {})]
+        if skipped:
+            warnings.append(f"판 2 칸 {', '.join(skipped)} 는 `stops` 가 없는 카드라 코드에 옮기지 않았다 — "
+                            f"손절 · 익절 · 위험 % 수량 · 체결 시점이 TradingView 에 반영되지 않는다")
+    else:
+        warnings.append("price_basis = adj_base — TradingView 차트의 수정주가(Adjust data) 설정을 우리 수집 DB 수정주가와 같은 상태로 두고 대사한다. Pine 코드로는 정할 수 없다")
+        if v2["mode"] == "close":
+            warnings.append("entry_mode · exit_mode = close — 같은 종가에 체결(process_orders_on_close = true). 현실에서는 불가한 가정이다")
+        if v2["judge"] == "intrabar":
+            warnings.append("judge = intrabar — 봉 안에서 선에 닿으면 체결(strategy.exit). 우리 일봉 종가 판정과 다르다 — 대사 범위 밖(설계서 3.3 ①)")
     sw = spec.get("signal_weights") or {}
     if "buy_threshold" in sw or "sell_threshold" in sw:
         warnings.append("signal_weights 의 buy/sell_threshold 는 Pine 에 옮기지 않는다 — 진입 · 청산은 entry · exit 규칙의 상태만 본다")
@@ -142,13 +207,19 @@ def generate(spec: Dict, *, symbol: Optional[str] = None, ref_price: Optional[fl
 
     sha = fingerprint(spec)
     sid, ver = spec.get("strategy_id"), spec.get("version")
-    lines = [
+    on_close = "true" if v2 and v2["mode"] == "close" else "false"
+    head = [
         "//@version=6",
         f"// Qurious card {sid} v{ver} sha256:{sha}",
-        f"// universe: {sym} · timeframe: 1d · 생성기 v0.1 (판 1 — 계약 칸만)",
+        f"// universe: {sym} · timeframe: 1d · 생성기 " + ("v0.1 (판 1 — 계약 칸만)" if v2 is None else "v0.2 (판 2 — 손절 · 익절 · 위험 % 수량 · 체결 시점)"),
+    ]
+    if v2 is not None:
+        head.append("// price_basis: adj_base — 차트의 수정주가(Adjust data) 설정을 우리 수집 DB 수정주가와 같게 두고 대사한다")
+        head.append("// 손절 · 익절선은 진입 체결가(strategy.position_avg_price — 슬리피지 포함)에서 잰다")
+    lines = head + [
         f'strategy("Qurious {sid} v{ver}", overlay = true, initial_capital = {int(initial_capital)}, pyramiding = 0, '
         f"default_qty_type = strategy.fixed, commission_type = strategy.commission.percent, commission_value = {_dec(one_way)}, "
-        f"slippage = {ticks}, process_orders_on_close = false, calc_on_every_tick = false)",
+        f"slippage = {ticks}, process_orders_on_close = {on_close}, calc_on_every_tick = false)",
         "",
         "if not timeframe.isdaily",
         '    runtime.error("카드는 일봉용")',
@@ -159,15 +230,78 @@ def generate(spec: Dict, *, symbol: Optional[str] = None, ref_price: Optional[fl
         "slow = ta.sma(close, longLen)",
         "",
         f"positionPct = {_num(pct)}",
-        "qty = math.floor(strategy.equity * positionPct / 100 / close)",
-        "",
-        f"entryCond = {_COND[e_cond]}",
-        f"exitCond = {_COND[x_cond]}",
-        "",
-        "if entryCond and strategy.position_size == 0 and qty > 0",
-        '    strategy.entry("L", strategy.long, qty = qty)',
-        "if exitCond and strategy.position_size > 0",
-        '    strategy.close("L")',
+    ]
+    if v2 is None:
+        lines += [
+            "qty = math.floor(strategy.equity * positionPct / 100 / close)",
+            "",
+            f"entryCond = {_COND[e_cond]}",
+            f"exitCond = {_COND[x_cond]}",
+            "",
+            "if entryCond and strategy.position_size == 0 and qty > 0",
+            '    strategy.entry("L", strategy.long, qty = qty)',
+            "if exitCond and strategy.position_size > 0",
+            '    strategy.close("L")',
+        ]
+    else:
+        lines += [
+            f"riskPct = {_num(v2['risk_pct'])}",
+            f"atrPeriod = {v2['atr_period']}",
+            f"atrMult = {_num(v2['atr_mult'])}",
+            f"takeRr = {_num(v2['take_rr'])}",
+            f"warmupBars = {v2['warmup_bars']}",
+            "",
+            "atrNow = ta.atr(atrPeriod)",
+            "ready = bar_index + 1 >= warmupBars",
+            "",
+            f"entryCond = {_COND[e_cond]}",
+            f"exitCond = {_COND[x_cond]}",
+            "",
+            "riskQty = atrNow > 0 ? math.floor(strategy.equity * riskPct / 100 / (atrMult * atrNow)) : 0",
+            "capQty = math.floor(strategy.equity * positionPct / 100 / close)",
+            "qty = math.min(riskQty, capQty)",
+            "",
+            "var float atrEntry = na",
+            "var float stopPx = na",
+            "var float takePx = na",
+            "var bool needFresh = false",
+            "",
+            "if not entryCond",
+            "    needFresh := false",
+            "",
+            "if strategy.position_size == 0",
+            "    stopPx := na",
+            "    takePx := na",
+            "else if na(stopPx)",
+            "    stopPx := strategy.position_avg_price - atrMult * atrEntry",
+            "    takePx := strategy.position_avg_price + takeRr * (strategy.position_avg_price - stopPx)",
+            "",
+        ]
+        if v2["judge"] == "close":
+            lines += [
+                "stopHit = strategy.position_size > 0 and close <= stopPx",
+                "takeHit = strategy.position_size > 0 and close >= takePx",
+                "if strategy.position_size > 0 and (stopHit or takeHit or exitCond)",
+                '    strategy.close("L")',
+                "    if stopHit or takeHit",
+                "        needFresh := true",
+            ]
+        else:
+            lines += [
+                "if strategy.position_size > 0",
+                '    strategy.exit("X", "L", stop = stopPx, limit = takePx)',
+                "if strategy.position_size > 0 and exitCond",
+                '    strategy.close("L")',
+                "if strategy.position_size[1] > 0 and strategy.position_size == 0 and entryCond",
+                "    needFresh := true",
+            ]
+        lines += [
+            "",
+            "if entryCond and strategy.position_size == 0 and ready and not needFresh and qty > 0",
+            "    atrEntry := atrNow",
+            '    strategy.entry("L", strategy.long, qty = qty)',
+        ]
+    lines += [
         "",
         'plot(fast, "fast", color = color.orange)',
         'plot(slow, "slow", color = color.blue)',
@@ -191,7 +325,7 @@ def read_back(code: str) -> Dict:
 
     head = re.search(r"^(strategy|indicator)\(", code, re.M)
     cap, slip, pyr = grab(r"initial_capital = (\d+)"), grab(r"slippage = (\d+)"), grab(r"pyramiding = (\d+)")
-    return {
+    out = {
         "version": int(grab(r"^//@version=(\d+)", re.M) or 0),
         "declaration": head.group(1) if head else None,
         "initial_capital": int(cap) if cap else None,
@@ -207,6 +341,17 @@ def read_back(code: str) -> Dict:
         "exit_cond": grab(r"^exitCond = (.+)$", re.M),
         "daily_only": "if not timeframe.isdaily" in code and "runtime.error(" in code,
     }
+    if re.search(r"^atrPeriod = ", code, re.M):                      # 판 2 코드일 때만
+        out.update({
+            "risk_pct": _as_number(grab(r"^riskPct = ([\d.]+)", re.M) or "0"),
+            "atr_period": int(grab(r"^atrPeriod = (\d+)", re.M) or 0),
+            "atr_mult": _as_number(grab(r"^atrMult = ([\d.]+)", re.M) or "0"),
+            "take_rr": _as_number(grab(r"^takeRr = ([\d.]+)", re.M) or "0"),
+            "warmup_bars": int(grab(r"^warmupBars = (\d+)", re.M) or 0),
+            "judge": "intrabar" if "strategy.exit(" in code else "close",
+            "new_signal_guard": "if not entryCond" in code and "needFresh" in code,
+        })
+    return out
 
 
 def main(argv: Optional[List[str]] = None) -> int:

@@ -2360,6 +2360,9 @@ def utf8_stdio() -> None:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
+    if sys.stderr is None:  # pythonw — HF 다운로드 진행 막대가 AttributeError 로 죽는다(2026-10-27 임대 읽기 실패)
+        from scripts import run_lease
+        run_lease.quiet_hf_progress()
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

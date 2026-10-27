@@ -585,3 +585,23 @@ def test_le35_pc_list_with_no_pc_at_all_adds_nothing_and_does_not_crash():
     assert "PC 별" not in text
     assert rl.pc_records(bare) == {} and rl.pc_records(None) == {}
     assert "PC 별" not in "\n".join(rl.status_lines(None, None))
+
+
+def test_le36_pythonw_without_stderr_turns_off_hf_progress_bars(monkeypatch):
+    """TC-LE-36 · 작업 스케줄러의 ``pythonw`` 는 표준오류가 None — HF 다운로드 진행 막대(tqdm)가 ``None.write`` 로
+    AttributeError 를 내 임대 파일을 못 받고 올리기를 건너뛰었다(2026-10-27 19:05 회차). 표준오류가 없을 때만 끄고, 터미널에서는 그대로 둔다."""
+    import sys
+
+    from huggingface_hub.utils import are_progress_bars_disabled, disable_progress_bars, enable_progress_bars
+
+    monkeypatch.delenv("HF_HUB_DISABLE_PROGRESS_BARS", raising=False)   # 시험이 끝나면 원래대로
+    enable_progress_bars()
+    try:
+        rl.quiet_hf_progress()
+        assert not are_progress_bars_disabled(), "표준오류가 있으면(터미널) 건드리지 않는다"
+
+        monkeypatch.setattr(sys, "stderr", None)
+        rl.quiet_hf_progress()
+        assert are_progress_bars_disabled(), "pythonw(표준오류 없음)에서는 끈다"
+    finally:
+        enable_progress_bars()
