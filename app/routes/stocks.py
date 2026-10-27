@@ -1059,23 +1059,15 @@ async def quant_risk_status(user=Depends(get_current_user), db: AsyncSession = D
         limits = auto_trade.aggressive_mode.apply_limits(limits)
     # 이슈 #297 — 자동매매 장부는 :quant 접미사. 모의계좌(paper)와 위험 관문 키가 안 섞이게
     user_key = f"{uid}:quant"
-    # 자동매매 가상계좌 기준 현재 자산 (현재가 캐시 우선, 없으면 평균단가)
-    acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
-    equity = None
-    if acc:
-        equity = float(acc.cash_balance)
-        for p in (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all():
-            if p.quantity > 0:
-                px = None
-                try:
-                    px = (await get_quote(p.symbol)).get("price")
-                except Exception:
-                    pass
-                equity += p.quantity * float(px or p.avg_price)
+    # #284: 사이클·대시보드와 같은 시세/평가 경로. 누락이면 손익을 만들지 않는다.
+    from app.services import quant_valuation
+    valuation = await quant_valuation.snapshot(db, uid)
+    equity = valuation["equity"] if valuation["has_account"] else None
     # DF-152 — 시작 자산은 :quant(장부 구분) 열쇠, 주문 수는 쓰는 쪽과 같은 접미사 없는 uid
     status = await risk_guard.risk_status(
         user_key, limits, equity, row.risk_halt_reason if row else "", orders_user_id=str(uid)
     )
+    status["valuation"] = quant_valuation.basis(valuation)
     status["auto_trade_running"] = bool(row and row.quant_auto_enabled)
     status["last_cycle_risk"] = (await auto_trade.get_status(db, uid)).get("risk", {})
     status["execution_guidance"] = execution_guidance()

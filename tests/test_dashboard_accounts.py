@@ -10,7 +10,7 @@ import pytest
 from app.config import settings
 from app.models import BrokerSettings, LiveOrder, Portfolio, QuantVirtualAccount
 from app.routes import dashboard as d
-from app.services import kis_credentials as kc
+from app.services import kis_credentials as kc, quant_valuation
 from app.services.brokers import stock_coin_trade_gateway as gw
 
 UID = uuid.UUID("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0")
@@ -85,7 +85,7 @@ def test_tabs_order_and_kis_first_via_gateway():
     db = FakeDb(broker=broker, live=live, acc=SimpleNamespace(cash_balance=9_700_000.0, initial_capital=10_000_000.0),
                 positions=[SimpleNamespace(symbol="005930.KS", quantity=1, avg_price=275_000.0)])
     with patch.object(d.paper_trading, "account_snapshot", AsyncMock(return_value=SNAP)), \
-         patch.object(d, "get_quote", AsyncMock(return_value={"price": 280_000})):
+         patch.object(quant_valuation.quote_now, "quote_now", AsyncMock(return_value={"price": 280_000, "source": "delayed", "as_of": "2026-10-27 14:00", "label": "지연 시세 · 14:00 체결"})):
         out = asyncio.run(d.accounts(user={"id": str(UID)}, db=db))
     keys = [t["key"] for t in out["tabs"]]
     assert keys == ["kis", "quant", "paper", "us"] and keys[0] == "kis"

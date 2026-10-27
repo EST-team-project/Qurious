@@ -115,26 +115,17 @@ async def quant_tab(db: AsyncSession, uid: uuid.UUID) -> dict:
     """자동매매 가상 장부(QUANT book) — 자동매매가 사고판 수량만 담긴다."""
     # Qurious(2026-10-03 · 화면 결정 ① C): 탭의 사이트 이름에 옛 서비스 이름을 쓰지 않는다(TC-NV-07)
     tab = _tab("quant", "퀀트 가상계좌", "자동매매 가상 장부", link="#quant-auto")
-    acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))).scalar_one_or_none()
-    rows = (await db.execute(select(Portfolio).where(Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all()
-    cash = _f(acc.cash_balance) if acc else 0.0
-    initial = _f(acc.initial_capital) if acc else 0.0
-    invested = 0.0
-    positions = 0
-    for p in rows:
-        if p.quantity <= 0:
-            continue
-        positions += 1
-        px = None
-        try:
-            px = (await get_quote(p.symbol)).get("price")
-        except Exception:  # noqa: BLE001 — 시세 실패는 평균단가로 대체
-            px = None
-        invested += p.quantity * _f(px, _f(p.avg_price))
-    total = cash + invested
-    tab.update(connected=acc is not None, cash=cash, invested=invested, total=total, positions=positions,
-               pnl=(total - initial) if initial else None, pnl_pct=round((total / initial - 1) * 100, 2) if initial else None,
-               note="가상 체결 장부 · 초기 자본 " + (f"{initial:,.0f}원" if initial else "미생성"))
+    from app.services import quant_valuation
+    snap = await quant_valuation.snapshot(db, uid)
+    total, initial = snap["equity"], snap["initial"]
+    tab.update(connected=snap["has_account"], cash=snap["cash"],
+               invested=sum(snap["values"].values()) if snap["complete"] else None,
+               total=total, positions=snap["positions"],
+               pnl=(total - initial) if initial and total is not None else None,
+               pnl_pct=round((total / initial - 1) * 100, 2) if initial and total is not None else None,
+               valuation=quant_valuation.basis(snap),
+               note="가상 체결 장부 · " + snap["label"])
+
     return tab
 
 

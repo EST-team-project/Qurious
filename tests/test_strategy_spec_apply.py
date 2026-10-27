@@ -5,11 +5,23 @@ SPEC = {"strategy_id": "ma_cross_kr", "version": 2, "universe": ["005930", "0006
         "position_sizing": {"max_symbols": 1}, "signal_weights": {"buy_threshold": 0.25, "sell_threshold": -0.5}}
 
 
-def test_symbols_restricted_to_universe_and_capped():
-    assert apply_strategy_spec_to_symbols(["035420.KS", "000660.KS", "005930.KS"], SPEC) == ["000660.KS"]
-    # 교집합 없으면 원본 유지 (전략이 종목 선정 화면 선택을 완전히 무효화하지 않음)
-    assert apply_strategy_spec_to_symbols(["035420.KS"], SPEC) == ["035420.KS"]
-    assert apply_strategy_spec_to_symbols(["005930.KS"], {"universe": []}) == ["005930.KS"]
+def test_card_universe_is_evaluated_independently_of_ai_ranking():
+    import pytest
+    assert apply_strategy_spec_to_symbols(["035420.KS", "000660.KS", "005930.KS"], SPEC) == ["005930.KS", "000660.KS"]
+    assert apply_strategy_spec_to_symbols(["035420.KS"], SPEC) == ["005930.KS", "000660.KS"]
+    with pytest.raises(ValueError):
+        apply_strategy_spec_to_symbols(["005930.KS"], {"universe": []})
+
+
+def test_card_can_include_a_symbol_outside_default_stock_list():
+    assert apply_strategy_spec_to_symbols(["005930.KS"], {"universe": ["999999.KQ"]}) == ["999999.KQ"]
+
+
+def test_card_cannot_disable_limits_with_invalid_values():
+    import pytest
+    for sizing in ({"max_position_pct": 0}, {"max_position_pct": float("nan")}, {"max_symbols": -1}):
+        with pytest.raises(ValueError):
+            apply_strategy_spec_to_symbols(["005930.KS"], {"universe": ["005930"], "position_sizing": sizing})
 
 
 def test_signal_rejudged_by_thresholds():

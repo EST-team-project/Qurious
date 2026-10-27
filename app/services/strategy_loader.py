@@ -1,7 +1,7 @@
 """domain-rag-lab 전략 스펙 API 클라이언트 (계약서 1절). 파일 공유 대신 HTTP로 받고 프로세스 내 TTL 캐시를 둔다.
 
 종목 선정 화면의 전략 드롭다운(list_strategies)과 사이클의 규칙 평가(get_strategy)가 사용한다.
-domain-rag-lab 이 설정되지 않았거나 응답이 없으면 None/[] 를 돌려주고 호출자는 기존 하드코딩 규칙으로 폴백한다.
+domain-rag-lab 이 설정되지 않았거나 응답이 없으면 None/[] 를 돌려준다. 선택된 카드가 없으면 주문을 보류해야 한다.
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ async def _get(path: str) -> Any | None:
         data = response.json()
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("domain-rag-lab 전략 API 실패 (%s): %s", path, exc)
-        return hit[1] if hit else None  # 만료된 캐시라도 있으면 사용
+        return None  # 만료된 카드를 주문 판단에 다시 사용하지 않는다.
     _cache[path] = (now + max(0, settings.STRATEGY_SPEC_CACHE_TTL), data)
     return data
 
@@ -65,4 +65,11 @@ async def get_strategy(strategy_id: str, version: int | None = None) -> dict[str
     if not strategy_id:
         return None
     path = f"/backtests/strategies/{strategy_id}" + (f"/versions/{version}" if version else "")
-    return await _get(path)
+    data = await _get(path)
+    if not isinstance(data, dict) or data.get("strategy_id") != strategy_id:
+        return None
+    if type(data.get("version")) is not int or data["version"] < 1:
+        return None
+    if version is not None and data["version"] != version:
+        return None
+    return data

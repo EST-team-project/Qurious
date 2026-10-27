@@ -139,6 +139,37 @@ class KISClient(BrokerClient):
             change_pct= float(o.get("prdy_ctrt", 0)),
         )
 
+    async def get_buying_power(self, account_no: str, symbol: str, price: float) -> dict:
+        """미수 없는 금액·수량. 예수금이나 최대 신용 수량으로 대체하지 않는다.
+
+        공식 inquire_psbl_order 예제에 따라 수량 조회는 ORD_DVSN=01을 사용한다.
+        실제 주문은 별도로 지정가를 사용하며 두 상한 중 작은 값을 적용한다.
+        """
+        if not math.isfinite(price) or price <= 0:
+            raise ValueError("매수 가능 조회 가격이 잘못되었습니다.")
+        await self._ensure_token()
+        cano, product = self._split_account(account_no)
+        async with httpx.AsyncClient(timeout=10) as cli:
+            response = await cli.get(
+                f"{self.base_url}/uapi/domestic-stock/v1/trading/inquire-psbl-order",
+                headers=self._headers("VTTC8908R" if self.paper else "TTTC8908R"),
+                params={"CANO": cano, "ACNT_PRDT_CD": product, "PDNO": symbol[:6],
+                        "ORD_UNPR": str(int(price)), "ORD_DVSN": "01",
+                        "CMA_EVLU_AMT_ICLD_YN": "N", "OVRS_ICLD_YN": "N"},
+            )
+            response.raise_for_status()
+            body = response.json()
+        if not isinstance(body, dict) or str(body.get("rt_cd")) != "0":
+            raise RuntimeError("KIS 매수 가능 조회에 실패했습니다.")
+        try:
+            output = body["output"]
+            amount, quantity = float(output["nrcvb_buy_amt"]), float(output["nrcvb_buy_qty"])
+            if not math.isfinite(amount) or not math.isfinite(quantity) or amount < 0 or quantity < 0 or not quantity.is_integer():
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise RuntimeError("KIS 미수 없는 매수 가능 금액·수량을 확인하지 못했습니다.") from None
+        return {"amount": amount, "quantity": int(quantity)}
+
     async def get_balance(self, account_no: str) -> AccountBalance:
         await self._ensure_token()
         cano, acnt_prdt = self._split_account(account_no)
