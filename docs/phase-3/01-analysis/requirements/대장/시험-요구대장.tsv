@@ -249,3 +249,8 @@ TC-KSP	tests/test_broker_settings_preservation.py	P02-⑤-1	🟢	DF-145: 화면�
 TC-KRC	tests/test_broker_readiness_card.py	P02-⑤-1	🟢	#314 준비: 연결용 고정 카드 판 1(ma_cross_20_60 · 005930)이 기존 앱 판단 함수에서 매수 · 매도 · 관망을 내고, 봉이 모자라면 카드 규칙 결과로 치지 않는다 — LEAN · 주문 없이
 TC-LCA	tests/test_lean_calendar.py	P02-④-1	🟡	LEAN 알고리즘 생성 — KRX 종목은 KRX 거래시간 · 종가 시각(15:29)으로 넣고 다음 날로 밀지 않는다 · 그 밖은 기존 구독 길 · 생성 코드가 파이썬으로 유효하다 · 수익 곡선은 진입 종가 뒤부터 · 판 시작은 항상 현금(소스 문자열 검사 — 실제 LEAN 실행은 아님 · 2026-10-26 강민석)
 TC-CRD	tests/test_strategy_card.py	P02-①-2	🟡	전략 카드 판 2(2026-10-27 · 인디케이터 전략 설계서 4.3 · #314) — 칸 이름 · 값이 읽는 쪽 코드(수량 설정 `ExecutionPolicy` · 백테스트 `entry_mode` · `exit_mode`)와 같고, 판 2 가 판 1 과 같은 매수 · 매도 판단(합성 일봉 · 005930 2년)을 내며, 판단이 마지막 `warmup_bars` 봉에만 기댄다 — 같은 봉 손절 먼저 · 크기 합 · Pine 대조는 재지 않는다
+TC-TVC	tests/test_tradingview_compare_route.py	P02-④-3	🟡	TradingView ↔ LEAN 비교 API — 성과 · 체결 · 날짜별 신호 비교를 따로 하고, 입력이 없는 비교는 「요청 안 함」 으로 구분 · 신호만 낸 요청은 성과 이력에 저장하지 않는다(#358 강민석 · 묶음 이름 · 요구 매핑은 S156 이동원 추정 — 작성자 확인 칸)
+TC-LRF	tests/test_daily_lean_reconcile_fee.py	P02-④-1	🟡	LEAN 대조 층 4 — 일지와 LEAN 의 거래대금 대비 비용 요율(bp)을 견주고, LEAN 체결 목록이 없거나 깨지면 「판정 불가」 (#358 강민석 · 이름 · 매핑은 S156 이동원 추정)
+TC-HFF	tests/test_hf_collector_follower.py	P01-③-1	🟡	HF main 수집 자료 수신기(컨테이너 · Linux 전용) — 같은 커밋의 파일 · 검증 · 실행 기록으로 사용 준비를 판정하고 세대 전환이 원자적이다 · 심볼릭 링크를 못 만드는 Windows 에서는 9건을 건너뜀(#359 오준영 · 이름 · 매핑은 S156 이동원 추정)
+TC-KPR	tests/test_kis_strategy_probe.py	P02-⑤-1	🟡	판 1 고정 카드 KIS 모의 점검 경로 — 판단 · 주문 영속 기록 · 재전송 차단 · 미수 없는 매수 가능 수량 · 확정 봉 · 신선한 시세(#359 오준영 · 이름 · 매핑은 S156 이동원 추정)
+TC-QV	tests/test_quant_valuation.py	P02-⑤-2	🟡	자동매매 사이클 · 대시보드 공통 평가 경로 — 시세 누락이면 손익을 만들지 않고 주문을 보류한다(#284 · #359 오준영 · 이름 · 매핑은 S156 이동원 추정)

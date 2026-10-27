@@ -182,7 +182,7 @@ def test_budget_less_than_one_share_never_sends_order():
 def test_card_with_insufficient_bars_never_uses_indicator_buy(monkeypatch):
     import json
     from pathlib import Path
-    spec = json.loads(Path("docs/phase-3/02-design/system/예시/strategy-card-ma-cross-v1.json").read_text())
+    spec = json.loads(Path("docs/phase-3/02-design/system/예시/strategy-card-ma-cross-v1.json").read_text(encoding="utf-8"))
     calls = fake_gateway()
     monkeypatch.setattr(auto_trade.strategy_loader, "get_strategy", AsyncMock(return_value=spec))
     db, log = run_cycle(broker("live", quant_strategy_id=spec["strategy_id"], quant_strategy_version=1))

@@ -18,7 +18,7 @@ from app.models import BrokerSettings, LiveOrder, StrategyDecision, User
 from app.services import kis_strategy_probe as probe
 from app.services.brokers.kis import KISClient, OrderSubmissionUnknown
 
-SPEC = json.loads(Path("docs/phase-3/02-design/system/예시/strategy-card-ma-cross-v1.json").read_text())
+SPEC = json.loads(Path("docs/phase-3/02-design/system/예시/strategy-card-ma-cross-v1.json").read_text(encoding="utf-8"))
 NOW = datetime(2026, 10, 27, 1, 0, tzinfo=timezone.utc)
 CALENDAR = {"days": [{"date": "2026-10-26", "is_trading_day": True},
                      {"date": "2026-10-27", "is_trading_day": True}]}

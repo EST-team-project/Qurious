@@ -4,7 +4,10 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout, redirect_stderr
 from datetime import datetime, timezone, time as daytime, timedelta
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows — 수신기는 Linux 컨테이너에서만 돈다. 시험이 이 파일을 가져올 수 있게 한다
+    fcntl = None
 import hashlib
 import json
 import os
@@ -305,6 +308,9 @@ def main():
             return 0 if fresh and not state.get('last_error') and (ROOT / 'current/market.sqlite3').is_file() else 1
         except (OSError, ValueError, KeyError):
             return 1
+    if fcntl is None:
+        print('이 수신기는 Linux 컨테이너에서만 실행한다(fcntl 없음)', file=sys.stderr, flush=True)
+        return 1
     ROOT.mkdir(parents=True, exist_ok=True)
     with (ROOT / 'sync.lock').open('w') as lock:
         try:

@@ -219,6 +219,20 @@ def set_timeouts(read_s: float = 120.0, connect_s: float = 20.0) -> None:
     hf_http.set_client_factory(factory)
 
 
+def quiet_hf_progress() -> None:
+    """표준오류가 없으면(작업 스케줄러의 ``pythonw``) HF 다운로드 진행 막대를 끈다.
+
+    진행 막대(tqdm)가 ``None.write`` 로 AttributeError 를 내 임대 파일을 못 받고 올리기를 건너뛰었다
+    (2026-10-27 19:05 회차 · 임대 파일이 캐시에 없을 때만 난다 → 터미널에서는 재현되지 않는다).
+    """
+    if sys.stderr is not None:
+        return
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    from huggingface_hub.utils import disable_progress_bars
+
+    disable_progress_bars()
+
+
 def make_api():
     """쓰기 토큰으로 HfApi — 토큰은 찍지 않는다(없으면 ``LeaseError``)."""
     from huggingface_hub import HfApi
@@ -227,6 +241,7 @@ def make_api():
     if not tok:
         raise LeaseError("HUGGINGFACE_ACCESS_TOKEN 이 없다 — 이 PC 는 회차를 잡을 수 없다(.env)")
     set_timeouts()
+    quiet_hf_progress()
     return HfApi(token=tok)
 
 
