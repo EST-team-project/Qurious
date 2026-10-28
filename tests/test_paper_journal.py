@@ -626,3 +626,17 @@ def test_pj19_pull_accepts_other_pyarrow_bytes_but_not_other_content(tmp_path):
     (gone / parquet).unlink()
     with pytest.raises(ValueError, match="지문 목록과 다르다"):
         cli._ledger_download(FakeApi(gone))
+
+def test_pj20_upload_manifest_keeps_remote_bytes_fingerprint_for_existing_files(): # 이슈 #377
+    import scripts.paper_journal as cli
+
+    remote = {"schema": 1, "files": {"rows/a.parquet": {"kind": "day", "bytes": 100, "sha256": "R" * 64, "content_sha256": "c1"}}}
+    local = {"schema": 1, "counts": {"day": 2}, "files": {
+        "rows/a.parquet": {"kind": "day", "bytes": 110, "sha256": "L" * 64, "content_sha256": "c1"},   # 같은 내용 · 다른 pyarrow 바이트
+        "rows/b.parquet": {"kind": "day", "bytes": 50, "sha256": "N" * 64, "content_sha256": "c2"}}}      # 새 파일
+    assert cli.plan_upload(local, remote) == (["rows/b.parquet"], [])
+    merged = cli.keep_remote_meta(local, remote)
+    assert merged["files"]["rows/a.parquet"] == remote["files"]["rows/a.parquet"]      # 원격에 있던 파일 = 원격 지문
+    assert merged["files"]["rows/b.parquet"] == local["files"]["rows/b.parquet"]       # 새 파일 = 올리는 로컬 바이트 지문
+    assert merged["counts"] == {"day": 2} and local["files"]["rows/a.parquet"]["sha256"] == "L" * 64   # 원본은 바꾸지 않는다
+    assert cli.keep_remote_meta(local, {})["files"] == local["files"]                  # 첫 올리기 = 그대로
