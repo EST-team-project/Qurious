@@ -8,6 +8,7 @@ const ts = (iso) => iso ? new Date(iso).toLocaleString("ko-KR", { hour12: false 
 const STATUS_BADGE = {
   filled: `<span class="badge-buy">체결</span>`, alert: `<span class="badge-hold">알림</span>`,
   duplicate: `<span class="badge-hold">중복</span>`, rejected: `<span class="badge-sell">거절</span>`, error: `<span class="badge-sell">오류</span>`,
+  late: `<span class="badge-hold">늦음</span>`, rejected_format: `<span class="badge-sell">형식 오류</span>`,
 };
 const VERDICT_CLS = { "일치": "badge-buy", "부분 일치": "badge-hold", "불일치": "badge-sell", "비교 불가": "badge-hold" };
 let cmpChart = null;
@@ -36,8 +37,12 @@ async function loadSignals() {
 async function sendTestSignal() {
   const token = $("tv-test-token").value.trim();
   if (!token) return setToast("발급한 API 키(token)를 입력하세요.", "error");
-  const body = { token, strategy: "테스트 알림", ticker: $("tv-test-ticker").value.trim() || "005930",
-    action: $("tv-test-action").value, contracts: Number($("tv-test-qty").value || 1), comment: "화면에서 보낸 테스트" };
+  // 주문이 되는 알림은 strategy_id · bar_time 이 필수 — 누를 때마다 다른 봉으로 보내야 같은 알림으로 묶이지 않는다
+  const nowIso = new Date().toISOString();
+  const body = { token, strategy: "테스트 알림", strategy_id: "screen-test", strategy_version: 1,
+    ticker: $("tv-test-ticker").value.trim() || "005930",
+    action: $("tv-test-action").value, contracts: Number($("tv-test-qty").value || 1),
+    bar_time: nowIso, sent_at: nowIso, comment: "화면에서 보낸 테스트" };
   try {
     const r = await api("/api/webhooks/tradingview", { method: "POST", body });
     setToast(`Webhook 처리: ${r.status} — ${r.message}`, r.ok ? "ok" : "error");

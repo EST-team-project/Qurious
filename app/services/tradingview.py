@@ -16,9 +16,11 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models import ApiKey, WebhookSignal, StrategyComparison
 from app.services import paper_trading as pt
 
@@ -27,23 +29,33 @@ logger = logging.getLogger(__name__)
 ORDER_SOURCE = "TRADINGVIEW"
 
 # TradingView 알림 메시지에 그대로 붙여 쓰는 템플릿 (플레이스홀더는 TradingView가 치환)
+# strategy_id · bar_time 은 주문이 되는 알림(buy/sell)의 필수 칸이다(설계 3.6 #3) — 같은 알림 중복 판별과 지연 검사에 쓴다.
 ALERT_TEMPLATE = {
     "token": "<발급한 API 키>",
     "strategy": "{{strategy.order.alert_message}}",
+    "strategy_id": "<전략 카드 id>",
+    "strategy_version": 1,
     "ticker": "{{ticker}}",
     "action": "{{strategy.order.action}}",
     "contracts": "{{strategy.order.contracts}}",
     "price": "{{close}}",
-    "time": "{{timenow}}",
     "bar_time": "{{time}}",
+    "sent_at": "{{timenow}}",
     "comment": "{{strategy.order.comment}}",
 }
 
+# 기록에 남기는 본문 칸(모르는 칸은 버린다 — 설계 3.6 #3). token · api_key 는 원래 남기지 않는다.
+KNOWN_PAYLOAD_KEYS = (
+    "strategy", "strategy_name", "strategy_id", "strategy_version", "ticker", "symbol", "action", "side", "order",
+    "contracts", "quantity", "qty", "price", "close", "bar_time", "sent_at", "comment", "message", "dry_run",
+)
+
 
 class WebhookError(Exception):
-    def __init__(self, status: int, message: str):
+    def __init__(self, status: int, message: str, code: str = ""):
         super().__init__(message)
         self.status = status
+        self.code = code or ("rejected_auth" if status == 401 else "rejected_format")
 
 
 # ── Webhook ─────────────────────────────────────────────────────────────
@@ -100,53 +112,165 @@ def parse_alert(payload: dict) -> dict:
     }
 
 
-async def handle_alert(db: AsyncSession, payload: dict) -> dict:
-    """신호 이력은 호출자가 커밋한다. 주문 의도·가상 체결은 별도 관문에서 먼저 영속화한다."""
-    key = await resolve_user_by_token(db, str(payload.get("token") or payload.get("api_key") or ""))
+def client_ip(forwarded_for: str, peer: str, hops: int) -> str | None:
+    """발신 IP 를 정한다(설계 3.6 #2). hops=0 이면 소켓 상대 주소만 — 헤더는 보낸 쪽이 쓰기 나름이라 믿지 않는다.
+    hops=N(≥1) 이면 x-forwarded-for 의 **오른쪽에서 N 번째** — 신뢰하는 프록시가 덧붙인 값. 맨 앞 값은 쓰지 않는다.
+    값이 모자라면(프록시를 거치지 않았거나 헤더를 지움) None → 호출자가 거부한다."""
+    if hops <= 0:
+        return (peer or "").strip() or None
+    parts = [p.strip() for p in (forwarded_for or "").split(",") if p.strip()]
+    if len(parts) < hops:
+        return None
+    return parts[-hops]
+
+
+def parse_time(value: Any) -> datetime | None:
+    """ISO 8601(끝에 Z 가능 · 시간대 없으면 UTC) 또는 epoch 초(10자리) · 밀리초(13자리). 못 읽으면 None."""
+    s = str(value if value is not None else "").strip()
+    if not s:
+        return None
+    try:
+        if re.fullmatch(r"\d{10}|\d{13}", s):
+            n = int(s)
+            return datetime.fromtimestamp(n / 1000 if len(s) == 13 else n, tz=timezone.utc)
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except (ValueError, OverflowError, OSError):
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def build_dedup_key(user_id: Any, strategy_id: str, version: int, symbol: str, side: str, signal: str) -> str:
+    """알림 단위 중복 키(설계 3.6 #4) — (사용자, 전략, 판, 종목, 방향, 신호). 신호가 시각이면 UTC 로 맞추고 아니면 글 그대로."""
+    when = parse_time(signal)
+    sig_text = when.astimezone(timezone.utc).isoformat() if when else str(signal)
+    raw = "|".join([str(user_id), strategy_id, str(version), symbol, side, sig_text])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def public_payload(payload: dict) -> dict:
+    """기록에 남길 본문 — 아는 칸만, 값은 200자까지(설계 3.6 #3)."""
+    out: dict = {}
+    for k in KNOWN_PAYLOAD_KEYS:
+        if k in payload:
+            v = payload[k]
+            out[k] = v if isinstance(v, (int, float, bool)) else str(v)[:200]
+    return out
+
+
+def signal_id_of(payload: dict) -> str:
+    """주문 신호를 가르는 값 — signal_id, 없으면 bar_time, 없으면 time(공통 위험 관문 `signal_key` 와 같은 차례)."""
+    return str(payload.get("signal_id") or payload.get("bar_time") or payload.get("time") or "").strip()
+
+
+def _order_fields(payload: dict, alert: dict, now: datetime) -> dict:
+    """주문이 되는 알림의 필수 칸과 지연을 본다(설계 3.6 #3 · #5). status 가 비어 있으면 통과.
+
+    필수: signal_id · bar_time · time 가운데 하나. strategy_id 는 없으면 strategy 이름으로 대신한다(없으면 default).
+    지연은 알림을 보낸 시각 sent_at({{timenow}})이 있을 때만 잰다 — 일봉의 bar_time 은 봉이 열린 시각이라 몇 시간 전이 정상이다.
+    """
+    signal = signal_id_of(payload)
+    if not signal:
+        return {"status": "rejected_format", "message": "주문에는 signal_id 또는 bar_time(판단 시각)이 필요합니다."}
+    strategy_id = str(payload.get("strategy_id") or alert["strategy"] or "default").strip()[:97]
+    version = _to_int(payload.get("strategy_version"), 1)
+    version = version if version >= 1 else 1
+    out = {"status": "", "signal": signal, "strategy_id": strategy_id, "version": version}
+    if payload.get("sent_at") in (None, ""):
+        return out
+    sent_at = parse_time(payload.get("sent_at"))
+    if sent_at is None:
+        return {"status": "rejected_format", "message": "sent_at 이 시각 형식이 아닙니다(ISO 8601 또는 epoch)."}
+    delay = (now - sent_at).total_seconds()
+    out["delay"] = delay
+    if delay < -settings.TRADINGVIEW_MAX_FUTURE_SKEW_SEC:
+        return {**out, "status": "rejected_format", "message": f"알림 시각이 받은 시각보다 {-delay:.0f}초 앞섭니다(시계 확인)."}
+    if delay > settings.TRADINGVIEW_MAX_DELAY_SEC:
+        return {**out, "status": "late",
+                "message": f"알림이 {delay:.0f}초 늦게 도착해(한도 {settings.TRADINGVIEW_MAX_DELAY_SEC}초) 주문하지 않았습니다."}
+    return out
+
+
+async def handle_alert(db: AsyncSession, payload: dict, key: ApiKey | None = None, now: datetime | None = None) -> dict:
+    """Webhook 본문 처리: 형식 · 지연 → 알림 단위 중복(먼저 한 줄 잡기) → 공통 관문 주문 → 이력 저장. 커밋은 호출자.
+
+    key 를 넘기면 다시 조회하지 않는다(라우트가 이미 확인함). 주문이 되는 알림(buy/sell · 수량 ≥ 1 · dry_run 아님)만
+    필수 칸이 있고 중복 키를 가진다 — 알림만 오는 신호는 예전과 같다. 주문 의도 · 가상 체결은 별도 관문
+    (`paper_order_control`)이 먼저 영속화하며, 같은 신호를 또 받아도 이 관문이 두 번째 주문을 막는다.
+    """
+    if key is None:
+        key = await resolve_user_by_token(db, str(payload.get("token") or payload.get("api_key") or ""))
+    now = now or datetime.now(timezone.utc)
     user_id: uuid.UUID = key.user_id
     alert = parse_alert(payload)
-    safe_payload = {k: v for k, v in payload.items() if k not in ("token", "api_key")}
 
     sig = WebhookSignal(
         user_id=user_id, provider="tradingview", strategy=alert["strategy"], symbol=alert["symbol"],
-        side=alert["side"], quantity=alert["quantity"], signal_price=alert["price"], payload=safe_payload,
+        side=alert["side"], quantity=alert["quantity"], signal_price=alert["price"], payload=public_payload(payload),
     )
-    db.add(sig)
+    key.last_used_at = now
+    key.call_count = (key.call_count or 0) + 1
 
+    is_order = alert["side"] in ("BUY", "SELL") and alert["quantity"] > 0 and not alert["dry_run"]
+    claimed = False
     if not alert["symbol"]:
         sig.status, sig.message = "rejected", "ticker/symbol 이 없습니다."
-    elif alert["side"] == "ALERT" or alert["dry_run"] or alert["quantity"] <= 0:
+    elif not is_order:
         sig.status = "alert"
         sig.message = "주문 없이 알림만 전달했습니다." + (" (dry_run)" if alert["dry_run"] else "" if alert["side"] != "ALERT" else " (action 미지정)")
-    elif not (payload.get("signal_id") or payload.get("bar_time") or payload.get("time")):
-        sig.status, sig.message = "rejected", "주문에는 signal_id 또는 판단 시각이 필요합니다."
     else:
-        try:
-            res = await pt.stock_order(db, user_id, alert["symbol"], alert["side"], alert["quantity"], source=ORDER_SOURCE,
-                signal_key=str(payload.get("signal_id") or payload.get("bar_time") or payload.get("time")),
-                strategy_id="tv:" + (alert["strategy"] or "default")[:97])
-            sig.symbol, sig.fill_price, sig.status = res["symbol"], float(res["price"]), "filled"
-            if res.get("duplicate"):
+        f = _order_fields(payload, alert, now)
+        if f.get("delay") is not None:
+            sig.delay_sec = round(f["delay"], 3)
+        if f["status"]:
+            sig.status, sig.message = f["status"], f["message"][:300]
+        else:
+            dedup_key = build_dedup_key(user_id, f["strategy_id"], f["version"], alert["symbol"], alert["side"], f["signal"])
+            sig.dedup_key = dedup_key
+            duplicate_of = None
+            # 먼저 한 줄을 잡는다 — 같은 알림이 동시에 둘 와도 유일 색인이 하나만 통과시키고, 주문은 잡은 쪽만 낸다.
+            try:
+                async with db.begin_nested():
+                    db.add(sig)
+                    await db.flush()
+                claimed = True
+            except IntegrityError:
+                duplicate_of = (await db.execute(select(WebhookSignal).where(
+                    WebhookSignal.user_id == user_id, WebhookSignal.dedup_key == dedup_key))).scalar_one_or_none()
+                if duplicate_of is None:
+                    raise  # 중복 키 때문이 아닌 제약 위반 — 중복으로 오해하지 않고 그대로 올린다
+                await db.execute(update(WebhookSignal).where(WebhookSignal.id == duplicate_of.id)
+                                 .values(dup_count=WebhookSignal.dup_count + 1))
+                # 중복으로 받은 것도 줄은 남긴다(키 없이) — 받은 횟수가 기록에 보이고, 첫 줄의 dup_count 가 오른다.
+                sig.dedup_key = None
                 sig.status = "duplicate"
-            sig.message = "이미 처리한 신호입니다. 추가 주문 없음" if res.get("duplicate") else f"{res['name']} {alert['side']} {alert['quantity']}주 @ {res['price']:,.0f} 모의 체결"
-        except pt.PaperTradeError as exc:
-            sig.status, sig.message = "error", str(exc)[:300]
+                sig.message = f"이미 처리한 신호입니다. 추가 주문 없음(첫 처리: {duplicate_of.status})"
+            if duplicate_of is None:
+                try:
+                    res = await pt.stock_order(db, user_id, alert["symbol"], alert["side"], alert["quantity"], source=ORDER_SOURCE,
+                                               signal_key=f["signal"], strategy_id="tv:" + f["strategy_id"])
+                    sig.symbol, sig.fill_price, sig.status = res["symbol"], float(res["price"]), "filled"
+                    if res.get("duplicate"):
+                        sig.status = "duplicate"
+                    sig.message = ("이미 처리한 신호입니다. 추가 주문 없음" if res.get("duplicate")
+                                   else f"{res['name']} {alert['side']} {alert['quantity']}주 @ {res['price']:,.0f} 모의 체결")
+                except pt.PaperTradeError as exc:
+                    sig.status, sig.message = "error", str(exc)[:300]
 
-    key.last_used_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
-    key.call_count = (key.call_count or 0) + 1
+    if not claimed:
+        db.add(sig)
     await db.flush()
     await db.refresh(sig)
     from app.services.execution_control import digest
     event = payload.get("signal_id") or payload.get("bar_time") or payload.get("time") or str(sig.id)
     notification_ref = digest([str(user_id), alert["strategy"], sig.symbol, alert["side"], str(event)])
-    return {"user_id": str(user_id), "signal": signal_to_dict(sig), "alert": alert,
-            "notification_ref": notification_ref}
+    return {"user_id": str(user_id), "signal": signal_to_dict(sig), "alert": alert, "notification_ref": notification_ref}
 
 
 def signal_to_dict(s: WebhookSignal) -> dict:
     return {"id": str(s.id), "provider": s.provider, "strategy": s.strategy, "symbol": s.symbol, "side": s.side,
             "quantity": s.quantity, "signal_price": s.signal_price, "fill_price": s.fill_price, "status": s.status,
-            "message": s.message, "payload": s.payload, "created_at": s.created_at.isoformat() if s.created_at else None}
+            "message": s.message, "payload": s.payload, "created_at": s.created_at.isoformat() if s.created_at else None,
+            "dup_count": s.dup_count or 0, "delay_sec": s.delay_sec}
 
 
 async def list_signals(db: AsyncSession, user_id: uuid.UUID, limit: int = 50) -> list[dict]:
