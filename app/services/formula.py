@@ -73,7 +73,7 @@ def make_functions(df: pd.DataFrame) -> dict[str, Any]:
     def f_bb_mid(x, n=20, k=2.0): return ta.bollinger(_series_arg(x, "bb_mid"), _n(n, "bb_mid", 2), float(k))[1]
     def f_bb_lower(x, n=20, k=2.0): return ta.bollinger(_series_arg(x, "bb_lower"), _n(n, "bb_lower", 2), float(k))[2]
     def f_atr(n=14): return ta.atr(high, low, close, _n(n, "atr"))
-    def f_std(x, n): return _series_arg(x, "std").rolling(_n(n, "std", 2)).std()
+    def f_std(x, n): return _series_arg(x, "std").rolling(_n(n, "std", 2)).std(ddof=0)
     def f_highest(x, n): return _series_arg(x, "highest").rolling(_n(n, "highest")).max()
     def f_lowest(x, n): return _series_arg(x, "lowest").rolling(_n(n, "lowest")).min()
     def f_sum(x, n): return _series_arg(x, "sum").rolling(_n(n, "sum")).sum()
@@ -85,14 +85,14 @@ def make_functions(df: pd.DataFrame) -> dict[str, Any]:
     def f_pct_change(x, n=1): return _series_arg(x, "pct_change").pct_change(_n(n, "pct_change"))
     def f_zscore(x, n=20):
         x = _series_arg(x, "zscore"); k = _n(n, "zscore", 2)
-        return (x - x.rolling(k).mean()) / x.rolling(k).std().replace(0, np.nan)
+        return (x - x.rolling(k).mean()) / x.rolling(k).std(ddof=0).replace(0, np.nan)
     def f_normalize(x, n=20):
         x = _series_arg(x, "normalize"); k = _n(n, "normalize", 2)
         lo_, hi_ = x.rolling(k).min(), x.rolling(k).max()
         return (x - lo_) / (hi_ - lo_).replace(0, np.nan)
     def f_rank(x, n=20):
         x = _series_arg(x, "rank"); k = _n(n, "rank", 2)
-        return x.rolling(k).apply(lambda w: (w[:-1] < w[-1]).mean() if len(w) > 1 else np.nan, raw=True)
+        return x.rolling(k + 1).apply(lambda w: (w[:-1] <= w[-1]).mean(), raw=True)
     def f_crossover(a, b):
         a, b = _s(a, close), _s(b, close)
         return ((a > b) & (a.shift(1) <= b.shift(1))).fillna(False)
@@ -362,7 +362,7 @@ def compute(candles: list[dict], indicator_expr: str, buy_expr: str | None = Non
         elif position is not None and position.iloc[-1] == 1: last_signal = "HOLD_LONG"
     return {
         "rows": int(len(df)), "as_of": df.index[-1].strftime("%Y-%m-%d"),
-        "checksum": definition_checksum(indicator_expr, buy_expr, sell_expr, params),
+        "checksum": definition_checksum(indicator_expr, buy_expr, sell_expr, params), "definition": ta.DEFINITION,
         "latest_value": stats.get("last"), "latest_signal": last_signal, "indicator_stats": {k: round(v, 6) for k, v in stats.items()},
         "backtest": bt,
         "series": {"times": [t.strftime("%Y-%m-%d") for t in tail], "close": _ser(df["close"].astype(float)), "indicator": _ser(ind),
