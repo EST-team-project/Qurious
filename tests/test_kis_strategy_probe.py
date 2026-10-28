@@ -227,6 +227,44 @@ def test_order_boundaries(runtime, monkeypatch, case):
 
 @db_test
 @pytest.mark.usefixtures("rebalance_db_schema")
+@pytest.mark.parametrize("owner", ["manual", "other_strategy", "other_version", "other_account", "own", "sold"])
+def test_sell_only_uses_same_strategy_version_confirmed_holdings(runtime, monkeypatch, owner):
+    """같은 종목 잔고가 있어도 수동·다른 전략/판/계좌의 체결을 전용하지 않는다."""
+    account_ref = uuid.uuid4().hex * 2
+    monkeypatch.setattr(probe.kis_execution, "account_key", lambda *a: account_ref)
+    monkeypatch.setattr(probe, "get_quant_indicators", AsyncMock(return_value=indicators(list(range(160, 100, -1)))))
+    probe.kis_execution.account_snapshot.return_value["holdings"] = {probe.SYMBOL: {"quantity": 10, "value": 700000}}
+
+    async def scenario():
+        engine, sessions = factory()
+        uid = await make_user(sessions)
+        try:
+            async with sessions() as db:
+                for side in (["BUY", "SELL"] if owner == "sold" else ["BUY"]):
+                    order_id = uuid.uuid4().hex
+                    db.add(LiveOrder(user_id=uid, client_order_id=order_id, environment="paper",
+                        broker="kis-direct", symbol=probe.SYMBOL, side=side, quantity=1,
+                        status="FILLED", filled_quantity=1))
+                    await db.flush()
+                    if owner != "manual":
+                        db.add(StrategyDecision(decision_key=uuid.uuid4().hex * 2, user_id=uid,
+                            account_ref="other" if owner == "other_account" else account_ref,
+                            input_hash="test", strategy_id="other" if owner == "other_strategy" else SPEC["strategy_id"],
+                            strategy_version=2 if owner == "other_version" else 1,
+                            symbol=probe.SYMBOL, bar_end_at=NOW - timedelta(days=1), action=side,
+                            status="submitted", client_order_id=order_id, detail={}, created_at=NOW - timedelta(days=1)))
+                await db.commit()
+                result = await probe.run(db, uid, SPEC, execute=False)
+                assert result["quantity"] == (1 if owner == "own" else 0)
+                assert result["would_status"] == ("PENDING" if owner == "own" else "BLOCKED")
+                runtime.place_order.assert_not_awaited()
+        finally:
+            await engine.dispose()
+    asyncio.run(scenario())
+
+
+@db_test
+@pytest.mark.usefixtures("rebalance_db_schema")
 def test_migration_upgrade_downgrade_preserves_existing_accounts(monkeypatch):
     from alembic import command
     from alembic.config import Config
