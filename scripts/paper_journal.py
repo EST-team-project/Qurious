@@ -284,6 +284,20 @@ def plan_upload(local: dict, remote: dict) -> tuple[list[str], list[str]]:
     return new, problems
 
 
+def keep_remote_meta(local: dict, remote: dict) -> dict:
+    """올릴 지문 목록 — 원격에 이미 있는 파일은 원격 지문(`bytes` · `sha256`)을 그대로 둔다(이슈 #377).
+
+    로컬 내보내기는 같은 내용이어도 pyarrow 버전에 따라 parquet 바이트가 달라진다. 올리는 것은 원격에 없는 파일뿐인데
+    `manifest.json` 은 로컬에서 새로 만든 것으로 덮으므로, 그대로 두면 올리지 않은 기존 파일의 바이트 지문이 원격 실제 바이트와
+    어긋난다. 호출 전에 `plan_upload` 가 기존 파일의 내용 지문이 같음을 보장했으니(`content_sha256`) 원격 값으로 바꿔도 된다."""
+    merged = dict(local)
+    files = {}
+    for rel, meta in (local.get("files") or {}).items():
+        files[rel] = dict((remote.get("files") or {}).get(rel) or meta)
+    merged["files"] = files
+    return merged
+
+
 def cmd_upload(a) -> int:
     man_p = EXPORT_DIR / "manifest.json"
     if not man_p.exists():
@@ -318,6 +332,8 @@ def cmd_upload(a) -> int:
     if not new:
         print("  ― 새 파일 0 — 원격과 같다(올리지 않는다)")
         return 0
+    local = keep_remote_meta(local, remote)         # 기존 파일의 바이트 지문은 원격 값 그대로(#377) — 올린 manifest 가 원격 실제 바이트와 맞는다
+    _write_json(man_p, local)
     (EXPORT_DIR / "README.md").write_text(_readme(local), encoding="utf-8")
     ops = [CommitOperationAdd(path_in_repo=rel, path_or_fileobj=str(EXPORT_DIR / rel)) for rel in new]
     ops += [CommitOperationAdd(path_in_repo=m, path_or_fileobj=str(EXPORT_DIR / m)) for m in MUTABLE]

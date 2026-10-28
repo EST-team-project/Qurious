@@ -1,4 +1,6 @@
-from scripts.daily_lean_reconcile import judge_fee
+from types import SimpleNamespace
+
+from scripts.daily_lean_reconcile import judge_fee, pull_failure_text
 
 
 def test_judge_fee_uses_top_level_lean_fills_and_compares_rates():
@@ -57,3 +59,11 @@ def test_judge_fee_fails_closed_on_invalid_lean_fill():
 
     assert result["verdict"] == "판정 불가"
     assert "LEAN 체결 파싱 실패" in result["reason"]
+
+def test_pull_failure_text_shows_stdout_too(): # 이슈 #377 — 예외 메시지가 stdout 에 있어도 보인다
+    res = SimpleNamespace(returncode=1, stderr="", stdout="ValueError: 원장 파일이 지문 목록과 다르다 — rows/a.parquet")
+    msg = pull_failure_text(res)
+    assert "종료코드 1" in msg and "[stdout]" in msg and "rows/a.parquet" in msg and "[stderr]" not in msg
+    both = pull_failure_text(SimpleNamespace(returncode=2, stderr="Traceback x", stdout="진행 중"))
+    assert "[stderr] Traceback x" in both and "[stdout] 진행 중" in both
+    assert "출력 없음" in pull_failure_text(SimpleNamespace(returncode=3, stderr=None, stdout=""))

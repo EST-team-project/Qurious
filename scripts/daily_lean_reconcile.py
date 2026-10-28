@@ -35,6 +35,16 @@ FEE_TOL_BP = 5.0        # 층4 요율 허용오차 (5bp = 0.05%)
 PRICE_TOL_BP = 30.0     # 층3 잔여 (시점차 태그 후)
 
 
+def pull_failure_text(res) -> str:
+    """원장 pull 하위 프로세스가 실패했을 때 보여 줄 글 — 예외 메시지가 stdout 에 찍히는 경로도 있어(#377) stderr 와 stdout 끝을 함께 싣는다."""
+    parts = []
+    for name, text_ in (("stderr", res.stderr), ("stdout", res.stdout)):
+        tail = (text_ or "").strip()[-300:]
+        if tail:
+            parts.append(f"[{name}] {tail}")
+    return f"Pull 실패(종료코드 {res.returncode}): " + (" ".join(parts) if parts else "출력 없음")
+
+
 def get_fill_cost(cost_data) -> float | None:
     """일지 fills.cost → 총비용(원). total_cost 우선, 없으면 세목 합산."""
     if cost_data is None:
@@ -116,9 +126,9 @@ async def pull_hf_ledger() -> tuple[int, int]:
 
     before = await count_days()
     res = subprocess.run([sys.executable, "scripts/paper_journal.py", "pull"],
-                         cwd=ROOT, capture_output=True, text=True)
+                         cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if res.returncode != 0:
-        raise RuntimeError(f"Pull 실패: {res.stderr[-300:]}")
+        raise RuntimeError(pull_failure_text(res))
     after = await count_days()
     print(f"✅ pull: {before} → {after} (신규 {after-before})")
     return before, after
