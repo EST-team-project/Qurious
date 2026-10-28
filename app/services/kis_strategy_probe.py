@@ -162,10 +162,14 @@ async def run(db, user_id: uuid.UUID, spec: dict, *, execute: bool = False) -> d
                                       int(max(0, snapshot["equity"] * cap_pct / 100 - held) / price)))
                 detail["reason"] = "1주 모의 연결 점검" if quantity else "예산·미수 없는 매수 가능 수량·현금·비중 상한으로 0주"
             else:
-                # 수동 보유를 팔지 않는다. 이 경로의 계좌별 확정 체결 순수량만 허용한다.
+                # 수동·다른 전략/판 보유를 팔지 않는다. 같은 판단 소유자의 확정 순수량만 허용한다.
                 orders = (await db.execute(select(LiveOrder).join(
                     StrategyDecision, StrategyDecision.client_order_id == LiveOrder.client_order_id
                 ).where(StrategyDecision.account_ref == account_ref, StrategyDecision.user_id == user_id,
+                        StrategyDecision.strategy_id == decision["strategy_id"],
+                        StrategyDecision.strategy_version == decision["version"],
+                        StrategyDecision.symbol == SYMBOL,
+                        LiveOrder.user_id == user_id, LiveOrder.environment == "paper",
                         LiveOrder.symbol == SYMBOL))).scalars().all()
                 owned = sum(o.filled_quantity * (1 if o.side.upper() == "BUY" else -1) for o in orders)
                 quantity = max(0, min(1, owned, int(snapshot["holdings"].get(SYMBOL, {}).get("quantity", 0))))
