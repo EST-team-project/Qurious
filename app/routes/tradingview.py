@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,7 @@ from app.services.audit import audit
 from app.services.lean_backtest import STRATEGY_LABELS, LeanBacktestError, service as lean_service
 from app.routes.openapi import _check_rate_limit
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["tradingview"])
 
 
@@ -33,12 +35,70 @@ def _uid(user: dict) -> uuid.UUID:
     return uuid.UUID(str(user["id"]))
 
 
-@router.post("/api/webhooks/tradingview")
-async def tradingview_webhook(request: Request, db: AsyncSession = Depends(get_pg_session)):
-    """TradingView 알림 Webhook. 본문은 JSON(권장) 또는 'key=value' 텍스트."""
-    raw = await request.body()
+def _log_reject(code: str, status: int, message: str, ip: str | None = None) -> None:
+    """거부한 요청을 남긴다 — 보낸 쪽 주소와 까닭만. token 은 어떤 경우에도 적지 않는다(설계 3.6 #1)."""
+    logger.warning("tradingview webhook %s status=%s ip=%s: %s", code, status, ip or "-", message)
+
+
+async def _read_body(request: Request, limit: int) -> bytes:
+    """본문을 limit 바이트까지만 읽는다 — Content-Length 를 속이거나 쪼개 보내도(chunked) 넘으면 413."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > limit:
+        raise HTTPException(413, {"error": "PAYLOAD_TOO_LARGE", "message": f"본문이 {limit}바이트를 넘습니다."})
+    buf = bytearray()
+    async for chunk in request.stream():
+        buf.extend(chunk)
+        if len(buf) > limit:
+            raise HTTPException(413, {"error": "PAYLOAD_TOO_LARGE", "message": f"본문이 {limit}바이트를 넘습니다."})
+    return bytes(buf)
+
+
+async def _after_response(result: dict) -> None:
+    """응답을 돌려준 뒤에 하는 일 — 감사 기록과 사용자 알림. 느린 채널이 TradingView 의 3초 제한을 넘기지 않게 한다(설계 3.6 #7)."""
+    sig = result["signal"]
     try:
-        payload = json.loads(raw.decode("utf-8")) if raw else {}
+        await audit(result["user_id"], "", "tradingview.webhook", {k: sig[k] for k in ("symbol", "side", "quantity", "status")})
+    except Exception as exc:  # 기록 실패가 응답을 바꾸지 않는다
+        logger.warning("tradingview webhook audit 실패: %s", exc)
+    if sig["status"] == "duplicate":
+        return  # 같은 알림이 또 왔다는 이유로 사용자에게 알림을 다시 보내지 않는다
+    try:
+        label = {"BUY": "매수", "SELL": "매도"}.get(sig["side"], "알림")
+        price_suffix = " @ {:,.0f}".format(sig["signal_price"]) if sig["signal_price"] else ""
+        text = (f"📡 [TradingView] {label} 신호 수신 — {sig['symbol']} {sig['quantity']}주"
+                f"{price_suffix}"
+                f"\n전략: {sig['strategy'] or '-'} · 처리: {sig['status']} · {sig['message']}")
+        await notification.dispatch(text, html_message=text.replace("\n", "\n\n"), subject=f"[TradingView] {label} 신호 – {sig['symbol']}",
+                                    user_id=result["user_id"], kind="tradingview_signal", ref=result["notification_ref"])
+    except Exception as exc:
+        logger.warning("tradingview webhook 알림 전달 실패: %s", exc)
+
+
+@router.post("/api/webhooks/tradingview")
+async def tradingview_webhook(request: Request, background: BackgroundTasks, db: AsyncSession = Depends(get_pg_session)):
+    """TradingView 알림 Webhook. 본문은 JSON(권장) 또는 'key=value' 텍스트.
+
+    검사 순서(설계 3.6): 발신 IP → 본문 크기 → 형식 → 토큰 → 분당 제한 → 필수 칸 · 지연 · 중복 · 주문.
+    기록을 넣은 뒤 바로 응답하고, 감사 기록 · 알림은 응답 뒤에 한다.
+    """
+    peer = request.client.host if request.client else ""
+    ip = tv.client_ip(request.headers.get("x-forwarded-for", ""), peer, settings.TRADINGVIEW_TRUSTED_PROXY_HOPS)
+    # 발신 IP 허용 목록 (운영: TRADINGVIEW_ENFORCE_IP=true) — 본문을 읽기 전에 막는다
+    if settings.TRADINGVIEW_ENFORCE_IP:
+        allowed = {a.strip() for a in settings.TRADINGVIEW_ALLOWED_IPS.split(",") if a.strip()}
+        if not ip or ip not in allowed:
+            _log_reject("rejected_ip", 403, "허용되지 않은 발신 IP", ip)
+            raise HTTPException(403, {"error": "FORBIDDEN", "message": f"허용되지 않은 발신 IP: {ip or '확인 불가'}"})
+    try:
+        raw = await _read_body(request, settings.TRADINGVIEW_MAX_BODY_BYTES)
+    except HTTPException as exc:
+        _log_reject("rejected_size", exc.status_code, "본문 크기 상한 초과", ip)
+        raise
+    if not raw.strip():
+        _log_reject("rejected_format", 400, "빈 본문", ip)
+        raise HTTPException(400, {"error": "BAD_REQUEST", "message": "본문이 비어 있습니다."})
+    try:
+        payload = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError
     except Exception:
@@ -49,39 +109,29 @@ async def tradingview_webhook(request: Request, db: AsyncSession = Depends(get_p
                 k, v = part.split("=", 1)
                 payload[k.strip()] = v.strip()
         if not payload:
+            _log_reject("rejected_format", 400, "본문을 해석할 수 없음", ip)
             raise HTTPException(400, {"error": "BAD_REQUEST", "message": "JSON 본문을 해석할 수 없습니다."})
-    # 발신 IP 허용 목록 (운영: TRADINGVIEW_ENFORCE_IP=true)
-    if settings.TRADINGVIEW_ENFORCE_IP:
-        fwd = request.headers.get("x-forwarded-for", "")
-        client_ip = (fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else ""))
-        allowed = {ip.strip() for ip in settings.TRADINGVIEW_ALLOWED_IPS.split(",") if ip.strip()}
-        if client_ip not in allowed:
-            raise HTTPException(403, {"error": "FORBIDDEN", "message": f"허용되지 않은 발신 IP: {client_ip}"})
     try:
         key = await tv.resolve_user_by_token(db, str(payload.get("token") or payload.get("api_key") or ""))
-        if not await _check_rate_limit(f"tv:{key.id}", settings.TRADINGVIEW_RATE_LIMIT_MAX):
-            raise HTTPException(429, {"error": "RATE_LIMITED", "message": f"분당 {settings.TRADINGVIEW_RATE_LIMIT_MAX}회 알림 제한을 초과했습니다."})
-        result = await tv.handle_alert(db, payload)
     except tv.WebhookError as exc:
         await db.rollback()
+        _log_reject(exc.code, exc.status, str(exc), ip)
         raise HTTPException(exc.status, {"error": "UNAUTHORIZED" if exc.status == 401 else "BAD_REQUEST", "message": str(exc)})
+    if not await _check_rate_limit(f"tv:{key.id}", settings.TRADINGVIEW_RATE_LIMIT_MAX):
+        _log_reject("rejected_rate", 429, f"키 {str(key.id)[:8]} 분당 제한", ip)
+        raise HTTPException(429, {"error": "RATE_LIMITED", "message": f"분당 {settings.TRADINGVIEW_RATE_LIMIT_MAX}회 알림 제한을 초과했습니다."})
+    result = await tv.handle_alert(db, payload, key=key)
     await db.commit()
     sig = result["signal"]
-    await audit(result["user_id"], "", "tradingview.webhook", {k: sig[k] for k in ("symbol", "side", "quantity", "status")})
-    # 신호 전달 (Slack/Telegram/Email 등 사용자 알림 채널)
-    try:
-        label = {"BUY": "매수", "SELL": "매도"}.get(sig["side"], "알림")
-        price_suffix = " @ {:,.0f}".format(sig["signal_price"]) if sig["signal_price"] else ""
-        text = (f"📡 [TradingView] {label} 신호 수신 — {sig['symbol']} {sig['quantity']}주"
-                f"{price_suffix}"
-                f"\n전략: {sig['strategy'] or '-'} · 처리: {sig['status']} · {sig['message']}")
-        await notification.dispatch(text, html_message=text.replace("\n", "\n\n"), subject=f"[TradingView] {label} 신호 – {sig['symbol']}",
-                                    user_id=result["user_id"], kind="tradingview_signal",
-                                    ref=result["notification_ref"])
-    except Exception:
-        pass
-    return {"ok": sig["status"] in ("filled", "alert", "duplicate"), "status": sig["status"], "message": sig["message"],
+    if sig["status"] == "rejected_format":
+        _log_reject("rejected_format", 400, sig["message"], ip)
+        raise HTTPException(400, {"error": "BAD_REQUEST", "message": sig["message"]})
+    background.add_task(_after_response, result)
+    resp = {"ok": sig["status"] in ("filled", "alert", "duplicate"), "status": sig["status"], "message": sig["message"],
             "symbol": sig["symbol"], "side": sig["side"], "quantity": sig["quantity"], "fill_price": sig["fill_price"]}
+    if sig.get("first_status"):
+        resp["first_status"] = sig["first_status"]
+    return resp
 
 
 @router.get("/api/tradingview/webhook-info")
@@ -95,8 +145,11 @@ async def webhook_info(request: Request, user=Depends(get_current_user_any)):
         "notes": [
             "TradingView 알림 만들기 › 알림 액션 › Webhook URL 에 위 주소를 넣고, 메시지 칸에 템플릿 JSON을 붙여 넣으세요.",
             "token 값은 모의투자 › Open API 화면에서 발급한 API 키입니다(발급 시 1회만 표시).",
-            "action 이 buy/sell 이고 contracts ≥ 1 이면 모의계좌에 시장가 체결(source=TRADINGVIEW), 그 외는 알림만 전달합니다.",
-            f"같은 종목·방향 알림이 {tv.DUPLICATE_WINDOW_MIN}분 내 반복되면 중복으로 무시합니다.",
+            "action 이 buy/sell 이고 contracts ≥ 1 이면 모의계좌에 시장가 체결(source=TRADINGVIEW), 그 외는 알림만 전달합니다. "
+            "주문이 되는 알림에는 signal_id 또는 bar_time(판단 시각)이 꼭 필요합니다(strategy_id 가 없으면 strategy 이름으로 대신하며, 위 템플릿을 그대로 쓰면 들어갑니다).",
+            "같은 알림(같은 strategy_id · strategy_version · 종목 · 방향 · signal_id 또는 bar_time)이 또 오면 주문 없이 '중복' 줄만 남기고 첫 줄의 중복 횟수를 올립니다.",
+            f"알림을 보낸 시각(sent_at, 있을 때만 잼)이 받은 시각보다 {settings.TRADINGVIEW_MAX_DELAY_SEC}초 넘게 늦으면 주문하지 않고 '늦음'으로 기록합니다. "
+            f"본문은 {settings.TRADINGVIEW_MAX_BODY_BYTES}바이트까지, 3초 안에 응답합니다.",
             "TradingView Webhook은 공개 URL(HTTPS 권장)만 호출할 수 있습니다. 로컬 개발 시 ngrok 등으로 터널링하세요.",
         ],
     }

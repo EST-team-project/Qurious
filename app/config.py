@@ -196,6 +196,13 @@ class Settings(BaseSettings):
     TRADINGVIEW_ALLOWED_IPS: str = "52.89.214.238,34.212.75.30,54.218.53.128,52.32.178.7"
     TRADINGVIEW_ENFORCE_IP: bool = False
     TRADINGVIEW_RATE_LIMIT_MAX: int = 30    # 키당 분당 알림 수
+    # 앞단 신뢰 프록시(터널 · 리버스 프록시) 개수. 0 이면 x-forwarded-for 를 믿지 않고 소켓 상대 주소만 쓴다(안전한 기본값).
+    # N(≥1) 이면 x-forwarded-for 의 오른쪽에서 N 번째 값 — 맨 앞 값은 보낸 쪽이 마음대로 쓸 수 있어 쓰지 않는다.
+    # uvicorn 에 FORWARDED_ALLOW_IPS="*" 를 주면 소켓 상대 주소 자체가 헤더로 바뀌므로 그렇게 두지 않는다.
+    TRADINGVIEW_TRUSTED_PROXY_HOPS: int = 0
+    TRADINGVIEW_MAX_BODY_BYTES: int = 4096          # 본문 상한(설계 3.6 #3)
+    TRADINGVIEW_MAX_DELAY_SEC: int = 300            # 알림 시각과 받은 시각 차이 한도 — 일봉 전략 5분(설계 3.6 #5)
+    TRADINGVIEW_MAX_FUTURE_SKEW_SEC: int = 60       # 시계 차이로 허용하는 미래 시각
 
     # ── 운영 ────────────────────────────────────────────────────────────────
     # 앱 기동 시 alembic upgrade head 실행 여부. 복제 인스턴스가 여러 개인 운영 환경에서는 false 로 두고

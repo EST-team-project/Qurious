@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Float, ForeignKey, Index, String
+from sqlalchemy import Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,7 +14,11 @@ class WebhookSignal(Base, UUIDPkMixin, CreatedAtMixin):
     """TradingView 알림(Webhook)으로 들어온 투자 신호."""
 
     __tablename__ = "webhook_signals"
-    __table_args__ = (Index("ix_webhook_signals_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_webhook_signals_user_created", "user_id", "created_at"),
+        # 같은 알림(사용자 · 전략 · 판 · 종목 · 방향 · 봉)은 한 줄만 — dedup_key 가 NULL 인 줄은 제외(설계 3.6 #4)
+        Index("uq_webhook_signals_user_dedup", "user_id", "dedup_key", unique=True),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     provider: Mapped[str] = mapped_column(String(20), nullable=False, default="tradingview")
@@ -24,9 +28,13 @@ class WebhookSignal(Base, UUIDPkMixin, CreatedAtMixin):
     quantity: Mapped[int] = mapped_column(nullable=False, default=0)
     signal_price: Mapped[float] = mapped_column(Float, nullable=False, default=0)   # 알림에 담긴 가격({{close}})
     fill_price: Mapped[float] = mapped_column(Float, nullable=False, default=0)     # 모의 체결가
-    status: Mapped[str] = mapped_column(String(12), nullable=False, default="received")  # filled | alert | rejected | duplicate | error
+    # received | filled | alert | rejected | rejected_format | late | duplicate | error
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="received")
     message: Mapped[str] = mapped_column(String(300), nullable=False, default="")
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    dedup_key: Mapped[str | None] = mapped_column(String(64), nullable=True)          # 주문이 되는 알림만(sha256 hex)
+    dup_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")  # 같은 알림이 또 온 횟수
+    delay_sec: Mapped[float | None] = mapped_column(Float, nullable=True)             # 받은 시각 − 알림 시각
 
 
 class StrategyComparison(Base, UUIDPkMixin, CreatedAtMixin):
