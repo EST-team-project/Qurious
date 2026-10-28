@@ -173,6 +173,57 @@ def test_runner_late_only_after_an_hour_and_missing(tmp_path):
     assert ds.runner_state(tmp_path / "없음", at("2026-10-02T12:10:00"))["state"] == "missing"
 
 
+def write_lease(state: Path, *, slots: dict, current: dict | None = None):
+    """HF 로 내려받는 임대 파일(`run_lease.json`) — 러너가 아닌 PC 가 다른 PC 의 회차를 읽는 재료."""
+    lease = {"state": "done", "pc": "HOME-PC", "slot": "2026-10-01", "kind": "schedule", "slots": slots,
+             "acquired_at": "2026-10-01T19:05:00+09:00", "renewed_at": "2026-10-01T20:55:00+09:00",
+             "finished_at": None, "result": None, **(current or {})}
+    state.mkdir(parents=True, exist_ok=True)
+    (state / ds.LEASE_FILE).write_text(json.dumps({"seen_at": "2026-10-02T10:00:00+09:00", "lease": lease}), encoding="utf-8")
+
+
+def _slot(day: str, hm: str, ok=True, rc=0, kind="schedule"):
+    return {"kind": kind, "pc": "HOME-PC", "ok": ok, "rc": rc, "price_max": day.replace("-", ""),
+            "started_at": f"{day}T19:05:00+09:00", "finished_at": f"{day}T{hm}:00+09:00"}
+
+
+def test_runner_without_local_record_reads_other_pc_round(tmp_path):
+    """TC-DST-03a · 이 PC 에 러너 기록이 없어도 임대 파일에 다른 PC 의 성공 회차가 있으면 「기록 없음」(=영구 확인 필요)이 아니다.
+    경고는 숨기지 않는다 — 가장 새 회차가 실패면 일부 실패, 같은 날 앞 회차가 실패였으면 글에 적는다."""
+    st = tmp_path / "state"
+    write_catalog(st)                                         # 회차 시각 12:30
+    # (1) 가장 새 회차가 성공 — 성공(다른 PC)
+    write_lease(st, slots={"2026-10-01": _slot("2026-10-01", "20:44", ok=False)},
+                current={"slot": "2026-10-01", "kind": "only", "finished_at": "2026-10-01T20:55:26+09:00",
+                         "result": {"ok": True, "rc": 0, "stopped": None, "main": None}})
+    r = ds.runner_state(st, at("2026-10-02T10:30:00"))
+    assert (r["state"], r["label"]) == ("ok", "성공 · 다른 PC") and r["last"] is None
+    assert "단계만 다시 돌린 회차" in r["detail"] and "20:44" in r["detail"] and "실패로 기록됨" in r["detail"]
+    assert "HOME-PC" not in r["detail"], "PC 이름은 관리자 답에만"
+    assert "HOME-PC" in ds.runner_state(st, at("2026-10-02T10:30:00"), admin=True)["detail"]
+    # (2) 가장 새 회차가 실패 — 일부 실패(숨기지 않는다)
+    write_lease(st, slots={"2026-10-01": _slot("2026-10-01", "20:44", ok=False, rc=1)})
+    r = ds.runner_state(st, at("2026-10-02T10:30:00"))
+    assert r["state"] == "warning" and "종료코드 1" in r["detail"]
+    # (3) 성공이어도 오늘 회차 시각(12:30)+1시간이 지났는데 어제 것뿐이면 오늘 회차 없음
+    write_lease(st, slots={"2026-10-01": _slot("2026-10-01", "20:44")})
+    assert ds.runner_state(st, at("2026-10-02T12:40:00"))["state"] == "ok"
+    assert ds.runner_state(st, at("2026-10-02T13:31:00"))["state"] == "late"
+    # (4) 다른 PC 가 지금 도는 중(4시간 안 갱신)
+    write_lease(st, slots={}, current={"state": "running", "renewed_at": "2026-10-02T10:00:00+09:00",
+                                       "acquired_at": "2026-10-02T09:50:00+09:00"})
+    assert ds.runner_state(st, at("2026-10-02T10:30:00"))["state"] == "running"
+
+
+def test_runner_without_local_record_and_lease_stays_missing(tmp_path):
+    """TC-DST-03b · 임대 파일도 없거나 읽을 회차가 없으면 지금처럼 「기록 없음」 — 짐작으로 성공을 만들지 않는다."""
+    st = tmp_path / "state"
+    write_catalog(st)
+    assert ds.runner_state(st, at("2026-10-02T10:30:00"))["state"] == "missing"
+    write_lease(st, slots={})
+    assert ds.runner_state(st, at("2026-10-02T10:30:00"))["state"] == "missing"
+
+
 # ── 2. 표 ────────────────────────────────────────────────────────────────
 def _days_between(a: date, b: date):
     d = a

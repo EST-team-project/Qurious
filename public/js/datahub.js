@@ -161,7 +161,9 @@ function summaryCards(st) {
   const last = r.last || {};
   const up = lastUpload(st);
   const runText = r.state === "running" ? "도는 중" : `${r.label || "—"}${last.minutes != null ? ` · ${Math.round(last.minutes)}분` : ""}`;
+  // r.remote = 이 PC 가 러너가 아니라 다른 PC 의 회차를 임대 파일에서 읽은 것 — 마지막 회차 시각 대신 서버 글을 그대로 보인다
   const runSub = r.state === "running" ? `${hm(r.running_since)} 에 시작 — 끝나면 이 화면이 새 값을 보입니다`
+    : r.remote ? (r.detail || "다른 PC 가 돌린 회차")
     : `${last.started_at ? `${mmdd(last.started_at)} ${hm(last.started_at)} → ${hm(last.finished_at)}` : "기록 없음"} · 다음 ${r.next_expected ? `${mmdd(r.next_expected)} ${hm(r.next_expected)}` : "—"}`;
   const cards = [
     ["판정", `<span class="q-tone--${cls} dh-big"><span class="q-dot"></span>${escHtml(label)}</span>`,
