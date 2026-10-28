@@ -239,7 +239,7 @@ async def compute_saved(ind_id: str, body: ComputeBody, user=Depends(get_current
             FormulaIndicatorResult.indicator_id == row.id, FormulaIndicatorResult.version == row.current_version,
             FormulaIndicatorResult.symbol == body.symbol.upper(), FormulaIndicatorResult.period == body.period,
             FormulaIndicatorResult.costs == costs).order_by(FormulaIndicatorResult.created_at.desc()).limit(1))).scalar_one_or_none()
-        if cached and cached.created_at.strftime("%Y-%m-%d") == today:
+        if cached and cached.created_at.strftime("%Y-%m-%d") == today and (cached.payload or {}).get("definition") == fx.ta.DEFINITION:
             return {**_res_dict(cached, with_payload=True), "from_cache": True}
     result = await _run(_ind_dict(row), body)
     bt = result.get("backtest") or {}
@@ -250,7 +250,7 @@ async def compute_saved(ind_id: str, body: ComputeBody, user=Depends(get_current
     res = FormulaIndicatorResult(indicator_id=row.id, user_id=_uid(user), version=row.current_version, checksum=row.checksum,
                                  symbol=body.symbol.upper(), period=body.period, as_of=result["as_of"], rows=result["rows"],
                                  latest_value=result["latest_value"], latest_signal=result["latest_signal"], costs=costs, metrics=metrics,
-                                 payload={k: result[k] for k in ("series", "indicator_stats", "signal_counts", "backtest")})
+                                 payload={k: result[k] for k in ("series", "indicator_stats", "signal_counts", "backtest", "definition")})
     db.add(res); await db.commit(); await db.refresh(res)
     await audit(user["id"], user.get("client_id", ""), "formula.compute", {"name": row.name, "version": row.current_version, "symbol": res.symbol})
     return {**_res_dict(res, with_payload=True), "from_cache": False}
