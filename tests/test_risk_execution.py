@@ -120,8 +120,10 @@ def test_risk_status_displays_effective_aggressive_limits(monkeypatch):
 
 @pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), reason="일회용 PG 필요")
 @pytest.mark.usefixtures("rebalance_db_schema")
-def test_unknown_replay_checks_each_owners_persisted_state(monkeypatch):
-    from datetime import datetime, timezone
+@pytest.mark.parametrize("age_minutes", [0, 11])
+def test_unknown_without_order_number_never_resubmits(monkeypatch, age_minutes):
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import delete, select
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from app.models import User, BrokerSettings, LiveOrder
     from app.services import auto_trade
@@ -139,7 +141,7 @@ def test_unknown_replay_checks_each_owners_persisted_state(monkeypatch):
                 db.add(BrokerSettings(user_id=uid, quant_auto_enabled=True, risk_kill_switch=(i == 0), quant_mode="live"))
                 db.add(LiveOrder(user_id=uid, client_order_id=f"risk-{uid}", symbol="005930.KS", side="SELL", quantity=2,
                                  price=70000, status="UNKNOWN", environment="paper", order_type="MARKET",
-                                 created_at=datetime.now(timezone.utc)))
+                                 created_at=datetime.now(timezone.utc) - timedelta(minutes=age_minutes)))
             await db.commit()
         monkeypatch.setattr(auto_trade, "get_session_factory", lambda: factory)
         monkeypatch.setattr(gw, "is_configured", lambda: True)
@@ -147,12 +149,28 @@ def test_unknown_replay_checks_each_owners_persisted_state(monkeypatch):
         monkeypatch.setattr(settings, "STOCK_COIN_TRADE_UNKNOWN_RESUBMIT_MIN", 10)
         place = AsyncMock(return_value={"duplicate": True, "order": {"orderNo": "123", "status": "ACCEPTED"}})
         monkeypatch.setattr(gw, "place_order", place)
+        lookup = AsyncMock()
+        monkeypatch.setattr(gw, "get_order_status", lookup)
         try:
-            result = await auto_trade.confirm_live_fills()
-            assert result["skipped"] == 1 and result["resubmitted"] == 1
-            place.assert_awaited_once()
-            assert place.call_args.kwargs["client_order_id"] == f"risk-{users[1]}"
+            # #368: 주문번호 없는 UNKNOWN은 정지 여부·시간 경과와 무관하게 보존한다.
+            # 다음 조회 회차도 새 DB 세션에서 읽으며 주문을 재전송하지 않는다.
+            for _ in range(2):
+                result = await auto_trade.confirm_live_fills()
+                assert result["checked"] == result["skipped"] == 2
+                assert result["updated"] == result["filled"] == result["errors"] == 0
+                place.assert_not_awaited()
+                lookup.assert_not_awaited()
+                async with factory() as db:
+                    rows = (await db.scalars(select(LiveOrder).where(LiveOrder.user_id.in_(users)))).all()
+                    assert len(rows) == 2
+                    assert all(row.status == "UNKNOWN" and not row.order_no for row in rows)
+                    assert {row.client_order_id for row in rows} == {f"risk-{uid}" for uid in users}
         finally:
+            async with factory() as db:
+                await db.execute(delete(LiveOrder).where(LiveOrder.user_id.in_(users)))
+                await db.execute(delete(BrokerSettings).where(BrokerSettings.user_id.in_(users)))
+                await db.execute(delete(User).where(User.id.in_(users)))
+                await db.commit()
             await engine.dispose()
     asyncio.run(go())
 
