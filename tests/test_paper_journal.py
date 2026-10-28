@@ -567,3 +567,62 @@ def test_pj18_pull_imports_the_ledger_into_an_empty_app_db(cdb, tmp_path):
 
     out, n, notes_n = _db(clash)
     assert out["state"] == "conflict" and f"versions/{pj.RULE_CARD}-v1.json" in out["paths"] and n == 0
+
+
+def test_pj19_pull_accepts_other_pyarrow_bytes_but_not_other_content(tmp_path):
+    """TC-PJ-19 · 원장 받기는 바이트 지문이 아니라 내용 지문으로 같은 파일인지 본다 — pyarrow 판이 달라 같은 내용이 다른 바이트로
+    쓰인 파일은 받아들이고(2026-10-28 · 원장 68 / 76 이 그랬다), 내용이 바뀌었거나 없는 파일은 거부한다."""
+    import shutil
+    import types
+
+    import pyarrow.parquet as pq
+
+    from scripts import paper_journal as cli
+
+    day = {"trade_date": "2026-09-15", "grade": "post_hoc", "status": "ok", "computed_at": "2026-10-24T13:01:02+09:00",
+           "recomputed": False, "data_as_of": "2026-09-15", "code_commit": "abc", "fingerprint": "f" * 64,
+           "fills": [{"symbol": CARD, "qty": 1, "price": 71234.5}], "decisions": [], "ranking": [], "orders": [], "skipped": [],
+           "cash": 9_928_765.5, "positions": {}, "equity": 9_999_999.25, "day_return": 0.0, "flags": []}
+    v = {"id": 7, "rule_id": pj.RULE_CARD, "version_no": 1, "attempt_no": 1,
+         "registered_at": datetime(2026, 10, 24, 13, 0, 5, tzinfo=KST), "registered_by": "manual",
+         "seal_start": date(2026, 10, 26), "post_hoc_from": date(2026, 9, 1), "post_hoc_to": date(2026, 10, 23),
+         "fingerprint": "f" * 64, "fingerprint_parts": {}, "watch_parts": {}, "spec": {"symbols": [CARD]}, "code_commit": "abc",
+         "python": "3.12.14", "supersedes_id": None, "change_parts": []}
+    src = tmp_path / "remote"
+    man = pj.write_export(pj.export_rows([v], [(v, day)], []), src)
+    (src / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
+    parquet = sorted(r for r in man["files"] if r.endswith(".parquet"))[0]
+
+    class FakeApi:
+        def __init__(self, folder):
+            self.folder = folder
+
+        def repo_info(self, repo, repo_type=None, timeout=None):
+            return types.SimpleNamespace(sha="a" * 40)
+
+        def snapshot_download(self, repo, repo_type=None, revision=None, local_dir=None):
+            shutil.copytree(self.folder, local_dir, dirs_exist_ok=True)
+
+    # 1) 바이트까지 같다
+    head, got, root = cli._ledger_download(FakeApi(src))
+    assert head == "a" * 40 and set(got["files"]) == set(man["files"])
+    # 2) 같은 내용을 다른 바이트로 썼다(다른 pyarrow 판을 흉내 — 압축만 바꾼다) → 받아들인다
+    other = tmp_path / "other"
+    shutil.copytree(src, other)
+    pq.write_table(pq.read_table(other / parquet), other / parquet, compression="gzip")
+    assert (other / parquet).read_bytes() != (src / parquet).read_bytes()
+    cli._ledger_download(FakeApi(other))
+    # 3) 내용이 바뀌었다 → 거부
+    bad = tmp_path / "bad"
+    shutil.copytree(src, bad)
+    tbl = pq.read_table(bad / parquet)
+    pq.write_table(tbl.set_column(tbl.schema.get_field_index("cash"), "cash", tbl["cash"].cast("float64").to_pandas().add(1).pipe(
+        lambda s: __import__("pyarrow").array(s))), bad / parquet)
+    with pytest.raises(ValueError, match="지문 목록과 다르다"):
+        cli._ledger_download(FakeApi(bad))
+    # 4) 파일이 없다 → 거부
+    gone = tmp_path / "gone"
+    shutil.copytree(src, gone)
+    (gone / parquet).unlink()
+    with pytest.raises(ValueError, match="지문 목록과 다르다"):
+        cli._ledger_download(FakeApi(gone))

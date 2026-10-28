@@ -353,9 +353,22 @@ def _ledger_download(api) -> tuple[Optional[str], dict, Optional[Path]]:
     root = Path(tempfile.mkdtemp(prefix="qurious-journal-pull-"))
     api.snapshot_download(REPO_ID, repo_type="dataset", revision=head, local_dir=str(root))
     man = _read_json(root / "manifest.json")
+    from app.services import paper_journal as app_pj
+
     for rel, meta in (man.get("files") or {}).items():
         p = root / rel
-        if not p.exists() or hashlib.sha256(p.read_bytes()).hexdigest() != meta.get("sha256"):
+        if not p.exists():
+            raise ValueError(f"원장 파일이 지문 목록과 다르다 — {rel}")
+        if hashlib.sha256(p.read_bytes()).hexdigest() == meta.get("sha256"):
+            continue
+        # 바이트 지문은 pyarrow 판마다 달라진다 — 같은 내용을 다른 판이 다른 바이트로 쓴다(2026-10-28 S159: 원장 76개 중 68개가
+        # 내용은 같고 바이트만 달랐다 · 만든 도구 parquet-cpp-arrow 23.0.1 · 26.0.0 · 받는 PC 25.0.1). 내용 지문(content_sha256)이
+        # 같으면 같은 원장 파일이다 — 내용이 다르거나 읽을 수 없으면 그대로 거부한다.
+        try:
+            same_content = app_pj.content_sha(_ledger_record(p)) == meta.get("content_sha256")
+        except Exception:
+            same_content = False
+        if not same_content:
             raise ValueError(f"원장 파일이 지문 목록과 다르다 — {rel}")
     return head, man, root
 
