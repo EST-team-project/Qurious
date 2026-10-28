@@ -213,7 +213,8 @@ def test_kis_order_does_not_change_virtual_book(monkeypatch, rebalance_db_schema
             db.add_all([row, QuantVirtualAccount(user_id=uid, initial_capital=10000000, cash_balance=8000000),
                         Portfolio(user_id=uid, book='QUANT', symbol='005930.KS', name='삼성전자', quantity=10, avg_price=70000)])
             await db.commit()
-            out = await auto_trade._execute_trade(db, uid, row, 'live', '005930.KS', '삼성전자', side, 70000, 2, '시험')
+            # 증권사 응답→추적 상태 시험. 공통 관문을 통과한 뒤의 어댑터를 직접 검사한다.
+            out = await auto_trade._execute_trade_unchecked(db, uid, row, 'live', '005930.KS', '삼성전자', side, 70000, 2, '시험')
             assert out['virtual_status'] == 'not_recorded'
         async with sessions() as db:
             account = await db.scalar(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))

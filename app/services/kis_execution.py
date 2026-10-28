@@ -54,11 +54,15 @@ async def account_snapshot(broker_row, gateway, symbols: dict) -> dict:
     holdings = {}
     if gateway.is_configured():
         raw = await gateway.get_balance()
-        if raw.get("cashBalance") is None or raw.get("totalEvalAmount") is None:
+        if (not isinstance(raw, dict) or raw.get("cashBalance") is None
+                or raw.get("totalEvalAmount") is None or not isinstance(raw.get("holdings"), list)):
             raise RuntimeError("증권사 잔고 응답이 불완전합니다.")
         cash, equity = float(raw["cashBalance"]), float(raw["totalEvalAmount"])
-        rows = [{"symbol": h["symbol"], "quantity": h.get("quantity", 0), "avg_price": h.get("avgPrice", 0),
-                 "value": h.get("evalAmount", 0)} for h in raw.get("holdings", [])]
+        try:
+            rows = [{"symbol": h["symbol"], "quantity": h["quantity"], "avg_price": h["avgPrice"],
+                     "value": h["evalAmount"]} for h in raw["holdings"]]
+        except (KeyError, TypeError):
+            raise RuntimeError("증권사 보유 목록이 불완전합니다.") from None
     else:
         client, creds = client_for(broker_row)
         raw = await client.get_balance(creds.account_no)
@@ -67,10 +71,18 @@ async def account_snapshot(broker_row, gateway, symbols: dict) -> dict:
                  "value": h.eval_amount} for h in raw.holdings]
     if not math.isfinite(cash) or not math.isfinite(equity) or cash < 0 or equity < 0:
         raise RuntimeError("증권사 현금·평가액이 유효하지 않습니다.")
+    seen = set()
     for h in rows:
+        if (not isinstance(h["symbol"], str) or not h["symbol"]
+                or isinstance(h["quantity"], bool) or not float(h["quantity"]).is_integer()):
+            raise RuntimeError("증권사 보유 종목·수량이 유효하지 않습니다.")
         if not all(math.isfinite(float(h[k])) and float(h[k]) >= 0 for k in ('quantity', 'avg_price', 'value')):
             raise RuntimeError("증권사 보유 수량·평가액이 유효하지 않습니다.")
         symbol = lookup.get(h["symbol"][:6], h["symbol"])
-        if h["quantity"] > 0:
-            holdings[symbol] = {**h, "symbol": symbol}
+        if symbol in seen:
+            raise RuntimeError("증권사 보유 종목이 중복되었습니다.")
+        seen.add(symbol)
+        if float(h["quantity"]) > 0:
+            holdings[symbol] = {**h, "symbol": symbol, "quantity": int(float(h["quantity"])),
+                                "avg_price": float(h["avg_price"]), "value": float(h["value"])}
     return {"cash": cash, "equity": equity, "holdings": holdings, "checked_at": datetime.now(timezone.utc).isoformat()}

@@ -227,8 +227,14 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
         return {"status": "filled", "symbol": symbol, "action": action, "quantity": qty, "price": price, "reason": reason}
     async def acquire(user_id, symbol, side, cooldown):
         slots.append((symbol, side, cooldown)); return slot_allowed
+    async def permitted(*args, **kwargs):
+        return await auto_trade._execute_trade_unchecked(*args)
     with ExitStack() as stack:
         enter = stack.enter_context
+        # 계획/수량 알고리즘 시험. 실제 소유권·공통 관문은 test_execution_control에서 검증한다.
+        enter(patch.object(auto_trade, "_execute_trade", permitted))
+        enter(patch.object(auto_trade.live_ownership, "account_ref", return_value="verified-test-account"))
+        enter(patch.object(auto_trade.live_ownership, "reconcile", AsyncMock(return_value=(list(portfolio), {}))))
         enter(patch.object(auto_trade, "get_session_factory", return_value=Factory(db)))
         enter(patch.object(auto_trade, "QUANT_STOCKS", STOCKS))
         enter(patch.object(auto_trade.kis_execution, "account_snapshot", AsyncMock(return_value={"cash": 9_700_000.0, "equity": 10_000_000.0, "checked_at": "test", "holdings": {p.symbol: {"symbol": p.symbol, "quantity": p.quantity, "avg_price": p.avg_price, "value": p.quantity * p.avg_price} for p in portfolio}})))

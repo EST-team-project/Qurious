@@ -33,6 +33,7 @@ from app.services.krx_companies import get_krx_companies
 from app.services import fx
 from app.services.stock import HEADERS, _yahoo_chart, get_candles, get_quote
 from app.services import trading_cost
+from app.services import execution_control
 from app.services.brokers.stock_coin_trade_gateway import is_krx_market_open
 
 BUY = "BUY"
@@ -355,7 +356,7 @@ async def stock_preview(db: AsyncSession, user_id: uuid.UUID, symbol: str, side:
 
 
 async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: str, quantity: int,
-                      source: str = "PAPER") -> dict:
+                      source: str = "PAPER", *, signal_key: str | None = None, strategy_id: str = "manual") -> dict:
     """시장가 모의 체결. 현금(PaperAccount) + 포지션(Portfolio) + 이력(Order)을 함께 갱신한다."""
     side = (side or "").upper()
     if side not in (BUY, SELL):
@@ -365,14 +366,15 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     info = await resolve_stock(symbol)
     _ensure_supported_market(info)   # ★ 이슈 #255 / DF-96 — 해외 종목은 여기서 거부 (_confirm_quote 전에 fail fast)
     info = await _confirm_quote(db, user_id, info)   # 체결 직전 확인 — 내 증권사 키가 있으면 지금 값으로
-    res = await _fill_stock_order(db, user_id, info, side, quantity, source=source)
+    if source == "TRADINGVIEW":
+        from app.services import paper_order_control
+        res = await paper_order_control.execute(db, user_id, info, side, quantity, source=source,
+                                                signal_key=signal_key, strategy_id=strategy_id)
+    else:
+        res = await _fill_stock_order(db, user_id, info, side, quantity, source=source)
     if isinstance(res, dict):
-        res.update(
-            quote_source=info.get("quote_source"),
-            quote_label=info.get("quote_label"),
-            market_open=info.get("market_open"),      # ★ 추가
-            quote_as_of=info.get("quote_as_of"),      # ★ 추가
-        )
+        for key in ("quote_source", "quote_label", "market_open", "quote_as_of"):
+            res.setdefault(key, info.get(key))
     return res
 
 
@@ -431,6 +433,7 @@ async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled
     db.add(Order(
         user_id=user_id, symbol=info["symbol"], name=info["name"], order_type=side.lower(),
         quantity=quantity, price=price, status="filled", broker="virtual", source=source,
+        execution_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None,
         **trading_cost.order_fields(cost, price, quantity, filled_at=filled_at),
     ))
     return {"status": "ok", "symbol": info["symbol"], "name": info["name"], "side": side,
@@ -1037,10 +1040,8 @@ async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) 
         order.triggered_at = datetime.now(timezone.utc)
         order.status = "triggered"
         try:
-            fill = await _fill_stock_order(
-                db, order.user_id, info, order.order_type.upper(),
-                order.quantity, source=order.source,
-            )
+            fill = await _fill_stock_order(db, order.user_id, info, order.order_type.upper(),
+                                           order.quantity, source=order.source)
             order.status = "filled"
             order.avg_fill_price = fill["price"]
             order.filled_quantity = fill["quantity"]

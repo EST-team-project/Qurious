@@ -282,6 +282,7 @@ async def dispatch(
     html_message: str = "",
     subject: str = "",
     user_id: str | None = None,
+    *, kind: str | None = None, ref: str | None = None,
 ) -> None:
     """활성화된 모든 채널로 알림을 전송한다.
 
@@ -291,6 +292,11 @@ async def dispatch(
         subject:      이메일 제목 (없으면 message 앞 40자 사용)
         user_id:      사용자 ID – MongoDB 에서 개별 설정 조회
     """
+    event_id = None
+    if kind is not None or ref is not None:
+        event_id = await _claim_event(user_id, kind, ref, subject, message)
+        if event_id is None:
+            return  # 같은 사용자·회차·사건은 발송 결과가 불명확해도 자동 재발송하지 않는다.
     user_cfg = await _load_user_settings(user_id)
     channels: list[str] = user_cfg.get("channels") or _default_channels()
 
@@ -347,7 +353,39 @@ async def dispatch(
     results: list = []
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
-    await _log_dispatch(user_id, subj, plain, channel_names, results)
+    if event_id is None:
+        await _log_dispatch(user_id, subj, plain, channel_names, results)
+    else:
+        await _finish_event(event_id, channel_names, results)
+
+
+async def _claim_event(user_id, kind, ref, subject, message):
+    import uuid
+    from sqlalchemy.dialects.postgresql import insert
+    from app.database.postgres import get_session_factory
+    from app.models import NotificationLog
+    if not user_id or not kind or not ref or len(kind) > 40 or len(ref) > 64:
+        raise ValueError("알림 사건의 사용자·종류·회차가 필요합니다.")
+    uid = uuid.UUID(str(user_id))
+    async with get_session_factory()() as db:
+        result = await db.execute(insert(NotificationLog).values(
+            user_id=uid, kind=kind, ref=ref, subject=subject[:300], message=message[:500],
+            channels=[], delivery_status="sending").on_conflict_do_nothing(
+                constraint="uq_notification_event").returning(NotificationLog.id))
+        event_id = result.scalar_one_or_none()
+        await db.commit()  # 선점 저장 실패 때 발송하지 않는다.
+        return event_id
+
+
+async def _finish_event(event_id, names, results):
+    from app.database.postgres import get_session_factory
+    from app.models import NotificationLog
+    async with get_session_factory()() as db:
+        row = await db.get(NotificationLog, event_id)
+        row.channels = [{"channel": name, "ok": result is True} for name, result in zip(names, results)]
+        row.delivery_status = ("no_channels" if not names else "delivered" if all(r is True for r in results)
+                               else "failed" if all(r is not True for r in results) else "partial")
+        await db.commit()
 
 
 async def _log_dispatch(

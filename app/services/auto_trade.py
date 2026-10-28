@@ -49,7 +49,7 @@ from app.services import trading_cost
 from app.services import aggressive_mode
 from app.services.execution_policy import policy_for, risk_quantity
 from app.services.trade_outcome import describe_trade, failure_message
-from app.services import kis_execution
+from app.services import kis_execution, live_ownership, execution_control, order_preflight
 from app.services.strategy_execution import card_symbols, validate_rule_input
 from app.services.decision_signal_view import signal_view
 from types import SimpleNamespace
@@ -74,12 +74,23 @@ def _log_key(uid: uuid.UUID) -> str:
 
 async def _persist_cycle(uid: uuid.UUID, cycle_log: dict) -> None:
     """사용자별 DB 캐시에만 기록한다. 캐시가 비면 다른 사용자의 로그로 대체하지 않는다."""
+    from app.services.execution_runs import cycle_result
+    summary = cycle_result.get()
+    if summary is not None:
+        statuses = [t.get("status") for t in cycle_log.get("trades", [])]
+        state = cycle_log.get("execution_state") or ("FAILED" if any(s in ("error", "unknown") for s in statuses)
+            else "BLOCKED" if cycle_log.get("note") or (cycle_log.get("risk") or {}).get("halted")
+            or any(s == "skipped" for s in statuses) else "COMPLETED")
+        summary.update(status=state, orders=sum(s in ("submitted", "filled") for s in statuses),
+                       note=cycle_log.get("note", ""))
     try:
         cached = await cache_get(_log_key(uid), max_age_hours=24 * 30) or {}
         cycles = (cached.get("cycles") or [])[-49:] + [cycle_log]
         await cache_set(_log_key(uid), {"cycles": cycles})
     except Exception:
         logger.exception("사이클 로그 저장 실패 user=%s", uid)
+        if summary is not None:
+            raise  # 실행 기록과 실패 알림에서 로그 장애를 확인할 수 있게 한다.
 
 
 async def is_enabled(db: AsyncSession, uid: uuid.UUID) -> bool:
@@ -231,6 +242,7 @@ async def _execute_virtual_trade(
     db.add(Order(
         user_id=user_id, symbol=symbol, name=name, order_type=action,
         quantity=executed_quantity, price=price, status="filled", broker="quant_ai", source="QUANT",
+        execution_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None,
         **trading_cost.order_fields(order_cost, price, executed_quantity),
     ))
 
@@ -285,6 +297,9 @@ async def _place_live_order(
     """
     if not broker_row or broker_row.quant_mode != "live":
         return None
+    intent = execution_control.current_intent.get()
+    if intent:
+        client_order_id = "intent:" + intent.key[:57]
     broker = (broker_row.broker or "mock").strip().lower()
     if broker == "kis" and gateway.is_configured():
         # 구축안 경로: stock-coin-trade Open API(승인 토큰 → 주문 → 감사로그) 경유. 체결은 quant.confirm_fills 가 확인한다.
@@ -317,6 +332,10 @@ async def _place_live_order(
                                environment=env, broker="kis-direct", symbol=symbol, name=name, side=side.upper(),
                                order_type="LIMIT", quantity=quantity, price=price, status="PENDING",
                                raw=json.dumps({"account_key": kis_execution.account_key(app_key, account_no, env)}))
+        if intent:
+            direct_row.account_ref = intent.account_ref
+            direct_row.strategy_id = intent.strategy_id
+            direct_row.strategy_version = intent.strategy_version
         db.add(direct_row)
         if decision_record is not None:
             await db.flush()
@@ -380,7 +399,12 @@ async def _report_execution(db, broker_row, trade: dict, user_id: str, *, mode="
             quantity=trade["quantity"], price=trade["price"], reason=trade.get("reason", ""), user_id=user_id)
 
 
-async def _execute_trade(db, uid, broker_row, mode, symbol, name, action, price, quantity, reason):
+async def _execute_trade(db, uid, broker_row, mode, symbol, name, action, price, quantity, reason, *, decision=None):
+    return await order_preflight.execute_quant(db, uid, broker_row, mode, symbol, name, action,
+                                              quantity, reason, decision or {})
+
+
+async def _execute_trade_unchecked(db, uid, broker_row, mode, symbol, name, action, price, quantity, reason):
     if mode == "paper":
         trade = await _execute_virtual_trade(db, uid, symbol, name, action, price, quantity, reason)
         if trade.get("status") == "filled":
@@ -670,51 +694,11 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                 elif row.order_no:
                     latest = await gateway.get_order_status(row.order_no, env=row.environment)
                 elif row.status == "UNKNOWN" and row.client_order_id:
-                    # 멱등 재전송도 원 요청이 도착하지 않았다면 새 주문이다.
-                    # 체결 확인 작업은 자동매매 정지 후에도 돌아가므로 DB의 현재 허용 상태를 별도로 확인한다.
-                    broker = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == row.user_id)
-                                             .execution_options(populate_existing=True))
-                    if (broker is None or broker.risk_kill_switch or not broker.quant_auto_enabled
-                            or broker.quant_mode != "live"):
-                        row.message = "자동매매 중지·비상 정지 또는 주문 설정 미확인으로 재전송 보류. 접수 여부는 증권사 주문 내역에서 확인하세요."
-                        summary["skipped"] += 1
-                        continue
-                    if row.retry_of is not None:
-                        from app.services.order_retry import enabled as retry_enabled, coordination_ready
-                        retry_policy = policy_for(broker)
-                        age = (datetime.now(timezone.utc) - row.retry_started_at).total_seconds() if row.retry_started_at else float("inf")
-                        if (not retry_enabled(broker, retry_policy) or row.environment != "paper" or gateway.environment() != "paper"
-                                or not 0 <= age <= retry_policy.retry_window_min * 60 or not await coordination_ready()):
-                            row.message = "재주문 설정 해제·시간 창 종료로 응답 불명 주문 재전송 보류. 증권사 내역 확인 필요"
-                            summary["skipped"] += 1
-                            continue
-                    # 응답을 못 받은 주문: 계약서의 멱등키(clientOrderId)로 **같은 intent 를 재전송**한다.
-                    # st 가 원 주문을 기록했으면 새 주문 없이 저장된 order 를 duplicate=true 로 돌려주고,
-                    # 원 요청이 st 에 닿지 않았으면 이번에 접수된다(최대 1회 실행 보장). 시간 창을 넘기면 LOST 로 종료해 비중 점유를 푼다.
-                    window = int(getattr(app_settings, "STOCK_COIN_TRADE_UNKNOWN_RESUBMIT_MIN", 10) or 0)
-                    created = row.created_at.astimezone(timezone.utc) if row.created_at else datetime.now(timezone.utc)
-                    age_min = (datetime.now(timezone.utc) - created).total_seconds() / 60
-                    if window <= 0 or age_min > window:
-                        row.status = "LOST"
-                        row.message = f"응답 미수신 {age_min:.0f}분 경과 — 재전송 창({window}분) 초과로 종료. KIS 앱/st 기록에서 clientOrderId 로 수동 확인 필요"[:300]
-                        summary["lost"] = summary.get("lost", 0) + 1
-                        summary["updated"] += 1
-                        logger.warning("UNKNOWN 주문 LOST 처리 (%s %s x%d, %s)", row.side, row.symbol, row.quantity, row.client_order_id)
-                        await notification.notify_order_error(symbol=row.symbol, side=row.side.lower(), quantity=row.quantity, price=row.price,
-                                                              error=row.message, user_id=str(row.user_id))
-                        continue
-                    if gateway.enforce_market_hours() and not gateway.is_krx_market_open():
-                        summary["skipped"] += 1
-                        continue
-                    res = await gateway.place_order(row.symbol, row.side, row.quantity, row.price, client_order_id=row.client_order_id,
-                                                    order_type=row.order_type, env=row.environment)
-                    latest = res.get("order") or {}
-                    row.order_no = str(latest.get("orderNo") or "") or None
-                    row.message = ("응답 미수신 → 멱등 재전송: " + ("기존 주문 확인(duplicate)" if res.get("duplicate") else "이번에 신규 접수"))[:300]
-                    summary["resubmitted"] = summary.get("resubmitted", 0) + 1
-                    if not latest:
-                        summary["skipped"] += 1
-                        continue
+                    # 조회 경로에서 재전송하면 원 요청이 도착하지 않은 경우 새 주문이 된다.
+                    # 계좌·의도 확인이 끝날 때까지 UNKNOWN을 보존한다(시간 경과로 노출을 풀지 않음).
+                    row.message = "접수 여부 미확인 — 조회 작업에서는 재전송하지 않습니다. 증권사 주문 내역 확인 필요"
+                    summary["skipped"] += 1
+                    continue
                 else:
                     if row.retry_of is not None:
                         # 준비만 저장한 뒤 작업이 중단된 경우: 종목·수량 추정으로 다른 주문과 연결하지 않는다.
@@ -819,7 +803,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         try:
             execution = policy_for(broker_row)
         except ValueError:
-            await _persist_cycle(uid, {**cycle_log, "note": "주문 수량·재주문 설정 오류로 자동매매를 보류합니다."})
+            await _persist_cycle(uid, {**cycle_log, "execution_state": "FAILED", "note": "주문 수량·재주문 설정 오류로 자동매매를 보류합니다."})
             return
 
         mode = broker_row.quant_mode if broker_row and broker_row.quant_mode in ("paper", "live") else (
@@ -902,7 +886,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         raise ValueError("카드 규칙과 공격 모드를 동시에 실행할 수 없습니다.")
                 except (ValueError, TypeError, sqlite3.Error) as exc:
                     strategy_log["error"] = str(exc)
-                    await _persist_cycle(uid, {**cycle_log, "strategy": strategy_log, "note": "전략 카드 검증 실패 — 주문 보류"})
+                    await _persist_cycle(uid, {**cycle_log, "strategy": strategy_log, "execution_state": "FAILED", "note": "전략 카드 검증 실패 — 주문 보류"})
                     return
                 for symbol in target_symbols:
                     if symbol not in stock_map:
@@ -922,7 +906,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     strategy_log["ml_model"] = _ml_meta.get("model")
             else:
                 strategy_log["error"] = "domain-rag-lab 에서 선택한 카드·판을 확인하지 못했습니다."
-                await _persist_cycle(uid, {**cycle_log, "strategy": strategy_log, "note": "전략 카드 조회 실패 — 주문 보류"})
+                await _persist_cycle(uid, {**cycle_log, "strategy": strategy_log, "execution_state": "FAILED", "note": "전략 카드 조회 실패 — 주문 보류"})
                 return
 
         live_snapshot = None
@@ -931,9 +915,17 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 live_snapshot = await kis_execution.account_snapshot(broker_row, gateway, stock_map)
             except Exception:
                 logger.exception("KIS 잔고 확인 실패 user=%s", user_id)
-                await _persist_cycle(uid, {**cycle_log, "note": "KIS 계좌 잔고를 확인하지 못해 주문을 보류합니다. 가상 장부로 대체하지 않습니다."})
+                await _persist_cycle(uid, {**cycle_log, "execution_state": "FAILED", "note": "KIS 계좌 잔고를 확인하지 못해 주문을 보류합니다. 가상 장부로 대체하지 않습니다."})
                 return
-            portfolio_rows = [SimpleNamespace(**h) for h in live_snapshot["holdings"].values()]
+            try:
+                ref = live_ownership.account_ref(broker_row, gateway)
+                portfolio_rows, ownership_blocked = await live_ownership.reconcile(
+                    db, ref, live_snapshot, uid, *live_ownership.strategy(broker_row))
+            except (ValueError, RuntimeError):
+                await _persist_cycle(uid, {**cycle_log, "execution_state": "FAILED", "note": "계좌 식별 근거가 없어 자동 주문을 보류합니다."})
+                return
+            cycle_log["ownership"] = {"blocked": ownership_blocked,
+                                       "sellable": {p.symbol: p.quantity for p in portfolio_rows}}
         else:
             portfolio_rows = (await db.execute(select(Portfolio).where(
                 Portfolio.user_id == uid, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all()
@@ -1142,6 +1134,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             })
 
             execution_basis = {}
+            decision = {"signal_key": str((indicators.get("times") or [None])[-1] or indicators.get("as_of") or ""),
+                        "input_hash": execution_control.digest({"strategy": strategy_spec,
+                            "signal": signal, "closes": indicators.get("closes"), "times": indicators.get("times")})}
             if mode == "paper" and action in ("강력 매수", "매수", "강력 매도", "매도"):
                 try:
                     q = await quant_valuation.quote(db, uid, symbol, fresh=True)
@@ -1197,6 +1192,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 trade = await _execute_trade(
                     db, uid, broker_row, mode, stock["symbol"], stock["name"],
                     "buy", price, qty, f"[{mode}] " + " | ".join(reasons),
+                    decision=decision,
                 )
                 cycle_log["trades"].append({**trade, "type": "auto", "price_basis": execution_basis})
                 if trade.get("status") not in ("filled", "submitted", "unknown"):
@@ -1225,6 +1221,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     trade = await _execute_trade(
                         db, uid, broker_row, mode, stock["symbol"], stock["name"],
                         "sell", price, qty, f"[{mode}] " + " | ".join(reasons),
+                        decision=decision,
                     )
                     cycle_log["trades"].append({**trade, "type": "auto", "price_basis": execution_basis})
                     if trade.get("status") not in ("filled", "submitted", "unknown"):
@@ -1290,7 +1287,9 @@ def _forget_task(uid: uuid.UUID, task: asyncio.Task) -> None:
 
 async def _run_once(user_id: str) -> None:
     try:
-        await _run_quant_cycle(user_id)
+        from app.services import execution_runs
+        await execution_runs.run(_resolve_user_id(user_id), _INTERVAL_SEC,
+                                 lambda: _run_quant_cycle(user_id), source="immediate")
     except Exception:
         logger.exception("자동매매 즉시 실행 실패 user=%s", user_id)
 
@@ -1368,8 +1367,12 @@ async def run_cycle_for_enabled_users() -> dict:
     ran, failed = 0, 0
     for uid in uids:
         try:
-            await _run_quant_cycle(str(uid))
-            ran += 1
+            from app.services import execution_runs
+            result = await execution_runs.run(uid, _INTERVAL_SEC, lambda: _run_quant_cycle(str(uid)))
+            if result["status"] == "FAILED":
+                failed += 1
+            elif result["status"] == "COMPLETED" and not result.get("duplicate"):
+                ran += 1
         except Exception:
             failed += 1
             logger.exception("자동매매 사이클 실패 user=%s", uid)

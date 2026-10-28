@@ -8,10 +8,10 @@ import uuid
 from datetime import datetime, time, timedelta, timezone
 from types import SimpleNamespace
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
 
-from app.models import BrokerSettings, LiveOrder, StrategyDecision, LIVE_ORDER_OPEN_STATUSES
-from app.services import auto_trade, kis_execution, market_calendar, risk_guard, trading_cost
+from app.models import BrokerSettings, LiveOrder, StrategyDecision, OrderIntent, RiskDay, LIVE_ORDER_OPEN_STATUSES
+from app.services import auto_trade, kis_execution, market_calendar, risk_guard, trading_cost, execution_control
 from app.services.brokers.factory import live_trading_allowed
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.stock import get_quant_indicators
@@ -131,9 +131,19 @@ async def run(db, user_id: uuid.UUID, spec: dict, *, execute: bool = False) -> d
                 LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)))).scalars().all()
             limits = risk_guard.RiskLimits.from_row(row)
             first_equity = next((r.detail["equity"] for r in prior if "equity" in r.detail), snapshot["equity"])
+            shared_day = await db.get(RiskDay, (account_ref, today))
+            if shared_day is not None:
+                first_equity = shared_day.equity
+            elif execute:
+                db.add(RiskDay(account_ref=account_ref, day=today, equity=first_equity))
             used = sum(r.status in ("PENDING", "submitted", "unknown", "error") for r in prior)
+            used += int(await db.scalar(select(func.count()).select_from(OrderIntent).where(
+                OrderIntent.account_ref == account_ref, OrderIntent.created_at >= start,
+                OrderIntent.status.in_(("PENDING", "unknown", "submitted", "filled")))) or 0)
             cap_orders = min(3, limits.max_orders_per_day) if limits.max_orders_per_day > 0 else 3
-            if opened:
+            uncertain = await db.scalar(select(OrderIntent.intent_id).where(
+                OrderIntent.account_ref == account_ref, OrderIntent.status.in_(("PENDING", "unknown"))).limit(1))
+            if opened or uncertain:
                 detail["reason"] = "같은 종목의 접수·체결 미확인 주문이 있습니다."
             elif used >= cap_orders:
                 detail["reason"] = "하루 모의 점검 주문 한도에 도달했습니다."
@@ -162,6 +172,11 @@ async def run(db, user_id: uuid.UUID, spec: dict, *, execute: bool = False) -> d
                 detail["reason"] = "점검 경로의 확정 보유 1주 매도" if quantity else "점검 경로에서 확정 체결된 보유가 없어 매도 보류"
             detail["quantity"] = quantity
             if quantity:
+                await execution_control.coordination_ready()
+                execution_control.check_limits(row=row, quantity=quantity, price=price,
+                    cash=snapshot["cash"], equity=snapshot["equity"], start_equity=first_equity,
+                    orders_today=used, position_value=snapshot["holdings"].get(SYMBOL, {}).get("value", 0),
+                    owned_quantity=quantity if decision["action"] == "SELL" else None, side=decision["action"])
                 state = "PENDING"
     if not execute:
         await db.rollback()
@@ -176,6 +191,7 @@ async def run(db, user_id: uuid.UUID, spec: dict, *, execute: bool = False) -> d
         return result_view(record)
     # 위험 설정·계좌 변경과 느린 조회를 전송 직전에 다시 검사한다.
     await db.refresh(row)
+    await execution_control.coordination_ready()
     _, current_creds = kis_execution.client_for(row)
     current_ref = kis_execution.account_key(current_creds.app_key, current_creds.account_no, "paper")
     send_time = datetime.now(timezone.utc)

@@ -42,7 +42,7 @@ async def prepare_retry(db, parent_id, now=None):
     if parent is not None and parent.broker == "kis-direct":
         return None
     if (parent is None or parent.status != "CANCELLED" or parent.side != "SELL" or parent.environment != "paper"
-            or not parent.order_no or parent.order_type != "LIMIT"):
+            or not parent.order_no or parent.order_type != "LIMIT" or not parent.account_ref or not parent.strategy_id):
         return None
     broker = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == parent.user_id)
                              .with_for_update().execution_options(populate_existing=True))
@@ -74,6 +74,8 @@ async def prepare_retry(db, parent_id, now=None):
                        LiveOrder.status.in_(LIVE_ORDER_OPEN_STATUSES)).limit(1)):
         return None
     balance = await gateway.get_balance(env="paper")
+    if balance.get("accountRef") != parent.account_ref or not isinstance(balance.get("holdings"), list):
+        return None  # 현재 게이트웨이 계약에는 accountRef가 없어 자동 재주문도 보류한다.
     holding = next((h for h in balance.get("holdings", []) if h.get("symbol") == gateway.normalize_symbol(parent.symbol)), None)
     if holding is None:
         return None
@@ -99,6 +101,7 @@ async def prepare_retry(db, parent_id, now=None):
     # 원 지정 가격을 보존한다. 시장가는 기록 가격이 0이라 이탈 한도를 검증할 수 없다.
     # 가상 장부는 이미 처리됐으므로 다시 차감하지 않는다.
     child = LiveOrder(user_id=parent.user_id, client_order_id=f"retry:{parent.id.hex}", environment="paper", broker="kis",
+                      account_ref=parent.account_ref, strategy_id=parent.strategy_id, strategy_version=parent.strategy_version,
                       symbol=parent.symbol, name=parent.name, side="SELL", order_type=parent.order_type,
                       quantity=min(ordered - filled, quantity), price=parent.price, status="PENDING",
                       retry_of=parent.id, retry_number=attempt, retry_started_at=started,

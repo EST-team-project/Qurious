@@ -76,10 +76,11 @@ async def tradingview_webhook(request: Request, db: AsyncSession = Depends(get_p
                 f"{price_suffix}"
                 f"\n전략: {sig['strategy'] or '-'} · 처리: {sig['status']} · {sig['message']}")
         await notification.dispatch(text, html_message=text.replace("\n", "\n\n"), subject=f"[TradingView] {label} 신호 – {sig['symbol']}",
-                                    user_id=result["user_id"])
+                                    user_id=result["user_id"], kind="tradingview_signal",
+                                    ref=result["notification_ref"])
     except Exception:
         pass
-    return {"ok": sig["status"] in ("filled", "alert"), "status": sig["status"], "message": sig["message"],
+    return {"ok": sig["status"] in ("filled", "alert", "duplicate"), "status": sig["status"], "message": sig["message"],
             "symbol": sig["symbol"], "side": sig["side"], "quantity": sig["quantity"], "fill_price": sig["fill_price"]}
 
 

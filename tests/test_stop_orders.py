@@ -46,6 +46,8 @@ async def db():
         session.add(PaperAccount(user_id=uid, cash=10_000_000, initial_cash=10_000_000))
         await session.commit()
         yield session, uid
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda c: Base.metadata.drop_all(c, tables=TABLES))
     await engine.dispose()
 
 
