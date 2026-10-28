@@ -91,3 +91,26 @@ def test_v2_judges_like_v1_on_005930():
     assert len(closes) > V2["warmup_bars"]
     for k in range(V2["warmup_bars"], len(closes) + 1):
         assert _action(V2, closes[:k]) == _action(V1, closes[:k]), k
+
+
+@pytest.mark.skipif(not REAL_DB.is_file(), reason="수집 DB 가 없다(CI · 새 clone)")
+def test_수정주가는_원래_가격에_그날_계수를_곱한_값이라_ATR_을_원래_단위로_옮길_수_있다():
+    # #366 — 판 2 의 ATR 은 수정주가로 재고 주문 · 일지는 원래 가격으로 체결한다. 식의 방향(수정 = 원래 × cum_factor)을
+    # 계수가 바뀐 실제 종목에서 못 박는다: 판단 날 ATR(수정) ÷ cum_factor 가 그날 원래 가격 단위의 거리다.
+    import sqlite3
+
+    con = sqlite3.connect(f"file:{REAL_DB}?mode=ro", uri=True)
+    try:
+        code, day = con.execute(
+            "SELECT srtn_cd, MAX(bas_dt) FROM price_adjusted WHERE cum_factor < 0.9 GROUP BY srtn_cd ORDER BY srtn_cd LIMIT 1").fetchone()
+        rows = con.execute(
+            "SELECT a.bas_dt, p.clpr, a.adj_clpr, a.cum_factor FROM price_adjusted a JOIN price_daily p USING (bas_dt, srtn_cd) "
+            "WHERE a.srtn_cd = ? AND a.bas_dt <= ? ORDER BY a.bas_dt DESC LIMIT 15", (code, day)).fetchall()
+        latest = con.execute("SELECT cum_factor FROM price_adjusted WHERE srtn_cd = ? ORDER BY bas_dt DESC LIMIT 1", (code,)).fetchone()[0]
+    finally:
+        con.close()
+    assert rows and latest == pytest.approx(1.0)                       # 가장 최근 날 계수는 1 — 평소 주문에서는 단위가 같다
+    for _, raw, adj, factor in rows:
+        assert factor < 0.9 and adj == pytest.approx(raw * factor)      # 계수가 바뀐 앞날들 — 수정 = 원래 × 계수
+        atr_adj = 0.05 * adj                                           # 수정 단위의 거리 하나(값은 아무것)
+        assert atr_adj / factor == pytest.approx(0.05 * raw)           # ÷ 그날 계수 = 원래 가격 단위의 같은 거리

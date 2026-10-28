@@ -5,6 +5,8 @@
 - 함수 카드의 「이 예시로 바꾸기」 는 고른 입력칸만 바꾼다 — #243(넣을지 물은 셋 가운데 1).
 - 커스텀 경로(`/api/quant/pipeline` strategy=custom)와 자유 산식 경로가 비용 인자를 받아 수익률에서 뗀다 —
   요구 대장 `P02-②-1` 「막는 것」(09-29 적음)이 다시 생기지 않게 지킨다(10-23 재현되지 않음).
+- 정규화 함수(`zscore` · `rank` · `normalize` · `std`)는 Pine 으로 옮긴 식과 같은 TradingView 정의를 따르고, 합친 식은 같은 입력에
+  같은 값을 낸다(`P02-②-1`). 계산 결과에 정의 판을 싣고, 다른 정의로 저장된 결과는 다시 쓰지 않는다(`P02-②-3`).
 """
 from __future__ import annotations
 
@@ -12,12 +14,19 @@ import asyncio
 import json
 import shutil
 import subprocess
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from app.routes import formula as formula_route
 from app.routes import stocks
+from app.services import formula as fx
+from app.services import ta_utils
 from tests.conftest import make_candles
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -193,3 +202,97 @@ def test_자유_산식_경로는_비용_인자를_수익률에서_뗀다(monkeyp
     assert paid["trade_count"] == free["trade_count"] > 0
     assert paid["cost_pct"] > 0 == free["cost_pct"]
     assert paid["total_return_pct"] < free["total_return_pct"]
+
+
+# ── 정규화 함수 · 정의 판 ───────────────────────────────────────────────────
+def _series(expr: str, candles: list[dict]) -> pd.Series:
+    out = fx.compute(candles, expr, preview_points=10_000)["series"]
+    return pd.Series(out["indicator"], index=out["times"], dtype=float)
+
+
+def _tv_percentrank(x: pd.Series, n: int) -> pd.Series:
+    # TradingView ta.percentrank — 앞 n개 가운데 지금 값보다 작거나 같은 것의 비율(0 ~ 1 로 나눔)
+    v = x.to_numpy()
+    out = [np.nan] * len(v)
+    for i in range(n, len(v)):
+        out[i] = float((v[i - n:i] <= v[i]).mean())
+    return pd.Series(out, index=x.index)
+
+
+def test_정규화_함수는_Pine_으로_옮긴_TradingView_정의와_같다():
+    candles = make_candles(200)
+    close = pd.Series([c["close"] for c in candles], dtype=float)
+    close.index = _series("close", candles).index
+    n = 20
+    z = (close - close.rolling(n).mean()) / close.rolling(n).std(ddof=0)   # ta.stdev 기본 = 모집단
+    lo, hi = close.rolling(n).min(), close.rolling(n).max()
+    pd.testing.assert_series_equal(_series("zscore(close, 20)", candles), z.round(6), check_names=False)
+    pd.testing.assert_series_equal(_series("rank(close, 20)", candles), _tv_percentrank(close, n).round(6), check_names=False)
+    pd.testing.assert_series_equal(_series("normalize(close, 20)", candles), ((close - lo) / (hi - lo)).round(6), check_names=False)
+    pd.testing.assert_series_equal(_series("std(close, 20)", candles), close.rolling(n).std(ddof=0).round(6), check_names=False)
+
+
+def test_정규화해_합친_식은_같은_입력에_같은_값을_낸다():
+    candles = make_candles(300)
+    expr = "(zscore(close, 20) + rank(volume, 60) + normalize(atr(14), 60)) / 3"
+    first, again = fx.compute(candles, expr), fx.compute(candles, expr)
+    assert first["series"]["indicator"] == again["series"]["indicator"]
+    assert first["checksum"] == again["checksum"] and first["latest_value"] == again["latest_value"]
+    assert first["definition"] == ta_utils.DEFINITION
+
+
+def test_옛_판의_식을_다시_계산하면_처음과_같은_값이다():
+    candles = make_candles(300)
+    v1, v2 = "zscore(close, 20)", "zscore(close, 60)"
+    before = fx.compute(candles, v1)
+    fx.compute(candles, v2)                                  # 새 판을 계산해도
+    after = fx.compute(candles, v1)                          # 옛 판은 그대로 다시 계산된다
+    assert before["checksum"] != fx.compute(candles, v2)["checksum"]
+    assert before["series"]["indicator"] == after["series"]["indicator"] and before["checksum"] == after["checksum"]
+
+
+class _FakeDB:
+    def __init__(self, cached):
+        self.cached, self.added = cached, []
+
+    async def execute(self, _stmt):
+        return SimpleNamespace(scalar_one_or_none=lambda: self.cached)
+
+    def add(self, row):
+        self.added.append(row)
+
+    async def commit(self):
+        pass
+
+    async def refresh(self, row):
+        row.id, row.created_at = uuid.uuid4(), datetime.now(timezone.utc)
+
+
+def _compute_saved(monkeypatch, cached_definition: str) -> dict:
+    async def fake_candles(symbol, period, interval):
+        return {"candles": make_candles(300)}
+
+    async def no_audit(*_a, **_k):
+        pass
+
+    row = SimpleNamespace(id=uuid.uuid4(), name="z", description="", indicator_expr="zscore(close, 20)", buy_expr="",
+                          sell_expr="", params={}, current_version=1, checksum="c", created_at=None, updated_at=None)
+
+    async def owned(_db, _user, _id):
+        return row
+
+    monkeypatch.setattr(formula_route, "get_candles", fake_candles)
+    monkeypatch.setattr(formula_route, "audit", no_audit)
+    monkeypatch.setattr(formula_route, "_get_owned", owned)
+    cached = SimpleNamespace(id=uuid.uuid4(), indicator_id=row.id, version=1, checksum="c", symbol="005930.KS", period="2y",
+                             as_of="2026-08-31", rows=300, latest_value=0.0, latest_signal="HOLD", costs={}, metrics={},
+                             created_at=datetime.now(timezone.utc), payload={"definition": cached_definition})
+    user = {"id": str(uuid.uuid4()), "client_id": ""}
+    return asyncio.run(formula_route.compute_saved(str(row.id), formula_route.ComputeBody(), user=user, db=_FakeDB(cached)))
+
+
+def test_다른_정의로_저장된_오늘_결과는_다시_쓰지_않고_새로_계산한다(monkeypatch):
+    old = _compute_saved(monkeypatch, cached_definition="정의를 바꾸기 전")
+    assert old["from_cache"] is False and old["payload"]["definition"] == ta_utils.DEFINITION
+    same = _compute_saved(monkeypatch, cached_definition=ta_utils.DEFINITION)
+    assert same["from_cache"] is True
