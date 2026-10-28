@@ -52,6 +52,7 @@ from app.models.collect import CollectRequest, CollectWorker
 # 모의투자 그림자 일지 (2026-10-24 · 할 일 ①-26) — 판 등록 · 매 거래일 1행 · 메모. 표 셋 · 추가만.
 from app.models.paper_journal import PaperJournalVersion, PaperJournalDay, PaperJournalNote
 from app.models.strategy_decision import StrategyDecision
+from app.models.execution_control import OrderIntent, ExecutionRun, RiskDay, BrokerPositionBaseline
 
 __all__ = [
     "StrategyDecision",
@@ -66,6 +67,10 @@ __all__ = [
     "BrokerSettings",
     "QuantVirtualAccount",
     "CustomIndicator",
+    "OrderIntent",
+    "ExecutionRun",
+    "RiskDay",
+    "BrokerPositionBaseline",
     "LiveOrder",
     "LIVE_ORDER_OPEN_STATUSES",
     "LIVE_ORDER_TERMINAL_STATUSES",

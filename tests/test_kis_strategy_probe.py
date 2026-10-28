@@ -100,6 +100,7 @@ def test_buying_power_uses_paper_non_margin_query(monkeypatch):
 
 @pytest.fixture
 def runtime(monkeypatch):
+    monkeypatch.setattr(probe.execution_control, "coordination_ready", AsyncMock())
     class Clock(datetime):
         @classmethod
         def now(cls, tz=None):

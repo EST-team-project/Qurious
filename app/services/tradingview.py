@@ -21,12 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ApiKey, WebhookSignal, StrategyComparison
 from app.services import paper_trading as pt
-from app.services import risk_guard
 
 logger = logging.getLogger(__name__)
 
 ORDER_SOURCE = "TRADINGVIEW"
-DUPLICATE_WINDOW_MIN = 1  # 같은 종목·방향 알림이 1분 안에 반복 전송되면 중복으로 본다 (TradingView 재전송 방지)
 
 # TradingView 알림 메시지에 그대로 붙여 쓰는 템플릿 (플레이스홀더는 TradingView가 치환)
 ALERT_TEMPLATE = {
@@ -37,6 +35,7 @@ ALERT_TEMPLATE = {
     "contracts": "{{strategy.order.contracts}}",
     "price": "{{close}}",
     "time": "{{timenow}}",
+    "bar_time": "{{time}}",
     "comment": "{{strategy.order.comment}}",
 }
 
@@ -102,7 +101,7 @@ def parse_alert(payload: dict) -> dict:
 
 
 async def handle_alert(db: AsyncSession, payload: dict) -> dict:
-    """Webhook 본문 처리: 사용자 식별 → 중복 검사 → 모의 주문 → 이력 저장. 커밋은 호출자."""
+    """신호 이력은 호출자가 커밋한다. 주문 의도·가상 체결은 별도 관문에서 먼저 영속화한다."""
     key = await resolve_user_by_token(db, str(payload.get("token") or payload.get("api_key") or ""))
     user_id: uuid.UUID = key.user_id
     alert = parse_alert(payload)
@@ -119,22 +118,29 @@ async def handle_alert(db: AsyncSession, payload: dict) -> dict:
     elif alert["side"] == "ALERT" or alert["dry_run"] or alert["quantity"] <= 0:
         sig.status = "alert"
         sig.message = "주문 없이 알림만 전달했습니다." + (" (dry_run)" if alert["dry_run"] else "" if alert["side"] != "ALERT" else " (action 미지정)")
-    elif not await risk_guard.acquire_order_slot(f"tv:{user_id}", alert["symbol"], alert["side"].lower(), DUPLICATE_WINDOW_MIN):
-        sig.status, sig.message = "duplicate", f"{DUPLICATE_WINDOW_MIN}분 내 동일 종목·방향 알림 → 중복으로 무시"
+    elif not (payload.get("signal_id") or payload.get("bar_time") or payload.get("time")):
+        sig.status, sig.message = "rejected", "주문에는 signal_id 또는 판단 시각이 필요합니다."
     else:
         try:
-            res = await pt.stock_order(db, user_id, alert["symbol"], alert["side"], alert["quantity"], source=ORDER_SOURCE)
+            res = await pt.stock_order(db, user_id, alert["symbol"], alert["side"], alert["quantity"], source=ORDER_SOURCE,
+                signal_key=str(payload.get("signal_id") or payload.get("bar_time") or payload.get("time")),
+                strategy_id="tv:" + (alert["strategy"] or "default")[:97])
             sig.symbol, sig.fill_price, sig.status = res["symbol"], float(res["price"]), "filled"
-            sig.message = f"{res['name']} {alert['side']} {alert['quantity']}주 @ {res['price']:,.0f} 모의 체결"
+            if res.get("duplicate"):
+                sig.status = "duplicate"
+            sig.message = "이미 처리한 신호입니다. 추가 주문 없음" if res.get("duplicate") else f"{res['name']} {alert['side']} {alert['quantity']}주 @ {res['price']:,.0f} 모의 체결"
         except pt.PaperTradeError as exc:
             sig.status, sig.message = "error", str(exc)[:300]
-            await risk_guard.release_order_slot(f"tv:{user_id}", alert["symbol"], alert["side"].lower())
 
     key.last_used_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
     key.call_count = (key.call_count or 0) + 1
     await db.flush()
     await db.refresh(sig)
-    return {"user_id": str(user_id), "signal": signal_to_dict(sig), "alert": alert}
+    from app.services.execution_control import digest
+    event = payload.get("signal_id") or payload.get("bar_time") or payload.get("time") or str(sig.id)
+    notification_ref = digest([str(user_id), alert["strategy"], sig.symbol, alert["side"], str(event)])
+    return {"user_id": str(user_id), "signal": signal_to_dict(sig), "alert": alert,
+            "notification_ref": notification_ref}
 
 
 def signal_to_dict(s: WebhookSignal) -> dict:

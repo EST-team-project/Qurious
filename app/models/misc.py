@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -50,12 +50,16 @@ class NotificationSettings(Base, UUIDPkMixin, UpdatedAtMixin):
 
 class NotificationLog(Base, UUIDPkMixin, CreatedAtMixin):
     __tablename__ = "notification_log"
-    __table_args__ = (Index("ix_notification_log_user_created", "user_id", "created_at"),)
+    __table_args__ = (Index("ix_notification_log_user_created", "user_id", "created_at"),
+                     UniqueConstraint("user_id", "kind", "ref", name="uq_notification_event"))
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     subject: Mapped[str] = mapped_column(String(300), nullable=False, default="")
     message: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     channels: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    kind: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    delivery_status: Mapped[str] = mapped_column(String(20), nullable=False, default="legacy", server_default="legacy")
 
 
 class CrawledDoc(Base, UUIDPkMixin):

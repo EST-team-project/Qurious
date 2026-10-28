@@ -14,6 +14,12 @@ A, B = uuid.uuid4(), uuid.uuid4()
 
 @pytest.fixture
 def control(monkeypatch):
+    # 이 파일은 사용자별 시작/중지 수명주기 시험. DB 회차 선점은 test_execution_control에서 검증한다.
+    from app.services import execution_runs
+    async def run(uid, interval, operation, **kwargs):
+        await operation()
+        return {"status": "COMPLETED"}
+    monkeypatch.setattr(execution_runs, "run", run)
     enabled = {}
     cache = {}
 

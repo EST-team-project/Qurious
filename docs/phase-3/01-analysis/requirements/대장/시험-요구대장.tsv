@@ -254,3 +254,6 @@ TC-LRF	tests/test_daily_lean_reconcile_fee.py	P02-④-1	🟡	LEAN 대조 층 4 �
 TC-HFF	tests/test_hf_collector_follower.py	P01-③-1	🟡	HF main 수집 자료 수신기(컨테이너 · Linux 전용) — 같은 커밋의 파일 · 검증 · 실행 기록으로 사용 준비를 판정하고 세대 전환이 원자적이다 · 심볼릭 링크를 못 만드는 Windows 에서는 9건을 건너뜀(#359 오준영 · 2026-10-28 주담당 이름·주 매핑 확인; 실제 운영 종단 완료와 별도)
 TC-KPR	tests/test_kis_strategy_probe.py	P02-⑤-1	🟡	판 1 고정 카드 KIS 모의 점검 경로 — 판단 · 주문 영속 기록 · 재전송 차단(⑤-2 보조 근거) · 미수 없는 매수 가능 수량 · 확정 봉 · 신선한 시세 · 동일 전략/판의 확정 보유만 매도(#359 오준영 · 2026-10-28 주담당 이름·주 매핑 확인; 실제 운영 종단 완료와 별도)
 TC-QV	tests/test_quant_valuation.py	P02-⑤-2	🟡	자동매매 사이클 · 대시보드 공통 평가 경로 — 시세 누락이면 손익을 만들지 않고 주문을 보류한다(#284 · #359 오준영 · 2026-10-28 주담당 이름·주 매핑 확인; 실제 운영 보유 대조와 별도)
+TC-EXC	tests/test_execution_control.py	P02-⑤-2	🟡	주문 귀속·공통 위험 관문 — PostgreSQL 동시 선점·프로세스 종료·Redis 단절·응답 불명 재전송 차단·전략별 매도 범위(실제 KIS 모의 연결 미검증)
+TC-EXC	tests/test_execution_control.py	P02-⑤-3	🟡	영속 회차 완료·실패·중단 및 사용자별 알림 사건 선점 — 실제 발송은 가짜 전송기로 대체
+TC-EXC	tests/test_execution_control.py	P02-③-3	🟡	TradingView 신호 수신부터 PAPER 체결·수신 기록까지 — 같은 신호 재수신·다른 전략 매도 차단, 사용자 인증은 가짜 토큰 조회기로 대체

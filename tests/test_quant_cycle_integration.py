@@ -1,5 +1,6 @@
 """_run_quant_cycle 통합: 매수 시그널 → 가상 체결 → 게이트웨이 실주문 → live_orders 기록 (live) / 게이트웨이 미호출 (paper).
 
+공통 주문 관문은 승인된 실행 어댑터로 대체하여 사이클 알고리즘을 검사한다. 실제 관문은 test_execution_control.py에서 PG로 검사한다.
 DB 는 select 대상 엔티티별로 응답하는 가짜 AsyncSession, 지표·가상체결·알림·Redis 는 패치, 게이트웨이는 MockTransport.
 """
 import asyncio
@@ -115,7 +116,7 @@ def env(monkeypatch):
     gw.set_transport(None)
 
 
-def run_cycle(broker_row, live_rows=(), quote_price=70_000, positions=()):
+def run_cycle(broker_row, live_rows=(), quote_price=70_000, positions=(), owned=()):
     db = FakeDb(broker_row, live_rows, positions)
     persisted = {}
     async def persist(uid, log): persisted.update(log)
@@ -125,7 +126,12 @@ def run_cycle(broker_row, live_rows=(), quote_price=70_000, positions=()):
     async def quoted(symbol, **kwargs):
         return {"price": quote_price, "source": "kis_user", "as_of": "2026-10-27 14:00",
                 "fetched_at": "2026-10-27 14:00:00", "label": "증권사 조회 · 14:00:00", "fallback": []}
-    with patch.object(auto_trade.quant_valuation.quote_now, "quote_now", quoted), \
+    async def permitted(*args, **kwargs):
+        return await auto_trade._execute_trade_unchecked(*args)
+    with patch.object(auto_trade, "_execute_trade", permitted), \
+         patch.object(auto_trade.live_ownership, "account_ref", return_value="verified-test-account"), \
+         patch.object(auto_trade.live_ownership, "reconcile", AsyncMock(return_value=(list(owned), {}))), \
+         patch.object(auto_trade.quant_valuation.quote_now, "quote_now", quoted), \
          patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
          patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
          patch.object(auto_trade, "get_quant_indicators", indicators), \
@@ -207,12 +213,13 @@ def test_live_uses_broker_cash_even_if_virtual_account_has_ten_million():
     assert all(method != 'POST' for method, _, _ in calls)
 
 
-def test_live_sell_uses_broker_holding_not_empty_virtual_portfolio(monkeypatch):
+def test_live_sell_uses_confirmed_strategy_holding_not_virtual_portfolio(monkeypatch):
     fake_gateway(holdings=[{'symbol': '005930', 'quantity': 3, 'avgPrice': 65000, 'evalAmount': 210000}])
     async def sell(*args):
         return {'current_price': 70000, 'signal': {'action': '매도', 'score': -3, 'reasons': ['시험']}}
     monkeypatch.setattr(sys.modules[__name__], 'indicators', sell)
-    db, log = run_cycle(broker('live'))
+    owned = SimpleNamespace(symbol='005930.KS', name='삼성전자', quantity=3, avg_price=65000)
+    db, log = run_cycle(broker('live'), owned=[owned])
     trade = log['trades'][0]
     assert trade['action'] == 'sell' and trade['quantity'] == 1 and trade['status'] == 'submitted'
     assert all(isinstance(row, LiveOrder) for row in db.added)

@@ -33,7 +33,8 @@ class Portfolio(Base, UUIDPkMixin, UpdatedAtMixin):
 
 class Order(Base, UUIDPkMixin, CreatedAtMixin):
     __tablename__ = "orders"
-    __table_args__ = (Index("ix_orders_user_created", "user_id", "created_at"),)
+    __table_args__ = (Index("ix_orders_user_created", "user_id", "created_at"),
+                      UniqueConstraint("execution_intent_id", name="uq_orders_execution_intent_id"))
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     symbol: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -47,6 +48,7 @@ class Order(Base, UUIDPkMixin, CreatedAtMixin):
     broker: Mapped[str] = mapped_column(String(20), nullable=False, default="virtual")
     # WEB(직접매매 화면) | PAPER(모의투자 화면) | OPENAPI(외부 Open API) | PINE(파인스크립트 실습) | QUANT(자동매매)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="WEB")
+    execution_intent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # ── 체결 ────────────────────────────────────────────────────────
     order_price: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -190,6 +192,10 @@ class LiveOrder(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # 응답 raw가 체결 조회로 바뀌어도 귀속은 보존한다. 옛 행은 추정으로 채우지 않는다.
+    account_ref: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="", index=True)
+    strategy_id: Mapped[str] = mapped_column(String(100), nullable=False, default="", server_default="")
+    strategy_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     client_order_id: Mapped[str] = mapped_column(String(64), nullable=False)
     environment: Mapped[str] = mapped_column(String(10), nullable=False, default="paper")   # paper | real
     broker: Mapped[str] = mapped_column(String(20), nullable=False, default="kis")

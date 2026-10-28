@@ -25,7 +25,7 @@ async def seed(factory, **changes):
         bs = BrokerSettings(user_id=uid, broker="kis", quant_auto_enabled=True, quant_mode="live",
             risk_cooldown_min=0, quant_execution_policy={"retry_enabled": True})
         parent = LiveOrder(user_id=uid, client_order_id=uid.hex, environment="paper", symbol="005930.KS",
-            name="삼성전자", side="SELL", order_type="LIMIT", quantity=10, price=70000, order_no=uid.hex[:20],
+            name="삼성전자", account_ref="verified-test-account", strategy_id="test-strategy", strategy_version=1, side="SELL", order_type="LIMIT", quantity=10, price=70000, order_no=uid.hex[:20],
             status="CANCELLED", created_at=datetime.now(timezone.utc))
         for k, v in changes.items():
             setattr(bs if hasattr(BrokerSettings, k) else parent, k, v)
@@ -45,7 +45,7 @@ def mocks(monkeypatch):
                 "orderedQuantity": 10, "filledQuantity": 4}
     monkeypatch.setattr(retry.gateway, "get_order_status", AsyncMock(side_effect=status))
     monkeypatch.setattr(retry.gateway, "list_today_orders", AsyncMock(return_value=[]))
-    monkeypatch.setattr(retry.gateway, "get_balance", AsyncMock(return_value={"totalEvalAmount": 1000000,
+    monkeypatch.setattr(retry.gateway, "get_balance", AsyncMock(return_value={"accountRef": "verified-test-account", "totalEvalAmount": 1000000,
         "holdings": [{"symbol": "005930", "quantity": 5, "currentPrice": 70000}]}))
     monkeypatch.setattr(retry.risk_guard, "day_start_equity", AsyncMock(return_value=1000000))
     monkeypatch.setattr(retry.risk_guard, "orders_today", AsyncMock(return_value=0))
@@ -83,19 +83,20 @@ def test_concurrent_prepare_one_child_only_and_remaining_holding_clamp(monkeypat
             assert row.quantity == 5 and row.retry_number == 1 and row.price == 70000
             assert row.client_order_id == f"retry:{pid.hex}"
             assert (await first.get(LiveOrder, pid)).filled_quantity == 4
-            assert await retry.send_retry(first, child)
+            sent = await retry.send_retry(first, child)
+            assert sent, (row.status, row.message, row.retry_started_at, datetime.now(timezone.utc))
             assert not await retry.send_retry(second, child)
             place.assert_awaited_once()
             assert place.call_args.args[2] == 5 and place.call_args.kwargs["env"] == "paper"
     run(go)
 
 
-@pytest.mark.parametrize("case", ["off", "stopped", "kill", "real", "buy", "market", "unknown", "requested",
+@pytest.mark.parametrize("case", ["identity", "off", "stopped", "kill", "real", "buy", "market", "unknown", "requested",
     "expired", "attempts", "unconfirmed", "inferred", "open_order", "price", "holdings", "loss", "daily", "cooldown", "redis"])
 def test_retry_guards_never_submit(monkeypatch, case):
     place = mocks(monkeypatch)
     overrides = {
-        "off": {"quant_execution_policy": {}}, "stopped": {"quant_auto_enabled": False},
+        "identity": {"account_ref": ""}, "off": {"quant_execution_policy": {}}, "stopped": {"quant_auto_enabled": False},
         "kill": {"risk_kill_switch": True}, "real": {"environment": "real"}, "buy": {"side": "BUY"},
         "market": {"order_type": "MARKET", "price": 0}, "unknown": {"status": "UNKNOWN"},
         "requested": {"status": "CANCEL_REQUESTED"},
@@ -155,7 +156,7 @@ def test_send_rechecks_stop_and_unknown_does_not_create_new_child(monkeypatch, f
 
 
 @pytest.mark.parametrize("enabled", [True, False])
-def test_unknown_retry_reuses_identical_intent_only_while_enabled(monkeypatch, enabled):
+def test_unknown_retry_is_not_resent_even_while_enabled(monkeypatch, enabled):
     from app.services import auto_trade
     place = mocks(monkeypatch)
     monkeypatch.setattr(auto_trade.notification, "notify_order_filled", AsyncMock())
@@ -175,11 +176,10 @@ def test_unknown_retry_reuses_identical_intent_only_while_enabled(monkeypatch, e
         place.side_effect = None
         place.return_value = {"duplicate": True, "order": {"orderNo": "recovered", "status": "ACCEPTED"}}
         result = await auto_trade.confirm_live_fills()
-        assert result.get("resubmitted", 0) == int(enabled)
-        assert place.await_count == (2 if enabled else 1)
-        if enabled:
-            assert place.call_args == initial
+        assert result.get("resubmitted", 0) == 0
+        assert place.await_count == 1
+        assert place.call_args == initial
         async with factory() as db:
-            assert (await db.get(LiveOrder, child)).status == ("ACCEPTED" if enabled else "UNKNOWN")
+            assert (await db.get(LiveOrder, child)).status == "UNKNOWN"
             assert len((await db.scalars(select(LiveOrder).where(LiveOrder.retry_of == pid))).all()) == 1
     run(go)

@@ -235,7 +235,7 @@ def _unknown_row(age_min: int):
                      filled_quantity=0, avg_filled_price=0, created_at=datetime.now(timezone.utc) - timedelta(minutes=age_min))
 
 
-def test_unknown_within_window_is_resubmitted_idempotently(env, monkeypatch):
+def test_unknown_within_window_is_preserved_without_resubmission(env, monkeypatch):
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_UNKNOWN_RESUBMIT_MIN", 10)
     bodies = []
     def handler(request: httpx.Request) -> httpx.Response:
@@ -251,28 +251,24 @@ def test_unknown_within_window_is_resubmitted_idempotently(env, monkeypatch):
     db = FakeDb(rows=[row])
     with patch.object(auto_trade, "get_session_factory", return_value=_factory(db)):
         summary = asyncio.run(auto_trade.confirm_live_fills())
-    assert summary["resubmitted"] == 1 and summary["filled"] == 1 and summary["errors"] == 0
-    assert row.status == "FILLED" and row.order_no == "0000030777" and row.filled_quantity == 23
-    assert "체결 완료" in row.message            # FILLED 로 확정되면 체결 메시지가 재전송 메모를 덮는다
-    import json as _json
-    sent = _json.loads(bodies[0])
-    assert sent["clientOrderId"] == "u:018290:B:202610061151" and sent["orderType"] == "MARKET" and sent["symbol"] == "018290"
-    assert sent["quantity"] == 23 and sent["price"] == 0 and sent["environment"] == "paper"
-    env["filled"].assert_awaited_once()
+    assert summary.get("resubmitted", 0) == 0 and summary["filled"] == 0
+    assert summary["skipped"] == 1 and row.status == "UNKNOWN" and row.order_no is None
+    assert bodies == []
+    env["filled"].assert_not_awaited()
 
 
-def test_unknown_past_window_becomes_lost_and_notifies(env, monkeypatch):
+def test_unknown_past_window_keeps_exposure_without_resubmission(env, monkeypatch):
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_UNKNOWN_RESUBMIT_MIN", 10)
     calls = _server((200, {"ok": True}))
     row = _unknown_row(age_min=25)
     db = FakeDb(rows=[row])
     with patch.object(auto_trade, "get_session_factory", return_value=_factory(db)):
         summary = asyncio.run(auto_trade.confirm_live_fills())
-    assert summary["lost"] == 1 and row.status == "LOST" and "재전송 창" in row.message
+    assert summary.get("lost", 0) == 0 and row.status == "UNKNOWN" and "접수 여부 미확인" in row.message
     assert calls == []                       # 게이트웨이 호출 없음
-    env["errored"].assert_awaited_once()
+    env["errored"].assert_not_awaited()
     from app.models import LIVE_ORDER_OPEN_STATUSES
-    assert "LOST" not in LIVE_ORDER_OPEN_STATUSES
+    assert row.status in LIVE_ORDER_OPEN_STATUSES
 
 
 @pytest.mark.parametrize("side", ["BUY", "SELL"])
@@ -294,7 +290,7 @@ def test_unknown_replay_cannot_create_order_after_stop(env, state, side):
         summary = asyncio.run(auto_trade.confirm_live_fills())
     assert calls == []  # 승인 토큰 요청도 새 주문도 보내지 않는다.
     assert summary["skipped"] == 1 and row.status == "UNKNOWN"
-    assert "재전송 보류" in row.message
+    assert "재전송하지 않습니다" in row.message
 
 
 def test_known_order_still_confirms_fill_after_halt(env):
