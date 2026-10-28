@@ -159,3 +159,60 @@ def test_backtest_strategy_rejects_bad_mode():
     r = backtest_strategy(make_candles(400), strategy="ma", entry_mode="intrabar")
     assert "error" in r
     assert "close | open" in r["error"]
+
+def test_atr_stop_uses_open_entry_and_locked_atr():
+    idx = pd.date_range("2026-01-01", periods=4, freq="D")
+    close = pd.Series([100.0, 110.0, 99.0, 100.0], index=idx)
+    held = pd.Series([0.0, 1.0, 1.0, 1.0], index=idx)
+    open_ = pd.Series([100.0, 110.0, 105.0, 100.0], index=idx)
+    atr_values = pd.Series([5.0, 50.0, 50.0, 50.0], index=idx)
+
+    out, exits = apply_stops(
+        close, held, return_exits=True,
+        atr_values=atr_values, atr_mult=2.0, take_rr=2.0,
+        entry_mode="open", open_=open_,
+    )
+
+    assert len(exits) == 1
+    assert exits[0]["type"] == "stop"
+    assert exits[0]["entry_price"] == 110.0
+    assert exits[0]["stop_price"] == 100.0
+    assert out.iloc[2] == 1.0
+    assert out.iloc[3] == 0.0
+
+
+def test_atr_take_profit_triggers_at_rr_target():
+    idx = pd.date_range("2026-01-01", periods=4, freq="D")
+    close = pd.Series([100.0, 110.0, 131.0, 132.0], index=idx)
+    held = pd.Series([0.0, 1.0, 1.0, 1.0], index=idx)
+    open_ = pd.Series([100.0, 110.0, 110.0, 110.0], index=idx)
+    atr_values = pd.Series([5.0, 5.0, 5.0, 5.0], index=idx)
+
+    out, exits = apply_stops(
+        close, held, return_exits=True,
+        atr_values=atr_values, atr_mult=2.0, take_rr=2.0,
+        entry_mode="open", open_=open_,
+    )
+
+    assert len(exits) == 1
+    assert exits[0]["type"] == "take"
+    assert exits[0]["entry_price"] == 110.0
+    assert exits[0]["stop_price"] == 100.0
+    assert exits[0]["take_price"] == 130.0
+    assert out.iloc[3] == 0.0
+
+
+def test_atr_uses_previous_bar_value_at_entry():
+    idx = pd.date_range("2026-01-01", periods=3, freq="D")
+    close = pd.Series([100.0, 110.0, 109.0], index=idx)
+    held = pd.Series([0.0, 1.0, 1.0], index=idx)
+    open_ = pd.Series([100.0, 110.0, 110.0], index=idx)
+    atr_values = pd.Series([4.0, 40.0, 80.0], index=idx)
+
+    _, exits = apply_stops(
+        close, held, return_exits=True,
+        atr_values=atr_values, atr_mult=2.0, take_rr=2.0,
+        entry_mode="open", open_=open_,
+    )
+
+    assert exits == []

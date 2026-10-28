@@ -233,64 +233,125 @@ def rule_based_signals(df: pd.DataFrame) -> pd.Series:
 STOP_JUDGE = "close"
 
 
-def apply_stops(close: pd.Series, held: pd.Series, stop_loss_pct: float | None = None,
-                take_profit_pct: float | None = None, return_exits: bool = False):
-    """보유 상태(held, 이미 shift(1) 적용된 0/1)에 손절·익절 규칙을 덧씌운다.
+def apply_stops(
+    close: pd.Series,
+    held: pd.Series,
+    stop_loss_pct: float | None = None,
+    take_profit_pct: float | None = None,
+    return_exits: bool = False,
+    *,
+    atr_values: pd.Series | None = None,
+    atr_mult: float | None = None,
+    take_rr: float | None = None,
+    entry_mode: str = "close",
+    open_: pd.Series | None = None,
+):
+    """종가 기준 손절·익절. ATR은 진입 당시 값으로 고정한다."""
+    if entry_mode not in ("close", "open"):
+        raise ValueError("entry_mode must be close or open")
+    if atr_mult is not None and atr_mult <= 0:
+        raise ValueError("atr_mult must be positive")
+    if take_rr is not None and take_rr <= 0:
+        raise ValueError("take_rr must be positive")
 
-    - 진입가 = 보유가 시작되는 날의 전일 종가(held[t]=1이면 t일 수익률을 먹으므로 close[t-1]에 진입)
-    - 종가가 진입가 × (1 − 손절%) 이하 → 그날 수익률까지 반영하고 다음 날부터 현금
-    - 종가가 진입가 × (1 + 익절%) 이상 → 동일하게 청산
-    - 청산 후에는 원 신호가 0→1로 새로 바뀌는 시점(재진입)까지 현금 유지 (룩어헤드 없음: 모두 과거종가만 사용)
+    # 손절·익절 설정이 없으면 기존 동작과 동일하게 입력 보유 신호를 보존한다.
+    if (
+        stop_loss_pct is None
+        and take_profit_pct is None
+        and atr_mult is None
+    ):
+        unchanged = held.reindex(close.index).fillna(0).astype(float).copy()
+        if return_exits:
+            return unchanged, []
+        return unchanged, 0, 0
 
-    Returns (기본): (조정된 held, 손절 횟수, 익절 횟수)
-    Returns (return_exits=True): (조정된 held, exits)
-        exits = [{"type": "stop"|"take", "planned_pct": float, "actual_pct": float, "date": iso}, ...]
-        planned_pct = -stop_loss_pct (또는 +take_profit_pct) · actual_pct = (청산 종가/진입가 - 1) × 100
-        gap 여부는 actual_pct < planned_pct (더 나쁘게 체결) 로 판단.
-    """
-    sl = float(stop_loss_pct) / 100 if stop_loss_pct else None
-    tp = float(take_profit_pct) / 100 if take_profit_pct else None
-    if not sl and not tp:
-        return (held, []) if return_exits else (held, 0, 0)
+    c = close.astype(float).to_numpy()
+    h = held.reindex(close.index).fillna(0).astype(float).to_numpy()
+    o = open_.reindex(close.index).astype(float).to_numpy() if open_ is not None else None
+    a = atr_values.reindex(close.index).astype(float).to_numpy() if atr_values is not None else None
 
-    c = close.values.astype(float)
-    h = held.values.astype(float).copy()
-    out = np.zeros_like(h)
-    entry = None
-    blocked = False   # 청산 후 재진입 신호 대기 중
+    out = h.copy()
+    active = False
+    blocked = False
+    entry_price = stop_price = take_price = None
+    exits = []
     n_sl = n_tp = 0
-    exits: list[dict] = []
-    idx = held.index
 
-    for t in range(len(h)):
-        want = h[t] == 1
-        fresh_entry = want and (t == 0 or h[t - 1] == 0)
-        if fresh_entry:
-            blocked = False
-        if not want or blocked:
-            out[t] = 0
-            entry = None
+    for i in range(len(c)):
+        if h[i] != 1:
+            active = blocked = False
+            entry_price = stop_price = take_price = None
+            out[i] = 0
             continue
-        if entry is None:
-            entry = c[t - 1] if t > 0 else c[t]
-        out[t] = 1
-        if entry and entry > 0:
-            actual_pct = (c[t] / entry - 1) * 100
+
+        if not active:
+            if blocked:
+                out[i] = 0
+                continue
+
+            entry_price = (
+                o[i] if entry_mode == "open" and o is not None
+                else c[i - 1] if i > 0 else c[i]
+            )
+            if not np.isfinite(entry_price) or entry_price <= 0:
+                out[i] = 0
+                continue
+
+            atr_entry = a[i - 1] if a is not None and i > 0 else np.nan
+            if atr_mult is not None:
+                if not np.isfinite(atr_entry) or atr_entry <= 0:
+                    raise ValueError("ATR 진입 기준값이 없어 손절가를 계산할 수 없습니다.")
+                distance = float(atr_entry) * atr_mult
+                stop_price = entry_price - distance
+                take_price = (
+                    entry_price + distance * take_rr
+                    if take_rr is not None else None
+                )
+            else:
+                stop_price = (
+                    entry_price * (1 - stop_loss_pct / 100)
+                    if stop_loss_pct is not None else None
+                )
+                take_price = (
+                    entry_price * (1 + take_profit_pct / 100)
+                    if take_profit_pct is not None else None
+                )
+            active = True
+
+        out[i] = 1
+        hit_stop = stop_price is not None and c[i] <= stop_price
+        hit_take = take_price is not None and c[i] >= take_price
+        if not (hit_stop or hit_take):
+            continue
+
+        # 같은 종가에서 양쪽 기준을 모두 넘으면 보수적으로 손절 우선
+        is_stop = bool(hit_stop)
+        target = stop_price if is_stop else take_price
+        if atr_mult is None:
+            planned_pct = (
+                -float(stop_loss_pct) if is_stop
+                else float(take_profit_pct)
+            )
         else:
-            actual_pct = 0.0
-        if sl and c[t] <= entry * (1 - sl):
-            n_sl += 1; blocked = True
-            exits.append({"type": "stop", "planned_pct": round(-float(stop_loss_pct), 4),
-                          "actual_pct": round(actual_pct, 4),
-                          "date": idx[t].isoformat() if hasattr(idx[t], "isoformat") else str(idx[t])})
-            entry = None
-        elif tp and c[t] >= entry * (1 + tp):
-            n_tp += 1; blocked = True
-            exits.append({"type": "take", "planned_pct": round(float(take_profit_pct), 4),
-                          "actual_pct": round(actual_pct, 4),
-                          "date": idx[t].isoformat() if hasattr(idx[t], "isoformat") else str(idx[t])})
-            entry = None
-    adjusted = pd.Series(out, index=held.index)
+            planned_pct = (target / entry_price - 1) * 100
+        actual_pct = (c[i] / entry_price - 1) * 100
+        exits.append({
+            "type": "stop" if is_stop else "take",
+            "planned_pct": float(planned_pct),
+            "actual_pct": float(actual_pct),
+            "gap": bool(actual_pct < planned_pct - 1e-9) if is_stop
+                   else bool(actual_pct > planned_pct + 1e-9),
+            "entry_price": float(entry_price),
+            "trigger_price": float(c[i]),
+            "stop_price": float(stop_price) if stop_price is not None else None,
+            "take_price": float(take_price) if take_price is not None else None,
+        })
+        n_sl += int(is_stop)
+        n_tp += int(not is_stop)
+        active = False
+        blocked = True
+
+    adjusted = pd.Series(out, index=close.index, dtype=float)
     if return_exits:
         return adjusted, exits
     return adjusted, n_sl, n_tp
@@ -300,7 +361,10 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
              stop_loss_pct: float | None = None, take_profit_pct: float | None = None,
              cost: Any | None = None,
              entry_mode: str = "close",
-             exit_mode: str = "close") -> dict:
+             exit_mode: str = "close",
+             atr_period: int | None = None,
+             atr_mult: float | None = None,
+             take_rr: float | None = None) -> dict:
     """
     벡터화 백테스트: 롱 전략 (signal=+1 보유, 그 외 현금).
 
@@ -331,7 +395,20 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
 
     held = (pos == 1).astype(float)
     # 손절 · 익절이 보유 상태를 먼저 바꾼다 — 비용 · 승률 · 매매 횟수는 바뀐 보유 상태로 센다
-    held, _exits = apply_stops(df["close"].astype(float), held, stop_loss_pct, take_profit_pct, return_exits=True)
+    atr_values = None
+    if atr_period is not None and atr_mult is not None:
+        if not {"high", "low", "close"}.issubset(df.columns):
+            raise ValueError("ATR 손절에는 high, low, close 컬럼이 필요합니다.")
+        atr_values = ta.atr(
+            df["high"].astype(float), df["low"].astype(float),
+            df["close"].astype(float), atr_period,
+        )
+    held, _exits = apply_stops(
+        df["close"].astype(float), held, stop_loss_pct, take_profit_pct,
+        return_exits=True, atr_values=atr_values, atr_mult=atr_mult,
+        take_rr=take_rr, entry_mode=entry_mode,
+        open_=df["open"].astype(float) if "open" in df.columns else None,
+    )
     n_sl = sum(1 for e in _exits if e["type"] == "stop")
     n_tp = sum(1 for e in _exits if e["type"] == "take")
     if cost is None and (commission_bps or slippage_bps):

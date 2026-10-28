@@ -103,6 +103,9 @@ def backtest_strategy(
     take_profit_pct: float | None = None,
     entry_mode: str = "close",
     exit_mode: str = "close",
+    atr_period: int | None = None,
+    atr_mult: float | None = None,
+    take_rr: float | None = None,
 ) -> dict:
     """롱온리 일봉 백테스트. 매매비용은 포지션 변동 시 차감한다.
 
@@ -118,6 +121,8 @@ def backtest_strategy(
           backtest() 와 같은 뜻.
     """
     from app.services.quant_pipeline import STOP_JUDGE, apply_stops
+    if entry_mode not in ("close", "open") or exit_mode not in ("close", "open"):
+        return {"error": f"entry_mode · exit_mode 는 close | open 만: {entry_mode} / {exit_mode}"}
     df = indicators(candles).dropna()
     if len(df) < 60:
         return {"error": f"데이터 부족: {len(df)}행 (최소 60 필요)"}
@@ -126,11 +131,32 @@ def backtest_strategy(
     # t일 장 마감 신호는 t+1일 수익률에만 적용
     held = position.shift(1).fillna(0.0)
     # 손절 · 익절이 보유 상태를 먼저 바꾼다 — 비용은 바뀐 보유 상태의 회전에 붙는다
-    held, n_sl, n_tp = apply_stops(df["close"].astype(float), held, stop_loss_pct, take_profit_pct)
+    atr_values = None
+    if atr_period is not None and atr_mult is not None:
+        if atr_period < 1 or atr_mult <= 0:
+            raise ValueError("atr_period와 atr_mult는 양수여야 합니다.")
+        if not {"high", "low", "close"}.issubset(df.columns):
+            raise ValueError("ATR 손절에는 high, low, close 컬럼이 필요합니다.")
+        atr_values = ta.atr(
+            df["high"].astype(float),
+            df["low"].astype(float),
+            df["close"].astype(float),
+            atr_period,
+        )
+
+    held, n_sl, n_tp = apply_stops(
+        df["close"].astype(float),
+        held,
+        stop_loss_pct,
+        take_profit_pct,
+        atr_values=atr_values,
+        atr_mult=atr_mult,
+        take_rr=take_rr,
+        entry_mode=entry_mode,
+        open_=df["open"].astype(float) if "open" in df.columns else None,
+    )
     if cost is None:
         cost = tcost.FlatCostModel(cost_bps=cost_bps, slippage_bps=slippage_bps)
-    if entry_mode not in ("close", "open") or exit_mode not in ("close", "open"):
-        return {"error": f"entry_mode · exit_mode 는 close | open 만: {entry_mode} / {exit_mode}"}
 
     buy_turn, sell_turn = tcost.position_delta(held)
     if entry_mode == "close" and exit_mode == "close":
@@ -174,6 +200,9 @@ def backtest_strategy(
         "slippage_bps": float(cost_desc.get("slippage_bps", 0.0)),
         "stop_loss_pct": stop_loss_pct,
         "take_profit_pct": take_profit_pct,
+        "atr_period": atr_period,
+        "atr_mult": atr_mult,
+        "take_rr": take_rr,
         "stop_loss_exits": n_sl,
         "take_profit_exits": n_tp,
         # 비용 합(단순 합) — 복리로 잰 `cost_drag_pct` 와 다르다
