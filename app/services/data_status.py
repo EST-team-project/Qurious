@@ -309,6 +309,63 @@ def schedule_text(hm: tuple[int, int] | None) -> str:
     return f"매일 {hm[0]:02d}:{hm[1]:02d}" if hm else SCHEDULE_UNKNOWN
 
 
+#: HF 로 내려받는 임대 파일 — 러너가 아닌 PC 도 다른 PC 의 회차 결과를 여기서 읽는다(`scripts/run_lease.py` STATE_PATH 와 같은 파일)
+LEASE_FILE = "run_lease.json"
+
+
+def _aware(ts: datetime | None) -> datetime | None:
+    return ts.replace(tzinfo=KST) if ts is not None and ts.tzinfo is None else ts
+
+
+def _other_pc_round(state_dir: Path, now: datetime, today_run: datetime | None, *, admin: bool = False) -> dict | None:
+    """이 PC 에 러너 기록(`daily_update_last.json`)이 없을 때 — 임대 파일에서 **다른 PC 의 가장 새 회차**를 읽어 러너 판정으로 돌려준다.
+
+    까닭(사용자 10-28 · S158): 러너는 한 PC 만 돌고 나머지 PC 는 HF 로 자료만 받는다. 표가 전부 최신이어도 러너 기록 파일이 없다는 이유로
+    종합이 영구히 「확인 필요」 였다. 기록이 **없는 것**과 기록을 **이 PC 에서 못 보는 것**을 가른다.
+    경고를 숨기지 않는다 — 가장 새 회차가 실패면 「일부 실패」, 같은 날 앞 회차가 실패였으면 글에 그대로 적는다.
+    임대 파일도 없거나 읽을 회차가 없으면 None(그러면 부르는 쪽이 「기록 없음」 을 쓴다).
+    """
+    doc = (_read_json(state_dir / LEASE_FILE) or {}).get("lease")
+    if not isinstance(doc, dict):
+        return None
+    slots = doc.get("slots") if isinstance(doc.get("slots"), dict) else {}
+    recs: list[dict] = []
+    for slot, rec in slots.items():
+        if isinstance(rec, dict) and _parse_ts(rec.get("finished_at")):
+            recs.append({"slot": slot, "kind": rec.get("kind"), "pc": rec.get("pc"), "finished_at": rec["finished_at"],
+                         "ok": bool(rec.get("ok")), "rc": rec.get("rc"), "price_max": rec.get("price_max")})
+    res = doc.get("result") if isinstance(doc.get("result"), dict) else None
+    if doc.get("state") == "done" and res is not None and _parse_ts(doc.get("finished_at")):
+        recs.append({"slot": doc.get("slot"), "kind": doc.get("kind"), "pc": doc.get("pc"), "finished_at": doc["finished_at"],
+                     "ok": bool(res.get("ok")), "rc": res.get("rc"),
+                     "price_max": (slots.get(doc.get("slot")) or {}).get("price_max")})
+    renewed = _aware(_parse_ts(doc.get("renewed_at")))
+    if doc.get("state") != "done" and renewed and (now - renewed) < timedelta(hours=LOCK_STALE_HOURS):
+        who = (doc.get("pc") if admin else None) or "다른 PC"        # PC 이름은 관리자 답에만(로그 경로 · 요청 번호와 같은 결정)
+        return {"state": "running", "label": "다른 PC 가 도는 중", "running_since": doc.get("acquired_at"),
+                "detail": f"{who} 가 {(doc.get('acquired_at') or '')[11:16]} 에 시작했다", "remote": True}
+    if not recs:
+        return None
+    latest = max(recs, key=lambda r: _aware(_parse_ts(r["finished_at"])))
+    when = _aware(_parse_ts(latest["finished_at"]))
+    who = (latest.get("pc") if admin else None) or "다른 PC"
+    price = _iso_day(latest.get("price_max"))
+    tail = ""
+    if latest.get("kind") == "only":
+        tail += " · 단계만 다시 돌린 회차"
+    earlier_bad = [r for r in recs if r is not latest and not r["ok"] and r["finished_at"][:10] == latest["finished_at"][:10]]
+    if latest["ok"] and earlier_bad:
+        tail += f" · 같은 날 앞 회차({earlier_bad[0]['finished_at'][11:16]})는 실패로 기록됨"
+    base = f"{who} 가 {when:%m-%d %H:%M} 에 끝냈다(이 PC 에는 회차 기록이 없다)" + (f" · 시세 {price}" if price else "")
+    if not latest["ok"]:
+        return {"state": "warning", "label": "일부 실패", "remote": True,
+                "detail": f"{who} 의 {when:%m-%d %H:%M} 회차가 실패로 기록됐다(종료코드 {latest.get('rc')})" + (f" · 시세 {price}" if price else "")}
+    if today_run is not None and when.date() < now.date() and now >= today_run + timedelta(hours=1):
+        return {"state": "late", "label": "오늘 회차 없음", "remote": True,
+                "detail": f"{today_run:%H:%M} 회차 기록이 아직 없다 — 마지막은 " + base}
+    return {"state": "ok", "label": "성공 · 다른 PC", "detail": base + tail, "remote": True}
+
+
 def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) -> dict:
     # 회차 시각은 러너가 쓴 단계 목록 하나에서(D104) — 없으면 다음 회차 · 「오늘 회차 없음」 을 셈하지 않는다(짐작 금지)
     catalog = load_catalog(state_dir)
@@ -388,7 +445,9 @@ def runner_state(state_dir: Path | None, now: datetime, *, admin: bool = False) 
     if out["running"]:
         out.update(state="running", label="도는 중", detail=f"{out['running_since'][11:16]} 에 시작했다")
     elif not lr:
-        out.update(state="missing", label="기록 없음", detail="일일 갱신이 끝난 기록이 없다")
+        # 이 PC 가 러너가 아니면 기록 파일이 없다 — 다른 PC 의 회차를 임대 파일에서 읽는다(없을 때만 「기록 없음」)
+        out.update(_other_pc_round(state_dir, now, today_run, admin=admin)
+                   or dict(state="missing", label="기록 없음", detail="일일 갱신이 끝난 기록이 없다"))
     elif not lr["ok"] and lr["stopped"]:
         out.update(state="failed", label="실패", detail=f"멈춘 단계: {lr['stopped']}")
     elif not ran_today and today_run is not None and now >= today_run + timedelta(hours=1):
