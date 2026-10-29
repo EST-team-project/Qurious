@@ -77,13 +77,16 @@ param(
 $ErrorActionPreference = 'Continue'
 $started = Get-Date
 
-# 개발 모드면 이 스크립트 안의 모든 compose 호출이 덧씌우기 파일까지 읽게 한다(_common.ps1 의 $QComposeFiles 설명).
-if ($Dev) { $QComposeFiles = @('docker-compose.yml', $QComposeDevFile) }
+# 일반/개발 모드 모두 PC 전용 파일이 있으면 마지막에 적용한다(#415).
+$QComposeFiles = @(Get-QStartComposeFiles -Dev:$Dev)
 
 $modeName = '보통 모드 — 이미지 코드'
 if ($Dev) { $modeName = '개발 모드 — 코드 폴더 연결 · 저장하면 자동 반영' }
 Write-QTitle "Qurious 로컬 실행 (도커 · $modeName)"
 Write-QInfo "저장소: $QRoot"
+if ($QComposeFiles -contains 'scripts/personal/compose.local.yml') {
+  Write-QInfo 'PC 전용 설정 적용: scripts/personal/compose.local.yml (내용은 출력하지 않음)'
+}
 
 # ------------------------------------------------------------------------------
 # 1. 사전 점검 — 도커가 없으면 여기서 끝낸다(무엇을 하면 되는지까지 알려 준다)
@@ -105,7 +108,7 @@ if (Test-Path $envPath) {
   Copy-Item (Join-Path $QRoot '.env.example') $envPath
   Write-QWarn '.env 가 없어 .env.example 을 복사해 만들었습니다 (로컬 전용 기본값).'
   Write-QInfo '증권사 키 · 알림 토큰이 비어 있어 그 기능은 동작하지 않습니다. 화면 로그인은 쿠키 방식이라 문제없습니다.'
-  Write-QInfo '.env 는 .gitignore 에 있어 커밋되지 않습니다 — 실제 키는 여기에만 적으세요.'
+  Write-QInfo '.env 는 Git에서 제외됩니다. 증권사 저장 암호화 키는 별도 파일과 compose.local.yml 마운트로 제공합니다(README 참고).'
 }
 
 # ------------------------------------------------------------------------------
@@ -113,6 +116,9 @@ if (Test-Path $envPath) {
 #    강사님 원본이 다른 스택(외부 Redis 등)과 네트워크를 나눠 쓰려고 둔 설정이다. 없으면 compose 가 멈춘다.
 # ------------------------------------------------------------------------------
 Write-QStep '3/7 도커 네트워크 — shared-net'
+if ($QComposeFiles -contains 'scripts/personal/compose.local.yml') {
+  if (-not (Test-QStartKeyFiles)) { exit 1 }
+}
 $null = & docker network inspect shared-net 2>&1
 if ($LASTEXITCODE -eq 0) {
   Write-QOk 'shared-net 있음'
