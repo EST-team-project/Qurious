@@ -112,8 +112,14 @@ def record_all_snapshots() -> dict:
     """Celery Beat 진입점 — 모든 사용자의 오늘 스냅샷을 기록."""
     try:
         result = asyncio.run(_record_all_async())
+        if result.get("fail", 0):
+            raise RuntimeError(
+                f"paper snapshot incomplete: date={result['date']} "
+                f"ok={result['ok']} fail={result['fail']} total={result['total']}"
+            )
         logger.info("paper 스냅샷 배치 완료: %s", result)
         return result
-    except Exception as e:
+    except Exception:
         logger.exception("paper 스냅샷 배치 실패")
-        return {"error": str(e)}
+        # 부분 성공도 Celery FAILURE로 남긴다. 자동 재시도로 같은 날 평가 시각을 바꾸지 않는다.
+        raise
