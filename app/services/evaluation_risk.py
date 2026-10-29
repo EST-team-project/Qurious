@@ -174,6 +174,9 @@ def deflated_sharpe_ratio(
 
     ⚠️ kurtosis_value는 Fisher=False 기준 (정규분포=3).
     """
+    if n_trials < 1:
+        raise ValueError("n_trials must be at least 1")
+
     if n_observations <= 1:
         return float("nan")
 
@@ -187,9 +190,14 @@ def deflated_sharpe_ratio(
     if sharpe_std == 0:
         return float("nan")
 
-    # 기대 최대 Sharpe
+    # Bailey & Lopez de Prado의 기대 최대 Sharpe 근사식
     if n_trials > 1:
-        expected_max_sharpe = float(norm.ppf(1 - 1 / n_trials) * sharpe_std)
+        gamma = 0.5772156649015329
+        z1 = norm.ppf(1 - 1 / n_trials)
+        z2 = norm.ppf(1 - 1 / (n_trials * np.e))
+        expected_max_sharpe = float(
+            sharpe_std * ((1 - gamma) * z1 + gamma * z2)
+        )
 
     dsr = float(norm.cdf((sharpe - expected_max_sharpe) / sharpe_std))
     return dsr
@@ -236,8 +244,11 @@ def calculate_all_metrics(
     else:
         skewness, kurt = 0.0, 3.0
 
+    # DSR 공식의 Sharpe는 관측 주기와 일치해야 한다.
+    # 위의 Sharpe Ratio는 연율화 값이므로 관측 주기 Sharpe로 환산한다.
+    dsr_sharpe = sharpe / np.sqrt(periods_per_year)
     dsr = deflated_sharpe_ratio(
-        sharpe=sharpe,
+        sharpe=dsr_sharpe,
         n_observations=len(returns),
         skewness=skewness,
         kurtosis_value=kurt,

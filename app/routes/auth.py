@@ -57,7 +57,7 @@ from app.lib.session import (
     set_session_cookie,
 )
 from app.lib.user_state import clear_user_state, mark_offline, mark_online
-from app.services import account
+from app.services import account, login_guard
 from app.services.audit import audit
 
 router = APIRouter(prefix="/api")
@@ -71,6 +71,26 @@ class RegisterBody(BaseModel):
     name: str
     email: str
     password: str
+    # 약관 · 개인정보 동의(2026-10-29 · 가입 화면 public/register.html · 문구는 public/js/terms.js).
+    # 선택 항목이다 — 화면은 늘 보내지만, 이전 방식으로 부르는 시험 · 점검 스크립트가 깨지지 않게 비워 둬도 받는다.
+    # 보내면 서버가 동의한 판과 항목을 감사 기록(audit_events)에 남기고(나중에 입증), 필수 항목이 빠졌으면 422.
+    terms_version: str | None = None
+    agreed: list[str] | None = None
+
+
+#: 가입 때 모두 동의해야 하는 항목 — public/js/terms.js 의 TERMS id 와 같아야 한다(시험 TC-TM 이 지킨다).
+REQUIRED_AGREEMENTS = ("service", "privacy", "invest")
+
+
+def _check_agreements(body: "RegisterBody") -> dict | None:
+    """동의 항목을 검사해 감사 기록에 넣을 값(없으면 None). 필수 항목이 빠졌으면 422."""
+    if body.terms_version is None and body.agreed is None:
+        return None
+    agreed = [a for a in (body.agreed or []) if isinstance(a, str) and len(a) <= 20][:10]
+    missing = [a for a in REQUIRED_AGREEMENTS if a not in agreed]
+    if missing:
+        raise HTTPException(422, "이용약관 · 개인정보 수집·이용 · 투자 유의사항에 모두 동의해야 가입할 수 있습니다.")
+    return {"version": (body.terms_version or "")[:40], "agreed": sorted(set(agreed))}
 
 
 class LoginBody(BaseModel):
@@ -158,6 +178,7 @@ async def register(body: RegisterBody, response: Response):
         password = account.check_new_password(body.password, email=email)
     except account.AccountError as exc:
         raise HTTPException(422, str(exc))
+    consent = _check_agreements(body)
     pw_hash = account.hash_password(password)
     client_id = str(uuid.uuid4()).replace("-", "")[:16].upper()
     roles = ["admin"] if email in account.admin_emails() else ["user"]
@@ -178,6 +199,10 @@ async def register(body: RegisterBody, response: Response):
             raise HTTPException(400, "이미 사용 중인 이메일입니다.")
         user_id = str(user.id)
 
+    if consent:
+        # 이름 · 이메일은 싣지 않는다 — 판 번호와 항목만(탈퇴해도 남는 감사 기록이라 개인정보를 늘리지 않는다)
+        await audit(user_id, client_id, "terms.agree", consent)
+
     session_data = _build_session_data(user_id, {
         "name": name, "email": email, "client_id": client_id, "roles": roles,
     })
@@ -189,20 +214,37 @@ async def register(body: RegisterBody, response: Response):
                                   "clientId": client_id, "roles": roles}}
 
 
+async def _guard_check(email: str, request: Request) -> None:
+    """비밀번호를 확인하기 **전에** — 많이 틀린 이메일 · 주소는 맞는 비밀번호여도 막는다(429 + Retry-After). 규칙은 login_guard."""
+    try:
+        await login_guard.check(email, login_guard.client_ip(request))
+    except login_guard.LoginLocked as lock:
+        raise HTTPException(429, lock.message(), headers={"Retry-After": str(lock.retry_after)}) from None
+
+
+async def _guard_fail(email: str, request: Request) -> None:
+    """틀렸다 — 횟수를 올리고 401(남은 횟수가 적으면 경고 한 줄)."""
+    left = await login_guard.record_failure(email, login_guard.client_ip(request))
+    raise HTTPException(401, login_guard.failure_message(left))
+
+
 @router.post("/auth/login")
-async def login(body: LoginBody, response: Response):
+# request 는 맨 뒤 · 기본값 None — 시험들이 login(body, response) 로 직접 부른다(그때는 주소를 모르니 「unknown」 으로 센다)
+async def login(body: LoginBody, response: Response, request: Request = None):
     try:
         session_factory = get_session_factory()
     except RuntimeError:
         raise HTTPException(503, "인증 서버(PostgreSQL)에 연결할 수 없습니다.")
 
+    await _guard_check(body.email, request)
     async with session_factory() as db:
         user = await _find_user_by_email(db, body.email)
         # verify_password 는 예외를 내지 않는다(긴 비밀번호 500 방지) · 없는 계정도 비슷한 시간이 걸린다.
         if not account.verify_password(body.password, user.password_hash if user else None):
-            raise HTTPException(401, "이메일 또는 비밀번호가 올바르지 않습니다.")
+            await _guard_fail(body.email, request)
         user_id = str(user.id)
         user_dict = _user_to_dict(user)
+    await login_guard.reset(body.email)
 
     session_data = _build_session_data(user_id, user_dict)
     sid = await create_session(session_data)
@@ -236,19 +278,21 @@ async def logout(
 # ── JWT 기반 인증 ──────────────────────────────────────────────────────────────
 
 @router.post("/auth/token")
-async def issue_token(body: LoginBody):
-    """JWT 액세스/리프레시 토큰을 발급합니다 (API 클라이언트용)."""
+async def issue_token(body: LoginBody, request: Request = None):
+    """JWT 액세스/리프레시 토큰을 발급합니다 (API 클라이언트용). /auth/login 과 같은 시도 횟수 제한을 쓴다(한쪽만 막으면 다른 쪽으로 돌아간다)."""
     try:
         session_factory = get_session_factory()
     except RuntimeError:
         raise HTTPException(503, "인증 서버(PostgreSQL)에 연결할 수 없습니다.")
 
+    await _guard_check(body.email, request)
     async with session_factory() as db:
         user = await _find_user_by_email(db, body.email)
         if not account.verify_password(body.password, user.password_hash if user else None):
-            raise HTTPException(401, "이메일 또는 비밀번호가 올바르지 않습니다.")
+            await _guard_fail(body.email, request)
         user_id = str(user.id)
         user_dict = _user_to_dict(user)
+    await login_guard.reset(body.email)
 
     payload = {
         "sub": user_id,

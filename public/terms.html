@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>이용약관 · 개인정보 수집·이용 안내 · 투자 유의사항 | Qurious</title>
+  <style>
+    :root { --bg: #f4f6fb; --card: #fff; --text: #1e293b; --mute: #64748b; --faint: #94a3b8; --line: #e2e8f0; --accent: #2563eb; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --mute: #94a3b8; --faint: #64748b; --line: #334155; --accent: #60a5fa; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Pretendard", system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.75; }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 28px 24px; margin-bottom: 20px; }
+    h1 { font-size: 24px; margin: 0 0 6px; }
+    h3 { font-size: 20px; margin: 22px 0 8px; }
+    h4 { font-size: 15.5px; margin: 16px 0 4px; }
+    p { margin: 4px 0; font-size: 15px; }
+    .terms-lead { color: var(--mute); font-size: 14px; }
+    .terms-foot { color: var(--faint); font-size: 13px; }
+    nav { font-size: 14px; margin: 10px 0 22px; }
+    nav a, .back a { color: var(--accent); text-decoration: none; margin-right: 14px; }
+    .back { margin-top: 26px; font-size: 14px; }
+    @media print { body { background: #fff; color: #000; } .card { border: 0; padding: 0; } nav, .back { display: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>이용약관 · 개인정보 수집·이용 안내 · 투자 유의사항</h1>
+    <nav id="toc" aria-label="항목"></nav>
+    <div id="terms" class="card"></div>
+    <div class="back"><a href="/register.html">← 회원가입으로</a><a href="javascript:window.print()">인쇄 · PDF 로 저장</a></div>
+  </main>
+  <script type="module">
+    import { TERMS, renderTerm, renderFooter } from "/js/terms.js";
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    document.getElementById("terms").innerHTML = TERMS.map(t => renderTerm(t, esc)).join("") + renderFooter(esc);
+    document.getElementById("toc").innerHTML = TERMS.map(t => `<a href="#terms-${esc(t.id)}">${esc(t.title)}</a>`).join("");
+  </script>
+</body>
+</html>

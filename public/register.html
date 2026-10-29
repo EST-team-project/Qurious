@@ -137,6 +137,28 @@
       color: #94a3b8;
       margin-top: 5px;
     }
+    /* 약관 · 개인정보 동의 (2026-10-29 · js/terms.js) */
+    .consent { margin: 6px 0 14px; padding: 14px 16px; border: 1.5px solid #dde2ec; border-radius: 10px; background: #f8fafc; }
+    .consent-row { display: flex; align-items: center; gap: 10px; font-size: 14.5px; color: #334155; padding: 6px 0; }
+    .consent-row input[type="checkbox"] { width: 18px; height: 18px; flex: none; accent-color: #2563eb; cursor: pointer; }
+    .consent-row label { flex: 1; cursor: pointer; }
+    .consent-all { font-weight: 700; border-bottom: 1px solid #dde2ec; padding-bottom: 10px; margin-bottom: 4px; }
+    .consent-req { color: #2563eb; font-weight: 600; margin-right: 4px; }
+    .consent-view { flex: none; background: none; border: 0; color: #64748b; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px; font-family: inherit; }
+    .consent-view:hover { color: #2563eb; }
+    dialog#terms-dialog { margin: auto; /* 페이지의 margin 초기화가 대화상자의 가운데 정렬을 덮는다 */ width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px); border: 0; border-radius: 14px; padding: 0; color: #1e293b; box-shadow: 0 20px 60px rgba(15,23,42,.35); }
+    dialog#terms-dialog::backdrop { background: rgba(15,23,42,.5); }
+    .terms-box { display: flex; flex-direction: column; max-height: calc(100vh - 48px); }
+    .terms-body { overflow-y: auto; padding: 8px 24px 4px; font-size: 14.5px; line-height: 1.7; }
+    .terms-body h3 { font-size: 18px; margin: 14px 0 8px; }
+    .terms-body h4 { font-size: 15px; margin: 14px 0 4px; }
+    .terms-body p { margin: 4px 0; }
+    .terms-lead { color: #64748b; font-size: 13.5px; }
+    .terms-foot { color: #94a3b8; font-size: 12.5px; margin-top: 18px; }
+    .terms-actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; flex-wrap: wrap; padding: 14px 24px 18px; border-top: 1px solid #e2e8f0; }
+    .terms-actions a { margin-right: auto; font-size: 13px; color: #2563eb; }
+    .terms-actions button { padding: 10px 18px; border-radius: 9px; font-size: 14.5px; font-family: inherit; cursor: pointer; border: 1.5px solid #dde2ec; background: #fff; color: #334155; }
+    .terms-actions button.primary { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 700; }
   </style>
 </head>
 <body data-view="register">
@@ -164,6 +186,14 @@
           <input id="pw" name="password" type="password" class="form-input" placeholder="••••••••" minlength="8" maxlength="64" autocomplete="new-password" required />
           <div class="hint" id="pw-hint">8자 이상 · 64자 이하 · 72바이트(한글 24자) 이하</div>
         </div>
+        <fieldset class="consent" id="consent" style="margin-inline:0;">
+          <legend class="hint" style="padding:0 6px;">약관 · 개인정보 동의</legend>
+          <div class="consent-row consent-all">
+            <input id="agree-all" type="checkbox" />
+            <label for="agree-all">전체 동의</label>
+          </div>
+          <div id="consent-rows"><!-- js/terms.js 의 항목마다 체크박스 한 줄 — 아래 스크립트가 채운다 --></div>
+        </fieldset>
         <button type="submit" class="btn-submit">
           <i class="fa-solid fa-user-plus" style="margin-right:8px;"></i>가입하기
         </button>
@@ -174,10 +204,58 @@
     </div>
   </div>
 
+  <dialog id="terms-dialog" aria-labelledby="terms-dialog-title">
+    <div class="terms-box">
+      <div style="padding:18px 24px 0;"><span class="hint" id="terms-dialog-title">약관 · 안내 전문</span></div>
+      <div class="terms-body" id="terms-dialog-body"></div>
+      <div class="terms-actions">
+        <a id="terms-dialog-full" href="/terms.html" target="_blank" rel="noopener">전문을 새 창으로 보기(인쇄 · 저장)</a>
+        <button type="button" id="terms-dialog-close">닫기</button>
+        <button type="button" class="primary" id="terms-dialog-agree">읽었습니다 · 동의</button>
+      </div>
+    </div>
+  </dialog>
+
   <script type="module">
     import { api, getMe, safeNextPath, setToast } from "/js/common.js";
+    import { TERMS, TERMS_VERSION, renderTerm, renderFooter } from "/js/terms.js";
     import { initCompletionIndicator } from "/js/completion.js";
+    import { attachPasswordToggles } from "/js/pwtoggle.js";
     initCompletionIndicator();
+    attachPasswordToggles(document.querySelector("form"));   // 비밀번호 보기 버튼
+
+    // ── 약관 · 개인정보 동의 — 문구는 js/terms.js 한 곳(전문 페이지 terms.html 과 같은 글) ──
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const rows = document.getElementById("consent-rows");
+    rows.innerHTML = TERMS.map(t => `<div class="consent-row">
+      <input id="agree-${t.id}" class="agree" data-id="${t.id}" type="checkbox" required />
+      <label for="agree-${t.id}"><span class="consent-req">[필수]</span>${esc(t.short)}</label>
+      <button type="button" class="consent-view" data-terms="${t.id}">보기</button></div>`).join("");
+    const boxes = () => [...document.querySelectorAll("#consent-rows .agree")];
+    const allBox = document.getElementById("agree-all");
+    const syncAll = () => { allBox.checked = boxes().every(b => b.checked); };
+    allBox.addEventListener("change", () => { boxes().forEach(b => { b.checked = allBox.checked; }); });
+    rows.addEventListener("change", syncAll);
+
+    const dialog = document.getElementById("terms-dialog");
+    let openId = "";
+    rows.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-terms]");
+      if (!btn) return;
+      openId = btn.dataset.terms;
+      const term = TERMS.find(t => t.id === openId);
+      document.getElementById("terms-dialog-title").textContent = term.title;
+      document.getElementById("terms-dialog-body").innerHTML = renderTerm(term, esc) + renderFooter(esc);
+      document.getElementById("terms-dialog-body").scrollTop = 0;
+      document.getElementById("terms-dialog-full").href = `/terms.html#terms-${openId}`;
+      dialog.showModal();
+    });
+    document.getElementById("terms-dialog-close").addEventListener("click", () => dialog.close());
+    document.getElementById("terms-dialog-agree").addEventListener("click", () => {
+      const box = document.getElementById(`agree-${openId}`);
+      if (box) { box.checked = true; syncAll(); }
+      dialog.close();
+    });
 
     // 이미 로그인된 상태면 회원가입 화면 대신 앱으로 이동
     getMe({ redirectOnUnauthorized: false })
@@ -207,10 +285,17 @@
         setToast(`비밀번호가 너무 깁니다 — ${policy.max_bytes}바이트(영문 72자 · 한글 24자) 이하로 입력하세요.`, "error");
         return;
       }
+      // 세 가지를 모두 확인해야 가입한다(체크박스 required 가 먼저 막지만, 스크립트로 우회돼도 한 번 더)
+      if (!boxes().every(b => b.checked)) {
+        setToast("이용약관 · 개인정보 수집·이용 · 투자 유의사항을 모두 확인해 주세요.", "error");
+        return;
+      }
       try {
         await api("/api/auth/register", {
           method: "POST",
-          body: { name: fd.get("name"), email: String(fd.get("email") || "").trim(), password },
+          // terms_version · agreed — 서버가 동의한 판과 항목을 감사 기록에 남긴다(나중에 입증)
+          body: { name: fd.get("name"), email: String(fd.get("email") || "").trim(), password,
+                  terms_version: TERMS_VERSION, agreed: boxes().map(b => b.dataset.id) },
         });
         location.replace(safeNextPath());   // 가입 뒤 뒤로가기로 가입 화면이 다시 나오지 않게
       } catch (err) {

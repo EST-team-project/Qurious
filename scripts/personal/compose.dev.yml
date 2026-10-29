@@ -56,6 +56,8 @@ services:
       - ./prompts:/app/prompts:ro
       - ./alembic:/app/alembic:ro
       - ./alembic.ini:/app/alembic.ini:ro
+      # 전략 카드 예시 — strategy_cards.py · paper_journal.py 가 /app/docs/… 에서 읽는다(Dockerfile 이 같은 폴더만 이미지에 넣는다)
+      - ./docs/phase-3/02-design/system/예시:/app/docs/phase-3/02-design/system/예시:ro
 
   celery-worker:
     # Celery 에는 --reload 가 없다. 그래서 watchfiles 명령이 워커를 감싸고 있다가 .py 가 바뀌면

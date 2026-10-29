@@ -273,6 +273,12 @@ if os.path.isdir(_public):
             return RedirectResponse(url="/app.html")
         return FileResponse(os.path.join(_public, "register.html"))
 
+    @app.get("/terms.html", include_in_schema=False)
+    async def terms_page():
+        # 이용약관 · 개인정보 수집·이용 안내 · 투자 유의사항 전문(2026-10-29) — 가입 전 사람도, 로그인한 사람도 읽을 수 있어야 해서
+        # 로그인 여부를 보지 않는다(가입 화면의 「전문을 새 창으로 보기」 가 여기로 온다 · 문구는 public/js/terms.js 한 곳).
+        return FileResponse(os.path.join(_public, "terms.html"))
+
     @app.get("/app.html", include_in_schema=False)
     async def app_page(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
         # 로그인 안 한 사람은 앱 화면을 받기 전에 로그인 화면으로 — 앱을 그렸다가 튕기는 깜빡임을 없앤다.

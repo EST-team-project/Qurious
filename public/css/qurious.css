@@ -308,3 +308,25 @@ button.lnb-item, a.lnb-item { width: 100%; background: none; font-family: inheri
   #lnb-backdrop.open { display: block; position: fixed; inset: var(--gnb-h) 0 0 0; z-index: 98; background: rgba(15, 23, 42, .35); }
   #lnb.mobile-open { width: min(300px, 86vw); box-shadow: 4px 0 24px rgba(15, 23, 42, .18); }
 }
+
+/* 내 계정(마이페이지) — 구역 목록 + 본문 (2026-10-29 설계 v0.1 ㉯ · js/mypage.js 가 data-mp-pane 을 바꾼다)
+ * 넓은 화면: 왼쪽 목록 | 본문. 좁은 화면(≤768): 목록 → 본문 한 번에 하나, 본문에서 「← 목록」. 구역은 .active 하나만 보인다. */
+.mp-shell { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; }
+.mp-nav { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 8px; }
+.mp-nav-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-dim); font-size: 13.5px; text-align: left; cursor: pointer; }
+.mp-nav-item i { width: 16px; text-align: center; }
+.mp-nav-item:hover { color: var(--accent); background: var(--surf2); }
+.mp-nav-item.active { color: var(--accent); background: var(--surf2); border-color: var(--border); font-weight: 600; }
+.mp-body { min-width: 0; }
+.mp-back { display: none; margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surf2); color: var(--text-dim); font-size: 13px; cursor: pointer; }
+.mp-sec { display: none; }
+.mp-sec.active { display: block; }
+.mp-link { display: inline-block; text-decoration: none; }
+@media (max-width: 768px) {
+  .mp-shell { grid-template-columns: minmax(0, 1fr); }
+  .mp-nav { position: static; }
+  .mp-shell[data-mp-pane="list"] .mp-body { display: none; }
+  .mp-shell[data-mp-pane="body"] .mp-nav { display: none; }
+  .mp-shell[data-mp-pane="body"] .mp-back { display: inline-block; }
+  .mp-nav-item { padding: 13px 14px; font-size: 14.5px; }   /* 손가락 누름 크기 */
+}
