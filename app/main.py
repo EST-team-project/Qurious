@@ -260,9 +260,18 @@ if os.path.isdir(_public):
 
     # 첫 주소 · 로그인 · 가입 화면은 **로그인 상태를 보고** 갈 곳을 고른다. 예전에는 `/` 가 늘 로그인 화면으로
     # 보내서, 세션(7일)이 살아 있는데도 주소를 다시 열거나 뒤로가기를 하면 로그아웃된 것처럼 보였다.
+    # 2026-10-29 · 랜딩(로그인 전 첫 화면 · IA N11 · Q12 (가)) — 로그인한 사람은 인트로도 랜딩도 없이 앱으로 바로(사용자 결정 ③),
+    # 아닌 사람은 랜딩(인트로 → 소개 → 로그인 · 가입). 예전에는 늘 로그인 화면이었다. 로그인 · 가입 화면은 주소 그대로 따로 있다.
     @app.get("/", include_in_schema=False)
     async def index(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
-        return RedirectResponse(url="/app.html" if await _logged_in(fin_session) else "/login.html")
+        if await _logged_in(fin_session):
+            return RedirectResponse(url="/app.html")
+        return FileResponse(os.path.join(_public, "index.html"))
+
+    @app.get("/index.html", include_in_schema=False)
+    async def index_html():
+        # 파일 이름으로 들어온 길도 같은 판정을 거치게 첫 주소로 보낸다(로그인 상태를 보는 곳을 한 곳으로).
+        return RedirectResponse(url="/")
 
     @app.get("/login.html", include_in_schema=False)
     async def login_page(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
