@@ -128,3 +128,6 @@ docs/_local/
 # Windows 다운로드 표시 파일(이름 끝 「:Zone.Identifier」) — WSL 로 복사할 때 따라 붙는다.
 # Windows 는 이 이름을 만들 수 없어 pull · checkout 이 「invalid path」 로 멈춘다(2026-10-21).
 *:Zone.Identifier
+# 개발 PC 비밀 — 증권사 자격증명 키 파일 · 이 PC 전용 compose 덧씌우기(2026-10-29 S163 · 하드로는 carry-drive 가 옮긴다)
+secrets/
+scripts/personal/compose.local.yml

@@ -6168,7 +6168,7 @@
    "schema": true
   },
   {
-   "id": "",
+   "id": "API-ISTR-01",
    "router": "indicator_strategy",
    "method": "GET",
    "path": "/api/indicator-strategy/chart",
@@ -6204,7 +6204,7 @@
    "schema": true
   },
   {
-   "id": "",
+   "id": "API-ISTR-02",
    "router": "indicator_strategy",
    "method": "GET",
    "path": "/api/indicator-strategy/cards",
@@ -6230,7 +6230,7 @@
    "schema": true
   },
   {
-   "id": "",
+   "id": "API-ISTR-03",
    "router": "indicator_strategy",
    "method": "POST",
    "path": "/api/indicator-strategy/cards",
@@ -6256,7 +6256,7 @@
    "schema": true
   },
   {
-   "id": "",
+   "id": "API-ISTR-04",
    "router": "indicator_strategy",
    "method": "DELETE",
    "path": "/api/indicator-strategy/cards/{card_id}",
