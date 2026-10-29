@@ -2,6 +2,7 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { executionModeView, renderExecutionMode } from "/js/execution-mode.js";
+import { NOTIFY_CONSENT, NOTIFY_CONSENT_VERSION } from "/js/terms.js";
 
 // ── 설정 (증권사 Open API) ────────────────────────────────────────
 let lastLoadedMode = "paper";
@@ -286,9 +287,43 @@ function toggleNotiSections() {
 }
 document.querySelectorAll(".noti-channel").forEach(cb => cb.addEventListener("change", toggleNotiSections));
 
+// ── 알림 연동 정보 수집·이용(선택) 동의 (2026-10-29 · ①-09) ───────────────────
+// 동의하면 서버가 동의 행을 저장과 같은 트랜잭션으로 쌓는다. 동의가 없는데 토큰 · 웹훅 · 비밀번호 · 번호를 새로 넣으면 서버가 422 로 막는다.
+let notiConsentGranted = false;
+
+function renderNotiConsent(state) {
+  notiConsentGranted = !!state?.granted;
+  document.getElementById("noti-consent-granted")?.classList.toggle("hidden", !notiConsentGranted);
+  document.getElementById("noti-consent-ask")?.classList.toggle("hidden", notiConsentGranted);
+  const label = document.getElementById("noti-consent-label");
+  if (label) label.textContent = NOTIFY_CONSENT.short;
+  const body = document.getElementById("noti-consent-body");
+  if (body && !body.dataset.drawn) {
+    body.innerHTML = `<p>${escHtml(NOTIFY_CONSENT.lead)}</p>` + NOTIFY_CONSENT.clauses.map(c =>
+      `<div><div class="font-semibold">${escHtml(c.h)}</div>${c.b.map(p => `<p>${escHtml(p)}</p>`).join("")}</div>`).join("");
+    body.dataset.drawn = "1";
+  }
+  const text = document.getElementById("noti-consent-granted-text");
+  if (text && notiConsentGranted) {
+    const when = state.at ? new Date(state.at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "";
+    text.textContent = `✅ 알림 연동 정보 수집·이용에 동의함 (${when} · 동의문 ${state.version || ""})`;
+  }
+}
+
+document.getElementById("noti-consent-withdraw")?.addEventListener("click", async () => {
+  if (!confirm("동의를 철회하면 저장된 알림 연동 정보(토큰 · 웹훅 · 비밀번호 · 휴대전화번호 · 키)가 바로 삭제됩니다. 계속할까요?")) return;
+  try {
+    await api("/api/notification/settings", { method: "POST", body: { channels: [], integration_consent: false } });
+    setToast("동의를 철회하고 저장된 알림 연동 정보를 삭제했습니다.", "ok");
+    document.getElementById("noti-status").textContent = "✅ 동의 철회 · 연동 정보 삭제 완료";
+    loadNotificationSettings();
+  } catch (e) { setToast(e.message, "error"); }
+});
+
 async function loadNotificationSettings() {
   try {
     const cfg = await api("/api/notification/settings");
+    renderNotiConsent(cfg.integration_consent);
     const channels = cfg.channels || [];
     document.querySelectorAll(".noti-channel").forEach(cb => { cb.checked = channels.includes(cb.value); });
     toggleNotiSections();
@@ -345,9 +380,13 @@ async function loadNotificationHistory() {
 document.getElementById("noti-save")?.addEventListener("click", async () => {
   try {
     const channels = [...document.querySelectorAll(".noti-channel:checked")].map(cb => cb.value);
+    // 아직 동의 전이고 체크했을 때만 동의를 보낸다(이미 동의했으면 상태를 바꾸지 않는다 — 철회는 따로 단추)
+    const giveConsent = !notiConsentGranted && !!document.getElementById("noti-consent-check")?.checked;
     await api("/api/notification/settings", {
       method: "POST",
       body: {
+        integration_consent: giveConsent ? true : null,
+        integration_consent_version: giveConsent ? NOTIFY_CONSENT_VERSION : null,
         channels,
         telegram_token:    document.getElementById("noti-telegram-token").value,
         telegram_chat_id:  document.getElementById("noti-telegram-chat-id").value,

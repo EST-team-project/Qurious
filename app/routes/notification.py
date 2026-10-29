@@ -6,7 +6,7 @@ POST /api/notification/test      – 테스트 알림 전송
 """
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.postgres import get_pg_session
 from app.lib.session import get_current_user
 from app.models import NotificationLog, NotificationSettings
-from app.services import notification
+from app.models.consent import CONSENT_GRANT, CONSENT_WITHDRAW
+from app.services import consent, notification
 
 router = APIRouter(prefix="/api/notification")
 
@@ -53,6 +54,54 @@ class NotificationSettingsBody(BaseModel):
     sms_from: str = ""
     sms_to: str = ""
 
+    # 알림 연동 정보 수집·이용(선택) 동의 — 설정 화면에서 처음 저장하는 순간 받는다(2026-10-29 · ①-09).
+    #   True  → 동의(현재 동의문 판 `integration_consent_version` 을 함께 보낸다) · False → 철회 + 저장된 연동 정보 삭제
+    #   None  → 동의 상태를 바꾸지 않는다(이미 동의한 사람의 평소 저장)
+    integration_consent: bool | None = None
+    integration_consent_version: str | None = None
+
+
+#: 이용자가 입력하는 **개인정보 칸**(포트 숫자는 뺀다) — 새로 채워지면 선택 동의가 있어야 저장한다.
+_SECRET_FIELDS = ("telegram_token", "email_password", "kakao_api_key", "kakao_api_secret", "sms_api_key", "sms_api_secret")
+_PHONE_FIELDS = ("kakao_phone", "sms_from", "sms_to")
+_PLAIN_FIELDS = ("telegram_chat_id", "slack_webhook_url", "email_to", "email_host", "email_user", "email_from", "kakao_sender_key")
+
+
+def brings_new_personal_data(body: "NotificationSettingsBody", row: "NotificationSettings | None") -> bool:
+    """이 요청이 **새로** 채우거나 바꾸는 개인정보 칸이 있는가.
+
+    화면이 되돌려 보내는 가림값(비밀값 `****` · 가려진 전화번호 `*` 포함)과 저장된 값 그대로인 칸은 새 입력이 아니다 —
+    동의 없이 이미 저장된 사람이 아무것도 안 바꾸고 저장해도 막히지 않는다. 지우는 것(빈 값)도 새 수집이 아니다.
+    """
+    def current(name: str) -> str:
+        return (getattr(row, name, "") or "") if row is not None else ""
+
+    for name in _SECRET_FIELDS:
+        v = getattr(body, name)
+        if v and v != "****":
+            return True
+    for name in _PHONE_FIELDS:
+        v = getattr(body, name)
+        if v and "*" not in v and v != current(name):
+            return True
+    for name in _PLAIN_FIELDS:
+        v = getattr(body, name)
+        if v and v != current(name):
+            return True
+    return False
+
+
+async def _consent_state(db: AsyncSession, user_id: uuid.UUID) -> dict:
+    """화면이 동의 칸을 그리는 데 쓰는 현재 상태 — 지금 동의했나 · 어느 판 · 언제 · 지금 동의문 판."""
+    last = await consent.latest(db, user_id, consent.NOTIFY_CONSENT_KEY)
+    granted = last is not None and last.action == CONSENT_GRANT
+    return {
+        "granted": granted,
+        "version": last.terms_version if granted else None,
+        "at": last.created_at.isoformat() if granted else None,
+        "current_version": consent.NOTIFY_CONSENT_VERSION,
+    }
+
 
 def mask_phone(value: str) -> str:
     """전화번호는 끝 네 자리 숫자만 남기고 가린다(`010-1234-5678` → `***-****-5678`). 응답에 번호 전체를 싣지 않는다."""
@@ -81,7 +130,9 @@ async def get_notification_settings(
     db: AsyncSession = Depends(get_pg_session),
 ):
     """현재 사용자의 알림 설정을 반환한다. 비밀값(password/secret)은 마스킹, 전화번호는 끝 네 자리만 남긴다."""
-    row = await _get_settings_row(db, uuid.UUID(user["id"]))
+    uid = uuid.UUID(user["id"])
+    row = await _get_settings_row(db, uid)
+    state = await _consent_state(db, uid)
 
     def mask(v: str) -> str:
         """보안을 위해 비밀값은 설정 여부만 알 수 있도록 고정 마스크로 반환."""
@@ -94,9 +145,11 @@ async def get_notification_settings(
             "email_port": 587, "email_user": "", "email_password": "", "email_from": "",
             "kakao_api_key": "", "kakao_api_secret": "", "kakao_sender_key": "", "kakao_phone": "",
             "sms_api_key": "", "sms_api_secret": "", "sms_from": "", "sms_to": "",
+            "integration_consent": state,
         }
 
     return {
+        "integration_consent": state,
         "channels":          row.channels,
         "telegram_token":    mask(row.telegram_token),
         "telegram_chat_id":  row.telegram_chat_id,
@@ -124,11 +177,41 @@ async def save_notification_settings(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    """알림 설정을 저장한다. 빈 문자열 비밀값은 기존 값을 유지한다."""
+    """알림 설정을 저장한다. 빈 문자열 비밀값은 기존 값을 유지한다.
+
+    알림 연동 정보(토큰 · 웹훅 · 발송 비밀번호 · 휴대전화번호 · 키)는 **선택 동의**가 있어야 새로 받는다(①-09):
+    - 동의가 없는데 개인정보 칸이 새로 채워졌으면 422 — 동의 행은 이 저장과 같은 트랜잭션으로 쓴다.
+    - `integration_consent=false` 는 철회다 — 철회 행을 쌓고 저장된 연동 정보(설정 행)를 지운다.
+    """
     channels = [c for c in body.channels if c in _SUPPORTED_CHANNELS]
     uid = uuid.UUID(user["id"])
 
     row = await _get_settings_row(db, uid)
+    granted = await consent.is_granted(db, uid, consent.NOTIFY_CONSENT_KEY)
+
+    if body.integration_consent is False:
+        # 철회 — 동의했던 사람이면 철회 행을 쌓는다. 연동 정보는 동의 여부와 상관없이 지운다(철회했는데 값이 남으면 안 된다).
+        if granted:
+            consent.add_rows(db, uid, [consent.NOTIFY_CONSENT_KEY], CONSENT_WITHDRAW,
+                             consent.NOTIFY_CONSENT_VERSION, consent.SOURCE_NOTIFICATION_SETTINGS)
+        if row is not None:
+            await db.delete(row)
+        await db.commit()
+        return {"ok": True, "withdrawn": True}
+
+    if body.integration_consent is True and not granted:
+        if (body.integration_consent_version or "") != consent.NOTIFY_CONSENT_VERSION:
+            # 오래된 화면(캐시)이 옛 동의문을 보여 줬을 수 있다 — 새로고침하면 새 문구를 보고 다시 동의한다
+            raise HTTPException(422, "알림 연동 동의문이 바뀌었습니다. 화면을 새로고침한 뒤 다시 동의해 주세요.")
+        consent.add_rows(db, uid, [consent.NOTIFY_CONSENT_KEY], CONSENT_GRANT,
+                         consent.NOTIFY_CONSENT_VERSION, consent.SOURCE_NOTIFICATION_SETTINGS)
+        granted = True
+
+    if not granted and brings_new_personal_data(body, row):
+        raise HTTPException(
+            422, "알림 연동 정보 수집·이용(선택)에 동의해야 토큰 · 웹훅 · 비밀번호 · 휴대전화번호를 저장할 수 있습니다. "
+                 "동의하지 않아도 다른 기능은 그대로 쓸 수 있습니다.")
+
     if row is None:
         row = NotificationSettings(user_id=uid)
         db.add(row)

@@ -58,7 +58,9 @@ from app.lib.session import (
     set_session_cookie,
 )
 from app.lib.user_state import clear_user_state, mark_offline, mark_online
+from app.models.consent import CONSENT_GRANT
 from app.services import account, login_guard
+from app.services import consent as consent_service
 from app.services.audit import audit
 
 router = APIRouter(prefix="/api")
@@ -84,7 +86,7 @@ class RegisterBody(BaseModel):
 
 #: 서버가 아는 현재 약관 판 — public/js/terms.js 의 TERMS_VERSION 과 같아야 한다(시험 TC-TM-01 이 지킨다).
 #: 다르면 가입을 거절한다: 오래된 화면이 옛 문구에 동의한 채 새 판 동의로 기록되는 일을 막는다.
-TERMS_VERSION = "2026-10-29-v0.3"
+TERMS_VERSION = "2026-10-29-v0.4"
 
 #: 가입할 수 있는 최소 만 나이(개인정보 보호법 제22조의2 — 만 14세 미만은 법정대리인 동의가 필요한데 그 절차를 두지 않았다).
 MIN_SIGNUP_AGE = 14
@@ -240,10 +242,14 @@ async def register(body: RegisterBody, response: Response):
         )
         db.add(user)
         try:
-            await db.commit()
+            await db.flush()                    # id 를 받는다 · 같은 이메일이 동시에 들어오면 여기서 먼저 걸린다
         except IntegrityError:
             await db.rollback()
             raise HTTPException(400, "이미 사용 중인 이메일입니다.")
+        # 동의 기록은 사용자 행과 **한 트랜잭션** — 기록이 안 들어가면 가입도 안 된다(아래 audit() 은 예외를 삼켜 빠질 수 있다).
+        consent_service.add_rows(db, user.id, consent["agreed"], CONSENT_GRANT,
+                                 consent["version"], consent_service.SOURCE_SIGNUP)
+        await db.commit()
         user_id = str(user.id)
 
     # 이름 · 이메일은 싣지 않는다 — 판 번호와 항목만(탈퇴해도 남는 감사 기록이라 개인정보를 늘리지 않는다)

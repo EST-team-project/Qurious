@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 276,
- "routers": 41,
+ "count": 280,
+ "routers": 42,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -20,7 +20,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 212,
+   "line": 214,
    "errors": [
     "400",
     "422",
@@ -51,7 +51,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 277,
+   "line": 283,
    "errors": [
     "503"
    ],
@@ -79,7 +79,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 305,
+   "line": 311,
    "errors": [],
    "keys": [
     "ok"
@@ -103,7 +103,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 326,
+   "line": 332,
    "errors": [
     "503"
    ],
@@ -128,7 +128,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 355,
+   "line": 361,
    "errors": [
     "401"
    ],
@@ -153,7 +153,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 376,
+   "line": 382,
    "errors": [
     "403"
    ],
@@ -182,7 +182,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 417,
+   "line": 423,
    "errors": [],
    "keys": [
     "user",
@@ -206,7 +206,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 444,
+   "line": 450,
    "errors": [],
    "keys": [
     "sessions",
@@ -230,7 +230,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 451,
+   "line": 457,
    "errors": [
     "404"
    ],
@@ -255,7 +255,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 464,
+   "line": 470,
    "errors": [],
    "keys": [
     "ok",
@@ -277,7 +277,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 477,
+   "line": 483,
    "errors": [],
    "keys": [],
    "body": [],
@@ -299,7 +299,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 483,
+   "line": 489,
    "errors": [
     "422"
    ],
@@ -328,7 +328,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 506,
+   "line": 512,
    "errors": [
     "400",
     "422"
@@ -359,7 +359,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 546,
+   "line": 552,
    "errors": [
     "400",
     "422",
@@ -967,7 +967,6 @@
     "query2.finance.yahoo.com"
    ],
    "screens": [
-    "indicator-strategy",
     "invest-technical",
     "quant-backtest",
     "quant-dashboard",
@@ -1283,7 +1282,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 543,
+   "line": 547,
    "errors": [],
    "keys": [
     "brokers"
@@ -1303,7 +1302,6 @@
    ],
    "hosts": [],
    "screens": [
-    "indicator-api",
     "robo-patterns",
     "trading-order"
    ],
@@ -1312,7 +1310,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 548,
+   "line": 552,
    "errors": [
     "422"
    ],
@@ -1336,7 +1334,6 @@
    ],
    "hosts": [],
    "screens": [
-    "indicator-api",
     "robo-patterns",
     "trading-order"
    ],
@@ -1345,7 +1342,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 567,
+   "line": 571,
    "errors": [],
    "keys": [
     "broker",
@@ -1369,12 +1366,12 @@
    "reaches": [],
    "hosts": [],
    "screens": [
-    "settings"
+    "mypage"
    ],
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 604,
+   "line": 608,
    "errors": [],
    "keys": [
     "configured",
@@ -1395,12 +1392,12 @@
    ],
    "hosts": [],
    "screens": [
-    "settings"
+    "mypage"
    ],
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 610,
+   "line": 614,
    "errors": [],
    "keys": [
     "gateway",
@@ -1422,15 +1419,14 @@
    ],
    "hosts": [],
    "screens": [
-    "robo-patterns",
-    "settings"
+    "mypage"
    ],
    "part": "P-E",
    "req": [
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 640,
+   "line": 644,
    "errors": [],
    "keys": [
     "mode",
@@ -1472,15 +1468,14 @@
    ],
    "hosts": [],
    "screens": [
-    "robo-patterns",
-    "settings"
+    "mypage"
    ],
    "part": "P-E",
    "req": [
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 693,
+   "line": 697,
    "errors": [
     "422"
    ],
@@ -1512,14 +1507,14 @@
     "openapivts.koreainvestment.com"
    ],
    "screens": [
-    "settings"
+    "mypage"
    ],
    "part": "P-E",
    "req": [
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 784,
+   "line": 788,
    "errors": [],
    "keys": [
     "symbol",
@@ -1563,7 +1558,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 800,
+   "line": 804,
    "errors": [
     "502"
    ],
@@ -1601,7 +1596,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 824,
+   "line": 828,
    "errors": [
     "502"
    ],
@@ -1640,7 +1635,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 847,
+   "line": 851,
    "errors": [
     "422",
     "502"
@@ -1673,15 +1668,13 @@
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com"
    ],
-   "screens": [
-    "indicator-api"
-   ],
+   "screens": [],
    "part": "P-E",
    "req": [
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 913,
+   "line": 917,
    "errors": [],
    "keys": [
     "ok",
@@ -1715,7 +1708,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 928,
+   "line": 932,
    "errors": [
     "404",
     "422"
@@ -1755,7 +1748,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 944,
+   "line": 948,
    "errors": [],
    "keys": [
     "symbol",
@@ -1803,7 +1796,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1025,
+   "line": 1029,
    "errors": [
     "409"
    ],
@@ -1839,7 +1832,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1034,
+   "line": 1038,
    "errors": [],
    "keys": [
     "ok",
@@ -1860,9 +1853,9 @@
    ],
    "hosts": [],
    "screens": [
+    "mypage",
     "quant-auto",
-    "robo-patterns",
-    "settings"
+    "robo-patterns"
    ],
    "part": "P-E",
    "req": [
@@ -1870,7 +1863,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1040,
+   "line": 1044,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1904,7 +1897,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1052,
+   "line": 1056,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1932,7 +1925,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1077,
+   "line": 1081,
    "errors": [],
    "keys": [
     "ok",
@@ -1962,7 +1955,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1101,
+   "line": 1105,
    "errors": [],
    "keys": [],
    "body": [],
@@ -2000,7 +1993,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1107,
+   "line": 1111,
    "errors": [
     "409"
    ],
@@ -2042,7 +2035,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1116,
+   "line": 1120,
    "errors": [
     "409"
    ],
@@ -2075,7 +2068,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1126,
+   "line": 1130,
    "errors": [],
    "keys": [
     "ok",
@@ -2106,7 +2099,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1133,
+   "line": 1137,
    "errors": [],
    "keys": [
     "running",
@@ -2149,7 +2142,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1202,
+   "line": 1206,
    "errors": [
     "404",
     "422"
@@ -2180,7 +2173,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1309,
+   "line": 1313,
    "errors": [],
    "keys": [
     "items"
@@ -2211,7 +2204,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1324,
+   "line": 1328,
    "errors": [
     "422"
    ],
@@ -2242,7 +2235,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1344,
+   "line": 1348,
    "errors": [
     "404"
    ],
@@ -3236,9 +3229,10 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 78,
+   "line": 127,
    "errors": [],
    "keys": [
+    "integration_consent",
     "channels",
     "telegram_token",
     "telegram_chat_id",
@@ -3281,10 +3275,13 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 121,
-   "errors": [],
+   "line": 174,
+   "errors": [
+    "422"
+   ],
    "keys": [
-    "ok"
+    "ok",
+    "withdrawn"
    ],
    "body": [
     "NotificationSettingsBody"
@@ -3316,7 +3313,7 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 165,
+   "line": 248,
    "errors": [],
    "keys": [
     "ok",
@@ -3344,7 +3341,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 188,
+   "line": 271,
    "errors": [],
    "keys": [
     "events",
@@ -6124,7 +6121,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/strategy_cards.py",
-   "line": 62,
+   "line": 72,
    "errors": [],
    "keys": [
     "cards",
@@ -6147,7 +6144,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/strategy_cards.py",
-   "line": 76,
+   "line": 86,
    "errors": [
     "422"
    ],
@@ -6166,6 +6163,121 @@
     "properties",
     "extracted",
     "note"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "",
+   "router": "indicator_strategy",
+   "method": "GET",
+   "path": "/api/indicator-strategy/chart",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "PostgreSQL"
+   ],
+   "hosts": [
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "indicator-strategy"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/indicator_strategy.py",
+   "line": 25,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "symbol",
+    "period",
+    "as_of",
+    "source",
+    "data_note",
+    "definition"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "",
+   "router": "indicator_strategy",
+   "method": "GET",
+   "path": "/api/indicator-strategy/cards",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "indicator-strategy"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/indicator_strategy.py",
+   "line": 51,
+   "errors": [
+    "401"
+   ],
+   "keys": [
+    "cards",
+    "template"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "",
+   "router": "indicator_strategy",
+   "method": "POST",
+   "path": "/api/indicator-strategy/cards",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "indicator-strategy"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/indicator_strategy.py",
+   "line": 66,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "id",
+    "card"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "",
+   "router": "indicator_strategy",
+   "method": "DELETE",
+   "path": "/api/indicator-strategy/cards/{card_id}",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "indicator-strategy"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/indicator_strategy.py",
+   "line": 75,
+   "errors": [
+    "401",
+    "404"
+   ],
+   "keys": [
+    "id",
+    "deleted"
    ],
    "body": [],
    "schema": true
