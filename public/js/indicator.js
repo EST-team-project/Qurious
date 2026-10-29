@@ -453,39 +453,4 @@ function renderRuleExplain(xai) {
 
 document.getElementById("ibt-run-btn")?.addEventListener("click", loadIndicatorBacktest);
 
-// ── 투자 인디케이터: 증권사 API 자동화 ──────────────────────────────
-async function loadIndicatorApiSettings() {
-  try {
-    const data = await api("/api/broker/settings");
-    if (data?.broker) {
-      const t = document.getElementById("iapi-broker-type");
-      if (t) t.value = data.broker;
-    }
-    const status = document.getElementById("iapi-status");
-    if (status) status.textContent = data?.connected ? "✅ 연결됨" : "연결되지 않음";
-  } catch {}
-}
-
-document.getElementById("iapi-save-btn")?.addEventListener("click", async () => {
-  const body = {
-    broker: document.getElementById("iapi-broker-type").value,
-    app_key:     document.getElementById("iapi-app-key").value,
-    app_secret:  document.getElementById("iapi-app-secret").value,
-    account_no:  document.getElementById("iapi-account").value,
-    paper: document.getElementById("iapi-paper").checked,
-  };
-  try {
-    await api("/api/broker/settings", { method:"POST", body });
-    setToast("API 설정 저장됨", "ok");
-    document.getElementById("iapi-status").textContent = "✅ 저장 완료";
-  } catch(e) { setToast(e.message, "error"); }
-});
-document.getElementById("iapi-test-btn")?.addEventListener("click", async () => {
-  try {
-    const r = await api("/api/broker/test");
-    setToast(r.message || "연결 테스트 성공", "ok");
-  } catch(e) { setToast(e.message || "연결 실패", "error"); }
-});
-
-
-export { loadIndicatorApiSettings, loadIndicatorBacktest, loadSavedIndicators };
+export { loadIndicatorBacktest, loadSavedIndicators };

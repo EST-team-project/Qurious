@@ -24,6 +24,7 @@ COPY public/ ./public/
 COPY prompts/ ./prompts/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./alembic.ini
+COPY scripts/protect_database_backup.py scripts/rotate_broker_credentials.py scripts/strategy_v2_execute.py scripts/strategy_v2_replay.py ./scripts/
 # 전략 카드 예시(판 1 · 판 2 — GET /api/strategy-cards 와 그림자 일지가 이 경로에서 읽는다). docs/ 는 이 폴더만 넣는다 —
 # 이미지에 없으면 앱 안에서 카드 목록이 비어 「카드 → Pine 내려받기」 가 쓸모없다(2026-10-29 신장환 님 #392 가 짚음).
 COPY docs/phase-3/02-design/system/예시/ ./docs/phase-3/02-design/system/예시/

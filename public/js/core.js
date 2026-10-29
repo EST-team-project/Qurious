@@ -315,7 +315,7 @@ const VIEW_GUIDES = {
   "indicator-formula": { summary: "함수 조합 산식(DSL)으로 커스텀 지표와 매수·매도 조건을 정의하고, 버전 이력과 계산 결과를 저장·재사용합니다.", steps: ["템플릿을 불러오거나 indicator 산식을 직접 쓰고 '검증'으로 문법·이름을 확인합니다 (함수 레퍼런스 참고).", "'계산 실행'으로 차트·백테스트를 보고, 마음에 들면 이름을 붙여 저장합니다. 산식이 바뀌면 자동으로 새 버전이 생깁니다.", "버전 이력에서 과거 산식을 복원하고, 결과 이력에서 (버전·종목·기간)별 저장 결과를 다시 봅니다. Pine/Python 코드로 내보낼 수 있습니다."], relatedTerms: ["rsi", "bollinger", "sharpe", "mdd"] },
   "indicator-custom": { summary: "나만의 파라미터로 커스텀 인디케이터를 만들고 PineScript/Python 코드를 생성합니다.", steps: ["기준 조합(RSI+MA, MACD+BB 등)과 기간·임계값을 조정하세요.", "생성된 PineScript는 트레이딩뷰에, Python 코드는 직접 백테스트에 활용할 수 있습니다.", "'백테스트 실행'으로 이 앱에서 바로 성과를 검증할 수 있습니다.", "마음에 드는 조합은 '저장'해두면 다음에 목록에서 바로 불러올 수 있습니다."], relatedTerms: ["custom_indicator", "pine_script", "backtest"] },
   "indicator-backtest": { summary: "설계한 전략(기본/커스텀)의 파이썬 기반 성과를 검증합니다.", steps: ["종목과 전략을 선택하면 자동으로 백테스트가 실행됩니다.", "수익률·샤프지수·MDD·승률로 전략의 위험 대비 성과를 판단하세요.", "'비교에 추가'로 여러 전략의 성과를 나란히 비교할 수 있습니다."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate", "cost_bps", "slippage"] },
-  "indicator-api":   { summary: "완성한 인디케이터 전략을 증권사 API와 연결해 자동화하는 방법을 안내합니다.", steps: ["3단계 아키텍처(신호 계산→주문 생성→증권사 API 전송)를 확인하세요.", "하단에서 증권사 키를 등록하고 연결을 테스트하세요."], relatedTerms: ["broker_api", "custom_indicator"] },
+  "indicator-api":   { summary: "완성한 인디케이터 전략을 증권사 API와 연결해 자동화하는 방법을 안내합니다.", steps: ["3단계 아키텍처(신호 계산→주문 생성→증권사 API 전송)를 확인하세요.", "증권사 API 설정 링크를 열어 키를 등록하고 연결을 테스트하세요."], relatedTerms: ["broker_api", "custom_indicator"] },
   "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "개요/밸류에이션/수익성 탭과 분기·재무상태표 데이터를 확인하세요."], relatedTerms: ["dcf", "fcf"] },
   "company-compare": { summary: "여러 기업의 핵심 지표를 표로 나란히 비교합니다.", steps: ["비교 표에서 기업별 지표 값을 확인하며 상대적 위치를 파악하세요."], relatedTerms: ["dcf", "eva"] },
   "company-sector":  { summary: "산업 섹터별 대표 지표와 흐름을 카드로 확인합니다.", steps: ["섹터 카드를 둘러보며 산업별 상대 강도를 비교하세요."], relatedTerms: ["sector_etf"] },
@@ -519,7 +519,7 @@ function syncLnbTree(gnbKey, viewKey) {
   });
   let current = null;
   nav.querySelectorAll(".lnb-item[data-view]").forEach(el => {
-    const active = el.dataset.view === viewKey;
+    const active = el.dataset.view === (viewKey === "settings" ? "mypage" : viewKey);
     el.classList.toggle("active", active);
     if (active) { el.setAttribute("aria-current", "page"); current = el; } else el.removeAttribute("aria-current");
   });
@@ -588,7 +588,7 @@ function navigate(viewKey) {
 
   // Show/hide views
   document.querySelectorAll(".view").forEach(el => {
-    el.classList.toggle("active", el.dataset.view === viewKey);
+    el.classList.toggle("active", el.dataset.view === (viewKey === "settings" ? "mypage" : viewKey));
   });
   // 다른 화면으로 옮기면 내용 칸을 맨 위로 — 굴러가는 칸이 창이 아니라 #main-content 라 브라우저가 자리를 되돌려 주지 않아,
   // 앞 화면에서 내려간 자리를 물려받아 새 화면 중간에 떨어졌다(DF-134 · 2026-10-18 시연 영상을 찍다가 찾음)

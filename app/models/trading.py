@@ -4,11 +4,12 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Index,
+    CheckConstraint, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Index,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.lib.broker_secrets import EncryptedCredential
 from app.models.base import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPkMixin
 
 
@@ -108,14 +109,15 @@ class BrokerSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     """증권사 자격증명 + 퀀트 자동매매 전략설정 (Mongo 문서처럼 1유저 1행 통합)."""
 
     __tablename__ = "broker_settings"
+    __table_args__ = tuple(CheckConstraint(f"{field} = '' OR {field} LIKE 'qbc1:%'", name="ck_broker_encrypted_" + field) for field in ("app_key", "app_secret", "account_no"))
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
     )
     broker: Mapped[str] = mapped_column(String(20), nullable=False, default="mock")
-    app_key: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    app_secret: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    account_no: Mapped[str] = mapped_column(String(50), nullable=False, default="")
+    app_key: Mapped[str] = mapped_column(EncryptedCredential("app_key"), nullable=False, default="")
+    app_secret: Mapped[str] = mapped_column(EncryptedCredential("app_secret"), nullable=False, default="")
+    account_no: Mapped[str] = mapped_column(EncryptedCredential("account_no"), nullable=False, default="")
     paper: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     quant_mode: Mapped[str] = mapped_column(String(10), nullable=False, default="paper")

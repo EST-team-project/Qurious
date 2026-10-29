@@ -504,7 +504,11 @@ def _apply_credentials(row: BrokerSettings, broker: str, app_key: str, app_secre
         key = old_key
     else:
         key = key or old_key
-    if "*" in secret or "*" in account:
+    if "*" in account:
+        if not old_account or account != kis_credentials.mask_account(old_account):
+            raise HTTPException(422, "저장된 계좌와 일치하지 않습니다. 계좌번호를 다시 입력해 주세요.")
+        account = old_account
+    if "*" in secret:
         raise HTTPException(422, "가려진 비밀키·계좌번호는 저장할 수 없습니다. 원래 값을 입력해 주세요.")
     if key != old_key and not secret:
         raise HTTPException(422, "API 키를 변경할 때는 비밀키도 함께 입력해 주세요.")
@@ -537,7 +541,7 @@ async def _connection_view(row: BrokerSettings | None) -> dict:
         st = await kis_credentials.get_status()
         return {"connected": st["configured"], "app_key": "", "account_no": st["account_masked"], "kis_managed": st}
     return {"connected": bool(row.app_key), "app_key": row.app_key[:4] + "****" if row.app_key else "",
-            "account_no": row.account_no, "kis_managed": None}
+            "account_no": kis_credentials.mask_account(row.account_no), "kis_managed": None}
 
 
 @router.get("/broker/catalog")

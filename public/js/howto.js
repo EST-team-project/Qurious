@@ -52,7 +52,7 @@ function ensureVideos() {
 }
 
 function render(viewKey, guide, { terms = {}, label = "", group = "" } = {}) {
-  const viewEl = document.querySelector(`.view[data-view="${viewKey}"]`);
+  const viewEl = document.querySelector(`.view[data-view="${viewKey === "settings" ? "mypage" : viewKey}"]`);
   if (!viewEl) return;
   viewEl.querySelector(":scope > .view-guide")?.remove();   // 옛 접이식(기초 코드 판)이 남아 있으면 지운다
   let row = viewEl.querySelector(":scope > .q-howto-top");

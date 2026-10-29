@@ -26,7 +26,7 @@ from app.services.brokers.factory import live_trading_allowed
 MANAGED_BROKERS: frozenset[str] = frozenset()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class KISCredentials:
     app_key: str
     app_secret: str

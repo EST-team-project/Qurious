@@ -12,11 +12,13 @@
  *    화면 검사는 편의일 뿐이고, 같은 검사를 서버가 다시 한다.
  *  - 이름 · 이메일은 textContent 로만 넣는다 — 사용자가 넣은 글자가 HTML 로 해석되지 않게(XSS).
  *  - 구역 목록 + 본문 (2026-10-29 · 설계 v0.1 ㉯ · 1차): 내 정보 · 보안 · 증권사 연동 · 알림 · 외부 연동 · 화면 설정 · 위험 구역.
- *    구역 본문은 app.html 의 정적 HTML 이다. 증권사 · 알림 · 외부 연동은 요약 한 줄 + 해당 설정 화면으로 가는 링크만
- *    (본체를 옮기는 것은 2차) — 서버 응답에서 필요한 칸만 읽는다.
+ *    구역 본문은 app.html 의 정적 HTML 이다. 증권사 설정 본체는 이 화면에 두고 알림 · 외부 연동은 요약 + 링크
+ *    — 기존 입력 ID와 #settings 주소를 보존한다.
  */
 import { api, escHtml, setToast } from "/js/common.js";
 import { getTermView, setTermView, TERM_VIEWS } from "/js/termcard.js";
+import { loadSettings } from "/js/settings.js";
+import { readRiskProfile } from "/js/riskprofile.js";
 import { attachPasswordToggle } from "/js/pwtoggle.js";
 
 let bound = false;        // 폼 이벤트는 한 번만 붙인다(화면에 다시 들어올 때마다 붙이면 제출이 여러 번 된다)
@@ -29,10 +31,10 @@ const isNarrow = () => window.matchMedia("(max-width: 768px)").matches;
 
 /** 화면이 켜질 때마다 main.js 가 부른다 — 이 화면이 아니면 아무것도 안 한다. */
 export async function onMyPageActivated(view) {
-  if (view !== "mypage") return;
+  if (view !== "mypage" && view !== "settings") return;
   bindOnce();
   ensureDisplaySettings();
-  showSection(currentSection, { openBody: !isNarrow() });   // 좁은 화면은 들어올 때마다 구역 목록부터
+  showSection(view === "settings" ? "broker" : currentSection, { openBody: view === "settings" || !isNarrow() });   // 좁은 화면은 들어올 때마다 구역 목록부터
   await Promise.all([loadMyPage(), loadSummaries()]);
 }
 
@@ -40,6 +42,9 @@ export async function onMyPageActivated(view) {
 function showSection(key, { openBody = true } = {}) {
   if (!SECTIONS.includes(key)) key = "profile";
   currentSection = key;
+  if (key === "broker") loadSettings();
+  const risk = readRiskProfile();
+  $("mp-risk-summary").textContent = risk ? `최근 진단: ${risk.level} (${risk.score}점)` : "이 브라우저에 저장된 현재 계정의 진단 결과가 없습니다.";
   document.querySelectorAll(".mp-sec").forEach(el => el.classList.toggle("active", el.dataset.mpSec === key));
   document.querySelectorAll(".mp-nav-item").forEach(el => {
     const on = el.dataset.mpGo === key;
