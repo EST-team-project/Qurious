@@ -47,6 +47,7 @@
               stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
       <p class="intro-tagline" id="intro-tagline">모의투자로 연습하는 퀀트 · 투자 정보 서비스</p>
+      <p class="intro-hint">화면을 눌러 시작</p>
     </div>
   </div>
 
@@ -81,6 +82,17 @@
       <p class="hero-note">
         가입 전 <a href="/terms.html">이용약관</a>과 <a href="/privacy.html">개인정보 처리방침</a>을 확인해 주세요.
       </p>
+      <!-- 장식 — 머무는 동안 차트선이 그려졌다 쉬고 다시 그려지며, 끝점이 숨 쉬듯 깜빡인다. 숫자 · 시세가 아니다 -->
+      <svg class="hero-chart" viewBox="0 0 640 120" width="640" height="120" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="hero-line" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#4a90e2" /><stop offset="1" stop-color="#f0b429" />
+          </linearGradient>
+        </defs>
+        <path class="hero-chart-line" d="M4 108 L84 86 L150 98 L232 52 L304 70 L388 34 L464 58 L548 22 L636 10" pathLength="1"
+              fill="none" stroke="url(#hero-line)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+        <circle class="hero-chart-dot" cx="636" cy="10" r="6" fill="#f0b429" />
+      </svg>
     </section>
 
     <section class="features" aria-labelledby="features-title">

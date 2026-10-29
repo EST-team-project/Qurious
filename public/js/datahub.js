@@ -22,6 +22,12 @@ const OVERALL = { ok: ["fresh", "정상"], warning: ["late", "확인 필요"], e
 const RUNNER_CLASS = { ok: "fresh", warning: "late", failed: "stale", running: "ok", late: "late", missing: "info" };
 // 복구 시험(2차-3) — 서버(rehearsal_view)가 정한 상태 넷의 색 · 날 수 · 글은 서버가 센다(화면은 다시 세지 않는다)
 const REHEARSAL_CLASS = { ok: "fresh", stale: "late", failed: "stale", never: "late", unknown: "info" };
+// 데이터 품질 검사(①-12) — 서버(quality_view)가 정한 상태 · 글을 그대로 보인다(판정에는 섞이지 않는 한 줄)
+const QUALITY_CLASS = { ok: "fresh", warn: "late", error: "stale", stale: "late", none: "info" };
+function qualityBrief(q) {
+  if (!q) return "기록 없음";
+  return `<span class="q-pill q-pill--${QUALITY_CLASS[q.state] || "info"}">${escHtml(q.state_label)}</span> ${escHtml(q.label)}`;
+}
 function rehearsalBrief(rh) {
   if (!rh) return "기록 없음";
   return `<span class="q-pill q-pill--${REHEARSAL_CLASS[rh.state] || "info"}">${escHtml(rh.state_label)}</span> ${escHtml(rh.label)} · ${escHtml(rh.schedule_label)}`;
@@ -128,6 +134,7 @@ function drawerHtml(st) {
     ["늦은 자료", late.length ? late.map(t => `${escHtml(t.label)} ${pill(t.verdict, t.verdict_label)}`).join(" ") : "없음"],
     ["팀 공유 저장소", up ? `${mmdd(up)} 올림 — ${(st.hf || []).map(h => escHtml(h.what)).join(" · ")}` : "올린 기록 없음"],
     ["복원 리허설", rehearsalBrief(st.rehearsal)],
+    ["데이터 품질 검사", qualityBrief(st.quality)],
   ];
   return `<div class="q-dd-verdict q-tone--${cls}"><span class="q-dot"></span><strong>${escHtml(label)}</strong>
       <span>${escHtml(st.summary || "")}</span></div>

@@ -1,14 +1,13 @@
 /* 랜딩(로그인 전 첫 화면) — 인트로와 카드 펼침 · 2026-10-29 (시안: Figma 「Qurious · 랜딩」 · 사용자 결정 ① ~ ④)
  *
  * 이 파일이 하는 일은 둘이다.
- *  1. 인트로(약 2.6초)를 끝낸다 — 시간이 다 되었거나 「건너뛰기」 · 화면 누르기 · Esc · Enter · Space 가 오면 바로.
+ *  1. 인트로를 끝낸다 — 「건너뛰기」 · 화면 누르기 · Esc · Enter · Space 가 올 때까지 머문다(저절로 넘어가지 않는다 · 2026-10-29 개정).
  *     인트로를 보일지는 index.html 앞 스크립트가 이미 정했다(html.intro-on). 이 탭에서 한 번 봤으면 다시 안 보인다(sessionStorage).
  *  2. 카드를 누르면 펼친다 — 한 번에 하나만, 펼친 카드를 다시 누르면 접는다. 펼침 상태는 aria-expanded 로 읽어 준다.
  *
  * 로그인한 사람을 앱으로 보내는 일은 서버(`/` 라우트)가 한다. 여기서는 뒤로가기 캐시(bfcache)로 이 화면이 되살아났는데
  * 그 사이 로그인했는지만 한 번 더 본다(login.html 과 같은 방식).
  */
-const INTRO_MS = 2600;
 const SEEN_KEY = "qurious-intro-seen";
 
 function endIntro() {
@@ -26,8 +25,7 @@ function setupIntro() {
   const intro = document.getElementById("intro");
   if (!intro) return;
   if (!root.classList.contains("intro-on")) { intro.remove(); return; }   // 안 보이는 경우 — 요소도 치운다(읽기 도구가 읽지 않게)
-  const timer = window.setTimeout(endIntro, INTRO_MS);
-  const skip = () => { window.clearTimeout(timer); endIntro(); };
+  const skip = () => endIntro();     // 저절로 넘어가지 않는다 — 누를 때까지 머문다(2026-10-29 사용자 피드백)
   document.getElementById("intro-skip")?.addEventListener("click", (e) => { e.stopPropagation(); skip(); });
   // 로그인 · 가입 링크는 그대로 눌린다(이동하므로 건너뛰기를 따로 부르지 않는다)
   intro.querySelectorAll(".intro-link").forEach((a) => a.addEventListener("click", (e) => e.stopPropagation()));

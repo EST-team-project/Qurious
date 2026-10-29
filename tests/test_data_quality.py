@@ -171,3 +171,41 @@ def test_runner_step_runs_after_derived_steps_and_never_blocks():
     assert q.args[:2] == ["-m", "collector.quality"]
     # 단계가 넘기는 인자는 CLI 가 실제로 받는 것뿐이어야 한다(예: 없는 --quiet 를 넘기면 단계가 매 회차 argparse 오류로 끝난다)
     assert set(q.args[2:]) <= {"--write", "--days", "--json"}, q.args
+
+
+def _view(snap, now_iso="2026-10-30T13:00:00+09:00"):
+    from datetime import datetime
+    from app.services import data_status as ds
+    return ds.quality_view(snap, datetime.fromisoformat(now_iso))
+
+
+def test_quality_view_states_from_synthetic_snapshots_and_never_invents():
+    """TC-QUAL-07 · 데이터 관제 한 줄 — 합성 결과로 상태 다섯을 가른다(없음 · 이상 없음 · 경고 · 검사 오류 · 오래됨).
+    파일이 없으면 지어내지 않고 「없음」이고, 검사 오류(검사가 예외)는 자료 경고와 따로 센다."""
+    assert _view(None)["state"] == "none" and _view({})["state"] == "none"
+    ok = _view({"at": "2026-10-30T12:50:00+09:00", "days": 20, "window_days": 20, "warn": 0, "error": 0})
+    assert ok["state"] == "ok" and ok["state_label"] == "이상 없음"
+    assert "최근 20거래일" in ok["label"] and "경고 0건" in ok["label"] and "10-30 검사" in ok["label"] and ok["days_ago"] == 0
+    warn = _view({"at": "2026-10-30T12:50:00+09:00", "days": 20, "window_days": 20, "warn": 3, "error": 0})
+    assert warn["state"] == "warn" and warn["warn"] == 3 and "경고 3건" in warn["label"]
+    err = _view({"at": "2026-10-30T12:50:00+09:00", "days": 20, "window_days": 20, "warn": 0, "error": 1})
+    assert err["state"] == "error" and "검사 오류 1건" in err["label"], "검사 예외는 경고 0 이어도 정상으로 보이면 안 된다"
+    old = _view({"at": "2026-10-20T12:50:00+09:00", "days": 20, "window_days": 20, "warn": 0, "error": 0})
+    assert old["state"] == "stale" and "10일 전이라 오래됨" in old["label"], "깨끗했던 옛 검사를 지금도 깨끗하다고 보이면 안 된다"
+    # 경고가 있으면 오래된 것보다 경고가 먼저 보인다
+    assert _view({"at": "2026-10-20T12:50:00+09:00", "window_days": 20, "warn": 2, "error": 0})["state"] == "warn"
+
+
+def test_quality_line_is_wired_but_kept_out_of_the_overall_verdict():
+    """TC-QUAL-08 · 한 줄은 `get_status` 응답에 실리고 화면이 그 글을 그대로 보이되, 전체 판정(verdict)에는 섞지 않는다(소스 구조).
+    검사 파일 이름은 collector 가 쓰는 것과 같다."""
+    src = (ROOT / "app" / "services" / "data_status.py").read_text(encoding="utf-8")
+    body = src.split("def get_status(", 1)[1]
+    assert '"quality": quality_view(' in body
+    verdict_part = body.split('verdict = ["ok", "warning", "error"][worst]', 1)[0]
+    assert "quality" not in verdict_part, "품질 검사는 처음엔 경고만 한다 — 판정에 섞으면 회차 판정이 흔들린다"
+    from collector import config
+    from app.services import data_status as ds
+    assert ds.QUALITY_FILE == "data_quality_last.json" and (config.STATE_DIR / ds.QUALITY_FILE).name == ds.QUALITY_FILE
+    js = (ROOT / "public" / "js" / "datahub.js").read_text(encoding="utf-8")
+    assert '["데이터 품질 검사", qualityBrief(st.quality)]' in js and "q.state_label" in js and "escHtml(q.label)" in js
