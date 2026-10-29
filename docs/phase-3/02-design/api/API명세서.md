@@ -1,13 +1,13 @@
-# API 명세서 v0.45 — Qurious
+# API 명세서 v0.46 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.45 (2026-10-29 — 새 라우터 `strategy_cards` 2개 `API-SCARD-01` · `02`(전략 카드 → Pine v6 내려받기 · 라우트 274) · `API-MACR-04` `GET /api/macro/fundamental` 응답 약속 바뀜: `valuation.DCF_intrinsic_value` · `FCF_yield_pct` 는 지어낸 값 대신 **null** 이고 `valuation.reason` 칸이 늘었다) · v0.44 (2026-10-28 — 웹훅 받는 쪽 검증 `API-TV-01` 응답 약속: 413 · 400 · late · duplicate · 줄 번호 갱신) · v0.43 (2026-10-27 — 신호 기록 순위 읽기 `API-HUB-03` · 라우트 272) · v0.42 (2026-10-26 — DF-145 자격증명 보존·잔고 오류 안내) · v0.41 (10/24 변경 — 개정 이력 기준) · v0.40 (Patch — 라우트 271 그대로 · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 문지기 「기본 꺼짐 · 켜도 관리자만」 · 검색 모음 없음 404 · 장애 503 · 0건 200(DF-149) · 상태 API(`API-SYS-01`) Qdrant 줄에 판 짝 칸 · IF-08 문지기 경유) · v0.39 (Patch — 라우트 271 그대로 · 올린 문서 사용자 격리 DF-146: 문서 넷 · 채팅 둘 · 탈퇴의 동작과 오류 칸 · 그래프 여섯 로그인 DF-147) · v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
+| **문서 버전** | v0.46 (2026-10-29 — 새 API 둘 `API-MACR-05` `GET /api/macro/ecos`(한국은행 ECOS 거시 현황) · `API-MACR-06` `GET /api/macro/industry-kr`(국내 산업별 하루 등락 · KSIC 제11차 중분류) · 라우트 274 → 276 · `POST /api/auth/register` 선택 칸 `terms_version` · `agreed`(필수 셋이 빠지면 422) · `POST /api/auth/login` · `/api/auth/token` 로그인 시도 횟수 제한(5번 실패 → 429 + `Retry-After`) · 화면 라우트 `GET /terms.html`) · v0.45 (2026-10-29 — 새 라우터 `strategy_cards` 2개 `API-SCARD-01` · `02`(전략 카드 → Pine v6 내려받기 · 라우트 274) · `API-MACR-04` `GET /api/macro/fundamental` 응답 약속 바뀜: `valuation.DCF_intrinsic_value` · `FCF_yield_pct` 는 지어낸 값 대신 **null** 이고 `valuation.reason` 칸이 늘었다) · v0.44 (2026-10-28 — 웹훅 받는 쪽 검증 `API-TV-01` 응답 약속: 413 · 400 · late · duplicate · 줄 번호 갱신) · v0.43 (2026-10-27 — 신호 기록 순위 읽기 `API-HUB-03` · 라우트 272) · v0.42 (2026-10-26 — DF-145 자격증명 보존·잔고 오류 안내) · v0.41 (10/24 변경 — 개정 이력 기준) · v0.40 (Patch — 라우트 271 그대로 · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 문지기 「기본 꺼짐 · 켜도 관리자만」 · 검색 모음 없음 404 · 장애 503 · 0건 200(DF-149) · 상태 API(`API-SYS-01`) Qdrant 줄에 판 짝 칸 · IF-08 문지기 경유) · v0.39 (Patch — 라우트 271 그대로 · 올린 문서 사용자 격리 DF-146: 문서 넷 · 채팅 둘 · 탈퇴의 동작과 오류 칸 · 그래프 여섯 로그인 DF-147) · v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.40 = `main` `5a3bfc9`(#326) + 이 판 작업 트리(번역 문지기 · Qdrant 문지기 `app/lib/vector_db.py` · 상태 API 판 짝) · v0.39 = `main` `177f0e3`(#323) + 이 판 작업 트리(올린 문서 격리 · 그래프 로그인) · v0.38 = `main` `4bed63b`(#316) + 이 판 작업 트리(목표 시뮬레이션 입력 범위) · v0.37 = `main` `6fa8f58`(2차 마지막 머지 #308 까지 — 강민석 님 #302 · #303 · #305 · #306 · 신장환 님 #304 · 오준영 님 #301 · 이동원 #307 · #308) · v0.36 = `main` `0d88d22`(#296 까지 — 강민석 님 #292 ~ #295 · 신장환 님 #296) · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않았다(번호 · 표만) · v0.35 = `main` `f17d310`(PR #281 까지 — 발표 자료 판 관리 · 시연 영상 · D133) + 이 판 PR(「현재가」 지금 값 — `app/services/quote_now.py` · `app/routes/quote_now.py` · 모의 주문 체결 직전 확인 `app/services/paper_trading.py`) / v0.34 = `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
 | **추출기** | [`scripts/api_scan.py`](../../../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../../../tests/test_api_scan.py) (TC-AP 15건) |
-| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **278줄 · 사용 274 · 폐기 4**(2026-10-29 `API-SCARD-01` · `02` 더함 — 전략 카드 → Pine · `api_scan.py --assign S160` / 2026-10-27 `API-HUB-03` 더함 — 신호 기록 순위 · `api_scan.py --assign S153` / 2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
+| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **280줄 · 사용 276 · 폐기 4**(2026-10-29 `API-MACR-05` · `06` 더함 — 거시 ECOS · 국내 산업별 등락 · `api_scan.py --assign S161` / 2026-10-29 `API-SCARD-01` · `02` 더함 — 전략 카드 → Pine · `api_scan.py --assign S160` / 2026-10-27 `API-HUB-03` 더함 — 신호 기록 순위 · `api_scan.py --assign S153` / 2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
 | **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **266/266 일치**(2026-10-19 v0.35 · 개발 모드 앱 `f17d310` + 이 판 작업 트리 · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **265/265 일치**(2026-10-19 v0.34 · 개발 모드 앱 `61b3e43` + 이 판 PR(쓰기 셋 없앤 뒤) — main 을 두 번째로 받은 뒤 다시 맞댐 · openapi 에만 0 · 스캔에만 0 · 인자 다름 0 · 본문 모델 다름 0 · 스캔 266 = 스키마 265 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
@@ -156,7 +156,7 @@ flowchart LR
 | `system` | `app/routes/system.py` | 3 | 0 | 1 | 0 | P-E 3 |
 | `quant` | `app/routes/quant.py` | 3 | 1 | 0 | 3 | P-D 3 |
 | `ml` | `app/routes/ml.py` | 12 | 0 | 9 | 0 | P-D 8 · P-C 4 |
-| `macro` | `app/routes/macro.py` | 4 | 0 | 3 | 0 | P-A 4 |
+| `macro` | `app/routes/macro.py` | 6 | 0 | 5 | 0 | P-A 6 |
 | `documents` | `app/routes/documents.py` | 4 | 0 | 0 | 4 | P-A 4 |
 | `notification` | `app/routes/notification.py` | 4 | 0 | 4 | 0 | P-B 4 |
 | `graph` | `app/routes/graph.py` | 6 | 0 | 0 | 6 | P-A 6 |
@@ -186,7 +186,7 @@ flowchart LR
 | `stock_hub` | `app/routes/stock_hub.py` | 3 | 0 | 2 | 0 | 미배정 3 |
 | `help_media` | `app/routes/help_media.py` | 2 | 0 | 0 | 2 | P-A 2 |
 | `quote_now` | `app/routes/quote_now.py` | 1 | 0 | 1 | 0 | P-A 1 |
-| **합계** | 41개 | **274** | **49** | **135** | **73** | |
+| **합계** | 41개 | **276** | **49** | **137** | **73** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -201,7 +201,7 @@ flowchart LR
 | `system` | 1 | 2 | · | · | 2 | 1 | · | 1 | 1 | · | · | · | · | · |
 | `quant` | 2 | 2 | · | · | 2 | · | · | · | · | · | · | · | · | 2 |
 | `ml` | 7 | 7 | · | · | 8 | · | · | · | · | · | · | · | · | · |
-| `macro` | · | 4 | · | · | 3 | · | · | · | · | · | · | · | · | · |
+| `macro` | 2 | 4 | · | · | 3 | · | · | · | · | · | · | · | · | · |
 | `documents` | · | · | · | · | 3 | · | · | 3 | 2 | · | · | · | · | · |
 | `notification` | · | · | · | · | 4 | · | · | · | · | · | · | · | 1 | 1 |
 | `graph` | · | · | · | · | · | · | 6 | 1 | 1 | · | · | · | · | · |
@@ -231,7 +231,7 @@ flowchart LR
 | `stock_hub` | 3 | · | · | · | 2 | · | · | · | · | · | · | · | · | 1 |
 | `help_media` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `quote_now` | 1 | 1 | 1 | · | 1 | 1 | · | · | · | · | · | · | · | 1 |
-| **합계** | **83** | **71** | **19** | **4** | **186** | **46** | **6** | **19** | **17** | **7** | **3** | **3** | **9** | **72** |
+| **합계** | **85** | **71** | **19** | **4** | **186** | **46** | **6** | **19** | **17** | **7** | **3** | **3** | **9** | **72** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -289,7 +289,7 @@ flowchart LR
 |---|---|---:|---|
 | `400` | 요청 값이 틀림 | 15 | API-AUTH-01, API-AUTH-13, API-AUTH-14, API-CHAT-01, API-STK-12, API-DOC-01 외 9 |
 | `400 INVALID_REQUEST` | 요청 값이 틀림 | 1 | API-OAPI-05 |
-| `401` | 인증 실패 | 5 | API-AUTH-02, API-AUTH-04, API-AUTH-05, API-CHAT-01, API-LRN-02 |
+| `401` | 인증 실패 | 3 | API-AUTH-05, API-CHAT-01, API-LRN-02 |
 | `403` | 권한 없음 | 6 | API-AUTH-06, API-STK-10, API-STK-11, API-TASK-02, API-TV-01, API-LRN-07 |
 | `404` | 대상 없음 | 29 | API-AUTH-09, API-ING-06, API-ING-07, API-STK-34, API-STK-30, API-STK-33 외 23 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
@@ -638,20 +638,20 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-AUTH-01 | POST | `/api/auth/register` | 없음 | 본문 `RegisterBody` | {ok, user} | 400 · 422 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:147 |
-| API-AUTH-02 | POST | `/api/auth/login` | 없음 | 본문 `LoginBody` | {ok, user} | 401 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:192 |
-| API-AUTH-03 | POST | `/api/auth/logout` | 없음 | 쿠키 `fin_session` | {ok} | — | Redis | (다른 곳) | 공통 | — | auth.py:217 |
-| API-AUTH-04 | POST | `/api/auth/token` | 없음 | 본문 `LoginBody` | 모델 없음 | 401 · 503 | PostgreSQL · Redis | — | 공통 | — | auth.py:238 |
-| API-AUTH-05 | POST | `/api/auth/token/refresh` | 없음 | 본문 `TokenRefreshBody` | 모델 없음 | 401 | Redis | — | 공통 | — | auth.py:265 |
-| API-AUTH-06 | POST | `/api/auth/token/revoke` | 세션·JWT | 본문 `TokenRevokeBody` | {ok, revoked} | 403 | Redis | — | 공통 | — | auth.py:286 |
-| API-AUTH-07 | GET | `/api/me` | 세션·JWT | — | {user, state} | — | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:327 |
-| API-AUTH-08 | GET | `/api/sessions` | 세션·JWT | — | {sessions, count} | — | Redis | (다른 곳) | 공통 | — | auth.py:354 |
-| API-AUTH-09 | DELETE | `/api/sessions/{sid}` | 세션·JWT | `{sid}` | {ok} | 404 | Redis | — | 공통 | — | auth.py:361 |
-| API-AUTH-10 | DELETE | `/api/sessions` | 세션·JWT + 역할(admin·user) | — | {ok, revoked} | — | Redis | (다른 곳) | 공통 | — | auth.py:374 |
-| API-AUTH-11 | GET | `/api/auth/password-policy` | 없음 | — | 모델 없음 | — | — | (다른 곳) | 공통 | — | auth.py:387 |
-| API-AUTH-12 | PATCH | `/api/me` | 세션·JWT | 본문 `ProfileUpdateBody` | {ok, user} | 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:393 |
-| API-AUTH-13 | PUT | `/api/me/password` | 세션·JWT | 본문 `PasswordChangeBody` · 쿠키 `fin_session` | {ok, other_sessions_revoked} | 400 · 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:416 |
-| API-AUTH-14 | DELETE | `/api/me` | 세션·JWT | 본문 `AccountDeleteBody` | {ok, deleted} | 400 · 422 · 503 | PostgreSQL · Redis · Qdrant | (다른 곳) | 공통 | — | auth.py:456 |
+| API-AUTH-01 | POST | `/api/auth/register` | 없음 | 본문 `RegisterBody` | {ok, user} | 400 · 422 · 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:167 |
+| API-AUTH-02 | POST | `/api/auth/login` | 없음 | 본문 `LoginBody` | {ok, user} | 503 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:231 |
+| API-AUTH-03 | POST | `/api/auth/logout` | 없음 | 쿠키 `fin_session` | {ok} | — | Redis | (다른 곳) | 공통 | — | auth.py:259 |
+| API-AUTH-04 | POST | `/api/auth/token` | 없음 | 본문 `LoginBody` | 모델 없음 | 503 | PostgreSQL · Redis | — | 공통 | — | auth.py:280 |
+| API-AUTH-05 | POST | `/api/auth/token/refresh` | 없음 | 본문 `TokenRefreshBody` | 모델 없음 | 401 | Redis | — | 공통 | — | auth.py:309 |
+| API-AUTH-06 | POST | `/api/auth/token/revoke` | 세션·JWT | 본문 `TokenRevokeBody` | {ok, revoked} | 403 | Redis | — | 공통 | — | auth.py:330 |
+| API-AUTH-07 | GET | `/api/me` | 세션·JWT | — | {user, state} | — | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:371 |
+| API-AUTH-08 | GET | `/api/sessions` | 세션·JWT | — | {sessions, count} | — | Redis | (다른 곳) | 공통 | — | auth.py:398 |
+| API-AUTH-09 | DELETE | `/api/sessions/{sid}` | 세션·JWT | `{sid}` | {ok} | 404 | Redis | — | 공통 | — | auth.py:405 |
+| API-AUTH-10 | DELETE | `/api/sessions` | 세션·JWT + 역할(admin·user) | — | {ok, revoked} | — | Redis | (다른 곳) | 공통 | — | auth.py:418 |
+| API-AUTH-11 | GET | `/api/auth/password-policy` | 없음 | — | 모델 없음 | — | — | (다른 곳) | 공통 | — | auth.py:431 |
+| API-AUTH-12 | PATCH | `/api/me` | 세션·JWT | 본문 `ProfileUpdateBody` | {ok, user} | 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:437 |
+| API-AUTH-13 | PUT | `/api/me/password` | 세션·JWT | 본문 `PasswordChangeBody` · 쿠키 `fin_session` | {ok, other_sessions_revoked} | 400 · 422 | PostgreSQL · Redis | (다른 곳) | 공통 | — | auth.py:460 |
+| API-AUTH-14 | DELETE | `/api/me` | 세션·JWT | 본문 `AccountDeleteBody` | {ok, deleted} | 400 · 422 · 503 | PostgreSQL · Redis · Qdrant | (다른 곳) | 공통 | — | auth.py:500 |
 
 #### `ingest` — `app/routes/ingest.py` · 12개
 
@@ -782,14 +782,16 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-ML-05 | GET | `/api/ml/seasonality` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-D | P01-④-1 | ml.py:404 |
 | API-ML-06 | GET | `/api/ml/regression` | 세션 | `symbol` · `period` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `ml-regression` | P-D | P01-④-1 | ml.py:421 |
 
-#### `macro` — `app/routes/macro.py` · 4개
+#### `macro` — `app/routes/macro.py` · 6개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-MACR-01 | GET | `/api/macro/indicators` | 세션 | — | {indicators, from_cache, note} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `macro-dashboard`, `robo-patterns` | P-A | P01-①-2 | macro.py:24 |
-| API-MACR-02 | GET | `/api/macro/industry` | 세션 | — | {sectors, from_cache, note} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `macro-industry`, `robo-patterns` | P-A | P01-①-2 | macro.py:41 |
-| API-MACR-03 | GET | `/api/macro/us-stocks` | 세션 | — | {stocks, from_cache, note} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `robo-patterns`, `us-dashboard` | P-A | P01-①-2 | macro.py:59 |
-| API-MACR-04 | GET | `/api/macro/fundamental` | 세션 | `symbol` | {symbol, price, valuation, note, error} | — | 야후 | (다른 곳) | P-A | P01-①-2 | macro.py:76 |
+| API-MACR-05 | GET | `/api/macro/ecos` | 세션 | — | 모델 없음 | — | 수집DB | `macro-dashboard` | P-A | — | macro.py:26 |
+| API-MACR-01 | GET | `/api/macro/indicators` | 세션 | — | {indicators, from_cache, note} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `macro-dashboard`, `robo-patterns` | P-A | P01-①-2 | macro.py:38 |
+| API-MACR-06 | GET | `/api/macro/industry-kr` | 세션 | — | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB | `macro-industry` | P-A | — | macro.py:55 |
+| API-MACR-02 | GET | `/api/macro/industry` | 세션 | — | {sectors, from_cache, note} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `macro-industry`, `robo-patterns` | P-A | P01-①-2 | macro.py:67 |
+| API-MACR-03 | GET | `/api/macro/us-stocks` | 세션 | — | {stocks, from_cache, note} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `robo-patterns`, `us-dashboard` | P-A | P01-①-2 | macro.py:85 |
+| API-MACR-04 | GET | `/api/macro/fundamental` | 세션 | `symbol` | {symbol, price, valuation, note, error} | — | 야후 | (다른 곳) | P-A | P01-①-2 | macro.py:102 |
 
 #### `documents` — `app/routes/documents.py` · 4개
 
@@ -1163,7 +1165,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | `PlanBody` | `name: str \| None` = `None` · `is_active: bool \| None` = `None` · `targets: list[TargetBody] \| None` = `None` · `time_period: str \| None` = `Field(None, description='none \| monthly \| quarterly \| yearly')` · `drift_enabled: bool \| None` = `None` · `drift_threshold_pct: float \| None` = `Field(None, ge=0.5, le=50, multiple_of=0.5, allow_inf_nan=False)` · `drift_check_mode: Literal['always', 'scheduled'] \| None` = `None` · `exclude_unplanned: bool \| None` = `None` · `cashflow_enabled: bool \| None` = `None` · `cashflow_min_amount: float \| None` = `Field(None, ge=0, allow_inf_nan=False)` · `auto_execute: bool \| None` = `None` · `min_order_amount: float \| None` = `Field(None, ge=0, allow_inf_nan=False)` | API-RBAL-02 |
 | `ProfileUpdateBody` | `name: str` | API-AUTH-12 |
 | `QuantSettingsBody` | `mode: str` = `Field(default='paper', description='paper \| live')` · `broker: str` = `DEFAULT_BROKER` · `app_key: str` = `''` · `app_secret: str` = `''` · `account_no: str` = `''` · `symbol_source: str` = `Field(default='ai', description='ai \| manual')` · `selected_symbols: list[str]` = `Field(default_factory=list)` · `ai_top_n: int` = `Field(default=3, ge=1, le=5)` · `per_trade_budget: float` = `Field(default=1000000, ge=10000, le=10000000)` · `buy_ratio: float` = `Field(default=1.0, ge=0.1, le=1.0)` · `sell_ratio: float` = `Field(default=0.5, ge=0.1, le=1.0)` · `execution_policy: ExecutionPolicy \| None` = `None` · `strategy_id: str` = `Field(default='', max_length=40)` · `strategy_version: int` = `Field(default=0, ge=0)` · `risk_daily_loss_limit_pct: float` = `Field(default=3.0, ge=0, le=50, description='0이면 비활성')` · `risk_max_position_pct: float` = `Field(default=30.0, ge=0, le=100, description='0이면 비활성')` · `risk_max_orders_per_day: int` = `Field(default=20, ge=0, le=500, description='0이면 비활성')` · `risk_cooldown_min: int` = `Field(default=30, ge=0, le=1440, description='0이면 비활성')` | API-STK-18 |
-| `RegisterBody` | `name: str` · `email: str` · `password: str` | API-AUTH-01 |
+| `RegisterBody` | `name: str` · `email: str` · `password: str` · `terms_version: str \| None` = `None` · `agreed: list[str] \| None` = `None` | API-AUTH-01 |
 | `ReserveBody` | `symbol: str` = `Field(..., min_length=1, max_length=20)` · `quantity: int` = `Field(..., ge=1, le=100000)` | API-USRV-03 |
 | `RiskProfileBody` | `answers: dict[str, int]` | API-ML-08 |
 | `RoboAllocationBody` | `risk_profile: str` = `'moderate'` · `horizon_years: int` = `3` · `amount_manwon: int` = `5000` | API-ML-04 |
@@ -1352,6 +1354,14 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 
 이 변경은 작업 브랜치 구현이며 운영 배포 여부는 [오류·처리 누적 기록](../../04-testing/오준영-오류수정기록.md)에서 확인한다.
 
+### 로그인 시도 횟수 제한 · 가입 동의 · 약관 화면 (할 일 ①-09 · 2026-10-29)
+
+`API-AUTH-02`(`POST /api/auth/login`)와 `API-AUTH-04`(`POST /api/auth/token`)는 비밀번호를 확인하기 **전에** 시도 횟수를 본다(`app/services/login_guard.py`). 같은 이메일로 10분 안에 5번 틀리면 그 창이 끝날 때까지 **비밀번호가 맞아도** 429 를 준다 — 글은 「로그인 시도가 너무 많습니다. N분 뒤에 다시 시도해 주세요.」 이고 `Retry-After`(초) 머리글이 붙는다. 주소(IP) 잠금은 **기본 꺼짐**이다(`LOGIN_IP_MAX_FAILS` 로만 켠다 — 도커 · 프록시 뒤에서는 모든 사용자가 한 주소로 보여, 켜면 누구든 한도만큼 틀려 전원을 잠글 수 있다 · 2026-10-29 실측 컨테이너가 본 주소는 전부 도커 게이트웨이 `172.18.0.1`). **실패만 센다.** 없는 이메일도 똑같이 세어 가입 여부가 새지 않는다. 맞게 로그인하면 그 이메일의 횟수만 지운다(주소 횟수는 둔다). 남은 횟수가 2 이하이면 401 글 뒤에 「N회 더 틀리면 10분 동안 로그인이 잠깁니다.」 가 붙는다. Redis 가 안 되면 막지 않고 경고만 남긴다. 추출기는 이 401 · 429 를 보조 함수(`_guard_check` · `_guard_fail`)에서 던져서 못 읽으므로 4절 표의 오류 칸은 `503` 뿐이고(6절 위쪽 표의 `401` 줄에서도 두 API 가 빠졌다), 실제 응답은 **401 · 429 · 503** 이다.
+
+`API-AUTH-01`(`POST /api/auth/register`) 본문에 선택 칸 `terms_version`(문자열, 40자까지)과 `agreed`(문자열 목록)가 늘었다. 둘 중 하나라도 보내면 `service` · `privacy` · `invest` 세 항목이 모두 `agreed` 에 있어야 하고, 아니면 **422**(「이용약관 · 개인정보 수집·이용 · 투자 유의사항에 모두 동의해야 가입할 수 있습니다.」)이다. 통과하면 감사 기록 `audit_events` 에 `terms.agree` 이벤트를 남긴다 — 판 번호와 동의 항목만 싣고 이름 · 이메일은 싣지 않는다. 둘 다 비우면 이전처럼 가입된다(호환).
+
+화면 라우트 `GET /terms.html` 은 API 가 아니다(`include_in_schema=False` · 이 문서의 라우트 수 276 에 들지 않는다). 이용약관 · 개인정보 수집·이용 안내 · 투자 유의사항 전문을 **로그인 없이** 보여 준다 — 가입 화면의 「전문 보기」 링크가 여기로 온다.
+
 ## 7. 인터페이스 정의서 (시작)
 
 **인터페이스** — 두 시스템이 주고받는 경계 하나. API 명세서가 「앱이 받는 요청」 이라면, 이 절은 「앱이 **바깥에** 닿는 길」 과 「바깥이 앱에 닿는 길」 을 한 줄씩 적는다.
@@ -1503,6 +1513,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.46 | 2026-10-29 | 추가 — `GET /api/macro/ecos`(`API-MACR-05`: 한국은행 ECOS 거시 현황 · 로그인 · 읽기 전용 · 수집 DB `ecos_series` · 응답 `available` · `region` · `source` · `notice` · `updated_at` · `groups[]`(기준금리 · 시장금리 · 주가지수 · 환율 · 물가 — 각 `items[]`: `key` `label` `unit` `origin` `cycle` `kind` `date` `value` `prev{date,value}` `change{unit,value}` `yoy_pct`(물가만) `updated_at` `reason`) · 없는 계열은 줄을 두고 `value:null` + `reason` · 자료가 없으면 `available:false` + `reason`, 관리자에게만 `admin_hint`) · `GET /api/macro/industry-kr`(`API-MACR-06`: 국내 산업별 하루 등락 · KSIC **제11차** 중분류 · 수집 DB `dart_company` · `ksic_code` · `price_daily` · 응답 `available` · `region` · `source` · `notice` · `as_of` · `universe`(수집 대상 곳 수) · `priced` · `groups[]`(`code` `name` `section{code,name}` `n` `priced` `change_median` `up` `down` `flat` `thin`(종목 3 미만) `top[]`(시가총액 큰 종목 셋)) · 업종 전체 지수가 아님) · 라우트 274 → 276(`/api/macro` 는 6개: indicators · industry · us-stocks · fundamental · ecos · industry-kr) / 변경 — `API-AUTH-01` 본문 선택 칸 `terms_version`(≤ 40자) · `agreed`(문자열 목록): 보내면 `service` · `privacy` · `invest` 가 모두 있어야 하고 아니면 422, 통과하면 감사 기록 `terms.agree`(판과 항목만) · `API-AUTH-02` · `API-AUTH-04` 로그인 시도 횟수 제한: 같은 이메일 10분 안 5번 실패 → 비밀번호가 맞아도 429 + `Retry-After`(주소 잠금은 기본 꺼짐 · 실패만 셈 · 없는 이메일도 같게 · 맞게 로그인하면 이메일 횟수만 지움 · Redis 장애 시 막지 않음) · 401 글에 남은 횟수 ≤ 2 이면 경고(추출기가 보조 함수의 401 · 429 를 못 읽어 표 칸은 `503` 만 · 6절 새 소절에 적음) / 화면 라우트 `GET /terms.html`(API 아님 · 6절 새 소절) | 할 일 ①-10 거시 · 산업 화면 · ①-09 계정 · 약관(조사 2026-10-29-가입-약관-동의) | `python scripts/api_scan.py --assign S161` · `--doc` · `--catalog` · 시험 TC-MK 7 · TC-MI 7 · TC-LG 8 · TC-TM 8 |
 | v0.45 | 2026-10-29 | 추가 — `GET /api/strategy-cards`(`API-SCARD-01`: 카드 파일 목록 + 각 카드를 Pine v6 `strategy()` 로 만들 수 있는지와 까닭) · `GET /api/strategy-cards/{card_id}/pine`(`API-SCARD-02`: 코드 · 판 지문 · 경고 · TradingView 속성에 맞출 설정 · 입력 `symbol` · `ref_price` · `mintick` · `fee_pct` · `sell_tax_pct` · `slippage_bp` · `capital` — 숫자 범위 밖은 422, 목록에 없는 id 는 404, 생성기의 거절 까닭은 422 로 그대로, 코드는 저장하지 않음) · 변경 — `API-MACR-04` 응답: `valuation.DCF_intrinsic_value` · `FCF_yield_pct` 가 가격에서 지어낸 값(목업)이던 것을 **null + `valuation.reason`** 으로(화면은 이 길을 더 부르지 않고 `API-DATA-*` 재무 · `API-RISK-*` 건강 길을 읽음) | 화면 벤치마킹 S3(카드 → Pine 내려받기 · 이동원 직접) · ①-10 재무제표 화면의 지어낸 값 제거 | `python scripts/api_scan.py --assign S160` · `--doc` · `--catalog` · 시험 TC-SCA 5 · TC-FV-04 |
 | v0.44 | 2026-10-28 | 변경 — `POST /api/webhooks/tradingview`(`API-TV-01`) 응답 약속을 적는다(추출기는 보조 함수에서 던지는 코드와 응답 모양을 못 읽어 표 칸은 `400 · 403 · 429 · ?` 그대로): **403** 허용 IP 가 아님(`x-forwarded-for` 는 `TRADINGVIEW_TRUSTED_PROXY_HOPS` 만큼 오른쪽 값, 기본은 헤더를 믿지 않음) · **413** 본문 4KB 초과(쪼개 보내도) · **400** 빈 본문 · 해석 불가 · 주문이 되는 알림에 `signal_id` / `bar_time` / `time` 없음 · 시각 형식 오류 · **401** 없는 · 폐기된 토큰 · **429** 분당 30회 초과 · **200** 인데 `ok:false` 인 `late`(알림 시각 `sent_at` 이 한도 300초보다 늦음 — 주문 없음) · **200 · `ok:true`** `duplicate`(같은 알림 — 추가 주문 없음). 요청 본문 새 칸 `signal_id` · `bar_time` · `strategy_id`(없으면 `strategy` → `default`) · `strategy_version` · `sent_at`. 조회 `GET /api/tradingview/signals` 응답 줄에 `dup_count` · `delay_sec`. 줄 번호만 바뀐 `API-TV-02` ~ `05` | 설계 3.6 · ①-08 | `api_scan.py --doc` · TC-WH 41 · TC-WHP 13 · 마이그레이션 0029 |
 | v0.43 | 2026-10-27 | 추가 — `GET /api/stock-hub/signal-rank`(`API-HUB-03` · 신호 기록 순위: 종목마다 그날 또는 그날 이전 가장 가까운 기록 한 줄을 종합 점수 → 신뢰도 → 종목코드 순으로 · 줄마다 기준일(`as_of`) · 근거 개수(`counts` 매수 쪽 · 중립 · 매도 쪽 — `signal_explain.side_counts`) · 새 계산 없음 · 로그인 · 기록 없는 종목은 `missing` 에 까닭 · 낯선 근거 문장 한 줄은 그 줄의 `counts` 만 비움 · 라우트 271 → 272 · 인자 `on` · `symbols`(최대 100) · `limit`(1 ~ 500) · `components`) — 할 일 ②-19 · #197 | S153 — 신장환 님 #352 의 `load_day` · `side_counts` 를 부름 |
