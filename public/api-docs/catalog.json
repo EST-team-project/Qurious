@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 274,
+ "count": 276,
  "routers": 41,
  "routes": [
   {
@@ -20,7 +20,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 147,
+   "line": 167,
    "errors": [
     "400",
     "422",
@@ -51,9 +51,8 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 192,
+   "line": 231,
    "errors": [
-    "401",
     "503"
    ],
    "keys": [
@@ -80,7 +79,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 217,
+   "line": 259,
    "errors": [],
    "keys": [
     "ok"
@@ -93,7 +92,7 @@
    "router": "auth",
    "method": "POST",
    "path": "/api/auth/token",
-   "summary": "JWT 액세스/리프레시 토큰을 발급합니다 (API 클라이언트용).",
+   "summary": "JWT 액세스/리프레시 토큰을 발급합니다 (API 클라이언트용). /auth/login 과 같은 시도 횟수 제한을 쓴다(한쪽만 막으면 다른 쪽으로 돌아간다).",
    "auth": "없음",
    "reaches": [
     "PostgreSQL",
@@ -104,9 +103,8 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 238,
+   "line": 280,
    "errors": [
-    "401",
     "503"
    ],
    "keys": [],
@@ -130,7 +128,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 265,
+   "line": 309,
    "errors": [
     "401"
    ],
@@ -155,7 +153,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 286,
+   "line": 330,
    "errors": [
     "403"
    ],
@@ -184,7 +182,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 327,
+   "line": 371,
    "errors": [],
    "keys": [
     "user",
@@ -208,7 +206,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 354,
+   "line": 398,
    "errors": [],
    "keys": [
     "sessions",
@@ -232,7 +230,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 361,
+   "line": 405,
    "errors": [
     "404"
    ],
@@ -257,7 +255,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 374,
+   "line": 418,
    "errors": [],
    "keys": [
     "ok",
@@ -279,7 +277,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 387,
+   "line": 431,
    "errors": [],
    "keys": [],
    "body": [],
@@ -301,7 +299,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 393,
+   "line": 437,
    "errors": [
     "422"
    ],
@@ -330,7 +328,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 416,
+   "line": 460,
    "errors": [
     "400",
     "422"
@@ -361,7 +359,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 456,
+   "line": 500,
    "errors": [
     "400",
     "422",
@@ -2921,6 +2919,29 @@
    "schema": true
   },
   {
+   "id": "API-MACR-05",
+   "router": "macro",
+   "method": "GET",
+   "path": "/api/macro/ecos",
+   "summary": "수집 DB 의 한국은행 통계를 값 · 기준일 · 직전 값 · 출처와 함께(읽기만). 거시 화면(할 일 ①-10)이 부른다.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "macro-dashboard"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/macro.py",
+   "line": 26,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
    "id": "API-MACR-01",
    "router": "macro",
    "method": "GET",
@@ -2943,13 +2964,36 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 24,
+   "line": 38,
    "errors": [],
    "keys": [
     "indicators",
     "from_cache",
     "note"
    ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-MACR-06",
+   "router": "macro",
+   "method": "GET",
+   "path": "/api/macro/industry-kr",
+   "summary": "수집 DB 의 업종코드(DART) · 업종 이름 표(KSIC) · 일봉 등락률로 업종별 등락 중앙값 · 오른 종목 수 · 종목 수(읽기만).",
+   "auth": "세션",
+   "reaches": [
+    "수집DB"
+   ],
+   "hosts": [],
+   "screens": [
+    "macro-industry"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/macro.py",
+   "line": 55,
+   "errors": [],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -2976,7 +3020,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 41,
+   "line": 67,
    "errors": [],
    "keys": [
     "sectors",
@@ -3009,7 +3053,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 59,
+   "line": 85,
    "errors": [],
    "keys": [
     "stocks",
@@ -3038,7 +3082,7 @@
     "P01-①-2"
    ],
    "file": "app/routes/macro.py",
-   "line": 76,
+   "line": 102,
    "errors": [],
    "keys": [
     "symbol",

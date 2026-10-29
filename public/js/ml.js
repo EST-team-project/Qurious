@@ -3,6 +3,7 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { compareTrayAdd } from "/js/core.js";
 import { loadFundamental, renderFundamental } from "/js/fundview.js";
+import { loadEcos, renderEcos, loadIndustryKr, renderIndustry } from "/js/macroview.js";
 import { loadTechnical, renderTechnical } from "/js/techview.js";
 
 document.getElementById("mlc-run-btn")?.addEventListener("click", async () => {
@@ -169,6 +170,9 @@ function macroQuoteNote(afterEl, id, note) {
 }
 
 async function loadMacroDashboard() {
+  // 한국은행 통계 카드 — 표시 규칙은 macroview.js 한 곳. 아래 야후 시세와 따로 실패한다(한쪽이 막혀도 다른 쪽은 그려진다).
+  const ecosBox = document.getElementById("macro-ecos");
+  if (ecosBox) loadEcos(api).then(res => { ecosBox.className = "text-sm"; ecosBox.innerHTML = renderEcos(res, escHtml); });
   const grid = document.getElementById("macro-grid");
   const loading = document.getElementById("macro-loading");
   if (!loading) return;
@@ -199,6 +203,9 @@ async function loadMacroDashboard() {
 
 // 투자분석 기초 — 산업 분석
 async function loadMacroIndustry() {
+  // 국내 산업별 등락 — 표시 규칙은 macroview.js 한 곳. 아래 미국 섹터 ETF 와 따로 실패한다.
+  const krBox = document.getElementById("industry-kr");
+  if (krBox) loadIndustryKr(api).then(res => { krBox.className = "text-sm"; krBox.innerHTML = renderIndustry(res, escHtml); });
   const loading = document.getElementById("industry-loading");
   const wrap    = document.getElementById("industry-table-wrap");
   if (!loading) return;
