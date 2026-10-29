@@ -279,3 +279,7 @@ API-SCARD-01	GET	/api/strategy-cards	S160	사용
 API-SCARD-02	GET	/api/strategy-cards/{card_id}/pine	S160	사용
 API-MACR-05	GET	/api/macro/ecos	S161	사용
 API-MACR-06	GET	/api/macro/industry-kr	S161	사용
+API-ISTR-01	GET	/api/indicator-strategy/chart	S163	사용
+API-ISTR-02	GET	/api/indicator-strategy/cards	S163	사용
+API-ISTR-03	POST	/api/indicator-strategy/cards	S163	사용
+API-ISTR-04	DELETE	/api/indicator-strategy/cards/{card_id}	S163	사용
