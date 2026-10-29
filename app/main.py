@@ -279,6 +279,12 @@ if os.path.isdir(_public):
         # 로그인 여부를 보지 않는다(가입 화면의 「전문을 새 창으로 보기」 가 여기로 온다 · 문구는 public/js/terms.js 한 곳).
         return FileResponse(os.path.join(_public, "terms.html"))
 
+    @app.get("/privacy.html", include_in_schema=False)
+    async def privacy_page():
+        # 개인정보 처리방침 전문(2026-10-29 · 개인정보 보호법 제30조) — 가입 전 사람도 읽어야 하므로 로그인 여부를 보지 않는다.
+        # 문구는 public/js/terms.js 의 POLICY 한 곳(이용약관과 같은 파일).
+        return FileResponse(os.path.join(_public, "privacy.html"))
+
     @app.get("/app.html", include_in_schema=False)
     async def app_page(fin_session: str | None = Cookie(default=None, alias=COOKIE_NAME)):
         # 로그인 안 한 사람은 앱 화면을 받기 전에 로그인 화면으로 — 앱을 그렸다가 튕기는 깜빡임을 없앤다.

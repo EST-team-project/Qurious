@@ -20,7 +20,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 167,
+   "line": 212,
    "errors": [
     "400",
     "422",
@@ -51,7 +51,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 231,
+   "line": 277,
    "errors": [
     "503"
    ],
@@ -79,7 +79,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 259,
+   "line": 305,
    "errors": [],
    "keys": [
     "ok"
@@ -103,7 +103,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 280,
+   "line": 326,
    "errors": [
     "503"
    ],
@@ -128,7 +128,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 309,
+   "line": 355,
    "errors": [
     "401"
    ],
@@ -153,7 +153,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 330,
+   "line": 376,
    "errors": [
     "403"
    ],
@@ -182,7 +182,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 371,
+   "line": 417,
    "errors": [],
    "keys": [
     "user",
@@ -206,7 +206,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 398,
+   "line": 444,
    "errors": [],
    "keys": [
     "sessions",
@@ -230,7 +230,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 405,
+   "line": 451,
    "errors": [
     "404"
    ],
@@ -255,7 +255,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 418,
+   "line": 464,
    "errors": [],
    "keys": [
     "ok",
@@ -277,7 +277,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 431,
+   "line": 477,
    "errors": [],
    "keys": [],
    "body": [],
@@ -299,7 +299,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 437,
+   "line": 483,
    "errors": [
     "422"
    ],
@@ -328,7 +328,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 460,
+   "line": 506,
    "errors": [
     "400",
     "422"
@@ -359,7 +359,7 @@
    "part": "공통",
    "req": [],
    "file": "app/routes/auth.py",
-   "line": 500,
+   "line": 546,
    "errors": [
     "400",
     "422",
@@ -3221,7 +3221,7 @@
    "router": "notification",
    "method": "GET",
    "path": "/api/notification/settings",
-   "summary": "현재 사용자의 알림 설정을 반환한다. 비밀값(password/secret)은 마스킹.",
+   "summary": "현재 사용자의 알림 설정을 반환한다. 비밀값(password/secret)은 마스킹, 전화번호는 끝 네 자리만 남긴다.",
    "auth": "세션",
    "reaches": [
     "PostgreSQL"
@@ -3236,7 +3236,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 62,
+   "line": 78,
    "errors": [],
    "keys": [
     "channels",
@@ -3281,7 +3281,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 105,
+   "line": 121,
    "errors": [],
    "keys": [
     "ok"
@@ -3316,7 +3316,7 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 149,
+   "line": 165,
    "errors": [],
    "keys": [
     "ok",
@@ -3344,7 +3344,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 172,
+   "line": 188,
    "errors": [],
    "keys": [
     "events",
@@ -5991,7 +5991,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 77,
+   "line": 88,
    "errors": [
     "400",
     "403",
@@ -6017,7 +6017,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 137,
+   "line": 148,
    "errors": [],
    "keys": [
     "webhook_url",
@@ -6045,7 +6045,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 158,
+   "line": 169,
    "errors": [],
    "keys": [
     "signals"
@@ -6073,7 +6073,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 187,
+   "line": 229,
    "errors": [
     "422",
     "502"
@@ -6101,7 +6101,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 342,
+   "line": 405,
    "errors": [],
    "keys": [
     "comparisons"

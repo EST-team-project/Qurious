@@ -27,6 +27,7 @@ JWT 방식 (API 클라이언트 / 모바일):
 """
 import logging
 import uuid
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -72,25 +73,69 @@ class RegisterBody(BaseModel):
     email: str
     password: str
     # 약관 · 개인정보 동의(2026-10-29 · 가입 화면 public/register.html · 문구는 public/js/terms.js).
-    # 선택 항목이다 — 화면은 늘 보내지만, 이전 방식으로 부르는 시험 · 점검 스크립트가 깨지지 않게 비워 둬도 받는다.
-    # 보내면 서버가 동의한 판과 항목을 감사 기록(audit_events)에 남기고(나중에 입증), 필수 항목이 빠졌으면 422.
+    # 강제다(2026-10-29 S162 — 이전에는 선택이라 화면을 거치지 않는 직접 호출은 동의 없이 가입됐다).
+    # 서버가 동의한 판과 항목을 감사 기록(audit_events)에 남겨(나중에 입증) 필수 항목이 빠졌으면 422.
     terms_version: str | None = None
     agreed: list[str] | None = None
+    # 생년월일("YYYY-MM-DD") — 만 14세 이상인지 서버가 계산하는 데만 쓴다(S162 · 개인정보 보호법 제22조의2).
+    # **저장하지도, 기록하지도, 오류 메시지에 되돌리지도 않는다** — 약관·처리방침이 그렇게 약속한다(시험 TC-TM-10).
+    birth_date: str | None = None
+
+
+#: 서버가 아는 현재 약관 판 — public/js/terms.js 의 TERMS_VERSION 과 같아야 한다(시험 TC-TM-01 이 지킨다).
+#: 다르면 가입을 거절한다: 오래된 화면이 옛 문구에 동의한 채 새 판 동의로 기록되는 일을 막는다.
+TERMS_VERSION = "2026-10-29-v0.2"
+
+#: 가입할 수 있는 최소 만 나이(개인정보 보호법 제22조의2 — 만 14세 미만은 법정대리인 동의가 필요한데 그 절차를 두지 않았다).
+MIN_SIGNUP_AGE = 14
+
+_KST = timezone(timedelta(hours=9))
+
+
+def _check_age(birth_date: str | None, today: date | None = None) -> None:
+    """만 14세 이상인지 계산한다. 아니면 422. 생년월일은 여기서만 읽고 어디에도 남기지 않는다."""
+    today = today or datetime.now(_KST).date()
+    try:
+        born = date.fromisoformat((birth_date or "").strip())
+    except ValueError:
+        raise HTTPException(422, "생년월일을 확인해 주세요. (예: 2000-01-31)")
+    if born > today or born.year < today.year - 120:
+        raise HTTPException(422, "생년월일을 확인해 주세요.")
+    # 만 나이 — 올해 생일이 아직 안 지났으면 한 살 덜 센다(2월 29일생은 평년에 2월 28일 다음 날인 3월 1일에 한 살을 더한다)
+    try:
+        birthday = born.replace(year=born.year + MIN_SIGNUP_AGE)
+    except ValueError:
+        birthday = date(born.year + MIN_SIGNUP_AGE, 3, 1)
+    if birthday > today:
+        raise HTTPException(422, f"만 {MIN_SIGNUP_AGE}세 미만은 가입할 수 없습니다.")
 
 
 #: 가입 때 모두 동의해야 하는 항목 — public/js/terms.js 의 TERMS id 와 같아야 한다(시험 TC-TM 이 지킨다).
 REQUIRED_AGREEMENTS = ("service", "privacy", "invest")
 
+#: 가입 때 따로 묻는 선택 동의 항목. 지금은 **비어 있다** — 앱이 실제로 하는 일 가운데 가입 때 선택으로 받아야 할
+#: 수집·이용(광고성 정보 전송 등)이 아직 없기 때문이다(약관에는 앱이 하지 않는 일을 쓰지 않는다 · 시험 TC-TM-03).
+#: 항목을 더하면 필수와 섞이지 않게 여기에만 넣는다 — 안 동의해도 가입은 된다(개인정보 보호법 제16조 제3항).
+OPTIONAL_AGREEMENTS: tuple[str, ...] = ()
 
-def _check_agreements(body: "RegisterBody") -> dict | None:
-    """동의 항목을 검사해 감사 기록에 넣을 값(없으면 None). 필수 항목이 빠졌으면 422."""
-    if body.terms_version is None and body.agreed is None:
-        return None
-    agreed = [a for a in (body.agreed or []) if isinstance(a, str) and len(a) <= 20][:10]
-    missing = [a for a in REQUIRED_AGREEMENTS if a not in agreed]
-    if missing:
+
+def _check_agreements(body: "RegisterBody") -> dict:
+    """동의 항목을 검사해 감사 기록에 넣을 값을 돌려준다. 판 번호가 없거나 필수 항목이 빠졌으면 422.
+
+    알려진 항목(필수 + 선택)만 인정하고 나머지 값은 버린다 — 서버가 모르는 항목을 기록에 남기지 않는다.
+    """
+    version = (body.terms_version or "").strip()
+    if version and version != TERMS_VERSION:
+        # 오래된 화면(캐시)이 옛 문구를 보여 줬을 수 있다 — 새로고침하면 새 문구를 보고 다시 동의한다
+        raise HTTPException(422, "이용약관이 바뀌었습니다. 화면을 새로고침한 뒤 다시 동의해 주세요.")
+    known = set(REQUIRED_AGREEMENTS) | set(OPTIONAL_AGREEMENTS)
+    agreed = {a for a in (body.agreed or []) if isinstance(a, str) and a in known}
+    if not version:
+        raise HTTPException(422, "가입 화면에서 이용약관 · 개인정보 수집·이용 · 투자 유의사항에 동의해야 가입할 수 있습니다.")
+    if [a for a in REQUIRED_AGREEMENTS if a not in agreed]:
         raise HTTPException(422, "이용약관 · 개인정보 수집·이용 · 투자 유의사항에 모두 동의해야 가입할 수 있습니다.")
-    return {"version": (body.terms_version or "")[:40], "agreed": sorted(set(agreed))}
+    return {"version": version, "agreed": sorted(agreed),
+            "optional": sorted(agreed & set(OPTIONAL_AGREEMENTS))}
 
 
 class LoginBody(BaseModel):
@@ -179,6 +224,8 @@ async def register(body: RegisterBody, response: Response):
     except account.AccountError as exc:
         raise HTTPException(422, str(exc))
     consent = _check_agreements(body)
+    _check_age(body.birth_date)             # 생년월일은 이 줄에서 계산하고 버린다 — 이 아래로 넘기지 않는다
+    consent["age_check"] = f"{MIN_SIGNUP_AGE}+"   # 감사 기록에는 「만 14세 이상 확인함」 만 남는다(날짜는 안 남김)
     pw_hash = account.hash_password(password)
     client_id = str(uuid.uuid4()).replace("-", "")[:16].upper()
     roles = ["admin"] if email in account.admin_emails() else ["user"]
@@ -199,9 +246,8 @@ async def register(body: RegisterBody, response: Response):
             raise HTTPException(400, "이미 사용 중인 이메일입니다.")
         user_id = str(user.id)
 
-    if consent:
-        # 이름 · 이메일은 싣지 않는다 — 판 번호와 항목만(탈퇴해도 남는 감사 기록이라 개인정보를 늘리지 않는다)
-        await audit(user_id, client_id, "terms.agree", consent)
+    # 이름 · 이메일은 싣지 않는다 — 판 번호와 항목만(탈퇴해도 남는 감사 기록이라 개인정보를 늘리지 않는다)
+    await audit(user_id, client_id, "terms.agree", consent)
 
     session_data = _build_session_data(user_id, {
         "name": name, "email": email, "client_id": client_id, "roles": roles,

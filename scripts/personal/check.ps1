@@ -664,7 +664,7 @@ if (@($Checks | Where-Object { $_.Auth }).Count -gt 0) {
   $how = '기존 계정'
   if ($login.Status -eq 401 -and $Email -eq $SmokeEmail) {
     # 점검 계정이 아직 없다(새 DB) → 한 번 가입한다. 가입도 쿠키를 준다.
-    $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '로컬 점검'; email = $Email; password = $Password } -Session $session
+    $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body ($QSignupExtra + @{ name = '로컬 점검'; email = $Email; password = $Password }) -Session $session
     $how = '처음이라 가입함'
   }
   # 점검 계정은 관리자다 — 관리자만 쓰는 화면 · API(감사 기록 · DB 통계)까지 점검하려고(2026-10-02 사용자 요청).
@@ -728,7 +728,7 @@ if ($runAccount) {
     $other = New-Object Microsoft.PowerShell.Commands.WebRequestSession   # 다른 기기
 
     # 1. 가입(C) — 대문자 섞인 이메일로. 가입도 로그인 쿠키를 준다(화면은 가입 직후 바로 앱으로 들어간다).
-    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '계정 점검'; email = $typed; password = $acctPw } -Session $acct
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body ($QSignupExtra + @{ name = '계정 점검'; email = $typed; password = $acctPw }) -Session $acct
     if ($r.Status -eq 200) {
       $made.Add($acctEmail)
       if ("$($r.Json.user.email)" -eq $acctEmail) { $v = Pass "친 글자 $typed → 저장 $acctEmail(전부 소문자)" }
@@ -748,7 +748,7 @@ if ($runAccount) {
       Add-Acct '일반 계정으로 관리자 API → 막힘' 'GET' '/api/admin/stats' $r (Expect-Status $r 403 "403 — $($r.Json.detail)")
 
       # 3. 소문자로 다시 가입 → 400 (대소문자만 다른 두 번째 가입을 막는다)
-      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '중복'; email = $acctEmail; password = $acctPw }
+      $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body ($QSignupExtra + @{ name = '중복'; email = $acctEmail; password = $acctPw })
       Add-Acct '대소문자만 다른 이메일로 다시 가입 → 거절' 'POST' '/api/auth/register' $r (Expect-Status $r 400 "400 — $($r.Json.detail)")
 
       # 4. 로그아웃 → 5. 방금 그 쿠키로 내 정보 → 401 (서버 쪽 세션이 정말 지워졌나)
@@ -818,9 +818,22 @@ if ($runAccount) {
 
     # 20. 비밀번호 규칙 — 가입 화면과 같은 규칙을 API 도 지키나 (서버가 거절하므로 계정이 생기지 않는다)
     $shortEmail = "short-check-$stamp@example.com"
-    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '짧은 암호'; email = $shortEmail; password = '1' }
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body ($QSignupExtra + @{ name = '짧은 암호'; email = $shortEmail; password = '1' })
     if ($r.Status -eq 200) { $made.Add($shortEmail) }
     Add-Acct '1글자 비밀번호 가입 → 거절' 'POST' '/api/auth/register' $r (Expect-Status $r 422 "422 — $($r.Json.detail)")
+
+    # 약관 동의 없이 가입 → 422 (서버가 동의를 강제한다 — 화면을 거치지 않는 직접 호출도 막는다)
+    $noConsentEmail = "noconsent-check-$stamp@example.com"
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '동의 없음'; email = $noConsentEmail; password = 'Correct-Horse-9' }
+    if ($r.Status -eq 200) { $made.Add($noConsentEmail) }
+    Add-Acct '약관 동의 없이 가입 → 거절' 'POST' '/api/auth/register' $r (Expect-Status $r 422 "422 — $($r.Json.detail)")
+
+    # 만 14세 미만 → 422 (서버가 생년월일로 나이를 계산한다 — 생년월일은 응답 · 기록에 되돌아오지 않는다)
+    $youngEmail = "young-check-$stamp@example.com"
+    $young = $QSignupExtra.Clone(); $young.birth_date = (Get-Date).AddYears(-10).ToString('yyyy-MM-dd')
+    $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body ($young + @{ name = '어린이'; email = $youngEmail; password = 'Correct-Horse-9' })
+    if ($r.Status -eq 200) { $made.Add($youngEmail) }
+    Add-Acct '만 14세 미만 가입 → 거절' 'POST' '/api/auth/register' $r (Expect-Status $r 422 "422 — $($r.Json.detail)")
 
     # 21. 아주 긴 비밀번호로 로그인 — 서버 오류(500)가 아니라 「틀림」(401)이어야 한다(bcrypt 72바이트 한계)
     $r = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $acctEmail; password = ('p' * 100) }

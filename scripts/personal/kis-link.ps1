@@ -56,7 +56,7 @@ Write-QStep '1/3 점검 계정 로그인'
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $SmokeEmail; password = $SmokePassword } -Session $session
 if ($login.Status -eq 401) {
-  $null = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body @{ name = '로컬 점검'; email = $SmokeEmail; password = $SmokePassword } -Session $session
+  $null = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/register" -Body ($QSignupExtra + @{ name = '로컬 점검'; email = $SmokeEmail; password = $SmokePassword }) -Session $session
   $login = Invoke-QApi -Method POST -Url "$BaseUrl/api/auth/login" -Body @{ email = $SmokeEmail; password = $SmokePassword } -Session $session
 }
 if ($login.Status -ne 200) {
