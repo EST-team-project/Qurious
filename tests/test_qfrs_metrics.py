@@ -129,3 +129,97 @@ def test_all_metrics_is_deterministic():
     m2 = calculate_all_metrics(returns)
     for k in KEYS:
         assert m1[k] == m2[k]
+
+
+def test_dsr_null_alpha_not_spuriously_high():
+    """평균 초과수익이 없는 표본에서 DSR이 연율화로 부풀려지지 않는다."""
+    rng = np.random.default_rng(123)
+    returns = rng.normal(0.0, 0.01, 500)
+
+    metrics = calculate_all_metrics(
+        returns,
+        risk_free_rate=0.0,
+        periods_per_year=252,
+        n_trials=50,
+    )
+
+    dsr = metrics["Deflated Sharpe Ratio"]
+    assert np.isfinite(dsr)
+    assert 0.0 <= dsr <= 0.1
+
+
+def test_dsr_uses_period_sharpe_not_annualized_sharpe():
+    """DSR은 연율화 Sharpe가 아니라 일별 Sharpe를 기준으로 계산한다."""
+    from scipy.stats import kurtosis, skew
+    from app.services.evaluation_risk import deflated_sharpe_ratio
+
+    rng = np.random.default_rng(123)
+    returns = rng.normal(0.0001, 0.01, 500)
+    metrics = calculate_all_metrics(
+        returns,
+        risk_free_rate=0.0,
+        periods_per_year=252,
+        n_trials=50,
+    )
+
+    expected = deflated_sharpe_ratio(
+        sharpe=metrics["Sharpe Ratio"] / np.sqrt(252),
+        n_observations=len(returns),
+        skewness=float(skew(returns)),
+        kurtosis_value=float(kurtosis(returns, fisher=False)),
+        n_trials=50,
+    )
+    assert metrics["Deflated Sharpe Ratio"] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("n_trials", [0, -1])
+def test_dsr_rejects_nonpositive_n_trials(n_trials):
+    from app.services.evaluation_risk import deflated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="n_trials must be at least 1"):
+        deflated_sharpe_ratio(
+            sharpe=0.1,
+            n_observations=100,
+            skewness=0.0,
+            kurtosis_value=3.0,
+            n_trials=n_trials,
+        )
+
+
+def test_dsr_uses_two_quantile_expected_max_sharpe():
+    """기대 최대 Sharpe가 두 분위수를 이용한 근사식으로 계산되는지 검증한다."""
+    from scipy.stats import norm
+    from app.services.evaluation_risk import deflated_sharpe_ratio
+
+    sharpe = 0.2
+    n_observations = 500
+    skewness = 0.0
+    kurtosis_value = 3.0
+    n_trials = 50
+
+    numer = (
+        1
+        - skewness * sharpe
+        + ((kurtosis_value - 1) / 4) * sharpe**2
+    )
+    sharpe_std = np.sqrt(numer / (n_observations - 1))
+
+    gamma = 0.5772156649015329
+    z1 = norm.ppf(1 - 1 / n_trials)
+    z2 = norm.ppf(1 - 1 / (n_trials * np.e))
+    expected_max_sharpe = sharpe_std * (
+        (1 - gamma) * z1 + gamma * z2
+    )
+    expected_dsr = norm.cdf(
+        (sharpe - expected_max_sharpe) / sharpe_std
+    )
+
+    actual_dsr = deflated_sharpe_ratio(
+        sharpe=sharpe,
+        n_observations=n_observations,
+        skewness=skewness,
+        kurtosis_value=kurtosis_value,
+        n_trials=n_trials,
+    )
+
+    assert actual_dsr == pytest.approx(expected_dsr)
