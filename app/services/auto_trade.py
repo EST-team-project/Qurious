@@ -162,12 +162,19 @@ async def _execute_virtual_trade(
     price: float,
     quantity: int,
     reason: str,
+    *, filled_at: datetime | None = None, strict_quantity: bool = False,
 ) -> dict:
     """가상계좌 체결. 주문 삽입 + 포트폴리오 갱신 + 현금 갱신을 한 트랜잭션으로 커밋한다.
 
     장부는 자동매매 전용(`QuantVirtualAccount` 현금 + `book = QUANT` 보유 · 모듈 머리말).
     계좌 행을 FOR UPDATE 로 잠그므로, 아래 모든 반환 경로가 `commit` 으로 잠금을 푼다.
     """
+    if filled_at is not None:
+        intent = execution_control.current_intent.get()
+        if (filled_at.tzinfo is None or filled_at > datetime.now(timezone.utc) or not intent
+                or (intent.book, intent.strategy_id, intent.strategy_version, intent.source)
+                != ("QUANT", "ma_cross_20_60", 2, "v2_next_open")):
+            raise ValueError("판 2의 서버 확인된 다음 시가 체결 문맥이 필요합니다.")
     now = datetime.now(timezone.utc).isoformat()
 
     result = await db.execute(
@@ -185,7 +192,7 @@ async def _execute_virtual_trade(
     executed_quantity = quantity
 
     market = trading_cost.market_of(symbol)
-    today = trading_cost.today_kst()
+    today = filled_at.astimezone(timezone(timedelta(hours=9))).date() if filled_at else trading_cost.today_kst()
     # ETF·ETN 은 증권거래세 과세대상이 아니다. 넘기지 않으면 기본값 False 가 되어
     # **매도 정산에서 0.20%p 를 더 떼게 된다** (2026-09-21 까지 그랬다).
     is_etf = trading_cost.is_etf_name(name)
@@ -199,6 +206,8 @@ async def _execute_virtual_trade(
     if action == "buy":
         cost = _net("buy", quantity)
         if cash_balance < cost:
+            if strict_quantity:
+                raise ValueError("예약한 전량의 비용 포함 현금이 부족합니다.")
             # 수수료까지 감당할 수 있는 수량을 구한다. 단가로만 나누면 수수료만큼
             # 초과해 주문이 잔고를 넘긴다.
             buy_rate = trading_cost.cost_rate("buy", today, slippage_bps=0.0, market=market)
@@ -224,6 +233,8 @@ async def _execute_virtual_trade(
     existing = port_result.scalar_one_or_none()
 
     if action == "sell":
+        if strict_quantity and (not existing or existing.quantity < quantity):
+            raise ValueError("예약한 전략 전량의 장부 보유가 부족합니다.")
         if not existing or existing.quantity <= 0:
             await db.commit()
             return {
@@ -239,11 +250,14 @@ async def _execute_virtual_trade(
         side=action, price=price, quantity=executed_quantity, when=today, market=market,
         is_etf=is_etf,
     )
+    fields = trading_cost.order_fields(order_cost, price, executed_quantity)
+    if filled_at is not None:
+        fields["filled_at"] = filled_at
     db.add(Order(
         user_id=user_id, symbol=symbol, name=name, order_type=action,
         quantity=executed_quantity, price=price, status="filled", broker="quant_ai", source="QUANT",
         execution_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None,
-        **trading_cost.order_fields(order_cost, price, executed_quantity),
+        **fields,
     ))
 
     if action == "buy":
@@ -820,6 +834,22 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         mode = broker_row.quant_mode if broker_row and broker_row.quant_mode in ("paper", "live") else (
             "live" if broker_row and broker_row.paper is False else "paper"
         )
+        if broker_row and (broker_row.quant_strategy_id, broker_row.quant_strategy_version) == ("ma_cross_20_60", 2):
+            from app.services import strategy_v2, strategy_v2_execution
+            try:
+                spec = await strategy_loader.get_strategy("ma_cross_20_60", 2)
+                if spec is None:
+                    raise ValueError("선택한 판 2 명세를 확인하지 못했습니다.")
+                strategy_v2.validate_card(spec)
+                result = await strategy_v2_execution.run(uid, execute=True, require_enabled=True)
+            except ValueError as exc:
+                result = {"status": "skipped", "code": "V2_INPUT_INVALID", "reason": str(exc)}
+            cycle_log.update(strategy={"strategy_id": "ma_cross_20_60", "version": 2},
+                execution_state="FAILED" if result.get("status") in ("unknown", "error") else "BLOCKED" if result.get("status") == "skipped" else "COMPLETED",
+                note=result.get("reason", "판 2 다음 거래일 시가 가상 실행"), v2=result,
+                trades=[result] if result.get("status") == "filled" and not result.get("duplicate") else [])
+            await _persist_cycle(uid, cycle_log)
+            return
         if mode == "paper":
             result = await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
             if not result.scalar_one_or_none():

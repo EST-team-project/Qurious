@@ -154,7 +154,7 @@ def size_entry(state, *, equity, cash, price, budget, existing_value, position_c
         position_cap_pct=cap, risk_pct=1.0, slippage_bps=slippage_bps, when=when, market="KOSPI")
 
 
-def reserve(state, *, order_key, quantity, mode, target_date):
+def reserve(state, *, order_key, quantity, mode, target_date, execution_price=None):
     """외부 전송보다 먼저 영속 저장할 예약. UNKNOWN/PARTIAL을 새 주문으로 대체하지 않는다."""
     state = deepcopy(state)
     p = state["pending"]
@@ -175,6 +175,8 @@ def reserve(state, *, order_key, quantity, mode, target_date):
     if p["side"] == "SELL" and quantity != state["quantity"]:
         raise ValueError("판 2 청산은 전략에 귀속된 확정 보유 전량이어야 합니다.")
     p.update(phase="reserved", order_key=order_key, quantity=quantity, mode=mode, target_date=target_date)
+    if execution_price is not None:
+        p["execution_price"] = positive(execution_price, "예약 체결 가격")
     return state, {"status": "reserved", "order_key": order_key, "quantity": quantity}
 
 
