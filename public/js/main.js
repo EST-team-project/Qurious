@@ -4,13 +4,13 @@ import { api, getMe, redirectToLogin, setToast, escHtml, fmt, fmtPct, colorPct }
 import { loadMarketTicker, loadSyncStatus, navigate, registerViewActivation } from "/js/core.js";
 import { loadCrawlList } from "/js/agent.js";
 import { loadCompanyCompare, loadCompanyDashboard, loadCompanySector } from "/js/company.js";
-import { loadIndicatorApiSettings, loadIndicatorBacktest, loadSavedIndicators } from "/js/indicator.js";
+import { loadIndicatorBacktest, loadSavedIndicators } from "/js/indicator.js";
 import { loadMacroDashboard, loadMacroIndustry } from "/js/ml.js";
 import { initPaperViews, onPaperViewActivated } from "/js/paper.js";
 import { loadAutoTradeStatus, loadQuantDashboard } from "/js/quant.js";
 import { initRebalanceView, onRebalanceViewActivated } from "/js/rebalance.js";
 import { initRoboRiskProfile, loadPatternAnalysis, loadRoboDecision, loadRoboTestbed, loadRoboScreening, loadRoboPerformanceMetrics } from "/js/robo.js";
-import { loadNotificationSettings, loadSettings } from "/js/settings.js";
+import { loadNotificationSettings } from "/js/settings.js";
 import { loadAuditLog, loadSystemDashboard } from "/js/sysadmin.js";
 import { loadBrokerStatus, loadOrderHistory, loadPortfolio, loadStockChart } from "/js/trading.js";
 import { initTradingViewView, onTradingViewViewActivated } from "/js/tradingview.js";
@@ -110,7 +110,6 @@ function onViewActivated(view) {
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }
   if (view === "quant-dashboard") { loadQuantDashboard(); }
   if (view === "quant-auto") loadAutoTradeStatus();
-  if (view === "settings") loadSettings();
   if (view === "notification-settings") loadNotificationSettings();
   if (view === "us-dashboard") loadUsDashboard();
   if (view === "us-chart") loadUsChart();
@@ -129,7 +128,6 @@ function onViewActivated(view) {
   // 투자 인디케이터 신규 뷰
   if (view === "indicator-custom") loadSavedIndicators();
   if (view === "indicator-backtest") loadIndicatorBacktest();
-  if (view === "indicator-api") loadIndicatorApiSettings();
   // ML·딥러닝
   if (view === "macro-dashboard") loadMacroDashboard();
   if (view === "macro-industry") loadMacroIndustry();
