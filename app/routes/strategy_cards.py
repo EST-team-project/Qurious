@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.lib.session import get_current_user
-from app.services import pine_strategy
+from app.services import pine_strategy, strategy_card_store
 
 router = APIRouter(prefix="/api/strategy-cards", tags=["strategy-cards"])
 
@@ -27,15 +27,25 @@ CARD_GLOB = "strategy-card-*.json"
 _ID = re.compile(r"^strategy-card-[A-Za-z0-9._-]+$")
 
 
-def _files() -> dict[str, Path]:
-    """id(파일 이름의 stem) → 경로. 폴더가 없으면 빈 목록."""
-    if not CARD_DIR.is_dir():
-        return {}
-    return {p.stem: p for p in sorted(CARD_DIR.glob(CARD_GLOB)) if _ID.match(p.stem)}
+def _files(user_id: str | None = None) -> dict[str, Path]:
+    """id(파일 이름의 stem) → 경로. 폴더가 없으면 빈 목록. `user_id` 를 주면 그 사용자가 기본 인디케이터 전략 화면(U6)에서
+    저장한 카드도 붙인다(#392 · `strategy_card_store` — 사용자마다 따로 · 예시 id 가 먼저)."""
+    out = {p.stem: p for p in sorted(CARD_DIR.glob(CARD_GLOB)) if _ID.match(p.stem)} if CARD_DIR.is_dir() else {}
+    if user_id:
+        try:
+            for card_id, path in strategy_card_store.files(user_id).items():
+                out.setdefault(card_id, path)
+        except strategy_card_store.CardError:
+            pass
+    return out
 
 
-def _load(card_id: str) -> tuple[dict, Path]:
-    path = _files().get(card_id)
+def _uid(user) -> str | None:
+    return str(user.get("id")) if isinstance(user, dict) and user.get("id") else None
+
+
+def _load(card_id: str, user_id: str | None = None) -> tuple[dict, Path]:
+    path = _files(user_id).get(card_id)
     if path is None:                                     # 목록에 없는 id 는 경로로 쓰지 않는다
         raise HTTPException(404, f"전략 카드 「{card_id}」 를 찾을 수 없습니다.")
     try:
@@ -62,9 +72,9 @@ def _summary(card_id: str, spec: dict) -> dict:
 @router.get("", summary="전략 카드 목록 — 각 카드를 Pine 으로 만들 수 있는지와 까닭")
 async def list_cards(_user=Depends(get_current_user)):
     cards = []
-    for card_id in _files():
+    for card_id in _files(_uid(_user)):
         try:
-            spec, _ = _load(card_id)
+            spec, _ = _load(card_id, _uid(_user))
         except HTTPException as exc:
             cards.append({"id": card_id, "generatable": False, "reason": str(exc.detail), "universe": []})
             continue
@@ -85,7 +95,7 @@ async def card_pine(
     capital: int = Query(10_000_000, ge=100_000, le=10_000_000_000, description="초기 자본(원)"),
     _user=Depends(get_current_user),
 ):
-    spec, path = _load(card_id)
+    spec, path = _load(card_id, _uid(_user))
     try:
         res = pine_strategy.generate(spec, symbol=symbol, ref_price=ref_price, mintick=mintick, fee_pct=str(fee_pct),
                                      sell_tax_pct=str(sell_tax_pct), slippage_bp=slippage_bp, initial_capital=capital)

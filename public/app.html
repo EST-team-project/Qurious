@@ -2136,9 +2136,57 @@
                 </div>
               </div>
 
+              <!-- 전략 카드 편집(#392) — 카드를 고치는 곳은 여기 한 곳 -->
+              <details id="ind-card-box" class="card">
+                <summary class="font-semibold text-sm cursor-pointer">🗂️ 전략 카드 — 매수 · 매도 조건 · 손절 · 익절 · 수량</summary>
+                <p class="text-xs mt-2 mb-3" style="color:var(--text-mute);">저장한 카드는 나만 보이고, 「TradingView 연동」 화면의 「카드 → Pine 내려받기」 목록에도 함께 나옵니다.
+                  손절 · 익절은 <strong>종가 기준</strong>입니다 — 장중에 선을 지나도 그날 종가가 넘지 않으면 팔지 않습니다(「손절 판정」 에서 바꿀 수 있음).</p>
+                <div class="flex flex-wrap items-center gap-2 mb-3 text-sm">
+                  <label class="text-xs" style="color:var(--text-dim);" for="ic-mine">내 카드</label>
+                  <select id="ic-mine" class="input" style="width:auto;min-width:200px;"></select>
+                  <button id="ic-load" class="btn-secondary text-xs">불러오기</button>
+                  <button id="ic-delete" class="btn-secondary text-xs">지우기</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-slug">카드 이름(영문 · 숫자 · -)</label><input id="ic-slug" class="input mt-1" placeholder="ma-cross-20-60" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-name">설명</label><input id="ic-name" class="input mt-1" placeholder="이동평균 교차 20 · 60" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-short">매수 조건 — 단기 이동평균(일)</label><input id="ic-short" type="number" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-long">장기 이동평균(일)</label><input id="ic-long" type="number" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-atr-period">손절 — 평균 진폭 ATR 기간(일)</label><input id="ic-atr-period" type="number" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-atr-mult">손절 거리 = 평균 진폭 × </label><input id="ic-atr-mult" type="number" step="0.1" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-take-rr">익절 = 손절 거리 × (1.5 ~ 3)</label><input id="ic-take-rr" type="number" step="0.1" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-risk">1회 위험(계좌의 %)</label><input id="ic-risk" type="number" step="0.1" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-maxpos">한 종목 비중 상한(%)</label><input id="ic-maxpos" type="number" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-maxsym">최대 종목 수</label><input id="ic-maxsym" type="number" class="input mt-1" /></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-mode">체결 시점</label>
+                    <select id="ic-mode" class="input mt-1"><option value="open">다음 봉 시가</option><option value="close">그날 종가</option></select></div>
+                  <div><label class="text-xs" style="color:var(--text-dim);" for="ic-judge">손절 판정</label>
+                    <select id="ic-judge" class="input mt-1"><option value="close">종가 기준</option><option value="next_open">다음 봉 시가 기준</option><option value="intrabar">장중 고가 · 저가 기준</option></select></div>
+                </div>
+                <div class="flex items-center gap-2 mt-3">
+                  <button id="ic-save" class="btn-primary">카드 저장</button>
+                  <span id="ic-msg" class="text-xs" style="color:var(--text-dim);"></span>
+                </div>
+              </details>
+
               <!-- 전략 결과 카드 -->
               <div id="ind-strategy-result" class="hidden space-y-4">
                 <div class="grid md:grid-cols-4 gap-3" id="ind-summary-cards"></div>
+                <!-- 지표 차트(#392) — 표 위에 겹치지 않게 제자리 카드 · 접을 수 있음 -->
+                <details id="ind-chart-box" class="card" open>
+                  <summary class="font-semibold text-sm cursor-pointer">가격 차트 — 고른 지표 · 전략 카드 조건의 매수 · 매도 표시</summary>
+                  <div class="flex flex-wrap items-center gap-2 mt-3 mb-2 text-sm">
+                    <label class="text-xs" style="color:var(--text-dim);" for="ind-sub">아래 칸</label>
+                    <select id="ind-sub" class="input" style="width:auto;">
+                      <option value="rsi">RSI(14)</option>
+                      <option value="macd">MACD(12 · 26 · 9)</option>
+                      <option value="dmi">추세 강도 ADX · +DI · −DI(14)</option>
+                      <option value="rs">상대 강도(기준 지수 대비 20 · 60 · 120일)</option>
+                    </select>
+                  </div>
+                  <div style="overflow-x:auto;"><div id="ind-chart" style="height:420px;min-width:320px;"></div></div>
+                  <p id="ind-chart-note" class="text-xs mt-2" style="color:var(--text-dim);"></p>
+                </details>
                 <div class="card">
                   <h3 class="font-semibold mb-3 text-sm">인디케이터 분석 결과</h3>
                   <div id="ind-analysis-table" class="overflow-x-auto"></div>

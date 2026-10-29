@@ -2,6 +2,7 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { compareTrayAdd, renderCompareTrayAll, tt } from "/js/core.js";
+import { buildRows, summarize, cardBody, cardValues, cardLine } from "/js/indstrategy.js";
 
 // ── 성과 검증 · 커스텀 인디케이터 결과가 같이 쓰는 것 (#245 · #250) ─────
 // 거래 0회 — 수익률 · 샤프 · 낙폭 · 승률은 0 이 아니라 매길 수 없는 값이다. 글은 대시보드(dashboard.js noTradeMetric)와 같게(TC-RX 가 맞댄다).
@@ -15,63 +16,161 @@ function noTradeHtml(buyHoldPct) {
 const dataNoteHtml = d => (d && d.data_note ? `<p class="text-xs mt-2" style="color:var(--text-dim);">자료: ${escHtml(d.data_note)}</p>` : "");
 
 // ── 투자 인디케이터: 기본 인디케이터 전략 ──────────────────────────
-document.getElementById("ind-load-btn").addEventListener("click", async () => {
+// 표 · 규칙 신호는 체크한 지표만(B2) · 볼린저는 실제 밴드(B1) · 낱말은 「규칙 신호 · 매수 쪽 / 매도 쪽 · 근거 n개」(B3 · 결정 대장 10-27).
+// 값은 /api/indicator-strategy/chart(정의 한 벌 ta_utils) 그대로 — 판정 함수는 indstrategy.js(TC-ISC).
+const IND_LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
+let indLwcPromise = null, indChart = null, indChartData = null;
+const indChecks = () => Object.fromEntries(["ma5", "ma20", "ma60", "rsi", "macd", "bb"].map(k => [k, document.getElementById(`ind-${k}`).checked]));
+const indCardWindows = () => {
+  const s = Number(document.getElementById("ic-short").value), l = Number(document.getElementById("ic-long").value);
+  return Number.isInteger(s) && Number.isInteger(l) && s >= 2 && l > s ? [s, l] : [5, 20];
+};
+
+function loadIndLwc() {
+  if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+  if (indLwcPromise) return indLwcPromise;
+  indLwcPromise = new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = IND_LWC_SRC;
+    el.async = true;
+    const timer = setTimeout(() => reject(new Error("차트 도구를 불러오지 못했습니다(시간 초과).")), 15000);
+    el.onload = () => { clearTimeout(timer); window.LightweightCharts ? resolve(window.LightweightCharts) : reject(new Error("차트 도구가 비어 있습니다.")); };
+    el.onerror = () => { clearTimeout(timer); reject(new Error("차트 도구를 불러오지 못했습니다.")); };
+    document.head.appendChild(el);
+  }).catch(e => { indLwcPromise = null; throw e; });
+  return indLwcPromise;
+}
+
+async function drawIndChart() {
+  const d = indChartData;
+  if (!d) return;
+  const LWC = await loadIndLwc();
+  if (indChart) { indChart.remove(); indChart = null; }
+  const css = getComputedStyle(document.documentElement);
+  const bg = css.getPropertyValue("--surf").trim() || "#ffffff", text = css.getPropertyValue("--text-dim").trim() || "#334155";
+  const border = css.getPropertyValue("--border").trim() || "#e0e3eb";
+  indChart = LWC.createChart(document.getElementById("ind-chart"), {
+    autoSize: true,
+    layout: { background: { type: LWC.ColorType.Solid, color: bg }, textColor: text, fontFamily: "Pretendard, sans-serif", attributionLogo: true },
+    grid: { vertLines: { color: border }, horzLines: { color: border } },
+    rightPriceScale: { borderColor: border }, timeScale: { borderColor: border, timeVisible: false },
+    localization: { locale: "ko-KR", priceFormatter: v => new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(v) },
+  });
+  const times = d.bars.map(b => b.time);
+  const line = (key, color, pane = 0, width = 1) => {
+    const s = indChart.addSeries(LWC.LineSeries, { color, lineWidth: width, priceLineVisible: false, lastValueVisible: false }, pane);
+    s.setData(times.map((t, i) => (d.series[key]?.[i] ?? null) === null ? { time: t } : { time: t, value: d.series[key][i] }));
+    return s;
+  };
+  const candle = indChart.addSeries(LWC.CandlestickSeries, { upColor: "#089981", downColor: "#ef4444", borderVisible: false,
+    wickUpColor: "#089981", wickDownColor: "#ef4444" });
+  candle.setData(d.bars);
+  const c = indChecks();
+  if (c.ma5) line("ma5", "#f59e0b"); if (c.ma20) line("ma20", "#3b82f6"); if (c.ma60) line("ma60", "#8b5cf6");
+  if (c.bb) { line("bb_upper", "#94a3b8"); line("bb_lower", "#94a3b8"); }
+  LWC.createSeriesMarkers(candle, d.markers.map(m => m.side === "buy"
+    ? { time: m.time, position: "belowBar", color: "#089981", shape: "arrowUp", text: "매수" }
+    : { time: m.time, position: "aboveBar", color: "#ef4444", shape: "arrowDown", text: "매도" }));
+  const sub = document.getElementById("ind-sub").value;
+  if (sub === "rsi") line("rsi", "#0ea5e9", 1);
+  if (sub === "macd") { line("macd", "#0ea5e9", 1); line("macd_signal", "#f97316", 1); }
+  if (sub === "dmi") { line("adx", "#0f172a", 1, 2); line("plus_di", "#089981", 1); line("minus_di", "#ef4444", 1); }
+  if (sub === "rs") { if (d.series.rs20) { line("rs20", "#0ea5e9", 1); line("rs60", "#8b5cf6", 1); line("rs120", "#f97316", 1); } }
+  indChart.timeScale().fitContent();
+  const cc = d.card_condition, last = d.bars[d.bars.length - 1];
+  const rsText = sub === "rs" ? (d.benchmark ? ` 아래 칸은 ${escHtml(d.benchmark.name)} 대비 20 · 60 · 120일 상대 강도(%)입니다.` : ` ${escHtml(d.rs_note || "")}`) : "";
+  document.getElementById("ind-chart-note").innerHTML =
+    `일봉 · 종가 기준(마지막 봉 ${new Date(last.time * 1000).toISOString().slice(0, 10)}). ▲매수 ▼매도 표시는 전략 카드 조건(${cc.short_window}일선이 ${cc.long_window}일선 위)이 바뀐 날입니다 — 체결은 카드의 체결 시점을 따릅니다.${rsText}` +
+    (d.data_note ? ` 자료: ${escHtml(d.data_note)}` : "");
+}
+
+async function runIndStrategy() {
   const symbol = document.getElementById("ind-symbol").value;
   const period = document.getElementById("ind-period").value;
-  const useMA5  = document.getElementById("ind-ma5").checked;
-  const useMA20 = document.getElementById("ind-ma20").checked;
-  const useRsi  = document.getElementById("ind-rsi").checked;
-
+  const [short, long] = indCardWindows();
   try {
-    const ind = await api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(period)}`);
-    if (ind.error) throw new Error(ind.error);
-    const last = (values) => values?.[values.length - 1];
-    const rsi = ind.current_rsi ?? 50;
-    const price = ind.current_price ?? 0;
-    const chgPct = ind.closes?.length > 1 ? ((price / ind.closes[ind.closes.length - 2]) - 1) * 100 : 0;
-    const ma5  = last(ind.ma5);
-    const ma20 = last(ind.ma20);
-    const ma60 = last(ind.ma60);
-    const golden = ma5 > ma20;
-    const sig = { signal: ind.signal?.action?.includes("매수") ? "BUY" : ind.signal?.action?.includes("매도") ? "SELL" : "HOLD" };
+    const d = await api(`/api/indicator-strategy/chart?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(period)}&short=${short}&long=${long}`);
+    indChartData = d;
+    const rows = buildRows(d, indChecks());
+    const sum = summarize(rows);
+    const bars = d.bars, price = bars[bars.length - 1].close;
+    const chgPct = bars.length > 1 ? ((price / bars[bars.length - 2].close) - 1) * 100 : 0;
+    const rsi = buildRows(d, { rsi: true }).find(r => r[0].startsWith("RSI"));
+    const ma = buildRows(d, { ma5: true, ma20: true })[0];
 
     // 「현재가」 는 지금 값 — 서버 quote_now(내 증권사 키 → 지연 시세 → 지난 종가)와 그 출처 · 시각 글(2026-10-19 · 화면에 지난 종가가
     // 「현재가」 로 보였다: 210,000 ↔ 실제 217,000). 지표 · 신호는 아래 「지표 기준」 의 일봉 그대로다. 받지 못하면 일봉 값에 기준 글을 단다.
     const now = await api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`).catch(() => null);
     const nowPrice = now?.price ?? price;
     const nowPct = now?.price != null ? (now.change_pct ?? 0) : chgPct;
-    const nowNote = now?.price != null ? now.label : (ind.data_note || "");
+    const nowNote = now?.price != null ? now.label : (d.data_note || "");
+    const tone = side => side === "매수 쪽" ? "var(--green)" : side === "매도 쪽" ? "var(--red)" : "var(--text-mute)";
     document.getElementById("ind-summary-cards").innerHTML = [
       { label:"현재가",   value:`${fmt(nowPrice)}원`, sub:`${nowPct>=0?"+":""}${Number(nowPct).toFixed(2)}% · ${escHtml(nowNote)}`, color: nowPct>=0?"var(--green)":"var(--red)" },
-      { label:"RSI(14)",  value:rsi.toFixed(1),    sub: rsi>70?"과매수":rsi<30?"과매도":"중립", color: rsi>70?"var(--red)":rsi<30?"var(--green)":"var(--text-dim)" },
-      { label:"MA 교차",  value: golden?"골든크로스":"데드크로스", sub:`MA5 ${golden?">":" <"} MA20`, color: golden?"var(--green)":"var(--red)" },
-      { label:"종합 신호", value: sig.signal || "HOLD", sub:"AI 판단", color: sig.signal==="BUY"?"var(--green)":sig.signal==="SELL"?"var(--red)":"var(--text-mute)" },
+      { label:"RSI(14)",  value: rsi ? rsi[1] : "—", sub: rsi ? rsi[2] : "값 없음", color: tone(rsi?.[3]) },
+      { label:"5일선 · 20일선", value: ma ? ma[2].replace("5일선이 20일선 ", "") : "—", sub: ma ? ma[1] : "값 없음", color: tone(ma?.[3]) },
+      { label:"규칙 신호", value: sum.n ? sum.side : "—", sub: sum.n ? `근거 ${sum.n}개 · 매수 쪽 ${sum.buy} · 중립 ${sum.neutral} · 매도 쪽 ${sum.sell}` : "고른 지표 없음", color: tone(sum.side) },
     ].map(c => `<div class="card" style="padding:14px;"><div class="text-xs" style="color:var(--text-mute);">${c.label}</div><div style="font-size:20px;font-weight:700;margin:4px 0;color:${c.color};">${c.value}</div><div style="font-size:12px;color:${c.color};">${c.sub}</div></div>`).join("")
-      + (ind.data_note ? `<div class="ind-basis text-xs" style="grid-column:1/-1;color:var(--text-mute);">지표 기준: ${escHtml(ind.data_note)}</div>` : "");
+      + (d.data_note ? `<div class="ind-basis text-xs" style="grid-column:1/-1;color:var(--text-mute);">지표 기준: ${escHtml(d.data_note)}</div>` : "");
 
-    const rows = [];
-    if (useMA5 && useMA20) rows.push(["MA5 vs MA20", `${fmt(Math.round(ma5))} vs ${fmt(Math.round(ma20))}`, golden?"골든크로스 ✅":"데드크로스 ❌", golden?"매수":"매도"]);
-    if (useRsi)  rows.push(["RSI(14)", rsi.toFixed(1), rsi<30?"과매도(매수기회)":rsi>70?"과매수(매도주의)":"중립", rsi<30?"매수":rsi>70?"매도":"홀드"]);
-    rows.push(["볼린저밴드", "±2σ", chgPct>2?"상단 돌파":chgPct<-2?"하단 이탈":"밴드 내", chgPct>2?"매도":chgPct<-2?"매수":"홀드"]);
+    document.getElementById("ind-analysis-table").innerHTML = rows.length ? `<table>
+      <thead><tr><th>인디케이터</th><th>지금 값</th><th>상태</th><th>쪽</th></tr></thead>
+      <tbody>${rows.map(([n, val, st, side]) => `<tr><td style="font-weight:600;">${n}</td><td>${val}</td><td>${st}</td><td><span class="${side==="매수 쪽"?"badge-buy":side==="매도 쪽"?"badge-sell":"badge-hold"}">${side}</span></td></tr>`).join("")}</tbody>
+    </table>` : `<p class="text-sm" style="color:var(--text-dim);">위에서 지표를 하나 이상 고르세요.</p>`;
 
-    document.getElementById("ind-analysis-table").innerHTML = `<table>
-      <thead><tr><th>인디케이터</th><th>현재값</th><th>상태</th><th>신호</th></tr></thead>
-      <tbody>${rows.map(([ind,val,st,sig]) => `<tr><td style="font-weight:600;">${ind}</td><td>${val}</td><td>${st}</td><td><span class="${sig==="매수"?"badge-buy":sig==="매도"?"badge-sell":"badge-hold"}">${sig}</span></td></tr>`).join("")}</tbody>
-    </table>`;
-
-    const buyCount = rows.filter(r=>r[3]==="매수").length;
-    const sellCount = rows.filter(r=>r[3]==="매도").length;
     document.getElementById("ind-signal-summary").innerHTML = `
-      <div class="flex gap-3">
-        <span class="badge-buy">매수 신호: ${buyCount}개</span>
-        <span class="badge-sell">매도 신호: ${sellCount}개</span>
-        <span class="badge-hold">중립: ${rows.length-buyCount-sellCount}개</span>
+      <div class="flex gap-3 flex-wrap">
+        <span class="badge-buy">매수 쪽: ${sum.buy}개</span>
+        <span class="badge-sell">매도 쪽: ${sum.sell}개</span>
+        <span class="badge-hold">중립: ${sum.neutral}개</span>
       </div>
-      <p class="text-xs mt-2" style="color:var(--text-dim);">종합: ${buyCount > sellCount ? "📈 매수 조건 다수 충족" : sellCount > buyCount ? "📉 매도 조건 다수 충족" : "⏸ 중립 — 관망"}</p>`;
+      <p class="text-xs mt-2" style="color:var(--text-dim);">${escHtml(sum.text)} · 고른 지표만 셉니다. 매수 · 매도를 권하는 말이 아니라 규칙을 따른 결과입니다.</p>`;
 
     document.getElementById("ind-strategy-result").classList.remove("hidden");
+    await drawIndChart().catch(e => { document.getElementById("ind-chart-note").textContent = e.message; });
   } catch(e) { setToast(e.message, "error"); }
+}
+document.getElementById("ind-load-btn").addEventListener("click", runIndStrategy);
+document.getElementById("ind-sub").addEventListener("change", () => drawIndChart().catch(e => setToast(e.message, "error")));
+
+// ── 전략 카드 편집(U6 · #392) — 저장은 사용자마다 · 「카드 → Pine 내려받기」 목록에도 나온다 ─────────
+const IC_INPUTS = { slug:"ic-slug", name:"ic-name", short_window:"ic-short", long_window:"ic-long", atr_period:"ic-atr-period",
+  atr_mult:"ic-atr-mult", take_rr:"ic-take-rr", risk_pct:"ic-risk", max_position_pct:"ic-maxpos", max_symbols:"ic-maxsym",
+  entry_mode:"ic-mode", judge:"ic-judge" };
+let icCards = [];
+function icFill(values) {
+  for (const [k, id] of Object.entries(IC_INPUTS)) document.getElementById(id).value = values[k] ?? "";
+}
+async function icRefresh(select) {
+  const r = await api("/api/indicator-strategy/cards");
+  icCards = (r.cards || []).filter(c => c.card);
+  const sel = document.getElementById("ic-mine");
+  sel.innerHTML = icCards.length ? icCards.map(c => `<option value="${escHtml(c.id)}">${escHtml(cardLine(c.card))}</option>`).join("")
+    : `<option value="">저장한 카드가 없습니다</option>`;
+  if (select) sel.value = select;
+  if (!document.getElementById("ic-short").value) icFill({ ...cardValues(r.template), slug: "", name: "" });
+}
+document.getElementById("ic-load").addEventListener("click", () => {
+  const c = icCards.find(x => x.id === document.getElementById("ic-mine").value);
+  if (c) { icFill(cardValues(c.card)); document.getElementById("ic-msg").textContent = "카드를 불러왔습니다. 「전략 분석」 을 누르면 차트 표시가 이 조건을 따릅니다."; }
 });
+document.getElementById("ic-delete").addEventListener("click", async () => {
+  const id = document.getElementById("ic-mine").value;
+  if (!id) return;
+  try { await api(`/api/indicator-strategy/cards/${encodeURIComponent(id)}`, { method: "DELETE" }); await icRefresh(); setToast("카드를 지웠습니다.", "ok"); }
+  catch (e) { setToast(e.message, "error"); }
+});
+document.getElementById("ic-save").addEventListener("click", async () => {
+  const values = Object.fromEntries(Object.entries(IC_INPUTS).map(([k, id]) => [k, document.getElementById(id).value]));
+  values.exit_mode = values.entry_mode;
+  values.symbol = document.getElementById("ind-symbol").value;
+  try {
+    const r = await api("/api/indicator-strategy/cards", { method: "POST", body: cardBody(values) });
+    await icRefresh(r.id);
+    document.getElementById("ic-msg").textContent = `저장했습니다 — ${cardLine(r.card)}`;
+  } catch (e) { document.getElementById("ic-msg").textContent = e.message; setToast(e.message, "error"); }
+});
+document.getElementById("ind-card-box").addEventListener("toggle", e => { if (e.target.open) icRefresh().catch(err => setToast(err.message, "error")); });
 
 // ── 투자 인디케이터: 커스텀 인디케이터 개발 ──────────────────────────
 function generatePineCode() {
