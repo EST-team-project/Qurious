@@ -54,8 +54,11 @@ from app.models.paper_journal import PaperJournalVersion, PaperJournalDay, Paper
 from app.models.strategy_decision import StrategyDecision
 from app.models.execution_control import OrderIntent, ExecutionRun, RiskDay, BrokerPositionBaseline
 from app.models.strategy_runtime import StrategyRuntime, StrategyRuntimeEvent
+# 동의 · 철회 기록 (2026-10-29 · 할 일 ①-09) — 행을 쌓기만 한다. 탈퇴 탐색(account.user_owned_columns)이 이 모듈 등록으로 찾는다.
+from app.models.consent import UserConsent, CONSENT_GRANT, CONSENT_WITHDRAW
 
 __all__ = [
+    "UserConsent",
     "StrategyRuntime",
     "StrategyRuntimeEvent",
     "StrategyDecision",

@@ -972,6 +972,27 @@
                 </p>
               </div>
 
+              <!-- 알림 연동 정보 수집·이용(선택) 동의 — 문구는 js/terms.js 한 곳, 그리는 곳은 js/settings.js (2026-10-29 · ①-09) -->
+              <div id="noti-consent" class="rounded-lg p-3 space-y-2 text-sm" style="border:1px solid var(--border);">
+                <div id="noti-consent-granted" class="hidden flex flex-wrap items-center justify-between gap-2">
+                  <span id="noti-consent-granted-text" class="text-slate-300"></span>
+                  <button id="noti-consent-withdraw" class="btn-secondary text-xs">동의 철회 · 저장된 연동 정보 삭제</button>
+                </div>
+                <div id="noti-consent-ask" class="space-y-2">
+                  <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" id="noti-consent-check" class="w-4 h-4 rounded mt-0.5" />
+                    <span id="noti-consent-label" class="text-slate-200"></span>
+                  </label>
+                  <p class="text-xs text-slate-400">
+                    선택 동의입니다. 동의하지 않으면 아래 토큰 · 웹훅 · 비밀번호 · 휴대전화번호를 저장할 수 없고, 다른 기능은 그대로 쓸 수 있습니다.
+                  </p>
+                </div>
+                <details>
+                  <summary class="text-xs text-slate-400 cursor-pointer">동의 내용 자세히 보기</summary>
+                  <div id="noti-consent-body" class="mt-2 space-y-2 text-xs text-slate-300"></div>
+                </details>
+              </div>
+
               <!-- 채널 선택 -->
               <div>
                 <label class="text-sm text-slate-300 font-medium block mb-2">활성화할 채널 선택</label>
