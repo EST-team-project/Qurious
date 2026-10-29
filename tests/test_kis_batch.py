@@ -206,7 +206,7 @@ def test_readiness_includes_system_batch():
 
 def test_run_cycle_calls_ensure_then_runs_system_user(monkeypatch):
     """celery-beat 진입점: 배치 점검 → enabled 행 조회 → 사이클. 시스템 행이 켜지면 사이클에 포함된다."""
-    from app.services import auto_trade
+    from app.services import auto_trade, execution_runs
 
     class Scalars:
         def __init__(self, v): self.v = v
@@ -221,9 +221,18 @@ def test_run_cycle_calls_ensure_then_runs_system_user(monkeypatch):
     monkeypatch.setattr(auto_trade, "get_session_factory", lambda: (lambda: Db()))
     ensure = AsyncMock(return_value={"enabled": True, "running": True})
     cycle = AsyncMock()
-    with patch.object(kb, "ensure_system_batch", ensure), patch.object(auto_trade, "_run_quant_cycle", cycle):
+    async def run_record(uid, interval, operation):
+        ensure.assert_awaited_once()
+        assert uid == SYSTEM_USER_ID and interval == auto_trade._INTERVAL_SEC
+        await operation()
+        return {"status": "COMPLETED"}
+    recorded = AsyncMock(side_effect=run_record)
+    # 이 시험은 배치 진입점의 연결을 검사한다. 영속 선점·재시작은 실제 PG 시험에서 다룬다.
+    with patch.object(kb, "ensure_system_batch", ensure), patch.object(auto_trade, "_run_quant_cycle", cycle), \
+            patch.object(execution_runs, "run", recorded):
         out = asyncio.run(auto_trade.run_cycle_for_enabled_users())
     ensure.assert_awaited_once()
+    recorded.assert_awaited_once()
     cycle.assert_awaited_once_with(str(SYSTEM_USER_ID))
     assert out["enabled_users"] == 1 and out["ran"] == 1 and out["kis_batch"]["running"] is True
 

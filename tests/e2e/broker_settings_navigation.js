@@ -44,6 +44,6 @@ try {
   const terms=await import('/js/terms.js');
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const rendered=terms.renderTerm({id:'x',title:'<script>',clauses:[]},esc);
-  check('terms renderer escapes text and uses updated encryption version', !rendered.includes('<script>') && rendered.includes('&lt;script&gt;') && terms.TERMS_VERSION==='2026-10-29-v0.3');
+  check('terms renderer escapes text and uses merged consent version', !rendered.includes('<script>') && rendered.includes('&lt;script&gt;') && terms.TERMS_VERSION==='2026-10-29-v0.4');
   result.textContent=JSON.stringify({ok:true,width:window.innerWidth,checks});
 } catch(e) { result.textContent=JSON.stringify({ok:false,checks,error:String(e),stack:e.stack}); }

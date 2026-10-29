@@ -219,7 +219,7 @@ def fake_gateway():
     return calls
 
 
-def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, orders_today=0, slot_allowed=True):
+def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, orders_today=0, slot_allowed=True, quote_price=None, quote_error=False):
     db = FakeDb(broker_row, portfolio)
     persisted, slots = {}, []
     async def persist(uid, log): persisted.update(log)
@@ -229,10 +229,19 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
         slots.append((symbol, side, cooldown)); return slot_allowed
     async def permitted(*args, **kwargs):
         return await auto_trade._execute_trade_unchecked(*args)
+    async def current_quote(db_, uid, row, mode, symbol):
+        if quote_error:
+            raise ValueError("synthetic quote unavailable")
+        price = quote_price if quote_price is not None else (await intraday(symbol))["current_price"]
+        return {"price": price, "source": "kis_user", "as_of": "2026-10-29T01:00:00+00:00",
+                "fetched_at": "2026-10-29T01:00:00+00:00", "label": "시험 현재가", "fallback": []}
     with ExitStack() as stack:
         enter = stack.enter_context
         # 계획/수량 알고리즘 시험. 실제 소유권·공통 관문은 test_execution_control에서 검증한다.
         enter(patch.object(auto_trade, "_execute_trade", permitted))
+        # 새 시세 입력까지 공급해야 계획/수량 단계를 검증한다.
+        # 실제 조회·잠금 안 재검사는 test_order_pricing/test_execution_control에서 검증한다.
+        enter(patch.object(auto_trade.order_preflight, "current_quote", current_quote))
         enter(patch.object(auto_trade.live_ownership, "account_ref", return_value="verified-test-account"))
         enter(patch.object(auto_trade.live_ownership, "reconcile", AsyncMock(return_value=(list(portfolio), {}))))
         enter(patch.object(auto_trade, "get_session_factory", return_value=Factory(db)))
@@ -262,6 +271,24 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
 async def all_hold(symbol):
     mom = {"005930.KS": 0.1, "000660.KS": 0.4, "035420.KS": -0.2}[symbol]
     return {"signal": {"action": "관망", "score": 0, "reasons": ["중립"], "momentum_pct": mom}, "current_price": 100_000.0, "intraday": True}
+
+
+def test_cycle_sizes_at_fresh_quote_instead_of_intraday_signal_price():
+    calls = fake_gateway()
+    _, log, _ = run_cycle(broker(), all_hold, quote_price=150_000.0)
+    buys = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "buy"]
+    assert len(buys) == 1 and buys[0]["quantity"] == 2
+    assert buys[0]["price"] == 150_000.0
+    assert any(method == "POST" and path.endswith("/kis/orders") for method, path, _ in calls)
+
+
+def test_cycle_quote_failure_never_uses_signal_price_to_submit():
+    calls = fake_gateway()
+    _, log, slots = run_cycle(broker(), all_hold, quote_error=True)
+    assert not [t for t in log["trades"] if t.get("type") == "auto"]
+    assert any("가격" in item["reason"] for item in log["risk"]["skipped"])
+    assert slots == []
+    assert not any(method == "POST" for method, _, _ in calls)
 
 
 def test_cycle_force_buys_top_momentum_with_market_order_when_all_hold():
