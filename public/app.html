@@ -1400,10 +1400,30 @@
                 <div id="tv-signals" class="overflow-x-auto text-sm"></div>
               </div>
 
+              <div class="card mb-4" data-pine-download>
+                <h3 class="font-semibold text-sm mb-1">📥 전략 카드 → Pine v6 strategy() 내려받기</h3>
+                <p class="text-xs mb-3" style="color:var(--text-mute);">전략 카드 파일에서 TradingView 에 붙일 <strong>strategy()</strong> 코드를 만듭니다(코드는 저장하지 않습니다).
+                  이 코드로 Strategy Report 를 만들어 아래 대사에 쓰세요 — 「지표」 화면의 Pine 코드는 차트 표시용(indicator)이라 대사에 쓸 수 없습니다.</p>
+                <div class="grid md:grid-cols-5 gap-2 mb-2 text-sm">
+                  <div class="md:col-span-2"><label class="text-xs" style="color:var(--text-mute);">전략 카드</label><select id="pc-card" class="input"></select></div>
+                  <div><label class="text-xs" style="color:var(--text-mute);">종목(여럿일 때)</label><input id="pc-symbol" class="input" placeholder="005930" /></div>
+                  <div><label class="text-xs" style="color:var(--text-mute);">기준가(원) — 슬리피지 환산</label><input id="pc-ref" type="number" class="input" placeholder="70000" /></div>
+                  <div><label class="text-xs" style="color:var(--text-mute);">호가 단위(원) — mintick</label><input id="pc-tick" type="number" class="input" placeholder="100" /></div>
+                </div>
+                <div class="flex items-center gap-2 mb-2">
+                  <button id="pc-run" class="btn-primary">▶ 코드 만들기</button>
+                  <button id="pc-copy" class="btn-secondary text-xs hidden">복사</button>
+                  <button id="pc-download" class="btn-secondary text-xs hidden">.pine 파일로 받기</button>
+                </div>
+                <div id="pc-result" class="text-sm"></div>
+              </div>
+
               <div class="card">
                 <h3 class="font-semibold text-sm mb-1">⚖️ Strategy Tester ↔ LEAN 교차 검증</h3>
                 <p class="text-xs mb-3" style="color:var(--text-mute);">TradingView Strategy Tester의 성과 요약을 직접 입력하거나 '거래
                   목록' CSV를 붙여 넣으면, 같은 종목·기간·전략으로 LEAN 백테스트를 실행해 신호·체결·성과 차이를 검증합니다.</p>
+                <p class="text-xs mb-3" data-tv-says style="color:var(--text-mute);">이 화면이 말하는 것: 입력한 TradingView 값과 LEAN 값의 비교입니다.
+                  말하지 않는 것: 수익률 숫자가 비슷하다는 이유만으로 「검증 통과」 라고 보지 않으며, 그림자 일지와 LEAN 의 비교와는 별개입니다.</p>
                 <div class="grid md:grid-cols-4 gap-2 mb-2 text-sm">
                   <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="tvc-ticker"
                       class="input" value="005930.KS" /></div>
@@ -1425,8 +1445,8 @@
                   <div><label class="text-xs" style="color:var(--text-mute);">장기 MA</label><input id="tvc-long"
                       type="number" class="input" value="60" /></div>
                 </div>
-                <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">TradingView 성과 (Strategy Tester ›
-                  Overview 값 입력)</h4>
+                <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">TradingView 성과 (Strategy Report ›
+                  Metrics 탭 값 입력 — 옛 이름 Overview · 확인일 2026-10-29)</h4>
                 <div class="grid md:grid-cols-5 gap-2 mb-2 text-sm">
                   <div><label class="text-xs" style="color:var(--text-mute);">Net Profit %</label><input id="tvc-net"
                       type="number" step="0.01" class="input" placeholder="12.5" /></div>
@@ -1439,8 +1459,8 @@
                   <div><label class="text-xs" style="color:var(--text-mute);">Sharpe</label><input id="tvc-sharpe"
                       type="number" step="0.01" class="input" placeholder="0.9" /></div>
                 </div>
-                <label class="text-xs" style="color:var(--text-mute);">또는 거래 목록 CSV 붙여넣기 (Strategy Tester › List of
-                  Trades › Export)</label>
+                <label class="text-xs" style="color:var(--text-mute);">또는 거래 목록 CSV 붙여넣기 (Strategy Report › Trades 탭 ›
+                  Download — 옛 이름 List of Trades › Export · 확인일 2026-10-29)</label>
                 <textarea id="tvc-csv" class="input mt-1" rows="3"
                   placeholder="Trade #,Type,Signal,Date/Time,Price,Contracts,Profit,Profit %,..."></textarea>
                 <div class="mt-2"><button id="tvc-run" class="btn-primary">LEAN과 비교 실행</button></div>
@@ -2172,6 +2192,8 @@
                   <h3 class="font-semibold text-sm">📝 PineScript 코드 (TradingView)</h3>
                   <button id="ci-copy-pine" class="btn-secondary text-xs">복사</button>
                 </div>
+                <p class="text-xs mb-2" data-pine-kind style="color:var(--text-mute);">이 코드는 차트에 신호를 표시하는 지표(indicator)용입니다.
+                  TradingView 전략 리포트(Strategy Report)에는 데이터가 나오지 않아 <strong>위의 대사에는 쓸 수 없습니다.</strong></p>
                 <pre id="ci-pine-code" class="text-xs rounded-lg p-4 overflow-x-auto"
                   style="background:var(--surf2);border:1px solid var(--border);color:var(--text-dim); min-height:160px;"></pre>
               </div>
@@ -2657,6 +2679,16 @@ criterion = nn.CrossEntropyLoss()
             <div class="card mb-4">
               <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-chart-candlestick"
                   style="color:var(--accent);"></i> 기술적 분석</h2>
+              <div class="flex items-center gap-2 mb-3">
+                <select id="tech-symbol" class="input-field" style="width:180px;">
+                  <option value="005930.KS">삼성전자</option>
+                  <option value="000660.KS">SK하이닉스</option>
+                  <option value="035420.KS">NAVER</option>
+                  <option value="005380.KS">현대자동차</option>
+                </select>
+                <button id="tech-run-btn" class="btn-primary">▶ 지표 값 보기</button>
+              </div>
+              <div id="tech-cards" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="p-4 rounded" style="background:var(--bg);">
                   <h3 class="font-semibold mb-2" style="color:var(--accent);">캔들 패턴</h3>

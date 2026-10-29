@@ -7,8 +7,6 @@
 6.  https://github.com/EST-team-project/Qurious/issues/43
 7.  https://github.com/EST-team-project/Qurious/issues/47
 8.  https://github.com/EST-team-project/Qurious/issues/49
-9.  https://github.com/EST-team-project/Qurious/issues/50
-10. https://github.com/EST-team-project/Qurious/issues/57
 11. https://github.com/EST-team-project/Qurious/issues/59
 12. https://github.com/EST-team-project/Qurious/issues/61
 13. https://github.com/EST-team-project/Qurious/issues/63
@@ -54,9 +52,8 @@
 59. https://github.com/EST-team-project/Qurious/issues/317
 60. https://github.com/EST-team-project/Qurious/issues/318
 61. https://github.com/EST-team-project/Qurious/issues/319
-62. https://github.com/EST-team-project/Qurious/issues/331
-63. https://github.com/EST-team-project/Qurious/issues/332
-64. https://github.com/EST-team-project/Qurious/issues/333
+62. https://github.com/EST-team-project/Qurious/issues/332
+63. https://github.com/EST-team-project/Qurious/issues/333
 65. https://github.com/EST-team-project/Qurious/issues/335
 66. https://github.com/EST-team-project/Qurious/issues/351
 67. https://github.com/EST-team-project/Qurious/issues/362
@@ -68,8 +65,11 @@
 73. https://github.com/EST-team-project/Qurious/issues/370
 74. https://github.com/EST-team-project/Qurious/issues/371
 75. https://github.com/EST-team-project/Qurious/issues/373
-76. https://github.com/EST-team-project/Qurious/issues/377
-77. https://github.com/EST-team-project/Qurious/pull/378
+76. https://github.com/EST-team-project/Qurious/pull/378
+77. https://github.com/EST-team-project/Qurious/issues/385
+78. https://github.com/EST-team-project/Qurious/issues/386
+79. https://github.com/EST-team-project/Qurious/issues/387
+80. https://github.com/EST-team-project/Qurious/issues/388
 
 # 열려 있는 논의 (종료한 논의는 닫고 있음)
 1. https://github.com/EST-team-project/Qurious/discussions/10

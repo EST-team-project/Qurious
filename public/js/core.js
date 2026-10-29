@@ -89,7 +89,6 @@ const GNB_MENUS = {
       { key: "paper-stock",       icon: "fa-solid fa-building-columns",label: "국내주식 모의주문" },
       { key: "paper-crypto",      icon: "fa-brands fa-bitcoin",        label: "코인 모의매매" },
       { key: "paper-alternative", icon: "fa-solid fa-cubes",           label: "대체자산 (선물·옵션·금·부동산)" },
-      { key: "paper-openapi",     icon: "fa-solid fa-key",             label: "Open API · 외부 연동" },
     ],
   },
   quant: {
@@ -99,8 +98,6 @@ const GNB_MENUS = {
       { key: "quant-auto",      icon: "fa-solid fa-robot",           label: "자동매매 현황" },
       { key: "quant-backtest",  icon: "fa-solid fa-flask",           label: "전략 분석" },
       { key: "quant-lean",      icon: "fa-brands fa-docker",         label: "LEAN 백테스트 (QuantConnect)" },
-      { key: "settings",        icon: "fa-solid fa-sliders",         label: "증권사 API 설정" },
-      { key: "notification-settings", icon: "fa-solid fa-bell",      label: "알림 설정" },
     ],
   },
   us: {
@@ -193,6 +190,11 @@ const GNB_MENUS = {
     label: "<i class='fa-solid fa-user-gear'></i> 내 계정",
     items: [
       { key: "mypage", icon: "fa-solid fa-id-card", label: "내 정보 (마이페이지)" },
+      // 설정은 모두 마이페이지 쪽으로(사용자 결정 2026-10-29 「화면이 생길수록 난잡하다」) — 1단계: 메뉴만 옮김.
+      // 화면 키 · 이름은 그대로다: 서버가 `#settings` 링크와 「증권사 API 설정」 이름으로 안내하고(dashboard.py · kis_quickstart.py), TC-NV-06 · 07 이 글자로 확인한다.
+      { key: "settings",              icon: "fa-solid fa-sliders",   label: "증권사 API 설정" },
+      { key: "notification-settings", icon: "fa-solid fa-bell",      label: "알림 설정" },
+      { key: "paper-openapi",         icon: "fa-solid fa-key",       label: "Open API · 외부 연동" },
     ],
   },
 };

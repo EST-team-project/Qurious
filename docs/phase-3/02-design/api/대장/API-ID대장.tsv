@@ -275,3 +275,5 @@ API-PAPR-46	GET	/api/paper/performance/backtest-100d/status/{task_id}	S129	사�
 API-PAPR-47	GET	/api/paper/performance/backtest-100d/exists	S129	사용
 API-PAPR-48	DELETE	/api/paper/performance/backtest-100d	S129	사용
 API-HUB-03	GET	/api/stock-hub/signal-rank	S153	사용
+API-SCARD-01	GET	/api/strategy-cards	S160	사용
+API-SCARD-02	GET	/api/strategy-cards/{card_id}/pine	S160	사용

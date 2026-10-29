@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 272,
- "routers": 40,
+ "count": 274,
+ "routers": 41,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -970,6 +970,7 @@
    ],
    "screens": [
     "indicator-strategy",
+    "invest-technical",
     "quant-backtest",
     "quant-dashboard",
     "robo-patterns"
@@ -3031,9 +3032,7 @@
    "hosts": [
     "query2.finance.yahoo.com"
    ],
-   "screens": [
-    "invest-fundamental"
-   ],
+   "screens": [],
    "part": "P-A",
    "req": [
     "P01-①-2"
@@ -5948,22 +5947,14 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 36,
+   "line": 77,
    "errors": [
     "400",
     "403",
     "429",
     "?"
    ],
-   "keys": [
-    "ok",
-    "status",
-    "message",
-    "symbol",
-    "side",
-    "quantity",
-    "fill_price"
-   ],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -5982,7 +5973,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 86,
+   "line": 137,
    "errors": [],
    "keys": [
     "webhook_url",
@@ -6010,7 +6001,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 104,
+   "line": 158,
    "errors": [],
    "keys": [
     "signals"
@@ -6038,7 +6029,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 133,
+   "line": 187,
    "errors": [
     "422",
     "502"
@@ -6066,10 +6057,71 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/tradingview.py",
-   "line": 288,
+   "line": 342,
    "errors": [],
    "keys": [
     "comparisons"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-SCARD-01",
+   "router": "strategy_cards",
+   "method": "GET",
+   "path": "/api/strategy-cards",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [
+    "indicator-tradingview"
+   ],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/strategy_cards.py",
+   "line": 62,
+   "errors": [],
+   "keys": [
+    "cards",
+    "source",
+    "note"
+   ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-SCARD-02",
+   "router": "strategy_cards",
+   "method": "GET",
+   "path": "/api/strategy-cards/{card_id}/pine",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [],
+   "hosts": [],
+   "screens": [],
+   "part": "미배정",
+   "req": [],
+   "file": "app/routes/strategy_cards.py",
+   "line": 76,
+   "errors": [
+    "422"
+   ],
+   "keys": [
+    "id",
+    "file",
+    "card_id",
+    "version",
+    "fingerprint",
+    "symbol",
+    "pine_version",
+    "declaration",
+    "code",
+    "warnings",
+    "skipped_v2",
+    "properties",
+    "extracted",
+    "note"
    ],
    "body": [],
    "schema": true
@@ -7175,7 +7227,9 @@
    "hosts": [
     "dart.fss.or.kr"
    ],
-   "screens": [],
+   "screens": [
+    "invest-fundamental"
+   ],
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
@@ -7510,7 +7564,8 @@
     "dart.fss.or.kr"
    ],
    "screens": [
-    "agent-cb"
+    "agent-cb",
+    "invest-fundamental"
    ],
    "part": "P-A",
    "req": [],
@@ -7709,7 +7764,9 @@
    "hosts": [
     "dart.fss.or.kr"
    ],
-   "screens": [],
+   "screens": [
+    "invest-fundamental"
+   ],
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",

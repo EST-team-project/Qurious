@@ -282,6 +282,88 @@ CANDIDATES: list[dict] = [
      "where": "finance_asset_allocation.txt 신탁 종류 표(2267) · 1916 · 3321",
      "refs": [("근거 법령", "자본시장과 금융투자업에 관한 법률 시행령 제103조 제1항 제2호 — 「위탁자가 신탁재산인 금전의 운용방법을 "
                           "지정하지 아니하는 금전신탁(이하 \"불특정금전신탁\"이라 한다)」")]},
+    # 2026-10-29 ②-25 — 화면 · 학습 장에 이미 나오는데 표제어가 없던 성과 지표 여섯. 뜻은 원 정의에서만(특강 슬라이드의 식 그림은 쓰지 않는다).
+    # app_note 는 이 앱이 실제로 어떻게 세는지(`app/services/evaluation_risk.py`) — 원 정의와 다르면 다르다고 적는다.
+    {"term": "소르티노 비율", "status": "approved", "approved": "2026-10-29", "category": "quant",
+     "english": "Sortino Ratio", "aliases": ["소티노 비율"],
+     "summary": "샤프 비율에서 위험을 「목표에 못 미친 때의 흔들림」 으로만 센 지표",
+     "definition": "샤프 비율은 수익이 오르내린 폭 전체를 위험으로 보지만, 소르티노 비율은 내가 정한 목표 수익률(MAR)에 못 미친 때의 "
+                   "흔들림(하방 편차)만 위험으로 센다. 크게 오르는 것은 위험으로 치지 않는다. 평균 수익률이 목표를 넘은 만큼을 하방 편차로 "
+                   "나눈다. 이름은 프랭크 소르티노(Pension Research Institute)에서 왔다.",
+     "formula": "소르티노 비율 = (평균 수익률 − 목표 수익률 MAR) ÷ 하방 편차",
+     "example": "위쪽으로만 크게 흔들린 전략은 샤프 비율보다 소르티노 비율이 높게 나오기 쉽다.",
+     "caution": "목표 수익률(0 · 무위험수익률 등)을 무엇으로 두느냐에 따라 값이 달라진다 — 같은 기준끼리만 비교한다. 목표에 못 미친 날이 적으면 하방 편차가 불안정하다.",
+     "app_note": "이 앱은 일별 수익률에서 무위험수익률을 뺀 값으로, 목표 수익률(기본 0)에 못 미친 날만 모아 하방 편차를 구한 뒤 연환산합니다.",
+     "where": "app/services/evaluation_risk.py sortino_ratio · CFA Institute 해설 「The Sortino Ratio」",
+     "refs": [("근거 문서(링크)", "CFA Institute 「The Sortino Ratio」 — S = (평균 수익률 − MAR) ÷ 하방 편차 — "
+                              "https://rpc.cfainstitute.org/sites/default/files/-/media/documents/code/gips/the-sortino-ratio.pdf")]},
+    {"term": "스털링 비율", "status": "approved", "approved": "2026-10-29", "category": "quant",
+     "english": "Sterling Ratio",
+     "summary": "연 수익률을 평소 겪는 큰 낙폭의 평균으로 나눈, 낙폭 기준의 성과 지표",
+     "definition": "수익이 흔들린 폭(표준편차) 대신 실제로 겪은 낙폭을 위험으로 쓴다. 널리 알려진 식은 복리 연 수익률을 "
+                   "「연도별 최대 낙폭의 평균에서 10%를 더 뺀 값」 의 절댓값으로 나눈다. 이 원 정의는 Deane Sterling Jones 에게 돌려지는 것으로 전해진다. "
+                   "낙폭 하나(가장 깊은 것)만 쓰는 칼마 비율과 달리 여러 번의 낙폭을 평균한다.",
+     "formula": "스털링 비율 = 복리 연 수익률 ÷ |연도별 최대 낙폭의 평균 − 10%| (낙폭을 음수로 쓸 때 — 예: 평균 −20% 이면 |−20% − 10%| = 30%)",
+     "caution": "식이 자료마다 조금씩 다르다 — 10% 는 평균 낙폭이 최대 낙폭보다 작다는 점을 메우려고 넣은 임의의 보정값이라는 설명이 있고, "
+                "가장 큰 낙폭 몇 개만 평균하거나 10% 를 빼고 무위험수익률을 빼는 변형도 쓴다. 다른 곳의 스털링 값과 바로 비교하지 않는다.",
+     "app_note": "이 앱은 일별 수익률로 구한 연환산 초과수익을 「낙폭 구간 가운데 가장 깊었던 상위 3개의 평균」 으로 나눕니다 — 위의 "
+                 "원 정의(연도별 최대 낙폭 평균 − 10%)와 다른 변형이라, 다른 도구의 값과 직접 비교하면 안 됩니다.",
+     "where": "app/services/evaluation_risk.py sterling_ratio · RCM Alternatives 해설",
+     "refs": [("근거 논문(링크)", "Carl Bacon, 「How sharp is the Sharpe ratio? — Risk-adjusted Performance Measures」(StatPro) — 원 정의는 "
+                               "Deane Sterling Jones 에게 돌려지고 분모는 평균 최대 낙폭에 10% 를 더한 값 · 쓰는 방식이 여러 가지 — "
+                               "https://oxfordstrat.com/coasdfASD32/uploads/2016/03/How-Sharp-Is-the-Sharpe-Ratio.pdf"),
+              ("근거 해설(링크)", "RCM Alternatives 「The Sterling Ratio Explained」 — 식 · 원문이 드물다는 설명 — "
+                               "https://www.rcmalternatives.com/2014/03/the-sterling-ratio-explained")]},
+    {"term": "DSR", "status": "approved", "approved": "2026-10-29", "category": "quant",
+     "english": "Deflated Sharpe Ratio", "aliases": ["디플레이티드 샤프 비율", "삭감 샤프"],
+     "summary": "여러 전략을 시험해 가장 좋은 것을 골랐을 때 생기는 우연을 걷어 낸, 샤프 비율이 믿을 만한 정도(0~1)",
+     "definition": "전략을 여러 개 시험해 가장 좋은 것을 고르면, 실력이 없어도 높은 샤프 비율이 우연히 나올 수 있다. DSR 은 ① 시험한 전략의 수 "
+                   "② 관측한 기간의 길이 ③ 수익률의 왜도 · 첨도(정규분포에서 벗어난 정도)를 반영해, 관측한 샤프 비율이 「실력이 없어도 우연히 나올 수 있는 "
+                   "가장 높은 샤프 비율」 을 넘을 확률을 0~1 로 보인다. 데이비드 베일리와 마르코스 로페스 데 프라도(Bailey & López de Prado)가 2014년 논문에서 제안했다.",
+     "formula": "DSR = Φ((관측 샤프 − 우연히 나올 최대 샤프의 기대값) ÷ 샤프의 표준오차) — Φ 는 표준정규분포의 누적확률",
+     "example": "같은 샤프 비율이라도 전략 1개만 시험했을 때보다 50개를 시험해 가장 좋은 것을 고른 쪽의 DSR 이 더 낮다.",
+     "caution": "DSR 은 고르는 과정의 우연과 분포 모양만 보정한다 — 미래 자료를 미리 본 오류 · 살아남은 종목만 본 편향 · 거래비용을 잘못 넣은 오류는 잡지 못한다. "
+                "시험한 전략 수를 얼마로 적느냐에 따라 값이 크게 바뀌고, 샤프 비율과 관측 수의 주기(일 · 월 · 연)가 서로 맞아야 한다.",
+     "app_note": "성과 화면에 0~1 값으로 나오고 0.95 이상이면 초록색으로 보입니다. 성과 계산의 시험 횟수(n_trials) 기본값은 50 입니다.",
+     "where": "app/services/evaluation_risk.py deflated_sharpe_ratio · public/js/robo.js · Bailey & López de Prado (2014)",
+     "refs": [("근거 논문(원 정의)", "Bailey, D. H. & López de Prado, M. (2014). The Deflated Sharpe Ratio: Correcting for Selection Bias, "
+                                   "Backtest Overfitting, and Non-Normality. The Journal of Portfolio Management 40(5) — "
+                                   "https://www.pm-research.com/content/iijpormgmt/40/5/94")]},
+    {"term": "왜도", "status": "approved", "approved": "2026-10-29", "category": "stats",
+     "english": "Skewness",
+     "summary": "수익률 분포가 한쪽으로 치우친 정도 — 큰 손실 쪽 꼬리가 길면 음수",
+     "definition": "평균에서 벗어난 정도를 표준편차로 나눈 값을 세제곱해 평균 낸 값(3차 표준화 적률)이다. 0 이면 좌우가 대칭이다. "
+                   "양수면 크게 오르는 쪽, 음수면 크게 떨어지는 쪽의 꼬리가 길다.",
+     "formula": "왜도 = 평균[((수익률 − 평균) ÷ 표준편차)³]",
+     "example": "왜도가 음수인 전략은 조금씩 벌다가 가끔 크게 잃는 모양일 수 있다.",
+     "caution": "샤프 비율은 왜도를 반영하지 않아 큰 손실 꼬리를 가릴 수 있다. 표본으로 셀 때 보정을 하는지에 따라 값이 조금 달라진다.",
+     "app_note": "DSR 을 셀 때 일별 수익률의 왜도를 씁니다.",
+     "where": "app/services/evaluation_risk.py · NIST/SEMATECH e-Handbook 1.3.5.11",
+     "refs": [("근거 문서(링크)", "NIST/SEMATECH e-Handbook of Statistical Methods 1.3.5.11 「Measures of Skewness and Kurtosis」 — "
+                              "https://www.itl.nist.gov/div898/handbook/eda/section3/eda35b.htm")]},
+    {"term": "첨도", "status": "approved", "approved": "2026-10-29", "category": "stats",
+     "english": "Kurtosis",
+     "summary": "분포의 꼬리가 두꺼운 정도 — 극단적인 값이 얼마나 자주 나오는가",
+     "definition": "평균에서 벗어난 정도를 표준편차로 나눈 값을 네제곱해 평균 낸 값(4차 표준화 적률)이다. 정규분포는 3 이다. "
+                   "3 보다 크면 정규분포보다 극단적인 값(큰 수익 · 큰 손실)이 더 자주 나온다.",
+     "formula": "첨도 = 평균[((수익률 − 평균) ÷ 표준편차)⁴] · 초과 첨도 = 첨도 − 3",
+     "example": "초과 첨도가 큰 전략은 평소엔 조용하다가 드물게 아주 크게 움직이는 모양일 수 있다.",
+     "caution": "자료에 따라 「첨도」 가 3 을 뺀 초과 첨도를 뜻하기도 한다 — 비교 전에 기준을 확인한다. 「뾰족한 정도」 가 아니라 꼬리의 두꺼움을 본다.",
+     "app_note": "DSR 을 셀 때 정규분포가 3 인 기준(초과 첨도가 아님)으로 일별 수익률의 첨도를 씁니다.",
+     "where": "app/services/evaluation_risk.py · NIST/SEMATECH e-Handbook 1.3.5.11",
+     "refs": [("근거 문서(링크)", "NIST/SEMATECH e-Handbook of Statistical Methods 1.3.5.11 — 표준정규분포의 첨도는 3 이고, 3 을 뺀 정의를 "
+                              "「초과 첨도」 라 부르는 자료도 있다 — https://www.itl.nist.gov/div898/handbook/eda/section3/eda35b.htm")]},
+    {"term": "정보비율", "status": "approved", "approved": "2026-10-29", "category": "quant",
+     "english": "Information Ratio",       # 별칭 IR 은 넣지 않는다 — 투자자관계(IR)와 헷갈려 TC-GL-23 이 어느 용어의 이름도 아니게 못 박아 둔 말
+     "summary": "비교 기준(벤치마크)보다 얼마나 꾸준히 더 벌었는지 — 초과수익 ÷ 추적오차",
+     "definition": "포트폴리오 수익률에서 벤치마크 수익률을 뺀 값(활동 수익)의 평균을, 그 활동 수익이 흔들린 정도(추적오차 = 활동 수익의 표준편차)로 나눈다. "
+                   "벤치마크를 이긴 정도를, 벤치마크에서 벗어나며 진 위험 1단위당으로 보는 지표다.",
+     "formula": "정보비율 = 평균(포트폴리오 수익률 − 벤치마크 수익률) ÷ 추적오차",
+     "caution": "무엇을 벤치마크로 두느냐에 따라 값이 달라진다. 책에 따라 알파 ÷ 잔차 위험으로 정의하기도 해서(Grinold & Kahn) 같은 이름이라도 식이 조금 다를 수 있다.",
+     "app_note": "성과 화면의 정보비율은 KOSPI 를 벤치마크로, 연환산한 평균 초과수익을 연환산 추적오차로 나눈 값입니다.",
+     "where": "app/services/performance_service.py · Wikipedia 「Information ratio」",
+     "refs": [("근거 사전(링크)", "Wikipedia 「Information ratio」 — 활동 수익(포트폴리오 − 벤치마크)을 추적오차(활동 수익의 표준편차)로 나눈 값 — "
+                                 "https://en.wikipedia.org/wiki/Information_ratio")]},
 ]
 CANDIDATE_STATUS = ("candidate", "approved")
 
@@ -851,7 +933,9 @@ def candidate_raws() -> list[Raw]:
         if c["status"] != "approved":
             continue
         out.append(Raw(term=c["term"], source="candidate", category=c["category"], english=c.get("english", ""),
-                       short=c["summary"], long=c["definition"], caution=c.get("caution", ""),
+                       aliases=list(c.get("aliases", [])), short=c["summary"], long=c["definition"],
+                       example=c.get("example", ""), caution=c.get("caution", ""), formula=c.get("formula", ""),
+                       app_note=c.get("app_note", ""),
                        where=f"후보 용어 · {c['approved']} 공개", title=c["term"]))
     return out
 

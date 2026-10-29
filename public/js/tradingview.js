@@ -2,6 +2,8 @@
  * Webhook 신호 수신 설정 · 수신 이력 · Strategy Tester ↔ LEAN 교차 검증
  * app.html 메인 모듈에서 initTradingViewView() / onTradingViewViewActivated(view) 로 연결한다. */
 import { api, setToast, escHtml, fmt } from "/js/common.js";
+import { renderLayers, PERF_NOTE } from "/js/comparelayers.js";
+import { cardOptions, pineQuery, fileName, renderPine, failText } from "/js/pinecard.js";
 
 const $ = (id) => document.getElementById(id);
 const ts = (iso) => iso ? new Date(iso).toLocaleString("ko-KR", { hour12: false }) : "-";
@@ -10,7 +12,6 @@ const STATUS_BADGE = {
   duplicate: `<span class="badge-hold">중복</span>`, rejected: `<span class="badge-sell">거절</span>`, error: `<span class="badge-sell">오류</span>`,
   late: `<span class="badge-hold">늦음</span>`, rejected_format: `<span class="badge-sell">형식 오류</span>`,
 };
-const VERDICT_CLS = { "일치": "badge-buy", "부분 일치": "badge-hold", "불일치": "badge-sell", "비교 불가": "badge-hold" };
 let cmpChart = null;
 
 async function loadWebhookInfo() {
@@ -73,17 +74,18 @@ function renderCompare(r) {
   const fmtv = (v, k) => v == null ? "-" : (k === "total_trades" ? fmt(v) : Number(v).toFixed(2));
   $("tvc-result").innerHTML = `
     <div class="flex flex-wrap items-center gap-2 mb-2">
-      <span class="${VERDICT_CLS[r.verdict] || "badge-hold"}">${escHtml(r.verdict)}</span>
       <span class="text-sm font-semibold">${escHtml(r.ticker)} · ${escHtml(r.strategy_label || r.strategy)} · ${r.period.start} ~ ${r.period.end}</span>
       <span class="text-xs" style="color:var(--text-mute)">LEAN 엔진: ${escHtml(r.lean.engine || "")}${r.lean.lean_ok ? "" : " (미실행 → pandas 대체)"}</span>
     </div>
+    ${renderLayers(r, escHtml)}
+    <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">성과 비교 (참고 — 배지 없음)</h4>
     <table><thead><tr><th>지표</th><th style="text-align:right">TradingView</th><th style="text-align:right">LEAN</th><th style="text-align:right">차이 (LEAN − TV)</th></tr></thead><tbody>${
       r.rows.map(x => `<tr><td>${escHtml(x.label)}</td><td style="text-align:right">${fmtv(x.tradingview, x.key)}</td><td style="text-align:right">${fmtv(x.lean, x.key)}</td>
-        <td style="text-align:right" class="${x.diff == null ? "" : Math.abs(x.diff) <= 3 ? "text-emerald-600" : Math.abs(x.diff) <= 10 ? "text-amber-500" : "text-red-500"}">${x.diff == null ? "-" : (x.diff > 0 ? "+" : "") + Number(x.diff).toFixed(2)}</td></tr>`).join("")}</tbody></table>
+        <td style="text-align:right" >${x.diff == null ? "-" : (x.diff > 0 ? "+" : "") + Number(x.diff).toFixed(2)}</td></tr>`).join("")}</tbody></table>
     <div id="tvc-chart" class="mt-3"></div>
     <h4 class="text-sm font-semibold mt-3 mb-1">차이가 나는 이유 점검</h4>
     <ul class="text-xs list-disc ml-5 space-y-1" style="color:var(--text-dim)">${r.causes.map(c => `<li>${escHtml(c)}</li>`).join("")}</ul>
-    <p class="text-xs mt-2" style="color:var(--text-mute)">판정 기준: 수익률·MDD 차이 3%p 이하 → 일치, 10%p 이하 → 부분 일치. TV 값 출처: ${escHtml(r.tradingview.source || "직접 입력")}</p>`;
+    <p class="text-xs mt-2" style="color:var(--text-mute)">${escHtml(PERF_NOTE)} TV 값 출처: ${escHtml(r.tradingview.source || "직접 입력")}</p>`;
   const pts = r.lean_points || [];
   if (pts.length && window.ApexCharts) {
     const opts = { chart: { type: "area", height: 220, toolbar: { show: false }, background: "transparent" },
@@ -98,12 +100,39 @@ function renderCompare(r) {
 async function loadComparisons() {
   try {
     const r = await api("/api/tradingview/comparisons?limit=15");
-    $("tvc-history").innerHTML = r.comparisons.length ? `<table><thead><tr><th>시각</th><th>종목</th><th>전략</th><th>기간</th><th>판정</th><th style="text-align:right">수익률 TV / LEAN</th><th style="text-align:right">MDD TV / LEAN</th></tr></thead><tbody>${
+    $("tvc-history").innerHTML = r.comparisons.length ? `<table><thead><tr><th>시각</th><th>종목</th><th>전략</th><th>기간</th><th>성과 차이 판정(참고)</th><th style="text-align:right">수익률 TV / LEAN</th><th style="text-align:right">MDD TV / LEAN</th></tr></thead><tbody>${
       r.comparisons.map(c => `<tr><td class="text-xs">${ts(c.created_at)}</td><td class="font-mono text-xs">${escHtml(c.ticker)}</td><td class="text-xs">${escHtml(c.strategy)}</td><td class="text-xs">${c.start_date}~${c.end_date}</td>
-        <td><span class="${VERDICT_CLS[c.verdict] || "badge-hold"}">${escHtml(c.verdict)}</span></td>
+        <td><span class="text-xs">${escHtml(c.verdict)}</span></td>
         <td style="text-align:right">${c.tv_metrics.net_profit_pct ?? "-"} / ${c.lean_metrics.net_profit_pct ?? "-"}</td><td style="text-align:right">${c.tv_metrics.max_drawdown_pct ?? "-"} / ${c.lean_metrics.max_drawdown_pct ?? "-"}</td></tr>`).join("")}</tbody></table>`
       : `<div class="text-sm" style="color:var(--text-mute);">아직 비교 이력이 없습니다.</div>`;
   } catch (e) { $("tvc-history").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+}
+
+/* ── 전략 카드 → Pine v6 strategy() 내려받기 (규칙은 pinecard.js · 서버 /api/strategy-cards) ── */
+let pineLast = null;
+async function loadPineCards() {
+  const sel = $("pc-card");
+  if (!sel || sel.dataset.loaded) return;
+  try { sel.innerHTML = cardOptions(await api("/api/strategy-cards"), escHtml); sel.dataset.loaded = "1"; }
+  catch (e) { sel.innerHTML = `<option value="" disabled selected>${escHtml(failText(e))}</option>`; }
+}
+async function runPine() {
+  const id = $("pc-card").value;
+  if (!id) return setToast("만들 수 있는 카드를 고르세요.", "error");
+  $("pc-result").textContent = "만드는 중…";
+  ["pc-copy", "pc-download"].forEach(k => $(k).classList.add("hidden"));
+  try {
+    const q = pineQuery({ symbol: $("pc-symbol").value, refPrice: $("pc-ref").value, mintick: $("pc-tick").value });
+    pineLast = await api(`/api/strategy-cards/${encodeURIComponent(id)}/pine${q}`);
+    $("pc-result").innerHTML = renderPine(pineLast, escHtml);
+    ["pc-copy", "pc-download"].forEach(k => $(k).classList.remove("hidden"));
+  } catch (e) { pineLast = null; $("pc-result").innerHTML = `<span class="text-red-500">${escHtml(failText(e))}</span>`; }
+}
+function downloadPine() {
+  if (!pineLast) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([pineLast.code], { type: "text/plain;charset=utf-8" }));
+  a.download = fileName(pineLast); a.click(); URL.revokeObjectURL(a.href);
 }
 
 export function initTradingViewView() {
@@ -113,11 +142,14 @@ export function initTradingViewView() {
   on("tv-test-send", "click", sendTestSignal);
   on("tv-refresh", "click", loadSignals);
   on("tvc-run", "click", runCompare);
+  on("pc-run", "click", runPine);
+  on("pc-download", "click", downloadPine);
+  on("pc-copy", "click", () => { if (pineLast) { navigator.clipboard.writeText(pineLast.code); setToast("Pine 코드 복사됨", "ok"); } });
   const end = new Date(), start = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
   if ($("tvc-end") && !$("tvc-end").value) $("tvc-end").value = end.toISOString().slice(0, 10);
   if ($("tvc-start") && !$("tvc-start").value) $("tvc-start").value = start.toISOString().slice(0, 10);
 }
 
 export function onTradingViewViewActivated(view) {
-  if (view === "indicator-tradingview") { loadWebhookInfo(); loadSignals(); loadComparisons(); }
+  if (view === "indicator-tradingview") { loadWebhookInfo(); loadSignals(); loadComparisons(); loadPineCards(); }
 }
