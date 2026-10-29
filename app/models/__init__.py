@@ -53,8 +53,11 @@ from app.models.collect import CollectRequest, CollectWorker
 from app.models.paper_journal import PaperJournalVersion, PaperJournalDay, PaperJournalNote
 from app.models.strategy_decision import StrategyDecision
 from app.models.execution_control import OrderIntent, ExecutionRun, RiskDay, BrokerPositionBaseline
+from app.models.strategy_runtime import StrategyRuntime, StrategyRuntimeEvent
 
 __all__ = [
+    "StrategyRuntime",
+    "StrategyRuntimeEvent",
     "StrategyDecision",
     "Base",
     "SYSTEM_USER_ID",
