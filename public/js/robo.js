@@ -299,7 +299,8 @@ function renderScreenTable(signals, model = "lightgbm") {
   }).join("")}</tbody>
   </table>
   <p class="text-xs mt-2" style="color:var(--text-mute);">판단 = ${escHtml(SCREEN_BASIS[model] || SCREEN_BASIS.lightgbm)} · 일봉 1년 · 기준일 ${escHtml([...new Set(signals.map(s => s.as_of).filter(Boolean))].sort().pop() || "—")}.
-    학습 모델이 아닌 규칙이라, 다중 주기 신호(일 · 주 · 60분) · 자동매매 기본 규칙과 판단이 다를 수 있습니다 — 「다중 주기 ↗」 로 견줘 보세요.</p>
+    학습 모델이 아닌 규칙이라, 다중 주기 신호(일 · 주 · 60분) · 자동매매 기본 규칙과 판단이 다를 수 있습니다 — 「다중 주기 ↗」 로 견줘 보세요.
+    다르게 둔 까닭: 이 표는 여러 종목을 일봉 규칙 하나로 그 자리에서 훑는 도구이고, 다중 주기 신호는 종목마다 일 · 주 · 60분 판단을 가중 합쳐 매일 기록한 값이라 쓰는 봉과 규칙이 다릅니다.</p>
   <div id="screen-xai-panel" class="mt-3"></div>`;
 }
 

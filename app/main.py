@@ -160,6 +160,9 @@ app.include_router(tradingview_routes.router)
 # 전략 카드 → Pine v6 strategy() 내려받기 (신장환 님 생성기를 부르기만 함 · 2026-10-29)
 from app.routes import strategy_cards as strategy_cards_routes  # noqa: E402
 app.include_router(strategy_cards_routes.router)
+# 기본 인디케이터 전략 화면의 U6 전략 설정(카드 저장 · 사용자마다) · U7 지표 차트 (#392 · 2026-10-29)
+from app.routes import indicator_strategy as indicator_strategy_routes  # noqa: E402
+app.include_router(indicator_strategy_routes.router)
 # 자유 산식 커스텀 지표 (DSL · 버전 · 결과 저장)
 from app.routes import formula as formula_routes  # noqa: E402
 app.include_router(formula_routes.router)

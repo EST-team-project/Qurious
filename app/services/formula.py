@@ -545,8 +545,7 @@ def to_pine(name: str, indicator_expr: str, buy_expr: str | None, sell_expr: str
     lines = ["//@version=6",
              f'indicator("{title}", overlay=false)',
              "// lumina-invest 자유 산식 DSL 에서 자동 생성 (Pine Script v6).",
-             "// 근사한 부분: bb_* 는 ta.stdev(표본), rank() 는 ta.percentrank/100(<= 기준),",
-             "//            vwap(n) 은 세션 ta.vwap 이 아니라 hlc3·거래량의 n봉 롤링 가중평균입니다."]
+             "// 근사한 부분: vwap(n) 은 세션 ta.vwap 이 아니라 hlc3·거래량의 n봉 롤링 가중평균입니다."]
     length_params = _pine_length_params(indicator_expr, buy_expr, sell_expr)
     for k, v in (params or {}).items():
         fv = float(v)
