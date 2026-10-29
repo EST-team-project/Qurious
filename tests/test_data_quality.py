@@ -156,3 +156,18 @@ def test_cli_is_warn_only_unless_strict(tmp_path, capsys, monkeypatch):
     saved = json.loads((tmp_path / "state" / "data_quality_last.json").read_text(encoding="utf-8"))
     assert saved["warn"] >= 1 and saved["window"] == ["20261020", "20261027"]
     assert db.read_bytes() == before
+
+
+def test_runner_step_runs_after_derived_steps_and_never_blocks():
+    """TC-DQ-06 · 러너 연결 — 품질 검사 단계는 수정주가 · 총수익 · 벤치마크 **뒤**(앞이면 ADJ-COVER · TR-COVER 거짓 경고), 일봉 · 신호 **앞**에 있고 회차를 막지 않으며
+    HF 로 올리지 않는다. 인자는 quality CLI 가 실제로 받는 것만 쓴다(없는 인자를 쓰면 매 회차 argparse 오류)."""
+    from scripts import daily_update as du
+    names = [s.name for s in du.STEPS]
+    q = next(s for s in du.STEPS if s.name == "quality")
+    for before in ("price", "adjusted", "total_return", "benchmark"):
+        assert names.index(before) < names.index("quality"), f"{before} 가 품질 검사보다 앞이어야 한다"
+    assert names.index("quality") < names.index("ohlcv") < names.index("signals"), "일봉 · 신호 앞 — 기존 순서(일봉 → 신호 → 일지 → 목록표)를 안 깬다"
+    assert q.fatal is False and not q.upload and not q.sharing and not q.app_db
+    assert q.args[:2] == ["-m", "collector.quality"]
+    # 단계가 넘기는 인자는 CLI 가 실제로 받는 것뿐이어야 한다(예: 없는 --quiet 를 넘기면 단계가 매 회차 argparse 오류로 끝난다)
+    assert set(q.args[2:]) <= {"--write", "--days", "--json"}, q.args
