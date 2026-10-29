@@ -1,64 +1,174 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" class="no-js">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>금융 AI Agent</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Qurious | 모의투자로 연습하는 퀀트 · 투자 정보 서비스</title>
+  <meta name="description" content="가상 계좌로 주문을 연습하고 시세 · 공시 · 지표와 AI 시그널을 한곳에서 보는 교육용 서비스입니다. 투자 권유가 아닙니다." />
+  <!-- 인트로를 보일지는 화면이 그려지기 전에 정한다(보인 뒤 가리면 깜빡인다). 움직임 줄이기 설정이거나 이 탭에서 이미 봤으면 보이지 않는다. -->
+  <script>
+    (function () {
+      var d = document.documentElement;
+      d.classList.remove("no-js"); d.classList.add("js");
+      try {
+        var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!reduce && !window.sessionStorage.getItem("qurious-intro-seen")) d.classList.add("intro-on");
+      } catch (e) { /* 저장소를 못 쓰면(비공개 창 등) 인트로 없이 바로 랜딩 */ }
+    })();
+  </script>
+  <script type="module" src="/js/brand.js"></script>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" as="style" onload="this.rel='stylesheet'"
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <noscript>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  </noscript>
+  <link rel="stylesheet" href="/css/landing.css" />
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-100">
-  <div class="max-w-5xl mx-auto px-6 py-14">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-3xl font-semibold tracking-tight">💹 금융 AI Agent</h1>
-        <p class="mt-3 text-slate-300 leading-relaxed">
-          Python/FastAPI · Ollama(로컬 LLM) · 개인/기업 CB 분석 · 주가 · 퀀트 자동매매 플랫폼
-        </p>
-      </div>
-      <div class="flex gap-2">
-        <a class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10" href="/login.html">로그인</a>
-        <a class="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold" href="/register.html">회원가입</a>
-      </div>
+<body>
+  <!-- 인트로: 로고 → 이름 → 차트 선 → 한 줄 소개(약 2.6초). 건너뛰기 · 화면 누르기 · Esc 로 바로 랜딩. 인트로 중에도 로그인 · 가입은 눌린다. -->
+  <div class="intro" id="intro" role="dialog" aria-label="Qurious 소개 화면" aria-describedby="intro-tagline">
+    <div class="intro-bar">
+      <a class="intro-link" href="/login.html">로그인</a>
+      <a class="intro-link" href="/register.html">회원가입</a>
+      <button class="intro-skip" id="intro-skip" type="button">건너뛰기 ›</button>
     </div>
-
-    <div class="mt-10 grid md:grid-cols-3 gap-4">
-      <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div class="text-sm text-slate-300">🤖 AI Agent</div>
-        <div class="mt-2 font-semibold">ReAct 루프 기반 분석</div>
-        <p class="mt-2 text-sm text-slate-300 leading-relaxed">개인CB·기업CB·금융상품 데이터를 자연어로 질의합니다.</p>
-      </div>
-      <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div class="text-sm text-slate-300">📈 주가·퀀트</div>
-        <div class="mt-2 font-semibold">RSI·MACD·볼린저밴드</div>
-        <p class="mt-2 text-sm text-slate-300 leading-relaxed">실시간 주가 및 10분 주기 퀀트 자동매매 Mockup을 제공합니다.</p>
-      </div>
-      <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div class="text-sm text-slate-300">🕷️ RAG</div>
-        <div class="mt-2 font-semibold">크롤링 + Qdrant</div>
-        <p class="mt-2 text-sm text-slate-300 leading-relaxed">GitHub docs 크롤링 후 벡터 DB에 저장, 질의 시 인용 근거를 제공합니다.</p>
-      </div>
+    <div class="intro-stage" aria-hidden="false">
+      <div class="intro-logo" aria-hidden="true">Q</div>
+      <div class="intro-name" data-brand="name">Qurious</div>
+      <svg class="intro-chart" viewBox="0 0 320 100" width="320" height="100" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="intro-line" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#4a90e2" /><stop offset="1" stop-color="#f0b429" />
+          </linearGradient>
+        </defs>
+        <path d="M2 98 L62 78 L112 88 L172 38 L232 53 L318 3" pathLength="1" fill="none" stroke="url(#intro-line)"
+              stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <p class="intro-tagline" id="intro-tagline">모의투자로 연습하는 퀀트 · 투자 정보 서비스</p>
     </div>
-
-    <div class="mt-12 rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6">
-      <div class="text-slate-200 font-semibold">바로 시작</div>
-      <ol class="mt-3 text-sm text-slate-300 space-y-2 list-decimal list-inside">
-        <li><code class="px-1.5 py-0.5 rounded bg-black/40 border border-white/10">docker compose up -d</code></li>
-        <li><code class="px-1.5 py-0.5 rounded bg-black/40 border border-white/10">docker compose logs -f model-pull</code> (모델 준비 대기)</li>
-        <li><code class="px-1.5 py-0.5 rounded bg-black/40 border border-white/10">docker compose run --rm ingest</code> (CSV 인제스트, 최초 1회)</li>
-        <li><code class="px-1.5 py-0.5 rounded bg-black/40 border border-white/10">http://localhost:8000</code> 접속</li>
-      </ol>
-      <div class="mt-4">
-        <a href="/app.html" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold">
-          앱 열기 →
-        </a>
-      </div>
-    </div>
-
-    <p class="mt-10 text-xs text-slate-500 leading-relaxed">
-      ⚠️ 이 데모는 투자 자문이 아닙니다. 실제 투자 결정 전 전문 투자 상담사 자문이 필요합니다.
-      <a class="underline ml-2" href="/terms.html">이용약관</a>
-      <a class="underline ml-2" href="/privacy.html">개인정보 처리방침</a>
-    </p>
   </div>
+
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" aria-label="Qurious 첫 화면">
+        <span class="brand-logo" aria-hidden="true">Q</span>
+        <span class="brand-text">
+          <span class="brand-name" data-brand="name">Qurious</span>
+          <span class="brand-tag" data-brand="tagline">AI Financial Quant Platform</span>
+        </span>
+      </a>
+      <nav class="nav-actions" aria-label="로그인 · 가입">
+        <a class="btn btn--ghost btn--sm" href="/login.html">로그인</a>
+        <a class="btn btn--primary btn--sm" href="/register.html">회원가입</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <span class="pill">모의투자 · 교육용 서비스</span>
+      <h1>모의투자로 연습하는<br />퀀트 · 투자 정보 서비스</h1>
+      <p class="hero-sub">
+        가상 계좌(초기 현금 1억 원)로 주문을 연습하고, 시세 · 공시 · 지표와 AI 시그널을 한곳에서 봅니다.
+        실제 돈이 오가지 않으며 투자 권유가 아닙니다.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn--primary btn--lg" href="/register.html">무료로 가입하기</a>
+        <a class="btn btn--ghost btn--lg" href="/login.html">로그인</a>
+      </div>
+      <p class="hero-note">
+        가입 전 <a href="/terms.html">이용약관</a>과 <a href="/privacy.html">개인정보 처리방침</a>을 확인해 주세요.
+      </p>
+    </section>
+
+    <section class="features" aria-labelledby="features-title">
+      <h2 id="features-title">무엇을 할 수 있나요</h2>
+      <p class="features-sub">카드를 눌러 자세히 보세요.</p>
+      <div class="cards" id="cards">
+        <article class="card card--blue">
+          <button class="card-head" type="button" aria-expanded="false" aria-controls="panel-1">
+            <span class="card-top"><span class="card-num">01</span><span class="card-tag">모의투자</span></span>
+            <span class="card-title">가상 계좌로 주문 연습</span>
+            <span class="card-short">실제 돈 없이 주문을 연습하고 손익을 확인합니다.</span>
+            <span class="card-more">자세히 보기 <span class="chev" aria-hidden="true">▾</span></span>
+          </button>
+          <div class="panel" id="panel-1"><div class="panel-inner">
+            <p>가상 계좌로 주문을 연습하고 손익을 봅니다. 한국투자증권 모의투자 키를 직접 넣으면 그 증권사의 모의투자 서버에도 주문을 보낼 수 있습니다(선택).</p>
+            <div class="panel-actions">
+              <a class="btn btn--primary btn--sm" href="/login.html">로그인하고 써 보기</a>
+              <a class="btn btn--ghost btn--sm" href="/register.html">가입하기</a>
+            </div>
+          </div></div>
+        </article>
+
+        <article class="card card--amber">
+          <button class="card-head" type="button" aria-expanded="false" aria-controls="panel-2">
+            <span class="card-top"><span class="card-num">02</span><span class="card-tag">퀀트 · 지표</span></span>
+            <span class="card-title">규칙을 세우고 검증</span>
+            <span class="card-short">백테스트와 지표, AI 시그널과 그 근거를 봅니다.</span>
+            <span class="card-more">자세히 보기 <span class="chev" aria-hidden="true">▾</span></span>
+          </button>
+          <div class="panel" id="panel-2"><div class="panel-inner">
+            <p>백테스트, 수식 지표, TradingView · LEAN 대조, AI 시그널과 근거를 같은 규칙으로 계산해 보여 줍니다. 과거 성과는 미래를 보장하지 않습니다.</p>
+            <div class="panel-actions">
+              <a class="btn btn--primary btn--sm" href="/login.html">로그인하고 써 보기</a>
+              <a class="btn btn--ghost btn--sm" href="/register.html">가입하기</a>
+            </div>
+          </div></div>
+        </article>
+
+        <article class="card card--green">
+          <button class="card-head" type="button" aria-expanded="false" aria-controls="panel-3">
+            <span class="card-top"><span class="card-num">03</span><span class="card-tag">시세 · 공시 · 학습</span></span>
+            <span class="card-title">한곳에서 보는 시장 정보</span>
+            <span class="card-short">일 단위 시세와 전자공시, 용어사전과 학습 자료.</span>
+            <span class="card-more">자세히 보기 <span class="chev" aria-hidden="true">▾</span></span>
+          </button>
+          <div class="panel" id="panel-3"><div class="panel-inner">
+            <p>일 단위로 모은 시세, 전자공시(OpenDART), 한국은행 통계, 기업 비교와 섹터, 시장 달력, 용어사전과 학습 자료를 한곳에서 봅니다.</p>
+            <div class="panel-actions">
+              <a class="btn btn--primary btn--sm" href="/login.html">로그인하고 써 보기</a>
+              <a class="btn btn--ghost btn--sm" href="/register.html">가입하기</a>
+            </div>
+          </div></div>
+        </article>
+
+        <article class="card card--gray card--soon">
+          <button class="card-head" type="button" aria-expanded="false" aria-controls="panel-4">
+            <span class="card-top"><span class="card-num">04</span><span class="card-tag">코인 · 대안자산</span><span class="soon">개발 중</span></span>
+            <span class="card-title">더 넓은 자산으로</span>
+            <span class="card-short">코인과 대안자산 모의투자를 개발하고 있습니다.</span>
+            <span class="card-more">자세히 보기 <span class="chev" aria-hidden="true">▾</span></span>
+          </button>
+          <div class="panel" id="panel-4"><div class="panel-inner">
+            <p>개발 중인 기능입니다. 범위와 일정은 바뀔 수 있습니다.</p>
+            <div class="panel-actions">
+              <a class="btn btn--ghost btn--sm" href="/register.html">가입하기</a>
+            </div>
+          </div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="band" aria-label="시작하기">
+      <div class="band-text">
+        <h2>연습부터 시작해 보세요</h2>
+        <p>가입하면 가상 계좌로 바로 주문을 연습할 수 있습니다.</p>
+      </div>
+      <div class="band-actions">
+        <a class="btn btn--primary btn--md" href="/register.html">회원가입</a>
+        <a class="btn btn--light btn--md" href="/login.html">로그인</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p class="foot-notice"><span data-brand="notice">투자 자문이 아닌 정보 제공 목적입니다.</span> 수업 프로젝트용 서비스이며 법률 자문이 아닙니다.</p>
+    <p class="foot-links"><a href="/terms.html">이용약관</a><span aria-hidden="true"> · </span><a href="/privacy.html">개인정보 처리방침</a></p>
+  </footer>
+
+  <script type="module" src="/js/landing.js"></script>
 </body>
 </html>

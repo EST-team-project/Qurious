@@ -1,0 +1,149 @@
+/* 랜딩(로그인 전 첫 화면) — 2026-10-29 · 시안: Figma 「Qurious · 랜딩」 · 색 · 글꼴은 로그인 · 가입 · 앱과 같다(밝은 톤).
+ * 바깥 CSS 는 불러오지 않는다(글꼴 한 줄만 index.html 에서 — 허용 목록의 호스트). */
+:root {
+  --bg: #f4f6fa; --surf: #ffffff; --border: #dde2ec;
+  --accent: #2563eb; --brand: #d97706; --green: #15803d; --gray: #64748b;
+  --text: #0f172a; --text-dim: #334155; --text-mute: #64748b; --navy: #0f172a;
+  --radius: 16px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  min-height: 100vh; background: var(--bg); color: var(--text);
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px; line-height: 1.6; word-break: keep-all; -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse at 15% 0%, rgba(37, 99, 235, .06) 0%, transparent 45%),
+    radial-gradient(ellipse at 85% 10%, rgba(217, 119, 6, .05) 0%, transparent 40%);
+  background-repeat: no-repeat;
+}
+a { color: inherit; }
+:focus-visible { outline: 3px solid rgba(37, 99, 235, .55); outline-offset: 2px; border-radius: 8px; }
+
+/* ── 버튼 ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 600; cursor: pointer;
+  border: 1px solid transparent; border-radius: 12px; line-height: 1.2; transition: transform .15s, box-shadow .15s, background .15s; }
+.btn--primary { background: var(--accent); color: #fff; }
+.btn--primary:hover { background: #1d4ed8; }
+.btn--ghost { background: #fff; color: var(--text); border-color: var(--border); }
+.btn--ghost:hover { border-color: #b8c2d6; }
+.btn--light { background: #fff; color: var(--navy); }
+.btn--light:hover { background: #e2e8f0; }
+.btn--sm { padding: 11px 18px; font-size: 15px; border-radius: 10px; }
+.btn--md { padding: 14px 28px; font-size: 16px; }
+.btn--lg { padding: 16px 32px; font-size: 17px; }
+
+/* ── 상단 막대 ── */
+.nav { background: #fff; border-bottom: 1px solid var(--border); }
+.nav-inner { max-width: 1280px; margin: 0 auto; padding: 16px 80px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand-logo, .intro-logo { display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 800;
+  background: linear-gradient(135deg, #4a90e2, #f0b429); }
+.brand-logo { width: 40px; height: 40px; border-radius: 12px; font-size: 20px; box-shadow: 0 0 18px rgba(74, 144, 226, .3); }
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-name { font-size: 20px; font-weight: 800; }
+.brand-tag { font-size: 12px; color: var(--text-mute); }
+.nav-actions { display: flex; gap: 8px; }
+
+/* ── 첫 영역 ── */
+.hero { max-width: 1280px; margin: 0 auto; padding: 96px 80px 72px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 24px; }
+.pill { display: inline-block; padding: 7px 14px; border-radius: 100px; background: rgba(37, 99, 235, .12); color: var(--accent); font-size: 14px; font-weight: 600; }
+.hero h1 { font-size: 56px; font-weight: 800; line-height: 1.25; letter-spacing: -.02em; }
+.hero-sub { max-width: 700px; font-size: 20px; color: var(--text-dim); }
+.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.hero-note { font-size: 13px; color: var(--text-mute); }
+.hero-note a, .foot-links a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── 카드 ── */
+.features { max-width: 1280px; margin: 0 auto; padding: 0 80px 72px; }
+.features h2 { font-size: 32px; font-weight: 800; line-height: 1.25; }
+.features-sub { margin-top: 6px; color: var(--text-mute); }
+.cards { margin-top: 28px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.card { --c: var(--accent); background: var(--surf); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+  transition: box-shadow .2s, border-color .2s, transform .2s; }
+.card--blue { --c: var(--accent); } .card--amber { --c: var(--brand); } .card--green { --c: var(--green); } .card--gray { --c: var(--gray); }
+.card:hover { border-color: var(--c); box-shadow: 0 8px 24px rgba(15, 23, 42, .10); transform: translateY(-2px); }
+.card.is-open { border: 2px solid var(--c); margin: -1px; box-shadow: 0 8px 24px rgba(15, 23, 42, .14); }
+.card-head { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; width: 100%; padding: 24px; border: 0; background: transparent;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.card-top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.card-num { padding: 6px 10px; border-radius: 10px; background: color-mix(in srgb, var(--c) 12%, white); color: var(--c); font-size: 14px; font-weight: 700; line-height: 1; }
+.card-tag { font-size: 14px; font-weight: 600; color: var(--text-mute); line-height: 1; }
+.soon { padding: 4px 9px; border-radius: 8px; background: rgba(217, 119, 6, .14); color: #b45309; font-size: 12px; font-weight: 700; line-height: 1; }
+.card-title { font-size: 22px; font-weight: 700; line-height: 1.3; }
+.card-short { font-size: 16px; color: var(--text-dim); }
+.card-more { font-size: 14px; font-weight: 600; color: var(--accent); }
+.chev { display: inline-block; font-size: 11px; transition: transform .2s; }
+.card.is-open .chev { transform: rotate(180deg); }
+.panel { padding: 0 24px; }
+.panel-inner > p { padding-top: 14px; border-top: 1px solid var(--border); font-size: 15px; color: var(--text-dim); }
+.panel-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 0 24px; }
+/* 스크립트가 있을 때만 접는다 — 없으면 카드 글이 모두 보이고 버튼은 그냥 링크다 */
+.js .panel { display: grid; grid-template-rows: 0fr; visibility: hidden; transition: grid-template-rows .25s ease, visibility 0s linear .25s; }
+.js .panel-inner { overflow: hidden; min-height: 0; }
+.js .card.is-open .panel { grid-template-rows: 1fr; visibility: visible; transition: grid-template-rows .25s ease, visibility 0s; }
+
+/* ── 마무리 띠 ── */
+.band { max-width: 1120px; margin: 0 auto 56px; padding: 40px 48px; background: var(--navy); border-radius: 20px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.band h2 { color: #fff; font-size: 28px; font-weight: 800; line-height: 1.25; }
+.band p { margin-top: 6px; color: #cbd5e1; }
+.band-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+/* ── 바닥 ── */
+.foot { border-top: 1px solid var(--border); padding: 24px 20px 32px; text-align: center; font-size: 13px; color: var(--text-mute); }
+.foot-links { margin-top: 8px; font-weight: 600; color: var(--text-dim); }
+
+/* ── 인트로 ── */
+.intro { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; color: #fff;
+  background: linear-gradient(180deg, #0f172a 0%, #172554 100%); transition: opacity .4s ease; }
+.intro-on .intro { display: flex; }
+.intro--out { opacity: 0; pointer-events: none; }
+.intro-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 28px 36px; }
+.intro-link, .intro-skip { padding: 9px 16px; border-radius: 100px; border: 0; background: rgba(255, 255, 255, .12); color: #e2e8f0;
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1; text-decoration: none; cursor: pointer; }
+.intro-link:hover, .intro-skip:hover { background: rgba(255, 255, 255, .2); }
+.intro-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 20px 60px; text-align: center; }
+.intro-logo { width: 96px; height: 96px; border-radius: 24px; font-size: 48px; box-shadow: 0 0 48px rgba(74, 144, 226, .5); animation: intro-pop .6s cubic-bezier(.2, .8, .2, 1) both; }
+.intro-name { font-size: 56px; font-weight: 800; line-height: 1.1; animation: intro-rise .6s ease .5s both; }
+.intro-chart { width: min(320px, 70vw); height: auto; overflow: visible; }
+.intro-chart path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: intro-draw 1s ease-out .8s forwards; }
+.intro-tagline { font-size: 22px; font-weight: 500; color: #cbd5e1; animation: intro-rise .6s ease 1.4s both; }
+@keyframes intro-pop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+@keyframes intro-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes intro-draw { to { stroke-dashoffset: 0; } }
+.intro-on body { overflow: hidden; }
+
+/* ── 폭 ── */
+@media (max-width: 1100px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .nav-inner { padding: 12px 20px; }
+  .brand-logo { width: 36px; height: 36px; font-size: 18px; border-radius: 11px; }
+  .brand-name { font-size: 19px; }
+  .brand-tag { display: none; }
+  .btn--sm { padding: 9px 14px; font-size: 14px; }
+  .hero { padding: 44px 20px 36px; gap: 18px; }
+  .hero h1 { font-size: 30px; line-height: 1.3; }
+  .hero-sub { font-size: 15px; }
+  .hero-cta { flex-direction: column; align-self: stretch; }
+  .btn--lg { padding: 15px 24px; font-size: 16px; }
+  .features { padding: 0 20px 36px; }
+  .features h2 { font-size: 22px; }
+  .cards { grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }
+  .card-title { font-size: 20px; }
+  .panel-actions .btn { flex: 1 1 100%; }
+  .band { flex-direction: column; align-items: stretch; margin: 0 20px 28px; padding: 26px 22px; gap: 16px; }
+  .band h2 { font-size: 21px; }
+  .band-actions { flex-direction: column; }
+  .intro-bar { padding: 16px 16px; flex-wrap: wrap; }
+  .intro-name { font-size: 40px; }
+  .intro-logo { width: 80px; height: 80px; font-size: 40px; border-radius: 20px; }
+  .intro-tagline { font-size: 17px; }
+}
+
+/* 움직임 줄이기 — 인트로는 아예 안 뜨고(index.html 앞 스크립트) 나머지 움직임도 끈다 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .card:hover { transform: none; }
+}

@@ -1,11 +1,11 @@
-"""TC-DQ — 데이터 품질 검사 (collector/quality.py · 할 일 ①-12 `SCH-DQ` · 2026-10-29 착수)
+"""TC-QUAL — 데이터 품질 검사 (collector/quality.py · 할 일 ①-12 `SCH-DQ` · 2026-10-29 착수)
 
 작은 메모리 DB 에 일부러 결함을 넣어 **검사가 실제로 걸리는지** 본다(실제 DB 가 깨끗하면 검사는 늘 ✅ 라 고장을 못 가린다).
-1. 깨끗한 데이터는 경고 0 · 참고(시가 0)만 센다. (TC-DQ-01)
-2. 결측 — 사유 없는 평일 공백 · 행 수가 적은 날 · ETF/지수/수정주가/총수익 빠짐을 잡고, 사유(설날)가 있는 휴장은 안 잡는다. (TC-DQ-02)
-3. 정합성 — 고가/저가 위반 · 종가 0 · 음수 거래량 · 적재 기록 이상을 잡고, 가장 최근 날 뒤의 미적재는 안 센다. (TC-DQ-03)
-4. 중복은 기본키가 막으므로 키 없는 표로 안전망을 시험한다. (TC-DQ-04)
-5. 한 검사가 예외를 내도 나머지는 돈다 · 시세가 없으면 빈 결과 · 읽기 전용 · 경고만(--strict 일 때만 1). (TC-DQ-05)
+1. 깨끗한 데이터는 경고 0 · 참고(시가 0)만 센다. (TC-QUAL-01)
+2. 결측 — 사유 없는 평일 공백 · 행 수가 적은 날 · ETF/지수/수정주가/총수익 빠짐을 잡고, 사유(설날)가 있는 휴장은 안 잡는다. (TC-QUAL-02)
+3. 정합성 — 고가/저가 위반 · 종가 0 · 음수 거래량 · 적재 기록 이상을 잡고, 가장 최근 날 뒤의 미적재는 안 센다. (TC-QUAL-03)
+4. 중복은 기본키가 막으므로 키 없는 표로 안전망을 시험한다. (TC-QUAL-04)
+5. 한 검사가 예외를 내도 나머지는 돈다 · 시세가 없으면 빈 결과 · 읽기 전용 · 경고만(--strict 일 때만 1). (TC-QUAL-05)
 """
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def _by(res: dict) -> dict:
 
 
 def test_clean_data_has_no_warnings():
-    """TC-DQ-01 · 깨끗한 데이터는 경고 0 · 오류 0 — 창은 시세 날짜로 센다."""
+    """TC-QUAL-01 · 깨끗한 데이터는 경고 0 · 오류 0 — 창은 시세 날짜로 센다."""
     res = quality.run(_db(), days=6)
     assert res["warn"] == 0 and res["error"] == 0 and res["window"] == ["20261020", "20261027"] and res["window_days"] == 6
     assert {c["check"] for c in res["checks"]} == set(quality.LABELS)
@@ -66,7 +66,7 @@ def test_clean_data_has_no_warnings():
 
 
 def test_missing_data_is_caught_and_known_holidays_are_not():
-    """TC-DQ-02 · 사유 없는 평일 공백 · 행이 적은 날 · 빠진 짝을 잡는다 — 달력이 사유를 아는 휴장은 안 잡는다."""
+    """TC-QUAL-02 · 사유 없는 평일 공백 · 행이 적은 날 · 빠진 짝을 잡는다 — 달력이 사유를 아는 휴장은 안 잡는다."""
     c = _db()
     # 10-22 시세 통째로 삭제 + 달력은 사유를 모른다 → PD-GAP · 10-23 은 행 수 절반 → PD-THIN
     c.execute("delete from price_daily where bas_dt='20261022'")
@@ -92,7 +92,7 @@ def test_missing_data_is_caught_and_known_holidays_are_not():
 
 
 def test_integrity_problems_are_caught():
-    """TC-DQ-03 · 고가/저가 위반 · 종가 0 · 음수 거래량 · 포털 적재 이상을 잡는다 — 시가 0 은 참고(info) · 가장 최근 날 뒤는 안 센다."""
+    """TC-QUAL-03 · 고가/저가 위반 · 종가 0 · 음수 거래량 · 포털 적재 이상을 잡는다 — 시가 0 은 참고(info) · 가장 최근 날 뒤는 안 센다."""
     c = _db()
     c.execute("update price_daily set hipr=95 where bas_dt='20261027' and srtn_cd='000001'")        # 고가 < 종가
     c.execute("update price_daily set lopr=105 where bas_dt='20261026' and srtn_cd='000002'")       # 저가 > 종가
@@ -110,7 +110,7 @@ def test_integrity_problems_are_caught():
 
 
 def test_duplicates_are_caught_when_the_key_is_missing():
-    """TC-DQ-04 · 기본키가 막아 보통 0 — 키가 없는 표(다시 만들다 깨진 경우)에서 중복을 잡는 안전망."""
+    """TC-QUAL-04 · 기본키가 막아 보통 0 — 키가 없는 표(다시 만들다 깨진 경우)에서 중복을 잡는 안전망."""
     c = _db(pk=False)
     c.execute("insert into price_daily values ('20261027','000001',100,100,110,90,1000)")
     r = _by(quality.run(c, days=6))["PD-DUP"]
@@ -118,7 +118,7 @@ def test_duplicates_are_caught_when_the_key_is_missing():
 
 
 def test_one_failing_check_does_not_stop_the_rest_and_empty_db_is_handled(monkeypatch, capsys):
-    """TC-DQ-05 · 검사 하나가 예외를 내도 그것만 error · 시세가 없으면 빈 결과 · 읽기 전용으로 열고 경고만(--strict 일 때만 1)."""
+    """TC-QUAL-05 · 검사 하나가 예외를 내도 그것만 error · 시세가 없으면 빈 결과 · 읽기 전용으로 열고 경고만(--strict 일 때만 1)."""
     c = _db()
     c.execute("drop table etf_daily")                                   # 한 검사만 터진다
     res = quality.run(c, days=6)
@@ -134,7 +134,7 @@ def test_one_failing_check_does_not_stop_the_rest_and_empty_db_is_handled(monkey
 
 
 def test_cli_is_warn_only_unless_strict(tmp_path, capsys, monkeypatch):
-    """TC-DQ-05b · CLI — 경고가 있어도 기본은 종료코드 0 · --strict 는 1 · --write 가 상태 파일을 쓴다."""
+    """TC-QUAL-05b · CLI — 경고가 있어도 기본은 종료코드 0 · --strict 는 1 · --write 가 상태 파일을 쓴다."""
     db = tmp_path / "m.sqlite3"
     disk = sqlite3.connect(db)
     mem = _db()
@@ -159,7 +159,7 @@ def test_cli_is_warn_only_unless_strict(tmp_path, capsys, monkeypatch):
 
 
 def test_runner_step_runs_after_derived_steps_and_never_blocks():
-    """TC-DQ-06 · 러너 연결 — 품질 검사 단계는 수정주가 · 총수익 · 벤치마크 **뒤**(앞이면 ADJ-COVER · TR-COVER 거짓 경고), 일봉 · 신호 **앞**에 있고 회차를 막지 않으며
+    """TC-QUAL-06 · 러너 연결 — 품질 검사 단계는 수정주가 · 총수익 · 벤치마크 **뒤**(앞이면 ADJ-COVER · TR-COVER 거짓 경고), 일봉 · 신호 **앞**에 있고 회차를 막지 않으며
     HF 로 올리지 않는다. 인자는 quality CLI 가 실제로 받는 것만 쓴다(없는 인자를 쓰면 매 회차 argparse 오류)."""
     from scripts import daily_update as du
     names = [s.name for s in du.STEPS]
