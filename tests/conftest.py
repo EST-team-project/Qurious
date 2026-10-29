@@ -146,3 +146,20 @@ def rebalance_calendar(tmp_path, monkeypatch):
     conn.close()
     monkeypatch.setenv("COLLECTOR_DB_PATH", str(path))
     return path
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _test_broker_encryption_key(tmp_path_factory):
+    """격리 시험 키만 생성한다. 운영 키 파일은 시험에서 읽지 않는다."""
+    import base64
+    import json
+    path = tmp_path_factory.mktemp("broker-secret") / "keyring.json"
+    path.write_text(json.dumps({"active": "test", "keys": {"test": base64.urlsafe_b64encode(os.urandom(32)).decode()}}))
+    path.chmod(0o600)
+    old = os.environ.get("BROKER_CREDENTIAL_KEY_FILE")
+    os.environ["BROKER_CREDENTIAL_KEY_FILE"] = str(path)
+    yield
+    if old is None:
+        os.environ.pop("BROKER_CREDENTIAL_KEY_FILE", None)
+    else:
+        os.environ["BROKER_CREDENTIAL_KEY_FILE"] = old

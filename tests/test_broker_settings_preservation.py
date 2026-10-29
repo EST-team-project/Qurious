@@ -35,7 +35,7 @@ def test_reload_then_save_keeps_real_credentials(settings_client, path):
     client, row, db = settings_client
     view = client.get("/api/broker/settings").json()
     assert view["app_key"] == KEY[:4] + "****"
-    assert SECRET not in str(view) and KEY not in str(view)
+    assert SECRET not in str(view) and KEY not in str(view) and ACCOUNT not in str(view)
     response = client.post(path, json={"broker": "kis", "app_key": view["app_key"],
                                       "app_secret": "", "account_no": view["account_no"]})
     assert response.status_code == 200
@@ -61,6 +61,8 @@ def test_explicit_replacement_uses_new_key_pair(settings_client, path):
 
 @pytest.mark.parametrize("payload", [
     {"broker": "kis", "app_key": "WRNG****"},
+    {"broker": "kis", "account_no": "9999****01"},
+    {"broker": "kb", "account_no": "1234*****01"},
     {"broker": "kis", "app_key": "NEW-KEY"},
     {"broker": "kb", "app_key": KEY[:4] + "****", "app_secret": ""},
 ])

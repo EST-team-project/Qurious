@@ -84,7 +84,7 @@ class RegisterBody(BaseModel):
 
 #: 서버가 아는 현재 약관 판 — public/js/terms.js 의 TERMS_VERSION 과 같아야 한다(시험 TC-TM-01 이 지킨다).
 #: 다르면 가입을 거절한다: 오래된 화면이 옛 문구에 동의한 채 새 판 동의로 기록되는 일을 막는다.
-TERMS_VERSION = "2026-10-29-v0.2"
+TERMS_VERSION = "2026-10-29-v0.3"
 
 #: 가입할 수 있는 최소 만 나이(개인정보 보호법 제22조의2 — 만 14세 미만은 법정대리인 동의가 필요한데 그 절차를 두지 않았다).
 MIN_SIGNUP_AGE = 14

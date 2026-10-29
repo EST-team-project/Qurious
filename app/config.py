@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # ── PostgreSQL (SQLAlchemy async + asyncpg) ───────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://lumina:lumina@localhost:5432/lumina"
 
+    # 파일 경로만 설정한다. 실제 저장 암호화 키는 소스/DB 밖의 읽기 전용 파일에 둔다.
+    BROKER_CREDENTIAL_KEY_FILE: str = ""
+
     # ── JWT ──────────────────────────────────────────────────────────────────
     # ⚠️ 아래 기본값은 공개 저장소에 그대로 들어 있습니다. 그 값으로 서명하면 누구나
     #    토큰을 위조할 수 있어, 기본값이면 토큰 발급·검증이 막힙니다.

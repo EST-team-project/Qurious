@@ -14,6 +14,7 @@ async function loadSettings() {
     document.getElementById("quant-symbol-source").value = cfg.symbol_source || "ai";
     document.getElementById("broker-type").value   = cfg.broker || "mock";
     document.getElementById("broker-app-key").value = cfg.app_key || "";
+    document.getElementById("broker-app-secret").value = "";
     document.getElementById("broker-account").value = cfg.account_no || "";
     document.getElementById("broker-paper").checked = cfg.paper !== false;
     document.getElementById("quant-ai-top-n").value = cfg.ai_top_n || 3;
