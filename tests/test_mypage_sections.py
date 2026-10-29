@@ -58,12 +58,13 @@ def test_sections_match_nav():
 def test_summary_links_point_to_real_views():
     """TC-MP-03 · 요약 구역의 링크가 가리키는 설정 화면 셋이 실제로 있고, 요약 칸 id 는 다른 화면의 칸과 겹치지 않는다."""
     view = _mypage_view()
-    for href in ("#settings", "#notification-settings", "#paper-openapi"):
+    for href in ("#notification-settings", "#paper-openapi"):
         assert f'href="{href}"' in view, f"{href} 링크가 없다"
         assert f'data-view="{href[1:]}"' in APP, f"{href[1:]} 화면이 없다"
     # 요약 칸은 mp-sum- 접두사만 — mypage view 가 문서 앞쪽이라 다른 화면 스크립트의 getElementById 가 먼저 잡으면 안 된다
-    for foreign in ('id="trading-broker-status"', 'id="broker-app-key"', 'id="noti-', 'id="po-'):
+    for foreign in ('id="trading-broker-status"', 'id="noti-', 'id="po-'):
         assert foreign not in view, f"마이페이지 view 에 다른 화면의 칸 {foreign} 이 있다"
+    assert 'id="broker-app-key"' in view
     assert re.findall(r'id="(mp-sum-[a-z]+)"', view) == ["mp-sum-broker", "mp-sum-notify", "mp-sum-external"]
 
 

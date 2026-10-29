@@ -19,6 +19,7 @@ async def connect_postgres() -> None:
     _engine = create_async_engine(
         settings.DATABASE_URL,
         pool_pre_ping=True,
+        hide_parameters=True,
         pool_size=10,
         max_overflow=5,
     )
@@ -45,4 +46,14 @@ async def get_pg_session() -> AsyncIterator[AsyncSession]:
     """FastAPI Depends용 PostgreSQL 세션 의존성."""
     factory = get_session_factory()
     async with factory() as session:
-        yield session
+        from app.lib.broker_secrets import CredentialStorageError
+        from sqlalchemy.exc import StatementError
+        from fastapi import HTTPException
+        try:
+            yield session
+        except CredentialStorageError:
+            raise HTTPException(503, {"code": "CREDENTIAL_STORAGE_UNAVAILABLE", "message": str(CredentialStorageError())}) from None
+        except StatementError as exc:
+            if isinstance(exc.orig, CredentialStorageError):
+                raise HTTPException(503, {"code": "CREDENTIAL_STORAGE_UNAVAILABLE", "message": str(CredentialStorageError())}) from None
+            raise
