@@ -90,23 +90,21 @@ async def macro_fundamental(
     meta = data.get("meta", {})
     price = meta.get("regularMarketPrice", 0)
 
-    # Yahoo Finance는 상세 재무제표를 v8/chart API에서 직접 제공하지 않으므로
-    # 실무에서는 yfinance .info 또는 별도 재무 API를 사용합니다.
-    # 여기서는 개념 설명 + 목업 지표를 반환합니다.
-    dcf_mock = round(price * 1.15, 2)  # 내재가치 (단순 성장률 15% 가정)
-    fcf_yield = round(100 / max(price, 1) * 1000, 2)  # 모의 FCF 수익률
-
+    # 2026-10-29 ①-10 — 예전에는 여기서 DCF = 가격 × 1.15 · FCF 수익률 = 100 ÷ 가격 × 1000 으로 **지어낸 값**을 돌려줬다(「목업」).
+    # 근거 없는 숫자라 내지 않는다: 두 칸은 null + 까닭. 재무제표 화면은 이제 이 길을 부르지 않고
+    # /api/data/financials · /api/risk/company (DART 주요계정, 값마다 출처 · 기준일) 를 읽는다 — public/js/fundview.js.
     return {
         "symbol": symbol,
         "price":  price,
         "valuation": {
-            "DCF_intrinsic_value": dcf_mock,
-            "FCF_yield_pct":       fcf_yield,
+            "DCF_intrinsic_value": None,
+            "FCF_yield_pct":       None,
+            "reason": "계산하지 않습니다 — 잉여현금흐름에는 영업현금흐름과 설비투자가 필요한데 지금 읽는 DART 주요계정에는 없습니다.",
             "concept": {
                 "DCF":  "미래 현금흐름을 현재가치로 할인 (Discounted Cash Flow)",
                 "EVA":  "경제적 부가가치 = NOPAT - 자본비용 (Economic Value Added)",
                 "FCF":  "잉여현금흐름 = 영업현금흐름 - 설비투자 (Free Cash Flow)",
             },
         },
-        "note": "실제 재무제표 연동은 DART API 또는 yfinance .info를 활용하세요.",
+        "note": "재무제표 숫자는 /api/data/financials · /api/risk/company(DART 주요계정)에서 읽습니다. 이 길은 개념 설명만 줍니다.",
     }

@@ -2,6 +2,8 @@
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { compareTrayAdd } from "/js/core.js";
+import { loadFundamental, renderFundamental } from "/js/fundview.js";
+import { loadTechnical, renderTechnical } from "/js/techview.js";
 
 document.getElementById("mlc-run-btn")?.addEventListener("click", async () => {
   const symbol = document.getElementById("mlc-symbol").value;
@@ -228,33 +230,23 @@ async function loadMacroIndustry() {
   }
 }
 
+// 투자분석 기초 — 기술적 분석: 설명 글 위에 이 종목의 지표 값(수집 DB 일봉 · 기준일 표시) — 규칙은 techview.js 한 곳 (2026-10-29 ①-10)
+document.getElementById("tech-run-btn")?.addEventListener("click", async () => {
+  const cards = document.getElementById("tech-cards");
+  cards.textContent = "불러오는 중…";
+  cards.innerHTML = renderTechnical(await loadTechnical(api, document.getElementById("tech-symbol").value), escHtml);
+});
+
 // 투자분석 기초 — 재무제표 분석
 document.getElementById("fund-run-btn")?.addEventListener("click", async () => {
   const symbol = document.getElementById("fund-symbol").value;
   const result = document.getElementById("fund-result");
   result?.classList.add("hidden");
   try {
-    const data = await api(`/api/macro/fundamental?symbol=${symbol}`);
-    const cards = document.getElementById("fund-cards");
-    const v = data.valuation;
-    cards.innerHTML = `
-      <div class="p-4 rounded" style="background:var(--bg);">
-        <div class="text-xs text-slate-400 mb-1">현재 주가</div>
-        <div class="text-lg font-bold">${fmt(data.price)}</div>
-      </div>
-      <div class="p-4 rounded" style="background:var(--bg);">
-        <div class="text-xs text-slate-400 mb-1">DCF 내재가치 (목업)</div>
-        <div class="text-lg font-bold" style="color:var(--accent);">${fmt(v.DCF_intrinsic_value)}</div>
-        <div class="text-xs text-slate-400 mt-1">${escHtml(v.concept.DCF)}</div>
-      </div>
-      <div class="p-4 rounded" style="background:var(--bg);">
-        <div class="text-xs text-slate-400 mb-1">FCF 수익률 (목업)</div>
-        <div class="text-lg font-bold">${v.FCF_yield_pct}%</div>
-        <div class="text-xs text-slate-400 mt-1">${escHtml(v.concept.FCF)}</div>
-      </div>
-    `;
+    // 표시 규칙(출처 · 기준일 · 계산하지 않는 것)은 fundview.js 한 곳 — 옛 「목업」 길의 지어낸 값은 더 부르지 않는다(2026-10-29 ①-10)
+    const parts = await loadFundamental(api, symbol);
+    document.getElementById("fund-cards").innerHTML = renderFundamental(parts, escHtml);
     document.getElementById("fund-result").classList.remove("hidden");
-    setToast(data.note, "info");
   } catch (e) {
     setToast("재무 조회 오류: " + e.message, "error");
   }

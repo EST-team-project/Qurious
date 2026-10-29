@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -1010,7 +1011,34 @@ def test_committed_candidates_published_and_held(seed):
     assert "종신보험" not in by and "정기보험" not in by
     pairs = {tuple(sorted((r["from"], r["to"]))) for r in seed["relations"] if r["kind"] == "confused_with"}
     assert {("기본적-분석", "기술적-분석"), ("보장성-보험", "저축성-보험"), ("불특정금전신탁", "특정금전신탁")} <= pairs
-    assert next(s for s in seed["sources"] if s["code"] == "candidate")["terms"] == len(published)
+    assert next(s for s in seed["sources"] if s["code"] == "candidate")["terms"] == len(published) + len(PUBLISHED_1029)
+
+
+#: 2026-10-29 ②-25 — 화면 · 학습 장에 나오는데 표제어가 없던 성과 지표 여섯(분류).
+PUBLISHED_1029 = {"소르티노 비율": "quant", "스털링 비율": "quant", "DSR": "quant", "왜도": "stats", "첨도": "stats", "정보비율": "quant"}
+
+
+def test_performance_metric_terms_are_grounded(seed):
+    """TC-GL-37 · (실제 파일) 2026-10-29 ②-25 — 성과 지표 여섯이 용어로 있고, 원 정의의 출처를 「근거」 칸에 달았고, 이 앱이 세는 방식을
+    적은 app_note 가 코드의 기본값과 어긋나지 않는다 · 스털링은 원 정의와 다른 변형임을 밝힌다 · 「삭감 샤프」 로도 DSR 을 찾는다 ·
+    SR 은 샤프 비율의 약어로 남고 IR 은 어느 용어의 이름도 아니다(TC-GL-23)."""
+    by = {t["term"]: t for t in seed["terms"]}
+    for name, category in PUBLISHED_1029.items():
+        t = by[name]
+        assert t["category"] == category and t["lead_source"] == "candidate" and t["english"]
+        assert t["summary"] and t["definition"] and t["app_note"]
+        assert t["notes"] and all(n["label"].startswith("근거") for n in t["notes"]), name
+    assert "원 정의" in by["스털링 비율"]["app_note"] and "상위 3개" in by["스털링 비율"]["app_note"]
+    owner = {norm(a["alias"]): t["term"] for t in seed["terms"] for a in t["aliases"]}
+    assert owner[norm("삭감 샤프")] == "DSR" and owner[norm("SR")] == "샤프 비율" and norm("IR") not in owner
+    # app_note 가 말하는 기본값이 코드에 그대로 있다 — 코드를 바꾸면 이 시험이 용어 설명을 다시 보게 한다
+    perf = (ROOT / "app" / "services" / "performance_service.py").read_text(encoding="utf-8")
+    risk = (ROOT / "app" / "services" / "evaluation_risk.py").read_text(encoding="utf-8")
+    assert re.search(r"n_trials:\s*int\s*=\s*50\b", perf) and "기본값은 50" in by["DSR"]["app_note"]
+    assert re.search(r"sterling_top_k:\s*int\s*=\s*3\b", perf)
+    assert re.search(r"target_return:\s*float\s*=\s*0\.0", perf) and "기본 0" in by["소르티노 비율"]["app_note"]
+    assert "kurtosis(returns, fisher=False)" in risk and "초과 첨도가 아님" in by["첨도"]["app_note"]
+    assert '"benchmark": "KOSPI"' in perf and "KOSPI" in by["정보비율"]["app_note"]
 
 
 def test_screens_never_ask_more_than_the_api_allows():

@@ -90,6 +90,8 @@ ROUTER_ABBR = {
   "conversations": "CONV", "tasks": "TASK", "paper": "PAPR", "openapi": "OAPI", "lean": "LEAN",
   # 2026-09-30 강사님 원본(2026-09-29)에서 들어온 라우터
   "rebalance": "RBAL", "tradingview": "TV", "formula": "FRML",
+  # 2026-10-29 전략 카드 → Pine v6 내려받기 (요구 P02-③-1)
+  "strategy_cards": "SCARD",
   # 2026-09-30 용어사전 (요구 P01-①-1)
   "glossary": "GLOS",
   # 2026-10-01 개념 학습 (요구 P01-①-1 확장 · 제안) — LEAN 과 헷갈리지 않게 LRN
