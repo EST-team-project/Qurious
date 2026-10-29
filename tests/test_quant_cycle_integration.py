@@ -126,9 +126,12 @@ def run_cycle(broker_row, live_rows=(), quote_price=70_000, positions=(), owned=
     async def quoted(symbol, **kwargs):
         return {"price": quote_price, "source": "kis_user", "as_of": "2026-10-27 14:00",
                 "fetched_at": "2026-10-27 14:00:00", "label": "증권사 조회 · 14:00:00", "fallback": []}
+    async def execution_quote(db, uid, row, mode, symbol):
+        return await auto_trade.quant_valuation.quote(db, uid, symbol, fresh=True)
     async def permitted(*args, **kwargs):
         return await auto_trade._execute_trade_unchecked(*args)
     with patch.object(auto_trade, "_execute_trade", permitted), \
+         patch.object(auto_trade.order_preflight, "current_quote", execution_quote), \
          patch.object(auto_trade.live_ownership, "account_ref", return_value="verified-test-account"), \
          patch.object(auto_trade.live_ownership, "reconcile", AsyncMock(return_value=(list(owned), {}))), \
          patch.object(auto_trade.quant_valuation.quote_now, "quote_now", quoted), \
@@ -232,6 +235,27 @@ def test_paper_mode_never_calls_gateway():
     assert len(trades) == 1 and "live_order" not in trades[0]
     assert calls == [] and not any(isinstance(a, LiveOrder) for a in db.added)
     assert log["signals"][0]["basis"] == {"as_of": "2026-10-16", "interval": "1d", "normalized_score": None}
+
+
+def test_live_risk_stop_uses_current_price_instead_of_yesterdays_close():
+    fake_gateway(holdings=[{'symbol': '005930', 'quantity': 3, 'avgPrice': 65000, 'evalAmount': 180000}])
+    owned = SimpleNamespace(symbol='005930.KS', name='삼성전자', quantity=3, avg_price=65000)
+    _, log = run_cycle(broker('live', quant_execution_policy={'size_kind': 'risk_pct', 'stop_loss_pct': 5}),
+                       quote_price=60000, owned=[owned])
+    trade = next(t for t in log['trades'] if t.get('type') == 'auto')
+    assert trade['action'] == 'sell' and trade['quantity'] == 3 and trade['price'] == 60000
+    check = log['risk']['stop_checks']['005930.KS']
+    assert check['quote']['price'] == 60000 and check['stop_price'] == 61750
+    assert trade['price_basis']['signal_price'] == 70000
+
+
+def test_current_price_recovery_does_not_trigger_a_stale_close_stop():
+    fake_gateway(holdings=[{'symbol': '005930', 'quantity': 3, 'avgPrice': 75000, 'evalAmount': 240000}])
+    owned = SimpleNamespace(symbol='005930.KS', name='삼성전자', quantity=3, avg_price=75000)
+    _, log = run_cycle(broker('live', quant_execution_policy={'size_kind': 'risk_pct', 'stop_loss_pct': 5}),
+                       quote_price=80000, owned=[owned])
+    assert not any(t.get('type') == 'auto' for t in log['trades'])
+    assert log['risk']['stop_checks']['005930.KS']['quote']['price'] == 80000
 
 
 @pytest.mark.parametrize("status", LIVE_ORDER_OPEN_STATUSES)

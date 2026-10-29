@@ -147,6 +147,7 @@ async def execute(intent, quantity, prepare, send, *, require_enabled=False):
                 await coordination_ready()
                 preparation_started = datetime.now(timezone.utc)
                 basis = await prepare(db)
+                quantity = basis.get("quantity", quantity)  # 서버 prepare가 최종 가격으로 다시 계산한 수량
                 quantity = min(quantity, basis.get("max_quantity", quantity))
                 now = datetime.now(timezone.utc)
                 checked = basis.get("checked_at")
@@ -198,7 +199,8 @@ async def execute(intent, quantity, prepare, send, *, require_enabled=False):
                 record = OrderIntent(intent_id=intent.key, user_id=intent.user_id, account_ref=intent.account_ref,
                     book=intent.book, strategy_id=intent.strategy_id, strategy_version=intent.strategy_version,
                     symbol=intent.symbol, side=intent.side, source=intent.source, input_hash=intent.input_hash,
-                    status="PENDING", result={"quantity": quantity, "price": basis["price"], "intent_id": intent.key})
+                    status="PENDING", result={"quantity": quantity, "price": basis["price"], "intent_id": intent.key,
+                                              "price_basis": basis.get("price_basis")})
                 db.add(record)
                 await db.commit()  # 외부 전송보다 먼저 저장한다.
                 # 오래 걸린 준비·설정 변경·저장소 장애는 선점 후에도 차단한다.
@@ -224,11 +226,14 @@ async def execute(intent, quantity, prepare, send, *, require_enabled=False):
                     record.status = "filled"
                 # 증권사 원문·키·계좌번호를 공통 실행 기록에 복제하지 않는다.
                 record.result = {k: v for k, v in result.items() if k in
-                    ("status", "quantity", "price", "code", "reason", "cash", "cash_balance", "symbol", "name", "side", "action", "client_order_id", "net_amount", "cost", "quote_source", "quote_label", "quote_as_of", "market_open")}
+                    ("status", "quantity", "price", "price_basis", "code", "reason", "cash", "cash_balance", "symbol", "name", "side", "action", "client_order_id", "net_amount", "cost", "quote_source", "quote_label", "quote_as_of", "market_open")}
+                if basis.get("price_basis") is not None:
+                    record.result["price_basis"] = basis["price_basis"]
                 if (result.get("live_order") or {}).get("client_order_id"):
                     record.result["client_order_id"] = result["live_order"]["client_order_id"]
                 await db.commit()
-                return {**result, "intent_id": intent.key}
+                return {**result, **({"price_basis": basis["price_basis"]} if basis.get("price_basis") else {}),
+                        "intent_id": intent.key}
     except Rejected as exc:
         result = blocked(exc.code, str(exc))
         if record is not None:
@@ -255,4 +260,4 @@ def settings_signature(row):
     # 저장·출력하지 않는다. 준비 도중 계좌·전략·수량 설정이 바뀌면 해당 의도는 보류한다.
     return tuple(getattr(row, key, None) for key in ("broker", "paper", "app_key", "app_secret", "account_no",
         "quant_mode", "quant_auto_enabled", "quant_strategy_id", "quant_strategy_version",
-        "quant_per_trade_budget", "quant_buy_ratio", "quant_sell_ratio"))
+        "quant_per_trade_budget", "quant_buy_ratio", "quant_sell_ratio")) + (digest(getattr(row, "quant_execution_policy", None)),)

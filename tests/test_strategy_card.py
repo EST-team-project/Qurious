@@ -98,6 +98,7 @@ def test_수정주가는_원래_가격에_그날_계수를_곱한_값이라_ATR_
     # #366 — 판 2 의 ATR 은 수정주가로 재고 주문 · 일지는 원래 가격으로 체결한다. 식의 방향(수정 = 원래 × cum_factor)을
     # 계수가 바뀐 실제 종목에서 못 박는다: 판단 날 ATR(수정) ÷ cum_factor 가 그날 원래 가격 단위의 거리다.
     import sqlite3
+    from app.services.price_basis import adjusted_to_raw
 
     con = sqlite3.connect(f"file:{REAL_DB}?mode=ro", uri=True)
     try:
@@ -113,4 +114,4 @@ def test_수정주가는_원래_가격에_그날_계수를_곱한_값이라_ATR_
     for _, raw, adj, factor in rows:
         assert factor < 0.9 and adj == pytest.approx(raw * factor)      # 계수가 바뀐 앞날들 — 수정 = 원래 × 계수
         atr_adj = 0.05 * adj                                           # 수정 단위의 거리 하나(값은 아무것)
-        assert atr_adj / factor == pytest.approx(0.05 * raw)           # ÷ 그날 계수 = 원래 가격 단위의 같은 거리
+        assert adjusted_to_raw(atr_adj, factor) == pytest.approx(0.05 * raw)

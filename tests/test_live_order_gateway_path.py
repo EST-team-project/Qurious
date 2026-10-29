@@ -166,6 +166,29 @@ def test_emergency_halt_cancels_open_live_orders(env):
     assert open_row.status == "CANCEL_REQUESTED" and "비상 정지" in open_row.message
 
 
+@pytest.mark.parametrize("cancel_fails", [False, True])
+def test_halt_remains_enabled_and_audited_when_notification_fails(env, cancel_fails):
+    db = FakeDb()
+    cancel = AsyncMock(return_value={"requested": 1, "failed": 1, "skipped": 1})
+    if cancel_fails:
+        cancel.side_effect = RuntimeError("cancel unavailable")
+    with patch.object(auto_trade, "cancel_open_live_orders", cancel), \
+         patch.object(auto_trade.notification, "notify_risk_halt", AsyncMock(side_effect=RuntimeError("offline"))), \
+         patch.object(auto_trade, "audit", AsyncMock()) as audit:
+        asyncio.run(auto_trade.emergency_halt(db, db.broker, str(UID), "일손실 한도 초과", -3.5))
+    assert db.broker.risk_kill_switch and not db.broker.quant_auto_enabled
+    assert db.commits == 1
+    actions = audit.call_args.args[3]["actions"]
+    assert actions["notification"] == "failed"
+    assert actions["auto_disabled"] and actions["kill_switch_set"]
+    if cancel_fails:
+        assert actions["cancel_orders"]["status"] == "failed"
+    else:
+        assert actions["cancel_orders"]["requested"] == 1
+        assert actions["cancel_orders"]["failed"] == 1
+        assert "별도 확인" in actions["cancel_orders"]["confirmation"]
+
+
 def _factory(db):
     class Factory:
         def __call__(self): return self

@@ -775,14 +775,25 @@ async def emergency_halt(db: AsyncSession, broker_row: BrokerSettings | None, us
         broker_row.quant_auto_enabled = False
         await db.commit()
     stop_auto_trade(user_id)
+    actions = {"auto_disabled": broker_row is not None, "kill_switch_set": broker_row is not None,
+               "cancel_orders": {"status": "unknown"}, "notification": "pending"}
     try:
         cancelled = await cancel_open_live_orders(db, _resolve_user_id(user_id), reason)
+        actions["cancel_orders"] = {"status": "checked", **cancelled,
+                                     "confirmation": "취소 요청 결과이며 취소 확정은 별도 확인"}
         if cancelled.get("requested") or cancelled.get("failed"):
             logger.warning("비상 정지 — 미체결 실주문 취소 요청 %s", cancelled)
     except Exception as exc:  # 취소 실패가 비상 정지 자체를 막으면 안 된다
+        actions["cancel_orders"] = {"status": "failed", "reason": "취소 요청 결과 확인 실패"}
         logger.exception("비상 정지 중 미체결 취소 실패: %s", exc)
-    await notification.notify_risk_halt(reason, day_pnl_pct, user_id=user_id)
-    await audit(user_id, "", "auto_trade.emergency_halt", {"reason": reason, "day_pnl_pct": day_pnl_pct})
+    try:
+        await notification.notify_risk_halt(reason, day_pnl_pct, user_id=user_id)
+        actions["notification"] = "dispatched"
+    except Exception:
+        actions["notification"] = "failed"
+        logger.exception("비상 정지 알림 실패 user=%s", user_id)
+    await audit(user_id, "", "auto_trade.emergency_halt",
+                {"reason": reason, "day_pnl_pct": day_pnl_pct, "actions": actions})
     logger.warning("자동매매 비상 정지 user=%s: %s", user_id, reason)
 
 
@@ -965,12 +976,23 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
 
         risk_holdings = {}
         risk_stops = set()
+        stop_unavailable = {}
+        stop_quotes = {}
         if execution.size_kind == "risk_pct":
             for p in portfolio_rows:
                 if p.quantity <= 0:
                     continue
                 risk_holdings[p.symbol] = p
-                price = price_map.get(p.symbol)
+                try:
+                    q = await order_preflight.current_quote(db, uid, broker_row, mode, p.symbol)
+                    if q["source"] not in ("kis_user", "kis_gateway") or not p.avg_price:
+                        raise ValueError("현재 원주가·귀속 평단가 확인 불가")
+                    price = q["price"]
+                    stop_quotes[p.symbol] = {"quote": q, "average_price": float(p.avg_price),
+                                             "stop_price": float(p.avg_price) * (1 - execution.stop_loss_pct / 100)}
+                except Exception:
+                    stop_unavailable[p.symbol] = "현재 원주가·귀속 평단가를 확인하지 못해 손절 판단과 주문을 보류합니다."
+                    continue
                 if price and p.avg_price and price <= float(p.avg_price) * (1 - execution.stop_loss_pct / 100):
                     if (aggressive and forced_action.get(p.symbol, {}).get("action") != "매도"
                             and sum(v["action"] == "매도" for v in forced_action.values())
@@ -1007,6 +1029,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             "day_start_equity": round(start_equity, 2), "equity": round(equity_now, 2), "day_pnl_pct": day_pnl,
             "orders_today": await risk_guard.orders_today(user_id), "limits": limits.to_dict(), "skipped": [],
         }
+        cycle_log["risk"]["stop_checks"] = stop_quotes
+        cycle_log["risk"]["stop_unavailable"] = stop_unavailable
         if mode == "paper":
             cycle_log["risk"]["valuation"] = quant_valuation.basis(valuation)
         if risk_guard.daily_loss_breached(start_equity, equity_now, limits.daily_loss_limit_pct):
@@ -1133,24 +1157,32 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 "reasons": [str(r) for r in list(reasons)[:6]],   # 의사결정 화면 「판단 근거」 카드에 실제 사유를 보여 준다
             })
 
+            if symbol in stop_unavailable:
+                await _risk_skip(symbol, stock["name"], "sell", price, stop_unavailable[symbol])
+                continue
             execution_basis = {}
             decision = {"signal_key": str((indicators.get("times") or [None])[-1] or indicators.get("as_of") or ""),
+                        "signal_price": price, "signal_as_of": indicators.get("as_of"),
+                        "size_from_budget": True, "risk_stop": symbol in risk_stops,
+                        "position_cap_pct": (strategy_spec or {}).get("position_sizing", {}).get("max_position_pct"),
                         "input_hash": execution_control.digest({"strategy": strategy_spec,
                             "signal": signal, "closes": indicators.get("closes"), "times": indicators.get("times")})}
-            if mode == "paper" and action in ("강력 매수", "매수", "강력 매도", "매도"):
+            if action in ("강력 매수", "매수", "강력 매도", "매도"):
                 try:
-                    q = await quant_valuation.quote(db, uid, symbol, fresh=True)
-                except ValueError as exc:
-                    await _risk_skip(symbol, stock["name"], "buy" if "매수" in action else "sell", price, str(exc))
+                    q = await order_preflight.current_quote(db, uid, broker_row, mode, symbol)
+                except Exception:
+                    await _risk_skip(symbol, stock["name"], "buy" if "매수" in action else "sell", price, "주문 직전 가격·출처·기준 시각 확인 불가")
                     continue
                 execution_basis = {"signal_price": price, "signal_as_of": indicators.get("as_of"),
                                    "quote": q, "price_delta_pct": round((q["price"] / price - 1) * 100, 4)}
-                reasons = [*reasons, f"판단 {price:,.0f}원({indicators.get('as_of') or '기준일 미확인'}) → 가상 체결 {q['price']:,.0f}원 · {q['label']}"]
+                reasons = [*reasons, f"판단 {price:,.0f}원({indicators.get('as_of') or '기준일 미확인'}) → 주문 전 조회 {q['price']:,.0f}원 · {q['label']}"]
                 price = q["price"]
                 price_map[symbol] = price
                 held = next((p for p in portfolio_rows if p.symbol == symbol), None)
-                if held and held.quantity > 0:
-                    new_value = held.quantity * price
+                account_quantity = (live_snapshot['holdings'].get(symbol, {}).get('quantity', 0)
+                                    if mode == 'live' else held.quantity if held else 0)
+                if account_quantity > 0:
+                    new_value = account_quantity * price
                     equity_now += new_value - position_values.get(symbol, 0)
                     position_values[symbol] = new_value
                 if risk_guard.daily_loss_breached(start_equity, equity_now, limits.daily_loss_limit_pct):
@@ -1194,7 +1226,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                     "buy", price, qty, f"[{mode}] " + " | ".join(reasons),
                     decision=decision,
                 )
-                cycle_log["trades"].append({**trade, "type": "auto", "price_basis": execution_basis})
+                cycle_log["trades"].append({**trade, "type": "auto", "price_basis": trade.get("price_basis", execution_basis)})
                 if trade.get("status") not in ("filled", "submitted", "unknown"):
                     await risk_guard.release_order_slot(user_id, stock["symbol"], "buy")
                 if trade.get("status") in ("filled", "submitted", "unknown"):
@@ -1223,7 +1255,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         "sell", price, qty, f"[{mode}] " + " | ".join(reasons),
                         decision=decision,
                     )
-                    cycle_log["trades"].append({**trade, "type": "auto", "price_basis": execution_basis})
+                    cycle_log["trades"].append({**trade, "type": "auto", "price_basis": trade.get("price_basis", execution_basis)})
                     if trade.get("status") not in ("filled", "submitted", "unknown"):
                         await risk_guard.release_order_slot(user_id, stock["symbol"], "sell")
                     if trade.get("status") in ("filled", "submitted", "unknown"):
