@@ -52,6 +52,13 @@ a { color: inherit; }
 .hero-sub { max-width: 700px; font-size: 20px; color: var(--text-dim); }
 .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .hero-note { font-size: 13px; color: var(--text-mute); }
+/* 머무는 동안의 움직임(2026-10-29 사용자 요청) — 선은 8초 주기로 그려졌다 쉬고, 끝점은 숨 쉬듯 깜빡인다.
+   움직임 줄이기 설정이면 아래 맨 끝 규칙이 애니메이션을 꺼서 선은 다 그려진 채로 보인다(오프셋 기본값 0). */
+.hero-chart { width: min(640px, 86vw); height: auto; margin-top: 8px; overflow: visible; }
+.hero-chart-line { stroke-dasharray: 1; animation: hero-draw 8s ease-in-out infinite; }
+.hero-chart-dot { transform-box: fill-box; transform-origin: center; animation: hero-dot 2.4s ease-in-out infinite; }
+@keyframes hero-draw { 0% { stroke-dashoffset: 1; opacity: 1; } 40%, 85% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes hero-dot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.7); opacity: .45; } }
 .hero-note a, .foot-links a { text-decoration: underline; text-underline-offset: 2px; }
 
 /* ── 카드 ── */
@@ -103,11 +110,18 @@ a { color: inherit; }
   font: inherit; font-size: 14px; font-weight: 600; line-height: 1; text-decoration: none; cursor: pointer; }
 .intro-link:hover, .intro-skip:hover { background: rgba(255, 255, 255, .2); }
 .intro-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 0 20px 60px; text-align: center; }
-.intro-logo { width: 96px; height: 96px; border-radius: 24px; font-size: 48px; box-shadow: 0 0 48px rgba(74, 144, 226, .5); animation: intro-pop .6s cubic-bezier(.2, .8, .2, 1) both; }
+.intro { cursor: pointer; }
+/* 누를 때까지 머무는 동안의 움직임 — 로고 빛이 천천히 숨 쉬고, 안내 글이 은은히 깜빡인다 */
+.intro-logo { width: 96px; height: 96px; border-radius: 24px; font-size: 48px; box-shadow: 0 0 48px rgba(74, 144, 226, .5);
+  animation: intro-pop .6s cubic-bezier(.2, .8, .2, 1) both, intro-breathe 3.6s ease-in-out .8s infinite; }
 .intro-name { font-size: 56px; font-weight: 800; line-height: 1.1; animation: intro-rise .6s ease .5s both; }
 .intro-chart { width: min(320px, 70vw); height: auto; overflow: visible; }
 .intro-chart path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: intro-draw 1s ease-out .8s forwards; }
 .intro-tagline { font-size: 22px; font-weight: 500; color: #cbd5e1; animation: intro-rise .6s ease 1.4s both; }
+.intro-hint { margin-top: 18px; font-size: 15px; font-weight: 500; letter-spacing: .04em; color: #94a3b8;
+  animation: intro-rise .6s ease 2.2s both, intro-blink 2.4s ease-in-out 2.8s infinite; }
+@keyframes intro-breathe { 0%, 100% { box-shadow: 0 0 40px rgba(74, 144, 226, .38); } 50% { box-shadow: 0 0 72px rgba(74, 144, 226, .72); } }
+@keyframes intro-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @keyframes intro-pop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
 @keyframes intro-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes intro-draw { to { stroke-dashoffset: 0; } }

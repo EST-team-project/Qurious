@@ -4,7 +4,7 @@
 2. 이어지는 곳 — 로그인 · 가입 · 약관 · 처리방침 링크가 있고, 개발 중 카드에는 「로그인하고 써 보기」 가 없다. (TC-LND-02)
 3. 문구 — 옛 문구(금융 AI Agent · 설치 명령 · 기술 이름 · 자동매매 · 실시간)가 없고, 코인 · 대안자산은 「개발 중」 으로만, AI 채팅은 안 넣는다. (TC-LND-03)
 4. 카드 — 한 번에 하나만 펼치고 aria-expanded 로 읽어 주며, 스크립트가 없으면 글이 모두 보인다. (TC-LND-04)
-5. 인트로 — 약 2.6초 · 건너뛰기 · Esc · 이 탭에서 한 번만 · 움직임 줄이기면 생략 · 인트로 중에도 로그인 · 가입 링크. (TC-LND-05)
+5. 인트로 — 누를 때까지 머문다(2026-10-29 개정 · 전에는 2.6초) · 건너뛰기 · Esc · 이 탭에서 한 번만 · 움직임 줄이기면 생략 · 인트로 중에도 로그인 · 가입 링크. (TC-LND-05)
 6. 바깥 자원 — 허용 목록 밖 스타일 · 스크립트를 부르지 않는다(Tailwind CDN 은 걷었다). 서비스 이름과 고지는 brand.js 한 곳. (TC-LND-06)
 """
 from __future__ import annotations
@@ -84,8 +84,19 @@ def test_cards_open_one_at_a_time_and_stay_readable_without_scripts():
 
 
 def test_intro_is_short_skippable_once_per_tab_and_off_for_reduced_motion():
-    """TC-LND-05 · 인트로 — 약 2.6초 · 건너뛰기 · 화면 누르기 · Esc · 이 탭에서 한 번만 · 움직임 줄이기면 생략 · 인트로 중에도 로그인 · 가입."""
-    assert "const INTRO_MS = 2600;" in JS
+    """TC-LND-05 · 인트로 — 누를 때까지 머문다(자동 넘김 없음 · 안내 글 · 머무는 동안 은은한 움직임) · 건너뛰기 · 화면 누르기 · Esc · 이 탭에서 한 번만 · 움직임 줄이기면 생략 · 인트로 중에도 로그인 · 가입."""
+    # 2026-10-29 사용자 피드백 — 2.6초 뒤 저절로 넘어가던 것을 걷고, 누를 때까지 머문다
+    assert "INTRO_MS" not in JS and "setTimeout(endIntro" not in JS, "인트로가 저절로 넘어가면 안 된다"
+    assert 'class="intro-hint">화면을 눌러 시작' in INDEX
+    assert "@keyframes intro-breathe" in CSS and re.search(r"\.intro-logo\s*\{[^}]*intro-breathe[^}]*infinite", CSS)
+    assert re.search(r"\.intro-hint\s*\{[^}]*intro-blink[^}]*infinite", CSS)
+    # 소개 화면에 머무는 동안의 움직임 — 장식 차트(읽는 도구가 읽지 않게 aria-hidden) · 선은 반복해서 그리고 끝점은 깜빡인다 · 숫자 · 시세를 흉내 내지 않는다
+    chart = re.search(r'<svg class="hero-chart".*?</svg>', INDEX, re.S).group(0)
+    assert 'aria-hidden="true"' in chart and "<text" not in chart, "장식 차트에 숫자 · 글자를 넣지 않는다(시세로 읽히면 안 된다)"
+    assert re.search(r"\.hero-chart-line\s*\{[^}]*hero-draw[^}]*infinite", CSS)
+    assert re.search(r"\.hero-chart-dot\s*\{[^}]*hero-dot[^}]*infinite", CSS)
+    # 움직임 줄이기에서는 선이 다 그려진 채 보여야 한다 — 기본(애니메이션 없음)에서 offset 을 숨기지 않는다
+    assert not re.search(r"\.hero-chart-line\s*\{[^}]*stroke-dashoffset\s*:\s*1", CSS)
     assert "prefers-reduced-motion: reduce" in INDEX and 'getItem("qurious-intro-seen")' in INDEX
     assert 'const SEEN_KEY = "qurious-intro-seen";' in JS and "sessionStorage.setItem(SEEN_KEY" in JS
     assert 'id="intro-skip"' in INDEX and "건너뛰기" in INDEX

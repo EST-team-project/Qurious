@@ -922,6 +922,47 @@ def rehearsal_view(snap: dict | None, weekly: dict | None, now: datetime) -> dic
     return out
 
 
+#: 데이터 품질 검사(collector/quality.py · 러너 `quality` 단계) 결과 파일 — 회차가 한 번 돌 때마다 새로 쓴다
+QUALITY_FILE = "data_quality_last.json"
+#: 마지막 검사가 이보다 오래되면 「오래됨」 — 거래일마다 도는 단계라 주말 · 하루 건너뜀을 넘겨 4일
+QUALITY_STALE_DAYS = 4
+QUALITY_STATE = {"ok": "이상 없음", "warn": "경고", "error": "검사 오류", "stale": "오래됨", "none": "없음"}
+
+
+def quality_view(snap: dict | None, now: datetime) -> dict:
+    """「데이터 품질 검사 — 결측 · 중복 · 정합성」 한 줄 — 검사 결과 파일(`QUALITY_FILE`)을 읽기만 한다.
+
+    **전체 판정(verdict)에는 섞지 않는다**(자료가 최신인가와 따로인 물음 · 처음엔 경고만 한다는 결정 · 복구 시험과 같은 자리).
+    파일이 없으면(옛 회차 · 아직 안 돎) 지어내지 않고 「없음」. 검사 하나가 예외를 낸 것(error)은 자료 결함(warn)과 따로 센다.
+    날 수는 KST 날짜로 센다.
+    """
+    if not isinstance(snap, dict) or not snap.get("at"):
+        return {"state": "none", "state_label": QUALITY_STATE["none"],
+                "label": "아직 검사 기록이 없습니다(러너가 한 번 돌면 생깁니다)", "checked_at": None, "days_ago": None}
+    at = _parse_ts(snap.get("at"))
+    warn, err = int(snap.get("warn") or 0), int(snap.get("error") or 0)
+    window = snap.get("window_days") or snap.get("days")
+    days = (now.date() - at.astimezone(KST).date()).days if at else None
+    when = f"{at.astimezone(KST):%m-%d}" if at else "시각 모름"
+    if err:
+        state = "error"
+    elif warn:
+        state = "warn"
+    elif days is not None and days > QUALITY_STALE_DAYS:
+        state = "stale"
+    else:
+        state = "ok"
+    parts = [f"최근 {window}거래일" if window else "검사 창 모름", f"경고 {warn}건"]
+    if err:
+        parts.append(f"검사 오류 {err}건")
+    parts.append(f"{when} 검사")
+    label = " · ".join(parts)
+    if days is not None and days > QUALITY_STALE_DAYS:
+        label += f" · {days}일 전이라 오래됨"
+    return {"state": state, "state_label": QUALITY_STATE[state], "label": label,
+            "checked_at": at.isoformat() if at else None, "days_ago": days, "warn": warn, "error": err}
+
+
 # ── 모으기 ────────────────────────────────────────────────────────────────
 #: 한 단계 다시 돌리기 — 앱은 러너를 부를 수 없다(컨테이너는 수집 폴더를 읽기만 하고, 러너는 PC 쪽 프로세스다).
 #: 화면에서 바로 돌릴 통로(쓰기 폴더 · 요청 표 등)는 정할 것이라, 지금은 PC 에서 돌릴 명령과 막히는 때를 알려 준다.
@@ -1000,6 +1041,8 @@ def get_status(now: datetime | None = None, *, use_cache: bool = True) -> dict:
         # 복구 시험 — 판정(verdict)에는 섞지 않는다(자료가 최신인가와 따로인 물음 · 화면이 줄 하나로 따로 보인다)
         "rehearsal": rehearsal_view(_read_json(sdir / BACKUP_STATUS_FILE) if sdir else None,
                                     _read_json(sdir / WEEKLY_REHEARSAL_FILE) if sdir else None, now),
+        # 품질 검사(①-12) — 판정에는 섞지 않고 한 줄로만 보인다(처음엔 경고만)
+        "quality": quality_view(_read_json(sdir / QUALITY_FILE) if sdir else None, now),
         "source": "collector",
         "rows_state": rows_state,
         # 행 수를 센 때 = 숫자 파일을 쓴 때(러너) — load_numbers 는 읽은(ok) 파일에만 시각을 준다(없음 · 옛 판 · 깨짐은 None · 메우지 않는다)
