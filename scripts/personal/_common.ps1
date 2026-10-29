@@ -66,11 +66,55 @@ $QServices = @(
 $QComposeProject = 'qurious'
 
 # compose 파일 목록. 비어 있으면 compose 가 저장소 루트의 docker-compose.yml 하나만 읽는다(보통 모드).
-# start.ps1 -Dev 가 여기에 개발 모드 덧씌우기(scripts/personal/compose.dev.yml)를 더한다 —
+# start.ps1이 Get-QStartComposeFiles로 개발(선택)·PC 전용(있을 때) 덧씌우기를 고른다 —
 # 그러면 그 스크립트 안의 모든 Invoke-QCompose 호출이 `-f 기본 -f 덧씌우기` 로 돈다.
 # ⚠️ 첫 파일이 기본 파일이어야 한다. compose 는 상대 경로(./app 등)를 첫 파일이 있는 폴더 기준으로 푼다.
 $QComposeFiles = @()
 $QComposeDevFile = 'scripts/personal/compose.dev.yml'
+
+function Get-QStartComposeFiles {
+  # 로컬 파일은 마지막에 적용한다. Dev 전환으로 키 마운트가 사라지지 않게 한다(#415).
+  # 덧씌우기가 없으면 빈 목록을 반환해 기존 compose 기본 파일 탐색을 유지한다.
+  param([switch]$Dev)
+  $localFile = 'scripts/personal/compose.local.yml'
+  $hasLocal = Test-Path -LiteralPath (Join-Path $QRoot $localFile) -PathType Leaf
+  if (-not $Dev -and -not $hasLocal) { return }
+  'docker-compose.yml'
+  if ($Dev) { $QComposeDevFile }
+  if ($hasLocal) { $localFile }
+}
+
+function Test-QStartKeyFiles {
+  # config에는 비밀 환경변수도 있으므로 캡처만 하고 원문을 출력하지 않는다.
+  $ErrorActionPreference = 'Continue'
+  $fileArgs = @()
+  foreach ($f in $QComposeFiles) { $fileArgs += @('-f', $f) }
+  Push-Location $QRoot
+  try {
+    $raw = & docker compose @fileArgs config --format json 2>&1
+    if ($LASTEXITCODE -ne 0) { Write-QFail '로컬 Compose 설정을 확인하지 못했습니다.'; return $false }
+    try { $config = ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop }
+    catch { Write-QFail '로컬 Compose 설정을 해석하지 못했습니다.'; return $false }
+    foreach ($name in @('app', 'celery-worker', 'celery-beat')) {
+      $svc = $config.services.$name
+      $keyPath = $svc.environment.BROKER_CREDENTIAL_KEY_FILE
+      if (-not $keyPath) { continue }
+      $mounts = @($svc.volumes | Where-Object { $keyPath -eq $_.target -or $keyPath.StartsWith($_.target.TrimEnd('/') + '/') } | Sort-Object { $_.target.Length } -Descending)
+      if ($mounts.Count -eq 0 -or -not $mounts[0].read_only) {
+        Write-QFail "$name : 증권사 암호화 키의 읽기 전용 마운트를 확인하세요."; return $false
+      }
+      $mount = $mounts[0]
+      if ($mount.type -eq 'bind') {
+        $hostPath = $mount.source
+        if ($keyPath -ne $mount.target) { $hostPath = Join-Path $hostPath ($keyPath.Substring($mount.target.TrimEnd('/').Length).TrimStart('/')) }
+        if (-not (Test-Path -LiteralPath $hostPath -PathType Leaf)) {
+          Write-QFail "$name : 증권사 암호화 키 파일이 없습니다. 기존 키 파일 경로를 확인하세요."; return $false
+        }
+      }
+    }
+    return $true
+  } finally { Pop-Location }
+}
 
 # ------------------------------------------------------------------------------
 # 2. 화면 출력 — 글머리표를 고정해 두면 로그를 눈으로 훑기 쉽다
@@ -139,7 +183,7 @@ function Invoke-QCompose {
   param([Parameter(Mandatory = $true)][string[]]$Arguments)
   Push-Location $QRoot
   try {
-    # $QComposeFiles 가 있으면(개발 모드) 파일마다 `-f 파일` 을 앞에 붙인다. 없으면 인자 그대로.
+    # $QComposeFiles가 있으면 파일마다 -f를 붙인다. 없으면 기존 기본 탐색을 유지한다.
     $fileArgs = @()
     foreach ($f in $QComposeFiles) { $fileArgs += @('-f', $f) }
     & docker compose @fileArgs @Arguments | Out-Host

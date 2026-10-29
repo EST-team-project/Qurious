@@ -34,6 +34,21 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # 내 계정에만 · 내 
 
 `git pull` 로 코드를 받은 뒤에도 그냥 `start.ps1` 을 돌리면 됩니다 — 코드가 이미지보다 새로우면 **이미지를 자동으로 다시 만듭니다**.
 
+### PC 전용 설정과 증권사 암호화 키 (#415)
+
+`scripts/personal/compose.local.yml` 파일이 있으면 `start.ps1`은 일반 모드에서 **기본 → 로컬**, `-Dev`에서는 **기본 → 개발 → 로컬** 순서로 적용합니다. 파일이 없으면 이전 실행 방식 그대로입니다. 시작할 때 적용 파일 이름만 표시하며 내용을 출력하지 않습니다. 이 자동 적용은 `start.ps1` 범위이며 직접 Docker 명령을 실행할 때는 `-f` 목록을 지정해야 합니다.
+
+[compose.local.example.yml](compose.local.example.yml)은 app·worker·beat에 같은 암호화 키를 읽기 전용으로 연결하는 예시입니다. 로컬 파일이 없을 때만 복사하고, 이미 있으면 필요한 항목을 병합하세요. 예시의 `secrets/broker/broker-credentials.json`은 해당 개발 PC의 키 위치이며 키 파일을 자동 생성하지 않습니다. `start.ps1`은 로컬 설정을 쓸 때 컨테이너 생성 전에 읽기 전용 마운트와 호스트 bind 키 파일 존재를 검사합니다. 누락되면 중단하며 Compose 원문이나 키 내용은 출력하지 않습니다. 외부 볼륨의 파일 내용은 이 호스트 검사 범위가 아니므로 기존 운영 검증 절차를 따릅니다.
+
+`secrets/`는 Git과 Docker 빌드에서 제외되고 `compose.local.yml`도 Git에서 제외됩니다. 폴더 제외가 접근 권한 설정을 대신하지 않으므로 Windows에서는 해당 사용자로 읽기 권한을 제한하세요. 기존 암호화 DB에는 **기존 키**가 필요합니다. 키를 새로 만들거나 다른 PC 키로 바꾸지 마세요. DB와 대응 키는 별도로 백업합니다. 운영은 저장소 밖 키 보관을 유지합니다.
+
+별도 마이그레이션도 같은 파일 목록으로 앱 서비스를 사용합니다. 먼저 [암호화 운영 절차](../../docs/phase-3/05-deployment/증권사-자격증명-암호화-운영.md)의 백업·복원·쓰기 중지 조건을 확인하세요.
+
+```powershell
+docker compose -f docker-compose.yml -f scripts/personal/compose.local.yml run --rm --no-deps app alembic upgrade head
+# 개발 모드는 기본 파일 다음에 -f scripts/personal/compose.dev.yml 을 추가한다.
+```
+
 ### 코드를 고치며 볼 때 — 개발 모드
 
 ```powershell

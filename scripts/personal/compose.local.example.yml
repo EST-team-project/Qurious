@@ -1,0 +1,22 @@
+# 이 파일을 같은 폴더의 compose.local.yml로 복사한다(기존 파일은 직접 병합).
+# start.ps1이 일반/개발 모드 모두 마지막에 적용한다. 실제 키는 넣지 않는다.
+# 상대 경로는 첫 Compose 파일인 저장소 루트의 docker-compose.yml 기준이다.
+# 기존 암호화 DB에는 반드시 그 DB에 대응하는 키 파일을 제공한다.
+x-broker-key: &broker-key
+  environment:
+    BROKER_CREDENTIAL_KEY_FILE: /run/secrets/broker-credentials.json
+  volumes:
+    - type: bind
+      source: ./secrets/broker/broker-credentials.json
+      target: /run/secrets/broker-credentials.json
+      read_only: true
+      bind:
+        create_host_path: false
+
+services:
+  app:
+    <<: *broker-key
+  celery-worker:
+    <<: *broker-key
+  celery-beat:
+    <<: *broker-key
