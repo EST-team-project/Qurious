@@ -6,8 +6,8 @@
   그래서 이동원 몫 화면을 같은 기준으로 다시 매겨 public/js/teamcompletion.js 에 두고 completion.js 가 덮게 했다.
   정본은 docs/phase-3/04-testing/대장/기능완성도-점검표.tsv 이고, 이 시험은 둘이 어긋나면 실패한다.
 
-이 시험이 보지 않는 것 — 팀원 화면의 점수 · 새로 생긴 화면의 평가 유무. 그것을 시험으로 막으면 팀원 PR 이 실패하므로
-팀 결정(점검 이슈) 뒤로 미룬다. 여기서는 이동원 몫 줄과 점검표 자체의 셈만 본다.
+점검표에서 「배지반영 = 예」인 줄과 점검표 자체의 셈을 본다. 10/29 #388에 따라 오준영 담당 5줄도 포함한다.
+평가가 없는 새 화면이나 아직 배지 반영을 정하지 않은 줄을 강제로 추가하지 않는다.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PUB = ROOT / "public"
 TSV = ROOT / "docs" / "phase-3" / "04-testing" / "대장" / "기능완성도-점검표.tsv"
 MAX = {"UI": 20, "서버": 30, "연동": 25, "시험": 25}
-LINE_RE = re.compile(r'^\s*"?([a-z0-9-]+)"?:\s*A\((\d+),\s*"([^"]+)",\s*"([^"]+)"\)', re.M)
+LINE_RE = re.compile(r'^\s*"?([a-z0-9-]+)"?:\s*A\((\d+),\s*"([^"]+)",\s*"([^"]+)"(?:,\s*"\d{2}-\d{2}")?\)', re.M)
 
 
 def _rows() -> list[dict]:
@@ -79,9 +79,16 @@ def test_audit_sheet_arithmetic():
 
 
 def test_team_evidence_marks_itself():
-    """TC-CP-05 · 팀 줄의 근거 글은 「팀 점검 10-12」 를 앞에 붙인다(마우스를 올린 사람이 강사님 감사와 구별하게 · 2026-10-12 다시 매김 — 그 앞은 10-04)."""
+    """TC-CP-05 · 팀 점검임을 표시하고, 새 점검일이 기존 줄의 날짜를 바꾸지 않는다."""
     src = (PUB / "js" / "teamcompletion.js").read_text(encoding="utf-8")
-    assert "evidence: `팀 점검 10-12 · ${evidence}`" in src
+    assert 'checkedAt = "10-12"' in src
+    assert "evidence: `팀 점검 ${checkedAt} · ${evidence}`" in src
+    # 점검표에 최신 재점검일을 명시한 반영 줄은 배지 날짜도 같아야 한다.
+    for row in _rows():
+        checked = re.match(r"2026-(\d{2}-\d{2}) 재점검", row["근거"])
+        if row["배지반영"] == "예" and checked:
+            line = next(line for line in src.splitlines() if f'"{row["화면키"]}": A(' in line)
+            assert line.endswith(f', "{checked[1]}"),'), row["화면키"]
 
 
 def test_badge_is_admin_only():
