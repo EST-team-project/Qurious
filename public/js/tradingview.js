@@ -56,7 +56,7 @@ async function runCompare() {
   const num = (id) => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
   const body = {
     ticker: $("tvc-ticker").value.trim(), strategy: $("tvc-strategy").value,
-    start_date: $("tvc-start").value, end_date: $("tvc-end").value, initial_cash: Number($("tvc-cash").value || 10000),
+    start_date: $("tvc-start").value, end_date: $("tvc-end").value, initial_cash: Number($("tvc-cash").value || 10000000),
     short_window: Number($("tvc-short").value || 20), long_window: Number($("tvc-long").value || 60),
     tv_metrics: { net_profit_pct: num("tvc-net"), max_drawdown_pct: num("tvc-mdd"), total_trades: num("tvc-trades"), win_rate_pct: num("tvc-win"), sharpe_ratio: num("tvc-sharpe") },
     tv_trades_csv: $("tvc-csv").value.trim() || null,

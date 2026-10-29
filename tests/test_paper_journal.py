@@ -618,14 +618,18 @@ def test_pj19_pull_accepts_other_pyarrow_bytes_but_not_other_content(tmp_path):
     tbl = pq.read_table(bad / parquet)
     pq.write_table(tbl.set_column(tbl.schema.get_field_index("cash"), "cash", tbl["cash"].cast("float64").to_pandas().add(1).pipe(
         lambda s: __import__("pyarrow").array(s))), bad / parquet)
-    with pytest.raises(ValueError, match="지문 목록과 다르다"):
+    with pytest.raises(ValueError, match="지문 목록과 다르다") as bad_exc:
         cli._ledger_download(FakeApi(bad))
+    # 이슈 #400 — 어느 검사에서 막혔는지 · 어느 코드 판인지 메시지가 말한다(옛 코드는 이 괄호 설명이 없다)
+    assert parquet in str(bad_exc.value) and "내용 지문이 다르다" in str(bad_exc.value) and "pyarrow" in str(bad_exc.value)
+    assert "원격 머리 " + "a" * 12 in str(bad_exc.value)
     # 4) 파일이 없다 → 거부
     gone = tmp_path / "gone"
     shutil.copytree(src, gone)
     (gone / parquet).unlink()
-    with pytest.raises(ValueError, match="지문 목록과 다르다"):
+    with pytest.raises(ValueError, match="지문 목록과 다르다") as gone_exc:
         cli._ledger_download(FakeApi(gone))
+    assert parquet in str(gone_exc.value) and "받은 폴더에 파일이 없다" in str(gone_exc.value)
 
 def test_pj20_upload_manifest_keeps_remote_bytes_fingerprint_for_existing_files(): # 이슈 #377
     import scripts.paper_journal as cli

@@ -23,6 +23,7 @@ from app.lib.jwt_auth import get_current_user_any
 from app.models import StrategyComparison
 from app.services import notification
 from app.services import tradingview as tv
+from app.services import xval_ledger
 from app.services.audit import audit
 from app.services.lean_backtest import STRATEGY_LABELS, LeanBacktestError, service as lean_service
 from app.routes.openapi import _check_rate_limit
@@ -33,6 +34,16 @@ router = APIRouter(tags=["tradingview"])
 
 def _uid(user: dict) -> uuid.UUID:
     return uuid.UUID(str(user["id"]))
+
+
+def _paper_initial_cash() -> float | None:
+    """모의투자 시작 금액(오준영 님 자동매매 모듈의 상수) — 읽기만 한다. 못 읽으면 None."""
+    try:
+        from app.services import auto_trade
+        return float(auto_trade._INITIAL_CAPITAL)
+    except Exception:
+        logger.warning("모의투자 시작 금액을 읽지 못했습니다", exc_info=True)
+        return None
 
 
 def _log_reject(code: str, status: int, message: str, ip: str | None = None) -> None:
@@ -169,12 +180,40 @@ class TvMetricsBody(BaseModel):
     sharpe_ratio: float | None = None
 
 
+class LedgerTolerance(BaseModel):
+    """대사표 허용 오차 — 사전등록한 값만 넣는다. 비우면 그 칸은 「기록만」(설계서 3.4)."""
+    layer0_close_bp: float | None = Field(None, ge=0)
+    layer1_min_match_pct: float | None = Field(None, ge=0, le=100)
+    layer2_date_days: float | None = Field(None, ge=0)
+    layer2_price_bp: float | None = Field(None, ge=0)
+    layer2_qty_pct: float | None = Field(None, ge=0)
+    layer3_cost_bp: float | None = Field(None, ge=0)
+    source: str | None = Field(None, max_length=200, description="허용 오차의 출처(예: #333 최종 판)")
+
+
+class EngineDeclaration(BaseModel):
+    """한 엔진이 선언하는 설정 — 두 엔진이 다르게 선언한 항목만 어긋남의 원인 후보가 된다."""
+    entry_mode: str | None = Field(None, max_length=20)
+    exit_mode: str | None = Field(None, max_length=20)
+    judge: str | None = Field(None, max_length=20)
+    sizing: str | None = Field(None, max_length=40)
+    slippage_bp: float | None = Field(None, ge=0)
+    roundtrip_cost_bp: float | None = Field(None, ge=0, description="수수료+세금 왕복(슬리피지 제외)")
+    cost_note: str | None = Field(None, max_length=120)
+
+
+class LedgerContext(BaseModel):
+    tv: EngineDeclaration | None = None
+    lean: EngineDeclaration | None = None
+    rule_def_first_bar_differs: bool = False
+
+
 class CompareBody(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=12)
     strategy: str = Field("ma_cross", description="buy_hold | ma_cross | dca | momentum")
     start_date: date
     end_date: date
-    initial_cash: float = Field(10_000, ge=1_000)
+    initial_cash: float = Field(10_000_000, ge=1_000, description="세 엔진(TradingView · LEAN · 모의)이 같은 시작 금액 — 기본 1,000만 원")
     short_window: int = Field(20, ge=2, le=120)
     long_window: int = Field(60, ge=5, le=300)
     dca_interval_days: int = Field(21, ge=1, le=120)
@@ -182,6 +221,9 @@ class CompareBody(BaseModel):
     tv_metrics: TvMetricsBody | None = None
     tv_trades_csv: str | None = Field(None, description="Strategy Tester 거래 목록 CSV 원문")
     tv_signal_csv: str | None = Field(None, description="차트 데이터 CSV의 SignalState_Entry/Exit 열")
+    tolerance: LedgerTolerance | None = Field(None, description="줄 단위 대사표 허용 오차(없으면 기록만)")
+    ledger_context: LedgerContext | None = Field(None, description="두 엔진의 선언된 설정 차이(원인 코드용)")
+    repro: dict[str, str] | None = Field(None, description="대사표 머리 재현 기록(카드 sha256 · 데이터 기준일 · 코드 커밋 등)")
 
 
 @router.post("/api/tradingview/compare")
@@ -299,6 +341,27 @@ async def compare(body: CompareBody, user=Depends(get_current_user_any), db: Asy
         result["signal_comparison"] = {
             "status": "not_requested",
             "reason": "신호 CSV가 제공되지 않아 신호 비교를 수행하지 않았습니다.",
+        }
+
+    # 줄 단위 대사표(①-11) — compare_fills 는 그대로 두고 새 키로 붙인다
+    if tv_fills:
+        result["reconcile_table"] = xval_ledger.build_ledger(
+            tv_fills,
+            lean_res.get("lean_fills") or [],
+            signal_result=result["signal_comparison"],
+            tolerance=body.tolerance.model_dump(exclude_none=True) if body.tolerance else None,
+            context=body.ledger_context.model_dump(exclude_none=True) if body.ledger_context else None,
+            repro=body.repro,
+            engine_settings=xval_ledger.engine_settings_report(
+                lean_initial_cash=body.initial_cash,
+                paper_initial_cash=_paper_initial_cash(),
+                when=body.end_date,
+            ),
+        )
+    else:
+        result["reconcile_table"] = {
+            "status": "not_requested",
+            "reason": "거래 목록 CSV가 제공되지 않아 줄 단위 대사표를 만들지 않았습니다.",
         }
 
     result["strategy_label"] = STRATEGY_LABELS.get(body.strategy, body.strategy)

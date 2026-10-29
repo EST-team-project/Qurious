@@ -54,6 +54,22 @@ class NotificationSettingsBody(BaseModel):
     sms_to: str = ""
 
 
+def mask_phone(value: str) -> str:
+    """전화번호는 끝 네 자리 숫자만 남기고 가린다(`010-1234-5678` → `***-****-5678`). 응답에 번호 전체를 싣지 않는다."""
+    if not value:
+        return ""
+    digits = [i for i, ch in enumerate(value) if ch.isdigit()]
+    keep = set(digits[-4:]) if len(digits) > 4 else set()
+    return "".join(ch if (not ch.isdigit() or i in keep) else "*" for i, ch in enumerate(value))
+
+
+def keep_phone(new_val: str, existing_val: str) -> str:
+    """화면이 가려진 값(`*` 포함)을 그대로 돌려보내면 저장된 번호를 유지한다. 빈 값은 번호를 지운다."""
+    if new_val and "*" in new_val:
+        return existing_val
+    return new_val
+
+
 async def _get_settings_row(db: AsyncSession, user_id: uuid.UUID) -> NotificationSettings | None:
     result = await db.execute(select(NotificationSettings).where(NotificationSettings.user_id == user_id))
     return result.scalar_one_or_none()
@@ -64,7 +80,7 @@ async def get_notification_settings(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_pg_session),
 ):
-    """현재 사용자의 알림 설정을 반환한다. 비밀값(password/secret)은 마스킹."""
+    """현재 사용자의 알림 설정을 반환한다. 비밀값(password/secret)은 마스킹, 전화번호는 끝 네 자리만 남긴다."""
     row = await _get_settings_row(db, uuid.UUID(user["id"]))
 
     def mask(v: str) -> str:
@@ -94,11 +110,11 @@ async def get_notification_settings(
         "kakao_api_key":     mask(row.kakao_api_key),
         "kakao_api_secret":  mask(row.kakao_api_secret),
         "kakao_sender_key":  row.kakao_sender_key,
-        "kakao_phone":       row.kakao_phone,
+        "kakao_phone":       mask_phone(row.kakao_phone),
         "sms_api_key":       mask(row.sms_api_key),
         "sms_api_secret":    mask(row.sms_api_secret),
-        "sms_from":          row.sms_from,
-        "sms_to":            row.sms_to,
+        "sms_from":          mask_phone(row.sms_from),
+        "sms_to":            mask_phone(row.sms_to),
     }
 
 
@@ -136,11 +152,11 @@ async def save_notification_settings(
     row.kakao_api_key = keep_secret(body.kakao_api_key, row.kakao_api_key)
     row.kakao_api_secret = keep_secret(body.kakao_api_secret, row.kakao_api_secret)
     row.kakao_sender_key = body.kakao_sender_key
-    row.kakao_phone = body.kakao_phone
+    row.kakao_phone = keep_phone(body.kakao_phone, row.kakao_phone)
     row.sms_api_key = keep_secret(body.sms_api_key, row.sms_api_key)
     row.sms_api_secret = keep_secret(body.sms_api_secret, row.sms_api_secret)
-    row.sms_from = body.sms_from
-    row.sms_to = body.sms_to
+    row.sms_from = keep_phone(body.sms_from, row.sms_from)
+    row.sms_to = keep_phone(body.sms_to, row.sms_to)
 
     await db.commit()
     return {"ok": True}

@@ -222,10 +222,19 @@ async def _session_user(sid: str) -> dict:
     return await get_session(sid)
 
 
+def _consent() -> dict:
+    """가입은 약관 동의(현재 판) + 생년월일(만 14세 이상)이 필수다(S162)."""
+    from app.routes import auth as a
+    return {"terms_version": a.TERMS_VERSION, "agreed": list(a.REQUIRED_AGREEMENTS), "birth_date": "1990-01-01"}
+
+
+CONSENT = _consent()
+
+
 async def _register(email: str, name: str = "시험", pw: str = GOOD_PW) -> tuple[dict, str]:
     from app.routes import auth as a
     resp = Response()
-    out = await a.register(a.RegisterBody(name=name, email=email, password=pw), resp)
+    out = await a.register(a.RegisterBody(name=name, email=email, password=pw, **CONSENT), resp)
     return out, _sid(resp)
 
 
@@ -239,13 +248,13 @@ async def test_register_and_login_ignore_case(factory, fake_redis):
     for typed in ("Kim.Lee@Example.COM", "KIM.LEE@EXAMPLE.COM", " kim.lee@example.com "):
         assert (await a.login(a.LoginBody(email=typed, password=GOOD_PW), Response()))["ok"] is True
     with pytest.raises(HTTPException) as dup:
-        await a.register(a.RegisterBody(name="둘", email="KIM.LEE@example.com", password=GOOD_PW), Response())
+        await a.register(a.RegisterBody(name="둘", email="KIM.LEE@example.com", password=GOOD_PW, **CONSENT), Response())
     assert dup.value.status_code == 400
     with pytest.raises(HTTPException) as long_pw:                  # 예전에는 ValueError → 500
         await a.login(a.LoginBody(email="kim.lee@example.com", password="p" * 100), Response())
     assert long_pw.value.status_code == 401
     with pytest.raises(HTTPException) as short:
-        await a.register(a.RegisterBody(name="셋", email="short@example.com", password="1"), Response())
+        await a.register(a.RegisterBody(name="셋", email="short@example.com", password="1", **CONSENT), Response())
     assert short.value.status_code == 422 and "8자" in short.value.detail
 
 

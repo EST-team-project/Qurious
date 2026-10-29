@@ -39,6 +39,11 @@ $QRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 # 브라우저 · 점검이 부르는 앱 주소. compose 가 컨테이너의 8000 번을 호스트의 8966 번으로 연다.
 $QAppUrl = 'http://localhost:8966'
 
+# 가입 API 가 요구하는 약관 동의 · 생년월일. 판 번호는 화면 문구 파일(public/js/terms.js)에서 읽는다 — 서버가 같은 값을 검증하므로
+# 스크립트에 박아 두면 약관 판이 바뀔 때마다 점검이 깨진다. 생년월일은 서버가 만 14세 이상인지 계산하고 버린다.
+$QTermsVersion = [regex]::Match((Get-Content -LiteralPath (Join-Path $QRoot 'public\js\terms.js') -Raw -Encoding UTF8), 'TERMS_VERSION = "([^"]+)"').Groups[1].Value
+$QSignupExtra = @{ terms_version = $QTermsVersion; agreed = @('service', 'privacy', 'invest'); birth_date = '1990-01-01' }
+
 # compose 서비스 ↔ 컨테이너 이름 ↔ 호스트 포트.
 # ⚠️ docker-compose.yml 의 ports · container_name 을 바꾸면 여기도 같이 바꾼다.
 $QServices = @(

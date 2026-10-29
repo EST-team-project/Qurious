@@ -21,6 +21,7 @@
   (답을 바꿔치기하지 않는다 — 기능을 속이지 않기).
 - 프레임은 디스크에 두고 녹화가 끝난 뒤 인코딩한다 — 실시간 인코딩이 밀리면 영상 길이가 어긋나서.
 """
+import re
 import argparse
 import asyncio
 import base64
@@ -46,6 +47,12 @@ for _s in (sys.stdout, sys.stderr):
     pass
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _terms_version() -> str:
+  """가입 API 가 검증하는 약관 판 번호 — 화면 문구 파일(public/js/terms.js)에서 읽는다."""
+  text = (ROOT / "public" / "js" / "terms.js").read_text(encoding="utf-8")
+  return re.search(r'TERMS_VERSION = "([^"]+)"', text).group(1)
 OUT_DIR = Path(__file__).resolve().parent / "out"
 FPS = 25
 VW, VH, DSF = 1280, 720, 1.5          # 화면 폭(CSS px) · 배율 → 프레임 1920×1080
@@ -224,7 +231,9 @@ async def login(ctx, base, email, password, ensure):
   r = await ctx.request.post(f"{base}/api/auth/login", data={"email": email, "password": password})
   if r.status != 200 and ensure:
     # 본문은 찍지 않는다(보낸 값이 되돌아올 수 있다) — 상태 코드만
-    g = await ctx.request.post(f"{base}/api/auth/register", data={"name": DEFAULT_NAME, "email": email, "password": password})
+    g = await ctx.request.post(f"{base}/api/auth/register", data={"name": DEFAULT_NAME, "email": email, "password": password,
+                                                                 "terms_version": _terms_version(), "agreed": ["service", "privacy", "invest"],
+                                                                 "birth_date": "1990-01-01"})
     if g.status not in (200, 201):
       raise SystemExit(f"시연 계정 만들기 실패 {g.status} — 비밀번호 규칙(/api/auth/password-policy)을 확인하세요")
     print("시연 계정을 새로 만들었습니다(이 PC 로컬 DB)")

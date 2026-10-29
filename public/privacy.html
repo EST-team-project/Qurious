@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>개인정보 처리방침 | Qurious</title>
+  <style>
+    :root { --bg: #f4f6fb; --card: #fff; --text: #1e293b; --mute: #64748b; --faint: #94a3b8; --line: #e2e8f0; --accent: #2563eb; --warn-bg: #fff7ed; --warn-line: #fdba74; --warn-text: #9a3412; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --mute: #94a3b8; --faint: #64748b; --line: #334155; --accent: #60a5fa; --warn-bg: #431407; --warn-line: #9a3412; --warn-text: #fdba74; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: "Pretendard", system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.75; }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 28px 24px; margin-bottom: 20px; }
+    h1 { font-size: 24px; margin: 0 0 6px; }
+    h3 { font-size: 20px; margin: 22px 0 8px; }
+    h4 { font-size: 15.5px; margin: 16px 0 4px; }
+    p { margin: 4px 0; font-size: 15px; }
+    .terms-lead { color: var(--mute); font-size: 14px; }
+    .terms-foot { color: var(--faint); font-size: 13px; }
+    .notice { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-text); border-radius: 10px; padding: 10px 14px; font-size: 14px; margin: 14px 0 0; }
+    nav { font-size: 14px; margin: 10px 0 22px; }
+    nav a, .back a { color: var(--accent); text-decoration: none; margin-right: 14px; }
+    .back { margin-top: 26px; font-size: 14px; }
+    @media print { body { background: #fff; color: #000; } .card { border: 0; padding: 0; } nav, .back { display: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>개인정보 처리방침</h1>
+    <nav aria-label="관련 문서"><a href="/terms.html">이용약관 · 개인정보 수집·이용 안내 · 투자 유의사항</a></nav>
+    <div id="policy" class="card"></div>
+    <div class="back"><a href="/register.html">← 회원가입으로</a><a href="/login.html">로그인</a><a href="javascript:window.print()">인쇄 · PDF 로 저장</a></div>
+  </main>
+  <script type="module">
+    import { POLICY, PRIVACY_OFFICER, renderTerm, renderFooter } from "/js/terms.js";
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    // 보호책임자 연락처가 자리표시인 동안은 맨 위에도 알린다(읽는 사람이 진짜 연락처로 오해하지 않게)
+    const notice = PRIVACY_OFFICER.placeholder
+      ? `<p class="notice">※ 개인정보 보호책임자의 연락처(${esc(PRIVACY_OFFICER.email)})는 수업 프로젝트 단계의 <b>자리표시</b>입니다. 실제 서비스로 운영하기 전에 바꿉니다.</p>` : "";
+    document.getElementById("policy").innerHTML = renderTerm(POLICY, esc).replace("</p>", "</p>" + notice) + renderFooter(esc);
+  </script>
+</body>
+</html>
