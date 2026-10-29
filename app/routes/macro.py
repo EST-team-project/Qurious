@@ -7,7 +7,9 @@ from app.services.sync_scheduler import (
     KEY_MACRO_INDICATORS, KEY_SECTOR_ETFS, KEY_US_STOCKS,
     MACRO_SYMBOLS, SECTOR_ETFS, US_STOCKS,
 )
-from app.services import data_provenance, sync_scheduler
+# macro_industry 는 아래 /industry 라우트 함수 이름과 같아 별칭으로 가져온다(같은 이름이면 모듈이 함수에 가려진다)
+from app.services import data_provenance, macro_ecos, sync_scheduler
+from app.services import macro_industry as industry_kr_service
 
 router = APIRouter(prefix="/api/macro")
 
@@ -19,6 +21,18 @@ async def _get_latest(symbol: str, unit: str) -> dict:
     별칭으로 묶지 않고 모듈 이름으로 부른다 — 그쪽을 고치거나 시험이 갈아 끼우면 이 라우트도 따라간다.
     """
     return await sync_scheduler._yahoo_latest(symbol, unit)
+
+
+@router.get("/ecos", summary="거시경제 현황 — 한국은행 ECOS(기준금리 · 시장금리 · 주가지수 · 환율 · 물가)")
+async def macro_ecos_latest(user=Depends(get_current_user)):
+    """수집 DB 의 한국은행 통계를 값 · 기준일 · 직전 값 · 출처와 함께(읽기만). 거시 화면(할 일 ①-10)이 부른다.
+
+    야후 시세로 그리던 옛 /indicators 와 달리 한국 거시이고, 값마다 기준일이 있다. 자료가 없으면 available=false + 까닭
+    (일반 사용자 답에는 표 이름 · 명령이 없고 관리자 답에만 admin_hint).
+    """
+    import asyncio
+    admin = "admin" in user.get("roles", [])
+    return await asyncio.to_thread(macro_ecos.read_ecos, admin)
 
 
 @router.get("/indicators")
@@ -36,6 +50,18 @@ async def macro_indicators(_user=Depends(get_current_user)):
     await cache_set(KEY_MACRO_INDICATORS, enriched)
     return {"indicators": enriched, "from_cache": False,
             "note": data_provenance.quote_note(enriched, from_cache=False)}
+
+
+@router.get("/industry-kr", summary="국내 산업별 하루 등락 — KSIC 중분류 · DART 업종코드 · 일봉")
+async def macro_industry_kr(user=Depends(get_current_user)):
+    """수집 DB 의 업종코드(DART) · 업종 이름 표(KSIC) · 일봉 등락률로 업종별 등락 중앙값 · 오른 종목 수 · 종목 수(읽기만).
+
+    산업 화면(할 일 ①-10)이 부른다. 미국 섹터 ETF 를 그리던 옛 /industry 와 달리 한국 종목이다 — 수집 대상 몇 곳만의 값이라
+    응답에 곳 수와 「업종 전체 지수가 아니다」 라는 말을 싣는다. 자료가 없으면 available=false + 까닭(관리자에게만 admin_hint).
+    """
+    import asyncio
+    admin = "admin" in user.get("roles", [])
+    return await asyncio.to_thread(industry_kr_service.read_industry, admin)
 
 
 @router.get("/industry")

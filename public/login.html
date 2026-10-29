@@ -166,7 +166,9 @@
   <script type="module">
     import { api, getMe, safeNextPath, setToast } from "/js/common.js";
     import { initCompletionIndicator } from "/js/completion.js";
+    import { attachPasswordToggles } from "/js/pwtoggle.js";
     initCompletionIndicator();
+    attachPasswordToggles(document.getElementById("f"));   // 비밀번호 보기 버튼
 
     // 세션 쿠키가 아직 유효하면(브라우저를 닫았다 다시 열어도) 로그인 없이 바로 앱으로 이동
     getMe({ redirectOnUnauthorized: false })

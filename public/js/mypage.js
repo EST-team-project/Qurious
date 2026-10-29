@@ -11,28 +11,83 @@
  *  - 비밀번호 규칙은 서버가 내려준 값(/api/auth/password-policy)으로 안내 · 검사한다 — 규칙이 서버 한 곳에만 있게.
  *    화면 검사는 편의일 뿐이고, 같은 검사를 서버가 다시 한다.
  *  - 이름 · 이메일은 textContent 로만 넣는다 — 사용자가 넣은 글자가 HTML 로 해석되지 않게(XSS).
+ *  - 구역 목록 + 본문 (2026-10-29 · 설계 v0.1 ㉯ · 1차): 내 정보 · 보안 · 증권사 연동 · 알림 · 외부 연동 · 화면 설정 · 위험 구역.
+ *    구역 본문은 app.html 의 정적 HTML 이다. 증권사 · 알림 · 외부 연동은 요약 한 줄 + 해당 설정 화면으로 가는 링크만
+ *    (본체를 옮기는 것은 2차) — 서버 응답에서 필요한 칸만 읽는다.
  */
 import { api, escHtml, setToast } from "/js/common.js";
 import { getTermView, setTermView, TERM_VIEWS } from "/js/termcard.js";
+import { attachPasswordToggle } from "/js/pwtoggle.js";
 
 let bound = false;        // 폼 이벤트는 한 번만 붙인다(화면에 다시 들어올 때마다 붙이면 제출이 여러 번 된다)
 let policy = null;        // 서버의 비밀번호 규칙 — 처음 한 번만 받는다
+let currentSection = "profile";   // 보이는 구역 — 주소 해시가 아니라 이 변수와 class 로만 바꾼다(해시는 화면 키 자리라 겹치면 새로고침 때 마이페이지를 잃는다)
 
 const $ = (id) => document.getElementById(id);
+const SECTIONS = ["profile", "security", "broker", "notify", "external", "display", "danger"];
+const isNarrow = () => window.matchMedia("(max-width: 768px)").matches;
 
 /** 화면이 켜질 때마다 main.js 가 부른다 — 이 화면이 아니면 아무것도 안 한다. */
 export async function onMyPageActivated(view) {
   if (view !== "mypage") return;
   bindOnce();
   ensureDisplaySettings();
-  await loadMyPage();
+  showSection(currentSection, { openBody: !isNarrow() });   // 좁은 화면은 들어올 때마다 구역 목록부터
+  await Promise.all([loadMyPage(), loadSummaries()]);
+}
+
+/** 구역 하나를 보이고 나머지는 숨긴다. openBody 가 참이면 좁은 화면에서도 목록 대신 본문을 보인다. */
+function showSection(key, { openBody = true } = {}) {
+  if (!SECTIONS.includes(key)) key = "profile";
+  currentSection = key;
+  document.querySelectorAll(".mp-sec").forEach(el => el.classList.toggle("active", el.dataset.mpSec === key));
+  document.querySelectorAll(".mp-nav-item").forEach(el => {
+    const on = el.dataset.mpGo === key;
+    el.classList.toggle("active", on);
+    el.setAttribute("aria-current", on ? "true" : "false");
+  });
+  $("mp-shell").dataset.mpPane = openBody ? "body" : "list";
+  if (openBody) document.getElementById("main-content")?.scrollTo(0, 0);
+}
+
+/** 증권사 · 알림 · Open API 요약 — 세 요청은 따로 실패한다(한 곳이 막혀도 나머지는 그린다).
+ *  알림 설정 응답에는 토큰 · 비밀번호 원문이 같이 오므로 channels 외에는 변수에 담지 않는다. */
+async function loadSummaries() {
+  const [broker, noti, keys] = await Promise.all([
+    api("/api/broker/settings").catch(() => null),
+    api("/api/notification/settings").catch(() => null),
+    api("/api/paper/api-keys").catch(() => null),
+  ]);
+  const FAIL = "불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.";
+
+  if (broker) {
+    const name = (broker.brokers || []).find(b => b.code === broker.broker)?.name || broker.broker || "-";
+    // 「저장된 값이 있는가」 이지 연결 시험 결과가 아니다 — 글도 그렇게 쓴다(설계 3절)
+    $("mp-sum-broker").textContent = `선택한 증권사: ${name} · 저장된 키: ${broker.connected ? "있음" : "없음"}`;
+  } else {
+    $("mp-sum-broker").textContent = FAIL;
+  }
+
+  if (noti) {
+    const n = (noti.channels || []).length;
+    $("mp-sum-notify").textContent = n ? `켜 둔 알림 채널: ${n}개` : "켜 둔 알림 채널이 없습니다.";
+  } else {
+    $("mp-sum-notify").textContent = FAIL;
+  }
+
+  if (keys) {
+    const active = (keys.keys || []).filter(k => k.isActive).length;
+    $("mp-sum-external").textContent = active ? `사용 중인 Open API 키: ${active}개` : "사용 중인 Open API 키가 없습니다.";
+  } else {
+    $("mp-sum-external").textContent = FAIL;
+  }
 }
 
 /* 화면 설정 — 다른 화면에서 용어를 누르면 뜨는 풀이의 모양(2026-10-02 화면 설계 결정 ②).
  * 기본은 오른쪽 서랍. 이 브라우저에 저장한다(계정에 저장하는 것은 다음 — 기기마다 화면 크기가 달라 기기별 값도 쓸모 있다).
  * 카드는 화면 HTML 이 아니라 여기서 붙인다 — app.html 은 강사님 기초 코드라 고칠 곳을 줄인다. */
 function ensureDisplaySettings() {
-  const host = document.querySelector('.view[data-view="mypage"] .space-y-4');
+  const host = $("mp-sec-display");   // 화면 설정 구역 — 자리 모양이 아니라 이름으로 지정한다(구역이 바뀌어도 안 틀어지게)
   if (!host || document.getElementById("mp-display")) return;
   const card = document.createElement("div");
   card.className = "card space-y-3";
@@ -46,7 +101,7 @@ function ensureDisplaySettings() {
       <p class="text-xs text-slate-400">풀이에 표 · 그림이 있거나 글이 길면 창을 자동으로 넓힙니다. 이 브라우저에만 저장됩니다.</p>
     </fieldset>
     <button type="button" class="btn-secondary text-xs" id="mp-term-try">지금 설정으로 열어 보기 — 「샤프 비율」</button>`;
-  host.insertBefore(card, host.children[1] || null);
+  host.appendChild(card);
   card.querySelectorAll('input[name="mp-term-view"]').forEach(r => r.addEventListener("change", () => {
     setTermView(r.value);
     setToast(`용어 풀이를 「${TERM_VIEWS.find(v => v.value === r.value).label}」 에 보여 줍니다`, "ok");
@@ -104,6 +159,14 @@ function precheckNewPassword(pw, pw2) {
 function bindOnce() {
   if (bound) return;
   bound = true;
+
+  // 비밀번호 칸 넷에 「보기」 버튼(한 번만 — bindOnce) · 칸 id 와 폼은 그대로다
+  ["mp-pw-current", "mp-pw-new", "mp-pw-new2", "mp-del-pw"].forEach(id => attachPasswordToggle($(id)));
+
+  // 구역 목록 · 「← 목록」(좁은 화면에서 본문 → 목록)
+  document.querySelectorAll(".mp-nav-item").forEach(btn =>
+    btn.addEventListener("click", () => showSection(btn.dataset.mpGo)));
+  $("mp-back").addEventListener("click", () => { $("mp-shell").dataset.mpPane = "list"; });
 
   // 이름 바꾸기 → 머리글의 이름 · 아바타도 바로 바꾼다
   $("mp-name-form").addEventListener("submit", async (e) => {
