@@ -3,7 +3,7 @@
 :root {
   --bg: #f4f6fa; --surf: #ffffff; --border: #dde2ec;
   --accent: #2563eb; --brand: #d97706; --green: #15803d; --gray: #64748b;
-  --text: #0f172a; --text-dim: #334155; --text-mute: #64748b; --navy: #0f172a;
+  --text: #0f172a; --text-dim: #334155; --text-mute: #5b6b82; --navy: #0f172a;
   --radius: 16px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
