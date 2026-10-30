@@ -1,6 +1,11 @@
 /* 기업분석(지표 대시보드·비교·섹터) + 종목 검색 모달
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import {
+  cvLoad, cvOverviewCards, cvValuationRows, cvProfitRows, cvQuarterTable, cvBalanceTable, cvSlice, cvChartSummary, CV_PERIODS,
+  cvCompareLoad, cvCompareTable, cvFindCompany, CV_COMPARE_DEFAULT, CV_COMPARE_MAX,
+  cvSectorCards, cvSectorNote,
+} from "/js/companyview.js";
 
 // ── 기업분석 (Mockup) ────────────────────────────────────────────
 const COMPANIES = [
@@ -11,47 +16,7 @@ const COMPANIES = [
   { code:"105560", name:"KB금융",        sector:"금융",         market:"KOSPI" },
 ];
 
-const CO_DATA = {
-  "005930": {
-    price:73400, chg:1.43, cap:4378000, per:16.2, pbr:1.45, eps:4532, bps:50600,
-    roe:9.1, roa:5.2, debt:36.4, div:1416, divYield:1.93, opMargin:12.4,
-    revenue:[302300,258940,305100,320400], op:[35200,8490,25400,34900],
-    net:[29600,7280,21800,28700], quarters:["23Q2","23Q3","23Q4","24Q1"],
-    assets:4263000, equity:3012000, liabilities:1251000, cash:98400,
-  },
-  "000660": {
-    price:192800, chg:2.11, cap:1403000, per:28.4, pbr:2.18, eps:6789, bps:88400,
-    roe:7.8, roa:4.9, debt:41.2, div:1200, divYield:0.62, opMargin:8.7,
-    revenue:[102300,91240,108700,119600], op:[8900,3280,9870,12400],
-    net:[7200,2800,8100,10300], quarters:["23Q2","23Q3","23Q4","24Q1"],
-    assets:963000, equity:663000, liabilities:300000, cash:42300,
-  },
-  "035420": {
-    price:198500, chg:-0.91, cap:325000, per:32.1, pbr:3.42, eps:6180, bps:58000,
-    roe:10.6, roa:6.8, debt:22.1, div:948, divYield:0.48, opMargin:18.2,
-    revenue:[22100,23400,25600,27800], op:[3980,4310,4740,5120],
-    net:[3100,3380,3720,4010], quarters:["23Q2","23Q3","23Q4","24Q1"],
-    assets:263000, equity:188000, liabilities:75000, cash:31800,
-  },
-  "005380": {
-    price:214500, chg:1.61, cap:457000, per:5.8, pbr:0.72, eps:37000, bps:297000,
-    roe:12.4, roa:5.9, debt:148.3, div:8000, divYield:3.73, opMargin:9.1,
-    revenue:[403800,422100,465200,498700], op:[36400,38400,42700,45400],
-    net:[33800,35600,40100,43200], quarters:["23Q2","23Q3","23Q4","24Q1"],
-    assets:2743000, equity:630000, liabilities:2113000, cash:78200,
-  },
-  "105560": {
-    price:78200, chg:0.38, cap:330000, per:6.4, pbr:0.58, eps:12200, bps:134000,
-    roe:9.2, roa:0.6, debt:872.1, div:3060, divYield:3.91, opMargin:null,
-    revenue:[154200,162300,178400,189700], op:[18400,19100,21200,22800],
-    net:[14200,14900,16700,18100], quarters:["23Q2","23Q3","23Q4","24Q1"],
-    assets:6824000, equity:407000, liabilities:6417000, cash:null,
-  },
-};
-
-// 대시보드의 종목 선택은 위 5개 목업 데이터에 묶여있지 않고, 검색으로 아무 종목이나
-// 추가해 실제 데이터(Yahoo Finance)를 조회한다. COMPANIES/CO_DATA는 "지표 비교 분석"
-// 탭에서만 계속 쓴다.
+// 대시보드의 기본 종목 다섯(COMPANIES) — 지표는 전자공시 · 수집 일봉으로 계산한다(지표 비교는 CV_COMPARE_DEFAULT 를 쓴다).
 let dashboardStocks = COMPANIES.map(c => ({ symbol: `${c.code}.KS`, name: c.name }));
 let selectedCompanySymbol = dashboardStocks[0].symbol;
 const companyFundCache = {};
@@ -86,146 +51,187 @@ function addAndSelectCompany(symbol, name) {
   selectCompany(symbol);
 }
 
-// null-safe 포맷: 값 없으면 "N/A" (Yahoo가 국내 상장사 일부 지표를 제공하지 않는 경우가 있음)
-function nfmt(v, suffix = "") {
-  return (v === null || v === undefined) ? "N/A" : `${fmt(v)}${suffix}`;
+// 지표 대시보드 — 숫자 · 근거 글은 companyview.js 가 정한다(서버 응답 그대로 · 화면이 셈하지 않음 · 할 일 ①-16 · 2026-10-30)
+const LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
+let coChart = null, coChartRows = [], coChartPeriod = "6m", coChartSeq = 0, coLwcPromise = null;
+
+function coLoadLwc() {
+  if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+  if (!coLwcPromise) {
+    coLwcPromise = new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = LWC_SRC;
+      const timer = setTimeout(() => reject(new Error("timeout")), 15000);
+      el.onload = () => { clearTimeout(timer); window.LightweightCharts ? resolve(window.LightweightCharts) : reject(new Error("empty")); };
+      el.onerror = () => { clearTimeout(timer); reject(new Error("load")); };
+      document.head.appendChild(el);
+    }).catch(e => { coLwcPromise = null; throw e; });
+  }
+  return coLwcPromise;
+}
+
+function coMessage(text, color) {
+  return `<div class="text-xs" style="color:${color || "var(--text-mute)"};grid-column:1/-1;line-height:1.6;">${escHtml(text)}</div>`;
 }
 
 async function fetchAndRenderCompany(symbol) {
-  const overviewEl = document.getElementById("co-overview");
-  overviewEl.innerHTML = `<div class="text-xs" style="color:var(--text-mute);grid-column:1/-1;">불러오는 중…</div>`;
-  try {
-    let d = companyFundCache[symbol];
-    if (!d) {
-      d = await api(`/api/stocks/fundamentals?symbol=${encodeURIComponent(symbol)}`);
-      companyFundCache[symbol] = d;
-    }
-    // 「현재가」 칸은 지금 값(quote_now) — 기업 지표의 야후 값은 6시간 저장본이라 그대로 두면 장중 값과 어긋난다(2026-10-19)
-    const now = await api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`).catch(() => null);
-    if (now?.price != null) d = { ...d, price: now.price, chg: now.change_pct != null ? Number(now.change_pct.toFixed(2)) : d.chg, priceNote: now.label };
-    if (selectedCompanySymbol === symbol) renderCompanyData(d);
-  } catch (e) {
-    overviewEl.innerHTML = `<div class="text-xs" style="color:var(--red);grid-column:1/-1;">데이터 조회 실패: ${escHtml(e.message)}</div>`;
+  document.getElementById("co-overview").innerHTML = coMessage("불러오는 중…");
+  const parts = await cvLoad(api, symbol);
+  if (selectedCompanySymbol === symbol) renderCompanyData(parts);
+}
+
+function renderCompanyData(p) {
+  const ids = ["co-overview", "co-valuation", "co-profitability", "co-quarterly", "co-balance"];
+  const put = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  if (p.unsupported) {
+    put("co-overview", coMessage("이 화면은 국내 상장사(종목코드 6자리)의 전자공시 재무로 지표를 계산합니다. 이 종목은 지원하지 않습니다."));
+    ids.slice(1).forEach(id => put(id, ""));
+    renderCompanyChart([]);
+    return;
   }
+  if (p.indErr) {
+    put("co-overview", coMessage(p.indErr.message || "지표를 받지 못했습니다.", "var(--red)"));
+    put("co-valuation", ""); put("co-profitability", "");
+  } else {
+    put("co-overview", cvOverviewCards(p.ind, p.quote, escHtml));
+    put("co-valuation", cvValuationRows(p.ind, escHtml));
+    put("co-profitability", cvProfitRows(p.ind, p.health, escHtml));
+  }
+  put("co-quarterly", p.finErr ? coMessage(p.finErr.message || "분기 실적을 받지 못했습니다.", "var(--red)") : cvQuarterTable(p.fin, escHtml));
+  put("co-balance", p.finErr ? coMessage(p.finErr.message || "재무상태를 받지 못했습니다.", "var(--red)") : cvBalanceTable(p.fin, escHtml));
+  const nm = (p.ind && p.ind.name) || "";
+  const t = document.getElementById("co-chart-title");
+  if (t) t.textContent = `${nm ? nm + " " : ""}일봉 종가`;
+  renderCompanyChart(p.ohlcv && Array.isArray(p.ohlcv.rows) ? p.ohlcv.rows : [], p.ohlcvErr);
 }
 
-function renderCompanyData(d) {
-  const pctColor = (d.chg ?? 0) >= 0 ? "var(--green)" : "var(--red)";
-  const sign = (d.chg ?? 0) >= 0 ? "+" : "";
-
-  // 개요 카드 4개
-  document.getElementById("co-overview").innerHTML = [
-    { label:"현재가", value:nfmt(d.price, "원"), sub:[d.chg!=null?`${sign}${d.chg}%`:"", d.priceNote || ""].filter(Boolean).join(" · "), subColor:pctColor },
-    { label:"시가총액", value:d.cap!=null?`${fmt(Math.round(d.cap/10000))}조원`:"N/A", sub:d.name||"" },
-    { label:"EPS", value:nfmt(d.eps, "원"), sub:`PER ${d.per!=null?d.per.toFixed(1)+"x":"N/A"}` },
-    { label:"BPS", value:nfmt(d.bps, "원"), sub:`PBR ${d.pbr!=null?d.pbr.toFixed(2)+"x":"N/A"}` },
-  ].map(c => `
-    <div class="card" style="padding:16px;">
-      <div class="text-xs" style="color:var(--text-mute);">${c.label}</div>
-      <div style="font-size:20px; font-weight:700; margin:4px 0;">${c.value}</div>
-      <div style="font-size:12px; color:${c.subColor||"var(--text-dim)"};">${escHtml(c.sub)}</div>
-    </div>
-  `).join("");
-  // 숫자마다 근거 — 이 화면의 재무 값은 야후 파이낸스 재무 요약(서버가 최대 6시간 저장본)이고 응답에 기준일이 없다(2026-10-30 ①-16)
-  document.getElementById("co-overview").insertAdjacentHTML("beforeend",
-    `<div data-co-basis class="text-xs" style="color:var(--text-mute);grid-column:1/-1;line-height:1.6;">근거: 현재가 · 등락은 ${escHtml(d.priceNote || "서버 시세(출처 · 시각 글 없음)")} / 그 밖의 지표(시가총액 · EPS · BPS · PER · PBR · 수익성 · 분기 실적 · 재무상태)는 야후 파이낸스 재무 요약이며 서버 저장본(최대 6시간 전)일 수 있고 기준 분기 · 기준일을 응답이 알려 주지 않습니다.</div>`);
-
-  // 밸류에이션
-  const valRows = [
-    ["PER (주가수익비율)", d.per!=null ? `${d.per.toFixed(2)}x` : "N/A"],
-    ["PBR (주가순자산비율)", d.pbr!=null ? `${d.pbr.toFixed(2)}x` : "N/A"],
-    ["배당수익률", d.divYield!=null ? `${d.divYield}%` : "N/A"],
-    ["주당배당금 (DPS)", nfmt(d.div, "원")],
-  ];
-  document.getElementById("co-valuation").innerHTML = valRows.map(([k,v]) => `
-    <div class="flex justify-between items-center" style="padding:7px 0; border-bottom:1px solid var(--border);">
-      <span style="font-size:12px; color:var(--text-dim);">${k}</span>
-      <span style="font-size:13px; font-weight:600;">${v}</span>
-    </div>
-  `).join("");
-
-  // 수익성
-  const profRows = [
-    ["ROE (자기자본이익률)", d.roe!=null ? `${d.roe}%` : "N/A"],
-    ["ROA (총자산이익률)", d.roa!=null ? `${d.roa}%` : "N/A"],
-    ["영업이익률", d.opMargin!=null ? `${d.opMargin}%` : "N/A"],
-    ["부채비율(D/E)", d.debt!=null ? `${d.debt}` : "N/A"],
-  ];
-  document.getElementById("co-profitability").innerHTML = profRows.map(([k,v]) => `
-    <div class="flex justify-between items-center" style="padding:7px 0; border-bottom:1px solid var(--border);">
-      <span style="font-size:12px; color:var(--text-dim);">${k}</span>
-      <span style="font-size:13px; font-weight:600;">${v}</span>
-    </div>
-  `).join("");
-
-  // 분기 실적
-  const qs = d.quarters || [];
-  document.getElementById("co-quarterly").innerHTML = qs.length ? `
-    <table>
-      <thead><tr><th>구분</th>${qs.map(q=>`<th style="text-align:right;">${escHtml(q)}</th>`).join("")}</tr></thead>
-      <tbody>
-        <tr><td style="color:var(--text-dim);font-size:12px;">매출액 (억원)</td>${d.revenue.map(v=>`<td style="text-align:right;font-weight:600;">${nfmt(v)}</td>`).join("")}</tr>
-        <tr><td style="color:var(--text-dim);font-size:12px;">영업이익 (억원)</td>${d.op.map(v=>`<td style="text-align:right;color:var(--green);font-weight:600;">${nfmt(v)}</td>`).join("")}</tr>
-        <tr><td style="color:var(--text-dim);font-size:12px;">순이익 (억원)</td>${d.net.map(v=>`<td style="text-align:right;color:var(--accent);font-weight:600;">${nfmt(v)}</td>`).join("")}</tr>
-      </tbody>
-    </table>` : `<div class="text-xs" style="color:var(--text-mute);">분기 실적 데이터 없음</div>`;
-
-  // 재무상태표
-  const hasBalance = d.assets != null;
-  document.getElementById("co-balance").innerHTML = hasBalance ? `
-    <table>
-      <thead><tr><th>항목</th><th style="text-align:right;">금액 (억원)</th><th style="text-align:right;">비중</th></tr></thead>
-      <tbody>
-        <tr><td style="color:var(--text-dim);font-size:12px;">총자산</td><td style="text-align:right;font-weight:700;">${fmt(d.assets)}</td><td style="text-align:right;">100%</td></tr>
-        <tr><td style="color:var(--text-dim);font-size:12px;">자기자본</td><td style="text-align:right;font-weight:600;color:var(--green);">${nfmt(d.equity)}</td><td style="text-align:right;">${d.equity!=null?(d.equity/d.assets*100).toFixed(1)+"%":"N/A"}</td></tr>
-        <tr><td style="color:var(--text-dim);font-size:12px;">부채총계</td><td style="text-align:right;font-weight:600;color:var(--red);">${nfmt(d.liabilities)}</td><td style="text-align:right;">${d.liabilities!=null?(d.liabilities/d.assets*100).toFixed(1)+"%":"N/A"}</td></tr>
-        ${d.cash!=null ? `<tr><td style="color:var(--text-dim);font-size:12px;">현금및현금성자산</td><td style="text-align:right;">${fmt(d.cash)}</td><td style="text-align:right;">-</td></tr>` : ""}
-      </tbody>
-    </table>` : `<div class="text-xs" style="color:var(--text-mute);">Yahoo Finance가 이 종목의 재무상태표 상세를 제공하지 않습니다.</div>`;
+function renderCompanyChart(rows, err) {
+  coChartRows = rows;
+  const chips = document.getElementById("co-chart-periods");
+  if (chips) {
+    chips.innerHTML = Object.keys(CV_PERIODS).map(k => {
+      const on = k === coChartPeriod;
+      return `<button data-co-period="${k}" style="padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid ${on ? "var(--accent)" : "var(--border)"};background:${on ? "var(--accent)" : "var(--surf)"};color:${on ? "#fff" : "var(--text-dim)"};">${{ "1m": "1개월", "3m": "3개월", "6m": "6개월", "1y": "1년" }[k]}</button>`;
+    }).join("");
+    chips.querySelectorAll("[data-co-period]").forEach(b => b.addEventListener("click", () => { coChartPeriod = b.dataset.coPeriod; renderCompanyChart(coChartRows, err); }));
+  }
+  drawCompanyChart(err);
 }
 
-function loadCompanyCompare() {
-  const cols = ["PER","PBR","ROE","ROA","부채비율","배당수익률","영업이익률"];
-  const getVal = (d, col) => ({
-    "PER":`${d.per}x`, "PBR":`${d.pbr}x`,
-    "ROE":`${d.roe}%`, "ROA":`${d.roa}%`,
-    "부채비율":`${d.debt}%`, "배당수익률":`${d.divYield}%`,
-    "영업이익률": d.opMargin ? `${d.opMargin}%` : "N/A",
-  }[col]);
+async function drawCompanyChart(err) {
+  const box = document.getElementById("co-chart"), note = document.getElementById("co-chart-note");
+  if (!box || !note) return;
+  const seq = ++coChartSeq;
+  const pts = cvSlice(coChartRows, coChartPeriod);
+  note.textContent = err ? (err.message || "일봉을 받지 못했습니다.") : cvChartSummary(pts);
+  if (coChart) { coChart.remove(); coChart = null; }
+  box.innerHTML = "";
+  if (!pts.length) return;
+  let L;
+  try { L = await coLoadLwc(); } catch (e) { note.textContent += " (차트 라이브러리를 불러오지 못했습니다.)"; return; }
+  if (seq !== coChartSeq) return;
+  coChart = L.createChart(box, {
+    autoSize: true,
+    layout: { background: { color: "#ffffff" }, textColor: "#334155", fontSize: 11, attributionLogo: true },
+    grid: { vertLines: { color: "#f1f5f9" }, horzLines: { color: "#eef1f6" } },
+    rightPriceScale: { borderColor: "#dde2ec", scaleMargins: { top: 0.08, bottom: 0.18 } },
+    timeScale: { borderColor: "#dde2ec", fixLeftEdge: true, fixRightEdge: true, lockVisibleTimeRangeOnResize: true },
+    localization: { locale: "ko-KR", dateFormat: "yyyy-MM-dd" },
+    handleScroll: false, handleScale: false,
+  });
+  // 가격축 숫자는 쉼표 정수(원) — 기본값은 360000.00 처럼 소수점까지 나온다
+  const series = coChart.addSeries(L.LineSeries, {
+    color: "#4361ee", lineWidth: 2, priceLineVisible: false,
+    priceFormat: { type: "custom", formatter: v => Math.round(v).toLocaleString("ko-KR"), minMove: 1 },
+  });
+  series.setData(pts);
+  coChart.timeScale().fitContent();
+}
+
+// ── 지표 비교(설계 결정 ② 안 A — 기본 5종목 + 종목 추가 · 수집 대상 안에서만 · 2026-10-30 · 할 일 ①-16) ──────────────
+let compareCodes = CV_COMPARE_DEFAULT.slice(), compareUniverse = null, compareSeq = 0;
+
+async function coCompareUniverse() {
+  if (!compareUniverse) compareUniverse = (await api("/api/data/indicators/universe")).companies || [];
+  return compareUniverse;
+}
+
+function coCompareMsg(text, color) {
+  const el = document.getElementById("co-compare-msg");
+  if (el) { el.textContent = text || ""; el.style.color = color || "var(--text-mute)"; }
+}
+
+function renderCompareChips(cols) {
+  const el = document.getElementById("co-compare-chips");
+  if (!el) return;
+  el.innerHTML = cols.map(c => {
+    const nm = (c.ind && c.ind.name) || c.code;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surf);">${escHtml(nm)}`
+      + `<button type="button" data-co-del="${escHtml(c.code)}" aria-label="${escHtml(nm)} 빼기" style="border:0;background:transparent;cursor:pointer;color:var(--text-dim);font-size:14px;line-height:1;">×</button></span>`;
+  }).join("");
+  el.querySelectorAll("[data-co-del]").forEach(b => b.addEventListener("click", () => {
+    compareCodes = compareCodes.filter(x => x !== b.dataset.coDel);
+    coCompareMsg("");
+    loadCompanyCompare();
+  }));
+}
+
+function bindCompareForm() {
+  const form = document.getElementById("co-compare-form");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "1";
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const input = document.getElementById("co-compare-add");
+    try {
+      const list = await coCompareUniverse();
+      const hit = cvFindCompany(list, input.value);
+      if (!hit) { coCompareMsg(`수집 대상 ${list.length}곳 안에서 「${input.value.trim()}」 을(를) 찾지 못했습니다. 이름이나 종목코드 6자리를 확인하세요.`, "var(--red)"); return; }
+      if (compareCodes.includes(hit.code)) { coCompareMsg(`${hit.name} 은(는) 이미 표에 있습니다.`); return; }
+      if (compareCodes.length >= CV_COMPARE_MAX) { coCompareMsg(`최대 ${CV_COMPARE_MAX}개까지 나란히 볼 수 있습니다. 하나를 빼고 추가하세요.`); return; }
+      compareCodes.push(hit.code);
+      input.value = "";
+      coCompareMsg("");
+      loadCompanyCompare();
+    } catch (e) {
+      coCompareMsg(`종목 목록을 받지 못했습니다: ${e.message}`, "var(--red)");
+    }
+  });
+}
+
+async function loadCompanyCompare() {
   const el = document.getElementById("co-compare-table");
-  el.innerHTML = `<table>
-    <thead><tr><th>지표</th>${COMPANIES.map(c=>`<th style="text-align:right;">${escHtml(c.name)}</th>`).join("")}</tr></thead>
-    <tbody>${cols.map(col=>`
-      <tr><td style="color:var(--text-dim);font-size:12px;font-weight:600;">${col}</td>
-      ${COMPANIES.map(c=>`<td style="text-align:right;font-weight:600;">${getVal(CO_DATA[c.code],col)}</td>`).join("")}
-      </tr>`).join("")}
-    </tbody>
-  </table>`;
+  if (!el) return;
+  bindCompareForm();
+  const seq = ++compareSeq;
+  el.innerHTML = coMessage("불러오는 중…");
+  const cols = await cvCompareLoad(api, compareCodes);
+  if (seq !== compareSeq) return;
+  renderCompareChips(cols);
+  el.innerHTML = cvCompareTable(cols, escHtml);
+  coCompareUniverse().then(list => {
+    const dl = document.getElementById("co-compare-universe");
+    if (dl && !dl.childElementCount) dl.innerHTML = list.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.code)}</option>`).join("");
+  }).catch(e => coCompareMsg(`종목 목록을 받지 못했습니다: ${e.message}`, "var(--red)"));
 }
 
-function loadCompanySector() {
-  const sectors = [
-    { name:"반도체", companies:["삼성전자","SK하이닉스"], avgPer:22.3, avgPbr:1.82, outlook:"긍정" },
-    { name:"IT 플랫폼", companies:["NAVER","카카오"], avgPer:38.7, avgPbr:2.94, outlook:"중립" },
-    { name:"자동차", companies:["현대차","기아"], avgPer:6.2, avgPbr:0.81, outlook:"긍정" },
-    { name:"금융", companies:["KB금융","신한지주"], avgPer:6.8, avgPbr:0.62, outlook:"중립" },
-    { name:"에너지", companies:["LG에너지솔루션","포스코홀딩스"], avgPer:41.2, avgPbr:2.15, outlook:"부정" },
-    { name:"소비재", companies:["LG생활건강","아모레퍼시픽"], avgPer:28.4, avgPbr:1.73, outlook:"중립" },
-  ];
-  const outlookColor = o => o==="긍정" ? "var(--green)" : o==="부정" ? "var(--red)" : "var(--text-mute)";
-  document.getElementById("co-sector-cards").innerHTML = sectors.map(s => `
-    <div class="card">
-      <div class="flex items-center justify-between mb-3">
-        <span class="font-semibold">${escHtml(s.name)}</span>
-        <span style="font-size:11px; font-weight:700; color:${outlookColor(s.outlook)};">${s.outlook}</span>
-      </div>
-      <div class="text-xs" style="color:var(--text-mute); margin-bottom:8px;">${s.companies.join(" · ")}</div>
-      <div class="flex gap-4">
-        <div><div class="text-xs" style="color:var(--text-mute);">평균 PER</div><div style="font-size:16px; font-weight:700;">${s.avgPer}x</div></div>
-        <div><div class="text-xs" style="color:var(--text-mute);">평균 PBR</div><div style="font-size:16px; font-weight:700;">${s.avgPbr}x</div></div>
-      </div>
-    </div>
-  `).join("");
+// ── 섹터(설계 결정 ③ 안 C — 섹터 = 업종별 PER · PBR 중앙값 · 하루 등락은 「산업」 화면 · 2026-10-30 · 할 일 ①-16) ──────
+let sectorSeq = 0;
+
+async function loadCompanySector() {
+  const cards = document.getElementById("co-sector-cards"), note = document.getElementById("co-sector-note");
+  if (!cards) return;
+  const seq = ++sectorSeq;
+  cards.innerHTML = coMessage("업종별 PER · PBR 을 계산하는 중… (처음 한 번은 몇 초 걸립니다)");
+  if (note) note.innerHTML = "";
+  try {
+    const data = await api("/api/data/indicators/sectors");
+    if (seq !== sectorSeq) return;
+    cards.innerHTML = cvSectorCards(data, escHtml);
+    if (note) note.innerHTML = cvSectorNote(data, escHtml);
+  } catch (e) {
+    if (seq === sectorSeq) cards.innerHTML = coMessage(e.message || "업종별 지표를 받지 못했습니다.", "var(--red)");
+  }
 }
 
 // ── 종목 검색 모달 ────────────────────────────────────────────────

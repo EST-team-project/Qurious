@@ -441,7 +441,13 @@
                     <button id="pc-refresh" class="btn-secondary">시세</button>
                   </div>
                   <div id="pc-ticker" class="text-sm mb-2 min-h-[24px]"></div>
+                  <div id="pc-source-note" class="text-xs mb-3" style="color:var(--text-mute);line-height:1.6;"></div>
+                  <div id="pc-chart-wrap" class="mb-3">
+                    <div id="pc-chart" style="width:100%;height:200px;"></div>
+                    <p id="pc-chart-note" class="text-xs mt-1" style="color:var(--text-mute);line-height:1.6;"></p>
+                  </div>
                   <div id="pc-domestic" class="mb-3"></div>
+                  <div id="pc-order-note" class="text-xs mb-3 px-3 py-2 rounded-lg" style="background:rgba(67,97,238,0.12);color:var(--text);border:1px solid rgba(67,97,238,0.3);line-height:1.65;"></div>
                   <div class="grid grid-cols-2 gap-2 mb-2">
                     <input id="pc-buy-krw" class="input" type="number" min="1000" step="1000" placeholder="매수 금액 (원)" />
                     <input id="pc-sell-count" class="input" type="number" min="0" step="any" placeholder="매도 수량 (개)" />
@@ -1268,18 +1274,27 @@
                   </button>
                 </div>
               </div>
+              <!-- 가격 차트 — 우리 수집 일봉 종가(초 단위 실시간이 아니다 · 아래 글에 밝힌다) -->
+              <div class="card" id="co-chart-card">
+                <div class="flex items-center gap-3 mb-2 flex-wrap">
+                  <h3 id="co-chart-title" class="font-semibold text-sm">일봉 종가</h3>
+                  <div id="co-chart-periods" class="flex gap-2 flex-wrap"></div>
+                </div>
+                <div id="co-chart" style="width:100%;height:240px;"></div>
+                <p id="co-chart-note" class="text-xs mt-2" style="color:var(--text-mute);line-height:1.6;"></p>
+              </div>
               <!-- 핵심 지표 개요 -->
-              <div id="co-overview" class="grid grid-cols-4 gap-3"></div>
+              <div id="co-overview" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
               <!-- 밸류에이션 + 수익성 인디케이터 -->
               <div class="grid md:grid-cols-2 gap-4">
                 <div class="card">
                   <h3 class="font-semibold mb-3 text-sm">📐 밸류에이션 인디케이터</h3>
-                  <p class="text-xs mb-3" style="color:var(--text-mute);">PER · PBR · EV/EBITDA 등 가격 적정성 지표</p>
+                  <p class="text-xs mb-3" style="color:var(--text-mute);">PER · PBR · 배당수익률 — 주가가 이익 · 자본에 비해 어느 정도인지(숫자마다 식 · 기준을 함께 적습니다)</p>
                   <div id="co-valuation" class="space-y-2"></div>
                 </div>
                 <div class="card">
                   <h3 class="font-semibold mb-3 text-sm">📈 수익성 인디케이터</h3>
-                  <p class="text-xs mb-3" style="color:var(--text-mute);">ROE · ROA · 영업이익률 등 수익 창출 능력 지표</p>
+                  <p class="text-xs mb-3" style="color:var(--text-mute);">ROE · 영업이익률 · 부채비율 — 이익을 얼마나 내고 빚은 어느 정도인지</p>
                   <div id="co-profitability" class="space-y-2"></div>
                 </div>
               </div>
@@ -1290,7 +1305,7 @@
               </div>
               <!-- 재무상태표 요약 -->
               <div class="card">
-                <h3 class="font-semibold mb-3 text-sm">🏦 재무 건전성 인디케이터 (최근 연도)</h3>
+                <h3 class="font-semibold mb-3 text-sm">🏦 재무상태 (가장 최근 보고서)</h3>
                 <div id="co-balance" class="overflow-x-auto"></div>
               </div>
             </div>
@@ -1300,12 +1315,14 @@
           <div class="view" data-view="company-compare">
             <div class="card">
               <h2 class="text-lg font-semibold mb-1">📋 투자 지표 비교 분석</h2>
-              <p class="text-xs mb-4" style="color:var(--text-mute);">주요 5개 종목의 핵심 투자 인디케이터를 나란히 비교합니다</p>
-              <div data-co-static-note class="text-xs mb-3 px-3 py-2 rounded-lg" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:var(--text);line-height:1.65;">
-                <b>고정 예시 값입니다 — 지금의 실제 재무가 아닙니다.</b> 이 표의 숫자는 화면에 미리 적어 둔 값(분기 23Q2 ~ 24Q1 시점)이며 출처 · 기준일이 없습니다.
-                실제 전자공시(DART) 재무와 종목별 업종코드로 바꾸는 작업(3차 ①-16)이 끝나기 전에는 투자 판단 근거로 쓰지 마세요.
-                종목 하나의 지표는 「지표 대시보드」 에서 야후 파이낸스 재무 요약으로 볼 수 있습니다.
-              </div>
+              <p class="text-xs mb-3" style="color:var(--text-mute);">종목 여러 개의 지표를 나란히 비교합니다. 값은 전자공시 사업보고서와 종가로 계산했고, 종목은 지표를 계산하는 수집 대상 안에서 고릅니다.</p>
+              <div id="co-compare-chips" class="flex gap-2 flex-wrap mb-3"></div>
+              <form id="co-compare-form" class="flex gap-2 flex-wrap mb-2">
+                <input id="co-compare-add" list="co-compare-universe" class="input" style="max-width:320px;" placeholder="종목 이름 또는 코드 (예: 삼성전자, 005930)" autocomplete="off" />
+                <datalist id="co-compare-universe"></datalist>
+                <button type="submit" class="btn-primary">＋ 종목 추가</button>
+              </form>
+              <div id="co-compare-msg" class="text-xs mb-2" style="color:var(--text-mute);" aria-live="polite"></div>
               <div id="co-compare-table" class="overflow-x-auto"></div>
             </div>
           </div>
@@ -1556,12 +1573,10 @@
           <div class="view" data-view="company-sector">
             <div class="card">
               <h2 class="text-lg font-semibold mb-1">🗂️ 섹터별 투자 인디케이터</h2>
-              <p class="text-xs mb-4" style="color:var(--text-mute);">산업·섹터별 밸류에이션 및 수익성 지표를 비교 분석합니다</p>
-              <div data-co-static-note class="text-xs mb-3 px-3 py-2 rounded-lg" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:var(--text);line-height:1.65;">
-                <b>고정 예시 값입니다 — 지금의 실제 섹터 지표가 아닙니다.</b> 평균 PER · PBR 과 「긍정 · 중립 · 부정」 전망은 화면에 미리 적어 둔 값이며 계산 근거 · 기준일이 없습니다.
-                종목별 업종코드(KSIC)와 DART 재무로 계산한 값으로 바꾸는 작업(3차 ①-16)이 끝나기 전에는 투자 판단 근거로 쓰지 마세요.
-              </div>
+              <p class="text-xs mb-4" style="color:var(--text-mute);">업종(통계청 한국표준산업분류 중분류)별로 종목들의 PER · PBR 중앙값을 보여 줍니다. 업종마다 종목이 많은 순서입니다.
+                그날 오르내림은 <a href="#macro-industry" style="text-decoration:underline;">산업 › 국내 산업별 하루 등락</a> 화면에서 봅니다.</p>
               <div id="co-sector-cards" class="grid md:grid-cols-3 gap-4"></div>
+              <div id="co-sector-note" class="mt-3"></div>
             </div>
           </div>
 
@@ -2700,7 +2715,8 @@ criterion = nn.CrossEntropyLoss()
           <div class="view" data-view="macro-industry">
             <div class="card mb-4">
               <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-industry" style="color:var(--accent);"></i> 국내 산업별 하루 등락</h2>
-              <p class="text-sm text-slate-400 mb-4">수집해 둔 국내 종목을 업종(한국표준산업분류 중분류)으로 묶어 그날 등락을 비교합니다. 업종 전체 지수가 아니라 수집 대상 종목만의 값입니다.</p>
+              <p class="text-sm text-slate-400 mb-4">수집해 둔 국내 종목을 업종(한국표준산업분류 중분류)으로 묶어 그날 등락을 비교합니다. 업종 전체 지수가 아니라 수집 대상 종목만의 값입니다.
+                업종별 PER · PBR(싼지 비싼지)은 <a href="#company-sector" style="text-decoration:underline;">투자 인디케이터 › 섹터 인디케이터</a> 화면에서 봅니다.</p>
               <div id="industry-kr" class="text-sm text-slate-400 animate-pulse">업종별 등락 조회 중...</div>
             </div>
             <div class="card mb-4">

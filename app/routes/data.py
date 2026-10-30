@@ -4,6 +4,7 @@
 - GET /api/data/ohlcv  : 한 종목 · 한 주기 · 한 기간의 OHLCV(`ohlcv-v1` — HF krx-ohlcv 와 같은 줄 모양)
 - GET /api/data/search : 공시 · 뉴스 검색(낱말 · 이름표 · 공시 요약의 핵심 숫자) — W7 · 2026-10-04
 - GET /api/data/financials : 재무 주요계정 — 기준일에 알 수 있었던 판만(pit) — W7 · 2026-10-04
+- GET /api/data/indicators : 기업 지표 — PER · PBR · ROE · EPS · 영업이익률 · 배당을 전자공시 사업보고서 + 종가로(식 · 기준 · 한계 함께) — 할 일 ①-16 · 2026-10-30
 - GET /api/data/fetch-sources · fetch-plan : 자료 직접 받기 — 종류 · 출처 표 · 받을 범위(관리자 · 2026-10-08)
 - GET /api/data/backup : 적재 · 백업 — hf_dataset 이 쓴 판정 · 다른 데이터셋 · 이 PC 용량(관리자 · 2026-10-08)
 - POST · GET /api/data/runner/requests · POST …/{id}/cancel · GET /api/data/runner/worker : 화면 수집 요청 — 한 단계 다시 ·
@@ -213,6 +214,43 @@ async def financials(
         return await asyncio.to_thread(data_financials.read_financials, symbol, as_of, pit, fs, periods)
     except data_financials.FinancialsError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None
+
+
+# ── 기업 지표(2026-10-30 · 할 일 ①-16 — 같은 파일을 고치는 다른 작업과 위쪽 줄(import 포함)이 부딪히지 않게 import 도 여기 둔다)
+from app.services import company_indicators  # noqa: E402
+
+
+@router.get("/indicators/universe", summary="기업 지표를 볼 수 있는 종목 — 수집 대상 상장사(코드 · 이름) · 지표 비교의 종목 추가가 쓴다")
+async def indicators_universe(user=Depends(get_current_user)):
+    try:
+        return await asyncio.to_thread(company_indicators.read_universe)
+    except company_indicators.IndicatorsError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail("admin" in user.get("roles", []))) from None
+
+
+@router.get("/indicators/sectors", summary="업종별 PER · PBR 중앙값 — 통계청 한국표준산업분류 중분류 · 수집 대상 상장사(업종 전체 지수가 아님)")
+async def indicators_sectors(user=Depends(get_current_user)):
+    try:
+        return await asyncio.to_thread(company_indicators.read_sector_valuation)
+    except company_indicators.IndicatorsError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail("admin" in user.get("roles", []))) from None
+
+
+@router.get("/indicators", summary="기업 지표 — PER · PBR · ROE · EPS · 영업이익률 · 배당(전자공시 사업보고서 + 종가 · 식 · 기준 · 한계를 함께)")
+async def indicators(
+    symbol: str = Query(..., max_length=6, description="종목 단축코드 6자리"),
+    as_of: str | None = Query(None, description="YYYY-MM-DD — 이날 전날까지 접수된 판 · 이날까지의 종가(비우면 가장 최근)"),
+    pit: str = Query("strict", description="strict(값의 접수일로 거름) · first(그 기간 원본 접수일로 거름)"),
+    user=Depends(get_current_user),
+):
+    """한 종목의 지표 — 숫자마다 식 · 기준 기간 · 공시 접수일 · 종가 날짜(수집 DB 읽기만). 화면은 응답을 그대로 그린다.
+
+    수집 · 설정 문제(5xx)의 할 일(명령)은 관리자 응답에만 싣는다.
+    """
+    try:
+        return await asyncio.to_thread(company_indicators.read_indicators, symbol, as_of, pit)
+    except company_indicators.IndicatorsError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail("admin" in user.get("roles", []))) from None
 
 
 # ── 자료 안내(2026-10-08 · 화면 결정 안 B + 안 A 서랍 · 1단계) ─────────────────────────────────────────────
