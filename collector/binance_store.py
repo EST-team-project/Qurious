@@ -59,7 +59,15 @@ def compile_partition(root: Path, out_root: Path, interval: str, symbol: str, ye
         files = [f for f in files if f.stem.startswith(f"{year:04d}-")]
     if not files:
         return None
-    df = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+    frames, dropped = [], 0
+    for f in files:
+        part = pd.read_parquet(f)
+        # 원천 CSV 가 같은 달 안에서 한 줄을 두 번 싣는 경우(AVAXUSDT 4h 2026-05 · 2026-10-30)가 있다.
+        # 모든 칸이 같은 줄만 한 달 파일 안에서 지우고 개수를 남긴다 — 달끼리 겹치거나 값이 다른 중복은 아래에서 막는다.
+        unique = part.drop_duplicates()
+        dropped += len(part) - len(unique)
+        frames.append(unique)
+    df = pd.concat(frames, ignore_index=True)
     sort_key = df["bar_start"].fillna(df["trade_date"])
     df = df.assign(_k=sort_key).sort_values("_k", kind="stable").drop(columns="_k").reset_index(drop=True)
     key = [c for c in markets.KEY if c in df.columns]
@@ -68,7 +76,8 @@ def compile_partition(root: Path, out_root: Path, interval: str, symbol: str, ye
     out = binance_vision.partition_path(out_root, interval, year or 0, symbol)
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, compression="zstd", index=False)
-    return {"path": out, "rows": int(len(df)), "bytes": out.stat().st_size, "first": str(df.iloc[0]["trade_date"]), "last": str(df.iloc[-1]["trade_date"])}
+    return {"path": out, "rows": int(len(df)), "bytes": out.stat().st_size, "first": str(df.iloc[0]["trade_date"]), "last": str(df.iloc[-1]["trade_date"]),
+            "dropped_exact_dups": dropped}
 
 
 def summarize(out_root: Path) -> Dict[str, dict]:

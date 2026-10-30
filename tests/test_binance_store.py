@@ -70,6 +70,10 @@ def test_month_files_and_partitions(tmp_path):
     bs.write_month(root, "5m", "BTCUSDT", 2026, 8, _v2("5m", [d2]))                      # 8월 파일에 9월 봉이 섞였다
     with pytest.raises(ValueError, match="겹치는"):
         bs.compile_partition(root, root, "5m", "BTCUSDT", 2026)
+    # 한 달 파일 안에서 모든 칸이 같은 줄이 두 번 오면(원천 CSV 중복) 한 줄로 줄이고 개수를 알린다
+    bs.write_month(root, "15m", "BTCUSDT", 2026, 9, _v2("15m", [d2, d2, d2 + 900_000]))
+    dd = bs.compile_partition(root, root, "15m", "BTCUSDT", 2026)
+    assert dd["rows"] == 2 and dd["dropped_exact_dups"] == 1 and r["dropped_exact_dups"] == 0
     with pytest.raises(ValueError, match="쓸 줄이 없다"):
         bs.write_month(root, "1m", "BTCUSDT", 2026, 10, [])
     s = bs.summarize(root)
