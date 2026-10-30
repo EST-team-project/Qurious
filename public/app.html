@@ -619,6 +619,7 @@
           <!-- 4-3. 전략 분석 — 종목 찾기 칸(js/stockpick.js · Figma 「모의투자 여정 고치기」 03-6 결정 · 2026-10-16) -->
           <div class="view" data-view="quant-backtest">
             <div id="bn-mount-quant-backtest" class="bn-mount"></div><!-- 탭 띠 + 기준 전략 카드 · js/baselinenotice.js (2026-10-30 · ①-18) -->
+            <div class="bn-pane" data-bn-pane="quant-backtest"><!-- 탭 1 · 전략 분석 -->
             <div class="card">
               <h2 class="text-lg font-semibold mb-2">📉 퀀트 전략 분석</h2>
               <p class="text-sm mb-4" style="color:var(--text-dim);">
@@ -639,6 +640,48 @@
               <div id="bt-result" class="text-sm space-y-3"></div>
               <div id="bt-compare-tray"></div>
             </div>
+            </div><!-- /탭 1 -->
+            <div class="bn-pane" data-bn-pane="indicator-backtest" hidden><!-- 탭 2 · 성과 검증 (Python) — 옛 화면 #indicator-backtest 를 이 칸으로 합침(2026-10-30 · 결정 6번) -->
+              <div class="space-y-4">
+                <div class="card">
+                  <h2 class="text-lg font-semibold mb-1">🔬 성과 검증 · Python 백테스트</h2>
+                  <p class="text-xs mb-4" style="color:var(--text-mute);">파이썬 프로그래밍으로 구현된 퀀트 전략의 성과를 최근 10년 안의 일봉으로 검증합니다. 실제 자료 기간은 결과의 「자료」 줄에 적힙니다.</p>
+                  <div class="flex gap-2 mb-4">
+                    <select id="ibt-symbol" class="input w-44">
+                      <option value="005930.KS">삼성전자</option>
+                      <option value="000660.KS">SK하이닉스</option>
+                      <option value="035420.KS">NAVER</option>
+                      <option value="005380.KS">현대자동차</option>
+                      <option value="051910.KS">LG화학</option>
+                    </select>
+                    <select id="ibt-strategy" class="input w-44">
+                      <option value="rsi">RSI 역추세 전략</option>
+                      <option value="ma">이동평균 교차 전략</option>
+                      <option value="bollinger">볼린저밴드 전략</option>
+                      <option value="composite">복합 인디케이터 전략</option>
+                    </select>
+                    <button id="ibt-run-btn" class="btn-primary">성과 검증 실행</button>
+                  </div>
+                  <div class="flex flex-wrap gap-2 mb-3 items-end text-xs">
+                    <div><label style="color:var(--text-mute);">수수료 (bp)</label><input id="ibt-cost" type="number" min="0"
+                        step="1" class="input" style="width:90px" value="10" /></div>
+                    <div><label style="color:var(--text-mute);">슬리피지 (bp)</label><input id="ibt-slip" type="number"
+                        min="0" step="1" class="input" style="width:90px" value="5" /></div>
+                    <div><label style="color:var(--text-mute);">손절 (%)</label><input id="ibt-sl" type="number" min="0"
+                        step="0.5" class="input" style="width:90px" placeholder="예) 5" /></div>
+                    <div><label style="color:var(--text-mute);">익절 (%)</label><input id="ibt-tp" type="number" min="0"
+                        step="0.5" class="input" style="width:90px" placeholder="예) 15" /></div>
+                    <span style="color:var(--text-mute);">비용은 포지션 변동 시 회전금액에 비례해 차감 · 손절/익절은 진입가 대비 종가 기준 (비우면 미적용)</span>
+                  </div>
+                  <div class="rounded-lg p-3 text-xs mb-2"
+                    style="background:rgba(8,153,129,0.08);color:var(--green);border:1px solid rgba(8,153,129,0.2);">
+                    Python: pandas · pandas-ta · scikit-learn · LightGBM 기반 백테스트 엔진
+                  </div>
+                </div>
+                <div id="ibt-result" class="text-sm space-y-3"></div>
+                <div id="ibt-compare-tray"></div>
+              </div>
+            </div><!-- /탭 2 -->
           </div>
 
 
@@ -2371,50 +2414,6 @@
                 <p id="ci-bt-cost" class="text-xs" style="color:var(--text-mute);"></p>
                 <div id="ci-bt-source"></div>
               </div>
-            </div>
-          </div>
-
-          <!-- 성과 검증 (Python) -->
-          <div class="view" data-view="indicator-backtest">
-            <div id="bn-mount-indicator-backtest" class="bn-mount"></div><!-- 탭 띠 + 기준 전략 카드 · js/baselinenotice.js (2026-10-30 · ①-18) -->
-            <div class="space-y-4">
-              <div class="card">
-                <h2 class="text-lg font-semibold mb-1">🔬 성과 검증 · Python 백테스트</h2>
-                <p class="text-xs mb-4" style="color:var(--text-mute);">파이썬 프로그래밍으로 구현된 퀀트 전략의 성과를 최근 10년 안의 일봉으로 검증합니다. 실제 자료 기간은 결과의 「자료」 줄에 적힙니다.</p>
-                <div class="flex gap-2 mb-4">
-                  <select id="ibt-symbol" class="input w-44">
-                    <option value="005930.KS">삼성전자</option>
-                    <option value="000660.KS">SK하이닉스</option>
-                    <option value="035420.KS">NAVER</option>
-                    <option value="005380.KS">현대자동차</option>
-                    <option value="051910.KS">LG화학</option>
-                  </select>
-                  <select id="ibt-strategy" class="input w-44">
-                    <option value="rsi">RSI 역추세 전략</option>
-                    <option value="ma">이동평균 교차 전략</option>
-                    <option value="bollinger">볼린저밴드 전략</option>
-                    <option value="composite">복합 인디케이터 전략</option>
-                  </select>
-                  <button id="ibt-run-btn" class="btn-primary">성과 검증 실행</button>
-                </div>
-                <div class="flex flex-wrap gap-2 mb-3 items-end text-xs">
-                  <div><label style="color:var(--text-mute);">수수료 (bp)</label><input id="ibt-cost" type="number" min="0"
-                      step="1" class="input" style="width:90px" value="10" /></div>
-                  <div><label style="color:var(--text-mute);">슬리피지 (bp)</label><input id="ibt-slip" type="number"
-                      min="0" step="1" class="input" style="width:90px" value="5" /></div>
-                  <div><label style="color:var(--text-mute);">손절 (%)</label><input id="ibt-sl" type="number" min="0"
-                      step="0.5" class="input" style="width:90px" placeholder="예) 5" /></div>
-                  <div><label style="color:var(--text-mute);">익절 (%)</label><input id="ibt-tp" type="number" min="0"
-                      step="0.5" class="input" style="width:90px" placeholder="예) 15" /></div>
-                  <span style="color:var(--text-mute);">비용은 포지션 변동 시 회전금액에 비례해 차감 · 손절/익절은 진입가 대비 종가 기준 (비우면 미적용)</span>
-                </div>
-                <div class="rounded-lg p-3 text-xs mb-2"
-                  style="background:rgba(8,153,129,0.08);color:var(--green);border:1px solid rgba(8,153,129,0.2);">
-                  Python: pandas · pandas-ta · scikit-learn · LightGBM 기반 백테스트 엔진
-                </div>
-              </div>
-              <div id="ibt-result" class="text-sm space-y-3"></div>
-              <div id="ibt-compare-tray"></div>
             </div>
           </div>
 

@@ -7,6 +7,7 @@
  *   - 화면을 떠나면 영상을 멈춘다 · 끝까지 본 편은 이 브라우저에만 ✓(localStorage — 못 남겨도 화면은 그대로)
  */
 import { GNB_MENUS, navigate } from "/js/core.js";
+import { resolveView } from "/js/viewalias.js";
 import { chapterBadge, chapterIndexAt, VIDEO_MANIFEST_URL } from "/js/howtoview.js";
 import { initialOf, listOf, queueHtml, stageHtml, WATCHED_KEY } from "/js/helpvideosview.js";
 
@@ -62,7 +63,7 @@ function hvRender() {
   const watched = readWatched();
   const item = initialOf(items, currentId, watched);
   currentId = item.id;
-  const canOpen = !!(item.view && document.querySelector(`.view[data-view="${item.view}"]`));
+  const canOpen = !!(item.view && document.querySelector(`.view[data-view="${resolveView(item.view)}"]`));
   root.innerHTML = `<div class="hv-wrap"><div class="card hv-main">${stageHtml(item, items, { pathLabel: pathOf(item.view), canOpen })}</div>`
     + `<aside class="card hv-side" aria-label="사용법 영상 차례">${queueHtml(items, item.id, watched)}</aside></div>`;
   wireVideo(root, item);

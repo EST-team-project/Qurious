@@ -5,6 +5,7 @@ import { loadMarketTicker, loadSyncStatus, navigate, registerViewActivation } fr
 import { loadCrawlList } from "/js/agent.js";
 import { loadCompanyCompare, loadCompanyDashboard, loadCompanySector } from "/js/company.js";
 import { loadIndicatorBacktest, loadSavedIndicators } from "/js/indicator.js";
+import { resolveView } from "/js/viewalias.js";   // 옛 주소 → 합친 화면(성과 검증 = 전략 분석의 탭 2)
 import { renderBaselineNotice } from "/js/baselinenotice.js";   // 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · ①-18)
 import { loadMacroDashboard, loadMacroIndustry } from "/js/ml.js";
 import { initPaperViews, onPaperViewActivated } from "/js/paper.js";
@@ -71,7 +72,7 @@ async function boot() {
     initTradingViewView();                 // TradingView 연동 (js/tradingview.js)
     initFormulaView();                     // 자유 산식 지표 (js/formula.js)
     const hash = location.hash.replace("#", "");
-    navigate(hash && document.querySelector(`[data-view="${hash}"]`) ? hash : "dashboard");
+    navigate(hash && document.querySelector(`[data-view="${resolveView(hash)}"]`) ? hash : "dashboard");
   } catch (err) {
     console.error(err);
     setToast(`화면을 준비하다 오류가 났습니다: ${err.message}`, "error");
@@ -86,7 +87,7 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 });
 
 // ── View Activation ───────────────────────────────────────────────
-function onViewActivated(view) {
+function onViewActivated(view, tab = view) {   // view = 화면 키 · tab = 탭 키(합친 화면의 별칭 · 아니면 같다)
   if (view === "dashboard") loadDashboard();
   onPaperViewActivated(view); // 모의투자 · LEAN 백테스트 (js/paper.js)
   onRebalanceViewActivated(view); // 리밸런싱 엔진 (js/rebalance.js)
@@ -128,8 +129,7 @@ function onViewActivated(view) {
   if (view === "robo-patterns") { if (!document.getElementById("pt-mtf").innerHTML) loadPatternAnalysis(); }
   // 투자 인디케이터 신규 뷰
   if (view === "indicator-custom") loadSavedIndicators();
-  if (view === "indicator-backtest") loadIndicatorBacktest();
-  if (view === "quant-backtest" || view === "indicator-backtest") renderBaselineNotice(view);   // 탭 띠 + 기준 전략 카드(js/baselinenotice.js)
+  if (view === "quant-backtest") { renderBaselineNotice(tab); if (tab === "indicator-backtest") loadIndicatorBacktest(); }   // 탭 칸 · 탭 띠 + 기준 전략 카드(js/baselinenotice.js) · 성과 검증 탭은 들어올 때 실행(옛 화면 #indicator-backtest)
   // ML·딥러닝
   if (view === "macro-dashboard") loadMacroDashboard();
   if (view === "macro-industry") loadMacroIndustry();

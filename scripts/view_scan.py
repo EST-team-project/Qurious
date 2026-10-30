@@ -65,7 +65,7 @@ D1_PROPOSAL = {
   "주 경로": [
     "robo-portfolio", "robo-screening", "robo-decision", "paper-dashboard", "paper-stock",
     "quant-backtest", "quant-lean", "settings", "indicator-strategy", "indicator-custom",
-    "indicator-backtest", "indicator-api",
+    "indicator-api",
   ],
   "최소 요건": ["ml-compare", "ml-cluster"],
   "개념 설명": [
