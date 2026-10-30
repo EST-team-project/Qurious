@@ -10,6 +10,8 @@
 - 합격선(D6 ⑦ 확정 · 교안 05.md): PF > 1.5 · MDD > −15% · 샤프 > 1.0 을 동시에 · PF · 승률은 거래 단위.
   엔진은 거래 단위 PF · 승률을 내지 않아, 엔진과 같은 식으로 일별 순수익을 다시 만들어 거래(진입 ~ 청산)마다 묶는다.
   다시 만든 누적 수익이 엔진의 `total_return_pct` 와 같은지 시도마다 맞댄다(다르면 멈춘다).
+- DSR(보조 · 강민석 님 `evaluation_risk.calculate_all_metrics` · #399 근사): 시도마다 그 일별 순수익으로 내고,
+  `n_trials` 는 조합표 줄 수(`len(GRID)`) — 조합표 밖 시도가 없으니 조합 수가 곧 시도 수다(#363). 합격 판정에는 쓰지 않는다.
 
 쓰는 법:  .venv/bin/python scripts/baseline_trials.py [--symbol 005930.KS] [--end 2026-08-31] [--out <결과 폴더>]
 """
@@ -27,7 +29,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.services import quant_pipeline, ta_utils, trading_cost  # noqa: E402
+from app.services import evaluation_risk, quant_pipeline, ta_utils, trading_cost  # noqa: E402
 from app.services.collector_db import read_daily_candles  # noqa: E402
 from app.services.strategy_card_store import template  # noqa: E402
 
@@ -75,6 +77,12 @@ def _trades(net: pd.Series, held: pd.Series) -> list[float]:
     return out
 
 
+def _dsr(net: pd.Series) -> float | None:
+    """시도 수 = 조합표 줄 수로 낸 DSR(보조). 값이 안 나오면(표본 부족 등) None."""
+    v = evaluation_risk.calculate_all_metrics(net.values, n_trials=len(GRID))["Deflated Sharpe Ratio"]
+    return None if v != v else round(float(v), 4)
+
+
 def run(symbol: str, end: date) -> dict:
     df = _frame(symbol, end)
     card = template()
@@ -104,6 +112,7 @@ def run(symbol: str, end: date) -> dict:
                "profit_factor": pf, "total_return_pct": res["total_return_pct"], "sharpe_ratio": res["sharpe_ratio"],
                "mdd_pct": res["mdd_pct"], "buy_hold_return_pct": res["buy_hold_return_pct"], "cost_drag_pct": res["cost_drag_pct"],
                "stop_exits": res["stop_loss_exits"], "take_exits": res["take_profit_exits"]}
+        row["dsr"] = _dsr(net)
         row["pass"] = bool(pf is not None and pf > PASS["profit_factor"] and res["mdd_pct"] > PASS["mdd_pct"]
                            and res["sharpe_ratio"] > PASS["sharpe_ratio"])
         rows.append(row)
@@ -111,7 +120,7 @@ def run(symbol: str, end: date) -> dict:
     return {"symbol": symbol, "start": df.index[0].date().isoformat(), "end": df.index[-1].date().isoformat(), "bars": len(df),
             "card": {k: card[k] for k in ("strategy_id", "version", "entry_mode", "exit_mode")} | {"stops": st},
             "cost": trading_cost.describe(cost), "definition": ta_utils.DEFINITION, "pass_line": PASS, "commit": commit,
-            "n_trials": len(rows), "trials": rows}
+            "n_trials": len(rows), "dsr_n_trials": len(GRID), "trials": rows}
 
 
 def main() -> None:
@@ -125,10 +134,10 @@ def main() -> None:
     a = ap.parse_args()
     out = run(a.symbol, date.fromisoformat(a.end))
     print(f"{out['symbol']} · {out['start']} ~ {out['end']} · {out['bars']}봉 · 시도 {out['n_trials']}개")
-    print("| # | 단기 | 장기 | 거래 | 승률(거래) | PF | 수익(비용 뒤) | 샤프 | MDD | 합격 |")
+    print("| # | 단기 | 장기 | 거래 | 승률(거래) | PF | 수익(비용 뒤) | 샤프 | MDD | DSR(보조) | 합격 |")
     for r in out["trials"]:
         print(f"| {r['trial']} | {r['short']} | {r['long']} | {r['trades']} | {r['win_rate_trade_pct']} | {r['profit_factor']} | "
-              f"{r['total_return_pct']} | {r['sharpe_ratio']} | {r['mdd_pct']} | {'✅' if r['pass'] else '—'} |")
+              f"{r['total_return_pct']} | {r['sharpe_ratio']} | {r['mdd_pct']} | {r['dsr']} | {'✅' if r['pass'] else '—'} |")
     if a.out:
         p = Path(a.out)
         p.mkdir(parents=True, exist_ok=True)

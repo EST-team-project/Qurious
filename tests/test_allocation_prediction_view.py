@@ -135,6 +135,6 @@ def test_new_http_saves_same_safe_result_and_uses_current_xai_cache(client, monk
     assert data["stock_picks"][0]["ai_prediction"]["pred_ann_return_pct"] is None
     assert data["stock_picks"][0]["weight"] == 30
     assert save.await_args.args[2] == {k: v for k, v in data.items() if k != "saved"}
-    assert cache.await_args.args[0] == "ai_predict:v4:005930.KS"
+    assert cache.await_args.args[0] == "ai_predict:v5:005930.KS"
     assert raw_ai == before
     db.commit.assert_awaited_once()

@@ -4,6 +4,7 @@
 2. 합격선 — D6 ⑦(교안): PF > 1.5 · MDD > −15% · 샤프 > 1.0 을 동시에. (TC-BSL-02)
 3. 거래 단위 묶음 — 진입일부터 청산일까지 복리로 한 거래 · 끝까지 들고 있던 거래도 센다. (TC-BSL-03)
 4. 실제 자료로 돌면 시도 11개를 모두 남기고, 다시 만든 누적 수익이 엔진 값과 같다(수집 DB 가 없으면 건너뜀). (TC-BSL-04)
+5. DSR(보조)의 시도 수는 조합표 줄 수 — 강민석 님 함수에 그 수를 넘긴다 · 합격 판정은 바꾸지 않는다(#363 · 2026-10-30). (TC-BSL-05)
 """
 from __future__ import annotations
 
@@ -50,7 +51,23 @@ def test_real_run_records_every_trial():
     except SystemExit:
         pytest.skip("이 PC 에 수집 DB 가 없다")
     out = bt.run("005930.KS", date(2026, 8, 31))                 # 다시 만든 수익이 엔진과 다르면 run 이 멈춘다
-    assert out["n_trials"] == 11 and [(r["short"], r["long"]) for r in out["trials"]] == bt.GRID
+    assert out["n_trials"] == out["dsr_n_trials"] == 11 and [(r["short"], r["long"]) for r in out["trials"]] == bt.GRID
     assert out["end"] <= "2026-08-31"                             # 봉인 구간(D7) 앞까지
     for r in out["trials"]:
         assert r["pass"] == (r["profit_factor"] is not None and r["profit_factor"] > 1.5 and r["mdd_pct"] > -15 and r["sharpe_ratio"] > 1)
+
+
+def test_dsr_uses_table_size(monkeypatch):
+    """TC-BSL-05"""
+    seen = {}
+    real = bt.evaluation_risk.calculate_all_metrics
+
+    def spy(returns, **k):
+        seen.update(k)
+        return real(returns, **k)
+
+    monkeypatch.setattr(bt.evaluation_risk, "calculate_all_metrics", spy)
+    net = pd.Series([0.01, -0.005, 0.002, 0.0, 0.004] * 60)
+    v = bt._dsr(net)
+    assert seen["n_trials"] == len(bt.GRID) == 11
+    assert v is not None and 0 <= v <= 1

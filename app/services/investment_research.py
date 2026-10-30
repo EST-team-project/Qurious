@@ -279,7 +279,8 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
 
     close = df["close"].astype(float)
     df = df.copy()
-    df["fwd_return"] = close.pct_change(5).shift(-5)
+    horizon = 5  # 라벨 기간 — 회귀 fwd_return · 분류 target(feature_engineer) 모두 5일 뒤
+    df["fwd_return"] = close.pct_change(horizon).shift(-horizon)
     latest_features = df[FEATURE_COLS].iloc[-1:].values
     labeled = df.dropna(subset=["fwd_return"])
     if len(labeled) < 60:
@@ -289,7 +290,8 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
     y_reg = labeled["fwd_return"].values
 
     n_splits = 4 if len(X) >= 150 else 3
-    tscv = TimeSeriesSplit(n_splits=n_splits)
+    # 학습 끝 줄의 라벨이 검증 구간 가격을 보지 않게 라벨 기간만큼 비운다(model_compare 와 같은 규칙 · #363)
+    tscv = TimeSeriesSplit(n_splits=n_splits, gap=horizon)
     candidates = {
         "Ridge": lambda: Ridge(alpha=1.0),
         "GradientBoosting": lambda: GradientBoostingRegressor(
@@ -324,8 +326,9 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
         import lightgbm as lgb
         y_cls = (labeled["target"].values + 1).astype(int)
         split = max(1, int(len(X) * 0.8))
-        if len(X[split:]) >= 5 and len(set(y_cls[split:])) > 1:
-            d_tr = lgb.Dataset(X[:split], label=y_cls[:split])
+        tr_end = split - horizon  # 80/20 사이도 라벨 기간만큼 비운다(#363)
+        if tr_end >= 1 and len(X[split:]) >= 5 and len(set(y_cls[split:])) > 1:
+            d_tr = lgb.Dataset(X[:tr_end], label=y_cls[:tr_end])
             d_va = lgb.Dataset(X[split:], label=y_cls[split:], reference=d_tr)
             params = {"objective": "multiclass", "num_class": 3, "num_leaves": 15,
                       "learning_rate": 0.08, "feature_fraction": 0.8, "verbosity": -1}

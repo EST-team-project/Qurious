@@ -20,7 +20,7 @@ from app.services.stock import (
     get_quant_indicators, get_fundamentals, QUANT_STOCKS,
 )
 from app.services.krx_companies import search_companies
-from app.services import auto_trade, pattern_view
+from app.services import auto_trade, pattern_view, quote_now
 from app.services import risk_guard
 from app.services.risk_execution import execution_guidance
 from app.services.execution_policy import ExecutionPolicy, policy_for
@@ -206,7 +206,8 @@ async def stock_signals(
         result = screen_pattern(candles, model)
         if result.get("error"):
             continue
-        quote = await get_quote(stock["symbol"])
+        # 지금 값은 quote_now 한 곳에서(#370) — 이 표는 로그인한 사람의 화면이 아니라 내 키 길(①)은 타지 않는다
+        quote = await quote_now.quote_now(stock["symbol"])
         row = {
             "symbol": stock["symbol"],
             "name": stock["name"],
@@ -219,9 +220,13 @@ async def stock_signals(
             "rsi": result["rsi"],
             "price": quote.get("price") or result["price"],
             "change_pct": quote.get("change_pct"), "as_of": pattern_view.candle_day(candles),
+            # 신호를 낸 일봉 종가(날짜 = as_of)와 지금 값(quote_now 응답 칸 그대로)을 나눠 둔다(#370 A-1).
+            # 위 price · change_pct 는 화면이 close · quote 로 옮길 때까지 그대로 둔다
+            "close": result["price"],
+            "quote": {k: quote.get(k) for k in ("price", "change_pct", "source", "as_of", "fetched_at", "label", "fallback")},
         }
         # XAI: 최근 3시간 내 계산된 LightGBM 설명이 캐시에 있으면 요약만 첨부 (없으면 /api/ml/explain으로 온디맨드 계산)
-        cached_ai = await cache_get(f"ai_predict:v4:{stock['symbol']}", max_age_hours=3)
+        cached_ai = await cache_get(f"ai_predict:v5:{stock['symbol']}", max_age_hours=3)
         if cached_ai and cached_ai.get("explanation"):
             ex = cached_ai["explanation"]
             row["xai"] = {"signal_label": ex["signal_label"], "model_signal_label": ex.get("model_signal_label"), "probability_pct": ex["probability_pct"],

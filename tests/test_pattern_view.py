@@ -430,10 +430,47 @@ def test_screening_rows_carry_last_daily_bar_date(monkeypatch):
         return None
 
     monkeypatch.setattr(stocks, "get_candles", fake_candles)
-    monkeypatch.setattr(stocks, "get_quote", fake_quote)
+    monkeypatch.setattr(stocks.quote_now, "quote_now", fake_quote)
     monkeypatch.setattr(stocks, "cache_get", no_cache)
     r = asyncio.run(stocks.stock_signals(signal="all", model="lightgbm", min_confidence=0, symbols="005930.KS"))
     assert r["signals"] and r["signals"][0]["as_of"] == pv.candle_day(candles) == preprocess(candles).index[-1].strftime("%Y-%m-%d")
+
+
+def test_screening_rows_split_signal_close_and_quote_now(monkeypatch):
+    """줄마다 신호 일봉 종가(close · 날짜 = as_of)와 지금 값(quote = quote_now 응답 칸 그대로)을 나눠 둔다.
+    로그인 없는 표라 quote_now 를 사람 없이 부른다(내 키 길 안 탐) · 기존 price · change_pct 는 그대로(#370 A-1)."""
+    candles = make_candles(300)
+    seen = []
+
+    async def fake_candles(symbol, period, interval):
+        return {"candles": candles}
+
+    async def fake_quote_now(symbol, **kw):
+        seen.append(kw)
+        if symbol == "005930.KS":
+            return {"price": 70100.0, "change_pct": 1.2, "source": "delayed", "source_name": "지연 시세(야후 · 약 20분)",
+                    "as_of": "2026-10-29 13:40", "fetched_at": "2026-10-29 14:00:00", "market_state": "open",
+                    "label": "지연 시세(약 20분) · 13:40 체결", "fallback": ["증권사 키 없음"]}
+        return {"price": None, "change_pct": None, "source": None, "as_of": None, "fetched_at": "2026-10-29 14:00:00",
+                "label": "지금 가격을 받지 못했습니다", "fallback": ["증권사 키 없음", "지연 시세 없음"]}
+
+    async def no_cache(key, max_age_hours=None):
+        return None
+
+    monkeypatch.setattr(stocks, "get_candles", fake_candles)
+    monkeypatch.setattr(stocks.quote_now, "quote_now", fake_quote_now)
+    monkeypatch.setattr(stocks, "cache_get", no_cache)
+    r = asyncio.run(stocks.stock_signals(signal="all", model="lightgbm", min_confidence=0, symbols="005930.KS,000660.KS"))
+    rows = {x["symbol"]: x for x in r["signals"]}
+    close = round(float(preprocess(candles)["close"].iloc[-1]), 2)
+    keys = {"price", "change_pct", "source", "as_of", "fetched_at", "label", "fallback"}
+    live, missing = rows["005930.KS"], rows["000660.KS"]
+    assert live["close"] == missing["close"] == close
+    assert set(live["quote"]) == set(missing["quote"]) == keys
+    assert live["quote"]["price"] == live["price"] == 70100.0 and live["change_pct"] == 1.2
+    assert missing["quote"]["price"] is None and missing["quote"]["label"] == "지금 가격을 받지 못했습니다"
+    assert missing["price"] == close                              # 기존 칸은 전처럼 신호 종가로 대신한다
+    assert seen and all(kw == {} for kw in seen)                  # db · user_id 없이(공용 표)
 
 
 def test_screens_say_how_each_judgment_is_made():

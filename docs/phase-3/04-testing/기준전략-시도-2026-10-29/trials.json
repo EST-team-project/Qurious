@@ -35,8 +35,9 @@
     "mdd_pct": -15.0,
     "sharpe_ratio": 1.0
   },
-  "commit": "2479c12",
+  "commit": "533324c",
   "n_trials": 11,
+  "dsr_n_trials": 11,
   "trials": [
     {
       "trial": 1,
@@ -52,6 +53,7 @@
       "cost_drag_pct": 24.06,
       "stop_exits": 10,
       "take_exits": 12,
+      "dsr": 0.0361,
       "pass": false
     },
     {
@@ -68,6 +70,7 @@
       "cost_drag_pct": 15.1,
       "stop_exits": 10,
       "take_exits": 8,
+      "dsr": 0.0311,
       "pass": false
     },
     {
@@ -84,6 +87,7 @@
       "cost_drag_pct": 8.17,
       "stop_exits": 7,
       "take_exits": 5,
+      "dsr": 0.0065,
       "pass": false
     },
     {
@@ -100,6 +104,7 @@
       "cost_drag_pct": 5.97,
       "stop_exits": 6,
       "take_exits": 4,
+      "dsr": 0.0051,
       "pass": false
     },
     {
@@ -116,6 +121,7 @@
       "cost_drag_pct": 28.95,
       "stop_exits": 13,
       "take_exits": 9,
+      "dsr": 0.1194,
       "pass": false
     },
     {
@@ -132,6 +138,7 @@
       "cost_drag_pct": 12.22,
       "stop_exits": 8,
       "take_exits": 6,
+      "dsr": 0.0571,
       "pass": false
     },
     {
@@ -148,6 +155,7 @@
       "cost_drag_pct": 5.93,
       "stop_exits": 5,
       "take_exits": 4,
+      "dsr": 0.0198,
       "pass": false
     },
     {
@@ -164,6 +172,7 @@
       "cost_drag_pct": 5.76,
       "stop_exits": 5,
       "take_exits": 5,
+      "dsr": 0.0852,
       "pass": false
     },
     {
@@ -180,6 +189,7 @@
       "cost_drag_pct": 12.74,
       "stop_exits": 7,
       "take_exits": 7,
+      "dsr": 0.2615,
       "pass": false
     },
     {
@@ -196,6 +206,7 @@
       "cost_drag_pct": 5.35,
       "stop_exits": 8,
       "take_exits": 4,
+      "dsr": 0.0138,
       "pass": false
     },
     {
@@ -212,6 +223,7 @@
       "cost_drag_pct": 3.52,
       "stop_exits": 6,
       "take_exits": 2,
+      "dsr": 0.0016,
       "pass": false
     }
   ]
