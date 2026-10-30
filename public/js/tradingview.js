@@ -3,6 +3,7 @@
  * app.html 메인 모듈에서 initTradingViewView() / onTradingViewViewActivated(view) 로 연결한다. */
 import { api, setToast, escHtml, fmt } from "/js/common.js";
 import { renderLayers, PERF_NOTE } from "/js/comparelayers.js";
+import { overlayFromResult, fitToBars, periodFor, toChartBars, asOfLine } from "/js/comparechart.js";
 import { cardOptions, pineQuery, fileName, renderPine, failText } from "/js/pinecard.js";
 
 const $ = (id) => document.getElementById(id);
@@ -13,6 +14,74 @@ const STATUS_BADGE = {
   late: `<span class="badge-hold">늦음</span>`, rejected_format: `<span class="badge-sell">형식 오류</span>`,
 };
 let cmpChart = null;
+let priceChart = null, lwcPromise = null;
+const LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
+
+function loadLwc() {
+  if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+  if (lwcPromise) return lwcPromise;
+  lwcPromise = new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = LWC_SRC;
+    el.async = true;
+    const timer = setTimeout(() => reject(new Error("차트 도구를 불러오지 못했습니다(시간 초과).")), 15000);
+    el.onload = () => { clearTimeout(timer); window.LightweightCharts ? resolve(window.LightweightCharts) : reject(new Error("차트 도구가 비어 있습니다.")); };
+    el.onerror = () => { clearTimeout(timer); reject(new Error("차트 도구를 불러오지 못했습니다.")); };
+    document.head.appendChild(el);
+  }).catch(e => { lwcPromise = null; throw e; });
+  return lwcPromise;
+}
+
+/** 가격 차트 위 대사 — 체결(TradingView · LEAN)과 신호가 어긋난 날. 표시할 것은 comparechart.js(TC-CCH)가 정한다. */
+async function drawPriceChart(r) {
+  const box = $("tvc-price"), legend = $("tvc-price-legend"), notes = $("tvc-price-notes");
+  if (!box) return;
+  const setNotes = (lines) => { notes.innerHTML = lines.map(l => `<li>${escHtml(l)}</li>`).join(""); };
+  try {
+    const { period, truncated } = periodFor(r.period.start, new Date().toISOString().slice(0, 10));
+    const [LWC, res] = await Promise.all([
+      loadLwc(),
+      api(`/api/stocks/candles?symbol=${encodeURIComponent(r.ticker)}&period=${period}&interval=1d`),
+    ]);
+    const bars = toChartBars(res.candles, r.period.start, r.period.end);
+    if (!bars.length) {
+      legend.textContent = "";
+      setNotes(["이 기간의 일봉을 받지 못해 차트를 그리지 못했습니다.", ...overlayFromResult(r).notes]);
+      return;
+    }
+    const ov = fitToBars(overlayFromResult(r), bars.map(b => b.time));
+    if (priceChart) { priceChart.remove(); priceChart = null; }
+    const css = getComputedStyle(document.documentElement);
+    const bg = css.getPropertyValue("--surf").trim() || "#ffffff", text = css.getPropertyValue("--text-dim").trim() || "#334155";
+    const border = css.getPropertyValue("--border").trim() || "#e0e3eb";
+    priceChart = LWC.createChart(box, {
+      autoSize: true,
+      layout: { background: { type: LWC.ColorType.Solid, color: bg }, textColor: text, fontFamily: "Pretendard, sans-serif", attributionLogo: true },
+      grid: { vertLines: { color: border }, horzLines: { color: border } },
+      rightPriceScale: { borderColor: border }, timeScale: { borderColor: border, timeVisible: false },
+      localization: { locale: "ko-KR", priceFormatter: v => new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(v) },
+    });
+    if (ov.mismatchDays.length) {
+      const band = priceChart.addSeries(LWC.HistogramSeries, { priceScaleId: "mismatch", priceLineVisible: false, lastValueVisible: false });
+      priceChart.priceScale("mismatch").applyOptions({ scaleMargins: { top: 0, bottom: 0 } });
+      band.setData(ov.mismatchDays.sort().map(d => ({ time: d, value: 1, color: "rgba(239,68,68,0.22)" })));
+    }
+    const candle = priceChart.addSeries(LWC.CandlestickSeries, { upColor: "#089981", downColor: "#ef4444", borderVisible: false,
+      wickUpColor: "#089981", wickDownColor: "#ef4444" });
+    candle.setData(bars);
+    LWC.createSeriesMarkers(candle, ov.markers.map(m => ({ time: m.time, position: m.position, color: m.color, shape: m.shape, text: m.text })));
+    priceChart.timeScale().fitContent();
+    const c = ov.counts;
+    legend.innerHTML = `${escHtml(asOfLine(res, truncated))}<br>`
+      + `<span style="color:#2962ff">▲▼ TradingView 체결 ${c.tv}건</span> · <span style="color:#f59e0b">● LEAN 체결 ${c.lean}건</span>`
+      + ` · 짝 ${c.paired}쌍 · TV 만 ${c.tvOnly} · LEAN 만 ${c.leanOnly}`
+      + (ov.mismatchDays.length ? ` · <span style="color:#ef4444">붉은 막대 = 신호가 어긋난 날 ${ov.mismatchDays.length}일</span>` : "");
+    setNotes(ov.notes);
+  } catch (e) {
+    legend.textContent = "";
+    setNotes([`가격 차트를 그리지 못했습니다 — ${e.message}`]);
+  }
+}
 
 async function loadWebhookInfo() {
   try {
@@ -78,6 +147,10 @@ function renderCompare(r) {
       <span class="text-xs" style="color:var(--text-mute)">LEAN 엔진: ${escHtml(r.lean.engine || "")}${r.lean.lean_ok ? "" : " (미실행 → pandas 대체)"}</span>
     </div>
     ${renderLayers(r, escHtml)}
+    <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">가격 차트 위 대사 — 체결과 어긋난 날</h4>
+    <div id="tvc-price" style="height:300px;" class="mb-1"></div>
+    <div id="tvc-price-legend" class="text-xs" style="color:var(--text-dim);">차트를 불러오는 중…</div>
+    <ul id="tvc-price-notes" class="text-xs list-disc ml-5 mb-3" style="color:var(--text-mute);"></ul>
     <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">성과 비교 (참고 — 배지 없음)</h4>
     <table><thead><tr><th>지표</th><th style="text-align:right">TradingView</th><th style="text-align:right">LEAN</th><th style="text-align:right">차이 (LEAN − TV)</th></tr></thead><tbody>${
       r.rows.map(x => `<tr><td>${escHtml(x.label)}</td><td style="text-align:right">${fmtv(x.tradingview, x.key)}</td><td style="text-align:right">${fmtv(x.lean, x.key)}</td>
@@ -86,6 +159,7 @@ function renderCompare(r) {
     <h4 class="text-sm font-semibold mt-3 mb-1">차이가 나는 이유 점검</h4>
     <ul class="text-xs list-disc ml-5 space-y-1" style="color:var(--text-dim)">${r.causes.map(c => `<li>${escHtml(c)}</li>`).join("")}</ul>
     <p class="text-xs mt-2" style="color:var(--text-mute)">${escHtml(PERF_NOTE)} TV 값 출처: ${escHtml(r.tradingview.source || "직접 입력")}</p>`;
+  drawPriceChart(r);
   const pts = r.lean_points || [];
   if (pts.length && window.ApexCharts) {
     const opts = { chart: { type: "area", height: 220, toolbar: { show: false }, background: "transparent" },
