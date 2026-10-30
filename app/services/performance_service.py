@@ -67,7 +67,11 @@ async def get_robo_metrics(
     # 날짜 배열 (X축 라벨용)
     _snap_rows = (await db.execute(
         select(PaperAccountSnapshot.snap_date)
-        .where(PaperAccountSnapshot.user_id == user_id)
+        .where(
+            PaperAccountSnapshot.user_id == user_id,
+            PaperAccountSnapshot.completeness == "complete",
+            PaperAccountSnapshot.origin == "daily",
+        )
         .order_by(PaperAccountSnapshot.snap_date.asc())
     )).scalars().all()
     snap_dates = [d.isoformat() for d in _snap_rows]  # ["2026-09-17", ...]
@@ -359,12 +363,18 @@ async def get_allocation_history(
     """시점별 자산 비중 (스택바 차트용)."""
     from app.models.paper_snapshot import PaperAccountSnapshot
 
-    rows = (await db.execute(
+    stmt = (
         select(PaperAccountSnapshot)
-        .where(PaperAccountSnapshot.user_id == user_id)
+        .where(
+            PaperAccountSnapshot.user_id == user_id,
+            PaperAccountSnapshot.completeness == "complete",
+            PaperAccountSnapshot.origin == "daily",
+        )
         .order_by(PaperAccountSnapshot.snap_date.asc())
         .limit(limit)
-    )).scalars().all()
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
 
     if not rows:
         return {"status": "insufficient_data"}
@@ -392,11 +402,17 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
     from app.models.paper_snapshot import PaperAccountSnapshot
     from app.services.stock import get_candles
 
-    rows = (await db.execute(
+    stmt = (
         select(PaperAccountSnapshot)
-        .where(PaperAccountSnapshot.user_id == user_id)
+        .where(
+            PaperAccountSnapshot.user_id == user_id,
+            PaperAccountSnapshot.completeness == "complete",
+            PaperAccountSnapshot.origin == "daily",
+        )
         .order_by(PaperAccountSnapshot.snap_date.asc())
-    )).scalars().all()
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
 
     if len(rows) < 2:
         return {"status": "insufficient_data"}

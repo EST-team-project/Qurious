@@ -247,15 +247,23 @@ async def _stock_position(db: AsyncSession, user_id: uuid.UUID, symbol: str) -> 
     )).scalar_one_or_none()
 
 
-async def stock_positions(db: AsyncSession, user_id: uuid.UUID, include_volatility: bool = False) -> list[dict]:
+async def stock_positions(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    include_volatility: bool = False,
+    include_price_metadata: bool = False,
+) -> list[dict]:
     rows = (await db.execute(select(Portfolio).where(Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_PAPER))).scalars().all()
     result = []
     for pos in rows:
         price = pos.avg_price
+        price_complete = False
         try:
             price = (await resolve_stock(pos.symbol))["price"]
+            price_complete = price is not None and price > 0
         except Exception:
             pass
+
         eval_amount = pos.quantity * price
         item = {
             "symbol": pos.symbol, "name": pos.name, "quantity": pos.quantity,
@@ -265,6 +273,8 @@ async def stock_positions(db: AsyncSession, user_id: uuid.UUID, include_volatili
         }
         if include_volatility:
             item["volatility"] = await stock_volatility(pos.symbol)
+        if include_price_metadata:
+            item["_price_complete"] = price_complete
         result.append(item)
     return result
 
@@ -614,24 +624,48 @@ async def _crypto_holding(db: AsyncSession, user_id: uuid.UUID, market_code: str
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
-async def crypto_holdings(db: AsyncSession, user_id: uuid.UUID) -> dict:
+async def crypto_holdings(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    include_price_metadata: bool = False,
+) -> dict:
     account = await get_account(db, user_id)
     rows = (await db.execute(select(CryptoHolding).where(CryptoHolding.user_id == user_id))).scalars().all()
     tickers = {t["market"]: t for t in await upbit_tickers([r.market_code for r in rows])}
+
     hold_list, total_buy, total_eval = [], 0.0, 0.0
+    all_prices_complete = True
+
     for h in rows:
-        price = tickers.get(h.market_code, {}).get("price") or h.avg_price
+        ticker_price = tickers.get(h.market_code, {}).get("price")
+        price_complete = ticker_price is not None and ticker_price > 0
+        price = ticker_price if price_complete else h.avg_price
         eval_krw = round(h.quantity * price)
-        hold_list.append({
+
+        item = {
             "marketCode": h.market_code, "symbol": h.market_code.split("-")[-1], "koreanName": h.korean_name,
             "holdCount": h.quantity, "buyAverage": h.avg_price, "buyTotalKrw": h.total_krw,
             "currentPrice": price, "evalKrw": eval_krw, "pnl": eval_krw - h.total_krw,
             "pnlRate": round((eval_krw - h.total_krw) / h.total_krw * 100, 2) if h.total_krw else 0,
-        })
+        }
+
+        if include_price_metadata:
+            item["_price_complete"] = price_complete
+
+        hold_list.append(item)
         total_buy += h.total_krw
         total_eval += eval_krw
-    return {"memberAsset": account.cash, "totalBuyKrw": total_buy, "totalEvalKrw": total_eval,
-            "holdCryptoList": hold_list, "marketArrayList": [h.market_code for h in rows]}
+        all_prices_complete = all_prices_complete and price_complete
+
+    result = {
+        "memberAsset": account.cash, "totalBuyKrw": total_buy, "totalEvalKrw": total_eval,
+        "holdCryptoList": hold_list, "marketArrayList": [h.market_code for h in rows],
+    }
+
+    if include_price_metadata:
+        result["_price_complete"] = all_prices_complete
+
+    return result
 
 
 async def crypto_preview(db: AsyncSession, user_id: uuid.UUID, market_code: str, side: str,
@@ -835,7 +869,12 @@ async def alt_chart(symbol: str, days: int = 120) -> list[dict]:
     return [{"time": r[0], "open": round(r[1] * scale), "high": round(r[2] * scale), "low": round(r[3] * scale), "close": round(r[4] * scale)} for r in raw]
 
 
-async def alt_positions(db: AsyncSession, user_id: uuid.UUID, include_volatility: bool = False) -> list[dict]:
+async def alt_positions(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    include_volatility: bool = False,
+    include_price_metadata: bool = False,
+) -> list[dict]:
     rows = (await db.execute(select(AlternativePosition).where(AlternativePosition.user_id == user_id))).scalars().all()
     result = []
     for row in rows:
@@ -843,11 +882,15 @@ async def alt_positions(db: AsyncSession, user_id: uuid.UUID, include_volatility
         # 선물은 계약 명목금액이 아니라 주문 시 납부한 증거금을 기준으로 손익을 표시한다.
         cost = round(row.avg_price * quote["multiplier"] * quote["marginRate"] / 100) * row.quantity
         value = quote["tradeAmountPerUnit"] * row.quantity
-        item = {"symbol": row.symbol, "name": quote["name"], "category": row.category, "quantity": row.quantity,
-                "avgPrice": row.avg_price, "currentPrice": quote["price"], "multiplier": quote["multiplier"],
-                "unit": quote["unit"], "evalAmount": value, "pnl": value - cost, "marginRate": quote["marginRate"]}
+        item = {
+            "symbol": row.symbol, "name": quote["name"], "category": row.category, "quantity": row.quantity,
+            "avgPrice": row.avg_price, "currentPrice": quote["price"], "multiplier": quote["multiplier"],
+            "unit": quote["unit"], "evalAmount": value, "pnl": value - cost, "marginRate": quote["marginRate"],
+        }
         if include_volatility:
             item["volatility"] = annualized_volatility([c["close"] for c in await alt_chart(row.symbol, 30)], 252)
+        if include_price_metadata:
+            item["_price_complete"] = quote.get("source") != "교육용 기준 시세"
         result.append(item)
     return result
 
@@ -913,21 +956,37 @@ async def alt_history(db: AsyncSession, user_id: uuid.UUID, limit: int = 100) ->
 
 async def account_snapshot(db: AsyncSession, user_id: uuid.UUID) -> dict:
     account = await get_account(db, user_id)
-    stocks = await stock_positions(db, user_id)
-    crypto = await crypto_holdings(db, user_id)
-    alts = await alt_positions(db, user_id)
+    stocks = await stock_positions(db, user_id, include_price_metadata=True)
+    crypto = await crypto_holdings(db, user_id, include_price_metadata=True)
+    alts = await alt_positions(db, user_id, include_price_metadata=True)
+
     stock_eval = sum(p["evalAmount"] for p in stocks)
     crypto_eval = crypto["totalEvalKrw"]
     alt_eval = sum(p["evalAmount"] for p in alts)
     total_asset = account.cash + stock_eval + crypto_eval + alt_eval
     initial = account.initial_cash or PAPER_INITIAL_CASH
+
+    price_complete = (
+        all(p["_price_complete"] for p in stocks)
+        and crypto["_price_complete"]
+        and all(p["_price_complete"] for p in alts)
+    )
+
     return {
-        "cash": account.cash, "initialCash": initial,
-        "stockEval": stock_eval, "cryptoEval": crypto_eval, "alternativeEval": alt_eval,
+        "cash": account.cash,
+        "initialCash": initial,
+        "stockEval": stock_eval,
+        "cryptoEval": crypto_eval,
+        "alternativeEval": alt_eval,
         "totalAsset": total_asset,
         "totalPnl": total_asset - initial,
         "totalPnlRate": round((total_asset - initial) / initial * 100, 4) if initial else 0,
-        "counts": {"stocks": len(stocks), "crypto": len(crypto["holdCryptoList"]), "alternatives": len(alts)},
+        "counts": {
+            "stocks": len(stocks),
+            "crypto": len(crypto["holdCryptoList"]),
+            "alternatives": len(alts),
+        },
+        "price_complete": price_complete,
     }
 
 

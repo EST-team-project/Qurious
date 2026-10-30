@@ -44,16 +44,16 @@ async def record_daily_snapshot(
     """
     오늘(또는 지정일)의 모의계좌 총자산을 스냅샷으로 저장.
 
-    - 같은 날짜에 이미 스냅샷이 있으면 덮어씀 (upsert)
-    - daily_return = (오늘 total_equity / 직전 스냅샷 total_equity) - 1
-    - 첫 스냅샷은 daily_return = 0.0
-    - A1: 직전 스냅샷과 회차(epoch)가 다르면 daily_return = 0.0
+    - 같은 날짜에 이미 스냅샷이 있으면 덮어씀
+    - 불완전한 시세 스냅샷은 daily_return = 0.0
+    - 직전 스냅샷이 불완전하거나 출처가 다르면 수익률 연결을 초기화
+    - 연속된 완전한 일일 스냅샷만 수익률 계산에 사용
     """
     if snap_date is None:
         snap_date = datetime.now(KST).date()
 
-    # 1. 현재 계좌 상태
     snap = await account_snapshot(db, user_id)
+
     cash = float(snap["cash"])
     stock_eval = float(snap["stockEval"])
     crypto_eval = float(snap["cryptoEval"])
@@ -62,10 +62,13 @@ async def record_daily_snapshot(
     total_equity = float(snap["totalAsset"])
     position_count = sum(snap["counts"].values())
 
-    # 1.5 현재 회차
+    completeness = (
+        "complete" if snap["price_complete"] else "incomplete"
+    )
+    origin = "daily"
+
     current_epoch = await _get_current_epoch(db, user_id)
 
-    # 2. 직전 스냅샷
     prev_row = (await db.execute(
         select(PaperAccountSnapshot)
         .where(
@@ -76,9 +79,11 @@ async def record_daily_snapshot(
         .limit(1)
     )).scalar_one_or_none()
 
-    # 3. daily_return — A1 경계 판정
     if (
-        prev_row is not None
+        completeness == "complete"
+        and prev_row is not None
+        and prev_row.completeness == "complete"
+        and prev_row.origin == "daily"
         and prev_row.total_equity > 0
         and prev_row.epoch == current_epoch
     ):
@@ -86,7 +91,6 @@ async def record_daily_snapshot(
     else:
         daily_return = 0.0
 
-    # 4. UPSERT
     stmt = pg_insert(PaperAccountSnapshot).values(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -101,7 +105,10 @@ async def record_daily_snapshot(
         alt_value=alt_eval,
         epoch=current_epoch,
         snapshot_at=datetime.now(KST),
+        completeness=completeness,
+        origin=origin,
     )
+
     stmt = stmt.on_conflict_do_update(
         index_elements=["user_id", "snap_date"],
         set_={
@@ -115,14 +122,24 @@ async def record_daily_snapshot(
             "alt_value": stmt.excluded.alt_value,
             "epoch": stmt.excluded.epoch,
             "snapshot_at": stmt.excluded.snapshot_at,
+            "completeness": stmt.excluded.completeness,
+            "origin": stmt.excluded.origin,
         },
     )
+
     await db.execute(stmt)
     await db.commit()
 
     logger.info(
-        "snapshot recorded: user=%s date=%s epoch=%d equity=%.2f return=%.4f",
-        user_id, snap_date, current_epoch, total_equity, daily_return,
+        "snapshot recorded: user=%s date=%s epoch=%d equity=%.2f "
+        "return=%.4f completeness=%s origin=%s",
+        user_id,
+        snap_date,
+        current_epoch,
+        total_equity,
+        daily_return,
+        completeness,
+        origin,
     )
 
     row = (await db.execute(
@@ -131,6 +148,7 @@ async def record_daily_snapshot(
             PaperAccountSnapshot.snap_date == snap_date,
         )
     )).scalar_one()
+
     return row
 
 
@@ -142,37 +160,46 @@ async def get_daily_returns(
     limit: Optional[int] = None,
     with_dates: bool = False,
 ):
-    """QFRS 지표 계산용 일별 수익률 & 총자산 시계열."""
+    """완전한 일일 스냅샷만 사용하는 QFRS 수익률 및 총자산 시계열."""
     stmt = (
         select(PaperAccountSnapshot)
         .where(PaperAccountSnapshot.user_id == user_id)
         .order_by(PaperAccountSnapshot.snap_date.asc())
     )
+
     if since is not None:
         stmt = stmt.where(PaperAccountSnapshot.snap_date >= since)
 
     rows = (await db.execute(stmt)).scalars().all()
+
+    # 실제 일일 스냅샷 중 가격 완전성이 확인된 데이터만 사용
+    rows = [
+        row for row in rows
+        if row.completeness == "complete"
+        and row.origin == "daily"
+    ]
 
     if not rows:
         if with_dates:
             return [], np.array([]), np.array([])
         return np.array([]), np.array([])
 
-    dates_all = [r.snap_date.isoformat() for r in rows]
-    equity = np.array([r.total_equity for r in rows], dtype=float)
-    returns = np.array([r.daily_return for r in rows], dtype=float)
+    dates_all = [row.snap_date.isoformat() for row in rows]
+    equity = np.array([row.total_equity for row in rows], dtype=float)
+    returns = np.array([row.daily_return for row in rows], dtype=float)
 
-    returns_dates = dates_all[1:] if len(dates_all) > 1 else []
-    if len(returns) > 0:
-        returns = returns[1:]
+    # 첫 번째 정상 스냅샷은 비교 기준점이므로 수익률에서 제외
+    returns_dates = dates_all[1:]
+    returns = returns[1:]
 
     if limit is not None:
         returns = returns[-limit:]
-        returns_dates = returns_dates[-limit:] if returns_dates else []
+        returns_dates = returns_dates[-limit:]
         equity = equity[-limit:]
 
     if with_dates:
         return returns_dates, returns, equity
+
     return returns, equity
 
 

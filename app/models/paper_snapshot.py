@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, UUIDPkMixin, CreatedAtMixin
@@ -13,11 +13,18 @@ from app.models.base import Base, UUIDPkMixin, CreatedAtMixin
 
 class PaperAccountSnapshot(Base, UUIDPkMixin, CreatedAtMixin):
     """
-    매일(또는 최초 조회 시점부터) 모의계좌 총자산을 1행씩 기록.
+    모의계좌 자산 스냅샷.
 
-    - daily_return = (오늘 total_equity / 어제 total_equity) - 1
-    - A1: 리셋 경계에서는 daily_return = 0 (epoch 가 직전 스냅샷과 다르면 경계)
-    - QFRS 지표(MDD, Sharpe, DSR) 계산의 유일한 입력원
+    completeness:
+        complete   - 실제 시세를 사용한 완전한 스냅샷
+        incomplete - 일부 자산의 실제 시세를 확보하지 못한 스냅샷
+        unknown    - 과거 데이터 또는 출처를 확인할 수 없는 스냅샷
+
+    origin:
+        daily      - 일일 계좌 스냅샷
+        backtest   - 백테스트 생성 데이터
+        simulation - 시뮬레이션 생성 데이터
+        unknown    - 출처를 확인할 수 없는 데이터
     """
     __tablename__ = "paper_account_snapshots"
 
@@ -41,9 +48,15 @@ class PaperAccountSnapshot(Base, UUIDPkMixin, CreatedAtMixin):
     crypto_value: Mapped[float] = mapped_column(Float, default=0.0)
     alt_value: Mapped[float] = mapped_column(Float, default=0.0)
 
-    # A1 — 이 스냅샷이 속한 회차. PaperAccount.epoch 와 짝.
     epoch: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
+    )
+
+    completeness: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unknown", server_default="unknown"
+    )
+    origin: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unknown", server_default="unknown"
     )
 
     __table_args__ = (
