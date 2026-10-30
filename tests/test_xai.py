@@ -107,18 +107,18 @@ def test_explain_refresh_is_admin_only(monkeypatch):
     assert calls["train"] == 1 and out["explanation"]["summary"] == "새로"
 
 
-def test_explain_cache_key_is_v4(monkeypatch):
-    """판단 · 확률을 오늘 줄로 바꾼 뒤 옛(v3) 캐시를 읽지 않는다 — 스크리닝 요약도 같은 키."""
+def test_explain_cache_key_is_v5(monkeypatch):
+    """교차검증 간격(#363)을 넣은 뒤 옛(v4) 캐시를 읽지 않는다 — 스크리닝 요약도 같은 키."""
     import asyncio, inspect
     from app.routes import stocks
     ml, calls = _explain_route(monkeypatch)
     asyncio.run(ml.ml_explain(symbol="005930.KS", refresh=0, user={"roles": []}))
-    assert calls["keys"] == ["ai_predict:v4:005930.KS"]
+    assert calls["keys"] == ["ai_predict:v5:005930.KS"]
     src = inspect.getsource(stocks)
-    assert 'f"ai_predict:v4:{stock' in src and "ai_predict:v3" not in src
+    assert 'f"ai_predict:v5:{stock' in src and "ai_predict:v4" not in src
 
 
-@pytest.mark.parametrize("seed", [44, 45])  # 합성 시세에서 품질 관문에 걸리면서 모델 판단이 매수(44) · 매도(45)
+@pytest.mark.parametrize("seed", [44, 136])  # 합성 시세에서 품질 관문에 걸리면서 모델 판단이 매수(44) · 매도(136) — 간격(#363) 뒤 다시 고름
 def test_quality_gate_badge_shows_lowered_signal(monkeypatch, seed):
     """관문이 판단을 관망으로 낮추면 배지(설명)도 관망 — 경고 · 응답 판단과 같은 말. 확률이 가리키는 모델 판단은 따로 남는다."""
     ai, seen = _run_ai_predict_capturing_model(monkeypatch, make_candles(500, seed=seed))
@@ -154,3 +154,29 @@ def test_ai_predict_carries_last_daily_bar_date():
     assert ai_predict_return(candles)["as_of"] == candle_day(candles)
     js = pathlib.Path("public/js/robo.js").read_text(encoding="utf-8")
     assert "기준일 ${escHtml(pr.as_of" in js
+
+
+def test_ai_predict_cv_leaves_label_horizon_gap(monkeypatch):
+    """라벨이 5일 뒤 값이라 학습 끝과 검증 처음 사이를 5행 비운다 — 겹 나누기 · LightGBM 80/20 둘 다(#363)."""
+    import lightgbm as lgb
+    import sklearn.model_selection as ms
+    from app.services.investment_research import ai_predict_return
+    folds, sizes = [], []
+    real_split, real_ds = ms.TimeSeriesSplit.split, lgb.Dataset
+
+    def spy_split(self, X, *a, **k):
+        for tr, va in real_split(self, X, *a, **k):
+            folds.append((int(tr.max()), int(va.min())))
+            yield tr, va
+
+    def spy_ds(data, *a, **k):
+        sizes.append(len(data))
+        return real_ds(data, *a, **k)
+
+    monkeypatch.setattr(ms.TimeSeriesSplit, "split", spy_split)
+    monkeypatch.setattr(lgb, "Dataset", spy_ds)
+    assert ai_predict_return(make_candles(500)) is not None
+    assert folds and all(va_first - tr_last - 1 == 5 for tr_last, va_first in folds)
+    n_tr, n_va = sizes[0], sizes[1]
+    total = n_tr + 5 + n_va
+    assert n_tr + 5 == int(total * 0.8)

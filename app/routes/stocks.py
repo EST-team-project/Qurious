@@ -20,7 +20,7 @@ from app.services.stock import (
     get_quant_indicators, get_fundamentals, QUANT_STOCKS,
 )
 from app.services.krx_companies import search_companies
-from app.services import auto_trade, pattern_view
+from app.services import auto_trade, pattern_view, quote_now
 from app.services import risk_guard
 from app.services.risk_execution import execution_guidance
 from app.services.execution_policy import ExecutionPolicy, policy_for
@@ -206,7 +206,8 @@ async def stock_signals(
         result = screen_pattern(candles, model)
         if result.get("error"):
             continue
-        quote = await get_quote(stock["symbol"])
+        # 지금 값은 quote_now 한 곳에서(#370) — 이 표는 로그인한 사람의 화면이 아니라 내 키 길(①)은 타지 않는다
+        quote = await quote_now.quote_now(stock["symbol"])
         row = {
             "symbol": stock["symbol"],
             "name": stock["name"],
@@ -219,9 +220,13 @@ async def stock_signals(
             "rsi": result["rsi"],
             "price": quote.get("price") or result["price"],
             "change_pct": quote.get("change_pct"), "as_of": pattern_view.candle_day(candles),
+            # 신호를 낸 일봉 종가(날짜 = as_of)와 지금 값(quote_now 응답 칸 그대로)을 나눠 둔다(#370 A-1).
+            # 위 price · change_pct 는 화면이 close · quote 로 옮길 때까지 그대로 둔다
+            "close": result["price"],
+            "quote": {k: quote.get(k) for k in ("price", "change_pct", "source", "as_of", "fetched_at", "label", "fallback")},
         }
         # XAI: 최근 3시간 내 계산된 LightGBM 설명이 캐시에 있으면 요약만 첨부 (없으면 /api/ml/explain으로 온디맨드 계산)
-        cached_ai = await cache_get(f"ai_predict:v4:{stock['symbol']}", max_age_hours=3)
+        cached_ai = await cache_get(f"ai_predict:v5:{stock['symbol']}", max_age_hours=3)
         if cached_ai and cached_ai.get("explanation"):
             ex = cached_ai["explanation"]
             row["xai"] = {"signal_label": ex["signal_label"], "model_signal_label": ex.get("model_signal_label"), "probability_pct": ex["probability_pct"],
@@ -610,8 +615,10 @@ def _live_gateway_info() -> dict:
 
 @router.get("/quant/strategies")
 async def list_quant_strategies(user=Depends(get_current_user)):
-    """domain-rag-lab 백테스트 합격 전략 목록 (종목 선정 화면 드롭다운)."""
-    return {"configured": strategy_loader.is_configured(), "strategies": await strategy_loader.list_strategies()}
+    """선택한 공급원의 전략 목록. 고정 시험 입력은 가상계좌 전용으로 표시한다."""
+    return {"configured": strategy_loader.is_configured(), "strategies": await strategy_loader.list_strategies(),
+            "source": "fixed_test" if strategy_loader.is_fixed_test() else "remote",
+            "test_only": strategy_loader.is_fixed_test()}
 
 
 @router.get("/quant/live-orders")
@@ -710,6 +717,8 @@ async def save_quant_settings(
     mode = (body.mode or "paper").strip().lower()
     if mode not in ("paper", "live"):
         raise HTTPException(422, "mode는 paper 또는 live 이어야 합니다.")
+    if strategy_loader.is_fixed_test() and mode != "paper":
+        raise HTTPException(422, "고정 시험 전략은 앱 가상계좌에서만 실행할 수 있습니다.")
 
     symbol_source = (body.symbol_source or "ai").strip().lower()
     if symbol_source not in ("ai", "manual"):
@@ -742,7 +751,7 @@ async def save_quant_settings(
     if strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)
         if spec is None:
-            raise HTTPException(422, f"domain-rag-lab 에 합격한 전략이 없습니다: {strategy_id}")
+            raise HTTPException(422, f"선택한 공급원에서 전략과 버전을 확인하지 못했습니다: {strategy_id}")
         row.quant_strategy_id = strategy_id
         row.quant_strategy_version = int(spec.get("version") or body.strategy_version or 0)
     else:

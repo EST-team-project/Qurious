@@ -834,6 +834,13 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         mode = broker_row.quant_mode if broker_row and broker_row.quant_mode in ("paper", "live") else (
             "live" if broker_row and broker_row.paper is False else "paper"
         )
+        if strategy_loader.is_fixed_test():
+            cycle_log["strategy_source"] = "fixed_test"
+            cycle_log["test_only"] = True
+            if mode != "paper":
+                await _persist_cycle(uid, {**cycle_log, "execution_state": "FAILED",
+                    "note": "고정 시험 전략은 앱 가상계좌 전용입니다. 증권사 주문은 실행하지 않았습니다."})
+                return
         if broker_row and (broker_row.quant_strategy_id, broker_row.quant_strategy_version) == ("ma_cross_20_60", 2):
             from app.services import strategy_v2, strategy_v2_execution
             try:
