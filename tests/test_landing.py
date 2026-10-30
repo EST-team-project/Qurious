@@ -4,7 +4,7 @@
 2. 이어지는 곳 — 로그인 · 가입 · 약관 · 처리방침 링크가 있고, 개발 중 카드에는 「로그인하고 써 보기」 가 없다. (TC-LND-02)
 3. 문구 — 옛 문구(금융 AI Agent · 설치 명령 · 기술 이름 · 자동매매 · 실시간)가 없고, 코인 · 대안자산은 「개발 중」 으로만, AI 채팅은 안 넣는다. (TC-LND-03)
 4. 카드 — 한 번에 하나만 펼치고 aria-expanded 로 읽어 주며, 스크립트가 없으면 글이 모두 보인다. (TC-LND-04)
-5. 인트로 — 누를 때까지 머문다(2026-10-29 개정 · 전에는 2.6초) · 건너뛰기 · Esc · 이 탭에서 한 번만 · 움직임 줄이기면 생략 · 인트로 중에도 로그인 · 가입 링크. (TC-LND-05)
+5. 인트로 — 누를 때까지 머문다(2026-10-29 개정 · 전에는 2.6초) · 화면 누르기 · Esc · 열 때마다 보인다(2026-10-30 개정 · 새로고침하면 다시 뜬다 · 전에는 이 탭에서 한 번만) · 움직임 줄이기면 생략 · 위쪽 막대(로그인 · 가입 · 건너뛰기)는 눈에 안 보이고 Tab 으로 닿으면 나타난다. (TC-LND-05)
 6. 바깥 자원 — 허용 목록 밖 스타일 · 스크립트를 부르지 않는다(Tailwind CDN 은 걷었다). 서비스 이름과 고지는 brand.js 한 곳. (TC-LND-06)
 """
 from __future__ import annotations
@@ -83,8 +83,8 @@ def test_cards_open_one_at_a_time_and_stay_readable_without_scripts():
     assert 'class="no-js"' in INDEX and 'classList.remove("no-js")' in INDEX
 
 
-def test_intro_is_short_skippable_once_per_tab_and_off_for_reduced_motion():
-    """TC-LND-05 · 인트로 — 누를 때까지 머문다(자동 넘김 없음 · 안내 글 · 머무는 동안 은은한 움직임) · 건너뛰기 · 화면 누르기 · Esc · 이 탭에서 한 번만 · 움직임 줄이기면 생략 · 인트로 중에도 로그인 · 가입."""
+def test_intro_stays_until_pressed_shows_on_every_load_and_off_for_reduced_motion():
+    """TC-LND-05 · 인트로 — 누를 때까지 머문다(자동 넘김 없음 · 안내 글 · 머무는 동안 은은한 움직임) · 화면 누르기 · Esc · 열 때마다 보인다(새로고침하면 다시 뜬다) · 움직임 줄이기면 생략 · 위쪽 막대는 보이지 않고 Tab 으로 닿으면 나타난다."""
     # 2026-10-29 사용자 피드백 — 2.6초 뒤 저절로 넘어가던 것을 걷고, 누를 때까지 머문다
     assert "INTRO_MS" not in JS and "setTimeout(endIntro" not in JS, "인트로가 저절로 넘어가면 안 된다"
     assert 'class="intro-hint">화면을 눌러 시작' in INDEX
@@ -97,15 +97,21 @@ def test_intro_is_short_skippable_once_per_tab_and_off_for_reduced_motion():
     assert re.search(r"\.hero-chart-dot\s*\{[^}]*hero-dot[^}]*infinite", CSS)
     # 움직임 줄이기에서는 선이 다 그려진 채 보여야 한다 — 기본(애니메이션 없음)에서 offset 을 숨기지 않는다
     assert not re.search(r"\.hero-chart-line\s*\{[^}]*stroke-dashoffset\s*:\s*1", CSS)
-    assert "prefers-reduced-motion: reduce" in INDEX and 'getItem("qurious-intro-seen")' in INDEX
-    assert 'const SEEN_KEY = "qurious-intro-seen";' in JS and "sessionStorage.setItem(SEEN_KEY" in JS
+    assert "prefers-reduced-motion: reduce" in INDEX
+    # 2026-10-30 사용자 피드백 — 새로고침하면 인트로가 다시 떠야 한다: 「봤다」 를 저장하지도 읽지도 않는다
+    assert "qurious-intro-seen" not in INDEX and "qurious-intro-seen" not in JS
+    assert "sessionStorage.getItem" not in INDEX and "sessionStorage.setItem" not in JS
+    # 위쪽 막대(로그인 · 가입 · 건너뛰기)는 인트로가 떠 있는 동안 보이지 않는다 — 클릭은 통과하고 키보드 초점이 오면 나타난다
+    assert re.search(r"\.intro-bar\s*\{[^}]*opacity:\s*0[^}]*pointer-events:\s*none", CSS)
+    assert re.search(r"\.intro-bar:focus-within\s*\{[^}]*opacity:\s*1[^}]*pointer-events:\s*auto", CSS)
+    assert 'getElementById("intro-skip")?.focus' not in JS, "건너뛰기에 미리 초점을 두면 숨긴 막대가 나타난다"
     assert 'id="intro-skip"' in INDEX and "건너뛰기" in INDEX
     assert '"Escape"' in JS and 'intro.addEventListener("click", skip)' in JS
     intro = INDEX.split('id="intro"', 1)[1].split("<header", 1)[0]
-    assert 'href="/login.html"' in intro and 'href="/register.html"' in intro, "인트로 중에도 로그인 · 가입이 눌려야 한다"
+    assert 'href="/login.html"' in intro and 'href="/register.html"' in intro, "막대는 보이지 않을 뿐 로그인 · 가입 링크는 키보드로 닿아야 한다"
     assert 'role="dialog"' in INDEX and "aria-label" in intro
-    # 인트로는 저장소를 못 써도 깨지지 않고(try/catch) 움직임 줄이기 설정이면 나머지 움직임도 끈다
-    assert "catch (e)" in INDEX and "catch {" in JS
+    # 인트로는 설정을 못 읽어도 깨지지 않고(try/catch) 움직임 줄이기 설정이면 나머지 움직임도 끈다
+    assert "catch (e)" in INDEX
     assert re.search(r"@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*animation:\s*none", CSS)
     assert ".intro-on .intro { display: flex; }" in CSS, "인트로는 html.intro-on 일 때만 보인다(기본은 숨김)"
 

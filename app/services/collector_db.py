@@ -206,3 +206,49 @@ def read_daily_candles(
 async def get_daily_candles(symbol: str, period: str = "1y", interval: str = "1d") -> dict | None:
     """`read_daily_candles` 의 비동기 판 — 파일 읽기가 이벤트 루프를 막지 않게 스레드에서 돈다."""
     return await asyncio.to_thread(read_daily_candles, symbol, period, interval)
+
+
+# ── 공개 지수 종가(랜딩 티커 · S166) ───────────────────────────────────────────
+# 공공데이터포털 금융위원회 지수시세정보 — 공공누리 제4유형(출처 표시 · 상업적 이용 금지 · 변경 금지 · 재배포 안 함).
+# 그래서 값은 **가공하지 않고 종가 그대로** 돌려준다(등락률 같은 계산값 없음). 출처 문구를 응답에 같이 싣는다.
+# `index_daily` 는 같은 이름이 시리즈마다 따로 있어 기본키에 시리즈가 들어간다 — 이름만으로 고르면 다른 지수가 섞인다.
+INDEX_SERIES: tuple[tuple[str, str], ...] = (("KOSPI시리즈", "코스피"), ("KOSDAQ시리즈", "코스닥"))
+INDEX_SOURCE = "공공데이터포털 금융위원회 지수시세정보(공공누리 제4유형)"
+_INDEX_QUERY = (
+    "SELECT bas_dt, clpr FROM index_daily "
+    "WHERE idx_csf = ? AND idx_nm = ? AND clpr > 0 ORDER BY bas_dt DESC LIMIT 1"
+)
+
+
+def read_latest_index_closes(path: Path) -> dict:
+    """수집 DB 의 지수 일봉에서 코스피 · 코스닥의 **가장 최근 거래일 종가**를 읽는다(읽기 전용 · 가공 없음).
+
+    돌려주는 값: `{"as_of": "YYYY-MM-DD" | None, "items": [{"name": "코스피", "close": 2650.12}, ...]}`
+    기준일이 서로 다르면(한쪽만 늦게 들어온 날) **더 늦은 날의 것만** 싣는다 — 다른 날의 종가를 한 줄에 섞지 않는다.
+    """
+    rows: list[tuple[str, str, float]] = []
+    conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+    try:
+        for series, name in INDEX_SERIES:
+            row = conn.execute(_INDEX_QUERY, (series, name)).fetchone()
+            if row and row[1] is not None:
+                rows.append((str(row[0]), name, float(row[1])))
+    finally:
+        conn.close()
+    if not rows:
+        return {"as_of": None, "items": []}
+    latest = max(d for d, _, _ in rows)
+    day = f"{latest[:4]}-{latest[4:6]}-{latest[6:8]}"
+    return {"as_of": day, "items": [{"name": n, "close": c} for d, n, c in rows if d == latest]}
+
+
+async def get_latest_index_closes() -> dict:
+    """`read_latest_index_closes` 의 비동기 판 — 수집 DB 가 없거나 못 읽으면 빈 목록(화면은 칸을 숨긴다)."""
+    path = db_path()
+    if path is None:
+        return {"as_of": None, "items": []}
+    try:
+        return await asyncio.to_thread(read_latest_index_closes, path)
+    except sqlite3.Error as e:
+        logger.warning("수집 DB 에서 지수 종가를 읽지 못했다(%s)", e)
+        return {"as_of": None, "items": []}

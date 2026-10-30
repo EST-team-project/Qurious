@@ -2,18 +2,16 @@
  *
  * 이 파일이 하는 일은 둘이다.
  *  1. 인트로를 끝낸다 — 「건너뛰기」 · 화면 누르기 · Esc · Enter · Space 가 올 때까지 머문다(저절로 넘어가지 않는다 · 2026-10-29 개정).
- *     인트로를 보일지는 index.html 앞 스크립트가 이미 정했다(html.intro-on). 이 탭에서 한 번 봤으면 다시 안 보인다(sessionStorage).
+ *     인트로를 보일지는 index.html 앞 스크립트가 이미 정했다(html.intro-on). 움직임 줄이기가 아니면 열 때마다 보인다 —
+ *     새로고침하면 다시 뜬다(2026-10-30 개정 · 전에는 이 탭에서 한 번만 · sessionStorage). 위쪽 막대는 눈에 안 보이고 Tab 으로 닿으면 나타난다.
  *  2. 카드를 누르면 펼친다 — 한 번에 하나만, 펼친 카드를 다시 누르면 접는다. 펼침 상태는 aria-expanded 로 읽어 준다.
  *
  * 로그인한 사람을 앱으로 보내는 일은 서버(`/` 라우트)가 한다. 여기서는 뒤로가기 캐시(bfcache)로 이 화면이 되살아났는데
  * 그 사이 로그인했는지만 한 번 더 본다(login.html 과 같은 방식).
  */
-const SEEN_KEY = "qurious-intro-seen";
-
 function endIntro() {
   const intro = document.getElementById("intro");
   document.documentElement.classList.remove("intro-on");   // 본문 스크롤 잠금을 풀고
-  try { window.sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* 저장 못 해도 이번 탭에서는 이미 끝났다 */ }
   if (!intro || intro.dataset.done) return;
   intro.dataset.done = "1";
   intro.classList.add("intro--out");
@@ -34,7 +32,7 @@ function setupIntro() {
     if (!intro.isConnected) return;
     if (e.key === "Escape" || e.key === "Enter" || e.key === " ") { e.preventDefault(); skip(); }
   });
-  document.getElementById("intro-skip")?.focus({ preventScroll: true });
+  // 건너뛰기 버튼에 미리 초점을 두지 않는다 — 두면 눈에 안 보이게 둔 위쪽 막대가 나타난다. 키보드는 Esc · Enter · Space 로 끝낸다.
 }
 
 function setupCards() {
@@ -63,6 +61,38 @@ function setupBfcache() {
   });
 }
 
+/* 3. 지수 종가 한 줄(S166) — 수집 DB 의 가장 최근 거래일 종가를 서버가 그대로 준다.
+ *    공공누리 제4유형(출처 표시 · 비상업 · 변경 금지)이라 계산 · 가공 없이 종가만 · 기준일 · 출처를 같이 적는다.
+ *    못 받거나 목록이 비면 칸을 숨긴 채 둔다. 실시간 시세가 아니다(글에도 「종가」 라고만 적는다). */
+async function setupTicker() {
+  const el = document.getElementById("index-ticker");
+  if (!el) return;
+  try {
+    const r = await fetch("/api/public/index-closes", { credentials: "omit" });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || !d.as_of || !Array.isArray(d.items) || d.items.length === 0) return;
+    el.replaceChildren();
+    for (const it of d.items) {
+      const item = document.createElement("span");
+      item.className = "tk-item";
+      const name = document.createElement("span");
+      name.className = "tk-name";
+      name.textContent = it.name;
+      const value = document.createElement("b");
+      value.textContent = Number(it.close).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      item.append(name, " ", value);
+      el.append(item);
+    }
+    const note = document.createElement("span");
+    note.className = "tk-note";
+    note.textContent = `${d.as_of} 종가 · 출처: ${d.source}`;
+    el.append(note);
+    el.hidden = false;
+  } catch { /* 서버에 못 닿으면 칸을 숨긴 채 둔다 */ }
+}
+
 setupIntro();
 setupCards();
 setupBfcache();
+setupTicker();

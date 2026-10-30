@@ -1,8 +1,8 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 280,
- "routers": 42,
+ "count": 281,
+ "routers": 43,
  "routes": [
   {
    "id": "API-AUTH-01",
@@ -6612,6 +6612,34 @@
     "422"
    ],
    "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-PUBD-01",
+   "router": "public_data",
+   "method": "GET",
+   "path": "/api/public/index-closes",
+   "summary": "",
+   "auth": "없음",
+   "reaches": [
+    "수집DB",
+    "Redis"
+   ],
+   "hosts": [],
+   "screens": [],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/public_data.py",
+   "line": 42,
+   "errors": [
+    "429"
+   ],
+   "keys": [
+    "as_of",
+    "source",
+    "items"
+   ],
    "body": [],
    "schema": true
   },
