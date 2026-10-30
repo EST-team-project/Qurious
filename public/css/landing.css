@@ -52,6 +52,11 @@ a { color: inherit; }
 .hero-sub { max-width: 700px; font-size: 20px; color: var(--text-dim); }
 .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .hero-note { font-size: 13px; color: var(--text-mute); }
+/* 지수 종가 한 줄 — 서버 값 그대로 · 못 받으면 hidden */
+.hero-ticker { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 6px 18px; margin-top: 4px; font-size: 14px; color: var(--text-dim, #475569); }
+.hero-ticker[hidden] { display: none; }
+.hero-ticker b { font-variant-numeric: tabular-nums; color: var(--text, #0f172a); }
+.hero-ticker .tk-note { flex-basis: 100%; text-align: center; font-size: 12px; color: var(--text-mute); }
 /* 머무는 동안의 움직임(2026-10-29 사용자 요청) — 선은 8초 주기로 그려졌다 쉬고, 끝점은 숨 쉬듯 깜빡인다.
    움직임 줄이기 설정이면 아래 맨 끝 규칙이 애니메이션을 꺼서 선은 다 그려진 채로 보인다(오프셋 기본값 0). */
 .hero-chart { width: min(640px, 86vw); height: auto; margin-top: 8px; overflow: visible; }
@@ -106,6 +111,10 @@ a { color: inherit; }
 .intro-on .intro { display: flex; }
 .intro--out { opacity: 0; pointer-events: none; }
 .intro-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 28px 36px; }
+/* 인트로가 떠 있는 동안 위쪽 막대는 보이지 않는다(2026-10-30 사용자 피드백) — 클릭은 화면 전체 「눌러 시작」 으로 통과하고,
+   키보드 Tab 으로 닿으면(:focus-within) 나타나 로그인 · 가입 · 건너뛰기를 쓸 수 있다. */
+.intro-bar { opacity: 0; pointer-events: none; }
+.intro-bar:focus-within { opacity: 1; pointer-events: auto; }
 .intro-link, .intro-skip { padding: 9px 16px; border-radius: 100px; border: 0; background: rgba(255, 255, 255, .12); color: #e2e8f0;
   font: inherit; font-size: 14px; font-weight: 600; line-height: 1; text-decoration: none; cursor: pointer; }
 .intro-link:hover, .intro-skip:hover { background: rgba(255, 255, 255, .2); }

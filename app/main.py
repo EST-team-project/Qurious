@@ -166,6 +166,9 @@ app.include_router(indicator_strategy_routes.router)
 # 자유 산식 커스텀 지표 (DSL · 버전 · 결과 저장)
 from app.routes import formula as formula_routes  # noqa: E402
 app.include_router(formula_routes.router)
+# 공개 자료(로그인 없이 읽는다) — 랜딩의 지수 종가 한 줄 · 수집 DB 값 그대로 · 출처 표시 (S166)
+from app.routes import public_data as public_data_routes  # noqa: E402
+app.include_router(public_data_routes.router)
 # 용어사전 (검색 · 분류 · 용어 한 건 — 로그인 없이 읽는다)
 from app.routes import glossary as glossary_routes  # noqa: E402
 app.include_router(glossary_routes.router)
