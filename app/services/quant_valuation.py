@@ -24,13 +24,17 @@ async def quote(db, user_id, symbol: str, *, fresh: bool = False) -> dict:
 
 async def snapshot(db, user_id) -> dict:
     """사이클·위험 상태·대시보드가 같은 계정별 조회 순서를 사용한다. 누락은 평가 불가."""
-    acc = (await db.execute(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == user_id))).scalar_one_or_none()
+    # 체결 관문은 별도 세션에서 현금·보유를 커밋한다. 같은 사이클의
+    # identity map에 남은 체결 전 객체도 DB의 최신 값으로 다시 채운다.
+    acc = (await db.execute(select(QuantVirtualAccount).where(
+        QuantVirtualAccount.user_id == user_id).execution_options(populate_existing=True))).scalar_one_or_none()
     out = {'has_account': acc is not None, 'complete': True, 'cash': float(acc.cash_balance) if acc else 0.0,
            'initial': float(acc.initial_capital) if acc else 0.0, 'quotes': {}, 'values': {},
            'positions': 0, 'missing': [], 'label': '보유 없음 · 현금 기준'}
     if acc:
         rows = (await db.execute(select(Portfolio).where(
-            Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_QUANT))).scalars().all()
+            Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_QUANT)
+            .execution_options(populate_existing=True))).scalars().all()
         for p in rows:
             if p.quantity <= 0:
                 continue
