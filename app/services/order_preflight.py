@@ -132,7 +132,9 @@ async def quant(db, intent, mode, requested_quantity, decision=None, name=""):
 
 
 async def execute_quant(db, uid, row, mode, symbol, name, action, quantity, reason, decision):
-    from app.services import auto_trade
+    from app.services import auto_trade, strategy_loader
+    if strategy_loader.is_fixed_test() and mode != "paper":
+        return control.blocked("TEST_STRATEGY_PAPER_ONLY", "고정 시험 전략은 앱 가상계좌 전용입니다.")
     try:
         ref = live_ownership.account_ref(row, gateway) if mode == "live" else control.digest([str(uid), "QUANT"])
     except (ValueError, RuntimeError):
