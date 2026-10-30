@@ -159,14 +159,15 @@ def test_cli_is_warn_only_unless_strict(tmp_path, capsys, monkeypatch):
 
 
 def test_runner_step_runs_after_derived_steps_and_never_blocks():
-    """TC-QUAL-06 · 러너 연결 — 품질 검사 단계는 수정주가 · 총수익 · 벤치마크 **뒤**(앞이면 ADJ-COVER · TR-COVER 거짓 경고), 일봉 · 신호 **앞**에 있고 회차를 막지 않으며
+    """TC-QUAL-06 · 러너 연결 — 품질 검사 단계는 수정주가 · 총수익 · 벤치마크 · **일봉(ohlcv) 뒤**(앞이면 ADJ-COVER · TR-COVER · ETF-GAP · IDX-GAP 거짓 경고), 신호 **앞**에 있고 회차를 막지 않으며
     HF 로 올리지 않는다. 인자는 quality CLI 가 실제로 받는 것만 쓴다(없는 인자를 쓰면 매 회차 argparse 오류)."""
     from scripts import daily_update as du
     names = [s.name for s in du.STEPS]
     q = next(s for s in du.STEPS if s.name == "quality")
-    for before in ("price", "adjusted", "total_return", "benchmark"):
+    # 2026-10-30 첫 러너 실측: ohlcv(ETF · 지수 일봉 적재) 앞에 두었더니 그날 ETF-GAP · IDX-GAP 경고 2건이 떴다가 회차 뒤 재검사에서 0건 → ohlcv 뒤로 옮겼다
+    for before in ("price", "adjusted", "total_return", "benchmark", "ohlcv"):
         assert names.index(before) < names.index("quality"), f"{before} 가 품질 검사보다 앞이어야 한다"
-    assert names.index("quality") < names.index("ohlcv") < names.index("signals"), "일봉 · 신호 앞 — 기존 순서(일봉 → 신호 → 일지 → 목록표)를 안 깬다"
+    assert names.index("ohlcv") < names.index("quality") < names.index("signals"), "일봉 → 품질 → 신호 — 신호 · 일지 · 목록표 순서는 안 깬다"
     assert q.fatal is False and not q.upload and not q.sharing and not q.app_db
     assert q.args[:2] == ["-m", "collector.quality"]
     # 단계가 넘기는 인자는 CLI 가 실제로 받는 것뿐이어야 한다(예: 없는 --quiet 를 넘기면 단계가 매 회차 argparse 오류로 끝난다)
@@ -209,3 +210,53 @@ def test_quality_line_is_wired_but_kept_out_of_the_overall_verdict():
     assert ds.QUALITY_FILE == "data_quality_last.json" and (config.STATE_DIR / ds.QUALITY_FILE).name == ds.QUALITY_FILE
     js = (ROOT / "public" / "js" / "datahub.js").read_text(encoding="utf-8")
     assert '["데이터 품질 검사", qualityBrief(st.quality)]' in js and "q.state_label" in js and "escHtml(q.label)" in js
+
+
+def test_quality_view_passes_checks_through_for_the_table():
+    """TC-QUAL-09 · 품질 현황 표 — 서버가 검사별 목록을 화면용으로 추려 싣는다(다시 세지 않는다).
+    분류 열쇠는 collector 의 검사 목록과 같아야 하고, 모르는 상태는 정상으로 꾸미지 않고 「참고」 로 둔다."""
+    from app.services import data_status as ds
+    assert set(ds.QUALITY_GROUP) == set(quality.LABELS), "분류 표가 collector 의 검사 목록과 어긋났다"
+    assert set(ds.QUALITY_CHECK_STATE) == {"ok", "warn", "info", "error"}
+    snap = {"at": "2026-10-30T12:50:00+09:00", "window_days": 20, "window": ["20261002", "20261030"], "warn": 1, "error": 0,
+            "checks": [
+                {"check": "PD-GAP", "label": "시세 없는 평일", "status": "warn", "count": 2,
+                 "sample": ["20261012", "20261013", "a", "b", "c", "d", "e"], "detail": "수집이 빠졌다"},
+                {"check": "PD-NOOPEN", "label": "시가 0 행", "status": "info", "count": 2780, "sample": [], "detail": ""},
+                {"check": "NEW-ONE", "status": "weird", "count": "x"},
+                "깨진 항목", {"label": "check 없음"},
+            ]}
+    v = _view(snap)
+    by = {c["check"]: c for c in v["checks"]}
+    assert len(v["checks"]) == 3, "깨진 항목(문자열 · check 없음)은 버린다"
+    assert by["PD-GAP"]["group"] == "결측" and by["PD-GAP"]["status_label"] == "경고" and by["PD-GAP"]["count"] == 2
+    assert len(by["PD-GAP"]["sample"]) == ds.QUALITY_SAMPLE_MAX, "표본은 한도까지만 싣는다"
+    assert by["PD-NOOPEN"]["group"] == "참고" and by["PD-NOOPEN"]["count"] == 2780
+    assert by["NEW-ONE"]["status"] == "info" and by["NEW-ONE"]["count"] == 0 and by["NEW-ONE"]["group"] == "기타", \
+        "모르는 상태 · 깨진 건수를 정상으로 꾸미지 않는다"
+    assert v["window"] == ["20261002", "20261030"]
+    # 참고(info) 검사는 전체 상태를 올리지 않는다 — 경고 0 이면 이상 없음
+    clean = _view({"at": "2026-10-30T12:50:00+09:00", "window_days": 20, "warn": 0, "error": 0,
+                   "checks": [{"check": "PD-NOOPEN", "label": "시가 0 행", "status": "info", "count": 5}]})
+    assert clean["state"] == "ok" and clean["checks"][0]["status"] == "info"
+    # 파일이 없으면 지어내지 않는다
+    none = _view(None)
+    assert none["state"] == "none" and none["checks"] == [] and none["window"] is None
+
+
+def test_sla_doc_matches_freshness_rules_and_table_is_wired():
+    """TC-QUAL-10 · 데이터 SLA 문서는 코드의 신선도 규칙(FRESHNESS)과 어긋나지 않고, 품질 표가 화면에 걸려 있다.
+    규칙의 정본은 코드다 — 열쇠마다 문서 표에 그 줄이 있고 판정 방식 이름이 같이 적혀 있어야 한다."""
+    from app.services import data_status as ds
+    doc = (ROOT / "docs" / "phase-3" / "02-design" / "system" / "데이터-SLA.md").read_text(encoding="utf-8")
+    rows = {ln.split("|")[1].strip().strip("`"): ln for ln in doc.splitlines() if ln.startswith("| `")}
+    for key, (kind, value) in ds.FRESHNESS.items():
+        assert key in rows, f"SLA 문서에 {key} 줄이 없다"
+        assert f"`{kind}`" in rows[key], f"SLA 문서의 {key} 판정 방식이 코드({kind})와 다르다"
+        if kind == "step_checked":
+            assert f"`{value}`" in rows[key], f"SLA 문서의 {key} 단계 이름이 코드({value})와 다르다"
+    for check in quality.LABELS:
+        assert f"`{check}`" in doc, f"SLA 문서 4절에 검사 {check} 가 없다"
+    js = (ROOT / "public" / "js" / "datahub.js").read_text(encoding="utf-8")
+    assert "function qualityCard(st)" in js and "${tableCard(st)}${qualityCard(st)}${lowCards(st)}" in js
+    assert "c.status_label" in js and "c.group" in js, "표의 판정 · 분류는 서버 글을 그대로 보인다(화면이 다시 정하지 않는다)"

@@ -28,6 +28,30 @@ function qualityBrief(q) {
   if (!q) return "기록 없음";
   return `<span class="q-pill q-pill--${QUALITY_CLASS[q.state] || "info"}">${escHtml(q.state_label)}</span> ${escHtml(q.label)}`;
 }
+// 품질 현황 표(①-12) — 검사 하나의 상태 → 색. 상태 · 분류 · 건수 · 글은 서버(quality_view.checks)가 정한 그대로 보인다
+const QUALITY_CHECK_CLASS = { ok: "fresh", warn: "late", info: "info", error: "stale" };
+function qualityWindow(w) {
+  if (!Array.isArray(w) || w.length < 2) return "";
+  const md = s => `${String(s).slice(4, 6)}-${String(s).slice(6, 8)}`;
+  return ` · ${md(w[0])} ~ ${md(w[1])}`;
+}
+function qualityCard(st) {
+  const q = st.quality;
+  const checks = (q && q.checks) || [];
+  const head = `<h3 class="dh-h">데이터 품질 검사 <span class="q-muted">결측 · 중복 · 정합성 — 처음엔 경고만 합니다(회차를 막지 않음)${q ? qualityWindow(q.window) : ""}</span></h3>`;
+  if (!checks.length) {
+    return `<div class="card">${head}<p class="q-muted">${escHtml(q ? q.label : "아직 검사 기록이 없습니다")}</p></div>`;
+  }
+  const rows = checks.map(c => `<tr>
+      <td class="dh-name">${escHtml(c.label)}</td>
+      <td class="q-muted">${escHtml(c.group)}</td>
+      <td><span class="q-pill q-pill--${QUALITY_CHECK_CLASS[c.status] || "info"}">${escHtml(c.status_label)}</span></td>
+      <td class="dh-num">${fmt(c.count)}</td>
+      <td class="q-muted dh-detail">${escHtml(c.detail || "")}${c.sample && c.sample.length ? ` · 예: ${c.sample.map(s => escHtml(s)).join(" · ")}` : ""}</td></tr>`).join("");
+  return `<div class="card">${head}<p class="q-muted">${escHtml(q.label)}</p>
+    <div class="dh-table-wrap"><table class="dh-table"><thead><tr><th>검사</th><th>분류</th><th>판정</th>
+      <th class="dh-num">건수</th><th>설명 · 예</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
 function rehearsalBrief(rh) {
   if (!rh) return "기록 없음";
   return `<span class="q-pill q-pill--${REHEARSAL_CLASS[rh.state] || "info"}">${escHtml(rh.state_label)}</span> ${escHtml(rh.label)} · ${escHtml(rh.schedule_label)}`;
@@ -262,7 +286,7 @@ async function renderDataHub() {
     root.innerHTML = `<div class="dh-head"><div><h2>데이터 관제</h2>
         <p class="q-muted">모은 자료가 며칠 것까지 있는지, 매일 낮 갱신이 돌았는지 봅니다 · 30초마다 다시 봅니다 · ${escHtml(hm(st.checked_at))} 기준</p></div>
         <button type="button" class="btn-secondary dh-refresh">새로 고침</button></div>
-      ${summaryCards(st)}${runCard(st)}<div class="card dh-reqline q-admin-only"></div>${tableCard(st)}${lowCards(st)}`;
+      ${summaryCards(st)}${runCard(st)}<div class="card dh-reqline q-admin-only"></div>${tableCard(st)}${qualityCard(st)}${lowCards(st)}`;
   } catch (err) {
     root.innerHTML = `<div class="card"><p class="q-err">자료 상태를 읽지 못했습니다 — ${escHtml(err.message)}</p>
       <button type="button" class="btn-secondary dh-refresh">다시 시도</button></div>`;

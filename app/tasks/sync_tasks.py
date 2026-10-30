@@ -60,6 +60,25 @@ def sync_stock_candles() -> dict:
     return result
 
 
+@celery_app.task(name="sync.prune_external_cache", time_limit=120)
+def prune_external_cache() -> dict:
+    """나이 지난 외부 시세 캐시(`data_cache` 의 허용 목록 키)를 하루 한 번 지운다 — 상태 · 결과 키는 건드리지 않는다(할 일 ①-29)."""
+
+    async def _async() -> dict:
+        from app.database.postgres import connect_postgres, close_postgres
+        from app.services.data_cache import prune_external
+
+        await connect_postgres()
+        try:
+            return await prune_external()
+        finally:
+            await close_postgres()
+
+    result = asyncio.run(_async())
+    logger.info("[beat] prune_external_cache 완료 %s", result)
+    return result
+
+
 @celery_app.task(name="rebalance.check_triggers", time_limit=600)
 def rebalance_check_triggers() -> dict:
     """갱신 완료를 5분마다 확인하고 준비된 거래일에 플랜별로 한 번 판정한다."""

@@ -453,7 +453,9 @@ def test_signals_step_after_daily_bars_before_manifest():
     그날 일봉 · 60분봉이 들어온 다음에 돌아야 하고, 실패해도 백업을 막지 않는다(fatal=False). 파생 판정 · 올리기와 무관하다."""
     names = [s.name for s in du.STEPS]
     # 신호 뒤에는 모의 일지(2026-10-24 · 신호와 같은 계산 묶음) — 그 뒤가 목록표다(TC-PJ-13)
-    assert names.index("ohlcv") + 1 == names.index("signals") and names.index("signals") + 1 == names.index("journal")
+    # 일봉(ohlcv) 바로 뒤에 품질 검사(quality — 10-30 에 ohlcv 뒤로 옮김 · ETF · 지수 일봉 적재 뒤에 재야 거짓 경고가 없다)가 끼고, 그 뒤가 신호다
+    assert names.index("ohlcv") + 1 == names.index("quality") and names.index("quality") + 1 == names.index("signals")
+    assert names.index("signals") + 1 == names.index("journal")
     assert names.index("journal") + 1 == names.index("manifest")
     sig = next(s for s in du.STEPS if s.name == "signals")
     assert sig.args == ["scripts/signals_daily.py"], "인자 없이 — 수집 DB 의 마지막 거래일 하루"

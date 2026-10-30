@@ -927,6 +927,37 @@ QUALITY_FILE = "data_quality_last.json"
 #: 마지막 검사가 이보다 오래되면 「오래됨」 — 거래일마다 도는 단계라 주말 · 하루 건너뜀을 넘겨 4일
 QUALITY_STALE_DAYS = 4
 QUALITY_STATE = {"ok": "이상 없음", "warn": "경고", "error": "검사 오류", "stale": "오래됨", "none": "없음"}
+#: 검사 하나의 상태 이름(collector/quality.py 의 ok · warn · info · error) — 모르는 값은 「참고」 로 둔다(정상으로 꾸미지 않는다)
+QUALITY_CHECK_STATE = {"ok": "이상 없음", "warn": "경고", "info": "참고", "error": "검사 오류"}
+#: 검사 → 분류(collector/quality.py 모듈 설명의 결측 · 중복 · 정합 · 참고) — 시험(TC-QUAL-09)이 collector 의 LABELS 와 열쇠가 같은지 맞댄다
+QUALITY_GROUP = {
+    "PD-GAP": "결측", "PD-THIN": "결측", "ETF-GAP": "결측", "IDX-GAP": "결측", "ADJ-COVER": "결측", "TR-COVER": "결측",
+    "PD-DUP": "중복",
+    "PD-OHLC": "정합", "PD-NONPOS": "정합", "INGEST": "정합",
+    "PD-NOOPEN": "참고",
+}
+#: 화면에 싣는 표본 · 글 길이 한도 — 결과 파일이 커져도 응답이 부풀지 않게
+QUALITY_SAMPLE_MAX = 5
+QUALITY_TEXT_MAX = 200
+
+
+def _quality_checks(snap: dict) -> list[dict]:
+    """결과 파일의 검사 목록을 화면용으로 추린다 — 칸이 깨진 항목은 버리고, 값은 읽기만 한다(다시 세지 않는다)."""
+    out: list[dict] = []
+    for c in snap.get("checks") or []:
+        if not isinstance(c, dict) or not c.get("check"):
+            continue
+        status = c.get("status") if c.get("status") in QUALITY_CHECK_STATE else "info"
+        try:
+            count = int(c.get("count") or 0)
+        except (TypeError, ValueError):
+            count = 0
+        sample = [str(s)[:QUALITY_TEXT_MAX] for s in (c.get("sample") or [])[:QUALITY_SAMPLE_MAX]]
+        out.append({"check": str(c["check"]), "label": str(c.get("label") or c["check"])[:QUALITY_TEXT_MAX],
+                    "group": QUALITY_GROUP.get(str(c["check"]), "기타"),
+                    "status": status, "status_label": QUALITY_CHECK_STATE[status], "count": count,
+                    "detail": str(c.get("detail") or "")[:QUALITY_TEXT_MAX], "sample": sample})
+    return out
 
 
 def quality_view(snap: dict | None, now: datetime) -> dict:
@@ -938,7 +969,8 @@ def quality_view(snap: dict | None, now: datetime) -> dict:
     """
     if not isinstance(snap, dict) or not snap.get("at"):
         return {"state": "none", "state_label": QUALITY_STATE["none"],
-                "label": "아직 검사 기록이 없습니다(러너가 한 번 돌면 생깁니다)", "checked_at": None, "days_ago": None}
+                "label": "아직 검사 기록이 없습니다(러너가 한 번 돌면 생깁니다)", "checked_at": None, "days_ago": None,
+                "checks": [], "window": None}
     at = _parse_ts(snap.get("at"))
     warn, err = int(snap.get("warn") or 0), int(snap.get("error") or 0)
     window = snap.get("window_days") or snap.get("days")
@@ -959,8 +991,11 @@ def quality_view(snap: dict | None, now: datetime) -> dict:
     label = " · ".join(parts)
     if days is not None and days > QUALITY_STALE_DAYS:
         label += f" · {days}일 전이라 오래됨"
+    win = snap.get("window")
+    window = [str(w) for w in win[:2]] if isinstance(win, (list, tuple)) and len(win) >= 2 else None
     return {"state": state, "state_label": QUALITY_STATE[state], "label": label,
-            "checked_at": at.isoformat() if at else None, "days_ago": days, "warn": warn, "error": err}
+            "checked_at": at.isoformat() if at else None, "days_ago": days, "warn": warn, "error": err,
+            "checks": _quality_checks(snap), "window": window}
 
 
 # ── 모으기 ────────────────────────────────────────────────────────────────
