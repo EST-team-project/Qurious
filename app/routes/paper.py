@@ -502,20 +502,44 @@ async def backtest_100d_generate(
     user=Depends(get_current_user_any),
 ):
     """100일 백테스트를 백그라운드로 시작. task_id 반환."""
+    uid = _uid(user)
     task_id = str(uuid.uuid4())
+
+    if not backtest_100d.start_job(uid, task_id):
+        raise HTTPException(
+            409,
+            "이미 백테스트가 실행 중입니다."
+        )
+
     backtest_100d._progress(
-        task_id, status="running", phase="시작", progress=0,
-        started=datetime.now(backtest_100d.KST).isoformat(timespec="seconds"),
+        task_id,
+        started=datetime.now(backtest_100d.KST).isoformat(
+            timespec="seconds"
+        ),
     )
-    background.add_task(backtest_100d.run_backtest, _uid(user), task_id)
+
+    background.add_task(
+        backtest_100d.run_backtest,
+        uid,
+        task_id,
+    )
+
     return {"task_id": task_id}
 
 
 @router.get("/performance/backtest-100d/status/{task_id}")
-async def backtest_100d_status(task_id: str, user=Depends(get_current_user_any)):
-    job = backtest_100d.get_job(task_id)
+async def backtest_100d_status(
+    task_id: str,
+    user=Depends(get_current_user_any),
+):
+    job = backtest_100d.get_job(task_id, _uid(user))
+
     if not job:
-        raise HTTPException(404, "작업을 찾을 수 없습니다.")
+        raise HTTPException(
+            404,
+            "작업을 찾을 수 없습니다."
+        )
+
     return job
 
 
@@ -525,15 +549,25 @@ async def backtest_100d_exists(user=Depends(get_current_user_any),
     from sqlalchemy import func
     cnt = (await db.execute(
         select(func.count()).select_from(Order)
-        .where(Order.user_id == _uid(user), Order.source == "SIM")
+        .where(Order.user_id == _uid(user), Order.source == "BACKTEST")
     )).scalar() or 0
     return {"exists": cnt > 0, "count": int(cnt)}
 
 
 @router.delete("/performance/backtest-100d")
-async def backtest_100d_delete(user=Depends(get_current_user_any),
-                                db: AsyncSession = Depends(get_pg_session)):
-    return await backtest_100d.delete_backtest(db, _uid(user))
+async def backtest_100d_delete(
+    user=Depends(get_current_user_any),
+    db: AsyncSession = Depends(get_pg_session),
+):
+    uid = _uid(user)
+
+    if backtest_100d.is_running(uid):
+        raise HTTPException(
+            409,
+            "백테스트 실행 중에는 삭제할 수 없습니다."
+        )
+
+    return await backtest_100d.delete_backtest(db, uid)
     
 
 @router.post("/performance/simulate")

@@ -1,12 +1,4 @@
-"""100일 historical replay 백테스트 — UI 실행용 서비스.
-
-- auto_trade.py 의 실시간 신호 함수(_calc_rsi·_calc_sma·_calc_bollinger·_generate_signal)를 그대로 재생.
-- 체결은 paper_trading._fill_stock_order(..., filled_at=과거) — 그날의 수수료·세율로 정산.
-- source="SIM" — 실시간 PAPER 이력과 분리.
-
-⚠️ 백테스트이며 실 거래가 아니다.
-⚠️ 진행 상태는 프로세스 메모리(_JOBS)에 저장 — uvicorn 단일 worker 환경 전제.
-"""
+"""100일 historical replay 백테스트 — PAPER 계좌와 격리."""
 from __future__ import annotations
 
 import logging
@@ -14,26 +6,26 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database.postgres import get_session_factory
-from app.models import (
-    Order, PaperAccountSnapshot, Portfolio,
-    PORTFOLIO_BOOK_PAPER,
-)
-from app.services import paper_trading as pt
+from app.models import Order
+from app.services import backtest_ledger as ledger
 from app.services.stock import (
-    get_candles, _generate_signal,
-    _calc_rsi, _calc_sma, _calc_bollinger,
+    get_candles,
+    _generate_signal,
+    _calc_rsi,
+    _calc_sma,
+    _calc_bollinger,
 )
 from app.services.auto_trade import QUANT_STOCKS
+
 
 logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
-SOURCE = "SIM"
+
 BACKTEST_START = date(2026, 7, 13)
 BACKTEST_END = date(2026, 10, 20)
 BUDGET_PER_TRADE = 5_000_000
@@ -44,234 +36,394 @@ UNIVERSE = [
 ][:10]
 
 _JOBS: dict[str, dict] = {}
+_JOB_OWNERS: dict[str, str] = {}
+_ACTIVE_USERS: set[str] = set()
 
 
-def get_job(task_id: str) -> dict | None:
+def start_job(user_id: uuid.UUID, task_id: str) -> bool:
+    """사용자별 백테스트 중복 실행 방지 및 작업 소유권 등록."""
+    uid = str(user_id)
+
+    if uid in _ACTIVE_USERS:
+        return False
+
+    _ACTIVE_USERS.add(uid)
+    _JOB_OWNERS[task_id] = uid
+    _JOBS[task_id] = {
+        "status": "running",
+        "phase": "시작",
+        "progress": 0,
+    }
+    return True
+
+
+def is_running(user_id: uuid.UUID) -> bool:
+    return str(user_id) in _ACTIVE_USERS
+
+
+def get_job(task_id: str, user_id: uuid.UUID) -> dict | None:
+    """작업 소유자만 상태 조회 가능."""
+    if _JOB_OWNERS.get(task_id) != str(user_id):
+        return None
+
     return _JOBS.get(task_id)
 
 
 def _progress(task_id: str, **kw) -> None:
     _JOBS.setdefault(task_id, {}).update(kw)
 
-
-def _to_date_str(key) -> str | None:
-    """date 문자열 · ISO · 유닉스 초/ms 어느 것이든 'YYYY-MM-DD' 로."""
-    if key is None:
-        return None
-    if isinstance(key, (int, float)):
-        ts = key / 1000 if key > 1e11 else key   # ms vs s
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
-    s = str(key)
-    if s.isdigit():
-        ts = int(s) / 1000 if len(s) > 10 else int(s)
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
-    return s[:10]   # '2026-10-20' or '2026-10-20T15:30:00'
+    if kw.get("status") in ("done", "error"):
+        owner = _JOB_OWNERS.get(task_id)
+        if owner:
+            _ACTIVE_USERS.discard(owner)
 
 
 def _to_date_str(key) -> str | None:
-    """date 문자열 · ISO · 유닉스 초/ms 어느 것이든 'YYYY-MM-DD' 로."""
     if key is None:
         return None
+
     if isinstance(key, (int, float)):
-        ts = key / 1000 if key > 1e11 else key   # ms vs s
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
-    s = str(key)
-    if s.isdigit():
-        ts = int(s) / 1000 if len(s) > 10 else int(s)
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
-    return s[:10]   # '2026-10-20' or '2026-10-20T15:30:00'
+        ts = key / 1000 if key > 1e11 else key
+        return datetime.fromtimestamp(
+            ts, tz=timezone.utc
+        ).strftime("%Y-%m-%d")
+
+    value = str(key)
+
+    if value.isdigit():
+        ts = int(value) / 1000 if len(value) > 10 else int(value)
+        return datetime.fromtimestamp(
+            ts, tz=timezone.utc
+        ).strftime("%Y-%m-%d")
+
+    return value[:10]
 
 
 async def _load_candles(symbol: str) -> dict:
-    candles = (await get_candles(symbol, period="1y", interval="1d")).get("candles", [])
-    out: dict[str, dict] = {}
-    for c in candles:
-        ds = _to_date_str(c.get("date") or c.get("time"))
-        if ds:
-            out[ds] = c
-    rng = f"{min(out)}~{max(out)}" if out else "빈 범위"
-    print(f"[BT-load] {symbol}: 봉 {len(out)}개, 범위 {rng}")
-    return out
+    candles = (
+        await get_candles(
+            symbol,
+            period="1y",
+            interval="1d",
+        )
+    ).get("candles", [])
+
+    result = {}
+
+    for candle in candles:
+        date_str = _to_date_str(
+            candle.get("date") or candle.get("time")
+        )
+        if date_str:
+            result[date_str] = candle
+
+    date_range = (
+        f"{min(result)}~{max(result)}"
+        if result
+        else "빈 범위"
+    )
+
+    print(
+        f"[BT-load] {symbol}: 봉 {len(result)}개, "
+        f"범위 {date_range}"
+    )
+
+    return result
 
 
 _SIGNAL_MAP = {
-    "매수": "BUY", "매도": "SELL", "관망": "HOLD",
-    "BUY": "BUY", "SELL": "SELL", "HOLD": "HOLD",
-    "buy": "BUY", "sell": "SELL", "hold": "HOLD",
+    "매수": "BUY",
+    "매도": "SELL",
+    "관망": "HOLD",
+    "BUY": "BUY",
+    "SELL": "SELL",
+    "HOLD": "HOLD",
+    "buy": "BUY",
+    "sell": "SELL",
+    "hold": "HOLD",
 }
 
 
 def _signal_upto(past: list[dict]) -> tuple[str, dict]:
     closes = [float(c["close"]) for c in past]
+
     rsi = _calc_rsi(closes)
     ma5 = _calc_sma(closes, 5)
     ma20 = _calc_sma(closes, 20)
     ma60 = _calc_sma(closes, 60)
+
     bb_upper, _bb_mid, bb_lower = _calc_bollinger(closes)
-    sig = _generate_signal(
-        closes=closes, rsi=rsi, ma5=ma5, ma20=ma20, ma60=ma60,
-        bb_upper=bb_upper, bb_lower=bb_lower,
+
+    signal = _generate_signal(
+        closes=closes,
+        rsi=rsi,
+        ma5=ma5,
+        ma20=ma20,
+        ma60=ma60,
+        bb_upper=bb_upper,
+        bb_lower=bb_lower,
     ) or {}
-    raw = sig.get("action") or sig.get("signal") or "HOLD"
-    action = _SIGNAL_MAP.get(raw, "HOLD") if isinstance(raw, str) else "HOLD"
-    return action, sig
+
+    raw = signal.get("action") or signal.get("signal") or "HOLD"
+    action = (
+        _SIGNAL_MAP.get(raw, "HOLD")
+        if isinstance(raw, str)
+        else "HOLD"
+    )
+
+    return action, signal
 
 
-async def run_backtest(user_id: uuid.UUID, task_id: str) -> None:
-    """백그라운드 실행 — 진행률을 _JOBS 에 기록."""
+async def run_backtest(
+    user_id: uuid.UUID,
+    task_id: str,
+) -> None:
+    """백그라운드 실행."""
+
     try:
         factory = get_session_factory()
-    except RuntimeError as e:
-        _progress(task_id, status="error", phase=f"DB 미연결: {e}",
-                  finished=datetime.now(KST).isoformat(timespec="seconds"))
+    except RuntimeError as exc:
+        _progress(
+            task_id,
+            status="error",
+            phase=f"DB 미연결: {exc}",
+            finished=datetime.now(KST).isoformat(timespec="seconds"),
+        )
         return
 
     async with factory() as db:
         try:
-            _progress(task_id, status="running", phase="계좌 초기화", progress=0)
+            _progress(
+                task_id,
+                status="running",
+                phase="백테스트 전용 계좌 초기화",
+                progress=0,
+            )
 
-            # 이전 SIM 데이터 정리
-            await db.execute(delete(Order).where(
-                Order.user_id == user_id, Order.source == SOURCE))
-            await db.execute(delete(PaperAccountSnapshot).where(
-                PaperAccountSnapshot.user_id == user_id))
-            await pt.reset_account(db, user_id)
+            # PAPER와 무관한 백테스트 자료만 초기화
+            await ledger.reset_backtest(db, user_id)
             await db.commit()
 
             _progress(task_id, phase="과거 시세 로딩 중")
-            histories = {s: await _load_candles(s) for s in UNIVERSE}
+
+            histories = {
+                symbol: await _load_candles(symbol)
+                for symbol in UNIVERSE
+            }
+
             print(f"[BT] 로드 완료 · {len(histories)}종목")
 
-            d = BACKTEST_START
+            current_date = BACKTEST_START
             total = (BACKTEST_END - BACKTEST_START).days + 1
             done = 0
             trades = 0
-            signals_seen = {"BUY": 0, "SELL": 0, "HOLD": 0}
-            skips = {"no_bar": 0, "short_history": 0, "sell_no_pos": 0, "fill_error": 0}
 
-            while d <= BACKTEST_END:
-                if d.weekday() < 5:
-                    for sym in UNIVERSE:
-                        hist = histories[sym]
-                        if d.isoformat() not in hist:
+            signals_seen = {
+                "BUY": 0,
+                "SELL": 0,
+                "HOLD": 0,
+            }
+
+            skips = {
+                "no_bar": 0,
+                "short_history": 0,
+                "sell_no_pos": 0,
+                "fill_error": 0,
+            }
+
+            # 각 종목의 마지막 확인 종가
+            last_prices: dict[str, float] = {}
+
+            while current_date <= BACKTEST_END:
+                date_key = current_date.isoformat()
+
+                if current_date.weekday() < 5:
+                    for symbol in UNIVERSE:
+                        history = histories[symbol]
+
+                        if date_key not in history:
                             skips["no_bar"] += 1
                             continue
-                        past = [c for dt, c in sorted(hist.items()) if dt <= d.isoformat()]
+
+                        past = [
+                            candle
+                            for day, candle in sorted(history.items())
+                            if day <= date_key
+                        ]
+
                         if len(past) < 60:
                             skips["short_history"] += 1
                             continue
 
-                        action, sig = _signal_upto(past)
-                        signals_seen[action] = signals_seen.get(action, 0) + 1
+                        close = float(history[date_key]["close"])
+
+                        if close <= 0:
+                            skips["no_bar"] += 1
+                            continue
+
+                        last_prices[symbol] = close
+
+                        action, signal = _signal_upto(past)
+                        signals_seen[action] = (
+                            signals_seen.get(action, 0) + 1
+                        )
 
                         if action not in ("BUY", "SELL"):
                             continue
 
-                        close = float(hist[d.isoformat()]["close"])
-                        filled_at = datetime(d.year, d.month, d.day, 15, 30, tzinfo=KST)
-                        info = {"symbol": sym, "price": close, "currency": "KRW",
-                                "market": "KOSPI", "name": sym}
+                        filled_at = datetime(
+                            current_date.year,
+                            current_date.month,
+                            current_date.day,
+                            15,
+                            30,
+                            tzinfo=KST,
+                        )
+
+                        info = {
+                            "symbol": symbol,
+                            "price": close,
+                            "currency": "KRW",
+                            "market": "KOSPI",
+                            "name": symbol,
+                        }
 
                         try:
                             if action == "BUY":
-                                qty = int(BUDGET_PER_TRADE // close)
-                                if qty <= 0:
+                                quantity = int(
+                                    BUDGET_PER_TRADE // close
+                                )
+
+                                if quantity <= 0:
                                     continue
-                                await pt._fill_stock_order(
-                                    db, user_id, info, "BUY", qty,
-                                    source=SOURCE, filled_at=filled_at)
+
+                                await ledger.fill_stock_order(
+                                    db,
+                                    user_id,
+                                    info,
+                                    "BUY",
+                                    quantity,
+                                    filled_at=filled_at,
+                                )
+
                                 trades += 1
-                                print(f"[BT-fill] {d} BUY {sym} {qty}@{close:,.0f}")
-                            else:  # SELL
-                                pos = await pt._stock_position(db, user_id, sym)
-                                if not pos or pos.quantity <= 0:
+
+                                print(
+                                    f"[BT-fill] {current_date} "
+                                    f"BUY {symbol} {quantity}@{close:,.0f}"
+                                )
+
+                            else:
+                                position = await ledger.get_position(
+                                    db,
+                                    user_id,
+                                    symbol,
+                                )
+
+                                if (
+                                    position is None
+                                    or position.quantity <= 0
+                                ):
                                     skips["sell_no_pos"] += 1
                                     continue
-                                await pt._fill_stock_order(
-                                    db, user_id, info, "SELL", pos.quantity,
-                                    source=SOURCE, filled_at=filled_at)
+
+                                quantity = position.quantity
+
+                                await ledger.fill_stock_order(
+                                    db,
+                                    user_id,
+                                    info,
+                                    "SELL",
+                                    quantity,
+                                    filled_at=filled_at,
+                                )
+
                                 trades += 1
-                                print(f"[BT-fill] {d} SELL {sym} {pos.quantity}@{close:,.0f}")
-                        except pt.PaperTradeError as e:
-                            skips["fill_error"] += 1
-                            print(f"[BT-skip] {d} {action} {sym}: {e}")
-                        except Exception as e:
-                            skips["fill_error"] += 1
-                            logger.warning("[BT-error] %s %s %s: %s", d, action, sym, e)
 
-                    # 스냅샷 — 그날 날짜로 직접 insert
-                    try:
-                        snap_data = await pt.account_snapshot(db, user_id)
-                        cur_equity = float(snap_data.get("totalAsset") or 0)
-                        prev_row = (await db.execute(
-                            select(PaperAccountSnapshot)
-                            .where(PaperAccountSnapshot.user_id == user_id)
-                            .where(PaperAccountSnapshot.snap_date < d)
-                            .order_by(PaperAccountSnapshot.snap_date.desc())
-                            .limit(1)
-                        )).scalar_one_or_none()
-                        prev_eq = float(prev_row.total_equity) if prev_row else None
-                        daily = (cur_equity / prev_eq - 1) if prev_eq else 0.0
+                                print(
+                                    f"[BT-fill] {current_date} "
+                                    f"SELL {symbol} {quantity}@{close:,.0f}"
+                                )
 
-                        snap_vals = dict(
-                            id=uuid.uuid4(),
-                            user_id=user_id,
-                            snap_date=d,
-                            cash=float(snap_data.get("cash") or 0),
-                            position_value=cur_equity - float(snap_data.get("cash") or 0),
-                            total_equity=cur_equity,
-                            daily_return=daily,
-                            position_count=sum(int(v or 0) for v in (snap_data.get("counts") or {}).values()),
-                            stock_value=float(snap_data.get("stockEval") or 0),
-                            crypto_value=float(snap_data.get("cryptoEval") or 0),
-                            alt_value=float(snap_data.get("alternativeEval") or 0),
-                        )
-                        stmt = pg_insert(PaperAccountSnapshot).values(**snap_vals).on_conflict_do_update(
-                            index_elements=["user_id", "snap_date"],
-                            set_={k: snap_vals[k] for k in (
-                                "cash", "position_value", "total_equity", "daily_return",
-                                "position_count", "stock_value", "crypto_value", "alt_value",
-                            )},
-                        )
-                        await db.execute(stmt)
-                    except Exception as e:
-                        logger.warning("snapshot %s 실패: %s", d, e)
+                        except ledger.BacktestTradeError as exc:
+                            skips["fill_error"] += 1
+                            print(
+                                f"[BT-skip] {current_date} "
+                                f"{action} {symbol}: {exc}"
+                            )
+
+                        except Exception as exc:
+                            skips["fill_error"] += 1
+                            logger.exception(
+                                "[BT-error] %s %s %s",
+                                current_date,
+                                action,
+                                symbol,
+                            )
+
+                    # 백테스트 전용 장부로만 일별 평가
+                    await ledger.save_snapshot(
+                        db,
+                        user_id,
+                        current_date,
+                        last_prices,
+                    )
+
                     await db.commit()
 
-                d += timedelta(days=1)
+                current_date += timedelta(days=1)
                 done += 1
-                if done % 5 == 0 or done == total:
-                    _progress(task_id,
-                              phase=f"{done}/{total}일 · 거래 {trades}건",
-                              progress=round(done / total * 100))
 
-            # 최종 요약 로그
+                if done % 5 == 0 or done == total:
+                    _progress(
+                        task_id,
+                        phase=f"{done}/{total}일 · 거래 {trades}건",
+                        progress=round(done / total * 100),
+                    )
+
             summary = (
-                f"\n[BT-summary] 거래 {trades}건 · 신호 {signals_seen} · skip {skips}\n"
+                f"\n[BT-summary] 거래 {trades}건 · "
+                f"신호 {signals_seen} · skip {skips}\n"
                 f"[BT-summary] 완료 {done}/{total}일\n"
             )
+
             print(summary)
 
-            _progress(task_id, status="done",
-                      phase=f"완료 · {done}일 · 거래 {trades}건",
-                      progress=100, trades=trades,
-                      signals=signals_seen, skips=skips,
-                      finished=datetime.now(KST).isoformat(timespec="seconds"))
-        except Exception as e:
+            _progress(
+                task_id,
+                status="done",
+                phase=f"완료 · {done}일 · 거래 {trades}건",
+                progress=100,
+                trades=trades,
+                signals=signals_seen,
+                skips=skips,
+                finished=datetime.now(KST).isoformat(timespec="seconds"),
+            )
+
+        except Exception as exc:
+            await db.rollback()
             logger.exception("backtest_100d 실패")
-            _progress(task_id, status="error", phase=f"실패: {e}",
-                      error=str(e),
-                      finished=datetime.now(KST).isoformat(timespec="seconds"))
+
+            _progress(
+                task_id,
+                status="error",
+                phase=f"실패: {exc}",
+                error=str(exc),
+                finished=datetime.now(KST).isoformat(timespec="seconds"),
+            )
 
 
-async def delete_backtest(db: AsyncSession, user_id: uuid.UUID) -> dict:
-    """SIM 주문 + 스냅샷 + 포지션 삭제 · 계좌 1억 초기화."""
-    await db.execute(delete(Order).where(
-        Order.user_id == user_id, Order.source == SOURCE))
-    await db.execute(delete(PaperAccountSnapshot).where(
-        PaperAccountSnapshot.user_id == user_id))
-    await db.execute(delete(Portfolio).where(
-        Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_PAPER))
-    await pt.reset_account(db, user_id)
+async def delete_backtest(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> dict:
+    """백테스트 데이터만 삭제하고 전용 계좌만 초기화."""
+
+    await ledger.reset_backtest(db, user_id)
     await db.commit()
-    return {"status": "ok", "deleted": True}
+
+    return {
+        "status": "ok",
+        "deleted": True,
+        "scope": "BACKTEST_ONLY",
+    }

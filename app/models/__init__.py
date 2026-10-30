@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.trading import (
     PORTFOLIO_BOOK_PAPER,
     PORTFOLIO_BOOK_QUANT,
+    PORTFOLIO_BOOK_BACKTEST,
     Portfolio,
     Order,
     OrderFill,
@@ -24,12 +25,17 @@ from app.models.paper import (
     PAPER_INITIAL_CASH,
 )
 from app.models.paper_snapshot import PaperAccountSnapshot
+from app.models.backtest import BacktestAccount, BacktestSnapshot
 from app.models.signal import SignalSnapshot
 from app.models.rebalance import RebalancePlan, CashflowEvent, RebalanceRun
 from app.models.allocation import AllocationResult
 from app.models.task import TaskOwnership
 from app.models.tradingview import WebhookSignal, StrategyComparison
-from app.models.formula import FormulaIndicator, FormulaIndicatorVersion, FormulaIndicatorResult
+from app.models.formula import (
+    FormulaIndicator,
+    FormulaIndicatorVersion,
+    FormulaIndicatorResult,
+)
 from app.models.chat import Conversation, Chat
 from app.models.misc import (
     AuditEvent,
@@ -45,41 +51,71 @@ from app.models.reference import (
     FundProduct,
     DataCache,
 )
+
 # 용어사전 (2026-09-30) — 파일(app/services/glossary_data/terms.json)의 사본. 표 다섯.
-from app.models.glossary import GlossaryCategory, GlossarySource, GlossaryTerm, GlossaryAlias, GlossaryLoad, GlossaryRelation
+from app.models.glossary import (
+    GlossaryCategory,
+    GlossarySource,
+    GlossaryTerm,
+    GlossaryAlias,
+    GlossaryLoad,
+    GlossaryRelation,
+)
+
 # 화면 수집 요청 · PC 작업자 신호 (2026-10-10 · 목표 기능 ① 수집 단추) — 표 둘.
 from app.models.collect import CollectRequest, CollectWorker
+
 # 모의투자 그림자 일지 (2026-10-24 · 할 일 ①-26) — 판 등록 · 매 거래일 1행 · 메모. 표 셋 · 추가만.
-from app.models.paper_journal import PaperJournalVersion, PaperJournalDay, PaperJournalNote
+from app.models.paper_journal import (
+    PaperJournalVersion,
+    PaperJournalDay,
+    PaperJournalNote,
+)
+
 from app.models.strategy_decision import StrategyDecision
-from app.models.execution_control import OrderIntent, ExecutionRun, RiskDay, BrokerPositionBaseline
+from app.models.execution_control import (
+    OrderIntent,
+    ExecutionRun,
+    RiskDay,
+    BrokerPositionBaseline,
+)
 from app.models.strategy_runtime import StrategyRuntime, StrategyRuntimeEvent
-# 동의 · 철회 기록 (2026-10-29 · 할 일 ①-09) — 행을 쌓기만 한다. 탈퇴 탐색(account.user_owned_columns)이 이 모듈 등록으로 찾는다.
-from app.models.consent import UserConsent, CONSENT_GRANT, CONSENT_WITHDRAW
+
+# 동의 · 철회 기록 (2026-10-29 · 할 일 ①-09) — 행을 쌓기만 한다.
+# 탈퇴 탐색(account.user_owned_columns)이 이 모듈 등록으로 찾는다.
+from app.models.consent import (
+    UserConsent,
+    CONSENT_GRANT,
+    CONSENT_WITHDRAW,
+)
+
 
 __all__ = [
-    "UserConsent",
-    "StrategyRuntime",
-    "StrategyRuntimeEvent",
-    "StrategyDecision",
     "Base",
     "SYSTEM_USER_ID",
     "User",
+
+    # Trading
     "Portfolio",
     "PORTFOLIO_BOOK_PAPER",
     "PORTFOLIO_BOOK_QUANT",
+    "PORTFOLIO_BOOK_BACKTEST",
     "Order",
     "OrderFill",
     "BrokerSettings",
     "QuantVirtualAccount",
     "CustomIndicator",
+    "LiveOrder",
+    "LIVE_ORDER_OPEN_STATUSES",
+    "LIVE_ORDER_TERMINAL_STATUSES",
+
+    # Execution control
     "OrderIntent",
     "ExecutionRun",
     "RiskDay",
     "BrokerPositionBaseline",
-    "LiveOrder",
-    "LIVE_ORDER_OPEN_STATUSES",
-    "LIVE_ORDER_TERMINAL_STATUSES",
+
+    # Paper trading
     "PaperAccount",
     "CryptoHolding",
     "CryptoOrder",
@@ -88,37 +124,73 @@ __all__ = [
     "ApiKey",
     "LeanBacktestRun",
     "PAPER_INITIAL_CASH",
+    "PaperAccountSnapshot",
+
+    # Backtest isolation
+    "BacktestAccount",
+    "BacktestSnapshot",
+
+    # Signal and allocation
+    "SignalSnapshot",
     "AllocationResult",
     "TaskOwnership",
+
+    # Rebalance
     "RebalancePlan",
     "CashflowEvent",
     "RebalanceRun",
+
+    # TradingView
     "WebhookSignal",
     "StrategyComparison",
+
+    # Formula indicators
     "FormulaIndicator",
     "FormulaIndicatorVersion",
     "FormulaIndicatorResult",
+
+    # Chat
     "Conversation",
     "Chat",
+
+    # Misc
     "AuditEvent",
     "NotificationSettings",
     "NotificationLog",
     "CrawledDoc",
     "UploadedDoc",
+
+    # Reference data
     "PersonalCbStat",
     "CorporateCbStat",
     "BankProduct",
     "FundProduct",
     "DataCache",
+
+    # Glossary
     "GlossaryCategory",
     "GlossarySource",
     "GlossaryTerm",
     "GlossaryAlias",
     "GlossaryLoad",
     "GlossaryRelation",
+
+    # Collection
     "CollectRequest",
     "CollectWorker",
+
+    # Paper journal
     "PaperJournalVersion",
     "PaperJournalDay",
     "PaperJournalNote",
+
+    # Strategy
+    "StrategyDecision",
+    "StrategyRuntime",
+    "StrategyRuntimeEvent",
+
+    # Consent
+    "UserConsent",
+    "CONSENT_GRANT",
+    "CONSENT_WITHDRAW",
 ]
