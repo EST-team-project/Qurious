@@ -4,7 +4,7 @@ import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common
 // Qurious: 등락 글 · ±1.5% 표시 · 시세 시각 글은 판단 모듈 한 곳(node 시험 TC-QVS · Figma 03-5 결정 · 2026-10-16)
 import { pctText, direction, moveTag, asOfText, MOVE_LIMIT } from "/js/quoteview.js";
 // Qurious: 주문 칸의 시세 카드 · 예상 금액 · 확인 상자 · 예약 목록 그리기는 판단 모듈 한 곳(node 시험 TC-USS · Figma 「미국주식 주문 화면」 C · 2026-10-17)
-import { usoQuoteHtml, usoEstimateHtml, usoConfirm, usoReservationsHtml, usoBuyLabel } from "/js/usorder.js";
+import { usoQuoteHtml, usoEstimateHtml, usoConfirm, usoReservationsHtml, usoBuyLabel, USO_SOURCE } from "/js/usorder.js";
 
 // ── 미국주식 ──────────────────────────────────────────────────────
 // Qurious(2026-10-16): 고정 종목 목록 · 예시 가격(mockUsPrice)을 지웠다 — 시세를 못 받으면 예시 가격을 말없이 보이던
@@ -38,12 +38,14 @@ async function loadUsDashboard() {
           <div class="text-sm mt-1" style="color:var(--text-mute);">데이터 없음</div>
         </div>`;
       }
+      // 카드마다 그 값의 마지막 체결 시각 — 모르면 「체결 시각 모름」(시각을 지어내지 않는다 · 2026-10-30 ①-19)
       return `<div class="card text-center" style="padding:14px;">
         <div class="text-xs" style="color:var(--text-dim);">${escHtml(idx.name)}</div>
         <div class="text-xl font-bold mt-1">${fmt(q.price, 2)}</div>
         <div class="text-xs font-semibold mt-1" style="color:${DIR_COLOR[direction(q.change_pct)]};">${pctText(q.change_pct)}</div>
+        <div data-us-card-time class="mt-1" style="color:var(--text-mute);font-size:10.5px;">${escHtml(asOfText(q.as_of) || "체결 시각 모름")}</div>
       </div>`;
-    }).join("");
+    }).join("") + `<div data-us-market-note class="text-xs" style="color:var(--text-mute);grid-column:1/-1;">${escHtml(USO_SOURCE)} 지연 시세 — 지수 · 환율은 받은 값 그대로이며, 카드마다 마지막 체결 시각을 적었습니다.</div>`;
   } catch (e) {
     marketEl.innerHTML = `<div class="text-xs" style="color:var(--red);grid-column:1/-1;">${escHtml(e.message)}</div>`;
   }
@@ -93,7 +95,7 @@ async function loadUsChart() {
     infoEl.innerHTML = `<span class="font-semibold">${escHtml(symbol)}</span>
       <span class="ml-3">${price != null ? "$" + fmt(price,2) : "-"}</span>
       <span class="ml-2 font-semibold" style="color:${DIR_COLOR[direction(quote.change_pct)]};">${pctText(quote.change_pct)}</span>
-      <span class="ml-3 text-xs" style="color:var(--text-mute);">지연 시세${when ? " · " + escHtml(when) : ""}</span>`;
+      <span class="ml-3 text-xs" style="color:var(--text-mute);">${escHtml(USO_SOURCE)} 지연 시세${when ? " · " + escHtml(when) : ""} · 봉은 일봉(${escHtml(period)})${candles.from_cache ? " · 봉은 저장본(최대 6시간 전)" : ""}</span>`;
 
     if (usChartInstance) { usChartInstance.destroy(); usChartInstance = null; }
     const ohlcv = (candles.candles || [])
@@ -188,11 +190,13 @@ async function loadUsPortfolio() {
         const sign = p.pnl>=0?"+":"";
         const local = q.price_local != null && q.currency && q.currency !== "KRW"
           ? `<div style="color:var(--text-mute);font-size:11px;">${fmt(q.price_local,2)} ${escHtml(q.currency)}</div>` : "";
+        // 현재가의 출처 · 체결 시각 글은 서버가 짓는다(quote_now.label_for — 해외는 「야후 시세 · 10월 17일 05:00 체결」). 못 받았으면 「출처 모름」.
+        const src = `<div data-us-pf-src style="color:var(--text-mute);font-size:11px;">${escHtml(q.quote_label || "시세 출처 모름")}</div>`;
         return `<tr>
           <td><div class="font-semibold">${escHtml(p.symbol)}</div><div style="color:var(--text-mute);font-size:11px;">${escHtml(p.name)}</div></td>
           <td>${fmt(p.quantity)}</td>
           <td>${fmt(p.avgPrice)}원</td>
-          <td>${fmt(p.currentPrice)}원${local}</td>
+          <td>${fmt(p.currentPrice)}원${local}${src}</td>
           <td>${fmt(p.evalAmount)}원</td>
           <td style="color:${pnlColor};">${sign}${fmt(Math.abs(p.pnl))}원<div style="font-size:11px;">${sign}${Number(p.pnlRate||0).toFixed(2)}%</div></td>
         </tr>`;
@@ -207,7 +211,7 @@ async function loadUsPortfolio() {
 
 // ── 주문 칸 — 시세 카드 · 예상 금액 · 확인 상자 · 장 닫힌 날 예약 (2026-10-17 · 모의투자 점검 L10 · Figma C) ──
 // 장 상태 · 예약 규칙은 서버 한 곳(`app/services/us_reserve.py`)이 정하고 이 화면은 그 값으로 단추 글 · 길만 고른다.
-const usOrd = { market: null, q: null, pq: null, p: null, seq: 0 };
+const usOrd = { market: null, q: null, pq: null, p: null, perr: null, seq: 0 };
 
 async function loadUsMarket() {
   try { usOrd.market = await api("/api/paper/stocks/us-market"); } catch { usOrd.market = null; }
@@ -220,7 +224,7 @@ async function refreshUsQuote() {
   const el = document.getElementById("us-ord-quote");
   const symbol = (document.getElementById("us-ord-symbol")?.value || "").trim().toUpperCase();
   const seq = ++usOrd.seq;                      // 늦게 온 옛 응답이 새 종목 카드를 덮지 않게
-  usOrd.q = usOrd.pq = usOrd.p = null;
+  usOrd.q = usOrd.pq = usOrd.p = usOrd.perr = null;
   if (!el) return;
   if (!symbol) { el.innerHTML = ""; renderUsEstimate(); return; }
   el.innerHTML = "<div class='text-xs' style='color:var(--text-mute);'>시세를 불러오는 중…</div>";
@@ -241,19 +245,23 @@ async function refreshUsEstimate() {
   const symbol = (document.getElementById("us-ord-symbol")?.value || "").trim().toUpperCase();
   const qty = parseInt(document.getElementById("us-ord-qty")?.value);
   usOrd.p = null;
+  usOrd.perr = null;
   if (symbol && qty > 0 && usOrd.pq) {
     const seq = usOrd.seq;
     try {
       const p = await api("/api/paper/stocks/orders/preview", { method: "POST", body: { symbol, side: "BUY", quantity: qty } });
       if (seq === usOrd.seq) usOrd.p = p;
-    } catch { usOrd.p = null; }
+    } catch (e) {
+      // 서버가 미리 보기를 거절하면 그 까닭을 그대로 보인다 — 빈 칸으로 두면 「왜 금액이 안 나오는지」 알 수 없다(2026-10-30 ①-19)
+      if (seq === usOrd.seq) usOrd.perr = (e && e.message) || "까닭 모름";
+    }
   }
   renderUsEstimate();
 }
 
 function renderUsEstimate() {
   const el = document.getElementById("us-ord-estimate");
-  if (el) el.innerHTML = usoEstimateHtml(usOrd.p, usOrd.market);
+  if (el) el.innerHTML = usoEstimateHtml(usOrd.p, usOrd.market, usOrd.perr);
 }
 
 /** 앱 안 확인 상자(<dialog> — 뒤 화면을 막고 초점을 가둔다 · 시연 녹화에 찍힘). 누른 단추로 true / false */
@@ -309,13 +317,13 @@ async function placeUsOrder(side) {
   await loadUsMarket();
   if (!usOrd.pq || (usOrd.pq.symbol !== symbol && usOrd.pq.code !== symbol)) await refreshUsQuote();
   if (!usOrd.pq) return setToast("시세를 받지 못해 주문할 수 없습니다 — 종목코드를 확인하세요.", "error");
-  const c = usoConfirm({ symbol, qty, q: usOrd.q || {}, pq: usOrd.pq, p: usOrd.p, market: usOrd.market });
+  const c = usoConfirm({ symbol, qty, q: usOrd.q || {}, pq: usOrd.pq, p: usOrd.p, market: usOrd.market, err: usOrd.perr });
   if (!(await askUsConfirm(c))) return;
   try {
     if (c.reserve) {
       // 장이 닫힌 때는 예약 — 다음 정규장 시작가로 체결된다(서버가 장 상태를 다시 보고, 열려 있으면 409 로 돌려준다)
       const r = await api("/api/paper/stocks/reservations", { method: "POST", body: { symbol, quantity: qty } });
-      setToast(`매수 예약: ${r.symbol} ${qty}주 · ${r.next_open_kst || "다음 정규장"}(KST) 정규장 시작가로 체결됩니다`, "ok");
+      setToast(`매수 예약 접수: ${r.symbol} ${qty}주 · ${r.next_open_kst || "다음 정규장"}(KST) 정규장 시작가로 체결을 시도합니다(체결하지 못하면 건너뛰고 까닭을 보입니다)`, "ok");
       loadUsReservations();
     } else {
       const r = await api("/api/paper/stocks/orders", { method: "POST", body: { symbol, side: "BUY", quantity: qty } });
@@ -345,20 +353,8 @@ document.getElementById("us-ord-sell")?.addEventListener("click", ()=>placeUsOrd
 document.getElementById("us-chart-load")?.addEventListener("click", loadUsChart);
 document.getElementById("us-refresh")?.addEventListener("click",    loadUsDashboard);
 document.getElementById("us-pf-refresh")?.addEventListener("click", loadUsPortfolio);
-document.getElementById("alpaca-save")?.addEventListener("click", ()=>{
-  const key    = document.getElementById("alpaca-key").value.trim();
-  const secret = document.getElementById("alpaca-secret").value.trim();
-  const paper  = document.getElementById("alpaca-paper").checked;
-  const statusEl = document.getElementById("alpaca-status");
-  if (!key || !secret) {
-    statusEl.textContent = "⚠️ API 키가 없어 Mockup 모드로 동작합니다.";
-    statusEl.style.color = "var(--text-mute)";
-  } else {
-    statusEl.textContent = `✅ 저장됨 – ${paper?"Paper Trading":"Live"} 모드 (Mockup 적용중)`;
-    statusEl.style.color = "var(--green)";
-  }
-  setToast("Alpaca 설정 저장 완료", "ok");
-});
+// Alpaca 키 저장 단추는 2026-10-30 에 없앴다 — 입력한 키를 어디에도 보내지 않고 「저장 완료」 만 말했다(비밀키를 받아 버리는 칸).
+// Alpaca 모의 계좌를 읽기 전용으로 확인하는 길은 모의투자 › Open API · 외부 연동 화면(paper.js alpacaTest)에 있다.
 
 
 export { loadUsChart, loadUsDashboard, loadUsPortfolio, renderUsOrders };

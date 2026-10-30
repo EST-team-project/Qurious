@@ -126,6 +126,9 @@ function renderCompanyData(d) {
       <div style="font-size:12px; color:${c.subColor||"var(--text-dim)"};">${escHtml(c.sub)}</div>
     </div>
   `).join("");
+  // 숫자마다 근거 — 이 화면의 재무 값은 야후 파이낸스 재무 요약(서버가 최대 6시간 저장본)이고 응답에 기준일이 없다(2026-10-30 ①-16)
+  document.getElementById("co-overview").insertAdjacentHTML("beforeend",
+    `<div data-co-basis class="text-xs" style="color:var(--text-mute);grid-column:1/-1;line-height:1.6;">근거: 현재가 · 등락은 ${escHtml(d.priceNote || "서버 시세(출처 · 시각 글 없음)")} / 그 밖의 지표(시가총액 · EPS · BPS · PER · PBR · 수익성 · 분기 실적 · 재무상태)는 야후 파이낸스 재무 요약이며 서버 저장본(최대 6시간 전)일 수 있고 기준 분기 · 기준일을 응답이 알려 주지 않습니다.</div>`);
 
   // 밸류에이션
   const valRows = [

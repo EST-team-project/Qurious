@@ -99,7 +99,7 @@ def test_estimate_uses_preview_fields_and_says_when_it_is_only_a_guess(tmp_path)
     for want in ("예상 금액(원화 환산)</span><b>1,834원</b>", "수수료 · 세금</span><b>0원</b>", "순정산</span><b>1,834원</b>",
                  "100,000,000원 → 99,998,166원"):
         assert want in out["o"], want                                  # 줄마다 미리 보기의 그 칸(다른 칸 값으로 우연히 맞지 않게)
-    assert "다음 정규장 시작가로 체결돼 금액이 달라집니다" in out["c"] and "다음 정규장" not in out["o"]
+    assert "다음 정규장 시작가로 체결되면 금액이 달라집니다" in out["c"] and "다음 정규장" not in out["o"]
     assert "보유 현금이 부족합니다" in out["short"] and out["none"] == ""
 
 
@@ -109,7 +109,8 @@ def test_confirm_reserves_only_when_the_server_says_closed(tmp_path):
                          "out.u = m.usoConfirm({...a, market:UNKNOWN});")
     c, o, u = out["c"], out["o"], out["u"]
     assert c["reserve"] is True and c["title"] == "매수 예약 확인 · 모의투자" and c["okLabel"] == "예약 걸기"
-    assert "10-19(월) 22:30(KST) 정규장 시작가로 체결합니다" in c["html"] and "취소할 수 있습니다" in c["html"]
+    assert "10-19(월) 22:30(KST) 정규장 시작가로 체결을 시도합니다" in c["html"] and "취소할 수 있습니다" in c["html"]
+    assert "건너뛰고 까닭을 예약 목록에 보입니다" in c["html"], "체결을 단정하지 않고 못 했을 때의 길을 말한다(2026-10-30)"
     assert o["reserve"] is False and o["okLabel"] == "매수 주문 내기" and "data-uso-warn" not in o["html"]
     assert u["reserve"] is False and UNKNOWN["label"] in u["html"]      # 모르면 닫힘으로 짐작하지 않고 그 사실을 말한다
     for h in (c["html"], o["html"]):
@@ -192,4 +193,36 @@ def test_containers_sit_inside_the_order_panel():
     for cid in ("us-ord-quote", "us-ord-estimate", "us-reserve-list"):
         assert f'id="{cid}"' in view, cid
     assert view.index('id="us-ord-symbol"') < view.index('id="us-ord-quote"') < view.index('id="us-ord-qty"') < view.index('id="us-ord-estimate"')
-    assert "정규장이 닫힌 때는 예약 주문으로 받아 다음 정규장 시작가로 체결합니다" in view   # 안내 글도 같은 규칙을 말한다
+    assert "정규장이 닫힌 때는 예약 주문으로 받아 다음 정규장 시작가로 체결을 시도합니다" in view   # 안내 글도 같은 규칙을 말한다
+
+
+# ── 4. 정직한 표시 (2026-10-30 ①-19) ──────────────────────────────────────────
+def test_estimate_and_confirm_show_the_server_refusal_instead_of_a_blank(tmp_path):
+    why = "AAPL 는 해외 종목(USD)입니다. 국내주식 모의주문은 원화 종목만 지원합니다."
+    out = _run(tmp_path, f"const why = {json.dumps(why, ensure_ascii=False)};"
+                         "out.e = m.usoEstimateHtml(null, OPEN, why); out.none = m.usoEstimateHtml(null, OPEN, null);"
+                         "out.ok = m.usoEstimateHtml(P, OPEN, why);"
+                         "out.c = m.usoConfirm({symbol:'PLUG', qty:1, q:Q, pq:PQ, p:null, market:OPEN, err:why}).html;"
+                         "out.n = m.usoConfirm({symbol:'PLUG', qty:1, q:Q, pq:PQ, p:P, market:OPEN}).html;"
+                         "out.x = m.usoEstimateHtml(null, OPEN, '<b>x</b>');")
+    assert "예상 금액을 계산하지 못했습니다" in out["e"] and why in out["e"] and out["none"] == ""
+    assert "data-uso-estimate-error" not in out["ok"], "미리 보기가 왔으면 거절 글을 겹쳐 보이지 않는다"
+    assert "data-uso-err" in out["c"] and why in out["c"] and "data-uso-err" not in out["n"]
+    assert "&lt;b&gt;" in out["x"] and "<b>x</b>" not in out["x"], "서버 글도 이스케이프한다"
+
+
+def test_alpaca_key_inputs_are_gone_and_the_screen_says_where_orders_go():
+    html = APP_HTML.read_text(encoding="utf-8")
+    view = re.search(r'data-view="us-order">(.*?)data-view=', html, flags=re.S).group(1)
+    for gone in ("alpaca-key", "alpaca-secret", "alpaca-save", "alpaca-status"):
+        assert gone not in view, f"{gone} — 눌러도 어디에도 가지 않던 키 칸"
+    assert "원화 모의 계좌" in view and "Alpaca 키를 받지 않습니다" in view and 'href="#paper-openapi"' in view
+    us = US_JS.read_text(encoding="utf-8")
+    assert "alpaca-save" not in re.sub(r"//.*", "", us), "키 저장 핸들러가 남아 있다"
+
+
+def test_dashboard_chart_and_portfolio_name_their_source_and_time():
+    dash, chart, pf = _func("loadUsDashboard"), _func("loadUsChart"), _func("loadUsPortfolio")
+    assert "data-us-card-time" in dash and "asOfText(q.as_of)" in dash and "체결 시각 모름" in dash
+    assert "USO_SOURCE" in dash and "USO_SOURCE" in chart and "from_cache" in chart, "차트 봉이 저장본이면 그렇다고 밝힌다"
+    assert "q.quote_label" in pf and "시세 출처 모름" in pf, "포트폴리오 현재가의 출처 · 시각 글은 서버 글(quote_label)"

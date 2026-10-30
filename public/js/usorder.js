@@ -76,7 +76,9 @@ export function usoQuoteHtml(q, pq, market) {
 }
 
 /** 예상 금액 — p: POST /api/paper/stocks/orders/preview(BUY) 응답 그대로(체결과 같은 비용 셈) */
-export function usoEstimateHtml(p, market) {
+export function usoEstimateHtml(p, market, err) {
+  // 서버가 미리 보기를 거절했으면(err = 서버 까닭 글) 그대로 보인다 — 빈 칸으로 두면 왜 금액이 안 나오는지 알 수 없다(2026-10-30)
+  if (!p && err) return `<div data-uso-estimate-error class="text-xs mt-1" style="color:var(--red);line-height:1.6;">예상 금액을 계산하지 못했습니다 — ${usoEsc(err)}</div>`;
   if (!p) return "";
   const rows = [
     ["예상 금액(원화 환산)", usoWon(p.estimatedAmount)],
@@ -89,7 +91,7 @@ export function usoEstimateHtml(p, market) {
   const short = p.executable === false
     ? `<div class="mt-1" style="color:var(--red);">${usoEsc(p.reason || "주문할 수 없습니다")}</div>` : "";
   const basis = usoClosed(market)
-    ? `<div class="mt-1" style="color:var(--text-mute);">지금 시세로 셈한 값입니다 — 예약은 다음 정규장 시작가로 체결돼 금액이 달라집니다.</div>` : "";
+    ? `<div class="mt-1" style="color:var(--text-mute);">지금 시세로 셈한 값입니다 — 예약은 다음 정규장 시작가로 체결되면 금액이 달라집니다.</div>` : "";
   return `<div data-uso-estimate class="text-xs" style="line-height:1.7;">${lines}${short}${basis}</div>`;
 }
 
@@ -98,7 +100,7 @@ export function usoEstimateHtml(p, market) {
  * a: { symbol, qty, q, pq, p, market }
  */
 export function usoConfirm(a) {
-  const { symbol, qty, q = {}, pq = {}, p = null, market = null } = a || {};
+  const { symbol, qty, q = {}, pq = {}, p = null, market = null, err = null } = a || {};
   const reserve = usoClosed(market);
   const cur = pq.currency || q.currency || "";
   const rows = [
@@ -109,11 +111,15 @@ export function usoConfirm(a) {
     ["환율", pq.fx_note || "—"],
     ["순정산 · 현금", p ? `${usoWon(p.netAmount ?? p.estimatedAmount)} · ${usoWon(p.cashBefore)} → ${usoWon(p.cashAfter)}` : "—"],
   ];
+  // 「체결합니다」 라고 단정하지 않는다 — 서버가 시작가 · 현금 · 시장 검사를 거쳐 못 하면 건너뛰고 까닭을 돌려준다(예약 목록에 보임)
   const warn = reserve
-    ? `미국 정규장이 닫혀 있습니다 — 예약 주문으로 받아 ${market.next_open_kst || "다음 정규장"}(KST) 정규장 시작가로 체결합니다. 체결 전에는 취소할 수 있습니다.`
-    : market && market.open === null ? `${market.label} — 지금 지연 시세로 바로 체결됩니다.` : "";
+    ? `미국 정규장이 닫혀 있습니다 — 예약 주문으로 받아 ${market.next_open_kst || "다음 정규장"}(KST) 정규장 시작가로 체결을 시도합니다. 체결하지 못하면 건너뛰고 까닭을 예약 목록에 보입니다. 체결 전에는 취소할 수 있습니다.`
+    : market && market.open === null ? `${market.label} — 지금 지연 시세로 바로 체결을 시도합니다.` : "";
+  const errBox = err
+    ? `<div data-uso-err style="margin-top:8px;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.55;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.45);color:var(--red);">예상 금액을 계산하지 못했습니다 — ${usoEsc(err)} 이대로 주문하면 서버가 같은 까닭으로 거절할 수 있습니다.</div>` : "";
   const html = rows.map(([k, v]) =>
     `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0;"><span style="color:var(--text-mute);">${k}</span><span style="text-align:right;">${usoEsc(v)}</span></div>`).join("")
+    + errBox
     + (warn ? `<div data-uso-warn style="margin-top:8px;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.55;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:#b45309;">${usoEsc(warn)}</div>` : "")
     + `<div style="margin-top:8px;font-size:11.5px;color:var(--text-mute);">${usoEsc(USO_SOURCE)} 지연 시세로 체결하는 모의 주문이며 실제 주문이 나가지 않습니다.</div>`;
   return {
