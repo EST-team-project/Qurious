@@ -3,8 +3,10 @@ import logging
 import math
 import re
 import uuid
+from typing import Literal
 import httpx
 from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -40,6 +42,7 @@ from app.services.audit import audit
 from app.services import paper_trading
 from app.services import trading_cost
 from app.services import collector_db
+from app.services import manual_broker_order
 from app.services.data_cache import cache_get, cache_set
 from app.services.sync_scheduler import KEY_MARKET_INDICES
 
@@ -842,10 +845,12 @@ async def broker_ohlcv(
 
 
 class BrokerOrderBody(BaseModel):
-    symbol:   str
-    side:     str
-    quantity: int
-    price:    float
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    symbol: str = Field(pattern=r"^[0-9]{6}(?:\.(?:KS|KQ))?$")
+    side: Literal["buy", "sell"]
+    quantity: int = Field(gt=0, le=2147483647, strict=True)
+    price: float = Field(gt=0, strict=True)
+    request_id: uuid.UUID | None = None
 
 
 @router.post("/broker/order")
@@ -856,32 +861,46 @@ async def broker_order(
 ):
     client, broker_name, account_no = await _get_broker_client_and_account(user, db)
 
+    if broker_name == "kis":
+        if body.request_id is None:
+            raise HTTPException(422, detail={"code": "REQUEST_ID_REQUIRED", "order_submitted": False,
+                "message": "KIS 주문에는 요청 ID(UUID)가 필요합니다. 같은 주문 재확인에는 같은 ID를 사용하세요."})
+        result = await manual_broker_order.submit(_uid(user["id"]), request_id=body.request_id,
+            symbol=body.symbol, side=body.side, quantity=body.quantity, price=body.price)
+        state = result.get("status")
+        status_code = 200 if state in ("submitted", "filled") else 202 if state == "unknown" else 502 if state == "error" else 409
+        return JSONResponse(status_code=status_code, content={"ok": state in ("submitted", "filled"),
+            "order_submitted": None if state == "unknown" else state in ("submitted", "filled"), "result": result})
+    if not isinstance(client, MockBrokerClient):
+        raise HTTPException(409, detail={"code": "UNSUPPORTED_BROKER", "order_submitted": False,
+            "message": "수동 증권사 주문은 추적 가능한 개인 KIS 모의 계좌만 지원합니다."})
+
     # ── 매수 주문 시 예수금 사전 확인 ──────────────────────────────────────
     if body.side == "buy":
-        bal_err: Exception | None = None
         try:
             bal = await client.get_balance(account_no)
         except Exception as e:
-            # 잔고 조회 실패 시 주문은 계속 진행 (경고 로그만)
-            logging.getLogger(__name__).warning("잔고 조회 실패 (주문 진행): %s", e)
-            bal_err = e
+            # 잔고를 확인하지 못한 매수는 전송하지 않는다. 예외 원문도 노출하지 않는다.
+            detail = balance_failure(e)
+            detail["order_submitted"] = False
+            detail["message"] += " 매수 주문을 전송하지 않았습니다."
+            raise HTTPException(502, detail=detail) from None
 
-        if bal_err is None:
-            required = body.price * body.quantity
-            if bal.cash < required:
-                await notification.notify_insufficient_funds(
-                    symbol    = body.symbol,
-                    side      = body.side,
-                    quantity  = body.quantity,
-                    price     = body.price,
-                    required  = required,
-                    available = bal.cash,
-                    user_id   = user["id"],
-                )
-                raise HTTPException(
-                    422,
-                    f"예수금 부족: 필요 {required:,.0f}원 / 가용 {bal.cash:,.0f}원",
-                )
+        required = body.price * body.quantity
+        if bal.cash < required:
+            await notification.notify_insufficient_funds(
+                symbol    = body.symbol,
+                side      = body.side,
+                quantity  = body.quantity,
+                price     = body.price,
+                required  = required,
+                available = bal.cash,
+                user_id   = user["id"],
+            )
+            raise HTTPException(
+                422,
+                f"예수금 부족: 필요 {required:,.0f}원 / 가용 {bal.cash:,.0f}원",
+            )
 
     try:
         result = await client.place_order(account_no, body.symbol, body.side,
@@ -912,6 +931,18 @@ async def broker_order(
             "side": body.side, "error": str(e),
         })
         raise HTTPException(502, f"증권사 API 주문 오류: {e}")
+
+
+@router.get("/broker/order/{request_id}")
+async def broker_order_status(request_id: uuid.UUID, user=Depends(get_current_user)):
+    try:
+        result = await manual_broker_order.lookup(_uid(user["id"]), request_id)
+    except Exception:
+        raise HTTPException(503, detail={"code": "EXECUTION_STORE_UNAVAILABLE",
+            "message": "주문 기록을 조회하지 못했습니다. 주문을 다시 보내지 말고 같은 요청 ID로 조회하세요."}) from None
+    if result is None:
+        raise HTTPException(404, "이 계정의 요청 기록이 없습니다.")
+    return result
 
 
 @router.get("/broker/test")

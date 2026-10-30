@@ -284,3 +284,4 @@ API-ISTR-02	GET	/api/indicator-strategy/cards	S163	사용
 API-ISTR-03	POST	/api/indicator-strategy/cards	S163	사용
 API-ISTR-04	DELETE	/api/indicator-strategy/cards/{card_id}	S163	사용
 API-PUBD-01	GET	/api/public/index-closes	S166	사용
+API-STK-42	GET	/api/broker/order/{request_id}	2026-10-30-manual-broker-guard	사용
