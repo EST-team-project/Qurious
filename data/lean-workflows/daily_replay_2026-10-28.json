@@ -1,0 +1,588 @@
+{
+  "ticker": "005930.KS",
+  "engine": "QuantConnect LEAN (local docker) + Yahoo Finance",
+  "lean_mode": "docker",
+  "lean_ok": true,
+  "strategy": "ma_cross",
+  "strategy_label": "이동평균 교차 (골든/데드크로스)",
+  "start_date": "2026-09-01",
+  "end_date": "2026-10-28",
+  "compare_start_date": "2026-09-01",
+  "compare_end_date": "2026-10-28",
+  "initial_cash": 10000000.0,
+  "strategy_return_pct": -21.64,
+  "gross_strategy_return_pct": -21.28,
+  "strategy_cost_drag_pct": 0.35,
+  "cost_model": {
+    "model": "krx_real",
+    "label": "국내주식 실제 요율 (연도별 매도세 + 수수료 + 유관기관비 + 슬리피지)",
+    "market": "KOSPI",
+    "slippage_bps": 10.0,
+    "fee_rate_pct": 0.0140527,
+    "clearing_rate_pct": 0.0036396,
+    "include_tax": true,
+    "cost_basis": "estimated",
+    "note": "슬리피지는 가정이다 — 호가 데이터가 없어 직접 측정하지 못했다."
+  },
+  "benchmark_return_pct": -7.39,
+  "comparison_return_pct": -7.39,
+  "outperformance_pct": -14.25,
+  "max_drawdown_pct": -23.91,
+  "annualized_return_pct": -81.0,
+  "annualized_volatility_pct": 39.68,
+  "sharpe_ratio": -2.09,
+  "invested_days_pct": 39.5,
+  "trade_count": 2,
+  "market_snapshot": {
+    "as_of": "2026-10-28",
+    "last_price": 242000.0,
+    "return_20d_pct": -10.37,
+    "ma20": 239775.0,
+    "ma60": null,
+    "range_252d_position_pct": 42.4,
+    "trend": "추세 판단에 필요한 거래일이 부족함"
+  },
+  "points": [
+    {
+      "date": "2026-09-01",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-02",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-03",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-04",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-07",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-08",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-09",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-10",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-11",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-14",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-15",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-16",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-17",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-18",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-21",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-22",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-23",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-28",
+      "value": 10000000.0
+    },
+    {
+      "date": "2026-09-29",
+      "value": 9988230.77
+    },
+    {
+      "date": "2026-09-30",
+      "value": 9841614.54
+    },
+    {
+      "date": "2026-10-01",
+      "value": 10116519.97
+    },
+    {
+      "date": "2026-10-02",
+      "value": 10116519.97
+    },
+    {
+      "date": "2026-10-06",
+      "value": 9969903.74
+    },
+    {
+      "date": "2026-10-07",
+      "value": 9841614.54
+    },
+    {
+      "date": "2026-10-08",
+      "value": 9603363.16
+    },
+    {
+      "date": "2026-10-12",
+      "value": 9181841.5
+    },
+    {
+      "date": "2026-10-13",
+      "value": 8503741.43
+    },
+    {
+      "date": "2026-10-14",
+      "value": 8503741.43
+    },
+    {
+      "date": "2026-10-15",
+      "value": 7697352.15
+    },
+    {
+      "date": "2026-10-16",
+      "value": 7898949.47
+    },
+    {
+      "date": "2026-10-19",
+      "value": 7990584.62
+    },
+    {
+      "date": "2026-10-20",
+      "value": 7752333.24
+    },
+    {
+      "date": "2026-10-21",
+      "value": 8192181.93
+    },
+    {
+      "date": "2026-10-22",
+      "value": 7836269.48
+    },
+    {
+      "date": "2026-10-23",
+      "value": 7836269.48
+    },
+    {
+      "date": "2026-10-26",
+      "value": 7836269.48
+    },
+    {
+      "date": "2026-10-27",
+      "value": 7836269.48
+    },
+    {
+      "date": "2026-10-28",
+      "value": 7836269.48
+    }
+  ],
+  "benchmark_points": [
+    {
+      "date": "2026-09-01",
+      "value": 9988230.77
+    },
+    {
+      "date": "2026-09-02",
+      "value": 9586405.39
+    },
+    {
+      "date": "2026-09-03",
+      "value": 9567270.85
+    },
+    {
+      "date": "2026-09-04",
+      "value": 9777750.81
+    },
+    {
+      "date": "2026-09-07",
+      "value": 10332652.52
+    },
+    {
+      "date": "2026-09-08",
+      "value": 10313517.98
+    },
+    {
+      "date": "2026-09-09",
+      "value": 10313517.98
+    },
+    {
+      "date": "2026-09-10",
+      "value": 10294383.44
+    },
+    {
+      "date": "2026-09-11",
+      "value": 9930827.14
+    },
+    {
+      "date": "2026-09-14",
+      "value": 9529001.77
+    },
+    {
+      "date": "2026-09-15",
+      "value": 9509867.23
+    },
+    {
+      "date": "2026-09-16",
+      "value": 9701212.64
+    },
+    {
+      "date": "2026-09-17",
+      "value": 9662943.56
+    },
+    {
+      "date": "2026-09-18",
+      "value": 9988230.77
+    },
+    {
+      "date": "2026-09-21",
+      "value": 10485728.85
+    },
+    {
+      "date": "2026-09-22",
+      "value": 10581401.56
+    },
+    {
+      "date": "2026-09-23",
+      "value": 10925823.31
+    },
+    {
+      "date": "2026-09-28",
+      "value": 10332652.52
+    },
+    {
+      "date": "2026-09-29",
+      "value": 10428325.23
+    },
+    {
+      "date": "2026-09-30",
+      "value": 10275248.9
+    },
+    {
+      "date": "2026-10-01",
+      "value": 10562267.02
+    },
+    {
+      "date": "2026-10-02",
+      "value": 10562267.02
+    },
+    {
+      "date": "2026-10-06",
+      "value": 10409190.69
+    },
+    {
+      "date": "2026-10-07",
+      "value": 10275248.9
+    },
+    {
+      "date": "2026-10-08",
+      "value": 10026499.85
+    },
+    {
+      "date": "2026-10-12",
+      "value": 9586405.39
+    },
+    {
+      "date": "2026-10-13",
+      "value": 8878427.35
+    },
+    {
+      "date": "2026-10-14",
+      "value": 8878427.35
+    },
+    {
+      "date": "2026-10-15",
+      "value": 8036507.52
+    },
+    {
+      "date": "2026-10-16",
+      "value": 8246987.47
+    },
+    {
+      "date": "2026-10-19",
+      "value": 8342660.18
+    },
+    {
+      "date": "2026-10-20",
+      "value": 8093911.14
+    },
+    {
+      "date": "2026-10-21",
+      "value": 8553140.14
+    },
+    {
+      "date": "2026-10-22",
+      "value": 8208718.39
+    },
+    {
+      "date": "2026-10-23",
+      "value": 8246987.47
+    },
+    {
+      "date": "2026-10-26",
+      "value": 8151314.77
+    },
+    {
+      "date": "2026-10-27",
+      "value": 8495736.52
+    },
+    {
+      "date": "2026-10-28",
+      "value": 9261118.19
+    }
+  ],
+  "lean_statistics": {
+    "Start Equity": "10000000.0",
+    "End Equity": "8023628.52",
+    "Net Profit": "-19.764%",
+    "Compounding Annual Return": "-75.524%",
+    "Sharpe Ratio": "-1.901",
+    "Drawdown": "23.500%",
+    "Total Orders": "3",
+    "Win Rate": "0%",
+    "Total Fees": "₩18908.19",
+    "Annual Standard Deviation": "0.322"
+  },
+  "lean_fills": [
+    {
+      "order_id": 2,
+      "date": "2026-09-30",
+      "time_utc": "2026-09-30T06:29:00+00:00",
+      "timestamp": 1790749740.0,
+      "direction": "buy",
+      "quantity": 36.5990444,
+      "signed_quantity": 36.5990444,
+      "fill_price": 268768.5,
+      "fee": 1738.594618644352,
+      "fee_currency": "KRW",
+      "symbol": "YF.YFPrice"
+    },
+    {
+      "order_id": 3,
+      "date": "2026-10-23",
+      "time_utc": "2026-10-23T06:29:00+00:00",
+      "timestamp": 1792736940.0,
+      "direction": "sell",
+      "quantity": 36.5990444,
+      "signed_quantity": -36.5990444,
+      "fill_price": 215284.5,
+      "fee": 17169.596480228145,
+      "fee_currency": "KRW",
+      "symbol": "YF.YFPrice"
+    }
+  ],
+  "lean_signals": [
+    {
+      "date": "2026-09-01",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-02",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-03",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-04",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-07",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-08",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-09",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-10",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-11",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-14",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-15",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-16",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-17",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-18",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-21",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-22",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-23",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-09-28",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-09-29",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-09-30",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-01",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-02",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-06",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-07",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-08",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-12",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-13",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-14",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-15",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-16",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-19",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-20",
+      "entry_state": true,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-21",
+      "entry_state": false,
+      "exit_state": false
+    },
+    {
+      "date": "2026-10-22",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-10-23",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-10-26",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-10-27",
+      "entry_state": false,
+      "exit_state": true
+    },
+    {
+      "date": "2026-10-28",
+      "entry_state": false,
+      "exit_state": true
+    }
+  ],
+  "lean_log": "Empty(): directory '/workspace/workflow-8b6589db8173/data/equity/usa/factor_files' not found or empty\n20261029 08:24:31.503 TRACE:: AlgorithmManager.Stream(): Subscriptions count before warm up: 1\n20261029 08:24:31.534 TRACE:: Debug: 2026-04-19 00:00:00 Launching analysis for YFinanceMovingAverageCrossAlgorithm with LEAN Engine v2.5.0.0\n20261029 08:24:31.559 TRACE:: AlgorithmManager.Run(): Subscriptions count after warm up: 1\n20261029 08:24:31.584 TRACE:: Debug: 2026-09-01 00:00:00 Changing account currency from USD to KRW, with a starting cash of 10000000.0...\n20261029 08:24:31.584 TRACE:: Debug: 2026-04-19 00:00:00 Algorithm starting warm up...\n20261029 08:24:31.584 TRACE:: Debug: 2026-09-01 00:00:00 Algorithm finished warming up.\n20261029 08:24:31.634 TRACE:: Debug: 2026-09-28 02:29:00 Warning: market orders on daily resolution data sent during market hours are automatically converted into MarketOnClose orders (or MarketOnOpen near the close) to avoid filling at the stale previous close. Note: in live trading this conversion is not applied, as the order fills at the current market price.\n20261029 08:24:31.639 TRACE:: Synchronizer.GetEnumerator(): Exited thread.\n20261029 08:24:31.640 TRACE:: AlgorithmManager.Run(): Firing On End Of Algorithm...\n20261029 08:24:31.640 TRACE:: Engine.Run(): Exiting Algorithm Manager\n20261029 08:24:31.643 TRACE:: OrderRequestProcessingPool.Dispose(): completed\n20261029 08:24:31.644 TRACE:: StopSafely(): Waiting for 'Isolator Thread' thread to stop...\n20261029 08:24:31.644 TRACE:: FileSystemDataFeed.Exit(): Start. Setting cancellation token...\n20261029 08:24:31.645 TRACE:: FileSystemDataFeed.Exit(): Exit Finished.\n20261029 08:24:31.645 TRACE:: DataMonitor.Exit(): start...\n20261029 08:24:31.645 TRACE:: StopSafely(): Waiting for '' thread to stop...\n20261029 08:24:31.646 TRACE:: DataMonitor.GenerateReport():\nDATA USAGE:: Total data requests 9\nDATA USAGE:: Succeeded data requests 2\nDATA USAGE:: Failed data requests 7\nDATA USAGE:: Failed data requests percentage 78%\nDATA USAGE:: Total universe data requests 0\nDATA USAGE:: Succeeded universe data requests 0\nDATA USAGE:: Failed universe data requests 0\nDATA USAGE:: Failed universe data requests percentage 0%\n20261029 08:24:31.646 TRACE:: DataMonitor.Exit(): end\n20261029 08:24:31.646 TRACE:: BacktestingResultHandler.Exit(): starting...\n20261029 08:24:31.646 TRACE:: BacktestingResultHandler.Exit(): Saving logs...\n20261029 08:24:31.647 TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...\n20261029 08:24:31.647 TRACE:: Debug: 2026-10-28 02:29:00 Algorithm Id:(YFinanceMovingAverageCrossAlgorithm) completed in 0.22 seconds at 1k data points per second. Processing total of 129 data points.\n20261029 08:24:31.647 TRACE:: Debug: 2026-10-28 02:29:00 Your log was successfully created and can be retrieved from: /workspace/workflow-8b6589db8173/results/YFinanceMovingAverageCrossAlgorithm-log.txt\n20261029 08:24:31.647 TRACE:: BacktestingResultHandler.Run(): Ending Thread...\n20261029 08:24:31.794 TRACE:: \nSTATISTICS:: Total Orders 3\nSTATISTICS:: Average Win 0%\nSTATISTICS:: Average Loss -19.92%\nSTATISTICS:: Compounding Annual Return -75.524%\nSTATISTICS:: Drawdown 23.500%\nSTATISTICS:: Expectancy -1\nSTATISTICS:: Start Equity 10000000.0\nSTATISTICS:: End Equity 8023628.52\nSTATISTICS:: Net Profit -19.764%\nSTATISTICS:: Sharpe Ratio -1.901\nSTATISTICS:: Sortino Ratio -1.296\nSTATISTICS:: Probabilistic Sharpe Ratio 1.431%\nSTATISTICS:: Loss Rate 100%\nSTATISTICS:: Win Rate 0%\nSTATISTICS:: Profit-Loss Ratio 0\nSTATISTICS:: Alpha 0\nSTATISTICS:: Beta 0\nSTATISTICS:: Annual Standard Deviation 0.322\nSTATISTICS:: Annual Variance 0.104\nSTATISTICS:: Information Ratio -1.87\nSTATISTICS:: Tracking Error 0.322\nSTATISTICS:: Treynor Ratio 0\nSTATISTICS:: Total Fees ₩18908.19\nSTATISTICS:: Estimated Strategy Capacity ₩0\nSTATISTICS:: Lowest Capacity Asset YF.YFPrice 2S\nSTATISTICS:: Portfolio Turnover 3.39%\nSTATISTICS:: Drawdown Recovery 1\nSTATISTICS:: OrderListHash eb23a982f43269de2e7ea2edc27b9380\n20261029 08:24:31.794 TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet\n20261029 08:24:31.795 TRACE:: Engine.Run(): Disconnecting from brokerage...\n20261029 08:24:31.795 TRACE:: Engine.Run(): Disposing of setup handler...\n20261029 08:24:31.795 TRACE:: Engine.Main(): Analysis Completed and Results Posted.\nEngine.Main(): Analysis Complete.\nEngine.Main(): Press any key to continue.\n20261029 08:24:31.797 TRACE:: Engine.Main(): Packet removed from queue: YFinanceMovingAverageCrossAlgorithm\n20261029 08:24:31.798 TRACE:: LeanEngineSystemHandlers.Dispose(): start...\n20261029 08:24:31.798 TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.\n20261029 08:24:31.798 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...\n20261029 08:24:31.798 TRACE:: LocalObjectStore.Dispose(): start...\n20261029 08:24:31.799 TRACE:: LocalObjectStore.Dispose(): end\n20261029 08:24:31.799 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.\n20261029 08:24:31.799 TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...\n20261029 08:24:31.799 TRACE:: PythonInitializer.Shutdown(): start\n20261029 08:24:31.799 TRACE:: PythonInitializer.Shutdown(): calling engine shutdown...\n20261029 08:24:34.688 TRACE:: PythonInitializer.Shutdown(): ended\n20261029 08:24:34.688 TRACE:: Program.Main(): Exiting Lean...\n\n20261029 08:24:31.322 ERROR:: LocalDiskMapFileProvider.GetMapFileResolver(usa): The specified directory does not exist: /workspace/workflow-8b6589db8173/data/equity/usa/map_files\n20261029 08:24:31.635 ERROR:: 2026-09-29 02:29:00 Order Error: ids: [1], Insufficient buying power to complete orders (Value:[10065584.399]), Reason: Id: 1, Initial Margin: 10067365.232388624277, Free Margin: 10000000.\n20261029 08:24:31.681 ERROR:: InterestRateProvider.FromCsvFile(): no interest rates were loaded, please make sure the file is present '/workspace/workflow-8b6589db8173/data/alternative/interest-rate/usa/interest-rate.csv'",
+  "algorithm_source": "from AlgorithmImports import *\nfrom QuantConnect.Python import PythonData\nfrom QuantConnect import Globals, SubscriptionTransportMedium\nfrom QuantConnect.Data import SubscriptionDataSource\nimport os\nfrom datetime import datetime, timedelta\n\nclass YFPrice(PythonData):\n    def get_source(self, config, date, is_live):\n        return SubscriptionDataSource(os.path.join(Globals.DataFolder, \"prices.csv\"), SubscriptionTransportMedium.LocalFile)\n    def reader(self, config, line, date, is_live):\n        if line.startswith(\"date\"):\n            return None\n        d, close = line.split(\",\")\n        item = YFPrice()\n        item.symbol = config.symbol\n        item.time = datetime.strptime(d, \"%Y-%m-%d\").replace(hour=15, minute=29)\n        item.value = float(close)\n        return item\n\nclass KrxFeeModel(FeeModel):\n    tax_schedule = [('1900-01-01', 0.0015), ('2019-06-03', 0.001), ('2021-01-01', 0.0008), ('2023-01-01', 0.0005), ('2024-01-01', 0.0003), ('2025-01-01', 0.0), ('2026-01-01', 0.0005)]\n    base_rate = 0.000176923\n    rural_rate = 0.0015\n    def get_order_fee(self, parameters):\n        order = parameters.order\n        security = parameters.security\n        gross = abs(float(security.price) * float(order.absolute_quantity))\n        rate = self.base_rate\n        if order.direction == OrderDirection.SELL:\n            trade_date = order.time.date()\n            transfer_rate = self.tax_schedule[0][1]\n            for effective_date, candidate_rate in self.tax_schedule:\n                if trade_date >= datetime.strptime(effective_date, '%Y-%m-%d').date():\n                    transfer_rate = candidate_rate\n            rate += transfer_rate + self.rural_rate\n        return OrderFee(CashAmount(gross * rate, 'KRW'))\n\n\nclass YFinanceMovingAverageCrossAlgorithm(QCAlgorithm):\n    def initialize(self):\n        self.set_start_date(2026, 9, 1)\n        self.set_end_date(2026, 10, 28)\n        self.set_account_currency('KRW', 10000000.0)\n        market_hours = MarketHoursDatabase.from_data_folder().get_entry(Market.KRX, \"005930\", SecurityType.INDEX).exchange_hours\n        custom_properties = SymbolProperties(\"\", \"KRW\", 1, 0.01, 0.0000001, \"YF\")\n        self.asset = self.add_data(YFPrice, \"YF\", custom_properties, market_hours, Resolution.DAILY).symbol\n        # 커스텀 데이터의 기본 lot size(1주)는 cash/price < 1 인 경우 SetHoldings()를 0으로 만든다.\n        # 아주 작은 lot size를 지정해 소수 단위 포지션을 허용한다.\n        self.securities[self.asset].symbol_properties = SymbolProperties(\"\", \"KRW\", 1, 0.01, 0.0000001, \"\")\n        self.securities[self.asset].set_fee_model(KrxFeeModel())\n        self.securities[self.asset].set_slippage_model(ConstantSlippageModel(0.001))\n        self.short_window = 20\n        self.long_window = 60\n        self.prices = []\n        self.signal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), \"results\", \"qurious-signals.csv\")\n        os.makedirs(os.path.dirname(self.signal_path), exist_ok=True)\n        self.signal_file = open(self.signal_path, \"w\", encoding=\"utf-8\")\n        self.signal_file.write(\"date,entry_state,exit_state\" + chr(10))\n        self.signal_file.flush()\n        self.set_warm_up(timedelta(days=self.long_window * 2 + 15), Resolution.DAILY)\n\n    def on_data(self, data):\n        if not data.contains_key(self.asset):\n            return\n        self.prices.append(float(data[self.asset].value))\n        self.prices = self.prices[-self.long_window:]\n        if len(self.prices) < self.long_window or self.is_warming_up:\n            return\n        short_ma = sum(self.prices[-self.short_window:]) / self.short_window\n        long_ma = sum(self.prices) / self.long_window\n        entry_state = short_ma > long_ma\n        exit_state = short_ma < long_ma\n        signal_date = data[self.asset].time.date().isoformat()\n        self.signal_file.write(\n            \"{},{},{}\".format(signal_date, int(entry_state), int(exit_state)) + chr(10)\n        )\n        self.signal_file.flush()\n        if entry_state and not self.portfolio.invested:\n            self.set_holdings(self.asset, 1)\n        elif exit_state and self.portfolio.invested:\n            self.liquidate(self.asset)\n\n    def on_end_of_algorithm(self):\n        signal_file = getattr(self, \"signal_file\", None)\n        if signal_file is not None and not signal_file.closed:\n            signal_file.flush()\n            signal_file.close()\n",
+  "disclaimer": "Yahoo Finance 일봉 기반 교육용 예시입니다. KRX 비용은 요율 기반 추정치이고 슬리피지는 고정 10bp 가정이며, 실시간 호가·유동성·실제 증권사 체결과 데이터 조정 차이를 완전히 재현하지 않습니다. 투자 권유가 아닙니다."
+}
