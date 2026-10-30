@@ -82,7 +82,7 @@ def cmd_compile(a) -> int:
     root = Path(a.root)
     syms = a.symbols.split(",")
     years = [int(y) for y in a.years.split(",")]
-    n = 0
+    n, dups = 0, []
     for sym in syms:
         for iv in binance_vision.INTERVALS:
             targets = [None] if iv in binance_vision.COARSE else years
@@ -90,9 +90,13 @@ def cmd_compile(a) -> int:
                 r = binance_store.compile_partition(root, root, iv, sym, y)
                 if r:
                     n += 1
+                    if r["dropped_exact_dups"]:
+                        dups.append(f"{sym} {iv} {y or '전체'}: {r['dropped_exact_dups']}줄")
     s = binance_store.summarize(root)
     total = sum(v["bytes"] for v in s.values())
     print(f"✅ 적재 파일 {n}개 · 합 {total / 1e6:.2f} MB")
+    if dups:
+        print("   원천에서 같은 줄이 두 번 온 것을 한 줄로 줄임 — " + " · ".join(dups))
     for tf, v in sorted(s.items(), key=lambda kv: -kv[1]["bytes"]):
         print(f"   {tf:5} 파일 {v['files']:4} · {v['bytes'] / 1e6:8.2f} MB")
     return 0
