@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="/css/howto.css" /><!-- 화면 사용법 창 (2026-10-16 · js/howto.js) -->
   <link rel="stylesheet" href="/css/helpvideos.css" /><!-- 사용법 영상 목록 (2026-10-20 · js/helpvideos.js) -->
   <link rel="stylesheet" href="/css/stockpick.css" /><!-- 종목 찾기 칸 (2026-10-16 · js/stockpick.js) -->
+  <link rel="stylesheet" href="/css/baselinenotice.css" /><!-- 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · js/baselinenotice.js) -->
   <link rel="stylesheet" href="/css/rebalance.css" />
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
@@ -617,6 +618,7 @@
 
           <!-- 4-3. 전략 분석 — 종목 찾기 칸(js/stockpick.js · Figma 「모의투자 여정 고치기」 03-6 결정 · 2026-10-16) -->
           <div class="view" data-view="quant-backtest">
+            <div id="bn-mount-quant-backtest" class="bn-mount"></div><!-- 탭 띠 + 기준 전략 카드 · js/baselinenotice.js (2026-10-30 · ①-18) -->
             <div class="card">
               <h2 class="text-lg font-semibold mb-2">📉 퀀트 전략 분석</h2>
               <p class="text-sm mb-4" style="color:var(--text-dim);">
@@ -2374,6 +2376,7 @@
 
           <!-- 성과 검증 (Python) -->
           <div class="view" data-view="indicator-backtest">
+            <div id="bn-mount-indicator-backtest" class="bn-mount"></div><!-- 탭 띠 + 기준 전략 카드 · js/baselinenotice.js (2026-10-30 · ①-18) -->
             <div class="space-y-4">
               <div class="card">
                 <h2 class="text-lg font-semibold mb-1">🔬 성과 검증 · Python 백테스트</h2>

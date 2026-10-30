@@ -1,0 +1,32 @@
+/* 전략 분석 · 성과 검증 — 탭 띠 + 「기준 전략」 안내 카드 (2026-10-30 · ①-18 · js/baselinenotice.js · Figma 「Qurious · 전략 분석」 03 설계)
+ * 이름은 bn- 으로 시작 — 다른 화면과 겹치지 않게. 색은 app.css 토큰만 쓴다(--bg · --border · --text · --text-dim · --text-mute · --accent).
+ */
+.bn-mount { margin-bottom: 14px; }
+.bn-tabs { display: flex; gap: 4px; margin-bottom: 14px; overflow-x: auto; }
+.bn-tab { flex: none; padding: 9px 16px; border: 1px solid transparent; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--text-mute); text-decoration: none; }
+.bn-tab:hover { color: var(--text); }
+.bn-tab-on { background: var(--card, #fff); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.bn-card { display: flex; flex-direction: column; gap: 14px; margin-bottom: 0; }
+.bn-head { display: flex; align-items: center; gap: 10px; }
+.bn-title { margin: 0; font-size: 17px; font-weight: 700; color: var(--text); }
+.bn-badge { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.bn-badge-warn { background: #fef3c7; color: #b45309; }
+.bn-badge-ok { background: #d1fae5; color: #047857; }
+.bn-badge-mute { background: #eef1f6; color: var(--text-mute); }
+.bn-lead { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-dim); }
+.bn-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.bn-stat { padding: 10px 12px; border-radius: 8px; background: var(--bg); }
+.bn-stat-l { font-size: 12px; font-weight: 500; color: var(--text-mute); }
+.bn-stat-v { font-size: 18px; font-weight: 700; color: var(--text); }
+.bn-bad { color: #dc2626; }
+.bn-near { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 8px; background: #eff6ff; font-size: 14px; color: var(--text-dim); }
+.bn-near-l { font-size: 12px; font-weight: 600; color: var(--accent); }
+.bn-near-t { font-weight: 600; color: var(--text); }
+.bn-near-r { font-size: 13px; font-weight: 500; color: #b45309; }
+.bn-found + .bn-found { margin-top: 8px; }
+.bn-foot { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-mute); }
+@media (max-width: 480px) {
+  .bn-stat { padding: 8px 8px; }
+  .bn-stat-l { font-size: 11px; }
+  .bn-stat-v { font-size: 16px; }
+}

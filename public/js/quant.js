@@ -279,6 +279,9 @@ document.getElementById("bt-load").addEventListener("click", async () => {
   } catch (e) { el.innerHTML = `<div class='text-red-400'>${escHtml(e.message)}</div>`; }
 });
 
+// 전략 이름 — 서버가 주는 약어(ma)를 사용자가 읽는 말로(2026-10-30 · 화면 글에 개발 티 나는 말을 쓰지 않는다)
+const BT_STRATEGY_NAMES = { ma: "이동평균 교차" };
+
 // B3 · 체결 시점 백테스트 (/api/quant/pipeline)
 document.getElementById("bt-pipeline-run").addEventListener("click", async () => {
   const symbol = document.getElementById("bt-symbol").value;
@@ -294,7 +297,7 @@ document.getElementById("bt-pipeline-run").addEventListener("click", async () =>
     el.innerHTML = `
       <div class="rounded-xl p-4" style="background:var(--surf2);border:1px solid var(--border);">
         <div class="flex items-center gap-2 mb-2">
-          <span class="font-semibold" style="color:var(--text);">${escHtml(btLabel(symbol))} · ${escHtml(d.strategy || "ma")}</span>
+          <span class="font-semibold" style="color:var(--text);">${escHtml(btLabel(symbol))} · ${escHtml(BT_STRATEGY_NAMES[d.strategy || "ma"] || d.strategy)}</span>
           <span class="text-xs px-2 py-0.5 rounded" style="background:var(--surf3);">체결: ${escHtml(entryMode === "open" ? "다음 봉 시가" : "그날 종가")}</span>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -306,9 +309,6 @@ document.getElementById("bt-pipeline-run").addEventListener("click", async () =>
           <div>거래 횟수: <span class="font-semibold">${d.trade_count ?? 0}</span></div>
           <div>승률: <span class="font-semibold">${(d.win_rate_pct ?? 0).toFixed(2)}%</span></div>
           <div>비용: <span class="font-semibold">${(d.cost_pct ?? 0).toFixed(3)}%</span></div>
-        </div>
-        <div class="text-xs mt-2" style="color:var(--text-mute);">
-          entry_mode=${escHtml(d.entry_mode || entryMode)} · exit_mode=${escHtml(d.exit_mode || entryMode)}
         </div>
         ${d.data_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">자료: ${escHtml(d.data_note)}</div>` : ""}
       </div>`;

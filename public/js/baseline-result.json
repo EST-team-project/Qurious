@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "result_date": "2026-10-30",
+  "family": "이동평균 교차",
+  "n_trials": 110,
+  "n_symbols": 10,
+  "n_combos": 11,
+  "passed": 0,
+  "pass_line": {
+    "profit_factor": 1.5,
+    "mdd_pct": -15.0,
+    "sharpe_ratio": 1.0
+  },
+  "counts": {
+    "profit_factor": 41,
+    "mdd_pct": 110,
+    "sharpe_ratio": 0
+  },
+  "period": {
+    "start": "2020-01-02",
+    "end": "2026-08-31",
+    "sealed_from": "2026-09-01"
+  },
+  "nearest": {
+    "symbol": "000660.KS",
+    "name": "SK하이닉스",
+    "short": 20,
+    "long": 60,
+    "profit_factor": 6.083,
+    "mdd_pct": -2.62,
+    "sharpe_ratio": 0.946,
+    "missed": [
+      "sharpe_ratio"
+    ]
+  },
+  "passed_trials": []
+}

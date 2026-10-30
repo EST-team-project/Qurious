@@ -5,6 +5,7 @@ import { loadMarketTicker, loadSyncStatus, navigate, registerViewActivation } fr
 import { loadCrawlList } from "/js/agent.js";
 import { loadCompanyCompare, loadCompanyDashboard, loadCompanySector } from "/js/company.js";
 import { loadIndicatorBacktest, loadSavedIndicators } from "/js/indicator.js";
+import { renderBaselineNotice } from "/js/baselinenotice.js";   // 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · ①-18)
 import { loadMacroDashboard, loadMacroIndustry } from "/js/ml.js";
 import { initPaperViews, onPaperViewActivated } from "/js/paper.js";
 import { loadAutoTradeStatus, loadQuantDashboard } from "/js/quant.js";
@@ -128,6 +129,7 @@ function onViewActivated(view) {
   // 투자 인디케이터 신규 뷰
   if (view === "indicator-custom") loadSavedIndicators();
   if (view === "indicator-backtest") loadIndicatorBacktest();
+  if (view === "quant-backtest" || view === "indicator-backtest") renderBaselineNotice(view);   // 탭 띠 + 기준 전략 카드(js/baselinenotice.js)
   // ML·딥러닝
   if (view === "macro-dashboard") loadMacroDashboard();
   if (view === "macro-industry") loadMacroIndustry();
