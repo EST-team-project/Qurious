@@ -357,6 +357,102 @@ def apply_stops(
     return adjusted, n_sl, n_tp
 
 
+def _side_rates(cost: Any | None, index: pd.Index) -> tuple[np.ndarray, np.ndarray]:
+    """날짜별 (매수율, 매도율) — 비용 모델의 공개 함수 `turnover_cost` 만으로 뽑는다.
+
+    보유를 1 · 0 으로 번갈아 놓으면 하루에 한쪽(매수 또는 매도)만 일어나므로, 엇갈린 두 줄로
+    모든 날의 매수율 · 매도율을 얻는다. 첫날 매도율은 쓰지 않는다(첫날에는 팔 것이 없다).
+    """
+    n = len(index)
+    if cost is None or n == 0:
+        return np.zeros(n), np.zeros(n)
+    even = np.arange(n) % 2 == 0
+    a = cost.turnover_cost(pd.Series(even.astype(float), index=index)).to_numpy()
+    b = cost.turnover_cost(pd.Series((~even).astype(float), index=index)).to_numpy()
+    buy = np.where(even, a, b)
+    sell = np.where(even, b, a)
+    sell[0] = sell[1] if n > 1 else 0.0
+    return buy, sell
+
+
+def size_positions(df: pd.DataFrame, held: pd.Series, *, risk_pct: float, initial_capital: float = 10_000_000.0,
+                   max_position_pct: float = 30.0, cost: Any | None = None, entry_mode: str = "close",
+                   exit_mode: str = "close", atr_values: pd.Series | None = None, atr_mult: float | None = None,
+                   stop_loss_pct: float | None = None) -> dict:
+    """보유 신호(`apply_stops` 뒤)를 주 수로 바꿔 현금 · 평가액을 날마다 따라간다 — 전략 카드 판 2 의 수량 칸.
+
+    - 수량은 신호를 판단한 날(진입 전날) 종가 · ATR · 평가액으로 낸다 — 판단 시점까지의 자료만(#314 2026-10-27 4번).
+      계산은 오준영 님 `execution_policy.risk_quantity` 한 곳(위험 1% ÷ 비용 포함 1주 손실 · 현금 · 종목 비중 상한).
+    - 체결은 카드의 `entry_mode` · `exit_mode`(엔진과 같은 가격) · 체결 때 현금이 모자라면 살 수 있는 만큼만.
+    - 첫 진입만 하고(더 사지 않음) 청산은 보유 전량(설계서 4.3 판 2 ⑤).
+    - 수량의 1주 손실은 국내 실제 요율로 잰다(`risk_quantity`) · 평가액에서 떼는 비용은 넘긴 비용 모델 그대로.
+    """
+    from app.services.execution_policy import risk_quantity
+
+    if atr_mult is None and stop_loss_pct is None:
+        raise ValueError("위험 % 수량에는 손절 거리(ATR 또는 %)가 필요합니다.")
+    if initial_capital <= 0:
+        raise ValueError("initial_capital 은 0 보다 커야 합니다.")
+    close = df["close"].astype(float).to_numpy()
+    open_ = df["open"].astype(float).to_numpy() if "open" in df.columns else close
+    h = held.reindex(df.index).fillna(0).astype(float).to_numpy()
+    atr = atr_values.reindex(df.index).astype(float).to_numpy() if atr_values is not None else None
+    buy_rate, sell_rate = _side_rates(cost, df.index)
+    slip = float(getattr(cost, "slippage_bps", 0.0) or 0.0)
+    market = getattr(cost, "market", "KOSPI")
+    is_etf = bool(getattr(cost, "is_etf", False))
+
+    n = len(close)
+    net_eq, gross_eq, cost_frac = np.empty(n), np.empty(n), np.zeros(n)
+    cash = gross_cash = float(initial_capital)
+    qty = 0
+    trades: list[dict] = []
+    for i in range(n):
+        prev_eq = net_eq[i - 1] if i else float(initial_capital)
+        was = h[i - 1] if i else 0.0
+        if h[i] == 1 and was == 0:                       # 진입 — 판단은 i-1 종가
+            px = open_[i] if entry_mode == "open" else close[i - 1] if i else close[i]
+            ref = close[i - 1] if i else close[i]
+            dist = atr[i - 1] * atr_mult if atr_mult is not None else ref * stop_loss_pct / 100
+            q = risk_quantity(equity=cash, cash=cash, price=ref, stop_price=ref - dist, budget=cash, existing_value=0,
+                              position_cap_pct=max_position_pct, risk_pct=risk_pct, slippage_bps=slip,
+                              when=df.index[i - 1 if i else i], market=market, is_etf=is_etf)
+            qty = min(q["quantity"], int(cash // (px * (1 + buy_rate[i])))) if px > 0 else 0
+            paid = qty * px * buy_rate[i]
+            cash -= qty * px + paid
+            gross_cash -= qty * px
+            cost_frac[i] = paid / prev_eq
+            trades.append({"entry_date": df.index[i].isoformat(), "quantity": qty, "entry_price": float(px),
+                           "decision_price": float(ref), "stop_distance": float(dist),
+                           "risk_budget": q["risk_budget"], "estimated_loss": q["estimated_loss"],
+                           "weight_pct": round(float(qty * px / prev_eq * 100), 4), "exit_date": None, "pnl": None})
+            trades[-1]["_cash_out"] = qty * px + paid
+        elif h[i] == 0 and was == 1:                     # 청산 — 보유 전량
+            px = open_[i] if exit_mode == "open" else close[i - 1]
+            paid = qty * px * sell_rate[i]
+            cash += qty * px - paid
+            gross_cash += qty * px
+            cost_frac[i] = paid / prev_eq
+            t = trades[-1]
+            t.update(exit_date=df.index[i].isoformat(), exit_price=float(px), pnl=round(float(qty * px - paid - t.pop("_cash_out")), 2))
+            qty = 0
+        net_eq[i] = cash + qty * close[i]
+        gross_eq[i] = gross_cash + qty * close[i]
+    if trades and trades[-1]["exit_date"] is None:   # 끝날까지 들고 있던 거래 — 마지막 종가로 평가(매도 비용 없음)
+        t = trades[-1]
+        t["pnl"] = round(float(qty * close[-1] - t.pop("_cash_out")), 2)
+
+    idx = df.index
+    net_eq_s, gross_eq_s = pd.Series(net_eq, index=idx), pd.Series(gross_eq, index=idx)
+    return {
+        "net_ret": net_eq_s.pct_change().fillna(net_eq_s.iloc[0] / initial_capital - 1),
+        "gross_ret": gross_eq_s.pct_change().fillna(gross_eq_s.iloc[0] / initial_capital - 1),
+        "cost": pd.Series(cost_frac, index=idx),
+        "equity": net_eq_s,
+        "trades": trades,
+    }
+
+
 def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, slippage_bps: float = 0.0,
              stop_loss_pct: float | None = None, take_profit_pct: float | None = None,
              cost: Any | None = None,
@@ -364,7 +460,10 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
              exit_mode: str = "close",
              atr_period: int | None = None,
              atr_mult: float | None = None,
-             take_rr: float | None = None) -> dict:
+             take_rr: float | None = None,
+             risk_pct: float | None = None,
+             initial_capital: float = 10_000_000.0,
+             max_position_pct: float = 30.0) -> dict:
     """
     벡터화 백테스트: 롱 전략 (signal=+1 보유, 그 외 현금).
 
@@ -382,6 +481,10 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     entry_mode / exit_mode : 체결 시점 — "close"(그날 종가 · 기본) | "open"(다음 봉 시가 · TradingView 기본)
     - "close": 신호가 난 날 그 종가에 체결 (지금 동작 · 1차 Alpha_Stack 은 "종가 매수 가정"을 금지)
     - "open" : 신호가 난 다음 봉 시가에 체결
+
+    risk_pct : 주면 전략 카드 판 2 의 위험 % 수량(`size_positions`) — 시작 자금 `initial_capital`(자동매매 가상계좌와
+          같은 1,000만 원) · 종목 비중 상한 `max_position_pct` 로 주 수를 내고 평가액으로 수익을 잰다. 손절 거리
+          (`atr_mult` 또는 `stop_loss_pct`)가 있어야 한다. 안 주면(None) 지금처럼 보유일에 전액이 들어간다.
     """
 
     if entry_mode not in ("close", "open"):
@@ -414,8 +517,15 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     if cost is None and (commission_bps or slippage_bps):
         cost = tcost.FlatCostModel(cost_bps=commission_bps, slippage_bps=slippage_bps)
 
+    sized = None
+    if risk_pct is not None:
+        sized = size_positions(df, held, risk_pct=risk_pct, initial_capital=initial_capital,
+                               max_position_pct=max_position_pct, cost=cost, entry_mode=entry_mode,
+                               exit_mode=exit_mode, atr_values=atr_values, atr_mult=atr_mult,
+                               stop_loss_pct=stop_loss_pct)
+        gross_ret = sized["gross_ret"]
     # ── 체결 시점 반영 (entry_mode · exit_mode) ──────────────────
-    if entry_mode == "close" and exit_mode == "close":
+    elif entry_mode == "close" and exit_mode == "close":
         gross_ret = ret * held
     else:
         close = df["close"].astype(float)
@@ -444,7 +554,13 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     bh_ret    = ret
     cost_series = pd.Series(0.0, index=ret.index)
 
-    if cost is not None:
+    if sized is not None:
+        # 수량을 넣으면 비용은 평가액에서 이미 뗐다 — 하루 비용은 전날 평가액에 대한 비율
+        strat_ret = sized["net_ret"]
+        cost_series = sized["cost"]
+        if cost is not None:
+            bh_ret = bh_ret - cost.buy_hold_cost(ret.index)
+    elif cost is not None:
         # 전략: 포지션이 바뀌는 날에만 방향별(매수/매도) 비용을 뗀다.
         cost_series = cost.turnover_cost(held)
         strat_ret = strat_ret - cost_series
@@ -501,7 +617,7 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
     cum_series = [round(float(v) * 100 - 100, 2) for v in cum_strat.reindex(idx).values]
     bh_series  = [round(float(v) * 100 - 100, 2) for v in cum_bh.reindex(idx).values]
 
-    return {
+    out = {
         "total_return_pct":     round(total_strat, 2),
         "cost_pct":             round(float(cost_series.sum()) * 100, 3),  # 비용 합(단순 합 · 복리 `cost_drag_pct` 와 다르다)
         "commission_bps":       float(commission_bps),          # 넘긴 값 (비용 모델을 넘긴 호출은 쓰지 않는다)
@@ -533,6 +649,13 @@ def backtest(df: pd.DataFrame, signals: pd.Series, commission_bps: float = 0.0, 
         "exit_mode":            exit_mode,
         "judge":                STOP_JUDGE,
     }
+    if sized is not None:
+        out["sizing"] = {
+            "size_kind": "risk_pct", "risk_pct": float(risk_pct), "max_position_pct": float(max_position_pct),
+            "initial_capital": float(initial_capital), "final_equity": round(float(sized["equity"].iloc[-1]), 2),
+            "trades": sized["trades"],
+        }
+    return out
 
 
 # ── 7. Alpaca API (Paper Trading Mockup) ─────────────────────────────
