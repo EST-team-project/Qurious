@@ -16,7 +16,7 @@
       --brand-dim:  rgba(217,119,6,0.10);
       --text:       #0f172a;
       --text-dim:   #334155;
-      --text-mute:  #94a3b8;
+      --text-mute:  #5b6b82;   /* 2026-10-30 옛 #94a3b8 은 흰 바탕 2.56:1 — 새 값은 모든 앱 표면에서 4.58 이상(조사 배경조사/2026-10-30-다크모드-글자-대비) */
       --green:      #059669;
       --green-bg:   rgba(5,150,105,0.08);
       --green-bd:   rgba(5,150,105,0.25);
@@ -696,3 +696,13 @@
 /* 잠긴 단추는 잠겨 보이게 — 키가 없을 때 「KIS 모의투자 시작」 이 눌릴 것처럼 보였다(2026-10-03 브라우저 확인 · 앱에 잠김 모양이 없었다) */
 .btn-primary:disabled, .btn-secondary:disabled, .btn-green:disabled,
 .btn-green:disabled:hover { opacity: .45; cursor: not-allowed; }
+
+/* ── 보조 글 대비(2026-10-30 · 사용자 피드백 · 조사 배경조사/2026-10-30-다크모드-글자-대비) ──
+   Tailwind 의 text-slate-200/300/400/500 은 **어두운 테마용 글자색**이라 밝은 바탕에서 거의 안 보였다
+   (slate-300 #cbd5e1 = 1.5:1 · slate-400 #94a3b8 = 2.56:1). 클래스가 190곳 가까이라 한 줄씩 고치지 않고 토큰으로 되돌린다.
+   · 제목급 · 본문(200 · 300) → --text-dim(#334155 · 10:1)  · 보조(400 · 500) → --text-mute(#5b6b82 · 4.58 이상)
+   `body` 를 앞에 붙여, Tailwind CDN 이 나중에 넣는 같은 단일 클래스 규칙보다 앞서게 한다(변형 hover: 등은 건드리지 않는다).
+   코드 상자(`<pre class="… bg-black/30">`)도 같이 어두워지지만 흰 카드 위 30% 검정이라 대비는 오히려 오른다.
+   (화면별로 먼저 덮어 둔 css/finlearn.css 의 규칙은 !important 라 그대로 이긴다.) */
+body .text-slate-200, body .text-slate-300 { color: var(--text-dim); }
+body .text-slate-400, body .text-slate-500 { color: var(--text-mute); }

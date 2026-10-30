@@ -50,7 +50,7 @@
   font-variant-numeric: tabular-nums; cursor: pointer; }
 span.dg-cell { display: flex; align-items: center; justify-content: center; cursor: default; }
 button.dg-cell:hover { outline: 2px solid rgba(15, 23, 42, .35); outline-offset: 1px; }
-.dg-l0 { background: #f1f5f9; color: #94a3b8; }
+.dg-l0 { background: #f1f5f9; color: var(--text-mute, #5b6b82); }
 .dg-l1 { background: #dbeafe; color: #1e3a8a; }
 .dg-l2 { background: #93c5fd; color: #1e3a8a; }
 .dg-l3 { background: #3b82f6; color: #fff; }
@@ -62,7 +62,7 @@ button.dg-cell:hover { outline: 2px solid rgba(15, 23, 42, .35); outline-offset:
 
 /* 좁은 화면의 「처음 ~ 마지막」 막대 — 넓은 화면에서는 숨긴다 */
 .dg-bars { display: none; }
-.dg-axis { position: relative; height: 16px; margin-left: 96px; font-size: 11px; color: #94a3b8; }
+.dg-axis { position: relative; height: 16px; margin-left: 96px; font-size: 11px; color: var(--text-mute, #5b6b82); }
 .dg-axis span { position: absolute; transform: translateX(-50%); }
 .dg-bars ul { list-style: none; margin: 4px 0 8px; padding: 0; }
 .dg-bars li { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px; align-items: center; padding: 5px 0; }
@@ -164,7 +164,7 @@ button.dg-flow-box:hover, button.dg-flow-box[aria-expanded="true"] { border-colo
 /* 날짜 가운데서 끊지 않는다(「2026-」 / 「10-07」) — 끊어야 하면 「~」 앞뒤에서(날짜는 .dg-nowrap 으로 감쌌다) */
 .dg-d-tile strong { display: block; margin-top: 3px; font-size: 14px; color: var(--text); overflow-wrap: break-word; }
 .dg-nowrap { white-space: nowrap; }
-.dg-d-tile small { font-size: 11px; color: #94a3b8; }
+.dg-d-tile small { font-size: 11px; color: var(--text-mute, #5b6b82); }
 .dg-d-why { font-size: 12px; color: #b45309; }
 .dg-d-sec { display: flex; flex-direction: column; gap: 6px; }
 .dg-d-sec h4 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #64748b; }
@@ -185,7 +185,7 @@ button.dg-flow-box:hover, button.dg-flow-box[aria-expanded="true"] { border-colo
 .dg-dev { margin: 6px 0 0; display: flex; flex-direction: column; gap: 8px; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 12px 14px; }
 .dg-dev[hidden] { display: none; }
 .dg-dev > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
-.dg-dev dt { font-size: 12px; color: #94a3b8; }
+.dg-dev dt { font-size: 12px; color: var(--text-mute, #5b6b82); }
 .dg-dev dd { margin: 0; display: flex; gap: 6px; align-items: flex-start; min-width: 0; }
 .dg-dev code { flex: 1; min-width: 0; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; color: #e2e8f0; word-break: break-all; }
 .dg-copy { flex: 0 0 auto; border: 1px solid #334155; background: #1e293b; color: #cbd5e1; border-radius: 6px; padding: 2px 6px; font-size: 11px; cursor: pointer; }
