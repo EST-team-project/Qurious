@@ -47,6 +47,9 @@ def test_team_keys_are_real_screens():
     views = set(re.findall(r'<div class="view" data-view="([^"]+)">', (PUB / "app.html").read_text(encoding="utf-8")))
     for page in ("login.html", "register.html"):
         views |= set(re.findall(r'<body data-view="([^"]+)"', (PUB / page).read_text(encoding="utf-8")))
+    # 합친 화면의 탭 키(별칭 · js/viewalias.js)도 실제 화면이다 — 점수 · 사용법 글은 탭 키로 찾는다(2026-10-30 완전 통합)
+    alias = re.search(r"VIEW_ALIAS = Object\.freeze\(\{(.*?)\}\)", (PUB / "js" / "viewalias.js").read_text(encoding="utf-8"), re.S).group(1)
+    views |= {k for k, target in re.findall(r'"([^"]+)":\s*"([^"]+)"', alias) if target in views}
     missing = sorted(set(_team()) - views)
     assert not missing, f"화면에 없는 키: {missing}"
 

@@ -30,3 +30,4 @@
   .bn-stat-l { font-size: 11px; }
   .bn-stat-v { font-size: 16px; }
 }
+.bn-pane[hidden] { display: none; }   /* 탭 칸 — 안 고른 탭은 숨긴다(js/baselinenotice.js showPane) */

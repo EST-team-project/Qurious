@@ -1,6 +1,7 @@
 /* 공통 셸: GNB/LNB 내비게이션, 용어 글로서리·툴팁·사용법 가이드, 비교 트레이, 시세 티커, 동기화 배지, 모달
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { resolveView } from "/js/viewalias.js";   // 「성과 검증 (Python)」 은 전략 분석 화면의 탭 — 옛 주소를 합친 화면으로 잇는다(2026-10-30 · ①-18)
 
 // ── 한국식 금액 표기 · Y축 라벨 (이슈 #220) ────────────────────
 // 1억 이상은 "억", 1만 이상은 "만", 그 외 원. 9천만 ~ 1.1억 구간은 원 단위로
@@ -115,7 +116,6 @@ const GNB_MENUS = {
       { key: "indicator-strategy",  icon: "fa-solid fa-chart-line",     label: "기본 인디케이터 전략" },
       { key: "indicator-custom",    icon: "fa-solid fa-code",           label: "커스텀 인디케이터 개발" },
       { key: "indicator-formula",   icon: "fa-solid fa-square-root-variable", label: "자유 산식 지표 (DSL·버전)" },
-      { key: "indicator-backtest",  icon: "fa-solid fa-flask",          label: "성과 검증 (Python)" },
       { key: "indicator-api",       icon: "fa-solid fa-plug",           label: "증권사 API 자동화" },
       { key: "indicator-tradingview", icon: "fa-solid fa-satellite-dish", label: "TradingView 연동 (Webhook·교차검증)" },
       { key: "company-dashboard",   icon: "fa-solid fa-gauge",          label: "지표 대시보드" },
@@ -565,7 +565,8 @@ document.getElementById("lnb-toggle-btn")?.addEventListener("click", () => {
 });
 
 function navigate(viewKey) {
-  const navKey = VIEW_PARENT[viewKey] || viewKey;   // 메뉴 줄이 없는 화면은 따를 줄로 묶음 · 트리 · 머리 경로를 고른다
+  const shownView = resolveView(viewKey);   // 탭 키(#indicator-backtest)는 합친 화면(quant-backtest)을 보인다 — 화면 · 메뉴 줄은 합친 키, 사용법 · 점수 · 주소는 탭 키
+  const navKey = VIEW_PARENT[shownView] || shownView;   // 메뉴 줄이 없는 화면은 따를 줄로 묶음 · 트리 · 머리 경로를 고른다
   // Find gnb section for this view
   for (const [gnbKey, menu] of Object.entries(GNB_MENUS)) {
     if (menu.items.some(it => it.key === navKey)) {
@@ -588,7 +589,7 @@ function navigate(viewKey) {
 
   // Show/hide views
   document.querySelectorAll(".view").forEach(el => {
-    el.classList.toggle("active", el.dataset.view === (viewKey === "settings" ? "mypage" : viewKey));
+    el.classList.toggle("active", el.dataset.view === (shownView === "settings" ? "mypage" : shownView));
   });
   // 다른 화면으로 옮기면 내용 칸을 맨 위로 — 굴러가는 칸이 창이 아니라 #main-content 라 브라우저가 자리를 되돌려 주지 않아,
   // 앞 화면에서 내려간 자리를 물려받아 새 화면 중간에 떨어졌다(DF-134 · 2026-10-18 시연 영상을 찍다가 찾음)
@@ -600,7 +601,7 @@ function navigate(viewKey) {
 
   location.hash = viewKey;
   document.dispatchEvent(new CustomEvent("lumina:view-changed", { detail: { view: viewKey } }));
-  _viewActivated(viewKey);
+  _viewActivated(shownView, viewKey);   // 화면 키 · 탭 키(별칭이 아니면 같다)
 }
 
 // 메뉴 줄이 없는 화면이 그린 뒤 「들어온 갈래」 를 알린다 — 왼쪽 트리 표시 · 머리 경로가 그 메뉴 줄로 바뀐다
@@ -740,11 +741,11 @@ if (footerYear) footerYear.textContent = new Date().getFullYear();
 // 주소창 해시가 바뀌면(북마크·뒤로가기·같은 문서 내 링크) 해당 뷰로 전환한다. navigate()가 스스로 바꾼 해시는 무시.
 window.addEventListener("hashchange", () => {
   const key = location.hash.replace("#", "");
-  if (key && key !== currentView && document.querySelector(`.view[data-view="${key}"]`)) navigate(key);
+  if (key && key !== currentView && document.querySelector(`.view[data-view="${resolveView(key)}"]`)) navigate(key);
 });
 
 // 뷰 활성화 훅 — main.js 가 도메인 모듈들의 load* 를 조합해 등록한다 (core → 도메인 순환 의존 방지)
-let _viewActivated = () => {};
+let _viewActivated = () => {};   // (화면 키, 탭 키)
 export function registerViewActivation(fn) { _viewActivated = fn; }
 
 

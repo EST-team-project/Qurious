@@ -93,6 +93,9 @@ def render(summary: dict) -> str:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):   # 윈도우 cp949 콘솔에서 ✅ · ❌ 가 깨지지 않게(시험 TC-CE)
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true", help="쓰지 않고 지금 요약 파일이 원본과 같은지만 본다")
     args = ap.parse_args()

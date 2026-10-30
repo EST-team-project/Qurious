@@ -1,11 +1,13 @@
 /* 전략 분석 · 성과 검증 — 탭 띠 + 「기준 전략」 안내 카드 (2026-10-30 · ①-18 · Figma 「Qurious · 전략 분석」 03 설계)
  *
- * 두 화면(전략 분석 · 성과 검증)은 주소 · 메뉴 항목 · 점검표 점수를 그대로 두고 탭 띠로 이어 붙인다(결정 3번).
+ * 전략 분석 · 성과 검증(Python)은 한 화면(quant-backtest)의 탭 둘이다(결정 6번 · 완전 통합). 탭 띠가 두 칸(.bn-pane)을 오가게 하고,
+ * 기준 전략 카드는 두 탭 위에 한 번만 나온다. 옛 주소 #indicator-backtest 는 viewalias.js 가 탭 2 로 잇는다.
  * 카드의 숫자는 이 코드에 적지 않는다 — 시험 결과 요약 파일(/js/baseline-result.json)에서 읽는다.
  *   요약 파일은 scripts/baseline_summary.py 가 원본 결과에서 만들고, 시험 TC-BNC 가 같은지 대조한다.
  * 의존이 없어 node 로 그대로 시험한다(판단 함수 = baselineCardModel). 이름은 bn- 으로 시작한다.
  */
 export const RESULT_URL = "/js/baseline-result.json";
+export const MOUNT_ID = "bn-mount-quant-backtest";   // 합친 화면의 맨 위 자리(app.html)
 export const TABS = [
   { view: "quant-backtest", label: "전략 분석" },
   { view: "indicator-backtest", label: "성과 검증 (Python)" },
@@ -104,11 +106,19 @@ export function loadBaselineSummary(fetchFn = (typeof fetch === "function" ? fet
   return summaryPromise;
 }
 
-/* 화면에 들어올 때 부른다(main.js) — 탭 띠는 바로, 카드는 읽은 뒤. */
-export async function renderBaselineNotice(view, root = document) {
-  const mount = root.getElementById ? root.getElementById(`bn-mount-${view}`) : null;
+/* 탭 키에 맞는 칸만 보인다 — 칸이 없거나 알 수 없는 키면 아무것도 바꾸지 않는다. 보인 칸의 키를 돌려준다. */
+export function showPane(activeTab, root = document) {
+  if (!TABS.some((t) => t.view === activeTab) || !root.querySelectorAll) return null;
+  root.querySelectorAll("[data-bn-pane]").forEach((el) => { el.hidden = el.dataset.bnPane !== activeTab; });
+  return activeTab;
+}
+
+/* 화면에 들어올 때 부른다(main.js) — 탭 칸은 바로(그래야 칸 안 차트가 폭을 가진다), 탭 띠는 바로, 카드는 읽은 뒤. */
+export async function renderBaselineNotice(activeTab, root = document) {
+  const mount = root.getElementById ? root.getElementById(MOUNT_ID) : null;
   if (!mount) return;
-  mount.innerHTML = `${tabsHtml(view)}<div class="bn-slot"></div>`;
+  showPane(activeTab, root);
+  mount.innerHTML = `${tabsHtml(activeTab)}<div class="bn-slot"></div>`;
   const summary = await loadBaselineSummary();
   const slot = mount.querySelector(".bn-slot");
   if (slot) slot.innerHTML = cardHtml(baselineCardModel(summary));

@@ -6,9 +6,11 @@
 2. 카드 판단 함수를 node 로 그대로 돌린다 — 합격 0개(기준 전략 없음 · 가장 가까운 시도는 참고용) · 합격이 있을 때(합성 값) ·
    요약을 못 읽을 때. 글에 개발 티(필드 이름)가 없고 화면 글은 이스케이프된다. (TC-BNC-02)
 3. 화면 코드에 결과 숫자를 적지 않는다 — 시험 결과를 다시 돌리면 낡는다(서버 숫자를 화면에 다시 적지 않는 규칙). 탭 띠 · 카드 자리는
-   두 화면 안에 있고(화면 경계로 가른다) 스타일 · 진입 훅이 이어져 있다. (TC-BNC-03)
+   합친 화면 안에 하나뿐이고(화면 경계로 가른다) 탭 칸 둘이 그 안에 있으며 스타일 · 진입 훅이 이어져 있다. (TC-BNC-03)
 4. 전략 분석 결과 줄에 개발 티(entry_mode= · exit_mode= · 전략 약어)가 없다. (TC-BNC-04)
 5. 요약 파일을 못 읽으면 null 로 돌아오고 다음 번에 다시 읽는다(한 번 실패가 굳지 않는다). (TC-BNC-05)
+6. 완전 통합(결정 6번) — 화면 선언 하나 · 메뉴 줄 하나 · 옛 주소 #indicator-backtest 는 탭 2 로 잇는다(별칭). 탭 키로 고른 칸만 보이고,
+   화면 · 메뉴 줄 · 주소 · 도움말 · 시작 주소가 별칭을 풀어 쓴다. (TC-BNC-06)
 """
 from __future__ import annotations
 
@@ -123,14 +125,19 @@ def test_screen_wiring_and_no_hardcoded_numbers():
     html = APP_HTML.read_text(encoding="utf-8")
     parts = re.split(r'<div class="view" data-view="', html)
     by_view = {p.split('"', 1)[0]: p for p in parts[1:]}
-    for view in ("quant-backtest", "indicator-backtest"):
-        body = by_view[view]
-        head = body[: body.find('<div class="card"') if view == "quant-backtest" else body.find('<div class="space-y-4"')]
-        assert f'id="bn-mount-{view}"' in head, f"{view} 화면 맨 위에 탭 띠 · 카드 자리"
-    assert html.count('id="bn-mount-') == 2
+    assert "indicator-backtest" not in by_view, "성과 검증은 따로 선언된 화면이 아니라 전략 분석 화면의 탭 2"
+    body = by_view["quant-backtest"]
+    head = body[: body.find('<div class="bn-pane"')]
+    assert 'id="bn-mount-quant-backtest"' in head, "합친 화면 맨 위(탭 칸보다 앞)에 탭 띠 · 카드 자리"
+    assert html.count('id="bn-mount-') == 1 and 'id="bn-mount-indicator-backtest"' not in html
+    panes = re.findall(r'<div class="bn-pane" data-bn-pane="([^"]+)"( hidden)?', body)
+    assert panes == [("quant-backtest", ""), ("indicator-backtest", " hidden")], "탭 칸 둘 — 전략 분석이 먼저 보이고 성과 검증은 숨어 있다"
+    for needle in ('id="bt-symbol-pick"', 'id="bt-load"', 'id="ibt-symbol"', 'id="ibt-run-btn"', 'id="ibt-result"'):
+        assert needle in body, f"{needle} 는 합친 화면 안에 있다(옛 두 화면의 입력 · 결과)"
     assert '/css/baselinenotice.css' in html
     main = (PUB / "js" / "main.js").read_text(encoding="utf-8")
-    assert 'from "/js/baselinenotice.js"' in main and re.search(r'quant-backtest.*indicator-backtest.*renderBaselineNotice', main)
+    assert 'from "/js/baselinenotice.js"' in main and re.search(r'if \(view === "quant-backtest"\)[^\n]*renderBaselineNotice\(tab\)', main)
+    assert re.search(r'if \(tab === "indicator-backtest"\) loadIndicatorBacktest\(\)', main), "성과 검증 탭에 들어올 때 옛 화면처럼 실행한다"
     css = (PUB / "css" / "baselinenotice.css").read_text(encoding="utf-8")
     assert "var(--accent)" in css and not re.search(r"^\.(card|btn|input|view)\b", css, re.M), "공용 이름을 덮어쓰지 않는다"
 
@@ -156,3 +163,34 @@ out.calls = calls;
 """)
     assert out["first"] is None and out["second"] == {"version": 1}
     assert out["third"] == {"version": 1} and out["calls"] == 2, "한 번 읽은 뒤에는 다시 부르지 않는다"
+
+
+def test_merged_screen_alias_and_panes(tmp_path):
+    """TC-BNC-06 · 완전 통합 — 메뉴 줄 하나 · 별칭 · 탭 칸 · 화면 키를 풀어 쓰는 곳."""
+    out = _run(tmp_path, """
+const alias = await import(%r);
+out.resolve = ["indicator-backtest", "quant-backtest", "dashboard", "constructor", "toString"].map(k => alias.resolveView(k));
+const mk = (key) => ({ dataset: { bnPane: key }, hidden: key !== "quant-backtest" });
+const panes = [mk("quant-backtest"), mk("indicator-backtest")];
+const root = { querySelectorAll: () => panes };
+out.second = [bn.showPane("indicator-backtest", root), panes.map(p => p.hidden)];
+out.first = [bn.showPane("quant-backtest", root), panes.map(p => p.hidden)];
+out.unknown = [bn.showPane("dashboard", root), panes.map(p => p.hidden)];
+out.noDom = bn.showPane("quant-backtest", {});
+out.tabs = bn.tabsHtml("indicator-backtest");
+""" % (PUB / "js" / "viewalias.js").resolve().as_uri())
+    assert out["resolve"] == ["quant-backtest", "quant-backtest", "dashboard", "constructor", "toString"], "별칭만 풀고 그 밖의 키(객체 기본 이름 포함)는 그대로"
+    assert out["second"] == ["indicator-backtest", [True, False]] and out["first"] == ["quant-backtest", [False, True]]
+    assert out["unknown"] == [None, [False, True]], "알 수 없는 탭 키는 아무것도 바꾸지 않는다"
+    assert out["noDom"] is None
+    assert out["tabs"].count('aria-current="page"') == 1 and 'href="#indicator-backtest"' in out["tabs"] and 'href="#quant-backtest"' in out["tabs"]
+    core = (PUB / "js" / "core.js").read_text(encoding="utf-8")
+    assert 'key: "indicator-backtest"' not in core, "성과 검증 메뉴 줄은 없앴다(전략 분석 한 곳)"
+    assert core.count('key: "quant-backtest"') == 1
+    assert "const shownView = resolveView(viewKey);" in core and "_viewActivated(shownView, viewKey);" in core
+    assert 'resolveView(key)}"]`)) navigate(key);' in core, "주소창 해시가 별칭이어도 화면으로 닿는다"
+    main = (PUB / "js" / "main.js").read_text(encoding="utf-8")
+    assert 'querySelector(`[data-view="${resolveView(hash)}"]`)' in main, "북마크(#indicator-backtest)로 시작해도 탭 2 로 연다"
+    howto = (PUB / "js" / "howto.js").read_text(encoding="utf-8")
+    assert "resolveView(viewKey)" in howto and "row.dataset.howtoView" in howto, "한 화면의 탭마다 사용법 글이 다르다"
+    assert "resolveView(item.view)" in (PUB / "js" / "helpvideos.js").read_text(encoding="utf-8")

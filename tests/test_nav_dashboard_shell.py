@@ -71,7 +71,7 @@ def test_tree_keeps_headings_outside_links_and_buttons():
     assert '!["agent", "company"].includes' not in CORE, "강사님 판 빌더가 되돌아왔다"
     nav = _fn(CORE, "function navigate(")
     assert "syncLnbTree(currentGnb, navKey);" in nav and "fitGnbTabs();" in nav
-    assert "const navKey = VIEW_PARENT[viewKey] || viewKey;" in nav, "메뉴 줄이 없는 화면(장 · 부 목차)은 따를 줄로 트리 · 머리 경로를 고른다(2026-10-20)"
+    assert "const navKey = VIEW_PARENT[shownView] || shownView;" in nav, "메뉴 줄이 없는 화면(장 · 부 목차)은 따를 줄로 트리 · 머리 경로를 고른다(2026-10-20)"
     sync = _fn(CORE, "function syncLnbTree(")
     assert "if (moved) group.open = here;" in sync, "다른 묶음으로 옮기면 지금 묶음만 펼친다(사용자 S124)"
     assert 'setAttribute("aria-current", "page")' in sync
