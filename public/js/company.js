@@ -3,6 +3,7 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import {
   cvLoad, cvOverviewCards, cvValuationRows, cvProfitRows, cvQuarterTable, cvBalanceTable, cvSlice, cvChartSummary, CV_PERIODS,
+  cvQuoteLive, CV_QUOTE_POLL_MS,
   cvCompareLoad, cvCompareTable, cvFindCompany, CV_COMPARE_DEFAULT, CV_COMPARE_MAX,
   cvSectorCards, cvSectorNote,
 } from "/js/companyview.js";
@@ -54,6 +55,7 @@ function addAndSelectCompany(symbol, name) {
 // 지표 대시보드 — 숫자 · 근거 글은 companyview.js 가 정한다(서버 응답 그대로 · 화면이 셈하지 않음 · 할 일 ①-16 · 2026-10-30)
 const LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
 let coChart = null, coChartRows = [], coChartPeriod = "6m", coChartSeq = 0, coLwcPromise = null;
+let coLast = null, coQuoteTimer = null, coSeries = null, coLastTime = "";   // 현재가 카드 · 오늘 점을 10초마다 다시 그리려고 마지막 응답과 차트 줄을 들고 있는다
 
 function coLoadLwc() {
   if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
@@ -80,10 +82,45 @@ async function fetchAndRenderCompany(symbol) {
   if (selectedCompanySymbol === symbol) renderCompanyData(parts);
 }
 
+// 내 증권사 키로 받은 현재가만 약 10초마다 다시 받는다(설계 Figma 「Qurious · 기업 지표」 03 · 1단계) — 키가 없거나 장이 닫혔거나 탭이 숨겨지면 받지 않는다
+function coApplyToday() {
+  const q = coLast && coLast.quote;
+  if (!coSeries || !cvQuoteLive(q)) return;
+  const day = String(q.fetched_at || "").slice(0, 10);              // 서버가 한국 시각으로 적은 날짜
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day <= coLastTime) return;  // 수집 일봉이 이미 있는 날은 종가를 덮지 않는다
+  try { coSeries.update({ time: day, value: q.price }); } catch (_) { /* 차트가 다시 그려지는 중이면 다음 갱신에 */ }
+}
+
+function coStopQuotePoll() { clearInterval(coQuoteTimer); coQuoteTimer = null; }
+
+function coStartQuotePoll(symbol) {
+  coStopQuotePoll();
+  coQuoteTimer = setInterval(async () => {
+    const box = document.getElementById("co-overview");
+    if (!box || !box.offsetParent || document.hidden || selectedCompanySymbol !== symbol) { coStopQuotePoll(); return; }
+    if (!coLast || !cvQuoteLive(coLast.quote) || coLast.quote.market_state === "closed") return;
+    try {
+      const q = await api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`);
+      if (selectedCompanySymbol !== symbol || !coLast) return;
+      coLast.quote = q;
+      if (!coLast.indErr) box.innerHTML = cvOverviewCards(coLast.ind, q, escHtml);
+      coApplyToday();
+    } catch (_) { /* 이번 갱신은 건너뛴다 — 카드의 시각이 그대로라 오래된 값임이 보인다 */ }
+  }, CV_QUOTE_POLL_MS);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { coStopQuotePoll(); return; }
+  const box = document.getElementById("co-overview");
+  if (coLast && box && box.offsetParent) coStartQuotePoll(selectedCompanySymbol);
+});
+
 function renderCompanyData(p) {
   const ids = ["co-overview", "co-valuation", "co-profitability", "co-quarterly", "co-balance"];
   const put = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  coLast = p;
   if (p.unsupported) {
+    coStopQuotePoll();
     put("co-overview", coMessage("이 화면은 국내 상장사(종목코드 6자리)의 전자공시 재무로 지표를 계산합니다. 이 종목은 지원하지 않습니다."));
     ids.slice(1).forEach(id => put(id, ""));
     renderCompanyChart([]);
@@ -103,6 +140,7 @@ function renderCompanyData(p) {
   const t = document.getElementById("co-chart-title");
   if (t) t.textContent = `${nm ? nm + " " : ""}일봉 종가`;
   renderCompanyChart(p.ohlcv && Array.isArray(p.ohlcv.rows) ? p.ohlcv.rows : [], p.ohlcvErr);
+  if (p.code && !p.indErr) coStartQuotePoll(selectedCompanySymbol); else coStopQuotePoll();
 }
 
 function renderCompanyChart(rows, err) {
@@ -123,8 +161,9 @@ async function drawCompanyChart(err) {
   if (!box || !note) return;
   const seq = ++coChartSeq;
   const pts = cvSlice(coChartRows, coChartPeriod);
-  note.textContent = err ? (err.message || "일봉을 받지 못했습니다.") : cvChartSummary(pts);
+  note.textContent = err ? (err.message || "일봉을 받지 못했습니다.") : cvChartSummary(pts, cvQuoteLive(coLast && coLast.quote), !!(coLast && coLast.quote && coLast.quote.market_state === "closed"));
   if (coChart) { coChart.remove(); coChart = null; }
+  coSeries = null; coLastTime = "";
   box.innerHTML = "";
   if (!pts.length) return;
   let L;
@@ -144,7 +183,10 @@ async function drawCompanyChart(err) {
     color: "#4361ee", lineWidth: 2, priceLineVisible: false,
     priceFormat: { type: "custom", formatter: v => Math.round(v).toLocaleString("ko-KR"), minMove: 1 },
   });
-  series.setData(pts);
+  coLastTime = pts[pts.length - 1].time;                           // 라이브러리가 넘긴 객체의 time 을 바꿀 수 있어 setData 전에 읽어 둔다
+  series.setData(pts.map(p => ({ time: p.time, value: p.value })));
+  coSeries = series;
+  coApplyToday();                                                  // 내 증권사 시세가 있으면 오늘 점을 맨 끝에 더한다
   coChart.timeScale().fitContent();
 }
 

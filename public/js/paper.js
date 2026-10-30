@@ -1,6 +1,10 @@
 /* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
-import { COIN_SOURCE_NOTE, COIN_ORDER_NOTE, coinPoints, coinChartSummary } from "/js/coinview.js";
+import {
+  COIN_SOURCE_NOTE, COIN_LIVE_NOTE, COIN_ORDER_NOTE, UPBIT_WS_URL, PING_MS,
+  coinPoints, coinChartSummary, coinSubscribeMessage, decodeWsData, parseUpbitTicker, coinCandleDate,
+  liveBadge, priceGap, orderPriceLine, reconnectDelay,
+} from "/js/coinview.js";
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
@@ -351,6 +355,7 @@ async function loadPaperCrypto() {
 // ── 코인 일봉 차트(업비트 공개 시세 · 화면에만 · 저장하지 않음 · 2026-10-30 ①-20) ──────────────────────────────
 const PC_LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
 let pcChart = null, pcChartSeq = 0, pcLwcPromise = null;
+let pcSeries = null, pcLastPoint = null, pcPts = [];          // 실시간이 오늘 봉(마지막 점)을 움직이려고 들고 있는다
 
 function pcLoadLwc() {
   if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
@@ -372,6 +377,7 @@ async function pcDrawChart(code) {
   if (!box || !note) return;
   const seq = ++pcChartSeq;
   if (pcChart) { pcChart.remove(); pcChart = null; }
+  pcSeries = null; pcLastPoint = null; pcPts = [];
   box.innerHTML = "";
   note.textContent = "일봉을 불러오는 중…";
   let pts = [];
@@ -380,7 +386,8 @@ async function pcDrawChart(code) {
     pts = coinPoints(r.candles);
   } catch (e) { if (seq === pcChartSeq) note.textContent = `일봉을 받지 못했습니다: ${e.message}`; return; }
   if (seq !== pcChartSeq) return;
-  note.textContent = coinChartSummary(pts);
+  pcPts = pts;
+  note.textContent = coinChartSummary(pts, pcWsState === "live");
   if (!pts.length) return;
   let L;
   try { L = await pcLoadLwc(); } catch (e) { note.textContent += " (차트 라이브러리를 불러오지 못했습니다.)"; return; }
@@ -398,9 +405,122 @@ async function pcDrawChart(code) {
     color: "#4361ee", lineWidth: 2, priceLineVisible: false,
     priceFormat: { type: "custom", formatter: v => Math.round(v).toLocaleString("ko-KR"), minMove: 1 },
   });
-  series.setData(pts);
+  pcLastPoint = { time: pts[pts.length - 1].time, value: pts[pts.length - 1].value };   // 라이브러리가 넘긴 객체를 바꿀 수 있어 먼저 복사해 둔다
+  series.setData(pts.map(p => ({ time: p.time, value: p.value })));
   pcChart.timeScale().fitContent();
+  pcSeries = series;
+  if (pcLive) pcOnTick(pcLive);                                  // 차트보다 먼저 온 체결이 있으면 오늘 봉에 바로 반영
 }
+
+// ── 코인 실시간(업비트 공개 WebSocket · 브라우저가 직접 연결 · 화면에만 · 2026-10-30 사용자 결정 · 설계 Figma 「Qurious · 코인 모의매매」 03) ──────
+// 현재가 · 오늘 봉은 체결마다 움직이고, 주문에 쓰이는 가격은 앱이 따로 확인한 값이라 옆에 같이 보인다(둘이 다르면 알림).
+let pcWs = null, pcWsCode = "", pcWsState = "connecting", pcWsAttempt = 0, pcWsRetry = null, pcWsPing = null, pcWsGuard = null, pcOrderPoll = null, pcResumeCode = "";
+let pcLive = null;          // 마지막 체결 {price, tradeTs, changeRate}
+let pcOrderQuote = null;    // 앱이 확인한 주문 가격 {price, checkedAt} — checkedAt 은 앱에 물어본 시각이다(값 자체의 시각이 아님)
+
+function pcRenderGap() {
+  const line = $("pc-order-price-line"), warn = $("pc-gap-warn"), note = $("pc-order-price-note");
+  if (!line || !warn) return;
+  line.textContent = orderPriceLine(pcOrderQuote && pcOrderQuote.price, pcOrderQuote && pcOrderQuote.checkedAt);
+  if (note) note.textContent = COIN_SOURCE_NOTE;
+  const g = priceGap({ live: pcLive && pcLive.price, order: pcOrderQuote && pcOrderQuote.price, checkedAt: pcOrderQuote && pcOrderQuote.checkedAt, now: Date.now() });
+  warn.textContent = g.text;
+  warn.style.display = g.warn ? "" : "none";
+}
+
+function pcRenderLive() {
+  const b = liveBadge(pcWsState, pcLive && pcLive.tradeTs), el = $("pc-live-badge");
+  if (el) {
+    el.textContent = b.text;
+    el.style.color = b.tone === "ok" ? "#059669" : b.tone === "warn" ? "#d97706" : "var(--text-mute)";
+  }
+  const p = $("pc-live-price"), r = $("pc-live-rate");
+  if (p && pcLive) p.textContent = won(pcLive.price);
+  if (p) p.style.opacity = pcWsState === "reconnecting" ? "0.55" : "1";      // 연결이 끊기면 마지막 값을 흐리게
+  if (r && pcLive && pcLive.changeRate != null) { r.textContent = fmtPct(pcLive.changeRate); r.className = `text-sm ${signCls(pcLive.changeRate)}`; }
+  const cn = $("pc-chart-note");
+  if (cn && pcPts.length) cn.textContent = coinChartSummary(pcPts, pcWsState === "live");
+  pcRenderGap();
+}
+
+function pcOnTick(t) {
+  pcLive = t;
+  if (pcSeries && pcLastPoint) {
+    const day = coinCandleDate(t.tradeTs);
+    if (day >= pcLastPoint.time) {                               // 날짜가 앞서면(한국 시각 09:00 경계) 새 봉
+      pcLastPoint = { time: day, value: t.price };
+      // 차트 라이브러리는 update 에 넘긴 객체의 time 을 제자리에서 바꾼다 — 복사본을 넘겨야 다음 체결의 날짜 비교가 문자열로 남는다
+      try { pcSeries.update({ time: day, value: t.price }); } catch (_) { /* 차트가 다시 그려지는 중이면 다음 체결에 */ }
+    }
+  }
+  pcRenderLive();
+}
+
+function pcStopLive() {
+  clearTimeout(pcWsRetry); clearInterval(pcWsPing); clearInterval(pcWsGuard); clearInterval(pcOrderPoll);
+  pcWsRetry = pcWsPing = pcWsGuard = pcOrderPoll = null;
+  if (pcWs) { pcWs.onopen = pcWs.onmessage = pcWs.onclose = pcWs.onerror = null; try { pcWs.close(); } catch (_) { /* 이미 닫힘 */ } pcWs = null; }
+}
+
+async function pcPollOrderQuote() {
+  const code = pcWsCode;
+  if (!code) return;
+  try {
+    const { tickers } = await api(`/api/paper/crypto/ticker?markets=${encodeURIComponent(code)}`);
+    if (code !== pcWsCode) return;
+    const t = tickers && tickers[0];
+    pcOrderQuote = t ? { price: t.price, checkedAt: Date.now() } : null;
+  } catch (_) { /* 확인에 실패하면 이전 값과 시각을 그대로 둔다 — 확인 나이가 늘어 경고가 뜬다 */ }
+  pcRenderGap();
+}
+
+function pcConnect() {
+  const code = pcWsCode;
+  let ws;
+  try { ws = new WebSocket(UPBIT_WS_URL); } catch (_) { pcWsState = "unsupported"; pcRenderLive(); return; }
+  ws.binaryType = "arraybuffer";
+  pcWs = ws;
+  ws.onopen = () => {
+    if (pcWs !== ws) return;
+    pcWsAttempt = 0; pcWsState = "live";
+    ws.send(coinSubscribeMessage(code, `qurious-${Date.now().toString(36)}`));
+    clearInterval(pcWsPing);
+    pcWsPing = setInterval(() => { try { ws.send("PING"); } catch (_) { /* 끊기면 onclose 가 다시 연결 */ } }, PING_MS);
+    pcRenderLive();
+  };
+  ws.onmessage = ev => {
+    if (pcWs !== ws) return;
+    const t = parseUpbitTicker(decodeWsData(ev.data), code);
+    if (t) pcOnTick(t);
+  };
+  ws.onclose = () => {
+    if (pcWs !== ws) return;
+    clearInterval(pcWsPing);
+    pcWsState = "reconnecting"; pcRenderLive();
+    pcWsRetry = setTimeout(pcConnect, reconnectDelay(pcWsAttempt++));
+  };
+  ws.onerror = () => { try { ws.close(); } catch (_) { /* 이미 닫힘 */ } };
+}
+
+function pcStartLive(code) {
+  pcStopLive();
+  pcWsCode = code; pcLive = null; pcWsAttempt = 0;
+  if (typeof WebSocket === "undefined") { pcWsState = "unsupported"; pcRenderLive(); return; }
+  pcWsState = "connecting"; pcRenderLive();
+  pcConnect();
+  // 이 화면을 떠나면 연결을 닫고, 5초마다 주문 가격 확인 나이를 다시 잰다
+  pcWsGuard = setInterval(() => { const el = $("pc-ticker"); if (!el || !el.offsetParent) { pcStopLive(); return; } pcRenderGap(); }, 5000);
+  pcOrderPoll = setInterval(pcPollOrderQuote, 5000);
+}
+
+// 탭이 숨겨지면 연결을 닫고 돌아오면 다시 연결한다(설계 제안 — 보지 않는 동안 연결을 붙들지 않는다)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { if (pcWsCode && pcWs) { pcResumeCode = pcWsCode; pcStopLive(); } return; }
+  if (!pcResumeCode) return;
+  const c = pcResumeCode; pcResumeCode = "";
+  const el = $("pc-ticker"), sel = $("pc-market");
+  if (el && el.offsetParent && sel && sel.value === c) cryptoTicker();
+});
 
 async function cryptoTicker() {
   const code = $("pc-market").value;
@@ -413,12 +533,14 @@ async function cryptoTicker() {
     const t = tickers[0];
     const m = cryptoMarkets.find(x => x.market === code) || {};
     $("pc-ticker").innerHTML = t ? `<strong>${escHtml(m.koreanName || code)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(code)}</span>
-      <div class="text-xl font-bold mt-1">${won(t.price)} <span class="text-sm ${signCls(t.changeRate)}">${fmtPct(t.changeRate)}</span></div>
+      <div class="text-xl font-bold mt-1"><span id="pc-live-price">${won(t.price)}</span> <span id="pc-live-rate" class="text-sm ${signCls(t.changeRate)}">${fmtPct(t.changeRate)}</span></div>
       <div class="text-xs" style="color:var(--text-mute);">24h 고가 ${won(t.high24h)} · 저가 ${won(t.low24h)} · 거래대금 ${fmt(t.accTradePrice24h / 1e8, 1)}억</div>` : `<span class="text-red-500">시세 없음</span>`;
-    // 시세 출처 · 한계 · 주문 체결 방식 글(설계 결정 ① 2026-10-30 — coinview.js) + 일봉 차트
-    $("pc-source-note").textContent = COIN_SOURCE_NOTE;
+    // 시세 출처 · 한계 · 주문 체결 방식 글(설계 결정 ① 2026-10-30 — coinview.js) + 일봉 차트 + 실시간(오늘 봉 · 현재가 · 주문 가격 옆 비교)
+    $("pc-source-note").textContent = COIN_LIVE_NOTE;
     $("pc-order-note").innerHTML = COIN_ORDER_NOTE.map(l => `<div>${escHtml(l)}</div>`).join("");
+    pcOrderQuote = t ? { price: t.price, checkedAt: Date.now() } : null;
     pcDrawChart(code);
+    if (pcWs && pcWsCode === code && pcWsState === "live") pcRenderLive(); else pcStartLive(code);
     const p = dom.prices || {};
     $("pc-domestic").innerHTML = `<div class="text-xs font-semibold mb-1">국내 거래소 가격 비교 ${dom.spreadPct != null ? `<span style="color:var(--text-mute);">(최대 스프레드 ${dom.spreadPct}%)</span>` : ""}</div>
       <div class="grid grid-cols-3 gap-2 text-xs">${[["upbit", "Upbit"], ["bithumb", "Bithumb"], ["korbit", "Korbit"]].map(([k, label]) => `<div class="rounded-lg p-2" style="background:var(--surf);border:1px solid var(--border);"><div style="color:var(--text-dim);font-weight:600;">${label}</div><b>${p[k] ? won(p[k]) : "-"}</b></div>`).join("")}</div>`;

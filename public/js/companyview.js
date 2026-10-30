@@ -58,12 +58,21 @@ export function cvMetricRow(m, esc) {
 }
 
 /** 개요 카드 하나. */
-export function cvCard(label, valueText, lines, esc, subColor) {
+export function cvCard(label, valueText, lines, esc, subColor, extraHtml = "") {
   return `<div class="card" style="padding:16px;"><div class="text-xs" style="color:var(--text-mute);">${esc(label)}</div>`
     + `<div style="font-size:20px;font-weight:700;margin:4px 0;">${esc(valueText)}</div>`
     + (lines || []).filter(Boolean).map(l => `<div class="text-xs" style="color:${subColor || "var(--text-mute)"};line-height:1.55;">${esc(l)}</div>`).join("")
+    + extraHtml
     + `</div>`;
 }
+
+// ── 현재가 — 내 증권사 키 방식(2026-10-30 사용자 결정 「주식은 내 키 방식으로 일단 · 확장 설계까지」 · 설계 Figma 「Qurious · 기업 지표」 03) ──
+// 국내 주식은 거래소(코스콤) 계약이 없어 공유 키로 모든 사용자에게 실시간을 줄 수 없다(KIS 약관 제5조③). 본인 KIS 키가 마이페이지에 연결된 사람만
+// 자기 화면에서 증권사 시세를 보고(quote.source === "kis_user"), 그 값은 약 10초마다 다시 받는다. 「실시간」 이라는 낱말은 쓰지 않는다(체결마다가 아니라 10초 저장본).
+export const CV_QUOTE_POLL_MS = 10000;
+export const CV_KEY_CTA = "내 증권사를 연결하면 이 화면에서 지금 시세를 볼 수 있어요(마이페이지 › 증권사).";
+/** 내 증권사 키로 받은 값인가 — 이 값만 오늘 점으로 차트에 더하고 10초마다 다시 받는다. */
+export function cvQuoteLive(quote) { return !!(quote && quote.source === "kis_user" && isNum(quote.price)); }
 
 const find = (map, st, name) => {
   if (`${st}|${name}` in map) return map[`${st}|${name}`];
@@ -77,8 +86,11 @@ export function cvOverviewCards(ind, quote, esc) {
   const out = [];
   if (quote && isNum(quote.price)) {
     const chg = isNum(quote.change_pct) ? `${quote.change_pct >= 0 ? "+" : ""}${quote.change_pct.toFixed(2)}%` : "";
-    out.push(cvCard("현재가", `${Math.round(quote.price).toLocaleString("ko-KR")}원`, [[chg, quote.label].filter(Boolean).join(" · ")], esc,
-      isNum(quote.change_pct) && quote.change_pct < 0 ? "var(--red)" : "var(--green)"));
+    const live = cvQuoteLive(quote);
+    const every = live && quote.market_state !== "closed" ? "약 10초마다 갱신" : "";      // 장이 닫혔으면 다시 받지 않는다
+    const cta = live ? "" : `<div class="text-xs" style="color:var(--accent);line-height:1.55;margin-top:4px;" data-co-key-cta>${esc(CV_KEY_CTA)}</div>`;
+    out.push(cvCard("현재가", `${Math.round(quote.price).toLocaleString("ko-KR")}원`, [[chg, quote.label, every].filter(Boolean).join(" · ")], esc,
+      isNum(quote.change_pct) && quote.change_pct < 0 ? "var(--red)" : "var(--green)", cta));
   } else {
     out.push(cvCard("현재가", DASH, ["지금 가격을 받지 못했습니다."], esc));
   }
@@ -141,13 +153,16 @@ export function cvSlice(rows, key) {
 }
 
 /** 차트 아래 글 — 그림이 못 읽어 주는 최고 · 최저 · 마지막 종가를 글로 + 실시간이 아니라는 한계. */
-export function cvChartSummary(points) {
+export function cvChartSummary(points, liveToday = false, closed = false) {
   if (!points.length) return "일봉 자료가 없습니다.";
   const vals = points.map(p => p.value);
   const fmt = n => `${Math.round(n).toLocaleString("ko-KR")}원`;
   const last = points[points.length - 1];
-  return `최고 ${fmt(Math.max(...vals))} · 최저 ${fmt(Math.min(...vals))} · 마지막 종가 ${fmt(last.value)}(${last.time}) — 우리 수집 일봉(공공데이터포털) 종가입니다. `
-    + `초 단위 실시간 차트가 아니며, 오늘의 지금 가격은 위쪽 「현재가」 카드(지연 시세 약 20분)에만 나옵니다.`;
+  const head = `최고 ${fmt(Math.max(...vals))} · 최저 ${fmt(Math.min(...vals))} · 마지막 종가 ${fmt(last.value)}(${last.time}) — 우리 수집 일봉(공공데이터포털) 종가입니다. `;
+  // 요약의 최고 · 최저 · 마지막 종가는 수집 일봉만으로 센다 — 오늘 점(증권사 시세)은 종가가 아니라서 섞지 않는다
+  if (liveToday && closed) return head + "차트 맨 끝의 오늘 점은 내 증권사에서 받은 오늘 마지막 가격입니다. 장이 닫혀 있어 다시 받지 않습니다.";
+  if (liveToday) return head + "차트 맨 끝의 오늘 점은 내 증권사에서 받은 지금 가격이며 약 10초마다 바뀝니다. 체결마다 움직이는 차트는 아닙니다.";
+  return head + `초 단위 실시간 차트가 아니며, 오늘의 지금 가격은 위쪽 「현재가」 카드(지연 시세 약 20분)에만 나옵니다. ${CV_KEY_CTA}`;
 }
 
 /** 요청 다섯을 한꺼번에 — 하나가 실패해도 나머지는 보인다. */
