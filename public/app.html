@@ -440,6 +440,7 @@
                     <select id="pc-market" class="input"></select>
                     <button id="pc-refresh" class="btn-secondary">시세</button>
                   </div>
+                  <div id="pc-live-badge" class="text-xs font-semibold mb-1" style="color:var(--text-mute);" aria-live="polite"></div>
                   <div id="pc-ticker" class="text-sm mb-2 min-h-[24px]"></div>
                   <div id="pc-source-note" class="text-xs mb-3" style="color:var(--text-mute);line-height:1.6;"></div>
                   <div id="pc-chart-wrap" class="mb-3">
@@ -447,6 +448,12 @@
                     <p id="pc-chart-note" class="text-xs mt-1" style="color:var(--text-mute);line-height:1.6;"></p>
                   </div>
                   <div id="pc-domestic" class="mb-3"></div>
+                  <div id="pc-gap-warn" class="text-xs mb-2 px-3 py-2 rounded-lg" role="alert" style="display:none;background:rgba(217,119,6,0.14);color:var(--text);border:1px solid rgba(217,119,6,0.6);line-height:1.65;"></div>
+                  <div id="pc-order-price" class="text-sm mb-2 px-3 py-2 rounded-lg" style="background:var(--surf);border:1px solid var(--border);">
+                    <div class="text-xs" style="color:var(--text-dim);">주문에 쓰이는 가격</div>
+                    <div id="pc-order-price-line" class="font-bold"></div>
+                    <div id="pc-order-price-note" class="text-xs" style="color:var(--text-mute);line-height:1.6;"></div>
+                  </div>
                   <div id="pc-order-note" class="text-xs mb-3 px-3 py-2 rounded-lg" style="background:rgba(67,97,238,0.12);color:var(--text);border:1px solid rgba(67,97,238,0.3);line-height:1.65;"></div>
                   <div class="grid grid-cols-2 gap-2 mb-2">
                     <input id="pc-buy-krw" class="input" type="number" min="1000" step="1000" placeholder="매수 금액 (원)" />

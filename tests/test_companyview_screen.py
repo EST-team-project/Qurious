@@ -9,6 +9,10 @@
 5. 차트 — 마지막 날 기준 기간 자르기 · 글 요약(최고 · 최저 · 마지막 종가)과 「초 단위 실시간이 아니다」 한계. (TC-CV-05)
 6. 요청 다섯 — 6자리가 아니면 요청을 보내지 않는다 · 현재가는 화면 심볼 그대로. (TC-CV-06)
 7. 야후 · 「현재 주가」 낱말이 없다. (TC-CV-07)
+
+실시간(2026-10-30 사용자 결정 「코인은 지금하고 주식은 내 키 방식으로 일단 하되 확장 설계까지」 — 국내 주식은 계약 없이 공유 키로 실시간을 줄 수 없다)
+8. 현재가 카드 — 내 증권사 키 시세면 「약 10초마다 갱신」 · 아니면 연결 안내 · 장이 닫히면 갱신 안 함 · 차트 요약은 수집 일봉만으로 센다. (TC-CV-11)
+9. 화면 연결 — 내 키 시세만 10초마다 · 장 마감 · 탭 숨김 · 종목 바뀜이면 멈춤 · 수집 일봉이 있는 날은 덮지 않음. (TC-CV-12)
 """
 from __future__ import annotations
 
@@ -207,3 +211,39 @@ def test_no_yahoo_and_no_current_price_wording():
     assert "yahoo" not in src.lower() and "/api/stocks/" not in src
     code = src.split("*/", 1)[1]                                   # 머리 주석의 설명 문장은 화면에 나가지 않는다
     assert "현재 주가" not in code and "현재가" in code and "종가" in code
+
+
+def test_quote_card_and_chart_text_by_source(tmp_path):
+    """TC-CV-11 — 현재가 카드(2026-10-30 사용자 결정 「주식은 내 키 방식」): 내 증권사 키 시세면 「약 10초마다 갱신」 · 아니면 연결 안내 · 장이 닫히면 갱신 안 한다 · 「실시간」 이라 쓰지 않는다."""
+    out = _run(tmp_path, """
+      const mine = {price: 217000, change_pct: 1.2, source: "kis_user", market_state: "open", label: "증권사 조회 · 14:02:31", fetched_at: "2026-10-30 14:02:31"};
+      const closed = {...mine, market_state: "closed", label: "장 마감 · 증권사 조회 · 15:31:02"};
+      const delayed = {price: 216500, change_pct: 0.9, source: "delayed", market_state: "open", label: "지연 시세(약 20분) · 13:40 체결"};
+      out.mine = cv.cvOverviewCards(IND, mine, esc); out.closed = cv.cvOverviewCards(IND, closed, esc); out.delayed = cv.cvOverviewCards(IND, delayed, esc);
+      out.live = [cv.cvQuoteLive(mine), cv.cvQuoteLive(delayed), cv.cvQuoteLive(null), cv.cvQuoteLive({source: "kis_user", price: null})];
+      const pts = [{time: "2026-10-28", value: 100}, {time: "2026-10-29", value: 120}];
+      out.sumLive = cv.cvChartSummary(pts, true); out.sumClosed = cv.cvChartSummary(pts, true, true); out.sumOff = cv.cvChartSummary(pts); out.consts = [cv.CV_QUOTE_POLL_MS, cv.CV_KEY_CTA];
+    """)
+    assert "217,000원" in out["mine"] and "증권사 조회 · 14:02:31 · 약 10초마다 갱신" in out["mine"] and "data-co-key-cta" not in out["mine"]
+    assert "약 10초마다" not in out["closed"] and "장 마감 · 증권사 조회" in out["closed"] and "data-co-key-cta" not in out["closed"]   # 장이 닫히면 다시 받지 않는다
+    assert "지연 시세(약 20분)" in out["delayed"] and "data-co-key-cta" in out["delayed"] and "마이페이지 › 증권사" in out["delayed"]   # 키가 없으면 연결 안내
+    assert "약 10초마다" not in out["delayed"]
+    assert out["live"] == [True, False, False, False]
+    assert "오늘 점은 내 증권사에서 받은 지금 가격이며 약 10초마다 바뀝니다" in out["sumLive"] and "체결마다 움직이는 차트는 아닙니다" in out["sumLive"]
+    assert "마지막 종가 120원(2026-10-29)" in out["sumLive"] and "최고 120원 · 최저 100원" in out["sumLive"]     # 요약 숫자는 수집 일봉만 — 오늘 점이 섞이지 않는다
+    assert "오늘 마지막 가격입니다" in out["sumClosed"] and "다시 받지 않습니다" in out["sumClosed"] and "약 10초마다" not in out["sumClosed"]   # 장 마감이면 갱신한다고 말하지 않는다(실제 앱 확인에서 어긋남이 나왔다)
+    assert "초 단위 실시간 차트가 아니며" in out["sumOff"] and "마이페이지 › 증권사" in out["sumOff"]
+    assert out["consts"][0] == 10000 and out["consts"][1].startswith("내 증권사를 연결하면")
+    assert "실시간" not in out["mine"] + out["closed"] + out["delayed"] + out["sumLive"]                     # 10초 저장본이라 「실시간」 이라 쓰지 않는다
+
+
+def test_company_screen_polls_only_my_key_quote():
+    """TC-CV-12 — company.js: 내 증권사 키 시세만 10초마다 다시 받는다 · 장이 닫히면 · 탭이 숨겨지면 · 종목이 바뀌면 멈춘다 · 수집 일봉이 있는 날은 덮지 않는다 · 야후 · 저장 없음."""
+    js = (ROOT / "public" / "js" / "company.js").read_text(encoding="utf-8")
+    poll = js[js.index("function coApplyToday()"):js.index("function renderCompanyData(p)")]
+    assert "CV_QUOTE_POLL_MS" in poll and "cvQuoteLive(coLast.quote)" in poll and 'coLast.quote.market_state === "closed"' in poll
+    assert "document.hidden" in poll and "selectedCompanySymbol !== symbol" in poll and "!box.offsetParent" in poll
+    assert "day <= coLastTime" in poll                                       # 수집 일봉이 이미 있는 날은 종가를 덮지 않는다
+    assert "/api/quote/now?symbol=" in poll and "yahoo" not in poll.lower() and "localStorage" not in poll and "sessionStorage" not in poll
+    assert "coStartQuotePoll(selectedCompanySymbol)" in js and "coStopQuotePoll();" in js[js.index("function renderCompanyData(p)"):]     # 지원하지 않는 종목이면 멈춘다
+    assert 'cvChartSummary(pts, cvQuoteLive(coLast && coLast.quote), !!(coLast && coLast.quote && coLast.quote.market_state === "closed"))' in js and "coApplyToday();" in js

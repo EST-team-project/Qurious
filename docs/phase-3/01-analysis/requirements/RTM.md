@@ -358,7 +358,7 @@ flowchart LR
 |---|---|---|---|---|---|---|
 | **원문 PROJECT 01 로보 어드바이저 (2차)** | | | | | | |
 | `P01-①-1` | 설계서 4.1절 · 용어사전 설계서 v0.1 · 통합본 이식 계획서 v0.1 4절 | GRPH-01~03 · GLOS-01~04 | 🟡 TC-GL 93 · TC-LN 38 · TC-HT 13 · TC-LC 15 · TC-GS 15 · TC-TCH 3 · TC-CLV 6 · TC-HV 3 | 시험 | 있음 37파일 | 시험 일부 |
-| `P01-①-2` | 설계서 4.1절 · 수집기 README · 설계서 3절 C1 | STK-01~03 · 05~07 · MACR-01~04 · ING-01~04 · 12 · LIB-01 (새 1) | 🟢 TC-BF 7 · TC-A1 21 · TC-CD 22 · TC-DF01 21 · TC-LC 15 · TC-OA 21 · TC-NW 10 · TC-CR 6 · TC-DC 7 · TC-FS 6 · TC-GD 6 · TC-DQ 12 · TC-HD 5 · TC-RS 10 · TC-CL 18 · TC-FP 7 · TC-BK 7 · TC-DG 13 · TC-CQ 23 · TC-ECS 14 · TC-DK 6 · TC-DP 16 · TC-FX 11 · TC-QL 10 · TC-QUOT 10 · TC-FF 15 · TC-CI 8 · 🟡 TC-DU 86 · TC-DF17 17 · TC-OH 29 · TC-CT 12 · TC-HF 13 · TC-HS 21 · TC-KMD 14 · TC-TG 5 · TC-QVS 5 · TC-HUB 38 · TC-SSR 7 · TC-WR 21 · TC-WRS 3 · TC-FV 5 · TC-MK 7 · TC-MI 7 · TC-MKT 14 · TC-BV 4 · TC-HFO 5 · TC-BS 4 · TC-CIN 17 · TC-CV 10 | 시험 | 있음 96파일 | 시험 있음 |
+| `P01-①-2` | 설계서 4.1절 · 수집기 README · 설계서 3절 C1 | STK-01~03 · 05~07 · MACR-01~04 · ING-01~04 · 12 · LIB-01 (새 1) | 🟢 TC-BF 7 · TC-A1 21 · TC-CD 22 · TC-DF01 21 · TC-LC 15 · TC-OA 21 · TC-NW 10 · TC-CR 6 · TC-DC 7 · TC-FS 6 · TC-GD 6 · TC-DQ 12 · TC-HD 5 · TC-RS 10 · TC-CL 18 · TC-FP 7 · TC-BK 7 · TC-DG 13 · TC-CQ 23 · TC-ECS 14 · TC-DK 6 · TC-DP 16 · TC-FX 11 · TC-QL 10 · TC-QUOT 10 · TC-FF 15 · TC-CI 8 · 🟡 TC-DU 86 · TC-DF17 17 · TC-OH 29 · TC-CT 12 · TC-HF 13 · TC-HS 21 · TC-KMD 14 · TC-TG 5 · TC-QVS 5 · TC-HUB 38 · TC-SSR 7 · TC-WR 21 · TC-WRS 3 · TC-FV 5 · TC-MK 7 · TC-MI 7 · TC-MKT 14 · TC-BV 4 · TC-HFO 5 · TC-BS 4 · TC-CIN 17 · TC-CV 12 | 시험 | 있음 96파일 | 시험 있음 |
 | `P01-①-3` | 설계서 4.1절 | CHAT-01~02 · DOC-01~04 · GRPH-06 · CONV-01~08 · ING-05~07 · KB-02 | 🟢 TC-LW 12 · TC-SG 5 · TC-SQ 8 · TC-DI 16 · TC-DIA 3 · 🟡 TC-CM 9 · TC-VS 6 · TC-KB 18 · TC-KA 23 · TC-KS 8 · TC-KD 12 · TC-SY 6 · TC-SX 2 · TC-KF 13 · TC-SCC 6 · TC-TR 11 · TC-TA 6 · TC-VD 8 · 안 TC-RG | 시험 | 있음 38파일 | 시험 있음 |
 | `P01-①-4` | 설계서 4.1절 · 수집기 README 15절(일일 갱신) | SYS-02~03 · ING-08~11 · KB-01 (새 2) | 🟢 TC-DU 86 · TC-DF17 17 · TC-CN 5 · TC-CA 12 · TC-DST 31 · TC-HF 13 · TC-LE 36 · TC-HS 21 · TC-DH 5 · TC-DQ 12 · TC-EV 6 · TC-CS 19 · TC-CW 15 · TC-SU 25 · TC-FF 15 · TC-CI 8 · 🟡 TC-BF 7 · TC-CE 18 · TC-DF16 3 · TC-GW 10 · TC-NW 10 · TC-FS 6 · TC-DG 13 · TC-CQ 23 · TC-AJT 5 · TC-PLP 5 · TC-DCP 4 · TC-BG 6 · 안 TC-CAL | 시험 | 있음 24파일 | 시험 있음 |
 | `P01-①-5` | 설계서 4.1절 | (새 1) | 🟢 TC-XA 10 · TC-XR 22 · 🟡 TC-RX 27 · TC-RKS 7 · 안 TC-XA | 시연 | 있음 13파일 | 시험 있음 |
@@ -368,13 +368,13 @@ flowchart LR
 | `P01-③-1` | 설계서 4.3절 | STK-09 · PAPR-01 (새 2) | 🟢 TC-RBS 13 · 🟡 TC-RB 13 · TC-RBP 38 · TC-RBD 39 · TC-RBC 16 · TC-RBU 15 · TC-RBX 13 · TC-SDS 20 · TC-HFF 45 · 안 TC-RB | 시험 | 있음 29파일 | 시험 있음 |
 | `P01-③-2` | 설계서 4.3절 | STK-09 · PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 12파일 | 시험 있음 |
 | `P01-③-3` | 설계서 4.3절 | PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 32파일 | 시험 있음 |
-| `P01-④-1` | 설계서 4.4절 · 설계서 3절 C3 · C4 | STK-30 · QNT-02~03 · PAPR-05 · ML-01~02 · 05~06 | 🟢 TC-BC 17 · 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 65파일 | 시험 있음 |
+| `P01-④-1` | 설계서 4.4절 · 설계서 3절 C3 · C4 | STK-30 · QNT-02~03 · PAPR-05 · ML-01~02 · 05~06 | 🟢 TC-BC 17 · 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 67파일 | 시험 있음 |
 | `P01-④-2` | 설계서 4.4절 | STK-26 · 29 | 🟢 TC-SP 6 · 🟡 TC-SR 12 · TC-OP 14 · 안 TC-OP | 시험 | 있음 9파일 | 시험 있음 |
-| `P01-④-3` | 설계서 4.4절 · ADR-0001 · 설계서 3절 C5 | PAPR-01~08 · 10 · STK-10~13 · 24 · 27 (새 1) | 🟢 TC-I14 11 · TC-USO 25 · TC-PJ 20 · 🟡 TC-LT 32 · TC-USR 21 · TC-USS 14 · TC-QUOT 10 | 시험 | 있음 27파일 | 시험 있음 |
+| `P01-④-3` | 설계서 4.4절 · ADR-0001 · 설계서 3절 C5 | PAPR-01~08 · 10 · STK-10~13 · 24 · 27 (새 1) | 🟢 TC-I14 11 · TC-USO 25 · TC-PJ 20 · 🟡 TC-LT 32 · TC-USR 21 · TC-USS 14 · TC-QUOT 10 | 시험 | 있음 26파일 | 시험 있음 |
 | **원문 PROJECT 02 투자 인디케이터 (3차)** | | | | | | |
-| `P02-①-1` | 설계서 5.1절 · 설계서 3절 C2 | STK-04 · LEAN-02 | 🟡 TC-LA 46 · TC-IN 29 · TC-ICH 5 · 안 TC-IN | 시험 | 있음 39파일 | 시험 일부 |
-| `P02-①-2` | 설계서 5.1절 · 인디케이터 전략 설계서 4.3 | STK-30 · 32 | 🟡 TC-BC 17 · TC-SP 6 · TC-CRD 9 · TC-ISC 6 · TC-SCU 12 · 안 TC-CRD | 시험 | 있음 36파일 | 시험 일부 |
-| `P02-①-3` | 설계서 5.1절 · 설계서 3절 C4 · 결정 대장 D6 ⑤ · 인디케이터 전략 설계서 4.5 | STK-30 · LEAN-02~03 (새 1) | 🟡 TC-SL 15 · TC-BSL 7 · 안 TC-BSL | 분석 · 시험 | 있음 37파일 | 시험 일부 |
+| `P02-①-1` | 설계서 5.1절 · 설계서 3절 C2 | STK-04 · LEAN-02 | 🟡 TC-LA 46 · TC-IN 29 · TC-ICH 5 · 안 TC-IN | 시험 | 있음 40파일 | 시험 일부 |
+| `P02-①-2` | 설계서 5.1절 · 인디케이터 전략 설계서 4.3 | STK-30 · 32 | 🟡 TC-BC 17 · TC-SP 6 · TC-CRD 9 · TC-ISC 6 · TC-SCU 12 · 안 TC-CRD | 시험 | 있음 37파일 | 시험 일부 |
+| `P02-①-3` | 설계서 5.1절 · 설계서 3절 C4 · 결정 대장 D6 ⑤ · 인디케이터 전략 설계서 4.5 | STK-30 · LEAN-02~03 (새 1) | 🟡 TC-SL 15 · TC-BSL 7 · 안 TC-BSL | 분석 · 시험 | 있음 42파일 | 시험 일부 |
 | `P02-②-1` | 설계서 5.2절 | STK-30~33 | 🟢 TC-FM 14 · TC-VR 10 · 🟡 TC-TFS 10 · 안 TC-IN | 시험 | 있음 46파일 | 시험 있음 |
 | `P02-②-2` | 설계서 5.2절 · 설계서 3절 C2 | STK-04 · 30 | 🟢 TC-LA 46 · 🟡 TC-FM 14 · 안 TC-LA | 시험 | 희소 1파일 (04.html) | 시험 있음 |
 | `P02-②-3` | 설계서 5.2절 | STK-31~33 · OAPI-01~02 · 09 · PAPR-28~30 (새 1) | 🟡 TC-VR 10 · 안 TC-VR | 시험 | 있음 15파일 | 시험 일부 |
@@ -382,7 +382,7 @@ flowchart LR
 | `P02-③-2` | 설계서 5.3절 | LEAN-01~03 (새 1) | 🟡 TC-TV 17 · TC-LR 4 · TC-XV 22 · 안 TC-XV | 분석 | 있음 34파일 | 시험 일부 |
 | `P02-③-3` | 설계서 5.3절 | NOTI-01~04 (새 1) | 🟡 TC-TV 17 · TC-EXC 37 · TC-WH 41 · TC-WHP 13 · TC-NH 3 | 시험 | 있음 33파일 | 시험 일부 |
 | `P02-④-1` | 설계서 5.4절 · 설계서 3절 C1 · C3 | LEAN-02 · STK-03 | 🟡 TC-YH 2 · TC-CD 22 · TC-LR 4 · TC-LCS 2 · TC-LCA 6 · TC-LRF 4 · 안 TC-XV | 시험 | 있음 25파일 | 시험 일부 |
-| `P02-④-2` | 설계서 5.4절 · 설계서 3절 C4 | LEAN-02~03 · QNT-02 | 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 19파일 | 시험 일부 |
+| `P02-④-2` | 설계서 5.4절 · 설계서 3절 C4 | LEAN-02~03 · QNT-02 | 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 20파일 | 시험 일부 |
 | `P02-④-3` | 설계서 5.4절 | (새 1) | 🟡 TC-TV 17 · TC-LOE 4 · TC-TVC 3 · TC-TVK 3 · TC-CLY 5 · 안 TC-XV | 분석 | 있음 12파일 | 시험 일부 |
 | `P02-⑤-1` | 설계서 5.5절 · ADR-0001 · 증권사 연동 자동화 설계 4 | STK-14~16 · 19~24 · 27 | 🟢 TC-LT 32 · TC-GW 10 · TC-GP 30 · TC-KC 10 · TC-KL 3 · TC-KQ 14 · TC-KH 14 · TC-KEX 23 · TC-BCF 48 · TC-KBF 20 · TC-KSP 24 · TC-KRC 4 · 🟡 TC-BM 30 · TC-NV 16 · TC-KPR 41 | 시험 | 있음 30파일 | 시험 있음 |
 | `P02-⑤-2` | 설계서 5.5절 · 설계서 3절 C6 · 증권사 연동 자동화 설계 5 | STK-17~18 · 24~29 (새 2) | 🟢 TC-GP 30 · TC-US 7 · TC-QC 35 · TC-ATI 11 · TC-RK 4 · TC-DSV 14 · 🟡 TC-RG 5 · TC-AG 27 · TC-KBA 18 · TC-RGL 2 · TC-EP 22 · TC-OR 25 · TC-EG 19 · TC-QV 13 · TC-EXC 37 · 안 TC-RK | 시험 | 있음 26파일 | 시험 있음 |
@@ -419,7 +419,7 @@ flowchart LR
 | `SCH-DQ` | 수집기 README(벤치마크 검증 게이트) | — | 🟢 TC-DF01 21 · 🟡 TC-QUAL 11 | 시험 · 분석 | 있음 22파일 | 시험 있음 |
 | `SCH-ROB` | 결정 대장 D4 ⑤ · D6 ⑤ | — | — | 분석 | 있음 4파일 | 흔적 있음 |
 | `SCH-ORD` | — | — | 🟡 TC-GP 30 | 시험 | 있음 5파일 | 시험 일부 |
-| `SCH-RT` | — | — | — | 시험 · 분석 | 희소 2파일 (catalog.py · 03.html) | 흔적 있음 |
+| `SCH-RT` | — | — | — | 시험 · 분석 | 있음 5파일 | 흔적 있음 |
 
 검사 결과 (사람이 확인해 대장에 적은 것)
 - `RFP2-3.2-①` — 🟡 2026-09-30 — 수집 DB 는 공공데이터포털 · KRX · DART(수집기 README 약관 판정) · 야후 참조가 13파일 75줄 남았다(그중 2줄은 스캐너의 찾는 코드 · 3줄은 강사님 기초 코드로 들어온 것 · 시험 TC-YH 기준선) · 통합본 반입 폴더(rag-lab/)는 앱과 이어지지 않아 이 검사가 훑지 않는다 — 기능을 옮길 때 본다
@@ -738,10 +738,10 @@ flowchart LR
 | TC-SCD | `test_signal_cards_screen.py` | 3 | `P01-②-3` | 🟡 | 퀀트 대시보드 「규칙 신호」 카드(S167 · 할 일 ②-21 · ②-22 · 화면만 — 서버 응답 · _generate_signal · 일지 판 지문은 그대로) — node 로 quant.js 의 signalCardHtml 을 돌려: 「근거 n개」 · 근거 목록 · 출처 한 줄(data_note) · 현재가 옆 「종가」 · 기준일(as_of)이 서버가 알려 준 전 거래일보다 앞이면 「⚠ 최신 아님」 · 전 거래일을 모르면 경고 안 함(거짓 경고 금지) · 응답 실패(null) · 근거 없음 · HTML 이스케이프(script · img) · 제목 「규칙 신호 (자동매매 대상 N종목)」(대표 5종목 아님 · 실제 그리는 수) · 도움말 낱말 「규칙 신호」 · AI 매매 시그널 문구가 남지 않음. 브라우저 화면 확인은 아직 — 이 PC 앱 8966 에서 눈으로 볼 것 |
 | TC-BS | `test_binance_store.py` | 4 | `P01-①-2` | 🟡 | 코인 봉 저장 · 개인 수집 스크립트(S167 · 할 일 ①-13 · collector/binance_store.py · scripts/personal_binance.py · 합성 zip · 가짜 HF) — 월 파일 쓰기(멱등 · 덮어쓰기) → 적재(잘게는 해 · 종목 파일 · 거친 주기는 종목당 하나 · 시간순 · 키 중복은 숨기지 않고 오류 · 달이 없으면 None) · 받기 한 건(이미 받은 달은 건너뜀 · 404 는 none · 체크섬이 다르면 막음) · 올리기(팀 조직에는 거부 · 토큰 없음 · 권한 없음 · 접근 불가는 에러 없이 건너뜀 · dry-run 은 안 올림 · 90개씩 커밋) · 팀 러너 · 앱이 이 부품을 안 부름. 실제 올림은 별도 확인(원격 parquet 60 · 지문 일치 3) |
 | TC-CIN | `test_company_indicators.py` | 17 | `P01-①-2` | 🟡 | 기업 지표 서비스 — PER = 종가 ÷ 보고 기본주당이익(시가총액 ÷ 순이익이 아님) · PBR 우선주 근사 · ROE 지배주주 몫 · 적자 · 자본잠식 · 지배 몫 계정 없음(총액과 섞지 않음) · 금융회사 영업이익률 줄표 · 배당 12개월 · 시점 고정 · 업종(KSIC) 중앙값 · 종목 목록 · 라우트 422 · 404 · 503(할 일은 관리자에게만) |
-| TC-CV | `test_companyview_screen.py` | 10 | `P01-①-2` | 🟡 | 지표 대시보드 · 지표 비교 · 섹터 화면 판단 — 응답 값 그대로 · 숫자 밑 식 · 기준 한 줄 · 근사 · 줄표 + 까닭 · 개요 카드 · 분기 실적 · 재무상태 표 · 가격 차트 글(실시간이 아님) · 비교 표 · 종목 찾기 · 요청 실패 격리 · 업종 카드 · 야후 없음 |
-| TC-CRY | `test_coinview_screen.py` | 4 | — | — | 코인 모의매매 화면 — 시세 출처 · 한계 글과 주문 체결 방식 글이 서버가 실제로 하는 일과 같다(수수료 · 슬리피지 없음 · 5초 저장 · 실패 시 마지막 값) · 일봉 차트 점 · 글 · 화면 칸 · 야후 없음 |
+| TC-CV | `test_companyview_screen.py` | 12 | `P01-①-2` | 🟡 | 지표 대시보드 · 지표 비교 · 섹터 화면 판단 — 응답 값 그대로 · 숫자 밑 식 · 기준 한 줄 · 근사 · 줄표 + 까닭 · 개요 카드 · 분기 실적 · 재무상태 표 · 가격 차트 글(실시간이 아님) · 비교 표 · 종목 찾기 · 요청 실패 격리 · 업종 카드 · 야후 없음 · 현재가 카드(내 증권사 키 시세 · 연결 안내 · 장 마감) · 오늘 점 갱신 연결(키 있는 사람만 약 10초마다) |
+| TC-CRY | `test_coinview_screen.py` | 6 | — | — | 코인 모의매매 화면 — 시세 출처 · 한계 글과 주문 체결 방식 글이 서버가 실제로 하는 일과 같다(수수료 · 슬리피지 없음 · 5초 저장 · 실패 시 마지막 값) · 일봉 차트 점 · 글 · 화면 칸 · 야후 없음 · 실시간 판단(구독 · 체결 · 시각 · 일봉 날짜 · 배지 · 가격 어긋남 · 재연결) · 연결 화면 안전(주소 한 곳 · 닫기 · 저장 없음) |
 
-합계 — 시험 3530건 · 256파일 = 요구에 붙은 2900건 + 요구 없는 도구 시험 459건 + 대장에 없는 파일 14개(tests/test_backtest_sizing.py · tests/test_broker_secrets.py · tests/test_company_screens_honest.py · tests/test_comparechart_screen.py · tests/test_fixed_test_strategy.py · tests/test_kis_connection_probe.py · tests/test_manual_broker_order.py · tests/test_order_pricing.py · tests/test_paper_snapshot_task.py · tests/test_price_basis.py · tests/test_strategy_v2.py · tests/test_strategy_v2_execution.py · tests/test_strategy_v2_pg.py · tests/test_trading_order_screen_honest.py)
+합계 — 시험 3534건 · 256파일 = 요구에 붙은 2902건 + 요구 없는 도구 시험 461건 + 대장에 없는 파일 14개(tests/test_backtest_sizing.py · tests/test_broker_secrets.py · tests/test_company_screens_honest.py · tests/test_comparechart_screen.py · tests/test_fixed_test_strategy.py · tests/test_kis_connection_probe.py · tests/test_manual_broker_order.py · tests/test_order_pricing.py · tests/test_paper_snapshot_task.py · tests/test_price_basis.py · tests/test_strategy_v2.py · tests/test_strategy_v2_execution.py · tests/test_strategy_v2_pg.py · tests/test_trading_order_screen_honest.py)
 <!-- /rtm_scan:시험 -->
 
 2026-10-19 #170: TC-RBUI의 실제 Chrome 인수 시험 1건(내부 검사 17항목)을 U2·U5에 연결했다. 이번에는 앱 의존성이 갖춰진 격리 환경에서 pytest 수집 2341건·168파일을 확인하고 RTM 8개 블록을 다시 생성했다. 이는 전체 2341건을 실행·통과했다는 뜻이 아니다. 운영 러너 대조의 남은 범위는 [화면 검증 근거](../../04-testing/리밸런싱-화면검증-근거.md)를 따른다.
