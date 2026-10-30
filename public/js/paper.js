@@ -1,5 +1,6 @@
 /* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
+import { COIN_SOURCE_NOTE, COIN_ORDER_NOTE, coinPoints, coinChartSummary } from "/js/coinview.js";
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
@@ -347,6 +348,60 @@ async function loadPaperCrypto() {
   loadCryptoRankings();
 }
 
+// ── 코인 일봉 차트(업비트 공개 시세 · 화면에만 · 저장하지 않음 · 2026-10-30 ①-20) ──────────────────────────────
+const PC_LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
+let pcChart = null, pcChartSeq = 0, pcLwcPromise = null;
+
+function pcLoadLwc() {
+  if (window.LightweightCharts) return Promise.resolve(window.LightweightCharts);
+  if (!pcLwcPromise) {
+    pcLwcPromise = new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = PC_LWC_SRC;
+      const timer = setTimeout(() => reject(new Error("timeout")), 15000);
+      el.onload = () => { clearTimeout(timer); window.LightweightCharts ? resolve(window.LightweightCharts) : reject(new Error("empty")); };
+      el.onerror = () => { clearTimeout(timer); reject(new Error("load")); };
+      document.head.appendChild(el);
+    }).catch(e => { pcLwcPromise = null; throw e; });
+  }
+  return pcLwcPromise;
+}
+
+async function pcDrawChart(code) {
+  const box = $("pc-chart"), note = $("pc-chart-note");
+  if (!box || !note) return;
+  const seq = ++pcChartSeq;
+  if (pcChart) { pcChart.remove(); pcChart = null; }
+  box.innerHTML = "";
+  note.textContent = "일봉을 불러오는 중…";
+  let pts = [];
+  try {
+    const r = await api(`/api/paper/crypto/${encodeURIComponent(code)}/candles?unit=days&count=120`);
+    pts = coinPoints(r.candles);
+  } catch (e) { if (seq === pcChartSeq) note.textContent = `일봉을 받지 못했습니다: ${e.message}`; return; }
+  if (seq !== pcChartSeq) return;
+  note.textContent = coinChartSummary(pts);
+  if (!pts.length) return;
+  let L;
+  try { L = await pcLoadLwc(); } catch (e) { note.textContent += " (차트 라이브러리를 불러오지 못했습니다.)"; return; }
+  if (seq !== pcChartSeq) return;
+  pcChart = L.createChart(box, {
+    autoSize: true,
+    layout: { background: { color: "#ffffff" }, textColor: "#334155", fontSize: 11, attributionLogo: true },
+    grid: { vertLines: { color: "#f1f5f9" }, horzLines: { color: "#eef1f6" } },
+    rightPriceScale: { borderColor: "#dde2ec", scaleMargins: { top: 0.08, bottom: 0.18 } },
+    timeScale: { borderColor: "#dde2ec", fixLeftEdge: true, fixRightEdge: true, lockVisibleTimeRangeOnResize: true },
+    localization: { locale: "ko-KR", dateFormat: "yyyy-MM-dd" },
+    handleScroll: false, handleScale: false,
+  });
+  const series = pcChart.addSeries(L.LineSeries, {
+    color: "#4361ee", lineWidth: 2, priceLineVisible: false,
+    priceFormat: { type: "custom", formatter: v => Math.round(v).toLocaleString("ko-KR"), minMove: 1 },
+  });
+  series.setData(pts);
+  pcChart.timeScale().fitContent();
+}
+
 async function cryptoTicker() {
   const code = $("pc-market").value;
   if (!code) return;
@@ -360,6 +415,10 @@ async function cryptoTicker() {
     $("pc-ticker").innerHTML = t ? `<strong>${escHtml(m.koreanName || code)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(code)}</span>
       <div class="text-xl font-bold mt-1">${won(t.price)} <span class="text-sm ${signCls(t.changeRate)}">${fmtPct(t.changeRate)}</span></div>
       <div class="text-xs" style="color:var(--text-mute);">24h 고가 ${won(t.high24h)} · 저가 ${won(t.low24h)} · 거래대금 ${fmt(t.accTradePrice24h / 1e8, 1)}억</div>` : `<span class="text-red-500">시세 없음</span>`;
+    // 시세 출처 · 한계 · 주문 체결 방식 글(설계 결정 ① 2026-10-30 — coinview.js) + 일봉 차트
+    $("pc-source-note").textContent = COIN_SOURCE_NOTE;
+    $("pc-order-note").innerHTML = COIN_ORDER_NOTE.map(l => `<div>${escHtml(l)}</div>`).join("");
+    pcDrawChart(code);
     const p = dom.prices || {};
     $("pc-domestic").innerHTML = `<div class="text-xs font-semibold mb-1">국내 거래소 가격 비교 ${dom.spreadPct != null ? `<span style="color:var(--text-mute);">(최대 스프레드 ${dom.spreadPct}%)</span>` : ""}</div>
       <div class="grid grid-cols-3 gap-2 text-xs">${[["upbit", "Upbit"], ["bithumb", "Bithumb"], ["korbit", "Korbit"]].map(([k, label]) => `<div class="rounded-lg p-2" style="background:var(--surf);border:1px solid var(--border);"><div style="color:var(--text-dim);font-weight:600;">${label}</div><b>${p[k] ? won(p[k]) : "-"}</b></div>`).join("")}</div>`;

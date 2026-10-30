@@ -1,11 +1,10 @@
-"""TC-CPH · 투자 인디케이터 › 지표 대시보드 · 지표 비교 · 섹터 인디케이터의 정직한 표시 (3차 ①-16 첫 단계 · 2026-10-30).
+"""TC-CPH · 투자 인디케이터 › 지표 대시보드 · 지표 비교 · 섹터 인디케이터에 고정 값이 없다 (3차 ①-16 · 2026-10-30).
 
-무엇이 틀렸었나 — 지표 비교 표와 섹터 카드는 화면 파일에 적어 둔 고정 숫자(삼성전자 PER 16.2 · 평균 PER 22.3 ·
-「긍정 · 중립 · 부정」 전망)를 출처 · 기준일 없이 실제 지표처럼 보였다. 지표 대시보드의 재무 값은 야후 재무 요약
-(서버 저장본 최대 6시간)인데 그 사실과 기준일 없음이 화면에 없었다.
+무엇이 틀렸었나 — 지표 비교 표와 섹터 카드는 화면 파일에 적어 둔 고정 숫자(삼성전자 PER 16.2 · 평균 PER 22.3 · 「긍정 · 중립 · 부정」 전망)를 출처 · 기준일 없이
+실제 지표처럼 보였고, 지표 대시보드는 야후 재무 요약(기준일 없음)을 그대로 보였다. 같은 날 첫 단계로 「고정 예시 값」 안내 글을 붙였다가(10-30 오전),
+본 작업(전자공시 · 업종코드 KSIC 로 계산)이 끝나 세 화면이 모두 서버가 계산한 값을 그리게 되면서 안내 글 · 고정 값을 지웠다.
 
-이 시험은 「밝히는 글」 이 화면에 있는지만 본다. 고정 값을 DART 재무 · 업종코드(KSIC)로 바꾸는 일은 ①-16 본 작업이다
-(그 일이 끝나면 compare · sector 의 안내 글과 이 시험의 해당 줄을 함께 지운다).
+이 시험은 고정 값 · 옛 안내가 다시 들어오지 않는지만 본다. 값 계산은 TC-CIN(서비스) · 글 규칙은 TC-CV(화면 판단)가 시험한다.
 """
 from __future__ import annotations
 
@@ -23,30 +22,27 @@ def _view(name: str) -> str:
     return m.group(1)
 
 
-def test_compare_and_sector_say_their_numbers_are_fixed_examples():
-    for name in ("company-compare", "company-sector"):
-        view = _view(name)
-        assert "data-co-static-note" in view, name
-        assert "고정 예시 값입니다" in view and "투자 판단 근거로 쓰지 마세요" in view and "①-16" in view, name
-    assert "실제 재무가 아닙니다" in _view("company-compare")
-    assert "「긍정 · 중립 · 부정」 전망" in _view("company-sector"), "섹터 전망이 근거 없는 값임을 말한다"
+def test_no_fixed_example_numbers_or_notes_remain():
+    """고정 예시 값 상수 · 안내 상자가 세 화면 어디에도 없다."""
+    for name in ("company-dashboard", "company-compare", "company-sector"):
+        assert "data-co-static-note" not in _view(name) and "고정 예시 값입니다" not in _view(name), name
+    for fixed in ("CO_DATA", "avgPer", "outlook", "긍정", "/api/stocks/fundamentals"):
+        assert fixed not in COMPANY, fixed
 
 
-def test_static_note_sits_before_the_numbers_it_warns_about():
-    compare, sector = _view("company-compare"), _view("company-sector")
-    assert compare.index("data-co-static-note") < compare.index('id="co-compare-table"')
-    assert sector.index("data-co-static-note") < sector.index('id="co-sector-cards"')
-
-
-def test_dashboard_names_its_source_and_missing_base_date():
-    m = re.search(r"function renderCompanyData\(d\) \{.*?\n\}\n", COMPANY, flags=re.S)
+def test_dashboard_reads_our_own_data_not_yahoo_summary():
+    """지표 대시보드는 야후 재무 요약(근거 · 기준일 없음)이 아니라 전자공시 · 수집 일봉을 읽는다(TC-CV 가 글 규칙을 시험한다)."""
+    m = re.search(r"function renderCompanyData\(p\) \{.*?\n\}\n", COMPANY, flags=re.S)
     assert m, "renderCompanyData 를 찾지 못했다"
     body = m.group(0)
-    assert "data-co-basis" in body and "야후 파이낸스 재무 요약" in body
-    assert "최대 6시간" in body and "기준 분기 · 기준일을 응답이 알려 주지 않습니다" in body
-    assert "escHtml(d.priceNote" in body, "현재가 글은 서버 글을 이스케이프해 쓴다"
+    assert "cvOverviewCards" in body and "cvValuationRows" in body and "cvProfitRows" in body and "escHtml" in body
+    assert 'id="co-chart"' in APP and 'id="co-chart-note"' in APP
 
 
-def test_compare_and_sector_functions_still_render_the_fixed_values():
-    """안내 글은 값을 지우지 않고 덧붙인 것이다 — 본 작업 전까지 표 · 카드는 그대로 그려진다."""
-    assert "function loadCompanyCompare()" in COMPANY and "function loadCompanySector()" in COMPANY
+def test_compare_and_sector_read_server_values_and_link_each_other():
+    """비교 · 섹터는 서버 응답을 그리고(고정 배열 없음) 섹터 ↔ 산업 화면이 서로를 가리킨다(설계 결정 ③ 안 C)."""
+    assert "cvCompareLoad" in COMPANY and "cvCompareTable" in COMPANY and "/api/data/indicators/universe" in COMPANY
+    assert "/api/data/indicators/sectors" in COMPANY and "cvSectorCards" in COMPANY
+    assert 'href="#macro-industry"' in _view("company-sector")
+    assert 'href="#company-sector"' in _view("macro-industry")
+    assert 'id="co-compare-form"' in _view("company-compare") and 'id="co-sector-note"' in _view("company-sector")
