@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 import os
 
 
@@ -184,6 +185,8 @@ class Settings(BaseSettings):
     DOMAIN_RAG_LAB_BASE_URL: str = ""
     DOMAIN_RAG_LAB_API_KEY: str = ""
     STRATEGY_SPEC_CACHE_TTL: int = 600
+    # fixed_test는 저장소의 고정 판 1만 읽는 가상계좌 시험 모드다. 원격 합격 전략과 구분한다.
+    STRATEGY_SPEC_SOURCE: Literal["remote", "fixed_test"] = "remote"
 
     # ── 금융감독원 「금융상품 한눈에」 오픈 API (상품 안내 — 예금 · 적금 · 연금저축 · 2026-10-12) ──────
     # 약관: 실시간 연동만(복제 · 저장 · 전송 금지 · 제9조) · 인증키는 발급받은 사람만 · 1인 1키(제5조) · 개인 1일 10,000건(제7조).

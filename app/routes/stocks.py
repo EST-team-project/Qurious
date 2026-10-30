@@ -610,8 +610,10 @@ def _live_gateway_info() -> dict:
 
 @router.get("/quant/strategies")
 async def list_quant_strategies(user=Depends(get_current_user)):
-    """domain-rag-lab 백테스트 합격 전략 목록 (종목 선정 화면 드롭다운)."""
-    return {"configured": strategy_loader.is_configured(), "strategies": await strategy_loader.list_strategies()}
+    """선택한 공급원의 전략 목록. 고정 시험 입력은 가상계좌 전용으로 표시한다."""
+    return {"configured": strategy_loader.is_configured(), "strategies": await strategy_loader.list_strategies(),
+            "source": "fixed_test" if strategy_loader.is_fixed_test() else "remote",
+            "test_only": strategy_loader.is_fixed_test()}
 
 
 @router.get("/quant/live-orders")
@@ -710,6 +712,8 @@ async def save_quant_settings(
     mode = (body.mode or "paper").strip().lower()
     if mode not in ("paper", "live"):
         raise HTTPException(422, "mode는 paper 또는 live 이어야 합니다.")
+    if strategy_loader.is_fixed_test() and mode != "paper":
+        raise HTTPException(422, "고정 시험 전략은 앱 가상계좌에서만 실행할 수 있습니다.")
 
     symbol_source = (body.symbol_source or "ai").strip().lower()
     if symbol_source not in ("ai", "manual"):
@@ -742,7 +746,7 @@ async def save_quant_settings(
     if strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)
         if spec is None:
-            raise HTTPException(422, f"domain-rag-lab 에 합격한 전략이 없습니다: {strategy_id}")
+            raise HTTPException(422, f"선택한 공급원에서 전략과 버전을 확인하지 못했습니다: {strategy_id}")
         row.quant_strategy_id = strategy_id
         row.quant_strategy_version = int(spec.get("version") or body.strategy_version or 0)
     else:

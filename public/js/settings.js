@@ -102,7 +102,7 @@ function renderLiveRoute() {
   renderExecutionMode(document.getElementById("quant-mode"), el, selectedExecutionMode());
 }
 
-// ── domain-rag-lab 백테스트 합격 전략 드롭다운 ───────────────────────────
+// ── 전략 선택 — 합격 전략과 가상계좌 고정 시험 입력을 구분한다 ──────────
 async function loadStrategies(selectedId, selectedVersion) {
   const sel = document.getElementById("quant-strategy");
   const hint = document.getElementById("quant-strategy-hint");
@@ -112,7 +112,9 @@ async function loadStrategies(selectedId, selectedVersion) {
     const list = data.strategies || [];
     sel.innerHTML = `<option value="">기본 규칙 (기술지표 시그널)</option>` + list.map((s) => {
       const br = s.backtest_result || {};
-      const label = `${escHtml(s.name)} v${s.version} · 연 ${fmtPct(br.annualized_return_pct ?? 0)} · MDD ${fmtPct(br.max_drawdown_pct ?? 0)}`;
+      const label = s.test_only
+        ? `${escHtml(s.name)} v${s.version} · 가상계좌 시험용 (합격 전략 아님)`
+        : `${escHtml(s.name)} v${s.version} · 연 ${fmtPct(br.annualized_return_pct ?? 0)} · MDD ${fmtPct(br.max_drawdown_pct ?? 0)}`;
       return `<option value="${escHtml(s.strategy_id)}" data-version="${s.version}">${label}</option>`;
     }).join("");
     if (selectedId && [...sel.options].some((o) => o.value === selectedId)) sel.value = selectedId;
@@ -121,7 +123,10 @@ async function loadStrategies(selectedId, selectedVersion) {
       sel.value = selectedId;
     }
     // Qurious: 서버 설정 이름 대신 사용자 말로(화면 결정 ③ C)
-    if (hint) hint.textContent = data.configured
+    if (hint) hint.textContent = data.test_only
+      ? (list.length ? "가상계좌 시험용 고정 전략입니다. 백테스트 합격 전략이 아니며 증권사 주문에는 사용할 수 없습니다."
+        : "시험 전략 파일을 확인하지 못했습니다. 선택한 전략의 실행을 보류합니다.")
+      : data.configured
       ? (list.length ? `검증을 통과한 전략 ${list.length}개` : "검증을 통과한 전략이 아직 없어 기본 규칙으로 돕니다")
       : "검증을 통과한 전략이 아직 연결되지 않아 기본 규칙으로 돕니다";
   } catch (e) {
