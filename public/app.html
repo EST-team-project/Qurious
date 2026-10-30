@@ -286,18 +286,19 @@
                     </div>
                   </div>
                 </div>
-                <!-- 키움/토스 API 연동 -->
-                <div class="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <h3 class="font-semibold mb-3">증권사 API 연동 (Mockup)</h3>
-                  <div id="trading-broker-status" class="space-y-2 text-sm text-slate-400 mb-3"></div>
-                  <div class="space-y-2">
-                    <input id="kiwoom-key" class="input" placeholder="키움증권 App Key" />
-                    <input id="kiwoom-secret" class="input" type="password" placeholder="키움증권 Secret" />
-                    <input id="toss-key" class="input" placeholder="토스증권 App Key" />
-                    <input id="toss-secret" class="input" type="password" placeholder="토스증권 Secret" />
-                    <button id="trading-broker-save" class="btn-primary w-full">설정 저장</button>
+                <!-- 증권사 연동 상태 · 이 화면 주문이 가는 곳 (2026-10-30 ①-17 — 키 입력칸 · 「설정 저장」 단추를 없앴다: 마이페이지 증권사 칸을 몰래 읽어 증권사 설정을 비우거나 바꿀 수 있었다) -->
+                <div class="rounded-xl border border-white/10 bg-black/20 p-4" data-trading-order-note>
+                  <h3 class="font-semibold mb-3">이 화면의 주문은 어디로 가나</h3>
+                  <div class="text-xs px-3 py-2 rounded-lg mb-3" style="background:var(--surf);color:var(--text-dim);border:1px solid var(--border);line-height:1.65;">
+                    이 화면의 매수 · 매도는 <b>증권사로 나가지 않고</b> 이 앱 안에 「체결」 로만 기록됩니다. 증권사 이름은 기록에 붙는 꼬리표이고,
+                    <b>「가상 매매」 만 모의 계좌 현금이 함께 움직입니다</b>(다른 증권사를 고르면 현금은 그대로고 보유만 바뀝니다).
+                    앱 안 모의 계좌 주문은 <a href="#paper-stock" class="underline">국내주식 모의주문</a>, 전략 자동 실행은 <a href="#quant-auto" class="underline">자동매매</a>에서 합니다.
                   </div>
-                  <div class="mt-2 text-xs text-slate-500">* Mockup: 실제 API 연결 없이 시뮬레이션만 동작합니다.</div>
+                  <div class="text-xs mb-1" style="color:var(--text-mute);">내 증권사 연동 상태(읽기 전용)</div>
+                  <div id="trading-broker-status" class="space-y-2 text-sm text-slate-400 mb-3"></div>
+                  <div class="text-xs" style="color:var(--text-mute);line-height:1.6;">
+                    증권사 키 · 계좌 설정은 <a href="#mypage" class="underline">마이페이지 › 증권사 연동</a>에서만 바꿉니다.
+                  </div>
                 </div>
               </div>
               <h3 class="font-semibold mb-2 text-sm">최근 주문 내역</h3>
@@ -1151,7 +1152,7 @@
             </div>
           </div>
 
-          <!-- ══ 5. 미국주식 (Alpaca Mockup) ══════════════════════════════════ -->
+          <!-- ══ 5. 미국주식 (원화 모의 장부 · 야후 파이낸스 지연 시세 — Alpaca 키 칸은 2026-10-30 에 없앰: 저장해도 어디에도 가지 않았다) ══ -->
           <!-- 5-1. 미국주식 대시보드 -->
           <div class="view" data-view="us-dashboard">
             <div class="space-y-4">
@@ -1222,21 +1223,17 @@
                   </div>
                 </div>
                 <div class="rounded-xl p-4" style="background:var(--surf2);border:1px solid var(--border);">
-                  <h3 class="font-semibold mb-3 text-sm">Alpaca API 설정</h3>
-                  <div class="space-y-2">
+                  <h3 class="font-semibold mb-3 text-sm">이 주문이 기록되는 곳</h3>
+                  <div class="space-y-2" data-us-order-note>
                     <div class="text-xs px-3 py-2 rounded-lg"
-                      style="background:rgba(67,97,238,0.12);color:#a5b4fc;border:1px solid rgba(67,97,238,0.3);">
-                      주문은 원화 모의 계좌(국내주식 모의주문과 같은 계좌)에 기록됩니다 — 받은 시세에 그때 환율을 곱한 원화 값으로 체결합니다. 미국 정규장이 닫힌 때는 예약 주문으로 받아 다음 정규장 시작가로 체결합니다(체결 전 취소 가능). 지금은 시장가 매수만 됩니다(지정가 · 매도는 준비 중). Alpaca 키를 등록하면 퀀트 파이프라인의 Paper Trading 실주문과 연동됩니다.
+                      style="background:rgba(67,97,238,0.12);color:var(--text);border:1px solid rgba(67,97,238,0.3);line-height:1.65;">
+                      주문은 원화 모의 계좌(국내주식 모의주문과 같은 계좌)에만 기록됩니다 — 받은 시세에 그때 환율을 곱한 원화 값으로 셈합니다. 미국 정규장이 닫힌 때는 예약 주문으로 받아 다음 정규장 시작가로 체결을 시도합니다(체결 전 취소 가능 · 체결하지 못하면 건너뛰고 까닭을 이 화면에 보입니다). 지금은 시장가 매수만 됩니다(지정가 · 매도는 준비 중).
                     </div>
-                    <input id="alpaca-key" class="input" placeholder="Alpaca API Key ID" />
-                    <input id="alpaca-secret" class="input" type="password" placeholder="Alpaca Secret Key" />
-                    <label class="flex items-center gap-2 text-sm cursor-pointer" style="color:var(--text-dim);">
-                      <input id="alpaca-paper" type="checkbox" checked class="w-4 h-4" />
-                      <span>Paper Trading (모의투자)</span>
-                    </label>
-                    <button id="alpaca-save" class="btn-primary w-full">저장 / 연결</button>
+                    <div class="text-xs px-3 py-2 rounded-lg" style="background:var(--surf);color:var(--text-dim);border:1px solid var(--border);line-height:1.6;">
+                      외부 증권사(Alpaca) 계좌에는 주문이 나가지 않으며, 이 화면에서는 Alpaca 키를 받지 않습니다. Alpaca 모의 계좌를 읽기 전용으로 확인하려면
+                      <a href="#paper-openapi" style="text-decoration:underline;">모의투자 › Open API · 외부 연동</a> 화면을 쓰세요.
+                    </div>
                   </div>
-                  <div id="alpaca-status" class="mt-2 text-xs" style="color:var(--text-dim);"></div>
                 </div>
               </div>
               <h3 class="font-semibold mb-2 text-sm">최근 주문 내역</h3>
@@ -1304,6 +1301,11 @@
             <div class="card">
               <h2 class="text-lg font-semibold mb-1">📋 투자 지표 비교 분석</h2>
               <p class="text-xs mb-4" style="color:var(--text-mute);">주요 5개 종목의 핵심 투자 인디케이터를 나란히 비교합니다</p>
+              <div data-co-static-note class="text-xs mb-3 px-3 py-2 rounded-lg" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:var(--text);line-height:1.65;">
+                <b>고정 예시 값입니다 — 지금의 실제 재무가 아닙니다.</b> 이 표의 숫자는 화면에 미리 적어 둔 값(분기 23Q2 ~ 24Q1 시점)이며 출처 · 기준일이 없습니다.
+                실제 전자공시(DART) 재무와 종목별 업종코드로 바꾸는 작업(3차 ①-16)이 끝나기 전에는 투자 판단 근거로 쓰지 마세요.
+                종목 하나의 지표는 「지표 대시보드」 에서 야후 파이낸스 재무 요약으로 볼 수 있습니다.
+              </div>
               <div id="co-compare-table" class="overflow-x-auto"></div>
             </div>
           </div>
@@ -1555,6 +1557,10 @@
             <div class="card">
               <h2 class="text-lg font-semibold mb-1">🗂️ 섹터별 투자 인디케이터</h2>
               <p class="text-xs mb-4" style="color:var(--text-mute);">산업·섹터별 밸류에이션 및 수익성 지표를 비교 분석합니다</p>
+              <div data-co-static-note class="text-xs mb-3 px-3 py-2 rounded-lg" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45);color:var(--text);line-height:1.65;">
+                <b>고정 예시 값입니다 — 지금의 실제 섹터 지표가 아닙니다.</b> 평균 PER · PBR 과 「긍정 · 중립 · 부정」 전망은 화면에 미리 적어 둔 값이며 계산 근거 · 기준일이 없습니다.
+                종목별 업종코드(KSIC)와 DART 재무로 계산한 값으로 바꾸는 작업(3차 ①-16)이 끝나기 전에는 투자 판단 근거로 쓰지 마세요.
+              </div>
               <div id="co-sector-cards" class="grid md:grid-cols-3 gap-4"></div>
             </div>
           </div>

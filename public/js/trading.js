@@ -68,6 +68,10 @@ async function loadPortfolio() {
         ※ 보유 종목은 <b>국내주식 모의주문</b>의 매수·매도로만 바뀝니다.
         <a class="underline" href="#paper-stock">국내주식 모의주문 →</a>
       </div>
+      <div data-pf-basis class="text-xs mb-2" style="color:var(--text-mute);line-height:1.6;">
+        현재가는 이 화면을 연 시점에 받은 시세로, 지연 시세일 수 있습니다 — 이 화면의 응답에는 출처 · 시각이 없어 칸마다 적지 못합니다.
+        시세를 받지 못한 종목은 「-」 로 두고 평단가로 대신하지 않습니다.
+      </div>
       <table class="w-full text-xs border-collapse">
         <thead><tr class="text-slate-400 border-b border-white/10">
           <th class="py-2 text-left">종목</th>
@@ -88,7 +92,10 @@ async function loadPortfolio() {
           `).join("")}
         </tbody>
       </table>`;
-  } catch {}
+  } catch (e) {
+    const el = document.getElementById("portfolio-table");
+    if (el) el.innerHTML = `<div class="text-xs" style="color:var(--red);">보유 종목을 불러오지 못했습니다 — ${escHtml(e.message || "까닭 모름")}</div>`;
+  }
 }
 
 document.getElementById("pf-add")?.addEventListener("click", () => {
@@ -105,7 +112,8 @@ async function placeOrder(type) {
   if (!symbol || !name || !price || !qty) return setToast("모든 항목을 입력하세요.", "error");
   try {
     await api("/api/orders", { method: "POST", body: { symbol, name, order_type: type, quantity: qty, price, broker } });
-    setToast(`${type === "buy" ? "매수" : "매도"} 주문 완료 (${broker})`, "ok");
+    // 증권사로 나간 주문이 아니다 — 앱 안 기록(서버 /api/orders 는 증권사를 부르지 않는다)
+    setToast(`${type === "buy" ? "매수" : "매도"} 기록 완료 (앱 안 기록 · ${broker === "virtual" ? "가상 매매" : broker + " 꼬리표 · 현금 그대로"})`, "ok");
     loadOrderHistory();
   } catch (e) { setToast(e.message, "error"); }
 }
@@ -140,29 +148,8 @@ async function loadBrokerStatus() {
     `;
   } catch {}
 }
-document.getElementById("trading-broker-save")?.addEventListener("click", async () => {
-  try {
-    const selected = document.getElementById("ord-broker")?.value || "mock";
-    const broker = selected === "virtual" ? "mock" : selected;
-    const appKey = document.getElementById("kiwoom-key")?.value
-      || document.getElementById("broker-app-key")?.value
-      || "";
-    const appSecret = document.getElementById("kiwoom-secret")?.value
-      || document.getElementById("broker-app-secret")?.value
-      || "";
-    const accountNo = document.getElementById("broker-account")?.value || "";
-    const paper = document.getElementById("broker-paper")?.checked ?? true;
-    await api("/api/broker/settings", { method: "POST", body: {
-      broker,
-      app_key: appKey,
-      app_secret: appSecret,
-      account_no: accountNo,
-      paper,
-    }});
-    setToast("설정 저장 완료", "ok");
-    loadBrokerStatus();
-  } catch (e) { setToast(e.message, "error"); }
-});
+// 「설정 저장」 단추는 2026-10-30 에 없앴다 — 주문 칸의 증권사 선택값(가상 매매 → mock)과 마이페이지 입력칸(broker-app-key 등)을
+// 몰래 읽어 /api/broker/settings 로 보냈고, 서버는 mock · KIS 로 저장하면 저장된 키 · 계좌를 비운다. 증권사 설정은 마이페이지(settings.js)만 바꾼다.
 
 
 export { loadBrokerStatus, loadOrderHistory, loadPortfolio, loadStockChart };
