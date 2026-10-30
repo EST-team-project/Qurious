@@ -1,5 +1,6 @@
 """#284: 같은 장부의 평가 일치, 가격 누락 차단, 출처·날짜 보존."""
 import asyncio
+import os
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -85,3 +86,51 @@ def test_invalid_price_or_missing_basis_fails_closed(monkeypatch, field, value):
     monkeypatch.setattr(v.quote_now, 'quote_now', AsyncMock(return_value=q))
     with pytest.raises(ValueError, match='가격·출처'):
         asyncio.run(v.quote(DB(), uuid.uuid4(), '005930.KS'))
+
+
+@pytest.mark.skipif(not os.getenv('QURIOUS_TEST_DATABASE_URL'), reason='일회용 PostgreSQL 필요')
+@pytest.mark.usefixtures('rebalance_db_schema')
+@pytest.mark.parametrize('side,quantity,remaining', [('sell', 1, 1), ('sell', 2, 0), ('buy', 1, 3)])
+def test_snapshot_refreshes_positions_and_cash_after_other_session_fill(monkeypatch, side, quantity, remaining):
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from sqlalchemy.pool import NullPool
+    from app.models import User
+    from app.services.auto_trade import _execute_virtual_trade
+
+    monkeypatch.setattr(v.quote_now, 'quote_now', AsyncMock(return_value=quoted()))
+
+    async def scenario():
+        engine = create_async_engine(os.environ['QURIOUS_TEST_DATABASE_URL'], poolclass=NullPool)
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        uid = uuid.uuid4()
+        try:
+            async with sessions() as db:
+                db.add(User(id=uid, name='valuation test', email=f'{uid}@example.test',
+                            password_hash='test', client_id=uid.hex))
+                await db.flush()
+                db.add(QuantVirtualAccount(user_id=uid, cash_balance=10000, initial_capital=11200))
+                db.add(Portfolio(user_id=uid, book='QUANT', symbol='005930.KS', name='삼성전자',
+                                 quantity=2, avg_price=600))
+                await db.commit()
+            async with sessions() as reader:
+                # Keep both ORM objects alive just as the executing cycle does.
+                cached_account = await reader.scalar(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
+                cached_position = await reader.scalar(select(Portfolio).where(Portfolio.user_id == uid))
+                assert (await v.snapshot(reader, uid))['equity'] == 11200
+                async with sessions() as writer:
+                    fill = await _execute_virtual_trade(writer, uid, '005930.KS', '삼성전자', side,
+                                                        600, quantity, 'isolated valuation regression')
+                    assert fill['status'] == 'filled'
+                assert cached_account.cash_balance == 10000 and cached_position.quantity == 2
+                refreshed = await v.snapshot(reader, uid)
+                async with sessions() as independent:
+                    fresh = await v.snapshot(independent, uid)
+                assert refreshed == fresh
+                assert refreshed['cash'] == pytest.approx(fill['cash_balance'], abs=.005)
+                assert refreshed['values'].get('005930.KS', 0) == remaining * 600
+                assert refreshed['equity'] == pytest.approx(fill['cash_balance'] + remaining * 600, abs=.005)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(scenario())
