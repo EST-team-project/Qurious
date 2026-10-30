@@ -43,6 +43,8 @@ data/paper_journal/
 # 사용법 영상(결정 D132) — 영상 · 자막 · 장 그림 · 영상 표. 원본은 HF 비공개(qurious-quant/demo-videos)라 커밋하지 않는다.
 #   채우기: python tools/demo/help_videos.py build(녹화한 PC) · pull(다른 PC) — 앱은 로그인한 사람에게 /help/ 로 낸다
 data/help/
+# 개인 프로젝트용 대용량 수집(코인 분봉 등 · scripts/personal_binance.py) — 수십 GB 까지 커질 수 있고 저장처는 개인 HF 조직(Finance-Data)이다. 저장소는 Public 이라 절대 커밋하지 않는다.
+data/personal/
 # 시연 영상 mp4 · 포스터 — 2026-10-20 사용자 결정으로 추적한다(팀원이 받아 발표 자료에서 바로 재생 · 「그냥 올려 상관없음」).
 #   옛 결정(2026-10-19 S126 「공식 자료 화면이 찍혀 있어 git 밖 · 팀원은 HF 비공개에서 받는다」)을 바꿨다.
 #   채우기: python tools/demo/export_mp4.py(녹화한 PC) → docs/common/06-retrospective/videos/파일/{발표,사용법}/ · 목록.json

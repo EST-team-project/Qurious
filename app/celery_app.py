@@ -70,6 +70,12 @@ celery_app.conf.update(
             "schedule": 86400.0,          # 24시간
             "options": {"expires": 82800},
         },
+        # 외부 시세 캐시 정리(할 일 ①-29) — 하루 한 번 KST 03:40(장 · 수집 회차와 먼 시각). 허용 목록 키만 지운다.
+        "prune-external-cache-daily": {
+            "task": "sync.prune_external_cache",
+            "schedule": crontab(hour=3, minute=40),
+            "options": {"expires": 3600},
+        },
 
         # ── 시세 수집은 여기서 예약하지 않는다 (D106 · 2026-10-15) ────────────
         # 수집 · 수정주가 · 목록표는 이 PC 작업 스케줄러의 일일 수집(매일 12:30 ·

@@ -71,7 +71,7 @@
    "name": "퀀트 · 포트폴리오",
    "description": "백테스트 · 성과 지표 · 자산배분 · 위험",
    "sort_order": 50,
-   "terms": 78
+   "terms": 79
   },
   {
    "code": "macro",
@@ -4816,6 +4816,32 @@
    "shared_names": []
   },
   {
+   "id": "규칙-신호",
+   "term": "규칙 신호",
+   "english": "",
+   "hanja": "",
+   "category": "quant",
+   "summary": "정한 규칙(RSI · 이동평균 · 볼린저 등)으로 계산한 결과를 매수 쪽 · 중립 · 매도 쪽으로 요약한 정보입니다.",
+   "definition": "",
+   "example": "",
+   "caution": "",
+   "formula": "",
+   "origin_note": "",
+   "app_note": "정한 규칙(RSI · 이동평균 · 볼린저 등)으로 계산한 결과를 매수 쪽 · 중립 · 매도 쪽으로 요약한 정보입니다. 근거를 함께 보여 주며, 투자 권유가 아니라 같은 규칙으로 계산한 참고 값입니다.",
+   "lead_source": "qurious",
+   "sources": [
+    "qurious"
+   ],
+   "aliases": [
+    {
+     "alias": "signal",
+     "kind": "화면 키"
+    }
+   ],
+   "notes": [],
+   "shared_names": []
+  },
+  {
    "id": "금리스왑",
    "term": "금리스왑",
    "english": "Interest Rate Swap",
@@ -5907,24 +5933,16 @@
    "caution": "",
    "formula": "",
    "origin_note": "",
-   "app_note": "지표·모델 계산 결과를 매수(BUY)/관망(HOLD)/매도(SELL) 중 하나로 요약한 최종 판단입니다.",
+   "app_note": "",
    "lead_source": "finance",
    "sources": [
-    "finance",
-    "qurious"
+    "finance"
    ],
-   "aliases": [
-    {
-     "alias": "Signal",
-     "kind": "영어"
-    },
-    {
-     "alias": "매매 시그널",
-     "kind": "다른 이름"
-    }
-   ],
+   "aliases": [],
    "notes": [],
-   "shared_names": []
+   "shared_names": [
+    "Signal"
+   ]
   },
   {
    "id": "알파",

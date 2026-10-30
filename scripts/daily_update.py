@@ -312,15 +312,16 @@ STEPS: List[Step] = [
          derived=True, label="총수익", group="계산", desc="배당을 다시 투자한 총수익(TR) 지수"),
     Step("benchmark", ["-m", "collector.benchmark", "build", "--quiet"], 30, derived=True,
          label="벤치마크", group="계산", desc="수정주가 · TR 로 다시 만든 지수 — 비교 기준"),
-    # 데이터 품질 검사(2026-10-29 · 할 일 ①-12 `SCH-DQ`) — 수정주가 · 총수익 · 벤치마크가 만들어진 **뒤**에 둔다(앞에 두면
-    # ADJ-COVER · TR-COVER 가 회차마다 거짓 경고 · ETF · 지수 시세는 시세 단계가 이미 받았다 — ohlcv 는 읽기만 한다).
+    # OHLCV 규격 자료(2026-10-01) — ETF · 지수 일봉 · 분봉 · krx-ohlcv 내보내기. 실패해도 기존 단계를 막지 않는다.
+    Step("ohlcv", ["-m", "collector.ohlcv_load", "daily"], 40, fatal=False,
+         label="일봉", group="계산", desc="ETF · 지수 일봉과 분봉을 받아 묶음으로 적재 · 내보내기"),
+    # 데이터 품질 검사(2026-10-29 · 할 일 ①-12 `SCH-DQ`) — 수정주가 · 총수익 · 벤치마크 · **일봉(ohlcv)이 다 끝난 뒤**에 둔다.
+    # 앞에 두면 ADJ-COVER · TR-COVER 가 회차마다 거짓 경고이고, **ETF · 지수 일봉은 이 회차의 ohlcv 단계가 적재한다** —
+    # 2026-10-30 첫 러너 실측에서 ohlcv 앞에 두었더니 그날 ETF-GAP · IDX-GAP 경고 2건이 떴다가 회차 뒤 재검사에서 0건이었다(일시적 거짓 경고).
     # 수집 DB 를 읽기 전용으로 열고 결과만 state/data_quality_last.json 에 쓴다.
     # 처음엔 경고만(항상 종료코드 0) · 실패해도 회차를 막지 않는다(fatal=False) · 내보내기 대상이 아니라 HF 파일 구성은 그대로.
     Step("quality", ["-m", "collector.quality", "--write"], 5, fatal=False,
          label="품질 검사", group="계산", desc="결측 · 중복 · 정합성 열 가지 검사(경고만 · 수집 DB 읽기 전용)"),
-    # OHLCV 규격 자료(2026-10-01) — ETF · 지수 일봉 · 분봉 · krx-ohlcv 내보내기. 실패해도 기존 단계를 막지 않는다.
-    Step("ohlcv", ["-m", "collector.ohlcv_load", "daily"], 40, fatal=False,
-         label="일봉", group="계산", desc="ETF · 지수 일봉과 분봉을 받아 묶음으로 적재 · 내보내기"),
     # 다중 주기 신호(2026-10-08 · 팀원 #140 배치 · #142 요청) — 그날 일봉 · 60분봉이 들어온 **뒤**에 돈다. 인자 없이 수집 DB 의
     # 마지막 거래일 하루를 계산해 앱 DB(PostgreSQL)의 T2 `signal_snapshots` 에 쓴다(같은 날은 값만 바뀐다 — 여러 번 돌려도 안전).
     # 수집 DB 는 읽기 전용으로 연다. 배치 코드는 목표 기능 ② 주담당 것이라 여기서는 부르기만 한다.

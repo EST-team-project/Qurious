@@ -57,35 +57,54 @@ async function loadMarketCards() {
   } catch { }
 }
 
-async function loadSignalCards() {
-  const el = document.getElementById("signal-cards");
-  el.innerHTML = "<div class='col-span-5 text-slate-400 text-xs'>시그널 로딩 중...</div>";
-  try {
-    const { stocks } = await api("/api/stocks/quant/list");
-    const results = await Promise.allSettled(
-      stocks.map(s => api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(s.symbol)}&period=2y`))
-    );
-    el.innerHTML = stocks.map((s, i) => {
-      const r = results[i].status === "fulfilled" ? results[i].value : null;
-      const sig = r?.signal || {};
-      const price = r?.current_price;
-      const rsiV = r?.current_rsi;
-      const colorMap = {
-        "강력 매수": "border-emerald-500/50 bg-emerald-500/10",
-        "매수": "border-emerald-500/30 bg-emerald-500/5",
-        "강력 매도": "border-red-500/50 bg-red-500/10",
-        "매도": "border-red-500/30 bg-red-500/5",
-        "관망": "border-white/10 bg-white/5"
-      };
-      const cls = colorMap[sig.action] || "border-white/10 bg-white/5";
-      return `<div class="rounded-xl border p-2 ${cls}">
+// 규칙 신호 카드(②-21 · ②-22 · 2026-10-30) — 서버 응답의 근거(`signal.reasons`) · 기준일(`as_of`) · 출처 한 줄(`data_note`)을 그대로 보인다.
+// 응답 · 판정(`_generate_signal` · 일지 판 지문)은 건드리지 않는다 — 화면만. 낱말은 「규칙 신호」 · 「근거 n개」(결정 대장 10-27 · 「AI 판단」 안 씀).
+const SIGNAL_COLORS = {
+  "강력 매수": "border-emerald-500/50 bg-emerald-500/10",
+  "매수": "border-emerald-500/30 bg-emerald-500/5",
+  "강력 매도": "border-red-500/50 bg-red-500/10",
+  "매도": "border-red-500/30 bg-red-500/5",
+  "관망": "border-white/10 bg-white/5",
+};
+
+/** 카드 하나의 HTML — `prevDay` 는 서버가 알려 주는 전 거래일(`/api/data/status` · 없으면 경고를 못 낸다). */
+export function signalCardHtml(s, r, prevDay) {
+  const sig = r?.signal || {};
+  const reasons = Array.isArray(sig.reasons) ? sig.reasons : [];
+  const asOf = r?.as_of || "";
+  const late = !!(asOf && prevDay && asOf.slice(0, 10) < prevDay.slice(0, 10));      // 마지막 봉이 전 거래일보다 앞이면 최신이 아니다
+  const cls = SIGNAL_COLORS[sig.action] || "border-white/10 bg-white/5";
+  const basis = reasons.length
+    ? `<details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-dim);">근거 ${reasons.length}개</summary>
+        <ul class="text-xs pl-3 list-disc" style="color:var(--text-dim);">${reasons.map(t => `<li>${escHtml(t)}</li>`).join("")}</ul>
+        ${r?.data_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(r.data_note)}</div>` : ""}</details>`
+    : `<div class="text-xs mt-1" style="color:var(--text-mute);">근거 없음</div>`;
+  return `<div class="rounded-xl border p-2 ${cls}">
         <div class="font-semibold">${escHtml(s.name)}</div>
         <div class="text-slate-400 text-xs">${escHtml(s.symbol)}</div>
-        <div class="mt-1 font-medium">${fmt(price)}</div>
-        ${r?.as_of ? `<div class="text-xs text-slate-500">${escHtml(r.as_of.slice(5))} 종가</div>` : ""}
+        <div class="mt-1 font-medium">${fmt(r?.current_price)} <span class="text-xs font-normal" style="color:var(--text-mute);">종가</span></div>
+        ${asOf ? `<div class="text-xs" style="color:${late ? "var(--red)" : "var(--text-mute)"};">${escHtml(asOf.slice(5, 10))} 기준${late ? " · ⚠ 최신 아님" : ""}</div>` : ""}
         <div class="mt-1 text-xs font-semibold">${escHtml(_displayAction(sig.action))}</div>
-        <div class="text-xs text-slate-500">RSI: ${rsiV?.toFixed(1) ?? "-"}</div>
+        <div class="text-xs text-slate-500">RSI: ${r?.current_rsi?.toFixed(1) ?? "-"}</div>
+        ${basis}
       </div>`;
+}
+
+async function loadSignalCards() {
+  const el = document.getElementById("signal-cards");
+  el.innerHTML = "<div class='col-span-5 text-slate-400 text-xs'>규칙 신호 불러오는 중...</div>";
+  try {
+    const { stocks } = await api("/api/stocks/quant/list");
+    const title = document.getElementById("signal-cards-title");
+    if (title) title.textContent = `규칙 신호 (자동매매 대상 ${stocks.length}종목)`;        // 「대표 5종목」 이 아니라 실제로 그리는 수
+    const [results, st] = await Promise.all([
+      Promise.allSettled(stocks.map(s => api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(s.symbol)}&period=2y`))),
+      api("/api/data/status").catch(() => null),                                            // 전 거래일 — 못 받으면 경고만 못 낸다
+    ]);
+    const prevDay = st?.calendar?.previous_trading_day || "";
+    el.innerHTML = stocks.map((s, i) => {
+      const r = results[i].status === "fulfilled" ? results[i].value : null;
+      return signalCardHtml(s, r, prevDay);
     }).join("");
   } catch (e) {
     el.innerHTML = `<div class='col-span-5 text-red-400 text-xs'>${escHtml(e.message)}</div>`;

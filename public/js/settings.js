@@ -371,8 +371,12 @@ async function loadNotificationHistory() {
       const chBadges = (ev.channels || []).map(c =>
         `<span class="badge-${c.ok ? "buy" : "sell"}" style="margin-right:4px;">${escHtml(c.channel)}</span>`
       ).join("") || "<span style='color:var(--text-mute);'>발송 채널 없음</span>";
+      // 전달 결과는 서버(status_label)가 정한 글을 그대로 보인다 — 실패 · 결과 불명은 빨강으로
+      const bad = ["failed", "sending"].includes(ev.delivery_status);
+      const stBadge = ev.status_label
+        ? `<span style="margin-left:6px;color:${bad ? "var(--red)" : "var(--text-mute)"};">${escHtml(ev.status_label)}</span>` : "";
       return `<div class="py-1.5" style="border-bottom:1px solid var(--border);">
-        <div style="color:var(--text-mute);">${escHtml(ev.created_at || "")}</div>
+        <div style="color:var(--text-mute);">${escHtml(ev.created_at || "")}${stBadge}</div>
         <div style="color:var(--text-dim);">${escHtml(ev.subject || ev.message || "")}</div>
         <div class="mt-0.5">${chBadges}</div>
       </div>`;

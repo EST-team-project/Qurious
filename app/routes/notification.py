@@ -268,6 +268,14 @@ async def test_notification(
     return {"ok": True, "message": "테스트 알림을 전송했습니다."}
 
 
+#: 알림 한 건의 전달 결과(`NotificationLog.delivery_status` — `services/notification.py` 가 정한다) → 화면 글.
+#: `sending` 은 선점만 하고 끝을 못 쓴 것 — 결과가 불명확해도 자동으로 다시 보내지 않으므로(중복 방지) 「확인 필요」 로 보인다.
+DELIVERY_LABELS = {
+    "delivered": "전달됨", "partial": "일부만 전달", "failed": "전달 실패",
+    "sending": "결과 불명 · 자동 재발송 안 함", "no_channels": "보낼 채널 없음", "legacy": "이전 기록",
+}
+
+
 @router.get("/history")
 async def notification_history(
     limit: int = Query(50, ge=1, le=200),
@@ -283,6 +291,7 @@ async def notification_history(
     )
     events = [{
         "subject": ev.subject, "message": ev.message, "channels": ev.channels,
-        "created_at": ev.created_at.isoformat(),
+        "created_at": ev.created_at.isoformat(), "kind": ev.kind,
+        "delivery_status": ev.delivery_status, "status_label": DELIVERY_LABELS.get(ev.delivery_status, "확인 필요"),
     } for ev in result.scalars().all()]
     return {"events": events, "count": len(events)}
