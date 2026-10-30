@@ -369,10 +369,10 @@ async def _place_live_order(
         result = await client.place_order(account_no, symbol, side, quantity, price)
         order_no = str((result.get("output") or {}).get("ODNO") or (result.get("output") or {}).get("odno") or "")
     except Exception as e:
-        logger.warning("실전 자동매매 주문 실패 (%s, %s %s): %s", broker, side, symbol, e)
+        logger.warning("증권사 주문 실패 (%s, %s %s): %s", broker, side, symbol, type(e).__name__)
         code = getattr(e, "code", "")
         outcome = {"status": "unknown" if code == "ORDER_SUBMISSION_UNKNOWN" else "error",
-                   "broker": broker, "code": code, "error": str(e)}
+                   "broker": broker, "code": code, "error": failure_message({"code": code, "error": str(e)})}
         message = "접수 여부 미확인 — 재주문 전에 증권사 주문 내역을 확인해 주세요." if outcome["status"] == "unknown" else failure_message(outcome)
         await record(outcome)
         try:
@@ -380,8 +380,8 @@ async def _place_live_order(
                 symbol=symbol, side=side, quantity=quantity, price=price,
                 error=message, user_id=user_id,
             )
-        except Exception:
-            logger.exception("증권사 실패 알림 전송 실패 user=%s symbol=%s", user_id, symbol)
+        except Exception as exc:
+            logger.warning("증권사 실패 알림 전송 실패 user=%s symbol=%s exception=%s", user_id, symbol, type(exc).__name__)
         return outcome
     if broker == "kis" and not order_no:
         return await record({"status": "unknown", "broker": broker, "code": "ORDER_SUBMISSION_UNKNOWN"})
@@ -392,8 +392,8 @@ async def _place_live_order(
         await notification.notify_order_placed(
             symbol=symbol, side=side, quantity=quantity, price=price,
             broker=f"{broker.upper()} {'모의' if paper or not live_trading_allowed() else '실전'} · 체결 미확인", user_id=user_id)
-    except Exception:
-        logger.exception("증권사 접수 알림 전송 실패 user=%s symbol=%s", user_id, symbol)
+    except Exception as exc:
+        logger.warning("증권사 접수 알림 전송 실패 user=%s symbol=%s exception=%s", user_id, symbol, type(exc).__name__)
     return outcome
 
 
