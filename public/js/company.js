@@ -276,6 +276,10 @@ async function loadCompanySector() {
   }
 }
 
+// 종목 검색 창 열기 — 아래 즉시 실행 함수가 채운다(다른 화면의 「찾기」 단추가 부른다 · js/stockfind.js)
+let _openStockSearch = null;
+export function openStockSearch(callback) { if (_openStockSearch) _openStockSearch(callback); }
+
 // ── 종목 검색 모달 ────────────────────────────────────────────────
 (function () {
   let _resolve = null;
@@ -331,6 +335,8 @@ async function loadCompanySector() {
       resultsEl.innerHTML = `<div class="ssm-empty" style="color:var(--red);">오류: ${escHtml(e.message)}</div>`;
     }
   }
+
+  _openStockSearch = openModal;
 
   inputEl.addEventListener("input", () => {
     clearTimeout(_debounceTimer);
