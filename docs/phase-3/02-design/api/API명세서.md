@@ -1,14 +1,14 @@
-# API 명세서 v0.51 — Qurious
+# API 명세서 v0.52 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.51 (2026-10-30 — 가상계좌 전용 고정 시험 전략 공급원·목록 source/test_only·live 저장 및 실행 차단, 라우트 수 유지 · 0.2절) / v0.50 (2026-10-30 — KIS 수동 주문 공통 관문·요청 UUID·본인 조회 API-STK-42, 라우트 281→282 · 0.1절) / v0.49 (2026-10-30 — 새 라우터 `public_data` 1개 `API-PUBD-01`(`GET /api/public/index-closes` — **로그인 없이** 읽는 랜딩의 지수 종가 한 줄 · 수집 DB 지수 일봉의 가장 최근 거래일 종가를 **가공 없이** · 기준일 · 출처 문구 · 서버 캐시 10분 · 분당 30번 제한(429)) · 6절 새 소절 · 개발 모드 앱의 `openapi.json` 과 스캔 281 어긋남 0) / v0.48 (2026-10-29 — 새 라우터 `indicator_strategy` 4개 `API-ISTR-01` ~ `04`(기본 인디케이터 전략 화면의 지표 차트 `GET /api/indicator-strategy/chart` · 전략 카드 목록 `GET` · 저장 `POST` `/api/indicator-strategy/cards` · 삭제 `DELETE /api/indicator-strategy/cards/{card_id}` — 신장환 님 PR #403 · 로그인) · `API-SCARD-01` · `02` 가 예시 카드와 함께 **로그인한 사용자가 화면에서 저장한 카드**도 읽음 · `GET /api/notification/settings` 응답 `integration_consent` 와 `POST /api/notification/settings` 요청 `integration_consent` · `integration_consent_version`(알림 연동 선택 동의 · 철회하면 저장된 연동 정보 삭제 · 새 개인정보 칸에 동의가 없으면 422) · 동의 · 철회 기록 표 `user_consents`(마이그레이션 0032 · `POST /api/auth/register` 가 사용자 행과 한 트랜잭션으로 동의 행을 쌓음 · 약관 v0.4) · 라우트 276 → 280 · 라우터 41 → 42 · 표의 `파일:줄` 갱신) / v0.47 (2026-10-29 — `POST /api/auth/register` **약관 동의 필수**(`terms_version` 이 서버의 현재 판과 다르면 422 · 필수 셋이 빠지면 422) · 요청 칸 `birth_date`(필수 · 만 14세 미만 422 · **저장 · 기록 · 오류 문구에 안 넣음** · 감사 기록 `terms.agree` 에는 `age_check: 14+` 만) · `POST /api/tradingview/compare` 요청 칸 `tolerance` · `ledger_context` · `repro` 와 응답 `reconcile_table`(줄 단위 대사표 · `fill_comparison` 은 그대로) · `initial_cash` 기본값 10,000 → 10,000,000 · `GET /api/notification/settings` 가 `kakao_phone` · `sms_from` · `sms_to` 를 끝 네 자리만 남기고 가림(`POST` 는 가린 값이 돌아오면 저장된 번호 유지) · 화면 라우트 `GET /privacy.html`(로그인 없이 · API 아님) · 라우트 수 276 그대로 · 표의 `파일:줄` 갱신) / v0.46 (2026-10-29 — 새 API 둘 `API-MACR-05` `GET /api/macro/ecos`(한국은행 ECOS 거시 현황) · `API-MACR-06` `GET /api/macro/industry-kr`(국내 산업별 하루 등락 · KSIC 제11차 중분류) · 라우트 274 → 276 · `POST /api/auth/register` 선택 칸 `terms_version` · `agreed`(필수 셋이 빠지면 422) · `POST /api/auth/login` · `/api/auth/token` 로그인 시도 횟수 제한(5번 실패 → 429 + `Retry-After`) · 화면 라우트 `GET /terms.html`) · v0.45 (2026-10-29 — 새 라우터 `strategy_cards` 2개 `API-SCARD-01` · `02`(전략 카드 → Pine v6 내려받기 · 라우트 274) · `API-MACR-04` `GET /api/macro/fundamental` 응답 약속 바뀜: `valuation.DCF_intrinsic_value` · `FCF_yield_pct` 는 지어낸 값 대신 **null** 이고 `valuation.reason` 칸이 늘었다) · v0.44 (2026-10-28 — 웹훅 받는 쪽 검증 `API-TV-01` 응답 약속: 413 · 400 · late · duplicate · 줄 번호 갱신) · v0.43 (2026-10-27 — 신호 기록 순위 읽기 `API-HUB-03` · 라우트 272) · v0.42 (2026-10-26 — DF-145 자격증명 보존·잔고 오류 안내) · v0.41 (10/24 변경 — 개정 이력 기준) · v0.40 (Patch — 라우트 271 그대로 · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 문지기 「기본 꺼짐 · 켜도 관리자만」 · 검색 모음 없음 404 · 장애 503 · 0건 200(DF-149) · 상태 API(`API-SYS-01`) Qdrant 줄에 판 짝 칸 · IF-08 문지기 경유) · v0.39 (Patch — 라우트 271 그대로 · 올린 문서 사용자 격리 DF-146: 문서 넷 · 채팅 둘 · 탈퇴의 동작과 오류 칸 · 그래프 여섯 로그인 DF-147) · v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
+| **문서 버전** | v0.52 (2026-10-31 — 라우트 셋 `API-DATA-16` ~ `18`(기업 지표 · S171) 더함 · `API-DATA-01` 응답 `quality` 에 `checks[]` · `window`(S167) · 표 다시 채움 · 라우트 282 → 285 · 0.2절) / v0.51 (2026-10-30 — 가상계좌 전용 고정 시험 전략 공급원·목록 source/test_only·live 저장 및 실행 차단, 라우트 수 유지 · 0.2절) / v0.50 (2026-10-30 — KIS 수동 주문 공통 관문·요청 UUID·본인 조회 API-STK-42, 라우트 281→282 · 0.1절) / v0.49 (2026-10-30 — 새 라우터 `public_data` 1개 `API-PUBD-01`(`GET /api/public/index-closes` — **로그인 없이** 읽는 랜딩의 지수 종가 한 줄 · 수집 DB 지수 일봉의 가장 최근 거래일 종가를 **가공 없이** · 기준일 · 출처 문구 · 서버 캐시 10분 · 분당 30번 제한(429)) · 6절 새 소절 · 개발 모드 앱의 `openapi.json` 과 스캔 281 어긋남 0) / v0.48 (2026-10-29 — 새 라우터 `indicator_strategy` 4개 `API-ISTR-01` ~ `04`(기본 인디케이터 전략 화면의 지표 차트 `GET /api/indicator-strategy/chart` · 전략 카드 목록 `GET` · 저장 `POST` `/api/indicator-strategy/cards` · 삭제 `DELETE /api/indicator-strategy/cards/{card_id}` — 신장환 님 PR #403 · 로그인) · `API-SCARD-01` · `02` 가 예시 카드와 함께 **로그인한 사용자가 화면에서 저장한 카드**도 읽음 · `GET /api/notification/settings` 응답 `integration_consent` 와 `POST /api/notification/settings` 요청 `integration_consent` · `integration_consent_version`(알림 연동 선택 동의 · 철회하면 저장된 연동 정보 삭제 · 새 개인정보 칸에 동의가 없으면 422) · 동의 · 철회 기록 표 `user_consents`(마이그레이션 0032 · `POST /api/auth/register` 가 사용자 행과 한 트랜잭션으로 동의 행을 쌓음 · 약관 v0.4) · 라우트 276 → 280 · 라우터 41 → 42 · 표의 `파일:줄` 갱신) / v0.47 (2026-10-29 — `POST /api/auth/register` **약관 동의 필수**(`terms_version` 이 서버의 현재 판과 다르면 422 · 필수 셋이 빠지면 422) · 요청 칸 `birth_date`(필수 · 만 14세 미만 422 · **저장 · 기록 · 오류 문구에 안 넣음** · 감사 기록 `terms.agree` 에는 `age_check: 14+` 만) · `POST /api/tradingview/compare` 요청 칸 `tolerance` · `ledger_context` · `repro` 와 응답 `reconcile_table`(줄 단위 대사표 · `fill_comparison` 은 그대로) · `initial_cash` 기본값 10,000 → 10,000,000 · `GET /api/notification/settings` 가 `kakao_phone` · `sms_from` · `sms_to` 를 끝 네 자리만 남기고 가림(`POST` 는 가린 값이 돌아오면 저장된 번호 유지) · 화면 라우트 `GET /privacy.html`(로그인 없이 · API 아님) · 라우트 수 276 그대로 · 표의 `파일:줄` 갱신) / v0.46 (2026-10-29 — 새 API 둘 `API-MACR-05` `GET /api/macro/ecos`(한국은행 ECOS 거시 현황) · `API-MACR-06` `GET /api/macro/industry-kr`(국내 산업별 하루 등락 · KSIC 제11차 중분류) · 라우트 274 → 276 · `POST /api/auth/register` 선택 칸 `terms_version` · `agreed`(필수 셋이 빠지면 422) · `POST /api/auth/login` · `/api/auth/token` 로그인 시도 횟수 제한(5번 실패 → 429 + `Retry-After`) · 화면 라우트 `GET /terms.html`) · v0.45 (2026-10-29 — 새 라우터 `strategy_cards` 2개 `API-SCARD-01` · `02`(전략 카드 → Pine v6 내려받기 · 라우트 274) · `API-MACR-04` `GET /api/macro/fundamental` 응답 약속 바뀜: `valuation.DCF_intrinsic_value` · `FCF_yield_pct` 는 지어낸 값 대신 **null** 이고 `valuation.reason` 칸이 늘었다) · v0.44 (2026-10-28 — 웹훅 받는 쪽 검증 `API-TV-01` 응답 약속: 413 · 400 · late · duplicate · 줄 번호 갱신) · v0.43 (2026-10-27 — 신호 기록 순위 읽기 `API-HUB-03` · 라우트 272) · v0.42 (2026-10-26 — DF-145 자격증명 보존·잔고 오류 안내) · v0.41 (10/24 변경 — 개정 이력 기준) · v0.40 (Patch — 라우트 271 그대로 · 번역 자료 API 셋(`API-ING-06` · `07` · `11`) 문지기 「기본 꺼짐 · 켜도 관리자만」 · 검색 모음 없음 404 · 장애 503 · 0건 200(DF-149) · 상태 API(`API-SYS-01`) Qdrant 줄에 판 짝 칸 · IF-08 문지기 경유) · v0.39 (Patch — 라우트 271 그대로 · 올린 문서 사용자 격리 DF-146: 문서 넷 · 채팅 둘 · 탈퇴의 동작과 오류 칸 · 그래프 여섯 로그인 DF-147) · v0.38 (Patch — 3차 첫 판 · 라우트 271 그대로 · `API-ML-09` 목표 시뮬레이션의 오류 칸에 422(입력 범위 · 결함 DF-144) · 422 묶음 29 → 30 · `ml.py` 줄 번호 — 4절 표를 `api_scan.py --doc` 로 다시 채움 · 카탈로그는 바뀐 칸 없음) / v0.37 (Patch — **2차 최종 판** · 라우트 271 그대로 · 팀원 #302(강민석 · 위험 관문 열쇠를 장부별로) 뒤 `stocks.py` 줄 번호 14곳만 바뀜 — 4절 표 · 카탈로그(271)를 `api_scan.py --doc · --catalog` 로 다시 채움 · 화면이 부르는데 맞는 라우트가 없는 호출 0) · 그 앞 판 줄은 개정 이력에 |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.51 = main `3a832c2`(#422 포함) + 명시적 가상계좌 시험 공급원 작업 트리, 관련 172건 검증 / v0.50 = main `9dcc373`(#419) + 수동 KIS 주문 관문 PR #420. 제품 코드 187건 검증 후 문서 충돌만 정리 / v0.49 = `main` `533324c`(#417) + 이 판 작업 트리(공개 지수 종가 `public_data.py` · `collector_db.read_latest_index_closes`) · v0.40 = `main` `5a3bfc9`(#326) + 이 판 작업 트리(번역 문지기 · Qdrant 문지기 `app/lib/vector_db.py` · 상태 API 판 짝) · v0.39 = `main` `177f0e3`(#323) + 이 판 작업 트리(올린 문서 격리 · 그래프 로그인) · v0.38 = `main` `4bed63b`(#316) + 이 판 작업 트리(목표 시뮬레이션 입력 범위) · v0.37 = `main` `6fa8f58`(2차 마지막 머지 #308 까지 — 강민석 님 #302 · #303 · #305 · #306 · 신장환 님 #304 · 오준영 님 #301 · 이동원 #307 · #308) · v0.36 = `main` `0d88d22`(#296 까지 — 강민석 님 #292 ~ #295 · 신장환 님 #296) · 정답 대조(`/openapi.json`)는 이 판에 다시 하지 않았다(번호 · 표만) · v0.35 = `main` `f17d310`(PR #281 까지 — 발표 자료 판 관리 · 시연 영상 · D133) + 이 판 PR(「현재가」 지금 값 — `app/services/quote_now.py` · `app/routes/quote_now.py` · 모의 주문 체결 직전 확인 `app/services/paper_trading.py`) / v0.34 = `main` = `61b3e43`(PR #278 까지 — #267 작업 조회 · 취소에 로그인 · 소유자 확인 · #268 KIS 주문 결과를 가상 체결과 나눔 · #271 KIS 주문 방식 표시 · #272 리밸런싱 입력칸 · #273 연결 테스트 오류 글 · #274 자산배분 예측 표시 · #275 자산배분 결과 → 상품 안내 · #276 계정별 성향 저장 · #277 리밸런싱 가져오기 안내 · #278 자동매매 판단 출처) + 이 판 PR(학습 API 관리자 몫 — `app/routes/learn.py` `_team_view`) |
 | **추출기** | [`scripts/api_scan.py`](../../../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../../../tests/test_api_scan.py) (TC-AP 15건) |
-| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **286줄 · 사용 282 · 폐기 4**(2026-10-30 `API-PUBD-01` 더함 — 랜딩 지수 종가 한 줄 · `api_scan.py --assign S166` / 2026-10-29 `API-ISTR-01` ~ `04` 더함 — 기본 인디케이터 전략 화면 지표 차트 · 전략 카드 저장 · `api_scan.py --assign S163` / 2026-10-29 `API-MACR-05` · `06` 더함 — 거시 ECOS · 국내 산업별 등락 · `api_scan.py --assign S161` / 2026-10-29 `API-SCARD-01` · `02` 더함 — 전략 카드 → Pine · `api_scan.py --assign S160` / 2026-10-27 `API-HUB-03` 더함 — 신호 기록 순위 · `api_scan.py --assign S153` / 2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
-| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **스캔 281 · openapi 와 어긋남 0**(2026-10-30 v0.49 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **266/266 일치**(2026-10-19 v0.35 · 개발 모드 앱 `f17d310` + 이 판 작업 트리 · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **265/265 일치**(2026-10-19 v0.34 · 개발 모드 앱 `61b3e43` + 이 판 PR(쓰기 셋 없앤 뒤) — main 을 두 번째로 받은 뒤 다시 맞댐 · openapi 에만 0 · 스캔에만 0 · 인자 다름 0 · 본문 모델 다름 0 · 스캔 266 = 스키마 265 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
+| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **289줄 · 사용 285 · 폐기 4**(2026-10-30 `API-DATA-16` ~ `18` 확인 — 기업 지표 셋 · `api_scan.py --assign S171` / 2026-10-30 `API-PUBD-01` 더함 — 랜딩 지수 종가 한 줄 · `api_scan.py --assign S166` / 2026-10-29 `API-ISTR-01` ~ `04` 더함 — 기본 인디케이터 전략 화면 지표 차트 · 전략 카드 저장 · `api_scan.py --assign S163` / 2026-10-29 `API-MACR-05` · `06` 더함 — 거시 ECOS · 국내 산업별 등락 · `api_scan.py --assign S161` / 2026-10-29 `API-SCARD-01` · `02` 더함 — 전략 카드 → Pine · `api_scan.py --assign S160` / 2026-10-27 `API-HUB-03` 더함 — 신호 기록 순위 · `api_scan.py --assign S153` / 2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
+| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **스캔 285 · openapi 와 어긋남 0**(2026-10-31 v0.52 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **스캔 281 · 어긋남 0**(2026-10-30 v0.49 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **266/266 일치**(2026-10-19 v0.35 · 개발 모드 앱 `f17d310` + 이 판 작업 트리 · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **265/265 일치**(2026-10-19 v0.34 · 개발 모드 앱 `61b3e43` + 이 판 PR(쓰기 셋 없앤 뒤) — main 을 두 번째로 받은 뒤 다시 맞댐 · openapi 에만 0 · 스캔에만 0 · 인자 다름 0 · 본문 모델 다름 0 · 스캔 266 = 스키마 265 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0 · 처음 한 라우트 `{rel_path:path}` 로 두었다가 스키마가 `{rel_path}` 로 적어 어긋나 라우트를 둘로 나눔) · 이전 **266/266 일치**(2026-10-17 v0.31 — v0.32 는 라우트 · 인자 · 본문 모델이 그대로라 다시 대조하지 않음 · 바뀐 것은 응답 칸 · 목록 거름(1.2절 대조 범위 밖) · `67b1b95` + 이 판 PR · 스캔 267 = 스키마 266 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **262/262 일치**(2026-10-17 v0.30) · 이전 **259/259 일치**(2026-10-16 v0.28 · `47594dc` + 이 판 PR 로 17시 넘어 다시 맞댐 — #221 의 새 인자 둘까지 · 스캔 260 = 스키마 259 + 명세에서 일부러 뺀 `docs-summary` 1 · 다른 곳 · 인자 · 본문 모델 다름 0) · 이전 **255/255 일치**(2026-10-15 v0.26 · 스캔 256 = 스키마에 드는 255 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 251/251 일치(2026-10-14 v0.24 · 스캔 252 = 스키마에 드는 251 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 247/247 일치(2026-10-13 v0.23 · 스캔 248 = 스키마에 드는 247 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 245/245 일치(2026-10-12 v0.22 · 스캔 246 = 스키마에 드는 245 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **243/243 일치**(2026-10-12 v0.21 · 스캔 244 = 스키마에 드는 243 + 명세에서 일부러 뺀 `docs-summary` 1 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **241/241 일치**(2026-10-12 v0.20 · 스캔에만 · openapi 에만 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.18 · 인자 · 본문 모델 다름 0) · 이전 **240/240 일치**(2026-10-10 v0.17 · 인자 · 본문 모델 다름 0 · 241번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **240/240 일치**(2026-10-10 v0.16 · 인자 · 본문 모델 다름 0) · 이전 **235/235 일치**(2026-10-08 v0.15 · 인자 · 본문 모델 다름 0 · 236번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **234/234 일치**(2026-10-08 v0.14 · 인자 · 본문 모델 다름 0 · 235번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 **232/232 일치**(2026-10-08 v0.13 · 인자 · 본문 모델 다름 0 · 233번째는 명세에서 일부러 뺀 `docs-summary`) · 이전 도커 안 `app.openapi()` 와 **227/227 일치**(2026-10-06 v0.10 · 인자 · 본문 모델 다름 0 · v0.9 도 227/227) · 이전 **224/224 일치**(2026-10-03 v0.4 · v0.2 는 223/223 · v0.1 은 145/145) — 메서드 · 경로 · 경로/질의 인자 · 요청 본문 모델 (1.2절) · 225번째는 명세에서 일부러 뺀 `docs-summary` |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
 
@@ -164,7 +164,7 @@ flowchart LR
 | `ingest` | `app/routes/ingest.py` | 12 | 0 | 2 | 10 | P-A 12 |
 | `health` | `app/routes/health.py` | 1 | 1 | 0 | 0 | P-E 1 |
 | `chat` | `app/routes/chat.py` | 2 | 0 | 1 | 1 | P-A 2 |
-| `stocks` | `app/routes/stocks.py` | 42 | 9 | 33 | 9 | P-E 22 · P-A 8 · 미배정 6 · P-B 5 · P-D 1 |
+| `stocks` | `app/routes/stocks.py` | 42 | 9 | 32 | 10 | P-E 22 · P-A 8 · 미배정 6 · P-B 5 · P-D 1 |
 | `kis_monitor` | `app/routes/kis_monitor.py` | 2 | 0 | 0 | 2 | P-E 2 |
 | `library` | `app/routes/library.py` | 1 | 0 | 0 | 0 | P-A 1 |
 | `admin` | `app/routes/admin.py` | 2 | 0 | 1 | 1 | 공통 2 |
@@ -191,7 +191,7 @@ flowchart LR
 | `glossary` | `app/routes/glossary.py` | 6 | 6 | 2 | 1 | P-A 6 |
 | `learn` | `app/routes/learn.py` | 4 | 2 | 0 | 3 | P-A 4 |
 | `lectures` | `app/routes/lectures.py` | 8 | 8 | 0 | 2 | 미배정 8 |
-| `data` | `app/routes/data.py` | 15 | 0 | 12 | 1 | P-A 15 |
+| `data` | `app/routes/data.py` | 18 | 0 | 16 | 1 | P-A 18 |
 | `calendar` | `app/routes/calendar.py` | 3 | 3 | 3 | 0 | P-A 3 |
 | `kb` | `app/routes/kb.py` | 3 | 1 | 1 | 2 | P-A 3 |
 | `products` | `app/routes/products.py` | 4 | 0 | 2 | 0 | P-A 4 |
@@ -203,7 +203,7 @@ flowchart LR
 | `stock_hub` | `app/routes/stock_hub.py` | 3 | 0 | 2 | 0 | 미배정 3 |
 | `help_media` | `app/routes/help_media.py` | 2 | 0 | 0 | 2 | P-A 2 |
 | `quote_now` | `app/routes/quote_now.py` | 1 | 0 | 1 | 0 | P-A 1 |
-| **합계** | 43개 | **282** | **50** | **140** | **75** | |
+| **합계** | 43개 | **285** | **50** | **143** | **76** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -211,7 +211,7 @@ flowchart LR
 | `ingest` | · | · | · | · | 10 | 4 | · | 9 | 9 | 4 | · | · | · | 3 |
 | `health` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `chat` | 2 | · | · | · | 2 | 2 | · | 2 | 2 | 1 | · | · | · | 2 |
-| `stocks` | 11 | 16 | 9 | 4 | 38 | 10 | · | · | · | · | · | · | 7 | 14 |
+| `stocks` | 11 | 16 | 10 | 4 | 38 | 11 | · | · | · | · | · | · | 7 | 15 |
 | `kis_monitor` | · | · | · | · | 2 | 1 | · | · | · | · | · | · | · | · |
 | `library` | · | · | · | · | 1 | · | · | · | · | · | · | · | · | · |
 | `admin` | · | · | · | · | 2 | · | · | · | · | · | · | · | · | · |
@@ -224,7 +224,7 @@ flowchart LR
 | `graph` | · | · | · | · | · | · | 6 | 1 | 1 | · | · | · | · | · |
 | `conversations` | · | · | · | · | 8 | 5 | · | · | · | · | · | · | · | · |
 | `tasks` | · | · | · | · | 2 | · | · | · | · | 2 | · | · | · | · |
-| `paper` | 13 | 20 | 6 | · | 38 | 6 | · | · | · | · | · | · | · | 25 |
+| `paper` | 13 | 20 | 6 | · | 38 | 6 | · | · | · | · | · | · | · | 24 |
 | `us_reserve` | 1 | 2 | · | · | 3 | · | · | · | · | · | · | · | · | 2 |
 | `dashboard` | 1 | 1 | 1 | · | 1 | 1 | · | · | · | · | · | · | · | 1 |
 | `openapi` | 3 | 5 | 1 | · | 8 | 1 | · | · | · | · | · | · | · | 6 |
@@ -238,7 +238,7 @@ flowchart LR
 | `glossary` | · | · | · | · | 5 | · | · | · | · | · | · | · | · | · |
 | `learn` | · | · | · | · | · | · | · | · | · | · | · | · | · | 4 |
 | `lectures` | 6 | 5 | · | · | · | · | · | · | · | · | · | · | · | 2 |
-| `data` | 11 | · | · | · | 4 | · | · | · | · | · | · | · | · | 1 |
+| `data` | 14 | · | · | · | 4 | · | · | · | · | · | · | · | · | 2 |
 | `calendar` | 3 | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `kb` | · | · | · | · | · | · | · | 2 | 2 | · | · | · | · | · |
 | `products` | 3 | · | · | · | · | · | · | · | · | · | · | · | · | 4 |
@@ -250,7 +250,7 @@ flowchart LR
 | `stock_hub` | 3 | · | · | · | 2 | · | · | · | · | · | · | · | · | 1 |
 | `help_media` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `quote_now` | 1 | 1 | 1 | · | 1 | 1 | · | · | · | · | · | · | · | 1 |
-| **합계** | **88** | **73** | **19** | **4** | **188** | **47** | **6** | **19** | **17** | **7** | **3** | **3** | **9** | **72** |
+| **합계** | **91** | **73** | **20** | **4** | **188** | **48** | **6** | **19** | **17** | **7** | **3** | **3** | **9** | **73** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -267,8 +267,8 @@ flowchart LR
 | API-STK-04 | GET | `/api/stocks/quant/indicators` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `invest-technical`, `quant-backtest`, `quant-dashboard`, `robo-patterns` |
 | API-STK-05 | GET | `/api/stocks/quant/list` | — | `quant-dashboard` |
 | API-STK-06 | GET | `/api/stocks/search` | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `company-dashboard`, `quant-backtest`, `quant-dashboard`, `trading-chart` |
-| API-STK-07 | GET | `/api/stocks/fundamentals` | 야후 · PostgreSQL | `company-dashboard` |
-| API-STK-08 | GET | `/api/stocks/signals` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-patterns`, `robo-screening` |
+| API-STK-07 | GET | `/api/stocks/fundamentals` | 야후 · PostgreSQL | — |
+| API-STK-08 | GET | `/api/stocks/signals` | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) · 라우트 캐시 3h | `robo-patterns`, `robo-screening` |
 | API-STK-14 | GET | `/api/broker/catalog` | — | — |
 | API-QNT-01 | GET | `/api/quant/ml/stocks` | — | — |
 | API-PAPR-03 | GET | `/api/paper/stocks/quote` | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `robo-patterns`, `us-order`, `us-portfolio` |
@@ -313,7 +313,7 @@ flowchart LR
 | `403` | 권한 없음 | 6 | API-AUTH-06, API-STK-10, API-STK-11, API-TASK-02, API-TV-01, API-LRN-07 |
 | `404` | 대상 없음 | 31 | API-AUTH-09, API-ING-06, API-ING-07, API-STK-42, API-STK-34, API-STK-30 외 25 |
 | `404 NOT_FOUND` | 대상 없음 | 1 | API-OAPI-02 |
-| `409` |  | 9 | API-STK-22, API-STK-24, API-STK-41, API-STK-27, API-USRV-03, API-RBAL-10 외 3 |
+| `409` |  | 11 | API-STK-22, API-STK-24, API-STK-41, API-STK-27, API-PAPR-45, API-PAPR-48 외 5 |
 | `413` | 너무 큼 | 1 | API-DOC-01 |
 | `422` | 검증 실패 | 35 | API-AUTH-01, API-AUTH-12, API-AUTH-13, API-AUTH-14, API-STK-15, API-STK-18 외 29 |
 | `429` | 호출 한도 초과 | 3 | API-CHAT-01, API-TV-01, API-PUBD-01 |
@@ -322,7 +322,7 @@ flowchart LR
 | `503` | 의존 서비스 없음 | 19 | API-AUTH-01, API-AUTH-02, API-AUTH-04, API-AUTH-14, API-ING-06, API-ING-07 외 13 |
 | `503 MARKET_DATA_UNAVAILABLE` | 의존 서비스 없음 | 1 | API-OAPI-01 |
 | `504` | 시간 초과 | 1 | API-CHAT-01 |
-| `?` |  | 20 | API-TV-01, API-LEC-06, API-DATA-12, API-DATA-14, API-DATA-09, API-DATA-02 외 14 |
+| `?` |  | 23 | API-TV-01, API-LEC-06, API-DATA-12, API-DATA-14, API-DATA-09, API-DATA-02 외 17 |
 <!-- /api_scan:overview -->
 
 ---
@@ -713,42 +713,42 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-STK-04 | GET | `/api/stocks/quant/indicators` | 없음 | `symbol`* · `period` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `invest-technical`, `quant-backtest`, `quant-dashboard`, `robo-patterns` | P-B | P01-②-1 · P01-②-3 · P02-①-1 · P02-②-2 | stocks.py:97 |
 | API-STK-05 | GET | `/api/stocks/quant/list` | 없음 | — | {stocks} | — | — | `quant-dashboard` | P-A | P01-①-2 | stocks.py:116 |
 | API-STK-06 | GET | `/api/stocks/search` | 없음 | `q`* | {results, note} | 502 | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `company-dashboard`, `quant-backtest`, `quant-dashboard`, `trading-chart` | P-A | P01-①-2 | stocks.py:121 |
-| API-STK-07 | GET | `/api/stocks/fundamentals` | 없음 | `symbol`* | 모델 없음 | 502 | 야후 · PostgreSQL | `company-dashboard` | P-A | P01-①-2 · RFP2-3.1.4-② | stocks.py:179 |
-| API-STK-08 | GET | `/api/stocks/signals` | 없음 | `signal` · `model` · `min_confidence` · `symbols` | {signals, count} | — | 수집DB · 야후 · PostgreSQL · 라우트 캐시 3h | `robo-patterns`, `robo-screening` | P-B | P01-②-2 · P01-②-3 · RFP2-3.1.4-① · RFP2-3.1.4-③ | stocks.py:188 |
-| API-STK-09 | GET | `/api/portfolio` | 세션 | — | {holdings} | — | 야후 · PostgreSQL | `robo-patterns`, `trading-portfolio` | P-E | P01-③-1 · P01-③-2 | stocks.py:255 |
-| API-STK-10 | POST | `/api/portfolio` | 세션 | 본문 `HoldingBody` | 모델 없음 | 403 | PostgreSQL | `robo-patterns`, `trading-portfolio` | P-E | P01-④-3 | stocks.py:286 |
-| API-STK-11 | DELETE | `/api/portfolio/{symbol}` | 세션 | `{symbol}` | 모델 없음 | 403 | PostgreSQL | — | P-E | P01-④-3 | stocks.py:303 |
-| API-STK-12 | POST | `/api/orders` | 세션 | 본문 `OrderBody` | {ok, status, cost} | 400 | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P01-④-3 | stocks.py:350 |
-| API-STK-13 | GET | `/api/orders` | 세션 | — | {orders} | — | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P01-④-3 | stocks.py:407 |
-| API-STK-14 | GET | `/api/broker/catalog` | 없음 | — | {brokers} | — | — | — | P-E | P02-⑤-1 | stocks.py:550 |
-| API-STK-15 | POST | `/api/broker/settings` | 세션 | 본문 `BrokerSettingsBody` | {ok} | 422 | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:555 |
-| API-STK-16 | GET | `/api/broker/settings` | 세션 | — | {broker, connected, app_key, account_no, kis_managed} 외 2 | — | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:574 |
-| API-STK-38 | GET | `/api/quant/strategies` | 세션 | — | {configured, strategies, source, test_only} | — | — | `mypage` | 미배정 | — | stocks.py:611 |
-| API-STK-39 | GET | `/api/quant/live-orders` | 세션 | `limit` | {gateway, batch, orders} | — | PostgreSQL | `mypage` | 미배정 | — | stocks.py:619 |
-| API-STK-17 | GET | `/api/quant/settings` | 세션 | — | {mode, broker, connected, app_key, account_no} 외 18 | — | PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:649 |
-| API-STK-18 | POST | `/api/quant/settings` | 세션 | 본문 `QuantSettingsBody` | {ok} | 422 | PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:702 |
-| API-STK-19 | GET | `/api/broker/price` | 세션 | `symbol`* | {symbol, name, current, open, high} 외 7 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `mypage` | P-E | P02-⑤-1 | stocks.py:795 |
-| API-STK-20 | GET | `/api/broker/balance` | 세션 | — | {total_eval, total_buy, total_gain, holdings} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:811 |
-| API-STK-21 | GET | `/api/broker/ohlcv` | 세션 | `symbol`* · `start`* · `end`* | {candles} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:835 |
-| API-STK-22 | POST | `/api/broker/order` | 세션 | 본문 `BrokerOrderBody` | JSONResponse | 409 · 422 · 502 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-1 | stocks.py:860 |
-| API-STK-42 | GET | `/api/broker/order/{request_id}` | 세션 | `{request_id}` | 모델 없음 | 404 · 503 | PostgreSQL | — | P-E | — | stocks.py:940 |
-| API-STK-23 | GET | `/api/broker/test` | 세션 | — | {ok, broker_price, source, scope, account_verified} 외 1 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:952 |
-| API-STK-34 | GET | `/api/stocks/patterns` | 세션 | `symbol` · `period` | {symbol, candles, stats, levels} | 404 · 422 | 수집DB · 야후 · PostgreSQL | `robo-patterns` | P-A | — | stocks.py:967 |
-| API-STK-35 | GET | `/api/stocks/mtf-signal` | 세션 | `symbol` | {symbol, opinion, opinion_rule, held, risk_gate} | — | 수집DB · 야후 · PostgreSQL · Redis · 외부(api.upbit.com, kind.krx.co.kr) | `robo-decision`, `robo-patterns` | P-A | — | stocks.py:983 |
-| API-STK-24 | POST | `/api/auto-trade/start` | 세션 | — | {ok, started, scheduler} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1064 |
-| API-STK-25 | POST | `/api/auto-trade/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `quant-auto` | P-E | P02-⑤-2 | stocks.py:1073 |
-| API-STK-26 | GET | `/api/auto-trade/status` | 세션 | — | 모델 없음 | — | PostgreSQL | `mypage`, `quant-auto`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1079 |
-| API-STK-36 | GET | `/api/quant/risk/status` | 세션 | — | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `quant-auto` | 미배정 | — | stocks.py:1091 |
-| API-STK-37 | POST | `/api/quant/risk/kill-switch` | 세션 | 본문 `KillSwitchBody` | {ok, kill_switch, auto_trade_stopped, cancellation} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `quant-auto` | 미배정 | — | stocks.py:1116 |
-| API-STK-40 | GET | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | — | PostgreSQL | `dashboard` | 미배정 | — | stocks.py:1140 |
-| API-STK-41 | POST | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `dashboard` | 미배정 | — | stocks.py:1146 |
-| API-STK-27 | POST | `/api/quant/auto/start` | 세션 | — | {ok, started} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1155 |
-| API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | — | P-E | P02-⑤-2 | stocks.py:1165 |
-| API-STK-29 | GET | `/api/quant/auto/status` | 세션 | — | {running, me_running, batch, reconcile, logs} 외 1 | — | PostgreSQL | `dashboard`, `robo-decision`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1172 |
-| API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-backtest`, `indicator-custom`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1241 |
-| API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1348 |
-| API-STK-32 | POST | `/api/custom-indicators` | 세션 | 본문 `CustomIndicatorBody` | 모델 없음 | 422 | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-①-2 · P02-②-1 · P02-②-3 | stocks.py:1363 |
-| API-STK-33 | DELETE | `/api/custom-indicators/{indicator_id}` | 세션 | `{indicator_id}` | {ok} | 404 | PostgreSQL | `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1383 |
+| API-STK-07 | GET | `/api/stocks/fundamentals` | 없음 | `symbol`* | 모델 없음 | 502 | 야후 · PostgreSQL | — | P-A | P01-①-2 · RFP2-3.1.4-② | stocks.py:179 |
+| API-STK-08 | GET | `/api/stocks/signals` | 없음 | `signal` · `model` · `min_confidence` · `symbols` | {signals, count} | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) · 라우트 캐시 3h | `robo-patterns`, `robo-screening` | P-B | P01-②-2 · P01-②-3 · RFP2-3.1.4-① · RFP2-3.1.4-③ | stocks.py:188 |
+| API-STK-09 | GET | `/api/portfolio` | 세션 | — | {holdings} | — | 야후 · PostgreSQL | `robo-patterns`, `trading-portfolio` | P-E | P01-③-1 · P01-③-2 | stocks.py:260 |
+| API-STK-10 | POST | `/api/portfolio` | 세션 | 본문 `HoldingBody` | 모델 없음 | 403 | PostgreSQL | `robo-patterns`, `trading-portfolio` | P-E | P01-④-3 | stocks.py:291 |
+| API-STK-11 | DELETE | `/api/portfolio/{symbol}` | 세션 | `{symbol}` | 모델 없음 | 403 | PostgreSQL | — | P-E | P01-④-3 | stocks.py:308 |
+| API-STK-12 | POST | `/api/orders` | 세션 | 본문 `OrderBody` | {ok, status, cost} | 400 | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P01-④-3 | stocks.py:355 |
+| API-STK-13 | GET | `/api/orders` | 세션 | — | {orders} | — | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P01-④-3 | stocks.py:412 |
+| API-STK-14 | GET | `/api/broker/catalog` | 없음 | — | {brokers} | — | — | — | P-E | P02-⑤-1 | stocks.py:555 |
+| API-STK-15 | POST | `/api/broker/settings` | 세션 | 본문 `BrokerSettingsBody` | {ok} | 422 | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:560 |
+| API-STK-16 | GET | `/api/broker/settings` | 세션 | — | {broker, connected, app_key, account_no, kis_managed} 외 2 | — | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:579 |
+| API-STK-38 | GET | `/api/quant/strategies` | 세션 | — | {configured, strategies, source, test_only} | — | — | `mypage` | 미배정 | — | stocks.py:616 |
+| API-STK-39 | GET | `/api/quant/live-orders` | 세션 | `limit` | {gateway, batch, orders} | — | PostgreSQL | `mypage` | 미배정 | — | stocks.py:624 |
+| API-STK-17 | GET | `/api/quant/settings` | 세션 | — | {mode, broker, connected, app_key, account_no} 외 18 | — | PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:654 |
+| API-STK-18 | POST | `/api/quant/settings` | 세션 | 본문 `QuantSettingsBody` | {ok} | 422 | PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:707 |
+| API-STK-19 | GET | `/api/broker/price` | 세션 | `symbol`* | {symbol, name, current, open, high} 외 7 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `mypage` | P-E | P02-⑤-1 | stocks.py:800 |
+| API-STK-20 | GET | `/api/broker/balance` | 세션 | — | {total_eval, total_buy, total_gain, holdings} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:816 |
+| API-STK-21 | GET | `/api/broker/ohlcv` | 세션 | `symbol`* · `start`* · `end`* | {candles} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:840 |
+| API-STK-22 | POST | `/api/broker/order` | 세션 | 본문 `BrokerOrderBody` | JSONResponse | 409 · 422 · 502 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-1 | stocks.py:865 |
+| API-STK-42 | GET | `/api/broker/order/{request_id}` | 세션 | `{request_id}` | 모델 없음 | 404 · 503 | PostgreSQL | — | P-E | — | stocks.py:945 |
+| API-STK-23 | GET | `/api/broker/test` | 세션 | — | {ok, broker_price, source, scope, account_verified} 외 1 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:957 |
+| API-STK-34 | GET | `/api/stocks/patterns` | 세션 | `symbol` · `period` | {symbol, candles, stats, levels} | 404 · 422 | 수집DB · 야후 · PostgreSQL | `robo-patterns` | P-A | — | stocks.py:972 |
+| API-STK-35 | GET | `/api/stocks/mtf-signal` | 세션 | `symbol` | {symbol, opinion, opinion_rule, held, risk_gate} | — | 수집DB · 야후 · PostgreSQL · Redis · 외부(api.upbit.com, kind.krx.co.kr) | `robo-decision`, `robo-patterns` | P-A | — | stocks.py:988 |
+| API-STK-24 | POST | `/api/auto-trade/start` | 세션 | — | {ok, started, scheduler} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1069 |
+| API-STK-25 | POST | `/api/auto-trade/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `quant-auto` | P-E | P02-⑤-2 | stocks.py:1078 |
+| API-STK-26 | GET | `/api/auto-trade/status` | 세션 | — | 모델 없음 | — | PostgreSQL | `mypage`, `quant-auto`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1084 |
+| API-STK-36 | GET | `/api/quant/risk/status` | 세션 | — | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `quant-auto` | 미배정 | — | stocks.py:1096 |
+| API-STK-37 | POST | `/api/quant/risk/kill-switch` | 세션 | 본문 `KillSwitchBody` | {ok, kill_switch, auto_trade_stopped, cancellation} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `quant-auto` | 미배정 | — | stocks.py:1121 |
+| API-STK-40 | GET | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | — | PostgreSQL | `dashboard` | 미배정 | — | stocks.py:1145 |
+| API-STK-41 | POST | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `dashboard` | 미배정 | — | stocks.py:1151 |
+| API-STK-27 | POST | `/api/quant/auto/start` | 세션 | — | {ok, started} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1160 |
+| API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | — | P-E | P02-⑤-2 | stocks.py:1170 |
+| API-STK-29 | GET | `/api/quant/auto/status` | 세션 | — | {running, me_running, batch, reconcile, logs} 외 1 | — | PostgreSQL | `dashboard`, `robo-decision`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1177 |
+| API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-custom`, `quant-backtest`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1246 |
+| API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1353 |
+| API-STK-32 | POST | `/api/custom-indicators` | 세션 | 본문 `CustomIndicatorBody` | 모델 없음 | 422 | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-①-2 · P02-②-1 · P02-②-3 | stocks.py:1368 |
+| API-STK-33 | DELETE | `/api/custom-indicators/{indicator_id}` | 세션 | `{indicator_id}` | {ok} | 404 | PostgreSQL | `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1388 |
 
 #### `kis_monitor` — `app/routes/kis_monitor.py` · 2개
 
@@ -830,7 +830,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-NOTI-01 | GET | `/api/notification/settings` | 세션 | — | {integration_consent, channels, telegram_token, telegram_chat_id, slack_webhook_url} 외 14 | — | PostgreSQL | `notification-settings`, `robo-patterns` | P-B | P02-③-3 | notification.py:127 |
 | API-NOTI-02 | POST | `/api/notification/settings` | 세션 | 본문 `NotificationSettingsBody` | {ok, withdrawn} | 422 | PostgreSQL | `notification-settings`, `robo-patterns` | P-B | P02-③-3 | notification.py:174 |
 | API-NOTI-03 | POST | `/api/notification/test` | 세션 | — | {ok, message} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `notification-settings` | P-B | P02-③-3 · P02-⑤-3 | notification.py:248 |
-| API-NOTI-04 | GET | `/api/notification/history` | 세션 | `limit` | {events, count} | — | PostgreSQL | `notification-settings` | P-B | P02-③-3 | notification.py:271 |
+| API-NOTI-04 | GET | `/api/notification/history` | 세션 | `limit` | {events, count} | — | PostgreSQL | `notification-settings` | P-B | P02-③-3 | notification.py:279 |
 
 #### `graph` — `app/routes/graph.py` · 6개
 
@@ -905,16 +905,16 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-PAPR-32 | POST | `/api/paper/alpaca/positions` | 세션·JWT | 본문 `AlpacaTestBody` | {ok, count, positions} | — | 외부(paper-api.alpaca.markets) | — | P-E | — | paper.py:456 |
 | API-PAPR-33 | GET | `/api/paper/performance/metrics` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | `paper-dashboard`, `robo-decision`, `robo-testbed` | P-E | — | paper.py:468 |
 | API-PAPR-34 | POST | `/api/paper/performance/snapshot` | 세션·JWT | — | {status, snap_date, total_equity, daily_return, position_count} | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | — | P-E | — | paper.py:477 |
-| API-PAPR-45 | POST | `/api/paper/performance/backtest-100d` | 세션·JWT | — | {task_id} | — | 수집DB · 야후 · PostgreSQL · 외부(api.upbit.com, kind.krx.co.kr) | (다른 곳) | P-E | — | paper.py:499 |
-| API-PAPR-46 | GET | `/api/paper/performance/backtest-100d/status/{task_id}` | 세션·JWT | `{task_id}` | 모델 없음 | 404 | — | (다른 곳) | P-E | — | paper.py:514 |
-| API-PAPR-47 | GET | `/api/paper/performance/backtest-100d/exists` | 세션·JWT | — | {exists, count} | — | PostgreSQL | `robo-decision` | P-E | — | paper.py:522 |
-| API-PAPR-48 | DELETE | `/api/paper/performance/backtest-100d` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | (다른 곳) | P-E | — | paper.py:533 |
-| API-PAPR-35 | POST | `/api/paper/performance/simulate` | 세션·JWT + 역할(admin) | `days` · `seed` | {status, days, seed, snap_date_kst} | — | PostgreSQL | `robo-decision` | P-E | — | paper.py:539 |
-| API-PAPR-36 | GET | `/api/paper/performance/returns-table` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:598 |
-| API-PAPR-37 | GET | `/api/paper/performance/risk-metrics` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL | `robo-testbed` | P-E | — | paper.py:606 |
-| API-PAPR-38 | GET | `/api/paper/performance/turnover` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:614 |
-| API-PAPR-39 | GET | `/api/paper/performance/allocation-history` | 세션·JWT | `limit` | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:622 |
-| API-PAPR-40 | GET | `/api/paper/performance/benchmark` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL | `robo-testbed` | P-E | — | paper.py:631 |
+| API-PAPR-45 | POST | `/api/paper/performance/backtest-100d` | 세션·JWT | — | {task_id} | 409 | 수집DB · 야후 · PostgreSQL | (다른 곳) | P-E | — | paper.py:499 |
+| API-PAPR-46 | GET | `/api/paper/performance/backtest-100d/status/{task_id}` | 세션·JWT | `{task_id}` | 모델 없음 | 404 | — | (다른 곳) | P-E | — | paper.py:530 |
+| API-PAPR-47 | GET | `/api/paper/performance/backtest-100d/exists` | 세션·JWT | — | {exists, count} | — | PostgreSQL | `robo-decision` | P-E | — | paper.py:546 |
+| API-PAPR-48 | DELETE | `/api/paper/performance/backtest-100d` | 세션·JWT | — | 모델 없음 | 409 | PostgreSQL | (다른 곳) | P-E | — | paper.py:557 |
+| API-PAPR-35 | POST | `/api/paper/performance/simulate` | 세션·JWT + 역할(admin) | `days` · `seed` | {status, days, seed, snap_date_kst} | — | PostgreSQL | `robo-decision` | P-E | — | paper.py:573 |
+| API-PAPR-36 | GET | `/api/paper/performance/returns-table` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:632 |
+| API-PAPR-37 | GET | `/api/paper/performance/risk-metrics` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL | `robo-testbed` | P-E | — | paper.py:640 |
+| API-PAPR-38 | GET | `/api/paper/performance/turnover` | 세션·JWT | — | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:648 |
+| API-PAPR-39 | GET | `/api/paper/performance/allocation-history` | 세션·JWT | `limit` | 모델 없음 | — | PostgreSQL | `robo-testbed` | P-E | — | paper.py:656 |
+| API-PAPR-40 | GET | `/api/paper/performance/benchmark` | 세션·JWT | — | 모델 없음 | — | 수집DB · 야후 · PostgreSQL | `robo-testbed` | P-E | — | paper.py:665 |
 
 #### `us_reserve` — `app/routes/us_reserve.py` · 4개
 
@@ -1051,25 +1051,28 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-LEC-07 | POST | `/api/lectures/market/period-return/extend` | 없음 | `ticker`* · `start`* | 모델 없음 | — | 수집DB | — | 미배정 | — | lectures.py:90 |
 | API-LEC-08 | GET | `/api/lectures/historic-bond-image` | 없음 | — | Response | — | 외부(www.emuseum.go.kr) | (다른 곳) | 미배정 | — | lectures.py:98 |
 
-#### `data` — `app/routes/data.py` · 15개
+#### `data` — `app/routes/data.py` · 18개
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-DATA-01 | GET | `/api/data/status` | 세션 | — | 모델 없음 | — | 수집DB | `data-status` | P-A | — | data.py:33 |
-| API-DATA-05 | GET | `/api/data/runner` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | `crawl-auto` | P-A | — | data.py:45 |
-| API-DATA-12 | POST | `/api/data/runner/requests` | 세션 + 관리자 | 본문 `CollectRequestBody` | {created, request} | ? | 수집DB · PostgreSQL | `crawl-auto`, `data-status` | P-A | — | data.py:76 |
-| API-DATA-13 | GET | `/api/data/runner/requests` | 세션 + 관리자 | `limit` | 모델 없음 | — | 수집DB · PostgreSQL | `crawl-auto`, `data-status` | P-A | — | data.py:95 |
-| API-DATA-14 | POST | `/api/data/runner/requests/{request_id}/cancel` | 세션 + 관리자 | `{request_id}` | {request} | ? | 수집DB · PostgreSQL | (다른 곳) | P-A | — | data.py:102 |
-| API-DATA-15 | GET | `/api/data/runner/worker` | 세션 + 관리자 | — | 모델 없음 | — | PostgreSQL | — | P-A | — | data.py:113 |
-| API-DATA-06 | GET | `/api/data/url-rules` | 세션 + 관리자 | — | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:118 |
-| API-DATA-07 | POST | `/api/data/url-check` | 세션 + 관리자 | 본문 `UrlCheckBody` | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:127 |
-| API-DATA-08 | GET | `/api/data/fetch-sources` | 세션 + 관리자 | — | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:133 |
-| API-DATA-09 | GET | `/api/data/fetch-plan` | 세션 + 관리자 | `kind`* · `from`* · `to` | 모델 없음 | ? | 수집DB | `crawl-manual` | P-A | — | data.py:138 |
-| API-DATA-10 | GET | `/api/data/backup` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | `crawl-ingest` | P-A | — | data.py:152 |
-| API-DATA-02 | GET | `/api/data/ohlcv` | 세션 | `symbol`* · `timeframe` · `from` · `to` · `basis` · `limit` | 모델 없음 | ? | 수집DB | (다른 곳) | P-A | — | data.py:158 |
-| API-DATA-03 | GET | `/api/data/search` | 세션 | `q` · `kind` · `symbol` · `topic` · `term` · `dtype` · `from` · `to` · `sort` · `limit` · `offset` · `source` · `facets` · `tagged` | 모델 없음 | ? | 수집DB | `agent-news` | P-A | — | data.py:177 |
-| API-DATA-04 | GET | `/api/data/financials` | 세션 | `symbol`* · `as_of` · `pit` · `fs` · `periods` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB · 외부(dart.fss.or.kr) | `invest-fundamental` | P-A | — | data.py:202 |
-| API-DATA-11 | GET | `/api/data/guide` | 세션 | — | 모델 없음 | 503 | 수집DB | `data-guide` | P-A | — | data.py:223 |
+| API-DATA-01 | GET | `/api/data/status` | 세션 | — | 모델 없음 | — | 수집DB | `data-status`, `quant-dashboard` | P-A | — | data.py:34 |
+| API-DATA-05 | GET | `/api/data/runner` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | `crawl-auto` | P-A | — | data.py:46 |
+| API-DATA-12 | POST | `/api/data/runner/requests` | 세션 + 관리자 | 본문 `CollectRequestBody` | {created, request} | ? | 수집DB · PostgreSQL | `crawl-auto`, `data-status` | P-A | — | data.py:77 |
+| API-DATA-13 | GET | `/api/data/runner/requests` | 세션 + 관리자 | `limit` | 모델 없음 | — | 수집DB · PostgreSQL | `crawl-auto`, `data-status` | P-A | — | data.py:96 |
+| API-DATA-14 | POST | `/api/data/runner/requests/{request_id}/cancel` | 세션 + 관리자 | `{request_id}` | {request} | ? | 수집DB · PostgreSQL | (다른 곳) | P-A | — | data.py:103 |
+| API-DATA-15 | GET | `/api/data/runner/worker` | 세션 + 관리자 | — | 모델 없음 | — | PostgreSQL | — | P-A | — | data.py:114 |
+| API-DATA-06 | GET | `/api/data/url-rules` | 세션 + 관리자 | — | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:119 |
+| API-DATA-07 | POST | `/api/data/url-check` | 세션 + 관리자 | 본문 `UrlCheckBody` | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:128 |
+| API-DATA-08 | GET | `/api/data/fetch-sources` | 세션 + 관리자 | — | 모델 없음 | — | — | `crawl-manual` | P-A | — | data.py:134 |
+| API-DATA-09 | GET | `/api/data/fetch-plan` | 세션 + 관리자 | `kind`* · `from`* · `to` | 모델 없음 | ? | 수집DB | `crawl-manual` | P-A | — | data.py:139 |
+| API-DATA-10 | GET | `/api/data/backup` | 세션 + 관리자 | — | 모델 없음 | — | 수집DB | `crawl-ingest` | P-A | — | data.py:153 |
+| API-DATA-02 | GET | `/api/data/ohlcv` | 세션 | `symbol`* · `timeframe` · `from` · `to` · `basis` · `limit` | 모델 없음 | ? | 수집DB | `company-dashboard` | P-A | — | data.py:159 |
+| API-DATA-03 | GET | `/api/data/search` | 세션 | `q` · `kind` · `symbol` · `topic` · `term` · `dtype` · `from` · `to` · `sort` · `limit` · `offset` · `source` · `facets` · `tagged` | 모델 없음 | ? | 수집DB | `agent-news` | P-A | — | data.py:178 |
+| API-DATA-04 | GET | `/api/data/financials` | 세션 | `symbol`* · `as_of` · `pit` · `fs` · `periods` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB · 외부(dart.fss.or.kr) | `company-dashboard`, `invest-fundamental` | P-A | — | data.py:203 |
+| API-DATA-16 | GET | `/api/data/indicators/universe` | 세션 | — | 모델 없음 | ? | 수집DB | `company-compare` | P-A | — | data.py:223 |
+| API-DATA-17 | GET | `/api/data/indicators/sectors` | 세션 | — | 모델 없음 | ? | 수집DB | `company-sector`, `robo-patterns` | P-A | — | data.py:231 |
+| API-DATA-18 | GET | `/api/data/indicators` | 세션 | `symbol`* · `as_of` · `pit` | 모델 없음 | ? | 수집DB · 외부(dart.fss.or.kr) | `company-compare`, `company-dashboard` | P-A | — | data.py:239 |
+| API-DATA-11 | GET | `/api/data/guide` | 세션 | — | 모델 없음 | 503 | 수집DB | `data-guide` | P-A | — | data.py:261 |
 
 #### `calendar` — `app/routes/calendar.py` · 3개
 
@@ -1106,7 +1109,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-RISK-01 | GET | `/api/risk/company` | 세션 | `symbol`* · `as_of` · `fs` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB · 외부(dart.fss.or.kr) | `agent-cb`, `invest-fundamental` | P-A | — | risk.py:24 |
+| API-RISK-01 | GET | `/api/risk/company` | 세션 | `symbol`* · `as_of` · `fs` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB · 외부(dart.fss.or.kr) | `agent-cb`, `company-dashboard`, `invest-fundamental` | P-A | — | risk.py:24 |
 | API-RISK-02 | GET | `/api/risk/macro` | 세션 | `years` | 다리 결과 그대로 (`source`·`as_of`) | ? | 수집DB | `agent-cb` | P-A | — | risk.py:38 |
 
 #### `seasonality` — `app/routes/seasonality.py` · 1개
@@ -1585,6 +1588,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.52 | 2026-10-31 | 추가 — 라우트 셋 `API-DATA-16`(`/api/data/indicators/universe`) · `17`(`/api/data/indicators/sectors`) · `18`(`/api/data/indicators`) (S171 ①-16 기업 지표 · 4절 표 스캐너 다시 채움 · 라우트 282 → 285 · data 15 → 18) / 더한 칸 — `API-DATA-01` 응답 `quality` 에 `checks[]` · `window`(S167 ①-12 품질 표) / 표 다시 채움 — `API-STK-07` 화면 짝에서 `company-dashboard` 빠짐(야후 재무 요약을 지표 API 로 교체) · `API-STK-08` 닿는 곳 증권사 · Redis · 외부 추가 · 카탈로그 285 | S171 새 라우트 · S167 공개 필드 변경을 판 올림에 반영(S176) | `python scripts/api_scan.py --doc … --check` 통과 · `public/api-docs/catalog.json` 285개 |
 | v0.51 | 2026-10-30 | 고정 시험 공급원 source/test_only, 가상계좌 제한·파일 지문 확인, 기존 라우트 수 유지 | 외부 서버 없이 명시적 시험 전략으로 예약 경로를 확인 | 0.2절 · 관련 172건 검증 |
 | v0.50 | 2026-10-30 | 수동 KIS 주문 UUID·공통 관문·본인 결과 조회 API-STK-42 | 수동 주문 중복·조회 실패 후 진행 차단 | PR #420 · 관련 187건 검증 |
 | v0.49 | 2026-10-30 | 추가 — 새 라우터 `public_data` 1개: `GET /api/public/index-closes`(`API-PUBD-01`: 로그인 없이 읽는 랜딩의 지수 종가 — 수집 DB 지수 일봉의 가장 최근 거래일 종가를 가공 없이 · 기준일 · 출처 · 서버 캐시 10분 · 분당 30번 제한 429) — 요청 · 응답 · 오류는 6절 새 소절 / 바꾸지 않은 것 — 기존 280개 라우트 | 랜딩 소개 화면에 지수 종가 한 줄을 넣으려면 출처 · 기준일을 같이 주는 공개 읽기 길이 필요했다 — 기존 `API-STK-01` 은 원천이 외부 시세 사이트이고 응답에 기준 시각이 없다 | 사용자 결정 2026-10-30 · 판단 메모 `github-archive/2026-10-30/메모-랜딩-지수티커-출처-판단` · `api_scan.py --assign S166` · openapi 대조 어긋남 0 |

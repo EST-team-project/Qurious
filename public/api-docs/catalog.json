@@ -2164,8 +2164,8 @@
    ],
    "screens": [
     "dashboard",
-    "indicator-backtest",
     "indicator-custom",
+    "quant-backtest",
     "robo-patterns"
    ],
    "part": "P-D",
@@ -4982,12 +4982,9 @@
    "reaches": [
     "수집DB",
     "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
    "hosts": [
-    "api.upbit.com",
-    "kind.krx.co.kr",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -4995,7 +4992,9 @@
    "req": [],
    "file": "app/routes/paper.py",
    "line": 499,
-   "errors": [],
+   "errors": [
+    "409"
+   ],
    "keys": [
     "task_id"
    ],
@@ -5015,7 +5014,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 514,
+   "line": 530,
    "errors": [
     "404"
    ],
@@ -5040,7 +5039,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 522,
+   "line": 546,
    "errors": [],
    "keys": [
     "exists",
@@ -5064,8 +5063,10 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 533,
-   "errors": [],
+   "line": 557,
+   "errors": [
+    "409"
+   ],
    "keys": [],
    "body": [],
    "schema": true
@@ -5087,7 +5088,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 539,
+   "line": 573,
    "errors": [],
    "keys": [
     "status",
@@ -5115,7 +5116,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 598,
+   "line": 632,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5142,7 +5143,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 606,
+   "line": 640,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5165,7 +5166,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 614,
+   "line": 648,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5188,7 +5189,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 622,
+   "line": 656,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5215,7 +5216,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 631,
+   "line": 665,
    "errors": [],
    "keys": [],
    "body": [],
