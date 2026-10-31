@@ -14,7 +14,8 @@ Figma 세 안 · 화면은 3차). 실사용자 피드백 「종목 하나를 기
   disclosures  최근 공시                                       data_search.search(source=dart)
   news         최근 기사(제목 · 주소 · 출처 표시)              data_search.search(kind=news)
   schedule     앞으로의 일정(배당 · 실적 · 주주총회)           market_calendar.events
-  sector       준비 중 — 섹터 분류 기준 · 자료 출처를 확인하는 동안 비워 둔다(정할 것 D117 · 2026-10-17 사용자)
+  sector       전자공시 기업개황 업종코드 → KSIC 제11차 중분류 · 대분류 이름 + 같은 업종 수집 상장사 수(S181 · 할 일 ②-10 ·
+               처음엔 준비 중이었다 — 정할 것 D117 · 2026-10-17 사용자 — 업종코드 수집(①-05 G2)과 KSIC 표가 들어온 뒤 채움)
 
 지키는 것
   - 판단을 섞지 않는다 — 칸마다 그 화면의 값 · 글을 옮길 뿐 칸을 합친 한 줄 결론을 만들지 않는다. 같은 종목을 화면마다
@@ -44,13 +45,13 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
-from app.services import (collector_db, company_health, data_ohlcv, data_search, market_calendar, mtf_signals,
-                          signal_explain, text_match)
+from app.services import (collector_db, company_health, data_ohlcv, data_search, macro_industry, market_calendar,
+                          mtf_signals, signal_explain, text_match)
 
 KST = timezone(timedelta(hours=9))
 
 #: 응답 꼴 판 — 칸 이름 · 꼴을 바꾸면 올린다(화면 · 저장본 열쇠가 이 숫자를 본다)
-VERSION = 1
+VERSION = 2   # 2: 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(S181)
 
 SECTIONS = ("identity", "price", "signal", "financials", "disclosures", "news", "schedule", "sector")
 OK, EMPTY, ERROR, PENDING = "ok", "empty", "error", "pending"
@@ -87,7 +88,6 @@ SIGNAL_RANK_DEFAULT, SIGNAL_RANK_MAX, SIGNAL_RANK_SYMBOLS_MAX = 50, 500, 100
 SIGNAL_RANK_NOTE = ("순위는 매 거래일 기록해 둔 규칙 점수(종합 점수 → 신뢰도 → 종목코드)를 그대로 줄 세운 것입니다 — 이 요청에서 새로 계산하지 않았습니다. "
                     "줄마다 기준일(as_of)이 그 줄이 기록된 거래일이라, 그날 기록이 없는 종목은 앞 날짜의 줄이 보입니다.")
 SIGNAL_RANK_UNREADABLE = "이 줄의 근거 문장 가운데 앱이 아직 모르는 것이 있어 근거 개수를 세지 못했습니다 — 신호 · 점수는 기록 그대로입니다."
-SECTOR_PENDING = "섹터 분류는 준비 중입니다 — 분류 기준과 자료 출처를 확인하고 있습니다."
 NEWS_LIMIT = 5
 DISCLOSURE_LIMIT = 5
 SCHEDULE_DAYS = 60
@@ -336,8 +336,44 @@ def schedule(symbol: str, today: date) -> dict:
                    source="금융 일정 — 공시 · 거래소 규칙에서 모은 배당 · 실적 · 주주총회 일정")
 
 
-def sector() -> dict:
-    return section("sector", PENDING, reason=SECTOR_PENDING)
+SECTOR_SOURCE = "전자공시(DART) 기업개황 업종코드 · 통계청 한국표준산업분류(KSIC) 제11차"
+SECTOR_NOTE = ("기업이 전자공시에 적은 업종코드의 앞 두 자리(중분류)로 묶은 분류입니다. 업종 전망이나 투자 권유가 아니며, "
+               "같은 업종 수는 앱이 수집하는 상장사 안에서만 센 값입니다.")
+
+
+def sector(symbol: str) -> dict:
+    """섹터 칸 — 종목의 DART 기업개황 업종코드를 KSIC 제11차 중분류 · 대분류 이름으로 읽는다(할 일 ②-10 · 새 계산 없음).
+
+    업종코드가 없거나(ETF · 우선주 · 새 상장) KSIC 표에 앞 두 자리가 없으면 비었다고 말하고 지어내지 않는다.
+    """
+    path = collector_db.db_path()
+    if path is None:
+        return section("sector", ERROR, reason="수집한 자료를 찾지 못해 업종을 확인하지 못했습니다.")
+    conn = _open_ro(path)
+    try:
+        have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if not {"dart_company", "ksic_code"} <= have:
+            return section("sector", EMPTY, reason="업종코드 자료를 아직 받지 못했습니다.")
+        row = conn.execute("SELECT induty_code, last_seen_at FROM dart_company WHERE stock_code = ? AND induty_code <> '' "
+                           "ORDER BY last_seen_at DESC LIMIT 1", (symbol,)).fetchone()
+        if not row:
+            return section("sector", EMPTY, reason="전자공시 기업개황에서 이 종목의 업종코드를 찾지 못했습니다(ETF · 우선주 · 새로 상장한 종목 등).")
+        induty, seen = row
+        div = induty[:2]
+        mid = conn.execute("SELECT name, parent_code FROM ksic_code WHERE level = '중분류' AND revision = ? AND code = ?",
+                           (macro_industry.KSIC_REVISION, div)).fetchone()
+        if not mid:
+            return section("sector", EMPTY, reason=f"업종코드 {induty} 의 앞 두 자리({div})가 KSIC 제11차 중분류 표에 없습니다.")
+        top = conn.execute("SELECT name FROM ksic_code WHERE level = '대분류' AND revision = ? AND code = ?",
+                           (macro_industry.KSIC_REVISION, mid[1])).fetchone()
+        peers = conn.execute(
+            "SELECT COUNT(DISTINCT d.corp_code) FROM dart_company d WHERE d.stock_code <> '' AND substr(d.induty_code, 1, 2) = ? "
+            "AND d.last_seen_at = (SELECT MAX(x.last_seen_at) FROM dart_company x WHERE x.corp_code = d.corp_code)", (div,)).fetchone()[0]
+    finally:
+        conn.close()
+    data = {"induty_code": induty, "division_code": div, "division_name": mid[0], "section_code": mid[1],
+            "section_name": top[0] if top else "", "peer_count": peers}
+    return section("sector", OK, data=data, as_of=(seen or "")[:10] or None, source=SECTOR_SOURCE, note=SECTOR_NOTE)
 
 
 # ── 묶음 ────────────────────────────────────────────────────────────────────────────────
@@ -354,7 +390,7 @@ async def bundle(db, symbol: str, *, sections: str | None = None, admin: bool = 
 
     sync = {"price": lambda: price(sym, today), "financials": lambda: financials(sym),
             "disclosures": lambda: disclosures(sym), "news": lambda: news(sym),
-            "schedule": lambda: schedule(sym, today), "sector": sector}
+            "schedule": lambda: schedule(sym, today), "sector": lambda: sector(sym)}
     names = [s for s in want if s != "identity"]
 
     async def one(name: str) -> dict:

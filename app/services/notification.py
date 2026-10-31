@@ -23,6 +23,7 @@ import hashlib
 import hmac
 import logging
 import smtplib
+import socket
 import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -33,6 +34,41 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+#: 재시도 정책(할 일 ①-14 · 교차검증 설계 알림 정책): 전달이 안 된 게 **확실한** 실패만 다시 보낸다.
+#: 처음 1번 + 재시도 최대 3번, 간격은 늘린다(1초 · 3초 · 9초). 응답이 불명확한 실패(읽기 시간 초과 · 서버 5xx ·
+#: 인증 거절 등)는 중복 발송이 더 나쁘므로 다시 보내지 않는다(증권사 연동 설계의 「불명확하면 재발송 금지」).
+MAX_RETRIES = 3
+RETRY_DELAYS = (1.0, 3.0, 9.0)
+
+
+def is_retryable(exc: BaseException) -> bool:
+    """보내지 못한 게 확실한 실패인가 — 연결 단계 실패와 속도 제한(429)만 참이다."""
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code == 429
+    return isinstance(exc, (ConnectionRefusedError, socket.gaierror, smtplib.SMTPConnectError))
+
+
+def _mark(outcome: dict | None, exc: BaseException) -> None:
+    """실패 까닭을 호출한 쪽(`_send_with_retry`)에 알린다 — 반환 값(bool)은 그대로 둔다."""
+    if outcome is not None:
+        outcome["retryable"] = is_retryable(exc)
+
+
+async def _send_with_retry(call) -> tuple[bool, int]:
+    """`call(outcome)` 을 부르고, 확실한 미전달 실패일 때만 간격을 늘려 다시 부른다. (성공 여부, 시도 횟수)"""
+    attempts = 0
+    while True:
+        attempts += 1
+        outcome: dict = {}
+        ok = await call(outcome)
+        if ok is True:
+            return True, attempts
+        if not outcome.get("retryable") or attempts > MAX_RETRIES:
+            return False, attempts
+        await asyncio.sleep(RETRY_DELAYS[attempts - 1])
+
 
 # ── 채널별 전송 함수 ────────────────────────────────────────────────────────
 
@@ -41,6 +77,7 @@ async def send_telegram(
     message: str,
     token: str = "",
     chat_id: str = "",
+    outcome: dict | None = None,
 ) -> bool:
     """텔레그램 메시지 전송 (HTML 태그 지원)."""
     tok = token or settings.TELEGRAM_BOT_TOKEN
@@ -56,10 +93,11 @@ async def send_telegram(
             return True
     except Exception as exc:
         logger.warning("텔레그램 알림 실패: %s", exc)
+        _mark(outcome, exc)
         return False
 
 
-async def send_slack(message: str, webhook_url: str = "") -> bool:
+async def send_slack(message: str, webhook_url: str = "", outcome: dict | None = None) -> bool:
     """Slack Incoming Webhook 메시지 전송."""
     url = webhook_url or settings.SLACK_WEBHOOK_URL
     if not url:
@@ -72,6 +110,7 @@ async def send_slack(message: str, webhook_url: str = "") -> bool:
             return True
     except Exception as exc:
         logger.warning("Slack 알림 실패: %s", exc)
+        _mark(outcome, exc)
         return False
 
 
@@ -84,6 +123,7 @@ def _send_email_sync(
     user: str,
     password: str,
     from_addr: str,
+    outcome: dict | None = None,
 ) -> bool:
     """동기 SMTP 이메일 전송 (executor 에서 실행)."""
     try:
@@ -100,6 +140,7 @@ def _send_email_sync(
         return True
     except Exception as exc:
         logger.warning("이메일 알림 실패: %s", exc)
+        _mark(outcome, exc)
         return False
 
 
@@ -112,6 +153,7 @@ async def send_email(
     user: str = "",
     password: str = "",
     from_addr: str = "",
+    outcome: dict | None = None,
 ) -> bool:
     """이메일 전송 (SMTP / STARTTLS)."""
     to_addr   = to_addr   or settings.SMTP_TO
@@ -125,7 +167,7 @@ async def send_email(
         return False
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
-        None, _send_email_sync, subject, body, to_addr, host, port, user, password, from_addr
+        None, _send_email_sync, subject, body, to_addr, host, port, user, password, from_addr, outcome
     )
 
 
@@ -143,6 +185,7 @@ async def send_kakao(
     api_secret: str = "",
     sender_key: str = "",
     phone: str = "",
+    outcome: dict | None = None,
 ) -> bool:
     """카카오 알림톡 전송 (CoolSMS 친구톡 FriendTalk)."""
     api_key    = api_key    or settings.COOLSMS_API_KEY
@@ -173,6 +216,7 @@ async def send_kakao(
             return True
     except Exception as exc:
         logger.warning("카카오 알림톡 실패: %s", exc)
+        _mark(outcome, exc)
         return False
 
 
@@ -182,6 +226,7 @@ async def send_sms(
     api_secret: str = "",
     from_no: str = "",
     to_no: str = "",
+    outcome: dict | None = None,
 ) -> bool:
     """SMS 문자 전송 (CoolSMS REST API)."""
     api_key    = api_key    or settings.COOLSMS_API_KEY
@@ -213,6 +258,7 @@ async def send_sms(
             return True
     except Exception as exc:
         logger.warning("SMS 알림 실패: %s", exc)
+        _mark(outcome, exc)
         return False
 
 
@@ -308,20 +354,22 @@ async def dispatch(
     channel_names: list[str] = []
     if "telegram" in channels:
         channel_names.append("telegram")
-        tasks.append(send_telegram(
+        tasks.append(_send_with_retry(lambda o: send_telegram(
             html,
             token=user_cfg.get("telegram_token", ""),
             chat_id=user_cfg.get("telegram_chat_id", ""),
-        ))
+            outcome=o,
+        )))
     if "slack" in channels:
         channel_names.append("slack")
-        tasks.append(send_slack(
+        tasks.append(_send_with_retry(lambda o: send_slack(
             plain,
             webhook_url=user_cfg.get("slack_webhook_url", ""),
-        ))
+            outcome=o,
+        )))
     if "email" in channels:
         channel_names.append("email")
-        tasks.append(send_email(
+        tasks.append(_send_with_retry(lambda o: send_email(
             subject=subj,
             body=html,
             to_addr=user_cfg.get("email_to", ""),
@@ -330,33 +378,40 @@ async def dispatch(
             user=user_cfg.get("email_user", ""),
             password=user_cfg.get("email_password", ""),
             from_addr=user_cfg.get("email_from", ""),
-        ))
+            outcome=o,
+        )))
     if "kakao" in channels:
         channel_names.append("kakao")
-        tasks.append(send_kakao(
+        tasks.append(_send_with_retry(lambda o: send_kakao(
             plain,
             api_key=user_cfg.get("kakao_api_key", ""),
             api_secret=user_cfg.get("kakao_api_secret", ""),
             sender_key=user_cfg.get("kakao_sender_key", ""),
             phone=user_cfg.get("kakao_phone", ""),
-        ))
+            outcome=o,
+        )))
     if "sms" in channels:
         channel_names.append("sms")
-        tasks.append(send_sms(
+        tasks.append(_send_with_retry(lambda o: send_sms(
             plain,
             api_key=user_cfg.get("sms_api_key", ""),
             api_secret=user_cfg.get("sms_api_secret", ""),
             from_no=user_cfg.get("sms_from", ""),
             to_no=user_cfg.get("sms_to", ""),
-        ))
+            outcome=o,
+        )))
 
     results: list = []
+    attempts: list[int] = []
     if tasks:
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        raw = await asyncio.gather(*tasks, return_exceptions=True)
+        # 채널 함수가 예외를 던지면(raw 가 예외) 시도 1번에 실패로 센다.
+        results = [r[0] if isinstance(r, tuple) else r for r in raw]
+        attempts = [r[1] if isinstance(r, tuple) else 1 for r in raw]
     if event_id is None:
-        await _log_dispatch(user_id, subj, plain, channel_names, results)
+        await _log_dispatch(user_id, subj, plain, channel_names, results, attempts)
     else:
-        await _finish_event(event_id, channel_names, results)
+        await _finish_event(event_id, channel_names, results, attempts)
 
 
 async def _claim_event(user_id, kind, ref, subject, message):
@@ -377,12 +432,19 @@ async def _claim_event(user_id, kind, ref, subject, message):
         return event_id
 
 
-async def _finish_event(event_id, names, results):
+def _channel_rows(names, results, attempts) -> list[dict]:
+    """채널별 전달 결과 줄 — 시도 횟수(`attempts`)를 함께 남긴다(재시도 정책: 몇 번 만에 됐나 · 몇 번 해도 안 됐나)."""
+    tries = list(attempts or []) + [1] * max(0, len(names) - len(attempts or []))
+    return [{"channel": name, "ok": result is True, "attempts": tries[i]}
+            for i, (name, result) in enumerate(zip(names, results))]
+
+
+async def _finish_event(event_id, names, results, attempts=None):
     from app.database.postgres import get_session_factory
     from app.models import NotificationLog
     async with get_session_factory()() as db:
         row = await db.get(NotificationLog, event_id)
-        row.channels = [{"channel": name, "ok": result is True} for name, result in zip(names, results)]
+        row.channels = _channel_rows(names, results, attempts)
         row.delivery_status = ("no_channels" if not names else "delivered" if all(r is True for r in results)
                                else "failed" if all(r is not True for r in results) else "partial")
         await db.commit()
@@ -394,6 +456,7 @@ async def _log_dispatch(
     message: str,
     channel_names: list[str],
     results: list,
+    attempts: list[int] | None = None,
 ) -> None:
     """발송 시도를 notification_log 테이블에 남긴다 (알림 이력 조회용)."""
     try:
@@ -414,14 +477,12 @@ async def _log_dispatch(
                 user_id=resolved_user_id,
                 subject=subject,
                 message=message[:500],
-                channels=[
-                    {"channel": name, "ok": bool(r is True)}
-                    for name, r in zip(channel_names, results)
-                ],
+                channels=_channel_rows(channel_names, results, attempts),
             ))
             await db.commit()
-    except Exception:
-        pass  # 이력 기록 실패는 알림 발송 자체를 막지 않음
+    except Exception as exc:
+        # 이력 기록 실패는 알림 발송 자체를 막지 않는다 — 다만 조용히 지나가지 않고 로그에 남긴다(교차검증 설계 알림 정책).
+        logger.warning("알림 이력 기록 실패: %s", exc)
 
 
 # ── 알림 헬퍼 ────────────────────────────────────────────────────────────────
