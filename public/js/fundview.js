@@ -88,11 +88,18 @@ function accountCard(label, acc, row, fin, esc) {
   return card(esc(label), `<div class="text-lg font-bold">${esc(wonText(acc.amount))}</div>`, cum + small(provenanceLine(row, fin), esc));
 }
 
+/** 기준 글 — 기업 지표는 글로, 재무 건전성은 기간 묶음({period_end · report})으로 준다(클릭 점검 G3 — 객체가 「[object Object]」 로 보이던 것). */
+function fvBasisText(b) {
+  if (!b) return "";
+  if (typeof b === "string") return b;
+  return [b.period_end ? `${b.period_end} 기준` : "", b.report || ""].filter(Boolean).join(" ");
+}
+
 /** 건전성 지표 카드 — 값 · 단위 · 뜻은 서버 글 그대로, 식은 있을 때만. */
 function metricCard(m, esc) {
   const val = isNum(m.value) ? `${m.value}${m.unit || ""}` : DASH;
   return card(esc(m.label || m.key || DASH), `<div class="text-lg font-bold">${esc(val)}</div>`,
-    small(m.sentence, esc) + small(m.formula ? `식: ${m.formula}` : "", esc) + small(m.basis, esc));
+    small(m.sentence, esc) + small(m.formula ? `식: ${m.formula}` : "", esc) + small(fvBasisText(m.basis), esc));
 }
 
 export const CONCEPTS = {

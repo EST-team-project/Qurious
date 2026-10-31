@@ -498,7 +498,7 @@ function paintResults() {
   if (!box || !head) return;
   const tl = S.view === "timeline" && S.symbol;
   const exact = exactTotal();
-  head.innerHTML = `${escHtml(conditionText())}${tl ? "" : ` — <strong>${S.loading ? "…" : num(exact ?? S.total)}${exact === null && S.capped ? "+" : ""}건</strong>`}`;
+  head.innerHTML = `${escHtml(conditionText())}${S.symbol ? ` <button type="button" class="sd-open-btn" data-hub-open="${escHtml(S.symbol)}" data-hub-name="${escHtml(S.symbolName || "")}">근거 서랍 →</button>` : ""}${tl ? "" : ` — <strong>${S.loading ? "…" : num(exact ?? S.total)}${exact === null && S.capped ? "+" : ""}건</strong>`}`;
   const sw = r.querySelector(".rs-switch-box");
   if (sw) {
     sw.innerHTML = switchHtml();

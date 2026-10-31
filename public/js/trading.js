@@ -110,6 +110,7 @@ async function placeOrder(type) {
   const qty = parseInt(document.getElementById("ord-qty").value);
   const broker = document.getElementById("ord-broker").value;
   if (!symbol || !name || !price || !qty) return setToast("모든 항목을 입력하세요.", "error");
+  if (!(price > 0) || !(qty >= 1)) return setToast("가격은 0보다 크고 수량은 1주 이상이어야 합니다.", "error");   // 클릭 점검 R1 — 음수가 장부에 들어가던 것
   try {
     await api("/api/orders", { method: "POST", body: { symbol, name, order_type: type, quantity: qty, price, broker } });
     // 증권사로 나간 주문이 아니다 — 앱 안 기록(서버 /api/orders 는 증권사를 부르지 않는다)

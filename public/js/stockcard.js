@@ -112,6 +112,7 @@ export function stockCardHtml(hub, mention) {
   const read = mention?.matched || hub.name || hub.symbol;
   return `<section class="kb-sc" aria-label="앱 판단 — ${esc(hub.name || hub.symbol)}">
     <div class="kb-sc-head"><strong>${esc(hub.name || hub.symbol)}</strong><span class="kb-sc-chip">${esc(hub.symbol)}</span>
+      <button type="button" class="sd-open-btn" data-hub-open="${esc(hub.symbol)}" data-hub-name="${esc(hub.name || "")}">근거 서랍 →</button>
       ${hub.market ? `<span class="kb-sc-chip">${esc(MARKETS[hub.market] || hub.market)}</span>` : ""}${priceHtml}</div>
     ${price && !cardOk(price) ? `<p class="kb-sc-why">${esc(price.label || "마지막 종가")} — ${esc(price.reason || "이 칸의 자료가 없습니다.")}</p>` : ""}
     <p class="kb-sc-read">질문의 「${esc(read)}」 ${objectJosa(read)} 종목으로 읽었습니다 · 우리 앱 화면마다의 값을 그대로 옮겼습니다(하나로 합친 결론이 아닙니다)</p>

@@ -308,13 +308,14 @@ async function placeUsOrder(side) {
   const symbol = document.getElementById("us-ord-symbol").value.trim().toUpperCase();
   const qty    = parseInt(document.getElementById("us-ord-qty").value);
   const type   = document.getElementById("us-ord-type").value;
-  if (!symbol || !qty) return setToast("종목코드와 수량을 입력하세요.", "error");
+  if (!symbol || !(qty >= 1)) return setToast("종목코드와 수량(1주 이상)을 입력하세요.", "error");
   // 모의 장부는 원화 하나 — 서버가 시세 · 환율을 정하는 모의 주문 길로 보낸다(가격을 보내지 않는다 · 2026-10-16 점검 🔴).
   if (type === "limit") return setToast("지정가 모의 주문은 아직 없습니다 — 시장가로 주문하세요.", "error");
   // 해외 매도는 비용(증권사 해외 수수료 · 매도 SEC 수수료) 계산이 준비될 때까지 막는다 — 지금 서버 길은 해외 매도에서 멈춘다.
   if (side === "sell") return setToast("해외 종목 모의 매도는 아직 열지 않았습니다 — 해외 매도 비용 계산이 준비되면 열립니다.", "error");
   // 확인 상자 — 장 상태를 다시 묻고(열어 둔 화면의 옛 상태로 주문하지 않게) 시세 · 미리 보기를 보인 뒤 한 번 더 묻는다
   await loadUsMarket();
+  clearTimeout(usQuoteTimer);   // 입력 직후 눌러도 대기 중이던 시세 갱신이 방금 받은 응답을 버리지 않게(클릭 점검 Y5)
   if (!usOrd.pq || (usOrd.pq.symbol !== symbol && usOrd.pq.code !== symbol)) await refreshUsQuote();
   if (!usOrd.pq) return setToast("시세를 받지 못해 주문할 수 없습니다 — 종목코드를 확인하세요.", "error");
   const c = usoConfirm({ symbol, qty, q: usOrd.q || {}, pq: usOrd.pq, p: usOrd.p, market: usOrd.market, err: usOrd.perr });
