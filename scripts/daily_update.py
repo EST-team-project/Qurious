@@ -138,6 +138,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from collector import config  # noqa: E402
+from scripts.proc_stats import measure  # noqa: E402 — 자식(과 손자)의 CPU 초(P1 · 표준 라이브러리만)
+from scripts.runner_bg import BackgroundStep  # noqa: E402 — 뒤에서 도는 단계(표준 라이브러리만 씀 · TC-BG)
 
 KST = zoneinfo.ZoneInfo("Asia/Seoul")
 
@@ -220,6 +222,10 @@ class Step:
     # 빈 범위 채우기 — 앱 DB 기록의 마지막 날 뒤가 이틀 넘게 비었으면 그 범위를 채우기 인자로 한 번에(31일까지 · 여러 PC
     # 2026-10-25). 회차가 다른 PC 에서 돈 날은 이 PC 앱 DB 에 기록이 없다 — 다음에 이 PC 가 돌 때 그 날들을 함께 계산한다.
     gap_fill: bool = False
+    # 뒤에서 도는 단계인가 — 앞 단계의 산출물을 읽지 않고 자기 파일에만 쓰는 단계(``search``)는 자식으로 띄워 두고 루프는 다음 단계로
+    # 간다. 결과는 백업 묶음 앞에서 거둔다(2026-10-31 · 할 일 P2 · 강사님 피드백 「속도」 · ``scripts/runner_bg.py``). 끄는 스위치:
+    # 환경변수 ``QURIOUS_NO_OVERLAP=1``(그러면 옛 순차 그대로).
+    background: bool = False
 
     def __post_init__(self) -> None:
         if self.fill_args and not self.fill:
@@ -297,7 +303,9 @@ STEPS: List[Step] = [
     Step("ecos", ["-m", "collector.ecos", "daily", "--quiet"], 10, fatal=False,
          label="한국은행 통계", group="받기",
          desc="한국은행 ECOS — 시장금리(국고채 3 · 10년 · 회사채 · CD · CP) · 주가지수 · 기준금리 · 원/달러 · 소비자물가"),
-    Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False,
+    # 뒤에서 돈다(``background``) — 읽는 것은 일봉(마지막 날 종목 이름) · 공시 · 뉴스뿐이고 쓰는 곳은 자기 파일 ``search.sqlite3`` 뿐이라
+    # 아래 달력 → 수정주가 → … → 신호 사슬과 서로 기다릴 까닭이 없다(설계 6절 H1 · 코드로 확인). 수집 DB 는 WAL 이라 읽기가 쓰기를 막지 않는다.
+    Step("search", ["-m", "collector.search_index", "build", "--quiet"], 15, fatal=False, background=True,
          label="검색 색인", group="계산", desc="수집 자료 검색 색인 — 바뀐 것만 다시 짓는다"),
     # 거래일 달력 · 금융 일정(2026-10-02) — 공휴일 받기 → 달력 → 배당락일 다시 계산 → 일정.
     # 파생 판정(③ 직전) **앞에** 둔다 — 배당락일이 바뀌면 배당 지문이 바뀌어 TR 을 다시 만든다.
@@ -621,7 +629,7 @@ def _compact(recs: List[Dict]) -> List[Dict]:
     for r in recs:
         row = {"name": r["name"], "rc": r.get("rc"), "seconds": r.get("seconds") or 0.0, "note": r.get("note") or ""}
         row.update({k: r[k] for k in ("reason", "followup", "date", "fill_from", "fill_to", "fill_days", "fill_rest",
-                                      "error", "log_name", "warn", "dart_calls") if r.get(k)})
+                                      "error", "log_name", "warn", "dart_calls", "background", "cpu_seconds") if r.get(k)})
         out.append(row)
     return out
 
@@ -983,6 +991,8 @@ class Run:
     app_db_why: str = ""
     #: 단계마다 DART 호출 수(장부 앞뒤로 잼 · 0 이면 적지 않는다)
     dart_calls: Dict[str, int] = field(default_factory=dict)
+    #: 단계마다 자식 프로세스가 쓴 CPU 초(Windows 만 · 잴 수 없으면 비어 있다) — 걸린 시간과 견주어 계산에 묶였나 기다림에 묶였나를 본다
+    cpu: Dict[str, float] = field(default_factory=dict)
 
     def say(self, msg: str) -> None:
         line = f"[{now_kst().strftime('%H:%M:%S')}] {msg}"
@@ -1028,12 +1038,8 @@ def app_db_gate(run: Run, step: Step) -> Optional[Dict]:
             "note": f"앱 DB 꺼짐 · {_db_where(run.app_db_env['DATABASE_URL'])} {why} · 건너뜀"}
 
 
-def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout_min: Optional[int] = None,
-              env_extra: Optional[Dict[str, str]] = None) -> int:
-    """단계 하나를 자식 파이썬으로 — ``args`` · ``timeout_min`` 은 빠진 날 채우기(날짜를 넣은 채우기 인자 · 범위로 센 한도) ·
-    ``env_extra`` 는 그 단계에만 넘길 값(올리기 단계의 회차 기록 시각 — ``write_upload_record``)."""
-    args = list(args) if args is not None else step.args
-    timeout_min = timeout_min or step.timeout_min
+def _step_env(run: Run, step: Step, env_extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """단계 자식 프로세스의 환경 — 순차로 돌리는 단계(``_run_step``)와 뒤에서 도는 단계(``_start_background``)가 같은 값을 쓴다."""
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["PYTHONIOENCODING"] = "utf-8"
@@ -1046,18 +1052,75 @@ def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout
     if env_extra:
         env.update(env_extra)
     env["QURIOUS_DART_LEDGER"] = str(DART_LEDGER_PATH)    # ← DART 하루 호출 장부(기록만) — 부른 횟수를 끝날 때 한 줄
+    return env
+
+
+def overlap_enabled() -> bool:
+    """뒤에서 도는 단계를 겹쳐 돌리는가 — 끄는 스위치 ``QURIOUS_NO_OVERLAP=1``(켜져 있으면 옛 순차 그대로 · 2026-10-31)."""
+    return os.environ.get("QURIOUS_NO_OVERLAP") != "1"
+
+
+def _start_background(run: Run, step: Step, env_extra: Optional[Dict[str, str]] = None) -> BackgroundStep:
+    """뒤에서 도는 단계를 띄운다 — 자식 출력은 따로 임시 로그에 쓰고 거둘 때 본 로그에 붙인다(앞 단계 로그와 줄이 섞이지 않게).
+    DART 장부는 재지 않는다 — 겹친 동안 다른 단계의 구간에 섞이기 때문이고, 이 방식은 DART 를 안 부르는 단계에만 쓴다(TC-DU)."""
+    part = run.log_path.with_name(run.log_path.stem + f"-{step.name}.part.log")
+    run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(step.args)}  (뒤에서 돌림 — 로그는 거둘 때 아래에 붙는다)\n{'=' * 70}\n")
+    run.log.flush()
+    bg = BackgroundStep(step.name, [child_python(), *step.args], cwd=ROOT, env=_step_env(run, step, env_extra),
+                        timeout_min=step.timeout_min, log_path=part)
+    bg.start()
+    return bg
+
+
+def _stop_background(run: Run, bgs: List[Tuple[Step, Dict, BackgroundStep]], why: str) -> None:
+    """뒤에서 돌던 단계가 남았으면 죽이고 로그를 붙인다 — 회차가 멈추거나(임대를 잃음) 러너가 오류로 끝날 때. 자식을 고아로 남기지 않는다.
+    이미 끝난 자식은 종료코드만 적는다."""
+    for bstep, brec, bg in bgs:
+        try:
+            rc = bg.terminate(why)
+            mark = bg.merge_into(run.log)
+            brec.update(rc=rc, seconds=bg.seconds, note=f"회차가 멈춰 같이 멈춤 — {why}" if rc == -9 else "뒤에서 돌림")
+            if rc != 0:
+                brec.update(step_failure(run, bstep, rc, mark))
+            run.say(f"{_mark(bstep, rc)} {bstep.name} · 종료코드 {rc} · {bg.seconds:,.0f}초 (뒤에서 돌림 — 회차가 멈춰 정리)")
+        except Exception as e:  # noqa: BLE001 — 정리가 실패해도 회차 마무리는 계속
+            run.say(f"🟡 {bstep.name} 정리 중 오류 {type(e).__name__}: {e}")
+        finally:
+            bg.cleanup()
+    bgs.clear()
+
+
+def _run_step(run: Run, step: Step, *, args: Optional[List[str]] = None, timeout_min: Optional[int] = None,
+              env_extra: Optional[Dict[str, str]] = None) -> int:
+    """단계 하나를 자식 파이썬으로 — ``args`` · ``timeout_min`` 은 빠진 날 채우기(날짜를 넣은 채우기 인자 · 범위로 센 한도) ·
+    ``env_extra`` 는 그 단계에만 넘길 값(올리기 단계의 회차 기록 시각 — ``write_upload_record``)."""
+    args = list(args) if args is not None else step.args
+    timeout_min = timeout_min or step.timeout_min
+    env = _step_env(run, step, env_extra)
     at0 = _ledger_size()
     run.log.write(f"\n{'=' * 70}\n▶ {step.name}: python {' '.join(args)}\n{'=' * 70}\n")
     run.log.flush()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     try:
-        p = subprocess.run([child_python(), *args], cwd=ROOT, env=env,
-                           stdout=run.log, stderr=subprocess.STDOUT,
-                           timeout=timeout_min * 60, creationflags=flags)
-        return p.returncode
-    except subprocess.TimeoutExpired:
-        run.log.write(f"\n⏱ {timeout_min}분을 넘겨 멈췄다\n")
-        return 124
+        # ``subprocess.run`` 과 같다(시간을 넘기면 죽이고 기다림) — 끝난 자식의 CPU 시간을 읽으려고 ``Popen`` 을 직접 쓴다(P1 · H2).
+        with subprocess.Popen([child_python(), *args], cwd=ROOT, env=env, stdout=run.log, stderr=subprocess.STDOUT,
+                              creationflags=flags) as p:
+            meter = measure(p)                          # 작업 개체에 넣어 손자(가상환경 껍데기 아래 진짜 인터프리터)까지 CPU 를 잰다
+            try:
+                try:
+                    rc = p.wait(timeout=timeout_min * 60)
+                except subprocess.TimeoutExpired:
+                    p.kill()
+                    p.wait()
+                    run.log.write(f"\n⏱ {timeout_min}분을 넘겨 멈췄다\n")
+                    return 124
+                cpu = meter.seconds() if meter else None
+                if cpu is not None:
+                    run.cpu[step.name] = cpu
+                return rc
+            finally:
+                if meter:
+                    meter.close()
     finally:
         n = sum(int(x.get("calls") or 0) for x in _ledger_since(at0))
         if n:
@@ -1082,6 +1145,9 @@ def _put_dart(run: Run, step: Step, rec: Dict) -> None:
     n = run.dart_calls.get(step.name)
     if n:
         rec["dart_calls"] = n
+    cpu = run.cpu.get(step.name)
+    if cpu is not None:                                      # 단계 줄에 CPU 초도 함께(P1) — 호출하는 세 곳이 이 한 함수를 부른다
+        rec["cpu_seconds"] = cpu
 
 
 def dart_calls_today(day: Optional[str] = None) -> Dict[str, int]:
@@ -1546,6 +1612,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
     rc_total = 0
     coord: Optional[Coord] = None
     drop_log = False
+    bgs: List[Tuple[Step, Dict, BackgroundStep]] = []    # 뒤에서 도는 단계(띄운 것 · 아직 안 거둔 것) — 백업 앞에서 거둔다
     with log_path.open("w", encoding="utf-8") as log:
         run = Run(started, upload, log, log_path)
         try:
@@ -1562,14 +1629,40 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
             run.say(f"시작 상태 {json.dumps(before, ensure_ascii=False)}")
             derived_why: Optional[str] = None
             stop = ""
+
+            def harvest() -> None:
+                """뒤에서 돌던 단계를 거둔다 — 끝나기를 기다려(한도는 감시 스레드가 지켰다) 로그를 본 로그에 붙이고 단계 줄을 채운다.
+                순차 단계와 같은 마무리(실패 까닭 · 경고 · 멈춤 단계의 ``stop``)를 한다."""
+                nonlocal rc_total, stop, pending_changed
+                for bstep, brec, bg in bgs:
+                    rc = bg.join()
+                    mark = bg.merge_into(run.log)
+                    brec["rc"], brec["seconds"], brec["note"] = rc, bg.seconds, "뒤에서 돌림"
+                    if bg.cpu_seconds is not None:
+                        run.cpu[bstep.name] = bg.cpu_seconds
+                    _put_dart(run, bstep, brec)                  # CPU 초(DART 는 안 부르는 단계라 호출 수는 안 붙는다)
+                    brec.update(step_failure(run, bstep, rc, mark))
+                    if _clear_done(bstep, rc, pending):
+                        pending_changed = True
+                    run.say(f"{_mark(bstep, rc)} {bstep.name} · 종료코드 {rc} · {bg.seconds:,.0f}초 (뒤에서 돌림 — 거둠)")
+                    if rc != 0:
+                        rc_total = rc_total or rc
+                        if not _mark_warn(bstep, rc, brec) and bstep.fatal:
+                            stop = f"{bstep.name} 종료코드 {rc}"
+                    bg.cleanup()
+                bgs.clear()
+
             for step in STEPS:
                 rec = _rec(step)
                 run.steps.append(rec)
+                if bgs and step.group == "백업":               # 백업 앞 — 뒤에서 돌던 단계는 여기서 끝낸다(올리기 전에 모두 끝난 상태)
+                    harvest()
                 if coord and not stop:                       # 단계 사이 — 임대 갱신(15분에 한 번까지) · 빼앗겼으면 뒤를 멈춘다
                     lost = coord_tick(run, coord)
                     if lost:
                         stop = lost
                         run.say(f"🔴 {lost} — 뒤 단계 · 올리기를 하지 않는다")
+                        _stop_background(run, bgs, lost)
                 # 건너뛴 줄에는 까닭 코드를 함께 적는다 — 화면이 「할 일 없는 건너뜀(회색)」 과 「채울 것이 있는 건너뜀(노랑)」 을 가른다
                 if step.upload and not upload:
                     rec.update(note="업로드 끔", reason="upload_off")
@@ -1619,6 +1712,17 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                             days.append(gate["date"])
                             pending_changed = True
                     continue
+                if step.background and overlap_enabled() and not step.app_db and step.name not in DART_CAPS:
+                    # 뒤에서 돈다 — 앞 단계 산출물을 읽지 않는 단계(``Step.background``). 띄워 두고 다음 단계로 간다(백업 앞에서 거둠).
+                    # 앱 DB · DART 를 쓰는 단계는 겹치지 않는다 — 앱 DB 문지기와 DART 호출 장부(단계 앞뒤 크기로 잼)가 순차를 전제한다.
+                    try:
+                        bgs.append((step, rec, _start_background(run, step, env_extra)))
+                    except OSError as e:
+                        run.say(f"🟡 {step.name} 을 뒤에서 띄우지 못해 순서대로 돌린다 — {type(e).__name__}: {e}")
+                    else:
+                        rec.update(background=True, note="뒤에서 돌리는 중")
+                        run.say(f"▶ {step.name} … (뒤에서 돌리며 다음 단계로 간다)")
+                        continue
                 args, limit, gap = gap_args(run, step) if step.gap_fill else (None, None, None)
                 t0 = time.time()
                 run.say(f"▶ {step.name} …")
@@ -1643,6 +1747,8 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                     # 단계 정의가 경고로 정한 종료코드(시세 69 — 다 받지 못함 · 받은 날은 저장)는 뒤를 막지 않는다(DF-92)
                     if not _mark_warn(step, rc, rec) and step.fatal:
                         stop = f"{step.name} 종료코드 {rc}"
+            if bgs:                                         # 백업 묶음이 없는 단계 목록이거나 모두 건너뛴 회차 — 그래도 거둔다
+                harvest()
             if pending_changed:
                 _save_fill(run, pending)
             for rec in run.steps:                           # 남은 빠진 날은 성공 줄이어도 「채울 것」 으로(말없이 사라지지 않게)
@@ -1694,6 +1800,7 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                                                            "finished_at": err["finished_at"],
                                                            "steps": [[s.get("name"), s.get("rc")] for s in run.steps]})
         finally:
+            _stop_background(run, bgs, "러너가 끝남")     # 거두지 못한 자식이 남았으면(러너 오류 · 따라가기) 정리
             clear_progress()
             release_lock()
     if drop_log:                                            # 조용히 끝난 따라가기 — 로그를 남기지 않는다(1시간마다 쌓이지 않게)

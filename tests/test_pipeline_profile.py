@@ -62,6 +62,23 @@ def test_report_on_a_synthetic_round_and_flags_unmodeled_steps(tmp_path):
     assert pp.main(["--file", str(tmp_path / "없는파일.json")]) == 1
 
 
+def test_overlapped_round_is_labelled_with_wall_time(tmp_path):
+    """TC-PLP-02c · 뒤에서 돈 단계(2026-10-31)가 있는 회차 — 단계 초의 합이 실제 시간보다 길다는 것과 실제 시작~끝을 함께 보인다.
+    겹침이 없는 기록은 이 칸이 아예 없다(옛 결과 그대로)."""
+    d = {"started_at": "2026-11-01T12:30:00+09:00", "finished_at": "2026-11-01T12:40:00+09:00",
+         "steps": [{"name": "price", "seconds": 5.0}, {"name": "search", "seconds": 300.0, "background": True},
+                   {"name": "adjusted", "seconds": 400.0}]}
+    f = tmp_path / "last.json"
+    f.write_text(json.dumps(d), encoding="utf-8")
+    steps = pp.load_steps(f)
+    rep = pp.report(steps, {})
+    assert rep["overlapped"] == {"steps": ["search"], "seconds": 300.0, "wall_seconds": 600.0}
+    assert "겹쳐 돈 단계 search" in pp.render(rep) and "10.0분" in pp.render(rep)
+    d2 = {"steps": [{"name": "price", "seconds": 5.0}, {"name": "search", "seconds": 300.0}]}
+    f.write_text(json.dumps(d2), encoding="utf-8")
+    assert "overlapped" not in pp.report(pp.load_steps(f), {})
+
+
 def test_model_step_names_match_the_runner_and_tool_is_read_only():
     """TC-PLP-03 · 의존 모델의 단계 이름이 러너 STEPS 와 같다(러너에 단계가 늘면 이 시험이 알려 준다) · 도구는 쓰지 않는다."""
     import re

@@ -74,6 +74,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from collector import db
 from collector.console import utf8_stdio
+from collector.diff_write import add_stats, stats_line, sync_rows
 
 #: 이보다 더 어긋나면 "가격이 끊긴 날" 로 본다.
 #:
@@ -317,13 +318,23 @@ def cumulative(day_factors: List[Tuple[str, float, Optional[Dict]]]) -> Dict[str
     return cum
 
 
+#: 표의 칸 차례 — ``collector.diff_write.sync_rows`` 에 넘긴다(앞 두 칸이 기본키 ``bas_dt, srtn_cd``).
+ADJ_COLS = ("bas_dt", "srtn_cd", "adj_clpr", "adj_mkp", "adj_hipr", "adj_lopr", "cum_factor")
+EVENT_COLS = ("bas_dt", "srtn_cd", "itms_nm", "prev_clpr", "base_price", "factor", "lstg_before", "lstg_after",
+              "lstg_cross", "needs_review", "kind")
+
+
 def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
-            *, verbose: bool = False, timings: Optional[Dict[str, float]] = None) -> Dict[str, int]:
+            *, verbose: bool = False, timings: Optional[Dict[str, float]] = None,
+            diff: bool = True, stats: Optional[Dict[str, Dict[str, int]]] = None) -> Dict[str, int]:
     """수정주가와 조정 이벤트를 다시 만든다. **몇 번을 돌려도 같은 결과**가 된다.
 
     timings: 사전을 주면 단계 안 시간(초)을 채운다 — list 종목 목록 · begin 쓰기 잠금 · read 읽기 · compute 계산 ·
-      write 쓰기(지우고 넣기) · commit 커밋. DF-104(평소 570 ~ 790초가 회차를 건너뛴 뒤 1,787초)의 까닭을 재려고
+      write 쓰기(바뀐 행만 넣기) · commit 커밋. DF-104(평소 570 ~ 790초가 회차를 건너뛴 뒤 1,787초)의 까닭을 재려고
       둔다 — 재는 것만 하고 결과는 바꾸지 않는다(시험이 두 결과를 맞댄다).
+    diff: 참(기본)이면 **계산 결과가 같은 행은 건드리지 않고 바뀐 행만** 쓴다(2026-10-31 · 쓰기가 단계 시간의 74% 였다 —
+      ``collector.diff_write``). 거짓이면 예전처럼 종목마다 지우고 전부 다시 넣는다(``--full``). 끝난 표의 내용은 두 방식이 같다.
+    stats: 사전을 주면 표마다 ``{"new", "changed", "gone", "same"}`` 를 채운다(``diff`` 일 때만).
     """
     clock = time.perf_counter
     spent = {"list": 0.0, "begin": 0.0, "read": 0.0, "compute": 0.0, "write": 0.0, "commit": 0.0}
@@ -336,6 +347,8 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
 
     tally = {"codes": 0, "rows": 0, "events": 0, "suspect": 0, "suspect_backed": 0,
              EV_SPLIT: 0, EV_RIGHTS: 0, EV_REVIEW: 0, EV_SHARES: 0}
+    adj_stats: Dict[str, int] = {}
+    ev_stats: Dict[str, int] = {}
     a = clock()
     conn.execute("BEGIN IMMEDIATE")
     spent["begin"] = clock() - a
@@ -391,18 +404,22 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
 
             b = clock()
             spent["compute"] += b - a
-            conn.execute("DELETE FROM price_adjusted WHERE srtn_cd=?", (code,))
-            conn.executemany(
-                "INSERT INTO price_adjusted "
-                "(bas_dt,srtn_cd,adj_clpr,adj_mkp,adj_hipr,adj_lopr,cum_factor) "
-                "VALUES (?,?,?,?,?,?,?)", adj)
-            conn.execute("DELETE FROM corporate_action WHERE srtn_cd=?", (code,))
-            if evs:
+            if diff:                                     # 계산 결과가 같은 행은 건드리지 않는다 — 바뀐 행만(표 내용은 전부 다시 쓴 것과 같다)
+                add_stats(adj_stats, sync_rows(conn, "price_adjusted", ADJ_COLS, 2, "srtn_cd=?", (code,), adj))
+                add_stats(ev_stats, sync_rows(conn, "corporate_action", EVENT_COLS, 2, "srtn_cd=?", (code,), evs))
+            else:                                        # --full — 예전 방식(종목마다 지우고 전부 다시)
+                conn.execute("DELETE FROM price_adjusted WHERE srtn_cd=?", (code,))
                 conn.executemany(
-                    "INSERT INTO corporate_action "
-                    "(bas_dt,srtn_cd,itms_nm,prev_clpr,base_price,factor,lstg_before,lstg_after,"
-                    " lstg_cross,needs_review,kind) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?)", evs)
+                    "INSERT INTO price_adjusted "
+                    "(bas_dt,srtn_cd,adj_clpr,adj_mkp,adj_hipr,adj_lopr,cum_factor) "
+                    "VALUES (?,?,?,?,?,?,?)", adj)
+                conn.execute("DELETE FROM corporate_action WHERE srtn_cd=?", (code,))
+                if evs:
+                    conn.executemany(
+                        "INSERT INTO corporate_action "
+                        "(bas_dt,srtn_cd,itms_nm,prev_clpr,base_price,factor,lstg_before,lstg_after,"
+                        " lstg_cross,needs_review,kind) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?)", evs)
             spent["write"] += clock() - b
             tally["codes"] += 1
             tally["rows"] += len(adj)
@@ -415,6 +432,8 @@ def rebuild(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
         raise
     if timings is not None:
         timings.update(spent)
+    if stats is not None and diff:
+        stats["price_adjusted"], stats["corporate_action"] = adj_stats, ev_stats
     return tally
 
 
@@ -494,24 +513,39 @@ def delisted(conn: sqlite3.Connection, *, as_of: Optional[str] = None) -> List[s
         "ORDER BY last_seen DESC", (last,)))
 
 
+def delisted_count(conn: sqlite3.Connection, *, as_of: Optional[str] = None) -> int:
+    """``len(delisted(conn))`` 와 같은 수 — 목록(이름 · 시장 · 날 수)을 만들지 않고 종목별 마지막 날만 세서 훨씬 빠르다.
+
+    10-31 회차에서 ``delisted`` 가 41초였다(종목마다 이름 · 날 수까지 모으느라 일봉 450만 행을 훑음) — 러너는 개수만 찍는다.
+    """
+    last = as_of or conn.execute("SELECT MAX(bas_dt) FROM price_daily").fetchone()[0]
+    if not last:
+        return 0
+    return conn.execute("SELECT COUNT(*) FROM (SELECT srtn_cd FROM price_daily GROUP BY srtn_cd HAVING MAX(bas_dt) < ?)",
+                        (last,)).fetchone()[0]
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     utf8_stdio()
     # 인자를 먼저 본다 — 예전에는 읽지 않아서 ``--help`` 가 전 종목 재계산(쓰기)을 시작했다 (DF-16 · S60).
     p = argparse.ArgumentParser(
         prog="python -m collector.preprocess",
-        description="수정주가·조정 이벤트를 전 종목 다시 계산한다 — price_adjusted · corporate_action 을 "
-                    "종목마다 지우고 새로 쓴다(쓰기 트랜잭션 하나 · 수 분). 받는 인자는 없다.",
+        description="수정주가·조정 이벤트를 전 종목 다시 계산한다 — price_adjusted · corporate_action 을 계산해 "
+                    "**바뀐 행만** 새로 쓴다(쓰기 트랜잭션 하나). 받는 인자는 --full 뿐이다.",
         epilog="일일 러너의 adjusted 단계가 매일 이 명령을 인자 없이 돈다. 손으로 돌리기 전에 "
                "`python scripts/daily_update.py status` 로 「실행 중」 이 아닌지 본다 — "
                "겹치면 잠금을 기다리며 멈춘다.")
-    p.parse_args(argv)
+    p.add_argument("--full", action="store_true",
+                   help="바뀐 행만이 아니라 종목마다 지우고 전부 다시 쓴다(예전 방식 · 수 분 더 걸린다 — 표를 통째로 의심할 때)")
+    args = p.parse_args(argv)
 
     conn = db.connect()
     wal_before = wal_bytes(conn)
     timings: Dict[str, float] = {}
+    stats: Dict[str, Dict[str, int]] = {}
     cpu0 = time.process_time()
-    print("수정주가 다시 계산 중 …")
-    t = rebuild(conn, verbose=True, timings=timings)
+    print("수정주가 다시 계산 중 …" + (" (--full: 전부 다시 쓴다)" if args.full else ""))
+    t = rebuild(conn, verbose=True, timings=timings, diff=not args.full, stats=stats)
     print(f"  종목 {t['codes']:,} · 행 {t['rows']:,} · 조정 이벤트 {t['events']:,}")
     print(f"    분할·병합(두 신호 일치) {t[EV_SPLIT]:,} · "
           f"권리락(주식수 불변) {t[EV_RIGHTS]:,} · "
@@ -519,11 +553,14 @@ def main(argv: Optional[List[str]] = None) -> int:
           f"⚠️ 확인 필요 {t[EV_REVIEW]:,}"
           + (f" · ⚠️ 상식 밖 {t['suspect']:,}" if t["suspect"] else "")
           + (f" · 상식 밖이지만 주식 수로 뒷받침 {t['suspect_backed']:,}" if t["suspect_backed"] else ""))
+    for table, label in (("price_adjusted", "수정주가"), ("corporate_action", "조정 이벤트")):
+        if table in stats:                                          # 바뀐 행만 쓴 회차 — 얼마나 건드렸나(--full 이면 줄이 없다)
+            print(stats_line(label, stats[table]))
     a = time.perf_counter()
-    d = delisted(conn)
+    n_delisted = delisted_count(conn)
     timings["delisted"] = time.perf_counter() - a
     timings["cpu"] = time.process_time() - cpu0
-    print(f"  최근 기준일에 없는 종목 {len(d):,} (지우지 않는다 — 생존 편향)")
+    print(f"  최근 기준일에 없는 종목 {n_delisted:,} (지우지 않는다 — 생존 편향)")
     print(timing_line(timings, wal_before, wal_bytes(conn)))
     conn.close()
     return 0
