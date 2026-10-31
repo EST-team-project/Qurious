@@ -31,7 +31,7 @@ from zoneinfo import ZoneInfo
 from app.config import settings
 from app.database.postgres import get_pg_session
 from app.lib.jwt_auth import get_current_user_any, require_roles
-from app.models import ApiKey
+from app.models import ApiKey, Order
 
 from app.services import paper_trading as pt
 from app.services.audit import audit

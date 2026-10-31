@@ -162,7 +162,7 @@ async function stockPreview(side) {
 async function stockOrder(side) {
   const symbol = $("ps-symbol").value.trim();
   const quantity = parseInt($("ps-qty").value);
-  if (!symbol || !quantity) return setToast("종목코드와 수량을 입력하세요.", "error");
+  if (!symbol || !(quantity >= 1)) return setToast("종목코드와 수량(1주 이상)을 입력하세요.", "error");
 
   // 이슈 #256 — 장 닫힘 안내. resolve_stock 은 60초 캐시라 이미 조회했으면 즉시 반환.
   // 시세 조회 실패해도 주문은 진행(안내만 생략).
@@ -569,11 +569,11 @@ async function cryptoOrder(side) {
     let r;
     if (side === "BUY") {
       const buyKrw = parseFloat(String($("pc-buy-krw").value).replace(/,/g, ""));
-      if (!buyKrw) return setToast("매수 금액을 입력하세요.", "error");
+      if (!(buyKrw >= 1000)) return setToast(buyKrw ? "최소 주문 금액은 1,000원입니다." : "매수 금액을 입력하세요.", "error");   // 클릭 점검 Y1 — 최소 금액이 화면 속성에만 있던 것
       r = await api("/api/paper/trade/order/buy", { method: "POST", body: { marketCode, buyKrw } });
     } else {
       const sellCount = parseFloat($("pc-sell-count").value);
-      if (!sellCount) return setToast("매도 수량을 입력하세요.", "error");
+      if (!(sellCount > 0)) return setToast("매도 수량을 입력하세요.", "error");
       r = await api("/api/paper/trade/order/sell", { method: "POST", body: { marketCode, sellCount } });
     }
     setToast(`${marketCode} ${side === "BUY" ? "매수" : "매도"} 체결 · 수량 ${fmt(r.quantity, 8)} @${won(r.price)}`, "ok");

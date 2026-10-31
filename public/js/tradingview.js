@@ -114,7 +114,7 @@ async function sendTestSignal() {
     action: $("tv-test-action").value, contracts: Number($("tv-test-qty").value || 1),
     bar_time: nowIso, sent_at: nowIso, comment: "화면에서 보낸 테스트" };
   try {
-    const r = await api("/api/webhooks/tradingview", { method: "POST", body });
+    const r = await api("/api/webhooks/tradingview", { method: "POST", body, redirectOnUnauthorized: false });   // 틀린 키의 401 은 로그인 풀림이 아니다(클릭 점검 G3)
     setToast(`Webhook 처리: ${r.status} — ${r.message}`, r.ok ? "ok" : "error");
     loadSignals();
   } catch (e) { setToast(e.message, "error"); }

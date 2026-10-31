@@ -319,7 +319,7 @@ async def test_first_snapshot_after_reset_has_zero_daily_return(db, monkeypatch)
     async def _snap_1(db_, uid_):
         return {"cash": 100_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 100_000_000.0,
-                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
     monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_1)
     await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 1))
 
@@ -332,7 +332,7 @@ async def test_first_snapshot_after_reset_has_zero_daily_return(db, monkeypatch)
     async def _snap_2(db_, uid_):
         return {"cash": 105_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 105_000_000.0,
-                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
     monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_2)
     await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 2))
 
@@ -356,14 +356,14 @@ async def test_snapshot_same_epoch_computes_return(db, monkeypatch):
     async def _snap_a(db_, uid_):
         return {"cash": 100_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 100_000_000.0,
-                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
     monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_a)
     await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 1))
 
     async def _snap_b(db_, uid_):
         return {"cash": 110_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 110_000_000.0,
-                "counts": {"stock": 0, "crypto": 0, "alt": 0}}
+                "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
     monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_b)
     await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 2))
 

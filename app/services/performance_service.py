@@ -410,8 +410,9 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
             PaperAccountSnapshot.origin == "daily",
         )
         .order_by(PaperAccountSnapshot.snap_date.asc())
-        .limit(limit)
     )
+    # 기간 선택 차트라 개수 상한을 두지 않는다 — 이 함수에는 limit 인자가 없다
+    # (이슈 #460: get_allocation_history 에서 복사된 `.limit(limit)` 이 NameError 로 500 이었다).
     rows = (await db.execute(stmt)).scalars().all()
 
     if len(rows) < 2:

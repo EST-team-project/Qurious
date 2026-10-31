@@ -1,15 +1,15 @@
-# 요구사항 추적표(RTM) v1.68 — Qurious
+# 요구사항 추적표(RTM) v1.69 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.68 · 합계 3,576 · 앞 판의 글은 개정 이력 아래 표 |
+| **판 · 상태** | v1.69 · TC-PRN 4 · TC-SDR 5 · TC-SFD 3 |
 | **구분** | 2. 요구사항 관리 — 요구사항 정의(요구 한 줄 · 관행 명칭 「요구사항정의서」) · 요구사항 추적표 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 |
 | **최종 수정** | 2026-10-31 (KST) |
 | **기준** | v1.56 은 코드 `main` `40f5e88`(10-27 #353 머지) + 이 판 작업 트리(코드는 신호 기록 순위 읽기 API 한 길 + 시험 · 지킴이 시험 한 줄) · 앞 판의 글은 개정 이력 아래 표 |
 | **관련 문서** | [요구 대장](대장/요구-대장.tsv) · [시험-요구 대장](대장/시험-요구대장.tsv) · [기능 설계서 v0.1](../../02-design/system/기능설계.md) · [API 명세서 v0.10](../../../phase-2/02-design/api/지난판/API명세서_v0.10.md) · [테스트 계획서 v1.13](../../../phase-2/04-testing/지난판/테스트계획서_v1.13.md) · [강사님 자료 기능 대조 v0.1](강사님자료-기능대조.md) · [RTM v1.4](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.4.md) · [RTM v1.2](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.2.md) · [RTM v1.1](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.1.md) · [RTM v1.0](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.0.md) |
-| **최근 개정** | v1.67 → v1.68: 시험 늘어 — 새 파일 `test_notification_retry.py`(TC-NR 6 · 알림 재시도 정책) · `test_alert_chain_pg.py`(TC-ECH 4 · 웹훅 → 기록 → 알림 → DB 한 흐름) · 합계 3,546 → 3,576(본문 합계 줄 3,566 → 3,576건 · 261 → 263파일 — 머리 숫자가 S178b 의 TC-DW 8 · TC-CPU 6 · TC-DU +5 · TC-PLP +1 을 못 따라가 20 뒤져 있었다) · 앞 판의 글은 개정 이력 아래 표 |
+| **최근 개정** | v1.68 → v1.69: 새 시험 묶음 TC-PRN 4(모의투자 성과 API NameError · #460) · TC-SDR 5(종목 허브 서랍) · TC-SFD 3 를 대장에 올림 · 합계 3,576 → 3,585 · 부록 D 「머리표 「기준」 칸에서 옮긴 이전 판의 글」 표의 v1.50 줄을 「기준 보충」 글머리로 나눔(내용 변경 없음) |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트가 지켜야 할 요구는 몇 개이고 어디서 왔나 (1절)
@@ -358,13 +358,13 @@ flowchart LR
 |---|---|---|---|---|---|---|
 | **원문 PROJECT 01 로보 어드바이저 (2차)** | | | | | | |
 | `P01-①-1` | 설계서 4.1절 · 용어사전 설계서 v0.1 · 통합본 이식 계획서 v0.1 4절 | GRPH-01~03 · GLOS-01~04 | 🟡 TC-GL 93 · TC-LN 38 · TC-HT 13 · TC-LC 15 · TC-GS 15 · TC-TCH 3 · TC-CLV 6 · TC-HV 3 | 시험 | 있음 37파일 | 시험 일부 |
-| `P01-①-2` | 설계서 4.1절 · 수집기 README · 설계서 3절 C1 | STK-01~03 · 05~07 · MACR-01~04 · ING-01~04 · 12 · LIB-01 (새 1) | 🟢 TC-BF 7 · TC-A1 21 · TC-CD 22 · TC-DF01 21 · TC-LC 15 · TC-OA 21 · TC-NW 10 · TC-CR 6 · TC-DC 7 · TC-FS 6 · TC-GD 6 · TC-DQ 12 · TC-HD 5 · TC-RS 10 · TC-CL 18 · TC-FP 7 · TC-BK 7 · TC-DG 13 · TC-CQ 23 · TC-ECS 14 · TC-DK 6 · TC-DP 16 · TC-FX 11 · TC-QL 10 · TC-QUOT 10 · TC-FF 15 · TC-CI 8 · 🟡 TC-DU 91 · TC-DF17 17 · TC-OH 29 · TC-CT 12 · TC-HF 13 · TC-HS 21 · TC-KMD 14 · TC-TG 5 · TC-QVS 5 · TC-HUB 38 · TC-SSR 7 · TC-WR 21 · TC-WRS 3 · TC-FV 5 · TC-MK 7 · TC-MI 7 · TC-MKT 14 · TC-BV 4 · TC-HFO 5 · TC-BS 4 · TC-CIN 17 · TC-CV 12 | 시험 | 있음 96파일 | 시험 있음 |
+| `P01-①-2` | 설계서 4.1절 · 수집기 README · 설계서 3절 C1 | STK-01~03 · 05~07 · MACR-01~04 · ING-01~04 · 12 · LIB-01 (새 1) | 🟢 TC-BF 7 · TC-A1 21 · TC-CD 22 · TC-DF01 21 · TC-LC 15 · TC-OA 21 · TC-NW 10 · TC-CR 6 · TC-DC 7 · TC-FS 6 · TC-GD 6 · TC-DQ 12 · TC-HD 5 · TC-RS 10 · TC-CL 18 · TC-FP 7 · TC-BK 7 · TC-DG 13 · TC-CQ 23 · TC-ECS 14 · TC-DK 6 · TC-DP 16 · TC-FX 11 · TC-QL 10 · TC-QUOT 10 · TC-FF 15 · TC-CI 8 · 🟡 TC-DU 91 · TC-DF17 17 · TC-OH 29 · TC-CT 12 · TC-HF 13 · TC-HS 21 · TC-KMD 14 · TC-TG 5 · TC-QVS 5 · TC-HUB 38 · TC-SSR 7 · TC-WR 21 · TC-WRS 3 · TC-FV 5 · TC-MK 7 · TC-MI 7 · TC-MKT 14 · TC-BV 4 · TC-HFO 5 · TC-BS 4 · TC-CIN 17 · TC-CV 12 · TC-SDR 5 | 시험 | 있음 97파일 | 시험 있음 |
 | `P01-①-3` | 설계서 4.1절 | CHAT-01~02 · DOC-01~04 · GRPH-06 · CONV-01~08 · ING-05~07 · KB-02 | 🟢 TC-LW 12 · TC-SG 5 · TC-SQ 8 · TC-DI 16 · TC-DIA 3 · 🟡 TC-CM 9 · TC-VS 6 · TC-KB 18 · TC-KA 23 · TC-KS 8 · TC-KD 12 · TC-SY 6 · TC-SX 2 · TC-KF 13 · TC-SCC 6 · TC-TR 11 · TC-TA 6 · TC-VD 8 · 안 TC-RG | 시험 | 있음 38파일 | 시험 있음 |
 | `P01-①-4` | 설계서 4.1절 · 수집기 README 15절(일일 갱신) | SYS-02~03 · ING-08~11 · KB-01 (새 2) | 🟢 TC-DU 91 · TC-DF17 17 · TC-CN 5 · TC-CA 12 · TC-DST 31 · TC-HF 13 · TC-LE 36 · TC-HS 21 · TC-DH 5 · TC-DQ 12 · TC-EV 6 · TC-CS 19 · TC-CW 15 · TC-SU 25 · TC-FF 15 · TC-CI 8 · 🟡 TC-BF 7 · TC-CE 18 · TC-DF16 3 · TC-GW 10 · TC-NW 10 · TC-FS 6 · TC-DG 13 · TC-CQ 23 · TC-AJT 5 · TC-PLP 6 · TC-DCP 4 · TC-BG 6 · TC-DW 8 · TC-CPU 6 · 안 TC-CAL | 시험 | 있음 24파일 | 시험 있음 |
 | `P01-①-5` | 설계서 4.1절 | (새 1) | 🟢 TC-XA 10 · TC-XR 22 · 🟡 TC-RX 27 · TC-RKS 7 · 안 TC-XA | 시연 | 있음 13파일 | 시험 있음 |
 | `P01-②-1` | 설계서 4.2절 · 설계서 3절 C2 | STK-04 | 🟢 TC-IN 29 · 🟡 TC-TV2 5 · 안 TC-IN | 시험 | 있음 33파일 | 시험 있음 |
 | `P01-②-2` | 설계서 4.2절 | STK-08 | 🟢 TC-PT 7 · TC-PS 7 · 🟡 TC-PV 32 · 안 TC-PT | 분석 · 시험 | 있음 16파일 | 시험 있음 |
-| `P01-②-3` | 설계서 4.2절 | STK-04 · 08 | 🟢 TC-MT 20 · 🟡 TC-RKS 7 · TC-SCD 3 · 안 TC-MT | 시험 | 있음 42파일 | 시험 있음 |
+| `P01-②-3` | 설계서 4.2절 | STK-04 · 08 | 🟢 TC-MT 20 · 🟡 TC-RKS 7 · TC-SCD 3 · 안 TC-MT | 시험 | 있음 43파일 | 시험 있음 |
 | `P01-③-1` | 설계서 4.3절 | STK-09 · PAPR-01 (새 2) | 🟢 TC-RBS 13 · 🟡 TC-RB 13 · TC-RBP 38 · TC-RBD 39 · TC-RBC 16 · TC-RBU 15 · TC-RBX 13 · TC-SDS 20 · TC-HFF 45 · 안 TC-RB | 시험 | 있음 29파일 | 시험 있음 |
 | `P01-③-2` | 설계서 4.3절 | STK-09 · PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 12파일 | 시험 있음 |
 | `P01-③-3` | 설계서 4.3절 | PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 32파일 | 시험 있음 |
@@ -396,7 +396,7 @@ flowchart LR
 | `U6` | 설계서 7절 | — | — | 시연 | 있음 8파일 | 흔적 있음 |
 | `U7` | 설계서 7절 | — | — | 시연 | 있음 8파일 | 흔적 있음 |
 | `U8` | 설계서 7절 | — | — | 시연 | 있음 10파일 | 흔적 있음 |
-| `U9` | 설계서 7절 | — | 🟡 TC-DA 8 · TC-NV 16 | 시연 | 희소 2파일 (04.html · day4-project-schedule.js) | 시험 일부 |
+| `U9` | 설계서 7절 | — | 🟡 TC-DA 8 · TC-NV 16 · TC-PRN 4 | 시연 | 희소 2파일 (04.html · day4-project-schedule.js) | 시험 일부 |
 | `U10` | 설계서 7절 | — | 🟡 TC-KQ 14 · TC-DA 8 · TC-TFS 10 | 시연 | 있음 10파일 | 시험 일부 |
 | **제안요청서(rfp-2)** | | | | | | |
 | `RFP2-3.1.3-①` | 설계서 6.1절 | ML-04 | 🟡 TC-BC 17 · 안 TC-AL | 시험 | 희소 1파일 (04.html) | 시험 일부 |
@@ -746,8 +746,11 @@ flowchart LR
 | TC-E2E | `test_e2e_closing.py` | 3 | `P02-①-3` | 🟡 | ③ 마무리 E2E 뼈대(S176 · 3차 ①-22) — 「기준 전략 = 없음」 결과가 원본(trials.json)에서 화면 글까지 이어지는 한 줄: 앱이 내주는 요약 = 원본 계산값 · 카드 · 별칭 코드 서빙 · 없는 파일 404 · 탭 2(성과 검증)로 들어오면 탭 칸이 바뀌고 카드가 「아직 없음」 · 글 속 숫자(넘은 기준 수 · 시도 수 · 합격선 · 가장 가까운 시도 참고용)를 원본에서 직접 센 값과 맞댐 · 개발 티 없음 · 요약을 못 읽으면 「확인 못 함」(없다고 우기지 않음) · 다음 진입에 다시 읽어 바뀜. 웹훅 → 기록 → 알림 → DB 한 흐름은 알림 보내는 쪽(①-14) 뒤 11-05 에 채움 |
 | TC-NR | `test_notification_retry.py` | 6 | `P02-③-3` | 🟡 | 알림 재시도 정책(S181 · 할 일 ①-14 「재시도 상한」) — 전달이 안 된 게 확실한 실패(연결 단계 실패 · 429)만 처음 1번 + 재시도 최대 3번(간격 1 · 3 · 9초)으로 다시 보내고 응답이 불명확한 실패(읽기 시간 초과 · 5xx · 4xx · 표시 없는 실패)는 한 번만 보냄(증권사 연동 설계 「불명확하면 재발송 금지」) · 실제 채널 함수가 연결 실패를 표시 · 이력 줄에 채널별 시도 횟수 · 이력 기록 실패는 로그에 남김(예전 except: pass) |
 | TC-ECH | `test_alert_chain_pg.py` | 4 | `P02-③-3` | 🟡 | (일회용 PG 필요 · 없으면 건너뜀) 웹훅 → 기록 → 알림 → DB 한 흐름(S181 · 할 일 ①-22) — TradingView 알림 한 건이 handle_alert(신호 행) → 응답 뒤 작업(알림 선점 → 보내기 → 전달 결과 저장) → NotificationLog 행 → 이력 API 글까지 이어짐: 연결 실패 한 번 뒤 성공(전달됨 · 시도 2) · 같은 알림 · 같은 결과의 응답 뒤 작업 반복에도 보내기 · 알림 행 하나 · 계속 연결 실패면 4번에서 멈춰 「전달 실패」 · 불명확한 실패는 한 번 |
+| TC-PRN | `test_paper_route_nameerror.py` | 4 | `U9` | 🟡 | 모의투자 성과 API 두 곳이 NameError 없이 값을 돌려준다(S182 · 이슈 #460) — 백테스트 100일 존재 확인(Order import)과 기준 지수 시계열(limit 미정의 제거)을 가짜 DB 로 직접 불러 지킨다. 정적으로는 ruff F821 이 같은 종류를 잡는다 |
+| TC-SFD | `test_stockfind_screen.py` | 3 | — | — | 종목 찾기 단추 — 칸에 넣을 글(국내 6자리 · 해외 기호) · 가짜 문서에서 단추 달기 · 눌러 열기 · 고르면 코드 · 이름 칸 채움 · 앱 12칸 연결(S177 · 사용자 피드백 「종목 코드 · 기업명 입력은 검색해서 고르게」) |
+| TC-SDR | `test_stock_drawer.py` | 5 | `P01-①-2` | 🟡 | 종목 허브 서랍 화면(S182 · 할 일 ②-10 · ②-20) — 서랍이 서버 허브 묶음의 칸 일곱(종가 · 신호 · 재무 · 공시 · 기사 · 일정 · 업종)을 기준일 · 출처와 함께 그대로 옮기고 새로 계산하거나 한 줄 결론을 만들지 않는다 · 칸이 비었거나 준비 중 · 오류면 서버 까닭을 보이고 나머지는 그린다 · 글자 막기 · 칸 차례가 서버와 같다 · 앱 연결(입구 단추 둘 · CSS · main.js) |
 
-합계 — 시험 3576건 · 263파일 = 요구에 붙은 2941건 + 요구 없는 도구 시험 461건 + 대장에 없는 파일 15개(tests/test_backtest_sizing.py · tests/test_broker_secrets.py · tests/test_company_screens_honest.py · tests/test_comparechart_screen.py · tests/test_fixed_test_strategy.py · tests/test_kis_connection_probe.py · tests/test_manual_broker_order.py · tests/test_order_pricing.py · tests/test_paper_snapshot_task.py · tests/test_price_basis.py · tests/test_stockfind_screen.py · tests/test_strategy_v2.py · tests/test_strategy_v2_execution.py · tests/test_strategy_v2_pg.py · tests/test_trading_order_screen_honest.py)
+합계 — 시험 3585건 · 265파일 = 요구에 붙은 2950건 + 요구 없는 도구 시험 464건 + 대장에 없는 파일 14개(tests/test_backtest_sizing.py · tests/test_broker_secrets.py · tests/test_company_screens_honest.py · tests/test_comparechart_screen.py · tests/test_fixed_test_strategy.py · tests/test_kis_connection_probe.py · tests/test_manual_broker_order.py · tests/test_order_pricing.py · tests/test_paper_snapshot_task.py · tests/test_price_basis.py · tests/test_strategy_v2.py · tests/test_strategy_v2_execution.py · tests/test_strategy_v2_pg.py · tests/test_trading_order_screen_honest.py)
 <!-- /rtm_scan:시험 -->
 
 2026-10-19 #170: TC-RBUI의 실제 Chrome 인수 시험 1건(내부 검사 17항목)을 U2·U5에 연결했다. 이번에는 앱 의존성이 갖춰진 격리 환경에서 pytest 수집 2341건·168파일을 확인하고 RTM 8개 블록을 다시 생성했다. 이는 전체 2341건을 실행·통과했다는 뜻이 아니다. 운영 러너 대조의 남은 범위는 [화면 검증 근거](../../04-testing/리밸런싱-화면검증-근거.md)를 따른다.
@@ -1034,6 +1037,7 @@ v1.1 의 이 부록에 쌓였던 열세 줄(2026-09-29 ~ 10-02)은 **v1.2 본문
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.69 | 2026-10-31 | 새 시험 묶음 TC-PRN 4(모의투자 성과 API NameError · #460) · TC-SDR 5(종목 허브 서랍) · TC-SFD 3 를 대장에 올림 · 합계 3,576 → 3,585 · 부록 D 「머리표 「기준」 칸에서 옮긴 이전 판의 글」 표의 v1.50 줄을 「기준 보충」 글머리로 나눔(내용 변경 없음) | 시험-요구 대장에 새 묶음 둘과 표 5 에만 있던 TC-SFD 를 올려 RTM 표를 `rtm_scan.py --doc` 로 다시 채움 · 표 한 행 15줄 기준 | 수집 3,585 = 3,364 + 171 + 50 · 대장 252묶음 · `rtm_scan.py --check` 통과 |
 | v1.68 | 2026-10-31 | 시험 늘어 — 새 파일 `test_notification_retry.py`(TC-NR 6 · 알림 재시도 정책) · `test_alert_chain_pg.py`(TC-ECH 4 · 웹훅 → 기록 → 알림 → DB 한 흐름) · 합계 3,546 → 3,576(본문 합계 줄 3,566 → 3,576건 · 261 → 263파일 — 머리 숫자가 S178b 의 TC-DW 8 · TC-CPU 6 · TC-DU +5 · TC-PLP +1 을 못 따라가 20 뒤져 있었다) | 알림 보내는 쪽 재시도 정책(①-14)과 한 흐름 시험(①-22)을 시험-요구 대장에 올리고 `rtm_scan --doc` 로 표를 다시 채웠다 | S181 · 시험-요구 대장 TC-NR · TC-ECH 두 줄 · `rtm_scan --check` 통과 |
 | v1.67 | 2026-10-31 | 시험 늘어 — 새 파일 `test_stockfind_screen.py`(TC-SFD 3 · 종목 찾기 단추) · 합계 3,543 → 3,546 · 대장에 없는 파일 14 → 15 | 종목 입력칸 12곳에 찾기 단추를 단 변경 반영(S177) | `rtm_scan.py --doc` · `--check` 통과 |
 | v1.66 | 2026-10-31 | 시험 늘어 — 새 묶음 `TC-E2E` 3(`test_e2e_closing.py` · ③ 마무리 E2E 뼈대) · 합계 3,404 → 3,543(전체 시험으로 다시 잼 · 표에 없던 묶음 열넷 포함) · TC-YH 설명에 2026-10-31 재측정(24파일 129줄) | S167 ~ S176 진행 반영(S176) | `rtm_scan.py --doc` · `--check` 통과 |
@@ -1144,7 +1148,20 @@ v1.1 의 이 부록에 쌓였던 열세 줄(2026-09-29 ~ 10-02)은 **v1.2 본문
 | v1.53 | v1.53 은 코드 `main` `e1399fe`(10-26 #347 머지) + 이 판 작업 트리(S150 코드 묶음) |
 | v1.52 | v1.52 는 코드 `main` `1ea0cdf`(10-26 #340 ~ #346 머지 — 신장환 님 #345 · 강민석 님 #344 · #346 · 오준영 님 #340 ~ #343) + 이 판 작업 트리(시험 파일이 늘어 표가 대장 · 코드와 달라져 `rtm_scan.py --doc` 로 다시 채움) |
 | v1.51 | v1.51 은 코드 `main` `963ee1a`(#338 머지) + 이 판 작업 트리(TC-DU 85 → 86 — DF-156 · TC-WR 20 → 21 — DF-158) |
-| v1.50 | v1.50 은 코드 `main` `30c9ebe`(#337 머지) + 이 판 작업 트리(새 묶음 TC-LE 12 · TC-HS 14 · TC-DU · TC-HF · TC-PJ 줄 보탬 — 어느 PC 에서든 12:30 회차) · v1.47 은 코드 `main` `b86152a`(#329 LEAN 비용 · 체결 비교 머지) + 이 판 작업 트리(감리 번호 · 인수 기준 칸 · TC-RT 13 → 16) · v1.42 은 코드 `main` `4bed63b`(#316 머지) + 이 판 작업 트리(목표 시뮬레이션 입력 경계 TC-RP +15) · v1.41 은 코드 `main` `8739d61`(#315 docs 번호 폴더 머지) + 이 판 작업 트리(강사님 기능 가져오기 앞 지킴이 TC-BM +5 · HF 보관본 경로 TC-HD +1) · v1.40 은 코드 `main` `c9bd397`(#313 머지 · 그 앞 #312 시험 묶음 `1fb94b8`) + 이 판 작업 트리(docs 번호 폴더 · TC-DV +1) · v1.39 는 코드 `main` `8174a69`(#311 docs 차수 폴더 머지) + 이 판 작업 트리(TC-TB +6 · 시험 묶음 표) · v1.38 은 코드 `main` `e819cd2`(2차 최종 머지 #310 · 태그 `phase2-final-2026-10-21`) + 이 판 작업 트리(docs 차수 폴더 · TC-DV +2) · v1.37 은 코드 `main` `6fa8f58`(2차 마지막 머지 #308) + 이 판 작업 트리(시험-요구 대장 TC-RGL 한 줄) · v1.36 은 코드 `main` `6cbb9fb`(PR #283) + 이 판 작업 트리(사용법 영상 목록 · 「시작하기 전에」 고지 · 개념 학습 범위 넓힘) · v1.35 는 코드 `main` `f17d310`(PR #281) + 이 판 작업 트리(「현재가」 지금 값 · 개념 학습 앱 안 화면) · v1.33 은 코드 `main` `32f23bd`(PR #265 메뉴 개편) + 사용법 창 영상 칸(D132 첫 단계) · 팀원 화면 잠정 반영 둘(이 판과 같은 PR) · 앞 판: 코드 `main` `0184834`(PR #264) + 메뉴 개편 · 그 앞: 코드 `main` `ed3221f`(PR #262 시연 영상 녹화 도구 · 2차 발표 자료) + 주 1회 복원 리허설 · 팀원 화면 잠정 반영 셋 · 직접매매 최근 주문 내역 거름(이 판과 같은 PR) |
+| v1.50 | v1.50 은 코드 `main` `30c9ebe`(#337 머지) + 이 판 작업 트리(새 묶음 TC-LE 12 · TC-HS 14 · TC-DU · TC-HF · TC-PJ 줄 보탬 — 어느 PC 에서든 12:30 회차) · (앞 판의 글은 표 아래 기준 보충) |
+
+**기준 보충** — 위 「머리표 「기준」 칸에서 옮긴 이전 판의 글」 표의 v1.50 줄에서 옮긴 앞 판의 글:
+
+- **v1.47 · 기준** — v1.47 은 코드 `main` `b86152a`(#329 LEAN 비용 · 체결 비교 머지) + 이 판 작업 트리(감리 번호 · 인수 기준 칸 · TC-RT 13 → 16)
+- **v1.42 · 기준** — v1.42 은 코드 `main` `4bed63b`(#316 머지) + 이 판 작업 트리(목표 시뮬레이션 입력 경계 TC-RP +15)
+- **v1.41 · 기준** — v1.41 은 코드 `main` `8739d61`(#315 docs 번호 폴더 머지) + 이 판 작업 트리(강사님 기능 가져오기 앞 지킴이 TC-BM +5 · HF 보관본 경로 TC-HD +1)
+- **v1.40 · 기준** — v1.40 은 코드 `main` `c9bd397`(#313 머지 · 그 앞 #312 시험 묶음 `1fb94b8`) + 이 판 작업 트리(docs 번호 폴더 · TC-DV +1)
+- **v1.39 · 기준** — v1.39 는 코드 `main` `8174a69`(#311 docs 차수 폴더 머지) + 이 판 작업 트리(TC-TB +6 · 시험 묶음 표)
+- **v1.38 · 기준** — v1.38 은 코드 `main` `e819cd2`(2차 최종 머지 #310 · 태그 `phase2-final-2026-10-21`) + 이 판 작업 트리(docs 차수 폴더 · TC-DV +2)
+- **v1.37 · 기준** — v1.37 은 코드 `main` `6fa8f58`(2차 마지막 머지 #308) + 이 판 작업 트리(시험-요구 대장 TC-RGL 한 줄)
+- **v1.36 · 기준** — v1.36 은 코드 `main` `6cbb9fb`(PR #283) + 이 판 작업 트리(사용법 영상 목록 · 「시작하기 전에」 고지 · 개념 학습 범위 넓힘)
+- **v1.35 · 기준** — v1.35 는 코드 `main` `f17d310`(PR #281) + 이 판 작업 트리(「현재가」 지금 값 · 개념 학습 앱 안 화면)
+- **v1.33 · 기준** — v1.33 은 코드 `main` `32f23bd`(PR #265 메뉴 개편) + 사용법 창 영상 칸(D132 첫 단계) · 팀원 화면 잠정 반영 둘(이 판과 같은 PR) · 앞 판: 코드 `main` `0184834`(PR #264) + 메뉴 개편 · 그 앞: 코드 `main` `ed3221f`(PR #262 시연 영상 녹화 도구 · 2차 발표 자료) + 주 1회 복원 리허설 · 팀원 화면 잠정 반영 셋 · 직접매매 최근 주문 내역 거름(이 판과 같은 PR)
 
 **머리표 「최근 개정」 칸에서 옮긴 이전 판의 글** — 지금 판의 글은 머리표를 본다.
 
