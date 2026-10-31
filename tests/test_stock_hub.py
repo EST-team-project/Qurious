@@ -207,7 +207,7 @@ def test_search_sections(monkeypatch):
 
 def test_schedule_and_sector(tmp_path, monkeypatch):
     """TC-HUB-10 · 일정은 진짜 달력 함수로(수집기 스키마 임시 DB) — 오늘부터 60일 · 그 종목만 · 시장 전체 일정 · 지난 일정 · 60일 뒤는 빠짐 ·
-    칸 이름은 달력 응답 그대로 · 섹터는 「준비 중」(pending — 분류 기준 결정 전에는 지어내지 않는다).
+    칸 이름은 달력 응답 그대로 · 섹터는 업종코드 → KSIC 제11차 이름(S181 — 앞 판은 「준비 중」 이었다 · 표에 없으면 비었다고 말하고 지어내지 않는다).
     (첫 판은 손으로 만든 대역이 달력 응답과 다른 칸 이름을 써서 우연히 통과했다 — 2026-10-17 실제 앱 확인에서 찾음)"""
     p = _fake_db(tmp_path, monkeypatch)
     import sqlite3
@@ -229,8 +229,25 @@ def test_schedule_and_sector(tmp_path, monkeypatch):
                                       "kind_label": market_calendar.EVENT_KINDS["earnings"], "title": "신한지주 실적 발표",
                                       "confidence": "scheduled", "confidence_label": market_calendar.CONFIDENCE["scheduled"]}
     assert H.schedule("000660", TODAY)["status"] == H.EMPTY
-    sec = H.sector()
-    assert sec["status"] == H.PENDING and sec["data"] is None and sec["reason"] == H.SECTOR_PENDING
+    # 섹터(S181 · 할 일 ②-10) — 업종코드 → KSIC 제11차 중분류 · 대분류 이름 + 같은 업종 수집 상장사 수. 10차 이름은 섞이지 않는다.
+    c = sqlite3.connect(p)
+    for rev, level, code, name, parent in (("11", "대분류", "K", "금융 및 보험업", ""), ("11", "중분류", "64", "금융업", "K"),
+                                           ("10", "중분류", "64", "옛 차수 이름", "K")):
+        c.execute("INSERT INTO ksic_code (revision, level, code, name, parent_code, section, loaded_at) VALUES (?, ?, ?, ?, ?, '', 'x')",
+                  (rev, level, code, name, parent))
+    for corp, stock, induty in (("c1", "055550", "64992"), ("c2", "105560", "64121"), ("c3", "", "64121"), ("c4", "005930", "26110")):
+        c.execute("INSERT INTO dart_company (corp_code, fields_sha256, stock_code, induty_code, first_seen_at, last_seen_at) "
+                  "VALUES (?, 'f', ?, ?, 'x', '2026-10-15 12:40:00')", (corp, stock, induty))
+    c.commit()
+    c.close()
+    sec = H.sector("055550")
+    assert sec["status"] == H.OK and sec["as_of"] == "2026-10-15" and sec["source"] == H.SECTOR_SOURCE
+    assert sec["data"] == {"induty_code": "64992", "division_code": "64", "division_name": "금융업", "section_code": "K",
+                           "section_name": "금융 및 보험업", "peer_count": 2}   # 종목코드 없는 법인(c3)은 같은 업종 수에 안 든다
+    nof = H.sector("005930")      # 업종코드 앞 두 자리(26)가 KSIC 표에 없다 → 비었다고 말한다(지어내지 않는다)
+    assert nof["status"] == H.EMPTY and nof["data"] is None and "26" in nof["reason"]
+    none = H.sector("000660")     # 기업개황에 이 종목이 없다
+    assert none["status"] == H.EMPTY and "업종코드를 찾지 못" in none["reason"]
 
 
 # ── 묶음 ────────────────────────────────────────────────────────────────────────────────
@@ -254,6 +271,7 @@ def _stub_sections(monkeypatch, *, financials_error=None, signal_error=None):
     for name in ("disclosures", "news"):
         monkeypatch.setattr(H, name, (lambda n: lambda sym: H.section(n, H.EMPTY, reason="없음"))(name))
     monkeypatch.setattr(H, "schedule", lambda sym, today: H.section("schedule", H.OK))
+    monkeypatch.setattr(H, "sector", lambda sym: H.section("sector", H.OK))
 
 
 def test_bundle_shape_and_isolation(monkeypatch):
@@ -265,7 +283,7 @@ def test_bundle_shape_and_isolation(monkeypatch):
     assert out["version"] == H.VERSION and out["symbol"] == "055550" and out["name"] == "신한지주"
     assert out["order"] == list(H.SECTIONS) and list(out["sections"]) == list(H.SECTIONS)
     assert out["sections"]["financials"]["status"] == H.ERROR and out["sections"]["signal"]["status"] == H.ERROR
-    assert out["sections"]["price"]["status"] == H.OK and out["sections"]["sector"]["status"] == H.PENDING
+    assert out["sections"]["price"]["status"] == H.OK and out["sections"]["sector"]["status"] == H.OK
     flat = str(out)
     assert "financial_statement" not in flat and "15432" not in flat and "hint" not in flat
     assert all(s["reason"] == H.GENERIC_ERROR for k, s in out["sections"].items() if s["status"] == H.ERROR)
