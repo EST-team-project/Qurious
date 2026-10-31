@@ -1,0 +1,11 @@
+/* 종목 찾기 단추 (2026-10-31 · js/stockfind.js) — 입력칸 오른쪽에 붙는 돋보기 아이콘 단추 */
+.sf-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sf-wrap > input { flex: 1 1 0; width: auto; min-width: 84px; }
+.sf-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 32px; height: 32px; padding: 0; border-radius: 8px;
+  color: var(--accent, #2563eb); background: transparent; border: 1px solid var(--accent, #2563eb);
+  cursor: pointer; white-space: nowrap;
+}
+.sf-btn:hover { background: rgba(37, 99, 235, 0.08); }
+.sf-btn:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }

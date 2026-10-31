@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/css/mlcompare.css" /><!-- 모델 비교 (2026-10-15 · js/mlcompare.js) -->
   <link rel="stylesheet" href="/css/howto.css" /><!-- 화면 사용법 창 (2026-10-16 · js/howto.js) -->
   <link rel="stylesheet" href="/css/helpvideos.css" /><!-- 사용법 영상 목록 (2026-10-20 · js/helpvideos.js) -->
+  <link rel="stylesheet" href="/css/stockfind.css" /><!-- 종목 찾기 단추 (2026-10-31 · js/stockfind.js) -->
   <link rel="stylesheet" href="/css/stockpick.css" /><!-- 종목 찾기 칸 (2026-10-16 · js/stockpick.js) -->
   <link rel="stylesheet" href="/css/baselinenotice.css" /><!-- 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · js/baselinenotice.js) -->
   <link rel="stylesheet" href="/css/rebalance.css" />
@@ -267,7 +268,7 @@
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">주문 입력</h3>
                   <div class="space-y-2">
-                    <input id="ord-symbol" class="input" placeholder="종목코드 (예: 005930.KS)" />
+                    <input id="ord-symbol" data-stock-find="symbol" data-stock-name="ord-name" class="input" placeholder="종목코드 (예: 005930.KS)" />
                     <input id="ord-name" class="input" placeholder="종목명 (예: 삼성전자)" />
                     <input id="ord-price" class="input" type="number" placeholder="주문가격 (원)" />
                     <input id="ord-qty" class="input" type="number" placeholder="수량" />
@@ -370,7 +371,7 @@
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">주문 입력</h3>
                   <div class="flex gap-2 mb-2">
-                    <input id="ps-symbol" class="input" placeholder="종목코드 (예: 005930, 000660.KS, AAPL)" />
+                    <input id="ps-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 (예: 005930, 000660.KS, AAPL)" />
                     <button id="ps-quote-btn" class="btn-secondary">시세 조회</button>
                   </div>
                   <div id="ps-quote" class="text-sm mb-2 min-h-[24px]"></div>
@@ -393,7 +394,7 @@
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">🛑 스탑(감시) 주문</h3>
                   <div class="flex gap-2 mb-2">
-                    <input id="ps-stop-symbol" class="input" placeholder="종목코드 (예: 005930)" />
+                    <input id="ps-stop-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 (예: 005930)" />
                     <button id="ps-stop-quote-btn" class="btn-secondary">시세 조회</button>
                   </div>
                   <div id="ps-stop-quote" class="text-sm mb-2 min-h-[24px]"></div>
@@ -699,7 +700,7 @@
               <div class="grid md:grid-cols-3 gap-2 mb-2">
                 <div><label class="text-xs" style="color:var(--text-mute);">01 · 전략</label><select id="ql-strategy"
                     class="input"></select></div>
-                <div><label class="text-xs" style="color:var(--text-mute);">02 · 종목 / ETF</label><input id="ql-ticker"
+                <div><label class="text-xs" style="color:var(--text-mute);">02 · 종목 / ETF</label><input id="ql-ticker" data-stock-find="symbol"
                     class="input" value="005930.KS" maxlength="12" placeholder="005930.KS / SPY" /></div>
                 <div><label class="text-xs" style="color:var(--text-mute);">05 · 초기 자금</label><input id="ql-cash"
                     class="input" type="number" value="10000" min="1000" /></div>
@@ -1241,7 +1242,7 @@
             <div class="card">
               <div class="flex items-center gap-3 mb-4 flex-wrap">
                 <h2 class="text-lg font-semibold">📊 미국주식 차트</h2>
-                <input id="us-symbol" class="input w-28" value="AAPL" placeholder="AAPL, TSLA..." />
+                <input id="us-symbol" data-stock-find="symbol" class="input w-28" value="AAPL" placeholder="AAPL, TSLA..." />
                 <select id="us-period" class="input w-28">
                   <option value="1mo">1개월</option>
                   <option value="3mo">3개월</option>
@@ -1264,7 +1265,7 @@
                 <div class="rounded-xl p-4" style="background:var(--surf2);border:1px solid var(--border);">
                   <h3 class="font-semibold mb-3 text-sm">주문 입력</h3>
                   <div class="space-y-2">
-                    <input id="us-ord-symbol" class="input" placeholder="종목코드 (예: AAPL, TSLA)" />
+                    <input id="us-ord-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 (예: AAPL, TSLA)" />
                     <div id="us-ord-quote" aria-live="polite"></div>
                     <input id="us-ord-qty" class="input" type="number" placeholder="수량 (주)" />
                     <div id="us-ord-estimate"></div>
@@ -1449,7 +1450,7 @@
                   <div class="space-y-2">
                     <h3 class="text-sm font-semibold">계산 조건</h3>
                     <div class="grid grid-cols-3 gap-2 text-sm">
-                      <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="fx-symbol"
+                      <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="fx-symbol" data-stock-find="symbol"
                           class="input" value="005930.KS" /></div>
                       <div><label class="text-xs" style="color:var(--text-mute);">기간</label><select id="fx-period"
                           class="input">
@@ -1554,7 +1555,7 @@
                   이 코드로 Strategy Report 를 만들어 아래 대사에 쓰세요 — 「지표」 화면의 Pine 코드는 차트 표시용(indicator)이라 대사에 쓸 수 없습니다.</p>
                 <div class="grid md:grid-cols-5 gap-2 mb-2 text-sm">
                   <div class="md:col-span-2"><label class="text-xs" style="color:var(--text-mute);">전략 카드</label><select id="pc-card" class="input"></select></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">종목(여럿일 때)</label><input id="pc-symbol" class="input" placeholder="005930" /></div>
+                  <div><label class="text-xs" style="color:var(--text-mute);">종목(여럿일 때)</label><input id="pc-symbol" data-stock-find="code" class="input" placeholder="005930" /></div>
                   <div><label class="text-xs" style="color:var(--text-mute);">기준가(원) — 슬리피지 환산</label><input id="pc-ref" type="number" class="input" placeholder="70000" /></div>
                   <div><label class="text-xs" style="color:var(--text-mute);">호가 단위(원) — mintick</label><input id="pc-tick" type="number" class="input" placeholder="100" /></div>
                 </div>
@@ -1573,7 +1574,7 @@
                 <p class="text-xs mb-3" data-tv-says style="color:var(--text-mute);">이 화면이 말하는 것: 입력한 TradingView 값과 LEAN 값의 비교입니다.
                   말하지 않는 것: 수익률 숫자가 비슷하다는 이유만으로 「검증 통과」 라고 보지 않으며, 그림자 일지와 LEAN 의 비교와는 별개입니다.</p>
                 <div class="grid md:grid-cols-4 gap-2 mb-2 text-sm">
-                  <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="tvc-ticker"
+                  <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="tvc-ticker" data-stock-find="symbol"
                       class="input" value="005930.KS" /></div>
                   <div><label class="text-xs" style="color:var(--text-mute);">LEAN 전략</label><select id="tvc-strategy"
                       class="input">
@@ -1760,7 +1761,7 @@
                   </div>
                   <div class="flex flex-wrap gap-2 items-end mb-2">
                     <div class="flex-1 min-w-[140px]"><label class="text-xs font-semibold"
-                        style="color:var(--text-dim);">종목코드</label><input id="rb-add-symbol" class="input mt-1"
+                        style="color:var(--text-dim);">종목코드</label><input id="rb-add-symbol" data-stock-find="symbol" class="input mt-1"
                         placeholder="005930 (국내 주식·ETF)" /></div>
                     <div style="width:110px"><label class="text-xs font-semibold"
                         style="color:var(--text-dim);">비중(%)</label><input id="rb-add-weight" type="number" min="0"
@@ -1910,7 +1911,7 @@
                         id="rb-cf-amount" type="number" min="1" step="10000" class="input mt-1" placeholder="1000000" />
                     </div>
                     <div id="rb-cf-symbol-wrap" class="hidden"><label class="text-xs font-semibold"
-                        style="color:var(--text-dim);">배당 종목</label><input id="rb-cf-symbol" class="input mt-1"
+                        style="color:var(--text-dim);">배당 종목</label><input id="rb-cf-symbol" data-stock-find="code" class="input mt-1"
                         placeholder="005930" /></div>
                     <div class="col-span-2"><label class="text-xs font-semibold"
                         style="color:var(--text-dim);">메모</label><input id="rb-cf-memo" class="input mt-1"
@@ -2017,7 +2018,7 @@
                 <p class="text-xs mb-3" style="color:var(--text-mute);">캔들 패턴(해머·장악형·샛별형 등)과 피벗 기반 지지·저항선, 돌파·골든크로스 이벤트를
                   탐지하고, 분봉(60분)·일봉·주봉 지표를 종합해 매수·매도·관망 신호와 신뢰도를 산출합니다.</p>
                 <div class="flex flex-wrap gap-2 items-end">
-                  <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="pt-symbol"
+                  <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="pt-symbol" data-stock-find="symbol"
                       class="input" value="005930.KS" placeholder="005930 또는 005930.KS" style="width:200px" /></div>
                   <button id="pt-run" class="btn-primary">분석 실행</button>
                 </div>

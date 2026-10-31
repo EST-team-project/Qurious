@@ -33,6 +33,8 @@ import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무
 import { onClusterViewActivated } from "/js/clusters.js";              // 종목 군집화 — 옛 강사님 KMeans 칸 자리 (2026-10-14)
 import { onSeasonalViewActivated } from "/js/seasonal.js";            // 계절성 분석 — 옛 강사님 계절성 칸 자리 (2026-10-14)
 import { onModelCompareViewActivated } from "/js/mlcompare.js";      // 모델 비교 — 옛 강사님 5-Fold 칸 자리 (2026-10-15)
+import { openStockSearch } from "/js/company.js";
+import { mountStockFind } from "/js/stockfind.js";                      // 종목 입력칸 옆 「찾기」 단추 (2026-10-31)
 import { initGnbMore } from "/js/gnbmore.js";                         // 아바타 메뉴 · 동기화 점 글 (2026-10-14 · DF-109 · 2026-10-18 D129 로 더보기 없앰)
 
 import { loadDashboard } from "/js/dashboard.js";
@@ -62,6 +64,7 @@ async function boot() {
   if (avatar) avatar.textContent = (user.name || "U").charAt(0).toUpperCase();
   // 아바타 메뉴(이름 · 내 정보 · 로그아웃) · 동기화 점 글 — DF-109 · 2026-10-18 D129 로 「더보기」 는 없앰(js/gnbmore.js)
   initGnbMore();
+  mountStockFind(document, openStockSearch);
   try {
     loadMarketTicker();
     loadSyncStatus();
