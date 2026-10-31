@@ -96,6 +96,10 @@ from typing import Dict, Iterable, List, Optional
 
 from collector import db
 from collector.console import utf8_stdio
+from collector.diff_write import add_stats, stats_line, sync_rows
+
+#: 표의 칸 차례 — ``collector.diff_write.sync_rows`` 에 넘긴다(앞 두 칸이 기본키 ``bas_dt, srtn_cd``).
+TR_COLS = ("bas_dt", "srtn_cd", "tr_index", "tr_index_net", "pr_index", "div_factor", "dps_applied")
 
 #: 배당소득세율. 소득세 14% + 지방소득세 1.4% = 15.4% (원천징수)
 DIVIDEND_TAX_RATE = 0.154
@@ -226,8 +230,13 @@ def _series(conn: sqlite3.Connection, code: str) -> List[sqlite3.Row]:
 
 
 def build(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
-          *, tax_rate: float = DIVIDEND_TAX_RATE, verbose: bool = False) -> Dict[str, int]:
+          *, tax_rate: float = DIVIDEND_TAX_RATE, verbose: bool = False,
+          diff: bool = True, stats: Optional[Dict[str, int]] = None) -> Dict[str, int]:
     """TR 계열을 다시 만든다. **몇 번을 돌려도 같은 결과**가 된다.
+
+    ``diff`` 가 참(기본)이면 계산 결과가 같은 행은 건드리지 않고 **바뀐 행만** 쓴다(2026-10-31 · ``collector.diff_write`` —
+    수정주가 단계의 쓰기가 74% 였던 것과 같은 꼴) · 거짓이면 종목마다 지우고 전부 다시 넣는다. 끝난 표의 내용은 같다.
+    ``stats`` 사전을 주면 ``{"new", "changed", "gone", "same"}`` 를 채운다.
 
     지수는 각 종목의 **첫 거래일을 1.0** 으로 둔다. 종목마다 시작일이 달라도 되는 이유는,
     쓰는 쪽이 보는 것이 지수의 절대값이 아니라 **두 날 사이의 비율**이기 때문이다.
@@ -246,6 +255,7 @@ def build(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
     tally = {"codes": 0, "rows": 0, "no_adjusted": 0,
              "div_applied": 0, "skipped_no_price": 0, "skipped_no_close": 0,
              "rejected": 0}
+    wrote: Dict[str, int] = {}
     conn.execute("BEGIN IMMEDIATE")
     try:
         for code in codes:
@@ -306,17 +316,22 @@ def build(conn: sqlite3.Connection, codes: Optional[Iterable[str]] = None,
                 if adj:
                     prev_adj = adj
 
-            conn.execute("DELETE FROM price_total_return WHERE srtn_cd=?", (code,))
-            conn.executemany(
-                "INSERT INTO price_total_return "
-                "(bas_dt,srtn_cd,tr_index,tr_index_net,pr_index,div_factor,dps_applied) "
-                "VALUES (?,?,?,?,?,?,?)", out)
+            if diff:                                    # 바뀐 행만 — 표 내용은 전부 다시 쓴 것과 같다
+                add_stats(wrote, sync_rows(conn, "price_total_return", TR_COLS, 2, "srtn_cd=?", (code,), out))
+            else:                                       # 예전 방식
+                conn.execute("DELETE FROM price_total_return WHERE srtn_cd=?", (code,))
+                conn.executemany(
+                    "INSERT INTO price_total_return "
+                    "(bas_dt,srtn_cd,tr_index,tr_index_net,pr_index,div_factor,dps_applied) "
+                    "VALUES (?,?,?,?,?,?,?)", out)
             tally["codes"] += 1
             tally["rows"] += len(out)
         conn.execute("COMMIT")
     except Exception:
         conn.execute("ROLLBACK")
         raise
+    if stats is not None and diff:
+        stats.update(wrote)
     return tally
 
 
@@ -426,6 +441,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--tax", type=float, default=DIVIDEND_TAX_RATE * 100,
                    help="세후 계열에 쓸 배당소득세율(%%). 기본 15.4")
     p.add_argument("--quiet", action="store_true")
+    p.add_argument("--full", action="store_true",
+                   help="바뀐 행만이 아니라 종목마다 지우고 전부 다시 쓴다(예전 방식 · 표를 통째로 의심할 때)")
     a = p.parse_args(argv)
 
     conn = db.connect()
@@ -436,9 +453,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         elif a.mode == "verify":
             verify(conn, codes or ["005930", "000660", "005380", "035720"])
         else:
-            print("TR 계열 계산 중 …")
-            t = build(conn, codes, tax_rate=a.tax / 100.0, verbose=not a.quiet)
+            print("TR 계열 계산 중 …" + (" (--full: 전부 다시 쓴다)" if a.full else ""))
+            wrote: Dict[str, int] = {}
+            t = build(conn, codes, tax_rate=a.tax / 100.0, verbose=not a.quiet, diff=not a.full, stats=wrote)
             print(f"  종목 {t['codes']:,} · 행 {t['rows']:,} · 배당 적용 {t['div_applied']:,}건")
+            if wrote:                                               # 바뀐 행만 쓴 회차 — 얼마나 건드렸나
+                print(stats_line("총수익", wrote))
             if t["no_adjusted"]:
                 print(f"  ⚠️ 수정주가가 없어 건너뛴 종목 {t['no_adjusted']:,} "
                       f"— `python -m collector.preprocess` 를 먼저 돌린다")

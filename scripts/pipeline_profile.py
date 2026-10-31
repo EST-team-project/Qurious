@@ -61,7 +61,27 @@ RESOURCE["search"] = "search_db_write"                                   # 따�
 
 def load_steps(path: Path) -> List[dict]:
     d = json.loads(path.read_text(encoding="utf-8"))
-    return [{"name": s["name"], "seconds": float(s.get("seconds") or 0), "status": s.get("status")} for s in d.get("steps", [])]
+    out = [{"name": s["name"], "seconds": float(s.get("seconds") or 0), "status": s.get("status")} for s in d.get("steps", [])]
+    for row, s in zip(out, d.get("steps", [])):
+        if s.get("background"):                                  # 뒤에서 돈 단계(2026-10-31) — 순차 합에 더하면 실제 시간보다 길어진다
+            row["background"] = True
+        if s.get("cpu_seconds") is not None:                     # 끝난 자식이 쓴 CPU 초(Windows) — 계산에 묶였나 기다림에 묶였나
+            row["cpu_seconds"] = float(s["cpu_seconds"])
+    wall = _wall_seconds(d)
+    if wall is not None and out:
+        out[0]["wall_seconds"] = wall
+    return out
+
+
+def _wall_seconds(d: dict) -> Optional[float]:
+    """회차 기록의 시작 ~ 끝 실제 시간(초) — 없거나 읽을 수 없으면 None."""
+    import datetime
+    try:
+        a = datetime.datetime.fromisoformat(d["started_at"])
+        b = datetime.datetime.fromisoformat(d["finished_at"])
+    except (KeyError, ValueError, TypeError):
+        return None
+    return round((b - a).total_seconds(), 1)
 
 
 def groups(path: Path = STATE_STEPS) -> Dict[str, str]:
@@ -149,12 +169,23 @@ def report(steps: List[dict], group_of: Optional[Dict[str, str]] = None) -> dict
     total = sum(sec.values())
     big = sorted(sec.items(), key=lambda kv: -kv[1])
     top7 = sum(v for _, v in big[:7])
+    cpu = {s["name"]: s["cpu_seconds"] for s in steps if s.get("cpu_seconds") is not None}
+
+    def _row(n: str, v: float) -> dict:
+        row = {"name": n, "seconds": round(v, 1), "share": round(v / total, 3) if total else 0}
+        if n in cpu and v > 0:                                   # CPU 초 ÷ 걸린 초 — 1 근처면 한 코어 계산 · 0.1 아래면 기다림 · 1 위면 여러 코어
+            row["cpu_seconds"], row["cpu_ratio"] = round(cpu[n], 1), round(cpu[n] / v, 2)
+        return row
     out = {"steps": len(steps), "total_seconds": round(total, 1),
-           "top": [{"name": n, "seconds": round(v, 1), "share": round(v / total, 3) if total else 0} for n, v in big[:10]],
+           "top": [_row(n, v) for n, v in big[:10]],
            "top7_share": round(top7 / total, 3) if total else 0, "groups": {}}
     for n, v in sec.items():
         g = (group_of or {}).get(n, "?")
         out["groups"][g] = round(out["groups"].get(g, 0) + v, 1)
+    overlapped = [s["name"] for s in steps if s.get("background")]
+    if overlapped:                                               # 겹쳐 돈 회차 — 합(단계 초의 합)은 실제 시간이 아니다
+        out["overlapped"] = {"steps": overlapped, "seconds": round(sum(sec[n] for n in overlapped), 1),
+                             "wall_seconds": next((s["wall_seconds"] for s in steps if s.get("wall_seconds") is not None), None)}
     unmodeled = [n for n in sec if n not in DEPS]
     out["unmodeled_steps"] = unmodeled                           # 모델에 없는 새 단계 — DEPS 에 더해야 시나리오가 맞다
     known = {n: v for n, v in sec.items() if n in DEPS}
@@ -216,7 +247,17 @@ def render(rep: dict) -> str:
     t = rep["total_seconds"]
     lines = [f"회차 {rep['steps']}단계 · 합 {t:,.0f}초({t / 60:.1f}분) · 큰 일곱 단계 {rep['top7_share']:.0%}", "", "묶음별 초:"]
     lines += [f"  {g:8} {v:8,.0f}초 {v / t:5.0%}" for g, v in sorted(rep["groups"].items(), key=lambda kv: -kv[1])]
-    lines += ["", "큰 단계:"] + [f"  {r['seconds']:8,.0f}초 {r['share']:5.0%}  {r['name']}" for r in rep["top"]]
+    ov = rep.get("overlapped")
+    if ov:
+        wall = f"{ov['wall_seconds']:,.0f}초({ov['wall_seconds'] / 60:.1f}분)" if ov.get("wall_seconds") is not None else "(시작·끝 시각 없음)"
+        lines[0] += f" · 겹쳐 돈 단계 {', '.join(ov['steps'])} {ov['seconds']:,.0f}초 — 단계 초의 합이 실제 시간보다 길다 · 실제 시작~끝 {wall}"
+    def _cpu(r: dict) -> str:
+        if "cpu_ratio" not in r:
+            return ""
+        kind = "계산(한 코어)" if 0.8 <= r["cpu_ratio"] <= 1.2 else "여러 코어" if r["cpu_ratio"] > 1.2 else \
+            "기다림" if r["cpu_ratio"] < 0.3 else "섞임"
+        return f"  CPU {r['cpu_seconds']:,.0f}초 = {r['cpu_ratio']:.2f}배 · {kind}"
+    lines += ["", "큰 단계:"] + [f"  {r['seconds']:8,.0f}초 {r['share']:5.0%}  {r['name']}{_cpu(r)}" for r in rep["top"]]
     lines += ["", "겹쳐 돌렸을 때 어림(의존 = 설계 3절 가설):"]
     base = rep["scenarios"]["지금(순차 · 일꾼 1)"]
     lines += [f"  {k:34} {v:8,.0f}초({v / 60:5.1f}분)  {(base - v) / base:5.0%} 절감" for k, v in rep["scenarios"].items()]

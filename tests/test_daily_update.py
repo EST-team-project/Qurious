@@ -1546,3 +1546,124 @@ def test_rerun_one_step_respects_other_pcs(fake_runner, monkeypatch):
     assert du.run_one("alpha") == 1
     monkeypatch.setattr(du, "coord_begin", lambda run, kind: ("skip", None, "HF 에 닿지 못했다", None))
     assert du.run_one("alpha") == 0
+
+
+# ── 뒤에서 도는 단계 — 의존 없는 단계를 계산 사슬과 겹쳐 돌린다 (2026-10-31 · 할 일 P2 · 강사님 피드백 「속도」) ──────────────────
+def _bg_steps(bg_code, mid_code="pass", save_code="pass", *, mid_fatal=True):
+    """앞(받기) → 뒤에서 도는 단계(계산) → 사슬(계산) → 백업. 단계 차례는 실제 `STEPS` 의 search → calendar … → manifest 꼴."""
+    return [
+        du.Step("early", ["-c", "pass"], 1, label="앞", group="받기", desc="앞 단계"),
+        du.Step("idx", ["-c", bg_code], 1, fatal=False, background=True, label="색인", group="계산", desc="뒤에서 도는 단계"),
+        du.Step("mid", ["-c", mid_code], 1, fatal=mid_fatal, label="사슬", group="계산", desc="사슬 단계"),
+        du.Step("save", ["-c", save_code], 1, label="백업", group="백업", desc="백업 묶음 첫 단계"),
+    ]
+
+
+def _posix(p) -> str:
+    return p.as_posix()
+
+
+def test_background_step_really_overlaps_and_is_harvested_before_backup(fake_runner, monkeypatch):
+    """TC-DU-BG-01 · 뒤에서 도는 단계는 **다음 단계와 동시에** 돈다 — 색인 단계가 「사슬 단계가 만드는 표식 파일」 이 나타나기를
+    기다리므로 순차로 돌면 영원히 기다리다 종료코드 7 로 끝난다(겹쳐야만 통과). 백업 단계는 색인이 끝난 뒤에야 시작한다
+    (백업 단계가 색인의 완료 표식을 확인 — 없으면 9). 단계 줄은 background · 종료코드 · 걸린 시간을 갖고, 자식 로그는 본 로그에 붙는다."""
+    t = fake_runner
+    mark, done = _posix(t / "mid.txt"), _posix(t / "bg_done.txt")
+    bg = (f"import os,time,sys; end=time.time()+20\n"
+          f"while not os.path.exists('{mark}'):\n"
+          f"    if time.time() > end: sys.exit(7)\n"
+          f"    time.sleep(0.05)\n"
+          f"open('{done}','w').write('x'); print('색인 끝')")
+    monkeypatch.setattr(du, "STEPS", _bg_steps(
+        bg, mid_code=f"open('{mark}','w').write('x')",
+        save_code=f"import os,sys; sys.exit(0 if os.path.exists('{done}') else 9)"))
+    assert du.run_all() == 0, "겹쳐 돌았다면 색인 7 · 백업 9 가 모두 없다"
+    last = json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))
+    by = {s["name"]: s for s in last["steps"]}
+    assert [s["name"] for s in last["steps"]] == ["early", "idx", "mid", "save"], "단계 줄 차례는 STEPS 그대로"
+    assert by["idx"]["rc"] == 0 and by["idx"]["background"] is True and by["idx"]["seconds"] > 0
+    assert by["idx"]["note"] == "뒤에서 돌림" and by["save"]["rc"] == 0 and "background" not in by["mid"]
+    log = next((t / "logs").glob("daily_update-*.log")).read_text(encoding="utf-8")
+    assert "색인 끝" in log and "뒤에서 돎 · 겹쳐 돌린 단계의 로그" in log
+    assert not list((t / "logs").glob("*.part.log")), "임시 로그는 거둔 뒤 지운다"
+    hist = [json.loads(x) for x in (t / "state/daily_update_history.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [s.get("background") for s in hist[-1]["steps"]] == [None, True, None, None]
+
+
+def test_background_step_failure_is_recorded_like_a_sequential_step(fake_runner, monkeypatch):
+    """TC-DU-BG-02 · 뒤에서 돈 단계가 실패해도(멈추지 않는 단계) 회차 종료코드 · 까닭 한 줄 · 경고 표시가 순차 단계와 같고, 다른 단계를
+    막지 않는다. 멈추는 단계가 실패해 회차가 멈췄어도 뒤에서 돌던 단계는 거둔다(고아 프로세스 없음)."""
+    t = fake_runner
+    monkeypatch.setattr(du, "STEPS", _bg_steps("import sys; print('색인 깨짐', file=sys.stderr); sys.exit(5)"))
+    assert du.run_all() == 5
+    by = {s["name"]: s for s in json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))["steps"]}
+    assert by["idx"]["rc"] == 5 and by["idx"]["background"] is True and "색인 깨짐" in by["idx"]["error"]
+    assert by["mid"]["rc"] == 0 and by["save"]["rc"] == 0, "멈추지 않는 단계의 실패는 뒤를 막지 않는다"
+
+    monkeypatch.setattr(du, "STEPS", _bg_steps("print('색인 끝')", mid_code="import sys; sys.exit(4)"))
+    assert du.run_all() == 4
+    by = {s["name"]: s for s in json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))["steps"]}
+    assert by["mid"]["rc"] == 4 and by["idx"]["rc"] == 0 and by["idx"]["background"] is True, "멈춘 회차도 뒤에서 돌던 단계를 거둔다"
+    assert by["save"].get("reason") == "upstream_failed"
+
+
+def test_background_step_off_switch_runs_sequentially(fake_runner, monkeypatch):
+    """TC-DU-BG-03 · `QURIOUS_NO_OVERLAP=1` 이면 옛 순차 그대로 — 색인이 끝난 뒤에야 사슬 단계가 시작하고 단계 줄에 background 가 없다."""
+    t = fake_runner
+    order = _posix(t / "order.txt")
+    monkeypatch.setenv("QURIOUS_NO_OVERLAP", "1")
+    monkeypatch.setattr(du, "STEPS", _bg_steps(
+        f"import time; open('{order}','a').write('bg-start\\n'); time.sleep(0.4); open('{order}','a').write('bg-end\\n')",
+        mid_code=f"open('{order}','a').write('mid\\n')"))
+    assert du.run_all() == 0
+    assert (t / "order.txt").read_text(encoding="utf-8").split() == ["bg-start", "bg-end", "mid"]
+    by = {s["name"]: s for s in json.loads((t / "state/daily_update_last.json").read_text(encoding="utf-8"))["steps"]}
+    assert "background" not in by["idx"] and by["idx"]["rc"] == 0
+
+
+def test_stop_background_kills_leftover_children(fake_runner):
+    """TC-DU-BG-04 · 회차가 멈추거나 러너가 오류로 끝날 때 아직 도는 자식은 죽이고(종료코드 -9) 로그를 붙인다 — 고아로 남지 않는다.
+    이미 끝난 자식은 종료코드만 적는다."""
+    import os
+    import sys
+    import time
+
+    from scripts.runner_bg import BackgroundStep
+
+    t = fake_runner
+    log_path = t / "logs" / "round.log"
+    log_path.parent.mkdir(exist_ok=True)
+    said: list[str] = []
+    with log_path.open("w", encoding="utf-8") as log:
+        run = du.Run(du.now_kst(), False, log, log_path)
+        run.say = lambda m: said.append(m)            # type: ignore[method-assign]
+        bgs = []
+        for name, code in (("long", "import time; time.sleep(60)"), ("quick", "print('빨리 끝남')")):
+            st = du.Step(name, ["-c", code], 1, fatal=False, background=True)
+            bg = BackgroundStep(name, [sys.executable, *st.args], cwd=t, env=dict(os.environ), timeout_min=1,
+                                log_path=t / "logs" / f"{name}.part.log")
+            bg.start()
+            bgs.append((st, du._rec(st), bg))
+        time.sleep(0.8)                                # quick 은 그 사이 끝났다
+        pairs = list(bgs)
+        du._stop_background(run, bgs, "임대를 잃음")
+    assert not bgs, "정리한 뒤 목록을 비운다"
+    rec = {st.name: r for st, r, _ in pairs}
+    assert rec["long"]["rc"] == -9 and "같이 멈춤" in rec["long"]["note"] and not pairs[0][2].running()
+    assert rec["quick"]["rc"] == 0 and rec["quick"]["note"] == "뒤에서 돌림"
+    assert any("종료코드 -9" in m for m in said) and any("종료코드 0" in m for m in said)
+    text = log_path.read_text(encoding="utf-8")
+    assert "같이 멈췄다" in text and "임대를 잃음" in text and "빨리 끝남" in text
+    assert not list((t / "logs").glob("*.part.log"))
+
+
+def test_only_search_runs_in_background_and_never_needs_app_db_or_dart():
+    """TC-DU-BG-05 · 실제 단계 목록 — 뒤에서 도는 단계는 `search` 하나이고, 앱 DB · DART 장부를 쓰는 단계는 아니다(순차를 전제하는 장치들) ·
+    색인은 달력 · 수정주가 사슬보다 앞에 있어야 겹치는 이득이 난다."""
+    bgs = [s for s in du.STEPS if s.background]
+    assert [s.name for s in bgs] == ["search"]
+    assert all(not s.app_db and s.name not in du.DART_CAPS for s in bgs)
+    names = [s.name for s in du.STEPS]
+    assert names.index("search") < names.index("calendar") < names.index("adjusted")
+    first_backup = next(i for i, s in enumerate(du.STEPS) if s.group == "백업")
+    assert names.index("adjusted") < first_backup, "백업 묶음 앞에서 거두므로 색인과 겹칠 사슬이 그 앞에 있어야 한다"
