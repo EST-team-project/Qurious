@@ -398,7 +398,11 @@ async function loadIndicatorBacktest() {
     if (sl) q.set("stop_loss_pct", sl); if (tp) q.set("take_profit_pct", tp);
     const data = await api(`/api/quant/pipeline?${q}`);
     renderIndicatorBacktest(data);
-  } catch {}
+  } catch {
+    // 실패하면 결과 칸이 낡은 값 그대로 남거나 비어 있어 사용자가 이유를 모른다 — 쉬운 말로 다시 해 보라고 알린다
+    const el = document.getElementById("ibt-result");
+    if (el) el.innerHTML = `<div style="color:var(--red);">성과 검증 결과를 불러오지 못했습니다. 잠시 뒤 '성과 검증 실행'을 다시 눌러 주세요.</div>`;
+  }
 }
 
 function renderIndicatorBacktest(data) {
