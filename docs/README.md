@@ -2,11 +2,11 @@
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v3.3 · 3.3 「2차 얼림의 예외」 에 ③ 화면 설계 소급 절(2026-10-30 · 사용자 결정) / v3.2 · 3.2 판 올리기 다섯 단계 그림(<그림 4> · 2026-10-23) / v3.1 · **번호 폴더**(2026-10-22 · 강사님 피드백) — 뿌리 `common/` · `phase-2/`(얼림) · `phase-3/` · 업무 순서 번호 00 ~ 06 · 영어 이름은 번호 폴더 + 바로 아래 종류까지 · 7절 옮긴 자리 / v2.0 · **차수 폴더**(2026-10-21) — `2차/`(2차를 닫은 판 · 얼림) · `3차/`(3차에 고치는 문서의 사본 · 판을 여기서 이어 올림) · 맨 위 `영상/` · 기록은 맨 위 그대로 · 6절 옮긴 자리 / v1.6 · 「무엇을 찾으면 어디로」 표(2.1절 · 2026-10-19 — 사용자 「찾기 너무 어려움 · 팀원도 봐야」) · `_git-drafts` 는 git bash · 다음 세션 프롬프트(+ 도구 · 로그)만 · v1.5 · 화면 `설계안/`(화면 안 여럿을 그림과 함께 견주는 설계안 — 결정 뒤에도 남김 · 2026-10-16) · v1.4 · 초안 폴더의 문서를 관련 폴더로(조사/배경조사 · 발표/준비 · 시험/깨보기 · 회의/대화방 · _local) — `_git-drafts` 는 작업 입력만(2026-10-16) · v1.3 · 개인 로컬 자료를 `_local/`(올리지 않음) 한 자리로 · 지도를 실제 폴더에 맞춤(조사 · 화면 그림 · 배포 · 데이터수집) · 지난 v1.2 는 `_git-drafts/` 의 자리 |
+| **판 · 상태** | v3.4 · 루트 낱장 마크다운 넷(`onprem.md` · `pipeline.md` · `screening.md` · `tradingview.md`)을 `common/` 의 references 로 옮김 — 7절 <표 7-2>(2026-10-31 · 사용자 결정) · 앞 판의 글은 개정 이력 아래 표 |
 | **구분** | 8. 개발 · 형상 관리 — 문서의 자리 · 이름 · 판 |
 | **작성** | 이동원(팀장) |
 | **검토** | 검토 전 — 정리 PR 에 팀원 한 명 이상의 「읽었음」 을 받는다 |
-| **최종 수정** | 2026-10-30 (KST) |
+| **최종 수정** | 2026-10-31 (KST) |
 | **기준** | v3.2 는 3.2 <그림 4>(Figma `77:47` · 이 판) · v3.1 은 3.2 판 올리기 다섯째 단계(동기화 점검 `docs_scan.py --sync` · 2026-10-23 결정) · v3.0 은 코드 `main` `c9bd397`(#313 머지) + 번호 폴더(옮김 1,676 · 새로 깨진 상대 링크 0 — 7절) · v2.0 은 코드 `main` `e819cd2`(2차 최종 머지 #310 · 태그 `phase2-final-2026-10-21`) + 차수 폴더 정리(옮김 899 · 3차 사본 76 · 새로 깨진 상대 링크 0 — 4.1절) · v1.x 는 `main` `0011743` + 2026-10-07 정리(옮긴 파일 171 · 정리 전부터 깨져 있던 상대 링크 15 는 그대로 — 4.2절) |
 | **관련 문서** | [산출물목록](산출물목록.md) · [문서 작성 기준](phase-3/00-management/standards/문서작성기준.md) · [문서 그림 지침](phase-3/00-management/standards/문서그림지침.md) · [기록 색인](common/00-management/github-archive/README.md) |
 
@@ -96,8 +96,8 @@ docs/
 │  └─ 06-retrospective/  2차 발표 — 발표자료.html(한 파일 판) · 발표자료-원본.html · 질의응답 · 그림/ · media/ · 준비/
 ├─ common/               차수와 상관없이 쌓이는 기록 — 같은 번호
 │  ├─ 00-management/     meetings/(팀 대화방 글) · github-archive/(올린 이슈 · 댓글 · PR 본문 · 색인) · commit-map-2026-09-23.tsv
-│  ├─ 01-analysis/       references/(제안요청서 rfp-1 · rfp-2 · 수업 노트 01 ~ 05)
-│  ├─ 02-design/         adr/(설계 결정 기록) · contracts/(KIS 자동매매 API 계약) · img/(README 첫 그림 · 폴더 지도 그림) · supabase_schema.sql
+│  ├─ 01-analysis/       references/(제안요청서 rfp-1 · rfp-2 · 수업 노트 01 ~ 05 · 개념 노트 screening · tradingview)
+│  ├─ 02-design/         adr/(설계 결정 기록) · contracts/(KIS 자동매매 API 계약) · references/(강사님 설계서 사본 onprem · pipeline) · img/(README 첫 그림 · 폴더 지도 그림) · supabase_schema.sql
 │  └─ 06-retrospective/  videos/(시연 영상 — 앱 사용법 창 · 녹화 도구가 읽음) · til/(TIL)
 ├─ _git-drafts/          개인 git 초안 — git bash · 다음 세션 프롬프트 · 일회용 도구 · 실행 로그만 · 올리지 않는다(.gitignore · 3.3절)
 └─ _local/               개인 로컬 자료(섹터 xlsx · 강의 양식 docx · git-drafts-개인/ · 외부원문/) — 올리지 않는다(.gitignore · 3.3절)
@@ -109,7 +109,7 @@ docs/
 |:-:|---|---|---|
 | 00 | `00-management` | 관리 · 행정 — 팀 운영 · 일정 · 문서 규칙 | plans · standards / meetings · github-archive |
 | 01 | `01-analysis` | 분석 — 요구사항 · 조사 | requirements · research / references |
-| 02 | `02-design` | 설계 — 시스템 · 데이터 · 화면 · API | system · data · ui · api / adr · contracts · img |
+| 02 | `02-design` | 설계 — 시스템 · 데이터 · 화면 · API | system · data · ui · api / adr · contracts · img · references |
 | 03 | `03-development` | 개발 — 코딩 표준 · 리뷰 · 수집 안내 | conventions · data-collection |
 | 04 | `04-testing` | 테스트 · 검증 | 번호 폴더가 곧 종류 |
 | 05 | `05-deployment` | 배포 · 운영 | 번호 폴더가 곧 종류 |
@@ -184,7 +184,7 @@ docs/
 
 | 경로 | 이유 |
 |---|---|
-| `common/01-analysis/references/`(01 ~ 05 · rfp-1 · rfp-2) · `common/02-design/supabase_schema.sql` · `common/02-design/contracts/` | 강사님 기초 코드 원본과 바이트까지 같다 — 2026-10-21 까지는 3-way 병합 때 경로가 같도록 맨 위에 두었으나, 2026-10-22 사용자 결정(「전부」)으로 옮겼다. **기초 코드를 다시 반영할 때는 강사님 판의 `docs/<이름>` 을 이 자리로 대응한다(7절 <표 7-2>)**. 계약은 세 저장소 공통이지만 다른 저장소는 자기 사본을 둔다 |
+| `common/01-analysis/references/`(01 ~ 05 · rfp-1 · rfp-2 · screening · tradingview) · `common/02-design/references/`(onprem · pipeline — **글은 같고 안의 상대 링크 접두만 우리 고침**: 강사님 판은 루트 기준이라 `app/…` 앞에 `../../../../` 를 붙였다. 기초 코드를 다시 반영할 때 이 두 파일은 링크 줄만 충돌할 수 있다) · `common/02-design/supabase_schema.sql` · `common/02-design/contracts/` | 강사님 기초 코드 원본과 바이트까지 같다 — 2026-10-21 까지는 3-way 병합 때 경로가 같도록 맨 위에 두었으나, 2026-10-22 사용자 결정(「전부」)으로 옮겼다. **기초 코드를 다시 반영할 때는 강사님 판의 `docs/<이름>` 을 이 자리로 대응한다(7절 <표 7-2>)**. 계약은 세 저장소 공통이지만 다른 저장소는 자기 사본을 둔다 |
 | `common/00-management/commit-map-2026-09-23.tsv` | 계정 이관 해시표 — 팀장 작업 규칙이 가리키는 파일(옛 경로는 7절로 바꿔 읽는다) |
 | `common/` 기록(meetings · github-archive · adr · til) | 날짜 · 번호로 쌓이는 기록 — 차수와 상관없다. 글 속 옛 경로는 그때 글 그대로 둔다(링크만 고침 · 7절) |
 | `common/06-retrospective/videos/` | 앱 사용법 창 · 녹화 도구 · 시험이 3차에도 이 자리를 읽는다(3차에 다시 찍어도 얼린 2차를 고치지 않게) |
@@ -488,8 +488,8 @@ GitHub 에 이미 올린 글 속 옛 주소는 열리지 않는다(쓰기를 몰
 | 번호 묶음 | 옛 자리 | 새 자리 |
 |---|---|---|
 | 00 관리 | `docs/회의/` · `docs/github-archive/` · `docs/commit-map-2026-09-23.tsv` | `docs/common/00-management/meetings/` · `…/github-archive/` · `…/commit-map-2026-09-23.tsv` |
-| 01 분석 | `docs/rfp-1.md` · `docs/rfp-2.md` · `docs/01.md` ~ `docs/05.md`(수업 노트) | `docs/common/01-analysis/references/` |
-| 02 설계 | `docs/ADR/` · `docs/contracts/` · `docs/img/` · `docs/supabase_schema.sql` | `docs/common/02-design/adr/` · `…/contracts/` · `…/img/` · `…/supabase_schema.sql` |
+| 01 분석 | `docs/rfp-1.md` · `docs/rfp-2.md` · `docs/01.md` ~ `docs/05.md`(수업 노트) · 루트 `screening.md` · `tradingview.md`(개념 노트 · 2026-10-31) | `docs/common/01-analysis/references/` |
+| 02 설계 | `docs/ADR/` · `docs/contracts/` · `docs/img/` · `docs/supabase_schema.sql` · 루트 `onprem.md` · `pipeline.md`(강사님 설계서 사본 · 2026-10-31) | `docs/common/02-design/adr/` · `…/contracts/` · `…/img/` · `…/supabase_schema.sql` · `…/references/` |
 | 06 회고 · 최종 보고 | `docs/영상/` · `docs/TIL/` | `docs/common/06-retrospective/videos/` · `…/til/` |
 
 그대로 둔 것: `docs/README.md` · `docs/산출물목록.md` · 개인 폴더 `docs/_git-drafts/` · `docs/_local/`(git 밖) · 모든 파일 이름.
@@ -506,6 +506,7 @@ GitHub 에 이미 올린 글 속 옛 주소는 열리지 않는다(쓰기를 몰
 
 | 판 | 날짜 | 바뀐 것 | 까닭 | 근거 |
 |---|---|---|---|---|
+| v3.4 | 2026-10-31 | 루트 낱장 마크다운 넷의 새 자리(`common/` 의 references)를 트리 · <표 1> · <표 7-2> · 기초 코드 대응 줄에 적음 — `onprem.md` · `pipeline.md` → `common/02-design/references/` · `screening.md` · `tradingview.md` → `common/01-analysis/references/`(옮긴 두 설계서는 글은 같고 안의 상대 링크 접두만 우리 고침) | 루트에는 루트에 있어야만 하는 파일(`readme.md` · `NOTICE.md`)만 두자는 사용자 결정(10-31 · 폴더 정비) | [폴더 정비 조사 결과](phase-3/01-analysis/research/배경조사/2026-10-31-폴더정비-README/결과.md) 6절 |
 | v3.3 | 2026-10-30 | 3.3 「2차 얼림의 예외」 에 ③ 화면 설계 소급 절 | 2차 UI 명세서가 v0.30(16장) · v0.31(17장)에서 새 절을 얻었는데 예외 표에는 ① ② 뿐이라 규칙과 실제가 어긋났다 | 사용자 결정 2026-10-30(「둔다」) · [화면 대장 v0.3](phase-3/02-design/ui/화면대장.md) 4절 |
 | v3.2 | 2026-10-23 | 3.2 에 <그림 4>(판 올리기 다섯 단계 · 빠뜨리면 생기는 일 · 잡는 것) | 다섯째 단계(동기화)를 더한 뒤 그림이 없었다 — 문서마다 그림 한 장 이상 | Figma `77:47` · [문서 그림 지침](phase-3/00-management/standards/문서그림지침.md) <표 5> |
 | v3.1 | 2026-10-23 | 3.2 판 올리기에 다섯째 단계 — 원천이 있는 통합 문서면 `docs_scan.py --sync-ack` 뒤 `--sync` 오류 0 · 경고 0 | 통합 산출물 ↔ 팀원 설계서 동기화 결정(10-23) — 원천이 바뀐 절을 판 올릴 때 기계가 알린다 | 문서 작성 기준 v0.5 4.6 ⑤ · 동기화 대장 |
@@ -518,3 +519,13 @@ GitHub 에 이미 올린 글 속 옛 주소는 열리지 않는다(쓰기를 몰
 | v1.2 | 2026-10-12 | 2절 폴더 지도에 `데이터수집/`(키 이름 · 도움 요청 · HF private 보관 규칙 · 저장하지 않는 자료) | 사용자 지시 「docs 폴더에 데이터수집 폴더명으로 하나 만들어서」 — 필요한 자료는 그때그때 HF private 데이터셋으로 | `docs/phase-3/03-development/data-collection/데이터수집안내.md` v0.1 |
 | v1.1 | 2026-10-08 | 2절 폴더 지도 · 3.3절 예외 표에 `_git-drafts/`(개인 git 초안 · `.gitignore`) 한 줄씩 | 저장소 밖에 두던 초안을 찾기 쉽게 docs 안으로 옮기되 올리지는 않는다(사용자 2026-10-08) | `.gitignore` 한 줄 · `scripts/rtm_scan.py` 제외 폴더 한 줄(옮기기 전후 RTM 결과 바이트까지 같음) |
 | v1.0 | 2026-10-07 | 첫 판 — 폴더 지도 · 하위 폴더 규칙 · 판 올리는 네 단계 · 예외 · 링크 처리 · 옮긴 자리 표 171줄 · <그림 1> | 판 파일이 맨 위에 쌓여 찾기 어려웠다(팀장 결정 — 최신은 판 없는 이름, 지난 판은 지난판/ 사본) | 정리 PR(`docs/reorganize-by-kind`) |
+
+**머리표 「판 · 상태」 칸에서 옮긴 이전 판의 글** — 지금 판의 글은 머리표를 본다.
+
+| 판 | 글 |
+|---|---|
+| v3.3 | v3.3 · 3.3 「2차 얼림의 예외」 에 ③ 화면 설계 소급 절(2026-10-30 · 사용자 결정) |
+| v3.2 | v3.2 · 3.2 판 올리기 다섯 단계 그림(<그림 4> · 2026-10-23) |
+| v3.1 | v3.1 · **번호 폴더**(2026-10-22 · 강사님 피드백) — 뿌리 `common/` · `phase-2/`(얼림) · `phase-3/` · 업무 순서 번호 00 ~ 06 · 영어 이름은 번호 폴더 + 바로 아래 종류까지 · 7절 옮긴 자리 |
+| v2.0 | v2.0 · **차수 폴더**(2026-10-21) — `2차/`(2차를 닫은 판 · 얼림) · `3차/`(3차에 고치는 문서의 사본 · 판을 여기서 이어 올림) · 맨 위 `영상/` · 기록은 맨 위 그대로 · 6절 옮긴 자리 |
+| v1.6 | v1.6 · 「무엇을 찾으면 어디로」 표(2.1절 · 2026-10-19 — 사용자 「찾기 너무 어려움 · 팀원도 봐야」) · `_git-drafts` 는 git bash · 다음 세션 프롬프트(+ 도구 · 로그)만 · v1.5 · 화면 `설계안/`(화면 안 여럿을 그림과 함께 견주는 설계안 — 결정 뒤에도 남김 · 2026-10-16) · v1.4 · 초안 폴더의 문서를 관련 폴더로(조사/배경조사 · 발표/준비 · 시험/깨보기 · 회의/대화방 · _local) — `_git-drafts` 는 작업 입력만(2026-10-16) · v1.3 · 개인 로컬 자료를 `_local/`(올리지 않음) 한 자리로 · 지도를 실제 폴더에 맞춤(조사 · 화면 그림 · 배포 · 데이터수집) · 지난 v1.2 는 `_git-drafts/` 의 자리 |

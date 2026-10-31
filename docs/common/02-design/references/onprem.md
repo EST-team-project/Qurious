@@ -459,10 +459,10 @@ LEAN Job은 인터넷 egress, hostPath, privileged, 임의 이미지 사용을 �
 ## 13. 관련 파일
 
 - 데이터 수집·전처리 설계: [`pipeline.md`](pipeline.md)
-- 로컬 구성: [`docker-compose.yml`](docker-compose.yml)
-- LEAN 실행 모드: [`app/services/lean_backtest.py`](app/services/lean_backtest.py)
-- 모의투자·Open API: [`app/routes/paper.py`](app/routes/paper.py), [`app/routes/openapi.py`](app/routes/openapi.py)
-- 애플리케이션 설정: [`app/config.py`](app/config.py)
-- LLM provider 추상화: [`app/lib/llm_client.py`](app/lib/llm_client.py)
-- Celery 설정: [`app/celery_app.py`](app/celery_app.py)
+- 로컬 구성: [`docker-compose.yml`](../../../../docker-compose.yml)
+- LEAN 실행 모드: [`app/services/lean_backtest.py`](../../../../app/services/lean_backtest.py)
+- 모의투자·Open API: [`app/routes/paper.py`](../../../../app/routes/paper.py), [`app/routes/openapi.py`](../../../../app/routes/openapi.py)
+- 애플리케이션 설정: [`app/config.py`](../../../../app/config.py)
+- LLM provider 추상화: [`app/lib/llm_client.py`](../../../../app/lib/llm_client.py)
+- Celery 설정: [`app/celery_app.py`](../../../../app/celery_app.py)
 - AWS 대안 설계: [`aws.md`](aws.md)

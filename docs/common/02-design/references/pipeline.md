@@ -292,13 +292,13 @@ CREATE TABLE fetch_log (
 
 ## 10. 관련 파일
 
-- 시세·캔들·지표: [`app/services/stock.py`](app/services/stock.py)
-- 동기화: [`app/services/sync_scheduler.py`](app/services/sync_scheduler.py), [`app/tasks/sync_tasks.py`](app/tasks/sync_tasks.py), [`app/celery_app.py`](app/celery_app.py)
-- 캐시: [`app/services/data_cache.py`](app/services/data_cache.py)
-- KRX 목록: [`app/services/krx_companies.py`](app/services/krx_companies.py)
-- 퀀트 전처리·학습·백테스트: [`app/services/quant_pipeline.py`](app/services/quant_pipeline.py), [`app/services/ta_utils.py`](app/services/ta_utils.py), [`app/services/investment_research.py`](app/services/investment_research.py)
-- 크롤링·RAG: [`app/services/crawl.py`](app/services/crawl.py), [`app/services/rag_pipeline.py`](app/services/rag_pipeline.py), [`app/services/doc_parser.py`](app/services/doc_parser.py), [`app/services/translation_ingest.py`](app/services/translation_ingest.py)
-- CSV 인제스트: [`app/services/financial_ingest.py`](app/services/financial_ingest.py), [`app/tasks/ingest_tasks.py`](app/tasks/ingest_tasks.py)
-- 모의투자 시세: [`app/services/paper_trading.py`](app/services/paper_trading.py)
-- LEAN: [`app/services/lean_backtest.py`](app/services/lean_backtest.py)
+- 시세·캔들·지표: [`app/services/stock.py`](../../../../app/services/stock.py)
+- 동기화: [`app/services/sync_scheduler.py`](../../../../app/services/sync_scheduler.py), [`app/tasks/sync_tasks.py`](../../../../app/tasks/sync_tasks.py), [`app/celery_app.py`](../../../../app/celery_app.py)
+- 캐시: [`app/services/data_cache.py`](../../../../app/services/data_cache.py)
+- KRX 목록: [`app/services/krx_companies.py`](../../../../app/services/krx_companies.py)
+- 퀀트 전처리·학습·백테스트: [`app/services/quant_pipeline.py`](../../../../app/services/quant_pipeline.py), [`app/services/ta_utils.py`](../../../../app/services/ta_utils.py), [`app/services/investment_research.py`](../../../../app/services/investment_research.py)
+- 크롤링·RAG: [`app/services/crawl.py`](../../../../app/services/crawl.py), [`app/services/rag_pipeline.py`](../../../../app/services/rag_pipeline.py), [`app/services/doc_parser.py`](../../../../app/services/doc_parser.py), [`app/services/translation_ingest.py`](../../../../app/services/translation_ingest.py)
+- CSV 인제스트: [`app/services/financial_ingest.py`](../../../../app/services/financial_ingest.py), [`app/tasks/ingest_tasks.py`](../../../../app/tasks/ingest_tasks.py)
+- 모의투자 시세: [`app/services/paper_trading.py`](../../../../app/services/paper_trading.py)
+- LEAN: [`app/services/lean_backtest.py`](../../../../app/services/lean_backtest.py)
 - 배치 학습: [`sagemaker/train.py`](sagemaker/train.py), [`infra/quant-ai/`](infra/quant-ai/), [`app/services/quant_ai_scores.py`](app/services/quant_ai_scores.py)
