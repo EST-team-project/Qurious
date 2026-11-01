@@ -346,13 +346,15 @@ function renderNotiPrefs(cfg) {
     return `<tr style="border-top:1px solid var(--border);">
       <td class="py-1.5 pr-3" style="color:var(--text-dim);">${escHtml(d.label)}${note ? ` <span style="color:var(--text-mute);">(${escHtml(note)})</span>` : ""}</td>
       <td class="py-1.5 pr-3" style="color:${NOTI_SEV_COLOR[d.severity] || "inherit"};">${escHtml(NOTI_SEV[d.severity] || d.severity)}</td>
-      <td class="py-1.5"><select class="input noti-pref-mode" data-kind="${escHtml(d.kind)}" aria-label="${escHtml(d.label)} 받는 방식">${opts}</select></td>
+      <td class="py-1.5"><select class="input noti-pref-mode" style="min-width:96px;" data-kind="${escHtml(d.kind)}" aria-label="${escHtml(d.label)} 받는 방식">${opts}</select></td>
     </tr>`;
   }).join("") || `<tr><td colspan="3" style="color:var(--text-mute);">사건 목록을 불러오지 못했습니다.</td></tr>`;
   const q = cfg.preferences?.quiet || {};
   document.getElementById("noti-quiet-enabled").checked = !!q.enabled;
   document.getElementById("noti-quiet-start").value = q.start || "21:00";
   document.getElementById("noti-quiet-end").value = q.end || "08:00";
+  const shared = document.getElementById("noti-discord-shared");
+  if (shared) shared.checked = cfg.preferences?.discord_use_shared === true;   // 기본 꺼짐 — 개인 알림이 공용 채널로 새지 않게
 }
 
 function collectNotiPrefs() {
@@ -365,6 +367,7 @@ function collectNotiPrefs() {
       start: document.getElementById("noti-quiet-start")?.value || "21:00",
       end: document.getElementById("noti-quiet-end")?.value || "08:00",
     },
+    discord_use_shared: !!document.getElementById("noti-discord-shared")?.checked,
   };
 }
 

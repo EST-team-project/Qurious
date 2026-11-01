@@ -99,14 +99,17 @@ def test_screen_text_has_no_server_setting_names():
 
 
 def test_kis_hint_points_to_a_real_screen(monkeypatch):
-    """TC-NV-06 · 키가 없을 때의 안내가 가리키는 화면 이름(증권사 API 설정)이 실제 메뉴에 있다 — 「종목 선정」 이라는 화면은 없다."""
+    """TC-NV-06 · 키가 없을 때의 안내가 가리키는 화면 이름(증권사 API 설정)이 실제 화면에 있다 — 「종목 선정」 이라는 화면은 없다.
+    (2026-11-01 증권사 API 설정이 마이페이지 구역 안으로 들어와 메뉴 줄은 없다 — 이름은 그 구역의 제목이고 `settings` 는 마이페이지 줄을 따른다)"""
     from app.config import settings
     from app.services import kis_quickstart as kq
 
     monkeypatch.setattr(settings, "STOCK_COIN_TRADE_BASE_URL", "")
     route = asyncio.run(kq.resolve_route(None))
     assert route.configured is False and "「증권사 API 설정」" in route.detail and "종목 선정" not in route.detail
-    assert 'label: "증권사 API 설정"' in CORE
+    assert '<h2 class="text-lg font-semibold">증권사 API 설정</h2>' in (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    assert 'label: "증권사 API 설정"' not in CORE, "메뉴 줄은 뺐다 — 마이페이지 줄과 같은 화면을 두 줄이 가리키지 않게"
+    assert '"settings": "mypage"' in CORE, "settings 는 메뉴 줄이 없어 마이페이지 줄을 따라야 왼쪽 트리 · 머리 경로가 선다"
 
 
 def test_dashboard_tabs_use_our_words_and_real_screens():

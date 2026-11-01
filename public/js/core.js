@@ -191,8 +191,9 @@ const GNB_MENUS = {
     items: [
       { key: "mypage", icon: "fa-solid fa-id-card", label: "내 정보 (마이페이지)" },
       // 설정은 모두 마이페이지 쪽으로(사용자 결정 2026-10-29 「화면이 생길수록 난잡하다」) — 1단계: 메뉴만 옮김.
-      // 화면 키 · 이름은 그대로다: 서버가 `#settings` 링크와 「증권사 API 설정」 이름으로 안내하고(dashboard.py · kis_quickstart.py), TC-NV-06 · 07 이 글자로 확인한다.
-      { key: "settings",              icon: "fa-solid fa-sliders",   label: "증권사 API 설정" },
+      // 증권사 API 설정은 마이페이지 「증권사 연동」 구역 안으로 들어와 메뉴 줄을 뺐다(사용자 11-01 「증권사 API 설정이 아예 내정보 안으로 들어갔다면
+      //   메뉴에서 제거」 — 눌러도 왼쪽 트리에는 「내 정보 (마이페이지)」 에 불이 들어와 두 줄이 같은 화면을 가리켰다).
+      // 화면 키 `settings` 와 `#settings` 링크 · 서버 안내의 「증권사 API 설정」 이름은 그대로다(VIEW_PARENT 가 마이페이지 줄을 따른다 · TC-NV-06).
       { key: "notification-settings", icon: "fa-solid fa-bell",      label: "알림 설정" },
       { key: "paper-openapi",         icon: "fa-solid fa-key",       label: "Open API · 외부 연동" },
     ],
@@ -471,7 +472,8 @@ let currentView = "agent-chat";
 const MENU_TOP = ["agent", "company", "paper", "quant", "finance", "crawl"];   // app.html 위 탭과 같은 차례(TC-NV-01)
 // 메뉴 줄이 없는 화면 → 따를 메뉴 줄 — 장 한 편 · 부 목차는 학습 갈래 목차에서 들어온다(메뉴 줄 「장 읽기」 는 뺐다 · 사용자 10-20
 // 「굳이 필요 없는 화면」). 위 탭 · 왼쪽 트리 · 머리 경로가 이 줄을 따르고, 화면이 그린 뒤 들어온 갈래로 바꾼다(showUnder)
-const VIEW_PARENT = { "learn-page": "learn-home", "learn-part": "learn-home" };
+// `settings`(증권사 API 설정)는 마이페이지 안 구역이라 마이페이지 줄을 따른다(2026-11-01 메뉴 줄 제거)
+const VIEW_PARENT = { "learn-page": "learn-home", "learn-part": "learn-home", "settings": "mypage" };
 const TAB_OF = {};   // 위 탭이 따로 없는 묶음 → 불을 켤 위 탭(2026-10-20 「학습」 을 한 묶음으로 합쳐 지금은 없음 · 생기면 여기 · TC-CLV-02)
 const MENU_TREE = ["agent", "company", "paper", "quant", "trading", "us", "invest", "ml",
   "finance", "crawl", "sysadmin", "account"];   // 왼쪽 트리 차례 — 모든 묶음이 한 번씩(TC-NV-02 · 2026-10-20 개념 학습은 「학습」 안으로)

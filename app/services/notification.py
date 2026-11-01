@@ -153,10 +153,11 @@ _DISCORD_SUPPRESS_NOTIFICATIONS = 4096
 
 
 async def send_discord(message: str, webhook_url: str = "", outcome: dict | None = None,
-                       *, embeds: list | None = None, silent: bool = False) -> bool:
+                       *, embeds: list | None = None, silent: bool = False, allow_shared: bool = True) -> bool:
     """Discord 웹훅 메시지 전송(2026-11-01). 주소는 사용자 설정이 먼저, 없으면 `DISCORD_WEBHOOK_URL`(.env 공용) — 성공은 204 로 온다.
     `embeds` 가 있으면 카드 모양으로 보내고, `silent` 면 알림음 없이(SUPPRESS_NOTIFICATIONS) 보낸다."""
-    url = webhook_url or settings.DISCORD_WEBHOOK_URL
+    # allow_shared 가 거짓이면 공용(.env) 주소로 넘어가지 않는다 — 자기 주소가 없는 사용자의 개인 알림이 팀 채널로 새지 않게(2026-11-01)
+    url = webhook_url or (settings.DISCORD_WEBHOOK_URL if allow_shared else "")
     if not url:
         logger.debug("Discord 웹훅 URL 없음 – 건너뜀")
         return False
@@ -481,8 +482,10 @@ async def _deliver(ev, user_cfg: dict, channels: list[str], silent: bool = False
             dc_extra["embeds"] = card["embeds"]
         if silent:
             dc_extra["silent"] = True
+        # 설정이 있는 사용자(user_cfg 가 비어 있지 않음)는 「공용 채널로도 받기」 를 켠 때만 .env 공용 주소로 간다. 설정이 없는 호출(운영 알림)은 그대로 공용.
+        shared_ok = (not user_cfg) or ((user_cfg.get("preferences") or {}).get("discord_use_shared") is True)
         tasks.append(_send_with_retry(lambda o: send_discord(
-            card.get("content", ""), webhook_url=user_cfg.get("discord_webhook_url", ""), outcome=o, **dc_extra,
+            card.get("content", ""), webhook_url=user_cfg.get("discord_webhook_url", ""), outcome=o, allow_shared=shared_ok, **dc_extra,
         )))
     if "email" in channels:
         names.append("email")

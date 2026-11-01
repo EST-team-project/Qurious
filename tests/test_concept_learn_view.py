@@ -36,7 +36,8 @@ def test_learn_menu_items_are_app_screens():
   assert {"fin-lectures", "fin-glossary", "learn-dev", "learn-python", "learn-videos"} <= set(keys)
   assert "learn-special" not in keys, "학습은 세 갈래(10-23) — 갈래를 늘리려면 개념 학습 설계서부터"
   assert "learn-page" not in keys, "「장 읽기」 메뉴 줄은 뺐다(사용자 10-20 「굳이 필요 없는 화면」) — 장은 갈래 목차에서 연다"
-  assert re.search(r'^const VIEW_PARENT = \{ "learn-page": "learn-home", "learn-part": "learn-home" \};', core, re.M)
+  # 학습 두 줄은 학습 홈을 따른다 — 그 밖에 메뉴 줄이 없는 화면(`settings` · 2026-11-01)이 더 있어도 된다
+  assert re.search(r'^const VIEW_PARENT = \{ "learn-page": "learn-home", "learn-part": "learn-home"(, "settings": "mypage")? \};', core, re.M)
   assert "href:" not in menu, "학습은 앱 안 화면 — 바깥 주소(/learn/)로 나가지 않는다"
   assert "\n  learn: {" not in core, "개념 학습 묶음은 「학습」 안으로 합쳤다(두 묶음이 겹쳐 헷갈림 — 사용자 10-20)"
   app = _read("app.html")

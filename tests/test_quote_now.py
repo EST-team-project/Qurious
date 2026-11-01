@@ -290,3 +290,23 @@ def test_guards_route_prompt_and_no_calendar():
     svc_src = (ROOT / "app/services/quote_now.py").read_text(encoding="utf-8")
     assert "market_calendar" not in svc_src.split('"""', 2)[2]        # 설명 글 밖에서
     assert "주가 · 현재가 · 시세 숫자는 위 데이터에 기준 시각과 함께 있을 때만" in L.ANSWER_PROMPT
+
+
+def test_pending_close_note_uses_trading_calendar():
+    """TC-QUOT-11 · 수집 종가가 마지막으로 끝난 거래일보다 오래됐으면 「반영 전」 한 줄(2026-11-01 · 금요일 종가 공백) — 평일 · 내장 휴장
+    달력만 본다(수집 DB 를 열지 않음) · 최신이면 말하지 않고 · 날짜를 모르면 지어내지 않는다."""
+    kst = Q.KST
+    # 월요일 낮 — 마지막으로 끝난 거래일은 금요일(10-16): 금요일 종가가 있으면 말 없음 · 목요일이면 「10월 16일 종가는 반영 전」
+    assert Q._label("collector", as_of="2026-10-16", fetched=MON_1402, state="open") == "10월 16일 종가"
+    assert Q._label("collector", as_of="2026-10-15", fetched=MON_1402, state="open") == "10월 15일 종가 · 10월 16일 종가는 반영 전"
+    # 월요일 장 마감 뒤(15:30 이후)는 오늘(10-19)까지가 끝난 거래일 — 금요일 값이면 월요일 종가가 반영 전
+    assert Q.pending_close_note("2026-10-16", datetime(2026, 10, 19, 16, 10, tzinfo=kst)) == "10월 19일 종가는 반영 전"
+    # 토요일 — 금요일(10-23)까지
+    assert Q.pending_close_note("2026-10-22", datetime(2026, 10, 24, 10, 0, tzinfo=kst)) == "10월 23일 종가는 반영 전"
+    assert Q.pending_close_note("2026-10-23", datetime(2026, 10, 24, 10, 0, tzinfo=kst)) == ""
+    # 휴장일(2026-10-09 한글날 금요일) 직후 월요일(10-12) 낮 — 마지막 거래일은 목요일(10-08): 목요일 값이면 말 없음(휴장일을 반영 전이라 하지 않는다)
+    assert Q.pending_close_note("2026-10-08", datetime(2026, 10, 12, 10, 0, tzinfo=kst)) == ""
+    assert Q.last_closed_trading_day(datetime(2026, 10, 12, 10, 0, tzinfo=kst)).isoformat() == "2026-10-08"
+    # 날짜를 모르면 말하지 않는다 · 시간이 붙은 날짜도 앞 10자만 읽는다
+    assert Q.pending_close_note(None, MON_1402) == "" and Q.pending_close_note("깨짐", MON_1402) == ""
+    assert Q.pending_close_note("2026-10-16 00:00", MON_1402) == ""

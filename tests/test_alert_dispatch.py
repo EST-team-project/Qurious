@@ -226,3 +226,34 @@ def test_ad10_helpers_build_report_style_events(rig):
     rig.calls.clear()
     run(notification.notify_risk_halt("일손실 한도", -3.2, user_id=None))
     assert "urgent" == rig.logs[-1][4]["payload"]["severity"]
+
+
+def test_ap06_discord_use_shared_defaults_off_and_must_be_bool():
+    """TC-ARP-06 · 「공용 디스코드 채널로도 받기」 는 기본 꺼짐 · 참(true)일 때만 켜짐 · 불리언이 아니면 저장을 거절한다(2026-11-01)."""
+    assert ap.normalize({})["discord_use_shared"] is False
+    assert ap.normalize({"discord_use_shared": "yes"})["discord_use_shared"] is False      # 읽기용은 참(true)만 켠다
+    assert ap.validate({"discord_use_shared": True})["discord_use_shared"] is True
+    assert ap.validate({})["discord_use_shared"] is False
+    with pytest.raises(ValueError):
+        ap.validate({"discord_use_shared": "yes"})
+
+
+def test_ad11_shared_discord_channel_only_when_user_opted_in(rig, monkeypatch):
+    """TC-ADI-11 · 자기 디스코드 주소가 없는 사용자의 개인 알림은 켠 때만 공용(.env) 채널로 간다 · 설정 없는 호출(운영 알림)은 공용 그대로 ·
+    `send_discord` 는 allow_shared 가 거짓이면 공용 주소가 있어도 보내지 않는다."""
+    rig.cfg = {"channels": ["discord"], "discord_webhook_url": "", "preferences": {}}
+    run(notification.dispatch_event(_ev(), user_id="u1"))
+    assert [k["allow_shared"] for n, a, k in rig.calls if n == "discord"] == [False]
+    rig.calls.clear()
+    rig.cfg = {"channels": ["discord"], "discord_webhook_url": "", "preferences": {"discord_use_shared": True}}
+    run(notification.dispatch_event(_ev(), user_id="u1"))
+    assert [k["allow_shared"] for n, a, k in rig.calls if n == "discord"] == [True]
+    rig.calls.clear()
+    rig.cfg = {}                                                                           # 설정이 없는 호출 = 운영 알림
+    monkeypatch.setattr(notification, "_default_channels", lambda: ["discord"])
+    run(notification.dispatch_event(_ev(), user_id=None))
+    assert [k["allow_shared"] for n, a, k in rig.calls if n == "discord"] == [True]
+    # 실제 함수 — 공용 주소가 있어도 allow_shared=False 면 네트워크로 나가지 않고 거짓
+    monkeypatch.undo()
+    monkeypatch.setattr(notification.settings, "DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1/x")
+    assert run(notification.send_discord("x", allow_shared=False)) is False
