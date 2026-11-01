@@ -59,3 +59,19 @@ def test_cr04_send_uses_no_user_and_env_channels(monkeypatch):
 def test_cr05_can_be_switched_off(monkeypatch):
     monkeypatch.setenv("COLLECT_REPORT_NOTIFY", "0")
     assert "꺼짐" in cr.send_round_report(OK_STATE)
+
+
+def test_cr06_fills_empty_channels_from_dotenv(tmp_path):
+    """TC-CRN-06 · 예약 작업(pythonw)은 `ENV_FILE` 이 없어 `.env.dev` 만 읽는다 → 알림 채널은 비어 있는 칸만 `.env` 에서 채운다 —
+    이미 값이 있는 칸 · 채널이 아닌 설정 · 주석 · 없는 파일은 건드리지 않고, 채운 칸의 이름만 돌려준다."""
+    from types import SimpleNamespace
+
+    env = tmp_path / ".env"
+    env.write_text('# 주석\nDISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1/X"\nSLACK_WEBHOOK_URL=\nSMTP_HOST=smtp.example.com\n'
+                   "DATABASE_URL=postgresql://postgres:5432/x\nTELEGRAM_CHAT_ID=999\n", encoding="utf-8")
+    st = SimpleNamespace(DISCORD_WEBHOOK_URL="", SLACK_WEBHOOK_URL="", SMTP_HOST="이미 있음", TELEGRAM_CHAT_ID="", DATABASE_URL="그대로")
+    filled = cr.fill_channels_from_dotenv(st, env)
+    assert sorted(filled) == ["DISCORD_WEBHOOK_URL", "TELEGRAM_CHAT_ID"]
+    assert st.DISCORD_WEBHOOK_URL.startswith("https://discord.com/") and st.SMTP_HOST == "이미 있음" and st.SLACK_WEBHOOK_URL == ""
+    assert st.DATABASE_URL == "그대로"                                  # 채널이 아닌 설정은 빌리지 않는다
+    assert cr.fill_channels_from_dotenv(st, tmp_path / "없음.env") == []

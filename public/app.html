@@ -1120,11 +1120,16 @@
                 </div>
               </div>
 
-              <!-- 디스코드 — 이번 판은 전체 공용 주소(.env DISCORD_WEBHOOK_URL)로 보낸다. 사용자별 주소 칸은 아직 없다 (2026-11-01) -->
+              <!-- 디스코드 — 사용자별 웹훅 주소(비밀값 · 응답에서 가림). 비우면 서버 공용 주소(.env DISCORD_WEBHOOK_URL)로 간다 (2026-11-01) -->
               <div id="noti-section-discord" class="hidden space-y-2">
                 <h3 class="text-sm font-semibold text-slate-300">🎮 Discord 웹훅</h3>
-                <p class="text-xs text-slate-400">이 앱의 서버 설정(<code>.env</code> 의 <code>DISCORD_WEBHOOK_URL</code>)에 적힌 <b>공용 웹훅</b>으로 보냅니다. 이 화면에서는 켜고 끄기만 하고, 주소는 서버 관리자가 <code>.env</code> 에 넣습니다. 서버에 주소가 없으면 보내지 않습니다.</p>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">웹훅 주소 받는 법</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>디스코드에서 알림을 받을 <b>서버</b>의 채널을 고릅니다(없으면 새 서버 · 채널을 만듭니다).</li><li>채널 이름 옆 톱니 <b>채널 편집 → 연동 → 웹훅 → 새 웹훅</b>(또는 서버 설정 → 연동 → 웹훅)을 누르고 이름 · 채널을 정합니다.</li><li><b>웹훅 URL 복사</b>로 <code>https://discord.com/api/webhooks/…</code> 를 복사해 <code>.env</code> 의 <code>DISCORD_WEBHOOK_URL=</code> 뒤에 붙이고 앱을 다시 시작합니다.</li></ol><p class="mt-1">주소를 아는 사람은 누구나 그 채널에 글을 올릴 수 있으니 비밀로 두세요. 노출되면 웹훅을 지우고 새로 만듭니다.</p></details>
+                <p class="text-xs text-slate-400">내 디스코드 채널의 웹훅 주소를 넣으면 그 채널로 알림이 갑니다. <b>비워 두면</b> 이 앱 서버에 정해 둔 <b>공용 채널</b>로 보내는데, 그 채널은 다른 사람도 볼 수 있으니 매매 알림을 따로 받으려면 내 주소를 넣어 주세요.</p>
+                <div>
+                  <label class="text-xs text-slate-400">Webhook URL</label>
+                  <input id="noti-discord-webhook" type="password" autocomplete="off" class="input mt-1"
+                    placeholder="https://discord.com/api/webhooks/..." />
+                </div>
+                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">웹훅 주소 받는 법</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>디스코드에서 알림을 받을 <b>서버</b>의 채널을 고릅니다(없으면 새 서버 · 채널을 만듭니다).</li><li>채널 이름 옆 톱니 <b>채널 편집 → 연동 → 웹훅 → 새 웹훅</b>(또는 서버 설정 → 연동 → 웹훅)을 누르고 이름 · 채널을 정합니다.</li><li><b>웹훅 URL 복사</b>로 <code>https://discord.com/api/webhooks/…</code> 를 복사해 위 칸에 붙이고 저장합니다. 서버 공용 채널을 정하는 사람(서버 관리자)은 <code>.env</code> 의 <code>DISCORD_WEBHOOK_URL=</code> 뒤에 붙이고 앱을 다시 시작합니다.</li></ol><p class="mt-1">주소를 아는 사람은 누구나 그 채널에 글을 올릴 수 있으니 비밀로 두세요. 노출되면 웹훅을 지우고 새로 만듭니다.</p></details>
               </div>
 
               <!-- 이메일 -->

@@ -32,6 +32,8 @@ class NotificationSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     telegram_token: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     telegram_chat_id: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     slack_webhook_url: Mapped[str] = mapped_column(String(300), nullable=False, default="")
+    #: 디스코드 웹훅 주소(비밀값 — 주소를 아는 사람은 누구나 그 채널에 글을 올린다). 응답에서는 가린다(2026-11-01)
+    discord_webhook_url: Mapped[str] = mapped_column(String(300), nullable=False, default="", server_default="")
     email_to: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     email_host: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     email_port: Mapped[int] = mapped_column(Integer, nullable=False, default=587)

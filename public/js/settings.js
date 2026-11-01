@@ -295,11 +295,13 @@ document.querySelectorAll(".noti-channel").forEach(cb => cb.addEventListener("ch
 // ── 알림 연동 정보 수집·이용(선택) 동의 (2026-10-29 · ①-09) ───────────────────
 // 동의하면 서버가 동의 행을 저장과 같은 트랜잭션으로 쌓는다. 동의가 없는데 토큰 · 웹훅 · 비밀번호 · 번호를 새로 넣으면 서버가 422 로 막는다.
 let notiConsentGranted = false;
+let notiConsentStale = false;   // 동의는 했지만 동의문 판이 바뀐 때(새 항목이 더해짐) — 다시 동의해야 새 항목을 저장한다
 
 function renderNotiConsent(state) {
   notiConsentGranted = !!state?.granted;
+  notiConsentStale = notiConsentGranted && !!state?.current_version && state.version !== state.current_version;
   document.getElementById("noti-consent-granted")?.classList.toggle("hidden", !notiConsentGranted);
-  document.getElementById("noti-consent-ask")?.classList.toggle("hidden", notiConsentGranted);
+  document.getElementById("noti-consent-ask")?.classList.toggle("hidden", notiConsentGranted && !notiConsentStale);
   const label = document.getElementById("noti-consent-label");
   if (label) label.textContent = NOTIFY_CONSENT.short;
   const body = document.getElementById("noti-consent-body");
@@ -311,7 +313,8 @@ function renderNotiConsent(state) {
   const text = document.getElementById("noti-consent-granted-text");
   if (text && notiConsentGranted) {
     const when = state.at ? new Date(state.at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "";
-    text.textContent = `✅ 알림 연동 정보 수집·이용에 동의함 (${when} · 동의문 ${state.version || ""})`;
+    text.textContent = `✅ 알림 연동 정보 수집·이용에 동의함 (${when} · 동의문 ${state.version || ""})`
+      + (notiConsentStale ? " — 동의문이 바뀌어 「디스코드 웹훅 주소」 항목이 더해졌습니다. 디스코드 주소를 저장하려면 아래에서 다시 동의해 주세요." : "");
   }
 }
 
@@ -378,6 +381,8 @@ async function loadNotificationSettings() {
     document.getElementById("noti-telegram-chat-id").value  = cfg.telegram_chat_id  || "";
     // Slack
     document.getElementById("noti-slack-webhook").value     = cfg.slack_webhook_url || "";
+    // Discord (저장된 주소는 서버가 가려 준다)
+    document.getElementById("noti-discord-webhook").value   = cfg.discord_webhook_url || "";
     // Email
     document.getElementById("noti-email-host").value        = cfg.email_host        || "";
     document.getElementById("noti-email-port").value        = cfg.email_port        || 587;
@@ -446,7 +451,7 @@ document.getElementById("noti-save")?.addEventListener("click", async () => {
   try {
     const channels = [...document.querySelectorAll(".noti-channel:checked")].map(cb => cb.value);
     // 아직 동의 전이고 체크했을 때만 동의를 보낸다(이미 동의했으면 상태를 바꾸지 않는다 — 철회는 따로 단추)
-    const giveConsent = !notiConsentGranted && !!document.getElementById("noti-consent-check")?.checked;
+    const giveConsent = (!notiConsentGranted || notiConsentStale) && !!document.getElementById("noti-consent-check")?.checked;
     await api("/api/notification/settings", {
       method: "POST",
       body: {
@@ -456,7 +461,8 @@ document.getElementById("noti-save")?.addEventListener("click", async () => {
         telegram_token:    document.getElementById("noti-telegram-token").value,
         telegram_chat_id:  document.getElementById("noti-telegram-chat-id").value,
         slack_webhook_url: document.getElementById("noti-slack-webhook").value,
-        email_to:          document.getElementById("noti-email-to").value,
+        discord_webhook_url: document.getElementById("noti-discord-webhook").value,
+        email_to:         document.getElementById("noti-email-to").value,
         email_host:        document.getElementById("noti-email-host").value,
         email_port:        Number(document.getElementById("noti-email-port").value || 587),
         email_user:        document.getElementById("noti-email-user").value,

@@ -1,15 +1,15 @@
-# ERD v1.14 — Qurious
+# ERD v1.15 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.14 · 알림 표 칸 2개 반영 · 나머지는 v1.13 모습 그대로(스캐너와 10표 어긋남 이월) |
+| **판 · 상태** | v1.15 · 알림 칸 반영 · 스캐너와 어긋남 해소(앱 60표) |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
 | **최종 수정** | 2026-11-01 (KST) |
 | **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.13 → v1.14: 알림 표 둘에 새 칸 — `notification_log.payload`(보고 원본 JSONB) · `notification_settings.preferences`(사건별 설정 JSONB · 외 15 → 16칸) · 마이그레이션 0035 |
+| **최근 개정** | v1.14 → v1.15: 알림 설정 표에 사용자별 디스코드 주소 칸 `notification_settings.discord_webhook_url`(외 16 → 17칸 · 마이그레이션 0036) · 스캐너 그림 다시 채움(앱 50 → 60표 · 관계 44 → 53 · 본문 숫자 · 표 속성 대장 10줄 더함) |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -22,7 +22,7 @@
 
 1. 데이터는 **두 DB** 에 나뉘어 있다 — 수집 DB(SQLite · **25표 · 23,686,395행** · 2026-10-24 스캐너 실측)는 시세 · 배당 · 지수 · ETF · 분봉 · 거래일 달력 · 공시 목록 · 재무 주요계정 · **전체 재무제표 · 업종 · 한국은행 통계(2026-10-24 G1 ~ G3 · 3.7절)** 를, 앱 DB(PostgreSQL · 42표)는 사용자 · 주문 · 대화 · 용어사전을 담는다. 그 밖에 저장소가 둘 더 있다 — 법령 · 감독규정 근거 문서 DB(별도 SQLite `kb.sqlite3` · 4표 · 문서 14 · 청크 4,067)와 벡터 저장소 Qdrant(컬렉션 둘), 공시를 찾는 검색 색인(별도 SQLite `search.sqlite3` · 넷 · 2026-10-04 · 1.1절).
 2. 두 DB 는 **앱의 읽기 전용 연결에서만** 만난다 — 수집 DB 어댑터가 국내 주식 일봉을, 금융 강의 시세 모듈이 강의 그림의 지수 · ETF 를 읽는다(2.1절). 일봉 요청은 앱의 캐시 표를 거치지 않아 매일 12:30 갱신이 바로 보인다. 차트의 지수 · 해외 · 실시간 시세는 외부 API 에서 온다.
-3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 **50표 · 관계 44개** 중 30개가 `users` 에서 뻗는다(2026-10-24 · 스캐너 그림을 기계로 셈). 모델과 DB 의 어긋남은 **0** — 2026-10-24 일회용 DB 에 마이그레이션을 `0026_paper_journal` 까지 올려 모델 전체와 견주니 차이가 없었다(4.5절 · 2026-10-03 의 `portfolio.user_id` 외래키 어긋남은 그 뒤 마이그레이션으로 풀렸다). 새 표 셋은 모의투자 그림자 일지(4.6절 · 추가만)다.
+3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 **60표 · 관계 53개** 중 37개가 `users` 에서 뻗는다(2026-11-01 · 스캐너 그림을 기계로 셈). 모델과 DB 의 어긋남은 **0** — 2026-10-24 일회용 DB 에 마이그레이션을 `0026_paper_journal` 까지 올려 모델 전체와 견주니 차이가 없었다(4.5절 · 2026-10-03 의 `portfolio.user_id` 외래키 어긋남은 그 뒤 마이그레이션으로 풀렸다). 새 표 셋은 모의투자 그림자 일지(4.6절 · 추가만)다.
 
 ---
 
@@ -533,7 +533,7 @@ price_daily            포털이 준 값 그대로 (정수 · 원)
 
 ### 4.1 한눈에 — 업무 영역 여섯
 
-앱 DB 의 50표는 쓰임새로 여섯 영역에 묶인다. 영역은 [표 속성 대장](대장/표-속성대장.tsv) 의 「업무 영역」 칸이고, **담당이 아니다** — 담당은 계획서 v2.0 4절과 요구 대장의 담당 칸(2026-10-01 역할 확정)이 정한다.
+앱 DB 의 60표는 쓰임새로 여섯 영역에 묶인다. 영역은 [표 속성 대장](대장/표-속성대장.tsv) 의 「업무 영역」 칸이고, **담당이 아니다** — 담당은 계획서 v2.0 4절과 요구 대장의 담당 칸(2026-10-01 역할 확정)이 정한다.
 
 표 8 은 「앱 DB 는 어떤 묶음으로 나뉘고, 묶음마다 무엇을 담나」 에 답한다.
 
@@ -586,14 +586,14 @@ glossary_categories ◀── glossary_terms ──▶ glossary_sources
 collect_requests ──▶ collect_workers
 ```
 
-관계 44개 중 30개가 `users` 에서 뻗는다. `users` 에서 뻗지 않는 관계는 열넷이다 — `conversations → chats` · `orders → order_fills` · `live_orders → live_orders`(재주문) · `formula_indicators → versions · results` · 그림자 일지 셋(`paper_journal_versions → days · notes · 앞 판`) · 용어사전 다섯(`glossary_terms → categories · sources · aliases` · `glossary_relations` 의 from · to) · `collect_requests → collect_workers`.
+관계 53개 중 37개가 `users` 에서 뻗는다. `users` 에서 뻗지 않는 관계는 열여섯이다 — `conversations → chats` · `orders → order_fills` · `live_orders → live_orders`(재주문) · `live_orders → strategy_decisions` · `strategy_runtimes → strategy_runtime_events` · `formula_indicators → versions · results` · 그림자 일지 셋(`paper_journal_versions → days · notes · 앞 판`) · 용어사전 다섯(`glossary_terms → categories · sources · aliases` · `glossary_relations` 의 from · to) · `collect_requests → collect_workers`.
 
 ### 4.2 그림 — 업무 영역마다 하나
 
-아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 50표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
+아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 60표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
-**앱 DB — 모의투자·주문·전략 · 27표 · 관계 28개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+**앱 DB — 모의투자·주문·전략 · 36표 · 관계 36개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
 
 ```mermaid
 erDiagram
@@ -621,13 +621,36 @@ erDiagram
     FLOAT avg_price
     _ 외1칸
   }
+  backtest_accounts {
+    UUID user_id FK
+    UUID id PK
+    FLOAT initial_cash
+    FLOAT cash
+    DATETIME created_at
+    DATETIME updated_at
+  }
+  backtest_snapshots {
+    UUID user_id FK
+    UUID id PK
+    DATE snap_date
+    FLOAT cash
+    FLOAT position_value
+    FLOAT total_equity
+    _ 외4칸
+  }
+  broker_position_baselines {
+    VARCHAR_64 account_ref PK
+    VARCHAR_20 symbol PK
+    INTEGER quantity
+    DATETIME created_at
+  }
   broker_settings {
     UUID user_id FK
     UUID id PK
     VARCHAR_20 broker
-    VARCHAR_200 app_key
-    VARCHAR_200 app_secret
-    VARCHAR_50 account_no
+    TEXT app_key
+    TEXT app_secret
+    TEXT account_no
     _ 외19칸
   }
   cashflow_events {
@@ -665,6 +688,20 @@ erDiagram
     INTEGER short_window
     INTEGER mid_window
     _ 외3칸
+  }
+  execution_risk_days {
+    VARCHAR_64 account_ref PK
+    DATE day PK
+    FLOAT equity
+  }
+  execution_runs {
+    VARCHAR_64 run_id PK
+    UUID user_id FK
+    DATETIME scheduled_for
+    VARCHAR_30 source
+    VARCHAR_20 status
+    DATETIME finished_at
+    _ 외2칸
   }
   formula_indicator_results {
     UUID indicator_id FK
@@ -707,11 +744,11 @@ erDiagram
     UUID user_id FK
     UUID retry_of FK
     UUID id PK
+    VARCHAR_64 account_ref
+    VARCHAR_100 strategy_id
+    INTEGER strategy_version
     VARCHAR_64 client_order_id
-    VARCHAR_10 environment
-    VARCHAR_20 broker
-    VARCHAR_20 symbol
-    _ 외15칸
+    _ 외18칸
   }
   order_fills {
     UUID order_id FK
@@ -722,6 +759,15 @@ erDiagram
     DATETIME fill_at
     _ 외7칸
   }
+  order_intents {
+    VARCHAR_64 intent_id PK
+    UUID user_id FK
+    VARCHAR_64 account_ref
+    VARCHAR_20 book
+    VARCHAR_100 strategy_id
+    INTEGER strategy_version
+    _ 외7칸
+  }
   orders {
     UUID user_id FK
     UUID id PK
@@ -729,7 +775,7 @@ erDiagram
     VARCHAR_100 name
     VARCHAR_10 order_type
     INTEGER quantity
-    _ 외20칸
+    _ 외21칸
   }
   paper_account_snapshots {
     UUID user_id FK
@@ -738,7 +784,7 @@ erDiagram
     FLOAT cash
     FLOAT position_value
     FLOAT total_equity
-    _ 외8칸
+    _ 외10칸
   }
   paper_accounts {
     UUID user_id FK
@@ -830,6 +876,32 @@ erDiagram
     VARCHAR_10 end_date
     _ 외6칸
   }
+  strategy_decisions {
+    VARCHAR_64 decision_key PK
+    UUID user_id FK
+    VARCHAR_64 client_order_id FK
+    VARCHAR_64 account_ref
+    VARCHAR_64 input_hash
+    VARCHAR_100 strategy_id
+    INTEGER strategy_version
+    _ 외6칸
+  }
+  strategy_runtime_events {
+    VARCHAR_64 runtime_id PK
+    VARCHAR_160 event_key PK
+    VARCHAR_64 input_hash
+    JSONB result
+    DATETIME created_at
+  }
+  strategy_runtimes {
+    VARCHAR_64 runtime_id PK
+    UUID user_id FK
+    VARCHAR_64 account_ref
+    VARCHAR_20 book
+    VARCHAR_100 strategy_id
+    INTEGER strategy_version
+    _ 외4칸
+  }
   webhook_signals {
     UUID user_id FK
     UUID id PK
@@ -837,7 +909,7 @@ erDiagram
     VARCHAR_100 strategy
     VARCHAR_20 symbol
     VARCHAR_10 side
-    _ 외7칸
+    _ 외10칸
   }
   users {
     UUID id PK
@@ -845,11 +917,14 @@ erDiagram
   users ||--o{ allocation_results : "user_id"
   users ||--o{ alternative_orders : "user_id"
   users ||--o{ alternative_positions : "user_id"
+  users ||--o{ backtest_accounts : "user_id"
+  users ||--o{ backtest_snapshots : "user_id"
   users ||--o{ broker_settings : "user_id"
   users ||--o{ cashflow_events : "user_id"
   users ||--o{ crypto_holdings : "user_id"
   users ||--o{ crypto_orders : "user_id"
   users ||--o{ custom_indicators : "user_id"
+  users ||--o{ execution_runs : "user_id"
   formula_indicators ||--o{ formula_indicator_results : "indicator_id"
   users ||--o{ formula_indicator_results : "user_id"
   formula_indicators ||--o{ formula_indicator_versions : "indicator_id"
@@ -858,6 +933,7 @@ erDiagram
   users ||--o{ live_orders : "user_id"
   live_orders ||--o{ live_orders : "retry_of"
   orders ||--o{ order_fills : "order_id"
+  users ||--o{ order_intents : "user_id"
   users ||--o{ orders : "user_id"
   users ||--o{ paper_account_snapshots : "user_id"
   users ||--o{ paper_accounts : "user_id"
@@ -869,10 +945,14 @@ erDiagram
   users ||--o{ rebalance_plans : "user_id"
   users ||--o{ rebalance_runs : "user_id"
   users ||--o{ strategy_comparisons : "user_id"
+  users ||--o{ strategy_decisions : "user_id"
+  live_orders ||--o{ strategy_decisions : "client_order_id"
+  strategy_runtimes ||--o{ strategy_runtime_events : "runtime_id"
+  users ||--o{ strategy_runtimes : "user_id"
   users ||--o{ webhook_signals : "user_id"
 ```
 
-**앱 DB — 계정·알림·감사 · 6표 · 관계 5개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
+**앱 DB — 계정·알림·감사 · 7표 · 관계 6개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿
 
 ```mermaid
 erDiagram
@@ -899,8 +979,8 @@ erDiagram
     VARCHAR_300 subject
     VARCHAR_500 message
     JSONB channels
-    JSONB payload
-    DATETIME created_at
+    VARCHAR_40 kind
+    _ 외4칸
   }
   notification_settings {
     UUID user_id FK
@@ -909,12 +989,21 @@ erDiagram
     VARCHAR_200 telegram_token
     VARCHAR_100 telegram_chat_id
     VARCHAR_300 slack_webhook_url
-    _ 외16칸
+    _ 외17칸
   }
   task_ownership {
     VARCHAR_36 task_id PK
     UUID user_id FK
     DATETIME created_at
+  }
+  user_consents {
+    UUID user_id FK
+    UUID id PK
+    VARCHAR_40 consent_key
+    VARCHAR_10 action
+    VARCHAR_40 terms_version
+    VARCHAR_40 source
+    _ 외1칸
   }
   users {
     UUID id PK
@@ -929,6 +1018,7 @@ erDiagram
   users ||--o{ notification_log : "user_id"
   users ||--o{ notification_settings : "user_id"
   users ||--o{ task_ownership : "user_id"
+  users ||--o{ user_consents : "user_id"
 ```
 
 **앱 DB — 대화·문서 · 4표 · 관계 4개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
@@ -1275,6 +1365,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.15 | 2026-11-01 | 알림 설정 표에 사용자별 디스코드 주소 칸 `notification_settings.discord_webhook_url`(외 16 → 17칸 · 마이그레이션 0036) · 스캐너 그림 다시 채움(앱 50 → 60표 · 관계 44 → 53 · 본문 숫자 · 표 속성 대장 10줄 더함) | 팀 테스트 디스코드를 공용 칸에 두고 개인 주소는 사용자별로 갖게 해 달라는 요청(11-01) · 문서가 코드보다 열 표 뒤처져 있던 것을 한 번에 맞춤(S183 이월) | `schema_scan --doc --check` 같음 · 표 속성 대장 빠진 표 0 |
 | v1.14 | 2026-11-01 | 알림 표 둘에 새 칸 — `notification_log.payload`(보고 원본 JSONB) · `notification_settings.preferences`(사건별 설정 JSONB · 외 15 → 16칸) · 마이그레이션 0035 | 보고식 알림 개편(S183) — 알림 이력에 보낸 보고 원본을 남기고, 사건별 켜기 · 조용히 · 끄기와 조용한 시간을 사용자별로 저장한다 | `app/models/misc.py` · `alembic/versions/0035_notification_prefs.py` · 일회용 DB 에서 올림 · 내림 · 올림 확인 · **스캐너로 통째로 다시 채우지는 않았다**(ERD 가 모델보다 앱 10표 뒤처져 있음 — 이월) |
 | v1.13 | 2026-10-31 | 머리표 칸 줄임 — 판 · 상태 · 기준 · 최근 개정을 지금 판 한 줄로(이전 판의 기준은 문서 끝 「기준 이력」 표로 옮김 · 본문 변경 없음) | 한 칸에 여러 판 이력이 이어져 읽기 어려웠다(문서 작성 기준 4.3절 「최근 개정 한 줄」) — 사용자 요청 2026-10-31 | 문서 작성 기준 4.3 · 6.5절 · 설계서 표 가독성 점검(2026-10-31) · 옮긴 기준은 「기준 이력」 표 |
 | v1.12 | 2026-10-24 | 추가 — 수집 21 → 25표(G1 ~ G3 — `dart_company` · `ksic_code` · `financial_statement_full` · `financial_full_check` · 3.7절) · `ecos_series` 월 주기 / 변경 — 스캐너 그림 · 행 수 다시 채움(수집 23,686,395행) · 요약 1 | 할 일 ①-05 — G1 ~ G3 매일 수집 단계 | `collector/db.py` 20 ~ 23절 · `scripts/schema_scan.py` · 목표 기능 ① 설계 v1.8 5.2.5 |

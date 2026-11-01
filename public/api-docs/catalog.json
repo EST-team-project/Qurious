@@ -1633,10 +1633,14 @@
    "hosts": [
     "api.coolsms.co.kr",
     "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -1815,10 +1819,14 @@
    "hosts": [
     "api.coolsms.co.kr",
     "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [
@@ -1857,7 +1865,11 @@
    ],
    "hosts": [
     "api.coolsms.co.kr",
-    "api.telegram.org"
+    "api.telegram.org",
+    "canary.discord.com",
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com"
    ],
    "screens": [
     "quant-auto"
@@ -1952,7 +1964,11 @@
    ],
    "hosts": [
     "api.coolsms.co.kr",
-    "api.telegram.org"
+    "api.telegram.org",
+    "canary.discord.com",
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com"
    ],
    "screens": [
     "quant-auto"
@@ -2016,10 +2032,14 @@
    "hosts": [
     "api.coolsms.co.kr",
     "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [
@@ -2056,10 +2076,14 @@
    "hosts": [
     "api.coolsms.co.kr",
     "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -2095,7 +2119,11 @@
    ],
    "hosts": [
     "api.coolsms.co.kr",
-    "api.telegram.org"
+    "api.telegram.org",
+    "canary.discord.com",
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com"
    ],
    "screens": [],
    "part": "P-E",
@@ -3264,14 +3292,17 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 127,
+   "line": 144,
    "errors": [],
    "keys": [
     "integration_consent",
+    "preferences",
+    "event_catalog",
     "channels",
     "telegram_token",
     "telegram_chat_id",
     "slack_webhook_url",
+    "discord_webhook_url",
     "email_to",
     "email_host",
     "email_port",
@@ -3298,9 +3329,15 @@
    "summary": "알림 설정을 저장한다. 빈 문자열 비밀값은 기존 값을 유지한다.",
    "auth": "세션",
    "reaches": [
-    "PostgreSQL"
+    "PostgreSQL",
+    "외부"
    ],
-   "hosts": [],
+   "hosts": [
+    "canary.discord.com",
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com"
+   ],
    "screens": [
     "notification-settings",
     "robo-patterns"
@@ -3310,7 +3347,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 174,
+   "line": 195,
    "errors": [
     "422"
    ],
@@ -3328,7 +3365,7 @@
    "router": "notification",
    "method": "POST",
    "path": "/api/notification/test",
-   "summary": "현재 설정된 모든 채널로 테스트 알림을 전송한다.",
+   "summary": "현재 설정된 모든 채널로 보고식 시험 알림을 전송한다 — 채널마다 모양이 어떻게 보이는지 확인하는 용도.",
    "auth": "세션",
    "reaches": [
     "PostgreSQL",
@@ -3337,7 +3374,11 @@
    ],
    "hosts": [
     "api.coolsms.co.kr",
-    "api.telegram.org"
+    "api.telegram.org",
+    "canary.discord.com",
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com"
    ],
    "screens": [
     "notification-settings"
@@ -3348,7 +3389,7 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 248,
+   "line": 295,
    "errors": [],
    "keys": [
     "ok",
@@ -3376,7 +3417,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 279,
+   "line": 323,
    "errors": [],
    "keys": [
     "events",
@@ -6013,11 +6054,15 @@
    "hosts": [
     "api.coolsms.co.kr",
     "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],

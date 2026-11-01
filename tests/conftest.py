@@ -43,6 +43,30 @@ def _no_real_collect_report(monkeypatch):
     monkeypatch.setenv("COLLECT_REPORT_NOTIFY", "false")
 
 
+#: `.env` 에서 읽는 알림 채널 설정 — 시험은 전부 빈 값으로 시작한다(실제 채널로 새지 않게).
+_ALERT_CHANNEL_SETTINGS = (
+    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SLACK_WEBHOOK_URL", "DISCORD_WEBHOOK_URL",
+    "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_TO",
+    "COOLSMS_API_KEY", "COOLSMS_API_SECRET", "KAKAO_SENDER_KEY", "KAKAO_PHONE", "SMS_FROM", "SMS_TO",
+)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_alert_channels(monkeypatch):
+    """시험은 사용자의 실제 알림 채널(`.env` 의 텔레그램 · 슬랙 · 디스코드 · 이메일 · 문자)로 글을 보내지 않는다
+    (2026-11-01 S184 — 팀 테스트 디스코드 주소를 `.env` 공용 칸에 두게 되어, 알림을 보내는 코드를 지나가는 시험이 팀 채널에 글을 올릴 수 있었다).
+    채널 설정을 빈 값으로 덮어 시작한다 — 채널을 보는 시험은 자기 안에서 값을 넣고(`monkeypatch.setattr`) 가짜 전송 함수를 쓴다."""
+    from app.config import settings
+
+    for name in _ALERT_CHANNEL_SETTINGS:
+        if hasattr(settings, name):
+            monkeypatch.setattr(settings, name, "")
+    # 수집 보고가 `.env` 에서 채널 값을 빌려 오지 못하게 한다(예약 작업용 — scripts/collect_report.py `fill_channels_from_dotenv`)
+    import scripts.collect_report as collect_report
+
+    monkeypatch.setattr(collect_report, "DOTENV_PATH", Path(__file__).parent / "_없는파일.env")
+
+
 @pytest.fixture(autouse=True)
 def _no_real_hub(monkeypatch, tmp_path):
     """시험은 실제 Hugging Face 에 닿지 않는다(2026-10-25 S147 — 러너 시험이 `.env` 토큰으로 실제 백업 저장소의 임대 가지에
