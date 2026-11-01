@@ -230,7 +230,8 @@ class Settings(BaseSettings):
     # Slack Incoming Webhook
     SLACK_WEBHOOK_URL: str = ""
 
-    # Discord 웹훅(2026-11-01 · 전체 사용자 공용 — 사용자별 주소는 아직 없다)
+    # Discord 웹훅(2026-11-01) — 공용 주소. 사용자 없는 알림(수집 보고 등)과, 자기 주소를 안 넣은 사용자의 알림이 이리로 나간다.
+    # 사용자별 주소는 알림 설정 화면에서 저장한다(notification_settings.discord_webhook_url · 2026-11-01 S184) — 있으면 그쪽이 먼저다.
     DISCORD_WEBHOOK_URL: str = ""
     COLLECT_REPORT_NOTIFY: bool = True   # 일일 수집 회차가 끝나면 .env 채널로 결과 보고 한 번(끄려면 false)
 

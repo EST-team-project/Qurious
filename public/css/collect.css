@@ -31,6 +31,8 @@ body:not(.q-admin) .q-admin-only { display: none !important; }
 .cl-tile .k { font-size: 12px; color: #64748b; font-weight: 500; }
 .cl-tile .v { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 4px; overflow-wrap: anywhere; }
 .cl-tile .d { font-size: 12px; color: var(--text-mute); margin-top: 4px; }
+/* 적재 · 백업 숫자 타일 — 행 수 같은 8자리 숫자가 끊겨 두 줄이 되지 않게(2026-11-01) */
+.cl-backup .cl-tile .v { font-size: 18px; overflow-wrap: normal; }
 
 /* ── 단계 표(설계 1) ── */
 .cl-table-wrap { overflow-x: auto; }

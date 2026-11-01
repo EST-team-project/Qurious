@@ -139,6 +139,11 @@ _DISCORD_HOOK_PREFIXES = (
     "https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/",
     "https://ptb.discord.com/api/webhooks/", "https://canary.discord.com/api/webhooks/",
 )
+def is_discord_webhook(url: str) -> bool:
+    """디스코드 웹훅 주소 모양인가 — 알림 설정 저장 때와 보내기 직전에 같은 검사를 쓴다."""
+    return bool(url) and url.startswith(_DISCORD_HOOK_PREFIXES) and len(url) > len(_DISCORD_HOOK_PREFIXES[0])
+
+
 #: 디스코드 글(content) 한 번에 최대 2,000자(공식 한도) — 넘으면 끝을 줄임표로 자른다
 _DISCORD_MAX = 2000
 
@@ -149,7 +154,7 @@ _DISCORD_SUPPRESS_NOTIFICATIONS = 4096
 
 async def send_discord(message: str, webhook_url: str = "", outcome: dict | None = None,
                        *, embeds: list | None = None, silent: bool = False) -> bool:
-    """Discord 웹훅 메시지 전송(2026-11-01). 주소는 `DISCORD_WEBHOOK_URL`(.env) — 성공은 204 로 온다.
+    """Discord 웹훅 메시지 전송(2026-11-01). 주소는 사용자 설정이 먼저, 없으면 `DISCORD_WEBHOOK_URL`(.env 공용) — 성공은 204 로 온다.
     `embeds` 가 있으면 카드 모양으로 보내고, `silent` 면 알림음 없이(SUPPRESS_NOTIFICATIONS) 보낸다."""
     url = webhook_url or settings.DISCORD_WEBHOOK_URL
     if not url:
@@ -358,6 +363,7 @@ async def _load_user_settings(user_id: str | None) -> dict:
             "telegram_token": row.telegram_token,
             "telegram_chat_id": row.telegram_chat_id,
             "slack_webhook_url": row.slack_webhook_url,
+            "discord_webhook_url": row.discord_webhook_url,
             "email_to": row.email_to,
             "email_host": row.email_host,
             "email_port": row.email_port,

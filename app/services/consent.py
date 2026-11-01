@@ -20,7 +20,7 @@ from app.models.consent import CONSENT_GRANT, CONSENT_WITHDRAW, UserConsent
 NOTIFY_CONSENT_KEY = "notify_integration"
 #: 그 동의문의 판 — public/js/terms.js 의 NOTIFY_CONSENT_VERSION 과 같아야 한다(시험 TC-UC 가 지킨다).
 #: 다르면 저장을 거절한다: 오래된 화면(캐시)이 옛 문구를 보여 줬는데 새 판에 동의한 것으로 기록되는 일을 막는다.
-NOTIFY_CONSENT_VERSION = "2026-10-29-n0.1"
+NOTIFY_CONSENT_VERSION = "2026-11-01-n0.2"   # n0.2 : 디스코드 웹훅 주소를 항목에 더함(2026-11-01)
 
 SOURCE_SIGNUP = "signup"
 SOURCE_NOTIFICATION_SETTINGS = "notification_settings"

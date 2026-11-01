@@ -256,3 +256,150 @@ def test_failure_logs_never_contain_secrets(monkeypatch, caplog):
     assert "BOT-TOKEN-SECRET" not in caplog.text and "SLACK-SECRET" not in caplog.text and "SECRET-TOKEN" not in caplog.text
     assert caplog.text.count("HTTPStatusError(HTTP 500)") == 3
 
+
+_HOOK_TEAM = "https://discord.com/api/webhooks/999/TEAM-TOKEN"
+
+
+def test_discord_user_address_wins_over_shared_one(monkeypatch):
+    """TC-NR-10 · 사용자별 디스코드 주소(2026-11-01) — 사용자 설정에 주소가 있으면 그쪽으로, 없으면 `.env` 공용 주소로 보낸다.
+    사용자 설정을 읽는 쪽(`_load_user_settings`)이 그 칸을 넘겨 주는 것도 본다."""
+    monkeypatch.setattr(notification.settings, "DISCORD_WEBHOOK_URL", _HOOK_TEAM)
+    monkeypatch.setattr(notification.httpx, "AsyncClient", _RecordingClient)
+
+    _RecordingClient.posted = []
+    assert asyncio.run(notification.send_discord("m", webhook_url=_HOOK)) is True
+    assert _RecordingClient.posted[-1][0] == _HOOK                         # 내 주소가 먼저
+    assert asyncio.run(notification.send_discord("m", webhook_url="")) is True
+    assert _RecordingClient.posted[-1][0] == _HOOK_TEAM                    # 비면 공용 주소로
+
+    src = (ROOT / "app" / "services" / "notification.py").read_text(encoding="utf-8")
+    block = src.split("async def _load_user_settings", 1)[1].split("def _default_channels", 1)[0]
+    assert '"discord_webhook_url": row.discord_webhook_url' in block
+
+
+def test_is_discord_webhook_accepts_only_discord_addresses():
+    """TC-NR-11 · 디스코드 웹훅 주소 모양 검사 — 공식 도메인 네 가지만, 머리만 있는 주소 · 다른 도메인 · 빈 값은 아니다."""
+    ok = notification.is_discord_webhook
+    assert ok("https://discord.com/api/webhooks/1/abc") and ok("https://canary.discord.com/api/webhooks/1/abc")
+    assert ok("https://ptb.discord.com/api/webhooks/1/abc") and ok("https://discordapp.com/api/webhooks/1/abc")
+    assert not ok("") and not ok("https://discord.com/api/webhooks/")
+    assert not ok("http://discord.com/api/webhooks/1/abc") and not ok("https://evil.example/https://discord.com/api/webhooks/1/a")
+
+
+def test_discord_address_is_secret_masked_and_validated_on_save(monkeypatch):
+    """TC-NR-12 · 저장된 디스코드 주소는 조회 응답에서 `****` 로 가려지고, 저장할 때 디스코드 주소 모양이 아니면 422 한국어 안내로 막는다
+    (DB 를 건드리기 전에 막는다). 가림값으로 되돌려 저장하면 저장된 주소를 유지하고 빈 값이면 지운다."""
+    import uuid
+    from types import SimpleNamespace
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routes import notification as noti_route
+
+    me = {"id": str(uuid.uuid4())}
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(noti_route.save_notification_settings(
+            noti_route.NotificationSettingsBody(discord_webhook_url="http://evil.invalid/hook"), user=me, db=None))
+    assert exc.value.status_code == 422 and "https://discord.com/api/webhooks/" in str(exc.value.detail)
+
+    row = SimpleNamespace(**{name: "" for name in (
+        "telegram_token", "telegram_chat_id", "slack_webhook_url", "discord_webhook_url", "email_to", "email_host", "email_user",
+        "email_password", "email_from", "kakao_api_key", "kakao_api_secret", "kakao_sender_key", "kakao_phone",
+        "sms_api_key", "sms_api_secret", "sms_from", "sms_to")},
+        channels=["discord"], email_port=587, preferences={})
+    row.discord_webhook_url = _HOOK
+
+    async def fake_row(_db, _uid):
+        return row
+
+    async def fake_state(_db, _uid):
+        return {"granted": True, "version": "v", "at": None, "current_version": "v"}
+
+    monkeypatch.setattr(noti_route, "_get_settings_row", fake_row)
+    monkeypatch.setattr(noti_route, "_consent_state", fake_state)
+    out = asyncio.run(noti_route.get_notification_settings(user=me, db=None))
+    assert out["discord_webhook_url"] == "****" and _HOOK not in str(out)
+
+    class _Db:                                                  # 저장 경로가 쓰는 부분만 — 동의는 이미 한 상태
+        async def commit(self):
+            return None
+
+    async def granted(*_a, **_k):
+        return True
+
+    monkeypatch.setattr(noti_route.consent, "is_granted", granted)
+
+    async def latest_current(*_a, **_k):                        # 지금 동의문 판에 동의한 사람
+        return SimpleNamespace(terms_version=noti_route.consent.NOTIFY_CONSENT_VERSION)
+
+    monkeypatch.setattr(noti_route.consent, "latest", latest_current)
+    asyncio.run(noti_route.save_notification_settings(
+        noti_route.NotificationSettingsBody(channels=["discord"], discord_webhook_url="****"), user=me, db=_Db()))
+    assert row.discord_webhook_url == _HOOK                     # 가림값 → 유지
+    asyncio.run(noti_route.save_notification_settings(
+        noti_route.NotificationSettingsBody(channels=["discord"], discord_webhook_url=""), user=me, db=_Db()))
+    assert row.discord_webhook_url == ""                        # 빈 값 → 지움(공용 주소로 돌아감)
+
+
+def test_tests_never_reach_the_real_alert_channels():
+    """TC-NR-13 · 시험은 `.env` 의 실제 알림 채널로 글을 보내지 않는다 — conftest 가 채널 설정을 빈 값으로 시작하게 한다
+    (팀 테스트 디스코드 주소를 `.env` 공용 칸에 둔 뒤, 알림 코드를 지나가는 시험이 팀 채널에 올리는 일을 막는다)."""
+    for name in ("DISCORD_WEBHOOK_URL", "SLACK_WEBHOOK_URL", "TELEGRAM_BOT_TOKEN", "SMTP_HOST", "COOLSMS_API_KEY"):
+        assert getattr(notification.settings, name) == "", name
+    assert notification._default_channels() == []
+
+
+def test_stale_consent_must_agree_again_before_saving_a_discord_address(monkeypatch):
+    """TC-NR-14 · 동의문 판이 올라(n0.1 → n0.2 — 디스코드 웹훅 주소 항목이 더해짐) 낡은 판에 동의한 사람은 **새 디스코드 주소를 저장하려면 다시 동의**해야 한다 —
+    다시 동의하지 않으면 한국어 422 · 현재 판으로 다시 동의하면(요청에 동의문 판을 실어) 통과 · 저장된 주소 그대로 · 디스코드 말고 다른 칸은 막지 않는다."""
+    import uuid
+    from types import SimpleNamespace
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routes import notification as noti_route
+
+    me = {"id": str(uuid.uuid4())}
+    row = SimpleNamespace(**{name: "" for name in (
+        "telegram_token", "telegram_chat_id", "slack_webhook_url", "discord_webhook_url", "email_to", "email_host", "email_user",
+        "email_password", "email_from", "kakao_api_key", "kakao_api_secret", "kakao_sender_key", "kakao_phone",
+        "sms_api_key", "sms_api_secret", "sms_from", "sms_to")}, channels=["discord"], email_port=587, preferences={})
+
+    async def fake_row(_db, _uid):
+        return row
+
+    async def granted(*_a, **_k):
+        return True
+
+    async def latest_old(*_a, **_k):
+        return SimpleNamespace(terms_version="2026-10-29-n0.1")
+
+    added = []
+
+    class _Db:
+        async def commit(self):
+            return None
+
+        def add_all(self, rows):
+            added.extend(rows)
+
+    monkeypatch.setattr(noti_route, "_get_settings_row", fake_row)
+    monkeypatch.setattr(noti_route.consent, "is_granted", granted)
+    monkeypatch.setattr(noti_route.consent, "latest", latest_old)
+    new_addr = "https://discord.com/api/webhooks/1/NEW-TOKEN"
+
+    with pytest.raises(HTTPException) as exc:                              # 다시 동의 없이 새 디스코드 주소 → 422
+        asyncio.run(noti_route.save_notification_settings(
+            noti_route.NotificationSettingsBody(channels=["discord"], discord_webhook_url=new_addr), user=me, db=_Db()))
+    assert exc.value.status_code == 422 and "다시 동의" in str(exc.value.detail) and row.discord_webhook_url == ""
+
+    asyncio.run(noti_route.save_notification_settings(                    # 디스코드 말고 다른 칸 · 가림값은 막지 않는다
+        noti_route.NotificationSettingsBody(channels=["discord"], discord_webhook_url="****", email_host="smtp.example.com"), user=me, db=_Db()))
+
+    asyncio.run(noti_route.save_notification_settings(                    # 현재 판으로 다시 동의하면 통과 · 동의 행이 쌓인다
+        noti_route.NotificationSettingsBody(channels=["discord"], discord_webhook_url=new_addr, integration_consent=True,
+                                            integration_consent_version=noti_route.consent.NOTIFY_CONSENT_VERSION), user=me, db=_Db()))
+    assert row.discord_webhook_url == new_addr
+    assert len(added) == 1 and added[0].terms_version == noti_route.consent.NOTIFY_CONSENT_VERSION and added[0].action == "grant"

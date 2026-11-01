@@ -35,6 +35,9 @@ class NotificationSettingsBody(BaseModel):
     # Slack
     slack_webhook_url: str = ""
 
+    # Discord — 비밀값(주소를 아는 사람은 누구나 그 채널에 글을 올린다). 비우면 서버 공용 주소로 간다(2026-11-01)
+    discord_webhook_url: str = ""
+
     # 이메일
     email_to: str = ""
     email_host: str = ""
@@ -67,7 +70,7 @@ class NotificationSettingsBody(BaseModel):
 
 
 #: 이용자가 입력하는 **개인정보 칸**(포트 숫자는 뺀다) — 새로 채워지면 선택 동의가 있어야 저장한다.
-_SECRET_FIELDS = ("telegram_token", "email_password", "kakao_api_key", "kakao_api_secret", "sms_api_key", "sms_api_secret")
+_SECRET_FIELDS = ("telegram_token", "discord_webhook_url", "email_password", "kakao_api_key", "kakao_api_secret", "sms_api_key", "sms_api_secret")
 _PHONE_FIELDS = ("kakao_phone", "sms_from", "sms_to")
 _PLAIN_FIELDS = ("telegram_chat_id", "slack_webhook_url", "email_to", "email_host", "email_user", "email_from", "kakao_sender_key")
 
@@ -84,6 +87,9 @@ def brings_new_personal_data(body: "NotificationSettingsBody", row: "Notificatio
     for name in _SECRET_FIELDS:
         v = getattr(body, name)
         if v and v != "****":
+            # 디스코드 주소는 저장된 값과 같으면 새 입력이 아니다(공백만 다른 경우 포함)
+            if name == "discord_webhook_url" and v.strip() == current(name):
+                continue
             return True
     for name in _PHONE_FIELDS:
         v = getattr(body, name)
@@ -152,7 +158,7 @@ async def get_notification_settings(
     if not row:
         return {
             "channels": [], "telegram_token": "", "telegram_chat_id": "",
-            "slack_webhook_url": "", "email_to": "", "email_host": "",
+            "slack_webhook_url": "", "discord_webhook_url": "", "email_to": "", "email_host": "",
             "email_port": 587, "email_user": "", "email_password": "", "email_from": "",
             "kakao_api_key": "", "kakao_api_secret": "", "kakao_sender_key": "", "kakao_phone": "",
             "sms_api_key": "", "sms_api_secret": "", "sms_from": "", "sms_to": "",
@@ -168,6 +174,7 @@ async def get_notification_settings(
         "telegram_token":    mask(row.telegram_token),
         "telegram_chat_id":  row.telegram_chat_id,
         "slack_webhook_url": row.slack_webhook_url,
+        "discord_webhook_url": mask(row.discord_webhook_url),
         "email_to":          row.email_to,
         "email_host":        row.email_host,
         "email_port":        row.email_port,
@@ -206,6 +213,12 @@ async def save_notification_settings(
         except ValueError as exc:
             raise HTTPException(422, str(exc))
 
+    discord_url = body.discord_webhook_url.strip()
+    if discord_url and discord_url != "****" and not notification.is_discord_webhook(discord_url):
+        # 아무 주소나 저장하지 않는다 — 잘못 붙인 주소로 알림이 나가지 않고, 비밀 토큰이 든 주소가 엉뚱한 곳에 남지 않게
+        raise HTTPException(422, "디스코드 웹훅 주소는 https://discord.com/api/webhooks/… 로 시작해야 합니다. "
+                                 "채널 편집 → 연동 → 웹훅 → 「웹훅 URL 복사」로 받은 주소를 그대로 붙여 주세요.")
+
     row = await _get_settings_row(db, uid)
     granted = await consent.is_granted(db, uid, consent.NOTIFY_CONSENT_KEY)
 
@@ -219,18 +232,27 @@ async def save_notification_settings(
         await db.commit()
         return {"ok": True, "withdrawn": True}
 
-    if body.integration_consent is True and not granted:
+    # 동의는 했지만 지금 동의문 판이 아닌 사람 — 판이 올라 새로 들어온 항목(디스코드 웹훅 주소 · n0.2)은 다시 동의해야 저장한다
+    last = await consent.latest(db, uid, consent.NOTIFY_CONSENT_KEY) if granted else None
+    stale = granted and last is not None and last.terms_version != consent.NOTIFY_CONSENT_VERSION
+
+    if body.integration_consent is True and (not granted or stale):
         if (body.integration_consent_version or "") != consent.NOTIFY_CONSENT_VERSION:
             # 오래된 화면(캐시)이 옛 동의문을 보여 줬을 수 있다 — 새로고침하면 새 문구를 보고 다시 동의한다
             raise HTTPException(422, "알림 연동 동의문이 바뀌었습니다. 화면을 새로고침한 뒤 다시 동의해 주세요.")
         consent.add_rows(db, uid, [consent.NOTIFY_CONSENT_KEY], CONSENT_GRANT,
                          consent.NOTIFY_CONSENT_VERSION, consent.SOURCE_NOTIFICATION_SETTINGS)
         granted = True
+        stale = False
 
     if not granted and brings_new_personal_data(body, row):
         raise HTTPException(
             422, "알림 연동 정보 수집·이용(선택)에 동의해야 토큰 · 웹훅 · 비밀번호 · 휴대전화번호를 저장할 수 있습니다. "
                  "동의하지 않아도 다른 기능은 그대로 쓸 수 있습니다.")
+
+    if stale and discord_url and discord_url != "****" and discord_url != (getattr(row, "discord_webhook_url", "") or ""):
+        raise HTTPException(
+            422, "알림 연동 동의문이 바뀌어 「디스코드 웹훅 주소」 항목이 더해졌습니다. 디스코드 주소를 저장하려면 화면에서 동의문을 읽고 다시 동의해 주세요.")
 
     if row is None:
         row = NotificationSettings(user_id=uid)
@@ -246,6 +268,9 @@ async def save_notification_settings(
     row.telegram_token = keep_secret(body.telegram_token, row.telegram_token)
     row.telegram_chat_id = body.telegram_chat_id
     row.slack_webhook_url = body.slack_webhook_url
+    # 디스코드: 가림값("****")이면 저장된 주소를 유지하고, 빈 값이면 지운다(지우면 서버 공용 주소로 돌아간다)
+    if discord_url != "****":
+        row.discord_webhook_url = discord_url
     row.email_to = body.email_to
     row.email_host = body.email_host
     row.email_port = body.email_port
