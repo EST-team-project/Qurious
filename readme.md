@@ -266,7 +266,7 @@ flowchart LR
 | AI · 검색 | Ollama · LangChain · LangGraph · Qdrant 1.19 · Neo4j 5 | 근거 답(`qwen3:4b-instruct`) · 채팅(`qwen2.5:1.5b`) · 임베딩 · 벡터 검색 · 종목 관계 그래프 |
 | 분석 | pandas · NumPy · LightGBM · scikit-learn | 지표 · 모델 비교 · 군집 · XAI 기여도 |
 | 백테스트 · 외부 도구 | QuantConnect LEAN(도커) · TradingView(Pine v6 · Webhook) | LEAN 백테스트 · Pine 코드 내보내기 · 신호 받기 |
-| 증권사 · 알림 | 한국투자증권 Open API(모의) · 알림 채널(텔레그램 · 슬랙 · 디스코드 · 이메일 · 카카오 · SMS) | 모의 주문 · 체결 확인 · 실패 알림 — **보고식**(사건 · 이유 · 항목 · 위험 · 다음 행동 · KST 시각 · 모의투자 표시)으로 채널마다 다른 모양 · 사건 12종을 켜기 / 조용히 / 끄기 · **조용한 시간**(기본 꺼짐) · 일일 수집 회차 보고(`.env` 채널 · `COLLECT_REPORT_NOTIFY=false` 로 끔) |
+| 증권사 · 알림 | 한국투자증권 Open API(모의) · 알림 채널(텔레그램 · 슬랙 · 디스코드 · 이메일 · 카카오 · SMS) | 모의 주문 · 체결 확인 · 실패 알림 — **보고식**(사건 · 이유 · 항목 · 위험 · 다음 행동 · KST 시각 · 모의투자 표시)으로 채널마다 다른 모양 · 사건 11종을 켜기 / 조용히 / 끄기 · **조용한 시간**(기본 꺼짐) · 일일 수집 회차 보고(`.env` 채널 · `COLLECT_REPORT_NOTIFY=false` 로 끔) |
 | 시험 · 도구 | pytest · Playwright | 자동 시험 · 시연 영상 녹화 |
 
 ## 검증

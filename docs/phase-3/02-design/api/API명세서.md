@@ -1421,7 +1421,7 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 
 **사건별 설정 · 조용한 시간 · 이력 원본 (v0.55 · 2026-11-01 · 보고식 알림 개편)**
 
-- `API-NOTI-01`(`GET /api/notification/settings`) 응답에 두 칸이 늘었다 — `preferences` 와 `event_catalog`. `preferences` = `{events: {사건: "on"|"silent"|"off"}, quiet: {enabled, start, end}}`(빠진 값은 서버가 사건 기본값으로 채워 준다 · `start`·`end` 는 `HH:MM` 한국 시간). `event_catalog` = 화면이 표를 그리는 사건 목록 `[{kind, label, severity, default_mode, lockable, groupable}]`(12종 · `severity` = `urgent`·`important`·`normal`·`info`).
+- `API-NOTI-01`(`GET /api/notification/settings`) 응답에 두 칸이 늘었다 — `preferences` 와 `event_catalog`. `preferences` = `{events: {사건: "on"|"silent"|"off"}, quiet: {enabled, start, end}}`(빠진 값은 서버가 사건 기본값으로 채워 준다 · `start`·`end` 는 `HH:MM` 한국 시간). `event_catalog` = 화면이 표를 그리는 사건 목록 `[{kind, label, severity, default_mode, lockable, groupable}]`(11종 · `severity` = `urgent`·`important`·`normal`·`info`).
 - `API-NOTI-02`(`POST /api/notification/settings`) 요청에 `preferences`(선택 · 없으면 기존 값 유지)가 늘었다. **422**: 모르는 사건 · `on`/`silent`/`off` 가 아닌 모드 · 끌 수 없는 사건(`risk_halt` 비상 정지)을 `off` 로 · 시각이 `HH:MM` 이 아님 · 조용한 시간을 켜면서 시작 = 끝. `preferences` 는 개인정보 칸이 아니라 동의 없이도 저장된다.
 - `API-NOTI-03`(`POST /api/notification/test`)은 이제 **보고식 시험 알림**을 보낸다(`kind=test` — 사건별 설정 · 조용한 시간과 무관하게 항상 바로 · 채널마다 다른 모양 · 가상의 삼성전자 예시 · 모의투자 표시). 응답은 그대로 `{ok, message}`.
 - `API-NOTI-04`(`GET /api/notification/history`) `events[]` 에 `payload`(보낸 보고 원본 — `title` · `summary` · `fields` · `reason` · `risk` · `next_action` · `mock` · `ts` · 보관 중이면 `hold`. 없던 옛 줄은 `null`)가 늘었고, `delivery_status` 에 `held`(보관 중) · `digesting` · `digested`(묶음으로 나감)가 새로 쓰인다(`status_label` 도 같이). `payload` 에 웹훅 주소 · 토큰 · 계좌번호는 넣지 않고 8KB 를 넘기지 않는다.
