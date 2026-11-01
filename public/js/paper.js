@@ -849,6 +849,9 @@ async function runLeanBacktest() {
 }
 
 function renderLeanResult(d) {
+  // 이전 차트는 자리(innerHTML)를 바꾸기 *전에* 없앤다 — 지운 자리에 남은 차트가 크기를 다시 맞추다 「translate(NaN, 0)」 오류를 냈다
+  // (2026-11-01 클릭 점검 Y3: 검증을 다시 실행하거나 전략을 바꿀 때 2건 · 정리본 S111 L272 과 같은 뿌리)
+  if (leanChart) { try { leanChart.destroy(); } catch (_) { /* 이미 지워진 자리 */ } leanChart = null; }
   const up = v => v >= 0 ? "text-emerald-600" : "text-red-600";
   const stats = d.lean_statistics || {};
   const statRows = Object.keys(stats).length ? Object.entries(stats).map(([k, v]) => `<tr><td class="text-xs">${escHtml(k)}</td><td class="text-xs" style="text-align:right">${escHtml(v)}</td></tr>`).join("") : emptyRow(2, d.lean_ok ? "통계 없음" : "LEAN 엔진 결과 없음 (로그 확인)");
@@ -888,10 +891,10 @@ function renderLeanResult(d) {
     source: "LEAN 백테스트", label: `${d.ticker} · ${d.strategy_label}`,
     summary: `수익률 ${fmtPct(d.strategy_return_pct)} · MDD ${d.max_drawdown_pct}% · 샤프 ${d.sharpe_ratio}`,
   }));
-  if (leanChart) { leanChart.destroy(); leanChart = null; }
   if (window.ApexCharts) {
     leanChart = new ApexCharts($("ql-chart"), {
-      chart: { type: "line", height: 280, toolbar: { show: false }, background: "transparent", zoom: { enabled: false } },
+      chart: { type: "line", height: 280, toolbar: { show: false }, background: "transparent", zoom: { enabled: false },
+        redrawOnWindowResize: false, redrawOnParentResize: false },
       series: [
         { name: d.strategy_label, data: d.points.map(p => ({ x: p.date, y: p.value })) },
         { name: "단순 보유", data: (d.benchmark_points || []).map(p => ({ x: p.date, y: p.value })) },

@@ -53,9 +53,34 @@ export async function api(path, { method = "GET", body, headers = {}, signal, re
       data?.error  ||
       data?.message ||
       `서버 오류 (HTTP ${res.status})`;
+    // 서버 입력 검증(pydantic)이 영어로 보낸 기본 문구를 한국어로 바꾼다(2026-11-01 클릭 점검 — 「Input should be greater than or equal to 0.1」).
+    // 서버가 PydanticCustomError 로 보낸 한국어 글은 그대로 두고, 표준 제약 종류만 바꾼다. 모르는 종류는 원문에서 「Value error, 」 앞붙임만 뗀다.
+    const FIELD_KO = {
+      commission_bps: "수수료(bp)", slippage_bps: "슬리피지(bp)", stop_loss_pct: "손절(%)", take_profit_pct: "익절(%)",
+      symbol: "종목", period: "기간", name: "이름", n_splits: "겹 수", amount: "금액", quantity: "수량", price: "가격",
+      initial_cash: "시작 자금", ai_top_n: "자동매매 종목 수", gap: "간격(거래일)",
+    };
+    function koValidationMsg(d) {
+      if (!d || typeof d !== "object") return String(d);
+      const field = FIELD_KO[Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : ""] || "";
+      const who = field ? `${field}은(는) ` : "입력값은 ";
+      const c = d.ctx || {};
+      switch (d.type) {
+        case "greater_than_equal": return `${who}${c.ge} 이상이어야 합니다.`;
+        case "greater_than": return `${who}${c.gt} 보다 커야 합니다.`;
+        case "less_than_equal": return `${who}${c.le} 이하여야 합니다.`;
+        case "less_than": return `${who}${c.lt} 보다 작아야 합니다.`;
+        case "missing": return `${field || "필수 항목"}이(가) 비어 있습니다.`;
+        case "int_parsing": case "float_parsing": case "int_type": case "float_type": return `${who}숫자여야 합니다.`;
+        case "int_from_float": return `${who}소수가 아닌 정수여야 합니다.`;
+        case "string_too_short": return `${who}${c.min_length}자 이상이어야 합니다.`;
+        case "string_too_long": return `${who}${c.max_length}자 이하여야 합니다.`;
+        default: return String(d.msg || JSON.stringify(d)).replace(/^Value error, /, "");
+      }
+    }
     // 입력 검증 422 의 detail 은 목록일 수 있다 — 그대로 넘기면 화면에 「[object Object]」 로 보인다.
     // 근거 답 · 수집 자료 검색의 detail 은 {message, hint} 객체다 — 글은 message, 객체는 e.detail 로(DF-72 · 2026-10-06)
-    const text = Array.isArray(msg) ? msg.map(d => d?.msg || String(d)).join(" · ")
+    const text = Array.isArray(msg) ? msg.map(koValidationMsg).join(" · ")
       : (msg && typeof msg === "object" ? String(msg.message || JSON.stringify(msg)) : String(msg));
     const e = new Error(text);
     e.status = res.status;   // 부르는 쪽이 「로그인 풀림(401)」 과 다른 오류를 가르는 데 쓴다

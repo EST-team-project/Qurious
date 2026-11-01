@@ -3,6 +3,7 @@
 지원 채널:
   telegram  – 텔레그램 봇
   slack     – Slack Incoming Webhook
+  discord   – Discord 웹훅(.env 공용 주소 · 2026-11-01)
   email     – SMTP 이메일
   kakao     – 카카오 알림톡 (CoolSMS REST API)
   sms       – SMS (CoolSMS REST API)
@@ -14,6 +15,7 @@
 사용법:
   텔레그램: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID 설정
   Slack:    SLACK_WEBHOOK_URL 설정
+  Discord:  DISCORD_WEBHOOK_URL 설정
   이메일:   SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_TO 설정
   카카오:   COOLSMS_API_KEY, COOLSMS_API_SECRET, KAKAO_SENDER_KEY, KAKAO_PHONE 설정
   SMS:      COOLSMS_API_KEY, COOLSMS_API_SECRET, SMS_FROM, SMS_TO 설정
@@ -22,15 +24,18 @@ import asyncio
 import hashlib
 import hmac
 import logging
+import re
 import smtplib
 import socket
 import time
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import httpx
 
 from app.config import settings
+from app.services import alert_format, alert_prefs
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +53,13 @@ def is_retryable(exc: BaseException) -> bool:
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code == 429
     return isinstance(exc, (ConnectionRefusedError, socket.gaierror, smtplib.SMTPConnectError))
+
+
+def _safe_exc(exc: BaseException) -> str:
+    """실패 로그에 쓸 짧은 설명 — 예외 종류(와 HTTP 상태)만. 예외 글에는 요청 주소가 들어 있고 텔레그램 주소에는 봇 토큰이,
+    슬랙 · 디스코드 주소에는 웹훅 비밀이 들어 있어 그대로 로그에 남기면 비밀이 샌다(2026-11-01 점검)."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    return f"{type(exc).__name__}" + (f"(HTTP {status})" if status else "")
 
 
 def _mark(outcome: dict | None, exc: BaseException) -> None:
@@ -78,8 +90,9 @@ async def send_telegram(
     token: str = "",
     chat_id: str = "",
     outcome: dict | None = None,
+    *, silent: bool = False,
 ) -> bool:
-    """텔레그램 메시지 전송 (HTML 태그 지원)."""
+    """텔레그램 메시지 전송 (HTML 태그 지원). `silent` 면 소리·진동 없이(`disable_notification`)."""
     tok = token or settings.TELEGRAM_BOT_TOKEN
     cid = chat_id or settings.TELEGRAM_CHAT_ID
     if not tok or not cid:
@@ -88,28 +101,81 @@ async def send_telegram(
     url = f"https://api.telegram.org/bot{tok}/sendMessage"
     try:
         async with httpx.AsyncClient(timeout=10) as cli:
-            r = await cli.post(url, json={"chat_id": cid, "text": message, "parse_mode": "HTML"})
+            body: dict = {"chat_id": cid, "text": message, "parse_mode": "HTML"}
+            if silent:
+                body["disable_notification"] = True
+            r = await cli.post(url, json=body)
             r.raise_for_status()
             return True
     except Exception as exc:
-        logger.warning("텔레그램 알림 실패: %s", exc)
+        logger.warning("텔레그램 알림 실패: %s", _safe_exc(exc))
         _mark(outcome, exc)
         return False
 
 
-async def send_slack(message: str, webhook_url: str = "", outcome: dict | None = None) -> bool:
-    """Slack Incoming Webhook 메시지 전송."""
+async def send_slack(message: str, webhook_url: str = "", outcome: dict | None = None,
+                     *, blocks: list | None = None) -> bool:
+    """Slack Incoming Webhook 메시지 전송. `blocks` 가 있으면 Block Kit 으로 꾸며 보내고 `message` 는 미리보기 글이 된다."""
     url = webhook_url or settings.SLACK_WEBHOOK_URL
     if not url:
         logger.debug("Slack 웹훅 URL 없음 – 건너뜀")
         return False
     try:
         async with httpx.AsyncClient(timeout=10) as cli:
-            r = await cli.post(url, json={"text": message})
+            body: dict = {"text": message}
+            if blocks:
+                body["blocks"] = blocks
+            r = await cli.post(url, json=body)
             r.raise_for_status()
             return True
     except Exception as exc:
-        logger.warning("Slack 알림 실패: %s", exc)
+        logger.warning("Slack 알림 실패: %s", _safe_exc(exc))
+        _mark(outcome, exc)
+        return False
+
+
+#: 디스코드가 받는 웹훅 주소의 머리(공식 · 미리보기 · 카나리 도메인) — 잘못 적은 주소로 글을 보내지 않게 막는다
+_DISCORD_HOOK_PREFIXES = (
+    "https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/",
+    "https://ptb.discord.com/api/webhooks/", "https://canary.discord.com/api/webhooks/",
+)
+#: 디스코드 글(content) 한 번에 최대 2,000자(공식 한도) — 넘으면 끝을 줄임표로 자른다
+_DISCORD_MAX = 2000
+
+
+#: 디스코드 메시지 플래그 SUPPRESS_NOTIFICATIONS(1<<12) — 웹훅 실행에서 허용되는 플래그(공식 문서)
+_DISCORD_SUPPRESS_NOTIFICATIONS = 4096
+
+
+async def send_discord(message: str, webhook_url: str = "", outcome: dict | None = None,
+                       *, embeds: list | None = None, silent: bool = False) -> bool:
+    """Discord 웹훅 메시지 전송(2026-11-01). 주소는 `DISCORD_WEBHOOK_URL`(.env) — 성공은 204 로 온다.
+    `embeds` 가 있으면 카드 모양으로 보내고, `silent` 면 알림음 없이(SUPPRESS_NOTIFICATIONS) 보낸다."""
+    url = webhook_url or settings.DISCORD_WEBHOOK_URL
+    if not url:
+        logger.debug("Discord 웹훅 URL 없음 – 건너뜀")
+        return False
+    if not url.startswith(_DISCORD_HOOK_PREFIXES):
+        logger.warning("Discord 웹훅 주소 모양이 아니라 보내지 않습니다(https://discord.com/api/webhooks/… 여야 함)")
+        return False
+    text = message if len(message) <= _DISCORD_MAX else message[:_DISCORD_MAX - 1] + "…"
+    try:
+        async with httpx.AsyncClient(timeout=10) as cli:
+            # allowed_mentions 를 비워 메시지 속 @everyone · @here 가 사람을 호출하지 않게 한다
+            body: dict = {"allowed_mentions": {"parse": []}}
+            if embeds:
+                body["embeds"] = embeds[:10]
+                if text:
+                    body["content"] = text
+            else:
+                body["content"] = text
+            if silent:
+                body["flags"] = _DISCORD_SUPPRESS_NOTIFICATIONS
+            r = await cli.post(url, json=body)
+            r.raise_for_status()
+            return True
+    except Exception as exc:
+        logger.warning("Discord 알림 실패: %s", _safe_exc(exc))   # 주소에 비밀 토큰이 있어 예외 글(주소 포함)은 남기지 않는다
         _mark(outcome, exc)
         return False
 
@@ -124,13 +190,16 @@ def _send_email_sync(
     password: str,
     from_addr: str,
     outcome: dict | None = None,
+    text_body: str = "",
 ) -> bool:
-    """동기 SMTP 이메일 전송 (executor 에서 실행)."""
+    """동기 SMTP 이메일 전송 (executor 에서 실행). `text_body` 가 있으면 텍스트 대체 본문을 함께 넣는다."""
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = from_addr or user
         msg["To"] = to_addr
+        if text_body:
+            msg.attach(MIMEText(text_body, "plain", "utf-8"))   # 대체 본문은 먼저 — 마지막 파트(HTML)가 우선 표시된다
         msg.attach(MIMEText(body, "html", "utf-8"))
         with smtplib.SMTP(host, port, timeout=10) as server:
             server.ehlo()
@@ -154,6 +223,7 @@ async def send_email(
     password: str = "",
     from_addr: str = "",
     outcome: dict | None = None,
+    *, text_body: str = "",
 ) -> bool:
     """이메일 전송 (SMTP / STARTTLS)."""
     to_addr   = to_addr   or settings.SMTP_TO
@@ -167,7 +237,7 @@ async def send_email(
         return False
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
-        None, _send_email_sync, subject, body, to_addr, host, port, user, password, from_addr, outcome
+        None, _send_email_sync, subject, body, to_addr, host, port, user, password, from_addr, outcome, text_body
     )
 
 
@@ -302,6 +372,7 @@ async def _load_user_settings(user_id: str | None) -> dict:
             "sms_api_secret": row.sms_api_secret,
             "sms_from": row.sms_from,
             "sms_to": row.sms_to,
+            "preferences": row.preferences or {},
         }
     except Exception:
         return {}
@@ -314,6 +385,8 @@ def _default_channels() -> list[str]:
         channels.append("telegram")
     if settings.SLACK_WEBHOOK_URL:
         channels.append("slack")
+    if settings.DISCORD_WEBHOOK_URL:
+        channels.append("discord")
     if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD and settings.SMTP_TO:
         channels.append("email")
     if settings.COOLSMS_API_KEY and settings.COOLSMS_API_SECRET and settings.KAKAO_SENDER_KEY and settings.KAKAO_PHONE:
@@ -323,6 +396,21 @@ def _default_channels() -> list[str]:
     return channels
 
 
+#: 옛 `dispatch(kind=…)` 중복 방지 종류 · 제목 머리글을 설정 화면의 사건 종류로 옮기는 표
+_LEGACY_KIND_MAP = {"tradingview_signal": "tv_signal", "quant_run_failed": "run_failed"}
+_LEGACY_SUBJECT_MAP = (("[정합성]", "reconcile"), ("[TradingView]", "tv_signal"), ("[자동매매] 실행", "run_failed"))
+_ALLOWED_TAGS = re.compile(r"</?(b|strong|i|em|u|s|code|pre|a|blockquote)\b", re.IGNORECASE)
+
+
+def _legacy_pref_kind(kind: str | None, subject: str) -> str:
+    if kind in _LEGACY_KIND_MAP:
+        return _LEGACY_KIND_MAP[kind]
+    for prefix, mapped in _LEGACY_SUBJECT_MAP:
+        if subject.startswith(prefix):
+            return mapped
+    return "legacy"
+
+
 async def dispatch(
     message: str,
     html_message: str = "",
@@ -330,58 +418,82 @@ async def dispatch(
     user_id: str | None = None,
     *, kind: str | None = None, ref: str | None = None,
 ) -> None:
-    """활성화된 모든 채널로 알림을 전송한다.
+    """옛 호출 호환 어댑터 — 글을 사건으로 감싸 `dispatch_event` 로 넘긴다(글은 그대로 보낸다).
 
     Args:
         message:      일반 텍스트 메시지 (SMS · Slack · 카카오 사용)
-        html_message: HTML 형식 메시지 (텔레그램 · 이메일 사용, 없으면 message 사용)
+        html_message: HTML 형식 메시지 (텔레그램 · 이메일 사용, 없으면 message 를 이스케이프해 사용)
         subject:      이메일 제목 (없으면 message 앞 40자 사용)
-        user_id:      사용자 ID – MongoDB 에서 개별 설정 조회
+        user_id:      사용자 ID – PostgreSQL 에서 개별 설정 조회
+        kind / ref:   같은 사용자·회차·사건은 한 번만 보내는 중복 방지(없으면 매번 보냄)
     """
-    event_id = None
-    if kind is not None or ref is not None:
-        event_id = await _claim_event(user_id, kind, ref, subject, message)
-        if event_id is None:
-            return  # 같은 사용자·회차·사건은 발송 결과가 불명확해도 자동 재발송하지 않는다.
-    user_cfg = await _load_user_settings(user_id)
-    channels: list[str] = user_cfg.get("channels") or _default_channels()
+    # 태그가 하나도 없는 「HTML」 은 평문이다(TradingView 코멘트 같은 외부 글의 `<` `&` 를 텔레그램이 해석하다 400 을 내지 않게 이스케이프)
+    if html_message and not _ALLOWED_TAGS.search(html_message):
+        html_message = ""
+    ev = alert_format.legacy_event(
+        message, html_message=html_message, subject=subject or f"[매매 알림] {message[:40]}",
+        kind=_legacy_pref_kind(kind, subject),
+    )
+    await dispatch_event(ev, user_id=user_id, dedupe_kind=kind, ref=ref)
 
-    html  = html_message or message
-    plain = message
-    subj  = subject or f"[매매 알림] {plain[:40]}"
 
+def _status_for(names: list[str], results: list) -> str:
+    return ("no_channels" if not names else "delivered" if all(r is True for r in results)
+            else "failed" if all(r is not True for r in results) else "partial")
+
+
+async def _deliver(ev, user_cfg: dict, channels: list[str], silent: bool = False) -> tuple[list[str], list, list[int]]:
+    """사건 하나를 채널마다 알맞은 모양으로 꾸며 동시에 보낸다. (채널 이름들, 결과들, 시도 횟수들)
+
+    silent: 소리 없이 — 텔레그램 · 디스코드는 알림음 없이 보내고, 카카오 · SMS 는 건너뛴다.
+    새 인자(blocks · embeds · silent · text_body)는 **필요할 때만** 넘긴다 — 글만 보내는 사건은 예전 인자 그대로.
+    """
+    plain = alert_format.render_plain(ev)
     tasks: list = []
-    channel_names: list[str] = []
+    names: list[str] = []
     if "telegram" in channels:
-        channel_names.append("telegram")
+        names.append("telegram")
+        tg_extra = {"silent": True} if silent else {}
         tasks.append(_send_with_retry(lambda o: send_telegram(
-            html,
+            alert_format.render_telegram(ev),
             token=user_cfg.get("telegram_token", ""),
             chat_id=user_cfg.get("telegram_chat_id", ""),
-            outcome=o,
+            outcome=o, **tg_extra,
         )))
     if "slack" in channels:
-        channel_names.append("slack")
+        names.append("slack")
+        fallback, blocks = alert_format.render_slack(ev)
+        sl_extra = {"blocks": blocks} if blocks else {}
         tasks.append(_send_with_retry(lambda o: send_slack(
-            plain,
-            webhook_url=user_cfg.get("slack_webhook_url", ""),
-            outcome=o,
+            fallback, webhook_url=user_cfg.get("slack_webhook_url", ""), outcome=o, **sl_extra,
+        )))
+    if "discord" in channels:
+        names.append("discord")
+        card = alert_format.render_discord(ev)
+        dc_extra: dict = {}
+        if card.get("embeds"):
+            dc_extra["embeds"] = card["embeds"]
+        if silent:
+            dc_extra["silent"] = True
+        tasks.append(_send_with_retry(lambda o: send_discord(
+            card.get("content", ""), webhook_url=user_cfg.get("discord_webhook_url", ""), outcome=o, **dc_extra,
         )))
     if "email" in channels:
-        channel_names.append("email")
+        names.append("email")
+        subj, html_body, text_body = alert_format.render_email(ev)
         tasks.append(_send_with_retry(lambda o: send_email(
             subject=subj,
-            body=html,
+            body=html_body,
             to_addr=user_cfg.get("email_to", ""),
             host=user_cfg.get("email_host", ""),
             port=int(user_cfg.get("email_port") or 0),
             user=user_cfg.get("email_user", ""),
             password=user_cfg.get("email_password", ""),
             from_addr=user_cfg.get("email_from", ""),
-            outcome=o,
+            outcome=o, text_body=text_body,
         )))
-    if "kakao" in channels:
-        channel_names.append("kakao")
+    if "kakao" in channels and not silent:
+        names.append("kakao")
         tasks.append(_send_with_retry(lambda o: send_kakao(
             plain,
             api_key=user_cfg.get("kakao_api_key", ""),
@@ -390,10 +502,11 @@ async def dispatch(
             phone=user_cfg.get("kakao_phone", ""),
             outcome=o,
         )))
-    if "sms" in channels:
-        channel_names.append("sms")
+    if "sms" in channels and not silent:
+        names.append("sms")
+        sms_text = alert_format.render_sms(ev)
         tasks.append(_send_with_retry(lambda o: send_sms(
-            plain,
+            sms_text,
             api_key=user_cfg.get("sms_api_key", ""),
             api_secret=user_cfg.get("sms_api_secret", ""),
             from_no=user_cfg.get("sms_from", ""),
@@ -408,10 +521,171 @@ async def dispatch(
         # 채널 함수가 예외를 던지면(raw 가 예외) 시도 1번에 실패로 센다.
         results = [r[0] if isinstance(r, tuple) else r for r in raw]
         attempts = [r[1] if isinstance(r, tuple) else 1 for r in raw]
+    return names, results, attempts
+
+
+async def dispatch_event(ev, user_id: str | None = None, *, dedupe_kind: str | None = None, ref: str | None = None) -> None:
+    """보고식 알림의 진입점 — 사건별 설정(on/silent/off) → 조용한 시간 · 묶음 보관 → 채널별 꾸며 보내기 → 이력(payload 포함).
+
+    - 설정이 off 면 보내지 않는다(긴급은 off 불가). 사용자가 없는 호출(수집 보고 등)은 설정 없이 기본 채널로 바로 보낸다.
+    - 보관 행 저장이 실패하면(DB 장애) 잃는 것보다 낫도록 **바로 보낸다**.
+    - `dedupe_kind`+`ref` 가 있으면 같은 사용자·회차·사건은 한 번만(발송 결과가 불명확해도 자동 재발송 안 함).
+    """
+    ref = ref or ev.ref
+    user_cfg = await _load_user_settings(user_id)
+    prefs = alert_prefs.normalize(user_cfg.get("preferences"))
+    mode = alert_prefs.effective_mode(prefs, ev.kind)
+    if mode == "off":
+        logger.info("알림 사건 설정이 꺼져 있어 보내지 않음: %s", ev.kind)
+        return
+    plain = alert_format.render_plain(ev)
+    subj = ev.mail_subject()
+    event_id = None
+    if dedupe_kind is not None or ref is not None:
+        event_id = await _claim_event(user_id, dedupe_kind, ref, subj, plain)
+        if event_id is None:
+            return  # 같은 사용자·회차·사건은 발송 결과가 불명확해도 자동 재발송하지 않는다.
+    payload = alert_format.to_payload(ev)
+    plan = alert_prefs.hold_plan(ev.kind, ev.severity, prefs, datetime.now(alert_format.KST)) if user_id else None
+    if plan and await _store_held(user_id, subj, plain, {**payload, "hold": {**plan, "mode": mode}}, event_id):
+        return
+    channels: list[str] = user_cfg.get("channels") or _default_channels()
+    names, results, attempts = await _deliver(ev, user_cfg, channels, silent=(mode == "silent"))
     if event_id is None:
-        await _log_dispatch(user_id, subj, plain, channel_names, results, attempts)
+        await _log_dispatch(user_id, subj, plain, names, results, attempts, payload=payload)
     else:
-        await _finish_event(event_id, channel_names, results, attempts)
+        await _finish_event(event_id, names, results, attempts, payload=payload)
+
+
+async def _store_held(user_id, subject: str, message: str, payload: dict, event_id) -> bool:
+    """보관 행을 저장한다(조용한 시간 · 묶음 대기). 저장하지 못하면 False — 호출한 쪽이 바로 보낸다."""
+    try:
+        import uuid
+        from app.database.postgres import get_session_factory
+        from app.models import NotificationLog
+        async with get_session_factory()() as db:
+            if event_id is not None:
+                row = await db.get(NotificationLog, event_id)
+                row.delivery_status, row.payload, row.channels = "held", payload, []
+            else:
+                db.add(NotificationLog(user_id=uuid.UUID(str(user_id)), subject=subject[:300], message=message[:500],
+                                       channels=[], delivery_status="held", payload=payload))
+            await db.commit()
+        return True
+    except Exception as exc:
+        logger.warning("알림 보관 저장 실패 — 바로 보냅니다: %s", _safe_exc(exc))
+        return False
+
+
+async def _claim_held(ids: list) -> list:
+    """풀 보관 행을 원자적으로 선점한다 — 주기 작업과 앱 시작 때 풀기가 겹쳐도 두 번 보내지 않는다."""
+    from sqlalchemy import update
+    from app.database.postgres import get_session_factory
+    from app.models import NotificationLog
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            update(NotificationLog)
+            .where(NotificationLog.id.in_(ids), NotificationLog.delivery_status == "held")
+            .values(delivery_status="digesting")
+            .returning(NotificationLog.id, NotificationLog.payload, NotificationLog.created_at))
+        rows = list(result.all())
+        await db.commit()
+    rows.sort(key=lambda r: r.created_at)
+    return rows
+
+
+async def _release(uid, user_cfg: dict, claimed: list) -> int:
+    """선점한 보관 행을 보낸다 — 한 건이면 원래 사건 그대로, 여러 건이면 요약 1건(kind=digest, 고유 ref)."""
+    import uuid
+    from app.database.postgres import get_session_factory
+    from app.models import NotificationLog
+    channels = user_cfg.get("channels") or _default_channels()
+    payloads = [r.payload or {} for r in claimed]
+    modes = [(p.get("hold") or {}).get("mode", "on") for p in payloads]
+    if len(claimed) == 1:
+        ev = alert_format.from_payload(payloads[0])
+        names, results, attempts = await _deliver(ev, user_cfg, channels, silent=(modes[0] == "silent"))
+        async with get_session_factory()() as db:
+            row = await db.get(NotificationLog, claimed[0].id)
+            row.channels = _channel_rows(names, results, attempts)
+            row.delivery_status = _status_for(names, results)
+            await db.commit()
+        return 1
+    reasons = {(p.get("hold") or {}).get("reason") for p in payloads}
+    why = "조용한 시간" if "quiet" in reasons else "짧은 시간"
+    digest = alert_format.digest_event(payloads, why, ref=uuid.uuid4().hex)
+    names, results, attempts = await _deliver(digest, user_cfg, channels, silent=all(m == "silent" for m in modes))
+    async with get_session_factory()() as db:
+        for r in claimed:
+            row = await db.get(NotificationLog, r.id)
+            row.delivery_status = "digested"
+        db.add(NotificationLog(
+            user_id=uid, subject=digest.mail_subject()[:300], message=alert_format.render_plain(digest)[:500],
+            channels=_channel_rows(names, results, attempts), kind="digest", ref=digest.ref,
+            delivery_status=_status_for(names, results), payload=alert_format.to_payload(digest)))
+        await db.commit()
+    return len(claimed)
+
+
+async def flush_held(now: datetime | None = None) -> int:
+    """보관 중인 알림 중 풀 때가 된 것을 보낸다(조용한 시간이 끝났거나 묶음 창이 지났다). 보낸 건수를 돌려준다."""
+    now = now or datetime.now(alert_format.KST)
+    try:
+        from sqlalchemy import select
+        from app.database.postgres import get_session_factory
+        from app.models import NotificationLog
+        async with get_session_factory()() as db:
+            rows = list((await db.execute(
+                select(NotificationLog.id, NotificationLog.user_id, NotificationLog.payload)
+                .where(NotificationLog.delivery_status == "held"))).all())
+    except Exception as exc:
+        logger.warning("보관 알림 조회 실패: %s", _safe_exc(exc))
+        return 0
+    by_user: dict = {}
+    for r in rows:
+        if r.user_id is not None:
+            by_user.setdefault(r.user_id, []).append(r)
+    sent = 0
+    for uid, items in by_user.items():
+        try:
+            cfg = await _load_user_settings(str(uid))
+            prefs = alert_prefs.normalize(cfg.get("preferences"))
+            ids = [i.id for i in items if alert_prefs.releasable((i.payload or {}).get("hold") or {}, prefs, now)]
+            if not ids:
+                continue
+            claimed = await _claim_held(ids)
+            if claimed:
+                sent += await _release(uid, cfg, claimed)
+        except Exception as exc:
+            logger.warning("보관 알림 풀기 실패(uid=%s): %s", uid, _safe_exc(exc))
+    return sent
+
+
+_flusher_task: asyncio.Task | None = None
+FLUSH_INTERVAL_SEC = 60
+
+
+async def _flusher_loop() -> None:
+    await asyncio.sleep(10)          # 앱이 켜진 직후 한 번(08시에 꺼져 있었을 수 있다) — 연결이 준비될 시간을 준다
+    while True:
+        try:
+            await flush_held()
+        except Exception:
+            logger.exception("[alert] 보관 알림 풀기 오류")
+        await asyncio.sleep(FLUSH_INTERVAL_SEC)
+
+
+def start_alert_flusher() -> None:
+    global _flusher_task
+    if _flusher_task is None or _flusher_task.done():
+        _flusher_task = asyncio.create_task(_flusher_loop())
+
+
+def stop_alert_flusher() -> None:
+    global _flusher_task
+    if _flusher_task and not _flusher_task.done():
+        _flusher_task.cancel()
+    _flusher_task = None
 
 
 async def _claim_event(user_id, kind, ref, subject, message):
@@ -439,14 +713,15 @@ def _channel_rows(names, results, attempts) -> list[dict]:
             for i, (name, result) in enumerate(zip(names, results))]
 
 
-async def _finish_event(event_id, names, results, attempts=None):
+async def _finish_event(event_id, names, results, attempts=None, payload=None):
     from app.database.postgres import get_session_factory
     from app.models import NotificationLog
     async with get_session_factory()() as db:
         row = await db.get(NotificationLog, event_id)
         row.channels = _channel_rows(names, results, attempts)
-        row.delivery_status = ("no_channels" if not names else "delivered" if all(r is True for r in results)
-                               else "failed" if all(r is not True for r in results) else "partial")
+        row.delivery_status = _status_for(names, results)
+        if payload is not None:
+            row.payload = payload
         await db.commit()
 
 
@@ -457,6 +732,7 @@ async def _log_dispatch(
     channel_names: list[str],
     results: list,
     attempts: list[int] | None = None,
+    payload: dict | None = None,
 ) -> None:
     """발송 시도를 notification_log 테이블에 남긴다 (알림 이력 조회용)."""
     try:
@@ -478,6 +754,7 @@ async def _log_dispatch(
                 subject=subject,
                 message=message[:500],
                 channels=_channel_rows(channel_names, results, attempts),
+                payload=payload,
             ))
             await db.commit()
     except Exception as exc:
@@ -485,7 +762,15 @@ async def _log_dispatch(
         logger.warning("알림 이력 기록 실패: %s", exc)
 
 
-# ── 알림 헬퍼 ────────────────────────────────────────────────────────────────
+# ── 알림 헬퍼 (보통안: 사건 · 이유 · 항목 · 위험 · 다음 행동 · KST 시각 · 모의투자 표시) ──────────────────
+
+
+def _side_label(side: str) -> str:
+    return "매수" if side == "buy" else "매도"
+
+
+def _qty_price(quantity: int, price: float) -> str:
+    return f"{quantity:,}주 × {price:,.0f}원"
 
 
 async def notify_insufficient_funds(
@@ -498,23 +783,18 @@ async def notify_insufficient_funds(
     user_id: str | None = None,
 ) -> None:
     """예수금 부족으로 주문 실패 알림."""
-    label = "매수" if side == "buy" else "매도"
-    html = (
-        "🚨 <b>주문 실패 – 예수금 부족</b>\n\n"
-        f"종목: <code>{symbol}</code>\n"
-        f"구분: {label}\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"필요 금액: <b>{required:,.0f}원</b>\n"
-        f"가용 예수금: <b>{available:,.0f}원</b>\n"
-        f"부족분: {required - available:,.0f}원"
+    label = _side_label(side)
+    ev = alert_format.AlertEvent(
+        kind="insufficient_funds", severity="important", emoji="🚨", title=f"주문 실패 – 예수금 부족 ({symbol})",
+        summary=f"{label} {symbol} 주문이 접수되지 않았습니다.",
+        fields=[("종목", symbol), ("구분", label), ("수량·단가", _qty_price(quantity, price)),
+                ("필요 금액", alert_format.won(required)), ("가용 예수금", alert_format.won(available)),
+                ("부족분", alert_format.won(required - available))],
+        reason="가용 예수금이 주문에 필요한 금액보다 적습니다.",
+        next_action="예수금을 채우거나 수량을 줄여 다시 주문하세요.",
+        subject=f"[매매 알림] 주문 실패 – {symbol}",
     )
-    plain = (
-        f"[주문 실패] 예수금 부족\n"
-        f"종목: {symbol} / {label}\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"필요: {required:,.0f}원 / 가용: {available:,.0f}원"
-    )
-    await dispatch(plain, html_message=html, subject=f"[매매 알림] 주문 실패 – {symbol}", user_id=user_id)
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_order_placed(
@@ -526,22 +806,19 @@ async def notify_order_placed(
     user_id: str | None = None,
 ) -> None:
     """주문 접수 알림."""
-    emoji = "📈" if side == "buy" else "📉"
-    label = "매수" if side == "buy" else "매도"
-    broker_line = f"\n증권사: {broker}" if broker else ""
-    html = (
-        f"{emoji} <b>주문 접수</b>\n\n"
-        f"종목: <code>{symbol}</code>\n"
-        f"구분: {label}\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"총액: {quantity * price:,.0f}원{broker_line}"
+    label = _side_label(side)
+    fields = [("종목", symbol), ("구분", label), ("수량·단가", _qty_price(quantity, price)),
+              ("총액", alert_format.won(quantity * price))]
+    if broker:
+        fields.append(("증권사", broker))
+    ev = alert_format.AlertEvent(
+        kind="order_placed", severity="normal", emoji="📈" if side == "buy" else "📉", title=f"주문 접수 – {label} {symbol}",
+        summary="증권사에 주문이 접수되었습니다. 접수는 체결이 아닙니다.", fields=fields,
+        risk="체결 전까지는 확정된 거래가 아니며 가격·수량이 달라질 수 있습니다.",
+        next_action="체결되면 「체결 확정」 알림으로 알려 드립니다.",
+        subject=f"[매매 알림] {label} 주문 접수 – {symbol}",
     )
-    plain = (
-        f"{emoji} [주문 접수] {label}\n"
-        f"종목: {symbol}\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원 / 총 {quantity * price:,.0f}원{broker_line}"
-    )
-    await dispatch(plain, html_message=html, subject=f"[매매 알림] {label} 주문 접수 – {symbol}", user_id=user_id)
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_order_filled(
@@ -553,17 +830,18 @@ async def notify_order_filled(
     user_id: str | None = None,
 ) -> None:
     """실주문 체결 확정 알림 (quant.confirm_fills)."""
-    label = "매수" if side == "buy" else "매도"
+    label = _side_label(side)
     env_label = "KIS 모의" if environment == "paper" else "KIS 실전"
-    html = (
-        f"✅ <b>체결 확정</b> ({env_label})\n\n"
-        f"종목: <code>{symbol}</code>\n"
-        f"구분: {label}\n"
-        f"체결: {quantity:,}주 × 평균 {price:,.0f}원\n"
-        f"총액: {quantity * price:,.0f}원"
+    ev = alert_format.AlertEvent(
+        kind="order_fill", severity="normal", emoji="✅", title=f"체결 확정 – {label} {symbol} ({env_label})",
+        summary=f"{quantity:,}주가 평균 {price:,.0f}원에 체결되었습니다.",
+        fields=[("종목", symbol), ("구분", label), ("체결", f"{quantity:,}주 × 평균 {price:,.0f}원"),
+                ("총액", alert_format.won(quantity * price)), ("환경", env_label)],
+        mock=(environment == "paper"),
+        next_action="보유 현황은 모의투자·포트폴리오 화면에서 확인하세요.",
+        subject=f"[매매 알림] {label} 체결 확정 – {symbol}",
     )
-    plain = f"[체결 확정/{env_label}] {label} {symbol} {quantity:,}주 × {price:,.0f}원 / 총 {quantity * price:,.0f}원"
-    await dispatch(plain, html_message=html, subject=f"[매매 알림] {label} 체결 확정 – {symbol}", user_id=user_id)
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_order_error(
@@ -574,37 +852,39 @@ async def notify_order_error(
     error: str,
     user_id: str | None = None,
 ) -> None:
-    """주문 오류 알림."""
-    label = "매수" if side == "buy" else "매도"
-    html = (
-        "❌ <b>주문 오류</b>\n\n"
-        f"종목: <code>{symbol}</code>\n"
-        f"구분: {label}\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"오류: {error}"
+    """주문 오류 알림. `error` 는 증권사·서버가 준 글이라 렌더러가 채널별로 이스케이프한다."""
+    label = _side_label(side)
+    ev = alert_format.AlertEvent(
+        kind="order_error", severity="important", emoji="❌", title=f"주문 오류 – {label} {symbol}",
+        summary="주문이 정상 처리되지 않았습니다.",
+        fields=[("종목", symbol), ("구분", label), ("수량·단가", _qty_price(quantity, price))],
+        reason=str(error)[:300],
+        risk="접수 여부가 불명확할 수 있어 같은 주문을 바로 다시 내면 중복될 수 있습니다.",
+        next_action="증권사 앱·주문 내역에서 접수 여부를 확인한 뒤 필요하면 다시 주문하세요.",
+        subject=f"[매매 알림] 주문 오류 – {symbol}",
     )
-    plain = (
-        f"[주문 오류] {label}\n"
-        f"종목: {symbol}\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"오류: {error}"
-    )
-    await dispatch(plain, html_message=html, subject=f"[매매 알림] 주문 오류 – {symbol}", user_id=user_id)
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_auto_trade_started(user_id: str | None = None) -> None:
     """자동매매 시작 알림."""
     minutes = max(1, int(settings.QUANT_CYCLE_SEC) // 60)
-    html  = f"🤖 <b>자동매매 시작</b>\n\n{minutes}분 주기로 퀀트 신호를 분석합니다."
-    plain = f"[자동매매] 시작 – {minutes}분 주기로 퀀트 신호를 분석합니다."
-    await dispatch(plain, html_message=html, subject="[매매 알림] 자동매매 시작", user_id=user_id)
+    ev = alert_format.AlertEvent(
+        kind="auto_state", severity="info", emoji="🤖", title="자동매매 시작",
+        summary=f"{minutes}분 주기로 퀀트 신호를 분석합니다.", fields=[("분석 주기", f"{minutes}분")],
+        next_action="비상 정지나 중지는 자동매매 화면에서 할 수 있습니다.", subject="[매매 알림] 자동매매 시작",
+    )
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_auto_trade_stopped(user_id: str | None = None) -> None:
     """자동매매 중지 알림."""
-    html  = "⏹ <b>자동매매 중지</b>\n\n자동매매가 정지되었습니다."
-    plain = "[자동매매] 중지 – 자동매매가 정지되었습니다."
-    await dispatch(plain, html_message=html, subject="[매매 알림] 자동매매 중지", user_id=user_id)
+    ev = alert_format.AlertEvent(
+        kind="auto_state", severity="info", emoji="⏹", title="자동매매 중지",
+        summary="자동매매가 정지되었습니다.", next_action="다시 시작하려면 자동매매 화면에서 켜세요.",
+        subject="[매매 알림] 자동매매 중지",
+    )
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_auto_trade_executed(
@@ -615,41 +895,42 @@ async def notify_auto_trade_executed(
     price: float,
     reason: str,
     user_id: str | None = None,
+    *, details: list[tuple[str, str]] | None = None, risk_note: str = "",
 ) -> None:
-    """자동매매 가상 장부 기록 알림(증권사 체결 아님)."""
-    emoji = "📈" if action == "buy" else "📉"
-    label = "매수" if action == "buy" else "매도"
-    html = (
-        f"{emoji} <b>[자동매매] {label} 가상 체결</b>\n\n"
-        f"종목: {name} (<code>{symbol}</code>)\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"사유: {reason}\n앱 가상 장부 기록이며 증권사 체결이 아닙니다."
-    )
-    plain = (
-        f"{emoji} [자동매매] {label} 가상 체결\n"
-        f"종목: {name} ({symbol})\n"
-        f"수량: {quantity:,}주 × {price:,.0f}원\n"
-        f"사유: {reason}\n앱 가상 장부 기록이며 증권사 체결이 아닙니다."
-    )
-    await dispatch(
-        plain,
-        html_message=html,
+    """자동매매 가상 장부 기록 알림(증권사 체결 아님). `details`(수수료·세금·체결 후 현금 등)는 호출한 쪽이 알면 넘긴다."""
+    label = _side_label(action)
+    fields = [("종목", f"{name} ({symbol})"), ("수량·단가", _qty_price(quantity, price)),
+              ("거래 금액", alert_format.won(quantity * price))] + list(details or [])
+    ev = alert_format.AlertEvent(
+        kind="auto_fill", severity="normal", emoji="📈" if action == "buy" else "📉",
+        title=f"자동매매 {label} 가상 체결 – {name}", summary=f"{name} {quantity:,}주를 가상 장부에 기록했습니다.",
+        fields=fields, reason=reason, risk=risk_note, mock=True,
+        next_action="앱 가상 장부 기록이며 증권사 체결이 아닙니다. 모의투자 화면에서 보유 현황을 확인하세요.",
         subject=f"[매매 알림] {label} 가상 체결 – {name}",
-        user_id=user_id,
     )
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_risk_halt(reason: str, day_pnl_pct: float | None = None, user_id: str | None = None) -> None:
-    """위험관리 비상 정지 알림 (일손실 한도 초과 등)."""
-    pnl_txt = f"\n당일 손익: {day_pnl_pct:+.2f}%" if day_pnl_pct is not None else ""
-    html  = f"🛑 <b>[위험관리] 자동매매 비상 정지</b>\n\n사유: {reason}{pnl_txt}\n\n설정 화면에서 비상 정지를 해제해야 재시작됩니다."
-    plain = f"[위험관리] 자동매매 비상 정지\n사유: {reason}{pnl_txt}\n설정 화면에서 비상 정지를 해제해야 재시작됩니다."
-    await dispatch(plain, html_message=html, subject="[위험관리] 자동매매 비상 정지", user_id=user_id)
+    """위험관리 비상 정지 알림 (일손실 한도 초과 등) — 긴급: 조용한 시간에도 바로 보낸다."""
+    fields = [("당일 손익", alert_format.pct(day_pnl_pct))] if day_pnl_pct is not None else []
+    ev = alert_format.AlertEvent(
+        kind="risk_halt", severity="urgent", emoji="🛑", title="[위험관리] 자동매매 비상 정지",
+        summary="새 자동 주문이 모두 멈췄습니다.", fields=fields, reason=reason,
+        risk="비상 정지 중에는 신호가 나도 주문이 나가지 않습니다.",
+        next_action="원인을 확인한 뒤 설정 화면에서 비상 정지를 해제해야 재시작됩니다.",
+        subject="[위험관리] 자동매매 비상 정지",
+    )
+    await dispatch_event(ev, user_id=user_id)
 
 
 async def notify_risk_skip(symbol: str, name: str, side: str, reason: str, user_id: str | None = None) -> None:
-    """위험관리 규칙으로 주문을 생략했음을 알린다 (중복 주문·한도 초과)."""
-    label = "매수" if side == "buy" else "매도"
-    html  = f"⚠️ <b>[위험관리] {label} 주문 생략</b>\n\n종목: {name} (<code>{symbol}</code>)\n사유: {reason}"
-    plain = f"[위험관리] {label} 주문 생략 – {name} ({symbol})\n사유: {reason}"
-    await dispatch(plain, html_message=html, subject=f"[위험관리] {label} 주문 생략 – {name}", user_id=user_id)
+    """위험관리 규칙으로 주문을 생략했음을 알린다 (중복 주문·한도 초과). 같은 시간대 여러 건은 묶어서 나간다."""
+    label = _side_label(side)
+    ev = alert_format.AlertEvent(
+        kind="risk_skip", severity="info", emoji="⚠️", title=f"주문 생략 – {label} {name}",
+        summary=f"{name} ({symbol}) {label} 주문을 위험관리 규칙으로 건너뛰었습니다.",
+        fields=[("종목", f"{name} ({symbol})"), ("구분", label)], reason=reason,
+        subject=f"[위험관리] {label} 주문 생략 – {name}", group_key="risk_skip",
+    )
+    await dispatch_event(ev, user_id=user_id)

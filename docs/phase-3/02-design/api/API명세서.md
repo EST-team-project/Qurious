@@ -1,8 +1,8 @@
-# API 명세서 v0.54 — Qurious
+# API 명세서 v0.55 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.53 (2026-10-31 — 응답 풀이 둘: `API-NOTI-04` 이력의 `channels[]` 에 시도 횟수 `attempts` · `API-HUB-01` 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(묶음 `version` 1 → 2) · 라우트 수 285 그대로 · 앞 판의 글은 개정 이력 아래 표) |
+| **문서 버전** | v0.55 (2026-11-01 — 알림 응답 풀이: `API-NOTI-01` · `02` · `03` · `04` 에 사건별 설정 `preferences` · 사건 목록 `event_catalog` · 보고 원본 `payload` · 이력 상태 `held`) / v0.53 (2026-10-31 — 응답 풀이 둘: `API-NOTI-04` 이력의 `channels[]` 에 시도 횟수 `attempts` · `API-HUB-01` 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(묶음 `version` 1 → 2) · 라우트 수 285 그대로 · 앞 판의 글은 개정 이력 아래 표) |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.51 = main `3a832c2`(#422 포함) + 명시적 가상계좌 시험 공급원 작업 트리, 관련 172건 검증 · 앞 판의 글은 개정 이력 아래 표 |
@@ -736,14 +736,14 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-STK-34 | GET | `/api/stocks/patterns` | 세션 | `symbol` · `period` | {symbol, candles, stats, levels} | 404 · 422 | 수집DB · 야후 · PostgreSQL | `robo-patterns` | P-A | — | stocks.py:972 |
 | API-STK-35 | GET | `/api/stocks/mtf-signal` | 세션 | `symbol` | {symbol, opinion, opinion_rule, held, risk_gate} | — | 수집DB · 야후 · PostgreSQL · Redis · 외부(api.upbit.com, kind.krx.co.kr) | `robo-decision`, `robo-patterns` | P-A | — | stocks.py:988 |
 | API-STK-24 | POST | `/api/auto-trade/start` | 세션 | — | {ok, started, scheduler} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1069 |
-| API-STK-25 | POST | `/api/auto-trade/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `quant-auto` | P-E | P02-⑤-2 | stocks.py:1078 |
+| API-STK-25 | POST | `/api/auto-trade/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P02-⑤-2 | stocks.py:1078 |
 | API-STK-26 | GET | `/api/auto-trade/status` | 세션 | — | 모델 없음 | — | PostgreSQL | `mypage`, `quant-auto`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1084 |
 | API-STK-36 | GET | `/api/quant/risk/status` | 세션 | — | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `quant-auto` | 미배정 | — | stocks.py:1096 |
-| API-STK-37 | POST | `/api/quant/risk/kill-switch` | 세션 | 본문 `KillSwitchBody` | {ok, kill_switch, auto_trade_stopped, cancellation} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `quant-auto` | 미배정 | — | stocks.py:1121 |
+| API-STK-37 | POST | `/api/quant/risk/kill-switch` | 세션 | 본문 `KillSwitchBody` | {ok, kill_switch, auto_trade_stopped, cancellation} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | 미배정 | — | stocks.py:1121 |
 | API-STK-40 | GET | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | — | PostgreSQL | `dashboard` | 미배정 | — | stocks.py:1145 |
 | API-STK-41 | POST | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `dashboard` | 미배정 | — | stocks.py:1151 |
 | API-STK-27 | POST | `/api/quant/auto/start` | 세션 | — | {ok, started} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1160 |
-| API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | — | P-E | P02-⑤-2 | stocks.py:1170 |
+| API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-2 | stocks.py:1170 |
 | API-STK-29 | GET | `/api/quant/auto/status` | 세션 | — | {running, me_running, batch, reconcile, logs} 외 1 | — | PostgreSQL | `dashboard`, `robo-decision`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1177 |
 | API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-custom`, `quant-backtest`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1246 |
 | API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1353 |
@@ -827,10 +827,10 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-NOTI-01 | GET | `/api/notification/settings` | 세션 | — | {integration_consent, channels, telegram_token, telegram_chat_id, slack_webhook_url} 외 14 | — | PostgreSQL | `notification-settings`, `robo-patterns` | P-B | P02-③-3 | notification.py:127 |
-| API-NOTI-02 | POST | `/api/notification/settings` | 세션 | 본문 `NotificationSettingsBody` | {ok, withdrawn} | 422 | PostgreSQL | `notification-settings`, `robo-patterns` | P-B | P02-③-3 | notification.py:174 |
-| API-NOTI-03 | POST | `/api/notification/test` | 세션 | — | {ok, message} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org) | `notification-settings` | P-B | P02-③-3 · P02-⑤-3 | notification.py:248 |
-| API-NOTI-04 | GET | `/api/notification/history` | 세션 | `limit` | {events, count} | — | PostgreSQL | `notification-settings` | P-B | P02-③-3 | notification.py:279 |
+| API-NOTI-01 | GET | `/api/notification/settings` | 세션 | — | {integration_consent, preferences, event_catalog, channels, telegram_token} 외 16 | — | PostgreSQL | `notification-settings`, `robo-patterns` | P-B | P02-③-3 | notification.py:138 |
+| API-NOTI-02 | POST | `/api/notification/settings` | 세션 | 본문 `NotificationSettingsBody` | {ok, withdrawn} | 422 | PostgreSQL | `notification-settings`, `robo-patterns` | P-B | P02-③-3 | notification.py:188 |
+| API-NOTI-03 | POST | `/api/notification/test` | 세션 | — | {ok, message} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `notification-settings` | P-B | P02-③-3 · P02-⑤-3 | notification.py:270 |
+| API-NOTI-04 | GET | `/api/notification/history` | 세션 | `limit` | {events, count} | — | PostgreSQL | `notification-settings` | P-B | P02-③-3 | notification.py:298 |
 
 #### `graph` — `app/routes/graph.py` · 6개
 
@@ -1197,7 +1197,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | `KillSwitchBody` | `enabled: bool` · `reason: str` = `''` | API-STK-37 |
 | `LoginBody` | `email: str` · `password: str` | API-AUTH-02, API-AUTH-04 |
 | `ModelCompareJobBody` | `symbol: str` = `Field('005930', max_length=12, description=_SYMBOL_DOC)` · `period: str` = `Field('2y', max_length=3, description=_PERIOD_DOC)` · `n_splits: Optional[int]` = `Field(None, description=_SPLITS_DOC)` · `gap: Optional[int]` = `Field(None, description=_GAP_DOC)` | API-MCMP-03 |
-| `NotificationSettingsBody` | `channels: list[str]` = `Field(default_factory=list, description='활성화할 채널 목록')` · `telegram_token: str` = `''` · `telegram_chat_id: str` = `''` · `slack_webhook_url: str` = `''` · `email_to: str` = `''` · `email_host: str` = `''` · `email_port: int` = `Field(default=587, ge=1, le=65535)` · `email_user: str` = `''` · `email_password: str` = `''` · `email_from: str` = `''` · `kakao_api_key: str` = `''` · `kakao_api_secret: str` = `''` · `kakao_sender_key: str` = `''` · `kakao_phone: str` = `''` · `sms_api_key: str` = `''` · `sms_api_secret: str` = `''` · `sms_from: str` = `''` · `sms_to: str` = `''` · `integration_consent: bool \| None` = `None` · `integration_consent_version: str \| None` = `None` | API-NOTI-02 |
+| `NotificationSettingsBody` | `channels: list[str]` = `Field(default_factory=list, description='활성화할 채널 목록')` · `telegram_token: str` = `''` · `telegram_chat_id: str` = `''` · `slack_webhook_url: str` = `''` · `email_to: str` = `''` · `email_host: str` = `''` · `email_port: int` = `Field(default=587, ge=1, le=65535)` · `email_user: str` = `''` · `email_password: str` = `''` · `email_from: str` = `''` · `kakao_api_key: str` = `''` · `kakao_api_secret: str` = `''` · `kakao_sender_key: str` = `''` · `kakao_phone: str` = `''` · `sms_api_key: str` = `''` · `sms_api_secret: str` = `''` · `sms_from: str` = `''` · `sms_to: str` = `''` · `integration_consent: bool \| None` = `None` · `integration_consent_version: str \| None` = `None` · `preferences: dict \| None` = `None` | API-NOTI-02 |
 | `OpenApiOrderBody` | `symbol: str` · `side: str` = `Field(..., description='BUY \| SELL')` · `quantity: int` = `Field(..., ge=1)` | API-OAPI-05 |
 | `OrderBody` | `symbol: str` · `name: str` · `order_type: str` · `quantity: int` · `price: float` · `broker: str` = `'virtual'` | API-STK-12 |
 | `PasswordChangeBody` | `current_password: str` · `new_password: str` | API-AUTH-13 |
@@ -1419,6 +1419,14 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 - **동의 없이 새 개인정보 칸**: 동의 상태가 아닌데 요청이 개인정보 칸을 **새로** 채우거나 바꾸면 **422**(「알림 연동 정보 수집·이용(선택)에 동의해야 토큰 · 웹훅 · 비밀번호 · 휴대전화번호를 저장할 수 있습니다. 동의하지 않아도 다른 기능은 그대로 쓸 수 있습니다.」). 새 입력으로 치는 칸은 비밀값 여섯(`telegram_token` · `email_password` · `kakao_api_key` · `kakao_api_secret` · `sms_api_key` · `sms_api_secret` — 가림값 `****` 는 제외) · 전화번호 셋(`kakao_phone` · `sms_from` · `sms_to` — `*` 가 든 가림값과 저장된 값 그대로는 제외) · 나머지 일곱(`telegram_chat_id` · `slack_webhook_url` · `email_to` · `email_host` · `email_user` · `email_from` · `kakao_sender_key` — 저장된 값 그대로는 제외)이다. 빈 값(지우기)은 새 수집이 아니다 — 그래서 동의 없이 이미 저장된 사람이 아무것도 안 바꾸고 저장해도 막히지 않는다.
 - **발송은 동의를 보지 않는다** — `API-NOTI-03`(`POST /api/notification/test`)과 신호 알림 발송 길은 이 동의를 확인하지 않는다(동의는 연동 정보를 **받는** 저장에서만 건다).
 
+**사건별 설정 · 조용한 시간 · 이력 원본 (v0.55 · 2026-11-01 · 보고식 알림 개편)**
+
+- `API-NOTI-01`(`GET /api/notification/settings`) 응답에 두 칸이 늘었다 — `preferences` 와 `event_catalog`. `preferences` = `{events: {사건: "on"|"silent"|"off"}, quiet: {enabled, start, end}}`(빠진 값은 서버가 사건 기본값으로 채워 준다 · `start`·`end` 는 `HH:MM` 한국 시간). `event_catalog` = 화면이 표를 그리는 사건 목록 `[{kind, label, severity, default_mode, lockable, groupable}]`(12종 · `severity` = `urgent`·`important`·`normal`·`info`).
+- `API-NOTI-02`(`POST /api/notification/settings`) 요청에 `preferences`(선택 · 없으면 기존 값 유지)가 늘었다. **422**: 모르는 사건 · `on`/`silent`/`off` 가 아닌 모드 · 끌 수 없는 사건(`risk_halt` 비상 정지)을 `off` 로 · 시각이 `HH:MM` 이 아님 · 조용한 시간을 켜면서 시작 = 끝. `preferences` 는 개인정보 칸이 아니라 동의 없이도 저장된다.
+- `API-NOTI-03`(`POST /api/notification/test`)은 이제 **보고식 시험 알림**을 보낸다(`kind=test` — 사건별 설정 · 조용한 시간과 무관하게 항상 바로 · 채널마다 다른 모양 · 가상의 삼성전자 예시 · 모의투자 표시). 응답은 그대로 `{ok, message}`.
+- `API-NOTI-04`(`GET /api/notification/history`) `events[]` 에 `payload`(보낸 보고 원본 — `title` · `summary` · `fields` · `reason` · `risk` · `next_action` · `mock` · `ts` · 보관 중이면 `hold`. 없던 옛 줄은 `null`)가 늘었고, `delivery_status` 에 `held`(보관 중) · `digesting` · `digested`(묶음으로 나감)가 새로 쓰인다(`status_label` 도 같이). `payload` 에 웹훅 주소 · 토큰 · 계좌번호는 넣지 않고 8KB 를 넘기지 않는다.
+- 새 칸은 마이그레이션 `0035`(`notification_settings.preferences` · `notification_log.payload`)다 — ERD v1.14.
+
 ### 기본 인디케이터 전략 화면 — 지표 차트 · 전략 카드 저장 (`API-ISTR-01` ~ `04` · 신장환 님 PR #403 · 2026-10-29)
 
 새 라우터 `indicator_strategy`(`/api/indicator-strategy`) 네 길은 모두 **로그인한 사람만** 부른다(세션 · JWT). 지표 값은 짓지 않고 `ta_utils` 정의 한 벌로 계산한 것을 돌려주며, 기본 인디케이터 전략 화면은 이제 `API-STK-04` 대신 차트 길을 부른다.
@@ -1588,6 +1596,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.55 | 2026-11-01 | 알림 응답 풀이 — `API-NOTI-01` 에 `preferences` · `event_catalog` · `API-NOTI-02` 요청 `preferences`(검증 422) · `API-NOTI-03` 보고식 시험 알림 · `API-NOTI-04` 이력 `payload` · 상태 `held`/`digesting`/`digested` · 표의 `파일:줄` · 응답 칸 갱신(라우트 수 그대로) | 보고식 알림 개편(S183) — 사건별 켜기 · 조용히 · 끄기 · 조용한 시간 · 보낸 보고 원본을 화면이 읽는다 | `tests/test_alert_dispatch.py`(TC-ARP 5 · TC-ADI 10) · 실제 앱 호출(저장 → 새로고침 뒤 유지 · `risk_halt` 를 끄는 요청 422) · `python scripts/api_scan.py --doc` |
 | v0.54 | 2026-10-31 | 표 한 행 15줄 초과 7곳을 나눔 — 머리표 「정답 대조」 이전 기록은 12절 「이전 판의 글」 새 블록으로 · 개정 이력의 긴 칸(v0.48 · v0.46 · v0.34 · v0.26 · v0.24)은 「개정 이력 보충」 글머리로 · 「문서 버전」 이전 판 글 표의 한 줄 묶음은 판마다 한 줄로(스캐너 구역 안 2행은 그대로) | 표 한 행은 15줄 이하라는 기준(사용자 10-31)에 맞춰 읽기 좋게 나눔 — 내용은 옮기기만 하고 바꾸지 않음 | `docs/_local/도구/table_readability.py` 로 초과 행 전/후를 잼 · 옛 판에서 사라진 글 없음 · 줄 끝 CRLF 유지 · 표 9→2 초과행 · 열 9+ 표 44는 스캐너 구역이라 그대로 |
 | v0.53 | 2026-10-31 | 변경 — 응답 풀이 둘(표는 코드에서 채워져 그대로): ① `API-NOTI-04` `GET /api/notification/history` 의 `events[].channels[]` 가 `{channel, ok, attempts}` (시도 횟수 · 재시도 정책은 전달이 안 된 게 확실한 실패만 처음 1 + 재시도 3) ② `API-HUB-01` `GET /api/stock-hub` 의 `sections.sector` 가 「준비 중(pending)」 에서 `ok`(`data` = 업종코드 · 중분류 · 대분류 이름 · 같은 업종 수) 또는 `empty`(업종코드 없음) · 묶음 `version` 2 | 알림 재시도(①-14)와 허브 섹터 칸(②-10)을 구현했다 | S181 · TC-NR 6 · TC-ECH 4 · TC-HUB-10 · 실제 수집 DB 로 읽음 |
 | v0.52 | 2026-10-31 | 추가 — 라우트 셋 `API-DATA-16`(`/api/data/indicators/universe`) · `17`(`/api/data/indicators/sectors`) · `18`(`/api/data/indicators`) (S171 ①-16 기업 지표 · 4절 표 스캐너 다시 채움 · 라우트 282 → 285 · data 15 → 18) / 더한 칸 — `API-DATA-01` 응답 `quality` 에 `checks[]` · `window`(S167 ①-12 품질 표) / 표 다시 채움 — `API-STK-07` 화면 짝에서 `company-dashboard` 빠짐(야후 재무 요약을 지표 API 로 교체) · `API-STK-08` 닿는 곳 증권사 · Redis · 외부 추가 · 카탈로그 285 | S171 새 라우트 · S167 공개 필드 변경을 판 올림에 반영(S176) | `python scripts/api_scan.py --doc … --check` 통과 · `public/api-docs/catalog.json` 285개 |

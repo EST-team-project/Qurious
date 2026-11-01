@@ -16,6 +16,7 @@ from app.lib.redis_cache import connect_redis, close_redis
 from app.lib.session import COOKIE_NAME, SessionCookieRefreshMiddleware
 from app.routes import auth, health, chat, stocks, library, admin, system, quant, ml, macro, documents, notification, graph, conversations, tasks, ingest, paper, openapi, lean, kis_monitor
 from app.services.graph_service import seed_graph
+from app.services.notification import start_alert_flusher, stop_alert_flusher
 from app.services.sync_scheduler import start_sync_scheduler, stop_sync_scheduler
 
 
@@ -67,9 +68,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[WARN] Neo4j 연결 실패 (그래프 기능 비활성): {e}")
     start_sync_scheduler()
+    start_alert_flusher()   # 조용한 시간 · 묶음으로 보관한 알림을 때가 되면 보낸다(2026-11-01)
     print("[fin-agent] 서버 시작 완료. JWT + PostgreSQL + 대화이력 기능 활성화")
     yield
     # 종료
+    stop_alert_flusher()
     stop_sync_scheduler()
     await close_redis()
     await close_postgres()

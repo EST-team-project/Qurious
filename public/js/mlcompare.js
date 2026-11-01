@@ -288,6 +288,20 @@ async function poll(jobId, startedAt) {
 async function run() {
   if (S.busy) return;
   readControls();
+  // 관리자 겹 수 · 간격 — 서버는 작업을 먼저 받고(202) 상태를 물을 때에야 범위 밖(-3 · 999)을 거절했다(2026-11-01 클릭 점검).
+  // 보내기 전에 칸 범위(서버 고르기 값)를 확인해, 안 될 값이면 작업을 만들지 않고 어느 칸이 문제인지 알린다.
+  if (S.admin) {
+    const c = S.ch.choices;
+    const bad = [["n_splits", "겹 수"], ["gap", "간격(거래일)"]].find(([k]) => {
+      const v = S.q[k];
+      return v !== null && (!Number.isInteger(v) || v < c[k].min || v > c[k].max);
+    });
+    if (bad) {
+      S.err = { message: `${bad[1]}은(는) ${c[bad[0]].min} ~ ${c[bad[0]].max} 사이의 정수로 넣어 주세요.` };
+      paint();
+      return;
+    }
+  }
   savePref(S.q);
   stopPoll();
   S.busy = true; S.err = null; S.note = ""; S.late = false; S.waitOk = false;

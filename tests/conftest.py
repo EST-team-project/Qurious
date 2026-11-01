@@ -36,6 +36,14 @@ def _clear_live_trading_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_collect_report(monkeypatch):
+    """시험은 사용자의 실제 알림 채널(`.env` 의 디스코드 · 슬랙 · 이메일)로 글을 보내지 않는다(2026-11-01 S183 — 회차 끝에 수집 보고
+    알림이 붙은 뒤, `run_all` 을 끝까지 돌리는 러너 시험이 `.env` 채널로 「일일 수집 회차 완료」 를 보낼 수 있었다).
+    환경 변수가 `.env` 설정보다 우선이므로 끈 채로 시작한다. 보고 알림 자체를 보는 시험(test_collect_report)은 채널 함수를 가짜로 바꾼다."""
+    monkeypatch.setenv("COLLECT_REPORT_NOTIFY", "false")
+
+
+@pytest.fixture(autouse=True)
 def _no_real_hub(monkeypatch, tmp_path):
     """시험은 실제 Hugging Face 에 닿지 않는다(2026-10-25 S147 — 러너 시험이 `.env` 토큰으로 실제 백업 저장소의 임대 가지에
     잡기 · 닫기 커밋을 썼다). ① huggingface_hub 오프라인 — 실제 HTTP 요청은 모두 ``OfflineModeIsEnabled`` 로 멈춘다(가짜 HfApi 를

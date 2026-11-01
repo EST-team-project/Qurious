@@ -32,7 +32,7 @@ class _FakeDB:
 
 def _row(status, **kw):
     base = dict(subject="[TradingView] 매수 신호 – 005930", message="m", channels=[{"channel": "email", "ok": status == "delivered"}],
-                created_at=datetime(2026, 10, 30, 12, 0, tzinfo=timezone.utc), kind="tradingview_signal", delivery_status=status)
+                created_at=datetime(2026, 10, 30, 12, 0, tzinfo=timezone.utc), kind="tradingview_signal", delivery_status=status, payload=None)
     base.update(kw)
     return SimpleNamespace(**base)
 

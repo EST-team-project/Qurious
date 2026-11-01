@@ -173,8 +173,28 @@ document.getElementById("ic-save").addEventListener("click", async () => {
 document.getElementById("ind-card-box").addEventListener("toggle", e => { if (e.target.open) icRefresh().catch(err => setToast(err.message, "error")); });
 
 // ── 투자 인디케이터: 커스텀 인디케이터 개발 ──────────────────────────
+// 입력 검사(2026-11-01 클릭 점검) — 칸에 적힌 min/max 를 그대로 쓴다. 범위 밖 숫자(단기 -5 · RSI 9999)로도 코드가 만들어져
+// Pine · Python 에 그대로 들어갔다. 빈칸은 아래 코드가 기본값으로 대신하므로 문제로 보지 않는다.
+const CI_RANGE_FIELDS = [["ci-short", "단기 이동평균"], ["ci-mid", "중기 이동평균"], ["ci-rsi", "RSI 기간"], ["ci-buy-th", "매수 RSI 임계값"]];
+function ciRangeProblem() {
+  for (const [id, label] of CI_RANGE_FIELDS) {
+    const el = document.getElementById(id);
+    if (!el || el.value === "") continue;
+    const v = Number(el.value), lo = Number(el.min), hi = Number(el.max);
+    if (!Number.isFinite(v) || v < lo || v > hi) return `${label}은(는) ${lo} ~ ${hi} 사이의 숫자로 넣어 주세요.`;
+  }
+  return "";
+}
+function ciGuard() {
+  const msg = ciRangeProblem();
+  if (msg) setToast(msg, "error");
+  return !msg;
+}
+// 이름은 코드 안 글자 상자("…" · """…""")에 들어가므로 상자를 깨는 글자만 바꾼다
+const ciSafeName = raw => String(raw || "MyIndicator").replace(/[\r\n]+/g, " ").replace(/\\/g, "/").replace(/"/g, "'").slice(0, 60);
+
 function generatePineCode() {
-  const name   = document.getElementById("ci-name").value || "MyIndicator";
+  const name   = ciSafeName(document.getElementById("ci-name").value);
   const base   = document.getElementById("ci-base").value || "rsi_ma";
   const short  = document.getElementById("ci-short").value || 5;
   const mid    = document.getElementById("ci-mid").value || 20;
@@ -214,7 +234,7 @@ plotshape(sell_signal, style=shape.triangledown, location=location.abovebar, col
 }
 
 function generatePythonCode() {
-  const name   = document.getElementById("ci-name").value || "MyIndicator";
+  const name   = ciSafeName(document.getElementById("ci-name").value);
   const base   = document.getElementById("ci-base").value || "rsi_ma";
   const short  = document.getElementById("ci-short").value || 5;
   const mid    = document.getElementById("ci-mid").value || 20;
@@ -249,6 +269,7 @@ ${pySignal}
 }
 
 document.getElementById("ci-generate-btn").addEventListener("click", () => {
+  if (!ciGuard()) return;
   document.getElementById("ci-pine-code").textContent   = generatePineCode();
   document.getElementById("ci-python-code").textContent = generatePythonCode();
 });
@@ -261,6 +282,7 @@ document.getElementById("ci-copy-py").addEventListener("click", () => {
   setToast("Python 코드 복사됨", "ok");
 });
 document.getElementById("ci-test-btn").addEventListener("click", async () => {
+  if (!ciGuard()) return;
   const name = document.getElementById("ci-name").value || "MyIndicator";
   const base = document.getElementById("ci-base").value || "rsi_ma";
   const short = parseInt(document.getElementById("ci-short").value || "5");
@@ -324,6 +346,7 @@ generatePineCode && (() => {
 
 // ── 커스텀 인디케이터 저장/불러오기 ──────────────────────────────────
 document.getElementById("ci-save-btn")?.addEventListener("click", async () => {
+  if (!ciGuard()) return;
   const body = {
     name:          document.getElementById("ci-name").value || "MyIndicator",
     base:          document.getElementById("ci-base").value || "rsi_ma",

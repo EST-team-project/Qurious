@@ -140,6 +140,9 @@ async function runCompare() {
 }
 
 function renderCompare(r) {
+  // 이전 곡선 차트는 자리(innerHTML)를 바꾸기 *전에* 없앤다 — 지운 자리에 남은 차트가 크기를 다시 맞추다
+  // 「translate(NaN, 0)」 콘솔 오류를 냈다(2026-11-01 클릭 점검: LEAN 비교 두 번째 실행부터 매번 2건 · 정리본 S111 L272 과 같은 뿌리)
+  if (cmpChart) { try { cmpChart.destroy(); } catch (_) { /* 이미 지워진 자리 */ } cmpChart = null; }
   const fmtv = (v, k) => v == null ? "-" : (k === "total_trades" ? fmt(v) : Number(v).toFixed(2));
   $("tvc-result").innerHTML = `
     <div class="flex flex-wrap items-center gap-2 mb-2">
@@ -162,11 +165,11 @@ function renderCompare(r) {
   drawPriceChart(r);
   const pts = r.lean_points || [];
   if (pts.length && window.ApexCharts) {
-    const opts = { chart: { type: "area", height: 220, toolbar: { show: false }, background: "transparent" },
+    const opts = { chart: { type: "area", height: 220, toolbar: { show: false }, background: "transparent",
+        redrawOnWindowResize: false, redrawOnParentResize: false },
       theme: { mode: document.documentElement.dataset.theme === "light" ? "light" : "dark" },
       series: [{ name: "LEAN 자산 곡선", data: pts.map(p => [new Date(p.date).getTime(), p.value]) }],
       xaxis: { type: "datetime" }, dataLabels: { enabled: false }, stroke: { width: 2 }, colors: ["#2962ff"] };
-    if (cmpChart) cmpChart.destroy();
     cmpChart = new ApexCharts($("tvc-chart"), opts); cmpChart.render();
   }
 }

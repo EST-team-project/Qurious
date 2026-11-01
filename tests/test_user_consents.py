@@ -130,7 +130,7 @@ def test_gate_counts_only_new_personal_data():
     # 모든 개인정보 칸이 규칙에 들어 있다(칸을 더하고 여기에 안 넣으면 동의 없이 저장된다)
     declared = set(noti_route.NotificationSettingsBody.model_fields)
     covered = set(noti_route._SECRET_FIELDS + noti_route._PHONE_FIELDS + noti_route._PLAIN_FIELDS)
-    rest = declared - covered - {"channels", "email_port", "integration_consent", "integration_consent_version"}
+    rest = declared - covered - {"channels", "email_port", "integration_consent", "integration_consent_version", "preferences"}  # preferences = 사건별 on/silent/off · 조용한 시간(개인정보 아님)
     assert rest == set(), f"게이트가 보지 않는 칸: {rest}"
 
 
