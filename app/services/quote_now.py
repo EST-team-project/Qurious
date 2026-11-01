@@ -10,7 +10,8 @@
        이용 조건상 실시간 시세는 자기 키 · 자기 화면까지다(코스콤 정보이용정책 · KIS 약관 제5조 ③) — 남의 화면에 쓰지 않는다
     ② stock.get_quote — 강사님 게이트웨이(공용 키 성격) → 「증권사 연계 조회 · 14:02」
                         또는 야후(국내 약 20분 지연)      → 「지연 시세(약 20분) · 13:40 체결」 · 해외는 「야후 시세 · 05:00 체결」
-    ③ 수집 DB 마지막 종가(국내만)                      → 「10월 16일 종가」
+    ③ 수집 DB 마지막 종가(국내만)                      → 「10월 16일 종가」 · 마지막 거래일 종가가 아직 안 들어왔으면
+                                                          「10월 16일 종가 · 10월 19일 종가는 반영 전」 (2026-11-01)
 「실시간」 이라는 낱말은 쓰지 않는다(거래소 계약이 있는 서비스만 쓰는 말 — 조사서 2절). 국내 장이 닫혀 있으면 「장 마감 · 」 을 붙인다
 (해외 종목은 국내 장 시간으로 판정하지 않는다 — 시각만 밝힌다).
 실시간 값은 저장하지 않는다 — 사람 · 종목별 10초 메모리 저장본만 둔다(HF · DB · 파일에 쓰지 않음 — 조사서 3.4).
@@ -27,6 +28,7 @@ from sqlalchemy import select
 
 from app.services import collector_db, data_provenance, kis_credentials, kis_market_data, stock
 from app.services.brokers.factory import get_broker_client
+from app.services.brokers.stock_coin_trade_gateway import krx_holidays
 
 logger = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
@@ -69,6 +71,40 @@ def _md(d: str | None) -> str:
     return f"{x.month}월 {x.day}일"
 
 
+def _is_trading_day(d: date, holidays: set[str]) -> bool:
+    return d.weekday() < 5 and d.isoformat() not in holidays
+
+
+def last_closed_trading_day(now: datetime | None = None) -> date:
+    """국내 정규장이 끝난 가장 최근 거래일(2026-11-01 · 금요일 종가 공백 조사).
+
+    평일이고 내장 휴장 달력(`krx_holidays` — 메모리 값이라 수집 DB 를 열지 않는다 · DF-81)에 없는 날만 거래일이다.
+    오늘이 거래일이어도 15:30 전이면 어제까지가 「끝난」 거래일이다. 달력은 2026 년까지만 있어 그 뒤는 평일로만 판정한다.
+    """
+    now = (now or _now()).astimezone(KST)
+    holidays = krx_holidays()
+    d = now.date()
+    if not (_is_trading_day(d, holidays) and now.time() >= CLOSE):
+        d -= timedelta(days=1)
+        while not _is_trading_day(d, holidays):
+            d -= timedelta(days=1)
+    return d
+
+
+def pending_close_note(as_of: str | None, now: datetime | None = None) -> str:
+    """수집 DB 종가의 날짜가 마지막으로 끝난 거래일보다 오래됐으면 「10월 30일 종가는 반영 전」 — 아니면 빈 글.
+
+    공공데이터 종가는 기준일의 다음 영업일 낮에 들어오므로(공식 「오후 1시 이후」 · 우리 기록은 대개 12:30 대) 월요일 아침의
+    금요일 종가가 이 경우다. 예측 · 보간으로 채우지 않고 「아직 안 들어왔다」 만 말한다.
+    """
+    try:
+        have = date.fromisoformat((as_of or "")[:10])
+    except ValueError:
+        return ""
+    last = last_closed_trading_day(now)
+    return f"{last.month}월 {last.day}일 종가는 반영 전" if have < last else ""
+
+
 def _when(as_of: str | None, fetched: datetime) -> str:
     """체결 시각 글 — 오늘 값이면 「15:19」, 다른 날 값이면 「10월 17일 05:00」(지난 날 값을 오늘 값처럼 보이지 않게)."""
     t = (as_of or "")[11:16]
@@ -90,7 +126,10 @@ def _label(source: str | None, *, as_of: str | None, fetched: datetime, state: s
         head = "지연 시세(약 20분)" if domestic else FOREIGN_QUOTE_NAME
         return f"{closed}{head}" + (f" · {when} 체결" if when else "")
     if source == "collector":
-        return f"{_md(as_of)} 종가" if _md(as_of) else "종가(날짜 모름)"
+        if not _md(as_of):
+            return "종가(날짜 모름)"
+        pending = pending_close_note(as_of, fetched)
+        return f"{_md(as_of)} 종가 · {pending}" if pending else f"{_md(as_of)} 종가"
     return "출처 모름"
 
 

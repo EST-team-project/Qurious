@@ -46,6 +46,7 @@ function sdPriceBody(d) {
   const prev = d.prev_close != null ? ` · 전일 ${esc(sdNum(d.prev_close))}원` : "";
   return `<p class="sd-main">${esc(sdNum(d.close))}원 <b class="${arrow}">${esc(sdPct(d.change_pct))}</b>`
     + ` <small>${esc(sdMonthDay(d.trade_date))} 종가${prev}</small></p>`
+    + (d.pending_note ? `<p class="sd-note">${esc(d.pending_note)}</p>` : "")
     + (d.basis === "adj_base" ? `<p class="sd-note">수정주가 기준입니다 — 배당 · 분할이 있으면 증권사 화면의 값과 다를 수 있습니다.</p>` : "");
 }
 

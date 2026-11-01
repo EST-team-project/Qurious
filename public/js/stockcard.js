@@ -108,7 +108,7 @@ export function stockCardHtml(hub, mention) {
   const p = price?.data || {};
   const priceHtml = cardOk(price)
     ? `<span class="kb-sc-price">${esc(cardNum(p.close))}원 <b class="${p.change_pct > 0 ? "up" : p.change_pct < 0 ? "dn" : ""}">${esc(cardPct(p.change_pct))}</b>
-       <small>${esc(String(p.trade_date || price.as_of || "").slice(5))} 종가</small></span>` : "";
+       <small>${esc(String(p.trade_date || price.as_of || "").slice(5))} 종가${p.pending_note ? ` · ${esc(p.pending_note)}` : ""}</small></span>` : "";
   const read = mention?.matched || hub.name || hub.symbol;
   return `<section class="kb-sc" aria-label="앱 판단 — ${esc(hub.name || hub.symbol)}">
     <div class="kb-sc-head"><strong>${esc(hub.name || hub.symbol)}</strong><span class="kb-sc-chip">${esc(hub.symbol)}</span>

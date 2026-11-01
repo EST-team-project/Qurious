@@ -529,3 +529,20 @@ def test_signal_rank_endpoint(client, monkeypatch):
     assert client.get("/api/stock-hub/signal-rank", params={"symbols": ",".join(["005930"] * 100)}).status_code == 200
     del client.app_ref.dependency_overrides[get_current_user]
     assert client.get("/api/stock-hub/signal-rank").status_code == 401
+
+
+def test_price_section_says_when_last_close_is_not_in_yet(monkeypatch):
+    """TC-HUB-25 · 마지막 종가가 마지막으로 끝난 거래일보다 오래됐으면 가격 칸 `pending_note` 가 「반영 전」 을 말한다(2026-11-01 · 글은
+    quote_now 한 곳) — 최신이면 빈 글 · 줄이 없으면 이 칸 자체가 empty."""
+    from datetime import datetime  # noqa: PLC0415
+
+    from app.services import quote_now  # noqa: PLC0415
+
+    monkeypatch.setattr(quote_now, "_now", lambda: datetime(2026, 10, 19, 10, 0, tzinfo=quote_now.KST))   # 월요일 낮
+
+    def rows(last):
+        return lambda *a, **k: {"rows": [{"trade_date": "2026-10-15", "close": 50_000}, {"trade_date": last, "close": 49_000}]}
+    monkeypatch.setattr(data_ohlcv, "read_ohlcv", rows("2026-10-16"))
+    assert H.price("055550", TODAY)["data"]["pending_note"] == ""
+    monkeypatch.setattr(data_ohlcv, "read_ohlcv", rows("2026-10-15"))
+    assert H.price("055550", TODAY)["data"]["pending_note"] == "10월 16일 종가는 반영 전"

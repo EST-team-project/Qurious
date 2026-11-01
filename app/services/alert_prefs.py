@@ -83,7 +83,8 @@ def normalize(raw: dict | None) -> dict:
         for key in ("start", "end"):
             if isinstance(q.get(key), str) and _HHMM.match(q[key]):
                 quiet[key] = q[key]
-    return {"events": events, "quiet": quiet}
+    # 자기 디스코드 주소가 없을 때 서버 공용 채널로 받을지(2026-11-01 · 기본 꺼짐 — 개인 알림이 팀 채널로 새지 않게)
+    return {"events": events, "quiet": quiet, "discord_use_shared": raw.get("discord_use_shared") is True}
 
 
 def validate(raw: dict) -> dict:
@@ -113,7 +114,10 @@ def validate(raw: dict) -> dict:
             quiet[key] = q[key]
     if quiet["enabled"] and quiet["start"] == quiet["end"]:
         raise ValueError("조용한 시간의 시작과 끝이 같으면 하루 종일이 되어 지정할 수 없습니다.")
-    return normalize({"events": out_events, "quiet": quiet})
+    shared = raw.get("discord_use_shared", False)
+    if not isinstance(shared, bool):
+        raise ValueError("공용 디스코드 채널로 받기 여부는 true / false 여야 합니다.")
+    return normalize({"events": out_events, "quiet": quiet, "discord_use_shared": shared})
 
 
 def effective_mode(prefs: dict, kind: str) -> str:

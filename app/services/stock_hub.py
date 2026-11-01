@@ -216,6 +216,11 @@ def identity(symbol: str) -> dict:
     return section("identity", OK, data=data, source="수집 시세의 마지막 줄(종목 이름 · 시장)")
 
 
+def _pending_close_note(trade_date: str | None) -> str:
+    from app.services import quote_now  # noqa: PLC0415 – 늦게 불러 순환을 피한다
+    return quote_now.pending_close_note(trade_date)
+
+
 def price(symbol: str, today: date) -> dict:
     start = (today - timedelta(days=PRICE_LOOKBACK_DAYS)).isoformat()
     r = data_ohlcv.read_ohlcv(symbol, "1d", start, None, None, data_ohlcv.DEFAULT_LIMIT, today=today)
@@ -228,7 +233,9 @@ def price(symbol: str, today: date) -> dict:
     change = round((close / pc - 1) * 100, 2) if close and pc else None
     data = {"close": close, "trade_date": last.get("trade_date"), "prev_close": pc,
             "prev_date": (prev or {}).get("trade_date"), "change_pct": change,
-            "basis": r.get("basis"), "market": r.get("market")}
+            "basis": r.get("basis"), "market": r.get("market"),
+            # 마지막 거래일 종가가 아직 안 들어왔으면 「10월 30일 종가는 반영 전」(공공데이터는 다음 영업일 낮에 들어온다 · 글은 quote_now 한 곳)
+            "pending_note": _pending_close_note(last.get("trade_date"))}
     return section("price", OK, data=data, as_of=last.get("trade_date"), source=PRICE_SOURCE, note=PRICE_NOTE)
 
 

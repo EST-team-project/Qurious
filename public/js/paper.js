@@ -396,8 +396,9 @@ async function pcDrawChart(code) {
     autoSize: true,
     layout: { background: { color: "#ffffff" }, textColor: "#334155", fontSize: 11, attributionLogo: true },
     grid: { vertLines: { color: "#f1f5f9" }, horzLines: { color: "#eef1f6" } },
-    rightPriceScale: { borderColor: "#dde2ec", scaleMargins: { top: 0.08, bottom: 0.18 } },
-    timeScale: { borderColor: "#dde2ec", fixLeftEdge: true, fixRightEdge: true, lockVisibleTimeRangeOnResize: true },
+    // 가장자리 눈금 글자가 반쯤 잘리던 문제(위 가격 「120,000,000」 · 왼쪽 날짜 「15일」 · 사용자 11-01) — 라이브러리의 가장자리 눈금 보이기 옵션을 켠다
+    rightPriceScale: { borderColor: "#dde2ec", scaleMargins: { top: 0.08, bottom: 0.18 }, ensureEdgeTickMarksVisible: true },
+    timeScale: { borderColor: "#dde2ec", fixLeftEdge: true, fixRightEdge: true, lockVisibleTimeRangeOnResize: true, ensureEdgeTickMarksVisible: true },
     localization: { locale: "ko-KR", dateFormat: "yyyy-MM-dd" },
     handleScroll: false, handleScale: false,
   });
