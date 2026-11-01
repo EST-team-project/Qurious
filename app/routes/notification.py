@@ -1,8 +1,9 @@
 """알림 설정 API.
 
-GET  /api/notification/settings  – 현재 사용자의 알림 설정 조회
+GET  /api/notification/settings  – 현재 사용자의 알림 설정 조회 (사건별 설정 `preferences` · 사건 목록 `event_catalog` 포함)
 POST /api/notification/settings  – 알림 설정 저장
 POST /api/notification/test      – 테스트 알림 전송
+GET  /api/notification/history   – 최근 알림 이력 (보고 원본 `payload` 포함)
 """
 import uuid
 
@@ -15,11 +16,11 @@ from app.database.postgres import get_pg_session
 from app.lib.session import get_current_user
 from app.models import NotificationLog, NotificationSettings
 from app.models.consent import CONSENT_GRANT, CONSENT_WITHDRAW
-from app.services import consent, notification
+from app.services import alert_format, alert_prefs, consent, notification
 
 router = APIRouter(prefix="/api/notification")
 
-_SUPPORTED_CHANNELS = {"telegram", "slack", "email", "kakao", "sms"}
+_SUPPORTED_CHANNELS = {"telegram", "slack", "discord", "email", "kakao", "sms"}
 
 
 class NotificationSettingsBody(BaseModel):
@@ -59,6 +60,10 @@ class NotificationSettingsBody(BaseModel):
     #   None  → 동의 상태를 바꾸지 않는다(이미 동의한 사람의 평소 저장)
     integration_consent: bool | None = None
     integration_consent_version: str | None = None
+
+    # 사건별 켜기/끄기(on·silent·off) · 조용한 시간 — None 이면 기존 값을 유지한다(2026-11-01)
+    #   {"events": {"order_fill": "silent", ...}, "quiet": {"enabled": true, "start": "21:00", "end": "08:00"}}
+    preferences: dict | None = None
 
 
 #: 이용자가 입력하는 **개인정보 칸**(포트 숫자는 뺀다) — 새로 채워지면 선택 동의가 있어야 저장한다.
@@ -119,6 +124,12 @@ def keep_phone(new_val: str, existing_val: str) -> str:
     return new_val
 
 
+def event_catalog() -> list[dict]:
+    """설정 화면 표를 그리는 사건 목록 — 라벨 · 심각도 · 기본 모드 · 끌 수 있는지 · 묶음 대상인지."""
+    return [{"kind": d.kind, "label": d.label, "severity": d.severity, "default_mode": d.default_mode,
+             "lockable": d.lockable, "groupable": d.groupable} for d in alert_prefs.EVENT_DEFS]
+
+
 async def _get_settings_row(db: AsyncSession, user_id: uuid.UUID) -> NotificationSettings | None:
     result = await db.execute(select(NotificationSettings).where(NotificationSettings.user_id == user_id))
     return result.scalar_one_or_none()
@@ -146,10 +157,13 @@ async def get_notification_settings(
             "kakao_api_key": "", "kakao_api_secret": "", "kakao_sender_key": "", "kakao_phone": "",
             "sms_api_key": "", "sms_api_secret": "", "sms_from": "", "sms_to": "",
             "integration_consent": state,
+            "preferences": alert_prefs.normalize({}), "event_catalog": event_catalog(),
         }
 
     return {
         "integration_consent": state,
+        "preferences":       alert_prefs.normalize(row.preferences),
+        "event_catalog":     event_catalog(),
         "channels":          row.channels,
         "telegram_token":    mask(row.telegram_token),
         "telegram_chat_id":  row.telegram_chat_id,
@@ -185,6 +199,12 @@ async def save_notification_settings(
     """
     channels = [c for c in body.channels if c in _SUPPORTED_CHANNELS]
     uid = uuid.UUID(user["id"])
+    prefs = None
+    if body.preferences is not None:
+        try:
+            prefs = alert_prefs.validate(body.preferences)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
 
     row = await _get_settings_row(db, uid)
     granted = await consent.is_granted(db, uid, consent.NOTIFY_CONSENT_KEY)
@@ -240,6 +260,8 @@ async def save_notification_settings(
     row.sms_api_secret = keep_secret(body.sms_api_secret, row.sms_api_secret)
     row.sms_from = keep_phone(body.sms_from, row.sms_from)
     row.sms_to = keep_phone(body.sms_to, row.sms_to)
+    if prefs is not None:
+        row.preferences = prefs
 
     await db.commit()
     return {"ok": True}
@@ -249,22 +271,18 @@ async def save_notification_settings(
 async def test_notification(
     user=Depends(get_current_user),
 ):
-    """현재 설정된 모든 채널로 테스트 알림을 전송한다."""
-    html = (
-        "🔔 <b>[알림 테스트]</b>\n\n"
-        "매매 알림이 정상적으로 설정되었습니다.\n"
-        "이 메시지가 수신되면 해당 채널이 활성화된 것입니다."
+    """현재 설정된 모든 채널로 보고식 시험 알림을 전송한다 — 채널마다 모양이 어떻게 보이는지 확인하는 용도."""
+    ev = alert_format.AlertEvent(
+        kind="test", severity="info", emoji="🔔", title="알림 시험 – 한글 표시 확인",
+        summary="매매 알림이 정상적으로 설정되었습니다. 이 메시지가 보이면 해당 채널이 켜진 것입니다.",
+        fields=[("종목", "삼성전자 (005930)"), ("구분", "매수"), ("수량·단가", "10주 × 70,000원"),
+                ("거래 금액", alert_format.won(700000))],
+        reason="설정 화면의 「알림 시험」 단추를 눌러 보낸 예시입니다. 실제 거래가 아닙니다.",
+        risk="이 예시의 종목·금액은 실제와 무관합니다.",
+        next_action="모양이 마음에 들지 않으면 사건별 설정에서 「조용히」나 「끔」을 고르세요.",
+        mock=True, subject="[매매 알림] 시험",
     )
-    plain = (
-        "[알림 테스트] 매매 알림이 정상적으로 설정되었습니다.\n"
-        "이 메시지가 수신되면 해당 채널이 활성화된 것입니다."
-    )
-    await notification.dispatch(
-        plain,
-        html_message=html,
-        subject="[매매 알림] 테스트",
-        user_id=user["id"],
-    )
+    await notification.dispatch_event(ev, user_id=user["id"])
     return {"ok": True, "message": "테스트 알림을 전송했습니다."}
 
 
@@ -273,6 +291,7 @@ async def test_notification(
 DELIVERY_LABELS = {
     "delivered": "전달됨", "partial": "일부만 전달", "failed": "전달 실패",
     "sending": "결과 불명 · 자동 재발송 안 함", "no_channels": "보낼 채널 없음", "legacy": "이전 기록",
+    "held": "보관 중 (조용한 시간 · 묶음 대기)", "digesting": "묶음 발송 중", "digested": "묶음으로 발송됨",
 }
 
 
@@ -293,5 +312,6 @@ async def notification_history(
         "subject": ev.subject, "message": ev.message, "channels": ev.channels,
         "created_at": ev.created_at.isoformat(), "kind": ev.kind,
         "delivery_status": ev.delivery_status, "status_label": DELIVERY_LABELS.get(ev.delivery_status, "확인 필요"),
+        "payload": ev.payload,
     } for ev in result.scalars().all()]
     return {"events": events, "count": len(events)}

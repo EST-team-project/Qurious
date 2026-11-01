@@ -159,7 +159,7 @@ flowchart LR
 | 앱 DB | 계정 · 모의 장부 · 주문 · 리밸런싱 · 신호 기록 · 일지 · 동의 · 감사 기록. 표 바꿈은 Alembic 으로 | `app/models/` | 표 41 |
 | 세션 · 예약 | 로그인 세션 · 캐시 · 작업 통로(Redis), 자동매매 10분 · 리밸런싱 점검 · 체결 확인 · 계좌 스냅샷(Celery 워커 · 비트) | `app/tasks/` · `app/celery_app.py` | 작업 파일 6 |
 | AI · 검색 | 근거를 찾아 답하는 상담(없으면 답하지 않음) · 채팅 · 임베딩(Ollama) · 벡터 검색(Qdrant) · 종목 관계 그래프(Neo4j) | `app/lib/` · `app/services/` | 모델 둘(답 · 임베딩) |
-| 외부 연동 | 증권사 KIS(모의, 사용자 자기 키) · TradingView(Webhook 받기 · Pine 코드 내보내기) · LEAN(도커) · 알림 채널 다섯 · 지연 시세(화면 표시용) | `app/services/brokers/` · `tradingview.py` · `lean_*` · `notification.py` | — |
+| 외부 연동 | 증권사 KIS(모의, 사용자 자기 키) · TradingView(Webhook 받기 · Pine 코드 내보내기) · LEAN(도커) · 알림 채널 여섯 · 지연 시세(화면 표시용) | `app/services/brokers/` · `tradingview.py` · `lean_*` · `notification.py` | — |
 | 수집 · 데이터 | 매일 12:30 에 공식 자료를 받아 검사한 뒤 수집 DB 에 쌓고 비공개 백업. 앱은 읽기만 | `collector/` · `scripts/daily_update.py` | 단계 26 |
 | 운영 · 검증 | 자동 시험 · 기능 점검 · 데이터 관제 · 복원 리허설 · 요구 추적표 | `tests/` · `scripts/` | 시험 3,566건 |
 
@@ -266,7 +266,7 @@ flowchart LR
 | AI · 검색 | Ollama · LangChain · LangGraph · Qdrant 1.19 · Neo4j 5 | 근거 답(`qwen3:4b-instruct`) · 채팅(`qwen2.5:1.5b`) · 임베딩 · 벡터 검색 · 종목 관계 그래프 |
 | 분석 | pandas · NumPy · LightGBM · scikit-learn | 지표 · 모델 비교 · 군집 · XAI 기여도 |
 | 백테스트 · 외부 도구 | QuantConnect LEAN(도커) · TradingView(Pine v6 · Webhook) | LEAN 백테스트 · Pine 코드 내보내기 · 신호 받기 |
-| 증권사 · 알림 | 한국투자증권 Open API(모의) · 알림 채널(텔레그램 · 슬랙 · 이메일 · 카카오 · SMS) | 모의 주문 · 체결 확인 · 실패 알림 |
+| 증권사 · 알림 | 한국투자증권 Open API(모의) · 알림 채널(텔레그램 · 슬랙 · 디스코드 · 이메일 · 카카오 · SMS) | 모의 주문 · 체결 확인 · 실패 알림 — **보고식**(사건 · 이유 · 항목 · 위험 · 다음 행동 · KST 시각 · 모의투자 표시)으로 채널마다 다른 모양 · 사건 12종을 켜기 / 조용히 / 끄기 · **조용한 시간**(기본 꺼짐) · 일일 수집 회차 보고(`.env` 채널 · `COLLECT_REPORT_NOTIFY=false` 로 끔) |
 | 시험 · 도구 | pytest · Playwright | 자동 시험 · 시연 영상 녹화 |
 
 ## 검증

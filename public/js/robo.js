@@ -111,10 +111,29 @@ document.getElementById("robo-load-allocation").addEventListener("click", async 
   finally { button.disabled = false; document.getElementById("robo-optimize-btn").disabled = false; }
 });
 
+// 투자 금액(만원) 읽기 — 비었거나 범위 밖이면 말없이 바꾸지 않고 알린다(2026-11-01 클릭 점검: 0 → 5,000 · -100 → 100 으로 조용히 보정됐다)
+// 범위는 서버의 다른 금액 칸(0 ~ 10,000,000만원)과 보정 하한(100만원)에 맞춘다.
+function roboAmountOrNull() {
+  const el = document.getElementById("robo-amount");
+  const raw = el.value.trim();
+  if (raw === "") {
+    el.value = 5000;
+    setToast("금액이 비어 있어 5,000만원으로 계산합니다.", "ok");
+    return 5000;
+  }
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v < 100 || v > 10000000) {
+    setToast("투자 금액은 100 ~ 10,000,000 (만원) 사이로 넣어 주세요.", "error");
+    return null;
+  }
+  return Math.round(v);
+}
+
 document.getElementById("robo-optimize-btn").addEventListener("click", async () => {
   const profile = document.getElementById("robo-risk").value;
   const horizon = parseInt(document.getElementById("robo-horizon").value);
-  const amount = parseInt(document.getElementById("robo-amount").value) || 5000;
+  const amount = roboAmountOrNull();
+  if (amount === null) return;
   const optimizeBtn = document.getElementById("robo-optimize-btn");
   const originalBtnText = optimizeBtn.textContent;
   optimizeBtn.disabled = true;
@@ -199,8 +218,10 @@ export function initRoboRiskProfile(clientId) {
 // ── 로보 어드바이저: 목표 수익률 달성 확률 시뮬레이션 ────────────────
 let lastGoalSim = null, goalChart = null;
 async function runGoalSimulation() {
+  const amountManwon = roboAmountOrNull();
+  if (amountManwon === null) return;
   const body = {
-    amount_manwon: parseInt(document.getElementById("robo-amount").value) || 5000,
+    amount_manwon: amountManwon,
     horizon_years: parseInt(document.getElementById("robo-horizon").value) || 3,
     target_return_pct: Number(document.getElementById("gs-target").value || 8),
     monthly_contribution_manwon: Number(document.getElementById("gs-monthly").value || 0),

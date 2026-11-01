@@ -230,6 +230,10 @@ class Settings(BaseSettings):
     # Slack Incoming Webhook
     SLACK_WEBHOOK_URL: str = ""
 
+    # Discord 웹훅(2026-11-01 · 전체 사용자 공용 — 사용자별 주소는 아직 없다)
+    DISCORD_WEBHOOK_URL: str = ""
+    COLLECT_REPORT_NOTIFY: bool = True   # 일일 수집 회차가 끝나면 .env 채널로 결과 보고 한 번(끄려면 false)
+
     # 이메일 (SMTP / STARTTLS)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

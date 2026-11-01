@@ -1,15 +1,15 @@
-# ERD v1.13 — Qurious
+# ERD v1.14 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.13 · 머리표 칸 줄임 |
+| **판 · 상태** | v1.14 · 알림 표 칸 2개 반영 · 나머지는 v1.13 모습 그대로(스캐너와 10표 어긋남 이월) |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-10-31 (KST) |
+| **최종 수정** | 2026-11-01 (KST) |
 | **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.12 → v1.13: 머리표 칸 줄임 — 판 · 상태 · 기준 · 최근 개정을 지금 판 한 줄로(이전 판의 기준은 문서 끝 「기준 이력」 표로 옮김 · 본문 변경 없음) |
+| **최근 개정** | v1.13 → v1.14: 알림 표 둘에 새 칸 — `notification_log.payload`(보고 원본 JSONB) · `notification_settings.preferences`(사건별 설정 JSONB · 외 15 → 16칸) · 마이그레이션 0035 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -899,6 +899,7 @@ erDiagram
     VARCHAR_300 subject
     VARCHAR_500 message
     JSONB channels
+    JSONB payload
     DATETIME created_at
   }
   notification_settings {
@@ -908,7 +909,7 @@ erDiagram
     VARCHAR_200 telegram_token
     VARCHAR_100 telegram_chat_id
     VARCHAR_300 slack_webhook_url
-    _ 외15칸
+    _ 외16칸
   }
   task_ownership {
     VARCHAR_36 task_id PK
@@ -1274,6 +1275,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.14 | 2026-11-01 | 알림 표 둘에 새 칸 — `notification_log.payload`(보고 원본 JSONB) · `notification_settings.preferences`(사건별 설정 JSONB · 외 15 → 16칸) · 마이그레이션 0035 | 보고식 알림 개편(S183) — 알림 이력에 보낸 보고 원본을 남기고, 사건별 켜기 · 조용히 · 끄기와 조용한 시간을 사용자별로 저장한다 | `app/models/misc.py` · `alembic/versions/0035_notification_prefs.py` · 일회용 DB 에서 올림 · 내림 · 올림 확인 · **스캐너로 통째로 다시 채우지는 않았다**(ERD 가 모델보다 앱 10표 뒤처져 있음 — 이월) |
 | v1.13 | 2026-10-31 | 머리표 칸 줄임 — 판 · 상태 · 기준 · 최근 개정을 지금 판 한 줄로(이전 판의 기준은 문서 끝 「기준 이력」 표로 옮김 · 본문 변경 없음) | 한 칸에 여러 판 이력이 이어져 읽기 어려웠다(문서 작성 기준 4.3절 「최근 개정 한 줄」) — 사용자 요청 2026-10-31 | 문서 작성 기준 4.3 · 6.5절 · 설계서 표 가독성 점검(2026-10-31) · 옮긴 기준은 「기준 이력」 표 |
 | v1.12 | 2026-10-24 | 추가 — 수집 21 → 25표(G1 ~ G3 — `dart_company` · `ksic_code` · `financial_statement_full` · `financial_full_check` · 3.7절) · `ecos_series` 월 주기 / 변경 — 스캐너 그림 · 행 수 다시 채움(수집 23,686,395행) · 요약 1 | 할 일 ①-05 — G1 ~ G3 매일 수집 단계 | `collector/db.py` 20 ~ 23절 · `scripts/schema_scan.py` · 목표 기능 ① 설계 v1.8 5.2.5 |
 | v1.11 | 2026-10-24 | 새 표 셋 — 모의투자 그림자 일지(`paper_journal_versions` · `days` · `notes` · 추가만 · 4.6절) · 스캐너 그림 다시 채움(팀원 PR 의 `task_ownership` · `live_orders.retry_of` · `allocation_results` 도) · 4.1 표 8 · 그림 5 를 기계로 센 숫자로(앱 50표 · 관계 44 · users 에서 30) · 4.5 2026-10-24 대조 어긋남 0 · 표 속성 대장 다섯 줄(일지 셋 · `allocation_results` · `kb_sector_word`) | 그림자 일지 실행기(할 일 ①-26) · 문서가 코드보다 뒤처져 있었다(스캐너 `--check`) | `scripts/schema_scan.py --doc` · 일회용 DB 마이그레이션 대조(2026-10-24) · 결정 대장 2026-10-23 · 10-24 |

@@ -1779,6 +1779,11 @@ def run_all(upload: bool = False, force_derived: bool = False, *, manual: bool =
                     f"TR {after.get('tr_max')} · 벤치마크 {after.get('benchmark_max')}")
             if coord:                                       # 임대를 닫는다 — 회차 자리 기록(따라가는 PC 의 재료)
                 coord_end(run, coord, ok=ok, rc=rc_total, summary=lease_summary(state, coord))
+            try:                                            # 회차 보고 알림(2026-11-01) — 임대를 닫은 뒤에 보낸다. 알림이 늦거나 실패해도 회차 결과는 그대로
+                from scripts.collect_report import send_round_report
+                run.say(send_round_report(state))
+            except Exception as e:                          # import 실패 포함 — 절대 회차를 실패로 만들지 않는다
+                run.say(f"🟡 수집 보고 알림을 건너뜀: {type(e).__name__}")
         except _Done as d:                                  # 단계를 돌지 않고 끝남(따라가기 · 건너뜀 · 막힘) — 기록은 그쪽이 남겼다
             rc_total, drop_log = d.rc, d.drop_log
         except Exception as e:                              # 러너 자체의 결함도 기록으로 남긴다

@@ -65,7 +65,7 @@ def chain(monkeypatch):
         """script: 보내기 시도마다 `(성공, 재시도 가능 표시)` — 모자라면 마지막 값을 되풀이한다."""
         sent: list[int] = []
 
-        async def fake_slack(message, webhook_url="", outcome=None):
+        async def fake_slack(message, webhook_url="", outcome=None, **_kw):
             ok, retryable = script[min(len(sent), len(script) - 1)]
             sent.append(1)
             if retryable and outcome is not None:

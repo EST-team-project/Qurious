@@ -283,7 +283,7 @@ document.getElementById("broker-test")?.addEventListener("click", async () => {
 
 // ── 알림 설정 ──────────────────────────────────────────────────────
 function toggleNotiSections() {
-  const chMap = { telegram: "noti-section-telegram", slack: "noti-section-slack",
+  const chMap = { telegram: "noti-section-telegram", slack: "noti-section-slack", discord: "noti-section-discord",
                   email: "noti-section-email", kakao: "noti-section-kakao", sms: "noti-section-sms" };
   document.querySelectorAll(".noti-channel").forEach(cb => {
     const sec = document.getElementById(chMap[cb.value]);
@@ -325,10 +325,51 @@ document.getElementById("noti-consent-withdraw")?.addEventListener("click", asyn
   } catch (e) { setToast(e.message, "error"); }
 });
 
+// ── 사건별 알림 설정 · 조용한 시간 (서버가 준 event_catalog 로 표를 그린다) ─────────────────
+const NOTI_SEV = { urgent: "긴급", important: "중요", normal: "일반", info: "참고" };
+const NOTI_SEV_COLOR = { urgent: "var(--red)", important: "var(--yellow, #f59e0b)", normal: "var(--text-dim)", info: "var(--text-mute)" };
+const NOTI_MODES = [["on", "켜기"], ["silent", "조용히"], ["off", "끄기"]];
+
+function renderNotiPrefs(cfg) {
+  const body = document.getElementById("noti-prefs-body");
+  if (!body) return;
+  const catalog = cfg.event_catalog || [];
+  const events = cfg.preferences?.events || {};
+  body.innerHTML = catalog.map(d => {
+    const cur = events[d.kind] || d.default_mode;
+    const opts = NOTI_MODES.filter(([v]) => v !== "off" || d.lockable)
+      .map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("");
+    const note = [d.groupable ? "몰리면 묶음" : "", !d.lockable ? "끌 수 없음" : ""].filter(Boolean).join(" · ");
+    return `<tr style="border-top:1px solid var(--border);">
+      <td class="py-1.5 pr-3" style="color:var(--text-dim);">${escHtml(d.label)}${note ? ` <span style="color:var(--text-mute);">(${escHtml(note)})</span>` : ""}</td>
+      <td class="py-1.5 pr-3" style="color:${NOTI_SEV_COLOR[d.severity] || "inherit"};">${escHtml(NOTI_SEV[d.severity] || d.severity)}</td>
+      <td class="py-1.5"><select class="input noti-pref-mode" data-kind="${escHtml(d.kind)}" aria-label="${escHtml(d.label)} 받는 방식">${opts}</select></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="3" style="color:var(--text-mute);">사건 목록을 불러오지 못했습니다.</td></tr>`;
+  const q = cfg.preferences?.quiet || {};
+  document.getElementById("noti-quiet-enabled").checked = !!q.enabled;
+  document.getElementById("noti-quiet-start").value = q.start || "21:00";
+  document.getElementById("noti-quiet-end").value = q.end || "08:00";
+}
+
+function collectNotiPrefs() {
+  const events = {};
+  document.querySelectorAll(".noti-pref-mode").forEach(sel => { events[sel.dataset.kind] = sel.value; });
+  return {
+    events,
+    quiet: {
+      enabled: !!document.getElementById("noti-quiet-enabled")?.checked,
+      start: document.getElementById("noti-quiet-start")?.value || "21:00",
+      end: document.getElementById("noti-quiet-end")?.value || "08:00",
+    },
+  };
+}
+
 async function loadNotificationSettings() {
   try {
     const cfg = await api("/api/notification/settings");
     renderNotiConsent(cfg.integration_consent);
+    renderNotiPrefs(cfg);
     const channels = cfg.channels || [];
     document.querySelectorAll(".noti-channel").forEach(cb => { cb.checked = channels.includes(cb.value); });
     toggleNotiSections();
@@ -358,6 +399,20 @@ async function loadNotificationSettings() {
   loadNotificationHistory();
 }
 
+/** 보낸 보고 원본(payload)을 「자세히 보기」로 접어 보여 준다 — 모든 값은 escHtml 로만 넣는다. */
+function notiPayloadDetails(p) {
+  if (!p || (!p.title && !p.summary && !p.fields?.length)) return "";
+  const line = (k, v) => `<div><span style="color:var(--text-mute);">${escHtml(k)}</span> ${escHtml(v)}</div>`;
+  const rows = (p.fields || []).map(([k, v]) => line(k, v)).join("");
+  const extra = [["이유", p.reason], ["위험", p.risk], ["다음 행동", p.next_action]].filter(([, v]) => v)
+    .map(([k, v]) => line(k, v)).join("");
+  return `<details class="mt-1"><summary class="cursor-pointer" style="color:var(--text-mute);">자세히 보기</summary>
+    <div class="mt-1 space-y-0.5" style="color:var(--text-dim);">
+      <div><b>${escHtml(p.title || "")}</b></div>${p.summary ? `<div>${escHtml(p.summary)}</div>` : ""}${rows}${extra}
+      ${p.mock ? `<div style="color:var(--text-mute);">모의투자(가상 자금) 기록</div>` : ""}
+    </div></details>`;
+}
+
 async function loadNotificationHistory() {
   const el = document.getElementById("noti-history");
   if (!el) return;
@@ -379,6 +434,7 @@ async function loadNotificationHistory() {
         <div style="color:var(--text-mute);">${escHtml(ev.created_at || "")}${stBadge}</div>
         <div style="color:var(--text-dim);">${escHtml(ev.subject || ev.message || "")}</div>
         <div class="mt-0.5">${chBadges}</div>
+        ${notiPayloadDetails(ev.payload)}
       </div>`;
     }).join("");
   } catch (e) {
@@ -414,6 +470,7 @@ document.getElementById("noti-save")?.addEventListener("click", async () => {
         sms_api_secret:    document.getElementById("noti-sms-api-secret").value,
         sms_from:          document.getElementById("noti-sms-from").value,
         sms_to:            document.getElementById("noti-sms-to").value,
+        preferences:       collectNotiPrefs(),
       },
     });
     setToast("알림 설정이 저장되었습니다.", "ok");

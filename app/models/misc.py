@@ -46,6 +46,8 @@ class NotificationSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     sms_api_secret: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     sms_from: Mapped[str] = mapped_column(String(30), nullable=False, default="")
     sms_to: Mapped[str] = mapped_column(String(30), nullable=False, default="")
+    #: 사건별 on/silent/off · 조용한 시간 — {"events": {kind: mode}, "quiet": {"enabled": bool, "start": "21:00", "end": "08:00"}}
+    preferences: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
 
 
 class NotificationLog(Base, UUIDPkMixin, CreatedAtMixin):
@@ -60,6 +62,8 @@ class NotificationLog(Base, UUIDPkMixin, CreatedAtMixin):
     kind: Mapped[str | None] = mapped_column(String(40), nullable=True)
     ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
     delivery_status: Mapped[str] = mapped_column(String(20), nullable=False, default="legacy", server_default="legacy")
+    #: 보낸(또는 보관한) 보고 원본 — 화면에서 다시 볼 때 쓴다. 비밀값은 넣지 않는다(8KB 상한)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class CrawledDoc(Base, UUIDPkMixin):

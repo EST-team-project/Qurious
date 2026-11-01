@@ -29,6 +29,8 @@ export const TOPICS = [
   { key: "fin-topic-industry",   label: "퀀트 사례 · 배당 · ETF",   icon: "fa-solid fa-industry",         units: [4] },
   { key: "fin-topic-macro",      label: "거시경제와 시장",      icon: "fa-solid fa-globe",            units: [5] },
 ];
+// 교재 본문의 「NN.md」 링크 → 이 앱의 주제 화면(원본 교재 11 = 거시경제와 주식시장 읽기). 대응이 없는 번호는 링크를 걷는다
+const DOC_TO_TOPIC = { "11": "fin-topic-macro" };
 const TOPIC_BY_KEY = Object.fromEntries(TOPICS.map(t => [t.key, t]));
 const TOPIC_BY_DAY = Object.fromEntries(TOPICS.filter(t => t.day).map(t => [t.day, t]));
 
@@ -248,6 +250,23 @@ async function renderUnits(host, t, cat) {
     img.loading = "lazy";
   });
   art.querySelectorAll("a[href^='http']").forEach(a => { a.target = "_blank"; a.rel = "noopener noreferrer"; });
+  // 교재 속 상대 링크(11.md · 06.md#…)와 /data/ 파일 링크는 원본 교재 폴더 기준이라 앱 주소에서 열면 404 였다(2026-11-01 클릭 점검).
+  // 이 앱에 대응하는 화면이 있으면 그 화면으로 보내고, 없으면 링크를 걷어 글자만 남긴다(데이터 파일은 이 저장소에 두지 않는다 — 출처 정책).
+  art.querySelectorAll("a[href]").forEach(a => {
+    const href = a.getAttribute("href") || "";
+    if (/^(https?:)?\/\//.test(href) || href.startsWith("#")) return;
+    const doc = href.match(/^\.?\/?(\d+(?:-\d+)?)\.md(#.*)?$/);   // 11.md · 06.md · 10-2.md
+    const topic = doc && DOC_TO_TOPIC[doc[1]];
+    if (topic) {
+      a.setAttribute("href", `#${topic}`);
+      a.addEventListener("click", e => { e.preventDefault(); navigate(topic); });
+    } else if (doc || href.startsWith("/data/")) {
+      const plain = document.createElement("span");
+      plain.title = "이 앱에는 따로 열 수 있는 화면(파일)이 없습니다";
+      plain.textContent = a.textContent;
+      a.replaceWith(plain);
+    }
+  });
   const toc = host.querySelector(".fl-toc-list");
   const heads = [...art.querySelectorAll("h2, .fl-unit-divider")];
   toc.innerHTML = heads.map((h, i) => {
