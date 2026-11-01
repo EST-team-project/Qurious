@@ -11,9 +11,38 @@ from __future__ import annotations
 import asyncio
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 SEND_TIMEOUT_SEC = 90
+
+#: 도커 앱과 같은 설정 파일 — 알림 채널 값이 들어 있다. 시험은 이 경로를 없는 파일로 바꾼다(conftest).
+DOTENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+#: `.env` 에서 빌려 올 알림 채널 칸 — DB 주소 같은 나머지 설정은 빌리지 않는다
+CHANNEL_KEYS = (
+    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SLACK_WEBHOOK_URL", "DISCORD_WEBHOOK_URL",
+    "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_TO",
+    "COOLSMS_API_KEY", "COOLSMS_API_SECRET", "KAKAO_SENDER_KEY", "KAKAO_PHONE", "SMS_FROM", "SMS_TO",
+)
+
+
+def fill_channels_from_dotenv(settings, path: Path) -> list:
+    """예약 작업(pythonw)에는 `ENV_FILE` 이 없어 앱 설정이 `.env.dev` 를 읽는다(2026-11-01 S184 확인 — 거기에는 알림 채널이 비어 있어
+    수집 보고가 어느 채널로도 가지 않을 뻔했다). 알림 채널은 도커 앱과 같은 `.env` 에 있으므로, **비어 있는 채널 칸만** `.env` 에서 채운다.
+    돌려주는 것은 채운 칸의 이름들(값은 돌려주지 않는다)."""
+    if not path or not path.exists():
+        return []
+    filled = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key in CHANNEL_KEYS and value and not getattr(settings, key, ""):
+            setattr(settings, key, value)
+            filled.append(key)
+    return filled
 
 
 def _fmt(iso: Optional[str]) -> str:
@@ -84,6 +113,7 @@ def send_round_report(state: dict) -> str:
         from app.config import settings
         from app.services import notification
 
+        fill_channels_from_dotenv(settings, DOTENV_PATH)   # `.env.dev` 만 읽는 예약 작업에 채널 값을 채운다
         # 환경 변수가 있으면 그것이 우선, 없으면 `.env` 의 설정(`settings.COLLECT_REPORT_NOTIFY`)
         env = os.environ.get("COLLECT_REPORT_NOTIFY")
         on = settings.COLLECT_REPORT_NOTIFY if env is None else env.strip().lower() not in ("0", "false", "no", "off")
