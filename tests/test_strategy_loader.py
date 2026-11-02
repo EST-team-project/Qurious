@@ -90,3 +90,18 @@ def test_missing_or_changed_fixed_input_does_not_fall_back_to_remote(monkeypatch
     assert not sl.is_configured()
     assert asyncio.run(sl.list_strategies()) == []
     assert asyncio.run(sl.get_strategy("ma_cross_20_60", 1)) is None
+
+
+@pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
+@pytest.mark.parametrize("tamper", [False, True])
+def test_fixed_card_line_endings_preserve_content_guard(monkeypatch, tmp_path, newline, tamper):
+    raw = sl._FIXED_CARD.read_bytes().replace(b"\r\n", b"\n")
+    if tamper:
+        raw = raw.replace(b"005930", b"000660")
+    path = tmp_path / "card.json"
+    path.write_bytes(raw.replace(b"\n", newline))
+    monkeypatch.setattr(sl, "_FIXED_CARD", path)
+    monkeypatch.setattr(settings, "STRATEGY_SPEC_SOURCE", "fixed_test")
+    sl.set_transport(httpx.MockTransport(lambda request: pytest.fail("No fallback allowed")))
+    assert sl.is_configured() is (not tamper)
+    assert bool(asyncio.run(sl.list_strategies())) is (not tamper)
