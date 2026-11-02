@@ -1,36 +1,16 @@
 /* 신호 순위 화면 (2026-11-02 · 안 A 새 화면 · js/signalrankview.js + js/signal-rank.js)
-   Figma 「신호 순위 화면 설계」 — 서랍은 표 위에 겹쳐 열린다(왼쪽 메뉴 때문에 본문 폭이 약 976px 라 표와 나란히 안 들어간다).
+   Figma 「신호 순위 화면 설계」 · 「설계 — 입구 통일 (결정)」 — 줄을 누르면 전용 서랍이 아니라 종목 근거 모달이 열린다(문서 전체의 data-hub-open 위임).
    쪽 고유 id/클래스(#sr-root · .srv-*)로 좁힌다 — 태그 선택자(table · td)가 다른 화면에 걸리지 않게. */
 
 .srv-card { position: relative; }
 .srv-root { position: relative; min-height: 120px; }
 
-/* 표 — 가로로 넘치면 표만 스크롤한다(서랍 · 머리줄은 제자리) */
+/* 표 — 가로로 넘치면 표만 스크롤한다(머리줄은 제자리) */
 #sr-root [data-sr-list] { overflow-x: auto; }
 #sr-root table { width: 100%; border-collapse: collapse; }
 #sr-root th, #sr-root td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
 #sr-root th { font-size: 12px; font-weight: 700; color: var(--text-mute); background: var(--surf2); white-space: nowrap; }
-#sr-root tbody tr[data-sr-symbol] { cursor: pointer; }
-#sr-root tbody tr[data-sr-symbol]:hover { background: var(--surf2); }
-#sr-root tbody tr[aria-selected="true"] { background: var(--accent-glow); }
+/* 줄 전체가 입구 — 종목코드를 모르는 줄은 data-hub-open 이 없어 눌리는 줄로 보이지 않는다 */
+#sr-root tbody tr[data-hub-open] { cursor: pointer; }
+#sr-root tbody tr[data-hub-open]:hover { background: var(--surf2); }
 #sr-root tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-/* 서랍 — 비어 있으면 없는 것처럼, 열리면 화면(뷰포트) 오른쪽에 겹친다.
-   목록을 스크롤한 채 아래 줄을 눌러도 서랍이 통째로 보이게 목록 위(top: 0)가 아니라 화면 기준으로 고정한다(2026-11-02 사용자 지적).
-   위 메뉴(--gnb-h) 아래에서 시작하고, 화면보다 길면 서랍 안에서 스크롤한다. */
-#sr-root [data-sr-side]:empty { display: none; }
-#sr-root [data-sr-side]:not(:empty) {
-  position: fixed; top: calc(var(--gnb-h) + 16px); right: 24px; z-index: 40;
-  width: min(420px, calc(100vw - 48px)); max-height: calc(100vh - var(--gnb-h) - 40px); overflow-y: auto;
-  padding: 16px 18px; background: var(--surf);
-  border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
-}
-#sr-root [data-sr-close] { float: right; margin-left: 8px; }
-
-/* 좁은 화면 — 서랍은 아래에서 올라오는 시트로(표 위에 겹치지 않고 화면 아래에 붙인다) */
-@media (max-width: 720px) {
-  #sr-root [data-sr-side]:not(:empty) {
-    position: fixed; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-height: 70vh;
-    border-radius: 12px 12px 0 0;
-  }
-}

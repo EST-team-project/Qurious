@@ -152,15 +152,42 @@ def test_signal_section(monkeypatch):
                 "counter_reasons": [{"timeframe": "1w", "label": "주봉", "text": "MACD …", "points": 1}]}
     monkeypatch.setattr(signal_explain, "load_snapshot", load)
     monkeypatch.setattr(signal_explain, "explain", explain)
+    monkeypatch.setattr(signal_explain, "side_counts", lambda s: {"buy": 1, "neutral": 2, "sell": 3, "components": []})
     s = asyncio.run(H.signal(object(), "055550", True))
     assert s["status"] == H.OK and s["as_of"] == "2026-10-16" and s["notice"] == "투자 권유가 아닙니다."
-    assert s["data"]["summary"] == "일 기준으로 …" and len(s["data"]["reasons"]) == 3
+    # 근거는 자르지 않고 전부 낸다(사용자 11-02 「전부 보이게」 · 신호 순위 입구 통일) — 4개 · 반대 1개가 그대로
+    assert s["data"]["summary"] == "일 기준으로 …" and len(s["data"]["reasons"]) == 4 and len(s["data"]["counter_reasons"]) == 1
+    # 근거 개수는 순위 표와 같은 셈(side_counts) — 신호 칸이 모달에서 「근거 n개 (매수 쪽 · 중립 · 매도 쪽)」 를 보인다
+    assert s["data"]["counts"] == {"buy": 1, "neutral": 2, "sell": 3} and "counts_note" not in s["data"]
     assert set(s["data"]["reasons"][0]) == {"key", "timeframe", "label", "text", "points"}      # key = 규칙 이름(화면의 쉬운 풀이 열쇠 · TC-SDR-10)
     assert s["data"]["reasons"][0]["key"] == "rsi_high"
     none_out = asyncio.run(H.signal(object(), "000660", False))
     assert none_out["status"] == H.EMPTY and none_out["reason"] == H.SIGNAL_NOT_UNIVERSE
     assert asyncio.run(H.signal(object(), "000660", None))["reason"] == H.SIGNAL_NONE
     assert asyncio.run(H.signal(object(), "000660", True))["reason"] == H.SIGNAL_NONE
+
+
+def test_signal_section_counts_unreadable_keeps_reasons(monkeypatch):
+    """TC-HUB-07b · 낯선 근거 문장 때문에 개수를 못 세면 개수만 비우고(0개로 두지 않음) 까닭을 남기며 근거 · 요약은 그대로 낸다 —
+    순위 표(signal_rank)와 같은 갈래."""
+    snap = {"symbol": "055550"}
+
+    async def load(db, symbol, on=None):
+        return snap
+
+    def explain(s):
+        return {"as_of": "2026-10-16", "signal": "관망", "strength": None, "confidence": 0.3, "definition": "d1", "summary": "요약",
+                "confidence_text": "c", "disclaimer": "고지", "reasons": [{"key": "k", "timeframe": "1d", "label": "일봉", "text": "t", "points": 1}],
+                "counter_reasons": []}
+
+    def boom(s):
+        raise signal_explain.UnknownReason("낯선 근거 문장")
+    monkeypatch.setattr(signal_explain, "load_snapshot", load)
+    monkeypatch.setattr(signal_explain, "explain", explain)
+    monkeypatch.setattr(signal_explain, "side_counts", boom)
+    s = asyncio.run(H.signal(object(), "055550", True))
+    assert s["status"] == H.OK and s["data"]["counts"] is None and s["data"]["counts_note"] == H.SIGNAL_RANK_UNREADABLE
+    assert s["data"]["summary"] == "요약" and len(s["data"]["reasons"]) == 1
 
 
 def test_financials_section(monkeypatch):

@@ -12,6 +12,8 @@
 import { esc } from "./howtoview.js";
 import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD } from "./stockchart.js";
 import { RULE_PLAIN, SECTION_HOWTO, SIGNAL_HIT_NOTE, planTimeframeNote, planMarketLine, planIndexMove, planNoteText } from "./stockplain.js";
+// 신호 순위 표와 같은 글 · 같은 규칙(근거 개수 한 줄 · 신호 기준 종가는 그 신호 기록의 기준일 일봉만) — 한 곳(signal-rank.js)에서 가져온다
+import { countsView, priceLines, ohlcvCode, mmdd, ymd, drawerFailText } from "./signal-rank.js";
 
 /** 서랍에 그릴 칸 차례 — 서버 stock_hub.SECTIONS 에서 머리(identity)를 뺀 일곱(시험이 맞댐) */
 export const DRAWER_SECTIONS = ["price", "signal", "financials", "disclosures", "news", "schedule", "sector"];
@@ -122,17 +124,29 @@ function sdPlainReason(r, open = false) {
     + (p ? `<details class="sd-more"${open ? " open" : ""}><summary>쉬운 뜻 · 조심할 점</summary><div class="sd-plain"><span>쉬운 뜻</span> ${esc(p.mean)}${tf ? ` ${esc(tf)}` : ""}</div><div class="sd-care"><span>조심할 점</span> ${esc(p.care)}</div></details>` : "") + `</li>`;
 }
 
+/** 모달 신호 칸의 근거 목록 — 자르지 않고 전부(서버가 전부 준다 · 사용자 11-02 「전부 보이게」). 근거마다 쉬운 풀이는 접혀 있고 각 목록의 첫 줄만 열려 있다 */
 function sdPlainReasonLines(label, items) {
-  const list = (items || []).slice(0, SD_LIST).map((r, i) => sdPlainReason(r, i === 0)).join("");
-  return list ? `<p class="sd-sub">${esc(label)} — ${(items || []).slice(0, SD_LIST).length}개</p><ul class="sd-list sd-list--plain">${list}</ul>` : "";
+  const all = items || [];
+  const list = all.map((r, i) => sdPlainReason(r, i === 0)).join("");
+  return list ? `<p class="sd-sub">${esc(label)} — ${all.length}개</p><ul class="sd-list sd-list--plain">${list}</ul>` : "";
 }
 
-/** 모달 안 신호 칸 — 서버 한 줄 요약은 그대로, 근거마다 쉬운 풀이를 붙이고 「말하지 않는 것」 을 밝힌다 */
-function sdSignalPlainBody(d) {
+/** 신호 기준 종가 한 줄 — 그 신호 기록의 기준일(signalAsOf) 일봉 종가만. 그날 줄이 없으면 「확인 불가」(마지막 종가로 대신하지 않는다 · 오준영 님 #373 3번) */
+export function sdSignalCloseView(ohlcv, signalAsOf, closeErr = "") {
+  return priceLines(ohlcv, null, signalAsOf, closeErr).close;
+}
+
+/** 모달 안 신호 칸 — 서버 한 줄 요약은 그대로, 근거 개수 한 줄 · 신호 기준 종가 자리(열린 뒤 채움)를 더하고, 근거마다 쉬운 풀이를 붙이고 「말하지 않는 것」 을 밝힌다 */
+function sdSignalPlainBody(d, sec) {
   const side = d.signal ? `${d.signal}${d.signal === "관망" ? "" : " 쪽"}` : "";
   const chip = [side, d.strength].filter(Boolean).join(" · ");
+  const cv = "counts" in d ? countsView(d) : null;      // 옛 응답(counts 칸 없음)이면 줄을 만들지 않는다 — 못 센 것(null)과 다르다
+  const counts = cv ? `<p class="sd-note" data-hub-counts>${esc(cv.text)}${cv.note ? ` · ${esc(cv.note)}` : ""}</p>` : "";
+  const day = sec && sec.as_of ? String(sec.as_of) : "";
+  const close = day ? `<p class="sd-note" data-hub-sigclose="${esc(day)}">신호 기준 종가(${esc(mmdd(day))}) 불러오는 중…</p>` : "";
   return (chip ? `<p class="sd-main"><span class="sd-chip">${esc(chip)}</span> <small>${esc(d.confidence_text || "")}</small></p>` : "")
     + (d.summary ? `<p class="sd-text">${esc(d.summary)}</p>` : "")
+    + counts + close
     + sdPlainReasonLines("그렇게 본 까닭", d.reasons) + sdPlainReasonLines("반대로 본 까닭", d.counter_reasons)
     + `<p class="sd-note"><b>이 설명이 말하지 않는 것</b> — 앞으로 오를지 내릴지, 목표 가격, 얼마를 사고팔지. ${esc(SIGNAL_HIT_NOTE)} 신뢰도는 여러 기간의 판단이 같은 방향인 정도일 뿐 맞을 확률이 아닙니다.</p>`;
 }
@@ -151,7 +165,7 @@ export function sdSectionHtml(key, sec, labelOf, opts = {}) {
     return `<section class="sd-sec sd-sec--empty" data-hub-sec="${esc(key)}"><div class="sd-head"><b>${esc(label)}</b><span class="sd-state">${esc(state)}</span></div>`
       + `<p class="sd-why">${esc(sec.reason || "이 칸의 자료가 없습니다.")}</p></section>`;
   }
-  const body = ((opts.plain && SD_BODY_PLAIN[key]) || SD_BODY[key] || (() => ""))(sec.data || {});
+  const body = ((opts.plain && SD_BODY_PLAIN[key]) || SD_BODY[key] || (() => ""))(sec.data || {}, sec);
   const asOf = sdMonthDay(sec.as_of);
   const go = sec.view && labelOf?.get(sec.view)
     ? `<button type="button" class="sd-go" data-hub-go="${esc(sec.view)}">${esc(labelOf.get(sec.view))} →</button>` : "";
@@ -338,6 +352,24 @@ export function mountStockDrawer(doc, deps) {
     if (slot) slot.textContent = line;
     if (tplEl) tplEl.textContent = planNoteText(hub, line);
   }
+  /** 신호 기준 종가 자리를 채운다 — 신호 칸이 가리키는 기록의 기준일 하루치 일봉만 부른다(basis=raw · 마지막 종가로 대신하지 않는다).
+   *  종목코드를 모르거나 요청이 실패하면 값을 지어내지 않고 까닭을 보인다. 그 사이 다른 종목을 열었으면 덮지 않는다(seq) */
+  async function fillSignalClose(m, hub, seq) {
+    const slot = m.querySelector("[data-hub-sigclose]");
+    if (!slot) return;
+    const day = slot.dataset.hubSigclose;
+    const code = ohlcvCode(hub.symbol);
+    let ohlcv = null, err = "";
+    if (!code) err = "종목코드를 알 수 없어 종가를 조회하지 않았습니다.";
+    else {
+      try {
+        ohlcv = await deps.api(`/api/data/ohlcv?symbol=${encodeURIComponent(code)}&timeframe=1d&from=${encodeURIComponent(ymd(day))}&to=${encodeURIComponent(ymd(day))}&basis=raw`);
+      } catch (e) { err = drawerFailText(e); }
+    }
+    if (seq !== modalSeq || m.hidden) return;
+    const v = sdSignalCloseView(ohlcv, day, err);
+    slot.textContent = v.note ? `${v.text} · ${v.note}` : v.text;
+  }
   let modalSeq = 0;
   function openModal(hub) {
     const m = ensureModal();
@@ -349,7 +381,9 @@ export function mountStockDrawer(doc, deps) {
     if (modalChart) modalChart.destroy();
     modalChart = startChart(m, hub.symbol);
     m.querySelector("[data-hub-modal-close]")?.focus();
-    fillMarketLine(m, hub, ++modalSeq);
+    const seq = ++modalSeq;
+    fillMarketLine(m, hub, seq);
+    fillSignalClose(m, hub, seq);
   }
   /** 서랍을 거치지 않고 바로 모달 — `data-hub-mode="modal"` 입구(모의주문 시세 조회 결과) */
   async function openModalFor(symbol, name, trigger) {

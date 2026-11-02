@@ -316,3 +316,52 @@ def test_signal_hit_note_is_one_sentence_used_in_modal_and_copy_template():
     for src in (plain, drawer):
         assert "과거에 맞았는지 재지 않았습니다" not in src
     assert not re.search(r"(BUY|SELL)", plain)                                       # 규칙 표시이지 매매 권유가 아니다
+
+
+def _hub_with_signal(**data):
+    import copy
+    hub = copy.deepcopy(HUB)
+    hub["sections"]["signal"]["data"].update(data)
+    return hub
+
+
+def test_modal_signal_shows_all_reasons_counts_and_signal_close_slot(tmp_path):
+    """TC-SDR-14 · 신호 순위 줄이 같은 모달을 여므로(사용자 11-02 입구 통일) 모달 신호 칸이 순위 서랍이 보이던 것을 이어받는다 —
+    ① 근거를 자르지 않고 전부(서버가 전부 준다) · ② 「근거 n개 (매수 쪽 · 중립 · 매도 쪽)」 한 줄(못 세면 0개가 아니라 서버 까닭) ·
+    ③ 신호 기준 종가 자리(그 신호 기록의 기준일 · 마지막 종가로 대신하지 않는다). 서랍(작은 화면)은 그대로 3줄."""
+    reasons = [{"key": f"r{i}", "timeframe": "1d", "label": "일봉", "text": f"근거 문장 {i}", "points": 1} for i in range(1, 6)]
+    counters = [{"key": f"c{i}", "timeframe": "1w", "label": "주봉", "text": f"반대 문장 {i}", "points": -1} for i in range(1, 4)]
+    hub = _hub_with_signal(reasons=reasons, counter_reasons=counters, counts={"buy": 3, "neutral": 1, "sell": 1})
+    out = _run(tmp_path, hub, """
+out.modal = sd.sdModalHtml(HUB);
+out.drawer = sd.stockDrawerHtml(HUB);
+out.odd = sd.sdModalHtml({ ...HUB, sections: { ...HUB.sections, signal: { ...HUB.sections.signal,
+  data: { ...HUB.sections.signal.data, counts: null, counts_note: '낯선 근거 문장' } } } });
+out.close = [
+  sd.sdSignalCloseView({ basis: 'raw', rows: [{ trade_date: '2026-10-29', close: 72300 }] }, '2026-10-29'),
+  sd.sdSignalCloseView({ basis: 'raw', rows: [{ trade_date: '2026-10-28', close: 70000 }] }, '2026-10-29'),
+  sd.sdSignalCloseView(null, '2026-10-29', '서버에 연결할 수 없습니다.'),
+];
+""")
+    m = out["modal"]
+    sig = m[m.index('data-hub-sec="signal"'):m.index('data-hub-sec="financials"')]
+    assert all(f"근거 문장 {i}" in sig for i in range(1, 6)) and all(f"반대 문장 {i}" in sig for i in range(1, 4))     # ① 전부
+    assert "근거 5개 (매수 쪽 3 · 중립 1 · 매도 쪽 1)" in sig                                                         # ② 순위 표와 같은 글
+    assert 'data-hub-sigclose="2026-10-29"' in sig                                                                  # ③ 그 신호 기록의 기준일
+    dr = out["drawer"]
+    assert "근거 문장 3" in dr and "근거 문장 4" not in dr and "data-hub-sigclose" not in dr and "근거 5개" not in dr   # 서랍은 그대로
+    assert "근거 개수를 셀 수 없습니다" in out["odd"] and "낯선 근거 문장" in out["odd"] and "근거 0개" not in out["odd"]
+    ok, other_day, failed = out["close"]
+    assert ok["ok"] is True and ok["text"] == "신호 기준 종가(10-29) 72,300원"
+    assert other_day["ok"] is False and other_day["text"] == "신호 기준 종가(10-29) 확인 불가"                          # 다른 날 종가로 대신하지 않는다
+    assert failed["ok"] is False and "서버에 연결할 수 없습니다." in failed["note"]
+
+
+def test_modal_fills_signal_close_from_the_signal_day():
+    """TC-SDR-15 · 모달이 열린 뒤 신호 기준 종가 자리를 채우는 길 — 그 신호 기록의 기준일 일봉만 부른다(`basis=raw` · 마지막 종가를 쓰지 않는다 ·
+    오준영 님 #373 3번) · 늦게 온 응답이 다른 종목 모달을 덮지 않게 순번(seq)으로 막는다."""
+    js = DRAWER.read_text(encoding="utf-8")
+    assert 'from "./signal-rank.js"' in js and "fillSignalClose" in js and "data-hub-sigclose" in js
+    assert "/api/data/ohlcv?symbol=" in js and "&basis=raw" in js and "from=${" in js
+    assert "seq !== modalSeq" in js
+

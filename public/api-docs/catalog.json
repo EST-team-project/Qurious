@@ -8322,7 +8322,9 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [],
+   "screens": [
+    "signal-rank"
+   ],
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
@@ -8352,7 +8354,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
-   "line": 63,
+   "line": 64,
    "errors": [],
    "keys": [
     "items",

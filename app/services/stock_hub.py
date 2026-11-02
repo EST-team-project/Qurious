@@ -286,10 +286,18 @@ async def signal(db, symbol: str, in_universe: bool | None) -> dict:
         return section("signal", EMPTY, reason=SIGNAL_NOT_UNIVERSE if in_universe is False else SIGNAL_NONE)
     ex = signal_explain.explain(snap)
     keep = ("key", "timeframe", "label", "text", "points")        # key 는 규칙 이름 — 화면이 쉬운 풀이(stockplain.js)를 찾는 열쇠
+    # 근거는 자르지 않고 전부 낸다(사용자 11-02 「전부 보이게」 — 신호 순위 줄을 눌러도 같은 모달이 열리므로 순위 서랍이 보이던 양을 줄이지 않는다)
     data = {"signal": ex["signal"], "strength": ex["strength"], "confidence": ex["confidence"],
             "summary": ex["summary"], "confidence_text": ex["confidence_text"], "definition": ex["definition"],
-            "reasons": [{k: r.get(k) for k in keep} for r in ex["reasons"][:3]],
-            "counter_reasons": [{k: r.get(k) for k in keep} for r in ex["counter_reasons"][:2]]}
+            "reasons": [{k: r.get(k) for k in keep} for r in ex["reasons"]],
+            "counter_reasons": [{k: r.get(k) for k in keep} for r in ex["counter_reasons"]]}
+    # 근거 개수 — 순위 표(signal_rank)와 같은 셈(side_counts). 낯선 근거 문장이면 0개로 두지 않고 개수만 비우고 까닭을 남긴다
+    try:
+        c = signal_explain.side_counts(snap)
+    except signal_explain.UnknownReason:
+        data["counts"], data["counts_note"] = None, SIGNAL_RANK_UNREADABLE
+    else:
+        data["counts"] = {k: c[k] for k in ("buy", "neutral", "sell")}
     return section("signal", OK, data=data, as_of=ex["as_of"], source=SIGNAL_SOURCE, notice=ex["disclaimer"])
 
 
