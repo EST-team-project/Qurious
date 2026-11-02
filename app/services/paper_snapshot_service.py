@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import uuid
 from datetime import date, datetime
@@ -15,12 +16,13 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 import numpy as np
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.paper import PaperAccount
-from app.models.paper_snapshot import PaperAccountSnapshot     # ← import만!
+from app.models.paper_snapshot import PaperAccountSnapshot
+from app.models.paper_snapshot_price_audit import PaperSnapshotPriceAudit
 from app.services.paper_trading import account_snapshot
 from app.services.snapshot_pricing import daily_complete, consecutive
 
@@ -53,10 +55,20 @@ async def record_daily_snapshot(
     """
     if snap_date is None:
         snap_date = datetime.now(KST).date()
-
     if origin not in ("daily", "manual"):
         raise ValueError("잘못된 스냅샷 출처입니다.")
-    snap = await account_snapshot(db, user_id, valuation_date=snap_date)
+
+    # 기존 2인자 mock 및 호출부 호환성을 유지하면서 감사 데이터만 선택적으로 요청한다.
+    params = inspect.signature(account_snapshot).parameters
+    supports_audits = (
+        "include_price_audits" in params
+        or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+    )
+    kwargs = {'valuation_date': snap_date}
+    if supports_audits:
+        kwargs['include_price_audits'] = True
+    snap = await account_snapshot(db, user_id, **kwargs)
+    price_audits = snap.get("_price_audits", [])
 
     cash = float(snap["cash"])
     stock_eval = float(snap["stockEval"])
@@ -149,7 +161,27 @@ async def record_daily_snapshot(
         where=(PaperAccountSnapshot.origin != "daily") if origin == "manual" else None,
     )
 
-    await db.execute(stmt)
+    stmt = stmt.returning(PaperAccountSnapshot.id)
+    snapshot_id = (await db.execute(stmt)).scalar_one_or_none()
+
+    # 같은 날짜 스냅샷을 재기록하면 해당 스냅샷의 감사 행만 교체한다.
+    if snapshot_id is not None:
+        await db.execute(
+            delete(PaperSnapshotPriceAudit).where(
+                PaperSnapshotPriceAudit.snapshot_id == snapshot_id
+            )
+        )
+    if snapshot_id is not None and price_audits:
+        audit_rows = [
+            {**item, "snapshot_id": snapshot_id}
+            for item in price_audits
+        ]
+        await db.execute(
+            PaperSnapshotPriceAudit.__table__.insert(),
+            audit_rows,
+        )
+
+    # 스냅샷 upsert와 감사 행 교체를 하나의 트랜잭션으로 확정한다.
     await db.commit()
 
     logger.info(

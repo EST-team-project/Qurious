@@ -101,6 +101,23 @@ const open = fn => { opened += 1; cb = fn; };
 """
 
 
+def test_late_name_resolution_does_not_replace_new_symbol(tmp_path):
+    out = _run(tmp_path, FAKE_DOM + """
+ord.value = "삼성전자";
+let resolve;
+const pending = sf.resolveSymbolInput(doc, ord, {
+  search: () => new Promise(r => { resolve = r; }),
+  open: () => { throw Error('늦은 검색 창이 열리면 안 됨'); },
+});
+ord.value = "000660";
+resolve([{symbol: "005930.KS", name: "삼성전자"}]);
+out.result = await pending;
+out.value = ord.value;
+out.events = events;
+""")
+    assert out == {"result": None, "value": "000660", "events": []}
+
+
 def test_stockfind_mounts_and_fills_in_fake_dom(tmp_path):
     """TC-SFD-02 · 단추 달기 · 두 번 달지 않음 · 누르면 열리고 고르면 칸 · 이름 칸이 채워짐."""
     out = _run(tmp_path, FAKE_DOM + """

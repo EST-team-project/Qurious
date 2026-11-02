@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.services.strategy_v2 import load_bars
+from app.services.strategy_v2 import CONTRACT, load_bars, validate_card
 from app.services.strategy_v2_replay import replay
 
 
@@ -23,6 +23,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     spec = json.loads(args.card.read_text(encoding="utf-8"))
+    if validate_card(spec) != validate_card(CONTRACT):
+        parser.error('이 검증 명령은 고정 삼성전자 판 2 카드 전용입니다.')
     bars = load_bars("005930.KS", args.through, path=args.collector_db)
     result = replay(spec, bars, start=args.start, initial_cash=args.initial_cash,
                     budget=args.budget, slippage_bps=args.slippage_bps)

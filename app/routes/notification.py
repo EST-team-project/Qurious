@@ -348,7 +348,7 @@ async def notification_history(
     )
     events = [{
         "subject": ev.subject, "message": ev.message, "channels": ev.channels,
-        "created_at": ev.created_at.isoformat(), "kind": ev.kind,
+        "created_at": ev.created_at.isoformat(), "kind": ev.kind, "ref": ev.ref,
         "delivery_status": ev.delivery_status, "status_label": DELIVERY_LABELS.get(ev.delivery_status, "확인 필요"),
         "payload": ev.payload,
     } for ev in result.scalars().all()]

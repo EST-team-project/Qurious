@@ -77,6 +77,8 @@ class Order(Base, UUIDPkMixin, CreatedAtMixin):
     stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     # 발동 시각 (stop 주문이 도달해서 시장가로 넘어간 시각)
     triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 체결과 함께 저장하는 알림 대기 표시. 과거 주문은 재발송하지 않는다.
+    fill_notice_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
 class OrderFill(Base, UUIDPkMixin, CreatedAtMixin):
     """부분체결 한 건. 주문 1건이 여러 번에 나눠 체결될 수 있다.
@@ -133,6 +135,8 @@ class BrokerSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     # domain-rag-lab 백테스트 합격 전략 (종목 선정 화면 드롭다운). 비어 있으면 기존 하드코딩 시그널 규칙 사용
     quant_strategy_id: Mapped[str] = mapped_column(String(40), nullable=False, default="")
     quant_strategy_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 사용자가 명시적으로 선택한 개인 카드 사본. 원본 편집/삭제가 실행 규칙을 바꾸지 않는다.
+    quant_local_strategy: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # ── 자동매매 위험관리 ──────────────────────────────────────────────────
     risk_daily_loss_limit_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)   # 일중 손실 한도(%) 초과 시 비상 정지

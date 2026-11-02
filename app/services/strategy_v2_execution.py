@@ -17,7 +17,8 @@ from app.services import (strategy_v2 as v2, execution_control as control, live_
 SYMBOL = '005930.KS'
 
 
-def inputs():
+def inputs(spec=None, symbol=SYMBOL):
+    spec = spec or v2.CONTRACT
     ready = rebalance_daily.readiness()
     if not ready['ready']:
         raise control.Rejected('DATA_NOT_READY', ready['message'])
@@ -29,28 +30,43 @@ def inputs():
         proof = hf_snapshot.read_ready_proof(path.parent)
         if proof['snapshot_commit'] != ready['source_commit']:
             raise control.Rejected('DATA_CHANGED', '확인 중 수집 자료 세대가 바뀌었습니다.')
-    bars = v2.load_bars(SYMBOL, date.fromisoformat(ready['data_as_of']), path=path)
-    v2.judgment(v2.CONTRACT, bars)
+    bars = v2.load_bars(symbol, date.fromisoformat(ready['data_as_of']), path=path)
+    if not bars or bars[-1]['date'] != ready['data_as_of']:
+        raise control.Rejected('DATA_NOT_READY', '선택한 종목의 최신 확정 일봉이 아직 없습니다.')
+    v2.judgment(spec, bars)
     return bars, {k: ready.get(k) for k in ('data_as_of', 'data_ready_at', 'source_commit')}
 
 
-def context(uid):
+def context(uid, spec=None, symbol=SYMBOL):
     return dict(user_id=uid, account_ref=control.digest([str(uid), 'QUANT']),
-                book='V2_VIRTUAL', symbol=SYMBOL, spec=v2.CONTRACT)
+                book='V2_VIRTUAL', symbol=symbol, spec=spec or v2.CONTRACT)
 
 
 def runtime_id(ctx):
-    return control.digest([str(ctx['user_id']), ctx['account_ref'], ctx['book'], 'ma_cross_20_60', 2, SYMBOL])
+    return control.digest([str(ctx['user_id']), ctx['account_ref'], ctx['book'], ctx['spec']['strategy_id'], ctx['spec']['version'], ctx['symbol']])
 
 
-async def configuration(db, uid, *, require_enabled):
+def current_inputs(ctx):
+    # 기존 고정 입력 시험/호출 계약을 유지한다.
+    return inputs() if ctx['spec'] == v2.CONTRACT and ctx['symbol'] == SYMBOL else inputs(ctx['spec'], ctx['symbol'])
+
+
+async def configuration(db, uid, *, require_enabled, ctx=None):
     row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid).execution_options(populate_existing=True))
     if row is None or row.quant_mode != 'paper':
         raise control.Rejected('V2_PAPER_ONLY', '판 2 다음 시가 실행은 앱 QUANT 가상 장부만 지원합니다.')
     if row.risk_kill_switch or require_enabled and not row.quant_auto_enabled:
         raise control.Rejected('DISABLED', '자동 실행 중지 또는 비상 정지 상태입니다.')
-    if require_enabled and (row.quant_strategy_id, row.quant_strategy_version) != ('ma_cross_20_60', 2):
+    spec = ctx['spec'] if ctx else v2.CONTRACT
+    if getattr(row, 'quant_local_strategy', None) and not spec['strategy_id'].startswith('local_'):
+        raise control.Rejected('SETTINGS_CHANGED', '현재 선택한 개인 전략으로 실행해야 합니다.')
+    if require_enabled and (row.quant_strategy_id, row.quant_strategy_version) != (spec['strategy_id'], spec['version']):
         raise control.Rejected('SETTINGS_CHANGED', '선택한 전략이 판 2가 아닙니다.')
+    if spec['strategy_id'].startswith('local_'):
+        from app.services import local_strategy
+        selected = local_strategy.selected(row, uid)
+        if not selected or selected['spec_hash'] != v2.validate_card(spec) or selected['symbol'] != ctx['symbol']:
+            raise control.Rejected('SETTINGS_CHANGED', '선택한 개인 전략의 고정 내용이 바뀌었습니다.')
     return row
 
 
@@ -67,7 +83,7 @@ async def recover(db, ctx, runtime):
     if intent is None:
         raise control.Rejected('EXECUTION_UNCONFIRMED', '예약에 대응하는 주문 의도를 확인하지 못했습니다.')
     if (intent.user_id != ctx['user_id'] or intent.account_ref != ctx['account_ref'] or intent.book != 'QUANT'
-            or (intent.strategy_id, intent.strategy_version, intent.symbol) != ('ma_cross_20_60', 2, SYMBOL)
+            or (intent.strategy_id, intent.strategy_version, intent.symbol) != (ctx['spec']['strategy_id'], ctx['spec']['version'], ctx['symbol'])
             or intent.side != pending['side']):
         raise control.Rejected('OWNERSHIP_UNCONFIRMED', '예약과 주문 의도의 귀속이 다릅니다.')
     order = await db.scalar(select(Order).where(Order.execution_intent_id == intent.intent_id))
@@ -77,7 +93,7 @@ async def recover(db, ctx, runtime):
         event = dict(kind='fill', order_key=intent.intent_id, cumulative_quantity=0, average_price=None, status='REJECTED')
     else:
         at = datetime.combine(date.fromisoformat(pending['target_date']), time(9), v2.KST)
-        if (order.user_id != ctx['user_id'] or order.source != 'QUANT' or order.symbol != SYMBOL
+        if (order.user_id != ctx['user_id'] or order.source != 'QUANT' or order.symbol != ctx['symbol']
                 or order.order_type.upper() != pending['side'] or order.status != 'filled'
                 or order.quantity != pending['quantity'] or order.filled_quantity != pending['quantity']
                 or order.filled_at != at or not math.isclose(float(order.avg_fill_price or 0), pending['execution_price'], rel_tol=1e-10)):
@@ -94,10 +110,10 @@ async def recover(db, ctx, runtime):
 
 
 async def prepare(db, ctx, intent, bars, evidence, expected_pending, *, require_enabled):
-    current_bars, current_evidence = inputs()
+    current_bars, current_evidence = current_inputs(ctx)
     if control.digest(current_bars) != control.digest(bars) or current_evidence != evidence:
         raise control.Rejected('DATA_CHANGED', '준비 중 확정 자료가 바뀌었습니다.')
-    row = await configuration(db, ctx['user_id'], require_enabled=require_enabled)
+    row = await configuration(db, ctx['user_id'], require_enabled=require_enabled, ctx=ctx)
     runtime = await db.get(StrategyRuntime, runtime_id(ctx), populate_existing=True)
     if not runtime or runtime.state['pending'] != expected_pending or runtime.state['blocked']:
         raise control.Rejected('STATE_CHANGED', '실행 준비 중 판 2 상태가 바뀌었습니다.')
@@ -107,7 +123,7 @@ async def prepare(db, ctx, intent, bars, evidence, expected_pending, *, require_
     if bars[-1].get('halted') or v2.adjustment_changed(expected_pending['factor'], bars[-1]['factor']):
         raise control.Rejected('CORPORATE_ACTION_OR_HALT', '실행일 거래정지 또는 가격 조정 사건으로 보류합니다.')
     positions = (await db.scalars(select(Portfolio).where(Portfolio.user_id == ctx['user_id'], Portfolio.book == 'QUANT', Portfolio.quantity > 0))).all()
-    if any(p.symbol != SYMBOL for p in positions):
+    if any(p.symbol != ctx['symbol'] for p in positions):
         raise control.Rejected('VALUATION_UNAVAILABLE', '다른 종목의 동일 시각 평가가 필요해 판 2 실행을 보류합니다.')
     account = await db.scalar(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == ctx['user_id']))
     if account is None:
@@ -127,7 +143,8 @@ async def prepare(db, ctx, intent, bars, evidence, expected_pending, *, require_
     if intent.side == 'BUY':
         sizing = v2.size_entry(runtime.state, equity=equity, cash=cash, price=price,
             budget=float(row.quant_per_trade_budget) * float(row.quant_buy_ratio), existing_value=actual * price,
-            position_cap_pct=limits.max_position_pct, slippage_bps=0, when=day)
+            position_cap_pct=limits.max_position_pct, slippage_bps=0, when=day,
+            market='KOSDAQ' if ctx['symbol'].endswith('.KQ') else 'KOSPI')
         quantity = sizing['quantity']
     if quantity <= 0:
         raise control.Rejected('ZERO_QUANTITY', '위험·예산·현금 상한으로 주문할 수량이 없습니다.')
@@ -142,17 +159,21 @@ async def prepare(db, ctx, intent, bars, evidence, expected_pending, *, require_
             'slippage_bps': slip, 'sizing': sizing, **evidence})
 
 
-async def run(uid, *, execute=False, require_enabled=False):
+async def run(uid, *, execute=False, require_enabled=False, spec=None, symbol=SYMBOL):
     """수동 호출은 자동 설정을 바꾸지 않는다. 정기 실행은 require_enabled=True."""
-    ctx = context(uid)
+    ctx = context(uid, spec, symbol)
     try:
-        bars, evidence = inputs()
+        v2.validate_card(ctx['spec'])
+        if (not ctx['spec']['strategy_id'].startswith('local_')
+                and (v2.validate_card(ctx['spec']) != v2.validate_card(v2.CONTRACT) or symbol != SYMBOL)):
+            raise ValueError('개인 전략은 설정에서 선택한 고정 사본으로 실행해야 합니다.')
+        bars, evidence = current_inputs(ctx)
         day = bars[-1]['date']
         async with get_session_factory()() as db:
             async with control.account_lock(db, ctx['account_ref']) as acquired:
                 if not acquired:
                     return control.blocked('ACCOUNT_BUSY', '같은 계좌의 실행이 진행 중입니다.')
-                await configuration(db, uid, require_enabled=require_enabled)
+                await configuration(db, uid, require_enabled=require_enabled, ctx=ctx)
                 runtime = await db.get(StrategyRuntime, runtime_id(ctx))
                 if not execute:
                     state = runtime.state if runtime else v2.initial_state()
@@ -160,7 +181,7 @@ async def run(uid, *, execute=False, require_enabled=False):
                         return dict(status='DRY_RUN', pending=state['pending'], evidence=evidence)
                     if state['last_bar'] == day:
                         return dict(status='DRY_RUN', reason='이미 판단한 봉', evidence=evidence)
-                    _, result = v2.observe(state, v2.CONTRACT, bars)
+                    _, result = v2.observe(state, ctx['spec'], bars)
                     return dict(status='DRY_RUN', decision=result, evidence=evidence)
                 if runtime:
                     await recover(db, ctx, runtime)
@@ -191,9 +212,9 @@ async def run(uid, *, execute=False, require_enabled=False):
                     return dict(status='skipped', code='CORPORATE_ACTION_OR_HALT', decision=result['outcome'])
                 # 계좌 잠금을 풀고 공통 관문이 같은 잠금을 얻는다. prepare에서 상태를 재검사한다.
                 await db.commit()
-        intent = control.Intent(uid, ctx['account_ref'], 'QUANT', 'ma_cross_20_60', 2, SYMBOL,
+        intent = control.Intent(uid, ctx['account_ref'], 'QUANT', ctx['spec']['strategy_id'], ctx['spec']['version'], ctx['symbol'],
             pending['side'], pending['signal_date'] + ':next_open', 'v2_next_open',
-            control.digest({'pending': pending, 'bar': bars[-1], 'spec': v2.validate_card(v2.CONTRACT)}))
+            control.digest({'pending': pending, 'bar': bars[-1], 'spec': v2.validate_card(ctx['spec'])}))
         async def prepare_order(db):
             try:
                 return await prepare(db, ctx, intent, bars, evidence, pending, require_enabled=require_enabled)
@@ -207,7 +228,8 @@ async def run(uid, *, execute=False, require_enabled=False):
                 quantity=quantity, mode='virtual_next_open', target_date=day, execution_price=basis['price']))
             await db.commit()
             from app.services.auto_trade import _execute_virtual_trade
-            result = await _execute_virtual_trade(db, uid, SYMBOL, '삼성전자', intent.side.lower(),
+            name = '삼성전자' if ctx['symbol'] == SYMBOL else ctx['symbol'].split('.')[0]
+            result = await _execute_virtual_trade(db, uid, ctx['symbol'], name, intent.side.lower(),
                 basis['price'], quantity, pending['reason'], filled_at=basis['filled_at'], strict_quantity=True)
             return {**result, 'price_basis': basis['price_basis']}
         outcome = await control.execute(intent, 0, prepare_order, send, require_enabled=require_enabled)

@@ -45,9 +45,9 @@ export function scDirection(current, stop) {
   const c = Number(current), s = Number(stop);
   if (!Number.isFinite(c) || c <= 0 || !Number.isFinite(s) || s <= 0) return "";
   const pct = Math.abs((s - c) / c * 100).toFixed(1);
-  if (s < c) return `스탑가가 현재가보다 ${pct}% 낮습니다 — 매도 스탑(손절)으로 쓰는 값입니다. 매수 스탑으로 등록하면 다음 1분 점검에서 바로 체결될 수 있습니다.`;
-  if (s > c) return `스탑가가 현재가보다 ${pct}% 높습니다 — 매수 스탑으로 쓰는 값입니다. 매도 스탑으로 등록하면 다음 1분 점검에서 바로 체결될 수 있습니다.`;
-  return "스탑가가 현재가와 같습니다 — 어느 쪽으로 등록해도 다음 1분 점검에서 바로 체결될 수 있습니다.";
+  if (s < c) return `스탑가가 현재가보다 ${pct}% 낮습니다 — 매도 스탑(손절)으로 쓰는 값입니다. 매수 스탑은 서버 기준 시세보다 높아야 등록할 수 있습니다.`;
+  if (s > c) return `스탑가가 현재가보다 ${pct}% 높습니다 — 매수 스탑으로 쓰는 값입니다. 매도 스탑은 서버 기준 시세보다 낮아야 등록할 수 있습니다.`;
+  return "스탑가가 현재가와 같습니다 — 서버 기준 시세와 같은 스탑가는 등록할 수 없습니다.";
 }
 
 /** 지금 시세에서 이미 닿아 있어 등록 즉시 발동할 스탑인가(서버 check_stop_orders 와 같은 조건 — 매도는 현재가 ≤ 스탑가 · 매수는 현재가 ≥ 스탑가) */
