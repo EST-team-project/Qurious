@@ -327,17 +327,10 @@ async def stock_positions(
         price = pos.avg_price
         price_complete = False
         resolved = None
-        try:
-            resolved = await resolve_stock(
-                pos.symbol, include_price_audit=include_price_audits
-            )
-            price = resolved["price"]
-            price_complete = price is not None and price > 0
-        except Exception:                                   # ← 추가
-            pass                                            # ← 추가 (price는 pos.avg_price 유지)
         meta = snapshot_pricing.evidence("stock", pos.symbol, price, "average_cost", None, fallback=["average_cost"])
         try:
-            info = await resolve_stock(pos.symbol)
+            info = await resolve_stock(pos.symbol, include_price_audit=True) if include_price_audits else await resolve_stock(pos.symbol)
+            resolved = info
             if snapshot_pricing.positive(info.get("price")):
                 price = info["price"]
                 fallback = [] if info.get("currency", "KRW") == "KRW" else ["foreign_fx_close_unverified"]
@@ -367,8 +360,9 @@ async def stock_positions(
             item["volatility"] = await stock_volatility(pos.symbol)
         if include_price_metadata:
             item["_price_complete"] = price_complete
+            item["_price_metadata"] = meta
         if include_price_audits:
-            if price_complete:
+            if resolved and meta['source'] not in ('average_cost', 'collector_close'):
                 audits = [
                     dict(audit)
                     for audit in (resolved or {}).get("_price_audits", [])
@@ -384,8 +378,8 @@ async def stock_positions(
                         "price_role": "valuation",
                         "used_price": float(price),
                         "currency": "KRW",
-                        "source": (resolved or {}).get("quote_source"),
-                        "as_of": None,
+                        "source": meta['source'],
+                        "as_of": snapshot_pricing.instant(meta.get('as_of')),
                         "fetched_at": None,
                         "cache_hit": False,
                         "cache_age_sec": None,
@@ -404,19 +398,18 @@ async def stock_positions(
                     "price_role": "valuation",
                     "used_price": float(price),
                     "currency": "KRW",
-                    "source": "average_cost",
-                    "as_of": None,
+                    "source": meta['source'],
+                    "as_of": snapshot_pricing.instant(meta.get('as_of')),
                     "fetched_at": None,
                     "cache_hit": False,
                     "cache_age_sec": None,
-                    "fallback_used": True,
-                    "fallback_reason": "quote_unavailable",
-                    "fallback_price": float(price),
-                    "status": "fallback",
+                    "fallback_used": bool(meta['fallback']),
+                    "fallback_reason": ','.join(meta['fallback']) or None,
+                    "fallback_price": float(price) if meta['fallback'] else None,
+                    "status": "fallback" if meta['fallback'] else "delayed",
                 }
                 item["_price_audit"] = fallback_audit
                 item["_price_audits"] = [fallback_audit]
-            item["_price_metadata"] = meta
         result.append(item)
     return result
 
@@ -713,6 +706,8 @@ async def upbit_tickers(
                         "trade_timestamp": r.get("trade_timestamp"),
                         "data": {
                             "market": r["market"], "price": float(r["trade_price"]),
+                            "as_of": datetime.fromtimestamp(r["trade_timestamp"] / 1000, timezone.utc).isoformat() if r.get("trade_timestamp") else None,
+                            "source": "upbit",
                             "changeRate": round(float(r.get("signed_change_rate", 0)) * 100, 2),
                             "change": float(r.get("signed_change_price", 0)),
                             "high24h": float(r.get("high_price", 0)), "low24h": float(r.get("low_price", 0)),
@@ -729,6 +724,9 @@ async def upbit_tickers(
         if not cached:
             continue
         item = dict(cached["data"])
+        if (now - cached['ts'] > 300
+                or not snapshot_pricing.evidence('crypto', code, item.get('price'), 'upbit', item.get('as_of'))['complete']):
+            continue
         if include_price_audits:
             trade_timestamp = cached.get("trade_timestamp")
             try:
@@ -823,7 +821,9 @@ async def crypto_holdings(
 ) -> dict:
     account = await get_account(db, user_id)
     rows = (await db.execute(select(CryptoHolding).where(CryptoHolding.user_id == user_id))).scalars().all()
-    tickers = {t["market"]: t for t in await upbit_tickers([r.market_code for r in rows], include_price_audits=include_price_audits)}
+    codes = [r.market_code for r in rows]
+    prices = await upbit_tickers(codes, include_price_audits=True) if include_price_audits else await upbit_tickers(codes)
+    tickers = {t['market']: t for t in prices}
 
     hold_list, total_buy, total_eval = [], 0.0, 0.0
     all_prices_complete = True
@@ -1066,7 +1066,7 @@ async def _alt_feed_scale(
 
 async def _alt_live_chart(symbol: str, days: int = 365, *, include_price_audit: bool = False):
     if symbol not in ALT_LIVE_FEEDS:
-        return []
+        return ([], {}) if include_price_audit else []
     now = time.time()
     cached = _alt_live_cache.get(symbol)
     if cached and now - cached["ts"] < _ALT_LIVE_TTL:
@@ -1243,7 +1243,7 @@ async def alt_positions(
     rows = (await db.execute(select(AlternativePosition).where(AlternativePosition.user_id == user_id))).scalars().all()
     result = []
     for row in rows:
-        quote = await alt_quote(row.symbol, include_price_audit=include_price_audits)
+        quote = await alt_quote(row.symbol, include_price_audit=True) if include_price_audits else await alt_quote(row.symbol)
         # 선물은 계약 명목금액이 아니라 주문 시 납부한 증거금을 기준으로 손익을 표시한다.
         cost = round(row.avg_price * quote["multiplier"] * quote["marginRate"] / 100) * row.quantity
         value = quote["tradeAmountPerUnit"] * row.quantity
@@ -1255,16 +1255,15 @@ async def alt_positions(
         if include_volatility:
             item["volatility"] = annualized_volatility([c["close"] for c in await alt_chart(row.symbol, 30)], 252)
         if include_price_metadata:
-            item["_price_complete"] = quote.get("source") != "교육용 기준 시세"
+            meta = snapshot_pricing.evidence("alternative", row.symbol, quote.get("price"), quote.get("source"), quote.get("updatedAt"))
+            item["_price_complete"] = meta["complete"]
+            item["_price_metadata"] = meta
         if include_price_audits:
             audit = dict(quote.get("_price_audit", {}))
             conversion_audit = audit.pop("_conversion_audit", None)
             item["_price_audits"] = [audit] if audit else []
             if conversion_audit:
                 item["_price_audits"].append(conversion_audit)
-            meta = snapshot_pricing.evidence("alternative", row.symbol, quote.get("price"), quote.get("source"), quote.get("updatedAt"))
-            item["_price_complete"] = meta["complete"]
-            item["_price_metadata"] = meta
         result.append(item)
     return result
 
@@ -1333,10 +1332,11 @@ async def account_snapshot(
     user_id: uuid.UUID,
     *,
     include_price_audits: bool = False,
+    valuation_date: date | None = None,
 ) -> dict:
-    account = await get_account(db, user_id)
+    account = await get_account(db, user_id, lock=valuation_date is not None)
     stocks = await stock_positions(
-        db, user_id, include_price_metadata=True,
+        db, user_id, include_price_metadata=True, valuation_date=valuation_date,
         include_price_audits=include_price_audits,
     )
     crypto = await crypto_holdings(
@@ -1347,12 +1347,6 @@ async def account_snapshot(
         db, user_id, include_price_metadata=True,
         include_price_audits=include_price_audits,
     )
-async def account_snapshot(db: AsyncSession, user_id: uuid.UUID, *, valuation_date: date | None = None) -> dict:
-    account = await get_account(db, user_id, lock=valuation_date is not None)
-    stocks = await stock_positions(db, user_id, include_price_metadata=True, valuation_date=valuation_date)
-    crypto = await crypto_holdings(db, user_id, include_price_metadata=True)
-    alts = await alt_positions(db, user_id, include_price_metadata=True)
-
     stock_eval = sum(p["evalAmount"] for p in stocks)
     crypto_eval = crypto["totalEvalKrw"]
     alt_eval = sum(p["evalAmount"] for p in alts)

@@ -87,3 +87,24 @@
 @media (max-width: 760px) { .sd-modal { padding: 0; align-items: stretch; } .sd-modal-body { max-height: none; flex: 1 1 auto; } .sd-modal > header, .sd-modal > .sd-modal-body, .sd-modal > footer { width: 100%; border-radius: 0; } }
 
 .sd-modal-ev { margin-top: 12px; }
+
+/* 쉬운 설명(2026-11-02 · Figma 「종목 허브」 10 쪽) — 모달 안에서만 쓴다 */
+.sd-modal-intro { margin: 0 0 6px; }
+.sd-market { margin: 4px 0 8px; font-size: 12.5px; font-weight: 600; color: var(--text-dim, #334155); }
+.sd-market:empty { display: none; }
+.sd-actions { margin: 8px 0 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sd-howto { margin: 2px 0 4px; }
+.sd-howto > summary { cursor: pointer; font-size: 11.5px; color: var(--accent, #2563eb); }
+.sd-howto > summary:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }
+.sd-list--plain { padding-left: 0; list-style: none; }
+.sd-list--plain > li { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: var(--surf2, #f1f5f9); }
+.sd-list--plain > li > b { font-size: 13px; }
+.sd-more { margin-top: 2px; }
+.sd-more > summary { cursor: pointer; font-size: 11.5px; color: var(--accent, #2563eb); }
+.sd-more > summary:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }
+.sd-plain, .sd-care { margin-top: 3px; font-size: 12px; line-height: 1.55; color: var(--text-dim, #334155); }
+.sd-care { color: var(--text-mute, #5b6b82); }
+.sd-plain > span, .sd-care > span { display: inline-block; margin-right: 4px; padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid var(--border, #dde2ec); }
+.sd-tpl { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, #dde2ec); }
+.sd-tpl > summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--text-dim, #334155); }
+.sd-tpl-text { margin: 6px 0; padding: 10px 12px; white-space: pre-wrap; word-break: keep-all; font-family: inherit; font-size: 12px; line-height: 1.6; border-radius: 8px; background: var(--surf2, #f1f5f9); color: var(--text-dim, #334155); }

@@ -34,7 +34,8 @@ def test_list_and_get_with_cache():
         if request.url.path == "/backtests/strategies":
             return httpx.Response(200, json={"strategies": [{"strategy_id": "ma_cross", "version": 2}]})
         if request.url.path == "/backtests/strategies/ma_cross":
-            return httpx.Response(200, json={"strategy_id": "ma_cross", "version": 2, "universe": ["005930"]})
+            return httpx.Response(200, json={"strategy_id": "ma_cross", "version": 2, "universe": ["005930"],
+                                             "acceptance": {"passed": True}})
         return httpx.Response(404, json={"detail": "not found"})
 
     sl.set_transport(httpx.MockTransport(handler))
@@ -49,6 +50,26 @@ def test_expired_cache_is_not_used_on_upstream_failure(monkeypatch):
     sl._cache["/backtests/strategies/x"] = (0, {"strategy_id": "x", "version": 1})
     sl.set_transport(httpx.MockTransport(lambda request: httpx.Response(503)))
     assert asyncio.run(sl.get_strategy("x")) is None
+
+
+@pytest.mark.parametrize("acceptance", [None, {}, {"passed": False}, {"passed": "true"}, {"passed": 1}, []])
+def test_remote_unaccepted_version_cannot_be_used_for_trading(acceptance):
+    # 원격의 특정 버전 API는 불합격 이력도 반환한다. 목록의 합격 필터에 의존하면 안 된다.
+    card = {"strategy_id": "x", "version": 1, "acceptance": acceptance}
+    sl.set_transport(httpx.MockTransport(lambda request: httpx.Response(200, json=card)))
+    assert asyncio.run(sl.get_strategy("x", 1)) is None
+
+
+def test_remote_accepted_pinned_version_is_available():
+    card = {"strategy_id": "x", "version": 1, "acceptance": {"passed": True}}
+    sl.set_transport(httpx.MockTransport(lambda request: httpx.Response(200, json=card)))
+    assert asyncio.run(sl.get_strategy("x", 1)) == card
+
+
+@pytest.mark.parametrize("body", [[], "invalid", 1, {"strategies": "invalid"}, {"strategies": [None, [], "x"]}])
+def test_malformed_remote_list_is_unavailable(body):
+    sl.set_transport(httpx.MockTransport(lambda request: httpx.Response(200, json=body)))
+    assert asyncio.run(sl.list_strategies()) == []
 
 
 @pytest.mark.parametrize("body", [[], {"strategy_id": "other", "version": 1},

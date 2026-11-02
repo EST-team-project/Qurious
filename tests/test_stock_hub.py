@@ -146,14 +146,15 @@ def test_signal_section(monkeypatch):
         assert s is snap
         return {"as_of": "2026-10-16", "signal": "매도", "strength": "보통", "confidence": 0.62, "definition": "d1",
                 "summary": "일 기준으로 …", "confidence_text": "주기 셋 가운데 둘이 …", "disclaimer": "투자 권유가 아닙니다.",
-                "reasons": [{"timeframe": "1d", "label": "일봉", "text": "RSI 가 …", "points": -2, "extra": 1}] * 4,
+                "reasons": [{"key": "rsi_high", "timeframe": "1d", "label": "일봉", "text": "RSI 가 …", "points": -2, "extra": 1}] * 4,
                 "counter_reasons": [{"timeframe": "1w", "label": "주봉", "text": "MACD …", "points": 1}]}
     monkeypatch.setattr(signal_explain, "load_snapshot", load)
     monkeypatch.setattr(signal_explain, "explain", explain)
     s = asyncio.run(H.signal(object(), "055550", True))
     assert s["status"] == H.OK and s["as_of"] == "2026-10-16" and s["notice"] == "투자 권유가 아닙니다."
     assert s["data"]["summary"] == "일 기준으로 …" and len(s["data"]["reasons"]) == 3
-    assert set(s["data"]["reasons"][0]) == {"timeframe", "label", "text", "points"}
+    assert set(s["data"]["reasons"][0]) == {"key", "timeframe", "label", "text", "points"}      # key = 규칙 이름(화면의 쉬운 풀이 열쇠 · TC-SDR-10)
+    assert s["data"]["reasons"][0]["key"] == "rsi_high"
     none_out = asyncio.run(H.signal(object(), "000660", False))
     assert none_out["status"] == H.EMPTY and none_out["reason"] == H.SIGNAL_NOT_UNIVERSE
     assert asyncio.run(H.signal(object(), "000660", None))["reason"] == H.SIGNAL_NONE
