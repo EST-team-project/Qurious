@@ -324,3 +324,40 @@ def test_load_day_ranks_each_symbols_latest_row(monkeypatch):
     assert [r["symbol"] for r in picked["rows"]] == ["TEST03"]
     assert picked["missing"] == [{"symbol": "TEST04", "reason": se.NONE}, {"symbol": "999999", "reason": se.NOT_UNIVERSE}]
     assert unknown["missing"] == [{"symbol": "999999", "reason": se.NONE}]   # 대상인지 모르면 「아님」 이라 하지 않는다
+    assert (day["total"], day["as_of_max"], day["older_count"]) == (3, last, 1)
+    assert day["computed_at_max"] == max(r["computed_at"] for r in rows if r["as_of"] == last)
+    assert (before["total"], before["as_of_max"], before["computed_at_max"], before["older_count"]) == (0, None, None, 0)
+    assert (picked["total"], picked["as_of_max"], picked["older_count"]) == (1, first, 0)
+
+
+@pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음(QURIOUS_TEST_DATABASE_URL)")
+def test_load_day_limit_reads_only_the_top_rows_and_counts_all(monkeypatch):
+    """#487 — `limit` 는 위에서부터 그만큼만 읽고, 집계 넷 · `missing` 은 자르기 전 전체로 낸다.
+    신호 순위(`stock_hub.signal_rank`)의 머리줄 · `total` 도 줄 수와 상관없이 같다."""
+    from app.services import stock_hub
+
+    bars = [_bars(seed=s, symbol=f"TEST0{s}") for s in (1, 2, 3, 4)]
+    days = [r["trade_date"] for r in bars[0].daily[-3:]]
+    recs = [ms.signal_at(bars[0], days[-1]), ms.signal_at(bars[1], days[-1]),
+            ms.signal_at(bars[2], days[0]), ms.signal_at(bars[3], days[0])]       # 둘은 앞 날짜만
+    monkeypatch.setattr(se, "_universe", lambda: frozenset({"TEST01", "TEST02", "TEST03", "TEST04", "TEST05"}))
+
+    async def go(session):
+        await ms.write_snapshots(session, recs)
+        full = await se.load_day(session)
+        tops = [await se.load_day(session, limit=n) for n in (1, 2)]
+        picked = await se.load_day(session, None, ["TEST01", "TEST02", "TEST03", "TEST05"], limit=1)
+        ranks = [await stock_hub.signal_rank(session, limit=n) for n in (1, stock_hub.SIGNAL_RANK_MAX)]
+        return full, tops, picked, ranks
+
+    full, tops, picked, ranks = _run(go)
+    keys = ("total", "as_of_max", "computed_at_max", "older_count")
+    assert (full["total"], full["older_count"]) == (4, 2) and full["as_of_max"] == date.fromisoformat(days[-1])
+    for n, top in zip((1, 2), tops):
+        assert [r["symbol"] for r in top["rows"]] == [r["symbol"] for r in full["rows"][:n]]
+        assert {k: top[k] for k in keys} == {k: full[k] for k in keys}
+    assert len(picked["rows"]) == 1 and picked["total"] == 3
+    assert picked["missing"] == [{"symbol": "TEST05", "reason": se.NONE}]     # 잘린 둘은 「기록 없음」 이 아니다
+    cut, whole = ranks
+    assert cut["count"] == 1 and whole["count"] == 4 and cut["total"] == whole["total"] == 4
+    assert cut["freshness"] == whole["freshness"] and cut["freshness"]["older_rows"] == 2
