@@ -23,6 +23,11 @@ export function hubDrawerPath(symbol) {
   return `/api/stock-hub?symbol=${encodeURIComponent(symbol)}`;
 }
 
+/** 증권사 화면(Npay 증권) 주소 — 코드가 6자리 영숫자(ETF 포함)일 때만. finance.naver.com 주소는 이리로 넘어온다(2026-11-02 직접 열어 확인) */
+export function hubNaverUrl(symbol) {
+  return /^[0-9A-Z]{6}$/.test(String(symbol || "")) ? `https://stock.naver.com/domestic/stock/${symbol}/price` : "";
+}
+
 function sdOk(sec) { return !!sec && sec.status === "ok"; }
 function sdNum(v, digits = 0) { return Number(v).toLocaleString("ko-KR", { maximumFractionDigits: digits }); }
 function sdPct(v) {
@@ -133,9 +138,11 @@ export function stockDrawerHtml(hub) {
   const name = hub.name || identity.name || hub.symbol;
   const market = SD_MARKETS[hub.market || identity.market] || hub.market || "";
   const price = s.price;
+  const naver = hubNaverUrl(hub.symbol);
   const head = `<header class="sd-top"><div><strong id="hub-dr-title">${esc(name)}</strong> <span class="sd-chip">${esc(hub.symbol)}</span>`
     + `${market ? ` <span class="sd-chip">${esc(market)}</span>` : ""}`
-    + `${sdOk(price) ? ` <span class="sd-top-price">${esc(sdNum(price.data.close))}원 <b class="${price.data.change_pct > 0 ? "up" : price.data.change_pct < 0 ? "dn" : ""}">${esc(sdPct(price.data.change_pct))}</b></span>` : ""}</div>`
+    + `${sdOk(price) ? ` <span class="sd-top-price">${esc(sdNum(price.data.close))}원 <b class="${price.data.change_pct > 0 ? "up" : price.data.change_pct < 0 ? "dn" : ""}">${esc(sdPct(price.data.change_pct))}</b></span>` : ""}`
+    + `${naver ? ` <a class="sd-ext" href="${esc(naver)}" target="_blank" rel="noopener noreferrer">Npay 증권에서 보기 ↗</a>` : ""}</div>`
     + `<button type="button" class="sd-close" data-hub-close aria-label="서랍 닫기">✕</button></header>`;
   const sections = DRAWER_SECTIONS.map(k => sdSectionHtml(k, s[k], labelOf)).join("");
   const generated = hub.generated_at ? `<small class="sd-note">${esc(String(hub.generated_at).slice(0, 16).replace("T", " "))} 에 모았습니다</small>` : "";

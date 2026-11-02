@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), rea
               pytest.mark.usefixtures("rebalance_db_schema")]
 
 KST = af.KST
-QUIET_CFG = {"channels": ["slack"], "slack_webhook_url": "http://x.invalid",
+QUIET_CFG = {"channels": ["slack"], "slack_webhook_url": "https://hooks.slack.com/services/T/B/x",
              "preferences": {"quiet": {"enabled": True, "start": "21:00", "end": "08:00"}}}
 
 
