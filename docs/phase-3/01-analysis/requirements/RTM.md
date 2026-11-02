@@ -1,15 +1,15 @@
-# 요구사항 추적표(RTM) v1.74 — Qurious
+# 요구사항 추적표(RTM) v1.75 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.74 · TC-SCH · TC-SFD · TC-SDR +7 |
+| **판 · 상태** | v1.75 · TC-SCD 설명 |
 | **구분** | 2. 요구사항 관리 — 요구사항 정의(요구 한 줄 · 관행 명칭 「요구사항정의서」) · 요구사항 추적표 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 |
 | **최종 수정** | 2026-11-02 (KST) |
 | **기준** | v1.56 은 코드 `main` `40f5e88`(10-27 #353 머지) + 이 판 작업 트리(코드는 신호 기록 순위 읽기 API 한 길 + 시험 · 지킴이 시험 한 줄) · 앞 판의 글은 개정 이력 아래 표 |
 | **관련 문서** | [요구 대장](대장/요구-대장.tsv) · [시험-요구 대장](대장/시험-요구대장.tsv) · [기능 설계서 v0.1](../../02-design/system/기능설계.md) · [API 명세서 v0.10](../../../phase-2/02-design/api/지난판/API명세서_v0.10.md) · [테스트 계획서 v1.13](../../../phase-2/04-testing/지난판/테스트계획서_v1.13.md) · [강사님 자료 기능 대조 v0.1](강사님자료-기능대조.md) · [RTM v1.4](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.4.md) · [RTM v1.2](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.2.md) · [RTM v1.1](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.1.md) · [RTM v1.0](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.0.md) |
-| **최근 개정** | v1.73 → v1.74: 시험 묶음 TC-SCH 신설 3 · TC-SFD 3 → 5 · TC-SDR 6 → 8 · 합계 3,726건(요구에 붙은 3,016 · 대장 · 코드에서 다시 채움) |
+| **최근 개정** | v1.74 → v1.75: TC-SCD 설명을 #479 의 화면 문구로 고침 · TC-SDR 8 → 11(모든 입구 모달 직행 · 모달 쉬운 설명 · 규칙 풀이) · TC-BF 7 → 10(포털 일시 장애 재시도) · 합계 3,726 → 3,732건 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트가 지켜야 할 요구는 몇 개이고 어디서 왔나 (1절)
@@ -358,13 +358,13 @@ flowchart LR
 |---|---|---|---|---|---|---|
 | **원문 PROJECT 01 로보 어드바이저 (2차)** | | | | | | |
 | `P01-①-1` | 설계서 4.1절 · 용어사전 설계서 v0.1 · 통합본 이식 계획서 v0.1 4절 | GRPH-01~03 · GLOS-01~04 | 🟡 TC-GL 93 · TC-LN 38 · TC-HT 13 · TC-LC 15 · TC-GS 15 · TC-TCH 3 · TC-CLV 6 · TC-HV 3 | 시험 | 있음 37파일 | 시험 일부 |
-| `P01-①-2` | 설계서 4.1절 · 수집기 README · 설계서 3절 C1 | STK-01~03 · 05~07 · MACR-01~04 · ING-01~04 · 12 · LIB-01 (새 1) | 🟢 TC-BF 7 · TC-A1 21 · TC-CD 22 · TC-DF01 21 · TC-LC 15 · TC-OA 21 · TC-NW 10 · TC-CR 6 · TC-DC 7 · TC-FS 6 · TC-GD 6 · TC-DQ 12 · TC-HD 5 · TC-RS 10 · TC-CL 18 · TC-FP 7 · TC-BK 7 · TC-DG 13 · TC-CQ 23 · TC-ECS 14 · TC-DK 6 · TC-DP 16 · TC-FX 11 · TC-QL 10 · TC-QUOT 11 · TC-FF 15 · TC-CI 8 · 🟡 TC-DU 91 · TC-DF17 17 · TC-OH 29 · TC-CT 12 · TC-HF 13 · TC-HS 21 · TC-KMD 14 · TC-TG 5 · TC-QVS 5 · TC-HUB 39 · TC-SSR 7 · TC-WR 21 · TC-WRS 3 · TC-FV 5 · TC-MK 7 · TC-MI 7 · TC-MKT 14 · TC-BV 4 · TC-HFO 5 · TC-BS 4 · TC-CIN 17 · TC-CV 12 · TC-SDR 8 · TC-SCH 3 | 시험 | 있음 97파일 | 시험 있음 |
+| `P01-①-2` | 설계서 4.1절 · 수집기 README · 설계서 3절 C1 | STK-01~03 · 05~07 · MACR-01~04 · ING-01~04 · 12 · LIB-01 (새 1) | 🟢 TC-BF 10 · TC-A1 21 · TC-CD 22 · TC-DF01 21 · TC-LC 15 · TC-OA 21 · TC-NW 10 · TC-CR 6 · TC-DC 7 · TC-FS 6 · TC-GD 6 · TC-DQ 12 · TC-HD 5 · TC-RS 10 · TC-CL 18 · TC-FP 7 · TC-BK 7 · TC-DG 13 · TC-CQ 23 · TC-ECS 14 · TC-DK 6 · TC-DP 16 · TC-FX 11 · TC-QL 10 · TC-QUOT 11 · TC-FF 15 · TC-CI 8 · 🟡 TC-DU 91 · TC-DF17 17 · TC-OH 29 · TC-CT 12 · TC-HF 13 · TC-HS 21 · TC-KMD 14 · TC-TG 5 · TC-QVS 5 · TC-HUB 39 · TC-SSR 7 · TC-WR 21 · TC-WRS 3 · TC-FV 5 · TC-MK 7 · TC-MI 7 · TC-MKT 14 · TC-BV 4 · TC-HFO 5 · TC-BS 4 · TC-CIN 17 · TC-CV 12 · TC-SDR 11 · TC-SCH 3 | 시험 | 있음 98파일 | 시험 있음 |
 | `P01-①-3` | 설계서 4.1절 | CHAT-01~02 · DOC-01~04 · GRPH-06 · CONV-01~08 · ING-05~07 · KB-02 | 🟢 TC-LW 12 · TC-SG 5 · TC-SQ 8 · TC-DI 16 · TC-DIA 3 · 🟡 TC-CM 9 · TC-VS 6 · TC-KB 18 · TC-KA 23 · TC-KS 8 · TC-KD 12 · TC-SY 6 · TC-SX 2 · TC-KF 13 · TC-SCC 6 · TC-TR 11 · TC-TA 6 · TC-VD 8 · 안 TC-RG | 시험 | 있음 38파일 | 시험 있음 |
-| `P01-①-4` | 설계서 4.1절 · 수집기 README 15절(일일 갱신) | SYS-02~03 · ING-08~11 · KB-01 (새 2) | 🟢 TC-DU 91 · TC-DF17 17 · TC-CN 5 · TC-CA 12 · TC-DST 31 · TC-HF 13 · TC-LE 36 · TC-HS 21 · TC-DH 5 · TC-DQ 12 · TC-EV 6 · TC-CS 19 · TC-CW 15 · TC-SU 25 · TC-FF 15 · TC-CI 8 · 🟡 TC-BF 7 · TC-CE 18 · TC-DF16 3 · TC-GW 11 · TC-NW 10 · TC-FS 6 · TC-DG 13 · TC-CQ 23 · TC-AJT 5 · TC-PLP 6 · TC-DCP 4 · TC-BG 6 · TC-DW 8 · TC-CPU 6 · TC-CRN 6 · 안 TC-CAL | 시험 | 있음 24파일 | 시험 있음 |
+| `P01-①-4` | 설계서 4.1절 · 수집기 README 15절(일일 갱신) | SYS-02~03 · ING-08~11 · KB-01 (새 2) | 🟢 TC-DU 91 · TC-DF17 17 · TC-CN 5 · TC-CA 12 · TC-DST 31 · TC-HF 13 · TC-LE 36 · TC-HS 21 · TC-DH 5 · TC-DQ 12 · TC-EV 6 · TC-CS 19 · TC-CW 15 · TC-SU 25 · TC-FF 15 · TC-CI 8 · 🟡 TC-BF 10 · TC-CE 18 · TC-DF16 3 · TC-GW 11 · TC-NW 10 · TC-FS 6 · TC-DG 13 · TC-CQ 23 · TC-AJT 5 · TC-PLP 6 · TC-DCP 4 · TC-BG 6 · TC-DW 8 · TC-CPU 6 · TC-CRN 6 · 안 TC-CAL | 시험 | 있음 24파일 | 시험 있음 |
 | `P01-①-5` | 설계서 4.1절 | (새 1) | 🟢 TC-XA 10 · TC-XR 22 · 🟡 TC-RX 27 · TC-RKS 7 · 안 TC-XA | 시연 | 있음 13파일 | 시험 있음 |
-| `P01-②-1` | 설계서 4.2절 · 설계서 3절 C2 | STK-04 | 🟢 TC-IN 29 · 🟡 TC-TV2 5 · 안 TC-IN | 시험 | 있음 33파일 | 시험 있음 |
+| `P01-②-1` | 설계서 4.2절 · 설계서 3절 C2 | STK-04 | 🟢 TC-IN 29 · 🟡 TC-TV2 5 · 안 TC-IN | 시험 | 있음 34파일 | 시험 있음 |
 | `P01-②-2` | 설계서 4.2절 | STK-08 | 🟢 TC-PT 7 · TC-PS 7 · 🟡 TC-PV 32 · 안 TC-PT | 분석 · 시험 | 있음 16파일 | 시험 있음 |
-| `P01-②-3` | 설계서 4.2절 | STK-04 · 08 | 🟢 TC-MT 20 · 🟡 TC-RKS 7 · TC-SCD 3 · 안 TC-MT | 시험 | 있음 43파일 | 시험 있음 |
+| `P01-②-3` | 설계서 4.2절 | STK-04 · 08 | 🟢 TC-MT 20 · 🟡 TC-RKS 7 · TC-SCD 3 · 안 TC-MT | 시험 | 있음 44파일 | 시험 있음 |
 | `P01-③-1` | 설계서 4.3절 | STK-09 · PAPR-01 (새 2) | 🟢 TC-RBS 13 · 🟡 TC-RB 13 · TC-RBP 38 · TC-RBD 39 · TC-RBC 16 · TC-RBU 15 · TC-RBX 13 · TC-SDS 20 · TC-HFF 45 · 안 TC-RB | 시험 | 있음 31파일 | 시험 있음 |
 | `P01-③-2` | 설계서 4.3절 | STK-09 · PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 12파일 | 시험 있음 |
 | `P01-③-3` | 설계서 4.3절 | PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 32파일 | 시험 있음 |
@@ -372,15 +372,15 @@ flowchart LR
 | `P01-④-2` | 설계서 4.4절 | STK-26 · 29 | 🟢 TC-SP 6 · 🟡 TC-SR 12 · TC-OP 14 · 안 TC-OP | 시험 | 있음 9파일 | 시험 있음 |
 | `P01-④-3` | 설계서 4.4절 · ADR-0001 · 설계서 3절 C5 | PAPR-01~08 · 10 · STK-10~13 · 24 · 27 (새 1) | 🟢 TC-I14 12 · TC-USO 25 · TC-PJ 20 · 🟡 TC-LT 32 · TC-USR 21 · TC-USS 14 · TC-QUOT 11 | 시험 | 있음 26파일 | 시험 있음 |
 | **원문 PROJECT 02 투자 인디케이터 (3차)** | | | | | | |
-| `P02-①-1` | 설계서 5.1절 · 설계서 3절 C2 | STK-04 · LEAN-02 | 🟡 TC-LA 46 · TC-IN 29 · TC-ICH 5 · 안 TC-IN | 시험 | 있음 41파일 | 시험 일부 |
-| `P02-①-2` | 설계서 5.1절 · 인디케이터 전략 설계서 4.3 | STK-30 · 32 | 🟡 TC-BC 17 · TC-SP 6 · TC-CRD 9 · TC-ISC 6 · TC-SCU 12 · 안 TC-CRD | 시험 | 있음 41파일 | 시험 일부 |
+| `P02-①-1` | 설계서 5.1절 · 설계서 3절 C2 | STK-04 · LEAN-02 | 🟡 TC-LA 46 · TC-IN 29 · TC-ICH 5 · 안 TC-IN | 시험 | 있음 42파일 | 시험 일부 |
+| `P02-①-2` | 설계서 5.1절 · 인디케이터 전략 설계서 4.3 | STK-30 · 32 | 🟡 TC-BC 17 · TC-SP 6 · TC-CRD 9 · TC-ISC 6 · TC-SCU 12 · 안 TC-CRD | 시험 | 있음 42파일 | 시험 일부 |
 | `P02-①-3` | 설계서 5.1절 · 설계서 3절 C4 · 결정 대장 D6 ⑤ · 인디케이터 전략 설계서 4.5 | STK-30 · LEAN-02~03 (새 1) | 🟡 TC-SL 19 · TC-BSL 7 · TC-BNC 6 · TC-E2E 3 · 안 TC-BSL | 분석 · 시험 | 있음 45파일 | 시험 일부 |
 | `P02-②-1` | 설계서 5.2절 | STK-30~33 | 🟢 TC-FM 14 · TC-VR 10 · 🟡 TC-TFS 10 · 안 TC-IN | 시험 | 있음 49파일 | 시험 있음 |
 | `P02-②-2` | 설계서 5.2절 · 설계서 3절 C2 | STK-04 · 30 | 🟢 TC-LA 46 · 🟡 TC-FM 14 · 안 TC-LA | 시험 | 희소 1파일 (04.html) | 시험 있음 |
 | `P02-②-3` | 설계서 5.2절 | STK-31~33 · OAPI-01~02 · 09 · PAPR-28~30 (새 1) | 🟡 TC-VR 10 · 안 TC-VR | 시험 | 있음 15파일 | 시험 일부 |
 | `P02-③-1` | 설계서 5.3절 | PAPR-09 (새 1) | 🟡 TC-FM 14 · TC-PN 33 · TC-PE 3 · TC-SCA 5 · TC-PCD 5 · TC-SC-IMG 3 · 안 TC-PN | 시연 · 시험 | 있음 22파일 | 시험 일부 |
 | `P02-③-2` | 설계서 5.3절 | LEAN-01~03 (새 1) | 🟡 TC-TV 17 · TC-LR 4 · TC-XV 22 · 안 TC-XV | 분석 | 있음 34파일 | 시험 일부 |
-| `P02-③-3` | 설계서 5.3절 | NOTI-01~04 (새 1) | 🟡 TC-TV 17 · TC-EXC 37 · TC-WH 41 · TC-WHP 13 · TC-NH 3 · TC-NR 17 · TC-ECH 4 · TC-AF 11 · TC-ADI 20 · TC-AFL 4 | 시험 | 있음 39파일 | 시험 일부 |
+| `P02-③-3` | 설계서 5.3절 | NOTI-01~04 (새 1) | 🟡 TC-TV 17 · TC-EXC 37 · TC-WH 41 · TC-WHP 13 · TC-NH 3 · TC-NR 17 · TC-ECH 4 · TC-AF 11 · TC-ADI 20 · TC-AFL 4 | 시험 | 있음 40파일 | 시험 일부 |
 | `P02-④-1` | 설계서 5.4절 · 설계서 3절 C1 · C3 | LEAN-02 · STK-03 | 🟡 TC-YH 2 · TC-CD 22 · TC-LR 4 · TC-LCS 2 · TC-LCA 6 · TC-LRF 4 · 안 TC-XV | 시험 | 있음 27파일 | 시험 일부 |
 | `P02-④-2` | 설계서 5.4절 · 설계서 3절 C4 | LEAN-02~03 · QNT-02 | 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 22파일 | 시험 일부 |
 | `P02-④-3` | 설계서 5.4절 | (새 1) | 🟡 TC-TV 17 · TC-LOE 4 · TC-TVC 3 · TC-TVK 3 · TC-CLY 5 · 안 TC-XV | 분석 | 있음 12파일 | 시험 일부 |
@@ -449,7 +449,7 @@ flowchart LR
 | TC-DU | `test_daily_update.py` | 91 | `P01-①-4` | 🟢 | 일일 갱신 러너의 단계 판정 · 잠금 · 예약 · 회차 기록 — 단계 차례(주총 · 배당 지급 일정은 재무 뒤 · 달력 앞 / 정책뉴스 · 언론사 기사는 색인 앞 / 섹터 법령 대조는 맨 끝) · 한 단계만 다시(다른 실행 막음 · 끝에 WAL 보조 파일 · DF-81) · 진행 파일(잠금과 따로) · 신호 · 모의 일지 단계(앱 DB 포트를 먼저 확인 · 닫혀 있으면 돌리지 않고 건너뜀 · 빠진 날 채우기 run --fill · DF-85) · 화면 수집 요청이 막는 때(guard_window 한 곳 · 수동 회차 11:00 ~ 13:30 · 겹치면 75) · 실패한 단계의 까닭 한 줄(비밀값 거름) · 자료 안내 숫자 파일 · 따라잡기 회차(DF-99) · 경고 종료코드(warn_codes · DF-92) · 올리기 직전 회차 기록 사본(#124) · DART 하루 몫 · 여러 PC 임대(앞 맞추기 · 못 잡으면 기다렸다 따라가기 · 잃으면 멈춤 · multi_pc_skip) |
 | 〃 | 〃 | 〃 | `P01-①-2` | 🟡 | 수집 단계를 차례로 돌리고 실패를 가린다 |
 | 〃 | 〃 | 〃 | `P02-⑤-3` | 🟡 | 정한 일정에 돌고 로그 · 상태를 남긴다 — 수집기 작업이지 전략 실행이 아니다 |
-| TC-BF | `test_backfill_exit.py` | 7 | `P01-①-2` | 🟢 | 시세 수집 명령이 결과를 종료코드로 알린다 — 빈 날(아직 공개 전 · 휴장)만이면 0 · 실패한 날 · 멈춤(한도 소진 · 하루치가 나뉘어 옴)은 69(EX_UNAVAILABLE — 받은 날은 저장하고 실패한 날은 수집 기록에 error 로 남아 다음 회차가 그날만 다시 받음) · 멈춘 까닭은 마지막 한 줄 · 앱 수집 작업이 읽는 날 수 칸은 숫자 그대로(DF-92 · 2026-10-15) |
+| TC-BF | `test_backfill_exit.py` | 10 | `P01-①-2` | 🟢 | 시세 수집 명령이 결과를 종료코드로 알린다 — 빈 날(아직 공개 전 · 휴장)만이면 0 · 실패한 날 · 멈춤(한도 소진 · 하루치가 나뉘어 옴)은 69(EX_UNAVAILABLE — 받은 날은 저장하고 실패한 날은 수집 기록에 error 로 남아 다음 회차가 그날만 다시 받음) · 멈춘 까닭은 마지막 한 줄 · 앱 수집 작업이 읽는 날 수 칸은 숫자 그대로(DF-92 · 2026-10-15) · 포털 일시 장애(5xx · 통신 오류 — 2026-11-02 12:31 HTTP 504 로 10-30 종가가 하루 늦음)는 같은 회차 안에서 20 · 60 · 120 · 300초 기다려 다시 시도(앞 날이 기회를 다 쓰면 뒤 날은 바로 포기 · 해석 실패는 재시도 안 함 · 백필은 기다림 없음)하고 실패 줄에 까닭(HTTP 504 n일)을 적음(TC-BF-07 ~ 09 · 11-02 S188) |
 | 〃 | 〃 | 〃 | `P01-①-4` | 🟡 | 정기 배치가 시세를 다 받지 못한 날을 「성공」 으로 숨기지 않는다 — 69 는 러너 · PC 작업자 종료코드(2 · 3 · 75 · 78 · 124)와 겹치지 않고 러너가 시세 단계에서 경고로 세는 값과 같다(DF-92) |
 | TC-I14 | `test_paper_ledger_i14.py` | 12 | `P01-④-3` | 🟢 | 자동매매는 자기 장부(QUANT)만 쓰고 모의투자 총자산은 그대로 · 두 장부 모두 총자산 = 초기 현금 − 거래비용 · 다른 장부의 보유는 팔 수 없다 |
 | TC-CE | `test_console_encoding.py` | 18 | `P01-①-4` | 🟡 | 사람이 돌리는 수집기 · 운영 명령(2026-09-30 기준 18곳)이 사용자 셸(cp949)에서 죽지 않는다 |
@@ -737,7 +737,7 @@ flowchart LR
 | TC-CPU | `test_proc_stats.py` | 6 | `P01-①-4` | 🟡 | 자식 프로세스(와 손자)의 CPU 시간(2026-10-31 · 할 일 P1 · scripts/proc_stats.py · 설계 가설 H2 · H5) — Windows 작업 개체로 가상환경 껍데기 아래 진짜 인터프리터까지 합침(자식 핸들 하나만 읽으면 계산도 0.06초였다) · 계산하는 자식은 걸린 시간과 비슷하고 기다리는 자식은 거의 0 · 손자 프로세스 포함 · Windows 밖은 None · Popen 이 아닌 것(핸들 -1 = 내 자신 포함)은 작업 개체에 넣지 않음 · 러너가 순차 단계와 뒤에서 도는 단계의 CPU 초를 단계 줄(cpu_seconds)과 이력 줄에 적음 · 시간 넘긴 단계는 124 이고 CPU 초 없음 — 6건 |
 | TC-BV | `test_binance_vision.py` | 4 | `P01-①-2` | 🟡 | Binance Vision 월 묶음 → ohlcv-v2(S167 · 할 일 ①-13 · collector/binance_vision.py · 사용자 결정 10-30 「다양하게 전부」 · 네트워크 없음 — 받기와 정제를 나눈 순수 함수) — 원본 주기 15종(1초봉만 제외) 주소 · 체크섬 글 읽기 · 지문이 다르면 막음 · zip 읽기(12칸 · 마이크로초 → 밀리초 · 헤더 줄 건너뜀 · 빈 zip · 칸 수 틀림 · 파일이 둘인 zip 을 숨기지 않고 알림) · v2 줄(UTC 날짜 · 코인 확장 칸 trades · taker_buy_* · 값 규칙 위반을 지우지 않고 셈 · 15 주기가 모두 v2 주기 이름이 됨) · 적재 경로(잘게 1 ~ 30분은 해로 · 거친 주기 1시간 이상은 종목당 파일 하나 — 모두 해로 쪼개면 113,550 개로 HF 10만 개 권장 초과 → 설계 약 4.5만 개). 합성 zip 만 — 실제 받기 · 올리기는 13:30 뒤 |
 | TC-HFO | `test_hf_orgs.py` | 5 | `P01-①-2` | 🟡 | Hugging Face 조직별 쓰기 권한 사전 점검(S167 · collector/hf_orgs.py · 개인 조직 Finance-Data 는 이동원만 · 팀원은 권한 없음) — whoami 모양 dict 로: 조직 소속이 아닌 팀원 · 토큰 없음은 건너뜀 · fine-grained 토큰은 조직이 범위에 있고 repo.write 가 있어야 씀(범위에 없음 · 읽기만은 못 씀) · 일반 토큰은 write 토큰 + 조직 역할 write · admin · whoami 가 터져도 쓸 수 없음으로 접어 팀 작업을 안 깨뜨림 · 점검 명령이 토큰 값을 출력하지 않음 · 팀 로직 파일(hf_dataset · hf_sync · daily_update)이 이 부품을 안 부름(기존 로직 유지) · 권한 없는 비공개 저장소는 404 로도 와서 RepositoryNotFoundError · 401 · 403 · 404 를 같은 건너뜀으로 접고 서버 오류(500)는 숨기지 않음 · 개인 토큰 변수(FINANCE_DATA_HF_TOKEN)가 없으면 팀 토큰 변수. 실제 올리기는 13:30 뒤 |
-| TC-SCD | `test_signal_cards_screen.py` | 3 | `P01-②-3` | 🟡 | 퀀트 대시보드 「규칙 신호」 카드(S167 · 할 일 ②-21 · ②-22 · 화면만 — 서버 응답 · _generate_signal · 일지 판 지문은 그대로) — node 로 quant.js 의 signalCardHtml 을 돌려: 「근거 n개」 · 근거 목록 · 출처 한 줄(data_note) · 현재가 옆 「종가」 · 기준일(as_of)이 서버가 알려 준 전 거래일보다 앞이면 「⚠ 최신 아님」 · 전 거래일을 모르면 경고 안 함(거짓 경고 금지) · 응답 실패(null) · 근거 없음 · HTML 이스케이프(script · img) · 제목 「규칙 신호 (자동매매 대상 N종목)」(대표 5종목 아님 · 실제 그리는 수) · 도움말 낱말 「규칙 신호」 · AI 매매 시그널 문구가 남지 않음. 브라우저 화면 확인은 아직 — 이 PC 앱 8966 에서 눈으로 볼 것 |
+| TC-SCD | `test_signal_cards_screen.py` | 3 | `P01-②-3` | 🟡 | 퀀트 대시보드 「규칙 신호」 카드(S167 · 할 일 ②-21 · ②-22 · 화면만 — 서버 응답 · _generate_signal · 일지 판 지문은 그대로) — node 로 quant.js 의 signalCardHtml 을 돌려: 「근거 n개」 · 근거 목록 · 출처 한 줄(data_note) · 현재가 옆 「종가」 · 기준일(as_of)이 서버가 알려 준 전 거래일보다 앞이면 「⚠ 최신 아님」 · 전 거래일을 모르면 경고 안 함(거짓 경고 금지) · 응답 실패(null) · 근거 없음 · HTML 이스케이프(script · img) · 제목 「기본 일봉 규칙 신호 (관찰 목록 N종목)」(#479 · 실제 그리는 수 · 「자동매매 대상 N」 문구가 남지 않음) · 카드마다 6자리 코드일 때 「종목 근거 →」 입구 · 도움말 낱말 「규칙 신호」 · AI 매매 시그널 문구가 남지 않음. 브라우저 화면 확인은 아직 — 이 PC 앱 8966 에서 눈으로 볼 것 |
 | TC-BS | `test_binance_store.py` | 4 | `P01-①-2` | 🟡 | 코인 봉 저장 · 개인 수집 스크립트(S167 · 할 일 ①-13 · collector/binance_store.py · scripts/personal_binance.py · 합성 zip · 가짜 HF) — 월 파일 쓰기(멱등 · 덮어쓰기) → 적재(잘게는 해 · 종목 파일 · 거친 주기는 종목당 하나 · 시간순 · 키 중복은 숨기지 않고 오류 · 달이 없으면 None) · 받기 한 건(이미 받은 달은 건너뜀 · 404 는 none · 체크섬이 다르면 막음) · 올리기(팀 조직에는 거부 · 토큰 없음 · 권한 없음 · 접근 불가는 에러 없이 건너뜀 · dry-run 은 안 올림 · 90개씩 커밋) · 팀 러너 · 앱이 이 부품을 안 부름. 실제 올림은 별도 확인(원격 parquet 60 · 지문 일치 3) |
 | TC-CIN | `test_company_indicators.py` | 17 | `P01-①-2` | 🟡 | 기업 지표 서비스 — PER = 종가 ÷ 보고 기본주당이익(시가총액 ÷ 순이익이 아님) · PBR 우선주 근사 · ROE 지배주주 몫 · 적자 · 자본잠식 · 지배 몫 계정 없음(총액과 섞지 않음) · 금융회사 영업이익률 줄표 · 배당 12개월 · 시점 고정 · 업종(KSIC) 중앙값 · 종목 목록 · 라우트 422 · 404 · 503(할 일은 관리자에게만) |
 | TC-CV | `test_companyview_screen.py` | 12 | `P01-①-2` | 🟡 | 지표 대시보드 · 지표 비교 · 섹터 화면 판단 — 응답 값 그대로 · 숫자 밑 식 · 기준 한 줄 · 근사 · 줄표 + 까닭 · 개요 카드 · 분기 실적 · 재무상태 표 · 가격 차트 글(실시간이 아님) · 비교 표 · 종목 찾기 · 요청 실패 격리 · 업종 카드 · 야후 없음 · 현재가 카드(내 증권사 키 시세 · 연결 안내 · 장 마감) · 오늘 점 갱신 연결(키 있는 사람만 약 10초마다) |
@@ -752,10 +752,10 @@ flowchart LR
 | TC-CRN | `test_collect_report.py` | 6 | `P01-①-4` | 🟡 | 일일 수집 회차 보고 알림(S183) — 회차 결과에서 사건을 만듦(성공 · 실패 단계 · 최신일 · DART 호출) · 알림 장애가 회차를 실패로 만들지 않음 · 사용자 없이 `.env` 채널로 · 끄는 환경 변수 · 예약 작업(pythonw)은 `.env.dev` 만 읽어 채널이 비므로 비어 있는 채널 칸만 `.env` 에서 채움(TC-CRN-06) |
 | TC-PRN | `test_paper_route_nameerror.py` | 4 | `U9` | 🟡 | 모의투자 성과 API 두 곳이 NameError 없이 값을 돌려준다(S182 · 이슈 #460) — 백테스트 100일 존재 확인(Order import)과 기준 지수 시계열(limit 미정의 제거)을 가짜 DB 로 직접 불러 지킨다. 정적으로는 ruff F821 이 같은 종류를 잡는다 |
 | TC-SFD | `test_stockfind_screen.py` | 5 | — | — | 종목 찾기 단추 — 칸에 넣을 글(국내 6자리 · 해외 기호) · 가짜 문서에서 단추 달기 · 눌러 열기 · 고르면 코드 · 이름 칸 채움 · 앱 12칸 연결(S177 · 사용자 피드백 「종목 코드 · 기업명 입력은 검색해서 고르게」) · 칸에 이름을 쳐도 풀린다 — 코드 꼴 판정 · 검색 결과 하나면 채움 · 여럿 · 없으면 검색 창을 그 글자로(TC-SFD-04) · 모의주문 화면 연결(TC-SFD-05 · 11-02 S187 · 스탑 칸 「삼성전자」 → 「지원하지 않는 종목입니다」) |
-| TC-SDR | `test_stock_drawer.py` | 8 | `P01-①-2` | 🟡 | 종목 허브 서랍 화면(S182 · 할 일 ②-10 · ②-20) — 서랍이 서버 허브 묶음의 칸 일곱(종가 · 신호 · 재무 · 공시 · 기사 · 일정 · 업종)을 기준일 · 출처와 함께 그대로 옮기고 새로 계산하거나 한 줄 결론을 만들지 않는다 · 칸이 비었거나 준비 중 · 오류면 서버 까닭을 보이고 나머지는 그린다 · 글자 막기 · 칸 차례가 서버와 같다 · 앱 연결(입구 단추 둘 · CSS · main.js) · 머리의 증권사(Npay 증권) 링크는 6자리 영숫자 코드일 때만(TC-SDR-06 · 11-02) · 서랍에 일봉 차트 칸(기간 단추 · 크게 보기)과 크게 보기 모달(큰 차트 + 일곱 칸 · TC-SDR-07 · 08 · 11-02 S187) |
+| TC-SDR | `test_stock_drawer.py` | 11 | `P01-①-2` | 🟡 | 종목 허브 서랍 화면(S182 · 할 일 ②-10 · ②-20) — 서랍이 서버 허브 묶음의 칸 일곱(종가 · 신호 · 재무 · 공시 · 기사 · 일정 · 업종)을 기준일 · 출처와 함께 그대로 옮기고 새로 계산하거나 한 줄 결론을 만들지 않는다 · 칸이 비었거나 준비 중 · 오류면 서버 까닭을 보이고 나머지는 그린다 · 글자 막기 · 칸 차례가 서버와 같다 · 앱 연결(입구 단추 둘 · CSS · main.js) · 머리의 증권사(Npay 증권) 링크는 6자리 영숫자 코드일 때만(TC-SDR-06 · 11-02) · 서랍에 일봉 차트 칸(기간 단추 · 크게 보기)과 크게 보기 모달(큰 차트 + 일곱 칸 · TC-SDR-07 · 08 · 11-02 S187) · 모든 입구가 큰 모달 직행(TC-SDR-09) · 모달 안 쉬운 설명 — 칸마다 읽는 법 · 규칙 쉬운 풀이 · 이동 단추 · 시장 맥락 · 내 판단 정리 틀(TC-SDR-10) · 쉬운 풀이의 규칙 열한 가지가 서버 규칙표와 같고 금지 낱말이 없음(TC-SDR-11 · 11-02 S188) |
 | TC-SCH | `test_stockchart.py` | 3 | `P01-①-2` | 🟡 | 종목 일봉 차트 칸(S187 · 사용자 11-02 「시세 조회에 차트 · 스탑 칸 이름 입력」 · Figma 종목 허브 07 쪽 안 C · D) — 6자리 코드 · 일봉 주소 · 기간 점 · 요약 글(TC-SCH-01) · 스탑가와 현재가를 견준 안내 · 등록 즉시 발동 판정이 서버 check_stop_orders 와 같은 식 · 빠른 단추(TC-SCH-02) · 모의주문 화면 차트 칸 둘 · 스탑가 자동 채움 없음 · 수집 일봉 한 길(야후 참조 없음 · TC-SCH-03) |
 
-합계 — 시험 3726건 · 276파일 = 요구에 붙은 3016건 + 요구 없는 도구 시험 466건 + 대장에 없는 파일 20개(tests/test_backtest_sizing.py · tests/test_broker_secrets.py · tests/test_company_screens_honest.py · tests/test_comparechart_screen.py · tests/test_etf_followups.py · tests/test_fixed_test_strategy.py · tests/test_followup_alerts_cache.py · tests/test_followup_screen_flows.py · tests/test_kis_connection_probe.py · tests/test_manual_broker_order.py · tests/test_manual_order_validation.py · tests/test_order_pricing.py · tests/test_paper_snapshot_task.py · tests/test_price_basis.py · tests/test_risk_stops.py · tests/test_snapshot_integrity.py · tests/test_strategy_v2.py · tests/test_strategy_v2_execution.py · tests/test_strategy_v2_pg.py · tests/test_trading_order_screen_honest.py)
+합계 — 시험 3732건 · 276파일 = 요구에 붙은 3022건 + 요구 없는 도구 시험 466건 + 대장에 없는 파일 20개(tests/test_backtest_sizing.py · tests/test_broker_secrets.py · tests/test_company_screens_honest.py · tests/test_comparechart_screen.py · tests/test_etf_followups.py · tests/test_fixed_test_strategy.py · tests/test_followup_alerts_cache.py · tests/test_followup_screen_flows.py · tests/test_kis_connection_probe.py · tests/test_manual_broker_order.py · tests/test_manual_order_validation.py · tests/test_order_pricing.py · tests/test_paper_snapshot_task.py · tests/test_price_basis.py · tests/test_risk_stops.py · tests/test_snapshot_integrity.py · tests/test_strategy_v2.py · tests/test_strategy_v2_execution.py · tests/test_strategy_v2_pg.py · tests/test_trading_order_screen_honest.py)
 <!-- /rtm_scan:시험 -->
 
 2026-10-19 #170: TC-RBUI의 실제 Chrome 인수 시험 1건(내부 검사 17항목)을 U2·U5에 연결했다. 이번에는 앱 의존성이 갖춰진 격리 환경에서 pytest 수집 2341건·168파일을 확인하고 RTM 8개 블록을 다시 생성했다. 이는 전체 2341건을 실행·통과했다는 뜻이 아니다. 운영 러너 대조의 남은 범위는 [화면 검증 근거](../../04-testing/리밸런싱-화면검증-근거.md)를 따른다.
@@ -1042,6 +1042,7 @@ v1.1 의 이 부록에 쌓였던 열세 줄(2026-09-29 ~ 10-02)은 **v1.2 본문
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.75 | 2026-11-02 | TC-SCD 설명을 #479 의 화면 문구로 고침 · TC-SDR 8 → 11(모든 입구 모달 직행 · 모달 쉬운 설명 · 규칙 풀이) · TC-BF 7 → 10(포털 일시 장애 재시도) · 합계 3,726 → 3,732건 | 시험이 새 제목만 통과하는데 대장 설명이 옛 제목이었다 | test_signal_cards_screen.py · 대장 TC-SCD 줄 |
 | v1.74 | 2026-11-02 | 시험 묶음 TC-SCH 신설 3 · TC-SFD 3 → 5 · TC-SDR 6 → 8 · 합계 3,726건(요구에 붙은 3,016 · 대장 · 코드에서 다시 채움) | 모의주문 시세 조회 일봉 차트 · 스탑 칸 이름 입력 · 서랍 차트 칸과 크게 보기 모달 시험 | `rtm_scan --doc` 로 블록 아홉을 다시 채움 · 전체 시험 3,726건(합쳐진 상태 — 통과 3,702 · 실패 6 · 건너뜀 18) |
 | v1.73 | 2026-11-02 | 시험 묶음 TC-SDR 5 → 6 · TC-NR 14 → 17 · TC-ADI 17 → 18 · 합계 3,638건(요구에 붙은 3,003 · 대장 · 코드에서 다시 채움) | 종목 허브 서랍의 증권사 링크 · 알림 채널 보안 점검(슬랙 · 메일 서버 · 설정 없는 사용자)이 새 시험을 더함 | 시험-요구 대장 · `rtm_scan.py --doc` |
 | v1.72 | 2026-11-01 | 시험 묶음 TC-QUOT 10 → 11 · TC-HUB 24 → 25 · TC-ARP 5 → 6 · TC-ADI 10 → 11 · 합계를 대장 · 코드에서 다시 채움(수집 종가 「반영 전」 · 공용 디스코드 채널 옵션) | 사용자 결정(11-01) — 금요일 종가 공백 「반영 전」 · 디스코드 공용 채널로도 받기(기본 꺼짐) | `rtm_scan.py --doc` · 새 시험 4건 · S185 전체 시험 |

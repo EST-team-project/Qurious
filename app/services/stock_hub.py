@@ -51,7 +51,7 @@ from app.services import (collector_db, company_health, data_ohlcv, data_search,
 KST = timezone(timedelta(hours=9))
 
 #: 응답 꼴 판 — 칸 이름 · 꼴을 바꾸면 올린다(화면 · 저장본 열쇠가 이 숫자를 본다)
-VERSION = 2   # 2: 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(S181)
+VERSION = 3   # 2: 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(S181) · 3: 신호 근거 항목에 규칙 이름 `key` 가 더해짐(S188 — 화면의 쉬운 풀이 열쇠)
 
 SECTIONS = ("identity", "price", "signal", "financials", "disclosures", "news", "schedule", "sector")
 OK, EMPTY, ERROR, PENDING = "ok", "empty", "error", "pending"
@@ -244,7 +244,7 @@ async def signal(db, symbol: str, in_universe: bool | None) -> dict:
     if snap is None:
         return section("signal", EMPTY, reason=SIGNAL_NOT_UNIVERSE if in_universe is False else SIGNAL_NONE)
     ex = signal_explain.explain(snap)
-    keep = ("timeframe", "label", "text", "points")
+    keep = ("key", "timeframe", "label", "text", "points")        # key 는 규칙 이름 — 화면이 쉬운 풀이(stockplain.js)를 찾는 열쇠
     data = {"signal": ex["signal"], "strength": ex["strength"], "confidence": ex["confidence"],
             "summary": ex["summary"], "confidence_text": ex["confidence_text"], "definition": ex["definition"],
             "reasons": [{k: r.get(k) for k in keep} for r in ex["reasons"][:3]],
