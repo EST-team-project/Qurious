@@ -288,3 +288,4 @@ API-STK-42	GET	/api/broker/order/{request_id}	2026-10-30-manual-broker-guard	사
 API-DATA-16	GET	/api/data/indicators/universe	S171	사용
 API-DATA-17	GET	/api/data/indicators/sectors	S171	사용
 API-DATA-18	GET	/api/data/indicators	S171	사용
+API-PAPR-49	POST	/api/paper/stocks/orders/risk-preview	S191	사용

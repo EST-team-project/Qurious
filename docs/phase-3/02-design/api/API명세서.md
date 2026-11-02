@@ -1,14 +1,14 @@
-# API 명세서 v0.59 — Qurious
+# API 명세서 v0.60 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.58 (2026-11-02 — 알림 채널 주소 검사: `API-NOTI-01` 슬랙 주소 가림 · `API-NOTI-02` 슬랙 · 메일 서버 주소 검사(422) · 설정 없는 사용자의 알림은 공용 채널로 안 감) / v0.57 (2026-11-01 — 공용 디스코드 채널로도 받기: `API-NOTI-01` · `02` 의 `preferences.discord_use_shared`(기본 꺼짐) · 종목 허브 가격 칸 `pending_note` · 수집 종가 라벨의 「반영 전」) / v0.56 (2026-11-01 — 사용자별 디스코드 주소: `API-NOTI-01` · `02` 에 `discord_webhook_url`(비밀값 · 가림) · 동의문 판 n0.2) / v0.55 (2026-11-01 — 알림 응답 풀이: `API-NOTI-01` · `02` · `03` · `04` 에 사건별 설정 `preferences` · 사건 목록 `event_catalog` · 보고 원본 `payload` · 이력 상태 `held`) / v0.53 (2026-10-31 — 응답 풀이 둘: `API-NOTI-04` 이력의 `channels[]` 에 시도 횟수 `attempts` · `API-HUB-01` 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(묶음 `version` 1 → 2) · 라우트 수 285 그대로 · 앞 판의 글은 개정 이력 아래 표) |
+| **문서 버전** | v0.60 (2026-11-02 — `API-PAPR-49` 대장 등록 · 라우트 285 → 286 · 종목 허브 신호 칸 응답: 근거 전부 + `counts` · `counts_note` · 신호 순위 응답 `name` · `no_intraday` · `freshness` 기록 · `API-HUB-03` 부르는 화면 `signal-rank`) / v0.59 (2026-11-02 — 팀 머지(#477 · #479) 반영으로 라우트 · 모델 표를 코드에서 다시 채움) / v0.58 (2026-11-02 — 알림 채널 주소 검사: `API-NOTI-01` 슬랙 주소 가림 · `API-NOTI-02` 슬랙 · 메일 서버 주소 검사(422) · 설정 없는 사용자의 알림은 공용 채널로 안 감) / v0.57 (2026-11-01 — 공용 디스코드 채널로도 받기: `API-NOTI-01` · `02` 의 `preferences.discord_use_shared`(기본 꺼짐) · 종목 허브 가격 칸 `pending_note` · 수집 종가 라벨의 「반영 전」) / v0.56 (2026-11-01 — 사용자별 디스코드 주소: `API-NOTI-01` · `02` 에 `discord_webhook_url`(비밀값 · 가림) · 동의문 판 n0.2) / v0.55 (2026-11-01 — 알림 응답 풀이: `API-NOTI-01` · `02` · `03` · `04` 에 사건별 설정 `preferences` · 사건 목록 `event_catalog` · 보고 원본 `payload` · 이력 상태 `held`) / v0.53 (2026-10-31 — 응답 풀이 둘: `API-NOTI-04` 이력의 `channels[]` 에 시도 횟수 `attempts` · `API-HUB-01` 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(묶음 `version` 1 → 2) · 라우트 수 285 그대로 · 앞 판의 글은 개정 이력 아래 표) |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.51 = main `3a832c2`(#422 포함) + 명시적 가상계좌 시험 공급원 작업 트리, 관련 172건 검증 · 앞 판의 글은 개정 이력 아래 표 |
 | **추출기** | [`scripts/api_scan.py`](../../../../scripts/api_scan.py) — 앱을 import 하지 않는 정적 AST · 시험 [`tests/test_api_scan.py`](../../../../tests/test_api_scan.py) (TC-AP 15건) |
-| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **289줄 · 사용 285 · 폐기 4**(2026-10-30 `API-DATA-16` ~ `18` 확인 — 기업 지표 셋 · `api_scan.py --assign S171` / 2026-10-30 `API-PUBD-01` 더함 — 랜딩 지수 종가 한 줄 · `api_scan.py --assign S166` / 2026-10-29 `API-ISTR-01` ~ `04` 더함 — 기본 인디케이터 전략 화면 지표 차트 · 전략 카드 저장 · `api_scan.py --assign S163` / 2026-10-29 `API-MACR-05` · `06` 더함 — 거시 ECOS · 국내 산업별 등락 · `api_scan.py --assign S161` / 2026-10-29 `API-SCARD-01` · `02` 더함 — 전략 카드 → Pine · `api_scan.py --assign S160` / 2026-10-27 `API-HUB-03` 더함 — 신호 기록 순위 · `api_scan.py --assign S153` / 2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
-| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **스캔 285 · openapi 와 어긋남 0**(2026-10-31 v0.52 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **스캔 281 · 어긋남 0**(2026-10-30 v0.49 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 앞 판의 글은 개정 이력 아래 표 |
+| **ID 대장** | [`API-ID대장.tsv`](대장/API-ID대장.tsv) — **290줄 · 사용 286 · 폐기 4**(2026-11-02 `API-PAPR-49` 더함 — 모의주문 위험 미리 보기 · 팀원 PR 의 대장 몫 · `api_scan.py --assign S191` / 2026-10-30 `API-DATA-16` ~ `18` 확인 — 기업 지표 셋 · `api_scan.py --assign S171` / 2026-10-30 `API-PUBD-01` 더함 — 랜딩 지수 종가 한 줄 · `api_scan.py --assign S166` / 2026-10-29 `API-ISTR-01` ~ `04` 더함 — 기본 인디케이터 전략 화면 지표 차트 · 전략 카드 저장 · `api_scan.py --assign S163` / 2026-10-29 `API-MACR-05` · `06` 더함 — 거시 ECOS · 국내 산업별 등락 · `api_scan.py --assign S161` / 2026-10-29 `API-SCARD-01` · `02` 더함 — 전략 카드 → Pine · `api_scan.py --assign S160` / 2026-10-27 `API-HUB-03` 더함 — 신호 기록 순위 · `api_scan.py --assign S153` / 2026-10-20 `API-PAPR-45` ~ `48` 더함 — 100일 백테스트 넷 · 팀원 #295 · `api_scan.py --assign S129`) |
+| **정답 대조** | 개발 모드 앱의 `/openapi.json`(= `app.openapi()`)과 **스캔 286 · openapi 와 어긋남 0**(2026-11-02 v0.60 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **스캔 285 · 어긋남 0**(2026-10-31 v0.52 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 이전 **스캔 281 · 어긋남 0**(2026-10-30 v0.49 · 개발 모드 앱 + 이 판 작업 트리 · openapi 에만 · 스캔에만 · 인자 · 본문 모델 다름 0) · 앞 판의 글은 개정 이력 아래 표 |
 | **산출물 구분** | 강사님 표 **7 인터페이스 설계** — API 명세서 · 인터페이스 정의서(7절 · 시작) · 데이터 매퍼(8절 · 시작) |
 | **목적** | ② 강사님 요구 29개 설계(S63)의 **입력** — 요구마다 「어느 API 가 받고 어디에 닿는가」를 이 문서의 API ID 로 가리킨다 |
 
@@ -200,10 +200,10 @@ flowchart LR
 | `seasonality` | `app/routes/seasonality.py` | 1 | 0 | 1 | 0 | P-A 1 |
 | `clusters` | `app/routes/clusters.py` | 1 | 0 | 1 | 0 | P-A 1 |
 | `model_compare` | `app/routes/model_compare.py` | 4 | 0 | 1 | 1 | P-A 4 |
-| `stock_hub` | `app/routes/stock_hub.py` | 3 | 0 | 2 | 0 | 미배정 3 |
+| `stock_hub` | `app/routes/stock_hub.py` | 3 | 0 | 3 | 0 | 미배정 3 |
 | `help_media` | `app/routes/help_media.py` | 2 | 0 | 0 | 2 | P-A 2 |
 | `quote_now` | `app/routes/quote_now.py` | 1 | 0 | 1 | 0 | P-A 1 |
-| **합계** | 43개 | **286** | **50** | **143** | **76** | |
+| **합계** | 43개 | **286** | **50** | **144** | **76** | |
 
 | 라우터 | 수집DB | 야후 | 증권사 | 주문 | PostgreSQL | Redis | Neo4j | Qdrant | LLM | Celery | LEAN | Docker | 알림 | 외부 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -872,7 +872,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-PAPR-03 | GET | `/api/paper/stocks/quote` | 없음 | `symbol`* | 모델 없음 | 404 | 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `robo-patterns`, `us-order`, `us-portfolio` | P-E | P01-④-3 | paper.py:96 |
 | API-PAPR-04 | GET | `/api/paper/stocks/positions` | 세션·JWT | `volatility` | {positions} | — | 수집DB · 야후 · PostgreSQL · 외부(kind.krx.co.kr) | `market-calendar`, `paper-stock`, `robo-patterns`, `us-order`, `us-portfolio` | P-E | P01-④-3 | paper.py:104 |
 | API-PAPR-05 | POST | `/api/paper/stocks/orders/preview` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, kind.krx.co.kr …) | `us-order` | P-E | P01-④-1 · P01-④-3 | paper.py:110 |
-| (미등록) | POST | `/api/paper/stocks/orders/risk-preview` | 세션·JWT | 본문 `RiskPreviewBody` | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(api.upbit.com, developer.kbsec.com …) | (다른 곳) | P-E | — | paper.py:119 |
+| API-PAPR-49 | POST | `/api/paper/stocks/orders/risk-preview` | 세션·JWT | 본문 `RiskPreviewBody` | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(api.upbit.com, developer.kbsec.com …) | (다른 곳) | P-E | — | paper.py:119 |
 | API-PAPR-06 | POST | `/api/paper/stocks/orders` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `us-order` | P-E | P01-④-3 | paper.py:142 |
 | API-PAPR-07 | POST | `/api/paper/stocks/orders/buy` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 | paper.py:147 |
 | API-PAPR-08 | POST | `/api/paper/stocks/orders/sell` | 세션·JWT | 본문 `StockOrderBody` | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 | paper.py:152 |
@@ -1139,8 +1139,8 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | API-HUB-01 | GET | `/api/stock-hub` | 세션 | `symbol`* · `sections` | 모델 없음 | ? | 수집DB · PostgreSQL · 외부(dart.fss.or.kr) | `invest-fundamental` | 미배정 | — | stock_hub.py:26 |
-| API-HUB-03 | GET | `/api/stock-hub/signal-rank` | 세션 | `on` · `symbols` · `limit` · `components` | 다리 결과 그대로 (`source`·`as_of`) | 422 · ? | 수집DB · PostgreSQL | (다른 곳) | 미배정 | — | stock_hub.py:41 |
-| API-HUB-02 | GET | `/api/stock-hub/mentions` | 세션 | `q`* | {items, rule, note} | — | 수집DB | `agent-chat` | 미배정 | — | stock_hub.py:63 |
+| API-HUB-03 | GET | `/api/stock-hub/signal-rank` | 세션 | `on` · `symbols` · `limit` · `components` | 모델 없음 | 422 · ? | 수집DB · PostgreSQL | `signal-rank` | 미배정 | — | stock_hub.py:41 |
+| API-HUB-02 | GET | `/api/stock-hub/mentions` | 세션 | `q`* | {items, rule, note} | — | 수집DB | `agent-chat` | 미배정 | — | stock_hub.py:64 |
 
 #### `help_media` — `app/routes/help_media.py` · 2개
 
@@ -1207,7 +1207,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | `QuantSettingsBody` | `mode: str` = `Field(default='paper', description='paper \| live')` · `broker: str` = `DEFAULT_BROKER` · `app_key: str` = `''` · `app_secret: str` = `''` · `account_no: str` = `''` · `symbol_source: str` = `Field(default='ai', description='ai \| manual')` · `selected_symbols: list[str]` = `Field(default_factory=list)` · `ai_top_n: int` = `Field(default=3, ge=1, le=5)` · `per_trade_budget: float` = `Field(default=1000000, ge=10000, le=10000000)` · `buy_ratio: float` = `Field(default=1.0, ge=0.1, le=1.0)` · `sell_ratio: float` = `Field(default=0.5, ge=0.1, le=1.0)` · `execution_policy: ExecutionPolicy \| None` = `None` · `strategy_id: str` = `Field(default='', max_length=40)` · `strategy_version: int` = `Field(default=0, ge=0)` · `strategy_card_id: str` = `Field(default='', max_length=64)` · `strategy_card_fingerprint: str` = `Field(default='', max_length=64)` · `risk_daily_loss_limit_pct: float` = `Field(default=3.0, ge=0, le=50, description='0이면 비활성')` · `risk_max_position_pct: float` = `Field(default=30.0, ge=0, le=100, description='0이면 비활성')` · `risk_max_orders_per_day: int` = `Field(default=20, ge=0, le=500, description='0이면 비활성')` · `risk_cooldown_min: int` = `Field(default=30, ge=0, le=1440, description='0이면 비활성')` | API-STK-18 |
 | `RegisterBody` | `name: str` · `email: str` · `password: str` · `terms_version: str \| None` = `None` · `agreed: list[str] \| None` = `None` · `birth_date: str \| None` = `None` | API-AUTH-01 |
 | `ReserveBody` | `symbol: str` = `Field(..., min_length=1, max_length=20)` · `quantity: int` = `Field(..., ge=1, le=100000)` | API-USRV-03 |
-| `RiskPreviewBody` | — | POST /api/paper/stocks/orders/risk-preview |
+| `RiskPreviewBody` | — | API-PAPR-49 |
 | `RiskProfileBody` | `answers: dict[str, int]` | API-ML-08 |
 | `RoboAllocationBody` | `risk_profile: str` = `'moderate'` · `horizon_years: int` = `3` · `amount_manwon: int` = `5000` | API-ML-04 |
 | `SaveBody` | `name: str` = `Field(..., min_length=1, max_length=60)` · `description: str` = `Field('', max_length=300)` · `note: str` = `Field('', max_length=200, description='버전 메모')` | API-FRML-05, API-FRML-07 |
@@ -1602,6 +1602,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.60 | 2026-11-02 | `API-PAPR-49`(`POST /api/paper/stocks/orders/risk-preview` · 모의주문 위험 미리 보기 · 본문 `RiskPreviewBody`)를 대장에 등록 · 라우트 285 → 286 · `API-HUB-03` 의 부르는 화면에 `signal-rank`(새 화면) · **종목 허브 신호 칸 응답**(`API-HUB-01` 의 `sections.signal.data`): `reasons[]` · `counter_reasons[]` 를 3개 · 2개로 자르지 않고 전부 주고, `counts{buy, neutral, sell}` 를 더했으며 낯선 근거 문장이면 `counts: null` + `counts_note` · **신호 순위 응답 기록**(`API-HUB-03`): 줄마다 `name`(`attach_names` · S190) · `no_intraday` · 머리 `freshness`(`as_of` · `basis` · `computed_at` · `state` · `badge` · `message` · `detail` · `older_rows` · `older_note`)와 `total`(S189 · S190) · 화면 스캐너가 `API-PROD-04` 의 부르는 화면을 신호 순위로 잘못 잡던 것을 코드(메서드 이름 `load` → `loadRankRows`)에서 고침(TC-RKS-12) · 머리표 「문서 버전」 칸이 v0.58 에 머물러 있던 것을 바로잡음 | 신호 순위 입구 통일(S191) · 새 화면(S190) · 신호 전체 종목 기록(S189)의 응답 칸이 명세서에 적혀 있지 않았고, 오준영 님 PR 이 남긴 대장 몫 한 줄이 비어 있었다 | `api_scan.py --assign S191` · `--doc` 다시 채움 · 정답 대조(개발 모드 앱 `/openapi.json` ↔ 스캔 286 · 어긋남 0) · 코드 `stock_hub.py` `signal()` · `signal_rank()` · TC-HUB-07 · 07b · TC-RKS-12 |
 | v0.59 | 2026-11-02 | 팀 머지(#477 · #479) 반영으로 라우트 · 모델 표를 코드에서 다시 채움 | 오준영 PR #477 · #479(주문 · 스냅샷 · 손절 근거 · ETF 편입 편집안) | `api_scan --doc` 다시 채움 |
 | v0.58 | 2026-11-02 | `API-NOTI-01` 슬랙 주소 가림 · `API-NOTI-02` 슬랙 · 메일 서버 주소 검사(422) · 설정 없는 사용자의 알림은 공용 채널로 안 감 · 라우트 줄 번호 | 알림 채널 보안 점검(사용자 결정 11-02) | `app/routes/notification.py` · `app/services/notification.py` · TC-NR-15 ~ 17 · TC-ADI-12 |
 | v0.57 | 2026-11-01 | 공용 디스코드 채널로도 받기(`preferences.discord_use_shared` · 기본 꺼짐 · 자기 주소가 없을 때 공용 채널로 새지 않게) · 종가 「반영 전」(`quote_now` 라벨 · 허브 가격 칸 `pending_note`) | 사용자 결정(11-01) — 금요일 종가 공백 조사 · 디스코드 공용 채널 | `test_alert_dispatch.py` TC-ARP-06 · TC-ADI-11 · `test_quote_now.py` TC-QUOT-11 · `test_stock_hub.py` TC-HUB-25 |

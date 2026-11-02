@@ -6,12 +6,15 @@
 2. 가격 두 줄 — 신호 기준 종가는 선택한 행의 as_of 날짜 줄만(없으면 확인 불가) · 지금 가격을 못 받으면 종가를 그 칸에 대신 넣지 않고 서버 까닭을 보인다 · 종가에는 항상 날짜가 붙고
    신호 기준일과 다르면 그 사실을 말한다 · 출처 글은 quote.label 그대로. (TC-RKS-02)
 3. 비어 있음 갈래 — 줄이 0 이면 안내 글과 missing 의 서버 문장을 그대로 · explain 404 는 서버의 한국어 까닭 그대로. (TC-RKS-03)
-4. 서랍은 문장을 짓지 않는다 — summary · reasons · counter_reasons · notes · disclaimer 를 그대로 그리고, 응답에 없는 숫자가
-   서랍 글에 나오지 않는다 · HTML 은 이스케이프된다. (TC-RKS-04)
+4. (삭제 2026-11-02) 전용 서랍의 문장 시험은 입구 통일로 서랍이 없어져 없앴다 — 같은 약속(문장을 짓지 않는다 · 숫자는 응답 값)은
+   종목 근거 모달의 신호 칸이 이어받아 TC-SDR-14 가 지킨다. (옛 TC-RKS-04 번호는 비워 둔다)
 5. 화면 파일에 BUY · SELL 낱말이 없다(규칙 표시이지 매매 권유가 아니다) · 공용 파일(app.html · core.js)은 아직 안 고쳤다. (TC-RKS-05)
-6. 서랍의 「관련 최신 뉴스」 — 허브 news 칸을 그대로(제목 · 출처 · 날짜 · 원문 링크만 · http(s) 만 링크 · 5건까지 · 서버 note 는 늘 보임 ·
-   없거나 못 받으면 서버 까닭). (TC-RKS-06)
+6. 날짜 글 도우미 `ymd` — 서랍의 뉴스는 허브 모달의 뉴스 칸이 맡게 되어(2026-11-02) 뉴스 그리기 시험은 없앴다. (TC-RKS-06)
 7. 표 위 정렬 기준 · 중립/관망 안내 · 근거 주기 · 요약 위치 · 근거 개수 정의 — 오준영 님 #373 답. (TC-RKS-07)
+8. 머리줄 · 딱지 · 분봉 없이 계산 표시 · 지금 가격 딱지 판정. (TC-RKS-08)
+9. 새 화면 연결(메뉴 · 안내 글 · 화면 칸 · CSS · 훅) · 서랍 CSS 는 없다. (TC-RKS-09)
+10. 줄 이름은 화면이 넘긴 이름 → 서버 이름 순. (TC-RKS-10)
+11. 순위 줄(`<tr>`) 자체가 종목 근거 모달 입구 — 줄 끝 단추 없음 · 코드를 모르는 줄은 입구 없음 · 전용 서랍 코드 없음 · Enter · 스페이스. (TC-RKS-11)
 """
 from __future__ import annotations
 
@@ -101,62 +104,15 @@ def test_empty_and_failure_texts(tmp_path):
     assert "로그인" in out["expired"] and "연결" in out["offline"]
 
 
-def test_drawer_does_not_invent_sentences(tmp_path):
-    """TC-RKS-04 — 서랍 글의 숫자는 모두 응답 값 · 문장은 응답 그대로 · HTML 은 이스케이프."""
+def test_ymd_helper(tmp_path):
+    """TC-RKS-06 — 날짜 글 도우미(`ymd`) — 신호 기준 종가 요청과 머리줄이 같이 쓴다. 서랍의 뉴스는 허브 모달의 뉴스 칸이 맡는다(입구 통일 · 2026-11-02)."""
     out = _run(tmp_path, """
-      const ex = {symbol: "005930", as_of: "2026-10-26", summary: "일봉 기준으로 5일선이 20일선 위라 매수 쪽입니다.",
-                  confidence_text: "주기 셋 중 둘이 매수 쪽 · 기운 정도 보통",
-                  reasons: [{label: "일봉", text: "5일선이 20일선 위", observed: "5일선 72,100 · 20일선 70,900"}],
-                  counter_reasons: [{label: "주봉", text: "RSI 71 과열권"}],
-                  notes: ["주봉은 이번 주가 끝나지 않았습니다."], disclaimer: "과거 자료 기준 참고용입니다 <script>x</script>"};
-      const prices = sr.priceLines({basis: "raw", rows: [{trade_date: "2026-10-26", close: 72300}]}, {price: 73100, label: "증권사 연계 조회 · 14:02"}, ex.as_of);
-      out.html = sr.renderDrawer(ex, prices, esc, {name: "삼성전자"});
-      out.src = JSON.stringify(ex) + JSON.stringify(prices) + "삼성전자";
-    """)
-    html = out["html"]
-    text = re.sub(r"<[^>]+>", " ", html)
-    allowed = set(re.findall(r"\d[\d,.]*", out["src"]))
-    # 서랍 글(태그 뺀)의 숫자는 응답 · 가격 값에서 온 것만 — MM-DD 는 as_of 의 일부
-    for n in re.findall(r"\d[\d,.]*", text):
-        assert n.strip(".,") in {a.strip(".,") for a in allowed} | {"10", "26"}, n
-    for must in ("일봉 기준으로 5일선이 20일선 위라 매수 쪽입니다.", "주기 셋 중 둘이 매수 쪽", "RSI 71 과열권", "주봉은 이번 주가 끝나지 않았습니다."):
-        assert must in html
-    assert "<script>" not in html and "&lt;script&gt;" in html
-
-
-def test_news_under_evidence(tmp_path):
-    """TC-RKS-06 — 서랍의 「관련 최신 뉴스」(2026-10-29 제안) — 허브 news 칸을 그대로: 제목 · 출처 · 날짜 · 원문 링크만 ·
-    http(s) 만 링크 · 제목은 이스케이프 · 5건까지 · 서버의 note 는 늘 보이고 · 기사가 없거나 못 받았으면 서버 까닭을 보인다."""
-    out = _run(tmp_path, """
-      const mk = (i, url) => ({title: `기사 ${i} <b>x</b>`, url, source: "gdelt", source_label: "언론사 기사 제목(GDELT)", published: `2026-10-2${i}T09:00:00+09:00`});
-      const ok = {status: "ok", note: "종목 이름표는 규칙으로 붙였습니다 — 이름이 같은 다른 뜻의 기사가 섞일 수 있습니다.",
-                  source: "정책브리핑 정책뉴스 · 언론사 기사 제목(GDELT) — 본문은 원문 링크로",
-                  data: {items: [mk(1, "https://example.com/a"), mk(2, "javascript:alert(1)"), mk(3, "http://example.com/c"),
-                                 mk(4, "https://example.com/d"), mk(5, "https://example.com/e"), mk(6, "https://example.com/f"), mk(7, "https://example.com/g")]}};
-      out.ok = sr.renderNews(ok, esc);
-      out.empty = sr.renderNews({status: "empty", reason: "이 종목 이름이 붙은 기사를 찾지 못했습니다.", note: "이름이 같은 다른 뜻의 기사가 섞일 수 있습니다.", data: {items: []}}, esc);
-      out.error = sr.renderNews({status: "error", reason: "지금은 읽지 못했습니다.", data: null}, esc);
-      out.none = sr.renderNews(null, esc);
       out.ymd = [sr.ymd("2026-10-28T09:00:00+09:00"), sr.ymd(""), sr.ymd("어제")];
-      out.safe = [sr.safeHttpUrl("https://a.b"), sr.safeHttpUrl("javascript:1"), sr.safeHttpUrl("//a.b"), sr.safeHttpUrl(null)];
     """)
-    ok = out["ok"]
-    assert ok.count("<li>") == 5 and "기사 6" not in ok and "기사 7" not in ok          # 5건까지
-    assert 'href="https://example.com/a"' in ok and 'href="http://example.com/c"' in ok
-    assert "javascript:" not in ok                                                       # 위험한 주소는 링크가 아니다
-    assert "기사 2 &lt;b&gt;x&lt;/b&gt;" in ok and "<b>x</b>" not in ok                  # 제목 이스케이프(링크 없는 줄도)
-    assert 'rel="noopener noreferrer"' in ok and 'target="_blank"' in ok
-    assert "2026-10-21" in ok and "언론사 기사 제목(GDELT)" in ok                        # 날짜(연도까지) · 출처
-    assert "이름이 같은 다른 뜻의 기사가 섞일 수 있습니다" in ok and "본문은 원문 링크로" in ok   # 서버 글 그대로
-    assert "이 종목 이름이 붙은 기사를 찾지 못했습니다." in out["empty"] and "섞일 수 있습니다" in out["empty"] and "<li>" not in out["empty"]
-    assert "지금은 읽지 못했습니다." in out["error"] and "뉴스를 받지 못했습니다." in out["none"]
-    assert out["ymd"] == ["2026-10-28", "—", "—"] and out["safe"] == ["https://a.b", "", "", ""]
-    src = SR.read_text(encoding="utf-8")
-    assert "sections=news" in src and "sections=price" not in src and "renderNews(news, esc)" in src   # 서랍은 허브에서 뉴스 칸만(종가는 as_of 줄 — 마지막 종가를 쓰지 않는다)
-    assert "/api/data/ohlcv?symbol=" in src and "&basis=raw" in src
+    assert out["ymd"] == ["2026-10-28", "—", "—"]
 
 
-def test_rank_table_header_and_drawer_order(tmp_path):
+def test_rank_table_header(tmp_path):
     """TC-RKS-07 — 오준영 님 #373 답: 표 위에 「기록된 종합 점수 순」 + 정렬 기준 + 추천 아님 · 「중립」 과 「관망」 구분 안내 ·
     근거마다 주기 · 한 줄 요약이 서랍 맨 위(차트 자리 위) · 서랍에도 근거 개수(counts 합) · 서버 정렬 설명과 같은 기준."""
     out = _run(tmp_path, """
@@ -165,21 +121,14 @@ def test_rank_table_header_and_drawer_order(tmp_path):
                                              {rank: 2, symbol: "000660", as_of: "2026-10-26", signal: "관망", composite: 0.2, confidence: 0.3,
                                               counts: null, counts_note: "낯선 근거 문장"}],
                                      missing: [], on: "2026-10-26", total: 401, notice: "참고용"}, esc);
-      const ex = {symbol: "005930", as_of: "2026-10-26", summary: "일봉 기준으로 매수 쪽입니다.", confidence_text: "주기 셋 중 둘이 매수 쪽",
-                  reasons: [{label: "일봉", text: "5일선이 20일선 위"}, {label: "주봉", text: "RSI 55"}],
-                  counter_reasons: [{label: "60분봉", text: "종가가 하단 아래"}], notes: [], disclaimer: "참고용"};
-      out.drawer = sr.renderDrawer(ex, sr.priceLines(null, null, ex.as_of), esc, {counts: "근거 5개 (매수 쪽 3 · 중립 1 · 매도 쪽 1)"});
       out.order = sr.RANK_ORDER_NOTE; out.help = sr.NEUTRAL_HELP;
     """)
-    t, d = out["table"], out["drawer"]
+    t = out["table"]
     assert out["order"] in t and "추천 순위가 아닙니다" in out["order"] and "종합 점수 → 신뢰도 → 종목코드" in out["order"]
     assert out["help"] in t and "「중립」" in out["help"] and "「관망」" in out["help"] and "자료 부족이나 계산 실패가 아닙니다" in out["help"]
-    assert "판단 보류" not in t + d                                                       # 자료 부족 · 계산 실패로 읽히는 말은 쓰지 않는다
+    assert "판단 보류" not in t                                                       # 자료 부족 · 계산 실패로 읽히는 말은 쓰지 않는다
     assert "근거 개수를 셀 수 없습니다" in t and "낯선 근거 문장" in t                       # 못 세면 0개가 아니라 안내
     assert "근거 5개 (매수 쪽 3 · 중립 1 · 매도 쪽 1)" in t
-    assert d.index("일봉 기준으로 매수 쪽입니다.") < d.index("신호 기준 종가") < d.index("data-sr-chart") < d.index("[일봉]")   # 요약 → 가격 → 차트 자리 → 근거
-    assert "[일봉]" in d and "[주봉]" in d and "[60분봉]" in d                              # 근거마다 주기
-    assert "근거 5개 (매수 쪽 3 · 중립 1 · 매도 쪽 1)" in d
     # 정렬 기준 문구가 서버 설명과 같은 기준(종합 점수 → 신뢰도 → 종목코드)인지 — 서버가 바뀌면 이 시험이 알린다
     from app.services import stock_hub
     assert "종합 점수 → 신뢰도 → 종목코드" in stock_hub.SIGNAL_RANK_NOTE
@@ -208,11 +157,9 @@ def test_signal_rank_screen_is_wired():
     assert 'import { onSignalRankViewActivated } from "/js/signalrankview.js"' in main
     assert re.search(r'if \(view === "signal-rank"\) onSignalRankViewActivated\(\);', main)  # 화면 키를 글자 그대로
     assert 'from "/js/signal-rank.js"' in view and "mountSignalRank(host" in view          # 판단 모듈은 이 파일만 부른다
-    # 서랍은 목록 위(absolute)가 아니라 화면 기준(fixed)이다 — 목록을 스크롤한 채 아래 줄을 눌러도 통째로 보인다(사용자 지적 11-02)
+    # 줄을 누르면 전용 서랍이 아니라 종목 근거 모달이 열린다(입구 통일 · 2026-11-02) — 서랍 CSS 는 없고 줄이 눌리는 곳으로 보인다
     css = (ROOT / "public/css/signalrankview.css").read_text(encoding="utf-8")
-    block = css[css.index("[data-sr-side]:not(:empty) {"):]
-    block = block[:block.index("}")]
-    assert "position: fixed" in block and "max-height: calc(100vh" in block and "overflow-y: auto" in block and "absolute" not in block
+    assert "[data-sr-side]" not in css and "tr[data-hub-open]" in css and "cursor: pointer" in css
 
 
 def test_row_name_falls_back_to_server_name(tmp_path):
@@ -242,9 +189,6 @@ def test_freshness_head_and_badges(tmp_path):
       out.badges = [sr.quoteBadge({price: 1, source: "kis_user", market_state: "open"}), sr.quoteBadge({price: 1, source: "kis_gateway", market_state: "closed"}),
                     sr.quoteBadge({price: 1, source: "delayed"}), sr.quoteBadge({price: 1, source: "collector", as_of: "2026-10-30"}),
                     sr.quoteBadge({price: null, source: "kis_user"}), sr.quoteBadge({price: 1, source: "???"}), sr.quoteBadge(null)];
-      const ex = {symbol: "005930", as_of: "2026-10-30", summary: "s", reasons: [], counter_reasons: [], notes: [], disclaimer: "d"};
-      out.drawer = sr.renderDrawer(ex, sr.priceLines(null, {price: 74100, source: "delayed", label: "지연 시세(약 20분)"}, "2026-10-30"), esc, {});
-      out.drawerNoQuote = sr.renderDrawer(ex, sr.priceLines(null, null, "2026-10-30"), esc, {});
     """)
     t = out["table"]
     assert "기준: 2026-10-30 KRX 정규장 종가 · 계산: 11-02 12:59" in t and "확인 필요" in t                      # 딱지는 글자와 함께
@@ -255,5 +199,35 @@ def test_freshness_head_and_badges(tmp_path):
     assert out["none"] == "" and "<script>" not in out["xss"] and "<b>" not in out["xss"] and "<i>" not in out["xss"]
     assert out["badges"] == [{"kind": "live", "text": "실시간 · 정규장"}, {"kind": "live", "text": "증권사 조회 · 장 마감"},
                              {"kind": "delay", "text": "지연 시세 · 약 20분"}, {"kind": "close", "text": "종가 · 2026-10-30"}, None, None, None]
-    assert "지연 시세 · 약 20분" in out["drawer"] and 'data-kind="delay"' in out["drawer"] and "74,100원" in out["drawer"]
-    assert "data-kind" not in out["drawerNoQuote"]                                                           # 가격을 못 받았으면 딱지도 없다(종가로 대신 넣지 않는다)
+
+
+def test_rank_row_opens_the_stock_hub_modal(tmp_path):
+    """TC-RKS-11 — 순위 줄(`<tr>`) 자체가 종목 근거 모달 입구다(사용자 11-02 · 입구 통일) — 문서 전체의 `[data-hub-open]` 클릭 위임이 모달을 연다.
+    줄 끝의 「종목 근거」 단추는 없고(PAPER 모의주문 단추만) · 코드를 모르는 줄은 입구를 달지 않으며(빈 코드는 422) · 전용 서랍 코드는 남지 않는다."""
+    out = _run(tmp_path, """
+      const row = {rank: 1, symbol: "005930.KS", as_of: "2026-10-30", signal: "매수", composite: 1.2, confidence: 0.5, counts: {buy: 1, neutral: 0, sell: 0}, name: "삼성<전자>"};
+      out.table = sr.renderRankTable({rows: [row, {...row, rank: 2, symbol: "AAPL", name: ""}], missing: [], total: 2}, esc);
+      out.exports = Object.keys(sr);
+    """)
+    t = out["table"]
+    kr = re.search(r'<tr[^>]*data-sr-symbol="005930\.KS"[^>]*>', t).group(0)
+    assert 'data-hub-open="005930"' in kr and 'data-hub-name="삼성&lt;전자&gt;"' in kr and 'tabindex="0"' in kr   # 줄에 입구 · 이름은 이스케이프 · 키보드 초점
+    us = re.search(r'<tr[^>]*data-sr-symbol="AAPL"[^>]*>', t).group(0)
+    assert "data-hub-open" not in us and "tabindex" not in us                                                  # 코드를 모르는 줄은 입구 없음
+    assert "종목 근거</button>" not in t and t.count("data-paper-open=") == 1                                  # 줄 끝 단추 뺌 · PAPER 단추만
+    for gone in ("renderDrawer", "renderNews", "safeHttpUrl"):
+        assert gone not in out["exports"], gone
+    src = SR.read_text(encoding="utf-8")
+    assert "openDrawer" not in src and "data-sr-side" not in src
+    assert "[data-hub-open]" in src and '"Enter"' in src and '" "' in src                                       # 줄에서 Enter · 스페이스도 같은 입구
+
+
+def test_view_scan_sees_only_its_own_entry_api():
+    """TC-RKS-12 — 화면 스캐너(`view_scan`)는 함수를 이름으로 잇는다(저장소 규칙: 맨 위 함수 · 호출 이름은 파일마다 다르게) —
+    신호 순위의 진입 훅이 `.load()` 를 부르면 다른 화면의 `load` 함수(ETF 상품 화면)와 이어져 상품 API 가 이 화면의 호출로 잡힌다.
+    그러면 API 명세서의 「부르는 화면」 칸에 사실이 아닌 줄이 생긴다 — 진입 API 는 순위 읽기 하나여야 한다."""
+    from scripts import view_scan
+
+    row = next(r for r in view_scan.scan()["rows"] if r["key"] == "signal-rank")
+    assert row["entry_apis"] == ["/api/stock-hub/signal-rank"], row["entry_apis"]
+

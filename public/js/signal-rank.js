@@ -13,7 +13,10 @@
  *   4. 근거 개수 n = counts.buy + counts.neutral + counts.sell = evidence 줄 수(오준영 님 #373 답 · 코드 대조 일치).
  *      `/api/explain` 의 reasons 는 방향을 지지하는 근거만이라 n 이 아니다(#351 의 reasons 줄 수는 퀀트 카드 응답 얘기).
  *      개수를 못 세면 0개로 두지 않고 안내 문구를 보인다.
- *   5. 서랍의 설명과 신호 기준 종가는 **선택한 행의 as_of** 에 맞춘다 — 허브의 마지막 종가가 아니다. 그날 종가가 없으면 「확인 불가」.
+ *   5. 신호 기준 종가는 **그 신호 기록의 as_of** 에 맞춘다 — 허브의 마지막 종가가 아니다. 그날 종가가 없으면 「확인 불가」.
+ *   6. 줄을 누르면 전용 서랍이 아니라 종목 근거 모달이 열린다(사용자 2026-11-02 · 입구 통일) — 줄(`<tr>`)에 `data-hub-open` 을 달아 두면
+ *      문서 전체의 클릭 위임(stockdrawer.js)이 연다. 서랍에 있던 근거 개수 · 신호 기준 종가는 모달 신호 칸(stockdrawer.js)이 이어받았다.
+ *      Figma: 전용 파일 t2BVPRrfnaJI3yfcymkeEq 「설계 — 입구 통일 (결정)」.
  */
 
 /** 「중립」 을 쉬운 말로 무엇이라 부를지 — 검토 결정(설계서 6절 4번 · 낱말 표 #159 T3) 전 임시 값. */
@@ -25,8 +28,6 @@ export const RANK_ORDER_NOTE = "기록된 종합 점수 순입니다(종합 점�
 export const NEUTRAL_HELP = `근거의 「${NEUTRAL_WORD}」 은 그 근거가 매수 · 매도 어느 쪽도 밀지 않는다는 뜻이고, 종합 신호의 「관망」 은 근거를 합친 점수가 매수 · 매도 기준(±1)에 닿지 않았다는 뜻입니다. 둘 다 자료 부족이나 계산 실패가 아닙니다.`;
 const DASH = "—";
 const isNum = v => typeof v === "number" && Number.isFinite(v);
-/** 서랍에 보일 기사 수 — 서버(stock_hub.NEWS_LIMIT)가 이미 5건으로 자르지만 화면도 넘기지 않는다. */
-export const NEWS_LIMIT = 5;
 
 /** "2026-10-26" → "10-26" · 꼴이 다르면 줄표(지어내지 않는다). */
 export function mmdd(s) {
@@ -98,7 +99,7 @@ export function rowView(row, nameOf) {
 }
 
 /** 순위 표 — 상태 셋: 줄이 있음 / 비어 있음(서버 missing 문장 그대로) / 응답 없음. */
-export function renderRankTable(resp, esc, { nameOf, selected } = {}) {
+export function renderRankTable(resp, esc, { nameOf } = {}) {
   const rows = (resp && resp.rows) || [];
   const missing = (resp && resp.missing) || [];
   const fresh = renderFreshness(resp && resp.freshness, esc);
@@ -117,17 +118,19 @@ export function renderRankTable(resp, esc, { nameOf, selected } = {}) {
   }
   const body = rows.map(r => {
     const v = rowView(r, nameOf);
-    const on = selected && selected === v.symbol ? ' aria-selected="true"' : "";
-    return `<tr data-sr-symbol="${esc(v.symbol)}" tabindex="0"${on}>`
+    const code = ohlcvCode(v.symbol);
+    // 줄 전체가 종목 근거 모달 입구 — 종목코드(6자리)를 모르는 줄은 입구를 달지 않는다(빈 코드로 부르면 422)
+    const entry = code ? ` data-hub-open="${esc(code)}" data-hub-name="${esc(v.name)}" tabindex="0"` : "";
+    return `<tr data-sr-symbol="${esc(v.symbol)}"${entry}>`
       + `<td>${esc(v.rank)}</td>`
       + `<td>${v.name ? esc(v.name) + " " : ""}<span class="text-xs">${esc(v.symbol)}</span></td>`
       + `<td>${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}`
       + `${v.noIntraday ? `<div class="text-xs" style="color:var(--text-mute);" data-sr-no-intraday>분봉 없이 계산(일봉 · 주봉만)</div>` : ""}</td>`
       + `<td>${esc(v.composite)}</td>`
       + `<td>${esc(v.countsText)}${v.countsNote ? `<div class="text-xs" style="color:var(--text-mute);">${esc(v.countsNote)}</div>` : ""}</td>`
-      + `<td>${esc(v.asOf)}</td><td>${ohlcvCode(v.symbol) ? `<button type="button" class="btn-secondary text-xs" data-hub-open="${esc(ohlcvCode(v.symbol))}" data-hub-name="${esc(v.name)}">종목 근거</button> <button type="button" class="btn-secondary text-xs" data-paper-open="${esc(ohlcvCode(v.symbol))}">PAPER 모의주문</button>` : ''}</td></tr>`;
+      + `<td>${esc(v.asOf)}</td><td>${code ? `<button type="button" class="btn-secondary text-xs" data-paper-open="${esc(code)}">PAPER 모의주문</button>` : ''}</td></tr>`;
   }).join("");
-  return `${head}<table class="w-full text-sm"><thead><tr><th>순위</th><th>종목</th><th>규칙 신호</th><th>종합 점수</th><th>근거</th><th>기준일</th><th>확인·주문</th></tr></thead>`
+  return `${head}<table class="w-full text-sm"><thead><tr><th>순위</th><th>종목</th><th>규칙 신호</th><th>종합 점수</th><th>근거</th><th>기준일</th><th>주문</th></tr></thead>`
     + `<tbody>${body}</tbody></table>${missingHtml}${foot}`;
 }
 
@@ -156,7 +159,7 @@ export function priceLines(ohlcv, quote, signalAsOf, closeErr = "") {
   return { close: closeLine, quote: quoteLine };
 }
 
-/** 서랍 불러오기 실패 글 — explain 404 는 서버의 한국어 까닭 그대로(기록 없음 갈래), 로그인 풀림 · 연결 끊김은 따로. */
+/** 불러오기 실패 글 — 순위 · 신호 기록 404 는 서버의 한국어 까닭 그대로(기록 없음 갈래), 로그인 풀림 · 연결 끊김은 따로. */
 export function drawerFailText(err) {
   const status = err && err.status;
   if (status === 404) return (err && err.message) || "이 종목의 신호 기록이 없습니다.";
@@ -165,105 +168,29 @@ export function drawerFailText(err) {
   return (err && err.message) || "불러오지 못했습니다.";
 }
 
-/** http(s) 주소만 링크로 — 그 밖(javascript: 등)은 링크 없이 제목만 보인다. */
-export function safeHttpUrl(u) {
-  return /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
-}
-
 /** "2026-10-28T09:00:00+09:00" → "2026-10-28" · 꼴이 다르면 줄표(뉴스는 오래되면 뜻이 달라서 연도까지 보인다). */
 export function ymd(s) {
   const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(s || ""));
   return m ? m[1] : DASH;
 }
 
-/** 서랍의 「관련 최신 뉴스」 — 허브 `news` 칸(`/api/stock-hub?sections=news`)을 그대로 그린다.
- *  기사는 제목 · 출처 · 날짜 · 원문 링크만(본문을 옮기지 않고, 기사로 설명 문장을 짓지 않는다). 칸 제목 아래의 `note`
- *  (「이름이 같은 다른 뜻의 기사가 섞일 수 있습니다」)는 응답 글 그대로 늘 보인다. 기사가 없거나 못 받았으면 서버 까닭을 보인다.
- *  산업 뉴스는 섹터 소속이 생긴 뒤(②-10) — 이 함수는 기업 기사만 안다. */
-export function renderNews(section, esc) {
-  const head = `<div class="text-xs mt-2">관련 최신 뉴스 (이 기업 이름이 붙은 기사)</div>`;
-  if (!section) return `${head}<div class="text-xs">뉴스를 받지 못했습니다.</div>`;
-  const items = (section.data && section.data.items) || [];
-  const note = section.note ? `<div class="text-xs" style="color:var(--text-mute);">${esc(section.note)}</div>` : "";
-  if (section.status !== "ok" || !items.length) {
-    return `${head}<div class="text-xs">${esc(section.reason || "뉴스를 받지 못했습니다.")}</div>${note}`;
-  }
-  const rows = items.slice(0, NEWS_LIMIT).map(it => {
-    const url = safeHttpUrl(it.url);
-    const title = esc(it.title || DASH);
-    const link = url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
-    const src = it.source_label || it.source || "";
-    return `<li>${link} <span class="text-xs" style="color:var(--text-mute);">· ${esc(src)} · ${esc(ymd(it.published))}</span></li>`;
-  }).join("");
-  const from = section.source ? `<div class="text-xs" style="color:var(--text-mute);">${esc(section.source)}</div>` : "";
-  return `${head}<ul class="text-sm">${rows}</ul>${note}${from}`;
-}
-
-const reasonItems = (list, esc) => (list || []).map(r =>
-  `<li><span class="text-xs">[${esc(r.label || DASH)}]</span> ${esc(r.text || "")}${r.observed ? ` <span class="text-xs">(${esc(r.observed)})</span>` : ""}</li>`).join("");   // 근거마다 주기(일봉 · 주봉 · 60분봉)를 앞에 — 오준영 님 #373 2번
-
-/** 서랍 — explain 응답의 summary · reasons · counter_reasons · notes · disclaimer 를 그대로 그린다(문장을 새로 짓지 않는다). */
-export function renderDrawer(explain, prices, esc, { name, news, counts } = {}) {
-  const p = prices || priceLines(null, null, explain && explain.as_of);
-  const chip = b => b ? ` <span class="sd-chip sr-badge" data-kind="${esc(b.kind)}">${esc(b.text)}</span>` : "";
-  const line = l => `<div class="text-sm">${esc(l.text)}${chip(l.badge)}${l.note ? ` <span class="text-xs" style="color:var(--text-mute);">· ${esc(l.note)}</span>` : ""}</div>`;
-  const reasons = (explain.reasons || []).length ? `<div class="text-xs mt-2">이 방향을 밀어 준 근거</div><ul class="text-sm">${reasonItems(explain.reasons, esc)}</ul>` : "";
-  const counters = (explain.counter_reasons || []).length ? `<div class="text-xs mt-2">반대쪽 근거</div><ul class="text-sm">${reasonItems(explain.counter_reasons, esc)}</ul>` : "";
-  const notes = (explain.notes || []).map(n => `<div class="text-xs">${esc(n)}</div>`).join("");
-  return `<div data-sr-drawer>`
-    + `<div class="font-semibold">${name ? esc(name) + " " : ""}${esc(explain.symbol)}</div>`
-    // 한 줄 요약을 가장 위에(차트 위 · 「왜 매수 쪽인가」 를 빨리) — 오준영 님 #373 2번. 차트(일봉만)는 data-sr-chart 자리에 나중에 그린다.
-    + `<div class="text-sm mt-1">${esc(explain.summary || "")}</div>`
-    + `<div class="text-xs">${esc(explain.confidence_text || "")}</div>`
-    + (counts ? `<div class="text-xs">${esc(counts)}</div>` : "")
-    + line(p.close) + line(p.quote)
-    + `<div data-sr-chart></div>`
-    + reasons + counters + notes
-    + renderNews(news, esc)
-    + `<div class="text-xs mt-2" style="color:var(--text-mute);">기준일 ${esc(mmdd(explain.as_of))} · ${esc(explain.disclaimer || "")}</div></div>`;
-}
-
-/** 화면에 붙인다 — deps: { api, esc, nameOf? }. host 안을 통째로 그리고, 줄을 누르면 오른쪽 서랍(host 안 [data-sr-side])을 채운다. */
+/** 화면에 붙인다 — deps: { api, esc, nameOf? }. host 안을 통째로 그린다.
+ *  줄을 누르는 일은 여기서 하지 않는다 — 줄에 달린 `data-hub-open` 을 문서 전체의 클릭 위임(stockdrawer.js)이 받아 종목 근거 모달을 연다.
+ *  여기서는 키보드(Enter · 스페이스)만 같은 길로 이어 준다(줄이 단추가 아니라서 기본으로는 눌리지 않는다). */
 export function mountSignalRank(host, { api, esc, nameOf } = {}) {
-  let selected = "";
   let resp = null;
-  const side = () => host.querySelector("[data-sr-side]");
   const paint = () => {
-    host.innerHTML = `<div data-sr-list>${renderRankTable(resp, esc, { nameOf, selected })}</div><div data-sr-side></div>`;
+    host.innerHTML = `<div data-sr-list>${renderRankTable(resp, esc, { nameOf })}</div>`;
   };
-  async function openDrawer(row) {
-    const { symbol, as_of: asOf } = row;
-    selected = symbol; paint();
-    side().textContent = "불러오는 중…";
-    const code = ohlcvCode(symbol);
-    const [ex, close, hub, q] = await Promise.allSettled([
-      // 설명과 신호 기준 종가는 모두 **이 행의 as_of** — 허브의 마지막 종가를 쓰지 않는다(오준영 님 #373 3번)
-      api(`/api/explain?kind=signal&symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(asOf)}`),
-      code ? api(`/api/data/ohlcv?symbol=${code}&timeframe=1d&from=${encodeURIComponent(ymd(asOf))}&to=${encodeURIComponent(ymd(asOf))}&basis=raw`)
-           : Promise.reject({ message: "종목코드를 알 수 없어 종가를 조회하지 않았습니다." }),
-      api(`/api/stock-hub?symbol=${encodeURIComponent(symbol)}&sections=news`),
-      api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`),
-    ]);
-    if (ex.status !== "fulfilled") { side().textContent = drawerFailText(ex.reason); return; }
-    const hubValue = hub.status === "fulfilled" ? hub.value : null;
-    const prices = priceLines(close.status === "fulfilled" ? close.value : null, q.status === "fulfilled" ? q.value : null,
-      ex.value.as_of, close.status === "rejected" ? drawerFailText(close.reason) : "");
-    const name = (typeof nameOf === "function" && nameOf(symbol)) || (hubValue && hubValue.name) || "";
-    const news = hubValue && hubValue.sections ? hubValue.sections.news : null;     // 허브를 못 받았으면 null → 「뉴스를 받지 못했습니다」
-    side().innerHTML = `<button type="button" class="btn-secondary text-xs" data-sr-close aria-label="서랍 닫기">닫기 ✕</button>`
-      + renderDrawer(ex.value, prices, esc, { name, news, counts: rowView(row, nameOf).countsText });
-    side().scrollTop = 0;                                  // 다른 종목을 누르면 서랍은 늘 맨 위부터
-  }
-  host.addEventListener("click", e => {
-    if (e.target.closest?.("[data-sr-close]")) { selected = ""; paint(); return; }     // 서랍 닫기 — 표만 다시 그린다
-    if (e.target.closest?.('[data-hub-open], [data-paper-open]')) return;
-    const tr = e.target.closest && e.target.closest("[data-sr-symbol]");
-    if (!tr) return;
-    const row = ((resp && resp.rows) || []).find(r => r.symbol === tr.dataset.srSymbol);
-    if (row) openDrawer(row);
+  host.addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const tr = e.target && e.target.closest ? e.target.closest("tr[data-hub-open]") : null;
+    if (!tr || e.target !== tr) return;                    // 줄 안의 PAPER 단추는 자기 일을 한다
+    e.preventDefault();                                    // 스페이스가 화면을 내리지 않게
+    tr.click();                                            // 클릭과 같은 길 — 서랍이 아니라 종목 근거 모달
   });
   return {
-    async load(params = "") {
+    async loadRankRows(params = "") {   // 이름이 `load` 이면 화면 스캐너가 다른 화면의 load 와 이어 버린다(TC-RKS-12)
       host.textContent = "불러오는 중…";
       try { resp = await api(`/api/stock-hub/signal-rank${params}`); paint(); }
       catch (err) { host.textContent = drawerFailText(err); }

@@ -13,5 +13,5 @@ export async function onSignalRankViewActivated() {
   const host = document.getElementById("sr-root");
   if (!host) return;
   if (!srvControl) srvControl = mountSignalRank(host, { api, esc: escHtml });
-  await srvControl.load();
+  await srvControl.loadRankRows();
 }
