@@ -118,7 +118,7 @@ def test_drawer_copies_server_values_dates_and_sources(tmp_path):
     assert 'rel="noopener noreferrer"' in html
     # 그 화면으로 단추 — 서버 links 글 그대로 · links 에 없는 화면(업종 칸 view 없음)은 단추가 없다
     assert '>주가 차트 →</button>' in html and 'data-hub-go="robo-patterns"' in html and '>일정 →</button>' in html
-    assert html.count("data-hub-go=") == 6      # 가격 · 신호 · 재무 · 공시 · 기사 · 일정 (업종은 view 없음)
+    assert html.count("data-hub-go=") == 8      # 여섯 근거 화면 + 리밸런싱 + PAPER 모의주문
     assert "결론" not in re.sub(HUB["note"], "", t)        # 한 줄 결론을 만들지 않는다(서버 note 만 말한다)
 
 
@@ -160,6 +160,19 @@ def test_drawer_sections_match_server_and_link_labels_come_from_server(tmp_path)
     assert out["md"] == "10월 5일"
 
 
+def test_drawer_links_to_npay_securities_only_for_valid_codes(tmp_path):
+    """TC-SDR-06 · 머리에 「Npay 증권에서 보기」 링크 — 6자리 영숫자 코드(ETF 포함)일 때만 · 새 창 · 주소는 코드만 끼운다."""
+    out = _run(tmp_path, HUB, "out.html = sd.stockDrawerHtml(HUB); out.etf = sd.hubNaverUrl('0000D0'); out.bad = ['', '5930', '005930.KS', '../x', null].map(sd.hubNaverUrl);")
+    assert 'href="https://stock.naver.com/domestic/stock/005930/price"' in out["html"]
+    assert "Npay 증권에서 보기" in _text(out["html"])
+    assert 'target="_blank" rel="noopener noreferrer">Npay' in out["html"]
+    assert out["etf"] == "https://stock.naver.com/domestic/stock/0000D0/price"
+    assert out["bad"] == [""] * 5                                       # 코드가 아니면 링크를 만들지 않는다
+    hub = json.loads(json.dumps(HUB))
+    hub["symbol"] = "<x>"
+    assert "stock.naver.com" not in _run(tmp_path, hub, "out.html = sd.stockDrawerHtml(HUB);")["html"]
+
+
 def test_drawer_is_wired_into_the_app():
     """TC-SDR-05 · CSS 를 부르고 · main.js 가 붙이고 · 입구 단추가 두 화면에 있다."""
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
@@ -171,3 +184,39 @@ def test_drawer_is_wired_into_the_app():
     assert 'data-hub-open="${esc(hub.symbol)}"' in card                      # AI 투자 상담 카드
     assert 'data-hub-open="${escHtml(S.symbol)}"' in research                # 투자 정보 리서치 종목 칩
     assert (ROOT / "public" / "css" / "stockdrawer.css").is_file()
+
+
+def test_drawer_has_daily_chart_box_and_expand_modal_html(tmp_path):
+    """TC-SDR-07 · 서랍에 일봉 차트 칸(기간 단추 셋 · 크게 보기) — 국내 6자리 코드일 때만 · 크게 보기 모달은 큰 차트 + 신호 칸 + 닫기(크게 보기 단추는 없음)."""
+    out = _run(tmp_path, HUB, """
+out.drawer = sd.stockDrawerWithChartHtml(HUB);
+out.foreign = sd.stockDrawerWithChartHtml({ ...HUB, symbol: 'AAPL' });
+out.box = sd.sdChartBoxHtml('005930.KS', { expand: false, height: 340 });
+out.none = ['AAPL', '', '5930', null].map(s => sd.sdChartBoxHtml(s));
+out.modal = sd.sdModalHtml(HUB);
+out.modalForeign = sd.sdModalHtml({ ...HUB, symbol: 'AAPL' });
+out.sections = sd.DRAWER_SECTIONS;
+""")
+    d = out["drawer"]
+    assert 'data-hub-chartbox' in d and 'data-hub-chart-note' in d and "data-hub-expand" in d and "크게 보기" in d
+    assert d.count("data-hub-period=") == 3 and 'data-hub-period="3m"' in d and 'class="sd-period on" data-hub-period="3m"' in d
+    assert d.index("data-hub-chartbox") < d.index('data-hub-sec="price"')            # 차트가 칸들 위
+    assert "data-hub-chartbox" not in out["foreign"]                                 # 해외 종목은 수집 일봉이 없다
+    assert out["none"] == [""] * 4
+    assert 'style="height:340px"' in out["box"] and "data-hub-expand" not in out["box"]
+    m = out["modal"]
+    sd_sections = out["sections"]
+    assert "data-hub-modal-close" in m and "data-hub-expand" not in m and 'style="height:340px"' in m
+    assert all(f'data-hub-sec="{k}"' in m for k in sd_sections)                      # 모달은 일곱 칸을 모두 담고 안에서 내리며 읽는다(사용자 11-02)
+    assert "주봉 기준으로 5주선이 20주선 아래" in m                                   # 신호 근거는 서버 글 그대로
+    assert "수집 일봉이 없어" in out["modalForeign"] and "data-hub-chartbox" not in out["modalForeign"]
+
+
+def test_drawer_wires_expand_to_a_modal_sharing_the_chart_part():
+    """TC-SDR-08 · 서랍 → 크게 보기 → 모달은 같은 차트 부품(stockchart.js) · Esc · 바깥 · 닫기 · 모달 CSS."""
+    js = DRAWER.read_text(encoding="utf-8")
+    css = (ROOT / "public" / "css" / "stockdrawer.css").read_text(encoding="utf-8")
+    assert 'from "./stockchart.js"' in js and "mountDailyChart" in js
+    assert "[data-hub-expand]" in js and "openModal(hub)" in js and "hubLast" in js and 'hubMode === "modal"' in js and "openModalFor" in js        # 서랍이 받은 응답을 다시 묻지 않고 쓴다
+    assert "closeModal" in js and 'ev.key !== "Escape"' in js
+    assert ".sd-modal" in css and ".sd-chartbox" in css and ".sd-period.on" in css

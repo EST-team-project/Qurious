@@ -101,6 +101,23 @@ const open = fn => { opened += 1; cb = fn; };
 """
 
 
+def test_late_name_resolution_does_not_replace_new_symbol(tmp_path):
+    out = _run(tmp_path, FAKE_DOM + """
+ord.value = "삼성전자";
+let resolve;
+const pending = sf.resolveSymbolInput(doc, ord, {
+  search: () => new Promise(r => { resolve = r; }),
+  open: () => { throw Error('늦은 검색 창이 열리면 안 됨'); },
+});
+ord.value = "000660";
+resolve([{symbol: "005930.KS", name: "삼성전자"}]);
+out.result = await pending;
+out.value = ord.value;
+out.events = events;
+""")
+    assert out == {"result": None, "value": "000660", "events": []}
+
+
 def test_stockfind_mounts_and_fills_in_fake_dom(tmp_path):
     """TC-SFD-02 · 단추 달기 · 두 번 달지 않음 · 누르면 열리고 고르면 칸 · 이름 칸이 채워짐."""
     out = _run(tmp_path, FAKE_DOM + """
@@ -144,9 +161,57 @@ def test_stockfind_wired_into_screen():
     assert '/css/stockfind.css' in html
     assert html.count('id="stock-search-modal"') == 1, "검색 창은 기존 하나만 쓴다"
     company = COMPANY.read_text(encoding="utf-8")
-    assert re.search(r"export function openStockSearch\(callback\)", company)
+    assert re.search(r"export function openStockSearch\(callback(?:, initialQuery)?\)", company)
     assert "_openStockSearch = openModal;" in company
     main = MAIN.read_text(encoding="utf-8")
     assert 'import { mountStockFind } from "/js/stockfind.js"' in main and "mountStockFind(document, openStockSearch)" in main
     css = (PUB / "css" / "stockfind.css").read_text(encoding="utf-8")
     assert ".sf-wrap" in css and ".sf-btn" in css
+
+
+def test_stockfind_resolves_typed_names(tmp_path):
+    """TC-SFD-04 · 칸에 이름을 쳐도 풀린다(11-02 · 스탑 칸 「삼성전자」 →「지원하지 않는 종목입니다」) — 코드 꼴 판정 · 검색 결과 판정 · 하나면 채움 · 여럿 · 없으면 검색 창."""
+    out = _run(tmp_path, """
+out.like = ["005930", "005930.KS", "000660.kq", "0000D0", "AAPL", "BRK-B", " aapl "].map(sf.looksLikeSymbol);
+out.names = ["삼성전자", "삼성 전자", "카카오", "Apple Inc", "", null].map(sf.looksLikeSymbol);
+const A = { symbol: "005930.KS", name: "삼성전자" }, B = { symbol: "005935.KS", name: "삼성전자우" };
+out.dec = [sf.decideResolution([], "x").kind, sf.decideResolution([A], "삼").kind, sf.decideResolution([A, B], "삼성").kind,
+  sf.decideResolution([A, B], "삼성전자").kind, sf.decideResolution([A, B], "삼성전자").item.symbol, sf.decideResolution(null, "x").kind];
+const events = [];
+const doc = { defaultView: { Event: class { constructor(t) { this.type = t; } } } };
+const mk = v => ({ value: v, dataset: { stockFind: "symbol" }, dispatchEvent: e => events.push(e.type) });
+const calls = { search: 0, open: [] };
+const deps = res => ({ search: async q => { calls.search += 1; return res; }, open: (cb, q) => { calls.open.push(q); calls.cb = cb; }, onPicked: it => { calls.picked = it.symbol; } });
+// 코드 꼴 · 빈 칸은 검색하지 않는다
+let el = mk("005930"); out.code = await sf.resolveSymbolInput(doc, el, deps([])); out.codeSearch = calls.search;
+out.empty = await sf.resolveSymbolInput(doc, mk("  "), deps([]));
+// 이름 하나 맞음 → 칸을 채우고 기호를 돌려준다 · 입력 · 변경 이벤트가 간다
+el = mk("삼성전자우"); out.one = await sf.resolveSymbolInput(doc, el, deps([B])); out.oneVal = el.value; out.events = events.slice();
+// 이름이 둘 이상(정확히 같은 이름은 없음) → 창을 그 글자로 열고 null · 고르면 칸이 채워지고 onPicked
+el = mk("삼성"); out.many = await sf.resolveSymbolInput(doc, el, deps([A, B])); out.openQ = calls.open.slice();
+calls.cb(B); out.pickedVal = el.value; out.picked = calls.picked;
+// 없음 → 창을 그 글자로 열어 「결과 없음」 을 보인다 · 검색이 실패해도 같은 길
+el = mk("없는이름"); out.none = await sf.resolveSymbolInput(doc, el, deps([])); out.openQ2 = calls.open.slice();
+el = mk("카카오"); out.fail = await sf.resolveSymbolInput(doc, el, { search: async () => { throw new Error("x"); }, open: (cb, q) => calls.open.push(q) }); out.openQ3 = calls.open.slice();
+""")
+    assert out["like"] == [True] * 7 and out["names"] == [False] * 6
+    assert out["dec"] == ["none", "one", "many", "one", "005930.KS", "none"]
+    assert out["code"] == "005930" and out["codeSearch"] == 0 and out["empty"] == ""
+    assert out["one"] == "005935.KS" and out["oneVal"] == "005935.KS" and out["events"] == ["input", "change"]
+    assert out["many"] is None and out["openQ"] == ["삼성"]
+    assert out["pickedVal"] == "005935.KS" and out["picked"] == "005935.KS"
+    assert out["none"] is None and out["openQ2"] == ["삼성", "없는이름"]
+    assert out["fail"] is None and out["openQ3"][-1] == "카카오"
+
+
+def test_name_input_is_wired_into_paper_screen_and_search_window():
+    """TC-SFD-05 · 모의주문 화면이 이름을 풀어 쓰고(시세 조회 · 미리보기 · 주문 · 스탑 등록) 검색 창이 칸의 글자로 바로 찾는다."""
+    paper = (PUB / "js" / "paper.js").read_text(encoding="utf-8")
+    company = COMPANY.read_text(encoding="utf-8")
+    assert 'import { resolveSymbolInput } from "/js/stockfind.js"' in paper and 'import { openStockSearch } from "/js/company.js"' in paper
+    for fn in ("stockQuote", "stockPreview", "stockOrder", "stockStopQuote", "placeStopOrder"):
+        body = paper[paper.index(f"async function {fn}("):]
+        body = body[:body.index("\n}\n")]
+        assert "symbolFromInput(" in body and "=== null" in body, fn            # 이름이면 풀고 · 창이 열리면(null) 이 호출은 멈춘다
+    assert "function openModal(callback, initialQuery)" in company and "doSearch(String(initialQuery))" in company
+    assert "export function openStockSearch(callback, initialQuery)" in company

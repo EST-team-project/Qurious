@@ -194,6 +194,8 @@ def quant_check_stop_orders() -> dict:
             async with factory() as db:
                 fired = await pt.check_stop_orders(db)
                 await db.commit()
+                from app.services import paper_fill_notifications
+                await paper_fill_notifications.drain()
                 return {"fired": len(fired), "orders": fired}
         finally:
             await close_redis()

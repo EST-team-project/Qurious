@@ -238,6 +238,7 @@ _real_resolve = pt.resolve_stock
 
 def test_stop_orders_use_same_confirmation(monkeypatch):
     """TC-QUOT-09 · 손절 · 익절 발동도 같은 확인(그 주문의 사람 · 10초 저장본) — 지금 값이 손절가 아래면 그 값으로 체결."""
+    monkeypatch.setattr(pt, "stop_market_open", lambda: True)
     uid = uuid.uuid4()
     order = SimpleNamespace(id=uuid.uuid4(), symbol="005930.KS", user_id=uid, order_type="sell", stop_price=212000.0,
                             quantity=2, source="PAPER")
@@ -258,7 +259,7 @@ def test_stop_orders_use_same_confirmation(monkeypatch):
 
     seen = {}
 
-    async def fake_fill(db, user_id, info, side, quantity, *, source, filled_at=None):
+    async def fake_fill(db, user_id, info, side, quantity, *, source, filled_at=None, order=None):
         seen.update(user=user_id, price=info["price"])
         return {"status": "ok", "price": info["price"], "quantity": quantity, "net_amount": info["price"] * quantity}
 

@@ -31,7 +31,8 @@ def is_fixed_test() -> bool:
 def _fixed_card() -> dict | None:
     # 고정 입력을 합격 전략으로 취급하거나 같은 판의 규칙을 조용히 바꾸지 않는다.
     try:
-        raw = _FIXED_CARD.read_bytes()
+        # Git의 Windows 줄바꿈 변환만 허용한다. 내용·공백 변경은 계속 거절한다.
+        raw = _FIXED_CARD.read_bytes().replace(b"\r\n", b"\n")
         if hashlib.sha256(raw).hexdigest() != _FIXED_SHA256:
             return None
         return json.loads(raw)

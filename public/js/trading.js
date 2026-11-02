@@ -114,7 +114,7 @@ async function placeOrder(type) {
   try {
     await api("/api/orders", { method: "POST", body: { symbol, name, order_type: type, quantity: qty, price, broker } });
     // 증권사로 나간 주문이 아니다 — 앱 안 기록(서버 /api/orders 는 증권사를 부르지 않는다)
-    setToast(`${type === "buy" ? "매수" : "매도"} 기록 완료 (앱 안 기록 · ${broker === "virtual" ? "가상 매매" : broker + " 꼬리표 · 현금 그대로"})`, "ok");
+    setToast(`${type === "buy" ? "매수" : "매도"} 기록 완료 (앱 안 기록 · 가상 매매 · 거래 비용 및 현금 반영)`, "ok");
     loadOrderHistory();
   } catch (e) { setToast(e.message, "error"); }
 }

@@ -1,15 +1,15 @@
-# ERD v1.15 — Qurious
+# ERD v1.16 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.15 · 알림 칸 반영 · 스캐너와 어긋남 해소(앱 60표) |
+| **판 · 상태** | v1.16 · 0037 · 0038 반영 |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-11-01 (KST) |
+| **최종 수정** | 2026-11-02 (KST) |
 | **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.14 → v1.15: 알림 설정 표에 사용자별 디스코드 주소 칸 `notification_settings.discord_webhook_url`(외 16 → 17칸 · 마이그레이션 0036) · 스캐너 그림 다시 채움(앱 50 → 60표 · 관계 44 → 53 · 본문 숫자 · 표 속성 대장 10줄 더함) |
+| **최근 개정** | v1.15 → v1.16: 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -784,7 +784,7 @@ erDiagram
     FLOAT cash
     FLOAT position_value
     FLOAT total_equity
-    _ 외10칸
+    _ 외12칸
   }
   paper_accounts {
     UUID user_id FK
@@ -829,7 +829,7 @@ erDiagram
     VARCHAR_10 book
     VARCHAR_100 name
     INTEGER quantity
-    _ 외2칸
+    _ 외3칸
   }
   quant_virtual_accounts {
     UUID user_id FK
@@ -1198,6 +1198,22 @@ erDiagram
   users ||--o{ collect_requests : "requested_by"
   collect_requests ||--o{ collect_workers : "request_id"
 ```
+
+**앱 DB — 업무 영역 미정 · 1표 · 관계 1개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+
+```mermaid
+erDiagram
+  execution_risk_stops {
+    VARCHAR_64 position_key PK
+    UUID user_id FK
+    JSONB basis
+    DATETIME created_at
+  }
+  users {
+    UUID id PK
+  }
+  users ||--o{ execution_risk_stops : "user_id"
+```
 <!-- /schema_scan:erd-앱 -->
 
 참조·캐시 영역의 다섯 표는 외래키가 없다 — 사용자와 상관없이 파일 적재나 외부 조회로 채워진다.
@@ -1365,6 +1381,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.16 | 2026-11-02 | 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 | 오준영 PR #477 | `schema_scan --doc` 다시 채움 |
 | v1.15 | 2026-11-01 | 알림 설정 표에 사용자별 디스코드 주소 칸 `notification_settings.discord_webhook_url`(외 16 → 17칸 · 마이그레이션 0036) · 스캐너 그림 다시 채움(앱 50 → 60표 · 관계 44 → 53 · 본문 숫자 · 표 속성 대장 10줄 더함) | 팀 테스트 디스코드를 공용 칸에 두고 개인 주소는 사용자별로 갖게 해 달라는 요청(11-01) · 문서가 코드보다 열 표 뒤처져 있던 것을 한 번에 맞춤(S183 이월) | `schema_scan --doc --check` 같음 · 표 속성 대장 빠진 표 0 |
 | v1.14 | 2026-11-01 | 알림 표 둘에 새 칸 — `notification_log.payload`(보고 원본 JSONB) · `notification_settings.preferences`(사건별 설정 JSONB · 외 15 → 16칸) · 마이그레이션 0035 | 보고식 알림 개편(S183) — 알림 이력에 보낸 보고 원본을 남기고, 사건별 켜기 · 조용히 · 끄기와 조용한 시간을 사용자별로 저장한다 | `app/models/misc.py` · `alembic/versions/0035_notification_prefs.py` · 일회용 DB 에서 올림 · 내림 · 올림 확인 · **스캐너로 통째로 다시 채우지는 않았다**(ERD 가 모델보다 앱 10표 뒤처져 있음 — 이월) |
 | v1.13 | 2026-10-31 | 머리표 칸 줄임 — 판 · 상태 · 기준 · 최근 개정을 지금 판 한 줄로(이전 판의 기준은 문서 끝 「기준 이력」 표로 옮김 · 본문 변경 없음) | 한 칸에 여러 판 이력이 이어져 읽기 어려웠다(문서 작성 기준 4.3절 「최근 개정 한 줄」) — 사용자 요청 2026-10-31 | 문서 작성 기준 4.3 · 6.5절 · 설계서 표 가독성 점검(2026-10-31) · 옮긴 기준은 「기준 이력」 표 |

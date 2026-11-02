@@ -53,7 +53,7 @@ def chain(monkeypatch):
     monkeypatch.setattr(postgres, "get_session_factory", lambda: sessions)  # 알림 선점 · 저장이 쓰는 세션
     monkeypatch.setattr(tv.pt, "stock_order", AsyncMock(return_value={"symbol": "005930", "price": 70000, "name": "삼성전자"}))
     monkeypatch.setattr(tv_route, "audit", AsyncMock())
-    monkeypatch.setattr(notification, "_load_user_settings", AsyncMock(return_value={"channels": ["slack"], "slack_webhook_url": "http://x.invalid"}))
+    monkeypatch.setattr(notification, "_load_user_settings", AsyncMock(return_value={"channels": ["slack"], "slack_webhook_url": "https://hooks.slack.com/services/T/B/x"}))
     sleeps: list[float] = []
 
     async def fake_sleep(sec):

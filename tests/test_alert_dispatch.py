@@ -257,3 +257,42 @@ def test_ad11_shared_discord_channel_only_when_user_opted_in(rig, monkeypatch):
     monkeypatch.undo()
     monkeypatch.setattr(notification.settings, "DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1/x")
     assert run(notification.send_discord("x", allow_shared=False)) is False
+
+
+def test_ad12_user_without_settings_never_reaches_shared_channels(rig, monkeypatch):
+    """TC-ADI-12 · 사용자는 있는데 알림 설정 행이 없거나 조회가 실패하면(`NO_SETTINGS`) 그 사용자의 개인 알림(체결 · 예수금)은
+    `.env` 공용 채널 어디로도 나가지 않는다 — 이력에는 「채널 없음」 으로 남는다. 사용자 없는 운영 알림(`{}`)은 기본 채널 그대로."""
+    monkeypatch.setattr(notification, "_default_channels", lambda: ["discord", "slack", "email"])
+    rig.cfg = dict(notification.NO_SETTINGS)
+    run(notification.dispatch_event(_ev(), user_id="u1"))
+    assert rig.calls == []                                                   # 어느 채널 함수도 부르지 않는다
+    assert rig.logs and rig.logs[-1][2] == []                                # 이력: 채널 없음
+    rig.calls.clear()
+    rig.cfg = {}                                                             # 사용자 없는 운영 알림
+    run(notification.dispatch_event(_ev(), user_id=None))
+    assert sorted(names(rig)) == ["discord", "email", "slack"]
+    assert notification._channels_for(dict(notification.NO_SETTINGS)) == []
+    assert notification._channels_for({"channels": ["slack"]}) == ["slack"]
+
+
+@pytest.mark.parametrize("read_failed", [False, True])
+def test_production_settings_loader_blocks_missing_and_failed_reads(monkeypatch, read_failed):
+    import uuid
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from app.database import postgres
+    db = AsyncMock()
+    db.__aenter__.return_value = db
+    db.execute.return_value = SimpleNamespace(scalar_one_or_none=lambda: None)
+    if read_failed:
+        db.execute.side_effect = RuntimeError("synthetic read failure")
+    monkeypatch.setattr(postgres, "get_session_factory", lambda: lambda: db)
+    monkeypatch.setattr(notification, "_default_channels", lambda: ["discord", "slack"])
+    discord, slack, log = AsyncMock(), AsyncMock(), AsyncMock()
+    monkeypatch.setattr(notification, "send_discord", discord)
+    monkeypatch.setattr(notification, "send_slack", slack)
+    monkeypatch.setattr(notification, "_log_dispatch", log)
+    run(notification.dispatch_event(_ev(kind="risk_halt", severity="urgent"), user_id=str(uuid.uuid4())))
+    discord.assert_not_awaited()
+    slack.assert_not_awaited()
+    assert log.call_args.args[3] == []

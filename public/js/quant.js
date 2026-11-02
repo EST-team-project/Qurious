@@ -74,6 +74,8 @@ export function signalCardHtml(s, r, prevDay) {
   const asOf = r?.as_of || "";
   const late = !!(asOf && prevDay && asOf.slice(0, 10) < prevDay.slice(0, 10));      // 마지막 봉이 전 거래일보다 앞이면 최신이 아니다
   const cls = SIGNAL_COLORS[sig.action] || "border-white/10 bg-white/5";
+  const code = String(s.symbol || '').split('.')[0];
+  const hub = /^[0-9A-Z]{6}$/.test(code) ? `<button type="button" class="sd-open-btn text-xs" data-hub-open="${escHtml(code)}" data-hub-name="${escHtml(s.name || '')}">종목 근거 →</button> <button type="button" class="btn-secondary text-xs" data-paper-open="${escHtml(code)}">PAPER 모의주문 →</button>` : '';
   const basis = reasons.length
     ? `<details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-dim);">근거 ${reasons.length}개</summary>
         <ul class="text-xs pl-3 list-disc" style="color:var(--text-dim);">${reasons.map(t => `<li>${escHtml(t)}</li>`).join("")}</ul>
@@ -81,6 +83,7 @@ export function signalCardHtml(s, r, prevDay) {
     : `<div class="text-xs mt-1" style="color:var(--text-mute);">근거 없음</div>`;
   return `<div class="rounded-xl border p-2 ${cls}">
         <div class="font-semibold">${escHtml(s.name)}</div>
+        ${hub}
         <div class="text-slate-400 text-xs">${escHtml(s.symbol)}</div>
         <div class="mt-1 font-medium">${fmt(r?.current_price)} <span class="text-xs font-normal" style="color:var(--text-mute);">종가</span></div>
         ${asOf ? `<div class="text-xs" style="color:${late ? "var(--red)" : "var(--text-mute)"};">${escHtml(asOf.slice(5, 10))} 기준${late ? " · ⚠ 최신 아님" : ""}</div>` : ""}
@@ -96,7 +99,7 @@ async function loadSignalCards() {
   try {
     const { stocks } = await api("/api/stocks/quant/list");
     const title = document.getElementById("signal-cards-title");
-    if (title) title.textContent = `규칙 신호 (자동매매 대상 ${stocks.length}종목)`;        // 「대표 5종목」 이 아니라 실제로 그리는 수
+    if (title) title.textContent = `기본 일봉 규칙 신호 (관찰 목록 ${stocks.length}종목)`;
     const [results, st] = await Promise.all([
       Promise.allSettled(stocks.map(s => api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(s.symbol)}&period=2y`))),
       api("/api/data/status").catch(() => null),                                            // 전 거래일 — 못 받으면 경고만 못 낸다
@@ -172,12 +175,15 @@ async function loadAutoTradeStatus() {
       const risk = cycle.risk
         ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · ${escHtml(cycle.risk.valuation?.label || "이전 기록 · 평가 기준 미기록")} · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
         : "";
+      const stops = Object.entries(cycle.risk?.stop_checks || {}).map(([symbol, stop]) =>
+        `<div class="ml-3 text-xs">${escHtml(symbol)} · ${stop.origin === 'transition' ? '전환 시 고정' : '진입 시 고정'} 손절 ${fmt(stop.stop_price)}원 (${escHtml(stop.stop_kind || '%')})</div>`
+      ).join('');
       const sigs = (cycle.signals || []).map(sig =>
         `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(sig.error ? '판단 불가' : _displayAction(sig.action))}</b>${renderDecisionBasis({...sig, cycle_at: cycle.time}, escHtml, kstTime)}</div>`
       ).join("");
       return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
         <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
-        ${risk}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
+        ${risk}${stops}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
       </div>`;
     }).join("");
   } catch { }

@@ -139,10 +139,12 @@ def normalize_side(side: str) -> str:
     return s
 
 
-def tick_size(price: int) -> int:
-    """KRX 호가 단위 (2023-01-25 개편, 전 시장 공통). stock-coin-trade kis._kis_tick_size 와 동일."""
+def tick_size(price: int, *, is_etf: bool = False) -> int:
+    """KRX 호가 단위. ETF는 2,000원 미만 1원, 그 이상 5원(2026-11-02 KRX 안내 확인)."""
     if price < 2_000:
         return 1
+    if is_etf:
+        return 5
     if price < 5_000:
         return 5
     if price < 20_000:
@@ -156,10 +158,10 @@ def tick_size(price: int) -> int:
     return 1_000
 
 
-def align_price_to_tick(price: float, side: str) -> int:
+def align_price_to_tick(price: float, side: str, *, is_etf: bool = False) -> int:
     """지정가를 호가 단위에 맞춘다. 매수는 올림(체결 확률↑), 매도는 내림."""
     base = int(price)
-    tick = tick_size(base)
+    tick = tick_size(base, is_etf=is_etf)
     down = (base // tick) * tick
     if normalize_side(side) == "BUY" and down < price:
         return down + tick
@@ -167,7 +169,7 @@ def align_price_to_tick(price: float, side: str) -> int:
 
 
 def make_client_order_id(user_id: str, symbol: str, side: str, now: datetime | None = None) -> str:
-    """멱등키. 사이클(기본 3분) 1회 + 쿨다운 전제에서 (사용자, 종목, 방향, 분) 이 유일하다. 최대 64자."""
+    """멱등키. 사이클(기본 10분) 1회 + 쿨다운 전제에서 (사용자, 종목, 방향, 분) 이 유일하다. 최대 64자."""
     stamp = (now or datetime.now(KST)).astimezone(KST).strftime("%Y%m%d%H%M")
     uid = str(user_id).replace("-", "")[:12]
     return f"{uid}:{normalize_symbol(symbol)}:{normalize_side(side)[0]}:{stamp}"[:64]
@@ -212,7 +214,7 @@ async def _call(method: str, path: str, *, json: dict | None = None, params: dic
 
 
 def build_intent(symbol: str, side: str, quantity: int, price: float, *, client_order_id: str,
-                 order_type: str | None = None, env: str | None = None) -> dict[str, Any]:
+                 order_type: str | None = None, env: str | None = None, is_etf: bool = False) -> dict[str, Any]:
     ot = (order_type or default_order_type()).upper()
     if ot not in ("LIMIT", "MARKET"):
         raise GatewayError("현재 게이트웨이는 지정가·시장가만 지원합니다. 감시/스탑 주문은 연결하지 않았습니다.", "UNSUPPORTED_ORDER_TYPE", 422)
@@ -225,15 +227,15 @@ def build_intent(symbol: str, side: str, quantity: int, price: float, *, client_
         "side": side_u,
         "orderType": ot,
         "quantity": int(quantity),
-        "price": align_price_to_tick(price, side_u) if ot == "LIMIT" else 0,
+        "price": align_price_to_tick(price, side_u, is_etf=is_etf) if ot == "LIMIT" else 0,
         "clientOrderId": client_order_id,
     }
 
 
 async def place_order(symbol: str, side: str, quantity: int, price: float, *, client_order_id: str,
-                      order_type: str | None = None, env: str | None = None) -> dict[str, Any]:
+                      order_type: str | None = None, env: str | None = None, is_etf: bool = False) -> dict[str, Any]:
     """승인 토큰 → 주문. 반환: {"order": {...계약서 order...}, "duplicate": bool, "intent": {...}}"""
-    intent = build_intent(symbol, side, quantity, price, client_order_id=client_order_id, order_type=order_type, env=env)
+    intent = build_intent(symbol, side, quantity, price, client_order_id=client_order_id, order_type=order_type, env=env, is_etf=is_etf)
     order_timeout = float(getattr(settings, "STOCK_COIN_TRADE_ORDER_TIMEOUT", 0) or 0) or None
     approval = await _call("POST", "/openapi/v1/kis/order-approval", json=intent, retry=True, timeout=order_timeout)
     token = approval.get("approvalToken")

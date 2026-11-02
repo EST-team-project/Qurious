@@ -27,6 +27,7 @@ import logging
 import re
 import smtplib
 import socket
+import ssl
 import time
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -120,6 +121,10 @@ async def send_slack(message: str, webhook_url: str = "", outcome: dict | None =
     if not url:
         logger.debug("Slack 웹훅 URL 없음 – 건너뜀")
         return False
+    if webhook_url and not is_slack_webhook(webhook_url):
+        # 사용자가 넣은 주소는 서버가 대신 부른다 — 슬랙 주소 모양이 아니면(내부망 주소 등) 보내지 않는다(2026-11-02 보안 점검)
+        logger.warning("Slack 웹훅 주소 모양이 아니라 보내지 않습니다(https://hooks.slack.com/services/… 여야 함)")
+        return False
     try:
         async with httpx.AsyncClient(timeout=10) as cli:
             body: dict = {"text": message}
@@ -142,6 +147,50 @@ _DISCORD_HOOK_PREFIXES = (
 def is_discord_webhook(url: str) -> bool:
     """디스코드 웹훅 주소 모양인가 — 알림 설정 저장 때와 보내기 직전에 같은 검사를 쓴다."""
     return bool(url) and url.startswith(_DISCORD_HOOK_PREFIXES) and len(url) > len(_DISCORD_HOOK_PREFIXES[0])
+
+
+#: 슬랙이 받는 웹훅 주소 — 공식 도메인의 services · workflows · triggers 경로만. 사용자가 넣은 주소를 서버가 대신 부르므로
+#: 아무 주소나 받으면 내부망(메타데이터 · 사설 IP)으로 요청이 나간다(2026-11-02 보안 점검)
+_SLACK_HOOK_RE = re.compile(r"^https://hooks\.slack\.com/(?:services|workflows|triggers)/[A-Za-z0-9/_.\-]{4,}$")
+
+
+def is_slack_webhook(url: str) -> bool:
+    """슬랙 웹훅 주소 모양인가 — 알림 설정 저장 때와 보내기 직전에 같은 검사를 쓴다."""
+    return bool(url) and bool(_SLACK_HOOK_RE.match(url))
+
+
+#: 사용자가 정한 메일 서버로 STARTTLS 로 보낼 수 있는 포트(465 는 암호화 접속 방식이 달라 이 길에서 쓰지 않는다)
+SMTP_PORTS = (25, 587, 2525)
+_SMTP_HOST_RE = re.compile(r"^(?=.{4,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")
+
+
+def smtp_shape_error(host: str, port: int) -> str:
+    """메일 서버 이름 · 포트 모양 검사(이름 풀기 없음 — 저장 때 쓴다). 괜찮으면 빈 글, 아니면 까닭."""
+    if not _SMTP_HOST_RE.match(host or ""):
+        return "메일 서버 주소는 smtp.example.com 같은 이름이어야 합니다(http:// · 경로 · IP 숫자 주소는 쓸 수 없습니다)."
+    if port not in SMTP_PORTS:
+        return f"메일 서버 포트는 {' · '.join(map(str, SMTP_PORTS))} 중 하나여야 합니다(STARTTLS 접속)."
+    return ""
+
+
+def smtp_target_error(host: str, port: int, *, resolve=None) -> str:
+    """사용자가 정한 메일 서버로 나가도 되는가 — 모양 검사 + 그 이름이 가리키는 **모든** IP 가 공인 주소여야 한다. 괜찮으면 빈 글.
+
+    이름 풀기는 막힐 수 있어(느린 DNS) 보내는 쪽에서 스레드로 부른다. 시험은 `resolve` 로 바꿔 끼운다.
+    """
+    why = smtp_shape_error(host, port)
+    if why:
+        return why
+    from app.services import url_guard  # noqa: PLC0415 – 알림 서비스가 가볍게 뜨도록 필요할 때만
+    try:
+        ips = (resolve or url_guard._resolve)(host)
+    except OSError:
+        return "메일 서버 이름을 찾지 못했습니다."
+    for ip in ips:
+        bad = url_guard._bad_ip(ip)
+        if bad:
+            return f"내부망 주소로는 보낼 수 없습니다({bad})."
+    return ""
 
 
 #: 디스코드 글(content) 한 번에 최대 2,000자(공식 한도) — 넘으면 끝을 줄임표로 자른다
@@ -209,7 +258,7 @@ def _send_email_sync(
         msg.attach(MIMEText(body, "html", "utf-8"))
         with smtplib.SMTP(host, port, timeout=10) as server:
             server.ehlo()
-            server.starttls()
+            server.starttls(context=ssl.create_default_context())   # 인증서를 검증한다 — 가짜 서버에 비밀번호가 넘어가지 않게
             server.login(user, password)
             server.sendmail(from_addr or user, [to_addr], msg.as_string())
         return True
@@ -232,12 +281,22 @@ async def send_email(
     *, text_body: str = "",
 ) -> bool:
     """이메일 전송 (SMTP / STARTTLS)."""
-    to_addr   = to_addr   or settings.SMTP_TO
-    host      = host      or settings.SMTP_HOST
-    port      = port      or settings.SMTP_PORT
-    user      = user      or settings.SMTP_USER
-    password  = password  or settings.SMTP_PASSWORD
-    from_addr = from_addr or settings.SMTP_FROM or user
+    to_addr = to_addr or settings.SMTP_TO
+    if host:
+        # 사용자가 메일 서버를 직접 정했다 — 운영자(.env) 아이디 · 비밀번호 · 보내는 사람을 섞지 않는다(그 서버에 운영자 계정이
+        # 넘어가지 않게 · 2026-11-02 보안 점검). 서버가 내부망 주소를 가리키면 보내지 않는다.
+        port = port or settings.SMTP_PORT or 587
+        why = await asyncio.to_thread(smtp_target_error, host, port)
+        if why:
+            logger.warning("이메일 알림을 보내지 않음 — 사용자가 정한 메일 서버를 쓸 수 없습니다: %s", why)
+            return False
+        from_addr = from_addr or user
+    else:
+        host      = settings.SMTP_HOST
+        port      = port or settings.SMTP_PORT
+        user      = user or settings.SMTP_USER
+        password  = password or settings.SMTP_PASSWORD
+        from_addr = from_addr or settings.SMTP_FROM or user
     if not (host and user and password and to_addr):
         logger.debug("SMTP 설정 없음 – 건너뜀")
         return False
@@ -341,8 +400,13 @@ async def send_sms(
 # ── 디스패처 ────────────────────────────────────────────────────────────────
 
 
+#: 사용자는 있는데 알림 설정 행이 없거나 조회가 실패했다는 표시 — 빈 `{}`(사용자 없는 운영 알림)와 구분한다.
+#: 이 사용자의 개인 알림(체결 · 예수금)은 `.env` 공용 채널로 보내지 않는다(2026-11-02 보안 점검: 예전엔 둘 다 `{}` 라 공용 채널로 샜다)
+NO_SETTINGS = {"_no_settings": True}
+
+
 async def _load_user_settings(user_id: str | None) -> dict:
-    """PostgreSQL에서 사용자별 알림 설정을 조회한다."""
+    """PostgreSQL에서 사용자별 알림 설정을 조회한다. 사용자가 없는 호출은 `{}`, 설정 행이 없거나 조회가 실패하면 `NO_SETTINGS`."""
     if not user_id:
         return {}
     try:
@@ -358,7 +422,7 @@ async def _load_user_settings(user_id: str | None) -> dict:
             )
             row = result.scalar_one_or_none()
         if not row:
-            return {}
+            return dict(NO_SETTINGS)
         return {
             "channels": row.channels,
             "telegram_token": row.telegram_token,
@@ -381,8 +445,16 @@ async def _load_user_settings(user_id: str | None) -> dict:
             "sms_to": row.sms_to,
             "preferences": row.preferences or {},
         }
-    except Exception:
-        return {}
+    except Exception as exc:
+        logger.warning("사용자 알림 설정 조회 실패 — 이 사용자의 알림은 보내지 않습니다: %s", _safe_exc(exc))
+        return dict(NO_SETTINGS)
+
+
+def _channels_for(user_cfg: dict) -> list[str]:
+    """이 사건을 보낼 채널 — 설정에 고른 채널, 없으면 `.env` 기본 채널. 설정 행이 없거나 조회가 실패한 사용자는 아무 데로도 보내지 않는다."""
+    if user_cfg.get("_no_settings"):
+        return []
+    return user_cfg.get("channels") or _default_channels()
 
 
 def _default_channels() -> list[str]:
@@ -558,7 +630,7 @@ async def dispatch_event(ev, user_id: str | None = None, *, dedupe_kind: str | N
     plan = alert_prefs.hold_plan(ev.kind, ev.severity, prefs, datetime.now(alert_format.KST)) if user_id else None
     if plan and await _store_held(user_id, subj, plain, {**payload, "hold": {**plan, "mode": mode}}, event_id):
         return
-    channels: list[str] = user_cfg.get("channels") or _default_channels()
+    channels: list[str] = _channels_for(user_cfg)
     names, results, attempts = await _deliver(ev, user_cfg, channels, silent=(mode == "silent"))
     if event_id is None:
         await _log_dispatch(user_id, subj, plain, names, results, attempts, payload=payload)
@@ -608,7 +680,7 @@ async def _release(uid, user_cfg: dict, claimed: list) -> int:
     import uuid
     from app.database.postgres import get_session_factory
     from app.models import NotificationLog
-    channels = user_cfg.get("channels") or _default_channels()
+    channels = _channels_for(user_cfg)
     payloads = [r.payload or {} for r in claimed]
     modes = [(p.get("hold") or {}).get("mode", "on") for p in payloads]
     if len(claimed) == 1:
@@ -813,6 +885,7 @@ async def notify_order_placed(
     price: float,
     broker: str = "",
     user_id: str | None = None,
+    *, details: list[tuple[str, str]] | None = None,
 ) -> None:
     """주문 접수 알림."""
     label = _side_label(side)
@@ -820,6 +893,7 @@ async def notify_order_placed(
               ("총액", alert_format.won(quantity * price))]
     if broker:
         fields.append(("증권사", broker))
+    fields.extend(details or [])
     ev = alert_format.AlertEvent(
         kind="order_placed", severity="normal", emoji="📈" if side == "buy" else "📉", title=f"주문 접수 – {label} {symbol}",
         summary="증권사에 주문이 접수되었습니다. 접수는 체결이 아닙니다.", fields=fields,
@@ -828,6 +902,27 @@ async def notify_order_placed(
         subject=f"[매매 알림] {label} 주문 접수 – {symbol}",
     )
     await dispatch_event(ev, user_id=user_id)
+
+
+async def notify_paper_order_filled(order) -> None:
+    """가상 PAPER 장부의 확정 체결. KIS 모의 계좌와 구분한다."""
+    label = _side_label(order.order_type)
+    cost = sum(float(getattr(order, key, 0) or 0)
+               for key in ("commission", "fee_clearing", "tax_transfer", "tax_rural"))
+    price = order.avg_fill_price or order.price
+    ev = alert_format.AlertEvent(
+        kind="order_fill", severity="normal", emoji="✅", title=f"체결 확정 – {label} {order.symbol} (PAPER 가상)",
+        summary=f"{order.quantity:,}주가 {price:,.0f}원에 체결되었습니다.",
+        fields=[("주문번호", str(order.id)), ("종목", f"{order.name} ({order.symbol})"),
+                ("구분", f"{label} · {'스탑' if order.order_kind == 'stop' else '수동'}"),
+                ("체결", f"{order.quantity:,}주 × {price:,.0f}원"),
+                ("비용", alert_format.won(cost)), ("정산액", alert_format.won(order.net_amount)),
+                ("환경", "PAPER 가상 장부")],
+        mock=True, ref=str(order.id),
+        next_action="모의투자 주문 내역에서 같은 주문번호로 확인하세요.",
+        subject=f"[PAPER 체결] {label} – {order.symbol}",
+    )
+    await dispatch_event(ev, user_id=str(order.user_id), dedupe_kind="paper_order_fill", ref=str(order.id))
 
 
 async def notify_order_filled(
@@ -933,13 +1028,14 @@ async def notify_risk_halt(reason: str, day_pnl_pct: float | None = None, user_i
     await dispatch_event(ev, user_id=user_id)
 
 
-async def notify_risk_skip(symbol: str, name: str, side: str, reason: str, user_id: str | None = None) -> None:
+async def notify_risk_skip(symbol: str, name: str, side: str, reason: str, user_id: str | None = None,
+                           *, details: list[tuple[str, str]] | None = None) -> None:
     """위험관리 규칙으로 주문을 생략했음을 알린다 (중복 주문·한도 초과). 같은 시간대 여러 건은 묶어서 나간다."""
     label = _side_label(side)
     ev = alert_format.AlertEvent(
         kind="risk_skip", severity="info", emoji="⚠️", title=f"주문 생략 – {label} {name}",
         summary=f"{name} ({symbol}) {label} 주문을 위험관리 규칙으로 건너뛰었습니다.",
-        fields=[("종목", f"{name} ({symbol})"), ("구분", label)], reason=reason,
+        fields=[("종목", f"{name} ({symbol})"), ("구분", label)] + list(details or []), reason=reason,
         subject=f"[위험관리] {label} 주문 생략 – {name}", group_key="risk_skip",
     )
     await dispatch_event(ev, user_id=user_id)

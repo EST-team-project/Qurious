@@ -11,6 +11,8 @@ class ExecutionPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     size_kind: Literal["fixed_budget", "risk_pct"] = "fixed_budget"
     risk_pct: float = Field(1, gt=0, le=5)
+    stop_kind: Literal["pct", "atr"] = "atr"
+    atr_mult: float = Field(2, gt=0, le=10)
     stop_loss_pct: float = Field(1, gt=0, le=50)
     slippage_bps: float = Field(10, ge=0, le=100)
     retry_enabled: bool = False
@@ -20,7 +22,11 @@ class ExecutionPolicy(BaseModel):
 
 
 def policy_for(row):
-    return ExecutionPolicy.model_validate(getattr(row, "quant_execution_policy", None) or {})
+    raw = getattr(row, "quant_execution_policy", None)
+    if raw is None:
+        return ExecutionPolicy()
+    # 기존 저장값의 % 의미는 유지하고 새 요청에만 ATR 기본값을 적용한다.
+    return ExecutionPolicy.model_validate({"stop_kind": "pct", **raw})
 
 
 def risk_quantity(*, equity, cash, price, stop_price, budget, existing_value, position_cap_pct,
@@ -44,10 +50,12 @@ def risk_quantity(*, equity, cash, price, stop_price, budget, existing_value, po
     per_share_cash = price * (1 + buy)
     per_share_loss = per_share_cash - stop * (1 - sell)
     risk_budget = equity * risk / 100
-    limits = [risk_budget / per_share_loss, cash / per_share_cash, budget / per_share_cash]
+    limits = {"risk": risk_budget / per_share_loss, "cash": cash / per_share_cash, "budget": budget / per_share_cash}
     if cap > 0:
-        limits.append(max(Decimal(0), equity * cap / 100 - held) / price)
-    qty = max(0, int(min(limits).to_integral_value(rounding=ROUND_FLOOR)))
+        limits["position"] = max(Decimal(0), equity * cap / 100 - held) / price
+    qty = max(0, int(min(limits.values()).to_integral_value(rounding=ROUND_FLOOR)))
     return {"quantity": qty, "risk_budget": float(risk_budget), "stop_price": float(stop),
+            "binding_limits": [key for key, value in limits.items() if int(value) == qty],
+            "quantity_limits": {key: max(0, int(value)) for key, value in limits.items()},
             "estimated_loss": float(per_share_loss * qty), "estimated_cash": float(per_share_cash * qty),
             "loss_per_share": float(per_share_loss)}

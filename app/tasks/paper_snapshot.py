@@ -86,11 +86,16 @@ async def _record_all_async() -> dict:
         factory = get_session_factory()
         async with factory() as db:
             users = (await db.execute(select(User))).scalars().all()
-            ok, fail = 0, 0
+            ok, fail, complete, incomplete = 0, 0, 0, 0
             for u in users:
                 try:
-                    await record_daily_snapshot(db, u.id)
+                    snap = await record_daily_snapshot(db, u.id)
                     ok += 1
+                    if snap.completeness == "complete":
+                        complete += 1
+                    else:
+                        incomplete += 1
+                        logger.warning("스냅샷 시세 불완전 user=%s date=%s", u.id, today_kst)
                 except Exception as e:
                     fail += 1
                     # ── 이슈 #88 지적 #11 — 한 명 실패가 다음 사람을 막지 않도록 ──
@@ -100,6 +105,8 @@ async def _record_all_async() -> dict:
                 "total": len(users),
                 "ok": ok,
                 "fail": fail,
+                "complete": complete,
+                "incomplete": incomplete,
                 "date": today_kst.isoformat(),
                 "reason": reason,
             }

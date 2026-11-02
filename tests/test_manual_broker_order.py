@@ -79,6 +79,24 @@ def account(uid):
     return manual.kis_execution.account_key("synthetic-"+uid.hex, "1234567801", "paper")
 
 
+@pytest.mark.parametrize("price,accepted", [(70005, True), (70001, False)])
+def test_manual_etf_limit_is_preserved_or_rejected_without_sending(runtime, monkeypatch, price, accepted):
+    sessions, client = runtime
+    monkeypatch.setattr(manual.etf_execution, "describe", lambda symbol: {"is_etf": True, "warnings": []})
+    async def scenario():
+        uid = await user(sessions)
+        result = await manual.submit(uid, **request(price=price))
+        if accepted:
+            assert result["status"] == "submitted", result
+            assert result["order"]["price"] == price
+            assert client.place_order.await_args.args[-1] == price
+        else:
+            assert result["code"] == "INVALID_TICK", result
+            client.place_order.assert_not_awaited()
+            assert not await orders(sessions, uid)
+    asyncio.run(scenario())
+
+
 async def orders(sessions, uid):
     async with sessions() as db:
         return (await db.scalars(select(LiveOrder).where(LiveOrder.user_id == uid))).all()

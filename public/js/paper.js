@@ -1,10 +1,14 @@
 /* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
+import { mountPaperRisk } from "/js/paper-risk.js";
 import {
   COIN_SOURCE_NOTE, COIN_LIVE_NOTE, COIN_ORDER_NOTE, UPBIT_WS_URL, PING_MS,
   coinPoints, coinChartSummary, coinSubscribeMessage, decodeWsData, parseUpbitTicker, coinCandleDate,
   liveBadge, priceGap, orderPriceLine, reconnectDelay,
 } from "/js/coinview.js";
+import { resolveSymbolInput } from "/js/stockfind.js";                                  // 칸에 이름을 쳐도 종목으로 풀어 준다 (2026-11-02)
+import { openStockSearch } from "/js/company.js";
+import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD, scDirection, scQuickStops, scWouldFireNow } from "/js/stockchart.js";
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
@@ -111,12 +115,79 @@ async function loadPaperStock() {
   } catch { }
 }
 
+/* 종목 칸의 글(코드 또는 이름)을 기호로 — 이름이면 찾아 칸을 채우고, 여럿이거나 없으면 종목 찾기 창을 그 글자로 열어 두고 null 을 돌려준다.
+ * 창에서 고르면 칸이 채워지고 again 이 불린다(시세 조회는 다시 조회 · 주문은 「다시 눌러 주세요」 안내). */
+function symbolFromInput(id, again) {
+  return resolveSymbolInput(document, $(id), {
+    search: async q => ((await api(`/api/stocks/search?q=${encodeURIComponent(q)}`)).results) || [],
+    open: openStockSearch,
+    onPicked: () => { if (again) again(); },
+  });
+}
+const pickedToast = () => setToast("종목을 골랐습니다. 수량을 확인하고 다시 눌러 주세요.", "ok");
+
+/* 시세 조회 결과 아래 일봉 차트 — 왼쪽(주문 입력) · 오른쪽(스탑, 스탑가 점선). 같은 부품(js/stockchart.js) */
+let psMain = null, psMainSym = "", psMainPeriod = SC_DEFAULT_PERIOD;
+let psStop = null, psStopSym = "", psStopCurrent = null, psStopTimer = null;
+
+function psPeriodChips() {
+  const el = $("ps-chart-periods");
+  if (!el) return;
+  el.innerHTML = SC_PERIODS.map(([k, label]) => `<button type="button" data-ps-period="${k}" class="text-xs px-2 rounded-full border"
+    style="${k === psMainPeriod ? "background:var(--accent);color:#fff;border-color:var(--accent);" : ""}">${label}</button>`).join("");
+}
+
+function psDrawMain() {
+  if (!psMain) psMain = mountDailyChart(document, $("ps-chart"), $("ps-chart-note"), { api });
+  psPeriodChips();
+  psMain.draw({ symbol: psMainSym, period: psMainPeriod });
+}
+
+function psStopStopValue() {
+  const v = parseFloat($("ps-stop-price").value);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+function psDrawStop() {
+  if (!psStopSym) return;
+  if (!psStop) psStop = mountDailyChart(document, $("ps-stop-chart"), $("ps-stop-chart-note"), { api });
+  psStop.draw({ symbol: psStopSym, period: "3m", stop: psStopStopValue() });
+}
+
+/** 스탑가 칸 아래 방향 안내 — 현재가와 견준 쪽 · 반대로 등록하면 바로 체결될 수 있음 */
+function psStopHint() {
+  const hint = $("ps-stop-hint");
+  if (!hint) return;
+  const note = scDirection(psStopCurrent, psStopStopValue());
+  hint.textContent = note || "시세를 조회하면 현재가와 견준 방향을 알려 드립니다. 매도 스탑은 현재가보다 낮게, 매수 스탑은 현재가보다 높게 넣습니다.";
+  hint.style.color = note ? "var(--text)" : "var(--text-mute)";
+}
+
+function psStopQuick() {
+  const box = $("ps-stop-quick");
+  if (!box) return;
+  const list = scQuickStops(psStopCurrent);
+  box.hidden = !list.length;
+  box.innerHTML = list.length
+    ? `<span class="text-xs" style="color:var(--text-mute);align-self:center;">손절용(매도 스탑)</span>` + list.map(s =>
+      `<button type="button" class="btn-secondary text-xs ps-stop-quick" data-v="${s.value}">${escHtml(s.label)} · ${won(s.value)}</button>`).join("")
+    : "";
+  box.querySelectorAll(".ps-stop-quick").forEach(b => b.addEventListener("click", () => {
+    $("ps-stop-price").value = b.dataset.v;
+    psStopHint(); psDrawStop();
+  }));
+}
+
+let stockQuoteRevision = 0;
 async function stockQuote() {
-  const symbol = $("ps-symbol").value.trim();
+  const revision = ++stockQuoteRevision;
+  const symbol = await symbolFromInput("ps-symbol", stockQuote);
+  if (symbol === null) return;                       // 종목 찾기 창에서 고르는 중
   if (!symbol) return setToast("종목코드를 입력하세요.", "error");
   $("ps-quote").innerHTML = `<span style="color:var(--text-mute);">조회 중…</span>`;
   try {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
+    if (revision !== stockQuoteRevision || $("ps-symbol").value.trim() !== symbol) return;
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
     const isForeign = q.price_local != null && q.currency && q.currency !== "KRW";
 
@@ -130,11 +201,24 @@ async function stockQuote() {
       ${q.fx_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(q.fx_note)}</div>` : ""}
       ${q.quote_label ? `<div class="text-xs" style="color:var(--text-mute);">${escHtml(q.quote_label)} · 체결 직전에 다시 확인합니다</div>` : ""}`;
     $("ps-symbol").value = q.symbol;
-  } catch (e) { $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+    // 일봉 차트 + 종목 서랍 입구(국내 6자리 코드일 때만 — 수집 일봉 · 종목 허브가 국내 종목 기준)
+    const domestic = !!scCode(q.symbol);
+    $("ps-chart-wrap").hidden = !domestic;
+    $("ps-hub-open").dataset.hubOpen = domestic ? scCode(q.symbol) : "";
+    $("ps-hub-open").dataset.hubName = q.name || "";
+    $("ps-hub-open").hidden = !domestic;
+    if (domestic) { psMainSym = q.symbol; psDrawMain(); }
+  } catch (e) {
+    if (revision === stockQuoteRevision && $("ps-symbol").value.trim() === symbol) {
+      $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`;
+      $("ps-chart-wrap").hidden = true;
+    }
+  }
 }
 
 async function stockPreview(side) {
-  const symbol = $("ps-symbol").value.trim();
+  const symbol = await symbolFromInput("ps-symbol", pickedToast);
+  if (symbol === null) return;
   const quantity = parseInt($("ps-qty").value);
   if (!symbol || !quantity) return setToast("종목코드와 수량을 입력하세요.", "error");
   try {
@@ -160,7 +244,8 @@ async function stockPreview(side) {
 }
 
 async function stockOrder(side) {
-  const symbol = $("ps-symbol").value.trim();
+  const symbol = await symbolFromInput("ps-symbol", pickedToast);
+  if (symbol === null) return;
   const quantity = parseInt($("ps-qty").value);
   if (!symbol || !(quantity >= 1)) return setToast("종목코드와 수량(1주 이상)을 입력하세요.", "error");
 
@@ -238,7 +323,8 @@ async function loadStockHistory() {
       return `<tr>
           <td class="text-xs">${ts(o.ts)}</td>
           <td>${sideBadge(o.type)}</td>
-          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span></td>
+          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span>
+            <div class="text-xs">주문번호 ${escHtml(o.order_id || '-')} · ${o.order_kind === 'stop' ? '스탑' : '시장가'}</div></td>
           <td style="text-align:right">${fmt(o.quantity)}</td>
           <td style="text-align:right">${won(o.price)}</td>
           <td style="text-align:right">${won(o.amount)}</td>
@@ -286,7 +372,8 @@ async function loadStopOrders() {
 }
 
 async function stockStopQuote() {
-  const symbol = $("ps-stop-symbol").value.trim();
+  const symbol = await symbolFromInput("ps-stop-symbol", stockStopQuote);
+  if (symbol === null) return;                       // 종목 찾기 창에서 고르는 중
   if (!symbol) return setToast("종목코드를 입력하세요.", "error");
   $("ps-stop-quote").innerHTML = `<span style="color:var(--text-mute);">조회 중…</span>`;
   try {
@@ -294,20 +381,33 @@ async function stockStopQuote() {
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
     $("ps-stop-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
       <div class="text-lg font-bold mt-1">${fmt(q.price, q.currency === "KRW" ? 0 : 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
-    // 자동으로 스탑가 input에 현재가 채우기 (편의)
-    if (!$("ps-stop-price").value && q.price) {
-      $("ps-stop-price").value = Math.round(q.price);
-    }
+    // 스탑가 칸은 채우지 않는다(2026-11-02 · 현재가를 그대로 두고 등록하면 다음 1분 점검에서 바로 체결됐다) —
+    // 대신 현재가와 견준 방향 안내 · 빠른 단추(−3% · −5% · −10%) · 일봉 차트의 스탑가 점선으로 돕는다.
     // 종목코드 정규화 (005930 → 005930.KS)
     $("ps-stop-symbol").value = q.symbol;
-  } catch (e) { $("ps-stop-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+    psStopSym = q.symbol;
+    psStopCurrent = Number(q.price) > 0 ? Number(q.price) : null;
+    const domestic = !!scCode(q.symbol);
+    $("ps-stop-chart-wrap").hidden = !domestic;
+    psStopHint(); psStopQuick();
+    if (domestic) psDrawStop();
+  } catch (e) {
+    $("ps-stop-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`;
+    psStopCurrent = null; $("ps-stop-chart-wrap").hidden = true; psStopHint(); psStopQuick();
+  }
 }
 
 async function placeStopOrder(side) {
-  const symbol = $("ps-stop-symbol").value.trim();
+  const symbol = await symbolFromInput("ps-stop-symbol", pickedToast);
+  if (symbol === null) return;                       // 종목 찾기 창에서 고르는 중
   const quantity = parseInt($("ps-stop-qty").value);
   const stop_price = parseFloat($("ps-stop-price").value);
   if (!symbol || !quantity || !stop_price) return setToast("종목코드 · 수량 · 스탑가를 입력하세요.", "error");
+  // 방향 검사는 서버의 새 기준 시세로 확정한다. 이전 화면 시세로 승인 여부를 정하지 않는다.
+  const sameStock = psStopSym && symbol.toUpperCase() === psStopSym.toUpperCase();
+  if (sameStock && scWouldFireNow(side, psStopCurrent, stop_price)) {
+    setToast("표시 시세 기준으로 스탑 방향이 맞지 않습니다. 서버에서 최신 기준 시세로 다시 확인합니다.", "error");
+  }
   try {
     const r = await api("/api/paper/stocks/orders/stop", {
       method: "POST",
@@ -317,6 +417,7 @@ async function placeStopOrder(side) {
     $("ps-stop-symbol").value = "";
     $("ps-stop-qty").value = "";
     $("ps-stop-price").value = "";
+    psStopSym = ""; psStopCurrent = null; $("ps-stop-chart-wrap").hidden = true; psStopHint(); psStopQuick();
     loadStopOrders();
   } catch (e) { setToast(e.message, "error"); }
 }
@@ -923,6 +1024,7 @@ async function loadLeanHistory() {
  * 공개 API: app.html 메인 모듈에서 호출
  * ──────────────────────────────────────────────────────────────── */
 export function initPaperViews() {
+  mountPaperRisk({ doc: document, api, resolveSymbol: () => symbolFromInput("ps-symbol", () => $("ps-risk-calc").click()) });
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on("pd-reset", "click", resetPaperAccount);
   on("pd-refresh", "click", loadPaperDashboard);
@@ -939,6 +1041,13 @@ export function initPaperViews() {
   on("ps-stop-symbol", "keydown", e => { if (e.key === "Enter") stockStopQuote(); });
   on("ps-stop-buy", "click", () => placeStopOrder("BUY"));
   on("ps-stop-sell", "click", () => placeStopOrder("SELL"));
+  // 스탑가를 바꾸면 방향 안내와 차트의 점선을 다시 맞춘다(타자 중에는 0.3초 쉬었다가 차트)
+  on("ps-stop-price", "input", () => { psStopHint(); clearTimeout(psStopTimer); psStopTimer = setTimeout(psDrawStop, 300); });
+  // 시세 조회 결과 차트의 기간 단추
+  on("ps-chart-periods", "click", e => {
+    const b = e.target.closest("[data-ps-period]");
+    if (b) { psMainPeriod = b.dataset.psPeriod; psDrawMain(); }
+  });
 
   on("pc-market", "change", cryptoTicker);
   on("pc-refresh", "click", cryptoTicker);

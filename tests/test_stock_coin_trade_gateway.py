@@ -95,6 +95,13 @@ def test_place_order_is_two_step_and_intent_is_identical(server):
                              "quantity": 2, "price": 70_100, "clientOrderId": "cid-1"}
 
 
+def test_etf_approval_and_order_use_identical_five_won_tick(server):
+    result = asyncio.run(gw.place_order("360750.KS", "buy", 2, 50005, client_order_id="etf-1", is_etf=True))
+    assert result["intent"]["price"] == 50005
+    assert [body["price"] for _, _, body in server.calls] == [50005, 50005]
+    assert {k: v for k, v in server.calls[1][2].items() if k != "approvalToken"} == server.calls[0][2]
+
+
 def test_gateway_error_maps_contract_code(server):
     server.fail_orders_with = (403, {"ok": False, "error": "APPROVAL_INVALID", "message": "만료"})
     with pytest.raises(gw.GatewayError) as exc:

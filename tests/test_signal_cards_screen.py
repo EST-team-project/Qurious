@@ -63,6 +63,7 @@ def test_card_shows_reasons_note_close_and_flags_stale_data():
     assert "근거 2개" in fresh and "RSI 중립 (55.0)" in fresh and "단기 이평 &gt; 중기 이평" in fresh and "금융위원회 주식시세정보" in fresh
     assert ">종가<" in fresh and "217,000" in fresh and "10-29 기준" in fresh and "최신 아님" not in fresh
     assert "매수" in fresh and "RSI: 55.0" in fresh
+    assert 'data-hub-open="005930"' in fresh and 'data-hub-name="삼성전자"' in fresh
     assert "10-28 기준 · ⚠ 최신 아님" in stale and "var(--red)" in stale
     assert "최신 아님" not in unknown and "10-28 기준" in unknown, "전 거래일을 모르면 경고를 못 낸다(거짓 경고 금지)"
 
@@ -78,6 +79,7 @@ def test_card_survives_missing_data_and_escapes_text():
     assert "근거 없음" in failed and "RSI: -" in failed and "기준" not in failed
     assert "근거 없음" in empty and "관망" in empty
     assert "<script>" not in evil and "&lt;script&gt;" in evil and "<img src=x>" not in evil and "&lt;b&gt;x" in evil and "A&amp;B" in evil
+    assert 'data-hub-open=' not in evil
 
 
 def test_labels_follow_the_decision_and_title_counts_what_it_draws():
@@ -88,6 +90,7 @@ def test_labels_follow_the_decision_and_title_counts_what_it_draws():
     m = re.search(r'signal:\s*\{ title: "([^"]+)"', core)
     assert m and m.group(1) == "규칙 신호"
     assert "stocks.length" in QUANT and "signal-cards-title" in QUANT, "제목의 종목 수는 실제 그리는 수"
+    assert "관찰 목록 ${stocks.length}종목" in QUANT and "자동매매 대상 ${stocks.length}" not in QUANT
     assert "previous_trading_day" in QUANT, "전 거래일은 서버(/api/data/status)가 알려 준 값"
     stock = (ROOT / "app" / "services" / "stock.py").read_text(encoding="utf-8")
     assert 'return {"action": action, "color": color, "score": score, "reasons": signals}' in stock, "서버 판정 응답은 그대로(일지 판 지문)"
