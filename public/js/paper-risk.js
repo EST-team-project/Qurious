@@ -1,5 +1,5 @@
 /** PAPER 계좌에서 신규 매수 수량을 계산한다. 응답이 늦으면 다른 종목/입력에 적용하지 않는다. */
-export function mountPaperRisk({ doc, api }) {
+export function mountPaperRisk({ doc, api, resolveSymbol }) {
   const el = id => doc.getElementById(id);
   if (!el('ps-risk-calc')) return;
   const fields = {
@@ -7,7 +7,7 @@ export function mountPaperRisk({ doc, api }) {
     stop_kind: 'ps-risk-kind', stop_loss_pct: 'ps-risk-stop', atr_mult: 'ps-risk-atr',
     slippage_bps: 'ps-risk-slippage',
   };
-  let revision = 0;
+  let revision = 0, request = 0, manualQuantity = 0;
   function invalidate() {
     revision++;
     el('ps-qty').value = '';
@@ -15,13 +15,19 @@ export function mountPaperRisk({ doc, api }) {
   }
   for (const id of ['ps-symbol', ...Object.values(fields)]) el(id)?.addEventListener('input', invalidate);
   // 사용자가 직접 수량을 바꾸면 진행 중인 계산이 덮어쓰지 않는다.
-  el('ps-qty').addEventListener('input', () => { revision++; });
+  el('ps-qty').addEventListener('input', () => { revision++; manualQuantity++; });
   el('ps-risk-calc').addEventListener('click', async () => {
-    const current = ++revision;
-    const symbol = el('ps-symbol').value.trim();
+    const mine = ++request, manual = manualQuantity;
+    let current = ++revision;
+    let symbol = el('ps-symbol').value.trim();
     const code = s => s.split('.')[0].toUpperCase();
     el('ps-qty').value = '';
     el('ps-risk-result').textContent = 'PAPER 계좌와 가격 확인 중…';
+    if (resolveSymbol) {
+      symbol = await resolveSymbol();
+      if (symbol === null || mine !== request || manual !== manualQuantity) return;
+      current = ++revision; // 이름→코드 변환이 보내는 input 이벤트 이후의 입력을 사용한다.
+    }
     const body = { symbol };
     for (const [key, id] of Object.entries(fields)) body[key] = key === 'stop_kind' ? el(id).value : Number(el(id).value);
     const stillCurrent = () => current === revision && code(el('ps-symbol').value.trim()) === code(symbol);

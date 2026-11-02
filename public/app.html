@@ -365,10 +365,19 @@
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">주문 입력</h3>
                   <div class="flex gap-2 mb-2">
-                    <input id="ps-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 (예: 005930, 000660.KS, AAPL)" />
+                    <input id="ps-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 또는 이름 (예: 005930, 삼성전자, AAPL)" />
                     <button id="ps-quote-btn" class="btn-secondary">시세 조회</button>
                   </div>
                   <div id="ps-quote" class="text-sm mb-2 min-h-[24px]"></div>
+                  <div id="ps-chart-wrap" class="mb-2" hidden>
+                    <div class="flex items-center gap-2 mb-1">
+                      <b class="text-sm">일봉 종가</b>
+                      <span id="ps-chart-periods" class="flex gap-1"></span>
+                      <button type="button" id="ps-hub-open" class="text-xs ml-auto" style="color:var(--accent);font-weight:600;" data-hub-open="" data-hub-mode="modal" data-hub-name="">근거 · 차트 크게 보기 →</button>
+                    </div>
+                    <div id="ps-chart" style="height:150px;"></div>
+                    <div id="ps-chart-note" class="text-xs mt-1" style="color:var(--text-mute);"></div>
+                  </div>
                   <input id="ps-qty" class="input mb-2" type="number" min="1" placeholder="수량 (주)" />
                   <details class="text-sm mb-3" open>
                     <summary>PAPER 신규 매수 수량 계산</summary>
@@ -402,14 +411,20 @@
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">🛑 스탑(감시) 주문</h3>
                   <div class="flex gap-2 mb-2">
-                    <input id="ps-stop-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 (예: 005930)" />
+                    <input id="ps-stop-symbol" data-stock-find="symbol" class="input" placeholder="종목코드 또는 이름 (예: 005930, 삼성전자)" />
                     <button id="ps-stop-quote-btn" class="btn-secondary">시세 조회</button>
                   </div>
                   <div id="ps-stop-quote" class="text-sm mb-2 min-h-[24px]"></div>
+                  <div id="ps-stop-chart-wrap" class="mb-2" hidden>
+                    <div id="ps-stop-chart" style="height:130px;"></div>
+                    <div id="ps-stop-chart-note" class="text-xs mt-1" style="color:var(--text-mute);"></div>
+                  </div>
                   <div class="flex gap-2 mb-2">
                     <input id="ps-stop-qty" class="input w-32" type="number" min="1" placeholder="수량" />
                     <input id="ps-stop-price" class="input flex-1" type="number" min="1" placeholder="스탑가 (원)" />
                   </div>
+                  <div id="ps-stop-quick" class="flex gap-1 mb-2" hidden></div>
+                  <div id="ps-stop-hint" class="text-xs mb-2" style="color:var(--text-mute);" aria-live="polite">시세를 조회하면 현재가와 견준 방향을 알려 드립니다. 매도 스탑은 현재가보다 낮게, 매수 스탑은 현재가보다 높게 넣습니다.</div>
                   <div class="flex gap-2 mb-2">
                     <button id="ps-stop-buy" class="btn-green flex-1">매수 스탑 등록</button>
                     <button id="ps-stop-sell" class="btn-red flex-1">매도 스탑 등록</button>

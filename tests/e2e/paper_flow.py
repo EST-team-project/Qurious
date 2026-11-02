@@ -128,6 +128,18 @@ async def page():
     return HTMLResponse(source)
 
 
+@app.get('/api/stocks/search')
+async def search(q: str):
+    return {'results': [{'symbol': '005930.KS', 'name': '시험'}]}
+
+
+@app.get('/api/data/ohlcv')
+async def ohlcv():
+    from datetime import date, timedelta
+    return {'rows': [{'trade_date': (date.today()-timedelta(days=d)).isoformat(),
+                      'open': 10000, 'high': 10100, 'low': 9900, 'close': 10000, 'volume': 1000} for d in (2, 1)]}
+
+
 app.mount('/', StaticFiles(directory=ROOT / 'public'))
 server = uvicorn.Server(uvicorn.Config(app, host=args.bind, port=args.port, log_level='error'))
 thread = threading.Thread(target=server.run, daemon=True)

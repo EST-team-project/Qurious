@@ -32,7 +32,7 @@ from app.services.brokers.stock_coin_trade_gateway import krx_holidays
 
 logger = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
-CACHE_TTL_SEC = 10                      # KIS 모의는 초당 2건 — 화면 여러 개가 같은 값을 나눠 쓴다
+CACHE_TTL_SEC = 10                      # KIS 모의는 초당 1건(실전 18건 · 2026.04.20 공지 — 전에는 2건 · 20건) — 화면 여러 개가 같은 값을 나눠 쓴다
 CACHE_MAX = 2000                        # 넘으면 지난 것부터 비운다(사람 × 종목이라 하루에도 크지 않다)
 _cache: dict[tuple[str, str], tuple[float, dict]] = {}
 OPEN, CLOSE = dtime(9, 0), dtime(15, 30)
