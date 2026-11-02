@@ -21,7 +21,8 @@ config = context.config
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # 같은 프로세스에서 마이그레이션을 검증해도 앱의 기존 로거를 끄지 않는다.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # app/config.py의 DATABASE_URL을 alembic.ini보다 우선한다.
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
