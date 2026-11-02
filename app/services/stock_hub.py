@@ -181,6 +181,44 @@ def _etf_name(symbol: str) -> str:
     return (row[0] or "") if row else ""
 
 
+def attach_names(resp: dict) -> dict:
+    """신호 순위 응답의 줄마다 종목 이름(`name`)을 한 번의 읽기 연결로 붙인다.
+
+    순위 화면(`signal-rank` 새 화면 · 2026-11-02)은 종목 코드만 보이면 쓸 수 없다. 이름은 꾸밈이라 못 읽으면 빈 글로 두고
+    응답을 막지 않는다(`name_of` 와 같은 규칙: 주식 이름표 → 없으면 ETF 이름표). 기록의 종목 코드가 `005930.KS` 꼴이어도
+    앞 6자리로 찾는다. `signal_rank` 본문을 고치지 않으려고 따로 둔다(그 본문은 신장환 님이 `load_day` 읽는 양을 줄이며 고친다 — #487).
+    """
+    rows = resp.get("rows") or []
+    for r in rows:
+        r["name"] = ""
+    path = collector_db.db_path()
+    if path is None or not rows:
+        return resp
+    try:
+        conn = _open_ro(path)
+    except sqlite3.Error:
+        return resp
+    try:
+        for r in rows:
+            code = str(r.get("symbol") or "").split(".")[0]
+            if not code:
+                continue
+            row = conn.execute(company_health.NAME_SQL, (code,)).fetchone()
+            name = (row[0] or "") if row else ""
+            if not name:
+                try:
+                    etf = conn.execute(ETF_NAME_SQL, (code,)).fetchone()
+                except sqlite3.Error:                    # etf_daily 표가 없는 수집 DB
+                    etf = None
+                name = (etf[0] or "") if etf else ""
+            r["name"] = name
+    except sqlite3.Error:
+        pass                                             # 이름은 꾸밈 — 읽은 만큼만 보이고 응답은 그대로
+    finally:
+        conn.close()
+    return resp
+
+
 _UNIVERSE: dict = {"at": 0.0, "codes": frozenset()}
 UNIVERSE_TTL = 600.0               # 유니버스는 판이 바뀔 때만 달라진다 — 10분이면 넉넉하다
 

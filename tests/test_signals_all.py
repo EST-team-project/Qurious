@@ -48,6 +48,16 @@ def test_targets_unions_days_and_survives_missing_etf_table(tmp_path):
     assert sa.targets(["2026-10-29", "2026-10-30"], path=p) == ["005930", "035720"]
 
 
+def test_targets_lives_in_app_services_and_script_shares_it(tmp_path):
+    """#487 — 대상 목록은 앱(`app/services`)이 부를 수 있는 곳에 있고, 배치 스크립트는 같은 함수를 쓴다(규칙이 둘로 갈라지지 않게)."""
+    from app.services import signal_targets as st
+
+    assert sa.targets is st.targets
+    p = _db(tmp_path, stocks=[(D, "005930", 1, "KOSPI"), (D, "000660", 1, "KOSPI")], universe=["000660"])
+    assert st.targets(["2026-10-30"], path=p) == ["005930"]             # 앱 쪽에서 불러도 같은 결과
+    assert st.MARKETS == ("KOSPI", "KOSDAQ")
+
+
 def _rec(timeframes):
     return {"timeframes": timeframes}
 
