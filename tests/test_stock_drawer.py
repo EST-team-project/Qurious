@@ -357,6 +357,37 @@ out.close = [
     assert failed["ok"] is False and "서버에 연결할 수 없습니다." in failed["note"]
 
 
+def test_modal_signal_groups_by_timeframe_and_shows_observed_and_contribution(tmp_path):
+    """TC-SDR-16 · 모달 신호 칸 글 다듬기(사용자 11-02 「따닥따닥 · XAI 답지 않다」) — ① 근거를 주기(일봉 · 주봉)별 묶음으로 ② 줄마다 서버가 준
+    「본 값」 · 「종합 점수 몫」 을 보이고 ③ 옛 응답(두 칸 없음)이면 그 줄도 설명 줄도 만들지 않고 ④ 서랍(작은 화면)은 그대로다."""
+    reasons = [
+        {"key": "ma_up", "timeframe": "1d", "label": "일봉", "text": "5일선이 20일선 위", "points": 1, "observed": "5일선 15,700 · 20일선 15,416", "contribution": 0.5},
+        {"key": "macd_up", "timeframe": "1d", "label": "일봉", "text": "MACD 가 신호선 위", "points": 1, "observed": None, "contribution": 0.5},
+        {"key": "ma_up", "timeframe": "1w", "label": "주봉", "text": "5주선이 20주선 위", "points": 1, "observed": "5주선 15,386 · 20주선 15,292", "contribution": 0.3},
+    ]
+    counters = [{"key": "rsi_high", "timeframe": "1d", "label": "일봉", "text": "RSI 가 높음", "points": -1, "observed": "RSI 71.0", "contribution": -0.25}]
+    old = [{"key": "ma_up", "timeframe": "1d", "label": "일봉", "text": "옛 줄", "points": 1}]
+    hub = _hub_with_signal(reasons=reasons, counter_reasons=counters, counts={"buy": 3, "neutral": 0, "sell": 1})
+    out = _run(tmp_path, hub, """
+out.modal = sd.sdModalHtml(HUB);
+out.drawer = sd.stockDrawerHtml(HUB);
+out.old = sd.sdModalHtml({ ...HUB, sections: { ...HUB.sections, signal: { ...HUB.sections.signal,
+  data: { ...HUB.sections.signal.data, reasons: %s, counter_reasons: [] } } } });
+""" % json.dumps(old, ensure_ascii=False))
+    m = out["modal"]
+    sig = m[m.index('data-hub-sec="signal"'):m.index('data-hub-sec="financials"')]
+    assert sig.count('class="sd-tfgroup"') == 3                                                                      # 까닭 둘(일봉 · 주봉) + 반대 까닭 하나(일봉)
+    assert '<p class="sd-tfhead">일봉 <small>2개</small></p>' in sig and '<p class="sd-tfhead">주봉 <small>1개</small></p>' in sig
+    assert "<b>5일선이 20일선 위</b>" in sig and "<b>일봉 · 5일선이 20일선 위</b>" not in sig                       # 줄마다 「일봉 · 」 을 되풀이하지 않는다
+    assert "본 값 5일선 15,700 · 20일선 15,416 · 종합 점수 몫 +0.50" in sig and "종합 점수 몫 −0.25" in sig         # 서버 값 그대로 · 소수 둘째 자리
+    assert "본 값 RSI 71.0" in sig and sig.count('class="sd-obs"') == 4                                              # observed 없는 줄(MACD)은 몫만
+    assert "더하면 종합 점수" in sig                                                                                 # 「몫」 이 무엇인지 한 줄
+    assert "규칙 점수 +1" in sig and "쉬운 뜻" in sig                                                                  # TC-SDR-10 이 보는 것은 그대로
+    o = out["old"]
+    assert "sd-obs" not in o[o.index('data-hub-sec="signal"'):o.index('data-hub-sec="financials"')] and "더하면 종합 점수" not in o   # 옛 응답이면 줄도 설명도 없음
+    assert "sd-tfgroup" not in out["drawer"] and "sd-obs" not in out["drawer"]                                      # 서랍은 바꾸지 않는다
+
+
 def test_modal_fills_signal_close_from_the_signal_day():
     """TC-SDR-15 · 모달이 열린 뒤 신호 기준 종가 자리를 채우는 길 — 그 신호 기록의 기준일 일봉만 부른다(`basis=raw` · 마지막 종가를 쓰지 않는다 ·
     오준영 님 #373 3번) · 늦게 온 응답이 다른 종목 모달을 덮지 않게 순번(seq)으로 막는다."""

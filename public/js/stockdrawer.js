@@ -120,15 +120,41 @@ function sdPlainReason(r, open = false) {
   const n = Number(r.points);
   const pts = Number.isFinite(n) && r.points != null ? ` <small class="sd-note">(규칙 점수 ${n > 0 ? "+" : n < 0 ? SD_MINUS : ""}${Math.abs(n)})</small>` : "";
   const tf = planTimeframeNote(r.label);
-  return `<li><b>${esc(r.label || "")} · ${esc(r.text || "")}</b>${pts}`
+  // 주기 이름(일봉 · 주봉)은 묶음 머리에 있으니 줄에는 근거 문장만 — 줄마다 「일봉 · 」 이 되풀이되면 목록이 기계 같다
+  return `<li class="sd-rs"><b>${esc(r.text || "")}</b>${pts}${sdObservedLine(r)}`
     + (p ? `<details class="sd-more"${open ? " open" : ""}><summary>쉬운 뜻 · 조심할 점</summary><div class="sd-plain"><span>쉬운 뜻</span> ${esc(p.mean)}${tf ? ` ${esc(tf)}` : ""}</div><div class="sd-care"><span>조심할 점</span> ${esc(p.care)}</div></details>` : "") + `</li>`;
 }
 
-/** 모달 신호 칸의 근거 목록 — 자르지 않고 전부(서버가 전부 준다 · 사용자 11-02 「전부 보이게」). 근거마다 쉬운 풀이는 접혀 있고 각 목록의 첫 줄만 열려 있다 */
+/** 근거 한 줄 밑의 「본 값 · 종합 점수 몫」 — 서버가 준 observed · contribution 만 쓴다(새 셈 없음 · 옛 응답이면 줄을 만들지 않는다).
+ *  몫 = 그 근거가 종합 점수에 더한 값(근거마다 규칙 점수 × 주기 비중 · 모두 더하면 종합 점수) */
+function sdObservedLine(r) {
+  const parts = [];
+  if (r.observed) parts.push(`본 값 ${esc(r.observed)}`);
+  const c = Number(r.contribution);
+  if (r.contribution != null && Number.isFinite(c)) parts.push(`종합 점수 몫 ${c > 0 ? "+" : c < 0 ? SD_MINUS : ""}${Math.abs(c).toFixed(2)}`);
+  return parts.length ? `<div class="sd-obs">${parts.join(" · ")}</div>` : "";
+}
+
+/** 서버가 본 값 · 몫을 준 응답인가 — 옛 응답(칸 없음)이면 설명 줄도 만들지 않는다 */
+function sdHasObserved(d) {
+  return [...(d.reasons || []), ...(d.counter_reasons || [])].some(r => r && (r.observed || r.contribution != null));
+}
+
+/** 근거를 주기(일봉 · 주봉 · 분봉)별로 묶는다 — 서버가 준 차례(기여도 큰 순)를 지키고 묶음은 처음 나온 차례. 첫 줄만 쉬운 풀이가 펼쳐진다 */
+function sdPlainGroups(all) {
+  const groups = new Map();
+  all.forEach(r => { const k = r.label || ""; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+  let first = true;
+  return [...groups].map(([label, rows]) => {
+    const lis = rows.map(r => { const h = sdPlainReason(r, first); first = false; return h; }).join("");
+    return `<div class="sd-tfgroup"><p class="sd-tfhead">${esc(label)} <small>${rows.length}개</small></p><ul class="sd-list sd-list--plain">${lis}</ul></div>`;
+  }).join("");
+}
+
+/** 모달 신호 칸의 근거 목록 — 자르지 않고 전부(서버가 전부 준다 · 사용자 11-02 「전부 보이게」). 주기별 묶음 · 근거마다 본 값 · 몫 · 접힌 쉬운 풀이(각 목록의 첫 줄만 열림) */
 function sdPlainReasonLines(label, items) {
   const all = items || [];
-  const list = all.map((r, i) => sdPlainReason(r, i === 0)).join("");
-  return list ? `<p class="sd-sub">${esc(label)} — ${all.length}개</p><ul class="sd-list sd-list--plain">${list}</ul>` : "";
+  return all.length ? `<p class="sd-sub">${esc(label)} — ${all.length}개</p>${sdPlainGroups(all)}` : "";
 }
 
 /** 신호 기준 종가 한 줄 — 그 신호 기록의 기준일(signalAsOf) 일봉 종가만. 그날 줄이 없으면 「확인 불가」(마지막 종가로 대신하지 않는다 · 오준영 님 #373 3번) */
@@ -141,12 +167,13 @@ function sdSignalPlainBody(d, sec) {
   const side = d.signal ? `${d.signal}${d.signal === "관망" ? "" : " 쪽"}` : "";
   const chip = [side, d.strength].filter(Boolean).join(" · ");
   const cv = "counts" in d ? countsView(d) : null;      // 옛 응답(counts 칸 없음)이면 줄을 만들지 않는다 — 못 센 것(null)과 다르다
-  const counts = cv ? `<p class="sd-note" data-hub-counts>${esc(cv.text)}${cv.note ? ` · ${esc(cv.note)}` : ""}</p>` : "";
+  const counts = cv ? `<p class="sd-note sd-fact" data-hub-counts>${esc(cv.text)}${cv.note ? ` · ${esc(cv.note)}` : ""}</p>` : "";
   const day = sec && sec.as_of ? String(sec.as_of) : "";
-  const close = day ? `<p class="sd-note" data-hub-sigclose="${esc(day)}">신호 기준 종가(${esc(mmdd(day))}) 불러오는 중…</p>` : "";
+  const close = day ? `<p class="sd-note sd-fact" data-hub-sigclose="${esc(day)}">신호 기준 종가(${esc(mmdd(day))}) 불러오는 중…</p>` : "";
   return (chip ? `<p class="sd-main"><span class="sd-chip">${esc(chip)}</span> <small>${esc(d.confidence_text || "")}</small></p>` : "")
     + (d.summary ? `<p class="sd-text">${esc(d.summary)}</p>` : "")
     + counts + close
+    + (sdHasObserved(d) ? `<p class="sd-note sd-fact">줄마다 「본 값」 은 규칙이 실제로 견준 값이고, 「종합 점수 몫」 은 그 근거가 종합 점수에 더한 값입니다(모두 더하면 종합 점수).</p>` : "")
     + sdPlainReasonLines("그렇게 본 까닭", d.reasons) + sdPlainReasonLines("반대로 본 까닭", d.counter_reasons)
     + `<p class="sd-note"><b>이 설명이 말하지 않는 것</b> — 앞으로 오를지 내릴지, 목표 가격, 얼마를 사고팔지. ${esc(SIGNAL_HIT_NOTE)} 신뢰도는 여러 기간의 판단이 같은 방향인 정도일 뿐 맞을 확률이 아닙니다.</p>`;
 }

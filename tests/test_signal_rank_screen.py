@@ -193,7 +193,9 @@ def test_freshness_head_and_badges(tmp_path):
     t = out["table"]
     assert "기준: 2026-10-30 KRX 정규장 종가 · 계산: 11-02 12:59" in t and "확인 필요" in t                      # 딱지는 글자와 함께
     assert 'data-kind="warn"' in t and "지난 거래일(11-02) 신호는 아직 계산 전입니다" in t and "12줄은 그 앞 날짜의 기록입니다." in t
-    assert "상태 이름 — 기준일이 있어야 할 거래일보다 앞섬" in t and "전체 3950종목 중 2줄" in t
+    # 상태 한 줄은 서버 detail 그대로 — 「상태 이름 —」 같은 개발 티 접두어는 없다(S192) · 좁은 화면 카드용 열 이름(data-label)이 칸마다 있다
+    assert "data-sr-fresh-detail>기준일이 있어야 할 거래일보다 앞섬" in t and "상태 이름" not in t and "전체 3950종목 중 2줄" in t
+    assert all(f'data-label="{h}"' in t for h in ("순위", "종목", "규칙 신호", "종합 점수", "근거", "기준일", "주문"))
     assert t.count("분봉 없이 계산(일봉 · 주봉만)") == 1                                                       # no_intraday 인 줄에만
     assert "기준일 10-26 · 전체 401종목" in out["old"] and "data-sr-fresh" not in out["old"]                  # 옛 응답은 옛 머리줄 그대로
     assert out["none"] == "" and "<script>" not in out["xss"] and "<b>" not in out["xss"] and "<i>" not in out["xss"]
