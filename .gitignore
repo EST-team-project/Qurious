@@ -133,3 +133,8 @@ docs/_local/
 # 개발 PC 비밀 — 증권사 자격증명 키 파일 · 이 PC 전용 compose 덧씌우기(2026-10-29 S163 · 하드로는 carry-drive 가 옮긴다)
 secrets/
 scripts/personal/compose.local.yml
+
+# 앱 DB 백업 산출물(scripts/personal/backup-appdb.ps1) — 사용자 ID · 보유 종목 · 주문 이력이 평문으로 들어 있다. 어느 폴더에 만들어도 커밋하지 않는다.
+*.dump
+*.state.csv
+*.dump.incomplete

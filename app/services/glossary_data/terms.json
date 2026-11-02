@@ -21702,6 +21702,150 @@
  ],
  "relations": [
   {
+   "from": "els",
+   "to": "파생결합증권",
+   "kind": "broader",
+   "note": "ELS는 파생결합증권의 한 종류",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "etf",
+   "to": "펀드",
+   "kind": "broader",
+   "note": "ETF는 거래소에서 주식처럼 사고파는 펀드의 한 형태",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "공모펀드",
+   "to": "펀드",
+   "kind": "broader",
+   "note": "공모펀드는 펀드의 한 종류(일반 투자자 대상)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "롱-포지션",
+   "to": "포지션",
+   "kind": "broader",
+   "note": "롱 포지션은 포지션의 한 방향(주식을 보유한 상태)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "사모펀드",
+   "to": "펀드",
+   "kind": "broader",
+   "note": "사모펀드는 펀드의 한 종류(소수 투자자 대상)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "선물",
+   "to": "파생상품",
+   "kind": "broader",
+   "note": "선물은 파생상품의 한 종류",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "숏-포지션",
+   "to": "포지션",
+   "kind": "broader",
+   "note": "숏 포지션은 포지션의 한 방향(공매도한 상태)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "순이익",
+   "to": "이익",
+   "kind": "broader",
+   "note": "순이익은 이익의 한 종류(세금까지 뺀 최종 이익)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "액티브-etf",
+   "to": "etf",
+   "kind": "broader",
+   "note": "액티브 ETF는 ETF의 한 종류(운용 판단으로 초과 성과 추구)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "영업이익",
+   "to": "이익",
+   "kind": "broader",
+   "note": "영업이익은 이익의 한 종류(본업에서 번 이익)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "옵션",
+   "to": "파생상품",
+   "kind": "broader",
+   "note": "옵션은 파생상품의 한 종류",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "지분증권",
+   "to": "증권",
+   "kind": "broader",
+   "note": "지분증권은 증권의 한 종류(회사 소유권 일부)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "채무증권",
+   "to": "증권",
+   "kind": "broader",
+   "note": "채무증권은 증권의 한 종류(이자와 원금을 갚겠다는 약속)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "콜옵션",
+   "to": "옵션",
+   "kind": "broader",
+   "note": "옵션의 두 유형 중 하나, 살 권리",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "패시브-etf",
+   "to": "etf",
+   "kind": "broader",
+   "note": "패시브 ETF는 ETF의 한 종류(지수 추종)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "풋옵션",
+   "to": "옵션",
+   "kind": "broader",
+   "note": "옵션의 두 유형 중 하나, 팔 권리",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "buy-side",
    "to": "sell-side",
    "kind": "confused_with",
@@ -21727,6 +21871,15 @@
    "detail": "DCF — 미래 현금 할인 · EVA — 자본비용 차감 이익",
    "source": "finance",
    "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "etf",
+   "to": "etn",
+   "kind": "confused_with",
+   "note": "ETF는 자산 바구니를 담아 운용하는 펀드, ETN은 증권사 신용에 기댄 약속이라 발행사 부도 위험이 있다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "lstm",
@@ -21783,6 +21936,15 @@
    "where": "11. 자주 혼동하는 용어 비교"
   },
   {
+   "from": "거래량",
+   "to": "거래대금",
+   "kind": "confused_with",
+   "note": "거래량은 사고팔린 주식 수, 거래대금은 거래량에 가격을 곱한 오간 돈의 규모",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "골든크로스",
    "to": "데드크로스",
    "kind": "confused_with",
@@ -21790,6 +21952,15 @@
    "detail": "골든크로스 — 단기MA 상향 돌파 · 데드크로스 — 단기MA 하향 돌파",
    "source": "finance",
    "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "공모펀드",
+   "to": "사모펀드",
+   "kind": "confused_with",
+   "note": "공모는 일반 투자자에게 공개 판매하고 공시 의무가 있으며, 사모는 소수 투자자에게 비공개로 모은다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "금융투자상품",
@@ -21828,6 +21999,33 @@
    "where": "11. 자주 혼동하는 용어 비교"
   },
   {
+   "from": "레버리지",
+   "to": "인버스",
+   "kind": "confused_with",
+   "note": "레버리지는 지수의 움직임을 더 크게 따르도록, 인버스는 지수와 반대 방향을 목표로 설계한 방식",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "롱-포지션",
+   "to": "숏-포지션",
+   "kind": "confused_with",
+   "note": "롱은 오르면 이익인 매수 포지션, 숏은 내리면 이익인 매도 포지션",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "만기수익률",
+   "to": "표면금리",
+   "kind": "confused_with",
+   "note": "표면금리는 채권에 적힌 약정 이자율, 만기수익률은 지금 가격에 사서 만기까지 들 때의 연환산 수익률",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "매출",
    "to": "이익",
    "kind": "confused_with",
@@ -21835,6 +22033,15 @@
    "detail": "매출 — 번 총액 · 이익 — 쓰고 남은 액",
    "source": "finance",
    "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "배당수익률",
+   "to": "배당성향",
+   "kind": "confused_with",
+   "note": "수익률은 주가 대비, 성향은 순이익 대비 배당 비율",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "보장성-보험",
@@ -21846,6 +22053,24 @@
    "where": "자주 혼동하는 금융 규제 용어 비교"
   },
   {
+   "from": "샤프-비율",
+   "to": "소르티노-비율",
+   "kind": "confused_with",
+   "note": "샤프는 오르내린 폭 전체를 위험으로 세고, 소르티노는 목표 수익률에 못 미친 흔들림만 위험으로 센다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "선물",
+   "to": "선도계약",
+   "kind": "confused_with",
+   "note": "선물은 거래소의 표준화된 계약, 선도계약은 당사자끼리 조건을 맞추고 상대방 신용위험을 직접 관리한다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "수신",
    "to": "여신",
    "kind": "confused_with",
@@ -21855,6 +22080,24 @@
    "where": "자주 혼동하는 금융 규제 용어 비교"
   },
   {
+   "from": "순자산가치",
+   "to": "inav",
+   "kind": "confused_with",
+   "note": "순자산가치(NAV)는 펀드가 가진 자산에서 부채를 뺀 실제 가치, iNAV는 지금 가격으로 계산한 실시간 예상값",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "신용거래",
+   "to": "미수거래",
+   "kind": "confused_with",
+   "note": "신용거래(융자)는 증권사 대출, 미수는 결제일(T+2) 대금 미납",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "알파",
    "to": "베타",
    "kind": "confused_with",
@@ -21862,6 +22105,15 @@
    "detail": "알파 — 시장 초과수익 · 베타 — 시장 민감도",
    "source": "finance",
    "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "액면분할",
+   "to": "무상증자",
+   "kind": "confused_with",
+   "note": "액면분할은 자본금 그대로, 무상증자는 준비금을 자본금으로",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "영업이익",
@@ -21880,6 +22132,15 @@
    "detail": "위탁 — 매매를 맡기는 것 (재산 이전 없음) · 신탁 — 재산 자체를 맡기는 것 (법적 이전)",
    "source": "finance",
    "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "유상증자",
+   "to": "무상증자",
+   "kind": "confused_with",
+   "note": "유상증자는 납입받아 발행, 무상증자는 납입 없이 발행",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "인가",
@@ -21909,6 +22170,15 @@
    "where": "자주 혼동하는 금융 규제 용어 비교"
   },
   {
+   "from": "지정가-주문",
+   "to": "시장가-주문",
+   "kind": "confused_with",
+   "note": "지정가는 가격 지정(미체결 가능), 시장가는 즉시 체결(가격 불확실)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "지지선",
    "to": "저항선",
    "kind": "confused_with",
@@ -21925,6 +22195,33 @@
    "detail": "집합투자업 — 여러 투자자 자금을 한 펀드로 모아 운용 · 투자일임업 — 투자자마다 개별 계좌로 따로 운용",
    "source": "finance",
    "where": "자주 혼동하는 금융 규제 용어 비교"
+  },
+  {
+   "from": "칼마-비율",
+   "to": "스털링-비율",
+   "kind": "confused_with",
+   "note": "칼마는 가장 깊은 낙폭 하나만 쓰고, 스털링은 여러 번의 낙폭을 평균해 쓴다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "콘탱고",
+   "to": "백워데이션",
+   "kind": "confused_with",
+   "note": "선물이 현물보다 비싸면 콘탱고, 싸면 백워데이션",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "콜옵션",
+   "to": "풋옵션",
+   "kind": "confused_with",
+   "note": "콜옵션은 정해진 행사가격에 기초자산을 살 수 있는 권리, 풋옵션은 팔 수 있는 권리",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "투자매매업",
@@ -21954,6 +22251,15 @@
    "where": "자주 혼동하는 금융 규제 용어 비교"
   },
   {
+   "from": "패시브-etf",
+   "to": "액티브-etf",
+   "kind": "confused_with",
+   "note": "패시브는 지수를 따라가고, 액티브는 운용 판단으로 운용",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "훈련-검증-테스트-분리",
    "to": "백테스트",
    "kind": "confused_with",
@@ -21961,6 +22267,123 @@
    "detail": "훈련 — ML 모델 학습용 과거 데이터 · 백테스트 — 전략 검증용 과거 데이터",
    "source": "finance",
    "where": "11. 자주 혼동하는 용어 비교"
+  },
+  {
+   "from": "cagr",
+   "to": "mdd",
+   "kind": "related",
+   "note": "CAGR은 최대낙폭(MDD) 등과 함께 봐야 한다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "dcf",
+   "to": "wacc",
+   "kind": "related",
+   "note": "DCF에서 미래 현금을 현재가치로 바꾸는 할인율로 WACC를 쓴다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "dcf",
+   "to": "내재가치",
+   "kind": "related",
+   "note": "DCF로 구한 값이 내재가치",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "dsr",
+   "to": "샤프-비율",
+   "kind": "related",
+   "note": "DSR은 여러 전략을 시험해 고른 샤프 비율의 우연을 걷어 낸 값",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "etf",
+   "to": "괴리율",
+   "kind": "related",
+   "note": "ETF의 시장가격이 순자산가치와 얼마나 다른지 보는 비율",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "etf",
+   "to": "기초지수",
+   "kind": "related",
+   "note": "ETF가 따라가도록 만든 기준 지수",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "etf",
+   "to": "순자산가치",
+   "kind": "related",
+   "note": "ETF가 실제로 담은 자산을 현재 가격으로 계산한 값",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "etf",
+   "to": "총보수",
+   "kind": "related",
+   "note": "운용·판매·수탁 보수를 합산한 ETF의 연간 비용",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "etf",
+   "to": "추적오차",
+   "kind": "related",
+   "note": "ETF 수익률이 기초지수 수익률과 얼마나 다른지",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "per",
+   "to": "eps",
+   "kind": "related",
+   "note": "PER = 주가 ÷ EPS(주당순이익)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "rsi",
+   "to": "모멘텀",
+   "kind": "related",
+   "note": "RSI는 상승·하락 힘을 보는 모멘텀 지표",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "골든크로스",
+   "to": "이동평균선",
+   "kind": "related",
+   "note": "단기 이동평균선이 장기선을 위로 돌파하는 순간",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "괴리율",
+   "to": "순자산가치",
+   "kind": "related",
+   "note": "괴리율은 시장가격과 순자산가치(NAV)의 차이 비율",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   },
   {
    "from": "금리",
@@ -21972,6 +22395,96 @@
    "where": "한자 어원 사전 「관련어」"
   },
   {
+   "from": "데드크로스",
+   "to": "이동평균선",
+   "kind": "related",
+   "note": "단기 이동평균선이 장기선을 아래로 돌파하는 순간",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "리밸런싱",
+   "to": "이탈률",
+   "kind": "related",
+   "note": "이탈률이 허용 범위를 넘으면 리밸런싱을 실행",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "백테스트",
+   "to": "슬리피지",
+   "kind": "related",
+   "note": "백테스트에서는 슬리피지(예상 체결가와 실제 체결가의 차이)를 반영했는지 확인해야 한다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "백테스트",
+   "to": "오버피팅",
+   "kind": "related",
+   "note": "백테스트를 반복해 가장 좋은 설정을 고르면 과적합(오버피팅) 위험이 커진다",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "베이시스",
+   "to": "백워데이션",
+   "kind": "related",
+   "note": "베이시스가 음수일 때가 백워데이션",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "베이시스",
+   "to": "콘탱고",
+   "kind": "related",
+   "note": "베이시스가 양수일 때가 콘탱고",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "변동성",
+   "to": "표준편차",
+   "kind": "related",
+   "note": "변동성을 계산하는 기초가 표준편차",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "샤프-비율",
+   "to": "무위험수익률",
+   "kind": "related",
+   "note": "샤프 비율의 분자는 수익률에서 무위험수익률을 뺀 값",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "샤프-비율",
+   "to": "변동성",
+   "kind": "related",
+   "note": "샤프 비율은 초과수익을 수익률 변동성으로 나눈 값",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "선물",
+   "to": "증거금",
+   "kind": "related",
+   "note": "선물 거래를 시작할 때 계약 이행을 위해 맡기는 돈",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
    "from": "수익률",
    "to": "배당수익률",
    "kind": "related",
@@ -21979,6 +22492,24 @@
    "detail": "",
    "source": "finance",
    "where": "한자 어원 사전 「관련어」"
+  },
+  {
+   "from": "증거금",
+   "to": "강제청산",
+   "kind": "related",
+   "note": "증거금이 부족하면 증권사가 포지션을 강제로 정리",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
+  },
+  {
+   "from": "칼마-비율",
+   "to": "mdd",
+   "kind": "related",
+   "note": "칼마 비율 = 연 수익률 ÷ 최대 낙폭(MDD)",
+   "detail": "",
+   "source": "curated",
+   "where": "사람이 고름"
   }
  ]
 }

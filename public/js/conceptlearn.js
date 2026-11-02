@@ -17,10 +17,12 @@
  * (알림 상자 · 출력 상자 · Mermaid 그림 · 코드 색칠 · 제목 id · 바깥 링크 새 창 · 글 속 옛 /learn/ 주소를 앱 주소로).
  * 렌더러를 고치지 않고 거른 뒤 DOM 을 고치는 까닭: marked 의 렌더러 API 는 판마다 바뀌어 왔다(판이 바뀌어도 덜 깨진다).
  * 서버 · API 는 그대로(/api/learn/catalog · /api/learn/pages/{slug}). /learn/ 은 관리자의 팀 자료 받기 · 원문 확인용으로 남는다.
+ * 글 속 용어사전 낱말의 점선 밑줄(누르면 용어 카드)은 js/termunderline.js (2026-11-02 · 할 일 ①-23 B) — 이 파일은 글을 그린 뒤 한 번 부르기만 한다.
  */
 import { escHtml } from "/js/common.js";
 import { navigate, showUnder } from "/js/core.js";   // showUnder — 메뉴 줄 없는 화면(부 목차 · 장)이 들어온 갈래를 알린다
 import { noticeCardHtml, noticeLineHtml } from "/js/learnnotice.js";   // 「시작하기 전에」 고지 한 벌(장 대장 F00 · 2026-10-20)
+import { mountTermUnderline } from "/js/termunderline.js";   // 교재 용어 밑줄(할 일 ①-23 B · 2026-11-02)
 
 const API = "/api/learn";
 // 학습 세 갈래(2026-10-20 안 A · 10-23 세 갈래로 — 금융 필수 지식 · 개발 개념 · 파이썬 중급).
@@ -516,6 +518,7 @@ async function renderPage(el, slug, h) {
   buildToc(el.querySelector(".fl-toc-list"), art);
   await Promise.all([colorCode(art), drawMermaid(art)]);
   if (seq !== pageSeq) return;
+  mountTermUnderline(art, el.querySelector(".fl-toc"), () => seq === pageSeq);   // 용어 밑줄 — 기다리지 않는다(스크롤이 늦어지지 않게 · 실패해도 글은 그대로)
   const target = h && document.getElementById(h);
   if (target && art.contains(target)) target.scrollIntoView({ block: "start" });
   else document.getElementById("main-content")?.scrollTo(0, 0);   // 굴러가는 칸은 창이 아니라 #main-content(DF-134)

@@ -13,6 +13,15 @@ const STATUS_BADGE = {
   duplicate: `<span class="badge-hold">중복</span>`, rejected: `<span class="badge-sell">거절</span>`, error: `<span class="badge-sell">오류</span>`,
   late: `<span class="badge-hold">늦음</span>`, rejected_format: `<span class="badge-sell">형식 오류</span>`,
 };
+// (Qurious 2026-11-02 · 할 일 ②-29 S14) 「성과 비교」 표의 지표 이름 옆 (i) → 용어 카드.
+// 서버 compare_metrics() 의 rows[].key → 용어사전이 풀어 주는 이름. 키는 core.js 의 termChip(키, 라벨) 이 QTerm.open 으로 넘긴다.
+//   sharpe → 「화면 키」 별칭(샤프 비율) · mdd → 용어 ID · win_rate → 영어 별칭 「Win Rate」 와 찾기용 모양이 같아 승률 ·
+//   수익률 → 용어 ID(일반 수익률 카드 — 「누적」 만 따로 설명하는 카드는 없다).
+// total_trades(거래 횟수)는 용어사전에 표제어가 없어 (i) 를 달지 않는다 — 새 표제어를 만들지 않는다.
+const METRIC_TERM_KEY = {
+  net_profit_pct: "수익률", max_drawdown_pct: "mdd", win_rate_pct: "win_rate", sharpe_ratio: "sharpe",
+};
+const metricLabel = (x) => METRIC_TERM_KEY[x.key] && window.termChip ? window.termChip(METRIC_TERM_KEY[x.key], x.label) : escHtml(x.label);
 let cmpChart = null;
 let priceChart = null, lwcPromise = null;
 const LWC_SRC = "/js/vendor/lightweight-charts/lightweight-charts-5.2.1.min.js";
@@ -156,7 +165,7 @@ function renderCompare(r) {
     <ul id="tvc-price-notes" class="text-xs list-disc ml-5 mb-3" style="color:var(--text-mute);"></ul>
     <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">성과 비교 (참고 — 배지 없음)</h4>
     <table><thead><tr><th>지표</th><th style="text-align:right">TradingView</th><th style="text-align:right">LEAN</th><th style="text-align:right">차이 (LEAN − TV)</th></tr></thead><tbody>${
-      r.rows.map(x => `<tr><td>${escHtml(x.label)}</td><td style="text-align:right">${fmtv(x.tradingview, x.key)}</td><td style="text-align:right">${fmtv(x.lean, x.key)}</td>
+      r.rows.map(x => `<tr><td>${metricLabel(x)}</td><td style="text-align:right">${fmtv(x.tradingview, x.key)}</td><td style="text-align:right">${fmtv(x.lean, x.key)}</td>
         <td style="text-align:right" >${x.diff == null ? "-" : (x.diff > 0 ? "+" : "") + Number(x.diff).toFixed(2)}</td></tr>`).join("")}</tbody></table>
     <div id="tvc-chart" class="mt-3"></div>
     <h4 class="text-sm font-semibold mt-3 mb-1">차이가 나는 이유 점검</h4>
