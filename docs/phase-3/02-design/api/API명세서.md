@@ -1139,7 +1139,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | API-HUB-01 | GET | `/api/stock-hub` | 세션 | `symbol`* · `sections` | 모델 없음 | ? | 수집DB · PostgreSQL · 외부(dart.fss.or.kr) | `invest-fundamental` | 미배정 | — | stock_hub.py:26 |
-| API-HUB-03 | GET | `/api/stock-hub/signal-rank` | 세션 | `on` · `symbols` · `limit` · `components` | 모델 없음 | 422 · ? | 수집DB · PostgreSQL | (다른 곳) | 미배정 | — | stock_hub.py:41 |
+| API-HUB-03 | GET | `/api/stock-hub/signal-rank` | 세션 | `on` · `symbols` · `limit` · `components` | 다리 결과 그대로 (`source`·`as_of`) | 422 · ? | 수집DB · PostgreSQL | (다른 곳) | 미배정 | — | stock_hub.py:41 |
 | API-HUB-02 | GET | `/api/stock-hub/mentions` | 세션 | `q`* | {items, rule, note} | — | 수집DB | `agent-chat` | 미배정 | — | stock_hub.py:63 |
 
 #### `help_media` — `app/routes/help_media.py` · 2개

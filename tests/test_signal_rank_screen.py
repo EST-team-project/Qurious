@@ -191,3 +191,33 @@ def test_source_rules():
     assert not re.search(r"\b(BUY|SELL)\b", src)
     for shared in ("public/app.html", "public/js/core.js"):
         assert "signal-rank" not in (ROOT / shared).read_text(encoding="utf-8"), shared
+
+
+def test_freshness_head_and_badges(tmp_path):
+    """TC-RKS-08 — 머리줄(기준 · 계산 · 딱지 · 안내 글)은 서버 freshness 를 그대로 · 딱지는 글자와 함께 · 분봉 없는 줄에 표시 · 지금 가격 딱지(실시간 · 지연 · 종가)."""
+    out = _run(tmp_path, """
+      const fr = {as_of: "2026-10-30", basis: "KRX 정규장 종가", computed_at: "2026-11-02 12:59", state: "stale", badge: "확인 필요",
+                  message: "지난 거래일(11-02) 신호는 아직 계산 전입니다", detail: "기준일이 있어야 할 거래일보다 앞섬", older_note: "12줄은 그 앞 날짜의 기록입니다."};
+      const row = {rank: 1, symbol: "069500", as_of: "2026-10-30", signal: "매도", composite: -1.2, confidence: 0.5, no_intraday: true, counts: {buy: 0, neutral: 1, sell: 2}};
+      out.table = sr.renderRankTable({rows: [row, {...row, rank: 2, symbol: "005930", no_intraday: false}], missing: [], on: null, total: 3950, freshness: fr}, esc);
+      out.old = sr.renderRankTable({rows: [row], missing: [], on: "2026-10-26", total: 401}, esc);     // freshness 가 없는 옛 응답
+      out.none = sr.renderFreshness(null, esc);
+      out.xss = sr.renderFreshness({as_of: "<b>", basis: "x", computed_at: "", badge: "<i>", message: "<script>"}, esc);
+      out.badges = [sr.quoteBadge({price: 1, source: "kis_user", market_state: "open"}), sr.quoteBadge({price: 1, source: "kis_gateway", market_state: "closed"}),
+                    sr.quoteBadge({price: 1, source: "delayed"}), sr.quoteBadge({price: 1, source: "collector", as_of: "2026-10-30"}),
+                    sr.quoteBadge({price: null, source: "kis_user"}), sr.quoteBadge({price: 1, source: "???"}), sr.quoteBadge(null)];
+      const ex = {symbol: "005930", as_of: "2026-10-30", summary: "s", reasons: [], counter_reasons: [], notes: [], disclaimer: "d"};
+      out.drawer = sr.renderDrawer(ex, sr.priceLines(null, {price: 74100, source: "delayed", label: "지연 시세(약 20분)"}, "2026-10-30"), esc, {});
+      out.drawerNoQuote = sr.renderDrawer(ex, sr.priceLines(null, null, "2026-10-30"), esc, {});
+    """)
+    t = out["table"]
+    assert "기준: 2026-10-30 KRX 정규장 종가 · 계산: 11-02 12:59" in t and "확인 필요" in t                      # 딱지는 글자와 함께
+    assert 'data-kind="warn"' in t and "지난 거래일(11-02) 신호는 아직 계산 전입니다" in t and "12줄은 그 앞 날짜의 기록입니다." in t
+    assert "상태 이름 — 기준일이 있어야 할 거래일보다 앞섬" in t and "전체 3950종목 중 2줄" in t
+    assert t.count("분봉 없이 계산(일봉 · 주봉만)") == 1                                                       # no_intraday 인 줄에만
+    assert "기준일 10-26 · 전체 401종목" in out["old"] and "data-sr-fresh" not in out["old"]                  # 옛 응답은 옛 머리줄 그대로
+    assert out["none"] == "" and "<script>" not in out["xss"] and "<b>" not in out["xss"] and "<i>" not in out["xss"]
+    assert out["badges"] == [{"kind": "live", "text": "실시간 · 정규장"}, {"kind": "live", "text": "증권사 조회 · 장 마감"},
+                             {"kind": "delay", "text": "지연 시세 · 약 20분"}, {"kind": "close", "text": "종가 · 2026-10-30"}, None, None, None]
+    assert "지연 시세 · 약 20분" in out["drawer"] and 'data-kind="delay"' in out["drawer"] and "74,100원" in out["drawer"]
+    assert "data-kind" not in out["drawerNoQuote"]                                                           # 가격을 못 받았으면 딱지도 없다(종가로 대신 넣지 않는다)

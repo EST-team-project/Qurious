@@ -391,7 +391,7 @@ def test_pj13_runner_steps():
     from scripts import daily_update as du
 
     names = [s.name for s in du.STEPS]
-    assert names.index("signals") + 1 == names.index("journal") and names.index("journal") + 1 == names.index("manifest")
+    assert names.index("signals") + 1 == names.index("journal") and names.index("journal") + 1 == names.index("signals_all") and names.index("signals_all") + 1 == names.index("manifest")   # 신호 전체 종목(signals_all · 2026-11-02)이 일지 뒤
     j = next(s for s in du.STEPS if s.name == "journal")
     # 여러 PC(2026-10-25) — 계산 앞에 HF 원장을 이 PC 앱 DB 로 받는다(``--pull`` · 받지 못하면 4 · 그날 계산 안 함)
     assert j.args == ["scripts/paper_journal.py", "daily", "--quiet", "--pull"] and j.app_db and not j.fatal and j.catch_up

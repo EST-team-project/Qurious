@@ -547,3 +547,63 @@ def test_price_section_says_when_last_close_is_not_in_yet(monkeypatch):
     assert H.price("055550", TODAY)["data"]["pending_note"] == ""
     monkeypatch.setattr(data_ohlcv, "read_ohlcv", rows("2026-10-15"))
     assert H.price("055550", TODAY)["data"]["pending_note"] == "10월 16일 종가는 반영 전"
+
+
+# ── 신호 순위 머리줄 · 분봉 없음 표시(할 일 ②-33 · Figma 「신호 순위」 07 쪽 ①) ─────────────────────────
+
+def _kst(y, m, d, hh, mm):
+    from datetime import datetime, timedelta, timezone
+    return datetime(y, m, d, hh, mm, tzinfo=timezone(timedelta(hours=9)))
+
+
+def test_signal_freshness_badges_by_time(monkeypatch):
+    """TC-HUB-60 · 기준일이 「있어야 할 날」 보다 앞서면 확인 필요 · 장중이면 안내 · 그 밖은 최신 — 월요일 오전 · 장 마감 직후에 거짓 경고가 없다."""
+    from datetime import date, datetime, timezone
+    at = datetime(2026, 11, 2, 3, 59, tzinfo=timezone.utc)            # 11-02 12:59 KST
+    fri, mon = date(2026, 10, 30), date(2026, 11, 2)
+    f = H.signal_freshness(fri, at, 0, now=_kst(2026, 11, 2, 12, 59))                   # 월요일 낮 장중 — 금요일 종가가 막 들어오는 때
+    assert (f["badge"], f["state"]) == ("안내", "session") and f["computed_at"] == "2026-11-02 12:59" and f["as_of"] == "2026-10-30"
+    assert f["basis"] == H.SIGNAL_BASIS and "장중에는 지난 거래일 종가 기준" in f["message"]
+    assert H.signal_freshness(fri, at, 0, now=_kst(2026, 11, 2, 17, 0))["badge"] == "최신"       # 장 마감 뒤 — 월요일 종가는 화요일 낮에야 들어온다
+    assert H.signal_freshness(fri, at, 0, now=_kst(2026, 11, 7, 10, 0))["state"] == "stale"       # 토요일 — 11-06 종가는 월요일 낮에야 · 기대는 11-05 인데 10-30 은 앞선다
+    stale = H.signal_freshness(fri, at, 0, now=_kst(2026, 11, 3, 14, 0))                    # 화요일 14:00 인데 아직 10-30
+    assert (stale["badge"], stale["state"]) == ("확인 필요", "stale") and stale["message"] == "지난 거래일(11-02) 신호는 아직 계산 전입니다"
+    assert H.signal_freshness(mon, at, 0, now=_kst(2026, 11, 3, 14, 0))["badge"] != "확인 필요"
+    assert H.signal_freshness(fri, at, 0, now=_kst(2026, 11, 3, 10, 0))["state"] != "stale"        # 화요일 오전 — 월요일 종가는 아직 기대하지 않는다
+    # 날짜를 고른 요청은 최신 여부를 판정하지 않는다 · 기록이 없으면 확인 필요 · 앞 날짜 줄은 따로 알린다
+    picked = H.signal_freshness(fri, at, 0, picked=True, now=_kst(2026, 11, 3, 14, 0))
+    assert (picked["badge"], picked["state"]) == ("안내", "picked") and "고른 날짜(10-30)" in picked["message"]
+    none = H.signal_freshness(None, None, 0, now=_kst(2026, 11, 3, 14, 0))
+    assert (none["badge"], none["state"], none["as_of"], none["computed_at"]) == ("확인 필요", "unknown", None, None)
+    assert H.signal_freshness(fri, at, 12, now=_kst(2026, 11, 2, 17, 0))["older_note"].startswith("12줄은 그 앞 날짜")
+
+
+def test_signal_rank_carries_freshness_and_no_intraday(monkeypatch):
+    """TC-HUB-61 · 응답에 기록 줄들의 가장 늦은 기준일 · 계산 시각 · 머리줄 글 · 줄마다 「분봉 없이 계산」(기록의 60분 주기 오류에서 읽음)."""
+    from datetime import date, datetime, timezone
+    rows = _day_rows(3)
+    for i, r in enumerate(rows):
+        r["as_of"] = date(2026, 10, 30) if i < 2 else date(2026, 10, 29)
+        r["computed_at"] = datetime(2026, 11, 2, 3, 59 - i, tzinfo=timezone.utc)
+        if i == 1:                                                      # 이 줄만 60분 주기가 비었다(분봉 없음) — 나머지 칸은 그대로 둔다
+            r["timeframes"] = [{**t, "error": "시세 없음"} if t.get("timeframe") == "60m" else t for t in r["timeframes"]]
+            for t in r["timeframes"]:
+                if t.get("timeframe") == "60m":
+                    t.pop("score", None)
+    _stub_day(monkeypatch, rows)
+    out = asyncio.run(H.signal_rank(object()))
+    fr = out["freshness"]
+    assert out["as_of"] == "2026-10-30" == fr["as_of"] and fr["computed_at"] == "2026-11-02 12:59"       # 그날 줄 가운데 가장 늦은 계산 시각
+    assert fr["older_rows"] == 1 and "1줄은 그 앞 날짜" in fr["older_note"]
+    assert [r["no_intraday"] for r in out["rows"]] == [False, True, False]
+    # 날짜를 고르면(on) 최신 여부를 판정하지 않는다
+    picked = asyncio.run(H.signal_rank(object(), on=date(2026, 10, 30)))
+    assert picked["freshness"]["state"] == "picked"
+    # 기록이 없으면 확인 필요
+    _stub_day(monkeypatch, [])
+    assert asyncio.run(H.signal_rank(object()))["freshness"]["state"] == "unknown"
+
+
+def test_not_universe_message_no_longer_claims_401():
+    """TC-HUB-62 · 신호 기록 대상이 전체로 넓어져 「401종목」 문구는 틀린 말이다."""
+    assert "401" not in H.SIGNAL_NOT_UNIVERSE and "KOSPI" in H.SIGNAL_NOT_UNIVERSE and "ETF" in H.SIGNAL_NOT_UNIVERSE

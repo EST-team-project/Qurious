@@ -43,6 +43,7 @@ DEPS: Dict[str, List[str]] = {
     "quality": ["benchmark", "ohlcv"],                                   # 10-30 ohlcv 뒤로 옮김 — ETF · 지수 일봉 적재 뒤에 재야 거짓 경고가 없다
     "signals": ["ohlcv"],
     "journal": ["signals"],
+    "signals_all": ["ohlcv"],                                            # 2026-11-02 ②-32 — 일봉 · 분봉 적재 뒤 · 앱 DB 에 쓴다(수집 DB 쓰기 자원 없음)
     "manifest": [],
     "export": ["ohlcv", "benchmark", "journal"],
     "verify": ["export"],

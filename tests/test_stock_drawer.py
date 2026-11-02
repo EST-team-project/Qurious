@@ -247,7 +247,7 @@ out.unknown = sd.sdSectionHtml('signal', { status: 'ok', label: 's', data: { sig
     assert "매도 쪽 근거로 셉니다" in m and "매수 쪽 근거로 셉니다" in m                              # 평가어(약해진 · 강한 · 반등할 수)가 아니라 규칙이 어느 쪽으로 세는지
     assert "약해진 모습" not in m and "반등할 수" not in m and "우호적" not in m
     assert m.count('class="sd-more"') == 2 and m.count('class="sd-more" open') == 2                   # 펼치기 층 — 「까닭」 · 「반대 까닭」 각 목록의 첫 줄만 열려 있다(같은 무게 · 이 시료는 각 한 줄)
-    assert "이 설명이 말하지 않는 것" in m and "맞을 확률이 아닙니다" in m and "그 규칙들이 과거에 맞았는지 재지 않았습니다" in m
+    assert "이 설명이 말하지 않는 것" in m and "맞을 확률이 아닙니다" in m and "그 규칙들이 과거에 맞았는지 재지 않았습니다" not in m and "동전 던지기와 비슷했고" in m and "앞날을 맞히는 예측이 아니라" in m
     assert "쉬워졌다고 더 확실해진 것은 아닙니다" in m and "그 신호가 앞으로 맞을지는 이 화면에서 알 수 없습니다" in m
     assert 'data-hub-go="paper-stock"' in m and 'data-hub-go="robo-rebalance"' in m                  # 서랍에 있던 두 단추가 모달로
     assert "시장 맥락 — 코스피 5,937.66(−1.24%)" in m and "data-hub-market" in m
@@ -290,3 +290,29 @@ out.note = pl.planNoteText(HUB, out.line);
     assert "목표가 232" not in n and "손절가 2" not in n                                             # 앱이 목표가 · 손절가 값을 만들지 않는다
     out2 = _run(tmp_path, HUB, "import * as pl from \"%s\"; out.n = pl.planNoteText({ ...HUB, sections: { price: { status: 'error' } } }, '');" % (JS / "stockplain.js").resolve().as_uri())
     assert "기준일" not in out2["n"] and "내가 정할 것" in out2["n"]                                 # 칸이 없으면 값을 지어내지 않는다
+
+
+def test_empty_code_entrance_is_hidden_and_ignored():
+    """TC-SDR-12 · 시세 조회 전의 모의주문 입구는 숨겨져 있고, 코드가 빈 입구를 눌러도 열지 않는다(빈 코드로 부르면 422 — 2026-11-02 클릭 점검에서 찾음)."""
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "public" / "app.html").read_text(encoding="utf-8")
+    tag = re.search(r'<button[^>]*id="ps-hub-open"[^>]*>', html).group(0)
+    assert re.search(r"\shidden[\s>]", tag), "조회 전에는 숨겨 둔다"
+    js = (root / "public" / "js" / "stockdrawer.js").read_text(encoding="utf-8")
+    assert 'if (!String(btn.dataset.hubOpen || "").trim()) return;' in js
+
+
+def test_signal_hit_note_is_one_sentence_used_in_modal_and_copy_template():
+    """TC-SDR-13 · 「예측력을 아직 재지 않았다」 대신 신장환 님 적중 대조 결과(5거래일 · 매수 48.9 ~ 50.1% · 매도 45.5%)를 한 문장으로 두 곳이 같이 쓴다
+    (사용자 결정 2026-11-02 · 0.7 의 4번) — 숫자는 stockplain.js 한 곳, 앞날을 맞히는 예측이 아니라고 읽히게."""
+    plain = (JS / "stockplain.js").read_text(encoding="utf-8")
+    drawer = DRAWER.read_text(encoding="utf-8")
+    assert plain.count("export const SIGNAL_HIT_NOTE") == 1
+    for needle in ("48.9 ~ 50.1%", "45.5%", "5거래일", "동전 던지기와 비슷했고", "신뢰도가 높아도 적중률은 그대로였습니다", "앞날을 맞히는 예측이 아니라"):
+        assert needle in plain, needle
+    assert "${SIGNAL_HIT_NOTE}" in plain and "${esc(SIGNAL_HIT_NOTE)}" in drawer          # 정리 틀(복사)과 모달 하단이 같은 문장
+    for src in (plain, drawer):
+        assert "과거에 맞았는지 재지 않았습니다" not in src
+    assert not re.search(r"(BUY|SELL)", plain)                                       # 규칙 표시이지 매매 권유가 아니다

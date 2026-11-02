@@ -237,7 +237,7 @@ def test_policy_has_the_items_of_pipa_30_and_the_officer():
                    "만 14세 미만", "개인정보 보호책임자", "처리방침의 변경"):
         assert needed in names, f"처리방침에 「{needed}」 가 없다"
     assert [int(h[0]) for h in heads] == list(range(1, len(heads) + 1))
-    assert 'name: "이동원 (팀장)"' in TERMS_JS and 'email: "example@example.com"' in TERMS_JS and "placeholder: true" in TERMS_JS
+    assert 'name: "이동원 (팀장)"' in TERMS_JS and "contact:" in TERMS_JS and "example@example.com" not in TERMS_JS and "placeholder: true" in TERMS_JS   # 개인 이메일을 공개하지 않는다(사용자 결정 11-02)
 
 
 def test_policy_does_not_promise_what_the_app_does_not_do():
@@ -248,7 +248,7 @@ def test_policy_does_not_promise_what_the_app_does_not_do():
     assert "증권사 API 키 · 비밀키 · 계좌번호는 데이터베이스와 분리한 키로 암호화 저장합니다" in POLICY_TEXT
     assert "알림 토큰 · 이메일 발송 비밀번호는 현재 암호화 저장 대상에 포함되지 않습니다" in POLICY_TEXT
     assert "저장하지 않습니다" in POLICY_TEXT
-    assert "자리표시" in POLICY_TEXT and "PRIVACY_OFFICER.placeholder" in PRIVACY_HTML and "자리표시" in PRIVACY_HTML
+    assert "임시 창구" in POLICY_TEXT and "PRIVACY_OFFICER.placeholder" in PRIVACY_HTML and "임시 창구" in PRIVACY_HTML
     assert "광고 · 분석용 쿠키나 스크립트는 쓰지 않습니다" in POLICY_TEXT
     # 그 말이 사실인지 — 공개 화면에 분석 · 광고 스크립트가 없다
     for page in PUB.glob("*.html"):
@@ -276,3 +276,12 @@ def test_policy_and_consent_say_the_same_about_data_the_app_keeps():
                      "로그인 상태는 마지막 이용 뒤 30일이 지나면 만료되고",
                      "가입 화면에 입력하는 생년월일은 만 14세 이상인지 확인하는 데만 쓰고 저장하지 않습니다."):
         assert sentence in privacy and sentence in POLICY_TEXT, sentence
+
+
+def test_policy_overseas_transfer_names_openai_and_discord_and_contact_is_not_an_email():
+    """TC-PP-05 · 6절 국외 이전은 OpenAI 키 모드와 디스코드 연결을 적고, 12절 연락 방법은 개인 이메일이 아니라 저장소 이슈다(사용자 결정 2026-11-02 · ①-09)."""
+    six = POLICY_TEXT.split('h: "6. 국외 이전"')[1].split('h: "7.')[0]
+    assert "OpenAI" in six and "디스코드" in six and "해외" in six
+    twelve = POLICY_TEXT.split('h: "12. 개인정보 보호책임자"')[1].split('h: "13.')[0]
+    assert "PRIVACY_OFFICER.contact" in twelve and "PRIVACY_OFFICER.email" not in twelve and "@" not in twelve
+    assert 'POLICY_VERSION = "2026-11-02-p0.4"' in TERMS_JS

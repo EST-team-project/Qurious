@@ -108,3 +108,10 @@
 .sd-tpl { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border, #dde2ec); }
 .sd-tpl > summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--text-dim, #334155); }
 .sd-tpl-text { margin: 6px 0; padding: 10px 12px; white-space: pre-wrap; word-break: keep-all; font-family: inherit; font-size: 12px; line-height: 1.6; border-radius: 8px; background: var(--surf2, #f1f5f9); color: var(--text-dim, #334155); }
+
+/* 신호 순위 상태 딱지(2026-11-02 · ②-33) — 색만으로 구분하지 않는다(딱지 글자가 늘 함께 보인다) */
+.sr-badge { border: 1px solid currentColor; background: transparent; font-weight: 600; }
+.sr-badge[data-kind="ok"], .sr-badge[data-kind="live"] { color: #0b7a4b; }
+.sr-badge[data-kind="warn"] { color: #b3261e; }
+.sr-badge[data-kind="info"], .sr-badge[data-kind="close"] { color: #1d5fbf; }
+.sr-badge[data-kind="delay"] { color: #a35a00; }
