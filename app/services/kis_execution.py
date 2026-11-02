@@ -22,6 +22,42 @@ def client_for(row):
     return client, creds
 
 
+def _quantity_evidence(fill):
+    raw = getattr(fill, "raw", None) or {}
+
+    def integer(name):
+        value = str(raw.get(name, "")).strip()
+        return int(value) if value.isdigit() else None
+
+    # 모의 원 주문은 cncl_yn=N을 유지하고 cncl_cfrm_qty에 취소 확정량을 기록한다.
+    # 구 문서의 cnc_cfrm_qty도 지원하되 충돌하거나 잘못된 값은 추정하지 않는다.
+    names = [name for name in ("cncl_cfrm_qty", "cnc_cfrm_qty") if name in raw]
+    counts = [integer(name) for name in names]
+    valid = not names or (None not in counts and len(set(counts)) == 1)
+    cancelled = counts[0] if counts and valid else None
+    remaining = integer("rmn_qty")
+    closed = valid and remaining == 0 and (
+        (cancelled is not None and cancelled > 0
+         and cancelled + fill.filled_quantity == fill.order_quantity)
+        or (not names and fill.cancelled))
+    complete = (valid and integer("ord_qty") == fill.order_quantity
+                and integer("tot_ccld_qty") == fill.filled_quantity
+                and remaining is not None and 0 <= remaining <= fill.order_quantity)
+    if cancelled is not None:
+        complete = complete and cancelled + fill.filled_quantity + (remaining or 0) == fill.order_quantity
+    if names:
+        closed = closed and complete
+    return remaining, cancelled, closed, complete
+
+
+def _is_closed(fill):
+    raw = getattr(fill, "raw", None) or {}
+    # 취소 접수 행은 원 주문과 별도 ODNO로 반환되며 미체결 주문이 아니다.
+    cancel_record = (fill.cancelled and str(raw.get("orgn_odno", "")).isdigit()
+                     and int(raw["orgn_odno"]) > 0 and str(raw.get("rmn_qty", "")) == "0")
+    return fill.filled_quantity == fill.order_quantity or _quantity_evidence(fill)[2] or cancel_record
+
+
 async def direct_status(order, broker_row) -> dict | None:
     """날짜·주문번호·종목·방향을 모두 대조한다. 미확인은 자동 재주문하지 않는다."""
     if not order.order_no or not order.created_at:
@@ -41,25 +77,17 @@ async def direct_status(order, broker_row) -> dict | None:
     f = candidates[0]
     if not 0 <= f.filled_quantity <= order.quantity or not math.isfinite(f.avg_fill_price) or (f.filled_quantity and f.avg_fill_price <= 0):
         raise RuntimeError("증권사 체결 수량·가격을 확인하지 못했습니다.")
-    def integer(name):
-        value = str((getattr(f, "raw", None) or {}).get(name, "")).strip()
-        return int(value) if value.isdigit() else None
-    remaining = integer("rmn_qty")
-    cancelled = integer("cnc_cfrm_qty")
-    # 부분 취소로 잔량이 남았으면 종료된 주문으로 분류하지 않는다.
-    is_cancelled = f.cancelled and remaining == 0
+    remaining, cancelled, is_cancelled, complete = _quantity_evidence(f)
     state = "FILLED" if f.filled_quantity == order.quantity else "CANCELLED" if is_cancelled else "PARTIALLY_FILLED" if f.filled_quantity else "ACCEPTED"
     return {"status": state, "filledQuantity": f.filled_quantity, "avgFilledPrice": f.avg_fill_price,
             "account_key": meta["account_key"], "orderNo": order.order_no,
             "orderedQuantity": f.order_quantity, "remainingQuantity": remaining,
-            "cancelledQuantity": cancelled, "cancelled": f.cancelled,
-            "quantityEvidenceComplete": (integer("ord_qty") == f.order_quantity
-                and integer("tot_ccld_qty") == f.filled_quantity and remaining is not None),
+            "cancelledQuantity": cancelled, "cancelled": is_cancelled,
+            "quantityEvidenceComplete": complete,
             "side": order.side, "symbol": order.symbol,
             "organization": meta.get("organization", ""),
             "otherOpenOrders": sum(1 for item in fills if item.broker_order_id != f.broker_order_id
-                and item.order_date == date and item.filled_quantity < item.order_quantity
-                and not (item.cancelled and str((getattr(item, "raw", None) or {}).get("rmn_qty", "")) == "0"))}
+                and item.order_date == date and not _is_closed(item))}
 
 
 async def account_snapshot(broker_row, gateway, symbols: dict) -> dict:

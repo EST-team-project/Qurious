@@ -262,3 +262,46 @@ def test_direct_fill_confirmation_uses_exact_order_and_account(monkeypatch, fill
     creds.account_no = '9999999901'
     with pytest.raises(RuntimeError, match='계좌'):
         asyncio.run(kis_execution.direct_status(order, None))
+
+
+@pytest.mark.parametrize('field', ['cncl_cfrm_qty', 'cnc_cfrm_qty'])
+def test_actual_paper_cancel_counts_original_and_cancel_record(monkeypatch, field):
+    date = datetime.now(timezone.utc)
+    key = kis_execution.account_key('key', '1234567801', 'paper')
+    order = SimpleNamespace(order_no='000123', created_at=date, environment='paper', symbol='005930.KS',
+                            side='SELL', quantity=3, raw=json.dumps({'account_key': key}))
+    original = SimpleNamespace(broker_order_id='000123', order_date=date.astimezone(kis_execution.KST).strftime('%Y%m%d'),
+        symbol='005930', side='sell', order_quantity=3, filled_quantity=1, avg_fill_price=70000, cancelled=False,
+        raw={'ord_qty': '3', 'tot_ccld_qty': '1', field: '2', 'rmn_qty': '0', 'cncl_yn': 'N', 'orgn_odno': '0000000000'})
+    cancellation = SimpleNamespace(**{**vars(original), 'broker_order_id': '000124', 'order_quantity': 2,
+        'filled_quantity': 0, 'avg_fill_price': 0, 'cancelled': True,
+        'raw': {'ord_qty': '2', 'tot_ccld_qty': '0', field: '0', 'rmn_qty': '0', 'cncl_yn': 'Y', 'orgn_odno': '000123'}})
+    client = SimpleNamespace(paper=True, get_daily_fills=AsyncMock(return_value=[original, cancellation]))
+    monkeypatch.setattr(kis_execution, 'client_for', lambda _: (client, SimpleNamespace(app_key='key', account_no='1234567801')))
+    result = asyncio.run(kis_execution.direct_status(order, None))
+    assert result['status'] == 'CANCELLED'
+    assert result['cancelledQuantity'] == 2 and result['cancelled']
+    assert result['quantityEvidenceComplete'] and result['otherOpenOrders'] == 0
+    # Other orders use the same confirmed original-order evidence.
+    other = SimpleNamespace(**{**vars(original), 'broker_order_id': '000125'})
+    client.get_daily_fills.return_value.append(other)
+    assert asyncio.run(kis_execution.direct_status(order, None))['otherOpenOrders'] == 0
+    other.raw = {**other.raw, field: '1', 'rmn_qty': '1'}
+    assert asyncio.run(kis_execution.direct_status(order, None))['otherOpenOrders'] == 1
+
+
+@pytest.mark.parametrize('raw,complete', [
+    ({'cncl_cfrm_qty': '1', 'rmn_qty': '1'}, True),
+    ({'cncl_cfrm_qty': '0', 'rmn_qty': '0'}, False),
+    ({'cncl_cfrm_qty': '1', 'rmn_qty': '0'}, False),
+    ({'cncl_cfrm_qty': '-2', 'rmn_qty': '0'}, False),
+    ({'cncl_cfrm_qty': '', 'rmn_qty': '0'}, False),
+    ({'cncl_cfrm_qty': '2', 'cnc_cfrm_qty': '1', 'rmn_qty': '0'}, False),
+    ({'cncl_cfrm_qty': '2', 'rmn_qty': '0', 'ord_qty': '4'}, False),
+])
+def test_partial_or_invalid_cancel_evidence_does_not_close(raw, complete):
+    fill = SimpleNamespace(order_quantity=3, filled_quantity=1, cancelled=True,
+        raw={'ord_qty': '3', 'tot_ccld_qty': '1', **raw})
+    evidence = kis_execution._quantity_evidence(fill)
+    assert evidence[2] is False and evidence[3] is complete
+    assert not kis_execution._is_closed(fill)
