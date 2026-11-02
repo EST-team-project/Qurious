@@ -25,6 +25,7 @@ from app.models.paper import (
     PAPER_INITIAL_CASH,
 )
 from app.models.paper_snapshot import PaperAccountSnapshot
+from app.models.paper_snapshot_price_audit import PaperSnapshotPriceAudit
 from app.models.backtest import BacktestAccount, BacktestSnapshot
 from app.models.signal import SignalSnapshot
 from app.models.rebalance import RebalancePlan, CashflowEvent, RebalanceRun
@@ -125,6 +126,7 @@ __all__ = [
     "LeanBacktestRun",
     "PAPER_INITIAL_CASH",
     "PaperAccountSnapshot",
+    "PaperSnapshotPriceAudit",
 
     # Backtest isolation
     "BacktestAccount",
