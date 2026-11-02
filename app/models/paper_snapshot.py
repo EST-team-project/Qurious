@@ -5,7 +5,8 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, UUIDPkMixin, CreatedAtMixin
@@ -38,6 +39,9 @@ class PaperAccountSnapshot(Base, UUIDPkMixin, CreatedAtMixin):
     total_equity: Mapped[float] = mapped_column(Float, nullable=False)
 
     daily_return: Mapped[float] = mapped_column(Float, default=0.0)
+
+    price_metadata: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    return_valid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     position_count: Mapped[int] = mapped_column(default=0)
     snapshot_at: Mapped[datetime] = mapped_column(

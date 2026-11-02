@@ -44,7 +44,7 @@ def test_notes_say_source_limits_and_how_orders_fill(tmp_path):
     """TC-CRY-01 — 시세 글(출처 · 약 5초 · 시각 미표시 · 마지막 값) · 주문 글(모의 장부 · 업비트로 안 나감 · 수수료 · 슬리피지 없음)."""
     out = _run(tmp_path, "out.s = cv.COIN_SOURCE_NOTE; out.o = cv.COIN_ORDER_NOTE;")
     s, o = out["s"], " ".join(out["o"])
-    assert "업비트 공개 시세" in s and "약 5초" in s and "받은 시각은 표시되지 않음" in s and "마지막으로 받은 값이 나올 수 있습니다" in s
+    assert "업비트 공개 시세" in s and "약 5초" in s and "받은 시각은 표시되지 않음" in s and "체결 시각 기준 5분 이내" in s
     assert "모의 장부에만 기록" in o and "업비트로 주문이 나가지 않습니다" in o and "수수료 · 슬리피지 없이 즉시 체결" in o
     assert "서버" not in s + o and "DB" not in s + o                      # 화면 글에 개발 티가 나는 말을 쓰지 않는다(규칙 L317)
 
@@ -59,7 +59,7 @@ def test_notes_match_what_the_server_really_does():
     assert "account.cash = float(account.cash - buy_krw)" in buy and "proceeds = round(price * sell_count)" in sell
     assert "_UPBIT_TICKER_TTL = 5" in SERVICE
     tick = SERVICE[SERVICE.index("async def upbit_tickers("):SERVICE.index("async def upbit_trade_price(")]
-    assert "except Exception:\n            pass" in tick and "return [_UPBIT_TICKER_CACHE[c][\"data\"]" in tick   # 실패하면 저장 값을 그대로(서버 고침은 장부 담당 몫)
+    assert 'entry["ts"] <= 300' in tick and "snapshot_pricing.evidence" in tick  # 오래된 체결 시세는 재사용하지 않는다
 
 
 def test_chart_points_and_summary(tmp_path):

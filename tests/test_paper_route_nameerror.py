@@ -31,6 +31,9 @@ class _Result:
     def scalar(self):
         return self._scalar
 
+    def scalar_one_or_none(self):
+        return self._scalar
+
     def scalars(self):
         return SimpleNamespace(all=lambda: self._rows)
 
@@ -40,7 +43,9 @@ def _db(result):
 
 
 def _snap(day, equity):
-    return SimpleNamespace(snap_date=date.fromisoformat(day), total_equity=equity)
+    return SimpleNamespace(snap_date=date.fromisoformat(day), total_equity=equity,
+                           completeness="complete", origin="daily", epoch=1,
+                           position_count=0, price_metadata=[], snapshot_at=None)
 
 
 USER = {"id": str(uuid.uuid4())}
