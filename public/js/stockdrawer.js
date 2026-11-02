@@ -10,6 +10,7 @@
  */
 // DOM 없는 글자 막기는 한 곳(howtoview.js) — 상대 경로라 브라우저(/js/)와 Node 시험이 같은 파일을 읽는다.
 import { esc } from "./howtoview.js";
+import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD } from "./stockchart.js";
 
 /** 서랍에 그릴 칸 차례 — 서버 stock_hub.SECTIONS 에서 머리(identity)를 뺀 일곱(시험이 맞댐) */
 export const DRAWER_SECTIONS = ["price", "signal", "financials", "disclosures", "news", "schedule", "sector"];
@@ -130,6 +131,33 @@ export function sdSectionHtml(key, sec, labelOf) {
     + `${body}<div class="sd-foot"><small class="sd-source">${esc(sec.source || "")}</small>${go}</div></section>`;
 }
 
+/** 일봉 차트 칸(서랍 · 크게 보기 모달 공통 부품 — 설계 Figma 07 쪽 안 C). 6자리 코드가 아닌 종목(해외)이면 빈 글.
+ *  expand 가 참이면 머리에 「크게 보기 ⤢」 단추 — 모달에서는 거짓. height 는 차트 칸 높이(px) */
+export function sdChartBoxHtml(symbol, { expand = true, height = 150, period = SC_DEFAULT_PERIOD } = {}) {
+  if (!scCode(symbol)) return "";
+  const chips = SC_PERIODS.map(([k, label]) => `<button type="button" class="sd-period${k === period ? " on" : ""}" data-hub-period="${esc(k)}">${esc(label)}</button>`).join("");
+  return `<div class="sd-chartbox" data-hub-chartbox><div class="sd-chart-head"><b>일봉 종가</b><span class="sd-periods">${chips}</span>`
+    + `${expand ? `<button type="button" class="sd-expand" data-hub-expand>크게 보기 ⤢</button>` : ""}</div>`
+    + `<div class="sd-chart" data-hub-chart style="height:${Number(height) || 150}px"></div><small class="sd-note" data-hub-chart-note></small></div>`;
+}
+
+/** 크게 보기 모달 안쪽 — 머리(이름 · 코드 · 지금가) + 큰 일봉 차트 + 신호 근거 칸(서버 값 그대로) + 닫기. hub 는 GET /api/stock-hub 응답 */
+export function sdModalHtml(hub) {
+  const s = hub.sections || {};
+  const labelOf = new Map((hub.links || []).map(l => [l.view, l.label]));
+  const name = hub.name || (s.identity?.data || {}).name || hub.symbol;
+  const price = s.price;
+  const top = `<header class="sd-top"><div><strong id="hub-md-title">${esc(name)}</strong> <span class="sd-chip">${esc(hub.symbol)}</span>`
+    + `${sdOk(price) ? ` <span class="sd-top-price">${esc(sdNum(price.data.close))}원 <b class="${price.data.change_pct > 0 ? "up" : price.data.change_pct < 0 ? "dn" : ""}">${esc(sdPct(price.data.change_pct))}</b></span>` : ""}</div>`
+    + `<button type="button" class="sd-close" data-hub-modal-close aria-label="크게 보기 닫기">✕</button></header>`;
+  const chart = sdChartBoxHtml(hub.symbol, { expand: false, height: 340 });
+  // 큰 차트를 맨 위에 두고 그 아래로 일곱 칸을 차례로 — 모달 안에서 내리며 읽는다(사용자 11-02 「모달로 크게 띄워서 내리면서 보는 것이 편하겠다」)
+  const sections = DRAWER_SECTIONS.map(k => sdSectionHtml(k, s[k], labelOf)).join("");
+  return `${top}<div class="sd-modal-body"><div class="sd-modal-chart">${chart || `<p class="sd-why">이 종목은 수집 일봉이 없어 차트를 그리지 못합니다.</p>`}</div>`
+    + `<div class="sd-modal-ev">${sections}</div></div>`
+    + `<footer class="sd-bottom"><p class="sd-notice">${esc(hub.notice || "투자 권유가 아닙니다.")}</p></footer>`;
+}
+
 /** 서랍 안쪽 전체 — hub 는 GET /api/stock-hub 응답 그대로 */
 export function stockDrawerHtml(hub) {
   const s = hub.sections || {};
@@ -149,6 +177,13 @@ export function stockDrawerHtml(hub) {
   return `${head}<p class="sd-lead">${esc(hub.note || "새로 계산하지 않고 앱의 다른 화면이 쓰는 값을 그대로 모았습니다.")}</p>`
     + `${naver ? '<p class="sd-lead"><button type="button" class="btn-secondary" data-hub-go="robo-rebalance">리밸런싱 목표 편집으로 →</button> 종목코드만 전달합니다. 비중 입력·목표 추가·저장은 직접 확인하세요.</p>' : ''}`
     + `<div class="sd-body">${sections}</div><footer class="sd-bottom"><p class="sd-notice">${esc(hub.notice || "투자 권유가 아닙니다.")}</p>${generated}</footer>`;
+}
+
+/** 서랍 전체 + 일봉 차트 칸 — 칸이 있으면 본문(`sd-body`) 바로 위에 끼운다(2026-11-02 · stockDrawerHtml 의 줄을 건드리지 않아 다른 PR 의 한 줄 끼우기와 겹치지 않는다) */
+export function stockDrawerWithChartHtml(hub) {
+  const html = stockDrawerHtml(hub);
+  const box = sdChartBoxHtml(hub.symbol);
+  return box ? html.replace('<div class="sd-body">', box + '<div class="sd-body">') : html;
 }
 
 /** 불러오기 실패 글 — 로그인 풀림 · 연결 끊김 · 그 밖을 가른다 */
@@ -180,6 +215,91 @@ export function mountStockDrawer(doc, deps) {
   let host = null;
   let last = null;            // 서랍을 연 단추 — 닫으면 초점을 돌려준다
   let token = 0;              // 늦게 온 응답이 새로 연 서랍을 덮지 않게
+  let hubLast = null;         // 서랍에 그린 마지막 응답 — 「크게 보기」 가 그대로 쓴다(다시 묻지 않는다)
+  let drawerChart = null;     // 서랍 · 모달의 일봉 차트(같은 부품 stockchart.js)
+  let modal = null, modalChart = null;
+  const makeChart = (box, note) => (deps.mountChart || ((b, n) => mountDailyChart(doc, b, n, { api: deps.api })))(box, note);
+
+  /** root 안의 차트 칸에 일봉을 그린다 — 칸이 없으면(해외 종목) null */
+  function startChart(root, symbol, period) {
+    const box = root.querySelector("[data-hub-chart]"), note = root.querySelector("[data-hub-chart-note]");
+    if (!box || !note) return null;
+    const c = makeChart(box, note);
+    c.draw({ symbol, period: period || SC_DEFAULT_PERIOD });
+    return c;
+  }
+  /** 기간 단추 — 눌린 표시를 옮기고 같은 root 의 차트를 다시 그린다 */
+  function pickPeriod(root, btn, symbol, chart) {
+    root.querySelectorAll("[data-hub-period]").forEach(b => b.classList.toggle("on", b === btn));
+    if (chart) chart.draw({ symbol, period: btn.dataset.hubPeriod });
+  }
+
+  function ensureModal() {
+    if (modal) return modal;
+    modal = doc.createElement("div");
+    modal.id = "hub-modal";
+    modal.className = "sd-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "hub-md-title");
+    modal.hidden = true;
+    doc.body.appendChild(modal);
+    modal.addEventListener("click", ev => {
+      if (ev.target === modal || ev.target.closest("[data-hub-modal-close]")) { closeModal(); return; }
+      const per = ev.target.closest("[data-hub-period]");
+      if (per) { pickPeriod(modal, per, modal.dataset.symbol, modalChart); return; }
+      const go = ev.target.closest("[data-hub-go]");
+      if (go) {
+        const { symbol, name } = modal.dataset;
+        closeModal(false);
+        openViewForSymbol(go.dataset.hubGo, symbol, name, { navigate: deps.navigate, openResearchSymbol: deps.openResearchSymbol, doc });
+      }
+    });
+    return modal;
+  }
+  function openModal(hub) {
+    const m = ensureModal();
+    m.dataset.symbol = hub.symbol;
+    m.dataset.name = hub.name || "";
+    m.innerHTML = sdModalHtml(hub);
+    m.hidden = false;
+    doc.body.classList.add("sd-open");
+    if (modalChart) modalChart.destroy();
+    modalChart = startChart(m, hub.symbol);
+    m.querySelector("[data-hub-modal-close]")?.focus();
+  }
+  /** 서랍을 거치지 않고 바로 모달 — `data-hub-mode="modal"` 입구(모의주문 시세 조회 결과) */
+  async function openModalFor(symbol, name, trigger) {
+    last = trigger || null;
+    const mine = ++token;
+    const m = ensureModal();
+    m.dataset.symbol = symbol;
+    m.dataset.name = name || "";
+    m.hidden = false;
+    doc.body.classList.add("sd-open");
+    if (modalChart) { modalChart.destroy(); modalChart = null; }
+    m.innerHTML = `<header class="sd-top"><strong id="hub-md-title">${esc(name || symbol)}</strong>`
+      + `<button type="button" class="sd-close" data-hub-modal-close aria-label="크게 보기 닫기">✕</button></header><p class="sd-lead" role="status">근거를 모으는 중입니다…</p>`;
+    m.querySelector("[data-hub-modal-close]")?.focus();
+    try {
+      const hub = await deps.api(hubDrawerPath(symbol));
+      if (mine !== token || m.hidden) return;
+      hubLast = hub;
+      openModal(hub);
+    } catch (err) {
+      if (mine !== token) return;
+      m.innerHTML = `<header class="sd-top"><strong id="hub-md-title">${esc(name || symbol)}</strong>`
+        + `<button type="button" class="sd-close" data-hub-modal-close aria-label="크게 보기 닫기">✕</button></header><p class="sd-why" role="alert">${esc(sdFailText(err))}</p>`;
+      m.querySelector("[data-hub-modal-close]")?.focus();
+    }
+  }
+  function closeModal(restoreFocus = true) {
+    token += 1;
+    if (modalChart) { modalChart.destroy(); modalChart = null; }
+    if (modal) modal.hidden = true;
+    doc.body.classList.remove("sd-open");
+    if (restoreFocus && last && doc.contains(last)) last.focus();
+  }
 
   function ensureHost() {
     if (host) return host;
@@ -192,6 +312,12 @@ export function mountStockDrawer(doc, deps) {
     doc.body.appendChild(host);
     host.addEventListener("click", ev => {
       if (ev.target.closest("[data-hub-close]")) { close(); return; }
+      if (ev.target.closest("[data-hub-expand]")) {                 // 크게 보기 — 서랍은 닫고 같은 종목 · 같은 기간으로 모달
+        if (hubLast) { const hub = hubLast; close(false); openModal(hub); }
+        return;
+      }
+      const per = ev.target.closest("[data-hub-period]");
+      if (per) { pickPeriod(host, per, host.dataset.symbol, drawerChart); return; }
       const go = ev.target.closest("[data-hub-go]");
       if (go) {
         const { symbol, name } = host.dataset;
@@ -205,6 +331,7 @@ export function mountStockDrawer(doc, deps) {
 
   function close(restoreFocus = true) {
     token += 1;
+    if (drawerChart) { drawerChart.destroy(); drawerChart = null; }
     if (host) host.hidden = true;
     doc.body.classList.remove("sd-open");
     if (restoreFocus && last && doc.contains(last)) last.focus();
@@ -225,7 +352,10 @@ export function mountStockDrawer(doc, deps) {
       const hub = await deps.api(hubDrawerPath(symbol));
       if (mine !== token) return;
       h.dataset.name = hub.name || name || "";
-      h.innerHTML = stockDrawerHtml(hub);
+      h.innerHTML = stockDrawerWithChartHtml(hub);
+      hubLast = hub;
+      if (drawerChart) drawerChart.destroy();
+      drawerChart = startChart(h, hub.symbol);
       h.querySelector("[data-hub-close]")?.focus();
     } catch (err) {
       if (mine !== token) return;
@@ -239,9 +369,17 @@ export function mountStockDrawer(doc, deps) {
     const btn = ev.target.closest?.("[data-hub-open]");
     if (!btn) return;
     ev.preventDefault();
-    open(btn.dataset.hubOpen, btn.dataset.hubName || "", btn);
+    if (btn.dataset.hubMode === "modal") openModalFor(btn.dataset.hubOpen, btn.dataset.hubName || "", btn);
+    else open(btn.dataset.hubOpen, btn.dataset.hubName || "", btn);
   });
-  doc.addEventListener("keydown", ev => { if (ev.key === "Escape" && host && !host.hidden) close(); });
-  doc.defaultView.addEventListener("hashchange", () => { if (host && !host.hidden) close(false); });   // 다른 화면으로 가면 닫는다
+  doc.addEventListener("keydown", ev => {
+    if (ev.key !== "Escape") return;
+    if (modal && !modal.hidden) closeModal();
+    else if (host && !host.hidden) close();
+  });
+  doc.defaultView.addEventListener("hashchange", () => {            // 다른 화면으로 가면 닫는다
+    if (host && !host.hidden) close(false);
+    if (modal && !modal.hidden) closeModal(false);
+  });
   return { open, close };
 }

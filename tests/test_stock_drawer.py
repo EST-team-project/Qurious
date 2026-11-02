@@ -184,3 +184,39 @@ def test_drawer_is_wired_into_the_app():
     assert 'data-hub-open="${esc(hub.symbol)}"' in card                      # AI 투자 상담 카드
     assert 'data-hub-open="${escHtml(S.symbol)}"' in research                # 투자 정보 리서치 종목 칩
     assert (ROOT / "public" / "css" / "stockdrawer.css").is_file()
+
+
+def test_drawer_has_daily_chart_box_and_expand_modal_html(tmp_path):
+    """TC-SDR-07 · 서랍에 일봉 차트 칸(기간 단추 셋 · 크게 보기) — 국내 6자리 코드일 때만 · 크게 보기 모달은 큰 차트 + 신호 칸 + 닫기(크게 보기 단추는 없음)."""
+    out = _run(tmp_path, HUB, """
+out.drawer = sd.stockDrawerWithChartHtml(HUB);
+out.foreign = sd.stockDrawerWithChartHtml({ ...HUB, symbol: 'AAPL' });
+out.box = sd.sdChartBoxHtml('005930.KS', { expand: false, height: 340 });
+out.none = ['AAPL', '', '5930', null].map(s => sd.sdChartBoxHtml(s));
+out.modal = sd.sdModalHtml(HUB);
+out.modalForeign = sd.sdModalHtml({ ...HUB, symbol: 'AAPL' });
+out.sections = sd.DRAWER_SECTIONS;
+""")
+    d = out["drawer"]
+    assert 'data-hub-chartbox' in d and 'data-hub-chart-note' in d and "data-hub-expand" in d and "크게 보기" in d
+    assert d.count("data-hub-period=") == 3 and 'data-hub-period="3m"' in d and 'class="sd-period on" data-hub-period="3m"' in d
+    assert d.index("data-hub-chartbox") < d.index('data-hub-sec="price"')            # 차트가 칸들 위
+    assert "data-hub-chartbox" not in out["foreign"]                                 # 해외 종목은 수집 일봉이 없다
+    assert out["none"] == [""] * 4
+    assert 'style="height:340px"' in out["box"] and "data-hub-expand" not in out["box"]
+    m = out["modal"]
+    sd_sections = out["sections"]
+    assert "data-hub-modal-close" in m and "data-hub-expand" not in m and 'style="height:340px"' in m
+    assert all(f'data-hub-sec="{k}"' in m for k in sd_sections)                      # 모달은 일곱 칸을 모두 담고 안에서 내리며 읽는다(사용자 11-02)
+    assert "주봉 기준으로 5주선이 20주선 아래" in m                                   # 신호 근거는 서버 글 그대로
+    assert "수집 일봉이 없어" in out["modalForeign"] and "data-hub-chartbox" not in out["modalForeign"]
+
+
+def test_drawer_wires_expand_to_a_modal_sharing_the_chart_part():
+    """TC-SDR-08 · 서랍 → 크게 보기 → 모달은 같은 차트 부품(stockchart.js) · Esc · 바깥 · 닫기 · 모달 CSS."""
+    js = DRAWER.read_text(encoding="utf-8")
+    css = (ROOT / "public" / "css" / "stockdrawer.css").read_text(encoding="utf-8")
+    assert 'from "./stockchart.js"' in js and "mountDailyChart" in js
+    assert "[data-hub-expand]" in js and "openModal(hub)" in js and "hubLast" in js and 'hubMode === "modal"' in js and "openModalFor" in js        # 서랍이 받은 응답을 다시 묻지 않고 쓴다
+    assert "closeModal" in js and 'ev.key !== "Escape"' in js
+    assert ".sd-modal" in css and ".sd-chartbox" in css and ".sd-period.on" in css
