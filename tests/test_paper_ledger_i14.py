@@ -42,6 +42,7 @@ import pytest
 from sqlalchemy import func, select, update
 
 from app.models import (
+    PaperSnapshotPriceAudit,
     AlternativeOrder,
     AlternativePosition,
     Base,
@@ -67,7 +68,7 @@ needs_db = pytest.mark.skipif(
 TABLES = [User.__table__, PaperAccount.__table__, Portfolio.__table__, Order.__table__,
           QuantVirtualAccount.__table__, CryptoHolding.__table__, CryptoOrder.__table__,
           AlternativePosition.__table__, AlternativeOrder.__table__,
-          PaperAccountSnapshot.__table__]   # DF-95 — 리셋 후 첫 스냅샷 회귀 시험용
+          PaperAccountSnapshot.__table__, PaperSnapshotPriceAudit.__table__]   # DF-95 — 리셋 후 첫 스냅샷 회귀 시험용
 
 SYMBOL, NAME, PRICE = "005930.KS", "삼성전자", 70_000.0
 QUANT_INITIAL = float(auto_trade._INITIAL_CAPITAL)

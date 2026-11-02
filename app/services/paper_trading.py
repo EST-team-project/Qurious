@@ -169,18 +169,28 @@ def normalize_stock_symbol(raw: str) -> str:
     return (raw or "").strip().upper()
 
 
-async def resolve_stock(symbol: str) -> dict:
-    """종목 메타 + 현재가. 6자리 코드는 KRX 상장법인 목록에서 종목명/시장을 찾는다.
-
-    Returns {"symbol": "005930.KS", "code": "005930", "name": "삼성전자", "market": "KOSPI", "price": 74000}
-    """
+async def resolve_stock(symbol: str, *, include_price_audit: bool = False) -> dict:
+    """종목 메타 + 현재가. 감사 정보는 요청한 경우에만 별도 반환한다."""
     symbol = normalize_stock_symbol(symbol)
     if not symbol:
         raise PaperTradeError("종목코드를 입력하세요.")
     now = time.time()
     cached = _STOCK_CACHE.get(symbol)
-    if cached and now - cached["ts"] < _STOCK_TTL:
-        return cached["data"]
+    if cached and now - cached["ts"] < _STOCK_TTL and (not include_price_audit or cached.get("price_audits")):
+        data = cached["data"]
+        if not include_price_audit:
+            return data
+        audits = []
+        for audit in cached.get("price_audits", []):
+            item = dict(audit)
+            item["cache_hit"] = True
+            item["cache_age_sec"] = max(0.0, now - cached["ts"])
+            audits.append(item)
+        stock_audit = next(
+            (item for item in audits if item.get("price_role") == "valuation"),
+            None,
+        )
+        return {**data, "_price_audit": stock_audit, "_price_audits": audits}
 
     code = symbol.split(".")[0]
     meta: dict | None = None
@@ -190,7 +200,6 @@ async def resolve_stock(symbol: str) -> dict:
                 meta = {"symbol": c["symbol"], "code": code, "name": c["name"], "market": c["market"]}
                 break
     if meta is None and re.fullmatch(r"\d{6}", code):
-        # KRX 목록을 못 받은 환경: KOSPI(.KS) → KOSDAQ(.KQ) 순서로 Yahoo에서 확인
         for suffix in ("KS", "KQ"):
             q = await get_quote(f"{code}.{suffix}")
             if q.get("price"):
@@ -201,31 +210,88 @@ async def resolve_stock(symbol: str) -> dict:
         q = await get_quote(symbol)
         if not q.get("price"):
             raise PaperTradeError(f"지원하지 않는 종목입니다: {symbol}")
-        meta = {"symbol": symbol, "code": code, "name": q.get("name") or symbol, "market": q.get("market") or "OTHER"}
+        meta = {"symbol": symbol, "code": code, "name": q.get("name") or symbol, "market":q.get("market") or "OTHER"}
 
     quote = await get_quote(meta["symbol"])
+    quote_fetched_at = datetime.now(timezone.utc)
     price = quote.get("price")
     if not price:
         raise PaperTradeError("실시간 시세를 확인할 수 없어 주문할 수 없습니다. 잠시 후 다시 시도해주세요.")
     currency = (quote.get("currency") or "KRW").upper()
-    # 모의계좌는 원화 단일 통화 — 해외 종목은 환율을 곱해 KRW 로 환산해 체결·평가한다
-    price_krw, fxi = await fx.to_krw_info(float(price), currency)
+
+    if include_price_audit and currency != "KRW":
+        price_krw, fxi, fx_audit = await fx.to_krw_info_with_audit(float(price), currency)
+    else:
+        price_krw, fxi = await fx.to_krw_info(float(price), currency)
+        fx_audit = None
+
     fx_rate = fxi["rate"]
     prev_close = quote.get("prev_close")
-    # 이 값의 출처 · 시각(2026-10-19 · quote_now 와 같은 글) — 게이트웨이(증권사 연계 조회)인지 야후 지연 시세인지 화면이 밝힌다.
-    # 체결 직전에 그 사람의 증권사 키로 다시 확인하는 일은 stock_order 가 한다(_confirm_quote).
-    from app.services import quote_now as _qn   # 순환 가져오기를 피해 여기서
+    from app.services import quote_now as _qn
     q_src = "kis_gateway" if quote.get("source") == "kis" else "delayed"
-    # 환율 출처(live · last · fallback · missing · 원화는 None) · 받은 시각 · 한 줄 글 — 대체값을 말없이 쓰지 않는다(fx.py).
-    data = {**meta, "price": price_krw, "price_local": float(price), "currency": currency, "fx_rate": fx_rate,
+    data = {**meta, "price": price_krw, "price_local": float(price), "currency": currency,"fx_rate": fx_rate,
             "fx_source": fxi["source"], "fx_as_of": fxi["as_of"], "fx_note": fxi["note"],
             "prev_close": (float(prev_close) * fx_rate) if prev_close else None, "prev_close_local": prev_close,
             "settlement_currency": "KRW",
             "quote_source": q_src, "quote_as_of": quote.get("as_of"),
             "quote_label": _qn.label_for(q_src, quote.get("as_of"), symbol=meta["symbol"]),
             "market_open": (is_krx_market_open() if currency == "KRW" else None)}
-    _STOCK_CACHE[symbol] = {"ts": now, "data": data}
-    _STOCK_CACHE[meta["symbol"]] = {"ts": now, "data": data}
+
+    price_audits = []
+    if include_price_audit:
+        quote_as_of = None
+        if quote.get("as_of"):
+            try:
+                quote_as_of = datetime.fromisoformat(str(quote["as_of"]))
+                if quote_as_of.tzinfo is None:
+                    quote_as_of = quote_as_of.replace(tzinfo=fx.KST)
+            except (TypeError, ValueError):
+                quote_as_of = None
+
+        stock_audit = {
+            "asset_type": "stock",
+            "symbol": meta["symbol"],
+            "price_role": "valuation",
+            "used_price": float(price),
+            "currency": currency,
+            "source": q_src,
+            "as_of": quote_as_of,
+            "fetched_at": quote_fetched_at,
+            "cache_hit": False,
+            "cache_age_sec": 0.0,
+            "fallback_used": False,
+            "fallback_reason": None,
+            "fallback_price": None,
+            "status": "live" if q_src == "kis_gateway" else "delayed",
+        }
+        price_audits.append(stock_audit)
+
+        if currency != "KRW" and fx_audit is not None:
+            price_audits.append({
+                "asset_type": "fx",
+                "symbol": f"{currency}/KRW",
+                "price_role": "conversion",
+                "used_price": float(fxi["rate"]),
+                "currency": "KRW",
+                "source": f"fx_{fxi['source']}",
+                **fx_audit,
+            })
+
+    cache_entry = {
+        "ts": now,
+        "data": data,
+        "fetched_at": quote_fetched_at,
+        "price_audits": price_audits,
+    }
+    _STOCK_CACHE[symbol] = cache_entry
+    _STOCK_CACHE[meta["symbol"]] = cache_entry
+
+    if include_price_audit:
+        stock_audit = next(
+            (item for item in price_audits if item.get("price_role") == "valuation"),
+            None,
+        )
+        return {**data, "_price_audit": stock_audit, "_price_audits": price_audits}
     return data
 
 
@@ -252,12 +318,21 @@ async def stock_positions(
     user_id: uuid.UUID,
     include_volatility: bool = False,
     include_price_metadata: bool = False,
+    include_price_audits: bool = False,
     valuation_date: date | None = None,
 ) -> list[dict]:
     rows = (await db.execute(select(Portfolio).where(Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_PAPER))).scalars().all()
     result = []
     for pos in rows:
         price = pos.avg_price
+        price_complete = False
+        resolved = None
+        try:
+            resolved = await resolve_stock(
+                pos.symbol, include_price_audit=include_price_audits
+            )
+            price = resolved["price"]
+            price_complete = price is not None and price > 0
         meta = snapshot_pricing.evidence("stock", pos.symbol, price, "average_cost", None, fallback=["average_cost"])
         try:
             info = await resolve_stock(pos.symbol)
@@ -290,6 +365,55 @@ async def stock_positions(
             item["volatility"] = await stock_volatility(pos.symbol)
         if include_price_metadata:
             item["_price_complete"] = price_complete
+        if include_price_audits:
+            if price_complete:
+                audits = [
+                    dict(audit)
+                    for audit in (resolved or {}).get("_price_audits", [])
+                ]
+                stock_audit = next(
+                    (audit for audit in audits if audit.get("price_role") == "valuation"),
+                    None,
+                )
+                if stock_audit is None:
+                    stock_audit = {
+                        "asset_type": "stock",
+                        "symbol": pos.symbol,
+                        "price_role": "valuation",
+                        "used_price": float(price),
+                        "currency": "KRW",
+                        "source": (resolved or {}).get("quote_source"),
+                        "as_of": None,
+                        "fetched_at": None,
+                        "cache_hit": False,
+                        "cache_age_sec": None,
+                        "fallback_used": False,
+                        "fallback_reason": None,
+                        "fallback_price": None,
+                        "status": "delayed",
+                    }
+                    audits.insert(0, stock_audit)
+                item["_price_audit"] = stock_audit
+                item["_price_audits"] = audits
+            else:
+                fallback_audit = {
+                    "asset_type": "stock",
+                    "symbol": pos.symbol,
+                    "price_role": "valuation",
+                    "used_price": float(price),
+                    "currency": "KRW",
+                    "source": "average_cost",
+                    "as_of": None,
+                    "fetched_at": None,
+                    "cache_hit": False,
+                    "cache_age_sec": None,
+                    "fallback_used": True,
+                    "fallback_reason": "quote_unavailable",
+                    "fallback_price": float(price),
+                    "status": "fallback",
+                }
+                item["_price_audit"] = fallback_audit
+                item["_price_audits"] = [fallback_audit]
             item["_price_metadata"] = meta
         result.append(item)
     return result
@@ -563,19 +687,67 @@ async def upbit_market_info(market_code: str) -> dict | None:
     return next((m for m in await upbit_markets() if m["market"] == code), None)
 
 
-async def upbit_tickers(codes: list[str]) -> list[dict]:
+async def upbit_tickers(
+    codes: list[str], *, include_price_audits: bool = False
+) -> list[dict]:
     """여러 마켓의 현재가/등락률/24h 거래대금."""
     codes = [c for c in codes if c]
     if not codes:
         return []
     now = time.time()
     missing = [c for c in codes if c not in _UPBIT_TICKER_CACHE or now - _UPBIT_TICKER_CACHE[c]["ts"] > _UPBIT_TICKER_TTL]
+    refreshed_markets = set()
     if missing:
         try:
             async with httpx.AsyncClient(timeout=6.0) as client:
                 resp = await client.get(f"{UPBIT_API}/ticker", params={"markets": ",".join(missing)})
                 resp.raise_for_status()
+                fetched_at = datetime.now(timezone.utc)
                 for r in resp.json():
+                    refreshed_markets.add(r["market"])
+                    _UPBIT_TICKER_CACHE[r["market"]] = {
+                        "ts": time.time(),
+                        "fetched_at": fetched_at,
+                        "trade_timestamp": r.get("trade_timestamp"),
+                        "data": {
+                            "market": r["market"], "price": float(r["trade_price"]),
+                            "changeRate": round(float(r.get("signed_change_rate", 0)) * 100, 2),
+                            "change": float(r.get("signed_change_price", 0)),
+                            "high24h": float(r.get("high_price", 0)), "low24h": float(r.get("low_price", 0)),
+                            "accTradePrice24h": float(r.get("acc_trade_price_24h", 0)),
+                            "accTradeVolume24h": float(r.get("acc_trade_volume_24h", 0)),
+                        },
+                    }
+        except Exception:
+            pass
+
+    result = []
+    for code in codes:
+        cached = _UPBIT_TICKER_CACHE.get(code)
+        if not cached:
+            continue
+        item = dict(cached["data"])
+        if include_price_audits:
+            trade_timestamp = cached.get("trade_timestamp")
+            try:
+                as_of = (
+                    datetime.fromtimestamp(float(trade_timestamp) / 1000, tz=timezone.utc)
+                    if trade_timestamp is not None else None
+                )
+            except (TypeError, ValueError, OSError, OverflowError):
+                as_of = None
+            item["_price_audit"] = {
+                "as_of": as_of,
+                "fetched_at": cached.get("fetched_at"),
+                "cache_hit": code not in refreshed_markets,
+                "cache_age_sec": (
+                    0.0 if code in refreshed_markets
+                    else max(0.0, time.time() - cached["ts"])
+                ),
+                "stale": code in missing and code not in refreshed_markets,
+            }
+        result.append(item)
+    return result
                     _UPBIT_TICKER_CACHE[r["market"]] = {"ts": now, "data": {
                         "market": r["market"], "price": float(r["trade_price"]),
                         "as_of": datetime.fromtimestamp(r["trade_timestamp"] / 1000, timezone.utc).isoformat() if r.get("trade_timestamp") else None,
@@ -660,10 +832,11 @@ async def crypto_holdings(
     db: AsyncSession,
     user_id: uuid.UUID,
     include_price_metadata: bool = False,
+    include_price_audits: bool = False,
 ) -> dict:
     account = await get_account(db, user_id)
     rows = (await db.execute(select(CryptoHolding).where(CryptoHolding.user_id == user_id))).scalars().all()
-    tickers = {t["market"]: t for t in await upbit_tickers([r.market_code for r in rows])}
+    tickers = {t["market"]: t for t in await upbit_tickers([r.market_code for r in rows], include_price_audits=include_price_audits)}
 
     hold_list, total_buy, total_eval = [], 0.0, 0.0
     all_prices_complete = True
@@ -686,6 +859,47 @@ async def crypto_holdings(
         if include_price_metadata:
             item["_price_complete"] = price_complete
             item["_price_metadata"] = {**meta, "price": price, "fallback": meta["fallback"] if price_complete else [*meta["fallback"], "average_cost"]}
+
+        if include_price_audits:
+            ticker = tickers.get(h.market_code)
+            ticker_audit = (ticker or {}).get("_price_audit", {})
+            if price_complete:
+                item["_price_audit"] = {
+                    "asset_type": "crypto",
+                    "symbol": h.market_code,
+                    "price_role": "valuation",
+                    "used_price": float(price),
+                    "currency": "KRW",
+                    "source": "upbit",
+                    "as_of": ticker_audit.get("as_of"),
+                    "fetched_at": ticker_audit.get("fetched_at"),
+                    "cache_hit": ticker_audit.get("cache_hit", False),
+                    "cache_age_sec": ticker_audit.get("cache_age_sec"),
+                    "fallback_used": bool(ticker_audit.get("stale", False)),
+                    "fallback_reason": (
+                        "ticker_refresh_failed_using_stale_cache"
+                        if ticker_audit.get("stale", False) else None
+                    ),
+                    "fallback_price": float(price) if ticker_audit.get("stale", False) else None,
+                    "status": "stale" if ticker_audit.get("stale", False) else "live",
+                }
+            else:
+                item["_price_audit"] = {
+                    "asset_type": "crypto",
+                    "symbol": h.market_code,
+                    "price_role": "valuation",
+                    "used_price": float(price),
+                    "currency": "KRW",
+                    "source": "average_cost",
+                    "as_of": None,
+                    "fetched_at": None,
+                    "cache_hit": False,
+                    "cache_age_sec": None,
+                    "fallback_used": True,
+                    "fallback_reason": "ticker_unavailable",
+                    "fallback_price": float(price),
+                    "status": "fallback",
+                }
 
         hold_list.append(item)
         total_buy += h.total_krw
@@ -824,48 +1038,131 @@ _ALT_LIVE_TTL = 60
 _alt_live_cache: dict[str, dict] = {}
 
 
-async def _alt_feed_scale(symbol: str) -> float:
+async def _alt_feed_scale(
+    symbol: str, *, include_price_audit: bool = False
+):
     """원화/g로 표시하는 금속 상품에는 최신 USD/KRW 환율을 적용한다 (troy oz → g)."""
     feed = ALT_LIVE_FEEDS[symbol]
     if symbol not in {"MET-GOLD", "MET-SILVER"}:
-        return feed["scale"]
+        result = feed["scale"]
+        audit = {
+            "as_of": None, "fetched_at": None, "fallback_used": False,
+            "fallback_reason": None, "fallback_price": None,
+            "status": "fixed_scale",
+        }
+        return (result, audit) if include_price_audit else result
     try:
         q = await get_quote("KRW=X")
-        return float(q["price"]) / 31.1035
+        fetched_at = datetime.now(timezone.utc)
+        if not q.get("price") or not math.isfinite(float(q["price"])) or float(q["price"]) <= 0:
+            raise ValueError("환율 시세가 유효하지 않습니다.")
+        result = float(q["price"]) / 31.1035
+        try:
+            as_of = datetime.fromisoformat(q["as_of"]) if q.get("as_of") else None
+            if as_of is not None and as_of.tzinfo is None:
+                as_of = as_of.replace(tzinfo=timezone(timedelta(hours=9)))
+        except (TypeError, ValueError):
+            as_of = None
+        audit = {
+            "as_of": as_of, "fetched_at": fetched_at, "fallback_used": False,
+            "fallback_reason": None, "fallback_price": None, "status": "live",
+        }
+        return (result, audit) if include_price_audit else result
     except Exception:
-        return 1.0
+        audit = {
+            "as_of": None, "fetched_at": None, "fallback_used": True,
+            "fallback_reason": "fx_quote_unavailable_using_unit_scale",
+            "fallback_price": 1.0, "status": "fallback",
+        }
+        return (1.0, audit) if include_price_audit else 1.0
 
 
-async def _alt_live_chart(symbol: str, days: int = 365) -> list[dict]:
+async def _alt_live_chart(symbol: str, days: int = 365, *, include_price_audit: bool = False):
     if symbol not in ALT_LIVE_FEEDS:
         return []
     now = time.time()
     cached = _alt_live_cache.get(symbol)
     if cached and now - cached["ts"] < _ALT_LIVE_TTL:
-        return cached["data"][-days:]
+        data = cached["data"][-days:]
+        if not include_price_audit:
+            return data
+        return data, {
+            "as_of": cached.get("as_of"),
+            "fetched_at": cached.get("fetched_at"),
+            "cache_hit": True,
+            "cache_age_sec": max(0.0, now - cached["ts"]),
+            "scale": cached.get("scale"),
+            "scale_audit": cached.get("scale_audit", {}),
+            "stale": False,
+        }
     try:
         raw = await _yahoo_chart(ALT_LIVE_FEEDS[symbol]["ticker"], "1d", "2y")
-        scale = await _alt_feed_scale(symbol)
+        if include_price_audit:
+            scale, scale_audit = await _alt_feed_scale(symbol, include_price_audit=True)
+        else:
+            scale = await _alt_feed_scale(symbol)
+            scale_audit = {}
         data = []
+        valid_timestamps = []
         if raw:
             quote = raw.get("indicators", {}).get("quote", [{}])[0]
             for i, ts in enumerate(raw.get("timestamp", [])):
                 vals = [quote.get(k, [None] * (i + 1))[i] for k in ("open", "high", "low", "close")]
-                if any(v is None or not math.isfinite(v) or v <= 0 for v in vals):
+                if ts is None or int(ts) <= 0 or any(v is None or not math.isfinite(v) or v <= 0 for v in vals):
                     continue
                 o, h, l, c = [v * scale for v in vals]
                 data.append({"time": date.fromtimestamp(ts).isoformat(), "open": round(o), "high": round(h), "low": round(l), "close": round(c)})
+                valid_timestamps.append(int(ts))
         if len(data) >= 2:
-            _alt_live_cache[symbol] = {"ts": now, "data": data}
+            fetched_at = datetime.now(timezone.utc)
+            as_of = (
+                datetime.fromtimestamp(valid_timestamps[-1], tz=timezone.utc)
+                if valid_timestamps else None
+            )
+            _alt_live_cache[symbol] = {
+                "ts": time.time(),
+                "data": data,
+                "as_of": as_of,
+                "fetched_at": fetched_at,
+                "scale": scale,
+                "scale_audit": scale_audit,
+            }
+            if include_price_audit:
+                return data[-days:], {
+                    "as_of": as_of,
+                    "fetched_at": fetched_at,
+                    "cache_hit": False,
+                    "cache_age_sec": 0.0,
+                    "scale": scale,
+                    "scale_audit": scale_audit,
+                    "stale": False,
+                }
             return data[-days:]
     except Exception:
         pass
-    return cached["data"][-days:] if cached else []
+    if cached:
+        data = cached["data"][-days:]
+        if include_price_audit:
+            return data, {
+                "as_of": cached.get("as_of"),
+                "fetched_at": cached.get("fetched_at"),
+                "cache_hit": True,
+                "cache_age_sec": max(0.0, time.time() - cached["ts"]),
+                "scale": cached.get("scale"),
+                "scale_audit": cached.get("scale_audit", {}),
+                "stale": True,
+            }
+        return data
+    return ([], {}) if include_price_audit else []
 
 
-async def alt_quote(symbol: str) -> dict:
+async def alt_quote(symbol: str, *, include_price_audit: bool = False) -> dict:
     item = ALT_CATALOG[symbol]
-    live = await _alt_live_chart(symbol, 2)
+    if include_price_audit:
+        live, live_audit = await _alt_live_chart(symbol, 2, include_price_audit=True)
+    else:
+        live = await _alt_live_chart(symbol, 2)
+        live_audit = {}
     if len(live) >= 2:
         price, previous = live[-1]["close"], live[-2]["close"]
         rate = round((price - previous) / previous * 100, 2) if previous else 0
@@ -881,6 +1178,51 @@ async def alt_quote(symbol: str) -> dict:
              "tradeAmountPerUnit": margin, "updatedAt": updated_at, "source": source}
     if item.get("pointScale"):
         quote["actualPoint"] = price / item["pointScale"]
+    if include_price_audit:
+        live_used = len(live) >= 2
+        quote["_price_audit"] = {
+            "asset_type": "alternative",
+            "symbol": symbol,
+            "price_role": "valuation",
+            "used_price": float(price),
+            "currency": "KRW",
+            "source": "yahoo_finance" if live_used else "education_reference",
+            "as_of": live_audit.get("as_of") if live_used else None,
+            "fetched_at": live_audit.get("fetched_at") if live_used else None,
+            "cache_hit": live_audit.get("cache_hit", False) if live_used else False,
+            "cache_age_sec": live_audit.get("cache_age_sec") if live_used else None,
+            "fallback_used": not live_used,
+            "fallback_reason": None if live_used else "live_quote_unavailable",
+            "fallback_price": None if live_used else float(price),
+            "status": (
+                "stale" if live_used and live_audit.get("stale")
+                else "delayed" if live_used
+                else "demo"
+            ),
+        }
+        if live_used and symbol in {"MET-GOLD", "MET-SILVER"}:
+            quote["_price_audit"]["_conversion_audit"] = {
+                "asset_type": "fx",
+                "symbol": "USD/KRW",
+                "price_role": "conversion",
+                "used_price": float(live_audit.get("scale") or 0),
+                "currency": "KRW/g",
+                "source": (
+                    "fallback" if live_audit.get("scale_audit", {}).get("fallback_used")
+                    else "yahoo_finance"
+                ),
+                "as_of": live_audit.get("scale_audit", {}).get("as_of"),
+                "fetched_at": live_audit.get("scale_audit", {}).get("fetched_at"),
+                "cache_hit": live_audit.get("cache_hit", False),
+                "cache_age_sec": live_audit.get("cache_age_sec"),
+                "fallback_used": live_audit.get("scale_audit", {}).get("fallback_used", False),
+                "fallback_reason": live_audit.get("scale_audit", {}).get("fallback_reason"),
+                "fallback_price": live_audit.get("scale_audit", {}).get("fallback_price"),
+                "status": (
+                    "fallback" if live_audit.get("scale_audit", {}).get("fallback_used")
+                    else "delayed"
+                ),
+            }
     return quote
 
 
@@ -909,11 +1251,12 @@ async def alt_positions(
     user_id: uuid.UUID,
     include_volatility: bool = False,
     include_price_metadata: bool = False,
+    include_price_audits: bool = False,
 ) -> list[dict]:
     rows = (await db.execute(select(AlternativePosition).where(AlternativePosition.user_id == user_id))).scalars().all()
     result = []
     for row in rows:
-        quote = await alt_quote(row.symbol)
+        quote = await alt_quote(row.symbol, include_price_audit=include_price_audits)
         # 선물은 계약 명목금액이 아니라 주문 시 납부한 증거금을 기준으로 손익을 표시한다.
         cost = round(row.avg_price * quote["multiplier"] * quote["marginRate"] / 100) * row.quantity
         value = quote["tradeAmountPerUnit"] * row.quantity
@@ -925,6 +1268,13 @@ async def alt_positions(
         if include_volatility:
             item["volatility"] = annualized_volatility([c["close"] for c in await alt_chart(row.symbol, 30)], 252)
         if include_price_metadata:
+            item["_price_complete"] = quote.get("source") != "교육용 기준 시세"
+        if include_price_audits:
+            audit = dict(quote.get("_price_audit", {}))
+            conversion_audit = audit.pop("_conversion_audit", None)
+            item["_price_audits"] = [audit] if audit else []
+            if conversion_audit:
+                item["_price_audits"].append(conversion_audit)
             meta = snapshot_pricing.evidence("alternative", row.symbol, quote.get("price"), quote.get("source"), quote.get("updatedAt"))
             item["_price_complete"] = meta["complete"]
             item["_price_metadata"] = meta
@@ -991,6 +1341,25 @@ async def alt_history(db: AsyncSession, user_id: uuid.UUID, limit: int = 100) ->
 
 # ── 계좌 스냅샷 (세 자산군 합산) ─────────────────────────────────────────
 
+async def account_snapshot(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    include_price_audits: bool = False,
+) -> dict:
+    account = await get_account(db, user_id)
+    stocks = await stock_positions(
+        db, user_id, include_price_metadata=True,
+        include_price_audits=include_price_audits,
+    )
+    crypto = await crypto_holdings(
+        db, user_id, include_price_metadata=True,
+        include_price_audits=include_price_audits,
+    )
+    alts = await alt_positions(
+        db, user_id, include_price_metadata=True,
+        include_price_audits=include_price_audits,
+    )
 async def account_snapshot(db: AsyncSession, user_id: uuid.UUID, *, valuation_date: date | None = None) -> dict:
     account = await get_account(db, user_id, lock=valuation_date is not None)
     stocks = await stock_positions(db, user_id, include_price_metadata=True, valuation_date=valuation_date)
@@ -1009,7 +1378,7 @@ async def account_snapshot(db: AsyncSession, user_id: uuid.UUID, *, valuation_da
         and all(p["_price_complete"] for p in alts)
     )
 
-    return {
+    result = {
         "cash": account.cash,
         "initialCash": initial,
         "stockEval": stock_eval,
@@ -1026,6 +1395,25 @@ async def account_snapshot(db: AsyncSession, user_id: uuid.UUID, *, valuation_da
         "price_complete": price_complete,
         "price_metadata": [p["_price_metadata"] for p in [*stocks, *crypto["holdCryptoList"], *alts]],
     }
+
+    if include_price_audits:
+        audits = []
+        for position in stocks:
+            position_audits = position.get("_price_audits")
+            if position_audits is not None:
+                audits.extend(position_audits)
+            elif position.get("_price_audit"):
+                audits.append(position["_price_audit"])
+        audits.extend(
+            p["_price_audit"]
+            for p in crypto["holdCryptoList"]
+            if p.get("_price_audit")
+        )
+        for position in alts:
+            audits.extend(position.get("_price_audits", []))
+        result["_price_audits"] = audits
+
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════
