@@ -109,11 +109,11 @@ def test_channel_function_marks_connect_failure_and_history_keeps_attempts(monke
     `dispatch` 는 확실한 실패를 다시 보내고 이력에 채널별 시도 횟수를 남긴다."""
     monkeypatch.setattr(notification.httpx, "AsyncClient", _FailingClient)
     outcome: dict = {}
-    assert asyncio.run(notification.send_slack("m", webhook_url="http://x.invalid", outcome=outcome)) is False
+    assert asyncio.run(notification.send_slack("m", webhook_url="https://hooks.slack.com/services/T/B/x", outcome=outcome)) is False
     assert outcome == {"retryable": True}
     _FailingClient.exc = httpx.ReadTimeout("x")
     outcome = {}
-    assert asyncio.run(notification.send_slack("m", webhook_url="http://x.invalid", outcome=outcome)) is False
+    assert asyncio.run(notification.send_slack("m", webhook_url="https://hooks.slack.com/services/T/B/x", outcome=outcome)) is False
     assert outcome == {"retryable": False}
 
     _FailingClient.exc = httpx.ConnectError("x")
@@ -128,7 +128,7 @@ def test_channel_function_marks_connect_failure_and_history_keeps_attempts(monke
         saved.append(notification._channel_rows(names, results, attempts))
 
     async def settings_for(_uid):
-        return {"channels": ["slack"], "slack_webhook_url": "http://x.invalid"}
+        return {"channels": ["slack"], "slack_webhook_url": "https://hooks.slack.com/services/T/B/x"}
 
     monkeypatch.setattr(notification.asyncio, "sleep", fake_sleep)
     monkeypatch.setattr(notification, "_load_user_settings", settings_for)
@@ -403,3 +403,141 @@ def test_stale_consent_must_agree_again_before_saving_a_discord_address(monkeypa
                                             integration_consent_version=noti_route.consent.NOTIFY_CONSENT_VERSION), user=me, db=_Db()))
     assert row.discord_webhook_url == new_addr
     assert len(added) == 1 and added[0].terms_version == noti_route.consent.NOTIFY_CONSENT_VERSION and added[0].action == "grant"
+
+
+def test_slack_address_is_checked_on_save_and_before_sending(monkeypatch):
+    """TC-NR-15 · 사용자가 넣은 슬랙 웹훅 주소는 서버가 대신 부르므로 공식 슬랙 주소 모양만 받는다(2026-11-02 보안 점검) —
+    저장할 때 422 한국어 안내, 보내기 직전에도 다시 막고(내부망 주소로 요청이 나가지 않는다), 응답에서는 `****` 로 가린다."""
+    import uuid
+    from types import SimpleNamespace
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.routes import notification as noti_route
+
+    ok = notification.is_slack_webhook
+    assert ok("https://hooks.slack.com/services/T0/B0/abcdef") and ok("https://hooks.slack.com/triggers/T0/1/abc")
+    for bad in ("", "http://hooks.slack.com/services/T/B/x", "http://169.254.169.254/latest/meta-data/",
+                "https://hooks.slack.com.evil.example/services/T/B/x", "https://evil.example/https://hooks.slack.com/services/T/B/x",
+                "https://hooks.slack.com/", "https://hooks.slack.com/services/"):
+        assert not ok(bad), bad
+
+    _RecordingClient.posted = []
+    monkeypatch.setattr(notification.httpx, "AsyncClient", _RecordingClient)
+    assert asyncio.run(notification.send_slack("m", webhook_url="http://169.254.169.254/latest/meta-data/")) is False
+    assert _RecordingClient.posted == []                                      # 요청이 나가지 않았다
+    assert asyncio.run(notification.send_slack("m", webhook_url="https://hooks.slack.com/services/T/B/x")) is True
+
+    me = {"id": str(uuid.uuid4())}
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(noti_route.save_notification_settings(
+            noti_route.NotificationSettingsBody(slack_webhook_url="http://169.254.169.254/x"), user=me, db=None))
+    assert exc.value.status_code == 422 and "https://hooks.slack.com/services/" in str(exc.value.detail)
+
+    secret = "https://hooks.slack.com/services/T/B/SLACK-SECRET"
+    row = SimpleNamespace(**{n: "" for n in (
+        "telegram_token", "telegram_chat_id", "discord_webhook_url", "email_to", "email_host", "email_user", "email_password",
+        "email_from", "kakao_api_key", "kakao_api_secret", "kakao_sender_key", "kakao_phone", "sms_api_key", "sms_api_secret",
+        "sms_from", "sms_to")}, slack_webhook_url=secret, channels=["slack"], email_port=587, preferences={})
+
+    async def fake_row(_db, _uid):
+        return row
+
+    async def fake_state(_db, _uid):
+        return {"granted": True, "version": "v", "at": None, "current_version": "v"}
+
+    async def granted(*_a, **_k):
+        return True
+
+    async def latest_now(*_a, **_k):                                          # 지금 동의문 판으로 동의한 상태
+        return SimpleNamespace(terms_version=noti_route.consent.NOTIFY_CONSENT_VERSION, action="grant")
+
+    class _Db:
+        async def commit(self):
+            return None
+
+    monkeypatch.setattr(noti_route, "_get_settings_row", fake_row)
+    monkeypatch.setattr(noti_route, "_consent_state", fake_state)
+    monkeypatch.setattr(noti_route.consent, "is_granted", granted)
+    monkeypatch.setattr(noti_route.consent, "latest", latest_now)
+    out = asyncio.run(noti_route.get_notification_settings(user=me, db=None))
+    assert out["slack_webhook_url"] == "****" and "SLACK-SECRET" not in str(out)
+    asyncio.run(noti_route.save_notification_settings(                       # 가림값으로 되돌려 저장 → 저장된 주소 유지
+        noti_route.NotificationSettingsBody(channels=["slack"], slack_webhook_url="****"), user=me, db=_Db()))
+    assert row.slack_webhook_url == secret
+    asyncio.run(noti_route.save_notification_settings(                       # 빈 값이면 지운다
+        noti_route.NotificationSettingsBody(channels=["slack"], slack_webhook_url=""), user=me, db=_Db()))
+    assert row.slack_webhook_url == ""
+
+
+def test_smtp_target_must_be_a_public_named_server():
+    """TC-NR-16 · 사용자가 정한 메일 서버는 이름 모양 · 포트 · 공인 주소를 모두 만족해야 한다 — IP 숫자 · 주소 꼴 · 사설망 · 엉뚱한 포트는 안 된다."""
+    err = notification.smtp_target_error
+    public = lambda _h: ["93.184.216.34"]                                    # noqa: E731
+    assert err("smtp.example.com", 587, resolve=public) == ""
+    assert err("smtp.example.com", 25, resolve=public) == "" and err("smtp.example.com", 2525, resolve=public) == ""
+    for host in ("127.0.0.1", "10.0.0.5", "http://smtp.example.com", "smtp.example.com/x", "localhost", "", "a b.example.com"):
+        assert err(host, 587, resolve=public), host                          # 이름 모양이 아니다
+    assert "포트" in err("smtp.example.com", 22, resolve=public) and "포트" in err("smtp.example.com", 6379, resolve=public)
+    for ip in ("10.0.0.5", "192.168.1.9", "127.0.0.1", "169.254.169.254", "100.64.0.1", "::1"):
+        assert "내부망" in err("smtp.example.com", 587, resolve=lambda _h, ip=ip: [ip]), ip
+    assert "내부망" in err("smtp.example.com", 587, resolve=lambda _h: ["93.184.216.34", "10.0.0.5"])   # 하나라도 사설이면 막는다
+
+    def nxdomain(_h):
+        raise OSError("no such host")
+
+    assert "찾지 못" in err("smtp.example.com", 587, resolve=nxdomain)
+
+
+def test_user_mail_server_never_gets_operator_credentials(monkeypatch):
+    """TC-NR-17 · 사용자가 메일 서버를 직접 정하면 운영자(.env) SMTP 아이디 · 비밀번호 · 보내는 사람을 섞지 않는다(그 서버로 운영자 계정이
+    넘어가지 않게). 서버를 비우면 운영자 서버를 그대로 쓴다. 접속은 인증서를 검증한다(STARTTLS context)."""
+    import ssl
+
+    seen: list = []
+
+    def fake_sync(subject, body, to_addr, host, port, user, password, from_addr, outcome=None, text_body=""):
+        seen.append({"host": host, "port": port, "user": user, "password": password, "from": from_addr, "to": to_addr})
+        return True
+
+    s = notification.settings
+    for name, val in (("SMTP_HOST", "smtp.operator.example"), ("SMTP_PORT", 587), ("SMTP_USER", "OPERATOR-ID"),
+                      ("SMTP_PASSWORD", "OPERATOR-PW"), ("SMTP_FROM", "ops@operator.example"), ("SMTP_TO", "")):
+        monkeypatch.setattr(s, name, val)
+    monkeypatch.setattr(notification, "_send_email_sync", fake_sync)
+    monkeypatch.setattr(notification, "smtp_target_error", lambda host, port, **_k: "")      # 이름 풀기 없이
+
+    # 1) 사용자 서버 + 계정 비움 → 보내지 않는다(운영자 계정이 새지 않는다)
+    assert asyncio.run(notification.send_email("s", "b", to_addr="me@x.co", host="smtp.mine.example", port=587)) is False
+    assert seen == []
+    # 2) 사용자 서버 + 자기 계정 → 자기 계정만
+    assert asyncio.run(notification.send_email("s", "b", to_addr="me@x.co", host="smtp.mine.example", port=587,
+                                               user="me", password="my-pw")) is True
+    assert seen[-1] == {"host": "smtp.mine.example", "port": 587, "user": "me", "password": "my-pw", "from": "me", "to": "me@x.co"}
+    # 3) 서버를 비움 → 운영자 서버 · 계정(사용자는 받는 주소만)
+    assert asyncio.run(notification.send_email("s", "b", to_addr="me@x.co")) is True
+    assert seen[-1]["host"] == "smtp.operator.example" and seen[-1]["user"] == "OPERATOR-ID" and seen[-1]["from"] == "ops@operator.example"
+    # 4) 이름 검사에서 막히면(내부망 등) 보내지 않는다
+    monkeypatch.setattr(notification, "smtp_target_error", lambda host, port, **_k: "내부망 주소로는 보낼 수 없습니다")
+    n = len(seen)
+    assert asyncio.run(notification.send_email("s", "b", to_addr="me@x.co", host="smtp.mine.example", user="me", password="p")) is False
+    assert len(seen) == n
+
+    # 5) STARTTLS 는 인증서를 검증하는 context 로
+    got: dict = {}
+
+    class _FakeSMTP:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def starttls(self, **kw): got.update(kw)
+        def login(self, *a): pass
+        def sendmail(self, *a): pass
+
+    monkeypatch.undo()
+    monkeypatch.setattr(notification.smtplib, "SMTP", _FakeSMTP)
+    assert notification._send_email_sync("s", "b", "me@x.co", "smtp.mine.example", 587, "me", "pw", "me") is True
+    ctx = got["context"]
+    assert isinstance(ctx, ssl.SSLContext) and ctx.verify_mode == ssl.CERT_REQUIRED and ctx.check_hostname is True

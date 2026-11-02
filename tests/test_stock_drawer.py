@@ -160,6 +160,19 @@ def test_drawer_sections_match_server_and_link_labels_come_from_server(tmp_path)
     assert out["md"] == "10월 5일"
 
 
+def test_drawer_links_to_npay_securities_only_for_valid_codes(tmp_path):
+    """TC-SDR-06 · 머리에 「Npay 증권에서 보기」 링크 — 6자리 영숫자 코드(ETF 포함)일 때만 · 새 창 · 주소는 코드만 끼운다."""
+    out = _run(tmp_path, HUB, "out.html = sd.stockDrawerHtml(HUB); out.etf = sd.hubNaverUrl('0000D0'); out.bad = ['', '5930', '005930.KS', '../x', null].map(sd.hubNaverUrl);")
+    assert 'href="https://stock.naver.com/domestic/stock/005930/price"' in out["html"]
+    assert "Npay 증권에서 보기" in _text(out["html"])
+    assert 'target="_blank" rel="noopener noreferrer">Npay' in out["html"]
+    assert out["etf"] == "https://stock.naver.com/domestic/stock/0000D0/price"
+    assert out["bad"] == [""] * 5                                       # 코드가 아니면 링크를 만들지 않는다
+    hub = json.loads(json.dumps(HUB))
+    hub["symbol"] = "<x>"
+    assert "stock.naver.com" not in _run(tmp_path, hub, "out.html = sd.stockDrawerHtml(HUB);")["html"]
+
+
 def test_drawer_is_wired_into_the_app():
     """TC-SDR-05 · CSS 를 부르고 · main.js 가 붙이고 · 입구 단추가 두 화면에 있다."""
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")

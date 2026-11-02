@@ -70,9 +70,9 @@ class NotificationSettingsBody(BaseModel):
 
 
 #: 이용자가 입력하는 **개인정보 칸**(포트 숫자는 뺀다) — 새로 채워지면 선택 동의가 있어야 저장한다.
-_SECRET_FIELDS = ("telegram_token", "discord_webhook_url", "email_password", "kakao_api_key", "kakao_api_secret", "sms_api_key", "sms_api_secret")
+_SECRET_FIELDS = ("telegram_token", "discord_webhook_url", "slack_webhook_url", "email_password", "kakao_api_key", "kakao_api_secret", "sms_api_key", "sms_api_secret")
 _PHONE_FIELDS = ("kakao_phone", "sms_from", "sms_to")
-_PLAIN_FIELDS = ("telegram_chat_id", "slack_webhook_url", "email_to", "email_host", "email_user", "email_from", "kakao_sender_key")
+_PLAIN_FIELDS = ("telegram_chat_id", "email_to", "email_host", "email_user", "email_from", "kakao_sender_key")
 
 
 def brings_new_personal_data(body: "NotificationSettingsBody", row: "NotificationSettings | None") -> bool:
@@ -87,8 +87,8 @@ def brings_new_personal_data(body: "NotificationSettingsBody", row: "Notificatio
     for name in _SECRET_FIELDS:
         v = getattr(body, name)
         if v and v != "****":
-            # 디스코드 주소는 저장된 값과 같으면 새 입력이 아니다(공백만 다른 경우 포함)
-            if name == "discord_webhook_url" and v.strip() == current(name):
+            # 디스코드 · 슬랙 주소는 저장된 값과 같으면 새 입력이 아니다(공백만 다른 경우 포함)
+            if name in ("discord_webhook_url", "slack_webhook_url") and v.strip() == current(name):
                 continue
             return True
     for name in _PHONE_FIELDS:
@@ -173,7 +173,7 @@ async def get_notification_settings(
         "channels":          row.channels,
         "telegram_token":    mask(row.telegram_token),
         "telegram_chat_id":  row.telegram_chat_id,
-        "slack_webhook_url": row.slack_webhook_url,
+        "slack_webhook_url": mask(row.slack_webhook_url),
         "discord_webhook_url": mask(row.discord_webhook_url),
         "email_to":          row.email_to,
         "email_host":        row.email_host,
@@ -218,6 +218,17 @@ async def save_notification_settings(
         # 아무 주소나 저장하지 않는다 — 잘못 붙인 주소로 알림이 나가지 않고, 비밀 토큰이 든 주소가 엉뚱한 곳에 남지 않게
         raise HTTPException(422, "디스코드 웹훅 주소는 https://discord.com/api/webhooks/… 로 시작해야 합니다. "
                                  "채널 편집 → 연동 → 웹훅 → 「웹훅 URL 복사」로 받은 주소를 그대로 붙여 주세요.")
+
+    slack_url = body.slack_webhook_url.strip()
+    if slack_url and slack_url != "****" and not notification.is_slack_webhook(slack_url):
+        # 서버가 이 주소로 대신 요청을 보낸다 — 슬랙 주소가 아니면(내부망 주소 등) 저장하지 않는다
+        raise HTTPException(422, "슬랙 웹훅 주소는 https://hooks.slack.com/services/… 로 시작해야 합니다. "
+                                 "슬랙 앱 설정 → Incoming Webhooks 에서 받은 주소를 그대로 붙여 주세요.")
+    email_host = body.email_host.strip()
+    if email_host:
+        why = notification.smtp_shape_error(email_host, body.email_port)
+        if why:
+            raise HTTPException(422, why)
 
     row = await _get_settings_row(db, uid)
     granted = await consent.is_granted(db, uid, consent.NOTIFY_CONSENT_KEY)
@@ -267,12 +278,14 @@ async def save_notification_settings(
     row.channels = channels
     row.telegram_token = keep_secret(body.telegram_token, row.telegram_token)
     row.telegram_chat_id = body.telegram_chat_id
-    row.slack_webhook_url = body.slack_webhook_url
+    # 슬랙: 가림값("****")이면 저장된 주소를 유지하고, 빈 값이면 지운다(디스코드와 같은 규칙 — 주소에 비밀이 들어 있어 응답에는 가려 나간다)
+    if slack_url != "****":
+        row.slack_webhook_url = slack_url
     # 디스코드: 가림값("****")이면 저장된 주소를 유지하고, 빈 값이면 지운다(지우면 서버 공용 주소로 돌아간다)
     if discord_url != "****":
         row.discord_webhook_url = discord_url
     row.email_to = body.email_to
-    row.email_host = body.email_host
+    row.email_host = email_host
     row.email_port = body.email_port
     row.email_user = body.email_user
     row.email_password = keep_secret(body.email_password, row.email_password)
