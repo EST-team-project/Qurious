@@ -178,6 +178,25 @@ def quant_confirm_fills() -> dict:
     return result
 
 
+@celery_app.task(name='quant.kis_paper_trial', time_limit=90)
+def kis_paper_trial(seed_intent_id: str) -> dict:
+    """서버가 명시한 1회 모의 시험. 정기 스케줄 등록·자동 재시도 없음."""
+    async def once():
+        from app.database.postgres import connect_postgres, close_postgres
+        from app.lib.redis_cache import connect_redis, close_redis
+        from app.services.kis_paper_trial import run_signal
+        await connect_postgres()
+        try:
+            await connect_redis()
+            return await run_signal(seed_intent_id)
+        finally:
+            await close_redis()
+            await close_postgres()
+    result = asyncio.run(once())
+    logger.info('KIS paper strategy trial: %s', result.get('status'))
+    return result
+
+
 @celery_app.task(name="quant.check_stop_orders", time_limit=60)
 def quant_check_stop_orders() -> dict:
     """B5 — pending 스탑 주문 순회 → 시세 도달 시 시장가 발동 (1분마다)."""
