@@ -69,7 +69,7 @@ out.fire = [f("SELL", 221500, 221500), f("SELL", 221500, 230000), f("SELL", 2215
 out.quick = sc.scQuickStops(221500); out.quickNone = [sc.scQuickStops(0), sc.scQuickStops(null)];
 """)
     d = out["dir"]
-    assert "5.0% 낮습니다" in d[0] and "매도 스탑(손절)" in d[0] and "매수 스탑으로 등록하면 다음 1분 점검에서 바로 체결" in d[0]
+    assert "5.0% 낮습니다" in d[0] and "매도 스탑(손절)" in d[0] and "서버 기준 시세보다 높아야 등록" in d[0]
     assert "3.8% 높습니다" in d[1] and "매수 스탑으로 쓰는 값" in d[1]
     assert "현재가와 같습니다" in d[2] and d[3] == "" and d[4] == ""
     assert out["fire"] == [True, True, False, True, True, False, True, False, False]   # 매도: 현재가 ≤ 스탑가 · 매수: 현재가 ≥ 스탑가

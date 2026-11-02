@@ -34,6 +34,8 @@ from app.lib.jwt_auth import get_current_user_any, require_roles
 from app.models import ApiKey, Order
 
 from app.services import paper_trading as pt
+from app.services import paper_fill_notifications
+from app.services import paper_risk_preview
 from app.services.audit import audit
 
 from fastapi import BackgroundTasks
@@ -114,6 +116,15 @@ async def stock_preview(body: StockOrderBody, user=Depends(get_current_user_any)
         raise _bad(exc)
 
 
+@router.post("/stocks/orders/risk-preview")
+async def stock_risk_preview(body: paper_risk_preview.RiskPreviewBody, user=Depends(get_current_user_any),
+                             db: AsyncSession = Depends(get_pg_session)):
+    try:
+        return await paper_risk_preview.preview(db, _uid(user), body)
+    except pt.PaperTradeError as exc:
+        raise _bad(exc)
+
+
 async def _place_stock(body: StockOrderBody, user: dict, db: AsyncSession, source: str, side: str | None = None) -> dict:
     try:
         result = await pt.stock_order(db, _uid(user), body.symbol, side or body.side, body.quantity, source=source)
@@ -121,6 +132,8 @@ async def _place_stock(body: StockOrderBody, user: dict, db: AsyncSession, sourc
         await db.rollback()
         raise _bad(exc)
     await db.commit()
+    if source == "PAPER":
+        await paper_fill_notifications.drain(user_id=_uid(user), order_id=uuid.UUID(result["order_id"]))
     await audit(user["id"], user.get("client_id", ""), "paper.stock.order",
                 {"symbol": result["symbol"], "side": result["side"], "quantity": body.quantity, "price": result["price"], "source": source})
     return result
@@ -194,6 +207,7 @@ async def check_stop_orders(user=Depends(get_current_user_any), db: AsyncSession
     """pending 스탑 주문 중 시세 도달한 것 발동. (지금은 수동 · 나중에 스케줄러)"""
     fired = await pt.check_stop_orders(db, _uid(user))
     await db.commit()
+    await paper_fill_notifications.drain(user_id=_uid(user))
     return {"fired": fired}
     
 

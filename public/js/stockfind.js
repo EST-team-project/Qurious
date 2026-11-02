@@ -54,6 +54,7 @@ export async function resolveSymbolInput(doc, el, deps) {
   if (looksLikeSymbol(raw)) return raw;
   let results = [];
   try { results = await deps.search(raw); } catch { results = []; }
+  if (String(el.value || "").trim() !== raw) return null; // 늦은 이름 검색이 새 입력을 덮지 않는다.
   const r = decideResolution(results, raw);
   const mode = el.dataset ? el.dataset.stockFind : "symbol";
   if (r.kind === "one") {

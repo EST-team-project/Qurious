@@ -4,10 +4,8 @@
 - 갭이면 stop_price 보다 더 나쁘게 체결
 - 매도 스탑은 보유 수량 필요
 """
-import asyncio
 import os
 import uuid
-from datetime import date, datetime, timezone
 
 import pytest
 
@@ -56,6 +54,7 @@ def _mock_price(monkeypatch, price: float):
         return {"symbol": symbol, "name": symbol, "price": price,
                 "market": "KOSPI", "is_etf": False}
     monkeypatch.setattr(pt, "resolve_stock", _resolve)
+    monkeypatch.setattr(pt, "stop_market_open", lambda: True)
 
 
 @needs_db

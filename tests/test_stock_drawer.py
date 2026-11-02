@@ -118,7 +118,7 @@ def test_drawer_copies_server_values_dates_and_sources(tmp_path):
     assert 'rel="noopener noreferrer"' in html
     # 그 화면으로 단추 — 서버 links 글 그대로 · links 에 없는 화면(업종 칸 view 없음)은 단추가 없다
     assert '>주가 차트 →</button>' in html and 'data-hub-go="robo-patterns"' in html and '>일정 →</button>' in html
-    assert html.count("data-hub-go=") == 7      # 여섯 근거 화면 + 리밸런싱 목표 편집 (업종은 view 없음)
+    assert html.count("data-hub-go=") == 8      # 여섯 근거 화면 + 리밸런싱 + PAPER 모의주문
     assert "결론" not in re.sub(HUB["note"], "", t)        # 한 줄 결론을 만들지 않는다(서버 note 만 말한다)
 
 

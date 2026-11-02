@@ -1,5 +1,6 @@
 /* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
+import { mountPaperRisk } from "/js/paper-risk.js";
 import {
   COIN_SOURCE_NOTE, COIN_LIVE_NOTE, COIN_ORDER_NOTE, UPBIT_WS_URL, PING_MS,
   coinPoints, coinChartSummary, coinSubscribeMessage, decodeWsData, parseUpbitTicker, coinCandleDate,
@@ -177,13 +178,16 @@ function psStopQuick() {
   }));
 }
 
+let stockQuoteRevision = 0;
 async function stockQuote() {
+  const revision = ++stockQuoteRevision;
   const symbol = await symbolFromInput("ps-symbol", stockQuote);
   if (symbol === null) return;                       // 종목 찾기 창에서 고르는 중
   if (!symbol) return setToast("종목코드를 입력하세요.", "error");
   $("ps-quote").innerHTML = `<span style="color:var(--text-mute);">조회 중…</span>`;
   try {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
+    if (revision !== stockQuoteRevision || $("ps-symbol").value.trim() !== symbol) return;
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
     const isForeign = q.price_local != null && q.currency && q.currency !== "KRW";
 
@@ -204,7 +208,12 @@ async function stockQuote() {
     $("ps-hub-open").dataset.hubName = q.name || "";
     $("ps-hub-open").hidden = !domestic;
     if (domestic) { psMainSym = q.symbol; psDrawMain(); }
-  } catch (e) { $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; $("ps-chart-wrap").hidden = true; }
+  } catch (e) {
+    if (revision === stockQuoteRevision && $("ps-symbol").value.trim() === symbol) {
+      $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`;
+      $("ps-chart-wrap").hidden = true;
+    }
+  }
 }
 
 async function stockPreview(side) {
@@ -314,7 +323,8 @@ async function loadStockHistory() {
       return `<tr>
           <td class="text-xs">${ts(o.ts)}</td>
           <td>${sideBadge(o.type)}</td>
-          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span></td>
+          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span>
+            <div class="text-xs">주문번호 ${escHtml(o.order_id || '-')} · ${o.order_kind === 'stop' ? '스탑' : '시장가'}</div></td>
           <td style="text-align:right">${fmt(o.quantity)}</td>
           <td style="text-align:right">${won(o.price)}</td>
           <td style="text-align:right">${won(o.amount)}</td>
@@ -393,10 +403,11 @@ async function placeStopOrder(side) {
   const quantity = parseInt($("ps-stop-qty").value);
   const stop_price = parseFloat($("ps-stop-price").value);
   if (!symbol || !quantity || !stop_price) return setToast("종목코드 · 수량 · 스탑가를 입력하세요.", "error");
-  // 지금 시세에서 이미 닿아 있는 스탑이면 등록 즉시 발동한다 — 한 번 더 확인한다(서버 조건과 같음 · scWouldFireNow)
+  // 방향 검사는 서버의 새 기준 시세로 확정한다. 이전 화면 시세로 승인 여부를 정하지 않는다.
   const sameStock = psStopSym && symbol.toUpperCase() === psStopSym.toUpperCase();
-  if (sameStock && scWouldFireNow(side, psStopCurrent, stop_price)
-      && !confirm(`이 스탑가(${won(stop_price)})는 현재가(${won(psStopCurrent)})에서 이미 닿아 있어 다음 1분 점검에서 바로 체결됩니다.\n그래도 ${side === "BUY" ? "매수" : "매도"} 스탑을 등록할까요?`)) return;
+  if (sameStock && scWouldFireNow(side, psStopCurrent, stop_price)) {
+    setToast("표시 시세 기준으로 스탑 방향이 맞지 않습니다. 서버에서 최신 기준 시세로 다시 확인합니다.", "error");
+  }
   try {
     const r = await api("/api/paper/stocks/orders/stop", {
       method: "POST",
@@ -1013,6 +1024,7 @@ async function loadLeanHistory() {
  * 공개 API: app.html 메인 모듈에서 호출
  * ──────────────────────────────────────────────────────────────── */
 export function initPaperViews() {
+  mountPaperRisk({ doc: document, api, resolveSymbol: () => symbolFromInput("ps-symbol", () => $("ps-risk-calc").click()) });
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on("pd-reset", "click", resetPaperAccount);
   on("pd-refresh", "click", loadPaperDashboard);

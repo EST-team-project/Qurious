@@ -904,6 +904,27 @@ async def notify_order_placed(
     await dispatch_event(ev, user_id=user_id)
 
 
+async def notify_paper_order_filled(order) -> None:
+    """가상 PAPER 장부의 확정 체결. KIS 모의 계좌와 구분한다."""
+    label = _side_label(order.order_type)
+    cost = sum(float(getattr(order, key, 0) or 0)
+               for key in ("commission", "fee_clearing", "tax_transfer", "tax_rural"))
+    price = order.avg_fill_price or order.price
+    ev = alert_format.AlertEvent(
+        kind="order_fill", severity="normal", emoji="✅", title=f"체결 확정 – {label} {order.symbol} (PAPER 가상)",
+        summary=f"{order.quantity:,}주가 {price:,.0f}원에 체결되었습니다.",
+        fields=[("주문번호", str(order.id)), ("종목", f"{order.name} ({order.symbol})"),
+                ("구분", f"{label} · {'스탑' if order.order_kind == 'stop' else '수동'}"),
+                ("체결", f"{order.quantity:,}주 × {price:,.0f}원"),
+                ("비용", alert_format.won(cost)), ("정산액", alert_format.won(order.net_amount)),
+                ("환경", "PAPER 가상 장부")],
+        mock=True, ref=str(order.id),
+        next_action="모의투자 주문 내역에서 같은 주문번호로 확인하세요.",
+        subject=f"[PAPER 체결] {label} – {order.symbol}",
+    )
+    await dispatch_event(ev, user_id=str(order.user_id), dedupe_kind="paper_order_fill", ref=str(order.id))
+
+
 async def notify_order_filled(
     symbol: str,
     side: str,

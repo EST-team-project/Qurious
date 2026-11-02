@@ -176,6 +176,7 @@ export function stockDrawerHtml(hub) {
   const generated = hub.generated_at ? `<small class="sd-note">${esc(String(hub.generated_at).slice(0, 16).replace("T", " "))} 에 모았습니다</small>` : "";
   return `${head}<p class="sd-lead">${esc(hub.note || "새로 계산하지 않고 앱의 다른 화면이 쓰는 값을 그대로 모았습니다.")}</p>`
     + `${naver ? '<p class="sd-lead"><button type="button" class="btn-secondary" data-hub-go="robo-rebalance">리밸런싱 목표 편집으로 →</button> 종목코드만 전달합니다. 비중 입력·목표 추가·저장은 직접 확인하세요.</p>' : ''}`
+    + `${naver ? '<p class="sd-lead"><button type="button" class="btn-secondary" data-hub-go="paper-stock">PAPER 모의주문으로 →</button> PAPER 계좌 기준으로 수량을 다시 계산하고 직접 확인하세요.</p>' : ''}`
     + `<div class="sd-body">${sections}</div><footer class="sd-bottom"><p class="sd-notice">${esc(hub.notice || "투자 권유가 아닙니다.")}</p>${generated}</footer>`;
 }
 
@@ -202,7 +203,13 @@ export function openViewForSymbol(view, code, name, { navigate, openResearchSymb
   if (view === "robo-patterns") fill("pt-symbol", () => byId("pt-run")?.click());
   else if (view === "agent-cb") fill("rc-q", el => el.dispatchEvent(new doc.defaultView.KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
   else if (view === "agent-news") openResearchSymbol?.(code, name);
-  else if (view === "paper-stock") fill("ps-symbol", el => { byId("ps-quote-btn")?.click(); el.focus(); });
+  else if (view === "paper-stock") fill("ps-symbol", el => {
+    const quantity = byId("ps-qty");
+    if (quantity) quantity.value = "";
+    byId("ps-risk-calc")?.click();
+    byId("ps-quote-btn")?.click();
+    el.focus();
+  });
   else if (view === "robo-rebalance" && /^[0-9A-Z]{6}$/.test(String(code))) {
     fill("rb-add-symbol");
     const weight = byId("rb-add-weight");
@@ -366,6 +373,16 @@ export function mountStockDrawer(doc, deps) {
   }
 
   doc.addEventListener("click", ev => {
+    const paper = ev.target.closest?.("[data-paper-open]");
+    if (paper) {
+      ev.preventDefault();
+      openViewForSymbol("paper-stock", paper.dataset.paperOpen, paper.dataset.hubName || "", {
+        navigate: deps.navigate, openResearchSymbol: deps.openResearchSymbol, doc,
+      });
+      close(false);
+      closeModal(false);
+      return;
+    }
     const btn = ev.target.closest?.("[data-hub-open]");
     if (!btn) return;
     ev.preventDefault();

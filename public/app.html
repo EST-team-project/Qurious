@@ -379,6 +379,20 @@
                     <div id="ps-chart-note" class="text-xs mt-1" style="color:var(--text-mute);"></div>
                   </div>
                   <input id="ps-qty" class="input mb-2" type="number" min="1" placeholder="수량 (주)" />
+                  <details class="text-sm mb-3" open>
+                    <summary>PAPER 신규 매수 수량 계산</summary>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                      <label>위험 예산 (%)<input id="ps-risk-pct" class="input" type="number" min="0.01" max="5" step="0.1" value="1"></label>
+                      <label>주문 예산 (원)<input id="ps-risk-budget" class="input" type="number" min="1" value="1000000"></label>
+                      <label>종목 비중 상한 (%)<input id="ps-risk-cap" class="input" type="number" min="1" max="100" value="30"></label>
+                      <label>손절 계산 방식<select id="ps-risk-kind" class="input"><option value="atr">ATR (확정 일봉)</option><option value="pct">고정 비율</option></select></label>
+                      <label>ATR 배수<input id="ps-risk-atr" class="input" type="number" min="0.1" max="10" step="0.1" value="2"></label>
+                      <label>고정 손절폭 (%)<input id="ps-risk-stop" class="input" type="number" min="0.1" max="50" step="0.1" value="1"></label>
+                      <label>슬리피지 가정 (bp)<input id="ps-risk-slippage" class="input" type="number" min="0" max="100" value="10"></label>
+                    </div>
+                    <button id="ps-risk-calc" type="button" class="btn-secondary mt-2">수량 계산</button>
+                    <p id="ps-risk-result" class="text-xs mt-2" role="status">초깃값은 계산 예시입니다. 본인 가정을 확인하세요. 수량 계산은 주문·스탑을 자동 등록하지 않습니다.</p>
+                  </details>
                   <div class="flex gap-2 mb-2">
                     <button id="ps-preview-buy" class="btn-secondary flex-1">매수 미리보기</button>
                     <button id="ps-preview-sell" class="btn-secondary flex-1">매도 미리보기</button>
