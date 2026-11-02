@@ -75,7 +75,7 @@ export function signalCardHtml(s, r, prevDay) {
   const late = !!(asOf && prevDay && asOf.slice(0, 10) < prevDay.slice(0, 10));      // 마지막 봉이 전 거래일보다 앞이면 최신이 아니다
   const cls = SIGNAL_COLORS[sig.action] || "border-white/10 bg-white/5";
   const code = String(s.symbol || '').split('.')[0];
-  const hub = /^[0-9A-Z]{6}$/.test(code) ? `<button type="button" class="sd-open-btn text-xs" data-hub-open="${escHtml(code)}" data-hub-name="${escHtml(s.name || '')}">종목 근거 →</button>` : '';
+  const hub = /^[0-9A-Z]{6}$/.test(code) ? `<button type="button" class="sd-open-btn text-xs" data-hub-open="${escHtml(code)}" data-hub-name="${escHtml(s.name || '')}">종목 근거 →</button> <button type="button" class="btn-secondary text-xs" data-paper-open="${escHtml(code)}">PAPER 모의주문 →</button>` : '';
   const basis = reasons.length
     ? `<details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-dim);">근거 ${reasons.length}개</summary>
         <ul class="text-xs pl-3 list-disc" style="color:var(--text-dim);">${reasons.map(t => `<li>${escHtml(t)}</li>`).join("")}</ul>

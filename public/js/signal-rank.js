@@ -94,9 +94,9 @@ export function renderRankTable(resp, esc, { nameOf, selected } = {}) {
       + `<td>${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}</td>`
       + `<td>${esc(v.composite)}</td>`
       + `<td>${esc(v.countsText)}${v.countsNote ? `<div class="text-xs" style="color:var(--text-mute);">${esc(v.countsNote)}</div>` : ""}</td>`
-      + `<td>${esc(v.asOf)}</td></tr>`;
+      + `<td>${esc(v.asOf)}</td><td>${ohlcvCode(v.symbol) ? `<button type="button" class="btn-secondary text-xs" data-hub-open="${esc(ohlcvCode(v.symbol))}" data-hub-name="${esc(v.name)}">종목 근거</button> <button type="button" class="btn-secondary text-xs" data-paper-open="${esc(ohlcvCode(v.symbol))}">PAPER 모의주문</button>` : ''}</td></tr>`;
   }).join("");
-  return `${head}<table class="w-full text-sm"><thead><tr><th>순위</th><th>종목</th><th>규칙 신호</th><th>종합 점수</th><th>근거</th><th>기준일</th></tr></thead>`
+  return `${head}<table class="w-full text-sm"><thead><tr><th>순위</th><th>종목</th><th>규칙 신호</th><th>종합 점수</th><th>근거</th><th>기준일</th><th>확인·주문</th></tr></thead>`
     + `<tbody>${body}</tbody></table>${missingHtml}${foot}`;
 }
 
@@ -221,6 +221,7 @@ export function mountSignalRank(host, { api, esc, nameOf } = {}) {
     side().innerHTML = renderDrawer(ex.value, prices, esc, { name, news, counts: rowView(row, nameOf).countsText });
   }
   host.addEventListener("click", e => {
+    if (e.target.closest?.('[data-hub-open], [data-paper-open]')) return;
     const tr = e.target.closest && e.target.closest("[data-sr-symbol]");
     if (!tr) return;
     const row = ((resp && resp.rows) || []).find(r => r.symbol === tr.dataset.srSymbol);

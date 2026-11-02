@@ -77,6 +77,8 @@ class Order(Base, UUIDPkMixin, CreatedAtMixin):
     stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     # 발동 시각 (stop 주문이 도달해서 시장가로 넘어간 시각)
     triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # 체결과 함께 저장하는 알림 대기 표시. 과거 주문은 재발송하지 않는다.
+    fill_notice_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
 class OrderFill(Base, UUIDPkMixin, CreatedAtMixin):
     """부분체결 한 건. 주문 1건이 여러 번에 나눠 체결될 수 있다.

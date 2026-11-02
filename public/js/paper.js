@@ -1,5 +1,6 @@
 /* 모의투자(주식·코인·대체자산·Open API) + QuantConnect LEAN 백테스트 화면 로직. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
+import { mountPaperRisk } from "/js/paper-risk.js";
 import {
   COIN_SOURCE_NOTE, COIN_LIVE_NOTE, COIN_ORDER_NOTE, UPBIT_WS_URL, PING_MS,
   coinPoints, coinChartSummary, coinSubscribeMessage, decodeWsData, parseUpbitTicker, coinCandleDate,
@@ -111,12 +112,15 @@ async function loadPaperStock() {
   } catch { }
 }
 
+let stockQuoteRevision = 0;
 async function stockQuote() {
+  const revision = ++stockQuoteRevision;
   const symbol = $("ps-symbol").value.trim();
   if (!symbol) return setToast("종목코드를 입력하세요.", "error");
   $("ps-quote").innerHTML = `<span style="color:var(--text-mute);">조회 중…</span>`;
   try {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(symbol)}`);
+    if (revision !== stockQuoteRevision || $("ps-symbol").value.trim() !== symbol) return;
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
     const isForeign = q.price_local != null && q.currency && q.currency !== "KRW";
 
@@ -130,7 +134,10 @@ async function stockQuote() {
       ${q.fx_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(q.fx_note)}</div>` : ""}
       ${q.quote_label ? `<div class="text-xs" style="color:var(--text-mute);">${escHtml(q.quote_label)} · 체결 직전에 다시 확인합니다</div>` : ""}`;
     $("ps-symbol").value = q.symbol;
-  } catch (e) { $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+  } catch (e) {
+    if (revision === stockQuoteRevision && $("ps-symbol").value.trim() === symbol)
+      $("ps-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`;
+  }
 }
 
 async function stockPreview(side) {
@@ -238,7 +245,8 @@ async function loadStockHistory() {
       return `<tr>
           <td class="text-xs">${ts(o.ts)}</td>
           <td>${sideBadge(o.type)}</td>
-          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span></td>
+          <td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.symbol)}</span>
+            <div class="text-xs">주문번호 ${escHtml(o.order_id || '-')} · ${o.order_kind === 'stop' ? '스탑' : '시장가'}</div></td>
           <td style="text-align:right">${fmt(o.quantity)}</td>
           <td style="text-align:right">${won(o.price)}</td>
           <td style="text-align:right">${won(o.amount)}</td>
@@ -294,10 +302,6 @@ async function stockStopQuote() {
     const chg = q.prev_close ? ((q.price - q.prev_close) / q.prev_close * 100) : null;
     $("ps-stop-quote").innerHTML = `<strong>${escHtml(q.name)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(q.symbol)} · ${escHtml(q.market)}</span>
       <div class="text-lg font-bold mt-1">${fmt(q.price, q.currency === "KRW" ? 0 : 2)} ${escHtml(q.currency)} ${chg != null ? `<span class="text-sm ${signCls(chg)}">${fmtPct(chg)}</span>` : ""}</div>`;
-    // 자동으로 스탑가 input에 현재가 채우기 (편의)
-    if (!$("ps-stop-price").value && q.price) {
-      $("ps-stop-price").value = Math.round(q.price);
-    }
     // 종목코드 정규화 (005930 → 005930.KS)
     $("ps-stop-symbol").value = q.symbol;
   } catch (e) { $("ps-stop-quote").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
@@ -923,6 +927,7 @@ async function loadLeanHistory() {
  * 공개 API: app.html 메인 모듈에서 호출
  * ──────────────────────────────────────────────────────────────── */
 export function initPaperViews() {
+  mountPaperRisk({ doc: document, api });
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on("pd-reset", "click", resetPaperAccount);
   on("pd-refresh", "click", loadPaperDashboard);

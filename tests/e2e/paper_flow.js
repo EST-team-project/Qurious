@@ -1,0 +1,47 @@
+import { api } from '/js/common.js';
+import { initPaperViews } from '/js/paper.js';
+import { signalCardHtml } from '/js/quant.js';
+import { mountStockDrawer } from '/js/stockdrawer.js';
+const $ = id => document.getElementById(id);
+const checks = [];
+function check(name, ok) { checks.push({name, ok: !!ok}); if (!ok) throw Error(name); }
+async function until(fn) { for(let i=0;i<200;i++) { if(fn()) return; await new Promise(r=>setTimeout(r,50)); } throw Error('화면 응답 대기 초과'); }
+let confirmations = 0;
+window.confirm = () => { confirmations++; return true; };
+try {
+  initPaperViews();
+  mountStockDrawer(document, {api, navigate: v => { document.body.dataset.activeView = v; }});
+  const card = document.createElement('div'); card.id = 'flow-signal'; document.body.append(card);
+  card.innerHTML = signalCardHtml({symbol:'005930.KS',name:'시험'}, {signal:{action:'매수',reasons:['합성 시험']}});
+  $('ps-qty').value = '999'; $('ps-risk-kind').value = 'pct'; $('ps-risk-budget').value = '200000';
+  card.querySelector('[data-hub-open]').click();
+  await until(()=>document.querySelector('#hub-drawer [data-hub-go="paper-stock"]'));
+  check('신호에서 종목 허브 열림', !$('hub-drawer').hidden);
+  document.querySelector('#hub-drawer [data-hub-go="paper-stock"]').click();
+  check('이전 수량 지움', $('ps-qty').value === '');
+  await until(()=>$('ps-qty').value !== '');
+  check('PAPER 계좌 기준 19주 계산', $('ps-qty').value === '19' && $('ps-risk-result').textContent.includes('PAPER'));
+  check('스탑 자동 등록하지 않음을 표시', $('ps-risk-result').textContent.includes('자동 등록하지 않습니다'));
+  let history = await api('/api/paper/stocks/orders/history');
+  check('계산만으로는 주문 없음', history.history.length === 0);
+  $('ps-preview-buy').click();
+  await until(()=>$('ps-preview').textContent.includes('체결 가능'));
+  $('ps-buy').click();
+  await until(()=>$('ps-history').textContent.includes('주문번호'));
+  history = await api('/api/paper/stocks/orders/history');
+  const logs = await api('/api/notification/history');
+  check('주문 전 확인 한 번', confirmations === 1);
+  check('체결 내역 한 건', history.history.length === 1 && history.history[0].quantity === 19);
+  const order = history.history[0];
+  check('화면에 주문번호 표시', $('ps-history').textContent.includes(order.order_id));
+  const rows = logs.events;
+  check('알림과 주문번호 일치', rows.length === 1 && rows[0].ref === order.order_id && rows[0].delivery_status === 'delivered');
+  check('주문 비용과 정산액 저장', order.total_cost > 0 && order.net_amount > order.amount);
+  const stops = await api('/api/paper/stocks/orders/stop');
+  check('수량 계산이 스탑을 만들지 않음', stops.orders.length === 0);
+  $('ps-stop-symbol').value = '005930'; $('ps-stop-price').value = '';
+  $('ps-stop-quote-btn').click(); await until(()=>$('ps-stop-quote').textContent.includes('시험'));
+  check('현재가가 스탑가에 자동 입력되지 않음', $('ps-stop-price').value === '');
+} catch(error) { checks.push({name:'error',ok:false,error:String(error.stack||error)}); }
+const result=document.createElement('pre');result.id='paper-flow-result';
+result.textContent=JSON.stringify({ok:checks.every(c=>c.ok),checks});document.body.append(result);

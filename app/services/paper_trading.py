@@ -404,7 +404,7 @@ async def stock_order(db: AsyncSession, user_id: uuid.UUID, symbol: str, side: s
     return res
 
 
-async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled_at=None):
+async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled_at=None, order=None):
     """서버가 검증한 가격으로 장부 정산. 클라이언트가 가격을 지정하는 API가 아니다."""
     side = (side or "").upper()
     if side not in (BUY, SELL):
@@ -428,6 +428,8 @@ async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled
     )
 
     account = await get_account(db, user_id, lock=True)
+    if order is not None and order.order_kind == "stop" and not stop_market_open():
+        raise StopSessionClosed("계좌 잠금을 기다리는 동안 정규장이 끝났습니다.")
     position = await _stock_position(db, user_id, info["symbol"])
 
     if side == BUY:
@@ -456,13 +458,21 @@ async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled
         if position.quantity == 0:
             await db.delete(position)
 
-    db.add(Order(
-        user_id=user_id, symbol=info["symbol"], name=info["name"], order_type=side.lower(),
-        quantity=quantity, price=price, status="filled", broker="virtual", source=source,
-        execution_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None,
-        **trading_cost.order_fields(cost, price, quantity, filled_at=filled_at),
-    ))
-    return {"status": "ok", "symbol": info["symbol"], "name": info["name"], "side": side,
+    if order is None:
+        order = Order(
+            id=uuid.uuid4(), user_id=user_id, symbol=info["symbol"], name=info["name"], order_type=side.lower(),
+            quantity=quantity, broker="virtual", source=source,
+            execution_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None,
+        )
+        db.add(order)
+    order.price, order.status = price, "filled"
+    fields = trading_cost.order_fields(cost, price, quantity, filled_at=filled_at)
+    if order.order_kind == "stop":
+        fields.pop("order_price", None)  # 등록 시 감시 가격은 보존한다.
+    for key, value in fields.items():
+        setattr(order, key, value)
+    order.fill_notice_pending = source == "PAPER"
+    return {"status": "ok", "order_id": str(order.id), "symbol": info["symbol"], "name": info["name"], "side": side,
             "quantity": quantity, "price": price, "amount": gross,
             "net_amount": cost.net_amount, "cost": cost.as_dict(), "cash": account.cash}
 
@@ -477,6 +487,7 @@ async def stock_order_history(db: AsyncSession, user_id: uuid.UUID, limit: int =
         select(Order).where(
             Order.user_id == user_id,
             Order.source.in_(("WEB", "PAPER", "PINE", "SIM")),   # ← QUANT·OPENAPI 제외
+            Order.status == "filled",  # 대기·취소 주문을 체결 내역처럼 표시하지 않는다.
         ).order_by(Order.created_at.desc()).limit(limit)
     )).scalars().all()
     out = []
@@ -491,6 +502,7 @@ async def stock_order_history(db: AsyncSession, user_id: uuid.UUID, limit: int =
             # 옛 주문(비용 필드 도입 전)은 순액 = 체결금액
             net = o.price * o.quantity
         out.append({
+            "order_id": str(o.id), "status": o.status, "order_kind": o.order_kind,
             "ts": int(o.created_at.timestamp() * 1000),
             "type": o.order_type.upper(),
             "symbol": o.symbol,
@@ -1024,6 +1036,28 @@ class StopOrderError(PaperTradeError):
     """스탑 주문 등록·취소 오류."""
 
 
+class StopSessionClosed(PaperTradeError):
+    """체결 직전 장 종료. 스탑을 취소하지 않고 다음 거래일까지 대기한다."""
+
+
+def stop_market_open(now=None) -> bool:
+    """정규장·collector 거래일을 모두 확인한다. 달력 미확인은 체결 보류."""
+    from zoneinfo import ZoneInfo
+    from app.services import market_calendar
+
+    now = now or datetime.now(timezone.utc)
+    if not is_krx_market_open(now):
+        return False
+    day = now.astimezone(ZoneInfo("Asia/Seoul")).date()
+    try:
+        calendar = market_calendar.trading_days(day, day)
+    except market_calendar.CalendarUnavailable:
+        return False
+    return not calendar.get("partial", False) and any(
+        row["date"] == day.isoformat() and row["is_trading_day"] for row in calendar["days"]
+    )
+
+
 async def place_stop_order(
     db: AsyncSession, user_id: uuid.UUID, symbol: str, side: str, quantity: int,
     stop_price: float, *, source: str = "PAPER",
@@ -1032,7 +1066,7 @@ async def place_stop_order(
 
     · stop_price 도달 시 시장가로 발동 (체결 보장 아님 · 갭이면 더 나쁘게 체결)
     · 매도 스탑은 보유 수량 확인 · 매수 스탑은 발동 시점에 현금 재확인
-    · 장 시간 판정은 호출자(스케줄러/라우트) 몫 — 지금은 시세 도달이면 발동
+    · 등록은 장외에도 가능, 발동은 확인된 거래일 정규장에만 가능
     """
     side = (side or "").upper()
     if side not in (BUY, SELL):
@@ -1044,6 +1078,13 @@ async def place_stop_order(
 
     info = await resolve_stock(symbol)
     _ensure_supported_market(info)   # ★ 이슈 #255 / DF-96 — 해외 종목 스탑 등록 거부
+    info = await _confirm_quote(db, user_id, info)
+    current = float(info["price"])
+    if not math.isfinite(current) or current <= 0:
+        raise StopOrderError("유효한 기준 시세가 없어 스탑을 등록할 수 없습니다.")
+    if (side == SELL and stop_price >= current) or (side == BUY and stop_price <= current):
+        direction = "낮아야" if side == SELL else "높아야"
+        raise StopOrderError(f"{side} 스탑 가격은 기준 시세 {current:,.0f}원보다 {direction} 합니다.")
 
     if side == SELL:
         position = await _stock_position(db, user_id, info["symbol"])
@@ -1062,6 +1103,7 @@ async def place_stop_order(
         "status": "pending", "order_id": str(order.id),
         "symbol": info["symbol"], "name": info["name"], "side": side,
         "quantity": quantity, "stop_price": float(stop_price),
+        "reference_price": current, "quote_source": info.get("quote_source"),
         "note": "가격 도달 시 시장가 주문 · 체결 보장 아님 · 장 시간에만",
     }
 
@@ -1088,6 +1130,7 @@ async def cancel_stop_order(db: AsyncSession, user_id: uuid.UUID, order_id: str)
     order = (await db.execute(
         select(Order).where(Order.id == oid, Order.user_id == user_id,
                              Order.order_kind == "stop", Order.status == "pending")
+        .with_for_update()
     )).scalar_one_or_none()
     if order is None:
         raise StopOrderError("취소할 스탑 주문을 찾을 수 없습니다.")
@@ -1101,10 +1144,12 @@ async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) 
     갭이면 stop_price 보다 더 나쁜 가격에 체결된다 (그게 정상 · 안내 문구에 명시).
     해외 종목 스탑은 _fill_stock_order 의 _ensure_supported_market 이 잡아 skipped 로 만든다.
     """
+    if not stop_market_open():
+        return []
     stmt = select(Order).where(Order.order_kind == "stop", Order.status == "pending")
     if user_id is not None:
         stmt = stmt.where(Order.user_id == user_id)
-    rows = (await db.execute(stmt)).scalars().all()
+    rows = (await db.execute(stmt.order_by(Order.created_at, Order.id).with_for_update(skip_locked=True))).scalars().all()
 
     fired = []
     for order in rows:
@@ -1115,6 +1160,8 @@ async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) 
         except Exception:
             continue
         current = float(info["price"])
+        if not math.isfinite(current) or current <= 0 or not stop_market_open():
+            continue
         reached = (
             (order.order_type == "sell" and current <= float(order.stop_price)) or
             (order.order_type == "buy" and current >= float(order.stop_price))
@@ -1126,18 +1173,15 @@ async def check_stop_orders(db: AsyncSession, user_id: uuid.UUID | None = None) 
         order.status = "triggered"
         try:
             fill = await _fill_stock_order(db, order.user_id, info, order.order_type.upper(),
-                                           order.quantity, source=order.source)
-            order.status = "filled"
-            order.avg_fill_price = fill["price"]
-            order.filled_quantity = fill["quantity"]
-            order.filled_at = datetime.now(timezone.utc)
-            order.net_amount = fill["net_amount"]
+                                           order.quantity, source=order.source, order=order)
             fired.append({
                 "order_id": str(order.id), "symbol": order.symbol,
                 "side": order.order_type, "quantity": order.quantity,
                 "stop_price": order.stop_price, "fill_price": fill["price"],
                 "status": "filled",
             })
+        except StopSessionClosed:
+            order.status, order.triggered_at = "pending", None
         except PaperTradeError as exc:
             order.status = "skipped"
             fired.append({
