@@ -333,6 +333,8 @@ async def stock_positions(
             )
             price = resolved["price"]
             price_complete = price is not None and price > 0
+        except Exception:                                   # ← 추가
+            pass                                            # ← 추가 (price는 pos.avg_price 유지)
         meta = snapshot_pricing.evidence("stock", pos.symbol, price, "average_cost", None, fallback=["average_cost"])
         try:
             info = await resolve_stock(pos.symbol)
@@ -748,21 +750,6 @@ async def upbit_tickers(
             }
         result.append(item)
     return result
-                    _UPBIT_TICKER_CACHE[r["market"]] = {"ts": now, "data": {
-                        "market": r["market"], "price": float(r["trade_price"]),
-                        "as_of": datetime.fromtimestamp(r["trade_timestamp"] / 1000, timezone.utc).isoformat() if r.get("trade_timestamp") else None,
-                        "source": "upbit",
-                        "changeRate": round(float(r.get("signed_change_rate", 0)) * 100, 2),
-                        "change": float(r.get("signed_change_price", 0)),
-                        "high24h": float(r.get("high_price", 0)), "low24h": float(r.get("low_price", 0)),
-                        "accTradePrice24h": float(r.get("acc_trade_price_24h", 0)),
-                        "accTradeVolume24h": float(r.get("acc_trade_volume_24h", 0)),
-                    }}
-        except Exception:
-            pass
-    return [entry["data"] for c in codes if (entry := _UPBIT_TICKER_CACHE.get(c))
-            and now - entry["ts"] <= 300
-            and snapshot_pricing.evidence("crypto", c, entry["data"].get("price"), "upbit", entry["data"].get("as_of"))["complete"]]
 
 
 async def upbit_trade_price(market_code: str) -> float:
