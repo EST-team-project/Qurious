@@ -23,8 +23,8 @@ def replay(spec, bars, *, start, initial_cash, budget, slippage_bps=10.0, risk_r
         day = date.fromisoformat(bar["date"])
         if day < start:
             continue
-        if i < 59:
-            raise ValueError("재현 시작일의 준비 봉이 60개 미만입니다.")
+        if i < spec['warmup_bars'] - 1:
+            raise ValueError(f"재현 시작일의 준비 봉이 {spec['warmup_bars']}개 미만입니다.")
         filled, skipped = None, None
         pending = state["pending"]
         changed = state["last_factor"] is not None and v2.adjustment_changed(state["last_factor"], bar["factor"])

@@ -260,4 +260,5 @@ def settings_signature(row):
     # 저장·출력하지 않는다. 준비 도중 계좌·전략·수량 설정이 바뀌면 해당 의도는 보류한다.
     return tuple(getattr(row, key, None) for key in ("broker", "paper", "app_key", "app_secret", "account_no",
         "quant_mode", "quant_auto_enabled", "quant_strategy_id", "quant_strategy_version",
-        "quant_per_trade_budget", "quant_buy_ratio", "quant_sell_ratio")) + (digest(getattr(row, "quant_execution_policy", None)),)
+        "quant_per_trade_budget", "quant_buy_ratio", "quant_sell_ratio")) + (
+            digest(getattr(row, "quant_execution_policy", None)), digest(getattr(row, "quant_local_strategy", None)))

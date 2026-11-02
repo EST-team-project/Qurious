@@ -55,7 +55,7 @@ async function loadSettings() {
       : (cfg.connected ? `✅ 연결됨 (${cfg.broker})` : "⚠️ API 키 미설정 – Mockup 모드");
     lastLiveGateway = cfg.live_gateway || null;
     renderLiveRoute();
-    await loadStrategies(cfg.strategy_id || "", cfg.strategy_version || 0);
+    await loadStrategies(cfg.strategy_id || "", cfg.strategy_version || 0, cfg.local_strategy);
     loadLiveOrders();
     loadCycleStatus();
   } catch {}
@@ -105,7 +105,7 @@ function renderLiveRoute() {
 }
 
 // ── 전략 선택 — 합격 전략과 가상계좌 고정 시험 입력을 구분한다 ──────────
-async function loadStrategies(selectedId, selectedVersion) {
+async function loadStrategies(selectedId, selectedVersion, savedCard = null) {
   const sel = document.getElementById("quant-strategy");
   const hint = document.getElementById("quant-strategy-hint");
   if (!sel) return;
@@ -119,18 +119,44 @@ async function loadStrategies(selectedId, selectedVersion) {
         : `${escHtml(s.name)} v${s.version} · 연 ${fmtPct(br.annualized_return_pct ?? 0)} · MDD ${fmtPct(br.max_drawdown_pct ?? 0)}`;
       return `<option value="${escHtml(s.strategy_id)}" data-version="${s.version}">${label}</option>`;
     }).join("");
-    if (selectedId && [...sel.options].some((o) => o.value === selectedId)) sel.value = selectedId;
+    const mine = data.local_cards || [];
+    sel.insertAdjacentHTML("beforeend", mine.map(c => `<option value="local:${escHtml(c.card_id)}" data-card-id="${escHtml(c.card_id)}" data-fingerprint="${escHtml(c.fingerprint || "")}" data-version="2" ${c.executable ? "" : "disabled"}>내 전략 · ${escHtml(c.name)} · ${c.executable ? "가상 실행용 (합격 판정 없음)" : escHtml(c.reason)}</option>`).join(""));
+    if (savedCard) {
+      const current = mine.find(c => c.card_id === savedCard.card_id && c.fingerprint === savedCard.original_hash);
+      if (current) sel.value = `local:${savedCard.card_id}`;
+      else {
+        const value = `pinned:${savedCard.original_hash}`;
+        sel.insertAdjacentHTML("beforeend", `<option value="${escHtml(value)}" data-card-id="${escHtml(savedCard.card_id)}" data-fingerprint="${escHtml(savedCard.original_hash)}" data-version="2">내 전략 · ${escHtml(savedCard.spec?.name || savedCard.card_id)} · 선택 당시 내용 유지</option>`);
+        sel.value = value;
+      }
+    }
+    else if (selectedId && [...sel.options].some((o) => o.value === selectedId)) sel.value = selectedId;
     else if (selectedId) {
       sel.insertAdjacentHTML("beforeend", `<option value="${escHtml(selectedId)}" data-version="${selectedVersion}">${escHtml(selectedId)} v${selectedVersion} (목록에 없음)</option>`);
       sel.value = selectedId;
     }
-    // Qurious: 서버 설정 이름 대신 사용자 말로(화면 결정 ③ C)
-    if (hint) hint.textContent = data.test_only
+    // 선택한 카드가 종목·손절·수량 규칙의 정본이다.
+    const providerHint = data.test_only
       ? (list.length ? "가상계좌 시험용 고정 전략입니다. 백테스트 합격 전략이 아니며 증권사 주문에는 사용할 수 없습니다."
         : "시험 전략 파일을 확인하지 못했습니다. 선택한 전략의 실행을 보류합니다.")
       : data.configured
       ? (list.length ? `검증을 통과한 전략 ${list.length}개` : "검증을 통과한 전략이 아직 없어 기본 규칙으로 돕니다")
       : "검증을 통과한 전략이 아직 연결되지 않아 기본 규칙으로 돕니다";
+    const renderChoice = () => {
+      const local = !!sel.selectedOptions[0]?.dataset.cardId;
+      if (hint) hint.textContent = local
+        ? "내 전략은 QUANT 가상계좌 전용이며 합격 판정이 아닙니다. 카드의 종목·이동평균·ATR 손절·익절·위험 수량을 선택 당시 값으로 고정합니다. 종가 판단 후 다음 거래일 시가로 가상 체결하고, 매도는 전량입니다. 1회 예산과 계좌 위험 한도는 추가 적용합니다. 저장만으로 자동 실행을 켜지 않으며 보유·예약이 있으면 전략 교체를 보류합니다."
+        : providerHint;
+      for (const id of ['quant-symbol-source','quant-ai-top-n','quant-buy-ratio','quant-sell-ratio',
+                        'quant-size-kind','quant-risk-pct','quant-stop-kind','quant-atr-mult','quant-stop-pct',
+                        'quant-retry-enabled','quant-retry-attempts','quant-retry-window','quant-retry-deviation']) {
+        const input = document.getElementById(id);
+        if (input) input.disabled = local;
+      }
+      document.querySelectorAll('.quant-symbol').forEach(input => { input.disabled = local; });
+    };
+    sel.onchange = renderChoice;
+    renderChoice();
   } catch (e) {
     if (hint) hint.textContent = "전략 목록을 불러오지 못했습니다";
   }
@@ -147,10 +173,12 @@ async function loadCycleStatus() {
     const fmtK = (d) => d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
     const next = last && st.running ? new Date(last.getTime() + intervalMin * 60000) : null;
     const lastLog = (st.log || []).slice(-1)[0] || {};
-    const trades = (lastLog.trades || []).filter((t) => t.type === "auto");
+    const trades = (lastLog.trades || []).filter((t) => t.type === "auto" || t.status === "filled");
     const skipped = (lastLog.risk?.skipped || []).length;
     const strat = lastLog.settings?.strategy;
-    const stratText = strat?.applied ? `전략 ${escHtml(strat.id)} v${strat.version}` : "기본 규칙";
+    const stratText = lastLog.strategy_source === 'user_card' ? `내 전략 · ${escHtml(lastLog.strategy?.card_id || '')}`
+      : lastLog.strategy_source === 'fixed_test' ? '가상계좌 고정 시험 전략'
+      : strat?.applied ? `전략 ${escHtml(strat.id)} v${strat.version}` : "기본 규칙";
     el.innerHTML = `<b>⏱ 자동매매 주기</b> · ${st.running ? "실행 중 (" + intervalMin + "분마다)" : "중지"}<br>` +
       `마지막 실행: ${last ? fmtK(last) : "없음"} · 다음 예정: ${next ? fmtK(next) + " 이전" : "-"}<br>` +
       `마지막 결과: 체결 ${trades.length}건 · 위험관리 생략 ${skipped}건 · ${stratText}` +
@@ -240,8 +268,10 @@ document.getElementById("broker-save")?.addEventListener("click", async () => {
           retry_window_min: Number(document.getElementById("quant-retry-window").value),
           retry_price_deviation_pct: Number(document.getElementById("quant-retry-deviation").value),
         },
-        strategy_id: document.getElementById("quant-strategy")?.value || "",
+        strategy_id: document.getElementById("quant-strategy")?.selectedOptions?.[0]?.dataset?.cardId ? "" : (document.getElementById("quant-strategy")?.value || ""),
         strategy_version: Number(document.getElementById("quant-strategy")?.selectedOptions?.[0]?.dataset?.version || 0),
+        strategy_card_id: document.getElementById("quant-strategy")?.selectedOptions?.[0]?.dataset?.cardId || "",
+        strategy_card_fingerprint: document.getElementById("quant-strategy")?.selectedOptions?.[0]?.dataset?.fingerprint || "",
         broker:     document.getElementById("broker-type").value,
         app_key:    managedBrokers.has(document.getElementById("broker-type").value) ? "" : document.getElementById("broker-app-key").value,
         app_secret: managedBrokers.has(document.getElementById("broker-type").value) ? "" : document.getElementById("broker-app-secret").value,
@@ -253,7 +283,7 @@ document.getElementById("broker-save")?.addEventListener("click", async () => {
         risk_cooldown_min:         Number(document.getElementById("risk-cooldown").value || 0),
       },
     });
-    setToast("증권사 API 설정이 저장되었습니다.", "ok");
+    setToast("자동매매 설정이 저장되었습니다.", "ok");
     loadSettings();
   } catch (e) { setToast(e.message, "error"); }
 });

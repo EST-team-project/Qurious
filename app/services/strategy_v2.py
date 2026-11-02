@@ -36,10 +36,36 @@ CONTRACT = {
 
 
 def validate_card(spec):
+    if not isinstance(spec, dict):
+        raise ValueError("전략 카드가 객체가 아닙니다.")
     execution = {k: v for k, v in spec.items() if k != "name"}
-    # JSON 지문 비교는 True == 1 같은 파이썬 느슨한 동등성도 막는다.
-    if digest(execution) != digest(CONTRACT):
-        raise ValueError("이 실행기는 고정 ma_cross_20_60 판 2 계약만 지원합니다.")
+    if set(execution) != set(CONTRACT):
+        raise ValueError("지원하지 않는 전략 카드 칸입니다.")
+    def number(value, lo, hi, integer=False):
+        return (type(value) is int if integer else type(value) in (int, float)) and math.isfinite(value) and lo <= value <= hi
+    try:
+        params = spec['entry']['params']
+        stops, sizing = spec['stops'], spec['position_sizing']
+        short, long = params['short_window'], params['long_window']
+        valid = (re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,39}', spec['strategy_id'])
+            and type(spec['version']) is int and spec['version'] == 2
+            and len(spec['universe']) == 1 and re.fullmatch(r'\d{6}', spec['universe'][0])
+            and number(short, 2, 250, True) and number(long, 3, 250, True) and short < long
+            and number(stops['atr_period'], 2, 100, True)
+            and number(stops['atr_mult'], .5, 10) and number(stops['take_rr'], 1.5, 3)
+            and number(sizing['risk_pct'], .1, 5) and number(sizing['max_position_pct'], 1, 100)
+            and number(sizing['max_symbols'], 1, 20, True)
+            and type(spec['warmup_bars']) is int and spec['warmup_bars'] == max(long, stops['atr_period'] + 1))
+        expected = deepcopy(CONTRACT)
+        expected.update(strategy_id=spec['strategy_id'], universe=spec['universe'], warmup_bars=spec['warmup_bars'])
+        expected['entry']['params'] = expected['exit']['params'] = params
+        expected['stops'].update(atr_period=stops['atr_period'], atr_mult=stops['atr_mult'], take_rr=stops['take_rr'])
+        expected['position_sizing'].update(risk_pct=sizing['risk_pct'], max_position_pct=sizing['max_position_pct'], max_symbols=sizing['max_symbols'])
+        valid = valid and digest(execution) == digest(expected)
+    except (KeyError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        raise ValueError("가상 실행은 국내 한 종목·이동평균 교차·ATR 손절·종가 판단·다음 시가 체결 카드만 지원합니다.")
     return digest(execution)
 
 
@@ -65,8 +91,8 @@ def _integer(value, label, *, zero=False):
 def judgment(spec, bars):
     """확정 일봉 원 OHLC와 그날 계수만 받아 수정 ATR/판단일 계수로 환산한다."""
     validate_card(spec)
-    if len(bars) < 60:
-        raise ValueError("판단에는 확정 일봉 60개 이상이 필요합니다.")
+    if len(bars) < spec['warmup_bars']:
+        raise ValueError(f"판단에는 확정 일봉 {spec['warmup_bars']}개 이상이 필요합니다.")
     dates, adjusted = [], []
     for b in bars:
         d = date.fromisoformat(b["date"])
@@ -86,8 +112,8 @@ def judgment(spec, bars):
         raise ValueError("아직 마감하지 않은 판단 봉입니다.")
     df = pd.DataFrame(adjusted)
     rule = auto_trade.evaluate_spec_rules(spec, {"closes": df.close.tolist()})
-    atr = float(ta_utils.atr(df.high, df.low, df.close, 14).iloc[-1])
-    distance = adjusted_to_raw(atr, bars[-1]["factor"]) * 2.0
+    atr = float(ta_utils.atr(df.high, df.low, df.close, spec['stops']['atr_period']).iloc[-1])
+    distance = adjusted_to_raw(atr, bars[-1]["factor"]) * spec['stops']['atr_mult']
     return {"date": dates[-1].isoformat(), "entry": rule["entry"], "exit": rule["exit"],
             "raw_close": float(bars[-1]["close"]), "factor": float(bars[-1]["factor"]),
             "atr_adjusted": atr, "distance_raw": distance}
@@ -136,22 +162,26 @@ def observe(state, spec, bars):
     if action != "HOLD":
         state["pending"] = {"side": action, "signal_date": j["date"], "factor": j["factor"],
                             "distance_raw": j["distance_raw"], "reason": reason, "phase": "planned",
+                            "risk_pct": spec['position_sizing']['risk_pct'],
+                            "max_position_pct": spec['position_sizing']['max_position_pct'],
+                            "take_rr": spec['stops']['take_rr'],
                             "base_quantity": state["quantity"], "filled_quantity": 0, "avg_filled_price": None}
     return state, {"action": action, "reason": reason, "judgment": j}
 
 
 def size_entry(state, *, equity, cash, price, budget, existing_value, position_cap_pct,
-               slippage_bps, when):
+               slippage_bps, when, market="KOSPI"):
     """최종 주문 가격에서 위험·현금·예산·계정/카드 비중을 함께 제한한다."""
     pending = state["pending"]
     if not pending or pending["side"] != "BUY" or state["quantity"] or state["blocked"]:
         raise ValueError("크기를 계산할 신규 진입이 없습니다.")
     if isinstance(position_cap_pct, bool) or not isinstance(position_cap_pct, (int, float)) or not math.isfinite(position_cap_pct) or not 0 <= position_cap_pct <= 100:
         raise ValueError("계정 비중 상한이 잘못되었습니다.")
-    cap = min(30.0, position_cap_pct) if position_cap_pct else 30.0
+    card_cap = pending.get('max_position_pct', 30.0)
+    cap = min(card_cap, position_cap_pct) if position_cap_pct else card_cap
     return risk_quantity(equity=equity, cash=cash, price=price,
         stop_price=price - pending["distance_raw"], budget=budget, existing_value=existing_value,
-        position_cap_pct=cap, risk_pct=1.0, slippage_bps=slippage_bps, when=when, market="KOSPI")
+        position_cap_pct=cap, risk_pct=pending.get('risk_pct', 1.0), slippage_bps=slippage_bps, when=when, market=market)
 
 
 def reserve(state, *, order_key, quantity, mode, target_date, execution_price=None):
@@ -212,7 +242,7 @@ def fill(state, *, order_key, cumulative_quantity, average_price, status, filled
             stop = avg - p["distance_raw"]
             if stop <= 0:
                 raise ValueError("체결가 기준 손절선이 유효하지 않습니다.")
-            state.update(quantity=qty, avg_price=avg, stop_price=stop, take_price=avg + 2 * p["distance_raw"])
+            state.update(quantity=qty, avg_price=avg, stop_price=stop, take_price=avg + p.get('take_rr', 2) * p["distance_raw"])
         else:
             state["quantity"] = p["base_quantity"] - qty
         p.update(filled_quantity=qty, avg_filled_price=avg, filled_at=filled_at)
@@ -252,7 +282,8 @@ async def apply_event(db, *, user_id, account_ref, book, symbol, spec, event_key
     입력 변경은 오류다. book과 계좌/사용자/전략/판/종목마다 상태를 분리한다.
     """
     spec_hash = validate_card(spec)
-    if not re.fullmatch(r"[a-f0-9]{64}", account_ref) or symbol != "005930.KS" or book not in ("V2_VIRTUAL", "V2_KIS_PROBE"):
+    if (not re.fullmatch(r"[a-f0-9]{64}", account_ref) or symbol not in {spec['universe'][0]+'.KS', spec['universe'][0]+'.KQ'}
+            or book not in ("V2_VIRTUAL", "V2_KIS_PROBE")):
         raise ValueError("판 2 계좌 식별자·장부·종목을 확인하세요.")
     if not isinstance(event_key, str) or not 1 <= len(event_key) <= 160:
         raise ValueError("실행 사건 식별자가 필요합니다.")
@@ -290,8 +321,8 @@ async def apply_event(db, *, user_id, account_ref, book, symbol, spec, event_key
 
 def load_bars(symbol, through, *, path=None):
     """수집 DB의 동일 날짜 원/수정 OHLC를 읽는다. 최신 계수로 대체하지 않는다."""
-    if symbol != "005930.KS":
-        raise ValueError("고정 카드 종목이 아닙니다.")
+    if not re.fullmatch(r'\d{6}\.(KS|KQ)', symbol):
+        raise ValueError("국내 주식 종목을 확인하세요.")
     path = path or collector_db.db_path()
     if path is None:
         raise ValueError("수집 DB가 없습니다.")

@@ -174,9 +174,17 @@ async def _execute_virtual_trade(
     if filled_at is not None:
         intent = execution_control.current_intent.get()
         if (filled_at.tzinfo is None or filled_at > datetime.now(timezone.utc) or not intent
-                or (intent.book, intent.strategy_id, intent.strategy_version, intent.source)
-                != ("QUANT", "ma_cross_20_60", 2, "v2_next_open")):
+                or (intent.book, intent.strategy_version, intent.source) != ("QUANT", 2, "v2_next_open")
+                or intent.user_id != user_id or intent.symbol != symbol
+                or (intent.strategy_id != 'ma_cross_20_60' and not intent.strategy_id.startswith('local_'))):
             raise ValueError("판 2의 서버 확인된 다음 시가 체결 문맥이 필요합니다.")
+        if intent.strategy_id.startswith('local_'):
+            from app.services import local_strategy
+            row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == user_id))
+            saved = local_strategy.selected(row, user_id)
+            if (not saved or row.quant_mode != 'paper' or saved['symbol'] != symbol
+                    or saved['spec']['strategy_id'] != intent.strategy_id):
+                raise ValueError('선택한 개인 전략의 가상 체결 문맥을 확인하지 못했습니다.')
     now = datetime.now(timezone.utc).isoformat()
 
     result = await db.execute(
@@ -846,6 +854,24 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         mode = broker_row.quant_mode if broker_row and broker_row.quant_mode in ("paper", "live") else (
             "live" if broker_row and broker_row.paper is False else "paper"
         )
+        if getattr(broker_row, 'quant_local_strategy', None):
+            from app.services import local_strategy, strategy_v2_execution
+            cycle_log.update(strategy_source='user_card', test_only=True)
+            try:
+                saved = local_strategy.selected(broker_row, uid)
+                if mode != 'paper':
+                    raise ValueError('내 전략은 QUANT 가상계좌 전용입니다.')
+                result = await strategy_v2_execution.run(uid, execute=True, require_enabled=True,
+                    spec=saved['spec'], symbol=saved['symbol'])
+                cycle_log['strategy'] = {'strategy_id': saved['spec']['strategy_id'], 'version': 2,
+                                         'card_id': saved['card_id'], 'fingerprint': saved['original_hash']}
+            except ValueError as exc:
+                result = {'status': 'skipped', 'code': 'LOCAL_STRATEGY_INVALID', 'reason': str(exc)}
+            cycle_log.update(execution_state='FAILED' if result.get('status') in ('unknown', 'error') else 'BLOCKED' if result.get('status') == 'skipped' else 'COMPLETED',
+                note=result.get('reason', '내 전략의 다음 거래일 시가 가상 실행'), v2=result,
+                trades=[result] if result.get('status') == 'filled' and not result.get('duplicate') else [])
+            await _persist_cycle(uid, cycle_log)
+            return
         if strategy_loader.is_fixed_test():
             cycle_log["strategy_source"] = "fixed_test"
             cycle_log["test_only"] = True

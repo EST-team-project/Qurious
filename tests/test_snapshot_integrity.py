@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
-from app.models import User, PaperAccount, PaperAccountSnapshot
+from app.models import User, PaperAccount, PaperAccountSnapshot, PaperSnapshotPriceAudit
 from app.services import paper_trading as pt, paper_snapshot_service as snapshots, snapshot_pricing as pricing
 
 
@@ -51,7 +51,8 @@ def test_expired_upbit_cache_is_not_returned_when_refresh_fails(monkeypatch):
     ("2026-11-02 12:00", True, "collector_close", True),
     ("2026-11-02 12:00", False, "delayed", False),
 ])
-def test_stock_snapshot_uses_close_evidence_or_stays_incomplete(monkeypatch, as_of, collector_available, source, complete):
+@pytest.mark.parametrize('include_audits', [False, True])
+def test_stock_snapshot_uses_close_evidence_or_stays_incomplete(monkeypatch, as_of, collector_available, source, complete, include_audits):
     from app.services import price_basis
     position = SimpleNamespace(symbol="005930.KS", name="삼성", quantity=2, avg_price=90)
     db = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(
@@ -65,10 +66,14 @@ def test_stock_snapshot_uses_close_evidence_or_stays_incomplete(monkeypatch, as_
         return {"raw_close": 120, "as_of": day.isoformat()}
     monkeypatch.setattr(price_basis, "load_day", close)
     rows = asyncio.run(pt.stock_positions(db, uuid.uuid4(), include_price_metadata=True,
-                                         valuation_date=date(2026, 11, 2)))
+                                         valuation_date=date(2026, 11, 2), include_price_audits=include_audits))
     assert rows[0]["_price_complete"] is complete
     assert rows[0]["_price_metadata"]["source"] == source
     assert rows[0]["_price_metadata"]["price"] == (120 if collector_available else 110)
+    pt.resolve_stock.assert_awaited_once()
+    if include_audits:
+        audit = rows[0]['_price_audits'][0]
+        assert audit['source'] == source and audit['used_price'] == rows[0]['_price_metadata']['price']
 
 
 def test_account_get_does_not_write_daily_snapshot(monkeypatch):
@@ -92,13 +97,20 @@ def test_daily_boundaries_provenance_and_manual_cannot_overwrite(monkeypatch):
             await db.flush()
             db.add(PaperAccount(user_id=uid, cash=100, initial_cash=100))
             await db.commit()
-            async def snapshot(db, uid, *, valuation_date):
+            calls = []
+            async def snapshot(db, uid, *, valuation_date, include_price_audits):
+                assert include_price_audits
+                calls.append(valuation_date)
                 value = {19: 100, 20: 110, 21: 500, 22: 120, 23: 132}[valuation_date.day]
+                if calls.count(date(2026, 10, 23)) > 1:
+                    value = 999  # manual 요청이 daily 본문과 감사 행을 덮지 않아야 한다.
                 meta = pricing.evidence("stock", "005930", value, "collector_close", valuation_date.isoformat())
                 if valuation_date.day == 21:
                     meta["fallback"] = ["average_cost"]
                 return {"cash": 0, "stockEval": value, "cryptoEval": 0, "alternativeEval": 0,
-                        "totalAsset": value, "counts": {"stocks": 1}, "price_complete": True, "price_metadata": [meta]}
+                        "totalAsset": value, "counts": {"stocks": 1}, "price_complete": True, "price_metadata": [meta],
+                        "_price_audits": [{'asset_type':'stock','symbol':'005930','price_role':'valuation',
+                            'used_price':value,'currency':'KRW','source':'collector_close','status':'delayed','fallback_used':False}]}
             monkeypatch.setattr(snapshots, "account_snapshot", snapshot)
             for d in range(19, 24):
                 await snapshots.record_daily_snapshot(db, uid, snap_date=date(2026, 10, d))
@@ -115,6 +127,9 @@ def test_daily_boundaries_provenance_and_manual_cannot_overwrite(monkeypatch):
             assert "price" not in bad.price_metadata[0]
             daily = await snapshots.record_daily_snapshot(db, uid, snap_date=date(2026, 10, 23), origin="manual")
             assert daily.origin == "daily" and daily.total_equity == 132
+            assert len(calls) == 6  # 평가와 감사가 한 번의 조회를 공유한다.
+            audit = await db.scalar(select(PaperSnapshotPriceAudit).where(PaperSnapshotPriceAudit.snapshot_id == daily.id))
+            assert audit.used_price == 132
             first = await db.scalar(select(PaperAccountSnapshot).where(PaperAccountSnapshot.user_id == uid,
                                         PaperAccountSnapshot.snap_date == date(2026, 10, 19)))
             assert not first.return_valid
@@ -146,3 +161,8 @@ def test_missing_weekday_does_not_become_one_day_return(monkeypatch):
     monkeypatch.setattr(pricing.market_calendar, "trading_days", lambda *args: {"days": [
         {"date": f"2026-11-0{d}", "is_trading_day": True} for d in (2, 3, 4)]})
     assert not pricing.consecutive(date(2026, 11, 2), date(2026, 11, 4))
+
+
+def test_educational_alternative_audit_does_not_require_live_feed():
+    quote = asyncio.run(pt.alt_quote('RE-SEOUL', include_price_audit=True))
+    assert quote['_price_audit']['fallback_used'] and quote['_price_audit']['status'] == 'demo'
