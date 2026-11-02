@@ -181,6 +181,44 @@ def _etf_name(symbol: str) -> str:
     return (row[0] or "") if row else ""
 
 
+def attach_names(resp: dict) -> dict:
+    """신호 순위 응답의 줄마다 종목 이름(`name`)을 한 번의 읽기 연결로 붙인다.
+
+    순위 화면(`signal-rank` 새 화면 · 2026-11-02)은 종목 코드만 보이면 쓸 수 없다. 이름은 꾸밈이라 못 읽으면 빈 글로 두고
+    응답을 막지 않는다(`name_of` 와 같은 규칙: 주식 이름표 → 없으면 ETF 이름표). 기록의 종목 코드가 `005930.KS` 꼴이어도
+    앞 6자리로 찾는다. `signal_rank` 본문을 고치지 않으려고 따로 둔다(그 본문은 신장환 님이 `load_day` 읽는 양을 줄이며 고친다 — #487).
+    """
+    rows = resp.get("rows") or []
+    for r in rows:
+        r["name"] = ""
+    path = collector_db.db_path()
+    if path is None or not rows:
+        return resp
+    try:
+        conn = _open_ro(path)
+    except sqlite3.Error:
+        return resp
+    try:
+        for r in rows:
+            code = str(r.get("symbol") or "").split(".")[0]
+            if not code:
+                continue
+            row = conn.execute(company_health.NAME_SQL, (code,)).fetchone()
+            name = (row[0] or "") if row else ""
+            if not name:
+                try:
+                    etf = conn.execute(ETF_NAME_SQL, (code,)).fetchone()
+                except sqlite3.Error:                    # etf_daily 표가 없는 수집 DB
+                    etf = None
+                name = (etf[0] or "") if etf else ""
+            r["name"] = name
+    except sqlite3.Error:
+        pass                                             # 이름은 꾸밈 — 읽은 만큼만 보이고 응답은 그대로
+    finally:
+        conn.close()
+    return resp
+
+
 _UNIVERSE: dict = {"at": 0.0, "codes": frozenset()}
 UNIVERSE_TTL = 600.0               # 유니버스는 판이 바뀔 때만 달라진다 — 10분이면 넉넉하다
 
@@ -323,9 +361,9 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
     그 줄의 `counts` 만 비우고(`counts_note`) 나머지 줄은 그대로 돌려준다. `symbols` 를 주면 그 종목만 보고, 기록이 없는
     종목은 `missing` 에 허브와 같은 두 갈래 · 같은 안내 문장으로 남긴다.
     """
-    day = await signal_explain.load_day(db, on=on, symbols=symbols)
+    day = await signal_explain.load_day(db, on=on, symbols=symbols, limit=limit)   # 위 limit 줄만 DB 에서 읽는다(#487)
     rows, unreadable = [], 0
-    for snap in day["rows"][:limit]:
+    for snap in day["rows"]:
         as_of = snap["as_of"]
         row = {"rank": len(rows) + 1, "symbol": snap["symbol"],
                "as_of": as_of.isoformat() if isinstance(as_of, date) else str(as_of),
@@ -346,12 +384,10 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
                 "message": SIGNAL_NOT_UNIVERSE if m["reason"] == signal_explain.NOT_UNIVERSE else SIGNAL_NONE}
                for m in day["missing"]]
     on_day = day["on"]
-    dates = [r["as_of"] for r in day["rows"] if isinstance(r.get("as_of"), date)]
-    head = max(dates) if dates else None
-    stamps = [r["computed_at"] for r in day["rows"] if r.get("as_of") == head and isinstance(r.get("computed_at"), datetime)]
-    fresh = signal_freshness(head, max(stamps) if stamps else None, sum(1 for d in dates if d != head), picked=on_day is not None)
+    # 머리줄은 자르기 전 전체 줄의 집계로(#487) — 순위 밖 줄의 기준일이 더 늦어도 맞다
+    fresh = signal_freshness(day["as_of_max"], day["computed_at_max"], day["older_count"], picked=on_day is not None)
     return {"definition": day["definition"], "on": on_day.isoformat() if on_day else None, "as_of": fresh["as_of"], "freshness": fresh,
-            "total": len(day["rows"]),
+            "total": day["total"],
             "count": len(rows), "limit": limit, "rows": rows, "missing": missing, "unreadable": unreadable,
             "source": SIGNAL_SOURCE, "notice": signal_explain.DISCLAIMER, "note": SIGNAL_RANK_NOTE}
 

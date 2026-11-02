@@ -452,10 +452,14 @@ def _day_rows(n=6):
 
 
 def _stub_day(monkeypatch, rows, missing=(), seen=None):
-    async def load_day(db, on=None, symbols=None):
+    async def load_day(db, on=None, symbols=None, limit=None):
         if seen is not None:
             seen.append((on, symbols))
-        return {"on": on, "definition": "def-test", "rows": list(rows), "missing": list(missing)}
+        head = max((r["as_of"] for r in rows), default=None)             # 집계는 진짜 load_day 처럼 자르기 전 전체 줄로(#487)
+        stamps = [r["computed_at"] for r in rows if r["as_of"] == head and r.get("computed_at")]
+        return {"on": on, "definition": "def-test", "rows": list(rows)[:limit], "missing": list(missing),
+                "total": len(rows), "as_of_max": head, "computed_at_max": max(stamps, default=None),
+                "older_count": sum(r["as_of"] != head for r in rows)}
     monkeypatch.setattr(signal_explain, "load_day", load_day)
 
 
@@ -607,3 +611,18 @@ def test_signal_rank_carries_freshness_and_no_intraday(monkeypatch):
 def test_not_universe_message_no_longer_claims_401():
     """TC-HUB-62 · 신호 기록 대상이 전체로 넓어져 「401종목」 문구는 틀린 말이다."""
     assert "401" not in H.SIGNAL_NOT_UNIVERSE and "KOSPI" in H.SIGNAL_NOT_UNIVERSE and "ETF" in H.SIGNAL_NOT_UNIVERSE
+
+
+def test_attach_names_puts_a_name_on_every_rank_row(tmp_path, monkeypatch):
+    """TC-HUB-63 · 신호 순위 줄마다 종목 이름을 한 번에 붙인다(순위 새 화면 · 2026-11-02) — 주식 이름표 → 없으면 ETF 이름표 ·
+    `.KS` 꼬리 코드도 · 못 찾으면 빈 글. 이름은 꾸밈이라 수집 DB 를 못 읽어도 줄 · 순서는 그대로다."""
+    _fake_db(tmp_path, monkeypatch, stocks=[("20261030", "005930", "삼성전자", "KOSPI")], etfs=[("20261030", "069500", "KODEX 200")])
+    resp = {"rows": [{"symbol": "005930.KS"}, {"symbol": "069500"}, {"symbol": "999999"}], "count": 3}
+    out = H.attach_names(resp)
+    assert out is resp                                                    # 같은 응답에 칸만 더한다
+    assert [r["name"] for r in out["rows"]] == ["삼성전자", "KODEX 200", ""]
+    assert out["count"] == 3
+    # 수집 DB 가 없으면 이름만 빈 글
+    monkeypatch.setenv("COLLECTOR_DB_PATH", str(tmp_path / "없음.sqlite3"))
+    assert H.attach_names({"rows": [{"symbol": "005930"}]})["rows"] == [{"symbol": "005930", "name": ""}]
+    assert H.attach_names({"rows": []}) == {"rows": []}

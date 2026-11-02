@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="/css/helpvideos.css" /><!-- 사용법 영상 목록 (2026-10-20 · js/helpvideos.js) -->
   <link rel="stylesheet" href="/css/stockfind.css" /><!-- 종목 찾기 단추 (2026-10-31 · js/stockfind.js) -->
   <link rel="stylesheet" href="/css/stockdrawer.css" /><!-- 종목 허브 서랍 (2026-10-31 · js/stockdrawer.js) -->
+  <link rel="stylesheet" href="/css/signalrankview.css" /><!-- 신호 순위 화면 (2026-11-02 · js/signalrankview.js) -->
   <link rel="stylesheet" href="/css/stockpick.css" /><!-- 종목 찾기 칸 (2026-10-16 · js/stockpick.js) -->
   <link rel="stylesheet" href="/css/baselinenotice.css" /><!-- 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · js/baselinenotice.js) -->
   <link rel="stylesheet" href="/css/rebalance.css" />
@@ -2016,6 +2017,15 @@
                 <h3 class="font-semibold mb-3 text-sm">🗂️ 리밸런싱 실행 이력</h3>
                 <div id="rb-runs"></div>
               </div>
+            </div>
+          </div>
+
+          <!-- 신호 순위 (2026-11-02 · 새 화면 — Figma 「신호 순위 화면 설계」 안 A) — 순위 표 · 서랍은 js/signalrankview.js 가 #sr-root 에 그린다(GET /api/stock-hub/signal-rank) -->
+          <div class="view" data-view="signal-rank">
+            <div class="card srv-card">
+              <h2 class="text-lg font-semibold mb-1">신호 순위</h2>
+              <p class="text-xs mb-3" style="color:var(--text-mute);">기록된 규칙 신호(매수 · 중립 · 매도)를 종목 전체에서 순위로 봅니다.</p>
+              <div id="sr-root" class="srv-root">불러오는 중…</div>
             </div>
           </div>
 

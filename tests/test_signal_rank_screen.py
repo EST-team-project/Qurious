@@ -186,11 +186,47 @@ def test_rank_table_header_and_drawer_order(tmp_path):
 
 
 def test_source_rules():
-    """TC-RKS-05 — BUY · SELL 낱말 없음 · 공용 파일은 아직 이 모듈을 부르지 않는다."""
+    """TC-RKS-05 — BUY · SELL 낱말 없음 · 공용 파일은 이 모듈(판단 · 그리기)을 직접 부르지 않는다 — 새 화면(2026-11-02)은
+    `signalrankview.js` 가 부른다(공용 파일은 화면 키 · 칸 · 진입 훅만 건다)."""
     src = SR.read_text(encoding="utf-8")
     assert not re.search(r"\b(BUY|SELL)\b", src)
-    for shared in ("public/app.html", "public/js/core.js"):
-        assert "signal-rank" not in (ROOT / shared).read_text(encoding="utf-8"), shared
+    for shared in ("public/app.html", "public/js/core.js", "public/js/main.js"):
+        assert '"/js/signal-rank.js"' not in (ROOT / shared).read_text(encoding="utf-8"), shared
+
+
+def test_signal_rank_screen_is_wired():
+    """TC-RKS-09 — 신호 순위 새 화면(2026-11-02 · 안 A)이 한 줄씩 이어져 있다: 메뉴 항목 · 안내 글 · 화면 칸 · CSS 링크 · 진입 훅 · 마운트 파일.
+    하나라도 빠지면 메뉴를 눌러도 빈 화면이 된다."""
+    core = (ROOT / "public/js/core.js").read_text(encoding="utf-8")
+    html = (ROOT / "public/app.html").read_text(encoding="utf-8")
+    main = (ROOT / "public/js/main.js").read_text(encoding="utf-8")
+    view = (ROOT / "public/js/signalrankview.js").read_text(encoding="utf-8")
+    assert re.search(r'\{ key: "signal-rank",[^}]*label: "신호 순위" \}', core)             # 로보 어드바이저 메뉴 항목
+    assert '"signal-rank":     { summary:' in core                                         # 화면 안내 글
+    assert html.count('data-view="signal-rank"') == 1 and html.count('id="sr-root"') == 1  # 화면 칸 하나 · 마운트 자리 하나
+    assert '/css/signalrankview.css' in html and (ROOT / "public/css/signalrankview.css").is_file()
+    assert 'import { onSignalRankViewActivated } from "/js/signalrankview.js"' in main
+    assert re.search(r'if \(view === "signal-rank"\) onSignalRankViewActivated\(\);', main)  # 화면 키를 글자 그대로
+    assert 'from "/js/signal-rank.js"' in view and "mountSignalRank(host" in view          # 판단 모듈은 이 파일만 부른다
+    # 서랍은 목록 위(absolute)가 아니라 화면 기준(fixed)이다 — 목록을 스크롤한 채 아래 줄을 눌러도 통째로 보인다(사용자 지적 11-02)
+    css = (ROOT / "public/css/signalrankview.css").read_text(encoding="utf-8")
+    block = css[css.index("[data-sr-side]:not(:empty) {"):]
+    block = block[:block.index("}")]
+    assert "position: fixed" in block and "max-height: calc(100vh" in block and "overflow-y: auto" in block and "absolute" not in block
+
+
+def test_row_name_falls_back_to_server_name(tmp_path):
+    """TC-RKS-10 — 줄의 이름: 화면이 넘긴 nameOf 가 먼저 · 없으면 서버가 줄에 붙인 name · 둘 다 없거나 글이 아니면 빈 글(코드만 보인다)."""
+    out = _run(tmp_path, """
+      const row = {rank: 1, symbol: "005930", as_of: "2026-10-30", signal: "매수", counts: {buy: 1, neutral: 0, sell: 0}};
+      out.server = sr.rowView({...row, name: "삼성전자"}, null).name;
+      out.first = sr.rowView({...row, name: "서버 이름"}, s => "화면 이름").name;
+      out.none = sr.rowView(row, null).name;
+      out.odd = sr.rowView({...row, name: 123}, null).name;
+      out.table = sr.renderRankTable({rows: [{...row, name: "삼성<전자>"}], missing: [], total: 1}, esc);
+    """)
+    assert out["server"] == "삼성전자" and out["first"] == "화면 이름" and out["none"] == "" and out["odd"] == ""
+    assert "삼성&lt;전자&gt;" in out["table"] and "삼성<전자>" not in out["table"]            # 이름도 이스케이프된다
 
 
 def test_freshness_head_and_badges(tmp_path):

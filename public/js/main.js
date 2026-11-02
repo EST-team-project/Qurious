@@ -28,6 +28,7 @@ import { onCalendarViewActivated } from "/js/calendar.js";             // 일정
 import { onResearchViewActivated } from "/js/research.js";             // 투자 정보 리서치 — 수집 자료 검색 · 종목 시간표 (2026-10-06)
 import { onCollectViewActivated } from "/js/collect.js";               // 데이터 수집 화면 셋 — 옛 크롤링 세 화면 자리 (2026-10-08)
 import { onDataGuideViewActivated } from "/js/dataguide.js";           // 자료 안내 — 데이터 관제 바로 아래 · 모든 로그인 사용자 (2026-10-08)
+import { onSignalRankViewActivated } from "/js/signalrankview.js";     // 신호 순위 — 로보 어드바이저 새 화면(2026-11-02 · 판단 · 그리기는 js/signal-rank.js)
 import { onProductsViewActivated } from "/js/products.js";             // 투자 성향별 상품 안내 — 옛 「맞춤 상품 추천」 자리 (2026-10-12)
 import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무 · 신용 위험 — 옛 「신용 리스크 분석」 자리 (2026-10-13)
 import { onClusterViewActivated } from "/js/clusters.js";              // 종목 군집화 — 옛 강사님 KMeans 칸 자리 (2026-10-14)
@@ -130,6 +131,7 @@ function onViewActivated(view, tab = view) {   // view = 화면 키 · tab = 탭
   if (view === "sysadmin-logs") loadAuditLog();
   // 로보 어드바이저 신규 뷰
   if (view === "robo-screening") loadRoboScreening();
+  if (view === "signal-rank") onSignalRankViewActivated();
   if (view === "robo-decision") loadRoboDecision();
   if (view === "robo-testbed") loadRoboTestbed();
   if (view === "robo-patterns") { if (!document.getElementById("pt-mtf").innerHTML) loadPatternAnalysis(); }
