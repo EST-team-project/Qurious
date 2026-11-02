@@ -28,6 +28,7 @@ SECRET = "PRIVATE-MANUAL-ORDER-SECRET"
 
 @pytest.fixture
 def runtime(monkeypatch):
+    monkeypatch.setattr(manual, "pause", AsyncMock())
     engine = create_async_engine(os.environ["QURIOUS_TEST_DATABASE_URL"], poolclass=NullPool)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(manual, "get_session_factory", lambda: sessions)

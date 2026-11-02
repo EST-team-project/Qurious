@@ -186,6 +186,7 @@ async def retry(uid, order_id, *, automatic=False):
                 raise control.Rejected("INVALID_TICK", "원 지정가의 현재 호가 단위가 유효하지 않습니다.")
             holding = snapshot["holdings"].get(parent.symbol, {})
             equity = snapshot["equity"] + holding.get("quantity", 0)*quote["price"] - holding.get("value", 0)
+            await pause()
             return {"db": db, "broker": row, "parent": parent, "settings": signature,
                     "cash": snapshot["cash"], "equity": equity, "quantity": quantity, "price": parent.price,
                     "owned_quantity": held, "checked_at": datetime.now(control.KST),
