@@ -456,13 +456,17 @@ def test_signals_step_after_daily_bars_before_manifest():
     # 일봉(ohlcv) 바로 뒤에 품질 검사(quality — 10-30 에 ohlcv 뒤로 옮김 · ETF · 지수 일봉 적재 뒤에 재야 거짓 경고가 없다)가 끼고, 그 뒤가 신호다
     assert names.index("ohlcv") + 1 == names.index("quality") and names.index("quality") + 1 == names.index("signals")
     assert names.index("signals") + 1 == names.index("journal")
-    assert names.index("journal") + 1 == names.index("manifest")
+    # 모의 일지 뒤에 신호 전체 종목(signals_all — 2026-11-02 · ②-32)이 오고, 그 뒤가 목록표다
+    assert names.index("journal") + 1 == names.index("signals_all") and names.index("signals_all") + 1 == names.index("manifest")
+    sa = next(s for s in du.STEPS if s.name == "signals_all")
+    assert sa.args == ["scripts/signals_all.py"] and (sa.fatal, sa.app_db, sa.gap_fill, sa.fill_args) == (False, True, False, [])
+    assert (sa.label, sa.group) == ("신호 전체", "계산") and sa.timeout_min >= 10, "빠진 날 채우기는 끈다 — 3,500종목 × 여러 날"
     sig = next(s for s in du.STEPS if s.name == "signals")
     assert sig.args == ["scripts/signals_daily.py"], "인자 없이 — 수집 DB 의 마지막 거래일 하루"
     assert (sig.fatal, sig.derived, sig.upload, sig.sharing) == (False, False, False, False)
     assert (sig.label, sig.group) == ("신호", "계산") and sig.timeout_min >= 5
     assert sig.app_db is True, "앱 DB(T2)에 쓰는 단계 — PC 쪽 주소를 받아야 한다"
-    assert [s.name for s in du.STEPS if s.app_db] == ["signals", "journal"], "앱 DB 를 쓰는 단계는 신호 · 모의 일지 둘뿐이다"
+    assert [s.name for s in du.STEPS if s.app_db] == ["signals", "journal", "signals_all"], "앱 DB 를 쓰는 단계는 신호 · 모의 일지 · 신호 전체 셋뿐이다"
 
 
 # ── 8. 앱 DB 를 쓰는 단계의 전제 조건(2026-10-08 · 조사서 안 B · 사용자 결정) ─────────────────────

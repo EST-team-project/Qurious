@@ -5,6 +5,7 @@
 3. 거래소 현지 날짜 — 미국 서머타임 끝(2026-11-01) 앞뒤 · KST 로 바꾸면 날짜가 밀리는 경우 · 코인 UTC 경계. (TC-MKT-03)
 4. v1 → v2 변환은 값을 안 건드리고, 줄 검사가 날짜 밀림 · 통화 · 시간대 · 시간대 없는 시각을 잡는다. (TC-MKT-04)
 5. 새 파일이 수집기 러너 · 기존 규격에 닿지 않는다(국내 표 · v1 그대로 — 12:30 회차를 안 건드림). (TC-MKT-05)
+6. 시장별 달력 뷰 `market_calendar_v2` — (market, cal_date) 한 모양 · 표가 아니라 뷰(내보내기 · 따라가기에 안 걸림) · 미국은 지어내지 않고 알림. (TC-MKT-08)
 """
 from __future__ import annotations
 
@@ -127,7 +128,8 @@ def test_v1_to_v2_keeps_values_and_checks_catch_drift():
 
 
 def test_new_file_does_not_touch_the_runner_or_v1_contract():
-    """TC-MKT-05 · 12:30 회차를 안 건드린다 — 러너 · 내보내기 · v1 규격 파일이 레지스트리를 부르지 않고, v1 상수는 그대로."""
+    """TC-MKT-05 · 12:30 회차를 안 건드린다 — 러너 · 내보내기 · v1 규격 파일이 레지스트리를 부르지 않고, v1 상수는 그대로.
+    예외 하나(2026-11-02 · ①-06): 달력 빌더(`market_calendar.build`)가 끝에서 뷰 `market_calendar_v2` 를 만든다 — 늦은 import · 실패해도 달력은 성공."""
     for rel in ("scripts/daily_update.py", "collector/ohlcv.py", "collector/ohlcv_export.py", "collector/db.py", "collector/quality.py"):
         src = (ROOT / rel).read_text(encoding="utf-8")
         assert "collector.markets" not in src and "from collector import markets" not in src, f"{rel} 이 레지스트리를 부른다"
@@ -295,3 +297,62 @@ def test_resample_korean_session_and_chain_consistency_and_guards():
     # 사용자 결정(10-30 「다양하게 전부」) — 바이낸스 원본 주기를 모두 받는다(1초봉만 제외)
     assert set(crypto_v2.TIMEFRAME) == {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1mo"}
     assert all(v in bars_v2.TIMEFRAMES for v in crypto_v2.TIMEFRAME.values()), "변환 결과 주기가 v2 주기 목록 안에 있다"
+
+
+# ── 시장별 달력 뷰 (할 일 ①-06 · 2026-11-02) ─────────────────────────────────────────────────────────────────────
+
+def _cal_db():
+    import sqlite3
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE market_calendar (cal_date TEXT NOT NULL PRIMARY KEY, is_trading_day INTEGER NOT NULL, "
+                 "reason TEXT NOT NULL DEFAULT '', basis TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)")
+    conn.executemany("INSERT INTO market_calendar VALUES (?,?,?,?,?,?)", [
+        ("2026-10-02", 1, "", "observed", "", "t1"), ("2026-10-03", 0, "개천절", "rule", "", "t1"),
+        ("2026-10-04", 0, "일요일", "rule", "", "t1"), ("2026-10-05", 1, "", "rule", "", "t1")])
+    conn.commit()
+    return conn
+
+
+def test_calendar_view_gives_one_shape_per_market_and_does_not_invent_us_days():
+    """TC-MKT-08 · XKRX 줄은 `market_calendar` 그대로, 24시간 시장은 같은 날짜에 매일 거래 · 미국은 빈 목록이 아니라 알림 · 뷰는 표가 아니다."""
+    conn = _cal_db()
+    assert markets.ensure_calendar_view(conn) is True
+    cols = [r[1] for r in conn.execute(f"PRAGMA table_info({markets.CALENDAR_VIEW})")]
+    assert tuple(cols) == markets.CALENDAR_COLUMNS
+    kr = markets.calendar_days(conn, "XKRX", "2026-10-02", "2026-10-05")
+    assert [(r[1], r[2], r[3]) for r in kr] == [("2026-10-02", 1, ""), ("2026-10-03", 0, "개천절"), ("2026-10-04", 0, "일요일"), ("2026-10-05", 1, "")]
+    assert all(r[0] == "XKRX" for r in kr)
+    for venue in ("BINANCE_SPOT_USDT", "UPBIT"):
+        rows = markets.calendar_days(conn, venue, "2026-10-02", "2026-10-05")
+        assert len(rows) == 4 and all(r[2] == 1 and r[4] == "rule" for r in rows), "코인은 휴장일이 없다 — 토 · 일 · 공휴일도 거래일"
+    for venue in ("XNYS", "XNAS"):
+        with pytest.raises(markets.CalendarUnavailable):
+            markets.calendar_days(conn, venue, "2026-10-02", "2026-10-05")                   # 휴장일 출처가 없다 — 지어내지 않는다
+    with pytest.raises(KeyError):
+        markets.calendar_days(conn, "NOPE", "2026-10-02", "2026-10-05")
+    # 뷰는 표 목록(HF 내보내기 · 따라가기가 보는 `type='table'`)에 안 잡힌다 — 새 표를 만들지 않았다
+    from scripts import hf_dataset as hf
+    tables = hf._db_tables(conn)
+    assert markets.CALENDAR_VIEW not in tables and tables == ["market_calendar"]
+    # 달력이 바뀌면 뷰가 따라가고(복사본이 아니다) · 다시 만들어도 같다
+    conn.execute("UPDATE market_calendar SET is_trading_day = 0, reason = '임시공휴일' WHERE cal_date = '2026-10-05'")
+    assert markets.ensure_calendar_view(conn) is True
+    assert markets.calendar_days(conn, "XKRX", "2026-10-05", "2026-10-05")[0][2:4] == (0, "임시공휴일")
+
+
+def test_calendar_view_waits_for_the_calendar_table_and_reads_without_the_view():
+    """TC-MKT-08 · `market_calendar` 가 없으면 만들지 않고 False · 뷰가 없어도 같은 SELECT 로 읽는다(따라가는 PC · 달력 단계 전)."""
+    import sqlite3
+    empty = sqlite3.connect(":memory:")
+    assert markets.ensure_calendar_view(empty) is False
+    conn = _cal_db()                                                                        # ensure 를 부르지 않았다
+    assert conn.execute("SELECT 1 FROM sqlite_master WHERE name = ?", (markets.CALENDAR_VIEW,)).fetchone() is None
+    assert len(markets.calendar_days(conn, "XKRX", "2026-10-02", "2026-10-05")) == 4
+    assert markets.calendar_venues() == ["XKRX", "BINANCE_SPOT_USDT", "UPBIT"]
+
+
+def test_calendar_builder_makes_the_view_but_never_fails_because_of_it(monkeypatch):
+    """TC-MKT-08 · 달력 빌더가 끝에서 뷰를 만들고, 뷰를 못 만들어도 달력은 성공이다(경고만)."""
+    src = (ROOT / "collector" / "market_calendar.py").read_text(encoding="utf-8")
+    assert "markets.ensure_calendar_view(conn)" in src and "시장별 달력 뷰를 만들지 못했다" in src
+    assert src.index("write_events(conn, events)") < src.index("ensure_calendar_view"), "달력 · 일정이 다 쓰인 뒤에 만든다"
