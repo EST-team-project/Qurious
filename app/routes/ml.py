@@ -123,12 +123,21 @@ async def robo_weights(
 
 @router.get("/robo/allocation/latest", response_model=LatestAllocationResponse,
             responses={404: {"description": "로그인한 사용자의 저장본 없음. 이 경우에만 기본 기간 비중으로 대체한다."}})
-async def latest_allocation(_user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session)):
+async def latest_allocation(_user=Depends(get_current_user), db: AsyncSession = Depends(get_pg_session), include_etfs: bool = False):
     """본인의 마지막 성공 계산 한 건. 현재 진단 성향으로 재계산하거나 저장본을 변경하지 않는다."""
     saved = await load_result(db, _user["id"])
     if saved is None:
         raise HTTPException(404, "저장된 배분 결과가 없습니다. 자산배분 화면에서 먼저 계산하세요.")
     saved["result"] = allocation_view(saved["result"])
+    if include_etfs:
+        from app.services import etf_allocation
+        try:
+            saved["handoff"] = await asyncio.to_thread(etf_allocation.preview, saved["result"])
+        except Exception as exc:
+            if isinstance(exc, (ValueError, KeyError)):
+                raise HTTPException(409, str(exc)) from exc
+            raise HTTPException(503, "ETF 자료·거래일을 확인하지 못했습니다. 기존 목표를 유지합니다.") from exc
+        return saved
     try:
         saved["handoff"] = rebalance_draft(saved["result"])
     except (ValueError, KeyError):

@@ -148,7 +148,8 @@ def _metrics(hist: list[tuple[str, int | None, int | None, int | None]], year_ag
     날짜는 YYYYMMDD 글자 그대로 견준다(글자 차례 = 날짜 차례).
     """
     out = {"return_1y_pct": None, "price_return_1y_pct": None, "vol_1y_pct": None, "mdd_1y_pct": None,
-           "trade_value_20d": None, "history_from": None}
+           "trade_value_20d": None, "history_from": None,
+           "trade_days_20d": sum(t is not None and t > 0 for _, _, _, t in hist[-20:])}
     trades = [t for _, _, _, t in hist if t is not None]
     if trades:
         tail = trades[-_TRADE_WINDOW:]
@@ -233,13 +234,14 @@ def _compute(path: Path, last_bas_dt: str) -> dict:
             "nav": nav,
             "premium_pct": (close / nav - 1.0) * 100.0 if (close and nav) else None,
             "trade_value_20d": m["trade_value_20d"],
+            "trade_days_20d": m["trade_days_20d"],
             "return_1y_pct": m["return_1y_pct"],
             "price_return_1y_pct": m["price_return_1y_pct"],
             "return_basis": "base_price_chain",
             "vol_1y_pct": m["vol_1y_pct"],
             "mdd_1y_pct": m["mdd_1y_pct"],
             "history_from": m["history_from"],
-            "halted": bool(halted),
+            "halted": None if halted is None else bool(halted),
         })
     return {"as_of": _iso(last_bas_dt), "data_from": _iso(data_from), "window_from": _iso(window_start), "items": items}
 
@@ -285,6 +287,12 @@ def find_item(code: str) -> tuple[dict, dict | None]:
     if data["status"] != "ok":
         return data, None
     return data, next((x for x in data["items"] if x["code"] == code), None)
+
+
+def selection_catalog() -> dict:
+    """배분 편집안에 쓸 같은 기준일의 전체 목록. 화면 목록과 같은 분류·지표다."""
+    data = _load()
+    return {**_common(data), "items": data.get("items", [])}
 
 
 def _common(data: dict) -> dict:

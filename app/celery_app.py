@@ -100,7 +100,7 @@ celery_app.conf.update(
         },
         "quant-auto-trade-cycle": {
             "task": "quant.auto_trade_cycle",
-            "schedule": float(settings.QUANT_CYCLE_SEC),                       # 기본 3분 — 자동매매 활성 사용자 사이클 (2026-10-07, 5분→3분)
+            "schedule": float(settings.QUANT_CYCLE_SEC),                       # 기본 10분 — 자동매매 활성 사용자 사이클
             "options": {"expires": max(30, int(settings.QUANT_CYCLE_SEC) - 20)},  # 다음 주기 전에 만료 — 지연된 사이클이 겹쳐 실행되지 않게
         },
         "quant-confirm-fills-2min": {

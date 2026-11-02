@@ -38,6 +38,11 @@ assert.match(sized, /전환 시 고정 손절 900원/);
 const legacy = render({...trade, execution: {label: '증권사 주문 실패', level: 'error', virtual_status: 'filled', ledger: '가상 장부에만 기록됨'}}, esc, String);
 assert.match(legacy, /가상 기록 3주/);
 assert.match(legacy, /가상 장부에만 기록됨/);
+const etf = render({...trade, symbol: '360750.KS', price_basis: {instrument: {is_etf: true, warnings: ['LP <경고>'], close_nav_premium_pct: .5, premium_as_of: '2026-10-30'}}}, esc, String);
+assert.match(etf, /data-hub-open="360750"/);
+assert.match(etf, /LP &lt;경고&gt;/);
+assert.match(etf, /2026-10-30/);
+assert.match(etf, /장중 iNAV 아님/);
 '''
         subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True, check=True, capture_output=True)
 

@@ -3,6 +3,7 @@
 자동 전략 보유와 구분하기 위해 이 경로에서 확정된 보유만 매도한다.
 요청 수량·지정가는 축소하거나 현재가로 바꾸지 않는다.
 """
+import asyncio
 from datetime import datetime, time
 import math
 from types import SimpleNamespace
@@ -13,7 +14,7 @@ from sqlalchemy import select
 from app.database.postgres import get_session_factory
 from app.models import BrokerSettings, LiveOrder, OrderIntent, BrokerPositionBaseline, LIVE_ORDER_OPEN_STATUSES
 from app.services import auto_trade, execution_control as control, kis_execution, live_ownership
-from app.services import market_calendar, order_preflight, pattern_view, trading_cost
+from app.services import market_calendar, order_preflight, pattern_view, trading_cost, etf_execution
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.brokers.factory import live_trading_allowed
 from app.services.brokers.quote_feedback import balance_failure
@@ -108,6 +109,9 @@ async def submit(uid, *, request_id, symbol, side, quantity, price):
                 raise control.Rejected("SETTINGS_CHANGED", "주문 계좌가 변경됐습니다.")
             signature = control.settings_signature(row)
             check_window(day)
+            instrument = await asyncio.to_thread(etf_execution.describe, symbol)
+            if instrument["is_etf"] and price % gateway.tick_size(int(price), is_etf=True):
+                raise control.Rejected("INVALID_TICK", "ETF 지정가는 2,000원 미만 1원, 그 이상 5원 단위입니다. 요청 가격을 임의 변경하지 않았습니다.")
             opened = await db.scalar(select(LiveOrder.id).where(
                 (LiveOrder.account_ref == ref) | LiveOrder.raw.contains(ref),
                 LiveOrder.status.in_((*LIVE_ORDER_OPEN_STATUSES, "LOST"))).limit(1))
@@ -146,7 +150,7 @@ async def submit(uid, *, request_id, symbol, side, quantity, price):
             return {"db": db, "broker": row, "settings": signature, "cash": cash, "equity": equity,
                 "price": price, "quantity": quantity, "owned_quantity": held,
                 "position_value": account_qty * max(current, price), "checked_at": datetime.now(control.KST),
-                "price_basis": {"quote": quote, "limit_price": price, "quantity": quantity, "purpose": "manual_broker"}}
+                "price_basis": {"quote": quote, "limit_price": price, "quantity": quantity, "purpose": "manual_broker", "instrument": instrument}}
 
         async def send(order_id, qty, basis):
             check_window(day)

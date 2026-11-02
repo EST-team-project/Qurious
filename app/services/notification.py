@@ -885,6 +885,7 @@ async def notify_order_placed(
     price: float,
     broker: str = "",
     user_id: str | None = None,
+    *, details: list[tuple[str, str]] | None = None,
 ) -> None:
     """주문 접수 알림."""
     label = _side_label(side)
@@ -892,6 +893,7 @@ async def notify_order_placed(
               ("총액", alert_format.won(quantity * price))]
     if broker:
         fields.append(("증권사", broker))
+    fields.extend(details or [])
     ev = alert_format.AlertEvent(
         kind="order_placed", severity="normal", emoji="📈" if side == "buy" else "📉", title=f"주문 접수 – {label} {symbol}",
         summary="증권사에 주문이 접수되었습니다. 접수는 체결이 아닙니다.", fields=fields,
@@ -1005,13 +1007,14 @@ async def notify_risk_halt(reason: str, day_pnl_pct: float | None = None, user_i
     await dispatch_event(ev, user_id=user_id)
 
 
-async def notify_risk_skip(symbol: str, name: str, side: str, reason: str, user_id: str | None = None) -> None:
+async def notify_risk_skip(symbol: str, name: str, side: str, reason: str, user_id: str | None = None,
+                           *, details: list[tuple[str, str]] | None = None) -> None:
     """위험관리 규칙으로 주문을 생략했음을 알린다 (중복 주문·한도 초과). 같은 시간대 여러 건은 묶어서 나간다."""
     label = _side_label(side)
     ev = alert_format.AlertEvent(
         kind="risk_skip", severity="info", emoji="⚠️", title=f"주문 생략 – {label} {name}",
         summary=f"{name} ({symbol}) {label} 주문을 위험관리 규칙으로 건너뛰었습니다.",
-        fields=[("종목", f"{name} ({symbol})"), ("구분", label)], reason=reason,
+        fields=[("종목", f"{name} ({symbol})"), ("구분", label)] + list(details or []), reason=reason,
         subject=f"[위험관리] {label} 주문 생략 – {name}", group_key="risk_skip",
     )
     await dispatch_event(ev, user_id=user_id)

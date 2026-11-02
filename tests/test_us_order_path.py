@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.routes import stocks
 from app.services import overseas_orders as oo
@@ -73,14 +74,15 @@ def test_virtual_order_lets_domestic_symbol_through(monkeypatch):
             asyncio.run(stocks.place_order(_body(sym), user={"id": "00000000-0000-0000-0000-000000000001"}, db=None))
 
 
-def test_non_virtual_broker_is_not_filtered_here(monkeypatch):
-    """거름은 원화 가상 매매 장부에만 — 다른 증권사 길은 그 길의 관문이 본다."""
+def test_broker_name_cannot_bypass_the_virtual_ledger_boundary(monkeypatch):
+    """#440/#477 이후 증권사 주문은 전용 경로만 사용한다. broker로 국내 제한을 우회하지 못한다."""
     def reached(*a, **k):
         raise _Reached()
 
     monkeypatch.setattr(stocks.trading_cost, "order_costs", reached)
-    with pytest.raises(_Reached):
-        asyncio.run(stocks.place_order(_body("AAPL", broker="kis"), user={"id": "00000000-0000-0000-0000-000000000001"}, db=None))
+    with pytest.raises(ValidationError) as exc:
+        _body("AAPL", broker="kis")
+    assert exc.value.errors()[0]["loc"] == ("broker",)
 
 
 # ── 2 · 3. 화면 — 모의 주문 길 · 원화 장부 읽기 ─────────────────────────────
