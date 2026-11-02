@@ -1,4 +1,5 @@
 from app.models.base import Base, SYSTEM_USER_ID
+from app.models.risk_stop import RiskStop
 from app.models.user import User
 from app.models.trading import (
     PORTFOLIO_BOOK_PAPER,

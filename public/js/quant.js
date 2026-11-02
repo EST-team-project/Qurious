@@ -172,12 +172,15 @@ async function loadAutoTradeStatus() {
       const risk = cycle.risk
         ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · ${escHtml(cycle.risk.valuation?.label || "이전 기록 · 평가 기준 미기록")} · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
         : "";
+      const stops = Object.entries(cycle.risk?.stop_checks || {}).map(([symbol, stop]) =>
+        `<div class="ml-3 text-xs">${escHtml(symbol)} · ${stop.origin === 'transition' ? '전환 시 고정' : '진입 시 고정'} 손절 ${fmt(stop.stop_price)}원 (${escHtml(stop.stop_kind || '%')})</div>`
+      ).join('');
       const sigs = (cycle.signals || []).map(sig =>
         `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(sig.error ? '판단 불가' : _displayAction(sig.action))}</b>${renderDecisionBasis({...sig, cycle_at: cycle.time}, escHtml, kstTime)}</div>`
       ).join("");
       return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
         <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
-        ${risk}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
+        ${risk}${stops}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
       </div>`;
     }).join("");
   } catch { }

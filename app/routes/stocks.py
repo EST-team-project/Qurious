@@ -746,7 +746,11 @@ async def save_quant_settings(
     row.quant_buy_ratio = body.buy_ratio
     row.quant_sell_ratio = body.sell_ratio
     if body.execution_policy is not None:
-        row.quant_execution_policy = body.execution_policy.model_dump()
+        policy = body.execution_policy.model_dump()
+        if ("stop_kind" not in body.execution_policy.model_fields_set
+                and policy_for(row).size_kind == "risk_pct"):
+            policy["stop_kind"] = policy_for(row).stop_kind
+        row.quant_execution_policy = policy
     strategy_id = (body.strategy_id or "").strip().lower()
     if strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)

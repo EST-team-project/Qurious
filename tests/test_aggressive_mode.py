@@ -239,6 +239,13 @@ def run_cycle(broker_row, intraday, portfolio=(), *, start_equity=10_000_000.0, 
         enter = stack.enter_context
         # 계획/수량 알고리즘 시험. 실제 소유권·공통 관문은 test_execution_control에서 검증한다.
         enter(patch.object(auto_trade, "_execute_trade", permitted))
+        # 사이클 계획 시험. 영속 손절은 test_risk_stops의 실제 DB에서 검증한다.
+        async def fixed_stop(db, uid, row, mode, position):
+            policy = auto_trade.policy_for(row)
+            if policy.size_kind != "risk_pct":
+                return None
+            return {"stop_price": position.avg_price * (1 - policy.stop_loss_pct / 100), "origin": "transition"}
+        enter(patch.object(auto_trade.risk_stop_service, "for_position", fixed_stop))
         # 새 시세 입력까지 공급해야 계획/수량 단계를 검증한다.
         # 실제 조회·잠금 안 재검사는 test_order_pricing/test_execution_control에서 검증한다.
         enter(patch.object(auto_trade.order_preflight, "current_quote", current_quote))
@@ -379,7 +386,7 @@ def test_risk_stop_is_used_even_when_aggressive_stop_has_not_triggered():
     _, log, _ = run_cycle(broker(quant_execution_policy={"size_kind": "risk_pct", "stop_loss_pct": .5}), all_hold, [held])
     sells = [t for t in log["trades"] if t.get("type") == "auto" and t["action"] == "sell"]
     assert len(sells) == 1 and sells[0]["quantity"] == 7
-    assert "위험 수량 설정 손절" in sells[0]["reason"]
+    assert "고정 손절선" in sells[0]["reason"]
 
 
 def test_risk_sized_cycle_does_not_average_into_existing_holding():
