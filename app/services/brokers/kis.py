@@ -359,6 +359,35 @@ class KISClient(BrokerClient):
         return [out[key] for key in sorted(out)]
 
     # ── 체결 조회 ──────────────────────────────────────────────────────
+    async def cancel_order(self, account_no: str, order_no: str, organization: str, quantity: int) -> dict:
+        """모의 지정가 주문의 확인된 잔량 취소. 응답은 접수일 뿐 취소 확정이 아니다."""
+        if (not self.paper or not order_no.isdigit() or not organization.isdigit()
+                or type(quantity) is not int or quantity <= 0):
+            raise ValueError("모의 주문번호·주문조직번호·취소 가능 수량이 필요합니다.")
+        await self._ensure_token()
+        cano, product = self._split_account(account_no)
+        try:
+            async with httpx.AsyncClient(timeout=10) as cli:
+                response = await cli.post(self.base_url + "/uapi/domestic-stock/v1/trading/order-rvsecncl",
+                    headers=self._headers("VTTC0013U"), json={
+                        "CANO": cano, "ACNT_PRDT_CD": product,
+                        "KRX_FWDG_ORD_ORGNO": organization, "ORGN_ODNO": order_no,
+                        "ORD_DVSN": "00", "RVSE_CNCL_DVSN_CD": "02",
+                        "ORD_QTY": str(quantity), "ORD_UNPR": "0",
+                        "QTY_ALL_ORD_YN": "Y", "EXCG_ID_DVSN_CD": "KRX"})
+                response.raise_for_status()
+                body = response.json()
+                if not isinstance(body, dict) or "rt_cd" not in body:
+                    raise ValueError("취소 접수 응답 불명")
+        except (httpx.HTTPError, ValueError) as exc:
+            raise OrderSubmissionUnknown("취소 접수 여부를 확인해야 합니다. 재전송하지 않습니다.") from exc
+        self._check(body, "취소")
+        output = body.get("output") or {}
+        number = str(output.get("ODNO") or output.get("odno") or "")
+        if not number.isdigit():
+            raise OrderSubmissionUnknown("취소 주문번호를 확인하지 못했습니다.")
+        return {"status": "ACCEPTED", "cancel_order_no": number}
+
     # 주식일별주문체결조회는 **같은 URL 인데 TR ID 로 기간이 갈린다.**
     # 3개월 이내와 3개월 이전이 서로 다른 TR 이라, 한쪽만 알면 과거 체결을 못 본다.
     #   3개월 이내 : TTTC0081R (실전) · VTTC0081R (모의)
@@ -463,6 +492,8 @@ class KISClient(BrokerClient):
                 nxt = (r.headers.get("tr_cont") or "").strip().upper()
                 if nxt not in ("M", "F"):
                     break
+                if page == 19:
+                    raise ValueError("주문 내역을 끝까지 조회하지 못했습니다.")
                 params["CTX_AREA_FK100"] = (body.get("ctx_area_fk100") or "").strip()
                 params["CTX_AREA_NK100"] = (body.get("ctx_area_nk100") or "").strip()
                 tr_cont = "N"

@@ -151,7 +151,10 @@ async def send_retry(db, child_id):
 
 async def retry_cancelled_orders(limit=50):
     summary = {"submitted": 0, "skipped": 0, "errors": 0}
-    if not gateway.is_configured() or gateway.environment() != "paper":
+    if not gateway.is_configured():
+        from app.services.kis_order_recovery import retry_cancelled_orders as direct_retries
+        return await direct_retries(limit=min(limit, 3))
+    if gateway.environment() != "paper":
         return summary
     factory = get_session_factory()
     async with factory() as db:

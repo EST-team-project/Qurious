@@ -41,9 +41,25 @@ async def direct_status(order, broker_row) -> dict | None:
     f = candidates[0]
     if not 0 <= f.filled_quantity <= order.quantity or not math.isfinite(f.avg_fill_price) or (f.filled_quantity and f.avg_fill_price <= 0):
         raise RuntimeError("증권사 체결 수량·가격을 확인하지 못했습니다.")
-    state = "FILLED" if f.filled_quantity == order.quantity else "CANCELLED" if f.cancelled else "PARTIALLY_FILLED" if f.filled_quantity else "ACCEPTED"
+    def integer(name):
+        value = str((getattr(f, "raw", None) or {}).get(name, "")).strip()
+        return int(value) if value.isdigit() else None
+    remaining = integer("rmn_qty")
+    cancelled = integer("cnc_cfrm_qty")
+    # 부분 취소로 잔량이 남았으면 종료된 주문으로 분류하지 않는다.
+    is_cancelled = f.cancelled and remaining == 0
+    state = "FILLED" if f.filled_quantity == order.quantity else "CANCELLED" if is_cancelled else "PARTIALLY_FILLED" if f.filled_quantity else "ACCEPTED"
     return {"status": state, "filledQuantity": f.filled_quantity, "avgFilledPrice": f.avg_fill_price,
-            "account_key": meta["account_key"], "orderNo": order.order_no}
+            "account_key": meta["account_key"], "orderNo": order.order_no,
+            "orderedQuantity": f.order_quantity, "remainingQuantity": remaining,
+            "cancelledQuantity": cancelled, "cancelled": f.cancelled,
+            "quantityEvidenceComplete": (integer("ord_qty") == f.order_quantity
+                and integer("tot_ccld_qty") == f.filled_quantity and remaining is not None),
+            "side": order.side, "symbol": order.symbol,
+            "organization": meta.get("organization", ""),
+            "otherOpenOrders": sum(1 for item in fills if item.broker_order_id != f.broker_order_id
+                and item.order_date == date and item.filled_quantity < item.order_quantity
+                and not (item.cancelled and str((getattr(item, "raw", None) or {}).get("rmn_qty", "")) == "0"))}
 
 
 async def account_snapshot(broker_row, gateway, symbols: dict) -> dict:

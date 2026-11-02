@@ -251,7 +251,8 @@ def test_direct_fill_confirmation_uses_exact_order_and_account(monkeypatch, fill
     order = SimpleNamespace(order_no='000123', created_at=date, environment='paper', symbol='005930.KS', side='BUY', quantity=2,
                             raw=json.dumps({'account_key': kis_execution.account_key('key', '1234567801', 'paper')}))
     fill = SimpleNamespace(broker_order_id='123', order_date=date.astimezone(kis_execution.KST).strftime('%Y%m%d'), symbol='005930',
-                           side='buy', order_quantity=2, filled_quantity=filled, avg_fill_price=70000, cancelled=cancelled)
+                           side='buy', order_quantity=2, filled_quantity=filled, avg_fill_price=70000, cancelled=cancelled,
+                           raw={'rmn_qty': str(0 if cancelled else 2-filled)})
     client = SimpleNamespace(paper=True, get_daily_fills=AsyncMock(return_value=[fill]))
     creds = SimpleNamespace(app_key='key', account_no='1234567801')
     monkeypatch.setattr(kis_execution, 'client_for', lambda _: (client, creds))
