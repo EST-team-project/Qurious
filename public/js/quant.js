@@ -74,6 +74,8 @@ export function signalCardHtml(s, r, prevDay) {
   const asOf = r?.as_of || "";
   const late = !!(asOf && prevDay && asOf.slice(0, 10) < prevDay.slice(0, 10));      // 마지막 봉이 전 거래일보다 앞이면 최신이 아니다
   const cls = SIGNAL_COLORS[sig.action] || "border-white/10 bg-white/5";
+  const code = String(s.symbol || '').split('.')[0];
+  const hub = /^[0-9A-Z]{6}$/.test(code) ? `<button type="button" class="sd-open-btn text-xs" data-hub-open="${escHtml(code)}" data-hub-name="${escHtml(s.name || '')}">종목 근거 →</button>` : '';
   const basis = reasons.length
     ? `<details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-dim);">근거 ${reasons.length}개</summary>
         <ul class="text-xs pl-3 list-disc" style="color:var(--text-dim);">${reasons.map(t => `<li>${escHtml(t)}</li>`).join("")}</ul>
@@ -81,6 +83,7 @@ export function signalCardHtml(s, r, prevDay) {
     : `<div class="text-xs mt-1" style="color:var(--text-mute);">근거 없음</div>`;
   return `<div class="rounded-xl border p-2 ${cls}">
         <div class="font-semibold">${escHtml(s.name)}</div>
+        ${hub}
         <div class="text-slate-400 text-xs">${escHtml(s.symbol)}</div>
         <div class="mt-1 font-medium">${fmt(r?.current_price)} <span class="text-xs font-normal" style="color:var(--text-mute);">종가</span></div>
         ${asOf ? `<div class="text-xs" style="color:${late ? "var(--red)" : "var(--text-mute)"};">${escHtml(asOf.slice(5, 10))} 기준${late ? " · ⚠ 최신 아님" : ""}</div>` : ""}
@@ -96,7 +99,7 @@ async function loadSignalCards() {
   try {
     const { stocks } = await api("/api/stocks/quant/list");
     const title = document.getElementById("signal-cards-title");
-    if (title) title.textContent = `규칙 신호 (자동매매 대상 ${stocks.length}종목)`;        // 「대표 5종목」 이 아니라 실제로 그리는 수
+    if (title) title.textContent = `기본 일봉 규칙 신호 (관찰 목록 ${stocks.length}종목)`;
     const [results, st] = await Promise.all([
       Promise.allSettled(stocks.map(s => api(`/api/stocks/quant/indicators?symbol=${encodeURIComponent(s.symbol)}&period=2y`))),
       api("/api/data/status").catch(() => null),                                            // 전 거래일 — 못 받으면 경고만 못 낸다

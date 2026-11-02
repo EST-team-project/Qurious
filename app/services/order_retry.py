@@ -3,6 +3,7 @@
 부모당 자식 한 건을 DB에 먼저 기록하고 고정 멱등키로 전송한다.
 UNKNOWN/PENDING/취소 요청만 있는 주문은 새 주문으로 재시도하지 않는다.
 """
+import asyncio
 import json
 import math
 from datetime import datetime, timezone, timedelta
@@ -11,7 +12,7 @@ from sqlalchemy import select, func
 
 from app.models import BrokerSettings, LiveOrder, LIVE_ORDER_OPEN_STATUSES
 from app.database.postgres import get_session_factory
-from app.services import risk_guard, aggressive_mode
+from app.services import risk_guard, aggressive_mode, etf_execution
 from app.services.execution_policy import policy_for
 from app.services.brokers import stock_coin_trade_gateway as gateway
 
@@ -130,7 +131,8 @@ async def send_retry(db, child_id):
     await db.commit()
     await risk_guard.increment_orders_today(str(child.user_id))
     try:
-        result = await gateway.place_order(child.symbol, child.side, child.quantity, child.price,
+        instrument = await asyncio.to_thread(etf_execution.describe, child.symbol)
+        result = await gateway.place_order(child.symbol, child.side, child.quantity, child.price, is_etf=instrument["is_etf"],
                     client_order_id=child.client_order_id, order_type=child.order_type, env="paper")
     except gateway.GatewayError as exc:
         child.status = "UNKNOWN" if exc.code == "GATEWAY_UNREACHABLE" else "ERROR"

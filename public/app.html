@@ -555,7 +555,8 @@
               </div>
               <!-- 5개 종목 시그널 -->
               <div class="card">
-                <h3 id="signal-cards-title" class="font-semibold mb-1">규칙 신호 (자동매매 대상 종목)</h3>
+                <h3 id="signal-cards-title" class="font-semibold mb-1">기본 일봉 규칙 신호 (관찰 목록)</h3>
+                <p class="text-xs mb-2" style="color:var(--text-mute);">기본 관찰 목록입니다. 실제 자동매매 대상·판단은 선택 종목과 전략 설정에 따라 달라지며, 실행 당시 판단은 자동매매 현황에서 확인합니다.</p>
                 <p class="text-xs mb-3" style="color:var(--text-mute);">정한 규칙(RSI · 이동평균 · 볼린저)으로 계산한 정보이며 투자 권유가 아닙니다 — 「근거」 를 눌러 어떤 규칙에서 나왔는지 봅니다. 값은 마지막 종가 기준입니다.</p>
                 <div id="signal-cards" class="grid md:grid-cols-5 gap-2 text-xs"></div>
               </div>
@@ -580,7 +581,7 @@
             <div class="card">
               <div class="flex items-center justify-between mb-4">
                 <div>
-                  <h2 class="text-lg font-semibold">🤖 10분 자동매매 (Agentic AI)</h2>
+                  <h2 class="text-lg font-semibold">자동매매</h2>
                   <p class="text-xs text-slate-400 mt-1">설정한 주기와 대상 종목을 기준으로 신호를 계산합니다. 가상 장부와 증권사 주문의 체결 결과는 다를 수 있습니다.</p>
                 </div>
                 <div id="auto-trade-status" class="text-sm text-slate-400"></div>
@@ -591,8 +592,9 @@
                 <button id="auto-refresh" class="btn-secondary text-xs">로그 새로고침</button>
               </div>
               <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 mb-4 text-xs text-indigo-300">
-                전략: RSI 과매도/과매수 · 골든/데드크로스 · 볼린저밴드 → AI 종합 시그널 → 위험관리 게이트(중복 주문·비중·일 주문 수·일손실) → 자동 가상 주문
+                현재 선택한 전략(기본 일봉·공격 모드·사용자 전략)의 규칙 판단 → 위험 검사(중복 주문·비중·일 주문 수·일손실) → 설정한 계좌로 주문합니다. 전략·점수·기준 봉은 아래 각 회차의 기록을 확인하세요.
               </div>
+              <p class="text-xs mb-4" style="color:var(--text-mute);">ETF는 09:00~09:05·15:20~15:30에 LP 호가 의무가 면제됩니다. 시장가·다음 시가 체결은 순자산가치와 차이가 커질 수 있습니다. 기록의 종가/NAV 괴리율은 표시한 기준일의 일별 값이며 장중 iNAV가 아닙니다.</p>
               <div class="rounded-xl p-3 mb-4" style="background:var(--surf2);border:1px solid var(--border);">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <h3 class="text-sm font-semibold">🛡️ 위험관리 상태</h3>
@@ -1823,6 +1825,8 @@
                         max="100" step="0.5" class="input mt-1" placeholder="30" /></div>
                     <button id="rb-add" class="btn-primary text-xs">추가</button>
                     <button id="rb-import-allocation" class="btn-secondary text-xs">저장한 배분 가져오기</button>
+                    <label class="text-xs"><input id="rb-import-etfs" type="checkbox" /> 해외주식·채권·대체자산도 국내 상장 ETF 후보로 채우기</label>
+                    <p class="text-xs" style="color:var(--text-mute);">ETF는 09:00~09:05·15:20~15:30에 LP 호가 의무가 면제됩니다. 다음 거래일 시가 체결도 개장 직후에 해당하며, 체결가가 순자산가치와 다를 수 있습니다.</p>
                     <button id="rb-import-positions" class="btn-secondary text-xs" title="현재 보유 비중을 목표로 복사">보유 비중
                       불러오기</button>
                   </div>

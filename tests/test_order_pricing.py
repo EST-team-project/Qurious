@@ -16,16 +16,18 @@ pytestmark = [pytest.mark.skipif(not os.getenv('QURIOUS_TEST_DATABASE_URL'), rea
               pytest.mark.usefixtures('rebalance_db_schema')]
 
 
-@pytest.mark.parametrize('current,broker_cap,unknown', [(5000, 1000, False), (20000, 1000, False),
-                                                       (5000, 1, False), (5000, 1000, True)])
-def test_final_price_resizes_risk_quantity_and_persists_basis(runtime, monkeypatch, current, broker_cap, unknown):
+@pytest.mark.parametrize('current,broker_cap,unknown,is_etf', [(5000, 1000, False, False), (20000, 1000, False, False),
+    (5000, 1, False, False), (5000, 1000, True, False), (50001, 1000, False, True)])
+def test_final_price_resizes_risk_quantity_and_persists_basis(runtime, monkeypatch, current, broker_cap, unknown, is_etf):
+    monkeypatch.setattr(order_preflight.etf_execution, 'describe', lambda symbol: {'is_etf': is_etf, 'warnings': []})
+    order_price = order_preflight.gateway.align_price_to_tick(current, 'BUY', is_etf=True) if is_etf else current
     client = SimpleNamespace(paper=True, get_price=AsyncMock(return_value=SimpleNamespace(current=current)),
         get_buying_power=AsyncMock(return_value={'amount': 1000000, 'quantity': broker_cap}))
     monkeypatch.setattr(kis_execution, 'client_for', lambda row: (client, SimpleNamespace(account_no='test')))
     monkeypatch.setattr(order_preflight.gateway, 'is_configured', lambda: False)
     monkeypatch.setattr(kis_execution, 'account_snapshot', AsyncMock(return_value={'cash': 1000000, 'equity': 1000000, 'holdings': {}}))
     monkeypatch.setattr(live_ownership, 'reconcile', AsyncMock(return_value=([], {})))
-    monkeypatch.setattr(live_ownership, 'account_ref', lambda *args: 'a' * 64)
+    monkeypatch.setattr(live_ownership, 'account_ref', lambda row, *args: control.digest([str(row.user_id), 'pricing']))
     sent = []
     async def send(db, uid, row, mode, symbol, name, action, price, quantity, reason):
         sent.append((price, quantity))
@@ -41,17 +43,19 @@ def test_final_price_resizes_risk_quantity_and_persists_basis(runtime, monkeypat
             result = await auto_trade._execute_trade(db, uid, row, 'live', '005930.KS', '삼성전자', 'buy',
                 10000, 19, 'test', decision={'signal_key':'2026-10-28', 'input_hash':'test',
                 'signal_price':10000, 'signal_as_of':'2026-10-28', 'size_from_budget':True})
-            sizing = risk_quantity(equity=1000000, cash=1000000, price=current, stop_price=current*.95,
+            sizing = risk_quantity(equity=1000000, cash=1000000, price=order_price, stop_price=order_price*.95,
                 budget=1000000, existing_value=0, position_cap_pct=100, risk_pct=1, slippage_bps=10,
-                when=trading_cost.today_kst())
+                when=trading_cost.today_kst(), is_etf=is_etf)
             expected = min(sizing['quantity'], broker_cap)
             assert result['status'] == ('unknown' if unknown else 'submitted'), result
-            assert sent == [(current, expected)]
+            assert sent == [(order_price, expected)]
             saved = await db.get(OrderIntent, result['intent_id'])
             assert saved.result['price_basis'] == result['price_basis']
             assert saved.result['price_basis']['quote']['source'] == 'kis_user'
             assert saved.result['price_basis']['quote']['fetched_at']
-            assert saved.result['price_basis']['stop']['stop_price'] == current * .95
+            assert saved.result['price_basis']['quote']['price'] == current
+            assert saved.result['price_basis']['instrument']['is_etf'] == is_etf
+            assert saved.result['price_basis']['stop']['stop_price'] == order_price * .95
             assert saved.result['price_basis']['signal_price'] == 10000
             assert saved.result['price_basis']['sizing']['estimated_loss'] <= 10000
             assert saved.result['price_basis']['sizing']['estimated_cash'] == pytest.approx(
