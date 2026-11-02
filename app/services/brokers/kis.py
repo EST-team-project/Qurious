@@ -307,35 +307,56 @@ class KISClient(BrokerClient):
         return self._check(body, f"{side} 주문")
 
     async def get_daily_ohlcv(self, symbol: str, start: str, end: str) -> list[dict]:
-        """일봉 OHLCV. start/end: YYYYMMDD"""
+        """기간별 수정 일봉. 30봉 일자별 API는 start/end를 적용하지 않는다.
+
+        공식 계약: examples_llm/domestic_stock/inquire_daily_itemchartprice
+        FHKST03010100, output2, 0=수정주가, 한 번에 최대 100봉.
+        """
+        first = datetime.strptime(start, '%Y%m%d').date()
+        last = datetime.strptime(end, '%Y%m%d').date()
+        if first > last or (last - first).days > 3660:
+            raise ValueError('일봉 조회 기간은 시작일 이후 최대 10년까지 지원합니다.')
         await self._ensure_token()
         code = symbol.replace(".KS", "").replace(".KQ", "")
-        async with httpx.AsyncClient(timeout=10) as cli:
-            r = await cli.get(
-                f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-daily-price",
-                headers=self._headers("FHKST01010400"),
-                params={
-                    "FID_COND_MRKT_DIV_CODE": "J",
-                    "FID_INPUT_ISCD":          code,
-                    "FID_PERIOD_DIV_CODE":     "D",
-                    "FID_ORG_ADJ_PRC":         "0",
-                    "FID_INPUT_DATE_1":         start,
-                    "FID_INPUT_DATE_2":         end,
-                },
-            )
-            r.raise_for_status()
-            data = self._check(r.json(), "일봉 조회")
-        out = []
-        for row in data.get("output", []):
-            out.append({
-                "date":   row.get("stck_bsop_date", ""),
-                "open":   float(row.get("stck_oprc", 0)),
-                "high":   float(row.get("stck_hgpr", 0)),
-                "low":    float(row.get("stck_lwpr", 0)),
-                "close":  float(row.get("stck_clpr", 0)),
-                "volume": int(row.get("acml_vol", 0)),
-            })
-        return out
+        out = {}
+        cursor = last
+        async with httpx.AsyncClient(timeout=15) as cli:
+            while cursor >= first:
+                r = await cli.get(
+                    f'{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice',
+                    headers=self._headers('FHKST03010100'),
+                    params={'FID_COND_MRKT_DIV_CODE':'J', 'FID_INPUT_ISCD':code,
+                            'FID_PERIOD_DIV_CODE':'D', 'FID_ORG_ADJ_PRC':'0',
+                            'FID_INPUT_DATE_1':start, 'FID_INPUT_DATE_2':cursor.strftime('%Y%m%d')})
+                r.raise_for_status()
+                data = self._check(r.json(), '기간 일봉 조회')
+                rows = data.get('output2')
+                if not isinstance(rows, list):
+                    raise ValueError('KIS 기간 일봉 응답을 확인하지 못했습니다.')
+                if not rows:
+                    break
+                dates = []
+                for row in rows:
+                    day = datetime.strptime(row['stck_bsop_date'], '%Y%m%d').date()
+                    if day > cursor:
+                        raise ValueError('조회 종료일 이후의 일봉입니다.')
+                    dates.append(day)
+                    if day < first:
+                        continue
+                    bar = dict(date=day.strftime('%Y%m%d'), open=float(row['stck_oprc']),
+                        high=float(row['stck_hgpr']), low=float(row['stck_lwpr']),
+                        close=float(row['stck_clpr']), volume=int(row['acml_vol']))
+                    if (any(not math.isfinite(bar[k]) or bar[k] <= 0 for k in ('open','high','low','close'))
+                            or bar['volume'] < 0 or not bar['low'] <= min(bar['open'],bar['close']) <= max(bar['open'],bar['close']) <= bar['high']):
+                        raise ValueError('KIS 일봉 가격·거래량이 유효하지 않습니다.')
+                    if bar['date'] in out and out[bar['date']] != bar:
+                        raise ValueError('같은 날짜의 KIS 일봉이 다릅니다.')
+                    out[bar['date']] = bar
+                cursor = min(dates) - timedelta(days=1)
+                if len(rows) < 100 or cursor < first:
+                    break
+                await asyncio.sleep(1.1)
+        return [out[key] for key in sorted(out)]
 
     # ── 체결 조회 ──────────────────────────────────────────────────────
     # 주식일별주문체결조회는 **같은 URL 인데 TR ID 로 기간이 갈린다.**

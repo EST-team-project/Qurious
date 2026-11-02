@@ -835,6 +835,8 @@ async def _log_dispatch(
                 subject=subject,
                 message=message[:500],
                 channels=_channel_rows(channel_names, results, attempts),
+                delivery_status=_status_for(channel_names, results),
+                kind=payload.get("kind") if isinstance(payload, dict) else None,
                 payload=payload,
             ))
             await db.commit()
