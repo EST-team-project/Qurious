@@ -120,3 +120,54 @@ def test_tally_keeps_working_for_the_app_task(temp_db, monkeypatch):
     t = backfill.run(*DAYS, quiet=True)
     assert all(isinstance(t[k], int) for k in ("done", "empty", "error", "rows", "skipped"))
     assert isinstance(t["stopped"], str)
+
+
+def retry_fetch(monkeypatch, plan):
+    """호출마다 차례로 결과(문자열 · 메시지 포함 `error:HTTP 504`)를 낸다 — 같은 날을 다시 부르면 다음 항목이 나온다."""
+    it = iter(plan)
+    calls = []
+
+    def fetch(conn, limiter, bas_dt, *, session=None):
+        what = next(it)
+        calls.append(bas_dt)
+        status, _, msg = what.partition(":")
+        return portal.DayResult(bas_dt, status, 3 if status == "done" else 0, message=msg)
+
+    monkeypatch.setattr(portal, "fetch_day", fetch)
+    return calls
+
+
+def test_transient_failure_is_retried_in_the_same_run_and_then_succeeds(temp_db, monkeypatch, capsys):
+    """TC-BF-07 · 포털 5xx(2026-11-02 12:31 HTTP 504)는 같은 회차 안에서 기다렸다 다시 — 풀리면 그날은 받은 날이고 종료코드는 0."""
+    calls = retry_fetch(monkeypatch, ["done", "error:HTTP 504", "error:HTTP 504", "done", "done", "done", "empty"])
+    slept = []
+    t = backfill.run(*DAYS, quiet=True, retry_waits=(20, 60, 120, 300), sleep=slept.append)
+    assert slept == [20, 60]                                              # 두 번 기다렸다 셋째에 성공
+    assert calls.count("20261006") == 3 and (t["done"], t["error"], t["empty"]) == (4, 0, 1)
+    assert backfill.exit_code(t) == 0
+    out = capsys.readouterr().out
+    assert "20261006 HTTP 504 — 20초 기다렸다 다시 시도(남은 기회 3)" in out and "다 받지 못했다" not in out
+
+
+def test_retry_budget_is_shared_and_failure_line_names_the_cause(temp_db, monkeypatch, capsys):
+    """TC-BF-08 · 기다림은 회차 전체가 나눠 쓴다 — 앞 날이 다 쓰면 뒤 날은 기다리지 않고 포기하고, 마지막 줄에 까닭(HTTP 504)이 적힌다(알림이 통신 실패와 빈 응답을 가른다)."""
+    plan = ["error:HTTP 504"] * 3 + ["error:HTTP 504"] * 1 + ["done"]            # 첫날 기회 둘을 다 쓰고 포기 · 둘째 날은 기다림 없이 한 번 · 나머지는 받음
+    calls = retry_fetch(monkeypatch, plan)
+    slept = []
+    t = backfill.run(date(2026, 10, 5), date(2026, 10, 7), quiet=True, retry_waits=(20, 60), sleep=slept.append)
+    assert slept == [20, 60] and calls == ["20261005", "20261005", "20261005", "20261006", "20261007"]
+    assert (t["done"], t["error"]) == (1, 2) and backfill.exit_code(t) == 69
+    last = capsys.readouterr().out.strip().splitlines()[-1]
+    assert last.startswith("🟡 다 받지 못했다") and "실패 2일(HTTP 504 2일)" in last
+
+
+def test_non_transient_errors_and_default_runs_are_not_retried(temp_db, monkeypatch):
+    """TC-BF-09 · 해석 실패 같은 실패는 기다려도 안 풀리니 다시 부르지 않고, 기다림을 주지 않은 호출(백필 · 기본값)은 예전처럼 한 번만 요청한다."""
+    calls = retry_fetch(monkeypatch, ["error:포털이 정상 응답이 아니다: resultCode='30'", "done"])
+    slept = []
+    t = backfill.run(date(2026, 10, 5), date(2026, 10, 6), quiet=True, retry_waits=(20, 60), sleep=slept.append)
+    assert slept == [] and calls == ["20261005", "20261006"] and t["error"] == 1
+    calls2 = retry_fetch(monkeypatch, ["error:HTTP 504", "done"])
+    t2 = backfill.run(date(2026, 10, 5), date(2026, 10, 6), quiet=True)          # retry_waits 기본값 = 기다림 없음
+    assert calls2 == ["20261005", "20261006"] and t2["error"] == 1
+    assert backfill.RETRY_WAITS == (20, 60, 120, 300) and sum(backfill.RETRY_WAITS) < 30 * 60   # 러너의 시세 단계 시간 한도(30분) 안
