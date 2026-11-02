@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sqlite3
 import sys
 import time
 from collections import Counter
@@ -33,45 +32,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.services import collector_db  # noqa: E402
 from app.services import mtf_signals as ms  # noqa: E402
+from app.services.signal_targets import targets  # noqa: E402  (대상 목록은 앱과 같은 규칙 — 2026-11-02 #487 로 app/services 로 옮김)
 from scripts import signals_daily as sd  # noqa: E402
 
-MARKETS = ("KOSPI", "KOSDAQ")          # KONEX 는 뺀다(거래가 적어 순위 비교가 의미 없다)
 KEEP_DAYS = 120                        # 분봉 유니버스 밖 종목의 보존 거래일 수
 MAX_DAYS = 5                           # 한 번에 받는 기간 — 3,500종목 × 여러 날이 제한 시간을 넘기지 않게
-
-
-def _connect(path: Path | None) -> sqlite3.Connection:
-    p = path or collector_db.db_path()
-    if p is None:
-        raise FileNotFoundError("수집 DB 를 찾지 못했다(data/collector/market.sqlite3)")
-    return sqlite3.connect(f"{Path(p).resolve().as_uri()}?mode=ro", uri=True)
-
-
-def targets(days: list[str], *, path: Path | None = None) -> list[str]:
-    """`days` 가운데 하루라도 시세가 있는 KOSPI · KOSDAQ 종목과 ETF 에서 분봉 유니버스를 뺀 코드 — 주식 먼저, 코드 차례."""
-    ymds = [d.replace("-", "") for d in days]
-    conn = _connect(path)
-    try:
-        day_marks = ",".join("?" * len(ymds))
-        mk_marks = ",".join("?" * len(MARKETS))
-        stocks = [r[0] for r in conn.execute(
-            f"SELECT DISTINCT srtn_cd FROM price_daily WHERE bas_dt IN ({day_marks}) AND clpr > 0 "
-            f"AND mrkt_ctg IN ({mk_marks}) ORDER BY srtn_cd", (*ymds, *MARKETS))]
-        has_etf = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='etf_daily'").fetchone()
-        etfs = [r[0] for r in conn.execute(
-            f"SELECT DISTINCT srtn_cd FROM etf_daily WHERE bas_dt IN ({day_marks}) AND clpr > 0 ORDER BY srtn_cd",
-            tuple(ymds))] if has_etf else []
-    finally:
-        conn.close()
-    inside = set(ms.universe(path=path))
-    out, seen = [], set()
-    for code in stocks + etfs:                       # 같은 코드가 둘이면 주식을 먼저 본다
-        if code not in inside and code not in seen:
-            seen.add(code)
-            out.append(code)
-    return out
 
 
 def without_intraday(records: list[dict]) -> int:

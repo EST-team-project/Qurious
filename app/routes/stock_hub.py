@@ -57,7 +57,8 @@ async def signal_rank(
         if not codes or len(codes) > stock_hub.SIGNAL_RANK_SYMBOLS_MAX:
             raise HTTPException(status_code=422, detail={"code": "bad_symbols",
                                                          "message": f"종목 코드는 1 ~ {stock_hub.SIGNAL_RANK_SYMBOLS_MAX}개를 쉼표로 적어 주세요."})
-    return await stock_hub.signal_rank(db, on, codes, limit, components)
+    out = await stock_hub.signal_rank(db, on, codes, limit, components)
+    return stock_hub.attach_names(out)         # 줄마다 종목 이름 — 순위 화면이 코드만 보이지 않게(새 칸 `rows[].name`)
 
 
 @router.get("/mentions", summary="질문 속 종목 — 이름이 그대로 든 종목(최대 둘)")

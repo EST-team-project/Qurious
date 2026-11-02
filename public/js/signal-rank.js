@@ -79,7 +79,8 @@ export function quoteBadge(quote) {
 
 /** 순위 줄 하나의 표시 값 — name 은 응답에 없어(설계서 5절 요청 중) 부르는 쪽이 nameOf 로 넘길 때만 쓴다. */
 export function rowView(row, nameOf) {
-  const name = typeof nameOf === "function" ? nameOf(row.symbol) : null;
+  // 이름: 화면이 넘긴 nameOf 가 먼저, 없으면 서버가 줄에 붙인 name(순위 화면 · 2026-11-02) — 둘 다 없으면 코드만 보인다
+  const name = (typeof nameOf === "function" ? nameOf(row.symbol) : null) || (typeof row.name === "string" ? row.name : null);
   const counts = countsView(row);
   return {
     rank: row.rank,
@@ -249,9 +250,12 @@ export function mountSignalRank(host, { api, esc, nameOf } = {}) {
       ex.value.as_of, close.status === "rejected" ? drawerFailText(close.reason) : "");
     const name = (typeof nameOf === "function" && nameOf(symbol)) || (hubValue && hubValue.name) || "";
     const news = hubValue && hubValue.sections ? hubValue.sections.news : null;     // 허브를 못 받았으면 null → 「뉴스를 받지 못했습니다」
-    side().innerHTML = renderDrawer(ex.value, prices, esc, { name, news, counts: rowView(row, nameOf).countsText });
+    side().innerHTML = `<button type="button" class="btn-secondary text-xs" data-sr-close aria-label="서랍 닫기">닫기 ✕</button>`
+      + renderDrawer(ex.value, prices, esc, { name, news, counts: rowView(row, nameOf).countsText });
+    side().scrollTop = 0;                                  // 다른 종목을 누르면 서랍은 늘 맨 위부터
   }
   host.addEventListener("click", e => {
+    if (e.target.closest?.("[data-sr-close]")) { selected = ""; paint(); return; }     // 서랍 닫기 — 표만 다시 그린다
     if (e.target.closest?.('[data-hub-open], [data-paper-open]')) return;
     const tr = e.target.closest && e.target.closest("[data-sr-symbol]");
     if (!tr) return;
