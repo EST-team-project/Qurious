@@ -20,8 +20,9 @@ _PROBE_URL = "https://query2.finance.yahoo.com/v8/finance/chart/AAPL?range=1d&in
 
 
 #: 정리해도 되는 **외부 시세 캐시** — 다시 받을 수 있고, 읽는 쪽이 허용하는 나이가 모두 24시간 이하(6 · 3 · 2 · 24시간)인 것만 둔다(할 일 ①-29).
-#: 이 표(`data_cache`)에는 상태 · 결과도 함께 들어 있어서(자동매매 사이클 로그 `quant:cycle_log:*` · 대사 기준선 `quant:reconcile:*` ·
-#: 모델 비교 작업 결과 · AI 예측 `ai_predict:*`) **허용 목록에 없는 키는 절대 지우지 않는다.**
+#: 이 표(`data_cache`)에는 상태 · 결과도 함께 들어 있어서(자동매매 사이클 로그 `quant:cycle_log:*` · 대사 기준선 `quant:reconcile:*` · 모델 비교 작업 결과 `model_compare:*` ·
+#: AI 예측 `ai_predict:*`) **허용 목록에 없는 키는 절대 지우지 않는다.** 앱 DB 백업이 따로 내보내는 상태 키 접두사(`quant:` · `model_compare:` — scripts/personal/_appdb-state.ps1)와
+#: 이 목록은 겹치면 안 된다(tests/test_data_cache_prune.py TC-DCP-08).
 EXTERNAL_KEY_PREFIXES = ("candles:", "indicators:", "fundamentals:")
 EXTERNAL_KEYS = ("market_indices", "macro_indicators", "sector_etfs", "us_stocks", "krx_company_list")
 #: 이보다 오래된 줄만 지운다. 읽는 쪽 최대 나이(24시간)보다 훨씬 길게 잡아 한 번 늦게 돌아도 읽을 줄을 안 지운다.

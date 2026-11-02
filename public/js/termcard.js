@@ -9,6 +9,10 @@
  * 어느 모양이든 화면보다 커지지 않는다 — 너비 · 높이를 창 크기에 맞춰 줄이고 안에서 스크롤한다
  * (2026-10-02 피드백: 작은 창이 화면을 자르거나 가득 채워 안 보이던 문제를 이 카드에서는 되풀이하지 않는다).
  *
+ * 키보드 포커스 — 카드를 열 때 닫기 단추로 옮기고, 닫으면(닫기 단추 · Esc · 바깥 클릭) 열기 직전에 포커스가 있던 요소로 돌려준다.
+ * 열린 채 다른 용어로 바꿔도(칩 · 연관 개념 · ← 이전 용어) 처음 연 요소를 지킨다. 그 요소가 없어졌거나 안 보이면, 카드를 연 채
+ * 다른 입력칸으로 포커스를 옮겼으면, 용어사전으로 넘어가는 길이면 돌려주지 않는다(오류도 내지 않는다).
+ *
  * 내용 — 용어사전 API(GET /api/glossary/{이름}). 화면 키(sharpe) · 약어 · 다른 이름 어느 것으로도 찾는다.
  * 용어사전에 없거나 불러오지 못하면, 부른 쪽이 넘긴 짧은 설명(fallback · 예전 설명창의 글)을 보여 준다
  * — 칩을 눌렀는데 아무것도 안 뜨는 일이 없게(화면 경우 표 11 · 12).
@@ -43,6 +47,7 @@ let root = null;
 let current = null;             // { key, opts }
 let stack = [];
 let seq = 0;                    // 늦게 온 응답이 새 용어를 덮지 않게
+let opener = null;              // 카드를 열기 직전에 키보드 포커스가 있던 요소 — 닫으면 여기로 돌려준다
 
 // ── 카드 HTML ───────────────────────────────────────────────────────
 function box(label, text, extra = "") {
@@ -130,7 +135,7 @@ export function takePendingTerm() {
   try { const v = sessionStorage.getItem(PENDING_KEY); sessionStorage.removeItem(PENDING_KEY); return v; } catch { return null; }
 }
 function goToGlossary(id) {
-  closeTerm();
+  hideCard(false);              // 화면을 옮기는 길 — 포커스를 열던 자리로 돌리지 않는다(곧 사라질 화면)
   if (window.QGlossary && document.querySelector('.view.active[data-view="fin-glossary"]')) {
     window.QGlossary.openTerm(id);
     return;
@@ -236,14 +241,52 @@ export async function fillTermCard(el, key, { label = "", fallback = null, onTer
 /** 용어 풀이를 연다. key = 화면 키 · 대표 이름 · 약어 · 다른 이름. opts.fallback = { title, body } */
 export function openTerm(key, opts = {}) {
   if (!key) return;
+  // 카드가 닫혀 있던 때만 기억한다 — 열린 채 다른 용어로 바꾸거나(칩 · 연관 개념 · 본문 단추) ← 이전 용어 · 다시 시도를 눌러도 처음 연 요소를 지킨다.
+  if (!root || root.hidden) rememberOpener();
   return show(String(key), opts, true);
 }
 
-export function closeTerm() {
+/** 열기 직전에 포커스가 있던 요소를 기억한다. 포커스가 없었거나(body) 카드 안 요소면 기억하지 않는다. 어떤 경우에도 오류를 내지 않는다. */
+function rememberOpener() {
+  opener = null;
+  try {
+    const el = document.activeElement;
+    if (!el || el === document.body || el === document.documentElement) return;
+    if (root && root.contains(el)) return;
+    opener = el;
+  } catch { /* 포커스를 읽지 못해도 카드는 연다 */ }
+}
+
+/** 기억해 둔 요소가 아직 문서에 있고 보이면 포커스를 돌려준다(스크롤은 그대로). 없거나 안 보이면 아무것도 하지 않는다. */
+function restoreOpener(el) {
+  try {
+    if (!el || !el.isConnected || typeof el.focus !== "function") return;
+    if (el.getClientRects().length === 0) return;      // 숨겨진 화면 안(display:none)이면 포커스가 가지 않는다
+    el.focus({ preventScroll: true });
+  } catch { /* 돌려주지 못해도 닫기는 이미 끝났다 */ }
+}
+
+/** 카드를 숨긴다. restoreFocus 가 참이면 열기 직전의 요소로 포커스를 돌려준다. */
+function hideCard(restoreFocus) {
   if (!root) return;
+  const wasOpen = !root.hidden;
+  const back = opener;
+  // 포커스가 카드 안에 있거나 이미 잃은 상태(body)일 때만 돌려준다 — 서랍을 연 채 뒤 화면의 입력칸으로 옮겨 쓰던 포커스는 뺏지 않는다.
+  let lost = true;
+  try {
+    const active = document.activeElement;
+    lost = !active || active === document.body || active === document.documentElement || root.contains(active);
+  } catch { /* 읽지 못하면 돌려주는 쪽으로 */ }
   root.hidden = true;
   current = null;
   stack = [];
+  opener = null;
+  seq++;                        // 아직 오는 중인 응답이 닫힌 카드를 다시 그리거나 닫기 단추로 포커스를 가져가지 못하게
+  if (restoreFocus && wasOpen && lost) restoreOpener(back);
+}
+
+export function closeTerm() {
+  hideCard(true);
 }
 
 // 강사님 기초 코드의 설명창(core.js openTermModal)이 이 카드를 쓰게 — 전역으로 연다.

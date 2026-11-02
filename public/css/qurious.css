@@ -115,6 +115,85 @@
   .q-gl-row-cat { grid-row: auto; grid-column: 1; }
 }
 
+/* ── 용어 관계 지도 (js/glossary.js · 2026-11-02 할 일 ①-23 A) ──────────────────────────────────────────────
+ * 색만으로 구분하지 않는다 — 종류마다 [글자 이름] + [기호] + [테두리 모양]이 다르다.
+ *   헷갈리기 쉬운 말   ≠  점선 · 네모          (--brand)
+ *   함께 알면 좋은 말  ↔  실선 · 둥근 모양      (--accent)
+ *   더 넓은 말(상위)   ▲  위쪽 굵은 선          (--text-dim)
+ *   더 좁은 말(하위)   ▼  아래쪽 굵은 선        (--text-dim)
+ * 색은 앱의 변수만 쓴다(하드코딩 없음 — 테마가 바뀌어도 따라간다). 빨강 · 초록은 이 앱에서 손익 · 매수/매도 색이라 쓰지 않는다.
+ * 가운데 용어 둘레에 두는 모양은 「이 구역의 너비」 가 720px 이상일 때만(@container) — 화면 너비가 아니라 구역 너비를 본다.
+ * 왼쪽 메뉴(240px 이상)와 카드 안쪽 여백을 빼고 나면 화면이 1000px 쯤이어도 구역은 700px 안팎이라, 화면 너비로 가르면 좁은 열이 생긴다.
+ * 그보다 좁으면(휴대폰 390px 포함) 가로 스크롤 없이 종류별 목록으로 쌓는다. 컨테이너 쿼리를 모르는 낡은 브라우저도 목록이 된다. */
+.q-gm { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); container-type: inline-size; }
+.q-gm-h { font-size: 15px; font-weight: 800; margin: 0 0 4px; color: var(--text); }
+.q-gm-lead { font-size: 13px; color: var(--text-mute); margin: 0 0 12px; line-height: 1.6; }
+.q-gm-loading, .q-gm-note { font-size: 13px; color: var(--text-mute); margin: 8px 0; }
+.q-gm-map { display: flex; flex-direction: column; gap: 14px; }
+.q-gm-hub { align-self: flex-start; display: flex; flex-direction: column; gap: 2px; max-width: 100%; padding: 10px 16px;
+  border-radius: 12px; background: var(--text); color: var(--surf); }
+.q-gm-hub-label { font-size: 11.5px; font-weight: 600; opacity: .85; }
+.q-gm-hub strong { font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+.q-gm-zone, .q-gm-node { --gm-c: var(--text-dim); }
+.q-gm-zone--confused, .q-gm-node--confused { --gm-c: var(--brand); --gm-t: var(--brand-text); }   /* 기호 글자는 어두운 주황(대비 5:1) · 테두리는 --brand */
+.q-gm-zone--related, .q-gm-node--related { --gm-c: var(--accent); }
+.q-gm-zone { min-width: 0; }
+.q-gm-zone-h { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--text); }
+.q-gm-glyph { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px;
+  border: 1.5px solid var(--gm-c); border-radius: 6px; color: var(--gm-t, var(--gm-c)); font-size: 12px; font-weight: 800; line-height: 1; }
+.q-gm-leaves, .q-gm-via-list { display: flex; flex-direction: column; gap: 8px; }
+.q-gm-node { display: flex; align-items: flex-start; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; text-align: left;
+  cursor: pointer; font: inherit; color: var(--text); background: var(--surf); border: 2px solid var(--gm-c); border-radius: 10px; }
+.q-gm-node:hover { background: var(--surf2); }
+.q-gm-node:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.q-gm-node--confused { border-style: dashed; border-radius: 4px; }
+.q-gm-node--related { border-style: solid; border-radius: 18px; }
+.q-gm-node--broader { border-top-width: 6px; }
+.q-gm-node--narrower { border-bottom-width: 6px; }
+.q-gm-node-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.q-gm-kind { font-size: 11.5px; font-weight: 700; color: var(--text-mute); }
+.q-gm-term { font-size: 15px; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.q-gm-line { font-size: 12.5px; line-height: 1.55; color: var(--text-dim); overflow-wrap: anywhere; }
+.q-gm-empty { padding: 16px; text-align: center; background: var(--surf2); border: 1px dashed var(--border2); border-radius: 12px; color: var(--text-dim); }
+.q-gm-empty strong { display: block; font-size: 14.5px; color: var(--text); }
+.q-gm-empty p { margin: 6px 0 10px; font-size: 13px; line-height: 1.6; }
+.q-gm-more-wrap { margin-top: 14px; }
+.q-gm-more { margin-top: 10px; padding: 12px; background: var(--surf2); border: 1px solid var(--border); border-radius: 12px; }
+.q-gm-more[hidden] { display: none; }
+.q-gm-via { margin-top: 12px; }
+.q-gm-via-h { margin: 0 0 6px; font-size: 12.5px; font-weight: 700; color: var(--text-dim); }
+@container (min-width: 720px) {
+  /* 가운데 용어를 두고 왼쪽 = 헷갈리기 쉬운 말 · 오른쪽 = 함께 알면 좋은 말 · 위 = 상위 · 아래 = 하위. 이음선은 CSS 로만 그린다(노드가 몇 개든 따라간다). */
+  .q-gm-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 230px) minmax(0, 1fr); align-items: center; gap: 0; }
+  .q-gm-hub { grid-row: 2; grid-column: 2; align-self: center; align-items: center; text-align: center; }
+  .q-gm-zone--confused { grid-row: 2; grid-column: 1; }
+  .q-gm-zone--related { grid-row: 2; grid-column: 3; }
+  .q-gm-zone--broader, .q-gm-zone--narrower { grid-column: 1 / -1; justify-self: center; max-width: 100%; position: relative; }
+  .q-gm-zone--broader { grid-row: 1; padding-bottom: 22px; }
+  .q-gm-zone--narrower { grid-row: 3; padding-top: 22px; }
+  .q-gm-zone--broader .q-gm-zone-h, .q-gm-zone--narrower .q-gm-zone-h { justify-content: center; }
+  .q-gm-zone--broader .q-gm-leaves, .q-gm-zone--narrower .q-gm-leaves { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .q-gm-zone--broader .q-gm-leaf, .q-gm-zone--narrower .q-gm-leaf { flex: 0 1 250px; min-width: 0; }
+  .q-gm-zone--broader::after, .q-gm-zone--narrower::before { content: ""; position: absolute; left: 50%; height: 22px; border-left: 2px solid var(--gm-c); }
+  .q-gm-zone--broader::after { bottom: 0; }
+  .q-gm-zone--narrower::before { top: 0; }
+  /* 왼쪽 · 오른쪽 이음선 — 노드마다 짧은 가로선 + 세로 줄기(첫 · 마지막 노드는 반만) */
+  .q-gm-zone--confused .q-gm-leaves, .q-gm-zone--related .q-gm-leaves { gap: 0; }
+  .q-gm-zone--confused .q-gm-leaf, .q-gm-zone--related .q-gm-leaf { position: relative; padding-top: 5px; padding-bottom: 5px; }
+  .q-gm-zone--confused .q-gm-leaf { padding-right: 30px; }
+  .q-gm-zone--related .q-gm-leaf { padding-left: 30px; }
+  .q-gm-zone--confused .q-gm-leaf::before, .q-gm-zone--related .q-gm-leaf::before { content: ""; position: absolute; top: 50%; width: 30px; border-top: 2px solid var(--gm-c); }
+  .q-gm-zone--confused .q-gm-leaf::before { right: 0; border-top-style: dashed; }
+  .q-gm-zone--related .q-gm-leaf::before { left: 0; }
+  .q-gm-zone--confused .q-gm-leaf::after, .q-gm-zone--related .q-gm-leaf::after { content: ""; position: absolute; top: 0; bottom: 0; }
+  .q-gm-zone--confused .q-gm-leaf::after { right: 0; border-right: 2px dashed var(--gm-c); }
+  .q-gm-zone--related .q-gm-leaf::after { left: 0; border-left: 2px solid var(--gm-c); }
+  .q-gm-zone--confused .q-gm-leaf:first-child::after, .q-gm-zone--related .q-gm-leaf:first-child::after { top: 50%; }
+  .q-gm-zone--confused .q-gm-leaf:last-child::after, .q-gm-zone--related .q-gm-leaf:last-child::after { bottom: 50%; }
+  .q-gm-zone--confused .q-gm-leaf:only-child::after, .q-gm-zone--related .q-gm-leaf:only-child::after { display: none; }
+}
+/* ── 용어 관계 지도 끝 ── */
+
 /* ── AI 투자 상담 · 근거 답 — 답 아래 출처 카드 (js/kbchat.js · 2026-10-04 화면 설계 안 A) ───────────────────
  * 말풍선은 강사님 채팅 말풍선(agent.js)과 같은 모양 · 출처 카드는 답에 쓴 근거(파란 왼쪽 줄 · 펼침)와
  * 함께 찾은 근거(회색 줄 · 한 줄)를 나눈다. 일반 AI 로 넘어간 답은 노란 테두리와 「출처 없음」 꼬리표. */
@@ -330,3 +409,19 @@ button.lnb-item, a.lnb-item { width: 100%; background: none; font-family: inheri
   .mp-shell[data-mp-pane="body"] .mp-back { display: inline-block; }
   .mp-nav-item { padding: 13px 14px; font-size: 14.5px; }   /* 손가락 누름 크기 */
 }
+
+/* ── 교재 용어 밑줄 (할 일 ①-23 B · 2026-11-02 · js/termunderline.js) ───────────────────────
+ * 개념 학습 장 본문 속 용어사전 낱말을 감싼 단추(<button class="q-term-ul">). 글 모양은 그대로 두고 점선 밑줄만 더한다.
+ * 색만으로 구분하지 않는다 — 점선 밑줄(모양) + 마우스를 올리면 실선 · 배경 + 키보드 초점은 윤곽선.
+ * 색은 앱 변수(var(--…))만 쓴다 — 하드코딩 색 없음(시험 TC-TUL-07). */
+button.q-term-ul { display: inline; margin: 0; padding: 0 1px; border: 0; border-radius: 3px; background: transparent;
+  color: inherit; font: inherit; letter-spacing: inherit; line-height: inherit; text-align: inherit; cursor: pointer;
+  text-decoration: underline dotted var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+button.q-term-ul:hover { background: var(--accent-glow); text-decoration-style: solid; }
+button.q-term-ul:focus-visible { background: var(--accent-glow); text-decoration-style: solid; outline: 2px solid var(--accent); outline-offset: 2px; }
+.q-term-ul-toggle { display: flex; align-items: center; gap: 6px; min-height: 28px; margin: 0 0 10px; font-size: 12.5px; line-height: 1.4;
+  color: var(--text-dim); cursor: pointer; }
+.q-term-ul-toggle input { flex: none; width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.q-term-ul-toggle:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 768px) { .q-term-ul-toggle { min-height: 36px; font-size: 13.5px; } }
+/* ── 교재 용어 밑줄 끝 ── */

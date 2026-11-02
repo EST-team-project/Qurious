@@ -32,6 +32,8 @@
   (2026-10-23) 묶음에 번역 적재 · 검색(TC-TR) · Qdrant 문지기 계약(TC-VD)이 더해져 다섯이다. 돌기 전에 「이 이미지가 지금
   잠금(requirements.lock)으로 만든 것인가」 를 본다 — 아니면 실패가 아니라 건너뜀 + 까닭(docker compose build app 뒤 다시).
 
+  임시 DB 행동 시험(tests\test_data_cache_prune.py TC-DCP-15~17 · 약 50초)은 기본으로 건너뛴다 — 돌리려면 먼저 $env:QURIOUS_TEST_DOCKER_DB = '1' (fin-ai-postgres 가 켜져 있어야 함).
+
   카나리아 줄(2026-10-23 · -Canary) — 같은 컨테이너 묶음을, 지켜볼 패키지(qdrant-client · langchain-qdrant · langchain-core ·
   langchain-ollama · langgraph)만 최신으로 올린 일회용 컨테이너에서 돈다. 잠금 판 시험과 따로 돌고 결과는 run.json 의
   canary 칸(올라간 판 · 통과 · 실패)에만 남긴다. 실패해도 종료 코드는 0 — 「다음 판에서 깨진다」 를 미리 알리는 신호다.

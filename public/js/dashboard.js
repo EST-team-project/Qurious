@@ -7,7 +7,10 @@ import { GNB_MENUS } from '/js/core.js';
 import { executionModeView, kisEnvironmentLabel } from '/js/execution-mode.js';
 
 let loading = false;
-const metric = (label, value, note = '') => `<div class="overview-metric"><span>${escHtml(label)}</span><strong>${escHtml(value)}</strong><small>${escHtml(note)}</small></div>`;
+// 가상 매매 주의문 — public/app.html 의 paper-dashboard · robo-decision `data-paper-notice` 와 같은 글이다.
+// 바꿀 때는 세 곳을 같이 고친다(tests/test_s14_s17_copy.py 가 일치를 지킨다). 따옴표(')는 넣지 않는다.
+const PAPER_NOTICE = '가상 매매 기준 · 실제 돈이 오가지 않는 참고용 결과이며 투자 권유가 아닙니다. 관리자가 시연용으로 만드는 데모 데이터는 임의로 만든 샘플이며 모의투자 결과가 아닙니다.';
+const metric =(label, value, note = '') => `<div class="overview-metric"><span>${escHtml(label)}</span><strong>${escHtml(value)}</strong><small>${escHtml(note)}</small></div>`;
 const number = (value, suffix = '', digits = 1) => value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value).toLocaleString('ko-KR', { maximumFractionDigits: digits }) + suffix : '데이터 없음';
 function features(key) {
   return GNB_MENUS[key].items.filter(item => item.key !== 'dashboard').map(item => `<a class="overview-feature" href="#${item.key}"><i class="${item.icon}"></i><span>${escHtml(item.label)}</span><i class="fa-solid fa-arrow-right"></i></a>`).join('');
@@ -130,7 +133,9 @@ async function loadAccountTabs() {
         metric('최대 비중 이탈', number(s.max_drift_pct, '%p')) +
         metric('리밸런싱 계획',
           plan && plan.is_active ? '활성' : '비활성',
-          plan && plan.auto_execute ? '자동 체결' : '수동 승인');
+          plan && plan.auto_execute ? '자동 체결' : '수동 승인') +
+        // 탭 패널 맨 아래 한 줄(S193 · 사용자 결정 11-02) — 숫자가 있는 경우에만. 자료 없음 · 오류 분기에는 달지 않는다.
+        `<div class="overview-metric wide" data-paper-notice><small>${escHtml(PAPER_NOTICE)}</small></div>`;
     } else {
       // snapshot 없음 — 로보 탭에만 안내 (#229 유지)
       roboTab.connected = false;
