@@ -148,7 +148,8 @@ def test_signal_section(monkeypatch):
         assert s is snap
         return {"as_of": "2026-10-16", "signal": "매도", "strength": "보통", "confidence": 0.62, "definition": "d1",
                 "summary": "일 기준으로 …", "confidence_text": "주기 셋 가운데 둘이 …", "disclaimer": "투자 권유가 아닙니다.",
-                "reasons": [{"key": "rsi_high", "timeframe": "1d", "label": "일봉", "text": "RSI 가 …", "points": -2, "extra": 1}] * 4,
+                "reasons": [{"key": "rsi_high", "timeframe": "1d", "label": "일봉", "text": "RSI 가 …", "points": -2, "extra": 1,
+                             "observed": "RSI 74.2", "contribution": -1.23456, "rule": "내부 칸"}] * 4,
                 "counter_reasons": [{"timeframe": "1w", "label": "주봉", "text": "MACD …", "points": 1}]}
     monkeypatch.setattr(signal_explain, "load_snapshot", load)
     monkeypatch.setattr(signal_explain, "explain", explain)
@@ -159,8 +160,12 @@ def test_signal_section(monkeypatch):
     assert s["data"]["summary"] == "일 기준으로 …" and len(s["data"]["reasons"]) == 4 and len(s["data"]["counter_reasons"]) == 1
     # 근거 개수는 순위 표와 같은 셈(side_counts) — 신호 칸이 모달에서 「근거 n개 (매수 쪽 · 중립 · 매도 쪽)」 를 보인다
     assert s["data"]["counts"] == {"buy": 1, "neutral": 2, "sell": 3} and "counts_note" not in s["data"]
-    assert set(s["data"]["reasons"][0]) == {"key", "timeframe", "label", "text", "points"}      # key = 규칙 이름(화면의 쉬운 풀이 열쇠 · TC-SDR-10)
+    # key = 규칙 이름(화면의 쉬운 풀이 열쇠 · TC-SDR-10) · observed · contribution = `explain` 이 이미 만든 값(본 값 · 종합 점수 몫 · 2026-11-02 S192)
+    assert set(s["data"]["reasons"][0]) == {"key", "timeframe", "label", "text", "points", "observed", "contribution"}
     assert s["data"]["reasons"][0]["key"] == "rsi_high"
+    assert s["data"]["reasons"][0]["observed"] == "RSI 74.2" and s["data"]["reasons"][0]["contribution"] == -1.23      # 몫은 소수 둘째 자리 · 새 셈 없음
+    # 옛 줄(값을 저장하지 않던 T2 · explain 이 observed 를 못 준 줄)은 칸은 있되 None — 화면이 줄을 만들지 않는다
+    assert s["data"]["counter_reasons"][0]["observed"] is None and s["data"]["counter_reasons"][0]["contribution"] is None
     none_out = asyncio.run(H.signal(object(), "000660", False))
     assert none_out["status"] == H.EMPTY and none_out["reason"] == H.SIGNAL_NOT_UNIVERSE
     assert asyncio.run(H.signal(object(), "000660", None))["reason"] == H.SIGNAL_NONE

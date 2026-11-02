@@ -96,9 +96,19 @@
 .sd-howto { margin: 2px 0 4px; }
 .sd-howto > summary { cursor: pointer; font-size: 11.5px; color: var(--accent, #2563eb); }
 .sd-howto > summary:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }
-.sd-list--plain { padding-left: 0; list-style: none; }
-.sd-list--plain > li { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: var(--surf2, #f1f5f9); }
-.sd-list--plain > li > b { font-size: 13px; }
+/* 모달 신호 칸의 글 간격 · 근거 묶음 (2026-11-02 S192 · 사용자 「따닥따닥 · XAI 답지 않다」) — 근거는 주기마다 한 상자 · 줄 사이 가는 선, 줄마다 본 값 · 몫 */
+.sd-modal .sd-sec .sd-text { line-height: 1.7; margin: 10px 0; }
+.sd-modal .sd-sec .sd-fact { margin: 6px 0; font-size: 12.5px; line-height: 1.6; }
+.sd-modal .sd-sec .sd-sub { margin: 18px 0 6px; font-size: 13px; }
+.sd-tfgroup { margin: 8px 0 14px; }
+.sd-tfhead { margin: 0 0 6px; font-size: 12.5px; font-weight: 700; color: var(--text-dim, #334155); }
+.sd-tfhead small { font-weight: 400; color: var(--text-mute, #5b6b82); }
+.sd-list--plain { margin: 0; padding: 2px 14px; list-style: none; border-radius: 10px; background: var(--surf2, #f1f5f9); }
+.sd-list--plain > li { margin: 0; padding: 12px 0; line-height: 1.6; }
+.sd-list--plain > li + li { border-top: 1px solid var(--border, #dde2ec); }
+.sd-list--plain > li > b { font-size: 13.5px; }
+.sd-obs { margin-top: 3px; font-size: 12px; color: var(--text-mute, #5b6b82); font-variant-numeric: tabular-nums; }
+.sd-rs .sd-more { margin-top: 6px; }
 .sd-more { margin-top: 2px; }
 .sd-more > summary { cursor: pointer; font-size: 11.5px; color: var(--accent, #2563eb); }
 .sd-more > summary:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }

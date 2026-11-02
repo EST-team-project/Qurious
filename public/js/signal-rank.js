@@ -56,7 +56,7 @@ export function countsView(row) {
 const BADGE_KIND = { "최신": "ok", "확인 필요": "warn", "안내": "info" };
 
 /** 신호 순위 머리줄(설계 07 쪽 ①) — 서버 `freshness` 의 글을 그대로 보인다(화면이 날짜 · 상태를 새로 판정하지 않는다).
- *  「기준: 2026-10-30 KRX 정규장 종가 · 계산: 11-02 12:59」 + 딱지 + 안내 글 + 상태 이름 한 줄. 못 받았으면 빈 글. */
+ *  「기준: 2026-10-30 KRX 정규장 종가 · 계산: 11-02 12:59」 + 딱지 + 안내 글 + 상태 설명 한 줄(서버 `detail`). 못 받았으면 빈 글. */
 export function renderFreshness(fr, esc) {
   if (!fr || typeof fr !== "object") return "";
   const calc = /^\d{4}-(\d{2}-\d{2}) (\d{2}:\d{2})/.exec(String(fr.computed_at || ""));
@@ -64,7 +64,8 @@ export function renderFreshness(fr, esc) {
   const badge = fr.badge ? ` <span class="sd-chip sr-badge" data-kind="${esc(BADGE_KIND[fr.badge] || "info")}">${esc(fr.badge)}</span>` : "";
   const msg = fr.message ? `<div class="text-sm" data-sr-fresh-msg="${esc(fr.state || "")}">${esc(fr.message)}</div>` : "";
   const older = fr.older_note ? `<div class="text-xs" style="color:var(--text-mute);">${esc(fr.older_note)}</div>` : "";
-  const detail = fr.detail ? `<div class="text-xs" style="color:var(--text-mute);">상태 이름 — ${esc(fr.detail)}</div>` : "";
+  // 서버 `detail` 은 사람이 읽는 한 줄이다(「정상 — 있어야 할 마지막 거래일 종가 기준」) — 「상태 이름 —」 같은 개발 티 접두어 없이 그대로 보인다(2026-11-02 S192)
+  const detail = fr.detail ? `<div class="text-xs" style="color:var(--text-mute);" data-sr-fresh-detail>${esc(fr.detail)}</div>` : "";
   return `<div class="mb-2" data-sr-fresh><div class="font-semibold text-sm">${base}${badge}</div>${msg}${older}${detail}</div>`;
 }
 
@@ -121,14 +122,15 @@ export function renderRankTable(resp, esc, { nameOf } = {}) {
     const code = ohlcvCode(v.symbol);
     // 줄 전체가 종목 근거 모달 입구 — 종목코드(6자리)를 모르는 줄은 입구를 달지 않는다(빈 코드로 부르면 422)
     const entry = code ? ` data-hub-open="${esc(code)}" data-hub-name="${esc(v.name)}" tabindex="0"` : "";
+    // 칸마다 열 이름(data-label)을 단다 — 좁은 화면(640px 이하)에서 표가 줄마다 카드로 바뀔 때 CSS 가 이 이름을 칸 앞에 보인다(signalrankview.css)
     return `<tr data-sr-symbol="${esc(v.symbol)}"${entry}>`
-      + `<td>${esc(v.rank)}</td>`
-      + `<td>${v.name ? esc(v.name) + " " : ""}<span class="text-xs">${esc(v.symbol)}</span></td>`
-      + `<td>${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}`
+      + `<td data-label="순위">${esc(v.rank)}</td>`
+      + `<td data-label="종목">${v.name ? esc(v.name) + " " : ""}<span class="text-xs">${esc(v.symbol)}</span></td>`
+      + `<td data-label="규칙 신호">${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}`
       + `${v.noIntraday ? `<div class="text-xs" style="color:var(--text-mute);" data-sr-no-intraday>분봉 없이 계산(일봉 · 주봉만)</div>` : ""}</td>`
-      + `<td>${esc(v.composite)}</td>`
-      + `<td>${esc(v.countsText)}${v.countsNote ? `<div class="text-xs" style="color:var(--text-mute);">${esc(v.countsNote)}</div>` : ""}</td>`
-      + `<td>${esc(v.asOf)}</td><td>${code ? `<button type="button" class="btn-secondary text-xs" data-paper-open="${esc(code)}">PAPER 모의주문</button>` : ''}</td></tr>`;
+      + `<td data-label="종합 점수">${esc(v.composite)}</td>`
+      + `<td data-label="근거">${esc(v.countsText)}${v.countsNote ? `<div class="text-xs" style="color:var(--text-mute);">${esc(v.countsNote)}</div>` : ""}</td>`
+      + `<td data-label="기준일">${esc(v.asOf)}</td><td data-label="주문">${code ? `<button type="button" class="btn-secondary text-xs" data-paper-open="${esc(code)}">PAPER 모의주문</button>` : ''}</td></tr>`;
   }).join("");
   return `${head}<table class="w-full text-sm"><thead><tr><th>순위</th><th>종목</th><th>규칙 신호</th><th>종합 점수</th><th>근거</th><th>기준일</th><th>주문</th></tr></thead>`
     + `<tbody>${body}</tbody></table>${missingHtml}${foot}`;
