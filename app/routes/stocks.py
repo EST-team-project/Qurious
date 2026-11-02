@@ -25,7 +25,7 @@ from app.services import risk_guard
 from app.services.risk_execution import execution_guidance
 from app.services.execution_policy import ExecutionPolicy, policy_for
 from app.services.brokers.capabilities import execution_capabilities
-from app.services import strategy_loader
+from app.services import strategy_loader, local_strategy
 from app.services.brokers import stock_coin_trade_gateway
 from app.services import kis_credentials
 from app.services import kis_quickstart
@@ -474,6 +474,8 @@ class QuantSettingsBody(BaseModel):
     # domain-rag-lab 합격 전략 (비우면 기존 규칙)
     strategy_id: str = Field(default="", max_length=40)
     strategy_version: int = Field(default=0, ge=0)
+    strategy_card_id: str = Field(default="", max_length=64)
+    strategy_card_fingerprint: str = Field(default="", max_length=64)
     # 위험관리
     risk_daily_loss_limit_pct: float = Field(default=3.0, ge=0, le=50, description="0이면 비활성")
     risk_max_position_pct: float = Field(default=30.0, ge=0, le=100, description="0이면 비활성")
@@ -618,7 +620,7 @@ async def list_quant_strategies(user=Depends(get_current_user)):
     """선택한 공급원의 전략 목록. 고정 시험 입력은 가상계좌 전용으로 표시한다."""
     return {"configured": strategy_loader.is_configured(), "strategies": await strategy_loader.list_strategies(),
             "source": "fixed_test" if strategy_loader.is_fixed_test() else "remote",
-            "test_only": strategy_loader.is_fixed_test()}
+            "test_only": strategy_loader.is_fixed_test(), "local_cards": local_strategy.summaries(user['id'])}
 
 
 @router.get("/quant/live-orders")
@@ -666,6 +668,7 @@ async def get_quant_settings(
             "ai_top_n": 3, "per_trade_budget": 1_000_000.0, "buy_ratio": 1.0, "sell_ratio": 0.5,
             "risk": risk_guard.RiskLimits().to_dict(), "risk_halt_reason": "",
             "strategy_id": "", "strategy_version": 0,
+            "strategy_card_id": "", "local_strategy": None,
             "execution_policy": ExecutionPolicy().model_dump(),
             "execution_capabilities": execution_capabilities(),
             "live_gateway": _live_gateway_info(),
@@ -698,6 +701,8 @@ async def get_quant_settings(
         "risk_halt_reason": row.risk_halt_reason,
         "strategy_id": row.quant_strategy_id or "",
         "strategy_version": row.quant_strategy_version or 0,
+        "strategy_card_id": (getattr(row, 'quant_local_strategy', None) or {}).get('card_id', ''),
+        "local_strategy": getattr(row, 'quant_local_strategy', None),
         "live_gateway": _live_gateway_info(),
         "brokers": catalog,
         "stocks": stocks,
@@ -719,6 +724,8 @@ async def save_quant_settings(
         raise HTTPException(422, "mode는 paper 또는 live 이어야 합니다.")
     if strategy_loader.is_fixed_test() and mode != "paper":
         raise HTTPException(422, "고정 시험 전략은 앱 가상계좌에서만 실행할 수 있습니다.")
+    if body.strategy_card_id and mode != 'paper':
+        raise HTTPException(422, "내 전략은 QUANT 가상계좌에서만 실행할 수 있습니다.")
 
     symbol_source = (body.symbol_source or "ai").strip().lower()
     if symbol_source not in ("ai", "manual"):
@@ -731,11 +738,26 @@ async def save_quant_settings(
         raise HTTPException(422, f"지원하지 않는 종목코드: {', '.join(invalid[:5])}")
     if len(requested) > QUANT_MAX_SELECTED_SYMBOLS:
         raise HTTPException(422, f"직접 선택 종목은 최대 {QUANT_MAX_SELECTED_SYMBOLS}개까지 가능합니다.")
-    if symbol_source == "manual" and not requested:
+    if symbol_source == "manual" and not requested and not body.strategy_card_id:
         raise HTTPException(422, "직접 선택 모드에서는 종목을 1개 이상 선택하세요.")
     selected = list(dict.fromkeys(requested))
 
     row = await _get_or_create_broker_settings_row(db, _uid(user["id"]))
+    try:
+        old_card = local_strategy.selected(row, user['id'])
+        if (body.strategy_card_id and old_card and body.strategy_card_id == old_card['card_id']
+                and body.strategy_card_fingerprint == old_card['original_hash']):
+            saved_card = old_card
+        else:
+            saved_card = local_strategy.snapshot(user['id'], body.strategy_card_id) if body.strategy_card_id else None
+            if saved_card and body.strategy_card_fingerprint and body.strategy_card_fingerprint != saved_card['original_hash']:
+                raise ValueError('카드가 목록 조회 뒤 변경됐습니다. 목록을 다시 불러와 선택하세요.')
+    except (ValueError, OSError) as exc:
+        raise HTTPException(422, str(exc)) from None
+    try:
+        await local_strategy.ensure_switchable(db, row, _uid(user['id']), saved_card)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
     _apply_credentials(row, broker, body.app_key, body.app_secret, body.account_no)
     row.paper = mode == "paper"
     row.quant_mode = mode
@@ -752,7 +774,10 @@ async def save_quant_settings(
             policy["stop_kind"] = policy_for(row).stop_kind
         row.quant_execution_policy = policy
     strategy_id = (body.strategy_id or "").strip().lower()
-    if strategy_id:
+    if saved_card:
+        row.quant_strategy_id = saved_card['spec']['strategy_id']
+        row.quant_strategy_version = saved_card['spec']['version']
+    elif strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)
         if spec is None:
             raise HTTPException(422, f"선택한 공급원에서 전략과 버전을 확인하지 못했습니다: {strategy_id}")
@@ -761,6 +786,7 @@ async def save_quant_settings(
     else:
         row.quant_strategy_id = ""
         row.quant_strategy_version = 0
+    row.quant_local_strategy = saved_card
     row.risk_daily_loss_limit_pct = body.risk_daily_loss_limit_pct
     row.risk_max_position_pct = body.risk_max_position_pct
     row.risk_max_orders_per_day = body.risk_max_orders_per_day

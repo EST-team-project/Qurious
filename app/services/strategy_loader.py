@@ -84,7 +84,12 @@ async def list_strategies() -> list[dict[str, Any]]:
         card = _fixed_card()
         return [{**card, "test_only": True, "source": "fixed_test"}] if card else []
     data = await _get("/backtests/strategies")
-    return list((data or {}).get("strategies") or [])
+    cards = data.get("strategies") if isinstance(data, dict) else None
+    if not isinstance(cards, list):
+        return []
+    return [card for card in cards if isinstance(card, dict)
+            and isinstance(card.get("strategy_id"), str) and card["strategy_id"]
+            and type(card.get("version")) is int and card["version"] >= 1]
 
 
 async def get_strategy(strategy_id: str, version: int | None = None) -> dict[str, Any] | None:
@@ -103,5 +108,9 @@ async def get_strategy(strategy_id: str, version: int | None = None) -> dict[str
     if type(data.get("version")) is not int or data["version"] < 1:
         return None
     if version is not None and data["version"] != version:
+        return None
+    # 특정 판 조회는 불합격 이력도 반환한다. 원격 목록의 합격 필터만 믿지 않는다.
+    acceptance = data.get("acceptance")
+    if not isinstance(acceptance, dict) or acceptance.get("passed") is not True:
         return None
     return data
