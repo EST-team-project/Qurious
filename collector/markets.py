@@ -114,6 +114,58 @@ def hf_datasets() -> List[str]:
     return out
 
 
+# ── 달력 — `(market, cal_date)` 한 모양으로 읽는 뷰 ────────────────────────────────────────────────────────────────
+
+#: 시장별 달력을 한 모양으로 읽는 **뷰**의 이름. 표가 아니라 뷰인 까닭(2026-11-02 · 할 일 ①-06): 새 표는 HF 내보내기 표 목록(`TABLES`)과
+#: 여러 PC 맞추기(`restore` · `status` 의 「표 목록에 없는 표」 검사)에 걸려 11-05 동결 직전에 위험이 크다. 뷰는 `type='table'` 검사에
+#: 잡히지 않아 내보내기 · 올리기 · 따라가기가 그대로고, 같은 모양을 읽는 쪽(LEAN 입력 · 대사 도구)은 이 이름 하나만 안다.
+CALENDAR_VIEW = "market_calendar_v2"
+CALENDAR_COLUMNS: Tuple[str, ...] = ("market", "cal_date", "is_trading_day", "reason", "basis", "note", "updated_at")
+
+
+class CalendarUnavailable(Exception):
+    """이 시장의 달력을 우리가 만들지 않는다 — 휴장일 출처 없이 지어내지 않는다."""
+
+
+def calendar_venues() -> List[str]:
+    """뷰가 줄을 주는 시장 — 우리 달력(`market_calendar`)을 쓰는 시장과 24시간 시장(매일 거래)."""
+    return [m.venue for m in MARKETS.values() if m.calendar in ("market_calendar", "24x7")]
+
+
+def calendar_select_sql() -> str:
+    """뷰 본문 — 국내는 `market_calendar` 의 줄 그대로, 24시간 시장은 같은 날짜 범위에 「매일 거래」 로 만든다. 레지스트리에서 짓는다."""
+    parts = []
+    for m in MARKETS.values():
+        if m.calendar == "market_calendar":
+            parts.append(f"SELECT '{m.venue}' AS market, cal_date, is_trading_day, reason, basis, note, updated_at FROM market_calendar")
+        elif m.calendar == "24x7":
+            parts.append(f"SELECT '{m.venue}' AS market, cal_date, 1 AS is_trading_day, '' AS reason, 'rule' AS basis, "
+                         f"'24시간 시장 — 매일 거래' AS note, updated_at FROM market_calendar")
+    return "\nUNION ALL\n".join(parts)
+
+
+def ensure_calendar_view(conn) -> bool:
+    """뷰를 (다시) 만든다. `market_calendar` 가 아직 없으면 만들지 않고 False — 달력 단계가 끝난 뒤에 부른다."""
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='market_calendar'").fetchone() is None:
+        return False
+    conn.execute(f"DROP VIEW IF EXISTS {CALENDAR_VIEW}")
+    conn.execute(f"CREATE VIEW {CALENDAR_VIEW} AS\n{calendar_select_sql()}")
+    conn.commit()
+    return True
+
+
+def calendar_days(conn, venue: str, start: str, end: str) -> List[tuple]:
+    """`venue` 의 [start, end](YYYY-MM-DD) 달력 줄 — `CALENDAR_COLUMNS` 차례. 뷰가 없어도 같은 SELECT 로 읽는다.
+
+    미국(XNYS · XNAS)처럼 휴장일 출처가 없는 시장은 빈 목록이 아니라 `CalendarUnavailable` 로 알린다(없는 날을 거래일로 읽지 않게)."""
+    m = get(venue)
+    if m.calendar not in ("market_calendar", "24x7"):
+        raise CalendarUnavailable(f"{venue} 의 달력은 아직 없다 — 휴장일 출처({m.calendar})를 붙인 뒤에 만든다")
+    cols = ", ".join(CALENDAR_COLUMNS)
+    return conn.execute(f"SELECT {cols} FROM (\n{calendar_select_sql()}\n) WHERE market = ? AND cal_date BETWEEN ? AND ? "
+                        f"ORDER BY cal_date", (venue, start, end)).fetchall()
+
+
 def validate_registry() -> List[str]:
     """레지스트리 자체의 앞뒤가 맞는지 — 문제 목록(빈 목록이면 통과)."""
     bad: List[str] = []

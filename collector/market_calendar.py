@@ -505,6 +505,14 @@ def build(conn: sqlite3.Connection, *, fetch: bool = True, today: Optional[date]
     write_events(conn, events)
     out.update(stats=stats, end=end.isoformat(), days=len(days), ex_changes=changes, events=len(events),
                holiday_years=years)
+    # 시장별 달력 뷰 `market_calendar_v2`(할 일 ①-06) — 달력이 다 만들어진 뒤에 한 번. 뷰라서 내보내기 · 따라가기에 닿지 않고,
+    # 못 만들어도 달력 단계는 그대로 성공이다(경고만).
+    try:
+        from collector import markets  # noqa: PLC0415 – 늦게 불러 달력 빌더의 import 시점을 건드리지 않는다
+        out["calendar_view"] = markets.ensure_calendar_view(conn)
+    except Exception as e:  # noqa: BLE001
+        out["calendar_view"] = False
+        print(f"  ⚠️ 시장별 달력 뷰를 만들지 못했다 — {e}")
     say(f"― 거래일 달력 {FIRST_YEAR}-01-01 ~ {end.isoformat()} · {len(days):,}일 "
         f"(거래일 {stats['trading']:,} · 휴장 {stats['closed']:,}) ―")
     say(f"  시세로 확인 {stats['observed']:,}일 · 규칙으로 예정 {stats['rule']:,}일 · "

@@ -344,6 +344,12 @@ STEPS: List[Step] = [
     Step("journal", ["scripts/paper_journal.py", "daily", "--quiet", "--pull"], 10, fatal=False, app_db=True, catch_up=True,
          warn_codes=(10,), label="모의 일지", group="계산",
          desc="등록한 규칙 판으로 거래일마다 판단 1행 · 다음 거래일 시가 가상 체결(추가만)"),
+    # 신호 전체 종목(2026-11-02 · 할 일 ②-32 · 설계 `신호-전체종목-기록-설계.md`) — 분봉 유니버스 밖 KOSPI · KOSDAQ · ETF 약 3,500종목.
+    # 기존 `signals`(401종목) 코드는 신장환 님 것이라 건드리지 않고 같은 함수를 부르는 새 스크립트가 맡는다. 실패해도 뒤를 막지 않고,
+    # 빠진 날 채우기(gap_fill)는 끈다 — 3,500종목 × 여러 날이 제한 시간을 넘긴다(5거래일 이하 `--from/--to` 는 사람이 직접).
+    Step("signals_all", ["scripts/signals_all.py"], 15, fatal=False, app_db=True,
+         label="신호 전체", group="계산",
+         desc="분봉 유니버스 밖 KOSPI · KOSDAQ · ETF 전체 종목(약 3,500)의 다중 주기 신호를 T2 에 기록(분봉이 없으면 일봉 · 주봉만)"),
     Step("manifest", ["-m", "collector.manifest", "write"], 10, fatal=False,
          label="목록표", group="백업", desc="백업할 표 · 행 수 · 지문 목록(대조용)"),
     Step("export", ["scripts/hf_dataset.py", "export", "--quiet"], 30,

@@ -11,7 +11,7 @@
 // DOM 없는 글자 막기는 한 곳(howtoview.js) — 상대 경로라 브라우저(/js/)와 Node 시험이 같은 파일을 읽는다.
 import { esc } from "./howtoview.js";
 import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD } from "./stockchart.js";
-import { RULE_PLAIN, SECTION_HOWTO, planTimeframeNote, planMarketLine, planIndexMove, planNoteText } from "./stockplain.js";
+import { RULE_PLAIN, SECTION_HOWTO, SIGNAL_HIT_NOTE, planTimeframeNote, planMarketLine, planIndexMove, planNoteText } from "./stockplain.js";
 
 /** 서랍에 그릴 칸 차례 — 서버 stock_hub.SECTIONS 에서 머리(identity)를 뺀 일곱(시험이 맞댐) */
 export const DRAWER_SECTIONS = ["price", "signal", "financials", "disclosures", "news", "schedule", "sector"];
@@ -134,7 +134,7 @@ function sdSignalPlainBody(d) {
   return (chip ? `<p class="sd-main"><span class="sd-chip">${esc(chip)}</span> <small>${esc(d.confidence_text || "")}</small></p>` : "")
     + (d.summary ? `<p class="sd-text">${esc(d.summary)}</p>` : "")
     + sdPlainReasonLines("그렇게 본 까닭", d.reasons) + sdPlainReasonLines("반대로 본 까닭", d.counter_reasons)
-    + `<p class="sd-note"><b>이 설명이 말하지 않는 것</b> — 앞으로 오를지 내릴지, 목표 가격, 얼마를 사고팔지. 규칙 신호는 지난 가격만 보고 세며 이 화면은 그 규칙들이 과거에 맞았는지 재지 않았습니다. 신뢰도는 여러 기간의 판단이 같은 방향인 정도일 뿐 맞을 확률이 아닙니다.</p>`;
+    + `<p class="sd-note"><b>이 설명이 말하지 않는 것</b> — 앞으로 오를지 내릴지, 목표 가격, 얼마를 사고팔지. ${esc(SIGNAL_HIT_NOTE)} 신뢰도는 여러 기간의 판단이 같은 방향인 정도일 뿐 맞을 확률이 아닙니다.</p>`;
 }
 
 const SD_BODY_PLAIN = { signal: sdSignalPlainBody };
@@ -462,6 +462,7 @@ export function mountStockDrawer(doc, deps) {
     const btn = ev.target.closest?.("[data-hub-open]");
     if (!btn) return;
     ev.preventDefault();
+    if (!String(btn.dataset.hubOpen || "").trim()) return;          // 종목 코드가 아직 없는 입구(시세 조회 전)는 열지 않는다 — 빈 코드로 부르면 422
     // 입구는 모두 큰 모달 직행(사용자 11-02 「처음부터 모달로 크게」) — 서랍이 필요한 입구만 `data-hub-mode="drawer"` 를 단다. 팀 파일의 단추 줄은 건드리지 않는다
     if (btn.dataset.hubMode !== "drawer") openModalFor(btn.dataset.hubOpen, btn.dataset.hubName || "", btn);
     else open(btn.dataset.hubOpen, btn.dataset.hubName || "", btn);

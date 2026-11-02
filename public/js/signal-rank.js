@@ -51,6 +51,32 @@ export function countsView(row) {
   return { text: "근거 개수를 셀 수 없습니다", total: null, note: (row && row.counts_note) || "" };   // 0개로 두지 않는다
 }
 
+/** 상태 딱지 종류 — 색만으로 구분하지 않으려고 글자(최신 · 확인 필요 · 안내)를 늘 함께 보인다(설계 07 쪽 ③ 접근성). */
+const BADGE_KIND = { "최신": "ok", "확인 필요": "warn", "안내": "info" };
+
+/** 신호 순위 머리줄(설계 07 쪽 ①) — 서버 `freshness` 의 글을 그대로 보인다(화면이 날짜 · 상태를 새로 판정하지 않는다).
+ *  「기준: 2026-10-30 KRX 정규장 종가 · 계산: 11-02 12:59」 + 딱지 + 안내 글 + 상태 이름 한 줄. 못 받았으면 빈 글. */
+export function renderFreshness(fr, esc) {
+  if (!fr || typeof fr !== "object") return "";
+  const calc = /^\d{4}-(\d{2}-\d{2}) (\d{2}:\d{2})/.exec(String(fr.computed_at || ""));
+  const base = `기준: ${esc(fr.as_of || DASH)} ${esc(fr.basis || "")} · 계산: ${calc ? esc(calc[1] + " " + calc[2]) : DASH}`;
+  const badge = fr.badge ? ` <span class="sd-chip sr-badge" data-kind="${esc(BADGE_KIND[fr.badge] || "info")}">${esc(fr.badge)}</span>` : "";
+  const msg = fr.message ? `<div class="text-sm" data-sr-fresh-msg="${esc(fr.state || "")}">${esc(fr.message)}</div>` : "";
+  const older = fr.older_note ? `<div class="text-xs" style="color:var(--text-mute);">${esc(fr.older_note)}</div>` : "";
+  const detail = fr.detail ? `<div class="text-xs" style="color:var(--text-mute);">상태 이름 — ${esc(fr.detail)}</div>` : "";
+  return `<div class="mb-2" data-sr-fresh><div class="font-semibold text-sm">${base}${badge}</div>${msg}${older}${detail}</div>`;
+}
+
+/** 지금 가격 딱지(설계 07 쪽 ②) — 응답의 source · market_state · as_of 만 읽어 「실시간 · 지연 · 종가」 로 가른다. 모르면 null(딱지 없음). */
+export function quoteBadge(quote) {
+  if (!quote || !isNum(quote.price)) return null;
+  const closed = quote.market_state === "closed";
+  if (quote.source === "kis_user" || quote.source === "kis_gateway") return { kind: "live", text: closed ? "증권사 조회 · 장 마감" : "실시간 · 정규장" };
+  if (quote.source === "delayed") return { kind: "delay", text: "지연 시세 · 약 20분" };
+  if (quote.source === "collector") return { kind: "close", text: `종가 · ${ymd(quote.as_of)}` };
+  return null;
+}
+
 /** 순위 줄 하나의 표시 값 — name 은 응답에 없어(설계서 5절 요청 중) 부르는 쪽이 nameOf 로 넘길 때만 쓴다. */
 export function rowView(row, nameOf) {
   const name = typeof nameOf === "function" ? nameOf(row.symbol) : null;
@@ -66,6 +92,7 @@ export function rowView(row, nameOf) {
     confidence: isNum(row.confidence) ? `${Math.round(row.confidence * 100)}%` : DASH,
     countsText: counts.text,
     countsNote: counts.note,
+    noIntraday: row.no_intraday === true,        // 서버가 기록의 60분 주기 오류에서 읽은 값 — 화면이 짐작하지 않는다
   };
 }
 
@@ -73,8 +100,10 @@ export function rowView(row, nameOf) {
 export function renderRankTable(resp, esc, { nameOf, selected } = {}) {
   const rows = (resp && resp.rows) || [];
   const missing = (resp && resp.missing) || [];
-  const head = `<div class="text-xs mb-2" style="color:var(--text-mute);">`
-    + `기준일 ${esc(mmdd(resp && resp.on))} · 전체 ${esc(isNum(resp && resp.total) ? resp.total : DASH)}종목 중 ${esc(rows.length)}줄`
+  const fresh = renderFreshness(resp && resp.freshness, esc);
+  const head = fresh
+    + `<div class="text-xs mb-2" style="color:var(--text-mute);">`
+    + `${fresh ? "" : `기준일 ${esc(mmdd(resp && resp.on))} · `}전체 ${esc(isNum(resp && resp.total) ? resp.total : DASH)}종목 중 ${esc(rows.length)}줄`
     + `${resp && resp.definition ? " · " + esc(resp.definition) : ""}</div>`
     + `<div class="text-xs" style="color:var(--text-mute);">${esc(RANK_ORDER_NOTE)}</div>`
     + `<div class="text-xs mb-2" style="color:var(--text-mute);">${esc(NEUTRAL_HELP)}</div>`;
@@ -91,7 +120,8 @@ export function renderRankTable(resp, esc, { nameOf, selected } = {}) {
     return `<tr data-sr-symbol="${esc(v.symbol)}" tabindex="0"${on}>`
       + `<td>${esc(v.rank)}</td>`
       + `<td>${v.name ? esc(v.name) + " " : ""}<span class="text-xs">${esc(v.symbol)}</span></td>`
-      + `<td>${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}</td>`
+      + `<td>${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}`
+      + `${v.noIntraday ? `<div class="text-xs" style="color:var(--text-mute);" data-sr-no-intraday>분봉 없이 계산(일봉 · 주봉만)</div>` : ""}</td>`
       + `<td>${esc(v.composite)}</td>`
       + `<td>${esc(v.countsText)}${v.countsNote ? `<div class="text-xs" style="color:var(--text-mute);">${esc(v.countsNote)}</div>` : ""}</td>`
       + `<td>${esc(v.asOf)}</td><td>${ohlcvCode(v.symbol) ? `<button type="button" class="btn-secondary text-xs" data-hub-open="${esc(ohlcvCode(v.symbol))}" data-hub-name="${esc(v.name)}">종목 근거</button> <button type="button" class="btn-secondary text-xs" data-paper-open="${esc(ohlcvCode(v.symbol))}">PAPER 모의주문</button>` : ''}</td></tr>`;
@@ -120,7 +150,7 @@ export function priceLines(ohlcv, quote, signalAsOf, closeErr = "") {
         note: closeErr || (ohlcv ? "이 날짜의 일봉이 없습니다." : "종가를 받지 못했습니다.") };
   const quoteOk = quote && isNum(quote.price);
   const quoteLine = quoteOk
-    ? { ok: true, text: `지금 가격 ${quote.price.toLocaleString("ko-KR")}원`, note: quote.label || "" }
+    ? { ok: true, text: `지금 가격 ${quote.price.toLocaleString("ko-KR")}원`, note: quote.label || "", badge: quoteBadge(quote) }
     : { ok: false, text: "지금 가격을 받지 못했습니다", note: (quote && (quote.fallback || quote.label)) || "" };
   return { close: closeLine, quote: quoteLine };
 }
@@ -174,7 +204,8 @@ const reasonItems = (list, esc) => (list || []).map(r =>
 /** 서랍 — explain 응답의 summary · reasons · counter_reasons · notes · disclaimer 를 그대로 그린다(문장을 새로 짓지 않는다). */
 export function renderDrawer(explain, prices, esc, { name, news, counts } = {}) {
   const p = prices || priceLines(null, null, explain && explain.as_of);
-  const line = l => `<div class="text-sm">${esc(l.text)}${l.note ? ` <span class="text-xs" style="color:var(--text-mute);">· ${esc(l.note)}</span>` : ""}</div>`;
+  const chip = b => b ? ` <span class="sd-chip sr-badge" data-kind="${esc(b.kind)}">${esc(b.text)}</span>` : "";
+  const line = l => `<div class="text-sm">${esc(l.text)}${chip(l.badge)}${l.note ? ` <span class="text-xs" style="color:var(--text-mute);">· ${esc(l.note)}</span>` : ""}</div>`;
   const reasons = (explain.reasons || []).length ? `<div class="text-xs mt-2">이 방향을 밀어 준 근거</div><ul class="text-sm">${reasonItems(explain.reasons, esc)}</ul>` : "";
   const counters = (explain.counter_reasons || []).length ? `<div class="text-xs mt-2">반대쪽 근거</div><ul class="text-sm">${reasonItems(explain.counter_reasons, esc)}</ul>` : "";
   const notes = (explain.notes || []).map(n => `<div class="text-xs">${esc(n)}</div>`).join("");

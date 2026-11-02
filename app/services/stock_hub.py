@@ -81,12 +81,14 @@ PRICE_SOURCE = "수집 시세 — 일봉 종가(수정주가) · 매 거래일 1
 PRICE_NOTE = ("실시간이나 지연 시세가 아니라 마지막 거래일의 장 마감 종가입니다. 등락은 그 앞 거래일 종가와 견준 값이고, "
               "분할 · 병합이 있으면 수정주가로 맞춰 견줍니다.")
 SIGNAL_SOURCE = "다중 주기 신호 — 60분 · 일 · 주봉 지표 규칙 점수의 합(매 거래일 12:30 기록)"
-SIGNAL_NOT_UNIVERSE = ("이 종목은 다중 주기 신호를 매일 기록하는 종목(분봉을 모으는 401종목)에 들지 않습니다 — "
+SIGNAL_NOT_UNIVERSE = ("이 종목은 다중 주기 신호를 매일 기록하는 대상(KOSPI · KOSDAQ · ETF)이 아니거나 아직 기록을 시작하지 않았습니다 — "
                        "차트 패턴 화면에서 그때그때 계산해 볼 수 있습니다.")
 SIGNAL_NONE = "아직 이 종목의 다중 주기 신호 기록이 없습니다."
 SIGNAL_RANK_DEFAULT, SIGNAL_RANK_MAX, SIGNAL_RANK_SYMBOLS_MAX = 50, 500, 100
 SIGNAL_RANK_NOTE = ("순위는 매 거래일 기록해 둔 규칙 점수(종합 점수 → 신뢰도 → 종목코드)를 그대로 줄 세운 것입니다 — 이 요청에서 새로 계산하지 않았습니다. "
                     "줄마다 기준일(as_of)이 그 줄이 기록된 거래일이라, 그날 기록이 없는 종목은 앞 날짜의 줄이 보입니다.")
+SIGNAL_BASIS = "KRX 정규장 종가"
+PORTAL_CLOSE_HOUR = (13, 30)       # 공공데이터 종가는 기준일의 다음 거래일 낮에 들어온다(quote_now.pending_close_note · 러너 12:30 회차)
 SIGNAL_RANK_UNREADABLE = "이 줄의 근거 문장 가운데 앱이 아직 모르는 것이 있어 근거 개수를 세지 못했습니다 — 신호 · 점수는 기록 그대로입니다."
 NEWS_LIMIT = 5
 DISCLOSURE_LIMIT = 5
@@ -252,6 +254,67 @@ async def signal(db, symbol: str, in_universe: bool | None) -> dict:
     return section("signal", OK, data=data, as_of=ex["as_of"], source=SIGNAL_SOURCE, notice=ex["disclaimer"])
 
 
+def _is_trading_day(d: date) -> bool:
+    from app.services import quote_now  # noqa: PLC0415 – 늦게 불러 순환을 피한다
+    return d.weekday() < 5 and d.isoformat() not in quote_now.krx_holidays()
+
+
+def expected_signal_day(now: datetime | None = None) -> date:
+    """지금 시각에 신호 기록에 **있어야 하는** 가장 늦은 기준일 — 마지막으로 끝난 거래일 D 의 종가는 다음 거래일 13:30 쯤에야
+    공공데이터에 들어와 그 12:30 회차 뒤에 기록되므로, 그 전에는 D 의 앞 거래일이다(월요일 아침 · 장 마감 직후에 「확인 필요」 가 뜨지 않게)."""
+    from app.services import quote_now  # noqa: PLC0415
+
+    now = (now or quote_now._now()).astimezone(quote_now.KST)
+    last = quote_now.last_closed_trading_day(now)
+    nxt = last + timedelta(days=1)
+    while not _is_trading_day(nxt):
+        nxt += timedelta(days=1)
+    if now < datetime.combine(nxt, datetime.min.time().replace(hour=PORTAL_CLOSE_HOUR[0], minute=PORTAL_CLOSE_HOUR[1]), quote_now.KST):
+        last -= timedelta(days=1)
+        while not _is_trading_day(last):
+            last -= timedelta(days=1)
+    return last
+
+
+def signal_freshness(as_of: date | None, computed_at: datetime | None, older: int = 0, *, picked: bool = False,
+                     now: datetime | None = None) -> dict:
+    """신호 순위 머리줄(Figma 「신호 순위」 07 쪽 ①) — 기준일 · 계산 시각 · 상태 딱지(최신 · 확인 필요 · 안내)와 글.
+
+    글은 서버 한 곳이 만들고 화면은 이스케이프해 보이기만 한다. 기준일은 기록 줄들의 가장 늦은 as_of 이고(요청의 `on` 이 아니다),
+    계산 시각은 그 줄들 가운데 가장 늦은 `computed_at` 을 한국 시각으로. 날짜를 직접 고른 요청(`picked`)은 최신 여부를 판정하지 않는다."""
+    from app.services import quote_now  # noqa: PLC0415
+
+    now = (now or quote_now._now()).astimezone(quote_now.KST)
+    out = {"as_of": as_of.isoformat() if as_of else None, "basis": SIGNAL_BASIS, "older_rows": older,
+           "computed_at": computed_at.astimezone(quote_now.KST).strftime("%Y-%m-%d %H:%M") if computed_at else None,
+           "state": "unknown", "badge": "확인 필요", "message": "기록된 기준일을 알 수 없습니다.", "detail": "기록이 없다"}
+    if as_of is None:
+        return out
+    md = f"{as_of.month:02d}-{as_of.day:02d}"
+    if picked:
+        out.update(state="picked", badge="안내", message=f"고른 날짜({md}) 기준의 기록입니다.", detail="날짜를 골랐다 — 최신 여부는 보지 않음")
+    else:
+        want = expected_signal_day(now)
+        out["expected_as_of"] = want.isoformat()
+        if as_of < want:
+            out.update(state="stale", badge="확인 필요", message=f"지난 거래일({want.month:02d}-{want.day:02d}) 신호는 아직 계산 전입니다",
+                       detail="기준일이 있어야 할 거래일보다 앞섬")
+        elif quote_now.market_state(now) == "open":
+            out.update(state="session", badge="안내",
+                       message="장중에는 지난 거래일 종가 기준입니다. 오늘 종가 신호는 다음 거래일 낮 12:30 회차 뒤에 보입니다.",
+                       detail="장중 — 오늘 값은 아직 없음")
+        else:
+            out.update(state="latest", badge="최신", message="", detail="정상 — 있어야 할 마지막 거래일 종가 기준")
+    if older:
+        out["older_note"] = f"{older:,}줄은 그 앞 날짜의 기록입니다(그날 기록이 없는 종목)."
+    return out
+
+
+def _no_intraday(snap: dict) -> bool:
+    """60분 주기가 비어(분봉 없음) 일봉 · 주봉만으로 계산된 줄인가 — 기록의 `timeframes` 에서 읽는다(새 칸 없음)."""
+    return any(isinstance(t, dict) and t.get("timeframe") == "60m" and "error" in t for t in snap.get("timeframes") or [])
+
+
 async def signal_rank(db, on: date | None = None, symbols: list[str] | None = None, limit: int = SIGNAL_RANK_DEFAULT,
                       components: bool = False) -> dict:
     """신호 기록 순위 — 종목마다 `on` 이전(포함) 가장 최근 기록 한 줄을 종합 점수 → 신뢰도 → 종목코드 순으로(#197 2).
@@ -268,7 +331,7 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
                "as_of": as_of.isoformat() if isinstance(as_of, date) else str(as_of),
                "signal": snap["signal"], "strength": snap.get("strength"),
                "confidence": round(float(snap["confidence"]), 4), "composite": round(float(snap["composite"]), 4),
-               "counts": None}
+               "no_intraday": _no_intraday(snap), "counts": None}
         try:
             c = signal_explain.side_counts(snap)
         except signal_explain.UnknownReason:
@@ -283,7 +346,12 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
                 "message": SIGNAL_NOT_UNIVERSE if m["reason"] == signal_explain.NOT_UNIVERSE else SIGNAL_NONE}
                for m in day["missing"]]
     on_day = day["on"]
-    return {"definition": day["definition"], "on": on_day.isoformat() if on_day else None, "total": len(day["rows"]),
+    dates = [r["as_of"] for r in day["rows"] if isinstance(r.get("as_of"), date)]
+    head = max(dates) if dates else None
+    stamps = [r["computed_at"] for r in day["rows"] if r.get("as_of") == head and isinstance(r.get("computed_at"), datetime)]
+    fresh = signal_freshness(head, max(stamps) if stamps else None, sum(1 for d in dates if d != head), picked=on_day is not None)
+    return {"definition": day["definition"], "on": on_day.isoformat() if on_day else None, "as_of": fresh["as_of"], "freshness": fresh,
+            "total": len(day["rows"]),
             "count": len(rows), "limit": limit, "rows": rows, "missing": missing, "unreadable": unreadable,
             "source": SIGNAL_SOURCE, "notice": signal_explain.DISCLAIMER, "note": SIGNAL_RANK_NOTE}
 
