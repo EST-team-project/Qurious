@@ -39,8 +39,10 @@ from __future__ import annotations
 import argparse
 import sqlite3
 import sys
+import time
+from collections import Counter
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Sequence
 
 import requests
 
@@ -70,6 +72,11 @@ DEFAULT_START = date(2019, 12, 30)
 #: 라서, 단계 결과로 쓰면 회차 종료코드가 75 가 되어 작업자가 화면 수집 요청을 다시 대기로 돌린다(되풀이 · 2026-10-10 종료코드 약속).
 #: 러너의 같은 값(``scripts/daily_update.py`` ``EX_UNAVAILABLE``)과 맞는지는 시험이 본다(TC-BF-05).
 EX_UNAVAILABLE = 69
+
+#: 포털 일시 장애(5xx · 통신 오류)를 **같은 회차 안에서** 기다리며 다시 시도하는 간격(초). 2026-11-02 12:31 에 포털이 HTTP 504 를 돌려주자
+#: 한 회차가 하루에 한 번만 요청하고 바로 포기해 10-30 종가를 하루 늦게 받았다(다음 정기 회차가 메움). 합 약 8분 · 한 회차가 이 기회를 다 쓰면
+#: 뒤 날은 바로 포기한다(포털이 계속 죽어 있다는 뜻). 일일 수집(`run_recent`)만 쓴다 — 과거 구간 백필은 사람이 다시 돌린다.
+RETRY_WAITS = (20, 60, 120, 300)
 
 
 # ==================================================
@@ -137,8 +144,14 @@ def pick_targets(conn: sqlite3.Connection, days: List[str], *,
 # ==================================================
 # 2. 러너
 # ==================================================
+def _transient(res: portal.DayResult) -> bool:
+    """기다리면 풀릴 수 있는 실패 — 포털 5xx · 429 · 통신 오류. 해석 실패 · 설계 전제 깨짐은 기다려도 안 풀리므로 아니다."""
+    return res.status == "error" and (res.message.startswith(("HTTP 5", "HTTP 429", "네트워크 실패")))
+
+
 def run(start: date, end: date, *, limit: Optional[int] = None,
-        refetch: bool = False, quiet: bool = False) -> Dict[str, object]:
+        refetch: bool = False, quiet: bool = False,
+        retry_waits: Sequence[float] = (), sleep: Callable[[float], None] = time.sleep) -> Dict[str, object]:
     """구간을 받는다. 한도가 바닥나면 **깔끔히 멈추고** 지금까지를 보고한다.
 
     돌려주는 것 — 날 수(``done`` · ``empty`` · ``error`` · ``rows`` · ``skipped``)와 멈춘 까닭 한 줄(``stopped`` · 없으면 빈 글).
@@ -162,9 +175,16 @@ def run(start: date, end: date, *, limit: Optional[int] = None,
 
     print(f"대상 {len(targets):,}일 (주중 {len(days):,}일 중 {tally['skipped']:,}일은 이미 처리됨)")
     stopped = ""
+    waits = list(retry_waits)                  # 이 회차가 쓸 수 있는 기다림 전체 — 앞 날이 다 쓰면 뒤 날은 바로 포기한다
+    causes: Counter = Counter()                # 실패한 날의 까닭(HTTP 504 …) — 알림이 「빈 응답」 과 「통신 실패」 를 가르게
     for i, d in enumerate(targets, 1):
         try:
             res = portal.fetch_day(conn, limiter, d, session=session)
+            while _transient(res) and waits:
+                w = waits.pop(0)
+                print(f"  ↻ {d} {res.message[:60]} — {w:g}초 기다렸다 다시 시도(남은 기회 {len(waits)})")
+                sleep(w)
+                res = portal.fetch_day(conn, limiter, d, session=session)
         except BudgetExhausted as exc:
             stopped = str(exc)
             break
@@ -175,6 +195,7 @@ def run(start: date, end: date, *, limit: Optional[int] = None,
 
         if res.status == "error":
             portal.mark_error(conn, res)
+            causes[(res.message or "까닭 없음")[:40]] += 1
         tally[res.status] = tally.get(res.status, 0) + 1
         tally["rows"] += res.rows
 
@@ -192,7 +213,8 @@ def run(start: date, end: date, *, limit: Optional[int] = None,
         tally["stopped"] = stopped.strip().splitlines()[0]   # 까닭의 첫 줄만(「할 일」 줄은 로그에)
     if exit_code(tally):
         # 마지막 줄 — 러너의 실패 까닭 한 줄(`failure_line`)이 🔴 · 실패 표시 줄을 뒤에서부터 찾는다
-        print(f"\n🟡 다 받지 못했다 — 실패 {tally['error']:,}일"
+        why = f"({' · '.join(f'{k} {v}일' for k, v in causes.most_common(2))})" if causes else ""
+        print(f"\n🟡 다 받지 못했다 — 실패 {tally['error']:,}일{why}"
               + (f" · 멈춤: {tally['stopped']}" if tally["stopped"] else "")
               + f" · 받은 날은 저장했고 다음 실행이 빈 날을 다시 받는다(종료코드 {EX_UNAVAILABLE})")
     return tally
@@ -206,7 +228,7 @@ def exit_code(tally: Dict[str, object]) -> int:
 def run_recent(*, window: int = RECENT_WINDOW, quiet: bool = False) -> Dict[str, object]:
     """일일 수집. 최근 창 안에서 **빠진 날만** 채운다."""
     today = datetime.now().date()
-    return run(today - timedelta(days=window), today, quiet=quiet)
+    return run(today - timedelta(days=window), today, quiet=quiet, retry_waits=RETRY_WAITS)
 
 
 # ==================================================
