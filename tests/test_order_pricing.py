@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
-from app.models import BrokerSettings, OrderIntent
+from app.models import BrokerSettings, OrderIntent, LiveOrder
 from app.services import auto_trade, kis_execution, order_preflight, live_ownership, execution_control as control
 from app.services.execution_policy import risk_quantity
 from app.services import trading_cost
@@ -51,6 +51,7 @@ def test_final_price_resizes_risk_quantity_and_persists_basis(runtime, monkeypat
             assert saved.result['price_basis'] == result['price_basis']
             assert saved.result['price_basis']['quote']['source'] == 'kis_user'
             assert saved.result['price_basis']['quote']['fetched_at']
+            assert saved.result['price_basis']['stop']['stop_price'] == current * .95
             assert saved.result['price_basis']['signal_price'] == 10000
             assert saved.result['price_basis']['sizing']['estimated_loss'] <= 10000
             assert saved.result['price_basis']['sizing']['estimated_cash'] == pytest.approx(
@@ -81,6 +82,10 @@ def test_final_preflight_refuses_unconfirmed_price_stop_and_extra_entry(runtime,
             'size_kind': 'risk_pct', 'risk_pct': 1, 'stop_loss_pct': 5})
         async with runtime() as db:
             row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
+            db.add(LiveOrder(user_id=uid, account_ref='b' * 64, strategy_id='quant_default', strategy_version=0,
+                client_order_id=str(uid), symbol='005930.KS', name='삼성전자', side='BUY', quantity=10,
+                filled_quantity=10, avg_filled_price=10000, status='FILLED'))
+            await db.commit()
             result = await auto_trade._execute_trade(db, uid, row, 'live', '005930.KS', '삼성전자',
                 'buy' if case == 'already_held' else 'sell', 9000, 10, 'test',
                 decision={'signal_key': '2026-10-28', 'input_hash': 'test', 'risk_stop': case != 'already_held'})
@@ -105,4 +110,35 @@ def test_policy_changed_during_prepare_blocks_send(runtime, monkeypatch):
         result = await control.execute(intent(uid), 1, changed, sender)
         assert result['code'] == 'SETTINGS_CHANGED'
         sender.assert_not_awaited()
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('current,expected', [(9500, 'submitted'), (9501, 'STOP_NOT_CONFIRMED')])
+def test_saved_stop_drives_final_guard_after_mode_and_percent_change(runtime, monkeypatch, current, expected):
+    from app.services import risk_stops
+    client = SimpleNamespace(paper=True, get_price=AsyncMock(return_value=SimpleNamespace(current=current)))
+    monkeypatch.setattr(kis_execution, 'client_for', lambda row: (client, SimpleNamespace(account_no='test')))
+    monkeypatch.setattr(live_ownership, 'account_ref', lambda *args: 'c' * 64)
+    position = SimpleNamespace(symbol='005930.KS', quantity=10, avg_price=10000)
+    monkeypatch.setattr(live_ownership, 'reconcile', AsyncMock(return_value=([position], {})))
+    monkeypatch.setattr(kis_execution, 'account_snapshot', AsyncMock(return_value={
+        'cash': 900000, 'equity': 1000000, 'holdings': {'005930.KS': {'quantity': 10, 'value': 100000}}}))
+    sender = AsyncMock(return_value={'status': 'submitted', 'quantity': 10, 'price': current})
+    monkeypatch.setattr(auto_trade, '_execute_trade_unchecked', sender)
+    async def scenario():
+        uid = await user(runtime, quant_mode='live', quant_execution_policy={
+            'size_kind': 'risk_pct', 'stop_kind': 'pct', 'stop_loss_pct': 5})
+        async with runtime() as db:
+            row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
+            db.add(LiveOrder(user_id=uid, account_ref='c' * 64, strategy_id='quant_default', strategy_version=0,
+                client_order_id=str(uid), symbol='005930.KS', side='BUY', quantity=10,
+                filled_quantity=10, avg_filled_price=10000, status='FILLED'))
+            await db.commit()
+            assert (await risk_stops.for_position(db, uid, row, 'live', position))['stop_price'] == 9500
+            row.quant_execution_policy = {'size_kind': 'fixed_budget', 'stop_kind': 'pct', 'stop_loss_pct': 20}
+            await db.commit()
+            result = await auto_trade._execute_trade(db, uid, row, 'live', '005930.KS', '삼성전자',
+                'sell', current, 10, 'test', decision={'signal_key': 'immutable-stop', 'input_hash': 'test', 'risk_stop': True})
+            assert result.get('code', result['status']) == expected, result
+            assert sender.await_count == (1 if expected == 'submitted' else 0)
     asyncio.run(scenario())

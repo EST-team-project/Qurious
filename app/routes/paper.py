@@ -65,12 +65,6 @@ async def account(user=Depends(get_current_user_any), db: AsyncSession = Depends
     snap = await pt.account_snapshot(db, _uid(user))
     await db.commit()  # 최초 호출 시 계좌 행 생성
 
-    # 🆕 계좌 조회 시 오늘 스냅샷 자동 갱신 (idempotent, 실패해도 조회는 정상)
-    try:
-        await record_daily_snapshot(db, _uid(user))
-    except Exception as e:
-        logger.warning("snapshot 기록 실패: %s", e)
-
     return snap
 
 
@@ -482,12 +476,15 @@ async def paper_performance_snapshot(
     """
     오늘 자산 스냅샷을 수동으로 기록 (idempotent upsert).
 
-    - 앱 접속 시 자동으로도 기록되지만, 명시적으로 트리거하고 싶을 때 사용.
+    수동 기록은 성과 계산용 daily 기록을 덮어쓰지 않는다.
     """
-    row = await record_daily_snapshot(db, _uid(user))
+    row = await record_daily_snapshot(db, _uid(user), origin="manual")
     return {
         "status": "ok",
         "snap_date": row.snap_date.isoformat(),
+        "origin": row.origin,
+        "completeness": row.completeness,
+        "return_valid": row.return_valid,
         "total_equity": row.total_equity,
         "daily_return": row.daily_return,
         "position_count": row.position_count,

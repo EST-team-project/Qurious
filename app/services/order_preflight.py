@@ -7,6 +7,7 @@ from app.models import BrokerSettings, BrokerPositionBaseline, LiveOrder, Portfo
 from app.services import execution_control as control, kis_execution, live_ownership, quant_valuation, trading_cost
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.execution_policy import policy_for, risk_quantity
+from app.services import risk_stops
 
 
 async def current_quote(db, uid, row, mode, symbol):
@@ -60,8 +61,8 @@ async def quant(db, intent, mode, requested_quantity, decision=None, name=""):
         if intent.side == "BUY":
             power = await client.get_buying_power(creds.account_no, intent.symbol, price)
             cash, max_qty = min(cash, power["amount"]), power["quantity"]
-        held = next((p.quantity for p in owned if p.symbol == intent.symbol), 0)
-        average = next((p.avg_price for p in owned if p.symbol == intent.symbol), None)
+        position = next((p for p in owned if p.symbol == intent.symbol), None)
+        held = position.quantity if position else 0
         equity = snapshot["equity"]
         account_holding = snapshot["holdings"].get(intent.symbol, {})
         position_value = account_holding.get("quantity", 0) * price
@@ -78,18 +79,27 @@ async def quant(db, intent, mode, requested_quantity, decision=None, name=""):
         position_value = held * price
         # 같은 주문 직전 가격으로 보유 평가액도 바꾼다.
         equity += position_value - snapshot["values"].get(intent.symbol, 0)
-        average = position.avg_price if position else None
         held = await live_ownership.virtual_quantity(db, intent, held)
-        if position and held != int(position.quantity):
-            average = None  # 다른 전략·수동 보유가 섞인 평단을 전략 손절 원가로 쓰지 않는다.
         max_qty = None
     policy = policy_for(row)
     if policy.size_kind == "risk_pct" and quote['source'] not in ('kis_user', 'kis_gateway'):
         raise control.Rejected("PRICE_UNAVAILABLE", "위험 판단·수량 계산용 현재 원주가를 확인하지 못했습니다.")
+    if intent.side == "BUY" and policy.size_kind == "risk_pct" and (held or position_value > 0):
+        raise control.Rejected("ALREADY_HELD", "위험 기준 수량은 보유 종목 추가 매수를 하지 않습니다.")
+    if (mode != "live" and position and held != int(position.quantity)
+            and (policy.size_kind == "risk_pct" or decision.get("risk_stop"))):
+        raise control.Rejected("OWNERSHIP_UNCONFIRMED", "다른 전략 보유가 섞여 손절 원가를 확정할 수 없습니다.")
+    try:
+        stop = await risk_stops.for_position(db, intent.user_id, row, mode, position) if position else None
+    except ValueError as exc:
+        raise control.Rejected("STOP_UNAVAILABLE", str(exc)) from exc
     if decision.get("risk_stop"):
-        if (quote["source"] not in ("kis_user", "kis_gateway") or not average
-                or price > float(average) * (1 - policy.stop_loss_pct / 100)):
-            raise control.Rejected("STOP_NOT_CONFIRMED", "주문 직전 현재가로 손절 조건을 확인하지 못했습니다.")
+        if (quote["source"] not in ("kis_user", "kis_gateway") or stop is None
+                or price > stop["stop_price"]):
+            raise control.Rejected("STOP_NOT_CONFIRMED", "주문 직전 현재가로 고정 손절 조건을 확인하지 못했습니다.")
+    if intent.side == "BUY" and stop is not None:
+        raise control.Rejected("ALREADY_HELD", "고정 손절 기준이 있는 보유는 모드 변경 후에도 추가 매수하지 않습니다.")
+    entry_stop = None
     sizing = None
     quantity = requested_quantity
     if intent.side == "BUY":
@@ -99,10 +109,12 @@ async def quant(db, intent, mode, requested_quantity, decision=None, name=""):
             card_cap = float(decision["position_cap_pct"])
             cap = min(cap, card_cap) if cap > 0 else card_cap
         if policy.size_kind == "risk_pct":
-            if held or position_value > 0:
-                raise control.Rejected("ALREADY_HELD", "위험 기준 수량은 보유 종목 추가 매수를 하지 않습니다.")
+            try:
+                entry_stop = await risk_stops.entry_basis(intent.symbol, price, policy)
+            except ValueError as exc:
+                raise control.Rejected("STOP_UNAVAILABLE", str(exc)) from exc
             sizing = risk_quantity(equity=equity, cash=cash, price=price,
-                stop_price=price * (1 - policy.stop_loss_pct / 100), budget=budget,
+                stop_price=entry_stop["stop_price"], budget=budget,
                 existing_value=position_value, position_cap_pct=cap, risk_pct=policy.risk_pct,
                 slippage_bps=policy.slippage_bps, when=trading_cost.today_kst(),
                 market=trading_cost.market_of(intent.symbol), is_etf=trading_cost.is_etf_name(name))
@@ -117,12 +129,23 @@ async def quant(db, intent, mode, requested_quantity, decision=None, name=""):
     quantity = min(quantity, max_qty) if max_qty is not None else quantity
     price_basis = {"signal_price": decision.get("signal_price"), "signal_as_of": decision.get("signal_as_of"),
                    "quote": quote, "quantity": quantity}
+    if entry_stop is not None:
+        price_basis["stop"] = entry_stop
+    if stop is not None:
+        price_basis["stop"] = stop
     signal_price = decision.get("signal_price")
     if signal_price and signal_price > 0:
         price_basis["price_delta_pct"] = round((price / signal_price - 1) * 100, 4)
     if sizing:
         estimated_cash = sizing["estimated_cash"] * quantity / sizing["quantity"] if sizing["quantity"] else 0
-        sizing = {**sizing, "quantity": quantity, "estimated_loss": sizing["loss_per_share"] * quantity,
+        quantity_limits = dict(sizing["quantity_limits"])
+        if max_qty is not None:
+            quantity_limits["broker"] = max_qty
+        if not decision.get("size_from_budget"):
+            quantity_limits["requested"] = requested_quantity
+        sizing = {**sizing, "quantity_limits": quantity_limits,
+                  "binding_limits": [key for key, value in quantity_limits.items() if value == quantity],
+                  "quantity": quantity, "estimated_loss": sizing["loss_per_share"] * quantity,
                   "estimated_cash": estimated_cash}
         price_basis["sizing"] = sizing
     return {"price": price, "cash": cash, "equity": equity, "position_value": position_value,

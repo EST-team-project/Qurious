@@ -50,7 +50,7 @@ def test_trading_js_never_posts_broker_settings():
 
 def test_order_screen_says_orders_stay_inside_the_app():
     view = _view("trading-order")
-    assert "증권사로 나가지 않고" in view and "가상 매매" in view and "현금은 그대로" in view
+    assert "증권사로 나가지 않고" in view and "가상 매매" in view and "현금과 보유량이 함께" in view
     code = _code(TRADING)
     assert "주문 완료" not in code, "증권사로 나가지 않는 기록을 「주문 완료」 라 부르지 않는다"
     assert "기록 완료" in code
@@ -61,3 +61,9 @@ def test_portfolio_says_price_basis_and_shows_load_errors():
     assert "data-pf-basis" in code and "출처 · 시각이 없어" in code and "평단가로 대신하지 않습니다" in code
     body = re.search(r"async function loadPortfolio\(\) \{.*?\n\}\n", code, flags=re.S).group(0)
     assert "catch {}" not in body and "보유 종목을 불러오지 못했습니다" in body
+
+
+def test_manual_order_only_offers_virtual_broker():
+    view = _view("trading-order")
+    select = re.search(r'id="ord-broker".*?</select>', view, flags=re.S).group(0)
+    assert re.findall(r'value="(.*?)"', select) == ["virtual"]

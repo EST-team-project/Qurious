@@ -323,10 +323,10 @@ async def delete_holding(
 class OrderBody(BaseModel):
     symbol: str
     name: str
-    order_type: str   # buy | sell
-    quantity: int
-    price: float
-    broker: str = "virtual"
+    order_type: Literal["buy", "sell"]
+    quantity: int = Field(gt=0, strict=True)
+    price: float = Field(gt=0, allow_inf_nan=False, strict=True)
+    broker: Literal["virtual"] = "virtual"
 
 
 async def _apply_portfolio(db: AsyncSession, user_id: uuid.UUID, symbol: str, name: str,
@@ -360,7 +360,7 @@ async def place_order(
 ):
     uid = _uid(user["id"])
     # 원화 가상 매매 장부는 국내 종목만 — 해외 종목의 달러 값이 원화 현금에서 그대로 빠졌다(2026-10-16 점검 🔴).
-    if body.broker == "virtual" and not overseas_orders.is_domestic(body.symbol):
+    if not overseas_orders.is_domestic(body.symbol):
         raise HTTPException(400, overseas_orders.VIRTUAL_REFUSAL)
     # 매매비용을 먼저 계산한다 — 현금 증감은 `가격 × 수량` 이 아니라 정산금액이다.
     # 매수는 수수료·유관기관비가 더 나가고, 매도는 그것에 세금까지 빼고 들어온다.
@@ -372,26 +372,26 @@ async def place_order(
         is_etf=trading_cost.is_etf_name(body.name),
     )
     # 가상 매매는 모의투자 계좌(PaperAccount)의 현금과 연동한다 — 매수 시 차감, 매도 시 가산.
-    if body.broker == "virtual":
-        if body.order_type == "sell":
-            # 보유보다 많이 팔면 현금은 주문 수량만큼 늘고 보유는 0 에서 멈춘다
-            # (`_apply_portfolio` 는 없는 보유를 음수로 만들지 않는다) — **없는 돈**이 생긴다.
-            # 현금과 보유가 어긋나는 부류(옛 I14 · 옛 A9 분석이 찾은 구멍)라 함께 막는다.
-            # 보유는 모의계좌 장부(book=PAPER)만 센다 — 자동매매 장부(QUANT)의 같은 종목을 여기서 팔 수 없다.
-            held = (await db.execute(
-                select(Portfolio.quantity).where(Portfolio.user_id == uid,
-                                                 Portfolio.symbol == body.symbol,
-                                                 Portfolio.book == PORTFOLIO_BOOK_PAPER)
-            )).scalar_one_or_none() or 0
-            if held < body.quantity:
-                raise HTTPException(
-                    400, f"매도 가능한 수량이 부족합니다 (보유 {held}주 · 주문 {body.quantity}주).")
-        delta = -cost.net_amount if body.order_type == "buy" else cost.net_amount
-        try:
-            await paper_trading.apply_cash(db, uid, delta)
-        except paper_trading.PaperTradeError as exc:
-            await db.rollback()
-            raise HTTPException(400, str(exc))
+    await paper_trading.get_account(db, uid, lock=True)
+    if body.order_type == "sell":
+        # 보유보다 많이 팔면 현금은 주문 수량만큼 늘고 보유는 0 에서 멈춘다
+        # (`_apply_portfolio` 는 없는 보유를 음수로 만들지 않는다) — **없는 돈**이 생긴다.
+        # 현금과 보유가 어긋나는 부류(옛 I14 · 옛 A9 분석이 찾은 구멍)라 함께 막는다.
+        # 보유는 모의계좌 장부(book=PAPER)만 센다 — 자동매매 장부(QUANT)의 같은 종목을 여기서 팔 수 없다.
+        held = (await db.execute(
+            select(Portfolio.quantity).where(Portfolio.user_id == uid,
+                                             Portfolio.symbol == body.symbol,
+                                             Portfolio.book == PORTFOLIO_BOOK_PAPER)
+        )).scalar_one_or_none() or 0
+        if held < body.quantity:
+            raise HTTPException(
+                400, f"매도 가능한 수량이 부족합니다 (보유 {held}주 · 주문 {body.quantity}주).")
+    delta = -cost.net_amount if body.order_type == "buy" else cost.net_amount
+    try:
+        await paper_trading.apply_cash(db, uid, delta)
+    except paper_trading.PaperTradeError as exc:
+        await db.rollback()
+        raise HTTPException(400, str(exc))
     db.add(Order(
         user_id=uid, symbol=body.symbol, name=body.name, order_type=body.order_type,
         quantity=body.quantity, price=body.price, status="filled", broker=body.broker, source="WEB",
@@ -746,7 +746,11 @@ async def save_quant_settings(
     row.quant_buy_ratio = body.buy_ratio
     row.quant_sell_ratio = body.sell_ratio
     if body.execution_policy is not None:
-        row.quant_execution_policy = body.execution_policy.model_dump()
+        policy = body.execution_policy.model_dump()
+        if ("stop_kind" not in body.execution_policy.model_fields_set
+                and policy_for(row).size_kind == "risk_pct"):
+            policy["stop_kind"] = policy_for(row).stop_kind
+        row.quant_execution_policy = policy
     strategy_id = (body.strategy_id or "").strip().lower()
     if strategy_id:
         spec = await strategy_loader.get_strategy(strategy_id, body.strategy_version or None)

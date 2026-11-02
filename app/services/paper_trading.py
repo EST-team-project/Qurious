@@ -30,7 +30,7 @@ from app.models import (
     PAPER_INITIAL_CASH,
 )
 from app.services.krx_companies import get_krx_companies
-from app.services import fx
+from app.services import fx, snapshot_pricing, overseas_orders
 from app.services.stock import HEADERS, _yahoo_chart, get_candles, get_quote
 from app.services import trading_cost
 from app.services import execution_control
@@ -252,17 +252,32 @@ async def stock_positions(
     user_id: uuid.UUID,
     include_volatility: bool = False,
     include_price_metadata: bool = False,
+    valuation_date: date | None = None,
 ) -> list[dict]:
     rows = (await db.execute(select(Portfolio).where(Portfolio.user_id == user_id, Portfolio.book == PORTFOLIO_BOOK_PAPER))).scalars().all()
     result = []
     for pos in rows:
         price = pos.avg_price
-        price_complete = False
+        meta = snapshot_pricing.evidence("stock", pos.symbol, price, "average_cost", None, fallback=["average_cost"])
         try:
-            price = (await resolve_stock(pos.symbol))["price"]
-            price_complete = price is not None and price > 0
+            info = await resolve_stock(pos.symbol)
+            if snapshot_pricing.positive(info.get("price")):
+                price = info["price"]
+                fallback = [] if info.get("currency", "KRW") == "KRW" else ["foreign_fx_close_unverified"]
+                source = info.get("quote_source")
+                as_of = snapshot_pricing.stock_quote_time(info.get("quote_as_of"), source)
+                meta = snapshot_pricing.evidence("stock", pos.symbol, price, source, as_of, fallback=fallback)
         except Exception:
             pass
+        if valuation_date and overseas_orders.is_domestic(pos.symbol) and not snapshot_pricing.daily_complete(meta, valuation_date):
+            try:
+                from app.services.price_basis import load_day
+                close = await asyncio.to_thread(load_day, pos.symbol, valuation_date)
+                price = close["raw_close"]
+                meta = snapshot_pricing.evidence("stock", pos.symbol, price, "collector_close", close["as_of"])
+            except Exception:
+                pass
+        price_complete = meta["complete"] if valuation_date is None else snapshot_pricing.daily_complete(meta, valuation_date)
 
         eval_amount = pos.quantity * price
         item = {
@@ -275,6 +290,7 @@ async def stock_positions(
             item["volatility"] = await stock_volatility(pos.symbol)
         if include_price_metadata:
             item["_price_complete"] = price_complete
+            item["_price_metadata"] = meta
         result.append(item)
     return result
 
@@ -550,6 +566,8 @@ async def upbit_tickers(codes: list[str]) -> list[dict]:
                 for r in resp.json():
                     _UPBIT_TICKER_CACHE[r["market"]] = {"ts": now, "data": {
                         "market": r["market"], "price": float(r["trade_price"]),
+                        "as_of": datetime.fromtimestamp(r["trade_timestamp"] / 1000, timezone.utc).isoformat() if r.get("trade_timestamp") else None,
+                        "source": "upbit",
                         "changeRate": round(float(r.get("signed_change_rate", 0)) * 100, 2),
                         "change": float(r.get("signed_change_price", 0)),
                         "high24h": float(r.get("high_price", 0)), "low24h": float(r.get("low_price", 0)),
@@ -558,7 +576,9 @@ async def upbit_tickers(codes: list[str]) -> list[dict]:
                     }}
         except Exception:
             pass
-    return [_UPBIT_TICKER_CACHE[c]["data"] for c in codes if c in _UPBIT_TICKER_CACHE]
+    return [entry["data"] for c in codes if (entry := _UPBIT_TICKER_CACHE.get(c))
+            and now - entry["ts"] <= 300
+            and snapshot_pricing.evidence("crypto", c, entry["data"].get("price"), "upbit", entry["data"].get("as_of"))["complete"]]
 
 
 async def upbit_trade_price(market_code: str) -> float:
@@ -638,7 +658,9 @@ async def crypto_holdings(
 
     for h in rows:
         ticker_price = tickers.get(h.market_code, {}).get("price")
-        price_complete = ticker_price is not None and ticker_price > 0
+        ticker = tickers.get(h.market_code, {})
+        meta = snapshot_pricing.evidence("crypto", h.market_code, ticker_price, ticker.get("source"), ticker.get("as_of"))
+        price_complete = meta["complete"]
         price = ticker_price if price_complete else h.avg_price
         eval_krw = round(h.quantity * price)
 
@@ -651,6 +673,7 @@ async def crypto_holdings(
 
         if include_price_metadata:
             item["_price_complete"] = price_complete
+            item["_price_metadata"] = {**meta, "price": price, "fallback": meta["fallback"] if price_complete else [*meta["fallback"], "average_cost"]}
 
         hold_list.append(item)
         total_buy += h.total_krw
@@ -890,7 +913,9 @@ async def alt_positions(
         if include_volatility:
             item["volatility"] = annualized_volatility([c["close"] for c in await alt_chart(row.symbol, 30)], 252)
         if include_price_metadata:
-            item["_price_complete"] = quote.get("source") != "교육용 기준 시세"
+            meta = snapshot_pricing.evidence("alternative", row.symbol, quote.get("price"), quote.get("source"), quote.get("updatedAt"))
+            item["_price_complete"] = meta["complete"]
+            item["_price_metadata"] = meta
         result.append(item)
     return result
 
@@ -954,9 +979,9 @@ async def alt_history(db: AsyncSession, user_id: uuid.UUID, limit: int = 100) ->
 
 # ── 계좌 스냅샷 (세 자산군 합산) ─────────────────────────────────────────
 
-async def account_snapshot(db: AsyncSession, user_id: uuid.UUID) -> dict:
-    account = await get_account(db, user_id)
-    stocks = await stock_positions(db, user_id, include_price_metadata=True)
+async def account_snapshot(db: AsyncSession, user_id: uuid.UUID, *, valuation_date: date | None = None) -> dict:
+    account = await get_account(db, user_id, lock=valuation_date is not None)
+    stocks = await stock_positions(db, user_id, include_price_metadata=True, valuation_date=valuation_date)
     crypto = await crypto_holdings(db, user_id, include_price_metadata=True)
     alts = await alt_positions(db, user_id, include_price_metadata=True)
 
@@ -987,6 +1012,7 @@ async def account_snapshot(db: AsyncSession, user_id: uuid.UUID) -> dict:
             "alternatives": len(alts),
         },
         "price_complete": price_complete,
+        "price_metadata": [p["_price_metadata"] for p in [*stocks, *crypto["holdCryptoList"], *alts]],
     }
 
 
