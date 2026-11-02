@@ -23,7 +23,6 @@ def env(runtime, monkeypatch):
     sessions, client = runtime
     monkeypatch.setattr(recovery, "get_session_factory", lambda: sessions)
     monkeypatch.setattr(recovery, "datetime", recovery.control.datetime)
-    monkeypatch.setattr(recovery.manual_broker_order, "datetime", recovery.control.datetime)
     monkeypatch.setattr(recovery, "pause", AsyncMock())
     monkeypatch.setattr(recovery, "live_trading_allowed", lambda: False)
     monkeypatch.setattr(recovery.etf_execution, "describe", lambda symbol: {"is_etf": False})
@@ -226,3 +225,18 @@ def test_settings_change_after_reservation_blocks_retry(env, monkeypatch):
         assert result["code"] == "SETTINGS_CHANGED", result
         client.place_order.assert_not_awaited()
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('hour,minute,allowed', [(8,59,False),(9,0,True),(15,20,True),(15,29,True),(15,30,False)])
+def test_recovery_uses_regular_session_boundary(env, monkeypatch, hour, minute, allowed):
+    from datetime import datetime as Clock
+    class At(Clock):
+        @classmethod
+        def now(cls,tz=None):
+            return cls(2026,11,2,hour,minute,tzinfo=recovery.control.KST)
+    monkeypatch.setattr(recovery,'datetime',At)
+    monkeypatch.setattr(recovery.market_calendar,'trading_days',lambda *args:{'days':[{'date':'2026-11-02','is_trading_day':True}]})
+    if allowed:
+        recovery.check_window(At.now().date())
+    else:
+        with pytest.raises(recovery.control.Rejected): recovery.check_window(At.now().date())

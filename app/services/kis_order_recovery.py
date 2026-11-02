@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased
 from app.database.postgres import get_session_factory
 from app.models import BrokerCancelRequest, BrokerSettings, LiveOrder, LIVE_ORDER_OPEN_STATUSES
 from app.services import (auto_trade, execution_control as control, kis_execution, live_ownership,
-                          manual_broker_order, order_preflight, etf_execution)
+                          market_calendar, order_preflight, etf_execution)
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.brokers.factory import live_trading_allowed
 from app.services.execution_policy import policy_for
@@ -19,6 +19,16 @@ from app.services.execution_policy import policy_for
 
 async def pause():
     await asyncio.sleep(1.1)
+
+
+def check_window(day):
+    """기존 C5와 같은 KRX 정규장. 자료가 불완전한 거래일은 허용하지 않는다."""
+    now = datetime.now(control.KST)
+    calendar = market_calendar.trading_days(day, day)
+    if (now.date() != day or not gateway.is_krx_market_open(now)
+            or calendar.get("partial") or not any(item["date"] == day.isoformat() and item["is_trading_day"]
+                                                 for item in calendar.get("days", []))):
+        raise control.Rejected("OUTSIDE_WINDOW", "확인된 KRX 정규장(09:00~15:30)에만 취소·재주문합니다.")
 
 
 def context(row):
@@ -78,7 +88,7 @@ async def cancel(uid, order_id):
                 row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
                 client, credentials, _ = verify_account(parent, row)
                 day = datetime.now(control.KST).date()
-                manual_broker_order.check_window(day)
+                check_window(day)
                 if parent.created_at.astimezone(control.KST).date() != day:
                     raise control.Rejected("OUTSIDE_WINDOW", "당일 주문만 취소 요청합니다.")
                 latest = await kis_execution.direct_status(parent, row)
@@ -96,7 +106,7 @@ async def cancel(uid, order_id):
                 verify_account(parent, row)
                 if control.settings_signature(row) != signature:
                     raise control.Rejected("SETTINGS_CHANGED", "취소 직전 계좌 설정이 변경됐습니다.")
-                manual_broker_order.check_window(day)
+                check_window(day)
                 request = BrokerCancelRequest(order_id=parent.id, quantity=remaining, status="UNKNOWN")
                 db.add(request)
                 parent.status = "CANCEL_REQUESTED"
@@ -131,7 +141,7 @@ def retry_policy(parent, row, automatic):
         raise control.Rejected("RETRY_EXPIRED", "원 주문의 재주문 허용 시간이 지났습니다.")
     if (parent.retry_number or 0) >= policy.retry_max_attempts:
         raise control.Rejected("RETRY_LIMIT", "원 주문의 재주문 횟수 한도입니다.")
-    manual_broker_order.check_window(now.date())
+    check_window(now.date())
     return policy
 
 
