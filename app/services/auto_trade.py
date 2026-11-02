@@ -308,7 +308,7 @@ async def _place_live_order(
     price: float,
     user_id: str,
     db: AsyncSession | None = None,
-    *, client_order_id: str | None = None, decision_record=None,
+    *, client_order_id: str | None = None, decision_record=None, retry_parent=None,
 ) -> dict | None:
     """KIS 연동(live) 모드의 증권사 주문. 가상 장부 체결은 만들지 않는다.
 
@@ -361,6 +361,10 @@ async def _place_live_order(
             direct_row.account_ref = intent.account_ref
             direct_row.strategy_id = intent.strategy_id
             direct_row.strategy_version = intent.strategy_version
+        if retry_parent is not None:
+            direct_row.retry_of = retry_parent.id
+            direct_row.retry_number = (retry_parent.retry_number or 0) + 1
+            direct_row.retry_started_at = retry_parent.retry_started_at or retry_parent.created_at
         db.add(direct_row)
         if decision_record is not None:
             await db.flush()
@@ -396,6 +400,11 @@ async def _place_live_order(
         return outcome
     if broker == "kis" and not order_no:
         return await record({"status": "unknown", "broker": broker, "code": "ORDER_SUBMISSION_UNKNOWN"})
+    if direct_row is not None:
+        output = result.get("output") or {}
+        metadata = json.loads(direct_row.raw)
+        metadata["organization"] = str(output.get("KRX_FWDG_ORD_ORGNO") or output.get("krx_fwdg_ord_orgno") or "")
+        direct_row.raw = json.dumps(metadata)
     outcome = await record({"status": "submitted", "broker": broker, "response": result, "order_no": order_no,
                             "environment": env, "tracking": "direct" if direct_row else "unavailable"})
     # 알림 전송 장애를 이미 접수한 증권사 주문 실패로 바꾸지 않는다.

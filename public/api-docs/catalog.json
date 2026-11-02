@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 285,
+ "count": 288,
  "routers": 43,
  "routes": [
   {
@@ -1287,7 +1287,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 555,
+   "line": 557,
    "errors": [],
    "keys": [
     "brokers"
@@ -1315,7 +1315,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 560,
+   "line": 562,
    "errors": [
     "422"
    ],
@@ -1347,7 +1347,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 579,
+   "line": 581,
    "errors": [],
    "keys": [
     "broker",
@@ -1376,13 +1376,14 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 616,
+   "line": 618,
    "errors": [],
    "keys": [
     "configured",
     "strategies",
     "source",
-    "test_only"
+    "test_only",
+    "local_cards"
    ],
    "body": [],
    "schema": true
@@ -1404,7 +1405,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 624,
+   "line": 626,
    "errors": [],
    "keys": [
     "gateway",
@@ -1433,7 +1434,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 654,
+   "line": 657,
    "errors": [],
    "keys": [
     "mode",
@@ -1456,6 +1457,8 @@
     "risk_halt_reason",
     "strategy_id",
     "strategy_version",
+    "strategy_card_id",
+    "local_strategy",
     "live_gateway",
     "brokers",
     "stocks"
@@ -1471,6 +1474,7 @@
    "summary": "",
    "auth": "세션",
    "reaches": [
+    "수집DB",
     "PostgreSQL"
    ],
    "hosts": [],
@@ -1482,8 +1486,9 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 707,
+   "line": 713,
    "errors": [
+    "409",
     "422"
    ],
    "keys": [
@@ -1521,7 +1526,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 800,
+   "line": 831,
    "errors": [],
    "keys": [
     "symbol",
@@ -1565,7 +1570,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 816,
+   "line": 847,
    "errors": [
     "502"
    ],
@@ -1603,7 +1608,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 840,
+   "line": 871,
    "errors": [
     "502"
    ],
@@ -1637,6 +1642,7 @@
     "developer.kbsec.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
@@ -1649,7 +1655,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 865,
+   "line": 896,
    "errors": [
     "409",
     "422",
@@ -1679,7 +1685,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 945,
+   "line": 976,
    "errors": [
     "404",
     "503"
@@ -1713,7 +1719,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 957,
+   "line": 988,
    "errors": [],
    "keys": [
     "ok",
@@ -1747,7 +1753,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 972,
+   "line": 1003,
    "errors": [
     "404",
     "422"
@@ -1787,7 +1793,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 988,
+   "line": 1019,
    "errors": [],
    "keys": [
     "symbol",
@@ -1823,6 +1829,7 @@
     "developer.kbsec.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
@@ -1839,7 +1846,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1069,
+   "line": 1100,
    "errors": [
     "409"
    ],
@@ -1869,6 +1876,7 @@
     "canary.discord.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "ptb.discord.com"
    ],
    "screens": [
@@ -1879,7 +1887,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1078,
+   "line": 1109,
    "errors": [],
    "keys": [
     "ok",
@@ -1910,7 +1918,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1084,
+   "line": 1115,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1944,7 +1952,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1096,
+   "line": 1127,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1968,6 +1976,7 @@
     "canary.discord.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "ptb.discord.com"
    ],
    "screens": [
@@ -1976,7 +1985,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1121,
+   "line": 1152,
    "errors": [],
    "keys": [
     "ok",
@@ -2006,7 +2015,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1145,
+   "line": 1176,
    "errors": [],
    "keys": [],
    "body": [],
@@ -2036,6 +2045,7 @@
     "developer.kbsec.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
@@ -2048,7 +2058,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1151,
+   "line": 1182,
    "errors": [
     "409"
    ],
@@ -2080,6 +2090,7 @@
     "developer.kbsec.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
@@ -2094,7 +2105,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1160,
+   "line": 1191,
    "errors": [
     "409"
    ],
@@ -2123,6 +2134,7 @@
     "canary.discord.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "ptb.discord.com"
    ],
    "screens": [],
@@ -2131,7 +2143,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1170,
+   "line": 1201,
    "errors": [],
    "keys": [
     "ok",
@@ -2162,7 +2174,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1177,
+   "line": 1208,
    "errors": [],
    "keys": [
     "running",
@@ -2205,7 +2217,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1246,
+   "line": 1277,
    "errors": [
     "404",
     "422"
@@ -2236,7 +2248,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1353,
+   "line": 1384,
    "errors": [],
    "keys": [
     "items"
@@ -2267,7 +2279,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1368,
+   "line": 1399,
    "errors": [
     "422"
    ],
@@ -2298,13 +2310,88 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1388,
+   "line": 1419,
    "errors": [
     "404"
    ],
    "keys": [
     "ok"
    ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KMON-03",
+   "router": "kis_monitor",
+   "method": "POST",
+   "path": "/api/quant/kis/orders/{order_id}/cancel",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "증권사",
+    "PostgreSQL",
+    "Redis",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [
+    "mypage"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/kis_monitor.py",
+   "line": 82,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KMON-04",
+   "router": "kis_monitor",
+   "method": "POST",
+   "path": "/api/quant/kis/orders/{order_id}/retry",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "주문",
+    "PostgreSQL",
+    "Redis",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
+    "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "ptb.discord.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "mypage"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/kis_monitor.py",
+   "line": 88,
+   "errors": [],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -2324,7 +2411,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/kis_monitor.py",
-   "line": 88,
+   "line": 102,
    "errors": [],
    "keys": [],
    "body": [],
@@ -2345,7 +2432,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/kis_monitor.py",
-   "line": 220,
+   "line": 234,
    "errors": [],
    "keys": [
     "total",
@@ -2739,9 +2826,17 @@
    "summary": "본인의 마지막 성공 계산 한 건. 현재 진단 성향으로 재계산하거나 저장본을 변경하지 않는다.",
    "auth": "세션",
    "reaches": [
-    "PostgreSQL"
+    "수집DB",
+    "PostgreSQL",
+    "외부"
    ],
-   "hosts": [],
+   "hosts": [
+    "www.data.go.kr",
+    "www.fsc.go.kr",
+    "www.fss.or.kr",
+    "www.law.go.kr",
+    "www.samsungpop.com"
+   ],
    "screens": [
     "agent-products",
     "robo-portfolio"
@@ -2751,7 +2846,9 @@
    "file": "app/routes/ml.py",
    "line": 124,
    "errors": [
-    "404"
+    "404",
+    "409",
+    "503"
    ],
    "keys": [],
    "body": [],
@@ -2784,7 +2881,7 @@
     "RFP2-3.1.4-④"
    ],
    "file": "app/routes/ml.py",
-   "line": 139,
+   "line": 148,
    "errors": [
     "422"
    ],
@@ -2819,7 +2916,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 353,
+   "line": 362,
    "errors": [],
    "keys": [
     "questions",
@@ -2843,7 +2940,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 359,
+   "line": 368,
    "errors": [
     "422"
    ],
@@ -2868,7 +2965,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 369,
+   "line": 378,
    "errors": [
     "422"
    ],
@@ -2899,7 +2996,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 381,
+   "line": 390,
    "errors": [
     "422"
    ],
@@ -2933,7 +3030,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 404,
+   "line": 413,
    "errors": [
     "404",
     "422"
@@ -2965,7 +3062,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 421,
+   "line": 430,
    "errors": [
     "404",
     "422"
@@ -3336,6 +3433,7 @@
     "canary.discord.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "ptb.discord.com"
    ],
    "screens": [
@@ -3378,6 +3476,7 @@
     "canary.discord.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "ptb.discord.com"
    ],
    "screens": [
@@ -3389,7 +3488,7 @@
     "P02-⑤-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 295,
+   "line": 308,
    "errors": [],
    "keys": [
     "ok",
@@ -3417,7 +3516,7 @@
     "P02-③-3"
    ],
    "file": "app/routes/notification.py",
-   "line": 323,
+   "line": 336,
    "errors": [],
    "keys": [
     "events",
@@ -3899,7 +3998,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 62,
+   "line": 64,
    "errors": [],
    "keys": [],
    "body": [],
@@ -3922,7 +4021,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 77,
+   "line": 73,
    "errors": [],
    "keys": [
     "status",
@@ -3957,7 +4056,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 100,
+   "line": 96,
    "errors": [
     "404"
    ],
@@ -3994,7 +4093,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 108,
+   "line": 104,
    "errors": [],
    "keys": [
     "positions"
@@ -4034,11 +4133,47 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 114,
+   "line": 110,
    "errors": [],
    "keys": [],
    "body": [
     "StockOrderBody"
+   ],
+   "schema": true
+  },
+  {
+   "id": "API-PAPR-49",
+   "router": "paper",
+   "method": "POST",
+   "path": "/api/paper/stocks/orders/risk-preview",
+   "summary": "",
+   "auth": "세션·JWT",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "PostgreSQL",
+    "Redis",
+    "외부"
+   ],
+   "hosts": [
+    "api.upbit.com",
+    "developer.kbsec.com",
+    "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/paper.py",
+   "line": 119,
+   "errors": [],
+   "keys": [],
+   "body": [
+    "RiskPreviewBody"
    ],
    "schema": true
   },
@@ -4055,14 +4190,22 @@
     "증권사",
     "PostgreSQL",
     "Redis",
+    "알림",
     "외부"
    ],
    "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [
@@ -4073,7 +4216,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 135,
+   "line": 142,
    "errors": [],
    "keys": [],
    "body": [
@@ -4094,14 +4237,22 @@
     "증권사",
     "PostgreSQL",
     "Redis",
+    "알림",
     "외부"
    ],
    "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -4110,7 +4261,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 140,
+   "line": 147,
    "errors": [],
    "keys": [],
    "body": [
@@ -4131,14 +4282,22 @@
     "증권사",
     "PostgreSQL",
     "Redis",
+    "알림",
     "외부"
    ],
    "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -4147,7 +4306,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 145,
+   "line": 152,
    "errors": [],
    "keys": [],
    "body": [
@@ -4168,14 +4327,22 @@
     "증권사",
     "PostgreSQL",
     "Redis",
+    "알림",
     "외부"
    ],
    "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
@@ -4184,7 +4351,7 @@
     "P02-③-1"
    ],
    "file": "app/routes/paper.py",
-   "line": 150,
+   "line": 157,
    "errors": [],
    "keys": [],
    "body": [
@@ -4212,7 +4379,7 @@
     "P01-④-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 156,
+   "line": 163,
    "errors": [],
    "keys": [
     "history"
@@ -4228,12 +4395,19 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "야후",
+    "증권사",
     "PostgreSQL",
+    "Redis",
     "외부"
    ],
    "hosts": [
+    "developer.kbsec.com",
     "kind.krx.co.kr",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [
@@ -4242,7 +4416,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 165,
+   "line": 172,
    "errors": [],
    "keys": [],
    "body": [
@@ -4267,7 +4441,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 180,
+   "line": 187,
    "errors": [],
    "keys": [
     "orders"
@@ -4290,7 +4464,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 185,
+   "line": 192,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4309,21 +4483,29 @@
     "증권사",
     "PostgreSQL",
     "Redis",
+    "알림",
     "외부"
    ],
    "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
     "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",
     "openapivts.koreainvestment.com",
+    "ptb.discord.com",
     "query2.finance.yahoo.com"
    ],
    "screens": [],
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 198,
+   "line": 205,
    "errors": [],
    "keys": [
     "fired"
@@ -4350,7 +4532,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 225,
+   "line": 233,
    "errors": [],
    "keys": [
     "markets",
@@ -4378,7 +4560,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 231,
+   "line": 239,
    "errors": [],
    "keys": [
     "rankings"
@@ -4405,7 +4587,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 236,
+   "line": 244,
    "errors": [],
    "keys": [
     "tickers"
@@ -4432,7 +4614,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 241,
+   "line": 249,
    "errors": [
     "400",
     "502"
@@ -4465,7 +4647,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 251,
+   "line": 259,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4491,7 +4673,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 256,
+   "line": 264,
    "errors": [
     "404"
    ],
@@ -4525,7 +4707,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 267,
+   "line": 275,
    "errors": [],
    "keys": [],
    "body": [],
@@ -4549,7 +4731,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 274,
+   "line": 282,
    "errors": [],
    "keys": [],
    "body": [
@@ -4575,7 +4757,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 282,
+   "line": 290,
    "errors": [],
    "keys": [],
    "body": [
@@ -4601,7 +4783,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 294,
+   "line": 302,
    "errors": [],
    "keys": [],
    "body": [
@@ -4626,7 +4808,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 306,
+   "line": 314,
    "errors": [],
    "keys": [
     "history"
@@ -4653,7 +4835,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 320,
+   "line": 328,
    "errors": [],
    "keys": [
     "markets",
@@ -4681,7 +4863,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 326,
+   "line": 334,
    "errors": [
     "404"
    ],
@@ -4712,7 +4894,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 334,
+   "line": 342,
    "errors": [],
    "keys": [
     "positions",
@@ -4738,7 +4920,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 340,
+   "line": 348,
    "errors": [],
    "keys": [
     "history"
@@ -4764,7 +4946,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 345,
+   "line": 353,
    "errors": [],
    "keys": [],
    "body": [
@@ -4790,7 +4972,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 353,
+   "line": 361,
    "errors": [],
    "keys": [],
    "body": [
@@ -4817,7 +4999,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 381,
+   "line": 389,
    "errors": [],
    "keys": [
     "keys"
@@ -4844,7 +5026,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 387,
+   "line": 395,
    "errors": [],
    "keys": [
     "apiKey"
@@ -4873,7 +5055,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/paper.py",
-   "line": 400,
+   "line": 408,
    "errors": [
     "404"
    ],
@@ -4900,7 +5082,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 446,
+   "line": 454,
    "errors": [],
    "keys": [
     "ok",
@@ -4935,7 +5117,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 456,
+   "line": 464,
    "errors": [],
    "keys": [
     "ok",
@@ -4956,15 +5138,9 @@
    "auth": "세션·JWT",
    "reaches": [
     "수집DB",
-    "야후",
-    "PostgreSQL",
-    "외부"
+    "PostgreSQL"
    ],
-   "hosts": [
-    "api.upbit.com",
-    "kind.krx.co.kr",
-    "query2.finance.yahoo.com"
-   ],
+   "hosts": [],
    "screens": [
     "paper-dashboard",
     "robo-decision",
@@ -4973,7 +5149,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 468,
+   "line": 476,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5001,11 +5177,14 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 477,
+   "line": 485,
    "errors": [],
    "keys": [
     "status",
     "snap_date",
+    "origin",
+    "completeness",
+    "return_valid",
     "total_equity",
     "daily_return",
     "position_count"
@@ -5032,7 +5211,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 499,
+   "line": 510,
    "errors": [
     "409"
    ],
@@ -5055,7 +5234,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 530,
+   "line": 541,
    "errors": [
     "404"
    ],
@@ -5080,7 +5259,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 546,
+   "line": 557,
    "errors": [],
    "keys": [
     "exists",
@@ -5104,7 +5283,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 557,
+   "line": 568,
    "errors": [
     "409"
    ],
@@ -5129,7 +5308,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 573,
+   "line": 584,
    "errors": [],
    "keys": [
     "status",
@@ -5148,6 +5327,7 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "PostgreSQL"
    ],
    "hosts": [],
@@ -5157,7 +5337,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 632,
+   "line": 643,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5184,7 +5364,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 640,
+   "line": 651,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5198,6 +5378,7 @@
    "summary": "",
    "auth": "세션·JWT",
    "reaches": [
+    "수집DB",
     "PostgreSQL"
    ],
    "hosts": [],
@@ -5207,7 +5388,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 648,
+   "line": 659,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5230,7 +5411,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 656,
+   "line": 667,
    "errors": [],
    "keys": [],
    "body": [],
@@ -5257,7 +5438,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/paper.py",
-   "line": 665,
+   "line": 676,
    "errors": [],
    "keys": [],
    "body": [],
@@ -6058,6 +6239,7 @@
     "developer.kbsec.com",
     "discord.com",
     "discordapp.com",
+    "hooks.slack.com",
     "kind.krx.co.kr",
     "openapi.ebestsec.co.kr",
     "openapi.koreainvestment.com",

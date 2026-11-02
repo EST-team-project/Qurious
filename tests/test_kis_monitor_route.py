@@ -37,7 +37,8 @@ class FakeDb:
 
 
 def order(symbol, side, qty, status, avg=None, price=100.0, age_min=10, user=SYSTEM_USER_ID, order_type="MARKET"):
-    return SimpleNamespace(user_id=user, client_order_id=f"c-{symbol}-{side}-{age_min}", environment="paper", symbol=symbol, name=symbol, side=side,
+    return SimpleNamespace(id=uuid.uuid4(), broker="kis", retry_of=None, retry_number=0,
+                           user_id=user, client_order_id=f"c-{symbol}-{side}-{age_min}", environment="paper", symbol=symbol, name=symbol, side=side,
                            order_type=order_type, quantity=qty, price=price, order_no="1", status=status,
                            filled_quantity=qty if status == "FILLED" else 0, avg_filled_price=avg, message="", created_at=NOW - timedelta(minutes=age_min))
 

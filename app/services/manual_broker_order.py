@@ -23,6 +23,11 @@ STRATEGY = "manual_broker"
 VERSION = 1
 
 
+async def pause():
+    """KIS 모의 조회·주문을 연속해서 몰아 보내지 않는다."""
+    await asyncio.sleep(1.1)
+
+
 def request_key(uid, request_id):
     # 종목·방향·계좌를 바꾼 재전송도 같은 요청이다. input_hash로 충돌을 검사한다.
     return control.digest(["manual_broker_request_v1", str(uid), str(request_id)])
@@ -127,6 +132,7 @@ async def submit(uid, *, request_id, symbol, side, quantity, price):
             if symbol in blocked and (side == "sell" or baseline is not None):
                 raise control.Rejected("OWNERSHIP_UNCONFIRMED", blocked[symbol])
             held = next((r.quantity for r in owned if r.symbol == symbol), 0)
+            await pause()
             quote = await order_preflight.current_quote(db, uid, row, "live", symbol)
             current = quote["price"]
             holding = snapshot["holdings"].get(symbol, {})
@@ -135,6 +141,7 @@ async def submit(uid, *, request_id, symbol, side, quantity, price):
             cash = snapshot["cash"]
             if side == "buy":
                 try:
+                    await pause()
                     power = await client.get_buying_power(creds.account_no, symbol, price)
                     amount, available = power["amount"], power["quantity"]
                     if (isinstance(amount, bool) or not isinstance(amount, (int, float))
@@ -147,6 +154,7 @@ async def submit(uid, *, request_id, symbol, side, quantity, price):
                 if available < quantity:
                     raise control.Rejected("BUYING_POWER_LIMIT", "요청 수량이 미수 없는 매수 가능 수량을 초과합니다.")
                 await live_ownership.ensure_baseline(db, ref, symbol, snapshot)
+            await pause()
             return {"db": db, "broker": row, "settings": signature, "cash": cash, "equity": equity,
                 "price": price, "quantity": quantity, "owned_quantity": held,
                 "position_value": account_qty * max(current, price), "checked_at": datetime.now(control.KST),
