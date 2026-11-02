@@ -361,9 +361,9 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
     그 줄의 `counts` 만 비우고(`counts_note`) 나머지 줄은 그대로 돌려준다. `symbols` 를 주면 그 종목만 보고, 기록이 없는
     종목은 `missing` 에 허브와 같은 두 갈래 · 같은 안내 문장으로 남긴다.
     """
-    day = await signal_explain.load_day(db, on=on, symbols=symbols)
+    day = await signal_explain.load_day(db, on=on, symbols=symbols, limit=limit)   # 위 limit 줄만 DB 에서 읽는다(#487)
     rows, unreadable = [], 0
-    for snap in day["rows"][:limit]:
+    for snap in day["rows"]:
         as_of = snap["as_of"]
         row = {"rank": len(rows) + 1, "symbol": snap["symbol"],
                "as_of": as_of.isoformat() if isinstance(as_of, date) else str(as_of),
@@ -384,12 +384,10 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
                 "message": SIGNAL_NOT_UNIVERSE if m["reason"] == signal_explain.NOT_UNIVERSE else SIGNAL_NONE}
                for m in day["missing"]]
     on_day = day["on"]
-    dates = [r["as_of"] for r in day["rows"] if isinstance(r.get("as_of"), date)]
-    head = max(dates) if dates else None
-    stamps = [r["computed_at"] for r in day["rows"] if r.get("as_of") == head and isinstance(r.get("computed_at"), datetime)]
-    fresh = signal_freshness(head, max(stamps) if stamps else None, sum(1 for d in dates if d != head), picked=on_day is not None)
+    # 머리줄은 자르기 전 전체 줄의 집계로(#487) — 순위 밖 줄의 기준일이 더 늦어도 맞다
+    fresh = signal_freshness(day["as_of_max"], day["computed_at_max"], day["older_count"], picked=on_day is not None)
     return {"definition": day["definition"], "on": on_day.isoformat() if on_day else None, "as_of": fresh["as_of"], "freshness": fresh,
-            "total": len(day["rows"]),
+            "total": day["total"],
             "count": len(rows), "limit": limit, "rows": rows, "missing": missing, "unreadable": unreadable,
             "source": SIGNAL_SOURCE, "notice": signal_explain.DISCLAIMER, "note": SIGNAL_RANK_NOTE}
 

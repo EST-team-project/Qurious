@@ -307,12 +307,17 @@ def _universe() -> frozenset | None:
         return None
 
 
-async def load_day(session, on: date | None = None, symbols: list[str] | None = None) -> dict:
+async def load_day(session, on: date | None = None, symbols: list[str] | None = None,
+                   limit: int | None = None) -> dict:
     """지금 정의 판에서 종목마다 `on` 이전(포함)의 가장 최근 T2 줄 — `load_snapshot` 과 같은 규칙을 모든 종목에.
 
     정렬은 종합 점수 내림차순 → 신뢰도 내림차순 → 종목코드(#197 2). 줄마다 `as_of` 가 그 줄의 기준일이라
     그날 줄이 없는 종목은 앞 날짜가 그대로 보인다. `symbols` 를 주면 그 종목만 보고, 줄이 하나도 없는 종목은
     `missing` 에 허브(`stock_hub.signal`)와 같은 두 갈래로 남긴다 — `not_universe`(매일 기록하는 종목 밖) · `none`(기록 없음).
+
+    `limit` 를 주면 위에서부터 그만큼만 DB 에서 읽는다(#487 — 기록이 약 3,950종목이면 한 번에 수 MB). 집계 넷은
+    자르기 전 전체 줄로 센다 — `total`(종목 수) · `as_of_max`(가장 늦은 기준일) · `computed_at_max`(그 기준일 줄의
+    가장 늦은 계산 시각) · `older_count`(그보다 앞 날짜인 줄 수). `missing` 도 자르기 전 종목으로 가른다.
     """
     from sqlalchemy import func, select
 
@@ -330,15 +335,31 @@ async def load_day(session, on: date | None = None, symbols: list[str] | None = 
     stmt = (select(S).join(latest, (S.symbol == latest.c.symbol) & (S.as_of == latest.c.as_of))
             .where(S.definition == DEFINITION)
             .order_by(S.composite.desc(), S.confidence.desc(), S.symbol))
+    if limit is not None:
+        stmt = stmt.limit(limit)
     rows = [{c.name: getattr(r, c.name) for c in S.__table__.columns}
             for r in (await session.execute(stmt)).scalars()]
+
+    per_day = dict((await session.execute(select(latest.c.as_of, func.count()).group_by(latest.c.as_of))).all())
+    as_of_max = max(per_day) if per_day else None
+    computed_at_max = None
+    if as_of_max is not None:
+        computed_at_max = (await session.execute(
+            select(func.max(S.computed_at)).join(latest, (S.symbol == latest.c.symbol) & (S.as_of == latest.c.as_of))
+            .where(S.definition == DEFINITION, S.as_of == as_of_max))).scalar_one()
+    total = sum(per_day.values())
+
     missing = []
     if codes is not None:
         found = {r["symbol"] for r in rows}
+        if len(found) < total:                                   # 잘린 종목을 「기록 없음」 이라 하지 않는다
+            found = set((await session.execute(select(latest.c.symbol))).scalars())
         universe = _universe() if len(found) < len(codes) else None
         missing = [{"symbol": c, "reason": NOT_UNIVERSE if universe is not None and c not in universe else NONE}
                    for c in codes if c not in found]
-    return {"on": on, "definition": DEFINITION, "rows": rows, "missing": missing}
+    return {"on": on, "definition": DEFINITION, "rows": rows, "missing": missing, "total": total,
+            "as_of_max": as_of_max, "computed_at_max": computed_at_max,
+            "older_count": total - per_day.get(as_of_max, 0)}
 
 
 def side_counts(snapshot: dict) -> dict:

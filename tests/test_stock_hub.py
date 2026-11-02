@@ -452,10 +452,14 @@ def _day_rows(n=6):
 
 
 def _stub_day(monkeypatch, rows, missing=(), seen=None):
-    async def load_day(db, on=None, symbols=None):
+    async def load_day(db, on=None, symbols=None, limit=None):
         if seen is not None:
             seen.append((on, symbols))
-        return {"on": on, "definition": "def-test", "rows": list(rows), "missing": list(missing)}
+        head = max((r["as_of"] for r in rows), default=None)             # 집계는 진짜 load_day 처럼 자르기 전 전체 줄로(#487)
+        stamps = [r["computed_at"] for r in rows if r["as_of"] == head and r.get("computed_at")]
+        return {"on": on, "definition": "def-test", "rows": list(rows)[:limit], "missing": list(missing),
+                "total": len(rows), "as_of_max": head, "computed_at_max": max(stamps, default=None),
+                "older_count": sum(r["as_of"] != head for r in rows)}
     monkeypatch.setattr(signal_explain, "load_day", load_day)
 
 
