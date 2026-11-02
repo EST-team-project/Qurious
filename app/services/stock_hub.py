@@ -224,12 +224,13 @@ UNIVERSE_TTL = 600.0               # 유니버스는 판이 바뀔 때만 달라
 
 
 def _universe() -> frozenset | None:
-    """다중 주기 신호 기록 대상(분봉 유니버스) — 못 읽으면 None(「대상인지 모름」 · 말없이 「아님」 으로 읽지 않는다)."""
+    """다중 주기 신호 기록 대상(분봉 유니버스 + 전체 종목 대상 · `mtf_signals.record_scope` · #487) — 못 읽으면 None
+    (「대상인지 모름」 · 말없이 「아님」 으로 읽지 않는다)."""
     now = time.monotonic()
     if _UNIVERSE["codes"] and now - _UNIVERSE["at"] < UNIVERSE_TTL:
         return _UNIVERSE["codes"]
     try:
-        codes = frozenset(mtf_signals.universe())
+        codes = mtf_signals.record_scope()
     except (OSError, sqlite3.Error):
         return None
     if codes:

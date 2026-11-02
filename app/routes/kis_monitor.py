@@ -69,12 +69,26 @@ def _owner(r: LiveOrder) -> str:
 def _order_dict(r: LiveOrder) -> dict:
     owner = _owner(r)
     return {
+        "id": str(r.id), "broker": r.broker,
+        "retry_of": str(r.retry_of) if r.retry_of else None, "retry_number": r.retry_number,
         "owner": owner, "owner_label": OWNER_LABEL[owner],
         "client_order_id": r.client_order_id, "environment": r.environment, "symbol": r.symbol, "name": r.name, "side": r.side,
         "order_type": r.order_type, "quantity": r.quantity, "price": r.price, "order_no": r.order_no, "status": r.status,
         "filled_quantity": r.filled_quantity, "avg_filled_price": r.avg_filled_price, "message": r.message,
         "created_at": r.created_at.isoformat() if r.created_at else None,
     }
+
+
+@router.post("/orders/{order_id}/cancel")
+async def cancel_personal_order(order_id: uuid.UUID, user=Depends(get_current_user)):
+    from app.services.kis_order_recovery import cancel
+    return await cancel(uuid.UUID(str(user["id"])), order_id)
+
+
+@router.post("/orders/{order_id}/retry")
+async def retry_personal_order(order_id: uuid.UUID, user=Depends(get_current_user)):
+    from app.services.kis_order_recovery import retry
+    return await retry(uuid.UUID(str(user["id"])), order_id)
 
 
 def _heartbeat_age() -> float | None:

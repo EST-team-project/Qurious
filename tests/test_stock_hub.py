@@ -73,15 +73,17 @@ def test_wanted_sections():
 # ── 칸 ──────────────────────────────────────────────────────────────────────────────────
 
 def test_identity_reads_stock_then_etf_then_empty(tmp_path, monkeypatch):
-    """TC-HUB-03 · 이름은 주식 시세 마지막 줄 → 없으면 ETF 시세 → 둘 다 없으면 empty · 수집 DB 가 없으면 error(빈칸으로 숨기지 않음)."""
-    _fake_db(tmp_path, monkeypatch, stocks=[("20261015", "055550", "신한지주", "KOSPI")],
+    """TC-HUB-03 · 이름은 주식 시세 마지막 줄 → 없으면 ETF 시세 → 둘 다 없으면 empty · 수집 DB 가 없으면 error(빈칸으로 숨기지 않음).
+    신호 기록 대상은 분봉 유니버스 + 마지막 거래일의 KOSPI · KOSDAQ · ETF(#487 · `mtf_signals.record_scope`) — KONEX 는 밖."""
+    _fake_db(tmp_path, monkeypatch, stocks=[("20261015", "055550", "신한지주", "KOSPI"), ("20261015", "123456", "코넥스", "KONEX")],
              etfs=[("20261014", "069500", "옛이름"), ("20261015", "069500", "KODEX 200")])
     monkeypatch.setattr(mtf_signals, "universe", lambda **kw: ["055550"])
     s = H.identity("055550")
     assert s["status"] == H.OK and s["data"] == {"name": "신한지주", "market": "KOSPI", "kind": "stock", "signal_universe": True}
     e = H.identity("069500")
     assert e["status"] == H.OK and e["data"]["name"] == "KODEX 200" and e["data"]["kind"] == "etf"
-    assert e["data"]["signal_universe"] is False
+    assert e["data"]["signal_universe"] is True
+    assert H.identity("123456")["data"]["signal_universe"] is False
     assert H.identity("999999")["status"] == H.EMPTY
     monkeypatch.setenv("COLLECTOR_DB_PATH", str(tmp_path / "없음.sqlite3"))
     gone = H.identity("055550")

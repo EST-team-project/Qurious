@@ -296,13 +296,14 @@ NOT_UNIVERSE, NONE = "not_universe", "none"
 
 
 def _universe() -> frozenset | None:
-    """매일 기록하는 종목(분봉 유니버스) — 못 읽으면 None(「대상인지 모름」 · 말없이 「아님」 으로 읽지 않는다)."""
+    """매일 기록하는 종목(분봉 유니버스 + 전체 종목 대상 · `mtf_signals.record_scope` · #487) — 못 읽으면 None
+    (「대상인지 모름」 · 말없이 「아님」 으로 읽지 않는다)."""
     import sqlite3
 
     from app.services import mtf_signals
 
     try:
-        return frozenset(mtf_signals.universe()) or None
+        return mtf_signals.record_scope() or None
     except (OSError, sqlite3.Error):
         return None
 

@@ -244,3 +244,26 @@ def test_batch_dry_run_does_not_touch_app_db(monkeypatch):
     b = _Batch(monkeypatch, db_up=False)                        # DB 가 꺼져 있어도
     assert b.sd.main(["--dry-run"]) == 0
     assert b.calls == ["compute", "compute"]
+
+
+# ── 기록 대상(#487) ───────────────────────────────────────────────────────
+
+def test_record_scope_is_intraday_universe_plus_last_day_targets(tmp_path):
+    """매일 기록하는 종목 = 분봉 유니버스 + 수집 DB 마지막 거래일의 KOSPI · KOSDAQ · ETF(`signal_targets.targets`).
+    KONEX · 마지막 날 시세가 없는 종목은 밖이고, 날짜로 가르지 않는다(#487)."""
+    from collector import db as cdb
+    p = tmp_path / "m.sqlite3"
+    c = cdb.connect(p)
+    stocks = [("20261014", "000001", "KOSPI"), ("20261015", "000002", "KOSPI"), ("20261015", "000003", "KOSDAQ"),
+              ("20261015", "000004", "KONEX"), ("20261014", "000005", "KOSPI")]       # 000005 는 마지막 날 시세가 없다
+    for d, code, mk in stocks:
+        c.execute("INSERT INTO price_daily (bas_dt, srtn_cd, isin_cd, itms_nm, mrkt_ctg, clpr, vs, flt_rt, mkp, hipr, lopr, "
+                  "trqu, tr_prc, lstg_st_cnt, mrkt_tot_amt) VALUES (?, ?, '', ?, ?, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0)",
+                  (d, code, code, mk))
+    c.execute("INSERT INTO etf_daily (bas_dt, srtn_cd, isin_cd, itms_nm, clpr) VALUES ('20261015', '069500', '', 'KODEX 200', 1)")
+    c.execute("INSERT INTO intraday_universe (version, symbol, itms_nm, market, reason, rank) VALUES (?, '000001', '', 'KOSPI', '', 1)",
+              (ms.UNIVERSE,))
+    c.commit()
+    c.close()
+    assert ms.last_trading_day(path=p) == "2026-10-15"
+    assert ms.record_scope(path=p) == {"000001", "000002", "000003", "069500"}

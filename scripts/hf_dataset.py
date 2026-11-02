@@ -2382,7 +2382,15 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
     print(f"  ✅ 원격 main {head[:8]} 이 이 PC 의 기준과 같다 — 이 머리를 앞 커밋으로 올린다")
 
     # 이 회차의 사본만 싣는다 — 러너 밖에서 올리거나 지난 회차의 사본이면 지운다(`meta/*` 가 그대로 올리지 않게 · #124)
-    run_record_for_upload(apply=True)
+    rr, _ = run_record_for_upload(apply=True)
+    # 로컬 사본을 제외해도 원격 파일은 남는다. 새 자료와 옛 회차 기록이 섞이지 않게
+    # 같은 parent_commit의 존재를 확인하고 증분 커밋에서 함께 제거한다.
+    stale_record = rr is None and api.file_exists(
+        REPO_ID, "meta/run_record.json", repo_type="dataset", revision=head)
+    if stale_record and not incremental:
+        print("  🔴 원격에 이전 회차 기록이 남아 있다 — 전체 업로드는 중간 커밋으로 나뉠 수 있어 중단한다.\n"
+              "     --incremental로 자료와 이전 회차 기록 제거를 한 커밋에 반영한다.")
+        return 1
     README_PATH.write_text(_readme_yaml(man), encoding="utf-8")
 
     t0 = time.time()
@@ -2390,7 +2398,11 @@ def upload(yes: bool = False, incremental: bool = False, allow_lfs: bool = False
         # 증분: 바뀐 파일 + 메타를 **한 커밋**으로 · 앞 커밋 = 방금 본 main 머리(`_commit_ops` 머리말). 그사이 남이 올렸으면
         # HF 가 412 로 거절한다 — 그때는 올리지 않고 멈춘다(먼저 맞추기).
         try:
-            info = api.create_commit(REPO_ID, _commit_ops(patterns), commit_message=msg, repo_type="dataset",
+            operations = _commit_ops(patterns)
+            if stale_record:
+                from huggingface_hub import CommitOperationDelete
+                operations.append(CommitOperationDelete(path_in_repo="meta/run_record.json", is_folder=False))
+            info = api.create_commit(REPO_ID, operations, commit_message=msg, repo_type="dataset",
                                      revision="main", parent_commit=head)
         except HfHubHTTPError as e:
             if getattr(getattr(e, "response", None), "status_code", None) == 412:

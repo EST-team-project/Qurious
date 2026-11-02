@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 from app.models import BrokerSettings, LiveOrder, LIVE_ORDER_OPEN_STATUSES
 from app.database.postgres import get_session_factory
 from app.services import risk_guard, aggressive_mode, etf_execution
-from app.services.execution_policy import policy_for
+from app.services.execution_policy import policy_for, within_retry_price_limit
 from app.services.brokers import stock_coin_trade_gateway as gateway
 
 
@@ -84,7 +84,7 @@ async def prepare_retry(db, parent_id, now=None):
     if type(quantity) is not int or quantity <= 0:
         return None
     price, equity = positive(holding.get("currentPrice")), positive(balance.get("totalEvalAmount"))
-    if abs(price / positive(parent.price) - 1) * 100 > policy.retry_price_deviation_pct:
+    if not within_retry_price_limit(parent.price, price, policy.retry_price_deviation_pct):
         return None
     limits = risk_guard.RiskLimits.from_row(broker)
     if aggressive_mode.is_enabled():
@@ -151,7 +151,10 @@ async def send_retry(db, child_id):
 
 async def retry_cancelled_orders(limit=50):
     summary = {"submitted": 0, "skipped": 0, "errors": 0}
-    if not gateway.is_configured() or gateway.environment() != "paper":
+    if not gateway.is_configured():
+        from app.services.kis_order_recovery import retry_cancelled_orders as direct_retries
+        return await direct_retries(limit=min(limit, 3))
+    if gateway.environment() != "paper":
         return summary
     factory = get_session_factory()
     async with factory() as db:

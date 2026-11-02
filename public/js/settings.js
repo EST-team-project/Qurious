@@ -33,7 +33,7 @@ async function loadSettings() {
     document.getElementById("quant-retry-attempts").value = ep.retry_max_attempts ?? 1;
     document.getElementById("quant-retry-window").value = ep.retry_window_min ?? 15;
     document.getElementById("quant-retry-deviation").value = ep.retry_price_deviation_pct ?? 1;
-    document.getElementById("quant-execution-capabilities").textContent = [cfg.execution_capabilities?.retry_note, cfg.execution_capabilities?.stop_note].filter(Boolean).join(" ");
+    document.getElementById("quant-execution-capabilities").textContent = [cfg.execution_capabilities?.retry_note, cfg.execution_capabilities?.retry_timing_note, cfg.execution_capabilities?.stop_note].filter(Boolean).join(" ");
     const rk = cfg.risk || {};
     document.getElementById("risk-daily-loss").value   = rk.daily_loss_limit_pct ?? 3;
     document.getElementById("risk-max-position").value = rk.max_position_pct ?? 30;
@@ -215,13 +215,40 @@ async function loadLiveOrders() {
         <td class="text-right">${fmt(Math.round(r.price))}</td>
         <td class="text-center"><span class="${LIVE_STATUS_BADGE[r.status] || "badge-hold"}">${escHtml(r.status)}</span></td>
         <td class="text-right">${r.filled_quantity ? `${fmt(r.filled_quantity)} @ ${fmt(Math.round(r.avg_filled_price))}` : "-"}</td>
-        <td class="truncate max-w-[16rem]" title="${escHtml(r.message || "")}">${escHtml(r.order_no || "")}${r.message ? " · " + escHtml(r.message) : ""}</td>
+        <td class="max-w-[16rem]" title="${escHtml(r.message || "")}">${escHtml(r.order_no || "")}${r.message ? " · " + escHtml(r.message) : ""}
+          ${r.retry_of ? `<div>잔량 재주문 ${Number(r.retry_number)}회</div>` : ""}
+          ${r.owner === "me" && r.broker === "kis-direct" && r.environment === "paper" && r.order_type === "LIMIT"
+            ? ["ACCEPTED", "PARTIALLY_FILLED"].includes(r.status)
+              ? `<button class="btn-sm" data-kis-action="cancel" data-order-id="${escHtml(r.id)}">미체결 잔량 취소</button>`
+              : r.status === "CANCELLED" && r.side === "SELL" && r.quantity > r.filled_quantity
+                ? `<button class="btn-sm" data-kis-action="retry" data-order-id="${escHtml(r.id)}">취소 잔량 재주문</button>` : ""
+            : ""}
+        </td>
       </tr>`).join("")}</tbody></table></div>`;
   } catch (e) {
     el.textContent = "실주문 현황을 불러오지 못했습니다.";
   }
 }
 document.getElementById("live-orders-refresh")?.addEventListener("click", loadLiveOrders);
+document.getElementById("quant-live-orders")?.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-kis-action]");
+  if (!button || button.disabled) return;
+  const action = button.dataset.kisAction;
+  if (!["cancel", "retry"].includes(action)) return;
+  const message = action === "cancel" ? "이 모의 주문의 미체결 잔량 취소를 요청할까요? 취소 확정은 증권사 조회로 확인합니다."
+    : "취소가 확정된 매도 잔량을 원 지정가로 한 번 재주문할까요? 전략 보유와 위험 한도를 다시 확인합니다. 자동 재주문 설정은 바꾸지 않습니다.";
+  if (!confirm(message)) return;
+  button.disabled = true;
+  try {
+    const result = await api(`/api/quant/kis/orders/${encodeURIComponent(button.dataset.orderId)}/${action}`, {method: "POST"});
+    alert(result.reason || (result.duplicate ? "이미 처리한 요청입니다. 기존 주문 상태를 확인하세요." : "요청을 기록했습니다. 주문 상태를 확인하세요."));
+  } catch (error) {
+    alert("응답을 확인하지 못했습니다. 새 주문을 내기 전에 기존 주문 상태를 확인하세요.");
+  } finally {
+    await loadLiveOrders();
+    button.disabled = false;
+  }
+});
 
 function toggleManualSymbols() {
   const source = document.getElementById("quant-symbol-source")?.value || "ai";

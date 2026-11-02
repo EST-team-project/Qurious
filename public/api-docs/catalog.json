@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 286,
+ "count": 288,
  "routers": 43,
  "routes": [
   {
@@ -1434,7 +1434,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 656,
+   "line": 657,
    "errors": [],
    "keys": [
     "mode",
@@ -1486,7 +1486,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 712,
+   "line": 713,
    "errors": [
     "409",
     "422"
@@ -1526,7 +1526,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 830,
+   "line": 831,
    "errors": [],
    "keys": [
     "symbol",
@@ -1570,7 +1570,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 846,
+   "line": 847,
    "errors": [
     "502"
    ],
@@ -1608,7 +1608,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 870,
+   "line": 871,
    "errors": [
     "502"
    ],
@@ -1655,7 +1655,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 895,
+   "line": 896,
    "errors": [
     "409",
     "422",
@@ -1685,7 +1685,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 975,
+   "line": 976,
    "errors": [
     "404",
     "503"
@@ -1719,7 +1719,7 @@
     "P02-⑤-1"
    ],
    "file": "app/routes/stocks.py",
-   "line": 987,
+   "line": 988,
    "errors": [],
    "keys": [
     "ok",
@@ -1753,7 +1753,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1002,
+   "line": 1003,
    "errors": [
     "404",
     "422"
@@ -1793,7 +1793,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1018,
+   "line": 1019,
    "errors": [],
    "keys": [
     "symbol",
@@ -1846,7 +1846,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1099,
+   "line": 1100,
    "errors": [
     "409"
    ],
@@ -1887,7 +1887,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1108,
+   "line": 1109,
    "errors": [],
    "keys": [
     "ok",
@@ -1918,7 +1918,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1114,
+   "line": 1115,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1952,7 +1952,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1126,
+   "line": 1127,
    "errors": [],
    "keys": [],
    "body": [],
@@ -1985,7 +1985,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1151,
+   "line": 1152,
    "errors": [],
    "keys": [
     "ok",
@@ -2015,7 +2015,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1175,
+   "line": 1176,
    "errors": [],
    "keys": [],
    "body": [],
@@ -2058,7 +2058,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stocks.py",
-   "line": 1181,
+   "line": 1182,
    "errors": [
     "409"
    ],
@@ -2105,7 +2105,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1190,
+   "line": 1191,
    "errors": [
     "409"
    ],
@@ -2143,7 +2143,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1200,
+   "line": 1201,
    "errors": [],
    "keys": [
     "ok",
@@ -2174,7 +2174,7 @@
     "P02-⑤-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1207,
+   "line": 1208,
    "errors": [],
    "keys": [
     "running",
@@ -2217,7 +2217,7 @@
     "P02-②-2"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1276,
+   "line": 1277,
    "errors": [
     "404",
     "422"
@@ -2248,7 +2248,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1383,
+   "line": 1384,
    "errors": [],
    "keys": [
     "items"
@@ -2279,7 +2279,7 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1398,
+   "line": 1399,
    "errors": [
     "422"
    ],
@@ -2310,13 +2310,88 @@
     "P02-②-3"
    ],
    "file": "app/routes/stocks.py",
-   "line": 1418,
+   "line": 1419,
    "errors": [
     "404"
    ],
    "keys": [
     "ok"
    ],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KMON-03",
+   "router": "kis_monitor",
+   "method": "POST",
+   "path": "/api/quant/kis/orders/{order_id}/cancel",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "증권사",
+    "PostgreSQL",
+    "Redis",
+    "외부"
+   ],
+   "hosts": [
+    "developer.kbsec.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com"
+   ],
+   "screens": [
+    "mypage"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/kis_monitor.py",
+   "line": 82,
+   "errors": [],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
+   "id": "API-KMON-04",
+   "router": "kis_monitor",
+   "method": "POST",
+   "path": "/api/quant/kis/orders/{order_id}/retry",
+   "summary": "",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "야후",
+    "증권사",
+    "주문",
+    "PostgreSQL",
+    "Redis",
+    "알림",
+    "외부"
+   ],
+   "hosts": [
+    "api.coolsms.co.kr",
+    "api.telegram.org",
+    "canary.discord.com",
+    "developer.kbsec.com",
+    "discord.com",
+    "discordapp.com",
+    "hooks.slack.com",
+    "openapi.ebestsec.co.kr",
+    "openapi.koreainvestment.com",
+    "openapivts.koreainvestment.com",
+    "ptb.discord.com",
+    "query2.finance.yahoo.com"
+   ],
+   "screens": [
+    "mypage"
+   ],
+   "part": "P-E",
+   "req": [],
+   "file": "app/routes/kis_monitor.py",
+   "line": 88,
+   "errors": [],
+   "keys": [],
    "body": [],
    "schema": true
   },
@@ -2336,7 +2411,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/kis_monitor.py",
-   "line": 88,
+   "line": 102,
    "errors": [],
    "keys": [],
    "body": [],
@@ -2357,7 +2432,7 @@
    "part": "P-E",
    "req": [],
    "file": "app/routes/kis_monitor.py",
-   "line": 220,
+   "line": 234,
    "errors": [],
    "keys": [
     "total",

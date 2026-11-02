@@ -275,6 +275,11 @@ def _fake_api_class(seen: dict, *, remote_manifest: dict | None = None, fail_412
         def repo_info(self, *a, **k):
             return types.SimpleNamespace(private=True, sha=HEAD)
 
+        def file_exists(self, repo_id, filename, **k):
+            assert filename == "meta/run_record.json" and k.get("revision") == HEAD
+            seen["record_lookup"] = k
+            return seen.get("remote_record") is not None
+
         def hf_hub_download(self, repo_id, filename, **k):
             if remote_manifest is None:
                 raise EntryNotFoundError("없음")
@@ -290,8 +295,12 @@ def _fake_api_class(seen: dict, *, remote_manifest: dict | None = None, fail_412
             seen["paths"] = [o.path_in_repo for o in ops]
             seen["parent"] = k.get("parent_commit")
             seen["commits"] = seen.get("commits", 0) + 1
-            rr = next((o for o in ops if o.path_in_repo == "meta/run_record.json"), None)
+            from huggingface_hub import CommitOperationAdd, CommitOperationDelete
+            rr = next((o for o in ops if o.path_in_repo == "meta/run_record.json" and isinstance(o, CommitOperationAdd)), None)
             seen["record"] = json.loads(Path(rr.path_or_fileobj).read_text(encoding="utf-8")) if rr else None
+            seen["deleted"] = [o.path_in_repo for o in ops if isinstance(o, CommitOperationDelete)]
+            if rr or "meta/run_record.json" in seen["deleted"]:
+                seen["remote_record"] = seen["record"]
             return types.SimpleNamespace(oid=NEW)
 
         def upload_folder(self, **k):
@@ -366,7 +375,8 @@ def test_upload_puts_this_runs_record_in_the_same_commit(export_tmp, monkeypatch
     monkeypatch.delenv(hf_dataset.ENV_RUN_RECORD)
     assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0
     assert seen["record"] is None and not hf_dataset.RUN_RECORD_PATH.exists()
-    assert "meta/run_record.json" not in seen["paths"]
+    assert seen["deleted"] == ["meta/run_record.json"] and seen["remote_record"] is None
+    assert seen["parent"] == HEAD and seen["commits"] == 2
 
 
 def _upload_ready(export_tmp, monkeypatch, seen: dict, **kw) -> None:
@@ -432,3 +442,38 @@ def test_dataset_card_explains_the_run_record():
     """TC-HF-10 · 데이터셋 카드가 회차 기록 사본을 설명한다 — 무엇이 · 언제부터 · finished_at 이 왜 비었나 · 이 회차의 요약은 어디에."""
     card = hf_dataset._readme_yaml({"tables": {}, "generated_at": "2026-10-15T13:25:48+09:00"})
     assert "meta/run_record.json" in card and "finished_at" in card and "다음 판" in card
+
+
+def test_manual_incremental_upload_does_not_delete_missing_remote_record(export_tmp, monkeypatch):
+    seen = {}
+    _upload_ready(export_tmp, monkeypatch, seen)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == 0
+    assert seen['deleted'] == [] and seen['record'] is None
+    assert seen['record_lookup']['revision'] == HEAD and seen['parent'] == HEAD
+
+
+@pytest.mark.parametrize('has_large_folder', [False, True])
+def test_manual_full_upload_refuses_to_keep_old_remote_record(export_tmp, monkeypatch, has_large_folder):
+    seen = {'remote_record': {'run': {'started_at': STARTED}}}
+    _upload_ready(export_tmp, monkeypatch, seen, has_large_folder=has_large_folder)
+    assert hf_dataset.upload(yes=True, incremental=False, allow_lfs=True) == 1
+    assert 'commits' not in seen and 'folder' not in seen and 'large' not in seen and 'tag' not in seen
+    assert seen['remote_record']['run']['started_at'] == STARTED
+
+
+def test_dry_run_preserves_old_remote_record(export_tmp, monkeypatch):
+    seen = {'remote_record': {'run': {'started_at': STARTED}}}
+    _upload_ready(export_tmp, monkeypatch, seen)
+    hf_dataset.write_run_record(seen['remote_record'])
+    assert hf_dataset.upload(yes=False, incremental=True) == 0
+    assert hf_dataset.RUN_RECORD_PATH.exists()
+    assert 'record_lookup' not in seen and 'commits' not in seen
+    assert seen['remote_record']['run']['started_at'] == STARTED
+
+
+def test_stale_record_deletion_is_not_applied_if_remote_moves(export_tmp, monkeypatch):
+    seen = {'remote_record': {'run': {'started_at': STARTED}}}
+    _upload_ready(export_tmp, monkeypatch, seen, fail_412=True)
+    assert hf_dataset.upload(yes=True, incremental=True, allow_lfs=True) == hf_dataset.EX_REMOTE_MOVED
+    assert 'commits' not in seen and 'tag' not in seen
+    assert seen['remote_record']['run']['started_at'] == STARTED

@@ -173,6 +173,28 @@ def universe(*, version: str = UNIVERSE, path: Path | None = None) -> list[str]:
         conn.close()
 
 
+def last_trading_day(*, path: Path | None = None) -> str | None:
+    """수집 DB 에서 시세가 있는 마지막 날(주식 일봉 기준) — YYYY-MM-DD · 시세가 없으면 None."""
+    conn = _connect(path)
+    try:
+        d = conn.execute("SELECT MAX(bas_dt) FROM price_daily WHERE clpr > 0").fetchone()[0]
+    finally:
+        conn.close()
+    return f"{d[:4]}-{d[4:6]}-{d[6:]}" if d else None
+
+
+def record_scope(*, path: Path | None = None) -> frozenset[str]:
+    """매일 신호를 기록하는 종목 — 분봉 유니버스 + 수집 DB 마지막 거래일의 전체 종목 대상(`signal_targets.targets` · #487).
+
+    기록이 없는 종목이 「아직 기록 전」 인지 「기록 대상 밖」 인지를 날짜가 아니라 지금 이 목록으로 가른다(전체 종목 기록을
+    처음 돌린 날이 PC 마다 다르다). 수집 DB 를 못 읽으면 `OSError` · `sqlite3.Error` 를 그대로 낸다.
+    """
+    from app.services.signal_targets import targets   # signal_targets 가 이 모듈을 부른다 — 순환을 피해 안에서
+
+    last = last_trading_day(path=path)
+    return frozenset(universe(path=path)) | frozenset(targets([last], path=path) if last else ())
+
+
 def trading_days(start: str, end: str, *, path: Path | None = None) -> list[str]:
     """[start, end] 안에서 시세가 있는 날(주식 일봉 기준) — YYYY-MM-DD."""
     conn = _connect(path)
