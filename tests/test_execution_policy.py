@@ -70,3 +70,18 @@ def test_unconnected_stop_type_is_rejected_before_network():
     from app.services.brokers import stock_coin_trade_gateway as gw
     with pytest.raises(gw.GatewayError, match="스탑"):
         gw.build_intent("005930.KS", "SELL", 1, 70000, client_order_id="stop-test", order_type="STOP_LIMIT")
+
+
+@pytest.mark.parametrize("original,current,percent,allowed", [
+    (70000, 69300, 1, True), (70000, 70700, 1, True),
+    (70000, 69299.99, 1, False), (70000, 70700.01, 1, False),
+    (70000, 70350, .5, True), (70000, 70350.01, .5, False),
+    (232000, 229000, 1, False),  # 11/2 실측 차단은 그대로
+    (0, 70000, 1, False), (70000, -1, 1, False),
+    (70000, float("nan"), 1, False), (float("inf"), 70000, 1, False),
+    (70000, 70000, float("nan"), False), (70000, 70000, 0, False),
+    (70000, 70000, 6, False), (70000, "bad", 1, False),
+])
+def test_decimal_retry_price_limit_inclusive_boundary_and_invalid_values(original, current, percent, allowed):
+    from app.services.execution_policy import within_retry_price_limit
+    assert within_retry_price_limit(original, current, percent) is allowed
