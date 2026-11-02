@@ -128,6 +128,25 @@ def test_retry_guards_never_submit(monkeypatch, case):
     run(go)
 
 
+@pytest.mark.parametrize("quote,allowed", [(69300, True), (70700, True), (69200, False), (70800, False)])
+def test_gateway_retry_uses_same_inclusive_price_limit(monkeypatch, quote, allowed):
+    place = mocks(monkeypatch)
+    retry.gateway.get_balance.return_value["holdings"][0]["currentPrice"] = quote
+    async def go(factory):
+        pid, _, _ = await seed(factory)
+        async with factory() as db:
+            child = await retry.prepare_retry(db, pid)
+            assert (child is not None) is allowed
+            if child:
+                await db.commit()
+                assert (await db.get(LiveOrder, child)).price == 70000
+                assert await retry.send_retry(db, child)
+                assert place.await_count == 1
+            else:
+                place.assert_not_awaited()
+    run(go)
+
+
 @pytest.mark.parametrize("failure", ["stop", "unreachable"])
 def test_send_rechecks_stop_and_unknown_does_not_create_new_child(monkeypatch, failure):
     place = mocks(monkeypatch)

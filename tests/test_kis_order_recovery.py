@@ -227,6 +227,124 @@ def test_settings_change_after_reservation_blocks_retry(env, monkeypatch):
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("change,code", [("expiry", "RETRY_EXPIRED"), ("paper_gate", "PAPER_ONLY")])
+def test_known_pre_send_rejection_is_not_reported_as_unknown_order(env, monkeypatch, change, code):
+    """조회/의도 저장 후 마지막 검사에서 거절되면 외부 주문 불명이 아닌 실제 거절 이유를 남긴다."""
+    from app.models import OrderIntent
+    sessions, client, _ = env
+    async def scenario():
+        uid, pid = await setup(sessions)
+        now = recovery.datetime.now(recovery.control.KST)
+        async with sessions() as db:
+            parent = await db.get(LiveOrder, pid)
+            parent.created_at = now - timedelta(minutes=15) + timedelta(seconds=1)
+            await db.commit()
+        calls = 0
+        original_clock = recovery.datetime
+        async def checkpoint():
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                if change == "expiry":
+                    class Later(original_clock):
+                        @classmethod
+                        def now(cls, tz=None):
+                            return original_clock.now(tz) + timedelta(seconds=2)
+                    monkeypatch.setattr(recovery, "datetime", Later)
+                else:
+                    monkeypatch.setattr(recovery, "live_trading_allowed", lambda: True)
+        monkeypatch.setattr(recovery.control, "coordination_ready", checkpoint)
+        result = await recovery.retry(uid, pid)
+        assert result["status"] == "skipped" and result["code"] == code, result
+        client.place_order.assert_not_awaited()
+        async with sessions() as db:
+            assert await db.scalar(select(func.count()).select_from(LiveOrder).where(LiveOrder.retry_of == pid)) == 0
+            intent = await db.get(OrderIntent, result["intent_id"])
+            assert intent.status == "skipped" and intent.result["code"] == code
+    asyncio.run(scenario())
+
+
+def test_cancel_response_loss_then_full_fill_never_retries(env):
+    """취소 접수 응답이 사라져도 증권사가 원 매도 전량 체결을 확인하면 새 매도를 만들지 않는다."""
+    sessions, client, latest = env
+    async def scenario():
+        uid, pid = await setup(sessions)
+        latest.update(status="PARTIALLY_FILLED", cancelled=False, remainingQuantity=2, cancelledQuantity=0)
+        client.cancel_order.side_effect = OrderSubmissionUnknown("synthetic response loss")
+        assert (await recovery.cancel(uid, pid))["status"] == "UNKNOWN"
+        latest.update(status="FILLED", filledQuantity=3, remainingQuantity=0, cancelled=False, cancelledQuantity=0)
+        result = await recovery.retry(uid, pid)
+        assert result["code"] == "CANCEL_UNCONFIRMED", result
+        client.place_order.assert_not_awaited()
+        async with sessions() as db:
+            parent = await db.get(LiveOrder, pid)
+            assert parent.status == "FILLED" and parent.filled_quantity == 3
+            assert await db.scalar(select(func.count()).select_from(LiveOrder).where(LiveOrder.retry_of == pid)) == 0
+        assert (await recovery.cancel(uid, pid))["duplicate"]
+        assert client.cancel_order.await_count == 1
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("quote,allowed", [(69300, True), (70700, True), (69200, False), (70800, False)])
+def test_retry_price_deviation_includes_exact_one_percent_boundary(env, quote, allowed):
+    sessions, client, _ = env
+    async def scenario():
+        uid, pid = await setup(sessions)
+        client.get_price.return_value = SimpleNamespace(current=quote)
+        result = await recovery.retry(uid, pid)
+        if allowed:
+            assert result["status"] == "submitted", result
+            assert client.place_order.await_count == 1
+            assert client.place_order.call_args.args[4] == 70000  # 원 지정가 유지
+        else:
+            assert result["code"] == "PRICE_DEVIATION", result
+            client.place_order.assert_not_awaited()
+    asyncio.run(scenario())
+
+
+def test_retry_of_trial_share_preserves_other_strategy_share(env):
+    """같은 계좌·종목의 기존 전략 1주와 시험 1주가 섞여 있어도 시험 잔량만 매도한다."""
+    sessions, client, latest = env
+    async def scenario():
+        uid, pid = await setup(sessions)
+        async with sessions() as db:
+            parent = await db.get(LiveOrder, pid)
+            ref = parent.account_ref
+            parent.quantity = 1
+            parent.filled_quantity = 0
+            baseline = await db.get(BrokerPositionBaseline, (ref, parent.symbol))
+            baseline.quantity = 0
+            buy = await db.scalar(select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.side == "BUY"))
+            buy.quantity = buy.filled_quantity = 1
+            protected = LiveOrder(user_id=uid, account_ref=ref, client_order_id="protected:" + uid.hex,
+                strategy_id="protected_original", strategy_version=1, broker="kis-direct", environment="paper",
+                symbol=parent.symbol, side="BUY", quantity=1, filled_quantity=1, avg_filled_price=70000,
+                price=70000, status="FILLED", created_at=parent.created_at - timedelta(days=1))
+            db.add(protected)
+            await db.commit()
+            protected_id = protected.id
+        latest.update(orderedQuantity=1, filledQuantity=0, avgFilledPrice=0, cancelledQuantity=1)
+        snapshot = recovery.kis_execution.account_snapshot.return_value
+        snapshot.update(equity=1140000, holdings={"005930.KS": {"quantity": 2, "value": 140000}})
+        result = await recovery.retry(uid, pid)
+        assert result["status"] == "submitted", result
+        assert client.place_order.call_args.args[2:] == ("sell", 1, 70000)
+        async with sessions() as db:
+            child = await db.scalar(select(LiveOrder).where(LiveOrder.retry_of == pid))
+            recovery.apply_status(child, {"status": "FILLED", "orderedQuantity": 1, "filledQuantity": 1,
+                "avgFilledPrice": 70000, "quantityEvidenceComplete": True, "account_key": ref})
+            await db.commit()
+            snapshot.update(equity=1070000, holdings={"005930.KS": {"quantity": 1, "value": 70000}})
+            old_owned, old_blocked = await recovery.live_ownership.reconcile(db, ref, snapshot, uid, "protected_original", 1)
+            trial_owned, trial_blocked = await recovery.live_ownership.reconcile(db, ref, snapshot, uid, "strategy", 1)
+            assert not old_blocked and not trial_blocked
+            assert sum(p.quantity for p in old_owned) == 1 and not trial_owned
+            assert (await db.get(LiveOrder, protected_id)).filled_quantity == 1
+        assert (await recovery.retry(uid, pid))["duplicate"]
+        assert client.place_order.await_count == 1
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize('hour,minute,allowed', [(8,59,False),(9,0,True),(15,20,True),(15,29,True),(15,30,False)])
 def test_recovery_uses_regular_session_boundary(env, monkeypatch, hour, minute, allowed):
     from datetime import datetime as Clock

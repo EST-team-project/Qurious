@@ -230,3 +230,43 @@ def test_sigkill_guard_restores_real_test_database_from_separate_process(session
         for process in (owner, watcher):
             if process.poll() is None: process.kill()
             process.wait(timeout=5)
+
+
+def test_journal_fsync_failure_never_changes_policy_or_sends(sessions, tmp_path, monkeypatch):
+    async def scenario():
+        uid, parent_id = await seed(sessions)
+        def no_space(*args):
+            raise OSError("synthetic disk full")
+        send = AsyncMock()
+        monkeypatch.setattr(trial.os, "fsync", no_space)
+        monkeypatch.setattr(trial.recovery, "retry", send)
+        with pytest.raises(OSError): await trial.run(uid, parent_id, tmp_path, execute=True)
+        send.assert_not_awaited()
+        async with sessions() as db:
+            row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
+            assert row.quant_execution_policy == {} and not row.quant_auto_enabled
+    asyncio.run(scenario())
+
+
+def test_restore_receipt_write_failure_blocks_new_trial_until_reconciled(sessions, tmp_path, monkeypatch):
+    async def scenario():
+        uid, parent_id = await seed(sessions)
+        record = await trial.inspect(uid, parent_id)
+        path = tmp_path / f"{uid}-{parent_id}.json"
+        trial.write(path, record, exclusive=True)
+        await trial.activate(record)
+        original_write = trial.write
+        def no_space(*args, **kwargs):
+            raise OSError("synthetic receipt failure after DB restoration")
+        monkeypatch.setattr(trial, "write", no_space)
+        with pytest.raises(OSError): await trial.restore(path)
+        async with sessions() as db:
+            row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
+            assert row.quant_execution_policy == {}
+        assert json.loads(path.read_text())["status"] == "prepared"
+        with pytest.raises(ValueError, match="미원복"):
+            await trial.run(uid, parent_id, tmp_path, execute=True)
+        monkeypatch.setattr(trial, "write", original_write)
+        assert (await trial.restore(path))["status"] == "unchanged"
+        assert (await trial.restore(path))["duplicate"]
+    asyncio.run(scenario())

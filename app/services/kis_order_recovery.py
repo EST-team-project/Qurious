@@ -14,7 +14,7 @@ from app.services import (auto_trade, execution_control as control, kis_executio
                           market_calendar, order_preflight, etf_execution)
 from app.services.brokers import stock_coin_trade_gateway as gateway
 from app.services.brokers.factory import live_trading_allowed
-from app.services.execution_policy import policy_for
+from app.services.execution_policy import policy_for, within_retry_price_limit
 
 
 async def pause():
@@ -188,8 +188,7 @@ async def retry(uid, order_id, *, automatic=False):
             quantity = min(remaining, held, snapshot["holdings"].get(parent.symbol, {}).get("quantity", 0))
             await pause()
             quote = await order_preflight.current_quote(db, uid, row, "live", parent.symbol)
-            if (not math.isfinite(parent.price) or parent.price <= 0
-                    or abs(quote["price"]/parent.price-1)*100 > policy.retry_price_deviation_pct):
+            if not within_retry_price_limit(parent.price, quote["price"], policy.retry_price_deviation_pct):
                 raise control.Rejected("PRICE_DEVIATION", "원 지정가와 현재가의 차이가 재주문 한도를 넘었습니다.")
             instrument = await asyncio.to_thread(etf_execution.describe, parent.symbol)
             if gateway.align_price_to_tick(parent.price, "sell", is_etf=instrument["is_etf"]) != parent.price:
@@ -204,8 +203,12 @@ async def retry(uid, order_id, *, automatic=False):
                                     "cancelled_remainder": remaining, "retry_number": (parent.retry_number or 0)+1}}
 
         async def send(client_id, quantity, basis):
-            retry_policy(basis["parent"], basis["broker"], automatic)
-            verify_account(basis["parent"], basis["broker"])
+            try:
+                retry_policy(basis["parent"], basis["broker"], automatic)
+                verify_account(basis["parent"], basis["broker"])
+            except control.Rejected as exc:
+                # 아직 증권사 전송 함수를 호출하지 않았다. 확정 거절을 접수 불명으로 남기지 않는다.
+                return control.blocked(exc.code, str(exc))
             row = SimpleNamespace(**{c.name: getattr(basis["broker"], c.name) for c in BrokerSettings.__table__.columns})
             row.quant_mode = "live"
             return await auto_trade._place_live_order(row, intent.symbol, basis["parent"].name, "sell",

@@ -1,5 +1,5 @@
 """#162 선택 기능 계약. 생략한 기존 설정은 고정 예산·재주문 꺼짐이다."""
-from decimal import Decimal, InvalidOperation, ROUND_FLOOR
+from decimal import Decimal, DecimalException, InvalidOperation, ROUND_FLOOR
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +27,18 @@ def policy_for(row):
         return ExecutionPolicy()
     # 기존 저장값의 % 의미는 유지하고 새 요청에만 ATR 기본값을 적용한다.
     return ExecutionPolicy.model_validate({"stop_kind": "pct", **raw})
+
+
+def within_retry_price_limit(original, current, percent):
+    """십진 가격으로 허용치 이하를 비교한다. 1% 경계를 이진 부동소수점 오차로 거절하지 않는다."""
+    try:
+        original, current, percent = (Decimal(str(value)) for value in (original, current, percent))
+        if (not all(value.is_finite() for value in (original, current, percent))
+                or original <= 0 or current <= 0 or not 0 < percent <= 5):
+            return False
+        return abs(current - original) * 100 <= original * percent
+    except (DecimalException, ValueError, TypeError):
+        return False
 
 
 def risk_quantity(*, equity, cash, price, stop_price, budget, existing_value, position_cap_pct,
