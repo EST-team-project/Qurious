@@ -3,6 +3,7 @@
 공통 주문 관문은 승인된 실행 어댑터로 대체하여 사이클 알고리즘을 검사한다. 실제 관문은 test_execution_control.py에서 PG로 검사한다.
 DB 는 select 대상 엔티티별로 응답하는 가짜 AsyncSession, 지표·가상체결·알림·Redis 는 패치, 게이트웨이는 MockTransport.
 """
+from contextlib import ExitStack
 import asyncio
 import os
 import uuid
@@ -130,27 +131,35 @@ def run_cycle(broker_row, live_rows=(), quote_price=70_000, positions=(), owned=
         return await auto_trade.quant_valuation.quote(db, uid, symbol, fresh=True)
     async def permitted(*args, **kwargs):
         return await auto_trade._execute_trade_unchecked(*args)
-    with patch.object(auto_trade, "_execute_trade", permitted), \
-         patch.object(auto_trade.order_preflight, "current_quote", execution_quote), \
-         patch.object(auto_trade.live_ownership, "account_ref", return_value="verified-test-account"), \
-         patch.object(auto_trade.live_ownership, "reconcile", AsyncMock(return_value=(list(owned), {}))), \
-         patch.object(auto_trade.quant_valuation.quote_now, "quote_now", quoted), \
-         patch.object(auto_trade, "get_session_factory", return_value=Factory(db)), \
-         patch.object(auto_trade, "QUANT_STOCKS", STOCKS), \
-         patch.object(auto_trade, "get_quant_indicators", indicators), \
-         patch.object(auto_trade, "_execute_virtual_trade", virtual_trade), \
-         patch.object(auto_trade, "_persist_cycle", persist), \
-         patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=10_000_000.0)), \
-         patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=0)), \
-         patch.object(auto_trade.risk_guard, "acquire_order_slot", AsyncMock(return_value=True)), \
-         patch.object(auto_trade.risk_guard, "increment_orders_today", AsyncMock(return_value=1)), \
-         patch.object(auto_trade.risk_guard, "release_order_slot", AsyncMock()), \
-         patch.object(auto_trade.risk_guard, "_redis", return_value=object()), \
-         patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()) as virtual_alert, \
-         patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()), \
-         patch.object(auto_trade.notification, "notify_order_error", AsyncMock()), \
-         patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()), \
-         patch.object(gw, "is_krx_market_open", return_value=True):
+    # 가짜 DB는 사이클 계획만 검증한다. 손절 저장은 실제 PG 시험에서 확인한다.
+    async def fixed_stop(db, uid, row, mode, position):
+        policy = auto_trade.policy_for(row)
+        if policy.size_kind != "risk_pct":
+            return None
+        return {"stop_price": position.avg_price * (1 - policy.stop_loss_pct / 100), "origin": "transition"}
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(auto_trade.risk_stop_service, "for_position", fixed_stop))
+        stack.enter_context(patch.object(auto_trade, "_execute_trade", permitted))
+        stack.enter_context(patch.object(auto_trade.order_preflight, "current_quote", execution_quote))
+        stack.enter_context(patch.object(auto_trade.live_ownership, "account_ref", return_value="verified-test-account"))
+        stack.enter_context(patch.object(auto_trade.live_ownership, "reconcile", AsyncMock(return_value=(list(owned), {}))))
+        stack.enter_context(patch.object(auto_trade.quant_valuation.quote_now, "quote_now", quoted))
+        stack.enter_context(patch.object(auto_trade, "get_session_factory", return_value=Factory(db)))
+        stack.enter_context(patch.object(auto_trade, "QUANT_STOCKS", STOCKS))
+        stack.enter_context(patch.object(auto_trade, "get_quant_indicators", indicators))
+        stack.enter_context(patch.object(auto_trade, "_execute_virtual_trade", virtual_trade))
+        stack.enter_context(patch.object(auto_trade, "_persist_cycle", persist))
+        stack.enter_context(patch.object(auto_trade.risk_guard, "day_start_equity", AsyncMock(return_value=10_000_000.0)))
+        stack.enter_context(patch.object(auto_trade.risk_guard, "orders_today", AsyncMock(return_value=0)))
+        stack.enter_context(patch.object(auto_trade.risk_guard, "acquire_order_slot", AsyncMock(return_value=True)))
+        stack.enter_context(patch.object(auto_trade.risk_guard, "increment_orders_today", AsyncMock(return_value=1)))
+        stack.enter_context(patch.object(auto_trade.risk_guard, "release_order_slot", AsyncMock()))
+        stack.enter_context(patch.object(auto_trade.risk_guard, "_redis", return_value=object()))
+        virtual_alert = stack.enter_context(patch.object(auto_trade.notification, "notify_auto_trade_executed", AsyncMock()))
+        stack.enter_context(patch.object(auto_trade.notification, "notify_order_placed", AsyncMock()))
+        stack.enter_context(patch.object(auto_trade.notification, "notify_order_error", AsyncMock()))
+        stack.enter_context(patch.object(auto_trade.notification, "notify_risk_skip", AsyncMock()))
+        stack.enter_context(patch.object(gw, "is_krx_market_open", return_value=True))
         asyncio.run(auto_trade._run_quant_cycle(str(UID)))
         if broker_row.quant_mode == "live":
             virtual_alert.assert_not_awaited()

@@ -273,3 +273,26 @@ def test_ad12_user_without_settings_never_reaches_shared_channels(rig, monkeypat
     assert sorted(names(rig)) == ["discord", "email", "slack"]
     assert notification._channels_for(dict(notification.NO_SETTINGS)) == []
     assert notification._channels_for({"channels": ["slack"]}) == ["slack"]
+
+
+@pytest.mark.parametrize("read_failed", [False, True])
+def test_production_settings_loader_blocks_missing_and_failed_reads(monkeypatch, read_failed):
+    import uuid
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from app.database import postgres
+    db = AsyncMock()
+    db.__aenter__.return_value = db
+    db.execute.return_value = SimpleNamespace(scalar_one_or_none=lambda: None)
+    if read_failed:
+        db.execute.side_effect = RuntimeError("synthetic read failure")
+    monkeypatch.setattr(postgres, "get_session_factory", lambda: lambda: db)
+    monkeypatch.setattr(notification, "_default_channels", lambda: ["discord", "slack"])
+    discord, slack, log = AsyncMock(), AsyncMock(), AsyncMock()
+    monkeypatch.setattr(notification, "send_discord", discord)
+    monkeypatch.setattr(notification, "send_slack", slack)
+    monkeypatch.setattr(notification, "_log_dispatch", log)
+    run(notification.dispatch_event(_ev(kind="risk_halt", severity="urgent"), user_id=str(uuid.uuid4())))
+    discord.assert_not_awaited()
+    slack.assert_not_awaited()
+    assert log.call_args.args[3] == []

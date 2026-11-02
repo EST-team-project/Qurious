@@ -175,6 +175,7 @@ export function stockDrawerHtml(hub) {
   const sections = DRAWER_SECTIONS.map(k => sdSectionHtml(k, s[k], labelOf)).join("");
   const generated = hub.generated_at ? `<small class="sd-note">${esc(String(hub.generated_at).slice(0, 16).replace("T", " "))} 에 모았습니다</small>` : "";
   return `${head}<p class="sd-lead">${esc(hub.note || "새로 계산하지 않고 앱의 다른 화면이 쓰는 값을 그대로 모았습니다.")}</p>`
+    + `${naver ? '<p class="sd-lead"><button type="button" class="btn-secondary" data-hub-go="robo-rebalance">리밸런싱 목표 편집으로 →</button> 종목코드만 전달합니다. 비중 입력·목표 추가·저장은 직접 확인하세요.</p>' : ''}`
     + `<div class="sd-body">${sections}</div><footer class="sd-bottom"><p class="sd-notice">${esc(hub.notice || "투자 권유가 아닙니다.")}</p>${generated}</footer>`;
 }
 
@@ -202,6 +203,11 @@ export function openViewForSymbol(view, code, name, { navigate, openResearchSymb
   else if (view === "agent-cb") fill("rc-q", el => el.dispatchEvent(new doc.defaultView.KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
   else if (view === "agent-news") openResearchSymbol?.(code, name);
   else if (view === "paper-stock") fill("ps-symbol", el => { byId("ps-quote-btn")?.click(); el.focus(); });
+  else if (view === "robo-rebalance" && /^[0-9A-Z]{6}$/.test(String(code))) {
+    fill("rb-add-symbol");
+    const weight = byId("rb-add-weight");
+    if (weight) { weight.value = ""; weight.focus(); }
+  }
 }
 
 /** 문서에 붙인다 — `[data-hub-open="코드"]` 단추(+ data-hub-name)가 서랍을 연다. deps: { api, navigate, openResearchSymbol } */

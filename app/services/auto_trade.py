@@ -48,6 +48,8 @@ from app.services.data_cache import cache_get, cache_set
 from app.services import trading_cost
 from app.services import aggressive_mode
 from app.services.execution_policy import policy_for, risk_quantity
+from app.services import risk_stops as risk_stop_service
+from app.services import execution_alerts, etf_execution
 from app.services.trade_outcome import describe_trade, failure_message
 from app.services import kis_execution, live_ownership, execution_control, order_preflight
 from app.services.strategy_execution import card_symbols, validate_rule_input
@@ -266,7 +268,8 @@ async def _execute_virtual_trade(
             existing.avg_price = (existing.avg_price * existing.quantity + price * executed_quantity) / new_qty
             existing.quantity = new_qty
         else:
-            db.add(Portfolio(user_id=user_id, symbol=symbol, name=name, quantity=executed_quantity, avg_price=price, book=PORTFOLIO_BOOK_QUANT))
+            db.add(Portfolio(user_id=user_id, symbol=symbol, name=name, quantity=executed_quantity, avg_price=price, book=PORTFOLIO_BOOK_QUANT,
+                risk_entry_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None))
         cash_balance -= order_cost.net_amount
     elif action == "sell":
         new_qty = max(0, existing.quantity - executed_quantity)
@@ -391,7 +394,8 @@ async def _place_live_order(
     try:
         await notification.notify_order_placed(
             symbol=symbol, side=side, quantity=quantity, price=price,
-            broker=f"{broker.upper()} {'모의' if paper or not live_trading_allowed() else '실전'} · 체결 미확인", user_id=user_id)
+            broker=f"{broker.upper()} {'모의' if paper or not live_trading_allowed() else '실전'} · 체결 미확인", user_id=user_id,
+            details=[("주문번호", order_no)] if order_no else [])
     except Exception as exc:
         logger.warning("증권사 접수 알림 전송 실패 user=%s symbol=%s exception=%s", user_id, symbol, type(exc).__name__)
     return outcome
@@ -408,9 +412,14 @@ async def _report_execution(db, broker_row, trade: dict, user_id: str, *, mode="
             result = {"status": "unknown", "code": "ORDER_SUBMISSION_UNKNOWN"}
         trade["live_order"] = result or {"status": "skipped", "reason": "broker_not_configured"}
     else:
-        await notification.notify_auto_trade_executed(
-            symbol=trade["symbol"], name=trade.get("name", trade["symbol"]), action=trade["action"],
-            quantity=trade["quantity"], price=trade["price"], reason=trade.get("reason", ""), user_id=user_id)
+        try:
+            await notification.notify_auto_trade_executed(
+                symbol=trade["symbol"], name=trade.get("name", trade["symbol"]), action=trade["action"],
+                quantity=trade["quantity"], price=trade["price"], reason=trade.get("reason", ""), user_id=user_id,
+                details=execution_alerts.fill_details(trade))
+        except Exception as exc:
+            # 이미 commit한 가상 체결을 알림 실패 때문에 unknown/실패 주문으로 바꾸지 않는다.
+            logger.warning("가상 체결 알림 실패 user=%s symbol=%s exception=%s", user_id, trade["symbol"], type(exc).__name__)
 
 
 async def _execute_trade(db, uid, broker_row, mode, symbol, name, action, price, quantity, reason, *, decision=None):
@@ -575,6 +584,9 @@ async def _place_live_order_via_gateway(
     except gateway.GatewayError as e:
         return {"status": "error", "broker": "kis", "via": "stock-coin-trade", "error": str(e)}
 
+    instrument = await asyncio.to_thread(etf_execution.describe, symbol)
+    if _live_order_type() == "LIMIT":
+        price = gateway.align_price_to_tick(price, side, is_etf=instrument["is_etf"])
     row: LiveOrder | None = None
     if db is not None:
         row = LiveOrder(
@@ -586,7 +598,7 @@ async def _place_live_order_via_gateway(
         await db.commit()
 
     try:
-        result = await gateway.place_order(symbol, side, quantity, price, client_order_id=client_order_id, order_type=_live_order_type())
+        result = await gateway.place_order(symbol, side, quantity, price, client_order_id=client_order_id, order_type=_live_order_type(), is_etf=instrument["is_etf"])
     except gateway.GatewayError as e:
         logger.warning("게이트웨이 실주문 실패 (%s %s x%d): [%s] %s", side, symbol, quantity, e.code, e)
         if row is not None:
@@ -1015,31 +1027,32 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
         risk_stops = set()
         stop_unavailable = {}
         stop_quotes = {}
-        if execution.size_kind == "risk_pct":
-            for p in portfolio_rows:
-                if p.quantity <= 0:
+        for p in portfolio_rows:
+            if p.quantity <= 0:
+                continue
+            risk_holdings[p.symbol] = p
+            try:
+                stop = await risk_stop_service.for_position(db, uid, broker_row, mode, p)
+                if stop is None:
                     continue
-                risk_holdings[p.symbol] = p
-                try:
-                    q = await order_preflight.current_quote(db, uid, broker_row, mode, p.symbol)
-                    if q["source"] not in ("kis_user", "kis_gateway") or not p.avg_price:
-                        raise ValueError("현재 원주가·귀속 평단가 확인 불가")
-                    price = q["price"]
-                    stop_quotes[p.symbol] = {"quote": q, "average_price": float(p.avg_price),
-                                             "stop_price": float(p.avg_price) * (1 - execution.stop_loss_pct / 100)}
-                except Exception:
-                    stop_unavailable[p.symbol] = "현재 원주가·귀속 평단가를 확인하지 못해 손절 판단과 주문을 보류합니다."
+                q = await order_preflight.current_quote(db, uid, broker_row, mode, p.symbol)
+                if q["source"] not in ("kis_user", "kis_gateway"):
+                    raise ValueError("현재 원주가 확인 불가")
+                price = q["price"]
+                stop_quotes[p.symbol] = {"quote": q, **stop}
+            except Exception:
+                stop_unavailable[p.symbol] = "고정 손절 근거·현재 원주가를 확인하지 못해 주문을 보류합니다."
+                continue
+            if price <= stop["stop_price"]:
+                if (aggressive and forced_action.get(p.symbol, {}).get("action") != "매도"
+                        and sum(v["action"] == "매도" for v in forced_action.values())
+                        >= max(0, int(app_settings.QUANT_AGGRESSIVE_MAX_SELLS_PER_CYCLE))):
                     continue
-                if price and p.avg_price and price <= float(p.avg_price) * (1 - execution.stop_loss_pct / 100):
-                    if (aggressive and forced_action.get(p.symbol, {}).get("action") != "매도"
-                            and sum(v["action"] == "매도" for v in forced_action.values())
-                            >= max(0, int(app_settings.QUANT_AGGRESSIVE_MAX_SELLS_PER_CYCLE))):
-                        continue  # 선택 기능도 기존 사이클별 매도 수 상한을 우회하지 않는다.
-                    risk_stops.add(p.symbol)
-                    forced_action[p.symbol] = {"action": "매도", "ratio": 1.0,
-                                              "note": f"위험 수량 설정 손절 {execution.stop_loss_pct}% 도달"}
-                    if p.symbol in stock_map and p.symbol not in target_symbols:
-                        target_symbols.append(p.symbol)
+                risk_stops.add(p.symbol)
+                forced_action[p.symbol] = {"action": "매도", "ratio": 1.0,
+                                          "note": f"고정 손절선 {stop['stop_price']:,.0f}원 도달"}
+                if p.symbol in stock_map and p.symbol not in target_symbols:
+                    target_symbols.append(p.symbol)
 
         # ── 위험관리 사전 점검: 일손실 한도 ───────────────────────────────
         if live_snapshot is not None:
@@ -1141,7 +1154,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 "time": datetime.now(timezone.utc).isoformat(), "symbol": symbol, "name": name, "action": side,
                 "quantity": 0, "price": price, "reason": f"[위험관리] {reason}", "status": "skipped", "type": "risk",
             })
-            await notification.notify_risk_skip(symbol, name, side, reason, user_id=user_id)
+            await notification.notify_risk_skip(symbol, name, side, reason, user_id=user_id,
+                details=execution_alerts.risk_details(
+                    {**cycle_log["risk"], "orders_today": await risk_guard.orders_today(user_id)}, limits))
 
         for symbol in target_symbols:
             if strategy_spec and symbol not in card_symbols(strategy_spec, list(stock_map)):
@@ -1238,8 +1253,9 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         await _risk_skip(symbol, stock["name"], "buy", price, "위험 기준 수량은 보유 종목 추가 매수를 하지 않습니다.")
                         continue
                     try:
+                        stop = await risk_stop_service.entry_basis(symbol, float(price), execution)
                         sizing = risk_quantity(equity=equity_now, cash=cash_now, price=price,
-                            stop_price=float(price) * (1 - execution.stop_loss_pct / 100), budget=budget,
+                            stop_price=stop["stop_price"], budget=budget,
                             existing_value=position_values.get(symbol, 0), position_cap_pct=limits.max_position_pct,
                             risk_pct=execution.risk_pct, slippage_bps=execution.slippage_bps,
                             when=trading_cost.today_kst(), market=trading_cost.market_of(symbol),

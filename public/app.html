@@ -275,13 +275,6 @@
                     <input id="ord-qty" class="input" type="number" placeholder="수량" />
                     <select id="ord-broker" class="input">
                       <option value="virtual">가상 매매 (Mock)</option>
-                      <option value="kis">한국투자증권 (KIS)</option>
-                      <option value="kb">KB증권</option>
-                      <option value="ebest">LS증권 (eBest)</option>
-                      <option value="kiwoom">키움증권</option>
-                      <option value="daishin">대신증권</option>
-                      <option value="meritz">메리츠증권</option>
-                      <option value="shinhan">신한투자증권</option>
                     </select>
                     <div class="flex gap-2">
                       <button id="ord-buy" class="btn-green flex-1">매수</button>
@@ -293,8 +286,8 @@
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4" data-trading-order-note>
                   <h3 class="font-semibold mb-3">이 화면의 주문은 어디로 가나</h3>
                   <div class="text-xs px-3 py-2 rounded-lg mb-3" style="background:var(--surf);color:var(--text-dim);border:1px solid var(--border);line-height:1.65;">
-                    이 화면의 매수 · 매도는 <b>증권사로 나가지 않고</b> 이 앱 안에 「체결」 로만 기록됩니다. 증권사 이름은 기록에 붙는 꼬리표이고,
-                    <b>「가상 매매」 만 모의 계좌 현금이 함께 움직입니다</b>(다른 증권사를 고르면 현금은 그대로고 보유만 바뀝니다).
+                    이 화면의 매수 · 매도는 <b>증권사로 나가지 않고</b> 이 앱 안에서 <b>가상 매매</b>로 체결됩니다.
+                    매수 · 매도 시 <b>거래 비용을 포함해 모의 계좌 현금과 보유량이 함께 바뀝니다</b>.
                     앱 안 모의 계좌 주문은 <a href="#paper-stock" class="underline">국내주식 모의주문</a>, 전략 자동 실행은 <a href="#quant-auto" class="underline">자동매매</a>에서 합니다.
                   </div>
                   <div class="text-xs mb-1" style="color:var(--text-mute);">내 증권사 연동 상태(읽기 전용)</div>
@@ -577,7 +570,8 @@
               </div>
               <!-- 5개 종목 시그널 -->
               <div class="card">
-                <h3 id="signal-cards-title" class="font-semibold mb-1">규칙 신호 (자동매매 대상 종목)</h3>
+                <h3 id="signal-cards-title" class="font-semibold mb-1">기본 일봉 규칙 신호 (관찰 목록)</h3>
+                <p class="text-xs mb-2" style="color:var(--text-mute);">기본 관찰 목록입니다. 실제 자동매매 대상·판단은 선택 종목과 전략 설정에 따라 달라지며, 실행 당시 판단은 자동매매 현황에서 확인합니다.</p>
                 <p class="text-xs mb-3" style="color:var(--text-mute);">정한 규칙(RSI · 이동평균 · 볼린저)으로 계산한 정보이며 투자 권유가 아닙니다 — 「근거」 를 눌러 어떤 규칙에서 나왔는지 봅니다. 값은 마지막 종가 기준입니다.</p>
                 <div id="signal-cards" class="grid md:grid-cols-5 gap-2 text-xs"></div>
               </div>
@@ -602,7 +596,7 @@
             <div class="card">
               <div class="flex items-center justify-between mb-4">
                 <div>
-                  <h2 class="text-lg font-semibold">🤖 10분 자동매매 (Agentic AI)</h2>
+                  <h2 class="text-lg font-semibold">자동매매</h2>
                   <p class="text-xs text-slate-400 mt-1">설정한 주기와 대상 종목을 기준으로 신호를 계산합니다. 가상 장부와 증권사 주문의 체결 결과는 다를 수 있습니다.</p>
                 </div>
                 <div id="auto-trade-status" class="text-sm text-slate-400"></div>
@@ -613,8 +607,9 @@
                 <button id="auto-refresh" class="btn-secondary text-xs">로그 새로고침</button>
               </div>
               <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 mb-4 text-xs text-indigo-300">
-                전략: RSI 과매도/과매수 · 골든/데드크로스 · 볼린저밴드 → AI 종합 시그널 → 위험관리 게이트(중복 주문·비중·일 주문 수·일손실) → 자동 가상 주문
+                현재 선택한 전략(기본 일봉·공격 모드·사용자 전략)의 규칙 판단 → 위험 검사(중복 주문·비중·일 주문 수·일손실) → 설정한 계좌로 주문합니다. 전략·점수·기준 봉은 아래 각 회차의 기록을 확인하세요.
               </div>
+              <p class="text-xs mb-4" style="color:var(--text-mute);">ETF는 09:00~09:05·15:20~15:30에 LP 호가 의무가 면제됩니다. 시장가·다음 시가 체결은 순자산가치와 차이가 커질 수 있습니다. 기록의 종가/NAV 괴리율은 표시한 기준일의 일별 값이며 장중 iNAV가 아닙니다.</p>
               <div class="rounded-xl p-3 mb-4" style="background:var(--surf2);border:1px solid var(--border);">
                 <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <h3 class="text-sm font-semibold">🛡️ 위험관리 상태</h3>
@@ -961,10 +956,12 @@
                   <div class="grid md:grid-cols-2 gap-3 mt-3">
                     <label>매수 수량 방식<select id="quant-size-kind" class="input mt-1"><option value="fixed_budget">기존 고정 예산</option><option value="risk_pct">비용 포함 위험 금액 기준</option></select></label>
                     <label>1회 예상 손실 예산 (% · 자동매매 가상 자산)<input id="quant-risk-pct" type="number" min="0.01" max="5" step="0.1" value="1" class="input mt-1" /></label>
+                    <label>손절 방식<select id="quant-stop-kind" class="input mt-1"><option value="atr">ATR(14) · 마지막 확정 일봉</option><option value="pct">매입가 대비 %</option></select></label>
+                    <label>ATR 배수<input id="quant-atr-mult" type="number" min="0.1" max="10" step="0.1" value="2" class="input mt-1" /></label>
                     <label>손절 거리 (% · 매입 기준)<input id="quant-stop-pct" type="number" min="0.01" max="50" step="0.1" value="1" class="input mt-1" /></label>
                     <label>편도 슬리피지 가정 (bp)<input id="quant-risk-slip" type="number" min="0" max="100" value="10" class="input mt-1" /></label>
                   </div>
-                  <p class="text-xs mt-2">위험 기준은 첫 진입만 지원하며 보유 종목을 추가 매수하지 않습니다. 비용·현금·1회 예산·종목 비중 상한을 함께 적용하고 1주도 안 되면 매수하지 않습니다. 이 모드에서는 설정한 손절 거리를 서버 주기마다 확인합니다. 갭·미체결로 실제 손실이 예상 예산을 넘을 수 있습니다.</p>
+                  <p class="text-xs mt-2">위험 기준은 첫 진입만 지원하며 보유 종목을 추가 매수하지 않습니다. 비용·현금·1회 예산·종목 비중 상한을 함께 적용하고 1주도 안 되면 매수하지 않습니다. 손절선은 진입 시 고정되며 이후 설정을 바꿔도 유지합니다. 기존 보유는 최초 전환 시 한 번 고정합니다. 고정 손절이 있는 보유는 모드를 바꿔도 추가 매수를 막습니다. ATR 자료가 없으면 진입을 보류합니다. 갭·미체결로 실제 손실이 예상 예산을 넘을 수 있습니다.</p>
                   <label class="flex gap-2 mt-3"><input id="quant-retry-enabled" type="checkbox" /> 취소 확정된 모의 지정가 매도 잔량 재주문 켜기 (기본 꺼짐)</label>
                   <div class="grid md:grid-cols-3 gap-3 mt-2">
                     <label>최대 재주문 횟수<input id="quant-retry-attempts" type="number" min="1" max="3" value="1" class="input mt-1" /></label>
@@ -1843,6 +1840,8 @@
                         max="100" step="0.5" class="input mt-1" placeholder="30" /></div>
                     <button id="rb-add" class="btn-primary text-xs">추가</button>
                     <button id="rb-import-allocation" class="btn-secondary text-xs">저장한 배분 가져오기</button>
+                    <label class="text-xs"><input id="rb-import-etfs" type="checkbox" /> 해외주식·채권·대체자산도 국내 상장 ETF 후보로 채우기</label>
+                    <p class="text-xs" style="color:var(--text-mute);">ETF는 09:00~09:05·15:20~15:30에 LP 호가 의무가 면제됩니다. 다음 거래일 시가 체결도 개장 직후에 해당하며, 체결가가 순자산가치와 다를 수 있습니다.</p>
                     <button id="rb-import-positions" class="btn-secondary text-xs" title="현재 보유 비중을 목표로 복사">보유 비중
                       불러오기</button>
                   </div>

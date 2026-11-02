@@ -316,7 +316,7 @@ async def test_first_snapshot_after_reset_has_zero_daily_return(db, monkeypatch)
     session, uid = db
 
     # 회차 1: 첫 스냅샷 1억 → daily_return 0 (첫 스냅샷 규칙)
-    async def _snap_1(db_, uid_):
+    async def _snap_1(db_, uid_, **kwargs):
         return {"cash": 100_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 100_000_000.0,
                 "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
@@ -329,7 +329,7 @@ async def test_first_snapshot_after_reset_has_zero_daily_return(db, monkeypatch)
     assert (await paper_trading.get_account(session, uid)).epoch == 2
 
     # 회차 2 첫 스냅샷: 자산이 +5%로 보여도 회차 경계라 daily_return=0
-    async def _snap_2(db_, uid_):
+    async def _snap_2(db_, uid_, **kwargs):
         return {"cash": 105_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 105_000_000.0,
                 "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
@@ -353,14 +353,14 @@ async def test_snapshot_same_epoch_computes_return(db, monkeypatch):
     from datetime import date as _date
     session, uid = db
 
-    async def _snap_a(db_, uid_):
+    async def _snap_a(db_, uid_, **kwargs):
         return {"cash": 100_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 100_000_000.0,
                 "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
     monkeypatch.setattr(paper_snapshot_service, "account_snapshot", _snap_a)
     await paper_snapshot_service.record_daily_snapshot(session, uid, snap_date=_date(2026, 1, 1))
 
-    async def _snap_b(db_, uid_):
+    async def _snap_b(db_, uid_, **kwargs):
         return {"cash": 110_000_000.0, "stockEval": 0.0, "cryptoEval": 0.0,
                 "alternativeEval": 0.0, "totalAsset": 110_000_000.0,
                 "counts": {"stock": 0, "crypto": 0, "alt": 0}, "price_complete": True}
@@ -374,3 +374,34 @@ async def test_snapshot_same_epoch_computes_return(db, monkeypatch):
     )).scalar_one()
     assert snap.epoch == 1
     assert abs(snap.daily_return - 0.1) < 0.001
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_concurrent_manual_sells_cannot_credit_cash_twice(db, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+    from fastapi import HTTPException
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from app.routes import stocks
+    session, uid = db
+    monkeypatch.setattr(stocks, "audit", AsyncMock())
+    await stocks.place_order(_order(stocks, "buy", 2), user={"id": str(uid)}, db=session)
+    factory = async_sessionmaker(session.bind, expire_on_commit=False)
+    async def sell():
+        async with factory() as concurrent:
+            try:
+                await stocks.place_order(_order(stocks, "sell", 2), user={"id": str(uid)}, db=concurrent)
+                return 200
+            except HTTPException as exc:
+                await concurrent.rollback()
+                return exc.status_code
+    assert sorted(await asyncio.gather(sell(), sell())) == [200, 400]
+    session.expire_all()
+    assert await _holdings(session, uid, PORTFOLIO_BOOK_PAPER) == {}
+    orders = (await session.scalars(select(Order).where(Order.user_id == uid))).all()
+    buy = next(o for o in orders if o.order_type == "buy")
+    sell_row = next(o for o in orders if o.order_type == "sell")
+    expected_cash = PAPER_INITIAL_CASH - buy.net_amount + sell_row.net_amount
+    assert len(orders) == 2
+    assert await _paper_cash(session, uid) == pytest.approx(expected_cash)

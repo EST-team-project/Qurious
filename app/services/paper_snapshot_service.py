@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.paper import PaperAccount
 from app.models.paper_snapshot import PaperAccountSnapshot     # ← import만!
 from app.services.paper_trading import account_snapshot
+from app.services.snapshot_pricing import daily_complete, consecutive
 
 KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -40,19 +41,22 @@ async def record_daily_snapshot(
     user_id: uuid.UUID,
     *,
     snap_date: Optional[date] = None,
+    origin: str = "daily",
 ) -> PaperAccountSnapshot:
     """
     오늘(또는 지정일)의 모의계좌 총자산을 스냅샷으로 저장.
 
     - 같은 날짜에 이미 스냅샷이 있으면 덮어씀
-    - 불완전한 시세 스냅샷은 daily_return = 0.0
+    - 불완전한 시세 스냅샷은 daily_return = 0.0, return_valid = false (성과 계산 제외)
     - 직전 스냅샷이 불완전하거나 출처가 다르면 수익률 연결을 초기화
     - 연속된 완전한 일일 스냅샷만 수익률 계산에 사용
     """
     if snap_date is None:
         snap_date = datetime.now(KST).date()
 
-    snap = await account_snapshot(db, user_id)
+    if origin not in ("daily", "manual"):
+        raise ValueError("잘못된 스냅샷 출처입니다.")
+    snap = await account_snapshot(db, user_id, valuation_date=snap_date)
 
     cash = float(snap["cash"])
     stock_eval = float(snap["stockEval"])
@@ -62,10 +66,19 @@ async def record_daily_snapshot(
     total_equity = float(snap["totalAsset"])
     position_count = sum(snap["counts"].values())
 
-    completeness = (
-        "complete" if snap["price_complete"] else "incomplete"
-    )
-    origin = "daily"
+    captured_at = datetime.now(KST)
+    metadata = []
+    for item in snap.get("price_metadata", []):
+        complete = daily_complete(item, snap_date, at=captured_at)
+        fallback = list(item.get("fallback", []))
+        if not complete and not fallback:
+            fallback.append("daily_close_or_time_unverified")
+        # 평가 결과와 근거만 보존한다. 시세 자체를 저장하는 표로 확장하지 않는다.
+        provenance = {key: value for key, value in item.items() if key != "price"}
+        metadata.append({**provenance, "complete": complete, "fallback": fallback})
+    verified = (snap["price_complete"] and len(metadata) == position_count
+                and all(daily_complete(p, snap_date, at=captured_at) for p in metadata))
+    completeness = "complete" if verified else "incomplete"
 
     current_epoch = await _get_current_epoch(db, user_id)
 
@@ -79,14 +92,18 @@ async def record_daily_snapshot(
         .limit(1)
     )).scalar_one_or_none()
 
-    if (
-        completeness == "complete"
+    return_valid = (
+        origin == "daily"
+        and completeness == "complete"
         and prev_row is not None
         and prev_row.completeness == "complete"
         and prev_row.origin == "daily"
         and prev_row.total_equity > 0
         and prev_row.epoch == current_epoch
-    ):
+        and valid_daily_row(prev_row, current_epoch)
+        and consecutive(prev_row.snap_date, snap_date)
+    )
+    if return_valid:
         daily_return = (total_equity / prev_row.total_equity) - 1.0
     else:
         daily_return = 0.0
@@ -104,9 +121,11 @@ async def record_daily_snapshot(
         crypto_value=crypto_eval,
         alt_value=alt_eval,
         epoch=current_epoch,
-        snapshot_at=datetime.now(KST),
+        snapshot_at=captured_at,
         completeness=completeness,
         origin=origin,
+        price_metadata=metadata,
+        return_valid=return_valid,
     )
 
     stmt = stmt.on_conflict_do_update(
@@ -124,7 +143,10 @@ async def record_daily_snapshot(
             "snapshot_at": stmt.excluded.snapshot_at,
             "completeness": stmt.excluded.completeness,
             "origin": stmt.excluded.origin,
+            "price_metadata": stmt.excluded.price_metadata,
+            "return_valid": stmt.excluded.return_valid,
         },
+        where=(PaperAccountSnapshot.origin != "daily") if origin == "manual" else None,
     )
 
     await db.execute(stmt)
@@ -146,10 +168,16 @@ async def record_daily_snapshot(
         select(PaperAccountSnapshot).where(
             PaperAccountSnapshot.user_id == user_id,
             PaperAccountSnapshot.snap_date == snap_date,
-        )
+        ).execution_options(populate_existing=True)
     )).scalar_one()
 
     return row
+
+
+def valid_daily_row(row, epoch):
+    return (row.completeness == "complete" and row.origin == "daily" and row.epoch == epoch
+            and len(row.price_metadata or []) == row.position_count
+            and all(daily_complete(p, row.snap_date, at=row.snapshot_at) for p in (row.price_metadata or [])))
 
 
 async def get_daily_returns(
@@ -167,40 +195,26 @@ async def get_daily_returns(
         .order_by(PaperAccountSnapshot.snap_date.asc())
     )
 
-    if since is not None:
-        stmt = stmt.where(PaperAccountSnapshot.snap_date >= since)
-
     rows = (await db.execute(stmt)).scalars().all()
-
-    # 실제 일일 스냅샷 중 가격 완전성이 확인된 데이터만 사용
-    rows = [
-        row for row in rows
-        if row.completeness == "complete"
-        and row.origin == "daily"
-    ]
-
-    if not rows:
-        if with_dates:
-            return [], np.array([]), np.array([])
-        return np.array([]), np.array([])
-
-    dates_all = [row.snap_date.isoformat() for row in rows]
-    equity = np.array([row.total_equity for row in rows], dtype=float)
-    returns = np.array([row.daily_return for row in rows], dtype=float)
-
-    # 첫 번째 정상 스냅샷은 비교 기준점이므로 수익률에서 제외
-    returns_dates = dates_all[1:]
-    returns = returns[1:]
-
+    epoch = await _get_current_epoch(db, user_id)
+    # 누락·불완전·회차 경계를 0% 수익으로 만들지 않는다. 재수집한 과거 행의
+    # 다음 날도 저장된 옛 비율 대신 실제 이웃 두 행으로 다시 계산한다.
+    dates, returns, equity = [], [], []
+    previous = None
+    for row in rows:
+        if valid_daily_row(row, epoch) and (since is None or row.snap_date >= since):
+            equity.append(row.total_equity)
+            if (previous is not None and valid_daily_row(previous, epoch)
+                    and previous.total_equity > 0 and consecutive(previous.snap_date, row.snap_date)):
+                dates.append(row.snap_date.isoformat())
+                returns.append(row.total_equity / previous.total_equity - 1)
+        previous = row
     if limit is not None:
-        returns = returns[-limit:]
-        returns_dates = returns_dates[-limit:]
-        equity = equity[-limit:]
-
-    if with_dates:
-        return returns_dates, returns, equity
-
-    return returns, equity
+        if limit < 1:
+            raise ValueError("조회 개수는 1 이상이어야 합니다.")
+        dates, returns, equity = dates[-limit:], returns[-limit:], equity[-limit:]
+    result = (np.array(returns, dtype=float), np.array(equity, dtype=float))
+    return (dates, *result) if with_dates else result
 
 
 async def snapshot_count(db: AsyncSession, user_id: uuid.UUID) -> int:

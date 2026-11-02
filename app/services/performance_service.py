@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.evaluation_risk import calculate_all_metrics
 from app.services.paper_snapshot_service import (
     get_daily_returns,
-    record_daily_snapshot,
+    valid_daily_row, _get_current_epoch,
     snapshot_count,
 )
 
@@ -59,14 +59,13 @@ async def get_robo_metrics(
     """
     현재 모의계좌의 QFRS 지표 일괄 반환.
 
-    스냅샷이 부족하면 (2개 미만) 자동으로 오늘 스냅샷을 기록하고
-    부족 상태를 알려준다.
+    완전한 일일 스냅샷이 부족하면 부족 상태를 알려준다. 조회로 기록을 변경하지 않는다.
     """
     returns, equity = await get_daily_returns(db, user_id)
 
     # 날짜 배열 (X축 라벨용)
     _snap_rows = (await db.execute(
-        select(PaperAccountSnapshot.snap_date)
+        select(PaperAccountSnapshot)
         .where(
             PaperAccountSnapshot.user_id == user_id,
             PaperAccountSnapshot.completeness == "complete",
@@ -74,14 +73,14 @@ async def get_robo_metrics(
         )
         .order_by(PaperAccountSnapshot.snap_date.asc())
     )).scalars().all()
-    snap_dates = [d.isoformat() for d in _snap_rows]  # ["2026-09-17", ...]
+    epoch = await _get_current_epoch(db, user_id)
+    snap_dates = [r.snap_date.isoformat() for r in _snap_rows if valid_daily_row(r, epoch)]  # ["2026-09-17", ...]
 
     # 스냅샷이 2개 미만 → 지표 계산 불가
     if len(returns) < 2:
-        await record_daily_snapshot(db, user_id)
         return {
             "status": "insufficient_data",
-            "message": "스냅샷이 2개 미만입니다. 매일 조회 시 자동으로 쌓입니다.",
+            "message": "계산 가능한 일수익률이 2개 미만입니다. 거래일 마감 후 일일 수집으로 쌓입니다.",
             "snapshot_count": len(equity),
             "metrics": _nan_metrics(),
             "equity_curve": [_clean(v) for v in equity.tolist()],
@@ -371,10 +370,11 @@ async def get_allocation_history(
             PaperAccountSnapshot.origin == "daily",
         )
         .order_by(PaperAccountSnapshot.snap_date.asc())
-        .limit(limit)
     )
     result = await db.execute(stmt)
     rows = result.scalars().all()
+    epoch = await _get_current_epoch(db, user_id)
+    rows = [r for r in rows if valid_daily_row(r, epoch)][-limit:]
 
     if not rows:
         return {"status": "insufficient_data"}
@@ -414,6 +414,8 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
     # 기간 선택 차트라 개수 상한을 두지 않는다 — 이 함수에는 limit 인자가 없다
     # (이슈 #460: get_allocation_history 에서 복사된 `.limit(limit)` 이 NameError 로 500 이었다).
     rows = (await db.execute(stmt)).scalars().all()
+    epoch = await _get_current_epoch(db, user_id)
+    rows = [r for r in rows if valid_daily_row(r, epoch)]
 
     if len(rows) < 2:
         return {"status": "insufficient_data"}

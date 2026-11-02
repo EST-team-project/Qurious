@@ -25,6 +25,8 @@ async function loadSettings() {
     const ep = cfg.execution_policy || {};
     document.getElementById("quant-size-kind").value = ep.size_kind || "fixed_budget";
     document.getElementById("quant-risk-pct").value = ep.risk_pct ?? 1;
+    document.getElementById("quant-stop-kind").value = ep.stop_kind || "pct";
+    document.getElementById("quant-atr-mult").value = ep.atr_mult ?? 2;
     document.getElementById("quant-stop-pct").value = ep.stop_loss_pct ?? 1;
     document.getElementById("quant-risk-slip").value = ep.slippage_bps ?? 10;
     document.getElementById("quant-retry-enabled").checked = !!ep.retry_enabled;
@@ -229,6 +231,8 @@ document.getElementById("broker-save")?.addEventListener("click", async () => {
         execution_policy: {
           size_kind: document.getElementById("quant-size-kind").value,
           risk_pct: Number(document.getElementById("quant-risk-pct").value),
+          stop_kind: document.getElementById("quant-stop-kind").value,
+          atr_mult: Number(document.getElementById("quant-atr-mult").value),
           stop_loss_pct: Number(document.getElementById("quant-stop-pct").value),
           slippage_bps: Number(document.getElementById("quant-risk-slip").value),
           retry_enabled: document.getElementById("quant-retry-enabled").checked,
@@ -504,3 +508,11 @@ document.getElementById("noti-test")?.addEventListener("click", async () => {
 
 
 export { loadNotificationSettings, loadSettings };
+
+// 위험 모드를 새로 선택할 때 ATR을 제시한다. 기존 설정을 읽을 때는 바꾸지 않는다.
+document.getElementById("quant-size-kind")?.addEventListener("change", (event) => {
+  if (event.target.value === "risk_pct") {
+    document.getElementById("quant-stop-kind").value = "atr";
+    document.getElementById("quant-atr-mult").value = 2;
+  }
+});
