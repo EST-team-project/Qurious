@@ -36,7 +36,7 @@
     const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     // 보호책임자 연락처가 자리표시인 동안은 맨 위에도 알린다(읽는 사람이 진짜 연락처로 오해하지 않게)
     const notice = PRIVACY_OFFICER.placeholder
-      ? `<p class="notice">※ 개인정보 보호책임자의 연락처(${esc(PRIVACY_OFFICER.email)})는 수업 프로젝트 단계의 <b>자리표시</b>입니다. 실제 서비스로 운영하기 전에 바꿉니다.</p>` : "";
+      ? `<p class="notice">※ 개인정보 보호책임자의 연락 방법(${esc(PRIVACY_OFFICER.contact)})은 수업 프로젝트 단계의 <b>임시 창구</b>입니다. 실제 서비스로 운영하기 전에 전용 주소로 바꿉니다.</p>` : "";
     document.getElementById("policy").innerHTML = renderTerm(POLICY, esc).replace("</p>", "</p>" + notice) + renderFooter(esc);
   </script>
 </body>

@@ -20,16 +20,28 @@ try {
   const card = document.createElement('div'); card.id = 'flow-signal'; document.body.append(card);
   card.innerHTML = signalCardHtml({symbol:'005930.KS',name:'시험'}, {signal:{action:'매수',reasons:['합성 시험']}});
   $('ps-qty').value = '999'; $('ps-risk-kind').value = 'pct'; $('ps-risk-budget').value = '200000';
+  // 입구는 모두 큰 모달로 바로 열린다(2026-11-02 · 서랍은 거치지 않는다)
   card.querySelector('[data-hub-open]').click();
-  await until(()=>document.querySelector('#hub-drawer [data-hub-go="paper-stock"]'));
-  check('신호에서 종목 허브 열림', !$('hub-drawer').hidden);
+  await until(()=>$('hub-modal') && !$('hub-modal').hidden && document.querySelector('#hub-modal [data-hub-go="paper-stock"]'));
+  check('신호에서 종목 근거가 큰 모달로 바로 열림', !$('hub-modal').hidden && (!$('hub-drawer') || $('hub-drawer').hidden));
+  document.querySelector('#hub-modal [data-hub-modal-close]').click();
+  check('모달 닫기', $('hub-modal').hidden);
+  // 서랍이 필요한 입구(data-hub-mode="drawer")는 서랍으로 열리고 크게 보기로 같은 모달에 간다
+  const drawerEntry = document.createElement('button');
+  drawerEntry.type = 'button';
+  drawerEntry.dataset.hubOpen = card.querySelector('[data-hub-open]').dataset.hubOpen;
+  drawerEntry.dataset.hubName = '시험'; drawerEntry.dataset.hubMode = 'drawer';
+  card.append(drawerEntry);
+  drawerEntry.click();
+  await until(()=>$('hub-drawer') && !$('hub-drawer').hidden && document.querySelector('#hub-drawer [data-hub-expand]'));
+  check('서랍 입구는 서랍으로 열림', !$('hub-drawer').hidden);
   document.querySelector('#hub-drawer [data-hub-expand]').click();
   await until(()=>$('hub-modal') && !$('hub-modal').hidden);
-  check('통합된 크게 보기 모달 열림', !$('hub-modal').hidden);
+  check('서랍에서 크게 보기 모달 열림', !$('hub-modal').hidden && $('hub-drawer').hidden);
   document.querySelector('#hub-modal [data-hub-modal-close]').click();
   card.querySelector('[data-hub-open]').click();
-  await until(()=>!$('hub-drawer').hidden && document.querySelector('#hub-drawer [data-hub-go="paper-stock"]'));
-  document.querySelector('#hub-drawer [data-hub-go="paper-stock"]').click();
+  await until(()=>!$('hub-modal').hidden && document.querySelector('#hub-modal [data-hub-go="paper-stock"]'));
+  document.querySelector('#hub-modal [data-hub-go="paper-stock"]').click();
   check('이전 수량 지움', $('ps-qty').value === '');
   await until(()=>$('ps-qty').value !== '');
   check('PAPER 계좌 기준 19주 계산', $('ps-qty').value === '19' && $('ps-risk-result').textContent.includes('PAPER'));
