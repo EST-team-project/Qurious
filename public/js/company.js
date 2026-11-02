@@ -278,7 +278,7 @@ async function loadCompanySector() {
 
 // 종목 검색 창 열기 — 아래 즉시 실행 함수가 채운다(다른 화면의 「찾기」 단추가 부른다 · js/stockfind.js)
 let _openStockSearch = null;
-export function openStockSearch(callback) { if (_openStockSearch) _openStockSearch(callback); }
+export function openStockSearch(callback, initialQuery) { if (_openStockSearch) _openStockSearch(callback, initialQuery); }
 
 // ── 종목 검색 모달 ────────────────────────────────────────────────
 (function () {
@@ -289,11 +289,12 @@ export function openStockSearch(callback) { if (_openStockSearch) _openStockSear
   const inputEl = document.getElementById("ssm-query");
   const resultsEl = document.getElementById("ssm-results");
 
-  function openModal(callback) {
+  function openModal(callback, initialQuery) {
     _resolve = callback;
-    inputEl.value = "";
+    inputEl.value = initialQuery ? String(initialQuery) : "";   // 칸에 친 이름이 있으면 그 글자로 바로 찾는다(stockfind.js resolveSymbolInput)
     resultsEl.innerHTML = `<div class="ssm-empty">종목명 또는 코드를 입력하세요</div>`;
     modal.classList.add("open");
+    if (initialQuery) doSearch(String(initialQuery));
     setTimeout(() => inputEl.focus(), 60);
   }
 

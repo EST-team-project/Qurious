@@ -29,6 +29,45 @@ export function shouldMount(el) {
   return el.dataset.stockFind !== undefined;
 }
 
+/** 칸에 친 글이 종목 코드 · 기호 꼴인가 — 6자리 영숫자(+ .KS · .KQ) 또는 영문 티커(AAPL · BRK-B). 아니면 종목 이름으로 읽어 찾는다(2026-11-02 · 「삼성전자」 를 쳐도 되게) */
+export function looksLikeSymbol(text) {
+  const s = String(text || "").trim();
+  return /^[0-9A-Za-z]{6}(\.(KS|KQ))?$/i.test(s) || /^[A-Za-z]{1,5}([.\-][A-Za-z]{1,2})?$/.test(s);
+}
+
+/** 검색 결과 → 하나로 정해졌나. 하나뿐이거나 이름이 쳐 넣은 글과 똑같은 것이 하나뿐이면 `one`, 여럿이면 `many`(고르게), 없으면 `none` */
+export function decideResolution(results, typed) {
+  const list = Array.isArray(results) ? results.filter(r => r && r.symbol) : [];
+  if (!list.length) return { kind: "none" };
+  if (list.length === 1) return { kind: "one", item: list[0] };
+  const t = String(typed || "").trim();
+  const exact = list.filter(r => String(r.name || "").trim() === t);
+  return exact.length === 1 ? { kind: "one", item: exact[0] } : { kind: "many" };
+}
+
+/** 칸의 글을 종목 기호로 풀어 준다. 코드 꼴이면 그대로 · 이름이면 검색해 하나로 정해지면 칸을 채우고 돌려주며,
+ *  여럿이거나 없으면 검색 창을 그 글자로 열어 두고 null(고르면 칸이 채워지고 onPicked 가 불린다).
+ *  deps: { search(q) → results[], open(callback, initialQuery), onPicked(item) } */
+export async function resolveSymbolInput(doc, el, deps) {
+  const raw = String((el && el.value) || "").trim();
+  if (!raw) return "";
+  if (looksLikeSymbol(raw)) return raw;
+  let results = [];
+  try { results = await deps.search(raw); } catch { results = []; }
+  const r = decideResolution(results, raw);
+  const mode = el.dataset ? el.dataset.stockFind : "symbol";
+  if (r.kind === "one") {
+    const v = valueFor(r.item, mode);
+    fill(doc, el, v);
+    return v;
+  }
+  deps.open(item => {
+    fill(doc, el, valueFor(item, mode));
+    if (deps.onPicked) deps.onPicked(item);
+  }, raw);
+  return null;
+}
+
 const SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
   + '<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.4"/>'
   + '<path d="m20 20-3.6-3.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
