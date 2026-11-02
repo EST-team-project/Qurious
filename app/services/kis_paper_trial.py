@@ -100,11 +100,11 @@ async def execute_phase(uid, *, setup, day, expires, max_price, seed_id=None, ex
             raise control.Rejected('TRIAL_POSITION','준비 전 0주/청산 전 1주인 시험 소유권이 필요합니다.')
         await pause()
         quote = await order_preflight.current_quote(db,uid,row,'live',SYMBOL)
-        price = quote['price']
-        if not float(price).is_integer() or (setup and price>max_price):
+        price = gateway.align_price_to_tick(quote['price'], side)
+        if price<=0 or (setup and price>max_price):
             raise control.Rejected('PRICE_CAP','시험의 지정가 상한 또는 원 단위 가격을 확인하세요.')
         holding = snapshot['holdings'].get(SYMBOL,{})
-        value = holding.get('quantity',0)*price
+        value = holding.get('quantity',0)*quote['price']
         equity = snapshot['equity']+value-holding.get('value',0)
         cash = snapshot['cash']
         if setup:

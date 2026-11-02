@@ -68,9 +68,11 @@ def test_setup_then_strategy_sell_preserves_existing_share_and_never_resends(env
             seeded.status='FILLED';seeded.filled_quantity=1;seeded.avg_filled_price=70000
             await db.commit()
         trial.kis_execution.account_snapshot.return_value=snapshot(2)
+        client.get_price.return_value=SimpleNamespace(current=70050)
         sold = await trial.run_signal(first['intent_id'])
         assert sold['status']=='submitted',sold
         assert sold['price_basis']['strategy_signal'] is True
+        assert sold['price_basis']['quote']['price']==70050
         assert client.place_order.call_args.args[2:]==('sell',1,70000)
         repeated = await trial.run_signal(first['intent_id'])
         assert repeated['duplicate'] and client.place_order.await_count==2
@@ -83,6 +85,20 @@ def test_setup_then_strategy_sell_preserves_existing_share_and_never_resends(env
             assert owned==[] and not blocked and old.filled_quantity==1 and old.status=='FILLED'
             settings=await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id==uid))
             assert not settings.quant_auto_enabled and settings.quant_mode=='paper' and settings.quant_strategy_id==''
+    asyncio.run(scenario())
+
+
+def test_setup_aligns_to_tick_before_cap_and_budget(env):
+    sessions,client,expires=env
+    async def scenario():
+        uid=await user(sessions,quant_per_trade_budget=1000000)
+        client.get_price.return_value=SimpleNamespace(current=231250)
+        result=await trial.prepare_trial(uid,max_price=240000,expires_at=expires)
+        assert result['price']==231500
+        with pytest.raises(trial.control.Rejected) as error:
+            await trial.prepare_trial(uid,max_price=231300,expires_at=expires)
+        assert error.value.code=='PRICE_CAP'
+        client.place_order.assert_not_awaited()
     asyncio.run(scenario())
 
 
