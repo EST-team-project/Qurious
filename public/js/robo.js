@@ -484,7 +484,11 @@ async function renderPatternChart(pat, symbol) {
   const card = document.getElementById("pt-chart-card");
   const note = document.getElementById("pt-chart-note");
   card.classList.remove("hidden");
-  document.getElementById("pt-chart-title").textContent = `${symbol} · 일봉 캔들 · 지지 · 저항 · 패턴 (${pat.as_of} 기준)`;
+  const title = document.getElementById("pt-chart-title");
+  title.textContent = `${symbol} · 일봉 캔들 · 지지 · 저항 · 패턴 (${pat.as_of} 기준)`;
+  // 종목 근거 입구(#259 · stockdrawer.js 가 클릭을 받아 큰 모달을 연다 · #485) — 서랍과 같은 종목 코드 판단(6자리 · 영문 섞인 새 코드 포함)
+  const hubCode = String(symbol).split(".")[0];
+  if (/^[0-9A-Z]{6}$/.test(hubCode)) title.insertAdjacentHTML("beforeend", ` <button type="button" class="sd-open-btn" data-hub-open="${hubCode}">종목 근거 →</button>`);
   if (!candles.length) { note.textContent = "차트에 표시할 일봉이 없습니다."; return; }
   let LWC;
   try { LWC = await loadPatternLwc(); } catch (e) { note.textContent = `${e.message} 아래 표는 그대로 볼 수 있습니다.`; return; }
