@@ -39,9 +39,26 @@ export function usoClosed(market) {
   return !!market && market.open === false;
 }
 
-/** 매수 단추 글 — 장이 닫히면 예약 매수 */
+/**
+ * 모의 장부가 미국 주식 매수를 받지 않는다고 서버가 말하면 그 안내 글을, 받으면(또는 서버가 말하지 않으면) 빈 글을 돌려준다.
+ * 서버 `/api/paper/stocks/us-market` 의 `order.supported` 가 한 곳의 판단 — 접수 · 체결 처리 · 이 화면이 같은 값을 따른다(이슈 #520).
+ */
+export function usoOrderBlock(market) {
+  const o = market && market.order;
+  return o && o.supported === false ? String(o.note || "미국주식 모의 매수는 아직 지원하지 않습니다.") : "";
+}
+
+/** 매수 단추 글 — 지원하지 않으면 「매수 미지원」 · 장이 닫히면 예약 매수 */
 export function usoBuyLabel(market) {
+  if (usoOrderBlock(market)) return "매수 미지원";
   return usoClosed(market) ? "예약 매수 (다음 정규장)" : "매수 (Buy)";
+}
+
+/** 지원하지 않을 때 주문 칸 위에 보이는 안내 — 지원하면 빈 글 */
+export function usoNoticeHtml(market) {
+  const note = usoOrderBlock(market);
+  if (!note) return "";
+  return `<div data-uso-unsupported role="status" class="text-xs" style="margin-bottom:8px;padding:8px 10px;border-radius:8px;line-height:1.6;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--text);">${usoEsc(note)}</div>`;
 }
 
 /** 장 상태 배지 */
@@ -142,7 +159,8 @@ export function usoReservationsHtml(d) {
   });
   if (!list.length && !notes.length) return "";
   const rows = list.map(r => {
-    const when = r.status === "pending" ? `${r.next_open_kst || "다음 정규장"} 체결 예정`
+    const when = r.status === "pending" && r.unsupported_note ? r.unsupported_note      // 장부가 받지 않는 옛 예약 — 체결 예정이라고 말하지 않는다
+      : r.status === "pending" ? `${r.next_open_kst || "다음 정규장"} 체결 예정`
       : r.status === "filled" ? `${r.filled_at_kst || ""} 체결 · ${usoWon(r.fill_price)}` : (r.created_at_kst || "");
     const cancel = r.status === "pending"
       ? ` <button type="button" data-uso-cancel="${usoEsc(r.order_id)}" class="text-xs" style="text-decoration:underline;color:var(--text-dim);">취소</button>` : "";

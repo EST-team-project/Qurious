@@ -4,7 +4,7 @@ import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common
 // Qurious: 등락 글 · ±1.5% 표시 · 시세 시각 글은 판단 모듈 한 곳(node 시험 TC-QVS · Figma 03-5 결정 · 2026-10-16)
 import { pctText, direction, moveTag, asOfText, MOVE_LIMIT } from "/js/quoteview.js";
 // Qurious: 주문 칸의 시세 카드 · 예상 금액 · 확인 상자 · 예약 목록 그리기는 판단 모듈 한 곳(node 시험 TC-USS · Figma 「미국주식 주문 화면」 C · 2026-10-17)
-import { usoQuoteHtml, usoEstimateHtml, usoConfirm, usoReservationsHtml, usoBuyLabel, USO_SOURCE } from "/js/usorder.js";
+import { usoQuoteHtml, usoEstimateHtml, usoConfirm, usoReservationsHtml, usoBuyLabel, usoOrderBlock, usoNoticeHtml, USO_SOURCE } from "/js/usorder.js";
 
 // ── 미국주식 ──────────────────────────────────────────────────────
 // Qurious(2026-10-16): 고정 종목 목록 · 예시 가격(mockUsPrice)을 지웠다 — 시세를 못 받으면 예시 가격을 말없이 보이던
@@ -215,8 +215,20 @@ const usOrd = { market: null, q: null, pq: null, p: null, perr: null, seq: 0 };
 
 async function loadUsMarket() {
   try { usOrd.market = await api("/api/paper/stocks/us-market"); } catch { usOrd.market = null; }
+  applyUsOrderSupport();
+}
+
+/** 서버가 「장부가 미국 매수를 받는가」 를 말해 준다 — 안 받으면 안내를 보이고 매수 단추를 막는다(이슈 #520 · 접수 단계에서 이미 알린다) */
+function applyUsOrderSupport() {
   const buy = document.getElementById("us-ord-buy");
-  if (buy) buy.textContent = usoBuyLabel(usOrd.market);
+  if (buy) {
+    buy.textContent = usoBuyLabel(usOrd.market);
+    buy.disabled = !!usoOrderBlock(usOrd.market);
+  }
+  const sell = document.getElementById("us-ord-sell");      // 해외 매도는 비용 계산이 준비될 때까지 열지 않는다 — 누를 수 있는 것처럼 보이지 않게(화면 점검 11-03)
+  if (sell) { sell.disabled = true; sell.title = "해외 종목 모의 매도는 아직 열지 않았습니다"; }
+  const notice = document.getElementById("us-ord-notice");
+  if (notice) notice.innerHTML = usoNoticeHtml(usOrd.market);
 }
 
 /** 종목을 넣으면 시세 카드 — 지연 시세(현지 통화 · 등락 · 마지막 체결)와 모의 시세(원화 · 환율 글)를 함께 */
@@ -295,8 +307,7 @@ async function loadUsReservations() {
   try {
     const d = await api("/api/paper/stocks/reservations");
     usOrd.market = d.market || usOrd.market;
-    const buy = document.getElementById("us-ord-buy");
-    if (buy) buy.textContent = usoBuyLabel(usOrd.market);
+    applyUsOrderSupport();
     el.innerHTML = usoReservationsHtml(d);
     if ((d.fired || []).some(f => f.status === "filled")) { loadUsOrderHistory(); loadUsPortfolio(); }
   } catch (e) {
@@ -315,6 +326,9 @@ async function placeUsOrder(side) {
   if (side === "sell") return setToast("해외 종목 모의 매도는 아직 열지 않았습니다 — 해외 매도 비용 계산이 준비되면 열립니다.", "error");
   // 확인 상자 — 장 상태를 다시 묻고(열어 둔 화면의 옛 상태로 주문하지 않게) 시세 · 미리 보기를 보인 뒤 한 번 더 묻는다
   await loadUsMarket();
+  // 모의 장부가 미국 매수를 받지 않으면 확인 상자를 열지 않는다 — 「예약 걸기」 를 눌러야 알게 되던 일을 없앤다(이슈 #520)
+  const blocked = usoOrderBlock(usOrd.market);
+  if (blocked) return setToast(blocked, "error");
   clearTimeout(usQuoteTimer);   // 입력 직후 눌러도 대기 중이던 시세 갱신이 방금 받은 응답을 버리지 않게(클릭 점검 Y5)
   if (!usOrd.pq || (usOrd.pq.symbol !== symbol && usOrd.pq.code !== symbol)) await refreshUsQuote();
   if (!usOrd.pq) return setToast("시세를 받지 못해 주문할 수 없습니다 — 종목코드를 확인하세요.", "error");
