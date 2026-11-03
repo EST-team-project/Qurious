@@ -109,14 +109,19 @@ def normalize_targets(raw: list[dict]) -> list[dict]:
 
 
 async def resolve_targets(raw: list[dict]) -> list[dict]:
-    """입력 심볼을 모의투자 표준 심볼(005930 → 005930.KS)과 종목명으로 확정한다."""
+    """목표 저장에는 종목 식별 정보만 필요하다. 매매 가격은 제안·정산에서 확인한다."""
+    symbols = [str(t.get("symbol", "")).strip() for t in raw or []]
+    try:
+        local = await asyncio.to_thread(prices.target_metadata, symbols)
+    except prices.PriceUnavailable:
+        local = {}
     resolved = []
     for t in raw or []:
         sym = str(t.get("symbol", "")).strip()
         if not sym:
             continue
         try:
-            info = await pt.resolve_stock(sym)
+            info = local.get(sym) or await pt.resolve_stock(sym)
         except pt.PaperTradeError as exc:
             raise RebalanceError(str(exc))
         resolved.append({"symbol": info["symbol"], "name": info["name"], "weight_pct": t.get("weight_pct", 0)})
