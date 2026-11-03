@@ -131,16 +131,26 @@ async def cleanup(uid, request_id):
     return results
 
 
-def start_window(config):
+def start_window(config, *, start_now=False):
     day = date.fromisoformat(config['day'])
+    current = now()
+    if start_now:
+        # 예약의 지연 실행과 달리 사용자가 명시적으로 시작하는 당일 1회 시험이다.
+        # 장 마감 전 정리 시간을 확보하고, 같은 날짜의 요청 키·저널을 그대로 쓴다.
+        deadline = current + timedelta(minutes=50)
+        if (current.date() != day or current.time() < time(9)
+                or deadline > datetime.combine(day, time(15, 20), recovery.control.KST)):
+            raise ValueError('수동 시험은 지정된 거래일 09:00~14:30에만 시작합니다.')
+        recovery.check_window(day)
+        return deadline
     start = datetime.combine(day, time(9, 10), recovery.control.KST)
-    if not start <= now() < start + timedelta(minutes=2):
+    if not start <= current < start + timedelta(minutes=2):
         raise ValueError('지정된 날짜 09:10~09:12에만 새 시험을 시작합니다.')
     recovery.check_window(day)
     return datetime.combine(day, time(10), recovery.control.KST)
 
 
-async def run(config, directory):
+async def run(config, directory, *, start_now=False):
     uid = uuid.UUID(config['user_id'])
     directory = Path(directory)
     request_id = uuid.uuid5(uuid.NAMESPACE_URL, f"qurious:c5-session:{uid}:{config['day']}")
@@ -148,10 +158,10 @@ async def run(config, directory):
     with trial.locked(path):
         if path.exists():
             return {'status': 'already_started', 'previous': json.loads(path.read_text())['status']}
-        deadline = start_window(config)
+        deadline = start_window(config, start_now=start_now)
         await account(uid, config)
         record = {'status': 'started', 'day': config['day'], 'request_id': str(request_id),
-                  'started_at': now().isoformat()}
+                  'started_at': now().isoformat(), 'start_mode': 'manual' if start_now else 'scheduled'}
         trial.write(path, record, exclusive=True)
         try:
             current = await quote(uid, config)
@@ -220,12 +230,17 @@ async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--execute', action='store_true')
+    parser.add_argument('--start-now', action='store_true',
+                        help='사용자가 지금 시작하도록 요청한 경우만 사용. 예약에는 넣지 않는다.')
     args = parser.parse_args()
+    if args.start_now and not args.execute:
+        parser.error('--start-now는 --execute와 함께 사용합니다.')
     config = json.loads(args.config.read_text())
     await pg.connect_postgres()
     await connect_redis()
     try:
-        result = await run(config, args.config.parent) if args.execute else await account(uuid.UUID(config['user_id']), config)
+        result = (await run(config, args.config.parent, start_now=args.start_now) if args.execute
+                  else await account(uuid.UUID(config['user_id']), config))
         print(json.dumps(result, ensure_ascii=False))
     finally:
         await close_redis()

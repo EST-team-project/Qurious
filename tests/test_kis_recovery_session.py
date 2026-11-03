@@ -26,6 +26,34 @@ def test_only_scheduled_start_window(monkeypatch, minute, allowed):
     with pytest.raises(ValueError): session.start_window({'day': '2026-11-02'})
 
 
+@pytest.mark.parametrize('day,hour,minute,second,allowed', [
+    (3, 8, 59, 59, False), (3, 9, 0, 0, True), (3, 9, 20, 0, True),
+    (3, 14, 30, 0, True), (3, 14, 30, 1, False), (3, 15, 0, 0, False),
+    (4, 9, 20, 0, False),
+])
+def test_manual_start_preserves_day_and_cleanup_deadline(monkeypatch, day, hour, minute, second, allowed):
+    current = datetime(2026, 11, day, hour, minute, second, tzinfo=session.recovery.control.KST)
+    monkeypatch.setattr(session, 'now', lambda: current)
+    checked = []
+    monkeypatch.setattr(session.recovery, 'check_window', checked.append)
+    config = {'day': '2026-11-03'}
+    if allowed:
+        assert session.start_window(config, start_now=True) == current + timedelta(minutes=50)
+        assert checked == [current.date()]
+    else:
+        with pytest.raises(ValueError): session.start_window(config, start_now=True)
+        assert not checked
+
+
+def test_manual_start_does_not_bypass_market_calendar(monkeypatch):
+    monkeypatch.setattr(session, 'now', lambda: datetime(2026, 11, 3, 9, 20, tzinfo=session.recovery.control.KST))
+    def reject(day):
+        raise session.recovery.control.Rejected('OUTSIDE_WINDOW', 'unverified')
+    monkeypatch.setattr(session.recovery, 'check_window', reject)
+    with pytest.raises(session.recovery.control.Rejected):
+        session.start_window({'day': '2026-11-03'}, start_now=True)
+
+
 @pytest.fixture
 def flow(monkeypatch):
     clock = [datetime(2026, 11, 3, 9, 10, tzinfo=session.recovery.control.KST)]
@@ -72,6 +100,20 @@ def test_one_attempt_then_replay_never_submits_again(flow, tmp_path):
         assert session.manual.submit.await_count == session.trial.run.await_count == 1
         assert session.account.call_args.kwargs['trial_quantity'] == 0
         assert json.loads(next(tmp_path.glob('*.json')).read_text())['status'] == 'passed'
+    asyncio.run(scenario())
+
+
+def test_manual_start_shares_scheduled_attempt_and_preserves_wait(flow, tmp_path):
+    config, state, clock = flow
+    clock[0] += timedelta(minutes=10)
+    state['created_at'] = clock[0].isoformat()
+    async def scenario():
+        result = await session.run(config, tmp_path, start_now=True)
+        assert result['status'] == 'passed' and result['start_mode'] == 'manual'
+        assert clock[0] >= datetime.fromisoformat(state['created_at']) + timedelta(minutes=30)
+        assert (await session.run(config, tmp_path))['status'] == 'already_started'
+        assert (await session.run(config, tmp_path, start_now=True))['status'] == 'already_started'
+        assert session.manual.submit.await_count == session.trial.run.await_count == 1
     asyncio.run(scenario())
 
 
@@ -135,6 +177,7 @@ def test_abandoned_attempt_never_restarts_trading(flow, tmp_path):
     path = tmp_path / f"session-{config['user_id']}-{config['day']}.json"
     path.write_text(json.dumps({'status': 'parent_sending'}))
     assert asyncio.run(session.run(config, tmp_path))['status'] == 'already_started'
+    assert asyncio.run(session.run(config, tmp_path, start_now=True))['status'] == 'already_started'
     session.account.assert_not_awaited()
     session.manual.submit.assert_not_awaited()
 
