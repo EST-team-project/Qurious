@@ -73,6 +73,43 @@ def test_collector_regime_is_fresh_and_future_bars_do_not_change_it(clock, proxy
 
 
 @needs_db
+def test_migrated_schema_records_target_change_after_roundtrip(monkeypatch, clock, proxy_data):
+    """create_all만 쓰면 놓치는 DB 기본값·전환 계약을 실제 Alembic DDL로 검증."""
+    import importlib.util
+    from pathlib import Path
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/0043_regime_targets.py"
+    spec = importlib.util.spec_from_file_location("regime_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    def roundtrip(conn):
+        with Operations.context(MigrationContext.configure(conn)):
+            migration.downgrade()
+            migration.upgrade()
+            migration.downgrade()
+            migration.upgrade()
+
+    async def go():
+        async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
+            async with factory() as db:
+                await (await db.connection()).run_sync(roundtrip)
+                await db.commit()
+                plan = await rb.get_plan(db, uid)
+                assert not plan.regime_config and not plan.regime_state
+                plan = await enable(db, uid)
+                result = await rb.check_daily(db, uid, plan)
+                await db.commit()
+                history = await regime.history(db, uid)
+                assert result["regime_auto"]["status"] == "changed"
+                assert len(history) == 1 and uuid.UUID(history[0]["id"])
+                assert history[0]["created_at"]
+    asyncio.run(go())
+
+
+@needs_db
 @pytest.mark.parametrize("auto", [False, True])
 def test_changed_regime_updates_targets_and_existing_approval_policy(monkeypatch, clock, proxy_data, auto):
     async def go():

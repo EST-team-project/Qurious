@@ -14,7 +14,7 @@ def upgrade():
                                                   server_default=sa.text("'{}'::jsonb")))
     op.create_table(
         "rebalance_target_changes",
-        sa.Column("id", pg.UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", pg.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("user_id", pg.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("plan_id", pg.UUID(as_uuid=True), sa.ForeignKey("rebalance_plans.id", ondelete="CASCADE"), nullable=False),
