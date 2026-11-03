@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import uuid
 
+import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import select
 from app.database import postgres as pg
@@ -30,6 +31,19 @@ def signature(row):
     return recovery.control.digest([recovery.control.settings_signature(row), vars(limits), row.risk_kill_switch])
 
 
+async def read(call, *args, **kwargs):
+    """일시적인 GET 실패만 짧게 재조회한다. 주문·취소 POST는 재전송하지 않는다."""
+    for attempt in range(3):
+        try:
+            return await call(*args, **kwargs)
+        except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+            if (exc.request.method != 'GET' or attempt == 2
+                    or isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response.status_code != 429 and exc.response.status_code < 500):
+                raise
+            await asyncio.sleep(2 * (attempt + 1))
+
+
 async def account(uid, config=None, trial_quantity=1):
     async with pg.get_session_factory()() as db:
         row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
@@ -43,7 +57,7 @@ async def account(uid, config=None, trial_quantity=1):
         if config and (config['account_ref'] != ref or config['settings_hash'] != fingerprint):
             raise ValueError('예약 후 계좌 또는 설정이 바뀌었습니다.')
         await recovery.pause()
-        snapshot = await recovery.kis_execution.account_snapshot(row, recovery.gateway, {SYMBOL: {}})
+        snapshot = await read(recovery.kis_execution.account_snapshot, row, recovery.gateway, {SYMBOL: {}})
         counts = {}
         for strategy in (PROTECTED, manual.STRATEGY):
             owned, blocked = await recovery.live_ownership.reconcile(db, ref, snapshot, uid, strategy, 1)
@@ -58,7 +72,7 @@ async def account(uid, config=None, trial_quantity=1):
             raise ValueError('미확인 또는 열린 주문이 있습니다.')
         await recovery.pause()
         day = now().strftime('%Y%m%d')
-        fills = await client.get_daily_fills(credentials.account_no, day, day)
+        fills = await read(client.get_daily_fills, credentials.account_no, day, day)
         if any(not recovery.kis_execution._is_closed(fill) for fill in fills):
             raise ValueError('증권사에 미체결 또는 미확인 주문이 있습니다.')
         return {'account_ref': ref, 'settings_hash': fingerprint, 'protected_quantity': 1,
@@ -72,7 +86,7 @@ async def quote(uid, config):
         if ref != config['account_ref'] or signature(row) != config['settings_hash']:
             raise ValueError('예약 후 계좌 또는 설정이 바뀌었습니다.')
         await recovery.pause()
-        result = await recovery.order_preflight.current_quote(db, uid, row, 'live', SYMBOL)
+        result = await read(recovery.order_preflight.current_quote, db, uid, row, 'live', SYMBOL)
         return result['price']
 
 
@@ -91,7 +105,7 @@ async def refresh(uid, order_id):
         row = await db.scalar(select(BrokerSettings).where(BrokerSettings.user_id == uid))
         recovery.verify_account(order, row)
         await recovery.pause()
-        latest = await recovery.kis_execution.direct_status(order, row)
+        latest = await read(recovery.kis_execution.direct_status, order, row)
         was_filled = order.status == 'FILLED'
         recovery.apply_status(order, latest)
         await db.commit()

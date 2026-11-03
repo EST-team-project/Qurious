@@ -6,12 +6,43 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import uuid
 
+import httpx
 import pytest
 from sqlalchemy import select
 from app.models import BrokerSettings, BrokerPositionBaseline, LiveOrder
 from scripts import kis_recovery_session as session
 from test_kis_connection_probe import runtime  # noqa: F401
 from test_kis_order_recovery import env, setup  # noqa: F401
+
+
+@pytest.mark.parametrize('method,status,retries', [
+    ('GET', 500, True), ('GET', 503, True), ('GET', 429, True),
+    ('GET', 401, False), ('GET', 400, False), ('POST', 500, False),
+])
+def test_only_transient_get_failure_is_retried(monkeypatch, method, status, retries):
+    request = httpx.Request(method, 'https://broker.invalid/read')
+    error = httpx.HTTPStatusError('synthetic', request=request, response=httpx.Response(status, request=request))
+    call = AsyncMock(side_effect=[error, {'ok': True}])
+    sleep = AsyncMock()
+    monkeypatch.setattr(session.asyncio, 'sleep', sleep)
+    if retries:
+        assert asyncio.run(session.read(call)) == {'ok': True}
+        assert call.await_count == 2
+        sleep.assert_awaited_once_with(2)
+    else:
+        with pytest.raises(httpx.HTTPStatusError): asyncio.run(session.read(call))
+        assert call.await_count == 1
+        sleep.assert_not_awaited()
+
+
+def test_unavailable_get_stops_after_three_reads(monkeypatch):
+    error = httpx.ReadTimeout('synthetic', request=httpx.Request('GET', 'https://broker.invalid/read'))
+    call = AsyncMock(side_effect=error)
+    sleep = AsyncMock()
+    monkeypatch.setattr(session.asyncio, 'sleep', sleep)
+    with pytest.raises(httpx.ReadTimeout): asyncio.run(session.read(call))
+    assert call.await_count == 3
+    assert [x.args[0] for x in sleep.await_args_list] == [2, 4]
 
 
 @pytest.mark.parametrize('minute,allowed', [(9, False), (10, True), (11, True), (12, False), (40, False)])
