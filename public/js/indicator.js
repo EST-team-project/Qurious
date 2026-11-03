@@ -3,6 +3,8 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { compareTrayAdd, renderCompareTrayAll, tt } from "/js/core.js";
 import { buildRows, summarize, cardBody, cardValues, cardLine } from "/js/indstrategy.js";
+// 성과 검증 종목 칸 = 찾기 칸 하나 — 탭 1 「전략 분석」 과 같은 부품(#245 「종목 찾기를 한 곳에서 함께」)
+import { mountStockPick, labelOf } from "/js/stockpick.js";
 
 // ── 성과 검증 · 커스텀 인디케이터 결과가 같이 쓰는 것 (#245 · #250) ─────
 // 거래 0회 — 수익률 · 샤프 · 낙폭 · 승률은 0 이 아니라 매길 수 없는 값이다. 글은 대시보드(dashboard.js noTradeMetric)와 같게(TC-RX 가 맞댄다).
@@ -14,6 +16,26 @@ function noTradeHtml(buyHoldPct) {
 }
 // 자료 출처 · 기간 — 글은 서버 data_note 그대로(app/services/data_provenance.py 한 곳 · 전략 분석과 같은 꼴)
 const dataNoteHtml = d => (d && d.data_note ? `<p class="text-xs mt-2" style="color:var(--text-dim);">자료: ${escHtml(d.data_note)}</p>` : "");
+// 「비교에 추가」 요약 끝에 붙는 자료 기간 — 서버 data_from · data_as_of 그대로(#250) · 둘 중 하나라도 없으면 붙이지 않는다
+const comparePeriod = d => (d && d.data_from && d.data_as_of ? ` · 자료 ${d.data_from} ~ ${d.data_as_of}` : "");
+
+// ── 성과 검증 종목 칸 ─────────────────────────────────────────────
+// 대표 종목은 옛 고르기 상자의 다섯 · 최근 본 종목은 탭 1 과 같은 목록. 고른 기호는 숨은 칸 #ibt-symbol 에 넣어 아래가 그대로 읽는다.
+const IBT_PRESETS = [
+  { symbol: "005930.KS", name: "삼성전자" }, { symbol: "000660.KS", name: "SK하이닉스" }, { symbol: "035420.KS", name: "NAVER" },
+  { symbol: "005380.KS", name: "현대자동차" }, { symbol: "051910.KS", name: "LG화학" },
+];
+let ibtPicked = IBT_PRESETS[0];
+const ibtNames = new Map(IBT_PRESETS.map(it => [it.symbol, it]));   // 결과가 늦게 와 고른 종목이 바뀌었어도 이름표를 잃지 않게
+const ibtHost = document.getElementById("ibt-symbol-pick");
+if (ibtHost) {
+  mountStockPick(ibtHost, {
+    presets: IBT_PRESETS, recentKey: "qurious.recent.quant-backtest", initial: ibtPicked,
+    search: q => api(`/api/stocks/search?q=${encodeURIComponent(q)}`, { redirectOnUnauthorized: false }).then(r => r.results || []),
+    onPick: it => { ibtPicked = it; ibtNames.set(it.symbol, it); const h = document.getElementById("ibt-symbol"); if (h) h.value = it.symbol; },
+  });
+}
+const ibtLabel = symbol => (ibtNames.has(symbol) ? labelOf(ibtNames.get(symbol)) : symbol);
 
 // ── 투자 인디케이터: 기본 인디케이터 전략 ──────────────────────────
 // 표 · 규칙 신호는 체크한 지표만(B2) · 볼린저는 실제 밴드(B1) · 낱말은 「규칙 신호 · 매수 쪽 / 매도 쪽 · 근거 n개」(B3 · 결정 대장 10-27).
@@ -297,10 +319,8 @@ document.getElementById("ci-test-btn").addEventListener("click", async () => {
     const r = await api(`/api/quant/pipeline?${q}`);
     const c = r.costs || {};
     // 커스텀 화면엔 종목 칸이 없어 성과 검증 칸의 종목으로 계산한다 — 무슨 종목인지 결과 위에 밝힌다(#245)
-    const ibtOpt = document.getElementById("ibt-symbol")?.selectedOptions?.[0];
-    const symName = ibtOpt && ibtOpt.value === symbol ? ibtOpt.textContent.trim() : "";
     const ciSym = document.getElementById("ci-bt-symbol");
-    if (ciSym) ciSym.innerHTML = `계산 종목: <b>${escHtml(symName ? `${symName}(${symbol.split(".")[0]})` : symbol)}</b> — 성과 검증 화면에서 고른 종목`;
+    if (ciSym) ciSym.innerHTML = `계산 종목: <b>${escHtml(ibtLabel(symbol))}</b> — 성과 검증 화면에서 고른 종목`;
     const noTrade = Number(r.trade_count) === 0;
     const data = [
       { label:"누적 수익률", value: `${(r.return_total*100 >= 0 ? "+" : "")}${(r.return_total*100).toFixed(1)}%`, color:"var(--green)" },
@@ -453,8 +473,8 @@ function renderIndicatorBacktest(data) {
       ${dataNoteHtml(data)}
       ${renderRuleExplain(data.explanation)}
       <button type="button" class="btn-secondary text-xs mt-2" onclick='compareTrayAdd(${JSON.stringify({
-        source: "성과 검증 (Python)", label: `${strategyLabel}`,
-        summary: noTrade ? `거래 0회 · 신호 없음 · 매수 후 보유 ${Number(data.buy_hold_return_pct||0).toFixed(1)}%` : `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`,
+        source: "성과 검증 (Python)", label: `${strategyLabel} · ${ibtLabel(data.symbol || document.getElementById("ibt-symbol")?.value || "")}`,
+        summary: (noTrade ? `거래 0회 · 신호 없음 · 매수 후 보유 ${Number(data.buy_hold_return_pct||0).toFixed(1)}%` : `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`) + comparePeriod(data),
       }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
     </div>`;
   renderCompareTrayAll();
