@@ -35,13 +35,20 @@ EVENT_KINDS = {
     # 2026-10-05 · W7 — 주주총회(소집결의 본문 일시) · 배당금 지급 예정일(배당결정 본문)(collector/corp_schedule.py)
     "agm": "주주총회",
     "dividend_pay": "배당금 지급",
+    # 2026-11-03 · ①-23 — 경제지표 발표(국가데이터처 · 미국 BLS · BEA · collector/econ_calendar.py) ·
+    # 공모 청약 · 납입(증권신고서(지분증권) · collector/offering.py). 한국은행 공표일정은 넣지 않는다.
+    "econ_kr": "한국 경제지표",
+    "econ_us": "미국 경제지표",
+    "offer_sub": "공모 청약",
+    "offer_pay": "공모 납입",
 }
 #: `kind` 를 비우면 주는 종류 — 일정 화면이 결정 ③ 의 넷만 그린다(새 종류를 화면에 올리는 것은 Figma 결정 뒤).
 #: 새 종류는 `kind=earnings,policy_rate` 처럼 이름으로, 또는 `kind=all` 로 묻는다.
 DEFAULT_KINDS = ("market_closure", "deriv_expiry", "dividend_record", "dividend_ex")
 #: 시장 전체 일정 — 한 달 많아야 수십 건이라 한 달 요약에도 이름을 싣는다. 나머지(종목 일정)는 날짜 × 종류 개수만 —
 #: 정기 주주총회가 몰리는 3월은 종목 일정이 한 달 3,500건이 넘는다(2026-03 · DF-66 · 2026-10-05 일정 2판 결정 안 B).
-MARKET_KINDS = ("market_closure", "deriv_expiry", "policy_rate", "fomc", "report_deadline")
+#: 경제지표 둘(2026-11-03)도 시장 전체 일정이다 — 한 해 약 400건이라 한 달 수십 건(칸은 두 개까지 이름 · 넘으면 「+N」).
+MARKET_KINDS = ("market_closure", "deriv_expiry", "policy_rate", "fomc", "econ_kr", "econ_us", "report_deadline")
 #: 한 달 요약이 한 번에 받는 날 수 — 달력 한 장(6주)과 앞뒤 달을 넉넉히.
 MAX_SUMMARY_DAYS = 400
 #: 그날 목록의 회사 이름 찾기 글자 수 · 맨 위에 올릴 종목(내 종목) 수 상한.
@@ -49,8 +56,8 @@ MAX_Q = 40
 MAX_FIRST = 50
 #: 같은 날 안의 종류 차례 — 일정 화면의 칩 차례(Figma 「일정 2판」)와 같다. 시장 전체 일정이 먼저, 그다음 적은 종류부터.
 #: 종류 이름 글자 차례(agm < dividend_ex)면 3월 26일 「배당락일」 칩을 켜도 주총 731건 뒤인 15쪽에야 나온다(2026-10-06 화면 확인).
-KIND_ORDER = ("market_closure", "deriv_expiry", "policy_rate", "fomc", "report_deadline",
-              "dividend_record", "dividend_ex", "dividend_pay", "agm", "earnings")
+KIND_ORDER = ("market_closure", "deriv_expiry", "policy_rate", "fomc", "econ_kr", "econ_us", "report_deadline",
+              "dividend_record", "dividend_ex", "dividend_pay", "offer_sub", "offer_pay", "agm", "earnings")
 CONFIDENCE = {"confirmed": "확정", "scheduled": "예정", "computed": "규칙으로 계산"}
 BASIS = {"observed": "시세로 확인", "rule": "규칙 · 공휴일 표로 예정"}
 _WEEKDAYS = "월화수목금토일"
@@ -240,7 +247,7 @@ def events_summary(start: date, end: date, kind: str | None = None) -> dict:
     """한 달 달력용 요약 — 날짜마다 종류별 개수 + 시장 전체 일정(이름까지). 종목 일정은 개수만 싣는다.
 
     3월처럼 종목 일정이 한 달 3,500건이 넘어도 응답은 날짜 수 × 종류 수만큼이라 가볍다(DF-66). 그날의 종목 일정은
-    `events(from=그날, to=그날, offset=…)` 로 쪽마다 받는다. `kind` 를 비우면 열 종류 모두(새 화면은 칩으로 거른다).
+    `events(from=그날, to=그날, offset=…)` 로 쪽마다 받는다. `kind` 를 비우면 모든 종류(2026-11-03 열넷 · 새 화면은 칩으로 거른다).
     일정이 없는 날은 싣지 않는다(화면이 빈칸으로 둔다).
     """
     _check_range(start, end, MAX_SUMMARY_DAYS)

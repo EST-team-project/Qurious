@@ -474,6 +474,14 @@ TABLES: Dict[str, Dict] = {
         "why": "주주총회 · 배당금 지급 일정(계산한 표 — 공시 본문 원문에서 읽은 날짜)",
         "optional": False,
     },
+    # ── 2026-11-03 추가: 경제지표 발표 일정(S195 · 할 일 ①-23 E) — policy_meeting 과 같은 「받은 일정」 이라 같은 까닭으로 넣는다
+    # (따라가는 PC 가 바깥 누리집을 다시 부르지 않고 받는다 · 작은 표 — 한 해 수백 행).
+    "econ_release": {
+        "partition": None, "date_col": "release_date",
+        "sort": ("release_date", "source", "title"),
+        "why": "경제지표 발표 일정(국가데이터처 보도계획 · 미국 BLS · BEA 공식 일정 — 날짜는 현지 기준)",
+        "optional": False,
+    },
 }
 
 #: 올리지 않는 표와 그 이유.

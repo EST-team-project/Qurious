@@ -16,21 +16,26 @@ import { api, escHtml } from "/js/common.js";
 import { navigate } from "/js/core.js";
 
 const VIEW = "market-calendar";
-//: 일정 종류 → [칸 배지 이름, 이름, 색 이름]. 2판 — 서버의 열 종류 모두(칩 차례는 Figma 「일정 2판」 그대로).
+//: 일정 종류 → [칸 배지 이름, 이름, 색 이름]. 2판 — 서버의 종류 모두(칩 차례는 Figma 「일정 2판」 그대로).
+//: 2026-11-03(①-23) — 경제지표 둘(한국 · 미국) · 공모 둘(청약 · 납입)을 더해 열넷. 차례는 서버 KIND_ORDER 와 글자 그대로 같다.
 const KINDS = {
   market_closure: ["휴장", "휴장", "closure"],
   deriv_expiry: ["만기", "파생 만기", "expiry"],
   policy_rate: ["금통위", "금통위", "policy"],
   fomc: ["FOMC", "FOMC", "fomc"],
+  econ_kr: ["한국", "한국 경제지표", "econkr"],
+  econ_us: ["미국", "미국 경제지표", "econus"],
   report_deadline: ["기한", "보고서 기한", "deadline"],
   dividend_record: ["기준", "배당 기준일", "divrec"],
   dividend_ex: ["락", "배당락일", "divex"],
   dividend_pay: ["지급", "배당금 지급", "divpay"],
+  offer_sub: ["청약", "공모 청약", "offersub"],
+  offer_pay: ["납입", "공모 납입", "offerpay"],
   agm: ["주총", "주주총회", "agm"],
   earnings: ["실적", "실적 발표", "earn"],
 };
 //: 시장 전체 일정 — 칸에 이름까지 보인다(서버 MARKET_KINDS 와 같다). 나머지는 종목 일정이라 칸에는 개수만.
-const MARKET_KINDS = ["market_closure", "deriv_expiry", "policy_rate", "fomc", "report_deadline"];
+const MARKET_KINDS = ["market_closure", "deriv_expiry", "policy_rate", "fomc", "econ_kr", "econ_us", "report_deadline"];
 //: 설명 창 아래 — 그 일정을 어떻게 만들었나(종류마다 한 줄)
 const HOW = {
   market_closure: "공휴일 정보(한국천문연구원 특일 정보)와 거래소 규칙(근로자의 날 · 연말 휴장일)으로 만들었습니다.",
@@ -43,6 +48,10 @@ const HOW = {
   dividend_pay: "배당 결정 공시 본문의 배당금 지급 예정일입니다 — 결산배당은 주주총회에서 정해 비어 있는 일이 많습니다.",
   agm: "주주총회 소집결의 공시 본문의 일시입니다(정정 공시가 있으면 마지막 정정본).",
   earnings: "잠정실적 · 손익구조 변동 공시가 나온 날입니다(공시 접수일).",
+  econ_kr: "국가데이터처가 공개한 보도계획의 통계 발표일입니다(한국 시각) — 일정은 사정에 따라 바뀔 수 있습니다. 한국은행 통계 발표 일정은 넣지 않았습니다.",
+  econ_us: "미국 노동통계국(BLS) · 경제분석국(BEA)이 공개한 발표 일정입니다 — 날짜와 시각은 미국 동부(ET) 기준이라 한국에서는 같은 날 밤이거나 다음 날입니다.",
+  offer_sub: "전자공시 증권신고서(지분증권)의 청약기일입니다 — 청약 기간의 첫날에 표시했고, 신고서가 정정되면 날짜 · 가격이 바뀔 수 있습니다.",
+  offer_pay: "전자공시 증권신고서(지분증권)의 납입기일입니다 — 신고서가 정정되면 바뀔 수 있습니다.",
 };
 const PAGE = 50;                                  // 그날 목록 한 쪽 — 결정 안 B 「50건씩」
 const MAX_NAMES = 2;                              // 칸에 이름을 보이는 시장 일정 수 — 넘으면 「+N」
@@ -51,7 +60,7 @@ const WEEK = "일월화수목금토";
 
 const state = {
   y: 0, m: 0,
-  kinds: new Set(Object.keys(KINDS)),            // 처음에는 열 종류 모두(결정 기록 「처음 범위 모든 종목」)
+  kinds: new Set(Object.keys(KINDS)),            // 처음에는 모든 종류(결정 기록 「처음 범위 모든 종목」 · 칩으로 끈다)
   symbol: "",                                    // 「이 종목의 일정만 보기」
   sumDays: {}, monthTotal: 0, days: {}, calendar: null, error: "",
   symEvents: [],                                 // 종목 하나만 볼 때 그 종목의 일정(이름까지)
@@ -457,7 +466,7 @@ async function renderCalendar(reload = true) {
   const filters = Object.entries(KINDS).map(([k, [, label, t]]) =>
     `<button type="button" class="cal-filter cal-chip--${t} ${state.kinds.has(k) ? "on" : ""}" data-kind="${k}" aria-pressed="${state.kinds.has(k)}">${state.kinds.has(k) ? "✓ " : ""}${escHtml(label)}</button>`).join("");
   root.innerHTML = `<div class="dh-head"><div><h2>증시 일정</h2>
-      <p class="q-muted">휴장 · 파생 만기 · 금통위 · FOMC · 보고서 기한 · 배당 · 주주총회 · 실적 발표 — 공휴일 정보 · 거래소 규칙 · 공식 일정 · 전자공시로 만든 일정</p></div></div>
+      <p class="q-muted">휴장 · 파생 만기 · 금통위 · FOMC · 경제지표 · 보고서 기한 · 배당 · 공모 · 주주총회 · 실적 발표 — 공휴일 정보 · 거래소 규칙 · 공식 일정 · 전자공시로 만든 일정</p></div></div>
     <div class="cal-layout ${state.panel ? "cal-day-open" : ""}"><div class="card cal-main">
       <div class="cal-filters">${filters}</div>
       <div class="cal-bar"><button type="button" class="cal-nav" data-step="-1" aria-label="지난달">‹</button>

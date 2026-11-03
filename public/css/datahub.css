@@ -85,6 +85,11 @@
 .cal-chip--divpay  { color: #0e7490; background: #e3f5f9; }
 .cal-chip--agm     { color: #6d28d9; background: #f1ebfe; }
 .cal-chip--earn    { color: #be123c; background: #fdebef; }
+/* 2026-11-03(①-23) — 경제지표 둘 · 공모 둘. 기존 열 종과 다른 색 · 글자 대비 5.4 ~ 8.5 : 1(배경 기준 · WCAG AA 4.5 이상) */
+.cal-chip--econkr  { color: #3730a3; background: #ecebfd; }
+.cal-chip--econus  { color: #3f6212; background: #eef6e0; }
+.cal-chip--offersub { color: #a21caf; background: #fbe9fd; }
+.cal-chip--offerpay { color: #9a3412; background: #fdeee6; }
 .cal-wk, .cal-cells { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-wk div { text-align: center; font-size: 12px; font-weight: 700; color: #64748b; padding: 6px 0; }
 .cal-wk div[data-dow="0"], .cal-cell[data-dow="0"] .cal-num { color: var(--red); }
@@ -113,6 +118,8 @@
 .cal-tag--divex { color: #047857; background: #e6f5ef; } .cal-tag--divrec { color: #1d4ed8; background: #eaf1fe; }
 .cal-tag--divpay { color: #0e7490; background: #e3f5f9; } .cal-tag--agm { color: #6d28d9; background: #f1ebfe; }
 .cal-tag--earn { color: #be123c; background: #fdebef; }
+.cal-tag--econkr { color: #3730a3; background: #ecebfd; } .cal-tag--econus { color: #3f6212; background: #eef6e0; }
+.cal-tag--offersub { color: #a21caf; background: #fbe9fd; } .cal-tag--offerpay { color: #9a3412; background: #fdeee6; }
 .cal-list { display: none; }
 .cal-list-wk { font-size: 13px; font-weight: 700; color: var(--accent); padding: 12px 0 4px; }
 .cal-list-row { display: flex; gap: 12px; width: 100%; text-align: left; border-bottom: 1px solid #eef1f6; padding: 10px 0; cursor: pointer; }

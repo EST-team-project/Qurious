@@ -79,7 +79,15 @@ def test_calendar_kinds_match_server_and_decision_3():
     market = re.search(r"const MARKET_KINDS = \[([^\]]*)\]", src).group(1)
     assert set(re.findall(r'"(\w+)"', market)) == set(cal_svc.MARKET_KINDS)
     assert set(cal_svc.DEFAULT_KINDS) < set(cal_svc.EVENT_KINDS)
-    assert "경제지표" not in src.split("const KINDS")[1].split("};")[0]
+    # 2026-11-03(①-23) — 경제지표(한국 · 미국) · 공모(청약 · 납입)를 모으기 시작해 칩이 열넷이 됐다. 결정 ③ 의 뜻(「모으지 않는 종류의
+    # 자리를 두지 않는다」)은 그대로 — 화면의 칩 이름에 「경제지표」 가 있으면 서버가 그 종류를 실제로 안다.
+    assert len(cal_svc.EVENT_KINDS) == 14 and len(cal_svc.KIND_ORDER) == 14
+    kinds_block = src.split("const KINDS")[1].split("};")[0]
+    assert ("경제지표" in kinds_block) == bool({"econ_kr", "econ_us"} & set(cal_svc.EVENT_KINDS))
+    assert {"econ_kr", "econ_us"} <= set(cal_svc.MARKET_KINDS) and not {"offer_sub", "offer_pay"} & set(cal_svc.MARKET_KINDS)
+    # 한계 문구 — 미국 날짜 · 동부 시각 기준 · 공모는 정정될 수 있음 · 한국은행 일정은 넣지 않음(설명 창 HOW)
+    how = src.split("const HOW")[1].split("};")[0]
+    assert "미국 동부(ET)" in how and "정정되면" in how and "한국은행" in how
 
 
 def test_data_status_fields_read_by_screen_exist(tmp_path, monkeypatch):
