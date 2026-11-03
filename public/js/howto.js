@@ -14,7 +14,7 @@
  *   · 「영상으로 보기」 를 누르면 그 자리에서 그 화면이 나오는 장부터 튼다 · 장 단추로 옮기고 지금 장은 파랑.
  */
 import { fillTermCard } from "/js/termcard.js";
-import { resolveView } from "/js/viewalias.js";
+import { resolveView, MYPAGE_HOSTED } from "/js/viewalias.js";
 import { chapterBadge, chapterIndexAt, howtoHtml, playerHtml, sizeOf, topRowHtml, VIDEO_MANIFEST_URL, videoOf } from "/js/howtoview.js";
 
 const DATA = new Map();    // 화면 키 → { guide, terms, label, group } — 단추를 누를 때 읽는다
@@ -53,7 +53,7 @@ function ensureVideos() {
 }
 
 function render(viewKey, guide, { terms = {}, label = "", group = "" } = {}) {
-  const viewEl = document.querySelector(`.view[data-view="${viewKey === "settings" ? "mypage" : resolveView(viewKey)}"]`);   // 탭 키는 합친 화면으로
+  const viewEl = document.querySelector(`.view[data-view="${MYPAGE_HOSTED[viewKey] ? "mypage" : resolveView(viewKey)}"]`);   // 탭 키는 합친 화면으로
   if (!viewEl) return;
   viewEl.querySelector(":scope > .view-guide")?.remove();   // 옛 접이식(기초 코드 판)이 남아 있으면 지운다
   let row = viewEl.querySelector(":scope > .q-howto-top");

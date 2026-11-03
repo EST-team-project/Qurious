@@ -137,8 +137,9 @@ def test_gate_counts_only_new_personal_data():
 # ── 4. 화면 ─────────────────────────────────────────────────────────────────
 
 def test_settings_screen_wires_consent_box_send_and_withdraw():
-    """TC-UC-04 · 알림 설정 화면에 동의 칸이 있고, 저장이 동의와 판을 보내고, 철회 단추가 false 를 보낸다 · 문구는 terms.js 한 곳."""
-    view = APP_HTML.split('data-view="notification-settings"', 1)[1].split('<div class="view"', 1)[0]
+    """TC-UC-04 · 알림 설정(마이페이지 알림 구역)에 동의 칸이 있고, 저장이 동의와 판을 보내고, 철회 단추가 false 를 보낸다 · 문구는 terms.js 한 곳."""
+    # 알림 설정 본체는 마이페이지 알림 구역으로 옮겼다(2026-11-03 · ②-31) — 화면 키 notification-settings 는 빈 껍데기
+    view = APP_HTML.split('<section id="mp-sec-notify"', 1)[1].split('</section>', 1)[0]
     for el in ("noti-consent-check", "noti-consent-label", "noti-consent-body", "noti-consent-withdraw", "noti-consent-granted"):
         assert f'id="{el}"' in view, el
     assert 'from "/js/terms.js"' in SETTINGS_JS and "NOTIFY_CONSENT_VERSION" in SETTINGS_JS

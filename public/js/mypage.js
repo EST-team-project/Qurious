@@ -17,7 +17,8 @@
  */
 import { api, escHtml, setToast } from "/js/common.js";
 import { getTermView, setTermView, TERM_VIEWS } from "/js/termcard.js";
-import { loadSettings } from "/js/settings.js";
+import { loadSettings, loadNotificationSettings } from "/js/settings.js";
+import { MYPAGE_HOSTED } from "/js/viewalias.js";
 import { readRiskProfile } from "/js/riskprofile.js";
 import { attachPasswordToggle } from "/js/pwtoggle.js";
 
@@ -31,10 +32,11 @@ const isNarrow = () => window.matchMedia("(max-width: 768px)").matches;
 
 /** 화면이 켜질 때마다 main.js 가 부른다 — 이 화면이 아니면 아무것도 안 한다. */
 export async function onMyPageActivated(view) {
-  if (view !== "mypage" && view !== "settings") return;
+  if (view !== "mypage" && !MYPAGE_HOSTED[view]) return;   // 알림 · 증권사 설정 주소도 이 화면의 구역으로 열린다
   bindOnce();
   ensureDisplaySettings();
-  showSection(view === "settings" ? "broker" : currentSection, { openBody: view === "settings" || !isNarrow() });   // 좁은 화면은 들어올 때마다 구역 목록부터
+  const hosted = MYPAGE_HOSTED[view];
+  showSection(hosted || currentSection, { openBody: !!hosted || !isNarrow() });   // 좁은 화면은 들어올 때마다 구역 목록부터
   await Promise.all([loadMyPage(), loadSummaries()]);
 }
 
@@ -43,6 +45,7 @@ function showSection(key, { openBody = true } = {}) {
   if (!SECTIONS.includes(key)) key = "profile";
   currentSection = key;
   if (key === "broker") loadSettings();
+  if (key === "notify") loadNotificationSettings();   // 알림 설정 본체가 이 구역 안에 있다(2026-11-03 · ②-31)
   const risk = readRiskProfile();
   $("mp-risk-summary").textContent = risk ? `최근 진단: ${risk.level} (${risk.score}점)` : "이 브라우저에 저장된 현재 계정의 진단 결과가 없습니다.";
   document.querySelectorAll(".mp-sec").forEach(el => el.classList.toggle("active", el.dataset.mpSec === key));

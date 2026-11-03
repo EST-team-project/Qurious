@@ -4,7 +4,7 @@
 70.3%)만 있었다. 판정은 **사람이** 한다 — 이 도구는 표본을 뽑고 점수를 낼 뿐, 맞고 틀림을 정하지 않는다(LLM 판정은
 믿기 어렵다 · 근거 답 품질 보고서 5절 3번).
 
-    python scripts/tagging_sample.py draw                   # → docs/_git-drafts/.../①-23-C-이름표표본/표본_seed<시드>.tsv
+    python scripts/tagging_sample.py draw                   # → docs/_local/이름표-표본200/표본_seed<시드>.tsv
     python scripts/tagging_sample.py draw --seed 7 --news-symbol 60
     python scripts/tagging_sample.py score 표본_seed20261102.tsv            # 판정 열을 채운 뒤
     python scripts/tagging_sample.py score 표본_seed20261102.tsv --partial  # 일부만 채운 중간 확인
@@ -39,7 +39,7 @@ from collector import tagging  # noqa: E402
 from collector.console import utf8_stdio  # noqa: E402
 
 DEFAULT_DB = ROOT / "data" / "collector" / "search.sqlite3"
-DEFAULT_OUT_DIR = ROOT / "docs" / "_git-drafts" / "2026-11-02-S193" / "①-23-C-이름표표본"
+DEFAULT_OUT_DIR = ROOT / "docs" / "_local" / "이름표-표본200"  # git 밖 — 표본에 뉴스 제목 · 원문 주소가 들어 있어 올리지 않는다
 DEFAULT_SEED = 20261102           # 뽑은 날 — 고정 시드(같은 DB · 같은 인자면 같은 표본)
 TARGET = 0.9                      # 설계서 ① 인수 기준 6 — 이름표 정밀도 목표
 SUSPECT_TOPICS = ("소송·제재",)    # 의심 종류 — 점검표 DF-128: 30일 뉴스의 13% 가 이 하나로만 붙는다
