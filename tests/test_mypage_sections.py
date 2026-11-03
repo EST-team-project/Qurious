@@ -2,7 +2,7 @@
 
 마이페이지를 「왼쪽 구역 목록 + 본문」 으로 나눌 때 지킬 약속을 파일에서 본다.
   - 기존 칸 id 는 그대로, 문서 안에 한 번씩만 (다른 화면의 스크립트가 같은 이름으로 칸을 찾는다)
-  - 증권사 · 알림 설정 본체는 이 화면 안 구역에 있다(알림은 2026-11-03 ②-31 에 옮김). 외부 연동(Open API)만 요약 + 링크 — 링크가 가리키는 화면이 실제로 있다
+  - 증권사 · 알림 · 외부 연동(Open API) 설정 본체는 모두 이 화면 안 구역에 있다(알림 2026-11-03 ②-31 · Open API 같은 날 S195). 옛 화면 키는 빈 껍데기로 남는다
   - 구역 전환은 주소 해시를 건드리지 않는다 (해시는 화면 키 자리 — 겹치면 새로고침 때 마이페이지를 잃는다)
 화면이 실제로 바뀌는 모습(1280 · 390 폭)은 브라우저로 확인한다 — 여기서는 그 동작이 기대는 약속을 본다.
 """
@@ -56,14 +56,14 @@ def test_sections_match_nav():
 
 
 def test_summary_links_point_to_real_views():
-    """TC-MP-03 · 외부 연동 요약의 링크가 가리키는 Open API 화면이 실제로 있고, 요약 칸 id 는 다른 화면의 칸과 겹치지 않는다.
-    알림 설정 본체는 이 화면의 알림 구역 안에 있다(옛 링크 `#notification-settings` 는 구역으로 열리는 주소로 남는다)."""
+    """TC-MP-03 · 알림 · Open API 설정 본체는 이 화면 안에 있어 다른 화면으로 보내는 링크가 없고(옛 주소는 구역을 여는 주소로 남는다),
+    요약 칸 id 는 다른 화면의 칸과 겹치지 않는다."""
     view = _mypage_view()
-    assert 'href="#paper-openapi"' in view and 'data-view="paper-openapi"' in APP
+    assert 'data-view="paper-openapi"' in APP and 'data-view="notification-settings"' in APP   # 빈 껍데기 — 주소 · 점수 · 사용법 키
     assert 'href="#notification-settings"' not in view, "알림은 구역 안에 있으니 다른 화면으로 보내는 링크가 없다"
+    assert 'href="#paper-openapi"' not in view, "Open API 도 구역 안에 있으니 다른 화면으로 보내는 링크가 없다"
     # 요약 칸은 mp-sum- 접두사만 — mypage view 가 문서 앞쪽이라 다른 화면 스크립트의 getElementById 가 먼저 잡으면 안 된다
-    for foreign in ('id="trading-broker-status"', 'id="po-'):
-        assert foreign not in view, f"마이페이지 view 에 다른 화면의 칸 {foreign} 이 있다"
+    assert 'id="trading-broker-status"' not in view, "마이페이지 view 에 다른 화면의 칸이 있다"
     assert 'id="broker-app-key"' in view
     assert re.findall(r'id="(mp-sum-[a-z]+)"', view) == ["mp-sum-broker", "mp-sum-notify", "mp-sum-external"]
 
@@ -92,6 +92,42 @@ def test_notification_settings_body_lives_in_notify_section():
     assert "MYPAGE_HOSTED[shownView]" in core_js
 
 
+def _external_section() -> str:
+    m = re.search(r'<section id="mp-sec-external".*?</section>', APP, re.S)
+    assert m, "마이페이지에 외부 연동 구역이 없다"
+    return m.group(0)
+
+
+def test_openapi_settings_body_lives_in_external_section():
+    """TC-MP-09 · Open API 설정 본체(S195)는 외부 연동 구역 안에 한 번씩만 있고, 옛 화면 키는 빈 껍데기로 남으며, 주소는 구역을 연다."""
+    body = _external_section()
+    ids = ("po-label", "po-create", "po-new-key", "po-keys", "po-docs", "po-alpaca-key", "po-alpaca-secret",
+           "po-alpaca-account", "po-alpaca-positions", "po-alpaca-result")
+    for cid in ids:
+        assert body.count(f'id="{cid}"') == 1 and APP.count(f'id="{cid}"') == 1, cid
+    assert re.findall(r'id="(po-[a-z-]+)"', APP) == list(ids), "po- 칸은 모두 외부 연동 구역 안에만 있다"
+    # 껍데기 — 처음 주소 이동 검사(main.js) · 점수 · 사용법 키가 이 화면 키를 찾는다
+    assert '<div class="view" data-view="paper-openapi"></div>' in APP
+    alias = (PUB / "js" / "viewalias.js").read_text(encoding="utf-8")
+    assert re.search(r'MYPAGE_HOSTED = Object\.freeze\(\{[^}]*"paper-openapi":\s*"external"', alias)
+    # 구역을 보일 때 불러오고, 화면 활성화 쪽(paper.js onPaperViewActivated)은 따로 부르지 않는다(두 번 불러오지 않게)
+    assert 'if (key === "external") loadPaperOpenApi();' in MYPAGE_JS
+    paper_js = (PUB / "js" / "paper.js").read_text(encoding="utf-8")
+    assert "export async function loadPaperOpenApi()" in paper_js
+    activated = paper_js.split("export function onPaperViewActivated(view) {", 1)[1].split("\n}\n", 1)[0]
+    assert "loadPaperOpenApi" not in activated and "paper-openapi" not in activated
+
+
+def test_openapi_key_is_never_put_in_html_unescaped():
+    """TC-MP-10 · 새로 발급한 Open API 키 원문은 escHtml 을 거쳐서만 HTML 에 들어가고, URL · 저장소 · 로그로 새지 않는다."""
+    paper_js = (PUB / "js" / "paper.js").read_text(encoding="utf-8")
+    body = paper_js.split("async function createApiKey()", 1)[1].split("\n}\n", 1)[0]
+    assert "escHtml(k.apiKey)" in body
+    assert body.count("k.apiKey") == 2, "키 원문은 화면에 보이는 한 곳과 복사 한 곳에서만 쓴다"
+    for leak in ("localStorage", "sessionStorage", "console.", "location.", "history."):
+        assert leak not in body, leak
+
+
 def test_display_card_goes_to_named_section():
     """TC-MP-04 · 화면 설정 카드는 이름으로 지정한 구역에 붙고, 용어 풀이 위치 목록(TC-GL-28)은 그대로 쓴다."""
     assert 'getElementById(id)' in MYPAGE_JS or "const $ = (id) => document.getElementById(id);" in MYPAGE_JS
@@ -111,7 +147,7 @@ def test_section_switch_does_not_touch_hash_and_summary_reads_only_needed_fields
 
 
 def test_settings_views_untouched():
-    """TC-MP-06 · 설정 화면 셋의 화면 키는 그대로 있다 — 알림은 본체가 구역으로 옮겨 가 빈 껍데기, Open API 는 아직 본체가 이 화면에 있다."""
+    """TC-MP-06 · 설정 화면 셋의 화면 키는 그대로 있다 — 알림 · Open API 는 본체가 마이페이지 구역으로 옮겨 가 빈 껍데기다."""
     for key in ("settings", "notification-settings", "paper-openapi"):
         assert f'<div class="view" data-view="{key}">' in APP, key
     # trading.js 가 읽는 증권사 칸 4개(앱 키 · 비밀키 · 계좌 · 모의 여부)가 settings 화면에 한 번씩
@@ -124,3 +160,21 @@ def test_css_has_list_to_body_for_narrow_screens():
     assert ".mp-shell[data-mp-pane=\"list\"] .mp-body { display: none; }" in CSS
     assert ".mp-shell[data-mp-pane=\"body\"] .mp-nav { display: none; }" in CSS
     assert ".mp-sec { display: none; }" in CSS and ".mp-sec.active { display: block; }" in CSS
+
+
+def test_openapi_secret_hardening():
+    """TC-MP-11 — 보안 검수(S195 · 11-03): Alpaca 시크릿 칸은 브라우저 저장 제안을 막고(`autocomplete`) 칸마다 이름표가 있고 ·
+    마이페이지 다른 구역으로 가면 한 번 보여 준 새 Open API 키 원문을 DOM 에서 치운다.
+    입력칸은 호출 뒤에 비우지 **않는다** — 서버는 키 칸이 비면 서버 환경변수 키로 대신 조회해(`app/routes/paper.py`) 비우면 두 번째 조회가
+    사용자가 넣은 계정이 아닌 다른 계정 것이 된다(코드 검수 S195)."""
+    html = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    key = re.search(r'<input id="po-alpaca-key"[^>]*>', html).group(0)
+    secret = re.search(r'<input id="po-alpaca-secret"[^>]*>', html).group(0)
+    assert 'autocomplete="off"' in key and 'autocomplete="new-password"' in secret and 'type="password"' in secret
+    for tag in (key, secret, re.search(r'<input id="po-label"[^>]*>', html).group(0)):
+        assert "aria-label=" in tag
+    paper = (ROOT / "public" / "js" / "paper.js").read_text(encoding="utf-8")
+    assert '$("po-alpaca-secret").value = ""' not in paper and '$("po-alpaca-key").value = ""' not in paper
+    assert '$("po-new-key").innerHTML = "";' not in paper          # 같은 구역을 다시 눌러도 발급 직후 키 원문이 사라지지 않는다(구역이 바뀔 때만 치움)
+    mypage = (ROOT / "public" / "js" / "mypage.js").read_text(encoding="utf-8")
+    assert re.search(r'if \(key === "external"\) loadPaperOpenApi\(\);[^\n]*\r?\n\s*else \{ const nk = document\.getElementById\("po-new-key"\); if \(nk\) nk\.innerHTML = ""; \}', mypage)

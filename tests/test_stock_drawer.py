@@ -200,6 +200,7 @@ out.sections = sd.DRAWER_SECTIONS;
     d = out["drawer"]
     assert 'data-hub-chartbox' in d and 'data-hub-chart-note' in d and "data-hub-expand" in d and "크게 보기" in d
     assert d.count("data-hub-period=") == 3 and 'data-hub-period="3m"' in d and 'class="sd-period on" data-hub-period="3m"' in d
+    assert d.count("aria-pressed=") == 3 and 'data-hub-period="3m" aria-pressed="true"' in d and 'data-hub-period="1m" aria-pressed="false"' in d, "기간 칩도 눌림 상태를 aria-pressed 로 알린다"
     assert d.index("data-hub-chartbox") < d.index('data-hub-sec="price"')            # 차트가 칸들 위
     assert "data-hub-chartbox" not in out["foreign"]                                 # 해외 종목은 수집 일봉이 없다
     assert out["none"] == [""] * 4
@@ -396,3 +397,140 @@ def test_modal_fills_signal_close_from_the_signal_day():
     assert "/api/data/ohlcv?symbol=" in js and "&basis=raw" in js and "from=${" in js
     assert "seq !== modalSeq" in js
 
+
+
+def test_modal_has_external_chart_link_for_domestic_digit_codes_only(tmp_path):
+    """TC-SDR-17 · 종목 근거 모달의 「외부 차트에서 열기 ↗」(2026-11-03) — 숫자 6자리 국내 코드만 새 탭 링크(rel noopener noreferrer) ·
+    해외 · ETF(영숫자) 코드는 링크를 만들지 않는다 · 상표 이름은 작은 출처 줄에만(링크 글자에는 쓰지 않는다 · NOTICE.md)."""
+    out = _run(tmp_path, HUB, """
+out.modal = sd.sdModalHtml(HUB);
+out.etf = sd.sdModalHtml({ ...HUB, symbol: '0000D0' });
+out.foreign = sd.sdModalHtml({ ...HUB, symbol: 'AAPL' });
+out.urls = [sd.hubExtChartUrl('005930'), sd.hubExtChartUrl('005930.KS'), sd.hubExtChartUrl('035720.KQ'), sd.hubExtChartUrl('0000D0'), sd.hubExtChartUrl('AAPL'), sd.hubExtChartUrl('')];
+""")
+    m = out["modal"]
+    assert 'href="https://www.tradingview.com/symbols/KRX-005930/"' in m and 'target="_blank" rel="noopener noreferrer"' in m and "외부 차트에서 열기 ↗" in m
+    assert "외부 차트 링크는 TradingView 로 연결됩니다" in m and "그쪽 정책을 따릅니다" in m
+    assert ">TradingView" not in m.replace("외부 차트 링크는 TradingView", "")                       # 링크 글자 · 단추 이름에는 상표를 쓰지 않는다
+    assert "data-hub-extchart" not in out["etf"] and "data-hub-extchart" not in out["foreign"]
+    assert out["urls"] == ["https://www.tradingview.com/symbols/KRX-005930/", "https://www.tradingview.com/symbols/KRX-005930/",
+                           "https://www.tradingview.com/symbols/KRX-035720/", "", "", ""]
+
+
+# ── 신호 칸 기록 시점 · 날짜 고르기(S195 · 2026-11-03 · 날짜별 근거 안 A) ─────────────────────────────
+
+_REC = {"computed_at": "2026-11-03 12:59", "record_kind": "regular", "lag_days": 0, "expected_on": "2026-11-03", "record_label": "정기 기록",
+        "record_tip": "", "record_note": "11-02 종가 기준입니다. 다음 거래일(11-03) 12:59 에 계산해 기록했습니다.",
+        "requested_on": None, "picked": False, "max_on": "2026-11-03", "latest_as_of": "2026-10-29", "prev_day": "2026-10-28", "next_day": None,
+        "fell_back": False}
+
+
+def test_modal_signal_head_and_record_line_show_the_calculation_time(tmp_path):
+    """TC-SDR-18 · 모달 신호 칸 머리 「10-29 기준 · 11-03 12:59 계산」 + 정기 기록 한 줄(서버 글 그대로) · 옛 응답(새 칸 없음)이면 머리 · 줄 · 고르기가 지금까지와 같다 ·
+    서랍(작은 화면)은 바꾸지 않는다."""
+    hub = _hub_with_signal(**_REC)
+    out = _run(tmp_path, hub, """
+out.modal = sd.sdModalHtml(HUB);
+out.drawer = sd.stockDrawerHtml(HUB);
+out.old = sd.sdModalHtml({ ...HUB, sections: { ...HUB.sections, signal: { ...HUB.sections.signal, data: { ...HUB.sections.signal.data,
+  computed_at: undefined, record_kind: undefined, record_note: undefined, max_on: undefined } } } });
+out.head = [sd.sdSignalHeadText(HUB.sections.signal), sd.sdSignalHeadText({ as_of: '2026-10-29', data: {} }), sd.sdSignalHeadText({ as_of: null, data: {} }), sd.sdSignalHeadText(null)];
+out.stamp = [sd.sdStamp('2026-11-03 12:59'), sd.sdStamp('2026-11-03T12:59:00+09:00'), sd.sdStamp(''), sd.sdStamp(null)];
+""")
+    m = out["modal"]
+    sig = m[m.index('data-hub-sec="signal"'):m.index('data-hub-sec="financials"')]
+    assert '<span class="sd-asof">10-29 기준 · 11-03 12:59 계산</span>' in sig and "10월 29일 기준" not in sig
+    assert 'data-hub-record="regular"' in sig and "다음 거래일(11-03) 12:59 에 계산해 기록했습니다." in _text(sig)
+    assert "sd-chip--late" not in sig and "늦게 계산" not in sig                                      # 정기 기록에는 칩이 없다
+    o = out["old"]
+    old_sig = o[o.index('data-hub-sec="signal"'):o.index('data-hub-sec="financials"')]
+    assert "10월 29일 기준" in old_sig and "data-hub-record" not in old_sig and "data-hub-sigpick" not in old_sig
+    assert "10월 29일 기준" in out["drawer"] and "data-hub-record" not in out["drawer"] and "data-hub-sigpick" not in out["drawer"]
+    assert out["head"] == ["10-29 기준 · 11-03 12:59 계산", "10-29 기준", "", ""]
+    assert out["stamp"] == ["11-03 12:59", "", "", ""]
+
+
+def test_modal_signal_late_chip_and_collapsible_explanation(tmp_path):
+    """TC-SDR-19 · 늦게 계산된 기록 — 칩 「늦게 계산」 + 계산 시각 + 접이식 쉬운 말 설명(서버 글 그대로 · 「소급」 단정 없음) · 칩 툴팁 · 글은 이스케이프 ·
+    계산 시각을 모르는 옛 줄은 지어내지 않고 서버 글만."""
+    late = {**_REC, "computed_at": "2026-11-05 09:20", "record_kind": "late", "lag_days": 2, "record_label": "늦게 계산",
+            "record_tip": "그날 낮에 기록된 값이 아니라 나중에 계산한 값입니다.",
+            "record_note": "10-29 종가 기준이지만 11-05 09:20 에 늦게 계산한 값입니다. <script>x</script> 같은 날을 다시 계산한 기록일 수 있습니다."}
+    unknown = {**_REC, "computed_at": None, "record_kind": "unknown", "lag_days": None, "record_label": "계산 시각 모름",
+               "record_note": "10-29 종가 기준입니다. 이 줄은 계산한 시각이 남아 있지 않아 언제 계산했는지 알 수 없습니다."}
+    out = _run(tmp_path, _hub_with_signal(**late), """
+out.late = sd.sdModalHtml(HUB);
+const mk = data => ({ ...HUB, sections: { ...HUB.sections, signal: { ...HUB.sections.signal, data: { ...HUB.sections.signal.data, ...data } } } });
+out.unknown = sd.sdModalHtml(mk(%s));
+out.mark = [sd.sdChartSignal(HUB), sd.sdChartSignal(mk(%s)), sd.sdChartSignal({ sections: { signal: { status: 'empty' } } })];
+""" % (json.dumps(unknown, ensure_ascii=False), json.dumps({"computed_at": "2026-11-03 12:59", "record_kind": "regular"})))
+    m = out["late"]
+    sig = m[m.index('data-hub-sec="signal"'):m.index('data-hub-sec="financials"')]
+    assert '<span class="sd-chip sd-chip--late" title="그날 낮에 기록된 값이 아니라 나중에 계산한 값입니다.">늦게 계산</span>' in sig
+    assert "11-05 09:20 에 계산" in _text(sig) and '<details class="sd-more"><summary>늦게 계산이란?</summary>' in sig
+    assert "<script>x</script>" not in sig and "&lt;script&gt;x&lt;/script&gt;" in sig                  # 서버 글도 이스케이프
+    assert '<span class="sd-asof">10-29 기준 · 11-05 09:20 계산</span>' in sig
+    u = out["unknown"]
+    usig = u[u.index('data-hub-sec="signal"'):u.index('data-hub-sec="financials"')]
+    assert 'data-hub-record="unknown"' in usig and "알 수 없습니다" in usig and "sd-chip--late" not in usig
+    assert "10월 29일 기준" in usig                                                                  # 계산 시각이 없으면 머리는 기준일만
+    late_mark, regular_mark, empty_mark = out["mark"]
+    # symbol 은 어느 종목의 기록인지 — 공용 차트가 다른 종목 칸에 표식을 찍지 않게 쓴다
+    assert late_mark == {"asOf": "2026-10-29", "side": "매도", "symbol": "005930", "computedAt": "2026-11-05 09:20", "late": True}
+    assert regular_mark == {"asOf": "2026-10-29", "side": "매도", "symbol": "005930", "computedAt": "2026-11-03 12:59", "late": False} and empty_mark is None
+
+
+def test_modal_signal_date_picker_uses_server_trading_days(tmp_path):
+    """TC-SDR-20 · 날짜 고르기 — 날짜 입력(오늘까지) + 앞/다음 거래일 단추는 서버가 거래일만 건너뛰어 준 날을 그대로 쓰고(없으면 누를 수 없음) · 고른 뒤에만 「가장 최근」 ·
+    고른 날 줄이 없으면 안내문 · 고른 날 이전에 기록이 없어 빈 칸이어도 고르기가 남는다 · 옛 응답이면 고르기 없음 · 주소는 signal_on 만 더한다."""
+    picked = {**_REC, "requested_on": "2026-10-27", "picked": True, "fell_back": True, "prev_day": "2026-10-23", "next_day": "2026-10-29",
+              "fell_back_note": "10-27 은 신호 기록이 없어 그 앞 가장 가까운 날(10-26)의 기록을 보여 드립니다."}
+    empty_hub = {**HUB, "sections": {**HUB["sections"], "signal": {"key": "signal", "label": "다중 주기 신호", "status": "empty", "as_of": None, "source": "", "view": "robo-patterns",
+        "reason": "고른 날(10-01) 이전에는 이 종목의 신호 기록이 없습니다 — 다른 날짜를 골라 보세요.", "data": {
+            "requested_on": "2026-10-01", "picked": True, "max_on": "2026-11-03", "latest_as_of": "2026-10-29", "prev_day": None, "next_day": "2026-10-02"}}}}
+    out = _run(tmp_path, _hub_with_signal(**_REC), """
+const mk = data => ({ ...HUB, sections: { ...HUB.sections, signal: { ...HUB.sections.signal, data: { ...HUB.sections.signal.data, ...data } } } });
+out.latest = sd.sdModalHtml(HUB);
+out.picked = sd.sdModalHtml(mk(%s));
+out.empty = sd.sdModalHtml(%s);
+out.drawerEmpty = sd.stockDrawerHtml(%s);
+out.paths = [sd.hubSignalPath('005930', '2026-10-27'), sd.hubSignalPath('005930.KS', ''), sd.hubSignalPath('005930', 'latest'), sd.hubSignalPath('005930', '2026-10-27; drop')];
+out.fail = [sd.sdSignalFailText({ status: 422, message: '미래 날짜' }), sd.sdSignalFailText({ status: 401, message: 'x' }), sd.sdSignalFailText(new Error('연결 끊김')), sd.sdSignalFailText(null)];
+""" % (json.dumps(picked, ensure_ascii=False), json.dumps(empty_hub, ensure_ascii=False), json.dumps(empty_hub, ensure_ascii=False)))
+    def part(html):
+        return html[html.index('data-hub-sec="signal"'):html.index('data-hub-sec="financials"')]
+    latest = part(out["latest"])
+    assert 'type="date"' in latest and 'value="2026-10-29"' in latest and 'max="2026-11-03"' in latest                       # 입력 칸 값 = 지금 보이는 기록의 기준일
+    assert 'data-hub-sigstep="2026-10-28">◀ 앞 거래일</button>' in latest
+    assert '<button type="button" class="sd-pick-b" disabled>다음 거래일 ▶</button>' in latest                               # 가장 최근이라 다음은 눌리지 않는다
+    assert "가장 최근</button>" not in latest and "data-hub-fellback" not in latest
+    pk = part(out["picked"])
+    assert 'value="2026-10-27"' in pk and 'data-hub-sigstep="2026-10-23">◀' in pk and 'data-hub-sigstep="2026-10-29">다음 거래일 ▶' in pk
+    assert 'data-hub-sigstep="latest">가장 최근</button>' in pk
+    assert "10-27 은 신호 기록이 없어 그 앞 가장 가까운 날(10-26)의 기록을 보여 드립니다." in _text(pk) and "data-hub-fellback" in pk
+    em = part(out["empty"])
+    assert 'sd-sec--empty" data-hub-sec="signal"' in out["empty"] and "고른 날(10-01) 이전에는 이 종목의 신호 기록이 없습니다" in _text(em)
+    assert 'value="2026-10-01"' in em and 'data-hub-sigstep="2026-10-02">다음 거래일 ▶' in em and "disabled>◀ 앞 거래일" in em     # 막다른 길이 아니다
+    assert "data-hub-sigpick" not in out["drawerEmpty"]                                                                       # 서랍은 그대로
+    assert out["paths"] == ["/api/stock-hub?symbol=005930&sections=signal&signal_on=2026-10-27", "/api/stock-hub?symbol=005930.KS&sections=signal",
+                            "/api/stock-hub?symbol=005930&sections=signal", "/api/stock-hub?symbol=005930&sections=signal"]
+    assert out["fail"][0] == "미래 날짜" and "로그인" in out["fail"][1] and "연결 끊김" in out["fail"][2] and "불러오지 못했습니다" in out["fail"][3]
+
+
+def test_modal_wires_the_signal_day_picker_and_chart_marker():
+    """TC-SDR-21 · 모달이 날짜 고르기를 잇는 길 — 입력 change · 단추 click 을 받아 허브를 신호 칸만 다시 읽고(새 계산 없음) 그 칸 · 차트 신호 표식 · 신호 기준 종가를
+    같이 바꾼다. 읽지 못하면 칸을 그대로 두고 까닭만 · 늦게 온 응답은 순번으로 막고 · 서랍에는 걸지 않는다 · 금지어 없음."""
+    from app.services import signal_explain
+    js = DRAWER.read_text(encoding="utf-8")
+    assert "[data-hub-sigdate]" in js and "[data-hub-sigstep]" in js and 'addEventListener("change"' in js and "pickSignal(modal," in js
+    assert "hubSignalPath(symbol," in js and "modalChart?.setSignal?.(sdChartSignal(next))" in js and "fillSignalClose(m, { symbol }, modalAt)" in js
+    assert "mine !== sigSeq || modalAt !== modalSeq" in js and "sdSignalFailText(err)" in js
+    assert "host.addEventListener" in js and "pickSignal(host" not in js and "pickSignal(drawer" not in js
+    added = js[js.index("export function sdStamp"):js.index("/** 모달 안 신호 칸 — 서버 한 줄 요약")] + js[js.index("async function pickSignal"):js.index("function openModal(hub)")]
+    code = re.sub(r"/\*.*?\*/", "", added, flags=re.S)                     # 이번에 더한 화면 글만 본다(앞서 있던 글은 다른 시험이 본다)
+    code = "\n".join(re.sub(r"\s//.*$", "", line) for line in code.splitlines())
+    for word in signal_explain.FORBIDDEN:
+        assert word not in code, f"화면 글에 금지어 「{word}」"
+    css =(DRAWER.parent.parent / "css" / "stockdrawer.css").read_text(encoding="utf-8")
+    for cls in ("sd-pick", "sd-pick-l", "sd-pick-in", "sd-pick-b", "sd-rec", "sd-chip--late"):
+        assert f".{cls}" in css, cls

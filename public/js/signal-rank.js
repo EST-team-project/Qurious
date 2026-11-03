@@ -161,6 +161,34 @@ export function priceLines(ohlcv, quote, signalAsOf, closeErr = "") {
   return { close: closeLine, quote: quoteLine };
 }
 
+/** 종목 검색 칸의 글 → 순위 API 에 보낼 꼴(2026-11-03 · 「모든 종목을 검색해 신호와 근거를 확인」 피드백).
+ *  신호 기록은 국내 6자리 코드에만 있다 — 그 밖(해외 티커 · 코드 아닌 글)은 요청을 보내지 않고 까닭을 말한다(빈 코드는 422). */
+export function findQuery(symbol) {
+  const code = ohlcvCode(symbol);
+  if (!code) return { ok: false, code: "", query: "", message: "신호 기록은 국내 종목(6자리 코드)에만 있습니다. 한글 종목 이름이나 6자리 코드로 다시 찾아 보세요." };
+  return { ok: true, code, query: `?symbols=${code}`, message: "" };
+}
+
+/** 검색 칸 — 순위 표 위에 한 번 붙는 줄. 칸을 비우면 전체 순위로 돌아간다. 입구 단추는 종목 근거 모달(`data-hub-open`)을 연다. */
+export function findBarHtml(esc) {
+  return `<form class="sr-find" data-sr-find role="search" aria-label="종목 신호 검색">`
+    + `<label for="sr-find-input" class="text-xs font-semibold" style="color:var(--text-dim);">종목 검색</label>`
+    + `<div class="sr-find-row">`
+    + `<input id="sr-find-input" class="input sr-find-input" type="search" autocomplete="off" placeholder="종목 이름 또는 코드 (예: 삼성전자, 005930)" />`
+    + `<button type="submit" class="btn-primary text-xs">검색</button>`
+    + `<button type="button" class="btn-secondary text-xs" data-sr-find-reset>전체 순위</button>`
+    + `</div>`
+    + `<div class="text-xs" style="color:var(--text-mute);" data-sr-find-note role="status" aria-live="polite">${esc("기록된 종목 중에서 찾습니다. 종목을 고르면 그 종목의 규칙 신호와 근거를 봅니다 — 과거 자료 기준 참고용이며 투자 권유가 아닙니다.")}</div>`
+    + `</form>`;
+}
+
+/** 검색한 종목 아래 안내 — 순위 표에 줄이 없어도(기록 대상 밖) 종목 근거 모달은 열 수 있게 입구를 함께 둔다. 입구는 문서 전체의 클릭 위임이 받는다. */
+export function findNoteHtml(code, name, esc) {
+  return `검색한 종목: ${esc(name ? `${name}(${code})` : code)} · 아래 줄을 누르거나 `
+    + `<button type="button" class="sd-open-btn text-xs" data-hub-open="${esc(code)}" data-hub-name="${esc(name || "")}">종목 근거 →</button> 를 눌러 근거를 봅니다. `
+    + `기록이 없는 종목이면 아래에 그 까닭이 나옵니다.`;
+}
+
 /** 불러오기 실패 글 — 순위 · 신호 기록 404 는 서버의 한국어 까닭 그대로(기록 없음 갈래), 로그인 풀림 · 연결 끊김은 따로. */
 export function drawerFailText(err) {
   const status = err && err.status;
@@ -181,6 +209,7 @@ export function ymd(s) {
  *  여기서는 키보드(Enter · 스페이스)만 같은 길로 이어 준다(줄이 단추가 아니라서 기본으로는 눌리지 않는다). */
 export function mountSignalRank(host, { api, esc, nameOf } = {}) {
   let resp = null;
+  let askSeq = 0;   // 마지막 요청만 반영한다 — 검색을 누른 뒤 응답 전에 「전체 순위」 를 누르면 늦게 온 응답이 표를 덮지 않게(코드 검수 S195)
   const paint = () => {
     host.innerHTML = `<div data-sr-list>${renderRankTable(resp, esc, { nameOf })}</div>`;
   };
@@ -193,9 +222,10 @@ export function mountSignalRank(host, { api, esc, nameOf } = {}) {
   });
   return {
     async loadRankRows(params = "") {   // 이름이 `load` 이면 화면 스캐너가 다른 화면의 load 와 이어 버린다(TC-RKS-12)
+      const mine = ++askSeq;
       host.textContent = "불러오는 중…";
-      try { resp = await api(`/api/stock-hub/signal-rank${params}`); paint(); }
-      catch (err) { host.textContent = drawerFailText(err); }
+      try { const got = await api(`/api/stock-hub/signal-rank${params}`); if (mine !== askSeq) return; resp = got; paint(); }
+      catch (err) { if (mine === askSeq) host.textContent = drawerFailText(err); }
     },
   };
 }

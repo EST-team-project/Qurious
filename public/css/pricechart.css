@@ -1,0 +1,13 @@
+/* 공용 일봉 차트(js/stockchart.js) — 켜고 끄는 칩 줄 · 크로스헤어 값 줄(칩 줄 아래 · 차트에 겹치지 않음) (2026-11-03 S195)
+ * 클래스는 pc-dc- 로 시작한다. 상품 차트(products.css)가 pc- 를 이미 쓰므로 한 단계 더 붙였다. */
+.pc-dc-box { position: relative; width: 100%; }
+.pc-dc-bar { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 6px; }
+.pc-dc-bar[hidden] { display: none; }
+.pc-dc-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 24px; min-width: 24px; padding: 1px 9px; font-size: 11px; line-height: 1.6; border-radius: 12px; cursor: pointer; border: 1px solid var(--border, #dde2ec); background: transparent; color: var(--text-dim, #334155); }
+.pc-dc-chip[aria-pressed="true"] { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
+/* 선 색 견본 — 칩 글자 앞의 짧은 줄(켜진 칩의 파란 바탕에서도 보이게 얇은 흰 테두리) */
+.pc-dc-sw { display: inline-block; width: 12px; height: 3px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85); }
+.pc-dc-chip:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }
+.pc-dc-legend { margin: 0 0 4px; min-height: 1.4em; font-size: 11px; line-height: 1.4; color: var(--text-dim, #334155); font-variant-numeric: tabular-nums; }
+.pc-dc-legend:empty { display: none; }
+@media (max-width: 480px) { .pc-dc-legend { min-height: 4.2em; } }   /* 좁은 화면 — 값 줄이 석 줄까지 늘어도 차트가 밀리지 않게 */

@@ -119,6 +119,21 @@
 .sd-tpl > summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--text-dim, #334155); }
 .sd-tpl-text { margin: 6px 0; padding: 10px 12px; white-space: pre-wrap; word-break: keep-all; font-family: inherit; font-size: 12px; line-height: 1.6; border-radius: 8px; background: var(--surf2, #f1f5f9); color: var(--text-dim, #334155); }
 
+/* 모달 신호 칸의 날짜 고르기 · 「늦게 계산」 칩 (2026-11-03 S195 · 날짜별 근거 안 A) — 색만으로 구분하지 않는다(칩 글자가 늘 함께 보인다) */
+.sd-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0 8px; }
+.sd-pick-l { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim, #334155); }
+.sd-pick-in { padding: 3px 6px; border-radius: 6px; font-size: 12.5px; border: 1px solid var(--border, #dde2ec); background: var(--surf, #fff); color: inherit; }
+.sd-pick-b {
+  padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  color: var(--accent, #2563eb); background: transparent; border: 1px solid var(--accent, #2563eb);
+}
+.sd-pick-b:hover:not(:disabled) { background: rgba(37, 99, 235, 0.08); }
+.sd-pick-b:disabled { opacity: 0.45; cursor: default; }
+.sd-pick-b:focus-visible, .sd-pick-in:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: 2px; }
+.sd-rec { margin: 4px 0 6px; }
+.sd-chip--late { background: transparent; color: #b45309; border: 1px solid currentColor; }
+@media (max-width: 480px) { .sd-pick-b { padding: 6px 12px; } .sd-pick-in { padding: 6px 8px; } }
+
 /* 신호 순위 상태 딱지(2026-11-02 · ②-33) — 색만으로 구분하지 않는다(딱지 글자가 늘 함께 보인다) */
 .sr-badge { border: 1px solid currentColor; background: transparent; font-weight: 600; }
 .sr-badge[data-kind="ok"], .sr-badge[data-kind="live"] { color: #0b7a4b; }

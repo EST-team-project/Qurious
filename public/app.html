@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="/css/helpvideos.css" /><!-- 사용법 영상 목록 (2026-10-20 · js/helpvideos.js) -->
   <link rel="stylesheet" href="/css/stockfind.css" /><!-- 종목 찾기 단추 (2026-10-31 · js/stockfind.js) -->
   <link rel="stylesheet" href="/css/stockdrawer.css" /><!-- 종목 허브 서랍 (2026-10-31 · js/stockdrawer.js) -->
+  <link rel="stylesheet" href="/css/pricechart.css" /><!-- 공용 일봉 차트 칩 · 값 줄 (2026-11-03 · js/stockchart.js) -->
   <link rel="stylesheet" href="/css/signalrankview.css" /><!-- 신호 순위 화면 (2026-11-02 · js/signalrankview.js) -->
   <link rel="stylesheet" href="/css/stockpick.css" /><!-- 종목 찾기 칸 (2026-10-16 · js/stockpick.js) -->
   <link rel="stylesheet" href="/css/baselinenotice.css" /><!-- 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · js/baselinenotice.js) -->
@@ -376,11 +377,11 @@
                   <div id="ps-quote" class="text-sm mb-2 min-h-[24px]"></div>
                   <div id="ps-chart-wrap" class="mb-2" hidden>
                     <div class="flex items-center gap-2 mb-1">
-                      <b class="text-sm">일봉 종가</b>
+                      <b class="text-sm">일봉</b>
                       <span id="ps-chart-periods" class="flex gap-1"></span>
                       <button type="button" id="ps-hub-open" class="text-xs ml-auto" style="color:var(--accent);font-weight:600;" data-hub-open="" data-hub-mode="modal" data-hub-name="" hidden>근거 · 차트 크게 보기 →</button>
                     </div>
-                    <div id="ps-chart" style="height:150px;"></div>
+                    <div id="ps-chart" style="height:230px;"></div>
                     <div id="ps-chart-note" class="text-xs mt-1" style="color:var(--text-mute);"></div>
                   </div>
                   <input id="ps-qty" class="input mb-2" type="number" min="1" placeholder="수량 (주)" />
@@ -421,7 +422,7 @@
                   </div>
                   <div id="ps-stop-quote" class="text-sm mb-2 min-h-[24px]"></div>
                   <div id="ps-stop-chart-wrap" class="mb-2" hidden>
-                    <div id="ps-stop-chart" style="height:130px;"></div>
+                    <div id="ps-stop-chart" style="height:210px;"></div>
                     <div id="ps-stop-chart-note" class="text-xs mt-1" style="color:var(--text-mute);"></div>
                   </div>
                   <div class="flex gap-2 mb-2">
@@ -543,37 +544,8 @@
             </div>
           </div>
 
-          <div class="view" data-view="paper-openapi">
-            <div class="card mb-4">
-              <h2 class="text-lg font-semibold mb-1">🔑 Open API 키 발급</h2>
-              <p class="text-xs mb-3" style="color:var(--text-mute);">외부 시스템(스크립트·봇·다른 서비스)이 이 모의계좌를 조회·주문할 수 있는 키입니다. 키
-                원문은 서버에 저장되지 않으며(SHA-256 해시만 보관) 발급 직후 한 번만 표시됩니다.</p>
-              <div class="flex gap-2 mb-3">
-                <input id="po-label" class="input" placeholder="키 라벨 (예: 파이썬 봇)" />
-                <button id="po-create" class="btn-primary">키 발급</button>
-              </div>
-              <div id="po-new-key" class="mb-3"></div>
-              <div id="po-keys" class="overflow-x-auto text-sm"></div>
-            </div>
-            <div class="card mb-4">
-              <h2 class="text-lg font-semibold mb-2">📘 Open API 엔드포인트</h2>
-              <div id="po-docs" class="overflow-x-auto text-sm"></div>
-            </div>
-            <div class="card">
-              <h2 class="text-lg font-semibold mb-1">🦙 Alpaca Paper Trading 연결 테스트 (읽기 전용)</h2>
-              <p class="text-xs mb-3" style="color:var(--text-mute);">키를 비워 두면 서버 환경변수(ALPACA_API_KEY /
-                ALPACA_SECRET_KEY)를 사용합니다. 계좌 식별자는 반환하지 않으며 주문은 실행하지 않습니다.</p>
-              <div class="grid md:grid-cols-2 gap-2 mb-2">
-                <input id="po-alpaca-key" class="input" placeholder="APCA-API-KEY-ID (선택)" />
-                <input id="po-alpaca-secret" class="input" type="password" placeholder="APCA-API-SECRET-KEY (선택)" />
-              </div>
-              <div class="flex gap-2 mb-3">
-                <button id="po-alpaca-account" class="btn-secondary">계정 상태 조회</button>
-                <button id="po-alpaca-positions" class="btn-secondary">보유 포지션 조회</button>
-              </div>
-              <div id="po-alpaca-result" class="text-sm"></div>
-            </div>
-          </div>
+          <!-- Open API 설정 본체(키 발급 · 엔드포인트 문서 · Alpaca Paper 연결 시험)는 마이페이지 「외부 연동」 구역(#mp-sec-external)으로 옮겼다(2026-11-03 · S195) — 주소 #paper-openapi 는 그대로 마이페이지 외부 연동 구역을 연다. 이 껍데기는 화면 키(점수 · 사용법 · 초기 이동 검사)를 위해 남긴다 -->
+          <div class="view" data-view="paper-openapi"></div>
 
           <!-- ══ 4. 퀀트 자동매매 ════════════════════════════════════════ -->
           <!-- 4-1. 퀀트 대시보드 -->
@@ -585,28 +557,53 @@
                   <h2 class="text-lg font-semibold">⚡ 퀀트 대시보드</h2>
                   <button id="refresh-market" class="btn-secondary text-xs">새로고침</button>
                 </div>
-                <div id="market-cards" class="grid grid-cols-3 gap-3 text-sm"></div>
+                <div id="quant-find-host"></div><!-- 종목 검색 줄 — quant.js 가 붙인다 -->
+                <div id="market-cards" class="grid grid-cols-3 gap-3 text-sm" role="status" aria-live="polite"></div>
               </div>
-              <!-- 5개 종목 시그널 -->
+              <!-- 선택한 종목 — 신호 띠 + 차트 -->
               <div class="card">
-                <h3 id="signal-cards-title" class="font-semibold mb-1">기본 일봉 규칙 신호 (관찰 목록)</h3>
-                <p class="text-xs mb-2" style="color:var(--text-mute);">기본 관찰 목록입니다. 실제 자동매매 대상·판단은 선택 종목과 전략 설정에 따라 달라지며, 실행 당시 판단은 자동매매 현황에서 확인합니다.</p>
-                <p class="text-xs mb-3" style="color:var(--text-mute);">정한 규칙(RSI · 이동평균 · 볼린저)으로 계산한 정보이며 투자 권유가 아닙니다 — 「근거」 를 눌러 어떤 규칙에서 나왔는지 봅니다. 값은 마지막 종가 기준입니다.</p>
-                <div id="signal-cards" class="grid md:grid-cols-5 gap-2 text-xs"></div>
-              </div>
-              <!-- 퀀트 차트 -->
-              <div class="card">
-                <div class="flex gap-2 items-center mb-3">
+                <div id="quant-chart-row" class="flex flex-wrap gap-2 items-center mb-3">
                   <input type="hidden" id="quant-symbol" value="005930.KS" />
-                  <button id="quant-symbol-btn" class="ssm-symbol-btn">
+                  <button id="quant-symbol-btn" class="ssm-symbol-btn" title="종목 바꾸기 — 이름이나 코드로 찾기">
                     <i class="fa-solid fa-magnifying-glass" style="color:var(--accent);font-size:12px;"></i>
                     <span class="ssm-btn-label">삼성전자</span>
                     <span class="ssm-btn-ticker">005930.KS</span>
                   </button>
                   <button id="quant-chart-load" class="btn-primary text-xs">차트 로드</button>
+                  <a id="quant-ext-chart" class="btn-secondary text-xs" href="#" target="_blank" rel="noopener noreferrer" hidden>외부 차트에서 열기 ↗</a>
                 </div>
-                <div id="quant-chart-container"></div>
+                <div id="quant-strip" class="qd-strip" role="status" aria-live="polite"></div>
+                <div class="qd-legend text-xs" style="color:var(--text-dim);" aria-hidden="true">
+                  <span><i class="qd-sw" style="background:#dc2626"></i><i class="qd-sw" style="background:#2563eb"></i> 봉(오름 빨강 · 내림 파랑)</span>
+                  <span><i class="qd-sw" style="background:#b45309"></i> 20일 이동평균</span>
+                  <span><i class="qd-sw" style="background:#047857"></i> 60일 이동평균</span>
+                  <span><i class="qd-sw" style="background:#64748b"></i> 볼린저 밴드</span>
+                </div>
+                <div id="quant-chart-container" class="qd-chart"></div>
+                <p id="quant-chart-note" class="text-xs mt-2" style="color:var(--text-mute);"></p>
+                <p id="quant-ext-note" class="text-xs" style="color:var(--text-mute);" hidden>외부 차트 링크는 TradingView 로 연결됩니다 · 로그인 · 지연 시세는 그쪽 정책을 따릅니다.</p>
               </div>
+              <!-- 관찰 목록 — 기록된 신호 표(요청 한 번) -->
+              <div class="card" id="quant-watch-card">
+                <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                  <h3 id="quant-watch-title" class="font-semibold">관찰 목록 — 기록된 신호(60분 · 일 · 주)</h3>
+                  <span id="quant-watch-count" class="text-xs" style="color:var(--text-mute);"></span>
+                </div>
+                <p class="text-xs mb-2" style="color:var(--text-mute);">12:30에 기록해 둔 60분 · 일 · 주 신호를 한 번에 읽은 표입니다. 줄을 누르면 위 차트와 신호 띠가 그 종목으로 바뀌고, 「종목 근거」 를 누르면 근거 전체를 봅니다. 아래 「일봉 단독 규칙」 카드와는 계산 방식이 달라 값이 다를 수 있습니다. 참고용이며 투자 권유가 아닙니다.</p>
+                <div id="quant-watch" class="qd-watch"></div>
+              </div>
+              <!-- 관찰 목록 일봉 단독 규칙 카드 — 펼칠 때 받는다 -->
+              <details class="card" id="signal-cards-panel">
+                <summary class="cursor-pointer flex flex-wrap items-baseline justify-between gap-2">
+                  <span id="signal-cards-title" class="font-semibold">기본 일봉 규칙 신호 (관찰 목록)</span>
+                  <span id="signal-cards-count" class="text-xs" style="color:var(--text-mute);">눌러서 펼치면 종목마다 계산해 보입니다</span>
+                </summary>
+                <p class="text-xs mt-2 mb-2" style="color:var(--text-mute);">카드의 신호는 <b>일봉 단독 규칙</b>(RSI · 이동평균 · 볼린저, 마지막 종가 기준)으로 그때그때 계산한 값입니다. 종목 근거 창과 위 표의 <b>기록된 신호(60분 · 일 · 주)</b>는 12:30에 기록해 둔 값이라 서로 다를 수 있습니다. 참고용이며 투자 권유가 아닙니다.</p>
+                <details class="text-xs mb-3" style="color:var(--text-mute);"><summary class="cursor-pointer">안내 더 보기</summary>
+                  <p class="mt-1">기본 관찰 목록입니다. 실제 자동매매 대상·판단은 선택 종목과 전략 설정에 따라 달라지며, 실행 당시 판단은 자동매매 현황에서 확인합니다. 카드의 「근거」 를 누르면 어떤 규칙에서 나왔는지 볼 수 있습니다.</p></details>
+                <div id="signal-cards" class="grid sm:grid-cols-2 md:grid-cols-5 gap-2 text-xs"></div>
+                <div id="signal-cards-more" class="mt-3"></div>
+              </details>
             </div>
           </div>
 
@@ -1254,8 +1251,36 @@
                   <div class="card space-y-3">
                     <h2 class="text-lg font-semibold">🔑 외부 연동 (Open API)</h2>
                     <p id="mp-sum-external" class="text-sm">불러오는 중…</p>
-                    <p class="text-xs text-slate-400">새 키 발급 · 폐기는 Open API 화면에서 합니다.</p>
-                    <a href="#paper-openapi" class="btn-secondary mp-link" id="mp-open-external">Open API · 외부 연동 열기</a>
+                  </div>
+                  <!-- 아래 세 카드는 옛 Open API 화면의 본체다(칸 id po-* 그대로 · js/paper.js 가 묶는다) -->
+                  <div class="card">
+                    <h2 class="text-lg font-semibold mb-1">🔑 Open API 키 발급</h2>
+                    <p class="text-xs mb-3" style="color:var(--text-mute);">외부 시스템(스크립트·봇·다른 서비스)이 이 모의계좌를 조회·주문할 수 있는 키입니다. 키
+                      원문은 서버에 저장되지 않으며(SHA-256 해시만 보관) 발급 직후 한 번만 표시됩니다.</p>
+                    <div class="flex gap-2 mb-3">
+                      <input id="po-label" class="input" aria-label="키 라벨" placeholder="키 라벨 (예: 파이썬 봇)" />
+                      <button id="po-create" class="btn-primary">키 발급</button>
+                    </div>
+                    <div id="po-new-key" class="mb-3"></div>
+                    <div id="po-keys" class="overflow-x-auto text-sm"></div>
+                  </div>
+                  <div class="card">
+                    <h2 class="text-lg font-semibold mb-2">📘 Open API 엔드포인트</h2>
+                    <div id="po-docs" class="overflow-x-auto text-sm"></div>
+                  </div>
+                  <div class="card">
+                    <h2 class="text-lg font-semibold mb-1">🦙 Alpaca Paper Trading 연결 테스트 (읽기 전용)</h2>
+                    <p class="text-xs mb-3" style="color:var(--text-mute);">키를 비워 두면 서버 환경변수(ALPACA_API_KEY /
+                      ALPACA_SECRET_KEY)를 사용합니다. 계좌 식별자는 반환하지 않으며 주문은 실행하지 않습니다.</p>
+                    <div class="grid md:grid-cols-2 gap-2 mb-2">
+                      <input id="po-alpaca-key" class="input" aria-label="Alpaca 키 ID" autocomplete="off" spellcheck="false" placeholder="APCA-API-KEY-ID (선택)" />
+                      <input id="po-alpaca-secret" class="input" type="password" aria-label="Alpaca 시크릿 키" autocomplete="new-password" placeholder="APCA-API-SECRET-KEY (선택)" />
+                    </div>
+                    <div class="flex gap-2 mb-3">
+                      <button id="po-alpaca-account" class="btn-secondary">계정 상태 조회</button>
+                      <button id="po-alpaca-positions" class="btn-secondary">보유 포지션 조회</button>
+                    </div>
+                    <div id="po-alpaca-result" class="text-sm"></div>
                   </div>
                 </section>
 
@@ -1582,9 +1607,9 @@
           <div class="view" data-view="indicator-tradingview">
             <div class="space-y-4">
               <div class="card">
-                <h2 class="text-lg font-semibold mb-1">📡 TradingView 연동 (Webhook · 교차 검증)</h2>
-                <p class="text-xs mb-3" style="color:var(--text-mute);">Pine Script 전략의 알림을 Webhook으로 받아 모의계좌에 체결·알림
-                  전달하고, Strategy Tester 성과를 QuantConnect LEAN 백테스트와 나란히 검증합니다.</p>
+                <h2 class="text-lg font-semibold mb-1">📡 외부 차트 알림 연동 (Webhook · 교차 검증)</h2>
+                <p class="text-xs mb-3" style="color:var(--text-mute);">Pine Script 전략의 알림을 Webhook으로 받아 모의 장부에 기록하고 알림을
+                  전달하며, Strategy Tester 성과를 QuantConnect LEAN 백테스트와 나란히 검증합니다.</p>
                 <div class="grid lg:grid-cols-2 gap-4">
                   <div>
                     <h3 class="font-semibold text-sm mb-2">① Webhook URL</h3>
@@ -2354,7 +2379,7 @@
               <!-- 전략 카드 편집(#392) — 카드를 고치는 곳은 여기 한 곳 -->
               <details id="ind-card-box" class="card">
                 <summary class="font-semibold text-sm cursor-pointer">🗂️ 전략 카드 — 매수 · 매도 조건 · 손절 · 익절 · 수량</summary>
-                <p class="text-xs mt-2 mb-3" style="color:var(--text-mute);">저장한 카드는 나만 보이고, 「TradingView 연동」 화면의 「카드 → Pine 내려받기」 목록에도 함께 나옵니다.
+                <p class="text-xs mt-2 mb-3" style="color:var(--text-mute);">저장한 카드는 나만 보이고, 「외부 차트 알림 연동」 화면의 「카드 → Pine 내려받기」 목록에도 함께 나옵니다.
                   손절 · 익절은 <strong>종가 기준</strong>입니다 — 장중에 선을 지나도 그날 종가가 넘지 않으면 팔지 않습니다(「손절 판정」 에서 바꿀 수 있음).</p>
                 <div class="flex flex-wrap items-center gap-2 mb-3 text-sm">
                   <label class="text-xs" style="color:var(--text-dim);" for="ic-mine">내 카드</label>

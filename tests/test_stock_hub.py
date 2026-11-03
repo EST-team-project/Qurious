@@ -292,7 +292,7 @@ def _stub_sections(monkeypatch, *, financials_error=None, signal_error=None):
         "name": "신한지주", "market": "KOSPI", "kind": "stock", "signal_universe": True}))
     monkeypatch.setattr(H, "price", lambda sym, today: H.section("price", H.OK, as_of="2026-10-16"))
 
-    async def sig(db, sym, uni):
+    async def sig(db, sym, uni, on=None, today=None):
         if signal_error:
             raise signal_error
         return H.section("signal", H.OK, as_of="2026-10-16")
@@ -660,3 +660,161 @@ def test_attach_names_puts_a_name_on_every_rank_row(tmp_path, monkeypatch):
     monkeypatch.setenv("COLLECTOR_DB_PATH", str(tmp_path / "없음.sqlite3"))
     assert H.attach_names({"rows": [{"symbol": "005930"}]})["rows"] == [{"symbol": "005930", "name": ""}]
     assert H.attach_names({"rows": []}) == {"rows": []}
+
+
+# ── 신호 칸 기록 시점 · 날짜 고르기(S195 · 2026-11-03 · 날짜별 근거 안 A) ─────────────────────────────
+
+def _kst_at(y, m, d, hh, mm):
+    from datetime import datetime, timedelta, timezone
+    return datetime(y, m, d, hh, mm, tzinfo=timezone(timedelta(hours=9)))
+
+
+def test_record_kind_boundaries():
+    """TC-HUB-64 · 기준일 다음 거래일 안(KST)에 계산했으면 정기 · 그 뒤면 늦게 계산 — 정시 / 다음날 이후 / 주말 / 공휴일 / 계산 시각 없음."""
+    fri = date(2026, 10, 30)
+    regular = H.record_kind(fri, _kst_at(2026, 11, 2, 12, 59))                       # 금요일 신호를 월요일 낮에 — 정상 12:30 회차
+    assert (regular["record_kind"], regular["lag_days"], regular["expected_on"]) == ("regular", 0, "2026-11-02")
+    assert regular["computed_at"] == "2026-11-02 12:59" and regular["record_label"] == "정기 기록" and regular["record_tip"] == ""
+    assert regular["record_note"] == "10-30 종가 기준입니다. 다음 거래일(11-02) 12:59 에 계산해 기록했습니다."
+    assert H.record_kind(fri, _kst_at(2026, 11, 2, 23, 59))["record_kind"] == "regular"          # 그 날(KST) 끝까지는 정기
+    late = H.record_kind(fri, _kst_at(2026, 11, 3, 0, 1))                                     # 자정을 넘기면 늦게
+    assert (late["record_kind"], late["lag_days"], late["record_label"]) == ("late", 1, "늦게 계산") and late["record_tip"]
+    assert "11-03 00:01 에 늦게 계산한 값" in late["record_note"] and "그날 이 화면에서 실제로 보였던 값은 아닐 수 있습니다" in late["record_note"]
+    assert H.record_kind(fri, _kst_at(2026, 11, 5, 9, 20))["lag_days"] == 3                    # 정기 기록일(11-02)보다 3일 뒤
+    # 주말을 건너뜀 — 금요일 기준일의 정기 기록일은 토 · 일이 아니라 월요일, 토요일에 계산됐어도(앞서 계산) 정기
+    assert H.record_kind(fri, _kst_at(2026, 10, 31, 10, 0))["record_kind"] == "regular"
+    assert "10-31 10:00 에 계산해 기록했습니다" in H.record_kind(fri, _kst_at(2026, 10, 31, 10, 0))["record_note"]
+    # 공휴일 건너뜀 — 10-08(목) 다음 거래일은 10-09(한글날 휴장) · 주말을 지난 10-12(월)
+    assert H.record_kind(date(2026, 10, 8), _kst_at(2026, 10, 12, 20, 0))["record_kind"] == "regular"
+    assert H.record_kind(date(2026, 10, 8), _kst_at(2026, 10, 13, 9, 0))["record_kind"] == "late"
+    # UTC 값도 한국 시각으로 읽는다 — 11-02 15:30 UTC = 11-03 00:30 KST
+    from datetime import datetime, timezone
+    assert H.record_kind(fri, datetime(2026, 11, 2, 15, 30, tzinfo=timezone.utc))["record_kind"] == "late"
+    assert H.record_kind(fri, datetime(2026, 11, 2, 3, 59))["computed_at"] == "2026-11-02 12:59"   # 시각대가 빠진 값은 UTC
+    # 옛 기록(계산 시각 없음) — 지어내지 않고 모름
+    unknown = H.record_kind(fri, None)
+    assert (unknown["record_kind"], unknown["lag_days"], unknown["computed_at"], unknown["expected_on"]) == ("unknown", None, None, None)
+    assert "알 수 없습니다" in unknown["record_note"]
+
+
+def test_record_texts_avoid_forbidden_words():
+    """TC-HUB-65 · 기록 시점 글은 설명 기준 5.4.1 의 쓰지 않는 말(확률 · 추천 · 보장 …)을 쓰지 않고 「소급」 을 단정하지 않는다."""
+    fri = date(2026, 10, 30)
+    texts = [H.RECORD_TIP, *H.RECORD_LABELS.values()]
+    for at in (_kst_at(2026, 11, 2, 12, 59), _kst_at(2026, 10, 31, 9, 0), _kst_at(2026, 11, 9, 9, 20), None):
+        r = H.record_kind(fri, at)
+        texts += [r["record_note"], r["record_tip"], r["record_label"]]
+    assert not [w for w in signal_explain.FORBIDDEN if any(w in t for t in texts)]
+    assert "소급" not in " ".join(texts) and "믿지" not in " ".join(texts)
+
+
+def test_trading_day_steps_skip_weekends_and_holidays():
+    """TC-HUB-66 · 앞/다음 거래일은 주말 · 휴장일(한글날 10-09)을 건너뛴다."""
+    assert H.next_trading_day(date(2026, 10, 30)) == date(2026, 11, 2) and H.prev_trading_day(date(2026, 11, 2)) == date(2026, 10, 30)
+    assert H.next_trading_day(date(2026, 10, 8)) == date(2026, 10, 12) and H.prev_trading_day(date(2026, 10, 12)) == date(2026, 10, 8)
+    assert H.next_trading_day(date(2026, 10, 2)) == date(2026, 10, 6)          # 10-05 대체공휴일 · 주말
+    pick = H.signal_pick(date(2026, 10, 12), date(2026, 10, 11), date(2026, 11, 2), date(2026, 11, 3))
+    assert (pick["prev_day"], pick["next_day"], pick["requested_on"], pick["picked"], pick["max_on"]) == \
+           ("2026-10-08", "2026-10-13", "2026-10-11", True, "2026-11-03")
+    # 가장 최근 기록을 넘으면 다음은 비고, 날짜를 고르지 않은 최신 보기도 다음이 없다
+    assert H.signal_pick(date(2026, 11, 2), date(2026, 11, 2), date(2026, 11, 2), date(2026, 11, 3))["next_day"] is None
+    assert H.signal_pick(date(2026, 11, 2), None, date(2026, 11, 2), date(2026, 11, 3))["next_day"] is None
+
+
+def _stub_snapshots(monkeypatch, by_day, computed=None):
+    """날짜별 기록 합성 — load_snapshot 이 on 이전(포함) 가장 최근 줄을 돌려주는 규칙 그대로. 호출한 on 들을 모아 돌려준다."""
+    calls = []
+
+    async def load(db, symbol, on=None):
+        calls.append(on)
+        days = sorted(d for d in by_day if on is None or d <= on)
+        if not days:
+            return None
+        return {"symbol": symbol, "as_of": days[-1], "computed_at": (computed or {}).get(days[-1])}
+
+    def explain(s):
+        return {"as_of": s["as_of"].isoformat(), "signal": "매수", "strength": "보통", "confidence": 0.6, "definition": "d1",
+                "summary": "요약", "confidence_text": "c", "disclaimer": "고지", "reasons": [], "counter_reasons": []}
+    monkeypatch.setattr(signal_explain, "load_snapshot", load)
+    monkeypatch.setattr(signal_explain, "explain", explain)
+    monkeypatch.setattr(signal_explain, "side_counts", lambda s: {"buy": 0, "neutral": 0, "sell": 0, "components": []})
+    return calls
+
+
+def test_signal_section_carries_record_time_and_picked_day(monkeypatch):
+    """TC-HUB-67 · 신호 칸에 계산 시각 · 정기/늦게 계산 · 지금 보이는 날의 앞/다음 거래일이 실리고, 날짜를 고르면(signal_on) 그날 줄이 나오고
+    그날 줄이 없어 앞 날짜가 나오면 fell_back + 안내 글 · 고르기 자료(requested_on · max_on · latest_as_of)가 있다."""
+    d29, d30, d02 = date(2026, 10, 29), date(2026, 10, 30), date(2026, 11, 2)
+    calls = _stub_snapshots(monkeypatch, {d29: 1, d30: 1, d02: 1},
+                            {d29: _kst_at(2026, 10, 30, 12, 59), d30: _kst_at(2026, 11, 5, 9, 20), d02: _kst_at(2026, 11, 3, 12, 59)})
+    today = date(2026, 11, 3)
+    latest = asyncio.run(H.signal(object(), "055550", True, today=today))["data"]
+    assert calls == [None] and latest["record_kind"] == "regular" and latest["computed_at"] == "2026-11-03 12:59"
+    assert (latest["picked"], latest["requested_on"], latest["fell_back"], latest["next_day"], latest["prev_day"]) == (False, None, False, None, "2026-10-30")
+    assert latest["max_on"] == "2026-11-03" and latest["latest_as_of"] == "2026-11-02" and "fell_back_note" not in latest
+    # 고른 날 줄이 있다 — 늦게 계산된 줄(10-30 줄은 11-05 에 계산됨)
+    sec = asyncio.run(H.signal(object(), "055550", True, on=d30, today=today))
+    d = sec["data"]
+    assert sec["as_of"] == "2026-10-30" and d["record_kind"] == "late" and d["lag_days"] == 3 and d["computed_at"] == "2026-11-05 09:20"
+    assert (d["picked"], d["requested_on"], d["fell_back"]) == (True, "2026-10-30", False)
+    assert (d["prev_day"], d["next_day"], d["latest_as_of"]) == ("2026-10-29", "2026-11-02", "2026-11-02")      # 다음 거래일은 주말을 건너뜀
+    # 고른 날 줄이 없어(주말) 앞 날짜가 나옴 — 숨기지 않고 알린다
+    fb = asyncio.run(H.signal(object(), "055550", True, on=date(2026, 11, 1), today=today))
+    assert fb["as_of"] == "2026-10-30" and fb["data"]["fell_back"] is True and fb["data"]["requested_on"] == "2026-11-01"
+    assert fb["data"]["fell_back_note"] == "11-01 은 신호 기록이 없어 그 앞 가장 가까운 날(10-30)의 기록을 보여 드립니다."
+    # 오늘을 고르면(아직 오늘 기록 없음) 가장 최근 줄 · 다음 거래일 없음
+    td = asyncio.run(H.signal(object(), "055550", True, on=today, today=today))
+    assert td["as_of"] == "2026-11-02" and td["data"]["fell_back"] is True and td["data"]["next_day"] is None
+    # 계산 시각이 없는 옛 줄 — 모름 (지어내지 않는다)
+    _stub_snapshots(monkeypatch, {d30: 1})
+    old = asyncio.run(H.signal(object(), "055550", True, today=today))["data"]
+    assert (old["record_kind"], old["computed_at"], old["lag_days"]) == ("unknown", None, None)
+
+
+def test_signal_section_before_first_record_keeps_the_picker(monkeypatch):
+    """TC-HUB-68 · 고른 날 이전에 기록이 하나도 없으면 빈 칸 + 날짜를 다시 고를 자료(requested_on · next_day) — 막다른 길이 아니다.
+    기록이 아예 없으면 평소 안내(자료 없음)."""
+    _stub_snapshots(monkeypatch, {date(2026, 10, 30): 1, date(2026, 11, 2): 1})
+    today = date(2026, 11, 3)
+    sec = asyncio.run(H.signal(object(), "055550", True, on=date(2026, 10, 20), today=today))
+    assert sec["status"] == H.EMPTY and "10-20" in sec["reason"] and "신호 기록이 없습니다" in sec["reason"]
+    d = sec["data"]
+    assert (d["requested_on"], d["picked"], d["prev_day"], d["latest_as_of"], d["max_on"]) == ("2026-10-20", True, None, "2026-11-02", "2026-11-03")
+    assert d["next_day"] == "2026-10-21"
+    _stub_snapshots(monkeypatch, {})
+    none = asyncio.run(H.signal(object(), "000660", False, on=date(2026, 10, 20), today=today))
+    assert none["status"] == H.EMPTY and none["reason"] == H.SIGNAL_NOT_UNIVERSE and none["data"] is None
+
+
+def test_bundle_passes_signal_on_and_rejects_future(monkeypatch):
+    """TC-HUB-69 · 묶음이 signal_on 을 신호 칸에 넘기고, 오늘보다 뒤 날짜는 422(조용히 최신으로 바꾸지 않음) · VERSION 은 4 이상."""
+    _stub_sections(monkeypatch)
+    seen = []
+
+    async def sig(db, sym, uni, on=None, today=None):
+        seen.append((on, today))
+        return H.section("signal", H.OK, as_of="2026-10-16")
+    monkeypatch.setattr(H, "signal", sig)
+    asyncio.run(H.bundle(object(), "055550", sections="signal", today=TODAY, signal_on=date(2026, 10, 15)))
+    assert seen == [(date(2026, 10, 15), TODAY)]
+    asyncio.run(H.bundle(object(), "055550", sections="signal", today=TODAY, signal_on=TODAY))      # 오늘은 된다
+    with pytest.raises(H.HubError) as e:
+        asyncio.run(H.bundle(object(), "055550", sections="signal", today=TODAY, signal_on=date(2026, 10, 18)))
+    assert e.value.status == 422 and e.value.code == "bad_signal_on"
+    assert H.VERSION >= 4
+
+
+def test_hub_endpoint_signal_on(client, monkeypatch):
+    """TC-HUB-70 · GET /api/stock-hub?signal_on= — 날짜는 신호 칸에 넘어가고 · 형식 오류 · 미래 날짜는 422 · 비우면 None."""
+    seen = []
+
+    async def sig(db, sym, uni, on=None, today=None):
+        seen.append(on)
+        return H.section("signal", H.OK, as_of="2026-10-16")
+    monkeypatch.setattr(H, "signal", sig)
+    assert client.get("/api/stock-hub?symbol=055550&sections=signal").status_code == 200 and seen[-1] is None
+    assert client.get("/api/stock-hub?symbol=055550&sections=signal&signal_on=2026-10-15").status_code == 200 and seen[-1] == date(2026, 10, 15)
+    assert client.get("/api/stock-hub?symbol=055550&sections=signal&signal_on=2026-13-40").status_code == 422
+    assert client.get("/api/stock-hub?symbol=055550&sections=signal&signal_on=가나다").status_code == 422
+    future = client.get("/api/stock-hub?symbol=055550&sections=signal&signal_on=2099-01-01")
+    assert future.status_code == 422 and future.json()["detail"]["code"] == "bad_signal_on"

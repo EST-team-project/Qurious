@@ -29,3 +29,48 @@
   #sr-root td[data-label="주문"] { justify-content: flex-end; }
   #sr-root td[data-label="주문"]::before { content: none; }
 }
+
+/* 종목 검색 줄(2026-11-03) — 표 위에 한 번 붙는다. 좁은 화면에서는 입력칸이 한 줄을 다 쓰고 단추가 아래로 내려간다. */
+#sr-find { margin: 0 0 12px; }
+#sr-find .sr-find-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; align-items: center; }
+#sr-find .sr-find-input { flex: 1 1 14rem; min-width: 0; }
+
+/* 퀀트 대시보드(2026-11-03) — 종목 검색 줄 · 신호 글자 칩 · 오름 빨강 / 내림 파랑(종목 근거 창과 같은 우리 시장 관례). 이름은 qd- 로 시작한다. */
+.qd-find { margin: 0 0 12px; }
+.qd-find .qd-find-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; align-items: center; }
+.qd-find .qd-find-input { flex: 1 1 14rem; min-width: 0; }
+.qd-up { color: #dc2626; }
+.qd-dn { color: #2563eb; }
+.qd-chip { display: inline-block; padding: 1px 8px; border: 1px solid var(--border, #dde2ec); border-radius: 999px; background: var(--surf, #fff); color: var(--text, #0f172a); font-weight: 700; }
+
+/* 퀀트 대시보드 — 선택 종목 신호 띠 · 관찰 목록 표(2026-11-03). 표는 신호 순위 표와 같은 꼴, 640px 이하에서는 줄마다 카드로 바뀐다. */
+.qd-strip { margin: 0 0 10px; padding: 8px 12px; border: 1px solid var(--border, #dde2ec); border-radius: 10px; background: var(--surf2, #f0f3f8); font-size: 13px; }
+.qd-strip:empty { display: none; }
+.qd-strip-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 2px 0; }
+.qd-strip-k { flex: none; font-size: 12px; font-weight: 700; color: var(--text-mute, #5b6b82); min-width: 11.5rem; }
+.qd-table-wrap { overflow-x: auto; }
+.qd-watch table { width: 100%; border-collapse: collapse; }
+.qd-watch th, .qd-watch td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border, #dde2ec); }
+.qd-watch th { font-size: 12px; font-weight: 700; color: var(--text-mute, #5b6b82); background: var(--surf2, #f0f3f8); white-space: nowrap; }
+.qd-watch tbody tr[data-qd-pick] { cursor: pointer; }
+.qd-watch tbody tr[data-qd-pick]:hover { background: var(--surf2, #f0f3f8); }
+.qd-watch tbody tr.qd-sel { box-shadow: inset 3px 0 0 var(--accent, #2563eb); background: var(--surf2, #f0f3f8); }
+.qd-watch tbody tr:focus-visible { outline: 2px solid var(--accent, #2563eb); outline-offset: -2px; }
+@media (max-width: 640px) {
+  .qd-strip-k { min-width: 0; flex: 1 0 100%; }
+  .qd-watch table, .qd-watch tbody, .qd-watch tr, .qd-watch td { display: block; width: 100%; }
+  .qd-watch thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .qd-watch tbody tr { margin: 0 0 10px; padding: 4px 12px; border: 1px solid var(--border, #dde2ec); border-radius: 10px; background: var(--surf, transparent); }
+  .qd-watch td { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 0; text-align: right; }
+  .qd-watch td + td { border-top: 1px solid var(--border, #dde2ec); }
+  .qd-watch td::before { content: attr(data-label); flex: none; font-size: 12px; font-weight: 700; color: var(--text-mute, #5b6b82); text-align: left; }
+  .qd-watch td[data-label="종목"] { font-weight: 700; }
+  .qd-watch td[data-label="근거 열기"] { justify-content: flex-end; }
+  .qd-watch td[data-label="근거 열기"]::before { content: none; }
+}
+
+/* 퀀트 대시보드 차트(Lightweight Charts) — 칸 높이를 미리 정해 두어야 차트가 그 높이로 그려진다. 범례는 글 옆 색 점. */
+.qd-chart { height: 380px; width: 100%; position: relative; }
+.qd-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 6px; }
+.qd-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+#quant-ext-chart[hidden], #quant-ext-note[hidden] { display: none !important; }

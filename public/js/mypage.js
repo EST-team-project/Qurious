@@ -12,13 +12,14 @@
  *    화면 검사는 편의일 뿐이고, 같은 검사를 서버가 다시 한다.
  *  - 이름 · 이메일은 textContent 로만 넣는다 — 사용자가 넣은 글자가 HTML 로 해석되지 않게(XSS).
  *  - 구역 목록 + 본문 (2026-10-29 · 설계 v0.1 ㉯ · 1차): 내 정보 · 보안 · 증권사 연동 · 알림 · 외부 연동 · 화면 설정 · 위험 구역.
- *    구역 본문은 app.html 의 정적 HTML 이다. 증권사 설정 본체는 이 화면에 두고 알림 · 외부 연동은 요약 + 링크
- *    — 기존 입력 ID와 #settings 주소를 보존한다.
+ *    구역 본문은 app.html 의 정적 HTML 이다. 증권사 · 알림(2026-11-03 ②-31) · 외부 연동(Open API · S195) 설정 본체가 모두 이 화면의 구역 안에 있다
+ *    — 기존 입력 ID와 #settings · #notification-settings · #paper-openapi 주소를 보존한다(MYPAGE_HOSTED).
  */
 import { api, escHtml, setToast } from "/js/common.js";
 import { getTermView, setTermView, TERM_VIEWS } from "/js/termcard.js";
 import { loadSettings, loadNotificationSettings } from "/js/settings.js";
 import { MYPAGE_HOSTED } from "/js/viewalias.js";
+import { loadPaperOpenApi } from "/js/paper.js";
 import { readRiskProfile } from "/js/riskprofile.js";
 import { attachPasswordToggle } from "/js/pwtoggle.js";
 
@@ -46,6 +47,8 @@ function showSection(key, { openBody = true } = {}) {
   currentSection = key;
   if (key === "broker") loadSettings();
   if (key === "notify") loadNotificationSettings();   // 알림 설정 본체가 이 구역 안에 있다(2026-11-03 · ②-31)
+  if (key === "external") loadPaperOpenApi();   // Open API 키 · 엔드포인트 문서 본체가 이 구역 안에 있다(2026-11-03 · S195)
+  else { const nk = document.getElementById("po-new-key"); if (nk) nk.innerHTML = ""; }   // 다른 구역으로 가면 한 번 보여 준 새 키 원문을 DOM 에서도 치운다(보안 검수 S195)
   const risk = readRiskProfile();
   $("mp-risk-summary").textContent = risk ? `최근 진단: ${risk.level} (${risk.score}점)` : "이 브라우저에 저장된 현재 계정의 진단 결과가 없습니다.";
   document.querySelectorAll(".mp-sec").forEach(el => el.classList.toggle("active", el.dataset.mpSec === key));
