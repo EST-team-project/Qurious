@@ -1,6 +1,6 @@
 """실제 PostgreSQL 선점/추적과 HTTP 계약. 증권사·알림은 합성 대역이다."""
 import asyncio
-from datetime import datetime as RealDatetime, timezone
+from datetime import datetime as RealDatetime, timedelta, timezone
 import json
 import os
 from types import SimpleNamespace
@@ -215,7 +215,8 @@ def test_unconfirmed_or_unsafe_state_never_sends(runtime, monkeypatch, caplog, c
             if case in ("count", "cooldown"):
                 db.add(OrderIntent(intent_id=uuid.uuid4().hex, user_id=uid, account_ref=account(uid), book="KIS",
                     strategy_id="other", strategy_version=1, symbol="005930.KS", side="BUY", source="test",
-                    input_hash="test", status="filled", result={}))
+                    input_hash="test", status="filled", result={},
+                    created_at=manual.control.datetime.now(timezone.utc)-timedelta(minutes=1)))
             await db.commit()
         if case == "db": monkeypatch.setattr(manual, "get_session_factory", lambda: (_ for _ in ()).throw(RuntimeError(SECRET)))
         result = await manual.submit(uid, **body)
