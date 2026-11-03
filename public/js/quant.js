@@ -267,7 +267,8 @@ async function qdWatchRun() {
   try {
     const { stocks } = await qdWatchList();
     if (mine !== qdWatchSeq) return;
-    const codes = stocks.map(s => qdCodeOf(s.symbol)).filter(c => /^[0-9A-Z]{6}$/.test(c));
+    // 신호 순위 API 는 한 번에 최대 100종목 — 관찰 목록이 늘어도 요청이 422 로 실패하지 않게 앞 100개만 읽는다(S196 후속 점검)
+    const codes = stocks.map(s => qdCodeOf(s.symbol)).filter(c => /^[0-9A-Z]{6}$/.test(c)).slice(0, 100);
     if (!codes.length) {                                                              // 읽을 국내 코드가 없으면 서버에 빈 목록을 보내지 않는다
       qdRankByCode.clear();
       host.textContent = "관찰 목록에 신호 기록을 읽을 수 있는 국내 종목(6자리 코드)이 없습니다.";

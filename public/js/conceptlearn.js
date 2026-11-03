@@ -524,9 +524,19 @@ async function renderPage(el, slug, h) {
   else document.getElementById("main-content")?.scrollTo(0, 0);   // 굴러가는 칸은 창이 아니라 #main-content(DF-134)
 }
 
+/**
+ * `09:00~15:30` · `5%~10%` 처럼 숫자 범위에 쓴 `~` 를 취소선으로 읽지 않게 한다(GFM 은 한 문단에 `~` 가 둘 이상이면 그 사이를 취소선으로 그린다 —
+ * 2026-11-03 학습 장을 쓰며 발견). 코드 블록 · 인라인 코드 안은 그대로 두고, 숫자(또는 % · 원 · 닫는 괄호) 바로 뒤 · 숫자 바로 앞의 `~` 만 `\~` 로 막는다.
+ */
+function protectRangeTilde(md) {
+  return String(md || "").split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((seg, i) => (i % 2 ? seg : seg.replace(/([0-9%원)])~(?=[0-9])/g, "$1\\~")))
+    .join("");
+}
+
 function drawMarkdown(md, el) {
   const parse = window.marked.parse || window.marked.marked;
-  const raw = parse(md, { gfm: true });
+  const raw = parse(protectRangeTilde(md), { gfm: true });
   el.innerHTML = window.DOMPurify.sanitize(raw, {
     USE_PROFILES: { html: true, svg: true, svgFilters: true },
     FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select"],
