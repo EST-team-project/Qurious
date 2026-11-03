@@ -6,12 +6,43 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import uuid
 
+import httpx
 import pytest
 from sqlalchemy import select
 from app.models import BrokerSettings, BrokerPositionBaseline, LiveOrder
 from scripts import kis_recovery_session as session
 from test_kis_connection_probe import runtime  # noqa: F401
 from test_kis_order_recovery import env, setup  # noqa: F401
+
+
+@pytest.mark.parametrize('method,status,retries', [
+    ('GET', 500, True), ('GET', 503, True), ('GET', 429, True),
+    ('GET', 401, False), ('GET', 400, False), ('POST', 500, False),
+])
+def test_only_transient_get_failure_is_retried(monkeypatch, method, status, retries):
+    request = httpx.Request(method, 'https://broker.invalid/read')
+    error = httpx.HTTPStatusError('synthetic', request=request, response=httpx.Response(status, request=request))
+    call = AsyncMock(side_effect=[error, {'ok': True}])
+    sleep = AsyncMock()
+    monkeypatch.setattr(session.asyncio, 'sleep', sleep)
+    if retries:
+        assert asyncio.run(session.read(call)) == {'ok': True}
+        assert call.await_count == 2
+        sleep.assert_awaited_once_with(2)
+    else:
+        with pytest.raises(httpx.HTTPStatusError): asyncio.run(session.read(call))
+        assert call.await_count == 1
+        sleep.assert_not_awaited()
+
+
+def test_unavailable_get_stops_after_three_reads(monkeypatch):
+    error = httpx.ReadTimeout('synthetic', request=httpx.Request('GET', 'https://broker.invalid/read'))
+    call = AsyncMock(side_effect=error)
+    sleep = AsyncMock()
+    monkeypatch.setattr(session.asyncio, 'sleep', sleep)
+    with pytest.raises(httpx.ReadTimeout): asyncio.run(session.read(call))
+    assert call.await_count == 3
+    assert [x.args[0] for x in sleep.await_args_list] == [2, 4]
 
 
 @pytest.mark.parametrize('minute,allowed', [(9, False), (10, True), (11, True), (12, False), (40, False)])
@@ -24,6 +55,34 @@ def test_only_scheduled_start_window(monkeypatch, minute, allowed):
     else:
         with pytest.raises(ValueError): session.start_window({'day': '2026-11-03'})
     with pytest.raises(ValueError): session.start_window({'day': '2026-11-02'})
+
+
+@pytest.mark.parametrize('day,hour,minute,second,allowed', [
+    (3, 8, 59, 59, False), (3, 9, 0, 0, True), (3, 9, 20, 0, True),
+    (3, 14, 30, 0, True), (3, 14, 30, 1, False), (3, 15, 0, 0, False),
+    (4, 9, 20, 0, False),
+])
+def test_manual_start_preserves_day_and_cleanup_deadline(monkeypatch, day, hour, minute, second, allowed):
+    current = datetime(2026, 11, day, hour, minute, second, tzinfo=session.recovery.control.KST)
+    monkeypatch.setattr(session, 'now', lambda: current)
+    checked = []
+    monkeypatch.setattr(session.recovery, 'check_window', checked.append)
+    config = {'day': '2026-11-03'}
+    if allowed:
+        assert session.start_window(config, start_now=True) == current + timedelta(minutes=50)
+        assert checked == [current.date()]
+    else:
+        with pytest.raises(ValueError): session.start_window(config, start_now=True)
+        assert not checked
+
+
+def test_manual_start_does_not_bypass_market_calendar(monkeypatch):
+    monkeypatch.setattr(session, 'now', lambda: datetime(2026, 11, 3, 9, 20, tzinfo=session.recovery.control.KST))
+    def reject(day):
+        raise session.recovery.control.Rejected('OUTSIDE_WINDOW', 'unverified')
+    monkeypatch.setattr(session.recovery, 'check_window', reject)
+    with pytest.raises(session.recovery.control.Rejected):
+        session.start_window({'day': '2026-11-03'}, start_now=True)
 
 
 @pytest.fixture
@@ -72,6 +131,76 @@ def test_one_attempt_then_replay_never_submits_again(flow, tmp_path):
         assert session.manual.submit.await_count == session.trial.run.await_count == 1
         assert session.account.call_args.kwargs['trial_quantity'] == 0
         assert json.loads(next(tmp_path.glob('*.json')).read_text())['status'] == 'passed'
+    asyncio.run(scenario())
+
+
+def test_manual_start_shares_scheduled_attempt_and_preserves_wait(flow, tmp_path):
+    config, state, clock = flow
+    clock[0] += timedelta(minutes=10)
+    state['created_at'] = clock[0].isoformat()
+    async def scenario():
+        result = await session.run(config, tmp_path, start_now=True)
+        assert result['status'] == 'passed' and result['start_mode'] == 'manual'
+        assert clock[0] >= datetime.fromisoformat(state['created_at']) + timedelta(minutes=30)
+        assert (await session.run(config, tmp_path))['status'] == 'already_started'
+        assert (await session.run(config, tmp_path, start_now=True))['status'] == 'already_started'
+        assert session.manual.submit.await_count == session.trial.run.await_count == 1
+    asyncio.run(scenario())
+
+
+def test_broker_reads_and_submission_stages_are_spaced(flow, tmp_path):
+    config, _, clock = flow
+    last = [clock[0]]
+    prices = iter([70000, 70100])
+    async def quote(*args):
+        last[0] = clock[0]
+        return next(prices)
+    async def account(*args, **kwargs):
+        last[0] = clock[0]
+        return {'protected_quantity': 1, 'trial_quantity': kwargs.get('trial_quantity', 1)}
+    def spaced(original):
+        async def call(*args, **kwargs):
+            assert (clock[0] - last[0]).total_seconds() >= 1.1
+            last[0] = clock[0]
+            return await original(*args, **kwargs)
+        return call
+    async def cancel(*args): return {'status': 'ACCEPTED'}
+    session.quote.side_effect = quote
+    session.account.side_effect = account
+    session.manual.submit.side_effect = spaced(session.manual.submit.side_effect)
+    session.recovery.cancel.side_effect = spaced(cancel)
+    session.trial.run.side_effect = spaced(session.trial.run.side_effect)
+    assert asyncio.run(session.run(config, tmp_path))['status'] == 'passed'
+
+
+@pytest.mark.parametrize('previous', [None, 'started', 'needs_review', 'passed', 'not_executed'])
+def test_additional_attempt_requires_completed_early_fill(flow, tmp_path, previous):
+    config, _, _ = flow
+    base = tmp_path / f"session-{config['user_id']}-{config['day']}.json"
+    if previous: base.write_text(json.dumps({'status': previous}))
+    with pytest.raises(ValueError):
+        asyncio.run(session.run(config, tmp_path, start_now=True, additional_attempt=True))
+    session.manual.submit.assert_not_awaited()
+
+
+def test_only_one_explicit_additional_attempt_preserves_first_record(flow, tmp_path):
+    config, _, _ = flow
+    base = tmp_path / f"session-{config['user_id']}-{config['day']}.json"
+    first = json.dumps({'status': 'parent_filled_without_retry', 'original_evidence': 'keep'})
+    base.write_text(first)
+    session.quote.side_effect = [70000, 70200]
+    with pytest.raises(ValueError):
+        asyncio.run(session.run(config, tmp_path, additional_attempt=True))
+    async def scenario():
+        result = await session.run(config, tmp_path, start_now=True, additional_attempt=True)
+        assert result['status'] == 'passed' and result['parent_price'] == 70200
+        assert result['additional_attempt']
+        original_key = uuid.uuid5(uuid.NAMESPACE_URL, f"qurious:c5-session:{config['user_id']}:{config['day']}")
+        assert result['request_id'] != str(original_key)
+        assert base.read_text() == first
+        assert (await session.run(config, tmp_path, start_now=True, additional_attempt=True))['status'] == 'already_started'
+        assert (await session.run(config, tmp_path))['status'] == 'already_started'
+        assert session.manual.submit.await_count == session.trial.run.await_count == 1
     asyncio.run(scenario())
 
 
@@ -135,6 +264,7 @@ def test_abandoned_attempt_never_restarts_trading(flow, tmp_path):
     path = tmp_path / f"session-{config['user_id']}-{config['day']}.json"
     path.write_text(json.dumps({'status': 'parent_sending'}))
     assert asyncio.run(session.run(config, tmp_path))['status'] == 'already_started'
+    assert asyncio.run(session.run(config, tmp_path, start_now=True))['status'] == 'already_started'
     session.account.assert_not_awaited()
     session.manual.submit.assert_not_awaited()
 
