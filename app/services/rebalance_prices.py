@@ -5,7 +5,7 @@ from contextlib import closing
 import math
 import re
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app.services import collector_db, collector_status, rebalance_schedule as schedule
 
@@ -16,6 +16,36 @@ class PriceUnavailable(ValueError):
 
 class OpenNotTradable(PriceUnavailable):
     """완료된 거래일에 체결할 원시 시가가 없다는 근거가 확인됨."""
+
+
+def target_metadata(symbols, *, as_of: date | None = None) -> dict:
+    """플랜 저장용 국내 종목 식별 정보. 가격·거래 가능 여부를 보증하지 않는다."""
+    path = collector_db.db_path()
+    if path is None:
+        return {}
+    cutoff = (as_of or datetime.now(collector_db.KST).date()).strftime('%Y%m%d')
+    suffixes = {'KOSPI': 'KS', 'KOSDAQ': 'KQ', 'KONEX': 'KN'}
+    result = {}
+    try:
+        with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)) as conn:
+            conn.execute('BEGIN')
+            for raw in set(symbols):
+                match = re.fullmatch(r'([0-9A-Z]{6})(?:\.(?:KS|KQ|KN))?', raw.upper())
+                if not match:
+                    continue
+                code = match.group(1)
+                row = conn.execute(
+                    "SELECT itms_nm,mrkt_ctg FROM price_daily WHERE srtn_cd=? AND bas_dt<=? "
+                    "ORDER BY bas_dt DESC LIMIT 1", (code, cutoff)).fetchone()
+                if row is None:
+                    row = conn.execute(
+                        "SELECT itms_nm,'KOSPI' FROM etf_daily WHERE srtn_cd=? AND bas_dt<=? "
+                        "ORDER BY bas_dt DESC LIMIT 1", (code, cutoff)).fetchone()
+                if row and row[0] and row[1] in suffixes:
+                    result[raw] = {'symbol': f'{code}.{suffixes[row[1]]}', 'name': row[0]}
+    except (sqlite3.Error, OSError) as exc:
+        raise PriceUnavailable('수집 DB의 목표 종목 정보를 확인할 수 없습니다.') from exc
+    return result
 
 
 def collection_complete(conn, code, day):
