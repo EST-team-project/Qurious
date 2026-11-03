@@ -49,7 +49,7 @@ def test_notes_say_source_limits_and_how_orders_fill(tmp_path):
     assert "서버" not in s + o and "DB" not in s + o                      # 화면 글에 개발 티가 나는 말을 쓰지 않는다(규칙 L317)
 
 
-def test_notes_match_what_the_server_really_does():
+def test_notes_match_what_the_server_really_does(monkeypatch):
     """TC-CRY-02 — 글이 지어낸 말이 아니다: 코인 체결 코드에 수수료 · 슬리피지가 없고, 시세 저장은 5초이며, 실패하면 마지막 값을 돌려준다."""
     buy = SERVICE[SERVICE.index("async def crypto_buy("):SERVICE.index("async def crypto_sell(")]
     sell = SERVICE[SERVICE.index("async def crypto_sell("):SERVICE.index("async def crypto_history(")]
@@ -58,8 +58,25 @@ def test_notes_match_what_the_server_really_does():
         assert "upbit_trade_price" in body                                   # 위 현재가 그대로
     assert "account.cash = float(account.cash - buy_krw)" in buy and "proceeds = round(price * sell_count)" in sell
     assert "_UPBIT_TICKER_TTL = 5" in SERVICE
-    tick = SERVICE[SERVICE.index("async def upbit_tickers("):SERVICE.index("async def upbit_trade_price(")]
-    assert 'entry["ts"] <= 300' in tick and "snapshot_pricing.evidence" in tick  # 오래된 체결 시세는 재사용하지 않는다
+    # #371 후속: 변수 이름이나 부등호 표현 대신 실제 캐시 만료와 시세 근거를 검증한다.
+    import asyncio
+    from unittest.mock import AsyncMock
+    from app.services import paper_trading as pt
+
+    now = datetime.now(timezone.utc).timestamp()
+    monkeypatch.setattr(pt.time, "time", lambda: now)
+    client = AsyncMock()
+    client.__aenter__.return_value = client
+    client.get.side_effect = RuntimeError("offline")
+    monkeypatch.setattr(pt.httpx, "AsyncClient", lambda **kwargs: client)
+    fresh = datetime.fromtimestamp(now, timezone.utc).isoformat()
+    for age, as_of, expected in ((300, fresh, 1), (301, fresh, 0), (10, None, 0)):
+        monkeypatch.setattr(pt, "_UPBIT_TICKER_CACHE", {
+            "KRW-BTC": {"ts": now - age, "data": {
+                "market": "KRW-BTC", "price": 100, "as_of": as_of,
+            }},
+        })
+        assert len(asyncio.run(pt.upbit_tickers(["KRW-BTC"]))) == expected
 
 
 def test_chart_points_and_summary(tmp_path):
