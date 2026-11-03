@@ -1,9 +1,11 @@
 """ML 모델 비교 · 클러스터링 · 계절성 · 회귀 API."""
 import asyncio
 import math
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import Literal
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 import numpy as np
 from app.lib.session import get_current_user
@@ -22,6 +24,8 @@ from app.database.postgres import get_pg_session
 from app.services.asset_allocation import asset_allocation, rebalance_draft
 from app.services.allocation_store import save_result, load_result
 from app.services.allocation_prediction_view import allocation_view
+from app.services.allocation_models import ASSET_PROXIES, calculate_allocation
+from app.services.allocation_data import read_proxy_candles
 
 router = APIRouter(prefix="/api/ml")
 
@@ -66,10 +70,36 @@ class ClusterBody(BaseModel):
     period:  str = "2y"
 
 
+AssetClass = Literal["국내주식", "해외주식", "국내채권", "대체자산"]
+
+
+class AllocationViewBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    asset: AssetClass
+    relative_to: AssetClass
+    outperformance_pct: float = Field(ge=-50, le=50, allow_inf_nan=False)
+    confidence_pct: float = Field(default=50, ge=0, le=99, allow_inf_nan=False)
+
+
 class RoboAllocationBody(BaseModel):
     risk_profile: str = "moderate"  # conservative | moderate | aggressive
     horizon_years: int = 3
     amount_manwon: int = 5000
+    allocation_model: Literal["profile", "risk_parity", "minimum_variance", "black_litterman", "regime"] = "profile"
+    views: list[AllocationViewBody] = Field(default_factory=list, max_length=6)
+    benchmark_weights: dict[str, float] | None = None
+
+    @model_validator(mode="after")
+    def validate_model_inputs(self):
+        if self.allocation_model != "black_litterman" and (self.views or self.benchmark_weights is not None):
+            raise ValueError("투자자 전망과 기준 비중은 Black–Litterman에서만 사용합니다.")
+        pairs = set()
+        for view in self.views:
+            pair = frozenset((view.asset, view.relative_to))
+            if view.asset == view.relative_to or pair in pairs:
+                raise ValueError("전망은 서로 다른 자산군 쌍마다 한 번만 입력하세요.")
+            pairs.add(pair)
+        return self
 
 
 class AllocationWeightsResponse(BaseModel):
@@ -157,6 +187,26 @@ async def robo_allocation(
     amount = max(100, int(body.amount_manwon))
 
     alloc = asset_allocation(risk, horizon)
+    asset_model = None
+    if body.allocation_model != "profile":
+        # 당일 진행 중인 봉은 제외한다. 모델의 실제 공통 기준일은 결과에 별도 표시한다.
+        cutoff = (datetime.now(ZoneInfo("Asia/Seoul")).date() - timedelta(days=1)).isoformat()
+        async def proxy_prices_for(symbol):
+            local = await asyncio.to_thread(read_proxy_candles, symbol)
+            return local if local is not None else await get_candles(symbol, period="3y", interval="1d")
+
+        proxy_prices = await asyncio.gather(*(proxy_prices_for(proxy["symbol"]) for proxy in ASSET_PROXIES.values()))
+        inputs = [{"symbol": asset, "candles": data.get("candles", [])}
+                  for asset, data in zip(ASSET_PROXIES, proxy_prices)]
+        try:
+            asset_model = await asyncio.to_thread(
+                calculate_allocation, body.allocation_model, inputs, alloc, as_of=cutoff,
+                views=[v.model_dump() for v in body.views], benchmark=body.benchmark_weights)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        alloc = asset_model["allocations"]
+        asset_model["data_sources"] = {asset: data.get("source", "unknown")
+                                      for asset, data in zip(ASSET_PROXIES, proxy_prices)}
 
     # 유니버스 전체(~30종목)를 동시 스캔해 과거 성과(샤프비율) + AI 학습 기반
     # 예측 수익률(Ridge 회귀, 피처 엔지니어링)을 함께 스코어링한다.
@@ -305,6 +355,8 @@ async def robo_allocation(
         "stock_picks": stock_picks,
         "projections": projections,
         "optimization": optimized,
+        "allocation_model": body.allocation_model,
+        "asset_model": asset_model,
     }
     # 화면 종목 비중도 가져오기와 같은 합계·반올림 규칙을 사용한다.
     draft = rebalance_draft(result)

@@ -4,6 +4,9 @@ import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/
 import { navigate, tt } from "/js/core.js";
 import { setRiskProfileUser, riskProfileContext, readRiskProfile, saveRiskProfile, hasLegacyRiskProfile } from "/js/riskprofile.js";
 import { latestCycleSignals, renderDecisionBasis } from "/js/decision-signals.js";
+import { initAllocationModels, allocationModelInput, restoreAllocationModel } from "/js/allocationmodels.js";
+
+initAllocationModels();
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
@@ -41,6 +44,7 @@ function renderXaiBlock(ex, { compact = false, probNote = false } = {}) {
 }
 
 function renderAllocation(data) {
+  restoreAllocationModel(data);
   const amount = data.amount_manwon;
   document.getElementById("robo-risk").value = data.risk_profile;
   document.getElementById("robo-horizon").value = data.horizon_years;
@@ -134,6 +138,9 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
   const horizon = parseInt(document.getElementById("robo-horizon").value);
   const amount = roboAmountOrNull();
   if (amount === null) return;
+  let modelInput;
+  try { modelInput = allocationModelInput(); }
+  catch (e) { setToast(e.message, "error"); return; }
   const optimizeBtn = document.getElementById("robo-optimize-btn");
   const originalBtnText = optimizeBtn.textContent;
   optimizeBtn.disabled = true;
@@ -142,7 +149,7 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
   try {
     const data = await api("/api/ml/robo/allocation", {
       method: "POST",
-      body: { risk_profile: profile, horizon_years: horizon, amount_manwon: amount },
+      body: { risk_profile: profile, horizon_years: horizon, amount_manwon: amount, ...modelInput },
     });
     renderAllocation(data);
   } catch (e) {
