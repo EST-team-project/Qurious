@@ -30,7 +30,7 @@ def runtime(monkeypatch):
         @classmethod
         def now(cls, tz=None):
             current = cls.fromtimestamp(RealDatetime.now().timestamp(), tz or probe.control.KST)
-            return current.replace(hour=1 if tz == timezone.utc else 10, minute=0, second=0)
+            return current.replace(hour=1 if tz == timezone.utc else 10, minute=0, second=0, microsecond=0)
     monkeypatch.setattr(probe, "datetime", Clock)
     monkeypatch.setattr(probe.control, "datetime", Clock)
     today = RealDatetime.now(probe.control.KST).date().isoformat()

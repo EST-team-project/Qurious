@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     html = re.sub(r"<script\b[^>]*>.*?</script>", "", (ROOT / "public/app.html").read_text(), flags=re.S)
     common = """
+export * from '/js/common-actual.js';
 export const api = async (url, opts={}) => {
  window.calls.push({url,...opts});
  if(url==='/api/quant/settings') {
@@ -32,8 +33,10 @@ export const fmtPct=fmt; export const colorPct=()=>'';
             path = route.request.url.removeprefix("http://qurious.test")
             if path == "/": route.fulfill(body=html, content_type="text/html")
             elif path == "/js/common.js": route.fulfill(body=common, content_type="text/javascript")
-            elif path == "/js/settings.js":
-                route.fulfill(body=(ROOT / "public/js/settings.js").read_text(), content_type="text/javascript")
+            elif path == "/js/common-actual.js":
+                route.fulfill(body=(ROOT / "public/js/common.js").read_text(), content_type="text/javascript")
+            elif path.startswith("/js/") and (ROOT / "public" / path.lstrip("/")).is_file():
+                route.fulfill(body=(ROOT / "public" / path.lstrip("/")).read_text(), content_type="text/javascript")
             else: route.abort()
         page.route("**/*", serve)
         page.goto("http://qurious.test")

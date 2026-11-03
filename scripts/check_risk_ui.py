@@ -17,6 +17,7 @@ from app.services.risk_execution import execution_guidance  # noqa: E402
 def main():
     html = re.sub(r"<script\b[^>]*>.*?</script>", "", (ROOT / "public/app.html").read_text(), flags=re.S)
     common = """
+export * from '/js/common-actual.js';
 export const api = async (url, opts={}) => {
  window.calls.push({url,...opts});
  if(url==='/api/quant/risk/status') return window.risk;
@@ -40,10 +41,14 @@ export const fmt=s=>String(s??0); export const fmtPct=fmt; export const colorPct
                 route.fulfill(body=html, content_type="text/html")
             elif path == "/js/common.js":
                 route.fulfill(body=common, content_type="text/javascript")
+            elif path == "/js/common-actual.js":
+                route.fulfill(body=(ROOT / "public/js/common.js").read_text(), content_type="text/javascript")
             elif path == "/js/core.js":
-                route.fulfill(body="export const compareTrayAdd=()=>{}; export const renderCompareTrayAll=()=>{};", content_type="text/javascript")
-            elif path == "/js/quant.js":
-                route.fulfill(body=(ROOT / "public/js/quant.js").read_text(), content_type="text/javascript")
+                route.fulfill(body="export * from '/js/core-actual.js'; export const compareTrayAdd=()=>{}; export const renderCompareTrayAll=()=>{};", content_type="text/javascript")
+            elif path == "/js/core-actual.js":
+                route.fulfill(body=(ROOT / "public/js/core.js").read_text(), content_type="text/javascript")
+            elif path.startswith("/js/") and (ROOT / "public" / path.lstrip("/")).is_file():
+                route.fulfill(body=(ROOT / "public" / path.lstrip("/")).read_text(), content_type="text/javascript")
             else:
                 route.abort()
         page.route("**/*", serve)
