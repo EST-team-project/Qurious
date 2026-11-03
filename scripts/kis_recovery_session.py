@@ -164,24 +164,32 @@ def start_window(config, *, start_now=False):
     return datetime.combine(day, time(10), recovery.control.KST)
 
 
-async def run(config, directory, *, start_now=False):
+async def run(config, directory, *, start_now=False, additional_attempt=False):
     uid = uuid.UUID(config['user_id'])
     directory = Path(directory)
-    request_id = uuid.uuid5(uuid.NAMESPACE_URL, f"qurious:c5-session:{uid}:{config['day']}")
-    path = directory / f"session-{uid}-{config['day']}.json"
-    with trial.locked(path):
+    base = directory / f"session-{uid}-{config['day']}.json"
+    suffix = ':additional' if additional_attempt else ''
+    request_id = uuid.uuid5(uuid.NAMESPACE_URL, f"qurious:c5-session:{uid}:{config['day']}{suffix}")
+    path = base.with_stem(base.stem + '-additional') if additional_attempt else base
+    with trial.locked(base):
         if path.exists():
             return {'status': 'already_started', 'previous': json.loads(path.read_text())['status']}
+        if additional_attempt:
+            if not start_now or not base.exists() or json.loads(base.read_text())['status'] != 'parent_filled_without_retry':
+                raise ValueError('첫 시험이 선체결로 끝난 뒤 사용자가 승인한 수동 추가 시험 1회만 가능합니다.')
         deadline = start_window(config, start_now=start_now)
         await account(uid, config)
         record = {'status': 'started', 'day': config['day'], 'request_id': str(request_id),
-                  'started_at': now().isoformat(), 'start_mode': 'manual' if start_now else 'scheduled'}
+                  'started_at': now().isoformat(), 'start_mode': 'manual' if start_now else 'scheduled',
+                  'additional_attempt': additional_attempt}
         trial.write(path, record, exclusive=True)
         try:
             current = await quote(uid, config)
-            price = recovery.gateway.align_price_to_tick(current + recovery.gateway.tick_size(int(current)), 'sell')
+            ticks = 2 if additional_attempt else 1
+            price = recovery.gateway.align_price_to_tick(current + ticks * recovery.gateway.tick_size(int(current)), 'sell')
             record.update(status='parent_sending', parent_price=price)
             trial.write(path, record)
+            await recovery.pause()  # 마지막 시세 조회와 주문 준비의 잔고 조회를 띄운다.
             result = await manual.submit(uid, request_id=request_id, symbol=SYMBOL, side='sell', quantity=1, price=price)
             record['parent_result'] = {k: result.get(k) for k in ('status', 'code', 'intent_id')}
             parent, _ = await orders(uid, request_id)
@@ -189,6 +197,7 @@ async def run(config, directory, *, start_now=False):
                 raise ValueError('원 매도 접수 번호를 확인하지 못했습니다.')
             record.update(status='parent_cancelling', parent_id=str(parent.id))
             trial.write(path, record)
+            await recovery.pause()
             await recovery.cancel(uid, parent.id)
             state = await confirmed(uid, parent.id, 'CANCELLED', now() + timedelta(seconds=90))
             if state['status'] == 'FILLED':
@@ -216,6 +225,7 @@ async def run(config, directory, *, start_now=False):
             await account(uid, config)
             record['status'] = 'retry_sending'
             trial.write(path, record)
+            await recovery.pause()
             result = await trial.run(uid, parent.id, directory / 'restoration', execute=True)
             record['retry_result'] = {k: result.get(k) for k in ('status', 'code', 'intent_id', 'policy_restored')}
             _, child = await orders(uid, request_id)
@@ -246,14 +256,19 @@ async def main():
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--start-now', action='store_true',
                         help='사용자가 지금 시작하도록 요청한 경우만 사용. 예약에는 넣지 않는다.')
+    parser.add_argument('--additional-attempt', action='store_true',
+                        help='첫 시험의 선체결 이후 사용자가 별도로 승인한 추가 시험 1회. 매수는 하지 않는다.')
     args = parser.parse_args()
     if args.start_now and not args.execute:
         parser.error('--start-now는 --execute와 함께 사용합니다.')
+    if args.additional_attempt and not args.start_now:
+        parser.error('--additional-attempt는 --start-now와 함께 사용합니다.')
     config = json.loads(args.config.read_text())
     await pg.connect_postgres()
     await connect_redis()
     try:
-        result = (await run(config, args.config.parent, start_now=args.start_now) if args.execute
+        result = (await run(config, args.config.parent, start_now=args.start_now,
+                            additional_attempt=args.additional_attempt) if args.execute
                   else await account(uuid.UUID(config['user_id']), config))
         print(json.dumps(result, ensure_ascii=False))
     finally:

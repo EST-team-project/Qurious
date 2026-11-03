@@ -148,6 +148,62 @@ def test_manual_start_shares_scheduled_attempt_and_preserves_wait(flow, tmp_path
     asyncio.run(scenario())
 
 
+def test_broker_reads_and_submission_stages_are_spaced(flow, tmp_path):
+    config, _, clock = flow
+    last = [clock[0]]
+    prices = iter([70000, 70100])
+    async def quote(*args):
+        last[0] = clock[0]
+        return next(prices)
+    async def account(*args, **kwargs):
+        last[0] = clock[0]
+        return {'protected_quantity': 1, 'trial_quantity': kwargs.get('trial_quantity', 1)}
+    def spaced(original):
+        async def call(*args, **kwargs):
+            assert (clock[0] - last[0]).total_seconds() >= 1.1
+            last[0] = clock[0]
+            return await original(*args, **kwargs)
+        return call
+    async def cancel(*args): return {'status': 'ACCEPTED'}
+    session.quote.side_effect = quote
+    session.account.side_effect = account
+    session.manual.submit.side_effect = spaced(session.manual.submit.side_effect)
+    session.recovery.cancel.side_effect = spaced(cancel)
+    session.trial.run.side_effect = spaced(session.trial.run.side_effect)
+    assert asyncio.run(session.run(config, tmp_path))['status'] == 'passed'
+
+
+@pytest.mark.parametrize('previous', [None, 'started', 'needs_review', 'passed', 'not_executed'])
+def test_additional_attempt_requires_completed_early_fill(flow, tmp_path, previous):
+    config, _, _ = flow
+    base = tmp_path / f"session-{config['user_id']}-{config['day']}.json"
+    if previous: base.write_text(json.dumps({'status': previous}))
+    with pytest.raises(ValueError):
+        asyncio.run(session.run(config, tmp_path, start_now=True, additional_attempt=True))
+    session.manual.submit.assert_not_awaited()
+
+
+def test_only_one_explicit_additional_attempt_preserves_first_record(flow, tmp_path):
+    config, _, _ = flow
+    base = tmp_path / f"session-{config['user_id']}-{config['day']}.json"
+    first = json.dumps({'status': 'parent_filled_without_retry', 'original_evidence': 'keep'})
+    base.write_text(first)
+    session.quote.side_effect = [70000, 70200]
+    with pytest.raises(ValueError):
+        asyncio.run(session.run(config, tmp_path, additional_attempt=True))
+    async def scenario():
+        result = await session.run(config, tmp_path, start_now=True, additional_attempt=True)
+        assert result['status'] == 'passed' and result['parent_price'] == 70200
+        assert result['additional_attempt']
+        original_key = uuid.uuid5(uuid.NAMESPACE_URL, f"qurious:c5-session:{config['user_id']}:{config['day']}")
+        assert result['request_id'] != str(original_key)
+        assert base.read_text() == first
+        assert (await session.run(config, tmp_path, start_now=True, additional_attempt=True))['status'] == 'already_started'
+        assert (await session.run(config, tmp_path))['status'] == 'already_started'
+        assert session.manual.submit.await_count == session.trial.run.await_count == 1
+    asyncio.run(scenario())
+
+
 def test_parent_filled_does_not_buy_another_share_or_retry(flow, tmp_path):
     config, _, _ = flow
     session.confirmed.side_effect = None
