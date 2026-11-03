@@ -84,16 +84,23 @@ def test_explicit_fixed_test_card_is_available_without_remote_and_has_no_fake_pe
     monkeypatch.setattr(settings, "DOMAIN_RAG_LAB_BASE_URL", "")
     sl.set_transport(httpx.MockTransport(lambda request: pytest.fail("Fixed mode must not call remote")))
     listed = asyncio.run(sl.list_strategies())
-    assert sl.is_configured() and len(listed) == 1 and listed[0]["test_only"]
-    assert listed[0]["source"] == "fixed_test"
-    assert "acceptance" not in listed[0] and "backtest_result" not in listed[0]
+    assert sl.is_configured() and [card['version'] for card in listed] == [1, 2]
+    assert all(card['test_only'] and card['source'] == 'fixed_test' for card in listed)
+    assert all('acceptance' not in card and 'backtest_result' not in card for card in listed)
     card = asyncio.run(sl.get_strategy("ma_cross_20_60", 1))
     assert card["version"] == 1 and card["universe"] == ["005930"]
     card["universe"].append("000660")
     assert asyncio.run(sl.get_strategy("ma_cross_20_60"))["universe"] == ["005930"]
+    card_v2 = asyncio.run(sl.get_strategy('ma_cross_20_60', 2))
+    from app.services import strategy_v2
+    strategy_v2.validate_card(card_v2)
+    assert {k: v for k, v in card_v2.items() if k != 'name'} == strategy_v2.CONTRACT
+    card_v2['stops']['atr_mult'] = 5
+    assert asyncio.run(sl.get_strategy('ma_cross_20_60', 2))['stops']['atr_mult'] == 2
+    assert asyncio.run(sl.get_strategy('ma_cross_20_60'))['version'] == 1
 
 
-@pytest.mark.parametrize("strategy_id,version", [("other", 1), ("ma_cross_20_60", 2),
+@pytest.mark.parametrize("strategy_id,version", [("other", 1), ("ma_cross_20_60", 3),
     ("ma_cross_20_60", True), ("ma_cross_20_60", "1"), ("../ma_cross_20_60", 1)])
 def test_fixed_test_rejects_other_cards_and_versions(monkeypatch, strategy_id, version):
     monkeypatch.setattr(settings, "STRATEGY_SPEC_SOURCE", "fixed_test")
@@ -101,28 +108,40 @@ def test_fixed_test_rejects_other_cards_and_versions(monkeypatch, strategy_id, v
 
 
 @pytest.mark.parametrize("tampered", [False, True])
-def test_missing_or_changed_fixed_input_does_not_fall_back_to_remote(monkeypatch, tmp_path, tampered):
+@pytest.mark.parametrize('version', [1, 2])
+def test_missing_or_changed_fixed_input_does_not_fall_back_to_remote(monkeypatch, tmp_path, tampered, version):
     monkeypatch.setattr(settings, "STRATEGY_SPEC_SOURCE", "fixed_test")
     path = tmp_path / "card.json"
     if tampered:
         path.write_text('{"strategy_id":"ma_cross_20_60","version":1}')
-    monkeypatch.setattr(sl, "_FIXED_CARD", path)
+    monkeypatch.setattr(sl, '_FIXED_CARD' if version == 1 else '_FIXED_CARD_V2', path)
     sl.set_transport(httpx.MockTransport(lambda request: pytest.fail("No fallback allowed")))
+    assert sl.is_configured()  # 다른 판의 온전한 카드는 그대로 제공한다.
+    assert [card['version'] for card in asyncio.run(sl.list_strategies())] == [3 - version]
+    assert asyncio.run(sl.get_strategy('ma_cross_20_60', version)) is None
+
+
+def test_all_fixed_cards_missing_is_unconfigured(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, 'STRATEGY_SPEC_SOURCE', 'fixed_test')
+    monkeypatch.setattr(sl, '_FIXED_CARD', tmp_path / 'missing-v1.json')
+    monkeypatch.setattr(sl, '_FIXED_CARD_V2', tmp_path / 'missing-v2.json')
     assert not sl.is_configured()
     assert asyncio.run(sl.list_strategies()) == []
-    assert asyncio.run(sl.get_strategy("ma_cross_20_60", 1)) is None
 
 
 @pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
 @pytest.mark.parametrize("tamper", [False, True])
-def test_fixed_card_line_endings_preserve_content_guard(monkeypatch, tmp_path, newline, tamper):
-    raw = sl._FIXED_CARD.read_bytes().replace(b"\r\n", b"\n")
+@pytest.mark.parametrize('version', [1, 2])
+def test_fixed_card_line_endings_preserve_content_guard(monkeypatch, tmp_path, newline, tamper, version):
+    attribute = '_FIXED_CARD' if version == 1 else '_FIXED_CARD_V2'
+    raw = getattr(sl, attribute).read_bytes().replace(b"\r\n", b"\n")
     if tamper:
         raw = raw.replace(b"005930", b"000660")
     path = tmp_path / "card.json"
     path.write_bytes(raw.replace(b"\n", newline))
-    monkeypatch.setattr(sl, "_FIXED_CARD", path)
+    monkeypatch.setattr(sl, attribute, path)
     monkeypatch.setattr(settings, "STRATEGY_SPEC_SOURCE", "fixed_test")
     sl.set_transport(httpx.MockTransport(lambda request: pytest.fail("No fallback allowed")))
-    assert sl.is_configured() is (not tamper)
-    assert bool(asyncio.run(sl.list_strategies())) is (not tamper)
+    assert sl.is_configured()
+    assert bool(asyncio.run(sl.get_strategy('ma_cross_20_60', version))) is (not tamper)
+    assert (version in [card['version'] for card in asyncio.run(sl.list_strategies())]) is (not tamper)

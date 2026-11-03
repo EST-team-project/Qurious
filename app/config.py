@@ -185,7 +185,7 @@ class Settings(BaseSettings):
     DOMAIN_RAG_LAB_BASE_URL: str = ""
     DOMAIN_RAG_LAB_API_KEY: str = ""
     STRATEGY_SPEC_CACHE_TTL: int = 600
-    # fixed_test는 저장소의 고정 판 1만 읽는 가상계좌 시험 모드다. 원격 합격 전략과 구분한다.
+    # fixed_test는 저장소의 고정 판 1·2를 읽는 가상계좌 시험 모드다. 원격 합격 전략과 구분한다.
     STRATEGY_SPEC_SOURCE: Literal["remote", "fixed_test"] = "remote"
 
     # ── 금융감독원 「금융상품 한눈에」 오픈 API (상품 안내 — 예금 · 적금 · 연금저축 · 2026-10-12) ──────
