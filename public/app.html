@@ -74,7 +74,7 @@
     <div class="gnb-right">
       <div id="market-ticker"></div>
       <!-- 데이터 동기화 상태 -->
-      <div id="sync-badge" class="offline" title="클릭하여 즉시 동기화" onclick="triggerSync()">
+      <div id="sync-badge" class="offline" title="클릭하여 즉시 동기화" onclick="triggerSync()" role="button" tabindex="0">
         <span class="sync-dot"></span>
         <span id="sync-badge-text">오프라인</span>
       </div>
@@ -694,13 +694,13 @@
                     <button id="ibt-run-btn" class="btn-primary">성과 검증 실행</button>
                   </div>
                   <div class="flex flex-wrap gap-2 mb-3 items-end text-xs">
-                    <div><label style="color:var(--text-mute);">수수료 (bp)</label><input id="ibt-cost" type="number" min="0"
+                    <div><label for="ibt-cost" style="color:var(--text-mute);">수수료 (bp)</label><input id="ibt-cost" type="number" min="0"
                         step="1" class="input" style="width:90px" value="10" /></div>
-                    <div><label style="color:var(--text-mute);">슬리피지 (bp)</label><input id="ibt-slip" type="number"
+                    <div><label for="ibt-slip" style="color:var(--text-mute);">슬리피지 (bp)</label><input id="ibt-slip" type="number"
                         min="0" step="1" class="input" style="width:90px" value="5" /></div>
-                    <div><label style="color:var(--text-mute);">손절 (%)</label><input id="ibt-sl" type="number" min="0"
+                    <div><label for="ibt-sl" style="color:var(--text-mute);">손절 (%)</label><input id="ibt-sl" type="number" min="0"
                         step="0.5" class="input" style="width:90px" placeholder="예) 5" /></div>
-                    <div><label style="color:var(--text-mute);">익절 (%)</label><input id="ibt-tp" type="number" min="0"
+                    <div><label for="ibt-tp" style="color:var(--text-mute);">익절 (%)</label><input id="ibt-tp" type="number" min="0"
                         step="0.5" class="input" style="width:90px" placeholder="예) 15" /></div>
                     <span style="color:var(--text-mute);">비용은 포지션 변동 시 회전금액에 비례해 차감 · 손절/익절은 진입가 대비 종가 기준 (비우면 미적용)</span>
                   </div>
@@ -728,20 +728,20 @@
               <div id="ql-examples" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3"></div>
               <div id="ql-example-detail" class="mb-3"></div>
               <div class="grid md:grid-cols-3 gap-2 mb-2">
-                <div><label class="text-xs" style="color:var(--text-mute);">01 · 전략</label><select id="ql-strategy"
+                <div><label for="ql-strategy" class="text-xs" style="color:var(--text-mute);">01 · 전략</label><select id="ql-strategy"
                     class="input"></select></div>
-                <div><label class="text-xs" style="color:var(--text-mute);">02 · 종목 / ETF</label><input id="ql-ticker" data-stock-find="symbol"
+                <div><label for="ql-ticker" class="text-xs" style="color:var(--text-mute);">02 · 종목 / ETF</label><input id="ql-ticker" data-stock-find="symbol"
                     class="input" value="005930.KS" maxlength="12" placeholder="005930.KS / SPY" /></div>
-                <div><label class="text-xs" style="color:var(--text-mute);">05 · 초기 자금</label><input id="ql-cash"
+                <div><label for="ql-cash" class="text-xs" style="color:var(--text-mute);">05 · 초기 자금</label><input id="ql-cash"
                     class="input" type="number" value="10000" min="1000" /></div>
               </div>
               <div class="grid md:grid-cols-2 gap-2 mb-2">
-                <div><label class="text-xs" style="color:var(--text-mute);">03 · 검증 기간 (전략 성과를 계산할 기간)</label>
+                <div><label for="ql-start" class="text-xs" style="color:var(--text-mute);">03 · 검증 기간 (전략 성과를 계산할 기간)</label>
                   <div class="flex gap-2 items-center"><input id="ql-start" class="input" type="date"
                       value="2023-01-01" /><span style="color:var(--text-mute);">~</span><input id="ql-end"
                       class="input" type="date" /></div>
                 </div>
-                <div><label class="text-xs" style="color:var(--text-mute);">04 · 비교 기간 (다른 시장 국면의 단순 보유 수익률)</label>
+                <div><label for="ql-cmp-start" class="text-xs" style="color:var(--text-mute);">04 · 비교 기간 (다른 시장 국면의 단순 보유 수익률)</label>
                   <div class="flex gap-2 items-center"><input id="ql-cmp-start" class="input" type="date"
                       value="2022-01-01" /><span style="color:var(--text-mute);">~</span><input id="ql-cmp-end"
                       class="input" type="date" /></div>
@@ -864,7 +864,7 @@
                     <p id="quant-live-route" class="text-xs mt-1" style="color:var(--text-mute);"></p>
                   </div>
                   <div>
-                    <label class="text-sm text-slate-400 block mb-1">종목 선택 방식</label>
+                    <label for="quant-symbol-source" class="text-sm text-slate-400 block mb-1">종목 선택 방식</label>
                     <select id="quant-symbol-source" class="input">
                       <option value="ai">모델·지표 선정 종목</option>
                       <option value="manual">직접 종목 선택</option>
@@ -880,7 +880,7 @@
                   </div>
                 </div>
                 <div>
-                  <label class="text-sm text-slate-400 block mb-1">증권사 선택</label>
+                  <label for="broker-type" class="text-sm text-slate-400 block mb-1">증권사 선택</label>
                   <select id="broker-type" class="input w-52">
                     <option value="mock">Mockup (테스트)</option>
                     <option value="kis">한국투자증권 (KIS)</option>
@@ -897,15 +897,15 @@
                 </div>
                 <div id="broker-credentials-wrap" class="grid md:grid-cols-2 gap-3">
                   <div>
-                    <label class="text-xs text-slate-400">App Key</label>
+                    <label for="broker-app-key" class="text-xs text-slate-400">App Key</label>
                     <input id="broker-app-key" type="text" class="input mt-1" placeholder="API App Key" />
                   </div>
                   <div>
-                    <label class="text-xs text-slate-400">App Secret</label>
+                    <label for="broker-app-secret" class="text-xs text-slate-400">App Secret</label>
                     <input id="broker-app-secret" type="password" class="input mt-1" placeholder="API Secret" />
                   </div>
                   <div>
-                    <label class="text-xs text-slate-400">계좌번호</label>
+                    <label for="broker-account" class="text-xs text-slate-400">계좌번호</label>
                     <input id="broker-account" type="text" class="input mt-1" placeholder="예) 5012345601" />
                   </div>
                   <!-- 직접매매 설정 저장의 기존 호환값. 자동매매 주문 방식과 별개인 이 값을 선택 항목으로 보이지 않는다. -->
@@ -928,20 +928,20 @@
                 </div>
                 <div class="grid md:grid-cols-2 gap-3">
                   <div>
-                    <label class="text-xs text-slate-400 block mb-1">모델·지표 선정 종목 수 (1~5)</label>
+                    <label for="quant-ai-top-n" class="text-xs text-slate-400 block mb-1">모델·지표 선정 종목 수 (1~5)</label>
                     <input id="quant-ai-top-n" type="number" min="1" max="5" class="input" value="3" />
                   </div>
                   <div>
-                    <label class="text-xs text-slate-400 block mb-1">1회 투자금 (원)</label>
+                    <label for="quant-per-trade-budget" class="text-xs text-slate-400 block mb-1">1회 투자금 (원)</label>
                     <input id="quant-per-trade-budget" type="number" min="10000" step="10000" class="input"
                       value="1000000" />
                   </div>
                   <div>
-                    <label class="text-xs text-slate-400 block mb-1">매수 비중 (%)</label>
+                    <label for="quant-buy-ratio" class="text-xs text-slate-400 block mb-1">매수 비중 (%)</label>
                     <input id="quant-buy-ratio" type="number" min="10" max="100" step="5" class="input" value="100" />
                   </div>
                   <div>
-                    <label class="text-xs text-slate-400 block mb-1">매도 비중 (%)</label>
+                    <label for="quant-sell-ratio" class="text-xs text-slate-400 block mb-1">매도 비중 (%)</label>
                     <input id="quant-sell-ratio" type="number" min="10" max="100" step="5" class="input" value="50" />
                   </div>
                 </div>
@@ -952,19 +952,19 @@
                   </div>
                   <div class="grid md:grid-cols-4 gap-3">
                     <div>
-                      <label class="text-xs text-slate-400 block mb-1">일손실 한도 (%) · 초과 시 비상 정지</label>
+                      <label for="risk-daily-loss" class="text-xs text-slate-400 block mb-1">일손실 한도 (%) · 초과 시 비상 정지</label>
                       <input id="risk-daily-loss" type="number" min="0" max="50" step="0.5" class="input" value="3" />
                     </div>
                     <div>
-                      <label class="text-xs text-slate-400 block mb-1">종목당 최대 비중 (%)</label>
+                      <label for="risk-max-position" class="text-xs text-slate-400 block mb-1">종목당 최대 비중 (%)</label>
                       <input id="risk-max-position" type="number" min="0" max="100" step="5" class="input" value="30" />
                     </div>
                     <div>
-                      <label class="text-xs text-slate-400 block mb-1">하루 최대 주문 수</label>
+                      <label for="risk-max-orders" class="text-xs text-slate-400 block mb-1">하루 최대 주문 수</label>
                       <input id="risk-max-orders" type="number" min="0" max="500" class="input" value="20" />
                     </div>
                     <div>
-                      <label class="text-xs text-slate-400 block mb-1">중복 주문 방지 쿨다운 (분)</label>
+                      <label for="risk-cooldown" class="text-xs text-slate-400 block mb-1">중복 주문 방지 쿨다운 (분)</label>
                       <input id="risk-cooldown" type="number" min="0" max="1440" step="5" class="input" value="30" />
                     </div>
                   </div>
@@ -1011,11 +1011,247 @@
                 </section>
 
                 <section id="mp-sec-notify" class="mp-sec space-y-4" data-mp-sec="notify">
-                  <div class="card space-y-3">
-                    <h2 class="text-lg font-semibold">🔔 알림</h2>
-                    <p id="mp-sum-notify" class="text-sm">불러오는 중…</p>
-                    <p class="text-xs text-slate-400">채널별 인증 정보는 알림 설정 화면에서 고칩니다.</p>
-                    <a href="#notification-settings" class="btn-secondary mp-link" id="mp-open-notify">알림 설정 열기</a>
+                  <p id="mp-sum-notify" class="text-sm">불러오는 중…</p>
+                  <div class="card space-y-6">
+                    <div>
+                      <h2 class="text-lg font-semibold mb-1">🔔 알림 채널 설정</h2>
+                      <p class="text-xs text-slate-400">
+                        매매 성공·실패 시 알림을 받을 채널을 선택하고 인증 정보를 입력하세요.
+                        복수 채널을 동시에 활성화할 수 있습니다.
+                      </p>
+                    </div>
+
+                    <!-- 알림 연동 정보 수집·이용(선택) 동의 — 문구는 js/terms.js 한 곳, 그리는 곳은 js/settings.js (2026-10-29 · ①-09) -->
+                    <div id="noti-consent" class="rounded-lg p-3 space-y-2 text-sm" style="border:1px solid var(--border);">
+                      <div id="noti-consent-granted" class="hidden flex flex-wrap items-center justify-between gap-2">
+                        <span id="noti-consent-granted-text" class="text-slate-300"></span>
+                        <button id="noti-consent-withdraw" class="btn-secondary text-xs">동의 철회 · 저장된 연동 정보 삭제</button>
+                      </div>
+                      <div id="noti-consent-ask" class="space-y-2">
+                        <label class="flex items-start gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-consent-check" class="w-4 h-4 rounded mt-0.5" />
+                          <span id="noti-consent-label" class="text-slate-200"></span>
+                        </label>
+                        <p class="text-xs text-slate-400">
+                          선택 동의입니다. 동의하지 않으면 아래 토큰 · 웹훅 · 비밀번호 · 휴대전화번호를 저장할 수 없고, 다른 기능은 그대로 쓸 수 있습니다.
+                        </p>
+                      </div>
+                      <details>
+                        <summary class="text-xs text-slate-400 cursor-pointer">동의 내용 자세히 보기</summary>
+                        <div id="noti-consent-body" class="mt-2 space-y-2 text-xs text-slate-300"></div>
+                      </details>
+                    </div>
+
+                    <!-- 채널 선택 -->
+                    <div>
+                      <label class="text-sm text-slate-300 font-medium block mb-2">활성화할 채널 선택</label>
+                      <div class="flex flex-wrap gap-4 text-sm">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-ch-telegram" class="noti-channel w-4 h-4 rounded"
+                            value="telegram" />
+                          <span>📱 텔레그램</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-ch-slack" class="noti-channel w-4 h-4 rounded" value="slack" />
+                          <span>💬 Slack</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-ch-discord" class="noti-channel w-4 h-4 rounded" value="discord" />
+                          <span>🎮 Discord</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-ch-email" class="noti-channel w-4 h-4 rounded" value="email" />
+                          <span>📧 이메일</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-ch-kakao" class="noti-channel w-4 h-4 rounded" value="kakao" />
+                          <span>🟡 카카오 알림톡</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-ch-sms" class="noti-channel w-4 h-4 rounded" value="sms" />
+                          <span>📲 SMS</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- 텔레그램 -->
+                    <div id="noti-section-telegram" class="hidden space-y-2">
+                      <h3 class="text-sm font-semibold text-slate-300">📱 텔레그램 봇 설정</h3>
+                      <p class="text-xs text-slate-400">BotFather에서 봇을 만들고 토큰과 채팅 ID를 입력하세요.</p>
+                      <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>텔레그램에서 <b>@BotFather</b> 를 열고 <code>/newbot</code> 을 보냅니다. 이름과 사용자명(끝이 <code>bot</code>)을 정하면 <b>토큰</b>이 나옵니다.</li><li>방금 만든 봇을 찾아 <b>아무 말이나 먼저 보냅니다</b>(그래야 봇이 나에게 글을 보낼 수 있습니다).</li><li>브라우저에서 <code>https://api.telegram.org/bot&lt;토큰&gt;/getUpdates</code> 를 열고 <code>"chat":{"id": 숫자}</code> 의 숫자가 <b>Chat ID</b> 입니다(그룹은 음수).</li></ol><p class="mt-1">토큰은 이 화면 · .env 밖 어디에도 붙이지 마세요.</p></details>
+                      <div class="grid md:grid-cols-2 gap-3">
+                        <div>
+                          <label for="noti-telegram-token" class="text-xs text-slate-400">Bot Token</label>
+                          <input id="noti-telegram-token" type="password" class="input mt-1"
+                            placeholder="1234567890:AAFxxxxxxx" />
+                        </div>
+                        <div>
+                          <label for="noti-telegram-chat-id" class="text-xs text-slate-400">Chat ID</label>
+                          <input id="noti-telegram-chat-id" type="text" class="input mt-1" placeholder="-100xxxxxxxxx" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Slack -->
+                    <div id="noti-section-slack" class="hidden space-y-2">
+                      <h3 class="text-sm font-semibold text-slate-300">💬 Slack Incoming Webhook</h3>
+                      <p class="text-xs text-slate-400">Slack 앱에서 Incoming Webhook을 생성하고 URL을 입력하세요.</p>
+                      <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>https://api.slack.com/apps → <b>Create New App</b> → From scratch → 앱 이름 · 워크스페이스를 고릅니다.</li><li>왼쪽 <b>Incoming Webhooks</b> → 켜기 → 아래 <b>Add New Webhook to Workspace</b> → <b>글을 올릴 채널</b>을 골라 허용합니다.</li><li>생성된 <code>https://hooks.slack.com/services/…</code> 주소를 복사해 아래에 붙입니다.</li></ol><p class="mt-1">「messages_tab_disabled」 오류가 나면 웹훅이 앱의 개인 메시지 칸으로 만들어진 것입니다 — 채널을 골라 웹훅을 다시 만들거나, 앱의 App Home → Messages Tab 을 켜세요.</p></details>
+                      <div>
+                        <label for="noti-slack-webhook" class="text-xs text-slate-400">Webhook URL</label>
+                        <input id="noti-slack-webhook" type="text" class="input mt-1"
+                          placeholder="https://hooks.slack.com/services/..." />
+                      </div>
+                    </div>
+
+                    <!-- 디스코드 — 사용자별 웹훅 주소(비밀값 · 응답에서 가림). 비우면 서버 공용 주소(.env DISCORD_WEBHOOK_URL)로 간다 (2026-11-01) -->
+                    <div id="noti-section-discord" class="hidden space-y-2">
+                      <h3 class="text-sm font-semibold text-slate-300">🎮 Discord 웹훅</h3>
+                      <p class="text-xs text-slate-400">내 디스코드 채널의 웹훅 주소를 넣으면 그 채널로 알림이 갑니다. <b>비워 두면</b> 알림은 어느 채널로도 가지 않습니다. 이 앱 서버에 정해 둔 <b>공용 채널</b>은 다른 사람도 볼 수 있어, 아래 상자를 직접 켠 때만 거기로도 보냅니다.</p>
+                      <div>
+                        <label for="noti-discord-webhook" class="text-xs text-slate-400">Webhook URL</label>
+                        <input id="noti-discord-webhook" type="password" autocomplete="off" class="input mt-1"
+                          placeholder="https://discord.com/api/webhooks/..." />
+                      </div>
+                      <label class="flex items-start gap-2 text-xs text-slate-300" for="noti-discord-shared">
+                        <input type="checkbox" id="noti-discord-shared" class="w-4 h-4 rounded mt-0.5" />
+                        <span>내 주소가 없으면 <b>서버 공용 채널</b>로 보내기 <span class="text-slate-400">(그 채널은 다른 사람도 볼 수 있습니다 · 체결 · 잔고 같은 개인 내용이 보입니다)</span></span>
+                      </label>
+                      <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">웹훅 주소 받는 법</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>디스코드에서 알림을 받을 <b>서버</b>의 채널을 고릅니다(없으면 새 서버 · 채널을 만듭니다).</li><li>채널 이름 옆 톱니 <b>채널 편집 → 연동 → 웹훅 → 새 웹훅</b>(또는 서버 설정 → 연동 → 웹훅)을 누르고 이름 · 채널을 정합니다.</li><li><b>웹훅 URL 복사</b>로 <code>https://discord.com/api/webhooks/…</code> 를 복사해 위 칸에 붙이고 저장합니다. 서버 공용 채널을 정하는 사람(서버 관리자)은 <code>.env</code> 의 <code>DISCORD_WEBHOOK_URL=</code> 뒤에 붙이고 앱을 다시 시작합니다.</li></ol><p class="mt-1">주소를 아는 사람은 누구나 그 채널에 글을 올릴 수 있으니 비밀로 두세요. 노출되면 웹훅을 지우고 새로 만듭니다.</p></details>
+                    </div>
+
+                    <!-- 이메일 -->
+                    <div id="noti-section-email" class="hidden space-y-2">
+                      <h3 class="text-sm font-semibold text-slate-300">📧 이메일 (SMTP)</h3>
+                      <p class="text-xs text-slate-400">Gmail 등 SMTP 서버 정보와 수신 이메일을 입력하세요.</p>
+                      <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히 (Gmail 기준)</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>구글 계정에서 <b>2단계 인증</b>을 켭니다.</li><li>myaccount.google.com/apppasswords 에서 <b>앱 비밀번호</b> 16자리를 만듭니다(공백 없이 붙여넣는 것을 권장).</li><li><b>SMTP 호스트는 <code>smtp.gmail.com</code></b>(이메일 주소를 넣지 않습니다) · 포트 587 · 계정은 내 Gmail 주소 · 비밀번호는 앱 비밀번호 · 수신 이메일은 받을 주소.</li></ol><p class="mt-1">계정 비밀번호는 쓰지 않습니다. 다른 서비스(네이버 · 회사 메일)는 그 서비스의 SMTP 주소 · 포트(보통 587 STARTTLS)를 씁니다.</p></details>
+                      <div class="grid md:grid-cols-2 gap-3">
+                        <div>
+                          <label for="noti-email-host" class="text-xs text-slate-400">SMTP 호스트</label>
+                          <input id="noti-email-host" type="text" class="input mt-1" placeholder="smtp.gmail.com" />
+                        </div>
+                        <div>
+                          <label for="noti-email-port" class="text-xs text-slate-400">SMTP 포트</label>
+                          <input id="noti-email-port" type="number" class="input mt-1" value="587" min="1" max="65535" />
+                        </div>
+                        <div>
+                          <label for="noti-email-user" class="text-xs text-slate-400">계정 (발신)</label>
+                          <input id="noti-email-user" type="text" class="input mt-1" placeholder="your@gmail.com" />
+                        </div>
+                        <div>
+                          <label for="noti-email-password" class="text-xs text-slate-400">앱 비밀번호</label>
+                          <input id="noti-email-password" type="password" class="input mt-1" placeholder="Gmail 앱 비밀번호" />
+                        </div>
+                        <div>
+                          <label for="noti-email-from" class="text-xs text-slate-400">발신자 표시 이름 (선택)</label>
+                          <input id="noti-email-from" type="text" class="input mt-1" placeholder="매매알림 <your@gmail.com>" />
+                        </div>
+                        <div>
+                          <label for="noti-email-to" class="text-xs text-slate-400">수신 이메일</label>
+                          <input id="noti-email-to" type="text" class="input mt-1" placeholder="recv@example.com" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 카카오 알림톡 -->
+                    <div id="noti-section-kakao" class="hidden space-y-2">
+                      <h3 class="text-sm font-semibold text-slate-300">🟡 카카오 알림톡 (CoolSMS)</h3>
+                      <p class="text-xs text-slate-400">CoolSMS API를 통한 카카오 알림톡(친구톡) 발송입니다. <a href="https://coolsms.co.kr"
+                          target="_blank" rel="noopener noreferrer" class="text-indigo-400 underline">coolsms.co.kr</a>에서 발급받으세요.</p>
+                      <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>coolsms.co.kr 가입 → 콘솔에서 <b>API Key 관리</b> → 키 · 시크릿 생성.</li><li><b>카카오 채널</b>을 만들고 CoolSMS 에 연동해 <b>발신 프로필 키(Sender Key)</b> 를 받습니다.</li><li>알림톡은 <b>템플릿 심사</b>를 거쳐야 보낼 수 있습니다(연습용으로는 번거로워 SMS 나 다른 채널을 먼저 권합니다).</li></ol></details>
+                      <div class="grid md:grid-cols-2 gap-3">
+                        <div>
+                          <label for="noti-kakao-api-key" class="text-xs text-slate-400">API Key</label>
+                          <input id="noti-kakao-api-key" type="password" class="input mt-1" placeholder="CoolSMS API Key" />
+                        </div>
+                        <div>
+                          <label for="noti-kakao-api-secret" class="text-xs text-slate-400">API Secret</label>
+                          <input id="noti-kakao-api-secret" type="password" class="input mt-1"
+                            placeholder="CoolSMS API Secret" />
+                        </div>
+                        <div>
+                          <label for="noti-kakao-sender-key" class="text-xs text-slate-400">발신 프로필 키 (Sender Key)</label>
+                          <input id="noti-kakao-sender-key" type="text" class="input mt-1" placeholder="카카오 채널 발신 프로필 키" />
+                        </div>
+                        <div>
+                          <label for="noti-kakao-phone" class="text-xs text-slate-400">수신 전화번호</label>
+                          <input id="noti-kakao-phone" type="text" class="input mt-1" placeholder="01012345678" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- SMS -->
+                    <div id="noti-section-sms" class="hidden space-y-2">
+                      <h3 class="text-sm font-semibold text-slate-300">📲 SMS (CoolSMS)</h3>
+                      <p class="text-xs text-slate-400">카카오 알림톡과 동일한 CoolSMS API Key/Secret을 사용합니다.</p>
+                      <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>coolsms.co.kr 가입 → API Key 관리에서 키 · 시크릿 생성(카카오 알림톡과 같은 키).</li><li><b>발신번호</b>를 등록(본인 인증)하고 잔액을 충전합니다. 한 건은 80자까지 보냅니다.</li></ol></details>
+                      <div class="grid md:grid-cols-2 gap-3">
+                        <div>
+                          <label for="noti-sms-api-key" class="text-xs text-slate-400">API Key</label>
+                          <input id="noti-sms-api-key" type="password" class="input mt-1" placeholder="CoolSMS API Key" />
+                        </div>
+                        <div>
+                          <label for="noti-sms-api-secret" class="text-xs text-slate-400">API Secret</label>
+                          <input id="noti-sms-api-secret" type="password" class="input mt-1"
+                            placeholder="CoolSMS API Secret" />
+                        </div>
+                        <div>
+                          <label for="noti-sms-from" class="text-xs text-slate-400">발신 번호</label>
+                          <input id="noti-sms-from" type="text" class="input mt-1" placeholder="01012345678 (등록된 번호)" />
+                        </div>
+                        <div>
+                          <label for="noti-sms-to" class="text-xs text-slate-400">수신 번호</label>
+                          <input id="noti-sms-to" type="text" class="input mt-1" placeholder="01087654321" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 사건별 알림 설정 · 조용한 시간 (2026-11-01 · 보고식 알림) -->
+                    <div id="noti-prefs" class="pt-3 mt-1 space-y-3" style="border-top:1px solid var(--border);">
+                      <h3 class="text-sm font-semibold" style="color:var(--text-dim);">🔔 사건별 알림 · 조용한 시간</h3>
+                      <p class="text-xs" style="color:var(--text-mute);">
+                        사건마다 <b>켜기</b>(바로 받기) · <b>조용히</b>(소리·진동 없이) · <b>끄기</b>를 고릅니다.
+                        조용히는 Telegram·Discord 에서만 알림음이 꺼지고, Slack·이메일은 그대로 오며, 카카오·SMS 는 보내지 않습니다.
+                        긴급(비상 정지)은 끌 수 없고 조용한 시간에도 바로 옵니다.
+                      </p>
+                      <div class="overflow-x-auto">
+                        <table class="w-full text-xs" id="noti-prefs-table">
+                          <thead>
+                            <tr style="color:var(--text-mute);text-align:left;">
+                              <th class="py-1 pr-3 font-normal">사건</th><th class="py-1 pr-3 font-normal">중요도</th><th class="py-1 font-normal">받는 방식</th>
+                            </tr>
+                          </thead>
+                          <tbody id="noti-prefs-body"><tr><td colspan="3" style="color:var(--text-mute);">불러오는 중...</td></tr></tbody>
+                        </table>
+                      </div>
+                      <div class="flex flex-wrap items-center gap-2 text-sm">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" id="noti-quiet-enabled" class="w-4 h-4 rounded" />
+                          <span class="text-slate-200">조용한 시간 사용</span>
+                        </label>
+                        <input id="noti-quiet-start" type="time" class="input w-36" value="21:00" aria-label="조용한 시간 시작" />
+                        <span style="color:var(--text-mute);">~</span>
+                        <input id="noti-quiet-end" type="time" class="input w-36" value="08:00" aria-label="조용한 시간 끝" />
+                        <span class="text-xs" style="color:var(--text-mute);">(한국 시간)</span>
+                      </div>
+                      <p class="text-xs" style="color:var(--text-mute);">
+                        조용한 시간에 온 일반·참고 알림은 모아 두었다가 끝나는 시각에 <b>요약 1건</b>으로 보냅니다.
+                        「주문 생략」처럼 같은 사건이 몰려 오면 2분 안에 오는 것을 1건으로 합칩니다.
+                      </p>
+                    </div>
+
+                    <!-- 저장 / 테스트 버튼 -->
+                    <div class="flex gap-2 pt-2">
+                      <button id="noti-save" class="btn-primary">저장</button>
+                      <button id="noti-test" class="btn-secondary">테스트 알림 발송</button>
+                    </div>
+                    <div id="noti-status" class="text-sm text-slate-400"></div>
+
+                    <!-- 알림 발송 이력 -->
+                    <div class="pt-3 mt-3" style="border-top:1px solid var(--border);">
+                      <h3 class="text-sm font-semibold mb-2" style="color:var(--text-dim);">🕘 최근 발송 이력</h3>
+                      <div id="noti-history" class="text-xs" style="color:var(--text-mute);">불러오는 중...</div>
+                    </div>
                   </div>
                 </section>
 
@@ -1059,249 +1295,8 @@
             </div>
           </div>
 
-          <div class="view" data-view="notification-settings">
-            <div class="card space-y-6">
-              <div>
-                <h2 class="text-lg font-semibold mb-1">🔔 알림 채널 설정</h2>
-                <p class="text-xs text-slate-400">
-                  매매 성공·실패 시 알림을 받을 채널을 선택하고 인증 정보를 입력하세요.
-                  복수 채널을 동시에 활성화할 수 있습니다.
-                </p>
-              </div>
-
-              <!-- 알림 연동 정보 수집·이용(선택) 동의 — 문구는 js/terms.js 한 곳, 그리는 곳은 js/settings.js (2026-10-29 · ①-09) -->
-              <div id="noti-consent" class="rounded-lg p-3 space-y-2 text-sm" style="border:1px solid var(--border);">
-                <div id="noti-consent-granted" class="hidden flex flex-wrap items-center justify-between gap-2">
-                  <span id="noti-consent-granted-text" class="text-slate-300"></span>
-                  <button id="noti-consent-withdraw" class="btn-secondary text-xs">동의 철회 · 저장된 연동 정보 삭제</button>
-                </div>
-                <div id="noti-consent-ask" class="space-y-2">
-                  <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-consent-check" class="w-4 h-4 rounded mt-0.5" />
-                    <span id="noti-consent-label" class="text-slate-200"></span>
-                  </label>
-                  <p class="text-xs text-slate-400">
-                    선택 동의입니다. 동의하지 않으면 아래 토큰 · 웹훅 · 비밀번호 · 휴대전화번호를 저장할 수 없고, 다른 기능은 그대로 쓸 수 있습니다.
-                  </p>
-                </div>
-                <details>
-                  <summary class="text-xs text-slate-400 cursor-pointer">동의 내용 자세히 보기</summary>
-                  <div id="noti-consent-body" class="mt-2 space-y-2 text-xs text-slate-300"></div>
-                </details>
-              </div>
-
-              <!-- 채널 선택 -->
-              <div>
-                <label class="text-sm text-slate-300 font-medium block mb-2">활성화할 채널 선택</label>
-                <div class="flex flex-wrap gap-4 text-sm">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-ch-telegram" class="noti-channel w-4 h-4 rounded"
-                      value="telegram" />
-                    <span>📱 텔레그램</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-ch-slack" class="noti-channel w-4 h-4 rounded" value="slack" />
-                    <span>💬 Slack</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-ch-discord" class="noti-channel w-4 h-4 rounded" value="discord" />
-                    <span>🎮 Discord</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-ch-email" class="noti-channel w-4 h-4 rounded" value="email" />
-                    <span>📧 이메일</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-ch-kakao" class="noti-channel w-4 h-4 rounded" value="kakao" />
-                    <span>🟡 카카오 알림톡</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-ch-sms" class="noti-channel w-4 h-4 rounded" value="sms" />
-                    <span>📲 SMS</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- 텔레그램 -->
-              <div id="noti-section-telegram" class="hidden space-y-2">
-                <h3 class="text-sm font-semibold text-slate-300">📱 텔레그램 봇 설정</h3>
-                <p class="text-xs text-slate-400">BotFather에서 봇을 만들고 토큰과 채팅 ID를 입력하세요.</p>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>텔레그램에서 <b>@BotFather</b> 를 열고 <code>/newbot</code> 을 보냅니다. 이름과 사용자명(끝이 <code>bot</code>)을 정하면 <b>토큰</b>이 나옵니다.</li><li>방금 만든 봇을 찾아 <b>아무 말이나 먼저 보냅니다</b>(그래야 봇이 나에게 글을 보낼 수 있습니다).</li><li>브라우저에서 <code>https://api.telegram.org/bot&lt;토큰&gt;/getUpdates</code> 를 열고 <code>"chat":{"id": 숫자}</code> 의 숫자가 <b>Chat ID</b> 입니다(그룹은 음수).</li></ol><p class="mt-1">토큰은 이 화면 · .env 밖 어디에도 붙이지 마세요.</p></details>
-                <div class="grid md:grid-cols-2 gap-3">
-                  <div>
-                    <label class="text-xs text-slate-400">Bot Token</label>
-                    <input id="noti-telegram-token" type="password" class="input mt-1"
-                      placeholder="1234567890:AAFxxxxxxx" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">Chat ID</label>
-                    <input id="noti-telegram-chat-id" type="text" class="input mt-1" placeholder="-100xxxxxxxxx" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Slack -->
-              <div id="noti-section-slack" class="hidden space-y-2">
-                <h3 class="text-sm font-semibold text-slate-300">💬 Slack Incoming Webhook</h3>
-                <p class="text-xs text-slate-400">Slack 앱에서 Incoming Webhook을 생성하고 URL을 입력하세요.</p>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>https://api.slack.com/apps → <b>Create New App</b> → From scratch → 앱 이름 · 워크스페이스를 고릅니다.</li><li>왼쪽 <b>Incoming Webhooks</b> → 켜기 → 아래 <b>Add New Webhook to Workspace</b> → <b>글을 올릴 채널</b>을 골라 허용합니다.</li><li>생성된 <code>https://hooks.slack.com/services/…</code> 주소를 복사해 아래에 붙입니다.</li></ol><p class="mt-1">「messages_tab_disabled」 오류가 나면 웹훅이 앱의 개인 메시지 칸으로 만들어진 것입니다 — 채널을 골라 웹훅을 다시 만들거나, 앱의 App Home → Messages Tab 을 켜세요.</p></details>
-                <div>
-                  <label class="text-xs text-slate-400">Webhook URL</label>
-                  <input id="noti-slack-webhook" type="text" class="input mt-1"
-                    placeholder="https://hooks.slack.com/services/..." />
-                </div>
-              </div>
-
-              <!-- 디스코드 — 사용자별 웹훅 주소(비밀값 · 응답에서 가림). 비우면 서버 공용 주소(.env DISCORD_WEBHOOK_URL)로 간다 (2026-11-01) -->
-              <div id="noti-section-discord" class="hidden space-y-2">
-                <h3 class="text-sm font-semibold text-slate-300">🎮 Discord 웹훅</h3>
-                <p class="text-xs text-slate-400">내 디스코드 채널의 웹훅 주소를 넣으면 그 채널로 알림이 갑니다. <b>비워 두면</b> 알림은 어느 채널로도 가지 않습니다. 이 앱 서버에 정해 둔 <b>공용 채널</b>은 다른 사람도 볼 수 있어, 아래 상자를 직접 켠 때만 거기로도 보냅니다.</p>
-                <div>
-                  <label class="text-xs text-slate-400">Webhook URL</label>
-                  <input id="noti-discord-webhook" type="password" autocomplete="off" class="input mt-1"
-                    placeholder="https://discord.com/api/webhooks/..." />
-                </div>
-                <label class="flex items-start gap-2 text-xs text-slate-300" for="noti-discord-shared">
-                  <input type="checkbox" id="noti-discord-shared" class="w-4 h-4 rounded mt-0.5" />
-                  <span>내 주소가 없으면 <b>서버 공용 채널</b>로 보내기 <span class="text-slate-400">(그 채널은 다른 사람도 볼 수 있습니다 · 체결 · 잔고 같은 개인 내용이 보입니다)</span></span>
-                </label>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">웹훅 주소 받는 법</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>디스코드에서 알림을 받을 <b>서버</b>의 채널을 고릅니다(없으면 새 서버 · 채널을 만듭니다).</li><li>채널 이름 옆 톱니 <b>채널 편집 → 연동 → 웹훅 → 새 웹훅</b>(또는 서버 설정 → 연동 → 웹훅)을 누르고 이름 · 채널을 정합니다.</li><li><b>웹훅 URL 복사</b>로 <code>https://discord.com/api/webhooks/…</code> 를 복사해 위 칸에 붙이고 저장합니다. 서버 공용 채널을 정하는 사람(서버 관리자)은 <code>.env</code> 의 <code>DISCORD_WEBHOOK_URL=</code> 뒤에 붙이고 앱을 다시 시작합니다.</li></ol><p class="mt-1">주소를 아는 사람은 누구나 그 채널에 글을 올릴 수 있으니 비밀로 두세요. 노출되면 웹훅을 지우고 새로 만듭니다.</p></details>
-              </div>
-
-              <!-- 이메일 -->
-              <div id="noti-section-email" class="hidden space-y-2">
-                <h3 class="text-sm font-semibold text-slate-300">📧 이메일 (SMTP)</h3>
-                <p class="text-xs text-slate-400">Gmail 등 SMTP 서버 정보와 수신 이메일을 입력하세요.</p>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히 (Gmail 기준)</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>구글 계정에서 <b>2단계 인증</b>을 켭니다.</li><li>myaccount.google.com/apppasswords 에서 <b>앱 비밀번호</b> 16자리를 만듭니다(공백 없이 붙여넣는 것을 권장).</li><li><b>SMTP 호스트는 <code>smtp.gmail.com</code></b>(이메일 주소를 넣지 않습니다) · 포트 587 · 계정은 내 Gmail 주소 · 비밀번호는 앱 비밀번호 · 수신 이메일은 받을 주소.</li></ol><p class="mt-1">계정 비밀번호는 쓰지 않습니다. 다른 서비스(네이버 · 회사 메일)는 그 서비스의 SMTP 주소 · 포트(보통 587 STARTTLS)를 씁니다.</p></details>
-                <div class="grid md:grid-cols-2 gap-3">
-                  <div>
-                    <label class="text-xs text-slate-400">SMTP 호스트</label>
-                    <input id="noti-email-host" type="text" class="input mt-1" placeholder="smtp.gmail.com" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">SMTP 포트</label>
-                    <input id="noti-email-port" type="number" class="input mt-1" value="587" min="1" max="65535" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">계정 (발신)</label>
-                    <input id="noti-email-user" type="text" class="input mt-1" placeholder="your@gmail.com" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">앱 비밀번호</label>
-                    <input id="noti-email-password" type="password" class="input mt-1" placeholder="Gmail 앱 비밀번호" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">발신자 표시 이름 (선택)</label>
-                    <input id="noti-email-from" type="text" class="input mt-1" placeholder="매매알림 <your@gmail.com>" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">수신 이메일</label>
-                    <input id="noti-email-to" type="text" class="input mt-1" placeholder="recv@example.com" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- 카카오 알림톡 -->
-              <div id="noti-section-kakao" class="hidden space-y-2">
-                <h3 class="text-sm font-semibold text-slate-300">🟡 카카오 알림톡 (CoolSMS)</h3>
-                <p class="text-xs text-slate-400">CoolSMS API를 통한 카카오 알림톡(친구톡) 발송입니다. <a href="https://coolsms.co.kr"
-                    target="_blank" class="text-indigo-400 underline">coolsms.co.kr</a>에서 발급받으세요.</p>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>coolsms.co.kr 가입 → 콘솔에서 <b>API Key 관리</b> → 키 · 시크릿 생성.</li><li><b>카카오 채널</b>을 만들고 CoolSMS 에 연동해 <b>발신 프로필 키(Sender Key)</b> 를 받습니다.</li><li>알림톡은 <b>템플릿 심사</b>를 거쳐야 보낼 수 있습니다(연습용으로는 번거로워 SMS 나 다른 채널을 먼저 권합니다).</li></ol></details>
-                <div class="grid md:grid-cols-2 gap-3">
-                  <div>
-                    <label class="text-xs text-slate-400">API Key</label>
-                    <input id="noti-kakao-api-key" type="password" class="input mt-1" placeholder="CoolSMS API Key" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">API Secret</label>
-                    <input id="noti-kakao-api-secret" type="password" class="input mt-1"
-                      placeholder="CoolSMS API Secret" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">발신 프로필 키 (Sender Key)</label>
-                    <input id="noti-kakao-sender-key" type="text" class="input mt-1" placeholder="카카오 채널 발신 프로필 키" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">수신 전화번호</label>
-                    <input id="noti-kakao-phone" type="text" class="input mt-1" placeholder="01012345678" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- SMS -->
-              <div id="noti-section-sms" class="hidden space-y-2">
-                <h3 class="text-sm font-semibold text-slate-300">📲 SMS (CoolSMS)</h3>
-                <p class="text-xs text-slate-400">카카오 알림톡과 동일한 CoolSMS API Key/Secret을 사용합니다.</p>
-                <details class="text-xs text-slate-400"><summary class="cursor-pointer text-indigo-300">받는 법 자세히</summary><ol class="list-decimal ml-5 mt-1 space-y-1"><li>coolsms.co.kr 가입 → API Key 관리에서 키 · 시크릿 생성(카카오 알림톡과 같은 키).</li><li><b>발신번호</b>를 등록(본인 인증)하고 잔액을 충전합니다. 한 건은 80자까지 보냅니다.</li></ol></details>
-                <div class="grid md:grid-cols-2 gap-3">
-                  <div>
-                    <label class="text-xs text-slate-400">API Key</label>
-                    <input id="noti-sms-api-key" type="password" class="input mt-1" placeholder="CoolSMS API Key" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">API Secret</label>
-                    <input id="noti-sms-api-secret" type="password" class="input mt-1"
-                      placeholder="CoolSMS API Secret" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">발신 번호</label>
-                    <input id="noti-sms-from" type="text" class="input mt-1" placeholder="01012345678 (등록된 번호)" />
-                  </div>
-                  <div>
-                    <label class="text-xs text-slate-400">수신 번호</label>
-                    <input id="noti-sms-to" type="text" class="input mt-1" placeholder="01087654321" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- 사건별 알림 설정 · 조용한 시간 (2026-11-01 · 보고식 알림) -->
-              <div id="noti-prefs" class="pt-3 mt-1 space-y-3" style="border-top:1px solid var(--border);">
-                <h3 class="text-sm font-semibold" style="color:var(--text-dim);">🔔 사건별 알림 · 조용한 시간</h3>
-                <p class="text-xs" style="color:var(--text-mute);">
-                  사건마다 <b>켜기</b>(바로 받기) · <b>조용히</b>(소리·진동 없이) · <b>끄기</b>를 고릅니다.
-                  조용히는 Telegram·Discord 에서만 알림음이 꺼지고, Slack·이메일은 그대로 오며, 카카오·SMS 는 보내지 않습니다.
-                  긴급(비상 정지)은 끌 수 없고 조용한 시간에도 바로 옵니다.
-                </p>
-                <div class="overflow-x-auto">
-                  <table class="w-full text-xs" id="noti-prefs-table">
-                    <thead>
-                      <tr style="color:var(--text-mute);text-align:left;">
-                        <th class="py-1 pr-3 font-normal">사건</th><th class="py-1 pr-3 font-normal">중요도</th><th class="py-1 font-normal">받는 방식</th>
-                      </tr>
-                    </thead>
-                    <tbody id="noti-prefs-body"><tr><td colspan="3" style="color:var(--text-mute);">불러오는 중...</td></tr></tbody>
-                  </table>
-                </div>
-                <div class="flex flex-wrap items-center gap-2 text-sm">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="noti-quiet-enabled" class="w-4 h-4 rounded" />
-                    <span class="text-slate-200">조용한 시간 사용</span>
-                  </label>
-                  <input id="noti-quiet-start" type="time" class="input w-36" value="21:00" aria-label="조용한 시간 시작" />
-                  <span style="color:var(--text-mute);">~</span>
-                  <input id="noti-quiet-end" type="time" class="input w-36" value="08:00" aria-label="조용한 시간 끝" />
-                  <span class="text-xs" style="color:var(--text-mute);">(한국 시간)</span>
-                </div>
-                <p class="text-xs" style="color:var(--text-mute);">
-                  조용한 시간에 온 일반·참고 알림은 모아 두었다가 끝나는 시각에 <b>요약 1건</b>으로 보냅니다.
-                  「주문 생략」처럼 같은 사건이 몰려 오면 2분 안에 오는 것을 1건으로 합칩니다.
-                </p>
-              </div>
-
-              <!-- 저장 / 테스트 버튼 -->
-              <div class="flex gap-2 pt-2">
-                <button id="noti-save" class="btn-primary">저장</button>
-                <button id="noti-test" class="btn-secondary">테스트 알림 발송</button>
-              </div>
-              <div id="noti-status" class="text-sm text-slate-400"></div>
-
-              <!-- 알림 발송 이력 -->
-              <div class="pt-3 mt-3" style="border-top:1px solid var(--border);">
-                <h3 class="text-sm font-semibold mb-2" style="color:var(--text-dim);">🕘 최근 발송 이력</h3>
-                <div id="noti-history" class="text-xs" style="color:var(--text-mute);">불러오는 중...</div>
-              </div>
-            </div>
-          </div>
+          <!-- 알림 설정 본체는 마이페이지 「알림」 구역(#mp-sec-notify)으로 옮겼다(2026-11-03 · ②-31) — 주소 #notification-settings 는 그대로 마이페이지 알림 구역을 연다. 이 껍데기는 화면 키(점수 · 사용법 · 초기 이동 검사)를 위해 남긴다 -->
+          <div class="view" data-view="notification-settings"></div>
 
           <!-- ══ 5. 미국주식 (원화 모의 장부 · 야후 파이낸스 지연 시세 — Alpaca 키 칸은 2026-10-30 에 없앰: 저장해도 어디에도 가지 않았다) ══ -->
           <!-- 5-1. 미국주식 대시보드 -->
@@ -1509,27 +1504,27 @@
                   <div class="space-y-2">
                     <div class="text-xs" id="fx-current" style="color:var(--text-mute);">새 지표 (미저장)</div>
                     <div class="grid grid-cols-2 gap-2">
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">이름</label><input
+                      <div><label for="fx-name" class="text-xs font-semibold" style="color:var(--text-dim);">이름</label><input
                           id="fx-name" class="input mt-1" placeholder="예) 변동성 정규화 모멘텀" /></div>
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">설명</label><input
+                      <div><label for="fx-desc" class="text-xs font-semibold" style="color:var(--text-dim);">설명</label><input
                           id="fx-desc" class="input mt-1" placeholder="무엇을 측정하는 지표인지" /></div>
                     </div>
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">indicator 산식
+                    <div><label for="fx-indicator" class="text-xs font-semibold" style="color:var(--text-dim);">indicator 산식
                         (필수)</label><textarea id="fx-indicator" class="input mt-1 font-mono text-xs" rows="2"
                         placeholder="zscore(close, n)"></textarea></div>
                     <div class="grid grid-cols-2 gap-2">
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">buy 조건
+                      <div><label for="fx-buy" class="text-xs font-semibold" style="color:var(--text-dim);">buy 조건
                           (선택)</label><textarea id="fx-buy" class="input mt-1 font-mono text-xs" rows="2"
                           placeholder="zscore(close, n) < -2"></textarea></div>
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">sell 조건
+                      <div><label for="fx-sell" class="text-xs font-semibold" style="color:var(--text-dim);">sell 조건
                           (선택)</label><textarea id="fx-sell" class="input mt-1 font-mono text-xs" rows="2"
                           placeholder="zscore(close, n) > 0"></textarea></div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">숫자 설정
+                      <div><label for="fx-params" class="text-xs font-semibold" style="color:var(--text-dim);">숫자 설정
                           (JSON)</label><input id="fx-params" class="input mt-1 font-mono text-xs"
                           placeholder='{"n": 20}' /></div>
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">버전 메모</label><input
+                      <div><label for="fx-note" class="text-xs font-semibold" style="color:var(--text-dim);">버전 메모</label><input
                           id="fx-note" class="input mt-1 text-xs" placeholder="예) 기간 20→30, 거래량 필터 추가" /></div>
                     </div>
                     <div class="flex flex-wrap gap-2 items-center">
@@ -1542,9 +1537,9 @@
                   <div class="space-y-2">
                     <h3 class="text-sm font-semibold">계산 조건</h3>
                     <div class="grid grid-cols-3 gap-2 text-sm">
-                      <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="fx-symbol" data-stock-find="symbol"
+                      <div><label for="fx-symbol" class="text-xs" style="color:var(--text-mute);">종목</label><input id="fx-symbol" data-stock-find="symbol"
                           class="input" value="005930.KS" /></div>
-                      <div><label class="text-xs" style="color:var(--text-mute);">기간</label><select id="fx-period"
+                      <div><label for="fx-period" class="text-xs" style="color:var(--text-mute);">기간</label><select id="fx-period"
                           class="input">
                           <option value="1y">1년</option>
                           <option value="2y" selected>2년</option>
@@ -1553,11 +1548,11 @@
                         </select></div>
                       <div class="flex items-end"><label class="text-xs flex items-center gap-1"><input
                             id="fx-use-cache" type="checkbox" checked /> 오늘 저장된 결과 재사용</label></div>
-                      <div><label class="text-xs" style="color:var(--text-mute);">수수료 (bp)</label><input id="fx-cost"
+                      <div><label for="fx-cost" class="text-xs" style="color:var(--text-mute);">수수료 (bp)</label><input id="fx-cost"
                           type="number" class="input" value="10" min="0" /></div>
-                      <div><label class="text-xs" style="color:var(--text-mute);">슬리피지 (bp)</label><input id="fx-slip"
+                      <div><label for="fx-slip" class="text-xs" style="color:var(--text-mute);">슬리피지 (bp)</label><input id="fx-slip"
                           type="number" class="input" value="5" min="0" /></div>
-                      <div><label class="text-xs" style="color:var(--text-mute);">손절 % / 익절 %</label>
+                      <div><label for="fx-sl" class="text-xs" style="color:var(--text-mute);">손절 % / 익절 %</label>
                         <div class="flex gap-1"><input id="fx-sl" type="number" class="input" placeholder="5"
                             step="0.5" /><input id="fx-tp" type="number" class="input" placeholder="15" step="0.5" />
                         </div>
@@ -1613,18 +1608,18 @@
                   <div>
                     <h3 class="font-semibold text-sm mb-2">③ 테스트 신호 보내기 (TradingView 없이 흐름 확인)</h3>
                     <div class="grid grid-cols-2 gap-2 text-sm">
-                      <div class="col-span-2"><label class="text-xs font-semibold" style="color:var(--text-dim);">API 키
+                      <div class="col-span-2"><label for="tv-test-token" class="text-xs font-semibold" style="color:var(--text-dim);">API 키
                           (token) — 모의투자 › Open API에서 발급</label><input id="tv-test-token" class="input mt-1"
                           placeholder="lumina_..." /></div>
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">티커</label><input
+                      <div><label for="tv-test-ticker" class="text-xs font-semibold" style="color:var(--text-dim);">티커</label><input
                           id="tv-test-ticker" class="input mt-1" value="KRX:005930" /></div>
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">action</label><select
+                      <div><label for="tv-test-action" class="text-xs font-semibold" style="color:var(--text-dim);">action</label><select
                           id="tv-test-action" class="input mt-1">
                           <option value="buy">buy</option>
                           <option value="sell">sell</option>
                           <option value="alert">alert (주문 없음)</option>
                         </select></div>
-                      <div><label class="text-xs font-semibold" style="color:var(--text-dim);">contracts</label><input
+                      <div><label for="tv-test-qty" class="text-xs font-semibold" style="color:var(--text-dim);">contracts</label><input
                           id="tv-test-qty" type="number" min="1" class="input mt-1" value="1" /></div>
                       <div class="flex items-end"><button id="tv-test-send" class="btn-primary text-xs w-full">Webhook으로
                           전송</button></div>
@@ -1646,10 +1641,10 @@
                 <p class="text-xs mb-3" style="color:var(--text-mute);">전략 카드 파일에서 TradingView 에 붙일 <strong>strategy()</strong> 코드를 만듭니다(코드는 저장하지 않습니다).
                   이 코드로 Strategy Report 를 만들어 아래 대사에 쓰세요 — 「지표」 화면의 Pine 코드는 차트 표시용(indicator)이라 대사에 쓸 수 없습니다.</p>
                 <div class="grid md:grid-cols-5 gap-2 mb-2 text-sm">
-                  <div class="md:col-span-2"><label class="text-xs" style="color:var(--text-mute);">전략 카드</label><select id="pc-card" class="input"></select></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">종목(여럿일 때)</label><input id="pc-symbol" data-stock-find="code" class="input" placeholder="005930" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">기준가(원) — 슬리피지 환산</label><input id="pc-ref" type="number" class="input" placeholder="70000" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">호가 단위(원) — mintick</label><input id="pc-tick" type="number" class="input" placeholder="100" /></div>
+                  <div class="md:col-span-2"><label for="pc-card" class="text-xs" style="color:var(--text-mute);">전략 카드</label><select id="pc-card" class="input"></select></div>
+                  <div><label for="pc-symbol" class="text-xs" style="color:var(--text-mute);">종목(여럿일 때)</label><input id="pc-symbol" data-stock-find="code" class="input" placeholder="005930" /></div>
+                  <div><label for="pc-ref" class="text-xs" style="color:var(--text-mute);">기준가(원) — 슬리피지 환산</label><input id="pc-ref" type="number" class="input" placeholder="70000" /></div>
+                  <div><label for="pc-tick" class="text-xs" style="color:var(--text-mute);">호가 단위(원) — mintick</label><input id="pc-tick" type="number" class="input" placeholder="100" /></div>
                 </div>
                 <div class="flex items-center gap-2 mb-2">
                   <button id="pc-run" class="btn-primary">▶ 코드 만들기</button>
@@ -1666,41 +1661,41 @@
                 <p class="text-xs mb-3" data-tv-says style="color:var(--text-mute);">이 화면이 말하는 것: 입력한 TradingView 값과 LEAN 값의 비교입니다.
                   말하지 않는 것: 수익률 숫자가 비슷하다는 이유만으로 「검증 통과」 라고 보지 않으며, 그림자 일지와 LEAN 의 비교와는 별개입니다.</p>
                 <div class="grid md:grid-cols-4 gap-2 mb-2 text-sm">
-                  <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="tvc-ticker" data-stock-find="symbol"
+                  <div><label for="tvc-ticker" class="text-xs" style="color:var(--text-mute);">종목</label><input id="tvc-ticker" data-stock-find="symbol"
                       class="input" value="005930.KS" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">LEAN 전략</label><select id="tvc-strategy"
+                  <div><label for="tvc-strategy" class="text-xs" style="color:var(--text-mute);">LEAN 전략</label><select id="tvc-strategy"
                       class="input">
                       <option value="ma_cross">이동평균 교차 (골든/데드)</option>
                       <option value="momentum">모멘텀 돌파</option>
                       <option value="dca">정액 분할 매수</option>
                       <option value="buy_hold">매수 후 보유</option>
                     </select></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">시작일</label><input id="tvc-start"
+                  <div><label for="tvc-start" class="text-xs" style="color:var(--text-mute);">시작일</label><input id="tvc-start"
                       type="date" class="input" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">종료일</label><input id="tvc-end" type="date"
+                  <div><label for="tvc-end" class="text-xs" style="color:var(--text-mute);">종료일</label><input id="tvc-end" type="date"
                       class="input" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">초기 자금</label><input id="tvc-cash"
+                  <div><label for="tvc-cash" class="text-xs" style="color:var(--text-mute);">초기 자금</label><input id="tvc-cash"
                       type="number" class="input" value="10000000" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">단기 MA</label><input id="tvc-short"
+                  <div><label for="tvc-short" class="text-xs" style="color:var(--text-mute);">단기 MA</label><input id="tvc-short"
                       type="number" class="input" value="20" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">장기 MA</label><input id="tvc-long"
+                  <div><label for="tvc-long" class="text-xs" style="color:var(--text-mute);">장기 MA</label><input id="tvc-long"
                       type="number" class="input" value="60" /></div>
                 </div>
                 <h4 class="text-xs font-semibold mb-1" style="color:var(--text-dim);">TradingView 성과 (Strategy Report ›
                   Metrics 탭 값 입력 — 옛 이름 Overview · 확인일 2026-10-29)</h4>
                 <div class="grid md:grid-cols-5 gap-2 mb-2 text-sm">
-                  <div><label class="text-xs" style="color:var(--text-mute);">Net Profit %</label><input id="tvc-net"
+                  <div><label for="tvc-net" class="text-xs" style="color:var(--text-mute);">Net Profit %</label><input id="tvc-net"
                       type="number" step="0.01" class="input" placeholder="12.5" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">Max Drawdown %</label><input id="tvc-mdd"
+                  <div><label for="tvc-mdd" class="text-xs" style="color:var(--text-mute);">Max Drawdown %</label><input id="tvc-mdd"
                       type="number" step="0.01" class="input" placeholder="-8.3" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">Total Trades</label><input id="tvc-trades"
+                  <div><label for="tvc-trades" class="text-xs" style="color:var(--text-mute);">Total Trades</label><input id="tvc-trades"
                       type="number" class="input" placeholder="14" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">Percent Profitable %</label><input
+                  <div><label for="tvc-win" class="text-xs" style="color:var(--text-mute);">Percent Profitable %</label><input
                       id="tvc-win" type="number" step="0.01" class="input" placeholder="57" /></div>
-                  <div><label class="text-xs" style="color:var(--text-mute);">Sharpe</label><input id="tvc-sharpe"
+                  <div><label for="tvc-sharpe" class="text-xs" style="color:var(--text-mute);">Sharpe</label><input id="tvc-sharpe"
                       type="number" step="0.01" class="input" placeholder="0.9" /></div>
                 </div>
-                <label class="text-xs" style="color:var(--text-mute);">또는 거래 목록 CSV 붙여넣기 (Strategy Report › Trades 탭 ›
+                <label for="tvc-csv" class="text-xs" style="color:var(--text-mute);">또는 거래 목록 CSV 붙여넣기 (Strategy Report › Trades 탭 ›
                   Download — 옛 이름 List of Trades › Export · 확인일 2026-10-29)</label>
                 <textarea id="tvc-csv" class="input mt-1" rows="3"
                   placeholder="Trade #,Type,Signal,Date/Time,Price,Contracts,Profit,Profit %,..."></textarea>
@@ -1746,7 +1741,7 @@
                 <p class="text-xs mb-4" style="color:var(--text-mute);">성향·기간 규칙으로 자산군 비중을 정하고, 지표·모델 분석으로 국내주식 종목 비중을 계산합니다</p>
                 <div class="grid md:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">투자 성향</label>
+                    <label for="robo-risk" class="text-xs font-semibold" style="color:var(--text-dim);">투자 성향</label>
                     <select id="robo-risk" class="input mt-1">
                       <option value="conservative">보수적 (안정추구형)</option>
                       <option value="moderate" selected>중립 (위험중립형)</option>
@@ -1754,7 +1749,7 @@
                     </select>
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">투자 기간</label>
+                    <label for="robo-horizon" class="text-xs font-semibold" style="color:var(--text-dim);">투자 기간</label>
                     <select id="robo-horizon" class="input mt-1">
                       <option value="1">단기 (1년 미만)</option>
                       <option value="3" selected>중기 (1~3년)</option>
@@ -1763,7 +1758,7 @@
                     </select>
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">투자 원금 (만원)</label>
+                    <label for="robo-amount" class="text-xs font-semibold" style="color:var(--text-dim);">투자 원금 (만원)</label>
                     <input id="robo-amount" type="number" class="input mt-1" placeholder="예) 5000" value="5000" />
                   </div>
                 </div>
@@ -1808,13 +1803,13 @@
                   <p class="text-xs mb-3" style="color:var(--text-mute);">위 최적화 포트폴리오의 기대수익률·변동성을 그대로 사용해, 목표 연수익률을 달성할
                     확률과 자산 분포를 시뮬레이션합니다.</p>
                   <div class="flex flex-wrap gap-2 items-end mb-3 text-sm">
-                    <div><label class="text-xs" style="color:var(--text-mute);">목표 연수익률 (%)</label><input id="gs-target"
+                    <div><label for="gs-target" class="text-xs" style="color:var(--text-mute);">목표 연수익률 (%)</label><input id="gs-target"
                         type="number" step="0.5" class="input" style="width:110px" value="8" /></div>
-                    <div><label class="text-xs" style="color:var(--text-mute);">월 적립 (만원)</label><input id="gs-monthly"
+                    <div><label for="gs-monthly" class="text-xs" style="color:var(--text-mute);">월 적립 (만원)</label><input id="gs-monthly"
                         type="number" step="10" min="0" class="input" style="width:110px" value="0" /></div>
-                    <div><label class="text-xs" style="color:var(--text-mute);">기대 연수익률 (%)</label><input id="gs-mu"
+                    <div><label for="gs-mu" class="text-xs" style="color:var(--text-mute);">기대 연수익률 (%)</label><input id="gs-mu"
                         type="number" step="0.1" class="input" style="width:110px" /></div>
-                    <div><label class="text-xs" style="color:var(--text-mute);">연변동성 (%)</label><input id="gs-sigma"
+                    <div><label for="gs-sigma" class="text-xs" style="color:var(--text-mute);">연변동성 (%)</label><input id="gs-sigma"
                         type="number" step="0.1" min="0" class="input" style="width:110px" /></div>
                     <button id="gs-run" class="btn-primary text-xs">확률 계산</button>
                   </div>
@@ -1848,14 +1843,14 @@
                 <div class="card">
                   <h3 class="font-semibold mb-3 text-sm">🎯 목표 비중 플랜</h3>
                   <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div class="col-span-2"><label class="text-xs font-semibold" style="color:var(--text-dim);">플랜
+                    <div class="col-span-2"><label for="rb-name" class="text-xs font-semibold" style="color:var(--text-dim);">플랜
                         이름</label><input id="rb-name" class="input mt-1" placeholder="예) 60/40 코어 포트폴리오" /></div>
                   </div>
                   <div class="flex flex-wrap gap-2 items-end mb-2">
-                    <div class="flex-1 min-w-[140px]"><label class="text-xs font-semibold"
+                    <div class="flex-1 min-w-[140px]"><label for="rb-add-symbol" class="text-xs font-semibold"
                         style="color:var(--text-dim);">종목코드</label><input id="rb-add-symbol" data-stock-find="symbol" class="input mt-1"
                         placeholder="005930 (국내 주식·ETF)" /></div>
-                    <div style="width:110px"><label class="text-xs font-semibold"
+                    <div style="width:110px"><label for="rb-add-weight" class="text-xs font-semibold"
                         style="color:var(--text-dim);">비중(%)</label><input id="rb-add-weight" type="number" min="0"
                         max="100" step="0.5" class="input mt-1" placeholder="30" /></div>
                     <button id="rb-add" class="btn-primary text-xs">추가</button>
@@ -1994,20 +1989,20 @@
                 <div class="card">
                   <h3 class="font-semibold mb-3 text-sm">💸 입금 · 출금 · 배당 이벤트</h3>
                   <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">구분</label>
+                    <div><label for="rb-cf-kind" class="text-xs font-semibold" style="color:var(--text-dim);">구분</label>
                       <select id="rb-cf-kind" class="input mt-1">
                         <option value="DEPOSIT">입금</option>
                         <option value="WITHDRAW">출금</option>
                         <option value="DIVIDEND">배당금 수령</option>
                       </select>
                     </div>
-                    <div><label class="text-xs font-semibold" style="color:var(--text-dim);">금액 (원)</label><input
+                    <div><label for="rb-cf-amount" class="text-xs font-semibold" style="color:var(--text-dim);">금액 (원)</label><input
                         id="rb-cf-amount" type="number" min="1" step="10000" class="input mt-1" placeholder="1000000" />
                     </div>
-                    <div id="rb-cf-symbol-wrap" class="hidden"><label class="text-xs font-semibold"
+                    <div id="rb-cf-symbol-wrap" class="hidden"><label for="rb-cf-symbol" class="text-xs font-semibold"
                         style="color:var(--text-dim);">배당 종목</label><input id="rb-cf-symbol" data-stock-find="code" class="input mt-1"
                         placeholder="005930" /></div>
-                    <div class="col-span-2"><label class="text-xs font-semibold"
+                    <div class="col-span-2"><label for="rb-cf-memo" class="text-xs font-semibold"
                         style="color:var(--text-dim);">메모</label><input id="rb-cf-memo" class="input mt-1"
                         placeholder="예) 월급 적립 / 삼성전자 2분기 배당" /></div>
                   </div>
@@ -2042,7 +2037,7 @@
                   스크리닝합니다(학습 모델 예측은 「🧠 설명」)</p>
                 <div class="grid md:grid-cols-4 gap-3 mb-4">
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">시장 신호 강도</label>
+                    <label for="screen-signal" class="text-xs font-semibold" style="color:var(--text-dim);">시장 신호 강도</label>
                     <select id="screen-signal" class="input mt-1">
                       <option value="all">전체</option>
                       <option value="buy" selected>매수 신호</option>
@@ -2050,7 +2045,7 @@
                     </select>
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">패턴 인식 모델</label>
+                    <label for="screen-model" class="text-xs font-semibold" style="color:var(--text-dim);">패턴 인식 모델</label>
                     <select id="screen-model" class="input mt-1">
                       <option value="lightgbm" selected>규칙 앙상블 (추세 · MACD · RSI)</option>
                       <option value="rsi">RSI 역추세</option>
@@ -2059,7 +2054,7 @@
                     </select>
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">최소 신뢰도</label>
+                    <label for="screen-confidence" class="text-xs font-semibold" style="color:var(--text-dim);">최소 신뢰도</label>
                     <select id="screen-confidence" class="input mt-1">
                       <option value="50">50% 이상</option>
                       <option value="65" selected>65% 이상</option>
@@ -2121,7 +2116,7 @@
                 <p class="text-xs mb-3" style="color:var(--text-mute);">캔들 패턴(해머·장악형·샛별형 등)과 피벗 기반 지지·저항선, 돌파·골든크로스 이벤트를
                   탐지하고, 분봉(60분)·일봉·주봉 지표를 종합해 매수·매도·관망 신호와 신뢰도를 산출합니다.</p>
                 <div class="flex flex-wrap gap-2 items-end">
-                  <div><label class="text-xs" style="color:var(--text-mute);">종목</label><input id="pt-symbol" data-stock-find="symbol"
+                  <div><label for="pt-symbol" class="text-xs" style="color:var(--text-mute);">종목</label><input id="pt-symbol" data-stock-find="symbol"
                       class="input" value="005930.KS" placeholder="005930 또는 005930.KS" style="width:200px" /></div>
                   <button id="pt-run" class="btn-primary">분석 실행</button>
                 </div>
@@ -2298,7 +2293,7 @@
                 </p>
                 <div class="grid md:grid-cols-4 gap-3 mb-4">
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">종목</label>
+                    <label for="ind-symbol" class="text-xs font-semibold" style="color:var(--text-dim);">종목</label>
                     <select id="ind-symbol" class="input mt-1">
                       <option value="005930.KS">삼성전자</option>
                       <option value="000660.KS">SK하이닉스</option>
@@ -2308,7 +2303,7 @@
                     </select>
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">기간</label>
+                    <label for="ind-period" class="text-xs font-semibold" style="color:var(--text-dim);">기간</label>
                     <select id="ind-period" class="input mt-1">
                       <option value="3mo">3개월</option>
                       <option value="6mo">6개월</option>
@@ -2435,11 +2430,11 @@
                 </p>
                 <div class="grid md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">인디케이터 이름</label>
+                    <label for="ci-name" class="text-xs font-semibold" style="color:var(--text-dim);">인디케이터 이름</label>
                     <input id="ci-name" class="input mt-1" placeholder="예) My_Momentum_v1" value="My_Momentum_v1" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">기반 인디케이터</label>
+                    <label for="ci-base" class="text-xs font-semibold" style="color:var(--text-dim);">기반 인디케이터</label>
                     <select id="ci-base" class="input mt-1">
                       <option value="rsi_ma">RSI + 이동평균 복합</option>
                       <option value="macd_bb">MACD + 볼린저밴드</option>
@@ -2450,31 +2445,31 @@
                 </div>
                 <div class="grid md:grid-cols-4 gap-3 mb-4">
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">단기 MA 기간</label>
+                    <label for="ci-short" class="text-xs font-semibold" style="color:var(--text-dim);">단기 MA 기간</label>
                     <input id="ci-short" type="number" class="input mt-1" value="5" min="2" max="20" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">중기 MA 기간</label>
+                    <label for="ci-mid" class="text-xs font-semibold" style="color:var(--text-dim);">중기 MA 기간</label>
                     <input id="ci-mid" type="number" class="input mt-1" value="20" min="5" max="60" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">RSI 기간</label>
+                    <label for="ci-rsi" class="text-xs font-semibold" style="color:var(--text-dim);">RSI 기간</label>
                     <input id="ci-rsi" type="number" class="input mt-1" value="14" min="5" max="30" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">매수 임계값 (RSI 하한)</label>
+                    <label for="ci-buy-th" class="text-xs font-semibold" style="color:var(--text-dim);">매수 임계값 (RSI 하한)</label>
                     <input id="ci-buy-th" type="number" class="input mt-1" value="35" min="10" max="50" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">수수료+슬리피지 (bp)</label>
+                    <label for="ci-cost" class="text-xs font-semibold" style="color:var(--text-dim);">수수료+슬리피지 (bp)</label>
                     <input id="ci-cost" type="number" class="input mt-1" value="15" min="0" max="500" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">손절 % (비우면 미적용)</label>
+                    <label for="ci-sl" class="text-xs font-semibold" style="color:var(--text-dim);">손절 % (비우면 미적용)</label>
                     <input id="ci-sl" type="number" class="input mt-1" min="0" step="0.5" placeholder="5" />
                   </div>
                   <div>
-                    <label class="text-xs font-semibold" style="color:var(--text-dim);">익절 % (비우면 미적용)</label>
+                    <label for="ci-tp" class="text-xs font-semibold" style="color:var(--text-dim);">익절 % (비우면 미적용)</label>
                     <input id="ci-tp" type="number" class="input mt-1" min="0" step="0.5" placeholder="15" />
                   </div>
                 </div>
@@ -3175,7 +3170,7 @@ RC_i = wi × (Σw)_i / √(w'Σw)
       <div class="ssm-header">
         <div class="flex items-center justify-between mb-3">
           <h3>종목 검색</h3>
-          <button id="ssm-close"
+          <button id="ssm-close" aria-label="닫기"
             style="background:none;border:none;cursor:pointer;color:var(--text-mute);font-size:18px;">✕</button>
         </div>
         <div class="ssm-search-wrap">
@@ -3194,7 +3189,7 @@ RC_i = wi × (Σw)_i / √(w'Σw)
     <div class="tm-box">
       <div class="tm-header">
         <h3 id="tm-title">용어 설명</h3>
-        <button id="tm-close" class="tm-close">✕</button>
+        <button id="tm-close" aria-label="닫기" class="tm-close">✕</button>
       </div>
       <div id="tm-body" class="tm-body"></div>
     </div>

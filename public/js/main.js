@@ -12,7 +12,6 @@ import { initPaperViews, onPaperViewActivated } from "/js/paper.js";
 import { loadAutoTradeStatus, loadQuantDashboard } from "/js/quant.js";
 import { initRebalanceView, onRebalanceViewActivated } from "/js/rebalance.js";
 import { initRoboRiskProfile, loadPatternAnalysis, loadRoboDecision, loadRoboTestbed, loadRoboScreening, loadRoboPerformanceMetrics } from "/js/robo.js";
-import { loadNotificationSettings } from "/js/settings.js";
 import { loadAuditLog, loadSystemDashboard } from "/js/sysadmin.js";
 import { loadBrokerStatus, loadOrderHistory, loadPortfolio, loadStockChart } from "/js/trading.js";
 import { initTradingViewView, onTradingViewViewActivated } from "/js/tradingview.js";
@@ -119,7 +118,6 @@ function onViewActivated(view, tab = view) {   // view = 화면 키 · tab = 탭
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }
   if (view === "quant-dashboard") { loadQuantDashboard(); }
   if (view === "quant-auto") loadAutoTradeStatus();
-  if (view === "notification-settings") loadNotificationSettings();
   if (view === "us-dashboard") loadUsDashboard();
   if (view === "us-chart") loadUsChart();
   if (view === "us-order") renderUsOrders();

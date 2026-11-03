@@ -1,7 +1,7 @@
 /* 공통 셸: GNB/LNB 내비게이션, 용어 글로서리·툴팁·사용법 가이드, 비교 트레이, 시세 티커, 동기화 배지, 모달
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
-import { resolveView } from "/js/viewalias.js";   // 「성과 검증 (Python)」 은 전략 분석 화면의 탭 — 옛 주소를 합친 화면으로 잇는다(2026-10-30 · ①-18)
+import { resolveView, MYPAGE_HOSTED } from "/js/viewalias.js";   // 「성과 검증 (Python)」 은 전략 분석 화면의 탭 — 옛 주소를 합친 화면으로 잇는다(2026-10-30 · ①-18)
 
 // ── 한국식 금액 표기 · Y축 라벨 (이슈 #220) ────────────────────
 // 1억 이상은 "억", 1만 이상은 "만", 그 외 원. 9천만 ~ 1.1억 구간은 원 단위로
@@ -458,6 +458,12 @@ function renderCompareTrayAll() {
   COMPARE_TRAY_MOUNTS.forEach(renderCompareTray);
 }
 window.renderCompareTrayAll = renderCompareTrayAll;
+// 동기화 배지(app.html #sync-badge)의 onclick="triggerSync()" 는 전역 함수를 부른다 — 모듈 지역 함수는 닿지 않아 클릭이 ReferenceError 였다(2026-11-03 코드 검토).
+window.triggerSync = triggerSync;
+// 배지에 role="button" tabindex="0" 을 달았으므로 키보드(Enter · Space)로도 누른다.
+document.getElementById("sync-badge")?.addEventListener("keydown", event => {
+  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); triggerSync(); }
+});
 
 let currentGnb = "agent";
 let currentView = "agent-chat";
@@ -593,7 +599,7 @@ function navigate(viewKey) {
 
   // Show/hide views
   document.querySelectorAll(".view").forEach(el => {
-    el.classList.toggle("active", el.dataset.view === (shownView === "settings" ? "mypage" : shownView));
+    el.classList.toggle("active", el.dataset.view === (MYPAGE_HOSTED[shownView] ? "mypage" : shownView));
   });
   // 다른 화면으로 옮기면 내용 칸을 맨 위로 — 굴러가는 칸이 창이 아니라 #main-content 라 브라우저가 자리를 되돌려 주지 않아,
   // 앞 화면에서 내려간 자리를 물려받아 새 화면 중간에 떨어졌다(DF-134 · 2026-10-18 시연 영상을 찍다가 찾음)

@@ -2,7 +2,7 @@
 
 마이페이지를 「왼쪽 구역 목록 + 본문」 으로 나눌 때 지킬 약속을 파일에서 본다.
   - 기존 칸 id 는 그대로, 문서 안에 한 번씩만 (다른 화면의 스크립트가 같은 이름으로 칸을 찾는다)
-  - 증권사 · 알림 · 외부 연동은 요약 + 링크만 — 설정 화면 셋은 한 글자도 안 바뀌고 링크가 가리키는 화면이 실제로 있다
+  - 증권사 · 알림 설정 본체는 이 화면 안 구역에 있다(알림은 2026-11-03 ②-31 에 옮김). 외부 연동(Open API)만 요약 + 링크 — 링크가 가리키는 화면이 실제로 있다
   - 구역 전환은 주소 해시를 건드리지 않는다 (해시는 화면 키 자리 — 겹치면 새로고침 때 마이페이지를 잃는다)
 화면이 실제로 바뀌는 모습(1280 · 390 폭)은 브라우저로 확인한다 — 여기서는 그 동작이 기대는 약속을 본다.
 """
@@ -56,16 +56,40 @@ def test_sections_match_nav():
 
 
 def test_summary_links_point_to_real_views():
-    """TC-MP-03 · 요약 구역의 링크가 가리키는 설정 화면 셋이 실제로 있고, 요약 칸 id 는 다른 화면의 칸과 겹치지 않는다."""
+    """TC-MP-03 · 외부 연동 요약의 링크가 가리키는 Open API 화면이 실제로 있고, 요약 칸 id 는 다른 화면의 칸과 겹치지 않는다.
+    알림 설정 본체는 이 화면의 알림 구역 안에 있다(옛 링크 `#notification-settings` 는 구역으로 열리는 주소로 남는다)."""
     view = _mypage_view()
-    for href in ("#notification-settings", "#paper-openapi"):
-        assert f'href="{href}"' in view, f"{href} 링크가 없다"
-        assert f'data-view="{href[1:]}"' in APP, f"{href[1:]} 화면이 없다"
+    assert 'href="#paper-openapi"' in view and 'data-view="paper-openapi"' in APP
+    assert 'href="#notification-settings"' not in view, "알림은 구역 안에 있으니 다른 화면으로 보내는 링크가 없다"
     # 요약 칸은 mp-sum- 접두사만 — mypage view 가 문서 앞쪽이라 다른 화면 스크립트의 getElementById 가 먼저 잡으면 안 된다
-    for foreign in ('id="trading-broker-status"', 'id="noti-', 'id="po-'):
+    for foreign in ('id="trading-broker-status"', 'id="po-'):
         assert foreign not in view, f"마이페이지 view 에 다른 화면의 칸 {foreign} 이 있다"
     assert 'id="broker-app-key"' in view
     assert re.findall(r'id="(mp-sum-[a-z]+)"', view) == ["mp-sum-broker", "mp-sum-notify", "mp-sum-external"]
+
+
+def _notify_section() -> str:
+    m = re.search(r'<section id="mp-sec-notify".*?</section>', APP, re.S)
+    assert m, "마이페이지에 알림 구역이 없다"
+    return m.group(0)
+
+
+def test_notification_settings_body_lives_in_notify_section():
+    """TC-MP-08 · 알림 설정 본체(②-31)는 알림 구역 안에 한 번씩만 있고, 옛 화면 키는 빈 껍데기로 남으며, 주소는 구역을 연다."""
+    body = _notify_section()
+    for cid in ("noti-save", "noti-test", "noti-status", "noti-history", "noti-consent", "noti-telegram-token", "noti-quiet-start"):
+        assert body.count(f'id="{cid}"') == 1 and APP.count(f'id="{cid}"') == 1, cid
+    # 껍데기 — 처음 주소 이동 검사(main.js)와 점수 · 사용법 키가 이 화면 키를 찾는다
+    assert '<div class="view" data-view="notification-settings"></div>' in APP
+    alias = (PUB / "js" / "viewalias.js").read_text(encoding="utf-8")
+    assert re.search(r'MYPAGE_HOSTED = Object\.freeze\(\{[^}]*"notification-settings":\s*"notify"', alias)
+    # 구역을 보일 때 알림 설정을 불러오고, main.js 가 따로 부르지 않는다(두 번 불러오지 않게)
+    assert 'if (key === "notify") loadNotificationSettings();' in MYPAGE_JS
+    assert "!MYPAGE_HOSTED[view]" in MYPAGE_JS
+    main_js = (PUB / "js" / "main.js").read_text(encoding="utf-8")
+    assert "loadNotificationSettings" not in main_js
+    core_js = (PUB / "js" / "core.js").read_text(encoding="utf-8")
+    assert "MYPAGE_HOSTED[shownView]" in core_js
 
 
 def test_display_card_goes_to_named_section():
@@ -87,7 +111,7 @@ def test_section_switch_does_not_touch_hash_and_summary_reads_only_needed_fields
 
 
 def test_settings_views_untouched():
-    """TC-MP-06 · 설정 화면 셋(칸 id 포함)은 이번 1차에서 그대로 있다 — 본체 이동은 2차."""
+    """TC-MP-06 · 설정 화면 셋의 화면 키는 그대로 있다 — 알림은 본체가 구역으로 옮겨 가 빈 껍데기, Open API 는 아직 본체가 이 화면에 있다."""
     for key in ("settings", "notification-settings", "paper-openapi"):
         assert f'<div class="view" data-view="{key}">' in APP, key
     # trading.js 가 읽는 증권사 칸 4개(앱 키 · 비밀키 · 계좌 · 모의 여부)가 settings 화면에 한 번씩
