@@ -9,12 +9,13 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgres import get_pg_session
 from app.lib.jwt_auth import get_current_user_any
 from app.services import rebalance as rb, rebalance_settlement as settlement
+from app.services import rebalance_regime as regime
 from app.services.audit import audit
 
 router = APIRouter(prefix="/api/rebalance", tags=["rebalance"])
@@ -33,6 +34,12 @@ class TargetBody(BaseModel):
     weight_pct: float = Field(..., ge=0, le=100, allow_inf_nan=False)
 
 
+class RegimeAutoBody(BaseModel):
+    enabled: bool
+    allocation_id: uuid.UUID | None = None
+    include_etfs: bool = False
+
+
 class PlanBody(BaseModel):
     name: str | None = None
     is_active: bool | None = None
@@ -46,6 +53,8 @@ class PlanBody(BaseModel):
     cashflow_min_amount: float | None = Field(None, ge=0, allow_inf_nan=False)
     auto_execute: bool | None = None
     min_order_amount: float | None = Field(None, ge=0, allow_inf_nan=False)
+    expected_updated_at: AwareDatetime | None = None
+    regime_auto: RegimeAutoBody | None = None
 
 
 class CashflowBody(BaseModel):
@@ -74,11 +83,16 @@ async def update_plan(body: PlanBody, user=Depends(get_current_user_any), db: As
     plan = await rb.get_plan(db, _uid(user))
     data = body.model_dump(exclude_none=True)
     try:
+        regime.check_revision(plan, data)
         if "targets" in data:
             data["targets"] = await rb.resolve_targets(data["targets"])
         rb.apply_plan_update(plan, data)
+        await regime.configure(db, _uid(user), plan, data)
         await rb.refresh_time_schedule(plan)
         await settlement.cancel_inactive(db, _uid(user), plan)
+    except regime.PlanConflict as exc:
+        await db.rollback()
+        raise HTTPException(409, str(exc))
     except (rb.RebalanceError, ValueError) as exc:
         await db.rollback()
         raise HTTPException(400, str(exc))
@@ -171,6 +185,8 @@ async def check(user=Depends(get_current_user_any), db: AsyncSession = Depends(g
                       "message": rb.daily.view(plan, await asyncio.to_thread(rb.daily.readiness))["message"]}
             if result["reason"] == "settlement_waiting":
                 result.update(status="scheduled", message="기존 예약의 시가 체결을 기다립니다.")
+            elif result["reason"] == "regime_waiting":
+                result["message"] = result["regime_auto"]["message"]
     except rb.RebalanceError as exc:
         await db.rollback()
         raise HTTPException(409, str(exc))
@@ -203,3 +219,9 @@ async def cashflows(limit: int = Query(50, ge=1, le=200), user=Depends(get_curre
 async def runs(limit: int = Query(30, ge=1, le=200), user=Depends(get_current_user_any),
                db: AsyncSession = Depends(get_pg_session)):
     return {"runs": await rb.list_runs(db, _uid(user), limit)}
+
+
+@router.get("/target-changes")
+async def target_changes(limit: int = Query(20, ge=1, le=100), user=Depends(get_current_user_any),
+                         db: AsyncSession = Depends(get_pg_session)):
+    return {"changes": await regime.history(db, _uid(user), limit)}
