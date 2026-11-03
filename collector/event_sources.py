@@ -17,6 +17,9 @@ fomc                연준 「Meeting calendars and information」(공식 누리
                                                                      scheduled
 ==================  ==============================================  =========  ===================
 
+경제지표 발표(국가데이터처 · 미국 BLS · BEA)는 `collector/econ_calendar.py`, 공모 청약 · 납입(증권신고서)은 `collector/offering.py`
+(2026-11-03 · ①-23) — 이 파일의 `extra_events` 가 두 결과도 함께 돌려준다.
+
 금통위 · FOMC 일정은 「받은 것」 이라 표 `policy_meeting` 에 두고(`refresh_policy_meetings` · 7일에 한 번만 다시 받는다),
 `market_event` 는 늘 그 표에서 다시 만든다(계산한 표 — 지워도 `market_calendar build` 가 되살린다).
 연준 누리집은 「Each meeting date is tentative until confirmed at the meeting immediately preceding it」 이라 앞날은 예정이다.
@@ -37,7 +40,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from collector import corp_schedule, db
+from collector import corp_schedule, db, econ_calendar, offering
 from collector.console import utf8_stdio
 
 BOK_URL = "https://www.bok.or.kr/portal/singl/crncyPolicyDrcMtg/listYear.do?mtgSe=A&menuNo=200755&pYear={year}"
@@ -261,9 +264,18 @@ def policy_events(conn: sqlite3.Connection, today: date, at: str) -> List[tuple]
 
 def extra_events(conn: sqlite3.Connection, holidays: Iterable[date], years: Sequence[int], today: date,
                  at: str) -> List[tuple]:
-    """달력이 부르는 한 곳 — 실적 · 법정 기한 · 금통위 · FOMC · 주주총회 · 배당금 지급(2026-10-05 · `collector/corp_schedule.py`)."""
-    return (earnings_events(conn, at) + report_deadlines(years, holidays, at) + policy_events(conn, today, at)
+    """달력이 부르는 한 곳 — 실적 · 법정 기한 · 금통위 · FOMC · 주주총회 · 배당금 지급(2026-10-05 · `collector/corp_schedule.py`) ·
+    경제지표 발표(econ_kr · econ_us — `collector/econ_calendar.py`) · 공모 청약 · 납입(offer_sub · offer_pay — `collector/offering.py`)
+    (2026-11-03 · ①-23 E · F-lite). 두 새 표가 없는 옛 DB 면 빈 목록이다."""
+    base = (earnings_events(conn, at) + report_deadlines(years, holidays, at) + policy_events(conn, today, at)
             + corp_schedule.schedule_events(conn, today, at))
+    extra: List[tuple] = []
+    for make in (econ_calendar.econ_events, offering.offer_events):   # 새 두 종류는 한쪽이 터져도 달력 단계를 멈추지 않는다(코드 검수)
+        try:
+            extra += make(conn, today, at)
+        except Exception as e:  # noqa: BLE001
+            print(f"  ⚠️ {make.__module__}.{make.__name__} 실패 — 그 일정만 비운다: {type(e).__name__}: {str(e)[:120]}")
+    return base + extra
 
 
 def main(argv: Optional[List[str]] = None) -> int:

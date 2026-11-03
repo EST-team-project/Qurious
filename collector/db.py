@@ -644,6 +644,26 @@ CREATE TABLE IF NOT EXISTS financial_full_check (
 SCHEMA += FIN_FULL_CHECK_DDL
 
 
+#: 24. 경제지표 발표 일정(받은 것 · 2026-11-03 · S195 · 할 일 ①-23 E) — 국가데이터처 보도계획 · 미국 BLS · BEA 공식 일정.
+#:    만드는 쪽: collector/econ_calendar.py(7일에 한 번 · 출처마다 따로). 거래일 달력의 일정(market_event · econ_kr · econ_us)이
+#:    이 표를 읽어 다시 만든다. 한국은행 공표일정은 넣지 않는다(사용자 결정 2026-11-03 — 한국은행 저작권보호방침 ③).
+#:    날짜 · 시각은 **그 나라 현지 기준 그대로** 둔다(한국 KST · 미국 동부 ET) — 미국 발표를 한국 날짜로 바꾸지 않는다(FOMC 선례).
+ECON_RELEASE_DDL = """
+CREATE TABLE IF NOT EXISTS econ_release (
+    source       TEXT NOT NULL,              -- kostat(국가데이터처 보도계획) | bls(미국 노동통계국) | bea(미국 경제분석국)
+    release_date TEXT NOT NULL,              -- YYYY-MM-DD — 발표 나라의 현지 날짜(kostat 는 KST · bls · bea 는 미국 동부)
+    title        TEXT NOT NULL,              -- 출처가 적은 이름 그대로(예 2026년 10월 소비자물가동향 · Employment Situation)
+    release_time TEXT NOT NULL DEFAULT '',   -- HH:MM — 현지 시각(모르면 빈칸)
+    tz           TEXT NOT NULL DEFAULT '',   -- KST | ET — release_time 의 시간대
+    detail       TEXT NOT NULL DEFAULT '',   -- 담당과(kostat) · 출처가 준 꼬리 정보
+    source_url   TEXT NOT NULL,              -- 받은 주소(공식 누리집)
+    fetched_at   TEXT NOT NULL,              -- 받은 시각 KST
+    PRIMARY KEY (source, release_date, title)
+);
+"""
+SCHEMA += ECON_RELEASE_DDL
+
+
 def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """연결을 열고 표를 보장한다.
 

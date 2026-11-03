@@ -355,6 +355,7 @@ export function openStockSearch(callback, initialQuery) { if (_openStockSearch) 
       const btn = document.getElementById("quant-symbol-btn");
       btn.querySelector(".ssm-btn-label").textContent = name;
       btn.querySelector(".ssm-btn-ticker").textContent = symbol;
+      document.getElementById("quant-symbol").dispatchEvent(new Event("change"));   // 고르면 퀀트 대시보드 차트가 바로 다시 그려진다(quant.js 가 듣는다)
     });
   });
 

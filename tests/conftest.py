@@ -36,6 +36,22 @@ def _clear_live_trading_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_schedule_sites(monkeypatch):
+    """시험은 일정 원천 사이트(국가데이터처 · BLS · BEA · 한국은행 · 연준)를 실제로 부르지 않는다(2026-11-03 코드 검수 —
+    `mc.build(..., fetcher=fake)` 가 경제지표 받기를 기본값(fetch=True)으로 불러 임시 DB 에서 매번 실제 사이트를 불렀다).
+    부르면 오프라인에서 시험이 30초씩 늘고 사이트가 IP 를 막을 수 있다. 받는 시험은 자기 안에서 `fetch=` 인자나
+    `monkeypatch` 로 가짜를 넣는다(그쪽이 이 고정보다 나중에 적용된다)."""
+    import collector.econ_calendar as econ_calendar
+    import collector.event_sources as event_sources
+
+    def _blocked(*_a, **_k):
+        raise OSError("시험에서는 일정 원천 사이트를 실제로 부르지 않는다")
+
+    monkeypatch.setattr(econ_calendar, "_get", _blocked)
+    monkeypatch.setattr(event_sources, "_get", _blocked)
+
+
+@pytest.fixture(autouse=True)
 def _no_real_collect_report(monkeypatch):
     """시험은 사용자의 실제 알림 채널(`.env` 의 디스코드 · 슬랙 · 이메일)로 글을 보내지 않는다(2026-11-01 S183 — 회차 끝에 수집 보고
     알림이 붙은 뒤, `run_all` 을 끝까지 돌리는 러너 시험이 `.env` 채널로 「일일 수집 회차 완료」 를 보낼 수 있었다).

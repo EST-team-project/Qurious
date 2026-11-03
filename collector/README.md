@@ -423,6 +423,7 @@ CI 에서 성공과 구분하려면 종료코드가 아니라 출력을 봐야 �
 | `raw_response` | 출처별 파일 | ★ 응답 **원문**(gzip BLOB). 감사·재정규화의 유일한 근거 |
 | `ingest_day` | 한 파일 | ★ 기준일별 수집 상태. 어디까지 받았는지의 기록 |
 | `holiday_kasi` · `market_calendar` · `market_event` · `policy_meeting` · `corp_schedule` | 한 파일씩 | 2026-10-25 넣음 — 여러 PC 맞추기(따라가는 PC 가 다시 만들지 않고 받는다 · 19절) |
+| `econ_release` | 한 파일 | 2026-11-03 넣음 — 경제지표 발표 일정(국가데이터처 보도계획 · 미국 BLS · BEA). `policy_meeting` 과 같은 「받은 일정」 |
 
 ★ 표시 둘은 **2026-09-20 에 대상으로 옮겼다.** 파케이로 바꾸면 297.3MB → 298.6MB 로 오히려
 커지지만, 그 대가로 **백업이 완전해진다** — 아래가 그 이유다.
@@ -530,6 +531,7 @@ python scripts/weekly_rehearsal.py status    # 마지막 바퀴 · 예약
 | `financials.py` | 513 | DART 재무 주요계정 — 정정본마다 판 · `known_at` · `first_known_at` |
 | `tagging.py` · `search_index.py` | 236 · 341 | 이름표(종목 · 주제 · 용어 · 공시 유형) · 검색 색인 `search.sqlite3`(공시 · 뉴스 · 롤백 저널 · 줄 끝 접은 지문) |
 | `event_sources.py` · `corp_schedule.py` | 287 · 532 | 실적 · 법정 기한 · 금통위 · FOMC 일정 · 주주총회(소집결의 본문) · 배당금 지급 — `corp_schedule backfill` 이 지난 소집결의를 접수일 구간 · 최근 것부터 받는다(일시 오류는 다시 · 하루 한도면 멈춤 · 2026-10-05) |
+| `econ_calendar.py` · `offering.py` | 356 · 312 | **경제지표 발표 · 공모 청약 · 납입 일정**(2026-11-03 · 할 일 ①-23) — 국가데이터처 보도계획(oa_mm=ALL) · BLS · BEA 달력(ICS)을 출처마다 7일에 한 번(`python -m collector.econ_calendar fetch --force` · 표 `econ_release` · 미국은 미국 날짜 · 동부 시각 그대로 · 한국은행 일정은 넣지 않음) · OpenDART 증권신고서(지분증권) `estkRs` 를 최근 90일 안에 신고서를 낸 상장사만 회사마다 한 번(`corp_schedule daily` 의 DART 몫 안 · 원문 `raw_response` dart `estk/<corp_code>` · 표 `corp_schedule` 의 offer_sub · offer_pay) |
 | `policy_news.py` | 444 | **정책브리핑 정책뉴스**(공공데이터포털 `policyNewsService2` · 3일 창 · 공공누리 제1유형 기사만 본문 · 원문 다시 읽기 · 2026-10-05) |
 | `gdelt_news.py` | 291 | **언론사 기사 메타데이터**(GDELT 번역 GKG 15분 원자료 · 한국어 원문 기사의 제목 · 주소 · 시각 · 언론사만 · 본문 없음 · 2026-10-05) |
 | `kb_law.py` · `kb_index.py` · `kb_sector.py` | 879 · 216 · 354 | 근거 문서(법령 · 감독규정) 받기 · 판 고르기 · 조각 · 임베딩 · 섹터별 · 연도별 법령 |

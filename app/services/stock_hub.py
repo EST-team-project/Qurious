@@ -24,6 +24,11 @@ Figma 세 안 · 화면은 3차). 실사용자 피드백 「종목 하나를 기
   - 일반 사용자 답에는 표 이름 · 명령 · 예외 글을 싣지 않는다 — 할 일(hint)은 관리자에게만.
   - 수집 DB 는 읽기 전용으로만 연다(부르는 함수들이 그렇게 연다 · 이 파일의 두 질의도 `mode=ro`).
 
+신호 칸의 기록 시점(S195 · 2026-11-03 · 날짜별 근거 안 A) — 새 칸 · 마이그레이션 없이 기록의 `computed_at` 으로 「언제 계산했나」를 싣는다.
+  `record_kind` = 기준일 다음 거래일 안에 계산했으면 정기(`regular`) · 그 뒤면 늦게 계산(`late`) · 계산 시각이 없으면 모름. 「늦게 계산」 에는
+  놓친 날을 채운 줄과 같은 날을 다시 계산한 줄이 섞인다(가르지 못함 · 문구가 밝힌다). `signal_on`(선택)으로 그날 이전 가장 가까운 기록을 읽고,
+  그날 줄이 없어 앞 날짜가 나오면 `fell_back` 으로 알린다.
+
 신호 기록 순위(`signal_rank`) — 순위 화면이 하루치 기록을 한 번에 읽는다(할 일 ②-19 · #197). 종목마다 그날(또는 그날 이전 가장 가까운)
   기록 한 줄을 `signal_explain.load_day` 로 읽어 종합 점수 순으로 돌려주고, 줄마다 근거 개수(`side_counts`)를 붙인다. 허브 `signal` 칸과
   같은 기록 · 같은 규칙이라 같은 종목은 같은 값이다. 새로 계산하지 않고, 줄마다 기준일(as_of)을 싣는다.
@@ -51,7 +56,7 @@ from app.services import (collector_db, company_health, data_ohlcv, data_search,
 KST = timezone(timedelta(hours=9))
 
 #: 응답 꼴 판 — 칸 이름 · 꼴을 바꾸면 올린다(화면 · 저장본 열쇠가 이 숫자를 본다)
-VERSION = 3   # 2: 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(S181) · 3: 신호 근거 항목에 규칙 이름 `key` 가 더해짐(S188 — 화면의 쉬운 풀이 열쇠)
+VERSION = 4   # 2: 섹터 칸이 「준비 중」 에서 업종 이름 · 같은 업종 수로(S181) · 3: 신호 근거 항목에 규칙 이름 `key` 가 더해짐(S188 — 화면의 쉬운 풀이 열쇠) · 4: 신호 칸 data 에 계산 시각 · 정기/늦게 계산 · 고른 날짜 칸이 더해짐(S195)
 
 SECTIONS = ("identity", "price", "signal", "financials", "disclosures", "news", "schedule", "sector")
 OK, EMPTY, ERROR, PENDING = "ok", "empty", "error", "pending"
@@ -280,10 +285,95 @@ def price(symbol: str, today: date) -> dict:
     return section("price", OK, data=data, as_of=last.get("trade_date"), source=PRICE_SOURCE, note=PRICE_NOTE)
 
 
-async def signal(db, symbol: str, in_universe: bool | None) -> dict:
-    snap = await signal_explain.load_snapshot(db, symbol)
+def _is_trading_day(d: date) -> bool:
+    from app.services import quote_now  # noqa: PLC0415 – 늦게 불러 순환을 피한다
+    return d.weekday() < 5 and d.isoformat() not in quote_now.krx_holidays()
+
+
+def next_trading_day(d: date) -> date:
+    """`d` 다음 거래일(주말 · 휴장일을 건너뜀) — 내장 휴장 달력은 메모리 값이라 수집 DB 를 열지 않는다."""
+    nxt = d + timedelta(days=1)
+    while not _is_trading_day(nxt):
+        nxt += timedelta(days=1)
+    return nxt
+
+
+def prev_trading_day(d: date) -> date:
+    """`d` 앞 거래일(주말 · 휴장일을 건너뜀)."""
+    prv = d - timedelta(days=1)
+    while not _is_trading_day(prv):
+        prv -= timedelta(days=1)
+    return prv
+
+
+def _md(d: date) -> str:
+    return f"{d.month:02d}-{d.day:02d}"
+
+
+#: 신호 기록 시점 딱지 — 「실시간」 은 없다(종가 기준이라 정상 경로도 다음 거래일 낮에 계산 · 조사 3.0절)
+RECORD_REGULAR, RECORD_LATE, RECORD_UNKNOWN = "regular", "late", "unknown"
+RECORD_LABELS = {RECORD_REGULAR: "정기 기록", RECORD_LATE: "늦게 계산", RECORD_UNKNOWN: "계산 시각 모름"}
+RECORD_TIP = "그날 낮에 기록된 값이 아니라 나중에 계산한 값입니다."
+
+
+def record_kind(as_of: date, computed_at: datetime | None) -> dict:
+    """기록 한 줄의 「언제 계산했나」 — 기준일(as_of) 다음 거래일 안에 계산했으면 정기, 그 뒤면 늦게 계산(2026-11-03 S195 · 안 A).
+
+    새 칸 없이 이미 있는 `computed_at`(마지막으로 (다시) 계산한 시각)으로만 짐작한다. 그래서 「늦게 계산」 에는 놓친 날을 나중에
+    채운 줄과 같은 날을 다시 계산한 줄이 섞이고(둘을 가르지 못한다), 이 화면의 기록 시각 기준이다 — 문구가 그 한계를 숨기지 않는다.
+    `computed_at` 이 없는 옛 줄은 지어내지 않고 「모름」. 날짜는 모두 한국 시각 기준이며 `lag_days` 는 정기 기록일(기준일 다음
+    거래일)보다 며칠 뒤에 계산됐는지(달력 일수 · 정기면 0)."""
+    if computed_at is None:
+        return {"computed_at": None, "record_kind": RECORD_UNKNOWN, "lag_days": None, "expected_on": None,
+                "record_label": RECORD_LABELS[RECORD_UNKNOWN], "record_tip": "",
+                "record_note": f"{_md(as_of)} 종가 기준입니다. 이 줄은 계산한 시각이 남아 있지 않아 언제 계산했는지 알 수 없습니다."}
+    if computed_at.tzinfo is None:                         # 시각대가 빠진 값은 UTC 로 읽는다(저장은 UTC)
+        computed_at = computed_at.replace(tzinfo=timezone.utc)
+    at = computed_at.astimezone(KST)
+    expected = next_trading_day(as_of)
+    lag = max(0, (at.date() - expected).days)
+    kind = RECORD_LATE if lag > 0 else RECORD_REGULAR
+    stamp = f"{_md(at.date())} {at:%H:%M}"
+    if kind == RECORD_LATE:
+        note = (f"{_md(as_of)} 종가 기준이지만 {stamp} 에 늦게 계산한 값입니다. 계산에는 {_md(as_of)} 종가까지의 시세만 썼지만, "
+                "그날 이 화면에서 실제로 보였던 값은 아닐 수 있습니다. 놓친 날을 나중에 채웠거나 같은 날을 다시 계산한 기록일 수 있어 "
+                "어느 쪽인지는 가려내지 못하며, 이 화면의 기록 시각 기준입니다.")
+    elif at.date() == expected:
+        note = f"{_md(as_of)} 종가 기준입니다. 다음 거래일({_md(expected)}) {at:%H:%M} 에 계산해 기록했습니다."
+    else:
+        note = f"{_md(as_of)} 종가 기준입니다. {stamp} 에 계산해 기록했습니다."
+    return {"computed_at": at.strftime("%Y-%m-%d %H:%M"), "record_kind": kind, "lag_days": lag, "expected_on": expected.isoformat(),
+            "record_label": RECORD_LABELS[kind], "record_tip": RECORD_TIP if kind == RECORD_LATE else "", "record_note": note}
+
+
+def signal_pick(as_of: date | None, requested_on: date | None, latest_as_of: date | None, today: date) -> dict:
+    """모달 신호 칸의 날짜 고르기 자료 — 고른 날(`requested_on`) · 앞/다음 거래일 · 고를 수 있는 마지막 날(오늘).
+
+    앞/다음은 **지금 보이는 기록의 기준일**에서 거래일만 건너뛴다(주말 · 휴장일은 기록이 없다). 다음 거래일은 가장 최근 기록
+    (`latest_as_of`)을 넘으면 비운다 — 날짜를 고르지 않은 최신 보기는 이미 가장 최근이다. 앞 거래일은 기록이 아직 있는지 모르는 채
+    비우지 않는다(없으면 응답이 `fell_back` · 빈 칸으로 알린다)."""
+    base = as_of or requested_on
+    nxt = next_trading_day(base) if base else None
+    if nxt is None or latest_as_of is None or requested_on is None or nxt > latest_as_of:
+        nxt = None
+    return {"requested_on": requested_on.isoformat() if requested_on else None, "picked": requested_on is not None,
+            "max_on": today.isoformat(), "latest_as_of": latest_as_of.isoformat() if latest_as_of else None,
+            "prev_day": prev_trading_day(as_of).isoformat() if as_of else None, "next_day": nxt.isoformat() if nxt else None}
+
+
+async def signal(db, symbol: str, in_universe: bool | None, on: date | None = None, today: date | None = None) -> dict:
+    """다중 주기 신호 칸 — `on`(고른 날)이 있으면 그날 이전(포함) 가장 가까운 기록 한 줄. 새 계산 없음(읽기만)."""
+    today = today or datetime.now(KST).date()
+    snap = await signal_explain.load_snapshot(db, symbol, on)
     if snap is None:
-        return section("signal", EMPTY, reason=SIGNAL_NOT_UNIVERSE if in_universe is False else SIGNAL_NONE)
+        if on is None:
+            return section("signal", EMPTY, reason=SIGNAL_NOT_UNIVERSE if in_universe is False else SIGNAL_NONE)
+        # 고른 날 이전에 기록이 없다 — 날짜를 다시 고를 수 있게 고르기 자료를 남기고, 가장 최근 기록이 없으면(기록 자체가 없음) 평소 안내
+        latest = await signal_explain.load_snapshot(db, symbol)
+        if latest is None:
+            return section("signal", EMPTY, reason=SIGNAL_NOT_UNIVERSE if in_universe is False else SIGNAL_NONE)
+        pick = signal_pick(None, on, _as_date(latest.get("as_of")), today)
+        return section("signal", EMPTY, data=pick, reason=f"고른 날({_md(on)}) 이전에는 이 종목의 신호 기록이 없습니다 — 다른 날짜를 골라 보세요.")
     ex = signal_explain.explain(snap)
     # key 는 규칙 이름 — 화면이 쉬운 풀이(stockplain.js)를 찾는 열쇠.
     # observed · contribution 은 `signal_explain.evidence` 가 이미 만든 값이다(새 셈 없음 · 2026-11-02 S192 사용자 「XAI 답지 않다」):
@@ -308,12 +398,28 @@ async def signal(db, symbol: str, in_universe: bool | None) -> dict:
         data["counts"], data["counts_note"] = None, SIGNAL_RANK_UNREADABLE
     else:
         data["counts"] = {k: c[k] for k in ("buy", "neutral", "sell")}
+    # 기록 시점(S195 · 안 A) — 기준일 · 계산 시각 · 정기/늦게 계산 · 고른 날과 달랐는지. 새 칸 없이 기록의 computed_at 만 읽는다
+    as_of = _as_date(ex["as_of"])
+    if as_of is not None:
+        data.update(record_kind(as_of, snap.get("computed_at")))
+        latest = _as_date((await signal_explain.load_snapshot(db, symbol) or {}).get("as_of")) if on is not None else as_of
+        data.update(signal_pick(as_of, on, latest, today))
+        data["fell_back"] = on is not None and as_of < on
+        if data["fell_back"]:
+            data["fell_back_note"] = f"{_md(on)} 은 신호 기록이 없어 그 앞 가장 가까운 날({_md(as_of)})의 기록을 보여 드립니다."
     return section("signal", OK, data=data, as_of=ex["as_of"], source=SIGNAL_SOURCE, notice=ex["disclaimer"])
 
 
-def _is_trading_day(d: date) -> bool:
-    from app.services import quote_now  # noqa: PLC0415 – 늦게 불러 순환을 피한다
-    return d.weekday() < 5 and d.isoformat() not in quote_now.krx_holidays()
+def _as_date(v) -> date | None:
+    """기록의 기준일(date · `2026-11-02` 글)을 날짜로 — 못 읽으면 None."""
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except ValueError:
+        return None
 
 
 def expected_signal_day(now: datetime | None = None) -> date:
@@ -509,10 +615,12 @@ def sector(symbol: str) -> dict:
 # ── 묶음 ────────────────────────────────────────────────────────────────────────────────
 
 async def bundle(db, symbol: str, *, sections: str | None = None, admin: bool = False,
-                 today: date | None = None) -> dict:
+                 today: date | None = None, signal_on: date | None = None) -> dict:
     sym = normalize(symbol)
     want = wanted(sections)
     today = today or datetime.now(KST).date()
+    if signal_on is not None and signal_on > today:                  # 아직 오지 않은 날의 기록은 없다 — 조용히 최신으로 바꾸지 않고 알린다
+        raise HubError(422, "bad_signal_on", f"신호를 볼 날짜는 오늘({_md(today)}) 이전이어야 합니다: {signal_on.isoformat()}")
     ident = await asyncio.to_thread(_guard, "identity", lambda: identity(sym), admin)
     if ident["status"] == EMPTY:
         raise HubError(404, "no_symbol", f"{sym} — {ident['reason']}")
@@ -526,7 +634,7 @@ async def bundle(db, symbol: str, *, sections: str | None = None, admin: bool = 
     async def one(name: str) -> dict:
         if name == "signal":
             try:
-                return await signal(db, sym, in_universe)
+                return await signal(db, sym, in_universe, on=signal_on, today=today)
             except Exception as e:  # noqa: BLE001 — 앱 DB 가 꺼져 있어도 다른 칸은 돌려준다
                 return _failed("signal", e, admin)
         return await asyncio.to_thread(_guard, name, sync[name], admin)
