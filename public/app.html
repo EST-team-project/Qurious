@@ -677,14 +677,9 @@
                 <div class="card">
                   <h2 class="text-lg font-semibold mb-1">🔬 성과 검증 · Python 백테스트</h2>
                   <p class="text-xs mb-4" style="color:var(--text-mute);">파이썬 프로그래밍으로 구현된 퀀트 전략의 성과를 최근 10년 안의 일봉으로 검증합니다. 실제 자료 기간은 결과의 「자료」 줄에 적힙니다.</p>
-                  <div class="flex gap-2 mb-4">
-                    <select id="ibt-symbol" class="input w-44">
-                      <option value="005930.KS">삼성전자</option>
-                      <option value="000660.KS">SK하이닉스</option>
-                      <option value="035420.KS">NAVER</option>
-                      <option value="005380.KS">현대자동차</option>
-                      <option value="051910.KS">LG화학</option>
-                    </select>
+                  <div class="flex flex-wrap gap-2 mb-4">
+                    <div id="ibt-symbol-pick"></div><!-- 종목 찾기 칸 — 탭 1 과 같은 부품(stockpick.js · #245) -->
+                    <input type="hidden" id="ibt-symbol" value="005930.KS" />
                     <select id="ibt-strategy" class="input w-44">
                       <option value="rsi">RSI 역추세 전략</option>
                       <option value="ma">이동평균 교차 전략</option>
