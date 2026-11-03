@@ -30,7 +30,7 @@ from app.models.paper_snapshot import PaperAccountSnapshot
 from app.models.paper_snapshot_price_audit import PaperSnapshotPriceAudit
 from app.models.backtest import BacktestAccount, BacktestSnapshot
 from app.models.signal import SignalSnapshot
-from app.models.rebalance import RebalancePlan, CashflowEvent, RebalanceRun
+from app.models.rebalance import RebalancePlan, CashflowEvent, RebalanceRun, RebalanceTargetChange
 from app.models.allocation import AllocationResult
 from app.models.task import TaskOwnership
 from app.models.tradingview import WebhookSignal, StrategyComparison
@@ -143,6 +143,7 @@ __all__ = [
     "RebalancePlan",
     "CashflowEvent",
     "RebalanceRun",
+    "RebalanceTargetChange",
 
     # TradingView
     "WebhookSignal",

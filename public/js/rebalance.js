@@ -23,14 +23,57 @@ let targetRows = [];   // [{symbol, name, weight_pct}]
 let lastProposal = null;
 let targetEditVersion = 0;
 let allocationDraftPending = false;
+let savedPlanVersion = null;
+let regimeSource = null;
+let persistedRegimeEnabled = false;
+const REGIME_LABEL = { up_low: "상승·저변동", up_high: "상승·고변동", down_low: "하락·저변동", down_high: "하락·고변동" };
+
+function markPlanDirty() {
+  targetEditVersion += 1;
+  allocationDraftPending = true;
+  lastProposal = null;
+  $("rb-execute").disabled = true;
+}
+
+function manualTargetEdit() {
+  markPlanDirty();
+  regimeSource = null;
+  if ($("rb-regime-auto")) {
+    $("rb-regime-auto").checked = false;
+    $("rb-regime-auto").disabled = true;
+  }
+  $("rb-allocation-note").textContent = "목표 편집안입니다. 국면 자동 변경은 꺼집니다. 저장 전까지 기존 플랜은 유지됩니다.";
+}
+
+function renderRegime(plan) {
+  const auto = plan.regime_auto || {};
+  const state = auto.state || {};
+  const label = REGIME_LABEL[state.regime || auto.initial_regime] || "";
+  if ($("rb-regime-state")) $("rb-regime-state").textContent = auto.enabled
+    ? `국면 자동 변경 사용 · ${label} · ${state.data_as_of || "자료 확인 전"} 기준 · ${state.message || ""}`
+    : "국면 자동 변경을 사용하지 않습니다.";
+}
+
+async function loadRegimeHistory() {
+  try {
+    const r = await api("/api/rebalance/target-changes");
+    $("rb-regime-history").innerHTML = r.changes.length ? r.changes.map(c => {
+      const weights = rows => [...rows.map(t => `${t.name || t.symbol} ${t.weight_pct}%`),
+        `현금 ${(100 - rows.reduce((s,t) => s + Number(t.weight_pct), 0)).toFixed(2)}%`].join(" · ");
+      return `<div class="mb-3"><b>${escHtml(c.data_as_of)} · ${escHtml(REGIME_LABEL[c.evidence.from_regime] || c.evidence.from_regime)} → ${escHtml(REGIME_LABEL[c.evidence.to_regime] || c.evidence.to_regime)}</b><div>변경 전: ${escHtml(weights(c.before_targets))}</div><div>변경 후: ${escHtml(weights(c.after_targets))}</div><div>기록 ${ts(c.created_at)} · ${escHtml(c.evidence.regime.rule)}</div></div>`;
+    }).join("") : "기록된 국면별 목표 변경이 없습니다.";
+  } catch (e) { $("rb-regime-history").textContent = e.message; }
+}
 
 async function importAllocation() {
+  const version = targetEditVersion;
   const button = $("rb-import-allocation");
   button.disabled = true;
   try {
     const includeEtfs = !!$("rb-import-etfs")?.checked;
     const saved = await api("/api/ml/robo/allocation/latest" + (includeEtfs ? "?include_etfs=true" : ""));
     const draft = saved.handoff;
+    if (version !== targetEditVersion) throw new Error("조회 중 편집값이 바뀌었습니다. 배분을 다시 가져오세요.");
     if (!draft?.targets?.length) throw new Error("이 배분 결과는 국내주식 목표로 가져올 수 없습니다. 배분을 다시 계산하세요.");
     const excluded = Object.entries(draft.unapplied_allocations).filter(([, v]) => v > 0).map(([k, v]) => `${k} ${v}%`).join(" · ") || "없음";
     const etfWeight = draft.etf_weight_pct ? ` · 국내 상장 ETF ${draft.etf_weight_pct}%` : "";
@@ -41,6 +84,11 @@ async function importAllocation() {
     targetEditVersion += 1;
     allocationDraftPending = true;
     targetRows = draft.targets.map(t => ({ ...t }));
+    regimeSource = saved.result?.allocation_model === "regime" ? { id: saved.id, include_etfs: includeEtfs } : null;
+    if ($("rb-regime-auto")) {
+      $("rb-regime-auto").checked = false;
+      $("rb-regime-auto").disabled = !regimeSource;
+    }
     $("rb-auto").checked = false;
     lastProposal = null;
     $("rb-execute").disabled = true;
@@ -67,9 +115,11 @@ function renderTargets() {
         <td style="text-align:center"><button class="btn-secondary text-xs rb-del" data-idx="${i}">삭제</button></td>
       </tr>`).join("");
     tbody.querySelectorAll(".rb-w").forEach(el => el.addEventListener("input", e => {
+      manualTargetEdit();
       targetRows[+e.target.dataset.idx].weight_pct = parseFloat(e.target.value) || 0; updateSum();
     }));
     tbody.querySelectorAll(".rb-del").forEach(el => el.addEventListener("click", e => {
+      manualTargetEdit();
       targetRows.splice(+e.target.dataset.idx, 1); renderTargets();
     }));
   }
@@ -90,6 +140,7 @@ async function addTarget() {
   if (!(w >= 0)) return setToast("비중(%)을 입력하세요.", "error");
   try {
     const q = await api(`/api/paper/stocks/quote?symbol=${encodeURIComponent(raw)}`);
+    manualTargetEdit();
     const exist = targetRows.find(t => t.symbol === q.symbol);
     if (exist) exist.weight_pct = w; else targetRows.push({ symbol: q.symbol, name: q.name, weight_pct: w });
     $("rb-add-symbol").value = ""; $("rb-add-weight").value = "";
@@ -98,6 +149,7 @@ async function addTarget() {
 }
 
 function importFromPositions(snapshot) {
+  manualTargetEdit();
   // 현재 보유 비중을 목표로 복사
   const held = snapshot.rows.filter(r => r.quantity > 0);
   const total = snapshot.cash + held.reduce((sum, r) => sum + r.current_amount, 0);
@@ -107,6 +159,13 @@ function importFromPositions(snapshot) {
 }
 
 function fillPlanForm(plan) {
+  savedPlanVersion = plan.updated_at || null;
+  regimeSource = null;
+  persistedRegimeEnabled = !!plan.regime_auto?.enabled;
+  if ($("rb-regime-auto")) {
+    $("rb-regime-auto").checked = persistedRegimeEnabled;
+    $("rb-regime-auto").disabled = !persistedRegimeEnabled;
+  }
   $("rb-allocation-note").textContent = "";
   targetRows = (plan.targets || []).map(t => ({ ...t }));
   renderTargets();
@@ -140,6 +199,9 @@ async function savePlan() {
     cashflow_min_amount: parseFloat($("rb-cf-min").value),
     auto_execute: $("rb-auto").checked,
     min_order_amount: parseFloat($("rb-min-order").value) || 0,
+    expected_updated_at: savedPlanVersion,
+    regime_auto: { enabled: !!$("rb-regime-auto")?.checked,
+      ...($("rb-regime-auto")?.checked && regimeSource ? {allocation_id: regimeSource.id, include_etfs: regimeSource.include_etfs} : {}) },
   };
   if (![body.drift_threshold_pct, body.cashflow_min_amount, body.min_order_amount].every(Number.isFinite)) return setToast("설정 금액과 이탈률을 입력하세요.", "error");
   try {
@@ -158,6 +220,7 @@ async function loadStatus() {
     if (version !== targetEditVersion) return;
     const { plan, snapshot: s, triggers } = r;
     if (!allocationDraftPending) fillPlanForm(plan);
+    renderRegime(plan);
     const daily = r.automatic_check;
     $("rb-daily-check").textContent = daily ? `자동 정기 점검: ${daily.message}`
       + (daily.state === "checked" && daily.last_checked_at ? ` (${ts(daily.last_checked_at)} · 한국시간)` : "") : "";
@@ -410,7 +473,23 @@ export function initRebalanceView() {
   on("rb-add", "click", addTarget);
   on("rb-add-symbol", "keydown", e => { if (e.key === "Enter") addTarget(); });
   on("rb-save", "click", savePlan);
+  on("rb-discard", "click", async () => {
+    if (allocationDraftPending && !confirm("저장하지 않은 편집을 취소하고 서버의 최신 플랜을 불러올까요?")) return;
+    targetEditVersion += 1;
+    allocationDraftPending = false;
+    regimeSource = null;
+    lastProposal = null;
+    $("rb-execute").disabled = true;
+    await loadStatus();
+  });
   on("rb-import-allocation", "click", importAllocation);
+  on("rb-regime-history-load", "click", loadRegimeHistory);
+  $("rb-plan-editor")?.addEventListener("change", e => {
+    if (!["rb-add-symbol", "rb-add-weight", "rb-import-etfs"].includes(e.target.id)) markPlanDirty();
+  });
+  $("rb-plan-editor")?.addEventListener("input", e => {
+    if (!["rb-add-symbol", "rb-add-weight", "rb-import-etfs"].includes(e.target.id)) markPlanDirty();
+  });
   on("rb-refresh", "click", loadStatus);
   on("rb-preview", "click", previewRebalance);
   on("rb-execute", "click", () => executeRebalance());

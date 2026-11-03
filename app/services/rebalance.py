@@ -35,6 +35,7 @@ from app.services import rebalance_policy as policy
 from app.services import rebalance_schedule as schedule
 from app.services import rebalance_daily as daily
 from app.services import rebalance_prices as prices, rebalance_settlement as settlement
+from app.services import rebalance_regime as regime
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +210,7 @@ def plan_to_dict(plan: RebalancePlan) -> dict:
         "last_auto_check_date": plan.last_auto_check_date.isoformat() if plan.last_auto_check_date else None,
         "last_auto_check_at": plan.last_auto_check_at.isoformat() if plan.last_auto_check_at else None,
         "updated_at": plan.updated_at.isoformat() if plan.updated_at else None,
+        "regime_auto": regime.view(plan),
     }
 
 
@@ -267,6 +269,7 @@ def fingerprint(plan):
 
 def proposal_context(plan, proposal):
     return {"settings_fingerprint": fingerprint(plan), "observed_at": proposal["snapshot"]["observed_at"],
+            "regime_change_id": (getattr(plan, "regime_state", None) or {}).get("change_id"),
             "price_basis": proposal["snapshot"]["price_basis"],
             **{k: proposal["snapshot"][k] for k in ("valuation_date", "account_stamp") if k in proposal["snapshot"]},
             "estimated_cost": proposal["estimated_cost"],
@@ -424,6 +427,11 @@ async def check_daily(db, user_id, plan):
     pending_run = await settlement.settle(db, user_id, plan, readiness)
     if pending_run and pending_run.status == "scheduled":
         return {"checked": False, "reason": "settlement_waiting", "run_id": str(pending_run.id)}
+    regime_result = await regime.update_for_day(db, user_id, plan, readiness)
+    if regime_result["status"] == "waiting":
+        return {"checked": False, "reason": "regime_waiting", "message": regime_result["message"],
+                "regime_auto": regime_result}
+    await db.flush()
     result = await check_due(db, user_id, plan, valuation_date=date.fromisoformat(readiness["data_as_of"]))
     plan.last_auto_check_date = today
     plan.last_auto_check_at = datetime.now(timezone.utc)
@@ -432,9 +440,10 @@ async def check_daily(db, user_id, plan):
         "run_id": result.get("run_id"), "triggers": result.get("triggers", []),
         "status": result.get("status", "no_action"), "already_processed": result.get("already_processed", False),
         "price_basis": result.get("price_basis", "previous_close"),
+        "regime_auto": regime_result,
     }
     await db.flush()
-    return {**result, "checked": True}
+    return {**result, "checked": True, "regime_auto": regime_result}
 
 
 async def check_all_due(session_factory) -> dict:
