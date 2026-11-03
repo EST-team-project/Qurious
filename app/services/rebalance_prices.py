@@ -7,7 +7,7 @@ import re
 import sqlite3
 from datetime import date, timedelta
 
-from app.services import collector_db, rebalance_schedule as schedule
+from app.services import collector_db, collector_status, rebalance_schedule as schedule
 
 
 class PriceUnavailable(ValueError):
@@ -19,12 +19,11 @@ class OpenNotTradable(PriceUnavailable):
 
 
 def collection_complete(conn, code, day):
-    # 기존 종목은 실제 저장 표로 출처를 확인한다. 미상 종목은 양쪽 완료가 필요하다.
-    sources = [source for table, source in [('price_daily', 'portal'), ('etf_daily', 'portal_etf')]
-               if conn.execute(f'SELECT 1 FROM {table} WHERE srtn_cd=? LIMIT 1', (code,)).fetchone()]
-    sources = sources or ['portal', 'portal_etf']
-    return all(conn.execute("SELECT 1 FROM ingest_day WHERE source=? AND bas_dt=? AND status='done'",
-                            (source, day.strftime('%Y%m%d'))).fetchone() for source in sources)
+    # 수집 사실은 공통 함수가 제공하고, 완료 판정은 이 소비자가 담당한다.
+    # 가격 조회와 같은 트랜잭션을 넘겨 갱신 전 가격/갱신 후 상태가 섞이지 않게 한다.
+    state = collector_status.symbol_day_status([code], day, connection=conn)[code]
+    collected = state['collected']
+    return bool(collected) and all(status == 'done' for status in collected.values())
 
 
 def next_trading_day(after: date) -> date:
@@ -77,6 +76,6 @@ def read_prices(symbols, day: date, field: str = 'close') -> dict:
                 result[symbol] = dict(symbol=symbol, name=row['itms_nm'] or symbol, price=float(price),
                                       market=row['mrkt_ctg'], is_etf=bool(row['is_etf']),
                                       price_date=day.isoformat(), price_basis=f'raw_{field}')
-    except (sqlite3.Error, OSError) as exc:
+    except (sqlite3.Error, OSError, collector_status.CollectorStatusUnavailable) as exc:
         raise PriceUnavailable('수집 DB 가격을 읽을 수 없어 대기합니다.') from exc
     return result
