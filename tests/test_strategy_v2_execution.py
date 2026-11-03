@@ -206,6 +206,41 @@ def test_scheduled_cycle_routes_only_exact_v2_and_leaves_auto_off(runtime,monkey
     asyncio.run(scenario())
 
 
+def test_scheduled_cycle_with_real_fixed_v2_catalog(runtime, monkeypatch):
+    """명세 로더를 대체하지 않고 실제 고정 카드→예약 실행→가상 장부를 연결한다."""
+    sessions, source = runtime
+    logs = []
+
+    async def persist(uid, record):
+        logs.append(record)
+
+    monkeypatch.setattr(auto_trade, '_persist_cycle', persist)
+    monkeypatch.setattr(auto_trade.strategy_loader.settings, 'STRATEGY_SPEC_SOURCE', 'fixed_test')
+    monkeypatch.setattr(auto_trade.strategy_loader.settings, 'DOMAIN_RAG_LAB_BASE_URL', '')
+    market = AsyncMock(side_effect=AssertionError('판 2는 판 1 현재가 경로를 사용하지 않는다'))
+    monkeypatch.setattr(auto_trade, 'get_quant_indicators', market)
+
+    async def scenario():
+        uid = await user(sessions, quant_auto_enabled=True)
+        await auto_trade._run_quant_cycle(str(uid))
+        assert logs[-1]['execution_state'] == 'COMPLETED', logs[-1]
+        assert logs[-1]['v2']['status'] == 'initialized'
+        assert logs[-1]['strategy_source'] == 'fixed_test' and logs[-1]['test_only']
+        next_bar(source, date(2026, 8, 30), 165, 160)
+        await auto_trade._run_quant_cycle(str(uid))
+        assert logs[-1]['execution_state'] == 'COMPLETED'
+        assert len(logs[-1]['trades']) == 1 and logs[-1]['trades'][0]['status'] == 'filled'
+        await auto_trade._run_quant_cycle(str(uid))
+        assert logs[-1]['v2']['status'] == 'duplicate' and not logs[-1]['trades']
+        async with sessions() as db:
+            orders = (await db.scalars(select(Order).where(Order.user_id == uid))).all()
+            assert len(orders) == 1 and orders[0].source == 'QUANT'
+            assert orders[0].status == 'filled'
+        assert market.await_count == 0
+
+    asyncio.run(scenario())
+
+
 def test_missing_or_changed_remote_v2_never_falls_back(runtime,monkeypatch):
     sessions,source=runtime
     logs=[]

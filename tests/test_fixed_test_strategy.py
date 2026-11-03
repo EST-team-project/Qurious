@@ -20,27 +20,30 @@ def test_strategy_list_distinguishes_test_input():
     result = asyncio.run(stocks.list_quant_strategies({'id': str(uuid.uuid4())}))
     assert result['configured'] and result['test_only'] and result['source'] == 'fixed_test'
     assert result['strategies'][0]['test_only']
+    assert [card['version'] for card in result['strategies']] == [1, 2]
 
 
-def test_live_settings_are_rejected_before_account_mutation(monkeypatch):
+@pytest.mark.parametrize('version', [1, 2])
+def test_live_settings_are_rejected_before_account_mutation(monkeypatch, version):
     create = AsyncMock()
     monkeypatch.setattr(stocks, '_get_or_create_broker_settings_row', create)
     with pytest.raises(HTTPException) as exc:
         asyncio.run(stocks.save_quant_settings(stocks.QuantSettingsBody(mode='live',
-            strategy_id='ma_cross_20_60', strategy_version=1), {'id': str(uuid.uuid4())}, None))
+            strategy_id='ma_cross_20_60', strategy_version=version), {'id': str(uuid.uuid4())}, None))
     assert exc.value.status_code == 422
     create.assert_not_awaited()
 
 
-def test_paper_settings_save_pins_version_without_enabling_automation(monkeypatch):
+@pytest.mark.parametrize('version', [1, 2])
+def test_paper_settings_save_pins_version_without_enabling_automation(monkeypatch, version):
     row = SimpleNamespace(quant_auto_enabled=False)
     monkeypatch.setattr(stocks, '_get_or_create_broker_settings_row', AsyncMock(return_value=row))
     monkeypatch.setattr(stocks, '_apply_credentials', lambda *args: None)
     monkeypatch.setattr(stocks, 'audit', AsyncMock())
     db = SimpleNamespace(commit=AsyncMock())
-    body = stocks.QuantSettingsBody(mode='paper', strategy_id='ma_cross_20_60', strategy_version=1)
+    body = stocks.QuantSettingsBody(mode='paper', strategy_id='ma_cross_20_60', strategy_version=version)
     asyncio.run(stocks.save_quant_settings(body, {'id': str(uuid.uuid4())}, db))
-    assert (row.quant_strategy_id, row.quant_strategy_version, row.quant_mode) == ('ma_cross_20_60', 1, 'paper')
+    assert (row.quant_strategy_id, row.quant_strategy_version, row.quant_mode) == ('ma_cross_20_60', version, 'paper')
     assert not row.quant_auto_enabled
     db.commit.assert_awaited_once()
 
