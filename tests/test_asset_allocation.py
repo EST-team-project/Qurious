@@ -215,3 +215,74 @@ def test_calculate_save_reload_isolation_failure_and_no_plan_or_order_mutation(m
                 await db.commit()
             await engine.dispose()
     asyncio.run(go())
+
+
+@pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), reason="일회용 PG 필요")
+@pytest.mark.usefixtures("rebalance_db_schema")
+def test_asset_models_calculate_save_restore_and_errors_preserve_result(monkeypatch):
+    from app.routes import ml
+    from app.models import User, RebalancePlan, RebalanceRun, Order
+    from app.services.account import delete_user_data
+    from tests.test_portfolio_allocation_constraints import candles
+    monkeypatch.setattr(ml, "read_proxy_candles", lambda *a, **k: None)
+
+    async def go():
+        engine = create_async_engine(os.environ["QURIOUS_TEST_DATABASE_URL"])
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        uid = uuid.uuid4()
+        user = {"id": str(uid)}
+        broken = False
+
+        async def session():
+            async with factory() as db:
+                yield db
+
+        async def prices(symbol, **kwargs):
+            seed = sum(map(ord, symbol))
+            return {"candles": [] if broken else candles(seed, count=181)}
+
+        monkeypatch.setattr(ml, "get_candles", prices)
+        monkeypatch.setattr(ml, "cache_get", AsyncMock(return_value={"pred_ann_return_pct": 5, "confidence": .6}))
+        monkeypatch.setattr(ml, "QUANT_STOCKS", [
+            {"symbol": "005930.KS", "name": "삼성전자"}, {"symbol": "000660.KS", "name": "SK하이닉스"}])
+        app = FastAPI()
+        app.include_router(ml.router)
+        app.dependency_overrides[ml.get_current_user] = lambda: user
+        app.dependency_overrides[ml.get_pg_session] = session
+        async with factory() as db:
+            db.add(User(id=uid, name="배분 모델 시험", email=f"{uid}@example.com", password_hash="test", client_id=uid.hex))
+            await db.commit()
+        try:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                for model in ("risk_parity", "minimum_variance", "black_litterman", "regime"):
+                    body = {"allocation_model": model}
+                    if model == "black_litterman":
+                        body["views"] = [{"asset": "국내주식", "relative_to": "해외주식", "outperformance_pct": 5, "confidence_pct": 60}]
+                    response = await client.post("/api/ml/robo/allocation", json=body)
+                    assert response.status_code == 200, response.text
+                    result = response.json()
+                    saved = (await client.get("/api/ml/robo/allocation/latest")).json()
+                    assert saved["result"]["asset_model"] == result["asset_model"]
+                    assert saved["result"]["allocation_model"] == model
+                    assert saved["handoff"]["domestic_weight_pct"] == result["allocations"]["국내주식"]
+                    assert sum(p["weight"] for p in result["stock_picks"]) == pytest.approx(result["allocations"]["국내주식"])
+                saved_id = saved["id"]
+                # 원래 모델로 조용히 대체하거나 실패 결과로 저장본을 덮어쓰지 않는다.
+                for bad in ({"allocation_model": "unknown"},
+                            {"allocation_model": "regime", "views": body.get("views", []) + [{"asset": "국내주식", "relative_to": "국내주식", "outperformance_pct": 1}]},
+                            {"allocation_model": "black_litterman", "benchmark_weights": {"국내주식": 100}}):
+                    assert (await client.post("/api/ml/robo/allocation", json=bad)).status_code == 422
+                broken = True
+                assert (await client.post("/api/ml/robo/allocation", json={"allocation_model": "risk_parity"})).status_code == 422
+                assert (await client.get("/api/ml/robo/allocation/latest")).json()["id"] == saved_id
+                user["id"] = str(uuid.uuid4())
+                assert (await client.get("/api/ml/robo/allocation/latest")).status_code == 404
+            async with factory() as db:
+                for model in (RebalancePlan, RebalanceRun, Order):
+                    assert await db.scalar(select(func.count()).select_from(model).where(model.user_id == uid)) == 0
+        finally:
+            async with factory() as db:
+                await delete_user_data(db, uid)
+                await db.commit()
+            await engine.dispose()
+    asyncio.run(go())

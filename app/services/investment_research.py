@@ -399,29 +399,46 @@ def ai_predict_return(candles: list[dict]) -> dict | None:
 
 def optimize_portfolio(stock_data: list[dict], risk_profile: str) -> dict:
     """최근 일수익률의 공분산을 이용한 long-only 최소분산/수익 혼합 배분."""
+    from app.services.allocation_models import bounded_weights
+
     series, labels = [], []
     for item in stock_data:
+        if item["symbol"] in labels:
+            return {"error": "배분 종목이 중복되었습니다."}
         df = preprocess(item["candles"])
-        s = df["close"].astype(float).pct_change().rename(item["symbol"])
+        if df.index.has_duplicates:
+            return {"error": "배분 시세의 날짜가 중복되었습니다."}
+        s = df["close"].astype(float).pct_change(fill_method=None).replace(
+            [np.inf, -np.inf], np.nan).rename(item["symbol"])
         if s.notna().sum() >= 60:
             series.append(s)
             labels.append(item["symbol"])
     if len(series) < 2:
         return {"error": "최적화에는 유효 종목 2개 이상이 필요합니다."}
+    if len(series) > 20:
+        return {"error": "종목당 최소 5% 비중을 지키려면 20개 이하가 필요합니다."}
     ret = pd.concat(series, axis=1).dropna().tail(756)   # 최대 3년으로 표본을 넓혀 최근 1년 모멘텀 편향 완화
+    if len(ret) < 60:
+        return {"error": "최적화에는 모든 종목의 공통 수익률 60거래일 이상이 필요합니다."}
     mu_raw = ret.mean().values * 252
     # 최근 실현 수익률은 미래 기대수익의 나쁜 추정치(66% 같은 값이 나온다). ±30%로 잘라 장기 주식 기대수익(7%)과
     # 반반 섞는(James-Stein식 축소) 값을 기대수익으로 쓴다.
     LONG_RUN_EQUITY_RETURN = 0.07
     mu = 0.5 * np.clip(mu_raw, -0.30, 0.30) + 0.5 * LONG_RUN_EQUITY_RETURN
     cov = ret.cov().values * 252 + np.eye(len(labels)) * 1e-6
-    inv_cov = np.linalg.pinv(cov)
-    min_var = inv_cov @ np.ones(len(labels)); min_var /= min_var.sum()
+    try:
+        inv_cov = np.linalg.pinv(cov)
+        min_var = inv_cov @ np.ones(len(labels))
+        if not np.all(np.isfinite(min_var)) or min_var.sum() <= 0:
+            raise ValueError("invalid covariance")
+        min_var /= min_var.sum()
+    except (ValueError, np.linalg.LinAlgError):
+        return {"error": "시세 공분산을 계산할 수 없습니다. 자료를 확인하세요."}
     # 위험 성향에 따라 동일가중과 기대수익 틸트를 점진적으로 확대
     tilt_strength = {"conservative": .10, "moderate": .35, "aggressive": .65}.get(risk_profile, .35)
     mu_score = np.maximum(mu - np.min(mu), 0) + 1e-6; mu_score /= mu_score.sum()
     weights = (1 - tilt_strength) * min_var + tilt_strength * mu_score
-    weights = np.clip(weights, 0.05, 0.60); weights /= weights.sum()
+    weights = bounded_weights(weights, labels, lower=.05, upper=.60)
     port_ret = float(weights @ mu)
     port_vol = float(np.sqrt(weights @ cov @ weights))
     return {"weights": {label: round(float(w) * 100, 1) for label, w in zip(labels, weights)},
