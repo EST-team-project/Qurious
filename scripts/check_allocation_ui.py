@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 HTML = re.sub(r"<script\b[^>]*>.*?</script>", "", (ROOT / "public/app.html").read_text(), flags=re.S)
 COMMON = """
+export * from '/js/common-actual.js';
 export const api = async (url, opts={}) => {
   window.calls.push({url, ...opts});
   if (url.includes('/allocation/latest')) { if(window.missing) throw Error('저장된 배분 결과가 없습니다.'); return window.saved; }
@@ -43,9 +44,13 @@ def main():
                 r.fulfill(body=HTML, content_type="text/html")
             elif path == "/js/common.js":
                 r.fulfill(body=COMMON, content_type="text/javascript")
+            elif path == "/js/common-actual.js":
+                r.fulfill(body=(ROOT / "public/js/common.js").read_text(), content_type="text/javascript")
             elif path == "/js/core.js":
-                r.fulfill(body="export const tt = s => s;", content_type="text/javascript")
-            elif path in ("/js/rebalance.js", "/js/robo.js"):
+                r.fulfill(body="export * from '/js/core-actual.js'; export const tt = s => s;", content_type="text/javascript")
+            elif path == "/js/core-actual.js":
+                r.fulfill(body=(ROOT / "public/js/core.js").read_text(), content_type="text/javascript")
+            elif path.startswith("/js/") and (ROOT / "public" / path.lstrip("/")).is_file():
                 r.fulfill(body=(ROOT / "public" / path.lstrip("/")).read_text(), content_type="text/javascript")
             else:
                 r.abort()

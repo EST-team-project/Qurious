@@ -104,7 +104,7 @@ def test_live_orders_include_system_rows_when_batch_running(client):
     c, db = client
     mine = SimpleNamespace(id=uuid.uuid4(), user_id=UID, client_order_id="a", environment="paper", symbol="005930.KS", name="삼성전자", side="BUY",
                            order_type="LIMIT", quantity=1, price=275_000.0, order_no="1", status="ACCEPTED", filled_quantity=0, avg_filled_price=None,
-                           message="", created_at=None, updated_at=None)
+                           message="", created_at=None, updated_at=None, broker="kis-direct", retry_of=None, retry_number=0)
     sys_row = SimpleNamespace(**{**vars(mine), "id": uuid.uuid4(), "user_id": SYSTEM_USER_ID, "symbol": "000660.KS", "order_type": "MARKET", "client_order_id": "b"})
     db.rows = [sys_row, mine]
     with patch.object(kis_batch, "system_status", AsyncMock(return_value={"enabled": True, "running": True})), \
@@ -113,5 +113,6 @@ def test_live_orders_include_system_rows_when_batch_running(client):
     assert r.status_code == 200, r.text
     orders = r.json()["orders"]
     assert [o["owner"] for o in orders] == ["batch", "me"] and orders[0]["order_type"] == "MARKET"
+    assert all(o["broker"] == "kis-direct" and o["retry_of"] is None and o["retry_number"] == 0 for o in orders)
     crit = str(db.last_stmt.whereclause)
     assert "IN" in crit.upper()
