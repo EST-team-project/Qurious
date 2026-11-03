@@ -78,6 +78,30 @@ def test_buy_label_follows_the_server_market_state(tmp_path):
     assert out == {"c": "예약 매수 (다음 정규장)", "o": "매수 (Buy)", "u": "매수 (Buy)", "n": "매수 (Buy)"}
 
 
+def test_buy_label_and_notice_follow_the_servers_order_support(tmp_path):
+    """이슈 #520 — 모의 장부가 미국 매수를 받는지는 서버(`order.supported`)가 말하고, 화면은 그 값으로 단추 글 · 안내를 고른다."""
+    note = "미국주식 모의 매수는 아직 지원하지 않습니다 <b>x</b>"
+    out = _run(tmp_path, f'''
+      const NO = {{ ...CLOSED, order: {{ supported: false, note: {json.dumps(note, ensure_ascii=False)} }} }};
+      const YES = {{ ...CLOSED, order: {{ supported: true, note: null }} }};
+      out.no = m.usoBuyLabel(NO); out.yes = m.usoBuyLabel(YES); out.none = m.usoBuyLabel(CLOSED);
+      out.block = m.usoOrderBlock(NO); out.noBlock = m.usoOrderBlock(YES) + "|" + m.usoOrderBlock(null);
+      out.notice = m.usoNoticeHtml(NO); out.noNotice = m.usoNoticeHtml(YES) + "|" + m.usoNoticeHtml(null);
+    ''')
+    assert out["no"] == "매수 미지원" and out["yes"] == "예약 매수 (다음 정규장)" and out["none"] == "예약 매수 (다음 정규장)"
+    assert out["block"] == note and out["noBlock"] == "|"
+    assert "data-uso-unsupported" in out["notice"] and "<b>x</b>" not in out["notice"] and "&lt;b&gt;x&lt;/b&gt;" in out["notice"]   # 글자를 막는다
+    assert out["noNotice"] == "|"                                  # 서버가 말하지 않거나 받는다고 하면 안내를 그리지 않는다
+
+
+def test_reservation_row_says_unsupported_instead_of_a_fill_time(tmp_path):
+    out = _run(tmp_path, '''
+      out.h = m.usoReservationsHtml({ reservations: [{ order_id: "a1", symbol: "PLUG", quantity: 1, status: "pending",
+        created_at_kst: "10-17(토) 17:00", next_open_kst: null, unsupported_note: "지원하지 않는 예약 — 체결하지 않습니다. 취소해 주세요." }], fired: [] });
+    ''')
+    assert "지원하지 않는 예약" in out["h"] and "체결 예정" not in out["h"] and "data-uso-cancel" in out["h"]   # 취소는 그대로 된다
+
+
 def test_quote_card_shows_server_values_and_texts(tmp_path):
     out = _run(tmp_path, "out.h = m.usoQuoteHtml(Q, PQ, CLOSED); out.o = m.usoQuoteHtml(Q, PQ, OPEN);"
                          "out.none = m.usoQuoteHtml(null, null, CLOSED);"
@@ -176,6 +200,8 @@ def test_order_flow_is_filter_then_confirm_then_order_or_reserve():
     res, order = f.index('"/api/paper/stocks/reservations"'), f.index('"/api/paper/stocks/orders"')
     assert lim < ask and sell < ask and ask < res and ask < order
     assert "await loadUsMarket()" in f[:ask]                       # 열어 둔 화면의 옛 장 상태로 주문하지 않게
+    block = f.index("usoOrderBlock(usOrd.market)")                 # 장부가 미국 매수를 안 받으면 확인 상자 전에 까닭을 알리고 멈춘다(이슈 #520)
+    assert f.index("await loadUsMarket()") < block < ask and "setToast(blocked" in f[block:ask]
     body = re.search(r'"/api/paper/stocks/reservations", \{ method: "POST", body: \{([^}]*)\}', f)
     assert body and "price" not in body.group(1)
 
@@ -190,7 +216,7 @@ def test_dialog_focuses_cancel_and_guards_stale_quotes():
 def test_containers_sit_inside_the_order_panel():
     html = APP_HTML.read_text(encoding="utf-8")
     view = re.search(r'data-view="us-order">(.*?)data-view=', html, flags=re.S).group(1)
-    for cid in ("us-ord-quote", "us-ord-estimate", "us-reserve-list"):
+    for cid in ("us-ord-notice", "us-ord-quote", "us-ord-estimate", "us-reserve-list"):
         assert f'id="{cid}"' in view, cid
     assert view.index('id="us-ord-symbol"') < view.index('id="us-ord-quote"') < view.index('id="us-ord-qty"') < view.index('id="us-ord-estimate"')
     assert "정규장이 닫힌 때는 예약 주문으로 받아 다음 정규장 시작가로 체결을 시도합니다" in view   # 안내 글도 같은 규칙을 말한다

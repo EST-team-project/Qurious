@@ -42,7 +42,10 @@ BASELINE: dict[str, int] = {
     #   받았다(강사님 85c3444 · KIS 갈래의 `"kis"` 와 짝). 글자일 뿐 호출은 0 — 부르는 곳은 그대로 `_yahoo_chart` 하나.
     "app/services/stock.py": 25,
     "app/services/lean_backtest.py": 19,
-    "app/services/paper_trading.py": 10,
+    # 2026-11-03 S196 강민석 님 4e7c1fa2(가격 출처 감사 정보): 10 → 11 — 줄 수만 늘었다(오준영 님 이슈 #521). 변경 = Yahoo 설명 주석 1줄 삭제 +
+    #   출처 문자열 `"yahoo_finance"` 2줄 추가(대체자산 평가 가격 · 금 · 은 환율 환산 감사 칸) = 순증 1. 호출은 0 —
+    #   `_yahoo_chart(` 부르는 곳은 커밋 전(812줄)과 후(1086줄) 모두 하나, 새 주소 · 새 함수 없음. 감사 칸은 이미 받은 값의 출처 이름표다.
+    "app/services/paper_trading.py": 11,
     "app/services/sync_scheduler.py": 7,
     # 2026-10-29 f46ec4b(한국 거시): 7 → 4 — 한국 거시가 수집 DB 를 읽게 되며 야후 줄이 줄었다. 남은 4줄은 가져오기 1 · `_yahoo_latest` 호출 1 · 밸류에이션 설명 1 · `_yahoo_chart` 호출 1.
     "app/routes/macro.py": 4,

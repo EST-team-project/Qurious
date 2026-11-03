@@ -12,6 +12,11 @@
    값으로 메우지 않음) · 두 번 읽어도 한 번만 체결(멱등) · 현금이 모자라면 건너뜀 + 까닭.
 4. 예약 줄은 모의투자 주문 내역에 섞이지 않고(source RESERVED) 체결 줄은 내역에 남는다(PAPER).
 5. 라우트 넷이 라우터 · 앱에 붙어 있고 오류를 바른 상태 코드로 돌려준다.
+6. **지원 범위(2026-11-03 · 이슈 #520)** — 모의 장부(`paper_trading._ensure_supported_market`)가 원화 종목만 받는 동안 접수 · 체결 처리 · 화면이
+   같은 판단(`ur.order_support`)을 쓴다: 접수는 저장 전에 거부(저장 0) · 옛 대기 예약은 체결을 시도하지 않고 상태도 바꾸지 않으며(목록을
+   열어도 그대로) 취소할 수 있다. 정책 판단 뒤의 예약 논리(장 상태 · 시가 기다림 · 취소)는 `ledger_supports_us`
+   고정 장치(지원 판단 하나만 켜고 나머지는 진짜 코드)로 따로 지키고, 체결까지 가는 시험 둘은 해외 비용 모델이 생길 때까지 skip 한다.
+   지금 정책의 거부는 진짜 판단으로 확인한다.
 DB 시험은 QURIOUS_TEST_DATABASE_URL(일회용 DB · scripts/personal/test.ps1)이 있을 때만 돈다 — 나머지는 네트워크 · DB 없이 돈다.
 """
 from __future__ import annotations
@@ -84,12 +89,22 @@ def test_naive_times_are_read_as_utc():
 
 
 # ── 2. 예약을 받지 않는 때 (DB 없이) ─────────────────────────────────────────────
+@pytest.fixture
+def ledger_supports_us(monkeypatch):
+    """**해외 매수가 열린 뒤를 가정**한다 — 장부의 지원 판단 하나만 켜고 접수 · 체결 · 비용 코드는 진짜를 쓴다.
+    지금 정책(원화 종목만)의 거부는 아래 「지원 범위」 시험들이 진짜 판단으로 확인한다. 이 장치는 그 판단을 가리는 것이 아니라,
+    정책 판단 **뒤**의 예약 논리(장 상태 · 시가 기다림 · 취소 · 목록)가 그대로 맞는지 지켜 두는 것이다. 체결까지 가는 시험(시가 × 환율 ·
+    현금 부족)은 비용 계산이 해외 시장을 거부하는 동안 돌 수 없어 skip 해 두었다 — 해외 비용 모델이 생기면 켠다(이슈 #520)."""
+    monkeypatch.setattr(paper_trading, "_ensure_supported_market", lambda info, **k: None)
+
+
 class _NoDb:
     async def execute(self, *a, **k):
         raise AssertionError("까닭이 앞에서 정해지면 DB 를 부르지 않는다")
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("ledger_supports_us")
 async def test_reserve_is_refused_while_the_market_is_open(monkeypatch):
     monkeypatch.setattr(ur, "market_state", lambda now=None: {"open": True, "label": "열림"})
     with pytest.raises(ur.MarketOpenError):
@@ -104,10 +119,37 @@ async def test_reserve_refuses_domestic_and_bad_quantity(symbol, qty):
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("ledger_supports_us")
 async def test_reserve_is_refused_when_the_calendar_does_not_know(monkeypatch):
     monkeypatch.setattr(ur, "market_state", lambda now=None: {"open": None, "label": "휴장일 표에 없는 해"})
     with pytest.raises(ur.ReserveError, match="휴장일 표"):
         await ur.place(_NoDb(), uuid.uuid4(), "PLUG", 1)
+
+
+# ── 2-1. 지원 범위 — 접수 · 체결 처리 · 화면이 같은 판단을 쓴다 (이슈 #520 · DB 없이) ───────────────────
+def test_order_support_follows_the_ledger_not_a_copy(monkeypatch):
+    s = ur.order_support()                                         # 지금 장부는 원화 종목만 받는다(#255 · DF-96)
+    assert s == {"supported": False, "note": ur.UNSUPPORTED_NOTE} and "지원하지 않습니다" in s["note"]
+    monkeypatch.setattr(paper_trading, "_ensure_supported_market", lambda info, **k: None)   # 장부가 풀리면 따라간다
+    assert ur.order_support() == {"supported": True, "note": None}
+
+
+@pytest.mark.anyio
+async def test_reserve_is_refused_before_anything_is_saved_while_the_ledger_is_kr_only():
+    with pytest.raises(ur.ReserveUnsupportedError) as exc:
+        await ur.place(_NoDb(), uuid.uuid4(), "PLUG", 1, now=SAT_KST)    # _NoDb 는 DB 를 부르면 멈춘다 → 저장 · 조회 0
+    assert str(exc.value) == ur.UNSUPPORTED_NOTE and isinstance(exc.value, ur.ReserveError)
+
+
+@pytest.mark.anyio
+async def test_unsupported_pending_reservations_are_not_touched_when_the_list_is_opened():
+    assert await ur.fill_due(_NoDb(), uuid.uuid4(), now=MON_OPEN_UTC + timedelta(hours=2)) == []   # 줄을 잠그지도 읽지도 않는다
+
+
+@pytest.mark.anyio
+async def test_us_market_route_tells_the_screen_whether_orders_are_supported():
+    out = await routes.us_market()
+    assert "open" in out and out["order"] == {"supported": False, "note": ur.UNSUPPORTED_NOTE}
 
 
 # ── 3. 그 정규장의 시가 고르기 ───────────────────────────────────────────────────
@@ -185,6 +227,14 @@ async def test_post_maps_market_open_to_409_and_reasons_to_400(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_post_refuses_an_unsupported_reservation_with_400_and_the_reason():
+    db = _FakeDb()
+    with pytest.raises(HTTPException) as exc:
+        await routes.reserve(routes.ReserveBody(symbol="PLUG", quantity=1), USER, db)
+    assert exc.value.status_code == 400 and exc.value.detail == ur.UNSUPPORTED_NOTE and db.calls == ["rollback"]   # 저장 · 커밋 0
+
+
+@pytest.mark.anyio
 async def test_get_fills_due_reservations_commits_then_lists(monkeypatch):
     seen = []
 
@@ -252,6 +302,7 @@ def _candles(monkeypatch, bars):
 
 @needs_db
 @pytest.mark.anyio
+@pytest.mark.skip(reason="해외 매수 비용 모델이 준비되면 켠다 — 지금은 지원 판단만 풀어도 비용 계산(trading_cost)이 해외 시장(NCM)을 거부해 체결이 안 된다(이슈 #520)")
 async def test_reserve_then_fill_at_the_first_session_open(db, monkeypatch):
     session, uid = db
     r, _o = await _reserve(session, uid)
@@ -280,6 +331,7 @@ async def test_reserve_then_fill_at_the_first_session_open(db, monkeypatch):
 
 @needs_db
 @pytest.mark.anyio
+@pytest.mark.usefixtures("ledger_supports_us")
 async def test_fill_waits_when_the_open_price_is_missing_and_before_the_open(db, monkeypatch):
     session, uid = db
     r, _o = await _reserve(session, uid)
@@ -294,6 +346,7 @@ async def test_fill_waits_when_the_open_price_is_missing_and_before_the_open(db,
 
 @needs_db
 @pytest.mark.anyio
+@pytest.mark.skip(reason="해외 매수 비용 모델이 준비되면 켠다 — 지금은 지원 판단만 풀어도 비용 계산(trading_cost)이 해외 시장(NCM)을 거부해 체결이 안 된다(이슈 #520)")
 async def test_fill_is_skipped_with_a_reason_when_cash_is_short(db, monkeypatch):
     session, uid = db
     r, _o = await _reserve(session, uid, qty=1000)
@@ -307,6 +360,7 @@ async def test_fill_is_skipped_with_a_reason_when_cash_is_short(db, monkeypatch)
 
 @needs_db
 @pytest.mark.anyio
+@pytest.mark.usefixtures("ledger_supports_us")
 async def test_cancel_only_own_pending_and_list_shows_next_open(db, monkeypatch):
     session, uid = db
     r, _o = await _reserve(session, uid)
@@ -321,3 +375,50 @@ async def test_cancel_only_own_pending_and_list_shows_next_open(db, monkeypatch)
     await ur.place(session, uid, "PLUG", 1, now=SAT_KST)
     with pytest.raises(ur.ReserveError, match="대기 중인 예약"):
         await ur.place(session, uid, "PLUG", 1, now=SAT_KST)
+
+
+async def _legacy_pending(session, uid, qty=1):
+    """장부가 해외 종목을 받기 전(10-20 이전)에 접수돼 저장된 대기 예약 한 줄 — 지금은 `place` 가 저장하지 않으므로 직접 만든다."""
+    o = Order(user_id=uid, symbol="PLUG", name="Plug Power Inc.", order_type="buy", quantity=qty, price=1834.848,
+              status="pending", broker="virtual", source=ur.SOURCE, order_kind=ur.KIND, created_at=FIXED_CREATED)
+    session.add(o)
+    await session.commit()
+    return o
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_place_saves_nothing_when_the_ledger_does_not_take_the_market(db):
+    session, uid = db
+    acc = await paper_trading.get_account(session, uid)
+    cash0 = float(acc.cash)
+    with pytest.raises(ur.ReserveUnsupportedError):
+        await ur.place(session, uid, "PLUG", 1, now=SAT_KST)
+    await session.commit()
+    assert (await session.execute(select(Order).where(Order.user_id == uid))).first() is None         # 예약 줄 0
+    assert (await session.execute(select(Portfolio).where(Portfolio.user_id == uid))).first() is None  # 보유 0
+    assert float((await paper_trading.get_account(session, uid)).cash) == cash0                          # 현금 그대로
+
+
+@needs_db
+@pytest.mark.anyio
+async def test_an_old_pending_reservation_stays_pending_and_can_be_cancelled(db):
+    session, uid = db
+    o = await _legacy_pending(session, uid)
+    oid = o.id                                                         # expire_all 뒤에는 속성을 읽을 수 없으니 먼저 담아 둔다
+    cash0 = float((await paper_trading.get_account(session, uid)).cash)
+    # 예약 목록을 열어도(= 체결 처리 호출) 상태 · 시각 · 장부가 바뀌지 않는다 — 옛 방식은 여기서 skipped 로 닫혔다
+    assert await ur.fill_due(session, uid, now=MON_OPEN_UTC + timedelta(hours=2)) == []
+    await session.commit()
+    session.expire_all()
+    row = (await session.execute(select(Order).where(Order.id == oid))).scalar_one()
+    assert row.status == "pending" and row.triggered_at is None and row.avg_fill_price is None
+    assert (await session.execute(select(Portfolio).where(Portfolio.user_id == uid))).first() is None
+    assert (await session.execute(select(Order).where(Order.user_id == uid, Order.source == "PAPER"))).first() is None
+    assert float((await paper_trading.get_account(session, uid)).cash) == cash0
+    # 목록은 「체결 예정」 대신 까닭을 보이고, 사용자는 취소할 수 있다
+    rows = await ur.list_reservations(session, uid)
+    assert rows[0]["status"] == "pending" and rows[0]["unsupported_note"] == ur.UNSUPPORTED_RESERVED_NOTE
+    assert rows[0]["next_open_kst"] is None
+    assert (await ur.cancel(session, uid, str(oid)))["status"] == "cancelled"
+    assert (await ur.list_reservations(session, uid))[0]["status"] == "cancelled"

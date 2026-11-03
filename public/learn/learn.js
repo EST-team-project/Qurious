@@ -349,7 +349,9 @@
       return;
     }
     const parse = window.marked.parse || window.marked.marked;
-    const raw = parse(md || "", { gfm: true });
+    // 숫자 범위의 `~` 를 취소선으로 읽지 않게(2026-11-03) — conceptlearn.js 의 protectRangeTilde 와 같은 규칙
+    const protectedMd = String(md || "").split(/(```[\s\S]*?```|`[^`\n]*`)/g).map((seg, i) => (i % 2 ? seg : seg.replace(/([0-9%원)])~(?=[0-9])/g, "$1\\~"))).join("");
+    const raw = parse(protectedMd, { gfm: true });
     el.innerHTML = window.DOMPurify.sanitize(raw, {
       USE_PROFILES: { html: true, svg: true, svgFilters: true },
       FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select"],

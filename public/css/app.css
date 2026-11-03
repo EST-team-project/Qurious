@@ -384,7 +384,7 @@
     .btn-green {
       padding: 8px 16px;
       border-radius: 6px;
-      background: var(--green);
+      background: #047857;   /* 2026-11-03 흰 글자 대비 3.77 → 5.5 (옛 --green #059669) */
       color: #fff;
       font-size: 15px;
       font-weight: 600;
@@ -706,3 +706,9 @@
    (화면별로 먼저 덮어 둔 css/finlearn.css 의 규칙은 !important 라 그대로 이긴다.) */
 body .text-slate-200, body .text-slate-300 { color: var(--text-dim); }
 body .text-slate-400, body .text-slate-500 { color: var(--text-mute); }
+/* 2026-11-03 S196 화면 점검(대비 1.5~2.8:1) — slate 와 같은 까닭으로 Tailwind 의 밝은 색 글자(-300/-400)도 밝은 바탕에서 읽히는 진한 값으로 되돌린다.
+   쓰는 곳: 현재가 등락 · 비상 정지 · 「미연동」 · 시스템관리 큰 숫자 · ML 딥러닝 표 · 기술적 분석 점 등. 값은 흰 바탕 기준 대비 4.9 ~ 6.5. */
+body .text-green-400, body .text-emerald-400 { color: #047857; }
+body .text-red-400 { color: #b91c1c; }
+body .text-yellow-400 { color: #a16207; }
+body .text-indigo-300, body .text-indigo-400 { color: #4f46e5; }
