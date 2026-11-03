@@ -59,6 +59,30 @@ class RebalancePlan(Base, UUIDPkMixin, CreatedAtMixin, UpdatedAtMixin):
     last_auto_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_auto_check_result: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict,
                                                        server_default=text("'{}'::jsonb"))
+    # 사용자가 가져온 국면 배분의 기준·종목 구성을 고정한다. 빈 설정은 미사용.
+    regime_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict,
+                                               server_default=text("'{}'::jsonb"))
+    regime_state: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict,
+                                              server_default=text("'{}'::jsonb"))
+
+
+class RebalanceTargetChange(Base, UUIDPkMixin, CreatedAtMixin):
+    """국면에 따른 목표 변경 근거. 플랜·변경 이력·후속 제안을 한 트랜잭션에 저장."""
+
+    __tablename__ = "rebalance_target_changes"
+    __table_args__ = (
+        Index("uq_rebalance_target_change_day", "plan_id", "policy_id", "data_as_of", unique=True),
+        Index("ix_rebalance_target_changes_user_created", "user_id", "created_at"),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("rebalance_plans.id", ondelete="CASCADE"), nullable=False)
+    policy_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    data_as_of: Mapped[date] = mapped_column(Date, nullable=False)
+    before_targets: Mapped[list] = mapped_column(JSONB, nullable=False)
+    after_targets: Mapped[list] = mapped_column(JSONB, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
 
 class CashflowEvent(Base, UUIDPkMixin, CreatedAtMixin):
