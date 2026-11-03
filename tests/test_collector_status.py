@@ -5,7 +5,7 @@
    판정(기다림 · 미체결 종료)은 하지 않는다(응답 칸에 판정이 없다).
 2. 모르면 None + 까닭 — 기록 없는 날 · 거래량 칸 빔 · 어느 표에도 없는 종목(두 출처 모두 싣기).
 3. 맞대기 — 같은 임시 수집 DB 에서 리밸런싱 판정(`rebalance_prices.read_prices(field="open")`)과 이 함수의 사실로 다시 낸 결론이
-   경우마다 같다(주담당 코드는 고치지 않고 어긋남만 본다).
+   경우마다 같다. 소비자는 가격 조회와 같은 트랜잭션을 공통 함수에 전달한다.
 4. 수집 DB 는 읽기 전용 한 트랜잭션 · 없거나 못 읽으면 예외(종목별 「모름」 을 꾸미지 않음) · 꼴이 틀린 기호 · 날짜는 DB 를 열기 전에 멈춤.
 
 실제 수집 DB 는 열지 않는다 — 임시 SQLite 를 COLLECTOR_DB_PATH 로 가리키고, 그 밖의 시험은 없는 경로(autouse).
@@ -224,3 +224,78 @@ def test_sds06_same_conclusion_as_rebalance_prices(db, name, setup, sym, want):
     assert _read_prices_outcome(sym) == want, name                     # 주담당 판정(지금 코드)
     assert _decide(st) == want, (name, st)                              # 이 함수의 사실로 낸 결론이 같다
     assert collector_db.db_path() == db
+
+
+def test_caller_transaction_is_used_without_open_commit_or_close(db, monkeypatch):
+    put(db, "price_daily", "005930", day="20261001")
+    mark(db, "portal", "done")
+    conn = sqlite3.connect(f"{db.as_uri()}?mode=ro", uri=True)
+    try:
+        conn.execute("BEGIN")
+        sql = []
+        conn.set_trace_callback(sql.append)
+
+        def unexpected_connection(*args, **kwargs):
+            pytest.fail("공통 함수가 별도 DB 연결을 열면 가격/상태의 시점이 갈라진다")
+
+        monkeypatch.setattr(cs.sqlite3, "connect", unexpected_connection)
+        state = cs.symbol_day_status(["005930"], DAY, connection=conn)["005930"]
+        assert state["collected"] == {"portal": "done"}
+        assert conn.in_transaction
+        assert sql and all(statement.startswith("SELECT") for statement in sql)
+        assert conn.execute("SELECT 1").fetchone() == (1,)
+    finally:
+        conn.close()
+
+
+def test_caller_connection_requires_explicit_transaction_and_no_path(db):
+    conn = sqlite3.connect(db)
+    try:
+        with pytest.raises(ValueError, match="트랜잭션"):
+            cs.symbol_day_status(["005930"], DAY, connection=conn)
+        conn.execute("BEGIN")
+        with pytest.raises(ValueError, match="함께"):
+            cs.symbol_day_status(["005930"], DAY, path=db, connection=conn)
+    finally:
+        conn.close()
+
+
+def test_rebalance_uses_price_snapshot_when_collection_finishes_during_read(db, monkeypatch):
+    # 다른 연결이 수집 완료를 기록해도, 이미 읽기 시작한 가격 스냅샷과 섞지 않는다.
+    conn = sqlite3.connect(db)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.close()
+    put(db, "price_daily", "005930", day="20261001")
+    mark(db, "portal", "error")
+    original = cs.symbol_day_status
+    seen = []
+
+    def finish_collection(symbols, day, **kwargs):
+        reader = kwargs["connection"]
+        assert reader.in_transaction
+        if not seen:
+            writer = sqlite3.connect(db)
+            try:
+                writer.execute("UPDATE ingest_day SET status='done' WHERE source='portal' AND bas_dt=?", (D,))
+                writer.commit()
+            finally:
+                writer.close()
+        state = original(symbols, day, **kwargs)
+        seen.append(state["005930"]["collected"]["portal"])
+        return state
+
+    monkeypatch.setattr(cs, "symbol_day_status", finish_collection)
+    assert _read_prices_outcome("005930") == "wait"
+    assert _read_prices_outcome("005930") == "not_tradable"
+    assert seen == ["error", "done"]
+
+
+def test_rebalance_waits_if_common_collection_status_unavailable(db, monkeypatch):
+    put(db, "price_daily", "005930", day="20261001")
+    mark(db, "portal", "done")
+
+    def unavailable(*args, **kwargs):
+        raise cs.CollectorStatusUnavailable("읽기 실패")
+
+    monkeypatch.setattr(cs, "symbol_day_status", unavailable)
+    assert _read_prices_outcome("005930") == "wait"

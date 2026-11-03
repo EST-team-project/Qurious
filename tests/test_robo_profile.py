@@ -44,6 +44,33 @@ def test_goal_simulation_with_contributions_and_volatility():
     assert r["required_annual_return_pct"] > 0
 
 
+@pytest.mark.parametrize("rate", [-20, -1, -1e-10, 0, 1e-10, 1, 5, 8])
+def test_contribution_target_matches_monthly_cashflows_at_any_rate(rate):
+    # 반복 입금의 독립 현금흐름 계산. 같은 수익률·변동성 0이면 목표에 정확히 도달한다.
+    expected = 1000.
+    monthly_growth = (1 + rate / 100) ** (1 / 12)
+    for _ in range(36):
+        expected = expected * monthly_growth + 50
+    result = goal_simulation(1000, 3, rate, rate, 0, monthly_contribution_manwon=50, n_paths=500)
+    assert result["target_value_manwon"] == round(expected, 1)
+    assert result["probability_pct"] == 100
+    assert result["percentiles_manwon"]["p50"] == round(expected, 1)
+
+
+@pytest.mark.parametrize("years", [26, 27, 28, 29, 31, 40])
+def test_goal_chart_includes_exact_end_of_investment_period(years):
+    result = goal_simulation(1000, years, 5, 7, 12, n_paths=500)
+    assert result["curve_years"][-1] == years
+    for key in ("p5", "p50", "p95"):
+        assert result["curves"][key][-1] == result["percentiles_manwon"][key]
+        assert len(result["curves"][key]) == len(result["curve_years"])
+
+
+def test_goal_comparison_tolerance_does_not_accept_a_real_shortfall():
+    result = goal_simulation(1000, 3, 5, 4.9999, 0, monthly_contribution_manwon=50, n_paths=500)
+    assert result["probability_pct"] == 0
+
+
 # ── 목표 시뮬레이션 입력 경계 — 감리 HIGH FD-FIND-002 · DF-144 (2026-10-22) ──────────
 # 강사님 배포본 운영 검증이 찾은 결함: 수익률 -101 을 넣으면 서버 오류 500(422 가 맞다).
 # 우리 입력 모델이 강사님 판과 같아 그대로 재현됐다 → 계산 전에 막고, 계산이 넘친 조합도 422 로.
@@ -80,6 +107,15 @@ def test_goal_simulation_accepts_just_inside_the_bound(client):
     r = client.post(GOAL, json={"target_return_pct": -99.9, "expected_return_pct": -99.9, "n_paths": 500})
     assert r.status_code == 200, r.text
     assert 0 <= r.json()["probability_pct"] <= 100
+
+
+def test_goal_simulation_route_compounds_negative_rate_contributions(client):
+    response = client.post(GOAL, json={"amount_manwon": 1000, "horizon_years": 3,
+                                     "target_return_pct": -20, "expected_return_pct": -20,
+                                     "expected_volatility_pct": 0, "monthly_contribution_manwon": 50, "n_paths": 500})
+    assert response.status_code == 200, response.text
+    assert response.json()["target_value_manwon"] == 1836.4
+    assert response.json()["probability_pct"] == 100
 
 
 @pytest.mark.parametrize("payload", [

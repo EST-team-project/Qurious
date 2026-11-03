@@ -22,6 +22,7 @@ import hashlib
 import json
 import uuid
 from datetime import date, datetime, timezone
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
@@ -86,14 +87,24 @@ def normalize_targets(raw: list[dict]) -> list[dict]:
         w = checked_number(w, "목표 비중", 0, 100)
         if w < 0 or w > 100:
             raise RebalanceError(f"{symbol}: 비중은 0~100 사이여야 합니다.")
+        w = Decimal(str(w))
         if symbol in merged:
             merged[symbol]["weight_pct"] += w
         else:
             merged[symbol] = {"symbol": symbol, "name": str(t.get("name") or symbol)[:100], "weight_pct": w}
     total = sum(t["weight_pct"] for t in merged.values())
-    if total > 100.0001:
+    if total > Decimal("100.0001"):
         raise RebalanceError(f"목표 비중 합계가 100%를 초과합니다 ({total:.1f}%). 잔여분은 현금으로 배분됩니다.")
-    return [{**t, "weight_pct": round(t["weight_pct"], 2)} for t in merged.values()]
+    # 개별 반올림은 합계를 100.01%로 만들 수 있다. 합계의 0.01% 단위를
+    # 먼저 확정하고 소수 잔여가 큰 종목에 배분한다. 사용자가 남긴 현금은 유지한다.
+    units = {symbol: t["weight_pct"] * 100 for symbol, t in merged.items()}
+    rounded = {symbol: int(value.to_integral_value(rounding=ROUND_FLOOR)) for symbol, value in units.items()}
+    budget = int((Decimal(total) * 100).to_integral_value(rounding=ROUND_HALF_UP))
+    remainder = budget - sum(rounded.values())
+    order = sorted(units, key=lambda symbol: (-(units[symbol] - rounded[symbol]), symbol))
+    for symbol in order[:remainder]:
+        rounded[symbol] += 1
+    return [{**t, "weight_pct": rounded[symbol] / 100} for symbol, t in merged.items()]
 
 
 async def resolve_targets(raw: list[dict]) -> list[dict]:

@@ -95,19 +95,26 @@ def goal_simulation(amount_manwon: float, horizon_years: int, target_return_pct:
 
         # 목표 금액: 원금과 매월 적립금을 목표 연수익률로 복리 성장
         try:
-            r_m = (1 + tgt) ** (1 / 12) - 1
-            target_value = p0 * (1 + tgt) ** years + (c * (((1 + r_m) ** months - 1) / r_m) if r_m > 0 else c * months)
-        except OverflowError:   # 파이썬 실수 거듭제곱은 inf 대신 예외를 낸다
+            monthly_log = math.log1p(tgt) / 12
+            r_m = math.expm1(monthly_log)
+            # 음수 수익률에도 같은 월말 적립 공식을 쓴다. 0 부근의 상쇄 오차는 expm1으로 피한다.
+            contributions = math.expm1(monthly_log * months) / r_m if r_m else months
+            target_value = p0 * math.exp(monthly_log * months) + c * contributions
+        except OverflowError:   # 파이썬 지수 계산은 inf 대신 예외를 낼 수 있다
             raise ValueError(GOAL_SIM_TOO_LARGE) from None
         invested = p0 + c * months
-        prob = float((final >= target_value).mean())
+        # 반복 곱과 닫힌 식의 부동소수 오차로 정확한 목표 도달을 실패로 세지 않는다.
+        prob = float(((final >= target_value) | np.isclose(final, target_value, rtol=1e-12, atol=0)).mean())
         pct = {k: float(np.percentile(final, k)) for k in (5, 25, 50, 75, 95)}
         # 원금 손실 확률, 필요 연수익률(적립 없이 원금만 기준 근사)
         loss_prob = float((final < invested).mean())
         req = ((target_value / invested) ** (1 / years) - 1) if invested > 0 else 0.0
         step = max(1, months // 60)
-        curves = {f"p{k}": [round(float(v), 1) for v in np.percentile(values, k, axis=0)[::step]] for k in (5, 50, 95)}
-    labels = [round(i * step / 12, 2) for i in range(len(curves["p50"]))]
+        sampled_months = list(range(0, months + 1, step))
+        if sampled_months[-1] != months:
+            sampled_months.append(months)
+        curves = {f"p{k}": [round(float(v), 1) for v in np.percentile(values, k, axis=0)[sampled_months]] for k in (5, 50, 95)}
+    labels = [round(m / 12, 2) for m in sampled_months]
     # 응답에 inf · NaN 이 실리면 JSON 을 만들지 못해 500 이 된다 — 계산이 넘친 조합은 안내 글로(DF-144)
     numbers = [target_value, prob, loss_prob, req, *pct.values(), *(v for curve in curves.values() for v in curve)]
     if not all(math.isfinite(v) for v in numbers):
