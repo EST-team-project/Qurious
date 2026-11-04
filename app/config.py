@@ -151,6 +151,11 @@ class Settings(BaseSettings):
     # beat 스케줄·expires·태스크 time_limit·/api/health·화면 문구가 모두 이 값을 따른다.
     # Qurious: 강사님 10-07 판은 180(3분) — 우리는 600(10분) 그대로 둔다(2026-10-08 사용자 · 받을지는 팀 이슈).
     QUANT_CYCLE_SEC: int = 600
+    # ── 자동매매 신호의 일봉 신선도 (2026-11-04 · app/services/signal_freshness.py) ──────────────
+    # 수집 DB 일봉은 포털 T+1 이라 오전에는 1~2거래일 전 종가다. 가드는 직전 거래일 확정 종가가 없으면 주문을 보류한다.
+    SIGNAL_FRESHNESS_GUARD: bool = True     # False 면 가드를 끈다(옛 동작)
+    SIGNAL_KIS_TAIL: bool = True            # 낡았을 때 KIS 확정 일봉을 메모리로만 보강(저장·공유 없음 · 개인 업무 범위)
+    SIGNAL_PRICE_GAP_WARN_PCT: float = 3.0   # 판단가와 주문 직전 가격 차이가 이 % 이상이면 근거에 경고만 남긴다(0 이면 끔 · 막지는 않음)
 
     # ── 공격 모드: 5분봉 단기 시그널로 매 사이클 매수·매도 (app/services/aggressive_mode.py) ──────
     # true 면 자동매매 사이클이 일봉 지표 대신 5분봉(RSI·MA·모멘텀·거래량) 시그널을 쓰고, 매 사이클
