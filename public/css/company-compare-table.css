@@ -1,0 +1,54 @@
+/* 지표 비교 표 — 수집 대상 전체 종목 표 · 시장/업종 필터 · 열 정렬 · 30종목 쪽 (D11 · 2026-11-04 · js/company-compare-table.js)
+ * 규칙: `.ct-*` 만 쓴다(다른 화면에 번지지 않는다) · 색은 앱 토큰만 · 보조 글은 var(--text-mute) 이상 · 상태는 색이 아니라 글로 구분한다.
+ * 좁은 화면: 표는 `.ct-scroll` 안에서만 가로로 밀리고 페이지 전체는 넘치지 않는다. 종목 열은 왼쪽에 붙는다.
+ */
+.ct-wrap { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); min-width: 0; }
+.ct-wrap h3 { margin: 0 0 4px; }
+.ct-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.ct-bar .input { min-width: 0; }
+#ct-q { flex: 1 1 180px; max-width: 260px; }
+#ct-market { flex: 0 1 140px; width: auto; max-width: 100%; }
+#ct-sector { flex: 1 1 200px; width: auto; max-width: 300px; text-overflow: ellipsis; }
+.ct-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 8px; font-size: 12px; color: var(--text-dim); }
+.ct-pager .ct-range { font-weight: 600; color: var(--text); }
+.ct-pager .ct-spacer { flex: 1 1 auto; }
+.ct-msg { min-height: 16px; margin: 0 0 6px; font-size: 12px; color: var(--text-mute); }
+
+/* 표 상자 — 가로 스크롤은 여기서만 */
+.ct-scroll { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 8px; background: var(--surf); }
+.ct-table { min-width: 1280px; border-collapse: separate; border-spacing: 0; }
+.ct-table th, .ct-table td { vertical-align: top; }
+.ct-table td { padding: 8px; font-size: 13px; line-height: 1.45; }
+.ct-table th.ct-th { padding: 8px; font-size: 12px; white-space: nowrap; letter-spacing: 0; text-transform: none; }
+.ct-th[aria-sort="ascending"], .ct-th[aria-sort="descending"] { color: var(--text); }
+.ct-th.ct-num, .ct-table td.ct-num { text-align: right; }
+.ct-table td.ct-num { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.ct-sort { display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.ct-sort:focus-visible, .ct-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ct-th.ct-num .ct-sort { justify-content: flex-end; }
+.ct-unit { margin-left: 2px; font-weight: 400; }
+.ct-mark { display: inline-block; min-width: 10px; font-size: 10px; }
+
+/* 종목 열 — 왼쪽에 붙는다 */
+.ct-table .ct-name { position: sticky; left: 0; z-index: 1; min-width: 150px; background: var(--surf); box-shadow: 1px 0 0 var(--border); }
+.ct-table .ct-th.ct-name { z-index: 2; }
+.ct-table tr:hover td.ct-name { background: var(--surf2); }
+.ct-nm { font-weight: 600; }
+.ct-code { color: var(--text-dim); white-space: nowrap; }
+.ct-sector { min-width: 150px; }
+.ct-basis { min-width: 210px; font-size: 12px; color: var(--text-mute); }
+.ct-state { min-width: 250px; font-size: 12px; }
+
+.ct-pick { width: 32px; height: 32px; margin-right: 6px; border: 1px solid var(--border); border-radius: 50%; background: var(--surf); color: var(--text-dim); font-size: 14px; line-height: 1; cursor: pointer; vertical-align: middle; }
+.ct-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.ct-badge { display: inline-block; padding: 1px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surf2); color: var(--text-dim); font-weight: 600; }
+.ct-notes { margin: 4px 0 0; padding-left: 14px; list-style: disc; color: var(--text-mute); line-height: 1.5; }
+.ct-empty { padding: 24px 8px; text-align: center; color: var(--text-mute); }
+.ct-foot { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-mute); }
+
+@media (max-width: 640px) {
+  #ct-q, #ct-market, #ct-sector { flex: 1 1 100%; max-width: 100%; }
+  .ct-pager .ct-spacer { display: none; }
+  .ct-table .ct-name { min-width: 128px; }
+}
