@@ -40,7 +40,7 @@ updated: 2026-11-04
 | 임계값 규칙 | 추세나 변동성이 기준을 넘는지로 가름 | 단순하고 설명하기 쉬움. 기준은 사람이 정함 |
 | 국면전환 모형 | 국면이 확률적으로 바뀐다고 보고 확률을 추정(Hamilton 1989 의 마르코프 연쇄가 출발점으로 인용됨) | 확률을 주지만 모형이 복잡함 |
 
-Hamilton 의 원문은 이번에 열지 못해 2차 문헌의 인용으로만 소개합니다. 이 장은 임계값 규칙만 계산해 보고, 국면전환 모형은 이름만 다룹니다.
+Hamilton 의 논문은 초록과 통계 라이브러리 문서의 소개로만 확인했고 본문은 열지 못했습니다. 이 장은 임계값 규칙만 계산해 보고, 국면전환 모형은 이름만 다룹니다.
 
 추세 쪽에는 널리 알려진 단일 규칙도 있습니다. Faber(2007)는 월말 종가가 10개월 단순이동평균보다 위면 보유하고 아래면 현금으로 가는 규칙을 제시했다고 소개됩니다. 다만 이 규칙의 성과 서술이 논문 판마다 다르게 인용되어(이동평균 아래 구간의 수익이 「얼마나 낮다」 는 숫자가 갈림) 이 장에서는 **숫자를 쓰지 않습니다.**
 
@@ -180,7 +180,7 @@ key = ("up" if ratio >= 1 else "down") + "_" + ("high" if vol >= 0.20 else "low"
 - Ang, A. · Bekaert, G., 「International Asset Allocation with Regime Shifts」, Review of Financial Studies 15(4), 1137–1187 (2002) — <https://econpapers.repec.org/RePEc:oup:rfinst:v:15:y:2002:i:4:p:1137-1187> · 2026-11-04 초록 원문 확인(상관이 오르는 약세장 · 국제 분산의 가치 · 국면을 무시하는 비용).
 - Moreira, A. · Muir, T., 「Volatility-Managed Portfolios」, Journal of Finance 72(4), 1611–1644 (2017) — NBER Working Paper w22208. 2026-11-04 NBER 초록 페이지에서 확인(변동성이 높을 때 위험을 줄인 관리형 포트폴리오의 알파 · 샤프 비율).
 - Faber, M., 「A Quantitative Approach to Tactical Asset Allocation」, Journal of Wealth Management 9(4), 69–79 (2007) — SSRN 962461. 2026-11-04 원문 PDF 에서 「월 가격 > 10개월 단순이동평균이면 매수, 아니면 현금」 규칙과 월말 갱신 문장을 직접 확인(성과 수치는 쓰지 않음).
-- Hamilton, J., Econometrica 57(2) (1989) — 2차 문헌 인용으로만 확인했고 원문은 열지 못했습니다.
+- Hamilton, J., Econometrica 57(2) (1989) — 초록(성장률의 불연속한 국면 전환)과 statsmodels 문서의 소개(마르코프 전환 모형을 도입한 선구적 논문)로 확인했고 본문은 열지 못했습니다.
 - statsmodels 문서, Markov switching autoregression — 필터링 확률과 평활 확률의 구별.
 - 이 장의 예제 [`regime_allocation.py`](/learn/examples/regime_allocation.py) · 리밸런싱은 [11.2](#/p/rebalancing-methods) · 리스크 패리티는 [11.6](#/p/risk-parity-min-variance).
 

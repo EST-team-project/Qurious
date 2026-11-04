@@ -85,7 +85,7 @@ hit_short = np.sum(c >= rolling_max(c, 252, min_periods=65))   # 65봉부터 있
 ## 연구는 무엇을 말하고 무엇을 말하지 않나요?
 
 - Brock, Lakonishok, LeBaron(Journal of Finance 47(5), 1992)은 이동평균과 거래범위 돌파 두 규칙을 다우존스 지수 1897~1986년 자료로 검정했고, 초록에 따르면 매수 신호 뒤 수익이 매도 신호 뒤보다 높고 변동성은 낮았으며, 수익이 네 가지 영가설(랜덤워크 · AR(1) · GARCH-M · EGARCH)과 맞지 않는다고 보고했습니다.
-- George 와 Hwang(Journal of Finance 59(5), 2004)은 52주 신고가에 **가까운 정도**가 미래 수익을 예측한다는 주장을 폈다고 소개됩니다(검색 발췌 수준이며 본문의 식은 읽지 못했습니다).
+- George 와 Hwang(Journal of Finance 59(5), 2004)은 52주 신고가에 **가까운 정도**가 미래 수익을 예측한다는 주장을 폈습니다(논문 초록 · 서론 · 각주를 직접 확인했고, 본문 표의 수치는 쓰지 않았습니다).
 - 반대편 증거도 있습니다. Park 와 Irwin(Journal of Economic Surveys 21(4), 2007)은 기술적 분석 수익성 연구를 개관하며 **대부분의 연구가 데이터 스누핑이나 사후 규칙 선택 같은 검정상 결함**이 있다고 지적합니다(초록). 같은 저자들의 후속 연구(Journal of Futures Markets 30(7), 2010)는 미국 선물시장 17개 가운데 데이터 스누핑을 보정한 뒤 최고 규칙이 통계적으로 유의한 경제적 수익을 낸 시장이 두 곳뿐이었다고 보고합니다(1985~2004, 초록 직접 확인).
 - Faber(2007)의 월말 종가 대 10개월 이동평균 규칙도 자주 인용되지만 판마다 성과 서술이 달라 이 장은 숫자를 쓰지 않습니다.
 
@@ -178,10 +178,10 @@ n일 평균을 내려면 n개의 봉이 모여야 하기 때문입니다. 120일
 
 ## 더 읽을거리
 
-아래 자료는 2026-11-03 조사에서 열람한 것이며, 이 장을 쓰면서 다시 열지는 않았습니다. **2026-11-04 에 초록 페이지와 Faber 원문 PDF 를 직접 대조했습니다. George–Hwang 은 이번에 열지 못했으니 수치는 원문을 확인하세요.**
+아래 자료는 2026-11-03 조사에서 열람한 것이며, 이 장을 쓰면서 다시 열지는 않았습니다. **2026-11-04 에 초록 페이지와 Faber 원문 PDF 를 직접 대조했습니다. George–Hwang 은 저자 공개 PDF 의 초록 · 서론 · 각주를 직접 읽었고, 본문 표의 수치는 쓰지 않았으니 필요하면 원문을 확인하세요.**
 
 - Brock, W. · Lakonishok, J. · LeBaron, B., 「Simple Technical Trading Rules and the Stochastic Properties of Stock Returns」, Journal of Finance 47(5), 1731–1764 (1992) — <https://econpapers.repec.org/RePEc:bla:jfinan:v:47:y:1992:i:5:p:1731-64> · 2026-11-04 초록 원문 확인.
-- George, T. · Hwang, C.-Y., Journal of Finance 59(5), 2145–2176 (2004) — 검색 발췌 수준(2026-11-04 초록 페이지 접근 실패로 원문 대조 못 함).
+- George, T. · Hwang, C.-Y., Journal of Finance 59(5), 2145–2176 (2004) — 2026-11-04 에 저자 공개 PDF 의 초록 · 서론 · 각주를 직접 확인(본문 표 수치는 쓰지 않음).
 - Park, C.-H. · Irwin, S., 「What Do We Know About the Profitability of Technical Analysis?」, Journal of Economic Surveys 21(4), 786–826 (2007) — <https://ideas.repec.org/a/bla/jecsur/v21y2007i4p786-826.html> · 2026-11-04 초록 확인.
 - Faber, M., Journal of Wealth Management 9(4), 69–79 (2007) — SSRN 962461. 2026-11-04 원문 PDF 에서 「월 가격 > 10개월 SMA 이면 매수, 아니면 현금」 규칙 문장을 확인.
 - 이 장의 예제 [`technical_screening.py`](/learn/examples/technical_screening.py) · 조건 통과 뒤의 통계는 [패턴 사건 연구](#/p/pattern-event-study) · 팩터 점수는 [11.9](#/p/factor-screening).
