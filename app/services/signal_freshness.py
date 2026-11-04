@@ -18,6 +18,9 @@
 3. **보류**(auto_trade.py) — 그래도 낡았으면 그 종목의 신호 주문을 내지 않고 「데이터 대기」 로 기록한다.
    손절·익절 같은 위험 매도(risk_stops)는 실시간 시세로 판단하므로 막지 않는다.
 
+붙이는 자리 — `stock.get_candles`(일봉) 안이다. `get_quant_indicators` 본문에 넣지 않는다: 그 함수는 그림자 일지의 판 지문 대상이라
+몸을 고치면 일지가 새 판을 등록한다(2026-11-04 12:30 회차 · 판 2). 판정은 `attach` 가 자동매매 쪽에서 지표 사전에 옮긴다.
+
 켜기·끄기: `SIGNAL_FRESHNESS_GUARD`(False 면 옛 동작) · `SIGNAL_KIS_TAIL`(False 면 보강 없이 가드만).
 수집 DB 가 아닌 출처(KIS · 야후 직접)의 일봉은 `as_of` 가 없어 판정하지 않는다(`unchecked`) — 이전 동작 그대로다.
 """
@@ -59,20 +62,24 @@ def reset_cache() -> None:
 _trading: contextvars.ContextVar[bool] = contextvars.ContextVar("signal_freshness_trading", default=False)
 #: 이번 사이클의 사용자별 KIS 일봉 받기 — (캐시 범위 이름, async fetch(symbol) -> [{date: YYYYMMDD, close, ...}]). 없으면 게이트웨이를 쓴다.
 _user_tail: contextvars.ContextVar[tuple[str, object] | None] = contextvars.ContextVar("signal_freshness_user_tail", default=None)
+#: 이번 `for_trading` 안에서 `stock.get_candles` 가 남긴 기호별 신선도 판정 — `attach` 가 지표 사전에 옮긴다
+_verdicts: contextvars.ContextVar[dict | None] = contextvars.ContextVar("signal_freshness_verdicts", default=None)
 
 
 @contextlib.contextmanager
 def for_trading(user_fetch=None, scope: str = ""):
-    """`with signal_freshness.for_trading():` 안에서 부른 `get_quant_indicators` 만 KIS 꼬리를 붙인다.
+    """`with signal_freshness.for_trading():` 안에서 부른 `stock.get_candles`(일봉)만 KIS 꼬리를 붙이고 판정을 남긴다.
 
     user_fetch: 그 사용자 **자기 KIS 키**로 일봉을 받는 함수(약관상 개인 업무에 가장 가깝다 · 게이트웨이가 꺼져 있어도 동작).
     scope: 캐시를 가르는 이름(사용자 id) — 한 사용자가 받은 시세를 다른 사용자의 사이클이 쓰지 않게 한다.
     """
     token = _trading.set(True)
     token2 = _user_tail.set((scope or "user", user_fetch) if user_fetch else None)
+    token3 = _verdicts.set({})
     try:
         yield
     finally:
+        _verdicts.reset(token3)
         _user_tail.reset(token2)
         _trading.reset(token)
 
@@ -103,6 +110,27 @@ def user_kis_fetcher(client, *, interval_sec: float = 1.1, days: int = 21):
 
 def trading_active() -> bool:
     return _trading.get()
+
+
+async def settle_for_trading(symbol: str, data: dict) -> dict:
+    """`stock.get_candles` 가 자동매매 사이클 안에서 부른다 — 꼬리를 붙인 일봉을 돌려주고 판정은 `attach` 용으로 남긴다."""
+    data, verdict = await settle(symbol, data)
+    store = _verdicts.get()
+    if store is not None:
+        store[symbol] = verdict
+    return data
+
+
+def attach(indicators, symbol: str):
+    """`for_trading` 안에서 받은 지표 사전(`get_quant_indicators` 결과)에 신선도 판정을 `freshness` 로 옮긴다.
+
+    판정이 없으면(이 호출이 일봉을 읽지 않았거나 시험의 대역) 건드리지 않는다. 오류 사전(`error`)에도 붙이지 않는다 —
+    `get_quant_indicators` 가 직접 넣던 때와 같은 규칙이다. `get_quant_indicators` 본문은 일지 판 지문 대상이라 고치지 않는다.
+    """
+    verdict = (_verdicts.get() or {}).get(symbol)
+    if verdict and isinstance(indicators, dict) and "error" not in indicators:
+        indicators["freshness"] = verdict
+    return indicators
 
 
 def expected_bar_date(now: datetime | None = None, *, path=None) -> date:

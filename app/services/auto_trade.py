@@ -950,6 +950,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 with signal_freshness.for_trading(tail_fetch, str(uid)):   # 낡은 일봉이면 KIS 확정 일봉을 메모리로만 보강(신선도 가드)
                     indicators = (await aggressive_mode.get_intraday_indicators(stock["symbol"]) if aggressive
                                   else await get_quant_indicators(stock["symbol"], "2y"))
+                    signal_freshness.attach(indicators, stock["symbol"])   # get_candles 가 남긴 신선도 판정을 지표에 옮긴다(get_quant_indicators 는 일지 지문 대상이라 고치지 않음)
                 indicator_map[stock["symbol"]] = indicators
                 signal = indicators.get("signal", {})
                 price = indicators.get("current_price")
@@ -999,6 +1000,7 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         try:
                             with signal_freshness.for_trading(tail_fetch, str(uid)):
                                 indicator_map[symbol] = await get_quant_indicators(symbol, "2y")
+                                signal_freshness.attach(indicator_map[symbol], symbol)
                             price_map[symbol] = float(indicator_map[symbol]["current_price"])
                         except Exception:
                             cycle_log["signals"].append({"symbol": symbol, "error": "카드 종목 지표 계산 실패"})
