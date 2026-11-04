@@ -238,7 +238,7 @@ flowchart TD
 - 이 장의 예제 [`data_layers.py`](/learn/examples/data_layers.py) · 수정주가 계산은 [1.2](#/p/adjusted-price) · 값이 말이 되는지 보는 법은 [1.4](#/p/data-quality-check).
 
 > [!NOTE]
-> 재현 가능한 분석에서 원자료를 바꾸지 않고 가공물을 다시 만든다는 지침을 다룬 Wilson 외(2017, PLOS Computational Biology)는 검색 발췌만 보았고 전문은 **원문 직접 확인 전**이라 이 장에서 인용하지 않았습니다.
+> 원자료를 보존하고 중간 산출물도 명시적으로 만들어 보관하라고 권한 Wilson 외(2017, PLOS Computational Biology)는 2026-11-04 에 원문을 확인했지만 이 장에서는 인용하지 않았습니다.
 
 **용어**
 
