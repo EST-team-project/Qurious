@@ -27,7 +27,7 @@ nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:cente
 <section class="slide hero" aria-labelledby="s1">
   <p class="eyebrow">QURIOUS / 자산배분 · 리밸런싱 · 증권사 연동</p>
   <div class="body">
-    <div><h1 id="s1">판단을 계획으로,<br>실행을 기록으로</h1><p class="lead">사용자가 확인한 배분과 전략을<br>모의 실행·위험관리·결과 확인으로 연결합니다.</p><div class="badge">오준영 · 3차 담당 발표 초안 v0.1</div></div>
+    <div><h1 id="s1">판단을 계획으로,<br>실행을 기록으로</h1><p class="lead">사용자가 확인한 배분과 전략을<br>모의 실행·위험관리·결과 확인으로 연결합니다.</p><div class="badge">오준영 · 3차 담당 발표 초안 v0.2</div></div>
     <div class="map" aria-label="담당 기능의 세 단계">
       <div>01 계획<span>성향 · 배분 모델 · 리밸런싱 목표</span></div>
       <div>02 실행<span>전략 판단 · 위험 검사 · 모의 주문</span></div>
@@ -73,7 +73,7 @@ nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:cente
       <div class="card"><p class="state">재주문 / FILLED</p><p class="large">1주 체결 확인</p><p>10:18:13 접수·체결 결과 확인</p><small>원 주문과 연결해 중복·잔량을 대조합니다.</small></div>
     </div><div class="gap"></div>
     <div class="checks"><div class="card"><h3 class="green">시험 보유 0주</h3><p>시험에 쓴 수량 정리</p></div><div class="card"><h3 class="green">기존 보유 보존</h3><p>기존 전략 수량 유지</p></div><div class="card"><h3 class="green">설정 원복</h3><p>10:18:29 독립 대조</p></div></div>
-    <div class="gap"></div><p class="note">모의 주문 경로의 성공 사례입니다. 실전 투자, 전략 수익성, 모든 시장 조건에서의 체결 성공을 입증하지 않습니다.</p>
+    <div class="gap"></div><p class="note">11/4에는 별도 수동 API 모의 1주 매수·매도도 체결됐습니다. 실전 투자·전략 수익성·모든 조건의 체결 보장은 입증하지 않습니다.</p>
   </div>
   <footer class="footer"><span>근거: 담당 작업 계획 §35 · KIS 잔량 재주문 검증 기록</span><span>04 / 06</span></footer>
 </section>
@@ -81,21 +81,21 @@ nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:cente
   <p class="eyebrow">04 / 검증과 발견한 오류</p><h2 id="s5">함수 시험을 넘어, 화면부터 DB까지 확인했습니다</h2>
   <div class="body">
     <div class="row">
-      <div class="card metric col"><div class="number">364</div><div class="label">관련 회귀 통과</div><div class="detail">11/3 · 실패 0건<br>미지원 미국 체결 2건 건너뜀</div></div>
+      <div class="card metric col"><div class="number">4,253</div><div class="label">오전 전체 시험 통과</div><div class="detail">환경별 고유 건수 · 3건 건너뜀<br>Linux 실패 7건은 Windows 보충 확인</div></div>
       <div class="card metric col"><div class="number">12</div><div class="label">실제 브라우저 흐름</div><div class="detail">API·PostgreSQL·Redis 연결<br>재시작·충돌·계정 격리 포함</div></div>
-      <div class="card metric col"><div class="number">651</div><div class="label">서비스별 파일 일치</div><div class="detail">11/4 · 앱·worker·beat<br>병합된 main과 실행 소스 대조</div></div>
+      <div class="card metric col"><div class="number">701</div><div class="label">서비스별 파일 일치</div><div class="detail">11/4 오후 · 앱·worker·beat<br>#537 병합본과 실행 소스 대조</div></div>
     </div><div class="gap"></div>
-    <div class="card"><span class="tag">실제 연결 시험에서 발견 → 수정</span><h3 style="margin-top:13px">외부 시세 장애가 리밸런싱 목표 저장까지 막던 오류</h3><p>수집 DB의 종목 식별 정보로 목표를 저장하도록 수정했습니다.<br>주문·정산에 필요한 가격과 거래 가능 여부 검사는 유지합니다.</p></div>
+    <div class="card"><span class="tag">실제 연결 시험에서 발견 → 수정</span><h3 style="margin-top:13px">외부 시세 장애가 리밸런싱 목표 저장까지 막던 오류</h3><p>수집 DB의 종목 식별 정보로 목표를 저장하도록 수정했습니다.<br>주문·정산의 가격·거래 가능 여부 검사는 유지합니다.</p></div>
   </div>
-  <footer class="footer"><span>관련 범위의 검증 결과 · 전체 프로젝트 무결함을 뜻하지 않습니다. <a href="https://github.com/EST-team-project/Qurious/pull/524">PR #524</a></span><span>05 / 06</span></footer>
+  <footer class="footer"><span>오후 변경분: 383통과 · 담당 외 시험 2실패 · 조건 의존 2건너뜀. 전체 무결함과 구분합니다.</span><span>05 / 06</span></footer>
 </section>
 <section class="slide" hidden aria-labelledby="s6">
   <p class="eyebrow">05 / 운영과 인수인계</p><h2 id="s6">완료한 기능과 운영 조건을 함께 넘깁니다</h2>
   <div class="body split">
     <div class="card"><span class="tag">운영자가 확인할 것</span><div class="list"><div>동일 코드 · DB 버전 · 암호화 키 연결</div><div>Beat → worker → DB 결과 대조</div><div>장애 시 기존 주문 추적과 복원 절차</div><div>구현·시험·운영·실제 모의 체결 구분</div></div></div>
-    <div class="card"><span class="tag">11/4 09:08 관측</span><div class="list"><div>일봉 11/2까지<br><span class="note">오늘 필요한 11/3 자료·갱신 완료 대기</span></div><div>PAPER 보유 계좌 0개<br><span class="note">보유 자산 자연 스냅샷은 조건 미충족</span></div><div>자료 미준비 → 주문 수량 0<br><span class="note">기존 설정·장부 보존 확인</span></div></div></div>
+    <div class="card"><span class="tag">11/4 14:34 관측</span><div class="list"><div>일봉 11/3 준비 완료<br><span class="note">오늘 수신 자료의 검증 근거 확인</span></div><div>PAPER 보유 계좌 0개<br><span class="note">보유 자산 자연 스냅샷은 조건 미충족</span></div><div>판2 읽기 판단 HOLD · 신규 주문 0<br><span class="note">15:40 자연 배치는 관측 대기</span></div></div></div>
   </div>
-  <footer class="footer"><span>v0.1 · 인수자 실습·전체 시연·녹화 전. 발표 직전 관측 날짜와 결과를 갱신합니다.</span><span>06 / 06</span></footer>
+  <footer class="footer"><span>v0.2 · 인수자 실습·전체 시연·녹화 전. 발표 직전 관측 날짜와 결과를 갱신합니다.</span><span>06 / 06</span></footer>
 </section>
 </main>
 <nav aria-label="슬라이드 이동"><button id="prev" type="button">← 이전</button><span id="counter" aria-live="polite">1 / 6</span><button id="next" type="button">다음 →</button><button id="print" type="button">인쇄 / PDF</button></nav>
