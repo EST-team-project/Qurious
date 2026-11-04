@@ -2,9 +2,11 @@
 
 실행    python risk_parity.py      (numpy 와 scipy 만 · 외부 접속 없음)
 자료    변동성 · 상관을 손으로 정한 값이다. 실제 자산이 아니다.
-        ② 는 Maillard · Roncalli · Teiletche(2010)의 표본 예와 같은 입력(변동성 10 · 20 · 30 · 40%, 상관 모두 같음)이다.
-        ③ ~ ⑥ 은 앱의 네 자산군(국내주식 · 해외주식 · 국내채권 · 대체자산)을 닮은 가상의 네 자산이다.
-        앱의 app/services/allocation_models.py 와 같은 목적함수(위험 기여 비율 − 1/n 의 제곱합)를 SciPy SLSQP 로 푼다.
+        ② 는 Qian(2005) PanAgora 백서가 60/40 예에 쓴 입력(주식 변동성 15.1% · 채권 4.6% · 상관 0.2)이다.
+        ③ 은 Maillard · Roncalli · Teiletche(2009.5 작업논문 판) 4.1절의 표본 예와 같은 입력(변동성 10 · 20 · 30 · 40%, 상관 모두 같음)이다.
+        ④ ~ ⑨ 는 앱의 네 자산군(국내주식 · 해외주식 · 국내채권 · 대체자산)을 닮은 가상의 네 자산이다.
+        앱의 app/services/allocation_models.py 와 같은 목적함수(위험 기여 비율 − 1/n 의 제곱합)와 제약(합 1 · 비중 한도)을
+        SciPy SLSQP 로 푼다. 수렴 허용치(ftol · maxiter)만 이 예제가 더 엄격하다.
 
 함수
     risk_shares(w, cov)        위험 기여 비율 = wᵢ(Σw)ᵢ / (wᵀΣw)  (합 1)
@@ -73,8 +75,18 @@ def main() -> None:
     half = np.array([0.5, 0.5]); inv = (1 / np.array([0.1, 0.3])); inv /= inv.sum()
     print(f"  50:50  위험 기여 {pct(risk_shares(half, cov2))}%  변동성 {vol_of(half, cov2) * 100:.2f}%")
     print(f"  75:25  위험 기여 {pct(risk_shares(inv, cov2))}%  변동성 {vol_of(inv, cov2) * 100:.2f}%")
+    cov2_high = np.outer([0.10, 0.30], [0.10, 0.30]) * np.array([[1, 0.8], [0.8, 1]])
+    print(f"  75:25  상관 0.8 이어도 위험 기여 {pct(risk_shares(inv, cov2_high))}%  변동성 {vol_of(inv, cov2_high) * 100:.2f}%")
 
-    print("② 변동성 10 · 20 · 30 · 40%, 상관 모두 0.5 (합성 · 논문의 표본 예와 같은 입력)")
+    print("② 60/40 의 위험 기여 — Qian(2005) 백서의 입력 (주식 변동성 15.1% · 채권 4.6% · 상관 0.2)")
+    vols_q = np.array([0.151, 0.046])
+    cov_q = eq_corr_cov(vols_q, 0.2)
+    w_q = np.array([0.6, 0.4])
+    inv_q = (1 / vols_q) / (1 / vols_q).sum()
+    print(f"  60:40            비중 {pct(w_q)}%  위험 기여 {pct(risk_shares(w_q, cov_q))}%  변동성 {vol_of(w_q, cov_q) * 100:.2f}%")
+    print(f"  위험 기여 균등   비중 {pct(inv_q)}%  위험 기여 {pct(risk_shares(inv_q, cov_q))}%  변동성 {vol_of(inv_q, cov_q) * 100:.2f}%")
+
+    print("③ 변동성 10 · 20 · 30 · 40%, 상관 모두 0.5 (합성 · 논문의 표본 예와 같은 입력)")
     vols = np.array([0.10, 0.20, 0.30, 0.40])
     cov = eq_corr_cov(vols, 0.5)
     inv = (1 / vols) / (1 / vols).sum()
@@ -86,28 +98,41 @@ def main() -> None:
     w30 = solve_minvar(eq_corr_cov(vols, 0.3), 0.0, 1.0)
     print(f"  상관 0.3 이면 최소분산(0~100%) {pct(np.where(w30 < 5e-5, 0, w30))}%")
 
-    print("③ 네 자산(합성): 변동성 18 · 16 · 5 · 14%, 주식끼리 상관 0.7 — 비중과 위험 기여 (비중 한도 1~95%)")
+    print("④ 네 자산(합성): 변동성 18 · 16 · 5 · 14%, 주식끼리 상관 0.7 — 비중과 위험 기여 (비중 한도 1~95%)")
     ports = {"1/n": np.ones(4) / 4, "위험 기여 균등": solve_erc(COV4), "최소분산": solve_minvar(COV4)}
     for label, w in ports.items():
         print(f"  {pad(label, 16)}비중 {pct(w)}%  위험 기여 {pct(risk_shares(w, COV4))}%  변동성 {vol_of(w, COV4) * 100:5.2f}%")
 
-    print("④ 상관이 제각각이면 1/변동성 비중은 위험 기여를 균등하게 만들지 못한다 (같은 네 자산)")
+    print("⑤ 상관이 제각각이면 1/변동성 비중은 위험 기여를 균등하게 만들지 못한다 (같은 네 자산)")
     inv4 = (1 / VOL4) / (1 / VOL4).sum()
     print(f"  1/변동성 비중 {pct(inv4)}%  위험 기여 {pct(risk_shares(inv4, COV4))}%")
 
-    print("⑤ 한 자산의 변동성이 0.2% 이면(예: 짧은 만기 상품) 한도 95% 가 균등을 막는다")
+    print("⑥ 한 자산의 변동성이 0.2% 이면(예: 짧은 만기 상품) 한도 95% 가 균등을 막는다")
     vol_x = VOL4.copy(); vol_x[2] = 0.002
     cov_x = np.outer(vol_x, vol_x) * CORR4
     for label, lo, hi in (("한도 없음(0~100%)", 0.0, 1.0), ("앱 한도(1~95%)", 0.01, 0.95)):
         w = solve_erc(cov_x, lo, hi); s = risk_shares(w, cov_x)
         print(f"  {pad(label, 18)}비중 {pct(w)}%  위험 기여 {pct(s)}%  가장 많이 어긋난 값 {np.max(np.abs(s - 0.25)) * 100:.1f}%p")
 
-    print("⑥ 표시를 반올림하면 위험 기여가 조금 달라진다 (③ 의 위험 기여 균등 비중)")
+    print("⑦ 표시를 반올림하면 위험 기여가 조금 달라진다 (④ 의 위험 기여 균등 비중)")
     w = solve_erc(COV4)
     for label, unit in (("0.1% 단위", 1000), ("1% 단위", 100)):
         r = np.round(w * unit) / unit
         r = r / r.sum()
         print(f"  {label}  비중 {pct(r)}%  위험 기여 {pct(risk_shares(r, COV4))}%  가장 많이 어긋난 값 {np.max(np.abs(risk_shares(r, COV4) - 0.25)) * 100:.2f}%p")
+
+    print("⑧ 최소분산: 합 1 만 지키는 닫힌 식은 음수 비중을 낼 수 있다 (④ 와 같은 네 자산)")
+    closed = np.linalg.solve(COV4, np.ones(4)); closed /= closed.sum()
+    for label, w in (("닫힌 식(합 1 만)", closed), ("공매도 없음(0~100%)", solve_minvar(COV4, 0.0, 1.0)),
+                     ("앱 한도(1~95%)", solve_minvar(COV4))):
+        w = np.where(np.abs(w) < 5e-5, 0, w)
+        print(f"  {pad(label, 20)}비중 {pct(w)}%  변동성 {vol_of(w, COV4) * 100:5.2f}%")
+
+    print("⑨ 무엇을 같게 맞추나 — 한계 기여(비중을 조금 늘릴 때 변동성이 느는 정도)와 총 기여(비중 × 한계 기여) (④ 와 같은 네 자산 · 한도 없음)")
+    for label, w in (("1/n", np.ones(4) / 4), ("위험 기여 균등", solve_erc(COV4, 0.0, 1.0)), ("최소분산", solve_minvar(COV4, 0.0, 1.0))):
+        w = np.where(np.abs(w) < 5e-5, 0, w)
+        marginal = (COV4 @ w) / vol_of(w, COV4)
+        print(f"  {pad(label, 16)}한계 기여 {pct(marginal)}%  총 기여 {pct(w * marginal)}%  (합 = 변동성 {vol_of(w, COV4) * 100:.2f}%)")
 
 
 if __name__ == "__main__":

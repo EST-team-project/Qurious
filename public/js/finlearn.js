@@ -14,6 +14,7 @@
 import { escHtml, setToast } from "/js/common.js";
 import { navigate } from "/js/core.js";
 import { noticeCardHtml, noticeLineHtml } from "/js/learnnotice.js";   // 「시작하기 전에」 고지 한 벌(장 대장 F00 · 2026-10-20)
+import { SOON_EVENT, soonToggleHtml, visiblePages } from "/js/learnsoon.js";   // 「준비 중」 장은 기본으로 숨김(2026-11-04)
 
 const BASE = "/lectures/";
 
@@ -115,17 +116,27 @@ async function flFillSupplement(host) {
   try {
     const r = await fetch("/api/learn/catalog", { credentials: "same-origin" });
     if (!r.ok) throw new Error(String(r.status));
-    const pages = ((await r.json()).pages || []).filter(p => p.store === "builtin" && p.section === "finance");
-    if (!pages.length) { host.remove(); return; }
+    const all = ((await r.json()).pages || []).filter(p => p.store === "builtin" && p.section === "finance");
+    const pages = visiblePages(all);   // 기본은 읽을 수 있는 장만(「준비 중인 장도 보기」 로 켠다 · 2026-11-04)
+    const hidden = all.length - visiblePages(all, false).length;
+    if (!all.length) { host.remove(); return; }
+    host.dataset.flSupplement = "1";
     const tag = st => st === "skeleton" ? ' <span class="cl-st cl-st-skeleton"><i class="fa-regular fa-circle" aria-hidden="true"></i>준비 중</span>'
       : st === "draft" ? ' <span class="cl-st cl-st-draft"><i class="fa-solid fa-pen" aria-hidden="true"></i>다듬는 중</span>' : "";
-    host.innerHTML = `<div class="fl-section-title" style="margin-top:22px">보충 장 <small>강의 내용을 Qurious 화면과 이어 읽는 장 · ${pages.length}편</small></div>
-      <div class="fl-card"><ul class="cl-list">${pages.map(p => `<li><span class="cl-num">${escHtml(p.order || "")}</span><span class="cl-row">`
+    host.innerHTML = `<div class="fl-section-title" style="margin-top:22px">보충 장 <small>강의 내용을 Qurious 화면과 이어 읽는 장 · ${pages.length}편</small>${soonToggleHtml(hidden)}</div>
+      <div class="fl-card">${pages.length ? "" : '<p class="fl-muted">아직 읽을 수 있는 보충 장이 없습니다.</p>'}<ul class="cl-list">${pages.map(p => `<li><span class="cl-num">${escHtml(p.order || "")}</span><span class="cl-row">`
         + `<a href="#learn/${escHtml(p.slug)}">${escHtml(p.title)}</a>${tag(p.status)}<span class="cl-sum">${escHtml(p.summary || "")}</span></span></li>`).join("")}</ul></div>`;
   } catch {
     host.remove();
   }
 }
+
+// 「준비 중인 장도 보기」 스위치(learnsoon.js) — 보충 장 칸에서 누른 것만 다시 그린다
+document.addEventListener(SOON_EVENT, e => {
+  const from = e.detail && e.detail.from;
+  const host = from && from.closest ? from.closest("[data-fl-supplement]") : null;
+  if (host) flFillSupplement(host);
+});
 
 async function renderHub(el) {
   el.innerHTML = `<div class="fl-card fl-muted">강의 목록을 불러오는 중…</div>`;

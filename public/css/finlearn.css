@@ -126,6 +126,10 @@
 .cl-st-draft { color: #b45309; background: #fffbeb; border-color: #fde68a; }
 .cl-st-skeleton { color: var(--text-mute); background: var(--surf2); }
 .cl-note { font-size: 13px; margin-top: 14px; }
+/* 「준비 중인 장도 보기」 스위치(learnsoon.js · 2026-11-04) — 제목줄 오른쪽 · 좁은 화면은 줄을 바꿈 */
+.cl-soon-toggle { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; font-size: 13px; font-weight: 500; color: var(--text-dim); cursor: pointer; }
+.cl-soon-toggle input { accent-color: var(--brand); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+.cl-soon-toggle:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
 .cl-resume, .cl-home-link { margin-left: auto; }
 .cl-prereq { font-size: 14px; color: var(--text-dim); margin: 0; }
 .cl-reader { margin-top: 16px; }
