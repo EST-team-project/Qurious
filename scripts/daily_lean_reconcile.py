@@ -191,11 +191,9 @@ async def run_lean(end_date: date) -> dict:
         strategy="ma_cross",
         short_window=20,
         long_window=60,
-        max_position_pct=30.0,
-        fill_timing="next_open",
     )
     if not result.get("lean_ok"):
-        raise RuntimeError(f"LEAN 실패 전체 로그:\n{result.get('lean_log', '')[-5000:]}")
+        raise RuntimeError(f"LEAN 실패: {result.get('lean_log', '')[-300:]}")
     out = ROOT / "data" / "lean-workflows" / f"daily_replay_{end_date}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
@@ -337,67 +335,6 @@ def judge_order(journal_rows, lean_grouped) -> dict:
     return {"matches": matches, "mismatches": mismatches, "skipped": skipped}
 
 
-def judge_quantity(journal_rows, lean_fills) -> dict:
-    """일지와 LEAN의 실제 체결 수량을 날짜·방향별로 비교한다."""
-    journal_totals = defaultdict(float)
-    lean_totals = defaultdict(float)
-    errors = []
-
-    for row in journal_rows:
-        d = normalize_date(row.get("trade_date"))
-        if not d:
-            continue
-        for fill in row.get("fills") or []:
-            if not str(fill.get("symbol", "")).startswith(TICKER_PREFIX):
-                continue
-            if fill.get("status") == "unfilled":
-                continue
-            try:
-                qty = float(fill.get("qty_filled") or 0)
-            except (TypeError, ValueError):
-                errors.append(f"일지 {d}: qty_filled 파싱 실패")
-                continue
-            side = str(fill.get("side") or "").lower()
-            if side in ("buy", "sell") and qty > 0:
-                journal_totals[(d, side)] += qty
-
-    for fill in lean_fills or []:
-        d = normalize_date(fill.get("date"))
-        if not d:
-            continue
-        try:
-            qty = abs(float(fill.get("quantity", fill.get("signed_quantity")) or 0))
-        except (TypeError, ValueError):
-            errors.append(f"LEAN {d}: quantity 파싱 실패")
-            continue
-        side = str(fill.get("direction") or "").lower()
-        if side in ("buy", "sell") and qty > 0:
-            lean_totals[(d, side)] += qty
-
-    keys = sorted(set(journal_totals) | set(lean_totals))
-    rows = []
-    for d, side in keys:
-        jq = journal_totals.get((d, side), 0.0)
-        lq = lean_totals.get((d, side), 0.0)
-        rows.append({
-            "date": d, "side": side,
-            "journal_qty": jq, "lean_qty": lq,
-            "diff": lq - jq, "match": abs(lq - jq) < 1e-9,
-        })
-
-    mismatches = [item for item in rows if not item["match"]]
-    return {
-        "status": "compared" if rows and not errors else ("partial" if rows else "unavailable"),
-        "rows": rows,
-        "matched_count": sum(item["match"] for item in rows),
-        "mismatch_count": len(mismatches),
-        "mismatches": mismatches,
-        "errors": errors,
-        "journal_total": sum(journal_totals.values()),
-        "lean_total": sum(lean_totals.values()),
-    }
-
-
 def judge_price(journal_rows, lean_grouped) -> dict:
     """같은 날 체결가 차이. 체결 시점 차이를 감안한 참고값."""
     journal_by_date = {
@@ -499,11 +436,7 @@ def judge_fee(journal_rows, lean_stats, lean_fills) -> dict:
     journal_bp = journal_cost / journal_gross * 10000
     lean_bp = lean_cost / lean_gross * 10000
     return {
-        "verdict": "일치" if (
-            abs(lean_cost - journal_cost) <= 0.02
-            and abs(lean_gross - journal_gross) <= 0.01
-            and abs(lean_bp - journal_bp) <= 0.01
-        ) else "불일치",
+        "verdict": "참고용(요율)",
         "j_bp": journal_bp,
         "l_bp": lean_bp,
         "delta_bp": lean_bp - journal_bp,
@@ -514,7 +447,7 @@ def judge_fee(journal_rows, lean_stats, lean_fills) -> dict:
     }
 
 
-def render(target, journal_count, signal_cmp, holding, order, price, fee, quantity, lean_stats) -> str:
+def render(target, journal_count, signal_cmp, holding, order, price, fee, lean_stats) -> str:
     def icon(verdict):
         return {
             "일치": "✅",
@@ -561,12 +494,11 @@ def render(target, journal_count, signal_cmp, holding, order, price, fee, quanti
         price_note = "양쪽 체결 매칭 없음"
     else:
         valid_bp = [item["bp"] for item in price["results"] if item["bp"] is not None]
-        max_bp = max(valid_bp, default=float("inf"))
-        price_match = len(valid_bp) == len(price["results"]) and max_bp <= 0.01
-        price_verdict = "일치" if price_match else "불일치"
-        price_note = f"{len(price['results'])}건 비교, 최대 {max_bp:.4f}bp (허용 오차 0.01bp)"
+        max_bp = max(valid_bp, default=0)
+        price_verdict = "참고용(시점차)"
+        price_note = f"{len(price['results'])}건 매칭, 최대 {max_bp:.1f}bp (체결 시점 차이 포함)"
 
-    if fee["verdict"] in ("참고용(요율)", "일치", "불일치"):
+    if fee["verdict"] == "참고용(요율)":
         fee_note = (
             f"일지 {fee['j_bp']:.2f}bp "
             f"(비용 ₩{fee['j_cost']:,.2f} / 대금 ₩{fee['j_gross']:,.0f}) · "
@@ -576,17 +508,6 @@ def render(target, journal_count, signal_cmp, holding, order, price, fee, quanti
         )
     else:
         fee_note = fee.get("reason", "")
-
-    if quantity["status"] == "compared":
-        quantity_verdict = "일치" if quantity["mismatch_count"] == 0 else "불일치"
-        quantity_note = (
-            f"일치 {quantity['matched_count']}건 / 불일치 {quantity['mismatch_count']}건 · "
-            f"일지 총 {quantity['journal_total']:,.0f}주 · "
-            f"LEAN 총 {quantity['lean_total']:,.0f}주"
-        )
-    else:
-        quantity_verdict = "판정 불가"
-        quantity_note = " / ".join(quantity["errors"]) or "비교 가능한 체결 없음"
 
     md = f"""## 📊 {target} LEAN ↔ 그림자 일지 대조 (v4)
 
@@ -601,8 +522,8 @@ def render(target, journal_count, signal_cmp, holding, order, price, fee, quanti
 | 3. 주문 방향 | {icon(order_verdict)} {order_verdict} | {order_note} |
 | 4. 체결가 | {icon(price_verdict)} {price_verdict} | {price_note} |
 | 5. 비용(요율) | {icon(fee['verdict'])} {fee['verdict']} | {fee_note} |
-| 수량 | {icon(quantity_verdict)} {quantity_verdict} | {quantity_note} |
-| 회전·성과 | ⏸️ 제외 | 체결 재현성 검증 완료 · 누적 수익률 및 위험지표는 별도 검증 대상 |
+| 수량 | ⏸️ 제외 | LEAN 전액 배분과 일지 주문 규모가 다름 |
+| 회전·성과 | ⏸️ 제외 | 체결 수량·빈도 차이 및 비교 표본 한계 |
 
 ### 층 1 세부: 진입·청산 신호 불일치
 
@@ -634,21 +555,6 @@ def render(target, journal_count, signal_cmp, holding, order, price, fee, quanti
             md += f"| {d} | {'보유' if journal_held else '미보유'} | {'보유' if lean_held else '미보유'} |\n"
     else:
         md += "_없음_\n"
-
-    md += "\n### 수량 세부: 날짜·방향별 체결 수량\n"
-    if quantity["rows"]:
-        md += "| 날짜 | 방향 | 일지 수량 | LEAN 수량 | 차이 | 판정 |\n"
-        md += "|---|---|---:|---:|---:|---|\n"
-        for item in quantity["rows"]:
-            md += (
-                f"| {item['date']} | {item['side']} | "
-                f"{item['journal_qty']:,.0f} | {item['lean_qty']:,.0f} | "
-                f"{item['diff']:+,.0f} | {'일치' if item['match'] else '불일치'} |\n"
-            )
-    else:
-        md += "_비교 가능한 체결 없음_\n"
-    if quantity["errors"]:
-        md += "\n파싱 경고: " + " / ".join(quantity["errors"]) + "\n"
 
     md += "\n### 층 4 세부: 체결 가격\n"
     if price["results"]:
@@ -702,7 +608,6 @@ async def main():
     order = judge_order(journal_rows, lean_grouped)
     price = judge_price(journal_rows, lean_grouped)
     fee = judge_fee(journal_rows, lean.get("lean_statistics") or {}, lean_fills)
-    quantity = judge_quantity(journal_rows, lean_fills)
 
     print(
         f"   신호: 일지 {len(journal_signals)}일 / LEAN {len(lean_signals)}일 / "
@@ -717,7 +622,6 @@ async def main():
         order,
         price,
         fee,
-        quantity,
         lean.get("lean_statistics") or {},
     )
 

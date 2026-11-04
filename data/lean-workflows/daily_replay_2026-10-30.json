@@ -10,9 +10,9 @@
   "compare_start_date": "2026-09-01",
   "compare_end_date": "2026-10-30",
   "initial_cash": 10000000.0,
-  "strategy_return_pct": -6.8,
-  "gross_strategy_return_pct": -6.67,
-  "strategy_cost_drag_pct": 0.12,
+  "strategy_return_pct": -21.64,
+  "gross_strategy_return_pct": -21.28,
+  "strategy_cost_drag_pct": 0.35,
   "cost_model": {
     "model": "krx_real",
     "label": "국내주식 실제 요율 (연도별 매도세 + 수수료 + 유관기관비 + 슬리피지)",
@@ -26,11 +26,11 @@
   },
   "benchmark_return_pct": -13.89,
   "comparison_return_pct": -13.89,
-  "outperformance_pct": 7.1,
-  "max_drawdown_pct": -7.69,
-  "annualized_return_pct": -36.54,
-  "annualized_volatility_pct": 11.62,
-  "sharpe_ratio": -3.32,
+  "outperformance_pct": -7.74,
+  "max_drawdown_pct": -23.91,
+  "annualized_return_pct": -79.31,
+  "annualized_volatility_pct": 38.74,
+  "sharpe_ratio": -2.1,
   "invested_days_pct": 37.5,
   "trade_count": 2,
   "market_snapshot": {
@@ -117,91 +117,91 @@
     },
     {
       "date": "2026-09-29",
-      "value": 9996469.23
+      "value": 9988230.77
     },
     {
       "date": "2026-09-30",
-      "value": 9952448.08
+      "value": 9841614.54
     },
     {
       "date": "2026-10-01",
-      "value": 10035848.49
+      "value": 10116519.97
     },
     {
       "date": "2026-10-02",
-      "value": 10035848.49
+      "value": 10116519.97
     },
     {
       "date": "2026-10-06",
-      "value": 9992214.36
+      "value": 9969903.74
     },
     {
       "date": "2026-10-07",
-      "value": 9953641.47
+      "value": 9841614.54
     },
     {
       "date": "2026-10-08",
-      "value": 9881352.46
+      "value": 9603363.16
     },
     {
       "date": "2026-10-12",
-      "value": 9751235.41
+      "value": 9181841.5
     },
     {
       "date": "2026-10-13",
-      "value": 9535190.08
+      "value": 8503741.43
     },
     {
       "date": "2026-10-14",
-      "value": 9535190.08
+      "value": 8503741.43
     },
     {
       "date": "2026-10-15",
-      "value": 9263930.36
+      "value": 7697352.15
     },
     {
       "date": "2026-10-16",
-      "value": 9336718.38
+      "value": 7898949.47
     },
     {
       "date": "2026-10-19",
-      "value": 9369212.76
+      "value": 7990584.62
     },
     {
       "date": "2026-10-20",
-      "value": 9285405.58
+      "value": 7752333.24
     },
     {
       "date": "2026-10-21",
-      "value": 9443455.04
+      "value": 8192181.93
     },
     {
       "date": "2026-10-22",
-      "value": 9320372.7
+      "value": 7836269.48
     },
     {
       "date": "2026-10-23",
-      "value": 9320372.7
+      "value": 7836269.48
     },
     {
       "date": "2026-10-26",
-      "value": 9320372.7
+      "value": 7836269.48
     },
     {
       "date": "2026-10-27",
-      "value": 9320372.7
+      "value": 7836269.48
     },
     {
       "date": "2026-10-28",
-      "value": 9320372.7
+      "value": 7836269.48
     },
     {
       "date": "2026-10-29",
-      "value": 9320372.7
+      "value": 7836269.48
     },
     {
       "date": "2026-10-30",
-      "value": 9320372.7
+      "value": 7836269.48
     }
   ],
   "benchmark_points": [
@@ -368,40 +368,40 @@
   ],
   "lean_statistics": {
     "Start Equity": "10000000.0",
-    "End Equity": "9357141.54",
-    "Net Profit": "-6.429%",
-    "Compounding Annual Return": "-33.658%",
-    "Sharpe Ratio": "-2.882",
-    "Drawdown": "7.300%",
-    "Total Orders": "2",
+    "End Equity": "8023628.52",
+    "Net Profit": "-19.764%",
+    "Compounding Annual Return": "-74.330%",
+    "Sharpe Ratio": "-1.894",
+    "Drawdown": "23.500%",
+    "Total Orders": "3",
     "Win Rate": "0%",
-    "Total Fees": "₩5733.53",
-    "Annual Standard Deviation": "0.088"
+    "Total Fees": "₩18908.19",
+    "Annual Standard Deviation": "0.316"
   },
   "lean_fills": [
     {
-      "order_id": 1,
-      "date": "2026-09-29",
-      "time_utc": "2026-09-29T06:29:00+00:00",
-      "timestamp": 1790663340.0,
+      "order_id": 2,
+      "date": "2026-09-30",
+      "time_utc": "2026-09-30T06:29:00+00:00",
+      "timestamp": 1790749740.0,
       "direction": "buy",
-      "quantity": 11.0827465,
-      "signed_quantity": 11.0827465,
-      "fill_price": 272772.5,
-      "fee": 534.3160268328138,
+      "quantity": 36.5990444,
+      "signed_quantity": 36.5990444,
+      "fill_price": 268768.5,
+      "fee": 1738.594618644352,
       "fee_currency": "KRW",
       "symbol": "YF.YFPrice"
     },
     {
-      "order_id": 2,
+      "order_id": 3,
       "date": "2026-10-23",
       "time_utc": "2026-10-23T06:29:00+00:00",
       "timestamp": 1792736940.0,
       "direction": "sell",
-      "quantity": 11.0827465,
-      "signed_quantity": -11.0827465,
+      "quantity": 36.5990444,
+      "signed_quantity": -36.5990444,
       "fill_price": 215284.5,
-      "fee": 5199.2145810687025,
+      "fee": 17169.596480228145,
       "fee_currency": "KRW",
       "symbol": "YF.YFPrice"
     }
@@ -608,7 +608,7 @@
       "exit_state": true
     }
   ],
-  "lean_log": "61103 01:47:02.042 TRACE:: UniverseSelection.AddPendingInternalDataFeeds(): Adding internal benchmark data feed SPY,#0,SPY,Hour,TradeBar,Trade,Adjusted,OpenInterest,Internal\n20261103 01:47:02.043 TRACE:: Extensions.IsDirectoryEmpty(): directory '/workspace/workflow-da5187c02a3b/data/equity/usa/factor_files' not found or empty\n20261103 01:47:02.052 TRACE:: AlgorithmManager.Stream(): Subscriptions count before warm up: 1\n20261103 01:47:02.074 TRACE:: Debug: 2026-04-19 00:00:00 Launching analysis for YFinanceMovingAverageCrossAlgorithm with LEAN Engine v2.5.0.0\n20261103 01:47:02.111 TRACE:: AlgorithmManager.Run(): Subscriptions count after warm up: 1\n20261103 01:47:02.124 TRACE:: Debug: 2026-09-01 00:00:00 Changing account currency from USD to KRW, with a starting cash of 10000000.0...\n20261103 01:47:02.124 TRACE:: Debug: 2026-04-19 00:00:00 Algorithm starting warm up...\n20261103 01:47:02.124 TRACE:: Debug: 2026-09-01 00:00:00 Algorithm finished warming up.\n20261103 01:47:02.174 TRACE:: Debug: 2026-09-28 02:29:00 Warning: market orders on daily resolution data sent during market hours are automatically converted into MarketOnClose orders (or MarketOnOpen near the close) to avoid filling at the stale previous close. Note: in live trading this conversion is not applied, as the order fills at the current market price.\n20261103 01:47:02.197 TRACE:: Synchronizer.GetEnumerator(): Exited thread.\n20261103 01:47:02.197 TRACE:: AlgorithmManager.Run(): Firing On End Of Algorithm...\n20261103 01:47:02.198 TRACE:: Engine.Run(): Exiting Algorithm Manager\n20261103 01:47:02.201 TRACE:: OrderRequestProcessingPool.Dispose(): completed\n20261103 01:47:02.201 TRACE:: StopSafely(): Waiting for 'Isolator Thread' thread to stop...\n20261103 01:47:02.202 TRACE:: FileSystemDataFeed.Exit(): Start. Setting cancellation token...\n20261103 01:47:02.202 TRACE:: FileSystemDataFeed.Exit(): Exit Finished.\n20261103 01:47:02.202 TRACE:: DataMonitor.Exit(): start...\n20261103 01:47:02.203 TRACE:: StopSafely(): Waiting for '' thread to stop...\n20261103 01:47:02.204 TRACE:: DataMonitor.GenerateReport():\nDATA USAGE:: Total data requests 9\nDATA USAGE:: Succeeded data requests 2\nDATA USAGE:: Failed data requests 7\nDATA USAGE:: Failed data requests percentage 78%\nDATA USAGE:: Total universe data requests 0\nDATA USAGE:: Succeeded universe data requests 0\nDATA USAGE:: Failed universe data requests 0\nDATA USAGE:: Failed universe data requests percentage 0%\n20261103 01:47:02.204 TRACE:: DataMonitor.Exit(): end\n20261103 01:47:02.204 TRACE:: BacktestingResultHandler.Exit(): starting...\n20261103 01:47:02.204 TRACE:: BacktestingResultHandler.Exit(): Saving logs...\n20261103 01:47:02.205 TRACE:: Debug: 2026-10-30 02:29:00 Algorithm Id:(YFinanceMovingAverageCrossAlgorithm) completed in 0.24 seconds at 1k data points per second. Processing total of 131 data points.\n20261103 01:47:02.205 TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...\n20261103 01:47:02.205 TRACE:: Debug: 2026-10-30 02:29:00 Your log was successfully created and can be retrieved from: /workspace/workflow-da5187c02a3b/results/YFinanceMovingAverageCrossAlgorithm-log.txt\n20261103 01:47:02.205 TRACE:: BacktestingResultHandler.Run(): Ending Thread...\n20261103 01:47:02.360 TRACE:: \nSTATISTICS:: Total Orders 2\nSTATISTICS:: Average Win 0%\nSTATISTICS:: Average Loss -6.48%\nSTATISTICS:: Compounding Annual Return -33.658%\nSTATISTICS:: Drawdown 7.300%\nSTATISTICS:: Expectancy -1\nSTATISTICS:: Start Equity 10000000.0\nSTATISTICS:: End Equity 9357141.54\nSTATISTICS:: Net Profit -6.429%\nSTATISTICS:: Sharpe Ratio -2.882\nSTATISTICS:: Sortino Ratio -2\nSTATISTICS:: Probabilistic Sharpe Ratio 0.524%\nSTATISTICS:: Loss Rate 100%\nSTATISTICS:: Win Rate 0%\nSTATISTICS:: Profit-Loss Ratio 0\nSTATISTICS:: Alpha 0\nSTATISTICS:: Beta 0\nSTATISTICS:: Annual Standard Deviation 0.088\nSTATISTICS:: Annual Variance 0.008\nSTATISTICS:: Information Ratio -2.769\nSTATISTICS:: Tracking Error 0.088\nSTATISTICS:: Treynor Ratio 0\nSTATISTICS:: Total Fees ₩5733.53\nSTATISTICS:: Estimated Strategy Capacity ₩0\nSTATISTICS:: Lowest Capacity Asset YF.YFPrice 2S\nSTATISTICS:: Portfolio Turnover 0.93%\nSTATISTICS:: Drawdown Recovery 2\nSTATISTICS:: OrderListHash 51d94432a7c1dd58024fb4516afcede1\n20261103 01:47:02.360 TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet\n20261103 01:47:02.361 TRACE:: Engine.Run(): Disconnecting from brokerage...\n20261103 01:47:02.361 TRACE:: Engine.Run(): Disposing of setup handler...\n20261103 01:47:02.361 TRACE:: Engine.Main(): Analysis Completed and Results Posted.\nEngine.Main(): Analysis Complete.\nEngine.Main(): Press any key to continue.\n20261103 01:47:02.365 TRACE:: Engine.Main(): Packet removed from queue: YFinanceMovingAverageCrossAlgorithm\n20261103 01:47:02.365 TRACE:: LeanEngineSystemHandlers.Dispose(): start...\n20261103 01:47:02.365 TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.\n20261103 01:47:02.366 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...\n20261103 01:47:02.366 TRACE:: LocalObjectStore.Dispose(): start...\n20261103 01:47:02.366 TRACE:: LocalObjectStore.Dispose(): end\n20261103 01:47:02.366 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.\n20261103 01:47:02.366 TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...\n20261103 01:47:02.367 TRACE:: PythonInitializer.Shutdown(): start\n20261103 01:47:02.367 TRACE:: PythonInitializer.Shutdown(): calling engine shutdown...\n20261103 01:47:05.011 TRACE:: PythonInitializer.Shutdown(): ended\n20261103 01:47:05.011 TRACE:: Program.Main(): Exiting Lean...\n\n20261103 01:47:01.860 ERROR:: LocalDiskMapFileProvider.GetMapFileResolver(usa): The specified directory does not exist: /workspace/workflow-da5187c02a3b/data/equity/usa/map_files\n20261103 01:47:02.245 ERROR:: InterestRateProvider.FromCsvFile(): no interest rates were loaded, please make sure the file is present '/workspace/workflow-da5187c02a3b/data/alternative/interest-rate/usa/interest-rate.csv'",
-  "algorithm_source": "from AlgorithmImports import *\nfrom QuantConnect.Python import PythonData\nfrom QuantConnect import Globals, SubscriptionTransportMedium\nfrom QuantConnect.Data import SubscriptionDataSource\nimport os\nfrom datetime import datetime, timedelta\n\nclass YFPrice(PythonData):\n    def get_source(self, config, date, is_live):\n        return SubscriptionDataSource(os.path.join(Globals.DataFolder, \"prices.csv\"), SubscriptionTransportMedium.LocalFile)\n    def reader(self, config, line, date, is_live):\n        if line.startswith(\"date\"):\n            return None\n        d, close = line.split(\",\")\n        item = YFPrice()\n        item.symbol = config.symbol\n        item.time = datetime.strptime(d, \"%Y-%m-%d\").replace(hour=15, minute=29)\n        item.value = float(close)\n        return item\n\nclass KrxFeeModel(FeeModel):\n    tax_schedule = [('1900-01-01', 0.0015), ('2019-06-03', 0.001), ('2021-01-01', 0.0008), ('2023-01-01', 0.0005), ('2024-01-01', 0.0003), ('2025-01-01', 0.0), ('2026-01-01', 0.0005)]\n    base_rate = 0.000176923\n    rural_rate = 0.0015\n    def get_order_fee(self, parameters):\n        order = parameters.order\n        security = parameters.security\n        gross = abs(float(security.price) * float(order.absolute_quantity))\n        rate = self.base_rate\n        if order.direction == OrderDirection.SELL:\n            trade_date = order.time.date()\n            transfer_rate = self.tax_schedule[0][1]\n            for effective_date, candidate_rate in self.tax_schedule:\n                if trade_date >= datetime.strptime(effective_date, '%Y-%m-%d').date():\n                    transfer_rate = candidate_rate\n            rate += transfer_rate + self.rural_rate\n        return OrderFee(CashAmount(gross * rate, 'KRW'))\n\n\nclass YFinanceMovingAverageCrossAlgorithm(QCAlgorithm):\n    def initialize(self):\n        self.set_start_date(2026, 9, 1)\n        self.set_end_date(2026, 10, 30)\n        self.set_account_currency('KRW', 10000000.0)\n        market_hours = MarketHoursDatabase.from_data_folder().get_entry(Market.KRX, \"005930\", SecurityType.INDEX).exchange_hours\n        custom_properties = SymbolProperties(\"\", \"KRW\", 1, 0.01, 0.0000001, \"YF\")\n        self.asset = self.add_data(YFPrice, \"YF\", custom_properties, market_hours, Resolution.DAILY).symbol\n        # 커스텀 데이터의 기본 lot size(1주)는 cash/price < 1 인 경우 SetHoldings()를 0으로 만든다.\n        # 아주 작은 lot size를 지정해 소수 단위 포지션을 허용한다.\n        self.securities[self.asset].symbol_properties = SymbolProperties(\"\", \"KRW\", 1, 0.01, 0.0000001, \"\")\n        self.securities[self.asset].set_fee_model(KrxFeeModel())\n        self.securities[self.asset].set_slippage_model(ConstantSlippageModel(0.001))\n        self.short_window = 20\n        self.long_window = 60\n        self.prices = []\n        self.signal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), \"results\", \"qurious-signals.csv\")\n        os.makedirs(os.path.dirname(self.signal_path), exist_ok=True)\n        self.signal_file = open(self.signal_path, \"w\", encoding=\"utf-8\")\n        self.signal_file.write(\"date,entry_state,exit_state\" + chr(10))\n        self.signal_file.flush()\n        self.set_warm_up(timedelta(days=self.long_window * 2 + 15), Resolution.DAILY)\n\n    def on_data(self, data):\n        if not data.contains_key(self.asset):\n            return\n        self.prices.append(float(data[self.asset].value))\n        self.prices = self.prices[-self.long_window:]\n        if len(self.prices) < self.long_window or self.is_warming_up:\n            return\n        short_ma = sum(self.prices[-self.short_window:]) / self.short_window\n        long_ma = sum(self.prices) / self.long_window\n        entry_state = short_ma > long_ma\n        exit_state = short_ma < long_ma\n        signal_date = data[self.asset].time.date().isoformat()\n        self.signal_file.write(\n            \"{},{},{}\".format(signal_date, int(entry_state), int(exit_state)) + chr(10)\n        )\n        self.signal_file.flush()\n        if entry_state and not self.portfolio.invested:\n            self.set_holdings(self.asset, 0.3)\n        elif exit_state and self.portfolio.invested:\n            self.liquidate(self.asset)\n\n    def on_end_of_algorithm(self):\n        signal_file = getattr(self, \"signal_file\", None)\n        if signal_file is not None and not signal_file.closed:\n            signal_file.flush()\n            signal_file.close()\n",
+  "lean_log": "yEmpty(): directory '/workspace/workflow-2902509705e9/data/equity/usa/factor_files' not found or empty\n20261102 05:20:00.949 TRACE:: Debug: 2026-04-19 00:00:00 Launching analysis for YFinanceMovingAverageCrossAlgorithm with LEAN Engine v2.5.0.0\n20261102 05:20:00.959 TRACE:: AlgorithmManager.Stream(): Subscriptions count before warm up: 1\n20261102 05:20:01.026 TRACE:: AlgorithmManager.Run(): Subscriptions count after warm up: 1\n20261102 05:20:01.049 TRACE:: Debug: 2026-09-01 00:00:00 Changing account currency from USD to KRW, with a starting cash of 10000000.0...\n20261102 05:20:01.050 TRACE:: Debug: 2026-04-19 00:00:00 Algorithm starting warm up...\n20261102 05:20:01.050 TRACE:: Debug: 2026-09-01 00:00:00 Algorithm finished warming up.\n20261102 05:20:01.101 TRACE:: Debug: 2026-09-28 02:29:00 Warning: market orders on daily resolution data sent during market hours are automatically converted into MarketOnClose orders (or MarketOnOpen near the close) to avoid filling at the stale previous close. Note: in live trading this conversion is not applied, as the order fills at the current market price.\n20261102 05:20:01.126 TRACE:: Synchronizer.GetEnumerator(): Exited thread.\n20261102 05:20:01.126 TRACE:: AlgorithmManager.Run(): Firing On End Of Algorithm...\n20261102 05:20:01.127 TRACE:: Engine.Run(): Exiting Algorithm Manager\n20261102 05:20:01.129 TRACE:: OrderRequestProcessingPool.Dispose(): completed\n20261102 05:20:01.130 TRACE:: StopSafely(): Waiting for 'Isolator Thread' thread to stop...\n20261102 05:20:01.133 TRACE:: FileSystemDataFeed.Exit(): Start. Setting cancellation token...\n20261102 05:20:01.135 TRACE:: FileSystemDataFeed.Exit(): Exit Finished.\n20261102 05:20:01.135 TRACE:: DataMonitor.Exit(): start...\n20261102 05:20:01.136 TRACE:: StopSafely(): Waiting for '' thread to stop...\n20261102 05:20:01.137 TRACE:: DataMonitor.GenerateReport():\nDATA USAGE:: Total data requests 9\nDATA USAGE:: Succeeded data requests 2\nDATA USAGE:: Failed data requests 7\nDATA USAGE:: Failed data requests percentage 78%\nDATA USAGE:: Total universe data requests 0\nDATA USAGE:: Succeeded universe data requests 0\nDATA USAGE:: Failed universe data requests 0\nDATA USAGE:: Failed universe data requests percentage 0%\n20261102 05:20:01.137 TRACE:: DataMonitor.Exit(): end\n20261102 05:20:01.138 TRACE:: BacktestingResultHandler.Exit(): starting...\n20261102 05:20:01.138 TRACE:: BacktestingResultHandler.Exit(): Saving logs...\n20261102 05:20:01.139 TRACE:: Debug: 2026-10-30 02:29:00 Algorithm Id:(YFinanceMovingAverageCrossAlgorithm) completed in 0.30 seconds at 0k data points per second. Processing total of 131 data points.\n20261102 05:20:01.139 TRACE:: Debug: 2026-10-30 02:29:00 Your log was successfully created and can be retrieved from: /workspace/workflow-2902509705e9/results/YFinanceMovingAverageCrossAlgorithm-log.txt\n20261102 05:20:01.139 TRACE:: BacktestingResultHandler.Run(): Ending Thread...\n20261102 05:20:01.139 TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...\n20261102 05:20:01.313 TRACE:: \nSTATISTICS:: Total Orders 3\nSTATISTICS:: Average Win 0%\nSTATISTICS:: Average Loss -19.92%\nSTATISTICS:: Compounding Annual Return -74.330%\nSTATISTICS:: Drawdown 23.500%\nSTATISTICS:: Expectancy -1\nSTATISTICS:: Start Equity 10000000.0\nSTATISTICS:: End Equity 8023628.52\nSTATISTICS:: Net Profit -19.764%\nSTATISTICS:: Sharpe Ratio -1.894\nSTATISTICS:: Sortino Ratio -1.269\nSTATISTICS:: Probabilistic Sharpe Ratio 1.385%\nSTATISTICS:: Loss Rate 100%\nSTATISTICS:: Win Rate 0%\nSTATISTICS:: Profit-Loss Ratio 0\nSTATISTICS:: Alpha 0\nSTATISTICS:: Beta 0\nSTATISTICS:: Annual Standard Deviation 0.316\nSTATISTICS:: Annual Variance 0.1\nSTATISTICS:: Information Ratio -1.862\nSTATISTICS:: Tracking Error 0.316\nSTATISTICS:: Treynor Ratio 0\nSTATISTICS:: Total Fees ₩18908.19\nSTATISTICS:: Estimated Strategy Capacity ₩0\nSTATISTICS:: Lowest Capacity Asset YF.YFPrice 2S\nSTATISTICS:: Portfolio Turnover 3.28%\nSTATISTICS:: Drawdown Recovery 1\nSTATISTICS:: OrderListHash eb23a982f43269de2e7ea2edc27b9380\n20261102 05:20:01.313 TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet\n20261102 05:20:01.314 TRACE:: Engine.Run(): Disconnecting from brokerage...\n20261102 05:20:01.314 TRACE:: Engine.Run(): Disposing of setup handler...\n20261102 05:20:01.314 TRACE:: Engine.Main(): Analysis Completed and Results Posted.\nEngine.Main(): Analysis Complete.\nEngine.Main(): Press any key to continue.\n20261102 05:20:01.317 TRACE:: Engine.Main(): Packet removed from queue: YFinanceMovingAverageCrossAlgorithm\n20261102 05:20:01.317 TRACE:: LeanEngineSystemHandlers.Dispose(): start...\n20261102 05:20:01.318 TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.\n20261102 05:20:01.318 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...\n20261102 05:20:01.318 TRACE:: LocalObjectStore.Dispose(): start...\n20261102 05:20:01.318 TRACE:: LocalObjectStore.Dispose(): end\n20261102 05:20:01.318 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.\n20261102 05:20:01.319 TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...\n20261102 05:20:01.319 TRACE:: PythonInitializer.Shutdown(): start\n20261102 05:20:01.319 TRACE:: PythonInitializer.Shutdown(): calling engine shutdown...\n20261102 05:20:04.018 TRACE:: PythonInitializer.Shutdown(): ended\n20261102 05:20:04.019 TRACE:: Program.Main(): Exiting Lean...\n\n20261102 05:20:00.693 ERROR:: LocalDiskMapFileProvider.GetMapFileResolver(usa): The specified directory does not exist: /workspace/workflow-2902509705e9/data/equity/usa/map_files\n20261102 05:20:01.101 ERROR:: 2026-09-29 02:29:00 Order Error: ids: [1], Insufficient buying power to complete orders (Value:[10065584.399]), Reason: Id: 1, Initial Margin: 10067365.232388624277, Free Margin: 10000000.\n20261102 05:20:01.184 ERROR:: InterestRateProvider.FromCsvFile(): no interest rates were loaded, please make sure the file is present '/workspace/workflow-2902509705e9/data/alternative/interest-rate/usa/interest-rate.csv'",
+  "algorithm_source": "from AlgorithmImports import *\nfrom QuantConnect.Python import PythonData\nfrom QuantConnect import Globals, SubscriptionTransportMedium\nfrom QuantConnect.Data import SubscriptionDataSource\nimport os\nfrom datetime import datetime, timedelta\n\nclass YFPrice(PythonData):\n    def get_source(self, config, date, is_live):\n        return SubscriptionDataSource(os.path.join(Globals.DataFolder, \"prices.csv\"), SubscriptionTransportMedium.LocalFile)\n    def reader(self, config, line, date, is_live):\n        if line.startswith(\"date\"):\n            return None\n        d, close = line.split(\",\")\n        item = YFPrice()\n        item.symbol = config.symbol\n        item.time = datetime.strptime(d, \"%Y-%m-%d\").replace(hour=15, minute=29)\n        item.value = float(close)\n        return item\n\nclass KrxFeeModel(FeeModel):\n    tax_schedule = [('1900-01-01', 0.0015), ('2019-06-03', 0.001), ('2021-01-01', 0.0008), ('2023-01-01', 0.0005), ('2024-01-01', 0.0003), ('2025-01-01', 0.0), ('2026-01-01', 0.0005)]\n    base_rate = 0.000176923\n    rural_rate = 0.0015\n    def get_order_fee(self, parameters):\n        order = parameters.order\n        security = parameters.security\n        gross = abs(float(security.price) * float(order.absolute_quantity))\n        rate = self.base_rate\n        if order.direction == OrderDirection.SELL:\n            trade_date = order.time.date()\n            transfer_rate = self.tax_schedule[0][1]\n            for effective_date, candidate_rate in self.tax_schedule:\n                if trade_date >= datetime.strptime(effective_date, '%Y-%m-%d').date():\n                    transfer_rate = candidate_rate\n            rate += transfer_rate + self.rural_rate\n        return OrderFee(CashAmount(gross * rate, 'KRW'))\n\n\nclass YFinanceMovingAverageCrossAlgorithm(QCAlgorithm):\n    def initialize(self):\n        self.set_start_date(2026, 9, 1)\n        self.set_end_date(2026, 10, 30)\n        self.set_account_currency('KRW', 10000000.0)\n        market_hours = MarketHoursDatabase.from_data_folder().get_entry(Market.KRX, \"005930\", SecurityType.INDEX).exchange_hours\n        custom_properties = SymbolProperties(\"\", \"KRW\", 1, 0.01, 0.0000001, \"YF\")\n        self.asset = self.add_data(YFPrice, \"YF\", custom_properties, market_hours, Resolution.DAILY).symbol\n        # 커스텀 데이터의 기본 lot size(1주)는 cash/price < 1 인 경우 SetHoldings()를 0으로 만든다.\n        # 아주 작은 lot size를 지정해 소수 단위 포지션을 허용한다.\n        self.securities[self.asset].symbol_properties = SymbolProperties(\"\", \"KRW\", 1, 0.01, 0.0000001, \"\")\n        self.securities[self.asset].set_fee_model(KrxFeeModel())\n        self.securities[self.asset].set_slippage_model(ConstantSlippageModel(0.001))\n        self.short_window = 20\n        self.long_window = 60\n        self.prices = []\n        self.signal_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), \"results\", \"qurious-signals.csv\")\n        os.makedirs(os.path.dirname(self.signal_path), exist_ok=True)\n        self.signal_file = open(self.signal_path, \"w\", encoding=\"utf-8\")\n        self.signal_file.write(\"date,entry_state,exit_state\" + chr(10))\n        self.signal_file.flush()\n        self.set_warm_up(timedelta(days=self.long_window * 2 + 15), Resolution.DAILY)\n\n    def on_data(self, data):\n        if not data.contains_key(self.asset):\n            return\n        self.prices.append(float(data[self.asset].value))\n        self.prices = self.prices[-self.long_window:]\n        if len(self.prices) < self.long_window or self.is_warming_up:\n            return\n        short_ma = sum(self.prices[-self.short_window:]) / self.short_window\n        long_ma = sum(self.prices) / self.long_window\n        entry_state = short_ma > long_ma\n        exit_state = short_ma < long_ma\n        signal_date = data[self.asset].time.date().isoformat()\n        self.signal_file.write(\n            \"{},{},{}\".format(signal_date, int(entry_state), int(exit_state)) + chr(10)\n        )\n        self.signal_file.flush()\n        if entry_state and not self.portfolio.invested:\n            self.set_holdings(self.asset, 1)\n        elif exit_state and self.portfolio.invested:\n            self.liquidate(self.asset)\n\n    def on_end_of_algorithm(self):\n        signal_file = getattr(self, \"signal_file\", None)\n        if signal_file is not None and not signal_file.closed:\n            signal_file.flush()\n            signal_file.close()\n",
   "disclaimer": "Yahoo Finance 일봉 기반 교육용 예시입니다. KRX 비용은 요율 기반 추정치이고 슬리피지는 고정 10bp 가정이며, 실시간 호가·유동성·실제 증권사 체결과 데이터 조정 차이를 완전히 재현하지 않습니다. 투자 권유가 아닙니다."
 }
