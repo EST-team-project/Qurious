@@ -1087,6 +1087,7 @@ async function loadRoboPerformanceMetrics() {
         <p class="text-xs mt-3" style="color:var(--text-mute);">
           ※ 모든 지표는 무위험수익률 ${(data.params?.risk_free_rate * 100).toFixed(1)}% · 시도 횟수 ${data.params?.n_trials}회 기준으로 산출됩니다.
           DSR이 0.95 미만이면 이 전략은 우연일 가능성을 배제할 수 없습니다.
+          DSR은 정식 계산이 아니라 <b>근사값</b>이고, 시도 횟수는 실제로 시도한 횟수가 아니라 <b>가정한 값</b>입니다. 스냅샷이 적은 짧은 표본에서는 DSR을 해석하기 어렵습니다.
         </p>`;
     }
   } catch (e) {

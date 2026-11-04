@@ -42,6 +42,10 @@ BASELINE: dict[str, int] = {
     #   받았다(강사님 85c3444 · KIS 갈래의 `"kis"` 와 짝). 글자일 뿐 호출은 0 — 부르는 곳은 그대로 `_yahoo_chart` 하나.
     "app/services/stock.py": 25,
     # origin/main과 동일한 20줄. 첫 줄은 실행 흐름 설명 주석이며 새 Yahoo 호출이 아니다.
+    # 2026-11-04 S201 강민석 님 26b4c1b(#534 · 대사 정렬): 19 → 20 — 글자만 늘었다(오준영 님 11-04 운영 최신화 검토가 담당 확인 요청).
+    #   변경 = 결과 사전의 출처 이름표 `"price_source": "Collector DB" if fill_timing == "next_open" else "Yahoo Finance"` 1줄 추가 = 순증 1.
+    #   호출은 0 — 야후 주소(`query2.finance.yahoo.com`)는 커밋 전(1001줄) · 후(1230줄) 모두 한 곳, 야후를 부르는 함수 정의도 그대로다.
+    #   `next_open`(KRX ma_cross 일일 대사)은 수집 DB 를 쓰고 야후로 대체하지 않는다 — 그 이름표가 새 줄의 앞쪽 값이다.
     "app/services/lean_backtest.py": 20,
     # 2026-11-03 S196 강민석 님 4e7c1fa2(가격 출처 감사 정보): 10 → 11 — 줄 수만 늘었다(오준영 님 이슈 #521). 변경 = Yahoo 설명 주석 1줄 삭제 +
     #   출처 문자열 `"yahoo_finance"` 2줄 추가(대체자산 평가 가격 · 금 · 은 환율 환산 감사 칸) = 순증 1. 호출은 0 —

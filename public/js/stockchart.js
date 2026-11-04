@@ -315,6 +315,14 @@ export function scSignalMark(sig, bars) {
   return { time: day, kind: "signal", text: SC_SIGNAL_DOT.text, shape: SC_SIGNAL_DOT.shape, position: SC_SIGNAL_DOT.position, glyph: SC_SIGNAL_DOT.glyph, words: look.words, color: SC_SIGNAL_COLOR };
 }
 
+/** 기록된 신호 값과 이 차트의 가격 값이 다를 수 있는 세 경우 — 번호로 나눠 한 문장에 묻히지 않게(2026-11-04 #530 · #512 후속).
+ *  표식이 찍힌 때(scSignalNote)와 기록된 신호는 있는데 표식을 못 찍은 때(paintNote 의 미표시 풀이 뒤)에 같은 글을 쓴다 */
+export function scSignalCasesNote() {
+  return "같은 기준일의 일봉 근거는 이 차트와 같은 수정주가 일봉이라 값이 같지만, 다를 수 있는 때가 셋 있습니다 — "
+    + "① 60분 · 주 근거(이 차트에 없는 주기), ② 차트 마지막 봉이 기록 기준일보다 뒤일 때, "
+    + "③ 기준일 뒤 분할 · 증자로 수정주가가 다시 계산되어 이동평균 · 볼린저 같은 가격 값이 바뀐 때입니다.";
+}
+
 /** 신호 표식 풀이 — 기준일 · 기록 시점(다음 거래일 낮) · 여러 주기를 합친 값 · 뒤 가격은 재지 않음. 그날 종가에 이미 알 수 있던 값처럼 읽히지 않게 */
 export function scSignalNote(mark, asOf, rec) {
   if (!mark) return "";
@@ -325,7 +333,7 @@ export function scSignalNote(mark, asOf, rec) {
     : rec.late ? `이 신호는 ${at} 에 늦게 계산한 값이라 그날 이 화면에서 실제로 보였던 값은 아닐 수 있습니다.`
       : `이 신호는 그날 종가까지로 계산해 ${at} 에 기록했습니다(그날 종가에 이미 알 수 있던 값이 아닙니다).`;
   return `${mark.glyph} 표시는 ${day} 종가까지의 규칙 점수가 ${what} 기록이며, ${when} 이 표시 뒤 가격은 이 화면이 재지 않습니다. 점수는 ${SC_SIGNAL_MULTI}이라 이 차트의 일봉 하나만으로 만든 값이 아닙니다(분봉이 없는 종목은 일 · 주). `
-    + `같은 기준일의 일봉 근거는 이 차트와 같은 수정주가 일봉이라 값이 같지만, 다를 수 있는 때가 셋 있습니다 — 60분 · 주 근거(이 차트에 없는 주기) · 차트 마지막 봉이 기록 기준일보다 뒤일 때 · 기준일 뒤 분할 · 증자로 수정주가가 다시 계산되어 이동평균 · 볼린저 같은 가격 값이 바뀐 때입니다.`;
+    + scSignalCasesNote();
 }
 
 /** 신호 표식을 못 찍은 까닭 — 기준일이 마지막 봉보다 뒤(아직 그 날 일봉이 안 들어옴) · 보이는 기간 앞 · 기간 안인데 봉이 없는 날(휴장 · 미수집)을 가른다 */
@@ -552,7 +560,10 @@ export function mountDailyChart(doc, box, note, { api, onError } = {}) {
       lo: Math.min(...shown.map(b => (b.low !== null ? b.low : b.close))), hi: Math.max(...shown.map(b => (b.high !== null ? b.high : b.close))), lastClose: pts[pts.length - 1].value,
     };
     if (signalMark) ctx.signalNote = scSignalNote(signalMark, sg.asOf, sg);
-    else if (sg) ctx.signalNote = scSignalMissNote(sg, shown);
+    else if (sg) {   // 표식을 못 찍어도 기록된 신호가 있으면 값이 다를 수 있는 세 경우를 알린다(#512 후속)
+      const miss = scSignalMissNote(sg, shown);
+      ctx.signalNote = miss ? `${miss} ${scSignalCasesNote()}` : "";
+    }
     if (cache.events && (ev.marks.length || ev.upcoming.length || ev.noBar)) {
       const nxt = ev.upcoming.slice(0, 3).map(u => `${u.time.slice(5)} ${u.label}`).join(" · ");
       ctx.eventNote = `네모 표시(실적 · 배당락 · 주총)는 공시와 규칙으로 모은 일정이라 바뀔 수 있으며, 날짜에 마우스를 올리면 확정인지 예정인지 나옵니다. 실적은 공시를 낸 날이지 좋고 나쁨의 평가가 아닙니다.`

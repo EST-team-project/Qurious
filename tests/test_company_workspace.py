@@ -1,20 +1,20 @@
-"""TC-CW — 지표 대시보드 작업 공간(public/js/company-workspace.js · css/company-workspace.css · app.html) · 2026-11-04 · D10
+"""TC-CWS — 지표 대시보드 작업 공간(public/js/company-workspace.js · css/company-workspace.css · app.html) · 2026-11-04 · D10
 
 강사님 lumina-invest 의 「지표 대시보드 작업 공간」(구역 이동 단추 · 따라오는 기업 스냅샷 · 차트 4장)을 우리 수집 값으로 옮겼다.
 강사님 것은 Yahoo 모양 데이터(d.quarters / d.revenue …)를 그렸지만 우리는 서버가 준 응답을 재배열만 해서 그린다.
 
 약속
-1. 분기 막대는 1분기 · 반기 · 3분기 보고서의 3개월 값만 — 사업보고서(12개월 값)는 같은 축에 두지 않고, 4분기 단독 값을 만들어 끼우지 않는다. (TC-CW-01)
-2. 차트 series 의 숫자는 서버가 준 숫자 그대로다(합 · 차 · 비율 · 환산 없음) — 입력 값의 부분집합임을 시험한다. 없는 값은 null 이고 0 이 아니다. (TC-CW-02)
-3. 도넛은 서버의 부채총계 · 자본총계, 가운데는 서버의 자산총계(더하지 않는다). 자본이 0 이하이거나 없으면 그리지 않고 까닭을 말한다. (TC-CW-03)
-4. 수익성 막대는 서버가 계산한 ROE · 영업이익률만(ROA · 순이익률은 서버가 주지 않아 만들지 않는다). (TC-CW-04)
-5. 차트 옵션 — 조각 비율 글자 없음 · 값 글은 formatter 에서만 조 · 억으로 바꾼다. (TC-CW-05)
-6. 기업 스냅샷 — 줄마다 값 + 기준일 · 출처, 없으면 줄표 + 까닭, 서버 글은 이스케이프, 판단 낱말 없음. (TC-CW-06)
-7. 출처 · 기준일 줄과 빈 칸 까닭. (TC-CW-07)
-8. companyview.js 의 cvSubscribe — cvLoad 의 시작 · 끝(지원하지 않는 종목 포함)을 알리고 구독자 오류가 본 화면을 막지 않는다. (TC-CW-08)
-9. app.html — 구역 이동 단추가 가리키는 칸이 있고, 기존 칸 id 는 그대로, 새 파일이 연결돼 있다. (TC-CW-09)
-10. 낱말 · 원천 — 투자 권유 낱말 · 야후 · 새 API 호출이 없고, company.js 가 채우는 co-* 칸에 쓰지 않는다. (TC-CW-10)
-11. CSS — 좁은 화면 규칙 · 스냅샷이 따라오는 sticky · 가로 넘침 방지. (TC-CW-11)
+1. 분기 막대는 1분기 · 반기 · 3분기 보고서의 3개월 값만 — 사업보고서(12개월 값)는 같은 축에 두지 않고, 4분기 단독 값을 만들어 끼우지 않는다. (TC-CWS-01)
+2. 차트 series 의 숫자는 서버가 준 숫자 그대로다(합 · 차 · 비율 · 환산 없음) — 입력 값의 부분집합임을 시험한다. 없는 값은 null 이고 0 이 아니다. (TC-CWS-02)
+3. 도넛은 서버의 부채총계 · 자본총계, 가운데는 서버의 자산총계(더하지 않는다). 자본이 0 이하이거나 없으면 그리지 않고 까닭을 말한다. (TC-CWS-03)
+4. 수익성 막대는 서버가 계산한 ROE · 영업이익률만(ROA · 순이익률은 서버가 주지 않아 만들지 않는다). (TC-CWS-04)
+5. 차트 옵션 — 조각 비율 글자 없음 · 값 글은 formatter 에서만 조 · 억으로 바꾼다. (TC-CWS-05)
+6. 기업 스냅샷 — 줄마다 값 + 기준일 · 출처, 없으면 줄표 + 까닭, 서버 글은 이스케이프, 판단 낱말 없음. (TC-CWS-06)
+7. 출처 · 기준일 줄과 빈 칸 까닭. (TC-CWS-07)
+8. companyview.js 의 cvSubscribe — cvLoad 의 시작 · 끝(지원하지 않는 종목 포함)을 알리고 구독자 오류가 본 화면을 막지 않는다. (TC-CWS-08)
+9. app.html — 구역 이동 단추가 가리키는 칸이 있고, 기존 칸 id 는 그대로, 새 파일이 연결돼 있다. (TC-CWS-09)
+10. 낱말 · 원천 — 투자 권유 낱말 · 야후 · 새 API 호출이 없고, company.js 가 채우는 co-* 칸에 쓰지 않는다. (TC-CWS-10)
+11. CSS — 좁은 화면 규칙 · 스냅샷이 따라오는 sticky · 가로 넘침 방지. (TC-CWS-11)
 """
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def _server_numbers(fin: dict) -> set:
 
 
 def test_quarter_series_uses_only_three_month_reports(tmp_path):
-    """TC-CW-01 — 1분기 · 반기 · 3분기 보고서만 · 오래된 쪽이 왼쪽 · 사업보고서(12개월 값)는 빼고 4분기 값을 만들어 끼우지 않는다 · 입력 순서와 상관없다."""
+    """TC-CWS-01 — 1분기 · 반기 · 3분기 보고서만 · 오래된 쪽이 왼쪽 · 사업보고서(12개월 값)는 빼고 4분기 값을 만들어 끼우지 않는다 · 입력 순서와 상관없다."""
     out = _run(tmp_path, """
       const s = cw.cwQuarterSeries(SAMSUNG);
       const shuffled = { periods: SAMSUNG.periods.slice().reverse() };
@@ -110,7 +110,7 @@ def test_quarter_series_uses_only_three_month_reports(tmp_path):
 
 
 def test_series_values_are_server_numbers_never_computed(tmp_path):
-    """TC-CW-02 — 막대 series 의 숫자는 모두 서버가 준 숫자 그대로(합 · 차 · 비율이면 입력에 없다) · 없는 값은 null(0 아님) · 계정 목록 대체 경로도 같다."""
+    """TC-CWS-02 — 막대 series 의 숫자는 모두 서버가 준 숫자 그대로(합 · 차 · 비율이면 입력에 없다) · 없는 값은 null(0 아님) · 계정 목록 대체 경로도 같다."""
     out = _run(tmp_path, """
       out.sam = cw.cwQuarterSeries(SAMSUNG); out.kb = cw.cwQuarterSeries(KB);
       out.hasKbRev = cw.cwHasValues(out.kb.revenue); out.hasKbOp = cw.cwHasValues(out.kb.operating);
@@ -130,7 +130,7 @@ def test_series_values_are_server_numbers_never_computed(tmp_path):
 
 
 def test_structure_donut_input(tmp_path):
-    """TC-CW-03 — 가장 최근 기간의 서버 부채총계 · 자본총계 · 자산총계 그대로(더하지 않는다) · 자본잠식 · 값 없음 · 자료 없음은 그리지 않고 까닭."""
+    """TC-CWS-03 — 가장 최근 기간의 서버 부채총계 · 자본총계 · 자산총계 그대로(더하지 않는다) · 자본잠식 · 값 없음 · 자료 없음은 그리지 않고 까닭."""
     out = _run(tmp_path, """
       out.ok = cw.cwStructure(SAMSUNG);
       const odd = { periods: [{ period_end: "2026-06-30", report: "반기보고서", known_at: "2026-08-14", key: { assets: 999, liabilities: 100, equity: 200 }, accounts: [] }] };
@@ -151,7 +151,7 @@ def test_structure_donut_input(tmp_path):
 
 
 def test_profit_bars_use_only_server_ratios(tmp_path):
-    """TC-CW-04 — 서버가 계산한 ROE · 영업이익률만 막대로(ROA · 순이익률 · PER 등은 넣지 않는다) · 값이 없는 지표는 까닭 · 근사 표시."""
+    """TC-CWS-04 — 서버가 계산한 ROE · 영업이익률만 막대로(ROA · 순이익률 · PER 등은 넣지 않는다) · 값이 없는 지표는 까닭 · 근사 표시."""
     out = _run(tmp_path, """
       out.pb = cw.cwProfitBars(IND);
       out.bank = cw.cwProfitBars({ metrics: IND.metrics.filter(m => m.key === "roe").concat([OPM_NONE]) });
@@ -172,7 +172,7 @@ def test_profit_bars_use_only_server_ratios(tmp_path):
 
 
 def test_chart_options_series_axis_and_no_percent_labels(tmp_path):
-    """TC-CW-05 — 막대 옵션의 series 는 서버 값 그대로 · 조 · 억 글은 formatter 에서만 · 도넛 조각에 비율(%) 글자가 없다 · 막대 이름에 3개월이 적힌다."""
+    """TC-CWS-05 — 막대 옵션의 series 는 서버 값 그대로 · 조 · 억 글은 formatter 에서만 · 도넛 조각에 비율(%) 글자가 없다 · 막대 이름에 3개월이 적힌다."""
     out = _run(tmp_path, """
       const s = cw.cwQuarterSeries(SAMSUNG);
       const rev = cw.cwRevenueOptions(s), inc = cw.cwIncomeOptions(s), dn = cw.cwStructureOptions(cw.cwStructure(SAMSUNG)), pf = cw.cwProfitOptions(cw.cwProfitBars(IND).bars);
@@ -199,7 +199,7 @@ def test_chart_options_series_axis_and_no_percent_labels(tmp_path):
 
 
 def test_snapshot_rows_have_basis_and_dashes(tmp_path):
-    """TC-CW-06 — 스냅샷 줄마다 값 + 기준일 · 출처 · 없으면 줄표와 까닭 · 서버 글 이스케이프 · 판단 낱말 없음 · 지원하지 않는 종목 · 지표 오류."""
+    """TC-CWS-06 — 스냅샷 줄마다 값 + 기준일 · 출처 · 없으면 줄표와 까닭 · 서버 글 이스케이프 · 판단 낱말 없음 · 지원하지 않는 종목 · 지표 오류."""
     out = _run(tmp_path, """
       out.rows = cw.cwSnapshotRows(PARTS); out.html = cw.cwSnapshotHtml(PARTS, esc);
       const bank = { ...PARTS, ind: { ...IND, metrics: [OPM_NONE], price: null }, health: null };
@@ -231,7 +231,7 @@ def test_snapshot_rows_have_basis_and_dashes(tmp_path):
 
 
 def test_source_lines_and_empty_reasons(tmp_path):
-    """TC-CW-07 — 출처 · 기준 기간 · 공시 접수일 줄 · 3개월 값이라는 설명 · 0 으로 채우지 않음 · 빈 칸마다 알맞은 까닭."""
+    """TC-CWS-07 — 출처 · 기준 기간 · 공시 접수일 줄 · 3개월 값이라는 설명 · 0 으로 채우지 않음 · 빈 칸마다 알맞은 까닭."""
     out = _run(tmp_path, """
       const s = cw.cwQuarterSeries(SAMSUNG), kb = cw.cwQuarterSeries(KB);
       out.src = cw.cwSourceLines(PARTS); out.srcNone = [cw.cwSourceLines({ unsupported: true }), cw.cwSourceLines(null)];
@@ -254,7 +254,7 @@ def test_source_lines_and_empty_reasons(tmp_path):
 
 
 def test_cv_subscribe_emits_start_and_done_for_every_exit(tmp_path):
-    """TC-CW-08 — cvLoad 가 시작과 끝을 알린다(지원하지 않는 종목도) · 구독자 오류가 본 화면을 막지 않는다 · 구독 해제 · 요청 주소는 그대로."""
+    """TC-CWS-08 — cvLoad 가 시작과 끝을 알린다(지원하지 않는 종목도) · 구독자 오류가 본 화면을 막지 않는다 · 구독 해제 · 요청 주소는 그대로."""
     out = _run(tmp_path, """
       const seen = [];
       const off = cv.cvSubscribe(e => seen.push({ phase: e.phase, symbol: e.symbol, code: e.code, hasParts: !!e.parts, unsupported: !!(e.parts && e.parts.unsupported) }));
@@ -273,7 +273,7 @@ def test_cv_subscribe_emits_start_and_done_for_every_exit(tmp_path):
 
 
 def test_app_html_markup_nav_targets_and_kept_ids():
-    """TC-CW-09 — 구역 이동 단추가 가리키는 칸이 있고 · 기존 칸 id 가 그대로이고 · 새 CSS · JS 가 연결되고 · 새 칸 id 가 모두 있다."""
+    """TC-CWS-09 — 구역 이동 단추가 가리키는 칸이 있고 · 기존 칸 id 가 그대로이고 · 새 CSS · JS 가 연결되고 · 새 칸 id 가 모두 있다."""
     m = re.search(r'data-view="company-dashboard">(.*?)data-view=', APP, flags=re.S)
     assert m, "app.html 에서 지표 대시보드 화면을 찾지 못했다"
     view = m.group(1)
@@ -296,7 +296,7 @@ def test_app_html_markup_nav_targets_and_kept_ids():
 
 
 def test_no_advice_words_no_yahoo_no_new_api_and_own_cells_only():
-    """TC-CW-10 — 화면 글에 투자 권유 · 판단 낱말이 없고 · 야후 · 새 API 호출이 없고 · company.js 가 채우는 co-* 칸에 쓰지 않는다 · 화면이 값을 셈하지 않는다."""
+    """TC-CWS-10 — 화면 글에 투자 권유 · 판단 낱말이 없고 · 야후 · 새 API 호출이 없고 · company.js 가 채우는 co-* 칸에 쓰지 않는다 · 화면이 값을 셈하지 않는다."""
     js = JS.read_text(encoding="utf-8")
     code = js.split("*/", 1)[1]                                                                             # 머리 주석의 설명 문장은 화면에 나가지 않는다
     assert not [w for w in BANNED if w in code], [w for w in BANNED if w in code]
@@ -312,7 +312,7 @@ def test_no_advice_words_no_yahoo_no_new_api_and_own_cells_only():
 
 
 def test_css_sticky_snapshot_and_mobile_rules():
-    """TC-CW-11 — 스냅샷이 따라오는 sticky · 좁은 화면에서 한 줄로 · 가로 넘침 방지(min-width:0 · overflow-wrap) · 규칙이 .cw-* 안에만."""
+    """TC-CWS-11 — 스냅샷이 따라오는 sticky · 좁은 화면에서 한 줄로 · 가로 넘침 방지(min-width:0 · overflow-wrap) · 규칙이 .cw-* 안에만."""
     css = CSS.read_text(encoding="utf-8")
     assert re.search(r"\.cw-side\s*\{[^}]*position:\s*sticky", css) and re.search(r"\.cw-nav\s*\{[^}]*position:\s*sticky", css)
     assert "@media (max-width: 1100px)" in css and "@media (max-width: 820px)" in css and "@media (max-width: 640px)" in css

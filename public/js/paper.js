@@ -667,6 +667,9 @@ async function cryptoPreview(side) {
   if (side === "BUY" && (!Number.isFinite(body.buyKrw) || body.buyKrw < MIN_CRYPTO_ORDER_KRW))
     return setToast(body.buyKrw ? "최소 주문 금액은 1,000원입니다." : "매수 금액을 입력하세요.", "error");
   if (side === "SELL" && !body.sellCount) return setToast("매도 수량을 입력하세요.", "error");
+  if (side === "BUY" ? !body.buyKrw : !body.sellCount) return setToast(side === "BUY" ? "매수 금액을 입력하세요." : "매도 수량을 입력하세요.", "error");
+  // 2026-11-04 #530 2-2 — 실행 단추와 같은 최소 금액을 미리보기에도(1,000원은 이 앱 화면의 정책이며 거래소 공식 최소 금액이 아니다)
+  if (side === "BUY" && !(body.buyKrw >= 1000)) return setToast("최소 주문 금액은 1,000원입니다(이 앱의 정책).", "error");
   try {
     const p = await api("/api/paper/trade/order/preview", { method: "POST", body });
     $("pc-preview").innerHTML = `<div class="rounded-xl border p-3 text-sm" style="border-color:${p.executable ? "var(--green-bd)" : "var(--red-bd)"}">
@@ -684,6 +687,7 @@ async function cryptoOrder(side) {
     if (side === "BUY") {
       const buyKrw = parseFloat(String($("pc-buy-krw").value).replace(/,/g, ""));
       if (!(buyKrw >= MIN_CRYPTO_ORDER_KRW)) return setToast(buyKrw ? "최소 주문 금액은 1,000원입니다." : "매수 금액을 입력하세요.", "error");   // 클릭 점검 Y1 — 최소 금액이 화면 속성에만 있던 것
+      if (!(buyKrw >= 1000)) return setToast(buyKrw ? "최소 주문 금액은 1,000원입니다(이 앱의 정책)." : "매수 금액을 입력하세요.", "error");   // 클릭 점검 Y1 — 최소 금액이 화면 속성에만 있던 것
       r = await api("/api/paper/trade/order/buy", { method: "POST", body: { marketCode, buyKrw } });
     } else {
       const sellCount = parseFloat($("pc-sell-count").value);
