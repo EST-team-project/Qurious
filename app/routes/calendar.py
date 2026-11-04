@@ -45,7 +45,7 @@ def trading_days(
 def events(
     start: date | None = Query(default=None, alias="from", description="시작일(YYYY-MM-DD · 기본 오늘)"),
     end: date | None = Query(default=None, alias="to", description="끝일(YYYY-MM-DD · 포함 · 기본 60일 뒤)"),
-    kind: str | None = Query(default=None, description="쉼표로 여럿 — 비우면 market_closure · deriv_expiry · dividend_record · dividend_ex · 그 밖에 earnings · report_deadline · policy_rate · fomc · all(전부)"),
+    kind: str | None = Query(default=None, description="쉼표로 여럿 — 비우면 market_closure · deriv_expiry · dividend_record · dividend_ex · 그 밖에 earnings · report_deadline · policy_rate · fomc · agm · dividend_pay · econ_kr · econ_us · offer_sub · offer_pay · all(전부)"),
     symbol: str | None = Query(default=None, pattern=r"^[0-9A-Z]{6}$", description="종목 단축코드(배당 일정)"),
     limit: int = Query(default=500, ge=1, le=mc.MAX_EVENTS),
     offset: int = Query(default=0, ge=0, le=100_000, description="쪽 넘기기 — 앞에서 건너뛸 줄 수"),

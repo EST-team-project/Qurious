@@ -125,7 +125,7 @@ export function renderIndustry(res, esc) {
   }
   const rows = (d.groups || []).map(g => {
     const known = isNum(g.change_median);
-    const clr = !known ? "var(--text-mute)" : g.change_median > 0 ? "#22c55e" : g.change_median < 0 ? "#ef4444" : "var(--text-mute)";
+    const clr = !known ? "var(--text-mute)" : g.change_median > 0 ? "#15803d" : g.change_median < 0 ? "#b91c1c" : "var(--text-mute)";
     const arrow = !known ? "" : g.change_median > 0 ? "▲ " : g.change_median < 0 ? "▼ " : "";
     const sec = g.section && g.section.name ? `<div class="text-xs" style="color:var(--text-mute);">${esc(g.section.name)}</div>` : "";
     const thin = g.thin ? ` <span class="text-xs" style="color:var(--text-mute);">(종목 적음)</span>` : "";

@@ -493,6 +493,13 @@ def build(conn: sqlite3.Connection, *, fetch: bool = True, today: Optional[date]
         except Exception as e:  # noqa: BLE001
             out["policy_error"] = str(e)
             print(f"  ⚠️ 금통위 · FOMC 일정 받기 실패 — {e}")
+        # 경제지표 발표 일정(2026-11-03 · ①-23 E) — 국가데이터처 · BLS · BEA 를 출처마다 7일에 한 번. 실패해도 달력은 받아 둔 일정으로
+        try:
+            from collector import econ_calendar  # noqa: PLC0415
+            out["econ"] = econ_calendar.refresh_econ_releases(conn, today, quiet=quiet)
+        except Exception as e:  # noqa: BLE001
+            out["econ_error"] = str(e)
+            print(f"  ⚠️ 경제지표 일정 받기 실패 — {e}")
     years = holiday_years(conn)
     end = calendar_end(years)
     if end is None:

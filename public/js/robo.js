@@ -4,6 +4,9 @@ import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct, kstTime } from "/
 import { navigate, tt } from "/js/core.js";
 import { setRiskProfileUser, riskProfileContext, readRiskProfile, saveRiskProfile, hasLegacyRiskProfile } from "/js/riskprofile.js";
 import { latestCycleSignals, renderDecisionBasis } from "/js/decision-signals.js";
+import { initAllocationModels, allocationModelInput, restoreAllocationModel } from "/js/allocationmodels.js";
+
+initAllocationModels();
 
 // ── 로보 어드바이저: 자산배분 최적화 ────────────────────────────────
 const ALLOC_COLORS = { 국내주식: "#2962ff", 해외주식: "#0097a7", 국내채권: "#089981", 대체자산: "#f59e0b", 현금: "#787b86" };
@@ -41,6 +44,7 @@ function renderXaiBlock(ex, { compact = false, probNote = false } = {}) {
 }
 
 function renderAllocation(data) {
+  restoreAllocationModel(data);
   const amount = data.amount_manwon;
   document.getElementById("robo-risk").value = data.risk_profile;
   document.getElementById("robo-horizon").value = data.horizon_years;
@@ -134,6 +138,9 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
   const horizon = parseInt(document.getElementById("robo-horizon").value);
   const amount = roboAmountOrNull();
   if (amount === null) return;
+  let modelInput;
+  try { modelInput = allocationModelInput(); }
+  catch (e) { setToast(e.message, "error"); return; }
   const optimizeBtn = document.getElementById("robo-optimize-btn");
   const originalBtnText = optimizeBtn.textContent;
   optimizeBtn.disabled = true;
@@ -142,7 +149,7 @@ document.getElementById("robo-optimize-btn").addEventListener("click", async () 
   try {
     const data = await api("/api/ml/robo/allocation", {
       method: "POST",
-      body: { risk_profile: profile, horizon_years: horizon, amount_manwon: amount },
+      body: { risk_profile: profile, horizon_years: horizon, amount_manwon: amount, ...modelInput },
     });
     renderAllocation(data);
   } catch (e) {
@@ -869,6 +876,12 @@ document.getElementById("robo-decision-goto-auto")?.addEventListener("click", (e
   if (gnb) gnb.click();
 });
 document.getElementById("robo-decision-refresh").addEventListener("click", loadRoboDecision);
+
+// 데모 데이터 단추 — 기존 스냅샷을 지우는 시연용 기능이라 관리자에게만 보인다(서버도 admin 만 허용 · 2026-11-04 발표 위험 조치 ③).
+// 일반 사용자가 눌러 자기 스냅샷을 지우는 일이 없게 기본은 숨기고, 관리자 확인이 된 때만 연다. 확인 실패 시에도 숨긴 채 둔다.
+getMe().then(({ user }) => {
+  if ((user?.roles || []).includes("admin")) document.getElementById("robo-metrics-simulate")?.removeAttribute("hidden");
+}).catch(() => { /* 로그인 전이거나 확인 실패 — 단추는 숨긴 채 */ });
 
 document.getElementById("robo-metrics-simulate")?.addEventListener("click", async () => {
   if (!confirm("기존 스냅샷을 지우고 15일치 데모 데이터를 생성합니다. 계속할까요?")) return;

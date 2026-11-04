@@ -23,6 +23,7 @@ import { escHtml } from "/js/common.js";
 import { navigate, showUnder } from "/js/core.js";   // showUnder — 메뉴 줄 없는 화면(부 목차 · 장)이 들어온 갈래를 알린다
 import { noticeCardHtml, noticeLineHtml } from "/js/learnnotice.js";   // 「시작하기 전에」 고지 한 벌(장 대장 F00 · 2026-10-20)
 import { mountTermUnderline } from "/js/termunderline.js";   // 교재 용어 밑줄(할 일 ①-23 B · 2026-11-02)
+import { SOON_EVENT, isSoon, showSoon, soonToggleHtml, visiblePages } from "/js/learnsoon.js";   // 「준비 중」 장은 기본으로 숨김(사용자 결정 2026-11-04)
 
 const API = "/api/learn";
 // 학습 세 갈래(2026-10-20 안 A · 10-23 세 갈래로 — 금융 필수 지식 · 개발 개념 · 파이썬 중급).
@@ -351,21 +352,28 @@ async function clRenderBranch(el, key) {
     el.innerHTML = `<div class="fl-card">${escHtml(e.message)} — 잠시 뒤 다시 열어 주세요.</div>`;
     return;
   }
-  const parts = clParts(c, key);
+  // 기본은 읽을 수 있는 장만 — 부 카드도 보일 장이 하나도 없으면 감춘다(「준비 중인 장도 보기」 를 켜면 모두)
+  const allParts = clParts(c, key);
+  const allPages = allParts.flatMap(x => x.items);
+  const parts = allParts.map(x => ({ ...x, items: visiblePages(x.items) })).filter(x => x.items.length);
   const pages = parts.flatMap(x => x.items);
   const read = readSet();
-  const { readable, soon } = clCounts(pages);
+  const { soon: hidden } = clCounts(allPages);   // 전체 중 준비 중인 장 수(스위치 문구)
   const drafts = pages.filter(p => p.status === "draft").length;
-  const single = parts.length === 1;
+  const showing = showSoon();
+  const single = allParts.length === 1;
   const course = single ? `${pages.length}장 과정` : `${parts.length}부 과정`;
-  const stat = pages.length ? `장 ${pages.length} · 읽을 수 있는 장 ${readable}${soon ? ` · 준비 중 ${soon}` : ""} · 모두 읽으면 ${minsText(minsOf(pages))}` : "";
+  const stat = pages.length ? `장 ${pages.length} · 모두 읽으면 ${minsText(minsOf(pages))}` : "";
+  const body = !pages.length
+    ? `<div class="fl-card fl-muted">아직 읽을 수 있는 장이 없습니다 — 다룰 질문과 참고 자료를 먼저 실은 「준비 중」 장 ${hidden}개가 있습니다.</div>`
+    : single ? `<div class="fl-grid three">${parts[0].items.map(p => clChapterCard(p, read)).join("")}</div>`
+      : `<div class="fl-grid">${parts.map(x => clCourseCard(x, read)).join("")}</div>`;
   el.innerHTML = `<div class="fl-hub-head"><h2>${escHtml(b.label)}</h2>
       <span class="fl-muted">${escHtml(b.blurb)}</span>
       <a class="fl-link cl-home-link" href="#learn-home">← 학습 홈</a></div>
-    <div class="fl-section-title">${escHtml(course)} <small>${escHtml(stat)}</small></div>
-    ${single ? `<div class="fl-grid three">${parts[0].items.map(p => clChapterCard(p, read)).join("")}</div>`
-      : `<div class="fl-grid">${parts.map(x => clCourseCard(x, read)).join("")}</div>`}
-    ${soon || drafts ? '<p class="fl-muted cl-note">「준비 중」 장은 다룰 질문과 참고 자료를 먼저 실었습니다. 「다듬는 중」 장은 본문이 있고 그림 · 확인 문제를 더하는 중입니다.</p>' : ""}
+    <div class="fl-section-title">${escHtml(course)} <small>${escHtml(stat)}</small>${soonToggleHtml(hidden, showing)}</div>
+    ${body}
+    ${showing && hidden || drafts ? '<p class="fl-muted cl-note">「준비 중」 장은 다룰 질문과 참고 자료를 먼저 실었습니다. 「다듬는 중」 장은 본문이 있고 그림 · 확인 문제를 더하는 중입니다.</p>' : ""}
     ${noticeLineHtml()}`;
 }
 
@@ -393,16 +401,22 @@ async function clRenderPart(el, want) {
     el.innerHTML = `<div class="fl-card">${escHtml(e.message)} — 잠시 뒤 다시 열어 주세요.</div>`;
     return;
   }
-  const parts = b && key !== "finance" ? clParts(c, key).filter(x => x.items.length) : [];
-  const i = parts.findIndex(x => x.no === no);
-  if (i < 0) {
+  const full = b && key !== "finance" ? clParts(c, key).filter(x => x.items.length) : [];
+  const fi = full.findIndex(x => x.no === no);
+  if (fi < 0) {
     el.innerHTML = '<div class="fl-card">찾는 목차가 없습니다. <a class="fl-link" href="#learn-home">학습 홈</a></div>';
     return;
   }
+  // 기본은 읽을 수 있는 장만 — 지금 연 부는 장이 없어도 남기고, 앞뒤 부는 보일 장이 있는 부로만 건너뛴다
+  const hiddenHere = clCounts(full[fi].items).soon;
+  const parts = full.map(p => ({ ...p, items: visiblePages(p.items) }))
+    .filter((p, k) => k === fi || p.items.length);
+  const i = parts.findIndex(x => x.no === no);
   const x = parts[i], prev = parts[i - 1], after = parts[i + 1];
   const read = readSet();
   const n = x.items.length;
   const done = x.items.filter(p => read.has(p.slug)).length;
+  const pct = n ? Math.round((100 * done) / n) : 0;
   const open = x.items.filter(p => p.status !== "skeleton");   // 본문이 있는 장(다듬는 중 포함)
   const unread = open.find(p => !read.has(p.slug));
   const next = unread || open[0];
@@ -417,11 +431,11 @@ async function clRenderPart(el, want) {
         <span class="fl-chip"><i class="fa-regular fa-clock" aria-hidden="true"></i> ${escHtml(minsText(minsOf(x.items)))}</span>
         <a class="fl-link cl-home-link" href="#${b.view}">← ${escHtml(b.label)}</a></div>
       ${blurb ? `<p>${escHtml(blurb)}</p>` : ""}
-      <div class="fl-bar" aria-hidden="true"><i style="width:${Math.round((100 * done) / n)}%"></i></div>
+      <div class="fl-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
       <div class="cl-part-foot"><span class="fl-muted">읽은 장 ${done} / ${n}</span>
-        ${next ? `<a class="fl-link" href="#learn/${escHtml(next.slug)}">${go} — ${escHtml(chapterNum(next))} ${escHtml(next.title)} →</a>` : '<span class="fl-muted">모든 장이 준비 중입니다 — 장을 누르면 다룰 질문을 볼 수 있습니다.</span>'}</div>
+        ${next ? `<a class="fl-link" href="#learn/${escHtml(next.slug)}">${go} — ${escHtml(chapterNum(next))} ${escHtml(next.title)} →</a>` : '<span class="fl-muted">아직 읽을 수 있는 장이 없습니다 — 「준비 중인 장도 보기」 를 켜면 다룰 질문을 볼 수 있습니다.</span>'}</div>
     </div>
-    <div class="fl-card"><ul class="cl-list">${x.items.map(p => chapterRow(p, read)).join("")}</ul></div>
+    <div class="fl-card">${soonToggleHtml(hiddenHere, showSoon())}${n ? `<ul class="cl-list">${x.items.map(p => chapterRow(p, read)).join("")}</ul>` : '<p class="fl-muted">이 부는 아직 읽을 수 있는 장이 없습니다.</p>'}</div>
     <div class="fl-nav cl-pager">
       <span>${prev ? `<a class="fl-link" href="#learn-part/${key}/${prev.no}">← ${escHtml(partName(prev))}</a>` : ""}</span>
       <span>${after ? `<a class="fl-link" href="#learn-part/${key}/${after.no}">${escHtml(partName(after))} →</a>` : `<a class="fl-link" href="#${b.view}">${escHtml(b.label)} 전체 →</a>`}</span>
@@ -442,7 +456,8 @@ function firstReadable(c) {
 function pagerHtml(c, m, store) {
   if (store !== "builtin") return "";
   const key = clBranchOf(m);   // 앞뒤 장은 같은 갈래 안에서(개발 개념 끝 장 다음이 파이썬 중급 첫 장으로 넘어가지 않게)
-  const list = c.pages.filter(p => p.store === "builtin" && clBranchOf(p) === key);
+  // 기본은 읽을 수 있는 장만 건너 다닌다 — 지금 연 장은 준비 중이어도 자리를 지킨다
+  const list = c.pages.filter(p => p.store === "builtin" && clBranchOf(p) === key && (p.slug === m.slug || !isSoon(p) || showSoon()));
   const i = list.findIndex(p => p.slug === m.slug);
   const prev = i > 0 ? list[i - 1] : null;
   const next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
@@ -524,9 +539,19 @@ async function renderPage(el, slug, h) {
   else document.getElementById("main-content")?.scrollTo(0, 0);   // 굴러가는 칸은 창이 아니라 #main-content(DF-134)
 }
 
+/**
+ * `09:00~15:30` · `5%~10%` 처럼 숫자 범위에 쓴 `~` 를 취소선으로 읽지 않게 한다(GFM 은 한 문단에 `~` 가 둘 이상이면 그 사이를 취소선으로 그린다 —
+ * 2026-11-03 학습 장을 쓰며 발견). 코드 블록 · 인라인 코드 안은 그대로 두고, 숫자(또는 % · 원 · 닫는 괄호) 바로 뒤 · 숫자 바로 앞의 `~` 만 `\~` 로 막는다.
+ */
+function protectRangeTilde(md) {
+  return String(md || "").split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((seg, i) => (i % 2 ? seg : seg.replace(/([0-9%원)])~(?=[0-9])/g, "$1\\~")))
+    .join("");
+}
+
 function drawMarkdown(md, el) {
   const parse = window.marked.parse || window.marked.marked;
-  const raw = parse(md, { gfm: true });
+  const raw = parse(protectRangeTilde(md), { gfm: true });
   el.innerHTML = window.DOMPurify.sanitize(raw, {
     USE_PROFILES: { html: true, svg: true, svgFilters: true },
     FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select"],
@@ -674,6 +699,15 @@ function buildToc(toc, art) {
   }, { rootMargin: "-80px 0px -70% 0px" });
   hs.forEach(hd => spy.observe(hd));
 }
+
+// 「준비 중인 장도 보기」 스위치(learnsoon.js) — 누른 목록만 다시 그린다
+document.addEventListener(SOON_EVENT, e => {
+  const host = e.detail && e.detail.from && e.detail.from.closest ? e.detail.from.closest("#cl-dev, #cl-python, #cl-part") : null;
+  if (!host) return;
+  if (host.id === "cl-dev") clRenderBranch(host, "dev");
+  else if (host.id === "cl-python") clRenderBranch(host, "python");
+  else clRenderPart(host, tabStore.get(PART_KEY));   // 부 목차 — 보던 부는 clRenderPart 가 탭 기록에 남겨 둔다
+});
 
 // ── 화면 진입 ───────────────────────────────────────────────────────
 export function onConceptLearnViewActivated(view) {

@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 288,
+ "count": 289,
  "routers": 43,
  "routes": [
   {
@@ -2720,7 +2720,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 29,
+   "line": 33,
    "errors": [
     "404",
     "422"
@@ -2752,7 +2752,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 46,
+   "line": 50,
    "errors": [
     "404",
     "422"
@@ -2783,7 +2783,7 @@
     "RFP2-3.1.4-④"
    ],
    "file": "app/routes/ml.py",
-   "line": 95,
+   "line": 125,
    "errors": [
     "422"
    ],
@@ -2808,7 +2808,7 @@
    "part": "P-C",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 114,
+   "line": 144,
    "errors": [],
    "keys": [
     "risk_profile",
@@ -2844,7 +2844,7 @@
    "part": "P-C",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 124,
+   "line": 154,
    "errors": [
     "404",
     "409",
@@ -2881,7 +2881,7 @@
     "RFP2-3.1.4-④"
    ],
    "file": "app/routes/ml.py",
-   "line": 148,
+   "line": 178,
    "errors": [
     "422"
    ],
@@ -2916,7 +2916,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 362,
+   "line": 414,
    "errors": [],
    "keys": [
     "questions",
@@ -2940,7 +2940,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 368,
+   "line": 420,
    "errors": [
     "422"
    ],
@@ -2965,7 +2965,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 378,
+   "line": 430,
    "errors": [
     "422"
    ],
@@ -2996,7 +2996,7 @@
    "part": "P-D",
    "req": [],
    "file": "app/routes/ml.py",
-   "line": 390,
+   "line": 442,
    "errors": [
     "422"
    ],
@@ -3030,7 +3030,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 413,
+   "line": 465,
    "errors": [
     "404",
     "422"
@@ -3062,7 +3062,7 @@
     "P01-④-1"
    ],
    "file": "app/routes/ml.py",
-   "line": 430,
+   "line": 482,
    "errors": [
     "404",
     "422"
@@ -3381,8 +3381,7 @@
    ],
    "hosts": [],
    "screens": [
-    "notification-settings",
-    "robo-patterns"
+    "mypage"
    ],
    "part": "P-B",
    "req": [
@@ -3437,8 +3436,7 @@
     "ptb.discord.com"
    ],
    "screens": [
-    "notification-settings",
-    "robo-patterns"
+    "mypage"
    ],
    "part": "P-B",
    "req": [
@@ -3480,7 +3478,7 @@
     "ptb.discord.com"
    ],
    "screens": [
-    "notification-settings"
+    "mypage"
    ],
    "part": "P-B",
    "req": [
@@ -3509,7 +3507,7 @@
    ],
    "hosts": [],
    "screens": [
-    "notification-settings"
+    "mypage"
    ],
    "part": "P-B",
    "req": [
@@ -4991,9 +4989,7 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [
-    "paper-openapi"
-   ],
+   "screens": [],
    "part": "P-B",
    "req": [
     "P02-②-3"
@@ -5018,9 +5014,7 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [
-    "paper-openapi"
-   ],
+   "screens": [],
    "part": "P-B",
    "req": [
     "P02-②-3"
@@ -5047,9 +5041,7 @@
     "PostgreSQL"
    ],
    "hosts": [],
-   "screens": [
-    "paper-openapi"
-   ],
+   "screens": [],
    "part": "P-B",
    "req": [
     "P02-②-3"
@@ -5846,7 +5838,7 @@
    "reaches": [],
    "hosts": [],
    "screens": [
-    "paper-openapi"
+    "mypage"
    ],
    "part": "P-B",
    "req": [
@@ -7773,6 +7765,34 @@
    "schema": true
   },
   {
+   "id": "API-DATA-19",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/indicators/table",
+   "summary": "한 쪽 분량의 지표 표 — 서버가 필터 · 정렬 · 쪽 자르기까지 한다. 값은 지표 대시보드(`/indicators`)와 같은 서비스 결과.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
+   "screens": [
+    "company-compare"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 260,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
    "id": "API-DATA-11",
    "router": "data",
    "method": "GET",
@@ -7789,7 +7809,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 261,
+   "line": 287,
    "errors": [
     "503"
    ],
@@ -8302,7 +8322,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
-   "line": 26,
+   "line": 27,
    "errors": [
     "?"
    ],
@@ -8323,12 +8343,13 @@
    ],
    "hosts": [],
    "screens": [
+    "quant-dashboard",
     "signal-rank"
    ],
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
-   "line": 41,
+   "line": 43,
    "errors": [
     "422",
     "?"
@@ -8354,7 +8375,7 @@
    "part": "미배정",
    "req": [],
    "file": "app/routes/stock_hub.py",
-   "line": 64,
+   "line": 66,
    "errors": [],
    "keys": [
     "items",

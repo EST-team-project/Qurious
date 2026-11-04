@@ -25,7 +25,7 @@
   {
    "key": "일정",
    "name": "일정",
-   "items": 4
+   "items": 5
   },
   {
    "key": "뉴스",
@@ -188,6 +188,33 @@
    "tag": "공개 자료",
    "terms": "고시는 저작권 보호 대상이 아니다(저작권법 제7조) · 고시 제2024-2호(11차 · 2024-07-01 시행)",
    "release": "고시가 바뀔 때 — 7일마다 원본 파일 지문을 맞춰 본다"
+  },
+  {
+   "key": "kostat",
+   "name": "국가데이터처",
+   "org": "국가데이터처 누리집 — 보도계획",
+   "kind": "바깥",
+   "tag": "공개 자료",
+   "terms": "공식 누리집에 공개된 발표 날짜(사실) — 보도계획 쪽에는 공공누리 표시가 없다",
+   "release": "해마다 발표 · 사정에 따라 바뀜 — 7일에 한 번 다시 확인한다"
+  },
+  {
+   "key": "bls",
+   "name": "미국 노동통계국",
+   "org": "노동통계국 누리집 — 발표 일정 달력",
+   "kind": "바깥",
+   "tag": "공개 자료",
+   "terms": "미국 정부 공공 저작물 — 출처 표시를 요청한다",
+   "release": "수시로 더해짐 — 7일에 한 번 다시 확인한다"
+  },
+  {
+   "key": "bea",
+   "name": "미국 경제분석국",
+   "org": "경제분석국 누리집 — 발표 일정 달력",
+   "kind": "바깥",
+   "tag": "공개 자료",
+   "terms": "미국 정부 공공 저작물 — 출처 표시",
+   "release": "수시로 더해짐 — 7일에 한 번 다시 확인한다"
   }
  ],
  "items": [
@@ -3244,7 +3271,7 @@
        {
         "name": "일정 종류",
         "unit": "코드",
-        "text": "agm 주주총회 · dividend_pay 배당금 지급",
+        "text": "agm 주주총회 · dividend_pay 배당금 지급 · offer_sub 공모 청약 · offer_pay 공모 납입",
         "dev": {
          "col": "kind",
          "type": "TEXT",
@@ -7256,6 +7283,138 @@
         "text": "읽은 고시 파일의 지문",
         "dev": {
          "col": "source_sha256",
+         "type": "TEXT",
+         "key": false
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "key": "econ-releases",
+   "group": "일정",
+   "name": "경제지표 발표일",
+   "line": "국가데이터처 · 미국 노동통계국 · 미국 경제분석국이 미리 알린 통계 발표 날짜",
+   "scope": "공개된 발표 일정(국가데이터처는 그해 보도계획 · 미국은 받은 달력에 실린 해)",
+   "update": "7일에 한 번",
+   "sources": [
+    "kostat",
+    "bls",
+    "bea"
+   ],
+   "tag": "공개 자료",
+   "how": "세 곳의 공식 일정에서 받는다 — 받은 날 이후의 일정은 새로 받은 것으로 바꾸고 지난 일정은 그대로 둔다",
+   "processing": "통계 발표가 아닌 행사 · 포상 소식은 뺀다 · 미국 일정은 미국 날짜 · 동부 시각 그대로 둔다",
+   "uses": "일정의 한국 · 미국 경제지표",
+   "avoid": "한국은행 통계 발표 일정은 들어 있지 않다",
+   "views": [
+    "market-calendar"
+   ],
+   "read_hint": "",
+   "note": "미국 일정의 날짜 · 시각은 미국 동부 기준이다 — 한국에서는 같은 날 밤이거나 다음 날이다",
+   "grid": "",
+   "dev": {
+    "tables": [
+     "econ_release"
+    ],
+    "keys": "source + release_date + title",
+    "read": "API-CAL-02 GET /api/calendar/events?kind=econ_kr,econ_us",
+    "backup": "krx-daily-market econ_release",
+    "command": "python -m collector.econ_calendar fetch --force"
+   },
+   "stats_from": {
+    "status": [],
+    "backup": "hf:econ_release"
+   },
+   "columns": {
+    "count": 8,
+    "filled": 8,
+    "tables": [
+     {
+      "title": "경제지표 발표 일정",
+      "count": 8,
+      "dev": {
+       "table": "econ_release"
+      },
+      "cols": [
+       {
+        "name": "출처",
+        "unit": "코드",
+        "text": "kostat 국가데이터처 보도계획 · bls 미국 노동통계국 · bea 미국 경제분석국",
+        "dev": {
+         "col": "source",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "발표 날짜",
+        "unit": "날짜",
+        "text": "2026-11-03 꼴 — 발표 나라의 날짜(국가데이터처는 한국 · 미국 둘은 미국 동부)",
+        "dev": {
+         "col": "release_date",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "발표 이름",
+        "unit": "글",
+        "text": "출처가 적은 이름 그대로(예 「2026년 10월 소비자물가동향」 · 「Employment Situation」)",
+        "dev": {
+         "col": "title",
+         "type": "TEXT",
+         "key": true
+        }
+       },
+       {
+        "name": "발표 시각",
+        "unit": "시각",
+        "text": "현지 시각 — 모르면 빈칸",
+        "dev": {
+         "col": "release_time",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "시간대",
+        "unit": "코드",
+        "text": "KST 한국 시각 · ET 미국 동부 시각",
+        "dev": {
+         "col": "tz",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "자세히",
+        "unit": "글",
+        "text": "담당과처럼 출처가 준 덧붙임",
+        "dev": {
+         "col": "detail",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "출처 주소",
+        "unit": "주소",
+        "text": "일정을 받은 공식 쪽",
+        "dev": {
+         "col": "source_url",
+         "type": "TEXT",
+         "key": false
+        }
+       },
+       {
+        "name": "받은 시각",
+        "unit": "시각",
+        "text": "한국 시각",
+        "dev": {
+         "col": "fetched_at",
          "type": "TEXT",
          "key": false
         }

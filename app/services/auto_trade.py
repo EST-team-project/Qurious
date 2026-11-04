@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services import signal_freshness
 from app.services.stock import get_quant_indicators, QUANT_STOCKS
 from app.database.postgres import get_session_factory
 from app.models import BrokerSettings, Order, Portfolio, QuantVirtualAccount, PORTFOLIO_BOOK_QUANT, LiveOrder, LIVE_ORDER_OPEN_STATUSES
@@ -933,14 +934,22 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
             await set_enabled(db, uid, False)   # 비상 정지 상태면 자동매매 플래그도 내린다
             return
 
+        # 낡은 일봉의 꼬리 보강은 그 사용자 자기 KIS 키로(약관상 개인 업무 · 게이트웨이가 꺼져 있어도 동작) — 키가 없으면 게이트웨이, 둘 다 없으면 보류
+        tail_fetch = None
+        try:
+            tail_client, _ = kis_execution.client_for(broker_row)
+            tail_fetch = signal_freshness.user_kis_fetcher(tail_client)
+        except Exception:
+            tail_fetch = None
         price_map: dict[str, float] = {}
         indicator_map: dict[str, dict] = {}
         stock_map = {s["symbol"]: s for s in QUANT_STOCKS}
 
         for stock in QUANT_STOCKS:
             try:
-                indicators = (await aggressive_mode.get_intraday_indicators(stock["symbol"]) if aggressive
-                              else await get_quant_indicators(stock["symbol"], "2y"))
+                with signal_freshness.for_trading(tail_fetch, str(uid)):   # 낡은 일봉이면 KIS 확정 일봉을 메모리로만 보강(신선도 가드)
+                    indicators = (await aggressive_mode.get_intraday_indicators(stock["symbol"]) if aggressive
+                                  else await get_quant_indicators(stock["symbol"], "2y"))
                 indicator_map[stock["symbol"]] = indicators
                 signal = indicators.get("signal", {})
                 price = indicators.get("current_price")
@@ -988,7 +997,8 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                         stock_map[symbol] = {"symbol": symbol, "name": symbol}
                     if symbol not in indicator_map:
                         try:
-                            indicator_map[symbol] = await get_quant_indicators(symbol, "2y")
+                            with signal_freshness.for_trading(tail_fetch, str(uid)):
+                                indicator_map[symbol] = await get_quant_indicators(symbol, "2y")
                             price_map[symbol] = float(indicator_map[symbol]["current_price"])
                         except Exception:
                             cycle_log["signals"].append({"symbol": symbol, "error": "카드 종목 지표 계산 실패"})
@@ -1201,6 +1211,16 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 continue
             indicators = indicator_map.get(symbol) or {}
             signal = indicators.get("signal", {})
+            fresh = indicators.get("freshness") or {}
+            if fresh.get("state") == "stale" and symbol not in risk_stops:
+                # 직전 거래일 확정 종가가 없는 낡은 신호로는 주문하지 않는다(위험 매도는 실시간 시세로 판단하므로 제외)
+                wait = (f"일봉 기준일 {fresh.get('as_of') or '없음'} — 직전 거래일 확정 종가({fresh.get('expected')})가 아직 없어 "
+                        f"신호 주문을 보류합니다(보강: {fresh.get('tail') or '없음'})")
+                cycle_log["signals"].append({"symbol": stock["symbol"], "name": stock["name"], "price": indicators.get("current_price"),
+                                             "action": "데이터 대기", "score": 0,
+                                             "basis": {"as_of": fresh.get("as_of"), "expected": fresh.get("expected"), "freshness": fresh},
+                                             "reasons": [wait]})
+                continue
             if strategy_spec:
                 try:
                     validate_rule_input(strategy_spec, indicators)
@@ -1263,6 +1283,10 @@ async def _run_quant_cycle(user_id: str = "quant_system") -> None:
                 execution_basis = {"signal_price": price, "signal_as_of": indicators.get("as_of"),
                                    "quote": q, "price_delta_pct": round((q["price"] / price - 1) * 100, 4)}
                 reasons = [*reasons, f"판단 {price:,.0f}원({indicators.get('as_of') or '기준일 미확인'}) → 주문 전 조회 {q['price']:,.0f}원 · {q['label']}"]
+                gap_warn = float(app_settings.SIGNAL_PRICE_GAP_WARN_PCT or 0)
+                if gap_warn > 0 and abs(execution_basis["price_delta_pct"]) >= gap_warn:   # 막지 않고 경고만 — 기준은 쌓인 기록으로 정한다(조사 2026-11-04)
+                    execution_basis["price_gap_warning"] = True
+                    reasons = [*reasons, f"⚠ 판단가와 주문 직전 가격 차이 {execution_basis['price_delta_pct']:+.2f}% (경고 기준 {gap_warn:g}%)"]
                 price = q["price"]
                 price_map[symbol] = price
                 held = next((p for p in portfolio_rows if p.symbol == symbol), None)

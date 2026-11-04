@@ -203,9 +203,11 @@ function videoHtml(viewKey, video) {
 }
 
 /** 창 안 — 머리(사용법 · 화면 이름 · 닫기) → 요약 → 영상 칸(있을 때만) → 이렇게 써요 → 이 화면의 용어 → 끝줄. */
-export function howtoHtml(viewKey, guide, { terms = {}, label = "", video = null } = {}) {
+export function howtoHtml(viewKey, guide, { terms = {}, label = "", video = null, hideLearn = null } = {}) {
   const chips = (guide.relatedTerms || []).filter((k) => terms[k]);
-  const learn = learnOf(viewKey);
+  // hideLearn — 숨길 장 이름 묶음(준비 중인 장 · 기본 설정). 비어 있거나 없으면 표의 장을 그대로 잇는다
+  const found = learnOf(viewKey);
+  const learn = found && !(hideLearn && hideLearn.has(found.slug)) ? found : null;
   const foot = [
     learn ? `<a class="q-howto-link" href="#learn/${esc(learn.slug)}" data-howto="leave">개념 학습 「${esc(learn.title)}」 →</a>` : "",
     viewKey !== "fin-glossary" ? `<a class="q-howto-link" href="#fin-glossary" data-howto="leave">용어사전에서 더 찾기 →</a>` : "",

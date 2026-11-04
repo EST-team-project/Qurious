@@ -1,7 +1,8 @@
 /* 공통 셸: GNB/LNB 내비게이션, 용어 글로서리·툴팁·사용법 가이드, 비교 트레이, 시세 티커, 동기화 배지, 모달
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
-import { resolveView } from "/js/viewalias.js";   // 「성과 검증 (Python)」 은 전략 분석 화면의 탭 — 옛 주소를 합친 화면으로 잇는다(2026-10-30 · ①-18)
+import { compareTrayAnalysisHtml, copyComparison } from "/js/comparetray.js";   // 비교 트레이 분석 · 분석 메모 복사(2026-11-04 · D8)
+import { resolveView, MYPAGE_HOSTED } from "/js/viewalias.js";   // 「성과 검증 (Python)」 은 전략 분석 화면의 탭 — 옛 주소를 합친 화면으로 잇는다(2026-10-30 · ①-18)
 
 // ── 한국식 금액 표기 · Y축 라벨 (이슈 #220) ────────────────────
 // 1억 이상은 "억", 1만 이상은 "만", 그 외 원. 9천만 ~ 1.1억 구간은 원 단위로
@@ -98,6 +99,7 @@ const GNB_MENUS = {
     items: [
       { key: "quant-dashboard", icon: "fa-solid fa-gauge-high",      label: "퀀트 대시보드" },
       { key: "quant-auto",      icon: "fa-solid fa-robot",           label: "자동매매 현황" },
+      { key: "kis-results",     icon: "fa-solid fa-receipt",         label: "KIS 모의투자 결과" },   // 2026-11-04 새 화면 — 내 주문만 · 필터 · CSV (강사님 D1 축소판 · js/kis-results.js)
       { key: "quant-backtest",  icon: "fa-solid fa-flask",           label: "전략 분석" },
       { key: "quant-lean",      icon: "fa-brands fa-docker",         label: "LEAN 백테스트 (QuantConnect)" },
     ],
@@ -117,8 +119,8 @@ const GNB_MENUS = {
       { key: "indicator-strategy",  icon: "fa-solid fa-chart-line",     label: "기본 인디케이터 전략" },
       { key: "indicator-custom",    icon: "fa-solid fa-code",           label: "커스텀 인디케이터 개발" },
       { key: "indicator-formula",   icon: "fa-solid fa-square-root-variable", label: "자유 산식 지표 (DSL·버전)" },
-      { key: "indicator-api",       icon: "fa-solid fa-plug",           label: "증권사 API 자동화" },
-      { key: "indicator-tradingview", icon: "fa-solid fa-satellite-dish", label: "TradingView 연동 (Webhook·교차검증)" },
+      { key: "indicator-api",       icon: "fa-solid fa-plug",           label: "증권사 API 자동화 (참고 자료)" },
+      { key: "indicator-tradingview", icon: "fa-solid fa-satellite-dish", label: "외부 차트 알림 연동 (Webhook·교차검증)" },
       { key: "company-dashboard",   icon: "fa-solid fa-gauge",          label: "지표 대시보드" },
       { key: "company-compare",     icon: "fa-solid fa-table-columns",  label: "지표 비교 분석" },
       { key: "company-sector",      icon: "fa-solid fa-layer-group",    label: "섹터 인디케이터" },
@@ -131,7 +133,7 @@ const GNB_MENUS = {
       { key: "ml-regression",  icon: "fa-solid fa-chart-line",      label: "회귀 분석" },
       { key: "ml-cluster",     icon: "fa-solid fa-circle-nodes",    label: "종목 군집화" },
       { key: "ml-tune",        icon: "fa-solid fa-sliders",         label: "하이퍼파라미터 튜닝" },
-      { key: "ml-deeplearning",icon: "fa-solid fa-brain-circuit",   label: "딥러닝 (LSTM·Transformer)" },
+      { key: "ml-deeplearning",icon: "fa-solid fa-brain-circuit",   label: "딥러닝 (참고 자료)" },
     ],
   },
   invest: {
@@ -287,7 +289,7 @@ const VIEW_GUIDES = {
   "agent-news":      { summary: "전자공시 공시 · 정책뉴스 · 언론사 기사 제목을 낱말 · 종목 · 주제 · 기간으로 찾습니다(AI 가 답을 쓰지 않는 검색 화면).", steps: ["낱말(예: 반도체, 유상증자)을 넣고 검색하세요 — 낱말이 있으면 관련도순, 없으면 최신순입니다.", "왼쪽 거름 칸에서 종류 · 주제 · 기간을 고르면 종류마다 몇 건인지 함께 바뀝니다.", "종목을 고르면 그 종목의 공시 · 기사 · 일정이 날짜 한 줄(시간표)로 바뀝니다. 근거를 단 답은 「AI 투자 상담」 에서 물어보세요."], relatedTerms: [] },
   // 데이터 관제 · 일정 (2026-10-02) — js/datahub.js · js/calendar.js
   "data-status":     { summary: "모은 자료가 며칠 것까지 있는지, 매일 낮 12시 30분 갱신이 돌았는지 한 화면에서 봅니다.", steps: ["위의 카드 넷에서 판정 · 주식 시세 기준일 · 낮 갱신 · 팀 공유 저장소를 먼저 보세요.", "「자료별 기준일」 표에서 늦은 자료가 있는지 보세요 — 「정상」 은 하루 밀림(시세는 다음 날 낮에 들어옵니다)입니다.", "어느 화면에서든 위 메뉴의 「자료 MM-DD · 판정」 을 누르면 요약이 열립니다."], relatedTerms: [] },
-  "market-calendar": { summary: "휴장 · 파생 만기 · 금통위 · FOMC · 보고서 기한 · 배당 · 주주총회 · 실적 발표를 한 달 달력으로 봅니다.", steps: ["‹ › 로 달을 옮기고, 위의 종류 단추로 보고 싶은 일정만 고르세요.", "칸에는 시장 전체 일정은 이름, 종목 일정은 종류별 개수(주총 731)가 보입니다 — 날짜나 숫자를 누르면 오른쪽에 그날 목록이 50건씩 열립니다(휴대폰은 서랍).", "그날 목록에서 회사 이름 · 종목 코드로 찾고, 줄을 누르면 날짜 · 어떻게 정했는지 · 풀이가 열립니다. 모의계좌에 가진 종목은 맨 위에 ★ 로 올립니다."], relatedTerms: [] },
+  "market-calendar": { summary: "휴장 · 파생 만기 · 금통위 · FOMC · 한국·미국 경제지표 · 보고서 기한 · 배당 · 주주총회 · 실적 발표 · 공모 청약·납입을 한 달 달력으로 봅니다.", steps: ["‹ › 로 달을 옮기고, 위의 종류 단추로 보고 싶은 일정만 고르세요(경제지표가 많아 칸이 빽빽하면 그 단추를 꺼 보세요).", "칸에는 시장 전체 일정은 이름, 종목 일정은 종류별 개수(주총 731)가 보입니다 — 날짜나 숫자를 누르면 오른쪽에 그날 목록이 50건씩 열립니다(휴대폰은 서랍).", "그날 목록에서 회사 이름 · 종목 코드로 찾고, 줄을 누르면 날짜 · 어떻게 정했는지 · 풀이가 열립니다. 모의계좌에 가진 종목은 맨 위에 ★ 로 올립니다."], relatedTerms: [] },
   "data-guide":      { summary: "우리가 모으는 자료의 구성 · 모으는 길 · 읽을 자료를 한 화면에서 봅니다.", steps: ["위의 숫자 띠에서 자료 묶음 · 출처 · 모은 기간 · 매일 낮 수집 · 모은 줄을 먼저 보세요 — 칸을 누르면 그 절로 내려갑니다.", "「연도별로 얼마나 있나」 의 칸이나 「자료 목록」 의 줄을 누르면 오른쪽에 그 자료 한 장이 열립니다. 닫기 · Esc 로 닫습니다.", "「무엇을 읽나」 에서 하려는 일을 찾아 「어디서」 의 화면으로 가세요. 지금 자료가 며칠 것까지 있는지는 데이터 관제에서 봅니다."], relatedTerms: [] },
   // 데이터 수집 화면 셋 (2026-10-08) — js/collect.js · 관리자 화면
   "crawl-auto":      { summary: "매일 낮 12시 30분 수집 회차가 자료를 받고 · 계산하고 · 백업한 결과를 단계마다 봅니다(관리자).", steps: ["위의 카드 넷에서 마지막 회차 · 결과 · 자료 기준일 · 다음 회차를 먼저 보세요.", "회차 고르기에서 지난 회차를 고르면 그 회차의 단계 표로 바뀝니다 — 한 단계만 다시 돌린 기록은 따로 표시됩니다.", "한 단계만 다시 돌리려면 그 줄의 「이 단계만 다시」 를 눌러 나오는 명령을 이 PC 에서 돌리세요. 수집이 도는 동안(12:30 ~ 13:30)에는 막힙니다."], relatedTerms: [] },
@@ -303,6 +305,7 @@ const VIEW_GUIDES = {
   "quant-lean":      { summary: "Yahoo Finance 일봉을 QuantConnect LEAN 엔진(Docker)에서 실행해 전략 수익률·MDD·샤프를 검증합니다.", steps: ["예시를 고르거나 전략·티커·기간을 직접 입력하세요.", "'검증 실행'을 누르면 LEAN 컨테이너가 실행되고(수 분 소요) pandas 지표와 함께 결과가 표시됩니다.", "LEAN이 연결되지 않은 환경에서는 pandas 계산 결과만 표시됩니다."], relatedTerms: ["backtest", "sharpe", "mdd"] },
   "trading-order":   { summary: "가상 잔고로 매수/매도 주문을 내고 체결 내역을 확인합니다.", steps: ["매수/매도, 수량, 가격을 입력해 주문하세요.", "증권사 API를 연동하면 실제 계좌 데이터로도 확인할 수 있습니다."], relatedTerms: ["broker_api", "paper_trading"] },
   "quant-dashboard": { summary: "대표 종목들의 시세와 퀀트 시그널을 한눈에 봅니다.", steps: ["시장 지수 카드와 종목별 매수/매도 시그널 카드를 확인하세요.", "차트에서 종목을 바꿔가며 지표 흐름을 살펴보세요."], relatedTerms: ["signal", "rsi", "ma"] },
+  "kis-results":     { summary: "한국투자증권 모의투자 계좌로 낸 내 주문의 기록을 상태별로 보고, 조건으로 걸러 CSV 로 내려받습니다. 실거래 주문이 아닙니다.", steps: ["위 요약 카드에서 체결 · 접수 · 대기 · 거부 · 확인 필요 건수를 확인하세요.", "상태 · 방향 · 기간 · 검색어로 거른 뒤 표에서 주문번호와 상태를 확인하세요. 영문 코드는 한국어 낱말 옆에 작게 적혀 있습니다.", "'CSV 내려받기'는 지금 조건에 맞는 주문을 담습니다(최근 2,000건까지). 앱에 저장된 주문 기록이라 증권사 전체 체결 내역과 다를 수 있습니다."], relatedTerms: ["paper_trading", "broker_api"] },
   "quant-auto":      { summary: "10분 주기 자동매매를 시작/중지하고 실행 로그를 확인합니다.", steps: ["'시작'을 누르면 설정된 종목·전략으로 자동매매가 실행됩니다.", "로그에서 각 사이클의 매매 내역과 사유를 확인하세요.", "실거래 전 반드시 '증권사 API 설정'에서 모의(paper) 모드로 충분히 검증하세요."], relatedTerms: ["auto_trade_cycle", "virtual_account", "paper_trading"] },
   "quant-backtest":  { summary: "선택한 종목에 규칙 기반 시그널을 적용해 10년치 백테스트 성과를 확인합니다.", steps: ["종목을 고르고 '분석'을 누르면 지표와 규칙 신호가 계산됩니다.", "체결 시점(종가·시가)을 정하고 '전략 백테스트'를 누르면 전략 성과가 나옵니다.", "누적수익률·샤프지수·MDD·승률을 Buy&Hold와 비교해보세요."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate"] },
   "settings":        { summary: "실거래를 위한 증권사 API 키(앱키/시크릿키/계좌번호)를 등록합니다.", steps: ["증권사를 선택하고 발급받은 앱키·시크릿키를 입력하세요.", "'연결 테스트'로 정상 연동 여부를 먼저 확인한 뒤 저장하세요.", "모의(paper) 모드로 충분히 테스트한 후 실거래로 전환하는 것을 권장합니다."], relatedTerms: ["broker_api", "broker_catalog", "paper_trading"] },
@@ -313,13 +316,13 @@ const VIEW_GUIDES = {
   "us-portfolio":    { summary: "미국 주식 보유를 원화 모의 계좌 기준으로 확인합니다.", steps: ["평균단가 · 평가금액 · 손익은 원화(환율을 곱한 체결가)이고, 현재가 아래 작은 글이 달러 시세입니다.", "표 아래 환율 글에서 어떤 환율을 썼는지(받은 환율 · 대체 환율) 확인하세요."], relatedTerms: ["virtual_account"] },
   "indicator-strategy": { summary: "MA·RSI 등 기본 인디케이터로 매매 전략을 직접 설계하고 신호를 확인합니다.", steps: ["종목·기간을 선택하고 사용할 인디케이터를 체크하세요.", "'분석 실행'으로 지표값과 매수/매도 판단 근거를 확인하세요."], relatedTerms: ["rsi", "ma", "macd", "bollinger", "golden_cross", "dead_cross"] },
   "robo-rebalance": { summary: "모의투자 계좌를 목표 비중으로 되돌리는 리밸런싱 엔진입니다. 시간·이탈률·입출금/배당 3가지 트리거를 설정할 수 있습니다.", steps: ["종목코드와 목표 비중(%)을 추가하고 '플랜 저장'을 누르세요. 합계가 100% 미만이면 나머지는 현금 비중입니다.", "① 시간 기반: 월·분기·연 주기 도래 시, ② 이탈률 기반: 현재 비중이 목표에서 허용 %p 이상 벗어나면, ③ 현금흐름 기반: 입금·출금·배당이 최소금액 이상 발생하면 리밸런싱합니다.", "'자동 체결'을 끄면 트리거 충족 시 제안만 생성되고, 실행 이력에서 '승인·체결'로 직접 확정합니다.", "'주문 산출' → '제안 체결'로 언제든 수동 리밸런싱할 수 있습니다."], relatedTerms: ["rebalancing", "drift", "mdd"] },
-  "indicator-tradingview": { summary: "TradingView 알림을 Webhook으로 받아 모의계좌 체결·알림 전달하고, Strategy Tester 성과를 LEAN 백테스트와 교차 검증합니다.", steps: ["모의투자 › Open API에서 API 키를 발급받아 알림 메시지의 token에 넣습니다.", "TradingView 알림 생성 시 Webhook URL과 메시지 템플릿을 붙여 넣으면 buy/sell 알림이 모의계좌에 체결됩니다.", "Strategy Tester 성과를 입력(또는 거래 목록 CSV)하고 LEAN과 비교해 수익률·MDD·거래 횟수 차이와 원인을 확인합니다."], relatedTerms: ["pine_script", "sharpe", "mdd"] },
+  "indicator-tradingview": { summary: "외부 차트(TradingView)의 알림을 Webhook으로 받아 모의계좌 장부에 기록하고 알림으로 전달하며, Strategy Tester 성과를 LEAN 백테스트와 교차 검증합니다. 실제 주문을 내는 기능이 아닙니다.", steps: ["모의투자 › Open API에서 API 키를 발급받아 알림 메시지의 token에 넣습니다.", "TradingView 알림 생성 시 Webhook URL과 메시지 템플릿을 붙여 넣으면 buy/sell 알림이 모의계좌 장부에 기록되고 대조에 쓰입니다(실제 주문이 아닙니다).", "Strategy Tester 성과를 입력(또는 거래 목록 CSV)하고 LEAN과 비교해 수익률·MDD·거래 횟수 차이와 원인을 확인합니다."], relatedTerms: ["pine_script", "sharpe", "mdd"] },
   "robo-patterns": { summary: "캔들 패턴·지지/저항선·돌파 이벤트를 탐지하고 분봉·일봉·주봉을 종합한 매수·매도·관망 신호와 신뢰도를 보여줍니다.", steps: ["종목코드를 입력하고 분석을 실행하세요 (60분봉 1개월 · 일봉 1년 · 주봉 5년).", "종합 점수는 타임프레임별 지표 점수를 20/50/30% 가중 평균한 값이고, 신뢰도는 방향 일치도와 점수 크기를 반반 섞은 값입니다.", "지지·저항선은 피벗 고점/저점을 1% 허용 범위로 군집화해 터치 횟수로 강도를 매깁니다."], relatedTerms: ["rsi", "ma", "bollinger", "macd"] },
   "indicator-formula": { summary: "함수 조합 산식(DSL)으로 커스텀 지표와 매수·매도 조건을 정의하고, 버전 이력과 계산 결과를 저장·재사용합니다.", steps: ["템플릿을 불러오거나 indicator 산식을 직접 쓰고 '검증'으로 문법·이름을 확인합니다 (함수 레퍼런스 참고).", "'계산 실행'으로 차트·백테스트를 보고, 마음에 들면 이름을 붙여 저장합니다. 산식이 바뀌면 자동으로 새 버전이 생깁니다.", "버전 이력에서 과거 산식을 복원하고, 결과 이력에서 (버전·종목·기간)별 저장 결과를 다시 봅니다. Pine/Python 코드로 내보낼 수 있습니다."], relatedTerms: ["rsi", "bollinger", "sharpe", "mdd"] },
   "indicator-custom": { summary: "나만의 파라미터로 커스텀 인디케이터를 만들고 PineScript/Python 코드를 생성합니다.", steps: ["기준 조합(RSI+MA, MACD+BB 등)과 기간·임계값을 조정하세요.", "생성된 PineScript는 트레이딩뷰에, Python 코드는 직접 백테스트에 활용할 수 있습니다.", "'백테스트 실행'으로 이 앱에서 바로 성과를 검증할 수 있습니다.", "마음에 드는 조합은 '저장'해두면 다음에 목록에서 바로 불러올 수 있습니다."], relatedTerms: ["custom_indicator", "pine_script", "backtest"] },
   "indicator-backtest": { summary: "설계한 전략(기본/커스텀)의 파이썬 기반 성과를 검증합니다.", steps: ["종목과 전략을 고르고 '성과 검증 실행'을 누르세요. 이 탭에 처음 들어올 때는 한 번 자동으로 실행됩니다.", "수익률·샤프지수·MDD·승률로 전략의 위험 대비 성과를 판단하세요.", "'비교에 추가'로 여러 전략의 성과를 나란히 비교할 수 있습니다."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate", "cost_bps", "slippage"] },
   "indicator-api":   { summary: "완성한 인디케이터 전략을 증권사 API와 연결해 자동화하는 방법을 안내합니다.", steps: ["3단계 아키텍처(신호 계산→주문 생성→증권사 API 전송)를 확인하세요.", "증권사 API 설정 링크를 열어 키를 등록하고 연결을 테스트하세요."], relatedTerms: ["broker_api", "custom_indicator"] },
-  "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "개요/밸류에이션/수익성 탭과 분기·재무상태표 데이터를 확인하세요."], relatedTerms: ["dcf", "fcf"] },
+  "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "위쪽 구역 단추(가격·개요 / 실적 한눈에 / 밸류에이션·수익성 / 분기 실적·재무상태)로 보고 싶은 곳으로 이동하세요. 오른쪽 「기업 스냅샷」은 스크롤해도 따라옵니다.", "차트와 표의 숫자 옆에 기준일·출처가 적혀 있습니다 — 전자공시 재무와 수집 DB 값 그대로입니다."], relatedTerms: ["dcf", "fcf"] },
   "company-compare": { summary: "여러 기업의 핵심 지표를 표로 나란히 비교합니다.", steps: ["비교 표에서 기업별 지표 값을 확인하며 상대적 위치를 파악하세요."], relatedTerms: ["dcf", "eva"] },
   "company-sector":  { summary: "산업 섹터별 대표 지표와 흐름을 카드로 확인합니다.", steps: ["섹터 카드를 둘러보며 산업별 상대 강도를 비교하세요."], relatedTerms: ["sector_etf"] },
   "ml-compare":      { summary: "지난 시세로 학습한 모델들이 5거래일 뒤 오름 · 관망 · 내림을 얼마나 맞히는지, 아무것도 배우지 않은 기준선과 견줍니다(과거로 학습하고 바로 뒤 구간으로 시험).", steps: ["종목 · 기간을 고르고 '비교하기'를 누르세요 — 처음 계산은 10 ~ 30초, 한 번 계산한 결과는 저장돼 바로 보입니다.", "맨 위 문장과 카드로 「기준선을 뚜렷이 넘은 모델이 있나」 를 먼저 보세요 — 순위보다 이 판정이 중요합니다.", "'자세히'에서 겹마다 점수 · 표를 보고, '비교에 추가'로 여러 결과를 모아 볼 수 있습니다."], relatedTerms: ["cross_validation", "lightgbm", "mlp", "stacking"] },
@@ -354,7 +357,7 @@ const VIEW_GUIDES = {
   "learn-python":    { summary: "파이썬 중급 — 우리 코드에 쓰인 import · 타입 힌트 · 데이터 그릇 · 인터페이스 · 예외 처리 · 문자열을 차례로 읽습니다.", steps: ["장 카드를 누르면 바로 읽습니다.", "6.1 부터 차례로 읽으면 앞 장이 다음 장의 바탕이 됩니다."], relatedTerms: [] },
   "learn-part":      { summary: "부 목차 — 한 부의 장을 차례대로 보고 골라 읽습니다.", steps: ["「첫 장부터 읽기」 · 「이어 읽기」 는 아직 열지 않은 첫 장으로 갑니다.", "맨 아래에서 앞뒤 부로 옮기거나 갈래 전체로 돌아갑니다."], relatedTerms: [] },
   "learn-page":      { summary: "장 한 편을 읽습니다 — 머리에 부 · 번호 · 먼저 읽을 장, 왼쪽에 이 장의 차례가 있습니다.", steps: ["왼쪽 차례를 누르면 그 절로 내려갑니다.", "코드 상자의 「복사」 로 예제를 옮겨 직접 돌려 보세요.", "맨 아래 앞뒤 장으로 이어 읽고, 머리의 「←」 로 목차에 돌아갑니다."], relatedTerms: [] },
-  "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴하고, 증권사 · 알림 · Open API 설정의 요약을 봅니다.", steps: ["왼쪽 목록에서 구역(내 정보 · 보안 · 증권사 연동 · 알림 · 외부 연동 · 화면 설정 · 위험 구역)을 고릅니다. 휴대폰에서는 목록을 먼저 보고, 구역을 누르면 본문이 열립니다.", "증권사 연동 · 알림 · 외부 연동 구역에는 요약만 보입니다. 「열기」 를 누르면 해당 설정 화면으로 갑니다. 「키 있음」 은 저장된 값이 있다는 뜻이며 증권사와 연결을 시험한 결과가 아닙니다.", "이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
+  "mypage":          { summary: "내 계정 정보를 보고 이름 · 비밀번호를 바꾸거나 탈퇴하고, 증권사 · 알림 · Open API 설정의 요약을 봅니다.", steps: ["왼쪽 목록에서 구역(내 정보 · 보안 · 증권사 연동 · 알림 · 외부 연동 · 화면 설정 · 위험 구역)을 고릅니다. 휴대폰에서는 목록을 먼저 보고, 구역을 누르면 본문이 열립니다.", "증권사 연동 · 알림 · 외부 연동 구역에서 설정 본체를 바로 고칩니다. 「키 있음」 은 저장된 값이 있다는 뜻이며 증권사와 연결을 시험한 결과가 아닙니다.", "이메일(로그인 ID)은 대소문자를 가리지 않으며 바꿀 수 없습니다.", "비밀번호를 바꾸면 지금 기기를 뺀 다른 기기는 모두 로그아웃됩니다.", "탈퇴하면 모의투자 · 자동매매 장부와 설정이 즉시 삭제되어 되돌릴 수 없습니다."], relatedTerms: [] },
 };
 
 // ── 용어 모달 / 툴팁 / 사용법 패널 헬퍼 ─────────────────────────────
@@ -427,6 +430,7 @@ function compareTrayClear() {
 window.compareTrayAdd = compareTrayAdd;
 window.compareTrayRemove = compareTrayRemove;
 window.compareTrayClear = compareTrayClear;
+window.compareTrayCopy = () => copyComparison(compareTrayGet(), setToast);
 
 function renderCompareTray(containerId) {
   const el = document.getElementById(containerId);
@@ -452,12 +456,19 @@ function renderCompareTray(containerId) {
           </tr>`).join("")}</tbody>
         </table>
       </div>
+      ${compareTrayAnalysisHtml(list)}
     </div>`;
 }
 function renderCompareTrayAll() {
   COMPARE_TRAY_MOUNTS.forEach(renderCompareTray);
 }
 window.renderCompareTrayAll = renderCompareTrayAll;
+// 동기화 배지(app.html #sync-badge)의 onclick="triggerSync()" 는 전역 함수를 부른다 — 모듈 지역 함수는 닿지 않아 클릭이 ReferenceError 였다(2026-11-03 코드 검토).
+window.triggerSync = triggerSync;
+// 배지에 role="button" tabindex="0" 을 달았으므로 키보드(Enter · Space)로도 누른다.
+document.getElementById("sync-badge")?.addEventListener("keydown", event => {
+  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); triggerSync(); }
+});
 
 let currentGnb = "agent";
 let currentView = "agent-chat";
@@ -593,7 +604,7 @@ function navigate(viewKey) {
 
   // Show/hide views
   document.querySelectorAll(".view").forEach(el => {
-    el.classList.toggle("active", el.dataset.view === (shownView === "settings" ? "mypage" : shownView));
+    el.classList.toggle("active", el.dataset.view === (MYPAGE_HOSTED[shownView] ? "mypage" : shownView));
   });
   // 다른 화면으로 옮기면 내용 칸을 맨 위로 — 굴러가는 칸이 창이 아니라 #main-content 라 브라우저가 자리를 되돌려 주지 않아,
   // 앞 화면에서 내려간 자리를 물려받아 새 화면 중간에 떨어졌다(DF-134 · 2026-10-18 시연 영상을 찍다가 찾음)

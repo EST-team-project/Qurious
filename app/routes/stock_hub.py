@@ -2,6 +2,7 @@
 
 - GET /api/stock-hub?symbol=&sections= : 종목 하나의 근거 칸 묶음 — 종목 · 마지막 종가 · 다중 주기 신호 · 재무 건전성 ·
   최근 공시 · 최근 기사 · 앞으로의 일정 · 섹터(전자공시 업종코드 → KSIC 업종 이름). 칸마다 상태 · 기준일 · 출처 · 그 화면(`app/services/stock_hub.py`)
+  `signal_on=YYYY-MM-DD`(선택)이면 신호 칸만 그 날 이전 가장 가까운 기록으로 — 계산 시각 · 정기/늦게 계산 · 고른 날 줄이 없어 앞 날짜가 나왔는지(`fell_back`)를 싣는다
 - GET /api/stock-hub/mentions?q=      : 질문에 이름이 그대로 든 종목(최대 둘) — AI 투자 상담이 앱 판단 카드를 붙일 때 쓴다
 - GET /api/stock-hub/signal-rank      : 신호 기록 순위 — 종목마다 그날(또는 그날 이전 가장 가까운) 기록 한 줄을 종합 점수 순으로 ·
   줄마다 기준일 · 근거 개수(매수 쪽 · 중립 · 매도 쪽). 새 계산 없음(할 일 ②-19 · #197)
@@ -29,11 +30,12 @@ async def hub(
     sections: str | None = Query(None, max_length=120,
                                  description="쉼표로 고른 칸만(종목 칸은 늘 넣음) — identity · price · signal · financials · "
                                              "disclosures · news · schedule · sector · 비우면 전부"),
+    signal_on: date | None = Query(None, description="신호 칸을 볼 날짜(선택) — 그 날 이전(포함) 가장 가까운 기록 · 비우면 가장 최근 · 오늘보다 뒤면 422"),
     db=Depends(get_pg_session),
     user=Depends(get_current_user),
 ):
     try:
-        return await stock_hub.bundle(db, symbol, sections=sections, admin="admin" in user.get("roles", []))
+        return await stock_hub.bundle(db, symbol, sections=sections, admin="admin" in user.get("roles", []), signal_on=signal_on)
     except stock_hub.HubError as e:
         raise HTTPException(status_code=e.status, detail=e.detail()) from None
 

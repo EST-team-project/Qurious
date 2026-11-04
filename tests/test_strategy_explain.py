@@ -6,7 +6,10 @@ SHAP(다른 모델의 근거)은 이 응답에 붙이지 않는다. custom 은 �
 같은 화면(`indicator-backtest`)의 「비교에 추가」 단추 속성도 여기서 지킨다(#174).
 """
 import asyncio
+import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -174,3 +177,36 @@ def test_route_carries_data_note(monkeypatch):
         r = _call_route(monkeypatch, strategy)
         assert r.get("data_note"), strategy
         assert "trade_count" in r, strategy
+
+
+def test_backtest_symbol_is_the_same_stock_pick_as_tab_one():
+    """성과 검증 종목 칸은 다섯 고르기 상자가 아니라 탭 1 「전략 분석」 과 같은 종목 찾기 칸이다 — 대표 종목 · 최근 본 종목 ·
+    찾기 길이 같고, 고른 기호는 숨은 칸 `#ibt-symbol` 에 들어가 계산 · 커스텀 「계산 종목」 이 그대로 읽는다(#245 · 2026-11-03)."""
+    html = (_PUBLIC / "app.html").read_text(encoding="utf-8")
+    assert 'id="ibt-symbol-pick"' in html and '<input type="hidden" id="ibt-symbol" value="005930.KS" />' in html
+    assert '<select id="ibt-symbol"' not in html
+    js, quant = _indicator_js(), (_PUBLIC / "js" / "quant.js").read_text(encoding="utf-8")
+    assert 'import { mountStockPick, labelOf } from "/js/stockpick.js";' in js and "mountStockPick(ibtHost," in js
+    presets = re.compile(r"_PRESETS = \[(.*?)\];", re.S)
+    assert presets.search(js).group(1) == presets.search(quant).group(1), "대표 종목이 탭 1 과 다르다"
+    for needle in ('recentKey: "qurious.recent.quant-backtest"', "/api/stocks/search?q="):
+        assert needle in js and needle in quant
+    assert "selectedOptions" not in js  # 옛 고르기 상자를 읽던 곳이 남지 않는다
+    custom = _block(js, 'getElementById("ci-test-btn")', "// 초기 코드 생성")
+    assert "ibtLabel(symbol)" in custom
+
+
+def test_compare_entry_carries_symbol_and_data_period():
+    """「비교에 추가」 는 전략 이름 옆에 종목을, 요약 끝에 서버 자료 기간(`data_from` ~ `data_as_of`)을 싣는다 —
+    종목을 찾아 고를 수 있어 같은 전략의 다른 종목 · 다른 기간 결과가 트레이에서 갈리게(#250 · 2026-11-03)."""
+    js = _indicator_js()
+    backtest = _block(js, "function renderIndicatorBacktest", "function renderRuleExplain")
+    assert "label: `${strategyLabel} · ${ibtLabel(" in backtest and "+ comparePeriod(data)," in backtest
+    fn = re.search(r"const comparePeriod = (d => .*?);\n", js).group(1)
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node 없음")
+    cases = [{"data_from": "2020-01-02", "data_as_of": "2026-10-15"}, {"data_from": "2020-01-02"}, {}, None]
+    out = subprocess.run([node, "-e", f"const f = {fn}; console.log(JSON.stringify(JSON.parse(process.argv[1]).map(f)))",
+                          json.dumps(cases)], capture_output=True, text=True, encoding="utf-8", timeout=30, check=True)
+    assert json.loads(out.stdout) == [" · 자료 2020-01-02 ~ 2026-10-15", "", "", ""]

@@ -22,18 +22,24 @@ _cache: dict[str, tuple[float, Any]] = {}
 _transport: httpx.AsyncBaseTransport | None = None
 _FIXED_CARD = Path(__file__).resolve().parents[2] / "docs/phase-3/02-design/system/예시/strategy-card-ma-cross-v1.json"
 _FIXED_SHA256 = "50e0429740078e0b19aaa458cb394faefecc6e75073531f2fae985a87e8a0583"
+_FIXED_CARD_V2 = _FIXED_CARD.with_name("strategy-card-ma-cross-v2.json")
+_FIXED_SHA256_V2 = "5f78ae045394a8eee4656cc538d662612e3cee34f2cf6f55bca50fa4f67867a0"
 
 
 def is_fixed_test() -> bool:
     return settings.STRATEGY_SPEC_SOURCE == "fixed_test"
 
 
-def _fixed_card() -> dict | None:
+def _fixed_card(version: int = 1) -> dict | None:
     # 고정 입력을 합격 전략으로 취급하거나 같은 판의 규칙을 조용히 바꾸지 않는다.
+    if type(version) is not int or version not in (1, 2):
+        return None
+    path, expected_hash = ((_FIXED_CARD, _FIXED_SHA256) if version == 1
+                           else (_FIXED_CARD_V2, _FIXED_SHA256_V2))
     try:
         # Git의 Windows 줄바꿈 변환만 허용한다. 내용·공백 변경은 계속 거절한다.
-        raw = _FIXED_CARD.read_bytes().replace(b"\r\n", b"\n")
-        if hashlib.sha256(raw).hexdigest() != _FIXED_SHA256:
+        raw = path.read_bytes().replace(b"\r\n", b"\n")
+        if hashlib.sha256(raw).hexdigest() != expected_hash:
             return None
         return json.loads(raw)
     except (OSError, ValueError):
@@ -47,7 +53,7 @@ def set_transport(transport: httpx.AsyncBaseTransport | None) -> None:
 
 def is_configured() -> bool:
     if is_fixed_test():
-        return _fixed_card() is not None
+        return any(_fixed_card(version) is not None for version in (1, 2))
     return bool(settings.DOMAIN_RAG_LAB_BASE_URL)
 
 
@@ -81,8 +87,8 @@ async def _get(path: str) -> Any | None:
 
 async def list_strategies() -> list[dict[str, Any]]:
     if is_fixed_test():
-        card = _fixed_card()
-        return [{**card, "test_only": True, "source": "fixed_test"}] if card else []
+        return [{**card, "test_only": True, "source": "fixed_test"}
+                for version in (1, 2) if (card := _fixed_card(version)) is not None]
     data = await _get("/backtests/strategies")
     cards = data.get("strategies") if isinstance(data, dict) else None
     if not isinstance(cards, list):
@@ -96,7 +102,8 @@ async def get_strategy(strategy_id: str, version: int | None = None) -> dict[str
     if not strategy_id:
         return None
     if is_fixed_test():
-        card = _fixed_card()
+        # 판을 생략한 기존 호출은 판 1을 유지한다. 판 2는 명시적으로 선택한다.
+        card = _fixed_card(1 if version is None else version)
         if (card and strategy_id == card["strategy_id"]
                 and (version is None or type(version) is int and version == card["version"])):
             return card

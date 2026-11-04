@@ -391,7 +391,7 @@ document.getElementById("noti-consent-withdraw")?.addEventListener("click", asyn
 
 // ── 사건별 알림 설정 · 조용한 시간 (서버가 준 event_catalog 로 표를 그린다) ─────────────────
 const NOTI_SEV = { urgent: "긴급", important: "중요", normal: "일반", info: "참고" };
-const NOTI_SEV_COLOR = { urgent: "var(--red)", important: "var(--yellow, #f59e0b)", normal: "var(--text-dim)", info: "var(--text-mute)" };
+const NOTI_SEV_COLOR = { urgent: "var(--red)", important: "#b45309", normal: "var(--text-dim)", info: "var(--text-mute)" };
 const NOTI_MODES = [["on", "켜기"], ["silent", "조용히"], ["off", "끄기"]];
 
 function renderNotiPrefs(cfg) {

@@ -30,9 +30,14 @@ def _uid(user: dict) -> uuid.UUID:
         raise HTTPException(400, "유효하지 않은 사용자입니다.") from None
 
 
-@router.get("/stocks/us-market", summary="미국 정규장 상태 — 열림 · 닫힘 · 다음 정규장(KST)")
+def _market_with_order_support() -> dict:
+    """장 상태 + 「모의 장부가 미국 주식 매수를 받는가」(`order`) — 화면이 주문 단추 · 안내를 서버 정책과 맞추는 근거(이슈 #520)."""
+    return {**us_reserve.market_state(), "order": us_reserve.order_support()}
+
+
+@router.get("/stocks/us-market", summary="미국 정규장 상태 — 열림 · 닫힘 · 다음 정규장(KST) · 모의 장부의 매수 지원 여부")
 async def us_market():
-    return us_reserve.market_state()
+    return _market_with_order_support()
 
 
 @router.get("/stocks/reservations", summary="미국주식 예약 주문 목록 — 정규장이 이미 열린 예약은 그 시가로 먼저 체결")
@@ -40,7 +45,7 @@ async def reservations(user=Depends(get_current_user_any), db: AsyncSession = De
     uid = _uid(user)
     fired = await us_reserve.fill_due(db, uid)
     await db.commit()
-    return {"market": us_reserve.market_state(), "fired": fired,
+    return {"market": _market_with_order_support(), "fired": fired,
             "reservations": await us_reserve.list_reservations(db, uid), "note": us_reserve.NOTE}
 
 

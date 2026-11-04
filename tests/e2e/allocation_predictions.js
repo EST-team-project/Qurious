@@ -5,12 +5,17 @@ const $ = id => document.getElementById(id);
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
 const calls = [];
 window.fetch = async (path, options = {}) => {
-  calls.push({path, method: options.method});
+  calls.push({path, method: options.method, body: options.body ? JSON.parse(options.body) : null});
   let response;
   if (path === '/api/ml/robo/allocation/latest' && options.method === 'GET') {
     response = {id: 'old-result', saved_at: '2026-10-16T00:00:00Z', result: fixture};
   } else if (path === '/api/ml/robo/allocation' && options.method === 'POST') {
-    response = {...fixture, saved: {id: 'new-result', saved_at: '2026-10-19T00:00:00Z'}};
+    const input = JSON.parse(options.body);
+    response = {...fixture, allocation_model: input.allocation_model,
+      asset_model: input.allocation_model === 'black_litterman' ? {name:'Black–Litterman',model:'black_litterman',
+        as_of:'2026-10-30',observations:180,views:input.views,benchmark_source:'user',reference_allocations:input.benchmark_weights,
+        benchmark_note:'사용자 기준 균형 비중',method:'ETF 가격 수익률 대용치'} : null,
+      saved: {id: 'new-result', saved_at: '2026-10-19T00:00:00Z'}};
   } else throw Error('Unexpected request');
   return new Response(JSON.stringify(response), {status: 200, headers: {'Content-Type': 'application/json'}});
 };
@@ -29,5 +34,23 @@ try {
   check('saved date and controls survive normalization', $('robo-allocation-saved').textContent.includes('저장됨') && !$('robo-load-allocation').disabled && !$('robo-optimize-btn').disabled);
   $('robo-optimize-btn').click(); await tick();
   check('new calculation uses the same safe card display', $('robo-stock-picks').textContent === text && calls.length === 2 && !$('robo-optimize-btn').disabled);
+  check('legacy allocation defaults to profile model', calls[1].body.allocation_model === 'profile');
+  $('robo-allocation-model').value = 'black_litterman'; $('robo-allocation-model').dispatchEvent(new Event('change'));
+  check('view editor appears only for Black-Litterman', !$('robo-bl-inputs').classList.contains('hidden'));
+  $('robo-bl-add').click();
+  $('robo-bl-views').querySelector('.bl-return').value = '4.5';
+  $('robo-bl-custom').click();
+  $('robo-optimize-btn').click(); await tick();
+  const bl = calls.at(-1).body;
+  check('relative view and benchmark reach API', bl.allocation_model === 'black_litterman' && bl.views[0].outperformance_pct === 4.5 && bl.views[0].relative_to === '해외주식' && bl.benchmark_weights['현금'] === 5);
+  check('saved model and views restore', $('robo-allocation-model').value === 'black_litterman' && $('robo-bl-views').querySelector('.bl-return').value === '4.5' && $('robo-model-result').textContent.includes('2026-10-30'));
+  const before = calls.length;
+  $('robo-bl-views').querySelector('.bl-confidence').value = '100';
+  $('robo-optimize-btn').click(); await tick();
+  check('invalid confidence rejected before request', calls.length === before && !$('robo-optimize-btn').disabled);
+  $('robo-allocation-model').value = 'regime'; $('robo-allocation-model').dispatchEvent(new Event('change'));
+  $('robo-optimize-btn').click(); await tick();
+  check('regime request excludes stale BL views', calls.at(-1).body.allocation_model === 'regime' && !('views' in calls.at(-1).body) && $('robo-bl-inputs').classList.contains('hidden'));
+  check('calculations never submit orders or change plans', calls.every(c => c.path.startsWith('/api/ml/robo/allocation')));
   result.textContent = JSON.stringify({ok: true, checks});
 } catch (e) { result.textContent = JSON.stringify({ok: false, checks, error: String(e), stack: e.stack}); }

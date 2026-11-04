@@ -233,3 +233,63 @@ def test_view_scan_sees_only_its_own_entry_api():
     row = next(r for r in view_scan.scan()["rows"] if r["key"] == "signal-rank")
     assert row["entry_apis"] == ["/api/stock-hub/signal-rank"], row["entry_apis"]
 
+
+
+def test_find_bar_and_query(tmp_path):
+    """TC-RKS-13 — 신호 순위 화면의 종목 검색(2026-11-03 피드백 「모든 종목을 검색해 신호와 근거를 확인」) —
+    국내 6자리 코드만 `?symbols=` 로 보낸다(해외 티커 · 빈 글은 요청 없이 까닭) · 검색 줄은 칸 · 두 단추 · 상태 안내를 갖고
+    · 안내의 종목 이름은 이스케이프되며 종목 근거 모달 입구(`data-hub-open`)를 단다."""
+    out = _run(tmp_path, """
+      out.ks = sr.findQuery("005930.KS");
+      out.etf = sr.findQuery("0000d0");
+      out.us = sr.findQuery("AAPL");
+      out.empty = sr.findQuery("  ");
+      out.bar = sr.findBarHtml(esc);
+      out.note = sr.findNoteHtml("005930", "<b>삼성</b>", esc);
+    """)
+    assert out["ks"] == {"ok": True, "code": "005930", "query": "?symbols=005930", "message": ""}
+    assert out["etf"]["ok"] and out["etf"]["code"] == "0000D0"
+    assert not out["us"]["ok"] and out["us"]["query"] == "" and "국내 종목" in out["us"]["message"]   # 빈 코드로 부르면 422 — 보내지 않는다
+    assert not out["empty"]["ok"]
+    for needle in ('id="sr-find-input"', "data-sr-find-reset", 'type="submit"', "data-sr-find-note", 'role="status"'):
+        assert needle in out["bar"]
+    assert "투자 권유가 아닙니다" in out["bar"]
+    assert 'data-hub-open="005930"' in out["note"]
+    assert "<b>" not in out["note"] and "&lt;b&gt;삼성&lt;/b&gt;" in out["note"]
+
+
+def test_find_is_wired_without_touching_shared_files():
+    """TC-RKS-14 — 검색 줄은 화면 파일이 만든다(app.html 을 건드리지 않음) · 퀀트 대시보드에는 「신호 · 근거 보기」 입구 단추가 붙는다."""
+    view = (ROOT / "public" / "js" / "signalrankview.js").read_text(encoding="utf-8")
+    assert "findBarHtml" in view and "resolveSymbolInput" in view and "?symbols=" not in view   # 질의 꼴은 signal-rank.js 한 곳
+    quant = (ROOT / "public" / "js" / "quant.js").read_text(encoding="utf-8")
+    assert 'id = "quant-hub-open"' in quant and 'setAttribute("data-hub-open"' in quant
+    css = (ROOT / "public" / "css" / "signalrankview.css").read_text(encoding="utf-8")
+    assert "#sr-find" in css
+
+
+def test_rank_load_keeps_only_the_last_request(tmp_path):
+    """TC-RKS-15 — 순위를 읽는 요청이 겹쳐도 **마지막 요청만** 표에 그린다(코드 검수 S195) — 검색을 누르고 응답 전에 「전체 순위」 를 눌러
+    검색 응답이 늦게 와도 전체 표를 덮지 않는다. 실패도 마지막 요청의 것만 보인다."""
+    out = _run(tmp_path, """
+      const host = { textContent: "", innerHTML: "", addEventListener() {} };
+      const waits = [];
+      const api = url => new Promise((res, rej) => waits.push({ url, res, rej }));
+      const ctl = sr.mountSignalRank(host, { api, esc });
+      const first = ctl.loadRankRows("?symbols=005930");     // 검색(늦게 도착)
+      const second = ctl.loadRankRows();                       // 전체 순위(먼저 도착)
+      waits[1].res({ rows: [{ rank: 1, symbol: "000660", signal: "매수", counts: null }], total: 1 });
+      await second;
+      out.afterSecond = host.innerHTML.includes("000660");
+      waits[0].res({ rows: [{ rank: 1, symbol: "005930", signal: "매도", counts: null }], total: 1 });
+      await first;
+      out.lateOverwrote = host.innerHTML.includes("005930");
+      const third = ctl.loadRankRows("?symbols=1");
+      const fourth = ctl.loadRankRows();
+      waits[2].rej({ status: 0 });
+      await third;
+      out.staleErrorShown = host.textContent.startsWith("서버에 연결");
+    """.replace("const first", "const first"))
+    assert out["afterSecond"] is True
+    assert out["lateOverwrote"] is False         # 늦게 온 검색 응답이 전체 표를 덮지 않는다
+    assert out["staleErrorShown"] is False       # 옛 요청의 실패 글도 새 요청의 「불러오는 중」 을 지우지 않는다

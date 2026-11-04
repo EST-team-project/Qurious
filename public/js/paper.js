@@ -12,7 +12,7 @@ import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD, scDirection, sc
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
-const signCls = (n) => (parseFloat(n) >= 0 ? "text-emerald-600" : "text-red-600");
+const signCls = (n) => (parseFloat(n) >= 0 ? "text-emerald-700" : "text-red-700");   // 2026-11-04 대비 3.77 → 5.5
 const ts = (ms) => new Date(ms).toLocaleString("ko-KR", { hour12: false });
 const sideBadge = (t) => `<span class="${String(t).toUpperCase() === "BUY" ? "badge-buy" : "badge-sell"}">${String(t).toUpperCase() === "BUY" ? "매수" : "매도"}</span>`;
 const kpi = (label, value, cls = "") => `
@@ -811,7 +811,8 @@ async function loadAltHistory() {
 /* ────────────────────────────────────────────────────────────────
  * 5. Open API 키 + 외부 연동 문서 + Alpaca 연결 테스트
  * ──────────────────────────────────────────────────────────────── */
-async function loadPaperOpenApi() {
+// 마이페이지 「외부 연동」 구역이 열릴 때 mypage.js 가 부른다(Open API 설정 본체가 그 구역으로 옮겨 갔다 · 2026-11-03 S195)
+export async function loadPaperOpenApi() {
   loadApiKeys();
   try {
     const d = await api("/openapi/v1/docs-summary");
@@ -833,6 +834,8 @@ async function loadApiKeys() {
     $("po-keys").innerHTML = `<table><thead><tr><th>라벨</th><th>키 앞부분</th><th>상태</th><th style="text-align:right">호출수</th><th>마지막 사용</th><th>발급일</th><th></th></tr></thead>
       <tbody>${keys.length ? keys.map(k => `<tr><td>${escHtml(k.label)}</td><td><code class="text-xs">${escHtml(k.keyPrefix)}…</code></td><td>${k.isActive ? `<span class="badge-buy">활성</span>` : `<span class="badge-hold">폐기</span>`}</td><td style="text-align:right">${fmt(k.callCount)}</td><td class="text-xs">${k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString("ko-KR") : "-"}</td><td class="text-xs">${new Date(k.createdAt).toLocaleDateString("ko-KR")}</td>
         <td style="text-align:right">${k.isActive ? `<button class="btn-secondary text-xs po-revoke" data-id="${escHtml(k.id)}">폐기</button>` : ""}</td></tr>`).join("") : emptyRow(7, "발급된 API 키가 없습니다.")}</tbody></table>`;
+    const sum = $("mp-sum-external");   // 마이페이지 외부 연동 요약도 같은 구역에 있어 발급 · 폐기 직후 어긋나지 않게 맞춘다
+    if (sum) { const n = keys.filter(k => k.isActive).length; sum.textContent = n ? `사용 중인 Open API 키: ${n}개` : "사용 중인 Open API 키가 없습니다."; }
     $("po-keys").querySelectorAll(".po-revoke").forEach(b => b.addEventListener("click", async () => {
       if (!confirm("이 키를 폐기하면 외부 시스템에서 더 이상 사용할 수 없습니다. 계속할까요?")) return;
       try { await api(`/api/paper/api-keys/${b.dataset.id}`, { method: "DELETE" }); setToast("키를 폐기했습니다.", "ok"); loadApiKeys(); }
@@ -1080,7 +1083,6 @@ export function onPaperViewActivated(view) {
   if (view === "paper-stock") loadPaperStock();
   if (view === "paper-crypto") loadPaperCrypto();
   if (view === "paper-alternative") loadPaperAlt();
-  if (view === "paper-openapi") loadPaperOpenApi();
   if (view === "quant-lean") loadLeanView();
 }
 

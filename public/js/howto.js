@@ -14,7 +14,8 @@
  *   · 「영상으로 보기」 를 누르면 그 자리에서 그 화면이 나오는 장부터 튼다 · 장 단추로 옮기고 지금 장은 파랑.
  */
 import { fillTermCard } from "/js/termcard.js";
-import { resolveView } from "/js/viewalias.js";
+import { isSoon, showSoon } from "/js/learnsoon.js";   // 「준비 중」 장은 사용법 끝줄에서 숨김(2026-11-04)
+import { resolveView, MYPAGE_HOSTED } from "/js/viewalias.js";
 import { chapterBadge, chapterIndexAt, howtoHtml, playerHtml, sizeOf, topRowHtml, VIDEO_MANIFEST_URL, videoOf } from "/js/howtoview.js";
 
 const DATA = new Map();    // 화면 키 → { guide, terms, label, group } — 단추를 누를 때 읽는다
@@ -52,14 +53,32 @@ function ensureVideos() {
   if (videosState === "idle" || (videosState === "later" && Date.now() >= retryAt)) loadVideos();
 }
 
+// 끝줄의 「개념 학습 장」 링크 — 기본은 읽을 수 있는 장만 이어 준다(2026-11-04 사용자 결정 · 준비 중 장은 숨김).
+// 목차를 한 번 받아 준비 중 장의 이름을 외운다. 못 받았으면 모두 이어 준다(링크가 사라지는 쪽보다 안전).
+let soonSlugs = new Set();
+let soonState = "idle";
+async function loadSoonSlugs() {
+  soonState = "loading";
+  try {
+    const r = await fetch("/api/learn/catalog", { credentials: "same-origin" });
+    if (!r.ok) { soonState = "done"; return; }
+    soonSlugs = new Set(((await r.json()).pages || []).filter((p) => p.store === "builtin" && isSoon(p)).map((p) => p.slug));
+  } catch { /* 목차를 못 받으면 링크를 그대로 둔다 */ }
+  soonState = "done";
+}
+function ensureSoonSlugs() {
+  if (soonState === "idle") loadSoonSlugs();
+}
+
 function render(viewKey, guide, { terms = {}, label = "", group = "" } = {}) {
-  const viewEl = document.querySelector(`.view[data-view="${viewKey === "settings" ? "mypage" : resolveView(viewKey)}"]`);   // 탭 키는 합친 화면으로
+  const viewEl = document.querySelector(`.view[data-view="${MYPAGE_HOSTED[viewKey] ? "mypage" : resolveView(viewKey)}"]`);   // 탭 키는 합친 화면으로
   if (!viewEl) return;
   viewEl.querySelector(":scope > .view-guide")?.remove();   // 옛 접이식(기초 코드 판)이 남아 있으면 지운다
   let row = viewEl.querySelector(":scope > .q-howto-top");
   if (!guide) { row?.remove(); DATA.delete(viewKey); return; }
   DATA.set(viewKey, { guide, terms, label, group });
   ensureVideos();
+  ensureSoonSlugs();
   if (!row) {
     row = document.createElement("div");
     row.className = "q-howto-top";
@@ -108,7 +127,7 @@ function open(viewKey, button, { play = false } = {}) {
   const video = videoFor(viewKey);
   dlg.className = `q-howto-dialog q-howto-dialog--${sizeOf(viewKey, d.guide, { video })}`;
   dlg.dataset.view = viewKey;
-  dlg.innerHTML = howtoHtml(viewKey, d.guide, { terms: d.terms, label: d.label, video });
+  dlg.innerHTML = howtoHtml(viewKey, d.guide, { terms: d.terms, label: d.label, video, hideLearn: showSoon() ? null : soonSlugs });
   trigger = button || null;
   if (!dlg.open) dlg.showModal();
   if (play) dlg.querySelector("[data-howto-video]")?.click();

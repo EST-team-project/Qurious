@@ -375,7 +375,8 @@ def test_builtin_textbook_pages_are_valid_and_linked():
     """TC-LN-15 · 기본 교재 전부가 규격을 지키고, 선수 장 · 장 안 링크(#/p/…)가 있는 장을 가리킨다."""
     pages, errors = lp.load_builtin(CONTENT)
     assert errors == []
-    assert len(pages) == 64      # 2026-10-20 「파이썬 중급」 6부 뼈대 6 + 7부 저장소 장 1(L03) · 팀 기능 범위 22(7.6 · 8 ~ 12부) · 10-23 세 갈래로 −8
+    assert len(pages) == 71      # 2026-11-04 개념 학습 새 장 +2(리스크 패리티 11.6 · 블랙–리터만 11.7) · 그 전 69: 2026-10-20 「파이썬 중급」 6부 뼈대 6 + 7부 저장소 장 1(L03) · 팀 기능 범위 22(7.6 · 8 ~ 12부) · 10-23 세 갈래로 −8
+    #                              + 2026-11-03 새 장 5(F.9 모의투자와 실거래 · F.11 성과 지표 읽는 법 · F.12 백테스트 신뢰 · F.13 손절 · 익절 · 11.5 평균-분산 최적화)
     assert {p.meta["section"] for p in pages.values()} == set(lp.SECTIONS) == {"tech", "finance"}
     assert not lp.ORDER_RE.match("S.11") and not any(s.startswith("special-") for s in pages), "차례는 「부.장」(숫자 · F) — 10-23 세 갈래로"
     for page in pages.values():
@@ -457,6 +458,10 @@ def _example(name: str):
     ("intraday-timezone", "intraday_kst", "offline"),
     ("data-quality-check", "quality_check", "main"),
     ("chunking-legal-versions", "legal_versions", "main"),   # 3부 3.4 (2026-10-03)
+    ("rebalancing-methods", "rebalance_rules", "main"),      # 11부 (2026-11-03 쓴 장 · 11-04 시험에 올림)
+    ("mean-variance-optimization", "mean_variance", "main"),
+    ("risk-parity-min-variance", "risk_parity", "main"),
+    ("black-litterman", "black_litterman", "main"),
 ])
 def test_part1_chapter_outputs_match_example_code(slug, example, fn, capsys):
     """TC-LN-18 · 1부 장에 실은 「직접 해 보기」 출력 줄이 지금 예제 코드(네트워크 없는 부분)의 출력과 한 글자도

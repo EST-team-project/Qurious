@@ -17,6 +17,7 @@ from typing import Any
 
 from app.services import collector_db
 from app.services import data_provenance
+from app.services import signal_freshness
 from app.services import ta_utils
 from app.services.data_cache import cache_get, cache_set
 
@@ -378,6 +379,11 @@ def _calc_bollinger(closes: list[float], period: int = 20, std_mult: float = 2.0
 async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
     """기술적 지표 + AI 매매 시그널."""
     data = await get_candles(symbol, period=period)
+    # 자동매매 사이클 안에서만: 일봉이 낡았으면(직전 거래일 확정 종가가 없으면) KIS 에서 메모리로만 꼬리를 붙이고 신선도를 판정한다
+    # (화면 · 다른 분석은 그대로 — app/services/signal_freshness.py)
+    freshness = None
+    if signal_freshness.trading_active():
+        data, freshness = await signal_freshness.settle(symbol, data)
     candles = data.get("candles", [])
     if len(candles) < 20:
         return {"symbol": symbol, "error": "데이터 부족"}
@@ -414,6 +420,8 @@ async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
         # 화면이 그대로 보일 출처 · 기준일 한 줄(#134 · 글은 서버 한 곳) — 전략 분석이 「현재가」 대신 이 글을 보인다.
         "data_note": data_provenance.candle_provenance(data)["data_note"],
         "definition": ta_utils.DEFINITION,
+        # 자동매매 사이클이 부를 때만 들어간다 — state fresh/stale/unchecked/off · as_of · expected · tail
+        **({"freshness": freshness} if freshness else {}),
     }
 
 

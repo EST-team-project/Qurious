@@ -5,7 +5,7 @@
 .gnb-logo-text span[data-brand="tagline"] { text-transform: none; letter-spacing: .02em; }
 
 /* 바닥글의 서비스 이름 · 부제 */
-#app-footer .q-footer-brand { color: var(--brand); font-weight: 700; }
+#app-footer .q-footer-brand { color: var(--brand-text); font-weight: 700; }   /* 2026-11-04 대비 3.19 → 5.0 */
 #app-footer .q-footer-tagline { color: var(--text-dim); }
 
 /* ── 용어 풀이 카드 · 서랍 · 창 (js/termcard.js · 2026-10-02 화면 설계 결정 ②) ───────────────────────

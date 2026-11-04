@@ -39,7 +39,16 @@ function heat(v) {
   const a = (Math.min(1, Math.abs(v) / HEAT_FULL) * 0.85).toFixed(2);
   return v >= 0 ? `rgba(220,38,38,${a})` : `rgba(37,99,235,${a})`;
 }
-function ink(v) { return v != null && Math.abs(v) > HEAT_FULL * 0.6 ? "#fff" : "var(--text)"; }
+// 칸 바탕(heat 색을 흰 바탕에 섞은 색)에서 흰 글자와 진한 글자 중 대비가 큰 쪽을 고른다(2026-11-04 대비 점검: 옛 임계 0.6 은 연한 칸 흰 글자 2.3:1)
+function ink(v) {
+  if (v == null) return "var(--text)";
+  const a = Math.min(1, Math.abs(v) / HEAT_FULL) * 0.85;
+  const [r, g, b] = v >= 0 ? [220, 38, 38] : [37, 99, 235];
+  const lin = c => { const x = (c * a + 255 * (1 - a)) / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const DARK_L = 0.009;   // --text #0f172a 의 상대 휘도
+  return 1.05 / (L + 0.05) >= (L + 0.05) / (DARK_L + 0.05) ? "#fff" : "var(--text)";
+}
 
 function readPref() {
   try { const p = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); return p && typeof p === "object" ? p : null; } catch { return null; }

@@ -7,6 +7,7 @@ import {
   cvCompareLoad, cvCompareTable, cvFindCompany, CV_COMPARE_DEFAULT, CV_COMPARE_MAX,
   cvSectorCards, cvSectorNote,
 } from "/js/companyview.js";
+import { ctMount } from "/js/company-compare-table.js";
 
 // ── 기업분석 (Mockup) ────────────────────────────────────────────
 const COMPANIES = [
@@ -216,6 +217,29 @@ function renderCompareChips(cols) {
     coCompareMsg("");
     loadCompanyCompare();
   }));
+  if (compareTable) compareTable.syncPicks();       // 전체 종목 표의 ＋ / ✓ 표시도 맞춘다
+}
+
+// 수집 대상 전체 종목 표(D11 · js/company-compare-table.js) — 표에서 ＋ 를 누르면 위 나란히 비교와 같은 목록(compareCodes)에 담는다
+let compareTable = null;
+
+function mountCompareTable() {
+  if (!compareTable) {
+    compareTable = ctMount({
+      fetchPage: qs => api(`/api/data/indicators/table?${qs}`), esc: escHtml, max: CV_COMPARE_MAX,
+      isPicked: code => compareCodes.includes(code),
+      pickedCount: () => compareCodes.length,
+      onPick: code => {
+        if (compareCodes.includes(code)) compareCodes = compareCodes.filter(x => x !== code);
+        else if (compareCodes.length >= CV_COMPARE_MAX) return `최대 ${CV_COMPARE_MAX}개까지 나란히 볼 수 있습니다. 위 비교에서 하나를 빼고 담으세요.`;
+        else compareCodes.push(code);
+        coCompareMsg("");
+        loadCompanyCompare();
+        return "";
+      },
+    });
+  }
+  if (compareTable) compareTable.ensureLoaded();
 }
 
 function bindCompareForm() {
@@ -245,6 +269,7 @@ async function loadCompanyCompare() {
   const el = document.getElementById("co-compare-table");
   if (!el) return;
   bindCompareForm();
+  mountCompareTable();
   const seq = ++compareSeq;
   el.innerHTML = coMessage("불러오는 중…");
   const cols = await cvCompareLoad(api, compareCodes);
@@ -355,6 +380,7 @@ export function openStockSearch(callback, initialQuery) { if (_openStockSearch) 
       const btn = document.getElementById("quant-symbol-btn");
       btn.querySelector(".ssm-btn-label").textContent = name;
       btn.querySelector(".ssm-btn-ticker").textContent = symbol;
+      document.getElementById("quant-symbol").dispatchEvent(new Event("change"));   // 고르면 퀀트 대시보드 차트가 바로 다시 그려진다(quant.js 가 듣는다)
     });
   });
 

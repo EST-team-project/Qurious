@@ -3,8 +3,8 @@
 왜 필요한가
 -----------
 리밸런싱은 예약한 날의 시가로 체결한다. 그날 가격 행이 없을 때 **「수집이 아직 안 끝나 기다린다」** 와
-**「수집은 끝났는데 그날 체결할 수 없어 미체결로 끝낸다」** 를 갈라야 하는데, 지금은 리밸런싱 코드가 수집 기록
-(`ingest_day`)을 직접 읽어 가른다(`app/services/rebalance_prices.py` 의 `collection_complete`). 수집 기록의 뜻(출처 · 상태 값)은
+**「수집은 끝났는데 그날 체결할 수 없어 미체결로 끝낸다」** 를 갈라야 한다. 리밸런싱의
+`collection_complete`는 가격을 읽던 같은 트랜잭션을 이 함수에 전달한다. 수집 기록의 뜻(출처 · 상태 값)은
 데이터 파트가 정하므로, 그 사실을 **한 곳에서** 읽어 주는 함수를 둔다 — 판정(기다림 · 미체결 종료)은 지금처럼 리밸런싱 쪽이 내린다
 (같은 판정이 두 곳에 생기지 않게).
 
@@ -114,24 +114,34 @@ def _status_one(conn: sqlite3.Connection, code: str, bas_dt: str) -> Dict:
             "halted": halted, "volume_zero": volume_zero, "notes": notes}
 
 
-def symbol_day_status(symbols: Iterable[str], day, *, path: Optional[Path] = None) -> Dict[str, Dict]:
+def symbol_day_status(symbols: Iterable[str], day, *, path: Optional[Path] = None,
+                      connection: Optional[sqlite3.Connection] = None) -> Dict[str, Dict]:
     """종목들의 그날 수집 사실 — 넣은 기호를 열쇠로. 판정은 하지 않는다(머리말).
 
     한 번의 읽기 전용 트랜잭션에서 모든 종목을 본다(종목마다 다른 순간의 DB 를 보지 않게 — `read_prices` 와 같음).
+    connection을 전달하면 호출자의 열린 트랜잭션에서 SELECT만 수행하며 종료·커밋하지 않는다.
+    가격과 상태를 같은 DB 시점으로 읽어야 하는 소비자가 사용한다. path와 함께 지정할 수 없다.
     """
     d = _day(day)
     syms = list(dict.fromkeys(symbols))                    # 넣은 차례 그대로 · 같은 기호는 한 번
     codes = {s: _code(s) for s in syms}                    # 꼴이 틀린 기호가 있으면 DB 를 열기 전에 멈춘다
-    path = path or collector_db.db_path()
-    if path is None:
-        raise CollectorStatusUnavailable("수집 DB 가 없어 종목별 수집 상태를 알 수 없습니다")
     bas_dt = d.strftime("%Y%m%d")
-    out: Dict[str, Dict] = {}
+
+    def read(conn):
+        return {s: {"symbol": codes[s], "day": d.isoformat(), **_status_one(conn, codes[s], bas_dt)} for s in syms}
+
     try:
+        if connection is not None:
+            if path is not None:
+                raise ValueError("path와 connection은 함께 지정할 수 없습니다")
+            if not connection.in_transaction:
+                raise ValueError("connection은 열린 읽기 트랜잭션이어야 합니다")
+            return read(connection)
+        path = path or collector_db.db_path()
+        if path is None:
+            raise CollectorStatusUnavailable("수집 DB 가 없어 종목별 수집 상태를 알 수 없습니다")
         with closing(sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=5)) as conn:
             conn.execute("BEGIN")
-            for s in syms:
-                out[s] = {"symbol": codes[s], "day": d.isoformat(), **_status_one(conn, codes[s], bas_dt)}
+            return read(conn)
     except (sqlite3.Error, OSError) as exc:
         raise CollectorStatusUnavailable("수집 DB 를 읽지 못해 종목별 수집 상태를 알 수 없습니다") from exc
-    return out

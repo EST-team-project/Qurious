@@ -32,6 +32,12 @@ export function hubNaverUrl(symbol) {
   return /^[0-9A-Z]{6}$/.test(String(symbol || "")) ? `https://stock.naver.com/domestic/stock/${symbol}/price` : "";
 }
 
+/** 외부 차트(새 탭) 주소 — 국내 숫자 6자리 코드(005930 · 005930.KS)일 때만. ETF(영숫자 코드)는 그쪽 주소 꼴을 확인하지 못해 링크를 만들지 않는다 */
+export function hubExtChartUrl(symbol) {
+  const m = /^(\d{6})(?:\.(?:KS|KQ))?$/i.exec(String(symbol || "").trim());
+  return m ? `https://www.tradingview.com/symbols/KRX-${m[1]}/` : "";
+}
+
 function sdOk(sec) { return !!sec && sec.status === "ok"; }
 function sdNum(v, digits = 0) { return Number(v).toLocaleString("ko-KR", { maximumFractionDigits: digits }); }
 function sdPct(v) {
@@ -162,6 +168,59 @@ export function sdSignalCloseView(ohlcv, signalAsOf, closeErr = "") {
   return priceLines(ohlcv, null, signalAsOf, closeErr).close;
 }
 
+/** 「2026-11-03 12:59」 → 「11-03 12:59」 · 이 꼴이 아니면 빈 글 (서버 신호 칸의 computed_at 은 한국 시각 분 단위) */
+export function sdStamp(s) {
+  const m = /^\d{4}-(\d{2}-\d{2}) (\d{2}:\d{2})/.exec(String(s || ""));
+  return m ? `${m[1]} ${m[2]}` : "";
+}
+
+/** 신호 칸 머리 — 「11-02 기준 · 11-03 12:59 계산」. 계산 시각을 모르면 기준일만 · 기준일이 없으면 빈 글. sec 은 허브의 신호 칸 */
+export function sdSignalHeadText(sec) {
+  if (!sec || !/^\d{4}-\d{2}-\d{2}/.test(String(sec.as_of || ""))) return "";
+  const at = sdStamp(sec.data && sec.data.computed_at);
+  return `${mmdd(sec.as_of)} 기준${at ? ` · ${at} 계산` : ""}`;
+}
+
+/** 신호 칸만 다시 읽는 허브 주소 — on 이 YYYY-MM-DD 면 그 날 이전(포함) 가장 가까운 기록(signal_on) · 아니면 가장 최근 기록 */
+export function hubSignalPath(symbol, on) {
+  const base = `/api/stock-hub?symbol=${encodeURIComponent(symbol)}&sections=signal`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(on || "")) ? `${base}&signal_on=${on}` : base;
+}
+
+/** 날짜 고르기 실패 글 — 로그인 풀림 · 오늘 뒤 날짜(422 는 서버 글 그대로) · 그 밖 */
+export function sdSignalFailText(err) {
+  const msg = String((err && err.message) || err || "");
+  if (err && err.status === 401) return "로그인이 풀렸습니다. 다시 로그인한 뒤 열어 주세요.";
+  if (err && err.status === 422) return msg || "이 날짜는 고를 수 없습니다.";
+  return `신호 기록을 불러오지 못했습니다${msg ? ` — ${msg}` : ""}.`;
+}
+
+/** 기록 시점 — 정기 기록 · 계산 시각 모름은 한 줄, 늦게 계산이면 칩 + 접이식 쉬운 말 설명. 글은 서버(record_note)가 만든 그대로 (옛 응답이면 만들지 않는다) */
+function sdRecordHtml(d) {
+  if (!d || !d.record_kind || !d.record_note) return "";
+  if (d.record_kind !== "late") return `<p class="sd-note sd-fact" data-hub-record="${esc(d.record_kind)}">${esc(d.record_note)}</p>`;
+  const at = sdStamp(d.computed_at);
+  return `<div class="sd-rec" data-hub-record="late"><span class="sd-chip sd-chip--late" title="${esc(d.record_tip || "")}">${esc(d.record_label || "늦게 계산")}</span>`
+    + `${at ? ` <small class="sd-note">${esc(at)} 에 계산</small>` : ""}`
+    + `<details class="sd-more"><summary>늦게 계산이란?</summary><p class="sd-note">${esc(d.record_note)}</p></details></div>`;
+}
+
+/** 날짜 고르기 — 날짜 입력 하나 + 앞/다음 거래일(서버가 거래일만 건너뛴 날을 준다 · 없으면 누를 수 없음) + 고른 뒤에는 「가장 최근」.
+ *  자료(d.max_on 이 있는 응답)가 없으면 빈 글. asOf 는 지금 보이는 기록의 기준일 (고른 날이 없을 때 입력 칸 값) */
+export function sdSignalPickerHtml(d, asOf = "") {
+  if (!d || !d.max_on) return "";
+  const day = String(d.requested_on || asOf || "").slice(0, 10);
+  const step = (target, label) => target
+    ? `<button type="button" class="sd-pick-b" data-hub-sigstep="${esc(target)}">${esc(label)}</button>`
+    : `<button type="button" class="sd-pick-b" disabled>${esc(label)}</button>`;
+  return `<div class="sd-pick" data-hub-sigpick><label class="sd-pick-l">날짜 <input type="date" class="sd-pick-in" data-hub-sigdate`
+    + `${/^\d{4}-\d{2}-\d{2}$/.test(day) ? ` value="${esc(day)}"` : ""} max="${esc(d.max_on)}" aria-label="신호를 볼 날짜"></label>`
+    + `${step(d.prev_day, "◀ 앞 거래일")}${step(d.next_day, "다음 거래일 ▶")}`
+    + `${d.picked ? `<button type="button" class="sd-pick-b" data-hub-sigstep="latest">가장 최근</button>` : ""}`
+    + `<small class="sd-note" data-hub-sigmsg role="status"></small></div>`
+    + (d.fell_back && d.fell_back_note ? `<p class="sd-note sd-fact" data-hub-fellback>${esc(d.fell_back_note)}</p>` : "");
+}
+
 /** 모달 안 신호 칸 — 서버 한 줄 요약은 그대로, 근거 개수 한 줄 · 신호 기준 종가 자리(열린 뒤 채움)를 더하고, 근거마다 쉬운 풀이를 붙이고 「말하지 않는 것」 을 밝힌다 */
 function sdSignalPlainBody(d, sec) {
   const side = d.signal ? `${d.signal}${d.signal === "관망" ? "" : " 쪽"}` : "";
@@ -170,7 +229,9 @@ function sdSignalPlainBody(d, sec) {
   const counts = cv ? `<p class="sd-note sd-fact" data-hub-counts>${esc(cv.text)}${cv.note ? ` · ${esc(cv.note)}` : ""}</p>` : "";
   const day = sec && sec.as_of ? String(sec.as_of) : "";
   const close = day ? `<p class="sd-note sd-fact" data-hub-sigclose="${esc(day)}">신호 기준 종가(${esc(mmdd(day))}) 불러오는 중…</p>` : "";
-  return (chip ? `<p class="sd-main"><span class="sd-chip">${esc(chip)}</span> <small>${esc(d.confidence_text || "")}</small></p>` : "")
+  return sdSignalPickerHtml(d, day)
+    + (chip ? `<p class="sd-main"><span class="sd-chip">${esc(chip)}</span> <small>${esc(d.confidence_text || "")}</small></p>` : "")
+    + sdRecordHtml(d)
     + (d.summary ? `<p class="sd-text">${esc(d.summary)}</p>` : "")
     + counts + close
     + (sdHasObserved(d) ? `<p class="sd-note sd-fact">줄마다 「본 값」 은 규칙이 실제로 견준 값이고, 「종합 점수 몫」 은 그 근거가 종합 점수에 더한 값입니다(모두 더하면 종합 점수).</p>` : "")
@@ -189,8 +250,10 @@ export function sdSectionHtml(key, sec, labelOf, opts = {}) {
   }
   if (!sdOk(sec)) {
     const state = SD_STATE[sec.status] || "확인 필요";
+    // 고른 날 이전에 기록이 없어 빈 칸이어도 날짜를 다시 고를 수 있게 한다(막다른 길 방지 · 서버가 고르기 자료를 준 모달 신호 칸만)
+    const pick = opts.plain && key === "signal" ? sdSignalPickerHtml(sec.data) : "";
     return `<section class="sd-sec sd-sec--empty" data-hub-sec="${esc(key)}"><div class="sd-head"><b>${esc(label)}</b><span class="sd-state">${esc(state)}</span></div>`
-      + `<p class="sd-why">${esc(sec.reason || "이 칸의 자료가 없습니다.")}</p></section>`;
+      + `<p class="sd-why">${esc(sec.reason || "이 칸의 자료가 없습니다.")}</p>${pick}</section>`;
   }
   const body = ((opts.plain && SD_BODY_PLAIN[key]) || SD_BODY[key] || (() => ""))(sec.data || {}, sec);
   const asOf = sdMonthDay(sec.as_of);
@@ -198,18 +261,31 @@ export function sdSectionHtml(key, sec, labelOf, opts = {}) {
     ? `<button type="button" class="sd-go" data-hub-go="${esc(sec.view)}">${esc(labelOf.get(sec.view))} →</button>` : "";
   const howto = opts.plain && SECTION_HOWTO[key]
     ? `<details class="sd-howto"><summary>이 칸 읽는 법</summary><p class="sd-note">${esc(SECTION_HOWTO[key])}</p></details>` : "";
-  return `<section class="sd-sec" data-hub-sec="${esc(key)}"><div class="sd-head"><b>${esc(label)}</b>${asOf ? `<span class="sd-asof">${esc(asOf)} 기준</span>` : ""}</div>`
+  // 모달 신호 칸의 머리 — 서버가 계산 시각을 주면 「11-02 기준 · 11-03 12:59 계산」 (그 밖에는 지금까지처럼 「10월 29일 기준」)
+  const headText = opts.plain && key === "signal" && sec.data && sec.data.computed_at ? sdSignalHeadText(sec) : (asOf ? `${asOf} 기준` : "");
+  return `<section class="sd-sec" data-hub-sec="${esc(key)}"><div class="sd-head"><b>${esc(label)}</b>${headText ? `<span class="sd-asof">${esc(headText)}</span>` : ""}</div>`
     + `${howto}${body}<div class="sd-foot"><small class="sd-source">${esc(sec.source || "")}</small>${go}</div></section>`;
 }
 
 /** 일봉 차트 칸(서랍 · 크게 보기 모달 공통 부품 — 설계 Figma 07 쪽 안 C). 6자리 코드가 아닌 종목(해외)이면 빈 글.
  *  expand 가 참이면 머리에 「크게 보기 ⤢」 단추 — 모달에서는 거짓. height 는 차트 칸 높이(px) */
-export function sdChartBoxHtml(symbol, { expand = true, height = 150, period = SC_DEFAULT_PERIOD } = {}) {
+/** 허브 응답의 신호 칸 → 차트에 찍을 마지막 기록 한 점 { asOf, side }. 기록이 없거나 읽지 못하면 null (지어내지 않는다) */
+export function sdChartSignal(hub) {
+  const sec = hub && hub.sections && hub.sections.signal;
+  if (!sec || sec.status !== "ok" || !sec.as_of || !sec.data || !sec.data.signal) return null;
+  const sig = { asOf: String(sec.as_of), side: String(sec.data.signal) };
+  if (hub.symbol) sig.symbol = String(hub.symbol);     // 어느 종목의 기록인지 — 차트가 다른 종목 칸에 찍지 않게 쓴다
+  // 기록 시각 — 표식 풀이에 「언제 계산했나」를 넣는다(서버가 computed_at 을 줄 때만 · 늦게 계산이면 late)
+  if (sec.data.computed_at) { sig.computedAt = String(sec.data.computed_at); sig.late = sec.data.record_kind === "late"; }
+  return sig;
+}
+
+export function sdChartBoxHtml(symbol, { expand = true, height = 200, period = SC_DEFAULT_PERIOD } = {}) {
   if (!scCode(symbol)) return "";
-  const chips = SC_PERIODS.map(([k, label]) => `<button type="button" class="sd-period${k === period ? " on" : ""}" data-hub-period="${esc(k)}">${esc(label)}</button>`).join("");
-  return `<div class="sd-chartbox" data-hub-chartbox><div class="sd-chart-head"><b>일봉 종가</b><span class="sd-periods">${chips}</span>`
+  const chips = SC_PERIODS.map(([k, label]) => `<button type="button" class="sd-period${k === period ? " on" : ""}" data-hub-period="${esc(k)}" aria-pressed="${k === period}">${esc(label)}</button>`).join("");
+  return `<div class="sd-chartbox" data-hub-chartbox><div class="sd-chart-head"><b>일봉</b><span class="sd-periods">${chips}</span>`
     + `${expand ? `<button type="button" class="sd-expand" data-hub-expand>크게 보기 ⤢</button>` : ""}</div>`
-    + `<div class="sd-chart" data-hub-chart style="height:${Number(height) || 150}px"></div><small class="sd-note" data-hub-chart-note></small></div>`;
+    + `<div class="sd-chart" data-hub-chart style="height:${Number(height) || 200}px"></div><small class="sd-note" data-hub-chart-note></small></div>`;
 }
 
 /** 크게 보기 모달 안쪽 — 머리(이름 · 코드 · 지금가) + 큰 일봉 차트 + 신호 근거 칸(서버 값 그대로) + 닫기. hub 는 GET /api/stock-hub 응답 */
@@ -225,6 +301,11 @@ export function sdModalHtml(hub, { marketLine = "" } = {}) {
   // 큰 차트를 맨 위에 두고 그 아래로 일곱 칸을 차례로 — 모달 안에서 내리며 읽는다(사용자 11-02 「모달로 크게 띄워서 내리면서 보는 것이 편하겠다」)
   const sections = DRAWER_SECTIONS.map(k => sdSectionHtml(k, s[k], labelOf, { plain: true })).join("");
   const code = hubNaverUrl(hub.symbol);
+  // 외부 차트 링크 — 새 탭 · 단순 링크(스크립트 · 쿠키 없음). 상표 이름은 이 작은 출처 줄에만 쓴다(NOTICE.md · 화면 이름 · 메뉴에는 쓰지 않음)
+  const ext = hubExtChartUrl(hub.symbol);
+  const extLine = ext
+    ? `<p class="sd-actions"><a class="sd-ext" href="${esc(ext)}" target="_blank" rel="noopener noreferrer" data-hub-extchart>외부 차트에서 열기 ↗</a> `
+      + `<small class="sd-note">외부 차트 링크는 TradingView 로 연결됩니다 · 로그인 · 지연 시세는 그쪽 정책을 따릅니다.</small></p>` : "";
   // 다른 화면으로 가는 입구 — 서랍에 있던 두 단추(PAPER 모의주문 · 리밸런싱 목표)를 모달 하나로 모았다(6자리 코드일 때만)
   const actions = code
     ? `<p class="sd-actions"><button type="button" class="btn-secondary" data-hub-go="paper-stock">PAPER 모의주문으로 →</button> `
@@ -235,7 +316,7 @@ export function sdModalHtml(hub, { marketLine = "" } = {}) {
     + `<pre class="sd-tpl-text" data-hub-tpl>${esc(planNoteText(hub, marketLine))}</pre>`
     + `<button type="button" class="btn-secondary" data-hub-copy>글 복사</button> <small class="sd-note" data-hub-copied role="status"></small></details>`;
   return `${top}<div class="sd-modal-body"><p class="sd-lead sd-modal-intro">아래는 앱이 이미 가진 값을 기준일 · 출처와 함께 모은 것이고, 새로 계산한 결론이 아닙니다. 쉬운 말로 바꾼 설명이며, 쉬워졌다고 더 확실해진 것은 아닙니다. 칸마다 「이 칸 읽는 법」 을 펼쳐 보세요.</p>`
-    + `<p class="sd-market" data-hub-market>${esc(marketLine)}</p>${actions}`
+    + `<p class="sd-market" data-hub-market>${esc(marketLine)}</p>${actions}${extLine}`
     + `<div class="sd-modal-chart">${chart || `<p class="sd-why">이 종목은 수집 일봉이 없어 차트를 그리지 못합니다.</p>`}</div>`
     + `<div class="sd-modal-ev">${sections}</div>${tpl}</div>`
     + `<footer class="sd-bottom"><p class="sd-notice">${esc(hub.notice || "투자 권유가 아닙니다.")}</p></footer>`;
@@ -311,16 +392,17 @@ export function mountStockDrawer(doc, deps) {
   const makeChart = (box, note) => (deps.mountChart || ((b, n) => mountDailyChart(doc, b, n, { api: deps.api })))(box, note);
 
   /** root 안의 차트 칸에 일봉을 그린다 — 칸이 없으면(해외 종목) null */
-  function startChart(root, symbol, period) {
+  function startChart(root, symbol, period, hub) {
     const box = root.querySelector("[data-hub-chart]"), note = root.querySelector("[data-hub-chart-note]");
     if (!box || !note) return null;
     const c = makeChart(box, note);
+    c.setSignal?.(sdChartSignal(hub));              // 마지막 기록 한 점 — 기록을 읽어서만 찍는다(새 계산 없음)
     c.draw({ symbol, period: period || SC_DEFAULT_PERIOD });
     return c;
   }
   /** 기간 단추 — 눌린 표시를 옮기고 같은 root 의 차트를 다시 그린다 */
   function pickPeriod(root, btn, symbol, chart) {
-    root.querySelectorAll("[data-hub-period]").forEach(b => b.classList.toggle("on", b === btn));
+    root.querySelectorAll("[data-hub-period]").forEach(b => { b.classList.toggle("on", b === btn); b.setAttribute("aria-pressed", String(b === btn)); });
     if (chart) chart.draw({ symbol, period: btn.dataset.hubPeriod });
   }
 
@@ -334,8 +416,14 @@ export function mountStockDrawer(doc, deps) {
     modal.setAttribute("aria-labelledby", "hub-md-title");
     modal.hidden = true;
     doc.body.appendChild(modal);
+    modal.addEventListener("change", ev => {                       // 신호 칸의 날짜 입력 — 고른 날의 기록으로
+      const inp = ev.target.closest?.("[data-hub-sigdate]");
+      if (inp && /^\d{4}-\d{2}-\d{2}$/.test(inp.value)) pickSignal(modal, inp.value);
+    });
     modal.addEventListener("click", ev => {
       if (ev.target === modal || ev.target.closest("[data-hub-modal-close]")) { closeModal(); return; }
+      const stepBtn = ev.target.closest("[data-hub-sigstep]");     // 앞/다음 거래일 · 가장 최근
+      if (stepBtn) { if (!stepBtn.disabled) pickSignal(modal, stepBtn.dataset.hubSigstep); return; }
       const per = ev.target.closest("[data-hub-period]");
       if (per) { pickPeriod(modal, per, modal.dataset.symbol, modalChart); return; }
       const cp = ev.target.closest("[data-hub-copy]");
@@ -398,15 +486,42 @@ export function mountStockDrawer(doc, deps) {
     slot.textContent = v.note ? `${v.text} · ${v.note}` : v.text;
   }
   let modalSeq = 0;
+  let sigSeq = 0;             // 신호 칸 날짜 고르기 — 늦게 온 응답이 더 나중에 고른 날을 덮지 않게
+  let modalHub = null;        // 지금 모달에 그린 허브 응답 — 날짜를 고를 때 「그 화면으로」 단추 이름표를 여기서 읽는다
+  /** 신호 칸만 그 날(target = YYYY-MM-DD · "latest" 면 가장 최근) 기록으로 바꾼다 — 허브를 신호 칸만 다시 읽는다(새 계산 없음).
+   *  차트의 신호 표식과 신호 기준 종가도 같이 옮긴다. 읽지 못하면 칸을 그대로 두고 까닭만 칸 안에 보인다 */
+  async function pickSignal(m, target) {
+    const symbol = m.dataset.symbol;
+    const mine = ++sigSeq, modalAt = modalSeq;
+    const say = text => { const el = m.querySelector("[data-hub-sigmsg]"); if (el) el.textContent = text; };
+    say("신호 기록을 불러오는 중…");
+    let next;
+    try {
+      next = await deps.api(hubSignalPath(symbol, target === "latest" ? "" : target));
+    } catch (err) {
+      if (mine === sigSeq && modalAt === modalSeq) say(sdSignalFailText(err));
+      return;
+    }
+    if (mine !== sigSeq || modalAt !== modalSeq || m.hidden || m.dataset.symbol !== symbol) return;     // 그 사이 다른 날 · 다른 종목
+    const sec = next && next.sections && next.sections.signal;
+    const old = m.querySelector('[data-hub-sec="signal"]');
+    if (!old || !sec || !(sdOk(sec) || (sec.data && sec.data.max_on))) { say((sec && sec.reason) || "이 날짜의 신호 기록을 읽지 못했습니다."); return; }
+    const labelOf = new Map(((modalHub && modalHub.links) || []).map(l => [l.view, l.label]));
+    old.outerHTML = sdSectionHtml("signal", sec, labelOf, { plain: true });
+    modalChart?.setSignal?.(sdChartSignal(next));                         // 비어 있으면 표식을 걷는다
+    fillSignalClose(m, { symbol }, modalAt);
+    m.querySelector("[data-hub-sigdate]")?.focus();
+  }
   function openModal(hub) {
     const m = ensureModal();
+    modalHub = hub;
     m.dataset.symbol = hub.symbol;
     m.dataset.name = hub.name || "";
     m.innerHTML = sdModalHtml(hub);
     m.hidden = false;
     doc.body.classList.add("sd-open");
     if (modalChart) modalChart.destroy();
-    modalChart = startChart(m, hub.symbol);
+    modalChart = startChart(m, hub.symbol, undefined, hub);
     m.querySelector("[data-hub-modal-close]")?.focus();
     const seq = ++modalSeq;
     fillMarketLine(m, hub, seq);
@@ -499,7 +614,7 @@ export function mountStockDrawer(doc, deps) {
       h.innerHTML = stockDrawerWithChartHtml(hub);
       hubLast = hub;
       if (drawerChart) drawerChart.destroy();
-      drawerChart = startChart(h, hub.symbol);
+      drawerChart = startChart(h, hub.symbol, undefined, hub);
       h.querySelector("[data-hub-close]")?.focus();
     } catch (err) {
       if (mine !== token) return;

@@ -22,6 +22,7 @@ import hashlib
 import json
 import uuid
 from datetime import date, datetime, timezone
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
@@ -34,6 +35,7 @@ from app.services import rebalance_policy as policy
 from app.services import rebalance_schedule as schedule
 from app.services import rebalance_daily as daily
 from app.services import rebalance_prices as prices, rebalance_settlement as settlement
+from app.services import rebalance_regime as regime
 
 logger = logging.getLogger(__name__)
 
@@ -86,25 +88,40 @@ def normalize_targets(raw: list[dict]) -> list[dict]:
         w = checked_number(w, "목표 비중", 0, 100)
         if w < 0 or w > 100:
             raise RebalanceError(f"{symbol}: 비중은 0~100 사이여야 합니다.")
+        w = Decimal(str(w))
         if symbol in merged:
             merged[symbol]["weight_pct"] += w
         else:
             merged[symbol] = {"symbol": symbol, "name": str(t.get("name") or symbol)[:100], "weight_pct": w}
     total = sum(t["weight_pct"] for t in merged.values())
-    if total > 100.0001:
+    if total > Decimal("100.0001"):
         raise RebalanceError(f"목표 비중 합계가 100%를 초과합니다 ({total:.1f}%). 잔여분은 현금으로 배분됩니다.")
-    return [{**t, "weight_pct": round(t["weight_pct"], 2)} for t in merged.values()]
+    # 개별 반올림은 합계를 100.01%로 만들 수 있다. 합계의 0.01% 단위를
+    # 먼저 확정하고 소수 잔여가 큰 종목에 배분한다. 사용자가 남긴 현금은 유지한다.
+    units = {symbol: t["weight_pct"] * 100 for symbol, t in merged.items()}
+    rounded = {symbol: int(value.to_integral_value(rounding=ROUND_FLOOR)) for symbol, value in units.items()}
+    budget = int((Decimal(total) * 100).to_integral_value(rounding=ROUND_HALF_UP))
+    remainder = budget - sum(rounded.values())
+    order = sorted(units, key=lambda symbol: (-(units[symbol] - rounded[symbol]), symbol))
+    for symbol in order[:remainder]:
+        rounded[symbol] += 1
+    return [{**t, "weight_pct": rounded[symbol] / 100} for symbol, t in merged.items()]
 
 
 async def resolve_targets(raw: list[dict]) -> list[dict]:
-    """입력 심볼을 모의투자 표준 심볼(005930 → 005930.KS)과 종목명으로 확정한다."""
+    """목표 저장에는 종목 식별 정보만 필요하다. 매매 가격은 제안·정산에서 확인한다."""
+    symbols = [str(t.get("symbol", "")).strip() for t in raw or []]
+    try:
+        local = await asyncio.to_thread(prices.target_metadata, symbols)
+    except prices.PriceUnavailable:
+        local = {}
     resolved = []
     for t in raw or []:
         sym = str(t.get("symbol", "")).strip()
         if not sym:
             continue
         try:
-            info = await pt.resolve_stock(sym)
+            info = local.get(sym) or await pt.resolve_stock(sym)
         except pt.PaperTradeError as exc:
             raise RebalanceError(str(exc))
         resolved.append({"symbol": info["symbol"], "name": info["name"], "weight_pct": t.get("weight_pct", 0)})
@@ -198,6 +215,7 @@ def plan_to_dict(plan: RebalancePlan) -> dict:
         "last_auto_check_date": plan.last_auto_check_date.isoformat() if plan.last_auto_check_date else None,
         "last_auto_check_at": plan.last_auto_check_at.isoformat() if plan.last_auto_check_at else None,
         "updated_at": plan.updated_at.isoformat() if plan.updated_at else None,
+        "regime_auto": regime.view(plan),
     }
 
 
@@ -256,6 +274,7 @@ def fingerprint(plan):
 
 def proposal_context(plan, proposal):
     return {"settings_fingerprint": fingerprint(plan), "observed_at": proposal["snapshot"]["observed_at"],
+            "regime_change_id": (getattr(plan, "regime_state", None) or {}).get("change_id"),
             "price_basis": proposal["snapshot"]["price_basis"],
             **{k: proposal["snapshot"][k] for k in ("valuation_date", "account_stamp") if k in proposal["snapshot"]},
             "estimated_cost": proposal["estimated_cost"],
@@ -413,6 +432,11 @@ async def check_daily(db, user_id, plan):
     pending_run = await settlement.settle(db, user_id, plan, readiness)
     if pending_run and pending_run.status == "scheduled":
         return {"checked": False, "reason": "settlement_waiting", "run_id": str(pending_run.id)}
+    regime_result = await regime.update_for_day(db, user_id, plan, readiness)
+    if regime_result["status"] == "waiting":
+        return {"checked": False, "reason": "regime_waiting", "message": regime_result["message"],
+                "regime_auto": regime_result}
+    await db.flush()
     result = await check_due(db, user_id, plan, valuation_date=date.fromisoformat(readiness["data_as_of"]))
     plan.last_auto_check_date = today
     plan.last_auto_check_at = datetime.now(timezone.utc)
@@ -421,9 +445,10 @@ async def check_daily(db, user_id, plan):
         "run_id": result.get("run_id"), "triggers": result.get("triggers", []),
         "status": result.get("status", "no_action"), "already_processed": result.get("already_processed", False),
         "price_basis": result.get("price_basis", "previous_close"),
+        "regime_auto": regime_result,
     }
     await db.flush()
-    return {**result, "checked": True}
+    return {**result, "checked": True, "regime_auto": regime_result}
 
 
 async def check_all_due(session_factory) -> dict:

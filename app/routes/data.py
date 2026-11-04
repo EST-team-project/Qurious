@@ -253,6 +253,32 @@ async def indicators(
         raise HTTPException(status_code=e.status, detail=e.detail("admin" in user.get("roles", []))) from None
 
 
+# ── 지표 비교 표(2026-11-04 · D11 — 위 import 와 같은 이유로 import 도 여기 둔다)
+from app.services import data_indicator_table  # noqa: E402
+
+
+@router.get("/indicators/table", summary="지표 비교 표 — 수집 대상 상장사 전부의 PER · PBR · ROE · EPS · 영업이익률 · 배당수익률(시장 · 업종 필터 · 정렬 · 쪽)")
+async def indicators_table(
+    market: str = Query("", description="시장 — KOSPI · KOSDAQ · KONEX(비우면 전체)"),
+    sector: str = Query("", description="업종 — 한국표준산업분류 중분류 2자리 코드 · 분류를 못 찾은 종목은 none(비우면 전체)"),
+    q: str = Query("", description="종목 이름 · 코드 검색(40자까지)"),
+    sort: str = Query("name", description="정렬 칸 — name · code · market · sector · per · pbr · roe · eps · operating_margin · dividend_yield"),
+    order: str = Query("asc", description="asc · desc — 값이 없는 종목은 어느 쪽이든 맨 뒤"),
+    page: int = Query(1, description="쪽(1부터) — 끝을 넘으면 마지막 쪽"),
+    size: int = Query(data_indicator_table.DEFAULT_SIZE, description="쪽 크기 10~100(기본 30)"),
+    user=Depends(get_current_user),
+):
+    """한 쪽 분량의 지표 표 — 서버가 필터 · 정렬 · 쪽 자르기까지 한다. 값은 지표 대시보드(`/indicators`)와 같은 서비스 결과.
+
+    없는 값은 null + reason(0 이나 N/A 로 채우지 않는다) · 줄마다 기준(보고서 · 접수일 · 종가 날짜)과 조회 상태를 싣는다.
+    수집 · 설정 문제(5xx)의 할 일(명령)은 관리자 응답에만 싣는다.
+    """
+    try:
+        return await asyncio.to_thread(data_indicator_table.read_table, market, sector, q, sort, order, page, size)
+    except company_indicators.IndicatorsError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail("admin" in user.get("roles", []))) from None
+
+
 # ── 자료 안내(2026-10-08 · 화면 결정 안 B + 안 A 서랍 · 1단계) ─────────────────────────────────────────────
 # 이 덩어리는 파일 끝에 덧붙이기만 했다 — 같은 파일을 고치는 다른 작업과 위쪽 줄(import 포함)이 부딪히지 않게 import 도 여기 둔다.
 from app.services import data_guide  # noqa: E402

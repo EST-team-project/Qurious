@@ -69,6 +69,27 @@ class MarketOpenError(ReserveError):
     """정규장이 열려 있어 예약할 까닭이 없음 — 라우트가 409 로 돌려준다(바로 주문하면 된다)."""
 
 
+class ReserveUnsupportedError(ReserveError):
+    """모의 장부가 이 시장을 받지 않아 예약을 저장하지 않음 — 라우트가 400 으로 돌려준다(2026-11-03 · 이슈 #520)."""
+
+
+# 접수 · 체결 · 화면이 **같은 판단**을 쓰게 하는 한 곳 — 장부(`paper_trading._ensure_supported_market`)가 해외 종목을 받는지를
+# 대표 미국 종목 한 줄로 물어본다. 접수할 때 허용하는 범위와 체결할 때 허용하는 범위가 달라지지 않게(이슈 #520).
+UNSUPPORTED_NOTE = ("미국주식 모의 매수는 아직 지원하지 않습니다 — 모의 장부가 원화 종목만 다루고 해외 매수 비용 계산이 준비되지 않았습니다. "
+                    "시세 · 환율 조회는 그대로 볼 수 있습니다.")
+UNSUPPORTED_RESERVED_NOTE = "지원하지 않는 예약 — 체결하지 않습니다. 취소해 주세요."
+_SAMPLE_US = {"symbol": "US", "currency": "USD", "market": "NMS"}
+
+
+def order_support() -> dict:
+    """모의 장부가 미국 종목 매수를 받는가 — `{"supported": bool, "note": 안내 글 또는 None}`. 화면 · 접수 · 체결 처리가 이 값을 따른다."""
+    try:
+        paper_trading._ensure_supported_market(dict(_SAMPLE_US))
+    except paper_trading.PaperTradeError:
+        return {"supported": False, "note": UNSUPPORTED_NOTE}
+    return {"supported": True, "note": None}
+
+
 # ── 장 시간 ─────────────────────────────────────────────────────────────────
 
 def trading_day(d: date) -> bool | None:
@@ -139,6 +160,9 @@ async def place(db: AsyncSession, user_id: uuid.UUID, symbol: str, quantity: int
         raise ReserveError("수량은 1 이상의 정수여야 합니다.")
     if overseas_orders.is_domestic(symbol):
         raise ReserveError("국내 종목은 예약을 받지 않습니다 — 국내주식 모의주문을 쓰세요.")
+    support = order_support()
+    if not support["supported"]:                 # 체결 때 거부될 예약은 저장하지 않는다 — 접수 단계에서 까닭과 함께 거부(이슈 #520)
+        raise ReserveUnsupportedError(support["note"])
     state = market_state(now)
     if state["open"] is None:
         raise ReserveError(state["label"])
@@ -194,6 +218,10 @@ async def session_open_price(symbol: str, session_day: date, now: datetime) -> f
 
 async def fill_due(db: AsyncSession, user_id: uuid.UUID, *, now: datetime | None = None) -> list[dict]:
     """정규장이 이미 열린 대기 예약을 그 정규장의 시가로 체결한다. 같은 줄을 두 번 체결하지 않게 줄을 잠근다."""
+    if not order_support()["supported"]:
+        # 장부가 받지 않는 시장의 옛 대기 예약 — 체결을 시도하지 않고 **아무것도 바꾸지 않는다**(줄을 잠그지도 · skipped 로 닫지도 않는다).
+        # 목록을 여는 것만으로 예약 상태가 바뀌지 않게 하고, 사용자가 목록에서 직접 취소한다(이슈 #520).
+        return []
     now = _aware(now or datetime.now(timezone.utc))
     rows = (await db.execute(select(Order).where(
         Order.user_id == user_id, Order.order_kind == KIND, Order.status == "pending",
@@ -237,10 +265,12 @@ async def fill_due(db: AsyncSession, user_id: uuid.UUID, *, now: datetime | None
 async def list_reservations(db: AsyncSession, user_id: uuid.UUID, *, limit: int = 20) -> list[dict]:
     rows = (await db.execute(select(Order).where(Order.user_id == user_id, Order.order_kind == KIND)
                              .order_by(Order.created_at.desc()).limit(limit))).scalars().all()
+    supported = order_support()["supported"]
     return [{
         "order_id": str(o.id), "symbol": o.symbol, "name": o.name, "quantity": o.quantity, "status": o.status,
         "created_at_kst": kst_label(o.created_at),
-        "next_open_kst": kst_label(next_open_after(o.created_at)) if o.status == "pending" else None,
+        "next_open_kst": kst_label(next_open_after(o.created_at)) if o.status == "pending" and supported else None,
+        "unsupported_note": UNSUPPORTED_RESERVED_NOTE if o.status == "pending" and not supported else None,
         "filled_at_kst": kst_label(o.filled_at) if o.status == "filled" else None,
         "fill_price": o.avg_fill_price if o.status == "filled" else None,
         "net_amount": o.net_amount if o.status == "filled" else None,

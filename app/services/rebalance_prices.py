@@ -5,9 +5,9 @@ from contextlib import closing
 import math
 import re
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
-from app.services import collector_db, rebalance_schedule as schedule
+from app.services import collector_db, collector_status, rebalance_schedule as schedule
 
 
 class PriceUnavailable(ValueError):
@@ -18,13 +18,42 @@ class OpenNotTradable(PriceUnavailable):
     """완료된 거래일에 체결할 원시 시가가 없다는 근거가 확인됨."""
 
 
+def target_metadata(symbols, *, as_of: date | None = None) -> dict:
+    """플랜 저장용 국내 종목 식별 정보. 가격·거래 가능 여부를 보증하지 않는다."""
+    path = collector_db.db_path()
+    if path is None:
+        return {}
+    cutoff = (as_of or datetime.now(collector_db.KST).date()).strftime('%Y%m%d')
+    suffixes = {'KOSPI': 'KS', 'KOSDAQ': 'KQ', 'KONEX': 'KN'}
+    result = {}
+    try:
+        with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)) as conn:
+            conn.execute('BEGIN')
+            for raw in set(symbols):
+                match = re.fullmatch(r'([0-9A-Z]{6})(?:\.(?:KS|KQ|KN))?', raw.upper())
+                if not match:
+                    continue
+                code = match.group(1)
+                row = conn.execute(
+                    "SELECT itms_nm,mrkt_ctg FROM price_daily WHERE srtn_cd=? AND bas_dt<=? "
+                    "ORDER BY bas_dt DESC LIMIT 1", (code, cutoff)).fetchone()
+                if row is None:
+                    row = conn.execute(
+                        "SELECT itms_nm,'KOSPI' FROM etf_daily WHERE srtn_cd=? AND bas_dt<=? "
+                        "ORDER BY bas_dt DESC LIMIT 1", (code, cutoff)).fetchone()
+                if row and row[0] and row[1] in suffixes:
+                    result[raw] = {'symbol': f'{code}.{suffixes[row[1]]}', 'name': row[0]}
+    except (sqlite3.Error, OSError) as exc:
+        raise PriceUnavailable('수집 DB의 목표 종목 정보를 확인할 수 없습니다.') from exc
+    return result
+
+
 def collection_complete(conn, code, day):
-    # 기존 종목은 실제 저장 표로 출처를 확인한다. 미상 종목은 양쪽 완료가 필요하다.
-    sources = [source for table, source in [('price_daily', 'portal'), ('etf_daily', 'portal_etf')]
-               if conn.execute(f'SELECT 1 FROM {table} WHERE srtn_cd=? LIMIT 1', (code,)).fetchone()]
-    sources = sources or ['portal', 'portal_etf']
-    return all(conn.execute("SELECT 1 FROM ingest_day WHERE source=? AND bas_dt=? AND status='done'",
-                            (source, day.strftime('%Y%m%d'))).fetchone() for source in sources)
+    # 수집 사실은 공통 함수가 제공하고, 완료 판정은 이 소비자가 담당한다.
+    # 가격 조회와 같은 트랜잭션을 넘겨 갱신 전 가격/갱신 후 상태가 섞이지 않게 한다.
+    state = collector_status.symbol_day_status([code], day, connection=conn)[code]
+    collected = state['collected']
+    return bool(collected) and all(status == 'done' for status in collected.values())
 
 
 def next_trading_day(after: date) -> date:
@@ -77,6 +106,6 @@ def read_prices(symbols, day: date, field: str = 'close') -> dict:
                 result[symbol] = dict(symbol=symbol, name=row['itms_nm'] or symbol, price=float(price),
                                       market=row['mrkt_ctg'], is_etf=bool(row['is_etf']),
                                       price_date=day.isoformat(), price_basis=f'raw_{field}')
-    except (sqlite3.Error, OSError) as exc:
+    except (sqlite3.Error, OSError, collector_status.CollectorStatusUnavailable) as exc:
         raise PriceUnavailable('수집 DB 가격을 읽을 수 없어 대기합니다.') from exc
     return result

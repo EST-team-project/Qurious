@@ -388,9 +388,20 @@ def build(conn: sqlite3.Connection, *, rebuild: bool = False, quiet: bool = True
     except Exception:
         conn.execute("ROLLBACK")
         raise
+    # 공모 청약 · 납입(2026-11-03 · ①-23 F-lite · collector/offering.py) — 원문에서 두 종류를 비우고 다시 읽는다.
+    # 읽기가 깨져도 주총 · 배당 지급 결과는 이미 커밋됐다 — 경고만 남기고 이 단계를 멈추지 않는다.
+    try:
+        from collector import offering  # noqa: PLC0415
+        got = offering.build(conn, at=at)
+        if got["offers"]:                    # 공모 원문이 없으면 돌려주는 값은 전과 같다
+            out["offers"] = got["offers"]
+            out["offers_dated"] = got["dated"]
+    except Exception as e:  # noqa: BLE001
+        print(f"  ⚠️ 공모 일정을 읽지 못했다 — {type(e).__name__}: {str(e)[:160]}")
     if not quiet:
         print(f"  읽음 — 주주총회 {out['agm']:,}(날짜 {out['agm_dated']:,}) · "
-              f"배당 지급 {out['dividend_pay']:,}(날짜 {out['dividend_dated']:,})")
+              f"배당 지급 {out['dividend_pay']:,}(날짜 {out['dividend_dated']:,})"
+              + (f" · 공모 {out['offers']:,}(날짜 {out['offers_dated']:,})" if "offers" in out else ""))
     return out
 
 
@@ -495,7 +506,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     b = sub.add_parser("build", help="받아 둔 원문만 읽기(호출 없음)")
     b.add_argument("--rebuild", action="store_true", help="표를 비우고 다 다시 읽는다(규칙을 고쳤을 때)")
     s = sub.add_parser("show")
-    s.add_argument("--kind", choices=["agm", "dividend_pay"], default="agm")
+    s.add_argument("--kind", choices=["agm", "dividend_pay", "offer_sub", "offer_pay"], default="agm")
     s.add_argument("--from", dest="since", default=date.today().isoformat())
     s.add_argument("--limit", type=int, default=30)
     a = p.parse_args(argv)
@@ -506,6 +517,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             r = fetch_recent(conn, date.today(), days=a.days, max_calls=a.max_calls, quiet=a.quiet)
             print(f"  소집결의 본문 — 받을 것 {r['todo']:,} · 받음 {r['fetched']:,} · 본문 없음 {r['no_document']:,} · "
                   f"다음으로 {r['left']:,}")
+            # 공모 청약 · 납입(2026-11-03 · ①-23 F-lite) — 같은 DART 몫(--max-calls)의 남은 만큼만 · 실패해도 주총 일정은 그대로 읽는다
+            try:
+                from collector import offering  # noqa: PLC0415
+                o = offering.fetch_recent(conn, date.today(), max_calls=a.max_calls - int(r["calls"]), quiet=a.quiet)
+                print(f"  증권신고서(지분증권) — 받을 회사 {o['todo']:,} · 받음 {o['fetched']:,} · 건너뜀 {o['errors']:,} · "
+                      f"다음으로 {o['left']:,}" + (" · ⛔ 하루 한도" if o["quota"] else ""))
+            except Exception as e:  # noqa: BLE001
+                print(f"  ⚠️ 증권신고서(지분증권)를 받지 못했다 — {type(e).__name__}: {str(e)[:160]}")
             build(conn, quiet=False)
         elif a.mode == "backfill":
             print(f"  {datetime.now():%Y-%m-%d %H:%M:%S} 소집결의 과거분 — 접수일 {a.bgn} ~ {a.end or '끝'} · "
