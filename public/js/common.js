@@ -59,6 +59,7 @@ export async function api(path, { method = "GET", body, headers = {}, signal, re
       commission_bps: "수수료(bp)", slippage_bps: "슬리피지(bp)", stop_loss_pct: "손절(%)", take_profit_pct: "익절(%)",
       symbol: "종목", period: "기간", name: "이름", n_splits: "겹 수", amount: "금액", quantity: "수량", price: "가격",
       initial_cash: "시작 자금", ai_top_n: "자동매매 종목 수", gap: "간격(거래일)",
+      buyKrw: "매수 금액(원)", sellCount: "매도 수량",   // 2026-11-04 #530 2-2 — 모의투자 코인 주문 입력 오류가 「입력값은」 으로 나오지 않게
     };
     function koValidationMsg(d) {
       if (!d || typeof d !== "object") return String(d);
