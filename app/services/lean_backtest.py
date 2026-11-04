@@ -20,7 +20,6 @@ import glob
 import json
 import os
 import shutil
-import sqlite3
 import subprocess
 import time
 import uuid
@@ -95,93 +94,6 @@ def lean_status() -> dict:
 
 # ── 가격 데이터 ───────────────────────────────────────────────────────────
 
-def is_krx_ticker(ticker: str) -> bool:
-    symbol = str(ticker or "").upper()
-    return symbol.endswith((".KS", ".KQ", ".KN")) or (
-        len(symbol) == 6 and symbol.isdigit()
-    )
-
-
-def fetch_krx_daily_frame(ticker: str, start: date, end: date) -> pd.DataFrame:
-    """일지와 동일한 Collector DB에서 수정종가와 원주가를 읽는다."""
-    from app.services import collector_db
-
-    symbol = str(ticker or "").upper()
-    code = symbol[:6]
-    if not is_krx_ticker(symbol) or not code.isdigit():
-        raise LeanBacktestError(f"잘못된 KRX 티커: {ticker}")
-
-    query = """
-        SELECT d.bas_dt, ROUND(a.adj_clpr, 2),
-               d.mkp, d.clpr, d.halted
-          FROM price_daily d
-          JOIN price_adjusted a
-            ON a.bas_dt = d.bas_dt AND a.srtn_cd = d.srtn_cd
-         WHERE d.srtn_cd = ? AND d.bas_dt >= ? AND d.bas_dt <= ?
-           AND a.adj_clpr > 0 AND d.clpr > 0
-         ORDER BY d.bas_dt
-    """
-    params = (code, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
-    db = collector_db.db_path()
-
-    try:
-        if db is not None:
-            conn = sqlite3.connect(
-                f"file:{db.resolve()}?mode=ro", uri=True, timeout=15
-            )
-            try:
-                rows = conn.execute(query, params).fetchall()
-            finally:
-                conn.close()
-        else:
-            # WSL 호스트에는 DB가 없으므로 앱 컨테이너에서 필요한 행만 조회한다.
-            container_query = """
-import json, sqlite3, sys
-from app.services import collector_db
-db = collector_db.db_path()
-if db is None:
-    raise SystemExit("앱 컨테이너에서도 Collector DB를 찾지 못했습니다.")
-conn = sqlite3.connect(f"file:{db.resolve()}?mode=ro", uri=True, timeout=30)
-try:
-    rows = conn.execute(sys.argv[1], (sys.argv[2], sys.argv[3], sys.argv[4])).fetchall()
-finally:
-    conn.close()
-print(json.dumps(rows))
-"""
-            result = subprocess.run(
-                [
-                    "docker", "exec", "fin-ai-app", "python3", "-c",
-                    container_query, query, *params,
-                ],
-                capture_output=True, text=True, timeout=90,
-            )
-            if result.returncode != 0:
-                raise LeanBacktestError(
-                    "앱 컨테이너 Collector 조회 실패: "
-                    + (result.stderr or result.stdout)[-1200:]
-                )
-            rows = json.loads(result.stdout)
-    except (sqlite3.Error, OSError, subprocess.SubprocessError, ValueError) as exc:
-        raise LeanBacktestError(f"Collector DB 조회 실패: {exc}") from exc
-
-    if len(rows) < 60:
-        raise LeanBacktestError(f"Collector 데이터 부족: {ticker}, {len(rows)}거래일")
-
-    frame = pd.DataFrame(
-        rows,
-        columns=["date", "adjusted_close", "raw_open", "raw_close", "halted"],
-    )
-    frame.index = pd.to_datetime(frame.pop("date"), format="%Y%m%d")
-    frame.index.name = "date"
-    for col in ("adjusted_close", "raw_open", "raw_close"):
-        frame[col] = pd.to_numeric(frame[col], errors="raise").astype(float)
-    frame["halted"] = frame["halted"].fillna(0).astype(int)
-
-    if frame.index.has_duplicates or (frame["adjusted_close"] <= 0).any() or (frame["raw_close"] <= 0).any():
-        raise LeanBacktestError(f"Collector 가격 데이터 무결성 오류: {ticker}")
-    return frame
-
-
 async def fetch_close_series(ticker: str, start: date, end: date) -> pd.Series:
     """Yahoo chart API(period1/period2)로 일봉 종가를 받아 DatetimeIndex Series로 돌려준다."""
     p1 = int(datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc).timestamp())
@@ -225,58 +137,36 @@ class LeanBacktestService:
         long_window: int = 60,
         dca_interval_days: int = 21,
         breakout_window: int = 20,
-        max_position_pct: float = 100.0,
-        per_trade_budget: float = 1_000_000.0,
-        buy_ratio: float = 1.0,
-        sell_ratio: float = 0.5,
-        max_orders_per_day: int = 20,
-        fill_timing: str = 'default',
     ) -> dict:
         if start_date >= end_date or compare_start_date >= compare_end_date:
             raise LeanBacktestError("시작일은 종료일보다 앞서야 합니다.")
         if strategy not in STRATEGY_LABELS:
             raise LeanBacktestError(f"지원하지 않는 전략입니다: {strategy}")
-        if fill_timing not in ("default", "next_open"):
-            raise LeanBacktestError(f"지원하지 않는 체결 시점 모드입니다: {fill_timing}")
-        if fill_timing == "next_open" and not (strategy == "ma_cross" and is_krx_ticker(ticker)):
-            raise LeanBacktestError("next_open은 KRX ma_cross 대사에만 사용할 수 있습니다.")
-        if not 1.0 <= float(max_position_pct) <= 100.0:
-            raise LeanBacktestError("최대 보유 비중은 1~100% 범위여야 합니다.")
 
         buffer_days = self._lookback_buffer(strategy, long_window, breakout_window)
         fetch_start = min(start_date, compare_start_date) - timedelta(days=buffer_days)
         fetch_end = max(end_date, compare_end_date)
-        krx_prices = None
-        if fill_timing == "next_open":
-            krx_prices = fetch_krx_daily_frame(ticker, fetch_start, fetch_end)
-            close = krx_prices["adjusted_close"]
-        else:
-            close = await fetch_close_series(ticker, fetch_start, fetch_end)
+        close = await fetch_close_series(ticker, fetch_start, fetch_end)
 
         series = close.loc[(close.index.date >= start_date) & (close.index.date <= end_date)]
         comparison = close.loc[(close.index.date >= compare_start_date) & (close.index.date <= compare_end_date)]
         if len(series) < 2 or len(comparison) < 2:
             raise LeanBacktestError("선택한 기간에 거래일 데이터가 충분하지 않습니다.")
 
-        strategy_curve_gross = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window, ticker=ticker, apply_costs=False, max_position_pct=max_position_pct)
-        strategy_curve = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window, ticker=ticker, apply_costs=True, max_position_pct=max_position_pct)
+        strategy_curve_gross = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window, ticker=ticker, apply_costs=False)
+        strategy_curve = self._strategy_curve(strategy, close, start_date, end_date, short_window, long_window, dca_interval_days, breakout_window, ticker=ticker, apply_costs=True)
         if len(strategy_curve) < 2:
             raise LeanBacktestError("선택한 기간에 전략을 계산할 데이터가 충분하지 않습니다.")
 
         # LEAN 실행 (블로킹 subprocess → 스레드)
         mode = resolve_lean_mode()
-        algorithm_source = self._algorithm_source(
-            ticker, strategy, start_date, end_date, initial_cash,
-            short_window, long_window, dca_interval_days, breakout_window,
-            max_position_pct, per_trade_budget, buy_ratio, sell_ratio,
-            max_orders_per_day, krx_ohlc=krx_prices is not None,
-        )
+        algorithm_source = self._algorithm_source(ticker, strategy, start_date, end_date, initial_cash, short_window, long_window, dca_interval_days, breakout_window)
         lean_log, lean_stats, lean_ok = "", {}, False
         lean_fills = []
         lean_signals = []
         if mode in ("ssh", "docker"):
             try:
-                lean_log, lean_stats = await asyncio.to_thread(self._run_lean, mode, strategy, close, algorithm_source, krx_prices)
+                lean_log, lean_stats = await asyncio.to_thread(self._run_lean, mode, strategy, close, algorithm_source)
                 lean_fills = lean_stats.pop("_lean_fills", [])
                 lean_signals = lean_stats.pop("_lean_signals", [])
                 lean_ok = bool(lean_stats)
@@ -330,8 +220,6 @@ class LeanBacktestService:
         )
         return {
             "ticker": ticker,
-            "fill_timing": fill_timing,
-            "price_source": "Collector DB" if fill_timing == "next_open" else "Yahoo Finance",
             "engine": engine,
             "lean_mode": mode,
             "lean_ok": lean_ok,
@@ -363,7 +251,7 @@ class LeanBacktestService:
 
     # ── LEAN 실행 ───────────────────────────────────────────────────────
 
-    def _run_lean(self, mode: str, strategy: str, close, algorithm_source: str, price_frame=None) -> tuple[str, dict]:
+    def _run_lean(self, mode: str, strategy: str, close: pd.Series, algorithm_source: str) -> tuple[str, dict]:
         work_id = f"workflow-{uuid.uuid4().hex[:12]}"
         class_name = self._algorithm_class_name(strategy)
         lean_args = (
@@ -373,10 +261,10 @@ class LeanBacktestService:
             "--results-destination-folder /workspace/results --backtest-name workflow"
         )
         if mode == "ssh":
-            return self._run_lean_ssh(work_id, close, algorithm_source, lean_args, price_frame)
-        return self._run_lean_docker(work_id, close, algorithm_source, lean_args, price_frame)
+            return self._run_lean_ssh(work_id, close, algorithm_source, lean_args)
+        return self._run_lean_docker(work_id, close, algorithm_source, lean_args)
 
-    def _run_lean_docker(self, work_id: str, close, algorithm_source: str, lean_args: str, price_frame=None) -> tuple[str, dict]:
+    def _run_lean_docker(self, work_id: str, close: pd.Series, algorithm_source: str, lean_args: str) -> tuple[str, dict]:
         """같은 호스트의 Docker 데몬에서 LEAN 컨테이너를 실행한다.
 
         - 작업 폴더 루트(LEAN_WORKDIR)를 통째로 /workspace 에 마운트하고 하위 폴더(work_id)를 인자로 넘긴다.
@@ -387,7 +275,7 @@ class LeanBacktestService:
         local = base / work_id
         (local / "data").mkdir(parents=True, exist_ok=True)
         (local / "results").mkdir(parents=True, exist_ok=True)
-        self._write_prices(local / "data" / "prices.csv", price_frame if price_frame is not None else close)
+        self._write_prices(local / "data" / "prices.csv", close)
         (local / "main.py").write_text(algorithm_source, encoding="utf-8")
         for relative in _REFERENCE_DATA_FILES:
             src = _REFERENCE_DATA_DIR / relative
@@ -463,14 +351,14 @@ class LeanBacktestService:
             i += 8 + size
         return "".join(out).strip()
 
-    def _run_lean_ssh(self, work_id: str, close, algorithm_source: str, lean_args: str, price_frame=None) -> tuple[str, dict]:
+    def _run_lean_ssh(self, work_id: str, close: pd.Series, algorithm_source: str, lean_args: str) -> tuple[str, dict]:
         if not settings.LEAN_SSH_HOST or not settings.LEAN_SSH_KEY_PATH:
             raise LeanBacktestError("원격 LEAN 실행 설정(LEAN_SSH_HOST, LEAN_SSH_KEY_PATH)이 없습니다.")
         import tempfile
         with tempfile.TemporaryDirectory(prefix="lean-backtest-") as tmp:
             local = Path(tmp)
             (local / "data").mkdir()
-            self._write_prices(local / "data" / "prices.csv", price_frame if price_frame is not None else close)
+            self._write_prices(local / "data" / "prices.csv", close)
             (local / "main.py").write_text(algorithm_source, encoding="utf-8")
             remote = f"{settings.LEAN_REMOTE_WORKDIR}/{work_id}"
             self._ssh(f"mkdir -p {remote}/data {remote}/results")
@@ -772,7 +660,7 @@ class LeanBacktestService:
     def _strategy_curve(
         self, strategy, close, start_date, end_date, short_window,
         long_window, dca_interval_days, breakout_window,
-        ticker=None, apply_costs=True, max_position_pct=100.0,
+        ticker=None, apply_costs=True,
     ):
         mask = (
             (close.index.date >= start_date)
@@ -816,9 +704,6 @@ class LeanBacktestService:
             if strategy in ("ma_cross", "momentum") and len(window.index):
                 position_full = position_full.copy()
                 position_full.loc[window.index[0]] = 0.0
-
-            if strategy == "ma_cross":
-                position_full = position_full * (float(max_position_pct) / 100.0)
 
             equity_full = self._equity_from_position(
                 close, position_full
@@ -906,21 +791,7 @@ class LeanBacktestService:
 
     @staticmethod
     def _write_prices(path: Path, close) -> None:
-        if isinstance(close, pd.DataFrame):
-            lines = ["date,adjusted_close,raw_open,raw_close,halted"]
-            for idx, row in close.iterrows():
-                lines.append(
-                    f"{idx.strftime('%Y-%m-%d')},"
-                    f"{float(row['adjusted_close']):.2f},"
-                    f"{float(row['raw_open'] or 0):.2f},"
-                    f"{float(row['raw_close']):.2f},"
-                    f"{int(row['halted'])}"
-                )
-        else:
-            lines = ["date,close"] + [
-                f"{idx.strftime('%Y-%m-%d')},{float(value):.8f}"
-                for idx, value in close.items()
-            ]
+        lines = ["date,close"] + [f"{idx.strftime('%Y-%m-%d')},{float(value):.8f}" for idx, value in close.items()]
         path.write_text("\n".join(lines), encoding="utf-8")
 
     # ── LEAN 알고리즘 소스 생성 ───────────────────────────────────────
@@ -935,39 +806,20 @@ class LeanBacktestService:
         }.get(strategy, "YFinanceBuyHoldAlgorithm")
 
     @staticmethod
-    def _reader_boilerplate(krx_ohlc: bool = False) -> str:
-        imports = (
+    def _reader_boilerplate() -> str:
+        return (
             'from AlgorithmImports import *\n'
             'from QuantConnect.Python import PythonData\n'
             'from QuantConnect import Globals, SubscriptionTransportMedium\n'
             'from QuantConnect.Data import SubscriptionDataSource\n'
             'import os\n'
             'from datetime import datetime, timedelta\n\n'
-        )
-        if krx_ohlc:
-            return imports + (
-                'class YFPrice(PythonData):\n'
-                '    def get_source(self, config, date, is_live):\n'
-                '        return SubscriptionDataSource(os.path.join(Globals.DataFolder, "prices.csv"), SubscriptionTransportMedium.LocalFile)\n'
-                '    def reader(self, config, line, date, is_live):\n'
-                '        if line.startswith("date"): return None\n'
-                '        d, adj, raw_open, raw_close, halted = line.split(",")\n'
-                '        item = YFPrice()\n'
-                '        item.symbol = config.symbol\n'
-                '        item.time = datetime.strptime(d, "%Y-%m-%d").replace(hour=15, minute=29)\n'
-                '        item.value = float(raw_close)\n'
-                '        item.adjusted_close = float(adj)\n'
-                '        item.raw_open = float(raw_open)\n'
-                '        item.raw_close = float(raw_close)\n'
-                '        item.halted = bool(int(halted))\n'
-                '        return item\n\n'
-            )
-        return imports + (
             'class YFPrice(PythonData):\n'
             '    def get_source(self, config, date, is_live):\n'
             '        return SubscriptionDataSource(os.path.join(Globals.DataFolder, "prices.csv"), SubscriptionTransportMedium.LocalFile)\n'
             '    def reader(self, config, line, date, is_live):\n'
-            '        if line.startswith("date"): return None\n'
+            '        if line.startswith("date"):\n'
+            '            return None\n'
             '        d, close = line.split(",")\n'
             '        item = YFPrice()\n'
             '        item.symbol = config.symbol\n'
@@ -976,12 +828,7 @@ class LeanBacktestService:
             '        return item\n\n'
         )
 
-    def _algorithm_source(
-        self, ticker, strategy, start, end, cash, short_window, long_window,
-        dca_interval_days, breakout_window, max_position_pct=100.0,
-        per_trade_budget=1_000_000.0, buy_ratio=1.0, sell_ratio=0.5,
-        max_orders_per_day=20, krx_ohlc=False,
-    ) -> str:
+    def _algorithm_source(self, ticker, strategy, start, end, cash, short_window, long_window, dca_interval_days, breakout_window) -> str:
         ticker_upper = str(ticker or "").upper()
         if ticker_upper.endswith(".KQ"):
             market_name, market_column = "KOSDAQ", 2
@@ -1004,7 +851,6 @@ class LeanBacktestService:
         fee_model_source = ""
         model_setup = ""
         if is_krx:
-            slip_fraction = float(trading_cost.DEFAULT_SLIPPAGE_BPS) / 10_000.0
             tax_rows = [
                 (row[0].isoformat(), float(row[market_column]))
                 for row in trading_cost.TAX_SCHEDULE
@@ -1036,47 +882,6 @@ class LeanBacktestService:
                 "        return OrderFee(CashAmount(gross * rate, 'KRW'))",
                 "",
             ]
-            if krx_ohlc:
-                for i, line in enumerate(fee_lines):
-                    if "gross = abs(" in line:
-                        fee_lines[i:i + 1] = [
-                            "        bar = security.cache.get_data(YFPrice)",
-                            "        raw_open = float(bar.raw_open) if bar is not None else float(security.price)",
-                            f"        slip_rate = {slip_fraction!r}",
-                            "        fee_price = raw_open * (1 + slip_rate if order.direction == OrderDirection.BUY else 1 - slip_rate)",
-                            "        gross = abs(fee_price * float(order.absolute_quantity))",
-                        ]
-                        break
-                else:
-                    raise RuntimeError("KrxFeeModel의 수수료 계산 위치 없음")
-
-                fee_lines.extend([
-                    "class KrxNextOpenFillModel(ImmediateFillModel):",
-                    "    def market_on_open_fill(self, asset, order):",
-                    "        fill = super().market_on_open_fill(asset, order)",
-                    "        if fill.status != OrderStatus.FILLED:",
-                    "            return fill",
-                    "        bar = asset.cache.get_data(YFPrice)",
-                    "        if bar is None or bar.halted or bar.raw_open <= 0:",
-                    "            fill.status = OrderStatus.CANCELED",
-                    "            fill.fill_quantity = 0",
-                    "            fill.fill_price = 0",
-                    "            return fill",
-                    f"        slip = float(bar.raw_open) * {slip_fraction!r}",
-                    "        fill.fill_price = float(bar.raw_open) + (slip if order.direction == OrderDirection.BUY else -slip)",
-                    "        return fill",
-                    "",
-                ])
-                model_setup = (
-                    "        self.securities[self.asset].set_fee_model(KrxFeeModel())\n"
-                    "        self.securities[self.asset].set_fill_model(KrxNextOpenFillModel())\n"
-                    f"        self.securities[self.asset].set_slippage_model(ConstantSlippageModel({slip_fraction!r}))"
-                )
-            else:
-                model_setup = (
-                    "        self.securities[self.asset].set_fee_model(KrxFeeModel())\n"
-                    f"        self.securities[self.asset].set_slippage_model(ConstantSlippageModel({slip_fraction!r}))"
-                )
             fee_model_source = "\n".join(fee_lines) + "\n\n"
 
             slip_fraction = (
@@ -1086,12 +891,6 @@ class LeanBacktestService:
                 "        self.securities[self.asset].set_fee_model(KrxFeeModel())\n"
                 f"        self.securities[self.asset].set_slippage_model(ConstantSlippageModel({slip_fraction!r}))"
             )
-        if krx_ohlc:
-            model_setup = model_setup.replace(
-                "set_fee_model(KrxFeeModel())",
-                "set_fee_model(KrxFeeModel())\n        self.securities[self.asset].set_fill_model(KrxNextOpenFillModel())",
-            )
-
         if is_krx:
             subscription_setup = "\n".join(
                 [
@@ -1115,7 +914,6 @@ class LeanBacktestService:
 {model_setup}
 '''
         if strategy == "ma_cross":
-            order_method = "market_on_open_order" if krx_ohlc else "market_order"
             body = f'''{header}        self.short_window = {short_window}
         self.long_window = {long_window}
         self.prices = []
@@ -1129,7 +927,7 @@ class LeanBacktestService:
     def on_data(self, data):
         if not data.contains_key(self.asset):
             return
-        self.prices.append(float(data[self.asset].adjusted_close if {krx_ohlc} else data[self.asset].value))
+        self.prices.append(float(data[self.asset].value))
         self.prices = self.prices[-self.long_window:]
         if len(self.prices) < self.long_window or self.is_warming_up:
             return
@@ -1142,37 +940,10 @@ class LeanBacktestService:
             "{{}},{{}},{{}}".format(signal_date, int(entry_state), int(exit_state)) + chr(10)
         )
         self.signal_file.flush()
-
-        # 그림자 일지 plan_orders()와 동일한 주문 수량 규칙
-        if not hasattr(self, "order_date") or self.order_date != signal_date:
-            self.order_date = signal_date
-            self.orders_today = 0
-
-        if entry_state:
-            if {int(max_orders_per_day)} > 0 and self.orders_today >= {int(max_orders_per_day)}:
-                return
-            price = float(data[self.asset].value)
-            held = int(self.portfolio[self.asset].quantity)
-            equity = float(self.portfolio.total_portfolio_value)
-            budget = float({float(per_trade_budget)!r}) * float({float(buy_ratio)!r})
-            qty = max(1, int(budget / price)) if price > 0 else 0
-            cap_value = equity * float({float(max_position_pct)!r}) / 100.0
-            room = cap_value - held * price
-            allowed = int(room // price) if price > 0 else 0
-            qty = min(qty, max(0, allowed))
-            if qty > 0:
-                self.{order_method}(self.asset, qty)
-                self.orders_today += 1
-
-        elif exit_state:
-            held = int(self.portfolio[self.asset].quantity)
-            if held > 0:
-                if {int(max_orders_per_day)} > 0 and self.orders_today >= {int(max_orders_per_day)}:
-                    return
-                ratio = float({float(sell_ratio)!r})
-                qty = held if ratio >= 1.0 else max(1, int(held * ratio))
-                self.{order_method}(self.asset, -qty)
-                self.orders_today += 1
+        if entry_state and not self.portfolio.invested:
+            self.set_holdings(self.asset, 1)
+        elif exit_state and self.portfolio.invested:
+            self.liquidate(self.asset)
 
     def on_end_of_algorithm(self):
         signal_file = getattr(self, "signal_file", None)
@@ -1224,7 +995,7 @@ class LeanBacktestService:
             self.set_holdings(self.asset, 1)
 '''
             class_name = "YFinanceBuyHoldAlgorithm"
-        return self._reader_boilerplate(krx_ohlc) + fee_model_source + f"class {class_name}(QCAlgorithm):\n" + body
+        return self._reader_boilerplate() + fee_model_source + f"class {class_name}(QCAlgorithm):\n" + body
 
 
 service = LeanBacktestService()

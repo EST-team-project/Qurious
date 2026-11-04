@@ -177,22 +177,16 @@ class Follower:
 
     def calendar(self, db):
         from collector import market_calendar
+        if not self.seed.is_file():
+            raise ValueError('stored official calendar seed unavailable')
         preserved = []
-        with sqlite3.connect(db) as conn:
-            for table in ['holiday_kasi', 'policy_meeting', 'corp_schedule']:
-                exists = conn.execute(
-                    "SELECT 1 FROM sqlite_master WHERE name=? AND type='table'",
-                    (table,)
-                ).fetchone()
-                if exists:
-                    continue
-                if not self.seed.is_file():
-                    raise ValueError('stored official calendar seed unavailable')
-                with sqlite3.connect(self.seed.resolve().as_uri() + '?mode=ro', uri=True) as seed:
-                    ddl = seed.execute(
-                        "SELECT sql FROM sqlite_master WHERE name=? AND type='table'",
-                        (table,)
-                    ).fetchone()
+        with sqlite3.connect(self.seed.resolve().as_uri() + '?mode=ro', uri=True) as seed:
+            with sqlite3.connect(db) as conn:
+                for table in ['holiday_kasi', 'policy_meeting', 'corp_schedule']:
+                    # These local-only tables are not in current HF exports. Never replace a newer exported table.
+                    if conn.execute("SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)).fetchone():
+                        continue
+                    ddl = seed.execute("SELECT sql FROM sqlite_master WHERE name=? AND type='table'", (table,)).fetchone()
                     if ddl is None:
                         if table == 'holiday_kasi':
                             raise ValueError('official holiday table unavailable')
@@ -200,17 +194,14 @@ class Follower:
                     rows = seed.execute('SELECT * FROM ' + table).fetchall()
                     conn.execute(ddl[0])
                     if rows:
-                        conn.executemany(
-                            'INSERT INTO ' + table + ' VALUES (' + ','.join('?' * len(rows[0])) + ')',
-                            rows
-                        )
+                        conn.executemany('INSERT INTO ' + table + ' VALUES (' + ','.join('?' * len(rows[0])) + ')', rows)
                     preserved.append(table)
-            conn.commit()
-            result = market_calendar.build(conn, fetch=False, quiet=True)
-            if result.get('ex_changes') or result['stats']['rule_closed_but_traded'] or result['stats']['rule_open_but_closed']:
-                raise ValueError('calendar conflicts with restored prices or changes dividend dates')
-            result['preserved_local_tables'] = preserved
-            return result
+                conn.commit()
+                result = market_calendar.build(conn, fetch=False, quiet=True)
+                if result.get('ex_changes') or result['stats']['rule_closed_but_traded'] or result['stats']['rule_open_but_closed']:
+                    raise ValueError('calendar conflicts with restored prices or changes dividend dates')
+                result['preserved_local_tables'] = preserved
+                return result
 
     def cycle(self):
         info = self.get_json(API)
