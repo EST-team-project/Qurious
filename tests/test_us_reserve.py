@@ -12,7 +12,7 @@
    값으로 메우지 않음) · 두 번 읽어도 한 번만 체결(멱등) · 현금이 모자라면 건너뜀 + 까닭.
 4. 예약 줄은 모의투자 주문 내역에 섞이지 않고(source RESERVED) 체결 줄은 내역에 남는다(PAPER).
 5. 라우트 넷이 라우터 · 앱에 붙어 있고 오류를 바른 상태 코드로 돌려준다.
-6. **지원 범위(2026-11-03 · 이슈 #520)** — 모의 장부(`paper_trading._ensure_supported_market`)가 원화 종목만 받는 동안 접수 · 체결 처리 · 화면이
+6. **지원 범위(2026-11-03 · 이슈 #520)** — 모의 장부(`paper_trading.ensure_supported_market` — 공개 정책 함수)가 원화 종목만 받는 동안 접수 · 체결 처리 · 화면이
    같은 판단(`ur.order_support`)을 쓴다: 접수는 저장 전에 거부(저장 0) · 옛 대기 예약은 체결을 시도하지 않고 상태도 바꾸지 않으며(목록을
    열어도 그대로) 취소할 수 있다. 정책 판단 뒤의 예약 논리(장 상태 · 시가 기다림 · 취소)는 `ledger_supports_us`
    고정 장치(지원 판단 하나만 켜고 나머지는 진짜 코드)로 따로 지키고, 체결까지 가는 시험 둘은 해외 비용 모델이 생길 때까지 skip 한다.
@@ -95,7 +95,7 @@ def ledger_supports_us(monkeypatch):
     지금 정책(원화 종목만)의 거부는 아래 「지원 범위」 시험들이 진짜 판단으로 확인한다. 이 장치는 그 판단을 가리는 것이 아니라,
     정책 판단 **뒤**의 예약 논리(장 상태 · 시가 기다림 · 취소 · 목록)가 그대로 맞는지 지켜 두는 것이다. 체결까지 가는 시험(시가 × 환율 ·
     현금 부족)은 비용 계산이 해외 시장을 거부하는 동안 돌 수 없어 skip 해 두었다 — 해외 비용 모델이 생기면 켠다(이슈 #520)."""
-    monkeypatch.setattr(paper_trading, "_ensure_supported_market", lambda info, **k: None)
+    monkeypatch.setattr(paper_trading, "ensure_supported_market", lambda info, **k: None)
 
 
 class _NoDb:
@@ -130,7 +130,7 @@ async def test_reserve_is_refused_when_the_calendar_does_not_know(monkeypatch):
 def test_order_support_follows_the_ledger_not_a_copy(monkeypatch):
     s = ur.order_support()                                         # 지금 장부는 원화 종목만 받는다(#255 · DF-96)
     assert s == {"supported": False, "note": ur.UNSUPPORTED_NOTE} and "지원하지 않습니다" in s["note"]
-    monkeypatch.setattr(paper_trading, "_ensure_supported_market", lambda info, **k: None)   # 장부가 풀리면 따라간다
+    monkeypatch.setattr(paper_trading, "ensure_supported_market", lambda info, **k: None)   # 장부가 풀리면 따라간다
     assert ur.order_support() == {"supported": True, "note": None}
 
 
