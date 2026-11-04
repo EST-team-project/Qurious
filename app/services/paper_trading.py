@@ -63,11 +63,11 @@ _KRX_ALIASES = {
 }
 
 
-def _ensure_supported_market(info: dict, *, side: str | None = None) -> None:
-    """모의투자 주문 길 — KRW 종목 + KOSPI/KOSDAQ/KONEX 만 허용.
+def ensure_supported_market(info: dict, *, side: str | None = None) -> None:
+    """모의투자 주문에서 지원하는 시장인지 검증한다.
 
-    - currency 가 KRW 가 아니면 즉시 거부 (해외 종목)
-    - market 이 KRX 3시장이 아니면 거부 (방어선)
+    KRW 종목 및 KOSPI/KOSDAQ/KONEX만 허용한다.
+    지원하지 않는 종목이면 PaperTradeError를 발생시킨다.
     """
     symbol = info.get("symbol", "")
     currency = (info.get("currency") or "KRW").upper()
@@ -83,6 +83,11 @@ def _ensure_supported_market(info: dict, *, side: str | None = None) -> None:
             f"{symbol} 의 시장({raw})은 지원하지 않습니다. "
             "국내주식 모의주문은 KOSPI/KOSDAQ/KONEX 만 지원합니다."
         )
+
+
+def _ensure_supported_market(info: dict, *, side: str | None = None) -> None:
+    """기존 호출부 호환용 래퍼."""
+    ensure_supported_market(info, side=side)
 
 
 # ── 공용: 현금 계좌 ─────────────────────────────────────────────────────
