@@ -32,7 +32,7 @@ export function cvValueText(m) {
 }
 
 /** 기준 글 — 서버가 글(기업 지표)로도, 기간 묶음(재무 건전성의 {period_end · report})으로도 준다. */
-function basisText(b) {
+export function basisText(b) {
   if (!b) return "";
   if (typeof b === "string") return b;
   return [b.period_end ? `${b.period_end} 기준` : "", b.report || ""].filter(Boolean).join(" ");
@@ -165,10 +165,20 @@ export function cvChartSummary(points, liveToday = false, closed = false) {
   return head + `초 단위 실시간 차트가 아니며, 오늘의 지금 가격은 위쪽 「현재가」 카드(지연 시세 약 20분)에만 나옵니다. ${CV_KEY_CTA}`;
 }
 
+// ── 지표 대시보드 작업 공간 연결(D10 · 2026-11-04) — cvLoad 의 시작과 끝을 구독자에게 알린다.
+// 왜 — company-workspace.js(구역 이동 · 기업 스냅샷 · 차트 4장)가 company.js 를 고치지 않고 같은 응답을 받아 쓰게 한다.
+// 구독자가 던진 오류는 삼켜서 화면 본체(company.js)를 막지 않는다. 지원하지 않는 종목(6자리 아님)도 끝 알림을 보낸다.
+const cvListeners = new Set();
+export function cvSubscribe(fn) { cvListeners.add(fn); return () => cvListeners.delete(fn); }
+function cvEmit(evt) {
+  for (const fn of cvListeners) { try { fn(evt); } catch (_) { /* 작업 공간 오류가 본 화면을 막지 않는다 */ } }
+}
+
 /** 요청 다섯을 한꺼번에 — 하나가 실패해도 나머지는 보인다. */
 export async function cvLoad(api, symbol) {
   const code = (/^(\d{6})(?:\.[A-Za-z]+)?$/.exec(String(symbol || "").trim()) || [])[1];
-  if (!code) return { code: "", unsupported: true };
+  cvEmit({ phase: "start", symbol, code: code || "" });
+  if (!code) { const parts = { code: "", unsupported: true }; cvEmit({ phase: "done", symbol, parts }); return parts; }
   const settled = await Promise.allSettled([
     api(`/api/data/indicators?symbol=${code}`), api(`/api/data/financials?symbol=${code}`), api(`/api/risk/company?symbol=${code}`),
     api(`/api/quote/now?symbol=${encodeURIComponent(symbol)}`), api(`/api/data/ohlcv?symbol=${code}`),
@@ -176,7 +186,9 @@ export async function cvLoad(api, symbol) {
   const ok = r => (r.status === "fulfilled" ? r.value : null);
   const err = r => (r.status === "rejected" ? r.reason : null);
   const [ind, fin, health, quote, ohlcv] = settled;
-  return { code, ind: ok(ind), indErr: err(ind), fin: ok(fin), finErr: err(fin), health: ok(health), quote: ok(quote), ohlcv: ok(ohlcv), ohlcvErr: err(ohlcv) };
+  const parts = { code, ind: ok(ind), indErr: err(ind), fin: ok(fin), finErr: err(fin), health: ok(health), quote: ok(quote), ohlcv: ok(ohlcv), ohlcvErr: err(ohlcv) };
+  cvEmit({ phase: "done", symbol, parts });
+  return parts;
 }
 
 // ── 지표 비교(설계 결정 ② 안 A — 기본 5종목 + 종목 추가 · 수집 대상 안에서만 · 2026-10-30) ─────────────────────

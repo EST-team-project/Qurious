@@ -1,0 +1,79 @@
+/* 지표 대시보드 작업 공간 — 구역 이동 · 따라오는 기업 스냅샷 · 차트 4장 (D10 · 2026-11-04 · js/company-workspace.js)
+ * 강사님 lumina-invest 의 company-dashboard.css 꼴을 우리 토큰(--accent · --text-mute …)으로 옮겼다.
+ * 모든 규칙은 .cw-* 이름이라 다른 화면에 번지지 않는다. 스크롤하는 칸은 창이 아니라 #main-content 이므로
+ * sticky 의 top 은 그 칸 맨 위(0) 기준이고, 구역으로 점프할 때 가려지지 않게 scroll-margin-top 을 준다.
+ */
+/* --cw-pad = #main-content 의 안쪽 여백. sticky 는 그 여백만큼 아래에 붙으므로(2026-11-04 브라우저 확인: 맨 위 20px 틈으로 지나가는 카드가 비쳤다) top 에서 빼 준다. */
+.cw-root { --cw-nav-h: 49px; --cw-pad: 20px; min-width: 0; }
+@media (max-width: 768px) { .cw-root { --cw-pad: 14px; } }
+
+/* 구역 이동 단추 — 스크롤해도 맨 위에 붙는다 */
+.cw-nav {
+  position: sticky; top: calc(var(--cw-pad) * -1); z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 0; background: var(--bg);
+}
+.cw-nav-btn {
+  border: 1px solid var(--border); background: var(--surf); color: var(--text-dim);
+  padding: 7px 13px; border-radius: 8px; font-size: 13px; line-height: 1.3; cursor: pointer;
+}
+.cw-nav-btn:hover, .cw-nav-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+.cw-nav-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 본문 + 따라오는 스냅샷 */
+.cw-body { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; align-items: start; }
+.cw-main { min-width: 0; }
+.cw-sec { scroll-margin-top: calc(var(--cw-nav-h) + 10px); min-width: 0; }
+.cw-side {
+  position: sticky; top: calc(var(--cw-nav-h) + 8px - var(--cw-pad));
+  max-height: calc(100vh - var(--gnb-h, 56px) - var(--cw-nav-h) - 28px); overflow-y: auto;
+  padding: 16px; min-width: 0;
+}
+
+/* 개요 카드는 본문 칸이 좁아진 만큼 자동으로 줄 수를 줄인다(Tailwind 의 4열 고정을 이 화면에서만 덮는다) */
+.cw-main #co-overview { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.cw-main .card { min-width: 0; }
+
+/* 스냅샷 */
+.cw-snap-id { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.cw-snap-id strong { font-size: 17px; color: var(--text); }
+.cw-snap-id span { font-size: 12px; color: var(--text-mute); }
+.cw-snap-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.cw-snap-k { font-size: 12px; color: var(--text-dim); }
+.cw-snap-v { font-size: 13px; font-weight: 700; color: var(--text); text-align: right; overflow-wrap: anywhere; }
+.cw-snap-sub { grid-column: 1 / -1; margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--text-mute); overflow-wrap: anywhere; }
+.cw-snap-note { margin-top: 12px; font-size: 11px; line-height: 1.6; color: var(--text-mute); overflow-wrap: anywhere; }
+
+/* 차트 네 장 */
+.cw-sec-head h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+.cw-sec-head p { margin: 4px 0 14px; font-size: 12px; line-height: 1.6; color: var(--text-mute); }
+.cw-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.cw-fig { margin: 0; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surf2, var(--surf)); }
+.cw-fig h4 { margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.cw-viz { min-width: 0; min-height: 240px; }
+.cw-empty {
+  display: flex; align-items: center; justify-content: center; min-height: 240px; padding: 14px;
+  font-size: 12px; line-height: 1.6; text-align: center; color: var(--text-mute);
+}
+.cw-sum { margin-top: 8px; font-size: 11px; line-height: 1.6; color: var(--text-mute); white-space: pre-line; overflow-wrap: anywhere; }
+.cw-source { margin-top: 14px; font-size: 11px; line-height: 1.7; color: var(--text-mute); overflow-wrap: anywhere; }
+.cw-source p + p { margin-top: 4px; }
+
+/* 좁은 화면 — 스냅샷이 본문 위로 올라오고(따라오지 않는다) 차트는 한 줄에 하나 */
+@media (max-width: 1100px) {
+  .cw-body { grid-template-columns: minmax(0, 1fr); }
+  .cw-side { position: static; max-height: none; order: -1; }
+  .cw-snap { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); column-gap: 14px; }
+}
+@media (max-width: 820px) {
+  .cw-chart-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .cw-nav { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cw-sec { scroll-margin-top: 8px; }
+  .cw-snap { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
+  .cw-side { order: 0; }   /* 폰에서는 스냅샷이 550px 쯤이라 가격 차트를 밀어내므로 본문 뒤로(개요 카드가 같은 핵심 값을 앞에서 보인다) */
+}

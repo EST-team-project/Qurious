@@ -40,7 +40,7 @@ const ASSESSMENTS = {
   "us-order": A(58, "목업 포함", "앱 내 원화 모의 장부 주문 · Alpaca 키 칸은 10-30 에 없앰(저장 안 하던 칸) · 해외 종목 거부 가드로 서버가 거절할 수 있음(확인 중)"),
   "us-portfolio": A(68, "부분 검증", "공용 포트폴리오·환산 구현 · 통합 테스트 없음"),
 
-  "company-dashboard": A(75, "부분 검증", "Yahoo 재무 데이터 연결 · 데이터 누락/검색 E2E 미검증"),
+  "company-dashboard": A(75, "부분 검증", "수집 DB(전자공시) 재무 · 구역 이동 · 차트 4장은 11-04 화면 확인(API 가로채기) · 실서버 로그인 화면 · 데이터 누락/검색 E2E 미검증"),
   "company-compare": A(45, "정적 목업", "비교 UI는 고정 CO_DATA 사용 · 백엔드 재무 API 미연결"),
   "company-sector": A(42, "정적 목업", "섹터 카드가 고정 배열 사용 · 그래프 API 미연결"),
   "indicator-formula": A(93, "검증 우수", "DSL 안전성·인과성·계산·코드생성 테스트 통과 · DB API만 미검증"),

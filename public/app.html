@@ -37,9 +37,12 @@
   <link rel="stylesheet" href="/css/stockdrawer.css" /><!-- 종목 허브 서랍 (2026-10-31 · js/stockdrawer.js) -->
   <link rel="stylesheet" href="/css/pricechart.css" /><!-- 공용 일봉 차트 칩 · 값 줄 (2026-11-03 · js/stockchart.js) -->
   <link rel="stylesheet" href="/css/signalrankview.css" /><!-- 신호 순위 화면 (2026-11-02 · js/signalrankview.js) -->
+  <link rel="stylesheet" href="/css/kis-results.css" /><!-- KIS 모의투자 결과 — 내 주문 표 (2026-11-04 · js/kis-results.js) -->
   <link rel="stylesheet" href="/css/stockpick.css" /><!-- 종목 찾기 칸 (2026-10-16 · js/stockpick.js) -->
   <link rel="stylesheet" href="/css/baselinenotice.css" /><!-- 전략 분석 · 성과 검증 — 탭 띠 + 기준 전략 카드 (2026-10-30 · js/baselinenotice.js) -->
   <link rel="stylesheet" href="/css/rebalance.css" />
+  <link rel="stylesheet" href="/css/company-workspace.css" /><!-- 지표 대시보드 작업 공간 — 구역 이동 · 기업 스냅샷 · 차트 4장 (2026-11-04 · js/company-workspace.js) -->
+  <link rel="stylesheet" href="/css/company-compare-table.css" /><!-- 지표 비교 — 전체 종목 표 · 필터 · 정렬 · 30종목 쪽 (2026-11-04 · js/company-compare-table.js) -->
   <script type="module" src="/js/brand.js"></script>
   <script type="module" src="/js/termcard.js"></script>
   <script type="module" src="/js/howto.js"></script><!-- main.js 보다 먼저 — 첫 화면을 그릴 때 window.QHowto 가 있어야 한다 -->
@@ -641,6 +644,15 @@
                 <details class="text-xs mt-2"><summary>공격 모드 비용 반영 손익비 예시</summary><div id="risk-cost-example" class="mt-2 space-y-1"></div></details>
               </div>
               <div id="auto-trade-log" class="space-y-2 text-xs max-h-[400px] overflow-y-auto"></div>
+            </div>
+          </div>
+
+          <!-- 4-2b. KIS 모의투자 결과 (2026-11-04 · 새 화면 — 강사님 「KIS 모의투자결과」 축소판) — 필터 · 표 · 쪽 · CSV 는 js/kis-results.js 가 #kr-root 에 그린다(GET /api/quant/kis/orders?owner=me · 읽기만) -->
+          <div class="view" data-view="kis-results">
+            <div class="card kr-card">
+              <h2 class="text-lg font-semibold mb-1">KIS 모의투자 결과</h2>
+              <p class="text-xs mb-3" style="color:var(--text-mute);">한국투자증권 모의투자 계좌로 낸 내 주문의 기록을 상태별로 보고, 조건으로 걸러 CSV 로 내려받습니다.</p>
+              <div id="kr-root" class="kr-root">불러오는 중…</div>
             </div>
           </div>
 
@@ -1412,7 +1424,7 @@
           <div class="view" data-view="us-portfolio">
             <div class="card">
               <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">💼 미국주식 포트폴리오</h2>
+                <h2 class="text-lg font-semibold">💼 미국주식 포트폴리오 <span id="us-pf-support" class="text-xs font-normal" style="color:var(--text-mute);"></span></h2>
                 <button id="us-pf-refresh" class="btn-secondary text-xs">새로고침</button>
               </div>
               <div id="us-account-summary" class="grid grid-cols-3 gap-3 mb-4 text-sm"></div>
@@ -1423,7 +1435,7 @@
           <!-- ══ 7. 투자 인디케이터 ═══════════════════════════════════════ -->
           <!-- 7-1. 지표 대시보드 -->
           <div class="view" data-view="company-dashboard">
-            <div class="space-y-4">
+            <div class="space-y-4 cw-root" id="cw-root">
               <!-- 종목 선택 탭 -->
               <div class="card" style="padding:14px 18px;">
                 <div class="flex items-center gap-3 flex-wrap">
@@ -1435,39 +1447,91 @@
                   </button>
                 </div>
               </div>
-              <!-- 가격 차트 — 우리 수집 일봉 종가(초 단위 실시간이 아니다 · 아래 글에 밝힌다) -->
-              <div class="card" id="co-chart-card">
-                <div class="flex items-center gap-3 mb-2 flex-wrap">
-                  <h3 id="co-chart-title" class="font-semibold text-sm">일봉 종가</h3>
-                  <div id="co-chart-periods" class="flex gap-2 flex-wrap"></div>
+              <!-- 구역 이동 · 따라오는 기업 스냅샷 · 차트 4장 — 강사님 lumina-invest D10 을 우리 수집 값으로 옮김 (D10 · 2026-11-04 · js/company-workspace.js · css/company-workspace.css) -->
+              <nav class="cw-nav" aria-label="지표 대시보드 구역 이동">
+                <button type="button" class="cw-nav-btn" data-cw-target="cw-sec-price">가격 · 개요</button>
+                <button type="button" class="cw-nav-btn" data-cw-target="cw-sec-charts">실적 한눈에</button>
+                <button type="button" class="cw-nav-btn" data-cw-target="cw-sec-value">밸류에이션 · 수익성</button>
+                <button type="button" class="cw-nav-btn" data-cw-target="cw-sec-detail">분기 실적 · 재무상태</button>
+              </nav>
+              <div class="cw-body">
+                <div class="cw-main space-y-4">
+                  <section id="cw-sec-price" class="cw-sec space-y-4" aria-label="가격 · 개요">
+                    <!-- 가격 차트 — 우리 수집 일봉 종가(초 단위 실시간이 아니다 · 아래 글에 밝힌다) -->
+                    <div class="card" id="co-chart-card">
+                      <div class="flex items-center gap-3 mb-2 flex-wrap">
+                        <h3 id="co-chart-title" class="font-semibold text-sm">일봉 종가</h3>
+                        <div id="co-chart-periods" class="flex gap-2 flex-wrap"></div>
+                      </div>
+                      <div id="co-chart" style="width:100%;height:240px;"></div>
+                      <p id="co-chart-note" class="text-xs mt-2" style="color:var(--text-mute);line-height:1.6;"></p>
+                    </div>
+                    <!-- 핵심 지표 개요 -->
+                    <div id="co-overview" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+                  </section>
+                  <!-- 실적 한눈에 — 차트 4장(값은 서버가 준 그대로 · 화면이 셈하지 않는다 · 막대는 3개월 보고서만) -->
+                  <section id="cw-sec-charts" class="card cw-sec" aria-label="실적 한눈에">
+                    <div class="cw-sec-head">
+                      <h3>실적 한눈에</h3>
+                      <p>분기 실적, 최근 재무구조, 서버가 계산한 수익성 지표를 그림으로 봅니다. 숫자는 서버가 준 값 그대로이고 그림 밑에 기준과 출처를 적습니다.</p>
+                    </div>
+                    <div class="cw-chart-grid">
+                      <figure class="cw-fig">
+                        <h4>매출액 추이 (3개월 값)</h4>
+                        <div id="cw-chart-revenue" class="cw-viz" role="img" aria-label="매출액 추이 차트"></div>
+                        <p id="cw-sum-revenue" class="cw-sum"></p>
+                      </figure>
+                      <figure class="cw-fig">
+                        <h4>영업이익 · 당기순이익 추이 (3개월 값)</h4>
+                        <div id="cw-chart-income" class="cw-viz" role="img" aria-label="영업이익과 당기순이익 추이 차트"></div>
+                        <p id="cw-sum-income" class="cw-sum"></p>
+                      </figure>
+                      <figure class="cw-fig">
+                        <h4>부채 · 자본 구성 (가장 최근 보고서)</h4>
+                        <div id="cw-chart-structure" class="cw-viz" role="img" aria-label="부채와 자본 구성 차트"></div>
+                        <p id="cw-sum-structure" class="cw-sum"></p>
+                      </figure>
+                      <figure class="cw-fig">
+                        <h4>수익성 지표 (ROE · 영업이익률)</h4>
+                        <div id="cw-chart-profit" class="cw-viz" role="img" aria-label="수익성 지표 차트"></div>
+                        <p id="cw-sum-profit" class="cw-sum"></p>
+                      </figure>
+                    </div>
+                    <div id="cw-chart-source" class="cw-source"></div>
+                  </section>
+                  <!-- 밸류에이션 + 수익성 인디케이터 -->
+                  <section id="cw-sec-value" class="cw-sec" aria-label="밸류에이션 · 수익성">
+                    <div class="grid md:grid-cols-2 gap-4">
+                      <div class="card">
+                        <h3 class="font-semibold mb-3 text-sm">📐 밸류에이션 인디케이터</h3>
+                        <p class="text-xs mb-3" style="color:var(--text-mute);">PER · PBR · 배당수익률 — 주가가 이익 · 자본에 비해 어느 정도인지(숫자마다 식 · 기준을 함께 적습니다)</p>
+                        <div id="co-valuation" class="space-y-2"></div>
+                      </div>
+                      <div class="card">
+                        <h3 class="font-semibold mb-3 text-sm">📈 수익성 인디케이터</h3>
+                        <p class="text-xs mb-3" style="color:var(--text-mute);">ROE · 영업이익률 · 부채비율 — 이익을 얼마나 내고 빚은 어느 정도인지</p>
+                        <div id="co-profitability" class="space-y-2"></div>
+                      </div>
+                    </div>
+                  </section>
+                  <section id="cw-sec-detail" class="cw-sec space-y-4" aria-label="분기 실적 · 재무상태">
+                    <!-- 분기 실적 -->
+                    <div class="card">
+                      <h3 class="font-semibold mb-3 text-sm">📊 분기별 실적 인디케이터</h3>
+                      <div id="co-quarterly" class="overflow-x-auto"></div>
+                    </div>
+                    <!-- 재무상태표 요약 -->
+                    <div class="card">
+                      <h3 class="font-semibold mb-3 text-sm">🏦 재무상태 (가장 최근 보고서)</h3>
+                      <div id="co-balance" class="overflow-x-auto"></div>
+                    </div>
+                  </section>
                 </div>
-                <div id="co-chart" style="width:100%;height:240px;"></div>
-                <p id="co-chart-note" class="text-xs mt-2" style="color:var(--text-mute);line-height:1.6;"></p>
-              </div>
-              <!-- 핵심 지표 개요 -->
-              <div id="co-overview" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
-              <!-- 밸류에이션 + 수익성 인디케이터 -->
-              <div class="grid md:grid-cols-2 gap-4">
-                <div class="card">
-                  <h3 class="font-semibold mb-3 text-sm">📐 밸류에이션 인디케이터</h3>
-                  <p class="text-xs mb-3" style="color:var(--text-mute);">PER · PBR · 배당수익률 — 주가가 이익 · 자본에 비해 어느 정도인지(숫자마다 식 · 기준을 함께 적습니다)</p>
-                  <div id="co-valuation" class="space-y-2"></div>
-                </div>
-                <div class="card">
-                  <h3 class="font-semibold mb-3 text-sm">📈 수익성 인디케이터</h3>
-                  <p class="text-xs mb-3" style="color:var(--text-mute);">ROE · 영업이익률 · 부채비율 — 이익을 얼마나 내고 빚은 어느 정도인지</p>
-                  <div id="co-profitability" class="space-y-2"></div>
-                </div>
-              </div>
-              <!-- 분기 실적 -->
-              <div class="card">
-                <h3 class="font-semibold mb-3 text-sm">📊 분기별 실적 인디케이터</h3>
-                <div id="co-quarterly" class="overflow-x-auto"></div>
-              </div>
-              <!-- 재무상태표 요약 -->
-              <div class="card">
-                <h3 class="font-semibold mb-3 text-sm">🏦 재무상태 (가장 최근 보고서)</h3>
-                <div id="co-balance" class="overflow-x-auto"></div>
+                <!-- 따라오는 기업 스냅샷 — 값은 서버가 준 그대로 · 줄마다 기준일 · 출처 -->
+                <aside class="card cw-side" id="cw-side" aria-label="기업 스냅샷">
+                  <h3 class="font-semibold text-sm">기업 스냅샷</h3>
+                  <div id="cw-snapshot" aria-live="polite"></div>
+                </aside>
               </div>
             </div>
           </div>
@@ -1485,6 +1549,29 @@
               </form>
               <div id="co-compare-msg" class="text-xs mb-2" style="color:var(--text-mute);" aria-live="polite"></div>
               <div id="co-compare-table" class="overflow-x-auto"></div>
+
+              <!-- 수집 대상 전체 종목 표 — 시장 · 업종 필터 · 열 정렬 · 30종목 쪽 (D11 · 2026-11-04 · js/company-compare-table.js · css/company-compare-table.css) -->
+              <section class="ct-wrap" aria-labelledby="ct-title">
+                <h3 id="ct-title" class="font-semibold text-sm">수집 대상 전체 종목 표</h3>
+                <p class="text-xs" style="color:var(--text-mute);">전자공시 사업보고서와 종가로 계산한 지표입니다. 열 이름을 누르면 정렬하고, 종목 앞의 ＋ 를 누르면 위의 나란히 비교에 담깁니다(최대 8개).</p>
+                <div class="ct-bar">
+                  <input id="ct-q" class="input" type="search" placeholder="종목 이름 또는 코드 검색" aria-label="종목 이름 또는 코드 검색" autocomplete="off" />
+                  <select id="ct-market" class="input" aria-label="시장"><option value="">전체 시장</option></select>
+                  <select id="ct-sector" class="input" aria-label="업종"><option value="">전체 업종</option></select>
+                </div>
+                <div class="ct-pager">
+                  <button type="button" id="ct-prev" class="btn-secondary text-xs" disabled>이전 30종목</button>
+                  <span id="ct-page"></span>
+                  <button type="button" id="ct-next" class="btn-secondary text-xs" disabled>다음 30종목</button>
+                  <span id="ct-range" class="ct-range" aria-live="polite"></span>
+                  <span class="ct-spacer"></span>
+                  <span id="ct-picked"></span>
+                  <button type="button" id="ct-goto" class="btn-secondary text-xs">나란히 비교 보기</button>
+                </div>
+                <div id="ct-msg" class="ct-msg" role="status" aria-live="polite"></div>
+                <div id="ct-table" class="ct-scroll"></div>
+                <div id="ct-foot"></div>
+              </section>
             </div>
           </div>
 
@@ -2297,7 +2384,6 @@
                   <strong>AI 의사결정 프로세스:</strong> 퀀트 모델 시그널 수집 → 패턴 인식 분석 → 포트폴리오 리밸런싱 판단 → 설정한 방식으로 주문 → 주문 결과 확인·기록
                   <br>앱 안 가상매매는 가상 장부에 기록하고, KIS 연동은 설정 화면에 표시된 모의·실전 계좌로 주문합니다.
                 </div>
-                <div id="robo-decision-log" class="space-y-2 text-xs max-h-[420px] overflow-y-auto"></div>
               </div>
 
               <!-- 의사결정 근거 요약 -->
@@ -2305,11 +2391,16 @@
                 <h3 class="font-semibold mb-3 text-sm">📊 최근 규칙 판단 근거</h3>
                 <div id="robo-rationale" class="grid md:grid-cols-3 gap-3"></div>
               </div>
+              <!-- 의사결정 로그 — 판단 근거를 먼저 보고 로그는 그 아래(강사님 화면 순서 · 2026-11-04 이식 D13 — 성과 카드 맨 아래 주의문 규칙(S17) 때문에 성과 카드 앞에 둔다) -->
+              <div class="card">
+                <h3 class="font-semibold mb-3 text-sm">🗒️ 최근 의사결정 로그</h3>
+                <div id="robo-decision-log" class="space-y-2 text-xs max-h-[420px] overflow-y-auto"></div>
+              </div>
               <div class="card">
                 <div class="flex items-center justify-between mb-3">
                   <h3 class="font-semibold text-sm">📈 모의 투자 성과 분석</h3>
                   <div class="flex gap-2">
-                    <button id="robo-metrics-simulate" class="btn-secondary text-xs" title="데모용 15일치 데이터 생성">🧪 데모
+                    <button id="robo-metrics-simulate" class="btn-secondary text-xs" hidden title="데모용 15일치 데이터 생성 (관리자 전용)">🧪 데모
                       데이터</button>
                     <button id="robo-metrics-refresh" class="btn-secondary text-xs">지표 갱신</button>
                   </div>
@@ -2571,7 +2662,7 @@
           <!-- 증권사 API 자동화 -->
           <div class="view" data-view="indicator-api">
             <div class="card">
-              <h2 class="text-lg font-semibold mb-1">🔌 증권사 API 연동 자동화</h2>
+              <h2 class="text-lg font-semibold mb-1">🔌 증권사 API 연동 자동화 <span class="text-xs font-normal" style="color:var(--text-mute);">(참고 자료 · 이 화면에서 자동 주문을 실행하지 않습니다)</span></h2>
               <p class="text-xs mb-4" style="color:var(--text-mute);">증권사 Open API를 활용하여 개발한 인디케이터 전략을 실시간 자동화 모델로 구현합니다
               </p>
 
@@ -2742,7 +2833,7 @@
           <div class="view" data-view="ml-deeplearning">
             <div class="card mb-4">
               <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-brain-circuit"
-                  style="color:var(--accent);"></i> 딥러닝 시계열 예측</h2>
+                  style="color:var(--accent);"></i> 딥러닝 시계열 예측 <span class="text-xs font-normal" style="color:var(--text-mute);">(참고 자료 · 실행 버튼 없음)</span></h2>
               <p class="text-sm text-slate-400 mb-3">RNN · CNN · LSTM · Transformer 기반 주가 예측 모델 설계 원리</p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="p-4 rounded" style="background:var(--bg);">
@@ -3211,6 +3302,7 @@ RC_i = wi × (Σw)_i / √(w'Σw)
 
   </div><!-- #app-shell -->
 
+  <script type="module" src="/js/company-workspace.js"></script><!-- 지표 대시보드 작업 공간 — companyview.js cvSubscribe 로 응답을 함께 받는다 (2026-11-04) -->
   <script type="module" src="/js/main.js"></script>
 
   <!-- 종목 검색 모달 -->

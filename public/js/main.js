@@ -28,6 +28,7 @@ import { onResearchViewActivated } from "/js/research.js";             // 투자
 import { onCollectViewActivated } from "/js/collect.js";               // 데이터 수집 화면 셋 — 옛 크롤링 세 화면 자리 (2026-10-08)
 import { onDataGuideViewActivated } from "/js/dataguide.js";           // 자료 안내 — 데이터 관제 바로 아래 · 모든 로그인 사용자 (2026-10-08)
 import { onSignalRankViewActivated } from "/js/signalrankview.js";     // 신호 순위 — 로보 어드바이저 새 화면(2026-11-02 · 판단 · 그리기는 js/signal-rank.js)
+import { onKisResultsViewActivated } from "/js/kis-results.js";           // KIS 모의투자 결과 — 퀀트자동매매 새 화면(2026-11-04 · 내 주문만 · api 는 여기서 넘긴다)
 import { onProductsViewActivated } from "/js/products.js";             // 투자 성향별 상품 안내 — 옛 「맞춤 상품 추천」 자리 (2026-10-12)
 import { onRiskViewActivated } from "/js/riskcb.js";                   // 재무 · 신용 위험 — 옛 「신용 리스크 분석」 자리 (2026-10-13)
 import { onClusterViewActivated } from "/js/clusters.js";              // 종목 군집화 — 옛 강사님 KMeans 칸 자리 (2026-10-14)
@@ -118,6 +119,7 @@ function onViewActivated(view, tab = view) {   // view = 화면 키 · tab = 탭
   if (view === "trading-order") { loadOrderHistory(); loadBrokerStatus(); }
   if (view === "quant-dashboard") { loadQuantDashboard(); }
   if (view === "quant-auto") loadAutoTradeStatus();
+  if (view === "kis-results") onKisResultsViewActivated({ api });
   if (view === "us-dashboard") loadUsDashboard();
   if (view === "us-chart") loadUsChart();
   if (view === "us-order") renderUsOrders();

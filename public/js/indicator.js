@@ -5,6 +5,10 @@ import { compareTrayAdd, renderCompareTrayAll, tt } from "/js/core.js";
 import { buildRows, summarize, cardBody, cardValues, cardLine } from "/js/indstrategy.js";
 // 성과 검증 종목 칸 = 찾기 칸 하나 — 탭 1 「전략 분석」 과 같은 부품(#245 「종목 찾기를 한 곳에서 함께」)
 import { mountStockPick, labelOf } from "/js/stockpick.js";
+// 만든 Pine 코드를 보여 주기 전에 v6 문법을 간이 점검한다(2026-11-04 · D7) — 점검은 보여 주기만 하고 저장 · 실행을 막지 않는다
+import { checkPineV6, formatPineCheck } from "/js/pine-lint.js";
+// 「비교에 추가」 가 서버 응답의 지표를 구조 칸으로 함께 담는다(2026-11-04 · D8) — 읽는 쪽은 comparetray.js
+import { backtestTrayFields } from "/js/comparetray.js";
 
 // ── 성과 검증 · 커스텀 인디케이터 결과가 같이 쓰는 것 (#245 · #250) ─────
 // 거래 0회 — 수익률 · 샤프 · 낙폭 · 승률은 0 이 아니라 매길 수 없는 값이다. 글은 대시보드(dashboard.js noTradeMetric)와 같게(TC-RX 가 맞댄다).
@@ -215,22 +219,33 @@ function ciGuard() {
 // 이름은 코드 안 글자 상자("…" · """…""")에 들어가므로 상자를 깨는 글자만 바꾼다
 const ciSafeName = raw => String(raw || "MyIndicator").replace(/[\r\n]+/g, " ").replace(/\\/g, "/").replace(/"/g, "'").slice(0, 60);
 
+// Pine v6 — input.int 에는 정수만 들어간다(칸에 35.5 를 적어도 코드가 깨지지 않게 소수는 버린다). 빈칸은 기본값.
+const ciPineInt = (id, fallback) => {
+  const raw = document.getElementById(id).value;
+  const v = raw === "" ? NaN : Math.trunc(Number(raw));
+  return Number.isFinite(v) ? v : fallback;
+};
+
 function generatePineCode() {
   const name   = ciSafeName(document.getElementById("ci-name").value);
   const base   = document.getElementById("ci-base").value || "rsi_ma";
-  const short  = document.getElementById("ci-short").value || 5;
-  const mid    = document.getElementById("ci-mid").value || 20;
-  const rsiLen = document.getElementById("ci-rsi").value || 14;
-  const buyTh  = document.getElementById("ci-buy-th").value || 35;
+  const short  = ciPineInt("ci-short", 5);
+  const mid    = ciPineInt("ci-mid", 20);
+  const rsiLen = ciPineInt("ci-rsi", 14);
+  const buyTh  = ciPineInt("ci-buy-th", 35);
+  // v6 에서 and / or 는 왼쪽만으로 결과가 정해지면 오른쪽을 계산하지 않는다 — 그래서 ta.* 계산(볼린저 위쪽 띠)은 조건식 밖에서 먼저 한다.
   const signalCode = base === "macd_bb"
-    ? `macd_line = ta.ema(close, 12) - ta.ema(close, 26)\nmacd_sig  = ta.ema(macd_line, 9)\nbb_mid = ta.sma(close, mid_len)\nbuy_signal  = ta.crossover(macd_line, macd_sig) and close < bb_mid\nsell_signal = ta.crossunder(macd_line, macd_sig) or close > bb_mid + 2 * ta.stdev(close, mid_len)`
+    ? `macd_line = ta.ema(close, 12) - ta.ema(close, 26)\nmacd_sig  = ta.ema(macd_line, 9)\nbb_mid = ta.sma(close, mid_len)\nbb_upper = bb_mid + 2 * ta.stdev(close, mid_len)\nbuy_signal  = ta.crossover(macd_line, macd_sig) and close < bb_mid\nsell_signal = ta.crossunder(macd_line, macd_sig) or close > bb_upper`
     : base === "volume_rsi"
     ? `vol_ma = ta.sma(volume, mid_len)\nbuy_signal  = rsi_val < buy_th and volume > vol_ma\nsell_signal = rsi_val > sell_th`
     : base === "triple_ma"
     ? `ma_long = ta.sma(close, mid_len * 2)\nbuy_signal  = ta.crossover(ma_short, ma_mid) and ma_mid > ma_long\nsell_signal = ta.crossunder(ma_short, ma_mid) or ma_mid < ma_long`
     : `buy_signal  = ta.crossover(ma_short, ma_mid) and rsi_val < buy_th\nsell_signal = ta.crossunder(ma_short, ma_mid) or rsi_val > sell_th`;
 
-  return `//@version=5
+  // 2026-11-04 Pine v5 → v6 — 서버가 만드는 코드(전략 카드 · 자유 산식)가 이미 v6 라 맞춘다. 이 템플릿에서 v6 때문에 바뀐 곳은 둘:
+  //  ① 위의 macd_bb 볼린저 위쪽 띠를 조건식 밖으로(and / or 단락 평가) ② 매도 임계값 100-매수 값을 JS 에서 계산해 숫자로 적는다
+  //  (옛 줄은 계산식 글자가 그대로 코드에 나갔다). ta.* · input.int · plot · plotshape 글자는 v5 와 같아 그대로다.
+  return `//@version=6
 indicator("${name}", overlay=true)
 
 // 파라미터
@@ -238,7 +253,7 @@ short_len = input.int(${short}, "단기 MA 기간")
 mid_len   = input.int(${mid},   "중기 MA 기간")
 rsi_len   = input.int(${rsiLen}, "RSI 기간")
 buy_th    = input.int(${buyTh}, "매수 RSI 임계값")
-sell_th   = input.int(100 - parseInt(buyTh), "매도 RSI 임계값")
+sell_th   = input.int(${100 - buyTh}, "매도 RSI 임계값")
 
 // 인디케이터 계산
 ma_short = ta.sma(close, short_len)
@@ -253,6 +268,51 @@ plot(ma_short, color=color.blue,  title="MA Short")
 plot(ma_mid,   color=color.orange, title="MA Mid")
 plotshape(buy_signal,  style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.small, title="Buy")
 plotshape(sell_signal, style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.small, title="Sell")`;
+}
+
+// ── Pine v6 간이 점검 결과 칸 (D7 · 2026-11-04) ───────────────────────────────
+// 코드 칸(#ci-pine-code)은 글자만 보이는 <pre> 라 칸 아래에 점검 결과 칸을 JS 가 한 번 만들어 붙인다(app.html 을 고치지 않는다).
+// 점검은 보여 주기만 한다 — 저장(/api/custom-indicators)과 백테스트는 Pine 글자가 아니라 입력 값을 보내므로 막지 않는다.
+function ciPineCheckBox() {
+  let box = document.getElementById("ci-pine-check");
+  if (box) return box;
+  const pre = document.getElementById("ci-pine-code");
+  if (!pre) return null;
+  box = document.createElement("div");
+  box.id = "ci-pine-check";
+  box.className = "text-xs mt-2";
+  box.setAttribute("role", "status");
+  pre.insertAdjacentElement("afterend", box);
+  return box;
+}
+function renderPineCheck() {
+  const pre = document.getElementById("ci-pine-code"), box = ciPineCheckBox();
+  if (!pre || !box) return;
+  box.replaceChildren();
+  const line = (text, color) => { const p = document.createElement("p"); p.textContent = text; p.style.color = color; return p; };
+  try {
+    const source = pre.textContent;
+    const view = formatPineCheck(checkPineV6(source), source);
+    box.append(line(view.summary, view.tone === "error" ? "var(--red)" : view.tone === "warn" ? "var(--brand)" : "var(--green)"));
+    view.items.forEach(it => {
+      const row = document.createElement("p");
+      row.className = "mt-1";
+      row.style.color = it.severity === "error" ? "var(--red)" : "var(--brand)";
+      row.textContent = `${it.where} · ${it.label} · ${it.message}`;
+      if (it.snippet) {
+        const code = document.createElement("code");
+        code.style.cssText = "display:block;color:var(--text-mute);overflow-wrap:anywhere;";
+        code.textContent = it.snippet;
+        row.append(code);
+      }
+      box.append(row);
+    });
+    if (view.more) box.append(line(`그 밖에 ${view.more}개가 더 있습니다.`, "var(--text-mute)"));
+    // 입력 칸을 고친 뒤 「코드 생성」 을 안 눌렀으면 위 코드 칸은 옛 입력으로 만든 것이다 — 점검은 보이는 코드 기준이라 그 사실을 알린다
+    if (generatePineCode() !== source) box.append(line("입력 값이 위 코드와 달라졌습니다 — 「코드 생성」 을 누르면 현재 입력으로 다시 만들고 다시 점검합니다.", "var(--text-mute)"));
+  } catch (e) {
+    box.append(line("Pine 문법 점검을 실행하지 못했습니다. 코드와 저장 · 백테스트에는 영향이 없습니다.", "var(--text-mute)"));
+  }
 }
 
 function generatePythonCode() {
@@ -294,6 +354,7 @@ document.getElementById("ci-generate-btn").addEventListener("click", () => {
   if (!ciGuard()) return;
   document.getElementById("ci-pine-code").textContent   = generatePineCode();
   document.getElementById("ci-python-code").textContent = generatePythonCode();
+  renderPineCheck();
 });
 document.getElementById("ci-copy-pine").addEventListener("click", () => {
   navigator.clipboard.writeText(document.getElementById("ci-pine-code").textContent);
@@ -305,6 +366,7 @@ document.getElementById("ci-copy-py").addEventListener("click", () => {
 });
 document.getElementById("ci-test-btn").addEventListener("click", async () => {
   if (!ciGuard()) return;
+  renderPineCheck();   // 실행 전 점검 결과를 보인다(막지 않는다)
   const name = document.getElementById("ci-name").value || "MyIndicator";
   const base = document.getElementById("ci-base").value || "rsi_ma";
   const short = parseInt(document.getElementById("ci-short").value || "5");
@@ -362,11 +424,13 @@ generatePineCode && (() => {
   const pyEl   = document.getElementById("ci-python-code");
   if (pineEl) pineEl.textContent = pine;
   if (pyEl)   pyEl.textContent   = py;
+  renderPineCheck();
 })();
 
 // ── 커스텀 인디케이터 저장/불러오기 ──────────────────────────────────
 document.getElementById("ci-save-btn")?.addEventListener("click", async () => {
   if (!ciGuard()) return;
+  renderPineCheck();   // 저장 전 점검 결과를 보인다(막지 않는다 — 저장하는 것은 Pine 글자가 아니라 입력 값)
   const body = {
     name:          document.getElementById("ci-name").value || "MyIndicator",
     base:          document.getElementById("ci-base").value || "rsi_ma",
@@ -475,7 +539,8 @@ function renderIndicatorBacktest(data) {
       <button type="button" class="btn-secondary text-xs mt-2" onclick='compareTrayAdd(${JSON.stringify({
         source: "성과 검증 (Python)", label: `${strategyLabel} · ${ibtLabel(data.symbol || document.getElementById("ibt-symbol")?.value || "")}`,
         summary: (noTrade ? `거래 0회 · 신호 없음 · 매수 후 보유 ${Number(data.buy_hold_return_pct||0).toFixed(1)}%` : `수익률 ${Number(data.total_return_pct)>=0?"+":""}${Number(data.total_return_pct).toFixed(1)}% · 샤프 ${Number(data.sharpe_ratio||0).toFixed(2)} · MDD ${Number(data.mdd_pct||0).toFixed(1)}% · 승률 ${Number(data.win_rate_pct||0).toFixed(1)}%`) + comparePeriod(data),
-      }).replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
+        ...backtestTrayFields(data),   // 비교 트레이 분석(comparetray.js)이 요약 글자에서 숫자를 뽑지 않고 읽는 구조 칸(D8)
+      }).replace(/&/g, "&amp;").replace(/'/g, "&#39;")})'>⚖️ 비교에 추가</button>
     </div>`;
   renderCompareTrayAll();
 }

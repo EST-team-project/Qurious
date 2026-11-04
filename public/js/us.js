@@ -162,7 +162,14 @@ async function loadUsPortfolio() {
     const usPos = (positions || []).filter(p => !isKrSymbol(String(p.symbol || "")));
     if (!usPos.length) {
       acEl.innerHTML = "";
-      pfEl.innerHTML = "<div style='color:var(--text-mute);'>보유 종목이 없습니다. '미국주식 주문'에서 매수해보세요.</div>";
+      // 서버가 미국 모의 매수를 받지 않는 동안은 이 화면이 항상 비므로, 「매수해 보세요」 대신 까닭을 알린다(발표 위험 조치 · 2026-11-04)
+      if (!usOrd.market) { try { usOrd.market = await api("/api/paper/stocks/us-market"); } catch { usOrd.market = null; } }
+      const blocked = usoOrderBlock(usOrd.market);
+      const tag = document.getElementById("us-pf-support");
+      if (tag) tag.textContent = blocked ? "(미국주식 모의 매수 미지원 — 시세 · 차트만)" : "";
+      pfEl.innerHTML = blocked
+        ? "<div data-us-pf-unsupported style='color:var(--text-mute);'>보유 종목이 없습니다. 지금은 미국주식 모의 매수를 받지 않아 이 화면이 비어 있습니다 — 시세 · 차트는 미국주식 대시보드 · 차트에서 볼 수 있습니다.</div>"
+        : "<div style='color:var(--text-mute);'>보유 종목이 없습니다. '미국주식 주문'에서 매수해보세요.</div>";
       return;
     }
     // 달러 시세 · 환율 글은 모의 시세(서버가 환율을 곱한 그 응답)에서 — 장부 셈에는 쓰지 않는다.

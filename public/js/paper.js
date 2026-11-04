@@ -12,7 +12,7 @@ import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD, scDirection, sc
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
-const signCls = (n) => (parseFloat(n) >= 0 ? "text-emerald-600" : "text-red-600");
+const signCls = (n) => (parseFloat(n) >= 0 ? "text-emerald-700" : "text-red-700");   // 2026-11-04 대비 3.77 → 5.5
 const ts = (ms) => new Date(ms).toLocaleString("ko-KR", { hour12: false });
 const sideBadge = (t) => `<span class="${String(t).toUpperCase() === "BUY" ? "badge-buy" : "badge-sell"}">${String(t).toUpperCase() === "BUY" ? "매수" : "매도"}</span>`;
 const kpi = (label, value, cls = "") => `

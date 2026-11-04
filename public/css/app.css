@@ -91,7 +91,7 @@
     .gnb-logo-text span {
       font-size: 10px;
       font-weight: 600;
-      color: var(--brand);
+      color: var(--brand-text, #b45309);
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
@@ -710,5 +710,7 @@ body .text-slate-400, body .text-slate-500 { color: var(--text-mute); }
    쓰는 곳: 현재가 등락 · 비상 정지 · 「미연동」 · 시스템관리 큰 숫자 · ML 딥러닝 표 · 기술적 분석 점 등. 값은 흰 바탕 기준 대비 4.9 ~ 6.5. */
 body .text-green-400, body .text-emerald-400 { color: #047857; }
 body .text-red-400 { color: #b91c1c; }
+/* 2026-11-04 — 회색 상자(bg-black/20)는 흰 카드 위에서 #ccc 가 되어 보조 글(--text-mute)이 3.4:1 로 흐려졌다 → 옅은 남색 틴트로(모의투자 손익 · 안내 글 7곳 + 스크립트가 그리는 곳). */
+body .bg-black\/20 { background-color: rgba(15, 23, 42, 0.05); }
 body .text-yellow-400 { color: #a16207; }
 body .text-indigo-300, body .text-indigo-400 { color: #4f46e5; }
