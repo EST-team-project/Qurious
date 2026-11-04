@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "source": "scripts/api_scan.py --catalog",
- "count": 288,
+ "count": 289,
  "routers": 43,
  "routes": [
   {
@@ -7765,6 +7765,34 @@
    "schema": true
   },
   {
+   "id": "API-DATA-19",
+   "router": "data",
+   "method": "GET",
+   "path": "/api/data/indicators/table",
+   "summary": "한 쪽 분량의 지표 표 — 서버가 필터 · 정렬 · 쪽 자르기까지 한다. 값은 지표 대시보드(`/indicators`)와 같은 서비스 결과.",
+   "auth": "세션",
+   "reaches": [
+    "수집DB",
+    "외부"
+   ],
+   "hosts": [
+    "dart.fss.or.kr"
+   ],
+   "screens": [
+    "company-compare"
+   ],
+   "part": "P-A",
+   "req": [],
+   "file": "app/routes/data.py",
+   "line": 260,
+   "errors": [
+    "?"
+   ],
+   "keys": [],
+   "body": [],
+   "schema": true
+  },
+  {
    "id": "API-DATA-11",
    "router": "data",
    "method": "GET",
@@ -7781,7 +7809,7 @@
    "part": "P-A",
    "req": [],
    "file": "app/routes/data.py",
-   "line": 261,
+   "line": 287,
    "errors": [
     "503"
    ],

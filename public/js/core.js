@@ -1,6 +1,7 @@
 /* 공통 셸: GNB/LNB 내비게이션, 용어 글로서리·툴팁·사용법 가이드, 비교 트레이, 시세 티커, 동기화 배지, 모달
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { compareTrayAnalysisHtml, copyComparison } from "/js/comparetray.js";   // 비교 트레이 분석 · 분석 메모 복사(2026-11-04 · D8)
 import { resolveView, MYPAGE_HOSTED } from "/js/viewalias.js";   // 「성과 검증 (Python)」 은 전략 분석 화면의 탭 — 옛 주소를 합친 화면으로 잇는다(2026-10-30 · ①-18)
 
 // ── 한국식 금액 표기 · Y축 라벨 (이슈 #220) ────────────────────
@@ -98,6 +99,7 @@ const GNB_MENUS = {
     items: [
       { key: "quant-dashboard", icon: "fa-solid fa-gauge-high",      label: "퀀트 대시보드" },
       { key: "quant-auto",      icon: "fa-solid fa-robot",           label: "자동매매 현황" },
+      { key: "kis-results",     icon: "fa-solid fa-receipt",         label: "KIS 모의투자 결과" },   // 2026-11-04 새 화면 — 내 주문만 · 필터 · CSV (강사님 D1 축소판 · js/kis-results.js)
       { key: "quant-backtest",  icon: "fa-solid fa-flask",           label: "전략 분석" },
       { key: "quant-lean",      icon: "fa-brands fa-docker",         label: "LEAN 백테스트 (QuantConnect)" },
     ],
@@ -117,7 +119,7 @@ const GNB_MENUS = {
       { key: "indicator-strategy",  icon: "fa-solid fa-chart-line",     label: "기본 인디케이터 전략" },
       { key: "indicator-custom",    icon: "fa-solid fa-code",           label: "커스텀 인디케이터 개발" },
       { key: "indicator-formula",   icon: "fa-solid fa-square-root-variable", label: "자유 산식 지표 (DSL·버전)" },
-      { key: "indicator-api",       icon: "fa-solid fa-plug",           label: "증권사 API 자동화" },
+      { key: "indicator-api",       icon: "fa-solid fa-plug",           label: "증권사 API 자동화 (참고 자료)" },
       { key: "indicator-tradingview", icon: "fa-solid fa-satellite-dish", label: "외부 차트 알림 연동 (Webhook·교차검증)" },
       { key: "company-dashboard",   icon: "fa-solid fa-gauge",          label: "지표 대시보드" },
       { key: "company-compare",     icon: "fa-solid fa-table-columns",  label: "지표 비교 분석" },
@@ -131,7 +133,7 @@ const GNB_MENUS = {
       { key: "ml-regression",  icon: "fa-solid fa-chart-line",      label: "회귀 분석" },
       { key: "ml-cluster",     icon: "fa-solid fa-circle-nodes",    label: "종목 군집화" },
       { key: "ml-tune",        icon: "fa-solid fa-sliders",         label: "하이퍼파라미터 튜닝" },
-      { key: "ml-deeplearning",icon: "fa-solid fa-brain-circuit",   label: "딥러닝 (LSTM·Transformer)" },
+      { key: "ml-deeplearning",icon: "fa-solid fa-brain-circuit",   label: "딥러닝 (참고 자료)" },
     ],
   },
   invest: {
@@ -303,6 +305,7 @@ const VIEW_GUIDES = {
   "quant-lean":      { summary: "Yahoo Finance 일봉을 QuantConnect LEAN 엔진(Docker)에서 실행해 전략 수익률·MDD·샤프를 검증합니다.", steps: ["예시를 고르거나 전략·티커·기간을 직접 입력하세요.", "'검증 실행'을 누르면 LEAN 컨테이너가 실행되고(수 분 소요) pandas 지표와 함께 결과가 표시됩니다.", "LEAN이 연결되지 않은 환경에서는 pandas 계산 결과만 표시됩니다."], relatedTerms: ["backtest", "sharpe", "mdd"] },
   "trading-order":   { summary: "가상 잔고로 매수/매도 주문을 내고 체결 내역을 확인합니다.", steps: ["매수/매도, 수량, 가격을 입력해 주문하세요.", "증권사 API를 연동하면 실제 계좌 데이터로도 확인할 수 있습니다."], relatedTerms: ["broker_api", "paper_trading"] },
   "quant-dashboard": { summary: "대표 종목들의 시세와 퀀트 시그널을 한눈에 봅니다.", steps: ["시장 지수 카드와 종목별 매수/매도 시그널 카드를 확인하세요.", "차트에서 종목을 바꿔가며 지표 흐름을 살펴보세요."], relatedTerms: ["signal", "rsi", "ma"] },
+  "kis-results":     { summary: "한국투자증권 모의투자 계좌로 낸 내 주문의 기록을 상태별로 보고, 조건으로 걸러 CSV 로 내려받습니다. 실거래 주문이 아닙니다.", steps: ["위 요약 카드에서 체결 · 접수 · 대기 · 거부 · 확인 필요 건수를 확인하세요.", "상태 · 방향 · 기간 · 검색어로 거른 뒤 표에서 주문번호와 상태를 확인하세요. 영문 코드는 한국어 낱말 옆에 작게 적혀 있습니다.", "'CSV 내려받기'는 지금 조건에 맞는 주문을 담습니다(최근 2,000건까지). 앱에 저장된 주문 기록이라 증권사 전체 체결 내역과 다를 수 있습니다."], relatedTerms: ["paper_trading", "broker_api"] },
   "quant-auto":      { summary: "10분 주기 자동매매를 시작/중지하고 실행 로그를 확인합니다.", steps: ["'시작'을 누르면 설정된 종목·전략으로 자동매매가 실행됩니다.", "로그에서 각 사이클의 매매 내역과 사유를 확인하세요.", "실거래 전 반드시 '증권사 API 설정'에서 모의(paper) 모드로 충분히 검증하세요."], relatedTerms: ["auto_trade_cycle", "virtual_account", "paper_trading"] },
   "quant-backtest":  { summary: "선택한 종목에 규칙 기반 시그널을 적용해 10년치 백테스트 성과를 확인합니다.", steps: ["종목을 고르고 '분석'을 누르면 지표와 규칙 신호가 계산됩니다.", "체결 시점(종가·시가)을 정하고 '전략 백테스트'를 누르면 전략 성과가 나옵니다.", "누적수익률·샤프지수·MDD·승률을 Buy&Hold와 비교해보세요."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate"] },
   "settings":        { summary: "실거래를 위한 증권사 API 키(앱키/시크릿키/계좌번호)를 등록합니다.", steps: ["증권사를 선택하고 발급받은 앱키·시크릿키를 입력하세요.", "'연결 테스트'로 정상 연동 여부를 먼저 확인한 뒤 저장하세요.", "모의(paper) 모드로 충분히 테스트한 후 실거래로 전환하는 것을 권장합니다."], relatedTerms: ["broker_api", "broker_catalog", "paper_trading"] },
@@ -319,7 +322,7 @@ const VIEW_GUIDES = {
   "indicator-custom": { summary: "나만의 파라미터로 커스텀 인디케이터를 만들고 PineScript/Python 코드를 생성합니다.", steps: ["기준 조합(RSI+MA, MACD+BB 등)과 기간·임계값을 조정하세요.", "생성된 PineScript는 트레이딩뷰에, Python 코드는 직접 백테스트에 활용할 수 있습니다.", "'백테스트 실행'으로 이 앱에서 바로 성과를 검증할 수 있습니다.", "마음에 드는 조합은 '저장'해두면 다음에 목록에서 바로 불러올 수 있습니다."], relatedTerms: ["custom_indicator", "pine_script", "backtest"] },
   "indicator-backtest": { summary: "설계한 전략(기본/커스텀)의 파이썬 기반 성과를 검증합니다.", steps: ["종목과 전략을 고르고 '성과 검증 실행'을 누르세요. 이 탭에 처음 들어올 때는 한 번 자동으로 실행됩니다.", "수익률·샤프지수·MDD·승률로 전략의 위험 대비 성과를 판단하세요.", "'비교에 추가'로 여러 전략의 성과를 나란히 비교할 수 있습니다."], relatedTerms: ["backtest", "sharpe", "mdd", "win_rate", "cost_bps", "slippage"] },
   "indicator-api":   { summary: "완성한 인디케이터 전략을 증권사 API와 연결해 자동화하는 방법을 안내합니다.", steps: ["3단계 아키텍처(신호 계산→주문 생성→증권사 API 전송)를 확인하세요.", "증권사 API 설정 링크를 열어 키를 등록하고 연결을 테스트하세요."], relatedTerms: ["broker_api", "custom_indicator"] },
-  "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "개요/밸류에이션/수익성 탭과 분기·재무상태표 데이터를 확인하세요."], relatedTerms: ["dcf", "fcf"] },
+  "company-dashboard": { summary: "기업의 개요·밸류에이션·수익성 지표를 한 화면에서 확인합니다.", steps: ["상단에서 기업을 선택하세요.", "위쪽 구역 단추(가격·개요 / 실적 한눈에 / 밸류에이션·수익성 / 분기 실적·재무상태)로 보고 싶은 곳으로 이동하세요. 오른쪽 「기업 스냅샷」은 스크롤해도 따라옵니다.", "차트와 표의 숫자 옆에 기준일·출처가 적혀 있습니다 — 전자공시 재무와 수집 DB 값 그대로입니다."], relatedTerms: ["dcf", "fcf"] },
   "company-compare": { summary: "여러 기업의 핵심 지표를 표로 나란히 비교합니다.", steps: ["비교 표에서 기업별 지표 값을 확인하며 상대적 위치를 파악하세요."], relatedTerms: ["dcf", "eva"] },
   "company-sector":  { summary: "산업 섹터별 대표 지표와 흐름을 카드로 확인합니다.", steps: ["섹터 카드를 둘러보며 산업별 상대 강도를 비교하세요."], relatedTerms: ["sector_etf"] },
   "ml-compare":      { summary: "지난 시세로 학습한 모델들이 5거래일 뒤 오름 · 관망 · 내림을 얼마나 맞히는지, 아무것도 배우지 않은 기준선과 견줍니다(과거로 학습하고 바로 뒤 구간으로 시험).", steps: ["종목 · 기간을 고르고 '비교하기'를 누르세요 — 처음 계산은 10 ~ 30초, 한 번 계산한 결과는 저장돼 바로 보입니다.", "맨 위 문장과 카드로 「기준선을 뚜렷이 넘은 모델이 있나」 를 먼저 보세요 — 순위보다 이 판정이 중요합니다.", "'자세히'에서 겹마다 점수 · 표를 보고, '비교에 추가'로 여러 결과를 모아 볼 수 있습니다."], relatedTerms: ["cross_validation", "lightgbm", "mlp", "stacking"] },
@@ -427,6 +430,7 @@ function compareTrayClear() {
 window.compareTrayAdd = compareTrayAdd;
 window.compareTrayRemove = compareTrayRemove;
 window.compareTrayClear = compareTrayClear;
+window.compareTrayCopy = () => copyComparison(compareTrayGet(), setToast);
 
 function renderCompareTray(containerId) {
   const el = document.getElementById(containerId);
@@ -452,6 +456,7 @@ function renderCompareTray(containerId) {
           </tr>`).join("")}</tbody>
         </table>
       </div>
+      ${compareTrayAnalysisHtml(list)}
     </div>`;
 }
 function renderCompareTrayAll() {

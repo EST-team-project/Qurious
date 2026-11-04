@@ -1,0 +1,90 @@
+/* KIS 모의투자 결과 화면 (2026-11-04 · js/kis-results.js · 화면 키 kis-results)
+   쪽 고유 클래스(.kr-*)로 좁힌다 — 태그 선택자(table · td)가 다른 화면에 걸리지 않게.
+   좁은 화면(390)에서는 표 칸(.kr-table-wrap)만 좌우로 밀고, 쪽 전체는 넘치지 않게 min-width:0 을 건다.
+   글자색은 토큰(--text · --text-dim · --text-mute)만 쓴다(--text-mute 는 모든 앱 바탕에서 4.5:1 이상 · TC-CTR). */
+
+.kr-card { min-width: 0; }
+.kr-root { position: relative; min-width: 0; max-width: 100%; }
+.kr-root[aria-busy="true"] [data-kr-list] { opacity: .6; }
+
+/* 기준 안내 · 고지 한 줄 */
+.kr-basis { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surf2); color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+.kr-basis b { color: var(--text); }
+.kr-foot { margin: 12px 0 0; color: var(--text-mute); font-size: 12px; line-height: 1.6; }
+.kr-cards-note { margin: 4px 0 12px; color: var(--text-mute); font-size: 12px; }
+.kr-cards-note:empty { display: none; }
+.kr-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 상태 요약 카드 — 칸 폭에 맞춰 줄바꿈(390 에서 두 칸) */
+.kr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.kr-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surf); }
+.kr-stat-k { color: var(--text-dim); font-size: 13px; font-weight: 700; }
+.kr-stat-n { color: var(--text); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kr-stat-c { color: var(--text-mute); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* 필터 줄 */
+.kr-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; margin: 0 0 8px; }
+.kr-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 140px; min-width: 0; }
+.kr-field > span { color: var(--text-mute); font-size: 12px; font-weight: 700; }
+.kr-grow { flex: 2 1 220px; }
+.kr-field .input { min-width: 0; padding: 6px 10px; font-size: 14px; }
+.kr-filter select.input, .kr-size select.input {
+  padding-right: 28px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.kr-actions { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+.kr-actions button { padding: 6px 12px; font-size: 14px; }
+.kr-actions button:disabled { opacity: .6; cursor: progress; }
+
+.kr-result { margin: 0 0 8px; color: var(--text-dim); font-size: 13px; min-height: 1.4em; }
+
+/* 표 — 넘치면 표 칸만 좌우 스크롤. 키보드로도 닿게 tabindex(= region) */
+.kr-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+.kr-table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kr-table { width: 100%; min-width: 780px; border-collapse: collapse; font-size: 13px; color: var(--text); }
+.kr-table th, .kr-table td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.kr-table tbody tr:last-child td { border-bottom: 0; }
+.kr-table th { position: sticky; top: 0; background: var(--surf2); color: var(--text-mute); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.kr-table .kr-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kr-time, .kr-orderno { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kr-name { font-weight: 700; }
+.kr-name + .kr-code { display: block; }   /* 종목 칸은 이름 아래 줄에 코드 — 줄바꿈이 들쭉날쭉하지 않게 */
+.kr-code { color: var(--text-mute); font-size: 11px; }
+.kr-note { max-width: 22rem; margin-top: 2px; color: var(--text-mute); font-size: 12px; overflow-wrap: anywhere; }
+
+/* 방향 · 상태 — 색만이 아니라 글자로도 읽힌다(매수 빨강 · 매도 파랑은 퀀트 대시보드와 같은 우리 시장 관례) */
+.kr-side { font-weight: 700; }
+.kr-side[data-kind="buy"] { color: #dc2626; }
+.kr-side[data-kind="sell"] { color: #2563eb; }
+.kr-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surf2); color: var(--text-dim); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.kr-badge[data-kind="ok"] { background: #dcfce7; border-color: #86efac; color: #166534; }
+.kr-badge[data-kind="wait"] { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
+.kr-badge[data-kind="bad"] { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.kr-badge[data-kind="warn"] { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+
+/* 쪽 이동 */
+.kr-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 0; }
+.kr-pager button { padding: 6px 14px; font-size: 14px; }
+.kr-pager button:disabled { opacity: .5; cursor: not-allowed; }
+.kr-pager-text { color: var(--text-dim); font-size: 13px; }
+.kr-size { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--text-mute); font-size: 12px; font-weight: 700; }
+.kr-size .input { width: auto; padding: 4px 28px 4px 8px; font-size: 13px; }
+
+/* 빈 상태 · 오류 */
+.kr-empty { padding: 16px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surf2); color: var(--text-dim); font-size: 14px; line-height: 1.7; }
+.kr-empty b { color: var(--text); }
+.kr-empty p { margin: 6px 0 0; }
+.kr-link, .kr-linkbtn { color: var(--accent); font-weight: 700; text-decoration: underline; }
+.kr-linkbtn { padding: 0; border: 0; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.kr-link:focus-visible, .kr-linkbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 좁은 화면 — 필터 칸은 한 줄에 둘씩, 단추는 한 줄을 나눠 쓴다. 표는 그대로 좌우로 민다 */
+@media (max-width: 640px) {
+  .kr-field { flex: 1 1 calc(50% - 10px); }
+  .kr-grow { flex: 1 1 100%; }
+  .kr-actions button { flex: 1 1 auto; }
+  .kr-size { margin-left: 0; }
+}

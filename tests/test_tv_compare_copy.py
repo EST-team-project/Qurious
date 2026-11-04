@@ -43,4 +43,5 @@ def test_pine_panel_says_it_is_not_for_reconciliation():
     i = h.index("data-pine-kind")
     assert "지표(indicator)용" in h[i:i + 300] and "대사에는 쓸 수 없습니다" in h[i:i + 400]
     assert i < h.index('id="ci-pine-code"')                                          # 코드 칸 위
-    assert "//@version=5" in IND and 'indicator("${name}"' in IND and "strategy(" not in IND
+    # 2026-11-04 D7 — 템플릿을 Pine v5 에서 v6 로 올렸다(서버 생성 코드와 같은 v6). indicator() 모양과 strategy() 없음은 그대로 지킨다.
+    assert "//@version=6" in IND and "//@version=5" not in IND and 'indicator("${name}"' in IND and "strategy(" not in IND

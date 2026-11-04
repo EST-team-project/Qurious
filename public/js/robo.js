@@ -877,6 +877,12 @@ document.getElementById("robo-decision-goto-auto")?.addEventListener("click", (e
 });
 document.getElementById("robo-decision-refresh").addEventListener("click", loadRoboDecision);
 
+// 데모 데이터 단추 — 기존 스냅샷을 지우는 시연용 기능이라 관리자에게만 보인다(서버도 admin 만 허용 · 2026-11-04 발표 위험 조치 ③).
+// 일반 사용자가 눌러 자기 스냅샷을 지우는 일이 없게 기본은 숨기고, 관리자 확인이 된 때만 연다. 확인 실패 시에도 숨긴 채 둔다.
+getMe().then(({ user }) => {
+  if ((user?.roles || []).includes("admin")) document.getElementById("robo-metrics-simulate")?.removeAttribute("hidden");
+}).catch(() => { /* 로그인 전이거나 확인 실패 — 단추는 숨긴 채 */ });
+
 document.getElementById("robo-metrics-simulate")?.addEventListener("click", async () => {
   if (!confirm("기존 스냅샷을 지우고 15일치 데모 데이터를 생성합니다. 계속할까요?")) return;
   try {

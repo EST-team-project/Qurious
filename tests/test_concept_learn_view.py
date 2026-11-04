@@ -114,3 +114,53 @@ def test_before_you_start_notice_one_place():
   assert "${noticeLineHtml()}" in topic, "주제 화면 꼬리 한 줄"
   assert "html += noticeLineHtml();" in _block(cl, "async function renderHome(el)", "\n}\n"), "개념 학습 목차 꼬리 한 줄"
   assert "${noticeLineHtml()}" in _block(cl, "async function renderPage(el, slug, h)", "\n}\n"), "장 화면 꼬리 한 줄"
+
+
+def test_soon_chapters_hidden_by_default(tmp_path):
+  """TC-CLV-07 · 「준비 중」 장 기본 숨김(사용자 결정 2026-11-04) — learnsoon.js 가 목록 · 보충 장 · 사용법 끝줄이 함께 쓰는 한 곳 ·
+  기본은 읽을 수 있는 장만 · 스위치를 켠 값은 이 브라우저에만 · 저장소가 막혀도 꺼진 것으로 · 사용법 끝줄은 준비 중 장만 뺀다."""
+  import json
+  import shutil
+  import subprocess
+  import pytest
+
+  node = shutil.which("node")
+  if not node:
+    pytest.skip("node 가 없어 건너뜀")
+  script = tmp_path / "t.mjs"
+  js = (PUB / "js" / "learnsoon.js").as_posix()
+  hv = (PUB / "js" / "howtoview.js").as_posix()
+  script.write_text(f"""
+import * as s from "file:///{js}";
+import * as hv from "file:///{hv}";
+const out = {{}};
+const pages = [{{ slug: "a", status: "ready" }}, {{ slug: "b", status: "draft" }}, {{ slug: "c", status: "skeleton" }}];
+out.off = s.visiblePages(pages).map(p => p.slug);
+out.on = s.visiblePages(pages, true).map(p => p.slug);
+out.noStorage = s.showSoon();                       // localStorage 가 없는 node — 꺼진 것으로
+const mem = {{}};
+globalThis.localStorage = {{ getItem: k => mem[k] ?? null, setItem: (k, v) => {{ mem[k] = v; }} }};
+s.setShowSoon(true);  out.saved = s.showSoon();
+out.afterOn = s.visiblePages(pages).map(p => p.slug);
+s.setShowSoon(false); out.afterOff = s.visiblePages(pages).map(p => p.slug);
+out.toggleNone = s.soonToggleHtml(0);
+out.toggle = s.soonToggleHtml(3, false);
+const g = {{ summary: "s", steps: ["a"] }};
+out.linked = hv.howtoHtml("agent-products", g, {{}}).includes("#learn/funds-etf");
+out.hidden = hv.howtoHtml("agent-products", g, {{ hideLearn: new Set(["funds-etf"]) }}).includes("#learn/funds-etf");
+out.otherKept = hv.howtoHtml("agent-products", g, {{ hideLearn: new Set(["rag-basics"]) }}).includes("#learn/funds-etf");
+console.log(JSON.stringify(out));
+""", encoding="utf-8")
+  r = subprocess.run([node, str(script)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+  assert r.returncode == 0, r.stderr
+  o = json.loads(r.stdout.strip().splitlines()[-1])
+  assert o["off"] == ["a", "b"] and o["on"] == ["a", "b", "c"], "기본은 준비 중(skeleton)만 뺀다 · 다듬는 중은 읽을 수 있다"
+  assert o["noStorage"] is False and o["saved"] is True and o["afterOn"] == ["a", "b", "c"] and o["afterOff"] == ["a", "b"]
+  assert o["toggleNone"] == "" and "data-cl-soon" in o["toggle"] and "3개" in o["toggle"] and "checked" not in o["toggle"]
+  assert o["linked"] and not o["hidden"] and o["otherKept"], "사용법 끝줄은 준비 중으로 알려진 장만 뺀다"
+  cl, fin, how = _read("js/conceptlearn.js"), _read("js/finlearn.js"), _read("js/howto.js")
+  for src in (cl, fin, how):
+    assert 'from "/js/learnsoon.js"' in src
+  assert "visiblePages(" in _block(cl, "async function clRenderBranch", "\n}\n") and "visiblePages(" in _block(cl, "async function clRenderPart", "\n}\n")
+  assert "showSoon()" in _block(cl, "function pagerHtml", "\n}\n"), "앞뒤 장도 준비 중 장을 건너뛴다"
+  assert "visiblePages(" in _block(fin, "async function flFillSupplement", "\n}\n")
