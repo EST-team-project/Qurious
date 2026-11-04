@@ -212,6 +212,8 @@ out.legendUs = sc.scLegendText({ time: "2026-10-30", open: 340.1, high: 345, low
     assert outside is None and none is None and bad is None, "기준일 봉이 보이는 기간에 없으면 찍지 않는다(가까운 봉으로 옮겨 찍지 않는다)"
     assert "10-29 종가까지의 규칙 점수가 매수 쪽이었다는 기록" in out["sigNote"] and "다음 거래일 낮에 기록" in out["sigNote"] and "재지 않습니다" in out["sigNote"]
     assert "여러 주기(60분 · 일 · 주)를 합친 기록" in out["sigNote"] and "●" in out["sigNote"] and "분봉이 없는 종목은 일 · 주" in out["sigNote"]
+    for n in ("① 60분 · 주 근거", "② 차트 마지막 봉이 기록 기준일보다 뒤일 때", "③ 기준일 뒤 분할 · 증자로 수정주가가 다시 계산"):   # 2026-11-04 #530 · #512 후속 — 세 경우를 번호로 나눔
+        assert n in out["sigNote"], n
     m_after, m_before, m_gap, m_bad, m_none = out["miss"]
     assert "(11-04)이 일봉의 마지막 봉(10-30)보다 뒤라 아직 그 날의 일봉이 들어오지 않아" in m_after, "기준일이 마지막 봉보다 뒤면 「기간에 없어」 가 아니라 맞는 까닭"
     assert "기준일 봉이 지금 보이는 기간에 없어" in m_before and "기간에 없어" not in m_after
