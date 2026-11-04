@@ -73,7 +73,7 @@ class ReserveUnsupportedError(ReserveError):
     """모의 장부가 이 시장을 받지 않아 예약을 저장하지 않음 — 라우트가 400 으로 돌려준다(2026-11-03 · 이슈 #520)."""
 
 
-# 접수 · 체결 · 화면이 **같은 판단**을 쓰게 하는 한 곳 — 장부(`paper_trading._ensure_supported_market`)가 해외 종목을 받는지를
+# 접수 · 체결 · 화면이 **같은 판단**을 쓰게 하는 한 곳 — 장부의 공개 정책 함수(`paper_trading.ensure_supported_market`)가 해외 종목을 받는지를
 # 대표 미국 종목 한 줄로 물어본다. 접수할 때 허용하는 범위와 체결할 때 허용하는 범위가 달라지지 않게(이슈 #520).
 UNSUPPORTED_NOTE = ("미국주식 모의 매수는 아직 지원하지 않습니다 — 모의 장부가 원화 종목만 다루고 해외 매수 비용 계산이 준비되지 않았습니다. "
                     "시세 · 환율 조회는 그대로 볼 수 있습니다.")
@@ -84,7 +84,7 @@ _SAMPLE_US = {"symbol": "US", "currency": "USD", "market": "NMS"}
 def order_support() -> dict:
     """모의 장부가 미국 종목 매수를 받는가 — `{"supported": bool, "note": 안내 글 또는 None}`. 화면 · 접수 · 체결 처리가 이 값을 따른다."""
     try:
-        paper_trading._ensure_supported_market(dict(_SAMPLE_US))
+        paper_trading.ensure_supported_market(dict(_SAMPLE_US))
     except paper_trading.PaperTradeError:
         return {"supported": False, "note": UNSUPPORTED_NOTE}
     return {"supported": True, "note": None}
