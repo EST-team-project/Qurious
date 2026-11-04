@@ -657,12 +657,16 @@ async function cryptoTicker() {
   } catch (e) { $("pc-ticker").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
 }
 
+const MIN_CRYPTO_ORDER_KRW = 1000;
+
 async function cryptoPreview(side) {
   const marketCode = $("pc-market").value;
   const body = { marketCode, side };
   if (side === "BUY") body.buyKrw = parseFloat(String($("pc-buy-krw").value).replace(/,/g, ""));
   else body.sellCount = parseFloat($("pc-sell-count").value);
-  if (side === "BUY" ? !body.buyKrw : !body.sellCount) return setToast(side === "BUY" ? "매수 금액을 입력하세요." : "매도 수량을 입력하세요.", "error");
+  if (side === "BUY" && (!Number.isFinite(body.buyKrw) || body.buyKrw < MIN_CRYPTO_ORDER_KRW))
+    return setToast(body.buyKrw ? "최소 주문 금액은 1,000원입니다." : "매수 금액을 입력하세요.", "error");
+  if (side === "SELL" && !body.sellCount) return setToast("매도 수량을 입력하세요.", "error");
   try {
     const p = await api("/api/paper/trade/order/preview", { method: "POST", body });
     $("pc-preview").innerHTML = `<div class="rounded-xl border p-3 text-sm" style="border-color:${p.executable ? "var(--green-bd)" : "var(--red-bd)"}">
@@ -679,7 +683,7 @@ async function cryptoOrder(side) {
     let r;
     if (side === "BUY") {
       const buyKrw = parseFloat(String($("pc-buy-krw").value).replace(/,/g, ""));
-      if (!(buyKrw >= 1000)) return setToast(buyKrw ? "최소 주문 금액은 1,000원입니다." : "매수 금액을 입력하세요.", "error");   // 클릭 점검 Y1 — 최소 금액이 화면 속성에만 있던 것
+      if (!(buyKrw >= MIN_CRYPTO_ORDER_KRW)) return setToast(buyKrw ? "최소 주문 금액은 1,000원입니다." : "매수 금액을 입력하세요.", "error");   // 클릭 점검 Y1 — 최소 금액이 화면 속성에만 있던 것
       r = await api("/api/paper/trade/order/buy", { method: "POST", body: { marketCode, buyKrw } });
     } else {
       const sellCount = parseFloat($("pc-sell-count").value);

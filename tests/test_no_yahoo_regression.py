@@ -41,7 +41,8 @@ BASELINE: dict[str, int] = {
     # 2026-10-12 th06 5b0a768 1단계: 24 → 25 — get_candles 옛 경로 결과에 출처 이름표(`"source": "yahoo"`) 한 줄을
     #   받았다(강사님 85c3444 · KIS 갈래의 `"kis"` 와 짝). 글자일 뿐 호출은 0 — 부르는 곳은 그대로 `_yahoo_chart` 하나.
     "app/services/stock.py": 25,
-    "app/services/lean_backtest.py": 19,
+    # origin/main과 동일한 20줄. 첫 줄은 실행 흐름 설명 주석이며 새 Yahoo 호출이 아니다.
+    "app/services/lean_backtest.py": 20,
     # 2026-11-03 S196 강민석 님 4e7c1fa2(가격 출처 감사 정보): 10 → 11 — 줄 수만 늘었다(오준영 님 이슈 #521). 변경 = Yahoo 설명 주석 1줄 삭제 +
     #   출처 문자열 `"yahoo_finance"` 2줄 추가(대체자산 평가 가격 · 금 · 은 환율 환산 감사 칸) = 순증 1. 호출은 0 —
     #   `_yahoo_chart(` 부르는 곳은 커밋 전(812줄)과 후(1086줄) 모두 하나, 새 주소 · 새 함수 없음. 감사 칸은 이미 받은 값의 출처 이름표다.
@@ -95,14 +96,6 @@ BASELINE: dict[str, int] = {
     "app/config.py": 5,
     "app/services/aggressive_mode.py": 4,
     "app/services/kis_market_data.py": 1,
-    # 2026-10-30 S169: 지킴이 시험을 되살리며 **이 한 파일만 예외**로 연다 (강민석 님이 10-30 PR #431 에서 시험 파일을
-    #   통째로 지웠다 — 실패 2건이 이 스크립트 하나 때문이었다). 예외의 3요소:
-    #   · 사유 — 10-14 `839c533`(#160 B1)의 「Yahoo T2 채우기」 임시판. market.sqlite3 가 없는 PC 에서 야후 봉으로 신호를 즉석 계산한다.
-    #     정식 경로(signals_daily.py · 러너 단계 `signals`)는 수집 DB 를 읽는다. 앱 어디에서도 이 스크립트를 부르지 않는다.
-    #   · 담당 — 강민석 님(스크립트 작성자). 이 줄을 지우거나 수집 DB 로 바꾸는 PR 이 오면 이 줄도 같이 지운다.
-    #   · 만료 — 2026-11-12(3차 발표 · 수료식). 그날까지 지우지 않으면 이 예외를 다시 논의한다.
-    #   ⚠️ 줄 수(5)를 **늘리는** 것은 봉인을 푸는 일이다 — 이 예외는 지금 있는 5줄까지만이다.
-    "scripts/signals_yahoo.py": 5,
 }
 
 

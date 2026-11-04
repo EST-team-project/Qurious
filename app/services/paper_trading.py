@@ -38,6 +38,7 @@ from app.services.brokers.stock_coin_trade_gateway import is_krx_market_open
 
 BUY = "BUY"
 SELL = "SELL"
+MIN_CRYPTO_ORDER_KRW = 1000
 
 
 class PaperTradeError(ValueError):
@@ -915,6 +916,8 @@ async def crypto_preview(db: AsyncSession, user_id: uuid.UUID, market_code: str,
     market_code = (market_code or "").upper().strip()
     if side not in (BUY, SELL):
         raise PaperTradeError("side는 BUY 또는 SELL이어야 합니다.")
+    if side == BUY and (buy_krw is None or not math.isfinite(buy_krw) or buy_krw < MIN_CRYPTO_ORDER_KRW):
+        raise PaperTradeError("최소 주문 금액은 1,000원입니다.")
     market = await upbit_market_info(market_code)
     if not market:
         raise PaperTradeError("존재하지 않는 마켓입니다.")
@@ -923,8 +926,6 @@ async def crypto_preview(db: AsyncSession, user_id: uuid.UUID, market_code: str,
     held = await _crypto_holding(db, user_id, market_code)
     held_qty = held.quantity if held else 0.0
     if side == BUY:
-        if not buy_krw or buy_krw <= 0:
-            raise PaperTradeError("buyKrw는 0보다 커야 합니다.")
         amount = float(buy_krw)
         quantity = round(amount / price, 8)
         executable = amount <= account.cash
@@ -943,8 +944,8 @@ async def crypto_preview(db: AsyncSession, user_id: uuid.UUID, market_code: str,
 
 async def crypto_buy(db: AsyncSession, user_id: uuid.UUID, market_code: str, buy_krw: float, source: str = "WEB") -> dict:
     market_code = (market_code or "").upper().strip()
-    if buy_krw <= 0:
-        raise PaperTradeError("0보다 큰 수를 입력해주세요.")
+    if not math.isfinite(buy_krw) or buy_krw < MIN_CRYPTO_ORDER_KRW:
+        raise PaperTradeError("최소 주문 금액은 1,000원입니다.")
     market = await upbit_market_info(market_code)
     if not market:
         raise PaperTradeError(f"존재하지 않는 마켓입니다: {market_code}")
