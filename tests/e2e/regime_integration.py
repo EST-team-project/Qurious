@@ -2,7 +2,8 @@
 
 일회용 내부 Docker 앱에서만 실행한다. API·앱 JS를 대체하지 않는다.
 외부 CDN의 Tailwind 3.4.17/ApexCharts 3.49.2만 로컬 원본 파일로 제공한다.
-setup → 시험 앱 재시작 → persist → 과거 국면 fixture 준비 → history.
+setup → 시험 앱 재시작 → persist → waiting → 과거 국면 fixture 준비 → history.
+고정 스냅샷은 regime_integration_clock.py로 기준 시각을 맞춰 재현한다.
 """
 import argparse
 import json
@@ -18,7 +19,9 @@ PASSWORD = 'FlowCheck-2026-long!'
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-url', required=True)
-    parser.add_argument('--phase', choices=['setup', 'persist', 'history'], required=True)
+    parser.add_argument('--phase', choices=['setup', 'persist', 'waiting', 'history'], required=True)
+    parser.add_argument('--expected-data-as-of', default='2026-11-02')
+    parser.add_argument('--expected-decision-date', default='2026-11-03')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--assets', type=Path, required=True)
     parser.add_argument('--chromium', default='/usr/bin/chromium')
@@ -114,7 +117,7 @@ def main():
                 saved = api('/api/ml/robo/allocation/latest')
                 assert saved['id'] == allocation['saved']['id']
                 assert saved['result']['allocation_model'] == 'regime'
-                assert saved['result']['asset_model']['as_of'] == '2026-11-02'
+                assert saved['result']['asset_model']['as_of'] == args.expected_data_as_of
                 passed('실제 수집 일봉으로 배분 계산·PG 저장·저장본 조회')
                 open_plan()
                 assert not page.locator('#rb-regime-auto').is_checked()
@@ -156,14 +159,40 @@ def main():
                 expect(second.locator('#rb-name')).to_have_value(first['name'])
                 passed('충돌 후 편집 취소·최신 플랜 재조회')
                 second.close()
+            elif args.phase == 'waiting':
+                open_plan()
+                before = api('/api/rebalance/plan')
+                history_before = api('/api/rebalance/target-changes')
+                runs_before = api('/api/rebalance/runs')
+                state = api('/api/rebalance/status')['automatic_check']
+                assert not state['ready'] and state['state'] == 'before_update', state
+                assert state['decision_date'] == args.expected_decision_date, state
+                expect(page.locator('#rb-daily-check')).to_contain_text('12:30')
+                expect(page.locator('#rb-execute')).to_be_disabled()
+                passed('12:30 이전 준비 대기 이유 표시·실행 버튼 차단')
+                for _ in range(2):
+                    with page.expect_response(lambda r: urlsplit(r.url).path == '/api/rebalance/check' and r.request.method == 'POST') as response:
+                        page.locator('#rb-check').click()
+                    assert response.value.status == 200, response.value.text()
+                    result = response.value.json()
+                    assert result['checked'] is False and result['reason'] == 'data_waiting', result
+                    assert api('/api/rebalance/plan') == before
+                    assert api('/api/rebalance/target-changes') == history_before
+                    assert api('/api/rebalance/runs') == runs_before
+                passed('자료 대기 중 반복 점검도 목표·이력·제안·완료 날짜를 보존')
             else:
                 open_plan()
+                state = api('/api/rebalance/status')['automatic_check']
+                assert state['ready'], f"history는 준비된 자료가 필요합니다. 시험 기준 시각과 스냅샷을 확인하세요: {state}"
+                assert state['decision_date'] == args.expected_decision_date, state
+                assert state['data_as_of'] == args.expected_data_as_of, state
                 assert round(sum(t['weight_pct'] for t in api('/api/rebalance/plan')['targets']), 2) == 33
                 with page.expect_response(lambda r: urlsplit(r.url).path == '/api/rebalance/check' and r.request.method == 'POST') as response:
                     page.locator('#rb-check').click()
                 assert response.value.status == 200, response.value.text()
                 result = response.value.json()
-                assert result['regime_auto']['status'] == 'changed' and result['status'] == 'proposed', result
+                assert result.get('checked') is True, result
+                assert result.get('regime_auto', {}).get('status') == 'changed' and result.get('status') == 'proposed', result
                 history = api('/api/rebalance/target-changes')['changes']
                 assert len(history) == 1
                 assert round(sum(t['weight_pct'] for t in history[0]['before_targets']), 2) == 33
@@ -199,7 +228,8 @@ def main():
             assert not any(r['method'] == 'POST' and '/execute' in r['path'] for r in requests)
             context.storage_state(path=str(out/'session.json'))
             page.screenshot(path=str(out/(args.phase+'.png')), full_page=False)
-            result = {'status': 'passed', 'checks': checks, 'requests': requests, 'page_errors': errors}
+            result = {'status': 'passed', 'checks': checks, 'requests': requests, 'page_errors': errors,
+                      'expected_data_as_of': args.expected_data_as_of, 'expected_decision_date': args.expected_decision_date}
         except Exception as exc:
             page.screenshot(path=str(out/(args.phase+'-failed.png')), full_page=False)
             result = {'status': 'failed', 'error': str(exc), 'checks': checks, 'requests': requests, 'page_errors': errors}
