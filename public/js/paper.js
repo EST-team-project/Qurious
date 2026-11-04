@@ -128,7 +128,7 @@ const pickedToast = () => setToast("종목을 골랐습니다. 수량을 확인�
 
 /* 시세 조회 결과 아래 일봉 차트 — 왼쪽(주문 입력) · 오른쪽(스탑, 스탑가 점선). 같은 부품(js/stockchart.js) */
 let psMain = null, psMainSym = "", psMainPeriod = SC_DEFAULT_PERIOD;
-let psStop = null, psStopSym = "", psStopCurrent = null, psStopTimer = null;
+let psStop = null, psStopSym = "", psStopCurrent = null, psStopTimer = null, psStopPeriod = SC_DEFAULT_PERIOD;
 
 function psPeriodChips() {
   const el = $("ps-chart-periods");
@@ -148,10 +148,18 @@ function psStopStopValue() {
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
+function psStopPeriodChips() {
+  const el = $("ps-stop-chart-periods");
+  if (!el) return;
+  el.innerHTML = SC_PERIODS.map(([k, label]) => `<button type="button" data-ps-stop-period="${k}" class="text-xs px-2 rounded-full border"
+    style="${k === psStopPeriod ? "background:var(--accent);color:#fff;border-color:var(--accent);" : ""}">${label}</button>`).join("");
+}
+
 function psDrawStop() {
   if (!psStopSym) return;
   if (!psStop) psStop = mountDailyChart(document, $("ps-stop-chart"), $("ps-stop-chart-note"), { api });
-  psStop.draw({ symbol: psStopSym, period: "3m", stop: psStopStopValue() });
+  psStopPeriodChips();
+  psStop.draw({ symbol: psStopSym, period: psStopPeriod, stop: psStopStopValue() });
 }
 
 /** 스탑가 칸 아래 방향 안내 — 현재가와 견준 쪽 · 반대로 등록하면 바로 체결될 수 있음 */
@@ -1052,6 +1060,11 @@ export function initPaperViews() {
   on("ps-chart-periods", "click", e => {
     const b = e.target.closest("[data-ps-period]");
     if (b) { psMainPeriod = b.dataset.psPeriod; psDrawMain(); }
+  });
+  // 스탑 차트의 기간 단추
+  on("ps-stop-chart-periods", "click", e => {
+    const b = e.target.closest("[data-ps-stop-period]");
+    if (b) { psStopPeriod = b.dataset.psStopPeriod; psDrawStop(); }
   });
 
   on("pc-market", "change", cryptoTicker);
