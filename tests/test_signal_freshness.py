@@ -341,3 +341,53 @@ def test_small_gap_has_no_warning(cycle_env):
   db, log = tq.run_cycle(tq.broker("live"), quote_price=70_500)
   trade = [t for t in log["trades"] if t.get("type") == "auto"]
   assert len(trade) == 1 and "⚠" not in trade[0]["reason"]
+
+
+# ── 5. 그림자 일지 판 지문과 분리 (2026-11-04 12:30 회차에서 판 2 가 생긴 일의 재발 방지) ─────────────
+def test_get_quant_indicators_body_does_not_know_freshness():
+  """`stock.get_quant_indicators` 는 일지의 판 지문 대상이다 — 몸에 신선도 코드를 넣으면 일지가 새 판을 등록한다."""
+  import inspect
+  from app.services import stock
+  src = inspect.getsource(stock.get_quant_indicators)
+  assert "freshness" not in src and "signal_freshness" not in src
+
+
+def test_get_candles_settles_only_daily_bars_inside_trading(monkeypatch):
+  from app.services import stock
+  base = collector_data(date(2026, 11, 2))
+
+  async def source(symbol, period="1y", interval="1d", max_age_hours=6):
+    return base
+
+  verdict = {"state": "fresh", "as_of": "2026-11-03", "expected": "2026-11-03", "lag_days": 0, "tail": "kis+1"}
+  settle = AsyncMock(return_value=({**base, "as_of": "2026-11-03"}, verdict))
+  monkeypatch.setattr(stock, "_get_candles_source", source)
+  monkeypatch.setattr(sf, "settle", settle)
+
+  assert asyncio.run(stock.get_candles("005930.KS")) is base and not settle.await_count, "사이클 밖(화면 · 분석)은 읽은 그대로"
+  with sf.for_trading():
+    assert asyncio.run(stock.get_candles("005930.KS"))["as_of"] == "2026-11-03"
+    asyncio.run(stock.get_candles("005930.KS", interval="5m"))
+    assert settle.await_count == 1, "일봉만 보강한다(분봉은 건드리지 않는다)"
+    got = sf.attach({"symbol": "005930.KS", "current_price": 1}, "005930.KS")
+    err = sf.attach({"symbol": "005930.KS", "error": "데이터 부족"}, "005930.KS")
+    other = sf.attach({"symbol": "000660.KS", "current_price": 1}, "000660.KS")
+  assert got["freshness"] == verdict
+  assert "freshness" not in err and "freshness" not in other, "오류 사전 · 판정이 없는 기호에는 붙이지 않는다"
+  assert "freshness" not in sf.attach({"symbol": "005930.KS", "current_price": 1}, "005930.KS"), "for_trading 밖에서는 판정이 없다"
+
+
+def test_trading_context_end_to_end_freshness_reaches_indicators(monkeypatch):
+  from app.services import stock
+  monkeypatch.setattr(stock, "_get_candles_source", AsyncMock(return_value=collector_data(date(2026, 11, 2))))
+  verdict = {"state": "fresh", "as_of": "2026-11-03", "expected": "2026-11-03", "lag_days": 0, "tail": "kis+1"}
+
+  async def fake_settle(symbol, data, now=None, *, path=None):
+    return {**data, "as_of": "2026-11-03"}, verdict
+
+  monkeypatch.setattr(sf, "settle", fake_settle)
+  with sf.for_trading():
+    ind = asyncio.run(stock.get_quant_indicators("005930.KS", "2y"))
+    sf.attach(ind, "005930.KS")
+  assert ind["freshness"] == verdict and ind["as_of"] == "2026-11-03", "자동매매가 읽는 결과는 이전과 같은 모양이다"
+  assert "freshness" not in asyncio.run(stock.get_quant_indicators("005930.KS", "2y")), "사이클 밖 결과에는 들어가지 않는다"

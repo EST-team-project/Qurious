@@ -271,6 +271,20 @@ async def get_fundamentals(symbol: str) -> dict:
 
 
 async def get_candles(symbol: str, period: str = "1y", interval: str = "1d", max_age_hours: float = 6) -> dict:
+    """캔들 차트 데이터 — `_get_candles_source` 가 읽은 결과를 그대로 돌려준다. 단 **자동매매 사이클 안**
+    (`signal_freshness.for_trading`)에서 일봉을 부를 때만, 일봉이 직전 거래일 확정 종가보다 낡았으면 KIS 확정 일봉을
+    메모리로만 붙이고 신선도 판정을 남긴다(2026-11-04 · app/services/signal_freshness.py). 화면 · 다른 분석은 읽은 그대로다.
+
+    이 보강을 `get_quant_indicators` 안이 아니라 여기에 두는 까닭 — 그 함수는 그림자 일지의 판 지문 대상이라, 몸을 고치면
+    일지가 새 판을 등록한다(2026-11-04 12:30 회차에서 겪음). `get_candles` 는 지문 대상이 아니다(참고 지문에만 든다).
+    """
+    data = await _get_candles_source(symbol, period, interval, max_age_hours)
+    if interval == "1d" and signal_freshness.trading_active():
+        data = await signal_freshness.settle_for_trading(symbol, data)
+    return data
+
+
+async def _get_candles_source(symbol: str, period: str = "1y", interval: str = "1d", max_age_hours: float = 6) -> dict:
     """캔들 차트 데이터 (OHLCV) — 국내 주식 일봉은 **수집 DB 에서 먼저** 읽는다(DF-08).
 
     수집 DB 경로는 수정주가이고, 돌려주는 사전에 `source`·`as_of`(마지막 봉 날짜)가 더 붙는다.
@@ -379,11 +393,6 @@ def _calc_bollinger(closes: list[float], period: int = 20, std_mult: float = 2.0
 async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
     """기술적 지표 + AI 매매 시그널."""
     data = await get_candles(symbol, period=period)
-    # 자동매매 사이클 안에서만: 일봉이 낡았으면(직전 거래일 확정 종가가 없으면) KIS 에서 메모리로만 꼬리를 붙이고 신선도를 판정한다
-    # (화면 · 다른 분석은 그대로 — app/services/signal_freshness.py)
-    freshness = None
-    if signal_freshness.trading_active():
-        data, freshness = await signal_freshness.settle(symbol, data)
     candles = data.get("candles", [])
     if len(candles) < 20:
         return {"symbol": symbol, "error": "데이터 부족"}
@@ -420,8 +429,6 @@ async def get_quant_indicators(symbol: str, period: str = "2y") -> dict:
         # 화면이 그대로 보일 출처 · 기준일 한 줄(#134 · 글은 서버 한 곳) — 전략 분석이 「현재가」 대신 이 글을 보인다.
         "data_note": data_provenance.candle_provenance(data)["data_note"],
         "definition": ta_utils.DEFINITION,
-        # 자동매매 사이클이 부를 때만 들어간다 — state fresh/stale/unchecked/off · as_of · expected · tail
-        **({"freshness": freshness} if freshness else {}),
     }
 
 
