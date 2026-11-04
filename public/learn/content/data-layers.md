@@ -229,12 +229,12 @@ flowchart TD
 
 ## 더 읽을거리
 
-아래 자료는 2026-11-03 조사에서 열람한 1차 자료이며, 이 장을 쓰면서 다시 열지는 않았습니다.
+아래 자료는 2026-11-03 조사에서 열람한 1차 자료이고, 표시한 것은 2026-11-04 에 원문 페이지에서 다시 대조했습니다.
 
-- Databricks, 「What is the medallion lakehouse architecture?」 — <https://docs.databricks.com/aws/en/lakehouse/medallion> · 세 층의 정의 · Bronze 에 원본과 출처 메타데이터를 두는 까닭 · 권장 모범사례이지 필수는 아니라는 설명. 2026-11-03 조사에서 열람.
+- Databricks, 「What is the medallion lakehouse architecture?」 — <https://docs.databricks.com/aws/en/lakehouse/medallion> · 세 층의 정의 · Bronze 에 원본과 출처 메타데이터를 두는 까닭 · 권장 모범사례이지 필수는 아니라는 설명. 2026-11-03 조사에서 열람. [2026-11-04 원문 확인] 세 층 · 「권장이지 필수 아님」 · 브론즈에 문자열 · 바이너리 · 출처 메타데이터 열
 - Databricks, 「What is Medallion Architecture?」 — <https://www.databricks.com/blog/what-is-medallion-architecture> · Bronze 에 적재 시각 · 프로세스 ID 열을 덧붙이는 설명. 옛 용어집 주소에서 옮겨진 주소입니다. 2026-11-03 조사에서 열람.
-- Microsoft Learn, 「Understand medallion architecture for Fabric with OneLake」 — <https://learn.microsoft.com/en-us/fabric/onelake/onelake-medallion-lakehouse-architecture> · bronze(raw) · silver(enriched) · gold(curated)의 정의. 2026-11-03 조사에서 열람.
-- NIST, FIPS 180-4 「Secure Hash Standard」 — <https://csrc.nist.gov/pubs/fips/180-4/upd1/final> · SHA-256 이 256비트 요약값을 내며 메시지가 만들어진 뒤 바뀌었는지 탐지하는 데 쓰인다는 초록. 2026-11-03 조사에서 열람.
+- Microsoft Learn, 「Understand medallion architecture for Fabric with OneLake」 — <https://learn.microsoft.com/en-us/fabric/onelake/onelake-medallion-lakehouse-architecture> · bronze(raw) · silver(enriched) · gold(curated)의 정의. 2026-11-03 조사에서 열람. [2026-11-04 원문 확인] bronze(raw) · silver(enriched) · gold(curated)
+- NIST, FIPS 180-4 「Secure Hash Standard」 — <https://csrc.nist.gov/pubs/fips/180-4/upd1/final> · SHA-256 이 256비트 요약값을 내며 메시지가 만들어진 뒤 바뀌었는지 탐지하는 데 쓰인다는 초록. 2026-11-03 조사에서 열람. [2026-11-04 원문 확인] 요약값으로 메시지가 바뀌었는지 탐지
 - 이 장의 예제 [`data_layers.py`](/learn/examples/data_layers.py) · 수정주가 계산은 [1.2](#/p/adjusted-price) · 값이 말이 되는지 보는 법은 [1.4](#/p/data-quality-check).
 
 > [!NOTE]
