@@ -41,6 +41,7 @@ BASELINE: dict[str, int] = {
     # 2026-10-12 th06 5b0a768 1단계: 24 → 25 — get_candles 옛 경로 결과에 출처 이름표(`"source": "yahoo"`) 한 줄을
     #   받았다(강사님 85c3444 · KIS 갈래의 `"kis"` 와 짝). 글자일 뿐 호출은 0 — 부르는 곳은 그대로 `_yahoo_chart` 하나.
     "app/services/stock.py": 25,
+    # origin/main과 동일한 20줄. 첫 줄은 실행 흐름 설명 주석이며 새 Yahoo 호출이 아니다.
     # 2026-11-04 S201 강민석 님 26b4c1b(#534 · 대사 정렬): 19 → 20 — 글자만 늘었다(오준영 님 11-04 운영 최신화 검토가 담당 확인 요청).
     #   변경 = 결과 사전의 출처 이름표 `"price_source": "Collector DB" if fill_timing == "next_open" else "Yahoo Finance"` 1줄 추가 = 순증 1.
     #   호출은 0 — 야후 주소(`query2.finance.yahoo.com`)는 커밋 전(1001줄) · 후(1230줄) 모두 한 곳, 야후를 부르는 함수 정의도 그대로다.
@@ -99,14 +100,6 @@ BASELINE: dict[str, int] = {
     "app/config.py": 5,
     "app/services/aggressive_mode.py": 4,
     "app/services/kis_market_data.py": 1,
-    # 2026-10-30 S169: 지킴이 시험을 되살리며 **이 한 파일만 예외**로 연다 (강민석 님이 10-30 PR #431 에서 시험 파일을
-    #   통째로 지웠다 — 실패 2건이 이 스크립트 하나 때문이었다). 예외의 3요소:
-    #   · 사유 — 10-14 `839c533`(#160 B1)의 「Yahoo T2 채우기」 임시판. market.sqlite3 가 없는 PC 에서 야후 봉으로 신호를 즉석 계산한다.
-    #     정식 경로(signals_daily.py · 러너 단계 `signals`)는 수집 DB 를 읽는다. 앱 어디에서도 이 스크립트를 부르지 않는다.
-    #   · 담당 — 강민석 님(스크립트 작성자). 이 줄을 지우거나 수집 DB 로 바꾸는 PR 이 오면 이 줄도 같이 지운다.
-    #   · 만료 — 2026-11-12(3차 발표 · 수료식). 그날까지 지우지 않으면 이 예외를 다시 논의한다.
-    #   ⚠️ 줄 수(5)를 **늘리는** 것은 봉인을 푸는 일이다 — 이 예외는 지금 있는 5줄까지만이다.
-    "scripts/signals_yahoo.py": 5,
 }
 
 
