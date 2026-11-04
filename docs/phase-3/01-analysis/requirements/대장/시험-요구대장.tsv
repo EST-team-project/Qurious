@@ -361,3 +361,5 @@ TC-AL-DATA	tests/test_allocation_data.py	RFP2-3.1.3-④	🟡	자산군 모델의
 TC-AL-CON	tests/test_portfolio_allocation_constraints.py	RFP2-3.1.3-①	🟡	기존 종목 최적화의 제약 부분: 최종 비중 5~60%·합계 100%·같은 입력 재현·60개 공통 수익률·중복/불가능한 하한/계산 실패 거부. 완전한 Markowitz 기대수익-분산 최적화 검증은 아님(2026-11-03 오준영 확인)
 TC-RB-RND	tests/test_rebalance_target_rounding.py	P01-③-1	🟡	리밸런싱 목표 정규화 부분: 반올림 뒤 합계 보존·현금 음수 방지·종목 순서 불변·중복 합산·100% 초과 거부. 주기 도래·주문 실행·비용 이력은 이 묶음에서 검증하지 않음(2026-11-03 오준영 확인)
 TC-RB-META	tests/test_rebalance_target_metadata.py	P01-③-1	🟡	목표 저장의 국내 종목 식별: 실제 수집 스키마·시장별 표준 코드·ETF·가격 없는 종목·미래 자료 제외·미확인 종목 거부·중복 합산. 저장만 확인하며 주문 가능 여부는 기존 가격 검증으로 별도 확인(2026-11-03 오준영)
+TC-RB-REGIME	tests/test_rebalance_regime.py	RFP2-3.1.3-④	🟢	국면 변경 시 저장된 기준 배분으로 리밸런싱 목표 갱신: 그날까지의 수집 SQLite·PostgreSQL·0043 전환·확정 ETF 연결·미적용 현금 보존·자료 불완전/교체 시 대기·비활성/같은 국면 보존·기준 배분 교체 격리. 자연 운영 회차·외부 증권사 주문은 이 묶음에서 검증하지 않음(2026-11-04 오준영 · PR #522)
+TC-RB-REGIME	tests/test_rebalance_regime.py	P01-③-1	🟡	국면 목표 갱신의 예약/승인 계약: 기존 수동 승인·자동 예약 정책 유지·미정산 예약 보존·실패 시 목표/이력 롤백·동시 점검 1회·낡은 편집 거절·계정 격리·저장/점검만으로 주문 생성 없음. 실제 다음 시가 체결·주기 전체는 별도 시험(2026-11-04 오준영 · PR #522)
