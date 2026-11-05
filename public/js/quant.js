@@ -153,6 +153,8 @@ function qdMoreBar(expanded) {
     btn.setAttribute("aria-expanded", expanded ? "true" : "false");
     btn.removeAttribute("aria-disabled");
     btn.textContent = expanded ? "나머지 접기" : `나머지 ${rest}종목 보기`;
+    // 필터를 건 동안은 관찰 목록 전체에서 거른 결과라 접을 수 없다 — 접으면 개수 글(「n개 일치」)과 보이는 카드가 어긋난다(#556 확인). 필터를 풀면 되살린다.
+    btn.hidden = !!(qdCardFilter.signal || qdCardFilter.market) && qdCardsDrawn >= qdStocks.length;
   } else if (btn) btn.remove();
   if (!document.getElementById("signal-cards-rank")) {
     const a = document.createElement("a");
@@ -171,8 +173,14 @@ const QD_FILTER_MARKETS = ["", "KOSPI", "KOSDAQ"];
 
 function qdFilterBarHtml() {
   const chip = (kind, v, label) => `<button type="button" class="qd-fchip text-xs" data-qd-filter="${kind}" data-value="${escHtml(v)}" aria-pressed="${qdCardFilter[kind] === v}">${escHtml(label)}</button>`;
+  // 관찰 목록에 시장이 하나뿐이면(전부 .KS 같은 경우) 시장 줄은 거를 것이 없어 보이지 않는다 — 항상 0개인 「KOSDAQ」 칩을 안 만든다(2026-11-05 신장환 님 #556 확인).
+  // 이미 걸려 있는 시장 값은 목록에 없어도 줄을 남겨 풀 수 있게 한다.
+  const present = new Set(qdStocks.map(s => qdMarketOf(s.symbol)).filter(Boolean));
+  const markets = QD_FILTER_MARKETS.filter(v => !v || present.has(v) || qdCardFilter.market === v);
+  const marketRow = present.size >= 2 || qdCardFilter.market
+    ? `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">시장</span>${markets.map(v => chip("market", v, v || "전체")).join("")}</div>` : "";
   return `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">신호</span>${QD_FILTER_SIGNALS.map(v => chip("signal", v, v || "전체")).join("")}</div>`
-    + `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">시장</span>${QD_FILTER_MARKETS.map(v => chip("market", v, v || "전체")).join("")}</div>`
+    + marketRow
     + `<div class="text-xs" style="color:var(--text-mute);" id="signal-cards-filter-note" role="status" aria-live="polite"></div>`;
 }
 
@@ -240,6 +248,7 @@ function qdApplyCardFilter() {
     const partial = active && qdCardsDrawn < qdStocks.length ? ` · 나머지 종목을 받지 못해 처음 ${QD_CARD_FIRST}종목만 거른 결과입니다` : "";
     note.textContent = active ? `조건 ${parts.join(" · ")} — 관찰 목록 ${qdStocks.length}종목 중 ${shown}개${partial}` : "";
   }
+  qdMoreBar(!!extra && !extra.hidden);                    // 필터를 풀면 숨겼던 「나머지 접기」 를 되살리고, 걸면 숨긴다
   qdCardsCount();
 }
 
@@ -321,13 +330,27 @@ function qdWatchList() {
 
 const qdCodeOf = symbol => String(symbol || "").split(".")[0];
 
+const QD_WATCH_SIGNALS = ["", "매수", "매도", "관망"];
+
+/** 표 위 줄 — 신호 단추(눌림 상태는 aria-pressed) + 새로고침 + 안내. 시장 줄은 없다(관찰 목록이 전부 .KS 라 거를 것이 없다). */
+function qdWatchBarHtml(signal, note, recorded, shown) {
+  const chip = v => `<button type="button" class="qd-fchip text-xs" data-qd-wfilter data-value="${escHtml(v)}" aria-pressed="${signal === v}">${escHtml(v || "전체")}</button>`;
+  const count = signal ? `조건 ${escHtml(signal)} — 기록된 ${recorded}종목 중 ${shown}종목` : "";
+  return `<div class="qd-filter mb-2" role="group" aria-label="관찰 목록 신호 필터"><div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">신호</span>`
+    + `${QD_WATCH_SIGNALS.map(chip).join("")}`
+    + `<button type="button" class="btn-secondary text-xs" data-qd-wrefresh>새로고침</button></div>`
+    + `<div class="text-xs" style="color:var(--text-mute);" role="status" aria-live="polite" data-qd-watch-note>${[count, escHtml(note)].filter(Boolean).join(" · ")}</div></div>`;
+}
+
 /** 표 HTML — 기록이 있는 종목은 신호 · 근거 · 기준일, 없는 종목은 서버 까닭 그대로. 줄을 누르면 차트가 그 종목으로 바뀌고 「종목 근거」 는 모달을 연다. */
-function qdWatchHtml(resp, stocks) {
+function qdWatchHtml(resp, stocks, signal = "", note = "") {
   const byCode = new Map(stocks.map(s => [qdCodeOf(s.symbol), s]));
-  const rows = (resp && resp.rows) || [];
-  const missing = (resp && resp.missing) || [];
+  const allRows = (resp && resp.rows) || [];
+  // 신호 필터(2026-11-05 · 표를 직접 거르고 싶다는 피드백) — 이미 받은 응답을 브라우저에서 거른다(서버 요청은 그대로). 기준은 신호 순위 화면과 같은 매수 · 매도 · 관망.
+  const rows = signal ? allRows.filter(r => qdBucket(rowView(r).signal) === signal) : allRows;
+  const missing = signal ? [] : ((resp && resp.missing) || []);      // 기록 없는 종목은 어느 신호에도 속하지 않으므로 거르는 중에는 안 보인다
   const col = "기록된 신호(60분 · 일 · 주)";
-  const head = renderFreshness(resp && resp.freshness, escHtml);
+  const head = renderFreshness(resp && resp.freshness, escHtml) + qdWatchBarHtml(signal, note, allRows.length, rows.length);
   const body = rows.map(r => {
     const st = byCode.get(r.symbol);
     const v = rowView(r, c => (byCode.get(c) || {}).name);
@@ -347,6 +370,7 @@ function qdWatchHtml(resp, stocks) {
       + `<td data-label="${col}" colspan="4" style="color:var(--text-mute);">기록 없음 — ${escHtml(m.message || "")}</td></tr>`;
   }).join("");
   const foot = `<div class="text-xs mt-2" style="color:var(--text-mute);">${escHtml((resp && resp.notice) || "")}</div>`;
+  if (signal && !rows.length) return `${head}<div class="text-sm">이 조건에 맞는 종목이 없습니다. 필터를 풀어 보세요.</div>${foot}`;
   if (!rows.length && !missing.length) return `${head}<div class="text-sm">이 날짜의 신호 기록이 아직 없습니다.</div>${foot}`;
   return `${head}<div class="qd-table-wrap"><table class="w-full text-sm"><thead><tr><th>종목</th><th>${col}</th><th>근거</th><th>기준일</th><th>근거 열기</th></tr></thead>`
     + `<tbody>${body}${miss}</tbody></table></div>${foot}`;
@@ -359,6 +383,39 @@ function qdMarkSelected() {
     tr.classList.toggle("qd-sel", on);
     if (on) tr.setAttribute("aria-current", "true"); else tr.removeAttribute("aria-current");
   });
+}
+
+let qdWatchSignal = "";                         // 관찰 목록 표의 신호 필터("" = 전체)
+let qdWatchLast = null;                         // 마지막으로 받은 {resp, stocks} — 필터를 바꿀 때 다시 받지 않고 이것을 거른다
+let qdWatchNote = "";                           // 새로고침 뒤 안내 글
+
+/** 받아 둔 응답을 지금 필터로 다시 그린다(서버를 부르지 않는다). */
+function qdWatchRepaint() {
+  const host = document.getElementById("quant-watch");
+  if (!host || !qdWatchLast) return;
+  const { resp, stocks } = qdWatchLast;
+  host.innerHTML = qdWatchHtml(resp, stocks, qdWatchSignal, qdWatchNote);
+  const all = (resp.rows || []).length;
+  const shown = qdWatchSignal ? (resp.rows || []).filter(r => qdBucket(rowView(r).signal) === qdWatchSignal).length : all;
+  const n = document.getElementById("quant-watch-count");
+  if (n) n.textContent = qdWatchSignal ? `${stocks.length}종목 중 ${shown}종목 일치` : `${stocks.length}종목 중 ${all}종목 기록`;
+  qdMarkSelected();
+}
+
+function qdWatchSetSignal(value) {
+  if (!QD_WATCH_SIGNALS.includes(value)) return;                     // 모르는 낱말은 무시
+  qdWatchSignal = value;
+  qdWatchRepaint();
+}
+
+/** 새로고침 — 신호 기록을 서버에서 다시 읽는다(새로 계산하지 않는다). 걸어 둔 필터는 그대로 두고 다시 읽은 시각을 안내한다. */
+async function qdWatchRefresh() {
+  qdWatchNote = "";
+  await loadWatchTable();
+  if (!qdWatchLast) return;                                          // 실패했으면 표가 실패 글을 이미 보인다
+  const clock = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" });
+  qdWatchNote = `기록을 다시 읽었습니다(${clock}) — 신호는 새로 계산하지 않고 기록된 값을 그대로 보입니다`;
+  qdWatchRepaint();
 }
 
 let qdWatchBusy = null;                         // 표를 받는 중이면 그 약속 — 신호 띠가 같은 종목을 따로 묻지 않고 기다린다
@@ -388,10 +445,8 @@ async function qdWatchRun() {
     if (mine !== qdWatchSeq) return;
     qdRankByCode.clear();
     (resp.rows || []).forEach(r => qdRankByCode.set(r.symbol, r));
-    host.innerHTML = qdWatchHtml(resp, stocks);
-    const n = document.getElementById("quant-watch-count");
-    if (n) n.textContent = `${stocks.length}종목 중 ${(resp.rows || []).length}종목 기록`;
-    qdMarkSelected();
+    qdWatchLast = { resp, stocks };
+    qdWatchRepaint();
   } catch (e) {
     if (mine === qdWatchSeq) host.textContent = drawerFailText(e);
   }
@@ -672,37 +727,89 @@ async function qdFindSubmit(input) {
 // 카드의 「나머지 보기 · 접기」 — 단추는 카드를 다시 그릴 때마다 새로 만들어지므로 문서에서 받는다
 document.addEventListener("click", ev => {
   if (ev.target.closest && ev.target.closest("#signal-cards-toggle")) qdToggleCards();
+  const wf = ev.target.closest && ev.target.closest("button[data-qd-wfilter]");          // 관찰 목록 표의 신호 필터 · 새로고침(표를 다시 그릴 때마다 단추가 새로 생겨 문서에서 받는다)
+  if (wf) { qdWatchSetSignal(wf.dataset.value); return; }
+  if (ev.target.closest && ev.target.closest("button[data-qd-wrefresh]")) qdWatchRefresh();
 });
 
 // ── 자동매매 ─────────────────────────────────────────────────────
+// 회차 로그 필터(2026-11-05 · 화면 전수 점검 「새로고침은 있고 필터가 없음」) — 칩 줄은 공용 listbar.js, 거르는 규칙은 autotrade-filter.js(순수 함수).
+// import 는 파일 맨 위로 끌어올려지므로(ES 모듈) 이 구역에 둔다.
+import { bindListBar, isAllowed, refreshStamp } from "/js/listbar.js";
+import { autoTradeView } from "/js/autotrade-filter.js";
+
+let autoLast = null;                            // 마지막으로 받은 /api/auto-trade/status 응답 — 칩을 누르면 다시 받지 않고 이것을 거른다
+let autoFilter = { order: "", signal: "" };     // 걸린 조건("" = 전체) — 새로고침해도 유지
+let autoGroups = [];                            // 지금 그려진 칩 묶음(모르는 낱말을 막는 데 쓴다)
+let autoNote = "";                              // 새로고침 뒤 안내 글
+
+/** 회차 카드 한 장 — 서버가 준 한 회차(신호 · 주문 · 위험관리). 글은 모두 이스케이프한다. */
+function autoCycleHtml(cycle) {
+  const trades = (cycle.trades || []).map(t => renderTradeExecution(t, escHtml, fmt)).join("");
+  const risk = cycle.risk
+    ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · ${escHtml(cycle.risk.valuation?.label || "이전 기록 · 평가 기준 미기록")} · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
+    : "";
+  const stops = Object.entries(cycle.risk?.stop_checks || {}).map(([symbol, stop]) =>
+    `<div class="ml-3 text-xs">${escHtml(symbol)} · ${stop.origin === 'transition' ? '전환 시 고정' : '진입 시 고정'} 손절 ${fmt(stop.stop_price)}원 (${escHtml(stop.stop_kind || '%')})</div>`
+  ).join('');
+  const sigs = (cycle.signals || []).map(sig =>
+    `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(sig.error ? '판단 불가' : _displayAction(sig.action))}</b>${renderDecisionBasis({...sig, cycle_at: cycle.time}, escHtml, kstTime)}</div>`
+  ).join("");
+  return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
+    <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
+    ${risk}${stops}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
+  </div>`;
+}
+
+/** 칩 줄 자리 — 스크롤 칸(#auto-trade-log) 바로 앞에 한 번만 만든다. 로그 칸은 불러올 때마다 innerHTML 이 바뀌어 그 안에 두면 칩이 같이 사라진다. */
+function autoMountBar() {
+  let host = document.getElementById("auto-trade-bar");
+  if (host) return host;
+  const log = document.getElementById("auto-trade-log");
+  if (!log || !log.parentNode) return null;
+  host = document.createElement("div");
+  host.id = "auto-trade-bar";
+  log.parentNode.insertBefore(host, log);
+  bindListBar(host, { onFilter: autoSetFilter });
+  return host;
+}
+
+/** 받아 둔 응답을 지금 조건으로 다시 그린다(서버를 부르지 않는다). 로그가 비어 있어도 칩 줄은 그린다. */
+function autoRepaint() {
+  const el = document.getElementById("auto-trade-log");
+  if (!el || !autoLast) return;
+  const view = autoTradeView(autoLast.log, autoFilter, { esc: escHtml, cycleHtml: autoCycleHtml, note: autoNote });
+  autoGroups = view.groups;
+  const host = autoMountBar();
+  if (host) host.innerHTML = view.barHtml;
+  el.innerHTML = view.listHtml;
+}
+
+function autoSetFilter(key, value) {
+  if (!isAllowed(autoGroups, key, value)) return;                    // 모르는 낱말은 무시
+  autoFilter = { ...autoFilter, [key]: value };
+  autoRepaint();
+}
+
 async function loadAutoTradeStatus() {
   loadRiskStatus(); // 로그가 없어 아래에서 조기 return 되더라도 위험관리 상태는 항상 표시
   try {
     const s = await api("/api/auto-trade/status");
     document.getElementById("auto-trade-status").textContent =
       (s.running ? "🟢 실행 중" : "⭕ 정지") + (s.scheduler ? ` · ${s.scheduler}` : "") + (s.last_cycle_at ? ` · 마지막 사이클 ${kstTime(s.last_cycle_at)}` : "");
-    const el = document.getElementById("auto-trade-log");
-    if (!s.log?.length) {
-      el.innerHTML = `<div style="color:var(--text-mute);">자동매매 로그가 없습니다.</div>`;
-      return;
-    }
-    el.innerHTML = [...s.log].reverse().map(cycle => {
-      const trades = (cycle.trades || []).map(t => renderTradeExecution(t, escHtml, fmt)).join("");
-      const risk = cycle.risk
-        ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · ${escHtml(cycle.risk.valuation?.label || "이전 기록 · 평가 기준 미기록")} · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
-        : "";
-      const stops = Object.entries(cycle.risk?.stop_checks || {}).map(([symbol, stop]) =>
-        `<div class="ml-3 text-xs">${escHtml(symbol)} · ${stop.origin === 'transition' ? '전환 시 고정' : '진입 시 고정'} 손절 ${fmt(stop.stop_price)}원 (${escHtml(stop.stop_kind || '%')})</div>`
-      ).join('');
-      const sigs = (cycle.signals || []).map(sig =>
-        `<div class="ml-3" style="color:var(--text-dim);">${escHtml(sig.name || sig.symbol)}: <b style="color:var(--text);">${escHtml(sig.error ? '판단 불가' : _displayAction(sig.action))}</b>${renderDecisionBasis({...sig, cycle_at: cycle.time}, escHtml, kstTime)}</div>`
-      ).join("");
-      return `<div class="rounded-xl border p-2 mb-1" style="background:var(--surf2);border-color:var(--border);">
-        <div class="font-semibold" style="color:var(--accent);">${escHtml(kstTime(cycle.time))}${cycle.note ? ` <span style="color:var(--red);font-weight:400;">· ${escHtml(cycle.note)}</span>` : ""}</div>
-        ${risk}${stops}${sigs}${trades ? `<div class="mt-1 font-semibold text-xs" style="color:var(--text-dim);">가상 기록 / 증권사 주문:</div>` + trades : ""}
-      </div>`;
-    }).join("");
+    autoLast = s;
+    autoNote = "";
+    autoRepaint();
   } catch { }
+}
+
+/** 「로그 새로고침」 단추 — 기존 동작(서버에서 다시 읽기) 그대로, 성공하면 다시 읽은 시각만 안내한다. 걸어 둔 조건은 유지. */
+async function autoRefreshClick() {
+  const before = autoLast;
+  await loadAutoTradeStatus();
+  if (autoLast === before) return;                                   // 못 받았으면 이전 화면 그대로(거짓 안내 금지)
+  autoNote = `${refreshStamp("서버에서 다시 읽었습니다")} — 새로 계산하지 않고 기록된 값을 그대로 보입니다`;
+  autoRepaint();
 }
 
 async function loadRiskStatus() {
@@ -767,7 +874,7 @@ document.getElementById("auto-stop").addEventListener("click", async () => {
     loadAutoTradeStatus();
   } catch (e) { setToast(e.message, "error"); }
 });
-document.getElementById("auto-refresh").addEventListener("click", loadAutoTradeStatus);
+document.getElementById("auto-refresh").addEventListener("click", autoRefreshClick);
 
 // ── 백테스트 ─────────────────────────────────────────────────────
 document.getElementById("bt-load").addEventListener("click", async () => {
