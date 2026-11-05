@@ -320,6 +320,7 @@
                   <button id="pd-refresh" class="btn-secondary ml-auto">새로고침</button>
                   <button id="pd-reset" class="btn-red">계좌 초기화</button>
                 </div>
+                <div id="pd-refresh-note" class="text-xs mb-2" style="color:var(--text-mute);" role="status" aria-live="polite"></div><!-- 새로고침 뒤 안내(js/paper.js) -->
                 <div id="pd-kpis" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2"></div>
               </div>
 
@@ -509,6 +510,7 @@
                 <div>
                   <div id="pc-preview" class="text-sm mb-3"></div>
                   <h3 class="font-semibold mb-2 text-sm">거래대금 상위 (24h)</h3>
+                  <div id="pc-rankings-bar"></div><!-- 필터 칩 + 새로고침 줄 — 표가 스크롤돼도 보이게 상자 밖에 둔다(js/paper.js) -->
                   <div id="pc-rankings" class="overflow-x-auto text-sm" style="max-height:320px;overflow-y:auto;"></div>
                 </div>
               </div>
@@ -523,6 +525,7 @@
             <div class="card">
               <h2 class="text-lg font-semibold mb-1">🧊 대체자산 모의주문</h2>
               <p class="text-xs mb-4" id="pa-notice" style="color:var(--text-mute);"></p>
+              <div id="pa-markets-bar"></div><!-- 필터 칩 + 새로고침 줄 — 격자 밖에 둔다(js/paper.js) -->
               <div id="pa-markets" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-4"></div>
               <div class="grid md:grid-cols-2 gap-4 mb-4">
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
@@ -2950,6 +2953,7 @@ criterion = nn.CrossEntropyLoss()
             <div class="card mb-4">
               <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-globe" style="color:var(--accent);"></i> 해외 · 원자재 시세 (지연 시세)</h2>
               <p class="text-sm text-slate-400 mb-4">미국 국채 금리 · 유가 · 금 · 달러 인덱스 · 주가지수의 시세입니다. 야후 파이낸스 지연 시세라 한국은행 통계와 기준이 다릅니다.</p>
+              <div class="mb-2"><button type="button" id="macro-refresh" class="btn-secondary text-xs">새로고침</button> <span class="text-xs" style="color:var(--text-mute);">서버에 저장해 둔 시세(최대 2시간)를 건너뛰고 야후에서 다시 받습니다 — 1분 안에 받은 값은 그대로 보입니다.</span></div>
               <div id="macro-loading" class="text-sm text-slate-400 animate-pulse">지표 조회 중...</div>
               <div id="macro-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 hidden"></div>
             </div>
@@ -2977,6 +2981,7 @@ criterion = nn.CrossEntropyLoss()
             <div class="card mb-4">
               <h2 class="text-lg font-semibold mb-3"><i class="fa-solid fa-chart-pie" style="color:var(--accent);"></i> 미국 섹터 ETF (지연 시세)</h2>
               <p class="text-sm text-slate-400 mb-4">미국 섹터별 ETF 수익률로 산업별 투자 강도를 비교합니다. 야후 파이낸스 지연 시세라 위 국내 산업과 기준이 다릅니다.</p>
+              <div class="mb-2"><button type="button" id="industry-refresh" class="btn-secondary text-xs">새로고침</button> <span class="text-xs" style="color:var(--text-mute);">서버에 저장해 둔 시세(최대 2시간)를 건너뛰고 야후에서 다시 받습니다 — 1분 안에 받은 값은 그대로 보입니다.</span></div>
               <div id="industry-loading" class="text-sm text-slate-400 animate-pulse">섹터 데이터 조회 중...</div>
               <div id="industry-table-wrap" class="hidden overflow-x-auto">
                 <table class="w-full text-xs">
