@@ -19,6 +19,8 @@ let qdCardsDrawn = 0;                           // 지금까지 그린 카드 �
 let qdPrevDay = "";                             // 서버가 알려 준 전 거래일(카드의 「최신 아님」 판정용)
 let qdListPromise = null;                       // 관찰 목록 요청 하나를 표 · 카드가 나눠 쓴다(새로고침 때만 다시 받는다)
 let qdCardsLoaded = false;                      // 카드는 「일봉 단독 규칙」 칸을 펼칠 때 처음 받는다
+let qdCardFilter = { signal: "", market: "" };  // 일봉 단독 규칙 카드 필터(2026-11-05) — 신호 · 시장
+let qdFilterShown = 0;                          // 필터에 맞는 카드 수
 let qdWatchSeq = 0;                             // 표 요청이 겹치면 마지막 것만 그린다
 const qdRankByCode = new Map();                 // 표에서 읽은 기록된 신호(6자리 코드 → 줄) — 신호 띠가 같은 종목을 다시 묻지 않게
 
@@ -54,6 +56,20 @@ function _displayAction(action) {
   if (action === "강력 매수") return "매수 · 강";
   if (action === "강력 매도" || action === "강력매도") return "매도 · 강";
   return action;
+}
+
+/** 카드 필터용 신호 낱말(2026-11-05) — 「강력 매수」 도 매수 쪽, 「강력 매도」 도 매도 쪽, 그 밖은 관망. 신호가 없으면 빈 글(필터에 안 걸린다). */
+function qdBucket(action) {
+  if (!action) return "";
+  if (/매수/.test(action)) return "매수";
+  if (/매도/.test(action)) return "매도";
+  return "관망";
+}
+
+/** 관찰 목록 종목의 시장 — 종목 기호 꼬리(.KS = KOSPI · .KQ = KOSDAQ)로 읽는다. 모르면 빈 글. */
+function qdMarketOf(symbol) {
+  const m = /\.(KS|KQ)$/i.exec(String(symbol || ""));
+  return m ? (m[1].toUpperCase() === "KS" ? "KOSPI" : "KOSDAQ") : "";
 }
 
 async function loadMarketCards() {
@@ -93,7 +109,7 @@ export function signalCardHtml(s, r, prevDay) {
         <ul class="text-xs pl-3 list-disc" style="color:var(--text-dim);">${reasons.map(t => `<li>${escHtml(t)}</li>`).join("")}</ul>
         ${r?.data_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(r.data_note)}</div>` : ""}</details>`
     : `<div class="text-xs mt-1" style="color:var(--text-mute);">근거 없음</div>`;
-  return `<div class="rounded-xl border p-2" style="border-color:var(--border);background:var(--surf2);">
+  return `<div class="rounded-xl border p-2" style="border-color:var(--border);background:var(--surf2);" data-qd-signal="${escHtml(qdBucket(sig.action))}" data-qd-market="${escHtml(qdMarketOf(s.symbol))}">
         <div class="font-semibold">${escHtml(s.name)}</div>
         ${hub}
         <div class="text-xs" style="color:var(--text-mute);">${escHtml(s.symbol)}</div>
@@ -114,7 +130,8 @@ async function qdCardsHtml(stocks) {
 
 function qdCardsCount() {
   const c = document.getElementById("signal-cards-count");
-  if (c) c.textContent = qdStocks.length ? `${qdStocks.length}종목 중 ${qdCardsDrawn}개 표시` : "";
+  const active = !!(qdCardFilter.signal || qdCardFilter.market);
+  if (c) c.textContent = !qdStocks.length ? "" : active ? `${qdStocks.length}종목 중 ${qdFilterShown}개 일치` : `${qdStocks.length}종목 중 ${qdCardsDrawn}개 표시`;
 }
 
 /** 「나머지 n종목 보기」 · 「접기」 단추와 신호 순위로 가는 길 — 나머지는 처음 펼칠 때만 받는다(안 A3). */
@@ -145,6 +162,95 @@ function qdMoreBar(expanded) {
     a.textContent = "신호 순위에서 전체 종목 보기 →";
     host.append(a);
   }
+}
+
+// ── 일봉 단독 규칙 카드 필터(2026-11-05 · 「매수/매도/관망 · KOSPI/KOSDAQ 로 거르고 싶다」 피드백) ──────────────
+// 카드는 처음 10장만 받으므로, 필터를 거는 순간 나머지도 받아 관찰 목록 전체에서 거른다. 서버 응답은 바꾸지 않고 카드의 data 칸만 읽는다.
+const QD_FILTER_SIGNALS = ["", "매수", "매도", "관망"];
+const QD_FILTER_MARKETS = ["", "KOSPI", "KOSDAQ"];
+
+function qdFilterBarHtml() {
+  const chip = (kind, v, label) => `<button type="button" class="qd-fchip text-xs" data-qd-filter="${kind}" data-value="${escHtml(v)}" aria-pressed="${qdCardFilter[kind] === v}">${escHtml(label)}</button>`;
+  return `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">신호</span>${QD_FILTER_SIGNALS.map(v => chip("signal", v, v || "전체")).join("")}</div>`
+    + `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">시장</span>${QD_FILTER_MARKETS.map(v => chip("market", v, v || "전체")).join("")}</div>`
+    + `<div class="text-xs" style="color:var(--text-mute);" id="signal-cards-filter-note" role="status" aria-live="polite"></div>`;
+}
+
+function qdMountCardFilter() {
+  const grid = document.getElementById("signal-cards");
+  if (!grid || !grid.parentNode || document.getElementById("signal-cards-filter")) return;
+  const bar = document.createElement("div");
+  bar.id = "signal-cards-filter";
+  bar.className = "qd-filter mb-3";
+  bar.setAttribute("role", "group");
+  bar.setAttribute("aria-label", "규칙 신호 카드 필터");
+  bar.innerHTML = qdFilterBarHtml();
+  grid.parentNode.insertBefore(bar, grid);
+  bar.addEventListener("click", ev => {
+    const btn = ev.target.closest ? ev.target.closest("button[data-qd-filter]") : null;
+    if (btn) qdSetCardFilter(btn.dataset.qdFilter, btn.dataset.value);
+  });
+}
+
+/** 나머지 카드(11번째부터)를 받아 붙인다 — 이미 받았으면 그대로. 필터를 걸 때와 「나머지 보기」 가 같은 길을 쓰지는 않는다(후자는 qdToggleCards). */
+async function qdLoadExtraCards() {
+  const el = document.getElementById("signal-cards");
+  if (!el || el.querySelector("[data-qd-extra]") || qdStocks.length <= QD_CARD_FIRST) return true;
+  const btn = document.getElementById("signal-cards-toggle");
+  if (btn) { btn.setAttribute("aria-disabled", "true"); btn.textContent = "불러오는 중…"; }
+  let ok = false;
+  try {
+    const extra = document.createElement("div");
+    extra.setAttribute("data-qd-extra", "");
+    extra.className = "contents";
+    extra.innerHTML = await qdCardsHtml(qdStocks.slice(QD_CARD_FIRST));
+    el.appendChild(extra);
+    qdCardsDrawn = qdStocks.length;
+    ok = true;
+  } finally {
+    qdCardsCount(); qdMoreBar(ok);
+  }
+  return ok;
+}
+
+function qdApplyCardFilter() {
+  const el = document.getElementById("signal-cards");
+  if (!el) return;
+  const f = qdCardFilter;
+  const active = !!(f.signal || f.market);
+  const extra = el.querySelector("[data-qd-extra]");
+  if (active && extra) {                                  // 거르는 동안은 접어 둔 나머지도 펼쳐 놓는다
+    extra.hidden = false; extra.style.display = "contents";
+    qdCardsDrawn = qdStocks.length; qdMoreBar(true);
+  }
+  let shown = 0;
+  el.querySelectorAll("[data-qd-signal]").forEach(card => {
+    const ok = (!f.signal || card.dataset.qdSignal === f.signal) && (!f.market || card.dataset.qdMarket === f.market);
+    card.hidden = !ok;
+    if (ok) shown++;
+  });
+  qdFilterShown = shown;
+  const empty = el.querySelector("[data-qd-filter-empty]");
+  if (active && shown === 0) {
+    if (!empty) el.insertAdjacentHTML("beforeend", `<div class="col-span-full text-xs" data-qd-filter-empty style="color:var(--text-mute);">이 조건에 맞는 종목이 없습니다. 필터를 풀어 보세요.</div>`);
+  } else if (empty) empty.remove();
+  const note = document.getElementById("signal-cards-filter-note");
+  if (note) {
+    const parts = [f.signal, f.market].filter(Boolean);
+    const partial = active && qdCardsDrawn < qdStocks.length ? ` · 나머지 종목을 받지 못해 처음 ${QD_CARD_FIRST}종목만 거른 결과입니다` : "";
+    note.textContent = active ? `조건 ${parts.join(" · ")} — 관찰 목록 ${qdStocks.length}종목 중 ${shown}개${partial}` : "";
+  }
+  qdCardsCount();
+}
+
+async function qdSetCardFilter(kind, value) {
+  if (!["signal", "market"].includes(kind)) return;
+  if (!(kind === "signal" ? QD_FILTER_SIGNALS : QD_FILTER_MARKETS).includes(value)) return;
+  qdCardFilter = { ...qdCardFilter, [kind]: value };
+  const bar = document.getElementById("signal-cards-filter");
+  if (bar) bar.innerHTML = qdFilterBarHtml();
+  if (qdCardFilter.signal || qdCardFilter.market) { try { await qdLoadExtraCards(); } catch { /* 못 받아도 받은 카드만으로 건다 — 아래 안내가 말한다 */ } }
+  qdApplyCardFilter();
 }
 
 async function qdToggleCards() {
@@ -192,6 +298,8 @@ async function loadSignalCards() {
     qdCardsDrawn = Math.min(QD_CARD_FIRST, stocks.length);
     qdCardsLoaded = true;
     qdCardsCount(); qdMoreBar(false);
+    qdMountCardFilter();
+    if (qdCardFilter.signal || qdCardFilter.market) { try { await qdLoadExtraCards(); } catch { /* 위와 같다 */ } qdApplyCardFilter(); }   // 새로 받았는데 필터가 걸려 있으면 다시 건다
   } catch (e) {
     el.innerHTML = `<div class='col-span-full text-xs' style='color:var(--red);'>${escHtml(e.message)}</div>`;
   }

@@ -82,3 +82,10 @@
 #sr-filter .sr-chip:hover { background: var(--surf2); }
 #sr-filter .sr-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 #sr-filter .sr-chip:focus-visible, #sr-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 퀀트 대시보드 일봉 단독 규칙 카드 필터(2026-11-05) — 신호 · 시장 단추. 눌린 단추는 aria-pressed="true" 로 칠하고 굵기도 바꾼다. */
+.qd-filter .qd-frow { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; align-items: center; }
+.qd-fchip { padding: 4px 12px; border: 1px solid var(--border, #dde2ec); border-radius: 999px; background: transparent; color: var(--text-dim); cursor: pointer; min-height: 32px; }
+.qd-fchip:hover { background: var(--surf2); }
+.qd-fchip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.qd-fchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

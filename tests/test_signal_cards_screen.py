@@ -393,3 +393,127 @@ def test_chart_ignores_late_responses_cleans_up_and_hands_the_right_rows():
     assert us["rows"] == ["2026-10-28", "2026-10-29", "2026-10-30"], "해외 종목은 KST 날짜의 종가 줄 · 겹친 날짜는 하나 · 시간순"
     fb = got["fallback"]
     assert [c["rows"] is None for c in fb["calls"]] == [True, False] and fb["calls"][1]["rows"] == ["2026-10-28", "2026-10-29", "2026-10-30"], "국내인데 못 그리면 지표 응답의 줄로 한 번 더"
+
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_carries_signal_bucket_and_market_for_the_filter():
+    """TC-SCD-14 · 카드 필터(2026-11-05) — 카드 뿌리에 신호 낱말(`data-qd-signal`: 강력 매수 · 매수 → 매수 / 강력 매도 · 매도 → 매도 / 그 밖 → 관망 /
+    신호 없음 → 빈 글)과 시장(`data-qd-market`: .KS → KOSPI · .KQ → KOSDAQ · 그 밖 → 빈 글)이 달린다. 카드의 다른 글은 그대로다."""
+    def resp(action):
+        return {"signal": {"action": action, "reasons": [], "score": 0}, "current_price": 1, "current_rsi": 50, "as_of": "2026-10-29"}
+
+    html = _run_cards([
+        {"s": {"name": "가", "symbol": "005930.KS"}, "r": resp("강력 매수"), "prev": ""},
+        {"s": {"name": "나", "symbol": "247540.KQ"}, "r": resp("매도"), "prev": ""},
+        {"s": {"name": "다", "symbol": "AAPL"}, "r": resp("관망"), "prev": ""},
+        {"s": {"name": "라", "symbol": "000660.KS"}, "r": None, "prev": ""},
+        {"s": {"name": "마", "symbol": "035420.ks"}, "r": resp("강력 매도"), "prev": ""},
+    ])
+    want = [("매수", "KOSPI"), ("매도", "KOSDAQ"), ("관망", ""), ("", "KOSPI"), ("매도", "KOSPI")]
+    for h, (sig, mkt) in zip(html, want):
+        assert f'data-qd-signal="{sig}" data-qd-market="{mkt}"' in h, (sig, mkt, h[:200])
+    assert "일봉 단독 규칙" in html[0] and "qd-chip" in html[0]          # 카드의 나머지는 그대로
+
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_filter_hides_by_signal_and_market_and_reports_counts():
+    """TC-SCD-15 · qdSetCardFilter — 신호 · 시장을 겹쳐 걸면 맞는 카드만 보이고(`hidden`) 개수 글이 「n종목 중 m개 일치」 로 바뀐다 ·
+    맞는 게 없으면 「이 조건에 맞는 종목이 없습니다」 한 줄 · 풀면(전체) 모두 다시 보이고 빈 줄이 사라진다 · 모르는 낱말은 무시한다."""
+    fn = _extract("function qdCardsCount", "/** 「나머지 n종목 보기」") + _extract("const QD_FILTER_SIGNALS", "async function qdToggleCards")
+    js = textwrap.dedent("""
+        const QD_CARD_FIRST = 10;
+        let qdStocks = Array.from({ length: 6 }, (_, i) => ({ symbol: String(i) }));
+        let qdCardsDrawn = 6, qdFilterShown = 0;
+        let qdCardFilter = { signal: "", market: "" };
+        const escHtml = s => String(s ?? "");
+        const spec = [["매수", "KOSPI"], ["매수", "KOSDAQ"], ["매도", "KOSPI"], ["관망", "KOSDAQ"], ["매수", "KOSPI"], ["", "KOSPI"]];
+        const cards = spec.map(([s, m]) => ({ hidden: false, dataset: { qdSignal: s, qdMarket: m } }));
+        const state = { empty: false, note: "", count: "" };
+        const grid = { querySelector: sel => (sel === "[data-qd-filter-empty]" && state.empty ? { remove() { state.empty = false; } } : null),
+          querySelectorAll: () => cards, insertAdjacentHTML: (_, h) => { if (h.includes("data-qd-filter-empty")) state.empty = true; } };
+        const note = { set textContent(v) { state.note = v; }, get textContent() { return state.note; } };
+        const count = { set textContent(v) { state.count = v; } };
+        const bar = { innerHTML: "" };
+        globalThis.document = { getElementById: id => ({ "signal-cards": grid, "signal-cards-filter-note": note, "signal-cards-count": count, "signal-cards-filter": bar })[id] || null };
+        const qdMoreBar = () => {}, qdCardsHtml = async () => "";
+    """) + fn + textwrap.dedent("""
+        const shown = () => cards.filter(c => !c.hidden).length;
+        (async () => {
+          const out = {};
+          await qdSetCardFilter("signal", "매수");
+          out.buy = { shown: shown(), count: state.count, note: state.note };
+          await qdSetCardFilter("market", "KOSPI");
+          out.buyKospi = { shown: shown(), count: state.count, note: state.note, bar: bar.innerHTML.includes('aria-pressed="true"') };
+          await qdSetCardFilter("signal", "관망");
+          out.none = { shown: shown(), empty: state.empty, count: state.count };
+          await qdSetCardFilter("signal", "");
+          await qdSetCardFilter("market", "");
+          out.reset = { shown: shown(), empty: state.empty, count: state.count, note: state.note };
+          await qdSetCardFilter("signal", "BUY"); await qdSetCardFilter("market", "코스피"); await qdSetCardFilter("color", "x");
+          out.bad = { shown: shown(), signal: qdCardFilter.signal, market: qdCardFilter.market };
+          console.log(JSON.stringify(out));
+        })();
+    """)
+    got = _node(js)
+    assert got["buy"]["shown"] == 3 and got["buy"]["count"] == "6종목 중 3개 일치" and got["buy"]["note"].startswith("조건 매수 — 관찰 목록 6종목 중 3개")
+    assert got["buyKospi"]["shown"] == 2 and got["buyKospi"]["count"] == "6종목 중 2개 일치" and got["buyKospi"]["bar"]
+    assert got["none"] == {"shown": 0, "empty": True, "count": "6종목 중 0개 일치"}
+    assert got["reset"] == {"shown": 6, "empty": False, "count": "6종목 중 6개 표시", "note": ""}
+    assert got["bad"] == {"shown": 6, "signal": "", "market": ""}
+
+
+def test_card_filter_is_wired_without_touching_app_html():
+    """TC-SCD-16 · 필터 줄은 quant.js 가 카드 칸 앞에 한 번 만든다(app.html 은 그대로) · 카드를 받을 때마다 중복으로 만들지 않는다 ·
+    필터가 걸려 있으면 카드를 새로 받은 뒤에도 다시 건다."""
+    html = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    assert "signal-cards-filter" not in html and "qd-fchip" not in html
+    assert 'document.getElementById("signal-cards-filter")) return' in QUANT          # 한 번만 만든다
+    assert "qdMountCardFilter();" in QUANT and "await qdLoadExtraCards(); } catch { /* 위와 같다 */ } qdApplyCardFilter();" in QUANT
+
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_filter_loads_the_rest_once_and_unfolds_them():
+    """TC-SCD-17 · 필터를 거는 순간 11번째부터의 카드를 한 번만 받아 붙이고(두 번째 필터 변경은 다시 받지 않는다) 접어 둔 나머지도 펼친 채로 거른다 ·
+    받기에 실패해도 필터는 걸리고 「처음 10종목만 거른 결과」 라고 말한다."""
+    fn = _extract("function qdCardsCount", "/** 「나머지 n종목 보기」") + _extract("const QD_FILTER_SIGNALS", "async function qdToggleCards")
+    js = textwrap.dedent("""
+        const QD_CARD_FIRST = 2;
+        let qdStocks = Array.from({ length: 5 }, (_, i) => ({ symbol: String(i) }));
+        let qdCardsDrawn = 2, qdFilterShown = 0;
+        let qdCardFilter = { signal: "", market: "" };
+        const escHtml = s => String(s ?? "");
+        const mkCard = (s, m) => ({ hidden: false, dataset: { qdSignal: s, qdMarket: m } });
+        const first = [mkCard("매수", "KOSPI"), mkCard("매도", "KOSPI")];
+        const rest = [mkCard("매수", "KOSDAQ"), mkCard("매수", "KOSPI"), mkCard("관망", "KOSPI")];
+        const state = { extra: null, fetches: 0, moreBar: [], note: "", fail: false };
+        const grid = {
+          querySelector: sel => (sel === "[data-qd-extra]" ? state.extra : null),
+          querySelectorAll: () => (state.extra ? first.concat(rest) : first),
+          appendChild: el => { state.extra = el; }, insertAdjacentHTML: () => {},
+        };
+        const note = { set textContent(v) { state.note = v; } };
+        globalThis.document = {
+          getElementById: id => ({ "signal-cards": grid, "signal-cards-filter-note": note, "signal-cards-count": { set textContent(v) {} }, "signal-cards-toggle": null, "signal-cards-filter": { innerHTML: "" } })[id] || null,
+          createElement: () => ({ attrs: {}, style: {}, hidden: true, setAttribute(k, v) { this.attrs[k] = v; }, set innerHTML(v) { this._h = v; } }),
+        };
+        const qdMoreBar = ok => state.moreBar.push(ok);
+        const qdCardsHtml = async () => { state.fetches += 1; if (state.fail) throw new Error("x"); return ""; };
+    """) + fn + textwrap.dedent("""
+        (async () => {
+          const out = {};
+          await qdSetCardFilter("signal", "매수");
+          out.a = { fetches: state.fetches, drawn: qdCardsDrawn, shown: qdFilterShown, extraOpen: state.extra && state.extra.hidden === false && state.extra.style.display === "contents", moreBar: state.moreBar.slice() };
+          await qdSetCardFilter("market", "KOSPI");
+          out.b = { fetches: state.fetches, shown: qdFilterShown, note: state.note };
+          // 받기 실패 — 새 상태에서
+          state.extra = null; state.fetches = 0; state.fail = true; qdCardsDrawn = 2; qdCardFilter = { signal: "", market: "" };
+          let err = "";
+          try { await qdSetCardFilter("signal", "매수"); } catch (e) { err = String(e.message); }
+          out.c = { err, shown: qdFilterShown, note: state.note };
+          console.log(JSON.stringify(out));
+        })();
+    """)
+    got = _node(js)
+    assert got["a"]["fetches"] == 1 and got["a"]["drawn"] == 5 and got["a"]["shown"] == 3 and got["a"]["extraOpen"]
+    assert got["b"] == {"fetches": 1, "shown": 2, "note": "조건 매수 · KOSPI — 관찰 목록 5종목 중 2개"}
+    assert got["c"]["err"] == "" and got["c"]["shown"] == 1 and "나머지 종목을 받지 못해 처음 2종목만" in got["c"]["note"], got["c"]
