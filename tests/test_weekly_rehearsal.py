@@ -14,6 +14,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -108,6 +109,7 @@ def test_세_단계를_차례대로_앞이_실패해도_뒤는_돌고_잠금을_
   assert _state()["result"] == "ok" and _state()["why"] == ""
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="os.name 을 바꿔 schtasks 등록을 흉내 낸다 — 리눅스에서는 돌리지 않는다(#567)")
 def test_예약_칸은_등록만_쓰고_바퀴_기록은_남는다(sandbox, monkeypatch):
   import subprocess
 

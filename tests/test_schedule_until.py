@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -86,6 +87,12 @@ def test_resolve_until_keeps_registered_end_date_unless_told_otherwise(monkeypat
     assert du.resolve_until(None, "T", today=TODAY) == (None, "")
 
 
+# 이 시험은 `os.name` 을 "nt" 로 바꿔 윈도우 작업 스케줄러(`schtasks`) 등록을 흉내 낸다. `du.os` 는 전역 os 모듈이라
+# 리눅스에서는 그동안 `Path()` 가 WindowsPath 를 만들려다 실패하고 pytest 보고서 생성까지 INTERNALERROR 로 깨진다(#567).
+# 윈도우 전용 기능의 시험이므로 윈도우에서만 돌린다.
+_WIN_ONLY = pytest.mark.skipif(sys.platform != "win32", reason="윈도우 작업 스케줄러 등록 시험 — os.name 을 바꾸므로 리눅스에서는 돌리지 않는다")
+
+
 def _install(name: str, monkeypatch, run, **kw) -> int:
     monkeypatch.setattr(du, "_schtasks", run)
     monkeypatch.setattr(du.os, "name", "nt")
@@ -99,6 +106,7 @@ def _install(name: str, monkeypatch, run, **kw) -> int:
     return wr.install(**kw)
 
 
+@_WIN_ONLY
 @pytest.mark.parametrize("name", MAKERS)
 def test_reinstall_without_until_keeps_the_registered_end_date(name, monkeypatch, capsys):
     """TC-SU-04 · 핵심 — `install` 을 다시 돌려도(--until 없이) 손으로 넣은 11-12 가 사라지지 않는다 · 끝 날짜를 출력으로 알린다."""
@@ -108,6 +116,7 @@ def test_reinstall_without_until_keeps_the_registered_end_date(name, monkeypatch
     assert "2026-11-12" in capsys.readouterr().out
 
 
+@_WIN_ONLY
 @pytest.mark.parametrize("name", MAKERS)
 def test_install_with_until_sets_it_and_none_clears_it(name, monkeypatch):
     """TC-SU-05 · `--until 날짜` 는 그 날 23:59:59 로 · `--until none` 은 끝 날짜 없이(다시 켜기 때 새로 정한다)."""
@@ -119,6 +128,7 @@ def test_install_with_until_sets_it_and_none_clears_it(name, monkeypatch):
     assert "EndBoundary" not in seen["create"]
 
 
+@_WIN_ONLY
 @pytest.mark.parametrize("name", MAKERS)
 def test_bad_until_registers_nothing(name, monkeypatch, capsys):
     """TC-SU-06 · 꼴이 틀리거나 과거인 끝 날짜는 등록하지 않는다(작업 스케줄러를 부르지 않고 2)."""
