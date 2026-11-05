@@ -9,6 +9,8 @@ import {
 import { resolveSymbolInput } from "/js/stockfind.js";                                  // 칸에 이름을 쳐도 종목으로 풀어 준다 (2026-11-02)
 import { openStockSearch } from "/js/company.js";
 import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD, scDirection, scQuickStops, scWouldFireNow } from "/js/stockchart.js";
+import { createListPanel, createRefreshGroup, sideOf, directionOf, sideGroup, kindGroup, directionGroup, sourceGroup, categoryGroup } from "/js/paperlists.js";   // 표 위 필터 칩 · 새로고침 (2026-11-05)
+import { leanHistoryCfg, ensureBarHost } from "/js/listbar-misc.js";   // LEAN 실행 이력 표 위 줄 (2026-11-05)
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
@@ -21,6 +23,8 @@ const kpi = (label, value, cls = "") => `
     <div class="text-lg font-bold ${cls}">${value}</div>
   </div>`;
 const emptyRow = (cols, text) => `<tr><td colspan="${cols}" style="color:var(--text-mute);text-align:center;">${escHtml(text)}</td></tr>`;
+// 표 위 줄(필터 칩 + 새로고침 + 안내) 한 곳 — 제어기는 js/paperlists.js, 칩 모양은 js/listbar.js · css/signalrankview.css
+const listPanel = (cfg) => createListPanel(cfg, { esc: escHtml, byId: $ });
 
 let altChart = null;
 let leanChart = null;
@@ -31,7 +35,69 @@ let _pdEquityChart = null;
 /* ────────────────────────────────────────────────────────────────
  * 1. 모의투자 대시보드
  * ──────────────────────────────────────────────────────────────── */
+// 최근 체결 목록 — 주식 30 · 코인 10 · 대체자산 10건을 받아 합친 뒤, 칩으로 거르고 나서 최신 15줄까지 보인다(거르기 전에 자르면 코인이 0줄로 보일 수 있다).
+const PD_RECENT_CAP = 15;
+// 이슈: SIM(백테스트) 주문을 실시간과 구분
+const pdSourceLabel = (src) => src === 'SIM'
+  ? `<span class="text-xs" style="color:#d97706;font-weight:600;" title="100일 historical replay 백테스트 주문">🧪 SIM</span>`
+  : escHtml(src);
+
+function pdRecentBody(rows) {
+  const simCount = rows.filter(r => r.source === 'SIM').length;
+  return (simCount > 0
+    ? `<p class="text-xs mb-2" style="color:var(--text-mute);">
+         ※ <b>🧪 SIM(백테스트)</b> 주문 ${simCount}건 포함 — 자산추이·QFRS 카드에 반영됨.
+       </p>`
+    : '') +
+    `<table><thead><tr>
+      <th>시각</th><th>구분</th><th>종목</th><th>매매</th>
+      <th style="text-align:right">수량</th>
+      <th style="text-align:right">단가</th>
+      <th style="text-align:right">금액</th>
+      <th>출처</th>
+    </tr></thead>
+    <tbody>${rows.length ? rows.map(r => `<tr>
+      <td class="text-xs">${ts(r.ts)}</td>
+      <td>${escHtml(r.kind)}</td>
+      <td>${escHtml(r.name)}</td>
+      <td>${sideBadge(r.type)}</td>
+      <td style="text-align:right">${r.qty}</td>
+      <td style="text-align:right">${r.price}</td>
+      <td style="text-align:right">${r.amount}</td>
+      <td class="text-xs">${pdSourceLabel(r.source)}</td>
+    </tr>`).join("") : emptyRow(8, "아직 체결 내역이 없습니다.")}</tbody></table>`;
+}
+
+async function pdRecentRows() {
+  const [s, c, alt] = await Promise.all([
+    api("/api/paper/stocks/orders/history?limit=30"),   // ← SIM 포함 위해 30건
+    api("/api/paper/trade/order/history?limit=10"),
+    api("/api/paper/alternatives/orders/history?limit=10"),
+  ]);
+  const rows = [
+    ...s.history.map(o => ({ ts: o.ts, group: "STOCK", kind: "주식", name: `${o.name} (${o.symbol})`, type: o.type, qty: fmt(o.quantity), price: won(o.price), amount: won(o.amount), source: o.source })),
+    ...c.history.map(o => ({ ts: o.ts, group: "CRYPTO", kind: "코인", name: `${o.koreanName} (${o.marketCode})`, type: o.type, qty: fmt(o.quantity, 8), price: won(o.price), amount: won(o.amount), source: o.source })),
+    ...alt.history.map(o => ({ ts: o.ts, group: "ALT", kind: o.category, name: o.name, type: o.type, qty: fmt(o.quantity), price: won(o.price), amount: won(o.amount), source: o.source })),
+  ].sort((x, y) => y.ts - x.ts);
+  return { rows };
+}
+
+// 칩: 구분(주식 · 코인 · 대체자산) · 매매 · 출처. 새로고침 단추는 머리글의 것(pd-refresh) 하나만 둔다.
+const pdRecentPanel = listPanel({
+  host: "pd-recent", label: "최근 체결 필터", unit: "줄", refresh: false, cap: PD_RECENT_CAP,
+  groups: (rows, f) => [kindGroup(), sideGroup(), sourceGroup(rows, f.source)],
+  getters: { kind: r => r.group, side: r => sideOf(r.type), source: r => r.source },
+  limitNote: `주식 30 · 코인 10 · 대체자산 10줄까지 받아 합친 뒤, 받은 줄 안에서 거르고 최신 ${PD_RECENT_CAP}줄까지 보입니다`,
+  load: pdRecentRows,
+  body: pdRecentBody,
+});
+
+// 새로고침 안내 글(pd-refresh-note)은 그 시각의 값에 대한 말이다 — 화면에 다시 들어오거나 계좌를 초기화하면 치운다
+const pdClearRefreshNote = () => { const el = $("pd-refresh-note"); if (el) el.textContent = ""; };
+
+/** 계좌 현황의 KPI 와 최근 체결을 읽는다. 둘 다 읽었으면 true(새로고침 묶음이 결과를 알리려고 돌려받는다). */
 async function loadPaperDashboard() {
+  let ok = true;
   try {
     const a = await api("/api/paper/account");
     $("pd-kpis").innerHTML = [
@@ -43,50 +109,10 @@ async function loadPaperDashboard() {
       kpi("총 손익", `${won(a.totalPnl)} <span class="text-sm">(${fmtPct(a.totalPnlRate)})</span>`, signCls(a.totalPnl)),
     ].join("");
     $("pd-counts").textContent = `보유: 주식 ${a.counts.stocks}종목 · 코인 ${a.counts.crypto}종목 · 대체자산 ${a.counts.alternatives}종목 · 초기자금 ${won(a.initialCash)}`;
-  } catch (e) { setToast(e.message, "error"); }
+  } catch (e) { setToast(e.message, "error"); ok = false; }
 
-  try {
-    const [s, c, alt] = await Promise.all([
-      api("/api/paper/stocks/orders/history?limit=30"),   // ← SIM 포함 위해 30건
-      api("/api/paper/trade/order/history?limit=10"),
-      api("/api/paper/alternatives/orders/history?limit=10"),
-    ]);
-    const rows = [
-      ...s.history.map(o => ({ ts: o.ts, kind: "주식", name: `${o.name} (${o.symbol})`, type: o.type, qty: fmt(o.quantity), price: won(o.price), amount: won(o.amount), source: o.source })),
-      ...c.history.map(o => ({ ts: o.ts, kind: "코인", name: `${o.koreanName} (${o.marketCode})`, type: o.type, qty: fmt(o.quantity, 8), price: won(o.price), amount: won(o.amount), source: o.source })),
-      ...alt.history.map(o => ({ ts: o.ts, kind: o.category, name: o.name, type: o.type, qty: fmt(o.quantity), price: won(o.price), amount: won(o.amount), source: o.source })),
-    ].sort((x, y) => y.ts - x.ts).slice(0, 15);
-
-    // 이슈: SIM(백테스트) 주문을 실시간과 구분
-    const sourceLabel = (src) => src === 'SIM'
-      ? `<span class="text-xs" style="color:#d97706;font-weight:600;" title="100일 historical replay 백테스트 주문">🧪 SIM</span>`
-      : escHtml(src);
-    const simCount = rows.filter(r => r.source === 'SIM').length;
-
-    $("pd-recent").innerHTML =
-      (simCount > 0
-        ? `<p class="text-xs mb-2" style="color:var(--text-mute);">
-             ※ <b>🧪 SIM(백테스트)</b> 주문 ${simCount}건 포함 — 자산추이·QFRS 카드에 반영됨.
-           </p>`
-        : '') +
-      `<table><thead><tr>
-        <th>시각</th><th>구분</th><th>종목</th><th>매매</th>
-        <th style="text-align:right">수량</th>
-        <th style="text-align:right">단가</th>
-        <th style="text-align:right">금액</th>
-        <th>출처</th>
-      </tr></thead>
-      <tbody>${rows.length ? rows.map(r => `<tr>
-        <td class="text-xs">${ts(r.ts)}</td>
-        <td>${escHtml(r.kind)}</td>
-        <td>${escHtml(r.name)}</td>
-        <td>${sideBadge(r.type)}</td>
-        <td style="text-align:right">${r.qty}</td>
-        <td style="text-align:right">${r.price}</td>
-        <td style="text-align:right">${r.amount}</td>
-        <td class="text-xs">${sourceLabel(r.source)}</td>
-      </tr>`).join("") : emptyRow(8, "아직 체결 내역이 없습니다.")}</tbody></table>`;
-  } catch (e) { $("pd-recent").innerHTML = `<div class="text-sm text-red-500">${escHtml(e.message)}</div>`; }
+  const recentOk = await pdRecentPanel.load();
+  return ok && recentOk;
 }
 
 async function resetPaperAccount() {
@@ -98,6 +124,7 @@ async function resetPaperAccount() {
   try {
     const r = await api("/api/paper/account/reset", { method: "POST" });
     setToast(`계좌를 초기화했습니다. 현금 ${won(r.cash)}`, "ok");
+    pdClearRefreshNote();
     loadPaperDashboard();
   } catch (e) { setToast(e.message, "error"); }
 }
@@ -105,14 +132,16 @@ async function resetPaperAccount() {
 /* ────────────────────────────────────────────────────────────────
  * 2. 국내주식 모의주문
  * ──────────────────────────────────────────────────────────────── */
+async function refreshStockCash() {
+  const a = await api("/api/paper/account");
+  $("ps-cash").textContent = won(a.cash);
+}
+
 async function loadPaperStock() {
   loadStockPositions();
   loadStockHistory();
   loadStopOrders();          // ★ B5 스탑 주문 목록
-  try {
-    const a = await api("/api/paper/account");
-    $("ps-cash").textContent = won(a.cash);
-  } catch { }
+  try { await refreshStockCash(); } catch { }
 }
 
 /* 종목 칸의 글(코드 또는 이름)을 기호로 — 이름이면 찾아 칸을 채우고, 여럿이거나 없으면 종목 찾기 창을 그 글자로 열어 두고 null 을 돌려준다.
@@ -288,26 +317,32 @@ async function stockOrder(side) {
   } catch (e) { setToast(e.message, "error"); }
 }
 
-async function loadStockPositions() {
-  try {
-    const { positions } = await api("/api/paper/stocks/positions");
-    $("ps-positions").innerHTML = `<table><thead><tr><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">평균단가</th><th style="text-align:right">현재가</th><th style="text-align:right">평가금액</th><th style="text-align:right">손익</th><th></th></tr></thead>
+function psPositionsBody(positions) {
+  return `<table><thead><tr><th>종목</th><th style="text-align:right">수량</th><th style="text-align:right">평균단가</th><th style="text-align:right">현재가</th><th style="text-align:right">평가금액</th><th style="text-align:right">손익</th><th></th></tr></thead>
       <tbody>${positions.length ? positions.map(p => `<tr>
         <td>${escHtml(p.name)}<div class="text-xs" style="color:var(--text-mute);">${escHtml(p.symbol)}</div></td>
         <td style="text-align:right">${fmt(p.quantity)}</td><td style="text-align:right">${won(p.avgPrice)}</td><td style="text-align:right">${won(p.currentPrice)}</td>
         <td style="text-align:right">${won(p.evalAmount)}</td><td style="text-align:right" class="${signCls(p.pnl)}">${won(p.pnl)}<div class="text-xs">${fmtPct(p.pnlRate)}</div></td>
         <td style="text-align:right"><button class="btn-secondary text-xs ps-sell-all" data-symbol="${escHtml(p.symbol)}" data-qty="${p.quantity}">전량매도</button></td></tr>`).join("") : emptyRow(7, "보유 종목이 없습니다.")}</tbody></table>`;
-    $("ps-positions").querySelectorAll(".ps-sell-all").forEach(b => b.addEventListener("click", () => {
-      $("ps-symbol").value = b.dataset.symbol; $("ps-qty").value = b.dataset.qty; stockOrder("SELL");
-    }));
-  } catch (e) { $("ps-positions").innerHTML = `<div class="text-sm text-red-500">${escHtml(e.message)}</div>`; }
 }
 
-async function loadStockHistory() {
-  try {
-    const { history } = await api("/api/paper/stocks/orders/history?limit=30");
+// 보유 종목 — 필터 칩 없이 새로고침만. 현재가는 서버가 읽을 때마다 시세를 다시 붙이고(받지 못한 종목은 평균단가가 그대로 보인다), 머리글의 보유 현금도 같이 다시 읽는다.
+const psPositionsPanel = listPanel({
+  host: "ps-positions", label: "보유 종목", unit: "종목",
+  meaning: "보유 종목을 다시 읽었습니다",
+  tail: "현재가는 읽는 때 서버가 시세를 다시 붙입니다(시세를 못 받은 종목은 평균단가로 보입니다) · 신호는 새로 계산하지 않습니다",
+  load: async () => ({ rows: (await api("/api/paper/stocks/positions")).positions }),
+  body: psPositionsBody,
+  after: host => host.querySelectorAll(".ps-sell-all").forEach(b => b.addEventListener("click", () => {
+    $("ps-symbol").value = b.dataset.symbol; $("ps-qty").value = b.dataset.qty; stockOrder("SELL");
+  })),
+  alsoOnRefresh: refreshStockCash,
+});
 
-    $("ps-history").innerHTML = `<table>
+function loadStockPositions() { return psPositionsPanel.load(); }
+
+function psHistoryBody(history) {
+  return `<table>
       <thead><tr>
         <th>시각</th>
         <th>매매</th>
@@ -345,22 +380,28 @@ async function loadStockHistory() {
         </tr>`;
     }).join("") : emptyRow(10, "주문 내역이 없습니다.")}</tbody>
     </table>`;
-  } catch { }
 }
+
+// 주문 내역 — 칩: 매매 · 출처(응답에 있는 값만). 서버는 limit=30 으로 주므로 그 줄 안에서만 거른다.
+const psHistoryPanel = listPanel({
+  host: "ps-history", label: "주문 내역 필터", unit: "줄",
+  groups: (rows, f) => [sideGroup(), sourceGroup(rows, f.source)],
+  getters: { side: r => sideOf(r.type), source: r => r.source },
+  limitNote: "받은 줄(최근 30줄까지) 안에서 거릅니다",
+  meaning: "주문 내역을 다시 읽었습니다",
+  tail: "신호는 새로 계산하지 않습니다",
+  load: async () => ({ rows: (await api("/api/paper/stocks/orders/history?limit=30")).history }),
+  body: psHistoryBody,
+});
+
+function loadStockHistory() { return psHistoryPanel.load(); }
 
 /* ────────────────────────────────────────────────────────────────
  * B5 · 스탑(감시) 주문 (paper-stock)
  * ──────────────────────────────────────────────────────────────── */
-async function loadStopOrders() {
-  const el = $("ps-stop-list");
-  if (!el) return;
-  try {
-    const { orders } = await api("/api/paper/stocks/orders/stop");
-    if (!orders.length) {
-      el.innerHTML = `<div class="text-xs" style="color:var(--text-mute);">대기 중인 스탑 주문이 없습니다.</div>`;
-      return;
-    }
-    el.innerHTML = `<table><thead><tr>
+function psStopBody(orders) {
+  if (!orders.length) return `<div class="text-xs" style="color:var(--text-mute);">대기 중인 스탑 주문이 없습니다.</div>`;
+  return `<table><thead><tr>
       <th>등록 시각</th><th>매매</th><th>종목</th>
       <th style="text-align:right">수량</th>
       <th style="text-align:right">스탑가</th>
@@ -373,11 +414,19 @@ async function loadStopOrders() {
         <td style="text-align:right">${won(o.stop_price)}</td>
         <td style="text-align:right"><button class="btn-secondary text-xs ps-stop-cancel" data-id="${escHtml(o.order_id)}">취소</button></td>
       </tr>`).join("")}</tbody></table>`;
-    el.querySelectorAll(".ps-stop-cancel").forEach(b => b.addEventListener("click", () => cancelStopOrder(b.dataset.id)));
-  } catch (e) {
-    el.innerHTML = `<div class="text-xs text-red-500">${escHtml(e.message)}</div>`;
-  }
 }
+
+// 대기 중인 스탑 주문 — 새로고침만(목록이 짧아 칩은 두지 않는다)
+const psStopPanel = listPanel({
+  host: "ps-stop-list", label: "대기 중인 스탑 주문", unit: "줄",
+  meaning: "대기 중인 스탑 주문을 다시 읽었습니다",
+  tail: "신호는 새로 계산하지 않습니다",
+  load: async () => ({ rows: (await api("/api/paper/stocks/orders/stop")).orders }),
+  body: psStopBody,
+  after: host => host.querySelectorAll(".ps-stop-cancel").forEach(b => b.addEventListener("click", () => cancelStopOrder(b.dataset.id))),
+});
+
+function loadStopOrders() { return psStopPanel.load(); }
 
 async function stockStopQuote() {
   const symbol = await symbolFromInput("ps-stop-symbol", stockStopQuote);
@@ -700,60 +749,114 @@ async function cryptoOrder(side) {
   } catch (e) { setToast(e.message, "error"); }
 }
 
-async function loadCryptoHold() {
-  try {
-    const h = await api("/api/paper/trade/hold");
-    $("pc-cash").textContent = won(h.memberAsset);
-    $("pc-hold").innerHTML = `<div class="text-xs mb-2" style="color:var(--text-mute);">매수 원금 ${won(h.totalBuyKrw)} · 평가금액 ${won(h.totalEvalKrw)}</div>
-      <table><thead><tr><th>코인</th><th style="text-align:right">보유수량</th><th style="text-align:right">매수평균</th><th style="text-align:right">현재가</th><th style="text-align:right">평가금액</th><th style="text-align:right">손익</th><th></th></tr></thead>
-      <tbody>${h.holdCryptoList.length ? h.holdCryptoList.map(c => `<tr><td>${escHtml(c.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(c.marketCode)}</span></td>
+function pcHoldHead(h) {
+  return `<div class="text-xs mb-2" style="color:var(--text-mute);">매수 원금 ${won(h.totalBuyKrw)} · 평가금액 ${won(h.totalEvalKrw)}</div>`;
+}
+
+function pcHoldBody(list) {
+  return `<table><thead><tr><th>코인</th><th style="text-align:right">보유수량</th><th style="text-align:right">매수평균</th><th style="text-align:right">현재가</th><th style="text-align:right">평가금액</th><th style="text-align:right">손익</th><th></th></tr></thead>
+      <tbody>${list.length ? list.map(c => `<tr><td>${escHtml(c.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(c.marketCode)}</span></td>
         <td style="text-align:right">${fmt(c.holdCount, 8)}</td><td style="text-align:right">${won(c.buyAverage)}</td><td style="text-align:right">${won(c.currentPrice)}</td><td style="text-align:right">${won(c.evalKrw)}</td>
         <td style="text-align:right" class="${signCls(c.pnl)}">${won(c.pnl)}<div class="text-xs">${fmtPct(c.pnlRate)}</div></td>
         <td style="text-align:right"><button class="btn-secondary text-xs pc-sell-all" data-market="${escHtml(c.marketCode)}" data-qty="${c.holdCount}">전량매도</button></td></tr>`).join("") : emptyRow(7, "보유 코인이 없습니다.")}</tbody></table>`;
-    $("pc-hold").querySelectorAll(".pc-sell-all").forEach(b => b.addEventListener("click", () => {
-      $("pc-market").value = b.dataset.market; $("pc-sell-count").value = b.dataset.qty; cryptoOrder("SELL");
-    }));
-  } catch (e) { $("pc-hold").innerHTML = `<div class="text-sm text-red-500">${escHtml(e.message)}</div>`; }
 }
 
-async function loadCryptoHistory() {
-  try {
-    const { history } = await api("/api/paper/trade/order/history?limit=30");
-    $("pc-history").innerHTML = `<table><thead><tr><th>시각</th><th>매매</th><th>코인</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
+// 보유 코인 — 새로고침만. 현금(머리글)도 같은 응답에서 같이 바뀐다. 코인 「시세」 단추(선택 1종목 ticker)와는 따로다.
+const pcHoldPanel = listPanel({
+  host: "pc-hold", label: "보유 코인", unit: "종목",
+  meaning: "보유 코인을 다시 읽었습니다",
+  tail: "현재가는 읽는 때 서버가 시세를 다시 붙입니다 · 신호는 새로 계산하지 않습니다",
+  load: async () => { const h = await api("/api/paper/trade/hold"); return { rows: h.holdCryptoList, meta: h }; },
+  onData: h => { $("pc-cash").textContent = won(h.memberAsset); },
+  head: pcHoldHead,
+  body: pcHoldBody,
+  after: host => host.querySelectorAll(".pc-sell-all").forEach(b => b.addEventListener("click", () => {
+    $("pc-market").value = b.dataset.market; $("pc-sell-count").value = b.dataset.qty; cryptoOrder("SELL");
+  })),
+});
+
+function loadCryptoHold() { return pcHoldPanel.load(); }
+
+function pcHistoryBody(history) {
+  return `<table><thead><tr><th>시각</th><th>매매</th><th>코인</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
       <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.marketCode)}</span></td><td style="text-align:right">${fmt(o.quantity, 8)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td></tr>`).join("") : emptyRow(6, "거래 내역이 없습니다.")}</tbody></table>`;
-  } catch { }
 }
 
-async function loadCryptoRankings() {
-  try {
-    const { rankings } = await api("/api/paper/crypto/rankings?limit=15");
-    $("pc-rankings").innerHTML = `<table><thead><tr><th>#</th><th>코인</th><th style="text-align:right">현재가</th><th style="text-align:right">24h</th><th style="text-align:right">거래대금(24h)</th></tr></thead>
-      <tbody>${rankings.map((r, i) => `<tr class="cursor-pointer pc-rank-row" data-market="${escHtml(r.market)}"><td>${i + 1}</td><td>${escHtml(r.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(r.symbol)}</span></td><td style="text-align:right">${won(r.price)}</td><td style="text-align:right" class="${signCls(r.changeRate)}">${fmtPct(r.changeRate)}</td><td style="text-align:right">${fmt(r.accTradePrice24h / 1e8, 1)}억</td></tr>`).join("")}</tbody></table>`;
-    $("pc-rankings").querySelectorAll(".pc-rank-row").forEach(r => r.addEventListener("click", () => { $("pc-market").value = r.dataset.market; cryptoTicker(); }));
-  } catch { }
+// 거래 내역 — 칩: 매매. 서버는 limit=30 으로 준다.
+const pcHistoryPanel = listPanel({
+  host: "pc-history", label: "거래 내역 필터", unit: "줄",
+  groups: () => [sideGroup()],
+  getters: { side: r => sideOf(r.type) },
+  limitNote: "받은 줄(최근 30줄까지) 안에서 거릅니다",
+  meaning: "거래 내역을 다시 읽었습니다",
+  tail: "신호는 새로 계산하지 않습니다",
+  load: async () => ({ rows: (await api("/api/paper/trade/order/history?limit=30")).history }),
+  body: pcHistoryBody,
+});
+
+function loadCryptoHistory() { return pcHistoryPanel.load(); }
+
+function pcRankingsBody(rankings) {
+  return `<table><thead><tr><th>#</th><th>코인</th><th style="text-align:right">현재가</th><th style="text-align:right">24h</th><th style="text-align:right">거래대금(24h)</th></tr></thead>
+      <tbody>${rankings.map(r => `<tr class="cursor-pointer pc-rank-row" data-market="${escHtml(r.market)}"><td>${r.rank}</td><td>${escHtml(r.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(r.symbol)}</span></td><td style="text-align:right">${won(r.price)}</td><td style="text-align:right" class="${signCls(r.changeRate)}">${fmtPct(r.changeRate)}</td><td style="text-align:right">${fmt(r.accTradePrice24h / 1e8, 1)}억</td></tr>`).join("")}</tbody></table>`;
 }
+
+// 거래대금 상위 24h — 칩: 상승 · 하락(등락률 부호). 칩 줄은 스크롤 상자 밖(pc-rankings-bar)에 둬 표를 넘겨도 보인다. 번호(#)는 거르기 전 거래대금 순위 그대로.
+const pcRankingsPanel = listPanel({
+  host: "pc-rankings", barHost: "pc-rankings-bar", label: "거래대금 상위 필터", unit: "종목",
+  groups: () => [directionGroup()],
+  getters: { dir: r => directionOf(r.changeRate) },
+  limitNote: "거래대금 상위 15종목 안에서 거릅니다 · 등락 0 은 상승 · 하락 어느 쪽에도 넣지 않습니다",
+  meaning: "거래대금 순위를 다시 읽었습니다",
+  tail: "서버가 업비트 시세를 다시 받아 옵니다 · 신호는 새로 계산하지 않습니다",
+  load: async () => ({ rows: (await api("/api/paper/crypto/rankings?limit=15")).rankings.map((r, i) => ({ ...r, rank: i + 1 })) }),
+  body: pcRankingsBody,
+  after: host => host.querySelectorAll(".pc-rank-row").forEach(r => r.addEventListener("click", () => { $("pc-market").value = r.dataset.market; cryptoTicker(); })),
+});
+
+function loadCryptoRankings() { return pcRankingsPanel.load(); }
 
 /* ────────────────────────────────────────────────────────────────
  * 4. 대체자산 (선물·옵션·파생·금속·부동산)
  * ──────────────────────────────────────────────────────────────── */
-async function loadPaperAlt() {
-  try {
-    const { markets, notice } = await api("/api/paper/alternatives/markets");
-    $("pa-notice").textContent = notice;
-    const sel = $("pa-symbol");
-    const prev = sel.value;
-    sel.innerHTML = markets.map(m => `<option value="${escHtml(m.symbol)}">[${escHtml(m.category)}] ${escHtml(m.name)}</option>`).join("");
-    if (prev) sel.value = prev;
-    $("pa-markets").innerHTML = markets.map(m => `
+// 상품 구분(선물 · 옵션 · 파생상품 …)의 순서 — 상품 목록 응답에서 읽는다. 보유 · 내역 칩도 이 순서를 따라 세 곳의 칩 줄이 같다.
+let altCategoryOrder = [];
+
+function altCardHtml(m) {
+  return `
       <div class="rounded-xl border border-white/10 bg-black/20 p-3 cursor-pointer pa-card" data-symbol="${escHtml(m.symbol)}">
         <div class="flex items-center justify-between"><span class="text-xs font-semibold" style="color:var(--accent);">${escHtml(m.category)}</span><span class="text-xs ${signCls(m.changeRate)}">${fmtPct(m.changeRate)}</span></div>
         <div class="font-semibold mt-1">${escHtml(m.name)}</div>
         <div class="text-lg font-bold">${won(m.price)} <span class="text-xs font-normal" style="color:var(--text-mute);">/ ${escHtml(m.unit)}</span></div>
         <div class="text-xs" style="color:var(--text-mute);">1단위 주문금액 ${won(m.tradeAmountPerUnit)}${m.marginRate < 100 ? ` (증거금 ${m.marginRate}%)` : ""}</div>
         <div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(m.source)}</div>
-      </div>`).join("");
-    $("pa-markets").querySelectorAll(".pa-card").forEach(c => c.addEventListener("click", () => { sel.value = c.dataset.symbol; altChartLoad(); }));
-  } catch (e) { setToast(e.message, "error"); }
+      </div>`;
+}
+
+// 상품 카드 — 칩: 구분(응답의 category). 새로고침은 상품 시세를 서버에서 다시 읽는다(차트는 그대로 · 주문 칸 목록은 값을 유지한 채 같이 맞춘다).
+const altMarketsPanel = listPanel({
+  host: "pa-markets", barHost: "pa-markets-bar", label: "대체자산 상품 필터", unit: "상품",
+  groups: (rows, f) => [categoryGroup(rows, [], f.category)],
+  getters: { category: r => r.category },
+  limitNote: rows => `받은 ${rows.length}개 상품 안에서 거릅니다(주문 칸의 상품 목록은 거르지 않습니다)`,
+  meaning: "상품 시세를 다시 읽었습니다",
+  tail: "상품 시세는 읽는 때 서버가 받아 옵니다(교육용 기준 시세 포함) · 신호는 새로 계산하지 않습니다",
+  load: async () => { const { markets, notice } = await api("/api/paper/alternatives/markets"); return { rows: markets, meta: { notice } }; },
+  onData: (meta, markets) => {
+    $("pa-notice").textContent = meta.notice;
+    altCategoryOrder = markets.map(m => m.category).filter((c, i, a) => c && a.indexOf(c) === i);
+    const sel = $("pa-symbol");
+    const prev = sel.value;
+    sel.innerHTML = markets.map(m => `<option value="${escHtml(m.symbol)}">[${escHtml(m.category)}] ${escHtml(m.name)}</option>`).join("");
+    if (prev) sel.value = prev;
+  },
+  onError: e => setToast(e.message, "error"),
+  body: markets => markets.map(altCardHtml).join(""),
+  after: host => host.querySelectorAll(".pa-card").forEach(c => c.addEventListener("click", () => { $("pa-symbol").value = c.dataset.symbol; altChartLoad(); })),
+});
+
+async function loadPaperAlt() {
+  await altMarketsPanel.load();
   altChartLoad();
   loadAltPositions();
   loadAltHistory();
@@ -803,26 +906,53 @@ async function altOrder(side) {
   } catch (e) { setToast(e.message, "error"); }
 }
 
-async function loadAltPositions() {
-  try {
-    const { positions, totalEvalAmount } = await api("/api/paper/alternatives/positions?volatility=1");
-    $("pa-positions").innerHTML = `<div class="text-xs mb-2" style="color:var(--text-mute);">총 평가금액 ${won(totalEvalAmount)}</div>
-      <table><thead><tr><th>상품</th><th style="text-align:right">수량</th><th style="text-align:right">평균가</th><th style="text-align:right">현재가</th><th style="text-align:right">평가금액</th><th style="text-align:right">손익</th><th style="text-align:right">변동성</th><th></th></tr></thead>
-      <tbody>${positions.length ? positions.map(p => `<tr><td>${escHtml(p.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(p.category)}</span></td><td style="text-align:right">${fmt(p.quantity)} ${escHtml(p.unit)}</td><td style="text-align:right">${won(p.avgPrice)}</td><td style="text-align:right">${won(p.currentPrice)}</td><td style="text-align:right">${won(p.evalAmount)}</td><td style="text-align:right" class="${signCls(p.pnl)}">${won(p.pnl)}</td><td style="text-align:right">${p.volatility != null ? p.volatility + "%" : "-"}</td>
-        <td style="text-align:right"><button class="btn-secondary text-xs pa-sell-all" data-symbol="${escHtml(p.symbol)}" data-qty="${p.quantity}">전량매도</button></td></tr>`).join("") : emptyRow(8, "보유 포지션이 없습니다.")}</tbody></table>`;
-    $("pa-positions").querySelectorAll(".pa-sell-all").forEach(b => b.addEventListener("click", () => {
-      $("pa-symbol").value = b.dataset.symbol; $("pa-qty").value = b.dataset.qty; altOrder("SELL");
-    }));
-  } catch (e) { $("pa-positions").innerHTML = `<div class="text-sm text-red-500">${escHtml(e.message)}</div>`; }
+function altPositionsHead(meta, ctx) {
+  const filtered = Object.values(ctx.filters).some(Boolean);
+  return `<div class="text-xs mb-2" style="color:var(--text-mute);">총 평가금액 ${won(meta.total)}${filtered ? " (거르기와 상관없이 전체 보유 기준)" : ""}</div>`;
 }
 
-async function loadAltHistory() {
-  try {
-    const { history } = await api("/api/paper/alternatives/orders/history?limit=30");
-    $("pa-history").innerHTML = `<table><thead><tr><th>시각</th><th>매매</th><th>상품</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
-      <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.category)}</span></td><td style="text-align:right">${fmt(o.quantity)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td></tr>`).join("") : emptyRow(6, "주문 내역이 없습니다.")}</tbody></table>`;
-  } catch { }
+function altPositionsBody(positions) {
+  return `<table><thead><tr><th>상품</th><th style="text-align:right">수량</th><th style="text-align:right">평균가</th><th style="text-align:right">현재가</th><th style="text-align:right">평가금액</th><th style="text-align:right">손익</th><th style="text-align:right">변동성</th><th></th></tr></thead>
+      <tbody>${positions.length ? positions.map(p => `<tr><td>${escHtml(p.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(p.category)}</span></td><td style="text-align:right">${fmt(p.quantity)} ${escHtml(p.unit)}</td><td style="text-align:right">${won(p.avgPrice)}</td><td style="text-align:right">${won(p.currentPrice)}</td><td style="text-align:right">${won(p.evalAmount)}</td><td style="text-align:right" class="${signCls(p.pnl)}">${won(p.pnl)}</td><td style="text-align:right">${p.volatility != null ? p.volatility + "%" : "-"}</td>
+        <td style="text-align:right"><button class="btn-secondary text-xs pa-sell-all" data-symbol="${escHtml(p.symbol)}" data-qty="${p.quantity}">전량매도</button></td></tr>`).join("") : emptyRow(8, "보유 포지션이 없습니다.")}</tbody></table>`;
 }
+
+// 보유 포지션 — 칩: 구분. 총 평가금액은 서버가 계산한 전체 보유 합계라 거르기와 상관없다.
+const altPositionsPanel = listPanel({
+  host: "pa-positions", label: "보유 포지션 필터", unit: "줄",
+  groups: (rows, f) => [categoryGroup(rows, altCategoryOrder, f.category)],
+  getters: { category: r => r.category },
+  limitNote: "받은 보유 포지션 안에서 거릅니다",
+  meaning: "보유 포지션을 다시 읽었습니다",
+  tail: "현재가는 읽는 때 서버가 상품 시세로 다시 붙입니다 · 신호는 새로 계산하지 않습니다",
+  load: async () => { const { positions, totalEvalAmount } = await api("/api/paper/alternatives/positions?volatility=1"); return { rows: positions, meta: { total: totalEvalAmount } }; },
+  head: altPositionsHead,
+  body: altPositionsBody,
+  after: host => host.querySelectorAll(".pa-sell-all").forEach(b => b.addEventListener("click", () => {
+    $("pa-symbol").value = b.dataset.symbol; $("pa-qty").value = b.dataset.qty; altOrder("SELL");
+  })),
+});
+
+function loadAltPositions() { return altPositionsPanel.load(); }
+
+function altHistoryBody(history) {
+  return `<table><thead><tr><th>시각</th><th>매매</th><th>상품</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
+      <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.name)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.category)}</span></td><td style="text-align:right">${fmt(o.quantity)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td></tr>`).join("") : emptyRow(6, "주문 내역이 없습니다.")}</tbody></table>`;
+}
+
+// 주문 내역 — 칩: 구분. 서버는 limit=30 으로 준다.
+const altHistoryPanel = listPanel({
+  host: "pa-history", label: "주문 내역 필터", unit: "줄",
+  groups: (rows, f) => [categoryGroup(rows, altCategoryOrder, f.category)],
+  getters: { category: r => r.category },
+  limitNote: "받은 줄(최근 30줄까지) 안에서 거릅니다",
+  meaning: "주문 내역을 다시 읽었습니다",
+  tail: "신호는 새로 계산하지 않습니다",
+  load: async () => ({ rows: (await api("/api/paper/alternatives/orders/history?limit=30")).history }),
+  body: altHistoryBody,
+});
+
+function loadAltHistory() { return altHistoryPanel.load(); }
 
 /* ────────────────────────────────────────────────────────────────
  * 5. Open API 키 + 외부 연동 문서 + Alpaca 연결 테스트
@@ -1030,13 +1160,16 @@ function renderLeanResult(d) {
   }
 }
 
+// LEAN 실행 이력 — 전략 · 티커 칩 + 새로고침(2026-11-05). 새로고침은 저장된 기록을 서버에서 다시 읽을 뿐 LEAN 을 다시 돌리지 않는다(실행은 「이 조건으로 검증 실행」 단추만).
+// 설정 · 표 모양은 js/listbar-misc.js(leanHistoryCfg) 한 곳 — 칩 줄은 가로 스크롤 상자(#ql-history) 밖에 JS 가 만든 칸(#ql-history-bar)에 그린다.
+const leanHistoryPanel = listPanel(leanHistoryCfg({
+  esc: escHtml, fmtPct, signCls, emptyRow,
+  load: () => api("/api/backtests/lean/history?limit=15"),
+}));
+
 async function loadLeanHistory() {
-  try {
-    const { runs } = await api("/api/backtests/lean/history?limit=15");
-    $("ql-history").innerHTML = `<table><thead><tr><th>실행 시각</th><th>티커</th><th>전략</th><th>기간</th><th style="text-align:right">수익률</th><th style="text-align:right">MDD</th><th style="text-align:right">샤프</th><th>엔진</th></tr></thead>
-      <tbody>${runs.length ? runs.map(r => `<tr><td class="text-xs">${new Date(r.created_at).toLocaleString("ko-KR")}</td><td>${escHtml(r.ticker)}</td><td class="text-xs">${escHtml(r.strategy_label)}</td><td class="text-xs">${escHtml(r.start_date)}~${escHtml(r.end_date)}</td>
-        <td style="text-align:right" class="${signCls(r.strategy_return_pct)}">${fmtPct(r.strategy_return_pct)}</td><td style="text-align:right">${r.max_drawdown_pct}%</td><td style="text-align:right">${r.sharpe_ratio}</td><td>${r.lean_ok ? `<span class="badge-buy">LEAN</span>` : `<span class="badge-hold">pandas</span>`}</td></tr>`).join("") : emptyRow(8, "실행 이력이 없습니다.")}</tbody></table>`;
-  } catch { }
+  if (!ensureBarHost(document, "ql-history", "ql-history-bar")) return;
+  await leanHistoryPanel.load();
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -1046,7 +1179,14 @@ export function initPaperViews() {
   mountPaperRisk({ doc: document, api, resolveSymbol: () => symbolFromInput("ps-symbol", () => $("ps-risk-calc").click()) });
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on("pd-reset", "click", resetPaperAccount);
-  on("pd-refresh", "click", loadPaperDashboard);
+  // 계좌 현황 새로고침 — KPI · 최근 체결뿐 아니라 자산 구성 · QFRS 지표 · 자산 추이까지 서버에서 다시 읽는다(2026-11-05).
+  // 저장된 값을 읽을 뿐이다: 100일 백테스트 카드(loadPaperBacktest · 생성 · 삭제)와 신호 계산은 일부러 부르지 않는다.
+  on("pd-refresh", "click", createRefreshGroup({
+    tasks: [loadPaperDashboard, loadPaperAllocation, loadPaperPerformance],
+    setNote: text => { const el = $("pd-refresh-note"); if (el) el.textContent = text; },
+    setBusy: busy => { const b = $("pd-refresh"); if (b) { b.disabled = busy; b.setAttribute("aria-busy", String(busy)); } },
+    tail: "KPI · 자산 구성 · QFRS 지표 · 자산 추이 · 최근 체결을 저장된 값으로 다시 읽었고, 신호나 백테스트는 새로 계산하지 않습니다",
+  }));
 
   on("ps-quote-btn", "click", stockQuote);
   on("ps-symbol", "keydown", e => { if (e.key === "Enter") stockQuote(); });
@@ -1096,6 +1236,7 @@ export function initPaperViews() {
 
 export function onPaperViewActivated(view) {
   if (view === "paper-dashboard") {
+    pdClearRefreshNote();
     loadPaperDashboard();
     loadPaperAllocation();
     loadPaperPerformance();
@@ -1112,7 +1253,7 @@ export function onPaperViewActivated(view) {
  * ═══════════════════════════════════════════════════════════ */
 async function loadPaperAllocation() {
   const el = document.getElementById("pd-allocation-chart");
-  if (!el) return;
+  if (!el) return true;
 
   try {
     const snap = await api("/api/paper/account");
@@ -1125,7 +1266,7 @@ async function loadPaperAllocation() {
 
     if (!parts.length) {
       el.innerHTML = `<div class="text-xs" style="color:var(--text-mute);text-align:center;padding:40px 0;">자산이 없습니다.</div>`;
-      return;
+      return true;
     }
 
     if (_pdAllocationChart) { _pdAllocationChart.destroy(); _pdAllocationChart = null; }
@@ -1177,8 +1318,10 @@ async function loadPaperAllocation() {
       },
     });
     _pdAllocationChart.render();
+    return true;
   } catch (e) {
     el.innerHTML = `<div class="text-xs" style="color:var(--red);padding:20px;">${escHtml(e.message)}</div>`;
+    return false;
   }
 }
 
@@ -1188,7 +1331,7 @@ async function loadPaperAllocation() {
 async function loadPaperPerformance() {
   const cardsEl = document.getElementById("pd-metrics-cards");
   const chartEl = document.getElementById("pd-equity-chart");
-  if (!cardsEl) return;
+  if (!cardsEl) return true;
 
   cardsEl.innerHTML = `<div class="text-xs col-span-2" style="color:var(--text-mute);padding:20px;">계산 중...</div>`;
 
@@ -1201,7 +1344,7 @@ async function loadPaperPerformance() {
           📊 스냅샷 ${data.snapshot_count}개 — 매일 조회 시 자동으로 쌓입니다.
         </div>`;
       if (chartEl) chartEl.innerHTML = "";
-      return;
+      return true;
     }
 
     const m = data.metrics || {};
@@ -1278,10 +1421,12 @@ async function loadPaperPerformance() {
       });
       _pdEquityChart.render();
     }
+    return true;
   } catch (e) {
     cardsEl.innerHTML = `<div class="text-xs col-span-2" style="color:var(--red);padding:20px;">
       지표를 불러오지 못했습니다: ${escHtml(e.message)}
     </div>`;
+    return false;
   }
 }
 

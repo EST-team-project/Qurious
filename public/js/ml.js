@@ -5,6 +5,7 @@ import { compareTrayAdd } from "/js/core.js";
 import { loadFundamental, renderFundamental } from "/js/fundview.js";
 import { loadEcos, renderEcos, loadIndustryKr, renderIndustry } from "/js/macroview.js";
 import { loadTechnical, renderTechnical } from "/js/techview.js";
+import { serverRefreshNote } from "/js/listbar.js";
 
 document.getElementById("mlc-run-btn")?.addEventListener("click", async () => {
   const symbol = document.getElementById("mlc-symbol").value;
@@ -169,17 +170,18 @@ function macroQuoteNote(afterEl, id, note) {
   if (el) el.textContent = note || "";
 }
 
-async function loadMacroDashboard() {
+async function loadMacroDashboard(opts = {}) {
+  const refresh = !!(opts && opts.refresh === true);   // 새로고침 단추면 서버 저장본(최대 2시간)을 건너뛰고 다시 받는다(?refresh=true · 서버는 60초 안 저장본만 그대로)
   // 한국은행 통계 카드 — 표시 규칙은 macroview.js 한 곳. 아래 야후 시세와 따로 실패한다(한쪽이 막혀도 다른 쪽은 그려진다).
   const ecosBox = document.getElementById("macro-ecos");
-  if (ecosBox) loadEcos(api).then(res => { ecosBox.className = "text-sm"; ecosBox.innerHTML = renderEcos(res, escHtml); });
+  if (ecosBox && !refresh) loadEcos(api).then(res => { ecosBox.className = "text-sm"; ecosBox.innerHTML = renderEcos(res, escHtml); });
   const grid = document.getElementById("macro-grid");
   const loading = document.getElementById("macro-loading");
   if (!loading) return;
   loading.classList.remove("hidden");
   grid?.classList.add("hidden");
   try {
-    const data = await api("/api/macro/indicators");
+    const data = await api("/api/macro/indicators" + (refresh ? "?refresh=true" : ""));
     grid.innerHTML = data.indicators.map(ind => {
       // Qurious(DF-123 · 2026-10-16): 서버는 전일 대비를 모르면 None 을 준다 — 「▲ 0.00%」 로 메우지 않고 「—」
       const known = typeof ind.change_p === "number";
@@ -195,24 +197,25 @@ async function loadMacroDashboard() {
     }).join("");
     grid?.classList.remove("hidden");
     loading.classList.add("hidden");
-    macroQuoteNote(grid, "macro-note", data.note);
+    macroQuoteNote(grid, "macro-note", [data.note, serverRefreshNote(data.refresh)].filter(Boolean).join(" · "));
   } catch (e) {
     loading.textContent = "지표 조회 실패: " + e.message;
   }
 }
 
 // 투자분석 기초 — 산업 분석
-async function loadMacroIndustry() {
+async function loadMacroIndustry(opts = {}) {
+  const refresh = !!(opts && opts.refresh === true);
   // 국내 산업별 등락 — 표시 규칙은 macroview.js 한 곳. 아래 미국 섹터 ETF 와 따로 실패한다.
   const krBox = document.getElementById("industry-kr");
-  if (krBox) loadIndustryKr(api).then(res => { krBox.className = "text-sm"; krBox.innerHTML = renderIndustry(res, escHtml); });
+  if (krBox && !refresh) loadIndustryKr(api).then(res => { krBox.className = "text-sm"; krBox.innerHTML = renderIndustry(res, escHtml); });
   const loading = document.getElementById("industry-loading");
   const wrap    = document.getElementById("industry-table-wrap");
   if (!loading) return;
   loading.classList.remove("hidden");
   wrap?.classList.add("hidden");
   try {
-    const data = await api("/api/macro/industry");
+    const data = await api("/api/macro/industry" + (refresh ? "?refresh=true" : ""));
     const tbody = document.getElementById("industry-table-body");
     tbody.innerHTML = data.sectors.map(s => {
       // Qurious(DF-123 · 2026-10-16): 모르는 등락은 「—」(서버 정렬도 모르는 줄을 맨 뒤로 둔다)
@@ -231,7 +234,7 @@ async function loadMacroIndustry() {
     }).join("");
     wrap?.classList.remove("hidden");
     loading.classList.add("hidden");
-    macroQuoteNote(wrap, "industry-note", data.note);
+    macroQuoteNote(wrap, "industry-note", [data.note, serverRefreshNote(data.refresh)].filter(Boolean).join(" · "));
   } catch (e) {
     loading.textContent = "섹터 조회 실패: " + e.message;
   }
@@ -319,5 +322,9 @@ document.getElementById("seas-run-btn")?.addEventListener("click", async () => {
   }
 });
 
+
+// 해외·원자재 시세 · 미국 섹터 ETF 새로고침 — 서버 저장본을 건너뛰고 다시 받는다(2026-11-05 · 단추만 달면 같은 저장본이 되돌아온다)
+document.getElementById("macro-refresh")?.addEventListener("click", () => loadMacroDashboard({ refresh: true }));
+document.getElementById("industry-refresh")?.addEventListener("click", () => loadMacroIndustry({ refresh: true }));
 
 export { loadMacroDashboard, loadMacroIndustry };

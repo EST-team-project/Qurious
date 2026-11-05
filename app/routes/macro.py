@@ -13,6 +13,43 @@ from app.services import macro_industry as industry_kr_service
 
 router = APIRouter(prefix="/api/macro")
 
+#: 저장본(data_cache)을 그대로 보이는 평소 한도 — 예약 동기화가 채운 값은 최대 2시간 된 것이다.
+CACHE_MAX_AGE_HOURS = 2
+#: 새로고침(`?refresh=true`) 요청도 이 안에 받은 저장본은 그대로 돌려준다 — 단추를 연타해도 야후를 연달아 두드리지 않는다(2026-11-05).
+REFRESH_MIN_AGE_SECONDS = 60
+
+
+def _max_age_hours(refresh: bool) -> float:
+    """저장본을 믿는 한도(시간) — 평소 2시간 · 새로고침이면 60초(그보다 오래된 저장본은 버리고 다시 받는다)."""
+    return REFRESH_MIN_AGE_SECONDS / 3600 if refresh else CACHE_MAX_AGE_HOURS
+
+
+def _refresh_meta(refresh: bool, from_cache: bool, failed: bool = False) -> dict:
+    """응답에 붙는 새로고침 안내 — 화면이 「방금 받은 값이라 그대로입니다 · 다시 받지 못했습니다」 를 말할 수 있게(요청이 없으면 빈 사전)."""
+    if not refresh:
+        return {}
+    meta = {"requested": True, "reused_cache": from_cache, "min_age_seconds": REFRESH_MIN_AGE_SECONDS}
+    if failed:
+        meta["failed"] = True
+    return {"refresh": meta}
+
+
+def _has_prices(rows: list[dict]) -> bool:
+    """받은 줄 가운데 값이 하나라도 있나 — 전부 비면 외부 시세가 막힌 것이다."""
+    return any(isinstance(r, dict) and r.get("price") is not None for r in rows)
+
+
+async def _keep_old_when_refresh_failed(refresh: bool, key: str, enriched: list[dict], field: str) -> dict | None:
+    """새로고침으로 받았는데 값이 전부 비었으면 저장본을 덮어쓰지 않고 이전 저장본(최대 2시간)을 돌려준다 — 외부 시세가 막힌 순간
+    누군가 새로고침을 눌렀다고 모든 사용자의 화면이 두 시간 동안 빈 값이 되면 안 된다. 이전 저장본도 없으면 None(평소처럼 그대로 낸다)."""
+    if not refresh or _has_prices(enriched):
+        return None
+    kept = await cache_get(key, max_age_hours=CACHE_MAX_AGE_HOURS)
+    if kept is None:
+        return None
+    return {field: kept, "from_cache": True, "note": data_provenance.quote_note(kept, from_cache=True),
+            **_refresh_meta(refresh, True, failed=True)}
+
 
 async def _get_latest(symbol: str, unit: str) -> dict:
     """최신 시세 한 줄 — 예약 동기화와 **같은 함수**(아래 return 줄 · DF-123 · 2026-10-16).
@@ -36,20 +73,25 @@ async def macro_ecos_latest(user=Depends(get_current_user)):
 
 
 @router.get("/indicators")
-async def macro_indicators(_user=Depends(get_current_user)):
-    """거시경제 지표 현황 (금리·물가·유가·환율·주가지수). PostgreSQL cache-first."""
+async def macro_indicators(_user=Depends(get_current_user), refresh: bool = False):
+    """거시경제 지표 현황 (금리·물가·유가·환율·주가지수). PostgreSQL cache-first — `?refresh=true` 면 60초 넘은 저장본은 버리고 다시 받는다."""
     import asyncio
-    cached = await cache_get(KEY_MACRO_INDICATORS, max_age_hours=2)
+    cached = await cache_get(KEY_MACRO_INDICATORS, max_age_hours=_max_age_hours(refresh))
     if cached is not None:
         return {"indicators": cached, "from_cache": True,
-                "note": data_provenance.quote_note(cached, from_cache=True)}   # 지연 · 시각 · 저장본(L8 · DF-123)
+                "note": data_provenance.quote_note(cached, from_cache=True),
+                **_refresh_meta(refresh, True)}   # 지연 · 시각 · 저장본(L8 · DF-123)
 
     tasks = [_get_latest(m["symbol"], m["unit"]) for m in MACRO_SYMBOLS]
     results = await asyncio.gather(*tasks)
     enriched = [{**m, **r} for m, r in zip(MACRO_SYMBOLS, results)]
+    kept = await _keep_old_when_refresh_failed(refresh, KEY_MACRO_INDICATORS, enriched, "indicators")
+    if kept is not None:
+        return kept
     await cache_set(KEY_MACRO_INDICATORS, enriched)
     return {"indicators": enriched, "from_cache": False,
-            "note": data_provenance.quote_note(enriched, from_cache=False)}
+            "note": data_provenance.quote_note(enriched, from_cache=False),
+            **_refresh_meta(refresh, False)}
 
 
 @router.get("/industry-kr", summary="국내 산업별 하루 등락 — KSIC 중분류 · DART 업종코드 · 일봉")
@@ -65,38 +107,48 @@ async def macro_industry_kr(user=Depends(get_current_user)):
 
 
 @router.get("/industry")
-async def macro_industry(_user=Depends(get_current_user)):
-    """미국 섹터 ETF 기반 산업 분석. PostgreSQL cache-first."""
+async def macro_industry(_user=Depends(get_current_user), refresh: bool = False):
+    """미국 섹터 ETF 기반 산업 분석. PostgreSQL cache-first — `?refresh=true` 면 60초 넘은 저장본은 버리고 다시 받는다."""
     import asyncio
-    cached = await cache_get(KEY_SECTOR_ETFS, max_age_hours=2)
+    cached = await cache_get(KEY_SECTOR_ETFS, max_age_hours=_max_age_hours(refresh))
     if cached is not None:
         return {"sectors": cached, "from_cache": True,
-                "note": data_provenance.quote_note(cached, from_cache=True)}
+                "note": data_provenance.quote_note(cached, from_cache=True),
+                **_refresh_meta(refresh, True)}
 
     tasks = [_get_latest(s["symbol"], "") for s in SECTOR_ETFS]
     results = await asyncio.gather(*tasks)
     enriched = [{**s, **r} for s, r in zip(SECTOR_ETFS, results)]
     enriched = sync_scheduler.sort_by_change(enriched)   # 모르는 줄은 맨 뒤(동기화와 같은 정렬 · DF-123)
+    kept = await _keep_old_when_refresh_failed(refresh, KEY_SECTOR_ETFS, enriched, "sectors")
+    if kept is not None:
+        return kept
     await cache_set(KEY_SECTOR_ETFS, enriched)
     return {"sectors": enriched, "from_cache": False,
-            "note": data_provenance.quote_note(enriched, from_cache=False)}
+            "note": data_provenance.quote_note(enriched, from_cache=False),
+            **_refresh_meta(refresh, False)}
 
 
 @router.get("/us-stocks")
-async def macro_us_stocks(_user=Depends(get_current_user)):
-    """미국 주요 종목 시세. PostgreSQL cache-first."""
+async def macro_us_stocks(_user=Depends(get_current_user), refresh: bool = False):
+    """미국 주요 종목 시세. PostgreSQL cache-first — `?refresh=true` 면 60초 넘은 저장본은 버리고 다시 받는다."""
     import asyncio
-    cached = await cache_get(KEY_US_STOCKS, max_age_hours=2)
+    cached = await cache_get(KEY_US_STOCKS, max_age_hours=_max_age_hours(refresh))
     if cached is not None:
         return {"stocks": cached, "from_cache": True,
-                "note": data_provenance.quote_note(cached, from_cache=True)}
+                "note": data_provenance.quote_note(cached, from_cache=True),
+                **_refresh_meta(refresh, True)}
 
     tasks = [_get_latest(s["symbol"], "USD") for s in US_STOCKS]
     results = await asyncio.gather(*tasks)
     enriched = [{**s, **r} for s, r in zip(US_STOCKS, results)]
+    kept = await _keep_old_when_refresh_failed(refresh, KEY_US_STOCKS, enriched, "stocks")
+    if kept is not None:
+        return kept
     await cache_set(KEY_US_STOCKS, enriched)
     return {"stocks": enriched, "from_cache": False,
-            "note": data_provenance.quote_note(enriched, from_cache=False)}
+            "note": data_provenance.quote_note(enriched, from_cache=False),
+            **_refresh_meta(refresh, False)}
 
 
 @router.get("/fundamental")

@@ -745,28 +745,95 @@ async function loadSimBadge() {
 }
 
 // ── 로보 어드바이저: 모의 투자 의사결정 ─────────────────────────────
+// 로그 · 근거 카드 필터(2026-11-05 · 화면 전수 점검 「새로고침은 있고 필터가 없음」) — 칩 줄은 공용 listbar.js, 거르는 규칙은 autotrade-filter.js(순수 함수).
+// import 는 파일 맨 위로 끌어올려지므로(ES 모듈) 이 구역에 둔다.
+import { bindListBar, isAllowed, refreshStamp } from "/js/listbar.js";
+import { roboLogView, roboCardView, signalBucket } from "/js/autotrade-filter.js";
+
+let roboLast = null;                             // 마지막으로 받은 { logs, signals } — 칩을 누르면 다시 받지 않고 이것을 거른다
+let roboLogFilter = { kind: "", level: "" };     // 로그 조건("" = 전체) — 새로고침해도 유지
+let roboCardFilter = { signal: "" };             // 근거 카드 조건
+let roboLogGroups = [];                          // 지금 그려진 칩 묶음(모르는 낱말을 막는 데 쓴다)
+let roboCardGroups = [];
+let roboShown = [];                              // 카드로 그린 신호(가장 최근 회차 · 최대 3장 · 카드와 같은 순서)
+let roboNote = "";                               // 새로고침 뒤 안내 글
+
+/** 칩 줄 자리 — 목록 칸 바로 앞에 한 번만 만든다(로그 칸은 innerHTML 이 바뀌고, 카드 칸은 3열 격자라 안에 두면 카드 수가 달라진다). */
+function roboMountBar(hostId, beforeId, onFilter) {
+  let host = document.getElementById(hostId);
+  if (host) return host;
+  const list = document.getElementById(beforeId);
+  if (!list || !list.parentNode) return null;
+  host = document.createElement("div");
+  host.id = hostId;
+  list.parentNode.insertBefore(host, list);
+  bindListBar(host, { onFilter });
+  return host;
+}
+
+function roboSetLogFilter(key, value) {
+  if (!isAllowed(roboLogGroups, key, value)) return;
+  roboLogFilter = { ...roboLogFilter, [key]: value };
+  roboPaintLog();
+}
+
+function roboSetCardFilter(key, value) {
+  if (!isAllowed(roboCardGroups, key, value)) return;
+  roboCardFilter = { ...roboCardFilter, [key]: value };
+  roboPaintCardBar();
+}
+
+/** 로그 칸을 지금 조건으로 그린다(서버를 부르지 않는다). 로그가 비어 있어도 칩 줄은 그린다. */
+function roboPaintLog() {
+  const el = document.getElementById("robo-decision-log");
+  if (!el) return;
+  const view = roboLogView(roboLast ? roboLast.logs : [], roboLogFilter, { esc: escHtml, time: kstTime, note: roboNote });
+  roboLogGroups = view.groups;
+  const host = roboMountBar("robo-log-bar", "robo-decision-log", roboSetLogFilter);
+  if (host) host.innerHTML = view.barHtml;
+  el.innerHTML = view.listHtml;
+}
+
+/** 근거 카드는 다시 그리지 않고(그리면 카드마다 다중 주기 설명을 또 받는다) 맞지 않는 카드만 숨기고 칩 줄을 다시 그린다. */
+function roboPaintCardBar() {
+  const el = document.getElementById("robo-rationale");
+  if (!el) return;
+  const view = roboCardView(roboShown, roboCardFilter, { esc: escHtml, note: roboNote });
+  roboCardGroups = view.groups;
+  const host = roboMountBar("robo-rationale-bar", "robo-rationale", roboSetCardFilter);
+  if (host) host.innerHTML = view.barHtml;
+  const cards = [...el.querySelectorAll(":scope > [data-rb-signal]")];
+  cards.forEach((card, i) => { card.hidden = view.keep[i] === false; });
+  const empty = el.querySelector("[data-rb-empty]");
+  if (view.total && !view.shown) {
+    if (!empty) el.insertAdjacentHTML("beforeend", `<div class="col-span-full text-xs" data-rb-empty style="color:var(--text-mute);">이 조건에 맞는 카드가 없습니다. 필터를 풀어 보세요.</div>`);
+  } else if (empty) empty.remove();
+}
+
 async function loadRoboDecision() {
-  loadSimBadge(); 
+  loadSimBadge();
 
   try {
     const data = await api("/api/quant/auto/status");
     const el = document.getElementById("robo-decision-status");
     if (el) el.textContent = data.running ? "🟢 실행 중" : "⚫ 중지됨";
-    renderRoboDecisionLog(data.logs || []);
-    renderRoboRationale(data.signals || []);
+    roboLast = { logs: data.logs || [], signals: data.signals || [] };
+    roboNote = "";
+    roboPaintLog();
+    renderRoboRationale(roboLast.signals);
   } catch { }
 
   loadRoboPerformanceMetrics();
 }
 
-function renderRoboDecisionLog(logs) {
-  const el = document.getElementById("robo-decision-log");
-  if (!el) return;
-  el.innerHTML = logs.length ? logs.map(l => `
-    <div class="rounded p-2" style="background:var(--surf2);border:1px solid var(--border);">
-      <span style="color:var(--text-mute);">${escHtml(kstTime(l.time))}</span>
-      <span style="margin-left:8px;color:${l.level === 'error' ? 'var(--red)' : l.level === 'warning' ? 'var(--amber)' : 'var(--text)'};">${escHtml(l.message || "")}</span>
-    </div>`).join("") : `<div style="color:var(--text-mute);">AI 의사결정 로그가 없습니다. 시작 버튼을 눌러 실행하세요.</div>`;
+/** 「로그 새로고침」 단추 — 기존 동작(서버에서 다시 읽기) 그대로, 성공하면 다시 읽은 시각만 안내한다. 걸어 둔 조건은 유지. */
+async function roboRefreshClick() {
+  const before = roboLast;
+  await loadRoboDecision();
+  if (roboLast === before) return;                      // 못 받았으면 이전 화면 그대로(거짓 안내 금지)
+  roboNote = `${refreshStamp("서버에서 다시 읽었습니다")} — 새로 계산하지 않고 기록된 값을 그대로 보입니다`;
+  roboPaintLog();
+  roboPaintCardBar();
 }
 
 // B1 (#160) — 근거 카드: 고정 문구 → 실제 신호 이유(/api/explain)
@@ -774,11 +841,14 @@ function renderRoboRationale(signals) {
   const el = document.getElementById("robo-rationale");
   if (!el) return;
   if (!signals?.length) {
+    roboShown = [];
     el.innerHTML = `<div class="col-span-3 text-sm" style="color:var(--text-mute);">실행 후 판단 근거가 표시됩니다.</div>`;
+    roboPaintCardBar();
     return;
   }
 
   const shown = latestCycleSignals(signals);
+  roboShown = shown;
   el.innerHTML = shown.map((s, i) => {
     const sigLabel = s.error || s.signal === "UNAVAILABLE" ? "판단 불가" : s.signal === "BUY" ? "매수" : s.signal === "SELL" ? "매도" : s.signal === "HOLD" ? "관망" : "미확인";
     const sigCls = s.signal === "BUY" ? "badge-buy" : s.signal === "SELL" ? "badge-sell" : "badge-hold";
@@ -787,7 +857,7 @@ function renderRoboRationale(signals) {
     const reasons = (s.reasons || []).slice(0, 4)
       .map(r => `<div style="color:var(--text-dim);">· ${escHtml(r)}</div>`).join("");
     return `
-      <div class="card" style="padding:14px;">
+      <div class="card" style="padding:14px;" data-rb-signal="${escHtml(signalBucket(s))}">
         <div class="flex items-center justify-between mb-1">
           <span class="font-semibold text-sm">${escHtml(s.name || s.symbol)}</span>
           <span class="${sigCls}" title="자동매매 주문 전 판단">자동매매 ${sigLabel}</span>
@@ -804,6 +874,7 @@ function renderRoboRationale(signals) {
     const node = document.getElementById(cardId);
     if (node) _loadRationaleExplain(s.symbol, node);
   });
+  roboPaintCardBar();                                   // 칩 줄을 그리고, 걸려 있는 조건에 맞지 않는 카드는 숨긴다
 }
 
 async function _loadRationaleExplain(symbol, node) {
@@ -875,7 +946,7 @@ document.getElementById("robo-decision-goto-auto")?.addEventListener("click", (e
   const gnb = document.querySelector('[data-gnb="quant"]');
   if (gnb) gnb.click();
 });
-document.getElementById("robo-decision-refresh").addEventListener("click", loadRoboDecision);
+document.getElementById("robo-decision-refresh").addEventListener("click", roboRefreshClick);
 
 // 데모 데이터 단추 — 기존 스냅샷을 지우는 시연용 기능이라 관리자에게만 보인다(서버도 admin 만 허용 · 2026-11-04 발표 위험 조치 ③).
 // 일반 사용자가 눌러 자기 스냅샷을 지우는 일이 없게 기본은 숨기고, 관리자 확인이 된 때만 연다. 확인 실패 시에도 숨긴 채 둔다.

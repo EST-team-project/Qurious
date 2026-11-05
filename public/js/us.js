@@ -3,6 +3,9 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 // Qurious: 등락 글 · ±1.5% 표시 · 시세 시각 글은 판단 모듈 한 곳(node 시험 TC-QVS · Figma 03-5 결정 · 2026-10-16)
 import { pctText, direction, moveTag, asOfText, MOVE_LIMIT } from "/js/quoteview.js";
+import { serverRefreshNote } from "/js/listbar.js";
+// Qurious: 목록 위 줄(필터 칩 + 새로고침) — 주문 내역 · 종목 카드는 listbar-trade.js 제어기 한 곳(node 시험 TC-LBT · 2026-11-05)
+import { usOrderPanel, usCardsPanel, ensureBarHost } from "/js/listbar-trade.js";
 // Qurious: 주문 칸의 시세 카드 · 예상 금액 · 확인 상자 · 예약 목록 그리기는 판단 모듈 한 곳(node 시험 TC-USS · Figma 「미국주식 주문 화면」 C · 2026-10-17)
 import { usoQuoteHtml, usoEstimateHtml, usoConfirm, usoReservationsHtml, usoBuyLabel, usoOrderBlock, usoNoticeHtml, USO_SOURCE } from "/js/usorder.js";
 
@@ -21,7 +24,8 @@ let usChartInstance = null;
 
 const DIR_COLOR = { up: "var(--green)", down: "var(--red)", flat: "var(--text-dim)", none: "var(--text-mute)" };
 
-async function loadUsDashboard() {
+async function loadUsDashboard(opts = {}) {
+  const refresh = !!(opts && opts.refresh === true);   // 새로고침 단추만 true — 메뉴로 들어올 때(main.js)는 평소 저장본
   const marketEl = document.getElementById("us-market-cards");
   const sigEl    = document.getElementById("us-signal-cards");
 
@@ -53,31 +57,25 @@ async function loadUsDashboard() {
   // 종목 카드: /api/macro/us-stocks(저장본 최대 2시간) — 평소 등락률만 · ±1.5% 를 넘은 종목에만 「크게 오름 · 크게 내림」
   // (Figma 03-5 융합안). 머리 글 한 줄(지연 · 장 닫힘 · 마지막 체결 · 받은 시각 · 저장본 나이)은 서버 한 곳(`data_provenance.quote_note`).
   let resp = null;
-  try { resp = await api("/api/macro/us-stocks"); } catch {}
+  try { resp = await api("/api/macro/us-stocks" + (refresh ? "?refresh=true" : "")); } catch {}
   const stocks = (resp && resp.stocks || []).filter(s => s && s.price != null);
   const titleEl = document.getElementById("us-signal-count");
   if (titleEl) titleEl.textContent = stocks.length ? String(stocks.length) : "";
   const ruleEl = document.getElementById("us-signal-rule");   // 문턱 숫자는 판단 모듈 한 곳(MOVE_LIMIT)에서
   if (ruleEl) ruleEl.textContent = `전일 대비 ±${MOVE_LIMIT}% 를 넘은 종목에만 「크게 오름」 · 「크게 내림」 을 붙입니다 — 규칙 표시일 뿐 매매 신호가 아닙니다(학습 모델 아님).`;
-  if (!stocks.length) {
-    sigEl.innerHTML = `<div class="text-sm" style="color:var(--text-mute);grid-column:1/-1;">시세를 받지 못했습니다 — 잠시 뒤 「새로고침」 을 눌러 주세요.</div>`;
-    return;
-  }
-  sigEl.innerHTML = stocks.map(s => {
-    const pct = s.change_p ?? s.change_pct;
-    const tag = moveTag(pct);
-    return `<div class="card" style="padding:12px;">
-      <div class="font-bold text-sm">${escHtml(s.symbol)}</div>
-      <div class="text-xs" style="color:var(--text-dim);">${escHtml(s.name || "")}</div>
-      <div class="font-semibold mt-2">$${fmt(s.price,2)}</div>
-      <div class="text-xs mt-1" style="color:${DIR_COLOR[direction(pct)]};">${pctText(pct)}</div>
-      <div class="text-xs font-bold mt-2" style="color:${DIR_COLOR[tag.dir]};min-height:16px;">${escHtml(tag.text)}</div>
-    </div>`;
-  }).join("");
-  if (resp.note) {
-    sigEl.insertAdjacentHTML("beforeend", `<div class="text-xs" style="color:var(--text-mute);grid-column:1/-1;text-align:right;">${escHtml(resp.note)}</div>`);
-  }
+  // 종목 카드는 제어기가 그린다 — 칩(크게 오름 · 크게 내림 · 그대로)은 받아 둔 종목 안에서 거르고, 걸어 둔 칩은 새로고침 뒤에도 남는다.
+  // 머리 글(서버 note)과 새로고침 안내(serverRefreshNote)는 카드 맨 아래 한 줄로 그대로 보인다.
+  ensureBarHost(document, "us-signal-cards", "us-signal-bar");
+  usCardsData = {
+    rows: stocks,
+    meta: { noteHtml: resp && resp.note ? escHtml([resp.note, serverRefreshNote(resp.refresh)].filter(Boolean).join(" · ")) : "" },   // 이스케이프를 마친 글
+  };
+  await usCards.load();
 }
+
+// 종목 카드 제어기 — 서버를 부르지 않고 loadUsDashboard 가 받아 둔 종목을 거른다(새로고침은 위쪽 단추 → loadUsDashboard({refresh:true}))
+let usCardsData = { rows: [], meta: null };
+const usCards = usCardsPanel({ esc: escHtml, fmt, dirColor: DIR_COLOR, byId: id => document.getElementById(id), load: async () => usCardsData });
 
 async function loadUsChart() {
   const symbol = document.getElementById("us-symbol").value.trim().toUpperCase() || "AAPL";
@@ -124,31 +122,17 @@ async function loadUsChart() {
 const isKrSymbol = s => /\.(KS|KQ|KN)$/i.test(s) || (/^[0-9A-Z]{6}$/i.test(s) && /\d/.test(s));
 const KST_TIME = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 
+// 주문 내역 제어기 — 매수/매도 칩 + 새로고침(내역 + 예약 주문 목록을 서버에서 다시 읽는다 · 주문 · 취소는 하지 않는다).
+// 모의 장부(원화)의 주문 기록 — 새 주문은 서버가 환율을 곱한 원화 체결가다. 옛 주문(원화 가상 매매 길 · source WEB)은
+// 달러 금액이 원화 장부에 그대로 들어갔으므로 달러로 적고 그 사실을 붙인다(2026-10-16 점검 🔴).
+const usOrderHistory = usOrderPanel({
+  esc: escHtml, fmt, byId: id => document.getElementById(id), api, isKrSymbol,
+  fmtTime: ts => KST_TIME.format(new Date(ts)),
+  alsoRefresh: () => loadUsReservations(),
+});
+
 async function loadUsOrderHistory() {
-  const el = document.getElementById("us-order-history");
-  if (!el) return;
-  try {
-    // 모의 장부(원화)의 주문 기록 — 새 주문은 서버가 환율을 곱한 원화 체결가다. 옛 주문(원화 가상 매매 길 · source WEB)은
-    // 달러 금액이 원화 장부에 그대로 들어갔으므로 달러로 적고 그 사실을 붙인다(2026-10-16 점검 🔴).
-    const { history } = await api("/api/paper/stocks/orders/history?limit=200");
-    const usOnly = (history || []).filter(o => !isKrSymbol(String(o.symbol || "")));
-    if (!usOnly.length) { el.innerHTML = "<div style='color:var(--text-mute);'>주문 내역 없음</div>"; return; }
-    el.innerHTML = usOnly.slice(0, 20).map(o => {
-      const buy = String(o.type || "").toUpperCase() === "BUY";
-      const old = o.source === "WEB";
-      return `
-      <div class="flex items-center gap-3 rounded-lg px-3 py-2" style="background:var(--surf2);border:1px solid var(--border);font-size:12px;">
-        <span class="${buy?"badge-buy":"badge-sell"}">${buy?"BUY":"SELL"}</span>
-        <span class="font-semibold">${escHtml(o.symbol)}</span>
-        <span>${fmt(o.quantity)}주</span>
-        <span style="color:var(--text-dim);">${old ? `$${fmt(o.price,2)}` : `${fmt(o.price)}원`}</span>
-        ${old ? `<span style="color:var(--text-mute);font-size:11px;">옛 주문 — 달러 금액이 원화 장부에 그대로 들어감</span>` : ""}
-        <span class="ml-auto" style="color:var(--text-mute);">${o.ts ? KST_TIME.format(new Date(o.ts)) : ""}</span>
-      </div>`;
-    }).join("");
-  } catch (e) {
-    el.innerHTML = `<div style='color:var(--red);'>${escHtml(e.message)}</div>`;
-  }
+  await usOrderHistory.load();
 }
 function renderUsOrders() { loadUsOrderHistory(); loadUsReservations(); }
 
@@ -373,7 +357,7 @@ document.getElementById("us-reserve-list")?.addEventListener("click", async e =>
 document.getElementById("us-ord-buy")?.addEventListener("click",  ()=>placeUsOrder("buy"));
 document.getElementById("us-ord-sell")?.addEventListener("click", ()=>placeUsOrder("sell"));
 document.getElementById("us-chart-load")?.addEventListener("click", loadUsChart);
-document.getElementById("us-refresh")?.addEventListener("click",    loadUsDashboard);
+document.getElementById("us-refresh")?.addEventListener("click",    () => loadUsDashboard({ refresh: true }));   // 이벤트 객체를 옵션으로 넘기지 않는다
 document.getElementById("us-pf-refresh")?.addEventListener("click", loadUsPortfolio);
 // Alpaca 키 저장 단추는 2026-10-30 에 없앴다 — 입력한 키를 어디에도 보내지 않고 「저장 완료」 만 말했다(비밀키를 받아 버리는 칸).
 // Alpaca 모의 계좌를 읽기 전용으로 확인하는 길은 모의투자 › Open API · 외부 연동 화면(paper.js alpacaTest)에 있다.

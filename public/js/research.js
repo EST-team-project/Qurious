@@ -17,6 +17,7 @@
  */
 import { api, escHtml } from "/js/common.js";
 import { groupResearchRows, researchSwitchText, resolveStockQuery } from "/js/researchrows.js";
+import { refreshOutcomeText } from "/js/listbar-more.js";   // 새로고침 뒤 안내 글(성공 · 실패) — 2026-11-05
 
 const VIEW = "agent-news";
 //: 출처 → [이름, 색 이름] — 서버 data_search.SOURCES 와 같은 셋
@@ -161,6 +162,24 @@ async function loadTimeline(more = false) {
 }
 
 function reload() { return S.view === "timeline" && S.symbol ? loadTimeline() : loadList(); }
+
+/** 새로고침 단추 — 지금 조건(낱말 · 종류 · 종목 · 주제 · 기간 · 차례) 그대로 검색 결과를 서버에서 다시 받는다. 조건을 바꾸거나 새로 계산하지 않는다. */
+let refreshBusy = false;
+async function refreshResearch(r) {
+  if (refreshBusy) return;                                   // 받는 중 다시 누르면 무시
+  refreshBusy = true;
+  const btn = r.querySelector("[data-rs-refresh]"), note = r.querySelector(".rs-refresh-note");
+  if (btn) btn.disabled = true;
+  if (note) note.textContent = "서버에서 다시 읽는 중…";
+  try {
+    await reload();
+    // 읽기에 실패하면 새로 읽은 시각을 찍지 않는다(S.error — 결과 칸에도 까닭이 보인다)
+    if (note) note.textContent = refreshOutcomeText(!S.error, { error: S.error, tail: "지금 조건 그대로 검색 결과를 다시 받았습니다(색인은 수집기가 매일 12:30 에 다시 짓습니다)" });
+  } finally {
+    refreshBusy = false;
+    if (btn) btn.disabled = false;
+  }
+}
 
 /** 지금 조건의 정확한 건수 — 줄 수는 서버가 1만에서 끊는다(COUNT_CAP). 종류 칸 개수(facets)는 같은 조건에서 출처마다
  *  센 정확한 수라, 있으면 그것을 쓴다(전체 = 셋의 합 · 하나를 골랐으면 그 수). */
@@ -544,7 +563,9 @@ function renderResearch() {
           <div class="rs-sym-box"><input type="search" class="input rs-sym-q" placeholder="종목 — 이름 · 코드" aria-label="종목 이름이나 코드로 고르기"
             autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rs-suggest-list" value="${escHtml(S.symbol ? (S.symbolName || S.symbol) : "")}">
             <ul class="rs-suggest" id="rs-suggest-list" role="listbox" aria-label="종목 후보" hidden></ul></div>
-          <button type="submit" class="btn-primary">검색</button></form>
+          <button type="submit" class="btn-primary">검색</button>
+          <button type="button" class="btn-secondary" data-rs-refresh>새로고침</button></form>
+        <div class="rs-refresh-note q-muted text-xs" role="status" aria-live="polite"></div>
         <div class="rs-cond-row"><p class="rs-cond q-muted"></p><div class="rs-switch-box"></div></div>
         <div class="rs-results"></div>
         <p class="q-up-note">자료는 수집기가 매일 12:30 에 받아 검색 색인을 다시 짓습니다. 공시는 전자공시(DART) 목록, 정책뉴스는 공공누리 제1유형 기사만 본문을 두고,
@@ -569,6 +590,7 @@ function renderResearch() {
     reload();
   });
   wireResearchBar(r);
+  r.querySelector("[data-rs-refresh]")?.addEventListener("click", () => refreshResearch(r));
   // 검색어를 비우면 바로 최신 소식으로(2026-10-08 결정 · DF-86) — ✕ 를 누르거나 글을 다 지운 순간 낱말 조건을 빼고 차례를
   // 자동(낱말이 없으면 최신순)으로 되돌려 다시 받는다. 종류 · 종목 · 주제 · 기간 거름은 그대로 둔다(옛 동작: 칸만 비고 결과는 옛 낱말).
   const qInput = r.querySelector(".rs-q");

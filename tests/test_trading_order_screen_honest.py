@@ -57,10 +57,12 @@ def test_order_screen_says_orders_stay_inside_the_app():
 
 
 def test_portfolio_says_price_basis_and_shows_load_errors():
-    code = _code(TRADING)
+    # 표 그리기 · 실패 글은 목록 제어기(js/listbar-trade.js portfolioPanel)로 옮겼다(2026-11-05 · 새로고침 단추) — 글은 그대로
+    code = _code((ROOT / "public" / "js" / "listbar-trade.js").read_text(encoding="utf-8"))
     assert "data-pf-basis" in code and "출처 · 시각이 없어" in code and "평단가로 대신하지 않습니다" in code
-    body = re.search(r"async function loadPortfolio\(\) \{.*?\n\}\n", code, flags=re.S).group(0)
-    assert "catch {}" not in body and "보유 종목을 불러오지 못했습니다" in body
+    assert "catch {}" not in code and "보유 종목을 불러오지 못했습니다" in code
+    body = re.search(r"async function loadPortfolio\(\) \{.*?\n\}\n", _code(TRADING), flags=re.S).group(0)
+    assert "catch {}" not in body and "portfolioView.load()" in body
 
 
 def test_manual_order_only_offers_virtual_broker():

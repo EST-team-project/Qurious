@@ -5,6 +5,8 @@ import { api, setToast, escHtml, fmt } from "/js/common.js";
 import { renderLayers, PERF_NOTE } from "/js/comparelayers.js";
 import { overlayFromResult, fitToBars, periodFor, toChartBars, asOfLine } from "/js/comparechart.js";
 import { cardOptions, pineQuery, fileName, renderPine, failText } from "/js/pinecard.js";
+// 수신 신호 표 위의 필터 칩 + 새로고침(2026-11-05) — 칩 정의는 screenlists.js, 제어기는 paperlists.js(이미 받은 줄 안에서만 거른다)
+import { createScreenPanel, bindRefreshButton, TV_SIGNALS_LIMIT, TV_COMPARISONS_LIMIT, tvSignalGroups, TV_GETTERS, tvLimitNote, TV_TAIL } from "/js/screenlists.js";
 
 const $ = (id) => document.getElementById(id);
 const ts = (iso) => iso ? new Date(iso).toLocaleString("ko-KR", { hour12: false }) : "-";
@@ -101,17 +103,28 @@ async function loadWebhookInfo() {
   } catch (e) { setToast(e.message, "error"); }
 }
 
-async function loadSignals() {
-  try {
-    const r = await api("/api/tradingview/signals?limit=30");
-    $("tv-signals").innerHTML = r.signals.length ? `<table><thead><tr><th>수신 시각</th><th>전략</th><th>종목</th><th>방향</th><th style="text-align:right">수량</th><th style="text-align:right">신호가</th><th style="text-align:right">체결가</th><th>처리</th><th>메시지</th></tr></thead><tbody>${
-      r.signals.map(s => `<tr><td class="text-xs">${ts(s.created_at)}</td><td class="text-xs">${escHtml(s.strategy || "-")}</td><td class="font-mono text-xs">${escHtml(s.symbol)}</td>
+function signalsTableHtml(signals) {
+  return `<table><thead><tr><th>수신 시각</th><th>전략</th><th>종목</th><th>방향</th><th style="text-align:right">수량</th><th style="text-align:right">신호가</th><th style="text-align:right">체결가</th><th>처리</th><th>메시지</th></tr></thead><tbody>${
+    signals.map(s => `<tr><td class="text-xs">${ts(s.created_at)}</td><td class="text-xs">${escHtml(s.strategy || "-")}</td><td class="font-mono text-xs">${escHtml(s.symbol)}</td>
         <td>${s.side === "BUY" ? '<span class="badge-buy">매수</span>' : s.side === "SELL" ? '<span class="badge-sell">매도</span>' : '<span class="badge-hold">알림</span>'}</td>
         <td style="text-align:right">${fmt(s.quantity)}</td><td style="text-align:right">${s.signal_price ? fmt(s.signal_price) : "-"}</td><td style="text-align:right">${s.fill_price ? fmt(s.fill_price) : "-"}</td>
-        <td>${STATUS_BADGE[s.status] || escHtml(s.status)}</td><td class="text-xs" style="color:var(--text-mute)">${escHtml(s.message || "")}</td></tr>`).join("")}</tbody></table>`
-      : `<div class="text-sm" style="color:var(--text-mute);">아직 수신된 TradingView 신호가 없습니다. 아래 '테스트 신호 보내기'로 흐름을 확인해 보세요.</div>`;
-  } catch (e) { $("tv-signals").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+        <td>${STATUS_BADGE[s.status] || escHtml(s.status)}</td><td class="text-xs" style="color:var(--text-mute)">${escHtml(s.message || "")}</td></tr>`).join("")}</tbody></table>`;
 }
+
+// 필터 칩 + 새로고침(2026-11-05) — 저장된 수신 이력을 읽을 뿐 Webhook 을 보내거나 LEAN 비교를 돌리지 않는다.
+// 새로고침은 머리줄에 이미 있는 단추(#tv-refresh)를 쓰고, 아래 「교차 검증 이력」 도 함께 다시 읽는다(전에는 이 단추에 묶여 있지 않았다).
+const signalsPanel = createScreenPanel({
+  host: "tv-signals", label: "수신 신호 필터", unit: "건", refresh: false,
+  groups: tvSignalGroups, getters: TV_GETTERS, limitNote: tvLimitNote, tail: TV_TAIL,
+  load: async () => {
+    const r = await api(`/api/tradingview/signals?limit=${TV_SIGNALS_LIMIT}`);
+    return { rows: r.signals || [], meta: r };
+  },
+  body: (shown, ctx) => ctx.rows.length ? signalsTableHtml(shown)
+    : `<div class="text-sm" style="color:var(--text-mute);">아직 수신된 TradingView 신호가 없습니다. 아래 '테스트 신호 보내기'로 흐름을 확인해 보세요.</div>`,
+  alsoOnRefresh: () => loadComparisons(),
+}, { esc: escHtml, byId: $ });
+function loadSignals() { return signalsPanel.load(); }
 
 async function sendTestSignal() {
   const token = $("tv-test-token").value.trim();
@@ -185,7 +198,7 @@ function renderCompare(r) {
 
 async function loadComparisons() {
   try {
-    const r = await api("/api/tradingview/comparisons?limit=15");
+    const r = await api(`/api/tradingview/comparisons?limit=${TV_COMPARISONS_LIMIT}`);
     $("tvc-history").innerHTML = r.comparisons.length ? `<table><thead><tr><th>시각</th><th>종목</th><th>전략</th><th>기간</th><th>성과 차이 판정(참고)</th><th style="text-align:right">수익률 TV / LEAN</th><th style="text-align:right">MDD TV / LEAN</th></tr></thead><tbody>${
       r.comparisons.map(c => `<tr><td class="text-xs">${ts(c.created_at)}</td><td class="font-mono text-xs">${escHtml(c.ticker)}</td><td class="text-xs">${escHtml(c.strategy)}</td><td class="text-xs">${c.start_date}~${c.end_date}</td>
         <td><span class="text-xs">${escHtml(c.verdict)}</span></td>
@@ -226,7 +239,7 @@ export function initTradingViewView() {
   on("tv-copy-url", "click", () => { navigator.clipboard.writeText($("tv-webhook-url").textContent); setToast("Webhook URL 복사됨", "ok"); });
   on("tv-copy-template", "click", () => { navigator.clipboard.writeText($("tv-alert-template").textContent); setToast("알림 메시지 템플릿 복사됨", "ok"); });
   on("tv-test-send", "click", sendTestSignal);
-  on("tv-refresh", "click", loadSignals);
+  bindRefreshButton($("tv-refresh"), signalsPanel);   // 신호 표 + 교차 검증 이력을 함께 다시 읽는다
   on("tvc-run", "click", runCompare);
   on("pc-run", "click", runPine);
   on("pc-download", "click", downloadPine);

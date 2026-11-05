@@ -1,6 +1,8 @@
 /* 직접매매: 주가 차트, 포트폴리오, 주문
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+// Qurious: 보유 표 · 최근 주문 위 줄(새로고침 + 매수/매도 칩)은 제어기 한 곳(listbar-trade.js · node 시험 TC-LBT · 2026-11-05)
+import { portfolioPanel, tradeOrderPanel } from "/js/listbar-trade.js";
 
 let chartInstance = null;
 // ── 주가 차트 ────────────────────────────────────────────────────
@@ -55,47 +57,10 @@ async function loadStockChart() {
 document.getElementById("chart-load").addEventListener("click", loadStockChart);
 
 // ── 포트폴리오 ───────────────────────────────────────────────────
+// 보유 표 — 새로고침은 서버에서 보유와 현재가를 다시 읽을 뿐이다(주문 · 계산 없음). 안내 두 줄과 표 모양은 제어기가 옛 글 그대로 그린다.
+const portfolioView = portfolioPanel({ esc: escHtml, fmt, byId: id => document.getElementById(id), api });
 async function loadPortfolio() {
-  try {
-    const { holdings } = await api("/api/portfolio");
-    const el = document.getElementById("portfolio-table");
-    if (!holdings.length) {
-      el.innerHTML = "<div class='text-slate-400 text-xs'>보유 종목이 없습니다.</div>";
-      return;
-    }
-    el.innerHTML = `
-      <div class="text-xs mb-2" style="color:var(--text-mute);">
-        ※ 보유 종목은 <b>국내주식 모의주문</b>의 매수·매도로만 바뀝니다.
-        <a class="underline" href="#paper-stock">국내주식 모의주문 →</a>
-      </div>
-      <div data-pf-basis class="text-xs mb-2" style="color:var(--text-mute);line-height:1.6;">
-        현재가는 이 화면을 연 시점에 받은 시세로, 지연 시세일 수 있습니다 — 이 화면의 응답에는 출처 · 시각이 없어 칸마다 적지 못합니다.
-        시세를 받지 못한 종목은 「-」 로 두고 평단가로 대신하지 않습니다.
-      </div>
-      <table class="w-full text-xs border-collapse">
-        <thead><tr class="text-slate-400 border-b border-white/10">
-          <th class="py-2 text-left">종목</th>
-          <th class="py-2 text-right">수량</th>
-          <th class="py-2 text-right">평균단가</th>
-          <th class="py-2 text-right">현재가</th>
-          <th class="py-2 text-right">평가금액</th>
-        </tr></thead>
-        <tbody>
-          ${holdings.map(h => `
-            <tr class="border-b border-white/5">
-              <td class="py-2">${escHtml(h.name)}<div class="text-slate-500">${escHtml(h.symbol)}</div></td>
-              <td class="py-2 text-right">${fmt(h.quantity)}</td>
-              <td class="py-2 text-right">${fmt(h.avg_price)}</td>
-              <td class="py-2 text-right">${h.current_price != null ? fmt(h.current_price) : "-"}</td>
-              <td class="py-2 text-right">${h.eval_amount != null ? fmt(h.eval_amount) + "원" : "-"}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>`;
-  } catch (e) {
-    const el = document.getElementById("portfolio-table");
-    if (el) el.innerHTML = `<div class="text-xs" style="color:var(--red);">보유 종목을 불러오지 못했습니다 — ${escHtml(e.message || "까닭 모름")}</div>`;
-  }
+  await portfolioView.load();
 }
 
 document.getElementById("pf-add")?.addEventListener("click", () => {
@@ -121,21 +86,10 @@ async function placeOrder(type) {
 document.getElementById("ord-buy").addEventListener("click", () => placeOrder("buy"));
 document.getElementById("ord-sell").addEventListener("click", () => placeOrder("sell"));
 
+// 최근 주문 — 매수/매도 칩 + 새로고침(주문 기록을 서버에서 다시 읽을 뿐 주문은 내지 않는다). 자동매매 · Open API 주문 안내는 제어기가 줄 아래에 붙인다.
+const orderHistoryView = tradeOrderPanel({ esc: escHtml, fmt, byId: id => document.getElementById(id), api });
 async function loadOrderHistory() {
-  try {
-    const { orders } = await api("/api/orders");
-    const el = document.getElementById("order-history");
-    el.innerHTML = orders.slice(0, 20).map(o => `
-      <div class="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs">
-        <span class="${o.order_type === "buy" ? "badge-buy" : "badge-sell"}">${o.order_type === "buy" ? "매수" : "매도"}</span>
-        <span class="ml-2">${escHtml(o.name)} (${escHtml(o.symbol)})</span>
-        <span class="ml-auto">${fmt(o.price)}원 × ${fmt(o.quantity)}주</span>
-        <span class="ml-3 text-slate-500">${escHtml(o.broker)} · ${(o.created_at||"").slice(0,10)}</span>
-      </div>
-    `).join("") || "<div class='text-slate-400'>주문 내역 없음</div>";
-    // 서버가 자동매매 · Open API · 예약 주문을 뺀다(#219 와 같은 규칙) — 빠진 주문을 어디서 보는지 알린다
-    el.insertAdjacentHTML("beforeend", `<div class="text-xs mt-1" style="color:var(--text-mute);">자동매매 · Open API 주문은 <a href="#quant-auto" class="underline">자동매매 현황</a>에서 봅니다.</div>`);
-  } catch {}
+  await orderHistoryView.load();
 }
 
 async function loadBrokerStatus() {

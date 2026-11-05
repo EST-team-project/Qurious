@@ -1,6 +1,8 @@
 /* 시스템 대시보드, 감사 로그
  * app.html 인라인 스크립트에서 분리됨. 엔트리는 main.js */
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
+import { createListPanel } from "/js/paperlists.js";
+import { auditCfg, ensureBarHost, AUDIT_LIMIT } from "/js/listbar-misc.js";
 
 // ── 시스템 대시보드 ───────────────────────────────────────────────
 async function loadSystemDashboard() {
@@ -64,30 +66,22 @@ async function loadSystemDashboard() {
 document.getElementById("sys-refresh")?.addEventListener("click", loadSystemDashboard);
 
 // ── 시스템관리: 감사 로그 ────────────────────────────────────────
+// 이벤트 유형 칩(응답 events 의 event_type) + 새로고침(2026-11-05). 위 입력 칸 2개와 「조회」 단추는 그대로 — 서버가 입력 칸 조건으로 먼저 거르고,
+// 칩은 그렇게 받은 줄 안에서만 거른다. 새로고침은 같은 조건으로 서버에서 다시 읽을 뿐이다(설정 · 기록을 바꾸지 않는다). 설정은 js/listbar-misc.js(auditCfg).
+async function fetchAuditLog() {
+  const eventType = document.getElementById("audit-event-filter")?.value || "";
+  const userId = document.getElementById("audit-user-filter")?.value || "";
+  const qs = new URLSearchParams({ event_type: eventType, user_id: userId, limit: String(AUDIT_LIMIT) });
+  return api(`/api/admin/audit-log?${qs.toString()}`);
+}
+const auditPanel = createListPanel(auditCfg({ esc: escHtml, load: fetchAuditLog }), { esc: escHtml, byId: id => document.getElementById(id) });
+
 async function loadAuditLog() {
   const el = document.getElementById("audit-log");
   if (!el) return;
-  const eventType = document.getElementById("audit-event-filter")?.value || "";
-  const userId = document.getElementById("audit-user-filter")?.value || "";
-  el.innerHTML = "<div class='text-slate-400'>조회 중...</div>";
-  try {
-    const qs = new URLSearchParams({ event_type: eventType, user_id: userId, limit: "100" });
-    const data = await api(`/api/admin/audit-log?${qs.toString()}`);
-    if (!data.events?.length) {
-      el.innerHTML = "<div class='text-slate-400'>표시할 감사 로그가 없습니다.</div>";
-      return;
-    }
-    el.innerHTML = data.events.map(ev => `
-      <div class="py-1 border-b" style="border-color:var(--border);">
-        <span style="color:var(--text-mute);">${escHtml(ev.created_at || "")}</span>
-        · <span style="color:var(--accent);font-weight:600;">${escHtml(ev.event_type || "")}</span>
-        · <span style="color:var(--text-dim);">user=${escHtml(ev.user_id || "-")}</span>
-        <span style="color:var(--text-mute);">${escHtml(JSON.stringify(ev.payload || {}))}</span>
-      </div>
-    `).join("");
-  } catch (e) {
-    el.innerHTML = `<div class='text-red-400'>${escHtml(e.message)}</div>`;
-  }
+  ensureBarHost(document, "audit-log", "audit-log-bar");     // 칩 줄은 스크롤 상자(#audit-log) 밖에
+  if (!auditPanel.state().rows.length) el.innerHTML = "<div class='text-slate-400'>조회 중...</div>";
+  await auditPanel.load();
 }
 document.getElementById("audit-refresh-btn")?.addEventListener("click", loadAuditLog);
 

@@ -65,7 +65,9 @@ async def test_직접매매_주문_내역은_모의주문_내역과_같은_출�
 
 
 def test_화면은_빠진_주문을_어디서_보는지_알린다():
-  src = (ROOT / "public" / "js" / "trading.js").read_text(encoding="utf-8")
-  body = src[src.index("async function loadOrderHistory("): src.index("async function loadBrokerStatus(")]
-  assert re.search(r'^\s+el\.insertAdjacentHTML\("beforeend", `[^`]*자동매매 현황', body, re.M)
+  # 줄 아래 안내는 목록 제어기(js/listbar-trade.js tradeOrdersBodyHtml)가 붙인다(2026-11-05 · 새로고침 + 매매 칩) — 글은 그대로
+  src = (ROOT / "public" / "js" / "listbar-trade.js").read_text(encoding="utf-8")
+  body = src[src.index("export function tradeOrdersBodyHtml("): src.index("/** 최근 주문 제어기")]
+  assert re.search(r'자동매매 · Open API 주문은 <a href="#quant-auto"[^>]*>자동매매 현황', body)
   assert 'href="#quant-auto"' in body
+  assert "tradeOrderPanel(" in (ROOT / "public" / "js" / "trading.js").read_text(encoding="utf-8")

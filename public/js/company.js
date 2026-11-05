@@ -8,6 +8,7 @@ import {
   cvSectorCards, cvSectorNote,
 } from "/js/companyview.js";
 import { ctMount } from "/js/company-compare-table.js";
+import { createSectorPanel, ensureSectorTools, refreshNoteText } from "/js/listbar-misc.js";   // 업종 카드 검색 · 정렬 · 새로고침 + 지표 비교 표 새로고침 안내 (2026-11-05)
 
 // ── 기업분석 (Mockup) ────────────────────────────────────────────
 const COMPANIES = [
@@ -227,6 +228,8 @@ function mountCompareTable() {
   if (!compareTable) {
     compareTable = ctMount({
       fetchPage: qs => api(`/api/data/indicators/table?${qs}`), esc: escHtml, max: CV_COMPARE_MAX,
+      // 새로고침 단추 뒤 안내 — 시장 · 업종 · 검색 · 정렬 · 쪽은 그대로 두고 같은 조건으로 서버에서 다시 읽는다(서버 저장본이 있으면 그 값)
+      refreshNote: () => refreshNoteText("같은 조건으로 읽었습니다 · 서버가 5분 안에 만든 표는 그대로 돌려주며 화면이 새로 계산하지 않습니다"),
       isPicked: code => compareCodes.includes(code),
       pickedCount: () => compareCodes.length,
       onPick: code => {
@@ -283,22 +286,27 @@ async function loadCompanyCompare() {
 }
 
 // ── 섹터(설계 결정 ③ 안 C — 섹터 = 업종별 PER · PBR 중앙값 · 하루 등락은 「산업」 화면 · 2026-10-30 · 할 일 ①-16) ──────
-let sectorSeq = 0;
+// 검색(업종명) · 정렬 칩 · 새로고침(2026-11-05) — 받은 업종 전부 안에서 거르고 정렬만 한다(값을 셈하지 않는다). 새로고침은 서버에서 다시 읽기:
+// 서버가 5분 안에 만든 묶음은 그대로 돌려준다(company_indicators._SECTOR_TTL). 설정 · 순수 함수는 js/listbar-misc.js(createSectorPanel · sectorView).
+let sectorPanel = null;
+
+function mountSectorPanel() {
+  if (sectorPanel) return sectorPanel;
+  if (!ensureSectorTools(document, "co-sector-cards", "co-sector-q", "co-sector-bar")) return null;
+  sectorPanel = createSectorPanel({
+    barHost: "co-sector-bar", cardsHost: "co-sector-cards", noteHost: "co-sector-note", searchId: "co-sector-q",
+    load: () => api("/api/data/indicators/sectors"),
+    renderCards: cvSectorCards, renderNote: cvSectorNote, message: coMessage,
+    loadingText: "업종별 PER · PBR 을 계산하는 중… (처음 한 번은 몇 초 걸립니다)",
+    meaning: "서버에서 다시 읽었습니다",
+    tail: "서버가 5분 안에 만든 업종 묶음은 그대로 돌려주며 화면이 새로 계산하지 않습니다",
+  }, { esc: escHtml, byId: id => document.getElementById(id) });
+  return sectorPanel;
+}
 
 async function loadCompanySector() {
-  const cards = document.getElementById("co-sector-cards"), note = document.getElementById("co-sector-note");
-  if (!cards) return;
-  const seq = ++sectorSeq;
-  cards.innerHTML = coMessage("업종별 PER · PBR 을 계산하는 중… (처음 한 번은 몇 초 걸립니다)");
-  if (note) note.innerHTML = "";
-  try {
-    const data = await api("/api/data/indicators/sectors");
-    if (seq !== sectorSeq) return;
-    cards.innerHTML = cvSectorCards(data, escHtml);
-    if (note) note.innerHTML = cvSectorNote(data, escHtml);
-  } catch (e) {
-    if (seq === sectorSeq) cards.innerHTML = coMessage(e.message || "업종별 지표를 받지 못했습니다.", "var(--red)");
-  }
+  const panel = mountSectorPanel();
+  if (panel) await panel.load();
 }
 
 // 종목 검색 창 열기 — 아래 즉시 실행 함수가 채운다(다른 화면의 「찾기」 단추가 부른다 · js/stockfind.js)
