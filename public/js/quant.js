@@ -743,6 +743,13 @@ let autoFilter = { order: "", signal: "" };     // 걸린 조건("" = 전체) �
 let autoGroups = [];                            // 지금 그려진 칩 묶음(모르는 낱말을 막는 데 쓴다)
 let autoNote = "";                              // 새로고침 뒤 안내 글
 
+/** 현재 전략의 보류 경고는 로그 필터로 숨기지 않는다. */
+function corporateHoldHtml(cycle) {
+  return cycle?.v2?.code === "CORPORATE_ACTION_RECONCILIATION"
+    ? `<div role="alert" class="mt-2 rounded-lg border p-3" style="border-color:var(--red);color:var(--red);"><strong>전략 실행 보류</strong><p class="mt-1">${escHtml(cycle.note || "보류 중에는 자동 손절·익절도 실행되지 않습니다.")}</p></div>`
+    : "";
+}
+
 /** 회차 카드 한 장 — 서버가 준 한 회차(신호 · 주문 · 위험관리). 글은 모두 이스케이프한다. */
 function autoCycleHtml(cycle) {
   const trades = (cycle.trades || []).map(t => renderTradeExecution(t, escHtml, fmt)).join("");
@@ -781,7 +788,7 @@ function autoRepaint() {
   const view = autoTradeView(autoLast.log, autoFilter, { esc: escHtml, cycleHtml: autoCycleHtml, note: autoNote });
   autoGroups = view.groups;
   const host = autoMountBar();
-  if (host) host.innerHTML = view.barHtml;
+  if (host) host.innerHTML = corporateHoldHtml((autoLast.log || []).at(-1)) + view.barHtml;
   el.innerHTML = view.listHtml;
 }
 

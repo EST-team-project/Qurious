@@ -1030,6 +1030,20 @@ async def notify_risk_halt(reason: str, day_pnl_pct: float | None = None, user_i
     await dispatch_event(ev, user_id=user_id)
 
 
+async def notify_corporate_action_hold(*, symbol: str, strategy_id: str, reason: str,
+                                       ref: str, user_id: str) -> None:
+    """해당 전략의 조정 사건 보류를 사용자별·보류 사건별 한 번 알린다."""
+    ev = alert_format.AlertEvent(
+        kind="risk_halt", severity="urgent", emoji="🛑", title="[위험관리] 가격 조정 사건으로 전략 보류",
+        summary="보류 중에는 자동 손절·익절도 실행되지 않습니다.",
+        fields=[("종목", symbol), ("전략", strategy_id)], reason=reason,
+        risk="보류 중에는 자동 손절·익절도 실행되지 않습니다.",
+        next_action="보유 수량·평균단가와 손절·익절 기준을 확인해 주세요. 자동 교정·보류 해제 기능은 아직 없습니다.",
+        subject="[위험관리] 가격 조정 사건으로 전략 보류",
+    )
+    await dispatch_event(ev, user_id=user_id, dedupe_kind="strategy_corporate_action_hold", ref=ref)
+
+
 async def notify_risk_skip(symbol: str, name: str, side: str, reason: str, user_id: str | None = None,
                            *, details: list[tuple[str, str]] | None = None) -> None:
     """위험관리 규칙으로 주문을 생략했음을 알린다 (중복 주문·한도 초과). 같은 시간대 여러 건은 묶어서 나간다."""

@@ -24,7 +24,7 @@ export const api = async (url, opts={}) => {
   throw Error('Unexpected API: '+url);
 };
 export const setToast = (s) => window.toasts.push(s);
-export const getMe = () => null;
+export const getMe = async () => ({user: {roles: []}});
 export const escHtml = s => String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;');
 export const fmt = s => String(s??0);
 export const fmtPct = fmt;
