@@ -51,9 +51,10 @@ async def get_pg_session() -> AsyncIterator[AsyncSession]:
         from fastapi import HTTPException
         try:
             yield session
-        except CredentialStorageError:
-            raise HTTPException(503, {"code": "CREDENTIAL_STORAGE_UNAVAILABLE", "message": str(CredentialStorageError())}) from None
+        except CredentialStorageError as exc:
+            # 문구는 예외가 가진 것을 쓴다 — 증권사 · 알림(NotificationStorageError) 문구가 서로 다르다. 값 · 암호문은 문구에 없다
+            raise HTTPException(503, {"code": "CREDENTIAL_STORAGE_UNAVAILABLE", "message": str(exc)}) from None
         except StatementError as exc:
             if isinstance(exc.orig, CredentialStorageError):
-                raise HTTPException(503, {"code": "CREDENTIAL_STORAGE_UNAVAILABLE", "message": str(CredentialStorageError())}) from None
+                raise HTTPException(503, {"code": "CREDENTIAL_STORAGE_UNAVAILABLE", "message": str(exc.orig)}) from None
             raise

@@ -405,6 +405,12 @@ async def send_sms(
 NO_SETTINGS = {"_no_settings": True}
 
 
+def _is_credential_storage_error(exc: BaseException) -> bool:
+    """직접 던진 것과 SQLAlchemy `StatementError.orig` 로 감싸진 것 둘 다 — 암호화 키 오류인가."""
+    from app.lib.broker_secrets import CredentialStorageError  # noqa: PLC0415
+    return isinstance(exc, CredentialStorageError) or isinstance(getattr(exc, "orig", None), CredentialStorageError)
+
+
 async def _load_user_settings(user_id: str | None) -> dict:
     """PostgreSQL에서 사용자별 알림 설정을 조회한다. 사용자가 없는 호출은 `{}`, 설정 행이 없거나 조회가 실패하면 `NO_SETTINGS`."""
     if not user_id:
@@ -446,7 +452,12 @@ async def _load_user_settings(user_id: str | None) -> dict:
             "preferences": row.preferences or {},
         }
     except Exception as exc:
-        logger.warning("사용자 알림 설정 조회 실패 — 이 사용자의 알림은 보내지 않습니다: %s", _safe_exc(exc))
+        if _is_credential_storage_error(exc):
+            # 키 누락 · 변조 · 복호화 실패 — 일반 조회 실패와 구분한다(로그 감시 · 알림 규칙이 이 표시를 본다). 평문 · 공용 채널로 우회하지 않는다
+            logger.error("[CREDENTIAL_STORAGE] 알림 설정을 복호화하지 못했습니다 — 이 사용자의 알림은 보내지 않습니다(암호화 키 확인 필요): %s",
+                         type(exc).__name__)
+        else:
+            logger.warning("사용자 알림 설정 조회 실패 — 이 사용자의 알림은 보내지 않습니다: %s", _safe_exc(exc))
         return dict(NO_SETTINGS)
 
 
