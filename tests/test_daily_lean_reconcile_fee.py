@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from scripts.daily_lean_reconcile import judge_fee, pull_failure_text
 
 
-def test_judge_fee_uses_top_level_lean_fills_and_compares_rates():
+def test_judge_fee_uses_top_level_lean_fills_and_compares_costs_and_rates():
     journal_rows = [{
         "fills": [{
             "fill_price": 100,
@@ -19,12 +19,14 @@ def test_judge_fee_uses_top_level_lean_fills_and_compares_rates():
 
     result = judge_fee(journal_rows, lean_stats, lean_fills)
 
-    assert result["verdict"] == "참고용(요율)"
+    assert result["verdict"] == "불일치"
     assert result["j_bp"] == 100
     assert result["l_bp"] == 100
     assert result["delta_bp"] == 0
     assert result["j_gross"] == 1000
     assert result["l_gross"] == 2000
+    assert result["j_cost"] == 10
+    assert result["l_cost"] == 20
 
 
 def test_judge_fee_fails_closed_without_lean_fills():
