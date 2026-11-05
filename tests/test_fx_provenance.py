@@ -26,9 +26,11 @@ T0 = 1_792_022_400.0            # 2026-10-15 00:00 UTC = 09:00 KST
 @pytest.fixture(autouse=True)
 def fresh(monkeypatch):
     fx._CACHE.clear()
+    fx._AUDIT_LOCKS.clear()
     pt._STOCK_CACHE.clear()
     yield
     fx._CACHE.clear()
+    fx._AUDIT_LOCKS.clear()
     pt._STOCK_CACHE.clear()
 
 
@@ -147,3 +149,80 @@ def test_resolve_stock_won_quote_has_no_fx(monkeypatch):
     d = asyncio.run(pt.resolve_stock("TESTKR"))
     assert d["fx_rate"] == 1.0 and d["fx_source"] is None and d["fx_as_of"] is None and d["fx_note"] is None
     assert calls == []
+
+
+def test_audit_uses_one_fetch_and_reuses_fresh_cache(monkeypatch):
+    """감사 경로에서도 같은 통화의 정상 캐시는 외부 조회를 반복하지 않는다."""
+    _clock(monkeypatch, T0)
+    calls = _quote(monkeypatch, 1385.2)
+
+    first = asyncio.run(fx.to_krw_info_with_audit(2, "USD"))
+    second = asyncio.run(fx.to_krw_info_with_audit(2, "USD"))
+
+    assert first[0] == second[0] == 2770.4
+    assert first[2]["status"] == "live"
+    assert first[2]["cache_hit"] is False
+    assert first[2]["fallback_used"] is False
+    assert second[2]["status"] == "live"
+    assert second[2]["cache_hit"] is True
+    assert second[2]["fallback_used"] is False
+    assert len(calls) == 1
+
+
+def test_audit_marks_expired_cache_as_stale_fallback(monkeypatch):
+    """TTL 만료 후 조회 실패 시 오래된 값을 쓰되 stale/fallback을 명시한다."""
+    _clock(monkeypatch, T0)
+    calls = []
+
+    async def fake_quote(symbol):
+        calls.append(symbol)
+        if len(calls) == 1:
+            return {"price": 1385.2, "as_of": "2026-10-15 09:00"}
+        raise RuntimeError("timeout")
+
+    monkeypatch.setattr(stock, "get_quote", fake_quote)
+
+    first = asyncio.run(fx.to_krw_info_with_audit(2, "USD"))
+    _clock(monkeypatch, T0 + 700)
+    second = asyncio.run(fx.to_krw_info_with_audit(2, "USD"))
+
+    assert first[2]["status"] == "live"
+    assert first[2]["fallback_used"] is False
+    assert second[0] == 2770.4
+    assert second[1]["source"] == "last"
+    assert second[2]["status"] == "stale"
+    assert second[2]["cache_hit"] is True
+    assert second[2]["fallback_used"] is True
+    assert second[2]["fallback_reason"] == "fx_fetch_failed_using_last"
+    assert second[2]["fallback_price"] == 1385.2
+    assert second[2]["cache_age_sec"] >= 700
+    assert second[2]["as_of"].isoformat() == "2026-10-15T09:00:00+09:00"
+    assert second[2]["fetched_at"].timestamp() == T0
+    assert len(calls) == 2
+
+
+def test_audit_concurrent_same_currency_requests_fetch_once(monkeypatch):
+    """동일 통화의 동시 캐시 미스가 Yahoo 중복 조회를 만들지 않는다."""
+    _clock(monkeypatch, T0)
+    calls = []
+
+    async def fake_quote(symbol):
+        calls.append(symbol)
+        # 첫 요청이 캐시를 기록하기 전에 두 번째 요청이 실행될 기회를 준다.
+        await asyncio.sleep(0.02)
+        return {"price": 1385.2}
+
+    monkeypatch.setattr(stock, "get_quote", fake_quote)
+
+    async def run():
+        return await asyncio.gather(
+            fx.to_krw_info_with_audit(2, "USD"),
+            fx.to_krw_info_with_audit(3, "USD"),
+        )
+
+    results = asyncio.run(run())
+
+    assert len(calls) == 1, f"동일 통화 Yahoo 중복 조회 발생: {len(calls)}회"
+    assert results[0][0] == 2770.4
+    assert results[1][0] == 4155.6
+    assert all(result[2]["status"] == "live" for result in results)
