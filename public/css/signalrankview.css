@@ -74,3 +74,11 @@
 .qd-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 6px; }
 .qd-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
 #quant-ext-chart[hidden], #quant-ext-note[hidden] { display: none !important; }
+
+/* 순위 필터(2026-11-05) — 신호 · 시장 단추 줄 + 줄 수. 눌린 단추는 aria-pressed="true" 로 칠한다(색만으로 말하지 않게 굵기도 바꾼다). */
+#sr-filter { margin: 0 0 12px; }
+#sr-filter .sr-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; align-items: center; }
+#sr-filter .sr-chip { padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text-dim); cursor: pointer; min-height: 32px; }
+#sr-filter .sr-chip:hover { background: var(--surf2); }
+#sr-filter .sr-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+#sr-filter .sr-chip:focus-visible, #sr-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

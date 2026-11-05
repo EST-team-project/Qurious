@@ -293,3 +293,39 @@ def test_rank_load_keeps_only_the_last_request(tmp_path):
     assert out["afterSecond"] is True
     assert out["lateOverwrote"] is False         # 늦게 온 검색 응답이 전체 표를 덮지 않는다
     assert out["staleErrorShown"] is False       # 옛 요청의 실패 글도 새 요청의 「불러오는 중」 을 지우지 않는다
+
+
+def test_filter_query_bar_and_note(tmp_path):
+    """TC-RKS-16 — 신호 · 시장 필터(2026-11-05): 질의 글은 서버 낱말만(모르는 낱말 · 기본 줄 수는 보내지 않는다) · 필터 줄은 눌린 단추에
+    aria-pressed · 응답에 필터가 있으면 머리줄에 「맞는 N종목 중 M줄」 · 필터 없는 응답은 옛 머리줄 그대로 · 필터로 비면 필터를 풀라는 글."""
+    out = _run(tmp_path, """
+      out.none = sr.filterQuery({signal: "", market: "", limit: 50});
+      out.one = sr.filterQuery({signal: "매수", market: "", limit: 50});
+      out.all = sr.filterQuery({signal: "관망", market: "KOSDAQ", limit: 200});
+      out.bad = sr.filterQuery({signal: "BUY", market: "코스피", limit: 7});
+      out.bar = sr.filterBarHtml(esc, {signal: "매도", market: "ETF", limit: 100});
+      const rows = [{rank: 1, symbol: "005930", as_of: "2026-11-03", signal: "매수", composite: 2, confidence: 0.5, counts: {buy: 2, neutral: 0, sell: 0}}];
+      out.note = sr.filterNote({filter: {signal: "매수", market: "KOSPI"}, matched: 123, rows});
+      out.noNote = sr.filterNote({filter: {signal: null, market: null}, matched: null, rows});
+      out.table = sr.renderRankTable({filter: {signal: "매수", market: "KOSPI"}, matched: 123, total: 3875, rows, missing: []}, esc);
+      out.plain = sr.renderRankTable({filter: {signal: null, market: null}, matched: null, total: 3875, rows, missing: []}, esc);
+      out.empty = sr.renderRankTable({filter: {signal: "매도", market: "ETF"}, matched: 0, total: 3875, rows: [], missing: []}, esc);
+    """)
+    assert (out["none"], out["one"]) == ("", "?signal=%EB%A7%A4%EC%88%98")
+    assert out["all"] == "?signal=%EA%B4%80%EB%A7%9D&market=KOSDAQ&limit=200" and out["bad"] == ""
+    pressed = re.findall(r'data-sr-filter="(\w+)" data-value="([^"]*)" aria-pressed="true"', out["bar"])
+    assert sorted(pressed) == [("market", "ETF"), ("signal", "매도")] and '<option value="100" selected>' in out["bar"]
+    assert out["note"] == "조건 매수 · KOSPI — 맞는 123종목 중 1줄" and out["noNote"] == ""
+    assert "data-sr-filter-note" in out["table"] and "맞는 123종목 중 1줄" in out["table"]
+    assert "data-sr-filter-note" not in out["plain"]
+    assert "이 조건에 맞는 종목이 없습니다" in out["empty"] and "이 날짜의 신호 기록이 아직 없습니다" not in out["empty"]
+
+
+def test_filter_is_wired_into_the_view_only():
+    """TC-RKS-17 — 필터 줄은 화면 파일(signalrankview.js)에서만 붙고 app.html 은 건드리지 않는다 · 필터를 걸면 종목 검색 칸을 비운다 ·
+    「전체 순위」 는 필터도 푼다 · 화면을 다시 열면 지난 필터로 읽는다."""
+    view = (ROOT / "public" / "js" / "signalrankview.js").read_text(encoding="utf-8")
+    html = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    assert "filterBarHtml" in view and "filterQuery(srvFilter)" in view and "sr-filter" not in html
+    assert view.count("srvFilter = { ...FILTER_DEFAULT }") >= 2          # 처음 값 + 「전체 순위」 로 풀기
+    assert 'input.value = ""' in view

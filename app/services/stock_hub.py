@@ -90,6 +90,32 @@ SIGNAL_NOT_UNIVERSE = ("이 종목은 다중 주기 신호를 매일 기록하�
                        "차트 패턴 화면에서 그때그때 계산해 볼 수 있습니다.")
 SIGNAL_NONE = "아직 이 종목의 다중 주기 신호 기록이 없습니다."
 SIGNAL_RANK_DEFAULT, SIGNAL_RANK_MAX, SIGNAL_RANK_SYMBOLS_MAX = 50, 500, 100
+SIGNAL_RANK_SIGNALS = ("매수", "매도", "관망")      # 순위 필터(2026-11-05) — 기록의 `signal` 칸과 같은 낱말
+SIGNAL_RANK_MARKETS = ("KOSPI", "KOSDAQ", "ETF")   # 순위 필터 — 수집 DB 의 시장 구분(코넥스는 기록 대상 밖이라 고르지 않는다)
+MARKET_CODES_SQL = {
+    "KOSPI": "SELECT DISTINCT srtn_cd FROM price_daily WHERE mrkt_ctg = 'KOSPI' AND bas_dt = (SELECT MAX(bas_dt) FROM price_daily)",
+    "KOSDAQ": "SELECT DISTINCT srtn_cd FROM price_daily WHERE mrkt_ctg = 'KOSDAQ' AND bas_dt = (SELECT MAX(bas_dt) FROM price_daily)",
+    "ETF": "SELECT DISTINCT srtn_cd FROM etf_daily WHERE bas_dt = (SELECT MAX(bas_dt) FROM etf_daily)",
+}
+
+
+def market_codes(market: str) -> frozenset[str] | None:
+    """시장(KOSPI · KOSDAQ · ETF)에 속한 종목코드 6자리 모음 — 수집 DB 마지막 거래일 기준. 못 읽으면 None(필터를 걸지 못함)."""
+    sql = MARKET_CODES_SQL.get(market)
+    path = collector_db.db_path()
+    if sql is None or path is None:
+        return None
+    try:
+        conn = _open_ro(path)
+    except sqlite3.Error:
+        return None
+    try:
+        return frozenset(str(r[0]) for r in conn.execute(sql))
+    except sqlite3.Error:                              # etf_daily 표가 없는 수집 DB
+        return None
+    finally:
+        conn.close()
+
 SIGNAL_RANK_NOTE = ("순위는 매 거래일 기록해 둔 규칙 점수(종합 점수 → 신뢰도 → 종목코드)를 그대로 줄 세운 것입니다 — 이 요청에서 새로 계산하지 않았습니다. "
                     "줄마다 기준일(as_of)이 그 줄이 기록된 거래일이라, 그날 기록이 없는 종목은 앞 날짜의 줄이 보입니다.")
 SIGNAL_BASIS = "KRX 정규장 종가"
@@ -479,14 +505,26 @@ def _no_intraday(snap: dict) -> bool:
 
 
 async def signal_rank(db, on: date | None = None, symbols: list[str] | None = None, limit: int = SIGNAL_RANK_DEFAULT,
-                      components: bool = False) -> dict:
+                      components: bool = False, signal: str | None = None, market: str | None = None) -> dict:
     """신호 기록 순위 — 종목마다 `on` 이전(포함) 가장 최근 기록 한 줄을 종합 점수 → 신뢰도 → 종목코드 순으로(#197 2).
 
     새로 계산하지 않는다(`load_day` 가 읽고 `side_counts` 가 근거 표 줄의 부호를 센다). 근거 문장 하나가 낯설어도
     그 줄의 `counts` 만 비우고(`counts_note`) 나머지 줄은 그대로 돌려준다. `symbols` 를 주면 그 종목만 보고, 기록이 없는
     종목은 `missing` 에 허브와 같은 두 갈래 · 같은 안내 문장으로 남긴다.
+
+    `signal`(매수 · 매도 · 관망) · `market`(KOSPI · KOSDAQ · ETF)을 주면 **limit 전에** 그 조건에 맞는 종목만 줄 세운다
+    (2026-11-05 · 화면 필터). 조건에 맞는 종목 수는 응답의 `matched` 다. 시장을 못 읽으면 말없이 전체를 보이지 않고
+    `HubError`(503 `market_unavailable`)를 낸다.
     """
-    day = await signal_explain.load_day(db, on=on, symbols=symbols, limit=limit)   # 위 limit 줄만 DB 에서 읽는다(#487)
+    extra: dict = {}
+    if signal is not None:
+        extra["signal"] = signal
+    if market is not None:
+        codes = await asyncio.to_thread(market_codes, market)
+        if codes is None:
+            raise HubError(503, "market_unavailable", "시장 구분을 읽지 못했습니다 — 수집 DB 를 확인해 주세요.")
+        extra["only_codes"] = codes
+    day = await signal_explain.load_day(db, on=on, symbols=symbols, limit=limit, **extra)   # 위 limit 줄만 DB 에서 읽는다(#487)
     rows, unreadable = [], 0
     for snap in day["rows"]:
         as_of = snap["as_of"]
@@ -512,7 +550,7 @@ async def signal_rank(db, on: date | None = None, symbols: list[str] | None = No
     # 머리줄은 자르기 전 전체 줄의 집계로(#487) — 순위 밖 줄의 기준일이 더 늦어도 맞다
     fresh = signal_freshness(day["as_of_max"], day["computed_at_max"], day["older_count"], picked=on_day is not None)
     return {"definition": day["definition"], "on": on_day.isoformat() if on_day else None, "as_of": fresh["as_of"], "freshness": fresh,
-            "total": day["total"],
+            "total": day["total"], "matched": day.get("matched"), "filter": {"signal": signal, "market": market},
             "count": len(rows), "limit": limit, "rows": rows, "missing": missing, "unreadable": unreadable,
             "source": SIGNAL_SOURCE, "notice": signal_explain.DISCLAIMER, "note": SIGNAL_RANK_NOTE}
 

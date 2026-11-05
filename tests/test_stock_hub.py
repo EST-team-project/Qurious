@@ -818,3 +818,40 @@ def test_hub_endpoint_signal_on(client, monkeypatch):
     assert client.get("/api/stock-hub?symbol=055550&sections=signal&signal_on=가나다").status_code == 422
     future = client.get("/api/stock-hub?symbol=055550&sections=signal&signal_on=2099-01-01")
     assert future.status_code == 422 and future.json()["detail"]["code"] == "bad_signal_on"
+
+
+def test_signal_rank_filters_reach_load_day_before_limit(client, monkeypatch):
+    """TC-HUB-71 · 신호 순위 필터(2026-11-05) — `signal`(매수 · 매도 · 관망)과 `market`(KOSPI · KOSDAQ · ETF)이 limit 전에 걸리도록
+    읽는 쪽(`load_day`)에 그대로 가고, 잘못된 낱말은 422 · 시장을 못 읽으면 말없이 전체를 보이지 않고 503 · 필터가 없으면 읽는 쪽에
+    새 인자를 넘기지 않는다(옛 호출과 같다) · 응답에 `matched` 와 `filter` 가 있다."""
+    from app.lib.session import get_current_user  # noqa: PLC0415
+
+    got = []
+
+    async def load_day(db, on=None, symbols=None, limit=None, **extra):
+        got.append((limit, dict(extra)))
+        rows = _day_rows(3)
+        return {"on": on, "definition": "def-test", "rows": rows[:limit], "missing": [], "total": 3, "as_of_max": rows[0]["as_of"],
+                "computed_at_max": None, "older_count": 0, "matched": 2 if extra else None}
+
+    monkeypatch.setattr(H.signal_explain, "load_day", load_day)
+    monkeypatch.setattr(H, "market_codes", lambda m: frozenset({"005930", "000660"}) if m != "ETF" else None)
+
+    plain = client.get("/api/stock-hub/signal-rank?limit=2").json()
+    assert got[-1] == (2, {}) and plain["matched"] is None and plain["filter"] == {"signal": None, "market": None}
+
+    r = client.get("/api/stock-hub/signal-rank", params={"signal": "매수", "market": "KOSPI", "limit": 2})
+    body = r.json()
+    assert r.status_code == 200 and got[-1] == (2, {"signal": "매수", "only_codes": frozenset({"005930", "000660"})})
+    assert body["matched"] == 2 and body["filter"] == {"signal": "매수", "market": "KOSPI"}
+
+    only_signal = client.get("/api/stock-hub/signal-rank", params={"signal": "관망"})
+    assert only_signal.status_code == 200 and got[-1][1] == {"signal": "관망"}
+
+    for q in ({"signal": "BUY"}, {"signal": "강력매수"}, {"market": "코스피"}, {"market": "KONEX"}):
+        bad = client.get("/api/stock-hub/signal-rank", params=q)
+        assert bad.status_code == 422 and bad.json()["detail"]["code"] in ("bad_signal", "bad_market"), q
+
+    unreadable = client.get("/api/stock-hub/signal-rank", params={"market": "ETF"})
+    assert unreadable.status_code == 503 and unreadable.json()["detail"]["code"] == "market_unavailable"
+    del client.app_ref.dependency_overrides[get_current_user]

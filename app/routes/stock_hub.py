@@ -47,9 +47,15 @@ async def signal_rank(
                                 description="쉼표로 고른 종목 코드(최대 100) — 비우면 기록이 있는 모든 종목 · 기록이 없는 종목은 missing 에 까닭과 함께"),
     limit: int = Query(stock_hub.SIGNAL_RANK_DEFAULT, ge=1, le=stock_hub.SIGNAL_RANK_MAX, description="돌려줄 줄 수(순위 위에서부터)"),
     components: bool = Query(False, description="참이면 줄마다 근거별 점수(components)도 싣는다"),
+    signal: str | None = Query(None, description="매수 · 매도 · 관망 중 하나 — limit 전에 그 신호인 종목만 줄 세운다(2026-11-05)"),
+    market: str | None = Query(None, description="KOSPI · KOSDAQ · ETF 중 하나 — limit 전에 그 시장 종목만 줄 세운다(2026-11-05)"),
     db=Depends(get_pg_session),
     _user=Depends(get_current_user),
 ):
+    if signal is not None and signal not in stock_hub.SIGNAL_RANK_SIGNALS:
+        raise HTTPException(status_code=422, detail={"code": "bad_signal", "message": "신호는 매수 · 매도 · 관망 중 하나여야 합니다."})
+    if market is not None and market not in stock_hub.SIGNAL_RANK_MARKETS:
+        raise HTTPException(status_code=422, detail={"code": "bad_market", "message": "시장은 KOSPI · KOSDAQ · ETF 중 하나여야 합니다."})
     codes = None
     if symbols is not None:
         try:
@@ -59,7 +65,10 @@ async def signal_rank(
         if not codes or len(codes) > stock_hub.SIGNAL_RANK_SYMBOLS_MAX:
             raise HTTPException(status_code=422, detail={"code": "bad_symbols",
                                                          "message": f"종목 코드는 1 ~ {stock_hub.SIGNAL_RANK_SYMBOLS_MAX}개를 쉼표로 적어 주세요."})
-    out = await stock_hub.signal_rank(db, on, codes, limit, components)
+    try:
+        out = await stock_hub.signal_rank(db, on, codes, limit, components, signal, market)
+    except stock_hub.HubError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail()) from None
     return stock_hub.attach_names(out)         # 줄마다 종목 이름 — 순위 화면이 코드만 보이지 않게(새 칸 `rows[].name`)
 
 
