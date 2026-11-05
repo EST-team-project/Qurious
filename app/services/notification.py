@@ -1035,7 +1035,7 @@ async def notify_corporate_action_hold(*, symbol: str, strategy_id: str, reason:
     """해당 전략의 조정 사건 보류를 사용자별·보류 사건별 한 번 알린다."""
     ev = alert_format.AlertEvent(
         kind="risk_halt", severity="urgent", emoji="🛑", title="[위험관리] 가격 조정 사건으로 전략 보류",
-        summary="해당 전략의 추가 진입과 자동 청산을 보류했습니다.",
+        summary="보류 중에는 자동 손절·익절도 실행되지 않습니다.",
         fields=[("종목", symbol), ("전략", strategy_id)], reason=reason,
         risk="보류 중에는 자동 손절·익절도 실행되지 않습니다.",
         next_action="보유 수량·평균단가와 손절·익절 기준을 확인해 주세요. 자동 교정·보류 해제 기능은 아직 없습니다.",

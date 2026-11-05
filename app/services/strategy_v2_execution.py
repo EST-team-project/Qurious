@@ -16,6 +16,7 @@ from app.services import (strategy_v2 as v2, execution_control as control, live_
 
 SYMBOL = '005930.KS'
 CORPORATE_ACTION_REASON = ('가격 조정 사건으로 이 전략의 추가 진입과 자동 청산(손절·익절 포함)을 보류합니다. '
+                          '보류 중에는 자동 손절·익절도 실행되지 않습니다. '
                           '보유 수량·평균단가·손절·익절 기준의 대조와 교정 전에는 자동 재개하지 않습니다. '
                           '현재 자동 교정·보류 해제 기능은 지원하지 않습니다.')
 

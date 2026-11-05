@@ -89,6 +89,7 @@ def test_detected_hold_is_logged_as_blocked_with_visible_reason(runtime, monkeyp
             assert logs[-1]['execution_state'] == 'BLOCKED', logs[-1]
             assert logs[-1]['v2']['code'] == 'CORPORATE_ACTION_RECONCILIATION'
             assert '자동 청산(손절·익절 포함)' in logs[-1]['note']
+            assert '보류 중에는 자동 손절·익절도 실행되지 않습니다.' in logs[-1]['note']
             assert not logs[-1]['trades']
     asyncio.run(scenario())
 
@@ -169,3 +170,19 @@ def test_corporate_action_notification_is_deduplicated_per_user(runtime, monkeyp
                 assert len(logs) == 1 and logs[0].kind == 'strategy_corporate_action_hold'
         assert send.await_count == 2
     asyncio.run(scenario())
+
+
+def test_hold_warning_is_explicit_in_short_and_full_notifications(monkeypatch):
+    from app.services import alert_format
+    dispatch = AsyncMock()
+    monkeypatch.setattr(notification, 'dispatch_event', dispatch)
+    asyncio.run(NOTIFY_HOLD(symbol='005930.KS', strategy_id='ma_cross_20_60',
+        reason=runner.CORPORATE_ACTION_REASON, ref='synthetic', user_id='synthetic-user'))
+    event = dispatch.await_args.args[0]
+    warning = '보류 중에는 자동 손절·익절도 실행되지 않습니다.'
+    assert warning in alert_format.render_sms(event)
+    assert warning in alert_format.render_plain(event)
+    assert warning in alert_format.render_telegram(event)
+    assert warning in str(alert_format.render_discord(event))
+    _, html, text = alert_format.render_email(event)
+    assert warning in html and warning in text
