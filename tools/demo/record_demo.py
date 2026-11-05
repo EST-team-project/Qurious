@@ -1,7 +1,7 @@
 """시연 영상 녹화기 — 장면 파일(YAML) 하나로 영상 · 자막 · 장 파일을 만든다.
 
 쓰는 법 (앱을 켠 뒤 · 저장소 뿌리에서)
-  python tools/demo/record_demo.py docs/common/06-retrospective/videos/장면/V01-성향진단-자산배분.yaml
+  python tools/demo/record_demo.py docs/phase-<차수>/06-retrospective/videos/장면/V01-성향진단-자산배분.yaml
   python tools/demo/record_demo.py <장면.yaml> --no-video        # 영상 없이 단계만 밟아 보기(누를 곳 확인)
   python tools/demo/record_demo.py --inventory agent-chat,robo-portfolio   # 화면마다 누를 곳 목록
 
@@ -9,7 +9,7 @@
   <이름>.webm · <이름>.ko.vtt(자막) · <이름>.chapters.vtt(장) · <이름>.ch<n>.jpg(장마다 제목 카드 그림)
   · <이름>.json(단계별 시각 · go 단계의 화면 키 · 시작 화면 · 줄인 기다림 · 콘솔 오류 수)
   → 앱의 사용법 창에서 보려면 tools/demo/help_videos.py build (영상 표를 만들어 data/help/ 로)
-  → 저장소 · 발표 자료에서 재생할 mp4 는 tools/demo/export_mp4.py (docs/common/06-retrospective/videos/파일/ 로 · 2026-10-19)
+  → 저장소 · 발표 자료에서 재생할 mp4 는 tools/demo/export_mp4.py (docs/phase-<차수>/06-retrospective/videos/파일/ 로 · 2026-10-19)
 
 계정: 환경 변수 DEMO_EMAIL · DEMO_PASSWORD (없으면 이 PC 로컬 전용 시연 계정 · --ensure-account 면 없을 때 만든다)
 
@@ -58,6 +58,13 @@ FPS = 25
 VW, VH, DSF = 1280, 720, 1.5          # 화면 폭(CSS px) · 배율 → 프레임 1920×1080
 KST = timezone(timedelta(hours=9))
 LIMIT_SEC = 180                        # 강사님 「각 3분 내외」
+PACE = 1.0                             # 진행 속도 배율(2026-11-05) — 장면 맨 위 `pace:` 또는 `--pace`. 1.0 이 옛(2차) 속도, 1.4 면 멈춤 · 이동 대기가 1/1.4(발표용 · 빠르게), 0.75 면 1/0.75 배로 늘어남(사용법 · 천천히)
+
+
+def _t(sec, floor=0.5):
+  """대기 시간을 PACE 로 줄인다. 자막 읽을 시간이 모자라지 않게 floor 아래로는 안 내려가고, 원래 floor 보다 짧은 대기는 그대로 둔다."""
+  sec = float(sec)
+  return max(min(sec, floor), sec / PACE)
 DEFAULT_EMAIL = "demo-video@example.com"   # 이 PC 로컬 DB 전용 시연 계정
 DEFAULT_PASSWORD = "Qurious-demo-2026!"
 DEFAULT_NAME = "체험 사용자"
@@ -212,8 +219,17 @@ class Recorder:
 
 def encode(rec, out_path, ffmpeg):
   ow, oh = int(VW * DSF), int(VH * DSF)
+  # Playwright ffmpeg-1013 부터는 VP8 이 빠지고 VP9 만 있다(2026-11-05 확인) — VP8 이 없으면 VP9 로 같은 webm 컨테이너에 인코딩한다.
+  try:
+    enc = subprocess.run([ffmpeg, "-hide_banner", "-encoders"], capture_output=True, text=True, timeout=20).stdout
+  except Exception:
+    enc = ""
+  if "(codec vp8)" in enc:
+    codec = ["-c:v", "vp8", "-qmin", "0", "-qmax", "36", "-crf", "8", "-b:v", "4M", "-deadline", "good", "-cpu-used", "4"]
+  else:
+    codec = ["-c:v", "libvpx-vp9", "-crf", "28", "-b:v", "0", "-deadline", "realtime", "-cpu-used", "6", "-row-mt", "1"]
   cmd = [ffmpeg, "-loglevel", "error", "-f", "image2pipe", "-c:v", "mjpeg", "-framerate", str(FPS), "-i", "pipe:0", "-y", "-an",
-         "-c:v", "vp8", "-qmin", "0", "-qmax", "36", "-crf", "8", "-b:v", "4M", "-deadline", "good", "-cpu-used", "4",
+         *codec,
          "-threads", "8", "-vf", f"scale={ow}:{oh}:force_original_aspect_ratio=decrease,pad={ow}:{oh}:(ow-iw)/2:(oh-ih)/2:white",
          str(out_path)]
   proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
@@ -291,7 +307,7 @@ async def run_step(page, rec, step, ctx_state):
     await asyncio.sleep(0.9)
     ctx_state["snap"]("chapter")
     ctx_state["poster"]()                       # 장 제목 카드가 다 떴을 때 — 사용법 창 영상의 첫 그림(poster)
-    await asyncio.sleep(max(0.0, float(opt.get("sec", 3.0)) - 0.9))
+    await asyncio.sleep(max(0.0, max(2.4, float(opt.get("sec", 3.0)) / PACE) - 0.9))   # 장 제목 카드도 PACE 로(읽을 2.4초는 남김)
     await page.evaluate("() => __demo.chapter('', '', '', false)")
     await asyncio.sleep(0.4)
   elif kind == "go":
@@ -303,7 +319,7 @@ async def run_step(page, rec, step, ctx_state):
       await item.click()
     else:
       await page.evaluate("k => { location.hash = k; }", view)
-    await asyncio.sleep(float(opt.get("after", 1.5)))
+    await asyncio.sleep(_t(opt.get("after", 1.5), 0.6))
   elif kind in ("click", "hover", "ring"):
     loc = await locate(page, target, timeout)
     box, x, y = await point_at(page, loc)
@@ -317,17 +333,17 @@ async def run_step(page, rec, step, ctx_state):
     else:
       await asyncio.sleep(0.4)
       ctx_state["snap"]("ring")
-    await asyncio.sleep(float(opt.get("sec", 0.6 if kind != "ring" else 2.0)))
+    await asyncio.sleep(_t(opt.get("sec", 0.6 if kind != "ring" else 2.0), 0.6))
     await page.evaluate("() => __demo.ring(0, 0, 0, 0, false)")
-    await asyncio.sleep(float(opt.get("after", 0.4)))
+    await asyncio.sleep(_t(opt.get("after", 0.4), 0.2))
   elif kind == "fill":
     loc = await locate(page, target, timeout)
     _, x, y = await point_at(page, loc)
     await page.evaluate("([x, y]) => __demo.ripple(x, y)", [x, y])
     await loc.click()
     await loc.fill("")
-    await loc.press_sequentially(str(opt["text"]), delay=float(opt.get("delay", 45)))
-    await asyncio.sleep(float(opt.get("after", 0.5)))
+    await loc.press_sequentially(str(opt["text"]), delay=float(opt.get("delay", 45)) / PACE)
+    await asyncio.sleep(_t(opt.get("after", 0.5), 0.3))
   elif kind == "select":
     loc = await locate(page, target, timeout)
     _, x, y = await point_at(page, loc)
@@ -349,9 +365,9 @@ async def run_step(page, rec, step, ctx_state):
       await page.evaluate("y => { const m = document.getElementById('main-content');"
                           " const el = m && m.scrollHeight > m.clientHeight ? m : document.scrollingElement;"
                           " el.scrollBy({top: y, behavior: 'smooth'}); }", int(opt.get("by", 400)))
-    await asyncio.sleep(float(opt.get("after", 1.0)))
+    await asyncio.sleep(_t(opt.get("after", 1.0), 0.5))
   elif kind == "pause":
-    await asyncio.sleep(float(v))
+    await asyncio.sleep(_t(v, 1.5))                  # 자막 한 줄은 1.5초 아래로는 안 줄인다(읽을 시간)
   elif kind == "wait":
     cut = bool(opt.get("cut"))
     t0 = time.perf_counter()
@@ -381,7 +397,9 @@ async def run_step(page, rec, step, ctx_state):
 
 
 async def record(scene_path, args):
+  global PACE
   scene = yaml.safe_load(Path(scene_path).read_text(encoding="utf-8"))
+  PACE = min(2.5, max(0.5, float(scene.get("pace", args.pace))))       # 장면 파일의 pace 가 우선, 없으면 --pace(기본 1.0)
   name = scene["file"]
   OUT_DIR = Path(args.out)                          # 사용법 영상은 tools/demo/out · 발표 영상은 tools/demo/out/present(--out)
   OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -535,6 +553,7 @@ def main():
   ap.add_argument("--headed", action="store_true", help="브라우저 창을 띄운다")
   ap.add_argument("--frames", action="store_true", help="자막 · 장 제목 · 강조 순간의 프레임을 out/<이름>-frames/ 에 남긴다(눈으로 훑기)")
   ap.add_argument("--ensure-account", action="store_true", help="시연 계정이 없으면 만든다(이 PC 로컬 DB)")
+  ap.add_argument("--pace", type=float, default=1.0, help="진행 속도 배율(기본 1.0 = 2차 영상과 같은 속도 · 발표용 1.4 쯤 = 빠르게 · 사용법 0.75 쯤 = 천천히 · 0.5~2.5 · 장면의 pace: 가 우선)")
   ap.add_argument("--inventory", help="화면 키(쉼표로) — 화면마다 누를 곳 목록")
   ap.add_argument("--out", default=str(OUT_DIR),
                   help="결과 폴더 — 사용법 영상은 기본(tools/demo/out) · 발표 영상은 tools/demo/out/present(사용법 영상 표에 섞이지 않게)")

@@ -5,11 +5,12 @@
   python tools/demo/export_mp4.py --check    # 쓰지 않고 편마다 상태만(내보냄 · 내보낼 것 · 장면이 바뀜 · 녹화 없음)
   python tools/demo/export_mp4.py --only P-V04-모의주문-국내미국   # 한 편만
   python tools/demo/export_mp4.py --readme   # 영상 README 의 파일 표를 목록.json 으로 다시 채움
+  python tools/demo/export_mp4.py --phase 2 --check   # 얼린 2차 폴더(docs/phase-2/…)를 볼 때 · 기본은 3차
 
 나오는 것
-  docs/common/06-retrospective/videos/파일/사용법/<장면 이름>.mp4 · .jpg(첫 장 제목 카드 — 재생 전 그림)   ← git 에 커밋(2026-10-20)
-  docs/common/06-retrospective/videos/파일/발표/<장면 이름>.mp4 · .jpg                                        ← git 에 커밋(2026-10-20)
-  docs/common/06-retrospective/videos/파일/목록.json — 편마다 장면 · 제목 · 길이 · 크기 · 녹화 시각 · 앱 커밋 · 원본 · 결과 지문  ← git 에 넣는다
+  docs/phase-<차수>/06-retrospective/videos/파일/사용법/<장면 이름>.mp4 · .jpg(첫 장 제목 카드 — 재생 전 그림)   ← git 에 커밋(2026-10-20)
+  docs/phase-<차수>/06-retrospective/videos/파일/발표/<장면 이름>.mp4 · .jpg                                        ← git 에 커밋(2026-10-20)
+  docs/phase-<차수>/06-retrospective/videos/파일/목록.json — 편마다 장면 · 제목 · 길이 · 크기 · 녹화 시각 · 앱 커밋 · 원본 · 결과 지문  ← git 에 넣는다
 
 왜 이렇게 만들었나
 - 영상에는 공식 자료 화면(금융위원회 시세 · 야후 · OpenDART · 용어 풀이)이 찍혀 있다 — 출처 대장(docs/phase-3/02-design/data/대장/자료안내-출처.tsv)의
@@ -27,6 +28,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -42,14 +44,37 @@ for _s in (sys.stdout, sys.stderr):
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).resolve().parent / "out"
-DEST = ROOT / "docs" / "common" / "06-retrospective" / "videos" / "파일"
-MANIFEST = DEST / "목록.json"
-README = ROOT / "docs" / "common" / "06-retrospective" / "videos" / "README.md"
-# 갈래 — (이름, 장면 폴더, 녹화 결과 폴더, 내보낼 폴더)
-KINDS = (
-  ("사용법", ROOT / "docs" / "common" / "06-retrospective" / "videos" / "장면", OUT, DEST / "사용법"),
-  ("발표", ROOT / "docs" / "common" / "06-retrospective" / "videos" / "발표", OUT / "present", DEST / "발표"),
-)
+
+# 영상 폴더는 차수마다 따로다(2026-11-05 사용자 결정) — docs/phase-2/06-retrospective/videos(얼린 2차) · docs/phase-3/06-retrospective/videos(3차 새 영상).
+# 같은 이름으로 다시 찍어도 다른 차수의 mp4 · 목록이 덮이지 않는다. 기본은 3차(`--phase 2` 로 2차 폴더를 고른다).
+DEFAULT_PHASE = "3"
+
+
+def videos_dir(phase):
+  return ROOT / "docs" / f"phase-{phase}" / "06-retrospective" / "videos"
+
+
+def use_phase(phase):
+  """DEST · MANIFEST · README · KINDS 를 그 차수의 폴더로 맞춘다."""
+  global DEST, MANIFEST, README, KINDS
+  base = videos_dir(phase)
+  DEST = base / "파일"
+  MANIFEST = DEST / "목록.json"
+  README = base / "README.md"
+  # 갈래 — (이름, 장면 폴더, 녹화 결과 폴더, 내보낼 폴더)
+  if str(phase) == "2":
+    KINDS = (
+      ("사용법", base / "장면", OUT, DEST / "사용법"),
+      ("발표", base / "발표", OUT / "present", DEST / "발표"),
+    )
+  else:                                              # 3차도 두 갈래 — 사용법(천천히 · 장면/) · 발표용(빠르게 · 발표/) 은 따로 찍는다(2026-11-05 사용자 결정)
+    KINDS = (
+      ("사용법", base / "장면", OUT, DEST / "사용법"),
+      ("발표", base / "발표", OUT / "present", DEST / "발표"),
+    )
+
+
+use_phase(DEFAULT_PHASE)
 SIZE_LIMIT = 10_000_000          # GitHub 무료 요금제 영상 첨부 한도(10 MB)보다 크지 않게
 CRF_STEPS = (28, 31, 34)         # 한도를 넘으면 차례로 더 줄인다(28 에서 글자가 그대로 읽힘을 확인)
 TABLE_START = "<!-- 영상파일표:시작 · tools/demo/export_mp4.py --readme 가 채움 -->"
@@ -226,11 +251,27 @@ def mmss(sec):
   return f"{sec // 60}:{sec % 60:02d}"
 
 
+OWNER_ORDER = ("이동원", "신장환", "오준영", "강민석")
+
+
+def episode_code(stem):
+  """편 식별자 — 2차 `V01-…` · `P-V01-…` 는 V01, 3차 `P-이동원-A-…` · `V-이동원-A-…` 는 이동원-A(담당-편)."""
+  m = re.match(r"^[PV]-(?![VF]\d)([^-]+-[^-]+)-", stem)
+  return m.group(1) if m else stem.removeprefix("P-").split("-")[0]
+
+
+def episode_sort_key(code):
+  owner = code.split("-")[0]
+  if owner in OWNER_ORDER:                             # 3차는 담당 순서(이동원 · 신장환 · 오준영 · 강민석) 뒤 편
+    return (1, OWNER_ORDER.index(owner), code)
+  return (0, code[0] != "V", code)                      # 2차는 옛 순서 그대로(V 여정 → F 기능)
+
+
 def readme_table(manifest):
   """편 하나 = 한 줄 · 사용법 · 발표 두 칸 — 링크는 두지 않는다(파일은 git 밖 · 공개 저장소에서는 깨진 링크가 된다)."""
   by_code = {}
   for e in manifest.values():
-    code = e["stem"].removeprefix("P-").split("-")[0]           # V01 · F06
+    code = episode_code(e["stem"])
     by_code.setdefault(code, {})[e["kind"]] = e
 
   def cell(e):
@@ -239,7 +280,7 @@ def readme_table(manifest):
     return f"{mmss(e['duration_sec'])} · {e['bytes'] / 1_000_000:.1f} MB"
 
   lines = [TABLE_START, "", "| 편 | 제목 | 사용법 영상 | 발표 영상 | 녹화 |", "|---|---|---|---|---|"]
-  order = sorted(by_code, key=lambda c: (c[0] != "V", c))
+  order = sorted(by_code, key=episode_sort_key)
   for code in order:
     pair = by_code[code]
     head = pair.get("발표") or pair.get("사용법")
@@ -266,11 +307,13 @@ def write_readme(manifest):
 
 
 def main():
-  ap = argparse.ArgumentParser(description="녹화한 영상 → 발표 자료가 재생할 H.264 mp4 (docs/common/06-retrospective/videos/파일/ · git 밖)")
+  ap = argparse.ArgumentParser(description="녹화한 영상 → 발표 자료가 재생할 H.264 mp4 (docs/phase-<차수>/06-retrospective/videos/파일/)")
+  ap.add_argument("--phase", choices=("2", "3"), default=DEFAULT_PHASE, help="어느 차수의 영상 폴더인가(기본 3 · 2 는 얼린 2차 폴더)")
   ap.add_argument("--check", action="store_true", help="쓰지 않고 편마다 상태만")
   ap.add_argument("--only", action="append", default=[], help="이 장면 이름만(여러 번 줄 수 있음)")
   ap.add_argument("--readme", action="store_true", help="영상 README 의 파일 표만 목록.json 으로 다시 채움")
   args = ap.parse_args()
+  use_phase(args.phase)
 
   manifest = load_manifest()
   if args.readme:

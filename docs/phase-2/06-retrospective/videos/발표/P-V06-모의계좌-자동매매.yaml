@@ -3,7 +3,7 @@
 # 사용법 판(장면/V06)과 다른 점: 계좌 요약 칸 읽기(총 손익 = 총 자산 − 초기 자금) · 자산 구성 · QFRS 성과 지표 · 자산 추이 · 최근 체결 ·
 #   의사결정 흐름 · 위험관리 숫자(하루 자동 주문 한도 · 종목 비중 한도 · 쿨다운)
 # 보기만 — 계좌 초기화 · 데모 데이터 · 자동매매 시작 · 비상 정지는 누르지 않는다
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-V06-모의계좌-자동매매.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-V06-모의계좌-자동매매.yaml
 file: 발표-V06-모의계좌-자동매매
 title: 가상 돈으로 한 거래를 계좌와 기록으로 되돌아봅니다
 owner: 강민석 · 오준영

@@ -2,7 +2,7 @@
 # 화면: 로보 어드바이저 › 자산배분·최적화 (robo-portfolio) · 주담당 오준영
 # 사용법 판(장면/V01)과 다른 점: 질문 묶음마다 무엇을 재는지 · 진단 결과 읽는 법(다섯 단계 중 내 위치) ·
 #   배분 결과의 금액 · 국내 주식 안 종목 카드(수익률 · 변동성 · 판단 근거) · 다음 화면으로 이어지는 저장
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-V01-성향진단-자산배분.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-V01-성향진단-자산배분.yaml
 file: 발표-V01-성향진단-자산배분
 title: 내 투자 성향을 알고, 그 성향대로 자산을 나눕니다
 owner: 오준영

@@ -142,7 +142,7 @@ docs/
 | 조사서(정본) | `phase-2/01-analysis/research/<이름>-조사.md` · 색인 같은 폴더 `README.md` — 3차에 고칠 때는 3차로 사본(3.4절) |
 | 조사 · 분석 작업 기록 · 점검 결과 · 팀원 설계 초안(검토 전) | 3차: `phase-3/01-analysis/research/배경조사/<날짜>-<주제>/` · 2차: `phase-2/01-analysis/research/배경조사/` |
 | 발표 자료(덱 · 질의응답 · 완성 그림 · 준비 기록) | 2차: `phase-2/06-retrospective/` · 3차 발표: `phase-3/06-retrospective/`(처음 쓸 때 생김) |
-| 시연 영상 안내 · 장면 파일 · mp4 | `common/06-retrospective/videos/` |
+| 시연 영상 안내 · 장면 파일 · mp4 | `phase-2/06-retrospective/videos/`(2차) · `phase-3/06-retrospective/videos/`(3차) |
 | 깨 보기 결과 표 | 3차: `phase-3/04-testing/깨보기/<날짜>-<묶음>/` · 2차: `phase-2/04-testing/깨보기/` |
 | 팀 대화방에 올린 글 | `common/00-management/meetings/` |
 | 올린 GitHub 글(이슈 · 댓글 · PR 본문) | `common/00-management/github-archive/<날짜>/<글 폴더>/` · 색인 같은 폴더 `README.md` |
@@ -187,7 +187,7 @@ docs/
 | `common/01-analysis/references/`(01 ~ 05 · rfp-1 · rfp-2 · screening · tradingview) · `common/02-design/references/`(onprem · pipeline — **글은 같고 안의 상대 링크 접두만 우리 고침**: 강사님 판은 루트 기준이라 `app/…` 앞에 `../../../../` 를 붙였다. 기초 코드를 다시 반영할 때 이 두 파일은 링크 줄만 충돌할 수 있다) · `common/02-design/supabase_schema.sql` · `common/02-design/contracts/` | 강사님 기초 코드 원본과 바이트까지 같다 — 2026-10-21 까지는 3-way 병합 때 경로가 같도록 맨 위에 두었으나, 2026-10-22 사용자 결정(「전부」)으로 옮겼다. **기초 코드를 다시 반영할 때는 강사님 판의 `docs/<이름>` 을 이 자리로 대응한다(7절 <표 7-2>)**. 계약은 세 저장소 공통이지만 다른 저장소는 자기 사본을 둔다 |
 | `common/00-management/commit-map-2026-09-23.tsv` | 계정 이관 해시표 — 팀장 작업 규칙이 가리키는 파일(옛 경로는 7절로 바꿔 읽는다) |
 | `common/` 기록(meetings · github-archive · adr · til) | 날짜 · 번호로 쌓이는 기록 — 차수와 상관없다. 글 속 옛 경로는 그때 글 그대로 둔다(링크만 고침 · 7절) |
-| `common/06-retrospective/videos/` | 앱 사용법 창 · 녹화 도구 · 시험이 3차에도 이 자리를 읽는다(3차에 다시 찍어도 얼린 2차를 고치지 않게) |
+| `phase-2/06-retrospective/videos/` · `phase-3/06-retrospective/videos/` | 시연 영상은 차수마다 따로 둔다(2026-11-05 · 2차 영상은 얼림 · 3차 새 영상은 phase-3 — 같은 이름으로 다시 찍어도 서로 덮이지 않는다). 앱 사용법 창 · `export_mp4.py --phase` 가 이 자리를 읽는다 |
 | `phase-2/02-design/ui/img/v0.2/` · `phase-2/02-design/ui/img/ui-spec/` 의 옛 판 그림 | 지난판 사본(IA · 와이어프레임 · UI 명세서)이 이 경로를 부른다 — 옮기거나 지우지 않는다 |
 | `_local/` · `_git-drafts/` | 커밋하지 않는 개인 자료 · 팀장 개인 git 초안 — `.gitignore` 로 올리지 않으므로 팀원 PC 에는 없다(번호 폴더 밖 · 이름 그대로) |
 | **2차 얼림의 예외** | ① 완료보고서(`phase-2/00-management/plans/완료보고서.md`) — 팀원 칸(3 · 7절)을 10-24 까지 이 자리에서 채운다 · 3차 사본은 그 뒤 `--to3` 로(3.4절) ② 2차 문서의 틀린 사실 바로잡기(판을 올리지 않고 개정 이력에 한 줄) ③ **화면 설계 소급 절**(2026-10-30 · 사용자 결정) — [화면 대장](phase-3/02-design/ui/화면대장.md)의 묶음마다 2차 UI 명세서에 새 절을 더하고 판을 올린다(v0.30 = 16장 · v0.31 = 17장 …). 틀린 사실 바로잡기가 아니라 새 절이라 ② 와 따로 둔다 · 조건: 절 머리에 「소급 작성 · <날짜> · 기준 태그 `phase2-final-2026-10-21`」 을 밝히고 내용은 그 태그 코드에서만 읽는다(그 뒤의 변화는 3차 문서의 「2차 → 3차 차이」 로) · 머리표 · 개정 이력 · 화면 대장 · 산출물목록에 소급임을 적는다 · `docs_scan.py --bump` 가 내는 「2차는 얼린 자리다」 경고는 이 경우 알려진 경고다 |

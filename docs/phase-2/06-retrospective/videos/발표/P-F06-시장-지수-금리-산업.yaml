@@ -3,7 +3,7 @@
 # 사용법 판(장면/F06)과 다른 점: 카드 묶음마다 읽는 법 · 출처 줄 · 분석 프레임워크 · 내 종목 일정을 맨 위로 ·
 #   종류 단추로 일정 거르기 · 그날 목록
 # 출처: 지표 · 섹터 ETF 는 야후 파이낸스 지연 시세(숫자 아래 한 줄 — 서버 글 그대로 · ml.js macroQuoteNote · 2026-10-19)
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-F06-시장-지수-금리-산업.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-F06-시장-지수-금리-산업.yaml
 file: 발표-F06-시장-지수-금리-산업
 title: 지수 · 금리 · 산업 · 일정으로 시장을 봅니다
 owner: 이동원

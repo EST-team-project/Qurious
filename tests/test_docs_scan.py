@@ -104,11 +104,11 @@ def test_dv04_check_finds_top_versioned_and_orphan_copies(tmp_path):
 
 
 DECK = ('<!--\n  2차 발표 자료 v0.1 (2026-10-17 초안) — 틀\n-->\n<!doctype html><html><head><title>t</title></head><body>\n'
-        '<video controls poster="../../common/06-retrospective/videos/파일/발표/P-V07.jpg" '
-        'src="../../common/06-retrospective/videos/파일/발표/P-V07.mp4"></video>\n'
+        '<video controls poster="videos/파일/발표/P-V07.jpg" '
+        'src="videos/파일/발표/P-V07.mp4"></video>\n'
         '<img src="img/a.png"> <a href="#s3">셋째 장</a> <a href="https://example.com/x.html">밖</a>\n'
         '<video src="media/없는.webm"></video> <p>본문의 v9.9 는 판이 아니다</p>\n</body></html>\n')
-VIDEOS = "docs/common/06-retrospective/videos"
+VIDEOS = "docs/phase-2/06-retrospective/videos"       # 영상은 차수 폴더 안에 둔다(2026-11-05 · 같은 차수 발표 옆)
 DECK_DIR = "docs/phase-2/06-retrospective"
 
 
@@ -131,8 +131,8 @@ def test_dv05_bump_presentation_html_moves_media_links(tmp_path):
   dst = docs_scan.bump(src, root=tmp_path)
   assert dst == tmp_path / f"{DECK_DIR}/지난판/발표자료_v0.1.html"
   out = dst.read_bytes().decode("utf-8")
-  assert ('poster="../../../common/06-retrospective/videos/파일/발표/P-V07.jpg" '
-          'src="../../../common/06-retrospective/videos/파일/발표/P-V07.mp4"') in out
+  assert ('poster="../videos/파일/발표/P-V07.jpg" '
+          'src="../videos/파일/발표/P-V07.mp4"') in out
   assert '<img src="../img/a.png">' in out and 'href="#s3"' in out and 'href="https://example.com/x.html"' in out
   assert 'src="media/없는.webm"' in out                                   # 원래 없던 파일은 고치지 않는다
   assert out.count("\r\n") == before.decode("utf-8").count("\r\n") and src.read_bytes() == before
@@ -147,7 +147,7 @@ def test_dv06_html_version_meta_first_then_first_comment():
 
 
 def test_dv07_check_covers_presentation_and_top_assets(tmp_path):
-  """TC-DV-07 · 검사가 차수 폴더의 발표(docs/<차수>/06-retrospective/) · 차수 밖 자산(docs/common/06-retrospective/videos/)도 본다
+  """TC-DV-07 · 검사가 차수 폴더의 발표(docs/<차수>/06-retrospective/) · 차수 폴더 안의 영상 안내(docs/phase-2/06-retrospective/videos/)도 본다
   — md · html 의 맨 위 판 붙은 이름 · 짝 없는 지난판 사본."""
   src = _deck_tree(tmp_path)
   docs_scan.bump(src, root=tmp_path)
