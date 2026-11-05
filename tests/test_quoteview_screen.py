@@ -97,10 +97,11 @@ def test_us_js_uses_server_values_and_no_mock():
     for bad in ('"BUY"', '"SELL"', '"HOLD"', "prev_close) / ", "?? 0;", "Yahoo Finance"):
         assert bad not in dash, f"대시보드 함수에 {bad}"
     assert 'from "/js/quoteview.js"' in src and "MOVE_LIMIT" in code
-    assert "escHtml(resp.note)" in code, "머리 글은 서버가 지은 글 그대로(이스케이프)"
-    assert "s.change_p ?? s.change_pct" in code and "pctText(q.change_pct)" in code and "pctText(quote.change_pct)" in code
+    assert 'escHtml([resp.note, serverRefreshNote(resp.refresh)].filter(Boolean).join(" · "))' in code, "머리 글은 서버가 지은 글 그대로(이스케이프) — 새로고침이면 뒤에 다시 받은 시각만 덧붙는다(2026-11-05)"
+    trade = "\n".join(ln for ln in (US.parent / "listbar-trade.js").read_text(encoding="utf-8").splitlines() if not ln.lstrip().startswith("//"))   # 카드 그리기는 목록 제어기로 옮겼다(2026-11-05)
+    assert "s.change_p ?? s.change_pct" in trade and "pctText(q.change_pct)" in code and "pctText(quote.change_pct)" in code
     assert "asOfText(quote.as_of)" in code and "지연 시세" in code
-    assert "시세를 받지 못했습니다" in code
+    assert "시세를 받지 못했습니다" in trade
     assert "us-signal-count" in code and "us-signal-rule" in code
 
 
@@ -121,8 +122,8 @@ def test_macro_screens_show_server_quote_note():
     src = ML.read_text(encoding="utf-8")
     helper = src[src.index("function macroQuoteNote"):src.index("async function loadMacroDashboard")]
     assert "el.textContent = note || \"\";" in helper and "innerHTML" not in helper      # 서버 글은 글자로만
-    for fn, call in (("async function loadMacroDashboard", 'macroQuoteNote(grid, "macro-note", data.note);'),
-                     ("async function loadMacroIndustry", 'macroQuoteNote(wrap, "industry-note", data.note);')):
+    for fn, call in (("async function loadMacroDashboard", 'macroQuoteNote(grid, "macro-note", [data.note, serverRefreshNote(data.refresh)].filter(Boolean).join(" · "));'),
+                     ("async function loadMacroIndustry", 'macroQuoteNote(wrap, "industry-note", [data.note, serverRefreshNote(data.refresh)].filter(Boolean).join(" · "));')):
         i = src.index(fn)
         body = src[i:src.index("\n}\n", i)]
         assert call in body, f"{fn} — 응답 note 를 그리지 않는다"

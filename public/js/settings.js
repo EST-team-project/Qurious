@@ -3,6 +3,11 @@
 import { api, getMe, setToast, escHtml, fmt, fmtPct, colorPct } from "/js/common.js";
 import { executionModeView, renderExecutionMode } from "/js/execution-mode.js";
 import { NOTIFY_CONSENT, NOTIFY_CONSENT_VERSION } from "/js/terms.js";
+// 실주문 현황 · 발송 이력 표 위의 필터 칩 + 새로고침(2026-11-05) — 칩 정의는 screenlists.js, 제어기는 paperlists.js(이미 받은 줄 안에서만 거른다)
+import {
+  createScreenPanel, bindRefreshButton, LIVE_ORDERS_LIMIT, NOTI_HISTORY_LIMIT, liveOrderGroups, LIVE_GETTERS, liveLimitNote, LIVE_TAIL,
+  notiGroups, NOTI_GETTERS, notiLimitNote, NOTI_TAIL,
+} from "/js/screenlists.js";
 
 // ── 설정 (증권사 Open API) ────────────────────────────────────────
 let lastLoadedMode = "paper";
@@ -194,17 +199,9 @@ const LIVE_STATUS_BADGE = {
   FILLED: "badge-buy", PARTIALLY_FILLED: "badge-buy", ACCEPTED: "badge-hold", PENDING: "badge-hold",
   CANCEL_REQUESTED: "badge-hold", CANCELLED: "badge-sell", REJECTED: "badge-sell", ERROR: "badge-sell", UNKNOWN: "badge-sell",
 };
-async function loadLiveOrders() {
-  const el = document.getElementById("quant-live-orders");
-  if (!el) return;
-  try {
-    const data = await api("/api/quant/live-orders?limit=30");
-    const rows = data.orders || [];
-    if (!rows.length) {
-      el.innerHTML = "앱에서 추적 중인 증권사 주문이 없습니다. 과거·외부 주문은 KIS 주문 내역에서 확인해 주세요.";
-      return;
-    }
-    el.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs">
+/** 실주문 표 — 걸러 남긴 줄(rows)만 그린다. 「미체결 잔량 취소」「취소 잔량 재주문」 단추는 아래 위임 처리기가 받는다(이 함수는 누르지 않는다). */
+function liveOrdersTableHtml(rows) {
+  return `<div class="overflow-x-auto"><table class="w-full text-xs">
       <thead><tr class="text-slate-400"><th class="text-left py-1">시각</th><th class="text-left">환경</th><th class="text-left">종목</th><th>구분</th><th class="text-right">수량</th><th class="text-right">가격</th><th>상태</th><th class="text-right">체결</th><th class="text-left">주문번호 / 메시지</th></tr></thead>
       <tbody>${rows.map((r) => `<tr style="border-top:1px solid var(--border);">
         <td class="py-1">${escHtml((r.created_at || "").slice(5, 16).replace("T", " "))}</td>
@@ -225,11 +222,23 @@ async function loadLiveOrders() {
             : ""}
         </td>
       </tr>`).join("")}</tbody></table></div>`;
-  } catch (e) {
-    el.textContent = "실주문 현황을 불러오지 못했습니다.";
-  }
 }
-document.getElementById("live-orders-refresh")?.addEventListener("click", loadLiveOrders);
+// 필터 칩 + 새로고침(2026-11-05) — 읽기만 한다(GET). 칩 줄은 이 칸 맨 위에 JS 가 만들고, 새로고침은 머리줄에 이미 있는 단추를 쓴다.
+const liveOrdersPanel = createScreenPanel({
+  host: "quant-live-orders", label: "KIS 실주문 필터", unit: "건", refresh: false,
+  groups: (rows) => liveOrderGroups(rows), getters: LIVE_GETTERS, limitNote: liveLimitNote, tail: LIVE_TAIL,
+  load: async () => {
+    try {
+      const data = await api(`/api/quant/live-orders?limit=${LIVE_ORDERS_LIMIT}`);
+      return { rows: data.orders || [], meta: data };
+    } catch (e) { throw new Error("실주문 현황을 불러오지 못했습니다."); }
+  },
+  body: (shown, ctx) => ctx.rows.length
+    ? liveOrdersTableHtml(shown)
+    : `<div>앱에서 추적 중인 증권사 주문이 없습니다. 과거·외부 주문은 KIS 주문 내역에서 확인해 주세요.</div>`,
+}, { esc: escHtml, byId: (id) => document.getElementById(id) });
+function loadLiveOrders() { return liveOrdersPanel.load(); }
+bindRefreshButton(document.getElementById("live-orders-refresh"), liveOrdersPanel);
 document.getElementById("quant-live-orders")?.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-kis-action]");
   if (!button || button.disabled) return;
@@ -482,34 +491,34 @@ function notiPayloadDetails(p) {
     </div></details>`;
 }
 
-async function loadNotificationHistory() {
-  const el = document.getElementById("noti-history");
-  if (!el) return;
-  try {
-    const data = await api("/api/notification/history?limit=30");
-    if (!data.events?.length) {
-      el.innerHTML = "발송 이력이 없습니다.";
-      return;
-    }
-    el.innerHTML = data.events.map(ev => {
-      const chBadges = (ev.channels || []).map(c =>
-        `<span class="badge-${c.ok ? "buy" : "sell"}" style="margin-right:4px;">${escHtml(c.channel)}</span>`
-      ).join("") || "<span style='color:var(--text-mute);'>발송 채널 없음</span>";
-      // 전달 결과는 서버(status_label)가 정한 글을 그대로 보인다 — 실패 · 결과 불명은 빨강으로
-      const bad = ["failed", "sending"].includes(ev.delivery_status);
-      const stBadge = ev.status_label
-        ? `<span style="margin-left:6px;color:${bad ? "var(--red)" : "var(--text-mute)"};">${escHtml(ev.status_label)}</span>` : "";
-      return `<div class="py-1.5" style="border-bottom:1px solid var(--border);">
-        <div style="color:var(--text-mute);">${escHtml(ev.created_at || "")}${stBadge}</div>
-        <div style="color:var(--text-dim);">${escHtml(ev.subject || ev.message || "")}</div>
-        <div class="mt-0.5">${chBadges}</div>
-        ${notiPayloadDetails(ev.payload)}
-      </div>`;
-    }).join("");
-  } catch (e) {
-    el.innerHTML = `<span style="color:var(--red);">${escHtml(e.message)}</span>`;
-  }
+/** 발송 이력 한 건 — 전달 결과는 서버(status_label)가 정한 글을 그대로 보인다. */
+function notiEventHtml(ev) {
+  const chBadges = (ev.channels || []).map(c =>
+    `<span class="badge-${c.ok ? "buy" : "sell"}" style="margin-right:4px;">${escHtml(c.channel)}</span>`
+  ).join("") || "<span style='color:var(--text-mute);'>발송 채널 없음</span>";
+  // 전달 결과는 서버(status_label)가 정한 글을 그대로 보인다 — 실패 · 결과 불명은 빨강으로
+  const bad = ["failed", "sending"].includes(ev.delivery_status);
+  const stBadge = ev.status_label
+    ? `<span style="margin-left:6px;color:${bad ? "var(--red)" : "var(--text-mute)"};">${escHtml(ev.status_label)}</span>` : "";
+  return `<div class="py-1.5" style="border-bottom:1px solid var(--border);">
+    <div style="color:var(--text-mute);">${escHtml(ev.created_at || "")}${stBadge}</div>
+    <div style="color:var(--text-dim);">${escHtml(ev.subject || ev.message || "")}</div>
+    <div class="mt-0.5">${chBadges}</div>
+    ${notiPayloadDetails(ev.payload)}
+  </div>`;
 }
+
+// 필터 칩 + 새로고침(2026-11-05) — 저장된 발송 이력을 읽을 뿐 알림을 보내지 않는다(「테스트 알림 발송」 은 다른 단추).
+const notiHistoryPanel = createScreenPanel({
+  host: "noti-history", label: "알림 발송 이력 필터", unit: "건",
+  groups: notiGroups, getters: NOTI_GETTERS, limitNote: notiLimitNote, tail: NOTI_TAIL,
+  load: async () => {
+    const data = await api(`/api/notification/history?limit=${NOTI_HISTORY_LIMIT}`);
+    return { rows: data.events || [], meta: data };
+  },
+  body: (shown, ctx) => ctx.rows.length ? shown.map(notiEventHtml).join("") : "발송 이력이 없습니다.",
+}, { esc: escHtml, byId: (id) => document.getElementById(id) });
+function loadNotificationHistory() { return notiHistoryPanel.load(); }
 
 document.getElementById("noti-save")?.addEventListener("click", async () => {
   try {

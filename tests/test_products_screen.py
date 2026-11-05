@@ -184,9 +184,9 @@ def test_allocation_is_read_only():
     assert "/api/ml/robo/" not in screen.split("*/", 1)[1], "화면 파일은 비중 API 를 직접 부르지 않는다"
     assert "import" not in pick.split("*/", 1)[1] and "document" not in pick.split("*/", 1)[1], "판단 파일은 DOM · import 없이(node 시험)"
     assert "resolveWeights(api, readProfile())" in screen
-    # 화면에 들어올 때 저절로 + 못 읽었을 때 「다시 불러오기」 단추 — 그 밖에서 부르지 않는다
+    # 화면에 들어올 때 저절로 + 못 읽었을 때 「다시 불러오기」 단추 + 「새로고침」 단추(한눈에와 함께 읽기 · 2026-11-05) — 그 밖에서 부르지 않는다
     calls = [ln.strip() for ln in screen.splitlines() if "loadWeights()" in ln and "function loadWeights" not in ln]
-    assert sorted(calls) == sorted(['if (d.act === "weights") { loadWeights(); return; }', "loadWeights();"]), calls
+    assert sorted(calls) == sorted(['if (d.act === "weights") { loadWeights(); return; }', "loadWeights();", "await Promise.all([loadOverview(), loadWeights()]);"]), calls
     assert "e?.status !== 404" in pick, "404 일 때만 기본 비중으로 — 그 밖 오류는 메우지 않는다"
     for store in ("localStorage.setItem", "sessionStorage.setItem", "sessionStorage.getItem", "pd_weights_v1"):
         assert store not in src, store            # 받은 비중을 브라우저에 남기지 않는다(같은 탭 다른 사용자)
@@ -384,6 +384,11 @@ def _run_screen(tmp_path: Path, sc: dict) -> dict:
         'import { resolveWeights } from "/js/productweights.js";': f'import {{ resolveWeights }} from "{JSW.resolve().as_uri()}";',
         'import { readRiskProfile as readProfile } from "/js/riskprofile.js";': f'import {{ readRiskProfile as readProfile }} from "{(PUB / "js" / "riskprofile.js").resolve().as_uri()}";',
     }
+    lbm = tmp_path / "lbm"                                      # 새로고침 안내 글(2026-11-05) — 실제 모듈 셋을 같은 폴더에 두고 /js/ 를 ./ 로
+    lbm.mkdir(exist_ok=True)
+    for name in ("listbar.js", "paperlists.js", "listbar-more.js"):
+        (lbm / name).write_text((PUB / "js" / name).read_text(encoding="utf-8").replace('from "/js/', 'from "./'), encoding="utf-8")
+    imports['import { refreshOutcomeText } from "/js/listbar-more.js";'] = f'import {{ refreshOutcomeText }} from "{(lbm / "listbar-more.js").resolve().as_uri()}";'
     for old, new in imports.items():
         assert screen.count(old) == 1, f"화면 파일의 import 꼴이 바뀌었다 — 시험 틀도 함께: {old}"
         screen = screen.replace(old, new)

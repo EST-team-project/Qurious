@@ -14,6 +14,7 @@
  */
 import { api, escHtml } from "/js/common.js";
 import { navigate } from "/js/core.js";
+import { refreshNoteText } from "/js/listbar-misc.js";   // 새로고침 뒤 안내 글 (2026-11-05)
 
 const VIEW = "market-calendar";
 //: 일정 종류 → [칸 배지 이름, 이름, 색 이름]. 2판 — 서버의 종류 모두(칩 차례는 Figma 「일정 2판」 그대로).
@@ -65,6 +66,7 @@ const state = {
   sumDays: {}, monthTotal: 0, days: {}, calendar: null, error: "",
   symEvents: [],                                 // 종목 하나만 볼 때 그 종목의 일정(이름까지)
   mine: null,                                    // 내 보유 종목(Set) — 화면에 처음 들어올 때 읽는다
+  refreshNote: "",                                // 새로고침 단추를 눌러 읽은 뒤 안내(시각 · 뜻) — 달을 옮겨 새로 읽으면 지운다
   panel: null,                                   // 그날 목록 { date, kinds:Set, q, offset, events, total, error, loading }
 };
 let qTimer = 0;
@@ -458,6 +460,7 @@ async function renderCalendar(reload = true) {
   if (!root) return;
   if (!state.y) { const t = todayIso(); state.y = +t.slice(0, 4); state.m = +t.slice(5, 7) - 1; }   // 처음 들어오면 이번 달
   if (reload) {
+    state.refreshNote = "";
     if (!root.innerHTML) root.innerHTML = `<p class="q-muted">불러오는 중…</p>`;
     const [mine, fresh] = await Promise.all([state.mine ? Promise.resolve(state.mine) : holdings(), loadMonth()]);
     state.mine = mine;
@@ -473,7 +476,9 @@ async function renderCalendar(reload = true) {
         <strong class="cal-title">${state.y}년 ${state.m + 1}월</strong>
         <button type="button" class="cal-nav" data-step="1" aria-label="다음 달">›</button>
         <button type="button" class="btn-secondary cal-today-btn">오늘</button>
+        <button type="button" class="btn-secondary cal-refresh-btn" title="이 달 일정을 서버에서 다시 읽습니다 — 일정을 새로 만들지 않습니다">새로고침</button>
         <span class="q-muted cal-sum">한 달 ${num(monthTotal())}건 · ${state.symbol ? "종목 하나만 보는 중" : "칸의 숫자나 날짜를 누르면 그날 목록"}</span>
+        <span class="q-muted cal-sum" role="status" aria-live="polite" data-cal-refresh-note>${escHtml(state.refreshNote)}</span>
         ${state.symbol ? `<button type="button" class="cal-symbol">종목 ${escHtml(state.symbol)} 만 · 풀기 ✕</button>` : ""}</div>
       ${noticeHtml()}${gridHtml()}${listHtml()}
       <p class="q-up-note">거래일 달력은 ${escHtml(state.calendar?.end || "—")} 까지 있습니다(공휴일이 발표된 해까지) · 이름이 보이는 일정을 누르면 설명 창이 열립니다</p></div>
@@ -482,6 +487,7 @@ async function renderCalendar(reload = true) {
     const d = new Date(Date.UTC(state.y, state.m + Number(b.dataset.step), 1));
     state.y = d.getUTCFullYear(); state.m = d.getUTCMonth(); state.panel = null; renderCalendar();
   }));
+  root.querySelector(".cal-refresh-btn").addEventListener("click", refreshCalendar);
   root.querySelector(".cal-today-btn").addEventListener("click", () => {
     const t = todayIso(); state.y = +t.slice(0, 4); state.m = +t.slice(5, 7) - 1; state.panel = null; renderCalendar();
   });
@@ -512,6 +518,33 @@ async function renderCalendar(reload = true) {
     if (named[b.dataset.ev]) openEventModal(named[b.dataset.ev]);
   }));
   renderSide();
+}
+
+/**
+ * 새로고침 — 지금 보는 달의 요약 · 거래일 · 내 보유 종목(+ 열린 그날 목록)을 서버에서 다시 읽는다. 종류 칩 · 종목 하나만 보기 · 월 위치는 그대로.
+ * 일정을 새로 만들거나 수집을 돌리지 않는다(읽기뿐). 읽기에 실패하면 시각을 찍지 않는다(위 경고 글이 까닭을 보인다).
+ */
+let refreshing = false;
+async function refreshCalendar() {
+  if (refreshing) return;
+  refreshing = true;
+  const note = () => calendarRoot()?.querySelector("[data-cal-refresh-note]");
+  const btn = calendarRoot()?.querySelector(".cal-refresh-btn");
+  if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+  if (note()) note().textContent = "서버에서 다시 읽는 중…";
+  state.mine = null;                              // 내 보유 종목도 다시
+  try {
+    await renderCalendar();
+    if (state.panel) await loadDay();
+    if (!state.error) {
+      state.refreshNote = refreshNoteText("이 달 일정 · 거래일 · 내 보유 종목을 읽었습니다(일정을 새로 만들지 않습니다)");
+      if (note()) note().textContent = state.refreshNote;
+    }
+  } finally {
+    refreshing = false;
+    const b = calendarRoot()?.querySelector(".cal-refresh-btn");
+    if (b) { b.disabled = false; b.setAttribute("aria-busy", "false"); }
+  }
 }
 
 document.addEventListener("keydown", e => {

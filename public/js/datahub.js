@@ -11,6 +11,8 @@
 import { api, escHtml, fmt } from "/js/common.js";
 import { navigate } from "/js/core.js";
 import { renderHubRequestLine } from "/js/collect-requests.js";   // 관리자만 — 수집 요청 한 줄(2026-10-10)
+import { bindListBar, isAllowed } from "/js/listbar.js";            // 자료별 기준일 표의 판정 칩(2026-11-05)
+import { dataTableView } from "/js/screenlists.js";
 
 const VIEW = "data-status";
 const BADGE_MS = 60_000;     // 위 메뉴 표시 — 1분마다(러너는 하루 한 번이라 이보다 자주 볼 까닭이 없다)
@@ -61,6 +63,9 @@ const WEEK = "일월화수목금토";
 
 let lastStatus = null;
 let viewTimer = null;
+// 자료별 기준일 표의 판정 칩(2026-11-05) — 화면은 30초마다 · 새로 고침마다 통째로 다시 그려지므로 걸어 둔 조건은 여기(모듈 변수)에 남긴다.
+let tableFilters = {};
+let shownStatus = null;     // 지금 화면에 그려진 응답 — 칩을 눌러도 서버를 다시 부르지 않고 이것으로 표만 다시 그린다
 
 // ── 작은 도구 ──────────────────────────────────────────────────────────
 function mmdd(iso) { return iso ? `${iso.slice(5, 7)}-${iso.slice(8, 10)}` : "—"; }
@@ -230,21 +235,37 @@ function runCard(st) {
 function tableCard(st) {
   const today = (st.checked_at || "").slice(0, 10);
   const prev = st.calendar?.previous_trading_day;
-  const rows = (st.tables || []).map(t => `<tr>
+  const view = dataTableView(st.tables, tableFilters, { esc: escHtml });   // 칩 줄 + 걸러 남긴 줄 — 서버 응답은 그대로, 브라우저가 받은 줄 안에서만 거른다
+  const rows = view.kept.map(t => `<tr>
       <td class="dh-name">${escHtml(t.label)}</td>
       <td class="q-muted">${escHtml(t.source || "")}</td>
       <td>${escHtml(t.last_date || "—")}</td>
       <td>${pill(t.verdict, t.verdict_label || t.verdict)}</td>
       <td class="dh-num">${t.rows == null ? `<span class="q-muted">세는 중…</span>` : fmt(t.rows)}</td>
-      <td class="q-muted dh-detail">${escHtml(t.detail || "")}</td></tr>`).join("");
-  const none = (st.tables || []).every(t => t.verdict === "missing");
-  return `<div class="card"><h3 class="dh-h">자료별 기준일
+      <td class="q-muted dh-detail">${escHtml(t.detail || "")}</td></tr>`).join("")
+    || (view.total ? `<tr><td colspan="6" class="q-muted">이 조건에 맞는 자료가 없습니다. 필터를 풀어 보세요.</td></tr>` : "");
+  const none = (st.tables || []).every(t => t.verdict === "missing");   // 거르기 전 전체로 판단한다
+  return `<div data-dh-tables><div class="card"><h3 class="dh-h">자료별 기준일
       <span class="q-muted">오늘(${mmdd(today)}) 앞 마지막 거래일 ${mmdd(prev)} 까지 있으면 「최신」</span></h3>
     ${st.rows_note ? `<p class="dh-alert q-tone--info">${escHtml(st.rows_note)}</p>` : ""}
     ${none ? `<p class="dh-alert q-tone--late">이 PC 에는 수집 자료가 없습니다. 자료를 모으는 PC 가 아니면 비어 있는 것이 정상이고,
       팀 공유 저장소에서 받아 두면 이 표가 채워집니다(로컬 실행 안내서 — 자료 되살리기).</p>` : ""}
+    ${view.barHtml}
     <div class="dh-table-wrap"><table class="dh-table"><thead><tr><th>자료</th><th>어디서</th><th>기준일</th><th>판정</th>
-      <th class="dh-num">줄 수</th><th>설명</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+      <th class="dh-num">줄 수</th><th>설명</th></tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
+}
+
+/** 판정 칩을 눌렀을 때 — 서버를 다시 부르지 않고 지금 그려진 응답으로 표만 다시 그린다. 허용 밖 낱말은 무시. */
+function setTableFilter(key, value) {
+  if (!shownStatus) return;
+  if (!isAllowed(dataTableView(shownStatus.tables, tableFilters, { esc: escHtml }).groups, key, value)) return;
+  tableFilters = { ...tableFilters, [key]: value };
+  const root = dataHubRoot();
+  const box = root && root.querySelector("[data-dh-tables]");
+  if (!box) return;
+  box.outerHTML = tableCard(shownStatus);
+  const hit = Array.from(root.querySelectorAll("[data-dh-tables] button[data-lb-filter]")).find(b => b.dataset.lbFilter === key && b.dataset.value === String(value));
+  if (hit) hit.focus();                                              // 다시 그리면 눌렀던 칩이 사라져 키보드 초점이 날아간다 — 같은 칩에 되돌린다
 }
 
 function lowCards(st) {
@@ -283,6 +304,7 @@ async function renderDataHub() {
   try {
     const st = await fetchStatus();
     renderBadge(st);
+    shownStatus = st;
     root.innerHTML = `<div class="dh-head"><div><h2>데이터 관제</h2>
         <p class="q-muted">모은 자료가 며칠 것까지 있는지, 매일 낮 갱신이 돌았는지 봅니다 · 30초마다 다시 봅니다 · ${escHtml(hm(st.checked_at))} 기준</p></div>
         <button type="button" class="btn-secondary dh-refresh">새로 고침</button></div>
@@ -292,6 +314,7 @@ async function renderDataHub() {
       <button type="button" class="btn-secondary dh-refresh">다시 시도</button></div>`;
   }
   root.querySelector(".dh-refresh")?.addEventListener("click", renderDataHub);
+  bindListBar(root, { onFilter: setTableFilter });                  // 한 번만 잇는다(root 는 다시 그려도 그대로)
   root.querySelector(".dh-more")?.addEventListener("click", () => navigate("crawl-auto"));
   // 안 B 의 작업자 상태 · 최근 요청은 여기 한 줄로(2026-10-10 결정 ①) — 관리자가 아니면 칸을 숨기고 요청 API 도 부르지 않는다
   renderHubRequestLine(root.querySelector(".dh-reqline"), () => navigate("crawl-auto"));

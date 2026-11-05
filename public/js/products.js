@@ -30,6 +30,7 @@ import { navigate } from "/js/core.js";
 import { openProductChart } from "/js/productchart.js";
 import { resolveWeights } from "/js/productweights.js";
 import { readRiskProfile as readProfile } from "/js/riskprofile.js";
+import { refreshOutcomeText } from "/js/listbar-more.js";   // 새로고침 뒤 안내 글(성공 · 실패) — 2026-11-05
 
 const VIEW = "agent-products";
 const PER_GROUP = 5;             // 묶음마다 먼저 보일 줄 수(Figma 안 A)
@@ -58,6 +59,8 @@ let savingsSeq = 0;              // 조건을 연달아 바꿀 때 옛 응답이
 const ANNUITY_SECTORS = ["insurance", "investment"];
 let weights = null;              // productweights.js resolveWeights 가 돌려준 것({ state: "ok" | "none" | "error", … }) | null
 let weightsLoading = false;
+let refreshNote = "";            // 새로고침 단추 옆 안내(받는 중 · 다시 읽은 시각 · 실패)
+let refreshBusy = false;
 let weightsSeq = 0;              // 화면에 다시 들어온 사이에 온 옛 응답이 새 결과를 덮지 않게
 let tabPicked = false;           // 사용자가 탭을 고른 뒤에는 비중이 바뀌어도 고른 탭을 그대로 둔다
 
@@ -190,6 +193,8 @@ function headerHtml() {
       <p class="pd-lead">자산 배분 결과의 자산군마다 공시된 상품 정보를 같은 기준으로 모아 보여 줍니다.</p>
       <p class="pd-learn">처음이라면 — 개념 학습 ${learnLink("funds-etf", "펀드와 ETF")} · ${learnLink("investor-profile-suitability", "투자 성향과 적합성")}</p>
       <div class="pd-mix">${chip}${mixHtml(prof)}</div>
+      <div class="pd-refresh"><button type="button" class="pd-tab" data-act="refresh"${refreshBusy ? " disabled" : ""}>새로고침</button>
+        <span class="pd-dim" role="status" aria-live="polite">${escHtml(refreshNote)}</span></div>
     </div>
     <div class="pd-note">공시된 상품 정보를 같은 기준으로 나열한 것입니다. 특정 상품의 추천이나 투자 권유가 아니며,
       순서(묶음은 거래소 유형 순서 · 묶음 안은 순자산 큰 순)는 상품의 좋고 나쁨을 뜻하지 않습니다.
@@ -445,6 +450,26 @@ async function loadSavings() {
   draw();
 }
 
+/** 새로고침 단추 — 한눈에(상품 목록 · 기준일)와 내 자산 배분 비중을 서버에서 다시 읽는다. 예금 · 적금(금융감독원 실시간 · 하루 호출 한도)은 이 함수가 직접 부르지 않는다
+ *  (현금 탭이 열려 있고 아직 한 번도 못 받았다면 loadOverview 가 화면에 들어올 때와 같이 한 번 받는다 — 조건을 바꿀 때만 다시 받는 규칙은 그대로).
+ *  읽기에 실패하면 새로 읽은 시각을 찍지 않고, 보이던 목록을 그대로 둔다(오류 화면으로 바꾸지 않는다). */
+async function refreshProducts() {
+  if (refreshBusy) return;                                   // 받는 중 다시 누르면 무시
+  refreshBusy = true;
+  refreshNote = "서버에서 다시 읽는 중…";
+  const prev = ov;
+  draw();
+  try {
+    await Promise.all([loadOverview(), loadWeights()]);
+    const failed = ov?.status !== "ok" && prev?.status === "ok";
+    if (failed) { ov = prev; }
+    refreshNote = refreshOutcomeText(!failed, { error: failed ? "상품 목록을 읽지 못했습니다" : "", tail: "상품 목록 · 자산 배분 비중을 다시 읽었습니다" });
+  } finally {
+    refreshBusy = false;
+    draw();
+  }
+}
+
 /** 비중 — 화면에 들어올 때마다 저절로(가벼운 GET 하나 · 저장본이 없을 때만 둘) · 못 읽었을 때는 「다시 불러오기」 단추로 */
 async function loadWeights() {
   const my = ++weightsSeq;
@@ -488,6 +513,7 @@ function onClick(ev) {
     return;
   }
   if (d.act === "weights") { loadWeights(); return; }
+  if (d.act === "refresh") { refreshProducts(); return; }
   if (d.act === "clear") { search = null; draw(); return; }
   if (d.more) { loadGroup(d.more); return; }
   if (d.page) { loadGroup(d.page, { more: true }); return; }

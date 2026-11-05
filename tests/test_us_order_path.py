@@ -113,9 +113,12 @@ def test_limit_and_sell_are_refused_with_a_reason():
 
 
 def test_history_reads_the_ledger_and_marks_units():
-    f = _func("loadUsOrderHistory")
-    assert '"/api/paper/stocks/orders/history' in f
-    assert '"/api/orders"' not in f
+    # 내역 읽기 · 줄 그리기는 목록 제어기(js/listbar-trade.js usOrderPanel · usOrderRowHtml)로 옮겼다(2026-11-05 · 새로고침 + 매매 칩) — 길과 단위 글은 그대로
+    assert "usOrderHistory.load()" in _func("loadUsOrderHistory")
+    f = (ROOT / "public" / "js" / "listbar-trade.js").read_text(encoding="utf-8")
+    f = f[f.index("export function usOrderRowHtml("): f.index("// ── 2. 미국주식 대시보드 종목 카드")]
+    assert "/api/paper/stocks/orders/history" in f
+    assert '"/api/orders"' not in f and "/api/orders`" not in f
     assert "원" in f and 'source === "WEB"' in f, "옛 주문(달러가 원화 장부에 그대로)과 새 주문(원화)을 단위로 가른다"
 
 

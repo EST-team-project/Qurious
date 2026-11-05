@@ -129,6 +129,8 @@ def flow(tmp_path_factory):
                                         encoding="utf-8")
     (d / "formula-chart-help.js").write_text("export function renderFormulaChartHelp() {}\n", encoding="utf-8")
     src = (JS / "formula.js").read_text(encoding="utf-8").replace('from "/js/', 'from "./')
+    for name in ("listbar.js", "paperlists.js", "listbar-more.js"):          # 계산 결과 목록 위 줄(2026-11-05) — 실제 모듈을 같은 폴더에 둔다
+        (d / name).write_text((JS / name).read_text(encoding="utf-8").replace('from "/js/', 'from "./'), encoding="utf-8")
     (d / "formula.js").write_text(src, encoding="utf-8")
     script = d / "flow.mjs"
     script.write_text(NODE_FLOW.replace("__SAVED__", json.dumps(SAVED, ensure_ascii=False))

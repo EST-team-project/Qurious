@@ -136,10 +136,24 @@ export function ctFootHtml(data, esc) {
 /** 비교에 담은 개수 글. */
 export function ctPickText(count, max) { return `비교에 담은 종목 ${count}/${max}`; }
 
+/** 새로고침 단추 — app.html 에 이미 있으면 그것, 없으면 「나란히 비교 보기」 앞에 JS 가 만든다(app.html 을 건드리지 않는다). */
+function ensureRefreshButton($) {
+  let btn = $("ct-refresh");
+  if (btn) return btn;
+  const go = $("ct-goto");
+  if (!go || !go.parentNode || typeof document === "undefined") return null;
+  btn = document.createElement("button");
+  btn.type = "button"; btn.id = "ct-refresh"; btn.className = "btn-secondary text-xs"; btn.textContent = "새로고침";
+  btn.title = "같은 시장 · 업종 · 검색 · 정렬 · 쪽으로 서버에서 다시 읽습니다 — 새로 계산하지 않습니다";
+  go.parentNode.insertBefore(btn, go);
+  return btn;
+}
+
 // ── 화면 연결 ────────────────────────────────────────────────────────────────────────────
 /**
  * 표를 화면에 붙인다(한 번). 칸 id 는 app.html 지표 비교 view 의 `ct-*`.
  * deps — fetchPage(질의 문자열) → 서버 응답 · esc(글) → 이스케이프 · isPicked(코드) · pickedCount() · max · onPick(코드, 이름) → 담지 못한 까닭 글(없으면 빈 글)
+ *        · refreshNote() → 새로고침 뒤 안내 글(선택 · 2026-11-05)
  * 돌려주는 것 — ensureLoaded() (아직 못 받았으면 받는다) · syncPicks() (담은 종목 표시만 다시) · reload()
  */
 export function ctMount(deps) {
@@ -148,7 +162,8 @@ export function ctMount(deps) {
   if (!host) return null;
   const { fetchPage, esc } = deps;
   let state = ctDefaultState();
-  let last = null, seq = 0, timer = null, loading = false;
+  let last = null, seq = 0, timer = null, loading = false, stampNext = false;
+  const refreshBtn = ensureRefreshButton($);
 
   const say = (text, color) => { const el = $("ct-msg"); if (el) { el.textContent = text || ""; el.style.color = color || "var(--text-mute)"; } };
 
@@ -181,6 +196,7 @@ export function ctMount(deps) {
 
   async function load() {
     const my = ++seq;
+    const stamp = stampNext; stampNext = false;       // 새로고침 단추가 건 읽기에만 시각을 남긴다
     loading = true;
     say(last ? "불러오는 중…" : "불러오는 중… (처음 한 번은 수집 대상을 모두 계산해 몇 초 걸립니다)");
     host.setAttribute("aria-busy", "true");
@@ -189,11 +205,11 @@ export function ctMount(deps) {
       if (my !== seq) return;
       state = { ...state, page: data.page };              // 서버가 끝을 넘은 쪽을 마지막 쪽으로 맞췄을 수 있다
       render(data);
-      say("");
+      say(stamp && deps.refreshNote ? deps.refreshNote() : "");            // 새로고침으로 읽었으면 다시 읽은 시각 · 뜻을 남긴다(실패하면 시각을 찍지 않는다)
     } catch (e) {
       if (my === seq) say(e && e.message ? e.message : "지표 표를 받지 못했습니다.", "var(--red)");
     } finally {
-      if (my === seq) { loading = false; host.removeAttribute("aria-busy"); }
+      if (my === seq) { loading = false; host.removeAttribute("aria-busy"); if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.setAttribute("aria-busy", "false"); } }
     }
   }
 
@@ -216,12 +232,20 @@ export function ctMount(deps) {
       say(typeof note === "string" ? note : "");
     }
   });
+  // 새로고침 — 같은 시장 · 업종 · 검색 · 정렬 · 쪽으로 서버에서 다시 읽는다(state 를 건드리지 않는다). 읽는 중에는 다시 눌러도 무시.
+  if (refreshBtn) refreshBtn.addEventListener("click", () => {
+    if (loading) return;
+    stampNext = true;
+    refreshBtn.disabled = true; refreshBtn.setAttribute("aria-busy", "true");
+    load();
+  });
   const go = $("ct-goto");
   if (go) go.addEventListener("click", () => { const t = $("co-compare-chips"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); });
 
   return {
     ensureLoaded() { if (!last && !loading) load(); },
     reload() { load(); },
+    refresh() { if (!loading && refreshBtn) refreshBtn.click(); },
     syncPicks,
   };
 }

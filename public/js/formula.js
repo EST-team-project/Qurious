@@ -4,6 +4,7 @@ import { initFormulaGuide } from "/js/formula-guide.js";            // D124 A2 �
 import { renderFormulaChartHelp } from "/js/formula-chart-help.js"; // D124 A3 · 잠정 — 지우면 원래대로
 import { functionHelp } from "/js/formula-guide.js";
 import { api, setToast, escHtml, fmt } from "/js/common.js";
+import { formulaResultsPanel } from "/js/listbar-more.js";            // 계산 결과 목록 위 줄(종목 · 버전 칩 + 새로고침) — 2026-11-05
 
 const $ = (id) => document.getElementById(id);
 const ts = (iso) => iso ? new Date(iso).toLocaleString("ko-KR", { hour12: false }) : "-";
@@ -164,22 +165,24 @@ async function loadVersions() {
   $("fx-exp-pine").addEventListener("click", () => show("pine")); $("fx-exp-py").addEventListener("click", () => show("python"));
 }
 
-async function loadResults() {
-  if (!current) return;
-  const r = await api(`/api/formula-indicators/${current.id}/results?limit=30`);
-  $("fx-results").innerHTML = r.results.length ? `<table><thead><tr><th>시각</th><th>버전</th><th>종목</th><th>기간</th><th>기준일</th><th style="text-align:right">최신값</th><th>신호</th><th style="text-align:right">수익률</th><th style="text-align:right">샤프</th><th style="text-align:right">MDD</th><th></th></tr></thead><tbody>${
-    r.results.map(x => `<tr><td class="text-xs">${ts(x.created_at)}</td><td>v${x.version}</td><td class="font-mono text-xs">${escHtml(x.symbol)}</td><td>${x.period}</td><td class="text-xs">${x.as_of}</td><td style="text-align:right">${x.latest_value == null ? "-" : Number(x.latest_value).toFixed(3)}</td>
-      <td><span class="${/BUY/.test(x.latest_signal) ? "badge-buy" : /SELL/.test(x.latest_signal) ? "badge-sell" : "badge-hold"}" style="font-size:11px;">${escHtml(x.latest_signal)}</span></td>
-      <td style="text-align:right">${x.metrics.total_return_pct ?? "-"}${x.metrics.total_return_pct != null ? "%" : ""}</td><td style="text-align:right">${x.metrics.sharpe_ratio ?? "-"}</td><td style="text-align:right">${x.metrics.mdd_pct ?? "-"}${x.metrics.mdd_pct != null ? "%" : ""}</td>
-      <td><button class="btn-secondary text-xs fx-view" data-id="${x.id}">보기</button></td></tr>`).join("")}</tbody></table>`
-    : `<div class="text-sm" style="color:var(--text-mute);">아직 저장된 계산 결과가 없습니다. '계산 실행'을 누르면 (버전·종목·기간) 별로 저장됩니다.</div>`;
-  $("fx-results").querySelectorAll(".fx-view").forEach(b => b.addEventListener("click", async () => {
-    // 저장된 결과는 목록 API 에 payload 가 없으므로 같은 조건으로 캐시 재사용 호출
-    const row = r.results.find(x => x.id === b.dataset.id);
+// 계산 결과 목록 — 종목 · 버전 칩 + 새로고침(저장된 결과 목록을 서버에서 다시 읽을 뿐 계산은 하지 않는다 · js/listbar-more.js · node 시험 TC-LBF · 2026-11-05)
+const resultsView = formulaResultsPanel({
+  esc: escHtml, ts, byId: id => document.getElementById(id), api, getCurrent: () => current,
+  // 저장된 결과는 목록 API 에 payload 가 없으므로 같은 조건으로 캐시 재사용 호출(옛 동작 그대로)
+  onView: async row => {
     $("fx-symbol").value = row.symbol; $("fx-period").value = row.period;
     $("fx-cost").value = row.costs.commission_bps ?? 0; $("fx-slip").value = row.costs.slippage_bps ?? 0; $("fx-sl").value = row.costs.stop_loss_pct ?? ""; $("fx-tp").value = row.costs.take_profit_pct ?? "";
     $("fx-use-cache").checked = true; await computeNow();
-  }));
+  },
+});
+let resultsFor = null;   // 칩을 걸어 둔 지표 — 다른 지표를 열면 걸어 둔 종목 · 버전 칩을 푼다(다른 지표에는 없는 값일 수 있다)
+async function loadResults() {
+  if (!current) return;
+  if (resultsFor !== current.id) {
+    resultsFor = current.id;
+    for (const key of ["symbol", "version"]) resultsView.setFilter(key, "");
+  }
+  await resultsView.load();
 }
 
 export function initFormulaView() {

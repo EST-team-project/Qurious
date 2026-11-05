@@ -2,6 +2,11 @@
  * 목표 비중 플랜 · 현재 비중/이탈률 · 주문 제안/실행 · 입출금/배당 이벤트 · 실행 이력
  * app.html 메인 모듈에서 initRebalanceView() / onRebalanceViewActivated(view) 로 연결한다. */
 import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";
+// 실행 이력 · 입출금 이력 표 위의 필터 칩 + 새로고침(2026-11-05) — 칩 정의는 screenlists.js, 제어기는 paperlists.js(이미 받은 줄 안에서만 거른다)
+import {
+  createScreenPanel, REBAL_RUNS_LIMIT, REBAL_CASHFLOWS_LIMIT, rebalRunGroups, REBAL_RUN_GETTERS, REBAL_RUN_MULTI, rebalRunLimitNote, REBAL_RUN_TAIL,
+  rebalCashflowGroups, REBAL_CASHFLOW_GETTERS, rebalCashflowLimitNote, REBAL_CASHFLOW_TAIL,
+} from "/js/screenlists.js";
 
 const $ = (id) => document.getElementById(id);
 const won = (n, d = 0) => `${fmt(n, d)}원`;
@@ -213,7 +218,7 @@ async function savePlan() {
 }
 
 /* ── 현황 ────────────────────────────────────────────────── */
-async function loadStatus() {
+async function loadStatus({ stamp = false } = {}) {
   const version = targetEditVersion;
   try {
     const r = await api("/api/rebalance/status");
@@ -237,7 +242,7 @@ async function loadStatus() {
       $("rb-trigger-badges").textContent = "가격 자료가 준비되면 조건을 확인합니다.";
       renderSavedTargets(plan, r.valuation_error || "전 거래일 종가 자료 확인 대기");
       renderWeightChart(null, plan);
-      await Promise.all([loadRuns(), loadCashflows()]);
+      await Promise.all([loadRuns({ stamp }), loadCashflows({ stamp })]);
       return;
     }
     $("rb-kpis").innerHTML = [
@@ -261,7 +266,7 @@ async function loadStatus() {
     renderWeightChart(s);
     $("rb-import-positions").onclick = () => importFromPositions(s);
   } catch (e) { setToast(e.message, "error"); }
-  loadRuns(); loadCashflows();
+  loadRuns({ stamp }); loadCashflows({ stamp });
 }
 
 const kpi = (label, value, cls = "") => `
@@ -391,15 +396,23 @@ async function submitCashflow() {
   } catch (e) { setToast(e.message, "error"); }
 }
 
-async function loadCashflows() {
-  try {
-    const r = await api("/api/rebalance/cashflows?limit=20");
-    const label = { DEPOSIT: `<span class="badge-buy">입금</span>`, WITHDRAW: `<span class="badge-sell">출금</span>`, DIVIDEND: `<span class="badge-buy">배당</span>` };
-    $("rb-cashflows").innerHTML = r.events.length ? `<table><thead><tr><th>시각</th><th>구분</th><th style="text-align:right">금액</th><th>종목</th><th>메모</th><th style="text-align:right">반영 후 현금</th><th>리밸런싱</th></tr></thead><tbody>${
-      r.events.map(e => `<tr><td class="text-xs">${ts(e.created_at)}</td><td>${label[e.kind] || e.kind}</td><td style="text-align:right">${won(e.amount)}</td><td class="font-mono text-xs">${escHtml(e.symbol || "-")}</td><td class="text-xs">${escHtml(e.memo || "")}</td><td style="text-align:right">${won(e.cash_after)}</td><td class="text-xs">${e.rebalance_run_id ? "연결됨" : "-"}</td></tr>`).join("")}</tbody></table>`
-      : `<div class="text-sm" style="color:var(--text-mute);">아직 입출금·배당 이벤트가 없습니다.</div>`;
-  } catch (e) { $("rb-cashflows").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+function cashflowTableHtml(events) {
+  const label = { DEPOSIT: `<span class="badge-buy">입금</span>`, WITHDRAW: `<span class="badge-sell">출금</span>`, DIVIDEND: `<span class="badge-buy">배당</span>` };
+  return `<table><thead><tr><th>시각</th><th>구분</th><th style="text-align:right">금액</th><th>종목</th><th>메모</th><th style="text-align:right">반영 후 현금</th><th>리밸런싱</th></tr></thead><tbody>${
+    events.map(e => `<tr><td class="text-xs">${ts(e.created_at)}</td><td>${label[e.kind] || escHtml(e.kind)}</td><td style="text-align:right">${won(e.amount)}</td><td class="font-mono text-xs">${escHtml(e.symbol || "-")}</td><td class="text-xs">${escHtml(e.memo || "")}</td><td style="text-align:right">${won(e.cash_after)}</td><td class="text-xs">${e.rebalance_run_id ? "연결됨" : "-"}</td></tr>`).join("")}</tbody></table>`;
 }
+
+// 필터 칩 + 새로고침(2026-11-05) — 저장된 입출금 이력을 읽을 뿐 「이벤트 반영」 은 하지 않는다.
+const cashflowPanel = createScreenPanel({
+  host: "rb-cashflows", label: "입출금 이력 필터", unit: "건",
+  groups: rebalCashflowGroups, getters: REBAL_CASHFLOW_GETTERS, limitNote: rebalCashflowLimitNote, tail: REBAL_CASHFLOW_TAIL,
+  load: async () => {
+    const r = await api(`/api/rebalance/cashflows?limit=${REBAL_CASHFLOWS_LIMIT}`);
+    return { rows: r.events || [], meta: r };
+  },
+  body: (shown, ctx) => ctx.rows.length ? cashflowTableHtml(shown) : `<div class="text-sm" style="color:var(--text-mute);">아직 입출금·배당 이벤트가 없습니다.</div>`,
+}, { esc: escHtml, byId: $ });
+function loadCashflows(opts = {}) { return cashflowPanel.load(opts); }
 
 /* ── 실행 이력 ────────────────────────────────────────────── */
 async function cancelReservation(runId) {
@@ -413,36 +426,45 @@ async function cancelReservation(runId) {
   } catch (e) { setToast(e.message, "error"); }
 }
 
-async function loadRuns() {
-  try {
-    const r = await api("/api/rebalance/runs?limit=20");
-    if (!r.runs.length) { $("rb-runs").innerHTML = `<div class="text-sm" style="color:var(--text-mute);">아직 리밸런싱 이력이 없습니다.</div>`; return; }
-    $("rb-runs").innerHTML = r.runs.map(run => {
-      const filled = run.orders.filter(o => o.status === "filled").length;
-      const wchg = Object.keys(run.target_weights).map(k => {
-        const b = run.before_weights[k] ?? 0, a = run.after_weights?.[k], t = run.target_weights[k];
-        return `<span class="text-xs mr-2">${escHtml(k === "CASH" ? "현금" : k)}: ${b}%${a !== undefined ? ` → ${a}%` : ""} <span style="color:var(--text-mute)">(목표 ${t}%)</span></span>`;
-      }).join("");
-      return `<div class="rounded-lg p-3 mb-2" style="background:var(--surf2);border:1px solid var(--border);">
-        <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${run.context?.cancel_reason === "open_not_tradable" ? '<span class="badge-hold">미체결</span>' : STATUS_BADGE[run.status] || run.status}
-          <span class="text-xs" style="color:var(--text-mute)">${run.decision_date || ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
-          ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}" data-scheduled="${run.context?.price_basis === 'previous_close'}">${run.context?.price_basis === 'previous_close' ? '승인·예약' : '이전 제안 (재산출 필요)'}</button>` : ""}
-          ${run.status === "scheduled" ? `<button class="btn text-xs ml-auto rb-cancel" data-id="${run.id}">${run.context?.review_required ? "확인 대기 예약 취소" : "예약 취소"}</button>` : ""}
-        </div>
-        <div class="text-xs mt-1" style="color:var(--text-dim)">${escHtml(run.note || "")}</div>
-        <div class="text-xs mt-1">${run.context?.price_basis === "previous_close" ? `종가 기준일 ${escHtml(run.context.valuation_date)} · 예약 체결일 ${escHtml(run.context.scheduled_for || "승인 후 결정")}${run.context.fill_date ? ` · 체결일 ${escHtml(run.context.fill_date)}` : ""}${run.context.confirmed_at ? ` · 확정 ${ts(run.context.confirmed_at)}` : ""}` : `현재 시세 조회 ${ts(run.context?.observed_at)}`} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
-        <div class="text-xs mt-1">${escHtml(run.context?.waiting_reason || "")}</div>
-        ${(run.context?.reschedules || []).map(change => `<div class="text-xs mt-1">휴장일 변경: ${escHtml(change.previous_date)} → ${escHtml(change.scheduled_for)} · 변경 ${ts(change.changed_at)}</div>`).join("")}
-        <div class="mt-1">${wchg}</div>
-        <details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-mute)">주문 상세</summary><div id="rb-run-${run.id}" class="mt-1"></div></details>
-      </div>`;
-    }).join("");
-    r.runs.forEach(run => renderOrders(run.orders, `rb-run-${run.id}`, { empty: "주문 없음" }));
-    $("rb-runs").querySelectorAll(".rb-approve").forEach(b => b.addEventListener("click", () => executeRebalance(b.dataset.id, b.dataset.scheduled === "true")));
-    $("rb-runs").querySelectorAll(".rb-cancel").forEach(b => b.addEventListener("click", () => cancelReservation(b.dataset.id)));
-  } catch (e) { $("rb-runs").innerHTML = `<span class="text-red-500">${escHtml(e.message)}</span>`; }
+/** 실행 이력 한 회차 카드 — 「승인·예약」 「예약 취소」 단추는 그린 뒤 after 에서 잇는다(여기서는 누르지 않는다). */
+function runCardHtml(run) {
+  const filled = run.orders.filter(o => o.status === "filled").length;
+  const wchg = Object.keys(run.target_weights).map(k => {
+    const b = run.before_weights[k] ?? 0, a = run.after_weights?.[k], t = run.target_weights[k];
+    return `<span class="text-xs mr-2">${escHtml(k === "CASH" ? "현금" : k)}: ${b}%${a !== undefined ? ` → ${a}%` : ""} <span style="color:var(--text-mute)">(목표 ${t}%)</span></span>`;
+  }).join("");
+  return `<div class="rounded-lg p-3 mb-2" style="background:var(--surf2);border:1px solid var(--border);">
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="badge-hold">${(run.triggers || [run.trigger]).map(t => escHtml(TRIGGER_LABEL[t] || t)).join(" + ")}</span> <span class="badge-hold">${escHtml(KIND_LABEL[run.plan_kind] || "전체 조정")}</span> ${run.context?.cancel_reason === "open_not_tradable" ? '<span class="badge-hold">미체결</span>' : STATUS_BADGE[run.status] || run.status}
+      <span class="text-xs" style="color:var(--text-mute)">${run.decision_date || ts(run.created_at)} · 자산 ${won(run.total_asset)} · 최대 이탈 ${run.max_drift_pct}%p · 주문 ${filled}/${run.orders.length}건</span>
+      ${run.status === "proposed" ? `<button class="btn-green text-xs ml-auto rb-approve" data-id="${run.id}" data-scheduled="${run.context?.price_basis === 'previous_close'}">${run.context?.price_basis === 'previous_close' ? '승인·예약' : '이전 제안 (재산출 필요)'}</button>` : ""}
+      ${run.status === "scheduled" ? `<button class="btn text-xs ml-auto rb-cancel" data-id="${run.id}">${run.context?.review_required ? "확인 대기 예약 취소" : "예약 취소"}</button>` : ""}
+    </div>
+    <div class="text-xs mt-1" style="color:var(--text-dim)">${escHtml(run.note || "")}</div>
+    <div class="text-xs mt-1">${run.context?.price_basis === "previous_close" ? `종가 기준일 ${escHtml(run.context.valuation_date)} · 예약 체결일 ${escHtml(run.context.scheduled_for || "승인 후 결정")}${run.context.fill_date ? ` · 체결일 ${escHtml(run.context.fill_date)}` : ""}${run.context.confirmed_at ? ` · 확정 ${ts(run.context.confirmed_at)}` : ""}` : `현재 시세 조회 ${ts(run.context?.observed_at)}`} · 예상 비용 ${won(run.context?.estimated_cost || 0, 2)}${run.context?.actual_cost !== undefined ? ` · 체결 비용 ${won(run.context.actual_cost, 2)}` : ""}</div>
+    <div class="text-xs mt-1">${escHtml(run.context?.waiting_reason || "")}</div>
+    ${(run.context?.reschedules || []).map(change => `<div class="text-xs mt-1">휴장일 변경: ${escHtml(change.previous_date)} → ${escHtml(change.scheduled_for)} · 변경 ${ts(change.changed_at)}</div>`).join("")}
+    <div class="mt-1">${wchg}</div>
+    <details class="mt-1"><summary class="text-xs cursor-pointer" style="color:var(--text-mute)">주문 상세</summary><div id="rb-run-${run.id}" class="mt-1"></div></details>
+  </div>`;
 }
+
+// 필터 칩 + 새로고침(2026-11-05) — 저장된 실행 이력을 읽을 뿐 계산 · 실행 · 예약 · 취소를 하지 않는다. 칩 줄은 이 칸 맨 위에 JS 가 만든다.
+const runsPanel = createScreenPanel({
+  host: "rb-runs", label: "리밸런싱 실행 이력 필터", unit: "건",   // 한 건 = 한 회차
+  groups: rebalRunGroups, getters: REBAL_RUN_GETTERS, multi: REBAL_RUN_MULTI, limitNote: rebalRunLimitNote, tail: REBAL_RUN_TAIL,
+  load: async () => {
+    const r = await api(`/api/rebalance/runs?limit=${REBAL_RUNS_LIMIT}`);
+    return { rows: r.runs || [], meta: r };
+  },
+  body: (shown, ctx) => ctx.rows.length ? shown.map(runCardHtml).join("") : `<div class="text-sm" style="color:var(--text-mute);">아직 리밸런싱 이력이 없습니다.</div>`,
+  after: (host, ctx) => {
+    ctx.filtered.forEach(run => { if ($(`rb-run-${run.id}`)) renderOrders(run.orders, `rb-run-${run.id}`, { empty: "주문 없음" }); });
+    host.querySelectorAll(".rb-approve").forEach(b => b.addEventListener("click", () => executeRebalance(b.dataset.id, b.dataset.scheduled === "true")));
+    host.querySelectorAll(".rb-cancel").forEach(b => b.addEventListener("click", () => cancelReservation(b.dataset.id)));
+  },
+}, { esc: escHtml, byId: $ });
+function loadRuns(opts = {}) { return runsPanel.load(opts); }
 
 /* ── 초기화 ─────────────────────────────────────────────── */
 function showCustomInput(selectId, inputId) {
@@ -490,7 +512,7 @@ export function initRebalanceView() {
   $("rb-plan-editor")?.addEventListener("input", e => {
     if (!["rb-add-symbol", "rb-add-weight", "rb-import-etfs"].includes(e.target.id)) markPlanDirty();
   });
-  on("rb-refresh", "click", loadStatus);
+  on("rb-refresh", "click", () => loadStatus({ stamp: true }));   // 위 새로고침은 현황 + 두 이력을 함께 다시 읽고, 이력 칸에 「다시 읽었습니다」 를 남긴다
   on("rb-preview", "click", previewRebalance);
   on("rb-execute", "click", () => executeRebalance());
   on("rb-check", "click", checkTriggers);

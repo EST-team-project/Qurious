@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -12,13 +13,20 @@ NODE = os.environ.get("QURIOUS_NODE_EXECUTABLE") or shutil.which("node")
 pytestmark = pytest.mark.skipif(not NODE, reason="Node.js 필요")
 
 
+def plain_module(path):
+    """브라우저 ES 모듈 글을 vm 스크립트로 돌리도록 import 문 · export 를 뗀다(2026-11-05 · rebalance.js 가 필터 칩 모듈을 가져오게 되어 함께 싣는다)."""
+    text = (ROOT / path).read_text(encoding="utf-8")
+    text = re.sub(r'^import \{[^}]*\} from "[^"]+";[^\n]*\n', "", text, flags=re.M)
+    return re.sub(r"^export ", "", text, flags=re.M)
+
+
 def run_js(script):
     result = subprocess.run([NODE, "--input-type=module", "-"], input=script, text=True, capture_output=True, timeout=30)
     assert result.returncode == 0, result.stderr
 
 
 def test_etf_import_cancel_error_confirm_and_saved_plan_are_separate():
-    source = (ROOT / "public/js/rebalance.js").read_text()
+    source = "\n".join(plain_module(f"public/js/{name}.js") for name in ("listbar", "paperlists", "screenlists", "rebalance"))
     script = r'''
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -39,7 +47,7 @@ const context = vm.createContext({console, document: {getElementById: el},
   api: async (path, options) => {calls.push({path, options}); if(fail) throw Error('오래된 ETF 자료');
     return {handoff: draft, saved_at: '2026-10-30T16:00:00+09:00'};}});
 '''
-    script += "vm.runInContext(" + json.dumps(source.replace('import { api, setToast, escHtml, fmt, fmtPct } from "/js/common.js";', '').replace('export function', 'function')) + ", context);\n"
+    script += "vm.runInContext(" + json.dumps(source) + ", context);\n"
     script += r'''
 vm.runInContext("targetRows = [{symbol: '005930.KS', name: '기존 목표', weight_pct: 60}]; lastProposal={orders:[1]};", context);
 el('rb-auto').checked = true;
