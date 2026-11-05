@@ -1,0 +1,30 @@
+# [발표용] 편 B — 낡은 일봉으로 만든 신호를 막고, 화면마다 기준일을 밝힌다 (빠르게 · 핵심만)
+# 화면: 신호 순위 (signal-rank) · 퀀트 대시보드 (quant-dashboard) · 담당 이동원
+# 3차 신규: 신호 신선도 가드(#529 · #537) · 기준일 · 계산 시각 · 신선도 배지
+# 주의: 앱에 「데이터 대기」 문구 화면은 없다 — 낡은 일봉 상태를 일부러 만들지 않고, 항상 보이는 기준일 표시와 설명 카드로 보여 준다.
+# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작을 바로 뒤에 둔다.
+file: P-이동원-B-낡은일봉방어
+title: 낡은 일봉으로 만든 신호를 막고 기준일을 밝힙니다
+owner: 이동원
+pace: 1.4
+start: signal-rank
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "이틀 전 종가로 만든 신호를 막습니다", text: "11월 4일 오전, 신호가 직전 거래일이 아니라 이틀 전 종가였던 사례가 있었습니다", sec: 4.0}
+  - say: "신호가 어느 날짜 종가인지 모르면 오래된 값으로 사고팔 수 있습니다"
+  - pause: 7.0
+  - chapter: {label: "2 / 3 · 과정", title: "화면마다 기준일과 계산 시각을 밝힙니다", text: "있어야 할 마지막 거래일 종가인지 판정하고, 아니면 배지와 안내를 붙입니다", sec: 3.5}
+  - wait: {target: "[data-sr-fresh]", timeout: 60}
+  - say: "신호 순위 위쪽에 기준 날짜, 계산 시각, 상태 배지가 한 줄로 나옵니다"
+  - scroll: {target: "[data-sr-fresh]", block: "start"}
+  - ring: {target: "[data-sr-fresh]", sec: 3.0}
+  - pause: 3.5
+  - say: "장중에는 지난 거래일 종가 기준, 오늘 신호는 다음 거래일 12시 30분 뒤에 보입니다"
+  - pause: 5.0
+  - go: quant-dashboard
+  - wait: {target: "#quant-watch [data-sr-fresh]", timeout: 60}
+  - pause: 2.6
+  - say: "퀀트 대시보드의 관찰 목록 표에도 같은 기준일 표시가 붙습니다"
+  - scroll: {target: "#quant-watch", block: "start"}
+  - ring: {target: "#quant-watch [data-sr-fresh]", sec: 3.0}
+  - pause: 4.0
+  - chapter: {label: "3 / 3 · 결과", title: "모르는 것은 모른다고 밝힙니다", text: "증권사 일봉의 오늘 종가는 15시 40분에 확정된다고 보기 어려웠습니다. 공식 종가와는 아직 대조 전입니다", sec: 5.0}

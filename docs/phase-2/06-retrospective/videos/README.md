@@ -1,8 +1,10 @@
 # 시연 영상 — 장면 파일 · 녹화 · 보관 · 앱 안에서 보기
 
+> **2차 영상 폴더 — 얼림.** 2026-11-05 에 `docs/common/06-retrospective/videos/` 에서 이 자리로 옮겼다(차수마다 영상을 따로 두어 같은 이름으로 다시 찍어도 덮이지 않게). 3차 새 영상은 [phase-3 영상 폴더](../../../phase-3/06-retrospective/videos/README.md). 도구는 `export_mp4.py --phase 2` 로 이 폴더를 본다.
+
 | 머리표 | 내용 |
 |---|---|
-| 판 | v0.7 (2026-11-01 · 8절 새 판 녹화 계획 · 발표 영상 배속 설계 제안) / v0.6 (2026-10-21 · 자리 옮김 — `docs/발표/영상/` → 맨 위 `docs/common/06-retrospective/videos/`(3차에 다시 찍어도 얼린 2차를 고치지 않게) · 글 속 경로 · `파일/목록.json` 경로 · 덱 원본 영상 참조) / v0.5 (2026-10-20 · 7절 재생용 파일 표(<표 6>) — 본문에 없던 표를 자리 표시로 되살려 `export_mp4.py --readme` 가 채움 · 개정 이력 차례 바로잡음) / v0.4 (2026-10-20 · **재생용 mp4 · 포스터도 git 에 — 팀원이 받아 발표 자료에서 바로 재생**(사용자 결정 · 옛 media/ 도 함께) · 학습 한 묶음 뒤 새 메뉴로 30편 다시 찍음 · V04 · P-V04 는 국내만(DF-137) · F01 · P-F01 은 관리자 계정) |
+| 판 | v0.7 (2026-11-01 · 8절 새 판 녹화 계획 · 발표 영상 배속 설계 제안) / v0.6 (2026-10-21 · 자리 옮김 — `docs/발표/영상/` → 맨 위 `docs/phase-2/06-retrospective/videos/`(3차에 다시 찍어도 얼린 2차를 고치지 않게) · 글 속 경로 · `파일/목록.json` 경로 · 덱 원본 영상 참조) / v0.5 (2026-10-20 · 7절 재생용 파일 표(<표 6>) — 본문에 없던 표를 자리 표시로 되살려 `export_mp4.py --readme` 가 채움 · 개정 이력 차례 바로잡음) / v0.4 (2026-10-20 · **재생용 mp4 · 포스터도 git 에 — 팀원이 받아 발표 자료에서 바로 재생**(사용자 결정 · 옛 media/ 도 함께) · 학습 한 묶음 뒤 새 메뉴로 30편 다시 찍음 · V04 · P-V04 는 국내만(DF-137) · F01 · P-F01 은 관리자 계정) |
 | 무엇 | 영상 두 갈래 — **사용법 영상**(여정 7편 + 기능 8편 · 편마다 1분 안팎 · 앱 사용법 창에서 봄)과 **발표 영상**(같은 기능 15편 · 편마다 2 ~ 3분 · 더 자세히 · 6절)의 장면 파일, 녹화 · 보관 방법, 앱의 사용법 창에서 보는 길 |
 | 읽는 사람 | 팀원 네 명 — 자기 화면 영상을 더 낫게 다시 찍어 바꿔 끼울 때 · 자기 PC 앱에서 사용법 영상을 보고 싶을 때 |
 | 정본 | 장면 파일 `장면/*.yaml` · `발표/*.yaml`(이 저장소) · **재생용 mp4 · 포스터는 이 저장소의 `파일/사용법/` · `파일/발표/`**(H.264 · 1080p · 편마다 10 MB 안 · 목록 `파일/목록.json` · 2026-10-20 사용자 결정으로 git 에 — 옛 10-19 결정 「공식 자료 화면이 찍혀 있어 git 밖」 을 바꿈) · 녹화 원본(webm)은 HF 비공개 데이터셋 `qurious-quant/demo-videos` · 앱 안 사본은 각자 PC 의 `data/help/`(git · 이미지 밖) |
@@ -44,10 +46,10 @@
 앱을 개발 모드로 켠 뒤(`scripts/personal/start.ps1 -Dev -NoBrowser`) 저장소 뿌리에서:
 
 ```bash
-python tools/demo/record_demo.py --ensure-account docs/common/06-retrospective/videos/장면/V03-신호로-종목살피기.yaml   # 한 편
-python tools/demo/record_demo.py --no-video docs/common/06-retrospective/videos/장면/V03-신호로-종목살피기.yaml          # 영상 없이 단계만(누를 곳 확인)
+python tools/demo/record_demo.py --ensure-account docs/phase-2/06-retrospective/videos/장면/V03-신호로-종목살피기.yaml   # 한 편
+python tools/demo/record_demo.py --no-video docs/phase-2/06-retrospective/videos/장면/V03-신호로-종목살피기.yaml          # 영상 없이 단계만(누를 곳 확인)
 python tools/demo/record_demo.py --inventory robo-screening,robo-patterns                          # 화면마다 누를 곳 목록
-python tools/demo/record_demo.py --frames docs/common/06-retrospective/videos/장면/F02-자료안내-출처와-이용조건.yaml       # 장 · 자막 순간 프레임도 남김(눈으로 훑기)
+python tools/demo/record_demo.py --frames docs/phase-2/06-retrospective/videos/장면/F02-자료안내-출처와-이용조건.yaml       # 장 · 자막 순간 프레임도 남김(눈으로 훑기)
 ```
 
 - 결과는 `tools/demo/out/`(git 에 넣지 않음) — `.webm`(1920×1080) · `.ko.vtt`(자막) · `.chapters.vtt`(장) · `.ch<n>.jpg`(장마다 제목 카드 그림) · `.json`(단계별 시각 · `go` 단계의 화면 키 · 시작 화면 · 줄인 기다림 · 콘솔 오류 · 실패한 응답).
@@ -120,7 +122,7 @@ python tools/demo/help_videos.py clear     # 지운다(영상 칸 · 단추가 �
 - 녹화 · 올리기는 사용법 영상과 폴더만 다르다 — 사용법 영상 표(5절)에 섞이지 않게:
 
 ```bash
-python tools/demo/record_demo.py --frames --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-V07-근거상담.yaml
+python tools/demo/record_demo.py --frames --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-V07-근거상담.yaml
 python tools/demo/upload_hf.py --src tools/demo/out/present --prefix present      # HF present/ 로
 ```
 
@@ -210,5 +212,5 @@ python tools/demo/upload_hf.py --src tools/demo/out/present --prefix present    
 | v0.3 | 2026-10-19 | 장중 다섯 편(V04 국내 체결까지 · V06 · F06 · F07 · F08 새로) 두 판 · V05 · P-V05 는 다음 판(#277 이 바꾼 화면 · 회차 뒤 — P-V05 장면은 이 판에 새로) · **발표 자료가 바로 재생하는 mp4 — 파일은 git 밖(공식 자료 화면 · 출처 대장 이용 조건 · 같은 날 사용자 결정)**(7절 · <표 6> · `export_mp4.py` · TC-VX) · 발표 영상 열다섯(<표 5>) · <표 4> 출처 F06 · F07 · 4절 media/ 문구 지움 · 거시 · 산업 화면 출처 줄(TC-QVS-05) |
 | v0.4 | 2026-10-20 | 재생용 mp4 · 포스터 · 옛 media/ 를 git 에(팀원 재생 · 사용자 결정) · 학습 한 묶음(#291) 뒤 새 메뉴로 30편 다시 찍음(회차가 끝난 뒤 · 자료 배지 「10-19 · 정상」) · V04 · P-V04 국내만(미국 매수 막힘 DF-137) · F01 · P-F01 관리자 계정(환경 변수) · V05 · P-V05 는 오준영 님 새 장면(#298) · 자동매매 영상은 시연 계정의 그날 기준을 지우고 다시 켜서(DF-138) |
 | v0.5 | 2026-10-20 | 7절 재생용 파일 표(<표 6>) — v0.3 개정 이력 · <표 5> 머리가 가리키던 표가 본문에 없어 `export_mp4.py --readme` 가 「자리 표시가 없다」 로 멈췄다 → 자리 표시를 넣고 도구로 채움 · 사용법 영상 앱 목록(`data/help`)을 V04 15:48 판으로 다시 만듦 · 개정 이력 차례(v0.3 · v0.4) 바로잡음 |
-| v0.6 | 2026-10-21 | 자리 옮김 — `docs/발표/영상/` → 맨 위 `docs/common/06-retrospective/videos/`(docs 차수 폴더 · 앱 사용법 창 · 녹화 도구가 3차에도 씀) · 글 속 경로 · `파일/목록.json` 경로 · 덱 원본(`docs/phase-2/06-retrospective/발표자료-원본.html`) 영상 참조 12곳 `../../영상/파일/발표/` |
+| v0.6 | 2026-10-21 | 자리 옮김 — `docs/발표/영상/` → 맨 위 `docs/phase-2/06-retrospective/videos/`(docs 차수 폴더 · 앱 사용법 창 · 녹화 도구가 3차에도 씀) · 글 속 경로 · `파일/목록.json` 경로 · 덱 원본(`docs/phase-2/06-retrospective/발표자료-원본.html`) 영상 참조 12곳 `../../영상/파일/발표/` |
 | v0.7 | 2026-11-01 | 8절 새 판 녹화 후보(<표 7>) · 발표 영상 1.5배속 두 길(재생기 · 파일) 설계 제안 — 정한 것 아님(사용자 제안 11-01) |

@@ -47,7 +47,7 @@ data/help/
 data/personal/
 # 시연 영상 mp4 · 포스터 — 2026-10-20 사용자 결정으로 추적한다(팀원이 받아 발표 자료에서 바로 재생 · 「그냥 올려 상관없음」).
 #   옛 결정(2026-10-19 S126 「공식 자료 화면이 찍혀 있어 git 밖 · 팀원은 HF 비공개에서 받는다」)을 바꿨다.
-#   채우기: python tools/demo/export_mp4.py(녹화한 PC) → docs/common/06-retrospective/videos/파일/{발표,사용법}/ · 목록.json
+#   채우기: python tools/demo/export_mp4.py(녹화한 PC) → docs/phase-<차수>/06-retrospective/videos/파일/{발표,사용법}/ · 목록.json
 #   — 그대로 커밋한다(2026-10-21 차수 폴더 — docs/발표/영상/ 에서 맨 위 docs/영상/ 으로 · 2026-10-22 번호 폴더 — 지금 자리로).
 # 통합본(rag-lab/)의 화면 표시용 시세 자료 셋 — 네이버 · 토스증권 · 야후에서 모은 값이라 커밋하지 않는다.
 #   비공개 데이터셋에 두고 필요한 사람이 받는다: python scripts/raglab_data.py pull

@@ -59,7 +59,7 @@ PRESENT_DIR = "06-retrospective"
 #: 차수 폴더 이름 — docs/phase-2 · docs/phase-3 …(2026-10-21 사용자 결정 안 C · 2차 얼림 + 3차 사본 · 영어 이름 2026-10-22)
 PHASE = re.compile(r"^phase-\d+$")
 #: 차수 밖 자산 폴더(docs 기준) — 3차에 다시 찍어도 얼린 2차를 고치지 않게(2026-10-21 · 자리 2026-10-22)
-TOP_DIRS = ("common/06-retrospective/videos",)
+TOP_DIRS = ("phase-2/06-retrospective/videos", "phase-3/06-retrospective/videos")
 #: 옛 자리 — 이 이름의 docs 바로 아래 폴더에는 문서가 남아 있으면 안 된다(docs/README.md 7절 옛 자리 → 새 자리)
 OLD_PHASES = ("2차", "3차")
 OLD_KIND_DIRS = ("계획서", "요구사항", "설계", "데이터", "인터페이스", "화면", "시험", "조사", "배포", "개발", "문서기준", "데이터수집",

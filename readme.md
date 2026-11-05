@@ -39,7 +39,7 @@
 ## 시연 영상
 
 2차(v2.0) 기능은 영상 열다섯 편(여정 일곱 · 기능 여덟)으로 볼 수 있고, 여정 영상은 처음 쓰는 사람이 지나는 차례로 찍었습니다(<표 2>).
-발표용 영상 mp4 와 첫 장면 그림은 저장소의 `docs/common/06-retrospective/videos/파일/` 에 있습니다(2026-10-20 팀 결정 — 팀원도 발표 자료에서 재생).
+발표용 영상 mp4 와 첫 장면 그림은 저장소의 `docs/phase-2/06-retrospective/videos/파일/` 에 있습니다(2026-10-20 팀 결정 — 팀원도 발표 자료에서 재생).
 발표 자료는 HTML 한 파일 판입니다 — `docs/phase-2/06-retrospective/발표자료.html` 하나만 내려받아(GitHub 파일 쪽 「Download raw file」) Chrome · Edge 로 열면 그림 · 영상 · 글꼴이 모두 보입니다(약 50 MB · 인터넷 없이도 · 2026-10-21). 앱 안에서 영상을 보려면 아래처럼 받습니다.
 
 **<표 2> 여정 영상** · 처음 쓰는 사람이 지나는 차례
@@ -73,8 +73,8 @@
 영상 파일은 팀 안에서만 나눕니다.
 
 - 앱 안에서 보기: `python tools/demo/help_videos.py pull` 로 Hugging Face 비공개 데이터셋에서 각자 PC 의 `data/help/` 에 받습니다(조직 회원만). 받은 뒤에는 로그인한 화면 위쪽의 「▶ 영상」 단추나 「사용법」 창의 「영상으로 보기」 에서 그 화면이 나오는 장부터 재생됩니다.
-- 발표용 mp4: 녹화한 PC 에서 `python tools/demo/export_mp4.py` 로 만들어 `docs/common/06-retrospective/videos/파일/` 에 두고 함께 커밋합니다. 발표 자료 한 파일 판은 `python tools/deck/bundle_deck.py` 로 다시 만듭니다(고치는 원본은 `docs/phase-2/06-retrospective/발표자료-원본.html`).
-- 목록 · 다시 찍는 법 · 바꿔 끼우는 기준은 [시연 영상 안내](docs/common/06-retrospective/videos/README.md)에 있습니다.
+- 발표용 mp4: 녹화한 PC 에서 `python tools/demo/export_mp4.py` 로 만들어 `docs/phase-2/06-retrospective/videos/파일/` 에 두고 함께 커밋합니다. 발표 자료 한 파일 판은 `python tools/deck/bundle_deck.py` 로 다시 만듭니다(고치는 원본은 `docs/phase-2/06-retrospective/발표자료-원본.html`).
+- 목록 · 다시 찍는 법 · 바꿔 끼우는 기준은 [시연 영상 안내](docs/phase-2/06-retrospective/videos/README.md)에 있습니다.
 
 ## 주요 기능
 
@@ -352,7 +352,7 @@ flowchart LR
 | 시험 · 결함 · 성과 | [테스트 계획서](docs/phase-3/04-testing/테스트계획서.md) · [백테스트 보고서](docs/phase-3/04-testing/백테스트보고서.md) |
 | 로컬 실행 · 문제 해결 | [로컬 실행 안내서](docs/phase-3/05-deployment/로컬실행안내서.md) · [scripts/personal](scripts/personal/README.md) |
 | 결정 기록 | [ADR](docs/common/02-design/adr/) · [논의 결정 대장](docs/phase-3/00-management/plans/논의결정대장.md) |
-| 시연 영상 | [시연 영상 안내](docs/common/06-retrospective/videos/README.md) |
+| 시연 영상 | [시연 영상 안내](docs/phase-2/06-retrospective/videos/README.md) |
 | 산출물 전체 · 폴더 지도 | [산출물 목록](docs/산출물목록.md) · [docs 안내](docs/README.md) |
 | 코드 폴더 안내 | [app](app/README.md) · [public](public/README.md) · [tests](tests/README.md) · [scripts](scripts/README.md) · [collector](collector/README.md) · [data](data/README.md) · [alembic](alembic/README.md) · [tools](tools/README.md) · [prompts](prompts/README.md) · [screenshots](screenshots/README.md) |
 

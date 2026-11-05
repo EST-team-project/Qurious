@@ -3,7 +3,7 @@
 # 사용법 판(장면/F08)과 다른 점: 지수 카드 · 종목마다 RSI 와 매수 · 매도 표시 · 지표 차트(이동평균 · 볼린저 밴드) ·
 #   계좌 탭 · 기본 전략 성능의 「신호 없음」 읽기 · 기능 바로가기
 # 시연 계정은 KIS 모의 미연동 — 계좌는 「모의투자 계좌」 탭(data-key paper)으로 본다
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-F08-퀀트-통합-대시보드.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-F08-퀀트-통합-대시보드.yaml
 file: 발표-F08-퀀트-통합-대시보드
 title: 지표와 계좌 요약을 첫 화면에서 봅니다
 owner: 신장환 · 강민석

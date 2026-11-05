@@ -3,7 +3,7 @@
 # 사용법 판(장면/V04)과 다른 점: 두 주문 칸(시장가 · 스탑) · 미리 보기 안내 문구 · 체결 뒤 보유 종목 · 주문 내역 칸 읽기
 # 2026-10-20 판: 미국 예약 주문 장면은 뺐다 — PR #286(해외 종목 거부)로 미국 모의 주문이 막혀(미리 보기 400) 강민석 님 핫픽스를
 #   기다린다. 핫픽스가 머지되면 10-19 판(git 이력)의 미국 장면(시세 카드 · 원화 예상 금액 · 예약 확인 상자)을 되살린다.
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-V04-모의주문-국내미국.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-V04-모의주문-국내미국.yaml
 # 장중(09:00 ~ 15:30)에만 국내 시장가 체결이 된다
 file: 발표-V04-모의주문-국내미국
 title: 가상 돈으로 국내 주식을 주문하고 기록을 남깁니다

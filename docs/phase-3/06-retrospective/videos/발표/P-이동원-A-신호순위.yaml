@@ -1,0 +1,44 @@
+# [발표용] 편 A — 전체 종목 신호를 걸러 보고, 새로고침하고, 근거까지 확인한다 (빠르게 · 핵심만)
+# 화면: 로보 어드바이저 › 신호 순위 (signal-rank) · 퀀트 대시보드 › 관찰 목록 표 (quant-dashboard) · 담당 이동원
+# 3차 신규: 신호 순위 필터(#553) · 새로고침(#558) · 퀀트 대시보드 표 필터 · 새로고침
+# 자막 규약: **자막(say)을 먼저, 그 자막이 설명하는 동작(click · ring · scroll)을 바로 뒤에** 둔다. 자막이 동작보다 늦게 뜨면 밀려 보인다.
+#            동작 뒤의 pause 는 자막이 읽힐 시간이다(tools/demo/subtitle_sync.py check 가 점검 · pad 가 보충).
+file: P-이동원-A-신호순위
+title: 전체 종목 신호를 걸러 보고 근거까지 확인합니다
+owner: 이동원
+pace: 1.4
+start: signal-rank
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "전체 종목의 신호를 조건으로 걸러 봅니다", text: "수집 DB 에 기록된 신호를 매수 · 매도 · 관망, 시장별로 나눕니다", sec: 3.0}
+  - wait: {target: ".view.active table tbody tr", timeout: 60}
+  - say: "기록된 신호를 순위로 봅니다. 추천 순위가 아닙니다"
+  - pause: 5.2
+  - chapter: {label: "2 / 3 · 과정", title: "신호 · 시장을 고르고 새로고침합니다", text: "조건에 맞는 종목을 위 줄 수 안이 아니라 전체에서 먼저 거릅니다", sec: 3.0}
+  - say: "신호 단추 매수, 시장 단추 KOSDAQ 으로 걸러 봅니다"
+  - click: '[data-sr-filter="signal"][data-value="매수"]'
+  - click: '[data-sr-filter="market"][data-value="KOSDAQ"]'
+  - wait: {target: ".view.active table tbody tr", timeout: 60, cut: true}
+  - pause: 1.5
+  - say: "조건에 맞는 종목 수가 줄 수와 함께 나옵니다"
+  - scroll: {target: "[data-sr-fresh]", block: "start"}
+  - pause: 3.0
+  - say: "새로고침은 기록을 다시 읽고 위 종목에 지금 가격을 붙입니다. 신호는 새로 계산하지 않습니다"
+  - scroll: {by: -400}
+  - click: "[data-sr-refresh]"
+  - scroll: {target: "[data-sr-fresh]", block: "start"}
+  - pause: 4.3
+  - say: "줄을 누르면 신호의 근거 문장과 기준일이 나옵니다"
+  - click: ".view.active table tbody tr[data-hub-open]"
+  - pause: 4.0
+  - key: "Escape"
+  - go: quant-dashboard
+  - wait: {target: "#quant-watch table tbody tr", timeout: 60}
+  - say: "퀀트 대시보드의 관찰 목록 표에도 같은 신호 필터가 있습니다"
+  - scroll: {target: "#quant-watch", block: "start"}
+  - click: '#quant-watch [data-qd-wfilter][data-value="매수"]'
+  - pause: 3.5
+  - say: "새로고침해도 걸어 둔 필터는 그대로입니다"
+  - click: "#quant-watch [data-qd-wrefresh]"
+  - wait: {target: "#quant-watch [data-qd-watch-note]:has-text('다시 읽었습니다')", timeout: 60}
+  - pause: 3.0
+  - chapter: {label: "3 / 3 · 결과", title: "걸러 보고 근거까지 한 흐름입니다", text: "규칙 신호의 기록이며 추천이 아닙니다. 전체를 실시간으로 다시 판단하는 것은 11월 12일 뒤 설계입니다", sec: 4.0}

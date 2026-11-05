@@ -1,0 +1,44 @@
+# [발표용] 신장환 ① — 전략 카드 한 장으로 규칙을 정하고 차트와 Pine 목록에서 확인한다 (빠르게 · 핵심만)
+# 화면: 투자 인디케이터 › 기본 인디케이터 전략 (indicator-strategy) · 외부 차트 알림 연동 (indicator-tradingview) · 담당 신장환
+# 3차 신규: 전략 카드 판 2(손절 · 익절 · 수량 · 체결 시점 · 손절 판정) · 규칙 신호 · Pine v6 목록 연결
+# 주의: 「카드 저장」은 데모 계정에 기록이 남으므로 누르지 않는다. 입력 칸을 읽는 데까지만 보여 준다. 「규칙 신호」는 매매 권유가 아니다.
+# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작을 바로 뒤에 둔다.
+file: P-신장환-1-전략카드
+title: 전략 카드 한 장으로 규칙을 정합니다
+owner: 신장환
+pace: 1.4
+start: indicator-strategy
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "조건 · 손절 · 수량을 카드 한 장에 적습니다", text: "같은 카드가 차트 표식과 백테스트 · 자동매매 판단의 기준이 됩니다", sec: 3.5}
+  - wait: {target: "#ind-load-btn", timeout: 60}
+  - say: "종목과 기간을 고르고 전략 분석을 실행합니다"
+  - click: "#ind-load-btn"
+  - wait: {target: ".view.active table tbody tr", timeout: 120, cut: true}
+  - pause: 1.5
+  - say: "규칙으로 계산한 신호와 근거가 나옵니다. 매매 권유가 아닙니다"
+  - scroll: {by: 300}
+  - pause: 5.4
+  - chapter: {label: "2 / 3 · 과정", title: "전략 카드에서 규칙을 읽습니다", text: "이동평균 · ATR 손절 · 손익비 · 1회 위험 % · 비중 상한 · 체결 시점", sec: 3.5}
+  - scroll: {target: "#ind-card-box", block: "center"}
+  - click: "#ind-card-box > summary"
+  - wait: {target: "#ic-slug", timeout: 20}
+  - say: "ATR 곱으로 손절 거리를 정하고"
+  - scroll: {target: "#ic-atr-mult", block: "center"}
+  - ring: {target: "#ic-atr-mult", sec: 2.5}
+  - pause: 1.5
+  - say: "손익비로 익절선을 정합니다"
+  - ring: {target: "#ic-take-rr", sec: 2.5}
+  - pause: 1.5
+  - say: "1회 위험 비율로 주문 수량이 정해집니다"
+  - ring: {target: "#ic-risk", sec: 2.5}
+  - pause: 1.5
+  - say: "체결은 다음 거래일 시가, 손절 판정은 종가 기준입니다"
+  - ring: {target: "#ic-mode", sec: 2.5}
+  - pause: 2.0
+  - go: indicator-tradingview
+  - wait: {target: "#pc-card", timeout: 60}
+  - say: "저장한 카드는 Pine 코드를 만드는 목록에도 같이 나옵니다"
+  - scroll: {target: "#pc-card", block: "center"}
+  - ring: {target: "#pc-card", sec: 3.0}
+  - pause: 3.0
+  - chapter: {label: "3 / 3 · 결과", title: "한 카드가 여러 곳에서 같은 규칙을 씁니다", text: "카드 저장은 이 영상에서 누르지 않았습니다. 규칙 신호는 투자 권유가 아닙니다", sec: 4.0}

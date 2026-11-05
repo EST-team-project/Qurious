@@ -2,7 +2,7 @@
 # 화면: 직접매매 › 주가 차트 (trading-chart · 신장환 추정) · 미국주식 › 대시보드 · 주가 차트 · 포트폴리오 (us-dashboard · us-chart · us-portfolio · 이동원)
 # 사용법 판(장면/F07)과 다른 점: 「크게 오름 · 크게 내림」 규칙 · 저장본 나이 · 미국 차트 머리의 시세 시각 · 원화 기준 포트폴리오(지금은 빈 화면 — 그대로 보인다)
 # 「국내는 수정주가」 는 국내 주가 차트 화면에 그 표시가 없어 자막에 넣지 않는다(팀원 화면 — 고치지 않음 · 2026-10-19 확인)
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-F07-국내수정주가-미국지연시세.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-F07-국내수정주가-미국지연시세.yaml
 file: 발표-F07-국내수정주가-미국지연시세
 title: 국내 · 미국 주가 차트와 시세 시각을 봅니다
 owner: 신장환 · 이동원

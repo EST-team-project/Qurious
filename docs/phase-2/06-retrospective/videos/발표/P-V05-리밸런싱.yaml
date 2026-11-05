@@ -4,7 +4,7 @@
 #   현재 비중 vs 목표 비중 그림 · 주문 미리 보기 표 · 요약 줄(판단 기준 종가 · 시가로 다시 계산 · 회전 금액 · 비용) · 실행 단추는 짚기만
 # 실행(시가 체결 예약)은 누르지 않는다 — 계획 저장 · 주문 산출(미리 보기)까지
 # 주문 산출은 전 거래일 종가가 수집된 뒤에만 된다(주말 · 공개 전이면 「자료 준비 후 다시」) — 평일 12:30 회차 뒤에 찍는다(사용법 판과 같음)
-# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/common/06-retrospective/videos/발표/P-V05-리밸런싱.yaml
+# 녹화: python tools/demo/record_demo.py --out tools/demo/out/present docs/phase-2/06-retrospective/videos/발표/P-V05-리밸런싱.yaml
 file: 발표-V05-리밸런싱
 title: 목표 비중에서 벗어나면 다시 맞추는 계획을 세웁니다
 owner: 오준영
