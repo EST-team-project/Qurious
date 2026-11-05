@@ -68,7 +68,7 @@ def test_no_promises_the_app_does_not_keep():
     assert "고객번호는 기록에 남습니다" in SHOWN and "연결을 끊은 채 남" in SHOWN
     assert "서비스 데이터베이스에 저장됩니다" in SHOWN                                  # 저장 여부와 보호 범위를 구분
     assert "증권사 API 키 · 비밀키 · 계좌번호는 암호화 저장" in SHOWN
-    assert "알림 토큰 · 이메일 발송 비밀번호는 현재 암호화 저장 대상에 포함되지 않습니다" in TERMS_JS
+    assert "알림 채널의 토큰 · 웹훅 주소 · 이메일 발송 비밀번호 · API 키도 암호화 저장하며(휴대전화번호 · 채팅 ID · 이메일 주소 등은 제외)" in TERMS_JS
     assert "OpenAI" in SHOWN and "이용 중 따로 알리는 것" in SHOWN                          # 국외 이전은 이용 중 화면에서 따로 알린다고 적는다
 
 
@@ -246,7 +246,8 @@ def test_policy_does_not_promise_what_the_app_does_not_do():
         assert banned not in POLICY_TEXT, f"「{banned}」 는 앱의 실제 동작과 맞지 않는다"
     assert f"{login_guard.MAX_FAILS}번 연속 실패하면 {login_guard.WINDOW_SEC // 60}분 동안 로그인이 잠깁니다" in POLICY_TEXT
     assert "증권사 API 키 · 비밀키 · 계좌번호는 데이터베이스와 분리한 키로 암호화 저장합니다" in POLICY_TEXT
-    assert "알림 토큰 · 이메일 발송 비밀번호는 현재 암호화 저장 대상에 포함되지 않습니다" in POLICY_TEXT
+    assert "알림 채널의 토큰 · 웹훅 주소 · 이메일 발송 비밀번호 · API 키 · 비밀키 · 발신 키도 같은 방식(데이터베이스와 분리한 키)으로 암호화 저장합니다" in POLICY_TEXT
+    assert "휴대전화번호 · 채팅 ID · 이메일 주소 등은 암호화 저장 대상에 포함되지 않습니다" in POLICY_TEXT
     assert "저장하지 않습니다" in POLICY_TEXT
     assert "임시 창구" in POLICY_TEXT and "PRIVACY_OFFICER.placeholder" in PRIVACY_HTML and "임시 창구" in PRIVACY_HTML
     assert "광고 · 분석용 쿠키나 스크립트는 쓰지 않습니다" in POLICY_TEXT
