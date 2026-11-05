@@ -10,6 +10,7 @@ missing 대체값도 없어 1) · 받은 시각 · 화면에 그대로 보일 �
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
 
 _CACHE: dict[str, dict] = {}
+_AUDIT_LOCKS: dict[str, asyncio.Lock] = {}
 _TTL = 600
 _FALLBACK = {"USD": 1350.0, "JPY": 9.0, "EUR": 1480.0, "HKD": 173.0, "CNY": 187.0, "GBP": 1720.0}
 
@@ -93,6 +95,20 @@ async def to_krw_info(price: float, currency: str) -> tuple[float, dict]:
     return float(price) * info["rate"], info
 
 async def to_krw_info_with_audit(price: float, currency: str) -> tuple[float, dict, dict]:
+    """동일 통화의 감사 환율 조회를 직렬화해 중복 외부 조회를 막는다."""
+    cur = (currency or "KRW").upper()
+    if cur in ("KRW", ""):
+        return await _to_krw_info_with_audit_locked(price, cur)
+
+    lock = _AUDIT_LOCKS.setdefault(cur, asyncio.Lock())
+    async with lock:
+        # Lock 대기 중 다른 요청이 캐시를 채웠을 수 있으므로 내부에서 다시 확인한다.
+        return await _to_krw_info_with_audit_locked(price, cur)
+
+
+async def _to_krw_info_with_audit_locked(
+    price: float, currency: str
+) -> tuple[float, dict, dict]:
     """(원화 환산 가격, 기존 환율 정보, 별도 감사 메타데이터).
 
     기존 to_krw_info 계약은 유지하며, PAPER snapshot 감사 기록에서만 사용한다.
