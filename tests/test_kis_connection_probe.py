@@ -25,12 +25,14 @@ def runtime(monkeypatch):
     monkeypatch.setattr(probe, "get_session_factory", lambda: sessions)
     monkeypatch.setattr(probe.control, "get_session_factory", lambda: sessions)
     monkeypatch.setattr(probe.control, "coordination_ready", AsyncMock())
-    # 장중 시각만 고정한다. 날짜는 DB의 오늘 주문 집계와 같게 유지한다.
+    # 한국 날짜의 장중 한 시점을 고정한 뒤 요청한 시간대로 바꾼다.
+    # UTC 날짜에서 시각만 바꾸면 KST 09시 전에는 서로 하루가 달라진다(#554).
     class Clock(RealDatetime):
         @classmethod
         def now(cls, tz=None):
-            current = cls.fromtimestamp(RealDatetime.now().timestamp(), tz or probe.control.KST)
-            return current.replace(hour=1 if tz == timezone.utc else 10, minute=0, second=0, microsecond=0)
+            current = cls.fromtimestamp(RealDatetime.now().timestamp(), probe.control.KST)
+            fixed = current.replace(hour=10, minute=0, second=0, microsecond=0)
+            return fixed.astimezone(tz or probe.control.KST)
     monkeypatch.setattr(probe, "datetime", Clock)
     monkeypatch.setattr(probe.control, "datetime", Clock)
     today = RealDatetime.now(probe.control.KST).date().isoformat()
@@ -64,15 +66,47 @@ async def user(sessions, **overrides):
     return uid
 
 
+@pytest.mark.parametrize("wall_time", [
+    "2026-11-05T00:05:00+09:00", "2026-11-05T08:50:00+09:00",
+    "2026-11-05T09:04:00+09:00", "2026-11-05T23:55:00+09:00",
+])
+def test_shared_clock_allows_synthetic_order_on_both_sides_of_utc_midnight(
+        monkeypatch, request, wall_time):
+    """#554 / DF-167: 실제 실행 시각과 무관하게 KST·UTC가 같은 시험 시점을 가리킨다."""
+    import sys
+
+    class WallClock(RealDatetime):
+        @classmethod
+        def now(cls, tz=None):
+            fixed = cls.fromisoformat(wall_time)
+            return fixed.astimezone(tz) if tz is not None else fixed.astimezone().replace(tzinfo=None)
+
+    monkeypatch.setattr(sys.modules[__name__], "RealDatetime", WallClock)
+    sessions, client = request.getfixturevalue("runtime")
+
+    async def scenario():
+        uid = await user(sessions)
+        result = await probe.run(uid, max_price=70000, execute=True)
+        assert result["status"] == "submitted", result
+        assert probe.datetime.now(timezone.utc) == probe.datetime.now(probe.control.KST)
+        client.place_order.assert_awaited_once()
+
+    asyncio.run(scenario())
+
+
 def test_dry_run_leaves_no_decision_order_or_baseline(runtime):
     sessions, client = runtime
     async def scenario():
         uid = await user(sessions)
+        models = (LiveOrder, OrderIntent, BrokerPositionBaseline, RiskDay)
+        async with sessions() as db:
+            before = {model: await db.scalar(select(func.count()).select_from(model))
+                      for model in models}
         result = await probe.run(uid, max_price=70000)
         assert result["status"] == "DRY_RUN" and result["quantity"] == 1
         async with sessions() as db:
-            for model in (LiveOrder, OrderIntent, BrokerPositionBaseline, RiskDay):
-                assert await db.scalar(select(func.count()).select_from(model)) == 0
+            for model in models:
+                assert await db.scalar(select(func.count()).select_from(model)) == before[model]
         client.place_order.assert_not_awaited()
     asyncio.run(scenario())
 
