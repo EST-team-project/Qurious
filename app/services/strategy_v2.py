@@ -119,14 +119,32 @@ def judgment(spec, bars):
             "atr_adjusted": atr, "distance_raw": distance}
 
 
+def adjustment_since_last_bar(state, bars):
+    """같은 자료 세대에서 마지막 처리일 이후의 모든 계수 경계를 확인한다(#561).
+
+    최신 누적계수는 매번 1로 정규화되므로 저장된 값·마지막 두 봉만 비교하면
+    중단 중 발생한 사건을 놓친다. 분할과 병합이 상쇄돼도 중간 경계를 확인한다.
+    """
+    previous = state.get("last_bar")
+    if previous is None:
+        window = bars[-2:]
+    else:
+        window = [bar for bar in bars if bar["date"] >= previous]
+        if not window or window[0]["date"] != previous:
+            raise ValueError("마지막 처리일의 가격 자료가 없어 조정 사건을 확인할 수 없습니다. 자동 매매를 보류합니다.")
+    changed = any(adjustment_changed(before["factor"], after["factor"])
+                  for before, after in zip(window, window[1:]))
+    # 기존 상태와 자료 정정의 불일치도 임의로 정상 처리하지 않는다.
+    return changed or (state.get("last_factor") is not None
+                       and adjustment_changed(state["last_factor"], bars[-1]["factor"]))
+
+
 def observe(state, spec, bars):
     state = deepcopy(state)
     j = judgment(spec, bars)
     if state["last_bar"] and j["date"] <= state["last_bar"]:
         raise ValueError("처리한 판단 봉 이전으로 상태를 되돌릴 수 없습니다.")
-    changed = state["last_factor"] is not None and adjustment_changed(state["last_factor"], j["factor"])
-    # 첫 실행에도 마지막 두 봉 사이의 조정 사건을 확인한다.
-    changed |= adjustment_changed(bars[-2]["factor"], j["factor"])
+    changed = adjustment_since_last_bar(state, bars) if not state["blocked"] else False
     if state["pending"] and not changed and not state["blocked"]:
         # 늦은 체결 확인 뒤 같은 종가의 손절을 다시 판단할 수 있어야 한다.
         # 미확인 주문 때문에 판단을 미룬 봉은 처리 완료로 소비하지 않는다.
@@ -136,6 +154,7 @@ def observe(state, spec, bars):
     action, reason = "HOLD", "진입 조건 없음"
     if changed and (state["quantity"] or state["pending"]):
         state["blocked"] = "CORPORATE_ACTION_RECONCILIATION"
+        state.setdefault("blocked_at", j["date"])
     if state["blocked"]:
         reason = state["blocked"]
     elif state["pending"]:

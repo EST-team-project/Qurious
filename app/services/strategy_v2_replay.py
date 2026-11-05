@@ -27,7 +27,7 @@ def replay(spec, bars, *, start, initial_cash, budget, slippage_bps=10.0, risk_r
             raise ValueError(f"재현 시작일의 준비 봉이 {spec['warmup_bars']}개 미만입니다.")
         filled, skipped = None, None
         pending = state["pending"]
-        changed = state["last_factor"] is not None and v2.adjustment_changed(state["last_factor"], bar["factor"])
+        changed = v2.adjustment_since_last_bar(state, bars[:i + 1])
         if changed and state["quantity"]:
             state["blocked"] = "CORPORATE_ACTION_RECONCILIATION"
             return _report(spec, bars, rows, fills, cash, state, "partial", "CORPORATE_ACTION_RECONCILIATION", slippage_bps)
