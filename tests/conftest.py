@@ -211,3 +211,55 @@ def _test_broker_encryption_key(tmp_path_factory):
         os.environ.pop("BROKER_CREDENTIAL_KEY_FILE", None)
     else:
         os.environ["BROKER_CREDENTIAL_KEY_FILE"] = old
+
+
+# ---------------------------------------------------------------------------
+# Node 버전 안내 (#567 · 2026-11-05)
+# 화면 시험 53개 파일이 `node` 를 부른다. 그중 34개는 `?.` · `??`(Node 14+)를 쓰고, 시험이 만든 `.mjs` 가
+# `public/js/*.js`(`export` 사용 · package.json 없음)를 `import` 하므로 Node 가 `.js` 안의 `export` 를 스스로 ESM 으로
+# 알아보는 기능에 기댄다. 개발 PC 는 Node 24 로 돈다. 낮은 Node(WSL 기본 v12 등)에서는 수십 건이 한꺼번에 실패해
+# 「제품 회귀」 로 오해하기 쉬우므로 시험 머리에 버전과 경고를 찍는다.
+# ---------------------------------------------------------------------------
+NODE_MIN_MAJOR = 22
+
+
+def node_version_note(raw: str | None) -> str:
+    """`node --version` 출력(예: ``v24.22.1``)을 시험 머리에 찍을 한 줄로 바꾼다. 없으면 건너뛴다는 뜻을 알린다."""
+    if not raw or not raw.strip():
+        return "node: 없음 — Node 를 쓰는 화면 시험은 건너뛴다"
+    text = raw.strip()
+    try:
+        major = int(text.lstrip("v").split(".")[0])
+    except ValueError:
+        return f"node: {text} (버전을 읽지 못함 — Node {NODE_MIN_MAJOR} 이상 권장)"
+    if major < NODE_MIN_MAJOR:
+        return (f"node: {text} — ⚠ Node {NODE_MIN_MAJOR} 이상이 필요하다. 낮으면 Node 를 쓰는 화면 시험이 한꺼번에 실패한다"
+                " (제품 회귀가 아니다 · README 「시험 환경」)")
+    return f"node: {text}"
+
+
+def _node_note() -> str:
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    raw = None
+    if node:
+        try:
+            raw = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=10).stdout
+        except (OSError, subprocess.SubprocessError):
+            raw = None
+    return node_version_note(raw)
+
+
+def pytest_report_header(config):
+    """시험 머리(`-q` 가 기본이라 보통은 숨겨진다 — `-o addopts=` 로 보면 나온다)."""
+    return _node_note()
+
+
+def pytest_terminal_summary(terminalreporter):
+    """끝 요약 — `-q` 에서도 나온다. 낮은 Node 일 때만 경고를 다시 찍어, 실패 목록 바로 곁에서 원인을 알아보게 한다."""
+    note = _node_note()
+    if "⚠" in note:
+        terminalreporter.write_sep("=", "Node 버전 경고")
+        terminalreporter.write_line(note)
