@@ -201,6 +201,11 @@ async def quote_now(symbol: str, *, db=None, user_id=None, fresh: bool = False, 
     fetched = (now or _now()).astimezone(KST)
     domestic = kis_market_data.is_krx(symbol)
     state = market_state(fetched) if domestic else "unknown"   # 해외 장 상태는 여기서 판정하지 않는다
+
+    def mark_fetched() -> None:
+        nonlocal fetched, state
+        fetched = (now or _now()).astimezone(KST)
+        state = market_state(fetched) if domestic else "unknown"
     fallback: list[str] = []
     out: dict | None = None
 
@@ -211,6 +216,7 @@ async def quote_now(symbol: str, *, db=None, user_id=None, fresh: bool = False, 
                 fallback.append("증권사 키 없음")
             else:
                 got = await _from_user_key(symbol, creds)
+                mark_fetched()
                 if got:
                     out = _result(symbol, "kis_user", got["price"], change_pct=got["change_pct"],
                                   as_of=fetched.strftime("%Y-%m-%d %H:%M"), fetched=fetched, state=state,
@@ -218,11 +224,13 @@ async def quote_now(symbol: str, *, db=None, user_id=None, fresh: bool = False, 
                 else:
                     fallback.append("증권사 조회 값 없음")
         except Exception as exc:  # noqa: BLE001 — 다음 길로 넘기되 까닭은 응답에 남긴다(오류 본문 · 키는 찍지 않는다)
+            mark_fetched()
             fallback.append(f"증권사 조회 실패({type(exc).__name__})")
 
     if out is None:  # ② 게이트웨이 · 야후
         try:
             q = await stock.get_quote(symbol)
+            mark_fetched()
             if q.get("price"):
                 src = "kis_gateway" if q.get("source") == "kis" else "delayed"
                 as_of = q.get("as_of") if src == "delayed" else fetched.strftime("%Y-%m-%d %H:%M")
@@ -231,17 +239,20 @@ async def quote_now(symbol: str, *, db=None, user_id=None, fresh: bool = False, 
             else:
                 fallback.append("지연 시세 없음")
         except Exception as exc:  # noqa: BLE001
+            mark_fetched()
             fallback.append(f"지연 시세 실패({type(exc).__name__})")
 
     if out is None and domestic:  # ③ 지난 종가
         try:
             lc = await _last_close(symbol)
+            mark_fetched()
             if lc:
                 out = _result(symbol, "collector", lc["price"], change_pct=lc["change_pct"], as_of=lc["as_of"],
                               fetched=fetched, state=state, fallback=fallback, domestic=True)
             else:
                 fallback.append("수집 DB 종가 없음")
         except Exception as exc:  # noqa: BLE001
+            mark_fetched()
             fallback.append(f"수집 DB 실패({type(exc).__name__})")
 
     if out is None:
