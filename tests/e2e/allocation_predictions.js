@@ -5,6 +5,12 @@ const $ = id => document.getElementById(id);
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
 const calls = [];
 window.fetch = async (path, options = {}) => {
+  // 화면 초기화의 관리자 여부 조회는 배분 계산 요청과 별도로 응답한다.
+  if (path === '/api/me' && options.method === 'GET') {
+    return new Response(JSON.stringify({user: {roles: []}}), {
+      status: 200, headers: {'Content-Type': 'application/json'},
+    });
+  }
   calls.push({path, method: options.method, body: options.body ? JSON.parse(options.body) : null});
   let response;
   if (path === '/api/ml/robo/allocation/latest' && options.method === 'GET') {
