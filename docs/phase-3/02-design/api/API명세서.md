@@ -1,8 +1,8 @@
-# API 명세서 v0.62 — Qurious
+# API 명세서 v0.63 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.62 (2026-11-05 — 라우트 288 → 290 · `API-RBAL-11` `GET /api/rebalance/target-changes`(오준영 님 라우트 · ID 는 `api_scan.py --assign S202` 로 이동원이 붙임) · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 · 화면 `kis-results` 가 `API-KMON-02` 를 부름 · 표를 코드에서 다시 채움(메뉴 화면이 부르는 API 143 → 148 · 인증 없음 50 그대로) / v0.61 (2026-11-03 — 라우트 288 그대로 · 6절에 풀이 둘: 종목 허브 `API-HUB-01` 의 쿼리 `signal_on` · 신호 칸 응답의 기록 시점 · 날짜 고르기 칸(`version` 3 → 4) · 증시 일정 `API-CAL-02` · `03` 의 `kind` 열 → 열넷 · 표를 코드에서 다시 채움(화면 칸 `notification-settings` → `mypage` · `paper-openapi` → `mypage` · 메뉴 화면이 부르는 API 146 → 143)) |
+| **문서 버전** | v0.63 (2026-11-05 후속 — 표를 코드에서 다시 채움: `API-STK-02` `GET /api/stocks/quote` 의 부르는 화면에 `signal-rank` 추가 — 신호 순위 새로고침이 상위 10종목 지금 가격을 읽음) / v0.62 (2026-11-05 — 라우트 288 → 290 · `API-RBAL-11` `GET /api/rebalance/target-changes`(오준영 님 라우트 · ID 는 `api_scan.py --assign S202` 로 이동원이 붙임) · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 · 화면 `kis-results` 가 `API-KMON-02` 를 부름 · 표를 코드에서 다시 채움(메뉴 화면이 부르는 API 143 → 148 · 인증 없음 50 그대로) / v0.61 (2026-11-03 — 라우트 288 그대로 · 6절에 풀이 둘: 종목 허브 `API-HUB-01` 의 쿼리 `signal_on` · 신호 칸 응답의 기록 시점 · 날짜 고르기 칸(`version` 3 → 4) · 증시 일정 `API-CAL-02` · `03` 의 `kind` 열 → 열넷 · 표를 코드에서 다시 채움(화면 칸 `notification-settings` → `mypage` · `paper-openapi` → `mypage` · 메뉴 화면이 부르는 API 146 → 143)) |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.51 = main `3a832c2`(#422 포함) + 명시적 가상계좌 시험 공급원 작업 트리, 관련 172건 검증 · 앞 판의 글은 개정 이력 아래 표 |
@@ -269,7 +269,7 @@ flowchart LR
 | API-AUTH-11 | GET | `/api/auth/password-policy` | — | (다른 곳) |
 | API-HLTH-01 | GET | `/api/health` | — | (다른 곳) |
 | API-STK-01 | GET | `/api/stocks/market` | 야후 · PostgreSQL · 라우트 캐시 2h | `quant-dashboard` |
-| API-STK-02 | GET | `/api/stocks/quote` | 야후 | `robo-patterns`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` |
+| API-STK-02 | GET | `/api/stocks/quote` | 야후 | `robo-patterns`, `signal-rank`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` |
 | API-STK-03 | GET | `/api/stocks/candles` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `robo-patterns`, `trading-chart`, `us-chart` |
 | API-STK-04 | GET | `/api/stocks/quant/indicators` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `invest-technical`, `quant-backtest`, `quant-dashboard`, `robo-patterns` |
 | API-STK-05 | GET | `/api/stocks/quant/list` | — | `quant-dashboard` |
@@ -715,7 +715,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | API-STK-01 | GET | `/api/stocks/market` | 없음 | — | {indices, from_cache} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `quant-dashboard` | P-A | P01-①-2 | stocks.py:60 |
-| API-STK-02 | GET | `/api/stocks/quote` | 없음 | `symbol`* | 모델 없음 | — | 야후 | `robo-patterns`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` | P-A | P01-①-2 | stocks.py:71 |
+| API-STK-02 | GET | `/api/stocks/quote` | 없음 | `symbol`* | 모델 없음 | — | 야후 | `robo-patterns`, `signal-rank`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` | P-A | P01-①-2 | stocks.py:71 |
 | API-STK-03 | GET | `/api/stocks/candles` | 없음 | `symbol`* · `period` · `interval` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `robo-patterns`, `trading-chart`, `us-chart` | P-A | P01-①-2 · P02-④-1 | stocks.py:76 |
 | API-STK-04 | GET | `/api/stocks/quant/indicators` | 없음 | `symbol`* · `period` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `invest-technical`, `quant-backtest`, `quant-dashboard`, `robo-patterns` | P-B | P01-②-1 · P01-②-3 · P02-①-1 · P02-②-2 | stocks.py:97 |
 | API-STK-05 | GET | `/api/stocks/quant/list` | 없음 | — | {stocks} | — | — | `quant-dashboard` | P-A | P01-①-2 | stocks.py:116 |
@@ -1663,6 +1663,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.63 | 2026-11-05 | 변경 — 표를 코드에서 다시 채움(`API-STK-02` 부르는 화면에 `signal-rank` 추가) | 신호 순위 화면의 새로고침이 `/api/stocks/quote` 로 상위 10종목의 지금 가격을 읽는다 | `api_scan.py --doc --check` 통과 |
 | v0.62 | 2026-11-05 | 추가 — `API-RBAL-11` `GET /api/rebalance/target-changes`(국면 목표 변경 이력) ID 와 6절 행 · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 / 변경 — 표를 코드에서 다시 채움(라우트 288 → 290 · 메뉴 화면이 부르는 API 143 → 148 · 화면 칸 `kis-results` · `robo-patterns` 등) | 오준영 님 #524 의 새 라우트와 D11 지표 비교 표 라우트가 명세서에 없었음 | `api_scan.py --doc --check` 통과 · `--catalog` 는 다른 팀원 변경 18건이 함께 들어와 오준영 님 판 올림 뒤에 한 번만 다시 만들기로 미룸 |
 | v0.61 | 2026-11-03 | 추가 — 6절 풀이 둘: 허브 `signal_on` · 신호 칸 새 필드 15개 · 422 `bad_signal_on` · `version` 3 → 4 / 증시 일정 `kind` 14종 / 변경 — 표를 코드에서 다시 채움(화면 칸 `mypage` 이동 · 메뉴 화면이 부르는 API 146 → 143) / 바뀌지 않은 것 — 라우트 288 · 본문 모델 | 화면 두 곳(알림 · Open API 설정)의 본체가 마이페이지로 옮겨 가 스캐너의 화면 칸이 바뀌었고, 종목 근거 모달의 날짜별 신호와 경제지표 · 공모 일정 종류가 명세서에 없었다 | `app/routes/stock_hub.py` · `app/services/stock_hub.py`(`VERSION` 4) · `app/services/market_calendar.py`(`EVENT_KINDS` 14) · `api_scan.py --doc --check` 통과 · TC-HUB-64 ~ 70 · TC-EV-07 ~ 15 |
 | v0.60 | 2026-11-02 | 합친 뒤 라우트 288(오준영 님 #490 이 `API-PAPR-49` · `API-KMON-03` · `04` 를 등록 — 이 판 작업 중 같은 `API-PAPR-49` 를 `--assign S191` 로 따로 붙였다가 합칠 때 상류 값(`2026-11-02-C5`)을 따름) · `API-HUB-03` 의 부르는 화면에 `signal-rank`(새 화면) · **종목 허브 신호 칸 응답**(`API-HUB-01` 의 `sections.signal.data`): `reasons[]` · `counter_reasons[]` 를 3개 · 2개로 자르지 않고 전부 주고, `counts{buy, neutral, sell}` 를 더했으며 낯선 근거 문장이면 `counts: null` + `counts_note` · **신호 순위 응답 기록**(`API-HUB-03`): 줄마다 `name`(`attach_names` · S190) · `no_intraday` · 머리 `freshness`(`as_of` · `basis` · `computed_at` · `state` · `badge` · `message` · `detail` · `older_rows` · `older_note`)와 `total`(S189 · S190) · 화면 스캐너가 `API-PROD-04` 의 부르는 화면을 신호 순위로 잘못 잡던 것을 코드(메서드 이름 `load` → `loadRankRows`)에서 고침(TC-RKS-12) · 머리표 「문서 버전」 칸이 v0.58 에 머물러 있던 것을 바로잡음 | 신호 순위 입구 통일(S191) · 새 화면(S190) · 신호 전체 종목 기록(S189)의 응답 칸이 명세서에 적혀 있지 않았고, 오준영 님 PR 이 남긴 대장 몫 한 줄이 비어 있었다 | `api_scan.py --assign S191` · `--doc` 다시 채움 · 정답 대조(합치기 전 개발 모드 앱 `/openapi.json` ↔ 스캔 286 · 어긋남 0 · 합친 288 은 `--doc` · `--catalog` `--check` 만) · 코드 `stock_hub.py` `signal()` · `signal_rank()` · TC-HUB-07 · 07b · TC-RKS-12 |

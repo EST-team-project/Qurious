@@ -8,13 +8,15 @@
  * 종목 코드로 그 종목의 기록 한 줄만 읽고, 이름이 여럿이면 종목 찾기 창에서 고른다. app.html 은 건드리지 않고 칸을 여기서 만든다.
  */
 import { api, escHtml } from "/js/common.js";
-import { mountSignalRank, findQuery, findBarHtml, findNoteHtml, filterBarHtml, filterQuery, FILTER_DEFAULT } from "/js/signal-rank.js";
+import { mountSignalRank, findQuery, findBarHtml, findNoteHtml, filterBarHtml, filterQuery, FILTER_DEFAULT, refreshNote } from "/js/signal-rank.js";
 import { resolveSymbolInput } from "/js/stockfind.js";
 import { openStockSearch } from "/js/company.js";
 
 let srvControl = null;
 let srvBar = null;
 let srvFilterBar = null;
+let srvRefreshText = "";   // 마지막 새로고침 안내 — 필터 줄을 다시 그려도 남긴다
+let srvRefreshing = false;
 let srvFilter = { ...FILTER_DEFAULT };   // 신호 · 시장 · 줄 수 필터(2026-11-05) — 화면을 다시 열어도 유지한다
 
 function srvNote(html) {
@@ -59,7 +61,28 @@ function srvMountFind(host) {
 
 /** 필터 줄을 그린다 — 눌림 상태(aria-pressed)와 줄 수 칸이 srvFilter 와 늘 같게 통째로 다시 그린다. */
 function srvPaintFilter() {
-  if (srvFilterBar) srvFilterBar.innerHTML = filterBarHtml(escHtml, srvFilter);
+  if (srvFilterBar) {
+    srvFilterBar.innerHTML = filterBarHtml(escHtml, srvFilter);
+    const n = srvFilterBar.querySelector("[data-sr-refresh-note]");
+    if (n) n.textContent = srvRefreshText;
+  }
+}
+
+/** 새로고침(2026-11-05) — 지금 조건으로 기록을 다시 읽고 위 10종목에 지금 가격을 붙인다. 신호는 새로 계산하지 않는다. */
+async function srvRefresh() {
+  if (srvRefreshing || !srvControl) return;
+  srvRefreshing = true;
+  const btn = srvFilterBar && srvFilterBar.querySelector("[data-sr-refresh]");
+  if (btn) { btn.disabled = true; btn.textContent = "읽는 중…"; }
+  try {
+    const { quoted } = await srvControl.refreshRankRows();
+    srvRefreshText = refreshNote(new Date(), quoted);
+  } catch (e) {
+    srvRefreshText = "새로고침하지 못했습니다 — 잠시 뒤 다시 눌러 주세요.";
+  } finally {
+    srvRefreshing = false;
+    srvPaintFilter();
+  }
 }
 
 async function srvApplyFilter() {
@@ -77,6 +100,7 @@ function srvMountFilter(host) {
   srvBar.parentNode.insertBefore(srvFilterBar, host);
   srvPaintFilter();
   srvFilterBar.addEventListener("click", ev => {
+    if (ev.target.closest && ev.target.closest("button[data-sr-refresh]")) { srvRefresh(); return; }
     const btn = ev.target.closest ? ev.target.closest("button[data-sr-filter]") : null;
     if (!btn) return;
     srvFilter = { ...srvFilter, [btn.dataset.srFilter]: btn.dataset.value };
