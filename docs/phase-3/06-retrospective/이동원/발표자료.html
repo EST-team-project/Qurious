@@ -24,7 +24,7 @@ nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:cente
 
 .slide h2{font-size:36px}
 .quad{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quad .card{padding:16px 20px}.quad h3{font-size:20px;display:flex;align-items:center;gap:10px}.quad p{font-size:18px;line-height:1.5;margin-top:7px;color:var(--ink)}.quad small{font-size:15px;color:var(--muted);line-height:1.45;display:block;margin-top:6px}.quad .lim{border-color:#e7c9a8;background:#fff8f0}.quad .nxt{border-color:#b7d4c8;background:#f1f9f5}.quad .lim h3{color:#9a4a00}.quad .nxt h3{color:var(--green)}.quad code{font-size:15px;background:#eef2f6;padding:1px 5px;border-radius:4px}
-table.gap-table{width:100%;border-collapse:collapse;font-size:17px;line-height:1.45}table.gap-table th{text-align:left;background:#eaf0f6;padding:9px 11px;border-bottom:2px solid var(--line);font-size:15.5px}table.gap-table td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}table.gap-table td:first-child{font-weight:700;width:21%}
+table.gap-table{width:100%;border-collapse:collapse;font-size:16px;line-height:1.45}table.gap-table th{text-align:left;background:#eaf0f6;padding:9px 11px;border-bottom:2px solid var(--line);font-size:15.5px}table.gap-table td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}table.gap-table td:first-child{font-weight:700;width:21%}
 </style>
 </head>
 <body>
@@ -57,7 +57,7 @@ table.gap-table{width:100%;border-collapse:collapse;font-size:17px;line-height:1
       <div class="card"><h3><span class="tag">결론</span>근거 모달 · 신호 순위</h3><p>종목마다 신호 · 근거 문장 · 기준일. 신호 순위는 약 3,950종목에서 <b>신호(매수 · 매도 · 관망) · 시장(KOSPI 939 · KOSDAQ 1,829 · ETF 1,185)</b>으로 거른다.</p></div>
       <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p>신호는 다음 날 시가 체결, 공시는 접수일 다음 날부터 사용(<code>known_at</code>). 필터 시험 TC-HUB-71 · TC-XR-FILTER · TC-SCD-14~17.</p></div>
       <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p>신호의 <b>예측력(IC)은 따로 검증하지 않았다</b>(10월 31일 점검 기준). 일봉 단독 규칙과 기록된 신호(60분·일·주)는 계산이 달라 같은 종목도 다를 수 있다.</p></div>
-      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>예측력은 결과를 보기 전에 적은 가설로만 검증(신장환 님 #363). 필터를 관찰 목록 표까지 확대. 값이 없으면 “없음”과 까닭을 표시.</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>예측력은 결과를 보기 전에 적은 가설로만 검증(신장환 님 #363). 새로고침은 기록을 다시 읽고 지금 가격을 붙인다(신호는 새로 계산하지 않음). 값이 없으면 “없음”과 까닭을 표시.</p></div>
     </div></div>
   <footer class="footer"><span>종목 수는 수집 DB 11월 3일 마지막 거래일 값. 레드펜 문항 원문은 옮기지 않고 번호만 인용합니다. 신호는 참고용이며 투자 권유가 아닙니다.</span><span>03 / 08</span></footer>
 </section>
@@ -103,7 +103,7 @@ table.gap-table{width:100%;border-collapse:collapse;font-size:17px;line-height:1
 </section>
 <section class="slide" hidden aria-labelledby="s8">
   <p class="eyebrow">07 / 정리 · 한계와 발전 가능성</p><h2 id="s8">우리가 아는 약점과, 다음에 할 일</h2>
-  <div class="body" style="margin-top:14px"><table class="gap-table"><thead><tr><th>약점 · 한계</th><th>근거</th><th>다음 단계 (발전 가능성)</th><th>시기</th></tr></thead><tbody><tr><td>수집이 순차 39분</td><td>11월 4일 회차 27단계</td><td>search 겹치기부터 병렬화 · 어림 −18%~−28%</td><td>시기 미정</td></tr><tr><td>시간봉이 좁음</td><td>코인 1일·1시간(10월 30일)</td><td>1분봉 기반 합성 ohlcv-v2 · 미국·코인 확장</td><td>11월 12일 뒤</td></tr><tr><td>신호 예측력 미검증</td><td>10월 31일 점검</td><td>사전 등록 가설 + 성과 지표(신장환 님 #363)</td><td>팀 일정</td></tr><tr><td>증권사 종가 확정 시각</td><td>11월 4~5일 실측</td><td>15:40·17:00·익일 재측정 후 SETTLE_TIME 판단</td><td>11월 5일</td></tr><tr><td>일지 42거래일</td><td>status 11월 5일</td><td>전진 기록 누적 · 구간별 건수 표시</td><td>계속</td></tr><tr><td>대사 조건 한정</td><td>ma_cross · 30% · 시가</td><td>positionPct 전달 · 다른 전략 조건 맞추기</td><td>후속</td></tr><tr><td>시험 시각 의존 16건</td><td>DF-167 열림</td><td>원인 확인 · 고정 시계</td><td>오준영 님 확인 요청</td></tr></tbody></table><p class="note" style="margin-top:12px">“시기”는 현재 계획이며 확정이 아닌 칸은 미정으로 적었습니다. 근거가 있는 것만 적었고, 확인하지 못한 것은 확인하지 못했다고 표시했습니다.</p></div>
+  <div class="body" style="margin-top:14px"><table class="gap-table"><thead><tr><th>약점 · 한계</th><th>근거</th><th>다음 단계 (발전 가능성)</th><th>시기</th></tr></thead><tbody><tr><td>수집이 순차 39분</td><td>11월 4일 회차 27단계</td><td>search 겹치기부터 병렬화 · 어림 −18%~−28%</td><td>시기 미정</td></tr><tr><td>시간봉이 좁음</td><td>코인 1일·1시간(10월 30일)</td><td>1분봉 기반 합성 ohlcv-v2 · 미국·코인 확장</td><td>11월 12일 뒤</td></tr><tr><td>신호 예측력 미검증</td><td>10월 31일 점검</td><td>사전 등록 가설 + 성과 지표(신장환 님 #363)</td><td>팀 일정</td></tr><tr><td>증권사 종가 확정 시각</td><td>11월 4~5일 실측</td><td>15:40·17:00·익일 재측정 후 SETTLE_TIME 판단</td><td>11월 5일</td></tr><tr><td>일지 42거래일</td><td>status 11월 5일</td><td>전진 기록 누적 · 구간별 건수 표시</td><td>계속</td></tr><tr><td>대사 조건 한정</td><td>ma_cross · 30% · 시가</td><td>positionPct 전달 · 다른 전략 조건 맞추기</td><td>후속</td></tr><tr><td>신호를 실시간으로 다시 판단하지 않음</td><td>12:30 기록값 읽기 · 새로고침은 지금 가격만 붙임</td><td>전체 재판단 설계(지문 조각 · 야후 정책 · 종가 확정 시각 확인 뒤)</td><td>11월 12일 뒤 설계</td></tr><tr><td>시험 시각 의존 16건</td><td>DF-167 열림</td><td>원인 확인 · 고정 시계</td><td>오준영 님 확인 요청</td></tr></tbody></table><p class="note" style="margin-top:12px">“시기”는 현재 계획이며 확정이 아닌 칸은 미정으로 적었습니다. 근거가 있는 것만 적었고, 확인하지 못한 것은 확인하지 못했다고 표시했습니다.</p></div>
   <footer class="footer"><span>한계를 먼저 적는 서술은 특강 4일차의 보고서 권고를 따른 것입니다. 쪽 번호만 인용하고 슬라이드 문장은 옮기지 않았습니다.</span><span>08 / 08</span></footer>
 </section>
 </main>

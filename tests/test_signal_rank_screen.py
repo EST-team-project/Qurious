@@ -227,11 +227,12 @@ def test_rank_row_opens_the_stock_hub_modal(tmp_path):
 def test_view_scan_sees_only_its_own_entry_api():
     """TC-RKS-12 — 화면 스캐너(`view_scan`)는 함수를 이름으로 잇는다(저장소 규칙: 맨 위 함수 · 호출 이름은 파일마다 다르게) —
     신호 순위의 진입 훅이 `.load()` 를 부르면 다른 화면의 `load` 함수(ETF 상품 화면)와 이어져 상품 API 가 이 화면의 호출로 잡힌다.
-    그러면 API 명세서의 「부르는 화면」 칸에 사실이 아닌 줄이 생긴다 — 진입 API 는 순위 읽기 하나여야 한다."""
+    그러면 API 명세서의 「부르는 화면」 칸에 사실이 아닌 줄이 생긴다 — 진입 API 는 순위 읽기 하나여야 한다.
+    (2026-11-05: 새로고침이 상위 10종목의 지금 가격을 `/api/stocks/quote` 로 읽는다 — 이것은 사실이라 허용한다. 그 밖의 API 는 아니다.)"""
     from scripts import view_scan
 
     row = next(r for r in view_scan.scan()["rows"] if r["key"] == "signal-rank")
-    assert row["entry_apis"] == ["/api/stock-hub/signal-rank"], row["entry_apis"]
+    assert sorted(row["entry_apis"]) == ["/api/stock-hub/signal-rank", "/api/stocks/quote"], row["entry_apis"]
 
 
 
@@ -329,3 +330,26 @@ def test_filter_is_wired_into_the_view_only():
     assert "filterBarHtml" in view and "filterQuery(srvFilter)" in view and "sr-filter" not in html
     assert view.count("srvFilter = { ...FILTER_DEFAULT }") >= 2          # 처음 값 + 「전체 순위」 로 풀기
     assert 'input.value = ""' in view
+
+
+def test_refresh_note_quote_line_and_wiring(tmp_path):
+    """TC-RKS-18 — 새로고침(2026-11-05): 안내 글은 KST 시각 + 「신호는 새로 계산하지 않습니다」 · 가격이 있으면 「지금 n원 · 출처 딱지」 한 줄, 없으면 빈 글 ·
+    필터 줄에 새로고침 단추가 있고 화면 파일이 연결한다 · 마지막 조건으로 다시 읽고 위 10종목에만 가격을 붙인다(그 사이 조건이 바뀌면 붙이지 않는다)."""
+    out = _run(tmp_path, """
+      out.note = sr.refreshNote(new Date("2026-11-05T04:12:34Z"), 10);
+      out.noteNone = sr.refreshNote(new Date("2026-11-05T04:12:34Z"), 0);
+      out.live = sr.quoteLineText({price: 72300.4, source: "kis_user", market_state: "open"});
+      out.delay = sr.quoteLineText({price: 72300, source: "delayed"});
+      out.close = sr.quoteLineText({price: 72300, source: "collector", as_of: "2026-11-04"});
+      out.none = sr.quoteLineText({price: null, source: "collector"});
+      out.bar = sr.filterBarHtml(esc, sr.FILTER_DEFAULT);
+      out.count = sr.REFRESH_QUOTE_COUNT;
+    """)
+    assert out["note"] == "새로고침 13:12:34 (KST) · 기록된 신호를 다시 읽었습니다(위 10종목에 지금 가격을 붙임) — 신호는 새로 계산하지 않습니다"
+    assert "지금 가격을 붙임" not in out["noteNone"] and "신호는 새로 계산하지 않습니다" in out["noteNone"]
+    assert out["live"].startswith("지금 72,300원 · ") and out["delay"] == "지금 72,300원 · 지연 시세 · 약 20분" and out["close"] == "지금 72,300원 · 종가 · 2026-11-04"
+    assert out["none"] == "" and out["count"] == 10 and "data-sr-refresh" in out["bar"] and "data-sr-refresh-note" in out["bar"]
+    view = (ROOT / "public" / "js" / "signalrankview.js").read_text(encoding="utf-8")
+    src = SR.read_text(encoding="utf-8")
+    assert "srvControl.refreshRankRows()" in view and "button[data-sr-refresh]" in view
+    assert "lastParams = params;" in src and "if (mine !== askSeq) return { quoted };" in src

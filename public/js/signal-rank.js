@@ -128,7 +128,10 @@ export function filterBarHtml(esc, state = FILTER_DEFAULT) {
     + `<div class="sr-filter-row"><label for="sr-limit" class="text-xs font-semibold" style="color:var(--text-dim);">보여줄 줄 수</label>`
     + `<select id="sr-limit" class="input text-xs" data-sr-limit>`
     + FILTER_LIMITS.map(n => `<option value="${n}"${Number(state.limit) === n ? " selected" : ""}>${n}줄</option>`).join("")
-    + `</select></div></div>`;
+    + `</select>`
+    + `<button type="button" class="btn-secondary text-xs" data-sr-refresh>새로고침</button>`
+    + `<span class="text-xs" style="color:var(--text-mute);" data-sr-refresh-note role="status" aria-live="polite"></span>`
+    + `</div></div>`;
 }
 
 /** 응답이 필터를 거쳤으면 머리줄에 붙일 글 — 「조건 매수 · KOSPI — 맞는 123종목 중 50줄」. 필터가 없으면 빈 글. */
@@ -139,6 +142,24 @@ export function filterNote(resp) {
   const rows = (resp.rows || []).length;
   const matched = isNum(resp.matched) ? resp.matched : DASH;
   return `조건 ${parts.join(" · ")} — 맞는 ${matched}종목 중 ${rows}줄`;
+}
+
+/** 새로고침 때 상위 몇 종목에 붙이는 「지금 가격」 한 줄(2026-11-05 · 「새로고침하면 실시간 데이터와 같이 보고 싶다」 제안 (a)).
+ *  신호는 다시 계산하지 않는다 — 기록된 신호 옆에 지금 가격과 그 출처 딱지(실시간 · 지연 · 종가)만 놓는다. 가격이 없으면 빈 글. */
+export const REFRESH_QUOTE_COUNT = 10;
+export function quoteLineText(quote) {
+  const b = quoteBadge(quote);
+  if (!b) return "";
+  const px = Math.round(quote.price).toLocaleString("en-US");
+  return `지금 ${px}원 · ${b.text}`;
+}
+
+/** 새로고침 안내 글 — 언제 다시 읽었는지(KST 시각)와 「신호는 새로 계산하지 않는다」 를 같이 말한다. */
+export function refreshNote(at, quoted) {
+  const d = at instanceof Date ? at : new Date(at);
+  const kst = new Date(d.getTime() + 9 * 3600 * 1000);
+  const hms = Number.isNaN(kst.getTime()) ? DASH : kst.toISOString().slice(11, 19);
+  return `새로고침 ${hms} (KST) · 기록된 신호를 다시 읽었습니다${quoted ? `(위 ${quoted}종목에 지금 가격을 붙임)` : ""} — 신호는 새로 계산하지 않습니다`;
 }
 
 /** 순위 표 — 상태 셋: 줄이 있음 / 비어 있음(서버 missing 문장 그대로) / 응답 없음. */
@@ -253,6 +274,7 @@ export function ymd(s) {
  *  여기서는 키보드(Enter · 스페이스)만 같은 길로 이어 준다(줄이 단추가 아니라서 기본으로는 눌리지 않는다). */
 export function mountSignalRank(host, { api, esc, nameOf } = {}) {
   let resp = null;
+  let lastParams = "";    // 새로고침이 같은 조건으로 다시 읽게 마지막 질의를 기억한다
   let askSeq = 0;   // 마지막 요청만 반영한다 — 검색을 누른 뒤 응답 전에 「전체 순위」 를 누르면 늦게 온 응답이 표를 덮지 않게(코드 검수 S195)
   const paint = () => {
     host.innerHTML = `<div data-sr-list>${renderRankTable(resp, esc, { nameOf })}</div>`;
@@ -266,10 +288,31 @@ export function mountSignalRank(host, { api, esc, nameOf } = {}) {
   });
   return {
     async loadRankRows(params = "") {   // 이름이 `load` 이면 화면 스캐너가 다른 화면의 load 와 이어 버린다(TC-RKS-12)
+      lastParams = params;
       const mine = ++askSeq;
       host.textContent = "불러오는 중…";
       try { const got = await api(`/api/stock-hub/signal-rank${params}`); if (mine !== askSeq) return; resp = got; paint(); }
       catch (err) { if (mine === askSeq) host.textContent = drawerFailText(err); }
+    },
+    /** 새로고침(2026-11-05) — 마지막 조건으로 기록을 다시 읽고, 위 몇 종목에만 지금 가격을 붙인다. 가격을 못 받은 줄은 그냥 둔다(요청은 한 번에 5개씩). */
+    async refreshRankRows({ quoteCount = REFRESH_QUOTE_COUNT } = {}) {
+      await this.loadRankRows(lastParams);
+      const mine = askSeq;
+      const rows = [...host.querySelectorAll("tr[data-sr-symbol]")].slice(0, quoteCount);
+      let quoted = 0;
+      for (let i = 0; i < rows.length; i += 5) {
+        const batch = rows.slice(i, i + 5);
+        const got = await Promise.allSettled(batch.map(tr => api(`/api/stocks/quote?symbol=${encodeURIComponent(tr.dataset.srSymbol)}`)));
+        if (mine !== askSeq) return { quoted };           // 그 사이 다른 조건으로 다시 읽었다 — 낡은 가격은 붙이지 않는다
+        got.forEach((g, k) => {
+          const text = g.status === "fulfilled" ? quoteLineText(g.value) : "";
+          const cell = batch[k].querySelector('td[data-label="종목"]');
+          if (!text || !cell) return;
+          cell.insertAdjacentHTML("beforeend", `<div class="text-xs" style="color:var(--text-dim);" data-sr-quote>${esc(text)}</div>`);
+          quoted++;
+        });
+      }
+      return { quoted };
     },
   };
 }
