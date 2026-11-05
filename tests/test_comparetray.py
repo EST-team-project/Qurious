@@ -1,4 +1,4 @@
-"""TC-CT — 비교 트레이 분석 · 분석 메모 복사(public/js/comparetray.js · core.js 연결 · indicator.js 담기) · 2026-11-04 · D8
+"""TC-CMT — 비교 트레이 분석 · 분석 메모 복사(public/js/comparetray.js · core.js 연결 · indicator.js 담기) · 2026-11-04 · D8
 
 강사님 lumina-invest 의 비교 트레이 분석을 우리 규칙으로 다시 설계한 것을 지킨다.
 
