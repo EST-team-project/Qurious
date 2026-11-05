@@ -153,6 +153,21 @@ def test_corporate_action_blocks_holding_persistently_and_skips_first_entry():
     assert out['action'] == 'HOLD' and state['quantity'] == 10
 
 
+def test_multiple_missed_adjustments_are_not_hidden_by_equal_endpoint_factors():
+    state = filled()
+    rows = bars() + [bar(date(2026, 8, 30), 80, factor=2),
+                     bar(date(2026, 8, 31), 160)]
+    held, out = v2.observe(state, SPEC, rows)
+    assert held['blocked'] == 'CORPORATE_ACTION_RECONCILIATION' and out['action'] == 'HOLD'
+
+
+def test_missing_last_processed_bar_cannot_silently_skip_adjustment_checks():
+    state = filled()
+    rows = bars()[:-1] + [bar(date(2026, 8, 30), 80), bar(date(2026, 8, 31), 80)]
+    with pytest.raises(ValueError, match='마지막 처리일'):
+        v2.observe(state, SPEC, rows)
+
+
 def test_risk_size_includes_budget_cash_position_and_zero():
     state = plan()
     kwargs = dict(equity=100000, cash=100000, price=160, budget=100000,
@@ -212,6 +227,17 @@ def test_virtual_replay_cannot_move_missing_next_open_to_later_day():
     report = replay(SPEC, rows, start=date(2026,8,29), initial_cash=100000, budget=100000,slippage_bps=0)
     assert report['fills']==[]
     assert '바로 다음' in report['rows'][-1]['skipped']['reason']
+
+
+def test_virtual_replay_stops_at_adjustment_without_rewriting_held_quantity():
+    from app.services.strategy_v2_replay import replay
+    rows = [bar(date(2026, 7, 1) + timedelta(days=i), 100 + i, factor=.5) for i in range(60)]
+    rows += [bar(date(2026, 8, 30), 160, factor=.5), bar(date(2026, 8, 31), 80)]
+    report = replay(SPEC, rows, start=date(2026, 8, 29), initial_cash=100000, budget=100000,
+                    slippage_bps=0, risk_row=SimpleNamespace(risk_kill_switch=False, risk_daily_loss_limit_pct=0))
+    assert report['status'] == 'partial' and report['reason'] == 'CORPORATE_ACTION_RECONCILIATION'
+    assert len(report['fills']) == 1 and report['state']['quantity'] == report['fills'][0]['quantity']
+    assert report['state']['avg_price'] == 160 and report['state']['stop_price'] == 152
 
 
 def test_virtual_replay_never_forces_one_share_and_keeps_kill_switch():

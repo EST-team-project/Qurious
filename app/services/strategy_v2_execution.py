@@ -12,9 +12,24 @@ from sqlalchemy import select
 from app.database.postgres import get_session_factory
 from app.models import BrokerSettings, Order, OrderIntent, Portfolio, QuantVirtualAccount, StrategyRuntime
 from app.services import (strategy_v2 as v2, execution_control as control, live_ownership,
-                          rebalance_daily, collector_db, hf_snapshot, trading_cost)
+                          rebalance_daily, collector_db, hf_snapshot, trading_cost, notification)
 
 SYMBOL = '005930.KS'
+CORPORATE_ACTION_REASON = ('가격 조정 사건으로 이 전략의 추가 진입과 자동 청산(손절·익절 포함)을 보류합니다. '
+                          '보유 수량·평균단가·손절·익절 기준의 대조와 교정 전에는 자동 재개하지 않습니다. '
+                          '현재 자동 교정·보류 해제 기능은 지원하지 않습니다.')
+
+
+def corporate_action_hold(ctx, state, evidence, decision=None):
+    result = control.blocked('CORPORATE_ACTION_RECONCILIATION', CORPORATE_ACTION_REASON)
+    result.update(evidence=evidence, hold={
+        'symbol': ctx['symbol'], 'strategy_id': ctx['spec']['strategy_id'],
+        'detected_at': state.get('blocked_at'),
+        'ref': control.digest([runtime_id(ctx), state.get('blocked_at') or 'legacy', state['blocked']]),
+    })
+    if decision is not None:
+        result['decision'] = decision
+    return result
 
 
 def inputs(spec=None, symbol=SYMBOL):
@@ -120,7 +135,7 @@ async def prepare(db, ctx, intent, bars, evidence, expected_pending, *, require_
     day = date.fromisoformat(bars[-1]['date'])
     if runtime.state['last_bar'] >= day.isoformat():
         raise control.Rejected('STALE_SIGNAL', '이미 처리한 봉으로 주문하지 않습니다.')
-    if bars[-1].get('halted') or v2.adjustment_changed(expected_pending['factor'], bars[-1]['factor']):
+    if bars[-1].get('halted') or v2.adjustment_since_last_bar(runtime.state, bars):
         raise control.Rejected('CORPORATE_ACTION_OR_HALT', '실행일 거래정지 또는 가격 조정 사건으로 보류합니다.')
     positions = (await db.scalars(select(Portfolio).where(Portfolio.user_id == ctx['user_id'], Portfolio.book == 'QUANT', Portfolio.quantity > 0))).all()
     if any(p.symbol != ctx['symbol'] for p in positions):
@@ -161,6 +176,20 @@ async def prepare(db, ctx, intent, bars, evidence, expected_pending, *, require_
 
 async def run(uid, *, execute=False, require_enabled=False, spec=None, symbol=SYMBOL):
     """수동 호출은 자동 설정을 바꾸지 않는다. 정기 실행은 require_enabled=True."""
+    result = await _run(uid, execute=execute, require_enabled=require_enabled, spec=spec, symbol=symbol)
+    # 상태를 확정하고 계좌 잠금을 해제한 뒤 알린다. 알림 실패가 주문 재실행을 만들지 않는다.
+    if execute and result.get('code') == 'CORPORATE_ACTION_RECONCILIATION' and result.get('hold'):
+        hold = result['hold']
+        try:
+            await notification.notify_corporate_action_hold(
+                symbol=hold['symbol'], strategy_id=hold['strategy_id'], reason=result['reason'],
+                ref=hold['ref'], user_id=str(uid))
+        except Exception:
+            result['notification'] = 'unconfirmed'
+    return result
+
+
+async def _run(uid, *, execute, require_enabled, spec, symbol):
     ctx = context(uid, spec, symbol)
     try:
         v2.validate_card(ctx['spec'])
@@ -177,6 +206,8 @@ async def run(uid, *, execute=False, require_enabled=False, spec=None, symbol=SY
                 runtime = await db.get(StrategyRuntime, runtime_id(ctx))
                 if not execute:
                     state = runtime.state if runtime else v2.initial_state()
+                    if state['blocked']:
+                        return {**corporate_action_hold(ctx, state, evidence), 'status': 'DRY_RUN'}
                     if state['pending']:
                         return dict(status='DRY_RUN', pending=state['pending'], evidence=evidence)
                     if state['last_bar'] == day:
@@ -186,6 +217,8 @@ async def run(uid, *, execute=False, require_enabled=False, spec=None, symbol=SY
                 if runtime:
                     await recover(db, ctx, runtime)
                     await db.refresh(runtime)
+                    if runtime.state['blocked']:
+                        return corporate_action_hold(ctx, runtime.state, evidence)
                 else:
                     account = await db.scalar(select(QuantVirtualAccount).where(QuantVirtualAccount.user_id == uid))
                     if account is None:
@@ -202,13 +235,15 @@ async def run(uid, *, execute=False, require_enabled=False, spec=None, symbol=SY
                 if not pending:
                     result = await record(db, ctx, 'bar:' + day, dict(kind='bar', bars=bars))
                     await db.commit()
+                    if result['state']['blocked']:
+                        return corporate_action_hold(ctx, result['state'], evidence, result['outcome'])
                     return dict(status='observed', decision=result['outcome'], evidence=evidence)
-                if runtime.state['blocked']:
-                    raise control.Rejected('CORPORATE_ACTION_RECONCILIATION', '조정 사건 보유 대조가 필요합니다.')
-                if bars[-1].get('halted') or v2.adjustment_changed(pending['factor'], bars[-1]['factor']):
+                if bars[-1].get('halted') or v2.adjustment_since_last_bar(runtime.state, bars):
                     await record(db, ctx, 'cancel:' + day, dict(kind='cancel_plan', reason='CORPORATE_ACTION_OR_HALT'))
                     result = await record(db, ctx, 'bar:' + day, dict(kind='bar', bars=bars))
                     await db.commit()
+                    if result['state']['blocked']:
+                        return corporate_action_hold(ctx, result['state'], evidence, result['outcome'])
                     return dict(status='skipped', code='CORPORATE_ACTION_OR_HALT', decision=result['outcome'])
                 # 계좌 잠금을 풀고 공통 관문이 같은 잠금을 얻는다. prepare에서 상태를 재검사한다.
                 await db.commit()

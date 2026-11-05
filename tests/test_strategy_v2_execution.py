@@ -26,6 +26,7 @@ def runtime(monkeypatch):
     monkeypatch.setattr(runner,'get_session_factory',lambda:sessions)
     monkeypatch.setattr(control,'get_session_factory',lambda:sessions)
     monkeypatch.setattr(auto_trade,'get_session_factory',lambda:sessions)
+    monkeypatch.setattr(runner.notification,'notify_corporate_action_hold',AsyncMock())
     monkeypatch.setattr(control.risk_guard,'_redis',lambda:AsyncMock(ping=AsyncMock(return_value=True)))
     monkeypatch.setattr(v2.market_calendar,'trading_days',lambda start,end:{'partial':False,'days':[
         {'date':str(start+timedelta(days=i)),'is_trading_day':True} for i in range((end-start).days+1)]})
