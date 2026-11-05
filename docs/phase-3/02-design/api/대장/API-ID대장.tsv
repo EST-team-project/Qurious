@@ -292,3 +292,4 @@ API-KMON-03	POST	/api/quant/kis/orders/{order_id}/cancel	2026-11-02-C5	사용
 API-KMON-04	POST	/api/quant/kis/orders/{order_id}/retry	2026-11-02-C5	사용
 API-PAPR-49	POST	/api/paper/stocks/orders/risk-preview	2026-11-02-C5	사용
 API-DATA-19	GET	/api/data/indicators/table	S197	사용
+API-RBAL-11	GET	/api/rebalance/target-changes	S202	사용

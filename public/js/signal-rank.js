@@ -99,6 +99,48 @@ export function rowView(row, nameOf) {
   };
 }
 
+/** 순위 필터(2026-11-05 · 「매수 / 매도 / 관망 · KOSPI / KOSDAQ 로 거르고 싶다」 피드백) — 서버가 limit 전에 거른다.
+ *  낱말은 서버(`stock_hub.SIGNAL_RANK_SIGNALS` · `SIGNAL_RANK_MARKETS`)와 같다. 「전체」 는 빈 글(인자를 보내지 않는다). */
+export const FILTER_SIGNALS = ["", "매수", "매도", "관망"];
+export const FILTER_MARKETS = ["", "KOSPI", "KOSDAQ", "ETF"];
+export const FILTER_LIMITS = [50, 100, 200, 500];
+export const FILTER_DEFAULT = { signal: "", market: "", limit: 50 };
+
+/** 필터 상태 → 순위 API 질의 글. 모르는 낱말은 버린다(서버가 422 를 내기 전에 화면이 막는다). 기본값이면 빈 글(옛 호출과 같다). */
+export function filterQuery(state = {}) {
+  const q = [];
+  if (FILTER_SIGNALS.includes(state.signal) && state.signal) q.push(`signal=${encodeURIComponent(state.signal)}`);
+  if (FILTER_MARKETS.includes(state.market) && state.market) q.push(`market=${encodeURIComponent(state.market)}`);
+  const limit = Number(state.limit);
+  if (FILTER_LIMITS.includes(limit) && limit !== FILTER_DEFAULT.limit) q.push(`limit=${limit}`);
+  return q.length ? `?${q.join("&")}` : "";
+}
+
+/** 필터 줄 — 신호 · 시장 단추(눌림 상태는 aria-pressed) + 보여줄 줄 수. 검색 줄 아래, 순위 표 위에 한 번 붙는다. */
+export function filterBarHtml(esc, state = FILTER_DEFAULT) {
+  const chip = (kind, value, label) =>
+    `<button type="button" class="sr-chip text-xs" data-sr-filter="${kind}" data-value="${esc(value)}" aria-pressed="${(state[kind] || "") === value}">${esc(label)}</button>`;
+  return `<div class="sr-filter" data-sr-filter-bar role="group" aria-label="순위 필터">`
+    + `<div class="sr-filter-row"><span class="text-xs font-semibold" style="color:var(--text-dim);">신호</span>`
+    + FILTER_SIGNALS.map(v => chip("signal", v, v || "전체")).join("") + `</div>`
+    + `<div class="sr-filter-row"><span class="text-xs font-semibold" style="color:var(--text-dim);">시장</span>`
+    + FILTER_MARKETS.map(v => chip("market", v, v || "전체")).join("") + `</div>`
+    + `<div class="sr-filter-row"><label for="sr-limit" class="text-xs font-semibold" style="color:var(--text-dim);">보여줄 줄 수</label>`
+    + `<select id="sr-limit" class="input text-xs" data-sr-limit>`
+    + FILTER_LIMITS.map(n => `<option value="${n}"${Number(state.limit) === n ? " selected" : ""}>${n}줄</option>`).join("")
+    + `</select></div></div>`;
+}
+
+/** 응답이 필터를 거쳤으면 머리줄에 붙일 글 — 「조건 매수 · KOSPI — 맞는 123종목 중 50줄」. 필터가 없으면 빈 글. */
+export function filterNote(resp) {
+  const f = (resp && resp.filter) || {};
+  const parts = [f.signal, f.market].filter(Boolean);
+  if (!parts.length) return "";
+  const rows = (resp.rows || []).length;
+  const matched = isNum(resp.matched) ? resp.matched : DASH;
+  return `조건 ${parts.join(" · ")} — 맞는 ${matched}종목 중 ${rows}줄`;
+}
+
 /** 순위 표 — 상태 셋: 줄이 있음 / 비어 있음(서버 missing 문장 그대로) / 응답 없음. */
 export function renderRankTable(resp, esc, { nameOf } = {}) {
   const rows = (resp && resp.rows) || [];
@@ -108,6 +150,7 @@ export function renderRankTable(resp, esc, { nameOf } = {}) {
     + `<div class="text-xs mb-2" style="color:var(--text-mute);">`
     + `${fresh ? "" : `기준일 ${esc(mmdd(resp && resp.on))} · `}전체 ${esc(isNum(resp && resp.total) ? resp.total : DASH)}종목 중 ${esc(rows.length)}줄`
     + `${resp && resp.definition ? " · " + esc(resp.definition) : ""}</div>`
+    + (filterNote(resp) ? `<div class="text-xs mb-2" style="color:var(--text-dim);" data-sr-filter-note>${esc(filterNote(resp))}</div>` : "")
     + `<div class="text-xs" style="color:var(--text-mute);">${esc(RANK_ORDER_NOTE)}</div>`
     + `<div class="text-xs mb-2" style="color:var(--text-mute);">${esc(NEUTRAL_HELP)}</div>`;
   const foot = `<div class="text-xs mt-2" style="color:var(--text-mute);">${esc((resp && resp.notice) || "")}</div>`
@@ -115,7 +158,8 @@ export function renderRankTable(resp, esc, { nameOf } = {}) {
   const missingHtml = missing.length
     ? `<ul class="text-xs mt-2">${missing.map(m => `<li>${esc(m.symbol)} — ${esc(m.message || "")}</li>`).join("")}</ul>` : "";
   if (!rows.length) {
-    return `${head}<div class="text-sm">이 날짜의 신호 기록이 아직 없습니다.</div>${missingHtml}${foot}`;
+    const filtered = filterNote(resp) !== "";
+    return `${head}<div class="text-sm">${filtered ? "이 조건에 맞는 종목이 없습니다. 필터를 풀어 보세요." : "이 날짜의 신호 기록이 아직 없습니다."}</div>${missingHtml}${foot}`;
   }
   const body = rows.map(r => {
     const v = rowView(r, nameOf);

@@ -8,12 +8,14 @@
  * 종목 코드로 그 종목의 기록 한 줄만 읽고, 이름이 여럿이면 종목 찾기 창에서 고른다. app.html 은 건드리지 않고 칸을 여기서 만든다.
  */
 import { api, escHtml } from "/js/common.js";
-import { mountSignalRank, findQuery, findBarHtml, findNoteHtml } from "/js/signal-rank.js";
+import { mountSignalRank, findQuery, findBarHtml, findNoteHtml, filterBarHtml, filterQuery, FILTER_DEFAULT } from "/js/signal-rank.js";
 import { resolveSymbolInput } from "/js/stockfind.js";
 import { openStockSearch } from "/js/company.js";
 
 let srvControl = null;
 let srvBar = null;
+let srvFilterBar = null;
+let srvFilter = { ...FILTER_DEFAULT };   // 신호 · 시장 · 줄 수 필터(2026-11-05) — 화면을 다시 열어도 유지한다
 
 function srvNote(html) {
   const el = srvBar && srvBar.querySelector("[data-sr-find-note]");
@@ -48,8 +50,42 @@ function srvMountFind(host) {
   srvBar.querySelector("form").addEventListener("submit", ev => { ev.preventDefault(); srvSubmit(input); });
   srvBar.querySelector("[data-sr-find-reset]").addEventListener("click", async () => {
     input.value = "";
+    srvFilter = { ...FILTER_DEFAULT };   // 「전체 순위」 는 필터도 푼다
+    srvPaintFilter();
     srvNote(escHtml("전체 순위로 돌아왔습니다."));
     await srvControl.loadRankRows();
+  });
+}
+
+/** 필터 줄을 그린다 — 눌림 상태(aria-pressed)와 줄 수 칸이 srvFilter 와 늘 같게 통째로 다시 그린다. */
+function srvPaintFilter() {
+  if (srvFilterBar) srvFilterBar.innerHTML = filterBarHtml(escHtml, srvFilter);
+}
+
+async function srvApplyFilter() {
+  srvPaintFilter();
+  const input = document.getElementById("sr-find-input");
+  if (input) input.value = "";   // 필터는 전체 순위에 걸린다 — 지난 종목 검색은 비운다
+  srvNote(escHtml("신호 · 시장 조건은 기록된 전체 종목에서 먼저 거른 뒤 위에서부터 보여 줍니다."));
+  await srvControl.loadRankRows(filterQuery(srvFilter));
+}
+
+function srvMountFilter(host) {
+  if (srvFilterBar || !srvBar) return;
+  srvFilterBar = document.createElement("div");
+  srvFilterBar.id = "sr-filter";
+  srvBar.parentNode.insertBefore(srvFilterBar, host);
+  srvPaintFilter();
+  srvFilterBar.addEventListener("click", ev => {
+    const btn = ev.target.closest ? ev.target.closest("button[data-sr-filter]") : null;
+    if (!btn) return;
+    srvFilter = { ...srvFilter, [btn.dataset.srFilter]: btn.dataset.value };
+    srvApplyFilter();
+  });
+  srvFilterBar.addEventListener("change", ev => {
+    if (!ev.target.matches || !ev.target.matches("select[data-sr-limit]")) return;
+    srvFilter = { ...srvFilter, limit: Number(ev.target.value) };
+    srvApplyFilter();
   });
 }
 
@@ -58,8 +94,9 @@ export async function onSignalRankViewActivated() {
   if (!host) return;
   if (!srvControl) srvControl = mountSignalRank(host, { api, esc: escHtml });
   srvMountFind(host);
+  srvMountFilter(host);
   const again = document.getElementById("sr-find-input");
   if (again) again.value = "";   // 전체 순위를 다시 읽으니 지난 검색어 · 안내도 처음으로
   srvNote(escHtml("기록된 종목 중에서 찾습니다. 종목을 고르면 그 종목의 규칙 신호와 근거를 봅니다 — 과거 자료 기준 참고용이며 투자 권유가 아닙니다."));
-  await srvControl.loadRankRows();
+  await srvControl.loadRankRows(filterQuery(srvFilter));
 }

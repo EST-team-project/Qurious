@@ -309,7 +309,8 @@ def _universe() -> frozenset | None:
 
 
 async def load_day(session, on: date | None = None, symbols: list[str] | None = None,
-                   limit: int | None = None) -> dict:
+                   limit: int | None = None, signal: str | None = None,
+                   only_codes: "frozenset[str] | None" = None) -> dict:
     """지금 정의 판에서 종목마다 `on` 이전(포함)의 가장 최근 T2 줄 — `load_snapshot` 과 같은 규칙을 모든 종목에.
 
     정렬은 종합 점수 내림차순 → 신뢰도 내림차순 → 종목코드(#197 2). 줄마다 `as_of` 가 그 줄의 기준일이라
@@ -319,6 +320,10 @@ async def load_day(session, on: date | None = None, symbols: list[str] | None = 
     `limit` 를 주면 위에서부터 그만큼만 DB 에서 읽는다(#487 — 기록이 약 3,950종목이면 한 번에 수 MB). 집계 넷은
     자르기 전 전체 줄로 센다 — `total`(종목 수) · `as_of_max`(가장 늦은 기준일) · `computed_at_max`(그 기준일 줄의
     가장 늦은 계산 시각) · `older_count`(그보다 앞 날짜인 줄 수). `missing` 도 자르기 전 종목으로 가른다.
+
+    `signal`(매수 · 매도 · 관망)과 `only_codes`(종목코드 앞 6자리 모음 — 시장 필터가 만든다)를 주면 **자르기 전에** 그 조건에
+    맞는 줄만 남긴다(2026-11-05 · 필터를 화면에서만 걸면 위 limit 줄 밖의 종목이 빠진다). 조건에 맞는 종목 수는 `matched` 로
+    돌려준다. 집계 넷(`total` 등)은 조건과 상관없이 전체 줄 기준이다 — 머리줄의 기준일이 필터로 흔들리지 않게.
     """
     from sqlalchemy import func, select
 
@@ -336,6 +341,14 @@ async def load_day(session, on: date | None = None, symbols: list[str] | None = 
     stmt = (select(S).join(latest, (S.symbol == latest.c.symbol) & (S.as_of == latest.c.as_of))
             .where(S.definition == DEFINITION)
             .order_by(S.composite.desc(), S.confidence.desc(), S.symbol))
+    filtered = signal is not None or only_codes is not None
+    if signal is not None:
+        stmt = stmt.where(S.signal == signal)
+    if only_codes is not None:
+        stmt = stmt.where(func.substr(S.symbol, 1, 6).in_(sorted(only_codes)))
+    matched = None
+    if filtered:
+        matched = (await session.execute(select(func.count()).select_from(stmt.order_by(None).subquery()))).scalar_one()
     if limit is not None:
         stmt = stmt.limit(limit)
     rows = [{c.name: getattr(r, c.name) for c in S.__table__.columns}
@@ -360,7 +373,7 @@ async def load_day(session, on: date | None = None, symbols: list[str] | None = 
                    for c in codes if c not in found]
     return {"on": on, "definition": DEFINITION, "rows": rows, "missing": missing, "total": total,
             "as_of_max": as_of_max, "computed_at_max": computed_at_max,
-            "older_count": total - per_day.get(as_of_max, 0)}
+            "older_count": total - per_day.get(as_of_max, 0), "matched": matched}
 
 
 def side_counts(snapshot: dict) -> dict:

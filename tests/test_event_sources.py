@@ -390,8 +390,10 @@ def test_offering_fetch_safety_guards(conn):
     from collector import offering
 
     today = _date(2026, 11, 10)            # 실제 오늘(원문 fetched_at)과 같은 날이 되지 않게 — 「오늘 이미 받았다」 건너뛰기에 걸리지 않는다
+    # 접수일은 실제 오늘 기준으로 잡는다 — 11-02 로 고정하면 실제 날짜가 11-05 이후일 때 「마지막 신고서 + 2일 뒤에 받았다」 로 건너뛰어져 ③ 이 깨진다(2026-11-05 전체 시험에서 발견)
+    real_day = _date.today().strftime("%Y%m%d")
     for i in range(6):
-        _equity(conn, f"20261102{i:06d}", f"0000{i:04d}", f"{100000 + i}", f"회사{i}")
+        _equity(conn, f"{real_day}{i:06d}", f"0000{i:04d}", f"{100000 + i}", f"회사{i}")
 
     # ① 연속 실패 — 3번째에서 멈춘다(호출 3번 · 오류 3 · 나머지 left)
     calls = []

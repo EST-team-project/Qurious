@@ -361,3 +361,34 @@ def test_load_day_limit_reads_only_the_top_rows_and_counts_all(monkeypatch):
     cut, whole = ranks
     assert cut["count"] == 1 and whole["count"] == 4 and cut["total"] == whole["total"] == 4
     assert cut["freshness"] == whole["freshness"] and cut["freshness"]["older_rows"] == 2
+
+
+@pytest.mark.skipif(not DB_URL, reason="일회용 시험 DB 없음(QURIOUS_TEST_DATABASE_URL)")
+def test_load_day_filters_apply_before_limit(monkeypatch):
+    """TC-XR-FILTER · `signal` · `only_codes` 는 limit 전에 걸린다(2026-11-05) — 필터 뒤 위에서부터 자른 줄은 전체 줄을 걸러
+    위에서 자른 것과 같고, `matched` 는 자르기 전 맞는 종목 수이며, 집계 넷은 필터와 상관없이 같다."""
+    bars = [_bars(seed=s, symbol=f"TEST0{s}") for s in (1, 2, 3, 4)]
+    day = bars[0].daily[-1]["trade_date"]
+    recs = [ms.signal_at(b, day) for b in bars]
+    monkeypatch.setattr(se, "_universe", lambda: frozenset({"TEST01", "TEST02", "TEST03", "TEST04"}))
+
+    async def go(session):
+        await ms.write_snapshots(session, recs)
+        full = await se.load_day(session)
+        sig = full["rows"][0]["signal"]
+        by_signal = await se.load_day(session, signal=sig, limit=1)
+        by_code = await se.load_day(session, only_codes=frozenset({"TEST02", "TEST04"}))
+        both = await se.load_day(session, signal=sig, only_codes=frozenset({"TEST01", "TEST02", "TEST03", "TEST04"}), limit=50)
+        none = await se.load_day(session, signal="없는신호")
+        return full, sig, by_signal, by_code, both, none
+
+    full, sig, by_signal, by_code, both, none = _run(go)
+    want = [r["symbol"] for r in full["rows"] if r["signal"] == sig]
+    assert full["matched"] is None
+    assert [r["symbol"] for r in by_signal["rows"]] == want[:1] and by_signal["matched"] == len(want)
+    assert {r["symbol"] for r in by_code["rows"]} == {"TEST02", "TEST04"} and by_code["matched"] == 2
+    assert [r["symbol"] for r in both["rows"]] == want and both["matched"] == len(want)
+    assert none["rows"] == [] and none["matched"] == 0
+    keys = ("total", "as_of_max", "computed_at_max", "older_count")
+    for other in (by_signal, by_code, both, none):
+        assert {k: other[k] for k in keys} == {k: full[k] for k in keys}
