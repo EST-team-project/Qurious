@@ -110,6 +110,22 @@ def test_user_key_first(monkeypatch):
     assert n == {"creds": 1, "user": 1, "quote": 0, "close": 0}
 
 
+def test_fetched_at_records_quote_completion_time(monkeypatch):
+    """KIS 조회 기준 시각과 조회 완료 시각을 분리한다."""
+    _calls(monkeypatch, creds=CREDS,
+           user={"price": 217000.0, "change_pct": 3.33, "name": "삼성전자"})
+    started = datetime(2026, 10, 19, 14, 2, 58, tzinfo=Q.KST)
+    completed = datetime(2026, 10, 19, 14, 3, 1, tzinfo=Q.KST)
+    clock = iter((started, completed))
+    monkeypatch.setattr(Q, "_now", lambda: next(clock))
+
+    out = asyncio.run(Q.quote_now("005930.KS", db=object(), user_id="u1"))
+
+    assert out["as_of"] == "2026-10-19 14:03"
+    assert out["fetched_at"] == "2026-10-19 14:03:01"
+    assert out["label"] == "증권사 조회 · 14:03:01"
+
+
 def test_no_key_uses_gateway_or_yahoo(monkeypatch):
     """TC-QUOT-04 · 키가 없으면 게이트웨이(증권사 연계 조회) 또는 야후(지연 시세) — 까닭에 「증권사 키 없음」."""
     _calls(monkeypatch, quote={"price": 216500, "change_pct": 3.1, "source": "kis", "name": "삼성전자"})
