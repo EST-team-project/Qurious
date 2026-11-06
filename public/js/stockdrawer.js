@@ -13,7 +13,7 @@ import { esc } from "./howtoview.js";
 import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD } from "./stockchart.js";
 import { RULE_PLAIN, SECTION_HOWTO, SIGNAL_HIT_NOTE, planTimeframeNote, planMarketLine, planIndexMove, planNoteText } from "./stockplain.js";
 // 신호 순위 표와 같은 글 · 같은 규칙(근거 개수 한 줄 · 신호 기준 종가는 그 신호 기록의 기준일 일봉만) — 한 곳(signal-rank.js)에서 가져온다
-import { countsView, priceLines, ohlcvCode, mmdd, ymd, drawerFailText, quoteBadge } from "./signal-rank.js";
+import { countsView, priceLines, ohlcvCode, mmdd, ymd, drawerFailText, quoteBadge, nowSymbolOf } from "./signal-rank.js";
 
 /** 서랍에 그릴 칸 차례 — 서버 stock_hub.SECTIONS 에서 머리(identity)를 뺀 일곱(시험이 맞댐) */
 export const DRAWER_SECTIONS = ["price", "signal", "financials", "disclosures", "news", "schedule", "sector"];
@@ -47,11 +47,8 @@ export function sdNowPath(symbol) {
  *  이미 꼬리가 있으면 그대로, 없으면 허브가 아는 시장으로만 붙인다(코스피 .KS · 코스닥 .KQ). 시장을 모르면 **짐작하지 않고** 빈 글 —
  *  다른 시장 꼬리를 붙이면 다른 종목의 오래된 값이 나온다. */
 export function sdNowSymbol(hub) {
-  const raw = String((hub && hub.symbol) || "").trim().toUpperCase();
-  if (/^\d{6}\.(KS|KQ)$/.test(raw)) return raw;
-  if (!/^\d{6}$/.test(raw)) return "";
-  const market = String((hub && (hub.market || (hub.sections && hub.sections.identity && hub.sections.identity.data && hub.sections.identity.data.market))) || "").toUpperCase();
-  return market === "KOSPI" ? `${raw}.KS` : market === "KOSDAQ" ? `${raw}.KQ` : "";
+  const market = (hub && (hub.market || (hub.sections && hub.sections.identity && hub.sections.identity.data && hub.sections.identity.data.market))) || "";
+  return nowSymbolOf(hub && hub.symbol, market);    // 꼬리 규칙은 신호 순위 새로고침과 한 곳(signal-rank.js)을 같이 쓴다
 }
 
 /** 지금 값 응답 → 모달에 보일 글 { ok, text, note }. 종가와의 차이는 **수집 종가(수정주가)와 지금 값이 서로 다른 때만** 말한다.

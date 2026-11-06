@@ -655,10 +655,12 @@ def test_attach_names_puts_a_name_on_every_rank_row(tmp_path, monkeypatch):
     out = H.attach_names(resp)
     assert out is resp                                                    # 같은 응답에 칸만 더한다
     assert [r["name"] for r in out["rows"]] == ["삼성전자", "KODEX 200", ""]
+    # 2026-11-06: 시장(`market`)도 같이 붙는다 — 새로고침의 「지금 가격」 이 .KS · .KQ 꼬리를 붙이는 근거. 못 찾으면 빈 글(짐작 금지)
+    assert [r["market"] for r in out["rows"]] == ["KOSPI", "ETF", ""]
     assert out["count"] == 3
-    # 수집 DB 가 없으면 이름만 빈 글
+    # 수집 DB 가 없으면 이름 · 시장만 빈 글
     monkeypatch.setenv("COLLECTOR_DB_PATH", str(tmp_path / "없음.sqlite3"))
-    assert H.attach_names({"rows": [{"symbol": "005930"}]})["rows"] == [{"symbol": "005930", "name": ""}]
+    assert H.attach_names({"rows": [{"symbol": "005930"}]})["rows"] == [{"symbol": "005930", "name": "", "market": ""}]
     assert H.attach_names({"rows": []}) == {"rows": []}
 
 

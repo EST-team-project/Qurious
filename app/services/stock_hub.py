@@ -222,6 +222,7 @@ def attach_names(resp: dict) -> dict:
     rows = resp.get("rows") or []
     for r in rows:
         r["name"] = ""
+        r["market"] = ""              # 시장(KOSPI · KOSDAQ · ETF) — 새로고침의 「지금 가격」 이 .KS · .KQ 꼬리를 붙이는 데 쓴다. 모르면 빈 글(짐작하지 않는다)
     path = collector_db.db_path()
     if path is None or not rows:
         return resp
@@ -236,13 +237,16 @@ def attach_names(resp: dict) -> dict:
                 continue
             row = conn.execute(company_health.NAME_SQL, (code,)).fetchone()
             name = (row[0] or "") if row else ""
+            market = (row[1] or "") if row and len(row) > 1 else ""
             if not name:
                 try:
                     etf = conn.execute(ETF_NAME_SQL, (code,)).fetchone()
                 except sqlite3.Error:                    # etf_daily 표가 없는 수집 DB
                     etf = None
                 name = (etf[0] or "") if etf else ""
+                market = "ETF" if name else ""
             r["name"] = name
+            r["market"] = market
     except sqlite3.Error:
         pass                                             # 이름은 꾸밈 — 읽은 만큼만 보이고 응답은 그대로
     finally:
