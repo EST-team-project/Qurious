@@ -75,6 +75,7 @@ from app.models.paper_journal import (
     PaperJournalNote,
 )
 
+from app.models.paper_kis_reconciliation import PaperKisReconciliation
 from app.models.strategy_decision import StrategyDecision
 from app.models.execution_control import (
     OrderIntent,
@@ -188,6 +189,7 @@ __all__ = [
     "PaperJournalVersion",
     "PaperJournalDay",
     "PaperJournalNote",
+    "PaperKisReconciliation",
 
     # Strategy
     "StrategyDecision",

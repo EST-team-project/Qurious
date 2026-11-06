@@ -80,6 +80,7 @@ async def direct_status(order, broker_row) -> dict | None:
     remaining, cancelled, is_cancelled, complete = _quantity_evidence(f)
     state = "FILLED" if f.filled_quantity == order.quantity else "CANCELLED" if is_cancelled else "PARTIALLY_FILLED" if f.filled_quantity else "ACCEPTED"
     return {"status": state, "filledQuantity": f.filled_quantity, "avgFilledPrice": f.avg_fill_price,
+            "orderPrice": getattr(f, "order_price", None), "orderDate": getattr(f, "order_date", None), "orderTime": getattr(f, "order_time", None),
             "account_key": meta["account_key"], "orderNo": order.order_no,
             "orderedQuantity": f.order_quantity, "remainingQuantity": remaining,
             "cancelledQuantity": cancelled, "cancelled": is_cancelled,

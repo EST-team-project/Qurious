@@ -344,6 +344,10 @@ STEPS: List[Step] = [
     Step("journal", ["scripts/paper_journal.py", "daily", "--quiet", "--pull"], 10, fatal=False, app_db=True, catch_up=True,
          warn_codes=(10,), label="모의 일지", group="계산",
          desc="등록한 규칙 판으로 거래일마다 판단 1행 · 다음 거래일 시가 가상 체결(추가만)"),
+    # 그림자 일지 ↔ KIS 대사 — KIS 카드 시험 신호의 기존 주문만 조회한다. 주문·취소는 하지 않는다.
+    Step("paper_kis_reconcile", ["scripts/paper_kis_reconcile.py", "daily", "--quiet"], 10,
+         fatal=False, app_db=True, label="모의·KIS 대사", group="계산",
+         desc="그림자 일지 카드 판 1과 KIS 모의 시험 체결을 읽기 전용으로 대조"),
     # 신호 전체 종목(2026-11-02 · 할 일 ②-32 · 설계 `신호-전체종목-기록-설계.md`) — 분봉 유니버스 밖 KOSPI · KOSDAQ · ETF 약 3,500종목.
     # 기존 `signals`(401종목) 코드는 신장환 님 것이라 건드리지 않고 같은 함수를 부르는 새 스크립트가 맡는다. 실패해도 뒤를 막지 않고,
     # 빠진 날 채우기(gap_fill)는 끈다 — 3,500종목 × 여러 날이 제한 시간을 넘긴다(5거래일 이하 `--from/--to` 는 사람이 직접).
