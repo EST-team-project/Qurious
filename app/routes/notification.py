@@ -97,7 +97,8 @@ def brings_new_personal_data(body: "NotificationSettingsBody", row: "Notificatio
             return True
     for name in _PLAIN_FIELDS:
         v = getattr(body, name)
-        if v and v != current(name):
+        # 카카오 발신 프로필 키는 응답에서 가려 나가므로 가림값("****")을 되돌려 보낸 것은 새 입력이 아니다
+        if v and v != "****" and v != current(name):
             return True
     return False
 
@@ -183,7 +184,7 @@ async def get_notification_settings(
         "email_from":        row.email_from,
         "kakao_api_key":     mask(row.kakao_api_key),
         "kakao_api_secret":  mask(row.kakao_api_secret),
-        "kakao_sender_key":  row.kakao_sender_key,
+        "kakao_sender_key":  mask(row.kakao_sender_key),   # 암호화 저장 칸이라 응답에도 가린다(0044 후속 · 2026-11-06)
         "kakao_phone":       mask_phone(row.kakao_phone),
         "sms_api_key":       mask(row.sms_api_key),
         "sms_api_secret":    mask(row.sms_api_secret),
@@ -293,7 +294,9 @@ async def save_notification_settings(
     row.email_from = body.email_from
     row.kakao_api_key = keep_secret(body.kakao_api_key, row.kakao_api_key)
     row.kakao_api_secret = keep_secret(body.kakao_api_secret, row.kakao_api_secret)
-    row.kakao_sender_key = body.kakao_sender_key
+    # 발신 프로필 키: 가림값("****")이면 저장된 값을 유지하고, 빈 값이면 지운다(슬랙·디스코드 주소와 같은 규칙)
+    if body.kakao_sender_key != "****":
+        row.kakao_sender_key = body.kakao_sender_key
     row.kakao_phone = keep_phone(body.kakao_phone, row.kakao_phone)
     row.sms_api_key = keep_secret(body.sms_api_key, row.sms_api_key)
     row.sms_api_secret = keep_secret(body.sms_api_secret, row.sms_api_secret)
