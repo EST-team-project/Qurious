@@ -29,15 +29,18 @@ steps:
   - say: "손익비로 익절선을 정합니다"
   - ring: {target: "#ic-take-rr", sec: 2.5}
   - pause: 1.5
-  - say: "1회 위험 비율로 주문 수량이 정해집니다"
+  - say: "1회 위험 비율이 주문 수량의 상한을 정합니다"
   - ring: {target: "#ic-risk", sec: 2.5}
   - pause: 1.5
-  - say: "체결은 다음 거래일 시가, 손절 판정은 종가 기준입니다"
+  - say: "체결은 다음 거래일 시가입니다"
   - ring: {target: "#ic-mode", sec: 2.5}
+  - pause: 1.2
+  - say: "손절 판정은 종가 기준입니다"
+  - ring: {target: "#ic-judge", sec: 2.5}
   - pause: 2.0
   - go: indicator-tradingview
   - wait: {target: "#pc-card", timeout: 60}
-  - say: "저장한 카드는 Pine 코드를 만드는 목록에도 같이 나옵니다"
+  - say: "카드를 저장하면 Pine 코드를 만드는 목록에도 나옵니다. 지금 보이는 것은 예시 카드입니다"
   - scroll: {target: "#pc-card", block: "center"}
   - ring: {target: "#pc-card", sec: 3.0}
   - pause: 3.0

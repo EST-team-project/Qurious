@@ -13,7 +13,7 @@ import { esc } from "./howtoview.js";
 import { mountDailyChart, scCode, SC_PERIODS, SC_DEFAULT_PERIOD } from "./stockchart.js";
 import { RULE_PLAIN, SECTION_HOWTO, SIGNAL_HIT_NOTE, planTimeframeNote, planMarketLine, planIndexMove, planNoteText } from "./stockplain.js";
 // 신호 순위 표와 같은 글 · 같은 규칙(근거 개수 한 줄 · 신호 기준 종가는 그 신호 기록의 기준일 일봉만) — 한 곳(signal-rank.js)에서 가져온다
-import { countsView, priceLines, ohlcvCode, mmdd, ymd, drawerFailText } from "./signal-rank.js";
+import { countsView, priceLines, ohlcvCode, mmdd, ymd, drawerFailText, quoteBadge } from "./signal-rank.js";
 
 /** 서랍에 그릴 칸 차례 — 서버 stock_hub.SECTIONS 에서 머리(identity)를 뺀 일곱(시험이 맞댐) */
 export const DRAWER_SECTIONS = ["price", "signal", "financials", "disclosures", "news", "schedule", "sector"];
@@ -36,6 +36,47 @@ export function hubNaverUrl(symbol) {
 export function hubExtChartUrl(symbol) {
   const m = /^(\d{6})(?:\.(?:KS|KQ))?$/i.exec(String(symbol || "").trim());
   return m ? `https://www.tradingview.com/symbols/KRX-${m[1]}/` : "";
+}
+
+/** 「지금 값 보기」 — 누를 때만 부르는 지금 값 주소(2026-11-06 S208 · 사용자 「현재 주가와 괴리감」 피드백). 서버가 이미 쓰는 길이고 새로 만든 시세가 아니다 */
+export function sdNowPath(symbol) {
+  return `/api/quote/now?symbol=${encodeURIComponent(String(symbol || "").trim())}`;
+}
+
+/** 지금 값 주소에 넣을 종목 — 서버는 6자리만 받으면 수집 DB 를 못 찾아 빈손이 되므로(2026-11-06 실제 화면 확인) 시장 꼬리(.KS · .KQ)가 필요하다.
+ *  이미 꼬리가 있으면 그대로, 없으면 허브가 아는 시장으로만 붙인다(코스피 .KS · 코스닥 .KQ). 시장을 모르면 **짐작하지 않고** 빈 글 —
+ *  다른 시장 꼬리를 붙이면 다른 종목의 오래된 값이 나온다. */
+export function sdNowSymbol(hub) {
+  const raw = String((hub && hub.symbol) || "").trim().toUpperCase();
+  if (/^\d{6}\.(KS|KQ)$/.test(raw)) return raw;
+  if (!/^\d{6}$/.test(raw)) return "";
+  const market = String((hub && (hub.market || (hub.sections && hub.sections.identity && hub.sections.identity.data && hub.sections.identity.data.market))) || "").toUpperCase();
+  return market === "KOSPI" ? `${raw}.KS` : market === "KOSDAQ" ? `${raw}.KQ` : "";
+}
+
+/** 지금 값 응답 → 모달에 보일 글 { ok, text, note }. 종가와의 차이는 **수집 종가(수정주가)와 지금 값이 서로 다른 때만** 말한다.
+ *  지금 값이 수집 종가를 그대로 돌려준 경우(source=collector)나 종가를 모르면 차이를 지어내지 않는다.
+ *  closeRef = { price, asOf } — 모달 머리 가격 칸(마지막 거래일 종가). 실시간 값이 아니다 */
+export function sdNowView(quote, closeRef) {
+  const px = quote && Number.isFinite(quote.price) ? quote.price : null;
+  if (px === null) {
+    const why = quote && (quote.fallback && quote.fallback.length ? quote.fallback.join(" · ") : quote.label);
+    return { ok: false, text: "지금 값을 받지 못했습니다", note: `${why ? `${why} — ` : ""}위 가격은 마지막 거래일 종가 그대로입니다.` };
+  }
+  const badge = quoteBadge(quote);
+  const head = `지금 ${sdNum(px)}원${badge ? ` · ${badge.text}` : ""}`;
+  const base = closeRef && Number.isFinite(Number(closeRef.price)) && Number(closeRef.price) > 0 ? Number(closeRef.price) : null;
+  if (quote.source === "collector") {
+    return { ok: true, text: head, note: "수집 종가를 그대로 보인 값입니다 — 증권사 키가 없거나 지연 시세를 받지 못해 위 가격과 같은 종류입니다." };
+  }
+  if (base === null) return { ok: true, text: head, note: "비교할 마지막 종가를 알 수 없어 차이는 적지 않습니다." };
+  const gap = ((px - base) / base) * 100;
+  const day = sdMonthDay(closeRef.asOf);
+  return {
+    ok: true,
+    text: `${head} · 마지막 종가${day ? `(${day})` : ""} ${sdNum(base)}원보다 ${sdPct(gap)}`,
+    note: "위 종가는 수정주가라 배당 · 분할이 있으면 증권사 화면과 다를 수 있습니다. 실시간 값은 저장하지 않고, 증권사 키가 없으면 지연 시세나 종가를 보입니다.",
+  };
 }
 
 function sdOk(sec) { return !!sec && sec.status === "ok"; }
@@ -315,8 +356,13 @@ export function sdModalHtml(hub, { marketLine = "" } = {}) {
     + `<p class="sd-note">위 칸에서 이미 보인 사실만 채웠고, 밑줄 칸은 직접 적습니다. 서버에 저장하지 않습니다.</p>`
     + `<pre class="sd-tpl-text" data-hub-tpl>${esc(planNoteText(hub, marketLine))}</pre>`
     + `<button type="button" class="btn-secondary" data-hub-copy>글 복사</button> <small class="sd-note" data-hub-copied role="status"></small></details>`;
+  // 지금 값 보기 — 자동으로 부르지 않는다(누를 때만). 안내 글이 「위 가격은 마지막 거래일 종가」 임을 먼저 말한다. 국내 숫자 6자리 코드일 때만(ETF 영숫자 코드는 서버가 해외 길로 돌려 쓰지 않는다)
+  const nowBox = ext
+    ? `<p class="sd-actions sd-now"><button type="button" class="btn-secondary" data-hub-now>지금 값 보기</button> `
+      + `<span class="sd-note" data-hub-now-out role="status" aria-live="polite">누를 때만 불러옵니다. 위 가격은 마지막 거래일의 수정주가 종가이며 지금 시세가 아닙니다.</span> `
+      + `<small class="sd-note" data-hub-now-note></small></p>` : "";
   return `${top}<div class="sd-modal-body"><p class="sd-lead sd-modal-intro">아래는 앱이 이미 가진 값을 기준일 · 출처와 함께 모은 것이고, 새로 계산한 결론이 아닙니다. 쉬운 말로 바꾼 설명이며, 쉬워졌다고 더 확실해진 것은 아닙니다. 칸마다 「이 칸 읽는 법」 을 펼쳐 보세요.</p>`
-    + `<p class="sd-market" data-hub-market>${esc(marketLine)}</p>${actions}${extLine}`
+    + `<p class="sd-market" data-hub-market>${esc(marketLine)}</p>${nowBox}${actions}${extLine}`
     + `<div class="sd-modal-chart">${chart || `<p class="sd-why">이 종목은 수집 일봉이 없어 차트를 그리지 못합니다.</p>`}</div>`
     + `<div class="sd-modal-ev">${sections}</div>${tpl}</div>`
     + `<footer class="sd-bottom"><p class="sd-notice">${esc(hub.notice || "투자 권유가 아닙니다.")}</p></footer>`;
@@ -428,6 +474,8 @@ export function mountStockDrawer(doc, deps) {
       if (per) { pickPeriod(modal, per, modal.dataset.symbol, modalChart); return; }
       const cp = ev.target.closest("[data-hub-copy]");
       if (cp) { copyPlainText(modal.querySelector("[data-hub-tpl]")?.textContent || "", modal.querySelector("[data-hub-copied]")); return; }
+      const nowBtn = ev.target.closest("[data-hub-now]");
+      if (nowBtn) { showNow(modal, nowBtn); return; }
       const go = ev.target.closest("[data-hub-go]");
       if (go) {
         const { symbol, name } = modal.dataset;
@@ -436,6 +484,27 @@ export function mountStockDrawer(doc, deps) {
       }
     });
     return modal;
+  }
+  /** 지금 값 보기 — 누를 때만 `/api/quote/now` 를 한 번 부른다(자동 호출 · 반복 호출 없음). 그 사이 다른 종목을 열었으면 덮지 않는다(seq) */
+  async function showNow(m, btn) {
+    if (btn.disabled) return;
+    const out = m.querySelector("[data-hub-now-out]"), note = m.querySelector("[data-hub-now-note]");
+    const hub = modalHub, seq = modalSeq;
+    if (!hub || !out) return;
+    btn.disabled = true;
+    out.textContent = "불러오는 중…"; if (note) note.textContent = "";
+    let quote = null, err = "";
+    const sym = sdNowSymbol(hub);
+    if (!sym) err = "코스피 · 코스닥 구분을 알 수 없어 조회하지 않았습니다.";
+    else { try { quote = await deps.api(sdNowPath(sym)); } catch (e) { err = drawerFailText(e); } }
+    if (seq !== modalSeq || m.hidden) return;
+    btn.disabled = false;
+    const price = hub.sections && hub.sections.price;
+    const v = err
+      ? { text: "지금 값을 받지 못했습니다", note: `${err} 위 가격은 마지막 거래일 종가 그대로입니다.` }
+      : sdNowView(quote, sdOk(price) ? { price: price.data.close, asOf: price.data.trade_date || price.as_of } : null);
+    out.textContent = v.text;
+    if (note) note.textContent = v.note;
   }
   /** 글 복사 — 클립보드 API 가 막히면 임시 입력 칸으로. 결과를 말로 알린다 */
   async function copyPlainText(text, noteEl) {

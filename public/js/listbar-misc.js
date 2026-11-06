@@ -157,7 +157,7 @@ export function ensureSectorTools(doc, cardsId, searchId, barId) {
 
 /**
  * 업종 카드의 제어기 — 검색 칸(바깥에 두어 다시 그려도 입력이 안 사라진다) + 정렬 칩 + 새로고침.
- * cfg: { barHost, cardsHost, noteHost, searchId, load: async () => data, renderCards(data, esc), renderNote(data, esc), message(text, color) , loadingText }
+ * cfg: { barHost, cardsHost, noteHost, searchId, load: async () => data, renderCards(data, esc), renderNote(data, esc), message(text, color) , loadingText, loadingNote }
  * deps: { esc, byId, now? }
  */
 export function createSectorPanel(cfg, deps) {
@@ -208,7 +208,10 @@ export function createSectorPanel(cfg, deps) {
 
   async function load({ stamp = false } = {}) {
     const mine = ++st.seq;
-    if (!st.data) paint();                                    // 처음이면 「계산하는 중」 글
+    // 처음 받는 것이면(업종 묶음은 첫 호출에 10초 넘게 걸린다 · 2026-11-06 실측 13초) 그 사이 안내 칸을 비워 두지 않고
+    // 새로고침 단추를 잠가 같은 무거운 계산을 서버에 두 번 요청하지 않게 한다.
+    const first = !st.data;
+    if (first) { st.busy = true; st.note = cfg.loadingNote || ""; paint(); }      // 처음이면 「계산하는 중」 글
     try {
       const data = await cfg.load();
       if (mine !== st.seq) return true;
@@ -224,6 +227,8 @@ export function createSectorPanel(cfg, deps) {
       st.note = st.data ? `다시 읽지 못했습니다(${st.error}) — 이전에 받은 값을 보입니다` : "";
       paint();
       return false;
+    } finally {
+      if (first) { st.busy = false; setBusy(false); }
     }
   }
 
