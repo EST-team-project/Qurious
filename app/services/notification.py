@@ -945,8 +945,9 @@ async def notify_order_filled(
     price: float,
     environment: str = "paper",
     user_id: str | None = None,
+    *, order_ref: str,
 ) -> None:
-    """실주문 체결 확정 알림 (quant.confirm_fills)."""
+    """증권사 체결 확정 알림. 동시 조회·재확인에도 같은 주문은 한 번만 발송한다."""
     label = _side_label(side)
     env_label = "KIS 모의" if environment == "paper" else "KIS 실전"
     ev = alert_format.AlertEvent(
@@ -958,7 +959,7 @@ async def notify_order_filled(
         next_action="보유 현황은 모의투자·포트폴리오 화면에서 확인하세요.",
         subject=f"[매매 알림] {label} 체결 확정 – {symbol}",
     )
-    await dispatch_event(ev, user_id=user_id)
+    await dispatch_event(ev, user_id=user_id, dedupe_kind="order_fill", ref=order_ref)
 
 
 async def notify_order_error(
