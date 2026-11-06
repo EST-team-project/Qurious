@@ -1,0 +1,26 @@
+{
+  "mime": "video/mp4;codecs=avc1.420028",
+  "bytes": 207721,
+  "recorded_seconds": 109.3195,
+  "playback": {
+    "width": 1280,
+    "height": 800,
+    "currentTime": 0.5873,
+    "duration": 108.4201,
+    "error": null
+  },
+  "seek_checks_seconds": [
+    1,
+    55,
+    107
+  ],
+  "file": "오프라인-설명영상-v0.6.mp4",
+  "kind": "slide explanation backup, not an app interaction recording",
+  "slide_seconds": 18,
+  "slides": 6,
+  "sha256": "00abcd66ca3726cd27e342a32a405df8b2db7bb7b96d48dbb5b9f847ad91cd2c",
+  "source_sha256": "af1a9d1cfbaa0d6892fc8ddb95c8f6f5c9ada520f95f1c84e07006e026ed9bae",
+  "audio": false,
+  "captions": "burned into video",
+  "date": "2026-11-06"
+}

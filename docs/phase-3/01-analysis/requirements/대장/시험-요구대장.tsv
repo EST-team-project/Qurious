@@ -381,3 +381,7 @@ TC-MR	tests/test_macro_refresh.py	—	—	거시·산업·미국 시세 라우�
 TC-MCG	tests/test_mobile_clip_guard.py	—	—	390px(모바일 폭)에서 화면이 오른쪽으로 잘리지 않게 하는 구조 점검(S205 · 2026-11-05). 요구ID 는 작성자 확인.
 TC-NODE	tests/test_node_requirement.py	—	—	시험 머리·끝 요약의 Node 버전 안내(S204 · #567 · 2026-11-05) — Node 22 미만이면 제품 회귀가 아니라는 경고 문구. 요구ID 는 작성자 확인.
 TC-NS	tests/test_notification_secrets.py	P02-③-3	🟡	알림 설정 비밀값 저장 암호화(S205 · 2026-11-05 · 0044) — 암호문 형식·키 오류 시 평문 우회 없음·동의 철회는 키 없이도 동작. 알림 설정 요구 P02-③-3 은 API 명세서 API-NOTI 줄과 같다.
+TC-SV2CA	tests/test_strategy_v2_corporate_action.py	P02-⑤-2	🟡	#561 조정일 실행 누락·보류 지속·예약 청산 보류를 실제 가상 장부로 확인(8사례). 오준영 11/6 확인 — KIS 주문·자동 가격/수량 교정은 시험 밖
+TC-SV2CA	tests/test_strategy_v2_corporate_action.py	P02-⑤-3	🟡	보류의 정기 실행 기록·알림 실패 경계·중복 억제. 외부 수신은 시험 밖
+TC-CSL	tests/test_credential_storage_logs.py	P02-⑤-3	🟡	운영 로그 단발 검사 4사례 — stderr 암호화 오류·조회 실패·종료코드·Docker 부재. 원문 비노출; 호스트 주기 실행·외부 수신은 별도
+TC-CWD	tests/test_credential_watchdog.py	P02-⑤-3	🟡	호스트 암호화 오류 경보 19사례 — 최초 정상 무발송·장애/정상화 전이·중복 억제와 1시간 지속 알림·전달 실패 재시도·원문/비밀 비노출·주소 제한·중지 컨테이너·Docker 부재·로그 상한·상태 저장·실행 잠금. Windows 예약 실행·실제 수신은 운영 검증으로 별도 기록
