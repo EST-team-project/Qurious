@@ -514,23 +514,34 @@ def judge_fee(journal_rows, lean_stats, lean_fills) -> dict:
     }
 
 
+def judge_signal_verdict(signal_cmp: dict) -> str:
+    """공통 날짜 일치와 전체 기간의 날짜 커버리지를 분리한다."""
+    if signal_cmp.get("status") != "compared":
+        return "판정 불가"
+    if signal_cmp.get("mismatch_date_count", 0):
+        return "불일치"
+    missing = (
+        int(signal_cmp.get("tradingview_only_date_count") or 0)
+        + int(signal_cmp.get("lean_only_date_count") or 0)
+    )
+    return "겹친 날만 일치" if missing else "일치"
+
+
 def render(target, journal_count, signal_cmp, holding, order, price, fee, quantity, lean_stats) -> str:
     def icon(verdict):
         return {
             "일치": "✅",
             "불일치": "❌",
+            "겹친 날만 일치": "ℹ️",
             "판정 불가": "⏸️",
             "참고용(요율)": "ℹ️",
             "참고용(시점차)": "ℹ️",
         }.get(verdict, "❓")
 
+    signal_verdict = judge_signal_verdict(signal_cmp)
     if signal_cmp.get("status") != "compared":
-        signal_verdict = "판정 불가"
         signal_note = signal_cmp.get("reason", "비교 가능한 신호 없음")
     else:
-        signal_verdict = (
-            "불일치" if signal_cmp.get("mismatch_date_count", 0) else "일치"
-        )
         signal_note = (
             f"공통 날짜 {signal_cmp['matched_date_count']}일 · "
             f"진입 {signal_cmp['entry_match_count']}/"
@@ -622,6 +633,11 @@ def render(target, journal_count, signal_cmp, holding, order, price, fee, quanti
                 f"| {fmt(item['tradingview_exit_state'])} "
                 f"| {fmt(item['lean_exit_state'])} | {fmt(item['exit_match'])} |\n"
             )
+    elif signal_cmp.get("status") == "compared" and (
+        signal_cmp.get("tradingview_only_date_count", 0)
+        or signal_cmp.get("lean_only_date_count", 0)
+    ):
+        md += "_공통 날짜의 상태는 일치하지만 한쪽 엔진에만 기록된 날짜가 있어 전체 기간 일치로 판정하지 않음_\n"
     elif signal_cmp.get("status") == "compared":
         md += "_공통 날짜에서 진입·청산 상태 불일치 없음_\n"
     else:
