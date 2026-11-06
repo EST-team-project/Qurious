@@ -18,6 +18,11 @@ ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 async def main() -> int:
     html = open(os.path.join(ROOT, "public", "app.html"), encoding="utf-8").read()
     views = re.findall(r'class="view" data-view="([a-z-]+)"', html)
+    # 마이페이지로 옮겨진 화면(설정 · 알림 설정 · 외부 API)은 app.html 에 빈 껍데기 .view 만 남고 주소(#settings 등)는 마이페이지가 받는다
+    # — 껍데기가 활성인지가 아니라 마이페이지가 활성인지를 본다(viewalias.js 의 MYPAGE_HOSTED 를 그대로 읽어 목록이 어긋나지 않게).
+    alias_src = open(os.path.join(ROOT, "public", "js", "viewalias.js"), encoding="utf-8").read()
+    hosted_block = re.search(r"MYPAGE_HOSTED\s*=\s*Object\.freeze\(\{(.*?)\}\)", alias_src, re.S)
+    hosted = set(re.findall(r'"([a-z-]+)"\s*:', hosted_block.group(1))) if hosted_block else set()
     async with async_playwright() as p:
         br = await p.chromium.launch()
         pg = await br.new_page(viewport={"width": 1400, "height": 1000})
@@ -30,7 +35,8 @@ async def main() -> int:
         for v in views:
             n0 = len(errors)
             await pg.goto(f"{BASE}/app.html?v={v}#{v}"); await pg.wait_for_timeout(900)
-            active = await pg.evaluate(f"document.querySelector('.view[data-view=\"{v}\"]')?.classList.contains('active')")
+            shown = "mypage" if v in hosted else v
+            active = await pg.evaluate(f"document.querySelector('.view[data-view=\"{shown}\"]')?.classList.contains('active')")
             if not active or len(errors) > n0:
                 problems.append((v, active, errors[n0:n0 + 2]))
         await br.close()

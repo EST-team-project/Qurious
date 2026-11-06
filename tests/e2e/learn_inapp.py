@@ -5,12 +5,12 @@
     E2E_EMAIL=... E2E_PASSWORD=... python tests/e2e/learn_inapp.py --shots .playwright-mcp/learn
 
 보는 약속:
-  ① 왼쪽 트리의 개념 학습 묶음에 「새 화면」 꼬리표 · 바깥 링크가 없다(항목 = 전체 목차 · 장 읽기)
-  ② 전체 목차 · 장 읽기 모두 위 탭 「학습」 이 켜진다 · 목차에 부 카드와 장 줄이 그려진다
+  ① 왼쪽 트리의 학습 묶음(finance — 학습 홈 · 금융 필수 지식 · 개념 학습)에 「새 화면」 꼬리표 · 바깥 링크가 없고 옛 learn 묶음은 없다
+  ② 학습 홈 · 장 읽기 모두 위 탭 「학습」 이 켜진다 · 홈에 세 갈래 카드 · 개발 개념에 부 카드 · 부 목차에 장 줄이 그려진다
   ③ 장 읽기 — 차례 · 알림 상자 · 그림(오류 0) · 차례를 눌러도 주소는 #learn-page 그대로
-  ④ 다음 장 → 뒤로 가기는 앞 장 → 한 번 더 뒤로는 전체 목차
+  ④ 다음 장 → 뒤로 가기는 앞 장 → 한 번 더 뒤로는 부 목차
   ⑤ 주소 #learn/<장> 으로 바로 열기 → 그 장 · 주소는 #learn-page
-  ⑥ 390 폭 — 장 · 목차 모두 본문 칸 가로 넘침 0
+  ⑥ 390 폭 — 장 · 학습 홈 모두 본문 칸 가로 넘침 0
   ⑦ 콘솔 오류 0
 실패가 하나라도 있으면 끝에 목록을 찍고 종료코드 1. 비밀번호는 찍지 않는다.
 """
@@ -51,21 +51,31 @@ async def run(base: str, email: str, password: str, shots: Path | None) -> list[
 
     await page.goto(f"{base}/app.html#fin-lectures")
     await page.wait_for_selector("#finlearn-hub .fl-card", timeout=30000)
-    grp = page.locator('details[data-lnb-group="learn"]')
-    check(await grp.locator(".lnb-tag").count() == 0 and await grp.locator("a[data-menu-href]").count() == 0, "① 트리 개념 학습 — 「새 화면」 꼬리표 · 바깥 링크 없음")
-    await grp.locator("summary").click()
+    # 2026-10-20 통합: 「개념 학습」 묶음은 없어지고 위 탭 「학습」 = 트리 묶음 finance 하나에 학습 홈 · 금융 필수 지식 · 개념 학습(개발 개념 · 파이썬 중급)이 모였다
+    grp = page.locator('details[data-lnb-group="finance"]')
+    check(await page.locator('details[data-lnb-group="learn"]').count() == 0, "① 옛 「개념 학습」 묶음(learn)이 따로 없다")
+    check(await grp.locator(".lnb-tag").count() == 0 and await grp.locator("a[data-menu-href]").count() == 0, "① 트리 학습 묶음 — 「새 화면」 꼬리표 · 바깥 링크 없음")
+    if not await grp.evaluate("g => g.open"):   # 강의실(#fin-lectures)이 finance 묶음이라 처음부터 펼쳐져 있다 — 또 누르면 닫힌다
+      await grp.locator("summary").click()
     items = [t.strip() for t in await grp.locator(".lnb-item").all_inner_texts()]
-    check(items == ["전체 목차", "장 읽기"], f"① 트리 항목 {items}")
+    check(items[:1] == ["학습 홈"] and all(w in items for w in ("강의실 (전체 과정)", "개발 개념", "파이썬 중급")), f"① 트리 항목 — 학습 홈 · 강의실 · 개발 개념 · 파이썬 중급 {items[:3]}…")
     check(await page.locator("#finlearn-hub a[href='#learn-home']").count() == 1, "② 강의실 맨 아래 개념 학습 입구")
 
     await grp.locator('button[data-view="learn-home"]').click()
-    await page.wait_for_selector("#cl-home .cl-part", timeout=30000)
-    check((await page.locator("[data-gnb].active").all_inner_texts()) == ["학습"], "② 목차에서 위 탭 「학습」")
-    check(await page.locator("#cl-home .cl-part").count() > 0 and await page.locator("#cl-home .cl-list li").count() > 0, "② 목차 부 카드 · 장 줄")
+    await page.wait_for_selector("#cl-home .cl-branch", timeout=30000)
+    check((await page.locator("[data-gnb].active").all_inner_texts()) == ["학습"], "② 학습 홈에서 위 탭 「학습」")
+    check(await page.locator("#cl-home .cl-branch").count() == 3, "② 학습 홈 세 갈래 카드(금융 필수 지식 · 개발 개념 · 파이썬 중급)")
     if shots:
       await page.screenshot(path=str(shots / "01-home.png"))
+    # 개발 개념 갈래 → 부 카드 → 부 목차(장 줄) → 장 읽기 (2026-10-20 통합 뒤 길 — 전에는 홈이 곧바로 부 카드 · 장 줄을 그렸다)
+    await page.locator('#cl-home a[href="#learn-dev"]').click()
+    await page.wait_for_selector("#cl-dev .cl-course", timeout=30000)
+    check(await page.locator("#cl-dev .cl-course").count() > 0, "② 개발 개념 — 부 카드")
+    await page.locator("#cl-dev .cl-course").first.click()
+    await page.wait_for_selector("#cl-part .cl-list li", timeout=30000)
+    check(await page.locator("#cl-part .cl-list li").count() > 0, "② 부 목차 — 장 줄")
 
-    first = page.locator("#cl-home .cl-list li:has(.cl-st-ready) a").first
+    first = page.locator("#cl-part .cl-list li:not(:has(.cl-st-skeleton)) a").first
     await first.click()
     await page.wait_for_selector("#cl-page .cl-prose h2", timeout=30000)
     await page.wait_for_timeout(2500)   # 그림(Mermaid) · 색칠
@@ -89,7 +99,7 @@ async def run(base: str, email: str, password: str, shots: Path | None) -> list[
       check(False, "④ 뒤로 가기 → 앞 장")
     await page.go_back()
     await page.wait_for_timeout(1200)
-    check(await page.locator('.view[data-view="learn-home"].active').count() == 1, "④ 한 번 더 뒤로 → 전체 목차")
+    check(await page.locator('.view[data-view="learn-part"].active').count() == 1, "④ 한 번 더 뒤로 → 부 목차")
 
     p2 = await ctx.new_page()
     p2.on("console", lambda m: errors.append("바로 열기: " + m.text) if m.type == "error" else None)
@@ -107,8 +117,8 @@ async def run(base: str, email: str, password: str, shots: Path | None) -> list[
     if shots:
       await mp.screenshot(path=str(shots / "03-m390-page.png"))
     await mp.goto(f"{base}/app.html#learn-home")
-    await mp.wait_for_selector("#cl-home .cl-part", timeout=30000)
-    check(await mp.evaluate(MAIN_OVERFLOW) == 0, "⑥ 390 목차 가로 넘침 0")
+    await mp.wait_for_selector("#cl-home .cl-branch", timeout=30000)
+    check(await mp.evaluate(MAIN_OVERFLOW) == 0, "⑥ 390 학습 홈 가로 넘침 0")
     await b.close()
   check(errors == [], f"⑦ 콘솔 오류 {len(errors)}" + (f" — {errors[:3]}" if errors else ""))
   return fails
