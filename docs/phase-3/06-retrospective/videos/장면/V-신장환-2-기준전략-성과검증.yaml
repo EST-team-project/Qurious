@@ -13,13 +13,13 @@ steps:
   - scroll: {target: "#bn-mount-quant-backtest", block: "start"}
   - ring: {target: "#bn-mount-quant-backtest .bn-card", sec: 4.0}
   - pause: 3.0
-  - say: "아래 숫자는 시도한 조합 가운데 기준을 넘은 개수입니다. 기준은 손익비, 최대 낙폭, 샤프 세 가지이고 비용을 뺀 뒤 계산합니다"
+  - say: "아래 숫자는 시도한 조합 가운데 기준을 넘은 개수입니다. 기준은 이익÷손실(PF), 최대 낙폭, 샤프 세 가지이고 비용을 뺀 뒤 계산합니다"
   - ring: {target: "#bn-mount-quant-backtest .bn-stats", sec: 4.0}
-  - pause: 5.0
+  - pause: 5.6
   - say: "가장 가까웠던 시도가 참고로 나옵니다. 이 시도를 골라 쓰지는 않았다는 설명이 함께 있습니다"
   - ring: {target: "#bn-mount-quant-backtest .bn-near", sec: 4.0}
   - pause: 5.0
-  - chapter: {label: "2 / 3 · 성과 검증", title: "전략 하나의 성과를 비용을 뺀 뒤 봅니다", text: "성과 검증 탭에서 전략과 기간, 수수료, 슬리피지를 정하고 실행합니다", sec: 6.0}
+  - chapter: {label: "2 / 3 · 성과 검증", title: "전략 하나의 성과를 비용을 뺀 뒤 봅니다", text: "성과 검증 탭에서 종목과 전략, 수수료, 슬리피지를 정하고 실행합니다", sec: 6.0}
   - click: "#bn-mount-quant-backtest .bn-tab:has-text('성과 검증')"
   - wait: {target: "#ibt-run-btn", timeout: 20}
   - say: "먼저 검증할 전략을 고릅니다"
@@ -29,10 +29,11 @@ steps:
   - say: "수수료와 슬리피지는 거래할 때마다 빠지는 비용입니다. 이 값을 넣어야 현실에 가까운 성과가 나옵니다"
   - ring: {target: "#ibt-cost", sec: 3.0}
   - pause: 5.0
-  - say: "실행 단추를 누르면 최근 10년 일봉으로 계산합니다"
+  - say: "실행 단추를 누르면 수집된 일봉으로 계산합니다. 국내 주식은 2020년부터라 10년보다 짧습니다"
   - ring: {target: "#ibt-run-btn", sec: 3.0}
   - click: "#ibt-run-btn"
   - wait: {target: "#ibt-result > *", timeout: 150, cut: true}
+  - pause: 1.5
   - say: "결과에는 비용을 뺀 수익과 최대 낙폭, 샤프가 나옵니다"
   - scroll: {target: "#ibt-result", block: "start"}
   - pause: 6.0
