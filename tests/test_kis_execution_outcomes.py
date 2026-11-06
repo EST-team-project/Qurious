@@ -240,6 +240,7 @@ def test_kis_order_does_not_change_virtual_book(monkeypatch, rebalance_db_schema
                 assert order.status == 'FILLED' and order.avg_filled_price == 69900
                 assert account.cash_balance == 8000000 and portfolio.quantity == 10
             filled_alert.assert_awaited_once()
+            assert filled_alert.await_args.kwargs['order_ref'] == order.client_order_id
         await engine.dispose()
     asyncio.run(run())
     virtual_alert.assert_not_awaited()
