@@ -792,6 +792,7 @@ async def confirm_live_fills(limit: int = 100) -> dict:
                 await notification.notify_order_filled(
                     symbol=row.symbol, side=row.side.lower(), quantity=row.filled_quantity,
                     price=row.avg_filled_price, environment=row.environment, user_id=str(row.user_id),
+                    order_ref=row.client_order_id,
                 )
             # 미체결 N분 경과 → 취소 요청 (설정 0이면 끔)
             cancel_after = int(getattr(app_settings, "STOCK_COIN_TRADE_CANCEL_OPEN_AFTER_MIN", 0) or 0)

@@ -112,7 +112,7 @@ async def refresh(uid, order_id):
         if order.status == 'FILLED' and not was_filled:
             await recovery.auto_trade.notification.notify_order_filled(symbol=order.symbol,
                 side=order.side.lower(), quantity=order.filled_quantity, price=order.avg_filled_price,
-                environment='paper', user_id=str(uid))
+                environment='paper', user_id=str(uid), order_ref=order.client_order_id)
         return {'id': str(order.id), 'status': order.status, 'filled': order.filled_quantity,
                 'created_at': order.created_at.isoformat(), 'price': order.price, 'order_no': order.order_no,
                 'cancelled': latest.get('cancelled'), 'remaining': latest.get('remainingQuantity'),

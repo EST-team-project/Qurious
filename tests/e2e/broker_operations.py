@@ -33,9 +33,26 @@ def guard():
 
 def configure():
     guard()
+    import httpx
     from app.celery_app import celery_app
     from app.services import auto_trade
     from app.lib.redis_cache import get_redis
+
+    # 제품의 Slack 주소 검증을 그대로 거친 뒤, 시험용 주소만 로컬 수신기로 보낸다.
+    # 실제 HTTP 응답(200/500)을 대조하며 외부 Slack에는 연결하지 않는다.
+    original_send = httpx.AsyncClient.send
+
+    async def local_send(client, request, *args, **kwargs):
+        prefix = "https://hooks.slack.com/services/operations-test/"
+        receiver_url = os.environ.get("QURIOUS_OPERATIONS_RECEIVER", "")
+        receiver = urlparse(receiver_url)
+        if (not str(request.url).startswith(prefix) or receiver.scheme != "http"
+                or receiver.hostname != "127.0.0.1" or not receiver.port):
+            raise RuntimeError("운영 시험에서 허용하지 않은 HTTP 요청")
+        request.url = httpx.URL(receiver_url + "/" + str(request.url)[len(prefix):])
+        return await original_send(client, request, *args, **kwargs)
+
+    httpx.AsyncClient.send = local_send
 
     async def synthetic_cycle(user_id):
         redis = get_redis()
@@ -106,6 +123,7 @@ def main(out):
             pass
 
     receiver = ThreadingHTTPServer(("127.0.0.1", 0), Receiver)
+    os.environ["QURIOUS_OPERATIONS_RECEIVER"] = f"http://127.0.0.1:{receiver.server_port}"
     threading.Thread(target=receiver.serve_forever, daemon=True).start()
     children, handles = [], []
 
@@ -131,7 +149,7 @@ def main(out):
             await db.flush()
             db.add(BrokerSettings(user_id=uid, quant_auto_enabled=True, paper=True))
             db.add(NotificationSettings(user_id=uid, channels=["slack"],
-                slack_webhook_url=f"http://127.0.0.1:{receiver.server_port}/{uid}/{delivery}"))
+                slack_webhook_url=f"https://hooks.slack.com/services/operations-test/{uid}/{delivery}"))
             await db.commit()
         database(create)
         cache.set("operations:mode:" + str(uid), mode)
