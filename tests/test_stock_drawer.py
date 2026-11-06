@@ -314,8 +314,13 @@ def test_signal_hit_note_is_one_sentence_used_in_modal_and_copy_template():
     for needle in ("48.9 ~ 50.1%", "45.5%", "5거래일", "동전 던지기와 비슷했고", "신뢰도가 높아도 적중률은 그대로였습니다", "앞날을 맞히는 예측이 아니라"):
         assert needle in plain, needle
     # S208(2026-11-06 · 종목 근거 피드백 ③) — 기준선(무조건 오른다고 찍은 적중률 51.3%, 결과.md)과 표본 한계를 같은 문장에 둔다
-    for needle in ("기준선", "51.3%", "매수 쪽 적중률은 기준선보다 낮았습니다", "표본이 겉보기보다 적을 수 있으므로", "우연인지는 가리기 어렵습니다"):
+    for needle in ("기준선", "51.3%", "매수 쪽 적중률은 기준선보다 낮았습니다", "표본이 겉보기보다 적습니다"):
         assert needle in plain, needle
+    # S209(2026-11-06 · 유효 표본 측정) — 줄(53,044)이 아니라 날 138개 단위로 다시 잰 95% 구간(날짜 묶음 부트스트랩: 매수 49.1% → 45.9 ~ 52.2%)을 넣는다.
+    # 근거: docs/_local/유효표본-측정-2026-11-06/결과.md(gitignore · 같은 스캔을 다시 돌려 11-02 값과 일치 확인). 옛 「우연인지는 가리기 어렵습니다」 는 측정으로 대체했다.
+    for needle in ("날 138개 단위로 다시 재면", "49.1%", "95% 구간은 약 46 ~ 52%", "기준선 51.3% 를 포함해", "우연과 구분하기 어렵습니다"):
+        assert needle in plain, needle
+    assert "우연인지는 가리기 어렵습니다" not in plain
     assert "${SIGNAL_HIT_NOTE}" in plain and "${esc(SIGNAL_HIT_NOTE)}" in drawer          # 정리 틀(복사)과 모달 하단이 같은 문장
     for src in (plain, drawer):
         assert "과거에 맞았는지 재지 않았습니다" not in src

@@ -228,13 +228,15 @@ def test_view_scan_sees_only_its_own_entry_api():
     """TC-RKS-12 — 화면 스캐너(`view_scan`)는 함수를 이름으로 잇는다(저장소 규칙: 맨 위 함수 · 호출 이름은 파일마다 다르게) —
     신호 순위의 진입 훅이 `.load()` 를 부르면 다른 화면의 `load` 함수(ETF 상품 화면)와 이어져 상품 API 가 이 화면의 호출로 잡힌다.
     그러면 API 명세서의 「부르는 화면」 칸에 사실이 아닌 줄이 생긴다 — 진입 API 는 순위 읽기 하나여야 한다.
-    (2026-11-05: 새로고침이 상위 10종목의 지금 가격을 `/api/stocks/quote` 로 읽는다 — 이것은 사실이라 허용한다. 그 밖의 API 는 아니다.)"""
+    (2026-11-05: 새로고침이 상위 10종목의 지금 가격을 읽는다 — 이것은 사실이라 허용한다. 그 밖의 API 는 아니다.
+    2026-11-06: 그 길을 출처 딱지가 있는 `/api/quote/now` 로 바꿨다 — 옛 `/api/stocks/quote` 는 더 이상 이 화면이 부르지 않는다.)"""
     from scripts import view_scan
 
     row = next(r for r in view_scan.scan()["rows"] if r["key"] == "signal-rank")
     # 2026-11-06: 화면 스캐너가 진입 훅 두 단계 아래까지 따라가면서 종목 검색 자동완성(`signalrankview.js` 의 `/api/stocks/search`)도 이 화면의 호출로 잡힌다 — 이것도 사실이다.
     # 상품 화면의 `load` 같은 이름이 같은 다른 화면의 API(`/api/products/…`)는 여전히 섞이면 안 된다.
-    assert sorted(row["entry_apis"]) == ["/api/stock-hub/signal-rank", "/api/stocks/quote", "/api/stocks/search"], row["entry_apis"]
+    assert sorted(row["entry_apis"]) == ["/api/quote/now", "/api/stock-hub/signal-rank", "/api/stocks/search"], row["entry_apis"]
+    assert "/api/stocks/quote" not in row["entry_apis"]
     assert not any(a.startswith("/api/products") for a in row["entry_apis"])
 
 
@@ -356,3 +358,28 @@ def test_refresh_note_quote_line_and_wiring(tmp_path):
     src = SR.read_text(encoding="utf-8")
     assert "srvControl.refreshRankRows()" in view and "button[data-sr-refresh]" in view
     assert "lastParams = params;" in src and "if (mine !== askSeq) return { quoted };" in src
+
+
+def test_refresh_quote_uses_now_api_with_market_tail(tmp_path):
+    """TC-RKS-19 — 새로고침의 지금 가격(2026-11-06 S209 · 실제 화면에서 재현한 결함):
+    순위 줄의 코드는 꼬리 없는 6자리인데 옛 길(`/api/stocks/quote`)은 그 코드로 「데이터 없음」 이고 출처 칸도 없어 딱지를 못 만들었다 → 한 줄도 안 붙었다.
+    고친 뒤: 서버가 준 시장으로만 .KS · .KQ 를 붙이고, 시장을 모르거나 ETF · 글자 섞인 코드는 조회하지 않는다(틀린 꼬리는 다른 종목의 오래된 값을 낸다)."""
+    out = _run(tmp_path, """
+      out.kospi = sr.nowSymbolOf("005930", "KOSPI");
+      out.kosdaq = sr.nowSymbolOf("003380", "kosdaq");
+      out.tail = sr.nowSymbolOf("005930.ks", "");
+      out.unknown = sr.nowSymbolOf("005930", "");
+      out.etf = sr.nowSymbolOf("069500", "ETF");
+      out.letters = sr.nowSymbolOf("0088M0", "KOSDAQ");
+      out.empty = sr.nowSymbolOf("", "KOSPI");
+      out.view = sr.rowView({rank: 1, symbol: "003380", market: "KOSDAQ", counts: null}, null).market;
+      out.noMarket = sr.rowView({rank: 1, symbol: "003380", counts: null}, null).market;
+    """)
+    assert out["kospi"] == "005930.KS" and out["kosdaq"] == "003380.KQ" and out["tail"] == "005930.KS"
+    assert out["unknown"] == "" and out["etf"] == "" and out["letters"] == "" and out["empty"] == ""
+    assert out["view"] == "KOSDAQ" and out["noMarket"] == ""
+    src = SR.read_text(encoding="utf-8")
+    assert "/api/quote/now?symbol=" in src and "/api/stocks/quote" not in src.split("async refreshRankRows")[1]
+    assert 'data-sr-market="${esc(v.market)}"' in src
+    drawer = (ROOT / "public" / "js" / "stockdrawer.js").read_text(encoding="utf-8")
+    assert "nowSymbolOf(hub && hub.symbol, market)" in drawer                 # 모달의 「지금 값 보기」 와 같은 꼬리 규칙 한 곳

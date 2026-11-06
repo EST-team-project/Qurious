@@ -96,7 +96,19 @@ export function rowView(row, nameOf) {
     countsText: counts.text,
     countsNote: counts.note,
     noIntraday: row.no_intraday === true,        // 서버가 기록의 60분 주기 오류에서 읽은 값 — 화면이 짐작하지 않는다
+    market: typeof row.market === "string" ? row.market : "",   // 서버가 수집 DB 에서 읽은 시장 — 지금 가격 조회의 꼬리(.KS · .KQ)에만 쓴다
   };
+}
+
+/** 지금 값 조회(`/api/quote/now`)에 넣을 종목 — 서버는 6자리 코드만 받으면 수집 DB 를 못 찾아 빈손이 되고(2026-11-06 실제 화면 확인),
+ *  **틀린 꼬리를 붙이면 다른 종목의 오래된 값이 나온다.** 그래서 이미 꼬리가 있으면 그대로, 없으면 서버가 알려 준 시장으로만 붙이고
+ *  (코스피 .KS · 코스닥 .KQ) 시장을 모르거나 ETF 면 **짐작하지 않고 빈 글**을 돌려준다(빈 글이면 조회하지 않는다). */
+export function nowSymbolOf(symbol, market) {
+  const raw = String(symbol || "").trim().toUpperCase();
+  if (/^\d{6}\.(KS|KQ)$/.test(raw)) return raw;
+  if (!/^\d{6}$/.test(raw)) return "";
+  const m = String(market || "").toUpperCase();
+  return m === "KOSPI" ? `${raw}.KS` : m === "KOSDAQ" ? `${raw}.KQ` : "";
 }
 
 /** 순위 필터(2026-11-05 · 「매수 / 매도 / 관망 · KOSPI / KOSDAQ 로 거르고 싶다」 피드백) — 서버가 limit 전에 거른다.
@@ -188,7 +200,7 @@ export function renderRankTable(resp, esc, { nameOf } = {}) {
     // 줄 전체가 종목 근거 모달 입구 — 종목코드(6자리)를 모르는 줄은 입구를 달지 않는다(빈 코드로 부르면 422)
     const entry = code ? ` data-hub-open="${esc(code)}" data-hub-name="${esc(v.name)}" tabindex="0"` : "";
     // 칸마다 열 이름(data-label)을 단다 — 좁은 화면(640px 이하)에서 표가 줄마다 카드로 바뀔 때 CSS 가 이 이름을 칸 앞에 보인다(signalrankview.css)
-    return `<tr data-sr-symbol="${esc(v.symbol)}"${entry}>`
+    return `<tr data-sr-symbol="${esc(v.symbol)}" data-sr-market="${esc(v.market)}"${entry}>`
       + `<td data-label="순위">${esc(v.rank)}</td>`
       + `<td data-label="종목">${v.name ? esc(v.name) + " " : ""}<span class="text-xs">${esc(v.symbol)}</span></td>`
       + `<td data-label="규칙 신호">${esc(v.signal)}${v.strength ? " · " + esc(v.strength) : ""}`
@@ -294,15 +306,19 @@ export function mountSignalRank(host, { api, esc, nameOf } = {}) {
       try { const got = await api(`/api/stock-hub/signal-rank${params}`); if (mine !== askSeq) return; resp = got; paint(); }
       catch (err) { if (mine === askSeq) host.textContent = drawerFailText(err); }
     },
-    /** 새로고침(2026-11-05) — 마지막 조건으로 기록을 다시 읽고, 위 몇 종목에만 지금 가격을 붙인다. 가격을 못 받은 줄은 그냥 둔다(요청은 한 번에 5개씩). */
+    /** 새로고침(2026-11-05) — 마지막 조건으로 기록을 다시 읽고, 위 몇 종목에만 지금 가격을 붙인다. 가격을 못 받은 줄은 그냥 둔다(요청은 한 번에 5개씩).
+     *  2026-11-06: 가격은 출처 딱지가 있는 `/api/quote/now` 로 읽는다(옛 `/api/stocks/quote` 는 출처가 없어 딱지를 못 만들었고, 꼬리 없는 6자리 코드는
+     *  「데이터 없음」 이라 한 줄도 붙지 않았다). 시장을 모르는 줄(꼬리를 못 붙임)은 조회하지 않는다. */
     async refreshRankRows({ quoteCount = REFRESH_QUOTE_COUNT } = {}) {
       await this.loadRankRows(lastParams);
       const mine = askSeq;
-      const rows = [...host.querySelectorAll("tr[data-sr-symbol]")].slice(0, quoteCount);
+      const rows = [...host.querySelectorAll("tr[data-sr-symbol]")].slice(0, quoteCount)
+        .map(tr => ({ tr, sym: nowSymbolOf(tr.dataset.srSymbol, tr.dataset.srMarket) })).filter(x => x.sym);
       let quoted = 0;
       for (let i = 0; i < rows.length; i += 5) {
-        const batch = rows.slice(i, i + 5);
-        const got = await Promise.allSettled(batch.map(tr => api(`/api/stocks/quote?symbol=${encodeURIComponent(tr.dataset.srSymbol)}`)));
+        const batch = rows.slice(i, i + 5).map(x => x.tr);
+        const syms = rows.slice(i, i + 5).map(x => x.sym);
+        const got = await Promise.allSettled(syms.map(sym => api(`/api/quote/now?symbol=${encodeURIComponent(sym)}`)));
         if (mine !== askSeq) return { quoted };           // 그 사이 다른 조건으로 다시 읽었다 — 낡은 가격은 붙이지 않는다
         got.forEach((g, k) => {
           const text = g.status === "fulfilled" ? quoteLineText(g.value) : "";
