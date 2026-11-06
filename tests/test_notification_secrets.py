@@ -484,20 +484,26 @@ def test_tc_ns_12_routes_mask_keep_withdraw_and_503(monkeypatch):
     assert got.status_code == 200
     body = got.json()
     for f in ("telegram_token", "slack_webhook_url", "discord_webhook_url", "email_password", "kakao_api_key",
-              "kakao_api_secret", "sms_api_key", "sms_api_secret"):
+              "kakao_api_secret", "kakao_sender_key", "sms_api_key", "sms_api_secret"):
       assert body[f] == "****", f
-    assert "route-" not in got.text.replace(body["kakao_sender_key"], ""), "비밀 평문이 응답에 새지 않는다"
+    assert "route-" not in got.text, "비밀 평문이 응답에 새지 않는다(발신 프로필 키 포함)"
 
     # 가림값을 다시 보내면 기존 값 유지(암호문이 바뀌지 않아도 복호화 값이 같다)
     put = client.post("/api/notification/settings", json={"channels": ["telegram"], "telegram_token": "****",
                                                          "slack_webhook_url": "****", "discord_webhook_url": "****",
-                                                         "email_password": "", "kakao_api_key": "****"})
+                                                         "email_password": "", "kakao_api_key": "****",
+                                                         "kakao_sender_key": "****"})
     assert put.status_code == 200, put.text
 
     async def read_token():
       async with sessions() as db:
         return (await db.scalar(select(NotificationSettings).where(NotificationSettings.user_id == uid))).telegram_token
     assert asyncio.run(read_token()) == _secret_values("route")["telegram_token"]
+
+    async def read_sender():
+      async with sessions() as db:
+        return (await db.scalar(select(NotificationSettings).where(NotificationSettings.user_id == uid))).kakao_sender_key
+    assert asyncio.run(read_sender()) == _secret_values("route")["kakao_sender_key"], "가림값을 되돌려 보내도 발신 프로필 키가 유지된다"
 
     # 키가 없으면 설정 GET · 저장 모두 503 — 알림 쪽 문구, 비밀 없음
     monkeypatch.delenv("BROKER_CREDENTIAL_KEY_FILE")

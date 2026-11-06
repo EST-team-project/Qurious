@@ -1,8 +1,8 @@
-# API 명세서 v0.64 — Qurious
+# API 명세서 v0.65 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.64 (2026-11-06 — 표를 코드에서 다시 채움(화면 스캐너가 훅 → 로더 → 패널 상수를 따라가도록 고친 뒤 · 화면이 부르는 API 148 → 146) · `API-MACR-01 ~ 03` 의 `refresh` 질의와 응답 `refresh` 칸 풀이 · 알림 설정 `API-NOTI-01` · `02` 의 503 `CREDENTIAL_STORAGE_UNAVAILABLE`) / v0.63 (2026-11-05 후속 — 표를 코드에서 다시 채움: `API-STK-02` `GET /api/stocks/quote` 의 부르는 화면에 `signal-rank` 추가 — 신호 순위 새로고침이 상위 10종목 지금 가격을 읽음) / v0.62 (2026-11-05 — 라우트 288 → 290 · `API-RBAL-11` `GET /api/rebalance/target-changes`(오준영 님 라우트 · ID 는 `api_scan.py --assign S202` 로 이동원이 붙임) · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 · 화면 `kis-results` 가 `API-KMON-02` 를 부름 · 표를 코드에서 다시 채움(메뉴 화면이 부르는 API 143 → 148 · 인증 없음 50 그대로) / v0.61 (2026-11-03 — 라우트 288 그대로 · 6절에 풀이 둘: 종목 허브 `API-HUB-01` 의 쿼리 `signal_on` · 신호 칸 응답의 기록 시점 · 날짜 고르기 칸(`version` 3 → 4) · 증시 일정 `API-CAL-02` · `03` 의 `kind` 열 → 열넷 · 표를 코드에서 다시 채움(화면 칸 `notification-settings` → `mypage` · `paper-openapi` → `mypage` · 메뉴 화면이 부르는 API 146 → 143)) |
+| **문서 버전** | v0.65 (2026-11-06 후속 — 표를 코드에서 다시 채움: `API-STK-02` 부르는 화면에서 `signal-rank` 제외 · `API-QUOT-01` 에 추가 · 신호 순위 줄 `market` 칸 풀이) / v0.64 (2026-11-06 — 표를 코드에서 다시 채움(화면 스캐너가 훅 → 로더 → 패널 상수를 따라가도록 고친 뒤 · 화면이 부르는 API 148 → 146) · `API-MACR-01 ~ 03` 의 `refresh` 질의와 응답 `refresh` 칸 풀이 · 알림 설정 `API-NOTI-01` · `02` 의 503 `CREDENTIAL_STORAGE_UNAVAILABLE`) / v0.63 (2026-11-05 후속 — 표를 코드에서 다시 채움: `API-STK-02` `GET /api/stocks/quote` 의 부르는 화면에 `signal-rank` 추가 — 신호 순위 새로고침이 상위 10종목 지금 가격을 읽음) / v0.62 (2026-11-05 — 라우트 288 → 290 · `API-RBAL-11` `GET /api/rebalance/target-changes`(오준영 님 라우트 · ID 는 `api_scan.py --assign S202` 로 이동원이 붙임) · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 · 화면 `kis-results` 가 `API-KMON-02` 를 부름 · 표를 코드에서 다시 채움(메뉴 화면이 부르는 API 143 → 148 · 인증 없음 50 그대로) / v0.61 (2026-11-03 — 라우트 288 그대로 · 6절에 풀이 둘: 종목 허브 `API-HUB-01` 의 쿼리 `signal_on` · 신호 칸 응답의 기록 시점 · 날짜 고르기 칸(`version` 3 → 4) · 증시 일정 `API-CAL-02` · `03` 의 `kind` 열 → 열넷 · 표를 코드에서 다시 채움(화면 칸 `notification-settings` → `mypage` · `paper-openapi` → `mypage` · 메뉴 화면이 부르는 API 146 → 143)) |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.51 = main `3a832c2`(#422 포함) + 명시적 가상계좌 시험 공급원 작업 트리, 관련 172건 검증 · 앞 판의 글은 개정 이력 아래 표 |
@@ -269,7 +269,7 @@ flowchart LR
 | API-AUTH-11 | GET | `/api/auth/password-policy` | — | (다른 곳) |
 | API-HLTH-01 | GET | `/api/health` | — | (다른 곳) |
 | API-STK-01 | GET | `/api/stocks/market` | 야후 · PostgreSQL · 라우트 캐시 2h | `quant-dashboard` |
-| API-STK-02 | GET | `/api/stocks/quote` | 야후 | `robo-patterns`, `signal-rank`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` |
+| API-STK-02 | GET | `/api/stocks/quote` | 야후 | `robo-patterns`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` |
 | API-STK-03 | GET | `/api/stocks/candles` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `robo-patterns`, `trading-chart`, `us-chart` |
 | API-STK-04 | GET | `/api/stocks/quant/indicators` | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `invest-technical`, `quant-backtest`, `quant-dashboard`, `robo-patterns` |
 | API-STK-05 | GET | `/api/stocks/quant/list` | — | `quant-dashboard` |
@@ -715,7 +715,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | API-STK-01 | GET | `/api/stocks/market` | 없음 | — | {indices, from_cache} | — | 야후 · PostgreSQL · 라우트 캐시 2h | `quant-dashboard` | P-A | P01-①-2 | stocks.py:60 |
-| API-STK-02 | GET | `/api/stocks/quote` | 없음 | `symbol`* | 모델 없음 | — | 야후 | `robo-patterns`, `signal-rank`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` | P-A | P01-①-2 | stocks.py:71 |
+| API-STK-02 | GET | `/api/stocks/quote` | 없음 | `symbol`* | 모델 없음 | — | 야후 | `robo-patterns`, `trading-chart`, `us-chart`, `us-dashboard`, `us-order` | P-A | P01-①-2 | stocks.py:71 |
 | API-STK-03 | GET | `/api/stocks/candles` | 없음 | `symbol`* · `period` · `interval` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `robo-patterns`, `trading-chart`, `us-chart` | P-A | P01-①-2 · P02-④-1 | stocks.py:76 |
 | API-STK-04 | GET | `/api/stocks/quant/indicators` | 없음 | `symbol`* · `period` | 다리 결과 그대로 (`source`·`as_of`) | — | 수집DB · 야후 · PostgreSQL · 라우트 캐시 6h (다리 요청 제외) | `invest-technical`, `quant-backtest`, `quant-dashboard`, `robo-patterns` | P-B | P01-②-1 · P01-②-3 · P02-①-1 · P02-②-2 | stocks.py:97 |
 | API-STK-05 | GET | `/api/stocks/quant/list` | 없음 | — | {stocks} | — | — | `quant-dashboard` | P-A | P01-①-2 | stocks.py:116 |
@@ -836,10 +836,10 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-NOTI-01 | GET | `/api/notification/settings` | 세션 | — | {integration_consent, preferences, event_catalog, channels, telegram_token} 외 17 | — | PostgreSQL | `mypage` | P-B | P02-③-3 | notification.py:144 |
-| API-NOTI-02 | POST | `/api/notification/settings` | 세션 | 본문 `NotificationSettingsBody` | {ok, withdrawn} | 422 | PostgreSQL · 외부(canary.discord.com, discord.com …) | `mypage` | P-B | P02-③-3 | notification.py:195 |
-| API-NOTI-03 | POST | `/api/notification/test` | 세션 | — | {ok, message} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `mypage` | P-B | P02-③-3 · P02-⑤-3 | notification.py:309 |
-| API-NOTI-04 | GET | `/api/notification/history` | 세션 | `limit` | {events, count} | — | PostgreSQL | (다른 곳) | P-B | P02-③-3 | notification.py:337 |
+| API-NOTI-01 | GET | `/api/notification/settings` | 세션 | — | {integration_consent, preferences, event_catalog, channels, telegram_token} 외 17 | — | PostgreSQL | `mypage` | P-B | P02-③-3 | notification.py:145 |
+| API-NOTI-02 | POST | `/api/notification/settings` | 세션 | 본문 `NotificationSettingsBody` | {ok, withdrawn} | 422 | PostgreSQL · 외부(canary.discord.com, discord.com …) | `mypage` | P-B | P02-③-3 | notification.py:196 |
+| API-NOTI-03 | POST | `/api/notification/test` | 세션 | — | {ok, message} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `mypage` | P-B | P02-③-3 · P02-⑤-3 | notification.py:312 |
+| API-NOTI-04 | GET | `/api/notification/history` | 세션 | `limit` | {events, count} | — | PostgreSQL | (다른 곳) | P-B | P02-③-3 | notification.py:340 |
 
 #### `graph` — `app/routes/graph.py` · 6개
 
@@ -1164,7 +1164,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 | API ID | 메서드 | 경로 | 인증 | 요청 | 응답 | 오류 | 닿는 곳 | 화면 | 파트(제안) | 요구 ID | 코드 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| API-QUOT-01 | GET | `/api/quote/now` | 세션·JWT | `symbol`* | 모델 없음 | 400 | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `company-dashboard`, `indicator-strategy`, `quant-dashboard`, `robo-patterns`, `trading-chart` | P-A | — | quote_now.py:23 |
+| API-QUOT-01 | GET | `/api/quote/now` | 세션·JWT | `symbol`* | 모델 없음 | 400 | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `company-dashboard`, `indicator-strategy`, `quant-dashboard`, `robo-patterns`, `signal-rank`, `trading-chart` | P-A | — | quote_now.py:23 |
 
 <!-- /api_scan:routes -->
 
@@ -1530,6 +1530,21 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 - **동의 철회는 키 없이도 200** 이다(`{ok: true, withdrawn: true}`). 키 오류 때 평문으로 저장하는 길은 없다(fail-closed).
 - 운영 전환(기존 값 암호화)은 오준영 님 운영 절차(#577)이고 이 명세서의 판정 대상이 아니다.
 
+### 신호 순위 줄의 `market` 칸 · 새로고침 「지금 가격」 의 길 (`API-HUB-03` · `API-QUOT-01` · 2026-11-06 · v0.65)
+
+`GET /api/stock-hub/signal-rank`(`API-HUB-03`)의 `rows[]` 마다 **`market`** 이 더해졌다(`stock_hub.attach_names`). 종목 이름을 찾는 같은 조회에서 시장을 함께 읽는다.
+
+| 값 | 뜻 |
+|---|---|
+| `KOSPI` · `KOSDAQ` | 수집 DB 종목 표의 시장 칸 |
+| `ETF` | 종목 표에는 없고 ETF 표(`etf_daily`)에서 이름을 찾은 경우 |
+| 빈 글(`""`) | 수집 DB 가 없거나 이름을 못 찾은 경우 — **짐작하지 않는다** |
+
+- 신호 순위 화면(`signal-rank`)의 **새로고침**이 상위 10종목의 「지금 가격」 을 붙일 때, 옛 길 `GET /api/stocks/quote`(`API-STK-02`) 대신 **`GET /api/quote/now`(`API-QUOT-01`)** 를 부른다. 순위 줄의 코드는 꼬리 없는 6자리인데 옛 길은 그 코드에 「데이터 없음」 을 돌려주고 응답에 출처(`source`)도 없어, 11-05 에 만든 새로고침이 실제 앱에서 한 줄도 가격을 붙이지 못했다.
+- 화면(`nowSymbolOf`)은 `market` 으로 꼬리를 정한다: `KOSPI` → `.KS` · `KOSDAQ` → `.KQ`. **시장을 모르거나(빈 글) ETF 이거나 글자가 섞인 코드는 조회하지 않는다** — 틀린 꼬리는 다른 종목의 오래된 값을 내기 때문이다. 종목 근거 모달(`stockdrawer`)의 지금 값도 같은 함수를 쓴다.
+- 이 변경으로 `API-STK-02` 의 부르는 화면에서 `signal-rank` 가 빠지고 `API-QUOT-01` 에 더해졌다(4절 · 6절 표는 `api_scan.py --doc` 로 다시 채웠다). 로그인한 사람의 증권사 키 경로(`kis_user`)는 이 PC 에 키가 없어 화면으로 확인하지 못했다.
+- 시험: `TC-HUB-63`(`market` 칸) · `TC-RKS-12`(진입 API 목록) · `TC-RKS-19`(새로고침이 시장 꼬리로 `/api/quote/now` 를 부름).
+
 ## 7. 인터페이스 정의서 (시작)
 
 **인터페이스** — 두 시스템이 주고받는 경계 하나. API 명세서가 「앱이 받는 요청」 이라면, 이 절은 「앱이 **바깥에** 닿는 길」 과 「바깥이 앱에 닿는 길」 을 한 줄씩 적는다.
@@ -1681,6 +1696,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.65 | 2026-11-06 | 변경 — 표를 코드에서 다시 채움(`API-STK-02` 부르는 화면에서 `signal-rank` 제외 · `API-QUOT-01` 에 추가) / 추가 — 6절 소절 하나: 신호 순위 줄 `market` 칸 · 새로고침 지금 가격의 길 | PR #596 — 새로고침이 시장 꼬리(.KS · .KQ)가 있는 `/api/quote/now` 로 옮겨 감 · 순위 줄에 `market` 이 더해짐(v0.63 의 `API-STK-02` 기재를 되돌림) | `api_scan.py --doc --check` 통과 · 코드 `stock_hub.py` `attach_names` · `signal-rank.js` `nowSymbolOf` · TC-HUB-63 · TC-RKS-12 · 19 |
 | v0.64 | 2026-11-06 | 변경 — 표를 코드에서 다시 채움(화면이 부르는 API 148 → 146) / 추가 — 6절 소절 둘: 거시 `refresh` · 알림 설정 503 | #564 뒤 화면 스캐너가 이력 라우트 16곳의 화면을 잃어 스캐너를 고치고(TC-VW-03) 다시 채움 · 새 질의와 오류 응답 풀이 | `api_scan.py --doc --check` 통과 · 시험 33 passed · 한계: `API-STK-39` · `API-NOTI-04` · `API-LEAN-03` 은 호출이 3단계 아래라 `(다른 곳)` |
 | v0.63 | 2026-11-05 | 변경 — 표를 코드에서 다시 채움(`API-STK-02` 부르는 화면에 `signal-rank` 추가) | 신호 순위 화면의 새로고침이 `/api/stocks/quote` 로 상위 10종목의 지금 가격을 읽는다 | `api_scan.py --doc --check` 통과 |
 | v0.62 | 2026-11-05 | 추가 — `API-RBAL-11` `GET /api/rebalance/target-changes`(국면 목표 변경 이력) ID 와 6절 행 · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 / 변경 — 표를 코드에서 다시 채움(라우트 288 → 290 · 메뉴 화면이 부르는 API 143 → 148 · 화면 칸 `kis-results` · `robo-patterns` 등) | 오준영 님 #524 의 새 라우트와 D11 지표 비교 표 라우트가 명세서에 없었음 | `api_scan.py --doc --check` 통과 · `--catalog` 는 다른 팀원 변경 18건이 함께 들어와 오준영 님 판 올림 뒤에 한 번만 다시 만들기로 미룸 |
