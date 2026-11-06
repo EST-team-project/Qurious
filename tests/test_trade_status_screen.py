@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -45,6 +46,57 @@ assert.match(etf, /2026-10-30/);
 assert.match(etf, /장중 iNAV 아님/);
 '''
         subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True, check=True, capture_output=True)
+
+
+@unittest.skipUnless(NODE, "Node.js 필요 (QURIOUS_NODE_EXECUTABLE로 지정 가능)")
+class RiskDisplayEscapingTest(unittest.TestCase):
+    """P02-⑤-2/3: 실제 회차·위험관리 렌더러가 저장 기록을 HTML로 실행하지 않는다."""
+
+    def run_renderer(self, body):
+        quant = (ROOT / 'public/js/quant.js').read_text(encoding='utf-8')
+        common = (ROOT / 'public/js/common.js').read_text(encoding='utf-8')
+        functions = [re.search(r'export (function escHtml\(s\) \{.*?\n\})', common, re.S).group(1)]
+        for name in ('autoCycleHtml', 'loadRiskStatus'):
+            functions.append(re.search(r'(?:async )?function ' + name + r'\([^\n]*\) \{.*?\n\}', quant, re.S).group())
+        script = 'import assert from "node:assert/strict";\n' + '\n'.join(functions) + r'''
+const elements = new Map();
+const document = {getElementById(id) { if (!elements.has(id)) elements.set(id, {}); return elements.get(id); }};
+const fmt = String, kstTime = String;
+const payload = '<img src=x onerror="globalThis.injected=1">';
+''' + body
+        done = subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True,
+                              capture_output=True, timeout=30)
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_cycle_risk_numbers_are_text_and_zero_is_preserved(self):
+        self.run_renderer(r'''
+for (const key of ['day_pnl_pct', 'orders_today']) {
+  const html = autoCycleHtml({risk: {day_pnl_pct: 0, orders_today: 0, [key]: payload}});
+  assert.doesNotMatch(html, /<img/);
+  assert.ok(html.includes(escHtml(payload)));
+}
+const normal = autoCycleHtml({risk: {day_pnl_pct: -1.25, orders_today: 0}});
+assert.match(normal, /당일 -1.25%/); assert.match(normal, /주문 0건/);
+assert.match(autoCycleHtml({risk: {}}), /당일 -%/);
+''')
+
+    def test_risk_kpis_escape_values_and_keep_existing_labels(self):
+        self.run_renderer(r'''
+let response;
+const api = async () => response;
+for (const key of ['day_pnl_pct', 'orders_today', 'daily_loss_limit_pct', 'max_orders_per_day', 'max_position_pct', 'cooldown_min']) {
+  response = {day_pnl_pct: 0, orders_today: 0, limits: {}, [key]: payload}; response.limits[key] = payload;
+  await loadRiskStatus();
+  const html = elements.get('risk-kpis').innerHTML;
+  assert.doesNotMatch(html, /<img/); assert.ok(html.includes(escHtml(payload)), key);
+}
+response = {day_pnl_pct: 1.25, orders_today: 0, limits: {daily_loss_limit_pct: 3, max_orders_per_day: 20, max_position_pct: 30, cooldown_min: 0}};
+await loadRiskStatus();
+const normal = elements.get('risk-kpis').innerHTML;
+for (const text of ['+1.25%', '0건', '한도 -3%', '최대 20', '30%', '0분', 'OFF']) assert.ok(normal.includes(text), text);
+response = {day_pnl_pct: null, limits: {}}; await loadRiskStatus();
+assert.ok(elements.get('risk-kpis').innerHTML.includes('∞'));
+''')
 
 
 if __name__ == '__main__':
