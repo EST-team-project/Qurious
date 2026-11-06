@@ -9,7 +9,7 @@ import { renderDecisionBasis } from "/js/decision-signals.js";
 // 종목 검색 줄(안 A1) — 이름 · 코드를 종목으로 풀고, 신호 기록이 있는 국내 코드만 종목 근거 모달을 연다(신호 순위 화면과 같은 부품)
 import { resolveSymbolInput } from "/js/stockfind.js";
 import { openStockSearch } from "/js/company.js";
-import { findQuery, rowView, renderFreshness, drawerFailText } from "/js/signal-rank.js";
+import { findQuery, rowView, renderFreshness, drawerFailText, REFRESH_QUOTE_COUNT, quoteLineText } from "/js/signal-rank.js";
 import { scCode, mountDailyChart } from "/js/stockchart.js";   // 6자리 단축코드 꼴 판정 한 곳 + 공용 일봉 차트 부품
 import { hubExtChartUrl } from "/js/stockdrawer.js";    // 외부 차트(새 탭) 주소 — 모달과 같은 한 곳
 
@@ -21,6 +21,8 @@ let qdListPromise = null;                       // 관찰 목록 요청 하나�
 let qdCardsLoaded = false;                      // 카드는 「일봉 단독 규칙」 칸을 펼칠 때 처음 받는다
 let qdCardFilter = { signal: "", market: "" };  // 일봉 단독 규칙 카드 필터(2026-11-05) — 신호 · 시장
 let qdFilterShown = 0;                          // 필터에 맞는 카드 수
+let qdCardsNote = "";                           // 카드 「새로고침」 뒤 안내 글(필터 줄을 다시 그려도 남긴다)
+let qdCardsBusy = false;                        // 카드를 다시 받는 중에는 새로고침을 한 번 더 받지 않는다
 let qdWatchSeq = 0;                             // 표 요청이 겹치면 마지막 것만 그린다
 const qdRankByCode = new Map();                 // 표에서 읽은 기록된 신호(6자리 코드 → 줄) — 신호 띠가 같은 종목을 다시 묻지 않게
 
@@ -96,7 +98,8 @@ async function loadMarketCards() {
 // 응답 · 판정(`_generate_signal` · 일지 판 지문)은 건드리지 않는다 — 화면만. 낱말은 「규칙 신호」 · 「근거 n개」(결정 대장 10-27 · 「AI 판단」 안 씀).
 // 2026-11-03(안 A): 카드의 신호는 「일봉 단독 규칙」 이라 이름표를 달고, 색 관행(빨강=오름)과 부딪히지 않게 카드 색은 빼고 글자 칩만 쓴다.
 
-/** 카드 하나의 HTML — `prevDay` 는 서버가 알려 주는 전 거래일(`/api/data/status` · 없으면 경고를 못 낸다). */
+/** 카드 하나의 HTML — `prevDay` 는 서버가 알려 주는 전 거래일(`/api/data/status` · 없으면 경고를 못 낸다).
+ *  `data-qd-now` 칸은 비어 있다가 카드 「새로고침」 을 누르면(2026-11-06 · (b)) 지금 값 한 줄(출처 · 시각 딱지)이 붙는다 — 종가 줄을 대신하지 않는다. */
 export function signalCardHtml(s, r, prevDay) {
   const sig = r?.signal || {};
   const reasons = Array.isArray(sig.reasons) ? sig.reasons : [];
@@ -109,12 +112,13 @@ export function signalCardHtml(s, r, prevDay) {
         <ul class="text-xs pl-3 list-disc" style="color:var(--text-dim);">${reasons.map(t => `<li>${escHtml(t)}</li>`).join("")}</ul>
         ${r?.data_note ? `<div class="text-xs mt-1" style="color:var(--text-mute);">${escHtml(r.data_note)}</div>` : ""}</details>`
     : `<div class="text-xs mt-1" style="color:var(--text-mute);">근거 없음</div>`;
-  return `<div class="rounded-xl border p-2" style="border-color:var(--border);background:var(--surf2);" data-qd-signal="${escHtml(qdBucket(sig.action))}" data-qd-market="${escHtml(qdMarketOf(s.symbol))}">
+  return `<div class="rounded-xl border p-2" style="border-color:var(--border);background:var(--surf2);" data-qd-signal="${escHtml(qdBucket(sig.action))}" data-qd-market="${escHtml(qdMarketOf(s.symbol))}" data-qd-sym="${escHtml(s.symbol)}">
         <div class="font-semibold">${escHtml(s.name)}</div>
         ${hub}
         <div class="text-xs" style="color:var(--text-mute);">${escHtml(s.symbol)}</div>
         <div class="mt-1 font-medium">${fmt(r?.current_price)} <span class="text-xs font-normal" style="color:var(--text-mute);">종가</span></div>
         ${asOf ? `<div class="text-xs" style="color:${late ? "var(--red)" : "var(--text-mute)"};">${escHtml(asOf.slice(5, 10))} 기준${late ? " · ⚠ 최신 아님" : ""}</div>` : ""}
+        <div class="text-xs" style="color:var(--text-dim);" data-qd-now></div>
         <div class="mt-1 text-xs" style="color:var(--text-mute);">일봉 단독 규칙</div>
         <div class="text-xs font-semibold"><span class="qd-chip">${escHtml(_displayAction(sig.action))}</span></div>
         <div class="text-xs" style="color:var(--text-dim);">RSI: ${r?.current_rsi?.toFixed(1) ?? "-"}</div>
@@ -181,6 +185,8 @@ function qdFilterBarHtml() {
     ? `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">시장</span>${markets.map(v => chip("market", v, v || "전체")).join("")}</div>` : "";
   return `<div class="qd-frow"><span class="text-xs font-semibold" style="color:var(--text-dim);">신호</span>${QD_FILTER_SIGNALS.map(v => chip("signal", v, v || "전체")).join("")}</div>`
     + marketRow
+    + `<div class="qd-frow"><button type="button" class="btn-secondary text-xs" data-qd-crefresh>새로고침</button>`
+    + `<span class="text-xs" style="color:var(--text-mute);" id="signal-cards-refresh-note" role="status" aria-live="polite">${escHtml(qdCardsNote)}</span></div>`
     + `<div class="text-xs" style="color:var(--text-mute);" id="signal-cards-filter-note" role="status" aria-live="polite"></div>`;
 }
 
@@ -196,8 +202,47 @@ function qdMountCardFilter() {
   grid.parentNode.insertBefore(bar, grid);
   bar.addEventListener("click", ev => {
     const btn = ev.target.closest ? ev.target.closest("button[data-qd-filter]") : null;
-    if (btn) qdSetCardFilter(btn.dataset.qdFilter, btn.dataset.value);
+    if (btn) { qdSetCardFilter(btn.dataset.qdFilter, btn.dataset.value); return; }
+    if (ev.target.closest && ev.target.closest("button[data-qd-crefresh]")) qdCardsRefresh();
   });
+}
+
+/** 처음 `REFRESH_QUOTE_COUNT` 장의 카드에 지금 값 한 줄을 붙인다 — `/api/quote/now`(내 증권사 키 → 지연 시세 → 지난 종가 · 10초 저장본).
+ *  신호 · 종가 줄은 건드리지 않고, 못 받은 카드는 비워 둔다(종가로 대신 채우지 않는다). 붙인 카드 수를 돌려준다. */
+async function qdAttachNow() {
+  const el = document.getElementById("signal-cards");
+  if (!el) return 0;
+  const cards = [...el.querySelectorAll("[data-qd-sym]")].slice(0, REFRESH_QUOTE_COUNT);
+  const got = await Promise.allSettled(cards.map(c => api(`/api/quote/now?symbol=${encodeURIComponent(c.dataset.qdSym)}`)));
+  let n = 0;
+  cards.forEach((c, i) => {
+    const slot = c.querySelector("[data-qd-now]");
+    const text = got[i].status === "fulfilled" ? quoteLineText(got[i].value) : "";
+    if (slot) slot.textContent = text;
+    if (text) n += 1;
+  });
+  return n;
+}
+
+/** 카드 「새로고침」(2026-11-06 · (b)) — 서버에서 지표를 다시 받아 카드를 다시 그리고(서버가 일봉으로 다시 계산한다) 위 10장에 지금 값을 붙인다.
+ *  신호 판정 코드는 그대로이고 일봉은 하루 한 번 바뀌므로 결과가 같을 수 있다 — 안내 글이 그렇게 말한다. 걸어 둔 필터는 그대로다. */
+async function qdCardsRefresh() {
+  if (qdCardsBusy) return;
+  qdCardsBusy = true;
+  const say = () => { const n = document.getElementById("signal-cards-refresh-note"); if (n) n.textContent = qdCardsNote; };
+  qdCardsNote = "다시 받는 중…"; say();
+  try {
+    qdCardsLoaded = false;
+    await loadSignalCards();
+    if (!qdCardsLoaded) { qdCardsNote = ""; return; }                      // 다시 받기가 실패했으면 카드가 실패 글을 이미 보인다 — 시각을 찍지 않는다
+    const quoted = await qdAttachNow();
+    qdCardsNote = `${refreshStamp("서버에서 지표를 다시 받았습니다")}${quoted ? ` · 위 ${quoted}종목에 지금 값을 붙였습니다` : " · 지금 값은 받지 못했습니다"} — 신호 규칙은 그대로이고 일봉은 하루 한 번 바뀌어서 결과가 같을 수 있습니다`;
+  } catch {
+    qdCardsNote = "새로고침하지 못했습니다";
+  } finally {
+    qdCardsBusy = false;
+    say();
+  }
 }
 
 /** 나머지 카드(11번째부터)를 받아 붙인다 — 이미 받았으면 그대로. 필터를 걸 때와 「나머지 보기」 가 같은 길을 쓰지는 않는다(후자는 qdToggleCards). */
