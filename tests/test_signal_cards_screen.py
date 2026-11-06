@@ -503,6 +503,7 @@ def test_card_filter_hides_by_signal_and_market_and_reports_counts():
         let qdStocks = Array.from({ length: 6 }, (_, i) => ({ symbol: String(i) }));
         let qdCardsDrawn = 6, qdFilterShown = 0;
         let qdCardFilter = { signal: "", market: "" };
+        let qdCardsNote = "";
         const escHtml = s => String(s ?? "");
         const qdMarketOf = () => "";
         const spec = [["매수", "KOSPI"], ["매수", "KOSDAQ"], ["매도", "KOSPI"], ["관망", "KOSDAQ"], ["매수", "KOSPI"], ["", "KOSPI"]];
@@ -560,6 +561,7 @@ def test_card_filter_loads_the_rest_once_and_unfolds_them():
         let qdStocks = Array.from({ length: 5 }, (_, i) => ({ symbol: String(i) }));
         let qdCardsDrawn = 2, qdFilterShown = 0;
         let qdCardFilter = { signal: "", market: "" };
+        let qdCardsNote = "";
         const escHtml = s => String(s ?? "");
         const qdMarketOf = () => "";
         const mkCard = (s, m) => ({ hidden: false, dataset: { qdSignal: s, qdMarket: m } });
@@ -638,6 +640,7 @@ def test_market_chips_only_when_the_watch_list_has_more_than_one_market():
         const qdMarketOf = s => (String(s).endsWith(".KQ") ? "KOSDAQ" : String(s).endsWith(".KS") ? "KOSPI" : "");
         let qdStocks = [{ symbol: "005930.KS" }, { symbol: "000660.KS" }];
         let qdCardFilter = { signal: "", market: "" };
+        let qdCardsNote = "";
     """) + fn + textwrap.dedent("""
         const chips = h => (h.match(/data-qd-filter="market" data-value="([^"]*)"/g) || []).map(x => x.split('data-value="')[1].replace('"', ""));
         const out = {};
@@ -652,3 +655,130 @@ def test_market_chips_only_when_the_watch_list_has_more_than_one_market():
     assert got["onlyKs"] == {"row": False, "kosdaq": False}, got
     assert got["both"] == ["", "KOSPI", "KOSDAQ"], got
     assert got["stuck"] == ["", "KOSPI", "KOSDAQ"], got          # 목록엔 KOSPI 만 있어도 걸린 KOSDAQ 칩은 남아 풀 수 있다
+
+
+# ── (b) 카드 새로고침 + 지금 값 (2026-11-06) — 화면만 고친다. 서버 응답 · 판정(`get_quant_indicators` · `_generate_signal` · `ta_utils` · 일지 판 지문)은 그대로 ──
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_has_an_empty_now_slot_and_its_symbol():
+    """TC-SCD-22 · 카드 뿌리에 종목 기호(`data-qd-sym`)와 빈 지금 값 칸(`data-qd-now`)이 있다 — 처음 그릴 때는 지금 값 글이 없고(요청도 없다)
+    종가 · 기준일 줄은 그대로다. 기호는 이스케이프된다."""
+    resp = {"signal": {"action": "매수", "reasons": [], "score": 1}, "current_price": 217000, "current_rsi": 55, "as_of": "2026-10-29"}
+    html = _run_cards([{"s": {"name": "가", "symbol": '005930.KS"><b>'}, "r": resp, "prev": ""}, {"s": STOCK, "r": resp, "prev": ""}])
+    assert 'data-qd-sym="005930.KS&quot;&gt;&lt;b&gt;"' in html[0] and "<b>" not in html[0], html[0][:300]
+    assert 'data-qd-sym="005930.KS"' in html[1] and 'data-qd-now></div>' in html[1]
+    assert "지금" not in html[1] and "217,000" in html[1] and "종가" in html[1] and "10-29 기준" in html[1]
+
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_filter_bar_has_a_refresh_button_that_keeps_its_note():
+    """TC-SCD-23 · 필터 줄에 카드 「새로고침」 단추(`data-qd-crefresh`)와 안내 칸이 있다 · 필터를 바꿔 줄을 다시 그려도 안내 글이 남는다 ·
+    글은 이스케이프된다 · 시장이 하나뿐이면 시장 줄이 없는 것은 그대로(시장 낱말이 새로고침 줄에 섞이지 않는다)."""
+    fn = _extract("const QD_FILTER_SIGNALS", "function qdMountCardFilter")
+    js = textwrap.dedent("""
+        const escHtml = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const qdMarketOf = () => "KOSPI";
+        let qdStocks = [{ symbol: "005930.KS" }];
+        let qdCardFilter = { signal: "", market: "" };
+        let qdCardsNote = "";
+    """) + fn + textwrap.dedent("""
+        const out = {};
+        const a = qdFilterBarHtml();
+        out.btn = a.includes("data-qd-crefresh") && a.includes(">새로고침</button>");
+        out.market = a.includes("시장");
+        qdCardsNote = "다시 받았습니다(12:31) <b>";
+        const b = qdFilterBarHtml();
+        out.note = b.includes('id="signal-cards-refresh-note"') && b.includes("다시 받았습니다(12:31) &lt;b&gt;") && !b.includes("<b>");
+        console.log(JSON.stringify(out));
+    """)
+    got = _node(js)
+    assert got == {"btn": True, "market": False, "note": True}, got
+
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_refresh_rereads_attaches_now_to_the_top_cards_and_says_so():
+    """TC-SCD-24 · qdCardsRefresh — 카드를 서버에서 다시 받고(loadSignalCards 한 번) 위 `REFRESH_QUOTE_COUNT` 장에만 지금 값 한 줄을 붙이며(못 받은 카드는 비움 ·
+    종가로 대신 채우지 않음) 다시 받은 시각 · 붙인 수 · 「결과가 같을 수 있습니다」 를 알린다 · 받는 중 다시 누르면 무시 · 다시 받기가 실패하면 시각을 찍지 않는다."""
+    attach = _extract("async function qdAttachNow", "/** 카드 「새로고침」")
+    refresh = _extract("async function qdCardsRefresh", "/** 나머지 카드(11번째부터)")
+    js = textwrap.dedent("""
+        const REFRESH_QUOTE_COUNT = 3;
+        const quoteLineText = q => (q && typeof q.price === "number" ? `지금 ${q.price}원 · 지연` : "");
+        const refreshStamp = (m) => `${m}(12:31)`;
+        let qdCardsLoaded = true, qdCardsBusy = false, qdCardsNote = "";
+        const mk = sym => ({ dataset: { qdSym: sym }, slot: { textContent: "" }, querySelector(sel) { return sel === "[data-qd-now]" ? this.slot : null; } });
+        const cards = ["A", "B", "C", "D", "E"].map(mk);
+        const calls = [];
+        const noteEl = { textContent: "" };
+        globalThis.document = { getElementById: id => (id === "signal-cards" ? { querySelectorAll: () => cards } : id === "signal-cards-refresh-note" ? noteEl : null) };
+        let loads = 0, loadOk = true, release = null;
+        const loadSignalCards = async () => { loads += 1; if (release) await release; qdCardsLoaded = loadOk; };
+        const api = async url => { calls.push(url); if (url.endsWith("=B")) throw new Error("x"); return { price: 100 + calls.length }; };
+    """) + attach + refresh + textwrap.dedent("""
+        (async () => {
+          const out = {};
+          await qdCardsRefresh();
+          out.texts = cards.map(c => c.slot.textContent);
+          out.calls = calls.slice();
+          out.loads = loads;
+          out.note = noteEl.textContent;
+          // 받는 중 다시 누르면 무시
+          let go; release = new Promise(r => { go = r; });
+          const p1 = qdCardsRefresh(); const p2 = qdCardsRefresh();
+          go(); await Promise.all([p1, p2]); release = null;
+          out.loadsAfterDouble = loads;
+          // 다시 받기 실패 -> 시각을 찍지 않는다
+          loadOk = false; await qdCardsRefresh();
+          out.failedNote = noteEl.textContent;
+          console.log(JSON.stringify(out));
+        })();
+    """)
+    got = _node(js)
+    assert got["texts"][:3] == ["지금 101원 · 지연", "", "지금 103원 · 지연"] and got["texts"][3:] == ["", ""], got["texts"]
+    assert got["calls"] == ["/api/quote/now?symbol=A", "/api/quote/now?symbol=B", "/api/quote/now?symbol=C"], "위 3장(상수)에만 요청한다"
+    assert got["loads"] == 1
+    assert "서버에서 지표를 다시 받았습니다(12:31)" in got["note"] and "위 2종목에 지금 값을 붙였습니다" in got["note"] and "결과가 같을 수 있습니다" in got["note"], got["note"]
+    assert got["loadsAfterDouble"] == 2, "받는 중 두 번 눌러도 한 번만 다시 받는다"
+    assert got["failedNote"] == "", "다시 받기가 실패했으면 안내(시각)를 붙이지 않는다"
+
+
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_refresh_attaches_now_only_to_visible_cards():
+    """TC-SCD-26 · 신호 필터를 건 채 새로고침하면 지금 값은 **보이는** 카드에만 붙는다 — 필터로 숨은 카드(hidden)와 접어 둔 나머지 묶음(`data-qd-extra` hidden)은
+    건너뛰고 보이는 카드 가운데 앞 `REFRESH_QUOTE_COUNT` 장을 고른다(신장환 님 PR #580 답글 · 필터와 상관없이 앞 10장을 고르던 문제)."""
+    attach = _extract("async function qdAttachNow", "/** 카드 「새로고침」")
+    js = textwrap.dedent("""
+        const REFRESH_QUOTE_COUNT = 2;
+        const quoteLineText = q => (q && typeof q.price === "number" ? `지금 ${q.price}원` : "");
+        const extra = { hidden: true };
+        // A·B 는 필터로 숨김, C·D·E 가 보임, F 는 접힌 나머지 묶음 안(숨김)
+        const mk = (sym, hidden, inExtra) => ({ hidden, dataset: { qdSym: sym }, slot: { textContent: "" },
+          closest: sel => (sel === "[data-qd-extra]" && inExtra ? extra : null),
+          querySelector(sel) { return sel === "[data-qd-now]" ? this.slot : null; } });
+        const cards = [mk("A", true), mk("B", true), mk("C", false), mk("D", false), mk("E", false), mk("F", false, true)];
+        const calls = [];
+        globalThis.document = { getElementById: id => (id === "signal-cards" ? { querySelectorAll: () => cards } : null) };
+        const api = async url => { calls.push(url); return { price: 100 }; };
+    """) + attach + textwrap.dedent("""
+        (async () => {
+          const n = await qdAttachNow();
+          console.log(JSON.stringify({ n, calls, texts: cards.map(c => c.slot.textContent) }));
+        })();
+    """)
+    got = _node(js)
+    assert got["calls"] == ["/api/quote/now?symbol=C", "/api/quote/now?symbol=D"], got["calls"]
+    assert got["texts"] == ["", "", "지금 100원", "지금 100원", "", ""] and got["n"] == 2, got
+
+
+def test_card_refresh_is_screen_only_and_first_load_sends_no_quote_request():
+    """TC-SCD-25 · 구조 — 지금 값 요청(`/api/quote/now`)은 새로고침 단추가 부르는 qdAttachNow 한 곳에만 있고(처음 펼칠 때 · 필터 · 나머지 보기는 요청을 늘리지 않는다),
+    카드 다시 받기는 기존 `quant/indicators` 길만 쓴다(서버 판정 · 일지 지문 대상 함수를 부르는 새 경로가 없다). 안내 글은 신호를 새로 판단한다고 말하지 않는다."""
+    call = "api(`/api/quote/now"
+    assert QUANT.count(call) == 1 and QUANT.index(call) > QUANT.index("async function qdAttachNow") and QUANT.index(call) < QUANT.index("async function qdCardsRefresh"), "지금 값 요청은 qdAttachNow 안에만 있다"
+    assert QUANT.count("await qdAttachNow()") == 1 and QUANT.index("await qdAttachNow()") > QUANT.index("async function qdCardsRefresh"), "qdAttachNow 는 카드 새로고침만 부른다"
+    assert "data-qd-crefresh" in QUANT and "qdCardsRefresh()" in QUANT
+    body = QUANT[QUANT.index("async function qdAttachNow"):QUANT.index("/** 나머지 카드(11번째부터)")]
+    for forbidden in ("get_quant_indicators", "_generate_signal", "ta_utils", "quant/indicators"):
+        assert forbidden not in body, f"새로고침 코드가 {forbidden} 를 직접 부르면 안 된다 — 카드 다시 받기는 loadSignalCards(기존 길)만 쓴다"
+    note = QUANT[QUANT.index("async function qdCardsRefresh"):QUANT.index("/** 나머지 카드(11번째부터)")]
+    assert "새로 계산" not in note and "새로 판단" not in note and "결과가 같을 수 있습니다" in note

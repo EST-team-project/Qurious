@@ -27,29 +27,32 @@ steps:
   - scroll: {target: "#ind-card-box", block: "center"}
   - click: "#ind-card-box > summary"
   - wait: {target: "#ic-slug", timeout: 20}
-  - say: "이동평균의 짧은 기간과 긴 기간입니다. 짧은 선이 긴 선을 위로 넘으면 매수 쪽 신호입니다"
+  - say: "이동평균의 짧은 기간과 긴 기간입니다. 짧은 선이 긴 선 위에 있는 날의 종가마다 매수 쪽 신호입니다. 교차하는 순간만 보는 것이 아닙니다"
   - scroll: {target: "#ic-short", block: "center"}
   - ring: {target: "#ic-short", sec: 3.0}
-  - pause: 4.0
+  - pause: 5.4
   - say: "ATR 곱은 손절 거리를 정합니다. 값이 클수록 손절선이 멀어집니다"
   - ring: {target: "#ic-atr-mult", sec: 3.0}
   - pause: 3.0
-  - say: "손익비는 손실 한 번에 이익을 몇 배로 노리는지입니다. 이 값으로 익절선이 정해집니다"
+  - say: "익절 손익비는 손실 한 번에 이익을 몇 배로 노리는지입니다. 이 값으로 익절선이 정해지고, 성과 검증의 합격선 PF와는 다른 값입니다"
   - ring: {target: "#ic-take-rr", sec: 3.0}
-  - pause: 4.0
-  - say: "1회 위험은 한 번 진 거래에서 잃어도 되는 자산 비율입니다. 주문 수량이 이 값으로 정해집니다"
+  - pause: 6.1
+  - say: "1회 위험은 한 번 진 거래에서 잃어도 되는 자산 비율입니다. 주문 수량의 상한이고, 현금이나 종목 비중 한도가 더 작으면 그쪽이 수량을 정합니다"
   - ring: {target: "#ic-risk", sec: 3.0}
-  - pause: 4.0
+  - pause: 7.2
   - say: "최대 비중은 한 종목에 넣을 수 있는 한도입니다"
   - ring: {target: "#ic-maxpos", sec: 3.0}
   - pause: 1.5
-  - say: "체결 시점은 신호가 난 다음 거래일 시가로 둡니다. 손절 판정은 종가 기준입니다"
+  - say: "체결 시점은 신호가 난 다음 거래일 시가로 둡니다"
   - ring: {target: "#ic-mode", sec: 3.0}
+  - pause: 2.5
+  - say: "손절 판정은 종가 기준이고 청산은 다음 봉 시가라서, 갭만큼 손실이 계획보다 커질 수 있습니다"
+  - ring: {target: "#ic-judge", sec: 3.0}
   - pause: 4.0
   - chapter: {label: "3 / 3 · 어디서 쓰이나요", title: "저장한 카드는 Pine 목록에도 나옵니다", text: "카드를 저장하면 같은 규칙이 Pine 코드를 만드는 화면에서도 선택됩니다. 이 영상에서는 저장하지 않았습니다", sec: 6.0}
   - go: indicator-tradingview
   - wait: {target: "#pc-card", timeout: 60}
-  - say: "카드 목록에서 저장한 카드를 고르면 같은 규칙의 Pine 코드를 만들 수 있습니다"
+  - say: "카드를 저장하면 이 목록에서 골라 같은 규칙의 Pine 코드를 만들 수 있습니다. 지금은 저장하지 않아 예시 카드가 보입니다"
   - scroll: {target: "#pc-card", block: "center"}
   - ring: {target: "#pc-card", sec: 4.0}
   - pause: 5.0

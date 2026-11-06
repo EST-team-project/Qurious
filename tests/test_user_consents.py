@@ -90,10 +90,12 @@ def test_notify_consent_text_has_the_four_notices_and_no_false_promises():
     assert "알림을 받을 수 없" not in NOTIFY_BLOCK and "알림을 보낼 수 없" not in NOTIFY_BLOCK
     for banned in ("암호화해", "암호화되어", "안전하게 보관", "다시 동의를 받", "마케팅", "광고성"):
         assert banned not in NOTIFY_BLOCK
-    assert "암호화 저장은 하지 않습니다" in NOTIFY_BLOCK and "서비스 데이터베이스에 저장" in NOTIFY_BLOCK
+    assert "토큰 · 웹훅 주소 · 비밀번호 · API 키 · 비밀키 · 발신 키는 암호화 저장하고" in NOTIFY_BLOCK and "서비스 데이터베이스에 저장" in NOTIFY_BLOCK
+    assert "암호화 저장은 하지 않습니다" not in NOTIFY_BLOCK, "0044 이후 거짓 문구"
     # 철회하면 연동 정보를 바로 지운다는 말이 코드(라우트)가 실제로 하는 일이다 — 라우트 소스에 삭제가 있다
     route_src = (ROOT / "app" / "routes" / "notification.py").read_text(encoding="utf-8")
-    assert "await db.delete(row)" in route_src and "바로 삭제합니다" in NOTIFY_BLOCK
+    # 철회는 행을 읽지 않고 삭제문으로 지운다(암호화 키가 깨져도 철회 가능 — 0044) — 이전에는 `await db.delete(row)`
+    assert ("delete(NotificationSettings)" in route_src or "await db.delete(row)" in route_src) and "바로 삭제합니다" in NOTIFY_BLOCK
     assert "선택 동의(알림 연동 정보 수집 · 이용)" in POLICY_TEXT and "철회하면 저장된 알림 연동 정보를 바로 삭제합니다" in POLICY_TEXT
     # 동의 · 철회 기록도 수집 항목이다 — 가입 동의문과 처리방침이 같이 적는다
     assert TERMS_JS.count("동의 · 철회 기록(항목 · 판 · 시각)") == 2

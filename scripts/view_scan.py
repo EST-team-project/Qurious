@@ -18,12 +18,13 @@ IA 문서의 1절(지금 구조)은 「화면이 몇 개이고, 메뉴 어디에
 - 화면 소유 요소: 그 범위 안의 `id="..."`. 같은 id 가 두 번 나오면 먼저 나온 화면이 갖는다.
 - 스크립트 블록: 0열에서 시작하는 문장 하나(함수 선언·리스너 등록 등).
 - 진입 API: `on…ViewActivated`(onViewActivated · onPaperViewActivated · 기능별 훅)가 부르는 함수 + 그 함수가
-  부르는 최상위 함수(1단계). 훅 모양은 `if (view === "X") …` 와 `if (view !== "X") return;` 뒤 호출 둘.
+  부르는 최상위 함수 · 설정 상수(`const X = listPanel({ … })` 를 `X.load()` 로 부름) 두 단계까지(ENTRY_DEPTH).
+  2단계에서 SHARED_MIN 개 이상 화면의 훅이 함께 닿는 함수는 공용 헬퍼로 보고 건너뛴다(2026-11-06 · #564 뒤). 훅 모양은 `if (view === "X") …` 와 `if (view !== "X") return;` 뒤 호출 둘.
 - 조작 API: 그 화면 소유 버튼에 걸린 리스너 블록(리스너가 아니면 그 화면 요소를 참조하는 블록)
   + 그 블록이 부르는 최상위 함수(1단계) − 진입 API.
 
 ⚠️ **판정하는 것은 「코드에 그렇게 적혀 있는가」이지 「브라우저에서 그렇게 도는가」가 아니다.**
-API 대응은 요소 id 로 잇는 휴리스틱이라 2단계 이상 호출은 놓친다. 숨은 의존(다른 화면의 입력칸을
+API 대응은 요소 id 로 잇는 휴리스틱이라 진입은 3단계 이상, 조작은 2단계 이상 호출을 놓친다. 숨은 의존(다른 화면의 입력칸을
 읽는 버튼)도 같은 규칙으로 잡으니, 보고된 줄은 사람이 코드로 한 번 더 확인한다.
 """
 
@@ -46,6 +47,11 @@ GETID_RE = re.compile(r'''getElementById\(\s*["']([^"']+)["']\s*\)''')
 QS_RE = re.compile(r'''querySelector(?:All)?\(\s*["']#([A-Za-z0-9_-]+)''')
 FUNC_RE = re.compile(r'^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\s*\(')
 CONSTFN_RE = re.compile(r'^(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\s*)?\(')
+# `const pcRankingsPanel = listPanel({ … load: async () => api(…) })` — 함수가 아니라 설정 객체를 넘기는 최상위 상수(2026-11-05 #564 뒤).
+# 이름이 없으면 그 안의 api 호출이 어느 화면에도 안 묶인다.
+CONSTPANEL_RE = re.compile(r'^(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*[A-Za-z_][A-Za-z0-9_]*\(\{')
+# `pcRankingsPanel.load()` — 이름 뒤 점 호출. 상수 블록 이름과 맞을 때만 호출로 센다.
+MEMBER_CALL_RE = re.compile(r'\b([A-Za-z_][A-Za-z0-9_]*)\.[A-Za-z_][A-Za-z0-9_]*\s*\(')
 CALL_RE = re.compile(r'\b([A-Za-z_][A-Za-z0-9_]*)\s*\(')
 LISTENER_RE = re.compile(r'''getElementById\(\s*"([^"]+)"\s*\)\??\.addEventListener\(\s*"([a-z]+)"''')
 HOOK_RE = re.compile(r'if \(view === "([^"]+)"\)\s*(\{?)(.*)')
@@ -56,6 +62,10 @@ MENU_GROUP_RE = re.compile(r'^  ([a-z]+): \{$')
 # `sub: true` = 소제목 아래 들여쓴 항목(2026-10-01 금융 강의 주제 아홉) — 빠뜨리면 「메뉴에 없는 화면」 으로 잘못 센다
 MENU_ITEM_RE = re.compile(r'\{ key: "([^"]+)",\s*icon: "[^"]+",\s*label: "([^"]+)"(?:,\s*sub: true)?\s*\}')
 GNB_BUTTON_RE = re.compile(r'data-gnb="([a-z]+)"[^>]*>(?:<i[^>]*></i>)?\s*(?:<span>)?([^<]+)')
+# 호출을 따라가는 단계 수. 1 이 옛 규칙. #564 뒤 화면 코드가 훅 → 로더 → 패널 상수로 한 단계 더 깊어졌다.
+CALL_DEPTH = 1          # 조작(리스너) 쪽 — 늘리면 공용 헬퍼 때문에 화면마다 API 가 수십 개 번진다(2026-11-06 실측: 3단계에서 robo-patterns 80+).
+SHARED_MIN = 3          # 2단계에서 이만큼 화면의 훅이 함께 닿으면 공용 헬퍼로 본다
+ENTRY_DEPTH = 2         # 진입 훅 쪽 — 훅 → 로더 → 패널 상수
 DEFAULT_VIEW_RE = re.compile(r'navigate\(hash && [^?]+\? hash : "([^"]+)"\)')
 
 # D1 ③ 1차 분류 — **코드 사실이 아니라 제안**이다(논의 결정 대장 v0.9: ⏳ 2/4 미확정).
@@ -98,7 +108,7 @@ def _blocks(lines: list[str], start: int, label: str) -> list[dict]:
     if starts:
       if cur:
         out.append(cur)
-      m = FUNC_RE.match(line) or CONSTFN_RE.match(line)
+      m = FUNC_RE.match(line) or CONSTFN_RE.match(line) or CONSTPANEL_RE.match(line)
       cur = {"file": label, "line": i + 1, "name": m.group(1) if m else None, "text": []}
     if cur:
       cur["text"].append(line)
@@ -108,7 +118,7 @@ def _blocks(lines: list[str], start: int, label: str) -> list[dict]:
     body = "\n".join(b.pop("text"))
     b["apis"] = sorted(set(API_RE.findall(body)))
     b["ids"] = sorted(set(GETID_RE.findall(body)) | set(QS_RE.findall(body)))
-    b["calls"] = sorted(set(CALL_RE.findall(body)))
+    b["calls"] = sorted(set(CALL_RE.findall(body)) | set(MEMBER_CALL_RE.findall(body)))
     b["listens"] = sorted({el for el, _ in LISTENER_RE.findall(body)})
   return out
 
@@ -148,11 +158,22 @@ def scan() -> dict:
   blocks = [b for label, lines, start in sources for b in _blocks(lines, start, label)]
   by_name = {b["name"]: b for b in blocks if b["name"]}
 
-  def closure(block: dict) -> set[str]:
+  def closure(block: dict, depth: int = CALL_DEPTH, skip: frozenset = frozenset()) -> set[str]:
+    """블록의 api + 부르는 최상위 함수 · 설정 상수의 api 를 depth 단계까지. skip 은 2단계부터 건너뛸 공용 헬퍼 이름."""
     apis = set(block["apis"])
-    for c in block["calls"]:
-      if c in by_name and by_name[c] is not block:
-        apis |= set(by_name[c]["apis"])
+    seen = {id(block)}
+    frontier = [block]
+    for hop in range(depth):
+      nxt = []
+      for b in frontier:
+        for c in b["calls"]:
+          callee = by_name.get(c)
+          if callee is None or id(callee) in seen or (hop >= 1 and c in skip):
+            continue
+          seen.add(id(callee))
+          apis |= set(callee["apis"])
+          nxt.append(callee)
+      frontier = nxt
     return apis
 
   # 3. 진입 훅
@@ -203,6 +224,18 @@ def scan() -> dict:
   guides = set(re.findall(r'^  "([a-z-]+)":\s+\{ summary:', script_text, re.M))
   default_view = next((m.group(1) for line in script_text.splitlines() if (m := DEFAULT_VIEW_RE.search(line))), None)
 
+  # 4-1. 공용 헬퍼 — 2단계 호출에서 여러 화면의 훅이 함께 닿는 함수(검색 자동완성 · 상품 차트 서랍 …)는 그 화면의 API 로 세지 않는다.
+  second: dict[str, set[str]] = {}
+  for menu_item in menu:
+    reached: set[str] = set()
+    for f in hooks.get(menu_item["key"], []):
+      first = {c for c in by_name[f]["calls"] if c in by_name and c != f}
+      for c in first:
+        reached |= {d for d in by_name[c]["calls"] if d in by_name and d not in first and d != f}
+    for name in reached:
+      second.setdefault(name, set()).add(menu_item["key"])
+  shared = frozenset(name for name, views_ in second.items() if len(views_) >= SHARED_MIN)
+
   # 5. 화면별 행
   rows = []
   for n, item in enumerate(menu, 1):
@@ -210,7 +243,7 @@ def scan() -> dict:
     fns = hooks.get(key, [])
     entry: set[str] = set()
     for f in fns:
-      entry |= closure(by_name[f])
+      entry |= closure(by_name[f], ENTRY_DEPTH, shared)
     action: set[str] = set()
     for b in blocks:
       if b["name"] in fns:

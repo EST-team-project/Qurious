@@ -137,3 +137,21 @@ celery_app.conf.update(
 # 위 include 가 실제 등록을 맡는다. autodiscover 는 앞으로 app/tasks/tasks.py 를 만들
 # 경우를 대비해 남겨 두지만, **여기에 의존하지 않는다** (위 주석 참고).
 celery_app.autodiscover_tasks(["app.tasks"])
+
+
+# ── 알림 암호화 키 점검(2026-11-05) ───────────────────────────────────────────
+# app · worker · beat 가 같은 키 파일을 읽어야 한다. worker · beat 는 DB 를 열지 않으므로 키 파일(마운트 · 형식)만 확인하고,
+# 실패하면 `CREDENTIAL_STORAGE` error 한 줄을 남긴다. 기동은 막지 않는다.
+from celery.signals import beat_init, worker_ready  # noqa: E402
+
+
+@worker_ready.connect
+def _check_notification_key_on_worker(**_kwargs):
+    from app.services.notification_key_check import check_keyfile_only
+    check_keyfile_only()
+
+
+@beat_init.connect
+def _check_notification_key_on_beat(**_kwargs):
+    from app.services.notification_key_check import check_keyfile_only
+    check_keyfile_only()

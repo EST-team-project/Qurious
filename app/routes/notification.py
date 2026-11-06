@@ -9,7 +9,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgres import get_pg_session
@@ -230,7 +230,6 @@ async def save_notification_settings(
         if why:
             raise HTTPException(422, why)
 
-    row = await _get_settings_row(db, uid)
     granted = await consent.is_granted(db, uid, consent.NOTIFY_CONSENT_KEY)
 
     if body.integration_consent is False:
@@ -238,10 +237,12 @@ async def save_notification_settings(
         if granted:
             consent.add_rows(db, uid, [consent.NOTIFY_CONSENT_KEY], CONSENT_WITHDRAW,
                              consent.NOTIFY_CONSENT_VERSION, consent.SOURCE_NOTIFICATION_SETTINGS)
-        if row is not None:
-            await db.delete(row)
+        # 행을 읽지 않고 지운다 — 읽으면 9칸을 복호화하므로 암호화 키가 깨졌을 때 개인정보 삭제(철회)가 막힌다
+        await db.execute(delete(NotificationSettings).where(NotificationSettings.user_id == uid))
         await db.commit()
         return {"ok": True, "withdrawn": True}
+
+    row = await _get_settings_row(db, uid)
 
     # 동의는 했지만 지금 동의문 판이 아닌 사람 — 판이 올라 새로 들어온 항목(디스코드 웹훅 주소 · n0.2)은 다시 동의해야 저장한다
     last = await consent.latest(db, uid, consent.NOTIFY_CONSENT_KEY) if granted else None

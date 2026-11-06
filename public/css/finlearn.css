@@ -44,7 +44,8 @@
 .fl-hub-head h2 { font-size: 26px; font-weight: 800; margin: 0; }
 .fl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .fl-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@media (max-width: 900px) { .fl-grid, .fl-grid.three { grid-template-columns: 1fr; } }
+/* 1fr 은 minmax(auto, 1fr) 라 긴 내용이 칸을 밀어낸다(390px 에서 카드가 넘쳐 잘림) — minmax(0, 1fr) 로 */
+@media (max-width: 900px) { .fl-grid, .fl-grid.three { grid-template-columns: minmax(0, 1fr); } }
 .fl-course { display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .fl-course:hover { border-color: var(--accent); box-shadow: 0 2px 12px var(--accent-glow); }
 .fl-course .fl-no { background: var(--accent); color: #fff; border-radius: 8px; padding: 2px 9px; font-weight: 800; font-size: 13px; }
@@ -72,7 +73,7 @@
 
 /* 교재 단원(마크다운) — 목차 | 본문 */
 .fl-reader { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (max-width: 900px) { .fl-reader { grid-template-columns: 1fr; } .fl-toc { position: static !important; max-height: none !important; } }
+@media (max-width: 900px) { .fl-reader { grid-template-columns: minmax(0, 1fr); } .fl-toc { position: static !important; max-height: none !important; } }
 .fl-toc { position: sticky; top: 72px; max-height: calc(100vh - 100px); overflow: auto; padding: 16px; }
 .fl-toc b { display: block; font-size: 13px; margin-bottom: 8px; }
 .fl-toc a { display: block; padding: 4px 6px; border-radius: 6px; font-size: 12.5px; color: var(--text-dim); line-height: 1.45; text-decoration: none; }
@@ -87,6 +88,7 @@
 .fl-article ul { list-style: disc; }
 .fl-article ol { list-style: decimal; }   /* Tailwind 의 기본값이 목록 기호를 지운다 */
 .fl-article li { margin: 3px 0; }
+.fl-article a { overflow-wrap: anywhere; }   /* 긴 주소 링크가 390px 에서 본문 밖으로 밀려 잘리지 않게 */
 .fl-article img { max-width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); margin: 8px 0; }
 .fl-article table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 14px; display: block; overflow-x: auto; }
 .fl-article th, .fl-article td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }

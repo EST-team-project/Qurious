@@ -154,6 +154,7 @@ def test_confirm_live_fills_updates_rows_and_notifies(env):
     assert {k: summary[k] for k in ("checked", "updated", "filled", "errors", "skipped")} == {"checked": 1, "updated": 1, "filled": 1, "errors": 0, "skipped": 0}
     assert row.status == "FILLED" and row.filled_quantity == 2 and row.avg_filled_price == 70_000
     env["filled"].assert_awaited_once()
+    assert env["filled"].await_args.kwargs["order_ref"] == row.client_order_id
 
 
 def test_emergency_halt_cancels_open_live_orders(env):

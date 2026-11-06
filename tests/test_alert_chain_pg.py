@@ -172,3 +172,21 @@ def test_ambiguous_failure_is_sent_once_and_recorded(chain):
         assert row.delivery_status == "failed" and row.channels == [{"channel": "slack", "ok": False, "attempts": 1}]
         assert len(sent) == 1 and sleeps == []
     chain([(False, False)], scenario)
+
+
+@pytest.mark.parametrize('delivered', [True, False])
+def test_broker_fill_concurrent_confirmation_and_replay_send_once(chain, delivered):
+    """정기 작업과 수동 조회가 겹쳐도 한 번만. 같은 종목의 다른 주문은 각각 보낸다."""
+    async def scenario(sessions, uid, token, sent, sleeps):
+        args = dict(symbol='018260.KS', side='buy', quantity=10, price=193200,
+                    environment='paper', user_id=str(uid), order_ref='intent:first-order')
+        await asyncio.gather(notification.notify_order_filled(**args),
+                             notification.notify_order_filled(**args))
+        await notification.notify_order_filled(**args)
+        (row,) = await logs(sessions, uid)
+        assert len(sent) == 1 and sleeps == []
+        assert row.kind == 'order_fill' and row.ref == args['order_ref']
+        assert row.delivery_status == ('delivered' if delivered else 'failed')
+        await notification.notify_order_filled(**(args | {'order_ref': 'intent:second-order'}))
+        assert len(sent) == 2 and len(await logs(sessions, uid)) == 2
+    chain([(delivered, False)], scenario)

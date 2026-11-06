@@ -15,7 +15,7 @@ steps:
   - scroll: {target: "#bn-mount-quant-backtest", block: "start"}
   - ring: {target: "#bn-mount-quant-backtest .bn-card", sec: 3.0}
   - pause: 2.5
-  - chapter: {label: "2 / 3 · 과정", title: "합격선을 동시에 넘어야 합니다", text: "비용을 뺀 뒤 손익비 · 최대 낙폭 · 샤프 세 가지를 모두 넘는 조합만 통과합니다", sec: 3.5}
+  - chapter: {label: "2 / 3 · 과정", title: "합격선을 동시에 넘어야 합니다", text: "비용을 뺀 뒤 이익÷손실(PF) · 최대 낙폭 · 샤프 세 가지를 모두 넘는 조합만 통과합니다", sec: 3.5}
   - say: "기준별로 넘은 개수입니다. 세 기준을 동시에 넘은 조합은 한 개도 없었습니다"
   - ring: {target: "#bn-mount-quant-backtest .bn-stats", sec: 3.0}
   - pause: 3.0

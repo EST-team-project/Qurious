@@ -313,6 +313,9 @@ def test_signal_hit_note_is_one_sentence_used_in_modal_and_copy_template():
     assert plain.count("export const SIGNAL_HIT_NOTE") == 1
     for needle in ("48.9 ~ 50.1%", "45.5%", "5거래일", "동전 던지기와 비슷했고", "신뢰도가 높아도 적중률은 그대로였습니다", "앞날을 맞히는 예측이 아니라"):
         assert needle in plain, needle
+    # S208(2026-11-06 · 종목 근거 피드백 ③) — 기준선(무조건 오른다고 찍은 적중률 51.3%, 결과.md)과 표본 한계를 같은 문장에 둔다
+    for needle in ("기준선", "51.3%", "매수 쪽 적중률은 기준선보다 낮았습니다", "표본이 겉보기보다 적을 수 있으므로", "우연인지는 가리기 어렵습니다"):
+        assert needle in plain, needle
     assert "${SIGNAL_HIT_NOTE}" in plain and "${esc(SIGNAL_HIT_NOTE)}" in drawer          # 정리 틀(복사)과 모달 하단이 같은 문장
     for src in (plain, drawer):
         assert "과거에 맞았는지 재지 않았습니다" not in src
@@ -534,3 +537,42 @@ def test_modal_wires_the_signal_day_picker_and_chart_marker():
     css =(DRAWER.parent.parent / "css" / "stockdrawer.css").read_text(encoding="utf-8")
     for cls in ("sd-pick", "sd-pick-l", "sd-pick-in", "sd-pick-b", "sd-rec", "sd-chip--late"):
         assert f".{cls}" in css, cls
+
+
+def test_modal_now_button_is_press_only_and_shows_gap_to_last_close(tmp_path):
+    """TC-SDR-22 · 종목 근거 모달 「지금 값 보기」(S208 · 2026-11-06 · 사용자 「현재 주가와 괴리」 피드백) —
+    국내 숫자 6자리 코드에만 단추 · 누를 때만 /api/quote/now 를 한 번 부른다(열 때 자동 호출 없음) ·
+    지금 값에는 출처 딱지, 수정주가 종가와 다를 때만 차이 %, 종가를 그대로 돌려받으면 차이를 지어내지 않고, 실패하면 종가 그대로라고 말한다."""
+    out = _run(tmp_path, HUB, """
+out.modal = sd.sdModalHtml(HUB);
+out.etf = sd.sdModalHtml({ ...HUB, symbol: '0000D0' });
+out.foreign = sd.sdModalHtml({ ...HUB, symbol: 'AAPL' });
+out.path = sd.sdNowPath('005930.KS');
+out.syms = [sd.sdNowSymbol(HUB), sd.sdNowSymbol({ ...HUB, market: 'KOSDAQ' }), sd.sdNowSymbol({ ...HUB, symbol: '035720.KQ', market: 'KOSPI' }),
+            sd.sdNowSymbol({ ...HUB, market: '' , sections: {} }), sd.sdNowSymbol({ ...HUB, symbol: '0000D0' }), sd.sdNowSymbol({ ...HUB, market: 'ETF' }), sd.sdNowSymbol(null)];
+const ref = { price: 232000, asOf: '2026-10-29' };
+out.live = sd.sdNowView({ price: 235000, source: 'kis_user', market_state: 'closed', as_of: '2026-10-30 15:40', label: '증권사 조회' }, ref);
+out.delay = sd.sdNowView({ price: 229000, source: 'delayed', market_state: 'open', as_of: '2026-10-30 10:20' }, ref);
+out.close = sd.sdNowView({ price: 232000, source: 'collector', as_of: '2026-10-29' }, ref);
+out.noref = sd.sdNowView({ price: 235000, source: 'kis_user', market_state: 'closed' }, null);
+out.fail = sd.sdNowView({ price: null, source: null, fallback: ['증권사 키 없음', '지연 시세 없음'], label: '지금 가격을 받지 못했습니다' }, ref);
+out.none = sd.sdNowView(null, ref);
+""")
+    m = out["modal"]
+    assert "data-hub-now" in m and "지금 값 보기" in m and "누를 때만 불러옵니다" in m and "지금 시세가 아닙니다" in m
+    assert "data-hub-now" not in out["etf"] and "data-hub-now" not in out["foreign"]
+    assert out["path"] == "/api/quote/now?symbol=005930.KS"
+    # 서버는 6자리만 받으면 수집 DB 를 못 찾는다(실제 화면 확인) — 시장 꼬리를 붙이되 시장을 모르면 짐작하지 않고 비운다
+    assert out["syms"] == ["005930.KS", "005930.KQ", "035720.KQ", "", "", "", ""]
+    assert "증권사 조회 · 장 마감" in out["live"]["text"] and "232,000원보다 +1.29%" in out["live"]["text"] and "(10월 29일)" in out["live"]["text"]
+    assert "수정주가" in out["live"]["note"]
+    assert "지연 시세" in out["delay"]["text"] and "−1.29%" in out["delay"]["text"]
+    assert "%" not in out["close"]["text"] and "같은 종류" in out["close"]["note"]                # 종가를 그대로 돌려받으면 차이를 지어내지 않는다
+    assert "%" not in out["noref"]["text"] and "차이는 적지 않습니다" in out["noref"]["note"]
+    for k in ("fail", "none"):
+        assert out[k]["ok"] is False and "지금 값을 받지 못했습니다" in out[k]["text"] and "마지막 거래일 종가 그대로" in out[k]["note"]
+    assert "증권사 키 없음 · 지연 시세 없음" in out["fail"]["note"]
+    js = DRAWER.read_text(encoding="utf-8")
+    assert "showNow(modal, nowBtn)" in js and "deps.api(sdNowPath(sym))" in js and "sdNowSymbol(hub)" in js and "seq !== modalSeq || m.hidden" in js
+    open_fn = js[js.index("function openModal(hub)"):js.index("/** 서랍을 거치지 않고 바로 모달")]
+    assert "quote/now" not in open_fn and "showNow" not in open_fn                              # 모달을 열 때 자동으로 부르지 않는다

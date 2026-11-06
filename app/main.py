@@ -53,6 +53,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[WARN] PostgreSQL 연결 실패 (인증 비활성): {e}")
     try:
+        # 알림 암호화 키 점검(2026-11-05) — 키가 틀리면 모든 사용자의 알림이 조용히 멈추므로 기동 로그에 error 로 남긴다.
+        # 기동을 막지 않고(발송은 fail-closed 유지), 비밀값 · 암호문은 로그에 쓰지 않는다.
+        from app.services.notification_key_check import check_on_startup
+        await check_on_startup()
+    except Exception as e:
+        print(f"[WARN] 알림 암호화 키 점검 실패(기동은 계속): {type(e).__name__}")
+    try:
         # 용어사전(2026-09-30) — 넣을 내용(용어 파일 · 검색용 칸)이 마지막 적재와 다를 때만 표에 다시 넣는다.
         # 실패해도 앱은 켠다: 용어 API 만 빈다. 화면의 용어 설명창은 자바스크립트 상수(js/core.js 의 TERMS)를 쓰므로 그대로 뜬다.
         from app.services.glossary import ensure_loaded_on_startup

@@ -3,11 +3,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
+from app.lib.notification_secrets import EncryptedNotificationSecret, FIELDS as NOTIFICATION_SECRET_FIELDS
 from app.models.base import Base, CreatedAtMixin, UUIDPkMixin, UpdatedAtMixin
 
 
@@ -23,29 +24,34 @@ class AuditEvent(Base, UUIDPkMixin, CreatedAtMixin):
 
 class NotificationSettings(Base, UUIDPkMixin, UpdatedAtMixin):
     __tablename__ = "notification_settings"
+    #: 비밀 9칸은 `qnc1:` 암호문이거나 빈 값 — 평문을 직접 넣으면 DB 가 거부한다(0044)
+    __table_args__ = tuple(
+        CheckConstraint(f"{f} = '' OR {f} LIKE 'qnc1:%'", name="ck_notification_encrypted_" + f)
+        for f in NOTIFICATION_SECRET_FIELDS
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False
     )
     channels: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
-    telegram_token: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    telegram_token: Mapped[str] = mapped_column(EncryptedNotificationSecret("telegram_token"), nullable=False, default="")
     telegram_chat_id: Mapped[str] = mapped_column(String(100), nullable=False, default="")
-    slack_webhook_url: Mapped[str] = mapped_column(String(300), nullable=False, default="")
+    slack_webhook_url: Mapped[str] = mapped_column(EncryptedNotificationSecret("slack_webhook_url"), nullable=False, default="")
     #: 디스코드 웹훅 주소(비밀값 — 주소를 아는 사람은 누구나 그 채널에 글을 올린다). 응답에서는 가린다(2026-11-01)
-    discord_webhook_url: Mapped[str] = mapped_column(String(300), nullable=False, default="", server_default="")
+    discord_webhook_url: Mapped[str] = mapped_column(EncryptedNotificationSecret("discord_webhook_url"), nullable=False, default="", server_default="")
     email_to: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     email_host: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     email_port: Mapped[int] = mapped_column(Integer, nullable=False, default=587)
     email_user: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    email_password: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    email_password: Mapped[str] = mapped_column(EncryptedNotificationSecret("email_password"), nullable=False, default="")
     email_from: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    kakao_api_key: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    kakao_api_secret: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    kakao_sender_key: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    kakao_api_key: Mapped[str] = mapped_column(EncryptedNotificationSecret("kakao_api_key"), nullable=False, default="")
+    kakao_api_secret: Mapped[str] = mapped_column(EncryptedNotificationSecret("kakao_api_secret"), nullable=False, default="")
+    kakao_sender_key: Mapped[str] = mapped_column(EncryptedNotificationSecret("kakao_sender_key"), nullable=False, default="")
     kakao_phone: Mapped[str] = mapped_column(String(30), nullable=False, default="")
-    sms_api_key: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    sms_api_secret: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    sms_api_key: Mapped[str] = mapped_column(EncryptedNotificationSecret("sms_api_key"), nullable=False, default="")
+    sms_api_secret: Mapped[str] = mapped_column(EncryptedNotificationSecret("sms_api_secret"), nullable=False, default="")
     sms_from: Mapped[str] = mapped_column(String(30), nullable=False, default="")
     sms_to: Mapped[str] = mapped_column(String(30), nullable=False, default="")
     #: 사건별 on/silent/off · 조용한 시간 — {"events": {kind: mode}, "quiet": {"enabled": bool, "start": "21:00", "end": "08:00"}}

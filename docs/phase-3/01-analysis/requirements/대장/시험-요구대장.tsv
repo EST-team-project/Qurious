@@ -369,3 +369,15 @@ TC-CMT	tests/test_comparetray.py	—	—	비교 트레이 분석 메모(D8 · 20
 TC-KR	tests/test_kis_results.py	—	—	KIS 모의투자 결과 화면(D1 · 2026-11-04) — 상태 열 개 표 · 내 주문만 질의 · CSV 수식 주입 막음 · 쪽 계산. 요구ID 는 작성자 확인(후보 P02-⑤-1). 화면 kis-results 는 RTM 화면 칸 후보에 아직 없음
 TC-PL	tests/test_pine_lint.py	—	—	커스텀 인디케이터 Pine v6 간이 점검(D7 · 2026-11-04) — 템플릿 네 모양 오류 0 · 문법 오류/경고 구분 · 서버가 만든 v6 코드도 오류 0 · 점검이 요청을 막지 않음. 요구ID 는 작성자 확인
 TC-IT	tests/test_indicator_table.py	—	—	지표 비교 전체 종목 표(D11 · 2026-11-04) — 응답 꼴 · 지표 대시보드 값과 일치 · 정렬/쪽/필터 · 값 없음 까닭 · 화면 연결. 요구 대장에 짝이 되는 줄이 없어(P01-①-16 없음) 작성자 확인
+TC-LB	tests/test_listbar.py	—	—	목록 필터·새로고침 공용 도우미 listbar.js(S203 · 2026-11-05) — 칩 모양·새로고침 단추·안내 글. 요구ID 는 작성자 확인.
+TC-PLB	tests/test_paper_listbar.py	—	—	모의투자 네 화면 표 위 줄(S203 · 2026-11-05) — 매매·출처·구분·순위 칩과 표별 새로고침(백테스트 길은 안 부름). 요구ID 는 작성자 확인.
+TC-ATL	tests/test_autotrade_listbar.py	—	—	자동매매 현황·모의 투자 의사결정 필터 칩(S203 · 2026-11-05) — 회차·신호·로그 종류·level. 요구ID 는 작성자 확인.
+TC-LBS	tests/test_listbar_settings.py	—	—	마이페이지 KIS 실주문 현황·알림 발송 이력 표 위 줄(S203 · 2026-11-05) — 다시 읽기만, 주문·발송 없음. 요구ID 는 작성자 확인.
+TC-LBR	tests/test_listbar_screens.py	—	—	리밸런싱 이력·TradingView 수신 신호·데이터 관제 표 위 줄(S203 · 2026-11-05). 요구ID 는 작성자 확인.
+TC-LBT	tests/test_listbar_trade.py	—	—	미국주식·직접매매 목록 위 줄(S203 · 2026-11-05) — 매수/매도·크게 오름/내림 칩. 요구ID 는 작성자 확인.
+TC-LBF	tests/test_listbar_more.py	—	—	자유 산식 계산 결과·투자 정보 리서치·상품 안내 필터 칩(S203 · 2026-11-05). 요구ID 는 작성자 확인.
+TC-LBM	tests/test_listbar_misc.py	—	—	지표 비교·일정·업종 카드·감사 로그·LEAN 이력 등 표 위 줄(S203 · 2026-11-05). 요구ID 는 작성자 확인.
+TC-MR	tests/test_macro_refresh.py	—	—	거시·산업·미국 시세 라우트 새로고침 인자 ?refresh=true(S203 · 2026-11-05) — 저장본 한도 60초·실패 시 이전 저장본 보호·응답 refresh 칸. 요구ID 는 작성자 확인.
+TC-MCG	tests/test_mobile_clip_guard.py	—	—	390px(모바일 폭)에서 화면이 오른쪽으로 잘리지 않게 하는 구조 점검(S205 · 2026-11-05). 요구ID 는 작성자 확인.
+TC-NODE	tests/test_node_requirement.py	—	—	시험 머리·끝 요약의 Node 버전 안내(S204 · #567 · 2026-11-05) — Node 22 미만이면 제품 회귀가 아니라는 경고 문구. 요구ID 는 작성자 확인.
+TC-NS	tests/test_notification_secrets.py	P02-③-3	🟡	알림 설정 비밀값 저장 암호화(S205 · 2026-11-05 · 0044) — 암호문 형식·키 오류 시 평문 우회 없음·동의 철회는 키 없이도 동작. 알림 설정 요구 P02-③-3 은 API 명세서 API-NOTI 줄과 같다.

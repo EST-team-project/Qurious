@@ -41,3 +41,23 @@ def test_scan_counts_every_menu_line_that_opens_a_screen():
     app = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     for key in found:
         assert f'data-view="{key}"' in app, f"메뉴 「{key}」 가 가리키는 화면이 app.html 에 없다"
+
+
+def test_scan_follows_panel_constants_and_second_hop_without_spreading_helpers():
+    """TC-VW-03 · 화면 코드가 훅 → 로더 → 패널 설정 상수(`const X = listPanel({ … load: api(…) })`)로 한 단계 깊어진 뒤(2026-11-05 #564)에도
+    화면의 API 가 잡히고, 여러 화면이 함께 닿는 공용 헬퍼(검색 자동완성 · 상품 차트 서랍)는 화면 API 로 번지지 않는다."""
+    # 규칙 — 설정 객체를 넘기는 최상위 상수에 이름이 붙고, `이름.메서드(` 호출이 호출로 읽힌다
+    assert view_scan.CONSTPANEL_RE.match("const pcRankingsPanel = listPanel({").group(1) == "pcRankingsPanel"
+    assert view_scan.CONSTPANEL_RE.match("const x = 5;") is None
+    assert "pcRankingsPanel" in view_scan.MEMBER_CALL_RE.findall("function loadCryptoRankings() { return pcRankingsPanel.load(); }")
+    rows = {r["key"]: r for r in view_scan.scan()["rows"]}
+    entry = lambda key: set(rows[key]["entry_apis"])
+    # 훅에서 두 단계 아래 · 패널 상수 안에 있는 호출이 그 화면에 잡힌다
+    assert "/api/paper/crypto/rankings" in entry("paper-crypto")
+    assert "/api/paper/stocks/orders/history" in entry("paper-stock")
+    assert "/api/rebalance/runs" in entry("robo-rebalance")
+    assert "/api/tradingview/signals" in entry("indicator-tradingview")
+    # 공용 헬퍼는 번지지 않는다 — 상품 차트 서랍(`/api/products/etfs/`)이 모의투자 · 리밸런싱 화면에 붙지 않고, 한 화면의 조작 API 가 수십 개로 늘지 않는다
+    for key in ("paper-stock", "paper-crypto", "robo-rebalance", "us-order"):
+        assert "/api/products/etfs/" not in entry(key) | set(rows[key]["action_apis"]), key
+    assert all(len(r["action_apis"]) < 30 for r in rows.values()), "조작 API 가 한 화면에 30개 이상 — 호출 추적이 공용 헬퍼로 번졌다"

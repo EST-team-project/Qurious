@@ -298,6 +298,7 @@ function mountSectorPanel() {
     load: () => api("/api/data/indicators/sectors"),
     renderCards: cvSectorCards, renderNote: cvSectorNote, message: coMessage,
     loadingText: "업종별 PER · PBR 을 계산하는 중… (처음 한 번은 몇 초 걸립니다)",
+    loadingNote: "업종별 PER · PBR 을 처음 계산하는 중입니다 — 10초 넘게 걸릴 수 있고, 끝나면 새로고침을 쓸 수 있습니다",
     meaning: "서버에서 다시 읽었습니다",
     tail: "서버가 5분 안에 만든 업종 묶음은 그대로 돌려주며 화면이 새로 계산하지 않습니다",
   }, { esc: escHtml, byId: id => document.getElementById(id) });
