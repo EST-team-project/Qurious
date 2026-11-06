@@ -207,12 +207,14 @@ function qdMountCardFilter() {
   });
 }
 
-/** 처음 `REFRESH_QUOTE_COUNT` 장의 카드에 지금 값 한 줄을 붙인다 — `/api/quote/now`(내 증권사 키 → 지연 시세 → 지난 종가 · 10초 저장본).
+/** 지금 화면에 **보이는** 카드 가운데 앞 `REFRESH_QUOTE_COUNT` 장에 지금 값 한 줄을 붙인다 — `/api/quote/now`(내 증권사 키 → 지연 시세 → 지난 종가 · 10초 저장본).
+ *  필터로 숨겨진 카드와 접어 둔 나머지 묶음은 건너뛴다(신장환 님 PR #580 답글 · 2026-11-06: 필터를 건 채 새로고침하면 숨은 카드에 붙던 문제).
  *  신호 · 종가 줄은 건드리지 않고, 못 받은 카드는 비워 둔다(종가로 대신 채우지 않는다). 붙인 카드 수를 돌려준다. */
 async function qdAttachNow() {
   const el = document.getElementById("signal-cards");
   if (!el) return 0;
-  const cards = [...el.querySelectorAll("[data-qd-sym]")].slice(0, REFRESH_QUOTE_COUNT);
+  const shown = c => !c.hidden && !(c.closest && (c.closest("[data-qd-extra]") || {}).hidden);
+  const cards = [...el.querySelectorAll("[data-qd-sym]")].filter(shown).slice(0, REFRESH_QUOTE_COUNT);
   const got = await Promise.allSettled(cards.map(c => api(`/api/quote/now?symbol=${encodeURIComponent(c.dataset.qdSym)}`)));
   let n = 0;
   cards.forEach((c, i) => {
