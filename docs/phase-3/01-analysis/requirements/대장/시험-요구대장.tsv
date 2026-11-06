@@ -218,7 +218,7 @@ TC-RPL	tests/test_robo_profile_label.py	U5	🟡	리밸런싱 처음 계획 저�
 TC-TASK	tests/test_task_access.py	P02-⑤-3	🟢	#200 비동기 작업 조회·취소 인증 및 소유자 확인 — 쿠키·JWT·본인·타인·소유자 없음·관리자·강제 종료 제한·발행 전 소유자 저장·장애 시 차단·내부 오류 비노출·실제 PostgreSQL 커밋과 탈퇴 삭제
 TC-KEX	tests/test_kis_execution_outcomes.py	P02-⑤-1	🟢	#212: 토큰 공유·만료·403·응답 불명, 직접 주문 추적·계좌별 체결 대조. 격리 Redis와 PostgreSQL로 KIS 주문의 QUANT 미변경 검증(실제 KIS 접속은 별도)
 TC-KEX	tests/test_kis_execution_outcomes.py	P02-⑤-3	🟢	#212: 과거 가상 체결과 증권사 실패·접수·확인된 체결을 구분
-TC-KEXUI	tests/test_trade_status_screen.py	P02-⑤-3	🟢	#212: 실제 JS 렌더러로 실패·미확인 색상, 요청/체결 수량 분리, 과거 가상 기록, HTML 이스케이프 확인(Node 필요)
+TC-KEXUI	tests/test_trade_status_screen.py	P02-⑤-3	🟢	#212: 실제 JS 렌더러로 실패·미확인 색상, 요청/체결 수량 분리, 과거 가상 기록, HTML 이스케이프 확인(Node 필요); 11/6 회차 위험 숫자·위험 KPI 태그 입력과 정상 표시 2사례 추가, 합계 3
 TC-BCF	tests/test_broker_connection_feedback.py	P02-⑤-1	🟢	#232 실제 KIS HTTP 응답을 통한 토큰 제한·키 오류·401/403·시간 초과·비정상 시세 분류, 원문 비노출, 가상 시세와 계좌 확인 범위 구분, 로그인 필수
 TC-APV	tests/test_allocation_prediction_view.py	U5	🟡	#249 자산배분 예측 표시: 경계값·누락값·분류 확률·검증 미달·과거 저장본·신규 저장 HTTP 계약 · 순위 입력과 비중 보존 — 20건
 TC-DSV	tests/test_decision_signal_view.py	P02-⑤-2	🟢	#213 자동매매 판단 출처·회차·점수·누락값·계산 실패 및 내 계정/배치 합산 시각순 HTTP 계약 — 14건

@@ -45,7 +45,7 @@ assert.match(etf, /LP &lt;경고&gt;/);
 assert.match(etf, /2026-10-30/);
 assert.match(etf, /장중 iNAV 아님/);
 '''
-        subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True, check=True, capture_output=True)
+        subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True, encoding="utf-8", check=True, capture_output=True)
 
 
 @unittest.skipUnless(NODE, "Node.js 필요 (QURIOUS_NODE_EXECUTABLE로 지정 가능)")
@@ -64,7 +64,7 @@ const document = {getElementById(id) { if (!elements.has(id)) elements.set(id, {
 const fmt = String, kstTime = String;
 const payload = '<img src=x onerror="globalThis.injected=1">';
 ''' + body
-        done = subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True,
+        done = subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True, encoding="utf-8",
                               capture_output=True, timeout=30)
         self.assertEqual(done.returncode, 0, done.stderr)
 
