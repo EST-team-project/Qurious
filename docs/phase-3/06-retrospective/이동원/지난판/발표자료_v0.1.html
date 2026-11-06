@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="doc-version" content="0.1">
+<title>Qurious · 이동원 담당 발표 초안</title>
+<style>
+:root{color-scheme:light;--ink:#172b3d;--muted:#516678;--blue:#2157c9;--green:#08795c;--line:#d7e1e8;--paper:#f6f8fb;--scale:1}
+*{box-sizing:border-box}body{margin:0;background:#dfe6ed;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;color:var(--ink)}
+#stage{position:absolute;left:50%;top:calc(50% - 22px);width:1280px;height:720px;transform:translate(-50%,-50%) scale(var(--scale));transform-origin:center}
+.slide{width:1280px;height:720px;overflow:hidden;background:var(--paper);padding:42px 58px 38px;display:flex;flex-direction:column;position:relative}
+.slide[hidden]{display:none}.eyebrow{font-size:17px;font-weight:700;letter-spacing:.09em;color:var(--blue);margin:0 0 17px}
+h1,h2,h3,p{margin:0}h1{font-size:56px;line-height:1.3;letter-spacing:-2px}h2{font-size:39px;line-height:1.35;letter-spacing:-1.4px;margin-bottom:15px}h3{font-size:23px;line-height:1.4}
+.lead{font-size:23px;line-height:1.55;color:var(--muted);max-width:1080px}.body{flex:1;margin-top:27px;min-height:0}.footer{display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:15px;line-height:1.4;color:var(--muted);border-top:1px solid var(--line);padding-top:15px;margin-top:22px}
+.footer a{color:inherit}.tag{display:inline-block;padding:7px 12px;border-radius:7px;background:#e9f0ff;color:var(--blue);font-size:17px;font-weight:700}.row{display:flex;gap:18px}.col{flex:1;min-width:0}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px}.card p{font-size:20px;line-height:1.6;margin-top:10px;color:var(--muted)}
+.card small{font-size:17px;color:var(--muted);line-height:1.5;display:block;margin-top:8px}.green{color:var(--green)}.blue{color:var(--blue)}.callout{border-left:5px solid var(--green);padding:16px 20px;background:#e8f5ef;border-radius:0 12px 12px 0;font-size:21px;line-height:1.6}
+.step{position:relative;flex:1;background:white;border:1px solid var(--line);border-radius:12px;padding:18px 16px;text-align:center;font-size:21px;font-weight:700;line-height:1.45}.step:not(:last-child):after{content:"→";position:absolute;right:-23px;top:29%;font-size:24px;color:var(--muted);z-index:1}.steps{display:flex;gap:29px}.number{font-size:60px;line-height:1.1;font-weight:800;color:var(--blue);letter-spacing:-2px}.metric{padding:21px 25px}.metric .label{font-size:22px;font-weight:700;margin-top:10px}.metric .detail{font-size:18px;line-height:1.5;margin-top:7px;color:var(--muted)}
+.hero{background:#102f3b;color:#fff}.hero .eyebrow{color:#84dfc0}.hero .lead{color:#cee0e6;font-size:25px;margin-top:23px}.hero .footer{border-color:#46606b;color:#cee0e6}.hero .body{display:grid;grid-template-columns:1.16fr 1fr;gap:58px;align-items:center;margin-top:12px}.hero .map{display:flex;flex-direction:column;gap:15px}.hero .map div{padding:22px 24px;border-radius:13px;background:#1c4351;border:1px solid #52747d;font-size:24px;font-weight:700}.hero .map span{display:block;color:#b8d1da;font-size:19px;font-weight:400;margin-top:7px}.hero .badge{margin-top:28px;display:inline-block;font-size:18px;color:#91e7c8;border:1px solid #528a7d;border-radius:8px;padding:10px 13px}
+.models .card{padding:17px 18px}.models h3{font-size:22px}.models p{font-size:18px}.gap{height:24px}.timeline{display:grid;grid-template-columns:1fr 1fr;gap:24px}.timeline .state{font-size:19px;font-weight:700;color:var(--green);margin-bottom:10px}.timeline .large{font-size:34px;font-weight:800;line-height:1.4}.timeline p{font-size:22px}.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.checks .card{padding:19px}.checks p{font-size:19px}.split{display:grid;grid-template-columns:1fr 1fr;gap:23px}.list{display:grid;gap:16px;margin-top:20px}.list div{font-size:22px;line-height:1.5;padding-bottom:14px;border-bottom:1px solid var(--line)}.list div:last-child{border:0;padding-bottom:0}.note{font-size:18px;color:var(--muted);line-height:1.6}
+nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:13px;font-size:15px}button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);border-radius:7px;padding:9px 15px;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #b44c00;outline-offset:3px}#counter{min-width:70px;text-align:center}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@page{size:13.333333in 7.5in;margin:0}
+@media print{body{background:white}#stage{position:static;transform:none;width:1280px;height:auto}.slide,.slide[hidden]{display:flex!important;break-after:page;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}.slide:last-child{break-after:auto;page-break-after:auto}nav,.sr-only{display:none!important}}
+
+.slide h2{font-size:36px}
+.quad{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quad .card{padding:16px 20px}.quad h3{font-size:20px;display:flex;align-items:center;gap:10px}.quad p{font-size:18px;line-height:1.5;margin-top:7px;color:var(--ink)}.quad small{font-size:15px;color:var(--muted);line-height:1.45;display:block;margin-top:6px}.quad .lim{border-color:#e7c9a8;background:#fff8f0}.quad .nxt{border-color:#b7d4c8;background:#f1f9f5}.quad .lim h3{color:#9a4a00}.quad .nxt h3{color:var(--green)}.quad code{font-size:15px;background:#eef2f6;padding:1px 5px;border-radius:4px}
+table.gap-table{width:100%;border-collapse:collapse;font-size:16px;line-height:1.45}table.gap-table th{text-align:left;background:#eaf0f6;padding:9px 11px;border-bottom:2px solid var(--line);font-size:15.5px}table.gap-table td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}table.gap-table td:first-child{font-weight:700;width:21%}
+</style>
+</head>
+<body>
+<main id="stage" aria-label="이동원 담당 발표자료">
+<section class="slide hero" aria-labelledby="s1">
+  <p class="eyebrow">QURIOUS / 데이터 · 신호 근거 · 대사</p>
+  <div class="body">
+    <div><h1 id="s1" style="font-size:50px">근거를 붙인 데이터와 신호,<br>한계까지 함께 보여 줍니다</h1><p class="lead">수집 27단계 · 시험 4,362건 · 일지 42거래일.<br>숫자마다 출처와 한계, 다음 단계를 같이 적었습니다.</p><div class="badge">이동원 · 3차 담당 발표 초안 v0.1</div></div>
+    <div class="map" aria-label="담당 기능의 세 단계">
+      <div>01 수집 · 배포<span>매일 12:30 회차 · 수집 DB → Hugging Face</span></div>
+      <div>02 신호 · 근거<span>근거 모달 · 신호 순위 · 낡은 일봉 방어</span></div>
+      <div>03 검증 · 대사<span>그림자 일지 · TradingView · LEAN 대사</span></div>
+    </div>
+  </div>
+  <footer class="footer"><span>2026.11.05 · 특강 3일차 5단 구조(결론 · 근거 · 한계)와 강사님 피드백 기준 · 팀 통합·리허설 전</span><span>01 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s2">
+  <p class="eyebrow">01 / 수집 · 강사님 피드백: 잘게 쪼개고, 빠르게, 시간봉은 다양하게</p><h2 id="s2">매일 27단계, 39분 25초 — 느린 단계를 알고 쪼개는 중입니다</h2>
+  <div class="body" style="margin-top:14px"><div class="quad">
+      <div class="card"><h3><span class="tag">결론</span>수집 회차</h3><p>11월 4일 12:30:01 ~ 13:09:26, <b>27단계 · 39분 25초</b>. 가장 긴 단계: ohlcv 941초 · search 514초 · benchmark 299초.</p></div>
+      <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p><code>daily_update_last.json</code>(회차 기록) · 수집 파이프라인 분리·병렬화 설계 v0.1 · 10월 29일 측정 25단계 41.6분(순차).</p></div>
+      <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p>단계가 <b>순차</b>로 돈다. ohlcv가 10월 29일 558초 → 11월 4일 941초로 늘었고 원인은 확인하지 못했다. 코인은 1일·1시간봉만, 국내 분봉은 학습용 60분·5분(10월 30일 기준).</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>search와 계산 단계 겹치기 → <b>어림</b> 33.9분(−18%) ~ 29.8분(−28%). 1분봉으로 받아 나머지 주기를 합성(ohlcv-v2, 1분 ~ 1주 8주기).</p></div>
+    </div></div>
+  <footer class="footer"><span>어림은 <code>pipeline_profile.py</code> 계산이며 측정이 아닙니다. 날짜가 다른 두 회차의 비교는 참고용입니다.</span><span>02 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s3">
+  <p class="eyebrow">02 / 신호와 근거 · 특강 3일차 레드펜 6번: 미래 참조 방지</p><h2 id="s3">신호는 그 시점에 알 수 있던 값으로, 근거·기준일과 함께</h2>
+  <div class="body" style="margin-top:14px"><div class="quad">
+      <div class="card"><h3><span class="tag">결론</span>근거 모달 · 신호 순위</h3><p>종목마다 신호 · 근거 문장 · 기준일. 신호 순위는 약 3,950종목에서 <b>신호(매수 · 매도 · 관망) · 시장(KOSPI 939 · KOSDAQ 1,829 · ETF 1,185)</b>으로 거른다.</p></div>
+      <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p>신호는 다음 날 시가 체결, 공시는 접수일 다음 날부터 사용(<code>known_at</code>). 필터 시험 TC-HUB-71 · TC-XR-FILTER · TC-SCD-14~17.</p></div>
+      <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p>신호의 <b>예측력(IC)은 따로 검증하지 않았다</b>(10월 31일 점검 기준). 일봉 단독 규칙과 기록된 신호(60분·일·주)는 계산이 달라 같은 종목도 다를 수 있다.</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>예측력은 결과를 보기 전에 적은 가설로만 검증(신장환 님 #363). 새로고침은 기록을 다시 읽고 지금 가격을 붙인다(신호는 새로 계산하지 않음). 값이 없으면 “없음”과 까닭을 표시.</p></div>
+    </div></div>
+  <footer class="footer"><span>종목 수는 수집 DB 11월 3일 마지막 거래일 값. 레드펜 문항 원문은 옮기지 않고 번호만 인용합니다. 신호는 참고용이며 투자 권유가 아닙니다.</span><span>03 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s4">
+  <p class="eyebrow">03 / 발견한 문제 · 낡은 데이터 방어</p><h2 id="s4">오전 신호가 이틀 전 종가로 계산되던 것을 찾아 막았습니다</h2>
+  <div class="body" style="margin-top:14px"><div class="quad">
+      <div class="card"><h3><span class="tag">결론</span>막은 것</h3><p>11월 4일 오전 낡은 일봉으로 신호가 나가던 길. 낡으면 증권사 확정 일봉을 <b>메모리로만</b> 보강하고, 그래도 낡으면 “데이터 대기”. 위험 매도는 막지 않는다.</p></div>
+      <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p>시험 33건 · 결함대장 DF-164 · PR #529 · #537. 삼성전자 11월 4일 종가 실측: 15:40 <b>218,000</b> · 17:00 217,000 · 다음 날 아침 218,000.</p></div>
+      <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p>증권사 일봉의 <b>오늘 종가 확정 시각은 공식 종가와 대조 전</b>이라 단정하지 않는다. 가드는 일반 경로만이며 일지 지문 대상 조각은 건드리지 않았다.</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>11월 5일 15:40 · 17:00 · 다음 날 아침 재측정으로 확정 시각을 정하고, 필요하면 15:40 가정(SETTLE_TIME)을 조정.</p></div>
+    </div></div>
+  <footer class="footer"><span>근거: 증권사 일봉 읽기 실측 기록(11월 4일 15:40·17:00, 11월 5일 08:48). 발표 직전 재측정 결과로 이 장을 갱신합니다.</span><span>04 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s5">
+  <p class="eyebrow">04 / 그림자 일지 · 결과를 보기 전에 정한 기준을 지키기</p><h2 id="s5">모의 일지는 지문으로 고정하고, 짧은 표본임을 밝힙니다</h2>
+  <div class="body" style="margin-top:14px"><div class="quad">
+      <div class="card"><h3><span class="tag">결론</span>일지 상태</h3><p><b>판 1 · 봉인 10월 26일 · 42거래일</b>, 두 규칙 모두 지문 일치. 11월 4일 판 2를 삭제해 DB와 Hugging Face 모두 판 1만 남았다.</p></div>
+      <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p><code>paper_journal.py status</code>(11월 5일 08:50) · PR #537 · 지문이 바뀌면 “판이 바뀜”으로 경고(<code>version_would_change</code>).</p></div>
+      <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p><b>42거래일은 성과를 말하기엔 짧다</b> — 참고 기록이다. 판 2 삭제로 한 번 되돌린 이력이 있고, 허용 오차 일부를 실측 뒤 바꾼 이력(#333, 10월 28일 기준)이 있어 사전 등록 원칙과의 거리를 점검 중이다(사용자 판단 대기).</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>11월 4일 행 확인 · 전진 기록 누적 · “봉인 전 사후 계산 / 봉인 후 전진 기록”을 구간별 건수로 표시(강민석 님 #533 제안).</p></div>
+    </div></div>
+  <footer class="footer"><span>일지는 가상 장부의 참고 기록입니다. 실제 돈이 오가지 않으며 투자 권유가 아닙니다. 11월 4일 행은 11월 5일 12:30 회차 뒤에 확인합니다.</span><span>05 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s6">
+  <p class="eyebrow">05 / TradingView · LEAN 대사 · 비용과 체결 가정을 먼저 밝히기</p><h2 id="s6">대사는 조건을 먼저 밝히고, 구간을 나누어 말합니다</h2>
+  <div class="body" style="margin-top:14px"><div class="quad">
+      <div class="card"><h3><span class="tag">결론</span>11월 4일 재대조</h3><p>조건 <b>ma_cross · 최대 보유 비중 30% 고정 · 다음 거래일 시가 체결</b>에서 신호 41/41 · 보유 상태 41/41 · 주문 12/12 · 체결 12/12 일치.</p></div>
+      <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p>강민석 님 #533 답글(11월 5일) · 체결 시점 정렬 합의(#503). 어긋난 날의 원인 후보 순서: 시가/종가 선택 → 수수료 → 슬리피지 → 시각 정렬.</p></div>
+      <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p>momentum · buy_hold 전략은 상한 없이 전량 매수라 <b>같은 조건이 아니다</b>. 카드 비중(positionPct)을 LEAN에 넘기지 않는다. 11월 3·4일 신규 전진 기록은 <b>대사 전</b>.</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>12:30 회차 뒤 신규 기록 재대사(신호·보유·주문·체결 건수를 구간별로) · positionPct 전달 · TradingView 값 대조는 CSV 확보 범위부터.</p></div>
+    </div></div>
+  <footer class="footer"><span>숫자는 강민석 님 보고 기준이며 제가 다시 재현하지는 않았습니다. 신규 전진 기록 결과가 나오면 이 장의 “결론” 칸을 갱신합니다.</span><span>06 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s7">
+  <p class="eyebrow">06 / 시험과 문서 · 시험 통과는 무결함이 아니다</p><h2 id="s7">시험 4,362건을 등록하고, 실패 52건을 나누어 적었습니다</h2>
+  <div class="body" style="margin-top:14px"><div class="quad">
+      <div class="card"><h3><span class="tag">결론</span>수치</h3><p>수집 <b>4,362건 · 306파일</b>. 11월 5일 08:50 전체 시험 4,354건: 통과 4,271 · 실패 52 · 건너뜀 31.</p></div>
+      <div class="card"><h3><span class="tag">근거</span>어디서 확인</h3><p>시험 결과 폴더(<code>data/local-run/test/20261105-084941</code>) · 요구 추적표 v1.81 · 테스트 계획서 v1.93 · 결함 DF-164~167.</p></div>
+      <div class="card lim"><h3><span class="tag" style="background:#ffe9d2;color:#9a4a00">한계</span>지금의 약점</h3><p>실패 52 = Windows 환경 34 · <b>장 시작 전 시각에만 실패 16(원인 미확인)</b> · 고친 1 · 타 담당 1. 새 시험 6묶음의 요구 연결은 비어 있고, 화면을 눌러 본 확인은 일부 못 했다.</p></div>
+      <div class="card nxt"><h3><span class="tag" style="background:#dff3ea;color:var(--green)">발전</span>다음 단계</h3><p>발표 전 장 시작 뒤 전체 재실행 · DF-167 원인 확인(오준영 님 요청 #554) · 요구 ID 연결 · 카탈로그 재생성(팀 판 올림 뒤).</p></div>
+    </div></div>
+  <footer class="footer"><span>건수는 수집·실행·통과를 구분합니다. 수집 4,362건 = 08:50 실행 4,354건 + 이후 추가 시험 8건.</span><span>07 / 08</span></footer>
+</section>
+<section class="slide" hidden aria-labelledby="s8">
+  <p class="eyebrow">07 / 정리 · 한계와 발전 가능성</p><h2 id="s8">우리가 아는 약점과, 다음에 할 일</h2>
+  <div class="body" style="margin-top:14px"><table class="gap-table"><thead><tr><th>약점 · 한계</th><th>근거</th><th>다음 단계 (발전 가능성)</th><th>시기</th></tr></thead><tbody><tr><td>수집이 순차 39분</td><td>11월 4일 회차 27단계</td><td>search 겹치기부터 병렬화 · 어림 −18%~−28%</td><td>시기 미정</td></tr><tr><td>시간봉이 좁음</td><td>코인 1일·1시간(10월 30일)</td><td>1분봉 기반 합성 ohlcv-v2 · 미국·코인 확장</td><td>11월 12일 뒤</td></tr><tr><td>신호 예측력 미검증</td><td>10월 31일 점검</td><td>사전 등록 가설 + 성과 지표(신장환 님 #363)</td><td>팀 일정</td></tr><tr><td>증권사 종가 확정 시각</td><td>11월 4~5일 실측</td><td>15:40·17:00·익일 재측정 후 SETTLE_TIME 판단</td><td>11월 5일</td></tr><tr><td>일지 42거래일</td><td>status 11월 5일</td><td>전진 기록 누적 · 구간별 건수 표시</td><td>계속</td></tr><tr><td>대사 조건 한정</td><td>ma_cross · 30% · 시가</td><td>positionPct 전달 · 다른 전략 조건 맞추기</td><td>후속</td></tr><tr><td>신호를 실시간으로 다시 판단하지 않음</td><td>12:30 기록값 읽기 · 새로고침은 지금 가격만 붙임</td><td>전체 재판단 설계(지문 조각 · 야후 정책 · 종가 확정 시각 확인 뒤)</td><td>11월 12일 뒤 설계</td></tr><tr><td>시험 시각 의존 16건</td><td>DF-167 열림</td><td>원인 확인 · 고정 시계</td><td>오준영 님 확인 요청</td></tr></tbody></table><p class="note" style="margin-top:12px">“시기”는 현재 계획이며 확정이 아닌 칸은 미정으로 적었습니다. 근거가 있는 것만 적었고, 확인하지 못한 것은 확인하지 못했다고 표시했습니다.</p></div>
+  <footer class="footer"><span>한계를 먼저 적는 서술은 특강 4일차의 보고서 권고를 따른 것입니다. 쪽 번호만 인용하고 슬라이드 문장은 옮기지 않았습니다.</span><span>08 / 08</span></footer>
+</section>
+</main>
+<nav aria-label="슬라이드 이동"><button id="prev" type="button">← 이전</button><span id="counter" aria-live="polite">1 / 8</span><button id="next" type="button">다음 →</button><button id="print" type="button">인쇄 / PDF</button></nav>
+<p id="announce" class="sr-only" aria-live="polite"></p>
+<script>
+(()=>{const slides=[...document.querySelectorAll('.slide')],prev=document.querySelector('#prev'),next=document.querySelector('#next');let current=0;
+function fit(){document.documentElement.style.setProperty('--scale',Math.max(.1,Math.min((innerWidth-32)/1280,(innerHeight-88)/720)));}
+function show(index){current=Math.max(0,Math.min(slides.length-1,index));slides.forEach((s,i)=>s.hidden=i!==current);prev.disabled=current===0;next.disabled=current===slides.length-1;document.querySelector('#counter').textContent=`${current+1} / ${slides.length}`;document.querySelector('#announce').textContent=slides[current].querySelector('h1,h2').textContent;history.replaceState(null,'',`#slide-${current+1}`);}
+prev.addEventListener('click',()=>show(current-1));next.addEventListener('click',()=>show(current+1));document.querySelector('#print').addEventListener('click',()=>window.print());
+addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('button,a,input,textarea'))return;if(['ArrowRight','PageDown','ArrowLeft','PageUp','Home','End'].includes(e.key)){e.preventDefault();show(e.key==='Home'?0:e.key==='End'?slides.length-1:current+(['ArrowRight','PageDown'].includes(e.key)?1:-1));}});
+addEventListener('resize',fit);fit();const start=/^#slide-(\d+)$/.exec(location.hash);show(start?Number(start[1])-1:0);})();
+</script>
+</body>
+</html>

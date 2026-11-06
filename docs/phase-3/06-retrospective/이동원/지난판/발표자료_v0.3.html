@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="doc-version" content="0.3">
+<title>Qurious · 이동원 담당 발표 초안</title>
+<style>
+:root{color-scheme:light;--ink:#172b3d;--muted:#516678;--blue:#2157c9;--green:#08795c;--amber:#9a4a00;--line:#d7e1e8;--paper:#f6f8fb;--scale:1}
+*{box-sizing:border-box}body{margin:0;background:#dfe6ed;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;color:var(--ink)}
+#stage{position:absolute;left:50%;top:calc(50% - 22px);width:1280px;height:720px;transform:translate(-50%,-50%) scale(var(--scale));transform-origin:center}
+.slide{width:1280px;height:720px;overflow:hidden;background:var(--paper);padding:38px 58px 32px;display:flex;flex-direction:column;position:relative}
+.slide[hidden]{display:none}
+.top{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px}
+.eyebrow{font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--blue);margin:0}
+.flow{display:flex;gap:6px;font-size:14px;font-weight:700}
+.flow span{padding:5px 11px;border-radius:999px;background:#e8edf2;color:#7a8b99}
+.flow span.on{background:var(--blue);color:#fff}
+.flow span.on.neg{background:var(--amber)}
+h1,h2,h3,p{margin:0}h1{font-size:54px;line-height:1.3;letter-spacing:-2px}h2{font-size:36px;line-height:1.35;letter-spacing:-1.2px;margin-bottom:4px}h3{font-size:21px;line-height:1.4}
+.lead{font-size:22px;line-height:1.6;color:var(--muted);max-width:1080px}
+.body{flex:1;margin-top:14px;min-height:0}
+.footer{display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:13.5px;line-height:1.45;color:var(--muted);border-top:1px solid var(--line);padding-top:11px;margin-top:12px}
+.footer .pg{white-space:nowrap}
+.two{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:start}
+.prose p{font-size:21px;line-height:1.72;color:var(--ink);margin-bottom:14px;letter-spacing:-.3px}
+.prose p.cap,.cap{font-size:14.5px;line-height:1.55;color:var(--muted)}
+.cap{display:block;margin-top:6px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.card h3{margin-bottom:8px}.card p{font-size:19px;line-height:1.6;color:var(--ink)}
+.card .go{margin-top:10px;font-size:17px;color:var(--green);line-height:1.55}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.pos{border-color:#b7d4c8;background:#f1f9f5}.neg{border-color:#e7c9a8;background:#fff8f0}
+.pos h3{color:var(--green)}.neg h3{color:var(--amber)}
+.callout{border-left:5px solid var(--green);padding:16px 20px;background:#e8f5ef;border-radius:0 12px 12px 0;font-size:21px;line-height:1.6}
+.blue{color:var(--blue)}.green{color:var(--green)}.amber{color:var(--amber)}
+code{font-size:14px;background:#eef2f6;padding:1px 5px;border-radius:4px}
+.hero{background:#102f3b;color:#fff}.hero .eyebrow{color:#84dfc0}.hero .lead{color:#cee0e6;font-size:23px;margin-top:22px}.hero .footer{border-color:#46606b;color:#cee0e6}
+.hero .body{display:grid;grid-template-columns:1.2fr 1fr;gap:56px;align-items:center}
+.hero .map{display:flex;flex-direction:column;gap:14px}.hero .map div{padding:18px 24px;border-radius:13px;background:#1c4351;border:1px solid #52747d;font-size:22px;font-weight:700}.hero .map span{display:block;color:#b8d1da;font-size:17px;font-weight:400;margin-top:5px}
+.hero .flow span{background:#244f5e;color:#9fc4d0}
+.chart{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+.chart h3{font-size:18px;margin-bottom:6px}
+svg text{font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;fill:var(--ink)}
+svg .m{fill:var(--muted)}
+.steps{display:flex;gap:26px}.step{position:relative;flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 12px;text-align:center;font-size:19px;font-weight:700;line-height:1.45}
+.step:not(:last-child):after{content:"→";position:absolute;right:-22px;top:26%;font-size:22px;color:var(--muted);z-index:1}
+.price{display:flex;gap:26px;align-items:stretch}.price .p{flex:1;background:#f6f8fb;border:1px solid var(--line);border-radius:12px;padding:10px 10px;text-align:center;position:relative}
+.price .p:not(:last-child):after{content:"→";position:absolute;right:-22px;top:34%;font-size:22px;color:var(--muted)}
+.price .t{font-size:14px;color:var(--muted)}.price .v{font-size:28px;font-weight:800;letter-spacing:-1px;margin-top:2px}
+.sq{display:grid;grid-template-columns:repeat(43,1fr);gap:2px}.sq i{display:block;aspect-ratio:1;background:#c3cdd6;border-radius:2px}.sq i.f{background:var(--green)}
+table.t{width:100%;border-collapse:collapse;font-size:16px;line-height:1.45}
+table.t th{text-align:left;background:#eaf0f6;padding:8px 10px;border-bottom:2px solid var(--line);font-size:15px}
+table.t td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}table.t td:first-child{font-weight:700}
+.notes{display:none;position:absolute;left:0;right:0;bottom:0;max-height:48%;overflow:auto;background:rgba(16,47,59,.96);color:#fff;padding:18px 58px 22px;font-size:19px;line-height:1.65;z-index:5}
+body.shownotes .slide .notes{display:block}
+.notes b{color:#84dfc0}
+nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:13px;font-size:15px}
+button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);border-radius:7px;padding:9px 15px;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #b44c00;outline-offset:3px}#counter{min-width:70px;text-align:center}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@page{size:13.333333in 7.5in;margin:0}
+@media print{body{background:white}#stage{position:static;transform:none;width:1280px;height:auto}.slide,.slide[hidden]{display:flex!important;break-after:page;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}.slide:last-child{break-after:auto;page-break-after:auto}nav,.sr-only,.notes{display:none!important}}
+
+</style>
+</head>
+<body>
+<main id="stage" aria-label="이동원 담당 발표자료">
+
+<!-- 1. cover -->
+<section class="slide hero" aria-labelledby="s1">
+  <div class="top"><p class="eyebrow">QURIOUS / 데이터 · 신호 근거 · 대사</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span>③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <div class="body"><div><h1 id="s1">신호를 믿어도 되는지,<br>확인하는 쪽을 맡았습니다</h1><p class="lead">데이터 수집, 신호 근거, 같은 신호를 다시 돌려 맞춰 보는 대사.<br>잘하는 곳에서 배우고 비어 있는 곳을 채웠습니다. 못 한 것은 못 했다고 적었습니다.</p></div><div class="map" aria-label="발표 순서">
+      <div>① 이미 있는 서비스에서 배운 것<span>2장</span></div>
+      <div>② 그래도 비어 있던 곳<span>3 ~ 4장</span></div>
+      <div>③ 우리가 만든 것, 겪은 문제와 푼 과정<span>5 ~ 10장</span></div>
+      <div>④ 못 한 것과 이어갈 길<span>11 ~ 12장</span></div></div></div>
+  <footer class="footer"><span>이동원 · 3차 담당 발표 초안 v0.3 · 2026.11.06 · 팀 통합과 리허설 전 (N 키: 대본)</span><span class="pg">1 / 12</span></footer>
+  <aside class="notes"><b>1장 (15초)</b> 신호를 보여 주는 서비스는 많습니다. 저는 그 신호를 믿어도 되는지 확인하는 쪽을 맡았어요. 데이터 수집과 신호 근거, 같은 신호를 다시 돌려 맞춰 보는 대사입니다. 잘하는 곳에서 배우고 비어 있는 곳을 채웠고, 못 한 것은 못 했다고 말씀드리겠습니다.</aside>
+</section>
+
+<!-- 2. learn -->
+<section class="slide" hidden aria-labelledby="s2">
+  <div class="top"><p class="eyebrow">2 · 먼저 이미 있는 서비스를 봤습니다</p><div class="flow" aria-hidden="true"><span class="on">① 배울 점</span><span>② 빈 곳</span><span>③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s2">이미 있는 서비스에서 세 가지를 배웠습니다</h2>
+  <div class="body"><div class="grid3">
+  <div class="card pos"><h3>봉이 닫힌 뒤에 확정한다</h3><p>TradingView는 알림을 봉이 닫힌 뒤 한 번만 보내라고 권합니다. Freqtrade와 QuantConnect LEAN도 봉이 완성될 때 계산합니다.</p></div>
+  <div class="card pos"><h3>근거를 질문과 짧은 판정으로 보여 준다</h3><p>Simply Wall St는 「업종·시장보다 주가가 출렁이는가?」 같은 질문 하나에 짧은 판정을 달고, 그 밑에 업종과 시장 평균을 나란히 둡니다.</p></div>
+  <div class="card pos"><h3>지연을 숨기지 않는다</h3><p>Finviz는 무료 시세에 「1분 지연」 표시를 늘 붙여 둡니다.</p></div></div>
+<div class="callout" style="margin-top:20px"><b>Qurious도 같은 길을 갔습니다.</b> 신호는 마감 일봉으로 확정하고, 현재가 옆에는 출처와 시각을 적습니다.</div></div>
+  <footer class="footer"><span>출처: 실시간 갱신 벤치마킹(2026-11-02). Simply Wall St는 종목 화면을 직접 열어 읽었고, 나머지는 공식 문서 검색 발췌입니다.</span><span class="pg">2 / 12</span></footer>
+  <aside class="notes"><b>2장 (35초)</b> 먼저 이미 있는 서비스에서 배운 것부터 말씀드리겠습니다. TradingView는 알림을 봉이 닫힌 뒤에 한 번만 보내라고 권합니다. Freqtrade와 QuantConnect LEAN도 봉이 완성될 때 계산하고요. 장중 값에 신호가 흔들리지 않게 하는 게 기본이었습니다. 근거를 보여 주는 방식도 배울 만했어요. Simply Wall St는 질문 하나에 짧은 판정을 달고 그 밑에 업종과 시장 비교를 붙입니다. Finviz는 무료 시세에 지연 표시를 늘 붙이고요. Qurious도 같은 길을 갔습니다. 신호는 마감 일봉으로 확정하고 현재가 옆에는 출처와 시각을 적습니다.</aside>
+</section>
+
+<!-- 3. gap1 -->
+<section class="slide" hidden aria-labelledby="s3">
+  <div class="top"><p class="eyebrow">3 · 그런데 비어 있는 곳이 있었습니다</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span class="on neg">② 빈 곳</span><span>③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s3">등급 한 줄에 근거가 묻힙니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>Investing.com은 「Strong Buy」를, Stockopedia는 0에서 100 사이 숫자 하나를 줍니다. 지표를 합치고 나면 어떤 근거가 켜졌는지 보이지 않습니다.</p>
+    <p>Morningstar는 한 걸음 더 나가, 매수와 매도를 검토할 가격대까지 서비스가 정해 줍니다.</p>
+    <p class="cap">솔직히 우리 신호도 규칙 점수를 더하는 방식이라 계산은 이 서비스들과 같은 계열입니다. 다른 점은 오른쪽 그림입니다.</p></div>
+  <div class="chart"><h3>같은 신호를 보여 주는 두 가지 방식</h3>
+    <svg viewBox="0 0 460 200" width="100%" role="img" aria-label="왼쪽은 여러 지표가 등급 한 줄로 합쳐지는 모양, 오른쪽은 칸마다 근거와 기준일이 남는 모양">
+      <g font-size="15">
+      <text x="0" y="18" class="m" font-size="14">합쳐서 한 줄로</text>
+      <rect x="0" y="30" width="86" height="26" rx="5" fill="#c3cdd6"/><rect x="0" y="62" width="86" height="26" rx="5" fill="#c3cdd6"/><rect x="0" y="94" width="86" height="26" rx="5" fill="#c3cdd6"/><rect x="0" y="126" width="86" height="26" rx="5" fill="#c3cdd6"/>
+      <text x="43" y="48" text-anchor="middle" class="m" font-size="13">지표</text><text x="43" y="80" text-anchor="middle" class="m" font-size="13">지표</text><text x="43" y="112" text-anchor="middle" class="m" font-size="13">지표</text><text x="43" y="144" text-anchor="middle" class="m" font-size="13">지표</text>
+      <path d="M92 90 L128 90" stroke="#516678" stroke-width="2"/><path d="M122 84 L130 90 L122 96" fill="none" stroke="#516678" stroke-width="2"/>
+      <rect x="134" y="66" width="92" height="48" rx="8" fill="#9a4a00"/><text x="180" y="95" text-anchor="middle" style="fill:#fff" font-weight="700" font-size="14">Strong Buy</text>
+      <text x="0" y="178" class="m" font-size="13">어느 지표 때문인지 보이지 않음</text>
+      <text x="250" y="18" class="m" font-size="14">칸마다 남기기(Qurious)</text>
+      <rect x="250" y="30" width="206" height="50" rx="6" fill="#e8f5ef" stroke="#08795c"/><text x="260" y="50" font-size="13" font-weight="700">그렇게 본 까닭</text><text x="260" y="69" font-size="12" class="m">20일 평균 위 · 기준일 11-04</text>
+      <rect x="250" y="88" width="206" height="50" rx="6" fill="#fff8f0" stroke="#9a4a00"/><text x="260" y="108" font-size="13" font-weight="700">반대로 본 까닭</text><text x="260" y="127" font-size="12" class="m">횡보장에서는 자주 엇갈림</text>
+      <text x="250" y="178" class="m" font-size="13">근거와 반대 근거가 같은 크기</text></g></svg>
+    <span class="cap">그림은 구조를 보여 주는 예시이며 실제 화면의 값이 아닙니다.</span></div></div></div>
+  <footer class="footer"><span>출처: 투자 근거 설명 벤치마킹(2026-11-02). Investing.com · Stockopedia · Morningstar는 검색 발췌로만 확인했습니다.</span><span class="pg">3 / 12</span></footer>
+  <aside class="notes"><b>3장 (35초)</b> 그런데 비어 있는 곳이 있었습니다. 우선 지표를 합쳐 등급 한 줄로 내는 방식이에요. Investing.com은 Strong Buy를, Stockopedia는 0에서 100 사이 숫자 하나를 줍니다. 합치고 나면 어떤 근거가 켜졌는지 안 보입니다. Morningstar는 한 걸음 더 나가 매수와 매도를 검토할 가격대까지 서비스가 정해 줍니다. 솔직히 말씀드리면 저희 신호도 규칙 점수를 더하는 방식이라 계산은 같은 계열입니다. 다른 점은 합치지 않고 칸마다 근거와 반대 근거를 같은 크기로 남기는 거예요.</aside>
+</section>
+
+<!-- 4. gap2 -->
+<section class="slide" hidden aria-labelledby="s4">
+  <div class="top"><p class="eyebrow">4 · 설명을 붙이면 풀릴 줄 알았습니다</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span class="on neg">② 빈 곳</span><span>③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s4">설명을 붙이면 오히려 더 따르게 됩니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>Bansal 연구진의 실험에서는 AI가 설명을 붙이자 AI가 틀렸을 때도 사람들이 더 따랐습니다. 반대 답까지 같이 설명했을 때는 덜 따랐습니다.</p>
+    <p>고지문도 마찬가지였습니다. 펀드 광고 실험에서 「과거 수익은 미래를 보장하지 않는다」 문구는 투자 의향을 바꾸지 못했습니다. 무엇이 틀릴 수 있는지 구체적으로 쓴 경고는 달랐습니다.</p></div>
+  <div class="card pos"><h3>그래서 이렇게 했습니다</h3>
+    <p>신호 옆에 <b>반대로 본 까닭</b>을 같은 크기로 둡니다.</p>
+    <p style="margin-top:12px">고지문 한 줄 대신, 그 화면에서 <b>무엇이 틀릴 수 있는지</b>를 칸마다 적습니다.</p>
+    <p style="margin-top:12px">목표가와 손절가는 서비스가 주지 않고 <b>사용자가 정합니다</b>.</p></div></div></div>
+  <footer class="footer"><span>출처: Bansal 외(CHI 2021)는 논문 본문 구절을, Mercer 외(2010)는 논문 앞부분(초록·서론)을 열어 읽었습니다. Mercer 외는 펀드 광고 실험이라 이 화면에 그대로 옮기지는 않았습니다.</span><span class="pg">4 / 12</span></footer>
+  <aside class="notes"><b>4장 (40초)</b> 설명을 붙이면 풀릴 줄 알았는데 연구는 달랐습니다. Bansal 연구진의 실험에서는 AI가 설명을 붙이자 AI가 틀렸을 때도 사람들이 더 따랐습니다. 반대 답까지 같이 설명했을 때는 덜 따랐고요. 고지문도 마찬가지였어요. 펀드 광고 실험에서 과거 수익은 미래를 보장하지 않는다는 문구는 투자 의향을 바꾸지 못했습니다. 무엇이 틀릴 수 있는지를 구체적으로 쓴 경고는 달랐습니다. 그래서 신호 옆에 반대로 본 까닭을 같은 크기로 두고, 고지문 한 줄 대신 그 화면에서 틀릴 수 있는 점을 칸마다 적었습니다.</aside>
+</section>
+
+<!-- 5. collect -->
+<section class="slide" hidden aria-labelledby="s5">
+  <div class="top"><p class="eyebrow">5 · 우리가 만든 것 ① 수집</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s5">수집을 줄이려고, 먼저 어디가 느린지 쟀습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>10월 30일에 강사님이 수집을 더 잘게 쪼개 시간을 줄여 보라고 하셨습니다. 처음 설계는 코어 22개로 병렬 처리하는 것이었습니다.</p>
+    <p>그런데 쟀더니 수정주가 단계 423초 가운데 311초가 계산이 아니라 DB에 쓰는 시간이었습니다. 그래서 병렬화는 접고 <b>바뀐 행만 쓰도록</b> 고쳤습니다. 검색 색인은 다른 단계와 겹쳐 돌리게 했습니다.</p></div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="chart"><h3>입력이 안 바뀐 날의 단계 시간 (초)</h3>
+      <svg viewBox="0 0 460 150" width="100%" role="img" aria-label="수정주가 423초에서 59초, 총수익 408초에서 98초">
+        <g font-size="14"><text x="0" y="22">수정주가 전</text><rect x="100" y="8" width="300" height="20" rx="4" fill="#c3cdd6"/><text x="408" y="24" font-weight="700">423</text>
+        <text x="0" y="48">수정주가 후</text><rect x="100" y="34" width="41.8" height="20" rx="4" fill="#08795c"/><text x="149" y="50" font-weight="700">59</text>
+        <text x="0" y="94">총수익 전</text><rect x="100" y="80" width="289.4" height="20" rx="4" fill="#c3cdd6"/><text x="397" y="96" font-weight="700">408</text>
+        <text x="0" y="120">총수익 후</text><rect x="100" y="106" width="69.5" height="20" rx="4" fill="#08795c"/><text x="177" y="122" font-weight="700">98</text></g></svg></div>
+    <div class="chart"><h3>11월 5일 회차: 합친 시간 vs 실제</h3>
+      <svg viewBox="0 0 460 80" width="100%" role="img" aria-label="단계 시간 합 54분 40초, 실제 43분 54초">
+        <g font-size="14"><rect x="0" y="6" width="330" height="22" rx="4" fill="#c3cdd6"/><text x="338" y="23" font-weight="700">54분 40초</text>
+        <rect x="0" y="40" width="265" height="22" rx="4" fill="#08795c"/><text x="273" y="57" font-weight="700">43분 54초</text></g></svg>
+      <span class="cap">검색 색인(650초)이 뒤에서 같이 돌아 10분 넘게 겹쳤습니다.</span></div></div></div></div>
+  <footer class="footer"><span>출처: 수집 파이프라인 설계서와 10월 31일 작업 기록(커밋 8d4c837), 11월 5일 회차 기록. 두 그림은 조건이 달라 서로 이어 읽지 않습니다. 10월 29일은 25단계(41.6분)라 같은 조건의 비교도 아닙니다.</span><span class="pg">5 / 12</span></footer>
+  <aside class="notes"><b>5장 (50초)</b> 첫 번째로 수집 이야기입니다. 10월 30일에 강사님이 수집을 더 잘게 쪼개서 시간을 줄여 보라고 하셨어요. 처음 설계는 코어 22개로 병렬 처리하는 것이었습니다. 그런데 먼저 쟀더니 수정주가 단계 423초 가운데 311초가 계산이 아니라 DB에 쓰는 시간이었어요. 병렬화는 접고 바뀐 행만 쓰도록 고쳤습니다. 입력이 안 바뀐 날 수정주가는 423초에서 59초로 줄었습니다. 검색 색인은 다른 단계와 겹쳐 돌리게 했고요. 11월 5일 회차는 43분 54초에 끝났습니다. 단계마다 걸린 시간을 더하면 54분 40초니까 10분 넘게 겹친 셈이에요.</aside>
+</section>
+
+<!-- 6. signal -->
+<section class="slide" hidden aria-labelledby="s6">
+  <div class="top"><p class="eyebrow">6 · 우리가 만든 것 ② 신호와 근거</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s6">신호에는 근거 문장과 기준일이 붙습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>종목을 누르면 신호와 근거 문장, 반대로 본 까닭, 기준일이 같이 나옵니다.</p>
+    <p>신호는 마감 일봉으로 확정하고 다음 날 시가에 체결된 것으로 계산합니다. 공시는 접수일 다음 날부터 근거로 씁니다. 그 시점에 아직 몰랐던 값을 쓰지 않으려는 규칙입니다.</p></div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="chart"><h3>신호 순위의 시장별 종목 수 (합계 약 3,950)</h3>
+      <svg viewBox="0 0 460 70" width="100%" role="img" aria-label="KOSPI 939, KOSDAQ 1829, ETF 1185">
+        <g font-size="14"><rect x="0" y="6" width="109.3" height="36" fill="#2157c9"/><rect x="109.3" y="6" width="212.9" height="36" fill="#08795c"/><rect x="322.2" y="6" width="137.8" height="36" fill="#9a4a00"/>
+        <text x="8" y="29" style="fill:#fff" font-weight="700">KOSPI 939</text><text x="118" y="29" style="fill:#fff" font-weight="700">KOSDAQ 1,829</text><text x="330" y="29" style="fill:#fff" font-weight="700">ETF 1,185</text></g></svg>
+      <span class="cap">매수 · 매도 · 관망으로도, 시장별로도 거를 수 있습니다.</span></div>
+    <div class="chart"><h3>쓰는 값의 시점</h3>
+      <div class="steps" style="gap:20px"><div class="step" style="font-size:15px">D일 마감 일봉으로 신호 확정</div><div class="step" style="font-size:15px">D+1 시가 체결로 계산</div></div>
+      <div class="steps" style="gap:20px;margin-top:10px"><div class="step" style="font-size:15px">공시 접수일 D</div><div class="step" style="font-size:15px">D+1부터 근거에 사용</div></div></div></div></div></div>
+  <footer class="footer"><span>출처: 수집 DB 11월 3일 마지막 거래일 종목 수(약 3,950은 세 시장의 합 3,953의 근사값). 특강 레드펜 6번(미래 참조 방지)은 번호만 인용합니다.</span><span class="pg">6 / 12</span></footer>
+  <aside class="notes"><b>6장 (35초)</b> 두 번째는 신호와 근거입니다. 종목을 누르면 신호와 근거 문장, 반대로 본 까닭, 기준일이 같이 나와요. 신호 순위는 약 3,950종목이고 매수·매도·관망으로도 시장별로도 거를 수 있습니다. 시장별 종목 수는 KOSPI 939, KOSDAQ 1,829, ETF 1,185입니다. 신호는 마감 일봉으로 확정하고 다음 날 시가에 체결된 것으로 계산해요. 공시는 접수일 다음 날부터 씁니다. 그 시점에 아직 몰랐던 값은 안 쓰려는 규칙입니다.</aside>
+</section>
+
+<!-- 7. stale -->
+<section class="slide" hidden aria-labelledby="s7">
+  <div class="top"><p class="eyebrow">7 · 우리가 만든 것 ③ 겪은 문제: 낡은 일봉</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s7">오전 신호가 이틀 전 종가로 나가고 있었습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>11월 4일 오전에 제가 먼저 물었습니다. 12시 30분에 데이터를 가져오면 오전 자동매매는 너무 오래된 데이터로 도는 게 아니냐고요. 코드를 따라가 보니 맞았습니다. 그날 11시에 보니 수집 DB의 마지막 일봉이 이틀 전인 11월 2일이었습니다.</p>
+    <p>그래서 일봉이 낡았으면 증권사 확정 일봉만 메모리에 붙이고, 그래도 낡았으면 「데이터 대기」로 멈추게 했습니다. 손절 같은 위험 매도는 막지 않습니다.</p>
+    <p>오준영 님은 이 수정을 검토하며 시험 193건을 돌려 확인했고, 가드가 일반 자동매매에만 걸리고 일지와 전략 카드는 별도 실행기를 쓴다고 범위를 바로잡아 주었습니다.</p></div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+  <div class="chart"><h3>고친 뒤의 동작</h3>
+    <div class="steps" style="gap:22px"><div class="step" style="font-size:15px">일봉이 낡았나?</div><div class="step" style="font-size:15px">증권사 확정 일봉을 메모리에만 붙임</div><div class="step" style="font-size:15px">그래도 낡았으면 「데이터 대기」</div></div>
+    <span class="cap">위험 매도는 막지 않습니다. 시험 33건이 이 동작을 지킵니다.</span></div>
+  <div class="chart"><h3>삼성전자 11월 4일 종가를 시각별로 읽은 값 (원)</h3>
+      <div class="price"><div class="p"><div class="t">11-04 15:40</div><div class="v">218,000</div></div><div class="p"><div class="t">11-04 17:00</div><div class="v amber">217,000</div></div><div class="p"><div class="t">11-05 08:48</div><div class="v">218,000</div></div></div>
+      <span class="cap">같은 날 종가가 시각에 따라 1,000원 달랐습니다. 증권사 일봉이 몇 시에 확정되는지는 공식 종가와 맞춰 보기 전이라 단정하지 않습니다.</span></div></div></div></div>
+  <footer class="footer"><span>근거: 결함대장 DF-164 · 오준영 님 검토 답글(PR #529) · 수정 PR #537 · 증권사 일봉 읽기 기록. 시험 193건은 외부 통신을 막은 임시 Docker 결과이고 실제 주문 시험은 아닙니다.</span><span class="pg">7 / 12</span></footer>
+  <aside class="notes"><b>7장 (55초)</b> 세 번째는 제가 찾은 문제입니다. 11월 4일 오전에 제가 먼저 물었어요. 12시 30분에 데이터를 가져오면 오전 자동매매는 너무 오래된 데이터로 도는 게 아니냐고요. 코드를 따라가 보니 맞았습니다. 그날 오전 11시에 보니 수집 DB의 마지막 일봉이 이틀 전인 11월 2일이었어요. 그래서 일봉이 낡았으면 증권사에서 확정 일봉만 메모리에 붙이고, 그래도 낡았으면 데이터 대기로 멈추게 했습니다. 손절 같은 위험 매도는 막지 않아요. 오준영 님이 이 수정을 검토하면서 시험 193건을 돌려 확인해 주셨습니다. 가드는 일반 자동매매 경로에만 걸리고 일지와 전략 카드는 별도 실행기를 쓴다고 범위도 바로잡아 주셨고요. 삼성전자 종가를 시각별로 읽어 보니 15시 40분엔 218,000원, 17시엔 217,000원, 다음 날 아침엔 218,000원이었습니다. 증권사 일봉이 몇 시에 확정되는지는 공식 종가와 맞춰 보기 전이라 단정하지 않습니다.</aside>
+</section>
+
+<!-- 8. journal -->
+<section class="slide" hidden aria-labelledby="s8">
+  <div class="top"><p class="eyebrow">8 · 우리가 만든 것 ④ 겪은 문제: 일지에 생긴 판 2</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s8">고친 코드가 봉인한 일지에 새 판을 만들었습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>낡은 일봉을 막은 수정이 일지에는 문제가 됐습니다. 일지는 규칙과 코드의 지문으로 판을 잠가 두는데, 수정이 지문 대상 함수를 건드리자 11월 4일 회차에서 「판이 바뀜」 신호가 나고 행이 하나도 없는 판 2가 자동으로 생겼습니다. 그대로 두면 11월 3일 행이 어느 판에도 남지 않았습니다.</p>
+    <p>그래서 받아들이는 안과 되돌리는 안을 팀 이슈에 올렸고, 저는 되돌리는 쪽을 골랐습니다. 신선도 보강을 지문 대상 밖으로 옮기고 판 2를 지웠습니다.</p>
+    <p>강민석 님은 비교 결과를 <b>봉인 전 사후 계산</b>과 <b>봉인 뒤 전진 기록</b>으로 나눠 보이자고 제안했습니다.</p></div>
+  <div class="chart"><h3>지금 일지 43행의 구성 (규칙당)</h3>
+      <div class="sq" aria-label="사후 계산 35행, 전진 기록 8행"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></div>
+      <div style="display:flex;font-size:14px;margin-top:8px;gap:10px"><div style="flex:35"><b>봉인 전 사후 계산 35행</b><br><span style="color:var(--muted)">9/1 ~ 10/23</span></div><div style="flex:9;white-space:nowrap" class="green"><b>전진 8행</b><br><span style="color:var(--muted)">10/26 ~ 11/4</span></div></div>
+      <span class="cap">두 규칙 모두 같은 구성이고 지문은 그대로입니다. 평가액은 가상 장부 값이라 성과로 말하지 않습니다. 전진 기록 8행은 아직 성과를 말하기엔 짧습니다.</span></div></div></div>
+  <footer class="footer"><span>근거: 이슈 협의(11-04) · 수정 PR #537 · 일지 상태 조회와 일지 테이블 집계(11-06 09시). 판 1과 판 2의 신호 값을 나란히 비교하지는 않았습니다.</span><span class="pg">8 / 12</span></footer>
+  <aside class="notes"><b>8장 (50초)</b> 그런데 이 수정이 일지에는 문제를 만들었습니다. 일지는 규칙과 코드의 지문으로 판을 잠가 두는데, 수정이 지문 대상 함수를 건드리자 11월 4일 회차에서 판이 바뀌었다는 신호가 나고 행이 하나도 없는 판 2가 자동으로 생겼어요. 그대로 두면 11월 3일 행이 어느 판에도 남지 않았습니다. 그래서 받아들이는 안과 되돌리는 안을 팀 이슈에 올렸고 저는 되돌리는 쪽을 골랐습니다. 신선도 보강을 지문 대상 밖으로 옮기고 판 2를 지웠어요. 강민석 님은 비교 결과를 봉인 전 사후 계산과 봉인 뒤 전진 기록으로 나눠 보이자고 제안해 주셨고요. 지금 일지는 43행인데 사후 계산이 35행, 전진 기록이 8행입니다.</aside>
+</section>
+
+<!-- 9. recon -->
+<section class="slide" hidden aria-labelledby="s9">
+  <div class="top"><p class="eyebrow">9 · 우리가 만든 것 ⑤ 겪은 문제: 체결 시점</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s9">같은 신호인데 체결가가 달랐던 이유를 찾았습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>강민석 님이 LEAN으로 일지를 다시 돌려 보니 40일 가운데 5일에서 보유 상태가 달랐고, 체결가 차이는 최대 약 440bp였습니다.</p>
+    <p>제가 수집 DB로 다시 계산해 보니 원인은 데이터 출처가 아니라 <b>체결 시점</b>이었습니다. LEAN은 신호 다음 거래일 <b>종가</b>에, 일지는 다음 거래일 <b>시가</b>에 체결하고 있었습니다.</p>
+    <p>질문 여섯 개를 이슈에 올렸고, 강민석 님이 대사에서만 시가 체결을 고르도록 구현해 주었습니다. 전략 카드 비중이 실제로 걸리는지도 제가 코드로 확인해 짚었고, 「ma_cross · 최대 보유 30%」 조건으로 합의했습니다.</p></div>
+  <div class="chart"><h3>맞추기 전과 뒤</h3>
+    <table class="t rec" style="font-size:16px"><thead><tr><th></th><th>맞추기 전(40일)</th><th>맞춘 뒤</th></tr></thead><tbody>
+      <tr><td>보유 상태</td><td class="amber"><b>5일 어긋남</b></td><td class="green"><b>43일 모두 같음</b></td></tr>
+      <tr><td>진입 · 청산 신호</td><td>—</td><td class="green"><b>41 / 41</b></td></tr>
+      <tr><td>주문 방향</td><td>—</td><td class="green"><b>12 / 12</b></td></tr>
+      <tr><td>체결 가격 · 수량</td><td class="amber"><b>최대 약 440bp 차이</b></td><td class="green"><b>12 / 12 같음</b></td></tr></tbody></table>
+    <span class="cap">맞춘 뒤 결과는 강민석 님이 돌린 것이고 제가 재현하지는 않았습니다. 보고서 종료일이 11월 4일이라 11월 5일 행은 아직 맞춰 보지 않았습니다. momentum · buy_hold는 상한 없이 전량 매수라 같은 조건이 아닙니다.</span></div></div></div>
+  <footer class="footer"><span>근거: 이슈 협의 「LEAN 체결 시점 정렬」(11-02 ~ 11-04) · 구현은 강민석 님(PR #534) · 재실행 보고서 2026-11-05_v4.md. 재현성 검증이지 수익률 검증이 아닙니다.</span><span class="pg">9 / 12</span></footer>
+  <aside class="notes"><b>9장 (50초)</b> 네 번째는 대사입니다. 강민석 님이 LEAN으로 일지를 다시 돌려 보니 40일 중 5일에서 보유 상태가 달랐고 체결가 차이는 최대 440bp쯤이었어요. 제가 수집 DB로 다시 계산해 보니 데이터 출처가 아니라 체결 시점이 원인이었습니다. LEAN은 신호 다음 거래일 종가에, 일지는 다음 거래일 시가에 체결하고 있었거든요. 질문 여섯 개를 이슈에 올렸고, 강민석 님이 대사에서만 시가 체결을 고르도록 구현해 주셨습니다. 그 뒤 ma_cross 전략, 최대 보유 비중 30%, 다음 거래일 시가 체결 조건에서 진입·청산 신호 41개, 보유 상태 43일, 주문과 체결 12건이 모두 같았습니다. 결과는 강민석 님이 돌렸고 저는 재현하지 않았습니다.</aside>
+</section>
+
+<!-- 10. tests -->
+<section class="slide" hidden aria-labelledby="s10">
+  <div class="top"><p class="eyebrow">10 · 우리가 만든 것 ⑥ 겪은 문제: 시험 실패</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
+  <h2 id="s10">시험이 수십 건 깨졌지만 제품 문제가 아니었습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>11월 5일에 강민석 님이 WSL에서 전체 시험을 돌렸더니 수십 건이 실패하고 pytest가 중간에 멈췄습니다. 제 PC에서는 같은 시험이 통과해서 환경 문제로 봤습니다.</p>
+    <p>Node 버전이 12로 너무 낮았고, 멈춘 것은 제 시험이 <code>os.name</code>을 바꿔서 리눅스에서 경로를 만들지 못한 탓이었습니다. 그래서 시험 끝 요약에 Node 버전 경고를 넣고, 그 시험 네 곳은 Windows에서만 돌게 고쳤습니다. 제품 코드는 그대로입니다.</p>
+    <p>나머지 원인은 강민석 님이 직접 찾아 고쳤고, 다시 돌린 전체 시험이 통과했다고 보고했습니다.</p></div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="chart"><h3>제 PC의 전체 시험 (건)</h3>
+      <svg viewBox="0 0 460 60" width="100%" role="img" aria-label="통과 4414, 실패 35, 건너뜀 31">
+        <g font-size="14"><rect x="0" y="6" width="451" height="30" fill="#08795c"/><rect x="451" y="6" width="4" height="30" fill="#9a4a00"/><rect x="455" y="6" width="4" height="30" fill="#8aa0b2"/>
+        <text x="10" y="27" style="fill:#fff" font-weight="700">통과 4,414</text></g></svg>
+      <span class="cap">전체 4,480건 중 실패 35건(주황), 건너뜀 31건(회색). 실패 네 파일은 변경 전 코드에서도 똑같이 실패했습니다. 34건은 Windows 환경 문제, 1건은 수수료 판정 시험입니다.</span></div>
+    <div class="card pos"><h3>강민석 님 WSL 재실행(보고)</h3><p style="font-size:17px">전체 시험 통과(종료 코드 0). 별도 환경이 필요한 시험은 건너뛴 결과이고, 저는 재현하지 않았습니다.</p></div></div></div></div>
+  <footer class="footer"><span>근거: 이슈 「전체 회귀 시험 환경 이상」(11-05) · 수정 PR #571(제품 코드 변경 없음) · 강민석 님 최종 보고(이슈 닫힘 11-06) · 제 PC의 11월 5일 전체 시험과 11월 6일 시험 건수 집계.</span><span class="pg">10 / 12</span></footer>
+  <aside class="notes"><b>10장 (45초)</b> 다섯 번째는 시험입니다. 11월 5일에 강민석 님이 WSL에서 전체 시험을 돌렸더니 수십 건이 실패하고 pytest가 중간에 멈췄습니다. 제 PC에서는 같은 시험이 통과해서 환경 문제라고 봤어요. Node 버전이 12로 너무 낮았고, 멈춘 건 제 시험이 os.name을 바꿔서 리눅스에서 경로를 만들지 못한 탓이었습니다. 시험 끝 요약에 Node 버전 경고를 넣고 그 시험 네 곳을 Windows에서만 돌게 고쳤습니다. 제품 코드는 그대로예요. 나머지 원인은 강민석 님이 직접 찾아 고쳤고, 다시 돌린 전체 시험이 통과했다고 보고하셨습니다. 제 PC에서는 4,480건 중 4,414건이 통과하고 35건이 실패했는데, 네 파일 모두 변경 전 코드에서도 똑같이 실패했습니다.</aside>
+</section>
+
+<!-- 11. limit1 -->
+<section class="slide" hidden aria-labelledby="s11">
+  <div class="top"><p class="eyebrow">11 · 여기서부터는 못 한 것입니다</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span>③ 우리가 만든 것</span><span class="on neg">④ 한계와 발전</span></div></div>
+  <h2 id="s11">신호가 맞는지는, 맞히지 못했습니다</h2>
+  <div class="body"><div class="two">
+  <div class="prose">
+    <p>신장환 님이 400종목, 138일에 걸친 5만 줄이 넘는 신호를 5거래일 뒤 실제 수익과 맞춰 봤습니다.</p>
+    <p>매수 신호의 적중률은 48.9에서 50.1%였습니다. 아무 날이나 뽑아도 오르는 비율 51.3%와 비슷하거나 낮았고, 신뢰도가 높다고 적중률이 오르지도 않았습니다.</p>
+    <p>그래서 저희 신호는 수익을 맞히는 신호가 아니라 <b>「이 규칙이 켜졌다」는 기록</b>이라고 말씀드립니다.</p>
+    <p class="cap">범위는 60분 · 일 · 주 신호, 5거래일 하나, 비용 제외입니다. 자동매매의 이동평균 교차 규칙은 따로 확인하지 않았습니다.</p></div>
+  <div class="chart"><h3>5거래일 뒤 방향 적중률 (%)</h3>
+    <svg viewBox="0 0 520 190" width="100%" role="img" aria-label="매수 강 50.1, 매수 보통 48.9, 매도 45.5, 기준선 51.3">
+      <g font-size="14"><text x="0" y="26">매수 · 강</text><rect x="140" y="10" width="280.6" height="24" rx="4" fill="#2157c9"/><text x="428" y="28" font-weight="700" font-size="13">50.1</text>
+      <text x="0" y="66">매수 · 보통</text><rect x="140" y="50" width="273.8" height="24" rx="4" fill="#2157c9"/><text x="421" y="68" font-weight="700" font-size="13">48.9</text>
+      <text x="0" y="106">매도</text><rect x="140" y="90" width="254.8" height="24" rx="4" fill="#9a4a00"/><text x="428" y="108" font-weight="700" font-size="13">45.5</text>
+      <text x="0" y="146" font-size="13">기준선(오른 비율)</text><rect x="140" y="130" width="287.3" height="24" rx="4" fill="#c3cdd6"/><text x="435" y="148" font-weight="700" font-size="13">51.3</text>
+      <path d="M420 4 L420 160" stroke="#172b3d" stroke-width="1.5" stroke-dasharray="4 3"/><text x="420" y="176" text-anchor="middle" class="m" font-size="12">50%</text></g></svg>
+    <span class="cap">막대는 0에서 시작합니다. 매수·매도 모두 기준선과 거의 차이가 없습니다.</span></div></div></div>
+  <footer class="footer"><span>근거: 신장환 님 신호 적중 대조(2026-11-02, 400종목 · 2023-10-27 ~ 2026-08-21 판단일 · 53,044줄). 이 신호의 예측력을 따로 입증한 자료는 아직 없습니다.</span><span class="pg">11 / 12</span></footer>
+  <aside class="notes"><b>11장 (50초)</b> 여기서부터는 못 한 것입니다. 신장환 님이 400종목, 138일에 걸친 5만 줄이 넘는 신호를 5거래일 뒤 실제 수익과 맞춰 봤어요. 매수 신호의 적중률은 48.9에서 50.1%였고, 아무 날이나 뽑아도 오르는 비율 51.3%와 비슷하거나 낮았습니다. 신뢰도가 높다고 적중률이 오르지도 않았어요. 그래서 저희 신호는 수익을 맞히는 신호가 아니라 이 규칙이 켜졌다는 기록이라고 말씀드립니다. 범위는 60분, 일, 주 신호와 5거래일 하나, 비용 제외라서 자동매매 이동평균 교차 규칙은 따로 확인하지 않았습니다.</aside>
+</section>
+
+<!-- 12. limit2 -->
+<section class="slide" hidden aria-labelledby="s12">
+  <div class="top"><p class="eyebrow">12 · 그 밖에 못 한 것과, 이어갈 길</p><div class="flow" aria-hidden="true"><span>① 배울 점</span><span>② 빈 곳</span><span>③ 우리가 만든 것</span><span class="on neg">④ 한계와 발전</span></div></div>
+  <h2 id="s12">못 한 것은 못 했다고 적고, 이어갈 길을 붙였습니다</h2>
+  <div class="body"><div class="grid2">
+  <div class="card neg"><h3>일지가 짧고, 대사는 한 조건뿐</h3><p>전진 기록은 8행이고 대사도 ma_cross 한 조건에서만 맞춰 봤습니다.</p><p class="go">→ 기록이 쌓이면 구간별로 나눠 보이고, 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 봅니다.</p></div>
+  <div class="card neg"><h3>시간봉이 좁다</h3><p>코인은 1일과 1시간봉뿐이고, 국내 분봉은 학습용 60분과 5분입니다.</p><p class="go">→ 1분봉으로 받아 나머지를 합쳐 만드는 방식을 11월 12일 뒤에 붙입니다.</p></div>
+  <div class="card neg"><h3>신호를 실시간으로 다시 판단하지 못한다</h3><p>한국투자증권 모의투자 API는 초당 1건이고 여러 종목 한 번에 조회도 지원하지 않아, 전 종목을 계속 갱신하기 어렵습니다. 실시간 시세는 제공사와 계약이 필요한 것으로 알고 있습니다.</p><p class="go">→ 새로고침은 지금 가격만 붙이고, 전체 재판단은 설계부터 합니다.</p></div>
+  <div class="card neg"><h3>수집은 들쭉날쭉하고, 종가 확정 시각은 모른다</h3><p>일봉 단계가 558초, 941초, 730초로 흔들리는데 원인을 모릅니다. 증권사 일봉이 몇 시에 확정되는지도 아직 단정하지 못합니다.</p><p class="go">→ 원인을 찾고, 공식 종가와 맞춰 본 뒤에 정합니다.</p></div></div></div>
+  <footer class="footer"><span>근거: KIS 호출 한도는 공지 원문(2026-04-20 기준)을 읽었고, 실시간 시세 계약은 기사 발췌라 단정하지 않습니다. 시기는 현재 계획이며 확정이 아닌 것은 정하지 않았습니다.</span><span class="pg">12 / 12</span></footer>
+  <aside class="notes"><b>12장 (55초)</b> 그 밖에도 못 한 것이 있습니다. 일지는 전진 기록이 8행뿐이고 대사도 ma_cross 한 조건에서만 맞춰 봤어요. 기록이 쌓이면 구간별로 나눠 보이고 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 볼 계획입니다. 시간봉은 코인이 1일과 1시간뿐인데 1분봉으로 받아 합치는 방식을 11월 12일 뒤에 붙입니다. 신호를 실시간으로 다시 판단하지도 못해요. 한국투자증권 모의투자 API가 초당 1건이고 여러 종목 조회도 지원하지 않아서 전 종목을 계속 갱신하기 어렵습니다. 실시간 시세는 제공사와 계약도 필요한 것으로 알고 있습니다. 마지막으로 수집의 일봉 단계는 558초, 941초, 730초로 들쭉날쭉한데 원인을 모르고, 종가 확정 시각도 공식 종가와 맞춰 본 뒤에 정하겠습니다.</aside>
+</section>
+</main>
+<nav aria-label="슬라이드 이동"><button id="prev" type="button">← 이전</button><span id="counter" aria-live="polite">1 / 12</span><button id="next" type="button">다음 →</button><button id="notes" type="button" aria-pressed="false">대본 (N)</button><button id="print" type="button">인쇄 / PDF</button></nav>
+<p id="announce" class="sr-only" aria-live="polite"></p>
+<script>
+(()=>{const slides=[...document.querySelectorAll('.slide')],prev=document.querySelector('#prev'),next=document.querySelector('#next'),nb=document.querySelector('#notes');let current=0;
+function fit(){document.documentElement.style.setProperty('--scale',Math.max(.1,Math.min((innerWidth-32)/1280,(innerHeight-88)/720)));}
+function show(index){current=Math.max(0,Math.min(slides.length-1,index));slides.forEach((s,i)=>s.hidden=i!==current);prev.disabled=current===0;next.disabled=current===slides.length-1;document.querySelector('#counter').textContent=`${current+1} / ${slides.length}`;document.querySelector('#announce').textContent=slides[current].querySelector('h1,h2').textContent;try{history.replaceState(null,'',`#slide-${current+1}`);}catch(e){}}
+function notes(){const on=document.body.classList.toggle('shownotes');nb.setAttribute('aria-pressed',String(on));}
+prev.addEventListener('click',()=>show(current-1));next.addEventListener('click',()=>show(current+1));nb.addEventListener('click',notes);document.querySelector('#print').addEventListener('click',()=>window.print());
+addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('button,a,input,textarea'))return;if(e.key==='n'||e.key==='N'){notes();return;}if(['ArrowRight','PageDown','ArrowLeft','PageUp','Home','End'].includes(e.key)){e.preventDefault();show(e.key==='Home'?0:e.key==='End'?slides.length-1:current+(['ArrowRight','PageDown'].includes(e.key)?1:-1));}});
+addEventListener('resize',fit);fit();const start=/^#slide-(\d+)$/.exec(location.hash);show(start?Number(start[1])-1:0);})();
+
+</script>
+</body>
+</html>
