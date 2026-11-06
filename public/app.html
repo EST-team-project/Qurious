@@ -369,8 +369,8 @@
                     style="color:var(--text);">-</b></span>
               </div>
 
-              <!-- 상단 2열: 왼쪽 주문 입력 / 오른쪽 스탑 주문 -->
-              <div class="grid md:grid-cols-2 gap-4 mb-4">
+              <!-- 상단 2열: 왼쪽 주문 입력 / 오른쪽 스탑 주문 · 390px 에서는 한 칸 — grid-cols-1(= minmax(0,1fr))이 없으면 칸이 내용 최소 폭으로 늘어 카드가 부모 밖으로 삐져나온다(2026-11-06 DF-168) -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <!-- 왼쪽 · 주문 입력 -->
                 <div class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h3 class="font-semibold mb-3">주문 입력</h3>
