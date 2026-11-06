@@ -232,7 +232,10 @@ def test_view_scan_sees_only_its_own_entry_api():
     from scripts import view_scan
 
     row = next(r for r in view_scan.scan()["rows"] if r["key"] == "signal-rank")
-    assert sorted(row["entry_apis"]) == ["/api/stock-hub/signal-rank", "/api/stocks/quote"], row["entry_apis"]
+    # 2026-11-06: 화면 스캐너가 진입 훅 두 단계 아래까지 따라가면서 종목 검색 자동완성(`signalrankview.js` 의 `/api/stocks/search`)도 이 화면의 호출로 잡힌다 — 이것도 사실이다.
+    # 상품 화면의 `load` 같은 이름이 같은 다른 화면의 API(`/api/products/…`)는 여전히 섞이면 안 된다.
+    assert sorted(row["entry_apis"]) == ["/api/stock-hub/signal-rank", "/api/stocks/quote", "/api/stocks/search"], row["entry_apis"]
+    assert not any(a.startswith("/api/products") for a in row["entry_apis"])
 
 
 

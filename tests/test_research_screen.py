@@ -43,7 +43,8 @@ def test_view_is_wired_and_df61_text_is_gone():
     assert 'document.getElementById("news-search")?.addEventListener' in agent
     from scripts import view_scan
     row = next(r for r in view_scan.scan()["rows"] if r["key"] == "agent-news")
-    assert row["entry_apis"] == ["/api/data/search"] and row["hook"] == ["renderResearch"]
+    # 진입 훅이 두 단계 아래(타임라인 · 종목 자동완성)에서 부르는 길까지 잡힌다(2026-11-06 화면 스캐너 보강 — 옛 기대값은 `/api/data/search` 하나)
+    assert row["entry_apis"] == ["/api/calendar/events", "/api/data/search", "/api/stocks/search"] and row["hook"] == ["renderResearch"]
 
 
 def test_tables_match_server_and_collector():
