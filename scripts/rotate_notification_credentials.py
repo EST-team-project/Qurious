@@ -14,6 +14,9 @@ from app.lib.notification_secrets import reencrypt
 
 
 async def main():
+    for stream in (sys.stdout, sys.stderr):   # 윈도우 cp949 콘솔에서 안내 글의 줄표(—)가 깨지지 않게(시험 TC-CE · 다른 scripts 진입점과 같은 세 줄)
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     await connect_postgres()
     try:
         async with get_session_factory()() as db:
