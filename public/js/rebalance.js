@@ -311,13 +311,17 @@ function renderWeightChart(s, plan = null) {
     : [...managed.map(r => Number(r.weight_pct)), Number(Math.max(0, 100 - managed.reduce((sum, r) => sum + Number(r.weight_pct), 0)).toFixed(2))];
   const series = s ? [{ name: "현재 비중", data: [...managed.map(r => r.current_weight_pct), s.cash_weight_pct] }, { name: "목표 비중", data: tgt }]
     : [{ name: "저장된 목표 비중", data: tgt }];
+  const dark = document.documentElement.dataset.theme === "dark";
+  const css = getComputedStyle($("rb-weight-chart"));
+  const text = css.getPropertyValue("--text-dim").trim() || (dark ? "#cbd5e1" : "#334155");
   const opts = {
-    chart: { type: "bar", height: 260, toolbar: { show: false }, background: "transparent" },
-    theme: { mode: document.documentElement.dataset.theme === "light" ? "light" : "dark" },
+    chart: { type: "bar", height: 260, toolbar: { show: false }, background: "transparent", foreColor: text },
+    theme: { mode: dark ? "dark" : "light" },
     series,
     xaxis: { categories: cats }, yaxis: { labels: { formatter: v => `${v}%` } },
     plotOptions: { bar: { columnWidth: "55%", borderRadius: 3 } }, dataLabels: { enabled: false },
-    colors: s ? ["#2962ff", "#089981"] : ["#089981"], legend: { position: "top", showForSingleSeries: true },
+    colors: s ? ["#2962ff", "#089981"] : ["#089981"],
+    legend: { position: "top", showForSingleSeries: true, labels: { colors: text } },
     tooltip: { y: { formatter: v => `${v}%` } },
   };
   if (weightChart) { weightChart.updateOptions(opts); return; }
