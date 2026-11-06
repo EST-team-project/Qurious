@@ -1,15 +1,15 @@
-# 요구사항 추적표(RTM) v1.83 — Qurious
+# 요구사항 추적표(RTM) v1.84 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.83 · 시험 수집 4,492건 · 320파일 · 대장에 없는 시험 파일 2개(오준영 님 `test_strategy_v2_corporate_action.py` · `test_credential_storage_logs.py` · 묶음 이름 확인 요청) |
+| **판 · 상태** | v1.84 · 담당 TC-SV2CA·TC-CSL 이름/요구 확정·TC-CWD 추가. 담당 3묶음 31사례 연결; 현재 전체 수집 수는 미확정 |
 | **구분** | 2. 요구사항 관리 — 요구사항 정의(요구 한 줄 · 관행 명칭 「요구사항정의서」) · 요구사항 추적표 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 |
 | **최종 수정** | 2026-11-06 (KST) |
-| **기준** | main `29c4302e`(#582 머지) + 작업 트리 · `rtm_scan --doc` 로 대장 · 코드에서 다시 채움(시험 4,492건 · 320파일) |
+| **기준** | v1.84: 담당 요구 P02-⑤-2/3와 시험 3묶음만 갱신. TC-SV2CA 8·TC-CSL 4 수집, TC-CWD 19 실행 확인. 다른 묶음의 건수·흔적은 앞 판 보존 / main `29c4302e`(#582 머지) + 작업 트리 · `rtm_scan --doc` 로 대장 · 코드에서 다시 채움(시험 4,492건 · 320파일) |
 | **관련 문서** | [요구 대장](대장/요구-대장.tsv) · [시험-요구 대장](대장/시험-요구대장.tsv) · [기능 설계서 v0.1](../../02-design/system/기능설계.md) · [API 명세서 v0.10](../../../phase-2/02-design/api/지난판/API명세서_v0.10.md) · [테스트 계획서 v1.13](../../../phase-2/04-testing/지난판/테스트계획서_v1.13.md) · [강사님 자료 기능 대조 v0.1](강사님자료-기능대조.md) · [RTM v1.4](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.4.md) · [RTM v1.2](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.2.md) · [RTM v1.1](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.1.md) · [RTM v1.0](../../../phase-2/01-analysis/requirements/지난판/RTM_v1.0.md) |
-| **최근 개정** | v1.82 → v1.83: 대장에 없던 시험 12묶음 등록(TC-LB · PLB · ATL · LBS · LBR · LBT · LBF · LBM · MR · MCG · NODE · NS)과 TC-SCD 22 ~ 26 · TC-VW-03 을 다시 채움. 수집 4,366 → 4,492건 · 306 → 320파일 / v1.81 → v1.82: TC-RKS 16 → 17(신호 순위 새로고침 시험) · TC-FX 11 → 14(강민석 님 #555 의 환율 동시 조회 시험)를 다시 채움. 수집 4,362 → 4,366건 · 306파일 그대로 |
+| **최근 개정** | v1.83 → v1.84: #586 요청 TC-SV2CA·TC-CSL 이름/요구 확정, TC-CWD 호스트 경보 연결. 현재 전체 수집·실행 성적 갱신 아님 / v1.82 → v1.83: 대장에 없던 시험 12묶음 등록(TC-LB · PLB · ATL · LBS · LBR · LBT · LBF · LBM · MR · MCG · NODE · NS)과 TC-SCD 22 ~ 26 · TC-VW-03 을 다시 채움. 수집 4,366 → 4,492건 · 306 → 320파일 / v1.81 → v1.82: TC-RKS 16 → 17(신호 순위 새로고침 시험) · TC-FX 11 → 14(강민석 님 #555 의 환율 동시 조회 시험)를 다시 채움. 수집 4,362 → 4,366건 · 306파일 그대로 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트가 지켜야 할 요구는 몇 개이고 어디서 왔나 (1절)
@@ -390,8 +390,8 @@ flowchart LR
 | `P02-④-2` | 설계서 5.4절 · 설계서 3절 C4 | LEAN-02~03 · QNT-02 | 🟡 TC-QFRS 0 · 안 TC-CO | 시험 | 있음 26파일 | 시험 일부 |
 | `P02-④-3` | 설계서 5.4절 | (새 1) | 🟡 TC-TV 0 · TC-LOE 0 · TC-TVC 0 · TC-TVK 0 · TC-CLY 0 · TC-CCH 0 · 안 TC-XV | 분석 | 있음 12파일 | 시험 일부 |
 | `P02-⑤-1` | 설계서 5.5절 · ADR-0001 · 증권사 연동 자동화 설계 4 | STK-14~16 · 19~24 · 27 | 🟢 TC-LT 0 · TC-GW 0 · TC-GP 0 · TC-KC 0 · TC-KL 0 · TC-KQ 0 · TC-KH 0 · TC-KEX 0 · TC-BCF 0 · TC-KBF 0 · TC-KSP 0 · TC-KRC 0 · 🟡 TC-BM 0 · TC-NV 0 · TC-KPR 0 · TC-BCS 0 · TC-KCP 0 · TC-KRS 0 · TC-KCA 0 · TC-KOR 0 · TC-KRT 0 | 시험 | 있음 31파일 | 시험 있음 |
-| `P02-⑤-2` | 설계서 5.5절 · 설계서 3절 C6 · 증권사 연동 자동화 설계 5 | STK-17~18 · 24~29 (새 2) | 🟢 TC-GP 0 · TC-US 0 · TC-QC 0 · TC-ATI 0 · TC-RK 0 · TC-DSV 0 · 🟡 TC-RG 0 · TC-AG 0 · TC-KBA 0 · TC-RGL 0 · TC-EP 0 · TC-OR 0 · TC-EG 0 · TC-QV 0 · TC-EXC 0 · TC-FTS 0 · TC-KPT 0 · TC-MBO 0 · TC-OPR 0 · TC-PBS 0 · TC-RSP 0 · TC-SVX 0 · TC-SVP 0 · 안 TC-RK | 시험 | 있음 30파일 | 시험 있음 |
-| `P02-⑤-3` | 설계서 5.5절 | SYS-01~03 · HLTH-01 · TASK-01~02 · NOTI-03 | 🟢 TC-BH 0 · TC-TASK 0 · TC-KEX 0 · TC-KEXUI 0 · 🟡 TC-DU 0 · TC-AS 0 · TC-KMO 0 · TC-RC 0 · TC-EXC 0 · TC-FAC 0 · 안 TC-OPS | 시험 · 시연 | 있음 17파일 | 시험 있음 |
+| `P02-⑤-2` | 설계서 5.5절 · 설계서 3절 C6 · 증권사 연동 자동화 설계 5 | STK-17~18 · 24~29 (새 2) | 🟢 TC-GP 0 · TC-US 0 · TC-QC 0 · TC-ATI 0 · TC-RK 0 · TC-DSV 0 · 🟡 TC-RG 0 · TC-AG 0 · TC-KBA 0 · TC-RGL 0 · TC-EP 0 · TC-OR 0 · TC-EG 0 · TC-QV 0 · TC-EXC 0 · TC-FTS 0 · TC-KPT 0 · TC-MBO 0 · TC-OPR 0 · TC-PBS 0 · TC-RSP 0 · TC-SVX 0 · TC-SVP 0 · TC-SV2CA 8 · 안 TC-RK | 시험 | 있음 30파일 | 시험 있음 |
+| `P02-⑤-3` | 설계서 5.5절 | SYS-01~03 · HLTH-01 · TASK-01~02 · NOTI-03 | 🟢 TC-BH 0 · TC-TASK 0 · TC-KEX 0 · TC-KEXUI 0 · 🟡 TC-DU 0 · TC-AS 0 · TC-KMO 0 · TC-RC 0 · TC-EXC 0 · TC-FAC 0 · TC-SV2CA 8 · TC-CSL 4 · TC-CWD 19 · 안 TC-OPS | 시험 · 시연 | 있음 17파일 | 시험 있음 |
 | **원문 UI/UX 필요 요소** | | | | | | |
 | `U1` | 설계서 7절 | — | 🟢 TC-RP 0 · 🟡 TC-PD 0 · TC-RPL 0 | 시연 | 있음 4파일 | 시험 있음 |
 | `U2` | 설계서 7절 | — | 🟢 TC-RBUI 0 · TC-AH 0 | 시험 · 시연 | 있음 10파일 | 시험 있음 |
@@ -828,7 +828,12 @@ flowchart LR
 | TC-NODE | `test_node_requirement.py` | 0 | — | — | 시험 머리·끝 요약의 Node 버전 안내(S204 · #567 · 2026-11-05) — Node 22 미만이면 제품 회귀가 아니라는 경고 문구. 요구ID 는 작성자 확인. |
 | TC-NS | `test_notification_secrets.py` | 0 | `P02-③-3` | 🟡 | 알림 설정 비밀값 저장 암호화(S205 · 2026-11-05 · 0044) — 암호문 형식·키 오류 시 평문 우회 없음·동의 철회는 키 없이도 동작. 알림 설정 요구 P02-③-3 은 API 명세서 API-NOTI 줄과 같다. |
 
-합계 — 시험 0건 · 320파일 = 요구에 붙은 0건 + 요구 없는 도구 시험 0건 + 대장에 없는 파일 2개(tests/test_credential_storage_logs.py · tests/test_strategy_v2_corporate_action.py)
+| TC-SV2CA | `test_strategy_v2_corporate_action.py` | 8 | `P02-⑤-2` | 🟡 | #561 조정일 실행 누락·보류 지속·예약 청산 보류를 실제 가상 장부로 확인(8사례). 오준영 11/6 확인 — KIS 주문·자동 가격/수량 교정은 시험 밖 |
+| 〃 | 〃 | 〃 | `P02-⑤-3` | 🟡 | 보류의 정기 실행 기록·알림 실패 경계·중복 억제. 외부 수신은 시험 밖 |
+| TC-CSL | `test_credential_storage_logs.py` | 4 | `P02-⑤-3` | 🟡 | 운영 로그 단발 검사 4사례 — stderr 암호화 오류·조회 실패·종료코드·Docker 부재. 원문 비노출; 호스트 주기 실행·외부 수신은 별도 |
+| TC-CWD | `test_credential_watchdog.py` | 19 | `P02-⑤-3` | 🟡 | 호스트 암호화 오류 경보 19사례 — 최초 정상 무발송·장애/정상화 전이·중복 억제와 1시간 지속 알림·전달 실패 재시도·원문/비밀 비노출·주소 제한·중지 컨테이너·Docker 부재·로그 상한·상태 저장·실행 잠금. Windows 예약 실행·실제 수신은 운영 검증으로 별도 기록 |
+
+합계 — 이번 담당 확인은 3묶음 31사례(TC-SV2CA 8·TC-CSL 4·TC-CWD 19)다. 앞 판의 다른 행에 적힌 0은 이번에 다시 수집하지 않은 값이며 시험이 없다는 뜻으로 해석하지 않는다. 현재 전체 수집 합계는 미확정이다.
 <!-- /rtm_scan:시험 -->
 
 2026-10-19 #170: TC-RBUI의 실제 Chrome 인수 시험 1건(내부 검사 17항목)을 U2·U5에 연결했다. 이번에는 앱 의존성이 갖춰진 격리 환경에서 pytest 수집 2341건·168파일을 확인하고 RTM 8개 블록을 다시 생성했다. 이는 전체 2341건을 실행·통과했다는 뜻이 아니다. 운영 러너 대조의 남은 범위는 [화면 검증 근거](../../04-testing/리밸런싱-화면검증-근거.md)를 따른다.
