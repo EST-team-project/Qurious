@@ -742,6 +742,34 @@ def test_card_refresh_rereads_attaches_now_to_the_top_cards_and_says_so():
     assert got["failedNote"] == "", "다시 받기가 실패했으면 안내(시각)를 붙이지 않는다"
 
 
+@pytest.mark.skipif(NODE is None, reason="node 가 없다")
+def test_card_refresh_attaches_now_only_to_visible_cards():
+    """TC-SCD-26 · 신호 필터를 건 채 새로고침하면 지금 값은 **보이는** 카드에만 붙는다 — 필터로 숨은 카드(hidden)와 접어 둔 나머지 묶음(`data-qd-extra` hidden)은
+    건너뛰고 보이는 카드 가운데 앞 `REFRESH_QUOTE_COUNT` 장을 고른다(신장환 님 PR #580 답글 · 필터와 상관없이 앞 10장을 고르던 문제)."""
+    attach = _extract("async function qdAttachNow", "/** 카드 「새로고침」")
+    js = textwrap.dedent("""
+        const REFRESH_QUOTE_COUNT = 2;
+        const quoteLineText = q => (q && typeof q.price === "number" ? `지금 ${q.price}원` : "");
+        const extra = { hidden: true };
+        // A·B 는 필터로 숨김, C·D·E 가 보임, F 는 접힌 나머지 묶음 안(숨김)
+        const mk = (sym, hidden, inExtra) => ({ hidden, dataset: { qdSym: sym }, slot: { textContent: "" },
+          closest: sel => (sel === "[data-qd-extra]" && inExtra ? extra : null),
+          querySelector(sel) { return sel === "[data-qd-now]" ? this.slot : null; } });
+        const cards = [mk("A", true), mk("B", true), mk("C", false), mk("D", false), mk("E", false), mk("F", false, true)];
+        const calls = [];
+        globalThis.document = { getElementById: id => (id === "signal-cards" ? { querySelectorAll: () => cards } : null) };
+        const api = async url => { calls.push(url); return { price: 100 }; };
+    """) + attach + textwrap.dedent("""
+        (async () => {
+          const n = await qdAttachNow();
+          console.log(JSON.stringify({ n, calls, texts: cards.map(c => c.slot.textContent) }));
+        })();
+    """)
+    got = _node(js)
+    assert got["calls"] == ["/api/quote/now?symbol=C", "/api/quote/now?symbol=D"], got["calls"]
+    assert got["texts"] == ["", "", "지금 100원", "지금 100원", "", ""] and got["n"] == 2, got
+
+
 def test_card_refresh_is_screen_only_and_first_load_sends_no_quote_request():
     """TC-SCD-25 · 구조 — 지금 값 요청(`/api/quote/now`)은 새로고침 단추가 부르는 qdAttachNow 한 곳에만 있고(처음 펼칠 때 · 필터 · 나머지 보기는 요청을 늘리지 않는다),
     카드 다시 받기는 기존 `quant/indicators` 길만 쓴다(서버 판정 · 일지 지문 대상 함수를 부르는 새 경로가 없다). 안내 글은 신호를 새로 판단한다고 말하지 않는다."""
