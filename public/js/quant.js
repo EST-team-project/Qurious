@@ -801,7 +801,7 @@ function corporateHoldHtml(cycle) {
 function autoCycleHtml(cycle) {
   const trades = (cycle.trades || []).map(t => renderTradeExecution(t, escHtml, fmt)).join("");
   const risk = cycle.risk
-    ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${cycle.risk.day_pnl_pct ?? "-"}% · ${escHtml(cycle.risk.valuation?.label || "이전 기록 · 평가 기준 미기록")} · 주문 ${cycle.risk.orders_today ?? "-"}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
+    ? `<div class="ml-3" style="color:var(--text-dim);">위험관리: 당일 ${escHtml(cycle.risk.day_pnl_pct ?? "-")}% · ${escHtml(cycle.risk.valuation?.label || "이전 기록 · 평가 기준 미기록")} · 주문 ${escHtml(cycle.risk.orders_today ?? "-")}건${cycle.risk.halted ? ` · <span style="color:var(--red);font-weight:600;">🛑 ${escHtml(cycle.risk.reason || "비상 정지")}</span>` : ""}</div>`
     : "";
   const stops = Object.entries(cycle.risk?.stop_checks || {}).map(([symbol, stop]) =>
     `<div class="ml-3 text-xs">${escHtml(symbol)} · ${stop.origin === 'transition' ? '전환 시 고정' : '진입 시 고정'} 손절 ${fmt(stop.stop_price)}원 (${escHtml(stop.stop_kind || '%')})</div>`
@@ -875,10 +875,10 @@ async function loadRiskStatus() {
     const tile = (label, value, cls = "") => `<div class="rounded-lg p-2" style="background:var(--surf3);"><div style="color:var(--text-mute);">${label}</div><div class="font-bold ${cls}">${value}</div></div>`;
     document.getElementById("risk-kpis").innerHTML = [
       tile("비상 정지", r.kill_switch ? `<span class="text-red-400">🛑 ON</span>` : `<span class="text-emerald-400">OFF</span>`),
-      tile(`당일 손익 · ${escHtml(valuationLabel)}`, r.day_pnl_pct == null ? "-" : `${r.day_pnl_pct > 0 ? "+" : ""}${r.day_pnl_pct}% <span class="font-normal" style="color:var(--text-mute)">/ 한도 -${L.daily_loss_limit_pct}%</span>`, r.daily_loss_breached ? "text-red-400" : pnlCls),
-      tile("당일 자동 주문", `${r.orders_today ?? 0}건 <span class="font-normal" style="color:var(--text-mute)">/ 최대 ${L.max_orders_per_day || "∞"}</span>`),
-      tile("종목 비중 한도", `${L.max_position_pct || "∞"}%`),
-      tile("중복 주문 쿨다운", `${L.cooldown_min || 0}분`),
+      tile(`당일 손익 · ${escHtml(valuationLabel)}`, r.day_pnl_pct == null ? "-" : `${r.day_pnl_pct > 0 ? "+" : ""}${escHtml(r.day_pnl_pct)}% <span class="font-normal" style="color:var(--text-mute)">/ 한도 -${escHtml(L.daily_loss_limit_pct)}%</span>`, r.daily_loss_breached ? "text-red-400" : pnlCls),
+      tile("당일 자동 주문", `${escHtml(r.orders_today ?? 0)}건 <span class="font-normal" style="color:var(--text-mute)">/ 최대 ${escHtml(L.max_orders_per_day || "∞")}</span>`),
+      tile("종목 비중 한도", `${escHtml(L.max_position_pct || "∞")}%`),
+      tile("중복 주문 쿨다운", `${escHtml(L.cooldown_min || 0)}분`),
     ].join("");
     document.getElementById("risk-note").textContent = r.kill_switch
       ? `정지 사유: ${r.halt_reason || "수동 비상 정지"} — 해제 후 자동매매를 다시 시작할 수 있습니다.`
