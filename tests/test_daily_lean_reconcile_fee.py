@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from scripts.daily_lean_reconcile import judge_fee, pull_failure_text
 
 
@@ -69,3 +71,43 @@ def test_pull_failure_text_shows_stdout_too(): # 이슈 #377 — 예외 메시�
     both = pull_failure_text(SimpleNamespace(returncode=2, stderr="Traceback x", stdout="진행 중"))
     assert "[stderr] Traceback x" in both and "[stdout] 진행 중" in both
     assert "출력 없음" in pull_failure_text(SimpleNamespace(returncode=3, stderr=None, stdout=""))
+
+
+@pytest.mark.parametrize(
+    "case,lean_quantity,lean_cost,expected",
+    [
+        ("총액·요율 모두 일치", 10, 10, "일치"),
+        ("거래대금 동일·요율 불일치", 10, 20, "불일치"),
+        ("거래대금 불일치·요율 동일", 20, 20, "불일치"),
+        ("거래대금·요율 모두 불일치", 20, 10, "불일치"),
+    ],
+)
+def test_judge_fee_matrix_checks_cost_and_gross_independently(
+    case, lean_quantity, lean_cost, expected
+):
+    journal_rows = [{
+        "fills": [{
+            "fill_price": 100,
+            "qty_filled": 10,
+            "cost": {"total_cost": 10, "gross_amount": 1000},
+        }]
+    }]
+    lean_fills = [{
+        "quantity": lean_quantity,
+        "fill_price": 100,
+        "fee": lean_cost,
+    }]
+
+    result = judge_fee(
+        journal_rows,
+        {"Total Fees": f"₩{lean_cost:.2f}"},
+        lean_fills,
+    )
+
+    assert result["verdict"] == expected, case
+    assert result["j_gross"] == 1000
+    assert result["l_gross"] == lean_quantity * 100
+    assert result["j_cost"] == 10
+    assert result["l_cost"] == lean_cost
+    assert result["j_bp"] == 100
+    assert result["l_bp"] == lean_cost / (lean_quantity * 100) * 10000
