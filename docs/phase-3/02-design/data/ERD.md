@@ -1,15 +1,15 @@
-# ERD v1.16 — Qurious
+# ERD v1.17 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.16 · 0037 · 0038 반영 |
+| **판 · 상태** | v1.17 · 0044 반영 · 수집 DB 26표 · 앱 DB 64표 |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-11-02 (KST) |
+| **최종 수정** | 2026-11-06 (KST) |
 | **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.15 → v1.16: 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 |
+| **최근 개정** | v1.16 → v1.17: 알림 비밀 9칸이 `TEXT`(암호문) · 새 표 4(수집 `econ_release` · 앱 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`)를 코드에서 다시 채움 / v1.15 → v1.16: 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -148,7 +148,7 @@ flowchart LR
 아래 그림과 연결 축 표는 「수집 DB 의 표 열두 개는 무엇을 기본키로 삼고, 어느 칸으로 이어지나」 에 답한다. 스캐너 출력이라 제목에 번호가 없다(부록 B).
 
 <!-- schema_scan:erd-수집 -->
-**수집 DB — 시세 · 배당 · 지수 · 25표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
+**수집 DB — 시세 · 배당 · 지수 · 26표** 🟢 실측 · 범례: PK 기본키 · `_ 외N칸` 그리지 않은 칸 수 · 선이 없다 = 외래키를 선언하지 않는다
 
 ```mermaid
 erDiagram
@@ -205,6 +205,16 @@ erDiagram
     TEXT itms_nm
     TEXT report_nm
     _ 외11칸
+  }
+  econ_release {
+    TEXT source PK
+    TEXT release_date PK
+    TEXT title PK
+    TEXT release_time
+    TEXT tz
+    TEXT detail
+    TEXT source_url
+    _ 외1칸
   }
   ecos_series {
     TEXT stat_code PK
@@ -402,7 +412,7 @@ erDiagram
 | `rcept_no` (4표) | `corp_schedule`, `disclosure`, `financial_statement`, `financial_statement_full` |
 | `reprt_code` (3표) | `financial_full_check`, `financial_statement`, `financial_statement_full` |
 | `sj_div` (2표) | `financial_statement`, `financial_statement_full` |
-| `source` (2표) | `ingest_day`, `raw_response` |
+| `source` (3표) | `econ_release`, `ingest_day`, `raw_response` |
 | `srtn_cd` (6표) | `corporate_action`, `dividend`, `etf_daily`, `price_adjusted`, `price_daily`, `price_total_return` |
 | `symbol` (2표) | `intraday_universe`, `price_intraday` |
 <!-- /schema_scan:erd-수집 -->
@@ -593,7 +603,7 @@ collect_requests ──▶ collect_workers
 아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 60표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
-**앱 DB — 모의투자·주문·전략 · 36표 · 관계 36개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+**앱 DB — 모의투자·주문·전략 · 40표 · 관계 41개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
 
 ```mermaid
 erDiagram
@@ -638,6 +648,14 @@ erDiagram
     FLOAT total_equity
     _ 외4칸
   }
+  broker_cancel_requests {
+    UUID order_id PK
+    VARCHAR_20 status
+    INTEGER quantity
+    VARCHAR_20 cancel_order_no
+    DATETIME created_at
+    _ 외1칸
+  }
   broker_position_baselines {
     VARCHAR_64 account_ref PK
     VARCHAR_20 symbol PK
@@ -651,7 +669,7 @@ erDiagram
     TEXT app_key
     TEXT app_secret
     TEXT account_no
-    _ 외19칸
+    _ 외20칸
   }
   cashflow_events {
     UUID user_id FK
@@ -693,6 +711,12 @@ erDiagram
     VARCHAR_64 account_ref PK
     DATE day PK
     FLOAT equity
+  }
+  execution_risk_stops {
+    VARCHAR_64 position_key PK
+    UUID user_id FK
+    JSONB basis
+    DATETIME created_at
   }
   execution_runs {
     VARCHAR_64 run_id PK
@@ -775,7 +799,7 @@ erDiagram
     VARCHAR_100 name
     VARCHAR_10 order_type
     INTEGER quantity
-    _ 외21칸
+    _ 외22칸
   }
   paper_account_snapshots {
     UUID user_id FK
@@ -822,6 +846,15 @@ erDiagram
     DATETIME registered_at
     _ 외11칸
   }
+  paper_snapshot_price_audits {
+    UUID snapshot_id FK
+    UUID id PK
+    VARCHAR_16 asset_type
+    VARCHAR_64 symbol
+    VARCHAR_16 price_role
+    FLOAT used_price
+    _ 외11칸
+  }
   portfolio {
     UUID user_id FK
     UUID id PK
@@ -846,7 +879,7 @@ erDiagram
     BOOLEAN is_active
     JSONB targets
     VARCHAR_10 time_period
-    _ 외15칸
+    _ 외17칸
   }
   rebalance_runs {
     UUID user_id FK
@@ -856,6 +889,16 @@ erDiagram
     JSONB triggers
     VARCHAR_12 plan_kind
     _ 외11칸
+  }
+  rebalance_target_changes {
+    UUID user_id FK
+    UUID plan_id FK
+    UUID id PK
+    UUID policy_id
+    DATE data_as_of
+    JSONB before_targets
+    JSONB after_targets
+    _ 외2칸
   }
   signal_snapshots {
     DATE as_of PK
@@ -919,11 +962,13 @@ erDiagram
   users ||--o{ alternative_positions : "user_id"
   users ||--o{ backtest_accounts : "user_id"
   users ||--o{ backtest_snapshots : "user_id"
+  live_orders ||--o{ broker_cancel_requests : "order_id"
   users ||--o{ broker_settings : "user_id"
   users ||--o{ cashflow_events : "user_id"
   users ||--o{ crypto_holdings : "user_id"
   users ||--o{ crypto_orders : "user_id"
   users ||--o{ custom_indicators : "user_id"
+  users ||--o{ execution_risk_stops : "user_id"
   users ||--o{ execution_runs : "user_id"
   formula_indicators ||--o{ formula_indicator_results : "indicator_id"
   users ||--o{ formula_indicator_results : "user_id"
@@ -940,10 +985,13 @@ erDiagram
   paper_journal_versions ||--o{ paper_journal_days : "version_id"
   paper_journal_versions ||--o{ paper_journal_notes : "version_id"
   paper_journal_versions ||--o{ paper_journal_versions : "supersedes_id"
+  paper_account_snapshots ||--o{ paper_snapshot_price_audits : "snapshot_id"
   users ||--o{ portfolio : "user_id"
   users ||--o{ quant_virtual_accounts : "user_id"
   users ||--o{ rebalance_plans : "user_id"
   users ||--o{ rebalance_runs : "user_id"
+  users ||--o{ rebalance_target_changes : "user_id"
+  rebalance_plans ||--o{ rebalance_target_changes : "plan_id"
   users ||--o{ strategy_comparisons : "user_id"
   users ||--o{ strategy_decisions : "user_id"
   live_orders ||--o{ strategy_decisions : "client_order_id"
@@ -986,9 +1034,9 @@ erDiagram
     UUID user_id FK
     UUID id PK
     JSONB channels
-    VARCHAR_200 telegram_token
+    TEXT telegram_token
     VARCHAR_100 telegram_chat_id
-    VARCHAR_300 slack_webhook_url
+    TEXT slack_webhook_url
     _ 외17칸
   }
   task_ownership {
@@ -1198,22 +1246,6 @@ erDiagram
   users ||--o{ collect_requests : "requested_by"
   collect_requests ||--o{ collect_workers : "request_id"
 ```
-
-**앱 DB — 업무 영역 미정 · 1표 · 관계 1개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
-
-```mermaid
-erDiagram
-  execution_risk_stops {
-    VARCHAR_64 position_key PK
-    UUID user_id FK
-    JSONB basis
-    DATETIME created_at
-  }
-  users {
-    UUID id PK
-  }
-  users ||--o{ execution_risk_stops : "user_id"
-```
 <!-- /schema_scan:erd-앱 -->
 
 참조·캐시 영역의 다섯 표는 외래키가 없다 — 사용자와 상관없이 파일 적재나 외부 조회로 채워진다.
@@ -1381,6 +1413,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.17 | 2026-11-06 | 알림 비밀 9칸 `VARCHAR → TEXT`(암호문 `qnc1:` · CHECK 9개 · 마이그레이션 0044) · 수집 DB 새 표 `econ_release`(25 → 26표) · 앱 DB 새 표 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`(61 → 64표) · 새 칸 `broker_settings.quant_local_strategy` · `orders.fill_notice_pending` · `rebalance_plans.regime_config` · `regime_state` | 11-05 알림 비밀 암호화 구현과 팀원 표·칸이 ERD 에 안 올라가 있었다 | `schema_scan --doc --check` 통과 |
 | v1.16 | 2026-11-02 | 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 | 오준영 PR #477 | `schema_scan --doc` 다시 채움 |
 | v1.15 | 2026-11-01 | 알림 설정 표에 사용자별 디스코드 주소 칸 `notification_settings.discord_webhook_url`(외 16 → 17칸 · 마이그레이션 0036) · 스캐너 그림 다시 채움(앱 50 → 60표 · 관계 44 → 53 · 본문 숫자 · 표 속성 대장 10줄 더함) | 팀 테스트 디스코드를 공용 칸에 두고 개인 주소는 사용자별로 갖게 해 달라는 요청(11-01) · 문서가 코드보다 열 표 뒤처져 있던 것을 한 번에 맞춤(S183 이월) | `schema_scan --doc --check` 같음 · 표 속성 대장 빠진 표 0 |
 | v1.14 | 2026-11-01 | 알림 표 둘에 새 칸 — `notification_log.payload`(보고 원본 JSONB) · `notification_settings.preferences`(사건별 설정 JSONB · 외 15 → 16칸) · 마이그레이션 0035 | 보고식 알림 개편(S183) — 알림 이력에 보낸 보고 원본을 남기고, 사건별 켜기 · 조용히 · 끄기와 조용한 시간을 사용자별로 저장한다 | `app/models/misc.py` · `alembic/versions/0035_notification_prefs.py` · 일회용 DB 에서 올림 · 내림 · 올림 확인 · **스캐너로 통째로 다시 채우지는 않았다**(ERD 가 모델보다 앱 10표 뒤처져 있음 — 이월) |
