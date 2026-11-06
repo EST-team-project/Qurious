@@ -229,7 +229,7 @@ const cards = (data, esc) => data.groups.map(g => `<div data-cv-sector="${esc(g.
 const msg = (t, c) => `<div data-msg="${c || ""}">${escHtml(t)}</div>`;
 const sector = () => createSectorPanel({ barHost: "co-sector-bar", cardsHost: "co-sector-cards", noteHost: "co-sector-note", searchId: "co-sector-q",
   load: () => api("/api/data/indicators/sectors"), renderCards: cards, renderNote: (d, esc) => `<p>${esc(d.notice)}</p>`, message: msg,
-  loadingText: "계산하는 중…", meaning: "서버에서 다시 읽었습니다", tail: "서버가 5분 안에 만든 업종 묶음은 그대로 돌려줍니다" },
+  loadingText: "계산하는 중…", loadingNote: "처음 계산하는 중입니다", meaning: "서버에서 다시 읽었습니다", tail: "서버가 5분 안에 만든 업종 묶음은 그대로 돌려줍니다" },
   { esc: escHtml, byId, now: () => new Date("2026-11-05T03:07:00Z") });
 const order = () => [...byId("co-sector-cards").innerHTML.matchAll(/data-cv-sector="(\\d+)"/g)].map(m => m[1]);
 """
@@ -244,6 +244,8 @@ def test_sector_search_sort_refresh():
       const p = sector();
       const loading = p.load();
       out.loadingText = byId("co-sector-cards").innerHTML.includes("계산하는 중…");
+      out.firstNote = byId("co-sector-bar").innerHTML.includes("처음 계산하는 중입니다");
+      const callsBefore = calls.length; clickRefresh("co-sector-bar"); out.dupCalls = calls.length - callsBefore;   // 첫 계산 중 새로고침은 같은 계산을 또 부르지 않는다
       await loading;
       out.server = order();
       out.noteHost = byId("co-sector-note").innerHTML;
@@ -294,6 +296,7 @@ def test_sector_search_sort_refresh():
       out.empty = { cards: byId("co-sector-cards").innerHTML };
     """, {"sector": SECTOR}, SECTOR_PRELUDE)
     assert got["loadingText"] is True
+    assert got["firstNote"] is True and got["dupCalls"] == 0, "첫 계산 중에는 안내 글이 보이고 새로고침이 두 번째 요청을 만들지 않는다 (TC-LBM-03b)"
     assert got["server"] == ["26", "64", "21", "10"]
     assert "<p>n</p>" in got["noteHost"]
     v = got["view"]
