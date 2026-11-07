@@ -1457,7 +1457,7 @@ function _ensureBacktestCard() {
     </div>
     <p class="text-xs mb-2" style="color:var(--text-mute);line-height:1.5;">
       <b>auto_trade.py</b> 의 실시간 신호 함수(RSI·이평·볼린저)를 <b>그대로 재생</b>합니다. 실제 과거 시세·그날의 수수료·세율로 장부를 정산하며, 완료 후 QFRS 지표가 100일치로 계산됩니다.<br>
-      <span style="color:#d97706;">⚠️ 실행 시 백테스트 전용 계좌의 SIM 주문·보유 종목·일별 스냅샷이 초기화되고, 백테스트 현금은 1억 원으로 복구됩니다(회차 +1). 일반 모의투자·직접매매·자동매매 및 코인·대체자산 데이터는 유지됩니다.</span>
+      <span style="color:#d97706;">⚠️ 실행 시 백테스트 전용 계좌의 SIM 주문·보유 종목·일별 스냅샷이 초기화되고, 백테스트 현금은 1억 원으로 복구됩니다. 일반 모의투자·직접매매·자동매매 및 코인·대체자산 데이터는 유지됩니다.</span>
     </p>
     <div class="flex gap-2 mb-2">
       <button type="button" class="btn-secondary text-xs" id="pd-backtest-generate">생성 (2~5분)</button>
@@ -1492,7 +1492,7 @@ async function _startBacktest() {
     '100일 백테스트를 시작합니다.\n\n' +
     '· auto_trade.py 의 실시간 신호 로직을 그대로 재생합니다.\n' +
     '· 기존 백테스트 전용 SIM 주문·보유 종목·일별 스냅샷을 새 백테스트 데이터로 대체합니다.\n' +
-    '· 백테스트 전용 계좌의 현금은 1억 원으로 초기화됩니다(회차 +1).\n' +
+    '· 백테스트 전용 계좌의 현금은 1억 원으로 초기화됩니다.\n' +
     '· 일반 모의투자·직접매매·자동매매 및 코인·대체자산 데이터는 유지됩니다.\n' +
     '· 2~5분 소요. 되돌릴 수 없습니다.\n\n' +
     '계속할까요?'
