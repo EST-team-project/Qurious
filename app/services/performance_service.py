@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import math
 import uuid
+from datetime import timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +35,12 @@ def _clean(v):
         return None
     return f
 
+
+# 성과 화면 공통 표본 정책. QFRS와 테스트베드 위험지표가 같은 최소 기준을 사용한다.
+MIN_METRIC_OBSERVATIONS = 21
+MIN_DAILY_STD_DEV = 0.005
+RISK_PERIOD_OBSERVATIONS = {"1m": 21, "3m": 63, "6m": 126, "1y": 252}
+RETURN_BASIS = "modified_dietz_external_cashflows_excluded"
 
 def _nan_metrics() -> dict[str, float | None]:
     """데이터 부족 시 반환할 빈 지표."""
@@ -99,13 +107,10 @@ async def get_robo_metrics(
     )
 
     # 이상값 방지 — 기록 부족 · 변동성 극소면 지표를 숨긴다 (이슈 #220)
-    MIN_SNAPSHOTS = 20          # 최소 20일 (약 한 달)
-    MIN_STD_DEV = 0.005         # 일간 표준편차 0.5% 이상
-
     n = len(returns)
     std_dev_daily = float(np.std(returns, ddof=1)) if n >= 2 else 0.0
-    too_short = n < MIN_SNAPSHOTS
-    too_flat = std_dev_daily < MIN_STD_DEV
+    too_short = n < MIN_METRIC_OBSERVATIONS
+    too_flat = std_dev_daily < MIN_DAILY_STD_DEV
 
     def _safe(v, cap=100.0):
         """극단값은 None — |v| > cap 이면 뜻이 없음."""
@@ -166,19 +171,32 @@ async def get_robo_metrics(
 # 코스콤 테스트베드 스타일 — 운용 정보 API
 # ═══════════════════════════════════════════════════════════
 
-BENCHMARK_SYMBOL = "^KS11"   # KOSPI
-_RF = 0.02
+BENCHMARK_SYMBOL = "^KS11"   # Qurious 내부 참고용 KOSPI 가격지수
+BENCHMARK_NAME = "KOSPI"
+_RF = 0.02                  # Qurious 내부 고정 가정. 코스콤 공식 무위험수익률이 아님.
 _PPY = 252
+BENCHMARK_NOTE = (
+    "Qurious 내부 참고지수는 KOSPI 가격지수(^KS11)입니다. "
+    "해외주식·코인·대체자산 비중이 큰 계좌에는 적합한 비교 기준이 아닐 수 있습니다. "
+    "배당을 반영하는 총수익지수가 아닌 가격지수이며, 코스콤 테스트베드의 공식 벤치마크와 동일하다고 확인된 값이 아닙니다."
+)
+RISK_FREE_RATE_NOTE = (
+    "무위험수익률은 시장금리에 연동하지 않는 Qurious 내부 연 2.0% 고정 가정이며, "
+    "코스콤 테스트베드의 공식 적용률이 아닙니다."
+)
+STATISTICAL_INFERENCE_NOTE = (
+    "젠센 알파와 정보비율은 표본에서 계산한 기술통계 추정치입니다. "
+    "표준오차·t값·통계적 유의성 검정은 제공하지 않으므로 단독으로 확정적 성과로 해석하지 마세요."
+)
 
 
-def _norm_date(c: dict) -> str | None:
-    """캔들 항목에서 ISO 날짜 문자열(YYYY-MM-DD) 뽑기 — 필드명·형식 방어.
+def _norm_date(c: dict, *, timestamp_timezone=timezone.utc) -> str | None:
+    """캔들 항목에서 거래일(YYYY-MM-DD)을 읽는다.
 
-    - 문자열: ISO 앞 10자
-    - datetime/date: isoformat 앞 10자
-    - int/float: 유닉스 타임스탬프(초) → UTC 날짜 (KOSPI 일봉은 UTC 자정 기준)
+    Yahoo 및 수집 DB의 일봉 epoch는 UTC 날짜로 정규화한다. KIS gateway는
+    거래일 00:00 KST를 epoch로 반환하므로 source에 따라 시간대를 명시한다.
+    명시적 date/datetime 문자열은 제공자가 붙인 거래일을 우선한다.
     """
-    # 1) 문자열/날짜 객체 필드 먼저
     for key in ("date", "datetime", "d"):
         v = c.get(key)
         if v is None:
@@ -188,7 +206,6 @@ def _norm_date(c: dict) -> str | None:
         if hasattr(v, "isoformat"):
             return v.isoformat()[:10]
 
-    # 2) 유닉스 타임스탬프 (time / t / timestamp)
     for key in ("time", "t", "timestamp"):
         v = c.get(key)
         if v is None:
@@ -197,36 +214,37 @@ def _norm_date(c: dict) -> str | None:
             ts = float(v)
         except (TypeError, ValueError):
             continue
-        # 밀리초 단위면 초로 환산
         if ts > 10_000_000_000:
             ts /= 1000.0
-        from datetime import datetime, timezone
-        return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
-
+        from datetime import datetime
+        return datetime.fromtimestamp(ts, tz=timestamp_timezone).date().isoformat()
     return None
 
 
-async def _get_benchmark_map() -> tuple[list[str], np.ndarray]:
-    """KOSPI 종가에서 (날짜[], 수익률[]) — 날짜는 두 번째 날부터 (수익률과 1:1).
+def _candle_timestamp_timezone(source: str | None):
+    """epoch 날짜 해석에 사용할 시세 공급자 시간대."""
+    if str(source or "").strip().lower() == "kis":
+        return ZoneInfo("Asia/Seoul")
+    return timezone.utc
 
-    이슈 #88 지적 #10 — 이전에는 끝에서 N개 잘라 순서로 짝지어
-    계좌 스냅샷이 띄엄띄엄하면 다른 날 KOSPI 수익률과 짝이 됐다.
-    이제 날짜를 함께 돌려주고 호출부에서 **날짜 교집합**으로 맞춘다.
-    """
+
+async def _get_benchmark_map() -> tuple[list[str], np.ndarray]:
+    """KOSPI 종가에서 날짜별 일수익률을 만든다."""
     from app.services.stock import get_candles
     try:
         data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
+        timestamp_timezone = _candle_timestamp_timezone(data.get("source"))
         rows = []
         for c in data.get("candles", []):
             if not c.get("close"):
                 continue
-            d = _norm_date(c)
+            d = _norm_date(c, timestamp_timezone=timestamp_timezone)
             if d:
                 rows.append((d, float(c["close"])))
         if len(rows) < 2:
             return [], np.array([])
-        rows.sort(key=lambda r: r[0])           # 날짜 오름차순 보장
-        dates = [r[0] for r in rows[1:]]         # 수익률은 두 번째 날부터
+        rows.sort(key=lambda r: r[0])
+        dates = [r[0] for r in rows[1:]]
         closes = np.array([r[1] for r in rows], dtype=float)
         rets = closes[1:] / closes[:-1] - 1
         return dates, rets
@@ -235,97 +253,202 @@ async def _get_benchmark_map() -> tuple[list[str], np.ndarray]:
 
 
 async def get_returns_table(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
-    """기간별 수익률 (1m/3m/6m/1y/누적)."""
+    """기간별 수익률. 각 기간은 달력 월이 아니라 공통 일수익률 관측치 기준이다."""
     returns, equity = await get_daily_returns(db, user_id)
     if len(equity) < 2 or len(returns) < 1:
-        return {"status": "insufficient_data", "snapshot_count": len(equity),
-                "return_observation_count": len(returns),
-                "return_basis": "modified_dietz_external_cashflows_excluded"}
+        return {
+            "status": "insufficient_data",
+            "snapshot_count": len(equity),
+            "return_observation_count": len(returns),
+            "period_observations": {
+                key: {
+                    "available": len(returns),
+                    "required": days,
+                    "status": "insufficient_data",
+                }
+                for key, days in RISK_PERIOD_OBSERVATIONS.items()
+            },
+            "return_basis": RETURN_BASIS,
+        }
 
     def pr(days: int) -> float | None:
         if len(returns) < days:
             return None
         return float(np.prod(1.0 + returns[-days:]) - 1.0)
 
+    period_observations = {
+        key: {
+            "available": min(len(returns), days),
+            "required": days,
+            "status": "ok" if len(returns) >= days else "insufficient_data",
+        }
+        for key, days in RISK_PERIOD_OBSERVATIONS.items()
+    }
     return {
         "status": "ok",
-        "return_1m": _clean(pr(21)),
-        "return_3m": _clean(pr(63)),
-        "return_6m": _clean(pr(126)),
-        "return_1y": _clean(pr(252)),
+        "return_1m": _clean(pr(RISK_PERIOD_OBSERVATIONS["1m"])),
+        "return_3m": _clean(pr(RISK_PERIOD_OBSERVATIONS["3m"])),
+        "return_6m": _clean(pr(RISK_PERIOD_OBSERVATIONS["6m"])),
+        "return_1y": _clean(pr(RISK_PERIOD_OBSERVATIONS["1y"])),
         "return_cumulative": _clean(float(np.prod(1.0 + returns) - 1.0)),
         "snapshot_count": len(equity),
         "return_observation_count": len(returns),
-        "return_basis": "modified_dietz_external_cashflows_excluded",
+        "period_observations": period_observations,
+        "period_basis": "common_daily_return_observations",
+        "period_note": (
+            "1개월=21개, 3개월=63개, 6개월=126개, 1년=252개 일수익률 관측치입니다. "
+            "결측 거래일이 있으면 달력 기간은 더 길어질 수 있습니다."
+        ),
+        "return_basis": RETURN_BASIS,
     }
 
 
 async def get_risk_metrics(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
-    """위험지표 (KOSPI 대비): 표준편차·베타·샤프·젠센알파·트래킹에러·정보비율.
-
-    이슈 #88 지적 #10 — 계좌와 KOSPI 를 **날짜 교집합**으로 짝짓는다.
-    """
-    dates, returns, equity = await get_daily_returns(db, user_id, with_dates=True)
-    if len(returns) < 5:
-        return {"status": "insufficient_data", "snapshot_count": len(equity),
-                "return_basis": "modified_dietz_external_cashflows_excluded"}
-
-    bench_dates, bench_all = await _get_benchmark_map()
-    if len(bench_dates) < 5:
-        return {"status": "insufficient_data", "reason": "벤치마크 없음"}
-
-    bench_map = {d: bench_all[i] for i, d in enumerate(bench_dates) if i < len(bench_all)}
-
-    # ── 날짜 교집합 ──
-    common = [d for d in dates if d in bench_map]
-    if len(common) < 5:
+    """Qurious 내부 KOSPI 참고지수 대비 위험지표. 각 기간의 전체 표본을 요구한다."""
+    dates, account_returns, equity = await get_daily_returns(
+        db, user_id, with_dates=True
+    )
+    base = {
+        "benchmark": "KOSPI",
+        "benchmark_symbol": BENCHMARK_SYMBOL,
+        "benchmark_type": "price_index",
+        "benchmark_note": BENCHMARK_NOTE,
+        "risk_free_rate_annual": _RF,
+        "risk_free_rate_note": RISK_FREE_RATE_NOTE,
+        "period_basis": "common_daily_return_observations",
+        "period_observations_required": dict(RISK_PERIOD_OBSERVATIONS),
+        "inference_available": False,
+        "inference_note": STATISTICAL_INFERENCE_NOTE,
+        "return_basis": RETURN_BASIS,
+    }
+    if len(account_returns) == 0:
         return {
+            **base,
             "status": "insufficient_data",
-            "reason": f"공통 거래일 부족 ({len(common)}일)",
+            "snapshot_count": len(equity),
+            "common_days": 0,
+            "reason": "계산 가능한 일수익률이 없습니다.",
         }
 
-    idx = {d: i for i, d in enumerate(dates)}
-    returns = np.array([returns[idx[d]] for d in common], dtype=float)
-    bench = np.array([bench_map[d] for d in common], dtype=float)
+    bench_dates, bench_all = await _get_benchmark_map()
+    if len(bench_dates) < 2:
+        return {
+            **base,
+            "status": "insufficient_data",
+            "snapshot_count": len(equity),
+            "common_days": 0,
+            "reason": "벤치마크 데이터가 부족합니다.",
+        }
 
-    def mf(window: int) -> dict[str, float | None]:
-        keys = ("std_dev", "beta", "sharpe", "jensen_alpha", "tracking_error", "information_ratio")
-        r = returns[-window:] if len(returns) >= window else returns
-        b = bench[-window:] if len(bench) >= window else bench
-        n = min(len(r), len(b))
-        if n < 5:
-            return {k: None for k in keys}
-        r, b = r[-n:], b[-n:]
+    bench_map = {
+        d: float(bench_all[i])
+        for i, d in enumerate(bench_dates)
+        if i < len(bench_all)
+    }
+    account_map = {
+        d: float(account_returns[i])
+        for i, d in enumerate(dates)
+        if i < len(account_returns)
+    }
+    common = [d for d in dates if d in bench_map and d in account_map]
+    if not common:
+        return {
+            **base,
+            "status": "insufficient_data",
+            "snapshot_count": len(equity),
+            "common_days": 0,
+            "reason": "계좌와 벤치마크의 공통 거래일이 없습니다.",
+        }
 
-        std_dev = float(np.std(r, ddof=1)) * np.sqrt(_PPY)
+    returns = np.asarray([account_map[d] for d in common], dtype=float)
+    bench = np.asarray([bench_map[d] for d in common], dtype=float)
+    metric_keys = (
+        "std_dev", "beta", "sharpe", "jensen_alpha",
+        "tracking_error", "information_ratio",
+    )
+
+    def empty_period(n: int, required: int, reason: str) -> dict[str, Any]:
+        return {
+            **{key: None for key in metric_keys},
+            "status": "insufficient_data",
+            "sample_count": n,
+            "required_observations": required,
+            "reason": reason,
+        }
+
+    def mf(period_key: str, window: int) -> dict[str, Any]:
+        n = len(returns)
+        if n < window:
+            return empty_period(
+                n, window,
+                f"이 기간은 공통 일수익률 {window}개가 필요하지만 현재 {n}개입니다.",
+            )
+
+        r = returns[-window:]
+        b = bench[-window:]
+        std_daily = float(np.std(r, ddof=1))
+        if window < MIN_METRIC_OBSERVATIONS:
+            return empty_period(
+                window, window,
+                f"최소 관측치 {MIN_METRIC_OBSERVATIONS}개 미만입니다.",
+            )
+        if not np.isfinite(std_daily) or std_daily < MIN_DAILY_STD_DEV:
+            return empty_period(
+                window, window,
+                f"일간 표준편차가 최소 기준 {MIN_DAILY_STD_DEV * 100:.2f}%보다 낮아 지표를 숨깁니다.",
+            )
+
+        std_dev = std_daily * np.sqrt(_PPY)
         var_b = float(np.var(b, ddof=1))
-        cov = float(np.cov(r, b, ddof=1)[0, 1]) if var_b > 0 else 0.0
-        beta = cov / var_b if var_b > 0 else 0.0
-        sharpe = float((np.mean(r) * _PPY - _RF) / std_dev) if std_dev > 0 else None
+        if not np.isfinite(var_b) or var_b <= np.finfo(float).eps:
+            beta = None
+            alpha = None
+        else:
+            cov = float(np.cov(r, b, ddof=1)[0, 1])
+            beta = cov / var_b
+            r_ann = float(np.mean(r) * _PPY)
+            b_ann = float(np.mean(b) * _PPY)
+            alpha = r_ann - (_RF + beta * (b_ann - _RF))
 
-        r_ann = float(np.mean(r) * _PPY)
-        b_ann = float(np.mean(b) * _PPY)
-        alpha = r_ann - (_RF + beta * (b_ann - _RF))
+        sharpe = float((np.mean(r) * _PPY - _RF) / std_dev) if std_dev > 0 else None
         diff = r - b
         te = float(np.std(diff, ddof=1)) * np.sqrt(_PPY)
-        ir = (r_ann - b_ann) / te if te > 0 else None
+        ir = (float(np.mean(diff)) * _PPY) / te if te > 0 else None
 
         return {
+            "status": "ok",
+            "sample_count": window,
+            "required_observations": window,
+            "sample_quality": "short_window" if window < 63 else "window_estimate",
             "std_dev": _clean(std_dev),
             "beta": _clean(beta),
             "sharpe": _clean(sharpe),
             "jensen_alpha": _clean(alpha),
             "tracking_error": _clean(te),
             "information_ratio": _clean(ir),
+            "beta_reason": (
+                "벤치마크 수익률 분산이 0에 가까워 베타와 젠센 알파를 계산할 수 없습니다."
+                if beta is None else None
+            ),
         }
 
-    return {
-        "status": "ok",
-        "benchmark": "KOSPI",
-        "common_days": len(common),
-        "1m": mf(21), "3m": mf(63), "6m": mf(126), "1y": mf(252),
+    periods = {
+        key: mf(key, days)
+        for key, days in RISK_PERIOD_OBSERVATIONS.items()
     }
-
+    return {
+        **base,
+        "status": "ok",
+        "snapshot_count": len(equity),
+        "common_days": len(common),
+        "sample_note": (
+            "위험지표는 기간별 전체 공통 관측치가 확보된 경우에만 표시합니다. "
+            "각 기간은 21/63/126/252개 일수익률 기준이며, 미달 기간은 계산하지 않습니다. "
+            "특히 21개 관측은 짧은 표본이어서 추정값 변동이 클 수 있습니다. "
+            "알파·정보비율은 추정치로 표준오차와 t검정을 제공하지 않습니다."
+        ),
+        **periods,
+    }
 
 async def get_turnover(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
     """
@@ -416,13 +539,13 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
     # 실제 총자산은 입출금이 섞이므로, 현금흐름 보정된 일간 성과를 복리 연결한다.
     our_dates, returns, _ = await get_daily_returns(db, user_id, with_dates=True)
     if len(returns) < 1:
-        return {"status": "insufficient_data",
-                "return_basis": "modified_dietz_external_cashflows_excluded"}
+        return {"status": "insufficient_data", "return_basis": RETURN_BASIS}
     performance_index = np.cumprod(1.0 + returns) * 100.0
     our_map = {day: float(value) for day, value in zip(our_dates, performance_index)}
 
     try:
         bench_data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
+        timestamp_timezone = _candle_timestamp_timezone(bench_data.get("source"))
         bench_map: dict[str, float] = {}
         for c in bench_data.get("candles", []):
             if not c.get("close"):
@@ -450,4 +573,6 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
         "our_series": norm_our,
         "benchmark_series": norm_bench,
         "benchmark_name": "KOSPI",
+        "benchmark_symbol": BENCHMARK_SYMBOL,
+        "benchmark_note": BENCHMARK_NOTE,
     }
