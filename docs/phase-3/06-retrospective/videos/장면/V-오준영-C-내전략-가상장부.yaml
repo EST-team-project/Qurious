@@ -1,0 +1,62 @@
+# [사용법] 내 전략 카드를 가상 장부로 실행하는 설정 보기 (천천히 · 하나씩 설명)
+# 화면: 내 계정 › 증권사 연동 구역(mypage) · 자동매매 현황(quant-auto) · 담당 오준영
+# 선행 조건: 시연 계정에 실행 가능한 「내 전략」 카드가 1장 있어야 한다(신장환 ① 이 카드를 저장해야 함 — 이 장면은 저장하지 않는다). 카드가 없으면 `#quant-strategy-hint` 대기 단계에서 멈춘다.
+# 비밀값: 같은 카드 안의 App Key · App Secret · 계좌번호 칸(#broker-credentials-wrap)은 hide 로 통째로 감춘다(화면에 나오지 않음). 내 이메일(#mp-email) · 실주문 현황(#quant-live-orders)은 흐리게.
+# 누르지 않는 것: 저장 / 연결 · 연결 테스트 · ▶ 자동매매 시작 · ■ 중지 · 비상 정지 · 비상 정지 해제(위치만 가리키고 누르지 않는다).
+# 한계: 시연 계정에는 자동매매 실행 기록이 없어 「주문 없음」 로그 · 막힌 사유 줄은 보이지 않는다.
+# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작을 바로 뒤에 둔다.
+file: V-오준영-C-내전략-가상장부
+title: 내 전략 카드를 가상 장부로 실행하는 설정 보기
+owner: 오준영
+pace: 0.8
+start: mypage
+hide: ["#broker-credentials-wrap", "#broker-managed"]
+mask: ["#mp-email", "#quant-live-orders"]
+steps:
+  - chapter: {label: "1 / 3 · 무엇을 하나요", title: "내 전략을 앱 안 가상 장부로 돌립니다", text: "전략 카드를 증권사 계좌가 아니라 앱 안 가상 장부에서 실행합니다. 주문 앞뒤로 위험 한도를 검사하며, 설정을 고르기만 하고 자동매매는 시작하지 않습니다", sec: 7.0}
+  - wait: {target: "[data-mp-go='broker']", timeout: 60}
+  - say: "내 계정 화면에서 증권사 연동 구역을 엽니다"
+  - ring: {target: "[data-mp-go='broker']", sec: 2.5}
+  - click: "[data-mp-go='broker']"
+  - wait: {target: "#quant-mode", timeout: 30}
+  - pause: 2.0
+  - say: "자동매매 주문 방식은 앱 안 가상매매입니다. 증권사 주문 환경이 확인되기 전에는 다른 방식을 고를 수 없습니다"
+  - scroll: {target: "#quant-mode", block: "center"}
+  - ring: {target: "#quant-mode", sec: 3.0}
+  - pause: 4.0
+  - say: "바로 아래 안내가 말하듯 앱 가상 장부에서 체결하고 증권사 계좌로 주문을 보내지 않습니다"
+  - ring: {target: "#quant-live-route", sec: 3.0}
+  - pause: 5.0
+  - chapter: {label: "2 / 3 · 전략 고르기", title: "내 전략 카드를 고릅니다", text: "고르기만 하며 저장 단추는 누르지 않습니다", sec: 4.0}
+  - say: "실행할 전략 칸에 기본 규칙과 내가 만든 전략 카드가 함께 나옵니다. 카드를 고릅니다"
+  - ring: {target: "#quant-strategy", sec: 3.0}
+  - js: "(() => { const s = document.getElementById('quant-strategy'); const o = [...s.options].find(x => x.dataset.cardId && !x.disabled); if (o) { s.value = o.value; s.dispatchEvent(new Event('change')); } })()"
+  - wait: {target: "#quant-strategy-hint:has-text('내 전략은 QUANT 가상계좌 전용')", timeout: 5}
+  - pause: 2.0
+  - say: "고르면 안내가 바뀝니다. 가상계좌 전용이며 합격 판정이 아니라는 말이 먼저 나옵니다"
+  - ring: {target: "#quant-strategy-hint", sec: 3.0}
+  - pause: 6.0
+  - chapter: {label: "3 / 3 · 주문 앞뒤 검사", title: "한도를 먼저 보고, 결과를 나중에 봅니다", text: "일손실 · 종목 비중 · 하루 주문 수 · 쿨다운은 주문 앞에서 검사하는 기준이고, 마지막 결과는 실행 뒤의 기록입니다", sec: 6.0}
+  - say: "주문 앞 검사 기준입니다. 일손실 한도를 넘으면 비상 정지로 이어지고, 종목당 최대 비중이 한 종목 쏠림을 막습니다"
+  - scroll: {target: "#risk-daily-loss", block: "center"}
+  - ring: {target: "#risk-daily-loss", sec: 2.5}
+  - ring: {target: "#risk-max-position", sec: 2.5}
+  - pause: 3.0
+  - say: "하루 최대 주문 수와 중복 주문 방지 쿨다운은 같은 종목 · 같은 방향 재주문을 막습니다"
+  - ring: {target: "#risk-max-orders", sec: 2.5}
+  - ring: {target: "#risk-cooldown", sec: 2.5}
+  - pause: 4.0
+  - say: "실행 뒤에는 마지막 결과 줄에 체결 건수와 위험관리로 건너뛴 건수, 쓴 전략이 남습니다"
+  - scroll: {target: "#quant-cycle-status", block: "center"}
+  - ring: {target: "#quant-cycle-status", sec: 3.0}
+  - pause: 6.0
+  - go: quant-auto
+  - wait: {target: "#risk-kpis", timeout: 30}
+  - say: "자동매매 화면의 위험관리 상태 칸에는 비상 정지 상태와 오늘 자동 주문 수, 종목 비중 한도, 쿨다운이 모여 있습니다"
+  - ring: {target: "#risk-kpis", sec: 3.0}
+  - pause: 7.0
+  - say: "비상 정지와 자동매매 시작은 이 영상에서 누르지 않습니다. 눌러야 하는 때에는 이 두 단추가 위치입니다"
+  - ring: {target: "#auto-start", sec: 2.5}
+  - ring: {target: "#risk-kill-on", sec: 2.5}
+  - pause: 5.0
+  - chapter: {label: "정리", title: "가상 장부에서 돌리고 한도로 막습니다", text: "내 전략은 합격 판정 없이 가상 장부에서만 실행되고, 가상 체결 결과는 증권사 주문 결과와 다를 수 있습니다", sec: 6.0}
