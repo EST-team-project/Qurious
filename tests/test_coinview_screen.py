@@ -176,3 +176,52 @@ def test_screen_wires_live_connection_safely():
     assert "pcSeries.update(pcLastPoint)" not in PAPER and "series.setData(pts)" not in PAPER[PAPER.index("async function pcDrawChart"):PAPER.index("// ── 코인 실시간")]
     comp = (ROOT / "public" / "js" / "company.js").read_text(encoding="utf-8")
     assert "series.setData(pts)" not in comp and comp.index("coLastTime = pts[pts.length - 1].time;") < comp.index("series.setData(pts.map(")
+
+
+def test_crypto_order_price_requires_fresh_exchange_and_cache(monkeypatch):
+    """주문 가격은 캐시 수신 시각과 업비트 체결 시각 모두 30초 이내여야 한다."""
+    import asyncio
+    import pytest
+    from datetime import datetime, timedelta, timezone
+    from app.services import paper_trading as pt
+
+    fixed_now = datetime(2026, 11, 9, 0, 0, tzinfo=timezone.utc)
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_now if tz is None else fixed_now.astimezone(tz)
+
+    monkeypatch.setattr(pt, "datetime", FrozenDateTime)
+
+    def install_quote(cache_age, quote_age):
+        async def fake_tickers(codes, *, include_price_audits=False):
+            assert codes == ["KRW-BTC"]
+            assert include_price_audits is True
+            as_of = (
+                (fixed_now - timedelta(seconds=quote_age)).isoformat()
+                if quote_age is not None else None
+            )
+            return [{
+                "market": "KRW-BTC",
+                "price": 100.0,
+                "as_of": as_of,
+                "_price_audit": {"cache_age_sec": cache_age},
+            }]
+        monkeypatch.setattr(pt, "upbit_tickers", fake_tickers)
+
+    for cache_age, quote_age in ((0, 0), (30, 30)):
+        install_quote(cache_age, quote_age)
+        assert asyncio.run(pt.upbit_trade_price("KRW-BTC")) == 100.0
+
+    for cache_age, quote_age in (
+        (31, 0),
+        (0, 31),
+        (None, 0),
+        (0, None),
+        (-1, 0),
+        (0, -1),
+    ):
+        install_quote(cache_age, quote_age)
+        with pytest.raises(pt.PaperTradeError):
+            asyncio.run(pt.upbit_trade_price("KRW-BTC"))
