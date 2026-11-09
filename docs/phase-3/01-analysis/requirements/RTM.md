@@ -373,9 +373,9 @@ flowchart LR
 | `P01-③-1` | 설계서 4.3절 | STK-09 · PAPR-01 (새 2) | 🟢 TC-RBS 13 · 🟡 TC-RB 13 · TC-RBP 38 · TC-RBD 39 · TC-RBC 16 · TC-RBU 15 · TC-RBX 13 · TC-SDS 24 · TC-HFF 45 · TC-RB-RND 8 · TC-RB-META 10 · TC-RB-REGIME 17 · 안 TC-RB | 시험 | 있음 35파일 | 시험 있음 |
 | `P01-③-2` | 설계서 4.3절 | STK-09 · PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 16파일 | 시험 있음 |
 | `P01-③-3` | 설계서 4.3절 | PAPR-01 (새 1) | 🟢 TC-RBP 38 · 안 TC-RB | 시험 | 있음 36파일 | 시험 있음 |
-| `P01-④-1` | 설계서 4.4절 · 설계서 3절 C3 · C4 | STK-30 · QNT-02~03 · PAPR-05 · ML-01~02 · 05~06 | 🟢 TC-BC 17 · 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 86파일 | 시험 있음 |
+| `P01-④-1` | 설계서 4.4절 · 설계서 3절 C3 · C4 | STK-30 · QNT-02~03 · PAPR-05 · ML-01~02 · 05~06 | 🟢 TC-BC 17 · 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 87파일 | 시험 있음 |
 | `P01-④-2` | 설계서 4.4절 | STK-26 · 29 | 🟢 TC-SP 6 · 🟡 TC-SR 12 · TC-OP 14 · 안 TC-OP | 시험 | 있음 8파일 | 시험 있음 |
-| `P01-④-3` | 설계서 4.4절 · ADR-0001 · 설계서 3절 C5 | PAPR-01~08 · 10 · STK-10~13 · 24 · 27 (새 1) | 🟢 TC-I14 12 · TC-USO 25 · TC-PJ 20 · 🟡 TC-LT 32 · TC-USR 28 · TC-USS 16 · TC-QUOT 12 · TC-MOV 14 · TC-PRS 1 · TC-PST 4 · TC-PSF 21 · TC-SNI 12 · TC-TOS 5 | 시험 | 있음 27파일 | 시험 있음 |
+| `P01-④-3` | 설계서 4.4절 · ADR-0001 · 설계서 3절 C5 | PAPR-01~08 · 10 · STK-10~13 · 24 · 27 (새 1) | 🟢 TC-I14 12 · TC-USO 25 · TC-PJ 20 · 🟡 TC-LT 32 · TC-USR 28 · TC-USS 16 · TC-QUOT 12 · TC-MOV 14 · TC-PRS 1 · TC-PST 4 · TC-PSF 21 · TC-SNI 12 · TC-TOS 5 | 시험 | 있음 28파일 | 시험 있음 |
 | **원문 PROJECT 02 투자 인디케이터 (3차)** | | | | | | |
 | `P02-①-1` | 설계서 5.1절 · 설계서 3절 C2 | STK-04 · LEAN-02 | 🟡 TC-LA 46 · TC-IN 29 · TC-ICH 5 · 안 TC-IN | 시험 | 있음 43파일 | 시험 일부 |
 | `P02-①-2` | 설계서 5.1절 · 인디케이터 전략 설계서 4.3 | STK-30 · 32 | 🟡 TC-BC 17 · TC-SP 6 · TC-CRD 13 · TC-ISC 6 · TC-SCU 12 · TC-BSZ 8 · TC-LSY 14 · TC-SV2 37 · 안 TC-CRD | 시험 | 있음 48파일 | 시험 일부 |
@@ -385,13 +385,13 @@ flowchart LR
 | `P02-②-3` | 설계서 5.2절 | STK-31~33 · OAPI-01~02 · 09 · PAPR-28~30 (새 1) | 🟡 TC-VR 10 · 안 TC-VR | 시험 | 있음 15파일 | 시험 일부 |
 | `P02-③-1` | 설계서 5.3절 | PAPR-09 (새 1) | 🟡 TC-FM 14 · TC-PN 33 · TC-PE 3 · TC-SCA 5 · TC-PCD 5 · TC-SC-IMG 3 · 안 TC-PN | 시연 · 시험 | 있음 26파일 | 시험 일부 |
 | `P02-③-2` | 설계서 5.3절 | LEAN-01~03 (새 1) | 🟡 TC-TV 17 · TC-LR 4 · TC-XV 22 · 안 TC-XV | 분석 | 있음 38파일 | 시험 일부 |
-| `P02-③-3` | 설계서 5.3절 | NOTI-01~04 (새 1) | 🟡 TC-TV 17 · TC-EXC 37 · TC-WH 41 · TC-WHP 13 · TC-NH 3 · TC-NR 17 · TC-ECH 6 · TC-AF 11 · TC-ADI 20 · TC-AFL 4 · TC-NDR 5 · TC-NS 13 | 시험 | 있음 53파일 | 시험 일부 |
+| `P02-③-3` | 설계서 5.3절 | NOTI-01~04 (새 1) | 🟡 TC-TV 17 · TC-EXC 37 · TC-WH 41 · TC-WHP 13 · TC-NH 3 · TC-NR 17 · TC-ECH 6 · TC-AF 11 · TC-ADI 20 · TC-AFL 4 · TC-NDR 5 · TC-NS 13 | 시험 | 있음 54파일 | 시험 일부 |
 | `P02-④-1` | 설계서 5.4절 · 설계서 3절 C1 · C3 | LEAN-02 · STK-03 | 🟡 TC-YH 2 · TC-CD 22 · TC-LR 4 · TC-LCS 2 · TC-LCA 6 · TC-LRF 8 · 안 TC-XV | 시험 | 있음 30파일 | 시험 일부 |
 | `P02-④-2` | 설계서 5.4절 · 설계서 3절 C4 | LEAN-02~03 · QNT-02 | 🟡 TC-QFRS 20 · 안 TC-CO | 시험 | 있음 26파일 | 시험 일부 |
-| `P02-④-3` | 설계서 5.4절 | (새 1) | 🟡 TC-TV 17 · TC-LOE 4 · TC-TVC 3 · TC-TVK 3 · TC-CLY 5 · TC-CCH 6 · 안 TC-XV | 분석 | 있음 12파일 | 시험 일부 |
-| `P02-⑤-1` | 설계서 5.5절 · ADR-0001 · 증권사 연동 자동화 설계 4 | STK-14~16 · 19~24 · 27 | 🟢 TC-LT 32 · TC-GW 11 · TC-GP 30 · TC-KC 10 · TC-KL 3 · TC-KQ 14 · TC-KH 14 · TC-KEX 32 · TC-BCF 48 · TC-KBF 20 · TC-KSP 24 · TC-KRC 4 · 🟡 TC-BM 30 · TC-NV 16 · TC-KPR 41 · TC-BCS 6 · TC-KCP 23 · TC-KRS 47 · TC-KCA 5 · TC-KOR 40 · TC-KRT 26 | 시험 | 있음 31파일 | 시험 있음 |
+| `P02-④-3` | 설계서 5.4절 | (새 1) | 🟡 TC-TV 17 · TC-LOE 4 · TC-TVC 3 · TC-TVK 3 · TC-CLY 5 · TC-CCH 6 · TC-LRS 5 · 안 TC-XV | 분석 | 있음 13파일 | 시험 일부 |
+| `P02-⑤-1` | 설계서 5.5절 · ADR-0001 · 증권사 연동 자동화 설계 4 | STK-14~16 · 19~24 · 27 | 🟢 TC-LT 32 · TC-GW 11 · TC-GP 30 · TC-KC 10 · TC-KL 3 · TC-KQ 14 · TC-KH 14 · TC-KEX 32 · TC-BCF 48 · TC-KBF 20 · TC-KSP 24 · TC-KRC 4 · 🟡 TC-BM 30 · TC-NV 16 · TC-KPR 41 · TC-BCS 6 · TC-KCP 23 · TC-KRS 47 · TC-KCA 5 · TC-KOR 40 · TC-KRT 26 · TC-PKR 6 | 시험 | 있음 32파일 | 시험 있음 |
 | `P02-⑤-2` | 설계서 5.5절 · 설계서 3절 C6 · 증권사 연동 자동화 설계 5 | STK-17~18 · 24~29 (새 2) | 🟢 TC-GP 30 · TC-US 7 · TC-QC 35 · TC-ATI 11 · TC-RK 4 · TC-DSV 14 · 🟡 TC-RG 5 · TC-AG 27 · TC-KBA 18 · TC-RGL 2 · TC-EP 37 · TC-OR 29 · TC-EG 19 · TC-QV 13 · TC-EXC 37 · TC-FTS 7 · TC-KPT 13 · TC-MBO 42 · TC-OPR 12 · TC-PBS 12 · TC-RSP 6 · TC-SVX 16 · TC-SVP 6 · TC-SV2CA 8 · 안 TC-RK | 시험 | 있음 30파일 | 시험 있음 |
-| `P02-⑤-3` | 설계서 5.5절 | SYS-01~03 · HLTH-01 · TASK-01~02 · NOTI-03 | 🟢 TC-BH 4 · TC-TASK 31 · TC-KEX 32 · TC-KEXUI 1 · 🟡 TC-DU 91 · TC-AS 4 · TC-KMO 5 · TC-RC 8 · TC-EXC 37 · TC-FAC 4 · TC-SV2CA 8 · TC-CSL 4 · TC-CWD 19 · 안 TC-OPS | 시험 · 시연 | 있음 17파일 | 시험 있음 |
+| `P02-⑤-3` | 설계서 5.5절 | SYS-01~03 · HLTH-01 · TASK-01~02 · NOTI-03 | 🟢 TC-BH 4 · TC-TASK 31 · TC-KEX 32 · TC-KEXUI 3 · 🟡 TC-DU 91 · TC-AS 4 · TC-KMO 5 · TC-RC 8 · TC-EXC 37 · TC-FAC 4 · TC-SV2CA 8 · TC-CSL 4 · TC-CWD 19 · 안 TC-OPS | 시험 · 시연 | 있음 17파일 | 시험 있음 |
 | **원문 UI/UX 필요 요소** | | | | | | |
 | `U1` | 설계서 7절 | — | 🟢 TC-RP 35 · 🟡 TC-PD 7 · TC-RPL 2 | 시연 | 있음 4파일 | 시험 있음 |
 | `U2` | 설계서 7절 | — | 🟢 TC-RBUI 1 · TC-AH 49 | 시험 · 시연 | 있음 10파일 | 시험 있음 |
@@ -421,7 +421,7 @@ flowchart LR
 | `RFP2-4.2-③` | ADR-0001 | — | — | 검사 | — | 검증 끝(검사) |
 | **강사님 공식 일정표** | | | | | | |
 | `SCH-STR` | — | — | — | 분석 | 있음 3파일 | 흔적 있음 |
-| `SCH-DQ` | 수집기 README(벤치마크 검증 게이트) | — | 🟢 TC-DF01 21 · 🟡 TC-QUAL 11 | 시험 · 분석 | 있음 24파일 | 시험 있음 |
+| `SCH-DQ` | 수집기 README(벤치마크 검증 게이트) | — | 🟢 TC-DF01 21 · 🟡 TC-QUAL 11 | 시험 · 분석 | 있음 25파일 | 시험 있음 |
 | `SCH-ROB` | 결정 대장 D4 ⑤ · D6 ⑤ | — | — | 분석 | 있음 5파일 | 흔적 있음 |
 | `SCH-ORD` | — | — | 🟡 TC-GP 30 | 시험 | 있음 9파일 | 시험 일부 |
 | `SCH-RT` | — | — | — | 시험 · 분석 | 있음 5파일 | 흔적 있음 |
@@ -664,7 +664,7 @@ flowchart LR
 | TC-TASK | `test_task_access.py` | 31 | `P02-⑤-3` | 🟢 | #200 비동기 작업 조회·취소 인증 및 소유자 확인 — 쿠키·JWT·본인·타인·소유자 없음·관리자·강제 종료 제한·발행 전 소유자 저장·장애 시 차단·내부 오류 비노출·실제 PostgreSQL 커밋과 탈퇴 삭제 |
 | TC-KEX | `test_kis_execution_outcomes.py` | 32 | `P02-⑤-1` | 🟢 | #212: 토큰 공유·만료·403·응답 불명, 직접 주문 추적·계좌별 체결 대조. 격리 Redis와 PostgreSQL로 KIS 주문의 QUANT 미변경 검증(실제 KIS 접속은 별도) |
 | 〃 | 〃 | 〃 | `P02-⑤-3` | 🟢 | #212: 과거 가상 체결과 증권사 실패·접수·확인된 체결을 구분 |
-| TC-KEXUI | `test_trade_status_screen.py` | 1 | `P02-⑤-3` | 🟢 | #212: 실제 JS 렌더러로 실패·미확인 색상, 요청/체결 수량 분리, 과거 가상 기록, HTML 이스케이프 확인(Node 필요) |
+| TC-KEXUI | `test_trade_status_screen.py` | 3 | `P02-⑤-3` | 🟢 | #212: 실제 JS 렌더러로 실패·미확인 색상, 요청/체결 수량 분리, 과거 가상 기록, HTML 이스케이프 확인(Node 필요); 11/6 회차 위험 숫자·위험 KPI 태그 입력과 정상 표시 2사례 추가, 합계 3 |
 | TC-BCF | `test_broker_connection_feedback.py` | 48 | `P02-⑤-1` | 🟢 | #232 실제 KIS HTTP 응답을 통한 토큰 제한·키 오류·401/403·시간 초과·비정상 시세 분류, 원문 비노출, 가상 시세와 계좌 확인 범위 구분, 로그인 필수 |
 | TC-APV | `test_allocation_prediction_view.py` | 20 | `U5` | 🟡 | #249 자산배분 예측 표시: 경계값·누락값·분류 확률·검증 미달·과거 저장본·신규 저장 HTTP 계약 · 순위 입력과 비중 보존 — 20건 |
 | TC-DSV | `test_decision_signal_view.py` | 14 | `P02-⑤-2` | 🟢 | #213 자동매매 판단 출처·회차·점수·누락값·계산 실패 및 내 계정/배치 합산 시각순 HTTP 계약 — 14건 |
@@ -831,8 +831,10 @@ flowchart LR
 | 〃 | 〃 | 〃 | `P02-⑤-3` | 🟡 | 보류의 정기 실행 기록·알림 실패 경계·중복 억제. 외부 수신은 시험 밖 |
 | TC-CSL | `test_credential_storage_logs.py` | 4 | `P02-⑤-3` | 🟡 | 운영 로그 단발 검사 4사례 — stderr 암호화 오류·조회 실패·종료코드·Docker 부재. 원문 비노출; 호스트 주기 실행·외부 수신은 별도 |
 | TC-CWD | `test_credential_watchdog.py` | 19 | `P02-⑤-3` | 🟡 | 호스트 암호화 오류 경보 19사례 — 최초 정상 무발송·장애/정상화 전이·중복 억제와 1시간 지속 알림·전달 실패 재시도·원문/비밀 비노출·주소 제한·중지 컨테이너·Docker 부재·로그 상한·상태 저장·실행 잠금. Windows 예약 실행·실제 수신은 운영 검증으로 별도 기록 |
+| TC-LRS | `test_daily_lean_reconcile_signal.py` | 5 | `P02-④-3` | 🟡 | 일지 ↔ LEAN 대사의 신호 판정(`judge_signal_verdict`) 5사례 — 날짜가 모두 겹치고 상태가 같으면 「일치」, 한쪽 날짜가 비면 「부분 일치」, 상태가 다르면 그것이 먼저, 비교할 수 없으면 일치로 치지 않는다 — 판정 함수만 재고 실제 LEAN 실행 · 보고서 생성은 재지 않는다 |
+| TC-PKR | `test_paper_kis_reconciliation.py` | 6 | `P02-⑤-1` | 🟡 | Paper↔KIS 대사(PR #602)의 순수 함수 6사례 — 일지 · KIS 행동을 매수 · 매도로 바꾸기, 불리한 체결가 bp 의 부호(매수 · 매도 모두 + 면 더 나쁜 가격) · 잘못된 값 거절, 결정 날짜는 봉 끝 시각 기준(주문 생성일 아님) · 시각이 없거나 시간대가 없으면 거절 — 서비스 · DB · 실제 KIS 왕복은 재지 않는다(실제 KIS 연동 E2E 는 미수행) |
 
-합계 — 시험 4522건 · 322파일 = 요구에 붙은 3855건 + 요구 없는 도구 시험 662건 + 대장에 없는 파일 1개(tests/test_daily_lean_reconcile_signal.py)
+합계 — 시험 4530건 · 323파일 = 요구에 붙은 3868건 + 요구 없는 도구 시험 662건 · 대장에 없는 시험 파일 0개
 <!-- /rtm_scan:시험 -->
 
 2026-10-19 #170: TC-RBUI의 실제 Chrome 인수 시험 1건(내부 검사 17항목)을 U2·U5에 연결했다. 이번에는 앱 의존성이 갖춰진 격리 환경에서 pytest 수집 2341건·168파일을 확인하고 RTM 8개 블록을 다시 생성했다. 이는 전체 2341건을 실행·통과했다는 뜻이 아니다. 운영 러너 대조의 남은 범위는 [화면 검증 근거](../../04-testing/리밸런싱-화면검증-근거.md)를 따른다.

@@ -385,3 +385,5 @@ TC-SV2CA	tests/test_strategy_v2_corporate_action.py	P02-⑤-2	🟡	#561 조정�
 TC-SV2CA	tests/test_strategy_v2_corporate_action.py	P02-⑤-3	🟡	보류의 정기 실행 기록·알림 실패 경계·중복 억제. 외부 수신은 시험 밖
 TC-CSL	tests/test_credential_storage_logs.py	P02-⑤-3	🟡	운영 로그 단발 검사 4사례 — stderr 암호화 오류·조회 실패·종료코드·Docker 부재. 원문 비노출; 호스트 주기 실행·외부 수신은 별도
 TC-CWD	tests/test_credential_watchdog.py	P02-⑤-3	🟡	호스트 암호화 오류 경보 19사례 — 최초 정상 무발송·장애/정상화 전이·중복 억제와 1시간 지속 알림·전달 실패 재시도·원문/비밀 비노출·주소 제한·중지 컨테이너·Docker 부재·로그 상한·상태 저장·실행 잠금. Windows 예약 실행·실제 수신은 운영 검증으로 별도 기록
+TC-LRS	tests/test_daily_lean_reconcile_signal.py	P02-④-3	🟡	일지 ↔ LEAN 대사의 신호 판정(`judge_signal_verdict`) 5사례 — 날짜가 모두 겹치고 상태가 같으면 「일치」, 한쪽 날짜가 비면 「부분 일치」, 상태가 다르면 그것이 먼저, 비교할 수 없으면 일치로 치지 않는다 — 판정 함수만 재고 실제 LEAN 실행 · 보고서 생성은 재지 않는다
+TC-PKR	tests/test_paper_kis_reconciliation.py	P02-⑤-1	🟡	Paper↔KIS 대사(PR #602)의 순수 함수 6사례 — 일지 · KIS 행동을 매수 · 매도로 바꾸기, 불리한 체결가 bp 의 부호(매수 · 매도 모두 + 면 더 나쁜 가격) · 잘못된 값 거절, 결정 날짜는 봉 끝 시각 기준(주문 생성일 아님) · 시각이 없거나 시간대가 없으면 거절 — 서비스 · DB · 실제 KIS 왕복은 재지 않는다(실제 KIS 연동 E2E 는 미수행)
