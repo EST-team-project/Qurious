@@ -1,15 +1,15 @@
-# ERD v1.17 — Qurious
+# ERD v1.18 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.17 · 0044 반영 · 수집 DB 26표 · 앱 DB 64표 |
+| **판 · 상태** | v1.18 · 0047 반영 · 수집 DB 26표 · 앱 DB 65표 |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-11-06 (KST) |
+| **최종 수정** | 2026-11-09 (KST) |
 | **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.16 → v1.17: 알림 비밀 9칸이 `TEXT`(암호문) · 새 표 4(수집 `econ_release` · 앱 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`)를 코드에서 다시 채움 / v1.15 → v1.16: 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 |
+| **최근 개정** | v1.17 → v1.18: 새 표 `paper_kis_reconciliations`(그림자 일지 ↔ KIS 모의 체결 대사 스냅샷 · 앱 64 → 65표) · `crypto_orders` 새 칸 9(거래비용) · `orders.epoch` · `cashflow_events.epoch`(모의투자 회차)를 코드에서 다시 채움 / v1.16 → v1.17: 알림 비밀 9칸이 `TEXT`(암호문) · 새 표 4(수집 `econ_release` · 앱 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`)를 코드에서 다시 채움 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -603,7 +603,7 @@ collect_requests ──▶ collect_workers
 아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 60표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
-**앱 DB — 모의투자·주문·전략 · 40표 · 관계 41개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
+**앱 DB — 모의투자·주문·전략 · 41표 · 관계 44개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
 
 ```mermaid
 erDiagram
@@ -674,11 +674,11 @@ erDiagram
   cashflow_events {
     UUID user_id FK
     UUID id PK
+    INTEGER epoch
     VARCHAR_10 kind
     FLOAT amount
     VARCHAR_20 symbol
-    VARCHAR_200 memo
-    _ 외4칸
+    _ 외5칸
   }
   crypto_holdings {
     UUID user_id FK
@@ -696,7 +696,7 @@ erDiagram
     VARCHAR_100 korean_name
     VARCHAR_4 order_type
     FLOAT quantity
-    _ 외4칸
+    _ 외13칸
   }
   custom_indicators {
     UUID user_id FK
@@ -799,7 +799,7 @@ erDiagram
     VARCHAR_100 name
     VARCHAR_10 order_type
     INTEGER quantity
-    _ 외22칸
+    _ 외23칸
   }
   paper_account_snapshots {
     UUID user_id FK
@@ -845,6 +845,17 @@ erDiagram
     INTEGER attempt_no
     DATETIME registered_at
     _ 외11칸
+  }
+  paper_kis_reconciliations {
+    INTEGER id PK
+    VARCHAR_64 intent_id FK
+    UUID user_id FK
+    INTEGER journal_version_id FK
+    VARCHAR_64 snapshot_hash
+    VARCHAR_64 account_ref
+    INTEGER journal_version_no
+    DATE decision_date
+    _ 외32칸
   }
   paper_snapshot_price_audits {
     UUID snapshot_id FK
@@ -985,6 +996,9 @@ erDiagram
   paper_journal_versions ||--o{ paper_journal_days : "version_id"
   paper_journal_versions ||--o{ paper_journal_notes : "version_id"
   paper_journal_versions ||--o{ paper_journal_versions : "supersedes_id"
+  order_intents ||--o{ paper_kis_reconciliations : "intent_id"
+  users ||--o{ paper_kis_reconciliations : "user_id"
+  paper_journal_versions ||--o{ paper_kis_reconciliations : "journal_version_id"
   paper_account_snapshots ||--o{ paper_snapshot_price_audits : "snapshot_id"
   users ||--o{ portfolio : "user_id"
   users ||--o{ quant_virtual_accounts : "user_id"
@@ -1413,6 +1427,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.18 | 2026-11-09 | 앱 DB 새 표 `paper_kis_reconciliations`(그림자 일지 ↔ KIS 모의 체결 대사 스냅샷 · 40칸 · 외래키 3 — `order_intents` · `users` · `paper_journal_versions` · 유일 제약 `uq_paper_kis_reconciliations_snapshot`(`snapshot_hash`) · 인덱스 2 · 리비전 `0044_paper_kis_reconciliations` + `0045_paper_kis_track`)(64 → 65표 · 관계 58 → 61) · 새 칸 `crypto_orders` 9(`reference_price` · `commission` · `fee_rate` · `slippage_bps` · `slippage_amount` · `net_amount` · `cost_basis` · `allocated_cost_basis` · `realized_pnl` · 리비전 `crypto_order_costs_20261109`) · `orders.epoch` · `cashflow_events.epoch`(INTEGER NULL · 인덱스 `ix_orders_user_epoch_created` · `ix_cashflow_events_user_epoch_created` · 리비전 `0047_paper_cashflow_order_epoch` · 기존 행은 일부러 NULL) · 빈 병합 리비전 `0046_merge_notif_paper_kis`(표 변화 없음 · 알림 비밀 `0044_notification_secrets` 갈래와 `0045_paper_kis_track` 갈래를 잇는다 · 지금 head 는 `0047_paper_cashflow_order_epoch`) | 11-06 판 올림 뒤 들어온 KIS 대사 표 · 코인 거래비용 칸 · 모의투자 회차 칸이 ERD 에 안 올라가 있었다 | 모델 `app/models/paper_kis_reconciliation.py` · `paper.py` · `trading.py` · `rebalance.py` · 리비전 5개 · 커밋 `bd5d9739` · `d8262904` · `a5b4ce9d` · 스캐너 출력으로 표시 사이를 채움 · `schema_scan --doc --check` 통과 |
 | v1.17 | 2026-11-06 | 알림 비밀 9칸 `VARCHAR → TEXT`(암호문 `qnc1:` · CHECK 9개 · 마이그레이션 0044) · 수집 DB 새 표 `econ_release`(25 → 26표) · 앱 DB 새 표 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`(61 → 64표) · 새 칸 `broker_settings.quant_local_strategy` · `orders.fill_notice_pending` · `rebalance_plans.regime_config` · `regime_state` | 11-05 알림 비밀 암호화 구현과 팀원 표·칸이 ERD 에 안 올라가 있었다 | `schema_scan --doc --check` 통과 |
 | v1.16 | 2026-11-02 | 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 | 오준영 PR #477 | `schema_scan --doc` 다시 채움 |
 | v1.15 | 2026-11-01 | 알림 설정 표에 사용자별 디스코드 주소 칸 `notification_settings.discord_webhook_url`(외 16 → 17칸 · 마이그레이션 0036) · 스캐너 그림 다시 채움(앱 50 → 60표 · 관계 44 → 53 · 본문 숫자 · 표 속성 대장 10줄 더함) | 팀 테스트 디스코드를 공용 칸에 두고 개인 주소는 사용자별로 갖게 해 달라는 요청(11-01) · 문서가 코드보다 열 표 뒤처져 있던 것을 한 번에 맞춤(S183 이월) | `schema_scan --doc --check` 같음 · 표 속성 대장 빠진 표 0 |
