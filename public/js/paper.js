@@ -721,10 +721,20 @@ async function cryptoPreview(side) {
   if (side === "BUY" && !(body.buyKrw >= 1000)) return setToast("최소 주문 금액은 1,000원입니다(이 앱의 정책).", "error");
   try {
     const p = await api("/api/paper/trade/order/preview", { method: "POST", body });
+    const settlementLabel = side === "BUY" ? "예상 현금 차감" : "예상 순정산액";
     $("pc-preview").innerHTML = `<div class="rounded-xl border p-3 text-sm" style="border-color:${p.executable ? "var(--green-bd)" : "var(--red-bd)"}">
       <div class="flex items-center gap-2 mb-2">${sideBadge(p.side)} <strong>${escHtml(p.koreanName)}</strong> <span class="text-xs" style="color:var(--text-mute);">${escHtml(p.marketCode)}</span>
         <span class="ml-auto text-xs font-bold ${p.executable ? "text-emerald-600" : "text-red-600"}">${p.executable ? "체결 가능" : escHtml(p.reason || "체결 불가")}</span></div>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs"><div>예상 단가<br><b>${won(p.estimatedPrice)}</b></div><div>수량<br><b>${fmt(p.quantity, 8)}</b></div><div>예상 금액<br><b>${won(p.estimatedAmount)}</b></div><div>현금 / 보유<br><b>${won(p.cashBefore)}</b> / ${fmt(p.heldQuantity, 8)}</div></div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+        <div>기준 시세<br><b>${won(p.referencePrice)}</b></div>
+        <div>예상 체결가<br><b>${won(p.estimatedPrice)}</b></div>
+        <div>수량<br><b>${fmt(p.quantity, 8)}</b></div>
+        <div>체결금액<br><b>${won(p.estimatedAmount)}</b></div>
+        <div>예상 수수료<br><b>${won(p.estimatedCommission)}</b></div>
+        <div>슬리피지 추정액<br><b>${won(p.estimatedSlippage)}</b></div>
+        <div>${settlementLabel}<br><b>${won(p.estimatedNetAmount)}</b></div>
+        <div>현금 / 보유<br><b>${won(p.cashBefore)}</b> / ${fmt(p.heldQuantity, 8)}</div>
+      </div>
       <div class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(p.notice)}</div></div>`;
   } catch (e) { setToast(e.message, "error"); }
 }
@@ -743,7 +753,11 @@ async function cryptoOrder(side) {
       if (!(sellCount > 0)) return setToast("매도 수량을 입력하세요.", "error");
       r = await api("/api/paper/trade/order/sell", { method: "POST", body: { marketCode, sellCount } });
     }
-    setToast(`${marketCode} ${side === "BUY" ? "매수" : "매도"} 체결 · 수량 ${fmt(r.quantity, 8)} @${won(r.price)}`, "ok");
+    const settlementLabel = side === "BUY" ? "현금 차감" : "순정산";
+    setToast(
+      `${marketCode} ${side === "BUY" ? "매수" : "매도"} 체결 · ${fmt(r.quantity, 8)} @${won(r.price)} · 수수료 ${won(r.commission)} · ${settlementLabel} ${won(r.netAmount)}`,
+      "ok"
+    );
     $("pc-preview").innerHTML = "";
     loadCryptoHold(); loadCryptoHistory();
   } catch (e) { setToast(e.message, "error"); }
@@ -778,8 +792,26 @@ const pcHoldPanel = listPanel({
 function loadCryptoHold() { return pcHoldPanel.load(); }
 
 function pcHistoryBody(history) {
-  return `<table><thead><tr><th>시각</th><th>매매</th><th>코인</th><th style="text-align:right">수량</th><th style="text-align:right">단가</th><th style="text-align:right">금액</th></tr></thead>
-      <tbody>${history.length ? history.map(o => `<tr><td class="text-xs">${ts(o.ts)}</td><td>${sideBadge(o.type)}</td><td>${escHtml(o.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.marketCode)}</span></td><td style="text-align:right">${fmt(o.quantity, 8)}</td><td style="text-align:right">${won(o.price)}</td><td style="text-align:right">${won(o.amount)}</td></tr>`).join("") : emptyRow(6, "거래 내역이 없습니다.")}</tbody></table>`;
+  return `<table><thead><tr>
+    <th>시각</th><th>매매</th><th>코인</th>
+    <th style="text-align:right">수량</th>
+    <th style="text-align:right">기준가 / 체결가</th>
+    <th style="text-align:right">체결금액</th>
+    <th style="text-align:right">수수료</th>
+    <th style="text-align:right">슬리피지</th>
+    <th style="text-align:right">순정산</th>
+    </tr></thead>
+    <tbody>${history.length ? history.map(o => `<tr>
+      <td class="text-xs">${ts(o.ts)}</td>
+      <td>${sideBadge(o.type)}</td>
+      <td>${escHtml(o.koreanName)} <span class="text-xs" style="color:var(--text-mute);">${escHtml(o.marketCode)}</span></td>
+      <td style="text-align:right">${fmt(o.quantity, 8)}</td>
+      <td style="text-align:right">${won(o.referencePrice ?? o.price)}<div class="text-xs" style="color:var(--text-mute);">체결 ${won(o.price)}</div></td>
+      <td style="text-align:right">${won(o.amount)}</td>
+      <td style="text-align:right">${o.commission == null ? "-" : won(o.commission)}</td>
+      <td style="text-align:right">${o.slippageBps == null ? "-" : `${o.slippageBps} bps<div class="text-xs">${won(o.slippageAmount)}</div>`}</td>
+      <td style="text-align:right">${o.netAmount == null ? "-" : won(o.netAmount)}${o.realizedPnl == null ? "" : `<div class="text-xs ${signCls(o.realizedPnl)}">실현손익 ${won(o.realizedPnl)}</div>`}</td>
+    </tr>`).join("") : emptyRow(9, "거래 내역이 없습니다.")}</tbody></table>`;
 }
 
 // 거래 내역 — 칩: 매매. 서버는 limit=30 으로 준다.

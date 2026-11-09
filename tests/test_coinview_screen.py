@@ -44,21 +44,35 @@ def test_notes_say_source_limits_and_how_orders_fill(tmp_path):
     """TC-CRY-01 — 시세 글(출처 · 약 5초 · 시각 미표시 · 마지막 값) · 주문 글(모의 장부 · 업비트로 안 나감 · 수수료 · 슬리피지 없음)."""
     out = _run(tmp_path, "out.s = cv.COIN_SOURCE_NOTE; out.o = cv.COIN_ORDER_NOTE;")
     s, o = out["s"], " ".join(out["o"])
-    assert "업비트 공개 시세" in s and "약 5초" in s and "받은 시각은 표시되지 않음" in s and "체결 시각 기준 5분 이내" in s
-    assert "모의 장부에만 기록" in o and "업비트로 주문이 나가지 않습니다" in o and "수수료 · 슬리피지 없이 즉시 체결" in o
+    assert "업비트 공개 시세" in s and "약 5초" in s and "5분 이내" in s and "30초 이내" in s
+    assert "모의 장부에만 기록" in o and "업비트로 주문이 나가지 않습니다" in o
+    assert "0.05%" in o and "10 bps" in o and "슬리피지" in o
     assert "서버" not in s + o and "DB" not in s + o                      # 화면 글에 개발 티가 나는 말을 쓰지 않는다(규칙 L317)
 
 
 def test_notes_match_what_the_server_really_does(monkeypatch):
-    """TC-CRY-02 — 글이 지어낸 말이 아니다: 코인 체결 코드에 수수료 · 슬리피지가 없고, 시세 저장은 5초이며, 실패하면 마지막 값을 돌려준다."""
+    """TC-CRY-02 — 5초 캐시, 300초 일반 시세 증빙, 신규 30초 주문 검증, 비용 반영을 확인한다."""
     buy = SERVICE[SERVICE.index("async def crypto_buy("):SERVICE.index("async def crypto_sell(")]
     sell = SERVICE[SERVICE.index("async def crypto_sell("):SERVICE.index("async def crypto_history(")]
-    for body in (buy, sell):
-        assert "fee" not in body.lower() and "slippage" not in body.lower() and "수수료" not in body
-        assert "upbit_trade_price" in body                                   # 위 현재가 그대로
-    assert "account.cash = float(account.cash - buy_krw)" in buy and "proceeds = round(price * sell_count)" in sell
+    preview = SERVICE[SERVICE.index("async def crypto_preview("):SERVICE.index("async def crypto_buy(")]
+
+    for body in (buy, sell, preview):
+        assert "upbit_trade_price" in body
+        assert "crypto_trading_cost.order_costs" in body
+
+    assert "account.cash = float(account.cash - cost.net_amount)" in buy
+    assert "account.cash = float(account.cash + cost.net_amount)" in sell
+    assert "allocated_cost_basis" in sell and "realized_pnl" in sell
     assert "_UPBIT_TICKER_TTL = 5" in SERVICE
-    # #371 후속: 변수 이름이나 부등호 표현 대신 실제 캐시 만료와 시세 근거를 검증한다.
+    assert "_UPBIT_ORDER_QUOTE_MAX_AGE_SEC = 30.0" in SERVICE
+
+    trade_fn = SERVICE[
+        SERVICE.index("async def upbit_trade_price("):
+        SERVICE.index("async def upbit_candles(")
+    ]
+    assert "include_price_audits=True" in trade_fn
+    assert "cache_age" in trade_fn and "quote_age" in trade_fn
+
     import asyncio
     from unittest.mock import AsyncMock
     from app.services import paper_trading as pt
@@ -70,6 +84,7 @@ def test_notes_match_what_the_server_really_does(monkeypatch):
     client.get.side_effect = RuntimeError("offline")
     monkeypatch.setattr(pt.httpx, "AsyncClient", lambda **kwargs: client)
     fresh = datetime.fromtimestamp(now, timezone.utc).isoformat()
+
     for age, as_of, expected in ((300, fresh, 1), (301, fresh, 0), (10, None, 0)):
         monkeypatch.setattr(pt, "_UPBIT_TICKER_CACHE", {
             "KRW-BTC": {"ts": now - age, "data": {

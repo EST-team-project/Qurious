@@ -10,6 +10,7 @@ AlternativePosition/AlternativeOrder + ApiKey 를 lumina-invest(PostgreSQL, UUID
 다른 표의 인덱스를 함께 삭제한 것을 되돌린다. 모델에 없으면 다음 자동 생성 때 또 지운다.
 """
 from __future__ import annotations
+import sqlalchemy as sa
 
 import uuid
 from datetime import datetime
@@ -68,6 +69,18 @@ class CryptoOrder(Base, UUIDPkMixin, CreatedAtMixin):
     price: Mapped[float] = mapped_column(Float, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="WEB")
+
+    # Crypto paper-trading cost provenance and settlement
+    reference_price = sa.Column(sa.Float(), nullable=True)
+    commission = sa.Column(sa.Float(), nullable=True)
+    fee_rate = sa.Column(sa.Float(), nullable=True)
+    slippage_bps = sa.Column(sa.Float(), nullable=True)
+    slippage_amount = sa.Column(sa.Float(), nullable=True)
+    net_amount = sa.Column(sa.Float(), nullable=True)
+    cost_basis = sa.Column(sa.String(20), nullable=False, default="none", server_default="none")
+    allocated_cost_basis = sa.Column(sa.Float(), nullable=True)
+    realized_pnl = sa.Column(sa.Float(), nullable=True)
+
 
 
 class AlternativePosition(Base, UUIDPkMixin, UpdatedAtMixin):
