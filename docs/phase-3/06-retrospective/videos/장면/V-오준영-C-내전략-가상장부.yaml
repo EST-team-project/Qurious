@@ -1,62 +1,63 @@
-# [사용법] 내 전략 카드를 가상 장부로 실행하는 설정 보기 (천천히 · 하나씩 설명)
-# 화면: 내 계정 › 증권사 연동 구역(mypage) · 자동매매 현황(quant-auto) · 담당 오준영
-# 선행 조건: 시연 계정에 실행 가능한 「내 전략」 카드가 1장 있어야 한다(신장환 ① 이 카드를 저장해야 함 — 이 장면은 저장하지 않는다). 카드가 없으면 `#quant-strategy-hint` 대기 단계에서 멈춘다.
-# 비밀값: 같은 카드 안의 App Key · App Secret · 계좌번호 칸(#broker-credentials-wrap)은 hide 로 통째로 감춘다(화면에 나오지 않음). 내 이메일(#mp-email) · 실주문 현황(#quant-live-orders)은 흐리게.
-# 누르지 않는 것: 저장 / 연결 · 연결 테스트 · ▶ 자동매매 시작 · ■ 중지 · 비상 정지 · 비상 정지 해제(위치만 가리키고 누르지 않는다).
-# 한계: 시연 계정에는 자동매매 실행 기록이 없어 「주문 없음」 로그 · 막힌 사유 줄은 보이지 않는다.
-# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작을 바로 뒤에 둔다.
-file: V-오준영-C-내전략-가상장부
-title: 내 전략 카드를 가상 장부로 실행하는 설정 보기
-owner: 오준영
-pace: 0.8
-start: mypage
+# #619 · 격리 시연 DB / 실제 main 앱과 조회 API. 운영 계좌·시세·API 응답을 바꾸지 않는다.
+# 시험 입력: 11/6 수집 스냅샷, 국면 B의 과거 상태만 합성. C는 실제 초기 판단·중복·대기·정지 결과(체결 0건).
+# 촬영은 조회와 미저장 편집만. 주문·자동 시작·플랜 저장·비상 정지 단추는 누르지 않는다.
+file: "V-오준영-C-내전략-가상장부"
+title: "내 전략의 가상 실행과 차단 기록을 확인합니다"
+owner: "오준영"
+pace: 0.9
+start: "mypage"
 hide: ["#broker-credentials-wrap", "#broker-managed"]
 mask: ["#mp-email", "#quant-live-orders"]
 steps:
-  - chapter: {label: "1 / 3 · 무엇을 하나요", title: "내 전략을 앱 안 가상 장부로 돌립니다", text: "전략 카드를 증권사 계좌가 아니라 앱 안 가상 장부에서 실행합니다. 주문 앞뒤로 위험 한도를 검사하며, 설정을 고르기만 하고 자동매매는 시작하지 않습니다", sec: 7.0}
-  - wait: {target: "[data-mp-go='broker']", timeout: 60}
-  - say: "내 계정 화면에서 증권사 연동 구역을 엽니다"
-  - ring: {target: "[data-mp-go='broker']", sec: 2.5}
-  - click: "[data-mp-go='broker']"
-  - wait: {target: "#quant-mode", timeout: 30}
-  - pause: 2.0
-  - say: "자동매매 주문 방식은 앱 안 가상매매입니다. 증권사 주문 환경이 확인되기 전에는 다른 방식을 고를 수 없습니다"
-  - scroll: {target: "#quant-mode", block: "center"}
-  - ring: {target: "#quant-mode", sec: 3.0}
-  - pause: 4.0
-  - say: "바로 아래 안내가 말하듯 앱 가상 장부에서 체결하고 증권사 계좌로 주문을 보내지 않습니다"
-  - ring: {target: "#quant-live-route", sec: 3.0}
-  - pause: 5.0
-  - chapter: {label: "2 / 3 · 전략 고르기", title: "내 전략 카드를 고릅니다", text: "고르기만 하며 저장 단추는 누르지 않습니다", sec: 4.0}
-  - say: "실행할 전략 칸에 기본 규칙과 내가 만든 전략 카드가 함께 나옵니다. 카드를 고릅니다"
-  - ring: {target: "#quant-strategy", sec: 3.0}
-  - js: "(() => { const s = document.getElementById('quant-strategy'); const o = [...s.options].find(x => x.dataset.cardId && !x.disabled); if (o) { s.value = o.value; s.dispatchEvent(new Event('change')); } })()"
-  - wait: {target: "#quant-strategy-hint:has-text('내 전략은 QUANT 가상계좌 전용')", timeout: 5}
-  - pause: 2.0
-  - say: "고르면 안내가 바뀝니다. 가상계좌 전용이며 합격 판정이 아니라는 말이 먼저 나옵니다"
-  - ring: {target: "#quant-strategy-hint", sec: 3.0}
-  - pause: 6.0
-  - chapter: {label: "3 / 3 · 주문 앞뒤 검사", title: "한도를 먼저 보고, 결과를 나중에 봅니다", text: "일손실 · 종목 비중 · 하루 주문 수 · 쿨다운은 주문 앞에서 검사하는 기준이고, 마지막 결과는 실행 뒤의 기록입니다", sec: 6.0}
-  - say: "주문 앞 검사 기준입니다. 일손실 한도를 넘으면 비상 정지로 이어지고, 종목당 최대 비중이 한 종목 쏠림을 막습니다"
-  - scroll: {target: "#risk-daily-loss", block: "center"}
-  - ring: {target: "#risk-daily-loss", sec: 2.5}
-  - ring: {target: "#risk-max-position", sec: 2.5}
-  - pause: 3.0
-  - say: "하루 최대 주문 수와 중복 주문 방지 쿨다운은 같은 종목 · 같은 방향 재주문을 막습니다"
-  - ring: {target: "#risk-max-orders", sec: 2.5}
-  - ring: {target: "#risk-cooldown", sec: 2.5}
-  - pause: 4.0
-  - say: "실행 뒤에는 마지막 결과 줄에 체결 건수와 위험관리로 건너뛴 건수, 쓴 전략이 남습니다"
-  - scroll: {target: "#quant-cycle-status", block: "center"}
-  - ring: {target: "#quant-cycle-status", sec: 3.0}
-  - pause: 6.0
-  - go: quant-auto
-  - wait: {target: "#risk-kpis", timeout: 30}
-  - say: "자동매매 화면의 위험관리 상태 칸에는 비상 정지 상태와 오늘 자동 주문 수, 종목 비중 한도, 쿨다운이 모여 있습니다"
-  - ring: {target: "#risk-kpis", sec: 3.0}
-  - pause: 7.0
-  - say: "비상 정지와 자동매매 시작은 이 영상에서 누르지 않습니다. 눌러야 하는 때에는 이 두 단추가 위치입니다"
-  - ring: {target: "#auto-start", sec: 2.5}
-  - ring: {target: "#risk-kill-on", sec: 2.5}
-  - pause: 5.0
-  - chapter: {label: "정리", title: "가상 장부에서 돌리고 한도로 막습니다", text: "내 전략은 합격 판정 없이 가상 장부에서만 실행되고, 가상 체결 결과는 증권사 주문 결과와 다를 수 있습니다", sec: 6.0}
+  - {"js": "(() => { const e=document.createElement('div'); e.id='video619-label'; e.textContent='시험용 격리 환경 · 11/6 수집자료 재현 · KIS 미연결'; e.style.cssText='position:fixed;top:9px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#7c2d12;color:white;font-weight:600;font-size:14px;font-family:inherit;padding:7px 14px;border-radius:8px;pointer-events:none'; document.body.appendChild(e); })()"}
+  - {"chapter": {"label": "오준영 · 3차 시연", "title": "내 전략의 가상 실행과 차단 기록", "text": "격리 DB에 저장한 개인 전략을 실제 실행기로 확인했습니다. KIS 연결 없이 초기 판단과 차단 사유를 봅니다.", "sec": 6}}
+  - {"wait": {"target": "[data-mp-go='broker']", "timeout": 30}}
+  - {"click": "[data-mp-go='broker']"}
+  - {"wait": {"target": "#quant-mode", "timeout": 30}}
+  - {"say": "주문 방식은 앱 안 가상매매입니다. 증권사로 주문하지 않습니다."}
+  - {"ring": {"target": "#quant-mode", "sec": 3}}
+  - {"pause": 4}
+  - {"say": "아래 안내에서 앱 가상 장부 전용인 것을 다시 확인합니다."}
+  - {"ring": {"target": "#quant-live-route", "sec": 3}}
+  - {"pause": 5}
+  - {"say": "저장한 내 전략 카드를 고릅니다. 선택 내용은 저장하지 않습니다."}
+  - {"ring": {"target": "#quant-strategy", "sec": 3}}
+  - {"js": "(() => { const s=document.getElementById('quant-strategy'); const o=[...s.options].find(x=>x.dataset.cardId && !x.disabled); if(!o) throw Error('실행 가능한 개인 카드 없음'); s.value=o.value; s.dispatchEvent(new Event('change')); })()"}
+  - {"wait": {"target": "#quant-strategy-hint:has-text('내 전략은 QUANT 가상계좌 전용')", "timeout": 30}}
+  - {"pause": 2}
+  - {"say": "개인 전략은 가상계좌 전용이며, 성과 합격 판정은 아닙니다."}
+  - {"ring": {"target": "#quant-strategy-hint", "sec": 3}}
+  - {"pause": 4}
+  - {"say": "일손실과 종목 비중, 주문 수와 쿨다운이 검사 기준입니다."}
+  - {"ring": {"target": "#risk-daily-loss", "sec": 3}}
+  - {"ring": {"target": "#risk-max-position", "sec": 3}}
+  - {"pause": 1.5}
+  - {"say": "하루 주문 수와 같은 종목 재주문 쿨다운도 설정합니다."}
+  - {"ring": {"target": "#risk-max-orders", "sec": 3}}
+  - {"pause": 5}
+  - {"say": "쿨다운은 같은 종목·방향의 재주문 간격을 제한합니다."}
+  - {"ring": {"target": "#risk-cooldown", "sec": 3}}
+  - {"pause": 5}
+  - {"say": "현재 자동매매는 중지 상태이며, 이번 기록의 체결은 0건입니다."}
+  - {"ring": {"target": "#quant-cycle-status", "sec": 3}}
+  - {"pause": 4}
+  - {"go": "quant-auto"}
+  - {"wait": {"target": "#risk-kpis", "timeout": 30}}
+  - {"pause": 1.5}
+  - {"say": "시험 계정은 비상 정지 ON입니다. 촬영 중에는 상태를 바꾸지 않습니다."}
+  - {"ring": {"target": "#risk-kpis", "sec": 3}}
+  - {"pause": 4}
+  - {"say": "실행 로그에서 자료 대기·같은 봉 중복·정지 사유를 확인합니다."}
+  - {"wait": {"target": "#auto-trade-log:has-text('이미 판단한 봉')", "timeout": 30}}
+  - {"ring": {"target": "#auto-trade-log", "sec": 4}}
+  - {"pause": 7}
+  - {"say": "자료가 준비되지 않았을 때에는 준비 완료까지 판단을 보류했습니다."}
+  - {"ring": {"target": "#auto-trade-log > div:has-text('12:30 데이터 갱신')", "sec": 3}}
+  - {"pause": 5}
+  - {"say": "같은 확정 봉을 다시 호출해도 중복 판단으로 주문을 추가하지 않습니다."}
+  - {"ring": {"target": "#auto-trade-log > div:has-text('이미 판단한 봉')", "sec": 3}}
+  - {"pause": 6}
+  - {"say": "비상 정지 상태에서는 추가 실행을 막습니다. 자동 청산을 뜻하지 않습니다."}
+  - {"ring": {"target": "#auto-trade-log > div:has-text('자동 실행 중지 또는 비상 정지')", "sec": 3}}
+  - {"pause": 6}
+  - {"chapter": {"label": "오준영 · 3차 시연", "title": "실행 결과와 차단 사유를 남깁니다", "text": "이번 영상은 초기 판단과 차단 기록입니다. 매수·매도 체결이나 KIS 연동 성공을 보여 주는 영상은 아닙니다.", "sec": 7}}
