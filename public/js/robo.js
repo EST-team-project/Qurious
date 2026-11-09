@@ -1279,7 +1279,10 @@ async function _rtLoadRadar() {
     if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
     if (_rtCharts.radar) _rtCharts.radar.destroy();
 
-    const m = data["1y"] || data["6m"] || data["3m"] || data["1m"] || {};
+    const m = ["1y", "6m", "3m", "1m"]
+      .map(period => data[period])
+      .find(period => period?.status === "ok" && period.std_dev != null && period.sharpe != null);
+    if (!m) { el.innerHTML = _rtEmpty("위험지표 표본 부족"); return; }
     const std = Math.min(100, Math.abs(m.std_dev || 0) * 100);
     const sharpe = Math.min(100, Math.max(0, (m.sharpe || 0) * 30));
     const mddScore = 50;
@@ -1384,6 +1387,16 @@ async function _rtLoadBenchmark() {
     if (data.status !== "ok") { el.innerHTML = _rtEmpty("벤치마크 데이터 부족"); return; }
     _rtBenchmarkData = data;
     _rtRenderBenchmark();
+    const noteId = "rt-benchmark-chart-note";
+    let note = document.getElementById(noteId);
+    if (!note) {
+      note = document.createElement("p");
+      note.id = noteId;
+      note.className = "text-xs mt-2";
+      note.style.color = "var(--text-mute)";
+      el.insertAdjacentElement("afterend", note);
+    }
+    note.textContent = data.benchmark_note || "참고지수는 계좌 구성에 따라 적합하지 않을 수 있습니다.";
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
@@ -1435,10 +1448,10 @@ async function _rtLoadReturnsTable() {
     if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
 
     const rows = [
-      ["1개월 수익률", data.return_1m],
-      ["3개월 수익률", data.return_3m],
-      ["6개월 수익률", data.return_6m],
-      ["1년 수익률", data.return_1y],
+      ["1개월 수익률 (21개 관측)", data.return_1m],
+      ["3개월 수익률 (63개 관측)", data.return_3m],
+      ["6개월 수익률 (126개 관측)", data.return_6m],
+      ["1년 수익률 (252개 관측)", data.return_1y],
       ["누적 수익률", data.return_cumulative],
     ];
 
@@ -1456,7 +1469,7 @@ async function _rtLoadReturnsTable() {
           </td>
         </tr>`;
     }).join("")}</tbody>
-    </table>`;
+    </table>${data.period_note ? `<p class="text-xs mt-2" style="color:var(--text-mute);">${escHtml(data.period_note)} 현재 관측 ${Number(data.return_observation_count || 0)}개.</p>` : ""}`;
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
@@ -1468,7 +1481,7 @@ async function _rtLoadRiskTable() {
     if (data.status !== "ok") { el.innerHTML = _rtEmpty("데이터 부족"); return; }
 
     const periods = ["1m", "3m", "6m", "1y"];
-    const labels = { "1m": "1개월", "3m": "3개월", "6m": "6개월", "1y": "1년" };
+    const labels = { "1m": "1개월 (21)", "3m": "3개월 (63)", "6m": "6개월 (126)", "1y": "1년 (252)" };
     const metrics = [
       ["std_dev", "표준편차"],
       ["beta", "베타"],
@@ -1487,11 +1500,22 @@ async function _rtLoadRiskTable() {
         <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:8px;">${label}</td>
           ${periods.map(p => {
-      const v = data[p]?.[key];
-      return `<td style="padding:8px;text-align:right;">${v == null ? "-" : v.toFixed(3)}</td>`;
+      const period = data[p] || {};
+      const v = period[key];
+      const required = period.required_observations || data.period_observations_required?.[p] || 0;
+      const available = period.sample_count ?? data.common_days ?? 0;
+      const reason = period.reason || period.beta_reason || "해당 기간의 표본이 아직 충분하지 않습니다.";
+      return `<td style="padding:8px;text-align:right;" title="${escHtml(reason)}">${v == null ? `<span style="color:var(--text-mute);">— <small>(${available}/${required})</small></span>` : v.toFixed(3)}</td>`;
     }).join("")}
         </tr>`).join("")}</tbody>
-    </table></div>`;
+    </table></div>
+    <div class="text-xs mt-2 space-y-1" style="color:var(--text-mute);">
+      <p>${escHtml(data.benchmark_note || "")}</p>
+      <p>${escHtml(data.risk_free_rate_note || "")}</p>
+      <p>${escHtml(data.sample_note || "기간별 전체 관측치가 확보된 경우에만 지표를 표시합니다.")}</p>
+      <p>${escHtml(data.inference_note || "")}</p>
+      <p>공통 관측일: ${Number(data.common_days || 0)}개</p>
+    </div>`;
   } catch (e) { el.innerHTML = _rtErr(e); }
 }
 
