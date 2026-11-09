@@ -36,6 +36,7 @@ CSS 가두기(스타일이 섞이지 않게 · 두 방향 모두):
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import html
 import json
 import re
@@ -62,6 +63,13 @@ COLORS = {"이동원": "#4f46e5", "신장환": "#b45309", "오준영": "#0f766e"
 ROLES = {"이동원": "데이터 · 신호 근거 · 대사", "신장환": "전략 카드 · 성과 검증", "오준영": "배분 · 리밸런싱 · 실행", "강민석": "LEAN 대사 · 모의투자"}
 # 팀 시간 배정이 정해지면 채운다(예: {"이동원": "12분"}). 비어 있으면 구분 장에 「미정」 칸으로 나온다 — 시간 배정은 사용자 결정(전체-발표-초안.md 6절).
 TARGET_TIME: dict[str, str] = {}
+
+# 발표 순서 조정(사용자 11-09): 문제 정의 · 시장 조사는 맨 앞(이동원이 자기 파트까지 이어서 발표), 한계는 맨 끝(강민석 발표).
+TAIL_SLIDES = {"이동원": 2}            # 이동원 슬라이드의 마지막 N장(한계 · 이어갈 길)을 통합 덱 맨 끝으로 보낸다
+TAIL_PRESENTER = "강민석"
+TAIL_LABEL = "한계와 이어갈 길"
+# 덱에서 뺄 장면(장면 파일은 지우지 않는다). 낡은 일봉 방어 영상은 같은 주제의 슬라이드를 뺐고 2차에서 다뤘다(사용자 조율 11-09).
+EXCLUDE_SCENES = {"P-이동원-B-낡은일봉방어"}
 
 STAGE_W, STAGE_H = 1920, 1080          # 영상 덱 틀(.slide) 크기
 DEFAULT_SRC_W, DEFAULT_SRC_H = 1280, 720   # 담당자 덱 기본 크기(CSS 에서 못 읽을 때)
@@ -509,6 +517,8 @@ def read_personal(name: str) -> Personal | None:
 def load_scenes():
   rows = []
   for p in sorted(SCENES.glob("P-*.yaml")):
+    if p.stem in EXCLUDE_SCENES:
+      continue
     sc = yaml.safe_load(p.read_text(encoding="utf-8"))
     says = [s["say"] for s in sc.get("steps", []) if isinstance(s, dict) and "say" in s]
     chapters = [s["chapter"] for s in sc.get("steps", []) if isinstance(s, dict) and "chapter" in s]
@@ -559,17 +569,33 @@ class Frame:
   seconds: int | None = None
 
 
-def imported_frame(p: Personal, i: int, sl: Slide) -> str:
-  """담당자 슬라이드 한 장을 1920×1080 틀에 넣는다 — `.imp` 래퍼를 키워(1280→1920 = ×1.5) 꼭 맞춘다."""
+def renumber_refs(text: str, m: dict[int, int]) -> str:
+  """본문 · 노트의 「N장」 참조(「10 ~ 12장」 · 「8 · 9장」 포함)를 담당자 덱 안의 번호에서 통합 덱 번호로 바꾼다. 모르는 번호는 그대로 둔다."""
+  def rep(mm: re.Match) -> str:
+    toks = re.split(r"(\s*(?:~|·)\s*)", mm.group(1))
+    return "".join(str(m.get(int(t), t)) if t.isdigit() else t for t in toks) + mm.group(2)
+  return re.sub(r"((?:\d+\s*(?:~|·)\s*)*\d+)(\s*장)", rep, text)
+
+
+def fix_numbers(html_: str, gno: int, total: int, m: dict[int, int]) -> str:
+  """가져온 슬라이드의 쪽 번호를 덱 전체 번호 하나로 맞춘다 — 풋터의 「3 / 29」 → 「N / 전체」, 눈썹의 「3 · 」 제거, 「N장」 참조 변환."""
+  html_ = re.sub(r'(<span class="pg">)\s*\d+\s*/\s*\d+\s*(</span>)', rf"\g<1>{gno} / {total}\g<2>", html_)
+  html_ = re.sub(r'(<p class="eyebrow">)\d+ · ', r"\1", html_)
+  return renumber_refs(html_, m)
+
+
+def imported_frame(p: Personal, i: int, sl: Slide, label: str = "", owner: str = "") -> str:
+  """담당자 슬라이드 한 장을 1920×1080 틀에 넣는다 — `.imp` 래퍼를 키워(1280→1920 = ×1.5) 꼭 맞춘다.
+  label · owner: 맨 끝으로 옮긴 장(한계)에서 발표자 표시를 바꿀 때(예: 「한계와 이어갈 길 · 강민석 발표」)."""
   key = KEYS[p.name]
   scale = min(STAGE_W / p.src_w, STAGE_H / p.src_h)
   dx, dy = (STAGE_W - p.src_w * scale) / 2, (STAGE_H - p.src_h * scale) / 2
   move = f"translate({dx:g}px,{dy:g}px) " if (dx or dy) else ""
   style = f"width:{p.src_w}px;height:{p.src_h}px;transform:{move}scale({scale:g})"
   notes = sl.notes or f"대본 없음 — {p.name}/발표자료.html 에 aside.notes 도, {p.name}/발표대본.md 의 {i}장 블록도 없습니다."
-  title = f"{p.name} · {i}/{len(p.slides)} · {sl.title}"
-  return f'''<section class="slide has-imp" data-owner="{esc(p.name)}" data-title="{esc(title)}">
-  <div class="gnum"><b>{esc(p.name)}</b><span class="pg"></span></div>
+  title = f"{label or p.name} · {sl.title}"
+  return f'''<section class="slide has-imp" data-owner="{esc(owner or p.name)}" data-title="{esc(title)}">
+  <div class="gnum"><b>{esc(label or p.name)}</b><span class="pg"></span></div>
   <div class="imp d-{key}" style="{style}">
 {sl.html}
   </div>
@@ -577,7 +603,7 @@ def imported_frame(p: Personal, i: int, sl: Slide) -> str:
 </section>'''
 
 
-def divider(name: str, no: int, total: int, p: Personal | None, vids: list[dict], dur: dict[str, float]) -> str:
+def divider(name: str, no: int, total: int, p: Personal | None, vids: list[dict], dur: dict[str, float], tail_note: str = "") -> str:
   """사람이 바뀌는 곳의 구분 장(HTML). 발표자 노트에 파트 요약이 들어 있다."""
   n_sl = len(p.slides) if p else 0
   sl_sec = (p.total_seconds or 0) if p else 0
@@ -616,7 +642,7 @@ def divider(name: str, no: int, total: int, p: Personal | None, vids: list[dict]
   if total_sec:
     bits.append(f"예상 {fmt_dur(total_sec)}(" + " + ".join(x for x in (f"대본 {fmt_dur(sl_sec)}" if sl_sec else "", f"영상 {fmt_dur(vid_sec)}" if vid_sec else "") if x) + ")")
   bits.append(f"목표 시간 {tgt or '미정'}")
-  note = " → ".join(bits[:2]) + " · " + " · ".join(bits[2:]) + (f" · {banner}" if banner else "")
+  note = " → ".join(bits[:2]) + " · " + " · ".join(bits[2:]) + (f" · {banner}" if banner else "") + (f" · {tail_note}" if tail_note else "")
   html_ = f'''<section class="slide part person" style="--pc:{COLORS[name]}" data-owner="{esc(name)}" data-title="{esc(name)} 파트 시작">
   <div class="in">
     <div class="no">파트 {no} / {total}</div>
@@ -641,7 +667,7 @@ def cover(people: list[dict]) -> str:
   <div class="in">
     <div class="logo"><div class="mark"></div><div class="name">Qurious</div></div>
     <p class="one">3차 프로젝트 발표</p>
-    <p class="two">{" → ".join(ORDER)} 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 {n_sl}장 · 시연 영상 {n_vd}편 · 사람이 바뀌는 곳에 구분 장</p>
+    <p class="two">{" → ".join(ORDER)} 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 {n_sl}장 · 시연 영상 {n_vd}편 · 사람이 바뀌는 곳에 구분 장 · 맨 끝에 한계와 이어갈 길({TAIL_PRESENTER} 발표)</p>
   </div>
   <div class="team">{chips}</div>
   <div class="date" style="bottom:200px">3차 프로젝트 발표 · 통합 덱 · 초안 v0.2 (팀원 피드백 전)</div>
@@ -708,16 +734,42 @@ def make_plan() -> Plan:
     warnings.append(f"owner 가 ORDER 에 없는 장면 {len(skipped)}개는 덱에서 뺐다: {', '.join(skipped)}")
 
   frames: list[Frame] = []
+  meta: list[tuple[str, int] | None] = []          # frames 와 같은 순서 — 담당자 슬라이드는 (이름, 그 덱 안의 번호)
+  tails: list[tuple[Personal, int, Slide]] = []    # 맨 끝으로 보낼 장(한계) — 모든 사람이 끝난 뒤 붙인다
+  by_name = {x["name"]: x["personal"] for x in people}
+  tail_ns = {n: (TAIL_SLIDES.get(n, 0) if by_name[n] else 0) for n in ORDER}
   for no, x in enumerate(people, 1):
     p, vids, name = x["personal"], x["vids"], x["name"]
-    frames.append(Frame("divider", name, f"{name} 구분 장", divider(name, no, len(people), p, vids, dur), "own"))
+    k = tail_ns[name]
+    p_main = dataclasses.replace(p, slides=p.slides[:len(p.slides) - k]) if (p and k) else p
+    if k:
+      tnote = f"한계 {k}장은 통합 덱 맨 끝으로 옮겨 {TAIL_PRESENTER} 님이 발표"
+    elif name == TAIL_PRESENTER and any(tail_ns.values()):
+      tnote = f"맨 끝에서 {TAIL_LABEL} {sum(tail_ns.values())}장을 발표(자료는 {', '.join(n for n in ORDER if tail_ns[n])} 슬라이드에서 옴)"
+    else:
+      tnote = ""
+    frames.append(Frame("divider", name, f"{name} 구분 장", divider(name, no, len(people), p_main, vids, dur, tnote), "own")); meta.append(None)
     if p:
-      for i, sl in enumerate(p.slides, 1):
-        frames.append(Frame("slide", name, f"{i}/{len(p.slides)} {sl.title}", imported_frame(p, i, sl), sl.notes_from, sl.seconds))
+      for i, sl in enumerate(p_main.slides, 1):
+        frames.append(Frame("slide", name, f"{sl.title}", imported_frame(p, i, sl), sl.notes_from, sl.seconds)); meta.append((name, i))
+      tails += [(p, len(p_main.slides) + j, sl) for j, sl in enumerate(p.slides[len(p_main.slides):], 1)]
     for r in vids:
-      frames.append(Frame("video", name, f"{r['stem']} · {r['title']}", video_slide(r), "own" if r["says"] else ""))
+      frames.append(Frame("video", name, f"{r['stem']} · {r['title']}", video_slide(r), "own" if r["says"] else "")); meta.append(None)
+  for p, i, sl in tails:
+    frames.append(Frame("slide", TAIL_PRESENTER, f"{TAIL_LABEL} · {sl.title}",
+                        imported_frame(p, i, sl, label=f"{TAIL_LABEL} · {TAIL_PRESENTER} 발표", owner=TAIL_PRESENTER), sl.notes_from, sl.seconds)); meta.append((p.name, i))
   expected = 1 + sum(1 + (len(x["personal"].slides) if x["personal"] else 0) + len(x["vids"]) for x in people)
-  frames.insert(0, Frame("cover", "", "표지", cover(people), "own"))
+  frames.insert(0, Frame("cover", "", "표지", cover(people), "own")); meta.insert(0, None)
+
+  # 쪽 번호를 덱 전체 하나로 — 담당자 덱 안의 번호(「3 / 29」 · 「10 · 」 · 「12장」)가 섞여 보이지 않게 한다.
+  total_n = len(frames)
+  loc2glob: dict[str, dict[int, int]] = {}
+  for g, mt in enumerate(meta, 1):
+    if mt:
+      loc2glob.setdefault(mt[0], {})[mt[1]] = g
+  for g, (f, mt) in enumerate(zip(frames, meta), 1):
+    if mt:
+      f.html = fix_numbers(f.html, g, total_n, loc2glob[mt[0]])
 
   # 머리 · CSS · 스크립트
   base = BASE.read_text(encoding="utf-8").replace("\r\n", "\n")
