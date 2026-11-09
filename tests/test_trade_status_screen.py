@@ -14,6 +14,41 @@ NODE = os.environ.get("QURIOUS_NODE_EXECUTABLE") or shutil.which("node")
 
 @unittest.skipUnless(NODE, "Node.js 필요 (QURIOUS_NODE_EXECUTABLE로 지정 가능)")
 class TradeStatusScreenTest(unittest.TestCase):
+    def test_emergency_cancel_notice_distinguishes_pending_and_unknown(self):
+        source = (ROOT / 'public/js/quant.js').read_text(encoding='utf-8')
+        handler = source.split('document.getElementById("risk-kill-on").addEventListener', 1)[1]
+        handler = 'document.getElementById("risk-kill-on").addEventListener' + handler.split(
+            'document.getElementById("risk-kill-off")', 1)[0]
+        script = r'''
+import assert from 'node:assert/strict';
+let click, confirmation, response, toast, refreshes=0;
+const calls=[];
+const document={getElementById:()=>({addEventListener:(event,fn)=>{click=fn;}})};
+const confirm=text=>{confirmation=text;return true;};
+const api=async (path,options)=>{calls.push({path,options});return response;};
+const setToast=(text,level)=>{toast={text,level};};
+const loadAutoTradeStatus=()=>{refreshes++;};
+''' + handler + r'''
+response={cancellation:{requested:1,pending:2,unknown:0,failed:0,skipped:0}};
+await click();
+assert.match(confirmation,/KIS 직접 모의 주문/);
+assert.equal(calls[0].path,'/api/quant/risk/kill-switch');
+assert.equal(calls[0].options.body.enabled,true);
+assert.match(toast.text,/취소 요청 1건/);
+assert.match(toast.text,/기존 취소 확인 대기 2건/);
+assert.match(toast.text,/취소 확정 전에는 체결될 수 있습니다/);
+assert.equal(toast.level,'ok');
+response={cancellation:{requested:0,pending:0,unknown:1,failed:0,skipped:0}};
+await click();
+assert.equal(toast.level,'error');
+assert.match(toast.text,/결과 미확인 1건/);
+assert.match(toast.text,/증권사에서 확인/);
+assert.equal(calls.length,2);assert.equal(refreshes,2);
+'''
+        done = subprocess.run([NODE, '--input-type=module', '-'], input=script, text=True,
+                              encoding='utf-8', capture_output=True, timeout=30)
+        self.assertEqual(done.returncode, 0, done.stderr)
+
     def test_failure_pending_fill_and_html_escaping(self):
         source = (ROOT / 'public/js/trade-status.js').read_bytes()
         url = 'data:text/javascript;base64,' + base64.b64encode(source).decode()
