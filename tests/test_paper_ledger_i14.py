@@ -54,6 +54,7 @@ from app.models import (
     PORTFOLIO_BOOK_QUANT,
     PaperAccount,
     PaperAccountSnapshot,
+    CashflowEvent,
     Portfolio,
     QuantVirtualAccount,
     User,
@@ -68,7 +69,8 @@ needs_db = pytest.mark.skipif(
 TABLES = [User.__table__, PaperAccount.__table__, Portfolio.__table__, Order.__table__,
           QuantVirtualAccount.__table__, CryptoHolding.__table__, CryptoOrder.__table__,
           AlternativePosition.__table__, AlternativeOrder.__table__,
-          PaperAccountSnapshot.__table__, PaperSnapshotPriceAudit.__table__]   # DF-95 — 리셋 후 첫 스냅샷 회귀 시험용
+          PaperAccountSnapshot.__table__, PaperSnapshotPriceAudit.__table__,
+          CashflowEvent.__table__]   # DF-95 · #612 — 스냅샷 및 회차별 현금흐름 회귀 시험용
 
 SYMBOL, NAME, PRICE = "005930.KS", "삼성전자", 70_000.0
 QUANT_INITIAL = float(auto_trade._INITIAL_CAPITAL)
@@ -287,6 +289,10 @@ async def test_reset_deletes_only_web_paper_orders(db):
 
     # 1) PAPER/WEB 주문
     await stocks.place_order(_order(stocks, "buy", 2), user={"id": str(uid)}, db=session)
+    paper_order = (await session.execute(
+        sa_select(Order).where(Order.user_id == uid, Order.source == "WEB")
+    )).scalar_one()
+    assert paper_order.epoch == 1
     await session.commit()
 
     # 2) QUANT 주문 (자동매매)
@@ -305,6 +311,10 @@ async def test_reset_deletes_only_web_paper_orders(db):
 
     assert "WEB" not in sources      # 직접매매 삭제됨
     assert "QUANT" in sources        # 자동매매 보존됨
+    quant_order = (await session.execute(
+        sa_select(Order).where(Order.user_id == uid, Order.source == "QUANT")
+    )).scalar_one()
+    assert quant_order.epoch is None  # QUANT 주문을 PAPER 회차로 오인하지 않는다.
     assert (await paper_trading.get_account(session, uid)).epoch == 2
 
 

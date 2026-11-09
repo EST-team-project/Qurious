@@ -173,13 +173,15 @@ async def place(db: AsyncSession, user_id: uuid.UUID, symbol: str, quantity: int
     if pending >= MAX_PENDING:
         raise ReserveError(f"대기 중인 예약이 {MAX_PENDING}건이라 더 받지 않습니다 — 먼저 취소하거나 체결을 기다리세요.")
     info = await paper_trading.resolve_stock(symbol)
+    account = await paper_trading.get_account(db, user_id, lock=True)
     if (info.get("currency") or "KRW").upper() == "KRW":
         raise ReserveError("원화 종목은 예약을 받지 않습니다 — 국내주식 모의주문을 쓰세요.")
     order = Order(
         user_id=user_id, symbol=info["symbol"], name=(info.get("name") or info["symbol"])[:100],
         order_type="buy", quantity=quantity,
         # price 는 예약할 때 본 원화 환산 시세(참고) — 체결가는 avg_fill_price 에 따로 남는다
-        price=float(info["price"]), status="pending", broker="virtual", source=SOURCE, order_kind=KIND,
+        price=float(info["price"]), status="pending", broker="virtual", source=SOURCE,
+        epoch=int(account.epoch or 1), order_kind=KIND,
     )
     db.add(order)
     await db.flush()

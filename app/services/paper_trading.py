@@ -587,10 +587,13 @@ async def _fill_stock_order(db, user_id, info, side, quantity, *, source, filled
     if order is None:
         order = Order(
             id=uuid.uuid4(), user_id=user_id, symbol=info["symbol"], name=info["name"], order_type=side.lower(),
-            quantity=quantity, broker="virtual", source=source,
+            quantity=quantity, broker="virtual", source=source, epoch=int(account.epoch or 1),
             execution_intent_id=execution_control.current_intent.get().key if execution_control.current_intent.get() else None,
         )
         db.add(order)
+    else:
+        # 보존된 대기 주문이 초기화 뒤 체결되면, 실제 현금·보유가 반영된 새 회차에 귀속한다.
+        order.epoch = int(account.epoch or 1)
     order.price, order.status = price, "filled"
     fields = trading_cost.order_fields(cost, price, quantity, filled_at=filled_at)
     if order.order_kind == "stop":
@@ -1644,10 +1647,11 @@ async def place_stop_order(
         if position is None or position.quantity < quantity:
             raise StopOrderError("매도 스탑은 보유 수량이 필요합니다.")
 
+    account = await get_account(db, user_id, lock=True)
     order = Order(
         user_id=user_id, symbol=info["symbol"], name=info["name"],
         order_type=side.lower(), quantity=quantity, price=float(stop_price),
-        status="pending", broker="virtual", source=source,
+        status="pending", broker="virtual", source=source, epoch=int(account.epoch or 1),
         order_kind="stop", stop_price=float(stop_price), order_price=float(stop_price),
     )
     db.add(order)

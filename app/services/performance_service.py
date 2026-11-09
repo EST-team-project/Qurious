@@ -85,6 +85,7 @@ async def get_robo_metrics(
             "metrics": _nan_metrics(),
             "equity_curve": [_clean(v) for v in equity.tolist()],
             "snap_dates": snap_dates,
+            "return_basis": "modified_dietz_external_cashflows_excluded",
         }
 
     # QFRS 지표 계산
@@ -133,13 +134,15 @@ async def get_robo_metrics(
             "dsr": _clean(metrics["Deflated Sharpe Ratio"]),
         }
 
-    # 누적 수익률 (첫 스냅샷 대비)
-    total_return = float(equity[-1] / equity[0] - 1) if len(equity) > 0 else 0.0
+    # 계좌 총자산(equity)은 입출금에 따라 변하므로 투자성과 계산에 직접 사용하지 않는다.
+    # 성과 누적곡선은 입출금 보정 일간 수익률을 복리 연결한다.
+    performance_index = np.cumprod(1.0 + returns) if len(returns) else np.array([], dtype=float)
+    total_return = float(performance_index[-1] - 1.0) if len(performance_index) else None
 
-    # Drawdown curve (차트용)
-    if len(equity) > 0:
-        running_max = np.maximum.accumulate(equity)
-        drawdown_curve = (equity / running_max - 1).tolist()
+    # Drawdown curve (차트용): 외부 입출금이 아닌 투자성과 기준.
+    if len(performance_index) > 0:
+        running_max = np.maximum.accumulate(performance_index)
+        drawdown_curve = (performance_index / running_max - 1).tolist()
     else:
         drawdown_curve = []
 
@@ -150,6 +153,7 @@ async def get_robo_metrics(
         "metrics": metrics_out,          # ← 여기
         "equity_curve": [_clean(v) for v in equity.tolist()],
         "drawdown_curve": [_clean(v) for v in drawdown_curve],
+        "return_basis": "modified_dietz_external_cashflows_excluded",
         "snap_dates": snap_dates,
         "params": {
             "risk_free_rate": risk_free_rate,
@@ -232,14 +236,16 @@ async def _get_benchmark_map() -> tuple[list[str], np.ndarray]:
 
 async def get_returns_table(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
     """기간별 수익률 (1m/3m/6m/1y/누적)."""
-    _, equity = await get_daily_returns(db, user_id)
-    if len(equity) < 2:
-        return {"status": "insufficient_data", "snapshot_count": len(equity)}
+    returns, equity = await get_daily_returns(db, user_id)
+    if len(equity) < 2 or len(returns) < 1:
+        return {"status": "insufficient_data", "snapshot_count": len(equity),
+                "return_observation_count": len(returns),
+                "return_basis": "modified_dietz_external_cashflows_excluded"}
 
     def pr(days: int) -> float | None:
-        if len(equity) < days + 1:
+        if len(returns) < days:
             return None
-        return float(equity[-1] / equity[-days - 1] - 1)
+        return float(np.prod(1.0 + returns[-days:]) - 1.0)
 
     return {
         "status": "ok",
@@ -247,8 +253,10 @@ async def get_returns_table(db: AsyncSession, user_id: uuid.UUID) -> dict[str, A
         "return_3m": _clean(pr(63)),
         "return_6m": _clean(pr(126)),
         "return_1y": _clean(pr(252)),
-        "return_cumulative": _clean(float(equity[-1] / equity[0] - 1)),
+        "return_cumulative": _clean(float(np.prod(1.0 + returns) - 1.0)),
         "snapshot_count": len(equity),
+        "return_observation_count": len(returns),
+        "return_basis": "modified_dietz_external_cashflows_excluded",
     }
 
 
@@ -259,7 +267,8 @@ async def get_risk_metrics(db: AsyncSession, user_id: uuid.UUID) -> dict[str, An
     """
     dates, returns, equity = await get_daily_returns(db, user_id, with_dates=True)
     if len(returns) < 5:
-        return {"status": "insufficient_data", "snapshot_count": len(equity)}
+        return {"status": "insufficient_data", "snapshot_count": len(equity),
+                "return_basis": "modified_dietz_external_cashflows_excluded"}
 
     bench_dates, bench_all = await _get_benchmark_map()
     if len(bench_dates) < 5:
@@ -327,13 +336,16 @@ async def get_turnover(db: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
     from sqlalchemy import func as sqlfunc
     from app.models import Order
 
+    # PAPER 성과와 동일하게 현재 계좌 회차의 주문만 회전율에 반영한다.
+    epoch = await _get_current_epoch(db, user_id)
+
     buy_sum = (await db.execute(
         select(sqlfunc.coalesce(sqlfunc.sum(Order.price * Order.quantity), 0.0))
-        .where(Order.user_id == user_id, Order.order_type == "buy")
+        .where(Order.user_id == user_id, Order.epoch == epoch, Order.order_type == "buy")
     )).scalar_one() or 0.0
     sell_sum = (await db.execute(
         select(sqlfunc.coalesce(sqlfunc.sum(Order.price * Order.quantity), 0.0))
-        .where(Order.user_id == user_id, Order.order_type == "sell")
+        .where(Order.user_id == user_id, Order.epoch == epoch, Order.order_type == "sell")
     )).scalar_one() or 0.0
 
     _, equity = await get_daily_returns(db, user_id)
@@ -399,29 +411,15 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
     이슈 #88 지적 #10 — 이전엔 `bench_closes[-len(equity):]` 로 끝에서 N개를 잘라
     계좌 스냅샷이 띄엄띄엄하면 엉뚱한 날 KOSPI 를 그렸다. 이제 **날짜 기준**으로 맞춘다.
     """
-    from app.models.paper_snapshot import PaperAccountSnapshot
     from app.services.stock import get_candles
 
-    stmt = (
-        select(PaperAccountSnapshot)
-        .where(
-            PaperAccountSnapshot.user_id == user_id,
-            PaperAccountSnapshot.completeness == "complete",
-            PaperAccountSnapshot.origin == "daily",
-        )
-        .order_by(PaperAccountSnapshot.snap_date.asc())
-    )
-    # 기간 선택 차트라 개수 상한을 두지 않는다 — 이 함수에는 limit 인자가 없다
-    # (이슈 #460: get_allocation_history 에서 복사된 `.limit(limit)` 이 NameError 로 500 이었다).
-    rows = (await db.execute(stmt)).scalars().all()
-    epoch = await _get_current_epoch(db, user_id)
-    rows = [r for r in rows if valid_daily_row(r, epoch)]
-
-    if len(rows) < 2:
-        return {"status": "insufficient_data"}
-
-    our_dates = [r.snap_date.isoformat() for r in rows]
-    equity = np.array([float(r.total_equity) for r in rows], dtype=float)
+    # 실제 총자산은 입출금이 섞이므로, 현금흐름 보정된 일간 성과를 복리 연결한다.
+    our_dates, returns, _ = await get_daily_returns(db, user_id, with_dates=True)
+    if len(returns) < 1:
+        return {"status": "insufficient_data",
+                "return_basis": "modified_dietz_external_cashflows_excluded"}
+    performance_index = np.cumprod(1.0 + returns) * 100.0
+    our_map = {day: float(value) for day, value in zip(our_dates, performance_index)}
 
     try:
         bench_data = await get_candles(BENCHMARK_SYMBOL, period="2y", interval="1d")
@@ -435,13 +433,12 @@ async def get_benchmark_series(db: AsyncSession, user_id: uuid.UUID) -> dict[str
     except Exception as e:
         return {"status": "insufficient_data", "reason": f"벤치마크 실패: {e}"}
 
-    # 계좌 스냅샷 날짜 기준으로 KOSPI 있는 날만 교집합
+    # 수익률이 계산된 계좌 날짜와 KOSPI 날짜의 교집합
     common = [d for d in our_dates if d in bench_map]
-    if len(common) < 2:
+    if not common:
         return {"status": "insufficient_data", "reason": "벤치마크 공통 날짜 부족"}
 
-    idx = {d: i for i, d in enumerate(our_dates)}
-    our_aligned = np.array([equity[idx[d]] for d in common], dtype=float)
+    our_aligned = np.array([our_map[d] for d in common], dtype=float)
     bench_aligned = np.array([bench_map[d] for d in common], dtype=float)
 
     norm_our = (our_aligned / our_aligned[0] * 100).round(2).tolist()

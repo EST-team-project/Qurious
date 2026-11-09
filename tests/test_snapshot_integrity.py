@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
-from app.models import User, PaperAccount, PaperAccountSnapshot, PaperSnapshotPriceAudit
+from app.models import User, PaperAccount, PaperAccountSnapshot, PaperSnapshotPriceAudit, CashflowEvent, Order
 from app.services import paper_trading as pt, paper_snapshot_service as snapshots, snapshot_pricing as pricing
 
 
@@ -152,8 +152,69 @@ def test_daily_boundaries_provenance_and_manual_cannot_overwrite(monkeypatch):
             monkeypatch.setattr("app.services.stock.get_candles", AsyncMock(return_value={"candles": [
                 {"date": f"2026-10-{d}", "close": 100} for d in range(16, 24)]}))
             benchmark = await performance_service.get_benchmark_series(db, uid)
-            assert benchmark["dates"] == metrics["snap_dates"]
+            # 성과 시계열은 실제 수익률이 계산된 날만 갖는다(첫 스냅샷은 기준점).
+            assert benchmark["dates"] == ["2026-10-20", "2026-10-23"]
         await engine.dispose()
+    asyncio.run(scenario())
+
+
+@pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), reason="일회용 PostgreSQL 필요")
+@pytest.mark.usefixtures("rebalance_db_schema")
+def test_deposit_is_excluded_from_snapshot_and_performance_returns(monkeypatch):
+    """#612 — 같은 날 입금만으로 PAPER 일간·누적 수익률이 상승하지 않는다."""
+    async def scenario():
+        engine = create_async_engine(os.environ["QURIOUS_TEST_DATABASE_URL"], poolclass=NullPool)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        uid = uuid.uuid4()
+        now = datetime.now(pricing.KST)
+        today = now.date()
+        previous_at = now - timedelta(days=1)
+        async with factory() as db:
+            db.add(User(id=uid, email=f"{uid}@test.local", name="cashflow",
+                        password_hash="x", client_id=uid.hex))
+            await db.flush()
+            db.add(PaperAccount(user_id=uid, cash=109, initial_cash=100, epoch=1))
+            db.add(PaperAccountSnapshot(
+                user_id=uid, snap_date=today - timedelta(days=1), cash=100,
+                position_value=0, total_equity=100, daily_return=0, position_count=0,
+                stock_value=0, crypto_value=0, alt_value=0, epoch=1,
+                snapshot_at=previous_at, completeness="complete", origin="daily",
+                price_metadata=[], return_valid=False,
+            ))
+            db.add(CashflowEvent(
+                user_id=uid, epoch=1, kind="DEPOSIT", amount=9,
+                created_at=now - timedelta(hours=12), remaining_budget=0,
+                cash_after=109, symbol="", memo="test deposit",
+            ))
+            await db.commit()
+
+            async def snapshot(_db, _uid, **kwargs):
+                return {"cash": 109.0, "stockEval": 0.0, "cryptoEval": 0.0,
+                        "alternativeEval": 0.0, "totalAsset": 109.0,
+                        "counts": {"stocks": 0, "crypto": 0, "alternatives": 0},
+                        "price_complete": True, "price_metadata": [], "_price_audits": []}
+
+            monkeypatch.setattr(snapshots, "account_snapshot", snapshot)
+            monkeypatch.setattr(snapshots, "consecutive", lambda a, b: b == a + timedelta(days=1))
+            current = await snapshots.record_daily_snapshot(db, uid, snap_date=today)
+            assert current.daily_return == pytest.approx(0.0)
+            assert current.return_valid
+            await snapshots.record_daily_snapshot(db, uid, snap_date=today + timedelta(days=1))
+            await snapshots.record_daily_snapshot(db, uid, snap_date=today + timedelta(days=2))
+
+            dates, returns, equity = await snapshots.get_daily_returns(db, uid, with_dates=True)
+            assert dates == [(today + timedelta(days=i)).isoformat() for i in (0, 1, 2)]
+            assert returns.tolist() == pytest.approx([0.0, 0.0, 0.0])
+            assert equity.tolist() == pytest.approx([100.0, 109.0, 109.0, 109.0])
+
+            from app.services import performance_service
+            table = await performance_service.get_returns_table(db, uid)
+            assert table["return_cumulative"] == pytest.approx(0.0)
+            assert table["return_basis"] == "modified_dietz_external_cashflows_excluded"
+            metrics = await performance_service.get_robo_metrics(db, uid)
+            assert metrics["total_return"] == pytest.approx(0.0)
+        await engine.dispose()
+
     asyncio.run(scenario())
 
 
@@ -166,3 +227,44 @@ def test_missing_weekday_does_not_become_one_day_return(monkeypatch):
 def test_educational_alternative_audit_does_not_require_live_feed():
     quote = asyncio.run(pt.alt_quote('RE-SEOUL', include_price_audit=True))
     assert quote['_price_audit']['fallback_used'] and quote['_price_audit']['status'] == 'demo'
+
+
+@pytest.mark.skipif(not os.getenv("QURIOUS_TEST_DATABASE_URL"), reason="일회용 PostgreSQL 필요")
+@pytest.mark.usefixtures("rebalance_db_schema")
+def test_turnover_uses_only_current_paper_epoch_orders():
+    """#612 — 매매회전율에 과거 회차 및 회차 미확인 주문을 포함하지 않는다."""
+    async def scenario():
+        engine = create_async_engine(
+            os.environ["QURIOUS_TEST_DATABASE_URL"], poolclass=NullPool
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        uid = uuid.uuid4()
+        async with factory() as db:
+            db.add(User(
+                id=uid, email=f"{uid}@test.local", name="turnover",
+                password_hash="x", client_id=uid.hex,
+            ))
+            await db.flush()
+            db.add(PaperAccount(user_id=uid, cash=1000, initial_cash=1000, epoch=2))
+            db.add_all([
+                Order(user_id=uid, symbol="AAA", name="current-buy",
+                      order_type="buy", quantity=2, price=200, epoch=2, source="WEB"),
+                Order(user_id=uid, symbol="BBB", name="current-sell",
+                      order_type="sell", quantity=2, price=150, epoch=2, source="PINE"),
+                Order(user_id=uid, symbol="CCC", name="old-buy",
+                      order_type="buy", quantity=1, price=100, epoch=1, source="PAPER"),
+                Order(user_id=uid, symbol="DDD", name="old-sell",
+                      order_type="sell", quantity=1, price=100, epoch=1, source="REBALANCE"),
+                Order(user_id=uid, symbol="EEE", name="legacy-buy",
+                      order_type="buy", quantity=3, price=300, epoch=None, source="WEB"),
+            ])
+            await db.commit()
+
+            from app.services.performance_service import get_turnover
+            result = await get_turnover(db, uid)
+            assert result["total_buy"] == 400.0
+            assert result["total_sell"] == 300.0
+
+        await engine.dispose()
+
+    asyncio.run(scenario())

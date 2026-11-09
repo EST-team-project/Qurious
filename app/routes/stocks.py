@@ -388,13 +388,14 @@ async def place_order(
                 400, f"매도 가능한 수량이 부족합니다 (보유 {held}주 · 주문 {body.quantity}주).")
     delta = -cost.net_amount if body.order_type == "buy" else cost.net_amount
     try:
-        await paper_trading.apply_cash(db, uid, delta)
+        account = await paper_trading.apply_cash(db, uid, delta)
     except paper_trading.PaperTradeError as exc:
         await db.rollback()
         raise HTTPException(400, str(exc))
     db.add(Order(
         user_id=uid, symbol=body.symbol, name=body.name, order_type=body.order_type,
         quantity=body.quantity, price=body.price, status="filled", broker=body.broker, source="WEB",
+        epoch=int(account.epoch or 1),
         **trading_cost.order_fields(cost, body.price, body.quantity),
     ))
     await _apply_portfolio(db, uid, body.symbol, body.name,
