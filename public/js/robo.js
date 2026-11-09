@@ -186,11 +186,11 @@ async function submitRiskProfile() {
     const stored = saveRiskProfile(r, owner);
     if (stored === "unavailable") return; // 진단 중 계정이 바뀌었으면 새 계정 화면에도 표시하지 않는다.
     const cls = r.risk_profile === "aggressive" ? "badge-sell" : r.risk_profile === "moderate" ? "badge-hold" : "badge-buy";
-    // 화면에는 서버 값(moderate 같은 영어 낱말) 대신 아래 「투자 성향」 선택 칸의 글(「중립 (위험중립형)」)을 보인다 —
+    // 화면에는 서버 값(moderate 같은 영어 낱말) 대신 아래 「배분 성향」 선택 칸의 글(「중립 (위험중립형)」)을 보인다 —
     // 2026-10-18 잠정 반영(D124 · 주담당 오준영 · 시연 영상에서 찾음). 되돌리려면 profileLabel 대신 r.risk_profile 을 쓴다.
     const profileLabel = document.querySelector(`#robo-risk option[value="${r.risk_profile}"]`)?.textContent || "미확인";
     document.getElementById("rp-result").innerHTML = `
-      <div class="flex flex-wrap items-center gap-2 mb-1"><span class="${cls}" style="font-size:14px;">${escHtml(r.level)}</span><span class="text-xs" style="color:var(--text-mute);">점수 ${r.score} / ${r.max_score} · 자산배분 성향 <b>${escHtml(profileLabel)}</b>(아래 최적화에 반영됨)</span></div>
+      <div class="flex flex-wrap items-center gap-2 mb-1"><span class="${cls}" style="font-size:14px;">${escHtml(r.level)}</span><span class="text-xs" style="color:var(--text-mute);">점수 ${r.score} / ${r.max_score} · 진단의 배분 성향 <b>${escHtml(profileLabel)}</b></span></div>
       <p class="text-xs" style="color:var(--text-dim);">${escHtml(r.description)}</p>
       <div class="flex gap-1 mt-2">${r.scale.map(sc => `<span class="text-xs px-2 py-0.5 rounded" style="background:${sc.level === r.level ? "var(--accent)" : "var(--surf3)"};color:${sc.level === r.level ? "#fff" : "var(--text-mute)"};">${escHtml(sc.level)} ${sc.min}+</span>`).join("")}</div>`;
     document.getElementById("robo-risk").value = r.risk_profile;
@@ -219,7 +219,7 @@ export function initRoboRiskProfile(clientId) {
     return;
   }
   const label = document.querySelector(`#robo-risk option[value="${saved.risk_profile}"]`)?.textContent || "미확인";
-  el.innerHTML = `<span class="text-xs" style="color:var(--text-mute);">최근 진단: <b>${escHtml(saved.level)}</b> (${saved.score}점) — 자산배분 성향 ${escHtml(label)}</span>`;
+  el.innerHTML = `<span class="text-xs" style="color:var(--text-mute);">최근 진단: <b>${escHtml(saved.level)}</b> (${saved.score}점) — 진단의 배분 성향 ${escHtml(label)}</span>`;
 }
 
 // ── 로보 어드바이저: 목표 수익률 달성 확률 시뮬레이션 ────────────────
