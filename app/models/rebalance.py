@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, String, text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -89,9 +89,14 @@ class CashflowEvent(Base, UUIDPkMixin, CreatedAtMixin):
     """모의계좌 입금·출금·배당 이벤트."""
 
     __tablename__ = "cashflow_events"
-    __table_args__ = (Index("ix_cashflow_events_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_cashflow_events_user_created", "user_id", "created_at"),
+        Index("ix_cashflow_events_user_epoch_created", "user_id", "epoch", "created_at"),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # 이벤트가 실제 반영된 PAPER 계좌 회차. 기존 이벤트는 회차를 추정할 수 없어 NULL.
+    epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
     kind: Mapped[str] = mapped_column(String(10), nullable=False)  # DEPOSIT | WITHDRAW | DIVIDEND
     amount: Mapped[float] = mapped_column(Float, nullable=False)   # 항상 양수, 방향은 kind로 구분
     symbol: Mapped[str] = mapped_column(String(20), nullable=False, default="")  # 배당 종목

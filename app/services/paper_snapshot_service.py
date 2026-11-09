@@ -3,7 +3,7 @@
 모의계좌 일별 스냅샷 기록 & QFRS 지표용 수익률 시계열 조회.
 
 - record_daily_snapshot: 오늘 자산을 스냅샷으로 저장 (idempotent upsert)
-- get_daily_returns: QFRS 지표 계산용 일별 수익률 numpy 배열
+- get_daily_returns: 외부 입출금을 보정한 QFRS 일별 수익률과 실제 총자산 numpy 배열
 """
 
 from __future__ import annotations
@@ -16,13 +16,17 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 import numpy as np
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.paper import PaperAccount
 from app.models.paper_snapshot import PaperAccountSnapshot
 from app.models.paper_snapshot_price_audit import PaperSnapshotPriceAudit
+from app.models.rebalance import CashflowEvent
+from app.services.paper_performance import (
+    EXTERNAL_CASHFLOW_KINDS, _as_utc, cashflow_adjusted_return,
+)
 from app.services.paper_trading import account_snapshot
 from app.services.snapshot_pricing import daily_complete, consecutive
 
@@ -38,6 +42,31 @@ async def _get_current_epoch(db: AsyncSession, user_id: uuid.UUID) -> int:
     return int(val or 1)
 
 
+async def _external_cashflows_between(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    start_at: datetime | None,
+    end_at: datetime | None,
+    epoch: int,
+) -> list[CashflowEvent]:
+    """해당 스냅샷 구간의 현재 회차 및 회차 미확인 입출금만 읽는다."""
+    start_time = _as_utc(start_at)
+    end_time = _as_utc(end_at)
+    if start_time is None or end_time is None or end_time <= start_time:
+        return []
+
+    result = await db.execute(
+        select(CashflowEvent).where(
+            CashflowEvent.user_id == user_id,
+            CashflowEvent.kind.in_(EXTERNAL_CASHFLOW_KINDS),
+            CashflowEvent.created_at > start_time,
+            CashflowEvent.created_at <= end_time,
+            or_(CashflowEvent.epoch == epoch, CashflowEvent.epoch.is_(None)),
+        ).order_by(CashflowEvent.created_at.asc())
+    )
+    return list(result.scalars().all())
+
+
 async def record_daily_snapshot(
     db: AsyncSession,
     user_id: uuid.UUID,
@@ -51,6 +80,8 @@ async def record_daily_snapshot(
     - 같은 날짜에 이미 스냅샷이 있으면 덮어씀
     - 불완전한 시세 스냅샷은 daily_return = 0.0, return_valid = false (성과 계산 제외)
     - 직전 스냅샷이 불완전하거나 출처가 다르면 수익률 연결을 초기화
+    - DEPOSIT/WITHDRAW는 Modified Dietz 방식으로 보정하고 DIVIDEND는 수익에 포함
+    - 회차를 알 수 없는 과거 입출금이 구간에 있으면 해당 구간 수익률은 미산출
     - 연속된 완전한 일일 스냅샷만 수익률 계산에 사용
     """
     if snap_date is None:
@@ -116,7 +147,13 @@ async def record_daily_snapshot(
         and consecutive(prev_row.snap_date, snap_date)
     )
     if return_valid:
-        daily_return = (total_equity / prev_row.total_equity) - 1.0
+        cashflows = await _external_cashflows_between(
+            db, user_id, prev_row.snapshot_at, captured_at, current_epoch,
+        )
+        daily_return, return_valid = cashflow_adjusted_return(
+            prev_row.total_equity, total_equity,
+            prev_row.snapshot_at, captured_at, cashflows, current_epoch,
+        )
     else:
         daily_return = 0.0
 
@@ -220,7 +257,7 @@ async def get_daily_returns(
     limit: Optional[int] = None,
     with_dates: bool = False,
 ):
-    """완전한 일일 스냅샷만 사용하는 QFRS 수익률 및 총자산 시계열."""
+    """완전한 스냅샷에서 Modified Dietz 보정수익률과 실제 총자산 시계열을 반환한다."""
     stmt = (
         select(PaperAccountSnapshot)
         .where(PaperAccountSnapshot.user_id == user_id)
@@ -229,8 +266,15 @@ async def get_daily_returns(
 
     rows = (await db.execute(stmt)).scalars().all()
     epoch = await _get_current_epoch(db, user_id)
+    valid_rows = [row for row in rows if valid_daily_row(row, epoch)]
+    timed_rows = [row for row in valid_rows if getattr(row, "snapshot_at", None) is not None]
+    cashflows: list[CashflowEvent] = []
+    if timed_rows:
+        cashflows = await _external_cashflows_between(
+            db, user_id, timed_rows[0].snapshot_at, timed_rows[-1].snapshot_at, epoch,
+        )
     # 누락·불완전·회차 경계를 0% 수익으로 만들지 않는다. 재수집한 과거 행의
-    # 다음 날도 저장된 옛 비율 대신 실제 이웃 두 행으로 다시 계산한다.
+    # 다음 날도 저장된 옛 비율 대신 실제 이웃 두 행과 외부 현금흐름으로 다시 계산한다.
     dates, returns, equity = [], [], []
     previous = None
     for row in rows:
@@ -238,8 +282,13 @@ async def get_daily_returns(
             equity.append(row.total_equity)
             if (previous is not None and valid_daily_row(previous, epoch)
                     and previous.total_equity > 0 and consecutive(previous.snap_date, row.snap_date)):
-                dates.append(row.snap_date.isoformat())
-                returns.append(row.total_equity / previous.total_equity - 1)
+                daily_return, return_valid = cashflow_adjusted_return(
+                    previous.total_equity, row.total_equity,
+                    previous.snapshot_at, row.snapshot_at, cashflows, epoch,
+                )
+                if return_valid:
+                    dates.append(row.snap_date.isoformat())
+                    returns.append(daily_return)
         previous = row
     if limit is not None:
         if limit < 1:

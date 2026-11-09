@@ -38,6 +38,46 @@ def forbid_quotes(monkeypatch):
     monkeypatch.setattr(rb.pt, 'resolve_stock', fail)
 
 
+def test_paper_orders_and_cashflows_keep_their_account_epoch(monkeypatch):
+    """#612 — PAPER 체결과 입출금은 실제 반영된 계좌 회차에 귀속한다."""
+    async def go():
+        async with scenario(monkeypatch, symbols=SYMBOLS) as (factory, uid):
+            info = dict(symbol=SYMBOLS[0], name=SYMBOLS[0], price=1000,
+                        market="KOSPI", is_etf=False)
+            from unittest.mock import AsyncMock
+            monkeypatch.setattr(rb.pt, "resolve_stock", AsyncMock(return_value=info))
+            monkeypatch.setattr(rb.pt, "_confirm_quote", AsyncMock(return_value=info))
+            async with factory() as db:
+                first_cashflow = await rb.record_cashflow(db, uid, "DEPOSIT", 10000)
+                assert first_cashflow["event"]["epoch"] == 1
+                await rb.pt.stock_order(db, uid, SYMBOLS[0], "BUY", 1, source="REBALANCE")
+                first_order = (await db.execute(
+                    select(Order).where(Order.user_id == uid, Order.source == "REBALANCE")
+                )).scalar_one()
+                assert first_order.epoch == 1
+                await db.commit()
+
+                await rb.pt.reset_account(db, uid)
+                await db.commit()
+                second_cashflow = await rb.record_cashflow(db, uid, "WITHDRAW", 10000)
+                assert second_cashflow["event"]["epoch"] == 2
+                await rb.pt.stock_order(db, uid, SYMBOLS[0], "BUY", 1, source="REBALANCE")
+                orders = (await db.execute(
+                    select(Order).where(Order.user_id == uid, Order.source == "REBALANCE")
+                    .order_by(Order.epoch.asc())
+                )).scalars().all()
+                assert [row.epoch for row in orders] == [1, 2]
+                events = (await db.execute(
+                    select(CashflowEvent).where(CashflowEvent.user_id == uid)
+                    .order_by(CashflowEvent.epoch.asc())
+                )).scalars().all()
+                assert [row.epoch for row in events] == [1, 2]
+                pending = await rb.pending_cashflows(db, uid)
+                assert [row.epoch for row in pending] == [2]
+                await db.commit()
+    asyncio.run(go())
+
+
 @pytest.mark.parametrize('runner_warning', [False, True])
 def test_manual_preview_execution_use_close_and_only_reserve(monkeypatch, clock, ready_data, runner_warning):
     if runner_warning:

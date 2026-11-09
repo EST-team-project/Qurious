@@ -37,6 +37,7 @@ class Portfolio(Base, UUIDPkMixin, UpdatedAtMixin):
 class Order(Base, UUIDPkMixin, CreatedAtMixin):
     __tablename__ = "orders"
     __table_args__ = (Index("ix_orders_user_created", "user_id", "created_at"),
+                      Index("ix_orders_user_epoch_created", "user_id", "epoch", "created_at"),
                       UniqueConstraint("execution_intent_id", name="uq_orders_execution_intent_id"))
 
     user_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
@@ -51,6 +52,9 @@ class Order(Base, UUIDPkMixin, CreatedAtMixin):
     broker: Mapped[str] = mapped_column(String(20), nullable=False, default="virtual")
     # WEB(직접매매 화면) | PAPER(모의투자 화면) | OPENAPI(외부 Open API) | PINE(파인스크립트 실습) | QUANT(자동매매)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="WEB")
+    # PAPER 계좌에 실제 반영된 회차. QUANT/BACKTEST/증권사 원장 주문은 NULL.
+    # 기존 주문은 리셋 이력을 완전히 재구성할 수 없어 NULL로 둔다(현재 회차로 추정 금지).
+    epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
     execution_intent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # ── 체결 ────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CashflowEvent, RebalancePlan, RebalanceRun
+from app.models import CashflowEvent, PaperAccount, RebalancePlan, RebalanceRun
 from app.models.rebalance import CASHFLOW_KINDS, TIME_PERIODS
 from app.services import paper_trading as pt
 from app.services import rebalance_policy as policy
@@ -282,8 +282,19 @@ def proposal_context(plan, proposal):
 
 
 async def pending_cashflows(db, user_id):
+    """현재 PAPER 계좌 회차에서 아직 쓰지 않은 현금흐름 예산만 반환한다.
+
+    리셋 이전 회차의 미사용 예산이 새 계좌의 리밸런싱 판단에 섞이지 않도록 한다.
+    epoch=NULL인 과거 이벤트도 회차를 추정하지 않고 현재 예산에서 제외한다.
+    """
+    epoch = (await db.execute(
+        select(PaperAccount.epoch).where(PaperAccount.user_id == user_id)
+    )).scalar_one_or_none()
+    current_epoch = int(epoch or 1)
     return list((await db.execute(select(CashflowEvent).where(
-        CashflowEvent.user_id == user_id, CashflowEvent.remaining_budget != 0
+        CashflowEvent.user_id == user_id,
+        CashflowEvent.epoch == current_epoch,
+        CashflowEvent.remaining_budget != 0,
     ).order_by(CashflowEvent.created_at, CashflowEvent.id))).scalars().all())
 
 
@@ -522,8 +533,10 @@ async def record_cashflow(db: AsyncSession, user_id: uuid.UUID, kind: str, amoun
             cancelled = min(abs(budget), abs(old.remaining_budget)) * (1 if budget > 0 else -1)
             old.remaining_budget = round(old.remaining_budget + cancelled, 8)
             budget -= cancelled
-    event = CashflowEvent(user_id=user_id, kind=kind, amount=amount, symbol=symbol or "", remaining_budget=budget,
-                          memo=(memo or "")[:200], cash_after=account.cash)
+    event = CashflowEvent(user_id=user_id, epoch=int(account.epoch or 1), kind=kind, amount=amount,
+                          symbol=symbol or "", remaining_budget=budget,
+                          memo=(memo or "")[:200], cash_after=account.cash,
+                          created_at=datetime.now(KST))
     db.add(event)
     await db.flush()
     await db.refresh(event)
@@ -533,7 +546,8 @@ async def record_cashflow(db: AsyncSession, user_id: uuid.UUID, kind: str, amoun
 
 
 def cashflow_to_dict(e: CashflowEvent) -> dict:
-    return {"id": str(e.id), "kind": e.kind, "amount": e.amount, "symbol": e.symbol, "memo": e.memo,
+    return {"id": str(e.id), "epoch": e.epoch, "kind": e.kind, "amount": e.amount,
+            "symbol": e.symbol, "memo": e.memo,
             "cash_after": e.cash_after, "remaining_budget": e.remaining_budget, "rebalance_run_id": str(e.rebalance_run_id) if e.rebalance_run_id else None,
             "created_at": e.created_at.isoformat() if e.created_at else None}
 

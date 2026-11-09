@@ -11,7 +11,7 @@
 3. 스냅샷이 2건 미만이면 insufficient_data 로 답한다(예외 없음). (TC-PRN-03)
 """
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -43,9 +43,11 @@ def _db(result):
 
 
 def _snap(day, equity):
-    return SimpleNamespace(snap_date=date.fromisoformat(day), total_equity=equity,
+    snap_date = date.fromisoformat(day)
+    return SimpleNamespace(snap_date=snap_date, total_equity=equity,
                            completeness="complete", origin="daily", epoch=1,
-                           position_count=0, price_metadata=[], snapshot_at=None)
+                           position_count=0, price_metadata=[],
+                           snapshot_at=datetime.combine(snap_date, datetime.min.time(), timezone.utc))
 
 
 USER = {"id": str(uuid.uuid4())}
@@ -71,12 +73,16 @@ async def test_benchmark_series_has_no_limit_name_error(monkeypatch):
     out = await perf.get_benchmark_series(_db(_Result(rows=rows)), uuid.uuid4())
 
     assert out["status"] == "ok"
-    assert out["dates"] == ["2026-10-27", "2026-10-28", "2026-10-29"]
-    assert out["our_series"] == [100.0, 110.0, 121.0]
+    # 첫 수익률은 10/28 스냅샷에서 발생하므로 수익률 날짜는 시작 스냅샷 다음 날부터다.
+    assert out["dates"] == ["2026-10-28", "2026-10-29"]
+    assert out["our_series"] == [100.0, 110.0]
     assert out["benchmark_series"][0] == 100.0 and out["benchmark_name"] == "KOSPI"
 
 
 @pytest.mark.asyncio
 async def test_benchmark_series_insufficient_when_under_two_snapshots():
     out = await perf.get_benchmark_series(_db(_Result(rows=[_snap("2026-10-29", 100.0)])), uuid.uuid4())
-    assert out == {"status": "insufficient_data"}
+    assert out == {
+        "status": "insufficient_data",
+        "return_basis": "modified_dietz_external_cashflows_excluded",
+    }
