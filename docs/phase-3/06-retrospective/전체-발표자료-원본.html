@@ -311,6 +311,161 @@ html, body { background: #fff; }
 .d-lee .mx th { white-space:nowrap;font-size:13px;padding:5px 4px }
 .d-lee .mx td { padding:4px 4px }
 .d-lee .mx td:first-child { white-space:nowrap;font-size:13.5px }
+/* 신장환 발표자료 CSS — .d-shin 안으로 가둠 (원본: 신장환/발표자료.html v0.5) */
+.d-shin { color-scheme:light;--ink:#172b3d;--muted:#516678;--blue:#2157c9;--blue-soft:#e9f0fd;--green:#08795c;--green-soft:#e8f5ef;--amber:#9a4a00;--amber-soft:#fff3e4;--gray:#8a9aa8;--gray-soft:#eef2f6;--line:#d7e1e8;--paper:#f6f8fb;--scale:1 }
+.d-shin, .d-shin * { box-sizing:border-box }
+.d-shin { font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif; color:var(--ink) }
+.d-shin .slide { width:1280px;height:720px;overflow:hidden;background:var(--paper);padding:38px 58px 30px;display:flex;flex-direction:column;position:relative;word-break:keep-all }
+.d-shin .top { display:flex;align-items:center;justify-content:space-between;margin:0 0 12px }
+.d-shin .eyebrow { font-size:17px;font-weight:700;letter-spacing:.04em;color:var(--blue);margin:0 }
+.d-shin .flow { display:flex;gap:6px;font-size:14px;font-weight:700 }
+.d-shin .flow span { padding:5px 11px;border-radius:999px;background:#e8edf2;color:#7a8b99 }
+.d-shin .flow span.on { background:var(--blue);color:#fff }
+.d-shin .flow span.on.neg { background:var(--amber) }
+.d-shin h1, .d-shin h2, .d-shin h3, .d-shin p { margin:0 }
+.d-shin h1 { font-size:50px;line-height:1.3;letter-spacing:-2px }
+.d-shin h2 { font-size:34px;line-height:1.35;letter-spacing:-1.2px;margin-bottom:4px }
+.d-shin h3 { font-size:21px;line-height:1.4 }
+.d-shin .lead { font-size:22px;line-height:1.6;color:var(--muted);max-width:1080px }
+.d-shin .sub { font-size:19px;line-height:1.55;color:var(--muted);margin-top:2px }
+.d-shin .body { flex:1;margin-top:16px;min-height:0;display:flex;flex-direction:column;justify-content:center }
+.d-shin .footer { display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:13.5px;line-height:1.45;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:10px }
+.d-shin .footer .pg { white-space:nowrap }
+.d-shin .two { display:grid;grid-template-columns:1.05fr .95fr;gap:28px;align-items:start }
+.d-shin .two.even { grid-template-columns:1fr 1fr }
+.d-shin .prose p { font-size:21px;line-height:1.7;color:var(--ink);margin-bottom:13px;letter-spacing:-.3px }
+.d-shin .prose p.cap, .d-shin .cap { font-size:14.5px;line-height:1.55;color:var(--muted) }
+.d-shin .cap { display:block;margin-top:6px }
+.d-shin .card { background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px }
+.d-shin .card h3 { margin-bottom:10px }
+.d-shin .card p { font-size:18px;line-height:1.65;color:var(--ink) }
+.d-shin .card p.cap { font-size:15px;color:var(--muted);margin-top:12px }
+.d-shin .pos { border-color:#b7d4c8;background:#f1f9f5 }
+.d-shin .neg { border-color:#e7c9a8;background:#fff8f0 }
+.d-shin .pos h3 { color:var(--green) }
+.d-shin .neg h3 { color:var(--amber) }
+.d-shin .callout { border-left:5px solid var(--green);padding:14px 20px;background:var(--green-soft);border-radius:0 12px 12px 0;font-size:20px;line-height:1.6 }
+.d-shin .callout.amb { border-color:var(--amber);background:var(--amber-soft);font-size:18px }
+.d-shin .blue { color:var(--blue) }
+.d-shin .green { color:var(--green) }
+.d-shin .amber { color:var(--amber) }
+.d-shin .hero { background:#102f3b;color:#fff }
+.d-shin .hero .eyebrow { color:#84dfc0 }
+.d-shin .hero .lead { color:#cee0e6;font-size:21px;margin-top:22px }
+.d-shin .hero .footer { border-color:#46606b;color:#cee0e6 }
+.d-shin .hero .body { display:grid;grid-template-columns:1.12fr 1fr;gap:48px;align-items:center }
+.d-shin .hero .flow span { background:#244f5e;color:#9fc4d0 }
+.d-shin .hero .flow span.on { background:#84dfc0;color:#102f3b }
+.d-shin .kpis { display:grid;grid-template-columns:1fr 1fr;gap:14px }
+.d-shin .kpi { background:#1c4351;border:1px solid #52747d;border-radius:14px;padding:16px 18px }
+.d-shin .kpi .k { font-size:15px;color:#9fc4d0;font-weight:700 }
+.d-shin .kpi .v { font-size:34px;font-weight:800;letter-spacing:-1px;margin-top:4px;color:#fff;line-height:1.15 }
+.d-shin .kpi .v small { font-size:18px;font-weight:700;color:#cee0e6;letter-spacing:0 }
+.d-shin .kpi .d { font-size:15px;color:#cee0e6;margin-top:6px;line-height:1.45 }
+.d-shin .kpi.warn .v { color:#ffc58a }
+.d-shin .chart { background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px }
+.d-shin .chart h3 { font-size:18px;margin-bottom:8px }
+.d-shin svg text { font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;fill:var(--ink) }
+.d-shin table.t { width:100%;border-collapse:collapse;font-size:16px;line-height:1.45 }
+.d-shin table.t th { text-align:left;background:#eaf0f6;padding:8px 10px;border-bottom:2px solid var(--line);font-size:15px }
+.d-shin table.t td { padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top }
+.d-shin table.t td:first-child { font-weight:700 }
+.d-shin .mini { background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px }
+.d-shin .mini h3 { font-size:18.5px;margin-bottom:6px;color:var(--amber) }
+.d-shin .mini p { font-size:17.5px;line-height:1.6 }
+.d-shin .grid2 { display:grid;grid-template-columns:1fr 1fr;gap:12px }
+.d-shin .sc { background:#fff;border:2px solid var(--blue);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(33,87,201,.10) }
+.d-shin .sc .hd { background:var(--blue);color:#fff;padding:11px 18px;font-size:18px;font-weight:800;display:flex;justify-content:space-between;align-items:center }
+.d-shin .sc .hd span { font-size:14px;font-weight:700;opacity:.85 }
+.d-shin .sc .r { display:grid;grid-template-columns:118px 1fr;border-top:1px solid var(--line);font-size:16.5px;line-height:1.45 }
+.d-shin .sc .hd + .r { border-top:0 }
+.d-shin .sc .r b { background:var(--blue-soft);color:var(--blue);padding:10px 14px;font-size:15.5px }
+.d-shin .sc .r div { padding:10px 14px }
+.d-shin .sc .r em { font-style:normal;color:var(--muted);font-size:14.5px }
+.d-shin .dots { display:flex;gap:7px;flex-wrap:wrap }
+.d-shin .dots i { width:34px;height:34px;border-radius:50%;background:var(--green);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-style:normal;font-size:13px;font-weight:700 }
+.d-shin .dots i.x { background:var(--amber) }
+.d-shin .dotrow { margin-bottom:24px }
+.d-shin .dotrow .lb { font-size:19px;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between }
+.d-shin .dotrow .lb span { color:var(--green) }
+.d-shin .dotrow .lb span.a { color:var(--amber) }
+.d-shin .bars { display:flex;flex-direction:column;gap:18px;margin-top:6px }
+.d-shin .bar .lb { display:flex;justify-content:space-between;font-size:17px;margin-bottom:5px }
+.d-shin .bar .lb b { font-size:19px }
+.d-shin .bar .tr { height:26px;background:var(--gray-soft);border-radius:6px;overflow:hidden }
+.d-shin .bar .tr i { display:block;height:100%;background:var(--green);border-radius:6px }
+.d-shin .bar.zero .lb b { color:var(--amber) }
+.d-shin .pass { margin-top:16px;display:flex;justify-content:space-between;align-items:center;background:var(--amber-soft);border:1px solid #e7c9a8;border-radius:12px;padding:12px 16px;font-size:19px;font-weight:800;color:var(--amber) }
+.d-shin .hit { display:flex;align-items:flex-end;gap:22px;height:270px;margin-left:44px;padding:0 6px;border-bottom:2px solid var(--line);position:relative }
+.d-shin .hit .c { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100% }
+.d-shin .hit .c i { display:block;width:100%;border-radius:8px 8px 0 0;background:var(--blue) }
+.d-shin .hit .c.base i { background:var(--gray) }
+.d-shin .hit .c.sell i { background:#c7d3df }
+.d-shin .hit .c i { display:flex;justify-content:center;align-items:flex-start;padding-top:12px;color:#fff;font-style:normal;font-size:22px;font-weight:800 }
+.d-shin .hit .c.sell i { color:var(--ink) }
+.d-shin .hit .half { position:absolute;left:0;right:0;border-top:2px dashed var(--amber) }
+.d-shin .hit .half span { position:absolute;left:-46px;top:-11px;font-size:14px;color:var(--amber);font-weight:800 }
+.d-shin .hitlb { display:flex;gap:22px;padding:8px 6px 0;margin-left:44px }
+.d-shin .hitlb span { flex:1;text-align:center;font-size:14.5px;line-height:1.35;color:var(--muted) }
+.d-shin .col { background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px }
+.d-shin .col h3 { font-size:20px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap }
+.d-shin .col h3 .tag { font-size:13px;font-weight:700;background:var(--blue-soft);color:var(--blue);padding:3px 9px;border-radius:999px }
+.d-shin .col ul { margin:0;padding-left:20px }
+.d-shin .col li { font-size:18px;line-height:1.6;margin-bottom:10px }
+.d-shin .fix { display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:8px 0 4px }
+.d-shin .fix .b, .d-shin .fix .a { border-radius:10px;padding:10px 12px;text-align:center }
+.d-shin .fix .b { background:var(--amber-soft);border:1px solid #e7c9a8 }
+.d-shin .fix .a { background:var(--green-soft);border:1px solid #b7d4c8 }
+.d-shin .fix .t { font-size:13.5px;color:var(--muted) }
+.d-shin .fix .v { font-size:22px;font-weight:800;letter-spacing:-.5px }
+.d-shin .fix .b .v { color:var(--amber) }
+.d-shin .fix .a .v { color:var(--green) }
+.d-shin .fix .arr { font-size:24px;color:var(--muted) }
+.d-shin .sum { display:flex;flex-direction:column;gap:10px }
+.d-shin .sum div { background:#fff;border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:0 12px 12px 0;padding:13px 18px;font-size:18.5px;line-height:1.5 }
+.d-shin .sum div b { color:var(--blue) }
+.d-shin .next { margin-top:12px;background:#102f3b;color:#fff;border-radius:12px;padding:13px 18px;font-size:17px;line-height:1.6 }
+.d-shin .next b { color:#84dfc0 }
+.d-shin a:focus-visible { outline:3px solid #b44c00;outline-offset:3px }
+.d-shin .pts { list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px }
+.d-shin .pts li { position:relative;padding-left:30px;font-size:24px;line-height:1.45;letter-spacing:-.4px }
+.d-shin .pts li:before { content:"";position:absolute;left:4px;top:.55em;width:11px;height:11px;border-radius:50%;background:var(--blue) }
+.d-shin .pts.sm { gap:12px }
+.d-shin .pts.sm li { font-size:20px;padding-left:26px }
+.d-shin .pts.sm li:before { width:9px;height:9px }
+.d-shin .col h3 { font-size:22px;margin-bottom:16px }
+.d-shin .card.neg p { font-size:20px }
+.d-shin .mini.lim { padding:18px 20px }
+.d-shin .mini.lim h3 { font-size:20px;margin-bottom:12px }
+.d-shin .next { margin-top:14px }
+.d-shin .sum { gap:14px }
+.d-shin .sum div { font-size:21px;padding:18px 20px }
+.d-shin .pt { list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px }
+.d-shin .pt li { display:flex;flex-direction:column;gap:4px;padding-left:18px;border-left:4px solid var(--blue) }
+.d-shin .pt li b { font-size:21.5px;line-height:1.4;letter-spacing:-.4px;color:var(--ink);display:flex;align-items:center;gap:8px }
+.d-shin .pt li span { font-size:17px;line-height:1.55;color:var(--muted) }
+.d-shin .pt.sm { gap:12px }
+.d-shin .pt.sm li { border-left-color:var(--amber) }
+.d-shin .pt.sm li b { font-size:18px }
+.d-shin .pt.sm li span { font-size:15.5px }
+.d-shin .shot { margin:0;position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;box-shadow:0 8px 22px rgba(23,43,61,.10) }
+.d-shin .shot img { display:block;width:100%;height:auto;border-radius:6px }
+.d-shin .mk, .d-shin .legend i, .d-shin .nb { display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#e11d48;color:#fff;font-style:normal;font-weight:800;font-size:16px;box-shadow:0 0 0 3px #fff }
+.d-shin .mk { position:absolute;transform:translate(-50%,-50%) }
+.d-shin .nb { width:26px;height:26px;font-size:14px;box-shadow:none }
+.d-shin .legend { list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px }
+.d-shin .legend li { display:flex;align-items:center;gap:10px;font-size:17px;line-height:1.35;font-weight:700;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px }
+.d-shin .legend li i { flex:none;box-shadow:none }
+.d-shin .two.shotrow { grid-template-columns:1.35fr .65fr;align-items:center }
+.d-shin .shotrow .fix .v { font-size:19px }
+.d-shin .card.neg p.cap { font-size:15.5px;line-height:1.55;margin-top:14px }
+.d-shin .pt.dark li { border-left-color:#84dfc0 }
+.d-shin .pt.dark li b { color:#fff }
+.d-shin .pt.dark li span { color:#cee0e6 }
+.d-shin .sum div { font-size:18.5px;padding:13px 18px }
+.d-shin .why { background:var(--green-soft);border:1px solid #b7d4c8;border-radius:12px;padding:14px 18px }
+.d-shin .why h3 { font-size:18px;color:var(--green);margin-bottom:10px }
+.d-shin .pt.sm.g li { border-left-color:var(--green) }
 /* 오준영 발표자료 CSS — .d-oh 안으로 가둠 (원본: 오준영/발표자료.html v0.6) */
 .d-oh { color-scheme:light;--ink:#172b3d;--muted:#516678;--blue:#2157c9;--green:#08795c;--line:#d7e1e8;--paper:#f6f8fb;--scale:1 }
 .d-oh, .d-oh * { box-sizing:border-box }
@@ -378,11 +533,11 @@ html, body { background: #fff; }
   <div class="in">
     <div class="logo"><div class="mark"></div><div class="name">Qurious</div></div>
     <p class="one">3차 프로젝트 발표</p>
-    <p class="two">이동원 → 신장환 → 오준영 → 강민석 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 35장 · 시연 영상 9편 · 사람이 바뀌는 곳에 구분 장</p>
+    <p class="two">이동원 → 신장환 → 오준영 → 강민석 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 42장 · 시연 영상 9편 · 사람이 바뀌는 곳에 구분 장</p>
   </div>
   <div class="team"><span class="chip"><i style="background:#4f46e5"></i>이동원 · 데이터 · 신호 근거 · 대사</span><span class="chip"><i style="background:#b45309"></i>신장환 · 전략 카드 · 성과 검증</span><span class="chip"><i style="background:#0f766e"></i>오준영 · 배분 · 리밸런싱 · 실행</span><span class="chip"><i style="background:#0369a1"></i>강민석 · LEAN 대사 · 모의투자</span></div>
   <div class="date" style="bottom:200px">3차 프로젝트 발표 · 통합 덱 · 초안 v0.2 (팀원 피드백 전)</div>
-  <aside class="notes">팀원 확인용 통합 초안입니다. 이동원 · 오준영 슬라이드는 각자 발표자료.html 에서, 영상은 장면 파일에서 도구가 읽어 옵니다(원본 버전: 이동원 발표자료 v0.6 · 오준영 발표자료 v0.6). 장마다 N 키(발표자 노트)에 대본 또는 자막 전문이 있습니다.</aside>
+  <aside class="notes">팀원 확인용 통합 초안입니다. 이동원 · 오준영 슬라이드는 각자 발표자료.html 에서, 영상은 장면 파일에서 도구가 읽어 옵니다(원본 버전: 이동원 발표자료 v0.6 · 신장환 발표자료 v0.5 · 오준영 발표자료 v0.6). 장마다 N 키(발표자 노트)에 대본 또는 자막 전문이 있습니다.</aside>
 </section>
 
 <section class="slide part person" style="--pc:#4f46e5" data-owner="이동원" data-title="이동원 파트 시작">
@@ -391,10 +546,10 @@ html, body { background: #fff; }
     <h1>이동원</h1>
     <p>데이터 · 신호 근거 · 대사</p>
     
-    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">29장</div><div class="s">대본 22분 15초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">4편</div><div class="s">A편 49초 · B편 42초 · C편 — · D편 —</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">23분 46초</div><div class="s">대본 22분 15초 + 영상 1분 31초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
+    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">29장</div><div class="s">대본 22분 15초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">4편</div><div class="s">A편 — · B편 — · C편 — · D편 —</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">22분 15초</div><div class="s">대본 22분 15초 + 영상 0초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">슬라이드 29장 → 시연 영상 4편 · 예상 23분 46초(대본 22분 15초 + 영상 1분 31초) · 목표 시간 미정</aside>
+  <aside class="notes">슬라이드 29장 → 시연 영상 4편 · 예상 22분 15초(대본 22분 15초) · 목표 시간 미정</aside>
 </section>
 
 <section class="slide has-imp" data-owner="이동원" data-title="이동원 · 1/29 · 신호를 믿어도 되는지, 확인하는 쪽을 맡았습니다">
@@ -932,7 +1087,7 @@ html, body { background: #fff; }
   </div>
   <footer class="footer"><span>출처: 서비스 <code>paper_journal.py</code> 923줄 · 명령 592줄 · 모델 99줄 · 마이그레이션 0026 · 설계서 모의투자-그림자일지-설계.md · 시험 <code>test_paper_journal</code> 20건(PG 2건 포함, 11-09 일회용 PG). 지문 조각 수는 11-09 코드로 직접 셈, 행 35 + 9는 11-06 집계(문서 인용).</span><span class="pg">19 / 29</span></footer></section>
   </div>
-  <aside class="notes"><b>19장 (50초)</b> 일지가 어떻게 짜였는지 한 장으로 보여 드립니다. 먼저 규칙이 둘입니다. 신장환 님의 이동평균 교차 카드, 그리고 지금 자동매매의 기본 규칙이에요. 이 규칙에 쓰이는 함수와 설정을 모아 지문을 만들고, 지문이 같은 동안은 같은 판으로 봅니다. 판 위에는 거래일마다 행이 하나씩 쌓여요. 전날 낸 주문을 시가로 체결하고, 종가로 평가하고, 판단하고, 다음 날 시가 주문을 남기는 하루치입니다. 기록은 앱 DB 표 세 개에 더하기만 하고, 같은 내용을 허깅페이스 비공개 원장에 날짜별 파일로 올려요. 다른 PC는 그 원장을 받아 이어서 계산합니다. 코드가 바뀌어 지문이 달라지면 새 판을 등록하고 옛 판은 그대로 둡니다. 다만 이 그림이 보여 주는 건 성과가 아니라 기록과 고정이 동작한다는 점이고, 전진 기록은 아직 9행뿐입니다.</aside>
+  <aside class="notes"><b>19장 (50초)</b> 일지가 어떻게 짜였는지 한 장으로 보여 드립니다. 먼저 규칙이 둘입니다. 신장환 님의 이동평균 교차 카드, 그리고 지금 자동매매의 기본 규칙이에요. 이 규칙에 쓰이는 함수와 설정을 모아 지문을 만들고, 지문이 같은 동안은 같은 판으로 봅니다. 판 위에는 거래일마다 행이 하나씩 쌓여요. 전날 낸 주문을 시가로 체결하고, 종가로 평가하고, 판단하고, 다음 날 시가 주문을 남기는 하루치입니다. 기록은 앱 DB 표 세 개에 더하기만 하고, 같은 내용을 허깅페이스 비공개 원장에 날짜별 파일로 올려요. 다른 PC는 그 원장을 받아 이어서 계산합니다. 코드가 바뀌어 지문이 달라지면 새 판을 등록하고 옛 판은 그대로 둡니다. 다만 이 그림이 보여 주는 건 성과가 아니라 기록과 고정이 동작한다는 점이고, 전진 기록은 아직 10행뿐입니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="이동원" data-title="이동원 · 20/29 · 지금 일지는 판 1 · 45행이고 지문은 그대로입니다">
@@ -1186,20 +1341,20 @@ html, body { background: #fff; }
   <div class="top"><p class="eyebrow">29 · 그 밖에 못 한 것과, 이어갈 길</p><div class="flow" aria-hidden="true"><span>① 문제와 시장</span><span>② 빈 곳</span><span>③ 우리가 만든 것</span><span class="on neg">④ 한계와 발전</span></div></div>
   <h2 id="lee-s29">못 한 것은 못 했다고 적고, 이어갈 길을 붙였습니다</h2>
   <div class="body"><div class="grid2">
-  <div class="card neg"><h3>일지가 짧고, 대사는 한 조건뿐</h3><p>전진 기록은 9행이고 대사도 ma_cross 한 조건에서만 맞춰 봤습니다.</p><p class="go">→ 기록이 쌓이면 구간별로 나눠 보이고, 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 봅니다.</p></div>
+  <div class="card neg"><h3>일지가 짧고, 대사는 한 조건뿐</h3><p>전진 기록은 10행이고 대사도 ma_cross 한 조건에서만 맞춰 봤습니다.</p><p class="go">→ 기록이 쌓이면 구간별로 나눠 보이고, 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 봅니다.</p></div>
   <div class="card neg"><h3>시간봉이 좁다</h3><p>코인은 1일과 1시간봉뿐이고, 국내 분봉은 학습용 60분과 5분입니다.</p><p class="go">→ 1분봉으로 받아 나머지를 합쳐 만드는 방식을 11월 12일 뒤에 붙입니다.</p></div>
   <div class="card neg"><h3>신호를 실시간으로 다시 판단하지 못한다</h3><p>한국투자증권 모의투자 API는 초당 1건이고 여러 종목 한 번에 조회도 지원하지 않아, 전 종목을 계속 갱신하기 어렵습니다. 실시간 시세는 제공사와 계약이 필요한 것으로 알고 있습니다.</p><p class="go">→ 새로고침은 지금 가격만 붙이고, 전체 재판단은 설계부터 합니다.</p></div>
   <div class="card neg"><h3>수집은 들쭉날쭉하고, 종가 확정 시각은 모른다</h3><p>일봉 단계가 558초, 941초, 730초, 662초로 흔들리는데 원인을 모릅니다. 증권사 일봉이 몇 시에 확정되는지도 아직 단정하지 못합니다.</p><p class="go">→ 원인을 찾고, 공식 종가와 맞춰 본 뒤에 정합니다. 단계마다 성공 여부와 마지막 성공 시각을 남겨 관리자 화면에서 보이게 하는 것도 이어갈 길입니다.</p></div></div></div>
   <footer class="footer"><span>근거: KIS 호출 한도는 공지 원문(2026-04-20 기준)을 읽었고, 실시간 시세 계약은 기사 발췌라 단정하지 않습니다. 시기는 현재 계획이며 확정이 아닌 것은 정하지 않았습니다.</span><span class="pg">29 / 29</span></footer></section>
   </div>
-  <aside class="notes"><b>29장 (60초)</b> 그 밖에도 못 한 것이 있습니다. 일지는 전진 기록이 9행뿐이고 대사도 ma_cross 한 조건에서만 맞춰 봤어요. 기록이 쌓이면 구간별로 나눠 보이고 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 볼 계획입니다. 시간봉은 코인이 1일과 1시간뿐인데 1분봉으로 받아 합치는 방식을 11월 12일 뒤에 붙입니다. 신호를 실시간으로 다시 판단하지도 못해요. 한국투자증권 모의투자 API가 초당 1건이고 여러 종목 조회도 지원하지 않아서 전 종목을 계속 갱신하기 어렵습니다. 실시간 시세는 제공사와 계약도 필요한 것으로 알고 있습니다. 마지막으로 수집의 일봉 단계는 558초, 941초, 730초, 662초로 들쭉날쭉한데 원인을 모르고, 종가 확정 시각도 공식 종가와 맞춰 본 뒤에 정하겠습니다. 단계마다 성공 여부와 마지막 성공 시각을 남겨 관리자 화면에서 보이게 하는 것도 이어갈 길로 잡았습니다.</aside>
+  <aside class="notes"><b>29장 (60초)</b> 그 밖에도 못 한 것이 있습니다. 일지는 전진 기록이 10행뿐이고 대사도 ma_cross 한 조건에서만 맞춰 봤어요. 기록이 쌓이면 구간별로 나눠 보이고 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 볼 계획입니다. 시간봉은 코인이 1일과 1시간뿐인데 1분봉으로 받아 합치는 방식을 11월 12일 뒤에 붙입니다. 신호를 실시간으로 다시 판단하지도 못해요. 한국투자증권 모의투자 API가 초당 1건이고 여러 종목 조회도 지원하지 않아서 전 종목을 계속 갱신하기 어렵습니다. 실시간 시세는 제공사와 계약도 필요한 것으로 알고 있습니다. 마지막으로 수집의 일봉 단계는 558초, 941초, 730초, 662초로 들쭉날쭉한데 원인을 모르고, 종가 확정 시각도 공식 종가와 맞춰 본 뒤에 정하겠습니다. 단계마다 성공 여부와 마지막 성공 시각을 남겨 관리자 화면에서 보이게 하는 것도 이어갈 길로 잡았습니다.</aside>
 </section>
 
 <section class="slide" data-title="이동원 · P-이동원-A-신호순위">
   <div class="kicker">이동원 · 전체 종목 신호를 걸러 보고 근거까지 확인합니다</div>
   <div class="video-wrap" data-video="P-이동원-A-신호순위">
     <video controls preload="metadata" poster="videos/파일/발표/P-이동원-A-신호순위.jpg" src="videos/파일/발표/P-이동원-A-신호순위.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>목적</b>수집 DB 에 기록된 신호를 매수 · 매도 · 관망, 시장별로 나눕니다<br><br><b>마지막 장</b>규칙 신호의 기록이며 추천이 아닙니다. 전체를 실시간으로 다시 판단하는 것은 11월 12일 뒤 설계입니다</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -1210,7 +1365,7 @@ html, body { background: #fff; }
   <div class="kicker">이동원 · 낡은 일봉으로 만든 신호를 막고 기준일을 밝힙니다</div>
   <div class="video-wrap" data-video="P-이동원-B-낡은일봉방어">
     <video controls preload="metadata" poster="videos/파일/발표/P-이동원-B-낡은일봉방어.jpg" src="videos/파일/발표/P-이동원-B-낡은일봉방어.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>목적</b>11월 4일 오전, 신호가 직전 거래일이 아니라 이틀 전 종가였던 사례가 있었습니다<br><br><b>마지막 장</b>증권사 일봉의 오늘 종가는 15시 40분에 확정된다고 보기 어려웠습니다. 공식 종가와는 아직 대조 전입니다</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -1223,9 +1378,9 @@ html, body { background: #fff; }
     <video controls preload="metadata" poster="videos/파일/발표/P-이동원-C-일지판고정.jpg" src="videos/파일/발표/P-이동원-C-일지판고정.mp4"></video>
     <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
-  <div class="video-side"><b>목적</b>규칙에 쓰이는 함수와 설정으로 지문을 만들고, 지문이 같은 동안은 같은 판으로 봅니다. 거래일마다 행이 하나씩 쌓입니다<br><br><b>마지막 장</b>44행은 봉인 전 사후 계산 35행과 봉인 뒤 전진 기록 9행입니다. 성과가 아니라 기록과 지문 고정이 동작한다는 증거입니다. 지문이 달라지면 다음 회차가 새 판을 등록하고 옛 판은 그대로 둡니다</div>
+  <div class="video-side"><b>목적</b>규칙에 쓰이는 함수와 설정으로 지문을 만들고, 지문이 같은 동안은 같은 판으로 봅니다. 거래일마다 행이 하나씩 쌓입니다<br><br><b>마지막 장</b>45행은 봉인 전 사후 계산 35행과 봉인 뒤 전진 기록 10행입니다. 성과가 아니라 기록과 지문 고정이 동작한다는 증거입니다. 지문이 달라지면 다음 회차가 새 판을 등록하고 옛 판은 그대로 둡니다</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">자막(대사): 명령 한 줄로 일지 상태를 읽습니다. 읽기 전용이라 아무것도 쓰지 않습니다 / 규칙마다 한 줄입니다. 판 1이고 봉인은 10월 26일부터입니다 / 행은 거래일마다 하나씩 쌓이고 마지막 행은 11월 5일입니다 / 평가 숫자는 가상 장부의 종가 평가액이라 성과로 읽지 않습니다 / 지문 같음은 지금 코드로 다시 잰 지문이 등록한 판과 같다는 뜻입니다 / 아래는 마지막 회차 기록입니다. 11월 6일에 새 행 2개를 쓰고 판은 바뀌지 않았습니다 / 이어서 비공개 원장에 새 파일 2개를 올렸습니다</aside>
+  <aside class="notes">자막(대사): 명령 한 줄로 일지 상태를 읽습니다. 읽기 전용이라 아무것도 쓰지 않습니다 / 규칙마다 한 줄입니다. 판 1이고 봉인은 10월 26일부터입니다 / 행은 거래일마다 하나씩 쌓이고 마지막 행은 11월 6일입니다 / 평가 숫자는 가상 장부의 종가 평가액이라 성과로 읽지 않습니다 / 지문 같음은 지금 코드로 다시 잰 지문이 등록한 판과 같다는 뜻입니다 / 아래는 마지막 회차 기록입니다. 11월 6일에 새 행 2개를 쓰고 판은 바뀌지 않았습니다 / 이어서 비공개 원장에 새 파일 2개를 올렸습니다</aside>
 </section>
 
 <section class="slide" data-title="이동원 · P-이동원-D-신호순위-지금값">
@@ -1244,18 +1399,215 @@ html, body { background: #fff; }
     <div class="no">파트 2 / 4</div>
     <h1>신장환</h1>
     <p>전략 카드 · 성과 검증</p>
-    <div class="pending">슬라이드 준비 중 — 신장환</div>
-    <div class="facts"><div class="fact blank"><div class="k">슬라이드</div><div class="v">준비 중</div><div class="s">신장환/발표자료.html 이 생기면 다시 만들 때 들어옵니다</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">2편</div><div class="s">1편 57초 · 2편 42초</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">1분 40초</div><div class="s">영상 1분 40초 · 슬라이드 준비 중</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
+
+    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">7장</div><div class="s">대본 3분 55초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">2편</div><div class="s">1편 — · 2편 —</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">3분 55초</div><div class="s">대본 3분 55초 + 영상 0초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">슬라이드 없음 → 시연 영상 2편 · 예상 1분 40초(영상 1분 40초) · 목표 시간 미정 · 슬라이드 준비 중 — 신장환</aside>
+  <aside class="notes">슬라이드 7장 → 시연 영상 2편 · 예상 3분 55초(대본 3분 55초) · 목표 시간 미정</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 1/7 · 규칙을 카드 한 장에 적고, 같게 읽히는지 숫자로 확인했습니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide hero" aria-labelledby="shin-s1">
+  <div class="top"><p class="eyebrow">신장환 · 기본 인디케이터 전략 · 커스텀 인디케이터</p><div class="flow" aria-hidden="true"><span class="on">① 문제</span><span>② 만든 것</span><span>③ 맞춰 본 것</span><span>④ 정리</span></div></div>
+  <div class="body"><div>
+    <h1 id="shin-s1" style="font-size:42px">규칙을 카드 한 장에 적고,<br>같게 읽히는지 숫자로 확인했습니다</h1>
+    <ul class="pt dark" style="margin-top:26px">
+      <li><b>시작할 때 — 판단하는 곳 넷, 규칙도 넷</b><span>손절 · 익절은 % 만, 수량 · 체결 시점을 한곳에 적은 명세 없음</span></li>
+      <li><b>같은 종목이 화면마다 반대로 보임</b><span>신한지주 — 분석 화면 넷은 「매도」, 자동매매는 「매수」 (팀 피드백)</span></li>
+      <li><b>그래서 — 전략 카드 한 장에 적고, 모두 그 카드를 읽게</b><span>백테스트 · Pine 생성기 · 자동매매</span></li></ul></div>
+  <div class="kpis">
+    <div class="kpi"><div class="k">지표 — LEAN 과 날짜별 대조</div><div class="v">1.5e-10 <small>이하</small></div><div class="d">정의가 같은 지표의 최대 차.<br>차가 난 둘은 까닭까지</div></div>
+    <div class="kpi"><div class="k">전략 카드</div><div class="v">한 장</div><div class="d">조건 · 손절 · 익절 ·<br>수량 · 체결 시점</div></div>
+    <div class="kpi"><div class="k">같은 카드 → 백테스트 · 자동매매</div><div class="v">13/13 <small>· 12/13</small></div><div class="d">사는 판단 날 ·<br>파는 판단 날과 까닭</div></div>
+    <div class="kpi warn"><div class="k">기준 전략 — 미리 정한 합격선</div><div class="v">110 → 0</div><div class="d">110번 시도, 합격 0<br>→ 「기준 전략 없음」</div></div></div></div>
+  <footer class="footer"><span>맡은 것: 3차 계획서 4.3(부담당 강민석 님) · 시작할 때: 3차 인디케이터 전략 설계서 3절 표 1(2026-10-22 코드 확인) · 팀 피드백</span><span class="pg">1 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>1장 (35초)</b> 3차에서 저는 기본 인디케이터 전략과 커스텀 인디케이터를 맡았습니다. 시작할 때 앱 안에서 지표로 판단하는 곳이 넷이었는데 규칙이 모두 달랐고, 손절과 수량을 한곳에 적은 명세가 없었습니다. 그래서 전략 카드 한 장에 적고 모두가 그 카드를 읽게 했습니다. 결론부터 말씀드리면, 지표는 LEAN과 맞았고, 같은 카드를 넣으면 백테스트와 자동매매가 거의 같은 날 사고팔았고, 미리 정한 합격선으로 110번 시도한 결과 합격한 전략은 없었습니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 2/7 · 카드 한 장을 백테스트 · Pine 생성기 · 자동매매가 읽습니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide" aria-labelledby="shin-s2">
+  <div class="top"><p class="eyebrow">2 · 전체 그림</p><div class="flow" aria-hidden="true"><span>① 문제</span><span class="on">② 만든 것</span><span>③ 맞춰 본 것</span><span>④ 정리</span></div></div>
+  <h2 id="shin-s2">카드 한 장을 백테스트 · Pine 생성기 · 자동매매가 읽습니다</h2>
+  <p class="sub"><b class="blue">파란 칸</b> 제가 만든 것 · <b style="color:#6b7c8b">회색 점선 칸</b> 팀원이 만든 것</p>
+  <div class="body">
+    <svg viewBox="0 0 1164 400" width="1164" height="400" role="img" aria-label="지표와 화면이 전략 카드로 들어가고, 카드를 백테스트 엔진 · Pine 생성기 · 자동매매 판 2 실행기가 읽는 그림">
+      <defs><marker id="shin-shin-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#516678"/></marker></defs>
+      <rect x="0" y="20" width="310" height="165" rx="14" fill="#e9f0fd" stroke="#2157c9" stroke-width="2"/>
+      <text x="24" y="58" font-size="22" font-weight="800" style="fill:#2157c9">지표</text>
+      <text x="24" y="92" font-size="17">이동평균 · RSI · MACD · 볼린저 · ATR</text>
+      <text x="24" y="122" font-size="17">＋ DMI · 상대 강도 더함</text>
+      <text x="24" y="152" font-size="17">LEAN 대조 · 미래 봉 안 봄</text>
+      <rect x="0" y="215" width="310" height="165" rx="14" fill="#e9f0fd" stroke="#2157c9" stroke-width="2"/>
+      <text x="24" y="253" font-size="22" font-weight="800" style="fill:#2157c9">화면</text>
+      <text x="24" y="287" font-size="17">전략 카드 고쳐 저장(사용자마다)</text>
+      <text x="24" y="317" font-size="17">지표 차트에 카드 조건 표식</text>
+      <text x="24" y="347" font-size="17">커스텀 지표 · 자유 산식 고침</text>
+      <rect x="392" y="75" width="300" height="250" rx="18" fill="#2157c9"/>
+      <text x="542" y="120" font-size="25" font-weight="800" text-anchor="middle" style="fill:#fff">전략 카드 판 2</text>
+      <line x1="418" y1="138" x2="666" y2="138" stroke="#8fb0ee" stroke-width="1.5"/>
+      <text x="542" y="174" font-size="18.5" text-anchor="middle" style="fill:#fff">매수 · 매도 조건</text>
+      <text x="542" y="206" font-size="18.5" text-anchor="middle" style="fill:#fff">손절 · 익절</text>
+      <text x="542" y="238" font-size="18.5" text-anchor="middle" style="fill:#fff">수량(1회 위험)</text>
+      <text x="542" y="270" font-size="18.5" text-anchor="middle" style="fill:#fff">체결 시점 · 다시 진입</text>
+      <text x="542" y="306" font-size="15" text-anchor="middle" style="fill:#cfe0ff">칸마다 읽는 세 분께 여쭤 정함</text>
+      <path d="M310,102 C350,102 356,165 390,175" fill="none" stroke="#516678" stroke-width="2.2" marker-end="url(#shin-shin-ar)"/>
+      <path d="M310,298 C350,298 356,240 390,230" fill="none" stroke="#516678" stroke-width="2.2" marker-end="url(#shin-shin-ar)"/>
+      <rect x="800" y="0" width="364" height="128" rx="14" fill="#fff" stroke="#2157c9" stroke-width="2"/>
+      <text x="822" y="36" font-size="21" font-weight="800">백테스트 엔진</text>
+      <rect x="822" y="52" width="320" height="30" rx="7" fill="#e9f0fd"/><text x="834" y="73" font-size="16" font-weight="700" style="fill:#2157c9">위험 1% 수량 — 신장환</text>
+      <rect x="822" y="88" width="320" height="30" rx="7" fill="#eef2f6"/><text x="834" y="109" font-size="16" style="fill:#516678">ATR 손절 · 손익비 익절 — 강민석 님</text>
+      <rect x="800" y="146" width="364" height="108" rx="14" fill="#eef2f6" stroke="#8a9aa8" stroke-width="1.5" stroke-dasharray="6 5"/>
+      <text x="822" y="182" font-size="21" font-weight="800">Pine 생성기</text>
+      <text x="822" y="212" font-size="16" style="fill:#516678">카드를 읽어 TradingView 코드를 만듦</text>
+      <text x="822" y="236" font-size="16" style="fill:#516678">— 이동원 님</text>
+      <rect x="800" y="272" width="364" height="108" rx="14" fill="#eef2f6" stroke="#8a9aa8" stroke-width="1.5" stroke-dasharray="6 5"/>
+      <text x="822" y="308" font-size="21" font-weight="800">자동매매 판 2 실행기</text>
+      <text x="822" y="338" font-size="16" style="fill:#516678">카드로 자동매매 가상 실행</text>
+      <text x="822" y="362" font-size="16" style="fill:#516678">— 오준영 님</text>
+      <path d="M692,150 C744,140 752,68 798,64" fill="none" stroke="#516678" stroke-width="2.2" marker-end="url(#shin-shin-ar)"/>
+      <path d="M692,200 L798,200" fill="none" stroke="#516678" stroke-width="2.2" marker-end="url(#shin-shin-ar)"/>
+      <path d="M692,250 C744,260 752,322 798,326" fill="none" stroke="#516678" stroke-width="2.2" marker-end="url(#shin-shin-ar)"/>
+    </svg>
+  </div>
+  <footer class="footer"><span>근거: 3차 설계서 요약 · 4.3(전략 카드) · 4.5 · 4.6(화면)</span><span class="pg">2 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>2장 (25초)</b> 전체 그림입니다. 파란 칸이 제가 만든 것입니다. 지표와 화면에서 정한 규칙이 전략 카드 한 장으로 모이고, 이 카드를 백테스트 엔진, Pine 생성기, 자동매매가 읽습니다. Pine 생성기는 이동원 님, 자동매매 실행기는 오준영 님, 엔진의 손절 · 익절은 강민석 님이 맡았습니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 3/7 · 손절 · 익절 · 수량 · 체결 시점까지 한 장에 적었습니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide" aria-labelledby="shin-s3">
+  <div class="top"><p class="eyebrow">3 · 전략 카드</p><div class="flow" aria-hidden="true"><span>① 문제</span><span class="on">② 만든 것</span><span>③ 맞춰 본 것</span><span>④ 정리</span></div></div>
+  <h2 id="shin-s3">손절 · 익절 · 수량 · 체결 시점까지 한 장에 적었습니다</h2>
+  <div class="body"><div class="two">
+  <div><div class="sc" role="table" aria-label="전략 카드 예시">
+    <div class="hd">전략 카드 <span>예시 · 이동평균 20 · 60</span></div>
+    <div class="r" role="row"><b role="rowheader">매수 · 매도</b><div role="cell">20일선이 60일선 위에 있으면 매수 쪽<br><em>교차 순간이 아니라 위아래를 보는 상태 판정</em></div></div>
+    <div class="r" role="row"><b role="rowheader">손절</b><div role="cell">진입 체결가 − 2 × ATR(14)</div></div>
+    <div class="r" role="row"><b role="rowheader">익절</b><div role="cell">손절 거리의 2배 위 <em>(손익비 2)</em></div></div>
+    <div class="r" role="row"><b role="rowheader">수량</b><div role="cell">1회 위험 1% <em>(상한)</em></div></div>
+    <div class="r" role="row"><b role="rowheader">체결</b><div role="cell">종가로 판단 → 다음 날 시가에 체결</div></div></div>
+    <div class="callout amb" style="margin-top:16px;font-size:17px;padding:12px 18px">종가로 판정하므로, 다음 날 시가에 갭이 나면 손실이 계획보다 커질 수 있습니다.</div></div>
+  <div>
+    <div class="why"><h3>왜 이렇게 설계했나</h3>
+      <ul class="pt sm g">
+        <li><b>이동평균 교차 — 추세가 이어지는 구간을 잡음</b><span>새 정보가 며칠 ~ 몇 주에 걸쳐 가격에 들어가 한 방향 움직임이 이어짐 · 횡보장에선 거짓 신호가 늘어남</span></li>
+        <li><b>다음 날 시가에 체결</b><span>신호를 본 그날 종가에 바로 사는 효과를 내지 않도록</span></li></ul></div>
+    <ul class="pt" style="margin-top:18px">
+      <li><b>칸 이름과 값은 카드를 읽는 세 분께 여쭤 정함</b><span>Pine · LEAN · 자동매매 담당</span></li>
+      <li><b>수량 계산은 제가 백테스트 엔진에 넣음</b><span>손절에 걸려도 평가액의 1% 를 넘게 잃지 않도록 주 수를 정함</span></li></ul></div></div></div>
+  <footer class="footer"><span>근거: 3차 설계서 4.3 표(합의 · 반대 없음 상태) · 4.5 · 예시 카드</span><span class="pg">3 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>3장 (45초)</b> 카드에는 매수·매도 조건, ATR로 정하는 손절, 손절 거리의 두 배인 익절, 1회 위험 1%로 정하는 수량, 그리고 종가로 판단해 다음 날 시가에 체결한다는 것까지 적었습니다. 이동평균 교차를 고른 까닭은, 새 정보가 며칠에서 몇 주에 걸쳐 가격에 들어가 한 방향 움직임이 이어지는 구간이 생기기 때문입니다. 다만 횡보장에서는 거짓 신호가 늘어납니다. 체결을 다음 날 시가로 한 것은, 신호를 본 그날 종가에 바로 사는 효과를 내지 않으려는 것입니다. 칸은 카드를 읽는 세 분께 여쭤 정했고, 수량 계산은 제가 백테스트 엔진에 넣었습니다. 다만 종가로 판정해서 갭이 나면 손실이 계획보다 커질 수 있습니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 4/7 · 카드를 화면에서 고치고, 차트에 표시합니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide" aria-labelledby="shin-s4">
+  <div class="top"><p class="eyebrow">4 · 화면 · 커스텀 인디케이터</p><div class="flow" aria-hidden="true"><span>① 문제</span><span class="on">② 만든 것</span><span>③ 맞춰 본 것</span><span>④ 정리</span></div></div>
+  <h2 id="shin-s4">카드를 화면에서 고치고, 차트에 표시합니다</h2>
+  <div class="body"><div class="two shotrow">
+    <div>
+      <figure class="shot"><img src="신장환/그림/지표차트-DMI.png" alt="삼성전자 일봉 가격 차트 위에 20일선 · 60일선과 매수 · 매도 표식, 아래 칸에 ADX · +DI · −DI">
+        <i class="mk" style="left:77%;top:31%">1</i><i class="mk" style="left:46%;top:77%">2</i></figure>
+      <p class="cap">실제 화면 — 기본 인디케이터 전략 → 가격 차트(삼성전자 · 2026-11-04 종가 기준)</p></div>
+    <div>
+      <ul class="pt">
+        <li><b>전략 카드를 화면에서 고쳐 저장</b><span>저장한 카드는 Pine 목록에도 나옴</span></li>
+        <li><b><i class="nb">1</i>카드 조건이 바뀐 날을 차트에 표시</b><span>20일선이 60일선 위로 · 아래로 바뀐 날</span></li>
+        <li><b><i class="nb">2</i>새 지표 ADX · 상대 강도</b><span>차트 아래 칸에서 골라 봄</span></li>
+        <li><b>커스텀 지표를 TradingView 정의로</b><span>자유 산식의 정규화 함수</span></li></ul>
+      <div class="fix"><div class="b"><div class="t">전 · z점수</div><div class="v">Pine × 0.9747</div></div><div class="arr">→</div><div class="a"><div class="t">지금</div><div class="v">Pine 과 같음</div></div></div></div></div></div>
+  <footer class="footer"><span>화면 캡처 2026-11-09 · 근거: 3차 설계서 4.4 커스텀 지표 · 4.6 화면</span><span class="pg">4 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>4장 (30초)</b> 카드는 화면에서 고쳐 저장하고, 저장한 카드는 Pine 목록에도 나옵니다. 차트에는 카드 조건이 바뀐 날이 매수, 매도로 표시되고, 새로 더한 ADX와 상대 강도도 볼 수 있습니다. 커스텀 지표는 TradingView 정의로 맞춰서, 전에는 Pine 값의 0.97배이던 z점수가 지금은 같습니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 5/7 · 지표는 LEAN 과 같았고, 같은 카드는 같은 날 사고팔았습니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide" aria-labelledby="shin-s5">
+  <div class="top"><p class="eyebrow">5 · 같은 값 · 같은 판단인지</p><div class="flow" aria-hidden="true"><span>① 문제</span><span>② 만든 것</span><span class="on">③ 맞춰 본 것</span><span>④ 정리</span></div></div>
+  <h2 id="shin-s5">지표는 LEAN 과 같았고, 같은 카드는 같은 날 사고팔았습니다</h2>
+  <div class="body"><div class="two even">
+  <div class="chart" style="padding:20px 22px"><h3>① 지표 값 — LEAN 과 날짜별 대조</h3>
+    <ul class="pt" style="margin-top:8px">
+      <li><b>정의가 같은 지표 — 차 <span class="green" style="font-size:inherit;color:var(--green)">1.5e-10 이하</span></b><span>RSI · ATR · 볼린저 · 이동평균</span></li>
+      <li><b>차가 난 둘은 까닭까지 찾음</b><span>DMI · EMA — 시간이 지나면 거의 같아짐</span></li>
+      <li><b>미래 봉을 보지 않음</b><span>시험으로 지킴</span></li></ul></div>
+  <div class="chart" style="padding:18px 20px"><h3>② 같은 카드 → 백테스트 · 자동매매 <span class="cap" style="display:inline">삼성전자 2020 ~ 2026.08</span></h3>
+    <div class="dotrow"><div class="lb">사는 판단 날 <span>13 / 13 같음</span></div>
+      <div class="dots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>10</i><i>11</i><i>12</i><i>13</i></div></div>
+    <div class="dotrow" style="margin-bottom:12px"><div class="lb">파는 판단 날 · 까닭 <span class="a">12 / 13 같음</span></div>
+      <div class="dots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>10</i><i>11</i><i>12</i><i class="x">!</i></div></div>
+    <ul class="pt sm"><li><b>갈린 1번 — 손절선을 잡는 가격 차이</b><span>자동매매는 슬리피지를 더한 체결가에서 손절선을 잡음</span></li></ul></div></div></div>
+  <footer class="footer"><span>근거: 3차 설계서 4.1 표 1(삼성전자 일봉 483봉) · 4.2 · 4.3 카드 대조(2026-11-02)</span><span class="pg">5 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>5장 (35초)</b> 맞춰 본 것입니다. 지표 값은 LEAN과 날짜마다 맞대 봤고, 정의가 같은 지표는 사실상 같았으며 차가 난 둘은 까닭까지 찾았습니다. 같은 카드를 백테스트와 자동매매에 넣었더니 사는 날은 열세 번 모두, 파는 날은 열두 번 같았습니다. 갈린 한 번은 손절선을 잡는 가격 차이 때문이었습니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 6/7 · 기준 전략을 110번 시도했고, 합격한 전략은 없었습니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide" aria-labelledby="shin-s6">
+  <div class="top"><p class="eyebrow">6 · 기준 전략</p><div class="flow" aria-hidden="true"><span>① 문제</span><span>② 만든 것</span><span class="on">③ 맞춰 본 것</span><span>④ 정리</span></div></div>
+  <h2 id="shin-s6">기준 전략을 110번 시도했고, 합격한 전략은 없었습니다</h2>
+  <div class="body"><div class="two">
+  <div>
+    <ul class="pt">
+      <li><b>조합표와 합격선을 먼저 적고 그대로 돌림</b><span>결과를 보고 고르면 과최적화가 되기 때문</span></li>
+      <li><b>이동평균 11조합 × 코스피 시가총액 상위 10종목 = 110번</b><span>위험 1% 수량 · 비용을 뺀 뒤</span></li>
+      <li><b>합격을 막은 것은 샤프</b><span>위험 1% 라 평가액의 평균 9 ~ 23% 만 들어가고 나머지는 현금</span></li>
+      <li><b>합격선은 결과를 본 뒤 바꾸지 않음</b><span>그래서 결과는 「기준 전략 없음」</span></li></ul></div>
+  <div class="chart" style="padding:20px 22px"><h3>합격선 — 셋을 동시에 넘어야 합격 (넘은 시도 / 110)</h3>
+    <div class="bars">
+      <div class="bar"><div class="lb"><span>최대 낙폭 −15% 이내</span><b>110</b></div><div class="tr"><i style="width:100%"></i></div></div>
+      <div class="bar"><div class="lb"><span>PF(이익÷손실) &gt; 1.5</span><b>41</b></div><div class="tr"><i style="width:37.3%"></i></div></div>
+      <div class="bar zero"><div class="lb"><span>샤프 &gt; 1.0</span><b>0</b></div><div class="tr"><i style="width:0"></i></div></div></div>
+    <div class="pass"><span>셋 다 넘은 시도</span><span>0 → 기준 전략 없음</span></div></div></div></div>
+  <footer class="footer"><span>근거: 기준 전략 시도 결과(2026-10-30 · 수집 DB 일봉 2020-01-02 ~ 2026-08-31) · 3차 설계서 4.5 · 「기준 전략」 카드 화면은 이동원 님 작업</span><span class="pg">6 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>6장 (35초)</b> 기준 전략은 결과를 보고 고르지 않도록 조합표와 합격선을 먼저 적고, 이동평균 조합 열한 개를 열 종목에서 모두, 110번 돌렸습니다. 샤프 1을 넘은 시도가 없어 합격은 0입니다. 위험 1%라 평균 9에서 23%만 주식에 들어가 크게 벌지 않았기 때문입니다. 합격선은 바꾸지 않았고, 결과는 기준 전략 없음입니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="신장환" data-title="신장환 · 7/7 · 결과는 그대로, 못 한 것은 못 했다고 적었습니다">
+  <div class="gnum"><b>신장환</b><span class="pg"></span></div>
+  <div class="imp d-shin" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide" aria-labelledby="shin-s7">
+  <div class="top"><p class="eyebrow">7 · 정리</p><div class="flow" aria-hidden="true"><span>① 문제</span><span>② 만든 것</span><span>③ 맞춰 본 것</span><span class="on">④ 정리</span></div></div>
+  <h2 id="shin-s7">결과는 그대로, 못 한 것은 못 했다고 적었습니다</h2>
+  <div class="body"><div class="two">
+  <div>
+    <div class="sum">
+      <div><b>카드 한 장</b> — 손절 · 익절 · 수량 · 체결 시점까지, 세 곳이 같이 읽음</div>
+      <div><b>같게 읽힌다</b> — 지표는 LEAN 과 같고, 사는 날 13/13 · 파는 날 12/13</div>
+      <div><b>결과 그대로</b> — 기준 전략 110번 시도 합격 0</div>
+      <div><b>신호 적중 대조</b> — 매수 신호 적중률 약 50%, 아무 날 오른 비율 51.3% 와 비슷</div></div>
+    </div>
+  <div>
+    <div class="mini lim"><h3>남은 것</h3>
+      <ul class="pt sm">
+        <li><b>백테스트는 수정주가 한 벌로만</b><span>원래 가격 규칙은 넣지 않음</span></li>
+        <li><b>LEAN 대조의 합격 오차 숫자 미정</b><span>차이와 까닭만 보임</span></li>
+        <li><b>저장 카드는 DB 가 아닌 파일</b><span>화면에서 저장한 카드는 사용자별 파일로 둠</span></li></ul></div>
+    <div class="next"><b>이어서 시연 영상 두 편</b><br>① 전략 카드 읽기 → Pine 목록<br>② 기준 전략 110개 시도 합격 0 + 성과 검증</div></div></div></div>
+  <footer class="footer"><span>근거: 신호 적중 대조 결과(2026-11-02) 요약 2 · 3 · 3차 설계서 4.3 한계 · 8절 ③ · 4.5 · 기능완성도 점검표(기본 인디케이터 전략 줄)</span><span class="pg">7 / 7</span></footer></section>
+  </div>
+  <aside class="notes"><b>7장 (30초)</b> 정리하면, 규칙을 카드 한 장에 적었고, 같게 읽히는 것을 확인했고, 좋지 않은 결과도 그대로 남겼습니다. 매일 기록하던 신호도 맞대 봤는데, 매수 신호 적중률이 아무 날이나 고른 것과 비슷했습니다. 백테스트 가격 한 벌, LEAN 합격 오차, 저장 카드 DB는 남은 일입니다. 이어서 시연 영상으로 보여 드리겠습니다.</aside>
 </section>
 
 <section class="slide" data-title="신장환 · P-신장환-1-전략카드">
   <div class="kicker">신장환 · 전략 카드 한 장으로 규칙을 정합니다</div>
   <div class="video-wrap" data-video="P-신장환-1-전략카드">
     <video controls preload="metadata" poster="videos/파일/발표/P-신장환-1-전략카드.jpg" src="videos/파일/발표/P-신장환-1-전략카드.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>목적</b>같은 카드가 차트 표식과 백테스트 · 자동매매 판단의 기준이 됩니다<br><br><b>마지막 장</b>카드 저장은 이 영상에서 누르지 않았습니다. 규칙 신호는 투자 권유가 아닙니다</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -1266,7 +1618,7 @@ html, body { background: #fff; }
   <div class="kicker">신장환 · 기준 전략 110개 시도 — 합격 0건을 그대로 보입니다</div>
   <div class="video-wrap" data-video="P-신장환-2-기준전략-성과검증">
     <video controls preload="metadata" poster="videos/파일/발표/P-신장환-2-기준전략-성과검증.jpg" src="videos/파일/발표/P-신장환-2-기준전략-성과검증.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>목적</b>합격선을 미리 적어 두고, 미리 적은 조합표만 시도해서 넘은 것만 기준 전략으로 삼습니다<br><br><b>마지막 장</b>기준 전략 카드 화면은 이동원, 시도와 검증은 신장환이 맡았습니다</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -1279,10 +1631,10 @@ html, body { background: #fff; }
     <h1>오준영</h1>
     <p>배분 · 리밸런싱 · 실행</p>
     
-    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">6장</div><div class="s">대본 4분 20초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">3편</div><div class="s">A편 47초 · B편 — · C편 —</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">5분 7초</div><div class="s">대본 4분 20초 + 영상 47초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
+    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">6장</div><div class="s">대본 4분 20초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">3편</div><div class="s">A편 — · B편 54초 · C편 59초</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">6분 13초</div><div class="s">대본 4분 20초 + 영상 1분 53초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">슬라이드 6장 → 시연 영상 3편 · 예상 5분 7초(대본 4분 20초 + 영상 47초) · 목표 시간 미정</aside>
+  <aside class="notes">슬라이드 6장 → 시연 영상 3편 · 예상 6분 13초(대본 4분 20초 + 영상 1분 53초) · 목표 시간 미정</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 1/6 · 판단을 계획으로, 실행을 기록으로">
@@ -1398,7 +1750,7 @@ html, body { background: #fff; }
   <div class="kicker">오준영 · 같은 조건에서 배분 모델을 바꿔 비중을 비교합니다</div>
   <div class="video-wrap" data-video="P-오준영-A-배분모델">
     <video controls preload="metadata" poster="videos/파일/발표/P-오준영-A-배분모델.jpg" src="videos/파일/발표/P-오준영-A-배분모델.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
   <div class="video-side"><b>목적</b>같은 성향과 기간에서 모델만 바꿔 자산군 비중이 어떻게 달라지는지 봅니다. 계산 결과는 저장되지만 주문은 나가지 않습니다<br><br><b>마지막 장</b>결과는 저장될 뿐 주문이나 리밸런싱 목표는 바뀌지 않습니다. 기준 균형 비중은 성향 배분이며 시가총액 비중이 아닙니다</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -1406,25 +1758,25 @@ html, body { background: #fff; }
 </section>
 
 <section class="slide" data-title="오준영 · P-오준영-B-국면자동변경">
-  <div class="kicker">오준영 · 시장 국면이 바뀌면 목표 비중을 자동으로 바꿉니다</div>
+  <div class="kicker">오준영 · 국면 변화에 따른 목표 변경과 이력을 확인합니다</div>
   <div class="video-wrap" data-video="P-오준영-B-국면자동변경">
     <video controls preload="metadata" poster="videos/파일/발표/P-오준영-B-국면자동변경.jpg" src="videos/파일/발표/P-오준영-B-국면자동변경.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
-  <div class="video-side"><b>목적</b>시장 국면별 배분을 리밸런싱 목표로 가져온 뒤, 국면이 바뀔 때 자산군 비중만 자동으로 조정하는 설정입니다. 시연에서는 저장하지 않습니다<br><br><b>마지막 장</b>시연에서는 설정을 저장하지 않았고 주문도 내지 않았습니다. 운영 연결은 꺼 둔 상태입니다. 변경한 목표의 주문은 기존 자동 예약 설정과 조건을 따릅니다</div>
+  <div class="video-side"><b>목적</b>시험용 과거 국면과 실제 수집 자료로 목표 변경을 재현했습니다. 촬영 중에는 저장하거나 주문하지 않습니다.<br><br><b>마지막 장</b>이력은 실제 계산 결과입니다. 과거 출발 상태는 시험 입력이며, 자동 예약과 주문 실행은 꺼 두었습니다.</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">자막(대사): 시장 국면 모델로 저장해 둔 배분을 리밸런싱 목표로 가져옵니다 / 목표 비중이 편집안으로 들어옵니다. 저장하기 전에는 기존 플랜이 그대로입니다 / 가져오면 국면 자동 변경 칸을 고를 수 있습니다 / 확인한 종목은 그대로 두고 자산군 비중만 바꿉니다. 자료 갱신 뒤 하루 한 번 확인합니다 / 플랜 저장을 눌러야 적용됩니다. 이 영상에서는 누르지 않습니다 / 국면이 바뀌어 목표가 달라지면 변경 이력이 쌓입니다. 이력을 불러옵니다 / 이 시연 계정에는 아직 국면이 바뀐 적이 없어 비어 있습니다. 변경이 생기면 날짜와 국면, 비중 전후가 이 자리에 쌓입니다</aside>
+  <aside class="notes">자막(대사): 시장 국면 모델로 저장한 배분을 가져옵니다. 현재 편집안만 채웁니다. / 가져온 종목과 비중입니다. 저장 전에는 기존 플랜이 유지됩니다. / 시장 국면 배분을 가져오면 자동 변경 칸이 활성화됩니다. / 종목을 유지하고 자산군 비중을 바꿉니다. 저장해야 적용됩니다. / 준비 과정에서 실제 점검으로 생성된 변경 이력을 조회합니다. / 시험용 과거 국면에서 현재 자료의 국면으로 바뀐 전후 비중입니다.</aside>
 </section>
 
 <section class="slide" data-title="오준영 · P-오준영-C-내전략-가상장부">
-  <div class="kicker">오준영 · 내 전략 카드를 가상 장부로 실행하고 주문 앞뒤를 검사합니다</div>
+  <div class="kicker">오준영 · 내 전략의 가상 실행과 차단 기록을 확인합니다</div>
   <div class="video-wrap" data-video="P-오준영-C-내전략-가상장부">
     <video controls preload="metadata" poster="videos/파일/발표/P-오준영-C-내전략-가상장부.jpg" src="videos/파일/발표/P-오준영-C-내전략-가상장부.mp4"></video>
-    <div class="missing">영상 파일을 찾지 못했습니다(아직 내보내지 않았습니다)<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    <div class="missing">영상 파일을 찾지 못했습니다<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
-  <div class="video-side"><b>목적</b>증권사 계좌로는 주문을 보내지 않고, 앱 안 가상 장부에서만 체결합니다. 실행 전후에 위험 한도를 검사합니다<br><br><b>마지막 장</b>이 영상에서는 자동매매를 시작하지 않았고 비상 정지도 바꾸지 않았습니다. 가상 체결 결과는 증권사 주문 결과와 다를 수 있습니다</div>
+  <div class="video-side"><b>목적</b>격리 DB에 저장한 개인 전략을 실제 실행기로 확인했습니다. KIS 연결 없이 초기 판단과 차단 사유를 봅니다.<br><br><b>마지막 장</b>이번 영상은 초기 판단과 차단 기록입니다. 매수·매도 체결이나 KIS 연동 성공을 보여 주는 영상은 아닙니다.</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">자막(대사): 자동매매 주문 방식은 앱 안 가상매매입니다 / 안내대로 앱 가상 장부에서 체결하고 증권사 계좌로 주문을 보내지 않습니다 / 실행할 전략 칸에서 내 전략 카드를 고릅니다 / 카드 값은 선택 당시로 고정되고 합격 판정이 아니라는 안내가 나옵니다 / 주문 앞 검사 기준입니다. 일손실 한도와 종목당 최대 비중 / 하루 최대 주문 수와 같은 종목 재주문을 막는 쿨다운입니다 / 실행 뒤에는 마지막 결과에 체결 건수와 위험관리로 건너뛴 건수가 남습니다 / 자동매매 화면의 위험관리 상태에서 비상 정지 상태와 오늘 주문 수를 한눈에 봅니다</aside>
+  <aside class="notes">자막(대사): 주문 방식은 앱 안 가상매매입니다. 증권사로 주문하지 않습니다. / 저장한 내 전략 카드를 고릅니다. 선택 내용은 저장하지 않습니다. / 개인 전략은 가상계좌 전용이며, 성과 합격 판정은 아닙니다. / 일손실과 종목 비중, 주문 수와 쿨다운이 검사 기준입니다. / 현재 자동매매는 중지 상태이며, 이번 기록의 체결은 0건입니다. / 시험 계정은 비상 정지 ON입니다. 촬영 중에는 상태를 바꾸지 않습니다. / 실행 로그에서 자료 대기·같은 봉 중복·정지 사유를 확인합니다.</aside>
 </section>
 
 <section class="slide part person" style="--pc:#0369a1" data-owner="강민석" data-title="강민석 파트 시작">

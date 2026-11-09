@@ -1,0 +1,69 @@
+{
+  "about": "발표 자료가 재생하는 시연 영상 목록(mp4 · 그림도 git 에 — 2026-10-20) — tools/demo/export_mp4.py 가 쓴다(손으로 고치지 않는다)",
+  "videos": [
+    {
+      "kind": "사용법",
+      "stem": "V-오준영-B-국면자동변경",
+      "title": "국면 변화에 따른 목표 변경과 이력을 확인합니다",
+      "scene": "docs/phase-3/06-retrospective/videos/장면/V-오준영-B-국면자동변경.yaml",
+      "mp4": "docs/phase-3/06-retrospective/videos/파일/사용법/V-오준영-B-국면자동변경.mp4",
+      "jpg": "docs/phase-3/06-retrospective/videos/파일/사용법/V-오준영-B-국면자동변경.jpg",
+      "duration_sec": 155.44,
+      "bytes": 4390432,
+      "crf": 28,
+      "sha": "b8c98bb85f1b48f3",
+      "source_sha": "db2905530c826479",
+      "scene_sha": "4e240bc6e8b56e09",
+      "recorded_at": "2026-11-09 15:01:28 KST",
+      "app_commit": "81e51d06"
+    },
+    {
+      "kind": "사용법",
+      "stem": "V-오준영-C-내전략-가상장부",
+      "title": "내 전략의 가상 실행과 차단 기록을 확인합니다",
+      "scene": "docs/phase-3/06-retrospective/videos/장면/V-오준영-C-내전략-가상장부.yaml",
+      "mp4": "docs/phase-3/06-retrospective/videos/파일/사용법/V-오준영-C-내전략-가상장부.mp4",
+      "jpg": "docs/phase-3/06-retrospective/videos/파일/사용법/V-오준영-C-내전략-가상장부.jpg",
+      "duration_sec": 168.48,
+      "bytes": 4409801,
+      "crf": 28,
+      "sha": "3f530e87eebcdb5b",
+      "source_sha": "2496df288a35d761",
+      "scene_sha": "daf6508765d360ce",
+      "recorded_at": "2026-11-09 15:06:55 KST",
+      "app_commit": "81e51d06"
+    },
+    {
+      "kind": "발표",
+      "stem": "P-오준영-B-국면자동변경",
+      "title": "국면 변화에 따른 목표 변경과 이력을 확인합니다",
+      "scene": "docs/phase-3/06-retrospective/videos/발표/P-오준영-B-국면자동변경.yaml",
+      "mp4": "docs/phase-3/06-retrospective/videos/파일/발표/P-오준영-B-국면자동변경.mp4",
+      "jpg": "docs/phase-3/06-retrospective/videos/파일/발표/P-오준영-B-국면자동변경.jpg",
+      "duration_sec": 54.0,
+      "bytes": 2315986,
+      "crf": 28,
+      "sha": "f1b6708e751a0b2b",
+      "source_sha": "80c2482fb7e327d9",
+      "scene_sha": "f18427171a99be7d",
+      "recorded_at": "2026-11-09 15:08:45 KST",
+      "app_commit": "81e51d06"
+    },
+    {
+      "kind": "발표",
+      "stem": "P-오준영-C-내전략-가상장부",
+      "title": "내 전략의 가상 실행과 차단 기록을 확인합니다",
+      "scene": "docs/phase-3/06-retrospective/videos/발표/P-오준영-C-내전략-가상장부.yaml",
+      "mp4": "docs/phase-3/06-retrospective/videos/파일/발표/P-오준영-C-내전략-가상장부.mp4",
+      "jpg": "docs/phase-3/06-retrospective/videos/파일/발표/P-오준영-C-내전략-가상장부.jpg",
+      "duration_sec": 58.52,
+      "bytes": 2286311,
+      "crf": 28,
+      "sha": "a9977ca1af08d80d",
+      "source_sha": "355a8b945c37fb15",
+      "scene_sha": "c9bfaa88658fb27a",
+      "recorded_at": "2026-11-09 15:10:06 KST",
+      "app_commit": "81e51d06"
+    }
+  ]
+}
