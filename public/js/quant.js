@@ -898,12 +898,12 @@ async function loadRiskStatus() {
 }
 
 document.getElementById("risk-kill-on").addEventListener("click", async () => {
-  if (!confirm("자동매매를 중지하고 추적 중인 미체결 게이트웨이 주문의 취소를 요청합니다. 이미 전달된 주문의 체결이나 취소 성공을 보장하지 않으며 보유 종목을 자동 청산하지 않습니다. 계속할까요?")) return;
+  if (!confirm("자동매매를 중지하고 추적 중인 미체결 KIS 직접 모의 주문과 게이트웨이 주문의 취소를 요청합니다. 이미 전달된 주문의 체결이나 취소 성공을 보장하지 않으며 보유 종목을 자동 청산하지 않습니다. 계속할까요?")) return;
   try {
     const r = await api("/api/quant/risk/kill-switch", { method: "POST", body: { enabled: true, reason: "사용자 수동 비상 정지" } });
     const c = r.cancellation;
-    const attention = c?.failed > 0 || c?.skipped > 0;
-    setToast(`비상 정지 ON · 취소 요청 ${c?.requested || 0}건. 보유 종목은 유지됩니다.`
+    const attention = c?.failed > 0 || c?.skipped > 0 || c?.unknown > 0;
+    setToast(`비상 정지 ON · 취소 요청 ${c?.requested || 0}건 · 기존 취소 확인 대기 ${c?.pending || 0}건 · 결과 미확인 ${c?.unknown || 0}건. 취소 확정 전에는 체결될 수 있습니다. 보유 종목은 자동 청산하지 않습니다.`
       + (attention ? " 취소 실패·미확인 주문은 증권사에서 확인하세요." : " 접수 여부가 불명확한 주문도 증권사에서 확인하세요."), attention ? "error" : "ok"); loadAutoTradeStatus();
   } catch (e) { setToast(e.message, "error"); }
 });
