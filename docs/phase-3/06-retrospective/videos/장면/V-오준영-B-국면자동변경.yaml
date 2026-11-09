@@ -1,0 +1,58 @@
+# [사용법] 국면에 따라 목표 비중을 자동으로 바꾸는 법 (천천히 · 하나씩 설명)
+# 화면: 로보 어드바이저 › 리밸런싱 엔진 (robo-rebalance) · 담당 오준영
+# 선행 조건: 시연 계정의 마지막 저장 배분이 「시장 국면」 모델이어야 「저장한 배분 가져오기」 뒤에 자동 변경 칸이 풀린다 → V-오준영-A(또는 P-오준영-A)를 먼저 녹화하거나 robo-portfolio 에서 시장 국면으로 한 번 실행해 저장해 둔다.
+# 주의: 「플랜 저장」 「주문 산출」 「시가 체결 예약」 「자동 예약」 「플랜 활성화」 는 누르지 않는다(ring 으로 가리키기만). 「저장한 배분 가져오기」 는 편집안만 채우는 읽기 동작이다(브라우저 확인 창은 dialogs: accept).
+# 한계: 이 시연 계정에는 국면 변경 이력이 없어 이력 칸이 「기록 없음」 으로 비어 있다. 실제 이력은 오준영 님 그림(화면/2026-11-04-국면이력.png)을 슬라이드로 쓴다.
+# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작을 바로 뒤에 둔다.
+file: V-오준영-B-국면자동변경
+title: 국면에 따라 목표 비중을 자동으로 바꾸는 법
+owner: 오준영
+pace: 0.8
+dialogs: accept
+start: robo-rebalance
+steps:
+  - chapter: {label: "1 / 3 · 무엇을 하나요", title: "국면이 바뀌면 목표 비중도 따라 바꿉니다", text: "시장 국면별 배분을 리밸런싱 목표로 가져온 뒤, 국면이 바뀔 때 자산군 비중만 자동으로 조정합니다. 이 영상에서는 설정을 저장하지 않고 칸만 확인합니다", sec: 6.0}
+  - wait: {target: "#rb-import-allocation", timeout: 60}
+  - say: "먼저 자산배분 화면에서 시장 국면 모델로 계산해 저장해 둡니다. 여기서는 그 저장본을 가져옵니다"
+  - scroll: {target: "#rb-import-allocation", block: "center"}
+  - ring: {target: "#rb-import-allocation", sec: 3.0}
+  - pause: 3.0
+  - say: "저장한 배분 가져오기 단추를 누릅니다. 현재 편집 중인 목표만 바뀌고 서버에는 저장되지 않습니다"
+  - click: "#rb-import-allocation"
+  - wait: {target: "#rb-targets-body input.rb-w", timeout: 30}
+  - pause: 2.0
+  - say: "가져온 종목과 비중이 목표 표에 들어왔습니다. 아래에 주식 합계와 현금 비중이 나옵니다"
+  - ring: {target: "#rb-target-sum", sec: 3.0}
+  - pause: 4.0
+  - say: "맨 위 안내에는 어느 저장본을 가져왔는지, 적용하지 않는 자산군은 무엇인지가 함께 적힙니다"
+  - ring: {target: "#rb-allocation-note", sec: 3.0}
+  - pause: 6.0
+  - chapter: {label: "2 / 3 · 자동 변경 칸", title: "국면 자동 변경을 고르는 자리", text: "가져온 배분이 시장 국면 모델일 때만 칸이 풀립니다. 목표를 직접 고치면 다시 꺼집니다", sec: 6.0}
+  - wait: {target: "#rb-regime-auto:not([disabled])", timeout: 10, state: attached}
+  - say: "예약과 활성화 구역 아래에 국면 변화에 따라 목표 비중 자동 변경 칸이 있습니다"
+  - scroll: {target: "label.rb-setting-check:has(#rb-regime-auto)", block: "center"}
+  - ring: {target: "label.rb-setting-check:has(#rb-regime-auto)", sec: 3.0}
+  - pause: 4.0
+  - say: "칸을 고르면 확인한 종목은 그대로 두고 자산군 비중만 국면에 맞춰 바꿉니다"
+  - click: "label.rb-setting-check:has(#rb-regime-auto)"
+  - pause: 4.0
+  - say: "자료 갱신 뒤 하루 한 번 확인하고, 이미 예약이 있거나 자료가 부족하면 기다립니다"
+  - ring: {target: "label.rb-setting-check:has(#rb-regime-auto) + p", sec: 3.0}
+  - pause: 6.0
+  - say: "점검 시각과 예약 기준은 이 접이식 설명에 있습니다"
+  - click: "summary:has-text('점검 시각과 예약·정산 기준')"
+  - pause: 6.0
+  - say: "고른 설정은 플랜 저장을 눌러야 적용됩니다. 이 영상에서는 누르지 않고 위치만 보여 드립니다"
+  - ring: {target: "#rb-save", sec: 3.0}
+  - pause: 5.0
+  - chapter: {label: "3 / 3 · 변경 이력", title: "바뀐 목표는 이력으로 남습니다", text: "국면별 목표 변경 이력은 변경이 있을 때만 쌓입니다", sec: 5.0}
+  - say: "국면별 목표 변경 이력을 펼치고 변경 이력 불러오기를 누릅니다"
+  - scroll: {target: "summary:has-text('국면별 목표 변경 이력')", block: "center"}
+  - click: "summary:has-text('국면별 목표 변경 이력')"
+  - ring: {target: "#rb-regime-history-load", sec: 3.0}
+  - click: "#rb-regime-history-load"
+  - wait: {target: "#rb-regime-history:has-text('기록')", timeout: 20}
+  - say: "이 시연 계정에는 아직 국면이 바뀐 적이 없어 비어 있습니다. 변경이 생기면 날짜와 국면, 변경 전후 비중이 한 건씩 쌓입니다"
+  - ring: {target: "#rb-regime-history", sec: 3.0}
+  - pause: 6.0
+  - chapter: {label: "정리", title: "저장하지 않았고 주문도 없습니다", text: "변경한 목표의 주문은 자동 예약 설정과 기존 조건을 따릅니다. 이 설정은 운영에서는 꺼 둔 상태입니다", sec: 6.0}

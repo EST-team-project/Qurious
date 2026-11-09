@@ -1,0 +1,66 @@
+# [사용법] 신호 순위에서 종목 찾기 · 지금 값 보기 · 줄 수 · 새로고침 쓰는 법 (천천히 · 하나씩 설명)
+# 화면: 로보 어드바이저 › 신호 순위 (signal-rank) · 종목 근거 창 · 담당 이동원
+# 편 A(V-이동원-A)와의 차이: A 는 신호 · 시장 칩으로 거르고 근거를 보는 흐름이다. D 는 A 에 없는 종목 검색 · 근거 창 「지금 값 보기」 · 보여줄 줄 수 · 새로고침이 붙이는 지금 가격 한 줄을 쓰는 법이다.
+# 주의: PAPER 모의주문 단추는 누르지 않는다. 지금 값은 지연 시세(약 20분)일 수 있고 실시간이 아니다 — 화면의 출처 딱지를 그대로 읽는다. 장이 닫힌 시각에는 마지막 종가가 보일 수 있다.
+# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작을 바로 뒤에 둔다.
+file: V-이동원-D-신호순위-지금값
+title: 신호 순위에서 종목 찾고 지금 값 보는 법
+owner: 이동원
+pace: 0.8
+start: signal-rank
+steps:
+  - chapter: {label: "1 / 3 · 무엇을 하나요", title: "기록된 신호 옆에 지금 값을 따로 봅니다", text: "순위 표의 신호는 12시 30분에 기록한 값입니다. 지금 가격은 눌렀을 때만 따로 불러오고, 출처와 시각을 붙여 보입니다", sec: 6.0}
+  - wait: {target: ".view.active table tbody tr", timeout: 60}
+  - say: "순위 맨 위의 종목 검색 칸에 종목 이름이나 6자리 코드를 넣으면 한 종목만 찾아 봅니다. 코드를 넣어 보겠습니다"
+  - ring: {target: "#sr-find-input", sec: 3.0}
+  - fill: {target: "#sr-find-input", text: "005930"}
+  - pause: 2.0
+  - say: "검색 단추를 누릅니다"
+  - click: "[data-sr-find] button[type='submit']"
+  - wait: {target: "[data-sr-find-note]:has-text('검색한 종목')", timeout: 30, cut: true}
+  - pause: 2.0
+  - say: "그 종목의 규칙 신호와 근거 개수가 한 줄로 나옵니다. 전체 순위로 돌아가려면 전체 순위 단추를 누릅니다"
+  - ring: {target: ".view.active table tbody tr[data-hub-open]", sec: 3.0}
+  - pause: 4.0
+  - say: "줄을 누르면 종목 근거 창이 열립니다"
+  - click: ".view.active table tbody tr[data-hub-open]"
+  - wait: {target: "[data-hub-now]", timeout: 30}
+  - pause: 2.0
+  - chapter: {label: "2 / 3 · 지금 값 보기", title: "누를 때만 한 번 불러옵니다", text: "자동으로 부르지 않고 반복해서 부르지도 않습니다. 위 가격은 마지막 거래일 종가입니다", sec: 5.0}
+  - say: "창 위쪽 안내가 먼저 말합니다. 위 가격은 마지막 거래일의 수정주가 종가이며 지금 시세가 아닙니다"
+  - ring: {target: "[data-hub-now-out]", sec: 3.0}
+  - pause: 6.0
+  - say: "지금 값 보기 단추를 누릅니다. 지금 가격을 한 번만 불러옵니다"
+  - ring: {target: "[data-hub-now]", sec: 2.5}
+  - click: "[data-hub-now]"
+  - wait: {target: "[data-hub-now]:not([disabled])", timeout: 40, cut: true}
+  - say: "지금 가격과 함께 출처 딱지, 마지막 종가와의 차이가 나옵니다. 지연 시세면 약 20분 늦다고 적힙니다"
+  - ring: {target: "[data-hub-now-out]", sec: 3.0}
+  - pause: 6.0
+  - say: "아래 작은 글은 종가가 수정주가라 증권사 화면과 다를 수 있다는 점과, 실시간 값은 저장하지 않는다는 점을 알립니다"
+  - ring: {target: "[data-hub-now-note]", sec: 3.0}
+  - pause: 6.0
+  - key: "Escape"
+  - chapter: {label: "3 / 3 · 걸러 보고 새로고침", title: "줄 수와 새로고침을 씁니다", text: "새로고침은 위 10종목에만 지금 가격 한 줄을 붙입니다. 신호는 새로 계산하지 않습니다", sec: 5.0}
+  - say: "전체 순위로 돌아가 신호 단추 매수를 누릅니다"
+  - click: "[data-sr-find-reset]"
+  - wait: {target: ".view.active table tbody tr", timeout: 60, cut: true}
+  - click: '[data-sr-filter="signal"][data-value="매수"]'
+  - pause: 3.0
+  - say: "보여줄 줄 수를 100줄로 바꿉니다. 맞는 종목 수와 줄 수가 머리줄에 함께 나옵니다"
+  - ring: {target: "#sr-limit", sec: 2.5}
+  - select: {target: "#sr-limit", value: "100"}
+  - wait: {target: "[data-sr-filter-note]", timeout: 60, cut: true}
+  - ring: {target: "[data-sr-filter-note]", sec: 3.0}
+  - pause: 4.0
+  - say: "새로고침을 누르면 같은 조건으로 기록을 다시 읽고, 위 10종목 아래에 지금 가격 한 줄을 붙입니다"
+  - ring: {target: "[data-sr-refresh]", sec: 2.5}
+  - click: "[data-sr-refresh]"
+  - wait: {target: "[data-sr-quote]", timeout: 60, cut: true}
+  - ring: {target: "[data-sr-quote]", sec: 3.0}
+  - pause: 6.0
+  - say: "필터 줄 끝의 안내가 새로고침 시각을 알립니다. 신호는 새로 계산하지 않고 기록을 다시 읽은 것입니다"
+  - scroll: {target: "[data-sr-refresh-note]", block: "center"}
+  - ring: {target: "[data-sr-refresh-note]", sec: 3.0}
+  - pause: 6.0
+  - chapter: {label: "정리", title: "기록된 신호와 지금 값을 섞지 않고 나란히 봅니다", text: "지금 값은 저장하지 않으며 지연 시세일 수 있습니다. 규칙 신호의 기록이며 투자 권유가 아닙니다", sec: 6.0}
