@@ -1,8 +1,8 @@
-# API 명세서 v0.65 — Qurious
+# API 명세서 v0.66 — Qurious
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v0.65 (2026-11-06 후속 — 표를 코드에서 다시 채움: `API-STK-02` 부르는 화면에서 `signal-rank` 제외 · `API-QUOT-01` 에 추가 · 신호 순위 줄 `market` 칸 풀이) / v0.64 (2026-11-06 — 표를 코드에서 다시 채움(화면 스캐너가 훅 → 로더 → 패널 상수를 따라가도록 고친 뒤 · 화면이 부르는 API 148 → 146) · `API-MACR-01 ~ 03` 의 `refresh` 질의와 응답 `refresh` 칸 풀이 · 알림 설정 `API-NOTI-01` · `02` 의 503 `CREDENTIAL_STORAGE_UNAVAILABLE`) / v0.63 (2026-11-05 후속 — 표를 코드에서 다시 채움: `API-STK-02` `GET /api/stocks/quote` 의 부르는 화면에 `signal-rank` 추가 — 신호 순위 새로고침이 상위 10종목 지금 가격을 읽음) / v0.62 (2026-11-05 — 라우트 288 → 290 · `API-RBAL-11` `GET /api/rebalance/target-changes`(오준영 님 라우트 · ID 는 `api_scan.py --assign S202` 로 이동원이 붙임) · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 · 화면 `kis-results` 가 `API-KMON-02` 를 부름 · 표를 코드에서 다시 채움(메뉴 화면이 부르는 API 143 → 148 · 인증 없음 50 그대로) / v0.61 (2026-11-03 — 라우트 288 그대로 · 6절에 풀이 둘: 종목 허브 `API-HUB-01` 의 쿼리 `signal_on` · 신호 칸 응답의 기록 시점 · 날짜 고르기 칸(`version` 3 → 4) · 증시 일정 `API-CAL-02` · `03` 의 `kind` 열 → 열넷 · 표를 코드에서 다시 채움(화면 칸 `notification-settings` → `mypage` · `paper-openapi` → `mypage` · 메뉴 화면이 부르는 API 146 → 143)) |
+| **문서 버전** | v0.66 (2026-11-09 — 라우트 290 그대로 · 6절 소절 셋: 코인 모의거래 거래비용(`API-PAPR-17` ~ `21` · 이슈 #444) · 모의 계좌 입출금 보정 수익률 Modified Dietz(`API-PAPR-33` · `34` · `36` ~ `38` · `40` · `API-RBAL-07` · `08` · 이슈 #612) · 비상 정지 `cancellation` 칸(`API-STK-37`) · 6절 「KIS 자동매매 주문 결과」 소절의 비상 정지 취소 문장 정정 · 표를 코드에서 다시 채움: `stocks.py` 줄 번호 · `API-STK-37` 닿는 곳에 수집DB · 증권사 · Redis 추가 · 2절 합계) / v0.65 (2026-11-06 후속 — 표를 코드에서 다시 채움: `API-STK-02` 부르는 화면에서 `signal-rank` 제외 · `API-QUOT-01` 에 추가 · 신호 순위 줄 `market` 칸 풀이) / v0.64 (2026-11-06 — 표를 코드에서 다시 채움(화면 스캐너가 훅 → 로더 → 패널 상수를 따라가도록 고친 뒤 · 화면이 부르는 API 148 → 146) · `API-MACR-01 ~ 03` 의 `refresh` 질의와 응답 `refresh` 칸 풀이 · 알림 설정 `API-NOTI-01` · `02` 의 503 `CREDENTIAL_STORAGE_UNAVAILABLE`) / v0.63 (2026-11-05 후속 — 표를 코드에서 다시 채움: `API-STK-02` `GET /api/stocks/quote` 의 부르는 화면에 `signal-rank` 추가 — 신호 순위 새로고침이 상위 10종목 지금 가격을 읽음) / v0.62 (2026-11-05 — 라우트 288 → 290 · `API-RBAL-11` `GET /api/rebalance/target-changes`(오준영 님 라우트 · ID 는 `api_scan.py --assign S202` 로 이동원이 붙임) · `API-DATA-19` `GET /api/data/indicators/table` 6절 행 · 화면 `kis-results` 가 `API-KMON-02` 를 부름 · 표를 코드에서 다시 채움(메뉴 화면이 부르는 API 143 → 148 · 인증 없음 50 그대로) / v0.61 (2026-11-03 — 라우트 288 그대로 · 6절에 풀이 둘: 종목 허브 `API-HUB-01` 의 쿼리 `signal_on` · 신호 칸 응답의 기록 시점 · 날짜 고르기 칸(`version` 3 → 4) · 증시 일정 `API-CAL-02` · `03` 의 `kind` 열 → 열넷 · 표를 코드에서 다시 채움(화면 칸 `notification-settings` → `mypage` · `paper-openapi` → `mypage` · 메뉴 화면이 부르는 API 146 → 143)) |
 | **작성일** | 2026-09-29 (KST) 첫 판 · 2026-10-03 v0.2 · v0.3 · v0.4 · 2026-10-04 v0.5 · v0.6 · v0.7 · 2026-10-05 v0.8 · v0.9 · 2026-10-06 v0.10 · v0.11 · 2026-10-07 v0.12 · 2026-10-08 v0.13 · v0.14 · v0.15 · 2026-10-10 v0.16 · v0.17 · v0.18 · 2026-10-11 v0.19 · 2026-10-12 v0.20 · v0.21 · v0.22 · 2026-10-13 v0.23 · 2026-10-14 v0.24 · v0.25 · 2026-10-15 **v0.26** · 2026-10-16 v0.27 · 2026-10-16 v0.28 · 2026-10-16 v0.29 · 2026-10-17 v0.30 · 2026-10-17 v0.31 · 2026-10-18 v0.32 · 2026-10-18 v0.33 · 2026-10-19 v0.34 · 2026-10-19 **v0.35** · 2026-10-20 v0.36 · 2026-10-21 v0.37(2차 최종) · 2026-10-22 v0.38 · 2026-10-23 v0.39 · v0.40 |
 | **작성자** | 이동원 (P-A) |
 | **기준 코드** | v0.51 = main `3a832c2`(#422 포함) + 명시적 가상계좌 시험 공급원 작업 트리, 관련 172건 검증 · 앞 판의 글은 개정 이력 아래 표 |
@@ -218,7 +218,7 @@ flowchart LR
 | `ingest` | · | · | · | · | 10 | 4 | · | 9 | 9 | 4 | · | · | · | 3 |
 | `health` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `chat` | 2 | · | · | · | 2 | 2 | · | 2 | 2 | 1 | · | · | · | 2 |
-| `stocks` | 12 | 16 | 10 | 4 | 38 | 11 | · | · | · | · | · | · | 7 | 15 |
+| `stocks` | 13 | 16 | 11 | 4 | 38 | 12 | · | · | · | · | · | · | 7 | 15 |
 | `kis_monitor` | 2 | 1 | 2 | 1 | 4 | 3 | · | · | · | · | · | · | 1 | 2 |
 | `library` | · | · | · | · | 1 | · | · | · | · | · | · | · | · | · |
 | `admin` | · | · | · | · | 2 | · | · | · | · | · | · | · | · | · |
@@ -257,7 +257,7 @@ flowchart LR
 | `stock_hub` | 3 | · | · | · | 2 | · | · | · | · | · | · | · | · | 1 |
 | `help_media` | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
 | `quote_now` | 1 | 1 | 1 | · | 1 | 1 | · | · | · | · | · | · | · | 1 |
-| **합계** | **102** | **74** | **24** | **5** | **192** | **52** | **6** | **19** | **17** | **7** | **3** | **3** | **15** | **78** |
+| **합계** | **103** | **74** | **25** | **5** | **192** | **53** | **6** | **19** | **17** | **7** | **3** | **3** | **15** | **78** |
 
 | API ID | 메서드 | 경로 | 닿는 곳 | 화면 |
 |---|---|---|---|---|
@@ -726,36 +726,36 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 | API-STK-10 | POST | `/api/portfolio` | 세션 | 본문 `HoldingBody` | 모델 없음 | 403 | PostgreSQL | `trading-portfolio` | P-E | P01-④-3 | stocks.py:291 |
 | API-STK-11 | DELETE | `/api/portfolio/{symbol}` | 세션 | `{symbol}` | 모델 없음 | 403 | PostgreSQL | — | P-E | P01-④-3 | stocks.py:308 |
 | API-STK-12 | POST | `/api/orders` | 세션 | 본문 `OrderBody` | {ok, status, cost} | 400 | PostgreSQL | `trading-order` | P-E | P01-④-3 | stocks.py:355 |
-| API-STK-13 | GET | `/api/orders` | 세션 | — | {orders} | — | PostgreSQL | `trading-order` | P-E | P01-④-3 | stocks.py:412 |
-| API-STK-14 | GET | `/api/broker/catalog` | 없음 | — | {brokers} | — | — | — | P-E | P02-⑤-1 | stocks.py:557 |
-| API-STK-15 | POST | `/api/broker/settings` | 세션 | 본문 `BrokerSettingsBody` | {ok} | 422 | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:562 |
-| API-STK-16 | GET | `/api/broker/settings` | 세션 | — | {broker, connected, app_key, account_no, kis_managed} 외 2 | — | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:581 |
-| API-STK-38 | GET | `/api/quant/strategies` | 세션 | — | {configured, strategies, source, test_only, local_cards} | — | — | `mypage` | 미배정 | — | stocks.py:618 |
-| API-STK-39 | GET | `/api/quant/live-orders` | 세션 | `limit` | {gateway, batch, orders} | — | PostgreSQL | (다른 곳) | 미배정 | — | stocks.py:626 |
-| API-STK-17 | GET | `/api/quant/settings` | 세션 | — | {mode, broker, connected, app_key, account_no} 외 20 | — | PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:657 |
-| API-STK-18 | POST | `/api/quant/settings` | 세션 | 본문 `QuantSettingsBody` | {ok} | 409 · 422 | 수집DB · PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:713 |
-| API-STK-19 | GET | `/api/broker/price` | 세션 | `symbol`* | {symbol, name, current, open, high} 외 7 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `mypage` | P-E | P02-⑤-1 | stocks.py:831 |
-| API-STK-20 | GET | `/api/broker/balance` | 세션 | — | {total_eval, total_buy, total_gain, holdings} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:847 |
-| API-STK-21 | GET | `/api/broker/ohlcv` | 세션 | `symbol`* · `start`* · `end`* | {candles} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:871 |
-| API-STK-22 | POST | `/api/broker/order` | 세션 | 본문 `BrokerOrderBody` | JSONResponse | 409 · 422 · 502 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-1 | stocks.py:896 |
-| API-STK-42 | GET | `/api/broker/order/{request_id}` | 세션 | `{request_id}` | 모델 없음 | 404 · 503 | PostgreSQL | — | P-E | — | stocks.py:976 |
-| API-STK-23 | GET | `/api/broker/test` | 세션 | — | {ok, broker_price, source, scope, account_verified} 외 1 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:988 |
-| API-STK-34 | GET | `/api/stocks/patterns` | 세션 | `symbol` · `period` | {symbol, candles, stats, levels} | 404 · 422 | 수집DB · 야후 · PostgreSQL | `robo-patterns` | P-A | — | stocks.py:1003 |
-| API-STK-35 | GET | `/api/stocks/mtf-signal` | 세션 | `symbol` | {symbol, opinion, opinion_rule, held, risk_gate} | — | 수집DB · 야후 · PostgreSQL · Redis · 외부(api.upbit.com, kind.krx.co.kr) | `robo-decision`, `robo-patterns` | P-A | — | stocks.py:1019 |
-| API-STK-24 | POST | `/api/auto-trade/start` | 세션 | — | {ok, started, scheduler} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1100 |
-| API-STK-25 | POST | `/api/auto-trade/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P02-⑤-2 | stocks.py:1109 |
-| API-STK-26 | GET | `/api/auto-trade/status` | 세션 | — | 모델 없음 | — | PostgreSQL | `mypage`, `quant-auto`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1115 |
-| API-STK-36 | GET | `/api/quant/risk/status` | 세션 | — | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `quant-auto` | 미배정 | — | stocks.py:1127 |
-| API-STK-37 | POST | `/api/quant/risk/kill-switch` | 세션 | 본문 `KillSwitchBody` | {ok, kill_switch, auto_trade_stopped, cancellation} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | 미배정 | — | stocks.py:1152 |
-| API-STK-40 | GET | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | — | PostgreSQL | `dashboard` | 미배정 | — | stocks.py:1176 |
-| API-STK-41 | POST | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `dashboard` | 미배정 | — | stocks.py:1182 |
-| API-STK-27 | POST | `/api/quant/auto/start` | 세션 | — | {ok, started} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1191 |
-| API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-2 | stocks.py:1201 |
-| API-STK-29 | GET | `/api/quant/auto/status` | 세션 | — | {running, me_running, batch, reconcile, logs} 외 1 | — | PostgreSQL | `dashboard`, `robo-decision`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1208 |
-| API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-custom`, `quant-backtest`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1277 |
-| API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1384 |
-| API-STK-32 | POST | `/api/custom-indicators` | 세션 | 본문 `CustomIndicatorBody` | 모델 없음 | 422 | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-①-2 · P02-②-1 · P02-②-3 | stocks.py:1399 |
-| API-STK-33 | DELETE | `/api/custom-indicators/{indicator_id}` | 세션 | `{indicator_id}` | {ok} | 404 | PostgreSQL | `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1419 |
+| API-STK-13 | GET | `/api/orders` | 세션 | — | {orders} | — | PostgreSQL | `trading-order` | P-E | P01-④-3 | stocks.py:413 |
+| API-STK-14 | GET | `/api/broker/catalog` | 없음 | — | {brokers} | — | — | — | P-E | P02-⑤-1 | stocks.py:558 |
+| API-STK-15 | POST | `/api/broker/settings` | 세션 | 본문 `BrokerSettingsBody` | {ok} | 422 | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:563 |
+| API-STK-16 | GET | `/api/broker/settings` | 세션 | — | {broker, connected, app_key, account_no, kis_managed} 외 2 | — | PostgreSQL | `robo-patterns`, `trading-order` | P-E | P02-⑤-1 | stocks.py:582 |
+| API-STK-38 | GET | `/api/quant/strategies` | 세션 | — | {configured, strategies, source, test_only, local_cards} | — | — | `mypage` | 미배정 | — | stocks.py:619 |
+| API-STK-39 | GET | `/api/quant/live-orders` | 세션 | `limit` | {gateway, batch, orders} | — | PostgreSQL | (다른 곳) | 미배정 | — | stocks.py:627 |
+| API-STK-17 | GET | `/api/quant/settings` | 세션 | — | {mode, broker, connected, app_key, account_no} 외 20 | — | PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:658 |
+| API-STK-18 | POST | `/api/quant/settings` | 세션 | 본문 `QuantSettingsBody` | {ok} | 409 · 422 | 수집DB · PostgreSQL | `mypage` | P-E | P02-⑤-2 | stocks.py:714 |
+| API-STK-19 | GET | `/api/broker/price` | 세션 | `symbol`* | {symbol, name, current, open, high} 외 7 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `mypage` | P-E | P02-⑤-1 | stocks.py:832 |
+| API-STK-20 | GET | `/api/broker/balance` | 세션 | — | {total_eval, total_buy, total_gain, holdings} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:848 |
+| API-STK-21 | GET | `/api/broker/ohlcv` | 세션 | `symbol`* · `start`* · `end`* | {candles} | 502 | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:872 |
+| API-STK-22 | POST | `/api/broker/order` | 세션 | 본문 `BrokerOrderBody` | JSONResponse | 409 · 422 · 502 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-1 | stocks.py:897 |
+| API-STK-42 | GET | `/api/broker/order/{request_id}` | 세션 | `{request_id}` | 모델 없음 | 404 · 503 | PostgreSQL | — | P-E | — | stocks.py:977 |
+| API-STK-23 | GET | `/api/broker/test` | 세션 | — | {ok, broker_price, source, scope, account_verified} 외 1 | — | 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | — | P-E | P02-⑤-1 | stocks.py:989 |
+| API-STK-34 | GET | `/api/stocks/patterns` | 세션 | `symbol` · `period` | {symbol, candles, stats, levels} | 404 · 422 | 수집DB · 야후 · PostgreSQL | `robo-patterns` | P-A | — | stocks.py:1004 |
+| API-STK-35 | GET | `/api/stocks/mtf-signal` | 세션 | `symbol` | {symbol, opinion, opinion_rule, held, risk_gate} | — | 수집DB · 야후 · PostgreSQL · Redis · 외부(api.upbit.com, kind.krx.co.kr) | `robo-decision`, `robo-patterns` | P-A | — | stocks.py:1020 |
+| API-STK-24 | POST | `/api/auto-trade/start` | 세션 | — | {ok, started, scheduler} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1101 |
+| API-STK-25 | POST | `/api/auto-trade/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | P-E | P02-⑤-2 | stocks.py:1110 |
+| API-STK-26 | GET | `/api/auto-trade/status` | 세션 | — | 모델 없음 | — | PostgreSQL | `mypage`, `quant-auto`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1116 |
+| API-STK-36 | GET | `/api/quant/risk/status` | 세션 | — | 모델 없음 | — | 수집DB · 야후 · 증권사 · PostgreSQL · Redis · 외부(developer.kbsec.com, openapi.ebestsec.co.kr …) | `quant-auto` | 미배정 | — | stocks.py:1128 |
+| API-STK-37 | POST | `/api/quant/risk/kill-switch` | 세션 | 본문 `KillSwitchBody` | {ok, kill_switch, auto_trade_stopped, cancellation} | — | 수집DB · 증권사 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `quant-auto` | 미배정 | — | stocks.py:1153 |
+| API-STK-40 | GET | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | — | PostgreSQL | `dashboard` | 미배정 | — | stocks.py:1177 |
+| API-STK-41 | POST | `/api/quant/kis/quickstart` | 세션 | — | 모델 없음 | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | `dashboard` | 미배정 | — | stocks.py:1183 |
+| API-STK-27 | POST | `/api/quant/auto/start` | 세션 | — | {ok, started} | 409 | 수집DB · 야후 · 증권사 · 주문 · PostgreSQL · Redis · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P01-④-3 · P02-⑤-1 · P02-⑤-2 | stocks.py:1192 |
+| API-STK-28 | POST | `/api/quant/auto/stop` | 세션 | — | {ok, stopped} | — | PostgreSQL · 알림 · 외부(api.coolsms.co.kr, api.telegram.org …) | — | P-E | P02-⑤-2 | stocks.py:1202 |
+| API-STK-29 | GET | `/api/quant/auto/status` | 세션 | — | {running, me_running, batch, reconcile, logs} 외 1 | — | PostgreSQL | `dashboard`, `robo-decision`, `robo-patterns` | P-E | P01-④-2 · P02-⑤-2 | stocks.py:1209 |
+| API-STK-30 | GET | `/api/quant/pipeline` | 세션 | `symbol` · `period` · `base` · `short` · `mid` · `rsi` · `buy_th` · `strategy` · `cost_bps` · `cost_model` · `slippage_bps` · `market` · `stop_loss_pct` · `take_profit_pct` · `entry_mode` · `exit_mode` | 모델 없음 | 404 · 422 | 수집DB · 야후 · PostgreSQL | `dashboard`, `indicator-custom`, `quant-backtest`, `robo-patterns` | P-D | P01-④-1 · P02-①-2 · P02-①-3 · P02-②-1 · P02-②-2 | stocks.py:1278 |
+| API-STK-31 | GET | `/api/custom-indicators` | 세션 | — | {items} | — | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1385 |
+| API-STK-32 | POST | `/api/custom-indicators` | 세션 | 본문 `CustomIndicatorBody` | 모델 없음 | 422 | PostgreSQL | `dashboard`, `indicator-custom`, `robo-patterns` | P-B | P02-①-2 · P02-②-1 · P02-②-3 | stocks.py:1400 |
+| API-STK-33 | DELETE | `/api/custom-indicators/{indicator_id}` | 세션 | `{indicator_id}` | {ok} | 404 | PostgreSQL | `indicator-custom`, `robo-patterns` | P-B | P02-②-1 · P02-②-3 | stocks.py:1420 |
 
 #### `kis_monitor` — `app/routes/kis_monitor.py` · 4개
 
@@ -1326,7 +1326,7 @@ GET /api/data/guide  (로그인 뒤 · 모든 사용자 · 읽기만 · 파일�
 
 KIS 연동(`quant_mode=live`)은 증권사 잔고·보유로 판단한다. 잔고 조회 실패 시 주문을 보류하며 가상 장부로 대체하지 않는다. 실거래 승인 관문은 그대로이며 기본 경로는 KIS 모의투자다. 사이클의 `account`는 **주문 전 조회값**(`ledger=kis_account`, `checked_at`)이다. `paper` 가상매매의 손익과 KIS 계좌 당일 손익은 서로 다른 기준값을 사용한다.
 
-사용자 키 직접 경로도 전송 전에 `live_orders`에 `broker=kis-direct`로 저장한다. 계좌 해시·환경·주문일·주문번호·종목·방향·수량을 대조하여 체결을 확인한다. 주문번호가 없으면 같은 종목·수량이나 잔고 변화로 체결을 추정하지 않는다. 직접 경로의 응답 불명 주문은 자동 재전송하지 않으며, 비상 정지 시 직접 주문의 취소는 KIS에서 수동 확인해야 한다. 게이트웨이의 기존 멱등 재전송·취소 정책과 분리한다.
+사용자 키 직접 경로도 전송 전에 `live_orders`에 `broker=kis-direct`로 저장한다. 계좌 해시·환경·주문일·주문번호·종목·방향·수량을 대조하여 체결을 확인한다. 주문번호가 없으면 같은 종목·수량이나 잔고 변화로 체결을 추정하지 않는다. 직접 경로의 응답 불명 주문은 자동 재전송하지 않는다. **(v0.66 정정)** 옛 글은 「비상 정지 시 직접 주문의 취소는 KIS에서 수동 확인해야 한다」 였으나, 지금은 비상 정지를 켜면 개인 KIS 모의 계좌의 추적 주문(`broker=kis-direct`)마다 취소를 한 번 보낸다(`auto_trade.cancel_open_live_orders` → `kis_order_recovery.cancel` · 이 절 아래 「비상 정지 `cancellation` 칸」 소절). 취소 접수는 취소 확정이 아니고, 모의 계좌가 아니거나 정규장 밖이어서 취소를 보내지 못한 주문은 여전히 KIS 주문 내역에서 직접 확인해야 한다. 게이트웨이의 기존 멱등 재전송·취소 정책과 분리한다.
 
 토큰은 Redis에서 환경·키·Secret별 해시로 공유하고 만료 전에 갱신한다. 동시 발급을 제한하며 Redis 확인 실패 시 토큰 발급과 주문을 보류한다. HTTP 403을 모두 발급 제한으로 단정하지 않는다.
 
@@ -1545,6 +1545,115 @@ DB 이전 `0025_task_ownership`을 먼저 적용한다. 과거 작업 소유자�
 - 이 변경으로 `API-STK-02` 의 부르는 화면에서 `signal-rank` 가 빠지고 `API-QUOT-01` 에 더해졌다(4절 · 6절 표는 `api_scan.py --doc` 로 다시 채웠다). 로그인한 사람의 증권사 키 경로(`kis_user`)는 이 PC 에 키가 없어 화면으로 확인하지 못했다.
 - 시험: `TC-HUB-63`(`market` 칸) · `TC-RKS-12`(진입 API 목록) · `TC-RKS-19`(새로고침이 시장 꼬리로 `/api/quote/now` 를 부름).
 
+### 코인 모의거래 거래비용 — 수수료 0.05% · 슬리피지 10 bps (`API-PAPR-17` ~ `21` · `API-OAPI-07` · 이슈 #444 · 2026-11-09 · v0.66)
+
+업비트 원화 코인 모의주문(`paper_trading.crypto_preview` · `crypto_buy` · `crypto_sell`)이 거래비용을 반영하도록 바뀌었다(커밋 `d8262904` · PR #608, 주문 전용 30초 시세 검증은 커밋 `78101102`). 경로 · 인증 · 요청 본문(`CryptoPreviewBody` · `CryptoBuyBody` · `CryptoSellBody`)은 그대로이고 **응답 칸이 늘었으며 몇몇 칸의 뜻이 달라졌다.** 계산은 `app/services/crypto_trading_cost.py` 한 곳(`order_costs`)이다.
+
+**계산 순서**: ① `referencePrice` = 업비트 현재가 → ② 체결가 = 기준 시세에서 **불리한 쪽으로 10 bps**(매수 × 1.001 · 매도 × 0.999) → ③ 체결금액 = 체결가 × 수량 → ④ 수수료 = 체결금액 × 0.0005 → ⑤ 정산금액(`netAmount`) = 매수는 체결금액 + 수수료 · 매도는 체결금액 − 수수료. 슬리피지는 체결가에 이미 들어 있어 정산금액에서 따로 빼지 않는다. 슬리피지 추정액(`slippageAmount`)은 `|체결가 − 기준가| × 수량` 으로 **참고용 칸**이다. 매수 요청의 `buyKrw` 는 **체결금액(수수료 제외)** 으로 읽혀 수량 = `round(buyKrw ÷ 체결가, 8)` 이 되므로, 실제로 빠지는 현금(`netAmount`)은 `buyKrw` 보다 약 0.05% 크다(수량을 소수 8자리로 반올림해 정확히 같지는 않다).
+
+**미리보기** `API-PAPR-18` `POST /api/paper/trade/order/preview` 응답
+
+| 칸 | 형 | 상태 | 뜻 |
+|---|---|---|---|
+| `executable` | bool | 기준 바뀜 | 매수: `estimatedNetAmount ≤ cashBefore` · 매도: `quantity ≤ heldQuantity` |
+| `marketCode` · `koreanName` · `side` · `quantity` · `cashBefore` · `heldQuantity` | — | 그대로 | `quantity` 는 매수면 위 식의 수량 · 매도면 요청 `sellCount` |
+| `referencePrice` | number | **새 칸** | 기준 시세(업비트 현재가) |
+| `estimatedPrice` | number | 뜻 바뀜 | 예상 체결가(기준 시세 ± 10 bps). 옛 판은 현재가 그대로 |
+| `estimatedAmount` | number | 뜻 바뀜 | 체결금액(수수료 제외 · 반올림 없음). 옛 판은 매수 = `buyKrw` · 매도 = `round(수량 × 현재가)` |
+| `estimatedCommission` | number | **새 칸** | 예상 수수료(원) |
+| `estimatedSlippage` | number | **새 칸** | 슬리피지 추정액(원 · 참고) |
+| `estimatedNetAmount` | number | **새 칸** | 정산금액 — 매수는 빠질 현금 · 매도는 들어올 현금 |
+| `feeRate` · `slippageBps` | number | **새 칸** | `0.0005` · `10.0` |
+| `costBasis` | str | **새 칸** | `"estimated"` — 수수료는 업비트 기본 요율, 슬리피지는 추정 가정이라는 표시 |
+| `reason` | str 또는 `null` | 문구 바뀜 | 안 될 때만. 매수: 「수수료를 포함한 매수 필요 금액이 보유 현금을 초과합니다.」(옛: 「보유 현금이 부족합니다.」) · 매도: 「매도 가능 수량이 부족합니다.」 |
+| `notice` | str | 문구 바뀜 | 「기준 시세에 편도 10 bps 추정 슬리피지를 적용하고, 체결금액에 수수료 0.05%를 반영했습니다. 실제 업비트 주문은 전송되지 않습니다.」 |
+
+**주문** `API-PAPR-19` `POST /api/paper/trade/order/buy` · `API-PAPR-20` `POST /api/paper/trade/order/sell` 응답: 옛 칸 `success` · `asset`(주문 뒤 현금 잔액) · `marketCode` · `quantity` · `price` · `amount` 는 남고, 아래가 더해졌다.
+
+| 칸 | 매수 | 매도 | 뜻 |
+|---|:-:|:-:|---|
+| `referencePrice` | 예 | 예 | 기준 시세 |
+| `price` | 예 | 예 | **뜻 바뀜** — 체결가(기준 시세 ± 10 bps). 옛 판은 현재가 |
+| `amount` | 예 | 예 | **뜻 바뀜** — 체결금액(수수료 제외 · 반올림 없음). 옛 판은 매수 = `buyKrw` · 매도 = `round(현재가 × 수량)` |
+| `commission` · `slippageAmount` · `netAmount` | 예 | 예 | 수수료 · 슬리피지 추정액 · 정산금액. 현금은 `netAmount` 만큼 움직인다(`asset` 이 그 뒤 잔액) |
+| `feeRate` · `slippageBps` · `costBasis` | 예 | 예 | `0.0005` · `10.0` · `"estimated"` |
+| `allocatedCostBasis` | — | 예 | 이 매도에 배분된 보유 원가 = 보유 원가 × (`sellCount` ÷ 보유 수량). 전량 매도(보유 수량 − 1e-12 이상)면 보유 원가 전부 |
+| `realizedPnl` | — | 예 | 실현손익 = `netAmount − allocatedCostBasis`(수수료 · 슬리피지 반영 뒤) |
+
+**보유 원가의 뜻이 바뀐다.** 매수 때 보유 원가(`total_krw`)에 **수수료까지 낸 정산금액**이 더해지고 평균 단가 = 원가 ÷ 수량이다. 그래서 `API-PAPR-17` `GET /api/paper/trade/hold` 와 `API-OAPI-07` `GET /openapi/v1/crypto/hold`(둘 다 `crypto_holdings`)의 `buyAverage` · `buyTotalKrw` · `pnl` · `pnlRate` 는 **칸 이름은 그대로, 새로 산 만큼은 수수료와 슬리피지가 원가에 들어간다**(11-09 이전에 산 분은 그대로라 섞여 있다). `pnl` = `evalKrw − buyTotalKrw` 로, 팔 때 낼 수수료는 아직 빼지 않는다.
+
+**거래 내역** `API-PAPR-21` `GET /api/paper/trade/order/history` 의 `history[]` 에 아래 칸이 더해졌다. 11-09 이전 주문(마이그레이션 `crypto_order_costs_20261109` 전)은 비용 칸이 비어 있다.
+
+| 칸 | 새 주문 | 옛 주문(비용 칸 없음) |
+|---|---|---|
+| `referencePrice` | 기준 시세 | `price` 로 대체(`null` 아님) |
+| `netAmount` | 정산금액 | `amount` 로 대체(`null` 아님) |
+| `costBasis` | `"estimated"` | `"none"` |
+| `commission` · `feeRate` · `slippageBps` · `slippageAmount` | 숫자 | `null` |
+| `allocatedCostBasis` · `realizedPnl` | 매도만 숫자 · **매수는 늘 `null`** | `null` |
+
+옛 칸 `marketCode` · `koreanName` · `type` · `quantity` · `price` · `amount` · `source` · `ts` 는 그대로다(`price` · `amount` 의 뜻은 새 주문에서 위 표와 같이 체결가 · 체결금액).
+
+**주문 전용 30초 시세 검증** (`upbit_trade_price` · `_UPBIT_ORDER_QUOTE_MAX_AGE_SEC = 30.0`): 미리보기 · 매수 · 매도 세 길이 모두 이 함수로 가격을 읽는다. 아래 **두 나이가 모두 0 ~ 30초**여야 하고, 하나라도 계산할 수 없으면(거래소 체결 시각이 없는 경우 등) 거부한다.
+
+- ① 이 서버가 그 시세를 캐시에 받은 뒤 지난 시간(`cache_age_sec` · 방금 새로 받았으면 0)
+- ② 거래소 체결 시각(`as_of`)으로부터 지난 시간
+
+거부는 **HTTP 400** 이고 본문은 `{"detail": "현재가가 오래되어 주문할 수 없습니다. 시세를 새로고침한 뒤 다시 시도해주세요."}` 처럼 **문자열 `detail`** 이다(`paper.py` `_bad`). 매도는 보유 확인을 먼저 하고 가격을 나중에 본다. 이 400 은 라우트 본문이 아니라 서비스가 던지는 것이라 `api_scan.py` 의 오류 코드 칸에는 나타나지 않는다 — 이 소절이 정본이다. 일반 시세 · 보유 평가는 이전처럼 체결 시각 5분(300초) 이내의 값을 쓰고 캐시 갱신 간격은 5초다(`upbit_tickers` · 이번 변경 아님).
+
+**그 밖의 400 문구** (`PaperTradeError` → 400): 매수 「수수료를 포함한 매수 필요 금액이 보유 현금을 초과합니다.」(옛: 「매수 가능 금액보다 클 수 없습니다.」) · 「매수 수량이 유효하지 않습니다.」(수량이 0 이하) · 미리보기에서 매도 수량이 없거나 0 이하 또는 유한하지 않으면 「sellCount는 0보다 커야 합니다.」(업비트 마켓 조회 **전에** 검사) · 매도 수량이 유한하지 않아도 「0보다 큰 수를 입력해주세요.」 (매도 주문).
+
+- 화면: `public/js/paper.js` 의 `cryptoPreview` · `cryptoOrder` · `pcHistoryBody` 가 새 칸을 읽는다(기준 시세 · 예상 체결가 · 수수료 · 슬리피지 · 순정산 · 실현손익).
+- 근거 시험(TC 번호 없음): `tests/test_crypto_trading_cost.py` · `tests/test_crypto_order_cost_integration.py` · `tests/test_crypto_order_freshness.py` · `tests/test_crypto_quote_freshness.py`. 이 판에서는 시험을 다시 돌리지 않고 코드를 읽어 적었다.
+
+### 모의 계좌 입출금 보정 수익률 — Modified Dietz (`API-PAPR-33` · `34` · `36` ~ `38` · `40` · `API-RBAL-07` · `08` · 이슈 #612 · 2026-11-09 · v0.66)
+
+모의 계좌의 성과 수익률이 **입금 · 출금을 투자 손익으로 세지 않도록** 바뀌었다(커밋 `a5b4ce9d` · PR #621 · `app/services/paper_performance.py` `cashflow_adjusted_return`). 라우트 · 질의 · 인증은 그대로이고, 아래 응답의 **칸 이름은 대부분 그대로인 채 뜻이 바뀌거나 칸이 몇 개 늘었다.** 이 소절은 그 차이만 적는다.
+
+**계산 방법.** 이웃한 두 일일 스냅샷(앞의 총자산 `V0` · 뒤의 총자산 `V1`) 사이의 수익률은 `r = (V1 − V0 − F) ÷ (V0 + Σ wᵢ·Fᵢ)` 이다. `F` 는 두 스냅샷 시각 사이(앞 시각 초과 · 뒤 시각 이하)에 일어난 **외부 현금흐름의 순합**(`DEPOSIT` 은 +, `WITHDRAW` 는 −)이고, 가중치 `wᵢ` 는 그 이벤트부터 구간 끝까지 남은 시간 ÷ 구간 길이다. `DIVIDEND`(배당)는 투자 소득이라 외부 현금흐름에서 빼고 수익에 그대로 둔다. 이 `r` 을 날마다 복리로 이은 것이 「성과 지수」(`∏(1+r)`)다.
+
+**수익률을 만들지 않는 경우** — 그 구간만 시계열에서 빠지고 다음 유효 스냅샷부터 다시 이어진다. 0 % 로 채우지 않는다: 앞 총자산이 0 이하 · 구간 길이가 0 이하 · 분모(`V0 + Σ wᵢ·Fᵢ`)가 0 이하 · 값이 유한하지 않음 · 구간 안 입출금 중 **회차(`epoch`)를 알 수 없는(`null`) 이벤트**가 있거나 금액이 양의 유한수가 아님. 현재 회차가 아닌 이벤트는 건너뛴다(계좌 리셋 전 입출금이 새 회차에 섞이지 않는다).
+
+| API | 바뀐 것 |
+|---|---|
+| `API-PAPR-33` `GET /api/paper/performance/metrics` | **새 칸** `return_basis` = `"modified_dietz_external_cashflows_excluded"` (`status` 가 `ok` · `insufficient_data` 모두에 실린다). **`total_return` 뜻 바뀜** — 마지막 총자산 ÷ 처음 총자산 − 1 이 아니라 `∏(1+r) − 1`. **`drawdown_curve` 뜻 · 길이 바뀜** — 총자산이 아니라 성과 지수의 고점 대비 낙폭이라 길이가 `r` 의 개수이고 `equity_curve` · `snap_dates` 와 같지 않다. `metrics`(`mdd` · `sharpe_ratio` · `sortino_ratio` · `sterling_ratio` · `calmar_ratio` · `dsr`)는 `r` 로 계산한다(숨김 규칙 — `r` 20개 미만 또는 일변동성 0.5 % 미만이면 `null` + `reason` — 은 그대로). **`equity_curve` · `snap_dates` 는 그대로 실제 총자산과 완전한 일일 스냅샷 날짜**라 입출금이 섞여 있다 — 한 응답 안에서 총자산 기준(`equity_curve`)과 보정 기준(`total_return` · `drawdown_curve`)이 다르다. `insufficient_data` 문턱(`r` 2개 미만)은 그대로지만 `r` 이 계산된 날만 세므로 입출금 사이 구간이 빠지면 `ok` 가 늦어진다 |
+| `API-PAPR-36` `GET /api/paper/performance/returns-table` | **`return_1m` · `3m` · `6m` · `1y`** = 마지막 21 · 63 · 126 · 252개 `r` 의 복리 연결, `r` 이 모자라면 `null`(옛: 총자산 개수가 `N+1` 이상이어야 함). **`return_cumulative`** = 전체 `r` 의 복리 연결. **새 칸** `return_observation_count`(`r` 의 개수) · `return_basis`. `snapshot_count` 는 총자산 스냅샷 수로 그대로. `insufficient_data`(총자산 2개 미만 또는 `r` 0개)에도 `snapshot_count` · `return_observation_count` · `return_basis` 가 실린다 |
+| `API-PAPR-37` `GET /api/paper/performance/risk-metrics` | 칸 그대로(`std_dev` · `beta` · `sharpe` · `jensen_alpha` · `tracking_error` · `information_ratio` × 1m · 3m · 6m · 1y). 입력이 `r` 로 바뀌었다. `return_basis` 는 **`r` 5개 미만의 `insufficient_data` 응답에만** 실린다 — 「벤치마크 없음」 · 「공통 거래일 부족」 `insufficient_data` 와 `ok` 에는 없다 |
+| `API-PAPR-38` `GET /api/paper/performance/turnover` | 칸 그대로(`total_buy` · `total_sell` · `avg_equity` · `turnover_ratio` · `annualized_turnover_pct` · `period_days` · `period_years`), **뜻이 바뀜** — `total_buy` · `total_sell` 은 이제 `Order.epoch` 가 **현재 회차인 주문만** 합산한다. `epoch` 가 `null` 인 주문(마이그레이션 `0047` 이전의 모든 주문, 그리고 모델 주석 기준 자동매매 · 백테스트 · 증권사 원장 주문)은 빠져, 옛 계정은 새 모의 주문이 생기기 전까지 회전율이 0 에 가깝게 보인다. `avg_equity` · `period_days` 는 총자산 스냅샷 기준 그대로. `return_basis` 는 없다 |
+| `API-PAPR-40` `GET /api/paper/performance/benchmark` | 칸 그대로(`status` · `dates` · `our_series` · `benchmark_series` · `benchmark_name`). **`our_series` 뜻 바뀜** — 총자산이 아니라 성과 지수(공통 첫 날을 100 으로 맞춤). `dates` 는 `r` 이 계산된 날 ∩ KOSPI 날이라 첫 스냅샷 날짜는 빠진다. 공통 날짜가 1개여도 응답한다(옛: 2개 미만이면 `insufficient_data`). `r` 이 0개면 `{status: "insufficient_data", return_basis}` — `ok` 응답에는 `return_basis` 가 없다 |
+| `API-PAPR-34` `POST /api/paper/performance/snapshot` | 칸 그대로(`status` · `snap_date` · `origin` · `completeness` · `return_valid` · `total_equity` · `daily_return` · `position_count`). 이 길은 `origin="manual"` 로 기록하는데, 같은 날 `origin="daily"` 행이 이미 있으면 덮어쓰지 않고(upsert 의 `where origin != "daily"`) 저장된 daily 행을 그대로 읽어 돌려준다. 그래서 응답이 두 갈래다 — **오늘 daily 행이 있으면** `origin` 이 `"daily"` 로 나오고 `daily_return` · `return_valid` 는 일일 수집이 저장한 Modified Dietz 보정값이다(보정이 이 응답에 보인다). **daily 행이 없으면** manual 행이 새로 써져 `origin` 이 `"manual"` · `return_valid` 가 `false` · `daily_return` 이 `0.0` 이다(수동 기록은 성과 계산에 쓰이지 않는다). 일일 수집(`record_daily_snapshot`)이 저장하는 `daily_return` · `return_valid` 가 입출금 보정값이고, 성과 API 는 저장값이 아니라 조회 때마다 이웃 두 행으로 다시 계산한 값(`get_daily_returns`)을 쓴다 |
+
+**현금흐름 이벤트에 `epoch` 가 붙었다.** `API-RBAL-07` `POST /api/rebalance/cashflow`(응답 `{event, run, check_deferred, message}`)의 `event` 와 `API-RBAL-08` `GET /api/rebalance/cashflows`(응답 `{events}`)의 `events[]` 에 **`epoch`**(정수 또는 `null`)가 더해졌다(`rebalance.cashflow_to_dict`). 이벤트를 기록한 시점의 모의 계좌 회차이며, 07 은 늘 정수 · 08 은 마이그레이션 `0047`(11-09) 이전 이벤트가 `null` 이다(회차를 추정하지 않는다). 요청 본문 `CashflowBody` 는 그대로다. 같은 변경으로 리밸런싱 예산(`pending_cashflows`)은 **현재 회차의 이벤트만** 쓴다 — 계좌 리셋 전 회차의 남은 예산과 `epoch` 가 `null` 인 이벤트는 새 계좌의 리밸런싱 판단에서 빠진다(필드가 아니라 동작의 변화).
+
+- 주문의 `epoch` 는 **어떤 응답에도 실리지 않는 내부 칸**이다(`GET /api/orders` · `API-PAPR-10` 포함). 값을 넣는 곳은 `POST /api/orders`(`stocks.py` `place_order`) · 모의 주문 체결(`_fill_stock_order`) · 스탑 주문 접수(`place_stop_order`) · 미국 예약(`us_reserve.place`)이다.
+- 알려진 한계: `epoch` 를 알 수 없는 옛 입출금이 낀 구간은 수익률이 비어 그 구간만 성과 시계열에서 빠진다. 옛 데이터를 현재 회차로 추정하지 않는 것이 의도다(마이그레이션 `0047` 머리 설명).
+- 화면: `public/js/paper.js`(약 1411행)는 `equity_curve` · `snap_dates` 로 선을 그린다 — 총자산 기준이라 입출금이 보인다. 이 판에서는 화면 쪽 변경을 확인하지 않았다.
+- 근거 시험(TC 번호 없음): `tests/test_paper_cashflow_returns.py` · `tests/test_snapshot_integrity.py` · `tests/test_rebalance_unified.py` 의 `test_paper_orders_and_cashflows_keep_their_account_epoch`. 이 판에서는 시험을 다시 돌리지 않고 코드를 읽어 적었다.
+
+### 비상 정지 `cancellation` 칸 — KIS 직접 모의 주문의 취소 (`API-STK-37` · 2026-11-09 · v0.66)
+
+`POST /api/quant/risk/kill-switch`(본문 `KillSwitchBody` `{enabled, reason}` 그대로)의 응답 `{ok, kill_switch, auto_trade_stopped, cancellation}` 은 칸 이름이 그대로이고, **`cancellation` 안의 모양과 하는 일이 바뀌었다**(커밋 `86b35bf2` · PR #607 · `auto_trade.cancel_open_live_orders`).
+
+- `enabled=false` 면 `cancellation` 은 `null`(취소하지 않는다).
+- `enabled=true` 의 정상 응답은 **정수 여섯 칸**이다(옛 판은 `requested` · `failed` · `skipped` 세 칸).
+
+| 칸 | 센 것 |
+|---|---|
+| `requested` | 이번에 취소를 보내 접수된 주문(KIS 직접 `ACCEPTED` · 게이트웨이 취소 요청) |
+| `pending` | 이미 취소가 접수돼 있어 다시 보내지 않은 주문(`duplicate`) — 취소 확정 조회 대기 |
+| `closed` | 이미 취소가 확정됐거나 취소 전에 체결된 주문 |
+| `unknown` | 취소 결과를 알 수 없는 주문 — 재전송하지 않는다 |
+| `skipped` | 보낼 수 없는 주문: 개인 KIS 모의 계좌가 아님(`PAPER_ONLY`) · 지원하지 않는 주문(`UNSUPPORTED_ORDER`) · 주문을 못 찾음(`ORDER_NOT_FOUND`) · 게이트웨이 주문의 주문번호가 없거나 게이트웨이가 꺼져 있음 |
+| `failed` | 위 셋 밖의 거절 — 정규장 밖(`OUTSIDE_WINDOW`) · 계좌 사용 중(`ACCOUNT_BUSY`) · 잔량 · 조직번호 확인 불가(`CANCEL_UNCONFIRMED`) · 주문 확인 불가(`ORDER_UNCONFIRMED`) · 설정 변경(`SETTINGS_CHANGED`) 등 · 게이트웨이 취소 오류 |
+
+- 취소를 확인하다 예외가 나면 라우트가 `{requested: 0, failed: 1, skipped: 0}` **세 칸**만 돌려준다(`stocks.py` 1168행). 응답을 읽는 쪽은 여섯 칸이 모두 있다고 가정하지 않는다.
+- **대상**: 본인의 `live_orders` 중 ① 상태가 `ACCEPTED` · `PARTIALLY_FILLED` 인 주문 전부, ② `broker=kis-direct` 이면서 상태가 `PENDING` · `ACCEPTED` · `PARTIALLY_FILLED` · `CANCEL_REQUESTED` · `UNKNOWN` · `LOST` 인 주문. 만든 순서대로 처리한다.
+- **KIS 직접 주문**은 `kis_order_recovery.cancel` 이 계좌 · 당일 원 주문 · 확정 잔량을 확인한 뒤 주문마다 취소를 **한 번만** 보낸다(전송 전에 `BrokerCancelRequest` 를 저장해 다시 보내지 않는다). 개인 KIS **모의** 계좌 · 확인된 정규장(09:00 ~ 15:30) · 당일 주문만 가능하다. **취소 접수는 취소 확정이 아니다** — 확정은 원 주문의 다음 체결 조회로 한다. **게이트웨이 주문**은 이전처럼 `gateway.cancel_order` 로 취소를 요청한다.
+- 주문을 하나씩 순서대로 처리하고 KIS 직접 주문마다 `kis_order_recovery.pause()`(1.1초)를 부르며 `cancel` 안에서도 취소를 보내는 단계까지 가면 전송 전에 1.1초 쉬므로, 추적 주문이 많으면 응답이 그만큼 늦어진다(코드를 읽어 안 사실이고 실제 지연은 재 보지 않았다).
+- 이 변경으로 `API-STK-37` 의 「닿는 곳」 에 수집DB · 증권사 · Redis 가 더해졌다(4절 · 6절 표를 이 판에서 갱신). 자동 비상 정지(`auto_trade.emergency_halt`)도 같은 함수를 부르지만 그 결과는 응답이 아니라 감사 기록(`actions.cancel_orders` — `{status: "checked", …여섯 칸, confirmation}` 또는 `{status: "failed", reason}`)으로만 간다.
+- 같은 PR 이 `direct_status` 의 내부 반환에 `orderPrice` · `orderDate` · `orderTime` 을 더했다(Paper↔KIS 대사용). `GET /api/quant/live-orders`(`API-STK-39`) 응답에는 실리지 않는다(주문 원문 `raw` 를 싣지 않는다).
+- 화면: `public/js/quant.js` 의 비상 정지 단추가 `requested` · `pending` · `unknown` · `failed` · `skipped` 를 읽는다. 근거 시험(TC 번호 없음): `tests/test_kis_emergency_cancel.py`.
+
 ## 7. 인터페이스 정의서 (시작)
 
 **인터페이스** — 두 시스템이 주고받는 경계 하나. API 명세서가 「앱이 받는 요청」 이라면, 이 절은 「앱이 **바깥에** 닿는 길」 과 「바깥이 앱에 닿는 길」 을 한 줄씩 적는다.
@@ -1696,6 +1805,7 @@ python -m pytest tests/test_api_scan.py tests/test_api_docs.py   # TC-AP 15건 �
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v0.66 | 2026-11-09 | 추가 — 6절 소절 셋: 코인 모의거래 거래비용(`API-PAPR-17` ~ `21` · `API-OAPI-07`) · 모의 계좌 입출금 보정 수익률 Modified Dietz(`API-PAPR-33` · `34` · `36` ~ `38` · `40` · `API-RBAL-07` · `08`) · 비상 정지 `cancellation` 칸(`API-STK-37`) / 변경 — 6절 「KIS 자동매매 주문 결과」 소절의 옛 문장 「비상 정지 시 직접 주문의 취소는 KIS에서 수동 확인」 정정 · 표를 코드에서 다시 채움(`stocks.py` 줄 번호 1씩 밀림 · `API-STK-37` 닿는 곳에 수집DB · 증권사 · Redis 추가 · 2절 표의 `stocks` 줄과 합계: 수집DB 102 → 103 · 증권사 24 → 25 · Redis 52 → 53) / 라우트 290 · 요청 본문 모델 · API ID 변동 없음 | 이슈 #444(코인 모의거래에 수수료 · 슬리피지 반영 · PR #608 · 시세 30초 검증은 PR #606 으로 들어온 `78101102`) · 이슈 #612(입출금을 수익률에서 제외하고 `Order` · `CashflowEvent` 에 회차 `epoch` · PR #621) · PR #607(비상 정지가 KIS 직접 모의 주문의 취소를 보냄) 뒤 응답 칸과 뜻이 달라졌는데 명세서에 없었음. 기준 `08121598` 이후 `app/` 17파일을 읽은 결과 응답 변화는 이 셋이다(PR #616 은 `POST /api/ml/robo/risk-profile` 응답의 `description` 문구 다섯 개만 바꿔 6절 「투자 성향 진단의 브라우저 저장」 의 「진단 · 응답 계약은 그대로」 가 여전히 맞고, Paper↔KIS 대사(PR #602)는 라우트가 없어 명세 대상이 아님) | `api_scan.py --doc docs/phase-3/02-design/api/API명세서.md --check` 통과(종료코드 0 · 파이프 없이 확인) · 기준 `08121598` 이후 `git diff app/` 17파일을 직접 읽음 · 코드: `paper_trading.py`(`crypto_*` · `upbit_trade_price`) · `crypto_trading_cost.py` · `paper_performance.py` · `paper_snapshot_service.py` · `performance_service.py` · `rebalance.py`(`cashflow_to_dict` · `pending_cashflows`) · `auto_trade.py`(`cancel_open_live_orders`) · `kis_order_recovery.py` · 시험 파일 이름은 6절 소절 끝 · **한계**: 이 판에서 시험을 다시 돌리지 않았고 개발 모드 앱의 `/openapi.json` 대조(`--openapi`)도 하지 않았다 · `--catalog --check` 는 카탈로그(`public/api-docs/catalog.json`)가 뒤처졌다고 알림 — 다시 쓰는 일은 판 올림 마무리 몫 · `API-STK-39` · `API-NOTI-04` · `API-LEAN-03` 은 호출이 3단계 아래라 `(다른 곳)` 인 채 |
 | v0.65 | 2026-11-06 | 변경 — 표를 코드에서 다시 채움(`API-STK-02` 부르는 화면에서 `signal-rank` 제외 · `API-QUOT-01` 에 추가) / 추가 — 6절 소절 하나: 신호 순위 줄 `market` 칸 · 새로고침 지금 가격의 길 | PR #596 — 새로고침이 시장 꼬리(.KS · .KQ)가 있는 `/api/quote/now` 로 옮겨 감 · 순위 줄에 `market` 이 더해짐(v0.63 의 `API-STK-02` 기재를 되돌림) | `api_scan.py --doc --check` 통과 · 코드 `stock_hub.py` `attach_names` · `signal-rank.js` `nowSymbolOf` · TC-HUB-63 · TC-RKS-12 · 19 |
 | v0.64 | 2026-11-06 | 변경 — 표를 코드에서 다시 채움(화면이 부르는 API 148 → 146) / 추가 — 6절 소절 둘: 거시 `refresh` · 알림 설정 503 | #564 뒤 화면 스캐너가 이력 라우트 16곳의 화면을 잃어 스캐너를 고치고(TC-VW-03) 다시 채움 · 새 질의와 오류 응답 풀이 | `api_scan.py --doc --check` 통과 · 시험 33 passed · 한계: `API-STK-39` · `API-NOTI-04` · `API-LEAN-03` 은 호출이 3단계 아래라 `(다른 곳)` |
 | v0.63 | 2026-11-05 | 변경 — 표를 코드에서 다시 채움(`API-STK-02` 부르는 화면에 `signal-rank` 추가) | 신호 순위 화면의 새로고침이 `/api/stocks/quote` 로 상위 10종목의 지금 가격을 읽는다 | `api_scan.py --doc --check` 통과 |
