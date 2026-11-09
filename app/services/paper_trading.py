@@ -756,11 +756,41 @@ async def upbit_tickers(
     return result
 
 
+_UPBIT_ORDER_QUOTE_MAX_AGE_SEC = 30.0
+
+
 async def upbit_trade_price(market_code: str) -> float:
-    rows = await upbit_tickers([market_code])
+    """주문 가격은 거래소 체결 시각과 캐시 수신 시각 모두 30초 이내여야 한다."""
+    rows = await upbit_tickers([market_code], include_price_audits=True)
     if not rows:
         raise PaperTradeError("현재가를 가져오지 못했습니다.")
-    return rows[0]["price"]
+
+    row = rows[0]
+    audit = row.get("_price_audit") or {}
+
+    try:
+        cache_age = float(audit["cache_age_sec"])
+    except (KeyError, TypeError, ValueError):
+        cache_age = math.inf
+
+    quote_time = snapshot_pricing.instant(row.get("as_of"))
+    quote_age = (
+        (datetime.now(timezone.utc) - quote_time.astimezone(timezone.utc)).total_seconds()
+        if quote_time is not None else math.inf
+    )
+
+    max_age = _UPBIT_ORDER_QUOTE_MAX_AGE_SEC
+    if (
+        not math.isfinite(cache_age)
+        or not 0 <= cache_age <= max_age
+        or not math.isfinite(quote_age)
+        or not 0 <= quote_age <= max_age
+    ):
+        raise PaperTradeError(
+            "현재가가 오래되어 주문할 수 없습니다. 시세를 새로고침한 뒤 다시 시도해주세요."
+        )
+
+    return row["price"]
 
 
 async def upbit_candles(market_code: str, unit: str = "days", count: int = 120) -> list[dict]:
