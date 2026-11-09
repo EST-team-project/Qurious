@@ -9,7 +9,7 @@ def _answers(idx):
 
 
 def test_profile_levels_by_score():
-    assert score_answers(_answers(0))["level"] == "안정형"          # 7점
+    assert score_answers(_answers(0))["level"] == "안정형"          # 연령 5점 + 나머지 6문항 각 1점 = 11점
     assert score_answers(_answers(2))["risk_profile"] == "moderate"   # 21점 → 위험중립형
     r = score_answers(_answers(4))                                    # 연령(역순) 1점 + 나머지 5점 = 31점
     assert r["level"] == "공격투자형" and r["risk_profile"] == "aggressive"
