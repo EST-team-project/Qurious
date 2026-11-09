@@ -689,15 +689,43 @@ async def live_account_daily_loss(user_id: str, limit_pct: float) -> dict:
 
 
 async def cancel_open_live_orders(db: AsyncSession, uid: uuid.UUID, reason: str = "") -> dict:
-    """사용자의 미체결 실주문(ACCEPTED/PARTIALLY_FILLED)을 게이트웨이로 전량 취소 요청한다. kill switch 에서 호출."""
-    summary = {"requested": 0, "failed": 0, "skipped": 0}
+    """정지 후 본인의 추적 주문을 각 취소 경로로 보낸다. 접수와 취소 확정은 구분한다."""
+    from app.services import kis_order_recovery
+
+    summary = {"requested": 0, "failed": 0, "skipped": 0, "pending": 0, "unknown": 0, "closed": 0}
     result = await db.execute(
-        select(LiveOrder).where(LiveOrder.user_id == uid, LiveOrder.status.in_(("ACCEPTED", "PARTIALLY_FILLED")))
+        select(LiveOrder).where(LiveOrder.user_id == uid,
+            LiveOrder.status.in_(("ACCEPTED", "PARTIALLY_FILLED")) |
+            ((LiveOrder.broker == "kis-direct") & LiveOrder.status.in_((*LIVE_ORDER_OPEN_STATUSES, "LOST"))))
+        .order_by(LiveOrder.created_at, LiveOrder.id)
     )
     for row in result.scalars().all():
-        if not row.order_no or row.broker == "kis-direct" or not gateway.is_configured():
-            if row.broker == "kis-direct":
-                row.message = "자동매매는 중지됐습니다. 직접 주문의 취소는 KIS 주문 내역에서 확인해 주세요."
+        if row.broker == "kis-direct":
+            # 기존 취소 서비스가 계좌·당일 원 주문·확정 잔량을 확인하고 취소를 영속 선점한다.
+            # 별도 세션의 상태를 이 세션의 오래된 값으로 덮거나, 미확인 취소를 다시 보내지 않는다.
+            cancelled = await kis_order_recovery.cancel(uid, row.id)
+            await db.refresh(row)
+            status = cancelled.get("status")
+            if status == "ACCEPTED":
+                summary["pending" if cancelled.get("duplicate") else "requested"] += 1
+                message = "취소 접수 · 원 주문의 취소 확정 조회 대기"
+            elif status in ("CANCELLED", "FILLED"):
+                summary["closed"] += 1
+                message = "이미 취소 확정" if status == "CANCELLED" else "취소 전 체결 확인 · 보유 수량 확인 필요"
+            elif status in ("UNKNOWN", "unknown"):
+                summary["unknown"] += 1
+                message = "취소 결과 미확인 · 재전송 없이 KIS 주문 내역 확인 필요"
+            else:
+                code = cancelled.get("code", "CANCEL_LOOKUP_REQUIRED")
+                key = "skipped" if code in ("PAPER_ONLY", "UNSUPPORTED_ORDER", "ORDER_NOT_FOUND") else "failed"
+                summary[key] += 1
+                message = f"취소 보류 [{code}] · KIS 주문 내역 확인 필요"
+            row.message = f"비상 정지: {message}"
+            await db.commit()
+            # 모의 API 조회 한도를 고려해 다음 주문의 조회와 간격을 둔다.
+            await kis_order_recovery.pause()
+            continue
+        if not row.order_no or not gateway.is_configured():
             summary["skipped"] += 1
             continue
         try:

@@ -33,6 +33,7 @@ from app.services.krx_companies import get_krx_companies
 from app.services import fx, snapshot_pricing, overseas_orders
 from app.services.stock import HEADERS, _yahoo_chart, get_candles, get_quote
 from app.services import trading_cost
+from app.services import crypto_trading_cost
 from app.services import execution_control
 from app.services.brokers.stock_coin_trade_gateway import is_krx_market_open
 
@@ -756,11 +757,41 @@ async def upbit_tickers(
     return result
 
 
+_UPBIT_ORDER_QUOTE_MAX_AGE_SEC = 30.0
+
+
 async def upbit_trade_price(market_code: str) -> float:
-    rows = await upbit_tickers([market_code])
+    """주문 가격은 거래소 체결 시각과 캐시 수신 시각 모두 30초 이내여야 한다."""
+    rows = await upbit_tickers([market_code], include_price_audits=True)
     if not rows:
         raise PaperTradeError("현재가를 가져오지 못했습니다.")
-    return rows[0]["price"]
+
+    row = rows[0]
+    audit = row.get("_price_audit") or {}
+
+    try:
+        cache_age = float(audit["cache_age_sec"])
+    except (KeyError, TypeError, ValueError):
+        cache_age = math.inf
+
+    quote_time = snapshot_pricing.instant(row.get("as_of"))
+    quote_age = (
+        (datetime.now(timezone.utc) - quote_time.astimezone(timezone.utc)).total_seconds()
+        if quote_time is not None else math.inf
+    )
+
+    max_age = _UPBIT_ORDER_QUOTE_MAX_AGE_SEC
+    if (
+        not math.isfinite(cache_age)
+        or not 0 <= cache_age <= max_age
+        or not math.isfinite(quote_age)
+        or not 0 <= quote_age <= max_age
+    ):
+        raise PaperTradeError(
+            "현재가가 오래되어 주문할 수 없습니다. 시세를 새로고침한 뒤 다시 시도해주세요."
+        )
+
+    return row["price"]
 
 
 async def upbit_candles(market_code: str, unit: str = "days", count: int = 120) -> list[dict]:
@@ -916,91 +947,238 @@ async def crypto_preview(db: AsyncSession, user_id: uuid.UUID, market_code: str,
     market_code = (market_code or "").upper().strip()
     if side not in (BUY, SELL):
         raise PaperTradeError("side는 BUY 또는 SELL이어야 합니다.")
-    if side == BUY and (buy_krw is None or not math.isfinite(buy_krw) or buy_krw < MIN_CRYPTO_ORDER_KRW):
+    if side == BUY and (
+        buy_krw is None or not math.isfinite(buy_krw)
+        or buy_krw < MIN_CRYPTO_ORDER_KRW
+    ):
         raise PaperTradeError("최소 주문 금액은 1,000원입니다.")
+    if side == SELL and (
+        sell_count is None or not math.isfinite(sell_count) or sell_count <= 0
+    ):
+        raise PaperTradeError("sellCount는 0보다 커야 합니다.")
+
     market = await upbit_market_info(market_code)
     if not market:
         raise PaperTradeError("존재하지 않는 마켓입니다.")
-    price = await upbit_trade_price(market_code)
+
+    reference_price = await upbit_trade_price(market_code)
     account = await get_account(db, user_id)
     held = await _crypto_holding(db, user_id, market_code)
-    held_qty = held.quantity if held else 0.0
+    held_qty = float(held.quantity) if held else 0.0
+
     if side == BUY:
-        amount = float(buy_krw)
-        quantity = round(amount / price, 8)
-        executable = amount <= account.cash
+        execution_price = reference_price * (
+            1 + crypto_trading_cost.DEFAULT_SLIPPAGE_BPS / 10_000
+        )
+        quantity = round(float(buy_krw) / execution_price, 8)
+        cost = crypto_trading_cost.order_costs(
+            BUY, reference_price, quantity
+        )
+        executable = cost.net_amount <= account.cash
+        reason = None if executable else "수수료를 포함한 매수 필요 금액이 보유 현금을 초과합니다."
     else:
-        if not sell_count or sell_count <= 0:
-            raise PaperTradeError("sellCount는 0보다 커야 합니다.")
         quantity = float(sell_count)
-        amount = round(quantity * price)
+        cost = crypto_trading_cost.order_costs(
+            SELL, reference_price, quantity
+        )
         executable = quantity <= held_qty
-    return {"executable": executable, "marketCode": market_code, "koreanName": market["koreanName"], "side": side,
-            "estimatedPrice": price, "quantity": quantity, "estimatedAmount": amount,
-            "cashBefore": account.cash, "heldQuantity": held_qty,
-            "reason": None if executable else ("보유 현금이 부족합니다." if side == BUY else "매도 가능 수량이 부족합니다."),
-            "notice": "미리보기는 주문·보유자산을 변경하지 않으며 실제 체결 가격과 다를 수 있습니다."}
+        reason = None if executable else "매도 가능 수량이 부족합니다."
 
+    return {
+        "executable": executable,
+        "marketCode": market_code,
+        "koreanName": market["koreanName"],
+        "side": side,
+        "referencePrice": cost.reference_price,
+        "estimatedPrice": cost.execution_price,
+        "quantity": quantity,
+        "estimatedAmount": cost.gross_amount,
+        "estimatedCommission": cost.commission,
+        "estimatedSlippage": cost.slippage_amount,
+        "estimatedNetAmount": cost.net_amount,
+        "feeRate": cost.fee_rate,
+        "slippageBps": cost.slippage_bps,
+        "costBasis": cost.cost_basis,
+        "cashBefore": account.cash,
+        "heldQuantity": held_qty,
+        "reason": reason,
+        "notice": (
+            "기준 시세에 편도 10 bps 추정 슬리피지를 적용하고, "
+            "체결금액에 수수료 0.05%를 반영했습니다. "
+            "실제 업비트 주문은 전송되지 않습니다."
+        ),
+    }
 
-async def crypto_buy(db: AsyncSession, user_id: uuid.UUID, market_code: str, buy_krw: float, source: str = "WEB") -> dict:
+async def crypto_buy(db: AsyncSession, user_id: uuid.UUID, market_code: str,
+                     buy_krw: float, source: str = "WEB") -> dict:
     market_code = (market_code or "").upper().strip()
     if not math.isfinite(buy_krw) or buy_krw < MIN_CRYPTO_ORDER_KRW:
         raise PaperTradeError("최소 주문 금액은 1,000원입니다.")
+
     market = await upbit_market_info(market_code)
     if not market:
         raise PaperTradeError(f"존재하지 않는 마켓입니다: {market_code}")
-    price = await upbit_trade_price(market_code)
+
+    reference_price = await upbit_trade_price(market_code)
     account = await get_account(db, user_id, lock=True)
-    if buy_krw > account.cash:
-        raise PaperTradeError("매수 가능 금액보다 클 수 없습니다.")
-    quantity = round(buy_krw / price, 8)
+
+    execution_price = reference_price * (
+        1 + crypto_trading_cost.DEFAULT_SLIPPAGE_BPS / 10_000
+    )
+    quantity = round(float(buy_krw) / execution_price, 8)
+    if quantity <= 0:
+        raise PaperTradeError("매수 수량이 유효하지 않습니다.")
+
+    cost = crypto_trading_cost.order_costs(
+        BUY, reference_price, quantity
+    )
+    if cost.net_amount > account.cash:
+        raise PaperTradeError(
+            "수수료를 포함한 매수 필요 금액이 보유 현금을 초과합니다."
+        )
+
     held = await _crypto_holding(db, user_id, market_code, lock=True)
     if held is None:
-        db.add(CryptoHolding(user_id=user_id, market_code=market_code, korean_name=market["koreanName"],
-                             quantity=quantity, avg_price=price, total_krw=buy_krw))
+        db.add(CryptoHolding(
+            user_id=user_id,
+            market_code=market_code,
+            korean_name=market["koreanName"],
+            quantity=quantity,
+            avg_price=cost.net_amount / quantity,
+            total_krw=cost.net_amount,
+        ))
     else:
         total_count = round(held.quantity + quantity, 8)
-        held.avg_price = round((held.avg_price * held.quantity + buy_krw) / total_count, 8)
+        total_cost = float(held.total_krw) + cost.net_amount
         held.quantity = total_count
-        held.total_krw = held.total_krw + buy_krw
-    account.cash = float(account.cash - buy_krw)
-    db.add(CryptoOrder(user_id=user_id, market_code=market_code, korean_name=market["koreanName"], order_type=BUY,
-                       quantity=quantity, price=price, amount=buy_krw, source=source))
-    return {"success": True, "asset": account.cash, "marketCode": market_code, "quantity": quantity, "price": price, "amount": buy_krw}
+        held.total_krw = total_cost
+        held.avg_price = total_cost / total_count
 
+    account.cash = float(account.cash - cost.net_amount)
 
-async def crypto_sell(db: AsyncSession, user_id: uuid.UUID, market_code: str, sell_count: float, source: str = "WEB") -> dict:
+    db.add(CryptoOrder(
+        user_id=user_id,
+        market_code=market_code,
+        korean_name=market["koreanName"],
+        order_type=BUY,
+        quantity=quantity,
+        source=source,
+        **crypto_trading_cost.order_fields(cost),
+    ))
+
+    return {
+        "success": True,
+        "asset": account.cash,
+        "marketCode": market_code,
+        "quantity": quantity,
+        "referencePrice": reference_price,
+        "price": cost.execution_price,
+        "amount": cost.gross_amount,
+        "commission": cost.commission,
+        "slippageAmount": cost.slippage_amount,
+        "netAmount": cost.net_amount,
+        "feeRate": cost.fee_rate,
+        "slippageBps": cost.slippage_bps,
+        "costBasis": cost.cost_basis,
+    }
+
+async def crypto_sell(db: AsyncSession, user_id: uuid.UUID, market_code: str,
+                      sell_count: float, source: str = "WEB") -> dict:
     market_code = (market_code or "").upper().strip()
-    if sell_count <= 0:
+    if not math.isfinite(sell_count) or sell_count <= 0:
         raise PaperTradeError("0보다 큰 수를 입력해주세요.")
+
     account = await get_account(db, user_id, lock=True)
     held = await _crypto_holding(db, user_id, market_code, lock=True)
     if held is None:
         raise PaperTradeError("암호화폐를 보유중이지 않습니다.")
     if held.quantity < sell_count:
         raise PaperTradeError("매도 가능 개수보다 클 수 없습니다.")
-    price = await upbit_trade_price(market_code)
-    # 매도 수량 비율만큼 매수 원금을 차감한다 (stock-coin-trade와 동일한 원가 배분).
-    cost_out = round(held.total_krw * (sell_count / held.quantity))
-    held.total_krw = held.total_krw - cost_out
-    held.quantity = round(held.quantity - sell_count, 8)
-    proceeds = round(price * sell_count)
-    account.cash = float(account.cash + proceeds)
-    if held.quantity <= 0:
-        await db.delete(held)
-    db.add(CryptoOrder(user_id=user_id, market_code=market_code, korean_name=held.korean_name, order_type=SELL,
-                       quantity=sell_count, price=price, amount=proceeds, source=source))
-    return {"success": True, "asset": account.cash, "marketCode": market_code, "quantity": sell_count, "price": price, "amount": proceeds}
 
+    reference_price = await upbit_trade_price(market_code)
+    cost = crypto_trading_cost.order_costs(
+        SELL, reference_price, sell_count
+    )
+
+    quantity_before = float(held.quantity)
+    total_cost_before = float(held.total_krw)
+    sell_all = sell_count >= quantity_before - 1e-12
+
+    allocated_cost_basis = (
+        total_cost_before
+        if sell_all
+        else total_cost_before * (sell_count / quantity_before)
+    )
+    remaining_quantity = 0.0 if sell_all else round(
+        quantity_before - sell_count, 8
+    )
+    realized_pnl = cost.net_amount - allocated_cost_basis
+
+    account.cash = float(account.cash + cost.net_amount)
+
+    if sell_all or remaining_quantity <= 0:
+        await db.delete(held)
+    else:
+        held.quantity = remaining_quantity
+        held.total_krw = max(0.0, total_cost_before - allocated_cost_basis)
+        held.avg_price = held.total_krw / remaining_quantity
+
+    db.add(CryptoOrder(
+        user_id=user_id,
+        market_code=market_code,
+        korean_name=held.korean_name,
+        order_type=SELL,
+        quantity=sell_count,
+        source=source,
+        allocated_cost_basis=allocated_cost_basis,
+        realized_pnl=realized_pnl,
+        **crypto_trading_cost.order_fields(cost),
+    ))
+
+    return {
+        "success": True,
+        "asset": account.cash,
+        "marketCode": market_code,
+        "quantity": sell_count,
+        "referencePrice": reference_price,
+        "price": cost.execution_price,
+        "amount": cost.gross_amount,
+        "commission": cost.commission,
+        "slippageAmount": cost.slippage_amount,
+        "netAmount": cost.net_amount,
+        "allocatedCostBasis": allocated_cost_basis,
+        "realizedPnl": realized_pnl,
+        "feeRate": cost.fee_rate,
+        "slippageBps": cost.slippage_bps,
+        "costBasis": cost.cost_basis,
+    }
 
 async def crypto_history(db: AsyncSession, user_id: uuid.UUID, limit: int = 200) -> list[dict]:
     rows = (await db.execute(
-        select(CryptoOrder).where(CryptoOrder.user_id == user_id).order_by(CryptoOrder.created_at.desc()).limit(limit)
+        select(CryptoOrder).where(
+            CryptoOrder.user_id == user_id
+        ).order_by(CryptoOrder.created_at.desc()).limit(limit)
     )).scalars().all()
-    return [{"marketCode": r.market_code, "koreanName": r.korean_name, "type": r.order_type, "quantity": r.quantity,
-             "price": r.price, "amount": r.amount, "source": r.source, "ts": int(r.created_at.timestamp() * 1000)}
-            for r in rows]
 
+    return [{
+        "marketCode": r.market_code,
+        "koreanName": r.korean_name,
+        "type": r.order_type,
+        "quantity": r.quantity,
+        "referencePrice": r.reference_price if r.reference_price is not None else r.price,
+        "price": r.price,
+        "amount": r.amount,
+        "commission": r.commission,
+        "feeRate": r.fee_rate,
+        "slippageBps": r.slippage_bps,
+        "slippageAmount": r.slippage_amount,
+        "netAmount": r.net_amount if r.net_amount is not None else r.amount,
+        "allocatedCostBasis": r.allocated_cost_basis,
+        "realizedPnl": r.realized_pnl,
+        "costBasis": r.cost_basis or "none",
+        "source": r.source,
+        "ts": int(r.created_at.timestamp() * 1000),
+    } for r in rows]
 
 # ── 대체자산 (선물·옵션·파생·금속·부동산) ────────────────────────────────
 
