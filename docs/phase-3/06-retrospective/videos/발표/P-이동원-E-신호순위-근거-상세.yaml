@@ -1,0 +1,71 @@
+# [발표용] 이동원 E — 신호 순위를 걸러 보고, 종목 근거와 반대로 본 까닭을 읽고, 지금 값을 따로 붙인다 (상세 자막 · 슬라이드 대체)
+# 화면: 로보 어드바이저 › 신호 순위 (signal-rank) · 종목 근거 창 · 담당 이동원
+# 만든 까닭(사용자 피드백 11-10 S218 · 4번): 슬라이드 11 · 12장이 글 + 화면 캡처로 같은 내용을 설명하고, 영상 A · D 가 같은 화면을 다시 보였다.
+#   → 이 한 편이 세 가지(슬라이드 11 · 12장, 영상 A, 영상 D)를 대신한다. 자막과 화면으로 설명하고 슬라이드는 따로 두지 않는다.
+# 주의: PAPER 모의주문 단추는 누르지 않는다. 지금 값은 지연 시세(약 20분)일 수 있고 실시간이 아니다 — 화면의 출처 딱지를 그대로 읽는다.
+# 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작(click · ring · scroll)을 바로 뒤에 둔다. 동작 뒤의 pause 는 자막이 읽힐 시간이다.
+file: P-이동원-E-신호순위-근거-상세
+title: 전체 종목 신호를 걸러 보고, 근거와 반대로 본 까닭까지 읽습니다
+owner: 이동원
+pace: 1.5
+start: signal-rank
+steps:
+  - chapter: {label: "1 / 3 · 목적", title: "기록된 신호를 조건으로 걸러, 근거까지 한 흐름으로 봅니다", text: "수집 DB 에 매일 기록한 약 3,950종목의 규칙 신호를 매수 · 매도 · 관망과 시장별로 나눕니다. 추천 순위가 아니라 기록입니다", sec: 4.0}
+  - wait: {target: ".view.active table tbody tr", timeout: 60}
+  - say: "신호 순위 화면입니다. 이 순서는 추천이 아니라, 기록된 종합 점수 순이라고 화면에 적혀 있습니다"
+  - pause: 11.1
+  - chapter: {label: "2 / 3 · 과정", title: "① 걸러 보기 ② 근거 읽기 ③ 지금 값 따로 보기", text: "서버가 기록된 전체 종목에서 먼저 거른 뒤 위쪽 줄만 보냅니다", sec: 3.0}
+  - say: "신호 단추 매수, 시장 단추 KOSDAQ 을 누릅니다. 거르기는 화면에 보이는 줄이 아니라 기록된 전체 종목에서 먼저 합니다"
+  - click: '[data-sr-filter="signal"][data-value="매수"]'
+  - click: '[data-sr-filter="market"][data-value="KOSDAQ"]'
+  - wait: {target: ".view.active table tbody tr", timeout: 60, cut: true}
+  - pause: 8.2
+  - say: "맞는 종목 수와 보여 주는 줄 수가 함께 나옵니다. 몇 종목 중 몇 줄인지 숨기지 않습니다"
+  - ring: {target: "[data-sr-filter-note]", sec: 2.5}
+  - pause: 5.4
+  - say: "그 위에는 기준일과 계산 시각이 서버 글 그대로 붙습니다. 이 값은 장중에 다시 계산한 것이 아니라, 마지막 종가 기준으로 기록해 둔 것입니다"
+  - scroll: {target: "[data-sr-fresh]", block: "start"}
+  - ring: {target: "[data-sr-fresh]", sec: 2.5}
+  - pause: 8.5
+  - say: "종목 검색 칸에 6자리 코드를 넣으면 그 종목의 기록된 신호가 나옵니다. CJ ENM 을 찾아 보겠습니다"
+  - scroll: {by: -400}
+  - fill: {target: "#sr-find-input", text: "035760"}
+  - click: "[data-sr-find] button[type='submit']"
+  - wait: {target: "[data-sr-find-note]:has-text('검색한 종목')", timeout: 30, cut: true}
+  - pause: 5.8
+  - say: "줄을 누르면 근거 창이 열립니다. 먼저 신호와 기준 종가, 언제 계산해 기록했는지가 나옵니다"
+  - click: ".view.active table tbody tr[data-hub-open]"
+  - wait: {target: "[data-hub-sec]", timeout: 30}
+  - pause: 5.8
+  - say: "근거 개수는 매수 쪽, 중립, 매도 쪽으로 나뉘어 있습니다. 한쪽 근거만 모아 보여 주지 않습니다"
+  - ring: {target: "[data-hub-counts]", sec: 2.5}
+  - pause: 4.3
+  - say: "근거는 일봉, 주봉, 분봉으로 묶이고, 줄마다 규칙이 실제로 본 값과 종합 점수에 더한 몫이 붙습니다"
+  - scroll: {target: ".sd-tfgroup", block: "start"}
+  - ring: {target: ".sd-tfgroup", sec: 2.5}
+  - pause: 5.2
+  - say: "반대로 본 까닭도 같은 크기로 나옵니다. 종가가 볼린저 밴드 상단을 넘어 과열이라고 본 줄은 규칙 점수가 마이너스입니다"
+  - scroll: {target: ".sd-sub:has-text('반대로 본 까닭')", block: "center"}
+  - ring: {target: ".sd-sub:has-text('반대로 본 까닭')", sec: 2.5}
+  - pause: 7.1
+  - say: "값이 없는 칸은 비워 두지 않고 자료 없음과 그 까닭을 적습니다"
+  - scroll: {target: ".sd-sec:has-text('앞으로 60일')", block: "center"}
+  - ring: {target: ".sd-sec:has-text('앞으로 60일')", sec: 2.5}
+  - pause: 4.0
+  - say: "지금 값 보기는 누를 때만 지금 가격을 한 번 불러옵니다. 기록된 신호와 섞이지 않게 따로 붙입니다"
+  - scroll: {target: "[data-hub-now]", block: "center"}
+  - click: "[data-hub-now]"
+  - wait: {target: "[data-hub-now]:not([disabled])", timeout: 40, cut: true}
+  - pause: 5.8
+  - say: "지금 값에는 출처 딱지와 마지막 종가와의 차이가 붙습니다. 지연 시세일 수 있고 저장하지 않습니다"
+  - ring: {target: "[data-hub-now-out]", sec: 2.5}
+  - pause: 4.5
+  - key: "Escape"
+  - click: "[data-sr-find-reset]"
+  - wait: {target: ".view.active table tbody tr", timeout: 60, cut: true}
+  - say: "목록으로 돌아와 새로고침을 누릅니다. 위쪽 종목에만 지금 가격 한 줄을 붙이고, 신호는 새로 계산하지 않습니다"
+  - click: "[data-sr-refresh]"
+  - wait: {target: "[data-sr-quote]", timeout: 60, cut: true}
+  - ring: {target: "[data-sr-quote]", sec: 2.5}
+  - pause: 4.5
+  - chapter: {label: "3 / 3 · 결과", title: "걸러 보고, 근거와 반대 근거를 읽고, 지금 값을 따로 봅니다", text: "규칙 신호의 기록이며 추천이 아닙니다. 전체를 실시간으로 다시 판단하는 것은 11월 12일 뒤 설계입니다", sec: 5.0}

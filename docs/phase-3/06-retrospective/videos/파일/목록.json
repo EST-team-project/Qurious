@@ -288,6 +288,22 @@
       "scene_sha": "c3eb722bc098511d",
       "recorded_at": "2026-11-10 09:00:53 KST",
       "app_commit": "0959fb13"
+    },
+    {
+      "kind": "발표",
+      "stem": "P-이동원-E-신호순위-근거-상세",
+      "title": "전체 종목 신호를 걸러 보고, 근거와 반대로 본 까닭까지 읽습니다",
+      "scene": "docs/phase-3/06-retrospective/videos/발표/P-이동원-E-신호순위-근거-상세.yaml",
+      "mp4": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-E-신호순위-근거-상세.mp4",
+      "jpg": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-E-신호순위-근거-상세.jpg",
+      "duration_sec": 122.0,
+      "bytes": 5821002,
+      "crf": 28,
+      "sha": "6e8a98516ec3eee5",
+      "source_sha": "9fd61f41377a42d7",
+      "scene_sha": "1c9f2215945ae26f",
+      "recorded_at": "2026-11-10 13:09:50 KST",
+      "app_commit": "ddbb45e9"
     }
   ]
 }
