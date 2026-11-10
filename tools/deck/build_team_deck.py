@@ -619,6 +619,8 @@ def fix_numbers(html_: str, gno: int, total: int, m: dict[int, int]) -> str:
   html_ = re.sub(r'(<span class="pg">)\s*\d+\s*/\s*\d+\s*(</span>)', rf"\g<1>{gno} / {total}\g<2>", html_)
   # 강민석 덱 형식: <div class="foot"><span>설명</span><span>04 / 13</span></div> — 마지막 칸의 쪽 번호만 바꾼다
   html_ = re.sub(r'(<div class="foot">(?:(?!</div>).)*?)<span>\s*\d+\s*/\s*\d+\s*</span>(</div>)', rf'\g<1><span class="pg">{gno} / {total}</span>\g<2>', html_, flags=re.S)
+  # 오준영 덱 형식: <footer class="footer"><span>설명</span><span>02 / 06</span></footer> — 쪽 번호 칸에 class 가 없다(11-10 사용자 피드백: 「오준영 슬라이드 1, 2, … 로 넘어간다」)
+  html_ = re.sub(r'(<footer class="footer">(?:(?!</footer>).)*?)<span>\s*\d+\s*/\s*\d+\s*</span>(</footer>)', rf'\g<1><span class="pg">{gno} / {total}</span>\g<2>', html_, flags=re.S)
   html_ = re.sub(r'(<p class="eyebrow">)\d+ · ', r"\1", html_)
   return renumber_refs(html_, m)
 
