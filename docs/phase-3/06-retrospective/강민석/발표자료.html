@@ -190,7 +190,7 @@
           <div class="card soft"><div class="eyebrow">FEE DIFFERENCE</div><div class="big">₩0.01</div><p>양쪽 총 거래비용 차이</p></div>
         </div>
       </div>
-      <div class="foot"><span><strong>최종 검증 기준일</strong> 2026.11.06 · LEAN ↔ Qurious Paper Trading</span><span>01 / 13</span></div>
+      <div class="foot"><span><strong>최종 검증 기준일</strong> 2026.11.06 · LEAN ↔ Qurious Paper Trading</span><span>01 / 14</span></div>
     </section>
 
     <!-- 02 WHAT IS LEAN -->
@@ -224,7 +224,7 @@
         </div>
         <div class="callout"><b>기존 기능과 이번 작업의 구분:</b> Qurious에는 LEAN 백테스트 전용 화면과 실행 API가 이미 구현되어 있었습니다. 이번 작업은 LEAN 엔진이나 화면을 새로 만든 것이 아니라, 기존 LEAN 실행 결과를 Paper Trading 기록과 같은 조건으로 비교할 수 있도록 가격·체결·수량·거래비용 기준과 대사·판정 로직을 보완한 것입니다.</div>
       </div>
-      <div class="foot"><span>공식 문서: quantconnect.com/docs · LEAN Engine / LEAN CLI</span><span>02 / 13</span></div>
+      <div class="foot"><span>공식 문서: quantconnect.com/docs · LEAN Engine / LEAN CLI</span><span>02 / 14</span></div>
     </section>
 
     <!-- 03 SCOPE -->
@@ -246,7 +246,7 @@
         </div>
         <div class="callout warnline"><b>이번 검증의 의미와 한계:</b> 정해진 대사 조건에서 Paper와 LEAN 결과의 정합성을 확인한 것입니다. LEAN 엔진·화면을 새로 개발하거나 실계좌 자동매매 엔진으로 전환·운영 승인한 것은 아닙니다. 별도 5일 단독 백테스트 증빙과 TradingView 원본 CSV 직접 비교도 이번 결과에 포함되지 않습니다.</div>
       </div>
-      <div class="foot"><span>담당 범위: LEAN 백테스트 · 대사 · 성과 검증</span><span>03 / 13</span></div>
+      <div class="foot"><span>담당 범위: LEAN 백테스트 · 대사 · 성과 검증</span><span>03 / 14</span></div>
     </section>
 
     <!-- 04 FIRST FINDING -->
@@ -284,7 +284,7 @@
           </div>
         </div>
       </div>
-      <div class="foot"><span>최초 결과: 부분 일치 · 수량 및 성과 비교는 기준 차이로 제외</span><span>04 / 13</span></div>
+      <div class="foot"><span>최초 결과: 부분 일치 · 수량 및 성과 비교는 기준 차이로 제외</span><span>04 / 14</span></div>
     </section>
 
     <!-- 05 FIX -->
@@ -322,7 +322,7 @@
           </div>
         </div>
       </div>
-      <div class="foot"><span>핵심: 신호 수정이 아니라 주문·가격·체결 기준을 맞춘 실행 정합성 개선</span><span>05 / 13</span></div>
+      <div class="foot"><span>핵심: 신호 수정이 아니라 주문·가격·체결 기준을 맞춘 실행 정합성 개선</span><span>05 / 14</span></div>
     </section>
 
     <!-- 06 BEFORE AFTER -->
@@ -352,7 +352,7 @@
         </div>
         <div class="callout warnline"><b>남은 신호 이슈:</b> 일지 44일 중 LEAN 신호는 41일이며, 공통 41일의 진입·청산은 모두 일치합니다. 일지에만 존재하는 3일은 전체 기간 신호 커버리지 관점에서 추가 확인 대상입니다. '모든 신호 날짜가 일치'했다고 표현하지 않습니다.</div>
       </div>
-      <div class="foot"><span>최종 결과는 사용자가 제공한 2026.11.06 실행 로그 및 v4 보고서 기준</span><span>06 / 13</span></div>
+      <div class="foot"><span>최종 결과는 사용자가 제공한 2026.11.06 실행 로그 및 v4 보고서 기준</span><span>06 / 14</span></div>
     </section>
 
     <!-- 07 FILLS · VISUAL COMPARISON -->
@@ -452,12 +452,37 @@
         </div>
         <div class="callout fills-note"><b>읽는 법:</b> 각 날짜의 두 막대가 Paper(갈색)와 LEAN(초록색)입니다. 막대 높이가 동일해 수량이 일치하며, 각 이벤트의 <b>0bp</b>는 체결가격 차이가 없음을 뜻합니다. 매수 13주와 매도 13주를 합한 거래 수량은 26주이며, 최종 보유 수량은 아닙니다.</div>
       </div>
-      <div class="foot"><span>근거: 2026.11.06 v4 보고서의 12건 수량·체결가격 세부 대조</span><span>07 / 13</span></div>
+      <div class="foot"><span>근거: 2026.11.06 v4 보고서의 12건 수량·체결가격 세부 대조</span><span>07 / 14</span></div>
     </section>
 
-    <!-- 08 FILL TIMING -->
-    <section class="slide" aria-label="8. 체결 시점과 가격 기준 정합성">
-      <div class="kicker">08 / PRICE & FILL-TIMING ALIGNMENT</div>
+    <!-- 08 TERMINAL OUTPUT PHOTOS -->
+    <section class="slide" aria-label="8. 대사 보고서 원본 출력 사진">
+      <div class="kicker">08 / TERMINAL OUTPUT EVIDENCE</div>
+      <h2>앞의 숫자는 <span class="accent">터미널에 찍힌 원본 출력</span>입니다</h2>
+      <p class="lead">`daily_lean_reconcile.py` v4 · 최초 대사와 재대사의 판정 요약, 그리고 12건 체결의 수량·가격 세부</p>
+      <div class="body">
+        <div style="display:flex;gap:14px;flex:1;min-height:0;align-items:center">
+          <figure style="margin:0;flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <img src="그림/lean-before.png" alt="최초 대사 출력: 일지 40행, 보유 상태 불일치 5일, 체결가 최대 440.8bp" style="width:100%;height:auto;min-height:0;display:block;border:1px solid #e3dccf;border-radius:8px">
+            <figcaption class="small"><b>최초 대사</b> · 기간 09.01~10.30 · 일지 40행 · 보유 5일 불일치 · 체결가 최대 440.8bp</figcaption>
+          </figure>
+          <figure style="margin:0;flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <img src="그림/lean-later1.png" alt="재대사 출력 1: 일지 44행, 보유 44일 일치, 체결가 12건 0.0000bp, 비용 요율 일치" style="width:100%;height:auto;min-height:0;display:block;border:1px solid #e3dccf;border-radius:8px">
+            <figcaption class="small"><b>재대사 · 판정 요약</b> · 기간 09.01~11.05 · 일지 44행 · 보유 44일 일치 · 체결 12건 0.0000bp</figcaption>
+          </figure>
+          <figure style="margin:0;flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <img src="그림/lean-later2.png" alt="재대사 출력 2: 날짜·방향별 체결 수량과 체결 가격 차이 0.0bp" style="width:100%;height:auto;min-height:0;display:block;border:1px solid #e3dccf;border-radius:8px">
+            <figcaption class="small"><b>재대사 · 체결 세부</b> · 날짜·방향별 수량 차이 +0 · 가격 차이 0.0bp</figcaption>
+          </figure>
+        </div>
+        <div class="callout warnline"><b>읽을 때 주의:</b> 이 출력은 일지 규칙 상태와 LEAN 신호의 비교입니다. 보고서에도 적혀 있듯 TradingView 원본 CSV와의 교차검증을 뜻하지 않습니다. 신호는 공통 41일만 비교했고, 일지에만 있는 3일은 남은 확인 대상입니다.</div>
+      </div>
+      <div class="foot"><span>근거: `scripts/daily_lean_reconcile.py` v4 가 출력한 보고서(터미널 캡처)</span><span>08 / 14</span></div>
+    </section>
+
+    <!-- 09 FILL TIMING -->
+    <section class="slide" aria-label="9. 체결 시점과 가격 기준 정합성">
+      <div class="kicker">09 / PRICE & FILL-TIMING ALIGNMENT</div>
       <h2>체결가 차이는 슬리피지가 아니라 <span class="accent">시점 정의부터</span> 달랐습니다</h2>
       <p class="lead">초기 LEAN은 Yahoo Finance 일봉 커스텀 데이터에 15:29 시각을 부여했습니다. 이 값은 실제 종가 체결을 보장하지 않았습니다.</p>
       <div class="body">
@@ -481,12 +506,12 @@
         </div>
         <div class="callout"><b>핵심 개선:</b> 단순히 체결가격을 맞추는 것이 아니라 가격 데이터의 출처, 신호 기준일, 주문 생성일, 체결일과 체결 기준 가격을 함께 맞췄습니다.</div>
       </div>
-      <div class="foot"><span>대사 모드에 한정한 개선 · 기존 백테스트 화면의 기본 실행 동작은 유지</span><span>08 / 13</span></div>
+      <div class="foot"><span>대사 모드에 한정한 개선 · 기존 백테스트 화면의 기본 실행 동작은 유지</span><span>09 / 14</span></div>
     </section>
 
-    <!-- 09 COSTS -->
-    <section class="slide" aria-label="9. 거래비용 검증 개선">
-      <div class="kicker">09 / TRANSACTION-COST RECONCILIATION</div>
+    <!-- 10 COSTS -->
+    <section class="slide" aria-label="10. 거래비용 검증 개선">
+      <div class="kicker">10 / TRANSACTION-COST RECONCILIATION</div>
       <h2>수수료는 요율뿐 아니라 <span class="accent">비용 총액과 거래대금</span>까지 비교했습니다</h2>
       <p class="lead">요율이 같아도 거래금액이 다르면 실제 비용은 다릅니다. 기존의 요율 중심 판정을 총액·분모·요율의 3요소 비교로 보완했습니다.</p>
       <div class="body">
@@ -508,12 +533,12 @@
         </div>
         <div class="callout greenline"><b>검증 안전장치:</b> LEAN 체결 목록이 없거나 수량·가격 등 필수 값이 유효하지 않으면 '정상 일치'로 통과시키지 않고 판정 불가로 처리하도록 테스트를 강화했습니다.</div>
       </div>
-      <div class="foot"><span>엄격 비교 테스트: 총비용과 거래대금, 요율을 각각 검증</span><span>09 / 13</span></div>
+      <div class="foot"><span>엄격 비교 테스트: 총비용과 거래대금, 요율을 각각 검증</span><span>10 / 14</span></div>
     </section>
 
-    <!-- 10 METRICS -->
-    <section class="slide" aria-label="10. 성과지표 계산 기준">
-      <div class="kicker">10 / PERFORMANCE METRICS & SOURCE</div>
+    <!-- 11 METRICS -->
+    <section class="slide" aria-label="11. 성과지표 계산 기준">
+      <div class="kicker">11 / PERFORMANCE METRICS & SOURCE</div>
       <h2>성과 수치가 다르면 <span class="accent">산출 경로와 정의</span>부터 확인했습니다</h2>
       <p class="lead">하나의 백테스트 결과에 API 보조 계산값과 LEAN 엔진 자체 통계가 함께 존재하면, 두 값을 섞어 하나의 성과처럼 표시할 수 없습니다.</p>
       <div class="body">
@@ -535,12 +560,12 @@
         </div>
         <div class="callout"><b>개선 내용:</b> LEAN 실행 성공 시 LEAN native 통계를 사용하고, LEAN 미실행 시에만 pandas fallback을 사용하도록 분기했습니다. 수익률 기준이나 MDD 기준이 다른 외부 데이터와는 성과 판정을 보류합니다.</div>
       </div>
-      <div class="foot"><span>실행 성공 여부·계산 출처·산출 정의를 함께 반환하도록 개선</span><span>10 / 13</span></div>
+      <div class="foot"><span>실행 성공 여부·계산 출처·산출 정의를 함께 반환하도록 개선</span><span>11 / 14</span></div>
     </section>
 
-    <!-- 11 DSR -->
-    <section class="slide" aria-label="11. DSR 및 통계적 검증">
-      <div class="kicker">11 / STATISTICAL VALIDITY · DSR</div>
+    <!-- 12 DSR -->
+    <section class="slide" aria-label="12. DSR 및 통계적 검증">
+      <div class="kicker">12 / STATISTICAL VALIDITY · DSR</div>
       <h2>DSR 입력값의 <span class="accent">Sharpe 관측 단위</span>를 바로잡았습니다</h2>
       <p class="lead">연율화 Sharpe를 관측 주기 기준으로 계산하는 DSR에 그대로 전달하면 단위가 섞입니다. 수식 자체보다 먼저 입력 기준을 맞춰야 했습니다.</p>
       <div class="body">
@@ -560,12 +585,12 @@
         </div>
         <div class="callout warnline"><b>수정 범위:</b> Sharpe 입력 단위와 합성 데이터 회귀 검증을 우선 보완했습니다. 실제 전략 시도 횟수(n_trials)의 T7 기록 연동, 짧은 표본 경고, 시도별 Sharpe 분산을 사용하는 정식 DSR 고도화는 별도 후속 범위입니다.</div>
       </div>
-      <div class="foot"><span>성과지표의 수치뿐 아니라 통계적 입력 단위와 검정 조건을 확인</span><span>11 / 13</span></div>
+      <div class="foot"><span>성과지표의 수치뿐 아니라 통계적 입력 단위와 검정 조건을 확인</span><span>12 / 14</span></div>
     </section>
 
-    <!-- 12 DATA PROVENANCE -->
-    <section class="slide" aria-label="12. 현재가, 환율, 가격 단위 개선">
-      <div class="kicker">12 / MARKET-DATA PROVENANCE & PRICE BASIS</div>
+    <!-- 13 DATA PROVENANCE -->
+    <section class="slide" aria-label="13. 현재가, 환율, 가격 단위 개선">
+      <div class="kicker">13 / MARKET-DATA PROVENANCE & PRICE BASIS</div>
       <h2>가격의 값뿐 아니라 <span class="accent">출처·시각·단위</span>를 관리했습니다</h2>
       <p class="lead">주문에 쓰는 현재가와 전략 판단에 쓰는 저장 가격은 목적이 다릅니다. 오래된 값이나 다른 가격 단위가 조용히 섞이지 않도록 경로를 정리했습니다.</p>
       <div class="body">
@@ -595,12 +620,12 @@
           <p style="margin-top:8px">분할·권리락이 끼면 수정주가로 계산한 ATR 손절거리와 증권사 원가격 체결 단위가 달라질 수 있습니다. 변환 원칙과 사례를 정리했으며, 전체 실전 주문 경로의 ATR 통합 완료와는 구분합니다.</p>
         </div>
       </div>
-      <div class="foot"><span>원칙: 판단 데이터와 실행 가격을 분리하고, 대체값은 그 사실을 드러냄</span><span>12 / 13</span></div>
+      <div class="foot"><span>원칙: 판단 데이터와 실행 가격을 분리하고, 대체값은 그 사실을 드러냄</span><span>13 / 14</span></div>
     </section>
 
-    <!-- 13 OPS & WRAP -->
-    <section class="slide" aria-label="13. 운영 안정성, 한계 및 결론">
-      <div class="kicker">13 / OUTCOME & REMAINING SCOPE</div>
+    <!-- 14 OPS & WRAP -->
+    <section class="slide" aria-label="14. 운영 안정성, 한계 및 결론">
+      <div class="kicker">14 / OUTCOME & REMAINING SCOPE</div>
       <h2>개선의 목표는 <span class="accent">검증 가능한 실행 결과</span>를 만드는 것이었습니다</h2>
       <p class="lead">백테스트부터 기록·대사·성과 산출까지, 실패를 성공처럼 보이게 하지 않고 문제를 찾을 수 있도록 보완했습니다.</p>
       <div class="body">
@@ -631,14 +656,14 @@
         </div>
         <div class="tagline">감사합니다 · 강민석</div>
       </div>
-      <div class="foot"><span>완료된 결과와 추가 검증이 필요한 범위를 구분해 보고</span><span>13 / 13</span></div>
+      <div class="foot"><span>완료된 결과와 추가 검증이 필요한 범위를 구분해 보고</span><span>14 / 14</span></div>
     </section>
 
   </div>
   <div class="progress" aria-label="발표 진행률"><span id="kms-progress"></span></div>
   <div class="controls">
     <div class="control-group"><button class="btn" id="kms-prev" type="button">← 이전</button><button class="btn" id="kms-next" type="button">다음 →</button></div>
-    <div id="kms-counter" class="mono">01 / 13</div>
+    <div id="kms-counter" class="mono">01 / 14</div>
     <div class="control-group"><button class="btn" id="kms-notes" type="button">발표 노트</button><button class="btn" id="kms-full" type="button">전체 화면</button><button class="btn" id="kms-print" type="button">인쇄 / PDF</button></div>
   </div>
   <aside class="notes-panel" id="kms-notes-panel" aria-live="polite"><b>발표자 노트</b><div id="kms-note-text" style="margin-top:5px"></div></aside>
@@ -656,6 +681,7 @@
     '원인을 추적해 보니 포지션 사이징과 주문 승인 조건, 가격 입력과 체결 시점 기준이 서로 달랐습니다. 9월 29일에는 LEAN 매수 주문이 증거금 부족으로 거부됐습니다. 대사 전용 LEAN 알고리즘에서는 전액 배분 대신 30% 비중을 적용했고, 대사 경로에서만 next_open과 Collector DB 가격을 사용하도록 했습니다. 이는 Qurious 전체 매매의 기본 한도나 기존 화면의 기본 동작을 바꾼 것이 아닙니다. 신호는 수정종가, 수량·장부 평가는 원주가 종가, 체결은 다음 거래일 원주가 시가로 분리했습니다.',
     '11월 6일 재실행 결과입니다. 일지 44행 기준 보유 상태 44일 모두 일치했습니다. 주문 방향과 수량은 12건 모두 일치했고, 체결 가격도 12건 모두 차이가 0bp였습니다. 비용 요율은 양쪽 10.76bp였고 총비용 차이는 0.01원입니다. 다만 신호는 공통 41일만 비교했고 일지에만 존재하는 3일이 남아 있어 전체 커버리지가 100%라고 말하지는 않습니다.',
     '이번 슬라이드는 표 대신 거래별 이중 막대 그래프로 12건을 보여줍니다. 갈색은 Paper, 초록색은 LEAN이며 막대 높이는 체결 수량입니다. 매수 7건 13주, 매도 5건 13주이고 두 시스템의 막대 높이가 각 날짜마다 같습니다. 12건 모두 체결가격 차이는 0bp였습니다. 양방향 합계 26주는 최종 보유 수량이 아니라 매수와 매도 이벤트를 합산한 거래량입니다.',
+    '지금까지 말씀드린 숫자의 원본입니다. 왼쪽은 최초 대사 출력으로, 진입·청산은 40일 모두 일치했지만 보유 상태가 5일 달랐고 체결가격 최대 차이는 440.8bp였습니다. 가운데는 재대사 출력으로, 보유 상태 44일과 체결 12건이 일치하고 체결가격 차이는 0.0000bp, 비용 요율은 양쪽 10.76bp입니다. 오른쪽은 12건의 날짜·방향별 체결 수량과 가격 세부입니다. 다만 이 보고서는 일지 규칙 상태와 LEAN 신호의 비교이며 TradingView 원본 CSV와의 교차검증은 아닙니다. 신호는 공통 41일만 비교했습니다.',
     '초기 가격차이는 실제 슬리피지로 단정할 수 없었습니다. LEAN의 15시 29분은 일봉 커스텀 데이터에 부여한 시각이지, 실제 종가 체결을 의미하지 않습니다. 일봉 시장가 주문은 엔진 시간 규칙에 따라 MOC 또는 MOO로 바뀔 수 있습니다. 그래서 대사 전용 경로에서만 Collector DB와 next_open을 선택하도록 하고 주문일과 체결일을 분리했습니다. 최종 12건의 체결가 차이는 0bp였습니다.',
     '거래비용도 요율만 보면 안 됩니다. 테스트에서는 양쪽 모두 100bp여도 거래대금이 두 배면 비용 총액은 두 배가 되는 사례를 만들었습니다. 그래서 비용 총액, 거래대금, 요율을 따로 검증하고 체결목록이 없거나 값이 잘못되면 판정 불가로 처리했습니다. 실제 최신 대사에서는 거래대금이 같고 총비용은 0.01원 차이였습니다.',
     '성과지표에서는 API 자체 계산값과 LEAN 엔진 통계가 다른 문제가 있었습니다. 예를 들어 순수익률과 Sharpe가 서로 다른 값으로 기록됐습니다. LEAN이 성공하면 LEAN native statistics를 사용하고 실패할 때만 pandas fallback을 사용하도록 구분했습니다. 그리고 거래별 수익률 복리와 포트폴리오 순이익처럼 정의가 다른 값은 동일한 일별 자산곡선이 없으면 자동으로 일치 판정을 하지 않습니다.',
