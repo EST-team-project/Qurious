@@ -69,7 +69,14 @@ TAIL_SLIDES = {"이동원": 2}            # 이동원 슬라이드의 마지막 
 TAIL_PRESENTER = "강민석"
 TAIL_LABEL = "한계와 이어갈 길"
 # 덱에서 뺄 장면(장면 파일은 지우지 않는다). 낡은 일봉 방어 영상은 같은 주제의 슬라이드를 뺐고 2차에서 다뤘다(사용자 조율 11-09).
-EXCLUDE_SCENES = {"P-이동원-B-낡은일봉방어"}
+EXCLUDE_SCENES = {"P-이동원-B-낡은일봉방어",
+                  # 11-10 사용자 피드백 4번: 슬라이드 11 · 12장(신호 순위 · 근거 모달)이 글 + 캡처로 설명한 것을 영상 한 편(E)이 대신한다.
+                  # A(걸러 보기 · 근거)와 D(지금 값 · 새로고침)도 E 가 합쳐 담으므로 덱에서 뺀다(장면 파일 · 사용법 영상은 그대로 둔다).
+                  "P-이동원-A-신호순위", "P-이동원-D-신호순위-지금값"}
+# 영상을 슬라이드 사이에 끼운다: {장면 stem: (담당자, 그 담당자 슬라이드 몇 장 뒤)}. 여기에 없는 영상은 담당자 슬라이드가 끝난 뒤에 붙는다.
+INLINE_VIDEOS = {"P-이동원-E-신호순위-근거-상세": ("이동원", 10),
+                 # 일지 구조(11장) · 판 2 사건(12장) 설명 바로 뒤에 일지 영상 C 를 둔다(사용자 11-10: 흐름이 낫다면 중간에).
+                 "P-이동원-C-일지판고정": ("이동원", 12)}
 
 STAGE_W, STAGE_H = 1920, 1080          # 영상 덱 틀(.slide) 크기
 DEFAULT_SRC_W, DEFAULT_SRC_H = 1280, 720   # 담당자 덱 기본 크기(CSS 에서 못 읽을 때)
@@ -776,11 +783,21 @@ def make_plan() -> Plan:
     else:
       tnote = ""
     frames.append(Frame("divider", name, f"{name} 구분 장", divider(name, no, len(people), p_main, vids, dur, tnote), "own")); meta.append(None)
+    inline = {}                                      # 슬라이드 번호 → 그 뒤에 끼울 영상들
+    for r in vids:
+      at = INLINE_VIDEOS.get(r["stem"])
+      if at and at[0] == name:
+        inline.setdefault(at[1], []).append(r)
+    inline_stems = {r["stem"] for rs in inline.values() for r in rs}
     if p:
       for i, sl in enumerate(p_main.slides, 1):
         frames.append(Frame("slide", name, f"{sl.title}", imported_frame(p, i, sl), sl.notes_from, sl.seconds)); meta.append((name, i))
+        for r in inline.get(i, []):
+          frames.append(Frame("video", name, f"{r['stem']} · {r['title']}", video_slide(r), "own" if r["says"] else "")); meta.append(None)
       tails += [(p, len(p_main.slides) + j, sl) for j, sl in enumerate(p.slides[len(p_main.slides):], 1)]
     for r in vids:
+      if r["stem"] in inline_stems and p:
+        continue
       frames.append(Frame("video", name, f"{r['stem']} · {r['title']}", video_slide(r), "own" if r["says"] else "")); meta.append(None)
   for p, i, sl in tails:
     frames.append(Frame("slide", TAIL_PRESENTER, f"{TAIL_LABEL} · {sl.title}",
