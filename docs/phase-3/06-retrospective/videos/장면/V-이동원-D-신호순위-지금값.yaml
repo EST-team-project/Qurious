@@ -14,7 +14,7 @@ steps:
   - say: "순위 맨 위의 종목 검색 칸에 종목 이름이나 6자리 코드를 넣으면 한 종목만 찾아 봅니다. 코드를 넣어 보겠습니다"
   - ring: {target: "#sr-find-input", sec: 3.0}
   - fill: {target: "#sr-find-input", text: "005930"}
-  - pause: 2.0
+  - pause: 3.0
   - say: "검색 단추를 누릅니다"
   - click: "[data-sr-find] button[type='submit']"
   - wait: {target: "[data-sr-find-note]:has-text('검색한 종목')", timeout: 30, cut: true}
@@ -41,7 +41,7 @@ steps:
   - ring: {target: "[data-hub-now-note]", sec: 3.0}
   - pause: 6.0
   - key: "Escape"
-  - chapter: {label: "3 / 3 · 걸러 보고 새로고침", title: "줄 수와 새로고침을 씁니다", text: "새로고침은 위 10종목에만 지금 가격 한 줄을 붙입니다. 신호는 새로 계산하지 않습니다", sec: 5.0}
+  - chapter: {label: "3 / 3 · 걸러 보고 새로고침", title: "줄 수와 새로고침을 씁니다", text: "새로고침은 위쪽 종목(최대 10개)에만 지금 가격 한 줄을 붙입니다. 신호는 새로 계산하지 않습니다", sec: 5.0}
   - say: "전체 순위로 돌아가 신호 단추 매수를 누릅니다"
   - click: "[data-sr-find-reset]"
   - wait: {target: ".view.active table tbody tr", timeout: 60, cut: true}
@@ -53,7 +53,7 @@ steps:
   - wait: {target: "[data-sr-filter-note]", timeout: 60, cut: true}
   - ring: {target: "[data-sr-filter-note]", sec: 3.0}
   - pause: 4.0
-  - say: "새로고침을 누르면 같은 조건으로 기록을 다시 읽고, 위 10종목 아래에 지금 가격 한 줄을 붙입니다"
+  - say: "새로고침을 누르면 같은 조건으로 기록을 다시 읽고, 위쪽 종목(최대 10개) 아래에 지금 가격 한 줄을 붙입니다. 시세를 못 받은 종목은 건너뜁니다"
   - ring: {target: "[data-sr-refresh]", sec: 2.5}
   - click: "[data-sr-refresh]"
   - wait: {target: "[data-sr-quote]", timeout: 60, cut: true}

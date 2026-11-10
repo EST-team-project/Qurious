@@ -17,17 +17,18 @@ steps:
   - click: "[data-sr-find] button[type='submit']"
   - wait: {target: "[data-sr-find-note]:has-text('검색한 종목')", timeout: 30, cut: true}
   - pause: 1.5
-  - say: "순위 표에 그 종목의 규칙 신호가 나옵니다. 줄을 누르면 근거 창이 열립니다"
+  - say: "그 종목의 규칙 신호가 나옵니다. 줄을 누르면 근거 창이 열립니다"
   - click: ".view.active table tbody tr[data-hub-open]"
   - wait: {target: "[data-hub-now]", timeout: 30}
-  - pause: 1.5
-  - chapter: {label: "2 / 3 · 과정", title: "지금 값 보기와 새로고침", text: "지금 값 보기는 누를 때만, 새로고침은 위 10종목에만 지금 가격을 붙입니다", sec: 3.0}
+  - pause: 2.8
+  - chapter: {label: "2 / 3 · 과정", title: "지금 값 보기와 새로고침", text: "지금 값 보기는 누를 때만, 새로고침은 위쪽 종목(최대 10개)에만 지금 가격을 붙입니다", sec: 3.0}
   - say: "근거 창 위쪽의 안내는 아래 가격이 마지막 거래일 종가라고 먼저 말합니다"
   - ring: {target: "[data-hub-now-out]", sec: 2.5}
-  - pause: 2.5
+  - pause: 3.0
   - say: "지금 값 보기를 누를 때만 지금 가격을 한 번 불러옵니다"
   - click: "[data-hub-now]"
   - wait: {target: "[data-hub-now]:not([disabled])", timeout: 40, cut: true}
+  - pause: 2.9
   - say: "지금 값에 출처 딱지와 마지막 종가와의 차이가 붙습니다"
   - ring: {target: "[data-hub-now-out]", sec: 2.5}
   - pause: 4.0
@@ -40,9 +41,9 @@ steps:
   - wait: {target: "[data-sr-filter-note]", timeout: 60, cut: true}
   - ring: {target: "[data-sr-filter-note]", sec: 2.5}
   - pause: 2.5
-  - say: "새로고침은 위 10종목에 지금 가격 한 줄을 붙이고, 신호는 새로 계산하지 않습니다"
+  - say: "새로고침은 위쪽 종목(최대 10개)에 지금 가격 한 줄을 붙이고, 시세를 못 받은 종목은 건너뛰며, 신호는 새로 계산하지 않습니다"
   - click: "[data-sr-refresh]"
   - wait: {target: "[data-sr-quote]", timeout: 60, cut: true}
   - ring: {target: "[data-sr-quote]", sec: 2.5}
-  - pause: 4.5
+  - pause: 4.9
   - chapter: {label: "3 / 3 · 결과", title: "기록된 신호와 지금 값을 나란히 보되 섞지 않습니다", text: "지금 값은 저장하지 않고 지연 시세일 수 있습니다. 전체 종목을 실시간으로 다시 판단하는 것은 11월 12일 뒤 설계입니다. 규칙 신호의 기록이며 추천이 아닙니다", sec: 5.0}
