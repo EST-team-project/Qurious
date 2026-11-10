@@ -78,6 +78,9 @@ INLINE_VIDEOS = {"P-이동원-E-신호순위-근거-상세": ("이동원", 10),
                  # 일지 구조(11장) · 판 2 사건(12장) 설명 바로 뒤에 일지 영상 C 를 둔다(사용자 11-10: 흐름이 낫다면 중간에).
                  "P-이동원-C-일지판고정": ("이동원", 12)}
 
+# 영상 슬라이드 옆 칸에 「기준」 줄로 밝힐 말(사용자 11-10 S220: 재녹화하지 않고 며칠자 기준인지만 밝힌다).
+VIDEO_BASIS = {"P-이동원-C-일지판고정": "11-10 13:55 기준 영상(행 46). 이후 수집 회차마다 행이 하나씩 늘어납니다"}
+
 STAGE_W, STAGE_H = 1920, 1080          # 영상 덱 틀(.slide) 크기
 DEFAULT_SRC_W, DEFAULT_SRC_H = 1280, 720   # 담당자 덱 기본 크기(CSS 에서 못 읽을 때)
 # 가변형 덱(clamp · vw 로 크기를 정하고 `#<루트 id> .slide` 로 규칙을 쓰며 보이는 장에만 .active 를 붙이는 형식) 전용 설정
@@ -575,13 +578,15 @@ def video_slide(r) -> str:
   purpose = (ch[0].get("text") if ch else "") or r["title"]
   tail = (ch[-1].get("text") if ch else "") or ""
   notes = "자막(대사): " + " / ".join(r["says"]) if r["says"] else "자막 없음"
+  basis = VIDEO_BASIS.get(stem)
+  basis_html = f"<br><br><b>기준</b>{esc(basis)}" if basis else ""
   return f'''<section class="slide" data-title="{esc(owner)} · {esc(stem)}">
   <div class="kicker">{esc(owner)} · {esc(r["title"])}</div>
   <div class="video-wrap" data-video="{esc(stem)}">
     <video controls preload="metadata" poster="videos/파일/발표/{esc(stem)}.jpg" src="videos/파일/발표/{esc(stem)}.mp4"></video>
     <div class="missing">영상 파일을 찾지 못했습니다{'' if has else '(아직 내보내지 않았습니다)'}<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
   </div>
-  <div class="video-side"><b>목적</b>{esc(purpose)}<br><br><b>마지막 장</b>{esc(tail)}</div>
+  <div class="video-side"><b>목적</b>{esc(purpose)}<br><br><b>마지막 장</b>{esc(tail)}{basis_html}</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
   <aside class="notes">{esc(notes)}</aside>
 </section>'''
