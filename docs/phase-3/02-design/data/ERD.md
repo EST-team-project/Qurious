@@ -1,15 +1,15 @@
-# ERD v1.18 — Qurious
+# ERD v1.19 — Qurious
 
 | 문서 정보 | |
 |---|---|
-| **판 · 상태** | v1.18 · 0047 반영 · 수집 DB 26표 · 앱 DB 65표 |
+| **판 · 상태** | v1.19 · 서두 수치(표 · 관계)와 관계 목록을 11-10 스캐너 실측으로 바로잡음 · 0047 반영 · 수집 DB 26표 · 앱 DB 65표 |
 | **구분** | 5. 데이터 설계 — ERD(개체 관계도) · 두 DB 의 표와 관계 |
 | **작성** | 이동원(데이터 파트) |
 | **검토** | 검토 전 — 판을 올리는 PR 에 읽는 파트 한 명이 댓글 한 줄(문서 작성 기준 4.4 · 제안) |
-| **최종 수정** | 2026-11-09 (KST) |
+| **최종 수정** | 2026-11-10 (KST) |
 | **기준** | v1.12 는 코드 `main` `3ca94de` + 이 판 작업 트리(G1 ~ G3 수집 표 넷 · `ecos_series` 월 주기) — 그림 · 행 수는 스캐너가 다시 채움 |
 | **관련 문서** | [데이터 사전 v1.6](../../../phase-2/02-design/data/지난판/데이터사전_v1.6.md) · [표 속성 대장](대장/표-속성대장.tsv) · [API 명세서 v0.2](../../../phase-2/02-design/api/지난판/API명세서_v0.2.md) · [테스트 계획서 v1.4](../../../phase-2/04-testing/지난판/테스트계획서_v1.4.md) · [문서 작성 기준 v0.1](../../../phase-2/00-management/standards/지난판/문서작성기준_v0.1.md) |
-| **최근 개정** | v1.17 → v1.18: 새 표 `paper_kis_reconciliations`(그림자 일지 ↔ KIS 모의 체결 대사 스냅샷 · 앱 64 → 65표) · `crypto_orders` 새 칸 9(거래비용) · `orders.epoch` · `cashflow_events.epoch`(모의투자 회차)를 코드에서 다시 채움 / v1.16 → v1.17: 알림 비밀 9칸이 `TEXT`(암호문) · 새 표 4(수집 `econ_release` · 앱 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`)를 코드에서 다시 채움 |
+| **최근 개정** | v1.18 → v1.19: 코드 변경 없음 — 요약 1 · 3과 4.1 · 4.2절에 11-01 · 10-24 값으로 남아 있던 수치(수집 25표 · 23,686,395행 · 앱 42 · 60표 · 관계 53개 중 37개)를 11-10 스캐너 실측(수집 26표 · 24,191,640행 · 앱 65표 · 관계 61개 중 40개)으로 바로잡고, `users` 에서 뻗지 않는 관계 16 → 21(새 5: 취소 요청 · 모의 체결 대사 둘 · 가격 근거 · 목표 비중 변경) / v1.17 → v1.18: 새 표 `paper_kis_reconciliations`(그림자 일지 ↔ KIS 모의 체결 대사 스냅샷 · 앱 64 → 65표) · `crypto_orders` 새 칸 9(거래비용) · `orders.epoch` · `cashflow_events.epoch`(모의투자 회차)를 코드에서 다시 채움 / v1.16 → v1.17: 알림 비밀 9칸이 `TEXT`(암호문) · 새 표 4(수집 `econ_release` · 앱 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`)를 코드에서 다시 채움 |
 
 > **이 문서가 답하는 질문**
 > 1. 이 프로젝트의 데이터는 어느 DB 의 어떤 표에 있고, 표끼리 어떻게 이어지나 (1절 · 3절 · 4절)
@@ -20,9 +20,9 @@
 
 ## 요약
 
-1. 데이터는 **두 DB** 에 나뉘어 있다 — 수집 DB(SQLite · **25표 · 23,686,395행** · 2026-10-24 스캐너 실측)는 시세 · 배당 · 지수 · ETF · 분봉 · 거래일 달력 · 공시 목록 · 재무 주요계정 · **전체 재무제표 · 업종 · 한국은행 통계(2026-10-24 G1 ~ G3 · 3.7절)** 를, 앱 DB(PostgreSQL · 42표)는 사용자 · 주문 · 대화 · 용어사전을 담는다. 그 밖에 저장소가 둘 더 있다 — 법령 · 감독규정 근거 문서 DB(별도 SQLite `kb.sqlite3` · 4표 · 문서 14 · 청크 4,067)와 벡터 저장소 Qdrant(컬렉션 둘), 공시를 찾는 검색 색인(별도 SQLite `search.sqlite3` · 넷 · 2026-10-04 · 1.1절).
+1. 데이터는 **두 DB** 에 나뉘어 있다 — 수집 DB(SQLite · **26표 · 24,191,640행** · 2026-11-10 스캐너 실측)는 시세 · 배당 · 지수 · ETF · 분봉 · 거래일 달력 · 공시 목록 · 재무 주요계정 · **전체 재무제표 · 업종 · 한국은행 통계(2026-10-24 G1 ~ G3 · 3.7절)** 를, 앱 DB(PostgreSQL · 65표)는 사용자 · 주문 · 대화 · 용어사전을 담는다. 그 밖에 저장소가 둘 더 있다 — 법령 · 감독규정 근거 문서 DB(별도 SQLite `kb.sqlite3` · 4표 · 문서 14 · 청크 4,067)와 벡터 저장소 Qdrant(컬렉션 둘), 공시를 찾는 검색 색인(별도 SQLite `search.sqlite3` · 넷 · 2026-10-04 · 1.1절).
 2. 두 DB 는 **앱의 읽기 전용 연결에서만** 만난다 — 수집 DB 어댑터가 국내 주식 일봉을, 금융 강의 시세 모듈이 강의 그림의 지수 · ETF 를 읽는다(2.1절). 일봉 요청은 앱의 캐시 표를 거치지 않아 매일 12:30 갱신이 바로 보인다. 차트의 지수 · 해외 · 실시간 시세는 외부 API 에서 온다.
-3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 **60표 · 관계 53개** 중 37개가 `users` 에서 뻗는다(2026-11-01 · 스캐너 그림을 기계로 셈). 모델과 DB 의 어긋남은 **0** — 2026-10-24 일회용 DB 에 마이그레이션을 `0026_paper_journal` 까지 올려 모델 전체와 견주니 차이가 없었다(4.5절 · 2026-10-03 의 `portfolio.user_id` 외래키 어긋남은 그 뒤 마이그레이션으로 풀렸다). 새 표 셋은 모의투자 그림자 일지(4.6절 · 추가만)다.
+3. 수집 DB 는 외래키 없이 기준일과 종목코드로 이어지고, 앱 DB 는 **65표 · 관계 61개** 중 40개가 `users` 에서 뻗는다(2026-11-10 · 스캐너 JSON 의 외래키 칸을 기계로 셈). 모델과 DB 의 어긋남은 **0** — 2026-10-24 일회용 DB 에 마이그레이션을 `0026_paper_journal` 까지 올려 모델 전체와 견주니 차이가 없었다(4.5절 · 2026-10-03 의 `portfolio.user_id` 외래키 어긋남은 그 뒤 마이그레이션으로 풀렸다). 새 표 셋은 모의투자 그림자 일지(4.6절 · 추가만)다.
 
 ---
 
@@ -54,12 +54,12 @@ flowchart LR
   PORTAL["공공데이터포털<br/>주식 · ETF · 지수 일별 시세"] --> COL["수집기<br/>매 거래일 12:30"]
   DART["OpenDART<br/>배당 공시"] --> COL
   YH["야후<br/>60분 · 5분봉"] --> COL
-  COL --> CDB[("수집 DB<br/>SQLite · 15표")]
+  COL --> CDB[("수집 DB<br/>SQLite · 26표")]
   CDB -.->|"매일 백업"| HF[("HF private<br/>데이터셋")]
   CDB ==>|"국내 주식 일봉 · 강의 시세 · 읽기 전용"| AD["수집 DB 읽기 전용 연결<br/>collector_db · lecture_market"]
   AD ==> APP["앱 API<br/>FastAPI"]
   EXT["외부 시세 API"] -->|"지수 · 해외 · 실시간"| APP
-  APP <--> ADB[("앱 DB<br/>PostgreSQL · 42표")]
+  APP <--> ADB[("앱 DB<br/>PostgreSQL · 65표")]
   LAW["국가법령정보<br/>법령 · 감독규정"] --> KBL["근거 문서 받기<br/>손으로 · kb_law"]
   KBL --> KDB[("근거 문서 DB<br/>SQLite · kb.sqlite3 · 4표")]
   APP <--> QD[("Qdrant<br/>fin_chunks · user_docs · kb_v1")]
@@ -543,7 +543,7 @@ price_daily            포털이 준 값 그대로 (정수 · 원)
 
 ### 4.1 한눈에 — 업무 영역 여섯
 
-앱 DB 의 60표는 쓰임새로 여섯 영역에 묶인다. 영역은 [표 속성 대장](대장/표-속성대장.tsv) 의 「업무 영역」 칸이고, **담당이 아니다** — 담당은 계획서 v2.0 4절과 요구 대장의 담당 칸(2026-10-01 역할 확정)이 정한다.
+앱 DB 의 65표는 쓰임새로 여섯 영역에 묶인다. 영역은 [표 속성 대장](대장/표-속성대장.tsv) 의 「업무 영역」 칸이고, **담당이 아니다** — 담당은 계획서 v2.0 4절과 요구 대장의 담당 칸(2026-10-01 역할 확정)이 정한다.
 
 표 8 은 「앱 DB 는 어떤 묶음으로 나뉘고, 묶음마다 무엇을 담나」 에 답한다.
 
@@ -596,11 +596,11 @@ glossary_categories ◀── glossary_terms ──▶ glossary_sources
 collect_requests ──▶ collect_workers
 ```
 
-관계 53개 중 37개가 `users` 에서 뻗는다. `users` 에서 뻗지 않는 관계는 열여섯이다 — `conversations → chats` · `orders → order_fills` · `live_orders → live_orders`(재주문) · `live_orders → strategy_decisions` · `strategy_runtimes → strategy_runtime_events` · `formula_indicators → versions · results` · 그림자 일지 셋(`paper_journal_versions → days · notes · 앞 판`) · 용어사전 다섯(`glossary_terms → categories · sources · aliases` · `glossary_relations` 의 from · to) · `collect_requests → collect_workers`.
+관계 61개 중 40개가 `users` 에서 뻗는다(2026-11-10 스캐너). `users` 에서 뻗지 않는 관계는 스물하나다 — `conversations → chats` · `orders → order_fills` · `live_orders → live_orders`(재주문) · `live_orders → strategy_decisions` · `live_orders → broker_cancel_requests` · `strategy_runtimes → strategy_runtime_events` · `formula_indicators → versions · results` · 그림자 일지 셋(`paper_journal_versions → days · notes · 앞 판`) · 모의 체결 대사 둘(`order_intents → paper_kis_reconciliations` · `paper_journal_versions → paper_kis_reconciliations`) · 스냅샷 가격 근거(`paper_account_snapshots → paper_snapshot_price_audits`) · 목표 비중 변경(`rebalance_plans → rebalance_target_changes`) · 용어사전 다섯(`glossary_terms → categories · sources · aliases` · `glossary_relations` 의 from · to) · `collect_requests → collect_workers`.
 
 ### 4.2 그림 — 업무 영역마다 하나
 
-아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 60표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
+아래 여섯 그림은 영역마다 「그 영역의 표는 무엇을 기본키로 삼고, 어느 표에 매이나」 에 답한다. 65표를 한 그림에 넣으면 선이 엉켜 읽을 수 없어 영역마다 나눴다(문서 작성 기준 6.3). 다른 영역의 표(`users`)는 기본키 한 칸만 그렸다. 스캐너 출력이라 제목에 번호가 없다.
 
 <!-- schema_scan:erd-앱 -->
 **앱 DB — 모의투자·주문·전략 · 41표 · 관계 44개** 🟡 모델 정의 · 범례: PK 기본키 · FK 외래키 · `||--o{` 하나 대 여럿 · 다른 영역의 표 `users` 는 기본키만
@@ -1427,6 +1427,7 @@ v1.3 의 변경 노트 다섯 줄은 v1.4 본문에 넣었다 — Qdrant 모양 
 
 | 판 | 날짜 | 무엇이 바뀌었나 | 왜 | 근거 |
 |---|---|---|---|---|
+| v1.19 | 2026-11-10 | 코드 변경 없음 — 요약 1 · 3, 4.1절 관계 문장, 4.2절 첫 문장의 낡은 수치를 스캐너 실측으로 바로잡음(수집 25 → 26표 · 23,686,395 → 24,191,640행 · 앱 42 · 60 → 65표 · 관계 53 → 61, `users` 에서 37 → 40) · `users` 에서 뻗지 않는 관계 16 → 21(`live_orders → broker_cancel_requests` · `order_intents → paper_kis_reconciliations` · `paper_journal_versions → paper_kis_reconciliations` · `paper_account_snapshots → paper_snapshot_price_audits` · `rebalance_plans → rebalance_target_changes` 를 더함) · 1.1절 그림 노드 「수집 DB · 15표」 → 26표(15 는 일일 갱신이 채우는 표 수라 DB 전체와 달랐다) | 11-10 저녁 정합 점검(S218) — 머리 표와 그림(스캐너 구간)은 65표 · 61관계인데 손으로 쓴 서두만 11-01 값이라 한 문서 안에서 어긋남 | `schema_scan --json` 외래키 칸 집계 · `schema_scan --doc ERD.md --check` 통과 |
 | v1.18 | 2026-11-09 | 앱 DB 새 표 `paper_kis_reconciliations`(그림자 일지 ↔ KIS 모의 체결 대사 스냅샷 · 40칸 · 외래키 3 — `order_intents` · `users` · `paper_journal_versions` · 유일 제약 `uq_paper_kis_reconciliations_snapshot`(`snapshot_hash`) · 인덱스 2 · 리비전 `0044_paper_kis_reconciliations` + `0045_paper_kis_track`)(64 → 65표 · 관계 58 → 61) · 새 칸 `crypto_orders` 9(`reference_price` · `commission` · `fee_rate` · `slippage_bps` · `slippage_amount` · `net_amount` · `cost_basis` · `allocated_cost_basis` · `realized_pnl` · 리비전 `crypto_order_costs_20261109`) · `orders.epoch` · `cashflow_events.epoch`(INTEGER NULL · 인덱스 `ix_orders_user_epoch_created` · `ix_cashflow_events_user_epoch_created` · 리비전 `0047_paper_cashflow_order_epoch` · 기존 행은 일부러 NULL) · 빈 병합 리비전 `0046_merge_notif_paper_kis`(표 변화 없음 · 알림 비밀 `0044_notification_secrets` 갈래와 `0045_paper_kis_track` 갈래를 잇는다 · 지금 head 는 `0047_paper_cashflow_order_epoch`) | 11-06 판 올림 뒤 들어온 KIS 대사 표 · 코인 거래비용 칸 · 모의투자 회차 칸이 ERD 에 안 올라가 있었다 | 모델 `app/models/paper_kis_reconciliation.py` · `paper.py` · `trading.py` · `rebalance.py` · 리비전 5개 · 커밋 `bd5d9739` · `d8262904` · `a5b4ce9d` · 스캐너 출력으로 표시 사이를 채움 · `schema_scan --doc --check` 통과 |
 | v1.17 | 2026-11-06 | 알림 비밀 9칸 `VARCHAR → TEXT`(암호문 `qnc1:` · CHECK 9개 · 마이그레이션 0044) · 수집 DB 새 표 `econ_release`(25 → 26표) · 앱 DB 새 표 `broker_cancel_requests` · `paper_snapshot_price_audits` · `rebalance_target_changes`(61 → 64표) · 새 칸 `broker_settings.quant_local_strategy` · `orders.fill_notice_pending` · `rebalance_plans.regime_config` · `regime_state` | 11-05 알림 비밀 암호화 구현과 팀원 표·칸이 ERD 에 안 올라가 있었다 | `schema_scan --doc --check` 통과 |
 | v1.16 | 2026-11-02 | 마이그레이션 0037 · 0038(스냅샷 가격 근거 · 손절 근거 표)을 코드에서 다시 채움 | 오준영 PR #477 | `schema_scan --doc` 다시 채움 |
