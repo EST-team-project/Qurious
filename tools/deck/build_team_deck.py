@@ -73,6 +73,10 @@ EXCLUDE_SCENES = {"P-이동원-B-낡은일봉방어"}
 
 STAGE_W, STAGE_H = 1920, 1080          # 영상 덱 틀(.slide) 크기
 DEFAULT_SRC_W, DEFAULT_SRC_H = 1280, 720   # 담당자 덱 기본 크기(CSS 에서 못 읽을 때)
+# 가변형 덱(clamp · vw 로 크기를 정하고 `#<루트 id> .slide` 로 규칙을 쓰며 보이는 장에만 .active 를 붙이는 형식) 전용 설정
+SRC_SIZE_OVERRIDE = {"강민석": (1440, 810)}              # 원본이 정한 stage 최대 폭 1440 · 16:9
+SRC_ROOT_ID = {"강민석": "qurious-kms-deck"}            # 이 id 를 선택자 맨 앞에서 걷어 내고, 틀 자신의 규칙은 색 변수만 남긴다
+SRC_ACTIVE_CLASS = {"강민석"}                            # 장마다 class="active" 를 붙여 `.slide.active { display:flex }` 가 적용되게 한다
 GUARD = ":not(:where(.imp *))"          # 영상 덱 규칙에서 가져온 장(.imp) 안쪽을 빼는 가드 — 특이도 0
 
 
@@ -449,12 +453,22 @@ def read_personal(name: str) -> Personal | None:
   css = "\n".join(re.findall(r"<style[^>]*>(.*?)</style>", head, re.S))
   ver = re.search(r'<meta name="doc-version" content="([^"]+)"', head)
   warns: list[str] = []
+  root_id = SRC_ROOT_ID.get(name)
+  if root_id:
+    rid = re.escape(root_id)
+    def frame_rule(mm: re.Match) -> str:                               # `#root { … }` — 폭 · 높이 · 배경은 영상 덱 틀이 정하므로 색 변수(--x)만 남긴다
+      variables = "".join(re.findall(r"--[\w-]+\s*:[^;]+;", mm.group(2)))
+      return f"{mm.group(1)} :root {{ {variables} }}"
+    css = re.sub(rf"(^|[{{}}])\s*#{rid}\s*\{{([^}}]*)\}}", frame_rule, css)
+    css = re.sub(rf"#{rid}(?![\w-])\s*", "", css)                      # `#root .slide` → `.slide`
   m = re.search(r"(?:^|\})\s*\.slide\s*\{([^}]*)\}", css)
   sw = sh = None
   if m:
     w, h = re.search(r"(?<![\w-])width:\s*(\d+)px", m.group(1)), re.search(r"(?<![\w-])height:\s*(\d+)px", m.group(1))
     sw, sh = (int(w.group(1)) if w else None), (int(h.group(1)) if h else None)
-  if not (sw and sh):
+  if name in SRC_SIZE_OVERRIDE:
+    sw, sh = SRC_SIZE_OVERRIDE[name]
+  elif not (sw and sh):
     sw, sh = DEFAULT_SRC_W, DEFAULT_SRC_H
     warns.append(f"슬라이드 크기를 CSS 에서 못 읽어 {sw}×{sh} 로 가정")
   elif abs(sw / sh - STAGE_W / STAGE_H) > 0.01:
@@ -477,6 +491,12 @@ def read_personal(name: str) -> Personal | None:
     """담당자 슬라이드의 상대 이미지 경로(`그림/…`)는 담당자 폴더 기준이라, 통합 덱(한 단계 위)에서 보이도록 폴더 이름을 앞에 붙인다."""
     return re.sub(r'(\bsrc=")(?!https?:|data:|/|#)([^"]+)"', lambda mm: f'{mm.group(1)}{name}/{mm.group(2)}"', text)
 
+  # 강민석 덱처럼 aside.notes 가 아니라 스크립트의 `const notes = ['…', …];` 배열에 대본을 둔 경우 — 장 순서대로 읽는다
+  js_notes: list[str] = []
+  jm = re.search(r"\bconst\s+notes\s*=\s*\[(.*?)\n\s*\];", body, re.S)
+  if jm:
+    js_notes = [re.sub(r"\\(['\"\\])", r"\1", s) for s in re.findall(r"'((?:\\.|[^'\\])*)'", jm.group(1))]
+
   slides: list[Slide] = []
   for n, (tag, inner) in enumerate(secs, 1):
     note_m = re.search(r'<aside\b[^>]*class="[^"]*\bnotes\b[^"]*"[^>]*>(.*?)</aside>', inner, re.S)
@@ -491,6 +511,9 @@ def read_personal(name: str) -> Personal | None:
       t, sec, say = md[n]
       notes_html = f"<b>{n}장{f' ({sec}초)' if sec else ''}</b> {esc(say)}"
       notes_from, seconds = "md", sec
+    elif n <= len(js_notes):
+      notes_html = f"<b>{n}장</b> {esc(js_notes[n - 1])}"
+      notes_from = "js"
     if "<script" in inner:
       warns.append(f"{n}장 안에 <script> 가 있다 — 영상 덱 넘기기만 쓰므로 동작하지 않는다")
     attrs = []
@@ -498,6 +521,8 @@ def read_personal(name: str) -> Personal | None:
       if k == "hidden":
         continue                                                       # 영상 덱이 장 보임을 정한다
       attrs.append(k if v is None else f'{k}="{esc(v) if k != "class" else v}"')
+    if name in SRC_ACTIVE_CLASS:
+      attrs = [re.sub(r'^class="([^"]*)"$', lambda mm: f'class="{mm.group(1)} active"' if "active" not in mm.group(1).split() else mm.group(0), a) for a in attrs]
     open_tag = rename_ids("<section " + " ".join(attrs) + ">")
     h = re.search(r"<h[12]\b[^>]*>(.*?)</h[12]>", inner, re.S)
     slides.append(Slide(html=open_tag + fix_rel(rename_ids(inner.rstrip())) + "</section>", title=strip_tags(h.group(1)) if h else f"{n}장",
@@ -580,6 +605,8 @@ def renumber_refs(text: str, m: dict[int, int]) -> str:
 def fix_numbers(html_: str, gno: int, total: int, m: dict[int, int]) -> str:
   """가져온 슬라이드의 쪽 번호를 덱 전체 번호 하나로 맞춘다 — 풋터의 「3 / 29」 → 「N / 전체」, 눈썹의 「3 · 」 제거, 「N장」 참조 변환."""
   html_ = re.sub(r'(<span class="pg">)\s*\d+\s*/\s*\d+\s*(</span>)', rf"\g<1>{gno} / {total}\g<2>", html_)
+  # 강민석 덱 형식: <div class="foot"><span>설명</span><span>04 / 13</span></div> — 마지막 칸의 쪽 번호만 바꾼다
+  html_ = re.sub(r'(<div class="foot">(?:(?!</div>).)*?)<span>\s*\d+\s*/\s*\d+\s*</span>(</div>)', rf'\g<1><span class="pg">{gno} / {total}</span>\g<2>', html_, flags=re.S)
   html_ = re.sub(r'(<p class="eyebrow">)\d+ · ', r"\1", html_)
   return renumber_refs(html_, m)
 
@@ -845,10 +872,10 @@ def print_plan(plan: Plan) -> None:
     p, vids = x["personal"], x["vids"]
     if p:
       secs = p.total_seconds
-      nsrc = {"html": 0, "md": 0, "": 0}
+      nsrc = {"html": 0, "md": 0, "js": 0, "": 0}
       for s in p.slides:
         nsrc[s.notes_from] += 1
-      print(f"  {x['name']:<4} 슬라이드 {p.path.relative_to(ROOT).as_posix()} v{p.version} · {len(p.slides)}장 · {p.src_w}×{p.src_h} · 노트 html {nsrc['html']} / 발표대본.md {nsrc['md']} / 없음 {nsrc['']}"
+      print(f"  {x['name']:<4} 슬라이드 {p.path.relative_to(ROOT).as_posix()} v{p.version} · {len(p.slides)}장 · {p.src_w}×{p.src_h} · 노트 html {nsrc['html']} / 발표대본.md {nsrc['md']} / JS배열 {nsrc['js']} / 없음 {nsrc['']}"
             f" · 대본 합계 {fmt_dur(secs)}")
     else:
       print(f"  {x['name']:<4} 슬라이드 없음 → 구분 장이 「{'슬라이드 준비 중' if vids else '준비 중'} — {x['name']}」")
@@ -857,7 +884,7 @@ def print_plan(plan: Plan) -> None:
       print(f"       영상 {'✅' if ok else '·'} {r['stem']:<34} {'mp4 있음' if ok else 'mp4 없음'} · 자막 {len(r['says'])}줄")
   print("== 장 목록 ==")
   for i, f in enumerate(plan.frames, 1):
-    ns = {"html": "노트 html", "md": "노트 대본.md", "own": "노트", "": "노트 없음"}[f.note_state]
+    ns = {"html": "노트 html", "md": "노트 대본.md", "js": "노트 JS배열", "own": "노트", "": "노트 없음"}[f.note_state]
     print(f"  {i:>2}. {f.kind:<7} {f.owner or '-':<4} {f.title[:60]}  [{ns}{f'·{f.seconds}초' if f.seconds else ''}]")
   print("== CSS 가두기 ==")
   for r in plan.reports:
