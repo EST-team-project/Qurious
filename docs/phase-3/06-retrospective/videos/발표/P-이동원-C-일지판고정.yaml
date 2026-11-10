@@ -1,7 +1,7 @@
 # [발표용] 이동원 C — 그림자 일지는 규칙과 코드의 지문으로 판을 고정한다 (빠르게 · 핵심만)
 # 화면: 앱 화면이 아니라 명령줄 출력 카드 — 앱에는 일지 전용 화면이 없다. 담당 이동원
-# 카드 내용: 11-10 08:49 에 `python scripts/paper_journal.py status`(읽기 전용)를 실행한 출력을 그대로 옮겼다(docs/phase-3/06-retrospective/이동원/그림/3차-일지-명령출력.png 와 같은 글). 카드 머리에 「실제 명령 출력을 옮긴 카드」 라고 밝힌다.
-# 녹화 전 필수: 12:30 회차가 돌면 행 수 · 마지막 거래일 · 평가가 바뀐다(11-09 12:30 회차 뒤 45행일 수 있음) → status 를 다시 돌려 아래 `js` 단계의 카드 글(행 · 마지막 · 평가 · 올리기 시각)을 맞춘다. 판 2 이상이 보이면 찍지 않는다. 더 좋은 길: 담당자가 실제 터미널을 화면 녹화(screen_recorder)해 바꿔 끼운다.
+# 카드 내용: 11-10 13:55 에 `python scripts/paper_journal.py status`(읽기 전용)를 실행한 출력을 그대로 옮겼다(docs/phase-3/06-retrospective/이동원/그림/3차-일지-명령출력.png 와 같은 글). 카드 머리에 「실제 명령 출력을 옮긴 카드」 라고 밝힌다.
+# 녹화 전 필수: 12:30 회차가 돌면 행 수 · 마지막 거래일 · 평가가 바뀐다(11-10 13:55 값 46행 · 11-11 12:30 회차 뒤 47행) → status 를 다시 돌려 아래 `js` 단계의 카드 글(행 · 마지막 · 평가 · 올리기 시각)을 맞춘다. 판 2 이상이 보이면 찍지 않는다. 더 좋은 길: 담당자가 실제 터미널을 화면 녹화(screen_recorder)해 바꿔 끼운다.
 # 말하지 않는 것: 성과 · 수익 · 「규칙이 검증됐다」 · 「절대 바뀌지 않는다」 · 「증권사에 주문을 냈다」(전부 가상 장부). 평가 숫자는 손익이 아니다.
 # 자막 규약: 자막(say)을 먼저, 그 자막이 설명하는 동작(ring)을 바로 뒤에 둔다.
 file: P-이동원-C-일지판고정
@@ -11,7 +11,7 @@ pace: 1.4
 start: dashboard
 steps:
   - chapter: {label: "1 / 3 · 목적", title: "판을 지문으로 고정하고 매일 한 줄씩 쌓습니다", text: "규칙에 쓰이는 함수와 설정으로 지문을 만들고, 지문이 같은 동안은 같은 판으로 봅니다. 거래일마다 행이 하나씩 쌓입니다", sec: 4.0}
-  - js: "(() => { const d = document.createElement('div'); d.id = 'jcard'; d.style.cssText = 'position:fixed;inset:0;z-index:2147480000;background:#0b1220;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box'; d.innerHTML = `<style>#jcard .c{width:1200px;max-width:100%;background:#0f1f2c;color:#d7e3ee;border:2px solid #1d3a4e;border-radius:14px;padding:26px 30px;font:16px/2.2 Consolas,'D2Coding','Malgun Gothic',monospace}#jcard .h{display:flex;justify-content:space-between;color:#86efac;font-weight:700}#jcard .h i{color:#94a3b8;font-style:normal;font-weight:400;font-size:14px}#jcard .cmd{color:#7dd3fc}#jcard b{font-weight:600;border-bottom:3px solid #6366f1}</style><div class='c'><div class='h'><span>● 실제 명령 출력을 옮긴 카드 (11-10 08:49 실행)</span><i>종료 코드 0 · 읽기 전용</i></div><div class='cmd' id='jc-cmd'>$ python scripts/paper_journal.py status</div><div id='jc-r1'>— card_ma_cross_20_60 · <b id='jc-ver1'>판 1(시도 1)</b> · <b id='jc-seal1'>봉인 2026-10-26 ~</b> · 행 45 · <b id='jc-last1'>마지막 2026-11-06</b> · <b id='jc-eq1'>평가 9367117.66</b> · <b id='jc-fp1'>지문 ✅ 같음</b></div><div id='jc-r2'>— auto_default · 판 1(시도 2) · 봉인 2026-10-26 ~ · 행 45 · 마지막 2026-11-06 · 평가 7221552.42 · 지문 ✅ 같음</div><div id='jc-memo'>— 메모 4건</div><div id='jc-daily'>— 마지막 daily 2026-11-09T13:01:32+09:00 · 새 행 2 · 판 바뀜 0</div><div id='jc-up'>— 마지막 올리기 2026-11-09T13:08:57+09:00 · qurious-quant/qurious-paper-log · 커밋 2a522b50 · 새 파일 2</div></div>`; document.body.appendChild(d); })()"
+  - js: "(() => { const d = document.createElement('div'); d.id = 'jcard'; d.style.cssText = 'position:fixed;inset:0;z-index:2147480000;background:#0b1220;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box'; d.innerHTML = `<style>#jcard .c{width:1200px;max-width:100%;background:#0f1f2c;color:#d7e3ee;border:2px solid #1d3a4e;border-radius:14px;padding:26px 30px;font:16px/2.2 Consolas,'D2Coding','Malgun Gothic',monospace}#jcard .h{display:flex;justify-content:space-between;color:#86efac;font-weight:700}#jcard .h i{color:#94a3b8;font-style:normal;font-weight:400;font-size:14px}#jcard .cmd{color:#7dd3fc}#jcard b{font-weight:600;border-bottom:3px solid #6366f1}</style><div class='c'><div class='h'><span>● 실제 명령 출력을 옮긴 카드 (11-10 13:55 실행)</span><i>종료 코드 0 · 읽기 전용</i></div><div class='cmd' id='jc-cmd'>$ python scripts/paper_journal.py status</div><div id='jc-r1'>— card_ma_cross_20_60 · <b id='jc-ver1'>판 1(시도 1)</b> · <b id='jc-seal1'>봉인 2026-10-26 ~</b> · 행 46 · <b id='jc-last1'>마지막 2026-11-09</b> · <b id='jc-eq1'>평가 9367117.66</b> · <b id='jc-fp1'>지문 ✅ 같음</b></div><div id='jc-r2'>— auto_default · 판 1(시도 2) · 봉인 2026-10-26 ~ · 행 46 · 마지막 2026-11-09 · 평가 7159852.42 · 지문 ✅ 같음</div><div id='jc-memo'>— 메모 4건</div><div id='jc-daily'>— 마지막 daily 2026-11-10T12:56:57+09:00 · 새 행 2 · 판 바뀜 0</div><div id='jc-up'>— 마지막 올리기 2026-11-10T13:04:43+09:00 · qurious-quant/qurious-paper-log · 커밋 f1d9198c · 새 파일 2</div></div>`; document.body.appendChild(d); })()"
   - wait: {target: "#jc-cmd", timeout: 10}
   - say: "명령 한 줄로 일지 상태를 읽습니다. 읽기 전용이라 아무것도 쓰지 않습니다"
   - ring: {target: "#jc-cmd", sec: 2.5}
@@ -21,7 +21,7 @@ steps:
   - ring: {target: "#jc-ver1", sec: 2.0}
   - ring: {target: "#jc-seal1", sec: 2.0}
   - pause: 1.5
-  - say: "행은 거래일마다 하나씩 쌓이고 마지막 행은 11월 6일입니다"
+  - say: "행은 거래일마다 하나씩 쌓이고 마지막 행은 11월 9일입니다"
   - ring: {target: "#jc-last1", sec: 2.5}
   - pause: 2.0
   - say: "평가 숫자는 가상 장부의 종가 평가액이라 성과로 읽지 않습니다"
@@ -36,5 +36,5 @@ steps:
   - say: "이어서 비공개 원장에 새 파일 2개를 올렸습니다"
   - ring: {target: "#jc-up", sec: 2.5}
   - pause: 2.5
-  - chapter: {label: "3 / 3 · 결과", title: "기록과 고정이 동작하는지를 보여 줍니다", text: "45행은 봉인 전 사후 계산 35행과 봉인 뒤 전진 기록 10행입니다. 성과가 아니라 기록과 지문 고정이 동작한다는 증거입니다. 지문이 달라지면 다음 회차가 새 판을 등록하고 옛 판은 그대로 둡니다", sec: 6.0}
+  - chapter: {label: "3 / 3 · 결과", title: "기록과 고정이 동작하는지를 보여 줍니다", text: "46행은 봉인 전 사후 계산 35행과 봉인 뒤 전진 기록 11행입니다. 성과가 아니라 기록과 지문 고정이 동작한다는 증거입니다. 지문이 달라지면 다음 회차가 새 판을 등록하고 옛 판은 그대로 둡니다", sec: 6.0}
   - js: "document.getElementById('jcard')?.remove()"

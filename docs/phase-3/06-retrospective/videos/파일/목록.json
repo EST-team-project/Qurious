@@ -120,14 +120,14 @@
       "scene": "docs/phase-3/06-retrospective/videos/장면/V-이동원-C-일지판고정.yaml",
       "mp4": "docs/phase-3/06-retrospective/videos/파일/사용법/V-이동원-C-일지판고정.mp4",
       "jpg": "docs/phase-3/06-retrospective/videos/파일/사용법/V-이동원-C-일지판고정.jpg",
-      "duration_sec": 175.28,
-      "bytes": 3281862,
+      "duration_sec": 175.12,
+      "bytes": 3295046,
       "crf": 28,
-      "sha": "63e6936987cd79db",
-      "source_sha": "6e3d89296c7ba3be",
-      "scene_sha": "b8085f7a81e4762c",
-      "recorded_at": "2026-11-10 09:08:12 KST",
-      "app_commit": "0959fb13"
+      "sha": "7d1dd6ec566ec1da",
+      "source_sha": "e521609b1b4bea6a",
+      "scene_sha": "45747198091501b1",
+      "recorded_at": "2026-11-10 14:02:41 KST",
+      "app_commit": "fe52220d"
     },
     {
       "kind": "사용법",
@@ -265,13 +265,13 @@
       "mp4": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-C-일지판고정.mp4",
       "jpg": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-C-일지판고정.jpg",
       "duration_sec": 54.52,
-      "bytes": 1502757,
+      "bytes": 1549168,
       "crf": 28,
-      "sha": "e1aede646637c754",
-      "source_sha": "41c35a55a8191638",
-      "scene_sha": "0427a80526be87e7",
-      "recorded_at": "2026-11-10 08:57:58 KST",
-      "app_commit": "0959fb13"
+      "sha": "10faa3264c9bad9b",
+      "source_sha": "9eae2d9c875f24ab",
+      "scene_sha": "9dbfac7c2f05b052",
+      "recorded_at": "2026-11-10 14:04:49 KST",
+      "app_commit": "fe52220d"
     },
     {
       "kind": "발표",
