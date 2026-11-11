@@ -46,6 +46,9 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I 로 돌려도 같은 폴더의 video_player 를 읽는다
+import video_player  # noqa: E402
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
@@ -74,12 +77,22 @@ EXCLUDE_SCENES = {"P-이동원-B-낡은일봉방어",
                   # A(걸러 보기 · 근거)와 D(지금 값 · 새로고침)도 E 가 합쳐 담으므로 덱에서 뺀다(장면 파일 · 사용법 영상은 그대로 둔다).
                   "P-이동원-A-신호순위", "P-이동원-D-신호순위-지금값"}
 # 영상을 슬라이드 사이에 끼운다: {장면 stem: (담당자, 그 담당자 슬라이드 몇 장 뒤)}. 여기에 없는 영상은 담당자 슬라이드가 끝난 뒤에 붙는다.
-INLINE_VIDEOS = {"P-이동원-E-신호순위-근거-상세": ("이동원", 10),
-                 # 일지 구조(11장) · 판 2 사건(12장) 설명 바로 뒤에 일지 영상 C 를 둔다(사용자 11-10: 흐름이 낫다면 중간에).
-                 "P-이동원-C-일지판고정": ("이동원", 12)}
+INLINE_VIDEOS = {"P-이동원-E-신호순위-근거-상세": ("이동원", 9),
+                 # 30분 발표(사용자 11-11): 슬라이드 9장(수집 ~ 모의 주문 구조) 바로 뒤에 영상 E → 영상 C 를 차례로 둔다.
+                 "P-이동원-C-일지판고정": ("이동원", 9)}
+VIDEO_ORDER = ["P-이동원-E-신호순위-근거-상세", "P-이동원-C-일지판고정"]       # 같은 자리에 끼는 영상의 순서
+
+# 30분 발표(사용자 11-11 · 설계 3절): 이동원 슬라이드 일부를 덱에서 뺀다. 원본 `이동원/발표자료.html` 은 그대로 — 내용은 발표에서
+# 생략하며 넘긴다. 영상 두 구간(E · C)이 10 ~ 15장을 대신하고, 2 · 5 · 8장은 사용자가 뺀다고 했다. 16 · 17장은 TAIL_SLIDES 대로 맨 끝.
+SKIP_SLIDES: dict[str, set[int]] = {"이동원": {2, 5, 8, 10, 11, 12, 13, 14, 15}}
+# 빠진 장을 가리키는 문구는 덱 쪽에서만 바꾼다(담당자 로컬 번호 기준 · 바꾼 뒤 fix_numbers 가 덱 번호로 바꿈): {(담당자, 장): [(옛 문구, 새 문구)]}
+TEXT_PATCH: dict[tuple[str, int], list[tuple[str, str]]] = {
+  ("이동원", 1): [("2 ~ 5장", "3 ~ 4장"), ("8 ~ 15장", "9장 · 영상 2편")],
+}
+CUES_DIR = SCENES / "큐"                                   # 영상 겹침 층의 큐 파일(<장면 stem>.큐.yaml)
 
 # 영상 슬라이드 옆 칸에 「기준」 줄로 밝힐 말(사용자 11-10 S220: 재녹화하지 않고 며칠자 기준인지만 밝힌다).
-VIDEO_BASIS = {"P-이동원-C-일지판고정": "11-10 13:55 기준 영상(행 46). 이후 수집 회차마다 행이 하나씩 늘어납니다"}
+VIDEO_BASIS = {"P-이동원-C-일지판고정": "11-11 10:18 기준 영상(행 46). 이후 수집 회차마다 행이 하나씩 늘어납니다"}
 
 STAGE_W, STAGE_H = 1920, 1080          # 영상 덱 틀(.slide) 크기
 DEFAULT_SRC_W, DEFAULT_SRC_H = 1280, 720   # 담당자 덱 기본 크기(CSS 에서 못 읽을 때)
@@ -352,7 +365,7 @@ def scope_import_css(css: str, wrapper: str, idp: str, rep: CssReport, kf: dict[
 
 
 # 통합 덱이 직접 쓰는 틀 규칙 — 이 선택자들로 시작하는 것만 가두지 않아도 된다(감사에서 허용)
-_OWN_PREFIXES = (".slide.has-imp", ".imp", ":where(.imp)", ".has-imp")
+_OWN_PREFIXES = (".slide.has-imp", ".imp", ":where(.imp)", ".has-imp", ".vp-layer")
 _CHROME = re.compile(r"(?:html|body|:root)(?![\w-])")
 
 
@@ -573,6 +586,19 @@ def load_durations() -> dict[str, float]:
   return {v["stem"]: float(v["duration_sec"]) for v in data.get("videos", []) if v.get("kind") == "발표" and v.get("duration_sec")}
 
 
+def player_layer(stem: str) -> str:
+  """큐 파일(CUES_DIR)과 녹화 기록(FILES/<stem>.events.json)이 둘 다 있으면 겹침 층 HTML, 없으면 빈 문자열(예전 모양 그대로)."""
+  cue_path, ev_path = CUES_DIR / f"{stem}.큐.yaml", FILES / f"{stem}.events.json"
+  if cue_path.is_file() and not ev_path.is_file():
+    raise SystemExit(f"멈춤: 큐 파일 {cue_path.name} 은 있는데 녹화 기록 {ev_path.name} 이 없다 — 영상을 --clean 으로 녹화하고 export_mp4 로 내보내세요")
+  if not cue_path.is_file():
+    return ""
+  events = json.loads(ev_path.read_text(encoding="utf-8"))
+  cues = video_player.resolve_cues(video_player.load_cue_file(cue_path), events)   # 기록에 없는 순번이면 ValueError — 조용히 넘기지 않는다
+  return video_player.player_markup(stem, cues, video_player.captions(events), video_player.chapter_cards(events),
+                                    events["video_sec"], events["vw"], events["vh"])
+
+
 def video_slide(r) -> str:
   stem, owner = r["stem"], r["owner"]
   has = (FILES / f"{stem}.mp4").exists()
@@ -582,11 +608,15 @@ def video_slide(r) -> str:
   notes = "자막(대사): " + " / ".join(r["says"]) if r["says"] else "자막 없음"
   basis = VIDEO_BASIS.get(stem)
   basis_html = f"<br><br><b>기준</b>{esc(basis)}" if basis else ""
+  layer = player_layer(stem)
+  # 겹침 층이 있는 영상은 영상만 전체 화면 · 화면 속 화면으로 가지 못하게 한다 — 그러면 자막 · 말풍선이 안 보인다(최종 검토)
+  vattr = ' controlslist="nofullscreen noremoteplayback" disablepictureinpicture' if layer else ""
   return f'''<section class="slide" data-title="{esc(owner)} · {esc(stem)}">
   <div class="kicker">{esc(owner)} · {esc(r["title"])}</div>
   <div class="video-wrap" data-video="{esc(stem)}">
-    <video controls preload="metadata" poster="videos/파일/발표/{esc(stem)}.jpg" src="videos/파일/발표/{esc(stem)}.mp4"></video>
+    <video controls{vattr} preload="metadata" poster="videos/파일/발표/{esc(stem)}.jpg" src="videos/파일/발표/{esc(stem)}.mp4"></video>
     <div class="missing">영상 파일을 찾지 못했습니다{'' if has else '(아직 내보내지 않았습니다)'}<br>docs/phase-3/06-retrospective/videos/파일/발표/ 를 받은 뒤 다시 열어 주세요</div>
+    {layer}
   </div>
   <div class="video-side"><b>목적</b>{esc(purpose)}<br><br><b>마지막 장</b>{esc(tail)}{basis_html}</div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
@@ -700,9 +730,9 @@ def divider(name: str, no: int, total: int, p: Personal | None, vids: list[dict]
   return html_
 
 
-def cover(people: list[dict]) -> str:
+def cover(people: list[dict], n_slides: int | None = None) -> str:
   chips = "".join(f'<span class="chip"><i style="background:{COLORS[o]}"></i>{o} · {ROLES[o]}</span>' for o in ORDER)
-  n_sl = sum(len(x["personal"].slides) for x in people if x["personal"])
+  n_sl = n_slides if n_slides is not None else sum(len(x["personal"].slides) for x in people if x["personal"])   # 덱에 실제로 들어간 슬라이드 수
   n_vd = sum(len(x["vids"]) for x in people)
   srcs = " · ".join(f"{x['name']} 발표자료 v{x['personal'].version}" for x in people if x["personal"])
   return f'''<section class="slide cover" data-title="표지">
@@ -782,6 +812,7 @@ def make_plan() -> Plan:
   frames: list[Frame] = []
   meta: list[tuple[str, int] | None] = []          # frames 와 같은 순서 — 담당자 슬라이드는 (이름, 그 덱 안의 번호)
   tails: list[tuple[Personal, int, Slide]] = []    # 맨 끝으로 보낼 장(한계) — 모든 사람이 끝난 뒤 붙인다
+  skipped_n = 0                                    # SKIP_SLIDES 로 뺀 슬라이드 수 — 장 수 기대값에서 뺀다
   by_name = {x["name"]: x["personal"] for x in people}
   tail_ns = {n: (TAIL_SLIDES.get(n, 0) if by_name[n] else 0) for n in ORDER}
   for no, x in enumerate(people, 1):
@@ -794,15 +825,30 @@ def make_plan() -> Plan:
       tnote = f"맨 끝에서 {TAIL_LABEL} {sum(tail_ns.values())}장을 발표(자료는 {', '.join(n for n in ORDER if tail_ns[n])} 슬라이드에서 옴)"
     else:
       tnote = ""
-    frames.append(Frame("divider", name, f"{name} 구분 장", divider(name, no, len(people), p_main, vids, dur, tnote), "own")); meta.append(None)
+    skip_view = SKIP_SLIDES.get(name, set())
+    p_view = dataclasses.replace(p_main, slides=[sl for i, sl in enumerate(p_main.slides, 1) if i not in skip_view]) if p_main else p_main
+    frames.append(Frame("divider", name, f"{name} 구분 장", divider(name, no, len(people), p_view, sorted(vids, key=lambda r: VIDEO_ORDER.index(r["stem"]) if r["stem"] in VIDEO_ORDER else len(VIDEO_ORDER)), dur, tnote), "own")); meta.append(None)
     inline = {}                                      # 슬라이드 번호 → 그 뒤에 끼울 영상들
     for r in vids:
       at = INLINE_VIDEOS.get(r["stem"])
       if at and at[0] == name:
         inline.setdefault(at[1], []).append(r)
+    for rs in inline.values():                       # 같은 자리의 영상은 VIDEO_ORDER 순서로
+      rs.sort(key=lambda r: VIDEO_ORDER.index(r["stem"]) if r["stem"] in VIDEO_ORDER else len(VIDEO_ORDER))
     inline_stems = {r["stem"] for rs in inline.values() for r in rs}
     if p:
+      skip = SKIP_SLIDES.get(name, set())
+      out_of_range = sorted(n for n in skip if n < 1 or n > len(p_main.slides))
+      if out_of_range:
+        raise SystemExit(f"멈춤: SKIP_SLIDES 의 {name} 번호 {out_of_range} 가 슬라이드 범위(1 ~ {len(p_main.slides)}) 밖이다")
+      skipped_n += len([i for i in range(1, len(p_main.slides) + 1) if i in skip])
       for i, sl in enumerate(p_main.slides, 1):
+        if i in skip:
+          continue                                   # 덱에서만 뺀다 — 원본 파일은 그대로
+        for old, new in TEXT_PATCH.get((name, i), []):
+          if sl.html.count(old) != 1:
+            raise SystemExit(f"멈춤: {name} {i}장에서 치환할 문구 「{old}」 가 {sl.html.count(old)}곳 있다(기대 1)")
+          sl = dataclasses.replace(sl, html=sl.html.replace(old, new))
         frames.append(Frame("slide", name, f"{sl.title}", imported_frame(p, i, sl), sl.notes_from, sl.seconds)); meta.append((name, i))
         for r in inline.get(i, []):
           frames.append(Frame("video", name, f"{r['stem']} · {r['title']}", video_slide(r), "own" if r["says"] else "")); meta.append(None)
@@ -814,8 +860,8 @@ def make_plan() -> Plan:
   for p, i, sl in tails:
     frames.append(Frame("slide", TAIL_PRESENTER, f"{TAIL_LABEL} · {sl.title}",
                         imported_frame(p, i, sl, label=f"{TAIL_LABEL} · {TAIL_PRESENTER} 발표", owner=TAIL_PRESENTER), sl.notes_from, sl.seconds)); meta.append((p.name, i))
-  expected = 1 + sum(1 + (len(x["personal"].slides) if x["personal"] else 0) + len(x["vids"]) for x in people)
-  frames.insert(0, Frame("cover", "", "표지", cover(people), "own")); meta.insert(0, None)
+  expected = 1 + sum(1 + (len(x["personal"].slides) if x["personal"] else 0) + len(x["vids"]) for x in people) - skipped_n
+  frames.insert(0, Frame("cover", "", "표지", cover(people, sum(1 for f in frames if f.kind == "slide")), "own")); meta.insert(0, None)
 
   # 쪽 번호를 덱 전체 하나로 — 담당자 덱 안의 번호(「3 / 29」 · 「10 · 」 · 「12장」)가 섞여 보이지 않게 한다.
   total_n = len(frames)
@@ -846,6 +892,7 @@ def make_plan() -> Plan:
   parts = [guard_css(base_css, rep_base), guard_css(EXTRA_VD_CSS, rep_base)]
   reports.append(rep_base)
   parts.append(EXTRA_GLOBAL_CSS.strip())
+  parts.append(video_player.PLAYER_CSS.strip())
   wrappers = []
   for x in people:
     p = x["personal"]
@@ -866,6 +913,9 @@ def make_plan() -> Plan:
   if tail.count(old) != 1:
     raise SystemExit("멈춤: 넘기기 스크립트에서 querySelectorAll('.slide') 를 한 곳에서 찾지 못했다 — 2차 덱 원본이 바뀌었다")
   tail = tail.replace(old, "document.querySelectorAll('#deck > .slide')", 1)
+  if tail.count("</body>") != 1:
+    raise SystemExit("멈춤: 넘기기 스크립트 끝에서 </body> 를 한 곳에서 찾지 못했다 — 2차 덱 원본이 바뀌었다")
+  tail = tail.replace("</body>", "<script>" + video_player.PLAYER_JS + "</script>\n</body>", 1)   # 영상 겹침 층 — 키 처리는 캡처 단계라 덱 기본보다 먼저
   return Plan(frames, people, css, reports, audit, expected, warnings, skipped, head, tail)
 
 

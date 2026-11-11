@@ -154,6 +154,7 @@ def entries():
         "webm": rec_dir / f"{name}.webm", "json": rec_dir / f"{name}.json",
         "subs": rec_dir / f"{name}.ko.vtt", "chaps": rec_dir / f"{name}.chapters.vtt",
         "poster": rec_dir / f"{name}.ch1.jpg",
+        "events": rec_dir / f"{name}.events.json",     # 통합 덱 겹침 층의 자막 · 큐 시각(깨끗한 영상 녹화 때만 있다)
         "mp4": dest_dir / f"{yml.stem}.mp4", "jpg": dest_dir / f"{yml.stem}.jpg",
       })
   return rows
@@ -235,6 +236,8 @@ def export(row, ff, manifest):
     raise SystemExit(f"⛔ {row['stem']} — CRF {CRF_STEPS[-1]} 에서도 {size:,} 바이트(한도 {SIZE_LIMIT:,}) · 장면을 나누거나 줄이세요")
   if row["poster"].exists():
     shutil.copyfile(row["poster"], row["jpg"])
+  if row["events"].exists():                      # 영상 옆에 같은 이름으로 — 조립기가 읽는다
+    shutil.copyfile(row["events"], row["mp4"].with_name(f"{row['stem']}.events.json"))
   manifest[(row["kind"], row["stem"])] = {
     "kind": row["kind"], "stem": row["stem"], "title": row["scene"].get("title", ""),
     "scene": row["yaml"].relative_to(ROOT).as_posix(), "mp4": row["mp4"].relative_to(ROOT).as_posix(),

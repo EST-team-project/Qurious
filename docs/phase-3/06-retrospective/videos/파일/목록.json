@@ -264,14 +264,14 @@
       "scene": "docs/phase-3/06-retrospective/videos/발표/P-이동원-C-일지판고정.yaml",
       "mp4": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-C-일지판고정.mp4",
       "jpg": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-C-일지판고정.jpg",
-      "duration_sec": 54.52,
-      "bytes": 1549168,
+      "duration_sec": 54.44,
+      "bytes": 703730,
       "crf": 28,
-      "sha": "10faa3264c9bad9b",
-      "source_sha": "9eae2d9c875f24ab",
+      "sha": "543a51b39676779a",
+      "source_sha": "70a342b3be2b138f",
       "scene_sha": "9dbfac7c2f05b052",
-      "recorded_at": "2026-11-10 14:04:49 KST",
-      "app_commit": "fe52220d"
+      "recorded_at": "2026-11-11 10:14:56 KST",
+      "app_commit": "fcbc3472"
     },
     {
       "kind": "발표",
@@ -296,14 +296,14 @@
       "scene": "docs/phase-3/06-retrospective/videos/발표/P-이동원-E-신호순위-근거-상세.yaml",
       "mp4": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-E-신호순위-근거-상세.mp4",
       "jpg": "docs/phase-3/06-retrospective/videos/파일/발표/P-이동원-E-신호순위-근거-상세.jpg",
-      "duration_sec": 122.0,
-      "bytes": 5821002,
+      "duration_sec": 126.16,
+      "bytes": 4587685,
       "crf": 28,
-      "sha": "6e8a98516ec3eee5",
-      "source_sha": "9fd61f41377a42d7",
+      "sha": "775458578b89c7f0",
+      "source_sha": "018392bb0a8f6729",
       "scene_sha": "1c9f2215945ae26f",
-      "recorded_at": "2026-11-10 13:09:50 KST",
-      "app_commit": "ddbb45e9"
+      "recorded_at": "2026-11-11 10:17:20 KST",
+      "app_commit": "fcbc3472"
     }
   ]
 }

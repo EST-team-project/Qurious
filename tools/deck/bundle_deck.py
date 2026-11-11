@@ -229,7 +229,8 @@ def build(src: Path, font_path: Path | None) -> tuple[str, dict]:
   # 5) 머리에 넣을 것 — 글꼴 · CSS 변수 · 이 판의 출처
   head_bits = []
   if font_path is not None:
-    text_for_font = re.sub(r"<script\b.*?</script>", " ", html, flags=re.S | re.I)
+    json_text = " ".join(re.findall(r'<script type="application/json"[^>]*>(.*?)</script>', html, flags=re.S | re.I))   # 겹침 층의 자막 · 설명 글자도 글꼴에 넣는다(최종 검토)
+    text_for_font = re.sub(r"<script\b.*?</script>", " ", html, flags=re.S | re.I) + " " + json_text
     text_for_font = re.sub(r"data:[^\"')\s]+", " ", text_for_font)
     css, nchars, nbytes = font_face_css(font_path, text_for_font)
     stats["font"] = {"file": font_path.name, "chars": nchars, "woff2_bytes": nbytes}
