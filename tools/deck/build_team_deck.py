@@ -28,10 +28,14 @@ CSS 가두기(스타일이 섞이지 않게 · 두 방향 모두):
       (비율이 다른 덱이면 가운데에 놓고 알린다).
 
 쓰는 법(저장소 뿌리에서 — yaml 이 든 녹화용 파이썬으로):
-  C:\\workspace\\venvs\\demo\\Scripts\\python.exe tools/deck/build_team_deck.py            # 전체-발표자료-원본.html 을 다시 쓴다
+  C:\\workspace\\venvs\\demo\\Scripts\\python.exe tools/deck/build_team_deck.py            # 전체-발표자료-원본.html(중간 파일 · .gitignore — git 에 안 올림)을 다시 쓴다
   C:\\workspace\\venvs\\demo\\Scripts\\python.exe tools/deck/build_team_deck.py --check    # 쓰지 않고 장 목록 · 파일 유무 · CSS 점검만
   C:\\workspace\\venvs\\demo\\Scripts\\python.exe tools/deck/build_team_deck.py --out <경로>  # 다른 곳에 쓰기(시험용)
   python tools/deck/bundle_deck.py --src docs/phase-3/06-retrospective/전체-발표자료-원본.html --out docs/phase-3/06-retrospective/전체-발표자료.html   # 한 파일 판
+
+발표 파일은 **전체-발표자료.html 하나**다(2026-11-11 사용자: 원본 · 발표자료 두 개라 헷갈린다). 원본 쪽은 이 도구와 번들러 사이의 중간 파일이라
+git 에 올리지 않는다. 손으로 고치면 다음 조립 때 사라진다(강민석 님의 그림 확대 · 구분 장 카드가 그랬다 — LIGHTBOX_CSS · DIVIDER_PHOTO_FACTS 로 옮겼다).
+고칠 것은 <이름>/발표자료.html(담당자 덱) · 장면 파일 · 이 도구의 설정 표이고, 고친 뒤 위 두 줄을 다시 돌린다.
 """
 from __future__ import annotations
 
@@ -365,7 +369,8 @@ def scope_import_css(css: str, wrapper: str, idp: str, rep: CssReport, kf: dict[
 
 
 # 통합 덱이 직접 쓰는 틀 규칙 — 이 선택자들로 시작하는 것만 가두지 않아도 된다(감사에서 허용)
-_OWN_PREFIXES = (".slide.has-imp", ".imp", ":where(.imp)", ".has-imp", ".vp-layer")
+_OWN_PREFIXES = (".slide.has-imp", ".imp", ":where(.imp)", ".has-imp", ".vp-layer",
+                 ".image-lightbox", ".evidence-frame img")      # 그림 확대(LIGHTBOX_CSS) — 오버레이는 <body> 에 붙으므로 래퍼에 가둘 수 없다
 _CHROME = re.compile(r"(?:html|body|:root)(?![\w-])")
 
 
@@ -709,6 +714,14 @@ def divider(name: str, no: int, total: int, p: Personal | None, vids: list[dict]
     ("예상 시간", fmt_dur(total_sec) if total_sec else "—", est_s, "" if total_sec else " blank"),
     ("목표 시간", tgt or "미정", "팀 시간 배정이 정해지면 채웁니다" if not tgt else "팀 시간 배정", "" if tgt else " blank"),
   ]
+  photo = DIVIDER_PHOTO_FACTS.get(name)
+  if photo and p:                                 # 시연 영상 대신 시연 사진을 보이는 파트 — 담당자가 쓴 카드 문구를 그대로 쓴다
+    cells = [
+      ("슬라이드", f"{n_sl}장", photo["slide_sub"], ""),
+      ("시연 사진", photo["photos"], photo["photo_sub"], ""),
+      ("예상 시간", photo["est"], photo["est_sub"], ""),
+      ("목표 시간", tgt or "미정", photo["tgt_sub"], "" if tgt else " blank"),
+    ]
   facts = "".join(f'<div class="fact{c}"><div class="k">{k}</div><div class="v">{esc(v)}</div><div class="s">{esc(s)}</div></div>' for k, v, s, c in cells)
   pending = f'<div class="pending">{esc(banner)}</div>' if banner else ""
   bits = [f"슬라이드 {n_sl}장" if p else "슬라이드 없음", f"시연 영상 {len(vids)}편"]
@@ -716,6 +729,8 @@ def divider(name: str, no: int, total: int, p: Personal | None, vids: list[dict]
     bits.append(f"예상 {fmt_dur(total_sec)}(" + " + ".join(x for x in (f"대본 {fmt_dur(sl_sec)}" if sl_sec else "", f"영상 {fmt_dur(vid_sec)}" if vid_sec else "") if x) + ")")
   bits.append(f"목표 시간 {tgt or '미정'}")
   note = " → ".join(bits[:2]) + " · " + " · ".join(bits[2:]) + (f" · {banner}" if banner else "") + (f" · {tail_note}" if tail_note else "")
+  if photo and p:
+    note = f"슬라이드 {n_sl}장 → 시연 사진 {photo['photos']} · 예상 시간 {photo['est']} · 목표 시간 {tgt or '미정'}" + (f" · {tail_note}" if tail_note else "")
   html_ = f'''<section class="slide part person" style="--pc:{COLORS[name]}" data-owner="{esc(name)}" data-title="{esc(name)} 파트 시작">
   <div class="in">
     <div class="no">파트 {no} / {total}</div>
@@ -780,6 +795,110 @@ EXTRA_GLOBAL_CSS = """
 @media print { html { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .has-imp > .gnum { display: none; } }
 """
 
+# 증거 그림 확대(라이트박스) — 강민석 님이 11-11 15:29 PR #644 에서 생성물(전체-발표자료-원본.html)에 손으로 넣은 것을 조립기로 옮겼다.
+# 생성물을 직접 고치면 다음 조립 때 사라지므로, 여기(원본)에 두고 조립 때마다 같은 모양으로 들어가게 한다.
+# 오버레이를 <body> 에 붙이므로 CSS 는 래퍼(.d-kang)에 가두지 않는 전역 규칙이어야 한다. 대상은 `.evidence-frame img` 뿐이다.
+LIGHTBOX_CSS = """
+/* IMAGE LIGHTBOX START */
+.evidence-frame img {
+  cursor: zoom-in;
+}
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.90);
+  cursor: zoom-out;
+}
+.image-lightbox img {
+  max-width: 95vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: default;
+}
+.image-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: white;
+  background: transparent;
+  border: none;
+  font-size: 36px;
+  cursor: pointer;
+}
+/* IMAGE LIGHTBOX END */
+"""
+
+LIGHTBOX_JS = """
+<!-- IMAGE LIGHTBOX START -->
+<script>
+(() => {
+  document.addEventListener("click", (e) => {
+    if (!(e.target instanceof Element)) return;
+
+    const img = e.target.closest(".evidence-frame img");
+    if (!img) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const overlay = document.createElement("div");
+    overlay.className = "image-lightbox";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+
+    const enlarged = document.createElement("img");
+    enlarged.src = img.currentSrc || img.src;
+    enlarged.alt = img.alt || "확대 이미지";
+
+    const close = document.createElement("button");
+    close.className = "image-lightbox-close";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "이미지 닫기");
+
+    const previousOverflow = document.body.style.overflow;
+
+    const closeLightbox = () => {
+      overlay.remove();
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKey);
+    };
+
+    const handleKey = (event) => {
+      if (event.key === "Escape") closeLightbox();
+    };
+
+    close.addEventListener("click", closeLightbox);
+    enlarged.addEventListener("click", event => event.stopPropagation());
+
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) closeLightbox();
+    });
+
+    overlay.append(close, enlarged);
+    document.body.appendChild(overlay);
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKey);
+  }, true);
+})();
+</script>
+<!-- IMAGE LIGHTBOX END -->
+"""
+
+# 구분 장 요약 카드를 사람마다 다르게 쓸 때(강민석 님 11-11 PR #644): 시연 영상 대신 시연 사진을 보이는 파트.
+# photos·slide_sub·photo_sub·est·est_sub 는 담당자가 정한 값(조립기가 재지 않는다). 슬라이드 수와 목표 시간 칸은 계산값을 쓴다.
+DIVIDER_PHOTO_FACTS: dict[str, dict[str, str]] = {
+  "강민석": {"slide_sub": "강민석 담당 발표 자료", "photos": "4장", "photo_sub": "LEAN 실행 및 대사 결과 화면",
+             "est": "10분", "est_sub": "슬라이드 및 시연 사진 포함", "tgt_sub": "팀 시간 배정 기준"},
+}
+
 
 @dataclass
 class Plan:
@@ -822,7 +941,7 @@ def make_plan() -> Plan:
     if k:
       tnote = f"한계 {k}장은 통합 덱 맨 끝으로 옮겨 {TAIL_PRESENTER} 님이 발표"
     elif name == TAIL_PRESENTER and any(tail_ns.values()):
-      tnote = f"맨 끝에서 {TAIL_LABEL} {sum(tail_ns.values())}장을 발표(자료는 {', '.join(n for n in ORDER if tail_ns[n])} 슬라이드에서 옴)"
+      tnote = f"마지막에 {TAIL_LABEL} {sum(tail_ns.values())}장 발표(자료는 {', '.join(n for n in ORDER if tail_ns[n])} 슬라이드에서 가져옴)"
     else:
       tnote = ""
     skip_view = SKIP_SLIDES.get(name, set())
@@ -881,7 +1000,7 @@ def make_plan() -> Plan:
   head = head.replace('<meta name="doc-version" content="1.2">', '<meta name="doc-version" content="0.2">', 1)
   head = head.replace("<title>Qurious 2차 발표</title>", "<title>Qurious 3차 발표</title>", 1)
   a, b = head.index("<!--\n"), head.index("-->\n") + 4
-  head = head[:a] + ("<!--\n  3차 발표 통합 덱 v0.2 (2026-11-09 초안) — 이 파일은 tools/deck/build_team_deck.py 가 만든 원본이다. 손으로 고치지 않는다.\n"
+  head = head[:a] + ("<!--\n  3차 발표 통합 덱 v0.2 (2026-11-09 초안) — 이 파일은 tools/deck/build_team_deck.py 가 만든 중간 파일이다(git 에 올리지 않음 · 보는 파일은 한 파일 판 전체-발표자료.html 하나). 손으로 고치지 않는다.\n"
                      "  장 순서: 표지 → 이동원(구분 장 · 슬라이드 · 영상) → 신장환 → 오준영 → 강민석. 슬라이드는 각자 <이름>/발표자료.html 에서, 영상은 videos/발표/P-*.yaml 에서 읽어 온다 —\n"
                      "  고칠 것은 그 원본이고, 고친 뒤 이 도구를 다시 돌린다. 넘기기: ← → · Space · N 말할 거리(대본 · 자막) · F 전체 화면 · 주소 끝 ?all = 모든 장 한 쪽.\n"
                      "  CSS: 영상 덱 규칙은 가져온 슬라이드(.imp) 안으로 새지 않게 :not(:where(.imp *)) 가드를, 담당자 덱 규칙은 래퍼(.d-lee · .d-oh …) 접두어를 붙여 가둔다.\n"
@@ -905,6 +1024,7 @@ def make_plan() -> Plan:
     reports.append(rep)
     warnings += [f"{p.name} CSS: {m}" for m in rep.warnings]
     parts.append(f"/* {p.name} 발표자료 CSS — {w} 안으로 가둠 (원본: {p.name}/발표자료.html v{p.version}) */\n{scoped}")
+  parts.append(LIGHTBOX_CSS)                     # 담당자 CSS 뒤 — 같은 특이도의 cursor 규칙이 담당자 쪽 것을 이기게
   css = "\n".join(parts)
   audit = audit_css(css, wrappers)
 
@@ -915,7 +1035,7 @@ def make_plan() -> Plan:
   tail = tail.replace(old, "document.querySelectorAll('#deck > .slide')", 1)
   if tail.count("</body>") != 1:
     raise SystemExit("멈춤: 넘기기 스크립트 끝에서 </body> 를 한 곳에서 찾지 못했다 — 2차 덱 원본이 바뀌었다")
-  tail = tail.replace("</body>", "<script>" + video_player.PLAYER_JS + "</script>\n</body>", 1)   # 영상 겹침 층 — 키 처리는 캡처 단계라 덱 기본보다 먼저
+  tail = tail.replace("</body>", "<script>" + video_player.PLAYER_JS + "</script>\n" + LIGHTBOX_JS + "\n</body>", 1)   # 영상 겹침 층 — 키 처리는 캡처 단계라 덱 기본보다 먼저 · 그림 확대는 그 뒤
   return Plan(frames, people, css, reports, audit, expected, warnings, skipped, head, tail)
 
 

@@ -94,7 +94,7 @@
 2차 영상 파일은 팀 안에서만 나눕니다.
 
 - 앱 안에서 보기: `python tools/demo/help_videos.py pull` 로 Hugging Face 비공개 데이터셋에서 각자 PC 의 `data/help/` 에 받습니다(조직 회원만). 받은 뒤에는 로그인한 화면 위쪽의 「▶ 영상」 단추나 「사용법」 창의 「영상으로 보기」 에서 그 화면이 나오는 장부터 재생됩니다.
-- 발표용 mp4: 녹화한 PC 에서 `python tools/demo/export_mp4.py` 로 만들어 함께 커밋합니다. 이 도구는 기본이 3차 폴더(`docs/phase-3/06-retrospective/videos/파일/`)이고, 얼려 둔 2차 폴더(`docs/phase-2/06-retrospective/videos/파일/`)는 `--phase 2` 로만 봅니다. 2차 발표 자료 한 파일 판은 `python tools/deck/bundle_deck.py` 로 다시 만듭니다(고치는 원본은 `docs/phase-2/06-retrospective/발표자료-원본.html`). 3차 통합 발표 자료는 녹화용 파이썬으로 `python tools/deck/build_team_deck.py` 를 돌려 원본(`전체-발표자료-원본.html`)을 만들고, `python tools/deck/bundle_deck.py --src docs/phase-3/06-retrospective/전체-발표자료-원본.html --out docs/phase-3/06-retrospective/전체-발표자료.html` 로 한 파일 판을 만듭니다.
+- 발표용 mp4: 녹화한 PC 에서 `python tools/demo/export_mp4.py` 로 만들어 함께 커밋합니다. 이 도구는 기본이 3차 폴더(`docs/phase-3/06-retrospective/videos/파일/`)이고, 얼려 둔 2차 폴더(`docs/phase-2/06-retrospective/videos/파일/`)는 `--phase 2` 로만 봅니다. 2차 발표 자료 한 파일 판은 `python tools/deck/bundle_deck.py` 로 다시 만듭니다(고치는 원본은 `docs/phase-2/06-retrospective/발표자료-원본.html`). 3차 통합 발표 자료는 녹화용 파이썬으로 `python tools/deck/build_team_deck.py` 를 돌려 중간 파일(`전체-발표자료-원본.html` — `.gitignore` 라 저장소에 없고 손으로 고치지 않습니다. 고칠 것은 `<이름>/발표자료.html` 입니다)을 만들고, `python tools/deck/bundle_deck.py --src docs/phase-3/06-retrospective/전체-발표자료-원본.html --out docs/phase-3/06-retrospective/전체-발표자료.html` 로 한 파일 판을 만듭니다.
 - 목록 · 다시 찍는 법 · 바꿔 끼우는 기준은 [시연 영상 안내](docs/phase-2/06-retrospective/videos/README.md)에 있습니다.
 
 ## 주요 기능
