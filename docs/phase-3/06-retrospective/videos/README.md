@@ -67,6 +67,6 @@ python tools/demo/export_mp4.py                                      # 새로 �
 
 
 - 파일: 사용법 `파일/사용법/V-….mp4` · 발표 `파일/발표/P-….mp4` · 같은 이름의 포스터(`.jpg`). H.264 · 1080p · 편마다 10 MB 안.
-- **발표 자료 한 파일 판** — `python tools/deck/build_video_deck.py`(장면 파일 → 덱 원본 `../전체-발표자료-원본.html`) → `python tools/deck/bundle_deck.py --src ../전체-발표자료-원본.html --out ../전체-발표자료.html`. 영상 · 포스터 · 글꼴을 HTML 안에 넣어, **HTML 하나만 다른 PC 로 옮겨도 재생된다**(영상 파일이 하나라도 없으면 만들기를 거부한다). 크기는 영상 합계에 비례한다(5편 약 20 MB).
+- **발표 자료 한 파일 판** — `python tools/deck/build_team_deck.py`(담당자 덱 · 장면 파일 → 중간 파일 `../전체-발표자료-원본.html` · git 에 올리지 않음) → `python tools/deck/bundle_deck.py --src ../전체-발표자료-원본.html --out ../전체-발표자료.html`. 영상 · 포스터 · 글꼴을 HTML 안에 넣어, **HTML 하나만 다른 PC 로 옮겨도 재생된다**(영상 파일이 하나라도 없으면 만들기를 거부한다). 크기는 영상 합계에 비례한다(5편 약 20 MB).
 
 재생 서버: 저장소 루트에서 `python tools/demo/serve_videos.py --port 8766` 실행 후 [B·C 영상 페이지](http://localhost:8766/오준영/영상.html)를 연다. MP4 중간 이동을 위한 HTTP 구간 요청을 지원한다.

@@ -59,6 +59,11 @@ rag-lab/frontend/analysis/data/samsung-cup-with-handle-2025.json
 #   받아 둔 PC 에서만 빌드가 만든다 — 강의 2일차의 ETF 창 둘이 읽는다.
 public/lectures/days/assets/etf-catalog.json
 public/lectures/days/assets/leverage-etf-volume.json
+# 3차 통합 발표 덱의 중간 파일 — tools/deck/build_team_deck.py 가 만들고 bundle_deck.py 가 한 파일 판(전체-발표자료.html)으로 묶는 입력일 뿐이다.
+#   팀원이 보는 발표 파일은 전체-발표자료.html 하나다(2026-11-11 사용자: 「원본 · 발표자료 두 개라 헷갈린다」). 이 중간 파일을 손으로 고치지 않는다 —
+#   고칠 것은 <이름>/발표자료.html 이고, 고친 뒤 조립기 · 번들러를 다시 돌린다. 번들러가 그림 · 영상을 이 파일 위치 기준 상대 경로로 찾으므로 같은 폴더에 둔다.
+docs/phase-3/06-retrospective/전체-발표자료-원본.html
+docs/phase-3/06-retrospective/*.html.bak
 
 
 # OS
