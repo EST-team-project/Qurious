@@ -473,7 +473,7 @@ html, body { background: #fff; }
 .d-shin .why { background:var(--green-soft);border:1px solid #b7d4c8;border-radius:12px;padding:14px 18px }
 .d-shin .why h3 { font-size:18px;color:var(--green);margin-bottom:10px }
 .d-shin .pt.sm.g li { border-left-color:var(--green) }
-/* 오준영 발표자료 CSS — .d-oh 안으로 가둠 (원본: 오준영/발표자료.html v0.9) */
+/* 오준영 발표자료 CSS — .d-oh 안으로 가둠 (원본: 오준영/발표자료.html v0.10) */
 .d-oh { color-scheme:light;--ink:#172b3d;--muted:#516678;--blue:#2157c9;--green:#08795c;--line:#d7e1e8;--paper:#f6f8fb;--scale:1 }
 .d-oh, .d-oh * { box-sizing:border-box }
 .d-oh { font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif; color:var(--ink) }
@@ -537,25 +537,20 @@ html, body { background: #fff; }
 .d-oh .case .gap { height:16px }
 .d-oh .case .step { font-size:20px;padding:17px 16px }
 .d-oh .case .callout { font-size:20px;line-height:1.55;padding:14px 20px }
-.d-oh .alerts h2 { font-size:34px }
-.d-oh .alerts .lead { font-size:21px }
-.d-oh .alerts .body { margin-top:22px }
-.d-oh .alert-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start }
-.d-oh .alert-column { min-width:0 }
-.d-oh .alert-column>h3 { font-size:22px;margin-bottom:10px }
-.d-oh .alert-message { background:#36393f;color:#f2f3f5;border:1px solid #45484f;border-left:5px solid #33b5e5;border-radius:7px;padding:12px 14px;margin-bottom:12px }
-.d-oh .alert-message h4 { font-size:18px;line-height:1.3;margin:0 0 6px }
-.d-oh .alert-message p { font-size:16px;line-height:1.4;margin:0 }
-.d-oh .alert-message .alert-time { font-size:14px;color:#c7ccd4;margin-bottom:6px;font-variant-numeric:tabular-nums }
-.d-oh .alert-message .alert-price { font-size:21px;font-weight:700;margin:5px 0 2px;white-space:nowrap }
-.d-oh .alert-message .alert-total { color:#e4e8ed }
-.d-oh .alert-message .alert-next { border-top:1px solid #53575f;margin-top:8px;padding-top:8px;font-size:15px;color:#e4e8ed }
-.d-oh .alert-message.alert-filled { border-left-color:#79c268 }
-.d-oh .alert-message.alert-stop { border-left-color:#ed545c }
-.d-oh .alert-stop .alert-reason { margin:10px 0 }
-.d-oh .alert-stop .alert-next { font-size:17px }
-.d-oh .alert-column .alert-caption { font-size:16px;line-height:1.4;color:var(--muted);margin-top:8px }
-.d-oh .alerts .footer { font-size:14px }
+.d-oh .alert-original { padding:26px 42px 22px }
+.d-oh .alert-original .eyebrow { font-size:15px;margin-bottom:8px }
+.d-oh .alert-original h2 { font-size:32px;margin-bottom:8px }
+.d-oh .alert-original .lead { font-size:18px;line-height:1.45 }
+.d-oh .alert-original .body { margin-top:14px;display:grid;grid-template-columns:540px minmax(0,1fr);gap:34px;align-items:stretch }
+.d-oh .alert-original .capture { margin:0;min-height:0;position:relative }
+.d-oh .alert-original .capture img { position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:left center }
+.d-oh .alert-original .explanation { display:flex;flex-direction:column;justify-content:center;gap:24px;min-width:0 }
+.d-oh .alert-original .explanation h3 { font-size:25px;margin-bottom:8px }
+.d-oh .alert-original .explanation p { font-size:22px;line-height:1.6;color:var(--muted);word-break:keep-all }
+.d-oh .alert-original .explanation strong { color:var(--ink) }
+.d-oh .alert-original .callout { font-size:21px;line-height:1.5 }
+.d-oh .alert-original .footer { font-size:14px;margin-top:12px;padding-top:10px }
+.d-oh .alert-original.alert-stop .body { grid-template-columns:690px minmax(0,1fr) }
 /* 강민석 발표자료 CSS — .d-kang 안으로 가둠 (원본: 강민석/발표자료.html v?) */
 .d-kang { color-scheme:light }
 .d-kang, .d-kang * { box-sizing:border-box }
@@ -910,11 +905,11 @@ html, body { background: #fff; }
   <div class="in">
     <div class="logo"><div class="mark"></div><div class="name">Qurious</div></div>
     <p class="one">3차 프로젝트 발표</p>
-    <p class="two">이동원 → 신장환 → 오준영 → 강민석 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 48장 · 시연 영상 7편 · 사람이 바뀌는 곳에 구분 장 · 맨 끝에 한계와 이어갈 길(강민석 발표)</p>
+    <p class="two">이동원 → 신장환 → 오준영 → 강민석 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 50장 · 시연 영상 7편 · 사람이 바뀌는 곳에 구분 장 · 맨 끝에 한계와 이어갈 길(강민석 발표)</p>
   </div>
   <div class="team"><span class="chip"><i style="background:#4f46e5"></i>이동원 · 데이터 · 신호 근거 · 대사</span><span class="chip"><i style="background:#b45309"></i>신장환 · 전략 카드 · 성과 검증</span><span class="chip"><i style="background:#0f766e"></i>오준영 · 배분 · 리밸런싱 · 실행</span><span class="chip"><i style="background:#0369a1"></i>강민석 · LEAN 대사 · 모의투자</span></div>
   <div class="date" style="bottom:200px">3차 프로젝트 발표 · 통합 덱 · 초안 v0.2 (팀원 피드백 전)</div>
-  <aside class="notes">팀원 확인용 통합 초안입니다. 이동원 · 오준영 슬라이드는 각자 발표자료.html 에서, 영상은 장면 파일에서 도구가 읽어 옵니다(원본 버전: 이동원 발표자료 v0.9 · 신장환 발표자료 v0.5 · 오준영 발표자료 v0.9 · 강민석 발표자료 v?). 장마다 N 키(발표자 노트)에 대본 또는 자막 전문이 있습니다.</aside>
+  <aside class="notes">팀원 확인용 통합 초안입니다. 이동원 · 오준영 슬라이드는 각자 발표자료.html 에서, 영상은 장면 파일에서 도구가 읽어 옵니다(원본 버전: 이동원 발표자료 v0.9 · 신장환 발표자료 v0.5 · 오준영 발표자료 v0.10 · 강민석 발표자료 v?). 장마다 N 키(발표자 노트)에 대본 또는 자막 전문이 있습니다.</aside>
 </section>
 
 <section class="slide part person" style="--pc:#4f46e5" data-owner="이동원" data-title="이동원 파트 시작">
@@ -938,8 +933,8 @@ html, body { background: #fff; }
       <div>① 문제와 시장, 이미 있는 서비스에서 배운 것<span>4 ~ 7장</span></div>
       <div>② 그래도 비어 있던 곳<span>8 ~ 9장</span></div>
       <div>③ 우리가 만든 것, 겪은 문제와 푼 과정<span>10 ~ 19장</span></div>
-      <div>④ 못 한 것과 이어갈 길<span>59 ~ 60장</span></div></div></div>
-  <footer class="footer"><span>이동원 · 3차 발표 초안 v0.9 · 2026.11.10 · 팀 통합과 리허설 전 (N 키: 대본)</span><span class="pg">3 / 60</span></footer></section>
+      <div>④ 못 한 것과 이어갈 길<span>61 ~ 62장</span></div></div></div>
+  <footer class="footer"><span>이동원 · 3차 발표 초안 v0.9 · 2026.11.10 · 팀 통합과 리허설 전 (N 키: 대본)</span><span class="pg">3 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>3장 (15초)</b> 신호를 보여 주는 서비스는 많습니다. 저는 그 신호를 믿어도 되는지 확인하는 쪽을 맡았어요. 데이터 수집과 신호 근거, 같은 신호를 다시 돌려 맞춰 보는 대사입니다. 잘하는 곳에서 배우고 비어 있는 곳을 채웠고, 못 한 것은 못 했다고 말씀드리겠습니다.</aside>
 </section>
@@ -959,7 +954,7 @@ html, body { background: #fff; }
       <tr><td>Pine으로 내보내 TradingView와 맞춰 본다<br><span class="src">밑바탕인 데이터 수집과 신호 근거도 여기서</span></td><td>이동원</td></tr>
       <tr><td>같은 규칙을 LEAN으로 다시 돌려 맞춘다</td><td>강민석 님</td></tr>
       <tr><td>증권사 모의계좌에 주문을 잇는다</td><td>오준영 님</td></tr></tbody></table></div></div><div class="gloss"><b>쉬운 말</b> Pine = TradingView 에서 전략을 코드로 쓰는 언어 · LEAN = QuantConnect 의 오픈소스 백테스트 엔진 · 백테스트 = 과거 가격으로 규칙을 시험해 보는 것 · 모의계좌 = 가짜 돈으로 주문해 보는 계좌</div></div>
-  <footer class="footer"><span>출처: 프로젝트 소개(readme)와 3차 계획서. 담당은 3차 계획서의 기능 분담입니다.</span><span class="pg">4 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 프로젝트 소개(readme)와 3차 계획서. 담당은 3차 계획서의 기능 분담입니다.</span><span class="pg">4 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>4장 (25초)</b> 먼저 배경부터 말씀드리겠습니다. 3차 과제는 나만의 투자 인디케이터를 만들고 성과를 검증하는 것이에요. 규칙을 지표로 만들고, TradingView와 LEAN으로 다시 검증하고, 증권사 모의계좌까지 잇습니다. 전략 카드와 지표는 신장환 님이, Pine과 TradingView 대사와 데이터는 제가, LEAN 대사는 강민석 님이, 증권사 모의 주문은 오준영 님이 맡았습니다.</aside>
 </section>
@@ -977,7 +972,7 @@ html, body { background: #fff; }
   <div class="mini"><h3>위험 범위가 없다</h3><p>오르내림 범위(위험) 설명이 없음</p></div></div>
 <p class="prose" style="margin-top:12px;font-size:19px">코드를 확인해 보니 맞았습니다. 30·40대 투자자 1,005명 중 <b>39.6%</b>는 증권사 보고서를 덜 읽는 까닭으로 「길어서」를 꼽았습니다.</p>
 <div class="callout" style="margin-top:14px"><b>문제:</b> 신호는 보이는데, 언제 기준이고 왜 나왔고 어디까지 믿어도 되는지가 안 보입니다.</div><div class="gloss"><b>쉬운 말</b> 기준일 = 신호가 반영한 마지막 날짜 · 근거 = 왜 그 신호가 나왔는지 · 위험 범위 = 틀렸을 때 손해 볼 수 있는 폭 · 모의투자 = 가짜 돈으로 실제처럼 주문해 보는 것 · 39.6% = 1,005명 중 약 398명</div></div>
-  <footer class="footer"><span>출처: 사용자 피드백 이슈(10-27)와 코드 확인 결과 · 39.6%는 서울신문 2026-09-14 기사(리멤버 리서치 설문, 원자료는 못 봄). 자본시장연구원 자료는 질의응답 문서에 있습니다. 「문제」 한 줄은 이동원이 정리한 것이며 팀이 합의한 문구는 아닙니다.</span><span class="pg">5 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 사용자 피드백 이슈(10-27)와 코드 확인 결과 · 39.6%는 서울신문 2026-09-14 기사(리멤버 리서치 설문, 원자료는 못 봄). 자본시장연구원 자료는 질의응답 문서에 있습니다. 「문제」 한 줄은 이동원이 정리한 것이며 팀이 합의한 문구는 아닙니다.</span><span class="pg">5 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>5장 (35초)</b> 그런데 이 도구를 실제로 써 본 분의 말이 있었습니다. 10월 27일에 모의투자를 직접 해 본 사용자가 세 가지를 짚었어요. 시그널이 최신 주가 기준인지 알 수 없고, 매수·매도·관망의 이유가 안 보이고, 얼마나 오르내릴 수 있는지 위험 설명도 없다는 겁니다. 코드를 확인해 보니 맞았습니다. 근거 문장은 응답에 이미 있는데 카드가 보여 주지 않았고, 기준일은 작은 회색 글씨로만 나왔어요. 밖의 자료도 같은 방향입니다. 30·40대 투자자 1,005명 중 39.6%가 증권사 보고서를 덜 읽는 까닭으로 길어서를 꼽았어요. 문제는 이렇게 정리했습니다. 신호는 보이는데 언제 기준이고 왜 나왔고 어디까지 믿어도 되는지가 안 보인다는 거예요.</aside>
 </section>
@@ -1005,7 +1000,7 @@ html, body { background: #fff; }
       <tr><td>Portfolio123</td><td>●</td><td>●</td><td>●</td><td>—</td><td>△</td><td>●</td></tr></tbody>
       <tfoot><tr><td>● 확인된 곳 (8곳 중)</td><td>5</td><td>4</td><td>8</td><td>1</td><td>1</td><td>6</td></tr></tfoot></table>
     <span class="cap">● 확인 · △ 부분적이거나 조건부 · — 이번 조사에서 확인 못 함. 우리 서비스의 구현 현황이 아닙니다.</span></div></div><div class="gloss"><b>쉬운 말</b> 노코드 = 코드 없이 화면으로 전략을 만듦 · 백테스트 = 과거 가격으로 규칙을 시험 · Pine = TradingView 의 전략 언어 · LEAN = QuantConnect 의 시험 엔진 · 주문 연동 = 증권사로 주문을 보냄</div></div>
-  <footer class="footer"><span>출처: 팀원이 공식 공개자료로 비교한 조사(10-26, 로그인과 유료 기능은 미검증). 합계는 표의 ●만 센 값, 요금은 공식 가격표(일부 연간 결제 기준)이며 젠포트 · 퀀터스는 금액 미확인입니다.</span><span class="pg">6 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 팀원이 공식 공개자료로 비교한 조사(10-26, 로그인과 유료 기능은 미검증). 합계는 표의 ●만 센 값, 요금은 공식 가격표(일부 연간 결제 기준)이며 젠포트 · 퀀터스는 금액 미확인입니다.</span><span class="pg">6 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>6장 (30초)</b> 시장에는 이미 좋은 서비스가 많습니다. 퀀터스와 젠포트, 인텔리퀀트, Composer는 노코드나 AI로 만든 전략을 백테스트하고 주문까지 잇습니다. TradingView는 Pine으로, QuantConnect LEAN은 독립 엔진으로 같은 규칙을 시험해요. 팀원이 공식 공개자료로 여덟 곳을 비교한 표를 세어 보면 백테스트는 여덟 곳 모두, 주문 연동은 여섯 곳이 합니다. Pine과 LEAN은 한 곳씩이라 둘을 함께 쓰는 곳은 없어요. 여덟 곳 모두 무료로 써 볼 구간이 있고, 유료는 Composer가 월 10달러부터, 인텔리퀀트 프리미엄이 월 10만 원으로 제각각입니다. 로그인과 유료 기능은 보지 못했습니다.</aside>
 </section>
@@ -1021,7 +1016,7 @@ html, body { background: #fff; }
   <div class="card pos"><h3>근거를 질문과 짧은 판정으로 보여 준다</h3><p>Simply Wall St는 질문 하나에 짧은 판정을 답니다.</p></div>
   <div class="card pos"><h3>지연을 숨기지 않는다</h3><p>Finviz는 무료 시세에 「1분 지연」을 늘 붙입니다.</p></div></div>
 <div class="callout" style="margin-top:20px"><b>Qurious도 같은 길:</b> 마감 일봉으로 확정하고, 현재가 옆에 출처와 시각을 적습니다.</div><div class="gloss"><b>쉬운 말</b> 봉 = 일정 시간(하루, 60분 등)의 시작 · 최고 · 최저 · 종가를 묶은 가격 막대 · 「봉이 닫힌다」 = 그 시간이 끝나 종가가 확정됨 · 일봉 = 하루 단위 봉 · 현재가 = 지금 거래되는 가격</div></div>
-  <footer class="footer"><span>출처: 실시간 갱신 벤치마킹(2026-11-02). Simply Wall St는 종목 화면을 직접 열어 읽었고, 나머지는 공식 문서 검색 발췌입니다.</span><span class="pg">7 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 실시간 갱신 벤치마킹(2026-11-02). Simply Wall St는 종목 화면을 직접 열어 읽었고, 나머지는 공식 문서 검색 발췌입니다.</span><span class="pg">7 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>7장 (30초)</b> 신호를 보여 주는 방식에서도 배울 점이 있었습니다. TradingView는 알림을 봉이 닫힌 뒤에 한 번만 보내라고 권합니다. Freqtrade와 QuantConnect LEAN도 봉이 완성될 때 계산하고요. 장중 값에 신호가 흔들리지 않게 하는 게 기본이었습니다. 근거를 보여 주는 방식도 배울 만했어요. Simply Wall St는 질문 하나에 짧은 판정을 달고 그 밑에 업종과 시장 비교를 붙입니다. Finviz는 무료 시세에 지연 표시를 늘 붙이고요. Qurious도 같은 길을 갔습니다. 신호는 마감 일봉으로 확정하고 현재가 옆에는 출처와 시각을 적습니다.</aside>
 </section>
@@ -1048,7 +1043,7 @@ html, body { background: #fff; }
       <rect x="334" y="78" width="136" height="60" rx="8" fill="#fff8f0" stroke="#9a4a00"/><text x="402" y="104" text-anchor="middle" font-weight="700">맞춰 보고</text><text x="402" y="124" text-anchor="middle" font-size="13" class="m">어긋나면 이유 찾기</text></g></svg>
     <span class="cap">대사(對査)라고 부릅니다. 신호, 보유, 주문, 체결, 비용을 단계별로 맞춥니다.</span>
     <span class="cap"><b>이 중 일지와 LEAN은 강민석 님이 맞춰 봤습니다</b> — 09-01~11-05 일지 44행 · 보유 44일 일치 · 체결 12건 가격 차이 0bp.</span></div></div><div class="gloss"><b>쉬운 말</b> 브로커 에뮬레이터 = 증권사의 체결을 흉내 내는 시뮬레이터 · 그림자 일지 = 실제 주문 없이 규칙대로 가상 기록만 쌓는 장부 · 대사 = 두 환경의 결과를 줄 단위로 맞춰 봄</div></div>
-  <footer class="footer"><span>출처: 화면 벤치마킹(10-29, 공식 문서 18곳, 문서 글만 읽음) · 팀원 조사의 「주문은 브로커 에뮬레이터로 시뮬레이션」 · 체결 시점 항목과 시장 공백 가설(검증 전) · 대사 수치는 강민석 님 발표자료(11-10 기준).</span><span class="pg">8 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 화면 벤치마킹(10-29, 공식 문서 18곳, 문서 글만 읽음) · 팀원 조사의 「주문은 브로커 에뮬레이터로 시뮬레이션」 · 체결 시점 항목과 시장 공백 가설(검증 전) · 대사 수치는 강민석 님 발표자료(11-10 기준).</span><span class="pg">8 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>8장 (45초)</b> 그런데 같은 규칙이 도구마다 같은 결과를 낸다는 보장은 없습니다. TradingView는 주문을 브로커 에뮬레이터로 시뮬레이션합니다. 차트에 표시만 하는 indicator는 Strategy Report에 거래가 나오지 않는다고 도움말에 적혀 있어요. QuantConnect는 실거래와 표본 외 백테스트를 겹쳐 보고 차이의 원인을 데이터, 모델링, 증권사로 나눕니다. 같은 규칙을 여러 환경에서 돌려 보고 차이의 이유까지 한 화면에서 설명해 주는 곳은 저희가 읽은 공개 자료에서는 찾지 못했습니다. 다만 로그인과 유료 기능은 못 봐서 가설이에요. 앞의 표를 다시 보면 TradingView의 Pine과 LEAN을 함께 쓰는 곳은 여덟 곳 중 없었고, TradingView는 기본으로 종가에 난 신호를 다음 봉 시가에 체결해서 가정이 다르면 결과가 갈립니다. 그래서 3차에서는 같은 규칙을 TradingView와 LEAN으로 다시 돌려 맞춰 보고, 어긋나면 이유를 찾기로 했습니다. 이 중 일지와 LEAN은 강민석 님이 맞춰 봤고, 보유 44일과 체결 12건이 일치했습니다.</aside>
 </section>
@@ -1078,7 +1073,7 @@ html, body { background: #fff; }
       <rect x="250" y="88" width="206" height="50" rx="6" fill="#fff8f0" stroke="#9a4a00"/><text x="260" y="108" font-size="13" font-weight="700">반대로 본 까닭</text><text x="260" y="127" font-size="12" class="m">횡보장에서는 자주 엇갈림</text>
       <text x="250" y="178" class="m" font-size="13">근거와 반대 근거가 같은 크기</text></g></svg>
     <span class="cap">그림은 구조를 보여 주는 예시이며 실제 화면의 값이 아닙니다.</span></div></div><div class="gloss"><b>쉬운 말</b> CHI = 사람과 컴퓨터의 상호작용 학회 · LSAT = 법학적성시험 문제 · 쏠림 = AI 추천을 그대로 따르는 경향 · 팀 정확도 = 사람이 AI 설명을 보고 낸 최종 답의 정확도 · Strong Buy = 적극 매수 등급</div></div>
-  <footer class="footer"><span>출처: Bansal 외(CHI 2021, arXiv 2006.14779) 초록 · 결론 · 그림 4 설명을 11-11 에 원문 확인 — 「대안 답까지 설명하면 쏠림이 덜했다」는 파일럿 결과이고 논문도 「아마도(presumably)」라고 해석합니다. 정확도 수치는 옮기지 않았습니다. 등급 한 줄 서비스(Investing.com · Stockopedia · Morningstar)는 검색 발췌 수준(11-02 벤치마킹).</span><span class="pg">9 / 60</span></footer></section>
+  <footer class="footer"><span>출처: Bansal 외(CHI 2021, arXiv 2006.14779) 초록 · 결론 · 그림 4 설명을 11-11 에 원문 확인 — 「대안 답까지 설명하면 쏠림이 덜했다」는 파일럿 결과이고 논문도 「아마도(presumably)」라고 해석합니다. 정확도 수치는 옮기지 않았습니다. 등급 한 줄 서비스(Investing.com · Stockopedia · Morningstar)는 검색 발췌 수준(11-02 벤치마킹).</span><span class="pg">9 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>9장 (50초)</b> 그런데 비어 있는 곳이 있었습니다. 지표를 합쳐 등급 한 줄로 내면 어떤 근거가 켜졌는지 안 보입니다. 그렇다고 설명만 붙이면 풀리지도 않아요. Bansal 연구진은 AI가 추천에 설명을 붙이면 사람과 AI 팀이 더 정확해지는지, 리뷰 감성 두 가지와 LSAT 문제, 데이터 세 가지에 참가자가 천오백 명이 넘고 조건마다 백 명쯤이었어요. 결과는 AI의 도움으로 팀이 사람 혼자나 AI 혼자보다 나았지만, 설명을 붙여도 더 오르지 않았고 AI가 틀렸을 때도 더 따랐다는 겁니다. 대안 답까지 같이 설명하면 그 쏠림이 덜했다고 해요. 그래서 저희 화면은 근거와 반대로 본 까닭을 같은 크기로 둡니다. 다만 이 효과를 저희가 직접 재 보지는 못했습니다.</aside>
 </section>
@@ -1102,7 +1097,7 @@ html, body { background: #fff; }
       <tr><td><b>대사</b></td><td>체결 시점 어긋남의 원인 분석 (구현은 강민석 님)</td><td style="white-space:nowrap">강민석 님 파트</td></tr>
       <tr><td><b>TradingView</b></td><td>Pine 생성기 · 웹훅 받는 쪽 검증</td><td style="white-space:nowrap">18 ~ 19장</td></tr>
       <tr><td><b>시험</b></td><td>새 시험 파일 <b>149개 중 91개</b></td><td style="white-space:nowrap">17장</td></tr></tbody></table></div></div><div class="gloss"><b>쉬운 말</b> 러너 = 매일 12:30 에 자료를 받아 오는 자동 프로그램 · 낡은 일봉 가드 = 가격 자료가 오래됐으면 신호 · 주문을 막는 장치 · 지문 = 코드가 바뀌었는지 알아보는 표식 · 대사 = 두 도구의 결과를 맞춰 봄</div></div>
-  <footer class="footer"><span>출처: 저장소 직접 집계(2026-11-09) · 3차 구간은 10월 21일 경계 이후. 줄 수 · 문서 편수는 일부러 쓰지 않았습니다.</span><span class="pg">10 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 저장소 직접 집계(2026-11-09) · 3차 구간은 10월 21일 경계 이후. 줄 수 · 문서 편수는 일부러 쓰지 않았습니다.</span><span class="pg">10 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>10장 (55초)</b> 여기까지가 이미 있는 서비스에서 배운 것과, 그래도 비어 있던 곳이었습니다. 이제 저희가 만든 것을 한 장으로 먼저 정리하겠습니다. 첫째는 수집입니다. 매일 12시 반에 도는 수집 러너가 21단계에서 28단계로 늘었고, 그중 여섯 단계를 제가 붙였어요. 둘째는 신호입니다. 신호를 기록하는 종목을 401개에서 약 3,950개로 넓혔고, 낡은 일봉으로 신호가 나가는 것을 막는 가드도 만들었습니다. 이 둘은 봉이 닫힌 뒤 확정하고 출처와 시각을 적는다는 배울 점에 대한 답이에요. 셋째는 일지입니다. 규칙과 코드의 지문으로 판을 잠그는 그림자 일지를 만들었어요. 넷째는 주담당인 TradingView 쪽입니다. 일지와 TradingView는 같은 규칙이 도구마다 달라진다는 빈 곳에, 종목 근거 화면은 근거가 한 줄에 묻힌다는 빈 곳에 답한 것입니다. 다섯째는 이 모두를 지키는 시험입니다. 3차에 새로 생긴 시험 파일 149개 가운데 91개를 제가 썼습니다. 반대로 LEAN 체결 시점 구현은 강민석 님이, 근거 문장은 신장환 님이, 증권사 주문은 오준영 님이 만들었습니다. 저는 그 사이를 맞춰 보는 쪽이었어요.</aside>
 </section>
@@ -1162,7 +1157,7 @@ html, body { background: #fff; }
 <rect x="880" y="426" width="22" height="14" rx="3" fill="#f3f5f7" stroke="#7a8b99" stroke-width="1.5" stroke-dasharray="4 3"/><text x="910" y="438" font-size="13">팀원 · lumina 이식분</text>
 
 </svg></div><div class="gloss"><b>쉬운 말</b> 러너 = 매일 12:30 에 자료를 받아 오는 자동 프로그램 · 수집 DB = 받은 자료 보관소(26표, 약 2,419만 행) · HF 백업 = Hugging Face 비공개 저장소의 사본 · KIS = 한국투자증권 모의투자 · 웹훅 = TradingView 가 우리 서버로 보내는 알림 · 표 = 데이터 테이블</div></div>
-  <footer class="footer"><span>출처: scripts/daily_update.py · app/ 의 import 와 호출을 직접 읽어 있는 연결만 그림 · 작성자는 git log 와 사실표. 회색 점선 칸의 이름은 팀원 몫, 주황 점선은 확인 못 함. · 수집 DB 26표 · 24,191,640행은 11-10 스캐너 실측(ERD v1.19)</span><span class="pg">11 / 60</span></footer></section>
+  <footer class="footer"><span>출처: scripts/daily_update.py · app/ 의 import 와 호출을 직접 읽어 있는 연결만 그림 · 작성자는 git log 와 사실표. 회색 점선 칸의 이름은 팀원 몫, 주황 점선은 확인 못 함. · 수집 DB 26표 · 24,191,640행은 11-10 스캐너 실측(ERD v1.19)</span><span class="pg">11 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>11장 (50초)</b> 한눈에 보는 그림입니다. 파란 칸이 제가 만든 것이고, 회색 점선은 팀원 코드와 가져온 lumina 코드예요. 왼쪽부터 보면 수집 러너가 외부 자료를 받아 수집 DB에 쌓고, 바뀐 표는 Hugging Face로 백업합니다. 이 DB에서 신호를 기록하는데, 401종목 계산은 신장환 님 코드이고 저는 기록 대상을 약 3,500종목 더 넓혔어요. 신호는 앱 DB로 가서 신호 순위와 근거 화면에 나옵니다. 같은 수집 DB로 그림자 일지도 쌓고, 그 일지를 강민석 님의 LEAN 대사와 KIS 대사가 맞춰 봐요. 아래쪽이 TradingView 쪽입니다. 전략 카드를 Pine 코드로 바꾸는 생성기는 제 것이고, 알림을 받는 웹훅은 뼈대는 가져온 lumina 코드라 받는 쪽 검증만 제 몫이에요. 생성기 출력은 10월 30일에 편집기에서 한 번 컴파일해 봤지만, 거래 목록 비교와 실제 알림 수신은 아직 확인하지 못해서 주황 점선으로 뒀습니다. 증권사 모의 주문은 오준영 님이 만들었고, 저는 일반 자동매매 경로에 낡은 일봉이면 주문을 보류하는 가드를 붙였습니다.</aside>
 </section>
@@ -1174,7 +1169,7 @@ html, body { background: #fff; }
   <div class="top"><p class="eyebrow">우리가 만든 것 ① 신호 · 기록 넓히기</p><div class="flow" aria-hidden="true"><span>① 문제와 시장</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
   <h2 id="lee-s10">신호 기록을 401종목에서 약 3,950종목으로 넓혔습니다</h2>
   <div class="body"><div class="chart"><h3>거래일마다 신호를 기록하는 종목</h3><svg viewBox="0 0 1126 250" width="100%" role="img" aria-label="신호 기록 대상 401종목에 3,549종목을 더해 약 3,950종목. 수집 DB 일봉에서 대상 목록을 만들고 신장환 님의 신호 함수로 계산해 기록하면 신호 순위 화면이 읽는다."><defs><marker id="lee-dgA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#516678"/></marker></defs><rect x="0" y="6" width="104.6" height="42" fill="#c3cdd6" stroke="#8a99a6" stroke-width="1.5" stroke-dasharray="6 4" rx="4"/><text x="52.3" y="33" font-size="17" font-weight="700" text-anchor="middle">401</text><rect x="104.6" y="6" width="925.4" height="42" fill="#2157c9" rx="4"/><text x="567.3" y="33" font-size="17" font-weight="700" text-anchor="middle" style="fill:#fff">+ 3,549종목 · 일봉 · 주봉으로 계산</text><text x="1038" y="32" font-size="16" font-weight="700">약 3,950</text><rect x="0" y="78" width="192" height="74" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="12" y="104" font-size="16" font-weight="700" style="fill:#1b44a3">수집 DB 일봉</text><text x="12" y="128" font-size="14">읽기 전용</text><rect x="234" y="78" width="192" height="74" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="246" y="104" font-size="16" font-weight="700" style="fill:#1b44a3">대상 목록</text><text x="246" y="128" font-size="14">기존 401종목 제외</text><rect x="467" y="78" width="192" height="74" rx="9" fill="#f1f4f7" stroke="#8a99a6" stroke-width="2" stroke-dasharray="6 4"/><text x="479" y="104" font-size="16" font-weight="700" style="fill:#44566a">신호 계산</text><text x="479" y="128" font-size="14">신장환 님 코드 그대로</text><rect x="700" y="78" width="192" height="74" rx="9" fill="#f1f4f7" stroke="#8a99a6" stroke-width="2" stroke-dasharray="6 4"/><text x="712" y="104" font-size="16" font-weight="700" style="fill:#44566a">신호 기록</text><text x="712" y="128" font-size="14">같은 날 다시 돌려도 덮어씀</text><rect x="934" y="78" width="192" height="74" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="946" y="104" font-size="16" font-weight="700" style="fill:#1b44a3">신호 순위 화면</text><text x="946" y="128" font-size="14">기록을 읽어 보여 줌</text><line x1="195" y1="115" x2="231" y2="115" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgA)"/><line x1="429" y1="115" x2="464" y2="115" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgA)"/><line x1="662" y1="115" x2="697" y2="115" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgA)"/><line x1="895" y1="115" x2="931" y2="115" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgA)"/><rect x="0" y="176" width="540" height="56" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="12" y="200" font-size="15.5" font-weight="700" style="fill:#1b44a3">러너 단계 · 약 60초(11-02 한 번 잰 값)</text><text x="12" y="221" font-size="14">실패해도 뒤 단계는 계속(fatal=False)</text><rect x="566" y="176" width="300" height="56" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="578" y="200" font-size="15.5" font-weight="700" style="fill:#1b44a3">보존 정리</text><text x="578" y="221" font-size="14">분봉 없는 종목은 최근 120거래일만</text></svg><span class="cap"><b>왜 이렇게 붙였나</b> 신장환 님 파일을 고치지 않고 같은 함수를 부르는 새 단계라, 한쪽이 실패해도 다른 쪽 기록이 남습니다. 파랑 = 이동원이 만든 것 · 점선 = 신장환 님 코드.</span></div><div class="gloss"><b>쉬운 말</b> 일봉 · 주봉 = 하루 · 한 주 단위 가격 묶음 · 분봉 = 1분 단위 묶음(401종목만 보관) · 신호 = 매수 · 매도 · 관망 규칙 결과 · 덮어씀 = 같은 날 다시 돌려도 기록이 겹치지 않음 · fatal=False = 이 단계가 실패해도 뒤 단계는 계속. <b>용량(설계서 11-02 어림)</b> 하루 약 3,950줄 ≈ 9.5MB · 보존 상한 약 1.25GB</div></div>
-  <footer class="footer"><span>출처: scripts/signals_all.py 169줄 · 시험 test_signals_all 8건(직접 실행). 종목 수 · 60초 · 보존 기간은 설계서 「신호 전체 종목 기록」 2 · 3.5 · 4절(11-02 측정, 문서 인용). 3,950은 기록 줄 수가 아니라 대상 종목 수입니다. · 용량 · 보존 상한은 설계서 3.5절 어림(11-02)</span><span class="pg">12 / 60</span></footer></section>
+  <footer class="footer"><span>출처: scripts/signals_all.py 169줄 · 시험 test_signals_all 8건(직접 실행). 종목 수 · 60초 · 보존 기간은 설계서 「신호 전체 종목 기록」 2 · 3.5 · 4절(11-02 측정, 문서 인용). 3,950은 기록 줄 수가 아니라 대상 종목 수입니다. · 용량 · 보존 상한은 설계서 3.5절 어림(11-02)</span><span class="pg">12 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>12장 (45초)</b> 신호 기록부터 말씀드리겠습니다. 신호는 원래 분봉이 쌓이는 401종목만 매일 기록하고 있었어요. 그 밖의 종목은 기록이 없었습니다. 그래서 KOSPI, KOSDAQ, ETF 전체를 거래일마다 기록하는 단계를 하나 더 붙였습니다. 새로 늘어난 종목이 3,549개이고, 합치면 약 3,950종목입니다. 여기서 분명히 해 둘 게 있어요. 신호를 계산하는 코드와 지표 정의는 신장환 님 것이고, 저는 그 함수를 그대로 부르기만 했습니다. 제가 만든 것은 어떤 종목을 기록할지 정하는 대상 목록과 이 단계, 그리고 오래된 기록을 지우는 보존 규칙입니다. 수집 러너에서는 기존 신호 단계 바로 뒤에 돌고, 실패해도 뒤 단계는 계속 갑니다. 11월 2일에 재 보니 약 60초였고, 그래서 회차가 1분쯤 늘었습니다. 새로 넓힌 종목은 분봉이 없어서 일봉과 주봉만으로 계산했다는 표시가 붙습니다. 시험은 8건입니다.</aside>
 </section>
@@ -1197,7 +1192,7 @@ html, body { background: #fff; }
   <div class="top"><p class="eyebrow">우리가 만든 것 ② 그림자 일지</p><div class="flow" aria-hidden="true"><span>① 문제와 시장</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
   <h2 id="lee-s11">그림자 일지는 이렇게 짜였고, 지금 판 1 · 46행에 지문은 그대로입니다</h2>
   <div class="body"><div class="chart" style="padding:8px 10px 6px"><svg viewBox="0 0 1126 236" width="100%" role="img" aria-label="그림자 일지: 규칙 둘, 코드 지문, 판, 행으로 이어지고 앱 DB 표 셋과 HF 비공개 원장에 쌓이며 매일 12시 30분 러너의 journal과 journal_upload 단계가 돌린다."><defs><marker id="lee-dgB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#516678"/></marker></defs><rect x="0" y="6" width="250" height="84" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="12" y="32" font-size="16" font-weight="700" style="fill:#1b44a3">① 규칙 2개</text><text x="12" y="56" font-size="14">카드 ma_cross_20_60</text><text x="12" y="76" font-size="14">자동매매 기본 규칙</text><rect x="292" y="6" width="250" height="84" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="304" y="32" font-size="16" font-weight="700" style="fill:#1b44a3">② 코드 지문</text><text x="304" y="56" font-size="14">함수 · 명세로 만든 SHA-256 값</text><text x="304" y="76" font-size="14">한 글자만 바뀌어도 값이 달라짐</text><rect x="584" y="6" width="250" height="84" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="596" y="32" font-size="16" font-weight="700" style="fill:#1b44a3">③ 판(version)</text><text x="596" y="56" font-size="14">지문이 달라지면 새 판</text><text x="596" y="76" font-size="14">옛 판은 그대로</text><rect x="876" y="6" width="250" height="84" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="888" y="32" font-size="16" font-weight="700" style="fill:#1b44a3">④ 행(day)</text><text x="888" y="56" font-size="14">거래일 하루 = 1행</text><text x="888" y="76" font-size="14">46행 = 사후 35 + 전진 11</text><line x1="253" y1="48" x2="289" y2="48" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgB)"/><line x1="545" y1="48" x2="581" y2="48" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgB)"/><line x1="837" y1="48" x2="873" y2="48" stroke="#516678" stroke-width="2" marker-end="url(#lee-dgB)"/><rect x="0" y="130" width="360" height="74" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="12" y="156" font-size="16" font-weight="700" style="fill:#1b44a3">앱 DB 표 3개 · 추가만</text><text x="12" y="180" font-size="14">지우는 함수 없음</text><rect x="383" y="130" width="360" height="74" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="395" y="156" font-size="16" font-weight="700" style="fill:#1b44a3">HF 비공개 원장</text><text x="395" y="180" font-size="14">날짜별 새 파일만 · 지난 파일이 바뀌면 중단</text><rect x="766" y="130" width="360" height="74" rx="9" fill="#eef3fd" stroke="#2157c9" stroke-width="2"/><text x="778" y="156" font-size="16" font-weight="700" style="fill:#1b44a3">매일 12:30 러너 단계 2개</text><text x="778" y="180" font-size="14">journal → journal_upload</text></svg></div><div style="margin-top:8px;background:#0f1f2a;border-radius:10px;padding:8px 16px 9px;color:#e6eef3;font-family:Consolas,'D2Coding','Malgun Gothic',monospace;font-size:13.5px;line-height:1.5"><div style="color:#9fc4d0">$ python scripts/paper_journal.py status <span style="font-family:'Malgun Gothic',sans-serif;font-size:12.5px;color:#84dfc0">&nbsp;● 11-10 13:55 실제 출력</span></div><div style="white-space:nowrap">― card_ma_cross_20_60 · 판 1 · 행 46 · 마지막 2026-11-09 · 지문 ✅ 같음</div><div style="white-space:nowrap">― auto_default · 판 1 · 행 46 · 마지막 2026-11-09 · 지문 ✅ 같음</div></div><span class="cap" style="margin-top:4px"><b class="amber">한계</b> 보여 주는 것은 성과가 아니라 「기록 · 고정이 동작함」이며 전진 기록은 11행뿐입니다.</span><div class="gloss"><b>쉬운 말</b> 지문(SHA-256) = 코드 내용으로 만드는 고정 길이 표식, 한 글자만 바뀌어도 값이 달라짐 · ma_cross_20_60 = 20일 평균이 60일 평균 위면 진입하는 이동평균 교차 규칙 · 사후 = 과거 자료에 규칙을 소급 적용한 기록 · 전진 = 그날 이후 하루씩 실제로 쌓은 기록 · 원장 = 기록 장부</div></div>
-  <footer class="footer"><span>출처: <code>paper_journal.py</code> 923줄 · 설계서 모의투자-그림자일지-설계.md · 시험 <code>test_paper_journal</code> 20건. 출력은 11-10 13:55 에 직접 실행한 <code>status</code> 규칙 두 줄(글자 그대로)이며 발표 직전에 다시 찍습니다.</span><span class="pg">14 / 60</span></footer></section>
+  <footer class="footer"><span>출처: <code>paper_journal.py</code> 923줄 · 설계서 모의투자-그림자일지-설계.md · 시험 <code>test_paper_journal</code> 20건. 출력은 11-10 13:55 에 직접 실행한 <code>status</code> 규칙 두 줄(글자 그대로)이며 발표 직전에 다시 찍습니다.</span><span class="pg">14 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>14장 (65초)</b> 일지가 어떻게 짜였는지 한 장으로 보여 드립니다. 먼저 규칙이 둘입니다. 신장환 님의 이동평균 교차 카드, 그리고 지금 자동매매의 기본 규칙이에요. 이 규칙에 쓰이는 함수와 설정을 모아 지문을 만들고, 지문이 같은 동안은 같은 판으로 봅니다. 판 위에는 거래일마다 행이 하나씩 쌓여요. 전날 낸 주문을 시가로 체결하고, 종가로 평가하고, 판단하고, 다음 날 시가 주문을 남기는 하루치입니다. 기록은 앱 DB 표 세 개에 더하기만 하고, 같은 내용을 허깅페이스 비공개 원장에 날짜별 파일로 올려요. 코드가 바뀌어 지문이 달라지면 새 판을 등록하고 옛 판은 그대로 둡니다. 아래가 11월 10일 오후 1시 55분에 status 명령을 실행한 출력 그대로예요. 두 규칙 모두 판 1이고, 행은 규칙마다 46개, 마지막 행은 11월 9일이며, 맨 끝의 지문 같음은 지금 코드로 다시 잰 지문이 등록해 둔 판과 같다는 뜻입니다. 평가 숫자는 가상 장부의 11월 9일 종가 기준이라 성과로 읽지 않고, 전진 기록은 아직 11행뿐입니다. 발표 직전에 한 번 더 찍겠습니다.</aside>
 </section>
@@ -1213,7 +1208,7 @@ html, body { background: #fff; }
     <div class="chart" style="padding:6px 24px 2px;margin-top:0"><svg viewBox="0 0 1128 178" width="100%" role="img" aria-label="판 2가 생긴 직후에는 11월 3일 행이 어느 판에도 없고, 정리 뒤에는 판 1이 11월 2일부터 5일까지 이어지며 판 2는 삭제됨"><defs><marker id="lee-j3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9a4a00"/></marker></defs><text x="0" y="18" font-size="16" font-weight="700" style="fill:#9a4a00">PR #529 가 합쳐진 직후 (11-04 13:02)</text><text x="0" y="62" font-size="15" font-weight="700" style="fill:#2157c9">판 1</text><text x="0" y="122" font-size="15" font-weight="700" style="fill:#9a4a00">판 2</text><rect x="62" y="38" width="84" height="40" rx="8" fill="#dbe7fb" stroke="#2157c9" stroke-width="1.6"/><text x="104.0" y="63" font-size="14" font-weight="700" text-anchor="middle" style="fill:#2157c9">11-02 ✓</text><rect x="162" y="38" width="84" height="40" rx="8" fill="#fff8f0" stroke="#9a4a00" stroke-width="1.6" stroke-dasharray="6 4"/><text x="204.0" y="63" font-size="14" font-weight="700" text-anchor="middle" style="fill:#9a4a00">11-03 ?</text><rect x="262" y="38" width="184" height="40" rx="8" fill="#f3f5f7" stroke="#8b9aa8" stroke-width="1.2" stroke-dasharray="6 4"/><text x="354.0" y="63" font-size="13.5" text-anchor="middle" style="fill:#516678">판 1은 여기서 멈춤</text><rect x="262" y="98" width="84" height="40" rx="8" fill="#fff8f0" stroke="#9a4a00" stroke-width="1.6" stroke-dasharray="6 4"/><text x="304.0" y="123" font-size="13.5" font-weight="700" text-anchor="middle" style="fill:#9a4a00">11-04 첫 행</text><text x="356" y="123" font-size="13.5" style="fill:#516678">행 0개 · 새 계좌</text><text x="0" y="166" font-size="15" font-weight="700" style="fill:#9a4a00">11-03 행이 어느 판에도 남지 않는다</text><line x1="480" y1="88" x2="556" y2="88" stroke="#9a4a00" stroke-width="2.4" marker-end="url(#lee-j3a)"/><text x="518" y="76" font-size="14" font-weight="700" text-anchor="middle" style="fill:#172b3d">PR #537</text><text x="518" y="112" font-size="13.5" text-anchor="middle" style="fill:#516678">정리</text><text x="580" y="18" font-size="16" font-weight="700" style="fill:#08795c">PR #537 로 정리한 뒤 (11-04 14:29 ~)</text><text x="580" y="62" font-size="15" font-weight="700" style="fill:#2157c9">판 1</text><text x="580" y="122" font-size="15" font-weight="700" style="fill:#9a4a00">판 2</text><rect x="642" y="38" width="84" height="40" rx="8" fill="#dbe7fb" stroke="#2157c9" stroke-width="1.6"/><text x="684.0" y="63" font-size="14" font-weight="700" text-anchor="middle" style="fill:#2157c9">11-02 ✓</text><rect x="742" y="38" width="84" height="40" rx="8" fill="#e8f5ef" stroke="#2157c9" stroke-width="1.6"/><text x="784.0" y="63" font-size="14" font-weight="700" text-anchor="middle" style="fill:#08795c">11-03 ✓</text><text x="784.0" y="94" font-size="13" text-anchor="middle" style="fill:#516678">14:29 직접 실행</text><rect x="842" y="38" width="84" height="40" rx="8" fill="#e8f5ef" stroke="#2157c9" stroke-width="1.6"/><text x="884.0" y="63" font-size="14" font-weight="700" text-anchor="middle" style="fill:#08795c">11-04 ✓</text><text x="884.0" y="94" font-size="13" text-anchor="middle" style="fill:#516678">11-05 회차</text><rect x="942" y="38" width="84" height="40" rx="8" fill="#e8f5ef" stroke="#2157c9" stroke-width="1.6"/><text x="984.0" y="63" font-size="14" font-weight="700" text-anchor="middle" style="fill:#08795c">11-05 ✓</text><text x="984.0" y="94" font-size="13" text-anchor="middle" style="fill:#516678">11-06 회차</text><rect x="642" y="108" width="384" height="30" rx="8" fill="#f3f5f7" stroke="#8b9aa8" stroke-width="1.2" stroke-dasharray="6 4"/><text x="834.0" y="128" font-size="13.5" text-anchor="middle" style="fill:#516678">삭제됨 — DB 줄 4 · 원장 파일 4 (백업 먼저)</text><text x="580" y="166" font-size="15" font-weight="700" style="fill:#08795c">판 1이 이어져 11-03 행이 남는다</text></svg></div>
   <span class="cap" style="margin-top:0"><b>✓</b> 기록이 이어진 날 · <b>?</b> 어느 판에 있는지 모르는 날 · <b>회차</b> = 매일 12:30 자동 갱신 · <b class="green">배운 점</b> 지문 대상 함수는 고치기 전에 지문부터 본다.</span>
   </div>
-  <footer class="footer"><span>출처: PR #537 본문과 이슈 #533 후속 안내(11-04) · 커밋 <code>427973fa</code> · 시험 <code>test_signal_freshness</code> 33건 중 3건(TC-SF). 시각과 지문 값은 보관된 기록 인용, 현재 상태는 11-09 10:13 <code>status</code>.</span><span class="pg">15 / 60</span></footer></section>
+  <footer class="footer"><span>출처: PR #537 본문과 이슈 #533 후속 안내(11-04) · 커밋 <code>427973fa</code> · 시험 <code>test_signal_freshness</code> 33건 중 3건(TC-SF). 시각과 지문 값은 보관된 기록 인용, 현재 상태는 11-09 10:13 <code>status</code>.</span><span class="pg">15 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>15장 (55초)</b> 그런데 이 일지에 문제가 하나 생겼습니다. 일지는 같은 규칙으로 이어 쓰는 기록 묶음을 판이라고 부르고, 규칙 코드가 바뀌었는지는 지문이라는 표식으로 알아봅니다. 11월 4일 오전에 제가 올린 코드 변경 요청, 줄여서 PR이 팀 저장소에 합쳐졌습니다. 이 PR이 낡은 일봉을 막는 신선도 코드를 지문 대상 함수인 get_quant_indicators 안에 넣었어요. 12시 30분 회차가 지문이 바뀐 걸 보고 판 2를 자동으로 등록했습니다. 두 규칙 모두 행이 하나도 없는 새 판이었고, 그대로 두면 11월 3일 행이 어느 판에도 남지 않는 상황이었어요. 받아들이는 안과 되돌리는 안을 팀 논의 글인 이슈에 올렸고, 저는 되돌리는 쪽을 골랐습니다. 신선도 코드는 지문 밖의 get_candles 래퍼로 옮기고, 판 2는 백업을 만든 뒤에 DB와 원장에서 지웠어요. 일지 코드에는 지우는 함수가 없어서 이번 삭제는 예외로, 제가 직접 한 번 했습니다. 지금은 두 규칙 모두 판 1이고 지문도 같아요. 같은 일이 없도록 본문에 신선도 코드가 없는지 보는 시험도 더했습니다.</aside>
 </section>
@@ -1288,7 +1283,7 @@ html, body { background: #fff; }
       <span class="cap" style="margin-top:0">파랑 = 이동원, 회색 = 팀원. 시험 파일 174개 → 323개.</span></div>
   </div>
 </div><div class="gloss"><b>쉬운 말</b> 자동 시험 = 코드가 의도대로 도는지 기계가 확인하는 검사 · 묶음 = 영역별로 나눈 일곱 그룹 · 건너뜀 = 환경이 맞지 않아 못 돌린 시험(통과로 세지 않음). <b>계산</b> 통과율 4,462 ÷ 4,530 = 98.5% · 새 시험 함수 874 ÷ 1,284 = 68%</div></div>
-  <footer class="footer"><span>출처: 묶음(scripts/personal/_test_groups.py)마다 pytest --collect-only 로 직접 셈 · 통과 · 실패 · 건너뜀은 11-09 전체 시험 기록 인용 · 새 시험은 1fb94b84 와 현재 tests/ 를 git 으로 대조. · 통과율 · 비율은 위 값에서 직접 나눈 계산</span><span class="pg">17 / 60</span></footer></section>
+  <footer class="footer"><span>출처: 묶음(scripts/personal/_test_groups.py)마다 pytest --collect-only 로 직접 셈 · 통과 · 실패 · 건너뜀은 11-09 전체 시험 기록 인용 · 새 시험은 1fb94b84 와 현재 tests/ 를 git 으로 대조. · 통과율 · 비율은 위 값에서 직접 나눈 계산</span><span class="pg">17 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>17장 (50초)</b> 마지막은 시험이 지키는 범위입니다. 11월 9일에 일회용 DB를 붙여 전체 시험을 돌렸더니 모두 4,530건이었어요. 묶음별로 직접 세어 보니 매매가 1,406건으로 가장 크고, 데이터 773, 나머지 717, 분석 709, 화면 485, 지식 390, 컨테이너 50건입니다. 결과는 통과 4,462건, 실패 37건, 건너뜀 31건이었어요. 건너뛴 시험은 통과로 세지 않았습니다. 실패 37건 가운데 34건은 Windows에서는 늘 실패하는 시험입니다. 증권사 복구 시험 30건과 프로세스 통계 4건인데, 11월 5일에 확인했을 때 변경 전 코드에서도 똑같이 실패해서 환경 문제로 봤어요. 나머지 3건은 이날 원인을 찾아 고쳤습니다. 3차에 새로 생긴 시험 파일은 149개이고, 그중 91개를 제가 썼어요. 시험 함수로는 1,284개 중 874개입니다. 다만 이 숫자는 시험이 몇 건인지를 말할 뿐, 품질을 보증한다는 뜻은 아닙니다.</aside>
 </section>
@@ -1306,7 +1301,7 @@ html, body { background: #fff; }
       <div class="card neg" style="padding:8px 14px"><p style="font-size:15px;line-height:1.5"><b class="amber">TradingView 화면이 아니라</b> 같은 규칙을 파이썬으로 그린 것 · 성과 아님 · 컴파일 확인 10-30 1회</p></div>
     </div>
   <div class="gloss" style="grid-column:1/-1"><b>쉬운 말</b> Pine = TradingView 의 전략 코드 언어 · 이동평균 = 최근 N일 종가의 평균 · ATR = 최근 14일의 하루 평균 변동폭 · 손절 = 손실을 끊는 가격 · 익절 = 이익을 확정하는 가격 · 컴파일 = 코드가 문법 오류 없이 읽히는지 확인 · 다음 날 시가 = 신호 다음 날 첫 거래 가격</div></div>
-  <footer class="footer"><span>출처: <code>app/services/pine_strategy.py</code> 386줄 · 카드 <code>strategy-card-ma-cross-v2.json</code>(#353) · 차트는 수집 DB <code>price_daily</code> 삼성전자 일봉(수정 전 종가)에 생성된 Pine 코드(11 ~ 57행)와 같은 논리를 파이썬으로 계산해 11-10 에 그림(ATR은 Wilder 평균, 수수료 · 슬리피지 제외) · <code>test_pine_strategy.py</code> 33건(TC-PN) 11-09 통과</span><span class="pg">18 / 60</span></footer></section>
+  <footer class="footer"><span>출처: <code>app/services/pine_strategy.py</code> 386줄 · 카드 <code>strategy-card-ma-cross-v2.json</code>(#353) · 차트는 수집 DB <code>price_daily</code> 삼성전자 일봉(수정 전 종가)에 생성된 Pine 코드(11 ~ 57행)와 같은 논리를 파이썬으로 계산해 11-10 에 그림(ATR은 Wilder 평균, 수수료 · 슬리피지 제외) · <code>test_pine_strategy.py</code> 33건(TC-PN) 11-09 통과</span><span class="pg">18 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>18장 (50초)</b> 주담당인 TradingView 쪽입니다. 신장환 님이 만든 전략 카드를 읽어서 TradingView에 붙일 Pine 6 코드를 내놓는 생성기를 제가 만들었어요. 카드의 숫자가 어떻게 규칙이 되는지 삼성전자 일봉에 그려 봤습니다. 20일 평균이 60일 평균 위에 있으면 진입하고, 아래로 내려가면 청산합니다. 진입가에서 ATR 14일의 두 배 아래가 손절선이고, 그 거리의 두 배 위가 익절선이에요. 수량은 위험 1퍼센트와 비중 30퍼센트 중 작은 쪽입니다. 2025년 1월부터 7월까지 진입은 두 번이고 손절 한 번, 익절 한 번입니다. 이 차트는 같은 규칙을 파이썬으로 그린 것이고 TradingView 화면이 아니에요. 시험 33건은 카드의 숫자와 코드의 숫자가 같다는 데까지고, 생성기가 낸 두 가지 판은 10월 30일에 TradingView 편집기에서 한 번 컴파일해 확인했습니다. 화면의 커스텀 인디케이터 템플릿과 자유 산식 내보내기는 컴파일해 보지 않았습니다.</aside>
 </section>
@@ -1318,7 +1313,7 @@ html, body { background: #fff; }
   <div class="top"><p class="eyebrow">우리가 만든 것 ③ TradingView · 알림 받는 쪽</p><div class="flow" aria-hidden="true"><span>① 문제와 시장</span><span>② 빈 곳</span><span class="on">③ 우리가 만든 것</span><span>④ 한계와 발전</span></div></div>
   <h2 id="lee-s15">알림은 주문이 되기 전에 8단계로 걸러집니다</h2>
   <div class="body" style="display:flex;flex-direction:column;gap:6px"><p style="font-size:16px;line-height:1.5;margin:0">TradingView 는 조건이 맞으면 우리 서버로 알림(<b>웹훅</b>)을 자동으로 보냅니다. 이 알림을 주문으로 바꾸기 전에 여덟 단계로 확인합니다.</p><div class="chart" style="padding:2px 18px"><svg viewBox="0 0 1126 332" width="100%" role="img" aria-label="TradingView 알림이 주문이 되기 전 거치는 8단계. 단계마다 무엇을 확인하는지, 거절할 때 돌려주는 응답 번호, 그 단계를 지키는 자동 시험 건수"><g font-size="13" class="m"><text x="40" y="17">검사 순서</text><text x="250" y="17">무엇을 확인하나</text><text x="830" y="17">거절 응답(HTTP)</text><text x="960" y="17">지키는 자동 시험(건수)</text></g><line x1="0" y1="24" x2="1126" y2="24" stroke="#d7e1e8" stroke-width="1.5"/><rect x="1" y="28" width="1124" height="34" rx="6" fill="#f3f6fa"/><circle cx="16" cy="45.0" r="12" fill="#2157c9"/><text x="16" y="50.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">1</text><text x="40" y="51.0" font-size="17" font-weight="700" style="fill:#172b3d">발신 IP</text><text x="250" y="50.0" font-size="15" style="fill:#172b3d">TradingView 주소에서 온 요청인가 (운영에서 켬)</text><text x="830" y="50.0" font-size="16" font-weight="700" style="fill:#9a4a00">403</text><text x="960" y="50.0" font-size="15">TC-WH 12</text><circle cx="16" cy="83.0" r="12" fill="#2157c9"/><text x="16" y="88.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">2</text><text x="40" y="89.0" font-size="17" font-weight="700" style="fill:#172b3d">본문 크기 · 형식</text><text x="250" y="88.0" font-size="15" style="fill:#172b3d">본문이 4KB 이하이고 읽을 수 있는 형식인가</text><text x="830" y="88.0" font-size="16" font-weight="700" style="fill:#9a4a00">413 · 400</text><text x="960" y="88.0" font-size="15">TC-WH 4</text><rect x="1" y="104" width="1124" height="34" rx="6" fill="#f3f6fa"/><circle cx="16" cy="121.0" r="12" fill="#2157c9"/><text x="16" y="126.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">3</text><text x="40" y="127.0" font-size="17" font-weight="700" style="fill:#172b3d">토큰 (API 키)</text><text x="250" y="126.0" font-size="15" style="fill:#172b3d">알림에 든 키가 등록된 사용자의 것인가</text><text x="830" y="126.0" font-size="16" font-weight="700" style="fill:#9a4a00">401</text><text x="960" y="126.0" font-size="15">TC-WH 1 · WHP 1</text><circle cx="16" cy="159.0" r="12" fill="#2157c9"/><text x="16" y="164.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">4</text><text x="40" y="165.0" font-size="17" font-weight="700" style="fill:#172b3d">분당 제한</text><text x="250" y="164.0" font-size="15" style="fill:#172b3d">한 키로 1분에 30번을 넘기면 거절</text><text x="830" y="164.0" font-size="16" font-weight="700" style="fill:#9a4a00">429</text><text x="960" y="164.0" font-size="15">TC-WH 1</text><rect x="1" y="180" width="1124" height="34" rx="6" fill="#f3f6fa"/><circle cx="16" cy="197.0" r="12" fill="#2157c9"/><text x="16" y="202.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">5</text><text x="40" y="203.0" font-size="17" font-weight="700" style="fill:#172b3d">필수 칸 · 지연</text><text x="250" y="202.0" font-size="15" style="fill:#172b3d">주문 알림은 판단 시각 필수 · 5분 넘게 늦으면(late) 주문 안 함</text><text x="830" y="202.0" font-size="16" font-weight="700" style="fill:#9a4a00">400 · late</text><text x="960" y="202.0" font-size="15">TC-WH 19 · WHP 6</text><circle cx="16" cy="235.0" r="12" fill="#2157c9"/><text x="16" y="240.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">6</text><text x="40" y="241.0" font-size="17" font-weight="700" style="fill:#172b3d">중복 선점</text><text x="250" y="240.0" font-size="15" style="fill:#172b3d">같은 알림이 또 와도 주문은 한 번만, 나머지는 「중복」</text><text x="830" y="240.0" font-size="16" font-weight="700" style="fill:#9a4a00">200 중복</text><text x="960" y="240.0" font-size="15">TC-WH 2 · WHP 5</text><rect x="1" y="256" width="1124" height="34" rx="6" fill="#f6f8fb" stroke="#8aa0b2" stroke-width="1.5" stroke-dasharray="6 4"/><circle cx="16" cy="273.0" r="12" fill="#8aa0b2"/><text x="16" y="278.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">7</text><text x="40" y="279.0" font-size="17" font-weight="700" style="fill:#172b3d">주문</text><text x="250" y="278.0" font-size="15" style="fill:#172b3d">오준영 님의 공통 주문 관문(#368)이 위험 한도 점검 후 모의 체결</text><text x="830" y="278.0" font-size="16" font-weight="700" style="fill:#516678">관문 판단</text><text x="960" y="278.0" font-size="15">오준영 님 몫</text><circle cx="16" cy="311.0" r="12" fill="#2157c9"/><text x="16" y="316.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:#fff">8</text><text x="40" y="317.0" font-size="17" font-weight="700" style="fill:#172b3d">응답 · 뒤처리</text><text x="250" y="316.0" font-size="15" style="fill:#172b3d">200 으로 답하고, 감사 기록 · 알림은 응답 뒤에 처리</text><text x="830" y="316.0" font-size="16" font-weight="700" style="fill:#9a4a00">200</text><text x="960" y="316.0" font-size="15">TC-WH 2</text></svg></div><span class="cap" style="margin-top:0"><b class="blue">파랑</b> = 이동원이 만들거나 고친 곳 · 점선 = 오준영 님. <b>TC-WH</b> = 알림 받는 쪽 자동 시험 41건 · <b>WHP</b> = 실제 DB 가 필요한 시험(일회용 DB, 13건 통과). <b>#368</b> = 오준영 님이 올린 코드 변경 요청(PR)으로, 모든 주문이 지나는 공통 관문을 만든 작업.</span><div class="card neg" style="padding:7px 16px"><p style="font-size:16px;line-height:1.5"><b class="amber">아직 못 한 것</b> 실제 TradingView 서버가 보낸 알림은 받아 본 적이 없습니다.</p></div></div>
-  <footer class="footer"><span>출처: <code>app/routes/tradingview.py</code> 408줄 · <code>app/services/tradingview.py</code> 969줄(검사 순서는 route 의 <code>tradingview_webhook</code> 을 읽어 확인) · 커밋 412ff083 diff · <code>test_tradingview_webhook.py</code> 41 · <code>_pg.py</code> 13(11-09 전체 시험, 일회용 DB) · 설계서 3.6 · 공개 HTTPS 주소가 있어야 실수신을 받을 수 있음(설계서 7절 물음 8 · 8절)</span><span class="pg">19 / 60</span></footer></section>
+  <footer class="footer"><span>출처: <code>app/routes/tradingview.py</code> 408줄 · <code>app/services/tradingview.py</code> 969줄(검사 순서는 route 의 <code>tradingview_webhook</code> 을 읽어 확인) · 커밋 412ff083 diff · <code>test_tradingview_webhook.py</code> 41 · <code>_pg.py</code> 13(11-09 전체 시험, 일회용 DB) · 설계서 3.6 · 공개 HTTPS 주소가 있어야 실수신을 받을 수 있음(설계서 7절 물음 8 · 8절)</span><span class="pg">19 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>19장 (50초)</b> 다음은 TradingView가 보내는 알림을 받는 쪽입니다. TradingView는 차트 사이트인데, 조건이 맞으면 우리 서버 주소로 알림을 자동으로 보내 줄 수 있고 이것을 웹훅이라고 부릅니다. 알림 한 건이 오면 주문이 되기 전에 여덟 단계로 걸러져요. 먼저 보낸 주소를 보는데, 운영에서 켜는 설정이고 켜 두면 사칭해도 막힙니다. 그다음이 본문 4KB 상한, 토큰, 키당 분당 30회 제한이고, 거부한 요청은 로그에 남기되 토큰은 적지 않아요. 주문이 되는 알림에는 판단 시각이 꼭 있어야 하고, 5분 넘게 늦은 알림은 주문하지 않습니다. 같은 알림은 먼저 한 줄을 잡고 주문하기 때문에 동시에 네 건이 와도 주문은 한 번이에요. 이 순서를 지키는 자동 시험이 41건이고, 표의 TC-WH가 그 시험입니다. 실제 DB가 있어야 도는 시험 13건, 표의 WHP도 11월 9일 전체 시험에서 통과했습니다. 뼈대는 가져온 lumina 코드에서 왔고, 제가 한 일은 이번 검증을 더한 부분입니다. 주문은 오준영 님이 코드 변경 요청, 흔히 PR이라 부르는 368번으로 만든 공통 주문 관문으로 넘어가서 위험 한도를 점검받고요. 다만 실제 TradingView 서버가 보낸 알림을 받아 본 적은 없습니다.</aside>
 </section>
@@ -1351,7 +1346,7 @@ html, body { background: #fff; }
     <div class="kpi"><div class="k">전략 카드</div><div class="v">한 장</div><div class="d">조건 · 손절 · 익절 ·<br>수량 · 체결 시점</div></div>
     <div class="kpi"><div class="k">같은 카드 → 백테스트 · 자동매매</div><div class="v">13/13 <small>· 12/13</small></div><div class="d">사는 판단 날 ·<br>파는 판단 날과 까닭</div></div>
     <div class="kpi warn"><div class="k">기준 전략 — 미리 정한 합격선</div><div class="v">110 → 0</div><div class="d">110번 시도, 합격 0<br>→ 「기준 전략 없음」</div></div></div></div>
-  <footer class="footer"><span>맡은 것: 3차 계획서 4.3(부담당 강민석 님) · 시작할 때: 3차 인디케이터 전략 설계서 3절 표 1(2026-10-22 코드 확인) · 팀 피드백</span><span class="pg">21 / 60</span></footer></section>
+  <footer class="footer"><span>맡은 것: 3차 계획서 4.3(부담당 강민석 님) · 시작할 때: 3차 인디케이터 전략 설계서 3절 표 1(2026-10-22 코드 확인) · 팀 피드백</span><span class="pg">21 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>21장 (35초)</b> 3차에서 저는 기본 인디케이터 전략과 커스텀 인디케이터를 맡았습니다. 시작할 때 앱 안에서 지표로 판단하는 곳이 넷이었는데 규칙이 모두 달랐고, 손절과 수량을 한곳에 적은 명세가 없었습니다. 그래서 전략 카드 한 장에 적고 모두가 그 카드를 읽게 했습니다. 결론부터 말씀드리면, 지표는 LEAN과 맞았고, 같은 카드를 넣으면 백테스트와 자동매매가 거의 같은 날 사고팔았고, 미리 정한 합격선으로 110번 시도한 결과 합격한 전략은 없었습니다.</aside>
 </section>
@@ -1403,7 +1398,7 @@ html, body { background: #fff; }
       <path d="M692,250 C744,260 752,322 798,326" fill="none" stroke="#516678" stroke-width="2.2" marker-end="url(#shin-shin-ar)"/>
     </svg>
   </div>
-  <footer class="footer"><span>근거: 3차 설계서 요약 · 4.3(전략 카드) · 4.5 · 4.6(화면)</span><span class="pg">22 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 3차 설계서 요약 · 4.3(전략 카드) · 4.5 · 4.6(화면)</span><span class="pg">22 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>22장 (25초)</b> 전체 그림입니다. 파란 칸이 제가 만든 것입니다. 지표와 화면에서 정한 규칙이 전략 카드 한 장으로 모이고, 이 카드를 백테스트 엔진, Pine 생성기, 자동매매가 읽습니다. Pine 생성기는 이동원 님, 자동매매 실행기는 오준영 님, 엔진의 손절 · 익절은 강민석 님이 맡았습니다.</aside>
 </section>
@@ -1431,7 +1426,7 @@ html, body { background: #fff; }
     <ul class="pt" style="margin-top:18px">
       <li><b>칸 이름과 값은 카드를 읽는 세 분께 여쭤 정함</b><span>Pine · LEAN · 자동매매 담당</span></li>
       <li><b>수량 계산은 제가 백테스트 엔진에 넣음</b><span>손절에 걸려도 평가액의 1% 를 넘게 잃지 않도록 주 수를 정함</span></li></ul></div></div></div>
-  <footer class="footer"><span>근거: 3차 설계서 4.3 표(합의 · 반대 없음 상태) · 4.5 · 예시 카드</span><span class="pg">23 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 3차 설계서 4.3 표(합의 · 반대 없음 상태) · 4.5 · 예시 카드</span><span class="pg">23 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>23장 (45초)</b> 카드에는 매수·매도 조건, ATR로 정하는 손절, 손절 거리의 두 배인 익절, 1회 위험 1%로 정하는 수량, 그리고 종가로 판단해 다음 날 시가에 체결한다는 것까지 적었습니다. 이동평균 교차를 고른 까닭은, 새 정보가 며칠에서 몇 주에 걸쳐 가격에 들어가 한 방향 움직임이 이어지는 구간이 생기기 때문입니다. 다만 횡보장에서는 거짓 신호가 늘어납니다. 체결을 다음 날 시가로 한 것은, 신호를 본 그날 종가에 바로 사는 효과를 내지 않으려는 것입니다. 칸은 카드를 읽는 세 분께 여쭤 정했고, 수량 계산은 제가 백테스트 엔진에 넣었습니다. 다만 종가로 판정해서 갭이 나면 손실이 계획보다 커질 수 있습니다.</aside>
 </section>
@@ -1454,7 +1449,7 @@ html, body { background: #fff; }
         <li><b><i class="nb">2</i>새 지표 ADX · 상대 강도</b><span>차트 아래 칸에서 골라 봄</span></li>
         <li><b>커스텀 지표를 TradingView 정의로</b><span>자유 산식의 정규화 함수</span></li></ul>
       <div class="fix"><div class="b"><div class="t">전 · z점수</div><div class="v">Pine × 0.9747</div></div><div class="arr">→</div><div class="a"><div class="t">지금</div><div class="v">Pine 과 같음</div></div></div></div></div></div>
-  <footer class="footer"><span>화면 캡처 2026-11-09 · 근거: 3차 설계서 4.4 커스텀 지표 · 4.6 화면</span><span class="pg">24 / 60</span></footer></section>
+  <footer class="footer"><span>화면 캡처 2026-11-09 · 근거: 3차 설계서 4.4 커스텀 지표 · 4.6 화면</span><span class="pg">24 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>24장 (30초)</b> 카드는 화면에서 고쳐 저장하고, 저장한 카드는 Pine 목록에도 나옵니다. 차트에는 카드 조건이 바뀐 날이 매수, 매도로 표시되고, 새로 더한 ADX와 상대 강도도 볼 수 있습니다. 커스텀 지표는 TradingView 정의로 맞춰서, 전에는 Pine 값의 0.97배이던 z점수가 지금은 같습니다.</aside>
 </section>
@@ -1477,7 +1472,7 @@ html, body { background: #fff; }
     <div class="dotrow" style="margin-bottom:12px"><div class="lb">파는 판단 날 · 까닭 <span class="a">12 / 13 같음</span></div>
       <div class="dots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>10</i><i>11</i><i>12</i><i class="x">!</i></div></div>
     <ul class="pt sm"><li><b>갈린 1번 — 손절선을 잡는 가격 차이</b><span>자동매매는 슬리피지를 더한 체결가에서 손절선을 잡음</span></li></ul></div></div></div>
-  <footer class="footer"><span>근거: 3차 설계서 4.1 표 1(삼성전자 일봉 483봉) · 4.2 · 4.3 카드 대조(2026-11-02)</span><span class="pg">25 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 3차 설계서 4.1 표 1(삼성전자 일봉 483봉) · 4.2 · 4.3 카드 대조(2026-11-02)</span><span class="pg">25 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>25장 (35초)</b> 맞춰 본 것입니다. 지표 값은 LEAN과 날짜마다 맞대 봤고, 정의가 같은 지표는 사실상 같았으며 차가 난 둘은 까닭까지 찾았습니다. 같은 카드를 백테스트와 자동매매에 넣었더니 사는 날은 열세 번 모두, 파는 날은 열두 번 같았습니다. 갈린 한 번은 손절선을 잡는 가격 차이 때문이었습니다.</aside>
 </section>
@@ -1501,7 +1496,7 @@ html, body { background: #fff; }
       <div class="bar"><div class="lb"><span>PF(이익÷손실) &gt; 1.5</span><b>41</b></div><div class="tr"><i style="width:37.3%"></i></div></div>
       <div class="bar zero"><div class="lb"><span>샤프 &gt; 1.0</span><b>0</b></div><div class="tr"><i style="width:0"></i></div></div></div>
     <div class="pass"><span>셋 다 넘은 시도</span><span>0 → 기준 전략 없음</span></div></div></div></div>
-  <footer class="footer"><span>근거: 기준 전략 시도 결과(2026-10-30 · 수집 DB 일봉 2020-01-02 ~ 2026-08-31) · 3차 설계서 4.5 · 「기준 전략」 카드 화면은 이동원 님 작업</span><span class="pg">26 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 기준 전략 시도 결과(2026-10-30 · 수집 DB 일봉 2020-01-02 ~ 2026-08-31) · 3차 설계서 4.5 · 「기준 전략」 카드 화면은 이동원 님 작업</span><span class="pg">26 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>26장 (35초)</b> 기준 전략은 결과를 보고 고르지 않도록 조합표와 합격선을 먼저 적고, 이동평균 조합 열한 개를 열 종목에서 모두, 110번 돌렸습니다. 샤프 1을 넘은 시도가 없어 합격은 0입니다. 위험 1%라 평균 9에서 23%만 주식에 들어가 크게 벌지 않았기 때문입니다. 합격선은 바꾸지 않았고, 결과는 기준 전략 없음입니다.</aside>
 </section>
@@ -1527,7 +1522,7 @@ html, body { background: #fff; }
         <li><b>LEAN 대조의 합격 오차 숫자 미정</b><span>차이와 까닭만 보임</span></li>
         <li><b>저장 카드는 DB 가 아닌 파일</b><span>화면에서 저장한 카드는 사용자별 파일로 둠</span></li></ul></div>
     <div class="next"><b>이어서 시연 영상 두 편</b><br>① 전략 카드 읽기 → Pine 목록<br>② 기준 전략 110개 시도 합격 0 + 성과 검증</div></div></div></div>
-  <footer class="footer"><span>근거: 신호 적중 대조 결과(2026-11-02) 요약 2 · 3 · 3차 설계서 4.3 한계 · 8절 ③ · 4.5 · 기능완성도 점검표(기본 인디케이터 전략 줄)</span><span class="pg">27 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 신호 적중 대조 결과(2026-11-02) 요약 2 · 3 · 3차 설계서 4.3 한계 · 8절 ③ · 4.5 · 기능완성도 점검표(기본 인디케이터 전략 줄)</span><span class="pg">27 / 62</span></footer></section>
   </div>
   <aside class="notes"><b>27장 (30초)</b> 정리하면, 규칙을 카드 한 장에 적었고, 같게 읽히는 것을 확인했고, 좋지 않은 결과도 그대로 남겼습니다. 매일 기록하던 신호도 맞대 봤는데, 매수 신호 적중률이 아무 날이나 고른 것과 비슷했습니다. 백테스트 가격 한 벌, LEAN 합격 오차, 저장 카드 DB는 남은 일입니다. 이어서 시연 영상으로 보여 드리겠습니다.</aside>
 </section>
@@ -1560,10 +1555,10 @@ html, body { background: #fff; }
     <h1>오준영</h1>
     <p>배분 · 리밸런싱 · 실행</p>
     
-    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">8장</div><div class="s">대본 5분 40초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">3편</div><div class="s">A편 47초 · B편 54초 · C편 59초</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">8분 20초</div><div class="s">대본 5분 40초 + 영상 2분 40초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
+    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">10장</div><div class="s">대본 9분 10초</div></div><div class="fact"><div class="k">시연 영상</div><div class="v">3편</div><div class="s">A편 47초 · B편 54초 · C편 59초</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">11분 50초</div><div class="s">대본 9분 10초 + 영상 2분 40초 · 재 보지 않은 예상</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">슬라이드 8장 → 시연 영상 3편 · 예상 8분 20초(대본 5분 40초 + 영상 2분 40초) · 목표 시간 미정</aside>
+  <aside class="notes">슬라이드 10장 → 시연 영상 3편 · 예상 11분 50초(대본 9분 10초 + 영상 2분 40초) · 목표 시간 미정</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 판단을 계획으로, 실행을 기록으로">
@@ -1572,16 +1567,16 @@ html, body { background: #fff; }
 <section class="slide hero" aria-labelledby="oh-s1">
   <p class="eyebrow">QURIOUS / 자산배분 · 리밸런싱 · 증권사 연동</p>
   <div class="body">
-    <div><h1 id="oh-s1">판단을 계획으로,<br>실행을 기록으로</h1><p class="lead">사용자가 확인한 배분과 전략을<br>모의 실행·위험관리·결과 확인으로 연결합니다.</p><div class="badge">오준영 · 3차 담당 발표 초안 v0.9</div></div>
+    <div><h1 id="oh-s1">판단을 계획으로,<br>실행을 기록으로</h1><p class="lead">사용자가 확인한 배분과 전략을<br>모의 실행·위험관리·결과 확인으로 연결합니다.</p><div class="badge">오준영 · 3차 담당 발표 초안 v0.10</div></div>
     <div class="map" aria-label="담당 기능의 세 단계">
       <div>01 계획<span>성향 · 배분 모델 · 리밸런싱 목표</span></div>
       <div>02 실행<span>전략 판단 · 위험 검사 · 모의 주문</span></div>
       <div>03 확인<span>체결 추적 · 알림 · 복구 기록</span></div>
     </div>
   </div>
-  <footer class="footer"><span>2026.11.11 갱신 · 11/6~11/9 검증 기록 반영 · 발표 시간 실측 전</span><span class="pg">31 / 60</span></footer></section>
+  <footer class="footer"><span>2026.11.11 갱신 · 11/6~11/9 검증 기록 반영 · 발표 시간 실측 전</span><span class="pg">31 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>31장 (35초)</b> 제 담당은 자산배분·리밸런싱과 증권사 연동 자동화입니다. 배분 계산 결과를 사용자가 확인한 계획으로 저장하고, 전략 주문은 위험 검사를 거쳐 결과가 기록되도록 연결했습니다. 앱의 PAPER·QUANT 가상 장부와 KIS 모의계좌는 별도로 관리합니다.</aside>
+  <aside class="notes"><b>31장 (35초)</b> 제 담당은 자산배분과 리밸런싱, 증권사 연동 자동화입니다. 자산배분은 자산별로 얼마씩 투자할지 정하는 것이고, 리밸런싱은 달라진 비중을 목표에 맞게 조정하는 것입니다. 저는 배분 계산 결과를 사용자가 확인한 계획으로 저장하고, 주문 전에 위험을 검사하고, 주문 이후에는 체결과 알림까지 확인하도록 연결했습니다. 앱 안에서 계산하는 가상계좌와 한국투자증권의 모의계좌는 구분해서 관리합니다. 먼저 비중을 계산해 계획으로 적용하는 과정부터 설명드리겠습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 계산 결과는 사용자의 확인을 거쳐 적용합니다">
@@ -1600,9 +1595,9 @@ html, body { background: #fff; }
     <div class="steps"><div class="step">계산·저장</div><div class="step">배분 가져오기</div><div class="step">목표·국면 연결<br>설정 확인</div><div class="step">플랜 저장</div></div>
     <div class="gap"></div><div class="callout">목표 갱신과 자동 주문 예약은 별도 설정입니다.<br>기본 가져오기는 국내주식 부분만 적용하고 나머지는 현금으로 남깁니다.</div>
   </div>
-  <footer class="footer"><span>ETF 포함은 별도 선택 · BL 기본 균형은 성향 비중이며 시가총액 시장 비중이 아닙니다.</span><span class="pg">32 / 60</span></footer></section>
+  <footer class="footer"><span>ETF 포함은 별도 선택 · BL 기본 균형은 성향 비중이며 시가총액 시장 비중이 아닙니다.</span><span class="pg">32 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>32장 (50초)</b> 성향별 배분에 리스크 패리티, 최소분산, Black–Litterman, 국면 배분을 추가했습니다. 계산 기준일과 입력 조건을 함께 남깁니다. 저장한 배분을 가져오고 목표와 국면 연결 설정을 확인한 뒤 플랜을 저장합니다. 국면 자동 갱신은 사용자가 따로 켜서 저장해야 하며, 자동 주문 예약과도 별도입니다. 기본 가져오기는 국내주식 부분만 쓰고 나머지를 현금으로 남깁니다.</aside>
+  <aside class="notes"><b>32장 (65초)</b> 성향별 기준 배분에 네 가지 모델을 추가했습니다. 리스크 패리티는 자산별 위험 기여를 고르게 맞추고, 최소분산은 정해진 비중 제약 안에서 변동성을 낮추는 조합을 찾습니다. Black–Litterman은 기준 비중에 사용자의 상대 전망과 신뢰도를 반영하고, 국면 배분은 시장의 추세와 변동성에 따라 비중을 바꿉니다. 계산할 때는 어떤 날짜의 자료와 조건을 썼는지도 남깁니다. 사용자가 저장한 배분을 가져와 목표와 설정을 확인한 뒤 플랜을 저장해야 적용됩니다. 국면에 따라 목표를 바꾸는 설정과 실제 자동 주문 예약도 각각 따로 켭니다. 기본 가져오기는 국내주식 부분만 적용하고 나머지는 현금으로 남깁니다. 예를 들어 국내주식이 15%라면 나머지 85%까지 자동으로 상품을 사는 것은 아닙니다. 이렇게 정한 계획을 실행할 때는 다음 장의 검사를 거칩니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 주문 전 검증하고, 접수 후 체결을 추적합니다">
@@ -1619,9 +1614,9 @@ html, body { background: #fff; }
       <div class="card"><h3>운영 중에</h3><p>판단 기본 600초<br>체결 추적 120초<br>heartbeat 60초</p></div>
     </div><div class="gap"></div><p class="note"><b>비상 정지는 자동매매 계열·개인 KIS 모의 주문에 적용하며, 보유 종목을 자동 청산하지 않습니다.</b><br>QUANT 판 2의 조정 사건 보류 중에는 자동 손절·익절도 중단됩니다. 자동 교정·보류 해제는 미지원입니다.</p>
   </div>
-  <footer class="footer"><span>웹 직접매매·일반 PAPER·외부 Open API 주문은 비상 정지 적용 밖입니다.</span><span class="pg">33 / 60</span></footer></section>
+  <footer class="footer"><span>웹 직접매매·일반 PAPER·외부 Open API 주문은 비상 정지 적용 밖입니다.</span><span class="pg">33 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>33장 (45초)</b> 자료 준비와 전략 판단 뒤 중복·손실 한도·비상 정지를 검사하고, 접수된 주문은 번호로 체결을 추적합니다. 비상 정지는 자동매매 계열과 개인 KIS 모의 주문에 적용합니다. 웹 직접매매·일반 PAPER·외부 Open API는 적용 밖이며, 보유 종목을 자동 청산하지 않습니다. QUANT 판 2에서 조정 사건을 감지해 보류하면 자동 손절·익절도 중단됩니다. 수량·가격의 자동 교정과 보류 해제는 아직 지원하지 않습니다.</aside>
+  <aside class="notes"><b>33장 (60초)</b> 먼저 판단에 필요한 자료가 준비됐는지 확인하고 전략을 계산합니다. 그다음 계좌와 보유 수량, 손실 한도, 비상정지 상태 등을 검사한 뒤 주문을 보냅니다. 주문이 접수되면 주문번호로 실제 체결 여부를 계속 확인합니다. 응답이 불명확할 때도 기존 주문을 먼저 조회해 중복 주문을 방지합니다. 기본 설정은 전략 판단이 10분 간격, 체결 추적이 2분 간격입니다. heartbeat는 주기 작업이 동작하는지 확인하기 위한 신호로, 1분마다 기록합니다. 비상정지는 자동매매 계열과 개인 KIS 모의 주문에 적용하고, 웹 직접매매·일반 PAPER·외부 Open API 주문은 적용 밖입니다. 보유 종목을 자동으로 모두 파는 기능도 아닙니다. QUANT 판 2에서 가격 조정 사건으로 보류되면 자동 손절·익절도 멈추며, 수량·가격의 자동 교정과 보류 해제는 아직 지원하지 않습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 3종목 30주를 매수하고, 전량 매도했습니다">
@@ -1638,9 +1633,9 @@ html, body { background: #fff; }
     <div class="checks"><div class="card"><h3 class="green">시험 잔량 0주</h3><p>세 종목 모두 전량 매도</p></div><div class="card"><h3 class="green">기존 1주 보존</h3><p>삼성전자 · 위험 설정 유지</p></div><div class="card"><h3 class="green">미체결 0건</h3><p>여섯 주문 모두 완료</p></div></div>
     <div class="gap"></div><p class="note">앱 주문 기록과 KIS 직접 체결 조회에서 수량·완료 상태를 대조했습니다.<br>이 연결 시험에서 찾은 체결 알림 오류와, 이후 긴급정지 취소 누락을 다음 두 장에서 설명합니다.</p>
   </div>
-  <footer class="footer"><span>11/6 KIS 모의 왕복 검증 · 가상 자금 기능 시험이며 자연 전략 주문·수익성 검증은 아닙니다.</span><span class="pg">34 / 60</span></footer></section>
+  <footer class="footer"><span>11/6 KIS 모의 왕복 검증 · 가상 자금 기능 시험이며 자연 전략 주문·수익성 검증은 아닙니다.</span><span class="pg">34 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>34장 (35초)</b> 11월 6일 시험 진단의 추천 목록에서 세 종목을 각 10주씩 KIS 모의계좌로 매수하고 전량 매도했습니다. 앱 기록과 증권사 조회에서 여섯 주문의 체결을 대조했고, 시험 잔량과 미체결은 0이었습니다. 기존 삼성전자 1주와 위험 설정은 보존했습니다. 이 연결 시험에서 찾은 알림 오류와, 이후 긴급정지에서 찾은 취소 누락을 이어서 설명하겠습니다. 가상 자금의 기능 검증이며 전략 수익성 검증은 아닙니다.</aside>
+  <aside class="notes"><b>34장 (45초)</b> 이 주문 흐름이 실제 증권사 모의계좌에서도 연결되는지 확인했습니다. 11월 6일 시험용 진단의 추천 목록에서 하나금융지주, S-Oil, 삼성에스디에스를 각각 10주씩 매수한 뒤 전량 매도했습니다. 매수 세 건과 매도 세 건 모두 앱 기록과 증권사의 직접 체결 조회를 대조했습니다. FILLED는 주문 수량 전부가 체결됐다는 상태입니다. 시험한 세 종목의 잔량과 미체결은 0이었고, 기존 삼성전자 1주와 위험 설정은 유지했습니다. 이것은 가상 자금으로 주문 연결을 확인한 기능 시험입니다. 이 과정과 후속 점검에서 발견한 오류 두 가지를 이어서 설명드리겠습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 체결은 한 번인데, 알림이 두 번 왔습니다">
@@ -1657,9 +1652,9 @@ html, body { background: #fff; }
     <div class="steps" aria-label="체결 알림 중복 방지 흐름"><div class="step">정기 확인 · 복구 조회</div><div class="step">같은 주문 ID로 DB 선점</div><div class="step">선점한 호출만 발송</div></div>
     <div class="gap"></div><div class="callout">실제 DB에서 동시 호출·재조회·전달 실패·다른 주문을 검증했습니다.<br><b>신규 2건 포함 담당 회귀 244건 통과</b> · 최초 거래의 주문 자체 중복은 0건입니다.</div>
   </div>
-  <footer class="footer"><span>근거: ERR-044 · 244건은 담당 범위 회귀이며, 수정 직후 새 KIS 주문으로 재검증한 결과는 아닙니다.</span><span class="pg">35 / 60</span></footer></section>
+  <footer class="footer"><span>근거: ERR-044 · 244건은 담당 범위 회귀이며, 수정 직후 새 KIS 주문으로 재검증한 결과는 아닙니다.</span><span class="pg">35 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>35장 (45초)</b> 첫 번째는 체결은 한 번인데 알림이 두 번 온 문제입니다. 삼성에스디에스 10주 매수 때 정기 체결 확인과 복구 조회가 같은 주문을 확인해 2초 간격으로 알림을 보냈습니다. 공통 발송에 주문을 구분할 기준이 없었던 것이 원인입니다. 두 경로가 같은 주문 ID를 전달하고 DB에서 발송 권한을 먼저 확보한 호출만 보내도록 수정했습니다. 실제 DB에서 동시 호출과 재조회를 확인했고 신규 두 시험을 포함한 담당 회귀 244건을 통과했습니다. 주문 자체의 중복은 없었습니다.</aside>
+  <aside class="notes"><b>35장 (85초)</b> 첫 번째는 삼성에스디에스 10주 매수에서 체결은 한 번인데 알림이 2초 간격으로 두 번 온 문제입니다. 서버가 주기적으로 체결을 확인하는 기능과, 시험 중 특정 주문 상태를 직접 다시 조회하는 기능이 같은 체결을 각각 발견했습니다. 슬라이드의 복구 조회가 이 두 번째 기능입니다. 증권사에서 상태를 다시 읽어 앱에 저장된 체결 수량과 가격을 최신으로 맞추는 작업입니다. 두 경로가 같은 주문의 알림을 각각 보낸 것이 원인이었습니다. 그래서 같은 주문을 식별하는 ID를 전달하고, DB에 발송 권한을 먼저 확보한 호출만 보내도록 수정했습니다. 이후 같은 주문을 다시 확인해도 추가 알림을 보내지 않고, 다른 주문이면 별도로 보냅니다. 이를 실제 DB에서 전달 성공과 실패 두 조건으로 시험했습니다. 그리고 수정 때문에 기존 기능이 망가지지 않았는지 다시 확인하는 회귀 시험도 실행했습니다. 주문·복구·알림·암호화·화면 관련 244개 시험이 모두 통과했습니다. 이 숫자는 시험 사례 수이며, 최초 거래에서 주문 자체가 중복된 것은 아니었습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 긴급정지에서 KIS 미체결 취소가 빠졌습니다">
@@ -1676,71 +1671,79 @@ html, body { background: #fff; }
     <div class="steps" aria-label="긴급정지의 KIS 미체결 취소 흐름"><div class="step">긴급정지</div><div class="step">KIS 미체결 잔량 취소</div><div class="step">취소 확정 · 미확인 구분</div></div>
     <div class="gap"></div><div class="callout"><b>KIS 모의 미체결 5주 취소 확정 · 반복 취소 전송 0 · 관련 회귀 300건 통과.</b><br>정지 중 신규 매수·매도·자동 시작 차단과 기존 보유 1주 보존을 확인했습니다.</div>
   </div>
-  <footer class="footer"><span>근거: ERR-051 · 취소 요청과 확정은 다릅니다. 보유 종목 자동 청산·모든 주문 경로의 정지를 뜻하지 않습니다.</span><span class="pg">36 / 60</span></footer></section>
+  <footer class="footer"><span>근거: ERR-051 · 취소 요청과 확정은 다릅니다. 보유 종목 자동 청산·모든 주문 경로의 정지를 뜻하지 않습니다.</span><span class="pg">36 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>36장 (45초)</b> 두 번째는 긴급정지가 신규 주문은 막지만 개인 KIS 모의 주문의 미체결 취소를 건너뛰던 문제입니다. 기존 취소 함수가 직접 KIS 주문을 제외했고, 정지 후 별도 취소 시험으로는 이 연결 누락을 찾지 못했습니다. 수동 정지와 일손실 정지에 기존 KIS 취소 서비스를 연결했습니다. 실제 KIS 모의 미체결 5주를 긴급정지 API만으로 취소했고 반복 취소 전송은 없었습니다. 관련 회귀 300건도 통과했습니다. 취소 요청과 확정은 구분하며 보유 종목을 자동 청산하는 기능은 아닙니다.</aside>
+  <aside class="notes"><b>36장 (60초)</b> 두 번째는 긴급정지를 해도 이미 접수된 개인 KIS 모의 주문의 미체결 잔량이 취소되지 않는 문제였습니다. 신규 주문은 막혔지만, 기존 취소 함수가 직접 KIS 주문을 제외하고 있었습니다. 정지한 뒤 취소 기능을 따로 시험했을 때는 각각 동작해서 이 연결 누락을 찾지 못했습니다. 수동 긴급정지와 일손실 한도에 따른 자동 정지가 KIS 취소 서비스를 호출하도록 수정했습니다. 수정 후에는 실제 모의계좌의 미체결 5주를 긴급정지 API만으로 취소했고, 취소가 확정된 것까지 조회했습니다. 같은 정지를 반복해도 취소 요청이 중복 전송되지 않았고, 관련 자동 시험 300건도 통과했습니다. 보유 중인 주식은 유지하면서 아직 체결되지 않은 주문을 취소하는 기능입니다. 이어서 사용자가 실제로 받는 알림을 원본으로 보여 드리겠습니다.</aside>
 </section>
 
-<section class="slide has-imp" data-owner="오준영" data-title="오준영 · 주문 접수·체결 확정·비상정지를 구분해 알립니다">
+<section class="slide has-imp" data-owner="오준영" data-title="오준영 · 매수 접수와 체결 확정을 따로 알려 줍니다">
   <div class="gnum"><b>오준영</b><span class="pg"></span></div>
   <div class="imp d-oh" style="width:1280px;height:720px;transform:scale(1.5)">
-<section class="slide alerts" aria-labelledby="oh-s7">
-  <p class="eyebrow">06 / 매수 · 매도 · 비상정지 알림</p><h2 id="oh-s7">주문 접수·체결 확정·비상정지를 구분해 알립니다</h2>
-  <p class="lead">2026.11.09 · 사용자 제공 Discord 알림 내용 · KIS 모의투자(가상 자금) · 종목 086790.KS</p>
-  <div class="body alert-grid">
-    <div class="alert-column">
-      <h3>매수 <span class="blue">접수 → 체결 확정</span></h3>
-      <div class="alert-message">
-        <h4>↗ 주문 접수 — 매수</h4><p class="alert-time">09:43:22 KST · 체결 미확인</p>
-        <p class="alert-price">5주 × 117,100원</p><p class="alert-total">총액 585,500원</p>
-      </div>
-      <div class="alert-message alert-filled">
-        <h4>✓ 체결 확정 — 매수</h4><p class="alert-time">09:43:27 KST · KIS 모의</p>
-        <p class="alert-price">5주 × 평균 117,000원</p><p class="alert-total">총액 585,000원</p><p class="alert-next">다음 행동 · 포트폴리오에서 보유 확인</p>
-      </div>
-      <p class="alert-caption">접수는 체결이 아닙니다.<br>가격은 달라질 수 있습니다.</p>
-    </div>
-    <div class="alert-column">
-      <h3>매도 <span class="blue">접수 → 체결 확정</span></h3>
-      <div class="alert-message">
-        <h4>↘ 주문 접수 — 매도</h4><p class="alert-time">09:45:51 KST · 체결 미확인</p>
-        <p class="alert-price">5주 × 117,100원</p><p class="alert-total">총액 585,500원</p>
-      </div>
-      <div class="alert-message alert-filled">
-        <h4>✓ 체결 확정 — 매도</h4><p class="alert-time">09:45:56 KST · KIS 모의</p>
-        <p class="alert-price">5주 × 평균 117,200원</p><p class="alert-total">총액 586,000원</p><p class="alert-next">다음 행동 · 포트폴리오에서 보유 확인</p>
-      </div>
-      <p class="alert-caption">체결이 확인되면 별도 알림으로 알려 줍니다.</p>
-    </div>
-    <div class="alert-column">
-      <h3>비상정지 <span class="blue">이유 · 다음 행동</span></h3>
-      <div class="alert-message alert-stop">
-        <h4>⛔ [위험관리] 자동매매 비상 정지</h4><p class="alert-time">09:45:09 KST · 긴급 알림</p>
-        <p>새 자동 주문이 모두 멈췄습니다.</p>
-        <p class="alert-reason"><b>이유</b><br>2026-11-09 오준영 담당 기능 검증 — 임시 긴급정지</p>
-        <p><b>위험</b><br>비상 정지 중에는 신호가 나도 주문이 나가지 않습니다.</p>
-        <p class="alert-next"><b>다음 행동</b><br>원인을 확인한 뒤 설정 화면에서 비상 정지를 해제해야 재시작됩니다.</p>
-      </div>
-      <p class="alert-caption">정지 해제 시점은 캡처에 없습니다.</p>
+<section class="slide alert-original" aria-labelledby="oh-s7">
+  <p class="eyebrow">06 / 실제 수신 알림 · 매수</p><h2 id="oh-s7">매수 접수와 체결 확정을 따로 알려 줍니다</h2>
+  <p class="lead">2026.11.09 · 사용자가 받은 Discord 알림 원본 · KIS 모의투자(가상 자금)</p>
+  <div class="body">
+    <figure class="capture"><img src="오준영/그림/2026-11-09-Discord-매수-원본.png" width="497" height="539" alt="사용자 제공 매수 알림 원본. 086790.KS 5주, 09:43:22 접수 가격 117,100원·총액 585,500원, 09:43:27 평균 117,000원·총액 585,000원 체결 확정. 주문번호, 위험, 다음 행동과 시각을 포함한 캡처 전체."></figure>
+    <div class="explanation">
+      <div><h3>접수 단계에서 상태를 밝힙니다</h3><p>주문번호와 함께 <strong>체결 미확인</strong>을 표시하고, 체결 전에는 가격·수량이 달라질 수 있음을 안내합니다.</p></div>
+      <div><h3>체결되면 실제 결과를 알립니다</h3><p>평균 체결가와 체결 수량·총액을 알려 주고, 보유 현황을 확인할 화면을 안내합니다.</p></div>
+      <div class="callout">접수 117,100원 → 평균 체결 117,000원<br>09:43:22 → 09:43:27 KST</div>
     </div>
   </div>
-  <footer class="footer"><span>제공된 캡처의 핵심 문구·수치 재구성 · 모의투자 기록이며 투자 권유가 아닙니다.</span><span class="pg">37 / 60</span></footer></section>
+  <footer class="footer"><span>사용자 제공 캡처 전체 · 문구·수치·순서 보존 · 원본 이미지 비율 유지</span><span class="pg">37 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>37장 (45초)</b> 11월 9일 Discord 알림 캡처의 핵심 내용을 옮긴 카드입니다. 하나금융지주 5주 매수는 9시 43분 22초에 접수되고 27초에 체결 확정 알림이 왔습니다. 접수 가격은 117,100원, 실제 평균 체결가는 117,000원입니다. 매도도 접수와 체결 확정을 따로 알려 주고, 평균 체결가는 117,200원입니다. 접수 시에는 체결이 아니라는 점을 밝히고, 체결 후에는 보유 현황을 확인하도록 안내합니다. 오른쪽 비상정지 알림은 9시 45분 9초의 별도 사례로, 정지 이유와 주문 차단 상태, 재시작을 위한 설정 해제를 안내합니다. 해제 시점은 캡처에 없으므로 세 카드를 연속된 정지·재개 검증으로 설명하지 않습니다. 가상 자금으로 진행한 KIS 모의투자 기록입니다.</aside>
+  <aside class="notes"><b>37장 (50초)</b> 11월 9일 실제로 받은 Discord 매수 알림입니다. 위쪽은 5주를 117,100원에 주문한 접수 알림이고, 주문번호와 체결 미확인 상태를 함께 보여 줍니다. 아래쪽은 5초 뒤 평균 117,000원에 체결됐다는 알림입니다. 가격이 다른 이유는 지정가 주문이기 때문입니다. 매수 지정가 117,100원은 그 가격 이하에서 사겠다는 한도이므로, 더 낮은 117,000원에 체결될 수 있습니다. 이 사례에서는 주당 100원, 약 0.0854% 더 싸게 샀습니다. 접수와 체결 확정을 나눠 알리고 실제 체결 수량과 총액을 보여 줍니다. 체결 후에는 모의투자·포트폴리오 화면에서 보유 현황을 확인하도록 다음 행동도 안내합니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="오준영" data-title="오준영 · 매도도 접수와 체결 결과를 구분합니다">
+  <div class="gnum"><b>오준영</b><span class="pg"></span></div>
+  <div class="imp d-oh" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide alert-original" aria-labelledby="oh-s8">
+  <p class="eyebrow">07 / 실제 수신 알림 · 매도</p><h2 id="oh-s8">매도도 접수와 체결 결과를 구분합니다</h2>
+  <p class="lead">2026.11.09 · 사용자가 받은 Discord 알림 원본 · KIS 모의투자(가상 자금)</p>
+  <div class="body">
+    <figure class="capture"><img src="오준영/그림/2026-11-09-Discord-매도-원본.png" width="496" height="538" alt="사용자 제공 매도 알림 원본. 086790.KS 5주, 09:45:51 접수 가격 117,100원·총액 585,500원, 09:45:56 평균 117,200원·총액 586,000원 체결 확정. 주문번호, 위험, 다음 행동과 시각을 포함한 캡처 전체."></figure>
+    <div class="explanation">
+      <div><h3>매도 주문의 접수 상태</h3><p>종목·수량·단가·총액과 주문번호를 표시합니다. 접수 시점에는 <strong>체결 미확인</strong>입니다.</p></div>
+      <div><h3>확정된 체결 결과</h3><p>실제로 체결된 평균 가격과 총액을 별도 알림으로 보내고, 모의투자·포트폴리오 화면을 안내합니다.</p></div>
+      <div class="callout">접수 117,100원 → 평균 체결 117,200원<br>09:45:51 → 09:45:56 KST</div>
+    </div>
+  </div>
+  <footer class="footer"><span>사용자 제공 캡처 전체 · 문구·수치·순서 보존 · 원본 이미지 비율 유지</span><span class="pg">38 / 62</span></footer></section>
+  </div>
+  <aside class="notes"><b>38장 (35초)</b> 매도도 같은 구조입니다. 위쪽은 5주를 117,100원에 접수한 알림이고, 아래쪽은 평균 117,200원에 체결된 결과입니다. 매도 지정가는 그 가격 이상에서 팔겠다는 한도여서, 이 사례에서는 주당 100원 더 높은 가격에 팔렸습니다. 따라서 두 사례의 가격 차이는 일정한 오차율을 허용해서 생긴 것이 아니라, 지정가보다 유리하게 체결된 것입니다. 별도로 취소 후 재주문할 때는 원 지정가와 현재가의 차이가 기본 1% 이내인지 검사합니다. 이 1%는 재주문 가능 여부를 정하는 조건입니다.</aside>
+</section>
+
+<section class="slide has-imp" data-owner="오준영" data-title="오준영 · 정지 이유와 다시 시작하기 위한 행동을 알립니다">
+  <div class="gnum"><b>오준영</b><span class="pg"></span></div>
+  <div class="imp d-oh" style="width:1280px;height:720px;transform:scale(1.5)">
+<section class="slide alert-original alert-stop" aria-labelledby="oh-s9">
+  <p class="eyebrow">08 / 실제 수신 알림 · 비상정지</p><h2 id="oh-s9">정지 이유와 다시 시작하기 위한 행동을 알립니다</h2>
+  <p class="lead">2026.11.09 09:45:09 KST · 사용자가 받은 Discord 긴급 알림 원본</p>
+  <div class="body">
+    <figure class="capture"><img src="오준영/그림/2026-11-09-Discord-비상정지-원본.png" width="479" height="249" alt="사용자 제공 비상정지 알림 원본. 새 자동 주문 중단, 임시 기능 검증이라는 정지 이유, 비상정지 중 주문 차단 안내, 원인 확인 후 설정에서 정지를 해제해야 재시작된다는 다음 행동, 2026-11-09 09:45:09 KST 시각을 포함한 캡처 전체."></figure>
+    <div class="explanation">
+      <div><h3>이유 → 영향 → 다음 행동</h3><p>왜 멈췄는지, 정지 중 주문이 어떻게 처리되는지, 사용자가 무엇을 해야 하는지 안내합니다.</p></div>
+      <div class="callout">매수·매도와 별도의 알림 사례입니다.<br>정지 해제 시점은 캡처에 없습니다.</div>
+    </div>
+  </div>
+  <footer class="footer"><span>사용자 제공 캡처 전체 · 비상정지 적용 범위는 앞의 위험관리 장에서 설명</span><span class="pg">39 / 62</span></footer></section>
+  </div>
+  <aside class="notes"><b>39장 (35초)</b> 이것은 비상정지 알림 원본입니다. 새 자동 주문이 멈췄다는 상태와 함께, 이번에는 임시 기능 검증 때문에 정지했다는 이유를 보여 줍니다. 정지 중에는 신호가 나와도 주문이 나가지 않는다는 영향과, 원인을 확인한 뒤 설정에서 비상정지를 해제해야 다시 시작된다는 다음 행동도 안내합니다. 적용 범위는 앞에서 설명한 자동매매 계열과 개인 KIS 모의 주문입니다. 이 캡처에는 정지 해제 시점이 없어서 앞의 매수·매도와 연속된 정지·재개 검증으로 설명하지는 않습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="오준영" data-title="오준영 · 암호화·독립 경보를 운영에 연결했습니다">
   <div class="gnum"><b>오준영</b><span class="pg"></span></div>
   <div class="imp d-oh" style="width:1280px;height:720px;transform:scale(1.5)">
-<section class="slide" aria-labelledby="oh-s8">
-  <p class="eyebrow">07 / 운영과 인수인계</p><h2 id="oh-s8">암호화·독립 경보를 운영에 연결했습니다</h2>
+<section class="slide" aria-labelledby="oh-s10">
+  <p class="eyebrow">09 / 운영과 인수인계</p><h2 id="oh-s10">암호화·독립 경보를 운영에 연결했습니다</h2>
   <div class="body split">
     <div class="card"><span class="tag">운영자가 확인할 것</span><div class="list"><div>동일 코드 · DB 버전 · 암호화 키 연결</div><div>Beat → worker → DB 결과 대조</div><div>장애 시 기존 주문 추적과 복원 절차</div><div>구현·시험·운영·실제 모의 체결 구분</div></div></div>
     <div class="card"><span class="tag">완료한 운영 검증과 남은 일</span><div class="list"><div>11/6 알림 암호화 전환<br><span class="note">11/9 DB0046 · 세 서비스 717파일 대조</span></div><div>11/6 Windows 독립 경보<br><span class="note">5분 예약 · Discord 실제 수신 확인</span></div><div>남은 운영 확인<br><span class="note">인수자 복원 실습 · 보유 자산 자연 평가</span></div></div></div>
   </div>
-  <footer class="footer"><span>v0.9 · 경보는 Windows 로그인 중 실행 · 사람의 발표 시간 측정·최종 영상 검토 전.</span><span class="pg">38 / 60</span></footer></section>
+  <footer class="footer"><span>v0.10 · 경보는 Windows 로그인 중 실행 · 사람의 발표 시간 측정·최종 영상 검토 전.</span><span class="pg">40 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>38장 (40초)</b> 알림 암호화는 11월 6일 전환했고, 11월 9일에는 DB0046과 세 서비스의 717파일 일치를 확인했습니다. Windows에서 5분마다 실행하는 독립 경보도 설치했고 Discord 연결 시험의 실제 수신을 확인했습니다. 다만 로그인 중에 실행하므로 로그아웃·절전 중 감시를 보장하지 않습니다. 주문 알림의 읽음 확인과 경보 수신은 구분합니다. 인수자의 새 PC 복원 실습과 PAPER 보유 자산의 자연 평가는 남아 있습니다.</aside>
+  <aside class="notes"><b>40장 (80초)</b> 마지막으로 운영 환경에 반영한 내용입니다. 여기서 세 서비스는 웹 요청을 처리하는 app, 백그라운드 작업을 실제 실행하는 worker, 정해진 시간마다 작업을 보내는 beat입니다. 11월 9일에는 이 세 실행 환경의 717개 코드 파일을 대조해 같은 코드가 배포됐는지 확인했고, 데이터베이스 구조 버전도 0046인지 확인했습니다. 알림 설정 암호화는 11월 6일 운영에 적용했습니다. 앱 내부 알림이 영향을 받는 상황도 확인할 수 있도록, 앱과 별도로 실행되는 독립 경보를 Windows 작업 스케줄러에 등록했습니다. 이것이 슬라이드에 Windows가 나오는 이유입니다. 5분마다 Docker 서비스의 가동 상태와 암호화 오류 로그를 검사하며, Discord 연결 시험의 실제 수신도 확인했습니다. 다만 Windows 사용자 로그인 중에 실행하므로 로그아웃이나 절전 중 감시까지 보장하지는 않습니다. 인수자가 새 PC에서 복원하는 실습과 앱 가상계좌의 보유 자산이 정기 회차에서 평가되는지 확인하는 작업은 남아 있습니다. 이제 배분 계산, 국면 변경, 개인 전략 실행 기록을 영상으로 보여 드리겠습니다.</aside>
 </section>
 
 <section class="slide" data-title="오준영 · P-오준영-A-배분모델">
@@ -1791,49 +1794,49 @@ html, body { background: #fff; }
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 백테스트를 실행하는 데서 멈추지 않고, 결과가 맞는지 검증하다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="1. 표지" class="slide active"><div class="kicker">QURIOUS · ENGINE VALIDATION</div><div class="body" style="justify-content:center"><div><div class="cover-mark">강민석 · LEAN 백테스트 및 검증</div><div class="cover-rule"></div><h1>백테스트를 실행하는 데서 멈추지 않고,<br/><span class="accent">결과가 맞는지 검증하다</span></h1><p class="cover-sub">기존 LEAN 백테스트 체계를 활용해 Paper 모의투자와 실행 조건을 맞추고, 신호·보유·체결·거래비용·성과 계산의 일관성을 검증했습니다.</p></div><div class="grid g3 cover-stats"><div class="card greenbg"><div class="eyebrow">HOLDING STATE</div><div class="big green">44 / 44</div><p>최신 대사 보유 상태 일치</p></div><div class="card greenbg"><div class="eyebrow">ORDER / FILL</div><div class="big green">12 / 12</div><p>주문 방향·수량·체결가격 일치</p></div><div class="card soft"><div class="eyebrow">FEE DIFFERENCE</div><div class="big">₩0.01</div><p>양쪽 총 거래비용 차이</p></div></div></div><div class="foot"><span><strong>최종 검증 기준일</strong> 2026.11.06 · LEAN ↔ Qurious Paper Trading</span><span class="pg">43 / 60</span></div></section>
+<section aria-label="1. 표지" class="slide active"><div class="kicker">QURIOUS · ENGINE VALIDATION</div><div class="body" style="justify-content:center"><div><div class="cover-mark">강민석 · LEAN 백테스트 및 검증</div><div class="cover-rule"></div><h1>백테스트를 실행하는 데서 멈추지 않고,<br/><span class="accent">결과가 맞는지 검증하다</span></h1><p class="cover-sub">기존 LEAN 백테스트 체계를 활용해 Paper 모의투자와 실행 조건을 맞추고, 신호·보유·체결·거래비용·성과 계산의 일관성을 검증했습니다.</p></div><div class="grid g3 cover-stats"><div class="card greenbg"><div class="eyebrow">HOLDING STATE</div><div class="big green">44 / 44</div><p>최신 대사 보유 상태 일치</p></div><div class="card greenbg"><div class="eyebrow">ORDER / FILL</div><div class="big green">12 / 12</div><p>주문 방향·수량·체결가격 일치</p></div><div class="card soft"><div class="eyebrow">FEE DIFFERENCE</div><div class="big">₩0.01</div><p>양쪽 총 거래비용 차이</p></div></div></div><div class="foot"><span><strong>최종 검증 기준일</strong> 2026.11.06 · LEAN ↔ Qurious Paper Trading</span><span class="pg">45 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>43장</b> 안녕하세요. 강민석입니다. 기존 Qurious LEAN 백테스트 실행 경로를 활용해 Paper 기록과 조건을 맞추고 대사 로직을 검증했습니다. 최신 대사에서 보유 44일과 체결 12건이 일치했습니다.</aside>
+  <aside class="notes"><b>45장</b> 안녕하세요. 강민석입니다. 기존 Qurious LEAN 백테스트 실행 경로를 활용해 Paper 기록과 조건을 맞추고 대사 로직을 검증했습니다. 최신 대사에서 보유 44일과 체결 12건이 일치했습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · QuantConnect LEAN은 알고리즘 트레이딩 실행 엔진입니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="2. QuantConnect LEAN이란" class="slide active"><div class="kicker">02 / WHAT IS QUANTCONNECT LEAN?</div><h2>QuantConnect LEAN은 <span class="accent">알고리즘 트레이딩 실행 엔진</span>입니다</h2><p class="lead">가격 데이터를 받아 전략을 실행하고 주문·체결·포트폴리오 통계를 관리하는 오픈소스 엔진입니다.</p><div class="body"><div class="grid g3" style="flex:1"><div class="card"><div class="eyebrow">01 · ENGINE</div><div class="card-title">LEAN Engine</div><p>알고리즘을 구동하고 포지션·주문·체결을 관리합니다.</p><div style="margin-top:9px"><span class="pill">Python / C#</span> <span class="pill">Event-driven</span></div></div><div class="card"><div class="eyebrow">02 · COMMAND TOOL</div><div class="card-title">LEAN CLI</div><p>프로젝트 설정과 백테스트 실행을 터미널에서 관리합니다.</p><div class="formula" style="margin-top:9px;font-size:12px">lean backtest [project]</div></div><div class="card"><div class="eyebrow">03 · RUNTIME</div><div class="card-title">Docker</div><p>실행 환경과 의존성을 분리해 재현성을 높입니다.</p><div style="margin-top:9px"><span class="pill">Local container</span> <span class="pill">Reproducible run</span></div></div></div><div class="flow"><div class="flow-item"><b>전략·가격 입력</b><span>MA Cross · KRX</span></div><div class="arrow">›</div><div class="flow-item"><b>LEAN Engine</b><span>알고리즘·주문 실행</span></div><div class="arrow">›</div><div class="flow-item"><b>결과 수집</b><span>Signals · Fills</span></div><div class="arrow">›</div><div class="flow-item"><b>Qurious 대사</b><span>기록 비교·판정</span></div></div><div class="callout"><b>이번 작업:</b> 기존 LEAN 화면과 실행 API를 활용해 Paper 기록과 비교하는 기준·대사 로직을 보완했습니다. 엔진이나 화면을 새로 만든 것은 아닙니다.</div></div><div class="foot"><span>공식 문서: quantconnect.com/docs · LEAN Engine / LEAN CLI</span><span class="pg">44 / 60</span></div></section>
+<section aria-label="2. QuantConnect LEAN이란" class="slide active"><div class="kicker">02 / WHAT IS QUANTCONNECT LEAN?</div><h2>QuantConnect LEAN은 <span class="accent">알고리즘 트레이딩 실행 엔진</span>입니다</h2><p class="lead">가격 데이터를 받아 전략을 실행하고 주문·체결·포트폴리오 통계를 관리하는 오픈소스 엔진입니다.</p><div class="body"><div class="grid g3" style="flex:1"><div class="card"><div class="eyebrow">01 · ENGINE</div><div class="card-title">LEAN Engine</div><p>알고리즘을 구동하고 포지션·주문·체결을 관리합니다.</p><div style="margin-top:9px"><span class="pill">Python / C#</span> <span class="pill">Event-driven</span></div></div><div class="card"><div class="eyebrow">02 · COMMAND TOOL</div><div class="card-title">LEAN CLI</div><p>프로젝트 설정과 백테스트 실행을 터미널에서 관리합니다.</p><div class="formula" style="margin-top:9px;font-size:12px">lean backtest [project]</div></div><div class="card"><div class="eyebrow">03 · RUNTIME</div><div class="card-title">Docker</div><p>실행 환경과 의존성을 분리해 재현성을 높입니다.</p><div style="margin-top:9px"><span class="pill">Local container</span> <span class="pill">Reproducible run</span></div></div></div><div class="flow"><div class="flow-item"><b>전략·가격 입력</b><span>MA Cross · KRX</span></div><div class="arrow">›</div><div class="flow-item"><b>LEAN Engine</b><span>알고리즘·주문 실행</span></div><div class="arrow">›</div><div class="flow-item"><b>결과 수집</b><span>Signals · Fills</span></div><div class="arrow">›</div><div class="flow-item"><b>Qurious 대사</b><span>기록 비교·판정</span></div></div><div class="callout"><b>이번 작업:</b> 기존 LEAN 화면과 실행 API를 활용해 Paper 기록과 비교하는 기준·대사 로직을 보완했습니다. 엔진이나 화면을 새로 만든 것은 아닙니다.</div></div><div class="foot"><span>공식 문서: quantconnect.com/docs · LEAN Engine / LEAN CLI</span><span class="pg">46 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>44장</b> LEAN은 알고리즘을 구동하는 오픈소스 트레이딩 엔진입니다. Qurious에는 기존 LEAN 화면과 실행 API가 있었고, 저는 그 결과를 Paper 거래 기록과 비교할 수 있도록 검증 흐름을 보완했습니다.</aside>
+  <aside class="notes"><b>46장</b> LEAN은 알고리즘을 구동하는 오픈소스 트레이딩 엔진입니다. Qurious에는 기존 LEAN 화면과 실행 API가 있었고, 저는 그 결과를 Paper 거래 기록과 비교할 수 있도록 검증 흐름을 보완했습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 담당 범위는 기존 실행 결과의 정합성 검증입니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="3. 담당 업무 및 검증 목표" class="slide active"><div class="kicker">03 / RESPONSIBILITY &amp; VALIDATION</div><h2>담당 범위는 <span class="accent">기존 실행 결과의 정합성 검증</span>입니다</h2><p class="lead">실행 조건과 성과 계산 기준을 정리하고 Paper 거래 기록과 대조했습니다.</p><div class="body"><div class="grid g3"><div class="card soft"><div class="eyebrow">01 · BASELINE</div><div class="card-title">기존 LEAN 실행</div><p>종목·기간·가격·체결 조건 고정</p></div><div class="card soft"><div class="eyebrow">02 · METRICS</div><div class="card-title">성과 계산 점검</div><p>LEAN native·pandas 출처와 지표 정의 구분</p></div><div class="card soft"><div class="eyebrow">03 · RECONCILIATION</div><div class="card-title">Paper 기록 대조</div><p>신호·보유·주문·체결·비용 비교</p></div></div><div class="steps"><div class="step"><b>조건 고정</b><span>종목·기간·가격·비용</span></div><div class="step"><b>엔진 실행</b><span>Docker LEAN</span></div><div class="step"><b>이벤트 추출</b><span>신호·체결·통계</span></div><div class="step"><b>차이 판정</b><span>일치·불일치·보류</span></div></div><div class="callout warnline"><b>검증 범위:</b> 제한된 대사 조건의 정합성 확인입니다. 실계좌 자동매매 승인, TradingView 원본 CSV 비교, 별도 5일 단독 백테스트 증빙은 포함하지 않습니다.</div></div><div class="foot"><span>담당: LEAN 백테스트 · 대사 · 성과 검증</span><span class="pg">45 / 60</span></div></section>
+<section aria-label="3. 담당 업무 및 검증 목표" class="slide active"><div class="kicker">03 / RESPONSIBILITY &amp; VALIDATION</div><h2>담당 범위는 <span class="accent">기존 실행 결과의 정합성 검증</span>입니다</h2><p class="lead">실행 조건과 성과 계산 기준을 정리하고 Paper 거래 기록과 대조했습니다.</p><div class="body"><div class="grid g3"><div class="card soft"><div class="eyebrow">01 · BASELINE</div><div class="card-title">기존 LEAN 실행</div><p>종목·기간·가격·체결 조건 고정</p></div><div class="card soft"><div class="eyebrow">02 · METRICS</div><div class="card-title">성과 계산 점검</div><p>LEAN native·pandas 출처와 지표 정의 구분</p></div><div class="card soft"><div class="eyebrow">03 · RECONCILIATION</div><div class="card-title">Paper 기록 대조</div><p>신호·보유·주문·체결·비용 비교</p></div></div><div class="steps"><div class="step"><b>조건 고정</b><span>종목·기간·가격·비용</span></div><div class="step"><b>엔진 실행</b><span>Docker LEAN</span></div><div class="step"><b>이벤트 추출</b><span>신호·체결·통계</span></div><div class="step"><b>차이 판정</b><span>일치·불일치·보류</span></div></div><div class="callout warnline"><b>검증 범위:</b> 제한된 대사 조건의 정합성 확인입니다. 실계좌 자동매매 승인, TradingView 원본 CSV 비교, 별도 5일 단독 백테스트 증빙은 포함하지 않습니다.</div></div><div class="foot"><span>담당: LEAN 백테스트 · 대사 · 성과 검증</span><span class="pg">47 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>45장</b> 담당은 실행 조건 고정, 성과지표 출처·단위 점검, Paper 기록과의 대사였습니다. 제한된 조건의 정합성 검증이며 실계좌 운영 승인이나 TradingView 원본 비교를 의미하지는 않습니다.</aside>
+  <aside class="notes"><b>47장</b> 담당은 실행 조건 고정, 성과지표 출처·단위 점검, Paper 기록과의 대사였습니다. 제한된 조건의 정합성 검증이며 실계좌 운영 승인이나 TradingView 원본 비교를 의미하지는 않습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 첫 대사에서 신호와 보유 상태의 차이를 발견했습니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="4. 최초 검증에서 발견한 문제" class="slide active"><div class="kicker">04 / FIRST RECONCILIATION · 2026.11.02</div><h2>첫 대사에서 <span class="red">신호와 보유 상태의 차이</span>를 발견했습니다</h2><p class="lead">삼성전자 005930.KS · MA Cross 20/60 · 2026.09.01~10.30 · LEAN Docker와 Paper 그림자 일지</p><div class="body"><div class="grid g4"><div class="card greenbg"><div class="eyebrow">ENTRY SIGNAL</div><div class="big green">40 / 40</div><p>공통 40일 일치</p></div><div class="card greenbg"><div class="eyebrow">EXIT SIGNAL</div><div class="big green">40 / 40</div><p>공통 40일 일치</p></div><div class="card amberbg"><div class="eyebrow">HOLDING STATE</div><div class="big amber">35 / 40</div><p>5일 불일치</p></div><div class="card"><div class="eyebrow">ORDER DIRECTION</div><div class="big">2 / 2</div><p>비교 가능 주문 일치</p></div></div><div class="two-col"><div class="col"><div class="table-wrap"><table><thead><tr><th>불일치 날짜</th><th>그림자 일지</th><th>LEAN</th></tr></thead><tbody><tr><td>09-29</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-23</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-26</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-27</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-28</td><td>보유</td><td class="red">미보유</td></tr></tbody></table></div><div class="small">신호가 아닌 보유 상태에서 차이가 발생했습니다.</div></div><div class="col"><div class="card amberbg"><div class="eyebrow">FILL PRICE · INITIAL</div><div class="big amber">440.8 bp</div><p>초기 대사 최대 체결가격 차이</p></div><div class="card"><div class="eyebrow">FEE RATE · INITIAL</div><div class="big small">10.76 vs 10.67 bp</div><p>요율은 근접했지만 참고값으로만 처리</p></div><div class="callout redline"><b>핵심:</b> 신호 일치만으로 주문 승인과 포지션 반영까지 같다고 볼 수 없었습니다.</div></div></div></div><div class="foot"><span>최초 결과: 부분 일치 · 수량·성과 비교는 기준 차이로 제외</span><span class="pg">46 / 60</span></div></section>
+<section aria-label="4. 최초 검증에서 발견한 문제" class="slide active"><div class="kicker">04 / FIRST RECONCILIATION · 2026.11.02</div><h2>첫 대사에서 <span class="red">신호와 보유 상태의 차이</span>를 발견했습니다</h2><p class="lead">삼성전자 005930.KS · MA Cross 20/60 · 2026.09.01~10.30 · LEAN Docker와 Paper 그림자 일지</p><div class="body"><div class="grid g4"><div class="card greenbg"><div class="eyebrow">ENTRY SIGNAL</div><div class="big green">40 / 40</div><p>공통 40일 일치</p></div><div class="card greenbg"><div class="eyebrow">EXIT SIGNAL</div><div class="big green">40 / 40</div><p>공통 40일 일치</p></div><div class="card amberbg"><div class="eyebrow">HOLDING STATE</div><div class="big amber">35 / 40</div><p>5일 불일치</p></div><div class="card"><div class="eyebrow">ORDER DIRECTION</div><div class="big">2 / 2</div><p>비교 가능 주문 일치</p></div></div><div class="two-col"><div class="col"><div class="table-wrap"><table><thead><tr><th>불일치 날짜</th><th>그림자 일지</th><th>LEAN</th></tr></thead><tbody><tr><td>09-29</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-23</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-26</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-27</td><td>보유</td><td class="red">미보유</td></tr><tr><td>10-28</td><td>보유</td><td class="red">미보유</td></tr></tbody></table></div><div class="small">신호가 아닌 보유 상태에서 차이가 발생했습니다.</div></div><div class="col"><div class="card amberbg"><div class="eyebrow">FILL PRICE · INITIAL</div><div class="big amber">440.8 bp</div><p>초기 대사 최대 체결가격 차이</p></div><div class="card"><div class="eyebrow">FEE RATE · INITIAL</div><div class="big small">10.76 vs 10.67 bp</div><p>요율은 근접했지만 참고값으로만 처리</p></div><div class="callout redline"><b>핵심:</b> 신호 일치만으로 주문 승인과 포지션 반영까지 같다고 볼 수 없었습니다.</div></div></div></div><div class="foot"><span>최초 결과: 부분 일치 · 수량·성과 비교는 기준 차이로 제외</span><span class="pg">48 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>46장</b> 11월 2일 최초 대사에서 공통 40일의 진입·청산 신호는 일치했지만 보유 상태는 5일 달랐습니다. 주문 방향은 비교 가능한 2건만 일치했고 체결가격 최대 차이는 440.8bp였습니다.</aside>
+  <aside class="notes"><b>48장</b> 11월 2일 최초 대사에서 공통 40일의 진입·청산 신호는 일치했지만 보유 상태는 5일 달랐습니다. 주문 방향은 비교 가능한 2건만 일치했고 체결가격 최대 차이는 440.8bp였습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 원인을 추적해 실행 조건을 다시 맞췄습니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="5. 불일치 해결 과정" class="slide active"><div class="kicker">05 / ROOT CAUSE &amp; FIX</div><h2>원인을 추적해 <span class="accent">실행 조건을 다시 맞췄습니다</span></h2><p class="lead">자금 배분·가격 입력·체결 시점·주문 수량의 차이를 정리했습니다.</p><div class="body"><div class="two-col"><div class="col"><div class="card redbg"><div class="eyebrow">OBSERVED FAILURE · 09.29</div><div class="card-title">LEAN 매수 주문이 증거금 부족으로 거부</div><p>LEAN은 전액 배분을 시도했지만 Paper는 종목별 주문 예산과 매수·매도 비율을 적용했습니다.</p></div><div class="card"><div class="eyebrow">OTHER MISMATCH DAYS</div><div class="card-title">10.23 · 10.26 · 10.27 · 10.28</div><p>청산 주문과 보유 상태 전이, 일별 스냅샷 시점을 거래 이벤트와 맞춰 확인했습니다.</p></div></div><div class="col"><div class="card greenbg"><div class="eyebrow">JOINT FIX · RECONCILIATION PATH</div><div class="card-title">대사 경로 개선</div><ul style="padding-left:16px;margin:0;display:grid;gap:5px"><li>대사 전용 알고리즘에서 30% 비중 적용</li><li>`next_open`으로 주문일과 체결일 분리</li><li>Collector DB 사용, 누락 데이터의 무단 대체 방지</li><li>신호는 수정종가, 장부는 원주가 종가, 체결은 다음 거래일 원주가 시가</li><li>주문 예산·비율·실제 체결 수량 별도 대조</li></ul></div><div class="callout"><b>주의:</b> 30%는 대사 실행용 설정이며 전략의 기본 규칙을 변경한 것이 아닙니다.</div></div></div></div><div class="foot"><span>핵심: 신호 수정이 아닌 주문·가격·체결 기준 정합성 개선</span><span class="pg">47 / 60</span></div></section>
+<section aria-label="5. 불일치 해결 과정" class="slide active"><div class="kicker">05 / ROOT CAUSE &amp; FIX</div><h2>원인을 추적해 <span class="accent">실행 조건을 다시 맞췄습니다</span></h2><p class="lead">자금 배분·가격 입력·체결 시점·주문 수량의 차이를 정리했습니다.</p><div class="body"><div class="two-col"><div class="col"><div class="card redbg"><div class="eyebrow">OBSERVED FAILURE · 09.29</div><div class="card-title">LEAN 매수 주문이 증거금 부족으로 거부</div><p>LEAN은 전액 배분을 시도했지만 Paper는 종목별 주문 예산과 매수·매도 비율을 적용했습니다.</p></div><div class="card"><div class="eyebrow">OTHER MISMATCH DAYS</div><div class="card-title">10.23 · 10.26 · 10.27 · 10.28</div><p>청산 주문과 보유 상태 전이, 일별 스냅샷 시점을 거래 이벤트와 맞춰 확인했습니다.</p></div></div><div class="col"><div class="card greenbg"><div class="eyebrow">JOINT FIX · RECONCILIATION PATH</div><div class="card-title">대사 경로 개선</div><ul style="padding-left:16px;margin:0;display:grid;gap:5px"><li>대사 전용 알고리즘에서 30% 비중 적용</li><li>`next_open`으로 주문일과 체결일 분리</li><li>Collector DB 사용, 누락 데이터의 무단 대체 방지</li><li>신호는 수정종가, 장부는 원주가 종가, 체결은 다음 거래일 원주가 시가</li><li>주문 예산·비율·실제 체결 수량 별도 대조</li></ul></div><div class="callout"><b>주의:</b> 30%는 대사 실행용 설정이며 전략의 기본 규칙을 변경한 것이 아닙니다.</div></div></div></div><div class="foot"><span>핵심: 신호 수정이 아닌 주문·가격·체결 기준 정합성 개선</span><span class="pg">49 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>47장</b> 원인은 자금 배분, 주문 승인 조건, 가격 입력과 체결 시점의 차이였습니다. 대사 전용 알고리즘에 30% 비중과 next_open을 적용하고 데이터 및 가격 기준을 분리했습니다. 30%는 대사 실행 전용 설정입니다.</aside>
+  <aside class="notes"><b>49장</b> 원인은 자금 배분, 주문 승인 조건, 가격 입력과 체결 시점의 차이였습니다. 대사 전용 알고리즘에 30% 비중과 next_open을 적용하고 데이터 및 가격 기준을 분리했습니다. 30%는 대사 실행 전용 설정입니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 최종 재실행에서 보유·주문·체결이 일치했습니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="6. 최종 대사 결과" class="slide active"><div class="kicker">06 / FINAL RECONCILIATION · 2026.11.06</div><h2>최종 재실행에서 <span class="green">보유·주문·체결이 일치</span>했습니다</h2><p class="lead">2026.09.01~11.05 · 일지 44행 · LEAN 체결 12건 · `daily_lean_reconcile.py` v4</p><div class="body"><div class="table-wrap" style="flex:1"><table><thead><tr><th>검증 항목</th><th>최초 대사</th><th>11.06 재대사</th><th>판정</th></tr></thead><tbody><tr><td>보유 상태</td><td>35 / 40</td><td class="green">44 / 44</td><td><span class="pill ok">일치</span></td></tr><tr><td>진입·청산 신호</td><td>40 / 40</td><td>41 / 41 (공통일)</td><td><span class="pill warn">3일 커버리지 차이</span></td></tr><tr><td>주문 방향</td><td>2 / 2</td><td class="green">12 / 12</td><td><span class="pill ok">일치</span></td></tr><tr><td>체결 수량</td><td>비교 제외</td><td class="green">12 / 12 · 총 26주</td><td><span class="pill ok">일치</span></td></tr><tr><td>체결 가격</td><td>최대 440.8bp</td><td class="green">최대 0.0000bp</td><td><span class="pill ok">일치</span></td></tr><tr><td>비용 요율</td><td>10.76 vs 10.67bp</td><td class="green">10.76 vs 10.76bp</td><td><span class="pill ok">일치</span></td></tr></tbody></table></div><div class="grid g3"><div class="card greenbg"><div class="eyebrow">HOLDING</div><div class="big green">100%</div><p>44일 보유 상태 일치</p><div class="bar"><i style="width:100%"></i></div></div><div class="card greenbg"><div class="eyebrow">FILL PRICE</div><div class="big green">0 bp</div><p>12건 최대 가격 차이</p><div class="bar"><i style="width:100%"></i></div></div><div class="card greenbg"><div class="eyebrow">QUANTITY</div><div class="big green">26주</div><p>매수·매도 양방향 합계</p><div class="bar"><i style="width:100%"></i></div></div></div><div class="callout warnline"><b>남은 신호 이슈:</b> 공통 41일은 모두 일치하지만 일지에만 있는 3일은 추가 확인 대상입니다. 전체 신호 날짜가 모두 일치했다고 표현하지 않습니다.</div></div><div class="foot"><span>근거: 2026.11.06 실행 로그 및 v4 보고서</span><span class="pg">48 / 60</span></div></section>
+<section aria-label="6. 최종 대사 결과" class="slide active"><div class="kicker">06 / FINAL RECONCILIATION · 2026.11.06</div><h2>최종 재실행에서 <span class="green">보유·주문·체결이 일치</span>했습니다</h2><p class="lead">2026.09.01~11.05 · 일지 44행 · LEAN 체결 12건 · `daily_lean_reconcile.py` v4</p><div class="body"><div class="table-wrap" style="flex:1"><table><thead><tr><th>검증 항목</th><th>최초 대사</th><th>11.06 재대사</th><th>판정</th></tr></thead><tbody><tr><td>보유 상태</td><td>35 / 40</td><td class="green">44 / 44</td><td><span class="pill ok">일치</span></td></tr><tr><td>진입·청산 신호</td><td>40 / 40</td><td>41 / 41 (공통일)</td><td><span class="pill warn">3일 커버리지 차이</span></td></tr><tr><td>주문 방향</td><td>2 / 2</td><td class="green">12 / 12</td><td><span class="pill ok">일치</span></td></tr><tr><td>체결 수량</td><td>비교 제외</td><td class="green">12 / 12 · 총 26주</td><td><span class="pill ok">일치</span></td></tr><tr><td>체결 가격</td><td>최대 440.8bp</td><td class="green">최대 0.0000bp</td><td><span class="pill ok">일치</span></td></tr><tr><td>비용 요율</td><td>10.76 vs 10.67bp</td><td class="green">10.76 vs 10.76bp</td><td><span class="pill ok">일치</span></td></tr></tbody></table></div><div class="grid g3"><div class="card greenbg"><div class="eyebrow">HOLDING</div><div class="big green">100%</div><p>44일 보유 상태 일치</p><div class="bar"><i style="width:100%"></i></div></div><div class="card greenbg"><div class="eyebrow">FILL PRICE</div><div class="big green">0 bp</div><p>12건 최대 가격 차이</p><div class="bar"><i style="width:100%"></i></div></div><div class="card greenbg"><div class="eyebrow">QUANTITY</div><div class="big green">26주</div><p>매수·매도 양방향 합계</p><div class="bar"><i style="width:100%"></i></div></div></div><div class="callout warnline"><b>남은 신호 이슈:</b> 공통 41일은 모두 일치하지만 일지에만 있는 3일은 추가 확인 대상입니다. 전체 신호 날짜가 모두 일치했다고 표현하지 않습니다.</div></div><div class="foot"><span>근거: 2026.11.06 실행 로그 및 v4 보고서</span><span class="pg">50 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>48장</b> 11월 6일 재실행에서 보유 44일, 주문·체결 12건의 수량과 가격이 일치했습니다. 비용 요율은 양쪽 10.76bp, 총비용 차이는 0.01원입니다. 다만 일지에만 있는 신호 3일은 추가 확인 대상입니다.</aside>
+  <aside class="notes"><b>50장</b> 11월 6일 재실행에서 보유 44일, 주문·체결 12건의 수량과 가격이 일치했습니다. 비용 요율은 양쪽 10.76bp, 총비용 차이는 0.01원입니다. 다만 일지에만 있는 신호 3일은 추가 확인 대상입니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 12건의 체결을 거래별 막대 그래프로 비교했습니다">
@@ -1851,41 +1854,41 @@ html, body { background: #fff; }
 <g transform="translate(425,0)"><text fill="#1e293b" font-size="11" font-weight="800" text-anchor="middle" x="0" y="171">10.26</text><text font-size="12" font-weight="850" text-anchor="middle" x="0" y="193">3주</text><rect fill="#4f46e5" height="21" rx="3" width="14" x="-17" y="228"></rect><rect fill="#0f766e" height="21" rx="3" width="14" x="3" y="228"></rect><text fill="#0f766e" font-size="9" font-weight="850" text-anchor="middle" x="0" y="269">0bp</text></g>
 <g transform="translate(615,0)"><text fill="#1e293b" font-size="11" font-weight="800" text-anchor="middle" x="0" y="171">10.27</text><text font-size="12" font-weight="850" text-anchor="middle" x="0" y="193">2주</text><rect fill="#4f46e5" height="14" rx="3" width="14" x="-17" y="235"></rect><rect fill="#0f766e" height="14" rx="3" width="14" x="3" y="235"></rect><text fill="#0f766e" font-size="9" font-weight="850" text-anchor="middle" x="0" y="269">0bp</text></g>
 <g transform="translate(805,0)"><text fill="#1e293b" font-size="11" font-weight="800" text-anchor="middle" x="0" y="171">10.28</text><text font-size="12" font-weight="850" text-anchor="middle" x="0" y="193">1주</text><rect fill="#4f46e5" height="7" rx="3" width="14" x="-17" y="242"></rect><rect fill="#0f766e" height="7" rx="3" width="14" x="3" y="242"></rect><text fill="#0f766e" font-size="9" font-weight="850" text-anchor="middle" x="0" y="269">0bp</text></g>
-<g transform="translate(995,0)"><text fill="#1e293b" font-size="11" font-weight="800" text-anchor="middle" x="0" y="171">10.29</text><text font-size="12" font-weight="850" text-anchor="middle" x="0" y="193">1주</text><rect fill="#4f46e5" height="7" rx="3" width="14" x="-17" y="242"></rect><rect fill="#0f766e" height="7" rx="3" width="14" x="3" y="242"></rect><text fill="#0f766e" font-size="9" font-weight="850" text-anchor="middle" x="0" y="269">0bp</text></g></svg></div><div class="callout fills-note"><b>읽는 법:</b> 갈색은 Paper, 초록색은 LEAN입니다. 수량은 모두 일치하며 12건의 가격 차이는 0bp입니다. 26주는 매수·매도 이벤트 합계이지 최종 보유 수량이 아닙니다.</div></div><div class="foot"><span>근거: 2026.11.06 v4 보고서의 12건 체결 세부</span><span class="pg">49 / 60</span></div></section>
+<g transform="translate(995,0)"><text fill="#1e293b" font-size="11" font-weight="800" text-anchor="middle" x="0" y="171">10.29</text><text font-size="12" font-weight="850" text-anchor="middle" x="0" y="193">1주</text><rect fill="#4f46e5" height="7" rx="3" width="14" x="-17" y="242"></rect><rect fill="#0f766e" height="7" rx="3" width="14" x="3" y="242"></rect><text fill="#0f766e" font-size="9" font-weight="850" text-anchor="middle" x="0" y="269">0bp</text></g></svg></div><div class="callout fills-note"><b>읽는 법:</b> 갈색은 Paper, 초록색은 LEAN입니다. 수량은 모두 일치하며 12건의 가격 차이는 0bp입니다. 26주는 매수·매도 이벤트 합계이지 최종 보유 수량이 아닙니다.</div></div><div class="foot"><span>근거: 2026.11.06 v4 보고서의 12건 체결 세부</span><span class="pg">51 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>49장</b> 갈색은 Paper, 초록색은 LEAN입니다. 매수 7건 13주, 매도 5건 13주이며 두 시스템의 수량이 같습니다. 12건의 체결가격 차이는 0bp입니다. 26주는 양방향 거래량 합계입니다.</aside>
+  <aside class="notes"><b>51장</b> 갈색은 Paper, 초록색은 LEAN입니다. 매수 7건 13주, 매도 5건 13주이며 두 시스템의 수량이 같습니다. 12건의 체결가격 차이는 0bp입니다. 26주는 양방향 거래량 합계입니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 최초 대사에서 확인한 보유 상태 불일치">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="8. 최초 대사 원본 출력" class="slide active"><div class="kicker">08 / TERMINAL OUTPUT · INITIAL</div><h2>최초 대사에서 확인한 <span class="red">보유 상태 불일치</span></h2><p class="lead">`daily_lean_reconcile.py` v4 · 최초 대사 원본 출력</p><div class="evidence-body"><div class="evidence-frame"><img alt="최초 대사 터미널 출력: 일지 40행, 보유 상태 5일 불일치, 체결가 최대 440.8bp" src="강민석/그림/lean-before.png"/></div><p class="evidence-caption"><b>최초 대사</b> · 기간 09.01~10.30 · 일지 40행 · 보유 5일 불일치 · 체결가 최대 440.8bp</p><div class="callout warnline">신호 일치와 실제 보유 상태는 별도로 확인해야 했습니다.</div></div><div class="foot"><span>근거: v4 최초 대사 터미널 캡처</span><span class="pg">50 / 60</span></div></section>
+<section aria-label="8. 최초 대사 원본 출력" class="slide active"><div class="kicker">08 / TERMINAL OUTPUT · INITIAL</div><h2>최초 대사에서 확인한 <span class="red">보유 상태 불일치</span></h2><p class="lead">`daily_lean_reconcile.py` v4 · 최초 대사 원본 출력</p><div class="evidence-body"><div class="evidence-frame"><img alt="최초 대사 터미널 출력: 일지 40행, 보유 상태 5일 불일치, 체결가 최대 440.8bp" src="강민석/그림/lean-before.png"/></div><p class="evidence-caption"><b>최초 대사</b> · 기간 09.01~10.30 · 일지 40행 · 보유 5일 불일치 · 체결가 최대 440.8bp</p><div class="callout warnline">신호 일치와 실제 보유 상태는 별도로 확인해야 했습니다.</div></div><div class="foot"><span>근거: v4 최초 대사 터미널 캡처</span><span class="pg">52 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>50장</b> 왼쪽은 최초 대사 원본 출력입니다. 보유 상태 5일 불일치와 최대 체결가 차이 440.8bp를 확인할 수 있습니다.</aside>
+  <aside class="notes"><b>52장</b> 왼쪽은 최초 대사 원본 출력입니다. 보유 상태 5일 불일치와 최대 체결가 차이 440.8bp를 확인할 수 있습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 재대사에서 확인한 보유·체결 일치">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="9. 재대사 판정 요약 원본 출력" class="slide active"><div class="kicker">09 / TERMINAL OUTPUT · FINAL SUMMARY</div><h2>재대사에서 확인한 <span class="green">보유·체결 일치</span></h2><p class="lead">2026.11.06 재대사 판정 요약 원본 출력</p><div class="evidence-body"><div class="evidence-frame"><img alt="재대사 터미널 출력: 일지 44행, 보유 44일 일치, 체결 12건 가격 차이 0bp" src="강민석/그림/lean-later1.png"/></div><p class="evidence-caption"><b>재대사 · 판정 요약</b> · 기간 09.01~11.05 · 일지 44행 · 보유 44일 일치 · 체결 12건 0.0000bp</p><div class="callout warnline">신호는 공통 41일만 비교했으며 일지에만 있는 3일은 추가 확인 대상입니다.</div></div><div class="foot"><span>근거: v4 재대사 요약 터미널 캡처</span><span class="pg">51 / 60</span></div></section>
+<section aria-label="9. 재대사 판정 요약 원본 출력" class="slide active"><div class="kicker">09 / TERMINAL OUTPUT · FINAL SUMMARY</div><h2>재대사에서 확인한 <span class="green">보유·체결 일치</span></h2><p class="lead">2026.11.06 재대사 판정 요약 원본 출력</p><div class="evidence-body"><div class="evidence-frame"><img alt="재대사 터미널 출력: 일지 44행, 보유 44일 일치, 체결 12건 가격 차이 0bp" src="강민석/그림/lean-later1.png"/></div><p class="evidence-caption"><b>재대사 · 판정 요약</b> · 기간 09.01~11.05 · 일지 44행 · 보유 44일 일치 · 체결 12건 0.0000bp</p><div class="callout warnline">신호는 공통 41일만 비교했으며 일지에만 있는 3일은 추가 확인 대상입니다.</div></div><div class="foot"><span>근거: v4 재대사 요약 터미널 캡처</span><span class="pg">53 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>51장</b> 가운데 재대사 요약입니다. 보유 상태 44일과 체결 12건이 일치했습니다. 신호는 공통 41일만 비교했고 3일은 남아 있습니다.</aside>
+  <aside class="notes"><b>53장</b> 가운데 재대사 요약입니다. 보유 상태 44일과 체결 12건이 일치했습니다. 신호는 공통 41일만 비교했고 3일은 남아 있습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 12건의 수량·가격 대조 원본">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="10. 체결 세부 원본 출력" class="slide active"><div class="kicker">10 / TERMINAL OUTPUT · FILL DETAILS</div><h2>12건의 <span class="accent">수량·가격 대조 원본</span></h2><p class="lead">날짜·방향별 체결 수량과 가격 차이 세부 출력</p><div class="evidence-body"><div class="evidence-frame"><img alt="재대사 터미널 출력: 날짜별 체결 수량 차이 0, 가격 차이 0bp" src="강민석/그림/lean-later2.png"/></div><p class="evidence-caption"><b>재대사 · 체결 세부</b> · 날짜·방향별 수량 차이 0 · 가격 차이 0.0bp</p><div class="callout warnline">이 보고서는 Paper 그림자 일지와 LEAN 결과의 비교이며 TradingView 원본 CSV 교차검증은 아닙니다.</div></div><div class="foot"><span>근거: v4 체결 세부 터미널 캡처</span><span class="pg">52 / 60</span></div></section>
+<section aria-label="10. 체결 세부 원본 출력" class="slide active"><div class="kicker">10 / TERMINAL OUTPUT · FILL DETAILS</div><h2>12건의 <span class="accent">수량·가격 대조 원본</span></h2><p class="lead">날짜·방향별 체결 수량과 가격 차이 세부 출력</p><div class="evidence-body"><div class="evidence-frame"><img alt="재대사 터미널 출력: 날짜별 체결 수량 차이 0, 가격 차이 0bp" src="강민석/그림/lean-later2.png"/></div><p class="evidence-caption"><b>재대사 · 체결 세부</b> · 날짜·방향별 수량 차이 0 · 가격 차이 0.0bp</p><div class="callout warnline">이 보고서는 Paper 그림자 일지와 LEAN 결과의 비교이며 TradingView 원본 CSV 교차검증은 아닙니다.</div></div><div class="foot"><span>근거: v4 체결 세부 터미널 캡처</span><span class="pg">54 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>52장</b> 날짜·방향별 체결 수량과 가격 차이 세부 출력입니다. 이 자료는 Paper 일지와 LEAN의 비교이며 TradingView 원본 CSV 비교는 아닙니다.</aside>
+  <aside class="notes"><b>54장</b> 날짜·방향별 체결 수량과 가격 차이 세부 출력입니다. 이 자료는 Paper 일지와 LEAN의 비교이며 TradingView 원본 CSV 비교는 아닙니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 기존 Qurious 화면에서 LEAN 백테스트를 실행했습니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="11. LEAN 백테스트 실행 환경" class="slide active"><div class="kicker">11 / LEAN BACKTEST ENVIRONMENT</div><h2>기존 Qurious 화면에서 <span class="accent">LEAN 백테스트를 실행</span>했습니다</h2><p class="lead">실행 화면과 Docker 기반 LEAN 런타임 환경</p><div class="evidence-body"><div class="evidence-frame"><img alt="Qurious의 LEAN 백테스트 실행 화면과 백테스트가 동작하는 실행 환경" src="강민석/그림/lean-ui.png"/></div><p class="evidence-caption"><b>LEAN 백테스트 실행 환경</b> · 기존 Qurious LEAN UI 및 실행 경로</p><div class="callout">이번 담당은 기존 실행 화면을 새로 만드는 것이 아니라, 해당 실행 결과를 Paper 거래 기록과 대조해 신뢰성을 확인하는 작업이었습니다.</div></div><div class="foot"><span>이미지 파일: 그림/lean-ui.png</span><span class="pg">53 / 60</span></div></section>
+<section aria-label="11. LEAN 백테스트 실행 환경" class="slide active"><div class="kicker">11 / LEAN BACKTEST ENVIRONMENT</div><h2>기존 Qurious 화면에서 <span class="accent">LEAN 백테스트를 실행</span>했습니다</h2><p class="lead">실행 화면과 Docker 기반 LEAN 런타임 환경</p><div class="evidence-body"><div class="evidence-frame"><img alt="Qurious의 LEAN 백테스트 실행 화면과 백테스트가 동작하는 실행 환경" src="강민석/그림/lean-ui.png"/></div><p class="evidence-caption"><b>LEAN 백테스트 실행 환경</b> · 기존 Qurious LEAN UI 및 실행 경로</p><div class="callout">이번 담당은 기존 실행 화면을 새로 만드는 것이 아니라, 해당 실행 결과를 Paper 거래 기록과 대조해 신뢰성을 확인하는 작업이었습니다.</div></div><div class="foot"><span>이미지 파일: 그림/lean-ui.png</span><span class="pg">55 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>53장</b> 이 화면은 기존 Qurious의 LEAN 백테스트 실행 경로입니다. 이번 작업은 엔진이나 UI를 새로 만든 것이 아니라 기존 실행 결과를 신뢰할 수 있도록 대사하는 일이었습니다.</aside>
+  <aside class="notes"><b>55장</b> 이 화면은 기존 Qurious의 LEAN 백테스트 실행 경로입니다. 이번 작업은 엔진이나 UI를 새로 만든 것이 아니라 기존 실행 결과를 신뢰할 수 있도록 대사하는 일이었습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 체결가 차이는 시간과 가격 기준이 달랐기 때문입니다">
@@ -1925,9 +1928,9 @@ html, body { background: #fff; }
 </div>
 <div class="callout warnline compact-callout"><b>해석:</b> 시장 슬리피지를 없앤 것이 아니라, 대사 양쪽의 데이터·체결 가정을 통일한 결과입니다. 12건의 비교 체결가 차이가 0bp였습니다.</div>
 </div>
-<div class="foot"><span>대사 전용 설정 · 기존 백테스트 기본 동작은 유지</span><span class="pg">54 / 60</span></div></section>
+<div class="foot"><span>대사 전용 설정 · 기존 백테스트 기본 동작은 유지</span><span class="pg">56 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>54장</b> 최초 440.8bp는 실제 시장 슬리피지가 아니라 Paper와 LEAN이 산출한 체결가격 사이의 최대 상대 차이입니다. 초기 LEAN에는 Yahoo Finance 일봉 데이터에 15시 29분이라는 이벤트 시각이 붙어 있었습니다. 하지만 일봉은 하루의 OHLC를 요약한 자료이므로, 15시 29분이라는 라벨이 그 시각의 실제 체결가격을 뜻하지 않습니다. LEAN은 주문 제출 시각과 거래소 운영시간, 데이터 해상도 및 체결 모델에 따라 체결 가능한 바를 판단합니다. Paper와 LEAN의 가격 출처와 체결 기준도 같다고 보장되지 않았기 때문에 서로 다른 가격을 비교했을 가능성이 있습니다. 다만 현재 요약 증빙만으로 440.8bp 중 데이터 시각, 체결 모델, 가격 출처가 각각 얼마를 차지했는지는 분해할 수 없습니다. 개선에서는 대사 실행에만 Collector DB와 next_open을 적용했습니다. 신호는 수정종가, 주문·장부는 원주가 종가, 체결은 다음 거래일 원주가 시가로 기준을 나눴습니다. 그 결과 최종 12건의 비교 체결가격 차이가 0bp였습니다. 이는 같은 체결 가정으로 두 결과를 대조한 것이지, 실제 시장 슬리피지가 0이라는 뜻은 아닙니다.</aside>
+  <aside class="notes"><b>56장</b> 최초 440.8bp는 실제 시장 슬리피지가 아니라 Paper와 LEAN이 산출한 체결가격 사이의 최대 상대 차이입니다. 초기 LEAN에는 Yahoo Finance 일봉 데이터에 15시 29분이라는 이벤트 시각이 붙어 있었습니다. 하지만 일봉은 하루의 OHLC를 요약한 자료이므로, 15시 29분이라는 라벨이 그 시각의 실제 체결가격을 뜻하지 않습니다. LEAN은 주문 제출 시각과 거래소 운영시간, 데이터 해상도 및 체결 모델에 따라 체결 가능한 바를 판단합니다. Paper와 LEAN의 가격 출처와 체결 기준도 같다고 보장되지 않았기 때문에 서로 다른 가격을 비교했을 가능성이 있습니다. 다만 현재 요약 증빙만으로 440.8bp 중 데이터 시각, 체결 모델, 가격 출처가 각각 얼마를 차지했는지는 분해할 수 없습니다. 개선에서는 대사 실행에만 Collector DB와 next_open을 적용했습니다. 신호는 수정종가, 주문·장부는 원주가 종가, 체결은 다음 거래일 원주가 시가로 기준을 나눴습니다. 그 결과 최종 12건의 비교 체결가격 차이가 0bp였습니다. 이는 같은 체결 가정으로 두 결과를 대조한 것이지, 실제 시장 슬리피지가 0이라는 뜻은 아닙니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 거래비용은 총액과 거래 규모 대비 부담을 함께 봅니다">
@@ -1959,17 +1962,17 @@ html, body { background: #fff; }
 </div>
 <div class="cost-bottom-note"><span class="bp-chip">1bp = 0.01%</span><span>총 거래대금은 <b>매수 체결금액 + 매도 체결금액</b>입니다. 서로 상계한 순매매 금액이 아닙니다.</span></div>
 </div>
-<div class="foot"><span>총액 = 실제 지출 · 거래대금 = 거래 규모 · 요율 = 규모 대비 비용</span><span class="pg">55 / 60</span></div></section>
+<div class="foot"><span>총액 = 실제 지출 · 거래대금 = 거래 규모 · 요율 = 규모 대비 비용</span><span class="pg">57 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>55장</b> 비용 총액은 비용 모델에 포함된 수수료와 세금 등의 실제 합계입니다. 총 거래대금은 체결 수량과 체결가격을 곱한 값을 매수와 매도 모두 합산한 값입니다. 예를 들어 매수 100만 원과 매도 100만 원을 했다면 총 거래대금은 200만 원입니다. 순매매금액처럼 서로 상계하지 않습니다. 비용 요율은 총비용을 총 거래대금으로 나눈 뒤 10,000을 곱해 bp로 표현한 값입니다. 1bp는 0.01%이므로 10.76bp는 0.1076%입니다. Paper는 6,677.34원 ÷ 6,205,620원 × 10,000으로 약 10.76bp이고, LEAN은 6,677.33원으로 계산해 반올림 결과가 같습니다. 이 값은 이번 비교에 포함된 비용 모델 기준의 실효 비용 부담률이지, 증권사 수수료율 하나만 뜻하지는 않습니다. 세 지표를 함께 봐야 얼마를 지출했는지, 얼마나 거래했는지, 거래 규모 대비 비용 부담이 어떤지 각각 확인할 수 있습니다.</aside>
+  <aside class="notes"><b>57장</b> 비용 총액은 비용 모델에 포함된 수수료와 세금 등의 실제 합계입니다. 총 거래대금은 체결 수량과 체결가격을 곱한 값을 매수와 매도 모두 합산한 값입니다. 예를 들어 매수 100만 원과 매도 100만 원을 했다면 총 거래대금은 200만 원입니다. 순매매금액처럼 서로 상계하지 않습니다. 비용 요율은 총비용을 총 거래대금으로 나눈 뒤 10,000을 곱해 bp로 표현한 값입니다. 1bp는 0.01%이므로 10.76bp는 0.1076%입니다. Paper는 6,677.34원 ÷ 6,205,620원 × 10,000으로 약 10.76bp이고, LEAN은 6,677.33원으로 계산해 반올림 결과가 같습니다. 이 값은 이번 비교에 포함된 비용 모델 기준의 실효 비용 부담률이지, 증권사 수수료율 하나만 뜻하지는 않습니다. 세 지표를 함께 봐야 얼마를 지출했는지, 얼마나 거래했는지, 거래 규모 대비 비용 부담이 어떤지 각각 확인할 수 있습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 성과 수치가 다르면 산출 경로와 정의부터 확인했습니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="14. 성과지표 계산 기준" class="slide active"><div class="kicker">14 / PERFORMANCE METRICS &amp; SOURCE</div><h2>성과 수치가 다르면 <span class="accent">산출 경로와 정의</span>부터 확인했습니다</h2><p class="lead">API 보조 계산값과 LEAN 엔진 통계를 하나의 성과처럼 섞지 않도록 출처를 구분했습니다.</p><div class="body"><div class="table-wrap"><table><thead><tr><th>2026.11.04 실행 예시</th><th class="right">전략 API 계산</th><th class="right">LEAN native statistics</th></tr></thead><tbody><tr><td>순수익률</td><td class="right red">-6.99%</td><td class="right">-6.821%</td></tr><tr><td>MDD / Drawdown</td><td class="right">-7.69%</td><td class="right">7.400% (낙폭 크기)</td></tr><tr><td>Sharpe Ratio</td><td class="right">-3.37</td><td class="right">-2.922</td></tr><tr><td>거래 수</td><td class="right">2건</td><td class="right">2건</td></tr></tbody></table></div><div class="grid g3"><div class="card soft"><div class="eyebrow">RETURN</div><div class="card-title">누적 수익률</div><p>초기 자본·최종 평가액·비용 반영 시점</p></div><div class="card soft"><div class="eyebrow">DRAWDOWN</div><div class="card-title">MDD · 변동성</div><p>일별 평가액과 청산 기준 구분</p></div><div class="card soft"><div class="eyebrow">QUALITY</div><div class="card-title">Sharpe · 승률</div><p>관측 주기와 완료 거래 기준</p></div></div><div class="callout"><b>개선:</b> LEAN 성공 시 native 통계, 미실행 시에만 pandas fallback을 사용하도록 분기했습니다. 정의가 다른 값은 자동 일치 판정을 보류합니다.</div></div><div class="foot"><span>실행 성공 여부·계산 출처·산출 정의를 함께 반환</span><span class="pg">56 / 60</span></div></section>
+<section aria-label="14. 성과지표 계산 기준" class="slide active"><div class="kicker">14 / PERFORMANCE METRICS &amp; SOURCE</div><h2>성과 수치가 다르면 <span class="accent">산출 경로와 정의</span>부터 확인했습니다</h2><p class="lead">API 보조 계산값과 LEAN 엔진 통계를 하나의 성과처럼 섞지 않도록 출처를 구분했습니다.</p><div class="body"><div class="table-wrap"><table><thead><tr><th>2026.11.04 실행 예시</th><th class="right">전략 API 계산</th><th class="right">LEAN native statistics</th></tr></thead><tbody><tr><td>순수익률</td><td class="right red">-6.99%</td><td class="right">-6.821%</td></tr><tr><td>MDD / Drawdown</td><td class="right">-7.69%</td><td class="right">7.400% (낙폭 크기)</td></tr><tr><td>Sharpe Ratio</td><td class="right">-3.37</td><td class="right">-2.922</td></tr><tr><td>거래 수</td><td class="right">2건</td><td class="right">2건</td></tr></tbody></table></div><div class="grid g3"><div class="card soft"><div class="eyebrow">RETURN</div><div class="card-title">누적 수익률</div><p>초기 자본·최종 평가액·비용 반영 시점</p></div><div class="card soft"><div class="eyebrow">DRAWDOWN</div><div class="card-title">MDD · 변동성</div><p>일별 평가액과 청산 기준 구분</p></div><div class="card soft"><div class="eyebrow">QUALITY</div><div class="card-title">Sharpe · 승률</div><p>관측 주기와 완료 거래 기준</p></div></div><div class="callout"><b>개선:</b> LEAN 성공 시 native 통계, 미실행 시에만 pandas fallback을 사용하도록 분기했습니다. 정의가 다른 값은 자동 일치 판정을 보류합니다.</div></div><div class="foot"><span>실행 성공 여부·계산 출처·산출 정의를 함께 반환</span><span class="pg">58 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>56장</b> API 계산값과 LEAN native 통계가 다를 수 있어 출처를 분리했습니다. LEAN이 성공하면 native 통계를 사용하고 실패할 때만 pandas fallback을 사용하도록 했습니다.</aside>
+  <aside class="notes"><b>58장</b> API 계산값과 LEAN native 통계가 다를 수 있어 출처를 분리했습니다. LEAN이 성공하면 native 통계를 사용하고 실패할 때만 pandas fallback을 사용하도록 했습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · DSR 계산에는 같은 관측 주기의 Sharpe를 넣어야 합니다">
@@ -2000,17 +2003,17 @@ html, body { background: #fff; }
 </div>
 <div class="callout warnline compact-callout"><b>정리:</b> 이번에는 입력 단위의 정합성을 바로잡았습니다. 이것만으로 전략의 통계적 유효성이 입증된 것은 아닙니다.</div>
 </div>
-<div class="foot"><span>연율 Sharpe 1.00 ÷ √252 ≈ 일별 Sharpe 0.0630</span><span class="pg">57 / 60</span></div></section>
+<div class="foot"><span>연율 Sharpe 1.00 ÷ √252 ≈ 일별 Sharpe 0.0630</span><span class="pg">59 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>57장</b> Sharpe는 어느 주기의 수익률을 사용했는지에 따라 값이 달라집니다. 일별 Sharpe는 일별 초과수익률의 평균을 일별 표준편차로 나눈 값입니다. 이 값을 연간 단위로 표시할 때 거래일 252일을 가정해 √252를 곱합니다. 따라서 연율 Sharpe 1.00을 일별 DSR 입력값으로 되돌리려면 √252, 약 15.87로 나눠야 하고 결과는 약 0.0630입니다. DSR 계산에서 Sharpe, 관측 개수 T, 왜도와 첨도가 모두 일별 수익률을 기준으로 한다면 Sharpe도 반드시 일별이어야 합니다. 이번 변경은 이 단위 일치를 적용하고, 알파가 없는 무작위 합성 수익률에서 DSR이 부당하게 높아지지 않는지 회귀 테스트를 추가한 것입니다. 다만 전략 시도 횟수 n_trials 자동 기록, 여러 시도에서 나온 Sharpe 분산, 짧은 표본 경고는 남아 있습니다. 따라서 단위 정합성을 보완한 것이지 전략의 통계적 유효성을 입증한 것은 아닙니다.</aside>
+  <aside class="notes"><b>59장</b> Sharpe는 어느 주기의 수익률을 사용했는지에 따라 값이 달라집니다. 일별 Sharpe는 일별 초과수익률의 평균을 일별 표준편차로 나눈 값입니다. 이 값을 연간 단위로 표시할 때 거래일 252일을 가정해 √252를 곱합니다. 따라서 연율 Sharpe 1.00을 일별 DSR 입력값으로 되돌리려면 √252, 약 15.87로 나눠야 하고 결과는 약 0.0630입니다. DSR 계산에서 Sharpe, 관측 개수 T, 왜도와 첨도가 모두 일별 수익률을 기준으로 한다면 Sharpe도 반드시 일별이어야 합니다. 이번 변경은 이 단위 일치를 적용하고, 알파가 없는 무작위 합성 수익률에서 DSR이 부당하게 높아지지 않는지 회귀 테스트를 추가한 것입니다. 다만 전략 시도 횟수 n_trials 자동 기록, 여러 시도에서 나온 Sharpe 분산, 짧은 표본 경고는 남아 있습니다. 따라서 단위 정합성을 보완한 것이지 전략의 통계적 유효성을 입증한 것은 아닙니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 목표는 검증 가능한 실행 결과를 만드는 것이었습니다">
   <div class="gnum"><b>강민석</b><span class="pg"></span></div>
   <div class="imp d-kang" style="width:1440px;height:810px;transform:scale(1.33333)">
-<section aria-label="16. 운영 안정성 및 결론" class="slide active"><div class="kicker">16 / OUTCOME &amp; REMAINING SCOPE</div><h2>목표는 <span class="accent">검증 가능한 실행 결과</span>를 만드는 것이었습니다</h2><p class="lead">백테스트·기록·대사·성과 산출에서 실패를 성공으로 오판하지 않도록 보완했습니다.</p><div class="body"><div class="grid g2"><div class="card"><div class="eyebrow">OPERATIONAL RELIABILITY</div><div class="card-title">실패와 부분 성공 구분</div><ul style="padding-left:16px;margin:0;display:grid;gap:5px"><li>Snapshot 일부 실패와 DB 오류를 실패로 전달</li><li>HF 원장 pull의 stdout 오류도 진단 가능하도록 보완</li><li>비교 데이터가 없으면 `unavailable` 처리</li></ul></div><div class="card"><div class="eyebrow">REMAINING / NOT CLAIMED</div><div class="card-title">남은 과제</div><ul style="padding-left:16px;margin:0;display:grid;gap:5px"><li>신호 3일의 커버리지 원인 확인</li><li>TradingView CSV 직접 비교 및 별도 5일 실행 증빙</li><li>ATR 전체 경로 통합과 DSR 고도화</li><li>실계좌 자동매매 전환·운영 승인은 이번 범위가 아님</li></ul></div></div><div class="card soft" style="padding:13px 16px"><div class="eyebrow">FINAL MESSAGE</div><h3 style="font-size:clamp(16px,1.65vw,23px);line-height:1.3;margin-bottom:7px">“기능이 실행되는가?”에서<br/><span class="accent">“그 결과를 신뢰할 수 있는가?”</span>로 검증 기준을 확장했습니다.</h3><p>신호·자금 배분·체결 시점·거래비용·가격 출처·성과 통계를 분리해 확인하고 차이의 원인을 추적했습니다.</p></div><div class="tagline">감사합니다 · 강민석</div></div><div class="foot"><span>완료된 결과와 추가 검증이 필요한 범위를 구분해 보고</span><span class="pg">58 / 60</span></div></section>
+<section aria-label="16. 운영 안정성 및 결론" class="slide active"><div class="kicker">16 / OUTCOME &amp; REMAINING SCOPE</div><h2>목표는 <span class="accent">검증 가능한 실행 결과</span>를 만드는 것이었습니다</h2><p class="lead">백테스트·기록·대사·성과 산출에서 실패를 성공으로 오판하지 않도록 보완했습니다.</p><div class="body"><div class="grid g2"><div class="card"><div class="eyebrow">OPERATIONAL RELIABILITY</div><div class="card-title">실패와 부분 성공 구분</div><ul style="padding-left:16px;margin:0;display:grid;gap:5px"><li>Snapshot 일부 실패와 DB 오류를 실패로 전달</li><li>HF 원장 pull의 stdout 오류도 진단 가능하도록 보완</li><li>비교 데이터가 없으면 `unavailable` 처리</li></ul></div><div class="card"><div class="eyebrow">REMAINING / NOT CLAIMED</div><div class="card-title">남은 과제</div><ul style="padding-left:16px;margin:0;display:grid;gap:5px"><li>신호 3일의 커버리지 원인 확인</li><li>TradingView CSV 직접 비교 및 별도 5일 실행 증빙</li><li>ATR 전체 경로 통합과 DSR 고도화</li><li>실계좌 자동매매 전환·운영 승인은 이번 범위가 아님</li></ul></div></div><div class="card soft" style="padding:13px 16px"><div class="eyebrow">FINAL MESSAGE</div><h3 style="font-size:clamp(16px,1.65vw,23px);line-height:1.3;margin-bottom:7px">“기능이 실행되는가?”에서<br/><span class="accent">“그 결과를 신뢰할 수 있는가?”</span>로 검증 기준을 확장했습니다.</h3><p>신호·자금 배분·체결 시점·거래비용·가격 출처·성과 통계를 분리해 확인하고 차이의 원인을 추적했습니다.</p></div><div class="tagline">감사합니다 · 강민석</div></div><div class="foot"><span>완료된 결과와 추가 검증이 필요한 범위를 구분해 보고</span><span class="pg">60 / 62</span></div></section>
   </div>
-  <aside class="notes"><b>58장</b> Snapshot과 데이터 수집 오류를 정상 성공으로 오판하지 않도록 보완했습니다. 남은 범위와 완료된 결과를 구분해 보고드리겠습니다.</aside>
+  <aside class="notes"><b>60장</b> Snapshot과 데이터 수집 오류를 정상 성공으로 오판하지 않도록 보완했습니다. 남은 범위와 완료된 결과를 구분해 보고드리겠습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="한계와 이어갈 길 · 강민석 발표 · 신호가 맞는지는, 맞히지 못했습니다">
@@ -2033,9 +2036,9 @@ html, body { background: #fff; }
       <text x="0" y="146" font-size="13">기준선(오른 비율)</text><rect x="140" y="130" width="287.3" height="24" rx="4" fill="#c3cdd6"/><text x="435" y="148" font-weight="700" font-size="13">51.3</text>
       <path d="M420 4 L420 160" stroke="#172b3d" stroke-width="1.5" stroke-dasharray="4 3"/><text x="420" y="176" text-anchor="middle" class="m" font-size="12">50%</text></g></svg>
     <span class="cap">막대는 0에서 시작합니다. 매수·매도 모두 기준선과 거의 차이가 없습니다.</span></div></div><div class="gloss"><b>쉬운 말</b> 적중률 = 5거래일 뒤 방향을 맞힌 비율 · 기준선 = 아무 날이나 뽑아도 오른 비율 · 백테스트 = 과거 가격으로 규칙을 시험 · PF = 번 돈 ÷ 잃은 돈 · MDD = 고점 대비 최대 하락 · 샤프 = 위험 대비 수익 · 95% 구간 = 표본 오차를 감안한 범위</div></div>
-  <footer class="footer"><span>근거: 신장환 님 신호 적중 대조(2026-11-02, 400종목 · 2023-10-27 ~ 2026-08-21 판단일 · 53,044줄). 이 신호의 예측력을 따로 입증한 자료는 아직 없습니다. · 49.1% · 95% 구간은 이동원이 날짜 묶음 부트스트랩으로 재측정(11-06) · 기준 전략 결과 04-testing/기준전략-시도-2026-10-30/결과.md(110개 · 샤프 0/110 · 최고 0.946)</span><span class="pg">59 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 신장환 님 신호 적중 대조(2026-11-02, 400종목 · 2023-10-27 ~ 2026-08-21 판단일 · 53,044줄). 이 신호의 예측력을 따로 입증한 자료는 아직 없습니다. · 49.1% · 95% 구간은 이동원이 날짜 묶음 부트스트랩으로 재측정(11-06) · 기준 전략 결과 04-testing/기준전략-시도-2026-10-30/결과.md(110개 · 샤프 0/110 · 최고 0.946)</span><span class="pg">61 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>59장 (50초)</b> 여기서부터는 못 한 것입니다. 신장환 님이 400종목, 138일에 걸친 5만 줄이 넘는 신호를 5거래일 뒤 실제 수익과 맞춰 봤어요. 매수 신호의 적중률은 48.9에서 50.1%였고, 아무 날이나 뽑아도 오르는 비율 51.3%와 비슷하거나 낮았습니다. 매수 전체로 다시 재면 49.1%이고, 95% 구간이 45.9에서 52.2%라서 기준선 51.3%가 그 안에 들어갑니다. 신뢰도가 높다고 적중률이 오르지도 않았어요. 그래서 저희 신호는 수익을 맞히는 신호가 아니라 이 규칙이 켜졌다는 기록이라고 말씀드립니다. 범위는 60분, 일, 주 신호와 5거래일 하나, 비용 제외라서 자동매매 이동평균 교차 규칙은 이 대조에 들어 있지 않습니다. 같은 규칙은 기준 전략 110개 시도로 백테스트했고, 합격선을 넘은 것은 0개였습니다.</aside>
+  <aside class="notes"><b>61장 (50초)</b> 여기서부터는 못 한 것입니다. 신장환 님이 400종목, 138일에 걸친 5만 줄이 넘는 신호를 5거래일 뒤 실제 수익과 맞춰 봤어요. 매수 신호의 적중률은 48.9에서 50.1%였고, 아무 날이나 뽑아도 오르는 비율 51.3%와 비슷하거나 낮았습니다. 매수 전체로 다시 재면 49.1%이고, 95% 구간이 45.9에서 52.2%라서 기준선 51.3%가 그 안에 들어갑니다. 신뢰도가 높다고 적중률이 오르지도 않았어요. 그래서 저희 신호는 수익을 맞히는 신호가 아니라 이 규칙이 켜졌다는 기록이라고 말씀드립니다. 범위는 60분, 일, 주 신호와 5거래일 하나, 비용 제외라서 자동매매 이동평균 교차 규칙은 이 대조에 들어 있지 않습니다. 같은 규칙은 기준 전략 110개 시도로 백테스트했고, 합격선을 넘은 것은 0개였습니다.</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="한계와 이어갈 길 · 강민석 발표 · 못 한 것은 못 했다고 적고, 이어갈 길을 붙였습니다">
@@ -2049,9 +2052,9 @@ html, body { background: #fff; }
   <div class="card neg"><h3>TradingView는 일부만 확인</h3><p>Pine 두 판 1회 컴파일 · 실제 알림 수신은 못 함.</p><p class="go">→ 공개 주소가 생기면 받아 봅니다.</p></div>
   <div class="card neg"><h3>체결과 비용은 가정</h3><p>시장 충격 · 거절 · 지연은 안 쟀고 슬리피지는 10bp 고정.</p><p class="go">→ 공식 종가와 맞춘 뒤 정합니다.</p></div>
   <div class="card neg"><h3>급락 가정 점검이 없다</h3><p>급락일 스트레스 점검은 하지 않았습니다.</p><p class="go">→ 시나리오 표부터 정합니다.</p></div></div><div class="gloss"><b>쉬운 말</b> 대사 = 두 도구의 결과를 줄 단위로 맞춰 봄 · 슬리피지 = 주문가와 실제 체결가의 어긋남(10bp = 0.10%) · 시장 충격 = 내 주문이 가격을 움직이는 정도 · 스트레스 점검 = 급락 같은 나쁜 날을 가정해 한도가 버티는지 보는 시험</div></div>
-  <footer class="footer"><span>근거: 레드펜 9문 자체 점검(2026-11-09, 코드 읽기이며 실행 확인은 아님). 한도는 코드 기본값입니다. 시기는 현재 계획이며 확정이 아닌 것은 정하지 않았습니다.</span><span class="pg">60 / 60</span></footer></section>
+  <footer class="footer"><span>근거: 레드펜 9문 자체 점검(2026-11-09, 코드 읽기이며 실행 확인은 아님). 한도는 코드 기본값입니다. 시기는 현재 계획이며 확정이 아닌 것은 정하지 않았습니다.</span><span class="pg">62 / 62</span></footer></section>
   </div>
-  <aside class="notes"><b>60장 (60초)</b> 그 밖에 못 한 것은 네 가지입니다. 첫째, 일지는 전진 기록이 11행뿐이고 대사도 ma_cross 한 조건에서만 맞춰 봤어요. 기록이 쌓이면 구간별로 나눠 보이고 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 볼 계획입니다. 둘째, TradingView 쪽은 일부만 확인했습니다. 생성기가 낸 Pine 코드 두 판을 편집기에서 한 번 컴파일했을 뿐이고, 거래 목록 CSV 비교와 실제 알림 수신은 못 했어요. 공개 HTTPS 주소가 준비되면 알림을 한 번 받아 보겠습니다. 셋째, 체결과 비용은 가정입니다. 가상 체결이라 시장 충격이나 거절, 지연은 재지 않았고 슬리피지는 10bp로 고정했어요. 증권사 일봉이 몇 시에 확정되는지도 공식 종가와 맞춰 본 뒤에 정하겠습니다. 넷째, 급락 같은 나쁜 날을 가정한 스트레스 점검은 하지 않았습니다. 일손실, 종목 비중, 하루 주문 수 한도와 비상 정지는 구현했지만, 이 전략이 실패한다면 무엇 때문일지를 한 편으로 쓰지는 못했어요.</aside>
+  <aside class="notes"><b>62장 (60초)</b> 그 밖에 못 한 것은 네 가지입니다. 첫째, 일지는 전진 기록이 11행뿐이고 대사도 ma_cross 한 조건에서만 맞춰 봤어요. 기록이 쌓이면 구간별로 나눠 보이고 카드 비중을 LEAN에 넘겨 다른 전략도 맞춰 볼 계획입니다. 둘째, TradingView 쪽은 일부만 확인했습니다. 생성기가 낸 Pine 코드 두 판을 편집기에서 한 번 컴파일했을 뿐이고, 거래 목록 CSV 비교와 실제 알림 수신은 못 했어요. 공개 HTTPS 주소가 준비되면 알림을 한 번 받아 보겠습니다. 셋째, 체결과 비용은 가정입니다. 가상 체결이라 시장 충격이나 거절, 지연은 재지 않았고 슬리피지는 10bp로 고정했어요. 증권사 일봉이 몇 시에 확정되는지도 공식 종가와 맞춰 본 뒤에 정하겠습니다. 넷째, 급락 같은 나쁜 날을 가정한 스트레스 점검은 하지 않았습니다. 일손실, 종목 비중, 하루 주문 수 한도와 비상 정지는 구현했지만, 이 전략이 실패한다면 무엇 때문일지를 한 편으로 쓰지는 못했어요.</aside>
 </section>
 
 </div>

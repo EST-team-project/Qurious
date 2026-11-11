@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="doc-version" content="0.9">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qurious · 오준영 담당 발표 초안</title>
+<style>
+:root{color-scheme:light;--ink:#172b3d;--muted:#516678;--blue:#2157c9;--green:#08795c;--line:#d7e1e8;--paper:#f6f8fb;--scale:1}
+*{box-sizing:border-box}body{margin:0;background:#dfe6ed;font-family:"Malgun Gothic","Noto Sans KR",Arial,sans-serif;color:var(--ink)}
+#stage{position:absolute;left:50%;top:calc(50% - 22px);width:1280px;height:720px;transform:translate(-50%,-50%) scale(var(--scale));transform-origin:center}
+.slide{width:1280px;height:720px;overflow:hidden;background:var(--paper);padding:42px 58px 38px;display:flex;flex-direction:column;position:relative}
+.slide[hidden]{display:none}.eyebrow{font-size:17px;font-weight:700;letter-spacing:.09em;color:var(--blue);margin:0 0 17px}
+h1,h2,h3,p{margin:0}h1{font-size:56px;line-height:1.3;letter-spacing:-2px}h2{font-size:39px;line-height:1.35;letter-spacing:-1.4px;margin-bottom:15px}h3{font-size:23px;line-height:1.4}
+.lead{font-size:23px;line-height:1.55;color:var(--muted);max-width:1080px}.body{flex:1;margin-top:27px;min-height:0}.footer{display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:15px;line-height:1.4;color:var(--muted);border-top:1px solid var(--line);padding-top:15px;margin-top:22px}
+.footer a{color:inherit}.tag{display:inline-block;padding:7px 12px;border-radius:7px;background:#e9f0ff;color:var(--blue);font-size:17px;font-weight:700}.row{display:flex;gap:18px}.col{flex:1;min-width:0}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px}.card p{font-size:20px;line-height:1.6;margin-top:10px;color:var(--muted)}
+.card small{font-size:17px;color:var(--muted);line-height:1.5;display:block;margin-top:8px}.green{color:var(--green)}.blue{color:var(--blue)}.callout{border-left:5px solid var(--green);padding:16px 20px;background:#e8f5ef;border-radius:0 12px 12px 0;font-size:21px;line-height:1.6}
+.step{position:relative;flex:1;background:white;border:1px solid var(--line);border-radius:12px;padding:18px 16px;text-align:center;font-size:21px;font-weight:700;line-height:1.45}.step:not(:last-child):after{content:"→";position:absolute;right:-23px;top:29%;font-size:24px;color:var(--muted);z-index:1}.steps{display:flex;gap:29px}.number{font-size:60px;line-height:1.1;font-weight:800;color:var(--blue);letter-spacing:-2px}.metric{padding:21px 25px}.metric .label{font-size:22px;font-weight:700;margin-top:10px}.metric .detail{font-size:18px;line-height:1.5;margin-top:7px;color:var(--muted)}
+.hero{background:#102f3b;color:#fff}.hero .eyebrow{color:#84dfc0}.hero .lead{color:#cee0e6;font-size:25px;margin-top:23px}.hero .footer{border-color:#46606b;color:#cee0e6}.hero .body{display:grid;grid-template-columns:1.16fr 1fr;gap:58px;align-items:center;margin-top:12px}.hero .map{display:flex;flex-direction:column;gap:15px}.hero .map div{padding:22px 24px;border-radius:13px;background:#1c4351;border:1px solid #52747d;font-size:24px;font-weight:700}.hero .map span{display:block;color:#b8d1da;font-size:19px;font-weight:400;margin-top:7px}.hero .badge{margin-top:28px;display:inline-block;font-size:18px;color:#91e7c8;border:1px solid #528a7d;border-radius:8px;padding:10px 13px}
+.models .card{padding:17px 18px}.models h3{font-size:22px}.models p{font-size:18px}.gap{height:24px}.timeline{display:grid;grid-template-columns:1fr 1fr;gap:24px}.timeline .state{font-size:19px;font-weight:700;color:var(--green);margin-bottom:10px}.timeline .large{font-size:34px;font-weight:800;line-height:1.4}.timeline p{font-size:22px}.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.checks .card{padding:19px}.checks p{font-size:19px}.split{display:grid;grid-template-columns:1fr 1fr;gap:23px}.list{display:grid;gap:16px;margin-top:20px}.list div{font-size:22px;line-height:1.5;padding-bottom:14px;border-bottom:1px solid var(--line)}.list div:last-child{border:0;padding-bottom:0}.note{font-size:18px;color:var(--muted);line-height:1.6}
+.slide[aria-labelledby="s4"] .gap{height:8px}
+nav{position:fixed;bottom:13px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:13px;font-size:15px}button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);border-radius:7px;padding:9px 15px;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #b44c00;outline-offset:3px}#counter{min-width:70px;text-align:center}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@page{size:13.333333in 7.5in;margin:0}
+@media print{body{background:white}#stage{position:static;transform:none;width:1280px;height:auto}.slide,.slide[hidden]{display:flex!important;break-after:page;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}.slide:last-child{break-after:auto;page-break-after:auto}nav,.sr-only{display:none!important}}
+.case .body { margin-top:22px }
+.case .card { padding:18px 21px }
+.case .card p { font-size:20px;line-height:1.5 }
+.case .card small { font-size:17px;line-height:1.5 }
+.case .gap { height:16px }
+.case .step { font-size:20px;padding:17px 16px }
+.case .callout { font-size:20px;line-height:1.55;padding:14px 20px }
+.alerts h2{font-size:34px}.alerts .lead{font-size:21px}.alerts .body{margin-top:22px}.alert-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}.alert-column{min-width:0}.alert-column>h3{font-size:22px;margin-bottom:10px}.alert-message{background:#36393f;color:#f2f3f5;border:1px solid #45484f;border-left:5px solid #33b5e5;border-radius:7px;padding:12px 14px;margin-bottom:12px}.alert-message h4{font-size:18px;line-height:1.3;margin:0 0 6px}.alert-message p{font-size:16px;line-height:1.4;margin:0}.alert-message .alert-time{font-size:14px;color:#c7ccd4;margin-bottom:6px;font-variant-numeric:tabular-nums}.alert-message .alert-price{font-size:21px;font-weight:700;margin:5px 0 2px;white-space:nowrap}.alert-message .alert-total{color:#e4e8ed}.alert-message .alert-next{border-top:1px solid #53575f;margin-top:8px;padding-top:8px;font-size:15px;color:#e4e8ed}.alert-message.alert-filled{border-left-color:#79c268}.alert-message.alert-stop{border-left-color:#ed545c}.alert-stop .alert-reason{margin:10px 0}.alert-stop .alert-next{font-size:17px}.alert-column .alert-caption{font-size:16px;line-height:1.4;color:var(--muted);margin-top:8px}.alerts .footer{font-size:14px}
+</style>
+</head>
+<body>
+<main id="stage" aria-label="오준영 담당 발표자료">
+<section class="slide hero" aria-labelledby="s1">
+  <p class="eyebrow">QURIOUS / 자산배분 · 리밸런싱 · 증권사 연동</p>
+  <div class="body">
+    <div><h1 id="s1">판단을 계획으로,<br>실행을 기록으로</h1><p class="lead">사용자가 확인한 배분과 전략을<br>모의 실행·위험관리·결과 확인으로 연결합니다.</p><div class="badge">오준영 · 3차 담당 발표 초안 v0.9</div></div>
+    <div class="map" aria-label="담당 기능의 세 단계">
+      <div>01 계획<span>성향 · 배분 모델 · 리밸런싱 목표</span></div>
+      <div>02 실행<span>전략 판단 · 위험 검사 · 모의 주문</span></div>
+      <div>03 확인<span>체결 추적 · 알림 · 복구 기록</span></div>
+    </div>
+  </div>
+  <footer class="footer"><span>2026.11.11 갱신 · 11/6~11/9 검증 기록 반영 · 발표 시간 실측 전</span><span>01 / 08</span></footer></section>
+<section class="slide" aria-labelledby="s2" hidden>
+  <p class="eyebrow">01 / 자산배분과 리밸런싱</p><h2 id="s2">계산 결과는 사용자의 확인을 거쳐 적용합니다</h2>
+  <p class="lead">성향별 기준 배분에 네 가지 모델을 더하고, 자료 기준일과 입력 조건을 함께 남깁니다.</p>
+  <div class="body">
+    <div class="row models">
+      <div class="card col"><h3>리스크 패리티</h3><p>자산군별 위험 기여를<br>균등하게 배분</p></div>
+      <div class="card col"><h3>최소분산</h3><p>비중 제약 안에서<br>분산을 낮추는 조합</p></div>
+      <div class="card col"><h3>Black–Litterman</h3><p>기준 비중에 상대 전망과<br>신뢰도를 반영</p></div>
+      <div class="card col"><h3>국면 배분</h3><p>추세 × 변동성에 따라<br>네 국면의 목표 계산</p></div>
+    </div><div class="gap"></div>
+    <div class="steps"><div class="step">계산·저장</div><div class="step">배분 가져오기</div><div class="step">목표·국면 연결<br>설정 확인</div><div class="step">플랜 저장</div></div>
+    <div class="gap"></div><div class="callout">목표 갱신과 자동 주문 예약은 별도 설정입니다.<br>기본 가져오기는 국내주식 부분만 적용하고 나머지는 현금으로 남깁니다.</div>
+  </div>
+  <footer class="footer"><span>ETF 포함은 별도 선택 · BL 기본 균형은 성향 비중이며 시가총액 시장 비중이 아닙니다.</span><span>02 / 08</span></footer></section>
+<section class="slide" aria-labelledby="s3" hidden>
+  <p class="eyebrow">02 / 전략 주문과 위험관리</p><h2 id="s3">주문 전 검증하고, 접수 후 체결을 추적합니다</h2>
+  <p class="lead">자동매매 계열의 주문을 검사하고, 가상 장부와 KIS 모의계좌를 구분합니다.</p>
+  <div class="body">
+    <div class="steps"><div class="step">자료 준비</div><div class="step">전략 판단</div><div class="step">위험 검사</div><div class="step">주문 접수</div><div class="step">체결 추적<br>· 알림</div></div>
+    <div class="gap"></div><div class="checks">
+      <div class="card"><h3>실행 전에</h3><p>최신 확정 자료<br>계좌·전략 판·귀속 보유<br>손실 한도·비상 정지</p></div>
+      <div class="card"><h3>불명확할 때</h3><p>기존 주문 번호로 조회<br>접수와 체결 상태 구분<br>같은 요청의 중복 방지</p></div>
+      <div class="card"><h3>운영 중에</h3><p>판단 기본 600초<br>체결 추적 120초<br>heartbeat 60초</p></div>
+    </div><div class="gap"></div><p class="note"><b>비상 정지는 자동매매 계열·개인 KIS 모의 주문에 적용하며, 보유 종목을 자동 청산하지 않습니다.</b><br>QUANT 판 2의 조정 사건 보류 중에는 자동 손절·익절도 중단됩니다. 자동 교정·보류 해제는 미지원입니다.</p>
+  </div>
+  <footer class="footer"><span>웹 직접매매·일반 PAPER·외부 Open API 주문은 비상 정지 적용 밖입니다.</span><span>03 / 08</span></footer></section>
+<section class="slide" aria-labelledby="s4" hidden>
+  <p class="eyebrow">03 / 실제 KIS 모의 검증</p><h2 id="s4">3종목 30주를 매수하고, 전량 매도했습니다</h2>
+  <p class="lead">2026.11.06 · 하나금융지주 · S-Oil · 삼성에스디에스 각 10주, KIS 모의계좌 시험</p>
+  <div class="body">
+    <div class="timeline">
+      <div class="card"><p class="state">매수 / 3건 FILLED</p><p class="large">총 30주 체결</p><p>홈페이지 시험 진단의 추천 목록 사용</p><small>사용자의 실제 성향과 별도인 기능 검증용 선택</small></div>
+      <div class="card"><p class="state">매도 / 3건 FILLED</p><p class="large">총 30주 체결</p><p>09:40:32~09:43:41 매수·매도 확인</p><small>앱 주문 기록과 증권사 체결 결과 대조</small></div>
+    </div><div class="gap"></div>
+    <div class="checks"><div class="card"><h3 class="green">시험 잔량 0주</h3><p>세 종목 모두 전량 매도</p></div><div class="card"><h3 class="green">기존 1주 보존</h3><p>삼성전자 · 위험 설정 유지</p></div><div class="card"><h3 class="green">미체결 0건</h3><p>여섯 주문 모두 완료</p></div></div>
+    <div class="gap"></div><p class="note">앱 주문 기록과 KIS 직접 체결 조회에서 수량·완료 상태를 대조했습니다.<br>이 연결 시험에서 찾은 체결 알림 오류와, 이후 긴급정지 취소 누락을 다음 두 장에서 설명합니다.</p>
+  </div>
+  <footer class="footer"><span>11/6 KIS 모의 왕복 검증 · 가상 자금 기능 시험이며 자연 전략 주문·수익성 검증은 아닙니다.</span><span>04 / 08</span></footer></section>
+<section class="slide case" aria-labelledby="s5" hidden>
+  <p class="eyebrow">04 / 발견한 오류 ① · 11/6 체결 알림</p><h2 id="s5">체결은 한 번인데, 알림이 두 번 왔습니다</h2>
+  <p class="lead">삼성에스디에스 모의 매수 10주: 09:43:14·09:43:16에 같은 체결 알림이 도착했습니다.</p>
+  <div class="body">
+    <div class="row">
+      <div class="card col"><h3>원인 · 두 경로가 같은 체결을 확인</h3><p>정기 체결 확인과 복구 조회가<br>각각 같은 주문의 알림을 보냈습니다.</p><small>공통 발송에 안정적인 주문 식별자가 없었습니다.</small></div>
+      <div class="card col"><h3>수정 · 같은 주문 ID로 발송 권한 선점</h3><p>두 경로가 동일한 주문 ID를 전달하고,<br>DB에서 발송 권한을 먼저 확보하게 했습니다.</p><small>사용자·알림 종류·주문 ID를 함께 확인합니다.</small></div>
+    </div><div class="gap"></div>
+    <div class="steps" aria-label="체결 알림 중복 방지 흐름"><div class="step">정기 확인 · 복구 조회</div><div class="step">같은 주문 ID로 DB 선점</div><div class="step">선점한 호출만 발송</div></div>
+    <div class="gap"></div><div class="callout">실제 DB에서 동시 호출·재조회·전달 실패·다른 주문을 검증했습니다.<br><b>신규 2건 포함 담당 회귀 244건 통과</b> · 최초 거래의 주문 자체 중복은 0건입니다.</div>
+  </div>
+  <footer class="footer"><span>근거: ERR-044 · 244건은 담당 범위 회귀이며, 수정 직후 새 KIS 주문으로 재검증한 결과는 아닙니다.</span><span>05 / 08</span></footer></section>
+<section class="slide case" aria-labelledby="s6" hidden>
+  <p class="eyebrow">05 / 발견한 오류 ② · 11/9 긴급정지</p><h2 id="s6">긴급정지에서 KIS 미체결 취소가 빠졌습니다</h2>
+  <p class="lead">신규 주문은 막았지만, 개인 KIS 모의 주문의 취소 경로는 연결되지 않았습니다.</p>
+  <div class="body">
+    <div class="row">
+      <div class="card col"><h3>원인 · 직접 KIS 주문을 건너뜀</h3><p>기존 미체결 취소 함수가<br>직접 KIS 모의 주문을 제외했습니다.</p><small>정지 후 별도 취소 시험으로는 이 누락을 못 찾았습니다.</small></div>
+      <div class="card col"><h3>수정 · 정지에서 취소 서비스 연결</h3><p>수동·일손실 정지가 기존 KIS 취소<br>서비스를 호출하도록 연결했습니다.</p><small>계좌·원주문·확정 잔량 확인과 중복 방지를 유지합니다.</small></div>
+    </div><div class="gap"></div>
+    <div class="steps" aria-label="긴급정지의 KIS 미체결 취소 흐름"><div class="step">긴급정지</div><div class="step">KIS 미체결 잔량 취소</div><div class="step">취소 확정 · 미확인 구분</div></div>
+    <div class="gap"></div><div class="callout"><b>KIS 모의 미체결 5주 취소 확정 · 반복 취소 전송 0 · 관련 회귀 300건 통과.</b><br>정지 중 신규 매수·매도·자동 시작 차단과 기존 보유 1주 보존을 확인했습니다.</div>
+  </div>
+  <footer class="footer"><span>근거: ERR-051 · 취소 요청과 확정은 다릅니다. 보유 종목 자동 청산·모든 주문 경로의 정지를 뜻하지 않습니다.</span><span>06 / 08</span></footer></section>
+<section class="slide alerts" hidden aria-labelledby="s7">
+  <p class="eyebrow">06 / 매수 · 매도 · 비상정지 알림</p><h2 id="s7">주문 접수·체결 확정·비상정지를 구분해 알립니다</h2>
+  <p class="lead">2026.11.09 · 사용자 제공 Discord 알림 내용 · KIS 모의투자(가상 자금) · 종목 086790.KS</p>
+  <div class="body alert-grid">
+    <div class="alert-column">
+      <h3>매수 <span class="blue">접수 → 체결 확정</span></h3>
+      <div class="alert-message">
+        <h4>↗ 주문 접수 — 매수</h4><p class="alert-time">09:43:22 KST · 체결 미확인</p>
+        <p class="alert-price">5주 × 117,100원</p><p class="alert-total">총액 585,500원</p>
+      </div>
+      <div class="alert-message alert-filled">
+        <h4>✓ 체결 확정 — 매수</h4><p class="alert-time">09:43:27 KST · KIS 모의</p>
+        <p class="alert-price">5주 × 평균 117,000원</p><p class="alert-total">총액 585,000원</p><p class="alert-next">다음 행동 · 포트폴리오에서 보유 확인</p>
+      </div>
+      <p class="alert-caption">접수는 체결이 아닙니다.<br>가격은 달라질 수 있습니다.</p>
+    </div>
+    <div class="alert-column">
+      <h3>매도 <span class="blue">접수 → 체결 확정</span></h3>
+      <div class="alert-message">
+        <h4>↘ 주문 접수 — 매도</h4><p class="alert-time">09:45:51 KST · 체결 미확인</p>
+        <p class="alert-price">5주 × 117,100원</p><p class="alert-total">총액 585,500원</p>
+      </div>
+      <div class="alert-message alert-filled">
+        <h4>✓ 체결 확정 — 매도</h4><p class="alert-time">09:45:56 KST · KIS 모의</p>
+        <p class="alert-price">5주 × 평균 117,200원</p><p class="alert-total">총액 586,000원</p><p class="alert-next">다음 행동 · 포트폴리오에서 보유 확인</p>
+      </div>
+      <p class="alert-caption">체결이 확인되면 별도 알림으로 알려 줍니다.</p>
+    </div>
+    <div class="alert-column">
+      <h3>비상정지 <span class="blue">이유 · 다음 행동</span></h3>
+      <div class="alert-message alert-stop">
+        <h4>⛔ [위험관리] 자동매매 비상 정지</h4><p class="alert-time">09:45:09 KST · 긴급 알림</p>
+        <p>새 자동 주문이 모두 멈췄습니다.</p>
+        <p class="alert-reason"><b>이유</b><br>2026-11-09 오준영 담당 기능 검증 — 임시 긴급정지</p>
+        <p><b>위험</b><br>비상 정지 중에는 신호가 나도 주문이 나가지 않습니다.</p>
+        <p class="alert-next"><b>다음 행동</b><br>원인을 확인한 뒤 설정 화면에서 비상 정지를 해제해야 재시작됩니다.</p>
+      </div>
+      <p class="alert-caption">정지 해제 시점은 캡처에 없습니다.</p>
+    </div>
+  </div>
+  <footer class="footer"><span>제공된 캡처의 핵심 문구·수치 재구성 · 모의투자 기록이며 투자 권유가 아닙니다.</span><span>07 / 08</span></footer>
+</section>
+<section class="slide" aria-labelledby="s8" hidden>
+  <p class="eyebrow">07 / 운영과 인수인계</p><h2 id="s8">암호화·독립 경보를 운영에 연결했습니다</h2>
+  <div class="body split">
+    <div class="card"><span class="tag">운영자가 확인할 것</span><div class="list"><div>동일 코드 · DB 버전 · 암호화 키 연결</div><div>Beat → worker → DB 결과 대조</div><div>장애 시 기존 주문 추적과 복원 절차</div><div>구현·시험·운영·실제 모의 체결 구분</div></div></div>
+    <div class="card"><span class="tag">완료한 운영 검증과 남은 일</span><div class="list"><div>11/6 알림 암호화 전환<br><span class="note">11/9 DB0046 · 세 서비스 717파일 대조</span></div><div>11/6 Windows 독립 경보<br><span class="note">5분 예약 · Discord 실제 수신 확인</span></div><div>남은 운영 확인<br><span class="note">인수자 복원 실습 · 보유 자산 자연 평가</span></div></div></div>
+  </div>
+  <footer class="footer"><span>v0.9 · 경보는 Windows 로그인 중 실행 · 사람의 발표 시간 측정·최종 영상 검토 전.</span><span>08 / 08</span></footer></section>
+</main>
+<nav aria-label="슬라이드 이동"><button id="prev" type="button">← 이전</button><span id="counter" aria-live="polite">1 / 8</span><button id="next" type="button">다음 →</button><button id="print" type="button">인쇄 / PDF</button></nav>
+<p id="announce" class="sr-only" aria-live="polite"></p>
+<script>
+(()=>{const slides=[...document.querySelectorAll('.slide')],prev=document.querySelector('#prev'),next=document.querySelector('#next');let current=0;
+function fit(){document.documentElement.style.setProperty('--scale',Math.max(.1,Math.min((innerWidth-32)/1280,(innerHeight-88)/720)));}
+function show(index){current=Math.max(0,Math.min(slides.length-1,index));slides.forEach((s,i)=>s.hidden=i!==current);prev.disabled=current===0;next.disabled=current===slides.length-1;document.querySelector('#counter').textContent=`${current+1} / ${slides.length}`;document.querySelector('#announce').textContent=slides[current].querySelector('h1,h2').textContent;history.replaceState(null,'',`#slide-${current+1}`);}
+prev.addEventListener('click',()=>show(current-1));next.addEventListener('click',()=>show(current+1));document.querySelector('#print').addEventListener('click',()=>window.print());
+addEventListener('keydown',e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('button,a,input,textarea'))return;if(['ArrowRight','PageDown','ArrowLeft','PageUp','Home','End'].includes(e.key)){e.preventDefault();show(e.key==='Home'?0:e.key==='End'?slides.length-1:current+(['ArrowRight','PageDown'].includes(e.key)?1:-1));}});
+addEventListener('resize',fit);fit();const start=/^#slide-(\d+)$/.exec(location.hash);show(start?Number(start[1])-1:0);})();
+</script>
+</body>
+</html>
