@@ -505,7 +505,9 @@ def read_personal(name: str) -> Personal | None:
   js_notes: list[str] = []
   jm = re.search(r"\bconst\s+notes\s*=\s*\[(.*?)\n\s*\];", body, re.S)
   if jm:
-    js_notes = [re.sub(r"\\(['\"\\])", r"\1", s) for s in re.findall(r"'((?:\\.|[^'\\])*)'", jm.group(1))]
+    # 작은따옴표('…') · 큰따옴표("…") 어느 쪽이든 읽는다(강민석 덱이 11-10 17시 PR #635 에서 큰따옴표로 바뀌었다)
+    js_notes = [re.sub(r"\\(['\"\\])", r"\1", a or b)     # findall 은 안 맞은 그룹을 None 이 아니라 '' 로 준다
+                for a, b in re.findall(r"'((?:\\.|[^'\\])*)'|\"((?:\\.|[^\"\\])*)\"", jm.group(1))]
 
   slides: list[Slide] = []
   for n, (tag, inner) in enumerate(secs, 1):
@@ -742,6 +744,9 @@ EXTRA_GLOBAL_CSS = """
 .has-imp > .gnum { position: absolute; right: 28px; top: 10px; z-index: 5; display: flex; gap: 10px; align-items: center; font-size: 19px; line-height: 1.4;
   color: #64748b; background: rgba(255,255,255,.8); border: 1px solid rgba(100,116,139,.28); border-radius: 999px; padding: 3px 16px; pointer-events: none; }
 .has-imp > .gnum b { font-weight: 700; }
+/* 영상 장 오른쪽 설명 칸 — 목적 · 마지막 장 · 기준 글이 길면 아래 쪽번호까지 넘쳐 잘렸다(11-11 사용자 캡처). 폭을 넓히고 글자를 줄인다 */
+.slide .video-side:not(:where(.imp *)) { width: 250px; font-size: 18px; line-height: 1.5; }
+.slide .video-side b:not(:where(.imp *)) { font-size: 22px; margin-bottom: 4px; }
 @media print { html { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .has-imp > .gnum { display: none; } }
 """
 
