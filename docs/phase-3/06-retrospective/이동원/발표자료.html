@@ -62,6 +62,8 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
 .mx td,.mx th{text-align:center;padding:5px 6px;font-size:14px}.mx td:first-child,.mx th:first-child{text-align:left;font-weight:700}
 .rowc{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mini{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}.mini h3{font-size:19px;margin-bottom:6px;color:var(--amber)}.mini p{font-size:18px;line-height:1.55}
+.mx.tight td,.mx.tight th{padding-top:3px;padding-bottom:3px}
+.mx tfoot td{font-weight:800;background:#f3f7fb;border-top:2px solid var(--line)}
 .mx th{white-space:nowrap;font-size:13px;padding:5px 4px}.mx td{padding:4px 4px}.mx td:first-child{white-space:nowrap;font-size:13.5px}
 
 </style>
@@ -120,9 +122,10 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
   <div class="body"><div class="two" style="grid-template-columns:.72fr 1.28fr">
   <div class="prose">
     <p>퀀터스 · 젠포트 · 인텔리퀀트 · Composer는 노코드나 AI로 만든 전략을 백테스트하고 주문까지 잇습니다.</p>
-    <p>TradingView는 Pine으로, QuantConnect LEAN은 독립 엔진으로 같은 규칙을 시험합니다.</p></div>
+    <p>TradingView는 Pine으로, QuantConnect LEAN은 독립 엔진으로 같은 규칙을 시험합니다.</p>
+    <div class="card pos" style="padding:10px 16px"><h3>요금 예시 <span class="cap" style="display:inline">10-26 확인</span></h3><p style="font-size:16px;line-height:1.5">8곳 모두 무료 구간이 있고, 유료는 Composer 월 10~32달러 · 인텔리퀀트 월 3만~10만 원처럼 제각각입니다.</p></div></div>
   <div class="chart"><h3>공식 자료로 본 서비스 8곳의 기능</h3>
-    <table class="t mx"><thead><tr><th></th><th>노코드</th><th>AI 지원</th><th>백테스트</th><th>사용자 Pine</th><th>Python · LEAN</th><th>주문 연동</th></tr></thead><tbody>
+    <table class="t mx tight"><thead><tr><th></th><th>노코드</th><th>AI 지원</th><th>백테스트</th><th>사용자 Pine</th><th>Python · LEAN</th><th>주문 연동</th></tr></thead><tbody>
       <tr><td>퀀터스</td><td>●</td><td>●</td><td>●</td><td>—</td><td>—</td><td>●</td></tr>
       <tr><td>젠포트</td><td>●</td><td>△</td><td>●</td><td>—</td><td>—</td><td>●</td></tr>
       <tr><td>인텔리퀀트</td><td>●</td><td>●</td><td>●</td><td>—</td><td>—</td><td>●</td></tr>
@@ -130,10 +133,11 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
       <tr><td>TradingView</td><td>△</td><td>△</td><td>●</td><td>●</td><td>—</td><td>△</td></tr>
       <tr><td>QuantConnect</td><td>—</td><td>△</td><td>●</td><td>—</td><td>●</td><td>●</td></tr>
       <tr><td>Portfolio Visualizer</td><td>△</td><td>△</td><td>●</td><td>—</td><td>—</td><td>—</td></tr>
-      <tr><td>Portfolio123</td><td>●</td><td>●</td><td>●</td><td>—</td><td>△</td><td>●</td></tr></tbody></table>
-    <span class="cap">● 확인 · △ 부분적이거나 조건부 · — 이번 조사에서 확인 못 함. 우리 서비스의 구현 현황이 아닙니다.</span></div></div><div class="gloss"><b>쉬운 말</b> 노코드 = 코드 없이 화면 조작으로 전략을 만듦 · 백테스트 = 과거 가격으로 규칙을 시험 · Pine = TradingView 의 전략 코드 언어 · LEAN = QuantConnect 의 오픈소스 시험 엔진 · 주문 연동 = 증권사 계좌로 주문을 보냄</div></div>
-  <footer class="footer"><span>출처: 팀원이 공식 공개자료로 비교한 조사(10-26, 로그인과 유료 기능은 미검증). 「1억 명」은 TradingView 사이트의 홍보 문구입니다(검색 결과 발췌).</span><span class="pg">4 / 17</span></footer>
-  <aside class="notes"><b>4장 (25초)</b> 시장에는 이미 좋은 서비스가 많습니다. 퀀터스와 젠포트, 인텔리퀀트, Composer는 노코드나 AI로 만든 전략을 백테스트하고 주문까지 잇습니다. TradingView는 Pine으로, QuantConnect LEAN은 독립 엔진으로 같은 규칙을 시험해요. 팀원이 공식 공개자료로 여덟 곳을 비교한 표인데, 로그인과 유료 기능은 보지 못했습니다.</aside>
+      <tr><td>Portfolio123</td><td>●</td><td>●</td><td>●</td><td>—</td><td>△</td><td>●</td></tr></tbody>
+      <tfoot><tr><td>● 확인된 곳 (8곳 중)</td><td>5</td><td>4</td><td>8</td><td>1</td><td>1</td><td>6</td></tr></tfoot></table>
+    <span class="cap">● 확인 · △ 부분적이거나 조건부 · — 이번 조사에서 확인 못 함. 우리 서비스의 구현 현황이 아닙니다.</span></div></div><div class="gloss"><b>쉬운 말</b> 노코드 = 코드 없이 화면으로 전략을 만듦 · 백테스트 = 과거 가격으로 규칙을 시험 · Pine = TradingView 의 전략 언어 · LEAN = QuantConnect 의 시험 엔진 · 주문 연동 = 증권사로 주문을 보냄</div></div>
+  <footer class="footer"><span>출처: 팀원이 공식 공개자료로 비교한 조사(10-26, 로그인과 유료 기능은 미검증). 합계는 표의 ●만 센 값, 요금은 공식 가격표(일부 연간 결제 기준)이며 젠포트 · 퀀터스는 금액 미확인입니다.</span><span class="pg">4 / 17</span></footer>
+  <aside class="notes"><b>4장 (30초)</b> 시장에는 이미 좋은 서비스가 많습니다. 퀀터스와 젠포트, 인텔리퀀트, Composer는 노코드나 AI로 만든 전략을 백테스트하고 주문까지 잇습니다. TradingView는 Pine으로, QuantConnect LEAN은 독립 엔진으로 같은 규칙을 시험해요. 팀원이 공식 공개자료로 여덟 곳을 비교한 표를 세어 보면 백테스트는 여덟 곳 모두, 주문 연동은 여섯 곳이 합니다. Pine과 LEAN은 한 곳씩이라 둘을 함께 쓰는 곳은 없어요. 여덟 곳 모두 무료로 써 볼 구간이 있고, 유료는 Composer가 월 10달러부터, 인텔리퀀트 프리미엄이 월 10만 원으로 제각각입니다. 로그인과 유료 기능은 보지 못했습니다.</aside>
 </section>
 
 <!-- 5. learn -->
@@ -156,7 +160,8 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
   <div class="body"><div class="two">
   <div class="prose">
     <p>TradingView는 주문을 브로커 에뮬레이터로 시뮬레이션하고, QuantConnect는 실거래와 백테스트의 차이를 데이터 · 모델링 · 증권사로 나눕니다.</p>
-    <p>같은 규칙을 여러 환경에서 돌려 차이의 이유까지 보여 주는 곳은 찾지 못했습니다. 다만 <b>검증 전 가설</b>입니다.</p></div>
+    <p>같은 규칙을 여러 환경에서 돌려 차이의 이유까지 보여 주는 곳은 찾지 못했습니다. 다만 <b>검증 전 가설</b>입니다.</p>
+    <div class="card neg" style="padding:10px 16px"><h3>조사에서 센 숫자</h3><p style="font-size:17px;line-height:1.5">조사한 8곳 중 TradingView(Pine)와 LEAN을 함께 쓰는 곳은 <b>0곳</b>입니다(4장 표). TradingView는 기본값으로 종가에 난 신호를 <b>다음 봉 시가</b>에 체결해, 체결 가정이 다르면 같은 규칙도 결과가 갈립니다.</p></div></div>
   <div class="chart"><h3>그래서 3차가 하기로 한 것</h3>
     <svg viewBox="0 0 470 230" width="100%" role="img" aria-label="같은 규칙을 우리 일지, TradingView, LEAN에서 돌려 서로 맞춰 보고 어긋나면 원인을 찾는다">
       <g font-size="14"><rect x="0" y="86" width="100" height="44" rx="8" fill="#e8f5ef" stroke="#08795c"/><text x="50" y="113" text-anchor="middle" font-weight="700">같은 규칙</text>
@@ -166,9 +171,10 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
       <rect x="150" y="154" width="130" height="44" rx="8" fill="#fff" stroke="#c3cdd6"/><text x="215" y="181" text-anchor="middle">QuantConnect LEAN</text>
       <path d="M284 40 L330 100" stroke="#516678" stroke-width="2" fill="none"/><path d="M284 108 L330 108" stroke="#516678" stroke-width="2" fill="none"/><path d="M284 176 L330 116" stroke="#516678" stroke-width="2" fill="none"/>
       <rect x="334" y="78" width="136" height="60" rx="8" fill="#fff8f0" stroke="#9a4a00"/><text x="402" y="104" text-anchor="middle" font-weight="700">맞춰 보고</text><text x="402" y="124" text-anchor="middle" font-size="13" class="m">어긋나면 이유 찾기</text></g></svg>
-    <span class="cap">대사(對査)라고 부릅니다. 신호, 보유, 주문, 체결, 비용을 단계별로 맞춥니다.</span></div></div><div class="gloss"><b>쉬운 말</b> 브로커 에뮬레이터 = 증권사의 체결을 흉내 내는 시뮬레이터 · 그림자 일지 = 실제 주문 없이 규칙대로 가상 기록만 쌓는 장부 · 대사 = 두 환경의 결과를 줄 단위로 맞춰 봄</div></div>
-  <footer class="footer"><span>출처: 화면 벤치마킹(10-29, 공식 문서 18곳, 문서 글만 읽음) · 팀원 조사의 「주문은 브로커 에뮬레이터로 시뮬레이션」 항목과 시장 공백 가설(검증 전).</span><span class="pg">6 / 17</span></footer>
-  <aside class="notes"><b>6장 (35초)</b> 그런데 같은 규칙이 도구마다 같은 결과를 낸다는 보장은 없습니다. TradingView는 주문을 브로커 에뮬레이터로 시뮬레이션합니다. 차트에 표시만 하는 indicator는 Strategy Report에 거래가 나오지 않는다고 도움말에 적혀 있어요. QuantConnect는 실거래와 표본 외 백테스트를 겹쳐 보고 차이의 원인을 데이터, 모델링, 증권사로 나눕니다. 같은 규칙을 여러 환경에서 돌려 보고 차이의 이유까지 한 화면에서 설명해 주는 곳은 저희가 읽은 공개 자료에서는 찾지 못했습니다. 다만 로그인과 유료 기능은 못 봐서 가설이에요. 그래서 3차에서는 같은 규칙을 TradingView와 LEAN으로 다시 돌려 맞춰 보고, 어긋나면 이유를 찾기로 했습니다.</aside>
+    <span class="cap">대사(對査)라고 부릅니다. 신호, 보유, 주문, 체결, 비용을 단계별로 맞춥니다.</span>
+    <span class="cap"><b>이 중 일지와 LEAN은 강민석 님이 맞춰 봤습니다</b> — 09-01~11-05 일지 44행 · 보유 44일 일치 · 체결 12건 가격 차이 0bp.</span></div></div><div class="gloss"><b>쉬운 말</b> 브로커 에뮬레이터 = 증권사의 체결을 흉내 내는 시뮬레이터 · 그림자 일지 = 실제 주문 없이 규칙대로 가상 기록만 쌓는 장부 · 대사 = 두 환경의 결과를 줄 단위로 맞춰 봄</div></div>
+  <footer class="footer"><span>출처: 화면 벤치마킹(10-29, 공식 문서 18곳, 문서 글만 읽음) · 팀원 조사의 「주문은 브로커 에뮬레이터로 시뮬레이션」 · 체결 시점 항목과 시장 공백 가설(검증 전) · 대사 수치는 강민석 님 발표자료(11-10 기준).</span><span class="pg">6 / 17</span></footer>
+  <aside class="notes"><b>6장 (45초)</b> 그런데 같은 규칙이 도구마다 같은 결과를 낸다는 보장은 없습니다. TradingView는 주문을 브로커 에뮬레이터로 시뮬레이션합니다. 차트에 표시만 하는 indicator는 Strategy Report에 거래가 나오지 않는다고 도움말에 적혀 있어요. QuantConnect는 실거래와 표본 외 백테스트를 겹쳐 보고 차이의 원인을 데이터, 모델링, 증권사로 나눕니다. 같은 규칙을 여러 환경에서 돌려 보고 차이의 이유까지 한 화면에서 설명해 주는 곳은 저희가 읽은 공개 자료에서는 찾지 못했습니다. 다만 로그인과 유료 기능은 못 봐서 가설이에요. 앞의 표를 다시 보면 TradingView의 Pine과 LEAN을 함께 쓰는 곳은 여덟 곳 중 없었고, TradingView는 기본으로 종가에 난 신호를 다음 봉 시가에 체결해서 가정이 다르면 결과가 갈립니다. 그래서 3차에서는 같은 규칙을 TradingView와 LEAN으로 다시 돌려 맞춰 보고, 어긋나면 이유를 찾기로 했습니다. 이 중 일지와 LEAN은 강민석 님이 맞춰 봤고, 보유 44일과 체결 12건이 일치했습니다.</aside>
 </section>
 
 <!-- 7. gap1 -->
@@ -177,8 +183,8 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
   <h2 id="s7">등급 한 줄에 근거가 묻히고, 설명만 붙이면 오히려 더 따르게 됩니다</h2>
   <div class="body"><div class="two">
   <div class="prose">
-    <div class="card neg" style="padding:10px 16px;margin-bottom:10px"><h3>무슨 실험이었나 <span class="cap" style="display:inline">Bansal 외 · CHI 2021</span></h3><p style="font-size:17px;line-height:1.5">AI가 추천에 설명을 붙이면 사람과 AI 팀이 더 정확해질까? 리뷰 감성 두 가지와 LSAT 문제로 시험했습니다.</p></div>
-    <div class="card neg" style="padding:10px 16px;margin-bottom:10px"><h3>결과</h3><p style="font-size:17px;line-height:1.5">설명을 붙이자 <b>AI가 틀렸을 때도 더 따랐고</b> 팀 정확도는 늘지 않았습니다. 대안 답까지 설명하면 쏠림이 덜했습니다.</p></div>
+    <div class="card neg" style="padding:10px 16px;margin-bottom:10px"><h3>무슨 실험이었나 <span class="cap" style="display:inline">Bansal 외 · CHI 2021</span></h3><p style="font-size:17px;line-height:1.5">AI 설명이 사람과 AI 팀을 더 정확하게 할까? 리뷰 감성 2종 · LSAT, 데이터 3종에 <b>1,500명 이상</b>(조건당 약 100명).</p></div>
+    <div class="card neg" style="padding:10px 16px;margin-bottom:10px"><h3>결과</h3><p style="font-size:17px;line-height:1.5">AI 도움으로 팀은 혼자보다 나았지만 <b>설명을 붙여도 더 오르지 않았고</b> AI가 틀렸을 때도 더 따랐습니다. 대안 답까지 설명하면 쏠림이 덜했습니다.</p></div>
     <div class="card pos" style="padding:10px 16px"><h3>우리 화면</h3><p style="font-size:17px;line-height:1.5">근거와 <b>반대로 본 까닭</b>을 같은 크기로 둡니다. 이 효과를 직접 재 보지는 못했습니다.</p></div></div>
   <div class="chart"><h3>같은 신호를 보여 주는 두 가지 방식</h3>
     <svg viewBox="0 0 460 200" width="100%" role="img" aria-label="왼쪽은 여러 지표가 등급 한 줄로 합쳐지는 모양, 오른쪽은 칸마다 근거와 기준일이 남는 모양">
@@ -194,8 +200,8 @@ button{font:inherit;border:1px solid #bac8d4;background:#fff;color:var(--ink);bo
       <rect x="250" y="88" width="206" height="50" rx="6" fill="#fff8f0" stroke="#9a4a00"/><text x="260" y="108" font-size="13" font-weight="700">반대로 본 까닭</text><text x="260" y="127" font-size="12" class="m">횡보장에서는 자주 엇갈림</text>
       <text x="250" y="178" class="m" font-size="13">근거와 반대 근거가 같은 크기</text></g></svg>
     <span class="cap">그림은 구조를 보여 주는 예시이며 실제 화면의 값이 아닙니다.</span></div></div><div class="gloss"><b>쉬운 말</b> CHI = 사람과 컴퓨터의 상호작용 학회 · LSAT = 법학적성시험 문제 · 쏠림 = AI 추천을 그대로 따르는 경향 · 팀 정확도 = 사람이 AI 설명을 보고 낸 최종 답의 정확도 · Strong Buy = 적극 매수 등급</div></div>
-  <footer class="footer"><span>출처: Bansal 외(CHI 2021, arXiv 2006.14779) 초록과 본문을 11-10 에 다시 확인 — 「대안 답까지 설명하면 쏠림이 덜했다」는 파일럿 결과이고 논문도 「아마도(presumably)」라고 해석합니다. 정확도 수치는 이 장에 옮기지 않았습니다. 등급 한 줄 서비스(Investing.com · Stockopedia · Morningstar)는 검색 발췌 수준(11-02 벤치마킹).</span><span class="pg">7 / 17</span></footer>
-  <aside class="notes"><b>7장 (45초)</b> 그런데 비어 있는 곳이 있었습니다. 지표를 합쳐 등급 한 줄로 내면 어떤 근거가 켜졌는지 안 보입니다. 그렇다고 설명만 붙이면 풀리지도 않아요. Bansal 연구진은 AI가 추천에 설명을 붙이면 사람과 AI 팀이 더 정확해지는지, 리뷰 감성 두 가지와 LSAT 문제로 시험했습니다. 결과는 설명을 붙이자 AI가 틀렸을 때도 더 따랐고, 팀 정확도는 늘지 않았다는 겁니다. 대안 답까지 같이 설명하면 그 쏠림이 덜했다고 해요. 그래서 저희 화면은 근거와 반대로 본 까닭을 같은 크기로 둡니다. 다만 이 효과를 저희가 직접 재 보지는 못했습니다.</aside>
+  <footer class="footer"><span>출처: Bansal 외(CHI 2021, arXiv 2006.14779) 초록 · 결론 · 그림 4 설명을 11-11 에 원문 확인 — 「대안 답까지 설명하면 쏠림이 덜했다」는 파일럿 결과이고 논문도 「아마도(presumably)」라고 해석합니다. 정확도 수치는 옮기지 않았습니다. 등급 한 줄 서비스(Investing.com · Stockopedia · Morningstar)는 검색 발췌 수준(11-02 벤치마킹).</span><span class="pg">7 / 17</span></footer>
+  <aside class="notes"><b>7장 (50초)</b> 그런데 비어 있는 곳이 있었습니다. 지표를 합쳐 등급 한 줄로 내면 어떤 근거가 켜졌는지 안 보입니다. 그렇다고 설명만 붙이면 풀리지도 않아요. Bansal 연구진은 AI가 추천에 설명을 붙이면 사람과 AI 팀이 더 정확해지는지, 리뷰 감성 두 가지와 LSAT 문제, 데이터 세 가지에 참가자가 천오백 명이 넘고 조건마다 백 명쯤이었어요. 결과는 AI의 도움으로 팀이 사람 혼자나 AI 혼자보다 나았지만, 설명을 붙여도 더 오르지 않았고 AI가 틀렸을 때도 더 따랐다는 겁니다. 대안 답까지 같이 설명하면 그 쏠림이 덜했다고 해요. 그래서 저희 화면은 근거와 반대로 본 까닭을 같은 크기로 둡니다. 다만 이 효과를 저희가 직접 재 보지는 못했습니다.</aside>
 </section>
 
 <!-- 8. 제가 한 일 -->
