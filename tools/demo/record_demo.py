@@ -47,6 +47,8 @@ for _s in (sys.stdout, sys.stderr):
     pass
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I 로 돌려도 같은 폴더의 events_log 를 읽는다
+import events_log  # noqa: E402
 
 
 def _terms_version() -> str:
@@ -118,6 +120,10 @@ OVERLAY_JS = r"""
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensure); else ensure();
 })();
 """
+
+CLEAN_JS = """(() => { const css = '#__demo-sub,#__demo-chap{display:none!important}';
+  const add = () => { const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s); };
+  if (document.head) add(); else document.addEventListener('DOMContentLoaded', add); })();"""
 
 INVENTORY_JS = r"""
 () => {
@@ -303,12 +309,14 @@ async def run_step(page, rec, step, ctx_state):
       ctx_state["snap"]("say")
   elif kind == "chapter":
     ctx_state["chapter"](opt.get("title", ""))
+    card_t0 = rec.t
     await page.evaluate("([k, t, d]) => __demo.chapter(k, t, d, true)", [opt.get("label", ""), opt.get("title", ""), opt.get("text", "")])
     await asyncio.sleep(0.9)
     ctx_state["snap"]("chapter")
     ctx_state["poster"]()                       # 장 제목 카드가 다 떴을 때 — 사용법 창 영상의 첫 그림(poster)
     await asyncio.sleep(max(0.0, max(2.4, float(opt.get("sec", 3.0)) / PACE) - 0.9))   # 장 제목 카드도 PACE 로(읽을 2.4초는 남김)
     await page.evaluate("() => __demo.chapter('', '', '', false)")
+    ctx_state["chapter_card"](card_t0, rec.t, opt.get("title", ""), (opt.get("label", ""), opt.get("title", ""), opt.get("text", "")))
     await asyncio.sleep(0.4)
   elif kind == "go":
     view = v if isinstance(v, str) else opt["view"]
@@ -324,6 +332,7 @@ async def run_step(page, rec, step, ctx_state):
     loc = await locate(page, target, timeout)
     box, x, y = await point_at(page, loc)
     await page.evaluate("([x, y, w, h]) => __demo.ring(x, y, w, h, true)", [box["x"], box["y"], box["width"], box["height"]])
+    ring_t0 = rec.t
     if kind == "click":
       await asyncio.sleep(0.25)
       await page.evaluate("([x, y]) => __demo.ripple(x, y)", [x, y])
@@ -335,6 +344,7 @@ async def run_step(page, rec, step, ctx_state):
       ctx_state["snap"]("ring")
     await asyncio.sleep(_t(opt.get("sec", 0.6 if kind != "ring" else 2.0), 0.6))
     await page.evaluate("() => __demo.ring(0, 0, 0, 0, false)")
+    ctx_state["ring"](ring_t0, rec.t, (round(box["x"], 1), round(box["y"], 1), round(box["width"], 1), round(box["height"], 1)))
     await asyncio.sleep(_t(opt.get("after", 0.4), 0.2))
   elif kind == "fill":
     loc = await locate(page, target, timeout)
@@ -422,6 +432,8 @@ async def record(scene_path, args):
     # 실패한 응답은 방식 · 주소(쿼리 뺌) · 상태만 — 본문은 남기지 않는다(보낸 값이 되돌아올 수 있다)
     page.on("response", lambda r: errors.append(f"HTTP {r.status} {r.request.method} {r.url.split('?')[0].replace(base, '')}") if r.status >= 400 else None)
     await page.add_init_script(OVERLAY_JS)
+    if args.clean:                                   # 깨끗한 영상 — 자막은 통합 덱의 겹침 층이 재생 시각에 맞춰 띄운다(설계 4.1절)
+      await page.add_init_script(CLEAN_JS)
     masks = scene.get("mask") or []                 # 흐리게 — 이 PC 정보처럼 자리는 보이되 값은 안 보여야 할 칸
     hides = scene.get("hide") or []                 # 감추기 — 관리자 · 개발용 표시(기능 완성도 배지 등)처럼 영상에 나올 까닭이 없는 칸
     rules = ([",".join(masks) + "{filter:blur(9px)!important}"] if masks else []) + ([",".join(hides) + "{display:none!important}"] if hides else [])
@@ -468,7 +480,16 @@ async def record(scene_path, args):
       if rec.enabled and rec.cur is not None:
         posters.append(rec.cur)
 
-    state = {"say": on_say, "chapter": on_chapter, "cuts": [], "snap": snap, "poster": poster}
+    rings, chapter_cards, chapter_meta = [], [], []              # events.json 재료 — 강조 박스 · 장 카드가 뜬 시각 · 좌표 · 내용
+
+    def on_ring(t0, t1, box):
+      rings.append((t0, t1, box))
+
+    def on_chapter_card(t0, t1, title, meta):
+      chapter_cards.append((t0, t1, title))
+      chapter_meta.append(meta)
+
+    state = {"say": on_say, "chapter": on_chapter, "cuts": [], "snap": snap, "poster": poster, "ring": on_ring, "chapter_card": on_chapter_card}
     await rec.start()
     for i, step in enumerate(scene["steps"], 1):
       t0 = rec.t
@@ -504,6 +525,8 @@ async def record(scene_path, args):
     result["webm_bytes"] = (OUT_DIR / f"{name}.webm").stat().st_size
     vtt = ["WEBVTT", ""] + [f"{vtt_time(a)} --> {vtt_time(b)}\n{t}\n" for a, b, t in subs if b - a > 0.2]
     (OUT_DIR / f"{name}.ko.vtt").write_text("\n".join(vtt), encoding="utf-8", newline="\n")
+    ev = events_log.build_events(subs, chapter_cards, chapter_meta, rings, vw=VW, vh=VH, duration=dur)
+    (OUT_DIR / f"{name}.events.json").write_text(json.dumps(ev, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
     chv = ["WEBVTT", ""] + [f"{vtt_time(a)} --> {vtt_time(b)}\n{t}\n" for a, b, t in chapters if b - a > 0.2]
     (OUT_DIR / f"{name}.chapters.vtt").write_text("\n".join(chv), encoding="utf-8", newline="\n")
     for old in OUT_DIR.glob(f"{name}.ch*.jpg"):  # 장 수가 줄었을 때 지난 녹화의 그림이 남지 않게
@@ -551,6 +574,7 @@ def main():
   ap.add_argument("--base", default=os.environ.get("BASE_URL", "http://localhost:8966"))
   ap.add_argument("--no-video", action="store_true", help="영상 없이 단계만 밟아 본다(누를 곳 확인)")
   ap.add_argument("--headed", action="store_true", help="브라우저 창을 띄운다")
+  ap.add_argument("--clean", action="store_true", help="큰 제목 카드와 하단 자막만 숨긴 깨끗한 영상(강조 박스 · 클릭 물결 · 커서는 유지) — 통합 덱이 자막을 겹침 층으로 띄운다")
   ap.add_argument("--frames", action="store_true", help="자막 · 장 제목 · 강조 순간의 프레임을 out/<이름>-frames/ 에 남긴다(눈으로 훑기)")
   ap.add_argument("--ensure-account", action="store_true", help="시연 계정이 없으면 만든다(이 PC 로컬 DB)")
   ap.add_argument("--pace", type=float, default=1.0, help="진행 속도 배율(기본 1.0 = 2차 영상과 같은 속도 · 발표용 1.4 쯤 = 빠르게 · 사용법 0.75 쯤 = 천천히 · 0.5~2.5 · 장면의 pace: 가 우선)")
