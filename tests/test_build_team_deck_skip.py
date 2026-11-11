@@ -110,3 +110,12 @@ def test_divider_lists_videos_in_presentation_order(plan):
     # 구분 장의 영상 표기도 발표 순서(E → C)여야 한다 — 장면 이름 순(C → E)으로 나오면 순서가 틀려 보인다
     div = next(f.html for f in plan.frames if f.kind == "divider" and f.owner == "이동원")
     assert div.index("E편") < div.index("C편")
+
+
+def test_cover_intro_describes_the_project_and_keeps_roles(bt, plan):
+    # 사용자 11-11: 표지의 「3차 프로젝트 발표」 대신 Qurious 3차 프로젝트(투자 인디케이터)의 핵심 소개글. 아래 담당자별 역할은 그대로
+    cover = next(f.html for f in plan.frames if f.kind == "cover")
+    assert '<p class="one">3차 프로젝트 발표</p>' not in cover
+    assert "나만의 투자 인디케이터" in cover and "TradingView" in cover and "LEAN" in cover and "모의계좌" in cover
+    for name in bt.ORDER:
+        assert f"{name} · {bt.ROLES[name]}" in cover          # 담당자별 역할 칩은 그대로

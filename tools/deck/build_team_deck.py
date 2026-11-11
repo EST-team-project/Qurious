@@ -739,12 +739,12 @@ def cover(people: list[dict], n_slides: int | None = None) -> str:
   <div class="bar"></div>
   <div class="in">
     <div class="logo"><div class="mark"></div><div class="name">Qurious</div></div>
-    <p class="one">3차 프로젝트 발표</p>
-    <p class="two">{" → ".join(ORDER)} 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 {n_sl}장 · 시연 영상 {n_vd}편 · 사람이 바뀌는 곳에 구분 장 · 맨 끝에 한계와 이어갈 길({TAIL_PRESENTER} 발표)</p>
+    <p class="one">Qurious 3차 — 나만의 투자 인디케이터</p>
+    <p class="two">내 투자 규칙을 지표로 만들고, TradingView · QuantConnect LEAN 으로 다시 검증하고, 증권사 모의계좌까지 이어 줍니다. 신호의 근거와 반대 근거를 함께 보여 주고, 검증한 것과 못 한 것을 구분해서 말씀드립니다.</p>
   </div>
   <div class="team">{chips}</div>
-  <div class="date" style="bottom:200px">3차 프로젝트 발표 · 통합 덱 · 초안 v0.2 (팀원 피드백 전)</div>
-  <aside class="notes">팀원 확인용 통합 초안입니다. 이동원 · 오준영 슬라이드는 각자 발표자료.html 에서, 영상은 장면 파일에서 도구가 읽어 옵니다(원본 버전: {esc(srcs)}). 장마다 N 키(발표자 노트)에 대본 또는 자막 전문이 있습니다.</aside>
+  <div class="date" style="bottom:200px">3차 프로젝트 발표 · 2026.11.12</div>
+  <aside class="notes">{" → ".join(ORDER)} 순서로 담당 슬라이드와 시연 영상을 이어서 보여 드립니다. 슬라이드 {n_sl}장 · 시연 영상 {n_vd}편 · 사람이 바뀌는 곳에 구분 장 · 맨 끝에 한계와 이어갈 길({TAIL_PRESENTER} 발표). 팀원 확인용 통합 초안입니다. 이동원 · 오준영 슬라이드는 각자 발표자료.html 에서, 영상은 장면 파일에서 도구가 읽어 옵니다(원본 버전: {esc(srcs)}). 장마다 N 키(발표자 노트)에 대본 또는 자막 전문이 있습니다.</aside>
 </section>'''
 
 
