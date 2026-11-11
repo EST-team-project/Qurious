@@ -919,6 +919,43 @@ html, body { background: #fff; }
 .d-kang .dsr-bottom-grid { grid-template-columns:1fr; }
 .d-kang .cost-bottom-note { flex-wrap:wrap; }
 }
+
+/* IMAGE LIGHTBOX START */
+.evidence-frame img {
+  cursor: zoom-in;
+}
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.90);
+  cursor: zoom-out;
+}
+.image-lightbox img {
+  max-width: 95vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: default;
+}
+.image-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: white;
+  background: transparent;
+  border: none;
+  font-size: 36px;
+  cursor: pointer;
+}
+/* IMAGE LIGHTBOX END */
+
 </style>
 </head>
 <body>
@@ -1621,11 +1658,11 @@ html, body { background: #fff; }
     <div class="no">파트 4 / 4</div>
     <h1>강민석</h1>
     <p>LEAN 대사 · 모의투자</p>
-    
-    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">16장</div><div class="s">대본 시간 표시 없음</div></div><div class="fact blank"><div class="k">시연 영상</div><div class="v">준비 중</div><div class="s">장면 파일(videos/발표/P-강민석-*.yaml)이 생기면 들어옵니다</div></div><div class="fact blank"><div class="k">예상 시간</div><div class="v">—</div><div class="s">슬라이드 · 영상이 들어오면 계산됩니다</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정이 정해지면 채웁니다</div></div></div>
+
+    <div class="facts"><div class="fact"><div class="k">슬라이드</div><div class="v">16장</div><div class="s">강민석 담당 발표 자료</div></div><div class="fact"><div class="k">시연 사진</div><div class="v">4장</div><div class="s">LEAN 실행 및 대사 결과 화면</div></div><div class="fact"><div class="k">예상 시간</div><div class="v">10분</div><div class="s">슬라이드 및 시연 사진 포함</div></div><div class="fact blank"><div class="k">목표 시간</div><div class="v">미정</div><div class="s">팀 시간 배정 기준</div></div></div>
   </div>
   <div class="foot"><b>Qurious</b><span class="pg"></span></div>
-  <aside class="notes">슬라이드 16장 → 시연 영상 0편 · 목표 시간 미정 · 맨 끝에서 한계와 이어갈 길 2장을 발표(자료는 이동원 슬라이드에서 옴)</aside>
+  <aside class="notes">슬라이드 16장 → 시연 사진 4장 · 예상 시간 10분 · 목표 시간 미정 · 마지막에 한계와 이어갈 길 2장 발표(자료는 이동원 슬라이드에서 가져옴)</aside>
 </section>
 
 <section class="slide has-imp" data-owner="강민석" data-title="강민석 · 백테스트를 실행하는 데서 멈추지 않고, 결과가 맞는지 검증하다">
@@ -2040,5 +2077,60 @@ html, body { background: #fff; }
   }, true);
 })();
 </script>
+
+<!-- IMAGE LIGHTBOX START -->
+<script>
+(() => {
+  document.addEventListener("click", (e) => {
+    if (!(e.target instanceof Element)) return;
+
+    const img = e.target.closest(".evidence-frame img");
+    if (!img) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const overlay = document.createElement("div");
+    overlay.className = "image-lightbox";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+
+    const enlarged = document.createElement("img");
+    enlarged.src = img.currentSrc || img.src;
+    enlarged.alt = img.alt || "확대 이미지";
+
+    const close = document.createElement("button");
+    close.className = "image-lightbox-close";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "이미지 닫기");
+
+    const previousOverflow = document.body.style.overflow;
+
+    const closeLightbox = () => {
+      overlay.remove();
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKey);
+    };
+
+    const handleKey = (event) => {
+      if (event.key === "Escape") closeLightbox();
+    };
+
+    close.addEventListener("click", closeLightbox);
+    enlarged.addEventListener("click", event => event.stopPropagation());
+
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) closeLightbox();
+    });
+
+    overlay.append(close, enlarged);
+    document.body.appendChild(overlay);
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKey);
+  }, true);
+})();
+</script>
+<!-- IMAGE LIGHTBOX END -->
+
 </body>
 </html>
