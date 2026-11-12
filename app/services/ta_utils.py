@@ -86,6 +86,7 @@ def dmi(high: pd.Series, low: pd.Series, close: pd.Series, di_length: int = 14,
     plus_dm = up.where((up > down) & (up > 0), 0.0).where(up.notna())
     minus_dm = down.where((down > up) & (down > 0), 0.0).where(down.notna())
     prev_close = close.shift(1)
+    # skipna=False — 첫 봉은 전일 종가가 없어 TR 을 비워 둔다(`atr` 은 첫 봉 TR 을 고가 − 저가로 채운다).
     tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1, skipna=False)
     trur = rma(tr, di_length)
     with np.errstate(divide="ignore", invalid="ignore"):

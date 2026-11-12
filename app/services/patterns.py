@@ -205,7 +205,11 @@ TIMEFRAMES = [  # (라벨, yahoo interval, range, 가중치)
 
 
 def timeframe_score(candles: list[dict]) -> dict:
-    """한 타임프레임의 기술적 지표 점수(-6~+6)와 근거."""
+    """한 타임프레임의 기술적 지표 점수(-5~+5)와 근거.
+
+    볼린저 두 규칙(상단 · 하단 밴드 ±1 과 20MA 위 · 아래 ±1)은 밴드 밖에서 서로 지워져, 도달 가능한 범위는
+    RSI ±2 + MA ±1 + MACD ±1 + 볼린저 ±1 = −5 ~ +5 다.
+    """
     df = preprocess(candles)
     if len(df) < 35:
         return {"error": f"데이터 부족({len(df)}봉)"}
@@ -235,12 +239,12 @@ def timeframe_score(candles: list[dict]) -> dict:
 
 
 def combine_timeframes(results: list[dict]) -> dict:
-    """[{label, weight, score}] → 종합 신호·신뢰도. 신뢰도 = 방향 일치도 × 점수 크기."""
+    """[{label, weight, score}] → 종합 신호·신뢰도. 신뢰도 = 방향 일치도와 점수 크기의 반반 평균."""
     valid = [r for r in results if "score" in r]
     if not valid:
         return {"action": "관망", "composite": 0.0, "confidence": 0, "agreement": 0}
     wsum = sum(r["weight"] for r in valid) or 1.0
-    composite = sum(r["score"] * r["weight"] for r in valid) / wsum          # -6 ~ +6
+    composite = sum(r["score"] * r["weight"] for r in valid) / wsum          # -5 ~ +5
     direction = 1 if composite > 0 else -1 if composite < 0 else 0
     agree = sum(r["weight"] for r in valid if np.sign(r["score"]) == direction and direction != 0) / wsum
     magnitude = min(1.0, abs(composite) / 4.0)

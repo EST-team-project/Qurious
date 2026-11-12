@@ -6,7 +6,7 @@
   주기   60분 · 일 · 주 모두 `ohlcv-v1` 읽기(`data_ohlcv.read_ohlcv`) — 일 · 60분 = 수집 DB · 주 = 일봉에서 계산한 주봉
          (그 주 마지막 거래일 · 진행 중인 주는 `partial`). 요청마다 야후로 가던 길을 쓰지 않는다
   대상   분봉 유니버스 `u2-20260930`(401종목 — 모두 60분봉이 쌓인다)
-  점수   주기마다 −6 ~ +6 — 화면 탐지기의 `patterns.timeframe_score` 그대로(지표는 5.1 의 정의 한 벌)
+  점수   주기마다 −5 ~ +5 — 화면 탐지기의 `patterns.timeframe_score` 그대로(지표는 5.1 의 정의 한 벌)
   결과   `signal` 매수 · 매도 · 관망 · 「강력」 은 `strength`(보통 · 강)로 · `confidence` 0 ~ 1
   기록   거래일마다 T2 `signal_snapshots` 에 종목당 한 줄 — 기본키 (as_of · symbol · definition)
 
