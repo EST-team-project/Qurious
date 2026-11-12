@@ -70,3 +70,80 @@ def test_timeframe_score_reasons():
     # 규칙이 비교한 지표 값도 함께 낸다(설명 근거 표의 관측값)
     assert {"rsi", "ma5", "ma20", "last", "macd", "macd_signal", "bb_upper", "bb_lower"} <= set(r)
     assert r["bb_lower"] <= r["ma20"] <= r["bb_upper"]
+
+
+# ── 그 자리 계산은 기준일(마지막 일봉 날)까지만 (#617) ─────────────────────────
+
+def _daily_until(last: str, n: int = 400, hour_utc: int = 0) -> list[dict]:
+    """평일 일봉 n 개 — 마지막 봉 날짜 `last` · 봉 시각 = 그날 hour_utc 시(UTC)."""
+    import numpy as np
+    from datetime import date, datetime, timedelta, timezone
+    days, d = [], date.fromisoformat(last)
+    while len(days) < n:
+        if d.weekday() < 5:
+            days.append(d)
+        d -= timedelta(days=1)
+    rng = np.random.default_rng(7)
+    close = 100 * np.exp(np.cumsum(rng.normal(0, 0.01, n)))
+    return [{"time": int(datetime(x.year, x.month, x.day, hour_utc, tzinfo=timezone.utc).timestamp()),
+             "open": float(c), "high": float(c) * 1.01, "low": float(c) * 0.99, "close": float(c), "volume": 1000}
+            for x, c in zip(reversed(days), close)]
+
+
+def _hourly(start_utc, hours: int) -> list[dict]:
+    from datetime import timedelta
+    return [{"time": int((start_utc + timedelta(hours=h)).timestamp()), "open": 100.0 + h % 7, "high": 102.0 + h % 7,
+             "low": 99.0 + h % 7, "close": 100.5 + h % 7, "volume": 10} for h in range(hours)]
+
+
+def _bar_utc(c: dict) -> str:
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(c["time"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+
+
+def _run_live(monkeypatch, daily, hourly):
+    import asyncio
+    seen = {}
+
+    async def fake_get_candles(symbol, period="1y", interval="1d", max_age_hours=6):
+        if interval == "1d":
+            return {"candles": daily}
+        seen[interval] = True
+        return {"candles": hourly}
+
+    monkeypatch.setattr("app.services.stock.get_candles", fake_get_candles)
+    return asyncio.run(pt.multi_timeframe_signal("TEST01")), seen
+
+
+def test_live_signal_cuts_60m_and_weekly_at_last_daily_bar(monkeypatch):
+    """기준일(수 11-11) 뒤의 60분봉(목 11-12)은 쓰지 않고, 주봉은 일봉으로 그 주 수요일까지만 만든다 · 진행 중 주."""
+    from datetime import datetime, timezone
+    daily = _daily_until("2026-11-11")
+    hourly = _hourly(datetime(2026, 10, 20, 0, tzinfo=timezone.utc), 24 * 24)    # 10-20 00시 ~ 11-12 23시
+    assert _bar_utc(hourly[-1]) == "2026-11-12 23:00"
+    r, seen = _run_live(monkeypatch, daily, hourly)
+    tf = {t["interval"]: t for t in r["timeframes"]}
+    assert tf["60m"]["as_of"] == "2026-11-11 23:00" and tf["1d"]["as_of"][:10] == "2026-11-11"
+    assert tf["1wk"]["as_of"][:10] == "2026-11-11" and tf["1wk"]["partial"] is True
+    assert "1wk" not in seen                       # 주봉은 야후 주봉을 부르지 않고 일봉으로 만든다
+    assert "기준일" in r["disclaimer"] and "주봉은 5년" in r["disclaimer"]
+
+
+def test_live_signal_keeps_same_session_bars_past_midnight(monkeypatch):
+    """장이 UTC 자정을 넘는 시장(봉 시각 13:30 UTC)도 같은 거래일 60분봉은 남고, 다음 거래일 봉만 빠진다."""
+    from datetime import datetime, timezone
+    daily = _daily_until("2026-11-10", hour_utc=13)
+    hourly = _hourly(datetime(2026, 10, 20, 13, tzinfo=timezone.utc), 24 * 23)   # 마지막 봉 11-12 12:00 UTC
+    assert _bar_utc(hourly[-1]) == "2026-11-12 12:00"
+    r, _ = _run_live(monkeypatch, daily, hourly)
+    last_60m = r["timeframes"][0]["as_of"]
+    assert "2026-11-11 12:00" == last_60m           # 11-10 13:00 + 23시간 — 다음 거래일(11-11 13:00 UTC) 직전까지
+
+
+def test_live_signal_without_daily_has_no_weekly(monkeypatch):
+    """일봉을 못 읽으면 기준일이 없다 — 주봉은 「시세 없음」, 60분봉은 자르지 못한 채 계산된다."""
+    from datetime import datetime, timezone
+    hourly = _hourly(datetime(2026, 10, 20, 0, tzinfo=timezone.utc), 24 * 10)
+    r, _ = _run_live(monkeypatch, [], hourly)
+    tf = {t["interval"]: t for t in r["timeframes"]}
+    assert tf["1d"]["error"] == "시세 없음" and tf["1wk"]["error"] == "시세 없음" and "score" in tf["60m"]

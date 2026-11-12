@@ -9,6 +9,8 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import numpy as np
 import pandas as pd
 
@@ -257,24 +259,69 @@ def combine_timeframes(results: list[dict]) -> dict:
     return {"action": action, "composite": round(composite, 2), "confidence": confidence, "agreement": round(agree * 100)}
 
 
+def _bar_day(epoch: int) -> str:
+    """봉 시각(유닉스 초) → 날짜 YYYY-MM-DD — `preprocess` · 기록 `as_of` 와 같은 UTC 날짜."""
+    return datetime.fromtimestamp(int(epoch), tz=timezone.utc).date().isoformat()
+
+
+def _weekly_until(daily: list[dict], as_of: str) -> tuple[list[dict], bool]:
+    """일봉 캔들 → `as_of` 까지의 주봉 캔들 · 마지막 주가 진행 중인가 — 매일 기록(T2)과 같은 `data_ohlcv.weekly`."""
+    from app.services import data_ohlcv
+    rows = [{"trade_date": _bar_day(c["time"]), "open": c["open"], "high": c["high"], "low": c["low"],
+             "close": c["close"], "volume": c.get("volume") or 0, "value": None} for c in daily]
+    weeks, partial = data_ohlcv.weekly([r for r in rows if r["trade_date"] <= as_of], as_of)
+    candles = [{"time": int(datetime.fromisoformat(w["trade_date"]).replace(tzinfo=timezone.utc).timestamp()),
+                "open": float(w["open"]), "high": float(w["high"]), "low": float(w["low"]),
+                "close": float(w["close"]), "volume": int(w["volume"] or 0)} for w in weeks]
+    return candles, partial
+
+
 async def multi_timeframe_signal(symbol: str) -> dict:
+    """기록(T2)이 없는 종목의 그 자리 계산 — 기준일(마지막 일봉 날)까지의 봉만 쓴다(#617).
+
+    60분봉은 마지막 일봉 시각에서 하루가 지나기 전 봉까지만 쓰고(다음 거래일 봉은 버림 · 장이 자정을 넘는 시장도 같은
+    거래일 봉은 남는다), 주봉은 일봉 5년을 기준일까지 모아 만든다(매일 기록과 같은 방식 · 진행 중인 주는 `partial`).
+    일봉을 못 읽으면 기준일이 없어 60분봉은 자르지 못하고, 주봉은 「시세 없음」 이다.
+    """
     from app.services.stock import get_candles
+
+    async def _candles(period: str, interval: str) -> list[dict]:
+        return (await get_candles(symbol, period=period, interval=interval, max_age_hours=0)).get("candles", [])
+
+    daily, daily_err = [], None
+    try:
+        daily = await _candles("1y", "1d")
+    except Exception as exc:
+        daily_err = str(exc)[:80]
+    as_of = _bar_day(daily[-1]["time"]) if daily else None
+    cutoff = int(daily[-1]["time"]) + 86400 if daily else None   # 다음 거래일 봉은 이 시각부터
+
     rows = []
     for label, interval, rng, weight in TIMEFRAMES:
+        extra: dict = {}
         try:
-            candles = (await get_candles(symbol, period=rng, interval=interval, max_age_hours=0)).get("candles", [])
+            if interval == "1d":
+                if daily_err:
+                    raise RuntimeError(daily_err)
+                candles = daily
+            elif interval == "1wk":
+                candles = []
+                if as_of:
+                    candles, extra["partial"] = _weekly_until(await _candles(rng, "1d"), as_of)
+            else:
+                candles = await _candles(rng, interval)
+                if cutoff is not None:
+                    candles = [c for c in candles if int(c["time"]) < cutoff]
             r = timeframe_score(candles) if candles else {"error": "시세 없음"}
         except Exception as exc:
             r = {"error": str(exc)[:80]}
-        rows.append({"label": label, "interval": interval, "range": rng, "weight": weight, **r})
+        rows.append({"label": label, "interval": interval, "range": rng, "weight": weight, **r, **extra})
     combined = combine_timeframes(rows)
     # 일봉 패턴 점수를 보조 근거로 첨부
-    pattern = None
     try:
-        daily = next((r for r in rows if r["interval"] == "1d"), None)
-        candles = (await get_candles(symbol, period="1y", interval="1d", max_age_hours=0)).get("candles", [])
-        pattern = pattern_summary(candles) if candles else None
+        pattern = pattern_summary(daily) if daily else None
     except Exception:
         pattern = None
     return {"symbol": symbol, "timeframes": rows, **combined, "pattern": pattern,
-            "disclaimer": "교육용 기술적 신호입니다. 분봉은 최근 1개월 60분봉, 주봉은 5년 데이터를 사용합니다."}
+            "disclaimer": "교육용 기술적 신호입니다. 분봉은 최근 1개월 60분봉, 주봉은 5년 일봉으로 만든 주봉이며, "
+                          "둘 다 기준일(마지막 일봉 날)까지만 씁니다."}
