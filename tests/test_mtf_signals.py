@@ -46,7 +46,7 @@ def test_confidence_is_screen_formula_on_0_to_1():
     old_action = {("매수", "강"): "강력 매수", ("매수", "보통"): "매수", ("관망", None): "관망",
                   ("매도", "보통"): "매도", ("매도", "강"): "강력 매도"}
     for _ in range(300):
-        rows = [{"weight": w, "score": int(s)} for w, s in zip((.2, .5, .3), rng.integers(-6, 7, 3))]
+        rows = [{"weight": w, "score": int(s)} for w, s in zip((.2, .5, .3), rng.integers(-5, 6, 3))]
         new, old = ms.combine(rows), pt.combine_timeframes(rows)
         assert round(new["confidence"] * 100) == old["confidence"]
         assert old_action[(new["signal"], new["strength"])] == old["action"]
@@ -82,7 +82,7 @@ def test_record_shape():
     as_of = b.daily[-1]["trade_date"]
     r = ms.signal_at(b, as_of)
     assert r["as_of"] == date.fromisoformat(as_of) and r["definition"] == ms.DEFINITION and r["symbol"] == "TEST01"
-    assert r["signal"] in ("매수", "매도", "관망") and 0.0 <= r["confidence"] <= 1.0 and -6 <= r["composite"] <= 6
+    assert r["signal"] in ("매수", "매도", "관망") and 0.0 <= r["confidence"] <= 1.0 and -5 <= r["composite"] <= 5
     assert [t["timeframe"] for t in r["timeframes"]] == ["60m", "1d", "1w"]
     assert all("score" in t and t["last_bar"] for t in r["timeframes"])
     # 지표 값도 남긴다 — 설명 근거 표의 관측값(설계서 5.4.1)

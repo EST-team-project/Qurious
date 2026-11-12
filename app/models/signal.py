@@ -28,7 +28,7 @@ class SignalSnapshot(Base):
     signal: Mapped[str] = mapped_column(String(8), nullable=False, comment="매수 · 매도 · 관망")
     strength: Mapped[str | None] = mapped_column(String(8), comment="보통 · 강 (관망은 없음)")
     confidence: Mapped[float] = mapped_column(Float, nullable=False, comment="0 ~ 1 — 방향 일치도 ½ + 점수 크기 ½ (확률 아님)")
-    composite: Mapped[float] = mapped_column(Float, nullable=False, comment="주기 가중 점수 −6 ~ +6")
+    composite: Mapped[float] = mapped_column(Float, nullable=False, comment="주기 가중 점수 −5 ~ +5")
     agreement: Mapped[float] = mapped_column(Float, nullable=False, comment="종합 방향과 같은 주기의 가중치 비율 0 ~ 1")
 
     timeframes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list,
